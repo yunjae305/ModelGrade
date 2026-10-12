@@ -28,7 +28,7 @@ from .jev_client import JevClient, JevClientConfig, JevStatus, _sum_usage, resol
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
 from .common_adjudication import completion, questions_for, targets_for
-from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, unresolved
+from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
                                fail_evidence, incomplete_decision)
 
@@ -199,6 +199,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     # The transport has already completed any evidence recovery. Apply the
     # explicit final-outcome policy only now, before summaries/events are built.
     apply_final_decision_policy(record, state=request["state"])
+    if fail_evidence_check and isinstance((record.get("decisions") or {}).get("J5"), dict):
+        record["decisions"]["J5"]["j5_outcome"] = j5_outcome(record)
     return record
 
 

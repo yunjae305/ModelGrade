@@ -20,6 +20,21 @@ def has_reference(state):
     return value is not None and value not in ("", {}, []) and (not isinstance(value, str) or bool(value.strip()))
 
 
+def search_mode(questions, state, web_search, supported=True):
+    """J5 웹 검색 상태. 판정 정책이 '검색 불가'와 '검색했지만 근거 부족'을 구분할 때 쓴다.
+
+    live: 검색 사용 · reference: 참조 자료로만 판정(검색 안 함) · disabled: 설정으로 끔 ·
+    unsupported: 이 평가자에 검색 도구 없음 · not_requested: J5 를 묻지 않음
+    """
+    if "J5" not in questions:
+        return "not_requested"
+    if has_reference(state):
+        return "reference"
+    if not supported:
+        return "unsupported"
+    return "live" if web_search == "live" else "disabled"
+
+
 def source_url(value):
     if not isinstance(value, str) or any(c.isspace() or ord(c) < 32 for c in value) or "\\" in value:
         return None

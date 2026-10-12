@@ -28,7 +28,8 @@ from . import semantic_cli_common as semantic
 from .io import validate_json_numbers
 from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
 from .llm_client import redact
-from .semantic_evidence import CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY, finalize_answers, has_reference, source_url
+from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY, finalize_answers, has_reference,
+                                search_mode, source_url)
 from .semantic_sources import verify_web_sources
 from .semantic_recovery import evidence_recovery_prompt, merge_evidence_recovery
 
@@ -309,6 +310,7 @@ class SemanticApiClient:
         def result(status: str, **kwargs) -> JevCall:
             body = kwargs.pop("body", None) or {}
             body.setdefault("verification", verification)
+            body["verification"]["search_mode"] = search_mode(questions, state, self.config.web_search)
             if cancelled():
                 status = JevStatus.SKIPPED
                 kwargs["error"] = "평가 중단 요청으로 OpenAI API 평가를 종료했습니다."

@@ -281,8 +281,11 @@ def test_claude_cli_engine_stands_in_for_jev_with_same_criteria(tmp_path):
     assert jev["engine"] == "claude_cli" and jev["engine_label"] == "Claude CLI"
     record = jev["records"][0]
     assert record["status"] == "SUCCESS" and record["model"] == "claude-judge" and record["criteria"] == ["J1", "J4", "J5"]
-    assert decisions(record) == {"J1": "PASS", "J4": "FAIL", "J5": "FAIL"} and record["decisions"]["J4"]["reason"].startswith("J4 근거")
-    assert record['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED' and not record['review_required']
+    assert decisions(record) == {"J1": "PASS", "J4": "FAIL", "J5": None} and record["decisions"]["J4"]["reason"].startswith("J4 근거")
+    # Claude CLI has no search tool: unchecked external facts are an evaluation gap, not an answer FAIL.
+    j5 = record['decisions']['J5']
+    assert j5['status'] == 'INCOMPLETE' and j5['reason_code'] == 'J5_SEARCH_UNAVAILABLE' and record['review_required']
+    assert j5['policy_original_assessment']['status'] == 'UNVERIFIED' and j5['j5_outcome']['code'] == 'search_unavailable'
     assert record["decisions"]["J4"]["probabilities"] == {"PASS": 0.1, "FAIL": 0.9}
     html = render_report({**batch, "jev_eval": jev})
     assert "Semantic Evaluation — Claude CLI" in html and "J4 근거" in html

@@ -25,7 +25,7 @@ from .io import validate_json_numbers
 from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
 from .llm_client import redact
 from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY,
-                                finalize_answers, has_reference, source_url)
+                                finalize_answers, has_reference, search_mode, source_url)
 from .semantic_sources import verify_web_sources
 
 SEARCH_TOOL = "web_search_20250305"
@@ -315,8 +315,11 @@ class AnthropicSemanticClient:
         timings = {"api": 0.0, "source_verification": 0.0}
         verification, _ = _provenance([])
         search_enabled = self.config.web_search == "live" and "J5" in questions and not has_reference(state)
+        mode = search_mode(questions, state, self.config.web_search)
         def result(status, *, body=None, error=None, http_status=None):
             body = body or {"verification": verification}
+            body.setdefault("verification", {}).update(
+                search_mode=mode, search_limits={"searches": self.config.max_tool_calls, "fetches": self.config.max_fetches})
             body.setdefault("verification", {})["timings_ms"] = {
                 **{name: round(seconds * 1000, 1) for name, seconds in timings.items()},
                 "total": round((time.monotonic() - started) * 1000, 1)}

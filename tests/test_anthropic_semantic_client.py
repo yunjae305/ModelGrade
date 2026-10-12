@@ -523,3 +523,21 @@ def test_text_schema_keeps_code_completion_pass_fail_only():
     value = {'C1': {'choice': 'UNVERIFIED', 'confidence': .8, 'reason': 'unknown'}}
     with pytest.raises(ValueError, match='enum'):
         _text_submission([{'type': 'text', 'text': json.dumps(value)}], ('C1',))
+
+
+@pytest.mark.parametrize('config,state,ids,mode', [
+    (AnthropicSemanticConfig(), None, ('J1', 'J5'), 'live'),
+    (AnthropicSemanticConfig(web_search='disabled'), None, ('J1', 'J5'), 'disabled'),
+    (AnthropicSemanticConfig(), {'question': '질문', 'answer': '답변', 'reference': '자료'}, ('J1', 'J5'), 'reference'),
+    (AnthropicSemanticConfig(), None, ('J1',), 'not_requested'),
+])
+def test_verification_records_whether_j5_search_could_run(config, state, ids, mode):
+    # The final policy separates "search could not run" from "searched but found too little".
+    values = {**entries(*ids)}
+    if 'J5' in ids:
+        values['J5'] = {'choice': 'NOT_APPLICABLE', 'confidence': .9, 'reason': '사실 없음',
+                        'fact_check': {'basis': 'none', 'claims': []}}
+    result, sent = call(response(values), ids=ids, state=state, config=config)
+    assert result.body['verification']['search_mode'] == mode
+    assert result.body['verification']['search_limits'] == {'searches': config.max_tool_calls, 'fetches': config.max_fetches}
+    assert any(tool.get('name') == 'web_search' for tool in json.loads(sent[0].content)['tools']) is (mode == 'live')

@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, Optional
 from .jev_client import JevCall, JevStatus, _CallAccounting, _token_usage
 from .llm_client import redact
 from .semantic_cli_common import system_prompt, build_prompt, jev_answer, output_schema
-from .semantic_evidence import (finalize_answers, has_reference, source_url, FACT_CHECK_POLICY,
+from .semantic_evidence import (finalize_answers, has_reference, search_mode, source_url, FACT_CHECK_POLICY,
                                 CONTEXT_CHECK_POLICY, SEARCH_POLICY)
 from .semantic_sources import verify_web_sources
 from .cli_process import CliCancelled, run_cli
@@ -217,6 +217,7 @@ class CodexCliClient:
         def result(status: str, **kwargs) -> JevCall:
             body = kwargs.pop("body", None) or {}
             body.setdefault("verification", verification)
+            body["verification"]["search_mode"] = search_mode(questions, state, self.config.web_search)
             return JevCall(status, body=body, attempts=1,
                            usage=kwargs.pop("usage", usage), accounting=accounting.snapshot(1),
                            latency_ms=int((time.monotonic() - started) * 1000), **kwargs)

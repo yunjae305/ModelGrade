@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, Optional
 from .jev_client import JevCall, JevStatus, _CallAccounting, _token_usage, _amount
 from .llm_client import redact
 from .semantic_cli_common import SYSTEM_PROMPT, build_prompt, output_schema, jev_answer as _jev_answer
-from .semantic_evidence import finalize_answers, FACT_CHECK_POLICY, CONTEXT_CHECK_POLICY
+from .semantic_evidence import finalize_answers, search_mode, FACT_CHECK_POLICY, CONTEXT_CHECK_POLICY
 from .cli_process import CliCancelled, run_cli
 
 __all__ = ["ClaudeCliConfig", "ClaudeCliClient", "find_claude_executable", "build_prompt", "output_schema"]
@@ -181,7 +181,8 @@ class ClaudeCliClient:
             usage = _token_usage(output.get("usage"))
             return JevCall("OK", attempts=attempt, latency_ms=elapsed,
                            body=finalize_answers({"model": _model_of(output),
-                               "verification": {"search_performed": False, "source_urls": [], "source_validation": "provider"},
+                               "verification": {"search_performed": False, "source_urls": [], "source_validation": "provider",
+                                                "search_mode": search_mode(questions, state, "disabled", supported=False)},
                                "answers": {cid: _jev_answer(structured.get(cid)) for cid in ids}}, state, questions),
                            usage=usage, accounting=accounting.snapshot(attempt))
         return JevCall(status, attempts=attempt, latency_ms=int((time.monotonic() - started) * 1000),
