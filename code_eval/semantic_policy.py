@@ -9,13 +9,15 @@ from __future__ import annotations
 import copy
 
 from .semantic_evidence import finalize_answers
+from .semantic_reasons import REASON_EVIDENCE_POLICY_VERSION
 from .semantic_sources import _REASONS
 
 
 SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v1"
 FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v1"
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
-DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION}
+DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
+                   "judge_fail_evidence": REASON_EVIDENCE_POLICY_VERSION}
 SOURCE_ORIGINAL_FAILURE_REASON = "출처 원문 확인 실패로 검증 기준 미충족"
 SOURCE_ORIGINAL_FAILURE_CODE = "SOURCE_ORIGINAL_UNAVAILABLE"
 FINAL_EVIDENCE_FAILURE_CODE = "EVALUATION_EVIDENCE_INSUFFICIENT"
@@ -38,6 +40,12 @@ SOURCE_ORIGINAL_FAILURE_STATUSES = frozenset({
 _LEGACY_FAILURE_REASONS = {
     _REASONS[status]: status for status in SOURCE_ORIGINAL_FAILURE_STATUSES
 }
+
+
+def unresolved(decision):
+    """판정이 확정되지 않은 기준 — 확인 필요(UNVERIFIED) 또는 판정 미완료(INCOMPLETE)."""
+    return (isinstance(decision, dict) and decision.get("status") in ("UNVERIFIED", "INCOMPLETE")
+            and decision.get("decision") not in ("PASS", "FAIL"))
 
 
 def _has_verified_alternative(sources, basis):
@@ -129,9 +137,7 @@ def apply_source_original_failure_policy(record):
                                "outcome_basis": "source_verification_requirement",
                                "factual_error_confirmed": False, "failures": copy.deepcopy(failures)})
     record["decision_policy"] = copy.deepcopy(SOURCE_DECISION_POLICY)
-    record["review_required"] = any(
-        isinstance(decision, dict) and decision.get("status") == "UNVERIFIED"
-        for decision in record["decisions"].values())
+    record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
     return result
 
 
@@ -243,8 +249,7 @@ def apply_final_decision_policy(record, *, state=None):
                                          "outcome_basis": "evidence_requirement", "factual_error_confirmed": False})
         result["changes"].append({"criterion_id": cid, "decision": "FAIL", "reason_code": FINAL_EVIDENCE_FAILURE_CODE})
     result["changed"] = bool(result["changes"])
-    if result["changed"]:
+    if result["changed"] or record.get("reevaluation"):
         record["decision_policy"] = copy.deepcopy(DECISION_POLICY)
-        record["review_required"] = any(isinstance(decision, dict) and decision.get("status") == "UNVERIFIED"
-                                         for decision in record["decisions"].values())
+        record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
     return result

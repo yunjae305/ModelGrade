@@ -102,7 +102,7 @@ def test_no_factual_claims_are_excluded_from_all_quality_denominators():
     assert record['decisions']['J5']['fact_check'] == {'basis': 'none', 'claims': []}
     assert 'J5' not in record['applicability']['evidence'] and 'J5' in record['applicability']['not_applicable']
     assert record['applicability']['screening']['J5']['status'] == 'NOT_APPLICABLE'
-    assert batch['jev_eval']['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 0, 'pass': 0, 'fail': 0, 'pending': 0, 'unverified': 0}
+    assert batch['jev_eval']['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 0, 'pass': 0, 'fail': 0, 'pending': 0, 'unverified': 0, 'incomplete': 0}
     assert batch['jev_eval']['completed'] == 1 and not record['review_required']
     summary = combined_summary(batch)
     assert (summary['pass'], summary['fail'], summary['pending']) == (1, 0, 0)
@@ -149,7 +149,7 @@ def test_unverified_j5_finishes_as_evidence_policy_fail_with_original_audit():
     jev = batch['jev_eval']
     assert jev['engine_label'] == 'OpenAI API' and jev['status'] == 'SUCCESS'
     assert jev['completed'] == 1 and jev['review_required'] == 0 and jev['unverified'] == 0
-    assert jev['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 1, 'pass': 0, 'fail': 1, 'unverified': 0, 'pending': 0}
+    assert jev['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 1, 'pass': 0, 'fail': 1, 'unverified': 0, 'incomplete': 0, 'pending': 0}
     summary = combined_summary(batch)
     assert (summary['pass'], summary['fail'], summary['pending']) == (0, 1, 0)
     assert summary['semantic_unverified'] == summary['review_required'] == 0
@@ -162,7 +162,9 @@ def test_unverified_j5_finishes_as_evidence_policy_fail_with_original_audit():
 
 
 def test_existing_fail_evidence_survives_another_unverified_criterion():
-    judge = EvidenceJudge({'J1': entry('FAIL'), 'J5': entry('UNVERIFIED', fact_check={'basis': 'none', 'claims': []})})
+    # A FAIL that quotes the evaluated answer is confirmed evidence (no re-evaluation needed).
+    judge = EvidenceJudge({'J1': entry('FAIL', reason="'A response' does not explain it"),
+                           'J5': entry('UNVERIFIED', fact_check={'basis': 'none', 'claims': []})})
     batch = evaluate([{'case_id': 'q', 'question': 'Explain this', 'answer': 'A response', 'reference': {'fact': 'value'}}], judge)
     summary = combined_summary(batch)
     assert summary['fail'] == 1 and summary['pass'] == 0 and summary['semantic_pending'] == 0

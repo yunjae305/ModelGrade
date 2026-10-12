@@ -107,7 +107,7 @@ def test_case1_normal_answer_code_pass_and_jev_all_pass_through_official_endpoin
     assert record["status"] == "SUCCESS" and record["model"] == "jev-1.13.0"
     assert decisions(record) == dict.fromkeys(J_IDS, "PASS")
     assert record["decisions"]["J1"]["confidence"] == 0.92
-    assert jev["status"] == "SUCCESS" and jev["summary"]["J1"] == {"name": "의도 충족성", "targets": 1, "pass": 1, "fail": 0, "pending": 0, "unverified": 0}
+    assert jev["status"] == "SUCCESS" and jev["summary"]["J1"] == {"name": "의도 충족성", "targets": 1, "pass": 1, "fail": 0, "pending": 0, "unverified": 0, "incomplete": 0}
     # 질문 하나에 한 번만 호출하고, 그 안에 적용 기준(여기서는 J1~J5)을 choice(PASS/FAIL) 로 함께 보낸다
     assert len(seen) == 1
     request = seen[0]
@@ -264,7 +264,8 @@ def test_claude_cli_engine_stands_in_for_jev_with_same_criteria(tmp_path):
         out = {"is_error": False, "total_cost_usd": 0.02, "usage": {"input_tokens": 900, "output_tokens": 80},
                "modelUsage": {"claude-helper": {"outputTokens": 3}, "claude-judge": {"outputTokens": 80}},
                "structured_output": {cid: {"choice": "FAIL" if cid == "J4" else "PASS", "confidence": 0.8,
-                                           "reason": f"{cid} 근거"} for cid in schema["required"]}}
+                                           "reason": f"{cid} 근거: '교통비와 식비도 아낄 수 있습니다' 외 단점이 없음"}
+                                     for cid in schema["required"]}}
         if 'J5' in schema['required']:
             out['structured_output']['J5'].update(choice='UNVERIFIED', confidence=0.0,
                 fact_check={'basis': 'none', 'claims': []}, reason='검색과 참조 자료가 없어 사실 확인 필요')
@@ -280,7 +281,7 @@ def test_claude_cli_engine_stands_in_for_jev_with_same_criteria(tmp_path):
     assert jev["engine"] == "claude_cli" and jev["engine_label"] == "Claude CLI"
     record = jev["records"][0]
     assert record["status"] == "SUCCESS" and record["model"] == "claude-judge" and record["criteria"] == ["J1", "J4", "J5"]
-    assert decisions(record) == {"J1": "PASS", "J4": "FAIL", "J5": "FAIL"} and record["decisions"]["J4"]["reason"] == "J4 근거"
+    assert decisions(record) == {"J1": "PASS", "J4": "FAIL", "J5": "FAIL"} and record["decisions"]["J4"]["reason"].startswith("J4 근거")
     assert record['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED' and not record['review_required']
     assert record["decisions"]["J4"]["probabilities"] == {"PASS": 0.1, "FAIL": 0.9}
     html = render_report({**batch, "jev_eval": jev})
@@ -348,7 +349,7 @@ def test_conversation_turns_send_history_in_turn_order_and_ask_j6_from_second_tu
     # J5 기준: 참조 데이터가 있으면 reference, 없으면 engine, J5 를 묻지 않았으면 None
     assert (first["j5_basis"], second["j5_basis"], third["j5_basis"]) == (None, "reference", "engine")
     assert decisions(third)["J6"] == "FAIL" and decisions(second)["J6"] == "PASS"
-    assert jev["summary"]["J6"] == {"name": "LONG CONTEXT", "targets": 2, "pass": 1, "fail": 1, "pending": 0, "unverified": 0}
+    assert jev["summary"]["J6"] == {"name": "LONG CONTEXT", "targets": 2, "pass": 1, "fail": 1, "pending": 0, "unverified": 0, "incomplete": 0}
     conv = jev["conversations"]
     assert (conv["count"], conv["pass"], conv["fail"], conv["incomplete"], conv["rate"]) == (1, 0, 1, 0, 0.0)
     item = conv["items"][0]
