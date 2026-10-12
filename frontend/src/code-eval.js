@@ -416,7 +416,8 @@ function jevBlock(rec) {
         c.id === 'J5' && rec.j5_basis ? el('div', { class: 'jev-reason', text: J5_BASIS[rec.j5_basis] || rec.j5_basis }) : null),
       el('td', {}, d ? badge(d.decision, d.status || 'EXECUTED') : el('span', { class: 'st', text: '미실행' }),
         d && ['PASS', 'FAIL'].includes(d.decision) && Number.isFinite(d.confidence) ? el('span', { class: 'jev-conf', text: ` 판단 확신도 ${Math.round(d.confidence * 100)}%` }) : null,
-        d && d.reason ? el('div', { class: 'jev-reason', text: d.reason }) : null));
+        d && d.reason ? el('div', { class: 'jev-reason', text: d.reason }) :
+          d && d.decision === 'FAIL' ? el('div', { class: 'jev-reason', text: '평가자가 FAIL 근거를 남기지 않았습니다.' }) : null));
   });
   box.append(el('div', { class: 'table-wrap' }, el('table', { class: 'jev-table' },
     el('thead', {}, el('tr', {}, ...['평가할 기준', '이 질문에서 볼 것', '결과'].map((h) => el('th', { text: h })))), el('tbody', {}, ...rows))));

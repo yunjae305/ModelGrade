@@ -458,6 +458,8 @@ def _jev_case(record: Any, label: str, criteria: List[Dict[str, Any]]) -> str:
                 result += f' <span class="st">판단 확신도 {confidence * 100:.0f}%</span>'
             if d.get("reason"):
                 result += f'<div class="note">{_e(d["reason"])}</div>'
+            elif d.get("decision") == "FAIL":
+                result += '<div class="note">평가자가 FAIL 근거를 남기지 않았습니다.</div>'
         else:
             result = '<span class="st">미실행</span>'
         rows.append(f'<tr><th scope="row">{_e(c["id"])} {_e(c.get("name") or c["id"])}</th><td>{what}</td><td>{result}</td></tr>')

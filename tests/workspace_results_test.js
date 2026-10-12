@@ -280,4 +280,11 @@ for (const status of ['EVALUATING', 'COMPLETED', 'ERROR', 'CANCELLED']) {
   assert.equal(caseState(r, 'aiona', 2).pending, false);
   assert.equal(caseState(r, 'aiona', 2).criteriaComplete, false);
 }
+// A cancelled request is an interruption, not an empty input; waiting rows during a run do not ask to start.
+assert.equal(caseState(result([code()], [sem('SKIPPED', null, '평가 중단 요청으로 의미평가를 완료하지 못했습니다.')]), 'aiona', 0).semantic.text, '평가 중단');
+assert.equal(caseState(result([code()], [sem('SKIPPED', null, 'CODE 입력 검증 결과 INPUT_ERROR — 평가할 질문·답변이 없음')]), 'aiona', 0).semantic.text, '평가 제외');
+r = result([code()], [null]); delete r.evaluations; r.status = 'EVALUATING';
+assert.doesNotMatch(caseState(r, 'aiona', 0).detail, /시작해 주세요/);
+r.status = 'READY';
+assert.match(caseState(r, 'aiona', 0).detail, /시작해 주세요/);
 console.log('Exclusive question outcomes, short reasons with intact originals and unsettled rates passed.');

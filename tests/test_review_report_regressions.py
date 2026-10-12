@@ -76,6 +76,14 @@ def test_combined_keeps_each_duplicate_fail_and_its_input_index(duplicate_batch)
     assert batch["cases"] == before and result_digest(batch["cases"]) == batch["result_digest"]
 
 
+def test_semantic_fail_without_judge_reason_says_so_instead_of_blank(duplicate_batch):
+    # The fixture judge returns J6 FAIL without a reason; the report must not invent one.
+    records = duplicate_batch["jev_eval"]["records"]
+    assert any(r.get("decisions", {}).get("J6", {}).get("decision") == "FAIL" and "reason" not in r["decisions"]["J6"]
+               for r in records if r)
+    assert "평가자가 FAIL 근거를 남기지 않았습니다." in render_report(duplicate_batch)
+
+
 def test_report_links_resolve_to_the_right_duplicate_without_changing_display_ids(duplicate_batch):
     html = render_report(duplicate_batch)
     parsed = _Links(html)

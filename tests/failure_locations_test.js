@@ -174,6 +174,18 @@ function verifyPartition(answer, result) {
 
 // Read-only verification of the reported saved case; no fixture is written back.
 const actualPath = path.join(__dirname, '../data/comparison_runs/ad9bc5c843b1.json');
+{
+  // Policy FAILs keep the policy sentence and also expose the evaluator's concrete reason.
+  const answer = 'Only claim.';
+  const record = j5([claim('Only claim.', 'UNVERIFIED', {reason: '공식 문서에서 수치를 찾지 못함'})]);
+  Object.assign(record.decisions.J5, {reason_code: 'EVALUATION_EVIDENCE_INSUFFICIENT', reason: '평가 근거 부족으로 검증 기준 미충족'});
+  const located = locateFailures(answer, null, record).findings[0];
+  assert.equal(located.reason, '평가 근거 부족으로 검증 기준 미충족 · 공식 문서에서 수치를 찾지 못함');
+  const j2 = semantic({J2: {decision: 'FAIL', reason_code: 'EVALUATION_EVIDENCE_INSUFFICIENT', reason: '평가 근거 부족으로 검증 기준 미충족',
+    policy_original_assessment: {decision: 'UNVERIFIED', reason: '기준 시점 불명확'}}});
+  assert.equal(locateFailures(answer, null, j2).findings[0].reason, '평가 근거 부족으로 검증 기준 미충족 · 기준 시점 불명확');
+}
+
 if (fs.existsSync(actualPath)) {
   const bytes = fs.readFileSync(actualPath);
   const run = JSON.parse(bytes), batch = run.evaluations.claude;

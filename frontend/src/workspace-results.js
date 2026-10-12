@@ -78,6 +78,8 @@
       text = '시간 초과'; reason = '제한 시간 안에 의미 평가 결과를 받지 못했습니다.';
     } else if (record?.status === 'INVALID_RESPONSE' || record?.status === 'SUCCESS') {
       text = '판정 오류'; reason = '의미 평가 응답에 필요한 판정이 없어 평가를 완료하지 못했습니다.';
+    } else if (record?.status === 'SKIPPED' && /^평가 중단 요청/.test(String(record.error || ''))) {
+      text = '평가 중단'; reason = '평가 중단 요청으로 이 질문의 의미 평가를 마치지 못했습니다.';
     } else if (record?.status === 'SKIPPED') {
       text = '평가 제외'; reason = '평가할 질문·답변이 없어 의미 평가에서 제외했습니다.';
     } else if (record?.status === 'INTERRUPTED') {
@@ -108,13 +110,13 @@
     const display = (value) => typeof value === 'object' ? JSON.stringify(value) : String(value);
     policyDecisions.forEach(([id, decision]) => {
       const sourceFailure = decision.reason_code === 'SOURCE_ORIGINAL_UNAVAILABLE';
-      const failed = decision.decision === 'FAIL';
+      const failed = decision.decision === 'FAIL', prior = decision.policy_original_assessment;
       box.append(make('div', {class: failed ? 'semantic-policy-failure' : 'semantic-policy-pass',
         [sourceFailure ? 'data-source-policy-detail' : 'data-evidence-policy-detail']: ''},
         make('strong', {text: `${id} ${decision.decision} · ` + (sourceFailure ? '출처 원문 확인 실패' : failed ? '검증 기준 미충족' : '제공 자료 대조 완료')}),
         note(decision.reason || '최종 검증 기준에 따라 판정했습니다.'),
+        failed ? note(prior.reason ? '구체 사유: ' + prior.reason : '평가자가 남긴 구체 사유가 없습니다.') : null,
         failed ? note('근거 검증 기준 미충족에 따른 FAIL입니다. 주장 자체의 오류를 확정한 것은 아닙니다.') : null));
-      const prior = decision.policy_original_assessment;
       box.append(make('details', {class: 'semantic-policy-original'},
         make('summary', {text: '정책 적용 전 판정·사유'}),
         note('이전 판정: ' + verdict(prior.decision)), note(prior.reason || '별도 사유 없음'),
@@ -194,7 +196,8 @@
       checks, fails, complete: false, text: '평가 대기', kind: 'neutral', reason: ''};
     const semantic = semanticState(!record && batch?.live && ['ERROR', 'CANCELLED'].includes(result.status) ?
       {status: 'INTERRUPTED', error: result.error} : record, batch?.jev_eval?.access_reason);
-    let outcome = 'waiting', detail = '답변 원문이 준비되어 있습니다. 평가를 시작해 주세요.';
+    let outcome = 'waiting', detail = result?.status === 'EVALUATING' ? '평가를 진행하고 있습니다. 이 모델의 코드 검사 결과가 아직 저장되지 않았습니다.' :
+      '답변 원문이 준비되어 있습니다. 평가를 시작해 주세요.';
     if (!source || (provider !== 'aiona' && source.collection?.status !== 'SUCCESS')) {
       outcome = batch ? 'pending' : 'waiting';
       detail = !source || source.collection?.status === 'NOT_COLLECTED' ? '답변이 수집되지 않았습니다.' :

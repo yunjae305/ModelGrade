@@ -75,7 +75,8 @@
     const unlocated = locations.findings.filter((finding) => !finding.spans.length);
     if (unlocated.length) root.append(make('div', {class: 'answer-highlight-unlocated', 'data-failure-unlocated': ''},
       ...unlocated.map((finding) => make('div', {}, make('strong', {text: finding.title}),
-        make('p', {text: finding.locationNote || '특정 문장 위치 없음 · 저장된 근거에서 답변 구간을 찾지 못했습니다.'})))));
+        make('p', {text: finding.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'}),
+        make('p', {class: 'field-help', text: finding.locationNote || '특정 문장 위치 없음 · 저장된 근거에서 답변 구간을 찾지 못했습니다.'})))));
     root.append(pre);
     if (marks.length) requestAnimationFrame(() => {
       if (!pre.isConnected || !pre.clientHeight) return;

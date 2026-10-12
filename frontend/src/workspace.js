@@ -694,7 +694,7 @@
         } else {
           cell.append(node('strong', {class: 'criterion-rate ' + (metric.pending || metric.unknown ? 'has-pending' : metric.failed ? 'has-fail' : 'all-pass'), text: metric.pending || metric.unknown ? '미확정' : percent(metric.rate)}),
             node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL`}),
-            node('span', {class: 'criterion-targets', text: `${criterion.unit} ${number(metric.targets)}개 대상${metric.pending ? ' · 미판정 ' + number(metric.pending) : ''}${metric.unknown ? ' · 집계 중' : ''}${metric.excluded ? ' · 제외 ' + number(metric.excluded) : ''}`}));
+            node('span', {class: 'criterion-targets', text: `${criterion.unit} ${number(metric.targets)}개 대상${metric.pending ? ' · 미판정 ' + number(metric.pending) : ''}${metric.unknown ? ' · 집계 중' : ''}${metric.excluded ? ' · 제외 답변 ' + number(metric.excluded) + '개' : ''}`}));
           if (criterion.group === 'semantic' && metric.pending) {
             const reasons = [['unverified', '근거 확인 필요'], ['errors', '평가 오류'], ['missing', '판정 누락']]
               .filter(([key]) => metric.pendingReasons[key]).map(([key, label]) => `${label} ${number(metric.pendingReasons[key])}`);
@@ -1018,7 +1018,7 @@
     }
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || d.status === 'UNVERIFIED')) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
-      findings.append(node('li', {}, node('strong', {text: (decision.status === 'UNVERIFIED' ? '확인 필요 · ' : '의미 평가 · ') + (criterion?.name || id)}), node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) : decision.reason || '이 의미 기준을 충족하지 못했습니다.'})));
+      findings.append(node('li', {}, node('strong', {text: (decision.status === 'UNVERIFIED' ? '확인 필요 · ' : '의미 평가 · ') + (criterion?.name || id)}), node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));
     }
     const locationCount = highlighted?.locations.segments.filter((segment) => segment.findingIds.length).length || 0;
     if (locationCount) {

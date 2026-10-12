@@ -163,6 +163,9 @@
     return segments;
   }
 
+  // Policy FAILs show the policy sentence and the evaluator's concrete reason together.
+  const joinReasons = (...parts) => [...new Set(parts.filter((part) => typeof part === 'string' && part.trim()))].join(' · ');
+
   function locateFailures(value, codeCase, semanticRecord) {
     const answer = text(value), findings = [], lines = answerLines(answer), projection = whitespaceProjection(answer);
     const aligned = typeof codeCase?.answer !== 'string' || codeCase.answer === answer;
@@ -195,17 +198,18 @@
           list(facts?.claims).forEach((claim, index) => {
             if (!claim || (policy ? claim.verdict !== 'UNVERIFIED' || decision.reason_code === 'SOURCE_ORIGINAL_UNAVAILABLE' && !sourceIndices.has(index) : claim.verdict !== 'FAIL')) return;
             locatedEvidence = true;
-            add({...base, id: `${prefix}:claim:${index}`, reason: policy ? decision.reason || claim.reason || '' : claim.reason || decision.reason || ''}, claimMatches(answer, text(claim.claim), projection));
+            add({...base, id: `${prefix}:claim:${index}`, reason: policy ? joinReasons(decision.reason, claim.reason) : claim.reason || decision.reason || ''}, claimMatches(answer, text(claim.claim), projection));
           });
         } else if (cid === 'J6') {
           const checks = decision.context_checks || decision.policy_original_assessment?.context_checks;
           list(checks).forEach((check, index) => {
             if (!check || check.decision !== (policy ? 'UNVERIFIED' : 'FAIL')) return;
             locatedEvidence = true;
-            add({...base, id: `${prefix}:context:${index}`, reason: policy ? decision.reason || check.reason || '' : check.reason || decision.reason || ''}, claimMatches(answer, text(check.answer_quote), projection));
+            add({...base, id: `${prefix}:context:${index}`, reason: policy ? joinReasons(decision.reason, check.reason) : check.reason || decision.reason || ''}, claimMatches(answer, text(check.answer_quote), projection));
           });
         }
-        if (!locatedEvidence) add({...base, id: `${prefix}:decision`, reason: decision.reason || ''},
+        if (!locatedEvidence) add({...base, id: `${prefix}:decision`,
+          reason: policy ? joinReasons(decision.reason, decision.policy_original_assessment?.reason) : decision.reason || ''},
           policy || cid === 'J6' ? [] : genericQuotes(answer, decision));
       }
     }
