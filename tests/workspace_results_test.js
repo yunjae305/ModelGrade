@@ -287,4 +287,12 @@ r = result([code()], [null]); delete r.evaluations; r.status = 'EVALUATING';
 assert.doesNotMatch(caseState(r, 'aiona', 0).detail, /시작해 주세요/);
 r.status = 'READY';
 assert.match(caseState(r, 'aiona', 0).detail, /시작해 주세요/);
+// CODE conditions still unresolved after a finished semantic call name the completion failure.
+r = result([code(1, 0, 1), code(1, 0, 1)], [{...sem(), code_completion: {status: 'INVALID_RESPONSE', error: '공통 보완 판정의 근거가 없습니다'}}, sem()]);
+assert.equal(caseState(r, 'aiona', 0).outcome, 'pending');
+assert.equal(caseState(r, 'aiona', 0).code.pendingReason, '코드 보완 판정 실패');
+assert.equal(caseState(r, 'aiona', 0).detail, '코드 보완 판정 실패 · 공통 보완 판정의 근거가 없습니다');
+assert.equal(caseState(r, 'aiona', 1).code.pendingReason, '코드 보완 판정 기록 없음');
+assert.equal(modelSummary(r, 'aiona', 2).codeIncomplete, 2);
+assert.equal(modelSummary(r, 'aiona', 2).semanticIncomplete, 0);
 console.log('Exclusive question outcomes, short reasons with intact originals and unsettled rates passed.');

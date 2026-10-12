@@ -828,15 +828,17 @@
             + (semantic.client?.requested_model ? ' · ' + semantic.client.requested_model : '')
             + (semantic.client?.reasoning_effort ? ' · 추론 ' + semantic.client.reasoning_effort : '')})));
       const reasons = new Map(), originals = new Map();
-      summary.rows.filter((r) => r.pending && r.code.checks.length && !r.semantic.complete && (!batch.live || !r.semantic.waiting && !r.semantic.inProgress)).forEach((r) => {
-        reasons.set(r.semantic.reason, (reasons.get(r.semantic.reason) || 0) + 1);
-        const full = r.semantic.rawReason || r.semantic.reason;
+      summary.rows.filter((r) => r.pending && r.code.checks.length && (r.semantic.complete ? r.code.pendingReason :
+        !batch.live || !r.semantic.waiting && !r.semantic.inProgress)).forEach((r) => {
+        const reason = r.semantic.complete ? r.code.pendingReason : r.semantic.reason;
+        reasons.set(reason, (reasons.get(reason) || 0) + 1);
+        const full = r.semantic.complete ? r.code.pendingDetail : r.semantic.rawReason || r.semantic.reason;
         originals.set(full, (originals.get(full) || 0) + 1);
       });
       if (reasons.size) {
         const entries = [...reasons].sort((a, b) => b[1] - a[1]);
         const reasonNode = ([reason, n]) => node('p', {text: reason + ' (' + number(n) + '개)'});
-        const content = node('div', {}, node('strong', {text: '미완료 사유 · ' + number(summary.semanticIncomplete) + '개 질문'}),
+        const content = node('div', {}, node('strong', {text: '미완료 사유 · ' + number(summary.semanticIncomplete + summary.codeIncomplete) + '개 질문'}),
           ...entries.slice(0, 3).map(reasonNode));
         if (originals.size) {
           const key = run.run_id + ':' + p;
