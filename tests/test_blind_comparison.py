@@ -230,6 +230,9 @@ def test_auto_collection_cancel_does_not_start_judge(tmp_path):
         assert release.wait(5)
         return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': '  reply\n'}]}]})
     service = make_service(tmp_path, judge, handler)
+    # 두 질문은 서로 다른 수집 체인이라 병렬로 시작할 수 있다. 중단 전에 q2 가 이미 전송되면 답변이 저장되는 것이 맞으므로
+    # (완료된 답변은 보존), 이 테스트는 체인 1개로 돌려 'q1 수집 중 중단 → q2 는 보내지 않음' 만 확인한다.
+    service.collection_workers = 1
     rid = service.start({'cases': [{'question': 'q1', 'answer': 'a1'}, {'question': 'q2', 'answer': 'a2'}],
                          'providers': ['gpt'], 'blind': True, 'auto_evaluate': True})['run_id']
     try:

@@ -42,7 +42,8 @@ def parse_item_answers(items: Any, questions: Dict[str, Any]) -> Dict[str, List[
     """검증을 마친 body["items"] 를 {criterion_id: [item…]} 로 묶는다 (기준표 순서).
 
     보내지 않은 항목 ID 나 잘못된 decision 은 ValueError. 보낸 항목 중 응답에 없는 ID 는 ``problems=["missing_answer"]`` 인 자리표시
-    항목(decision NO · unverifiable)으로 채운다 — 판정에 '모른다' 값은 없다. 각 item 에 ``item_id``(base)·``element``(#n) 를 더한다.
+    항목(decision NO · unverifiable)으로 채운다 — 판정에 '모른다' 값은 없다. 각 item 에 ``item_id``(base)·``element``(#n)·``origin``
+    (항목 계약의 question|answer — 충족률 분모 판정에 쓴다) 를 더한다.
     """
     if not isinstance(items, list):
         raise ValueError("items 배열 없음")
@@ -64,6 +65,8 @@ def parse_item_answers(items: Any, questions: Dict[str, Any]) -> Dict[str, List[
         item = copy.deepcopy(raw)
         item["item_id"] = base
         item["element"] = element
+        # origin 은 서버 소유(verify_items 가 적지만, 재확인 뒤 만들어진 자리표시 항목에는 없다) — 항목 계약의 값으로 확정한다
+        item["origin"] = spec.get("origin") or (SPECS_BY_ID[base].origin if base in SPECS_BY_ID else "question")
         grouped[cid].append(item)
         answered.add(base)
     for base, spec in questions.items():
