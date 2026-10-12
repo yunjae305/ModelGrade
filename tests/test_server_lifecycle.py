@@ -97,7 +97,7 @@ def test_interrupt_exits_with_saved_results_and_closed_listener(tmp_path, mode, 
         stdout, stderr = process.communicate(timeout=15)
         assert process.returncode == exitcode, (stdout, stderr)
         assert time.monotonic() - started < 12
-        assert 'Traceback' not in stderr and '[LLM 비용]' in stdout
+        assert 'Traceback' not in stderr and '[LLM 비용]' not in stdout
         saved = json.loads((tmp_path / 'runs' / (info['run_id'] + '.json')).read_text(encoding='utf-8'))
         assert saved['status'] == 'CANCELLED'
         assert saved['datasets']['aiona'][0]['answer'] == '  answer\r\n'
@@ -109,7 +109,7 @@ def test_interrupt_exits_with_saved_results_and_closed_listener(tmp_path, mode, 
             connection.settimeout(.5)
             assert connection.connect_ex(('127.0.0.1', info['port'])) != 0
         if mode == 'http':
-            assert '미확인' in stdout and '강제 종료' in stdout
+            assert '강제 종료' in stdout
         else:
             assert all(r['status'] == 'SKIPPED' for r in records[1:])
             assert '결과 저장 완료' in stdout

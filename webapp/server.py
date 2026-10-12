@@ -290,7 +290,7 @@ def stop_services(server, *, timeout=10):
         time.sleep(0.05)
     if not drained:
         step('CLI 종료', terminate_active_cli)
-        step('비용 집계', comparison.finish_shutdown_costs)
+        step('실행 기록 정리', comparison.finish_shutdown_costs)
         notice('저장된 결과는 유지됩니다. 응답이 끝나지 않은 작업을 강제 종료합니다.')
     else:
         notice('작업 중단 및 결과 저장 완료. 서버를 종료합니다.')

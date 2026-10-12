@@ -162,7 +162,7 @@ def test_shutdown_between_acceptance_and_worker_start_does_not_launch_collection
         release.set()
 
 
-def test_forced_shutdown_reports_partial_cost_limit_once_and_late_worker_cannot_complete(tmp_path, capsys):
+def test_forced_shutdown_prints_no_cost_and_late_worker_cannot_complete(tmp_path, capsys):
     entered, release = threading.Event(), threading.Event()
     class Judge:
         config = JevClientConfig()
@@ -178,7 +178,7 @@ def test_forced_shutdown_reports_partial_cost_limit_once_and_late_worker_cannot_
         service.finish_shutdown_costs()
         first = capsys.readouterr().out
         service.finish_shutdown_costs()
-        assert "진행 중인 요청의 사용량·비용은 미확인" in first
+        assert not first
         assert not capsys.readouterr().out
         release.set()
         assert service.shutdown(timeout=3) is True

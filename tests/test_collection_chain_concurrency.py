@@ -135,7 +135,7 @@ def test_actual_68_questions_keep_204_calls_original_text_indices_and_model_spec
     assert saved['datasets'] == result['datasets']
     assert not result['evaluations'] and not service._cost_ledgers
     output = capsys.readouterr().out
-    assert output.count('[LLM 비용]') == 1 and output.count('호출 68건') == 3
+    assert '[LLM 비용]' not in output
     assert '미확인' not in output and 'fixture-only' not in output
 
 
@@ -146,7 +146,7 @@ def small_cases():
              {'id': f'S{i}', 'question': f' S{i}\r\n', 'answer': f'AIONA S{i}'} for i in range(4)]
 
 
-def test_failed_turn_breaks_only_its_own_chain_without_extra_request_or_cost(tmp_path, capsys):
+def test_failed_turn_breaks_only_its_own_chain_without_extra_request(tmp_path, capsys):
     captured = []
     def handle(request):
         provider, messages = decode(request)
@@ -164,8 +164,7 @@ def test_failed_turn_breaks_only_its_own_chain_without_extra_request_or_cost(tmp
     assert 'latency_ms' not in rows[0]['collection'] and rows[2]['collection']['latency_ms'] >= 0
     assert all(row['collection']['status'] == 'SUCCESS' for row in rows[3:])
     assert result['progress']['gpt']['done'] == 10 and result['progress']['gpt']['failed'] == 2
-    output = capsys.readouterr().out
-    assert '호출 9건' in output and '미확인 1건 제외' in output
+    assert '[LLM 비용]' not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize('shutdown', [False, True])
@@ -199,7 +198,7 @@ def test_parallel_cancellation_preserves_all_inflight_answers_and_starts_no_more
             assert row['answer'] == answer('claude', [{'role': 'user', 'content': row['question']}])
         assert not result['evaluations'] and result['done'] == 3 and not service._cost_ledgers
         assert result['progress']['claude']['active'] is None
-        assert '호출 3건' in capsys.readouterr().out
+        assert '[LLM 비용]' not in capsys.readouterr().out
     finally:
         release.set()
 

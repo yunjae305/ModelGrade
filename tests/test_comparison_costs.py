@@ -304,7 +304,7 @@ def test_finish_failure_does_not_change_completion(tmp_path, ledgers, monkeypatc
     assert not service._cost_ledgers
 
 
-def test_real_ledger_reports_four_models_once_and_never_serializes_money(tmp_path, capsys):
+def test_comparison_never_calculates_or_prints_api_costs(tmp_path, capsys):
     from code_eval.semantic_api_client import SemanticApiConfig
 
     class ApiJudge(Judge):
@@ -345,13 +345,8 @@ def test_real_ledger_reports_four_models_once_and_never_serializes_money(tmp_pat
         judge.release.set()
         until(lambda: service.status(rid)['status'] == 'COMPLETED')
         console = capsys.readouterr().out
-        assert console.count('[LLM 비용]') == 1
-        assert '수집 | gpt | gpt-6-luna | 추정액 $0.000150 | 호출 1건' in console
-        assert '수집 | claude | claude-sonnet-5-5 | 추정액 $0.003000 | 호출 1건' in console
-        assert '수집 | gemini | gemini-3.8-flash | 추정액 $0.001125 | 호출 1건' in console
-        assert '평가 | openai_api | gpt-6.1-sol | 추정액 $0.012000 | 호출 4건' in console
-        assert '추정 합계: $0.016275' in console
-        assert '미확인' not in console and 'fixture-private-key' not in console and 'fixture question' not in console
+        assert '[LLM 비용]' not in console and '추정' not in console and '$' not in console
+        assert 'fixture-private-key' not in console and 'fixture question' not in console
         outputs = [service.status(rid), service.result(rid), service.history(), service.event_stream(rid).snapshot(),
                    json.loads(service.export(rid))]
         outputs.extend(json.loads(service.export(rid, provider)) for provider in ('aiona', *models))

@@ -19,7 +19,6 @@ from pathlib import Path
 import httpx
 
 from code_eval.core import LIMITS
-from code_eval.cost_reporting import CostLedger
 from code_eval.common_adjudication import resolved_case
 from code_eval import jev_eval
 from code_eval.engine import _conversation_of
@@ -45,6 +44,19 @@ DEFAULT_SEMANTIC_WORKERS = 12
 MAX_SEMANTIC_WORKERS = 16
 DEFAULT_COMPARISON_DATASET = ROOT / "data" / "code_eval" / "AIONA_winz_Q165_Q100_multiturn65_v1.json"
 PUBLIC_COMPARISON_DATASET = ROOT / "examples" / "questions.sample.json"
+
+
+class CostLedger:
+    """API 비용은 계산하지 않는다. 실행이 끝났는지 표시하는 수명 주기 자리만 유지한다."""
+
+    def record_collection(self, provider, configured_model, raw=None):
+        pass
+
+    def wrap_resolver(self, resolver):
+        return resolver
+
+    def finish(self, run_id, status):
+        pass
 
 
 def normalize_dataset(payload):
@@ -276,15 +288,10 @@ class ComparisonService:
             return drained
 
     def finish_shutdown_costs(self):
-        """Last-resort terminal report before the server exits with live calls."""
+        """Close cancelled runs' ledgers before the server exits with live calls."""
         with self._lock:
             unfinished = [(rid, ledger) for rid, ledger in self._cost_ledgers.items()
                           if self._runs.get(rid, {}).get("status") == "CANCELLED"]
-            if unfinished:
-                try:
-                    print("중단 시점에 진행 중인 요청의 사용량·비용은 미확인이며 합계에서 제외됩니다.", flush=True)
-                except (OSError, ValueError):
-                    pass  # Closing a terminal must not prevent server shutdown.
             for run_id, ledger in unfinished:
                 self._finish_costs(self._runs[run_id], ledger)
 
