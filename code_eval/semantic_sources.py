@@ -45,13 +45,19 @@ _QUOTE_TYPOGRAPHY = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', 
 
 
 class SourceError(Exception):
-    def __init__(self, status):
-        self.status = status
+    def __init__(self, status, detail=None):
+        self.status, self.detail = status, detail
         super().__init__(status)
 
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _same_site(host, other):
+    """같은 발행처 — 호스트가 같거나 앞의 'www.' 만 다르다. 다른 하위 도메인·도메인은 다른 발행처다."""
+    strip = lambda name: name[4:] if name.startswith("www.") else name
+    return host == other or strip(host) == strip(other)
 
 
 def _url(value):
@@ -299,7 +305,7 @@ def _request(target, address, deadline):
         if response.status in _REDIRECTS:
             return {"redirect": response.getheader("Location")}
         if response.status != 200:
-            raise SourceError("http_error")
+            raise SourceError("http_error", f"http_{response.status}")
         content_type = response.headers.get_content_type().lower()
         if content_type not in _TEXT_TYPES:
             raise SourceError("unsupported_content_type")
@@ -329,8 +335,9 @@ def fetch_public_source(url, *, deadline=None):
             target = _target(current)
             if original_hostname is None:
                 original_hostname = target[1]
-            elif target[1] != original_hostname:
+            elif not _same_site(target[1], original_hostname):
                 # The model assessed the cited publisher, not a different host.
+                # Only a leading 'www.' may differ; every hop is still DNS/IP/TLS checked.
                 raise SourceError("redirect_host_changed")
             addresses = _resolve_public(target[1], target[2], deadline)
             # Pin a validated address. A retry never changes hosts or bypasses DNS checks.
@@ -345,13 +352,19 @@ def fetch_public_source(url, *, deadline=None):
             current = urljoin(target[0], location)
         raise SourceError("redirect_limit")
     except SourceError as exc:
-        status = exc.status
+        status, detail = exc.status, exc.detail
     except (TimeoutError, socket.timeout):
-        status = "timeout"
+        status, detail = "timeout", None
+    except ssl.SSLCertVerificationError:
+        # Certificate verification stays on; record why the page could not be read.
+        status, detail = "fetch_error", "tls_certificate"
     except Exception:
         # Do not persist network exception strings, local addresses, or page content.
-        status = "fetch_error"
-    return {"status": status, "text": "", "final_url": None, "checked_at": _now(), "content_type": None}
+        status, detail = "fetch_error", None
+    failure = {"status": status, "text": "", "final_url": None, "checked_at": _now(), "content_type": None}
+    if detail:
+        failure["detail"] = detail
+    return failure
 
 
 class _SourceFlight:
@@ -388,7 +401,7 @@ class _SourceTextCache:
         if item.get("content_type") not in _TEXT_TYPES or not isinstance(item.get("checked_at"), str):
             return
         try:
-            if _target(item.get("final_url"))[1] != hostname:
+            if not _same_site(_target(item.get("final_url"))[1], hostname):
                 return
         except SourceError:
             return
@@ -504,6 +517,12 @@ _REASONS = {
 }
 
 
+def _detail(item):
+    """접근 실패 원인 진단값(HTTP 상태·인증서) — 수집기가 정한 형식만 기록한다. 판정 정책에는 쓰지 않는다."""
+    value = item.get("detail") if isinstance(item, dict) else None
+    return value if isinstance(value, str) and re.fullmatch(r"http_\d{3}|tls_certificate", value) else None
+
+
 def _check_cancelled(cancel_event):
     if cancel_event is not None and cancel_event.is_set():
         raise CancelledError("Source verification cancelled")
@@ -575,7 +594,7 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
                             item = fetcher(url) if fetcher is not None else _SOURCE_TEXT_CACHE.fetch(url, deadline=deadline)
                             _check_cancelled(cancel_event)
                             if isinstance(item, dict) and item.get("status") == "ok":
-                                if _target(item.get("final_url"))[1] != _target(url)[1]:
+                                if not _same_site(_target(item.get("final_url"))[1], _target(url)[1]):
                                     item = {**item, "status": "redirect_host_changed", "text": ""}
                             cache[url] = item if isinstance(item, dict) else {"status": "fetch_error"}
                         except CancelledError:
@@ -587,6 +606,8 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
                     checks[url] = {"url": url, "status": item.get("status", "fetch_error"),
                                    "checked_at": item.get("checked_at") or _now(), "resolved_url": _url(item.get("final_url")),
                                    "quote_count": 0, "verified_quotes": 0, "unverified_quotes": 0}
+                    if _detail(item):
+                        checks[url]["detail"] = _detail(item)
                     verification["source_checks"].append(checks[url])
                 item = cache[url]
                 status = item.get("status", "fetch_error")
@@ -656,7 +677,7 @@ def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
                 page = fetcher(url) if fetcher is not None else _SOURCE_TEXT_CACHE.fetch(url, deadline=deadline)
                 _check_cancelled(cancel_event)
                 if (isinstance(page, dict) and page.get("status") == "ok" and page.get("final_url")
-                        and _target(page["final_url"])[1] != _target(url)[1]):
+                        and not _same_site(_target(page["final_url"])[1], _target(url)[1])):
                     page = {**page, "status": "redirect_host_changed", "text": ""}
             except CancelledError:
                 raise
@@ -669,6 +690,8 @@ def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
                         "resolved_url": _url(page.get("final_url")), "checked_at": page.get("checked_at") or _now(),
                         "reason": "출처 원문을 받았습니다." if page.get("status") == "ok" else
                         _REASONS.get(page.get("status"), "출처 원문을 안전하게 수집할 수 없었습니다.")})
+        if _detail(page):
+            sources[-1]["detail"] = _detail(page)
     verification["citation_sources"] = sources
     checks = j5.get("citation_checks")
     for check in checks if isinstance(checks, list) else []:

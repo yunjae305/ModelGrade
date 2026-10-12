@@ -664,11 +664,40 @@ def test_redirect_to_another_host_is_blocked_before_any_destination_lookup(monke
     assert hosts == ["official.example"] and requests == [URL]
 
 
-@pytest.mark.parametrize("destination", ["https://www.official.example/facts", "https://other.example/facts"])
+@pytest.mark.parametrize("destination", ["https://other.example/facts", "https://www.other.example/facts",
+                                         "https://docs.official.example/facts"])
 def test_redirected_publisher_cannot_inherit_authority_even_from_injected_fetcher(destination):
     result = sources.verify_web_sources(body(), fetcher=lambda _: fetched(url=destination))
     assert not all_sources(result)[0]["quote_verified"]
     assert result["verification"]["source_checks"][0]["status"] == "redirect_host_changed"
+
+
+def test_www_and_bare_domain_are_the_same_publisher(monkeypatch):
+    # F5: 'www.' 만 다른 이동은 같은 발행처다. 단계마다 DNS·공개 주소 검사는 그대로 한다.
+    result = sources.verify_web_sources(body(), fetcher=lambda _: fetched(url="https://www.official.example/facts"))
+    assert all_sources(result)[0]["quote_verified"] is True
+    lookups = []
+    def lookup(hostname, port, **kwargs):
+        lookups.append(hostname)
+        return [ipv4("127.0.0.1" if hostname == "www.private.example" else "93.184.216.34", port)]
+    monkeypatch.setattr(socket, "getaddrinfo", lookup)
+    hops = {"https://www.official.example/facts": {"redirect": "https://official.example/facts"},
+            "https://official.example/facts": {"text": "A verified fact.", "content_type": "text/plain"},
+            "https://private.example/x": {"redirect": "https://www.private.example/x"}}
+    monkeypatch.setattr(sources, "_request", lambda target, *_: hops[target[0]])
+    assert sources.fetch_public_source("https://www.official.example/facts")["final_url"] == URL
+    assert sources.fetch_public_source("https://private.example/x")["status"] == "blocked_address"
+    assert lookups == ["www.official.example", "official.example", "private.example", "www.private.example"]
+
+
+def test_access_failure_cause_is_recorded_without_changing_the_status():
+    pages = {URL: {"status": "http_error", "text": "", "detail": "http_403"},
+             "https://two.example/a": {"status": "fetch_error", "text": "", "detail": "<b>raw error</b>"}}
+    result = sources.verify_web_sources(body(("A verified fact.",) * 2, [URL, "https://two.example/a"]),
+                                        fetcher=lambda url: pages[url])
+    checks = {c["url"]: c for c in result["verification"]["source_checks"]}
+    assert checks[URL]["status"] == "http_error" and checks[URL]["detail"] == "http_403"
+    assert "detail" not in checks["https://two.example/a"]   # only fetcher-defined diagnostic values
 
 
 def test_same_hostname_http_to_https_redirect_is_allowed(monkeypatch):
