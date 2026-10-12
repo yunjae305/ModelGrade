@@ -159,3 +159,118 @@ def test_registry_lists_semantic_items_from_the_single_definition():
     assert data["semantic_items"]["version"] == SEMANTIC_ITEMS_VERSION and data["semantic_items"]["reason_codes"][0] == "FACT_FALSE_CONFIRMED"
     assert [c["id"] for c in data["criteria"] if c["layer"] == "LLM"] == ["J1", "J2", "J3", "J4", "J5", "J6"]   # 기준 목록은 그대로
     json.dumps(data, ensure_ascii=False, allow_nan=False)
+
+
+# --- 모델 간 요소 합집합 (webapp/semantic_union) ------------------------------------------------------------
+
+from tests.test_jev_eval_items import NORMAL, run_items  # noqa: E402  (NORMAL: "각각 이유를 한 줄씩" → J4-2.a 요구별)
+from webapp import semantic_union  # noqa: E402
+
+
+def element(item_id, question_quote, decision="YES", answer_quote="- 레노버 아이디어패드"):
+    return {"id": item_id, "decision": decision, "question_quote": question_quote, "answer_quote": answer_quote, "reason": "r", "turn": None, "fact": None}
+
+
+def test_plan_finds_elements_listed_by_one_evaluation_but_missing_in_another_without_naming_models():
+    full = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩")]}])
+    partial = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각")]}])
+    code_a, aiona = run_items([NORMAL], full)
+    batch_a = {**code_a, "jev_eval": aiona}
+    code_b, gpt = run_items([NORMAL], partial)
+    batch_b = {**code_b, "jev_eval": gpt}
+    tasks = semantic_union.plan({"aiona": batch_a, "gpt": batch_b})
+    assert tasks == [{"provider": "gpt", "index": 0, "missing": {"J4-2.a": [{"question_quote": "이유를 한 줄씩", "seen_in": ["평가 1"]}]}}]
+    assert semantic_union.plan({"aiona": batch_a, "gpt": batch_b}, blind_labels={"aiona": "C", "gpt": "A"})[0]["missing"]["J4-2.a"][0]["seen_in"] == ["평가 C"]
+    assert semantic_union.plan({"aiona": batch_a}) == []                                  # 한 평가뿐이면 대조 없음
+    legacy = {"cases": batch_b["cases"], "jev_eval": {**gpt, "pipeline": "legacy"}}
+    assert semantic_union.plan({"aiona": batch_a, "gpt": legacy}) == []                   # legacy 레코드는 제외
+    assert "J5-1.a" not in semantic_union.UNION_BASES and not any(b.startswith("J6") for b in semantic_union.UNION_BASES)
+
+
+def test_reconcile_rechecks_only_the_missing_elements_keeps_verification_and_reaggregates_the_batch():
+    full = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩")]}])
+    partial = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각")]}])
+    code_a, aiona = run_items([NORMAL], full)
+    code_b, gpt = run_items([NORMAL], partial)
+    evaluations = {"aiona": {**code_a, "jev_eval": aiona}, "gpt": {**code_b, "jev_eval": gpt}}
+    # 합집합 재확인 판정자: 요소 전부를 다시 나열하되 빠졌던 요소는 '아니오'(이유가 한 줄씩 없음)
+    judge = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩", "NO", "")]}])
+    seen = []
+    summary = semantic_union.reconcile(evaluations, judge, semantic_contexts={"gpt": {"collected_at": "2026-10-02"}},
+                                       on_record=lambda provider, index, record: seen.append((provider, index)))
+    assert summary["status"] == "COMPLETED" and summary["questions"] == 1 and summary["rechecked"] == 1 and summary["updated"] == 1
+    assert summary["tasks"] == [{"provider": "gpt", "index": 0, "bases": ["J4-2.a"], "status": "OK", "changed": True, "error": None}]
+    assert seen == [("gpt", 0)] and len(judge.calls) == 1
+    call = judge.calls[0]
+    assert list(call["questions"]) == ["J4-2.a"] and call["state"]["collected_at"] == "2026-10-02" and call["state"]["question"] == NORMAL["question"]
+    recheck = call["questions"]["J4-2.a"]["recheck"]
+    assert recheck["reason"] == "missing_elements" and recheck["elements"] == [{"question_quote": "이유를 한 줄씩", "seen_in": ["평가 1"]}]
+    record = evaluations["gpt"]["jev_eval"]["records"][0]
+    j4 = record["decisions"]["J4"]
+    assert j4["decision"] == "FAIL" and [it["id"] for it in j4["subs"]["J4-2"]["items"]] == ["J4-2.a#1", "J4-2.a#2"]
+    assert all(it["union_round"] == 1 for it in j4["subs"]["J4-2"]["items"]) and j4["subs"]["J4-2"]["items"][1]["quote_check"]["question"]["ok"] is True
+    assert record["union"]["status"] == "OK" and record["union"]["bases"]["J4-2.a"] == {
+        "elements": [{"question_quote": "이유를 한 줄씩", "seen_in": ["평가 1"]}], "before": ["J4-2.a#1"], "after": ["J4-2.a#1", "J4-2.a#2"]}
+    assert record["union"]["changed"] is True and record["verification"]["union_calls"][0]["items"] == ["J4-2.a"]
+    assert record["decisions"]["J1"]["decision"] == "PASS" and record["criteria"] == ["J1", "J2", "J3", "J4"]   # 다른 기준은 그대로
+    assert "union" not in evaluations["aiona"]["jev_eval"]["records"][0]
+    gpt_eval = evaluations["gpt"]["jev_eval"]
+    assert gpt_eval["summary"]["J4"]["fail"] == 1 and gpt_eval["summary"]["J4"]["subs"]["J4-2"]["fail"] == 1
+    assert gpt_eval["union"] == {"version": semantic_union.UNION_VERSION, "rechecked": 1, "updated": 1}
+    assert evaluations["aiona"]["jev_eval"]["union"] == {"version": semantic_union.UNION_VERSION, "rechecked": 0, "updated": 0}
+    assert evaluations["gpt"]["combined"]["problems"][0]["items"][0]["id"] == "J4"
+    # 호출 오류는 이전 판정을 유지하고 기록만 남긴다; client 없음은 NOT_CONFIGURED
+    broken = ScriptedItems(status="TIMEOUT")
+    code_c, again = run_items([NORMAL], partial)
+    evaluations["gpt"] = {**code_c, "jev_eval": again}
+    summary = semantic_union.reconcile(evaluations, broken)
+    assert summary["errors"] == 1 and summary["rechecked"] == 0 and again["records"][0]["union"]["status"] == "TIMEOUT"
+    assert again["records"][0]["decisions"]["J4"]["decision"] == "PASS"
+    assert semantic_union.reconcile(evaluations, None)["status"] == "NOT_CONFIGURED"
+
+
+class ElementJudge(ScriptedItems):
+    """답변에 따라 요소를 다르게 나열하는 대역 — AIONA 답변은 요소 2개, API 답변은 1개. 합집합 재확인(recheck 블록)에는 전부 답한다."""
+
+    def __init__(self):
+        super().__init__()
+        self.union_calls = []
+
+    def system_one(self, state, questions, *, cancel_event=None):
+        if "J4-2.a" in questions and (questions["J4-2.a"].get("recheck") or {}).get("reason") == "missing_elements":
+            self.union_calls.append(copy.deepcopy(questions["J4-2.a"]["recheck"]))
+            self.rounds = [{"J4-2.a": [element("J4-2.a#1", "각각", answer_quote="답변 하나"), element("J4-2.a#2", "이유를 한 줄씩", "NO", "")]}]
+        elif state["answer"] == "답변 하나":
+            self.rounds = [{"J4-2.a": [element("J4-2.a#1", "각각", answer_quote="답변 하나")]}]
+        else:
+            self.rounds = [{"J4-2.a": [element("J4-2.a#1", "각각", answer_quote=state["answer"][:8]), element("J4-2.a#2", "이유를 한 줄씩", answer_quote=state["answer"][:8])]}]
+        return super().system_one(state, questions, cancel_event=cancel_event)
+
+
+def test_comparison_run_applies_the_union_pass_after_all_models_and_replays_updated_rows(tmp_path, monkeypatch):
+    monkeypatch.setattr(jev_eval, "resolve_semantic_pipeline", lambda *_, **__: "items")
+    judge = ElementJudge()
+
+    def handler(request):
+        return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': '답변 하나'}]}]})
+    service = make_service(tmp_path, judge, handler)
+    rid = service.start({'cases': [{'question': NORMAL['question'], 'answer': NORMAL['answer']}], 'providers': ['gpt'], 'blind': True, 'auto_evaluate': True})['run_id']
+    until(lambda: service.status(rid)['status'] == 'COMPLETED')
+    final = service.result(rid)
+    union = final['semantic_union']
+    assert union['status'] == 'COMPLETED' and union['rechecked'] == 1 and union['updated'] == 1 and union['tasks'][0]['provider'] == 'gpt'
+    assert len(judge.union_calls) == 1 and judge.union_calls[0]['elements'][0]['question_quote'] == '이유를 한 줄씩'
+    label = final['blind']['labels']['aiona']
+    assert judge.union_calls[0]['elements'][0]['seen_in'] == [f'평가 {label}']   # 모델 이름이 아니라 블라인드 별칭
+    gpt = final['evaluations']['gpt']
+    assert gpt['jev_eval']['records'][0]['decisions']['J4']['decision'] == 'FAIL' and gpt['jev_eval']['union']['updated'] == 1
+    assert gpt['jev_eval']['summary']['J4']['fail'] == 1
+    assert any(it['id'] == 'J4' and it['source'] == '의미 평가' for it in gpt['combined']['problems'][0]['items'])   # CODE FAIL 도 함께 있는 답변
+    assert final['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J4']['decision'] == 'PASS'
+    rows = service.event_stream(rid).snapshot()['rows']
+    gpt_row = next(row for row in rows.values() if row['model'] == final['blind']['labels']['gpt'])
+    assert gpt_row['criteria']['J4']['result'] == 'FAIL' and gpt_row['status'] == 'DONE'
+    verdicts = [c['result'] for c in gpt_row['criteria'].values()]   # 교체된 J4 행은 이전 PASS 를 빼고 FAIL 로 센다 (CODE FAIL 과 합산)
+    assert gpt_row['fail'] == verdicts.count('FAIL') >= 1 and gpt_row['pass'] == verdicts.count('PASS')
+    saved = json.loads((tmp_path / 'runs' / f'{rid}.json').read_text(encoding='utf-8'))
+    assert saved['semantic_union']['rechecked'] == 1 and saved['evaluations']['gpt']['jev_eval']['records'][0]['union']['status'] == 'OK'

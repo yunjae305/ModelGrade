@@ -12,7 +12,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,7 +27,8 @@ from code_eval.llm_client import env_value
 from .code_eval_service import CodeEvalService, JobCapacityError, ROOT
 from .blind_comparison import blind_plan
 from .dataset_import import import_text
-from .evaluation_events import EvaluationEvents, code_event
+from .evaluation_events import EvaluationEvents, code_event, record_events
+from . import semantic_union
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 from .activity_store import clean_text, event_record
 
@@ -1133,6 +1134,35 @@ class ComparisonService:
                 run["evaluation_progress"][provider].update(stage="CANCELLED" if token.is_set() else "COMPLETED", active=[])
                 run["revision"] += 1
                 self._save(run)
+        def union_pass():
+            # items 파이프라인: 네 평가가 모두 끝난 뒤 모델 간 요소 합집합 — 빠진 요소만 재확인하고 레코드·요약을 다시 집계한다.
+            # 호출은 잠금 밖에서 사본으로 하고, 끝난 뒤 잠금 안에서 교체·저장·이벤트 재전송한다.
+            with self._lock:
+                if token.is_set() or run["cancel_requested"]:
+                    return
+                snapshot = copy.deepcopy(run["evaluations"])
+                labels = (run.get("blind") or {}).get("labels")
+            client = shared_semantic_resolver()[0]
+            updated = []
+            try:
+                union = semantic_union.reconcile(snapshot, client, semantic_contexts=semantic_contexts, blind_labels=labels,
+                                                 cancel_event=token, workers=workers_per_provider,
+                                                 on_record=lambda provider, index, record: updated.append((provider, index, record)))
+            except CancelledError:
+                union = {"version": semantic_union.UNION_VERSION, "status": "CANCELLED"}
+            with self._lock:
+                if token.is_set() or run["cancel_requested"]:
+                    run["semantic_union"] = {**union, "status": "CANCELLED"}
+                    return
+                run["evaluations"] = snapshot
+                run["semantic_union"] = union
+                run["evaluation_profile"] = evaluation_profile(run)
+                for provider, index, record in updated:
+                    for event in record_events(snapshot[provider]["cases"][index], record, index):
+                        emit(provider, event)
+                run["revision"] += 1
+                self._save(run)
+
         def work():
             failed = False
             try:
@@ -1141,6 +1171,8 @@ class ComparisonService:
                                for provider in run.get("blind", {}).get("order", run["providers"])]
                     for future in as_completed(futures):
                         future.result()
+                if pipeline == "items":
+                    union_pass()
             except Exception:
                 failed = True
             finally:
