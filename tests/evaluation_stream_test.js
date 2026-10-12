@@ -38,4 +38,16 @@ ticker.modelLabels = {aiona:'모델 A'};
 const semantic = {model:'aiona',qid:'Q1_T1',code:'J5',name:'신뢰도',stage:'LLM',together:true};
 assert.equal(ticker.criterionText(semantic),'모델 A · Q1_T1 · 의미 평가 응답 대기 · 여러 기준 함께 평가');
 assert.equal(ticker.criterionText({...semantic,code:'3-1',name:'계산',stage:'CODE',together:false}),'모델 A · Q1_T1 · 3-1 계산 기준 평가 중…');
+// items 파이프라인: q_done 의 rechecks·unverifiable 이 행에 남고 요약 문구에 표시된다. legacy 행에는 없다.
+const itemsState = new EventState();
+itemsState.apply({type:'run_start',id:1,total:2});
+itemsState.apply({type:'criterion_result',id:2,model:'aiona',index:0,qid:'Q1',key:'J2',code:'J2',name:'요청 적합성',result:'FAIL',reason:'J2-1.a: 확인 불가',stage:'LLM',unverifiable:1});
+itemsState.apply({type:'q_done',id:3,model:'aiona',index:0,qid:'Q1',pass:0,fail:1,unjudged:0,rechecks:2,unverifiable:1});
+itemsState.apply({type:'q_done',id:4,model:'aiona',index:1,qid:'Q2',pass:1,fail:0,unjudged:0});
+assert.equal(itemsState.data.rows['aiona:0'].rechecks,2); assert.equal(itemsState.data.rows['aiona:0'].unverifiable,1);
+assert.equal(itemsState.data.rows['aiona:0'].criteria.J2.unverifiable,1);
+assert.equal(itemsState.data.rows['aiona:1'].rechecks,undefined);
+assert.equal(ticker.rowText(itemsState.data.rows['aiona:0']),'모델 A · Q1  PASS 0 · FAIL 1 · 미판정 0 · 재확인 2회 · 확인 불가 1');
+assert.equal(ticker.rowText(itemsState.data.rows['aiona:1']),'모델 A · Q2  PASS 0 · FAIL 0 · 미판정 0');   // 행 집계는 criterion_result 로만 센다
+assert.equal(ticker.itemsText({rechecks:0,unverifiable:0}),'');
 console.log('1500-row event state, replacement counts, reconnect, retry, bounded queue and truthful semantic waiting label passed.');

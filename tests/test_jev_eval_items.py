@@ -334,3 +334,17 @@ def test_legacy_pipeline_is_unchanged_by_items_support():
     assert again["records"][0]["decisions"] == record["decisions"]
     summarized = summarize_records(jev["records"], {}, batch["cases"])
     assert "fulfillment" not in summarized and summarized["completed"] == 1
+
+
+def test_conversation_whose_j6_items_are_all_not_applicable_is_complete_not_incomplete():
+    client = ScriptedItems()   # 대역 기본값: 평가 모델이 적용을 정하는 J6 항목은 모두 NOT_APPLICABLE
+    batch, jev = run_items([CONV[0], CONV[1], CONV[2]], client)
+    records = {r["case_id"]: r for r in jev["records"]}
+    third = records["C1-T03"]
+    assert "J6" not in third["criteria"] and third["decisions"]["J6"]["status"] == "NOT_APPLICABLE"
+    conv = jev["conversations"]
+    assert conv["count"] == 1 and conv["incomplete"] == 0 and conv["pass"] == 1 and conv["items"][0]["result"] == "PASS"
+    assert conv["items"][0]["j6_turns"] == 2 and conv["items"][0]["issues"] == []
+    assert [t["asked"] for t in conv["items"][0]["turn_results"]] == [False, True, True]
+    assert conv["bands"]["1~10"] == {"targets": 2, "pass": 0, "fail": 0, "unverified": 0, "pending": 0, "rate": None}
+    assert jev["summary"]["J6"]["targets"] == 0 and jev["status"] == "SUCCESS"

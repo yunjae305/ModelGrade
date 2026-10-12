@@ -321,3 +321,19 @@ def test_apply_final_decision_policy_is_noop_on_items_record():
     snapshot = copy.deepcopy(record)
     outcome = apply_final_decision_policy(record, state=STATE)
     assert outcome["changed"] is False and record == snapshot
+
+
+def test_all_claims_excluded_leaves_a_server_not_applicable_placeholder_instead_of_item_missing():
+    # 이전 턴 AI 답변에서 비롯한 값만 주장으로 나열하면 모두 제외되어 '응답에 J5-1.a 없음' → 재확인 3회 → 확인 불가 FAIL 이 되던 경로
+    items = [claim_item(1, verdict="TRUE", claim="커피 약 4잔까지가 권장 상한")]
+    kept, problems, dropped = sf.validate_fact_items(items, STATE, VERIFICATION)
+    assert [d["id"] for d in dropped] == ["J5-1.a#1"] and dropped[0]["reason"].startswith("이전 턴(1) AI 답변")
+    assert problems == {} and len(kept) == 1
+    placeholder = kept[0]
+    assert placeholder["id"] == "J5-1.a" and placeholder["decision"] == "NOT_APPLICABLE" and placeholder["server_placeholder"] is True
+    checked, failures = sq.verify_items({"items": kept}, STATE, questions("J5-1.a"))
+    assert failures == [] and checked["items"][0]["decision"] == "NOT_APPLICABLE"
+    # 주장이 하나라도 남으면 자리표시를 만들지 않는다
+    kept, _, dropped = sf.validate_fact_items([claim_item(1, verdict="TRUE", claim="커피 약 4잔까지가 권장 상한"), claim_item(2, verdict="TRUE")],
+                                              STATE, VERIFICATION)
+    assert [it["id"] for it in kept] == ["J5-1.a#2"] and len(dropped) == 1

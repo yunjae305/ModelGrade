@@ -82,6 +82,11 @@ def evaluation_profile(run):
         'applicability_version': semantic.get('applicability_version'),
         'history_policy': semantic.get('history_policy'),
         'decision_policy': copy.deepcopy(semantic.get('decision_policy')),
+        # 의미 평가 방식 — items 이전에 저장된 결과에는 pipeline 키가 없으므로 legacy 로 읽는다 (화면의 knownProfile 도 같은 정규화)
+        'pipeline': semantic.get('pipeline') or ('legacy' if semantic else None),
+        'items_version': semantic.get('items_version'),
+        'quote_policy': semantic.get('quote_policy'),
+        'recheck_policy': semantic.get('recheck_policy'),
         'judge': judge or None,
         'judge_models': sorted(set(semantic.get('models') or [])),
     }

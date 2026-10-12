@@ -402,8 +402,11 @@ def conversations_summary(cases: List[Dict[str, Any]], records: List[Dict[str, A
             for issue in contexts[i]["issues"]:
                 if issue not in issues:
                     issues.append(issue)
-            was_asked = "J6" in (record.get("criteria") or [])
             d = (record.get("decisions") or {}).get("J6")
+            # items: 보낸 J6 항목이 모두 해당 없음이면 record["criteria"] 에서 빠지지만 물은 턴이다 — 유지할 것이 없는 턴으로
+            # 판정이 끝난 것이지 미완료가 아니다 (legacy 는 J6 가 PASS/FAIL/UNVERIFIED 뿐이라 이 경우가 없다)
+            not_applicable = bool(d) and d.get("status") == "NOT_APPLICABLE" and record.get("pipeline") == "items"
+            was_asked = "J6" in (record.get("criteria") or []) or not_applicable
             decision = d["decision"] if d else None
             turn_results.append({"turn": turn, "case_id": case["case_id"], "case_index": i,
                                  "asked": was_asked, "decision": decision,
@@ -413,10 +416,12 @@ def conversations_summary(cases: List[Dict[str, Any]], records: List[Dict[str, A
             if was_asked:
                 asked += 1
                 bands[_band(turn)]["targets"] += 1
-            if was_asked and decision not in ('PASS', 'FAIL'):
+            if was_asked and decision not in ('PASS', 'FAIL') and not not_applicable:
                 bands[_band(turn)]['pending'] += 1
                 if d and d.get('status') == 'UNVERIFIED':
                     bands[_band(turn)]['unverified'] += 1
+            if not_applicable:
+                decided += 1   # 해당 없음도 판정이 끝난 턴 (통과율 분모에는 넣지 않는다)
             if decision in ('PASS', 'FAIL'):
                 decided += 1
                 bands[_band(turn)]["pass" if decision == "PASS" else "fail"] += 1

@@ -27,14 +27,22 @@ def record_events(case, record, index):
     completion = record.get("code_completion") or {}
     for item in completion.get("resolutions", []):
         yield code_event(item["result"], index, case["case_id"])
+    items_mode = record.get("pipeline") == "items"
+    unverifiable_total = 0
     for cid in record.get("criteria") or []:
         d = (record.get("decisions") or {}).get(cid) or {}
+        # items 파이프라인: 재확인 3회 뒤에도 인용을 확인하지 못해 '확인 불가' 로 FAIL 한 항목 수 (결함 확인 FAIL 과 구분)
+        unverifiable = sum(1 for sub in (d.get("subs") or {}).values() for it in (sub.get("items") or []) if it.get("unverifiable")) if items_mode else 0
+        unverifiable_total += unverifiable
         yield {**base, "type": "criterion_result", "key": cid, "code": cid, "name": NAMES.get(cid, cid),
                "result": d.get("decision") or "UNJUDGED", "reason": d.get("reason") or record.get("error") or "판정 근거 없음",
                **({'verification_status': 'UNVERIFIED'} if d.get('status') == 'UNVERIFIED' else {}),
+               **({"unverifiable": unverifiable} if unverifiable else {}),
                "stage": "LLM"}
     yield {**base, "type": "q_done", "error": record.get("error") or completion.get("error"),
-           "review_required": bool(record.get('review_required'))}
+           "review_required": bool(record.get('review_required')),
+           # items 파이프라인의 재확인 회차·확인 불가 항목 수 — legacy 레코드에는 없는 키라 있을 때만 싣는다
+           **({"rechecks": int(((record.get("recheck") or {}).get("rounds")) or 0), "unverifiable": unverifiable_total} if items_mode else {})}
 
 
 class EvaluationEvents:
@@ -77,6 +85,8 @@ class EvaluationEvents:
                     row["criteria"][event["key"]] = {k: event[k] for k in ("code", "name", "result", "reason", "stage")}
                     if event.get('verification_status'):
                         row['criteria'][event['key']]['verification_status'] = event['verification_status']
+                    if event.get('unverifiable'):
+                        row['criteria'][event['key']]['unverifiable'] = event['unverifiable']
                     field = {"PASS": "pass", "FAIL": "fail", "UNJUDGED": "unjudged"}[event["result"]]
                     row[field] += 1
                     self.state[field] += 1
@@ -87,6 +97,9 @@ class EvaluationEvents:
                     row.update(status="SKIPPED" if kind == "q_skip" else "DONE", active=None,
                                reason=event.get("reason") or event.get("error"), finished_id=self.sequence + 1,
                                review_required=bool(event.get('review_required')))
+                    for key in ("rechecks", "unverifiable"):   # items 파이프라인만 보내는 값
+                        if key in event:
+                            row[key] = event[key]
                     event.update({k: row[k] for k in ("pass", "fail", "unjudged")})
             elif kind in ("run_done", "run_error"):
                 self.state["status"] = "COMPLETED" if kind == "run_done" else "ERROR"

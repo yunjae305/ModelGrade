@@ -98,6 +98,39 @@
     catch (_) { return null; }
   }
   const semanticEngineLabel = (value) => value?.engine_label || ({openai_api: 'OpenAI API', anthropic_api: 'Claude API', codex_cli: 'GPT CLI', claude_cli: 'Claude CLI'})[value?.engine] || 'Jev';
+  // items 파이프라인의 세부 기준·점검 항목 표시 — 판정 값은 서버 집계 그대로, 화면은 보여 주기만 한다
+  function semanticItems(record, subsDecisions, make, note) {
+    const subLabel = {PASS: '통과', FAIL: '미충족', NOT_APPLICABLE: '해당 없음'};
+    const itemLabel = {YES: '예', NO: '아니오', NOT_APPLICABLE: '해당 없음'};
+    const rechecks = record.recheck?.rounds || record.items?.rechecks || 0;
+    const section = make('details', {class: 'semantic-items-evidence'}, make('summary', {text: '세부 기준·점검 항목 판정'}),
+      note(`항목별 예/아니오 판정 · 재확인 ${rechecks}회` + (typeof record.items?.fulfillment === 'number' ? ` · 질문 기준 항목 충족률 ${Math.round(record.items.fulfillment * 100)}%` : '')));
+    subsDecisions.forEach(([id, decision]) => {
+      const block = make('div', {class: 'jev-reason semantic-items-criterion'}, make('p', {}, make('strong', {text: `${id} ${decision.name || ''} · ${subLabel[decision.decision] || (decision.status === 'NOT_APPLICABLE' ? '해당 없음' : '확인 필요')}`})));
+      Object.values(decision.subs).forEach((sub) => {
+        const items = Array.isArray(sub.items) ? sub.items : [];
+        const head = make('p', {}, make('strong', {text: `${sub.sub_id} ${sub.name || ''} · ${subLabel[sub.decision] || '확인 필요'}`}));
+        const list = make('ul', {class: 'finding-list'});
+        if (sub.not_run) list.append(make('li', {}, note(`실행하지 않음: ${sub.not_run.reason || ''} (${(sub.not_run.items || []).join(', ')})`)));
+        items.forEach((item) => {
+          const flags = [];
+          if (item.unverifiable) flags.push('확인 불가(재확인 뒤 FAIL)');
+          if (Array.isArray(item.rechecks) && item.rechecks.length) flags.push(`재확인 ${item.rechecks.length}회`);
+          if (item.override) flags.push(`집계 규칙: ${item.override}`);
+          if (item.reason_code && !item.unverifiable) flags.push(item.reason_code);
+          list.append(make('li', {}, make('p', {}, make('strong', {text: `${item.id} · ${itemLabel[item.decision] || String(item.decision)}`}),
+              flags.length ? ` · ${flags.join(' · ')}` : ''),
+            item.question_quote ? note('질문 인용: ' + item.question_quote + (item.turn != null ? ` (이전 ${item.turn}턴)` : '')) : null,
+            item.answer_quote ? note('답변 인용: ' + item.answer_quote) : null,
+            item.reason ? note(item.reason) : null));
+        });
+        block.append(head, list);
+      });
+      section.append(block);
+    });
+    return section;
+  }
+
   function semanticEvidence(record, make) {
     if (!record) return null;
     const decisions = record.decisions || {}, j5 = decisions.J5, j6 = decisions.J6, verification = record.verification;
@@ -105,8 +138,11 @@
     const hasContext = j6?.status !== 'NOT_APPLICABLE' && (Array.isArray(j6?.context_checks) || j6?.status === 'UNVERIFIED');
     const originals = ['J5', 'J6'].filter((id) => decisions[id]?.model_original_assessment && typeof decisions[id].model_original_assessment === 'object');
     const policyDecisions = Object.entries(decisions).filter(([, value]) => value?.policy_original_assessment && ['PASS', 'FAIL'].includes(value.decision));
-    if (!hasFact && !hasContext && !verification && !originals.length && !policyDecisions.length) return null;
+    // items 파이프라인: 기준 → 세부 기준 → 점검 항목(예/아니오/해당 없음 · 인용 · 재확인 · 확인 불가)
+    const subsDecisions = record.pipeline === 'items' ? Object.entries(decisions).filter(([, value]) => value?.subs && typeof value.subs === 'object') : [];
+    if (!hasFact && !hasContext && !verification && !originals.length && !policyDecisions.length && !subsDecisions.length) return null;
     const box = make('div', {class: 'semantic-evidence'}), note = (text) => make('p', {class: 'hint field-help', text});
+    if (subsDecisions.length) box.append(semanticItems(record, subsDecisions, make, note));
     const verdict = (value) => ['PASS', 'FAIL'].includes(value) ? value : '확인 필요';
     const display = (value) => typeof value === 'object' ? JSON.stringify(value) : String(value);
     policyDecisions.forEach(([id, decision]) => {

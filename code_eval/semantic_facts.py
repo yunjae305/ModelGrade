@@ -162,6 +162,12 @@ def validate_fact_items(items: List[Dict[str, Any]], state: Dict[str, Any],
                 issues.append(_problem("support_missing"))
         if issues:
             problems[item_id] = issues
+    if dropped and not any(isinstance(it, dict) and _split_id(it.get("id"))[0] == "J5-1.a" for it in kept):
+        # 나열된 주장이 모두 제외 규칙에 걸려 빠지면 '응답에 J5-1.a 가 없음' 이 되어 재확인 3회 뒤 확인 불가 FAIL 이 된다.
+        # 검증할 외부 사실 주장이 없는 경우이므로 서버가 해당 없음 자리표시 항목을 둔다 (제외 내역은 j5_dropped 에 남는다).
+        kept.append({"id": "J5-1.a", "decision": "NOT_APPLICABLE", "question_quote": "", "answer_quote": "", "turn": None, "fact": None,
+                     "reason": "서버: 나열된 주장이 모두 제외 규칙(J3 모순 쌍·인과 문장·이전 턴 AI 답변·질문이 준 값)에 해당 — 검증할 외부 사실 주장 없음",
+                     "server_placeholder": True})
     return kept, problems, dropped
 
 

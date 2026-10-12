@@ -990,6 +990,8 @@ class ComparisonService:
                     thread is not threading.current_thread() for thread in self._workers.get(run_id, ())):
                 raise ValueError("앞선 작업을 중단하는 중입니다. 종료 후 다시 평가해 주세요.")
             self.evaluator._config(payload)  # validate before changing the state
+            # 의미 평가 방식은 실행 시작 시점에 한 번 확정한다 (잘못된 SEMANTIC_PIPELINE 값은 상태를 바꾸기 전에 거부)
+            pipeline = jev_eval.resolve_semantic_pipeline()
             previous_status = run['status']
             ledger = self._cost_ledgers.get(run_id)
             if ledger is None:
@@ -1012,7 +1014,18 @@ class ComparisonService:
             run["evaluation_execution"] = {
                 "semantic_workers_per_model": workers_per_provider,
                 "semantic_workers_total": workers_per_provider * len(run["providers"]),
+                # 의미 평가 방식(legacy | items)과 호출 방식(realtime; Batch 는 3c 단계) — 저장 결과에서 읽는 실행 조건
+                "pipeline": pipeline,
+                "dispatch": "realtime",
             }
+            # items 파이프라인의 J5-3.a 적용 판정·시점 있는 사실의 기준 — API 로 수집한 답변은 외부 도구 없이 생성(none),
+            # AIONA 답변은 도구 사용 여부를 알 수 없음(unknown). 수집 날짜는 AIONA 는 등록한 수집일, API 는 수집 완료 시각의 날짜.
+            collected = run.get("collection_completed_at")
+            semantic_contexts = {
+                provider: {"answer_tools": "unknown" if provider == "aiona" else "none",
+                           "collected_at": ((run.get("aiona_release") or {}).get("collected_at") if provider == "aiona"
+                                            else collected[:10] if isinstance(collected, str) and len(collected) >= 10 else None)}
+                for provider in run["providers"]}
             if run.get("blind_requested") and not run.get("blind", {}).get("enabled"):
                 run["blind"] = {**blind_plan(run["providers"]), "applied_at": started_at}
             run.update(status="EVALUATING", phase="EVALUATE", error=None, cancel_requested=False,
@@ -1108,6 +1121,7 @@ class ComparisonService:
                        "event_sink": lambda event, p=provider: emit(p, event),
                        "semantic_workers": workers_per_provider,
                        "cancel_event": token,
+                       "pipeline": pipeline, "semantic_context": semantic_contexts[provider],
                        "jev_resolver": shared_semantic_resolver if run.get("blind", {}).get("enabled") else resolver}
             batch = self.evaluator.evaluate({"cases": cases, "aiona_config": payload.get("aiona_config"),
                                              "aiona_specialized": False}, **options)

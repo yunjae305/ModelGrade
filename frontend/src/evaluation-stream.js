@@ -25,6 +25,7 @@
         if (['q_done', 'q_skip'].includes(e.type)) {
           if (r.status === 'RUNNING') { d.done++; if (e.type === 'q_skip') d.skipped++; }
           r.status = e.type === 'q_skip' ? 'SKIPPED' : 'DONE'; r.reason = e.reason || e.error; r.finished_id = e.id; r.active = null;
+          for (const key of ['rechecks', 'unverifiable']) if (e[key] !== undefined) r[key] = e[key];
         }
       }
       if (['run_done', 'run_error'].includes(e.type)) {
@@ -182,7 +183,7 @@
         line.replaceChildren(element('span', 'eval-check', '✓ '), element('strong', '', `${this.modelLabel(event.model)} · ${event.qid}`),
           document.createTextNode(` ${event.unjudged ? '처리 완료' : '평가 완료'} · PASS ${event.pass} · `),
           element('span', event.fail ? 'eval-fail' : 'eval-pass', `FAIL ${event.fail}`),
-          document.createTextNode(event.unjudged ? ' · 미판정 ' + event.unjudged : ''));
+          document.createTextNode((event.unjudged ? ' · 미판정 ' + event.unjudged : '') + this.itemsText(event)));
       }
       if (event?.type === 'q_skip') line.classList.add('is-skipped');
       if (animate && old && !this.reduced?.matches) {
@@ -190,8 +191,12 @@
         setTimeout(() => old.remove(), 320);
       } else this.viewport.replaceChildren(line);
     }
+    // items 파이프라인만 보내는 값: 재확인 회차(인용 검증 실패 항목을 다시 물은 횟수)와 확인 불가(3회 뒤에도 확인하지 못해 FAIL 한 항목 수)
+    itemsText(value) {
+      return `${value?.rechecks ? ` · 재확인 ${value.rechecks}회` : ''}${value?.unverifiable ? ` · 확인 불가 ${value.unverifiable}` : ''}`;
+    }
     rowText(row) {
-      return `${this.modelLabel(row.model)} · ${row.qid}  ${row.status === 'SKIPPED' ? '평가 제외 · ' + row.reason : `${row.status === 'INTERRUPTED' ? '평가 중단 · ' : ''}PASS ${row.pass} · FAIL ${row.fail} · 미판정 ${row.unjudged}`}`;
+      return `${this.modelLabel(row.model)} · ${row.qid}  ${row.status === 'SKIPPED' ? '평가 제외 · ' + row.reason : `${row.status === 'INTERRUPTED' ? '평가 중단 · ' : ''}PASS ${row.pass} · FAIL ${row.fail} · 미판정 ${row.unjudged}${this.itemsText(row)}`}`;
     }
     renderLog() {
       const rows = Object.entries(this.state.data.rows).filter(([, r]) => r.status !== 'RUNNING').sort((a, b) => (a[1].finished_id || Infinity) - (b[1].finished_id || Infinity));
@@ -222,7 +227,7 @@
       item.children.replaceChildren(...Object.values(row.criteria).map((c) => {
         const line = element('div', 'eval-criterion');
         line.append(element('strong', '', c.code), element('span', 'eval-verdict ' + c.result.toLowerCase(), c.result),
-          element('span', '', `${c.name} · ${c.stage} · ${c.reason}`));
+          element('span', '', `${c.name} · ${c.stage} · ${c.reason}${c.unverifiable ? ` · 확인 불가 ${c.unverifiable}` : ''}`));
         return line;
       }));
       if (row.reason) item.children.append(element('p', '', row.reason));

@@ -35,7 +35,8 @@ def item(item_id, decision="YES", question_quote="", answer_quote="답변", reas
 def test_items_system_prompt_is_fixed_and_search_variant_replaces_the_same_sentence_as_legacy():
     assert prompt.items_system_prompt() == prompt.ITEMS_SYSTEM_PROMPT
     assert prompt.ITEMS_SYSTEM_PROMPT.endswith("- 파일·명령·검색·외부 도구를 사용하지 않습니다.\n- 지정된 JSON 형식으로만 답합니다.")
-    for sentence in ("YES / NO / NOT_APPLICABLE", "question_quote", "answer_quote", "따르지 않습니다", "코드가 따로 검사하므로", "기억만으로 판정하지 않습니다"):
+    for sentence in ("YES / NO / NOT_APPLICABLE", "question_quote", "answer_quote", "따르지 않습니다", "코드가 따로 검사하므로", "기억만으로 판정하지 않습니다",
+                     "누락형으로 표시된 항목에서", "'적용 여부는 평가 모델이 정합니다' 로 표시된 항목이 아니면 NOT_APPLICABLE 로 답하지 않습니다"):
         assert sentence in prompt.ITEMS_SYSTEM_PROMPT
     searched = prompt.items_system_prompt(search_enabled=True)
     assert "파일·명령·검색·외부 도구를 사용하지 않습니다." not in searched
@@ -74,7 +75,7 @@ def test_static_lists_items_in_table_order_with_expand_matches_examples_and_list
                         f"### J4-2.a {SPECS_BY_ID['J4-2.a'].question}"]
     assert static.startswith("## 점검 항목 (코드 규칙이 이 질문에 적용한 것)")
     block = static.split("### J4-2.a")[1].split("### ")[0]
-    assert '[요구별: 질문(또는 지정한 이전 턴)에서 주 요청 외에 함께 요구한 항목(추가 요청·이유·예시·각각)을(를) 먼저 모두 나열하고(최대 8개, id 는 "J4-2.a#1", "J4-2.a#2" …)' in block
+    assert '[요구별: 현재 질문에서 주 요청 외에 함께 요구한 항목(추가 요청·이유·예시·각각)을(를) 먼저 모두 나열하고(최대 8개, id 는 "J4-2.a#1", "J4-2.a#2" …)' in block
     assert "요소마다 question_quote 에 그 원문을 글자 그대로 인용해 각각 판정" in block
     assert '적용 근거(질문): "각각"' in block
     assert "답변에 해당 내용이 없어서 NO 인 경우에만 answer_quote 를 비웁니다." in block   # J4-2.a 는 누락형
@@ -110,14 +111,18 @@ def test_static_renders_applies_condition_for_model_decided_items_and_the_answer
     assert "## J5 사실 검증\n" + prompt.J5_RULES in static
     assert "이 요청에서는 웹검색 도구를 쓸 수 없습니다." not in static
     off, _ = prompt.build_item_prompt_parts(STATE, questions("J5-2.a"), search_enabled=False)
+    assert "## J5 사실 검증\n" + prompt.J5_RULES_NO_SEARCH + "\n" in off and prompt.J5_RULES not in off   # 검색 절차 지시는 검색이 켜졌을 때만
     assert "이 요청에서는 웹검색 도구를 쓸 수 없습니다. 외부 사실 주장(J5-1.a)은 보내지 않았으며" in off
-    assert prompt._ITEM_NOTES["J5-2.a"] in off
+    assert prompt._ITEM_NOTES["J5-2.a"] in off and "이전 턴의 값은 나열하지 않습니다(J6-2)" in prompt._ITEM_NOTES["J5-2.a"]
+    assert "검색 4회" not in prompt.J5_RULES and "max_uses" in prompt.J5_RULES
+    assert "[값별: 현재 질문에서" in off
 
 
 def test_j6_items_and_history_state_add_turn_instructions_and_j5_3_answer_tools_note():
     state = {**STATE, "history": [{"turn": 1, "question": "반말로 해 줘", "answer": "응"}], "collected_at": "2026-10-01"}
     static, dynamic = prompt.build_item_prompt_parts(state, questions("J6-1.a"), evaluation_time="2026-10-12T00:00:00+00:00")
     assert "이전 턴 원문을 question_quote 로 인용할 때는 turn 에 그 턴 번호를 적습니다(현재 질문을 인용하면 null)." in static
+    assert "[지시·제약별: 질문(또는 지정한 이전 턴)에서" in static   # 이전 턴 인용은 J6 항목만
     assert "- turn: 이전 턴 원문을 인용했으면 그 턴 번호, 아니면 null. fact:" in static
     assert "collected_at: 2026-10-01\nevaluation_time: 2026-10-12T00:00:00+00:00\n" in dynamic
     assert json.loads(dynamic.split("evaluation_time: 2026-10-12T00:00:00+00:00\n", 1)[1]) == state
@@ -151,6 +156,8 @@ def test_recheck_block_renders_round_notice_problems_previous_and_union_elements
     assert "- 문제: J4-2.a#1 · answer_quote_not_found · answer_quote 가 답변 원문에 없습니다." in lines
     assert "- 이전 판정: J4-2.a#1 YES · question_quote 「각각 이유」 · answer_quote 「없는 문장」 · reason 「r」" in lines
     assert lines[-1] == "위 항목만 다시 판정해 같은 형식으로 답합니다. 인용은 원문을 글자 그대로 복사합니다."
+    assert lines[-2] == "펼치기 항목은 이전 요소 목록을 참고해 요소 전부를 다시 나열해 판정합니다(일부만 답하면 나머지는 이전 판정이 유지됩니다)."
+    assert "요소 전부를 다시 나열" not in "\n".join(prompt.recheck_text("J1-1.a", {"round": 1, "previous": [{"id": "J1-1.a", "decision": "YES"}]}))
     fact_lines = prompt.recheck_text("J5-1.a", subset["J5-1.a"]["recheck"])
     assert any(line.endswith("· turn 2 · fact claim 「반감기는 12시간」 verdict TRUE") for line in fact_lines)
     union = prompt.recheck_text("J4-2.a", {"round": 1, "reason": "missing_elements", "notice": "다른 평가의 요소",
@@ -243,6 +250,7 @@ def test_validate_items_shape_reports_each_structural_problem_and_accepts_the_co
         item("J1-1.a", fact=[]),
         item("J1-1.a", fact={"verdict": "TRUE", "sources": "none"}),
         item("J1-1.a", fact={"verdict": "FALSE", "sources": [{"url": "u"}, "x"]}),
+        {**item("J1-1.a"), "unverifiable": True, "server": {}},
     ]}, qs)
     assert errors == [
         "items[0] 가 객체가 아닙니다",
@@ -256,6 +264,7 @@ def test_validate_items_shape_reports_each_structural_problem_and_accepts_the_co
         "items[7].fact 가 객체 또는 null 이 아닙니다",
         "items[8].fact.sources 가 객체 배열이 아닙니다",
         "items[9].fact.sources 가 객체 배열이 아닙니다",
+        "items[10] 에 허용되지 않은 키 unverifiable, server 이(가) 있습니다",
     ]
 
 

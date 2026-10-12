@@ -24,8 +24,19 @@
     return JSON.stringify(value);
   }
 
-  function knownProfile(profile) {
+  // items 파이프라인 이전에 저장된 평가 프로필에는 pipeline 키가 없다. 그 결과는 legacy 방식으로 평가된 것이므로
+  // legacy·null 정책으로 정규화해, 새로 저장된 legacy 실행과 같은 조건으로 비교한다. 서버(version_registry)도 같은 기본값을 쓴다.
+  const PIPELINE_DEFAULTS = {pipeline: 'legacy', items_version: null, quote_policy: null, recheck_policy: null};
+  function profileFields(profile) {
     const f = profile?.fields;
+    if (!object(f)) return f;
+    const fields = {...f};
+    for (const [key, value] of Object.entries(PIPELINE_DEFAULTS)) if (fields[key] === undefined) fields[key] = value;
+    return fields;
+  }
+
+  function knownProfile(profile) {
+    const f = profileFields(profile);
     // Config fields such as forbidden_entries legitimately contain null. Unknown
     // required versions/model identities, however, must never compare as equal.
     const knownTree = (v) => typeof v === 'string' ? knownText(v) : typeof v === 'number' ? Number.isFinite(v) :
@@ -36,7 +47,8 @@
       (value === null && ['max_tool_calls', 'evidence_recovery_max_tool_calls'].includes(key)) || knownTree(value));
     return profile?.complete === true && object(f) && knownText(f.engine_versions?.engine) && knownTree(f.engine_versions) &&
       knownText(f.aiona_config?.config_hash) &&
-      ['semantic_version', 'criteria_version', 'applicability_version', 'history_policy'].every((k) => knownText(f[k])) &&
+      ['semantic_version', 'criteria_version', 'applicability_version', 'history_policy', 'pipeline'].every((k) => knownText(f[k])) &&
+      (f.pipeline === 'legacy' || ['items_version', 'quote_policy', 'recheck_policy'].every((k) => knownText(f[k]))) &&
       knownText(f.judge?.engine) && knownText(f.judge?.requested_model) && knownJudge &&
       Array.isArray(f.judge_models) && f.judge_models.length > 0 && f.judge_models.every(knownText);
   }
@@ -206,7 +218,7 @@
     const old = identify(baselineRun), next = identify(targetRun);
     const baseline = summary(baselineRun, old), target = summary(targetRun, next);
     const profilesKnown = knownProfile(baselineRun?.evaluation_profile) && knownProfile(targetRun?.evaluation_profile);
-    const profileMatched = profilesKnown && canonical(baselineRun.evaluation_profile.fields) === canonical(targetRun.evaluation_profile.fields);
+    const profileMatched = profilesKnown && canonical(profileFields(baselineRun.evaluation_profile)) === canonical(profileFields(targetRun.evaluation_profile));
     const distinct = Boolean(baseline.runId && target.runId && baseline.runId !== target.runId);
     const differentVersions = text(baselineRun?.aiona_release?.version) && text(targetRun?.aiona_release?.version) && baselineRun.aiona_release.version !== targetRun.aiona_release.version;
     const conditionsMatch = profileMatched && distinct && differentVersions;

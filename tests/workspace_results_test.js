@@ -1,7 +1,7 @@
 /* Regression checks for the production presentation rules; no API calls. */
 'use strict';
 const assert = require('node:assert/strict');
-const {caseState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, semanticEngineLabel, processingProgress} = require('../frontend/src/workspace-results.js');
+const {caseState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, semanticEngineLabel, processingProgress, semanticEvidence} = require('../frontend/src/workspace-results.js');
 assert.equal(semanticEngineLabel({engine:'anthropic_api'}), 'Claude API');
 assert.equal(semanticEngineLabel({engine:'openai_api'}), 'OpenAI API');
 assert.equal(semanticEngineLabel({engine:'anthropic_api',engine_label:'저장 당시 평가자'}), '저장 당시 평가자');
@@ -315,3 +315,25 @@ liveNew.status = 'EVALUATING'; liveNew.evaluations.aiona.live = true;
 assert.equal(caseState(liveNew, 'aiona', 0).outcome, 'running');
 assert.notEqual(caseState(liveNew, 'aiona', 0).code.text, '보완 평가 대기');
 console.log('Case-level check errors and completion-free new records passed.');
+
+// items 파이프라인 레코드: 기준 → 세부 기준 → 점검 항목 블록 (DOM 없이 가짜 make 로 텍스트만 확인)
+{
+  const make = (tag, attrs = {}, ...children) => { const node = {tag, attrs, children: []}; node.append = (...more) => node.children.push(...more.flat().filter(Boolean)); node.append(...children); return node; };
+  const flat = (node) => node == null ? '' : typeof node === 'string' ? node : `${node.attrs?.text || ''} ${node.children.map(flat).join(' ')}`;
+  const item = (id, decision, extra = {}) => ({id, decision, question_quote: '질문 인용문', answer_quote: '답변 인용문', reason: '사유', turn: null, fact: null, origin: 'question', ...extra});
+  const record = {status: 'SUCCESS', pipeline: 'items', criteria: ['J1', 'J5'], recheck: {rounds: 2, unverifiable: ['J1-4.a']}, items: {rechecks: 2, unverifiable: 1, fulfillment: 0.5},
+    decisions: {
+      J1: {criterion_id: 'J1', name: '의도 충족성', decision: 'FAIL', reason: 'J1-4.a: 확인 불가', subs: {
+        'J1-1': {sub_id: 'J1-1', name: '요청 작업 수행', decision: 'NOT_APPLICABLE', items: [item('J1-1.a', 'NOT_APPLICABLE', {override: 'J1-2.a', model_decision: 'YES'})]},
+        'J1-4': {sub_id: 'J1-4', name: '불필요한 내용 없음', decision: 'FAIL', items: [item('J1-4.a', 'NO', {unverifiable: true, reason_code: 'ITEM_UNVERIFIABLE', rechecks: [{round: 1}, {round: 2}]}), item('J1-4.b', 'YES', {turn: 2})]}}},
+      J5: {criterion_id: 'J5', name: '신뢰도', decision: null, status: 'NOT_APPLICABLE', fact_check: {basis: 'none', claims: []}, subs: {
+        'J5-1': {sub_id: 'J5-1', name: '사실 정확성', decision: 'NOT_APPLICABLE', items: [], not_run: {items: ['J5-1.a'], reason: '검색 도구 없음'}}}}}};
+  const text = flat(semanticEvidence(record, make));
+  for (const expected of ['세부 기준·점검 항목 판정', '재확인 2회', '충족률 50%', 'J1 의도 충족성 · 미충족', 'J1-1 요청 작업 수행 · 해당 없음', 'J1-1.a · 해당 없음', '집계 규칙: J1-2.a',
+    'J1-4.a · 아니오', '확인 불가(재확인 뒤 FAIL)', '재확인 2회', 'J1-4.b · 예', '(이전 2턴)', '질문 인용: 질문 인용문', '답변 인용: 답변 인용문', 'J5 신뢰도 · 해당 없음', '실행하지 않음: 검색 도구 없음 (J5-1.a)']) {
+    assert.ok(text.includes(expected), expected);
+  }
+  assert.equal(semanticEvidence({status: 'SUCCESS', criteria: ['J1'], decisions: {J1: {decision: 'PASS', subs: {}}}}, make), null);   // legacy 레코드의 subs 는 없음
+  assert.equal(semanticEvidence({status: 'SUCCESS', pipeline: 'items', criteria: ['J1'], decisions: {J1: {decision: 'PASS'}}}, make), null);
+}
+console.log('items 세부 기준·점검 항목 블록 passed.');

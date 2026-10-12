@@ -23,7 +23,7 @@ from .taxonomy import CATEGORIES
 
 __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS", "RELATIONS", "registry", "unit_of"]
 
-REGISTRY_VERSION = "criteria-registry-v1"
+REGISTRY_VERSION = "criteria-registry-v2"   # v2: 의미 평가 세부 기준 25·점검 항목 39 (semantic_items) 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -168,7 +168,10 @@ def unit_of(check_id: str) -> Optional[str]:
 
 
 def registry() -> Dict[str, Any]:
+    from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(),
+            # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 6 → 세부 25 → 항목 39 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
+            "semantic_items": describe_semantic_items(),
             "modifier_kinds": copy.deepcopy(MODIFIER_KINDS),
             "subsumed_kinds": [{"kind": k, "when": w, "checked_by": u, "note": n} for k, w, u, n in SUBSUMED_KINDS],
             "relations": [{"a": a, "b": b, "kind": kind, "note": note} for a, b, kind, note in RELATIONS],

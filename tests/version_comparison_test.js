@@ -70,6 +70,25 @@ function freeze(value) { if (value && typeof value === 'object') { Object.values
 freeze(a); freeze(b); compare(a, b);
 assert.equal(JSON.stringify([a, b]), before);
 
+// items 파이프라인 이전에 저장된 프로필(pipeline 없음)은 legacy 와 같은 조건이고, items 는 legacy 와 다른 조건이다.
+{
+  const legacy = run('L1', [question('Q1')]), saved = run('L2', [question('Q1')]);
+  Object.assign(legacy.evaluation_profile.fields, {pipeline: 'legacy', items_version: null, quote_policy: null, recheck_policy: null});
+  assert.equal('pipeline' in saved.evaluation_profile.fields, false);
+  assert.equal(compare(saved, legacy).profileMatched, true);
+  assert.equal(compare(legacy, saved).eligible, true);
+  const items = run('I1', [question('Q1')]);
+  Object.assign(items.evaluation_profile.fields, {pipeline: 'items', items_version: 'semantic-items-v1', quote_policy: 'q-v1', recheck_policy: 'r-v1'});
+  assert.equal(compare(items, legacy).profileMatched, false);
+  assert.ok(compare(items, legacy).reasons.some(reason => reason.code === 'profile_mismatch'));
+  const unknownItems = run('I2', [question('Q1')]);
+  Object.assign(unknownItems.evaluation_profile.fields, {pipeline: 'items', items_version: null, quote_policy: null, recheck_policy: null});
+  assert.equal(compare(items, unknownItems).eligible, false);   // items 인데 정책 버전을 모르면 비교하지 않는다
+  const bothItems = run('I3', [question('Q1')]);
+  Object.assign(bothItems.evaluation_profile.fields, {pipeline: 'items', items_version: 'semantic-items-v1', quote_policy: 'q-v1', recheck_policy: 'r-v1'});
+  assert.equal(compare(items, bothItems).profileMatched, true);
+}
+
 // Unlimited search limits are known settings, not absent judge metadata. The
 // exception is exact and top-level; equality must still distinguish a limit.
 for (const keys of [['max_tool_calls'], ['evidence_recovery_max_tool_calls'], ['max_tool_calls', 'evidence_recovery_max_tool_calls']]) {

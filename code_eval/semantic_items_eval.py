@@ -106,11 +106,13 @@ def apply_overrides(items_by_cid: Dict[str, List[Dict[str, Any]]]) -> List[Dict[
             item.setdefault("model_decision", item.get("decision"))
     applied: List[Dict[str, Any]] = []
     for trigger, when, targets in OVERRIDES:
+        # 선행 조건은 평가 모델의 원래 판정(model_decision)으로 본다 — 앞 규칙이 J1-1.a 를 해당 없음으로 바꾼 뒤에도
+        # 'J1-1.a 아니오 → J4 해당 없음' 이 발동해야 거절·수행 불가 답변이 J4 에서 이중으로 FAIL 하지 않는다.
         sources = _items_of(items_by_cid, trigger)
         if when == "NO":
-            fired = any(it.get("decision") == "NO" for it in sources)
+            fired = any(it.get("model_decision") == "NO" for it in sources)
         else:
-            fired = any(it.get("decision") in ("YES", "NO") for it in sources)
+            fired = any(it.get("model_decision") in ("YES", "NO") for it in sources)
         if not fired:
             continue
         changed: List[str] = []

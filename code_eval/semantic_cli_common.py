@@ -62,6 +62,9 @@ def validate_items_shape(structured: Any, questions: Dict[str, Any]) -> List[str
         missing = [key for key in _ITEM_KEYS if key not in item]
         if missing:
             errors.append(f"{where} 에 {', '.join(missing)} 이(가) 없습니다")
+        extra = [key for key in item if key not in _ITEM_KEYS]
+        if extra:   # 서버 소유 필드(quote_check·origin·rechecks·unverifiable·reason_code·model_original·server)를 모델이 쓰지 못하게
+            errors.append(f"{where} 에 허용되지 않은 키 {', '.join(str(k) for k in extra)} 이(가) 있습니다")
         if not isinstance(item.get("id"), str) or not item["id"].strip():
             errors.append(f"{where}.id 가 문자열이 아닙니다")
         if item.get("decision") not in _ITEM_DECISIONS:

@@ -50,6 +50,7 @@ FAILURE_MESSAGES = {
     "answer_quote_not_found": "answer_quote 가 답변 원문에 없습니다.",
     "source_quote_not_found": "반박 출처 본문에서 인용문을 확인하지 못했습니다.",
     "fact_required": "J5-1.a 판정에는 fact 블록(claim·verdict·correct·sources)이 반드시 있어야 합니다.",
+    "not_applicable_disallowed": "코드 규칙이 이 질문에 적용한 항목입니다. 적용 여부를 바꾸지 말고 YES 또는 NO 로 판정하세요(펼치기 항목은 요소를 나열).",
     "refutation_unverified": "거짓 판정의 반박 출처 원문에서 인용을 확인하지 못했습니다. 같은 주장을 다시 검색·판정하세요.",
     "support_missing": "참 판정에 확인한 출처가 없습니다. 기억만으로 판정하지 말고 검색한 출처를 적으세요.",
 }
@@ -201,7 +202,12 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
         codes: List[Tuple[str, Optional[str]]] = []
         if decision not in DECISIONS:
             codes.append(("decision_invalid", None))
-        elif decision != "NOT_APPLICABLE":
+        elif decision == "NOT_APPLICABLE":
+            # 적용 여부는 코드 규칙이 정한다. 평가 모델이 적용을 정하는 항목(J1-3·J2-4.b·J3-3.a·J6), 주장이 없는 J5-1.a,
+            # 서버가 둔 자리표시 항목만 해당 없음을 허용한다 — 그 밖의 해당 없음은 인용 검증을 피하는 답이라 재확인 대상이다.
+            if not (spec.get("model_applies") or base == "J5-1.a" or item.get("server_placeholder")):
+                codes.append(("not_applicable_disallowed", None))
+        else:
             question_quote = _text(item.get("question_quote"))
             if element is not None and not question_quote and spec.get("origin") != "answer":
                 codes.append(("question_quote_required", None))   # 답변에서 펼친 항목(J5-1.a 주장별)은 질문 인용이 없어도 된다
@@ -229,8 +235,12 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
 
 
 def recheck_questions(questions: Dict[str, Any], failures: List[Dict[str, Any]], round_no: int, *,
-                      notice: Optional[str] = None) -> Dict[str, Any]:
-    """실패한 base id 만 골라 questions 부분집합을 만들고 항목마다 'recheck' 블록을 덧붙인다 (프롬프트가 항목 아래에 렌더링)."""
+                      notice: Optional[str] = None, items: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """실패한 base id 만 골라 questions 부분집합을 만들고 항목마다 'recheck' 블록을 덧붙인다 (프롬프트가 항목 아래에 렌더링).
+
+    ``items``(현재 body 의 항목)를 주면 그 base 의 요소 전부를 ``previous`` 에 싣는다 — 펼치기 항목은 통과한 요소까지
+    다시 나열해 판정하므로(응답이 요소 일부만 돌려주면 merge_recheck 가 나머지를 보존한다) 모델이 전체 목록을 본다.
+    """
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for failure in failures:
         base = failure.get("base")
@@ -240,6 +250,10 @@ def recheck_questions(questions: Dict[str, Any], failures: List[Dict[str, Any]],
     for base, fails in grouped.items():
         previous: List[Dict[str, Any]] = []
         seen: set = set()
+        for current in items if isinstance(items, list) else []:
+            if isinstance(current, dict) and _split_id(current.get("id"))[0] == base and current.get("id") not in seen:
+                previous.append(_snapshot(current))
+                seen.add(current.get("id"))
         for failure in fails:
             snap = failure.get("item")
             if isinstance(snap, dict) and snap.get("id") not in seen:
@@ -282,6 +296,11 @@ def merge_recheck(body: Dict[str, Any], follow_body: Any, requested_ids: Any, *,
             history = list(prior.get("rechecks") or []) if prior else []
             history.append({"round": number, "replaced": _snapshot(prior) if prior else None})
             new["rechecks"] = history
+        new_ids = {new.get("id") for new in new_items}
+        if new_ids <= set(old_by_id) and len(new_ids) < len(old_by_id):
+            # 펼친 요소 일부만 다시 답했다(이전 id 의 부분집합): 답하지 않은 요소는 이미 검증을 거친 이전 판정을 보존한다 —
+            # 통과한 요소나 '아니오' 요소가 재확인 응답에서 소리 없이 사라져 세부 기준이 PASS 로 바뀌지 않게.
+            new_items.extend(copy.deepcopy(it) for it in old if it.get("id") not in new_ids)
         position = next((i for i, it in enumerate(items) if isinstance(it, dict) and _split_id(it.get("id"))[0] == base), len(items))
         items[:] = [it for it in items if not (isinstance(it, dict) and _split_id(it.get("id"))[0] == base)]
         items[position:position] = new_items
@@ -346,6 +365,11 @@ def finalize_items(call: JevCall, state: Dict[str, Any], questions: Dict[str, An
     usage: Dict[str, Any] = {}
     _sum_usage(usage, call.usage or {})
     parts = [{**part, "stage": part.get("stage") or "evaluation"} for part in _usage_parts(call)]
+    # 서버 소유 필드는 모델 출력에서 먼저 지운다 (transport 의 server_check 가 쓴 'server' 블록은 서버 것이라 둔다)
+    for item in body.get("items") if isinstance(body.get("items"), list) else []:
+        if isinstance(item, dict):
+            for key in SERVER_FIELDS:
+                item.pop(key, None)
     body, failures = verify_items(body, state, questions)
     calls: List[Dict[str, Any]] = []
     round_no = 0
@@ -354,7 +378,7 @@ def finalize_items(call: JevCall, state: Dict[str, Any], questions: Dict[str, An
         if cancel_event is not None and cancel_event.is_set():
             raise CancelledError("items recheck cancelled")
         round_no += 1
-        subset = recheck_questions(questions, failures, round_no)
+        subset = recheck_questions(questions, failures, round_no, items=body.get("items"))
         entry: Dict[str, Any] = {"round": round_no, "items": sorted(subset), "status": None, "attempts": 0, "error": None}
         calls.append(entry)
         asked_at = time.monotonic()

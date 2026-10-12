@@ -52,15 +52,15 @@ def test_normalized_locate_ignores_whitespace_markdown_list_markers_and_punctuat
 
 
 def test_yes_requires_answer_quote_and_no_allows_empty_only_for_missing_type_items():
-    qs = questions("J4-2.a", "J2-3.a", "J1-4.a", "J3-1.a")
+    qs = questions("J4-2.a", "J2-3.a", "J1-4.a", "J1-3.a")
     checked, failures = sq.verify_items(body(
         item("J4-2.a#1", "YES", "뭐가 나을지", ""),                       # YES 에는 answer_quote 필수
         item("J2-3.a#1", "NO", "편도 6km", ""),                            # 비누락형 NO 에도 필수
         item("J1-4.a", "NO", "", ""),                                      # J1-4.a 는 비누락형
-        item("J3-1.a", "NOT_APPLICABLE", "", ""),                          # N/A 는 인용 없어도 통과
+        item("J1-3.a", "NOT_APPLICABLE", "", ""),                          # 평가 모델이 적용을 정하는 항목의 N/A 는 인용 없어도 통과
     ), STATE, qs)
     assert codes(failures, "J4-2.a#1") == ["answer_quote_required"] and codes(failures, "J2-3.a#1") == ["answer_quote_required"]
-    assert codes(failures, "J1-4.a") == ["answer_quote_required"] and codes(failures, "J3-1.a") == []
+    assert codes(failures, "J1-4.a") == ["answer_quote_required"] and codes(failures, "J1-3.a") == []
     missing_ok, failures = sq.verify_items(body(item("J4-2.a#1", "NO", "뭐가 나을지", "")), STATE, questions("J4-2.a"))
     assert failures == [] and missing_ok["items"][0]["quote_check"]["answer"] == {"ok": False, "span": None, "required": False}
     assert missing_ok["items"][0]["origin"] == "question"
@@ -278,3 +278,50 @@ def test_legacy_finalize_answers_returns_items_body_untouched_and_input_scope_is
     assert result == items_body and result is not items_body and result["items"] is not items_body["items"]
     legacy = {"model": "m", "answers": {"J1": {"choice": "PASS", "confidence": 0.9, "probabilities": {"PASS": 0.9, "FAIL": 0.1}}}, "verification": {}}
     assert semantic_evidence.finalize_answers(legacy, STATE, {"J1": {}}) == legacy
+
+
+def test_not_applicable_is_rejected_on_code_applied_items_and_ends_as_unverifiable_no():
+    # 적용 여부는 코드 규칙이 정한다 — model_applies 항목·주장 없는 J5-1.a·서버 자리표시만 해당 없음을 허용한다
+    qs = questions("J2-2.a", "J1-4.a", "J1-3.a", "J5-1.a", "J3-1.a")
+    _, failures = sq.verify_items(body(
+        item("J2-2.a", "NOT_APPLICABLE", "", ""), item("J1-4.a", "NOT_APPLICABLE", "", ""), item("J1-3.a", "NOT_APPLICABLE", "", ""),
+        item("J5-1.a", "NOT_APPLICABLE", "", ""), item("J3-1.a", "NOT_APPLICABLE", "", "", server_placeholder=True)), STATE, qs)
+    assert [(f["id"], f["code"]) for f in failures] == [("J2-2.a", "not_applicable_disallowed"), ("J1-4.a", "not_applicable_disallowed")]
+    assert "YES 또는 NO" in sq.FAILURE_MESSAGES["not_applicable_disallowed"]
+    ask = Ask(*[follow(item("J1-4.a", "NOT_APPLICABLE", "", "")) for _ in range(3)])
+    final = sq.finalize_items(initial(item("J1-4.a", "NOT_APPLICABLE", "", "")), STATE, questions("J1-4.a"), ask=ask)
+    assert len(ask.calls) == 3 and ask.calls[0]["J1-4.a"]["recheck"]["problems"][0]["code"] == "not_applicable_disallowed"
+    result = final.body["items"][0]
+    assert result["decision"] == "NO" and result["unverifiable"] is True and result["model_original"]["decision"] == "NOT_APPLICABLE"
+    assert final.body["verification"]["rechecks"]["unverifiable"] == ["J1-4.a"]
+
+
+def test_server_owned_fields_in_the_model_response_are_discarded_before_verification():
+    forged = item("J1-4.a", "YES", "", "전동킥보드는 가볍고", unverifiable=True, reason_code="FACT_FALSE_CONFIRMED",
+                  rechecks=[{"round": 9}], model_original={"decision": "NO"}, quote_check={"forged": True}, origin="answer")
+    final = sq.finalize_items(initial(forged), STATE, questions("J1-4.a"), ask=Ask())
+    result = final.body["items"][0]
+    assert result["decision"] == "YES" and not any(key in result for key in ("unverifiable", "reason_code", "rechecks", "model_original"))
+    assert result["origin"] == "question" and result["quote_check"]["answer"]["ok"] is True
+    assert final.body["verification"]["rechecks"]["rounds"] == 0
+
+
+def test_recheck_lists_every_element_and_a_partial_recheck_answer_keeps_the_unanswered_elements():
+    qs = questions("J4-1.a")
+    first = initial(item("J4-1.a#1", "YES", "전기자전거", "전기자전거는 모터 보조"),
+                    item("J4-1.a#2", "YES", "전동킥보드", "답변에 없는 문장"),
+                    item("J4-1.a#3", "NO", "일반 자전거", "", reason="일반 자전거 비교 없음"))   # 누락형 NO 는 빈 인용 허용
+    ask = Ask(follow(item("J4-1.a#2", "YES", "전동킥보드", "전동킥보드는 가볍고")))          # 실패한 요소만 다시 답함
+    final = sq.finalize_items(first, STATE, qs, ask=ask)
+    previous = ask.calls[0]["J4-1.a"]["recheck"]["previous"]
+    assert [p["id"] for p in previous] == ["J4-1.a#1", "J4-1.a#2", "J4-1.a#3"]          # 요소 전부를 모델에 보여 준다
+    assert [p["code"] for p in ask.calls[0]["J4-1.a"]["recheck"]["problems"]] == ["answer_quote_not_found"]
+    items = {it["id"]: it for it in final.body["items"]}
+    assert set(items) == {"J4-1.a#1", "J4-1.a#2", "J4-1.a#3"}                              # 답하지 않은 요소는 보존
+    assert items["J4-1.a#3"]["decision"] == "NO" and "rechecks" not in items["J4-1.a#3"]
+    assert items["J4-1.a#2"]["decision"] == "YES" and items["J4-1.a#2"]["rechecks"][0]["replaced"]["answer_quote"] == "답변에 없는 문장"
+    assert final.body["verification"]["rechecks"] == {"policy": sq.RECHECK_POLICY, "rounds": 1,
+        "calls": [{"round": 1, "items": ["J4-1.a"], "status": "OK", "attempts": 1, "error": None}], "unverifiable": []}
+    # 요소 전부를 새로 나열하면(새 id 포함) 통째로 바뀐다 — 부분집합일 때만 보존한다
+    merged = sq.merge_recheck(first.body, {"items": [item("J4-1.a#1", "YES", "a", "b"), item("J4-1.a#4", "NO", "c", "d")]}, ["J4-1.a"], round_no=1)
+    assert [it["id"] for it in merged["items"]] == ["J4-1.a#1", "J4-1.a#4"]

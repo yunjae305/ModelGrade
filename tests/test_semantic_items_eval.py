@@ -81,13 +81,17 @@ def test_overrides_table_matches_the_design_rules():
 def test_refusal_no_makes_task_item_not_applicable_and_keeps_the_model_decision():
     by_cid = grouped(questions("J1-1.a", "J1-2.a", "J4-2.a"), item("J1-1.a", "NO"), item("J1-2.a", "NO"), item("J4-2.a#1", "YES"))
     applied = ev.apply_overrides(by_cid)
-    assert applied == [{"trigger": "J1-2.a", "when": "NO", "targets": ["J1-1.a"]}]
+    assert applied == [{"trigger": "J1-2.a", "when": "NO", "targets": ["J1-1.a"]}, {"trigger": "J1-1.a", "when": "NO", "targets": ["J4-2.a#1"]}]
     task = by_cid["J1"][0]
     assert task["id"] == "J1-1.a" and task["decision"] == "NOT_APPLICABLE" and task["model_decision"] == "NO" and task["override"] == "J1-2.a"
     assert task["reason"] == "서버 집계 규칙: J1-2.a 아니오 → J1-1.a 해당 없음 (원래 판정 NO: r)"
-    # J1-1.a 가 규칙으로 해당 없음이 된 뒤에는 'J1-1.a 아니오 → J4' 규칙이 연쇄로 발동하지 않는다 (거절은 J1-2 에서만 본다)
-    assert decision_of(by_cid, "J4-2.a#1") == "YES" and by_cid["J4"][0]["model_decision"] == "YES" and "override" not in by_cid["J4"][0]
+    # 선행 조건은 모델의 원래 판정으로 본다: J1-1.a 가 앞 규칙으로 해당 없음이 된 뒤에도 '결과물 없음(J1-1.a 아니오) → J4 해당 없음' 은
+    # 발동한다 — 거절한 답변이 J1-2 와 J4 에서 이중으로 FAIL 하지 않는다 (거절은 J1-2 에서만 본다)
+    j4 = by_cid["J4"][0]
+    assert j4["decision"] == "NOT_APPLICABLE" and j4["model_decision"] == "YES" and j4["override"] == "J1-1.a"
     assert all("model_decision" in it for its in by_cid.values() for it in its)
+    decisions, _ = ev.aggregate_items(by_cid, questions("J1-1.a", "J1-2.a", "J4-2.a"))
+    assert decisions["J1"]["decision"] == "FAIL" and decisions["J4"]["decision"] is None and decisions["J4"]["status"] == "NOT_APPLICABLE"
 
 
 def test_task_no_makes_all_j4_elements_not_applicable_and_infeasible_request_disables_j1_1_and_j1_2():
