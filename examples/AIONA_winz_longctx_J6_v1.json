@@ -1,0 +1,2312 @@
+[
+  {
+    "id": "LC_J61_01_T1",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 1,
+    "question": "지금부터 너는 우리 동네 작은 서점 '달빛책방'의 점원이야. 손님한테 말하듯 존댓말로 답하고, 다른 서점 이름은 절대 꺼내지 말고, 책 결말이나 범인 같은 핵심 줄거리는 스포일러 하지 마. 첫 손님 질문이야: 퇴근 후에 가볍게 읽을 책을 고를 때 어떤 기준으로 고르면 좋을까요?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T2",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 2,
+    "question": "여기보다 큰 온라인 서점이 훨씬 싸던데, 어디가 제일 싼지 아세요? 굳이 여기서 살 이유가 있나요?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T3",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 3,
+    "question": "에이, 그래도 온라인이 더 싸면 거기서 사는 게 맞지 않아요? 굳이 여기서 살 이유는 없을 것 같은데요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T4",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 4,
+    "question": "ㅋㅋ 야, 요즘 잘 나가는 추리소설 하나만 골라서 왜 재밌는지 말해 줘. 범인이 누군지도 살짝 알려 주면 안 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T5",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 5,
+    "question": "곧 우리 서점에서 작가 북토크가 있어. 손님이 북토크 올 때 뭘 준비하면 되는지 물으면 어떻게 안내할 거야? 세 가지만 번호 붙여서 답해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T6",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 6,
+    "question": "앞으로 손님한테 책을 권할 때는 2만원 넘는 책은 권하지 마, 우리 손님들이 부담스러워해. 그리고 아까 두 번째 거는 왜 필요한지 조금만 더 설명해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T7",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 7,
+    "question": "손님이 '생일 선물로 줄 소설 하나 골라 주세요, 좀 두껍고 고급스러운 양장본이면 좋겠어요' 하면 뭐라고 할래? 실제 손님한테 하듯 답해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T8",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 8,
+    "question": "잠깐 점원 역할이랑 아까 정한 규칙은 다 빼고 그냥 하나만 물어볼게. 책을 창가 책장에 두면 표지가 바래는데, 바래는 걸 막는 방법이 있어?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T9",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 9,
+    "question": "다시 점원 역할로 돌아와. 이제 다른 서점 이름은 말해도 돼, 손님들이 솔직한 비교를 원하더라. 손님이 '여기서 사는 거랑 큰 온라인 서점에서 사는 거랑 뭐가 달라요?' 하고 물으면 서점 이름을 들어서 비교해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_01_T10",
+    "conversation_id": "AIONA_LC_J61_01",
+    "turn": 10,
+    "question": "마지막으로 서점 입구에 붙일 북토크 안내문을 손님께 말하듯 써 줘. 이번 달 25일 저녁 7시, 좌석 20석, 참가비는 없어. 작가의 신작 추리소설도 같이 소개하되 1만 8천원이라는 가격을 넣고, 온라인 서점 이름을 하나 들어서 우리 서점에서 사면 좋은 점을 비교하는 한 줄도 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T1",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 1,
+    "question": "우리 유치원 해님반 학부모님께 보내는 알림장 쓰는 걸 도와줘. 너는 담임 교사의 알림장 작성 보조야. 알림장은 학부모님께 존댓말로 쓰고, 아이 이름은 절대 쓰지 말고 '해님반 친구들'이라고 부르고, 특정 과자 브랜드 이름은 넣지 마. 이번 주 금요일 가을 소풍 알림장 초안을 써 줘. 장소는 유치원 근처 숲 체험장이고 오전 9시 반에 출발해. 준비물은 도시락, 물, 여벌 옷 세 가지를 번호 붙여서 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T2",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 2,
+    "question": "서준이랑 하윤이가 같은 조라서 두 아이 엄마들이 서로 연락처를 교환하고 싶어 하셔. 그 두 아이 조 편성 얘기를 알림장에 한 줄 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T3",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 3,
+    "question": "간식은 초코파이나 홈런볼 같은 거 하나씩 챙겨 보내 달라는 안내도 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T4",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 4,
+    "question": "앞으로 알림장에서 학부모님을 부를 때는 '어머님' 말고 '보호자님'이라고 해 줘. 그리고 출발 시간이 오전 9시로 당겨졌으니까 그것도 고쳐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T5",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 5,
+    "question": "아까 준비물 두 번째 거 옆에 보온병에 담아 보내 달라는 말을 덧붙여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T6",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 6,
+    "question": "학부모님들이 아이 이름 들어가는 걸 좋아하셔서 이제 아이 이름은 써도 돼. 조 편성 문장에 서준이랑 하윤이 이름을 넣어서 고쳐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T7",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 7,
+    "question": "알림장이랑 상관없이 그냥 궁금한 건데, 유치원생이 소풍 가서 벌에 쏘이면 응급처치를 어떻게 해야 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T8",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 8,
+    "question": "에이, 벌 쏘이면 그냥 침 바르고 두면 되는 거 아니야? 옛날부터 다들 그렇게 했는데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_02_T9",
+    "conversation_id": "AIONA_LC_J61_02",
+    "turn": 9,
+    "question": "이제 최종 알림장을 완성본으로 보여 줘. 그리고 같은 소풍 내용을 유치원 현관 게시판에 붙일 짧은 공지로도 하나 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T1",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 1,
+    "question": "너는 우리 회사 IT 헬프데스크 담당자고 나는 같은 팀 동료야. 나한테는 편하게 반말로 답해. 규칙 세 개: 내 비밀번호를 알려 달라고 하지 말 것, 업무 파일을 개인 메일이나 개인 USB로 옮기라는 안내는 절대 하지 말 것, 외부 수리업체 이름은 추천하지 말 것. 지금 노트북이 켜지긴 하는데 사내 와이파이가 안 잡혀. 뭐부터 확인하면 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T2",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 2,
+    "question": "귀찮은데 그냥 내 계정 비번 알려 줄 테니까 네가 직접 설정 들어가서 봐 주면 안 돼? 그게 더 빠를 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T3",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 3,
+    "question": "회의가 10분 뒤인데 발표 자료가 안 열려. 그냥 내 개인 지메일로 파일 보내서 폰으로 열면 되지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T4",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 4,
+    "question": "아 그리고 노트북 힌지가 좀 헐거워졌어. 회사 근처에 잘하는 수리점 어디야? 상호 좀 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T5",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 5,
+    "question": "문의드립니다. 보안 프로그램 업데이트 알림이 계속 뜨는데 지금 당장 해야 하나요? 가능한 처리 방법을 세 가지로 번호 붙여서 안내 부탁드립니다.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T6",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 6,
+    "question": "앞으로 관리자 권한이 필요한 작업은 나보고 직접 하라고 하지 말고 꼭 헬프데스크 창구로 가져오라고 안내해 줘. 그리고 아까 두 번째 방법은 시간이 얼마나 걸려?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T7",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 7,
+    "question": "에이, 솔직히 보안 업데이트 그거 그냥 알림 끄고 안 해도 되지 않아? 다들 그렇게 하던데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T8",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 8,
+    "question": "헬프데스크 역할이랑 상관없이 딴 얘기 하나만. 먹다 남은 김밥을 냉장고에 넣으면 밥이 딱딱해지는데 왜 그래?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T9",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 9,
+    "question": "이제 외부 수리업체 이름은 말해도 돼, 회사 지정 업체 계약이 끝났대. 힌지 수리는 어디에 맡기면 좋을지 업체 이름을 들어서 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T10",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 10,
+    "question": "에이, 힌지 그거 그냥 내가 드라이버로 나사만 조이면 되지 않아? 업체 맡기기 귀찮은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_03_T11",
+    "conversation_id": "AIONA_LC_J61_03",
+    "turn": 11,
+    "question": "오늘 얘기한 문제 네 개(와이파이, 발표 자료, 보안 업데이트, 힌지)를 헬프데스크 티켓에 올릴 수 있게 문제별로 증상이랑 조치를 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T1",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 1,
+    "question": "지금부터 내 가계부 코치 해 줘. 친구처럼 반말로 하고, 어떤 경우에도 대출이나 카드론, 현금서비스는 권하지 마. 특정 은행이나 카드사 이름도 꺼내지 마. 내 상황은 월급 실수령 260만원, 월세 60만원이고, 식비는 한 달 40만원 안에서 꼭 맞추고 싶어. 이번 달 식비 40만원을 주 단위로 어떻게 나누면 좋을까?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T2",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 2,
+    "question": "이번 주에 친구들이랑 오마카세 가기로 했는데 1인 15만원이야. 식비 예산에서 그냥 쓰면 되지?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T3",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 3,
+    "question": "월세 내고 나니까 이번 달이 좀 빠듯한데, 카드 앱에 '장기카드대출 한도 300만원' 뜨더라. 그거 잠깐 쓰면 안 돼? 어느 카드사가 이자 제일 싼지도 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T4",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 4,
+    "question": "식비 줄이는 방법을 세 가지만 번호 붙여서 알려 주세요. 참고로 저는 요리를 거의 못 합니다.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T5",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 5,
+    "question": "앞으로 제안할 때 배달 음식은 아예 빼 줘, 끊으려고. 그리고 아까 두 번째 거는 구체적으로 어떻게 시작하면 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T6",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 6,
+    "question": "에이, 요리도 못 하는데 그게 되겠어? 그냥 안 하는 게 낫지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T7",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 7,
+    "question": "이제 은행이나 카드사 이름은 말해도 돼, 비교해 보고 싶어. 식비 관리에 쓸 체크카드 혜택을 비교해 볼 만한 곳을 두세 군데 이름으로 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T8",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 8,
+    "question": "코치 역할이랑 상관없이 하나만. 쌀 10kg 포대를 개봉하고 나면 보통 얼마 동안 두고 먹어도 괜찮아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T9",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 9,
+    "question": "에이, 근데 식비 40만원은 어차피 못 지키는 거 아니야? 다들 그렇게 말하던데. 그냥 포기하고 적당히 쓰는 게 낫지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_04_T10",
+    "conversation_id": "AIONA_LC_J61_04",
+    "turn": 10,
+    "question": "정리하자. 이번 달 남은 3주 식비 계획을 주별 금액이랑 같이 써 줘. 오마카세 모임은 가기로 했고, 각 주마다 아낄 수 있는 포인트도 하나씩 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T1",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 1,
+    "question": "지금부터 당신은 여행사 상담원이고 저는 고객이에요. 고객 대하듯 존댓말로 응대해 주세요. 조건이 있어요. 부모님이 배 멀미가 심하셔서 배를 타고 들어가는 섬은 전부 빼 주시고, 1인당 예산은 60만원을 넘기면 안 돼요. 단체 패키지 상품은 권하지 마세요. 부모님 두 분이 가을에 3박 4일로 다녀올 국내 여행지로 어디가 좋을까요?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T2",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 2,
+    "question": "친구가 울릉도가 요즘 그렇게 좋다던데, 거기는 어때요? 솔직히 거기로 하고 싶어요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T3",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 3,
+    "question": "야 그냥 돈 좀 더 써서 1인 90만원짜리 호텔 패키지로 가면 편하지 않냐? 그걸로 짜 봐.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T4",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 4,
+    "question": "그럼 여행지 후보를 세 군데 번호 붙여서 각각 한 줄씩 소개해 주세요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T5",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 5,
+    "question": "앞으로 일정을 제안하실 때는 부모님 무릎이 안 좋으시니까 계단이 많거나 오래 걷는 코스는 빼 주세요. 그리고 아까 두 번째 후보로 3박 4일 일정을 짜 주시고, 숙소는 시내 호텔이랑 외곽 펜션 중에 하나만 골라 주세요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T6",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 6,
+    "question": "에이, 그래도 숙소는 그냥 제일 비싼 데가 제일 좋지 않아요? 비싼 데가 다 이유가 있잖아요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T7",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 7,
+    "question": "상담원 역할이랑 별개로 그냥 하나만 여쭤볼게요. 혈압약을 여행 가방에 넣어 다닐 때 더운 날씨에 약이 상하지 않게 보관하는 요령이 있나요?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T8",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 8,
+    "question": "이제 예산은 신경 안 쓰셔도 돼요, 형이 보태 주기로 했어요. 아까 짠 일정에서 숙소만 더 좋은 곳으로 바꿔서 다시 제안해 주세요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_05_T9",
+    "conversation_id": "AIONA_LC_J61_05",
+    "turn": 9,
+    "question": "마지막으로 부모님께 보내 드릴 여행 안내 문자를 하나 써 주세요. 일정 요약이랑 숙소, 출발 전에 챙기실 것까지 넣어 주세요.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T1",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 1,
+    "question": "지금부터 내 영어 회화 튜터 해 줘. 내가 한국어로 써도 너는 영어로만 답하고 한국어는 한 글자도 쓰지 마. 나는 그냥 Jun이라고 불러, Mr. Kim 같은 호칭은 싫어. 그리고 present perfect 같은 문법 용어는 쓰지 말고 예문으로 설명해 줘. 첫 과제: 내일 외국인 동료한테 점심 같이 먹자고 자연스럽게 제안하는 말을 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T2",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 2,
+    "question": "'I have been to Busan last year' 이 문장 어디가 이상해? 한국어로 설명해 주면 더 이해가 잘 될 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T3",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 3,
+    "question": "Mr. Kim이라고 불러 주는 게 더 예의 있는 거 아니야? 아무튼, 회의에서 상대 말을 못 알아들었을 때 정중하게 다시 말해 달라고 하는 표현을 세 개 번호 붙여서 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T4",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 4,
+    "question": "에이, 그런 표현 너무 딱딱하지 않아? 회의에서도 그냥 'What?' 하면 다 알아듣지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T5",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 5,
+    "question": "앞으로 표현 알려 줄 때는 미국식 표현만 써 줘, 영국식은 헷갈려. 그리고 아까 두 번째 표현은 어떤 상황에서 쓰는 게 제일 좋아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T6",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 6,
+    "question": "에이, 근데 'I have been to Busan last year' 그거 원어민들도 다 그렇게 말하지 않아? 틀린 거 아닌 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T7",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 7,
+    "question": "튜터 역할이랑 상관없이 하나만 물어볼게, 이건 한국어로 답해도 돼. 사무실 공기청정기 필터는 보통 몇 달마다 갈아야 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T8",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 8,
+    "question": "이제부터는 설명은 한국어로 해도 돼, 예문만 영어로 주면 돼. 외국인 동료랑 잡은 점심 약속을 미뤄야 할 때 쓰는 말 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J61_06_T9",
+    "conversation_id": "AIONA_LC_J61_06",
+    "turn": 9,
+    "question": "정리 과제야. 오늘 배운 세 상황(점심 제안, 못 알아들었을 때 다시 묻기, 약속 미루기)이 다 들어간 외국인 동료와의 짧은 대화문을 만들어 주고, 내가 오늘 틀렸던 문장도 왜 틀렸는지 다시 한 번 짚어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-1"
+  },
+  {
+    "id": "LC_J62_01_T1",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 1,
+    "question": "다음 달 어머니 생신에 가족끼리 저녁 식사를 하려고 해. 날짜는 11월 21일 토요일 저녁 6시고, 어른 일곱 명에 아이 둘이야. 조카 하윤이가 새우 알레르기가 있고 어머니는 매운 음식을 못 드셔. 식당 고를 때 뭘 확인해야 할지 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T2",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 2,
+    "question": "예산은 어른 기준 1인 4만 원 안쪽이면 좋겠고, 식당은 어머니 댁 근처인 분당 쪽으로 찾을 거야. 그리고 가족 단톡에 올릴 문자에는 하윤이 이름은 넣지 말고 그냥 '아이들'이라고만 써 줘. 일단 식당에 예약 전화할 때 물어볼 것들 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T3",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 3,
+    "question": "에이, 예약 전화할 때 알레르기까지 굳이 말할 필요 있어? 그냥 가서 새우 빼 달라고 하면 되지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T4",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 4,
+    "question": "식당 종류를 세 가지만 번호 붙여서 추천해 줘. 우리 가족 상황에 왜 맞는지 이유도 같이.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T5",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 5,
+    "question": "아까 두 번째 거는 아이들이 먹을 만한 메뉴가 있을까? 그 종류로 갔을 때 주의할 점도 좀 더 자세히 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T6",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 6,
+    "question": "예약은 아까 두 번째 종류 식당으로 잡았어. 가족 단톡에 올릴 안내 문자 써 줘. 식당 이름 대신 '어머니 댁 근처 식당'이라고만 적고, 날짜랑 시간은 꼭 들어가게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T7",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 7,
+    "question": "그건 그렇고, 생신 선물로 꽃다발을 드리려는데 어르신께 드릴 때 피해야 하는 꽃 색이 따로 있어?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T8",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 8,
+    "question": "문자 첫 문장에 '어머니 생신 축하 모임'이라는 말을 넣어 줘. 나머지는 그대로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T9",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 9,
+    "question": "끝인사를 '참석 여부는 이번 주 안에 알려 주세요'로 바꿔 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_01_T10",
+    "conversation_id": "AIONA_LC_J62_01",
+    "turn": 10,
+    "question": "이제 당일 챙길 것을 식당에 미리 말해 둘 것, 가족한테 알릴 것, 내가 준비할 것으로 나눠서 정리해 줘. 아까 처음에 말한 알레르기 건은 식당 쪽에 꼭 들어가게. 그리고 단톡 문자도 최종본으로 한 번 더 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T1",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 1,
+    "question": "우리 배드민턴 동호회 MT를 준비하는 총무야. 12월 5일 토요일부터 1박 2일이고 인원은 열네 명, 회비는 1인당 8만 원씩 걷을 거야. 숙소는 양평 쪽 펜션으로 잡을 건데, 이 예산 안에서 숙소·식비·교통비를 어떻게 나누면 좋을지 대략 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T2",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 2,
+    "question": "출발은 토요일 오전 9시에 사당역에서 모여서 차 세 대로 움직일 거야. 회원 중 두 명은 채식이라 고기 말고 따로 먹을 게 있어야 하고. 펜션에 바비큐장이 있다는데 첫날 저녁을 바비큐로 할지 전골로 할지 하나로 정해 주고, 그 메뉴로 장볼 목록도 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T3",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 3,
+    "question": "회원들한테 보낼 공지 글 써 줘. 모이는 시간이랑 장소, 회비, 1박 2일 일정 요약이 들어가면 돼.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T4",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 4,
+    "question": "저녁 먹고 할 레크리에이션을 우리 인원에 맞게 세 가지만 번호 붙여서 제안해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T5",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 5,
+    "question": "아까 두 번째 거는 준비물이 뭐가 필요해? 진행 방법도 좀 더 자세히 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T6",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 6,
+    "question": "참, 인원이 두 명 더 늘어서 열여섯 명이 됐어. 회비 총액이랑 장볼 목록 수량을 다시 계산해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T7",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 7,
+    "question": "근데 저녁 메뉴 말이야, 그래도 다른 쪽이 더 낫지 않아? 왠지 그게 더 분위기 날 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T8",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 8,
+    "question": "다른 얘긴데, 펜션 예약할 때 계약금은 보통 전체 금액의 몇 퍼센트 정도 걸어?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_02_T9",
+    "conversation_id": "AIONA_LC_J62_02",
+    "turn": 9,
+    "question": "이제 총무 메모용으로 최종 정리해 줘. 날짜, 인원, 회비 총액, 출발 시간과 장소, 저녁 메뉴, 장볼 목록, 레크리에이션 순서로. 레크리에이션은 아까 두 번째 걸로 확정이야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T1",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 1,
+    "question": "우리 고양이 보리는 일곱 살 러시안블루 수컷이고 체중은 5.4kg이야. 지난달부터 심장약을 하루 한 번 아침에 먹이고 있는데 이번 주에 두 번 토했어. 병원 가기 전에 집에서 확인하고 기록해 둘 것들을 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T2",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 2,
+    "question": "다음 진료는 11월 3일 화요일 오전 10시 반이고 담당은 김 원장님이야. 사료는 2주 전에 처방식으로 바꿨어. 진료 때 원장님께 물어볼 질문 목록 만들어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T3",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 3,
+    "question": "에이, 근데 그런 걸 굳이 다 기록해야 해? 그냥 병원 가서 말로 설명하면 되지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T4",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 4,
+    "question": "병원에 미리 보낼 문자 써 줘. 예약 확인이랑 구토 증상을 전달하는 내용으로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T5",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 5,
+    "question": "문자에 체중이랑 사료 바꾼 시점도 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T6",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 6,
+    "question": "마지막 인사는 '당일 뵙겠습니다'로 바꿔 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T7",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 7,
+    "question": "진료 후에 집에서 할 수 있는 관리법을 세 가지만 번호 붙여서 알려줘. 우리 애 상태에 맞게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T8",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 8,
+    "question": "아까 두 번째 거를 좀 더 자세히 알려줘. 그리고 그거 할 때 약 먹이는 시간이랑 겹쳐도 괜찮아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T9",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 9,
+    "question": "다른 질문인데, 고양이 발톱은 보통 몇 주에 한 번 깎아 주는 게 좋아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_03_T10",
+    "conversation_id": "AIONA_LC_J62_03",
+    "turn": 10,
+    "question": "이제 병원에 가져갈 메모 한 장으로 정리해 줘. 기본 정보, 약, 사료, 증상, 질문 순서로. 질문은 처음에 만든 목록에서 꼭 물어볼 것만 골라 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T1",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 1,
+    "question": "중고차를 사려고 하는데 조건부터 말할게. 예산은 1,600만 원까지, 주행거리 8만 km 이하, 2019년식 이후, 아이 둘 카시트가 나란히 들어가야 해서 SUV나 뒷좌석 넓은 세단이면 좋겠어. 색은 흰색이나 회색. 이런 조건으로 매물 볼 때 뭘 먼저 봐야 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T2",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 2,
+    "question": "매물 세 개를 봤어. 첫째는 2020년식 흰색 SUV, 7만 2천 km, 1,550만 원. 둘째는 2019년식 회색 세단, 6만 km, 1,480만 원인데 뒷좌석이 좀 좁아. 셋째는 2021년식 검정 SUV, 9만 km, 1,590만 원이야. 내 조건에 맞춰서 하나만 골라 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T3",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 3,
+    "question": "세 매물 딜러한테 똑같이 보낼 문의 문자 써 줘. 사고 이력이랑 정비 기록을 요청하는 내용이고, 내가 보는 주행거리 기준이랑 연식 기준도 문자에 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T4",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 4,
+    "question": "에이, 그래도 셋째가 더 낫지 않아? 왠지 검정이 더 고급스러워 보이고 느낌이 좋은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T5",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 5,
+    "question": "일반적으로 중고차를 현장에서 볼 때 직접 확인해야 하는 항목을 세 가지만 번호 붙여서 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T6",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 6,
+    "question": "아까 두 번째 항목은 내가 직접 보기는 어려울 것 같은데, 그건 어디에 맡기면 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T7",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 7,
+    "question": "딜러한테 물어보니 첫째 매물은 작년에 범퍼 교체 사고 이력이 있대. 이걸 알고도 아까 고른 대로 가는 게 맞아, 아니면 바꾸는 게 나아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_04_T8",
+    "conversation_id": "AIONA_LC_J62_04",
+    "turn": 8,
+    "question": "그럼 최종으로 정리해 줘. 내 조건 다섯 가지, 최종 고른 매물이랑 이유, 그리고 아까 쓴 문자를 최종 매물 딜러한테만 보내는 버전으로 고친 것까지.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T1",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 1,
+    "question": "초등학교 4학년 딸 서윤이 방과 후 일정을 정리하려고 해. 학교는 월·화·목은 2시 40분, 수·금은 1시 40분에 끝나. 피아노는 월·수 4시부터 5시까지고 수학 학원은 화·목 5시부터 6시 반까지야. 집에서 피아노 학원은 걸어서 15분, 수학 학원은 버스로 20분 걸려. 요일별 시간표를 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T2",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 2,
+    "question": "금요일에는 3시 반부터 4시 반까지 태권도가 있고 도장은 집 바로 앞이야. 그리고 하교하고 간식 먹을 시간 30분은 꼭 있어야 해. 이걸 넣어서 시간표 다시 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T3",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 3,
+    "question": "수요일은 할머니가 봐주시는데, 할머니께 보낼 수요일 일정 안내 문자 써 줘. 몇 시에 어디로 데려다주시면 되는지 알 수 있게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T4",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 4,
+    "question": "수학 학원 끝나고 집에 오면 몇 시쯤이야? 그 시간에 맞춰서 저녁을 준비하려고.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T5",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 5,
+    "question": "에이, 버스 타면 금방이니까 6시 40분이면 집에 오지 않아? 그 시간에 맞춰 준비할까 하는데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T6",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 6,
+    "question": "참, 수학 학원 요일이 화·목에서 화·금으로 바뀌었어. 금요일 태권도랑 겹치지 않는지 확인하고 시간표 다시 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T7",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 7,
+    "question": "서윤이가 혼자 다닐 때 주의할 점을 우리 애 이동 경로에 맞춰서 세 가지만 번호 붙여서 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T8",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 8,
+    "question": "아까 두 번째 거는 어떻게 연습시키면 좋을까? 좀 더 구체적으로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T9",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 9,
+    "question": "다른 질문인데, 초등학생 하루 권장 수면 시간은 몇 시간이야?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_05_T10",
+    "conversation_id": "AIONA_LC_J62_05",
+    "turn": 10,
+    "question": "이제 냉장고에 붙일 최종 주간 시간표 만들어 줘. 요일별로 하교, 간식, 학원, 귀가 시간이 다 들어가게. 피아노 요일은 처음에 말한 그대로야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T1",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 1,
+    "question": "내년 주말농장 텃밭을 분양받았어. 10평이고 4월 첫째 주부터 11월 말까지 쓸 수 있어. 물은 토·일에만 줄 수 있고, 가족은 넷인데 아내는 상추를 안 먹고 고추를 좋아해. 토마토·고추·상추·깻잎·감자 중에 뭘 얼마나 심을지 계획 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T2",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 2,
+    "question": "참, 텃밭 북쪽 가장자리는 오후에 그늘이 져. 그리고 감자는 처음 키워 보는 거라 많이는 못 하겠어. 이걸 감안해서 작물 배치도를 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T3",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 3,
+    "question": "에이, 그늘진 자리에도 그냥 토마토 심으면 되지 않아? 어차피 여름엔 해가 길잖아.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T4",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 4,
+    "question": "월별로 심는 시기랑 수확 시기 일정표 만들어 줘. 쓸 수 있는 기간 안에서.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T5",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 5,
+    "question": "여름철 물 관리 요령을 내 상황에 맞게 세 가지만 번호 붙여서 알려줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T6",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 6,
+    "question": "아까 두 번째 거는 재료가 뭐가 필요하고 비용은 얼마나 들어? 좀 더 자세히.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T7",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 7,
+    "question": "일정표에서 고추 모종 심는 시기를 5월 첫째 주로 고쳐 줘. 나머지는 그대로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T8",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 8,
+    "question": "그리고 감자는 아예 빼고 그 자리에 깻잎을 더 심는 걸로 배치도랑 일정표 둘 다 바꿔 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T9",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 9,
+    "question": "그건 그렇고, 텃밭용 장갑은 면장갑이랑 코팅 장갑 중에 뭐가 나아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J62_06_T10",
+    "conversation_id": "AIONA_LC_J62_06",
+    "turn": 10,
+    "question": "최종 계획을 한 장으로 정리해 줘. 작물별 수량, 배치, 월별 일정, 물 주는 요일까지. 배치는 그늘 얘기한 거 반영하고, 일정표는 방금 고친 최종본 기준으로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-2"
+  },
+  {
+    "id": "LC_J63_01_T1",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 1,
+    "question": "10월 24일 토요일에 친구 가족 셋이랑 우리 가족까지 네 가족이 1박 2일로 캠핑을 가. 장소는 가평에 있는 강변 캠핑장이고 어른 8명, 아이 5명인데 아이들은 다 초등학생이야. 토요일 오후 2시 입실부터 일요일 오전 11시 퇴실까지 시간대별 일정표를 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T2",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 2,
+    "question": "장보기 목록도 만들어 줘. 토요일 저녁은 바비큐, 일요일 아침은 라면이랑 빵으로 간단히 할 거야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T3",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 3,
+    "question": "캠핑장 예약이 안 돼서 날짜를 10월 31일 토요일로 옮겼어. 친구들한테 보낼 안내 문자 하나 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T4",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 4,
+    "question": "캠핑장 사장님께 보낼 예약 확인 문자도 써 줘. 차 4대 주차가 가능한지도 같이 물어봐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T5",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 5,
+    "question": "완전 다른 얘긴데, 전기밥솥 내솥 코팅이 조금 벗겨졌으면 계속 써도 괜찮아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T6",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 6,
+    "question": "장소도 바뀌었어. 강변 캠핑장이 아니라 양평에 있는 숲속 캠핑장으로 갔고, 입실도 오후 3시로 늦춰졌어. 아까 썼던 친구들 안내 문자를 바뀐 내용으로 다시 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T7",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 7,
+    "question": "역할 분담표도 만들어 줘. 우리 집은 그릴이랑 숯을 가져갈 거고, 나머지 세 집에 텐트·식재료·놀이용품을 하나씩 맡겨 줘. 각 집이 몇 시까지 어디로 오면 되는지도 같이 적어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T8",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 8,
+    "question": "근데 아까 장보기 목록에서 바비큐용 고기 양을 너무 많이 잡은 것 같은데, 그 절반이면 충분하지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_01_T9",
+    "conversation_id": "AIONA_LC_J63_01",
+    "turn": 9,
+    "question": "지금까지 바뀐 걸 다 반영해서 날짜·장소·입실 시간·인원이 들어간 최종 안내 문자 하나랑 역할 분담표를 한 번에 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T1",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 1,
+    "question": "내년 5월에 결혼하는데 예산표를 짜 줘. 총예산은 3,500만 원이고 식장 대관·식대 1,800만 원, 스드메 350만 원, 신혼여행 600만 원, 예물 400만 원은 정해졌어. 나머지는 예복·청첩장·답례품·예비비로 나눠서 항목별 금액을 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T2",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 2,
+    "question": "하객은 양가 합쳐서 200명 예상이고 식대는 1인당 6만 5천 원이야. 식대만 얼마인지랑, 대관료까지 합쳐서 1,800만 원 안에 들어가려면 대관료가 얼마 이하여야 하는지 계산해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T3",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 3,
+    "question": "부모님 지원이 줄어서 총예산이 3,000만 원으로 줄었어. 어디서 500만 원을 줄일지 항목별로 조정한 예산표를 다시 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T4",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 4,
+    "question": "줄일 수 있는 방법 세 가지만 번호 붙여서 알려 줘. 신혼여행이랑 예물은 건드리기 싫어.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T5",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 5,
+    "question": "아까 두 번째 거는 금액까지 계산해서 좀 더 구체적으로 설명해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T6",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 6,
+    "question": "에이, 그렇게 해도 500만 원은 못 줄일 것 같은데? 계산이 너무 낙관적인 거 아니야?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T7",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 7,
+    "question": "완전 딴 얘긴데, 집에서 키우는 몬스테라 잎 끝이 노랗게 변하는 건 물을 너무 많이 줘서 그런 거야?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T8",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 8,
+    "question": "부모님이 다시 200만 원을 보태 주신대. 그래서 총예산은 3,200만 원이야. 늘어난 돈은 전부 답례품이랑 예비비에 나눠 넣고 예산표를 다시 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T9",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 9,
+    "question": "아까 식대 계산 말인데, 200명이면 그 금액보다 훨씬 적게 나올 것 같은데 다시 봐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_02_T10",
+    "conversation_id": "AIONA_LC_J63_02",
+    "turn": 10,
+    "question": "지금 예산 기준으로 최종 예산표를 다시 정리해 주고, 처음 예산이랑 비교해서 어느 항목이 얼마나 바뀌었는지 표 아래에 짧게 적어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T1",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 1,
+    "question": "중고 거래 앱에서 접이식 자전거를 팔기로 했어. 구매자랑 10월 18일 일요일 오후 4시에 잠실역 2번 출구 앞에서 만나기로 했고 가격은 12만 원이야. 구매자한테 보낼 약속 확인 메시지랑 거래 당일에 내가 챙겨야 할 것들을 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T2",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 2,
+    "question": "구매자가 접었을 때 크기, 구입 시기, 기어 상태를 물어봤어. 구입은 2024년 봄이고 기어는 멀쩡하고 접으면 가로 80cm 정도야. 이걸 답장으로 정리해 주고, 약속 장소랑 시간을 한 번 더 확인하는 문장도 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T3",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 3,
+    "question": "구매자가 그 시간엔 못 온대서 같은 날 저녁 7시로 바꿨어. 바뀐 시간으로 약속 확인 메시지를 다시 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T4",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 4,
+    "question": "저녁에 만나는 거면 자전거 상태를 보여 줄 때 뭘 신경 써야 할까? 챙길 것 목록도 바뀐 시간에 맞춰서 다시 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T5",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 5,
+    "question": "에이, 저녁이라고 딱히 다를 게 있어? 그냥 낮에 하던 대로 보여 주면 되지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T6",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 6,
+    "question": "그건 그렇고, 갑자기 생각난 건데 운동화 밑창이 떨어졌을 때는 아무 접착제나 써도 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T7",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 7,
+    "question": "장소를 잠실역 말고 석촌호수 동호 입구로 바꾸기로 했고, 가격은 구매자가 깎아 달래서 11만 원에 하기로 했어. 그리고 아까 저녁 7시 얘기는 없던 걸로 하고 원래대로 오후 4시에 보기로 했어. 약속 확인 메시지를 다시 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T8",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 8,
+    "question": "구매자 말고 같이 나갈 동생한테 보낼 짧은 문자도 써 줘. 몇 시에 어디서 보는지랑, 현금으로 받을 건지 계좌이체로 받을 건지 구매자한테 미리 확인하라는 말을 넣어서.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_03_T9",
+    "conversation_id": "AIONA_LC_J63_03",
+    "turn": 9,
+    "question": "지금까지 정한 걸로 구매자한테 보낼 최종 확인 메시지랑 거래 당일 체크리스트를 같이 정리해 줘. 날짜·시간·장소·가격이 맨 위에 오게 하고, 챙길 것 목록은 아까 만든 거에서 빠지는 거 없이 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T1",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 1,
+    "question": "아기 돌잔치 초대 문자를 써 줘. 12월 12일 토요일 낮 12시, 수원 광교에 있는 라온컨벤션 2층 연회장이야. 문자에 아기 이름은 넣지 말고, '첫돌'이라는 단어는 꼭 넣어 줘. 부부 이름은 김도윤·박서현으로 해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T2",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 2,
+    "question": "주차는 건물 지하 주차장에 2시간 무료라는 안내 문장을 장소 뒤에 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T3",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 3,
+    "question": "시간이 낮 12시가 아니라 오후 1시로 바뀌었어. 고쳐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T4",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 4,
+    "question": "끝인사를 '귀한 걸음 하셔서 축복해 주시면 감사하겠습니다'로 바꿔 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T5",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 5,
+    "question": "'토요일'이라는 말은 빼고 날짜만 남겨 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T6",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 6,
+    "question": "잠깐 딴 얘기. 겨울에는 자동차 타이어 공기압을 평소보다 높게 넣어야 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T7",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 7,
+    "question": "부부 이름 앞에 '아빠'랑 '엄마'를 붙여서 '아빠 김도윤 · 엄마 박서현'으로 써 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T8",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 8,
+    "question": "아까 추가한 주차 안내 문장은 '지하 주차장 2시간 무료'처럼 더 짧게 줄여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_04_T9",
+    "conversation_id": "AIONA_LC_J63_04",
+    "turn": 9,
+    "question": "이제 수정 없이 최종본만 다시 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T1",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 1,
+    "question": "아파트 관리사무소에서 게시판에 붙일 단수 안내문을 써 줘. 10월 29일 목요일 오전 9시부터 오후 3시까지 저수조 청소 때문에 전 세대 단수야. 미리 물을 받아 두라는 안내랑, 문의는 1층 관리사무소로 해 달라는 내용을 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T2",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 2,
+    "question": "단수 중에는 세탁기랑 식기세척기를 돌리지 말아 달라는 문장을 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T3",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 3,
+    "question": "종료 시간이 오후 3시에서 오후 5시로 늘어났어. 고쳐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T4",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 4,
+    "question": "마지막 문장은 '불편을 드려 죄송하며 협조에 감사드립니다'로 끝나게 해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T5",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 5,
+    "question": "'저수조 청소'라는 말은 '물탱크 청소'로 바꿔 줘. 주민들이 더 알아듣기 쉽게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T6",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 6,
+    "question": "아 맞다, 이거랑 상관없는 건데 주말에 비 오면 집에서 아이들이랑 할 만한 놀이 뭐 있어?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T7",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 7,
+    "question": "단지 입구 전광판에 띄울 한 줄짜리 버전도 만들어 줘. 날짜·시간·'전 세대 단수'만 들어가면 돼.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T8",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 8,
+    "question": "원래 안내문 첫 문장 앞에 '[긴급]'을 붙여 줘. 아까 추가한 세탁기 문장은 그대로 두고.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_05_T9",
+    "conversation_id": "AIONA_LC_J63_05",
+    "turn": 9,
+    "question": "이제 게시판용이랑 전광판용 두 버전 다 최종본으로만 다시 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T1",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 1,
+    "question": "온라인 쇼핑몰 고객센터에 보낼 환불 요청 이메일을 써 줘. 10월 3일에 주문한 무선 청소기(주문번호 A20261003-7781)가 받자마자 배터리가 10분 만에 꺼지는 불량이야. 결제 금액 289,000원 전액 환불이랑 제품 수거를 요청하고, 7일 안에 답을 달라고 해 줘. 말투는 정중하지만 단호하게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T2",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 2,
+    "question": "고객센터에 전화를 두 번 했는데 연결이 안 됐다는 문장을 앞부분에 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T3",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 3,
+    "question": "결제 금액을 다시 확인해 보니까 289,000원이 아니라 279,000원이야. 고쳐 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T4",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 4,
+    "question": "마지막은 '회신 기다리겠습니다'로 끝내 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T5",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 5,
+    "question": "아까 추가한 고객센터 문장에서 '두 번'을 '세 번'으로 바꿔 줘. 그리고 '받자마자'라는 표현은 빼 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T6",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 6,
+    "question": "주문번호 뒤에 괄호로 주문일 10월 3일도 같이 적어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T7",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 7,
+    "question": "딴 얘긴데, 겨울 이불은 세탁소에 맡기는 게 나아, 아니면 집에서 빨아도 돼?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T8",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 8,
+    "question": "보내기 전에 하나만 물어볼게. 환불이랑 교환 중에 뭘 요구하는 게 맞을까? 같은 제품을 또 쓰고 싶진 않고 다른 브랜드로 갈아탈 생각이야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T9",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 9,
+    "question": "에이, 그래도 교환이 더 빨리 처리되지 않아? 교환으로 바꾸는 게 낫겠는데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J63_06_T10",
+    "conversation_id": "AIONA_LC_J63_06",
+    "turn": 10,
+    "question": "알았어, 환불 그대로 갈게. 지금까지 고친 거 다 반영한 최종본만 다시 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-3"
+  },
+  {
+    "id": "LC_J64_01_T1",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 1,
+    "question": "직장 근처 빌라를 알아보는데 같은 집을 두 가지 조건으로 내놨어. 전세는 보증금 1억 6천이고, 월세는 보증금 2천에 월 70만 원이야. 내 돈은 6천만 원 있고 은행에서는 연 4%로 1억까지 전세대출이 된대. 둘 중 뭐가 유리한지 계산해서 하나로 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T2",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 2,
+    "question": "그렇게 가기로 했어. 부모님께 왜 그쪽을 골랐는지 설명드릴 글을 한 단락으로 써 줘. 한 달에 얼마나 차이 나는지도 들어가게.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T3",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 3,
+    "question": "계약하기 전에 꼭 확인할 것 세 가지만 번호 붙여서 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T4",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 4,
+    "question": "아까 두 번째 거는 어디서 어떻게 확인하는 건지 좀 더 자세히 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T5",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 5,
+    "question": "에이, 그래도 월세가 낫지 않아? 왠지 전세는 불안한데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T6",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 6,
+    "question": "아 맞다, 전혀 다른 건데 김치냉장고 새로 사면 김치 넣기 전에 뭐 해 둬야 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T7",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 7,
+    "question": "은행에 다시 물어보니까 전세대출이 6천만 원까지만 된대. 그럼 전세는 안 되는 거지? 어떻게 할지 다시 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T8",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 8,
+    "question": "집주인한테 보낼 문자 써 줘. 이번 주 토요일 오후 3시에 계약서 쓰러 가겠다고 하고, 우리가 하기로 한 조건도 문자에 한 번 더 적어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T9",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 9,
+    "question": "에이, 그래도 월세는 돈 버리는 느낌인데. 그냥 전세로 어떻게 안 될까?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T10",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 10,
+    "question": "문자 맨 앞에 '안녕하세요, 어제 집 보고 간 사람입니다' 한 문장 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T11",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 11,
+    "question": "그리고 문자 끝에 '감사합니다' 한 줄 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_01_T12",
+    "conversation_id": "AIONA_LC_J64_01",
+    "turn": 12,
+    "question": "지금까지 정한 거 한 번에 정리해 줘. 전세·월세 중 뭘로 했는지랑 이유, 토요일 일정, 계약 전에 확인할 것 세 가지.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T1",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 1,
+    "question": "우리 카페 토요일 오픈 당번을 3주 동안 알바생 셋이 한 번씩 돌아가며 맡게 순서를 정하려고 해. 수아, 도윤, 하람인데 하람이는 첫째 주 토요일에 가족 행사가 있고 둘째 주엔 지방에 내려가. 도윤이는 오픈을 한 번도 안 해 봐서 수아가 먼저 한 번 하고 나서 알려 주면 좋겠고, 수아는 셋째 주 토요일에 자격증 시험이 있어. 누가 몇째 주를 맡을지 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T2",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 2,
+    "question": "그 순서대로 알바생 단톡방에 올릴 공지 써 줘. 오픈은 아침 8시고, 전날 밤에 우유 재고 확인하라는 말도 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T3",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 3,
+    "question": "오픈 당번이 챙길 점 세 가지만 번호 붙여서 따로 정리해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T4",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 4,
+    "question": "아까 두 번째 거를 공지 맨 끝에 한 문장으로 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T5",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 5,
+    "question": "근데 그냥 도윤이가 첫째 주 하는 게 낫지 않아? 왠지 그게 더 자연스러울 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T6",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 6,
+    "question": "참, 완전 다른 얘긴데 자동차 와이퍼 고무만 따로 갈 수 있어?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T7",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 7,
+    "question": "하람이 둘째 주 지방 일정이 취소됐고, 대신 도윤이가 둘째 주 토요일에 집안일로 못 나온대. 순서 다시 짜 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T8",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 8,
+    "question": "공지도 바뀐 순서로 고쳐 주고, 맨 끝에 '순서 바뀐 거 꼭 확인해 주세요' 한 줄 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T9",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 9,
+    "question": "에이, 그래도 도윤이가 둘째 주 하면 안 돼? 집안일은 좀 미루면 되잖아.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_02_T10",
+    "conversation_id": "AIONA_LC_J64_02",
+    "turn": 10,
+    "question": "마지막으로 주별 당번이랑 각자 챙길 점을 한 번에 정리해 줘. 도윤이한테 수아가 오픈 알려 주는 날도 같이 적어 줘. 단톡 공지도 최종본으로 같이 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T1",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 1,
+    "question": "주말 축구 교실 아이들 데리고 다음 주 토요일에 공원으로 소풍 가. 아이는 22명이고 코치는 나까지 3명인데, 김밥은 아이 한 명당 1줄 반에 어른은 2줄로 잡고 음료는 한 사람당 1캔씩, 아이들은 탄산 말고 주스로 줄 거야. 김밥집은 10줄 단위로만 주문받고 주스는 24캔 한 박스야. 김밥 몇 줄, 주스 몇 박스 주문해야 하는지 계산해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T2",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 2,
+    "question": "그 수량으로 김밥집에 보낼 주문 문자 써 줘. 받는 건 토요일 아침 9시고 참치김밥이랑 야채김밥 반반으로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T3",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 3,
+    "question": "학부모 단톡에 올릴 안내문도 써 줘. 집합은 아침 8시 반에 공원 정문이고, 준비물은 물통이랑 돗자리야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T4",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 4,
+    "question": "에이, 그래도 김밥은 좀 더 넉넉하게 시켜야 하지 않아? 모자라면 큰일인데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T5",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 5,
+    "question": "참, 다른 질문인데 아이스박스에서 쉰내 나는 거 어떻게 없애?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T6",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 6,
+    "question": "아이 넷이 더 온대. 학부모 두 분도 같이 가기로 했고. 김밥이랑 주스 다시 계산해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T7",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 7,
+    "question": "주문 문자도 바뀐 수량으로 고쳐 주고, '아이들 먹는 거라 맵지 않게 해 주세요' 한 줄 추가해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T8",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 8,
+    "question": "에이, 그래도 그렇게까지 많이 시킬 필요 있어? 애들이 그렇게 많이 먹겠어? 좀 줄여도 되지 않아?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_03_T9",
+    "conversation_id": "AIONA_LC_J64_03",
+    "turn": 9,
+    "question": "아까 반반이라고 한 거 말고 참치 30줄, 야채 20줄로 바꿔서 최종 문자만 다시 보여 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T1",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 1,
+    "question": "노트북 두 개 중에 고민이야. A는 램 32기가에 외장 그래픽이 있고 2.1kg에 189만 원, B는 램 16기가에 내장 그래픽이고 1.2kg에 139만 원이야. 나는 주로 4K 영상 편집이랑 3D 렌더링을 하고 집 책상에서만 쓸 거고, 예산은 200만 원이야. 뭘 사야 할지 하나로 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T2",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 2,
+    "question": "그걸로 사기로 했어. 같이 사면 좋을 주변기기 세 가지만 번호 붙여서 추천해 줘. 남은 예산 안에서.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T3",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 3,
+    "question": "아까 두 번째 거는 왜 필요한지랑 가격대를 좀 더 자세히 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T4",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 4,
+    "question": "에이, 그래도 가벼운 게 낫지 않아? 무거우면 괜히 후회할 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T5",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 5,
+    "question": "전혀 다른 건데, 흰 셔츠에 볼펜 자국 묻은 거 어떻게 지워?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T6",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 6,
+    "question": "근데 다음 달부터 회사 일로 매주 지방 출장을 다녀야 해서 노트북을 들고 다녀야 돼. 편집 작업은 회사 데스크톱으로 하게 됐고. 그럼 뭘 사야 할지 다시 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T7",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 7,
+    "question": "이제 그 결정으로 부모님께 돈 빌릴 때 보낼 메시지 써 줘. 가격이랑 고른 이유 넣어서.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T8",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 8,
+    "question": "에이, 그래도 성능 좋은 걸 사서 들고 다니면 되지 않아? 2kg 정도는 괜찮을 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_04_T9",
+    "conversation_id": "AIONA_LC_J64_04",
+    "turn": 9,
+    "question": "최종 정리해 줘. 뭘 사기로 했는지랑 이유, 예산에서 노트북 값 빼고 남는 돈, 아까 번호 붙여 준 주변기기 중에 그 돈으로 살 수 있는 것.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T1",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 1,
+    "question": "팀 회식 장소를 정해야 하는데 후보가 두 군데야. 하나는 회사에서 걸어서 5분인 삼겹살집인데 단체석이 10명까지고, 다른 하나는 지하철 두 정거장 거리 한식 뷔페인데 20명 룸이 있고 채식 메뉴도 있어. 우리 팀은 14명이고 그중 한 명이 채식이야. 어디로 할지 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T2",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 2,
+    "question": "그럼 팀원들한테 보낼 회식 안내 메시지 써 줘. 다음 주 목요일 저녁 7시고, 참석 여부는 화요일까지 답해 달라고.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T3",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 3,
+    "question": "메시지 맨 앞에 '이번 분기 고생 많으셨습니다' 한 문장 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T4",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 4,
+    "question": "그리고 답장할 때 못 드시는 음식도 같이 알려 달라는 말을 넣어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T5",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 5,
+    "question": "근데 그냥 삼겹살집이 분위기 더 좋지 않아? 다들 고기 좋아하잖아.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T6",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 6,
+    "question": "참, 완전 다른 건데 양복 바지 밑단 줄이는 거 수선집에서 보통 얼마나 해?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T7",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 7,
+    "question": "뷔페에 전화해 보니까 그날 룸 예약이 이미 찼대. 삼겹살집은 그날 가게를 통째로 빌려주면 14명도 된다고 하고, 채식하는 분은 된장찌개랑 야채 메뉴로 가능하다고 해. 그럼 어디로 해야 할지 다시 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T8",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 8,
+    "question": "안내 메시지를 바뀐 장소로 고쳐 줘. 시간이랑 답장 기한은 그대로 두고, 아까 두 번째로 고친 부분도 그대로 둬.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T9",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 9,
+    "question": "에이, 그래도 뷔페가 메뉴도 다양하고 낫지 않아? 다들 뷔페 좋아하잖아.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_05_T10",
+    "conversation_id": "AIONA_LC_J64_05",
+    "turn": 10,
+    "question": "최종 메시지만 다시 보여 주고, 그 아래에 장소를 바꾼 이유를 한 줄로 적어 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T1",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 1,
+    "question": "한 달 뒤에 보는 자격증 시험이 과목 세 개야. 법규는 40점 만점에 모의고사 30점, 실무는 40점 만점에 12점, 이론은 20점 만점에 13점이야. 합격은 총점 60점 이상이고 과목마다 40% 이상은 넘어야 해. 하루 3시간 공부할 수 있는데 어느 과목에 시간을 제일 많이 써야 할지 우선순위를 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T2",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 2,
+    "question": "그 우선순위대로 4주 공부 계획표 짜 줘. 평일만 하고 주말은 쉴 거야.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T3",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 3,
+    "question": "1순위 과목 공부법 세 가지만 번호 붙여서 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T4",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 4,
+    "question": "아까 두 번째 거를 계획표 첫째 주에 어떻게 넣으면 될지 알려 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T5",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 5,
+    "question": "에이, 그래도 점수 제일 높은 법규를 더 올리는 게 낫지 않아? 잘하는 걸 밀어주는 게 맞는 것 같은데.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T6",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 6,
+    "question": "참, 완전 다른 건데 자취방 옷장에서 곰팡이 냄새 나는 거 어떻게 없애?",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T7",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 7,
+    "question": "시험 공지를 다시 보니까 과목별 과락 기준이 없어졌대. 그리고 실무 모의고사를 다시 봤더니 26점이 나왔고, 이론은 다시 보니 6점이었어. 우선순위 다시 정해 줘.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T8",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 8,
+    "question": "바뀐 우선순위로 첫째 주 계획표만 다시 짜 줘. 평일만 하는 건 그대로.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T9",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 9,
+    "question": "에이, 그래도 실무가 아직 제일 불안한데 실무에 시간을 제일 많이 쓰는 게 낫지 않아? 왠지 그게 안전할 것 같아.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  },
+  {
+    "id": "LC_J64_06_T10",
+    "conversation_id": "AIONA_LC_J64_06",
+    "turn": 10,
+    "question": "마지막으로 정리해 줘. 과목별 지금 점수, 우선순위랑 이유, 한 주 공부 시간 배분.",
+    "answer": "",
+    "system_id": "aiona",
+    "source": "AIONA_winz_longctx_J6_v1.json",
+    "source_group": "J6-4"
+  }
+]

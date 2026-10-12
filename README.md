@@ -18,6 +18,8 @@ py -3 -m pip install -r requirements.txt
 
 입력 형식은 [공개 예제](examples/questions.sample.json)를 참고하세요. **예제 질문 불러오기**는 로컬 Q165 데이터가 있으면 해당 파일을, 없으면 이 공개 예제를 불러옵니다. 예제를 불러오는 동작 자체는 모델 API를 호출하지 않습니다.
 
+롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요.
+
 ## 서버 실행
 
 프로젝트 폴더에서 실행합니다.
