@@ -192,6 +192,37 @@ def test_task_inputs_remain_valid_evidence_outside_summarization(instruction):
     assert decision(result)["fact_check"]["claims"][0]["sources"][0]["quote_verified"] is True
 
 
+def listed_item_claim(question, scope_quote, claim="빨래", scope="input_consistency"):
+    state = {"question": question, "answer": "| 순서 | 할 일 |\n|---|---|\n| 1 | 빨래 |\n| 2 | 청소 |"}
+    item = input_claim(claim=claim, scope=scope, scope_quote=scope_quote if scope == "input_consistency" else "",
+                       reason="사용자가 준 할 일과 일치합니다.")
+    item["sources"][0]["quote"] = "빨래, 청소"
+    return decision(evaluate(entries([item]), state))
+
+
+@pytest.mark.parametrize("question,scope_quote", [
+    # F4 (G3-01): 요청 문장에 바로 나열한 값도 제공 자료다
+    ("화요일 할 일도 정리해 줘: 빨래, 청소.", "화요일 할 일도 정리해 줘: 빨래, 청소."),
+    ("다음 항목을 분류해 줘: 빨래, 청소, 설거지.", "다음 항목을 분류해 줘"),
+    ("할 일 목록: 빨래, 청소, 설거지. 순서대로 정리해줘.", "순서대로 정리해줘"),
+])
+def test_items_listed_in_the_request_are_task_inputs(question, scope_quote):
+    j5 = listed_item_claim(question, scope_quote)
+    assert j5["choice"] == "PASS"
+    assert j5["fact_check"]["claims"][0]["sources"][0]["input_scope_verified"] is True
+
+
+@pytest.mark.parametrize("question,scope_quote,scope", [
+    ("할 일을 추천해 줘: 빨래, 청소.", "할 일을 추천해 줘", "input_consistency"),          # 변환이 아닌 추천
+    ("이 목록이 맞는지 확인해서 정리해 줘: 빨래, 청소.", "정리해 줘", "input_consistency"),  # 진위 확인 요청
+    ("화요일 할 일도 정리해 줘: 빨래, 청소.", "", "external_fact"),                      # 외부 사실 주장
+])
+def test_listed_items_do_not_prove_other_tasks_or_external_facts(question, scope_quote, scope):
+    j5 = listed_item_claim(question, scope_quote, scope=scope)
+    assert j5["choice"] == "UNVERIFIED"
+    assert j5["fact_check"]["claims"][0]["verdict"] == "UNVERIFIED"
+
+
 @pytest.mark.parametrize("instruction", [
     "현재 국내 모임의 정원을 JSON 배열로 작성해줘.",
     "전국 모임의 현재 정원을 표로 작성해줘.",

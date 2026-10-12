@@ -10,7 +10,7 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.8-citation-claim-numbers"
+FACT_CHECK_POLICY = "evidence-v3.9-inline-task-inputs"
 CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
@@ -83,7 +83,14 @@ def _input_scope(claim, state, source=None):
     if claim.get("scope") != "input_consistency" or not _contained(quote, state.get("question", "")):
         return False
     material = r"가상|허구|제공|주어진|다음|아래|위의|위\s*자료|앞서|원문|공지|문서|자료|메모|following|provided|given|fictional|hypothetical|above|document|passage"
-    transform = r"요약|추출|변환|재작성|재구성|정리|표로|표를\s*(?:만들|작성)|summari[sz]|extract|convert|rewrite|reformat"
+    # 요청 문장에 바로 나열한 값도 제공 자료다 — '정리해 줘: 빨래, 청소', '비교 대상: 사과, 배',
+    # '할 일은 청소와 세탁이야'. 값이 입력이라는 뜻일 뿐 그 값의 현실 진위를 인정하지 않는다.
+    word = r"[가-힣A-Za-z0-9]{1,15}"
+    inline = (r"(?:줘|주세요|주십시오|해|하세요)\s*[:：]\s*\S"
+              r"|[:：]\s*[^:：,、\n]{1,30}(?:\s*[,、]\s*[^:：,、\n]{1,30})+"
+              rf"|(?:은|는)\s+{word}(?:와|과|랑|하고|,)\s*(?:{word}(?:와|과|랑|하고|,)\s*)*{word}?(?:이야|야|입니다|이에요|예요|이고|이다)")
+    transform = (r"요약|추출|변환|재작성|재구성|정리|분류|정렬|나열|순서대로|표로|표를\s*(?:만들|작성)|"
+                 r"summari[sz]|extract|convert|rewrite|reformat|classify|sort")
     # Keep the established document/structured-transformation path.
     structured_transform = (r"(?:이|주어진|제공된)\s*(?:정보|자료|값|기록)(?:를|을|만(?:을)?)?"
                             r".{0,120}?JSON\s*(?:배열|객체)(?:로|으로)\s*(?:작성|출력)")
@@ -113,7 +120,7 @@ def _input_scope(claim, state, source=None):
                   r"rename.{0,60}(?:item|name|label)")
     if re.search(input_edit, quote, re.I):
         return True
-    if recognized_transform and re.search(material, question, re.I):
+    if recognized_transform and (re.search(material, question, re.I) or re.search(inline, question)):
         return True
     # These operations can repeat supplied inputs verbatim as part of their
     # result. Accepting that quote does not verify a derived total or an added
@@ -151,7 +158,7 @@ def _input_scope(claim, state, source=None):
     return bool(recognized_transform and isinstance(source, dict) and source.get("origin") == "history_user"
                 and re.search(retrospective, question, re.I)
                 and any(isinstance(prior, dict) and isinstance(prior.get("question"), str)
-                        and re.search(material, prior["question"], re.I)
+                        and (re.search(material, prior["question"], re.I) or re.search(inline, prior["question"]))
                         for prior in state.get("history", [])))
 
 

@@ -1,13 +1,11 @@
-"""3단계 실사용 검증(2026-10-12)에서 찾은 판정 오류의 재현 — 수정 전까지 xfail(strict)로 둔다.
+"""3단계 실사용 검증(2026-10-12)에서 찾은 판정 오류 F1~F4 의 회귀 테스트 (처음에는 xfail(strict) 재현).
 
 실제 Claude 기록은 results/stage3-live-validation/ (Git 제외)에 있고, 여기서는 같은 문항으로
-평가기 응답·원문을 고정해 서버 규칙만 재현한다. 수정 계획: 참고자료/3단계_실사용검증_2026-10-12.md
-5장. 고치면 해당 xfail 표시를 지우고 일반 회귀 테스트로 바꾼다.
+평가기 응답·원문을 고정해 서버 규칙만 재현한다. 원인과 수정: 참고자료/3단계_실사용검증_2026-10-12.md
+5장, 참고자료/3단계_최종안정화_2026-10-12.md.
 """
 import importlib.util
 from pathlib import Path
-
-import pytest
 
 from code_eval.config import load_aiona_config
 from code_eval.engine import evaluate_batch
@@ -52,8 +50,8 @@ def test_g3_04_cancelled_quoted_ending_is_not_inherited():
     assert [r["check_id"] for r in case["results"] if r.get("source") == "history_instruction"] == []
 
 
-@pytest.mark.xfail(strict=True, reason="F4: '정리해 줘: 빨래, 청소'처럼 요청 문장에 바로 나열한 값을 입력 자료로 인정하지 않음")
 def test_g3_01_items_listed_in_the_request_are_task_inputs():
+    # F4: '정리해 줘: 빨래, 청소'처럼 요청 문장에 바로 나열한 값은 입력 자료다 (현실 진위 인정은 아님).
     turn = CASES["G3-01"]["turns"][1]
     claim = {"claim": "빨래", "scope": "input_consistency", "scope_quote": turn["question"]}
     assert _input_scope(claim, {"question": turn["question"], "answer": turn["answer"]}, {"origin": "question"})
