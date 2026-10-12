@@ -290,8 +290,16 @@ def j5_outcome(record):
         outcome = "contradicted"
     else:
         outcome = "unclassified"
-    return {"policy": J5_OUTCOME_POLICY_VERSION, "code": outcome, "label": J5_OUTCOMES[outcome],
-            "factual_error_confirmed": outcome == "contradicted", "search": j5_search(record)}
+    detail = {"policy": J5_OUTCOME_POLICY_VERSION, "code": outcome, "label": J5_OUTCOMES[outcome],
+              "factual_error_confirmed": outcome == "contradicted", "search": j5_search(record)}
+    checks = [c for c in j5.get("citation_checks") or [] if isinstance(c, dict)]
+    if checks:
+        verdicts = [c.get("verdict") for c in checks]
+        detail["citations"] = {"checked": len(checks), "supported": verdicts.count("supported"),
+                               "mismatch": sum(v in ("contradicted", "unrelated", "not_found") for v in verdicts),
+                               "inaccessible": verdicts.count("inaccessible"),
+                               "unresolved": sum(v in ("unverified", "unchecked") for v in verdicts)}
+    return detail
 
 
 def apply_final_decision_policy(record, *, state=None):

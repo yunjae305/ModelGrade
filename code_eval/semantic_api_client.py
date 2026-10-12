@@ -30,7 +30,7 @@ from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
 from .llm_client import redact
 from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY, finalize_answers, has_reference,
                                 search_mode, source_url)
-from .semantic_sources import verify_web_sources
+from .semantic_sources import verify_answer_citations, verify_web_sources
 from .semantic_recovery import evidence_recovery_prompt, merge_evidence_recovery
 
 DEFAULT_MODEL = "gpt-6.1-sol"
@@ -358,7 +358,8 @@ class SemanticApiClient:
                 "reasoning": {"effort": self.config.reasoning_effort},
                 "max_output_tokens": self.config.max_output_tokens,
                 "text": {"format": {"type": "json_schema", "name": "aiona_semantic_evaluation",
-                                    "strict": True, "schema": semantic.output_schema(questions)}},
+                                    "strict": True, "schema": semantic.output_schema(
+                                        questions, citations=semantic.citation_review(state, questions, search_enabled))}},
                 "store": False, "truncation": "disabled",
             }
             if self.config.model == DEFAULT_MODEL:
@@ -468,6 +469,8 @@ class SemanticApiClient:
                     body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
                 finally:
                     timings["source_verification"] += time.monotonic() - source_started
+            if semantic.citation_review(state, questions, search_enabled):
+                body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event)
             body = finalize_answers(body, state, questions)
         except CancelledError:
             return stopped()

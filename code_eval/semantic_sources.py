@@ -598,3 +598,71 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
             source["verification_reason"] = _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다.")
     _check_cancelled(cancel_event)
     return result
+
+
+_CLAIM_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
+    """답변이 직접 든 출처 URL 을 서버가 직접 받아 평가자의 출처 판정을 대조한다 (원문은 저장하지 않음).
+
+    평가자가 '열지 못함'이라 했어도 서버가 받으면 그 판정을 쓰지 않고, 서버가 받지 못하면 어떤 판정도
+    확정하지 않는다. 기록: verification.citation_sources (URL 별 수집 상태)와 각 citation_checks 항목의
+    server_status · quote_verified · claim_numbers_in_source. 판정 반영은 finalize 단계가 한다.
+    """
+    _check_cancelled(cancel_event)
+    result = copy.deepcopy(body)
+    citations = state.get("answer_citations") if isinstance(state, dict) else None
+    answers = result.get("answers") if isinstance(result, dict) else None
+    j5 = answers.get("J5") if isinstance(answers, dict) else None
+    if not isinstance(citations, list) or not citations or not isinstance(j5, dict):
+        return result
+    verification = result.get("verification")
+    if not isinstance(verification, dict):
+        verification = result["verification"] = {}
+    deadline = time.monotonic() + TOTAL_TIMEOUT
+    pages, sources = {}, []
+    for item in citations[:MAX_SOURCE_URLS]:
+        _check_cancelled(cancel_event)
+        url = _url(item.get("url")) if isinstance(item, dict) else None
+        if not url or url in pages:
+            continue
+        if time.monotonic() >= deadline:
+            page = {"status": "timeout"}
+        else:
+            try:
+                page = fetcher(url) if fetcher is not None else _SOURCE_TEXT_CACHE.fetch(url, deadline=deadline)
+                _check_cancelled(cancel_event)
+                if (isinstance(page, dict) and page.get("status") == "ok" and page.get("final_url")
+                        and _target(page["final_url"])[1] != _target(url)[1]):
+                    page = {**page, "status": "redirect_host_changed", "text": ""}
+            except CancelledError:
+                raise
+            except Exception:
+                _check_cancelled(cancel_event)
+                page = {"status": "fetch_error"}
+        page = page if isinstance(page, dict) else {"status": "fetch_error"}
+        pages[url] = page
+        sources.append({"url": url, "status": page.get("status", "fetch_error"),
+                        "resolved_url": _url(page.get("final_url")), "checked_at": page.get("checked_at") or _now(),
+                        "reason": "출처 원문을 받았습니다." if page.get("status") == "ok" else
+                        _REASONS.get(page.get("status"), "출처 원문을 안전하게 수집할 수 없었습니다.")})
+    verification["citation_sources"] = sources
+    checks = j5.get("citation_checks")
+    for check in checks if isinstance(checks, list) else []:
+        _check_cancelled(cancel_event)
+        if not isinstance(check, dict):
+            continue
+        page = pages.get(_url(check.get("url")))
+        check.update(server_status=None if page is None else page.get("status", "fetch_error"),
+                     quote_verified=False, claim_numbers_in_source=None)
+        if page is None or page.get("status") != "ok":
+            continue
+        text = _normalize(page.get("text"))
+        quote = _normalize(check.get("quote"))
+        check["quote_verified"] = bool(quote) and quote in text
+        numbers = _CLAIM_NUMBER.findall(check.get("claim") or "")
+        if numbers:
+            check["claim_numbers_in_source"] = all(_normalize(n) in text for n in numbers)
+    _check_cancelled(cancel_event)
+    return result

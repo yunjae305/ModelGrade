@@ -26,7 +26,7 @@ from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
 from .llm_client import redact
 from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY,
                                 finalize_answers, has_reference, search_mode, source_url)
-from .semantic_sources import verify_web_sources
+from .semantic_sources import verify_answer_citations, verify_web_sources
 
 SEARCH_TOOL = "web_search_20250305"
 FETCH_TOOL = "web_fetch_20250910"
@@ -189,7 +189,7 @@ def _validate_output(value, schema, depth=0):
             _validate_output(item, schema["items"], depth + 1)
 
 
-def _text_submission(content, questions):
+def _text_submission(content, questions, citations=False):
     """Parse the complete text, never extract a convenient JSON substring."""
     fragments = [block.get("text") for block in content if block.get("type") == "text"]
     if not fragments or any(not isinstance(text, str) for text in fragments):
@@ -212,7 +212,7 @@ def _text_submission(content, questions):
     try:
         value = json.loads(text, object_pairs_hook=unique_object, parse_constant=invalid_constant)
         validate_json_numbers(value)
-        _validate_output(value, semantic.output_schema(questions))
+        _validate_output(value, semantic.output_schema(questions, citations=citations))
     except RecursionError:
         raise ValueError("Evaluation JSON nesting limit exceeded") from None
     return value
@@ -316,6 +316,7 @@ class AnthropicSemanticClient:
         verification, _ = _provenance([])
         search_enabled = self.config.web_search == "live" and "J5" in questions and not has_reference(state)
         mode = search_mode(questions, state, self.config.web_search)
+        review = semantic.citation_review(state, questions, search_enabled)
         def result(status, *, body=None, error=None, http_status=None):
             body = body or {"verification": verification}
             body.setdefault("verification", {}).update(
@@ -336,7 +337,7 @@ class AnthropicSemanticClient:
         try:
             check_cancel()
             tools = [{"name": FINAL_TOOL, "description": "검증을 끝낸 최종 기준별 판정을 제출합니다. 외부 작업을 실행하지 않습니다.",
-                      "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions))}]
+                      "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions, citations=review))}]
             if search_enabled:
                 tools[:0] = [{"type": SEARCH_TOOL, "name": "web_search", "max_uses": self.config.max_tool_calls},
                              {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
@@ -414,7 +415,7 @@ class AnthropicSemanticClient:
                 output_transport = "strict_tool"
                 if stop_reason == "end_turn" and not submissions and not pending and _complete_text_turn(all_blocks):
                     try:
-                        structured = _text_submission(content, questions)
+                        structured = _text_submission(content, questions, review)
                     except (ValueError, TypeError, UnicodeError):
                         return result(JevStatus.INVALID_RESPONSE, error="Claude 일반 텍스트 최종 판정이 완전한 JSON 또는 요청된 평가 형식과 일치하지 않습니다.")
                     output_transport = "validated_text_json"
@@ -449,6 +450,12 @@ class AnthropicSemanticClient:
                     source_started = time.monotonic()
                     try:
                         body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                    finally:
+                        timings["source_verification"] += time.monotonic() - source_started
+                if review:
+                    source_started = time.monotonic()
+                    try:
+                        body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event)
                     finally:
                         timings["source_verification"] += time.monotonic() - source_started
                 return result("OK", body=finalize_answers(body, state, questions), http_status=response.status_code)

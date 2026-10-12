@@ -27,6 +27,7 @@ from .jev_applicability import APPLIES_WHEN, JEV_APPLICABILITY_VERSION, jev_appl
 from .jev_client import JevClient, JevClientConfig, JevStatus, _sum_usage, resolve_jev_client
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
+from .answer_citations import CITATION_POLICY_VERSION, answer_citations, prompt_citations, source_requested
 from .common_adjudication import completion, questions_for, targets_for
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
@@ -50,13 +51,19 @@ ALL_IDS = tuple(c.id for c in CRITERIA)
 
 
 def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS, reference: Any = None,
-                history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """Jev 에 보내는 내용. 질문·답변(과 있을 때만 reference·history)만 담고 평가할 기준만 묻는다 (CODE 결과·표시본 없음)."""
+                history: Optional[List[Dict[str, Any]]] = None,
+                citations: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """Jev 에 보내는 내용. 질문·답변(과 있을 때만 reference·history)만 담고 평가할 기준만 묻는다 (CODE 결과·표시본 없음).
+
+    ``citations`` 는 답변이 직접 든 출처(answer_citations) — J5 를 물을 때만 함께 보낸다.
+    """
     state: Dict[str, Any] = {"question": question, "answer": answer}
     if reference is not None:
         state["reference"] = reference
     if history:
         state["history"] = history
+    if citations and "J5" in criteria:
+        state["answer_citations"] = citations
     questions = {cid: q for cid, q in jev_questions().items() if cid in criteria}
     return {"state": state, "questions": questions}
 
@@ -108,6 +115,11 @@ def parse_decisions(body: Dict[str, Any], criteria: Tuple[str, ...] = ALL_IDS,
             decisions[cid]['fact_check'] = copy.deepcopy(entry['fact_check'])
         if isinstance(entry.get('context_checks'), list):
             decisions[cid]['context_checks'] = copy.deepcopy(entry['context_checks'])
+        for key in ('citation_checks', 'citation_summary'):
+            if key in entry:
+                decisions[cid][key] = copy.deepcopy(entry[key])
+        if entry.get('citation_mismatch') is True:
+            decisions[cid]['citation_mismatch'] = True
         if isinstance(entry.get('model_original_assessment'), dict):
             original = entry['model_original_assessment']
             decisions[cid]['model_original_assessment'] = {
@@ -126,7 +138,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                       access_reason: Optional[str] = None, criteria: Tuple[str, ...] = ALL_IDS,
                       reference: Any = None, history: Optional[List[Dict[str, Any]]] = None,
                       code_case: Optional[Dict[str, Any]] = None,
-                      cancel_event: Optional[Event] = None, fail_evidence_check: bool = False) -> Dict[str, Any]:
+                      cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
+                      citation_check: bool = False) -> Dict[str, Any]:
     # Legacy native Jev keeps its historical knowledge/reference contract. New
     # CLI/API transports finalize explicit evidence before this parser runs.
     basis = {"j5_basis": ("reference" if reference is not None else "engine") if "J5" in criteria else None}
@@ -142,7 +155,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return finish(JevStatus.NOT_CONFIGURED, error=access_reason, **basis)
     started = time.monotonic()
     try:
-        request = jev_request(question, answer, criteria, reference, history)
+        citations = answer_citations(answer) if citation_check and "J5" in criteria else []
+        request = jev_request(question, answer, criteria, reference, history, prompt_citations(citations))
         request["questions"].update(questions_for(code_case, targets) if targets else {})
         if cancel_event is not None and getattr(client, "supports_cancellation", False):
             request["cancel_event"] = cancel_event
@@ -199,6 +213,10 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     # The transport has already completed any evidence recovery. Apply the
     # explicit final-outcome policy only now, before summaries/events are built.
     apply_final_decision_policy(record, state=request["state"])
+    if citation_check and "J5" in criteria and (citations or source_requested(question)):
+        # 답변이 든 출처 전체(잘못된 링크·대조 한도 밖 포함)와 질문의 출처 요구 — 기록용, 이것만으로 판정하지 않음
+        record["answer_citations"] = {"policy": CITATION_POLICY_VERSION, "requested_by_question": source_requested(question),
+                                      "citations": citations}
     if fail_evidence_check and isinstance((record.get("decisions") or {}).get("J5"), dict):
         record["decisions"]["J5"]["j5_outcome"] = j5_outcome(record)
     return record
@@ -498,7 +516,7 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
         return evaluate_jev_case(case["case_id"], case["question"], case["answer"], client, access_reason,
                                  tuple(applies[i]["criteria"]), reference=case.get("reference"),
                                  history=histories.get(i) or None, code_case=case, cancel_event=cancel_event,
-                                 fail_evidence_check=fact_screening)
+                                 fail_evidence_check=fact_screening, citation_check=fact_screening)
 
     def publish(i: int, record: Dict[str, Any]) -> None:
         record["applicability"] = copy.deepcopy(applies.get(i))
@@ -683,13 +701,15 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                                                                     'reason', 'fact_check', 'context_checks',
                                                                     'reason_code', 'decision_policy',
                                                                     'policy_original_assessment', 'model_original_assessment',
-                                                                    'fail_evidence', 'reevaluation', 'j5_outcome') if k in d}
+                                                                    'fail_evidence', 'reevaluation', 'j5_outcome',
+                                                                    'citation_checks', 'citation_mismatch') if k in d}
                               for cid, d in (record["decisions"] or {}).items()},
                 "decision_policy": copy.deepcopy(record.get('decision_policy')),
                 "j5_basis": record.get("j5_basis"),
                 "verification": copy.deepcopy(record.get('verification')),
                 "review_required": bool(record.get('review_required')),
                 "reevaluation": copy.deepcopy(record.get('reevaluation')),
+                "answer_citations": copy.deepcopy(record.get('answer_citations')),
                 "history_turns": (record.get("context") or {}).get("history_turns"),
                 "model": record["model"],
                 "duration_ms": jev_ms,

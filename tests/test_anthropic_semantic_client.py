@@ -510,8 +510,8 @@ def test_text_after_pause_cannot_hide_an_earlier_client_tool_submission():
 def test_text_validator_rejects_future_schema_constraints_instead_of_silently_ignoring(monkeypatch):
     from code_eval import semantic_cli_common
     original = semantic_cli_common.output_schema
-    def with_pattern(ids):
-        schema = original(ids)
+    def with_pattern(ids, **kwargs):
+        schema = original(ids, **kwargs)
         schema['properties']['J1']['properties']['reason']['pattern'] = '^specific$'
         return schema
     monkeypatch.setattr(semantic_cli_common, 'output_schema', with_pattern)
