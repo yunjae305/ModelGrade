@@ -61,6 +61,20 @@ def test_request_preserves_blind_inputs_uses_medium_and_strict_final_tool():
     assert 'secret-test-key' not in json.dumps(result.body)
 
 
+def test_configured_opus_5_5_request_avoids_parameters_the_model_rejects():
+    # Opus 5.5 returns 400 for disabled thinking, thinking budgets, sampling
+    # parameters, forced tool choice and assistant prefill; effort must be explicit.
+    raw = response(entries('J1'), model='claude-opus-5-5')
+    result, sent = call(raw, config=AnthropicSemanticConfig(model='claude-opus-5-5', reasoning_effort='high'))
+    body = json.loads(sent[0].content)
+    assert result.status == 'OK' and result.body['model'] == 'claude-opus-5-5'
+    assert result.body['answers']['J1']['choice'] == 'PASS'
+    assert body['model'] == 'claude-opus-5-5' and body['output_config'] == {'effort': 'high'}
+    assert body['thinking'] == {'type': 'adaptive'} and body['tool_choice'] == {'type': 'auto'}
+    assert not {'temperature', 'top_p', 'top_k'} & body.keys()
+    assert [message['role'] for message in body['messages']] == ['user']
+
+
 def web_blocks(url='https://evidence.example/page'):
     return [{'type':'server_tool_use','id':'search1','name':'web_search','input':{'query':'fixture'}},
             {'type':'web_search_tool_result','tool_use_id':'search1','content':[

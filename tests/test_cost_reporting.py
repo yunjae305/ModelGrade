@@ -90,6 +90,17 @@ def test_anthropic_long_context_still_uses_standard_sonnet_rate():
                     web_search_calls=0)[0] == Decimal('1.81')
 
 
+def test_anthropic_opus_judge_uses_published_opus_5_5_rates():
+    usage = anthropic_usage(cache_read_input_tokens=200, cache_creation_input_tokens=300,
+        cache_creation={'ephemeral_5m_input_tokens': 200, 'ephemeral_1h_input_tokens': 100})
+    # $4 input, $.20 cache read, $5/$8 5m/1h cache writes, $20 output per MTok, $.01 per search.
+    assert estimate('anthropic_api', 'claude-opus-5-5', usage, web_search_calls=2) == (Decimal('.03584'), 1500, 500)
+    assert estimate('anthropic_api', 'claude-opus-5-5', anthropic_usage(inference_geo='us'),
+                    web_search_calls=0)[0] == Decimal('.0154')
+    with pytest.raises(ValueError, match='모델 단가 미확인'):
+        estimate('anthropic_api', 'claude-opus-5', anthropic_usage(), web_search_calls=0)
+
+
 @pytest.mark.parametrize('changes', [
     {'cache_read_input_tokens': None}, {'cache_creation_input_tokens': None},
     {'cache_creation_input_tokens': 10},

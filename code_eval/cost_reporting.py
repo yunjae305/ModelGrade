@@ -4,7 +4,7 @@ Public standard text rates verified 2026-10-11 (USD per million tokens):
 https://developers.openai.com/api/docs/pricing
 https://developers.openai.com/api/docs/guides/prompt-caching
 https://platform.claude.com/docs/en/models/sonnet-5-5/overview
-https://platform.claude.com/docs/en/about-claude/pricing
+https://platform.claude.com/docs/en/about-claude/pricing (Claude Opus 5.5 rates added 2026-10-12)
 https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
 https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash
 No billing requests, prompts, credentials, or monetary result fields are emitted.
@@ -80,7 +80,10 @@ def estimate(provider, model, usage, *, web_search_calls=0, service_tier=None, i
             searches = _count(web_search_calls)
             return amount + searches * Decimal('0.01'), inp, out
         if provider in ('claude', 'anthropic_api'):
-            if model != 'claude-sonnet-5-5':
+            # input, cache read, 5m cache write, 1h cache write, output
+            rates = {'claude-sonnet-5-5': ('2', '.10', '2.50', '4', '10'),
+                     'claude-opus-5-5': ('4', '.20', '5', '8', '20')}
+            if model not in rates:
                 raise ValueError('모델 단가 미확인')
             ordinary, out = _count(usage.get('input_tokens')), _count(usage.get('output_tokens'))
             if provider == 'anthropic_api':
@@ -107,9 +110,10 @@ def estimate(provider, model, usage, *, web_search_calls=0, service_tier=None, i
             if short + hour != written:
                 raise ValueError('사용량 불일치')
             inp = ordinary + cached + written
-            # Sonnet 5.5 uses standard rates throughout its 1M context window.
-            amount = (ordinary * Decimal('2') + cached * Decimal('.10') + short * Decimal('2.50')
-                      + hour * Decimal('4') + out * Decimal('10')) / MILLION
+            # Both models use standard rates throughout their 1M context window.
+            base, read, short_write, hour_write, output = map(Decimal, rates[model])
+            amount = (ordinary * base + cached * read + short * short_write
+                      + hour * hour_write + out * output) / MILLION
             geography = inference_geo if inference_geo is not None else usage.get('inference_geo')
             if provider == 'anthropic_api' or inference_geo is not None or 'inference_geo' in usage:
                 if geography not in ('global', 'us'):
