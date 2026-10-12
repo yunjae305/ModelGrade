@@ -71,7 +71,12 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
             "계산이 들어 있다고 실제 가격·기관·날짜·과학적 원리 등 외부 사실까지 제외하지 마세요. "
             "사실 주장이 하나라도 있으면 claims를 비워 제출할 수 없습니다. 익숙하거나 확립된 사실도 기억만으로 검증하지 마세요. "
             "검색 실패·원문 확인 실패·근거 부족이어도 해당 claim을 그대로 남기고 verdict=UNVERIFIED, sources=[]와 구체적인 실패 이유를 쓰세요. "
-            "사실이 있는데 claims=[]로 PASS/FAIL/UNVERIFIED를 제출하면 근거 미제출입니다.",
+            "사실이 있는데 claims=[]로 PASS/FAIL/UNVERIFIED를 제출하면 근거 미제출입니다. "
+            "추천·평가·선호·적합성 표현(예: '좋습니다', '잘 어울립니다', '부담이 크지 않은 편입니다', '추천합니다')은 "
+            "그 자체를 claims에 넣지 마세요. 그런 문장 안에 검증 가능한 구체 사실(수치·날짜·고유명사·통계·기관 정책·인과 관계의 단정)이 "
+            "있으면 그 사실 부분만 claim으로 검증하세요. 예: '제 생각엔 A가 낫습니다. A는 2025년 점유율이 70%였습니다'에서 "
+            "점유율만 claim입니다. 맞춤법·문장 교정·번역·문체 변경 답변의 교정·번역 결과 문장 자체는 claim이 아닙니다(J1·J2 영역). "
+            "답변이 근거로 든 어문 규정이나 사실 설명만 claim으로 확인하세요.",
             "reference가 있으면 그 자료에 있는 내용만 근거로 basis=reference. sources.url은 자료에 있는 URL 또는 "
             "자료에 URL이 없으면 빈 문자열, title은 참조 자료라고 쓰세요. 자료가 다루지 않는 주장은 UNVERIFIED. "
             "reference의 authority는 unestablished, authority_reason은 제공된 참조 자료와의 일치만 평가한다고 적으세요.",

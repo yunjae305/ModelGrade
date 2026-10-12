@@ -554,6 +554,15 @@ def test_j5_prompt_requires_claims_even_when_search_fails_and_keeps_nonfactual_b
     assert "실제 가격·기관·날짜·과학적 원리" in prompt and "**None**" in prompt
 
 
+def test_j5_prompt_excludes_evaluative_phrases_and_corrected_text_but_keeps_embedded_facts():
+    # F7 (GEN-01·G3-02): 평가 표현·교정 결과 문장 자체는 주장이 아니다. 그 안의 구체 사실은 계속 검증한다.
+    prompt = build_prompt(STATE, QUESTIONS, True)
+    assert "추천·평가·선호·적합성 표현" in prompt and "그 자체를 claims에 넣지 마세요" in prompt
+    assert "그 사실 부분만 claim으로 검증하세요" in prompt and "점유율만 claim입니다" in prompt
+    assert "교정·번역 결과 문장 자체는 claim이 아닙니다" in prompt
+    assert "답변이 근거로 든 어문 규정이나 사실 설명만 claim으로 확인하세요" in prompt
+
+
 @pytest.mark.parametrize("engine", ["codex", "openai", "anthropic"])
 @pytest.mark.parametrize("basis", ["input", "mixed"])
 def test_transports_share_input_and_mixed_finalization_without_real_calls(engine, basis, tmp_path):

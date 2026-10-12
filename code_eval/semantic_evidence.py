@@ -10,7 +10,8 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.11-provider-document"
+#: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
+FACT_CHECK_POLICY = "evidence-v3.12-opinion-correction-scope"
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
 CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
