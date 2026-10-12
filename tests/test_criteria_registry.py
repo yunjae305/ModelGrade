@@ -67,3 +67,10 @@ def test_relations_refer_to_listed_criteria():
     for relation in reg.registry()["relations"]:
         assert {relation["a"], relation["b"]} <= ids
         assert relation["kind"] in ("same_cause", "boundary", "overlap", "gap")
+
+
+def test_approved_gaps_are_now_covered_by_a_running_check():
+    # 이전 턴 형식 지시(CODE 승계)와 답변 출처 지지(J5 citation_checks)는 더 이상 공백이 아니다.
+    relations = reg.registry()["relations"]
+    assert not [r for r in relations if r["kind"] == "gap"]
+    assert {(r["a"], r["b"]) for r in relations if r["kind"] == "boundary"} >= {("2-1", "J6"), ("2-2", "J6"), ("1-3.citation_link", "J5")}
