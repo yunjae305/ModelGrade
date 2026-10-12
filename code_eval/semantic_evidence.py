@@ -11,7 +11,8 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 FACT_CHECK_POLICY = "evidence-v3.11-provider-document"
-CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
+#: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
+CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
 

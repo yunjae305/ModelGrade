@@ -405,6 +405,15 @@ def test_context_prompt_selects_current_relevant_instructions_and_requires_pass_
     assert "현재 요청상 필수 내용이 누락된 FAIL만 빈 answer_quote" in prompt
 
 
+def test_context_prompt_leaves_countable_format_instructions_to_code_but_keeps_semantic_ones():
+    # F6 (G3-02): 코드 검사가 이어받는 형식·분량 지시로 J6 를 FAIL 하지 않는다. 같은 문장의 의미 지시는 계속 본다.
+    prompt = build_prompt(STATE, {"J6": {"instructions": "검토", "criteria": {"PASS": "유지", "FAIL": "누락"}}})
+    assert "형식·분량 지시는 이전 턴 지시도 코드 검사가 이어받아 따로 판정합니다" in prompt
+    assert "context_checks에 넣지 말고 그 위반만으로 J6를 FAIL로 판단하지 마세요" in prompt
+    assert "말투·호칭·역할·금지 주제·기억할 정보 같은 의미 지시가 함께 있으면 그 의미 지시만 확인하세요" in prompt
+    assert prompt.index("최신 유효 지시를 따릅니다") < prompt.index("코드 검사가 이어받아") < prompt.index("최신 유효 지시만 넣으세요")
+
+
 @pytest.mark.parametrize("reference,search_enabled", [(None, True), ("Python list는 변경 가능합니다.", False), (None, False)])
 def test_j5_prompt_requires_evaluator_to_check_unsourced_answers_without_changing_reference_policy(reference, search_enabled):
     state = {"question": "Python list는 변경 가능한가요?", "answer": "Python list는 변경 가능합니다."}
