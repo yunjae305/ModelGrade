@@ -1,0 +1,108 @@
+"""이전 턴의 지속 형식·분량 지시를 다음 턴 CODE 검사에 이어받는다 (G-3, 모델 호출 없음)."""
+from __future__ import annotations
+
+import pytest
+
+from code_eval.config import load_aiona_config
+from code_eval.engine import evaluate_batch, evaluate_case
+
+NO_TABLE = "한국에는 봄, 여름, 가을, 겨울이 있습니다."
+TABLE = "| 계절 | 특징 |\n|---|---|\n| 봄 | 따뜻함 |"
+
+
+def conversation(*turns):
+    """(사용자 질문, AI 답변) 목록 → 대화 입력."""
+    return [{"case_id": f"T{i}", "conversation_id": "c1", "turn": i, "question": q, "answer": a}
+            for i, (q, a) in enumerate(turns, 1)]
+
+
+def last_case(*turns):
+    cfg = load_aiona_config(); cfg.enabled = False
+    return evaluate_batch(conversation(*turns), cfg)["cases"][-1]
+
+
+def rows(case, prefix):
+    return [r for r in case["results"] if r["check_id"].startswith(prefix)]
+
+
+def test_table_instruction_from_turn_one_is_checked_in_turn_two():
+    case = last_case(("앞으로 모든 답변은 표 형식으로 작성해 줘.", TABLE), ("한국의 사계절을 설명해 줘.", NO_TABLE))
+    [row] = rows(case, "2-2.table")
+    assert row["verdict"] == "FAIL" and row["source"] == "history_instruction"
+    assert row["details"]["inherited_from"]["turn"] == 1 and "1턴 지시 유지" in row["title"]
+    assert row["evidence"][0]["target"] == "history" and row["explain"]["requirement"].startswith("(1턴 사용자 지시 유지)")
+    assert case["meta"]["inherited_conditions"] == [{"turn": 1, "instruction": "앞으로 모든 답변은 표 형식으로 작성해 줘.",
+                                                     "requirement": "표 형식으로 작성", "kind": "table_required",
+                                                     "applied": True}]
+
+
+def test_long_conversation_keeps_a_distant_instruction():
+    turns = [("앞으로 답변은 2문장 이내로 작성해줘.", "알겠습니다.")]
+    turns += [(f"{i}번째 질문에 답해줘.", "짧게 답합니다.") for i in range(2, 12)]
+    turns.append(("봄을 설명해줘.", "봄은 따뜻합니다. 꽃이 핍니다. 바람이 붑니다."))
+    case = last_case(*turns)
+    [row] = rows(case, "2-1.count:sentence_count")
+    assert row["verdict"] == "FAIL" and row["details"]["inherited_from"]["turn"] == 1
+
+
+@pytest.mark.parametrize("turns,expected", [
+    # 해제 · 변경 · 충돌(뒤 지시 우선) · 이번만 · 현재 질문 우선
+    ([("앞으로 모든 답변은 표로 작성해 줘.", TABLE), ("이제 표로 안 해도 돼. 봄을 설명해줘.", NO_TABLE),
+      ("여름을 설명해줘.", NO_TABLE)], []),
+    ([("앞으로 3문장 이내로 답해줘.", "네."), ("앞으로는 5문장 이내로 답해줘.", "네."), ("봄을 설명해줘.", "a. b. c. d.")],
+     [("2-1.count:sentence_count", "PASS", 2)]),
+    ([("앞으로 표로 정리해줘.", TABLE), ("앞으로 표는 쓰지 마.", "네."), ("봄을 설명해줘.", NO_TABLE)],
+     [("2-2.table:forbidden", "PASS", 2)]),
+    ([("앞으로 3문장 이내로 답해줘.", "네."), ("이번에만 5문장으로 길게 설명해줘.", "a. b. c. d. e."),
+      ("봄을 설명해줘.", "a. b. c. d.")], [("2-1.count:sentence_count", "FAIL", 1)]),
+    ([("앞으로 모든 답변은 표로 작성해 줘.", TABLE), ("봄을 목록으로 정리해줘.", "- 따뜻함")], []),
+])
+def test_cancel_change_conflict_once_and_current_priority(turns, expected):
+    case = last_case(*turns)
+    inherited = [(r["check_id"], r["verdict"], r["details"]["inherited_from"]["turn"]) for r in case["results"]
+                 if r["source"] == "history_instruction"]
+    assert inherited == expected
+
+
+@pytest.mark.parametrize("first", [
+    "표로 정리해줘.",                                                   # 지속 표현이 없는 한 턴 요청
+    "친구가 \"앞으로 모든 답변은 표로 해\"라고 했는데 맞는 말이야?",          # 과거 발언의 단순 인용
+    "봄과 여름의 차이를 알려줘.",                                         # 형식 요구가 없는 일반 대화
+])
+def test_non_persistent_or_quoted_requests_are_not_inherited(first):
+    case = last_case((first, "앞으로 모든 답변을 표로 정리해 드릴게요."), ("봄을 설명해줘.", NO_TABLE))
+    assert not [r for r in case["results"] if r["source"] == "history_instruction"]
+
+
+def test_assistant_promise_is_not_a_user_instruction():
+    # 이전 AI 답변에만 있는 '앞으로 표로' 약속은 사용자 지시가 아니다.
+    case = last_case(("봄을 설명해줘.", "앞으로 모든 답변은 표 형식으로 작성하겠습니다."), ("여름을 설명해줘.", NO_TABLE))
+    assert "inherited_conditions" not in case["meta"]
+
+
+def test_task_scoped_instruction_applies_only_to_that_task():
+    first = ("앞으로 요약할 때는 3줄로 해줘.", "네.")
+    applied = last_case(first, ("이 글을 요약해줘: 봄은 따뜻하다.", "봄은\n따뜻하고\n꽃이\n핀다"))
+    skipped = last_case(first, ("봄을 설명해줘.", "봄은\n따뜻하고\n꽃이\n핀다"))
+    assert [r["verdict"] for r in rows(applied, "2-1.count:line_count")] == ["FAIL"]
+    assert rows(skipped, "2-1.count:line_count") == []
+    assert skipped["meta"]["inherited_conditions"][0]["why"] == "'요약' 작업에만 적용하는 지시"
+
+
+def test_five_turn_literal_instruction_and_missing_turn_is_not_guessed():
+    turns = [("앞으로 답변 끝은 '감사합니다.'로 끝내줘.", "네. 감사합니다.")]
+    turns += [(f"질문 {i}", f"답 {i}. 감사합니다.") for i in range(2, 5)]
+    turns.append(("봄을 설명해줘.", "봄은 따뜻합니다."))
+    case = last_case(*turns)
+    assert [r["verdict"] for r in rows(case, "2-1.literal:ends_with")] == ["FAIL"]
+    gapped = conversation(*turns)
+    del gapped[2]   # 3턴 누락 — 그 사이 해제 지시가 있었는지 알 수 없다
+    cfg = load_aiona_config(); cfg.enabled = False
+    case = evaluate_batch(gapped, cfg)["cases"][-1]
+    assert rows(case, "2-1.literal:ends_with") == []
+    assert case["meta"]["inherited_conditions"][0]["applied"] is False
+
+
+def test_single_case_evaluation_is_unchanged():
+    case = evaluate_case({"question": "한국의 사계절을 설명해 줘.", "answer": NO_TABLE})
+    assert "inherited_conditions" not in case["meta"] and not rows(case, "2-2.table")

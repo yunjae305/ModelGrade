@@ -12,7 +12,7 @@ from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
 from .model import ConditionResult, Evidence, FAIL, PASS, Status
 from .scripts import SCRIPT_DATA_VERSION
 
-ENGINE_VERSION = "aiona-code-eval-v16.2.6"
+ENGINE_VERSION = "aiona-code-eval-v16.3.0"
 MD_SOURCE = "참고자료/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
@@ -106,6 +106,7 @@ class Ctx:
     system_id: Optional[str] = None
     aiona_config: Any = None
     shared: Dict[str, Any] = field(default_factory=dict)
+    inherited: List[Any] = field(default_factory=list)   # 이전 턴에서 이어받은 형식·분량 조건 (Req)
 
     @cached_property
     def qa(self) -> TextAnalysis:
@@ -121,7 +122,9 @@ class Ctx:
 
     @cached_property
     def conds(self) -> QuestionConditions:
-        return extract_conditions(self.question)
+        conds = extract_conditions(self.question)
+        conds.reqs.extend(self.inherited)
+        return conds
 
     @cached_property
     def projection(self) -> Tuple[str, List[int]]:
@@ -148,7 +151,7 @@ def excerpt(text: str, start: int, end: int, margin: int = 25) -> str:
 
 
 def q_evidence(ctx: Ctx, req) -> Evidence:
-    return Evidence(target="question", start=req.start, end=req.end, excerpt=req.text)
+    return Evidence(**req.evidence())   # 이어받은 지시는 target=history (이전 턴 위치는 쓰지 않음)
 
 
 def unsupported_from_req(ctx: Ctx, req, check_id: str, sub: str, title: str) -> ConditionResult:

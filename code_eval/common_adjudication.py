@@ -34,7 +34,7 @@ def questions_for(case: Dict[str, Any], targets: List[Dict[str, Any]]) -> Dict[s
         # This is target identification, not a prior verdict or the parser's measured value.
         scope = {key: row.get(key) for key in ("check_id", "title", "required", "comparison", "scope")}
         scope["excerpts"] = [{"target": e.get("target"), "excerpt": e.get("excerpt")}
-                             for e in row.get("evidence", []) if e.get("target") in ("question", "answer")]
+                             for e in row.get("evidence", []) if e.get("target") in ("question", "answer", "history")]
         questions[target["id"]] = {
             "type": "choice",
             "instructions": (

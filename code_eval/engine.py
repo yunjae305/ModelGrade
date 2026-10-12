@@ -22,6 +22,7 @@ from .config import AionaConfig, load_aiona_config
 from .explain import explain_result
 from .io import validate_json_numbers
 from .core import LIMITS, Ctx, nfc, result, versions
+from .extract import persistent_conditions
 from .model import CATEGORY_NAMES, FAIL, PASS, SPECIALIZED, SUBCATEGORIES, ConditionResult, Status, stable_hash
 
 __all__ = ["evaluate_case", "evaluate_batch", "summarize_batch", "result_digest"]
@@ -145,8 +146,39 @@ def _summarize(results: List[ConditionResult]) -> Dict[str, Any]:
     }
 
 
+def _prior_questions(items: List[Any]) -> Dict[int, Dict[str, Any]]:
+    """대화 입력의 앞 턴 사용자 질문. 1턴부터 바로 앞 턴까지 한 번씩 모두 있을 때만 complete."""
+    groups: Dict[str, List[tuple]] = {}
+    for i, payload in enumerate(items):
+        if isinstance(payload, dict):
+            conversation, error = _conversation_of(payload)
+            if conversation and not error:
+                groups.setdefault(conversation["id"], []).append((conversation["turn"], i, payload.get("question")))
+    out: Dict[int, Dict[str, Any]] = {}
+    for members in groups.values():
+        for turn, i, _ in members:
+            if turn <= 1:
+                continue
+            earlier = [(t, q) for t, _, q in members if t < turn]
+            complete = (sorted(t for t, _ in earlier) == list(range(1, turn))
+                        and all(isinstance(q, str) and q.strip() for _, q in earlier))
+            out[i] = {"prior": earlier if complete else [], "complete": complete}
+    return out
+
+
+def _mark_inherited(results: List[ConditionResult], inherited: List[Any]) -> None:
+    """이전 턴 지시에서 온 결과 행을 표시한다. 판정·비교식은 바꾸지 않는다."""
+    by_text = {req.text: req.origin for req in inherited}
+    for r in results:
+        origin = next((by_text.get(e.excerpt) for e in r.evidence if e.target == "history"), None)
+        if origin:
+            r.source = "history_instruction"
+            r.title = f"{r.title} · {origin['turn']}턴 지시 유지"
+            r.details = {**r.details, "inherited_from": dict(origin)}
+
+
 def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, index: int = 0,
-                  on_event: Optional[Callable] = None) -> Dict[str, Any]:
+                  on_event: Optional[Callable] = None, history: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     started = time.perf_counter()
     if not isinstance(payload, dict):
         return _input_error(f"case-{index + 1:05d}", "입력 항목이 JSON 객체가 아님")
@@ -192,8 +224,12 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
 
     system_id = payload.get("system_id")
     cfg = cfg if cfg is not None else load_aiona_config()
+    # 대화의 앞 턴 사용자 지시 중 '앞으로·계속' 같은 지속 형식·분량 조건을 이 턴에도 검사한다 (배치 입력만).
+    inherited, inherited_audit = persistent_conditions(history["prior"], question) if history and history["complete"] else ([], [])
+    if history and not history["complete"]:
+        inherited_audit = [{"applied": False, "why": "앞 턴 질문이 누락·중복·입력 오류여서 이전 지시를 확인하지 않음"}]
     ctx = Ctx(case_id=case_id, question=question, answer=answer, displayed_text=displayed,
-              system_id=str(system_id) if system_id is not None else None, aiona_config=cfg)
+              system_id=str(system_id) if system_id is not None else None, aiona_config=cfg, inherited=inherited)
 
     results: List[ConditionResult] = []
     for sub, fn in _COMMON:
@@ -209,6 +245,8 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
             on_event({"type": "criterion_end", "index": index, "qid": case_id, "code": sub, "stage": "CODE"})
     if cfg.enabled:
         results.extend(_run_group("AIONA-M", check_aiona, ctx, cfg, list(results)))
+    if inherited:
+        _mark_inherited(results, inherited)
 
     # 같은 대상·조건·측정 규칙의 중복 결과는 하나만 집계한다.
     seen: Dict[str, ConditionResult] = {}
@@ -238,6 +276,7 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         "displayed_text_provided": displayed is not None,
         "question_conditions": ctx.conds.to_list(),
         "answer_structure": ctx.aa.structure_summary(),
+        **({"inherited_conditions": inherited_audit} if inherited_audit else {}),
     }
     # 대화·참조 데이터 키는 입력에 있을 때만 넣는다 — 단일 질문·답변 입력의 결과 해시를 바꾸지 않기 위해
     return {
@@ -304,11 +343,12 @@ def evaluate_batch(payloads: Iterable[Any], cfg: Optional[AionaConfig] = None,
     if len(items) > LIMITS["batch_cases"]:
         raise ValueError(f"일괄 입력 {len(items)}건이 한 번 실행 한도 {LIMITS['batch_cases']}건을 넘음 — 파일을 나눠 실행")
     n = len(items)
+    prior = _prior_questions(items)
     for i, payload in enumerate(items):
         if on_event:
             qid = str(payload.get("case_id") or payload.get("id") or payload.get("question_id") or f"case-{i + 1:05d}") if isinstance(payload, dict) else f"case-{i + 1:05d}"
             on_event({"type": "q_start", "index": i, "qid": qid})
-        cases.append(evaluate_case(payload, cfg, i, on_event=on_event))
+        cases.append(evaluate_case(payload, cfg, i, on_event=on_event, history=prior.get(i)))
         if progress:
             progress(i + 1, n)
     ids: Dict[str, int] = {}
