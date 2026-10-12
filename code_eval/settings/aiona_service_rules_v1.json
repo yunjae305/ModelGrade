@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "status": "draft",
+  "source": "참고자료/채팅품질 평가기준.md",
+  "applies_to_models": ["aiona"],
+
+  "u8_1": {
+    "enabled": true,
+    "internal_marker_patterns": [],
+    "tool_narration_patterns": [],
+    "internal_tag_patterns": []
+  },
+
+  "u8_2": {
+    "enabled": false,
+    "protected_information_patterns": []
+  },
+
+  "u8_3": {
+    "enabled": true,
+    "forbidden_strings": []
+  },
+
+  "pending_registration": {
+    "note": "원본 문서가 범주만 제시하고 실제 리터럴·정규식을 주지 않은 항목. 검사하지 않는다. 사내 규격에서 실제 문자열을 받으면 위 배열로 옮긴다.",
+    "u8_1_internal_marker": [
+      "시각화 자리표시자",
+      "일반 자리표시자",
+      "내부 구간 태그",
+      "도구/아티팩트 태그",
+      "후속질문 태그"
+    ],
+    "u8_1_tool_narration": {
+      "document_examples": ["...확인한 후", "...조회한 뒤"],
+      "hold_reason": "일반 한국어 문장에서도 흔한 표현이라 그대로 등록하면 오탐이 크다. 내부 도구 서술만 가려낼 정확한 패턴이 필요하다."
+    },
+    "u8_1_internal_tag": {
+      "document_examples": ["여는 태그 없이 닫는 태그만 남음"],
+      "hold_reason": "AIONA 내부 태그 목록이 없다. 일반 HTML 구조 오류는 1-2 문서·코드 유효성 영역이라 AIONA 특화에서 중복 판정하지 않는다."
+    },
+    "u8_1_citation_residue": {
+      "document_examples": ["인용 번호 2개 이상 연속 잔재"],
+      "hold_reason": "연속 인용 [1][2] 는 1-3 참조 연결에서 정상 인용으로 인정한다. 잔재와 정상 인용을 가르는 규칙이 확정되기 전에는 등록하지 않는다."
+    },
+    "u8_2_protected_information": {
+      "hold_reason": "현재 근거 문서는 보호정보 규칙을 정의하지 않는다. 별도 AIONA 내부 보호정보 명세가 제공되기 전까지 보호정보 검사는 비활성 상태로 유지한다."
+    },
+    "excluded_from_u8": {
+      "호칭 삽입": "원본 문서가 정책 미확정이라 판정에 반영하지 않는다고 명시",
+      "펜스 불균형": "코드 구획 표시 개수 홀수·수식 구획 표시 개수 홀수는 1-2 문서·코드 유효성 영역이다. AIONA 특화에서 중복 FAIL 을 만들지 않는다.",
+      "필수 표현 누락": "2-1 분량·표현 조건 영역",
+      "불릿·표·코드블록·문장 수": "2-1 · 2-2 · 1-2 영역",
+      "언어 혼용 비율·길이·가독성·AI-티": "진단 지표",
+      "1~10점 심판 평가·승패·부호검정": "LLM Judge 및 모델 비교 레이어"
+    }
+  }
+}

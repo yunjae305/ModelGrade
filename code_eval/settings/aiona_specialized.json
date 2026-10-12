@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "note": "AIONA 특화 평가 설정 연결. 실제 운영 목록 파일을 가리킨다. 설명용·검증용 가상 문자열(canary)을 여기에 넣지 않는다.",
+  "applies_to_system_ids": ["aiona"],
+  "marker_registry_path": "code_eval/settings/aiona_service_rules_v1.json",
+  "marker_registry_groups": ["internal_marker_patterns", "internal_tag_patterns"],
+  "forbidden_expressions_path": "data/aiona_specialized/forbidden_expressions.json"
+}

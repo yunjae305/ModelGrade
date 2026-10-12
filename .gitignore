@@ -1,0 +1,31 @@
+# 인증값 — 실제 값은 저장소·배포 ZIP 에 넣지 않는다. 키 목록은 .env.example
+.env
+.env.*
+!.env.example
+
+# Python 생성물
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS 생성물
+.DS_Store
+Thumbs.db
+
+# Local inputs, evaluation results, registries and backups
+# Public examples belong in examples/, not in data/.
+/data/
+/results/
+/backups/
+*.log
+*.sqlite3
+*.sqlite3-*
+
+# Local workspace and Python environments
+/.codex/
+.venv/
+venv/
+
+# Project-local Codex runtime (version is pinned in package-lock.json)
+.runtime/codex/node_modules/
+node_modules/

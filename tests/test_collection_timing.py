@@ -1,0 +1,82 @@
+"""Provider durations must stop independently and survive completed/interrupted reloads."""
+import json
+import threading
+
+import httpx
+import pytest
+
+from webapp.code_eval_service import CodeEvalService
+from webapp.comparison_service import ComparisonService
+from test_live_comparison_progress import until
+
+
+def test_provider_timing_finishes_independently_and_is_saved(tmp_path):
+    entered = {p: threading.Event() for p in ('gpt', 'claude')}
+    release = {p: threading.Event() for p in entered}
+    def handle(request):
+        p = 'gpt' if request.url.host == 'api.openai.com' else 'claude'
+        entered[p].set()
+        assert release[p].wait(5)
+        if p == 'gpt':
+            return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': 'answer'}]}]})
+        return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': 'answer'}]})
+    evaluator = CodeEvalService(save_dir=tmp_path/'eval')
+    service = ComparisonService(evaluator, save_dir=tmp_path/'runs', client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    for provider in entered:
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture'})
+    rid = service.start({'cases': [{'question': 'q', 'answer': 'a'}], 'providers': list(entered)})['run_id']
+    try:
+        assert all(event.wait(3) for event in entered.values())
+        live = service.status(rid)['progress']
+        assert all(v['started_at'] and v['duration_ms'] is None for v in live.values())
+        release['gpt'].set()
+        until(lambda: service.status(rid)['progress']['gpt']['finished_at'] is not None)
+        early = service.status(rid)
+        assert early['status'] == 'COLLECTING'
+        assert early['progress']['claude']['finished_at'] is None
+        finished = early['progress']['gpt']
+        assert finished['duration_ms'] >= 0 and finished['started_at'] <= finished['finished_at']
+        snapshot = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+        assert snapshot['progress']['gpt'] == finished
+        # Interrupted runs freeze the last saved elapsed time, without inventing an end time.
+        snapshot['progress']['claude']['elapsed_ms'] = 1234
+        ComparisonService._interrupted(snapshot)
+        assert snapshot['progress']['claude']['timing_interrupted']
+        assert snapshot['progress']['claude']['elapsed_ms'] == 1234
+        assert snapshot['progress']['claude']['duration_ms'] is None
+        assert snapshot['progress']['gpt'] == finished
+    finally:
+        for event in release.values():
+            event.set()
+    until(lambda: service.status(rid)['status'] == 'READY')
+    # Wait for the worker's final persistence before reconstructing a new service.
+    until(lambda: json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))['status'] == 'READY')
+    recovered = ComparisonService(evaluator, save_dir=tmp_path/'runs').status(rid)
+    assert recovered['progress']['gpt'] == finished
+    assert recovered['progress']['claude']['duration_ms'] >= 0
+    assert 'aiona' not in recovered['progress']
+
+
+@pytest.mark.parametrize('cancel', [False, True])
+def test_collection_failure_and_cancel_stop_timer(tmp_path, cancel):
+    entered, release = threading.Event(), threading.Event()
+    def handle(request):
+        entered.set()
+        assert release.wait(5)
+        if not cancel:
+            raise RuntimeError('unexpected fixture transport failure')
+        return httpx.Response(200, json={'status': 'completed', 'output': []})
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval'), save_dir=tmp_path/'runs',
+                                client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    service.configure('gpt', {'key': 'fixture', 'model': 'fixture'})
+    rid = service.start({'cases': [{'question': 'q', 'answer': 'a'}]*2, 'providers': ['gpt']})['run_id']
+    try:
+        assert entered.wait(3)
+        if cancel:
+            service.cancel(rid)
+    finally:
+        release.set()
+    until(lambda: service.status(rid)['status'] == ('CANCELLED' if cancel else 'ERROR'))
+    detail = service.status(rid)['progress']['gpt']
+    assert detail['finished_at'] and detail['duration_ms'] >= 0
+    assert detail['active'] is None

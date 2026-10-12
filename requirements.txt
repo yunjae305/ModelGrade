@@ -1,0 +1,4 @@
+# The code evaluator and its local UI need Python 3.10+.
+# httpx is for the FAIL-only LLM review call; pytest is for the test suite.
+httpx>=0.28,<1
+pytest>=8,<10

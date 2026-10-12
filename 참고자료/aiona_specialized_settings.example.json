@@ -1,0 +1,30 @@
+{
+  "_comment": "형식 설명용 예시입니다. 아래 문자열은 가상의 값이며 실제 AIONA 마커·금지 표현이 아닙니다. 운영에 쓰지 마세요.",
+  "applies_to_system_ids": ["aiona"],
+  "marker_registry": {
+    "version": "1.0",
+    "status": "example_only",
+    "u8_1": {
+      "enabled": true,
+      "internal_marker_patterns": [
+        {"id": "EX-VIZ", "kind": "regex", "pattern": "\\{\\{viz:[^}]+\\}\\}", "category": "viz_placeholder", "description": "예시"},
+        {"id": "EX-PH", "kind": "literal", "pattern": "EXAMPLE_PLACEHOLDER", "category": "general_placeholder"},
+        {"id": "EX-FOLLOWUP", "kind": "literal", "pattern": "<example_followup>", "category": "followup_tag"},
+        {"id": "EX-CITE", "kind": "regex", "pattern": "(?:\\[\\d+\\]){2,}", "category": "citation_residue"}
+      ],
+      "internal_tag_patterns": [
+        {"id": "EX-SECTION", "kind": "literal", "pattern": "<example_section>", "category": "internal_section_tag"},
+        {"id": "EX-TOOL", "kind": "literal", "pattern": "<example_tool>", "category": "tool_artifact_tag"}
+      ]
+    }
+  },
+  "forbidden_expressions": {
+    "entries": [
+      {
+        "case_id": "EXAMPLE-001",
+        "question": "예시 서비스의 지원 요금제를 알려줘.",
+        "forbidden_expressions": ["예시요금제999"]
+      }
+    ]
+  }
+}

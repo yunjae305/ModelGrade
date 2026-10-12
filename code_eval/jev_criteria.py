@@ -1,0 +1,118 @@
+"""Jev 의미 평가 기준 J1~J6 — 정의는 이 파일 한 곳에서만 관리한다.
+
+J1~J6는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
+CODE 공통 미판정만 별도 C 기준(common_adjudication)으로 같은 호출에서 보완한다.
+Jev 요청 문구, 보고서·화면 설명은 모두 이 정의에서 만든다. Jev 가 새 기준을 만들지 않도록
+의미 평가는 이 여섯 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
+J5 DATA 신뢰도는 참조 데이터(reference)가 있으면 그것을, 없으면 확립된 사실을 기준으로 삼는다.
+J6 LONG CONTEXT 는 대화 입력(앞 턴 history)의 2번째 턴부터만 묻는다.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, List
+
+from .model import SUBCATEGORIES
+
+__all__ = ["JEV_CRITERIA_VERSION", "DECISIONS", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
+           "jev_questions", "describe"]
+
+JEV_CRITERIA_VERSION = "jev-criteria-v3"
+
+#: Jev choice 질문의 선택지. AIONA 판정 표기(PASS/FAIL)와 같게 둔다.
+DECISIONS = ("PASS", "FAIL")
+
+#: CODE 가 이미 검사하는 영역. 모든 Jev 지시문에 붙여 중복 판정을 막는다.
+CODE_SCOPE_NOTE = (
+    "다음은 코드 검사가 따로 확인하므로 이 판단에 넣지 않는다: "
+    + ", ".join(SUBCATEGORIES.values())
+    + " (예: 요청한 개수와 실제 개수, 글자·문장 수, 표·목록·JSON·코드블록 형식과 문법, 계산값, 각주·링크 연결)."
+)
+
+
+@dataclass(frozen=True)
+class JevCriterion:
+    id: str            # J1 … J6 — Jev 질문 키이자 결과 키
+    key: str
+    name: str
+    name_en: str
+    question: str      # Jev 에 묻는 문장
+    pass_rule: str
+    fail_rule: str
+    boundary: str      # CODE 와 나누는 경계
+    example: str       # 보고서·화면용 FAIL 예
+
+    def instructions(self) -> str:
+        return f"{self.name}({self.name_en}): {self.question} {self.boundary} {CODE_SCOPE_NOTE}"
+
+
+CRITERIA = (
+    JevCriterion(
+        "J1", "intent_fulfillment", "의도 충족성", "Intent Fulfillment",
+        question="질문이 시킨 일(비교·추천·설명·작성 등)을 답변이 실제로 했는가?",
+        pass_rule="요청한 작업의 결과물(비교 결과·추천 대상·해결 방법·요청한 글)이 답변에 있음",
+        fail_rule="요청과 다른 일을 함 — 비교 요청에 각각 설명만, 추천 요청에 추천 없이 고르는 법만, 해결 방법 요청에 문제 설명만",
+        boundary="‘했는가’만 본다. 내용이 대상·상황에 맞는지는 J2, 핵심이 빠졌는지는 J4 가 본다. 개수·분량·형식은 판단하지 않는다.",
+        example="요리법을 물었는데 재료 설명만 하고 만드는 법은 주지 않았는지"),
+    JevCriterion(
+        "J2", "content_appropriateness", "내용 적절성", "Content Appropriateness",
+        question="답변의 내용이 질문이 정한 대상·상황·조건·목적에 맞는가?",
+        pass_rule="설명 수준·말투·제약·목적이 질문이 정한 대상과 상황에 맞음",
+        fail_rule="대상·상황과 어긋남 — 초등학생에게 전문 용어로 설명, 대학생용 추천에 수백만 원대 장비, ‘하지 마’라고 한 것을 함",
+        boundary="‘누구에게·어떤 상황에 맞는가’를 본다. 일을 했는지는 J1, 빠진 내용은 J4 가 본다. 추천 질문만의 기준이 아니다.",
+        example="대학생용 노트북 추천에 수백만 원대 작업용 장비만 제시했는지"),
+    JevCriterion(
+        "J3", "logical_validity", "논리 타당성", "Logical Validity",
+        question="답변의 주장·이유·설명·결론 사이에 논리적 모순이나 부적절한 인과관계가 없는가?",
+        pass_rule="주장·근거·결론이 서로 맞고 명백한 논리 비약이 없음",
+        fail_rule="앞부분과 결론이 모순되거나, 제시한 근거로 결론을 낼 수 없거나, 설명 과정에 명백한 논리 비약이 있음",
+        boundary="단순 수치 계산 오류는 코드 검사가 맡으므로 판단하지 않는다.",
+        example="앞에서 A가 더 빠르다고 한 뒤 결론에서 B가 더 빠르다고 했는지"),
+    JevCriterion(
+        "J4", "sufficiency", "충분성", "Sufficiency",
+        question="요청한 목적을 이루는 데 꼭 필요한 핵심 내용이 빠짐없이 들어 있는가?",
+        pass_rule="목적 달성에 필요한 핵심 요소(양쪽 비교 항목·핵심 단계·판단 근거)가 모두 있음",
+        fail_rule="일은 했지만 핵심이 빠짐 — 장단점 요청에 장점만, 해결 방법에 핵심 단계 누락, 선택 질문에 결론만",
+        boundary="‘빠진 것이 있는가’를 본다. 일을 아예 안 한 것은 J1, 내용이 맞지 않는 것은 J2 가 본다. "
+                 "'5개 요청에 4개 제공' 같은 개수 누락은 코드 검사가 맡으므로 개수만으로 FAIL 하지 않는다.",
+        example="장단점을 물었는데 장점만 설명했는지"),
+    JevCriterion(
+        "J5", "data_reliability", "DATA 신뢰도", "Data Reliability",
+        question="답변의 수치·날짜·명칭·통계 등 데이터가 실제(참조 데이터가 있으면 참조 데이터)와 맞는가?",
+        pass_rule="제시한 데이터가 참조 데이터 또는 확립된 사실·질문에 주어진 값과 일치하고, 근거 없는 수치를 만들어 넣지 않음",
+        fail_rule="참조 데이터·검색한 신뢰할 수 있는 출처·질문의 값과 다른 사실을 제시함 — 근거로 틀렸다고 확인되는 경우만 FAIL. 확인할 수 없으면 미판정(UNVERIFIED)",
+        boundary="계산·개수·원본 변환은 코드 검사가 맡으므로 값의 출처와의 일치만 본다. 출처의 신뢰성·정보의 기준 시점·적용 조건을 함께 확인한다.",
+        example="인구·가격 같은 사실 수치를 실제와 다르게 적었는지"),
+    JevCriterion(
+        "J6", "long_context", "LONG CONTEXT", "Long-Context Consistency",
+        question="앞선 대화(history)에서 준 지시·설정을 이 답변이 계속 지키고, 앞 내용과 모순 없이 문맥을 유지하는가?",
+        pass_rule="앞 대화의 지시·설정(역할·말투·금지 사항·기억할 정보)을 지키고, 앞서 정한 이름·조건·결정과 일관됨",
+        fail_rule="앞 지시·설정을 잊거나 어김, 앞서 정한 내용과 모순, 앞 대화를 잊고 엉뚱한 맥락으로 답함",
+        boundary="분량·형식 지시는 코드 검사 영역이고, 이 턴 질문 자체의 의도·논리는 J1~J4 가 본다.",
+        example="1턴의 ‘반말로, 이름은 민수’ 지시가 15턴에서 존댓말·다른 이름으로 바뀌었는지"),
+)
+
+
+def jev_questions() -> Dict[str, Dict[str, Any]]:
+    """J1~J6 를 Jev System One 의 choice 질문으로 바꾼다. 한 번의 호출에 적용 기준을 함께 보낸다."""
+    return {c.id: {"type": "choice", "instructions": c.instructions(),
+                   "criteria": {"PASS": c.pass_rule, "FAIL": c.fail_rule}}
+            for c in CRITERIA}
+
+
+def describe() -> Dict[str, Any]:
+    """보고서·화면에 보여 줄 기준 정의."""
+    items: List[Dict[str, Any]] = [
+        {"id": c.id, "key": c.key, "name": c.name, "name_en": c.name_en, "question": c.question,
+         "pass": c.pass_rule, "fail": c.fail_rule, "boundary": c.boundary, "example": c.example}
+        for c in CRITERIA]
+    # Judges retain an unresolved evidence state so source recovery can run.
+    # Describe the final server policy separately from those stage instructions.
+    for item in items:
+        if item["id"] == "J5":
+            item["fail"] = ("참조 데이터·신뢰할 수 있는 출처·질문의 값과 다른 사실을 제시했거나, "
+                            "추가 검증 후에도 외부 출처 원문을 읽거나 인용문을 확인하지 못한 경우 FAIL. "
+                            "원문 확인 실패는 검증 기준 미충족이며 사실 오류가 확인되었다는 뜻은 아님")
+        item["fail"] += ". 평가를 마친 뒤에도 기준 충족을 입증할 근거가 부족하면 검증 기준 미충족으로 FAIL"
+    return {"version": JEV_CRITERIA_VERSION, "criteria": items, "code_scope_note": CODE_SCOPE_NOTE}
