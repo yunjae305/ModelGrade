@@ -608,6 +608,21 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
 
 
 _CLAIM_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+#: 주장 문장에 붙은 출처 표기. 수치는 이것을 걷어낸 본문에서만 읽는다 (URL 경로·도메인·쿼리·인용 번호의 숫자는 주장 수치가 아님).
+_LINK_TARGET = r"\[[^\]\n]{1,200}\]\([^)\s]+(?:\s+\"[^\"\n]*\")?\)"
+_CITATION_GROUP = re.compile(r"[(（]\s*(?:(?:출처|참고(?:\s*자료)?|자료|source|ref(?:erence)?)\s*[:：]?\s*)?"
+                             r"(?:" + _LINK_TARGET + r"\s*[,;·]?\s*)+[)）]", re.I)
+_MD_LINK = re.compile(r"(?<!!)\[(?P<text>[^\]\n]{1,200})\]\([^)\s]+(?:\s+\"[^\"\n]*\")?\)")
+_URL_TEXT = re.compile(r"<?(?:https?://|www\.)[^\s<>()\[\]\"'`]+>?", re.I)
+_CITATION_MARK = re.compile(r"\[\^[^\]\s]{1,64}\]|\[\d{1,3}(?:\s*[,\-–]\s*\d{1,3})*\]")
+
+
+def _claim_numbers(claim):
+    """출처 표기를 뺀 주장 본문의 수치. 괄호 안 출처 링크는 통째로, 본문 속 링크는 주소만 빼고 표시 글자는 남긴다."""
+    text = _CITATION_GROUP.sub(" ", claim or "")
+    text = _MD_LINK.sub(lambda m: m.group("text"), text)
+    text = _URL_TEXT.sub(" ", text)
+    return _CLAIM_NUMBER.findall(_CITATION_MARK.sub(" ", text))
 
 
 def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
@@ -668,7 +683,7 @@ def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
         text = _normalize(page.get("text"))
         quote = _normalize(check.get("quote"))
         check["quote_verified"] = bool(quote) and quote in text
-        numbers = _CLAIM_NUMBER.findall(check.get("claim") or "")
+        numbers = _claim_numbers(check.get("claim"))
         if numbers:
             check["claim_numbers_in_source"] = all(_normalize(n) in text for n in numbers)
     _check_cancelled(cancel_event)

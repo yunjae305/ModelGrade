@@ -10,7 +10,7 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.7-direct-fetch"
+FACT_CHECK_POLICY = "evidence-v3.8-citation-claim-numbers"
 CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 

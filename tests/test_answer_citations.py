@@ -101,6 +101,39 @@ def test_unconfirmed_citation_judgments_never_fail_the_answer(checks, page_fetch
     assert j5["citation_checks"][-1]["verdict"] == "unchecked"   # alpha was not recorded by the judge
 
 
+def unrelated_verdicts(answer, url, claims, page):
+    state = {"question": "출처도 알려줘", "answer": answer, "answer_citations": prompt_citations(answer_citations(answer))}
+    body = {"answers": {"J5": {"choice": "PASS", "confidence": .9, "reason": "ok", "probabilities": {"PASS": .9, "FAIL": .1},
+                               "fact_check": {"basis": "none", "claims": []},
+                               "citation_checks": [check(url, claim, "unrelated", reason="다른 주제") for claim in claims]}},
+            "verification": {}}
+    body = verify_answer_citations(body, state, fetcher=lambda u: {"status": "ok", "text": page, "final_url": u})
+    return [c["verdict"] for c in finalize_answers(body, state, {"J5": {}})["answers"]["J5"]["citation_checks"]]
+
+
+DOC = "https://docs.example/3/library/os.html?v=2"
+
+
+@pytest.mark.parametrize("answer,claim,page,verdict", [
+    # F2 (G4-02): 링크 주소의 경로·쿼리 숫자는 주장 수치가 아니다
+    (f"정렬은 제자리에서 합니다 ([출처]({DOC})).", None, "Python 3 path functions, version 2", "unrelated"),
+    # 맨 URL·인용 번호의 숫자도 주장 수치가 아니다
+    (f"정렬은 제자리에서 합니다 [3].\n\n[3] {DOC}", "정렬은 제자리에서 합니다 [3].", "Python 3 path functions", "unrelated"),
+    # 본문 수치가 원문에 있으면 여전히 '무관'을 확정하지 않는다
+    (f"인구는 935만 명입니다 ([출처]({DOC})).", None, "population 935 in 2024", "unverified"),
+    # 본문 수치와 URL 숫자가 다르면 본문 수치만 대조한다
+    (f"인구는 935만 명입니다 ([출처]({DOC})).", None, "Python 3 documentation v2", "unrelated"),
+])
+def test_only_numbers_in_the_claim_text_block_an_unrelated_verdict(answer, claim, page, verdict):
+    assert unrelated_verdicts(answer, DOC, [claim or answer], page) == [verdict]
+
+
+def test_each_claim_on_the_same_cited_url_is_checked_separately():
+    answer = f"인구는 935만 명입니다 ([출처]({DOC})). 정렬은 제자리에서 합니다 ([출처]({DOC}))."
+    claims = [f"인구는 935만 명입니다 ([출처]({DOC})).", f"정렬은 제자리에서 합니다 ([출처]({DOC}))."]
+    assert unrelated_verdicts(answer, DOC, claims, "population 935") == ["unverified", "unrelated"]
+
+
 def test_contradicting_source_with_a_verified_quote_is_a_mismatch_even_after_a_fail():
     PAGES_C = {**PAGES, "https://cited.example/beta": "Beta is 7, not 42."}
     j5, _ = finalized([check("https://cited.example/beta", "Beta is 42 [2].", "contradicted", quote="Beta is 7")],

@@ -32,8 +32,8 @@ def test_g4_01_fetch_only_evidence_from_the_cited_page_verifies_j5(tmp_path):
     assert actual["j5"]["outcome"] == "verified" and actual["verdict"] == "PASS"
 
 
-@pytest.mark.xfail(strict=True, reason="F2: 주장 문장의 링크 URL 경로 숫자('/3/')를 주장 수치로 읽어 '무관' 판정을 확정하지 않음")
 def test_g4_02_digits_inside_the_cited_url_do_not_block_an_unrelated_verdict(tmp_path):
+    # F2: 주장 문장의 링크 URL 경로 숫자('/3/')는 주장 수치가 아니므로 '무관' 판정을 막지 않는다.
     pages = {"https://docs.python.org/3/library/os.path.html": "os.path — Common pathname manipulations. Python 3 documentation",
              "https://docs.python.org/3/library/stdtypes.html": "This method modifies the sequence in place"}
     fetcher = lambda url: ({"status": "ok", "text": pages[url], "final_url": url, "content_type": "text/html"}
