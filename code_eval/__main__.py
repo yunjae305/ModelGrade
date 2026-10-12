@@ -6,6 +6,7 @@
     py -3 -m code_eval run --input data/code_eval/AIONA_winz_set2_Q100_id_question_answer_v1.json --out results/set2_q100 --overwrite
     py -3 -m code_eval single --question "5에서 8을 빼면?" --answer "결과는 -3입니다."
     py -3 -m code_eval info
+    py -3 -m code_eval criteria   # CODE 검사 단위·J1~J6 통합 목록 (판정에 쓰지 않음)
 """
 
 from __future__ import annotations
@@ -124,11 +125,16 @@ def main(argv=None) -> int:
     single.add_argument("--reference", help="J5 DATA 신뢰도의 기준이 되는 참조 데이터 (문자열)")
     single.add_argument("--json", action="store_true", help="전체 결과 JSON 출력")
     sub.add_parser("info")
+    sub.add_parser("criteria")
     args = parser.parse_args(argv)
 
     if args.cmd == "info":
         _print(json.dumps({"versions": versions(), "aiona_config": load_aiona_config().summary()},
                           ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "criteria":
+        from .criteria_registry import registry
+        _print(json.dumps(registry(), ensure_ascii=False, indent=2))
         return 0
     cfg = _cfg(args)
     if args.cmd == "single":
