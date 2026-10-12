@@ -716,7 +716,9 @@ def test_chained_equation_and_presented_mistakes():
     ok = run("정산해 주세요.", "1. 1,240,000원 × (1 - 0.033) = 1,240,000원 × 0.967 = **1,199,080원**")
     assert one(ok, "3-1.answer_equation:1")["verdict"] == PASS
     shown_mistake = run("자주 하는 실수를 알려줘.", "**틀린 식**\n\n$$37 + 28 = 55$$\n\n3. $52 - 28 = 36$\n   - 올바른 식: $52-28=24$")
-    assert not [r for r in rows(shown_mistake, "3-1") if r["verdict"] == FAIL]
+    # 오류 예시 등식 두 개는 FAIL 이 아니라 행 자체가 없고, 정정된 식만 PASS 행이 된다
+    assert _equations(shown_mistake) == [(["52-28", "24"], PASS)]
+    assert any(s["check_id"] == "3-1.answer_equation:skipped" for s in shown_mistake["meta"]["skipped_conditions"])
 
 
 def test_equation_price_unit_and_tex_thousands_grouping():
@@ -732,6 +734,112 @@ def test_equation_price_unit_and_tex_thousands_grouping():
     wrong_rate = run("클릭률을 계산해줘.",
                      r"$80 ÷ 2{,}000 × 100 = 5\%$")
     assert one(wrong_rate, "3-1.answer_equation:1")["verdict"] == FAIL
+
+
+def _equations(case):
+    return [(r["measured"]["segments"], r["verdict"]) for r in rows(case, "3-1.answer_equation")]
+
+
+def test_equation_does_not_continue_into_next_bullet():
+    case = run("계산해줘.", "- 1인 비용: 7,000원 + 9,000원 - 3,000원 = 13,000원\n- 4인 총액: 13,000원 × 4 = 52,000원")
+    assert _equations(case) == [(["7,000  + 9,000  - 3,000", "13,000"], PASS), (["13,000  * 4", "52,000"], PASS)]
+    # 저장 데이터의 거짓 FAIL 재현: `17,000원\n- 3명` 이 `17,000 - 3` 으로 읽히면 안 된다
+    saved = run("계산해줘.", "- 1인당 총액: 8,000 + 9,000 = 17,000원\n- 3명 총액: 17,000 × 3 = 51,000원")
+    assert [v for _, v in _equations(saved)] == [PASS, PASS]
+    assert not any("17,000-3" in seg.replace(" ", "") for segs, _ in _equations(saved) for seg in segs)
+
+
+def test_equation_review_cases_noun_negation_units_crlf_and_spaced_suffix():
+    def skipped_31(case):
+        return [s["reason"] for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("3-1")]
+    # 명사 부정으로 소개한 오류 예시는 보류, 조건 설명 문장 뒤의 등식은 판정
+    for answer in ("정답 아님: 2 + 3 = 6", "이 식은 답이 아닙니다.\n2+2=5", "2 + 2 = 5입니다. 이는 정답이 아닙니다."):
+        case = run("계산해줘.", answer)
+        assert _equations(case) == [] and "부정·오류 예시" in skipped_31(case)[0], answer
+    assert _equations(run("계산해줘.", "두 영화 모두 코미디가 아닙니다.\n총시간은 85 + 20 + 95 = 200분입니다.")) == [(["85 + 20 + 95", "200"], PASS)]
+    # 달력의 '월' 범위·순환 표기는 식이 아니다; 자루 같은 개수 단위는 식이다
+    for answer in ("기간: 3월 - 5월 = 3개월", "12월 + 1개월 = 1월"):
+        assert rows(run("계산해줘.", answer), "3-1") == [], answer
+    assert _equations(run("계산해줘.", "30자루 − 8자루 = 22자루")) == [(["30   - 8", "22"], PASS)]
+    # 괄호 짝이 안 맞는 조각과 띄어 쓴 한글 수 단위는 행 없음 + 사유 기록
+    case = run("계산해줘.", "총액은 2 × (3 + 4 = 14 입니다.")
+    assert _equations(case) == [] and "괄호 짝" in skipped_31(case)[0]
+    case = run("계산해줘.", "1 + 1 = 2 만")
+    assert _equations(case) == [] and "한글 수 단위" in skipped_31(case)[0]
+    # CRLF·NBSP 공백도 수평 공백이다; 선행 마크업은 근거 발췌에서 빠진다
+    assert _equations(run("계산해줘.", "80×20% + 70×30% + 90×50%\r\n= 16 + 21 + 45\r\n= **82점**")) == [(["16 + 21 + 45", "82"], PASS)]
+    assert [v for _, v in _equations(run("계산해줘.", "7,000원 + 9,000원 = 16,000원"))] == [PASS]
+    ev = one(run("계산해줘.", "**1인당 16,000원 × 4명 = 64,000원**"), "3-1.answer_equation:1")["evidence"][0]
+    assert (ev["start"], ev["excerpt"]) == (6, "16,000원 × 4명 = 64,000")
+
+
+def test_aligned_multiline_derivation_still_one_chain():
+    case = run("계산해줘.", "80×20% + 70×30% + 90×50%\n= 16 + 21 + 45\n= **82점**")
+    assert _equations(case) == [(["16 + 21 + 45", "82"], PASS)]
+    wrong = run("계산해줘.", "80×20% + 70×30% + 90×50%\n= 16 + 21 + 45\n= 83점")
+    assert _equations(wrong) == [(["16 + 21 + 45", "83"], FAIL)]
+
+
+def test_equation_boundary_ignores_following_line_word():
+    case = run("계산해줘.", "- 기말고사: 90 × 0.5 = 45\n\n**최종 점수 = 16 + 21 + 45 = 82점**")
+    assert [v for _, v in _equations(case)] == [PASS, PASS]  # 기존엔 `45` 뒤 `최종` 을 수식어로 보고 보류했다
+    assert case["meta"]["skipped_conditions"] == []
+
+
+@pytest.mark.parametrize("answer,verdict", [
+    (r"\(26/20=1.3\), 즉 30%", PASS),
+    (r"총점은 \(70 + 80 + 90 + 100 = 340\)점이므로 합격입니다.", PASS),
+    (r"\(3 \times 4 = 12\), \[20 \div 4 = 5\], \(2 \cdot 3 = 6\)", PASS),
+    ("파일(10 − 2 − 3 = 5개)은 변동 없음", PASS),
+    ("*(또는 1인당 14,000원 × 4명 = 56,000원)*", PASS),
+    (r"\(26/20=1.4\)", FAIL),
+])
+def test_tex_delimiters_and_outer_parentheses_are_balanced(answer, verdict):
+    case = run("계산해줘.", answer)
+    assert {v for _, v in _equations(case)} == {verdict} and case["meta"]["skipped_conditions"] == []
+    if answer.startswith("파일"):
+        assert one(case, "3-1.answer_equation")["evidence"][0]["end"] == answer.index("5개") + 1  # `)` 는 식 밖
+    fragment = run("계산해줘.", "기본료 8,000원 + (120장 × 60원 = 7,200원)")
+    assert rows(fragment, "3-1") == []  # 괄호 안의 등호는 등식이 아니다: 행 없음
+
+
+def test_registered_count_units_before_operator():
+    case = run("계산해줘.", "B는 8,000원 + (120장 × 60원) = 8,000원 + 7,200원 = **15,200원**이에요.")
+    assert _equations(case) == [(["8,000  + (120  * 60 )", "8,000  + 7,200", "15,200"], PASS)]
+    stationery = run("계산해줘.", "(21권 × 2,500원) + (34자루 × 1,000원) + (3개 × 1,500원) = 52,500원 + 34,000원 + 4,500원 = **91,000원**")
+    assert [v for _, v in _equations(stationery)] == [PASS]
+    assert _equations(run("계산해줘.", "120장 × 100원 = 12,500원")) == [(["120  * 100", "12,500"], FAIL)]
+
+
+def test_per_person_qualifier_and_connective_suffix():
+    assert _equations(run("계산해줘.", "64,000원 ÷ 4명 = **1인당 16,000원**")) == [(["64,000  / 4", "16,000"], PASS)]
+    assert _equations(run("계산해줘.", "64,000원 ÷ 4명 = **1인당 15,000원**")) == [(["64,000  / 4", "15,000"], FAIL)]
+    assert _equations(run("계산해줘.", "10 = 3×3 + 1이므로 선공이 이깁니다.")) == [(["10", "3*3 + 1"], PASS)]
+    unknown = run("계산해줘.", "1 + 1 = 2만")
+    assert rows(unknown, "3-1") == []  # 미등록 접미사는 여전히 행 없음
+    assert [s["check_id"] for s in unknown["meta"]["skipped_conditions"]] == ["3-1.answer_equation:skipped"]
+
+
+def test_noun_negation_scope_is_same_sentence_before_marker():
+    prev = run("계산해줘.", "- 두 영화 모두 코미디가 아닙니다.\n- 총시간은 85 + 20 + 95 = 200분으로 210분 이내입니다.")
+    assert _equations(prev) == [(["85 + 20 + 95", "200"], PASS)]
+    contrast = run("계산해줘.", "할인은 영화당이 아니라 1인당 두 편 합계에서 한 번 적용해요.\n\n- 할인 전 1인 요금: 9,000원 + 7,000원 = **16,000원**")
+    assert _equations(contrast) == [(["9,000  + 7,000", "16,000"], PASS)]
+    assert _equations(run("계산해줘.", "2 + 2 = 5가 아니라 2 + 2 = 4입니다.")) == [(["2 + 2", "4"], PASS)]
+    for answer in ("2 + 2 = 5가 아닙니다.", "다음 계산은 잘못되었습니다.\n\n2 + 2 = 5", "틀린 값 2.5를 쓰면 1 + 1 = 3이 됩니다."):
+        assert rows(run("계산해줘.", answer), "3-1") == [], answer
+
+
+@pytest.mark.parametrize("question,answer", [
+    ("계산해줘.", "1 + 1 = 2%"), ("계산해줘.", "1 + 1 = 2만"), ("계산해줘.", "2 ÷ 0 = 0"),
+    ("계산해줘.", "**틀린 식**\n\n2 + 2 = 5"), ("1 + 1은?", "결과는 2%입니다."), ("1 + 1은?", "2 또는 3"),
+])
+def test_3_1_never_emits_unjudged_rows(question, answer):
+    case = run(question, answer)
+    for r in rows(case, "3-1."):
+        assert r["status"] == Status.EXECUTED and r["verdict"] in (PASS, FAIL)
+    assert not any(r["check_id"].endswith(":skipped") for r in case["results"])
+    assert any(s["check_id"].startswith("3-1.") for s in case["meta"]["skipped_conditions"])
 
 
 def test_ambiguous_numbered_structures_and_container_heading():

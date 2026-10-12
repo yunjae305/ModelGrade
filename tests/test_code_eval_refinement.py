@@ -124,7 +124,7 @@ def test_net_income_word_does_not_mark_equation_as_mistake_example():
     case = check("월 실수령액이 300만 원인데 지출 합계를 계산해줘.",
                  "월 실수령액에서 비용을 빼면 됩니다.\n80 + 40 + 10 + 5 + 15 = 150")
     assert result(case, "3-1.answer_equation:1")["verdict"] == "PASS"
-    assert not any(r["check_id"] == "3-1.answer_equation:skipped" for r in case["results"])
+    assert len(rows(case, "3-1.answer_equation")) == 1 and skipped(case, "3-1.answer_equation") == []
 
 
 def test_premise_count_is_not_output_sentence_requirement():

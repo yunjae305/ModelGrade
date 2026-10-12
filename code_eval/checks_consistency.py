@@ -31,17 +31,25 @@ __all__ = ["check_3_1", "check_3_2", "check_3_3"]
 SUB31, SUB32, SUB33 = "3-1", "3-2", "3-3"
 
 
-_UNIT_BEFORE_OP = re.compile(r"(?<=\d)(?:원|개월|개|명|kg|km|cm|mm|g|m|시간|분|초|일|년|점|회|배|%)(?=\s*[*/+\-=)])")
+# 연산자 앞에서 지워도 값이 바뀌지 않는 단위: 등록 측정 단위 전체 + 자루. 줄바꿈은 넘지 않는다.
+#: 연산자 앞에서 지우는 단위. 달력의 '월'(3월 - 5월 = 3개월 같은 범위·순환 표기)은 산술 단위가 아니라 뺀다.
+_UNITS = sorted((set(MEASUREMENT_SUFFIXES) | {"자루", "%"}) - {"월"}, key=len, reverse=True)
+_UNIT_BEFORE_OP = re.compile(r"(?<=\d)(?:" + "|".join(map(re.escape, _UNITS)) + r")(?=[ \t ]*[*/+\-=)])")
+_TEX_OPS = {r"\times": "*", r"\cdot": "*", r"\div": "/"}
 
 
 def _equation_text(ctx: Ctx) -> str:
-    """등식 검산용 투영 (위치 보존): 인라인 코드 가림, ×÷ → */, 강조 ** 제거, 연산자 앞 단위 제거.
+    """등식 검산용 투영 (위치 보존): 인라인 코드 가림, ×÷ → */, 강조 ** 제거, TeX 구분자·연산자 치환,
+    ``1인당`` 수식어 제거, 연산자 앞 단위 제거.
 
     ``%`` 는 연산자 앞에서도 값이 바뀌므로 지우지 않고 식을 끊는다.
     """
     if "equation_text" not in ctx.shared:
         text = mask_ranges(ctx.answer, ctx.aa.inline_code_spans, fill="§")
         text = text.replace("×", "*").replace("÷", "/").replace("−", "-").replace("**", "  ")
+        # TeX delimiters \( \) \[ \] are not arithmetic parentheses; TeX operators keep their length.
+        text = re.sub(r"\\[()\[\]]", "  ", text)
+        text = re.sub(r"\\(?:times|cdot|div)(?![A-Za-z])", lambda m: _TEX_OPS[m.group()].ljust(len(m.group())), text)
         # TeX groups thousands as 2{,}000. Preserve offsets while restoring the number.
         text = re.sub(r"\d{1,3}(?:\{,\}\d{3})+",
                       lambda m: m.group().replace("{,}", ",").ljust(len(m.group())), text)
@@ -53,6 +61,8 @@ def _equation_text(ctx: Ctx) -> str:
                       lambda m: str(int(m.group(1)) ** 2).ljust(len(m.group())), text)
         text = re.sub(r"(?<=\d)\(\s*(\d{1,6})\s*\)",
                       lambda m: ("*" + m.group(1)).ljust(len(m.group())), text)
+        # '= 1인당 16,000원': a per-person qualifier before the value, not the literal 1.
+        text = re.sub(r"(?<![\d.,])1인당(?=[ \t]*\d)", "   ", text)
         text = _UNIT_BEFORE_OP.sub(lambda m: "§" if m.group(0) == "%" else " " * len(m.group(0)), text)
         ctx.shared["equation_text"] = text
     return ctx.shared["equation_text"]
@@ -60,9 +70,73 @@ def _equation_text(ctx: Ctx) -> str:
 
 _CORRECTION_AFTER = re.compile(r"올바른\s*(?:식|답|계산|풀이)|바른\s*식|정답은|바르게\s*고치면|고친\s*식")
 _MISTAKE = re.compile(r"(?<![가-힣])실수(?=$|[\s.,!?)]|[가를로는인했하였])")
-_TERM = rf"\(*\s*-?(?:{NUMBER})\s*\)*"
-_SEG = rf"{_TERM}(?:\s*[+\-*/]\s*{_TERM})*"
-_CHAIN = re.compile(rf"(?<![\w.,§]){_SEG}(?:\s*=\s*{_SEG})+(?![\d.,])")
+# 식 안의 공백은 수평 공백뿐이다: 줄바꿈 뒤의 불릿 `- 4인`·`* 4인` 을 연산자로 읽지 않는다.
+# 줄바꿈은 다음 줄이 `=` 로 시작하는 정렬 유도식(`…\n= 16 + 21\n= 82점`)에서만 이어 읽는다.
+_HS = r"[ \t ]*"   # 수평 공백(NBSP 포함). 줄바꿈은 아래 _EQ 의 '=' 줄머리 유도식에서만 넘는다.
+_TERM = rf"\(*{_HS}-?(?:{NUMBER}){_HS}\)*"
+_SEG = rf"{_TERM}(?:{_HS}[+\-*/]{_HS}{_TERM})*"
+_EQ = rf"(?:{_HS}\r?\n)?{_HS}={_HS}"
+_SPACED_KO_UNIT = re.compile(r"[ \t ]+(?:만|천|억|조)(?![가-힣])")   # '= 2 만' 처럼 띄어 쓴 한글 수 단위
+_NEG_EXAMPLE = re.compile(r"(?<![가-힣])(?:정답|답|예|식|계산|풀이)\s*(?:이|은|는|가|도)?\s*(?:아님|아닌|아닙니다|아니에요|아니다)"
+                          r"|(?:아님|아닌|아닙니다)\s*[:：]")   # '방식이 아니라' 의 '식이 아니라' 는 걸리지 않는다
+_CHAIN = re.compile(rf"(?<![\w.,§]){_SEG}(?:{_EQ}{_SEG})+(?![\d.,])")
+# 명사 부정은 조건 설명이다(‘A가 아니라 B’의 A, ‘X가 아닙니다’의 X): 같은 문장에서 표지 앞의 등식만 보류한다.
+# 나머지 오류 예시 표지(틀린·잘못·오답·오류·실수·반례 …)는 자기 줄 + 앞 2줄에서 찾는다.
+_NOUN_NEG = ("아니라", "아니고", "아닙니다", "아님", "아닌")
+_SENT_END = re.compile(r"[.!?。](?=\s|$)")   # 1.5 의 소수점은 문장 끝이 아니다 (textparse 규칙)
+
+
+def _balance_parens(raw: str) -> Optional[Tuple[int, str]]:
+    """매치 끝 공백과 짝 없는 뒤쪽 `)`·앞쪽 `(` 만 잘라낸다. 안쪽 짝이 안 맞으면 None (행 없음).
+
+    `파일(10 - 2 - 3 = 5개)은` 의 끝 `)`, `(24,000 + 27,000 = 51,000원으로` 의 앞 `(` 가 대상이다.
+    반환값은 (앞에서 잘라낸 길이, 본문).
+    """
+    body = raw.strip()
+    lead = len(raw) - len(raw.lstrip())   # 선행 공백·치환된 마크업 자리는 근거 발췌에서 뺀다
+    while True:
+        depth, bad = 0, None
+        for i, c in enumerate(body):
+            depth += (c == "(") - (c == ")")
+            if depth < 0:
+                bad = i
+                break
+        if bad is None:
+            break
+        if body[bad + 1:].strip():
+            return None
+        body = body[:bad].rstrip()
+    while body.count("(") > body.count(")"):
+        if not body.startswith("("):
+            return None
+        stripped = body[1:].lstrip()
+        lead += len(body) - len(stripped)
+        body = stripped
+    return lead, body
+
+
+def _negated(lines, line_idx: int, start: int, end: int) -> str:
+    """등식을 보류시키는 부정·오류 예시 표지를 돌려준다 (없으면 빈 문자열)."""
+    line = lines[line_idx]
+    own = line.text
+    rel_s, rel_e = start - line.start, end - line.start
+    s0 = 0
+    for m in _SENT_END.finditer(own):
+        if m.end() <= rel_s:
+            s0 = m.end()
+        else:
+            break
+    s1 = next((m.start() for m in _SENT_END.finditer(own, rel_e)), len(own))
+    sentence = own[s0:s1]
+    for w in _NOUN_NEG:
+        if any(rel_s - s0 < m.start() for m in re.finditer(re.escape(w), sentence)):
+            return w
+    context = [own] + [l.text for l in lines[max(0, line_idx - 3):line_idx] if l.text.strip()][-2:]
+    # '정답 아님:', '이 식은 답이 아닙니다.' 처럼 명사 부정으로 오류 예시를 소개하는 꼴은 오류 예시 표지로 본다.
+    if any(_NEG_EXAMPLE.search(c) for c in context):
+        return "정답 아님"
+    return next((w for w in NEGATION_MARKERS if w not in _NOUN_NEG for c in context
+                 if (_MISTAKE.search(c) if w == "실수" else w in c)), "")
 
 
 class Chain:
@@ -98,12 +172,23 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
     for m in _CHAIN.finditer(text):
         if ctx.aa.in_fence(m.start()):
             continue
-        ch = Chain(m.group(0), m.start(), m.end())
+        balanced = _balance_parens(m.group(0))
+        if balanced is None:
+            # 안쪽 괄호 짝이 안 맞는 조각(괄호 안 등호 등)은 행을 만들지 않고 사유만 남긴다
+            ch = Chain(m.group(0).strip(), m.start(), m.end())
+            ch.skip_reason = "재계산할 수 없는 식: 괄호 짝이 맞지 않는 조각"
+            chains.append(ch)
+            continue
+        lead, body = balanced
+        start, end = m.start() + lead, m.start() + lead + len(body)
+        ch = Chain(body, start, end)
         if not ch.has_operation:
             continue
-        follows = text[m.end():m.end() + 6]
+        follows = text[end:end + 6]
         tail = follows[:1]
-        if re.match(r"\s*\\?%", follows):
+        if _SPACED_KO_UNIT.match(follows):
+            ch.skip_reason = "등식 뒤에 띄어 쓴 한글 수 단위(만·천·억)가 붙어 값을 확정할 수 없음"
+        elif re.match(r"\s*\\?%", follows):
             # Preserve the supported ratio-to-percent presentation (a / b * 100 = n%).
             # An arbitrary numeric equality must not silently lose a percent suffix.
             percent_conversion = ("/" in ch.segments[0] and
@@ -113,11 +198,9 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         elif tail and (tail.isalnum() or tail == "§") and not any(
                 follows.startswith(x) for x in _VALUE_SUFFIXES + MEASUREMENT_SUFFIXES):
             ch.skip_reason = "등식 뒤에 등록되지 않은 단위·수식어가 붙어 값을 확정할 수 없음"
-        line_idx = next((i for i, l in enumerate(lines) if l.start <= m.start() <= l.end), None)
+        line_idx = next((i for i, l in enumerate(lines) if l.start <= start <= l.end), None)
         if not ch.skip_reason and line_idx is not None:
-            context = [lines[line_idx].text] + [l.text for l in lines[max(0, line_idx - 3):line_idx] if l.text.strip()][-2:]
-            marker = next((w for w in NEGATION_MARKERS for c in context
-                           if (_MISTAKE.search(c) if w == "실수" else w in c)), "")
+            marker = _negated(lines, line_idx, start, end)
             following = [l.text for l in lines[line_idx + 1:line_idx + 5] if l.text.strip()][:2]
             if marker:
                 ch.skip_reason = f"부정·오류 예시 문맥 표현이 있음: {marker}"
