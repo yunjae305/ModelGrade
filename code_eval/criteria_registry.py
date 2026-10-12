@@ -98,7 +98,7 @@ RELATIONS = (
      "질문 원본 값의 보존은 3-3 정확 비교와 J5 input_consistency 주장이 함께 봄"),
     ("1-3.citation_link", "J5", "boundary",
      "1-3은 답변 안 인용 번호·각주 연결만, 답변이 든 출처가 주장을 뒷받침하는지는 J5 citation_checks 가 서버 원문 대조로 확인 "
-     "(answer-citations-v1, 2026-10-12 이전에는 공백)"),
+     "(answer-citations-v1 부터, 2026-10-12 이전에는 공백. v2 는 서버가 받지 못한 출처를 공급자 web_fetch 원문으로 대조)"),
     ("2-1", "J6", "boundary",
      "이전 턴의 지속 분량·형식 지시는 CODE 가 다음 턴 조건으로 이어받아 검사(작업 브랜치 엔진 v16.3.0, 통합 v16.4.0), J6는 의미 맥락만. "
      "2026-10-12 이전에는 어느 쪽도 판정하지 않던 공백"),
@@ -113,6 +113,7 @@ _CODE_UNJUDGED = ("공통 결과 행은 PASS/FAIL 뿐. 코드로 확정할 수 �
 _SEMANTIC_EVIDENCE = {
     "J5": ("fact_check.claims[] — 답변 원문 발췌 주장별 verdict·reason·sources(url·quote·authority·temporal_relevance·origin). "
            "서버가 검색 도구 기록의 URL, 출처 원문·입력 원문의 인용 일치를 확인하고 맞지 않으면 그 주장을 확인 필요로 바꿈. "
+           "서버가 접근 문제로 받지 못한 출처는 같은 요청에서 평가자 web_fetch 가 실제로 받은 원문으로만 대조(retrieval=provider_document). "
            "답변이 직접 든 출처는 citation_checks — 서버가 그 URL 을 받아 인용·수치를 대조하고 확정된 불일치만 FAIL. "
            "판정마다 j5_outcome(사실 오류·검증 기준 미충족·출처 불일치·검색 불가 등)"),
     "J6": ("context_checks[] — 이전 턴 번호·instruction_quote·answer_quote·decision·reason. "
@@ -121,7 +122,7 @@ _SEMANTIC_EVIDENCE = {
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
                     "그 기준만 1회 재평가 (j1-j4-fail-evidence-v1). 이유의 의미적 타당성은 검증하지 않음")
 _SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
-                      "검색 불가·검색 실행 오류로 확인하지 못한 J5(J5_SEARCH_UNAVAILABLE·J5_SEARCH_ERROR). "
+                      "검색 불가·검색 실행 오류·검색 없이 연 원문의 도구 오류로 확인하지 못한 J5(J5_SEARCH_UNAVAILABLE·J5_SEARCH_ERROR·J5_FETCH_ERROR). "
                       "그 밖의 UNVERIFIED는 최종 정책으로 FAIL(EVALUATION_EVIDENCE_INSUFFICIENT, 사실 오류 확정 아님), "
                       "J5 출처 원문 확인 실패는 FAIL(SOURCE_ORIGINAL_UNAVAILABLE). 호출 오류·시간 초과·형식 오류·미연결은 "
                       "판정 없음(미완료)")

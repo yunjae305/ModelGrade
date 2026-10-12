@@ -275,7 +275,7 @@ def observe(case, record, calls):
     j5 = decisions.get("J5") if isinstance(decisions.get("J5"), dict) else None
     outcome = (j5 or {}).get("j5_outcome") or {}
     claims = (((j5 or {}).get("fact_check") or {}).get("claims") or [])
-    citations = [{k: c.get(k) for k in ("url", "model_verdict", "verdict", "server_status", "quote_verified", "note")}
+    citations = [{k: c.get(k) for k in ("url", "model_verdict", "verdict", "server_status", "quote_verified", "retrieval", "note")}
                  for c in (j5 or {}).get("citation_checks") or [] if isinstance(c, dict)]
     rows = case.get("results") or []
     verification = record.get("verification") or {}
@@ -295,7 +295,8 @@ def observe(case, record, calls):
             "basis": ((j5.get("fact_check") or {}).get("basis")),
             "claims": [{"claim": c.get("claim"), "verdict": c.get("verdict"), "reason": c.get("reason"),
                         "sources": len(c.get("sources") or []),
-                        "quote_verified": sum(s.get("quote_verified") is True for s in c.get("sources") or [])}
+                        "quote_verified": sum(s.get("quote_verified") is True for s in c.get("sources") or []),
+                        "retrieval": [s.get("retrieval") for s in c.get("sources") or [] if isinstance(s, dict)]}
                        for c in claims if isinstance(c, dict)]},
         "answer_citations": [{k: c.get(k) for k in ("url", "checked", "claims")}
                              for c in (record.get("answer_citations") or {}).get("citations") or []],
@@ -309,6 +310,7 @@ def observe(case, record, calls):
                  "inherited_conditions": (case.get("meta") or {}).get("inherited_conditions"),
                  "summary": (case.get("summary") or {}).get("common")},
         "verification": {k: verification.get(k) for k in ("search_mode", "search_performed", "search_calls", "tool_errors",
+                                                          "search_errors", "fetch_errors", "provider_documents",
                                                           "timings_ms", "provider_stop_reason", "output_transport")},
         "calls": len([c for c in calls if c.get("status") not in ("NOT_CALLED",)]),
         "latency_ms": (record.get("latency_ms") or 0) + (reeval.get("latency_ms") or 0) if record.get("latency_ms") else None,
@@ -422,7 +424,9 @@ def analyze(fixture_cases, batch, guard, timing, *, mode):
         "j5": {"evaluated": len(j5), "outcomes": dict(Counter(it["actual"]["j5"]["outcome"] for it in j5)),
                "factual_error_confirmed": sum(1 for it in j5 if it["actual"]["j5"]["factual_error_confirmed"]),
                "search_calls": sum(it["actual"]["verification"].get("search_calls") or 0 for it in items),
-               "tool_errors": sum(len(it["actual"]["verification"].get("tool_errors") or []) for it in items)},
+               "tool_errors": sum(len(it["actual"]["verification"].get("tool_errors") or []) for it in items),
+               "provider_document_sources": sum(c["retrieval"].count("provider_document")
+                                                for it in j5 for c in it["actual"]["j5"]["claims"])},
         "citations": {"answers_with_citations": len(cited),
                       "extracted": sum(len(it["actual"]["answer_citations"]) for it in cited),
                       "judged": len(checks),

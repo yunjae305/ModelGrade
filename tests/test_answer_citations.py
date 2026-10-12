@@ -101,6 +101,22 @@ def test_unconfirmed_citation_judgments_never_fail_the_answer(checks, page_fetch
     assert j5["citation_checks"][-1]["verdict"] == "unchecked"   # alpha was not recorded by the judge
 
 
+@pytest.mark.parametrize("status,verdict", [("http_error", "supported"), ("blocked_address", "inaccessible")])
+def test_blocked_cited_source_uses_the_providers_fetched_text_only_for_access_failures(status, verdict):
+    # F5b: server fetch failed; the provider's web_fetch of the same cited URL returned the page.
+    body = {"answers": {"J5": {"choice": "PASS", "confidence": .9, "reason": "ok", "probabilities": {"PASS": .9, "FAIL": .1},
+                               "fact_check": {"basis": "none", "claims": []},
+                               "citation_checks": [check("https://cited.example/beta", "Beta is 42 [2].", "supported",
+                                                         quote="Beta is 42")]}}, "verification": {}}
+    documents = {"https://cited.example/beta": [{"text": "Beta is 42 according to the registry.", "retrieved_at": None}]}
+    body = verify_answer_citations(body, STATE, fetcher=lambda url: {"status": status, "text": ""}, provider_documents=documents)
+    j5 = finalize_answers(body, STATE, {"J5": {}})["answers"]["J5"]
+    beta = [c for c in j5["citation_checks"] if c["url"] == "https://cited.example/beta"][0]
+    assert beta["verdict"] == verdict and beta["server_status"] == status
+    assert (beta.get("retrieval") == "provider_document") is (status == "http_error")
+    assert "registry" not in json.dumps(body["verification"])   # provider text is never stored
+
+
 def unrelated_verdicts(answer, url, claims, page):
     state = {"question": "출처도 알려줘", "answer": answer, "answer_citations": prompt_citations(answer_citations(answer))}
     body = {"answers": {"J5": {"choice": "PASS", "confidence": .9, "reason": "ok", "probabilities": {"PASS": .9, "FAIL": .1},

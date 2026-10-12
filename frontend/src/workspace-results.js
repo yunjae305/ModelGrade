@@ -26,9 +26,9 @@
   // Criterion-level "판정 미완료" (no PASS/FAIL): an unsupported FAIL after one re-evaluation or J5 without search.
   function incompleteReason(id, decision) {
     return `${id} · ` + (({JUDGE_FAIL_EVIDENCE_MISSING: '근거 없는 FAIL 재평가 후 미완료', J5_SEARCH_UNAVAILABLE: '검색 불가로 미완료',
-      J5_SEARCH_ERROR: '검색 실행 오류로 미완료'})[decision?.reason_code] || '판정 미완료');
+      J5_SEARCH_ERROR: '검색 실행 오류로 미완료', J5_FETCH_ERROR: '원문 열기 도구 오류로 미완료'})[decision?.reason_code] || '판정 미완료');
   }
-  const j5OutcomePending = new Set(['search_unavailable', 'search_error', 'incomplete']);
+  const j5OutcomePending = new Set(['search_unavailable', 'search_error', 'fetch_error', 'incomplete']);
   const citationLabels = {supported: '출처가 주장을 뒷받침', contradicted: '출처가 주장과 모순', unrelated: '출처가 주장과 무관',
     not_found: '출처에 해당 내용 없음', inaccessible: '출처 원문 접근 불가', unverified: '판정 확정 안 함', unchecked: '확인하지 않음'};
   const searchModes = {live: '웹 검색 사용', disabled: '웹 검색 꺼짐(설정)', unsupported: '검색 도구가 없는 평가자',

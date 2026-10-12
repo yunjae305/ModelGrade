@@ -11,7 +11,8 @@ from code_eval.config import load_aiona_config
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall
 from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case
-from code_eval.semantic_policy import SEARCH_ERROR_CODE, SEARCH_UNAVAILABLE_CODE, apply_final_decision_policy
+from code_eval.semantic_policy import (FETCH_ERROR_CODE, SEARCH_ERROR_CODE, SEARCH_UNAVAILABLE_CODE,
+                                       apply_final_decision_policy)
 
 ANSWER = "서울의 인구는 약 935만 명입니다."
 
@@ -71,6 +72,20 @@ def test_j5_outcome_separates_errors_from_unchecked_claims(answer, verification,
         assert decision_j5["reason_code"] in (SEARCH_UNAVAILABLE_CODE, SEARCH_ERROR_CODE)
         assert "사실 오류 판정이 아닙니다" in decision_j5["reason"] and record["review_required"]
         assert decision_j5["policy_original_assessment"]["status"] == "UNVERIFIED"
+
+
+@pytest.mark.parametrize("errors,code,outcome", [
+    ({"search_errors": ["unavailable"], "fetch_errors": [], "tool_errors": ["unavailable"]}, SEARCH_ERROR_CODE, "search_error"),
+    ({"search_errors": [], "fetch_errors": ["url_not_accessible"], "tool_errors": ["url_not_accessible"]},
+     FETCH_ERROR_CODE, "fetch_error"),
+    ({"tool_errors": ["url_not_accessible"]}, SEARCH_ERROR_CODE, "search_error"),   # 나눠 기록하지 않은 옛 결과
+])
+def test_fetch_tool_errors_are_named_separately_from_search_errors(errors, code, outcome):
+    # 원문 열기(web_fetch) 실패만 있고 검색은 하지 않은 경우 — 판정 미완료는 그대로, 사유만 구분한다.
+    record, decision_j5 = run(j5("UNVERIFIED", [claim("UNVERIFIED")], basis="none"),
+                              search_performed=False, search_calls=0, **errors)
+    assert decision_j5["status"] == "INCOMPLETE" and decision_j5["reason_code"] == code
+    assert decision_j5["j5_outcome"]["code"] == outcome and decision_j5["j5_outcome"]["factual_error_confirmed"] is False
 
 
 def test_input_only_claims_do_not_need_search_and_keep_the_evidence_policy():

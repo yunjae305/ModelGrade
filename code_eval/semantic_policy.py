@@ -13,9 +13,11 @@ from .semantic_reasons import REASON_EVIDENCE_POLICY_VERSION
 from .semantic_sources import _REASONS
 
 
-SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v1"
+#: v2 — 서버가 받지 못한 출처는 같은 요청의 공급자 web_fetch 원문으로 대조한다 (F5b). 둘 다 없을 때의 FAIL 규칙은 v1 과 같다.
+SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v2"
 FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
-J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v1"
+#: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v2"
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
                    "judge_fail_evidence": REASON_EVIDENCE_POLICY_VERSION, "j5_outcome": J5_OUTCOME_POLICY_VERSION}
@@ -27,11 +29,14 @@ INPUT_SCOPE_REVALIDATED_CODE = "INPUT_SCOPE_REVALIDATED"
 INPUT_SCOPE_REVALIDATED_REASON = "사용자 제공 정보와 일치"
 SEARCH_UNAVAILABLE_CODE = "J5_SEARCH_UNAVAILABLE"
 SEARCH_ERROR_CODE = "J5_SEARCH_ERROR"
+FETCH_ERROR_CODE = "J5_FETCH_ERROR"
 _SEARCH_BLOCKED = {
     SEARCH_UNAVAILABLE_CODE: ("search_unavailable", "판정 미완료 — 웹 검색을 사용할 수 없는 평가 환경(설정 꺼짐 또는 검색 도구 없는 평가자)이라 "
                                                     "외부 사실 주장을 확인하지 못했습니다. 사실 오류 판정이 아닙니다."),
     SEARCH_ERROR_CODE: ("search_error", "판정 미완료 — 웹 검색 도구 호출이 실패해 외부 사실 주장을 확인하지 못했습니다. "
                                         "사실 오류 판정이 아닙니다."),
+    FETCH_ERROR_CODE: ("fetch_error", "판정 미완료 — 검색 없이 연 출처 원문(web_fetch)을 평가자 도구가 받지 못해 "
+                                      "외부 사실 주장을 확인하지 못했습니다. 사실 오류 판정이 아닙니다."),
 }
 #: J5 상세 판정 사유. PASS/FAIL·미완료는 그대로 두고 그 이유만 구분한다.
 J5_OUTCOMES = {
@@ -43,6 +48,7 @@ J5_OUTCOMES = {
     "source_mismatch": "출처 불일치 — 답변이 든 출처가 주장을 뒷받침하지 않음",
     "search_unavailable": "판정 미완료 — 검색 불가",
     "search_error": "판정 미완료 — 검색 실행 오류",
+    "fetch_error": "판정 미완료 — 원문 열기 도구 오류",
     "not_applicable": "해당 없음",
     "incomplete": "판정 미완료",
     "unclassified": "분류 정보 없음",
@@ -231,16 +237,27 @@ def _revalidate_input_scope(record, state):
     return {"fact_check": checked_j5["fact_check"], "claim_indices": rejected}
 
 
+def _codes(value):
+    return [str(e) for e in value or [] if isinstance(e, str)]
+
+
 def j5_search(record):
-    """기록된 J5 검색 상태. 옛 결과에는 search_mode 가 없어 None 이다."""
+    """기록된 J5 검색 상태. 옛 결과에는 search_mode 가 없어 None 이다.
+
+    errors 는 검색 도구 오류, fetch_errors 는 원문 열기(web_fetch) 도구 오류다. 둘을 나눠 기록하지 않은
+    옛 결과는 tool_errors 전체를 검색 오류로 본다 (이전 해석 그대로).
+    """
     verification = record.get("verification") if isinstance(record.get("verification"), dict) else {}
-    errors = [str(e) for e in verification.get("tool_errors") or [] if isinstance(e, str)]
+    split = "search_errors" in verification or "fetch_errors" in verification
+    errors = _codes(verification.get("search_errors") if split else verification.get("tool_errors"))
+    fetch_errors = _codes(verification.get("fetch_errors")) if split else []
     limits = verification.get("search_limits") if isinstance(verification.get("search_limits"), dict) else {}
     calls, limit = verification.get("search_calls"), limits.get("searches")
     reached = "max_uses_exceeded" in errors or (type(calls) is int and type(limit) is int and calls >= limit)
     return {"mode": verification.get("search_mode"), "performed": verification.get("search_performed") is True,
             "calls": calls if type(calls) is int else None, "limit": limit if type(limit) is int else None,
-            "limit_reached": reached, "errors": [e for e in errors if e != "max_uses_exceeded"][:5]}
+            "limit_reached": reached, "errors": [e for e in errors if e != "max_uses_exceeded"][:5],
+            "fetch_errors": [e for e in fetch_errors if e != "max_uses_exceeded"][:5]}
 
 
 def _external_unresolved(j5):
@@ -260,8 +277,12 @@ def _search_blocked(record, j5):
         return None
     if search["mode"] in ("disabled", "unsupported"):
         return SEARCH_UNAVAILABLE_CODE
-    if search["mode"] == "live" and not search["performed"] and search["errors"]:
-        return SEARCH_ERROR_CODE
+    if search["mode"] == "live" and not search["performed"]:
+        # Same trigger as before (any tool error without a completed search); only the named tool differs.
+        if search["errors"]:
+            return SEARCH_ERROR_CODE
+        if search["fetch_errors"]:
+            return FETCH_ERROR_CODE
     return None
 
 

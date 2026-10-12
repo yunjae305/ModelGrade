@@ -10,7 +10,7 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.10-same-site-redirect"
+FACT_CHECK_POLICY = "evidence-v3.11-provider-document"
 CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
@@ -342,28 +342,36 @@ def _citation_check(entry, state):
         url = source_url(check.get("url"))
         citation = by_url.get(url)
         model = check.get("verdict")
+        # retrieval is written by verify_answer_citations only: "server" or, when the server's fetch failed for an
+        # access reason, "provider_document" (the provider's own web_fetch text of the same URL).
+        provider = check.get("retrieval") == "provider_document" and check.get("server_status") not in (None, "ok")
         item = {"id": citation.get("id") if citation else None, "url": check.get("url"), "claim": check.get("claim"),
                 "model_verdict": model, "quote": check.get("quote") or "", "reason": check.get("reason") or "",
                 "server_status": check.get("server_status"), "quote_verified": check.get("quote_verified") is True}
+        if provider:
+            item["retrieval"] = "provider_document"
+        where = "평가자가 web_fetch 로 받은 출처 원문" if provider else "출처 원문"
         if citation is None:
             verdict, note = "unverified", "답변이 제시한 출처 URL이 아닙니다."
         elif not _contained(check.get("claim"), answer):
             verdict, note = "unverified", "주장 구절이 답변 원문에 없습니다."
         elif item["server_status"] is None:
             verdict, note = "unchecked", "서버가 출처 원문을 받지 않아 판정에 쓰지 않았습니다."
-        elif item["server_status"] != "ok":
+        elif item["server_status"] != "ok" and not provider:
             verdict, note = "inaccessible", "서버가 출처 원문을 받지 못했습니다 (" + str(item["server_status"]) + ")."
         elif model in ("supported", "contradicted"):
-            verdict, note = ((model, "서버가 출처 원문에서 인용문을 확인했습니다.") if item["quote_verified"] else
-                             ("unverified", "평가자가 인용한 구절을 출처 원문에서 찾지 못했습니다."))
+            verdict, note = ((model, f"서버가 {where}에서 인용문을 확인했습니다.") if item["quote_verified"] else
+                             ("unverified", f"평가자가 인용한 구절을 {where}에서 찾지 못했습니다."))
         elif model in ("unrelated", "not_found") and not item["reason"].strip():
             verdict, note = "unverified", "판단 이유가 없습니다."
         elif model in ("unrelated", "not_found") and check.get("claim_numbers_in_source") is True:
-            verdict, note = "unverified", "주장의 수치가 출처 원문에 있어 '해당 내용 없음' 판단을 확정하지 않았습니다."
+            verdict, note = "unverified", f"주장의 수치가 {where}에 있어 '해당 내용 없음' 판단을 확정하지 않았습니다."
         elif model in ("unrelated", "not_found"):
-            verdict, note = model, "평가자 판단 — 서버는 출처 원문 수신만 확인했습니다."
+            verdict, note = model, ("평가자 판단 — 서버는 평가자가 web_fetch 로 받은 원문의 존재만 확인했습니다." if provider else
+                                    "평가자 판단 — 서버는 출처 원문 수신만 확인했습니다.")
         else:
-            verdict, note = "unverified", "평가자는 원문을 열지 못했지만 서버는 받았으므로 판정에 쓰지 않았습니다."
+            verdict, note = "unverified", ("평가자가 원문 접근 불가로 판단해 판정에 쓰지 않았습니다." if provider else
+                                           "평가자는 원문을 열지 못했지만 서버는 받았으므로 판정에 쓰지 않았습니다.")
         item.update(verdict=verdict, note=note)
         if citation is not None:
             covered.add(url)

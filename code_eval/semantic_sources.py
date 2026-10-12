@@ -517,6 +517,29 @@ _REASONS = {
 }
 
 
+#: 서버 수집이 이 상태로 실패했을 때만 공급자 web_fetch 원문으로 인용문을 대조한다 (F5b).
+#: 출처 쪽 접근 거부·연결·시간·크기·형식 문제다. 공개 주소·포트·URL 차단과 다른 호스트·연속 이동·잘못된 이동
+#: 같은 보안·발행처 확인 실패에는 쓰지 않는다 — 그 검사는 서버 수집에서 그대로 유지된다.
+PROVIDER_DOCUMENT_FALLBACK_STATUSES = frozenset({
+    "http_error", "fetch_error", "timeout", "dns_error", "dns_timeout", "dns_busy", "source_limit",
+    "response_too_large", "unsupported_content_type", "unsupported_content_encoding", "decode_error",
+    "unsupported_encoding", "invalid_compressed_body", "incomplete_compressed_body", "trailing_compressed_data",
+    "incomplete_body",
+})
+_PROVIDER_REASONS = {
+    "verified": "서버가 출처 원문을 받지 못해, 평가자가 같은 요청에서 web_fetch 로 받은 원문에서 인용문을 확인했습니다.",
+    "quote_not_found": "서버가 출처 원문을 받지 못했고, 평가자가 web_fetch 로 받은 원문에서도 인용문을 확인하지 못했습니다.",
+}
+
+
+def _provider_document(documents, url, status):
+    """서버 수집 실패를 공급자 원문으로 대신할 수 있으면 그 원문 목록. 원문은 메모리에서만 쓴다."""
+    if status not in PROVIDER_DOCUMENT_FALLBACK_STATUSES or not isinstance(documents, dict):
+        return None
+    found = [doc for doc in documents.get(url) or [] if isinstance(doc, dict) and isinstance(doc.get("text"), str)]
+    return found or None
+
+
 def _detail(item):
     """접근 실패 원인 진단값(HTTP 상태·인증서) — 수집기가 정한 형식만 기록한다. 판정 정책에는 쓰지 않는다."""
     value = item.get("detail") if isinstance(item, dict) else None
@@ -528,11 +551,14 @@ def _check_cancelled(cancel_event):
         raise CancelledError("Source verification cancelled")
 
 
-def verify_web_sources(body, *, fetcher=None, cancel_event=None):
+def verify_web_sources(body, *, fetcher=None, cancel_event=None, provider_documents=None):
     """Verify retrieved quotes, or raise CancelledError without a partial result.
 
     An in-flight shared download retains its bounded deadline for other callers;
     cancellation is checked when it returns and before opening another source.
+    ``provider_documents`` (URL → texts the provider's own web_fetch returned in this
+    request, memory only) stand in only when the server's fetch failed for an access
+    reason; the quote must still be found in that text.
     """
     _check_cancelled(cancel_event)
     result = copy.deepcopy(body)
@@ -571,6 +597,8 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
                 continue
             references += 1
             source.update(quote_verified=False, verification_reason="", verified_at=None, resolved_url=None, retrieval=None)
+            source.pop("server_fetch_status", None)   # server-owned audit field, never taken from model output
+            documents = None
             url = _url(source.get("url"))
             quote_text = _normalize(source.get("quote"))
             if not url or url not in observed or not (search_performed or url in opened):
@@ -608,22 +636,35 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
                                    "quote_count": 0, "verified_quotes": 0, "unverified_quotes": 0}
                     if _detail(item):
                         checks[url]["detail"] = _detail(item)
+                    if _provider_document(provider_documents, url, checks[url]["status"]) and url in opened:
+                        checks[url]["provider_document"] = True
                     verification["source_checks"].append(checks[url])
                 item = cache[url]
                 status = item.get("status", "fetch_error")
+                documents = _provider_document(provider_documents, url, status) if url in opened else None
                 if status == "ok":
                     status = "verified" if quote_text in _normalize(item.get("text")) else "quote_not_found"
+                elif documents:
+                    # The server could not read the page; the provider's own fetch of the same URL could.
+                    source["server_fetch_status"] = status
+                    status = "verified" if any(quote_text in _normalize(d["text"]) for d in documents) else "quote_not_found"
                 checks[url]["quote_count"] += 1
                 checks[url]["verified_quotes" if status == "verified" else "unverified_quotes"] += 1
-                if status == "verified":
+                if status == "verified" and documents:
+                    source.update(quote_verified=True, verified_at=documents[0].get("retrieved_at") or checks[url]["checked_at"],
+                                  resolved_url=url)
+                elif status == "verified":
                     source.update(quote_verified=True, verified_at=checks[url]["checked_at"], resolved_url=checks[url]["resolved_url"])
                 elif checks[url]["resolved_url"]:
                     source["resolved_url"] = checks[url]["resolved_url"]
             if status != "not_observed":
                 # How the provider reached this URL: opened directly, or only listed in search results.
-                source["retrieval"] = "web_fetch" if url in opened else "web_search"
+                # provider_document: the server's fetch failed and the provider's web_fetch text was compared.
+                source["retrieval"] = ("provider_document" if documents else
+                                       "web_fetch" if url in opened else "web_search")
             source["verification_status"] = status
-            source["verification_reason"] = _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다.")
+            source["verification_reason"] = (_PROVIDER_REASONS[status] if documents else
+                                             _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다."))
     _check_cancelled(cancel_event)
     return result
 
@@ -646,12 +687,14 @@ def _claim_numbers(claim):
     return _CLAIM_NUMBER.findall(_CITATION_MARK.sub(" ", text))
 
 
-def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
+def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None, provider_documents=None):
     """답변이 직접 든 출처 URL 을 서버가 직접 받아 평가자의 출처 판정을 대조한다 (원문은 저장하지 않음).
 
     평가자가 '열지 못함'이라 했어도 서버가 받으면 그 판정을 쓰지 않고, 서버가 받지 못하면 어떤 판정도
     확정하지 않는다. 기록: verification.citation_sources (URL 별 수집 상태)와 각 citation_checks 항목의
-    server_status · quote_verified · claim_numbers_in_source. 판정 반영은 finalize 단계가 한다.
+    server_status · quote_verified · claim_numbers_in_source · retrieval. 판정 반영은 finalize 단계가 한다.
+    서버가 접근 문제로 받지 못한 URL 은 같은 요청에서 공급자 web_fetch 가 받은 원문(``provider_documents``)으로
+    대조한다 (retrieval=provider_document). 보안·발행처 확인 실패는 대신하지 않는다.
     """
     _check_cancelled(cancel_event)
     result = copy.deepcopy(body)
@@ -692,22 +735,31 @@ def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None):
                         _REASONS.get(page.get("status"), "출처 원문을 안전하게 수집할 수 없었습니다.")})
         if _detail(page):
             sources[-1]["detail"] = _detail(page)
+        if page.get("status") != "ok" and _provider_document(provider_documents, url, page.get("status")):
+            sources[-1]["provider_document"] = True
     verification["citation_sources"] = sources
     checks = j5.get("citation_checks")
     for check in checks if isinstance(checks, list) else []:
         _check_cancelled(cancel_event)
         if not isinstance(check, dict):
             continue
-        page = pages.get(_url(check.get("url")))
+        url = _url(check.get("url"))
+        page = pages.get(url)
         check.update(server_status=None if page is None else page.get("status", "fetch_error"),
-                     quote_verified=False, claim_numbers_in_source=None)
-        if page is None or page.get("status") != "ok":
+                     quote_verified=False, claim_numbers_in_source=None, retrieval=None)
+        if page is None:
             continue
-        text = _normalize(page.get("text"))
+        if page.get("status") == "ok":
+            texts, check["retrieval"] = [_normalize(page.get("text"))], "server"
+        else:
+            documents = _provider_document(provider_documents, url, page.get("status"))
+            if not documents:
+                continue
+            texts, check["retrieval"] = [_normalize(d["text"]) for d in documents], "provider_document"
         quote = _normalize(check.get("quote"))
-        check["quote_verified"] = bool(quote) and quote in text
+        check["quote_verified"] = bool(quote) and any(quote in text for text in texts)
         numbers = _claim_numbers(check.get("claim"))
         if numbers:
-            check["claim_numbers_in_source"] = all(_normalize(n) in text for n in numbers)
+            check["claim_numbers_in_source"] = any(all(_normalize(n) in text for n in numbers) for text in texts)
     _check_cancelled(cancel_event)
     return result

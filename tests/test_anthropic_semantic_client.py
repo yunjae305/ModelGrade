@@ -177,6 +177,59 @@ def test_failed_or_different_page_fetch_never_accepts_the_cited_url(blocks):
     assert result.body['answers']['J5']['choice']=='UNVERIFIED'
 
 
+PAGE = 'https://evidence.example/page'
+
+
+def provider_fetch(text='Alpha is blue.', *, url=PAGE, requested=PAGE, source=None):
+    return [{'type':'server_tool_use','id':'fetch1','name':'web_fetch','input':{'url':requested}},
+            {'type':'web_fetch_tool_result','tool_use_id':'fetch1','content':{
+                'type':'web_fetch_result','url':url,'retrieved_at':'2026-10-12T01:02:03Z',
+                'content':{'type':'document','source':source or {'type':'text','media_type':'text/plain','data':text}}}}]
+
+
+def test_blocked_source_is_checked_against_the_providers_own_fetch():
+    # F5b: the server gets 403, the provider's web_fetch of the same URL returned the page text.
+    result,_=call(response(fact(),provider_fetch()),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:{'status':'http_error','detail':'http_403','text':''})
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert (source['quote_verified'], source['retrieval'], source['server_fetch_status']) == (True, 'provider_document', 'http_error')
+    assert source['verified_at'] == '2026-10-12T01:02:03Z' and result.body['answers']['J5']['choice'] == 'PASS'
+    verification=result.body['verification']
+    assert verification['source_checks'][0]['status'] == 'http_error' and verification['source_checks'][0]['provider_document'] is True
+    assert verification['provider_documents'] == [{'url':PAGE,'retrieved_at':'2026-10-12T01:02:03Z','chars':14}]
+
+
+@pytest.mark.parametrize('server,blocks,retrieval', [
+    ({'status':'blocked_address'}, provider_fetch(), 'web_fetch'),              # 공개 주소 검사 실패는 대신하지 않음
+    ({'status':'redirect_host_changed'}, provider_fetch(), 'web_fetch'),        # 다른 발행처로 이동
+    ({'status':'http_error'}, provider_fetch(requested='https://evidence.example/other'), 'web_fetch'),  # 요청·결과 URL 불일치
+    ({'status':'http_error'}, provider_fetch(source={'type':'base64','media_type':'application/pdf','data':'JVBERi0='}), 'web_fetch'),
+    ({'status':'http_error'}, provider_fetch('Alpha is red.'), 'provider_document'),  # 원문에 인용문이 없음
+])
+def test_provider_text_replaces_only_access_failures_with_a_linked_document_containing_the_quote(server, blocks, retrieval):
+    result,_=call(response(fact(),blocks),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:{**server,'text':''})
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert source['quote_verified'] is False and source['retrieval'] == retrieval
+    assert result.body['answers']['J5']['choice'] == 'UNVERIFIED'
+
+
+def test_blocked_source_with_a_provider_fetched_contradiction_is_a_factual_error():
+    # D2-02: the server cannot read the page; the provider's fetched text contradicts the answer.
+    answer = 'The tower opened in 1925.'
+    values = {'J5':{'choice':'FAIL','confidence':.9,'reason':'개장 연도가 다릅니다.',
+        'fact_check':{'basis':'web','claims':[{'claim':answer,'verdict':'FAIL','reason':'공식 자료는 1889년',
+            'sources':[{'url':PAGE,'title':'Official','quote':'The tower opened in 1889.','authority':'primary',
+                        'authority_reason':'운영 기관 공식 소개','temporal_relevance':'역사적 사실'}]}]}}}
+    client = AnthropicSemanticClient(AnthropicSemanticConfig(), 'secret-test-key',
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=response(values, provider_fetch('History: The tower opened in 1889.')))),
+        source_fetcher=lambda url:{'status':'http_error','detail':'http_403','text':''})
+    record = evaluate_jev_case('q', '탑은 언제 열었어?', answer, client, criteria=('J5',), fail_evidence_check=True)
+    j5 = record['decisions']['J5']
+    assert j5['decision'] == 'FAIL' and j5.get('reason_code') is None
+    assert j5['j5_outcome']['code'] == 'contradicted' and j5['j5_outcome']['factual_error_confirmed'] is True
+
+
 def test_pending_server_tools_cannot_be_confused_with_a_final_verdict():
     result,_=call(response(entries('J1'),[{'type':'server_tool_use','id':'pending','name':'web_search'}]))
     assert result.status=='INVALID_RESPONSE'

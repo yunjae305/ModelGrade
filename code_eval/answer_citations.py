@@ -15,7 +15,8 @@ from .semantic_evidence import source_url
 __all__ = ["CITATION_POLICY_VERSION", "MAX_CITATION_URLS", "answer_citations", "prompt_citations",
            "source_requested"]
 
-CITATION_POLICY_VERSION = "answer-citations-v1"
+#: v2 — 서버가 접근 문제로 받지 못한 출처는 같은 요청의 공급자 web_fetch 원문으로 대조 (F5b)
+CITATION_POLICY_VERSION = "answer-citations-v2"
 #: 한 답변에서 원문을 대조할 서로 다른 출처 URL 수. 평가자의 원문 열기 한도(8)를 넘지 않게 둔다.
 MAX_CITATION_URLS = 4
 MAX_CLAIMS_PER_URL = 3

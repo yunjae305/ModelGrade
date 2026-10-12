@@ -265,7 +265,8 @@ def _complete_text_turn(blocks):
 
 def _provenance(blocks):
     calls = {b.get("id"): b for b in blocks if isinstance(b, dict) and b.get("type") == "server_tool_use"}
-    urls, fetched, searches, errors, finished = set(), set(), 0, [], set()
+    urls, fetched, searches, finished = set(), set(), 0, set()
+    errors, search_errors, fetch_errors = [], [], []
     for block in blocks:
         if not isinstance(block, dict) or block.get("type") not in ("web_search_tool_result", "web_fetch_tool_result"):
             continue
@@ -288,12 +289,50 @@ def _provenance(blocks):
                 urls.add(url)
                 fetched.add(url)
         elif isinstance(content, dict) and str(content.get("type", "")).endswith("_error"):
-            errors.append(str(content.get("error_code", "unknown"))[:80])
+            code = str(content.get("error_code", "unknown"))[:80]
+            errors.append(code)
+            (search_errors if search else fetch_errors).append(code)
     # fetched_urls: pages the provider itself opened (web_fetch). They are retrieval
     # provenance even without a search; search_performed still counts searches only.
+    # tool_errors keeps every tool error; search_errors / fetch_errors say which tool failed.
     return {"search_performed": searches > 0, "source_urls": sorted(urls), "fetched_urls": sorted(fetched),
             "source_validation": "provider", "search_calls": searches, "tool_errors": errors,
+            "search_errors": search_errors, "fetch_errors": fetch_errors,
             "checked_at": datetime.now(timezone.utc).isoformat()}, set(calls) - finished
+
+
+#: 공급자 원문 한 건의 최대 글자 수 — 서버 수집 한도(2 MiB)와 같은 크기. 넘으면 대조에 쓰지 않는다.
+MAX_PROVIDER_DOCUMENT_CHARS = 2 * 1024 * 1024
+
+
+def _provider_documents(blocks):
+    """같은 요청에서 공급자 web_fetch 가 실제로 받은 텍스트 원문 — (URL → [{text, retrieved_at}], 기록용 목록).
+
+    server_tool_use(web_fetch) 의 id·요청 URL 과 결과 블록의 tool_use_id·URL 이 모두 맞는 결과만 쓴다.
+    평가자가 확인했다고 적은 내용은 원문이 아니다. PDF(base64) 등 텍스트가 아닌 원문은 대조하지 않는다.
+    원문은 메모리에서만 쓰고 결과에는 URL·받은 시각·글자 수만 남긴다.
+    """
+    calls = {b.get("id"): b for b in blocks
+             if isinstance(b, dict) and b.get("type") == "server_tool_use" and b.get("name") == "web_fetch"}
+    documents, audit = {}, []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != "web_fetch_tool_result":
+            continue
+        call, content = calls.get(block.get("tool_use_id")), block.get("content")
+        if not call or not isinstance(content, dict) or content.get("type") != "web_fetch_result":
+            continue
+        url = source_url(content.get("url"))
+        requested = source_url(call["input"].get("url")) if isinstance(call.get("input"), dict) else None
+        document = content.get("content")
+        source = document.get("source") if isinstance(document, dict) and document.get("type") == "document" else None
+        if (not url or url != requested or not isinstance(source, dict) or source.get("type") != "text"
+                or not isinstance(source.get("data"), str) or not source["data"].strip()
+                or len(source["data"]) > MAX_PROVIDER_DOCUMENT_CHARS):
+            continue
+        retrieved = content.get("retrieved_at") if isinstance(content.get("retrieved_at"), str) else None
+        documents.setdefault(url, []).append({"text": source["data"], "retrieved_at": retrieved})
+        audit.append({"url": url, "retrieved_at": retrieved, "chars": len(source["data"])})
+    return documents, audit
 
 
 class AnthropicSemanticClient:
@@ -470,17 +509,21 @@ class AnthropicSemanticClient:
                     part["web_search_calls"] = 0
                 body = {"model": model, "verification": verification,
                         "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions}}
+                # Texts the provider's web_fetch actually returned: memory only, used when the server cannot fetch.
+                documents, verification["provider_documents"] = _provider_documents(all_blocks)
                 fact = body["answers"].get("J5", {}).get("fact_check")
                 if isinstance(fact, dict) and fact.get("basis") in ("web", "mixed"):
                     source_started = time.monotonic()
                     try:
-                        body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                        body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event,
+                                                  provider_documents=documents)
                     finally:
                         timings["source_verification"] += time.monotonic() - source_started
                 if review:
                     source_started = time.monotonic()
                     try:
-                        body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                        body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event,
+                                                       provider_documents=documents)
                     finally:
                         timings["source_verification"] += time.monotonic() - source_started
                 return result("OK", body=finalize_answers(body, state, questions), http_status=response.status_code)
