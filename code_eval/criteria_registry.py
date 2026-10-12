@@ -23,7 +23,8 @@ from .taxonomy import CATEGORIES
 
 __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS", "RELATIONS", "registry", "unit_of"]
 
-REGISTRY_VERSION = "criteria-registry-v2"
+#: v2(작업 브랜치: 이전 턴 승계·출처 대조 경계) + main 의 C 보완 제거·공백 접기·행 없음 설명 → v3 (통합 v16.4.0)
+REGISTRY_VERSION = "criteria-registry-v3"
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -99,7 +100,7 @@ RELATIONS = (
      "1-3은 답변 안 인용 번호·각주 연결만, 답변이 든 출처가 주장을 뒷받침하는지는 J5 citation_checks 가 서버 원문 대조로 확인 "
      "(answer-citations-v1, 2026-10-12 이전에는 공백)"),
     ("2-1", "J6", "boundary",
-     "이전 턴의 지속 분량·형식 지시는 CODE 가 다음 턴 조건으로 이어받아 검사(엔진 v16.3.0), J6는 의미 맥락만. "
+     "이전 턴의 지속 분량·형식 지시는 CODE 가 다음 턴 조건으로 이어받아 검사(작업 브랜치 엔진 v16.3.0, 통합 v16.4.0), J6는 의미 맥락만. "
      "2026-10-12 이전에는 어느 쪽도 판정하지 않던 공백"),
     ("2-2", "J6", "boundary", "이전 턴의 지속 표·목록·JSON 형식 지시도 위와 같음"),
 )
