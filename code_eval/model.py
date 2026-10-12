@@ -21,7 +21,12 @@ FAIL = "FAIL"
 
 
 class Status:
-    """실행 상태. 판정이 아니다."""
+    """실행 상태. 판정이 아니다.
+
+    공통 영역(area == "common")의 결과 행은 EXECUTED(verdict PASS/FAIL)만 허용한다 — 판정할 수 없는 조건은
+    행을 만들지 않고(meta.skipped_conditions), 검사기 오류·한도 초과는 사례의 errors 로 남긴다.
+    나머지 상태값은 보류 중인 AIONA 특화 검사(checks_aiona)와 v16.2.x 까지 저장된 옛 결과 JSON 을 읽기 위해 유지한다.
+    """
 
     EXECUTED = "EXECUTED"                     # 검사 완료 → verdict 는 PASS/FAIL
     CONFIG_MISSING = "CONFIG_MISSING"         # 필요한 설정 없음·빈 목록·대응 불일치
@@ -103,6 +108,8 @@ class ConditionResult:
             raise ValueError(f"{self.status} 상태에는 판정을 남기지 않습니다: {self.check_id}")
         if self.status == Status.INCOMPLETE and self.verdict == PASS:
             raise ValueError("미완료 검사는 PASS 가 될 수 없습니다")
+        if self.area == "common" and (self.status != Status.EXECUTED or self.verdict not in (PASS, FAIL)):
+            raise ValueError(f"공통 결과 행은 PASS/FAIL 뿐입니다: {self.check_id} status={self.status}")
         if not self.condition_id:
             self.condition_id = stable_hash({
                 "check": self.check_id, "key": self.dedupe_key,

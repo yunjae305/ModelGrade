@@ -12,7 +12,7 @@ from dataclasses import replace
 from typing import Any, Dict, List, Optional, Tuple
 
 from .checks_integrity import json_targets
-from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, unsupported_from_req, verdict_of
+from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, skip_condition, skip_req, verdict_of
 from .model import Evidence, FAIL, PASS, Status, stable_hash
 from .structure_counts import heading_series
 from .textparse import _json_type_name, count_words, strip_non_content
@@ -141,21 +141,37 @@ def _list_items_measure(ctx: Ctx, numbered_only: bool, target_noun: Optional[str
     return {"value": None, "structure": None, "why": "답변에서 셀 항목 구조(목록·단일 표)를 확인하지 못함"}
 
 
-def _spaced_hits(scan: str, literal: str) -> List[Tuple[int, int]]:
-    """공백 정규화 비교 — 문구 안 공백 자리에 공백·줄바꿈·탭·NBSP 등 유니코드 공백이 하나 이상 와도 같은 문구로 본다.
-    낱말·구두점·대소문자는 그대로 비교한다. 비교용일 뿐 원문은 바꾸지 않는다."""
-    parts = [re.escape(part) for part in literal.split()]
-    if len(parts) < 2:
-        return []
-    return [(m.start(), m.end()) for m in re.finditer(r"\s+".join(parts), scan)]
-
-
 def _literal_hits(scan: str, literal: str) -> List[int]:
     hits, start = [], scan.find(literal)
     while start >= 0:
         hits.append(start)
         start = scan.find(literal, start + 1)
     return hits
+
+
+def _fold_whitespace(scan: str, offsets: List[int]) -> Tuple[str, List[int]]:
+    """연속 공백(str.isspace: 공백·탭·줄바꿈·NBSP·전각 공백)을 공백 하나로 접는다.
+
+    접힌 공백의 원문 위치는 구간 첫 글자로 둔다. 제로폭 문자(Cf)는 공백이 아니므로 접지 않는다.
+    """
+    out, out_off, i, n = [], [], 0, len(scan)
+    while i < n:
+        if scan[i].isspace():
+            j = i
+            while j < n and scan[j].isspace():
+                j += 1
+            out.append(" ")
+            out_off.append(offsets[i])
+            i = j
+        else:
+            out.append(scan[i])
+            out_off.append(offsets[i])
+            i += 1
+    return "".join(out), out_off
+
+
+def _fold_literal(literal: str) -> str:
+    return " ".join(literal.split())
 
 
 def forbidden_key(literal: str, scan: str) -> str:
@@ -209,17 +225,14 @@ def check_2_1(ctx: Ctx) -> List:
         title = _COUNT_TITLES[req.kind]
         cid = f"2-1.count:{req.kind}"
         if req.status != "ok":
-            out.append(unsupported_from_req(ctx, req, cid, SUB21, title))
+            skip_req(ctx, req, cid, SUB21)
             continue
         m = (_list_items_measure(ctx, bool(req.value.get("numbered")),
                                  _requested_item_noun(ctx.question, req.start)) if req.kind == "list_count"
              else _measure_count(ctx, req.kind))
         op, n = req.value["op"], req.value["n"]
         if m["value"] is None:
-            out.append(result(cid, SUB21, title, "question", Status.UNSUPPORTED, required={"op": op, "n": n},
-                              measured={"structure": m.get("structure")},
-                              reason=m.get("why", "측정 구조 없음") + " — 0개로 간주하지 않음",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, cid, SUB21, m.get("why", "측정 구조 없음") + " — 0개로 간주하지 않음")
             continue
         ok = compare(m["value"], op, n)
         ev = [q_evidence(ctx, req)] + [Evidence("answer", s, e, ctx.answer[s:e][:60]) for s, e in m.get("evidence", [])[:30]]
@@ -232,7 +245,7 @@ def check_2_1(ctx: Ctx) -> List:
 
     for req in conds.of("char_count"):
         if req.status != "ok":
-            out.append(unsupported_from_req(ctx, req, "2-1.char_count", SUB21, "글자 수"))
+            skip_req(ctx, req, "2-1.char_count", SUB21)
             continue
         body = ctx.aa.body_without_code
         if req.value["exclude_whitespace"]:
@@ -249,39 +262,45 @@ def check_2_1(ctx: Ctx) -> List:
 
     for req in conds.of("required_literal", "forbidden_literal", "starts_with", "ends_with"):
         if req.status != "ok":
-            out.append(unsupported_from_req(ctx, req, f"2-1.literal:{req.kind}", SUB21, "문자열 조건"))
+            skip_req(ctx, req, f"2-1.literal:{req.kind}", SUB21)
             continue
         lit = nfc(req.value["literal"])
         titles = {"required_literal": "필수 문자열", "forbidden_literal": "금지 문자열",
                   "starts_with": "시작 표현", "ends_with": "끝 표현"}
         title = f"{titles[req.kind]} ‘{lit}’"
-        hits = _literal_hits(scan, lit)
-        spans = [(h, h + len(lit)) for h in hits]
-        stripped = scan.strip()
+        # 정확 일치 요구가 아니면 연속 공백·줄바꿈을 공백 하나로 보고 대조한다 (G-1).
+        exact = bool(req.value.get("exact"))
+        if exact:
+            text, offs, needle = scan, offsets, lit
+        else:
+            text, offs = ctx.shared.setdefault("folded_projection", _fold_whitespace(scan, offsets))
+            needle = _fold_literal(lit)
+        hits = _literal_hits(text, needle)
+        stripped = text.strip()
         dedupe_key = None
-        scope = "코드 구획·인라인 코드 제외, 강조 마커 제거, NFC"
         if req.kind == "required_literal":
             ok, measured, comp = bool(hits), {"occurrences": len(hits)}, cmp_text(len(hits), ">=", 1)
-            if not hits and not req.value.get("exact"):
-                # 정확 일치를 요구하지 않은 필수 문구는 공백·줄바꿈 차이만 허용한다
-                spans = _spaced_hits(scan, lit)
-                if spans:
-                    ok, comp = True, cmp_text(len(spans), ">=", 1) + " (공백 정규화)"
-                    measured["whitespace_normalized_occurrences"] = len(spans)
-                    scope += ", 문구 안 공백 차이 허용"
         elif req.kind == "forbidden_literal":
             ok, measured, comp = not hits, {"occurrences": len(hits)}, cmp_text(len(hits), "==", 0)
-            dedupe_key = forbidden_key(lit, scan)
+            dedupe_key = forbidden_key(lit, scan)  # AIONA 금지 표현과 같은 키를 유지하려고 접기 전 투영으로 계산
         elif req.kind == "starts_with":
-            ok, measured, comp = stripped.startswith(lit), {"answer_start": stripped[:len(lit) + 10]}, "startswith"
+            ok, measured, comp = stripped.startswith(needle), {"answer_start": stripped[:len(needle) + 10]}, "startswith"
         else:
-            ok, measured, comp = stripped.endswith(lit), {"answer_end": stripped[-(len(lit) + 10):]}, "endswith"
-        ev = [q_evidence(ctx, req)] + [Evidence("answer", origin(s), (origin(e - 1) or 0) + 1,
-                                                excerpt(scan, s, e), "검출") for s, e in spans[:10]]
-        required = {"literal": lit, **({"exact": True} if req.value.get("exact") else {})}
+            ok, measured, comp = stripped.endswith(needle), {"answer_end": stripped[-(len(needle) + 10):]}, "endswith"
+        measured["whitespace"] = "exact" if exact else "folded"
+        if not exact and req.kind in ("required_literal", "forbidden_literal"):
+            # 접어서만 찾은 출현 수 — 원문 그대로는 없고 공백·줄바꿈 차이만 있던 곳
+            normalized = len(hits) - len(_literal_hits(scan, lit))
+            if normalized > 0:
+                measured["whitespace_normalized_occurrences"] = normalized
+        ev = [q_evidence(ctx, req)]
+        for h in hits[:10]:
+            start, end = offs[h], offs[h + len(needle) - 1] + 1
+            ev.append(Evidence("answer", start, end, excerpt(ctx.answer, start, end), "검출"))
         out.append(result(f"2-1.literal:{req.kind}", SUB21, title, "question", Status.EXECUTED, verdict_of(ok),
-                          required=required, measured=measured, comparison=comp,
-                          scope=scope, dedupe_key=dedupe_key,
+                          required={"literal": lit, "exact": exact}, measured=measured, comparison=comp,
+                          scope="코드 구획·인라인 코드 제외, 강조 마커 제거, NFC" + ("" if exact else ", 공백·줄바꿈 접기"),
+                          dedupe_key=dedupe_key,
                           reason=(f"{titles[req.kind]} 조건 충족" if ok else
                                   {"required_literal": f"‘{lit}’이(가) 답변에 없음",
                                    "forbidden_literal": f"금지한 ‘{lit}’이(가) {len(hits)}회 나옴",
@@ -330,7 +349,7 @@ def _table_checks(ctx: Ctx) -> List:
     tables_measured = [t.to_dict() for t in tables]
     forbid = conds.first("table_forbidden")
     if forbid and forbid.status != "ok":
-        out.append(unsupported_from_req(ctx, forbid, "2-2.table:forbidden", SUB22, "표 사용 금지"))
+        skip_req(ctx, forbid, "2-2.table:forbidden", SUB22)
         return out
     if forbid:
         ok = not tables
@@ -342,7 +361,7 @@ def _table_checks(ctx: Ctx) -> List:
         return out
     req = conds.first("table_required")
     if req is not None and req.status != "ok":
-        out.append(unsupported_from_req(ctx, req, "2-2.table:required", SUB22, "표 존재"))
+        skip_req(ctx, req, "2-2.table:required", SUB22)
         req = None
     detail_reqs = conds.of("table_count", "table_columns", "table_column_count", "table_header", "table_data_rows",
                            "table_total_rows", "table_rows_ambiguous")
@@ -360,11 +379,9 @@ def _table_checks(ctx: Ctx) -> List:
         return out
     for r in [item for item in detail_reqs if item.kind == "table_count"]:
         if r.status != "ok":
-            out.append(unsupported_from_req(ctx, r, "2-2.table:count", SUB22, "표 개수"))
+            skip_req(ctx, r, "2-2.table:count", SUB22)
         elif not tables and req:
-            out.append(result("2-2.table:count", SUB22, "표 개수", "question", Status.DEPENDENCY_FAILED,
-                              required=r.value, reason="표가 없어 개수를 별도로 비교하지 않음 (표 존재 결과 참조)",
-                              evidence=[q_evidence(ctx, r)]))
+            skip_condition(ctx, "2-2.table:count", SUB22, "표 존재 조건이 FAIL 이라 개수 행을 만들지 않음")
         else:
             op, n = r.value["op"], r.value["n"]
             ok = compare(len(tables), op, n)
@@ -377,21 +394,18 @@ def _table_checks(ctx: Ctx) -> List:
     if not detail_reqs:
         return out
     if not tables:
+        # 표가 없으면 열·헤더·행 수 행을 만들지 않는다 (표 존재 FAIL 한 건만 남김).
         for r in detail_reqs:
             if r.status != "ok":
-                out.append(unsupported_from_req(ctx, r, f"2-2.table:{r.kind}", SUB22, "표 구성"))
+                skip_req(ctx, r, f"2-2.table:{r.kind}", SUB22)
             else:
-                out.append(result(f"2-2.table:{r.kind}", SUB22, "표 구성 (" + r.kind + ")", "question",
-                                  Status.DEPENDENCY_FAILED, required=r.value,
-                                  reason="표가 없어 열·헤더·행 수를 측정할 수 없음 (표 존재 결과 참조)",
-                                  evidence=[q_evidence(ctx, r)]))
+                skip_condition(ctx, f"2-2.table:{r.kind}", SUB22,
+                               "표가 없어 열·헤더·행 수를 측정할 수 없음 (표 존재 결과 참조)")
         return out
     if len(tables) > 1:
         for r in detail_reqs:
-            out.append(result(f"2-2.table:{r.kind}", SUB22, "표 구성 (" + r.kind + ")", "question", Status.UNSUPPORTED,
-                              required=r.value, measured={"tables": tables_measured},
-                              reason=f"표가 {len(tables)}개라 요구가 가리키는 표를 확정할 수 없음 — 행 수를 합산하지 않음",
-                              evidence=[q_evidence(ctx, r)]))
+            skip_condition(ctx, f"2-2.table:{r.kind}", SUB22,
+                           f"표가 {len(tables)}개라 요구가 가리키는 표를 확정할 수 없음 — 행 수를 합산하지 않음")
         return out
     t = tables[0]
     # 마크다운은 헤더 줄 없이 표를 쓸 수 없다. 헤더 없이 요청했는데 한 줄뿐이면 그 줄을 내용 행으로 본다.
@@ -404,7 +418,7 @@ def _table_checks(ctx: Ctx) -> List:
                     (ctx.answer[t.start:t.end][:120] if t.start >= 0 else "HTML 표"), f"{t.kind} 표")
     for r in detail_reqs:
         if r.status != "ok":
-            out.append(unsupported_from_req(ctx, r, f"2-2.table:{r.kind}", SUB22, "표 행 수"))
+            skip_req(ctx, r, f"2-2.table:{r.kind}", SUB22)
             continue
         if r.kind == "table_columns":
             want = [_norm_cell(x) for x in r.value["names"]]
@@ -463,7 +477,7 @@ def _list_heading_checks(ctx: Ctx) -> List:
     conds, aa = ctx.conds, ctx.aa
     forbid = conds.first("list_forbidden")
     if forbid and forbid.status != "ok":
-        out.append(unsupported_from_req(ctx, forbid, "2-2.list:forbidden", SUB22, "목록 사용 금지"))
+        skip_req(ctx, forbid, "2-2.list:forbidden", SUB22)
     elif forbid:
         ok = not aa.list_items
         out.append(result("2-2.list:forbidden", SUB22, "목록 사용 금지", "question", Status.EXECUTED, verdict_of(ok),
@@ -474,7 +488,7 @@ def _list_heading_checks(ctx: Ctx) -> List:
     req = conds.first("list_required")
     # 불릿 개수 요구는 2-1 이 형식과 개수를 함께 본다 — 같은 요구를 2-2 에 다시 만들지 않는다.
     if req and req.status != "ok":
-        out.append(unsupported_from_req(ctx, req, "2-2.list:required", SUB22, "목록 형식"))
+        skip_req(ctx, req, "2-2.list:required", SUB22)
     elif req and not (req.value["style"] == "bullet" and conds.first("bullet_count")):
         style = req.value["style"]
         numbered_heads = [h for h in aa.headings if _NUMBERED_HEADING.match(h.title)]
@@ -489,20 +503,16 @@ def _list_heading_checks(ctx: Ctx) -> List:
                           evidence=[q_evidence(ctx, req)]))
     req = conds.first("heading_count") or conds.first("heading_required")
     if req and req.status != "ok":
-        out.append(unsupported_from_req(ctx, req, "2-2.heading", SUB22, "제목"))
+        skip_req(ctx, req, "2-2.heading", SUB22)
     elif req:
         headings = aa.headings
         levels = sorted({h.level for h in headings})
         if not headings and aa.bold_only_lines:
-            out.append(result("2-2.heading", SUB22, "제목", "question", Status.UNSUPPORTED,
-                              measured={"atx_headings": 0, "bold_only_lines": len(aa.bold_only_lines)},
-                              reason="굵은 글씨 줄은 지원하는 제목 문법(ATX #)이 아니라 판정하지 않음",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "2-2.heading", SUB22,
+                           f"굵은 글씨 줄 {len(aa.bold_only_lines)}개는 지원하는 제목 문법(ATX #)이 아니라 판정하지 않음")
         elif req.kind == "heading_count" and len(levels) > 1:
-            out.append(result("2-2.heading", SUB22, "제목 수", "question", Status.UNSUPPORTED, required=req.value,
-                              measured={"headings_by_level": {f"h{lv}": sum(1 for h in headings if h.level == lv) for lv in levels}},
-                              reason="제목 단계가 여러 개라 요구가 가리키는 단계를 확정하지 못함 — 전체 제목 수로 대체하지 않음",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "2-2.heading", SUB22,
+                           "제목 단계가 여러 개라 요구가 가리키는 단계를 확정하지 못함 — 전체 제목 수로 대체하지 않음")
         elif req.kind == "heading_count":
             op, n = req.value["op"], req.value["n"]
             ok = compare(len(headings), op, n)
@@ -547,28 +557,26 @@ def _json_structure(ctx: Ctx) -> List:
     ok_targets = [t for t in targets if parsed.get(t["id"], {}).get("status") == "ok"]
     blocked = [t for t in targets if parsed.get(t["id"], {}).get("status") != "ok"]
 
-    def dep(r_kind, title, value, reason):
-        out.append(result(f"2-2.json_structure:{r_kind}", SUB22, title, "question", Status.DEPENDENCY_FAILED,
-                          required=value, reason=reason, evidence=[q_evidence(ctx, req)]))
-
     if not targets:
         out.append(result("2-2.json_structure:present", SUB22, "JSON 출력", "question", Status.EXECUTED, FAIL,
                           required="JSON 출력", measured={"json_targets": 0}, comparison="JSON 대상 0개",
                           reason="JSON 형식을 요구했으나 JSON 출력(코드블록·JSON 본문)이 없음",
                           evidence=[q_evidence(ctx, req)]))
+        # JSON 출력 FAIL 에 딸린 필드 행은 만들지 않는다.
         for r in detail_reqs:
-            dep(r.kind, "JSON 필드", r.value, "JSON 출력이 없어 필드를 측정할 수 없음 (JSON 출력 결과 참조)")
+            skip_condition(ctx, f"2-2.json_structure:{r.kind}", SUB22, "JSON 출력이 없어 필드를 측정할 수 없음 (JSON 출력 결과 참조)")
         return out
     if not ok_targets:
-        dep("present", "JSON 출력", "JSON 출력", "JSON 대상이 1-2 구문 검사를 통과하지 못해 구조를 읽을 수 없음 — 필드 누락으로 추정하지 않음")
+        # 구문 FAIL 은 1-2 에서 이미 셌고, 예외·한도·지원 밖 대상은 판정 불가 — 행 없음.
+        skip_condition(ctx, "2-2.json_structure:present", SUB22,
+                       "JSON 대상이 1-2 구문 검사를 통과하지 못해 구조를 읽을 수 없음 — 필드 누락으로 추정하지 않음")
         for r in detail_reqs:
-            dep(r.kind, "JSON 필드", r.value, "JSON 구문 실패로 필드를 읽지 못함 — 누락으로 추정하지 않음")
+            skip_condition(ctx, f"2-2.json_structure:{r.kind}", SUB22, "JSON 구문 실패로 필드를 읽지 못함 — 누락으로 추정하지 않음")
         return out
     if len(ok_targets) > 1:
         for r in [req] + detail_reqs:
-            out.append(result(f"2-2.json_structure:{r.kind}", SUB22, "JSON 구조", "question", Status.UNSUPPORTED,
-                              required=r.value, reason=f"유효한 JSON 대상이 {len(ok_targets)}개라 요구 대상을 확정하지 못함",
-                              evidence=[q_evidence(ctx, r)]))
+            skip_condition(ctx, f"2-2.json_structure:{r.kind}", SUB22,
+                           f"유효한 JSON 대상이 {len(ok_targets)}개라 요구 대상을 확정하지 못함")
         return out
     value = parsed[ok_targets[0]["id"]]["value"]
     top = req.value.get("top_level")
@@ -586,6 +594,7 @@ def _json_structure(ctx: Ctx) -> List:
                           comparison="JSON 대상 1개", reason="요구한 JSON 출력 있음", evidence=[q_evidence(ctx, req)]))
     objects = [value] if isinstance(value, dict) else (
         [v for v in value] if isinstance(value, list) and value and all(isinstance(v, dict) for v in value) else None)
+    required_keys = {k for r in detail_reqs if r.kind == "json_required_keys" for k in r.value["keys"]}
     for r in detail_reqs:
         if objects is None:
             out.append(result(f"2-2.json_structure:{r.kind}", SUB22, "JSON 필드", "question", Status.EXECUTED, FAIL,
@@ -607,9 +616,9 @@ def _json_structure(ctx: Ctx) -> List:
             present = [(i, o[key]) for i, o in enumerate(objects) if key in o]
             bad = [(i, _json_type(v)) for i, v in present if not _JSON_TYPE_CHECK[want](v)]
             if not present:
-                out.append(result(f"2-2.json_structure:type:{key}", SUB22, f"JSON ‘{key}’ 자료형", "question",
-                                  Status.DEPENDENCY_FAILED, required=r.value,
-                                  reason="키가 없어 자료형을 측정할 수 없음 (필수 키 결과 참조)", evidence=[q_evidence(ctx, r)]))
+                # 키가 없으면 자료형 행을 만들지 않는다 — 필수 키 목록에 있으면 keys FAIL 이 세고, 없으면 판정 불가.
+                skip_condition(ctx, f"2-2.json_structure:type:{key}", SUB22,
+                               "키가 없어 자료형을 측정할 수 없음" + (" (필수 키 결과 참조)" if key in required_keys else ""))
                 continue
             ok = not bad
             out.append(result(f"2-2.json_structure:type:{key}", SUB22, f"JSON ‘{key}’ 자료형", "question",

@@ -262,7 +262,7 @@ function renderResults() {
     kpi('입력', s.totals.cases, `평가 ${s.totals.evaluated} · 입력 오류 ${s.totals.input_errors} · 한도 초과 ${s.totals.limit_exceeded}`),
     kpi('통과 (PASS)', s.common.pass, '검사해서 문제가 없던 조건', 'ok'),
     kpi('문제 (FAIL)', s.common.fail, `문제가 확인된 조건 · 케이스 ${new Set(allFails().filter((x) => x.r.area === 'common').map((x) => x.caseIndex)).size}건`, 'bad'),
-    kpi('평가 미완료', s.common.unjudged, '아직 보완 판정을 받지 못한 공통 조건 · 오류 사유는 상세 결과에서 확인'),
+    kpi('평가 미완료', s.common.unjudged, `저장 당시 엔진이 판정하지 않은 공통 조건(새 결과는 0) · 검사 실행 오류 질문 ${s.totals.check_errors || 0}건`),
     kpi('통과율', rate(s.common.pass_rate), 'PASS ÷ (PASS + FAIL)'),
     kpi('AIONA 특화', `${s.specialized.pass} / ${s.specialized.fail}`, `PASS / FAIL · 판정 안 함 ${s.specialized.unjudged}`),
     ...(b.llm_review ? [kpi('LLM 재검토', b.llm_review.queued_questions,
@@ -311,7 +311,7 @@ function renderCombined(s) {
   const box = $('combined'); box.replaceChildren(); box.hidden = !s;
   if (!s) return;
   const pct = (r) => (r === null || r === undefined ? '—' : `${Math.round(r * 100)}%`);
-  const parts = [['PASS', s.pass, 'pass'], ['CODE·보완에서 발견', s.fail_code_only, 'code'], ['의미 평가에서 발견', s.fail_semantic_only, 'sem'], ['둘 다', s.fail_both, 'both'], ['평가 미완료', s.pending || 0, 'pending']];
+  const parts = [['PASS', s.pass, 'pass'], ['CODE에서 발견', s.fail_code_only, 'code'], ['의미 평가에서 발견', s.fail_semantic_only, 'sem'], ['둘 다', s.fail_both, 'both'], ['평가 미완료', s.pending || 0, 'pending']];
   const total = s.questions || 1;
   box.append(el('div', { class: 'combined-head' },
     el('div', { class: 'combined-rate' }, el('b', { text: pct(s.rate) }), el('span', { text: '종합 통과율' })),
@@ -468,7 +468,7 @@ function openResult(index, condId) {
 function filteredCases() {
   const q = state.search.toLowerCase();
   return state.batch.cases.filter((c) => {
-    if (state.filter === 'error' && c.case_status === 'EVALUATED') return false;
+    if (state.filter === 'error' && c.case_status === 'EVALUATED' && !(Array.isArray(c.errors) && c.errors.length)) return false;
     if (state.filter === 'fail' && !(c.summary && (c.summary.common.fail || c.summary.specialized.fail)) && !jevFails(jevRecord(c)).length) return false;
     if (state.filter === 'unjudged' && !(c.summary && (c.summary.common.unjudged || c.summary.specialized.unjudged)) && !jevUnverified(jevRecord(c)).length) return false;
     if (q && !(c.case_id.toLowerCase().includes(q) || (c.question || '').toLowerCase().includes(q))) return false;
@@ -485,9 +485,10 @@ function renderCaseList() {
     const jf = jevFails(jevRecord(c));
     const unverified = jevUnverified(jevRecord(c)).length;
     const fails = (s ? s.common.fail + s.specialized.fail : 0) + jf.length; // CODE FAIL + 의미 평가 FAIL
-    const tag = c.case_status !== 'EVALUATED' ? c.case_status : (fails ? `FAIL ${fails}건` : unverified ? `확인 필요 ${unverified}건` : 'FAIL 없음');
+    const errors = Array.isArray(c.errors) ? c.errors.length : 0;
+    const tag = c.case_status !== 'EVALUATED' ? c.case_status : (fails ? `FAIL ${fails}건` : unverified ? `확인 필요 ${unverified}건` : errors ? `검사 오류 ${errors}건` : 'FAIL 없음');
     list.append(el('li', {}, el('button', { type: 'button', 'aria-current': String(state.selected === index), onclick: () => selectCase(index) },
-      el('span', { class: 'cid', text: c.case_id }), ' ', el('span', { class: fails ? 'tag bad' : 'tag', text: tag }),
+      el('span', { class: 'cid', text: c.case_id }), ' ', el('span', { class: fails || errors ? 'tag bad' : 'tag', text: tag }),
       jf.length ? el('span', { class: 'tag jev', text: ` · ${semanticLabel(state.batch.jev_eval)} FAIL ${jf.join(' ')}` }) : null,
       fails && unverified ? el('span', {class: 'tag', text: ` · 확인 필요 ${unverified}건`}) : null, el('span', { class: 'cq', text: c.question || c.input_error || '' }))));
   });
@@ -555,6 +556,9 @@ function selectCase(index, openCond) {
   const s = c.summary;
   const fails = c.results.filter((r) => r.counted && r.verdict === 'FAIL');
   box.append(el('p', { class: 'hint', text: `CODE 평가 — 문제 ${s.common.fail + s.specialized.fail}건 · 통과 ${s.common.pass + s.specialized.pass}건 · 판정 안 함 ${s.common.unjudged + s.specialized.unjudged}건 · ${s.check_level}` }));
+  if (Array.isArray(c.errors) && c.errors.length) {
+    box.append(el('p', { class: 'error', text: `검사 실행 오류 ${c.errors.length}건: ` + c.errors.map((e) => `${e.check_id} · ${e.kind} · ${e.message}`).join(' / ') }));
+  }
   const rowById = {};
   if (fails.length) {
     box.append(el('div', { class: 'problems' }, el('div', { class: 'sec-title', text: `CODE 평가에서 발견된 문제 ${fails.length}건` }),

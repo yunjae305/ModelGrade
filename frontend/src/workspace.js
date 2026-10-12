@@ -801,7 +801,8 @@
           (outcome === 'running' ? '평가 중 ' : '평가 대기 ') + number(summary.counts[outcome]) + '개', icon('arrow')))));
       card.append(node('div', {class: 'evaluation-metrics'},
         node('div', {}, node('span', {text: '공통 코드 통과율'}), node('strong', {text: c.unjudged || batch.cases?.length !== run.question_count ? '미확정' : percent(c.pass_rate)})),
-        node('p', {text: `조건 PASS ${number(c.pass)}개 · FAIL ${number(c.fail)}개 · ${number(c.unjudged)}개 미완료`}),
+        node('p', {text: `조건 PASS ${number(c.pass)}개 · FAIL ${number(c.fail)}개 · ${number(c.unjudged)}개 미완료` +
+          (summary.codeErrors ? ` · 검사 실행 오류 ${number(summary.codeErrors)}개 질문` : '')}),
         node('div', {}, node('span', {text: '질문 최종 판정'}), node('strong', {text: `${number(summary.complete)} / ${number(run.question_count)}개 질문`}))));
       const semantic = batch.jev_eval;
       const sourcePolicyFailures = (semantic?.records || []).filter((record) => record?.status === 'SUCCESS' && record.criteria?.includes('J5') &&
@@ -853,7 +854,7 @@
       }
       if (c.unjudged) card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), node('div', {},
         node('strong', {text: '미판정 코드 조건 ' + number(c.unjudged) + '개'}),
-        node('p', {text: live ? '의미 평가에서 보완 판정 중입니다.' : '질문 상세에서 원인을 확인하세요.'}))));
+        node('p', {text: '저장 당시 엔진의 미판정 조건입니다. 질문 상세에서 원인을 확인하세요.'}))));
     } else card.append(node('div', {class: 'result-card-stats'}, node('span', {text: `답변 수집 오류·미완료 ${number((progress?.failed || 0) + (progress?.incomplete || 0))}개`})));
     const bottom = node('div', {class: 'result-card-bottom'});
     if (batch && !batch.live) bottom.append(node('a', {href: `/code-eval.html?comparison=${run.run_id}&provider=${p}#results`, class: 'text-button', target: '_blank', rel: 'noopener noreferrer'}, '상세 보고서', icon('arrow')));

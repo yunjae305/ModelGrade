@@ -90,9 +90,9 @@ def test_all_providers_collect_and_all_four_models_evaluate_concurrently(tmp_pat
     assert final['collection_completed_at'] <= final['blind']['applied_at']
 
 
-def test_events_leave_code_digests_unchanged_and_actual_fallback_replaces_unjudged(tmp_path):
-    from test_common_adjudication import Judge, sample
-    judge, events = Judge('FAIL'), []
+def test_events_leave_code_digests_unchanged_and_no_supplemental_stage(tmp_path):
+    from semantic_judge_fixture import Judge, sample
+    judge, events = Judge(), []
     evaluator = CodeEvalService(save_dir=tmp_path, jev_resolver=lambda: (judge, judge.config, None))
     inputs = sample(9, 41, 91)
     batch = evaluator.evaluate({'cases': inputs}, event_sink=events.append)
@@ -106,9 +106,13 @@ def test_events_leave_code_digests_unchanged_and_actual_fallback_replaces_unjudg
         hub.publish({**e, 'model': '모델 A'})
     hub.publish({'type': 'run_done'})
     state = hub.snapshot()
-    assert state['done'] == 3 and state['fail'] == 3 and state['unjudged'] == 0
+    assert state['done'] == 3 and state['fail'] == 0 and state['unjudged'] == 0
     assert all(r['status'] == 'DONE' for r in state['rows'].values())
-    assert any(e['type'] == 'criterion_start' and e['stage'] == 'LLM 보완' for e in events)
+    # 새 엔진은 counted(PASS/FAIL) 행만 code_result 로 보내고 보완 단계·code_completion 을 만들지 않는다.
+    assert not any(e['type'] == 'criterion_start' and e['stage'] == 'LLM 보완' for e in events)
+    assert all(e['row']['counted'] for e in events if e['type'] == 'code_result')
+    assert all('code_completion' not in e['record'] for e in events if 'record' in e)
+    assert all('code_completion' not in r for r in batch['jev_eval']['records'])
     assert sum(r['pass'] + r['fail'] + r['unjudged'] for r in state['rows'].values()) == state['pass'] + state['fail']
 
 
@@ -138,7 +142,7 @@ def test_snapshot_replay_overflow_duplicates_retry_and_error():
 
 
 def test_real_sse_endpoint_replays_saved_final_snapshot(tmp_path):
-    from test_common_adjudication import Judge
+    from semantic_judge_fixture import Judge
     judge = Judge()
     evaluator = CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda: (judge, judge.config, None))
     service = ComparisonService(evaluator, save_dir=tmp_path/'runs')

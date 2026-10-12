@@ -75,6 +75,9 @@ def diagnose(run):
             if case.get('case_status') != 'EVALUATED':
                 report['issues'].append({'provider': provider, 'case_id': case.get('case_id'), 'type': 'code_input',
                                          'status': case.get('case_status'), 'reason': case.get('input_error') or case.get('error')})
+            for error in case.get('errors') or []:  # 새 결과: 검사기 실행 오류·한도 초과는 사례 단위로 남는다
+                report['issues'].append({'provider': provider, 'case_id': case.get('case_id'), 'type': 'code_check_error',
+                                         'check_id': error.get('check_id'), 'status': error.get('kind'), 'reason': error.get('message')})
             for row in case.get('results', []):
                 if row.get('area') == 'aiona_specialized':
                     specialized[(row.get('check_id'), row.get('status'))] += 1

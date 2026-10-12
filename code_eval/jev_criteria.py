@@ -1,7 +1,6 @@
 """Jev 의미 평가 기준 J1~J6 — 정의는 이 파일 한 곳에서만 관리한다.
 
 J1~J6는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
-CODE 공통 미판정만 별도 C 기준(common_adjudication)으로 같은 호출에서 보완한다.
 Jev 요청 문구, 보고서·화면 설명은 모두 이 정의에서 만든다. Jev 가 새 기준을 만들지 않도록
 의미 평가는 이 여섯 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
 J5 DATA 신뢰도는 참조 데이터(reference)가 있으면 그것을, 없으면 확립된 사실을 기준으로 삼는다.

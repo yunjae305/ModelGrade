@@ -626,11 +626,15 @@ def _x_literal(r, ctx):
     kind = r["check_id"].split(":")[1]
     lit = r["required"]["literal"] if isinstance(r["required"], dict) else ""
     m = r["measured"]
+    exact = bool(r["required"].get("exact")) if isinstance(r["required"], dict) else False  # 과거 결과에는 키가 없다
     if kind == "required_literal":
         if r["verdict"] == FAIL:
             return _e(f"넣으라고 한 {_j(f'‘{lit}’', '이가')} 답변에 없습니다", f"질문이 {_j(f'‘{lit}’', '을를')} 넣으라고 했는데 답변 어디에도 없습니다.",
-                      f"‘{lit}’ 1번 이상", "0번", fix=f"답변에 {_j(f'‘{lit}’', '을를')} 그대로(띄어쓰기까지 같게) 넣으세요.",
-                      note="코드 부분은 빼고, 굵게(**) 같은 강조 표시는 지운 뒤 찾았습니다.")
+                      f"‘{lit}’ 1번 이상", "0번",
+                      fix=(f"답변에 {_j(f'‘{lit}’', '을를')} 그대로(띄어쓰기까지 같게) 넣으세요." if exact else
+                           f"답변에 {_j(f'‘{lit}’', '을를')} 넣으세요 (띄어쓰기·줄바꿈 차이는 같은 것으로 봅니다)."),
+                      note=("코드 부분은 빼고, 굵게(**) 같은 강조 표시는 지운 뒤 띄어쓰기까지 원문 그대로 비교했습니다." if exact else
+                            "코드 부분은 빼고, 굵게(**) 같은 강조 표시는 지우고, 연속 공백·줄바꿈은 공백 하나로 보고 찾았습니다."))
         return _e(f"‘{lit}’ 포함", f"{_j(f'‘{lit}’', '이가')} {m['occurrences']}번 있습니다.")
     if kind == "forbidden_literal":
         if r["verdict"] == FAIL:

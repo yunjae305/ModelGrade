@@ -11,6 +11,7 @@ NAMES = {c.id: c.name for c in CRITERIA}
 
 
 def code_event(row, index, qid):
+    # "UNJUDGED"·"LLM 보완" 은 옛 run 의 저장 로그 재생 호환용 — 새 엔진은 counted(PASS/FAIL) 행만 보내고 code_completion 을 만들지 않는다.
     return {"type": "criterion_result", "index": index, "qid": qid,
             "key": "CODE:" + row["check_id"] + ":" + row["condition_id"],
             "code": row["subcategory"], "name": row["title"],

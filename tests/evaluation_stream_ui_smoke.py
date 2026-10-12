@@ -58,8 +58,8 @@ def main():
                 # Slow animation playback for the motion inspection, without delaying any evaluation.
                 page.evaluate("document.querySelector('#fixture').getAnimations({subtree:true}).forEach(a=>a.playbackRate=.1)")
                 page.screenshot(path=str(ROOT/'results/ui-preview/evaluation-ticker-motion-test.png'))
-                # Backend snapshots predate together metadata; LLM and supplemental
-                # LLM stages must recover the same honest waiting label.
+                # Backend snapshots predate together metadata; the LLM stage and the
+                # legacy 'LLM 보완' stage (old saved snapshots only) must recover the same honest waiting label.
                 for stage in ('LLM', 'LLM 보완'):
                     page.evaluate('''stage => {
                         const rows=JSON.parse(JSON.stringify(fixture.state.data.rows));

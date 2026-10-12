@@ -15,6 +15,10 @@ def row(case, prefix):
     return next(r for r in case["results"] if r["check_id"].startswith(prefix))
 
 
+def rows(case, prefix):
+    return [r for r in case["results"] if r["check_id"].startswith(prefix)]
+
+
 @pytest.mark.parametrize("answer,verdict,claimed", [
     ("결과는 5 - 8 = -3입니다.", "PASS", -3),
     ("결과는 5 - 8 = **-3**입니다.", "PASS", -3),
@@ -50,17 +54,17 @@ def test_question_arithmetic_keeps_operand_signs(question, answer, expected):
 
 @pytest.mark.parametrize("answer", ["1 + 1 = 2%", r"1 + 1 = 2\%", "1 + 1 = 2 %"])
 def test_percent_suffix_is_not_silently_dropped_from_equation(answer):
-    result = row(evaluate("계산해줘.", answer), "3-1.answer_equation")
-    assert result["status"] == Status.UNSUPPORTED
-    assert result["verdict"] is None
+    case = evaluate("계산해줘.", answer)
+    assert rows(case, "3-1.answer_equation") == []  # 보류 등식은 PASS 도 FAIL 도 아니고 행이 없다
+    assert any(s["check_id"] == "3-1.answer_equation:skipped" for s in case["meta"]["skipped_conditions"])
 
 
 @pytest.mark.parametrize("answer", ["2%", "결과는 2%입니다.", "결과는 1 + 1 = 2%입니다.",
                                     "결과는 1 + 1 = **2**%입니다."])
 def test_percent_claim_is_not_linked_as_plain_numeric_answer(answer):
-    result = row(evaluate("1 + 1은?", answer), "3-1.question_calculation")
-    assert result["status"] == Status.UNSUPPORTED
-    assert result["verdict"] is None
+    case = evaluate("1 + 1은?", answer)
+    assert rows(case, "3-1.question_calculation") == []
+    assert any(s["check_id"] == "3-1.question_calculation" for s in case["meta"]["skipped_conditions"])
 
 
 @pytest.mark.parametrize("answer,verdict", [

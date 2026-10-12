@@ -57,7 +57,7 @@ def test_empty_answer_vs_explicit_empty_vs_missing_field():
     general = run("회의 시간을 알려줘.", "  \n\t")
     assert one(general, "1-1.response_nonempty")["verdict"] == FAIL
     explicit = run("아무것도 출력하지 마.", "")
-    assert one(explicit, "1-1.response_nonempty")["status"] == Status.APPLICABILITY_EXCEPTION
+    assert rows(explicit, "1-1.response_nonempty") == []  # 빈 출력 요청은 2-1.explicit_empty 가 판정한다
     assert one(explicit, "2-1.explicit_empty")["verdict"] == PASS
     missing = engine.evaluate_case({"question": "회의 시간을 알려줘."}, NO_CONFIG)
     assert missing["case_status"] == "INPUT_ERROR" and missing["results"] == []
@@ -96,8 +96,9 @@ def test_sentence_split_keeps_decimal_url_abbreviation_inline_code():
 
 
 def test_approximate_length_is_not_strictly_failed():
-    r = one(run("보고서를 300자 정도로 써줘.", "짧음"), "2-1.char_count")
-    assert r["status"] == Status.UNSUPPORTED and r["verdict"] is None
+    case = run("보고서를 300자 정도로 써줘.", "짧음")
+    assert rows(case, "2-1.char_count") == []
+    assert any(s["check_id"] == "2-1.char_count" for s in case["meta"]["skipped_conditions"])
 
 
 # --- 2-2 표 (고정 최소 행 수 폐기) --------------------------------------------------------
@@ -195,7 +196,8 @@ def test_json_valid_error_and_intended_error_example():
     assert one(run("결과를 JSON으로 줘.", '{"a": 1}'), "1-2.json_syntax")["verdict"] == PASS
     assert one(run("결과를 JSON으로 줘.", '{"a": 1,}'), "1-2.json_syntax")["verdict"] == FAIL
     example = run("JSON 쉼표 규칙을 설명해줘.", "잘못된 JSON 예시입니다.\n```json\n{\"a\": 1,}\n```")
-    assert one(example, "1-2.json_syntax")["status"] == Status.APPLICABILITY_EXCEPTION
+    assert rows(example, "1-2.json_syntax") == []  # 의도된 오류 예시는 행 없음
+    assert any(s["check_id"].startswith("1-2.json_syntax") for s in example["meta"]["skipped_conditions"])
 
 
 def test_json_nan_rejected_and_duplicate_keys_not_syntax_fail():
@@ -215,8 +217,7 @@ def test_python_syntax_checked_without_execution(tmp_path):
 def test_json_syntax_failure_does_not_create_missing_field_fail():
     case = run("이름과 나이를 JSON 객체로 줘. 키는 'name', 'age'이고 'age'는 정수여야 해.", '{"name": "a", "age": }')
     assert one(case, "1-2.json_syntax")["verdict"] == FAIL
-    fields = rows(case, "2-2.json_structure")
-    assert fields and all(r["status"] == Status.DEPENDENCY_FAILED and r["verdict"] is None for r in fields)
+    assert rows(case, "2-2.json_structure") == []  # 구문 FAIL 뒤 구조 행 없음 (FAIL 은 1-2 한 건만)
     valid = run("이름과 나이를 JSON 객체로 줘. 키는 'name', 'age'이고 'age'는 정수여야 해.", '{"name": "a"}')
     assert one(valid, "2-2.json_structure:keys")["verdict"] == FAIL
 
@@ -314,6 +315,46 @@ def test_same_forbidden_condition_counted_once():
     assert case["summary"]["specialized"]["fail"] == 0 and case["summary"]["common"]["fail"] == 1
 
 
+def test_required_literal_folds_whitespace_when_not_exact():
+    q = '답변에 "고객 감사 이벤트"라는 문구를 꼭 포함해줘.'
+    for answer in ("고객  감사 이벤트 안내입니다.", "고객 감사\n이벤트 안내입니다.", "고객 감사 이벤트 안내입니다."):
+        r = one(run(q, answer), "2-1.literal:required_literal")
+        assert r["verdict"] == PASS and r["measured"]["occurrences"] == 1 and r["required"]["exact"] is False, answer
+        assert r["measured"]["whitespace"] == "folded" and "접기" in r["scope"]
+    hit = [e for e in one(run(q, "고객  감사 이벤트 안내입니다."), "2-1.literal:required_literal")["evidence"] if e["target"] == "answer"][0]
+    assert (hit["start"], hit["end"]) == (0, 10) and "고객  감사 이벤트" in hit["excerpt"]  # 원문 좌표 유지
+    # 대소문자·코드 안 문구·제로폭 공백은 그대로 FAIL
+    for answer in ("고객 감사 Event", "`고객 감사 이벤트`", "고객 감사​ 이벤트"):
+        assert one(run(q, answer), "2-1.literal:required_literal")["verdict"] == FAIL, answer
+
+
+def test_required_literal_exact_request_keeps_raw_comparison():
+    for q in ('답변에 "고객 감사 이벤트"라는 문구를 정확히 포함해줘.', '"고객 감사 이벤트"를 그대로 넣어줘.',
+              '정확히 "고객 감사 이벤트"라고 써줘.', '"고객 감사 이벤트"를 토씨 하나 안 틀리게 포함해줘.'):
+        folded = one(run(q, "고객  감사 이벤트 안내"), "2-1.literal:required_literal")
+        assert folded["verdict"] == FAIL and folded["required"]["exact"] is True and "접기" not in folded["scope"], q
+        assert one(run(q, "고객 감사 이벤트 안내"), "2-1.literal:required_literal")["verdict"] == PASS, q
+    # 정확 일치 수식어가 개수 조건으로 새지 않는다
+    case = run('"완료"라는 문자열을 포함하고 정확히 3문장으로 써줘.', "완료했습니다. 확인했습니다. 끝입니다.")
+    assert one(case, "2-1.literal:required_literal")["required"] == {"literal": "완료", "exact": False}
+    assert one(case, "2-1.count:sentence_count")["required"] == {"op": "==", "n": 3}
+
+
+def test_boundary_and_forbidden_literals_fold_whitespace():
+    case = run("답변을 '최종 결론'으로 시작하고 '감사 합니다'로 끝내줘.", "최종  결론: 됩니다.\n감사 합니다")
+    assert one(case, "2-1.literal:starts_with")["verdict"] == PASS and one(case, "2-1.literal:ends_with")["verdict"] == PASS
+    assert one(run("정확히 '최종 결론'으로 시작해줘.", "최종  결론: 됩니다."), "2-1.literal:starts_with")["verdict"] == FAIL
+    q = "‘은하 패스’라는 단어는 쓰지 마."
+    r = one(run(q, "은하\n패스를 지원합니다."), "2-1.literal:forbidden_literal")
+    assert r["verdict"] == FAIL and r["measured"]["occurrences"] == 1
+    assert [(e["start"], e["end"]) for e in r["evidence"] if e["target"] == "answer"] == [(0, 5)]
+    # 접기 전 투영으로 만든 중복 키라 AIONA 금지 표현과의 중복 집계가 유지된다
+    entry = {"case_id": "C1", "question": q, "forbidden_expressions": ["은하 패스"]}
+    answer = "은하 패스를 지원합니다."
+    both = run(q, answer, canary_config(forbidden=[entry]), system_id="aiona", displayed_text=answer, case_id="C1")
+    assert rows(both, "AIONA-F")[0]["duplicate_of"] == one(both, "2-1.literal:forbidden_literal")["condition_id"]
+
+
 # --- 외국 문자 관측 ------------------------------------------------------------------------
 
 def _scripts(case):
@@ -378,7 +419,7 @@ def test_limit_exceeded_is_not_quality_fail():
 def test_jsonl_broken_line_becomes_input_error_not_dropped():
     items, errors = parse_input_text('{"question":"a","answer":"b"}\n{broken\n{"question":"c","answer":"d"}')
     batch = engine.evaluate_batch(items, NO_CONFIG)
-    assert batch["summary"]["totals"] == {"cases": 3, "evaluated": 2, "input_errors": 1, "limit_exceeded": 0}
+    assert batch["summary"]["totals"] == {"cases": 3, "evaluated": 2, "input_errors": 1, "limit_exceeded": 0, "check_errors": 0}
     assert len(errors) == 1
 
 
@@ -584,6 +625,7 @@ def test_cli_default_attaches_jev_stage_instead_of_llm_review(tmp_path):
 def test_report_counts_questions_once_even_with_multiple_checks():
     from code_eval.report_html import _question_counts, render_report
 
+    # 합성 옛 상태값(UNSUPPORTED·CONFIG_MISSING): 저장된 v16.2.x 결과를 읽는 경로를 검증한다. 새 공통 행은 PASS/FAIL 뿐이다.
     def row(verdict, status=Status.EXECUTED, subcategory="1-1", area="common"):
         return {"verdict": verdict, "status": status, "subcategory": subcategory,
                 "area": area, "counted": verdict in (PASS, FAIL)}
@@ -643,7 +685,11 @@ def test_upper_limit_phrase_becomes_less_or_equal():
 
 def test_markdown_forbidden_conflict_and_list_negation():
     case = run("마크다운 기호는 쓰지 말고 순수 텍스트로만 주세요. 결정 사항은 표로 보여 주세요.", "결정 사항\n항목  내용")
-    assert one(case, "2-2.table:required")["status"] == Status.UNSUPPORTED
+    # 마크다운 금지와 충돌하는 표 요구는 조건 자체를 만들지 않는다 (행·skipped 없음)
+    assert rows(case, "2-2.table") == []
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.table")]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"].startswith("table_")]
+    assert any(c["kind"] == "markdown_forbidden" for c in case["meta"]["question_conditions"])
     neg = run("목록으로 나열하지 말고 문단으로 설명해 주세요.", "- 하나\n- 둘")
     assert one(neg, "2-2.list:forbidden")["verdict"] == FAIL and not rows(neg, "2-2.list:required")
 
@@ -651,11 +697,16 @@ def test_markdown_forbidden_conflict_and_list_negation():
 def test_structure_inside_requested_code_or_data_format_is_not_markdown():
     yaml_q = "가상의 앱 설정을 YAML로 작성해줘. 지원 언어는 `ko`와 `en`의 목록으로 넣어줘."
     yaml_a = "설정입니다.\n\n```yaml\napp:\n  supported_languages:\n    - ko\n    - en\n```"
-    assert one(run(yaml_q, yaml_a), "2-2.list:required")["status"] == Status.UNSUPPORTED
+    yaml = run(yaml_q, yaml_a)
+    # 결과물 안의 자료 구조를 가리키는 목록·표 요구는 조건 자체를 만들지 않는다 (행·skipped 없음)
+    assert rows(yaml, "2-2.list") == []
+    assert not [s for s in yaml["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.list")]
+    assert not [c for c in yaml["meta"]["question_conditions"] if c["kind"].startswith("list_")]
     py = run("파이썬 리스트는 쓰지 말고 튜플로 작성해줘.", "- 튜플은 바꿀 수 없어요.\n\n```python\nitems = (1, 2)\n```")
-    assert one(py, "2-2.list:forbidden")["status"] == Status.UNSUPPORTED
+    assert rows(py, "2-2.list") == [] and not [c for c in py["meta"]["question_conditions"] if c["kind"].startswith("list_")]
     html = run("HTML 표로 만들어줘.", "```html\n<table><tr><td>1</td></tr></table>\n```")
-    assert one(html, "2-2.table:required")["status"] == Status.UNSUPPORTED
+    assert rows(html, "2-2.table") == [] and not [c for c in html["meta"]["question_conditions"] if c["kind"].startswith("table_")]
+    assert not [s for s in html["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.table")]
 
 
 def test_answer_layout_requests_still_judged_with_code_formats():
@@ -667,11 +718,73 @@ def test_answer_layout_requests_still_judged_with_code_formats():
     assert one(topic, "2-2.table:required")["verdict"] == FAIL
 
 
+def test_list_word_meaning_data_type_in_function_request_makes_no_list_row():
+    # 함수 작성 질문의 '값을 목록으로 보존'은 자료형(list)이다 — 2-2.list 조건 미생성(행·skipped 없음)
+    q = ("파이썬 표준 라이브러리만 사용해서 URL의 쿼리 매개변수를 사전으로 읽는 함수를 작성해줘. "
+         "같은 키가 여러 번 나오면 값을 목록으로 보존하고, 값이 없는 키는 빈 문자열로 둬.")
+    case = run(q, "```python\nfrom urllib.parse import parse_qs\n\ndef read(url):\n    return parse_qs(url)\n```")
+    assert rows(case, "2-2.list") == []
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.list")]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"].startswith("list_")]
+    # 대조: 답변 구성을 정리하라는 불릿 요구는 그대로 판정한다 (test_answer_layout_requests_still_judged_with_code_formats)
+    bullets = run("파이썬 코드를 작성하고, 주의점을 불릿 목록으로 정리해줘.", "```python\nprint(1)\n```\n\n주의점은 없습니다.")
+    assert one(bullets, "2-2.list:required")["verdict"] == FAIL
+
+
+def test_code_task_gate_handles_particles_and_negation():
+    source = "\n```json\n[3, 1, 2]\n```"
+    unsorted = "```json\n[3, 1, 2]\n```"
+    # 코드 작성을 하지 말라는 질문은 순수 데이터 변환 요구다 — 정합성 검사가 그대로 남는다
+    for q in ("아래 배열을 오름차순으로 정렬해줘. 코드를 작성하지 말고 결과만 JSON으로 줘.",
+              "아래 배열을 오름차순으로 정렬해줘. 코드 작성 없이 결과만 JSON으로 줘.",
+              "아래 배열을 오름차순으로 정렬해줘. 코드를 작성할 필요는 없어.",
+              "아래 배열을 오름차순으로 정렬해줘. 함수를 짜지 말고 결과만 줘."):
+        assert one(run(q + source, unsorted), "3-3.transform")["verdict"] == FAIL, q
+    # 조사가 달라도 코드 작성 질문이면 변환 조건을 만들지 않는다 (설명 불릿이 변환 결과로 잡히지 않음)
+    for q in ("아래 배열을 오름차순으로 정렬해줘. 코드도 작성해줘.", "아래 배열을 정렬하는 함수로 만들어줘.",
+              "아래 배열을 정렬하는 파이썬 코드로 작성해줘."):
+        case = run(q + source, "- 순서 보존\n- 중복 보존\n- 빈 문자열 처리\n```python\nsorted(xs)\n```")
+        assert rows(case, "3-3") == [] and not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"], q
+
+
+def test_source_present_but_no_result_structure_makes_no_row():
+    q = "아래 배열을 오름차순으로 정렬해줘.\n```json\n[3, 1]\n```"
+    # 원본은 있지만 답변에 JSON 배열·표·목록이 없으면 품질 FAIL 이 아니라 행 없음 + skipped (결과물 누락은 의미 평가가 봄)
+    prose = run(q, "정렬하면 1과 3 순서입니다.")
+    assert rows(prose, "3-3.transform") == []
+    assert [s["check_id"] for s in prose["meta"]["skipped_conditions"] if s["check_id"].startswith("3-3")] == ["3-3.transform"]
+    assert any(c["kind"] == "transform" and c["status"] == "ok" for c in prose["meta"]["question_conditions"])
+    assert one(run(q, "```json\n[1, 3]\n```"), "3-3.transform")["verdict"] == PASS
+    assert one(run(q, "```json\n[3, 1]\n```"), "3-3.transform")["verdict"] == FAIL
+    two = run(q, "```json\n[1, 3]\n```\n```json\n[3, 1]\n```")   # 답변 후보 여러 개 → 행 없음
+    assert rows(two, "3-3.transform") == [] and any(s["check_id"] == "3-3.transform" for s in two["meta"]["skipped_conditions"])
+
+
+@pytest.mark.parametrize("question,answer", [
+    ("아래 두 배열을 오름차순으로 정렬해줘.\n첫 번째 배열: [3, 1]\n두 번째 배열: [4, 2]", "```json\n[1, 3]\n```"),  # 원본 2개
+    ("아래 상품 데이터를 JSON으로 변환해 주세요. 상품: 헤드셋 119000원 / 웹캠 55000원", '[{"name": "헤드셋"}]'),  # 형식 변환·원본 없음
+    ("서로 다른 값만 남겨서 알려줘.", "1, 2, 3"),                                                               # 고유성·원본 없음
+    ("점수 합계를 구하는 함수를 작성해줘. [1, 2, 3]", "```python\ndef total(xs):\n    return sum(xs)\n```"),   # 집계·코드 작성
+    ("가상의 앱 설정을 YAML로 작성해줘. 지원 언어는 `ko`와 `en`의 목록으로 넣어줘.", "```yaml\nlangs:\n  - ko\n```"),
+    ("HTML 표로 만들어줘.", "```html\n<table><tr><td>1</td></tr></table>\n```"),
+    ("마크다운 기호는 쓰지 말고 순수 텍스트로만 주세요. 목록으로 정리해 주세요.", "하나, 둘"),               # 마크다운 금지 충돌
+])
+def test_no_rows_or_skips_from_transform_or_internal_structure_extraction(question, answer):
+    case = run(question, answer)
+    watched = ("3-3.", "2-2.list", "2-2.table")
+    assert case["errors"] == []
+    assert not [r for r in case["results"] if r["check_id"].startswith(watched)]
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith(watched)]
+    assert all(r["verdict"] in (PASS, FAIL) for r in case["results"] if r["area"] == "common")
+
+
 def test_chained_equation_and_presented_mistakes():
     ok = run("정산해 주세요.", "1. 1,240,000원 × (1 - 0.033) = 1,240,000원 × 0.967 = **1,199,080원**")
     assert one(ok, "3-1.answer_equation:1")["verdict"] == PASS
     shown_mistake = run("자주 하는 실수를 알려줘.", "**틀린 식**\n\n$$37 + 28 = 55$$\n\n3. $52 - 28 = 36$\n   - 올바른 식: $52-28=24$")
-    assert not [r for r in rows(shown_mistake, "3-1") if r["verdict"] == FAIL]
+    # 오류 예시 등식 두 개는 FAIL 이 아니라 행 자체가 없고, 정정된 식만 PASS 행이 된다
+    assert _equations(shown_mistake) == [(["52-28", "24"], PASS)]
+    assert any(s["check_id"] == "3-1.answer_equation:skipped" for s in shown_mistake["meta"]["skipped_conditions"])
 
 
 def test_equation_price_unit_and_tex_thousands_grouping():
@@ -689,10 +802,117 @@ def test_equation_price_unit_and_tex_thousands_grouping():
     assert one(wrong_rate, "3-1.answer_equation:1")["verdict"] == FAIL
 
 
+def _equations(case):
+    return [(r["measured"]["segments"], r["verdict"]) for r in rows(case, "3-1.answer_equation")]
+
+
+def test_equation_does_not_continue_into_next_bullet():
+    case = run("계산해줘.", "- 1인 비용: 7,000원 + 9,000원 - 3,000원 = 13,000원\n- 4인 총액: 13,000원 × 4 = 52,000원")
+    assert _equations(case) == [(["7,000  + 9,000  - 3,000", "13,000"], PASS), (["13,000  * 4", "52,000"], PASS)]
+    # 저장 데이터의 거짓 FAIL 재현: `17,000원\n- 3명` 이 `17,000 - 3` 으로 읽히면 안 된다
+    saved = run("계산해줘.", "- 1인당 총액: 8,000 + 9,000 = 17,000원\n- 3명 총액: 17,000 × 3 = 51,000원")
+    assert [v for _, v in _equations(saved)] == [PASS, PASS]
+    assert not any("17,000-3" in seg.replace(" ", "") for segs, _ in _equations(saved) for seg in segs)
+
+
+def test_equation_review_cases_noun_negation_units_crlf_and_spaced_suffix():
+    def skipped_31(case):
+        return [s["reason"] for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("3-1")]
+    # 명사 부정으로 소개한 오류 예시는 보류, 조건 설명 문장 뒤의 등식은 판정
+    for answer in ("정답 아님: 2 + 3 = 6", "이 식은 답이 아닙니다.\n2+2=5", "2 + 2 = 5입니다. 이는 정답이 아닙니다."):
+        case = run("계산해줘.", answer)
+        assert _equations(case) == [] and "부정·오류 예시" in skipped_31(case)[0], answer
+    assert _equations(run("계산해줘.", "두 영화 모두 코미디가 아닙니다.\n총시간은 85 + 20 + 95 = 200분입니다.")) == [(["85 + 20 + 95", "200"], PASS)]
+    # 달력의 '월' 범위·순환 표기는 식이 아니다; 자루 같은 개수 단위는 식이다
+    for answer in ("기간: 3월 - 5월 = 3개월", "12월 + 1개월 = 1월"):
+        assert rows(run("계산해줘.", answer), "3-1") == [], answer
+    assert _equations(run("계산해줘.", "30자루 − 8자루 = 22자루")) == [(["30   - 8", "22"], PASS)]
+    # 괄호 짝이 안 맞는 조각과 띄어 쓴 한글 수 단위는 행 없음 + 사유 기록
+    case = run("계산해줘.", "총액은 2 × (3 + 4 = 14 입니다.")
+    assert _equations(case) == [] and "괄호 짝" in skipped_31(case)[0]
+    case = run("계산해줘.", "1 + 1 = 2 만")
+    assert _equations(case) == [] and "한글 수 단위" in skipped_31(case)[0]
+    # CRLF·NBSP 공백도 수평 공백이다; 선행 마크업은 근거 발췌에서 빠진다
+    assert _equations(run("계산해줘.", "80×20% + 70×30% + 90×50%\r\n= 16 + 21 + 45\r\n= **82점**")) == [(["16 + 21 + 45", "82"], PASS)]
+    assert [v for _, v in _equations(run("계산해줘.", "7,000원 + 9,000원 = 16,000원"))] == [PASS]
+    ev = one(run("계산해줘.", "**1인당 16,000원 × 4명 = 64,000원**"), "3-1.answer_equation:1")["evidence"][0]
+    assert (ev["start"], ev["excerpt"]) == (6, "16,000원 × 4명 = 64,000")
+
+
+def test_aligned_multiline_derivation_still_one_chain():
+    case = run("계산해줘.", "80×20% + 70×30% + 90×50%\n= 16 + 21 + 45\n= **82점**")
+    assert _equations(case) == [(["16 + 21 + 45", "82"], PASS)]
+    wrong = run("계산해줘.", "80×20% + 70×30% + 90×50%\n= 16 + 21 + 45\n= 83점")
+    assert _equations(wrong) == [(["16 + 21 + 45", "83"], FAIL)]
+
+
+def test_equation_boundary_ignores_following_line_word():
+    case = run("계산해줘.", "- 기말고사: 90 × 0.5 = 45\n\n**최종 점수 = 16 + 21 + 45 = 82점**")
+    assert [v for _, v in _equations(case)] == [PASS, PASS]  # 기존엔 `45` 뒤 `최종` 을 수식어로 보고 보류했다
+    assert case["meta"]["skipped_conditions"] == []
+
+
+@pytest.mark.parametrize("answer,verdict", [
+    (r"\(26/20=1.3\), 즉 30%", PASS),
+    (r"총점은 \(70 + 80 + 90 + 100 = 340\)점이므로 합격입니다.", PASS),
+    (r"\(3 \times 4 = 12\), \[20 \div 4 = 5\], \(2 \cdot 3 = 6\)", PASS),
+    ("파일(10 − 2 − 3 = 5개)은 변동 없음", PASS),
+    ("*(또는 1인당 14,000원 × 4명 = 56,000원)*", PASS),
+    (r"\(26/20=1.4\)", FAIL),
+])
+def test_tex_delimiters_and_outer_parentheses_are_balanced(answer, verdict):
+    case = run("계산해줘.", answer)
+    assert {v for _, v in _equations(case)} == {verdict} and case["meta"]["skipped_conditions"] == []
+    if answer.startswith("파일"):
+        assert one(case, "3-1.answer_equation")["evidence"][0]["end"] == answer.index("5개") + 1  # `)` 는 식 밖
+    fragment = run("계산해줘.", "기본료 8,000원 + (120장 × 60원 = 7,200원)")
+    assert rows(fragment, "3-1") == []  # 괄호 안의 등호는 등식이 아니다: 행 없음
+
+
+def test_registered_count_units_before_operator():
+    case = run("계산해줘.", "B는 8,000원 + (120장 × 60원) = 8,000원 + 7,200원 = **15,200원**이에요.")
+    assert _equations(case) == [(["8,000  + (120  * 60 )", "8,000  + 7,200", "15,200"], PASS)]
+    stationery = run("계산해줘.", "(21권 × 2,500원) + (34자루 × 1,000원) + (3개 × 1,500원) = 52,500원 + 34,000원 + 4,500원 = **91,000원**")
+    assert [v for _, v in _equations(stationery)] == [PASS]
+    assert _equations(run("계산해줘.", "120장 × 100원 = 12,500원")) == [(["120  * 100", "12,500"], FAIL)]
+
+
+def test_per_person_qualifier_and_connective_suffix():
+    assert _equations(run("계산해줘.", "64,000원 ÷ 4명 = **1인당 16,000원**")) == [(["64,000  / 4", "16,000"], PASS)]
+    assert _equations(run("계산해줘.", "64,000원 ÷ 4명 = **1인당 15,000원**")) == [(["64,000  / 4", "15,000"], FAIL)]
+    assert _equations(run("계산해줘.", "10 = 3×3 + 1이므로 선공이 이깁니다.")) == [(["10", "3*3 + 1"], PASS)]
+    unknown = run("계산해줘.", "1 + 1 = 2만")
+    assert rows(unknown, "3-1") == []  # 미등록 접미사는 여전히 행 없음
+    assert [s["check_id"] for s in unknown["meta"]["skipped_conditions"]] == ["3-1.answer_equation:skipped"]
+
+
+def test_noun_negation_scope_is_same_sentence_before_marker():
+    prev = run("계산해줘.", "- 두 영화 모두 코미디가 아닙니다.\n- 총시간은 85 + 20 + 95 = 200분으로 210분 이내입니다.")
+    assert _equations(prev) == [(["85 + 20 + 95", "200"], PASS)]
+    contrast = run("계산해줘.", "할인은 영화당이 아니라 1인당 두 편 합계에서 한 번 적용해요.\n\n- 할인 전 1인 요금: 9,000원 + 7,000원 = **16,000원**")
+    assert _equations(contrast) == [(["9,000  + 7,000", "16,000"], PASS)]
+    assert _equations(run("계산해줘.", "2 + 2 = 5가 아니라 2 + 2 = 4입니다.")) == [(["2 + 2", "4"], PASS)]
+    for answer in ("2 + 2 = 5가 아닙니다.", "다음 계산은 잘못되었습니다.\n\n2 + 2 = 5", "틀린 값 2.5를 쓰면 1 + 1 = 3이 됩니다."):
+        assert rows(run("계산해줘.", answer), "3-1") == [], answer
+
+
+@pytest.mark.parametrize("question,answer", [
+    ("계산해줘.", "1 + 1 = 2%"), ("계산해줘.", "1 + 1 = 2만"), ("계산해줘.", "2 ÷ 0 = 0"),
+    ("계산해줘.", "**틀린 식**\n\n2 + 2 = 5"), ("1 + 1은?", "결과는 2%입니다."), ("1 + 1은?", "2 또는 3"),
+])
+def test_3_1_never_emits_unjudged_rows(question, answer):
+    case = run(question, answer)
+    for r in rows(case, "3-1."):
+        assert r["status"] == Status.EXECUTED and r["verdict"] in (PASS, FAIL)
+    assert not any(r["check_id"].endswith(":skipped") for r in case["results"])
+    assert any(s["check_id"].startswith("3-1.") for s in case["meta"]["skipped_conditions"])
+
+
 def test_ambiguous_numbered_structures_and_container_heading():
     answer = "## 추천\n### 1. A\n### 2. B\n### 3. C\n## 순위\n1. A\n2. B"
-    r = one(run("번호를 붙여 정확히 3개 추천해 주세요.", answer), "2-1.count:list_count")
-    assert r["status"] == Status.UNSUPPORTED
+    ambiguous = run("번호를 붙여 정확히 3개 추천해 주세요.", answer)
+    assert rows(ambiguous, "2-1.count:list_count") == []
+    assert any(s["check_id"] == "2-1.count:list_count" for s in ambiguous["meta"]["skipped_conditions"])
     faq = run("FAQ 알려줘", "FAQ 3개를 정리했습니다.\n\n## FAQ\n\n### 1. 가\n내용\n### 2. 나\n내용\n### 3. 다\n내용")
     assert one(faq, "3-2.declared_count")["verdict"] == PASS
 
@@ -706,7 +926,8 @@ def test_heading_form_footnote_and_code_fragment():
 
 def test_per_item_boundary_and_literal_requirements_are_not_whole_answer_pass():
     case = run('각 템플릿은 "안녕하세요."로 시작하고 "감사합니다."로 끝나야 합니다.', "안녕하세요. 본문. 감사합니다.")
-    assert all(r["status"] == Status.UNSUPPORTED for r in rows(case, "2-1.literal"))
+    assert rows(case, "2-1.literal") == []
+    assert {s["check_id"] for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("2-1.literal")}
 
 
 # --- 쉬운 설명 (explain) -----------------------------------------------------------------------
@@ -778,3 +999,106 @@ def test_engine_keeps_conversation_and_reference_only_when_given():
     from webapp.code_eval_service import CodeEvalService
     single = CodeEvalService._cases({"question": "q", "answer": "a", "reference": "r", "conversation_id": "C1", "turn": 2, "bogus": 1})
     assert single == [{"question": "q", "answer": "a", "reference": "r", "conversation_id": "C1", "turn": 2}]
+
+
+# --- 공통 결과 행은 PASS/FAIL 뿐 (v16.3) ----------------------------------------------------------
+
+_PASS_FAIL_ONLY_FIXTURES = [
+    ("회의 시간을 알려줘.", "  \n\t"), ("아무것도 출력하지 마.", ""), ("한글만 사용해서 인사해줘.", "안녕하세요 こんにちは"),
+    ("보고서를 300자 정도로 써줘.", "짧음"), ("JSON 쉼표 규칙을 설명해줘.", "잘못된 JSON 예시입니다.\n```json\n{\"a\": 1,}\n```"),
+    ("이름과 나이를 JSON 객체로 줘. 키는 'name', 'age'이고 'age'는 정수여야 해.", '{"name": "a", "age": }'),
+    ("마크다운 기호는 쓰지 말고 순수 텍스트로만 주세요. 결정 사항은 표로 보여 주세요.", "결정 사항\n항목  내용"),
+    ("가상의 앱 설정을 YAML로 작성해줘. 지원 언어는 `ko`와 `en`의 목록으로 넣어줘.", "설정입니다.\n\n```yaml\napp:\n  supported_languages:\n    - ko\n    - en\n```"),
+    ("HTML 표로 만들어줘.", "```html\n<table><tr><td>1</td></tr></table>\n```"),
+    ("번호를 붙여 정확히 3개 추천해 주세요.", "## 추천\n### 1. A\n### 2. B\n### 3. C\n## 순위\n1. A\n2. B"),
+    ('각 템플릿은 "안녕하세요."로 시작하고 "감사합니다."로 끝나야 합니다.', "안녕하세요. 본문. 감사합니다."),
+    ("안내 문구를 세 가지 작성해줘.", "다음 세 가지입니다.\n### 문구 1\n첫째\n### 참고\n부연\n### 문구 2\n둘째\n### 문구 3\n셋째"),
+    ("내용을 설명해줘.", "본문[^x]\n\n[x]: 각주 설명\n\n# 개요\n[없는 대상](#missing)"),
+    ("내용을 설명해줘.", "근거[1]와 [2]를 참고하세요."), ("내용을 설명해줘.", "[이동](#없는-제목)"),
+    ("계산해줘.", "1 + 1 = 2%"), ("1 + 1은?", "결과는 2%입니다."), ("단가 2,000원·수량 3개의 총액을 알려줘.", "총액은 6,000원입니다."),
+    ("아래 두 배열을 오름차순으로 정렬해줘.\n```json\n[3, 1]\n```\n```json\n[4, 2]\n```", "```json\n[1, 3]\n```"),
+    ("아래 상품 데이터를 JSON으로 변환해 주세요. 상품: 헤드셋 119000원 / 웹캠 55000원", '{"items": [{"name": "헤드셋", "price": 119000}]}'),
+    ('다음 JSON 배열에서 중복 없이 "score" 합계를 구해줘.\n```json\n[{"score": 1}, {"score": 2}]\n```', "3"),
+    ("설치 방법을 코드블록으로 보여줘.", "pip install x"), ("예시를 파이썬 코드블록으로 보여줘.", "예시 없음"),
+    ("표로 정리해줘. 열은 '이름', '나이'야.", "없음"), ("결과를 표 하나로만 정리해 주세요.", "결과입니다."),
+    ("소제목을 붙여 설명해줘.", "**굵은 줄**\n내용"), ("제목을 정확히 2개 써줘.", "# 가\n## 나\n### 다"),
+    ("공부 방법을 알려줘.", "다음 세 가지 중 일부를 소개합니다.\n\n- 개념 정리"),
+    ("파이썬 함수를 작성해줘.", "```python\n    return 1\n```"), ("파이썬 함수를 작성해줘.", "```python\ndef f():\n    ...\n# 생략\n```"),
+]
+
+
+@pytest.mark.parametrize("question,answer", _PASS_FAIL_ONLY_FIXTURES)
+def test_common_rows_are_pass_or_fail_only(question, answer):
+    case = run(question, answer)
+    assert case["case_status"] == "EVALUATED"
+    assert all(r["status"] == "EXECUTED" and r["verdict"] in (PASS, FAIL) and r["counted"]
+               for r in case["results"] if r["area"] == "common")
+    assert case["summary"]["common"]["unjudged"] == 0 and case["summary"]["errors"] == 0
+    assert case["errors"] == []
+    assert all(set(s) == {"check_id", "subcategory", "reason"} for s in case["meta"]["skipped_conditions"])
+
+
+def test_model_rejects_unjudged_common_row():
+    from code_eval.model import ConditionResult
+
+    with pytest.raises(ValueError, match="PASS/FAIL"):
+        ConditionResult(check_id="2-1.count", check_version="v", subcategory="2-1", title="t", source="question",
+                        status=Status.UNSUPPORTED)
+    with pytest.raises(ValueError, match="PASS/FAIL"):
+        ConditionResult(check_id="2-1.count", check_version="v", subcategory="2-1", title="t", source="question",
+                        status=Status.DEPENDENCY_FAILED)
+    # AIONA 특화 행(보류 중)은 옛 상태값을 계속 쓴다
+    aiona = ConditionResult(check_id="AIONA-M.internal_marker", check_version="v", subcategory="AIONA-M", title="t",
+                            source="aiona_config", status=Status.CONFIG_MISSING)
+    assert aiona.area == "aiona_specialized" and aiona.verdict is None
+
+
+def test_explicit_empty_and_charset_requests_make_no_1_1_rows():
+    empty = run("아무것도 출력하지 마.", "")
+    assert rows(empty, "1-1.response_nonempty") == [] and one(empty, "2-1.explicit_empty")["verdict"] == PASS
+    charset = run("한글만 사용해서 인사해줘.", "안녕하세요 こんにちは")
+    assert rows(charset, "1-1.foreign_script") == [] and one(charset, "2-1.charset")["verdict"] == FAIL
+
+
+def test_skipped_conditions_are_not_in_result_digest():
+    base = run("보고서를 300자 정도로 써줘.", "짧음")
+    assert base["meta"]["skipped_conditions"]
+    stripped = {**base, "meta": {k: v for k, v in base["meta"].items() if k != "skipped_conditions"}}
+    assert engine.result_digest([base]) == engine.result_digest([stripped])
+
+
+def test_report_shows_case_errors():
+    from code_eval.report_html import render_report
+
+    batch = engine.evaluate_batch([{"case_id": "Q01", "question": "간단히 설명해 주세요.", "answer": "설명입니다."}], NO_CONFIG)
+    case = batch["cases"][0]
+    case["errors"] = [{"check_id": "3-1.check_error", "subcategory": "3-1", "kind": "CHECK_ERROR",
+                       "message": "검사기 오류: RuntimeError: boom", "details": {}}]
+    case["summary"]["errors"] = 1
+    batch["summary"] = engine.summarize_batch(batch["cases"])
+    html = render_report(batch)
+    assert "검사 실행 오류 1건" in html and "3-1.check_error" in html
+    assert "검사 오류 1" in html and "검사 실행 오류 1개 질문" in html
+    # 실행 오류가 있는 질문은 공통 PASS 질문으로 확정하지 않는다
+    assert '<span class="kpi-label">공통 PASS 질문</span><b>0</b>' in html
+    assert '<span class="kpi-label">공통 질문 통과율</span><b>100.0%</b>' not in html
+
+
+def test_no_unjudged_on_saved_comparison_inputs():
+    runs = sorted((Path(__file__).resolve().parent.parent / "data" / "comparison_runs").glob("*.json"))
+    if not runs:
+        pytest.skip("로컬 저장 실행 데이터 없음")
+    pairs = {}
+    for path in runs:
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        for evaluation in (saved.get("evaluations") or {}).values():
+            for case in evaluation.get("cases", []):
+                pairs.setdefault((case.get("question", ""), case.get("answer", "")), None)
+    unjudged, errors = [], []
+    for question, answer in pairs:
+        case = run(question, answer)
+        if case["case_status"] != "EVALUATED":
+            continue
+        unjudged += [r["check_id"] for r in case["results"] if r["area"] == "common" and r["verdict"] not in (PASS, FAIL)]
+        errors += case["errors"]
+    assert unjudged == [] and errors == []

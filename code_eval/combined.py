@@ -1,7 +1,8 @@
 """종합 결과 — CODE 평가와 의미 평가(Jev 또는 시험 엔진)를 질문 단위로 합쳐 보여 주기 위한 집계.
 
-- 공통 CODE(LLM 보완 포함)나 의미 평가 중 하나라도 FAIL 이면 'FAIL 질문'.
-  모두 판정한 질문만 PASS이며, 나머지는 pending. AIONA 특화는 별도 집계한다.
+- 공통 CODE(저장된 옛 보완 판정 포함)나 의미 평가 중 하나라도 FAIL 이면 'FAIL 질문'.
+  모두 판정한 질문만 PASS이며, 나머지는 pending. 검사 실행 오류(case["errors"])가 있는 질문은 PASS 로 확정하지 않는다.
+  AIONA 특화는 별도 집계한다.
 - 가중치 점수를 만들지 않는다. 질문 수와 통과 비율만 쓴다.
 - 영역별 통과율은 그 영역을 실제로 판정한 질문만 분모로 쓴다 (CODE 대분류 3개 + AIONA 특화 + J1~J6).
 - CODE 판정·결과 해시와 의미 평가 기록은 바꾸지 않는다. 보고서·화면은 이 결과만 읽는다.
@@ -15,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from .jev_criteria import CRITERIA
 from .model import CATEGORY_NAMES
-from .common_adjudication import resolved_batch
+from .common_adjudication import resolved_batch  # 옛 결과의 code_completion 투영 (읽기 전용)
 
 __all__ = ["combined_summary"]
 
@@ -101,7 +102,8 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
         sem_fail = [d for d in decisions.values() if d.get("decision") == "FAIL"]
         if not code_fail and not sem_fail:
             common = (case.get("summary") or {}).get("common") or {}
-            if semantic_complete and not common.get("unjudged") and common.get("decided", common.get("pass", 0)):
+            if (semantic_complete and not common.get("unjudged") and not case.get("errors")
+                    and common.get("decided", common.get("pass", 0))):
                 passed += 1
             else:
                 undecided += 1
@@ -135,9 +137,12 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
         p = f = 0
         for _, case in evaluated:
             rows = [r for r in case.get("results", []) if r.get("area") == "common" and r.get("category") == cat and r.get("counted")]
+            # 이 대분류의 검사기가 실행 오류로 죽은 질문은 남은 PASS 행만으로 PASS 로 세지 않는다
+            errored = {str(e.get("subcategory", "")).split("-")[0] for e in case.get("errors") or []}
             if any(r["verdict"] == "FAIL" for r in rows):
                 f += 1
-            elif rows and not (case.get("summary") or {}).get("by_category", {}).get(cat, {}).get("unjudged"):
+            elif (rows and cat not in errored
+                  and not (case.get("summary") or {}).get("by_category", {}).get(cat, {}).get("unjudged")):
                 p += 1
         areas.append({"group": "CODE", "id": cat, "name": name, "targets": p + f, "pass": p, "fail": f, "rate": _rate(p, f)})
     p = f = 0
@@ -178,5 +183,7 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
         "areas": areas,
         "problems": problems,
         "note": "질문마다 CODE 나 의미 평가 중 하나라도 FAIL 이면 FAIL 질문. 가중치 점수 없음. "
-                "공통 코드 미판정은 LLM 보완 결과를 반영. 남은 평가 오류는 PASS로 집계하지 않음. AIONA 특화는 별도 집계.",
+                "판정할 수 없는 공통 조건은 행이 없음. 검사 실행 오류가 있는 질문은 PASS 로 집계하지 않음"
+                + ("(옛 결과의 LLM 보완 기록은 그대로 반영)" if any((r or {}).get("code_completion") for r in records) else "")
+                + ". 남은 평가 오류는 PASS로 집계하지 않음. AIONA 특화는 별도 집계.",
     }

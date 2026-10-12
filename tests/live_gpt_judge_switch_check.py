@@ -278,7 +278,7 @@ def main():
             tick = time.monotonic()
             record = evaluate_jev_case(item["case_id"], item["question"], item["answer"], client,
                                        criteria=tuple(item["criteria"]), reference=item["reference"],
-                                       history=item["history"] or None, code_case=item["code_case"], cancel_event=cancel)
+                                       history=item["history"] or None, cancel_event=cancel)
             save_json(output / item["id"] / "new-record.json", record)
             return observation(item, record, time.monotonic() - tick)
 

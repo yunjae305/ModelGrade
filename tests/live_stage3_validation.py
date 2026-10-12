@@ -228,14 +228,15 @@ def run_pipeline(cases, client, config, folder, *, max_usd, max_calls, workers=4
 # --- 결과 분석 -------------------------------------------------------------------------
 
 def question_verdict(case, record):
-    """combined_summary 와 같은 질문 판정. CODE 공통 미판정은 LLM 보완을 반영한 사본으로 본다."""
+    """combined_summary 와 같은 질문 판정. 검사 실행 오류(case["errors"])가 있으면 PASS 로 확정하지 않는다."""
     decisions = (record or {}).get("decisions") or {}
     if _code_fails(case) or any(d.get("decision") == "FAIL" for d in decisions.values()):
         return "FAIL"
     complete = bool(record and record.get("status") == "SUCCESS" and record.get("criteria") and all(
         decisions.get(cid, {}).get("decision") in ("PASS", "FAIL") for cid in record["criteria"]))
     common = (case.get("summary") or {}).get("common") or {}
-    if complete and not common.get("unjudged") and common.get("decided", common.get("pass", 0)):
+    if (complete and not common.get("unjudged") and not case.get("errors")
+            and common.get("decided", common.get("pass", 0))):
         return "PASS"
     return "INCOMPLETE"
 

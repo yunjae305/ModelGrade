@@ -15,13 +15,13 @@ def row(case, check_id):
     return next(r for r in case["results"] if r["check_id"] == check_id)
 
 
-def test_unknown_footnote_definition_is_unsupported_and_later_references_continue():
+def test_unknown_footnote_definition_makes_no_row_and_later_references_continue():
     answer = "본문[^x]\n\n[x]: 각주 설명\n\n# 개요\n[없는 대상](#missing)"
     case = evaluate(answer)
-    footnote = row(case, "1-3.footnote_link")
-    assert footnote["status"] == Status.UNSUPPORTED and footnote["verdict"] is None
+    assert not [r for r in case["results"] if r["check_id"] == "1-3.footnote_link"]
+    assert any(s["check_id"] == "1-3.footnote_link" for s in case["meta"]["skipped_conditions"])
     assert row(case, "1-3.internal_link")["verdict"] == "FAIL"
-    assert not any(r["status"] == Status.CHECK_ERROR for r in case["results"])
+    assert case["errors"] == []
 
 
 @pytest.mark.parametrize("extra", [
@@ -89,9 +89,11 @@ def test_code_only_alternative_definition_does_not_hide_missing_footnote():
 ])
 def test_multiple_json_sources_cannot_be_silently_reduced_to_one(sources):
     question = "아래 두 배열을 오름차순으로 정렬해줘.\n" + sources
-    result = row(evaluate("```json\n[1, 3]\n```", question), "3-3.transform")
-    assert result["status"] == Status.UNSUPPORTED and result["verdict"] is None
-    assert "2개" in result["reason"]
+    case = evaluate("```json\n[1, 3]\n```", question)
+    # 원본 후보가 둘이면 하나를 골라 PASS/FAIL 하지 않는다 — 변환 조건 자체를 만들지 않음(행·skipped 모두 없음).
+    assert not [r for r in case["results"] if r["check_id"] == "3-3.transform"]
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"] == "3-3.transform"]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"]
 
 
 @pytest.mark.parametrize("source", ["```json\n[3, 1]\n```", "원본: [3, 1]"])

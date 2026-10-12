@@ -9,8 +9,8 @@ import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
 from .analysis import TextAnalysis, mask_ranges
-from .core import (LIMITS, MD_POLICY_VERSION, Ctx, cmp_text, compare, excerpt, q_evidence, result,
-                   unsupported_from_req, verdict_of)
+from .core import (ERROR_LIMIT_EXCEEDED, LIMITS, MD_POLICY_VERSION, Ctx, case_error, cmp_text, compare, excerpt,
+                   q_evidence, result, skip_condition, skip_req, verdict_of)
 from .extract import LANG_ALIASES
 from .model import Evidence, FAIL, PASS, Status
 from .scripts import observe_scripts, script_name
@@ -195,14 +195,8 @@ def check_1_1(ctx: Ctx) -> List:
     out = []
     empty_req = ctx.conds.first("explicit_empty")
     content = strip_non_content(ctx.answer)
-    if empty_req is not None:
-        out.append(result("1-1.response_nonempty", SUB11, "응답 존재", "operating_policy",
-                          Status.APPLICABILITY_EXCEPTION, required="질문이 빈 출력을 명시 요청",
-                          measured={"content_chars": len(content)},
-                          reason="질문이 빈 출력을 명시적으로 요청해 일반 응답 존재 규칙을 적용하지 않음 "
-                                 "(요청 준수 여부는 2-1에서 판정)",
-                          evidence=[q_evidence(ctx, empty_req)]))
-    else:
+    # 질문이 빈 출력을 명시 요청하면 응답 존재 행을 만들지 않는다 (요청 준수 여부는 2-1.explicit_empty 가 판정).
+    if empty_req is None:
         ok = len(content) > 0
         out.append(result("1-1.response_nonempty", SUB11, "응답 존재", "operating_policy", Status.EXECUTED,
                           verdict_of(ok), required="공백·제어문자 제거 후 1자 이상",
@@ -243,7 +237,9 @@ def check_1_1(ctx: Ctx) -> List:
         evidence=[Evidence("answer", h["char_range"][0], h["char_range"][1],
                            "코드 포인트 " + " ".join(h["codepoints"]), h["signature_id"]) for h in kept[:20]],
         details={"allowed_requests": {f"U+{k:04X}": v for k, v in allowed.items()}, "readings": readings[:20]}))
-    out.append(_foreign_script_check(ctx))
+    foreign = _foreign_script_check(ctx)
+    if foreign is not None:
+        out.append(foreign)
     return out
 
 
@@ -299,9 +295,7 @@ def _foreign_script_check(ctx: Ctx):
     spans = _script_spans(ctx)["script_spans"]
     title = "외국 문자 (설명 없는 출현)"
     if ctx.conds.has("charset"):
-        return result("1-1.foreign_script", SUB11, title, "operating_policy", Status.APPLICABILITY_EXCEPTION,
-                      required="질문의 허용 문자 조건이 문자 종류를 정함", measured={"spans": len(spans)},
-                      reason="질문에 허용 문자 조건이 있어 문자 종류는 2-1 허용 문자 결과를 따름")
+        return None  # 허용 문자 조건이 문자 종류를 정한다 — 2-1.charset 이 판정하므로 행 없음
     readings, abrupt = [], []
     for span in spans:
         kind, basis = _script_reading(ctx, span)
@@ -435,7 +429,7 @@ def _code_checks(ctx: Ctx) -> List:
     required = conds.first("code_block_required")
     if count is not None:
         if count.status != "ok":
-            out.append(unsupported_from_req(ctx, count, "1-2.code_block:count", SUB12, "코드블록 개수"))
+            skip_req(ctx, count, "1-2.code_block:count", SUB12)
         else:
             op, n = count.value["op"], count.value["n"]
             ok = compare(len(blocks), op, n)
@@ -446,7 +440,7 @@ def _code_checks(ctx: Ctx) -> List:
                                       f"요구 코드블록 {op} {n}, 실제 {len(blocks)}개"),
                               evidence=[q_evidence(ctx, count)] + block_ev))
     elif required is not None and required.status != "ok":
-        out.append(unsupported_from_req(ctx, required, "1-2.code_block:required", SUB12, "코드블록 존재"))
+        skip_req(ctx, required, "1-2.code_block:required", SUB12)
     elif required is not None:
         ok = bool(blocks)
         out.append(result("1-2.code_block:required", SUB12, "코드블록 존재", "question", Status.EXECUTED,
@@ -455,14 +449,19 @@ def _code_checks(ctx: Ctx) -> List:
                           reason="요구한 코드블록 있음" if ok else "코드블록을 요구했으나 코드블록이 없음",
                           evidence=[q_evidence(ctx, required)] + block_ev))
 
+    # 코드블록 존재·개수 조건이 FAIL 이면 그에 딸린 언어 표지·구획 표시 행은 만들지 않는다 (같은 결함을 두 번 세지 않음).
+    presence_failed = any(r.check_id.startswith("1-2.code_block:") and r.verdict == FAIL for r in out)
     label_req = conds.first("code_language_label")
     if label_req is not None and not forbid:
         lang = label_req.value["language"]
         aliases = LANG_ALIASES.get(lang, {lang})
-        if not blocks:
-            out.append(result("1-2.code_language_label", SUB12, "코드블록 언어 표지", "question",
-                              Status.DEPENDENCY_FAILED, required=lang, measured=measured_blocks,
-                              reason="코드블록이 없어 언어 표지를 측정할 수 없음 (존재 조건 결과 참조)",
+        if presence_failed:
+            skip_condition(ctx, "1-2.code_language_label", SUB12, "코드블록 존재·개수 조건이 FAIL 이라 언어 표지 행을 만들지 않음")
+        elif not blocks:
+            out.append(result("1-2.code_language_label", SUB12, "코드블록 언어 표지", "question", Status.EXECUTED, FAIL,
+                              required={"language_label": sorted(aliases)}, measured=measured_blocks,
+                              comparison=cmp_text(len(blocks), ">=", 1),
+                              reason="언어 표지를 요구했으나 코드블록이 없음",
                               evidence=[q_evidence(ctx, label_req)]))
         else:
             bad = [i + 1 for i, b in enumerate(blocks) if b["language_label"] not in aliases]
@@ -475,7 +474,8 @@ def _code_checks(ctx: Ctx) -> List:
                               evidence=[q_evidence(ctx, label_req)] + block_ev))
 
     # MD 165행: 코드 구획 표시가 2개 미만 — 코드블록을 요구한 질문에만 적용 (블록 수가 아닌 표시 수)
-    if (count is not None and count.status == "ok" or required is not None and required.status == "ok") and not forbid:
+    if ((count is not None and count.status == "ok" or required is not None and required.status == "ok")
+            and not forbid and not presence_failed):
         marks = len(ctx.aa.code_fence_delimiters)
         ok = not marks < 2
         out.append(result("1-2.code_fence_min", SUB12, "형식 위반 — 코드블록 (코드 구획 표시 수)", "md_policy",
@@ -516,34 +516,31 @@ def _json_syntax(ctx: Ctx) -> List:
         exc = _exception_for(ctx, t["block"])
         title = "JSON 구문" + (f" ({t['id']})" if t["id"] != "answer" else "")
         ev = [Evidence("answer", t["start"], t["start"] + len(t["text"]), t["text"][:80], t["id"])]
+        cid = f"1-2.json_syntax:{t['id']}"
+        # 판정하지 않는 대상은 행을 만들지 않고 parsed 상태만 남긴다 (2-2·3-3 의 종속 판단용).
         if exc:
             parsed[t["id"]] = {"status": "exception"}
-            out.append(result(f"1-2.json_syntax:{t['id']}", SUB12, title, "format_spec",
-                              Status.APPLICABILITY_EXCEPTION, reason=exc, evidence=ev))
+            skip_condition(ctx, cid, SUB12, exc)
             continue
         if t["label"] in ("jsonc", "json5"):
             parsed[t["id"]] = {"status": "unsupported"}
-            out.append(result(f"1-2.json_syntax:{t['id']}", SUB12, title, "format_spec", Status.UNSUPPORTED,
-                              reason=f"{t['label']} 는 RFC 8259 JSON 이 아님 — 지원 범위 밖", evidence=ev))
+            skip_condition(ctx, cid, SUB12, f"{t['label']} 는 RFC 8259 JSON 이 아님 — 지원 범위 밖")
             continue
         if len(t["text"]) > LIMITS["json_chars"]:
             parsed[t["id"]] = {"status": "limit"}
-            out.append(result(f"1-2.json_syntax:{t['id']}", SUB12, title, "format_spec", Status.LIMIT_EXCEEDED,
-                              reason=f"JSON 대상이 {LIMITS['json_chars']}자 한도를 넘음", evidence=ev))
+            case_error(ctx, cid, SUB12, ERROR_LIMIT_EXCEEDED, f"JSON 대상이 {LIMITS['json_chars']}자 한도를 넘음",
+                       chars=len(t["text"]))
             continue
         try:
             ok, value, pos, msg, dup = _parse_json_strict(t["text"])
         except RecursionError:
             parsed[t["id"]] = {"status": "limit"}
-            out.append(result(f"1-2.json_syntax:{t['id']}", SUB12, title, "format_spec", Status.LIMIT_EXCEEDED,
-                              reason="JSON 중첩 깊이가 파서 한도를 넘음", evidence=ev))
+            case_error(ctx, cid, SUB12, ERROR_LIMIT_EXCEEDED, "JSON 중첩 깊이가 파서 한도를 넘음")
             continue
         partial = "..." in t["text"] or "…" in t["text"]
         if not ok and partial:
             parsed[t["id"]] = {"status": "unsupported"}
-            out.append(result(f"1-2.json_syntax:{t['id']}", SUB12, title, "format_spec", Status.UNSUPPORTED,
-                              reason="생략 표시(...)가 있는 부분 JSON 으로 보임 — 완성 결과물 구문 판정에서 제외",
-                              details={"parse_error": msg}, evidence=ev))
+            skip_condition(ctx, cid, SUB12, "생략 표시(...)가 있는 부분 JSON 으로 보임 — 완성 결과물 구문 판정에서 제외")
             continue
         parsed[t["id"]] = {"status": "ok" if ok else "fail", "value": value}
         if ok:
@@ -588,13 +585,12 @@ def _python_syntax(ctx: Ctx) -> List:
             exc = "대화형 셸(>>>) 기록 — 완성된 Python 소스가 아님"
         if exc is None and "Traceback (most recent call last)" in src:
             exc = "실행 로그·트레이스백 — 소스 코드가 아님"
+        cid = f"1-2.python_syntax:{tid}"
         if exc:
-            out.append(result(f"1-2.python_syntax:{tid}", SUB12, title, "format_spec",
-                              Status.APPLICABILITY_EXCEPTION, reason=exc, evidence=ev))
+            skip_condition(ctx, cid, SUB12, exc)
             continue
         if len(src) > LIMITS["python_chars"]:
-            out.append(result(f"1-2.python_syntax:{tid}", SUB12, title, "format_spec", Status.LIMIT_EXCEEDED,
-                              reason=f"코드가 {LIMITS['python_chars']}자 한도를 넘음", evidence=ev))
+            case_error(ctx, cid, SUB12, ERROR_LIMIT_EXCEEDED, f"코드가 {LIMITS['python_chars']}자 한도를 넘음", chars=len(src))
             continue
         try:
             # 목록 안·들여쓴 펜스는 Markdown 들여쓰기를 뺀 내용으로 읽는다 (CommonMark). 줄 번호는 같다.
@@ -604,8 +600,7 @@ def _python_syntax(ctx: Ctx) -> List:
         except SyntaxError as exc_:
             error = exc_
         except (RecursionError, MemoryError):
-            out.append(result(f"1-2.python_syntax:{tid}", SUB12, title, "format_spec", Status.LIMIT_EXCEEDED,
-                              reason="구문 트리 깊이·메모리 한도를 넘음", evidence=ev))
+            case_error(ctx, cid, SUB12, ERROR_LIMIT_EXCEEDED, "구문 트리 깊이·메모리 한도를 넘음")
             continue
         except ValueError as exc_:
             error = SyntaxError(str(exc_))
@@ -617,10 +612,8 @@ def _python_syntax(ctx: Ctx) -> List:
             continue
         fragment = getattr(error, "msg", "") in _FRAGMENT_ERRORS
         if _PARTIAL_PY.search(src) or fragment:
-            out.append(result(f"1-2.python_syntax:{tid}", SUB12, title, "format_spec", Status.UNSUPPORTED,
-                              reason=("함수·반복문 본문 일부를 발췌한 코드로 보임" if fragment else "생략 표시가 있는 부분 코드로 보임")
-                                     + " — 완성 소스 구문 판정에서 제외",
-                              details={"syntax_error": str(error)}, evidence=ev))
+            skip_condition(ctx, cid, SUB12, ("함수·반복문 본문 일부를 발췌한 코드로 보임" if fragment else "생략 표시가 있는 부분 코드로 보임")
+                           + " — 완성 소스 구문 판정에서 제외")
             continue
         line = getattr(error, "lineno", None)
         out.append(result(f"1-2.python_syntax:{tid}", SUB12, title, "format_spec", Status.EXECUTED, FAIL,
@@ -714,9 +707,8 @@ def check_1_3(ctx: Ctx) -> List:
         empties = [l for l in used if l in empty and l not in definitions]
         dups = [l for l in used if l in duplicated]
         if odd_form and len(odd_form) == len(missing) and not empties and not dups:
-            out.append(result("1-3.footnote_link", SUB13, "각주 ↔ 정의 연결", "answer_self", Status.UNSUPPORTED,
-                                 measured={"used": used, "defined": sorted(definitions), "unrecognized_definition_labels": odd_form},
-                                 reason="각주 이름이 지원하지 않는 정의 형태로 다른 곳에 나옴 — 정의 누락으로 단정하지 않음"))
+            skip_condition(ctx, "1-3.footnote_link", SUB13,
+                           f"각주 이름 {odd_form}이 지원하지 않는 정의 형태로 다른 곳에 나옴 — 정의 누락으로 단정하지 않음")
         else:
             ok = not (missing or empties or dups)
             problems = ([f"정의 누락 {missing}"] if missing else []) + ([f"빈 정의 {empties}"] if empties else []) + \
@@ -734,9 +726,8 @@ def check_1_3(ctx: Ctx) -> List:
     if citations:
         used = sorted({n for n, _ in citations})
         if not sources:
-            out.append(result("1-3.citation_link", SUB13, "인용 번호 ↔ 출처 목록", "answer_self", Status.UNSUPPORTED,
-                              measured={"used": used},
-                              reason="답변에 지원하는 출처 목록 문법([n] 설명 줄)이 없어 연결 대상을 확인할 수 없음 — 누락으로 단정하지 않음"))
+            skip_condition(ctx, "1-3.citation_link", SUB13,
+                           "답변에 지원하는 출처 목록 문법([n] 설명 줄)이 없어 연결 대상을 확인할 수 없음 — 누락으로 단정하지 않음")
         else:
             missing = [n for n in used if n not in sources]
             dups = [n for n in used if n in dup_sources]
@@ -756,18 +747,15 @@ def check_1_3(ctx: Ctx) -> List:
         norm = lambda s: re.sub(r"[\W_]+", "", s.lower())
         heading_norms = {norm(h.title) for h in reference_analysis.headings}
         if not targets:
-            out.append(result("1-3.internal_link", SUB13, "내부 링크 ↔ 대상", "answer_self", Status.UNSUPPORTED,
-                              measured={"links": anchors},
-                              reason="제목·앵커가 없어 링크 대상 목록을 만들 수 없음"))
+            skip_condition(ctx, "1-3.internal_link", SUB13, "제목·앵커가 없어 링크 대상 목록을 만들 수 없음")
         else:
             missing = [a for a in anchors if a not in targets]
             slug_mismatch = [a for a in missing if norm(a) in heading_norms]
             real_missing = [a for a in missing if a not in slug_mismatch]
             ambiguous = [a for a in anchors if targets.get(a, 0) > 1]
             if slug_mismatch and not real_missing and not ambiguous:
-                out.append(result("1-3.internal_link", SUB13, "내부 링크 ↔ 대상", "answer_self", Status.UNSUPPORTED,
-                                  measured={"links": anchors, "targets": sorted(targets)},
-                                  reason=f"자동 제목 ID 규칙 차이로 보이는 링크 {slug_mismatch} — 누락으로 단정하지 않음"))
+                skip_condition(ctx, "1-3.internal_link", SUB13,
+                               f"자동 제목 ID 규칙 차이로 보이는 링크 {slug_mismatch} — 누락으로 단정하지 않음")
             else:
                 ok = not (real_missing or ambiguous)
                 out.append(result("1-3.internal_link", SUB13, "내부 링크 ↔ 대상", "answer_self", Status.EXECUTED,

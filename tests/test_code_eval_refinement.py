@@ -16,6 +16,14 @@ def result(case, prefix: str):
     return next(r for r in case["results"] if r["check_id"].startswith(prefix))
 
 
+def rows(case, prefix: str):
+    return [r for r in case["results"] if r["check_id"].startswith(prefix)]
+
+
+def skipped(case, prefix: str):
+    return [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith(prefix)]
+
+
 def test_corruption_shown_as_inline_example_is_not_output_damage():
     case = check("문자 인코딩이 잘못되면 어떤 일이 생기는지 설명해줘.",
                  "인코딩이 잘못되면 `�` 같은 대체 문자가 나타날 수 있습니다.")
@@ -62,8 +70,7 @@ def test_foreign_script_needs_question_topic_explanation_or_gloss(question, answ
 
 def test_foreign_script_defers_to_explicit_charset_condition():
     case = check("한글만 사용해서 인사해줘.", "안녕하세요 こんにちは")
-    r = result(case, "1-1.foreign_script")
-    assert r["status"] == Status.APPLICABILITY_EXCEPTION and r["verdict"] is None
+    assert rows(case, "1-1.foreign_script") == []  # 허용 문자 조건이 있으면 2-1.charset 이 판정한다
     assert result(case, "2-1.charset")["verdict"] == "FAIL"
 
 
@@ -93,14 +100,14 @@ def test_declared_numbered_headings_exclude_following_explanation_and_link_quest
 def test_unrelated_bullets_cannot_satisfy_requested_message_count():
     case = check("안내 문구를 세 가지 작성해줘.",
                  "### 선택 기준\n- 빠름\n- 짧음\n- 쉬움")
-    assert result(case, "2-1.count:list_count")["verdict"] is None
+    assert rows(case, "2-1.count:list_count") == [] and skipped(case, "2-1.count:list_count")
 
 
 def test_interrupted_numbered_heading_sequence_remains_undecided():
     answer = "다음 세 가지입니다.\n### 문구 1\n첫째\n### 참고\n부연\n### 문구 2\n둘째\n### 문구 3\n셋째"
     case = check("안내 문구를 세 가지 작성해줘.", answer)
-    assert result(case, "2-1.count:list_count")["verdict"] is None
-    assert result(case, "3-2.declared_count")["verdict"] is None
+    assert rows(case, "2-1.count:list_count") == [] and skipped(case, "2-1.count:list_count")
+    assert rows(case, "3-2.declared_count") == [] and skipped(case, "3-2.declared_count")
 
 
 def test_real_python_syntax_error_remains_fail():
@@ -117,7 +124,7 @@ def test_net_income_word_does_not_mark_equation_as_mistake_example():
     case = check("월 실수령액이 300만 원인데 지출 합계를 계산해줘.",
                  "월 실수령액에서 비용을 빼면 됩니다.\n80 + 40 + 10 + 5 + 15 = 150")
     assert result(case, "3-1.answer_equation:1")["verdict"] == "PASS"
-    assert not any(r["check_id"] == "3-1.answer_equation:skipped" for r in case["results"])
+    assert len(rows(case, "3-1.answer_equation")) == 1 and skipped(case, "3-1.answer_equation") == []
 
 
 def test_premise_count_is_not_output_sentence_requirement():
@@ -164,3 +171,29 @@ def test_function_behavior_without_source_data_does_not_activate_transform():
     case = check("정수 목록에서 중복을 제거하되 처음 등장한 순서를 유지하는 함수를 작성해줘.",
                  "def unique(values):\n    return values")
     assert not any(r["check_id"] == "3-3.transform" for r in case["results"])
+
+
+@pytest.mark.parametrize("question", [
+    "중간 휴식을 15분에서 20분으로 바꿀게. 시작 시각과 선택한 영화, 상영 순서는 유지해줘. 시간표를 수정하고 끝나는 시각을 알려줘.",
+    "영화 G의 상영시간도 120분으로 바꿔줘. 상영 순서를 유지해서 시간표를 다시 짜줘.",
+])
+def test_schedule_order_preservation_in_conversation_makes_no_transform_row(question):
+    # 대화 속 '순서 유지'는 보존 표현이지만 질문에 변환할 원본(JSON 배열·표·목록)이 없다 — 조건 미생성(행·skipped 없음)
+    case = check(question, "1회차 10:00 영화 A\n2회차 12:20 영화 G\n끝나는 시각은 14:40입니다.")
+    assert not rows(case, "3-3.") and not skipped(case, "3-3.")
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"]
+
+
+@pytest.mark.parametrize("answer", [
+    "- 빈 문자열은 제외합니다.\n- 입력 순서를 유지합니다.\n- 중복은 처음 것만 남깁니다.\n\n```python\n"
+    "def keep(words):\n    return [w for w in words if w]\n```",
+    "```python\ndef keep(words):\n    return [w for w in words if w]\n```",
+])
+def test_function_request_with_example_input_array_does_not_activate_transform(answer):
+    # 함수 작성 질문의 예시 배열은 변환 원본이 아니다 — 설명 불릿을 변환 결과로 잡던 거짓 FAIL·미검사 재발 방지
+    question = ('영문 소문자 문자열 목록을 받아 빈 문자열을 제외한 목록을 돌려주는 파이썬 함수를 작성해줘. '
+                '입력 순서를 유지하고 중복은 제거해줘. 입력 예시는 ["cat", "a", "dog", ""]야.')
+    case = check(question, answer)
+    assert not rows(case, "3-3.") and not skipped(case, "3-3.")
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] in ("transform", "unique_values", "aggregate")]
+    assert any(c["kind"] == "python_code_requested" for c in case["meta"]["question_conditions"])

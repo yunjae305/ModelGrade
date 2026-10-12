@@ -21,11 +21,11 @@ from .checks_requirements import check_2_1, check_2_2, table_observation
 from .config import AionaConfig, load_aiona_config
 from .explain import explain_result
 from .io import validate_json_numbers
-from .core import LIMITS, Ctx, nfc, result, versions
+from .core import ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, nfc, versions
 from .extract import persistent_conditions
 from .model import CATEGORY_NAMES, FAIL, PASS, SPECIALIZED, SUBCATEGORIES, ConditionResult, Status, stable_hash
 
-__all__ = ["evaluate_case", "evaluate_batch", "summarize_batch", "result_digest"]
+__all__ = ["evaluate_case", "evaluate_batch", "summarize_batch", "result_digest", "_drop_duplicates"]
 
 #: 실행 순서. 2-2·3-3 은 1-2 의 JSON 파싱 결과를 공유하므로 1-2 뒤에 둔다.
 _COMMON = (
@@ -34,6 +34,8 @@ _COMMON = (
     ("3-1", check_3_1), ("3-2", check_3_2), ("3-3", check_3_3),
 )
 
+#: legacy — v16.2.x 까지 저장된 결과의 미판정 상태값. 새 공통 결과 행은 EXECUTED(PASS/FAIL) 뿐이며
+#: AIONA 특화 행(보류 중)과 옛 JSON 을 읽는 코드(common_adjudication 등)만 이 집합을 쓴다.
 _UNJUDGED = {Status.CONFIG_MISSING, Status.DISPLAY_MISSING, Status.INCOMPLETE, Status.UNSUPPORTED,
              Status.DEPENDENCY_FAILED, Status.CHECK_ERROR, Status.LIMIT_EXCEEDED}
 _QUESTION_SOURCES = {"question"}
@@ -86,15 +88,33 @@ def _normalize_payload(payload: Any, index: int) -> Dict[str, Any]:
 
 
 def _run_group(sub: str, fn: Callable, ctx: Ctx, *args) -> List[ConditionResult]:
+    """검사기 예외·재귀 한도는 결과 행이 아니라 사례 errors 로 남기고 이 소분류 행은 만들지 않는다."""
     try:
         return list(fn(ctx, *args))
     except RecursionError:
-        return [result(f"{sub}.check_error", sub, "검사 실행", "engine", Status.LIMIT_EXCEEDED,
-                       reason="분석 깊이 한도 초과 — 품질 FAIL 이 아님")]
+        case_error(ctx, f"{sub}.check_error", sub, ERROR_LIMIT_EXCEEDED, "분석 깊이 한도 초과 — 품질 FAIL 이 아님")
+        return []
     except Exception as exc:  # 검사기 자체 결함은 답변 FAIL 로 바꾸지 않는다
-        return [result(f"{sub}.check_error", sub, "검사 실행", "engine", Status.CHECK_ERROR,
-                       reason=f"검사기 오류: {type(exc).__name__}: {exc}",
-                       details={"traceback": traceback.format_exc(limit=3)})]
+        case_error(ctx, f"{sub}.check_error", sub, ERROR_CHECK_ERROR, f"검사기 오류: {type(exc).__name__}: {exc}",
+                   traceback=traceback.format_exc(limit=3))
+        return []
+
+
+def _drop_duplicates(results: List[ConditionResult]) -> List[ConditionResult]:
+    """같은 dedupe_key 의 두 번째 EXECUTED 행 처리 — 공통 행은 제외하고, AIONA 특화 행은 옛 동작대로 DUPLICATE 로 표시한다."""
+    kept, seen = [], {}
+    for r in results:
+        if r.dedupe_key and r.status == Status.EXECUTED:
+            first = seen.get((r.area, r.dedupe_key))
+            if first is None:
+                seen[(r.area, r.dedupe_key)] = r
+            elif r.area == "common":
+                continue
+            else:
+                r.status, r.verdict, r.duplicate_of = Status.DUPLICATE, None, first.condition_id
+                r.reason = f"같은 조건 결과({first.condition_id})를 참조 — 중복 집계하지 않음"
+        kept.append(r)
+    return kept
 
 
 def _with_explanations(results: List[ConditionResult], ctx: Ctx) -> List[Dict[str, Any]]:
@@ -110,7 +130,9 @@ def _with_explanations(results: List[ConditionResult], ctx: Ctx) -> List[Dict[st
     return out
 
 
-def _summarize(results: List[ConditionResult]) -> Dict[str, Any]:
+def _summarize(results: List[ConditionResult], errors: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    errors = errors or []
+
     def block(rows: List[ConditionResult]) -> Dict[str, Any]:
         passed = sum(1 for r in rows if r.counted and r.verdict == PASS)
         failed = sum(1 for r in rows if r.counted and r.verdict == FAIL)
@@ -136,17 +158,20 @@ def _summarize(results: List[ConditionResult]) -> Dict[str, Any]:
         overall = "FAIL 있음"
     elif c["decided"] == 0:
         overall = "판정한 조건 없음"
-    elif c["unjudged"]:
+    elif c["unjudged"]:  # 옛 결과 투영용 — 새 공통 행에는 미판정 상태가 없다
         overall = "검사한 범위 PASS · 미완료 있음"
+    elif errors:
+        overall = "검사한 범위 PASS · 실행 오류 있음"
     else:
         overall = "검사한 범위 PASS"
     return {
         "common": c, "specialized": s,
         "by_category": by_cat, "by_subcategory": by_sub, "by_specialized": by_special,
+        "errors": len(errors),
         "check_level": "요구·계산·데이터 검사 포함" if question_checked else "기본 상태만 검사",
         "overall": overall,
-        "note": "통과율 = PASS / (PASS + FAIL). 미검사·설정 없음·지원 밖은 분모에 넣지 않음. "
-                "AIONA 특화 결과는 공통 통과율에 더하지 않음. 전체 내용 품질 판정이 아님.",
+        "note": "통과율 = PASS / (PASS + FAIL). 판정할 수 없는 조건은 행을 만들지 않음(meta.skipped_conditions). "
+                "검사기 오류·한도 초과는 errors 에 기록. AIONA 특화 결과는 공통 통과율에 더하지 않음. 전체 내용 품질 판정이 아님.",
     }
 
 
@@ -240,28 +265,26 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         if on_event:
             on_event({"type": "criterion_start", "index": index, "qid": case_id,
                       "code": sub, "name": SUBCATEGORIES[sub], "stage": "CODE"})
+        errors_before = len(ctx.errors)
         group = _run_group(sub, fn, ctx)
         results.extend(group)
         if on_event:
             for row in group:
-                if row.counted or row.status in _UNJUDGED:
+                if row.counted:
                     on_event({"type": "code_result", "index": index, "qid": case_id, "row": row.to_dict()})
+            # 검사 실행 오류는 결과 행이 아니지만 라이브 화면에는 미판정으로 보이게 보낸다
+            for n, err in enumerate(ctx.errors[errors_before:], errors_before + 1):
+                on_event({"type": "code_result", "index": index, "qid": case_id,
+                          "row": {"check_id": err["check_id"], "condition_id": f"error-{n}", "subcategory": err["subcategory"],
+                                  "title": "검사 실행 오류", "verdict": None, "reason": err["message"]}})
             on_event({"type": "criterion_end", "index": index, "qid": case_id, "code": sub, "stage": "CODE"})
     if cfg.enabled:
         results.extend(_run_group("AIONA-M", check_aiona, ctx, cfg, list(results)))
     if inherited:
         _mark_inherited(results, inherited)
 
-    # 같은 대상·조건·측정 규칙의 중복 결과는 하나만 집계한다.
-    seen: Dict[str, ConditionResult] = {}
-    for r in results:
-        if r.dedupe_key and r.status == Status.EXECUTED:
-            first = seen.get(r.dedupe_key)
-            if first is None:
-                seen[r.dedupe_key] = r
-            elif first is not r and first.area == r.area:
-                r.status, r.verdict, r.duplicate_of = Status.DUPLICATE, None, first.condition_id
-                r.reason = f"같은 조건 결과({first.condition_id})를 참조 — 중복 집계하지 않음"
+    # 같은 대상·조건·측정 규칙의 중복 공통 결과는 하나만 남긴다 (DUPLICATE 행을 만들지 않음).
+    results = _drop_duplicates(results)
 
     observations = []
     for fn in (foreign_script_observation, table_observation):
@@ -281,6 +304,8 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         "question_conditions": ctx.conds.to_list(),
         "answer_structure": ctx.aa.structure_summary(),
         **({"inherited_conditions": inherited_audit} if inherited_audit else {}),
+        # 판정하지 않은 조건의 사유. 결과 행이 아니며 집계·result_digest 에 들어가지 않는다.
+        "skipped_conditions": list(ctx.skipped),
     }
     # 대화·참조 데이터 키는 입력에 있을 때만 넣는다 — 단일 질문·답변 입력의 결과 해시를 바꾸지 않기 위해
     return {
@@ -293,14 +318,15 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         **({"reference": reference} if reference is not None else {}),
         "results": _with_explanations(results, ctx),
         "observations": observations,
-        "summary": _summarize(results),
+        "errors": list(ctx.errors),
+        "summary": _summarize(results, ctx.errors),
         "meta": meta,
         "timing_ms": round((time.perf_counter() - started) * 1000, 2),
     }
 
 
 def summarize_batch(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
-    totals = {"cases": len(cases), "evaluated": 0, "input_errors": 0, "limit_exceeded": 0}
+    totals = {"cases": len(cases), "evaluated": 0, "input_errors": 0, "limit_exceeded": 0, "check_errors": 0}
     common = {"pass": 0, "fail": 0, "unjudged": 0}
     special = {"pass": 0, "fail": 0, "unjudged": 0}
     by_sub = {s: {"pass": 0, "fail": 0, "unjudged": 0} for s in SUBCATEGORIES}
@@ -314,6 +340,7 @@ def summarize_batch(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
             totals["limit_exceeded"] += 1
             continue
         totals["evaluated"] += 1
+        totals["check_errors"] += bool(c.get("errors"))
         s = c["summary"]
         levels[s["check_level"]] = levels.get(s["check_level"], 0) + 1
         for k in ("pass", "fail", "unjudged"):
@@ -331,8 +358,13 @@ def summarize_batch(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def result_digest(cases: List[Dict[str, Any]]) -> str:
-    """재현성 비교용 해시 — 실행 시각·실행 ID·소요 시간은 제외한다."""
-    stable = [{k: v for k, v in c.items() if k not in ("timing_ms",)} for c in cases]
+    """재현성 비교용 해시 — 실행 시각·실행 ID·소요 시간과 meta.skipped_conditions(판정 사유 메모)는 제외한다."""
+    stable = []
+    for c in cases:
+        item = {k: v for k, v in c.items() if k not in ("timing_ms",)}
+        if isinstance(item.get("meta"), dict) and "skipped_conditions" in item["meta"]:
+            item["meta"] = {k: v for k, v in item["meta"].items() if k != "skipped_conditions"}
+        stable.append(item)
     return stable_hash(stable)
 
 

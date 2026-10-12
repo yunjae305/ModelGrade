@@ -3,7 +3,7 @@
     CODE 결과(batch) → 평가된 질문마다 Jev 1회 호출(평가할 기준 동시) → batch["jev_eval"]
 
 - CODE PASS·FAIL 과 관계없이 모든 질문을 평가한다. 확정된 CODE 판정은 넘기지 않는다.
-  공통 미판정 조건만 같은 호출의 C 기준으로 보완하고, code_completion에 별도로 보존한다.
+  (v16.2.x 까지 있던 공통 미판정 보완 C 기준·code_completion 은 없다. 옛 기록은 common_adjudication 이 읽기만 한다.)
 - CODE 판정·결과 해시는 바꾸지 않는다. CODE 와 Jev 를 합친 단일 점수를 만들지 않는다.
 - Jev 장애·키 없음은 이 단계의 상태로만 남고 CODE 결과 반환을 막지 않는다.
 - 질문마다 어떤 J 를 물을지는 ``jev_applicability`` 가 코드 규칙으로 정한다 (LLM 없음).
@@ -28,7 +28,6 @@ from .jev_client import JevClient, JevClientConfig, JevStatus, _sum_usage, resol
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
 from .answer_citations import CITATION_POLICY_VERSION, answer_citations, prompt_citations, source_requested
-from .common_adjudication import completion, questions_for, targets_for
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
                                fail_evidence, incomplete_decision)
@@ -36,7 +35,8 @@ from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASO
 __all__ = ["JEV_EVAL_VERSION", "jev_request", "parse_decisions", "evaluate_jev_case", "evaluate_jev_batch",
            "jev_after_code", "evaluation_log", "build_history", "conversation_contexts", "conversations_summary"]
 
-JEV_EVAL_VERSION = "jev-semantic-eval-v2.6"
+#: v2.6(D-1·D-2·G-4) + main 의 C 기준(공통 미판정 LLM 보완) 제거 → v2.7
+JEV_EVAL_VERSION = "jev-semantic-eval-v2.7"
 DEFAULT_WORKERS = 4
 ENGINE_LABELS = {"jev": "Jev", "claude_cli": "Claude CLI", "codex_cli": "GPT CLI (Codex)",
                  "openai_api": "OpenAI API", "anthropic_api": "Claude API"}
@@ -96,7 +96,7 @@ def parse_decisions(body: Dict[str, Any], criteria: Tuple[str, ...] = ALL_IDS,
             decisions[cid] = {'criterion_id': cid, 'name': names[cid], 'decision': None,
                               'status': decision, 'confidence': confidence, 'probabilities': {}}
         else:
-            # Supplemental C criteria always require a definite PASS or FAIL.
+            # J 기준은 UNVERIFIED/NOT_APPLICABLE 이 아니면 PASS/FAIL 이어야 한다.
             if decision not in ('PASS', 'FAIL'):
                 raise ValueError(f"{cid} choice 가 PASS/FAIL 이 아님: {decision!r}")
             probs = entry.get("probabilities")
@@ -137,18 +137,13 @@ def _record(case_id: str, status: str, criteria: Tuple[str, ...] = (), **kw: Any
 def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional[JevClient],
                       access_reason: Optional[str] = None, criteria: Tuple[str, ...] = ALL_IDS,
                       reference: Any = None, history: Optional[List[Dict[str, Any]]] = None,
-                      code_case: Optional[Dict[str, Any]] = None,
                       cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
                       citation_check: bool = False) -> Dict[str, Any]:
     # Legacy native Jev keeps its historical knowledge/reference contract. New
     # CLI/API transports finalize explicit evidence before this parser runs.
     basis = {"j5_basis": ("reference" if reference is not None else "engine") if "J5" in criteria else None}
-    targets = targets_for(code_case or {})
     def finish(status, **kw):
-        record = _record(case_id, status, criteria, **kw)
-        if targets:
-            record["code_completion"] = completion(code_case, targets, status=status, error=record.get("error"))
-        return record
+        return _record(case_id, status, criteria, **kw)
     if cancel_event is not None and cancel_event.is_set():
         return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
     if client is None:
@@ -157,7 +152,6 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     try:
         citations = answer_citations(answer) if citation_check and "J5" in criteria else []
         request = jev_request(question, answer, criteria, reference, history, prompt_citations(citations))
-        request["questions"].update(questions_for(code_case, targets) if targets else {})
         if cancel_event is not None and getattr(client, "supports_cancellation", False):
             request["cancel_event"] = cancel_event
         if cancel_event is not None and cancel_event.is_set():
@@ -180,8 +174,6 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return finish(call.status, error=redact(call.error), **common)
     model = call.body.get("model") if isinstance(call.body, dict) else None
     common["model"] = model if isinstance(model, str) else None
-    # Parse the two independent groups separately: a malformed supplemental answer
-    # must not discard valid J decisions (and vice versa).
     try:
         decisions = parse_decisions(call.body or {}, criteria)
     except (ValueError, TypeError, KeyError) as exc:
@@ -199,15 +191,6 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                 record['j5_basis'] = actual_basis if actual_basis in ('web', 'reference', 'input', 'mixed') else 'unverified'
             elif decisions['J5'].get('status') == 'UNVERIFIED':
                 record['j5_basis'] = 'unverified'
-    if targets:
-        try:
-            names = {t["id"]: code_case["results"][t["index"]]["title"] for t in targets}
-            code_decisions = parse_decisions(call.body or {}, tuple(names), names)
-            if any(not d.get("reason") for d in code_decisions.values()):
-                raise ValueError("공통 보완 판정의 근거가 없습니다")
-            record["code_completion"] = completion(code_case, targets, code_decisions, status=JevStatus.SUCCESS)
-        except (ValueError, TypeError, KeyError) as exc:
-            record["code_completion"] = completion(code_case, targets, status=JevStatus.INVALID_RESPONSE, error=str(exc))
     if fail_evidence_check and record["status"] == JevStatus.SUCCESS:
         _confirm_fail_evidence(record, request, client, cancel_event)
     # The transport has already completed any evidence recovery. Apply the
@@ -509,13 +492,9 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                 if criterion.id in applies[i]["criteria"]:
                     on_event({"type": "criterion_start", "index": i, "qid": case["case_id"],
                               "code": criterion.id, "name": criterion.name, "stage": "LLM", "together": True})
-            for target in targets_for(case):
-                row = case["results"][target["index"]]
-                on_event({"type": "criterion_start", "index": i, "qid": case["case_id"],
-                          "code": row["subcategory"], "name": row["title"], "stage": "LLM 보완", "together": True})
         return evaluate_jev_case(case["case_id"], case["question"], case["answer"], client, access_reason,
                                  tuple(applies[i]["criteria"]), reference=case.get("reference"),
-                                 history=histories.get(i) or None, code_case=case, cancel_event=cancel_event,
+                                 history=histories.get(i) or None, cancel_event=cancel_event,
                                  fail_evidence_check=fact_screening, citation_check=fact_screening)
 
     def publish(i: int, record: Dict[str, Any]) -> None:
@@ -716,6 +695,7 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "attempts": record["attempts"],
                 "error": redact(record["error"]),
             },
+            # 옛 기록 호환 — 새 레코드에는 code_completion 이 없어 항상 None
             "code_completion": None if record is None else record.get("code_completion"),
             "total_ms": round((code_ms or 0) + (jev_ms or 0), 2),
         })
