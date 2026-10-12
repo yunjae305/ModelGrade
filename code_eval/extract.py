@@ -23,7 +23,7 @@ from .textparse import _NUM_WORD, _count_governed_by_output_verb
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "EXTRACT_VERSION",
            "parse_number", "NUM_WORDS"]
 
-EXTRACT_VERSION = "v16-extract-1.7"
+EXTRACT_VERSION = "v16-extract-1.8"
 
 NUM_WORDS: Dict[str, int] = dict(_NUM_WORD)
 NUM_WORDS.update({"열한": 11, "열두": 12, "열세": 13, "열네": 14, "열다섯": 15, "스무": 20})
@@ -299,9 +299,14 @@ def _count_reqs(text: str, out: List[Req]) -> None:
 
 # --- 문자열 조건 -------------------------------------------------------------------
 
+#: 정확 일치 수식어 — 있으면 공백·줄바꿈을 접지 않고 원문 그대로 대조한다 (G-1).
+_EXACT = (r"정확히|그대로|똑같이|글자\s*그대로|토씨\s*하나(?:도)?\s*(?:안\s*틀리게|틀리지\s*않게)"
+          r"|한\s*글자도\s*(?:안\s*틀리게|틀리지\s*않게|바꾸지\s*(?:말고|않고))")
 _REQ_LIT = re.compile(
-    LIT + r"\s*(?:라는|이라는)?\s*(?:문자열|단어|표현|문구|말|문장|키워드|낱말)?\s*"
+    rf"(?:(?P<exact_pre>{_EXACT})\s*)?"
+    + LIT + r"\s*(?:라는|이라는|라고|이라고)?\s*(?:문자열|단어|표현|문구|말|문장|키워드|낱말)?\s*"
     r"(?:을|를|이|가|도|은|는)?\s*(?:꼭\s*|반드시\s*|항상\s*|절대\s*)?"
+    rf"(?:(?P<exact_post>{_EXACT})\s*)?(?:꼭\s*|반드시\s*)?"
     r"(?P<verb>포함|넣|붙|적|쓰|써|사용|들어가|언급|출력)")
 _NEG_AFTER = re.compile(r"^[^.!?\n]{0,6}?(?:지\s*(?:마|말|않)|면\s*안)")
 _LIT_LIST = re.compile(rf"(?P<items>(?:[{_OPEN_Q}][^{_CLOSE_Q}\n]{{1,40}}[{_CLOSE_Q}]\s*(?:,|와|과|및|그리고)?\s*){{2,20}})"
@@ -309,7 +314,13 @@ _LIT_LIST = re.compile(rf"(?P<items>(?:[{_OPEN_Q}][^{_CLOSE_Q}\n]{{1,40}}[{_CLOS
 _LIST_FORBID = re.compile(r"(?:쓰지|사용하지|넣지|포함하지|언급하지|적지)\s*(?:마|말|않)|금지|빼\s*(?:주|고)|쓰면\s*안")
 _LIST_REQUIRE = re.compile(r"들어가|포함|넣어|써\s*(?:야|줘|주)|사용해")
 _WITHOUT_LIT = re.compile(LIT + r"\s*(?:라는\s*\S+\s*)?(?:없이|빼고|제외하고)")
-_BOUNDARY_LIT = re.compile(LIT + r"\s*(?:으로|로)\s*(?P<be>시작|끝|마무리|끝맺)")
+_BOUNDARY_LIT = re.compile(rf"(?:(?P<exact_pre>{_EXACT})\s*)?" + LIT
+                           + rf"\s*(?:으로|로)\s*(?:(?P<exact_post>{_EXACT})\s*)?(?P<be>시작|끝|마무리|끝맺)")
+
+
+def _exact(m) -> Dict[str, bool]:
+    groups = m.groupdict()
+    return {"exact": bool(groups.get("exact_pre") or groups.get("exact_post"))}
 _CHARSET = re.compile(r"(?P<set>한글|영문|영어\s*알파벳|알파벳|대문자|소문자)\s*(?:문자)?\s*만\s*(?:사용|써|쓰|적|구성|으로)")
 _EMPTY = re.compile(r"(?:아무것도|아무\s*것도|아무\s*말도)\s*(?:출력하지|쓰지|답하지|적지|말하지)\s*(?:마|말)"
                     r"|빈\s*(?:문자열|응답|출력|답변)\s*(?:으로|로|을|를|만)?\s*(?:출력|응답|반환|답|보내)")
@@ -332,11 +343,12 @@ def _literal_reqs(text: str, out: List[Req]) -> None:
     for m in _BOUNDARY_LIT.finditer(text):
         scope, why, _ = _scope(text, m.start(), m.end(), "literal")
         if scope == "per_item":
-            out.append(Req("starts_with" if m.group("be") == "시작" else "ends_with", {"literal": m.group("lit").strip()},
+            out.append(Req("starts_with" if m.group("be") == "시작" else "ends_with",
+                           {"literal": m.group("lit").strip(), **_exact(m)},
                            m.start(), m.end(), m.group(0).strip(), status="unsupported", reason=why))
             seen.add(("boundary", m.start()))
             continue
-        add("starts_with" if m.group("be") == "시작" else "ends_with", m)
+        add("starts_with" if m.group("be") == "시작" else "ends_with", m, _exact(m))
     for m in _REQ_LIT.finditer(text):
         if any(r.start == m.start() for r in out if r.kind in ("starts_with", "ends_with")):
             continue
@@ -344,12 +356,12 @@ def _literal_reqs(text: str, out: List[Req]) -> None:
         kind = "forbidden_literal" if negated else "required_literal"
         scope, why, _ = _scope(text, m.start(), m.end(), "literal")
         if scope == "per_item" and kind == "required_literal":
-            out.append(Req(kind, {"literal": m.group("lit").strip()}, m.start(), m.end(), m.group(0).strip(),
-                           status="unsupported", reason=why))
+            out.append(Req(kind, {"literal": m.group("lit").strip(), **_exact(m)}, m.start(), m.end(),
+                           m.group(0).strip(), status="unsupported", reason=why))
             continue
-        add(kind, m)
+        add(kind, m, _exact(m))
     for m in _WITHOUT_LIT.finditer(text):
-        add("forbidden_literal", m)
+        add("forbidden_literal", m, {"exact": False})
     for m in _LIT_LIST.finditer(text):
         tail = m.group("tail")
         if re.search(r"각\s*(?:\S+\s*)?(?:문단|항목|섹션)(?:에|마다)", tail):
@@ -360,16 +372,18 @@ def _literal_reqs(text: str, out: List[Req]) -> None:
             continue
         scope, why, _ = _scope(text, m.start(), m.end(), "literal")
         per_item = scope == "per_item" and kind == "required_literal"
+        # 나열 앞뒤의 '정확히·그대로' 는 나열 전체에 걸린다.
+        exact = bool(re.search(_EXACT, tail) or re.search(_EXACT, text[max(0, m.start() - 14):m.start()]))
         for q in _QUOTED.finditer(m.group("items")):
             lit = q.group("v").strip()
             if per_item:
-                out.append(Req(kind, {"literal": lit, "from_list": True}, m.start() + q.start(), m.end(),
+                out.append(Req(kind, {"literal": lit, "from_list": True, "exact": exact}, m.start() + q.start(), m.end(),
                                m.group(0).strip(), status="unsupported", reason=why))
                 continue
             qs, qe = m.start() + q.start(), m.start() + q.end()
             if lit and (kind, lit) not in seen and not _nested(spans, qs, qe):
                 seen.add((kind, lit))
-                out.append(Req(kind, {"literal": lit, "from_list": True}, qs, m.end(), m.group(0).strip()))
+                out.append(Req(kind, {"literal": lit, "from_list": True, "exact": exact}, qs, m.end(), m.group(0).strip()))
 
 
 # --- 형식·구성 ---------------------------------------------------------------------

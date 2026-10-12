@@ -314,6 +314,46 @@ def test_same_forbidden_condition_counted_once():
     assert case["summary"]["specialized"]["fail"] == 0 and case["summary"]["common"]["fail"] == 1
 
 
+def test_required_literal_folds_whitespace_when_not_exact():
+    q = '답변에 "고객 감사 이벤트"라는 문구를 꼭 포함해줘.'
+    for answer in ("고객  감사 이벤트 안내입니다.", "고객 감사\n이벤트 안내입니다.", "고객 감사 이벤트 안내입니다."):
+        r = one(run(q, answer), "2-1.literal:required_literal")
+        assert r["verdict"] == PASS and r["measured"]["occurrences"] == 1 and r["required"]["exact"] is False, answer
+        assert r["measured"]["whitespace"] == "folded" and "접기" in r["scope"]
+    hit = [e for e in one(run(q, "고객  감사 이벤트 안내입니다."), "2-1.literal:required_literal")["evidence"] if e["target"] == "answer"][0]
+    assert (hit["start"], hit["end"]) == (0, 10) and "고객  감사 이벤트" in hit["excerpt"]  # 원문 좌표 유지
+    # 대소문자·코드 안 문구·제로폭 공백은 그대로 FAIL
+    for answer in ("고객 감사 Event", "`고객 감사 이벤트`", "고객 감사​ 이벤트"):
+        assert one(run(q, answer), "2-1.literal:required_literal")["verdict"] == FAIL, answer
+
+
+def test_required_literal_exact_request_keeps_raw_comparison():
+    for q in ('답변에 "고객 감사 이벤트"라는 문구를 정확히 포함해줘.', '"고객 감사 이벤트"를 그대로 넣어줘.',
+              '정확히 "고객 감사 이벤트"라고 써줘.', '"고객 감사 이벤트"를 토씨 하나 안 틀리게 포함해줘.'):
+        folded = one(run(q, "고객  감사 이벤트 안내"), "2-1.literal:required_literal")
+        assert folded["verdict"] == FAIL and folded["required"]["exact"] is True and "접기" not in folded["scope"], q
+        assert one(run(q, "고객 감사 이벤트 안내"), "2-1.literal:required_literal")["verdict"] == PASS, q
+    # 정확 일치 수식어가 개수 조건으로 새지 않는다
+    case = run('"완료"라는 문자열을 포함하고 정확히 3문장으로 써줘.', "완료했습니다. 확인했습니다. 끝입니다.")
+    assert one(case, "2-1.literal:required_literal")["required"] == {"literal": "완료", "exact": False}
+    assert one(case, "2-1.count:sentence_count")["required"] == {"op": "==", "n": 3}
+
+
+def test_boundary_and_forbidden_literals_fold_whitespace():
+    case = run("답변을 '최종 결론'으로 시작하고 '감사 합니다'로 끝내줘.", "최종  결론: 됩니다.\n감사 합니다")
+    assert one(case, "2-1.literal:starts_with")["verdict"] == PASS and one(case, "2-1.literal:ends_with")["verdict"] == PASS
+    assert one(run("정확히 '최종 결론'으로 시작해줘.", "최종  결론: 됩니다."), "2-1.literal:starts_with")["verdict"] == FAIL
+    q = "‘은하 패스’라는 단어는 쓰지 마."
+    r = one(run(q, "은하\n패스를 지원합니다."), "2-1.literal:forbidden_literal")
+    assert r["verdict"] == FAIL and r["measured"]["occurrences"] == 1
+    assert [(e["start"], e["end"]) for e in r["evidence"] if e["target"] == "answer"] == [(0, 5)]
+    # 접기 전 투영으로 만든 중복 키라 AIONA 금지 표현과의 중복 집계가 유지된다
+    entry = {"case_id": "C1", "question": q, "forbidden_expressions": ["은하 패스"]}
+    answer = "은하 패스를 지원합니다."
+    both = run(q, answer, canary_config(forbidden=[entry]), system_id="aiona", displayed_text=answer, case_id="C1")
+    assert rows(both, "AIONA-F")[0]["duplicate_of"] == one(both, "2-1.literal:forbidden_literal")["condition_id"]
+
+
 # --- 외국 문자 관측 ------------------------------------------------------------------------
 
 def _scripts(case):

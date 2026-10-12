@@ -47,7 +47,7 @@ CODE_UNITS = (
     ("2-1.count", "불릿·항목·문장·문단·줄·어절 수", "question",
      ("bullet_count", "list_count", "sentence_count", "paragraph_count", "line_count", "word_count")),
     ("2-1.char_count", "글자 수", "question", ("char_count",)),
-    ("2-1.literal", "필수·금지·시작·끝 문자열", "question", ("required_literal", "forbidden_literal", "starts_with", "ends_with")),
+    ("2-1.literal", "필수·금지·시작·끝 문자열 (정확 일치 요구 외 공백 접기)", "question", ("required_literal", "forbidden_literal", "starts_with", "ends_with")),
     ("2-1.charset", "허용 문자", "question", ("charset",)),
     ("2-2.table", "표 존재·개수·열·헤더·명시 행 수", "question",
      ("table_required", "table_forbidden", "table_count", "table_columns", "table_column_count", "table_header",

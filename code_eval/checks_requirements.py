@@ -149,6 +149,31 @@ def _literal_hits(scan: str, literal: str) -> List[int]:
     return hits
 
 
+def _fold_whitespace(scan: str, offsets: List[int]) -> Tuple[str, List[int]]:
+    """연속 공백(str.isspace: 공백·탭·줄바꿈·NBSP·전각 공백)을 공백 하나로 접는다.
+
+    접힌 공백의 원문 위치는 구간 첫 글자로 둔다. 제로폭 문자(Cf)는 공백이 아니므로 접지 않는다.
+    """
+    out, out_off, i, n = [], [], 0, len(scan)
+    while i < n:
+        if scan[i].isspace():
+            j = i
+            while j < n and scan[j].isspace():
+                j += 1
+            out.append(" ")
+            out_off.append(offsets[i])
+            i = j
+        else:
+            out.append(scan[i])
+            out_off.append(offsets[i])
+            i += 1
+    return "".join(out), out_off
+
+
+def _fold_literal(literal: str) -> str:
+    return " ".join(literal.split())
+
+
 def forbidden_key(literal: str, scan: str) -> str:
     """같은 대상·조건·범위·정규화이면 같은 키 — 2-1 과 AIONA 금지 표현의 중복 집계 방지."""
     return stable_hash({"cond": "forbidden_literal", "literal": nfc(literal), "normalization": "NFC",
@@ -246,23 +271,34 @@ def check_2_1(ctx: Ctx) -> List:
         titles = {"required_literal": "필수 문자열", "forbidden_literal": "금지 문자열",
                   "starts_with": "시작 표현", "ends_with": "끝 표현"}
         title = f"{titles[req.kind]} ‘{lit}’"
-        hits = _literal_hits(scan, lit)
-        stripped = scan.strip()
+        # 정확 일치 요구가 아니면 연속 공백·줄바꿈을 공백 하나로 보고 대조한다 (G-1).
+        exact = bool(req.value.get("exact"))
+        if exact:
+            text, offs, needle = scan, offsets, lit
+        else:
+            text, offs = ctx.shared.setdefault("folded_projection", _fold_whitespace(scan, offsets))
+            needle = _fold_literal(lit)
+        hits = _literal_hits(text, needle)
+        stripped = text.strip()
         dedupe_key = None
         if req.kind == "required_literal":
             ok, measured, comp = bool(hits), {"occurrences": len(hits)}, cmp_text(len(hits), ">=", 1)
         elif req.kind == "forbidden_literal":
             ok, measured, comp = not hits, {"occurrences": len(hits)}, cmp_text(len(hits), "==", 0)
-            dedupe_key = forbidden_key(lit, scan)
+            dedupe_key = forbidden_key(lit, scan)  # AIONA 금지 표현과 같은 키를 유지하려고 접기 전 투영으로 계산
         elif req.kind == "starts_with":
-            ok, measured, comp = stripped.startswith(lit), {"answer_start": stripped[:len(lit) + 10]}, "startswith"
+            ok, measured, comp = stripped.startswith(needle), {"answer_start": stripped[:len(needle) + 10]}, "startswith"
         else:
-            ok, measured, comp = stripped.endswith(lit), {"answer_end": stripped[-(len(lit) + 10):]}, "endswith"
-        ev = [q_evidence(ctx, req)] + [Evidence("answer", origin(h), (origin(h + len(lit) - 1) or 0) + 1,
-                                                excerpt(scan, h, h + len(lit)), "검출") for h in hits[:10]]
+            ok, measured, comp = stripped.endswith(needle), {"answer_end": stripped[-(len(needle) + 10):]}, "endswith"
+        measured["whitespace"] = "exact" if exact else "folded"
+        ev = [q_evidence(ctx, req)]
+        for h in hits[:10]:
+            start, end = offs[h], offs[h + len(needle) - 1] + 1
+            ev.append(Evidence("answer", start, end, excerpt(ctx.answer, start, end), "검출"))
         out.append(result(f"2-1.literal:{req.kind}", SUB21, title, "question", Status.EXECUTED, verdict_of(ok),
-                          required={"literal": lit}, measured=measured, comparison=comp,
-                          scope="코드 구획·인라인 코드 제외, 강조 마커 제거, NFC", dedupe_key=dedupe_key,
+                          required={"literal": lit, "exact": exact}, measured=measured, comparison=comp,
+                          scope="코드 구획·인라인 코드 제외, 강조 마커 제거, NFC" + ("" if exact else ", 공백·줄바꿈 접기"),
+                          dedupe_key=dedupe_key,
                           reason=(f"{titles[req.kind]} 조건 충족" if ok else
                                   {"required_literal": f"‘{lit}’이(가) 답변에 없음",
                                    "forbidden_literal": f"금지한 ‘{lit}’이(가) {len(hits)}회 나옴",
