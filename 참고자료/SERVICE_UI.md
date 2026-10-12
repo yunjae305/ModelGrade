@@ -359,7 +359,11 @@ Playwright Python 패키지와 Chromium이 설치된 개발 환경에서는 `pyt
 
 답변 수집 API와 의미평가 설정은 분리됩니다. 기존 코드 검사·J1~J6·화면 디자인을 유지하며, 의미평가에는 동일한 질문·답변·참조 자료·모델별 이전 대화 원문을 전달합니다.
 
-### 대안 설정 및 이전 실행: Claude API
+### 현재 설정 (2026-10-12): Claude API · Claude Opus 5.5
+
+현재 평가자는 `SEMANTIC_ENGINE=anthropic_api`, `SEMANTIC_ANTHROPIC_MODEL=claude-opus-5-5`, `SEMANTIC_ANTHROPIC_EFFORT=high`입니다. 키는 `.env`의 `ANTHROPIC_API_KEY`를 쓰고, 검색·원문 조회 한도와 이어가기 설정은 아래 Claude 설정 예시와 같습니다. 모델·effort 값을 비우면 코드 기본값(`claude-sonnet-5-5`·`medium`)이 쓰이므로 `.env`에 명시합니다. Claude 경로에는 OpenAI 경로의 J5 추가 검증 단계가 없습니다. 2026-10-12에 공개·합성 시험 3건(참조 모순 J5 FAIL, 30턴 J6 PASS, 웹검색 J5 PASS)으로 실제 호출과 판정 형식만 확인했으며, 전체 자료 규모의 판정 품질이나 이전 GPT 평가와의 일치율은 아직 검증하지 않았습니다.
+
+### 대안 설정 및 이전 실행: Claude API (Sonnet 5.5)
 
 2026-10-11~12의 이전 실행은 **등록된 `.env`의 `ANTHROPIC_API_KEY`를 재사용해 Claude Sonnet 5.5 / effort medium으로 의미평가**했습니다. Claude를 다시 선택하려면 아래 설정을 사용합니다. `ANTHROPIC_MODEL`은 답변 수집 모델이고, 의미평가 모델은 별도 설정입니다. UI에만 임시 등록한 키는 `.env`로 저장되지 않습니다. 키 값은 화면·로그·평가 결과에 남기지 않습니다.
 
@@ -388,9 +392,9 @@ Claude API 평가 비용은 수집 비용과 분리해 터미널에만 표시합
 
 2026-10-11~12에는 사용자가 제공한 68개 Q/A JSON으로 실제 업로드·204개 답변 수집·272개 평가·결과 표시를 세 번 실측했습니다. 마지막 실행은 업로드~결과 표시 **6분 51초**였고, 동일한 API 완료 관측 기준으로 최초 13분 47초보다 약 50% 빨라졌습니다. 답변 수집 204건은 모두 성공했으나 마지막 전체 실행에는 근거 보류 100건과 형식 오류 1건이 남아 최종 순위는 미확정입니다. 형식 오류 문항은 이후 별도 실제 재검사에서 정상 도구 응답으로 완료했으며, 전체 실행을 다시 측정하거나 과거 결과를 고치지는 않았습니다. 위 텍스트 JSON 보완은 회귀 대역으로 검증했고 실제 재검사에서는 해당 경로가 발생하지 않았습니다. [실측·보류 진단·검증 기록](변경내역/2026-10-12-변경내역.md#change-2026-10-12-01)
 
-### 현재 설정: OpenAI API · GPT 6.1 sol
+### 대안 설정: OpenAI API · GPT 6.1 sol (2026-10-12 Claude Opus 5.5 전환 전 설정)
 
-현재 엔진은 명시적으로 `openai_api`, 모델은 `gpt-6.1-sol`, 추론은 이전 설정과 같은 `medium`입니다. 등록된 OpenAI 키를 평가용 `SEMANTIC_API_KEY`에도 지정했습니다. 코드가 `OPENAI_API_KEY`를 자동으로 대신 읽지는 않습니다. 답변 수집 모델은 그대로 유지합니다. `auto`는 기존 호환 설정으로 현재 경로에는 사용하지 않습니다. [GPT 6.1 sol 공식 문서](https://developers.openai.com/api/docs/models/gpt-6.1-sol), [Responses 웹검색](https://developers.openai.com/api/docs/guides/tools-web-search)
+이 경로를 선택하면 엔진은 명시적으로 `openai_api`, 모델은 `gpt-6.1-sol`, 추론은 `medium`입니다. 등록된 OpenAI 키를 평가용 `SEMANTIC_API_KEY`에도 지정했습니다. 코드가 `OPENAI_API_KEY`를 자동으로 대신 읽지는 않습니다. 답변 수집 모델은 그대로 유지합니다. `auto`는 기존 호환 설정으로 현재 경로에는 사용하지 않습니다. [GPT 6.1 sol 공식 문서](https://developers.openai.com/api/docs/models/gpt-6.1-sol), [Responses 웹검색](https://developers.openai.com/api/docs/guides/tools-web-search)
 
 ```dotenv
 SEMANTIC_ENGINE=openai_api
