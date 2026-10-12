@@ -456,7 +456,10 @@ def report_markdown(analysis):
              f"- 기대 일치: 질문 판정 {s['matches']['verdict_match']}/{s['cases']} · 핵심 {s['matches']['key_match']}/{s['cases']}"
              f" · 세부 {s['matches']['detail_match']}/{s['cases']}",
              f"- 호출 {s['performance']['calls']}회(새 호출 {s['performance']['new_calls']}) · 추정 ${s['performance']['usd_total']}"
-             f" · 평균 {s['performance']['latency_mean_ms']}ms · 중앙값 {s['performance']['latency_median_ms']}ms", "",
+             f" · 평균 {s['performance']['latency_mean_ms']}ms · 중앙값 {s['performance']['latency_median_ms']}ms",
+             f"- 토큰: 입력 {s['performance']['input_tokens']} · 캐시 읽기 {s['performance']['cache_read_tokens']}"
+             f" · 캐시 쓰기 {s['performance']['cache_write_tokens']} · 출력 {s['performance']['output_tokens']}"
+             f" · 검색 {s['performance']['web_search_requests']}회", "",
              "| 문항 | 기대 | 실제 | 핵심 | 기준별 결과 | J5 사유 | 재평가 | 출처 판정 | CODE FAIL | 시간(s) | 비용($) |",
              "|---|---|---|---|---|---|---|---|---|---:|---:|"]
     for it in analysis["items"]:
@@ -816,10 +819,19 @@ def main(argv=None):
     parser.add_argument("--workers", type=int, default=4, help="동시 평가 수 (운영 기본값 4)")
     parser.add_argument("--resume", help="이전 실행 폴더 — 저장된 호출은 다시 하지 않음")
     parser.add_argument("--count-tokens", action="store_true", help="무료 count_tokens API 로 첫 요청 입력 토큰만 계산")
+    parser.add_argument("--cases", help="쉼표로 구분한 문항 ID만 실제 실행·토큰 계산 (예: G4-01,G4-02) — 단계별 재검증")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     fixture = load_fixture()
+    if args.cases and not (args.live or args.count_tokens):
+        parser.error("--cases 는 --live 또는 --count-tokens 와 함께 쓴다 (모의 검증은 강제 실패 시나리오 때문에 전체 문항)")
+    if args.cases:
+        wanted = [cid.strip() for cid in args.cases.split(",") if cid.strip()]
+        unknown = sorted(set(wanted) - {case["id"] for case in fixture["cases"]})
+        if unknown or not wanted:
+            parser.error("알 수 없는 문항 ID: " + ", ".join(unknown or ["(없음)"]))
+        fixture = {**fixture, "cases": [case for case in fixture["cases"] if case["id"] in wanted]}
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     if args.count_tokens:
         rows = count_tokens(fixture, OUTPUT / f"count-{stamp}")
@@ -843,7 +855,7 @@ def main(argv=None):
     manifest = {"started_at": datetime.now(timezone.utc).isoformat(), "fixture": str(FIXTURE.relative_to(ROOT)),
                 "fixture_sha256": hashlib.sha256(FIXTURE.read_bytes()).hexdigest(), "git": git_state(),
                 "client": config.to_manifest(), "max_usd": args.max_usd, "max_calls": args.max_calls,
-                "workers": args.workers, "resumed": bool(args.resume)}
+                "workers": args.workers, "resumed": bool(args.resume), "cases": [case["id"] for case in fixture["cases"]]}
     write_json(folder / ("manifest-resume.json" if args.resume else "manifest.json"), manifest)
     started = time.perf_counter()
     batch, guard, timing = run_pipeline(fixture["cases"], client, config, folder, max_usd=args.max_usd,
