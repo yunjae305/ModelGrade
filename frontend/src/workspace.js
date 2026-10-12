@@ -6,6 +6,7 @@
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
   const labels = {setup: '새 비교', connections: '모델 연결', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
+  const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
   const state = {cases: [], fileName: '', importInfo: null, providers: {}, run: null,
@@ -56,7 +57,7 @@
   function error(message) { $('global-error').textContent = message || ''; $('global-error').hidden = !message; }
   function serverConnection(connected) {
     state.connectionLost = !connected;
-    $('server-status').classList.toggle('offline', !connected);
+    $('server-status').classList.toggle('offline', !connected); $('server-status').classList.toggle('online', connected);
     $('server-status').replaceChildren(node('span', {class: 'online-dot'}), connected ? '로컬 서버 연결됨' : '서버 연결 확인');
   }
   function connectionRestored() {
@@ -98,6 +99,7 @@
       if (active) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current');
     });
     $('breadcrumb-current').textContent = labels[view];
+    $('topbar-title').textContent = pageTitles[view];
     $('engine-label').hidden = view === 'criteria';
     try { sessionStorage.setItem('aiona-workspace-view', view); } catch (_) { /* session storage can be disabled */ }
     revealActiveNavigation();
@@ -170,8 +172,8 @@
     document.querySelector('.workflow').hidden = enabled;
     document.querySelector('.models-panel').hidden = enabled;
     document.querySelector('.setup-grid').classList.toggle('version-setup', enabled);
-    $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : '같은 질문, 네 가지 응답.';
-    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'AIONA 질문·답변을 입력하면 다른 모델의 답변을 수집하고 함께 평가합니다.';
+    $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : 'AIONA 모델 평가 워크스페이스';
+    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : '질문과 답변을 준비하고, 여러 AI 모델을 같은 기준으로 평가해보세요.';
     renderReady();
   }
   function releaseMetadata() {
@@ -185,7 +187,7 @@
     $('setup-models').replaceChildren(); $('connection-cards').replaceChildren();
     for (const p of Object.keys(names)) {
       const baseline = p === 'aiona', config = state.providers[p] || {}, configured = Boolean(config.configured);
-      const info = node('div', {class: 'model-info'}, node('strong', {}, names[p], baseline ? pill('기준 모델', 'purple') : null),
+      const info = node('div', {class: 'model-info'}, node('strong', {}, names[p], baseline ? pill('기준 모델', 'purple') : pill(configured ? '연결됨' : '미연결', configured ? 'success' : 'neutral')),
         node('span', {text: baseline ? state.currentRelease ? 'AIONA ' + state.currentRelease.version + ' · 질문·답변 입력' : '질문·답변 입력' : configured ? config.model : 'API 키 미등록'}));
       const row = node('div', {class: 'model-row'}, avatar(p), info);
       if (baseline) row.append(node('span', {class: 'model-ready', 'aria-label': '비교에 항상 포함'}, icon('check')));
@@ -479,6 +481,7 @@
     const run = state.run;
     const blindChanged = $('result-models').dataset.blind !== String(modelsHidden());
     const focusKey = document.activeElement?.dataset.focusKey;
+    renderRecentResult();
     $('result-empty').hidden = Boolean(run); $('result-content').hidden = !run;
     $('export-all').hidden = !run; $('refresh-results').hidden = !run;
     if (!run) return;
@@ -497,10 +500,10 @@
     const collecting = run.status === 'COLLECTING', evaluating = run.status === 'EVALUATING';
     $('results-title').textContent = collecting ? '세 모델의 답변을 수집하고 있어요.' : '평가 결과, 한눈에.';
     const finished = run.status === 'COMPLETED', summary = results.runSummary(state.result);
-    renderFinalSummary();
+    renderFinalSummary(); renderOverview(providers);
     const disconnected = state.connectionLost && (collecting || evaluating);
     const statusText = disconnected ? '서버 연결 확인 중' : finished && state.result ? summary.allComplete ? '평가 완료' : '평가 미완료' : statusLabel(run);
-    $('progress-eyebrow').textContent = run.phase === 'EVALUATE' || evaluating || run.status === 'COMPLETED' ? 'QUALITY EVALUATION' : 'RESPONSE COLLECTION';
+    $('progress-eyebrow').textContent = run.phase === 'EVALUATE' || evaluating || run.status === 'COMPLETED' ? '품질 평가' : '응답 수집';
     $('progress-title').textContent = statusText;
     $('progress-description').textContent = disconnected ? '서버에 다시 연결하고 있습니다. 마지막 확인 상태를 표시합니다.' : collecting ? (run.cancel_requested ? '현재 요청의 응답을 보존한 후 수집을 중단합니다.' : '답변 수집을 마치면 자동으로 블라인드 평가합니다.') :
       evaluating ? (isVersionRun ? '등록한 AIONA 원문의 ' : '') + '코드 검사와 의미 평가를 진행합니다.' : finished && state.result ?
@@ -593,6 +596,73 @@
         ready ? model.counts.issue ? `FAIL ${number(model.counts.issue)}문항 확인` : '통과한 문항 확인' : '평가 상태 확인', icon('arrow')));
       return item;
     }));
+  }
+  // Presentation only: every figure is read from the shared result summaries above.
+  function renderOverview(providers) {
+    const result = state.result;
+    $('result-kpis').hidden = !result;
+    $('model-benchmark').hidden = !result || !Object.keys(result.evaluations || {}).length;
+    if (!result) return;
+    const totals = results.runSummary(result), final = results.finalSummary(result);
+    const waiting = totals.counts.waiting + totals.counts.running, single = final.rows.length === 1, top = final.leaders[0];
+    const kpi = (kind, iconName, label, value, help) => node('article', {class: 'kpi-card ' + kind},
+      node('span', {class: 'kpi-icon', 'aria-hidden': 'true'}, icon(iconName)), node('span', {class: 'kpi-label', text: label}),
+      node('strong', {class: 'kpi-value', text: value}), node('span', {class: 'kpi-help', text: help}));
+    $('result-kpis').replaceChildren(
+      kpi('progress', 'check', '판정 완료 답변', `${number(totals.complete)} / ${number(totals.total)}`,
+        totals.counts.pending || waiting ? `미완료 ${number(totals.counts.pending)} · 평가 전·진행 중 ${number(waiting)}` : '모든 답변 판정 완료'),
+      kpi('pass', 'shield', 'PASS 답변', number(totals.counts.clear), '기준 충족 · 확인된 문제 없음'),
+      kpi('fail', 'alert', 'FAIL 답변', number(totals.counts.issue), '기준 미충족 · 문제 발견'),
+      kpi('leader', 'trophy', single ? '질문 통과점수' : '최고 질문 통과점수', final.ready ? top.score.toFixed(1) + '점' : '확정 전',
+        final.ready ? !single && final.leaders.length === final.rows.length ? '모든 모델 동률' :
+          final.leaders.map((m) => modelName(m.provider)).join(' · ') + (single ? '' : final.leaders.length > 1 ? ' 공동 1위' : ' 1위') :
+          final.incomplete ? `미완료 ${number(final.incomplete)}개 답변 남음` : final.comparable ? '실행 완료 후 확정' : '문항 구성 확인 필요'));
+    const byProvider = Object.fromEntries(final.rows.map((m) => [m.provider, m]));
+    $('benchmark-list').replaceChildren(...(final.ready ? final.rows.map((m) => m.provider) : providers).map((p) => {
+      const m = byProvider[p], c = m.counts;
+      const parts = [['pass', 'PASS', c.clear], ['fail', 'FAIL', c.issue], ['pending', '미완료', c.pending], ['waiting', '평가 전·진행 중', c.waiting + c.running]];
+      const counts = parts.map(([, label, n]) => `${label} ${number(n)}`).join(' · ');
+      const bar = node('div', {class: 'benchmark-bar', role: 'img', 'aria-label': `${modelName(p)} · 전체 ${number(m.total)}문항 중 ${counts}`});
+      parts.filter(([, , n]) => n > 0).forEach(([kind, label, n]) => {
+        const segment = node('span', {class: 'benchmark-segment ' + kind, title: `${label} ${number(n)}문항`});
+        segment.style.flexGrow = String(n); bar.append(segment);
+      });
+      const rank = !final.ready ? '점수 미확정' : single ? '질문 통과점수' : `${m.tied ? '공동 ' : ''}${m.rank}위`;
+      return node('li', {class: 'benchmark-row' + (final.ready && !single && m.rank === 1 ? ' is-leading' : '')},
+        node('div', {class: 'benchmark-model'}, resultAvatar(p), node('div', {}, node('strong', {text: modelName(p)}),
+          node('span', {text: modelsHidden() ? '모델 정보 비공개' : modelId(state.run, p)}))),
+        node('div', {class: 'benchmark-track'}, bar, node('p', {class: 'benchmark-counts', text: counts})),
+        node('div', {class: 'benchmark-score'}, node('strong', {text: final.ready ? m.score.toFixed(1) : '—'}), node('span', {text: rank})));
+    }));
+  }
+  function renderRecentResult() {
+    const run = state.run, body = $('recent-result-body');
+    if (!run) {
+      let saved = null;
+      try { saved = sessionStorage.getItem('aiona-comparison-run'); } catch (_) { /* storage may be unavailable */ }
+      body.replaceChildren(node('div', {class: 'recent-empty'}, node('span', {class: 'empty-icon', 'aria-hidden': 'true'}, icon('chart')),
+        node('div', {}, node('strong', {text: saved ? '최근 실행 결과를 불러올 수 있습니다' : '이 세션에서 연 평가 결과가 없습니다'}),
+          node('p', {text: saved ? '결과 비교를 열면 저장된 최근 실행을 불러옵니다.' : '평가를 시작하거나 이력 관리에서 저장된 결과를 열어 보세요.'}))));
+      return;
+    }
+    const final = state.result ? results.finalSummary(state.result) : null, ready = Boolean(final?.ready);
+    const running = ['COLLECTING', 'EVALUATING'].includes(run.status);
+    const preview = node('button', {type: 'button', class: 'recent-preview', onclick: () => go('results')},
+      node('span', {class: 'recent-head'}, node('span', {}, node('strong', {text: run.name}), node('span', {class: 'recent-meta', text: `${number(run.question_count)}개 질문 · ${run.providers.length}개 모델`})),
+        pill(ready ? '평가 완료' : statusLabel(run), ready ? 'success' : running ? 'purple' : 'warning')));
+    if (ready) {
+      preview.append(node('span', {class: 'recent-scores'}, ...final.rows.map((m) => {
+        const fill = node('span'); fill.style.width = `${m.score}%`;
+        return node('span', {class: 'recent-score' + (final.rows.length > 1 && m.rank === 1 ? ' is-leading' : '')}, resultAvatar(m.provider),
+          node('span', {class: 'recent-score-name', text: modelName(m.provider)}), node('span', {class: 'summary-score-track', 'aria-hidden': 'true'}, fill),
+          node('strong', {text: m.score.toFixed(1) + '점'}));
+      })));
+    } else {
+      preview.append(node('span', {class: 'recent-note', text: running ? '진행 중입니다. 결과 비교 화면에서 실시간 진행을 확인하세요.' :
+        final?.incomplete ? `미완료 ${number(final.incomplete)}개 답변이 있어 점수를 확정하지 않았습니다.` : '최종 점수가 확정되지 않았습니다. 결과 비교에서 상태를 확인하세요.'}));
+    }
+    preview.append(node('span', {class: 'recent-link'}, '결과 비교에서 자세히 보기', icon('arrow')));
+    body.replaceChildren(preview);
   }
   $('final-summary-followup').addEventListener('click', () => {
     const runId = state.run?.run_id;
@@ -878,7 +948,7 @@
     const indices = answerIndices(), position = indices.indexOf(index);
     $('answer-select').value = String(index); $('answer-previous').disabled = position <= 0; $('answer-next').disabled = position + 1 >= indices.length;
     $('answer-position').textContent = `${number(position + 1)} / ${number(indices.length)}개 Q/A`;
-    $('answer-id').textContent = c.case_id + (c.conversation_id ? ' · ' + (c.source_group || c.conversation_id) + ' · ' + c.turn + '턴' : '') + ' · ORIGINAL RESPONSE';
+    $('answer-id').textContent = c.case_id + (c.conversation_id ? ' · ' + (c.source_group || c.conversation_id) + ' · ' + c.turn + '턴' : '') + ' · 원문 응답';
     $('original-question').textContent = c.question;
     $('conversation-context').hidden = c.conversation_id === undefined;
     if (c.conversation_id !== undefined) {

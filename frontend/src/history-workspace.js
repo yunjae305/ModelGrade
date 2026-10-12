@@ -135,7 +135,7 @@
       table(headers, bodyId, className), node('div', {id: 'history-pagination-' + tab, class: 'table-pagination'}));
   }
   host.replaceChildren(
-    node('div', {class: 'page-heading'}, node('div', {}, node('div', {class: 'eyebrow', text: 'HISTORY'}), node('h1', {id: 'history-title', text: '이력 관리'}),
+    node('div', {class: 'page-heading'}, node('div', {}, node('div', {class: 'eyebrow', text: '실행 · 작업 이력'}), node('h1', {id: 'history-title', text: '이력 관리'}),
       node('p', {text: '평가 실행과 작업 기록을 시간순으로 확인하세요.'})), node('button', {id: 'refresh-history', type: 'button', class: 'button secondary', text: '기록 새로고침', onclick: refresh})),
     node('div', {id: 'history-summary', class: 'history-summary-grid'}),
     node('div', {class: 'answer-tabs history-tabs', role: 'tablist', 'aria-label': '이력 유형'}, tabButton('runs', '평가 실행'), tabButton('activities', '작업 이력')),
