@@ -297,3 +297,14 @@ def test_http_activity_query_is_read_only_and_errors_are_not_success(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(2)
+
+
+def test_case_errors_keep_question_incomplete():
+    case = {'case_status': 'EVALUATED', 'results': [], 'summary': {'common': {'pass': 1, 'fail': 0, 'unjudged': 0}},
+            'errors': [{'check_id': '3-1.check_error', 'subcategory': '3-1', 'kind': 'CHECK_ERROR', 'message': 'x', 'details': {}}]}
+    record = {'status': 'SUCCESS', 'criteria': ['J1'], 'decisions': {'J1': {'decision': 'PASS'}}}
+    run = {'question_count': 1, 'status': 'COMPLETED', 'evaluations': {'aiona': {'cases': [case], 'jev_eval': {'records': [record]}}}}
+    summary = ComparisonService._evaluation_summary(run)
+    assert summary['incomplete'] == 1 and summary['criteria_incomplete'] == 1 and summary['scored'] == 0
+    case['errors'] = []
+    assert ComparisonService._evaluation_summary(run)['scored'] == 1

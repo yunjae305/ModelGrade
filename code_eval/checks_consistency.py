@@ -21,7 +21,7 @@ from .arith import (
     _tolerance_for,
 )
 from .checks_integrity import json_targets
-from .core import Ctx, cmp_text, excerpt, q_evidence, result, unsupported_from_req, verdict_of
+from .core import Ctx, cmp_text, excerpt, q_evidence, result, skip_condition, skip_req, verdict_of
 from .extract import NUM_WORDS, NUMBER, parse_number
 from .model import Evidence, FAIL, PASS, Status
 from .structure_counts import heading_series_from
@@ -183,7 +183,7 @@ def _question_calculation(ctx: Ctx) -> List:
     out = []
     for req in ctx.conds.of("calculation"):
         if req.status != "ok":
-            out.append(unsupported_from_req(ctx, req, "3-1.question_calculation", SUB31, "질문 계산값"))
+            skip_req(ctx, req, "3-1.question_calculation", SUB31)
             continue
         expected = Fraction(req.value["expected"])
         # Operand membership links the equation; its signs/operators are independently recomputed.
@@ -208,17 +208,12 @@ def _question_calculation(ctx: Ctx) -> List:
                 claims = [(whole.group(1), whole.start(1), whole.end(1), "답변 전체")]
         values = sorted({_num(c[0]) for c in claims})
         if not claims:
-            out.append(result("3-1.question_calculation", SUB31, "질문 계산값", "question", Status.UNSUPPORTED,
-                              required={"expected": _fmt(expected), "operation": req.value["operation"],
-                                        "template": req.value["template"]},
-                              reason="답변에서 계산 대상 값을 라벨·구조로 연결하지 못함 (기대값과 비슷한 숫자를 고르지 않음)",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-1.question_calculation", SUB31,
+                           "답변에서 계산 대상 값을 라벨·구조로 연결하지 못함 (기대값과 비슷한 숫자를 고르지 않음)")
             continue
         if len(values) > 1:
-            out.append(result("3-1.question_calculation", SUB31, "질문 계산값", "question", Status.UNSUPPORTED,
-                              required={"expected": _fmt(expected)}, measured={"linked_values": [_fmt(v) for v in values]},
-                              reason="라벨·구조로 연결된 값이 여러 개라 답변의 주장값을 확정하지 못함",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-1.question_calculation", SUB31,
+                           f"라벨·구조로 연결된 값이 여러 개({[_fmt(v) for v in values]})라 답변의 주장값을 확정하지 못함")
             continue
         raw, s, e, label = claims[0]
         claimed = _num(raw)
@@ -256,9 +251,10 @@ def _answer_equations(ctx: Ctx) -> List:
                                   f"‘{ch.mismatch[0]}’과 ‘{ch.mismatch[1]}’의 재계산 값이 다름"),
                           evidence=[Evidence("answer", ch.start, ch.end, ctx.answer[ch.start:ch.end])]))
     if skipped:
-        out.append(result("3-1.answer_equation:skipped", SUB31, "재계산 보류 등식", "answer_self", Status.UNSUPPORTED,
-                          measured={"skipped": skipped[:20]},
-                          reason=f"단위·부정 문맥 등으로 값을 확정할 수 없는 등식 {len(skipped)}개 — 판정하지 않음"))
+        # 단위·부정·% 문맥 등으로 값을 확정할 수 없는 등식은 행을 만들지 않는다 (사례당 사유 한 건만 기록).
+        listed = "; ".join(f"‘{item['expression'][:60]}’ — {item['reason']}" for item in skipped[:5])
+        skip_condition(ctx, "3-1.answer_equation:skipped", SUB31,
+                       f"단위·부정 문맥 등으로 값을 확정할 수 없는 등식 {len(skipped)}개 — 판정하지 않음: {listed}")
     return out
 
 
@@ -376,15 +372,12 @@ def check_3_2(ctx: Ctx) -> List:
         cid = f"3-2.declared_count:{idx}"
         ev = Evidence("answer", m.start(), m.end(), sentence.strip()[:100], "선언")
         if _PARTIAL.search(sentence):
-            out.append(result(cid, SUB32, f"선언 개수 ‘{m.group(0).strip()}’", "answer_self", Status.UNSUPPORTED,
-                              required={"declared": declared},
-                              reason="부분집합·예시 소개 표현이라 전체 개수 선언으로 보지 않음", evidence=[ev]))
+            skip_condition(ctx, cid, SUB32, f"‘{m.group(0).strip()}’ — 부분집합·예시 소개 표현이라 전체 개수 선언으로 보지 않음")
             continue
         structure = _next_structure(ctx, line)
         if structure is None:
-            out.append(result(cid, SUB32, f"선언 개수 ‘{m.group(0).strip()}’", "answer_self", Status.UNSUPPORTED,
-                              required={"declared": declared},
-                              reason="선언 바로 뒤에 연결된 목록·표·소제목 구조가 없어 대응을 확정하지 못함", evidence=[ev]))
+            skip_condition(ctx, cid, SUB32,
+                           f"‘{m.group(0).strip()}’ — 선언 바로 뒤에 연결된 목록·표·소제목 구조가 없어 대응을 확정하지 못함")
             continue
         ok = structure["count"] == declared
         out.append(result(cid, SUB32, f"선언 개수 ‘{m.group(0).strip()}’", "answer_self", Status.EXECUTED,
@@ -570,18 +563,15 @@ def check_3_3(ctx: Ctx) -> List:
     src = ctx.conds.source_data
     for req in ctx.conds.of("transform"):
         if req.status != "ok" or src is None:
-            out.append(unsupported_from_req(ctx, req, "3-3.transform", SUB33, "원본 보존·변환"))
+            skip_condition(ctx, "3-3.transform", SUB33, req.reason or "질문에서 원본 데이터를 확정하지 못함")
             continue
         expected, why = _apply_ops(src["value"], req.value["ops"])
         if expected is None:
-            out.append(result("3-3.transform", SUB33, "원본 보존·변환", "question", Status.UNSUPPORTED,
-                              required=req.value, reason=why, evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-3.transform", SUB33, why)
             continue
         output, out_kind, why = _answer_output(ctx, src["kind"])
         if output is None:
-            out.append(result("3-3.transform", SUB33, "원본 보존·변환", "question", Status.UNSUPPORTED,
-                              required={"ops": req.value["ops"], "expected_count": len(expected)}, reason=why,
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-3.transform", SUB33, why)
             continue
         exp_n = _normalize_for_compare(expected, out_kind, src["kind"])
         out_n = _normalize_for_compare(output, out_kind, src["kind"])
@@ -618,8 +608,7 @@ def check_3_3(ctx: Ctx) -> List:
     for req in ctx.conds.of("unique_values"):
         output, out_kind, why = _answer_output(ctx, "json")
         if output is None:
-            out.append(result("3-3.unique_values", SUB33, "명시 고유성 (중복 없음)", "question", Status.UNSUPPORTED,
-                              reason=why, evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-3.unique_values", SUB33, why)
             continue
         dups = [i for i, v in enumerate(output) if any(same(v, w) for w in output[:i])]
         ok = not dups
@@ -630,13 +619,11 @@ def check_3_3(ctx: Ctx) -> List:
                           reason="중복 항목 없음" if ok else f"중복 항목 {len(dups)}개", evidence=[q_evidence(ctx, req)]))
     for req in ctx.conds.of("aggregate"):
         if req.status != "ok" or src is None:
-            out.append(unsupported_from_req(ctx, req, "3-3.aggregate", SUB33, "집계 값"))
+            skip_condition(ctx, "3-3.aggregate", SUB33, req.reason or "질문에서 원본 데이터를 확정하지 못함")
             continue
         values = [_as_number(_get(i, req.value["key"])) for i in src["value"]]
         if not values or any(v is None for v in values):
-            out.append(result("3-3.aggregate", SUB33, "집계 값", "question", Status.UNSUPPORTED, required=req.value,
-                              reason=f"원본의 ‘{req.value['key']}’ 값이 모두 숫자가 아니어서 집계값을 만들지 않음",
-                              evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-3.aggregate", SUB33, f"원본의 ‘{req.value['key']}’ 값이 모두 숫자가 아니어서 집계값을 만들지 않음")
             continue
         agg = req.value["agg"]
         expected = {"합계": sum(values), "총합": sum(values), "평균": sum(values) / len(values),
@@ -644,9 +631,7 @@ def check_3_3(ctx: Ctx) -> List:
         claims = _claimed_by_label(ctx, [agg, "합계" if agg in ("합계", "총합") else agg])
         vals = sorted({_num(c[0]) for c in claims})
         if len(vals) != 1:
-            out.append(result("3-3.aggregate", SUB33, f"집계 값 ({agg})", "question", Status.UNSUPPORTED,
-                              required={"expected": _fmt(expected)}, measured={"linked_values": [_fmt(v) for v in vals]},
-                              reason="답변에서 집계 라벨로 연결된 값이 없거나 여러 개", evidence=[q_evidence(ctx, req)]))
+            skip_condition(ctx, "3-3.aggregate", SUB33, f"답변에서 집계 라벨({agg})로 연결된 값이 없거나 여러 개 ({len(vals)}개)")
             continue
         raw, s, e, label = claims[0]
         ok = abs(_num(raw) - expected) <= _tolerance_for(raw)

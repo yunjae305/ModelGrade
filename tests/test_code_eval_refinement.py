@@ -16,6 +16,14 @@ def result(case, prefix: str):
     return next(r for r in case["results"] if r["check_id"].startswith(prefix))
 
 
+def rows(case, prefix: str):
+    return [r for r in case["results"] if r["check_id"].startswith(prefix)]
+
+
+def skipped(case, prefix: str):
+    return [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith(prefix)]
+
+
 def test_corruption_shown_as_inline_example_is_not_output_damage():
     case = check("문자 인코딩이 잘못되면 어떤 일이 생기는지 설명해줘.",
                  "인코딩이 잘못되면 `�` 같은 대체 문자가 나타날 수 있습니다.")
@@ -62,8 +70,7 @@ def test_foreign_script_needs_question_topic_explanation_or_gloss(question, answ
 
 def test_foreign_script_defers_to_explicit_charset_condition():
     case = check("한글만 사용해서 인사해줘.", "안녕하세요 こんにちは")
-    r = result(case, "1-1.foreign_script")
-    assert r["status"] == Status.APPLICABILITY_EXCEPTION and r["verdict"] is None
+    assert rows(case, "1-1.foreign_script") == []  # 허용 문자 조건이 있으면 2-1.charset 이 판정한다
     assert result(case, "2-1.charset")["verdict"] == "FAIL"
 
 
@@ -93,14 +100,14 @@ def test_declared_numbered_headings_exclude_following_explanation_and_link_quest
 def test_unrelated_bullets_cannot_satisfy_requested_message_count():
     case = check("안내 문구를 세 가지 작성해줘.",
                  "### 선택 기준\n- 빠름\n- 짧음\n- 쉬움")
-    assert result(case, "2-1.count:list_count")["verdict"] is None
+    assert rows(case, "2-1.count:list_count") == [] and skipped(case, "2-1.count:list_count")
 
 
 def test_interrupted_numbered_heading_sequence_remains_undecided():
     answer = "다음 세 가지입니다.\n### 문구 1\n첫째\n### 참고\n부연\n### 문구 2\n둘째\n### 문구 3\n셋째"
     case = check("안내 문구를 세 가지 작성해줘.", answer)
-    assert result(case, "2-1.count:list_count")["verdict"] is None
-    assert result(case, "3-2.declared_count")["verdict"] is None
+    assert rows(case, "2-1.count:list_count") == [] and skipped(case, "2-1.count:list_count")
+    assert rows(case, "3-2.declared_count") == [] and skipped(case, "3-2.declared_count")
 
 
 def test_real_python_syntax_error_remains_fail():

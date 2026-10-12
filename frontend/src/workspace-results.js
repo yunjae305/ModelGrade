@@ -23,6 +23,7 @@
     return `${id} · ${label}`;
   }
 
+  // 옛 저장 결과(v16.2.x, code_completion SUCCESS)의 LLM 보완 판정을 투영한다. 새 결과에는 code_completion 이 없어 그대로 돌려준다.
   function resolvedCase(c, record) {
     const completion = record?.code_completion;
     if (completion?.status !== 'SUCCESS' || !completion.resolutions?.length) return c;
@@ -192,7 +193,8 @@
     const fails = checks.filter((r) => r.counted && r.verdict === 'FAIL');
     const summary = c?.summary?.common || {};
     const unjudged = count(summary.unjudged);
-    const code = {pass: count(summary.pass), fail: Math.max(fails.length, count(summary.fail)), unjudged,
+    const errors = Array.isArray(c?.errors) ? c.errors.length : 0;  // 검사 실행 오류 (품질 FAIL 아님)
+    const code = {pass: count(summary.pass), fail: Math.max(fails.length, count(summary.fail)), unjudged, errors,
       checks, fails, complete: false, text: '평가 대기', kind: 'neutral', reason: '', pendingReason: '', pendingDetail: ''};
     const semantic = semanticState(!record && batch?.live && ['ERROR', 'CANCELLED'].includes(result.status) ?
       {status: 'INTERRUPTED', error: result.error} : record, batch?.jev_eval?.access_reason);
@@ -208,18 +210,25 @@
       outcome = 'pending'; detail = '입력 상태를 확인해야 하므로 평가에서 제외했습니다.';
       code.text = '입력 확인 필요'; code.kind = 'warning'; code.reason = c?.input_error || detail;
     } else if (batch) {
-      code.complete = unjudged === 0 && code.pass + code.fail > 0;
-      code.text = code.fail ? `문제 ${code.fail}개` : unjudged ? '일부 판정 불가' : code.complete ? '통과' : '판정 없음';
+      code.complete = unjudged === 0 && errors === 0 && code.pass + code.fail > 0;
+      code.text = code.fail ? `문제 ${code.fail}개` : unjudged ? '일부 판정 불가' : errors ? '검사 실행 오류' : code.complete ? '통과' : '판정 없음';
       code.kind = code.fail ? 'danger' : code.complete ? 'success' : 'warning';
-      code.reason = `조건 PASS ${code.pass}개 · FAIL ${code.fail}개 · ${unjudged}개 미완료`;
+      code.reason = `조건 PASS ${code.pass}개 · FAIL ${code.fail}개` + (unjudged ? ` · ${unjudged}개 미완료` : '') +
+        (errors ? ` · 검사 실행 오류 ${errors}건` : '');
+      // 옛 저장 결과의 code_completion(LLM 보완) 표시 — 새 결과에는 없다.
       if (record?.code_completion?.status === 'SUCCESS') code.reason += ' · LLM 보완 판정 포함';
       else if (record?.code_completion?.error) code.reason += ' · 보완 평가 오류: ' + record.code_completion.error;
       // A finished semantic call can still leave CODE conditions unresolved; name that cause.
-      if (unjudged && semantic.complete) {
-        const completion = record?.code_completion;
-        code.pendingReason = completion?.error ? '코드 보완 판정 실패' :
-          completion?.status === 'SUCCESS' ? '코드 보완 판정을 조건에 연결하지 못함' : '코드 보완 판정 기록 없음';
-        code.pendingDetail = code.pendingReason + (completion?.error ? ' · ' + completion.error : '');
+      if ((unjudged || errors) && semantic.complete) {
+        if (unjudged) {
+          const completion = record?.code_completion;
+          code.pendingReason = completion?.error ? '코드 보완 판정 실패' :
+            completion?.status === 'SUCCESS' ? '코드 보완 판정을 조건에 연결하지 못함' : '코드 보완 판정 기록 없음';
+          code.pendingDetail = code.pendingReason + (completion?.error ? ' · ' + completion.error : '');
+        } else {
+          code.pendingReason = '코드 검사 실행 오류';
+          code.pendingDetail = c.errors.map((e) => (e.check_id || '') + ' · ' + (e.message || '')).join(' / ');
+        }
       }
       if (code.fail || semantic.fail) {
         outcome = 'issue'; detail = `코드 검사 ${code.fail}개 · 의미 평가 ${semantic.fail}개 문제 발견`;
@@ -230,7 +239,6 @@
         outcome = 'clear'; detail = '적용된 코드 검사와 의미 기준에서 문제를 발견하지 못했습니다.';
       } else if (batch.live && result.status === 'EVALUATING' && (semantic.waiting || semantic.inProgress)) {
         outcome = semantic.inProgress ? 'running' : 'waiting'; detail = semantic.reason;
-        if (unjudged) { code.text = '보완 평가 대기'; code.reason = '코드 미판정 조건을 LLM이 보완 판정합니다.'; }
       } else {
         outcome = 'pending'; detail = !semantic.complete ? semantic.reason : code.pendingDetail || '일부 코드 조건을 판정하지 못했습니다.';
       }
@@ -255,6 +263,7 @@
       semanticIncomplete: rows.filter((r) => r.pending && !r.semantic.complete && r.code.checks.length &&
         (!result?.evaluations?.[provider]?.live || !r.semantic.waiting && !r.semantic.inProgress)).length,
       codeIncomplete: rows.filter((r) => r.pending && r.semantic.complete && r.code.pendingReason).length,
+      codeErrors: rows.filter((r) => r.code.errors > 0).length,
       text: result?.status === 'EVALUATING' ? '평가 중' : !evaluated ? '평가 대기' : rows.every((r) => r.complete) ? '평가 완료' : '평가 미완료',
       kind: result?.status === 'EVALUATING' ? 'purple' : !evaluated ? 'neutral' : rows.every((r) => r.complete) ? 'neutral' : 'warning'};
   }

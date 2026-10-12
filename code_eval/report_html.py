@@ -541,6 +541,10 @@ def _case(case: Dict[str, Any], jev_record: Any = None, jev_label: str = "Jev", 
     semantic = ("" if not jev_record else f' + 의미 평가({_e(jev_label)}) '
                 + (f'PASS {jev_pass} · FAIL {jev_fail}' if jev_decisions else "미실행"))
     sum_line = f'<p class="sum-line">합계 PASS {n_pass} · FAIL {n_fail} = CODE 평가 PASS {code_pass} · FAIL {code_fail}{semantic}</p>'
+    errors = case.get("errors") or []
+    if errors:
+        listed = " / ".join(f'{_e(e.get("check_id") or "")} · {_e(e.get("kind") or "")} · {_e(e.get("message") or "")}' for e in errors)
+        sum_line += f'<p class="detail-note"><strong>검사 실행 오류 {len(errors)}건:</strong> {listed} — 품질 FAIL 이 아니며 이 질문은 PASS 로 확정하지 않습니다.</p>'
     cid, anchored = case["case_id"], set()
     answer = _numbered(case["answer"], _fail_marks(case["answer"], fails, "answer"), key, anchored)
     shown = case.get("displayed_text")
@@ -694,6 +698,8 @@ def _question_counts(cases: List[Dict[str, Any]], area: str, subcategory: str | 
             counts["fail"] += 1
         elif any(r["verdict"] is None and r["status"] in _UNJUDGED_STATUSES for r in rows):
             counts["unjudged"] += 1
+        elif area == "common" and case.get("errors"):
+            counts["unjudged"] += 1  # 검사 실행 오류가 있는 질문은 PASS 로 확정하지 않는다
         elif any(r["counted"] and r["verdict"] == "PASS" for r in rows):
             counts["pass"] += 1
         elif subcategory is not None and any(r["status"] == Status.OUT_OF_SCOPE for r in rows):
@@ -889,7 +895,7 @@ def _semantic_label(semantic: Dict[str, Any]) -> str:
 
 
 def render_report(batch: Dict[str, Any], title: str = "AIONA 코드 평가 결과") -> str:
-    from .common_adjudication import resolved_batch
+    from .common_adjudication import resolved_batch  # 옛 결과의 code_completion(LLM 보완) 투영 — 새 결과는 그대로
     batch = resolved_batch(batch)
     summ = batch["summary"]
     t = summ["totals"]
@@ -913,8 +919,9 @@ def render_report(batch: Dict[str, Any], title: str = "AIONA 코드 평가 결�
                    '<p>기존 5개 기준 · 기본 흐름 밖</p></div><p class="intro">코드 평가에서 FAIL이 나온 질문만 재검토한 별도 실행 결과입니다. '
                    'CODE·Jev 판정은 바꾸지 않습니다.</p>' + _llm_overview() + _llm_result(batch, keys) + '</section>')
     affected = sum(1 for case in batch["cases"] if any(r.get("verdict") == "FAIL" for r in case.get("results", [])))
+    errored = sum(1 for case in batch["cases"] if case.get("errors"))
     outcome = (f'CODE 평가: {t["cases"]}개 입력 중 {affected}개에서 FAIL 발견' if affected
-               else f'CODE 평가: {t["cases"]}개 입력에서 확인된 FAIL 없음')
+               else f'CODE 평가: {t["cases"]}개 입력에서 확인된 FAIL 없음') + (f' · 검사 실행 오류 {errored}개 질문' if errored else '')
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <title>{_e(title)}</title><style>{_CSS}</style></head><body><main>
@@ -931,7 +938,7 @@ def render_report(batch: Dict[str, Any], title: str = "AIONA 코드 평가 결�
  <section aria-labelledby="result-heading" id="results" class="section-anchor"><div class="section-head"><h2 id="result-heading">평가 결과 한눈에 보기</h2><p>CODE Evaluation · 코드 검사 결과</p></div>
  <p class="intro">해당 없음은 질문에 적용되지 않아 건너뛴 기준, 판정 미완료는 필요한 검사나 재검토의 결과를 확정하지 못한 상태입니다. 중복 제외는 같은 조건을 다른 항목에서 이미 센 경우입니다.</p>
 <div class="outcome"><div><strong>{outcome}</strong><p>CODE로 확인된 조건의 결과입니다. 의미 평가까지 합친 결과는 바로 위 ‘종합 결과’에 있습니다.</p></div><a href="#overall">FAIL 질문 보기 ↑</a></div>
-<div class="kpi-grid"><div class="kpi"><span class="kpi-label">입력 질문</span><b>{t['cases']}</b><span class="note">평가 {t['evaluated']} · 오류 {t['input_errors']} · 한도 초과 {t['limit_exceeded']}</span></div>
+<div class="kpi-grid"><div class="kpi"><span class="kpi-label">입력 질문</span><b>{t['cases']}</b><span class="note">평가 {t['evaluated']} · 오류 {t['input_errors']} · 한도 초과 {t['limit_exceeded']} · 검사 오류 {t.get('check_errors', 0)}</span></div>
 <div class="kpi"><span class="kpi-label">공통 PASS 질문</span><b>{common_questions['pass']}</b><span class="note">확인된 공통 조건에 FAIL 없는 질문</span></div>
 <div class="kpi is-fail"><span class="kpi-label">공통 FAIL 질문</span><b>{common_questions['fail']}</b><span class="note">공통 조건에 FAIL 있는 질문</span></div>
 <div class="kpi"><span class="kpi-label">공통 미판정 질문</span><b>{common_questions['unjudged']}</b><span class="note">확정된 공통 판정이 없는 질문</span></div>

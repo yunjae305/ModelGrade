@@ -30,7 +30,7 @@ def test_check_ids_written_in_checkers_belong_to_a_listed_unit():
     for path in (ROOT / "code_eval").glob("checks_*.py"):
         found |= set(re.findall(r"[\"'](?:f\")?((?:[123]-[123]|AIONA-[MF])\.[a-z_]+)", path.read_text(encoding="utf-8")))
     assert found
-    assert {unit for unit in found if not unit.endswith(".check_error")} <= set(CHECK_VERSIONS)
+    assert found <= set(CHECK_VERSIONS)  # check_error 는 결과 행 check_id 가 아니다 (사례 errors 에만 남음)
 
 
 QUESTIONS = [(e["question"], e["answer"]) for e in EXAMPLES] + [
@@ -48,7 +48,10 @@ QUESTIONS = [(e["question"], e["answer"]) for e in EXAMPLES] + [
 @pytest.mark.parametrize("question,answer", QUESTIONS)
 def test_extracted_requirement_kinds_map_to_the_units_that_run(question, answer):
     case = evaluate_case({"question": question, "answer": answer})
-    units = {reg.unit_of(r["check_id"]) for r in case["results"]}
+    # 판정하지 않은 조건은 행이 없고 meta.skipped_conditions 에 check_id 만 남는다 — 그 단위도 실행된 것으로 본다.
+    units = ({reg.unit_of(r["check_id"]) for r in case["results"]}
+             | {reg.unit_of(s["check_id"]) for s in case["meta"]["skipped_conditions"]})
+    assert case["errors"] == []
     by_kind = {}
     for unit, _, _, kinds in reg.CODE_UNITS:
         for kind in kinds:

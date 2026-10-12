@@ -519,7 +519,8 @@ def test_text_validator_rejects_future_schema_constraints_instead_of_silently_ig
         _text_submission([{'type': 'text', 'text': json.dumps(entries('J1'))}], ('J1',))
 
 
-def test_text_schema_keeps_code_completion_pass_fail_only():
-    value = {'C1': {'choice': 'UNVERIFIED', 'confidence': .8, 'reason': 'unknown'}}
+def test_text_schema_keeps_non_j_criteria_pass_fail_only():
+    # C 보완 기준은 더 이상 요청하지 않는다. 임의 id 로 스키마 enum(PASS/FAIL) 검증만 남긴다.
+    value = {'X1': {'choice': 'UNVERIFIED', 'confidence': .8, 'reason': 'unknown'}}
     with pytest.raises(ValueError, match='enum'):
-        _text_submission([{'type': 'text', 'text': json.dumps(value)}], ('C1',))
+        _text_submission([{'type': 'text', 'text': json.dumps(value)}], ('X1',))

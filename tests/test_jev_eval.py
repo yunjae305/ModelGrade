@@ -116,9 +116,8 @@ def test_case1_normal_answer_code_pass_and_jev_all_pass_through_official_endpoin
     body = json.loads(request.content)
     assert body["model"] == "jev-latest"
     assert body["state"] == {"question": NORMAL["question"], "answer": NORMAL["answer"]}
-    assert {cid for cid in body["questions"] if cid.startswith("J")} == set(J_IDS)
-    assert set(body["questions"]) == set(J_IDS) | {t["id"] for t in record["code_completion"]["targets"]}
-    assert record["code_completion"]["status"] == "SUCCESS"
+    assert set(body["questions"]) == set(J_IDS)  # J 기준만 보낸다 (C 보완 질문 없음)
+    assert "code_completion" not in record
     assert all(q["type"] == "choice" and set(q["criteria"]) == {"PASS", "FAIL"} for q in body["questions"].values())
 
 

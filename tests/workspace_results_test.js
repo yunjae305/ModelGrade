@@ -296,3 +296,22 @@ assert.equal(caseState(r, 'aiona', 1).code.pendingReason, '코드 보완 판정 
 assert.equal(modelSummary(r, 'aiona', 2).codeIncomplete, 2);
 assert.equal(modelSummary(r, 'aiona', 2).semanticIncomplete, 0);
 console.log('Exclusive question outcomes, short reasons with intact originals and unsettled rates passed.');
+
+// Case-level check errors (new engine) keep the question unsettled and name the cause; new records carry no completion wording.
+r = result([code(1, 0, 0), code(1, 0, 0)], [sem(), sem()]);
+r.evaluations.aiona.cases[0].errors = [{check_id: '3-1.check_error', kind: 'CHECK_ERROR', message: 'x'}];
+assert.equal(caseState(r, 'aiona', 0).outcome, 'pending');
+assert.equal(caseState(r, 'aiona', 0).code.text, '검사 실행 오류');
+assert.equal(caseState(r, 'aiona', 0).code.pendingReason, '코드 검사 실행 오류');
+assert.equal(caseState(r, 'aiona', 0).detail, '3-1.check_error · x');
+assert.match(caseState(r, 'aiona', 0).code.reason, /검사 실행 오류 1건/);
+assert.equal(caseState(r, 'aiona', 1).outcome, 'clear');
+assert.equal(caseState(r, 'aiona', 1).code.pendingReason, '');
+assert.doesNotMatch(caseState(r, 'aiona', 1).code.reason, /보완|미완료/);
+assert.equal(modelSummary(r, 'aiona', 2).codeIncomplete, 1);
+assert.equal(modelSummary(r, 'aiona', 2).codeErrors, 1);
+const liveNew = result([code(3, 0, 0)], [{status: 'RUNNING'}]);
+liveNew.status = 'EVALUATING'; liveNew.evaluations.aiona.live = true;
+assert.equal(caseState(liveNew, 'aiona', 0).outcome, 'running');
+assert.notEqual(caseState(liveNew, 'aiona', 0).code.text, '보완 평가 대기');
+console.log('Case-level check errors and completion-free new records passed.');

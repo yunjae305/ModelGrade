@@ -507,11 +507,12 @@ class ComparisonService:
                              for cid in criteria)
             criterion_review += unverified
             try:
-                case = resolved_case(case, record)
+                case = resolved_case(case, record)  # 옛 결과의 code_completion 투영 (새 결과는 그대로)
             except (KeyError, TypeError, IndexError):
                 continue
             common = (case.get('summary') or {}).get('common') or {}
-            code_complete = (common.get('unjudged') == 0
+            # 검사 실행 오류(case errors)가 있는 질문은 CODE 완료로 세지 않는다.
+            code_complete = (common.get('unjudged') == 0 and not case.get('errors')
                              and common.get('pass', 0) + common.get('fail', 0) > 0)
             semantic_complete = (record.get('status') == 'SUCCESS' and bool(criteria)
                                  and all((decisions.get(cid) or {}).get('decision') in ('PASS', 'FAIL') for cid in criteria))

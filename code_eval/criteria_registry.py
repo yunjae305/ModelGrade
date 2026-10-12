@@ -4,7 +4,7 @@
 - CODE 상위·소분류 설명: ``taxonomy.CATEGORIES`` · 검사 단위와 규칙 버전: ``core.CHECK_VERSIONS``
 - 질문 조건 종류(``extract`` 의 Req.kind) → 검사 단위: ``CODE_UNITS``
 - 의미 기준: ``jev_criteria.describe()`` · 적용 조건: ``jev_applicability.APPLIES_WHEN``
-- 미판정·근거 부족의 최종 처리: ``semantic_policy.DECISION_POLICY``, CODE 미판정 보완: ``common_adjudication``
+- 미판정·근거 부족의 최종 처리: ``semantic_policy.DECISION_POLICY`` (공통 CODE 행은 PASS/FAIL 뿐, 보완 기준 없음)
 기준 ID·결과 스키마·판정·집계는 바꾸지 않는다. ``tests/test_criteria_registry.py`` 가 이 목록과 실제 실행 경로가
 어긋나지 않는지(검사 단위·조건 종류·의미 기준) 확인한다.
 """
@@ -14,7 +14,6 @@ from __future__ import annotations
 import copy
 from typing import Any, Dict, List, Optional
 
-from .common_adjudication import VERSION as COMPLETION_VERSION
 from .core import CHECK_VERSIONS
 from .jev_applicability import APPLIES_WHEN
 from .jev_criteria import JEV_CRITERIA_VERSION, describe as jev_describe
@@ -105,9 +104,9 @@ RELATIONS = (
 
 _CODE_EVIDENCE = ("결과 행마다 required(질문에서 읽은 요구)·measured(측정값)·comparison(비교식)·reason·"
                   "evidence(답변·질문 위치)·explain(쉬운 설명). 코드 규칙으로 만들며 LLM을 쓰지 않음")
-_CODE_UNJUDGED = ("UNSUPPORTED·DEPENDENCY_FAILED·INCOMPLETE·CHECK_ERROR·LIMIT_EXCEEDED·CONFIG_MISSING·DISPLAY_MISSING은 "
-                  "판정 없음(통과율 분모 제외). 공통 미판정은 같은 의미 평가 호출의 C 기준으로 보완 판정"
-                  f"({COMPLETION_VERSION}, 근거 없는 보완 판정은 무효)")
+_CODE_UNJUDGED = ("공통 결과 행은 PASS/FAIL 뿐. 코드로 확정할 수 없는 조건·선행 FAIL 에 종속된 조건은 행을 만들지 않음"
+                  "(통과율 분모 제외, 사유는 meta.skipped_conditions). 검사기 오류·입력 한도 초과는 사례의 errors 에 "
+                  "실행 오류로 기록(품질 FAIL 아님, 그 질문은 PASS 로 확정하지 않음)")
 _SEMANTIC_EVIDENCE = {
     "J5": ("fact_check.claims[] — 답변 원문 발췌 주장별 verdict·reason·sources(url·quote·authority·temporal_relevance·origin). "
            "서버가 검색 도구 기록의 URL, 출처 원문·입력 원문의 인용 일치를 확인하고 맞지 않으면 그 주장을 확인 필요로 바꿈"),
@@ -132,7 +131,7 @@ def _code_entries() -> List[Dict[str, Any]]:
             "group_name": SUBCATEGORIES.get(group) or SPECIALIZED.get(group),
             "category": group.split("-")[0] if group in SUBCATEGORIES else "AIONA",
             "name": name, "trigger": trigger, "applies_when": _TRIGGER[trigger], "requirement_kinds": list(kinds),
-            "method": "CODE" if trigger == "aiona" else "CODE (공통 미판정은 LLM 보완)",
+            "method": "CODE",
             "pass": sub["pass"] if sub else "등록 목록 대조에서 검출 없음",
             "fail": sub["fail"] if sub else "등록 목록의 표현·마커가 실제 표시본에 있음",
             "pass_fail_scope": "소분류 공통 설명 (taxonomy.CATEGORIES)" if sub else "AIONA 특화 항목",
