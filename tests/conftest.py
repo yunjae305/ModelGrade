@@ -29,6 +29,8 @@ def _no_real_jev_call(monkeypatch):
 
     monkeypatch.setattr(jev_eval, "resolve_jev_client",
                         lambda **_: jev_client.resolve_jev_client(environment={}, env_path=Path(__file__).parent / ".no-env"))
+    # 개발자 .env 의 SEMANTIC_PIPELINE=items 가 기존 테스트를 흔들지 않도록 의미 평가 방식은 legacy 로 고정한다.
+    monkeypatch.setattr(jev_eval, "resolve_semantic_pipeline", lambda *_, **__: "legacy")
 
 
 def _usable(path: Path) -> bool:

@@ -526,13 +526,7 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
     verification = result.get("verification")
     if not isinstance(verification, dict):
         verification = result["verification"] = {}
-    observed = {_url(value) for value in verification.get("source_urls", []) if isinstance(value, str)} if isinstance(verification.get("source_urls"), list) else set()
-    observed.discard(None)
-    search_performed = verification.get("search_performed") is True
-    verification.update(source_validation="provider_and_content", source_checks=[])
-    deadline = time.monotonic() + TOTAL_TIMEOUT
-    cache, checks, fetched = {}, {}, 0
-    references = 0
+    sources = []
     for claim in fact.get("claims", []) if isinstance(fact.get("claims"), list) else []:
         _check_cancelled(cancel_event)
         if not isinstance(claim, dict):
@@ -546,55 +540,79 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
             origin = source.get("origin") or ("web" if fact.get("basis") == "web" else None)
             if origin != "web":
                 continue
-            references += 1
-            source.update(quote_verified=False, verification_reason="", verified_at=None, resolved_url=None)
-            url = _url(source.get("url"))
-            quote_text = _normalize(source.get("quote"))
-            if not search_performed or not url or url not in observed:
-                status = "not_observed"
-            elif references > MAX_SOURCE_REFERENCES:
-                status = "source_limit"
-            elif not quote_text:
-                status = "empty_quote"
-            else:
-                if url not in cache:
-                    if fetched >= MAX_SOURCE_URLS:
-                        cache[url] = {"status": "source_limit", "checked_at": _now()}
-                    elif time.monotonic() >= deadline:
-                        cache[url] = {"status": "timeout", "checked_at": _now()}
-                    else:
-                        fetched += 1
-                        try:
-                            # Injected fetchers bypass shared state entirely, so
-                            # independent test/client fixtures cannot contaminate it.
-                            _check_cancelled(cancel_event)
-                            item = fetcher(url) if fetcher is not None else _SOURCE_TEXT_CACHE.fetch(url, deadline=deadline)
-                            _check_cancelled(cancel_event)
-                            if isinstance(item, dict) and item.get("status") == "ok":
-                                if _target(item.get("final_url"))[1] != _target(url)[1]:
-                                    item = {**item, "status": "redirect_host_changed", "text": ""}
-                            cache[url] = item if isinstance(item, dict) else {"status": "fetch_error"}
-                        except CancelledError:
-                            raise
-                        except Exception:
-                            _check_cancelled(cancel_event)
-                            cache[url] = {"status": "fetch_error"}
-                    item = cache[url]
-                    checks[url] = {"url": url, "status": item.get("status", "fetch_error"),
-                                   "checked_at": item.get("checked_at") or _now(), "resolved_url": _url(item.get("final_url")),
-                                   "quote_count": 0, "verified_quotes": 0, "unverified_quotes": 0}
-                    verification["source_checks"].append(checks[url])
-                item = cache[url]
-                status = item.get("status", "fetch_error")
-                if status == "ok":
-                    status = "verified" if quote_text in _normalize(item.get("text")) else "quote_not_found"
-                checks[url]["quote_count"] += 1
-                checks[url]["verified_quotes" if status == "verified" else "unverified_quotes"] += 1
-                if status == "verified":
-                    source.update(quote_verified=True, verified_at=checks[url]["checked_at"], resolved_url=checks[url]["resolved_url"])
-                elif checks[url]["resolved_url"]:
-                    source["resolved_url"] = checks[url]["resolved_url"]
-            source["verification_status"] = status
-            source["verification_reason"] = _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다.")
+            sources.append(source)
+    _verify_sources(sources, verification, fetcher=fetcher, cancel_event=cancel_event)
     _check_cancelled(cancel_event)
     return result
+
+
+def _verify_sources(sources, verification, *, fetcher=None, cancel_event=None):
+    """Verify a flat list of web sources in place (quote_verified/verification_status/…), recording source_checks.
+
+    Shared by the legacy fact_check path (``verify_web_sources``) and the items pipeline
+    (``semantic_facts.verify_refutations``): only URLs observed by the provider's completed
+    search are opened, at most MAX_SOURCE_URLS per call, within TOTAL_TIMEOUT.
+    """
+    observed = {_url(value) for value in verification.get("source_urls", []) if isinstance(value, str)} if isinstance(verification.get("source_urls"), list) else set()
+    observed.discard(None)
+    search_performed = verification.get("search_performed") is True
+    verification.update(source_validation="provider_and_content", source_checks=[])
+    deadline = time.monotonic() + TOTAL_TIMEOUT
+    cache, checks, fetched = {}, {}, 0
+    references = 0
+    for source in sources:
+        _check_cancelled(cancel_event)
+        if not isinstance(source, dict):
+            continue
+        references += 1
+        source.update(quote_verified=False, verification_reason="", verified_at=None, resolved_url=None)
+        url = _url(source.get("url"))
+        quote_text = _normalize(source.get("quote"))
+        if not search_performed or not url or url not in observed:
+            status = "not_observed"
+        elif references > MAX_SOURCE_REFERENCES:
+            status = "source_limit"
+        elif not quote_text:
+            status = "empty_quote"
+        else:
+            if url not in cache:
+                if fetched >= MAX_SOURCE_URLS:
+                    cache[url] = {"status": "source_limit", "checked_at": _now()}
+                elif time.monotonic() >= deadline:
+                    cache[url] = {"status": "timeout", "checked_at": _now()}
+                else:
+                    fetched += 1
+                    try:
+                        # Injected fetchers bypass shared state entirely, so
+                        # independent test/client fixtures cannot contaminate it.
+                        _check_cancelled(cancel_event)
+                        item = fetcher(url) if fetcher is not None else _SOURCE_TEXT_CACHE.fetch(url, deadline=deadline)
+                        _check_cancelled(cancel_event)
+                        if isinstance(item, dict) and item.get("status") == "ok":
+                            if _target(item.get("final_url"))[1] != _target(url)[1]:
+                                item = {**item, "status": "redirect_host_changed", "text": ""}
+                        cache[url] = item if isinstance(item, dict) else {"status": "fetch_error"}
+                    except CancelledError:
+                        raise
+                    except Exception:
+                        _check_cancelled(cancel_event)
+                        cache[url] = {"status": "fetch_error"}
+                item = cache[url]
+                checks[url] = {"url": url, "status": item.get("status", "fetch_error"),
+                               "checked_at": item.get("checked_at") or _now(), "resolved_url": _url(item.get("final_url")),
+                               "quote_count": 0, "verified_quotes": 0, "unverified_quotes": 0}
+                verification["source_checks"].append(checks[url])
+            item = cache[url]
+            status = item.get("status", "fetch_error")
+            if status == "ok":
+                status = "verified" if quote_text in _normalize(item.get("text")) else "quote_not_found"
+            checks[url]["quote_count"] += 1
+            checks[url]["verified_quotes" if status == "verified" else "unverified_quotes"] += 1
+            if status == "verified":
+                source.update(quote_verified=True, verified_at=checks[url]["checked_at"], resolved_url=checks[url]["resolved_url"])
+            elif checks[url]["resolved_url"]:
+                source["resolved_url"] = checks[url]["resolved_url"]
+        source["verification_status"] = status
+        source["verification_reason"] = _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다.")
+    _check_cancelled(cancel_event)
+    return sources

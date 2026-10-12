@@ -1,11 +1,15 @@
-"""CLI 의미 평가가 공유하는 기준·원문 프롬프트와 응답 형식."""
+"""CLI 의미 평가가 공유하는 기준·원문 프롬프트와 응답 형식.
+
+items 파이프라인(``questions`` 값이 ``type == "item"``)이면 프롬프트·스키마를 ``semantic_items_prompt`` 로 위임한다.
+legacy 분기는 바뀌지 않는다 (상수 스냅샷 테스트가 대조).
+"""
 
 from __future__ import annotations
 
 import json
 import copy
 from datetime import datetime, timezone
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 SYSTEM_PROMPT = (
     "당신은 AI 답변 품질 평가기의 의미 평가 단계입니다. 주어진 기준의 허용 판정은 PASS, FAIL, UNVERIFIED이며, "
@@ -16,7 +20,73 @@ SYSTEM_PROMPT = (
 )
 
 
-def system_prompt(search_enabled: bool = False) -> str:
+#: 검색이 꺼진 설정(web_search != live 또는 reference 있음)에서 J5-1.a 를 보내지 않는 사유 — verification.items_not_sent[].reason
+SEARCH_NOT_AVAILABLE_REASON = "검색 도구 없음 — 라이브 웹검색 없이 기억만으로 판정하지 않도록 보내지 않음"
+#: items 응답 item 의 필수 키 (semantic_items_prompt.ITEM_SCHEMA 와 같다)
+_ITEM_KEYS = ("id", "decision", "question_quote", "answer_quote", "reason", "turn", "fact")
+_ITEM_DECISIONS = ("YES", "NO", "NOT_APPLICABLE")
+
+
+def is_items(questions: Any) -> bool:
+    """``questions`` 가 items 파이프라인 계약(값이 {"type": "item", …})인지. 목록·legacy 기준 사전은 False."""
+    return (isinstance(questions, dict) and bool(questions)
+            and any(isinstance(q, dict) and q.get("type") == "item" for q in questions.values()))
+
+
+def search_requested(questions: Any) -> bool:
+    """웹검색을 켤 요청인지 — legacy: 'J5' 포함, items: J5-1.a 또는 J5-3.a 항목 포함."""
+    if is_items(questions):
+        return any(item_id in questions for item_id in ("J5-1.a", "J5-3.a"))
+    return isinstance(questions, dict) and "J5" in questions
+
+
+def strip_search_items(questions: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """라이브 웹검색이 있어야 판정 가능한 항목(``needs_search``)을 뺀 questions 와 뺀 id 목록. 검색이 꺼진 설정에서 transport 가 쓴다."""
+    removed = [item_id for item_id, q in questions.items() if isinstance(q, dict) and q.get("needs_search")]
+    return {item_id: q for item_id, q in questions.items() if item_id not in removed}, removed
+
+
+def validate_items_shape(structured: Any, questions: Dict[str, Any]) -> List[str]:
+    """items 응답의 형식 오류 목록 (빈 목록이면 OK). 보내지 않은 항목·빠진 항목은 형식 오류가 아니라 재확인이 처리한다."""
+    errors: List[str] = []
+    if not isinstance(structured, dict) or set(structured) != {"items"}:
+        return ["응답 최상위는 {\"items\": [...]} 이어야 합니다"]
+    items = structured["items"]
+    if not isinstance(items, list):
+        return ["items 가 배열이 아닙니다"]
+    for position, item in enumerate(items):
+        where = f"items[{position}]"
+        if not isinstance(item, dict):
+            errors.append(f"{where} 가 객체가 아닙니다")
+            continue
+        missing = [key for key in _ITEM_KEYS if key not in item]
+        if missing:
+            errors.append(f"{where} 에 {', '.join(missing)} 이(가) 없습니다")
+        if not isinstance(item.get("id"), str) or not item["id"].strip():
+            errors.append(f"{where}.id 가 문자열이 아닙니다")
+        if item.get("decision") not in _ITEM_DECISIONS:
+            errors.append(f"{where}.decision 이 YES/NO/NOT_APPLICABLE 이 아닙니다")
+        for key in ("question_quote", "answer_quote", "reason"):
+            if key in item and not isinstance(item[key], str):
+                errors.append(f"{where}.{key} 가 문자열이 아닙니다")
+        turn = item.get("turn")
+        if turn is not None and (isinstance(turn, bool) or not isinstance(turn, int)):
+            errors.append(f"{where}.turn 이 정수 또는 null 이 아닙니다")
+        fact = item.get("fact")
+        if fact is not None and not isinstance(fact, dict):
+            errors.append(f"{where}.fact 가 객체 또는 null 이 아닙니다")
+        elif isinstance(fact, dict):
+            if fact.get("verdict") not in ("TRUE", "FALSE"):
+                errors.append(f"{where}.fact.verdict 가 TRUE/FALSE 가 아닙니다")
+            if not isinstance(fact.get("sources"), list) or not all(isinstance(s, dict) for s in fact["sources"]):
+                errors.append(f"{where}.fact.sources 가 객체 배열이 아닙니다")
+    return errors
+
+
+def system_prompt(search_enabled: bool = False, questions: Any = None) -> str:
+    if is_items(questions):
+        from .semantic_items_prompt import items_system_prompt
+        return items_system_prompt(search_enabled)
     if not search_enabled:
         return SYSTEM_PROMPT
     return SYSTEM_PROMPT.replace("파일·명령·검색·외부 도구를 사용하지 않습니다.",
@@ -32,6 +102,9 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
     history/reference/search branches. No source text or evaluation rule is
     shortened for caching.
     """
+    if is_items(questions):
+        from .semantic_items_prompt import build_item_prompt_parts
+        return build_item_prompt_parts(state, questions, search_enabled, evaluation_time=evaluation_time)
     dynamic_lines = []
     lines = ["아래 평가 대상(질문·답변)을 기준별로 판단하세요. 근거로 확인하면 PASS 또는 FAIL, 근거가 부족하면 UNVERIFIED입니다. J5 적용 대상이 없으면 NOT_APPLICABLE입니다.",
              "confidence 는 그 판단에 대한 확신(0~1), reason 은 질문·답변에 근거한 한두 문장입니다.",
@@ -175,6 +248,9 @@ def build_prompt(state: Dict[str, Any], questions: Dict[str, Any], search_enable
 
 
 def output_schema(ids) -> Dict[str, Any]:
+    if is_items(ids):
+        from .semantic_items_prompt import items_output_schema
+        return items_output_schema(ids)
     entry = {"type": "object", "additionalProperties": False, "required": ["choice", "confidence", "reason"],
              "properties": {"choice": {"type": "string", "enum": ["PASS", "FAIL"]},
                             "confidence": {"type": "number", "minimum": 0, "maximum": 1},

@@ -127,7 +127,7 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
                    "reason": d.get("reason") or (f'확인한 것: {looks[d["criterion_id"]]["look_for"]}'
                                                  if d["criterion_id"] in looks else ""),
                    "confidence": d.get("confidence"), "where": _quoted_where(d.get("reason") or "", case.get("answer") or ""),
-                   **{k: copy.deepcopy(d[k]) for k in ('fact_check', 'context_checks') if k in d}}
+                   **{k: copy.deepcopy(d[k]) for k in ('fact_check', 'context_checks', 'subs', 'reason_code') if k in d}}
                   for d in sem_fail]
         problems.append({"case_id": case["case_id"], "case_index": i, "question": case.get("question") or "",
                          "sources": sorted({it["source"] for it in items}, key=["CODE", "의미 평가"].index), "items": items})

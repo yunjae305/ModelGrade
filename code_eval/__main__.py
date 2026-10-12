@@ -111,6 +111,8 @@ def main(argv=None) -> int:
         p.add_argument("--aiona-override", help="특화 설정 덮어쓰기 JSON (marker_registry / forbidden_expressions)")
         p.add_argument("--semantic-engine", choices=("auto", "openai-api", "anthropic-api", "jev", "claude-cli", "codex-cli", "gpt-cli"),
                        help="의미 평가 엔진 (기본: .env 의 SEMANTIC_ENGINE, 없으면 jev). codex-cli/gpt-cli 는 Codex CLI 로그인 사용")
+        p.add_argument("--semantic-pipeline", choices=("legacy", "items"),
+                       help="의미 평가 방식 (기본: .env 의 SEMANTIC_PIPELINE, 없으면 legacy). items 는 세부 기준·점검 항목에 예/아니오+인용")
     run = sub.choices["run"]
     run.add_argument("--input", required=True,
                      help="JSON 또는 JSONL (question, answer 필수 · 선택: reference, 대화 입력은 conversation_id + turn)")
@@ -145,7 +147,7 @@ def main(argv=None) -> int:
                 payload[key] = value
         with _code_phase_guard():
             batch = evaluate_batch([payload], cfg)
-        batch["jev_eval"] = jev_after_code(batch, engine=args.semantic_engine)
+        batch["jev_eval"] = jev_after_code(batch, engine=args.semantic_engine, pipeline=args.semantic_pipeline)
         batch["combined"] = combined_summary(batch)
         if args.json:
             _print(json.dumps(batch, ensure_ascii=False, indent=2, allow_nan=False))
@@ -188,7 +190,7 @@ def main(argv=None) -> int:
     with _code_phase_guard():
         batch = evaluate_batch(items, cfg, progress=progress)
     print(file=sys.stderr)
-    batch["jev_eval"] = jev_after_code(batch, engine=args.semantic_engine)
+    batch["jev_eval"] = jev_after_code(batch, engine=args.semantic_engine, pipeline=args.semantic_pipeline)
     batch["combined"] = combined_summary(batch)
     batch["input"] = {"path": str(args.input), "items": len(items), "jsonl_parse_errors": parse_errors}
     _prepare_output(out, args.overwrite)

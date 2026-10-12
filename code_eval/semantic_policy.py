@@ -15,7 +15,10 @@ from .semantic_sources import _REASONS
 SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v1"
 FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v1"
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
-DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION}
+#: items 파이프라인의 재확인 정책 — 3회 뒤 남은 문제는 '확인 불가로 FAIL' (semantic_quotes.RECHECK_POLICY 와 같은 값)
+ITEMS_RECHECK_POLICY_VERSION = "items-recheck-3-then-fail-v1"
+DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
+                   "items_recheck": ITEMS_RECHECK_POLICY_VERSION}
 SOURCE_ORIGINAL_FAILURE_REASON = "출처 원문 확인 실패로 검증 기준 미충족"
 SOURCE_ORIGINAL_FAILURE_CODE = "SOURCE_ORIGINAL_UNAVAILABLE"
 FINAL_EVIDENCE_FAILURE_CODE = "EVALUATION_EVIDENCE_INSUFFICIENT"
@@ -212,6 +215,9 @@ def apply_final_decision_policy(record, *, state=None):
     """
     result = {"changed": False, "policy_version": FINAL_DECISION_POLICY_VERSION, "changes": []}
     if not isinstance(record, dict) or record.get("status") != "SUCCESS" or not isinstance(record.get("decisions"), dict):
+        return result
+    if record.get("pipeline") == "items":
+        # items 레코드는 세부 기준 집계가 이미 PASS/FAIL 을 확정했고(재확인 3회 뒤 확인 불가 FAIL), UNVERIFIED 상태를 만들지 않는다.
         return result
     requested = set(record.get("criteria") or []) - set(record.get("not_requested") or [])
     restored = _revalidate_input_scope(record, state) if "J5" in requested else None

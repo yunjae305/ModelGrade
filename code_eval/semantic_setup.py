@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
 
+from .jev_client import resolve_semantic_pipeline
 from .llm_client import env_value, redact
 
-_LABELS = {"openai_api": "OpenAI API", "anthropic_api": "Claude API", "codex_cli": "GPT CLI (Codex)",
+_LABELS ={"openai_api": "OpenAI API", "anthropic_api": "Claude API", "codex_cli": "GPT CLI (Codex)",
            "claude_cli": "Claude CLI", "jev": "Jev", "injected": "주입된 평가자"}
 _CONNECTION_NOTE = "설정만 확인했습니다. 실제 연결·로그인·모델 접근은 평가 실행 시 확인합니다."
 
@@ -44,6 +45,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
         "can_evaluate": injected, "connection_status": "not_checked",
         "connection_message": _CONNECTION_NOTE,
         "search_status": "not_checked", "search_message": "검색 지원 여부를 확인하지 않았습니다.",
+        "pipeline": "legacy",   # 의미 평가 방식(SEMANTIC_PIPELINE) — 화면 표시용이며 판정에 쓰지 않는다
         "reason": None,
     }
     if injected:
@@ -66,6 +68,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
             result.update(search_status="configured", search_message="사실 검증에 필요하고 참조 자료가 없을 때 웹 검색을 허용합니다. 실제 검색 연결은 아직 확인하지 않았습니다.")
 
     try:
+        result["pipeline"] = resolve_semantic_pipeline(environment, env_path)   # 잘못된 값이면 아래 except 로 invalid
         engine = (read("SEMANTIC_ENGINE") or "jev").strip().lower().replace("-", "_")
         if engine == "auto":
             engine = "openai_api" if read("SEMANTIC_API_KEY") else "codex_cli"

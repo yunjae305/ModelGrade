@@ -22,7 +22,8 @@ from typing import Any, Callable, Dict, Optional
 
 from .jev_client import JevCall, JevStatus, _CallAccounting, _token_usage
 from .llm_client import redact
-from .semantic_cli_common import system_prompt, build_prompt, jev_answer, output_schema
+from .semantic_cli_common import (system_prompt, build_prompt, jev_answer, output_schema, is_items, search_requested,
+                                  strip_search_items, validate_items_shape, SEARCH_NOT_AVAILABLE_REASON)
 from .semantic_evidence import (finalize_answers, has_reference, source_url, FACT_CHECK_POLICY,
                                 CONTEXT_CHECK_POLICY, SEARCH_POLICY)
 from .semantic_sources import verify_web_sources
@@ -189,7 +190,13 @@ class CodexCliClient:
         if cancel_event is not None and cancel_event.is_set():
             return JevCall(JevStatus.SKIPPED, attempts=0, error="평가 중단 요청으로 실행하지 않았습니다.")
         started = time.monotonic()
-        search_enabled = "J5" in questions and not has_reference(state) and self.config.web_search == "live"
+        search_enabled = search_requested(questions) and not has_reference(state) and self.config.web_search == "live"
+        items_mode = is_items(questions)
+        not_sent = []
+        if items_mode and not search_enabled:
+            # 검색이 꺼진 설정: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
+            questions, removed = strip_search_items(questions)
+            not_sent = [{"id": item_id, "reason": SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
         verification = _verification([])
         accounting = _CallAccounting(self.config.model)
         usage = {}
@@ -217,6 +224,8 @@ class CodexCliClient:
         def result(status: str, **kwargs) -> JevCall:
             body = kwargs.pop("body", None) or {}
             body.setdefault("verification", verification)
+            if not_sent:
+                body["verification"]["items_not_sent"] = list(not_sent)
             return JevCall(status, body=body, attempts=1,
                            usage=kwargs.pop("usage", usage), accounting=accounting.snapshot(1),
                            latency_ms=int((time.monotonic() - started) * 1000), **kwargs)
@@ -233,7 +242,7 @@ class CodexCliClient:
                        "-c", f"model_reasoning_effort={json.dumps(self.config.reasoning_effort)}",
                        "-c", "approval_policy=\"never\"", "-c", f"web_search={json.dumps('live' if search_enabled else 'disabled')}",
                        "-c", "project_doc_max_bytes=0", "-c", "mcp_servers={}",
-                       "-c", f"developer_instructions={json.dumps(system_prompt(search_enabled), ensure_ascii=False)}",
+                       "-c", f"developer_instructions={json.dumps(system_prompt(search_enabled, questions), ensure_ascii=False)}",
                        "--output-schema", str(schema_path), "--output-last-message", str(output_path)]
                 for feature in DISABLED_FEATURES:
                     cmd += ["--disable", feature]
@@ -262,6 +271,14 @@ class CodexCliClient:
                     structured = json.loads(output_path.read_text(encoding="utf-8-sig"))
                 except (OSError, ValueError):
                     return result(JevStatus.INVALID_RESPONSE, error="Codex CLI 최종 결과 파일이 없거나 JSON이 아님")
+                if items_mode:
+                    if validate_items_shape(structured, questions):
+                        return result(JevStatus.INVALID_RESPONSE, error="Codex CLI 결과가 items 응답 형식과 다름")
+                    # items 본문: J5 서버 검증(server_check)이 verification 을 제자리에서 채우고 finalize_answers 는 그대로 통과한다
+                    from .semantic_facts import server_check
+                    body = {"model": self.config.model, "items": structured["items"], "verification": verification}
+                    body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                    return result("OK", body=finalize_answers(body, state, questions), usage=usage if isinstance(usage, dict) else {})
                 if not isinstance(structured, dict) or set(structured) != set(questions):
                     return result(JevStatus.INVALID_RESPONSE, error="Codex CLI 결과의 평가 기준 ID가 요청과 다름")
                 body = {"model": self.config.model, "verification": verification,

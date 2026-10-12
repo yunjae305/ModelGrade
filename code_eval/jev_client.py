@@ -9,6 +9,7 @@
 키가 없으면 호출하지 않고 ``NOT_CONFIGURED`` 로 끝낸다. 판정을 지어내지 않는다.
 
     SEMANTIC_ENGINE    jev(기본) | claude_cli | codex_cli — CLI 로그인으로 의미 평가 가능
+    SEMANTIC_PIPELINE  legacy(기본, 기준 6개를 한 번에 묻기) | items(세부 기준·점검 항목에 예/아니오+인용) — ``resolve_semantic_pipeline``
 """
 
 from __future__ import annotations
@@ -22,10 +23,14 @@ from typing import Any, Callable, Dict, Optional, Protocol
 
 from .llm_client import env_value, redact
 
-__all__ = ["JevStatus", "JevClientConfig", "JevCall", "JevClient", "HttpJevClient", "resolve_jev_client"]
+__all__ = ["JevStatus", "JevClientConfig", "JevCall", "JevClient", "HttpJevClient", "resolve_jev_client",
+           "SEMANTIC_PIPELINES", "resolve_semantic_pipeline"]
 
 DEFAULT_API_BASE = "https://api.typesafe.ai/v1"
 DEFAULT_MODEL = "jev-latest"
+
+#: 의미 평가 방식 — legacy(기준 6개 한 번에, 기본) | items(세부 기준 25·점검 항목 39 에 예/아니오+인용, 서버가 인용 검증·집계)
+SEMANTIC_PIPELINES = ("legacy", "items")
 
 #: 다시 시도할 응답 — 속도 제한(429)·과부하(529)·일시 서버 오류
 _RETRYABLE = {429, 500, 502, 503, 504, 529}
@@ -282,6 +287,18 @@ class HttpJevClient:
                            usage=_token_usage(body.get("usage")), accounting=accounting.snapshot(attempt))
         return JevCall(status, attempts=attempt, latency_ms=int((time.monotonic() - started) * 1000),
                        http_status=http_status, error=redact(error), accounting=accounting.snapshot(attempt))
+
+
+def resolve_semantic_pipeline(environment: Optional[Dict[str, str]] = None, env_path: Optional[Path] = None,
+                              pipeline: Optional[str] = None) -> str:
+    """의미 평가 방식을 정한다 — ``pipeline`` 인자 > SEMANTIC_PIPELINE(환경변수·.env) > 기본 legacy.
+
+    legacy·items 외의 값은 ValueError (조용히 기본값으로 바꾸지 않는다). 엔진 설정과 무관하며 client config 에 두지 않는다.
+    """
+    value = (pipeline or env_value("SEMANTIC_PIPELINE", environment, env_path) or "legacy").strip().lower()
+    if value not in SEMANTIC_PIPELINES:
+        raise ValueError(f"알 수 없는 의미 평가 방식: {value!r} (legacy 또는 items)")
+    return value
 
 
 def resolve_jev_client(

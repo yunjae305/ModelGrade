@@ -26,7 +26,9 @@ from typing import Any, Callable, Dict, Optional
 
 from .jev_client import JevCall, JevStatus, _CallAccounting, _token_usage, _amount
 from .llm_client import redact
-from .semantic_cli_common import SYSTEM_PROMPT, build_prompt, output_schema, jev_answer as _jev_answer
+from .semantic_cli_common import (SYSTEM_PROMPT, build_prompt, output_schema, jev_answer as _jev_answer,
+                                  system_prompt as _system_prompt, is_items, strip_search_items, validate_items_shape,
+                                  SEARCH_NOT_AVAILABLE_REASON)
 from .semantic_evidence import finalize_answers, FACT_CHECK_POLICY, CONTEXT_CHECK_POLICY
 from .cli_process import CliCancelled, run_cli
 
@@ -83,10 +85,11 @@ class ClaudeCliClient:
     supports_cancellation = True
 
     def __init__(self, config: ClaudeCliConfig, runner: Callable[..., Any] = subprocess.run,
-                 workdir: Optional[Path] = None) -> None:
+                 workdir: Optional[Path] = None, *, source_fetcher: Optional[Callable] = None) -> None:
         self.config = config
         self._run = runner
         self._workdir = workdir
+        self._source_fetcher = source_fetcher   # items 파이프라인의 J5 출처 존재 확인용 (없으면 공개 웹 수집기)
 
     def _cwd(self) -> str:
         # 프로젝트 밖 빈 폴더에서 실행해 프로젝트 설정·문서를 읽지 않게 한다.
@@ -97,10 +100,17 @@ class ClaudeCliClient:
     def system_one(self, state: Any, questions: Dict[str, Any], *, cancel_event=None) -> JevCall:
         if cancel_event is not None and cancel_event.is_set():
             return JevCall(JevStatus.SKIPPED, attempts=0, error="평가 중단 요청으로 실행하지 않았습니다.")
+        items_mode = is_items(questions)
+        not_sent = []
+        if items_mode:
+            # 이 엔진은 웹검색이 없다: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
+            questions, removed = strip_search_items(questions)
+            not_sent = [{"id": item_id, "reason": SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
         ids = list(questions)
         cmd = [self.config.executable, "-p", "--output-format", "json",
-               "--json-schema", json.dumps(output_schema(ids), ensure_ascii=False),
-               "--tools", "", "--safe-mode", "--no-session-persistence", "--system-prompt", SYSTEM_PROMPT]
+               "--json-schema", json.dumps(output_schema(questions), ensure_ascii=False),
+               "--tools", "", "--safe-mode", "--no-session-persistence",
+               "--system-prompt", _system_prompt(False, questions) if items_mode else SYSTEM_PROMPT]
         if self.config.model:
             cmd += ["--model", self.config.model]
         prompt = build_prompt(state, questions)
@@ -179,9 +189,21 @@ class ClaudeCliClient:
                 return JevCall(JevStatus.INVALID_RESPONSE, attempts=attempt, latency_ms=elapsed,
                                error="claude 출력에 structured_output 이 없음", accounting=accounting.snapshot(attempt))
             usage = _token_usage(output.get("usage"))
+            verification = {"search_performed": False, "source_urls": [], "source_validation": "provider"}
+            if not_sent:
+                verification["items_not_sent"] = list(not_sent)
+            if items_mode:
+                if validate_items_shape(structured, questions):
+                    return JevCall(JevStatus.INVALID_RESPONSE, attempts=attempt, latency_ms=elapsed,
+                                   error="claude 출력이 items 응답 형식과 다름", accounting=accounting.snapshot(attempt))
+                # items 본문: J5 서버 검증(server_check)이 verification 을 제자리에서 채우고 finalize_answers 는 그대로 통과한다
+                from .semantic_facts import server_check
+                body = server_check({"model": _model_of(output), "verification": verification, "items": structured["items"]},
+                                    state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                return JevCall("OK", attempts=attempt, latency_ms=elapsed, body=finalize_answers(body, state, questions),
+                               usage=usage, accounting=accounting.snapshot(attempt))
             return JevCall("OK", attempts=attempt, latency_ms=elapsed,
-                           body=finalize_answers({"model": _model_of(output),
-                               "verification": {"search_performed": False, "source_urls": [], "source_validation": "provider"},
+                           body=finalize_answers({"model": _model_of(output), "verification": verification,
                                "answers": {cid: _jev_answer(structured.get(cid)) for cid in ids}}, state, questions),
                            usage=usage, accounting=accounting.snapshot(attempt))
         return JevCall(status, attempts=attempt, latency_ms=int((time.monotonic() - started) * 1000),

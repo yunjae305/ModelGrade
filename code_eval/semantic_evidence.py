@@ -299,6 +299,8 @@ def _context_check(entry, state):
 
 def finalize_answers(body, state, questions):
     """Called only by LLM transports. Native Jev and saved legacy results stay unchanged."""
+    if isinstance(body, dict) and isinstance(body.get("items"), list) and not body.get("answers"):
+        return copy.deepcopy(body)   # items 파이프라인 본문: 인용 검증은 semantic_quotes.finalize_items 가 한다
     result = copy.deepcopy(body)
     answers = result.get("answers") or {}
     verification = result.get("verification") or {}

@@ -208,7 +208,8 @@ class SemanticApiClient:
         evaluation_time = datetime.now(timezone.utc).isoformat()
         initial = self._system_one_once(state, questions, cancel_event=cancel_event,
                                         evaluation_time=evaluation_time)
-        if (initial.status != "OK" or not self.config.evidence_recovery_rounds
+        # items 파이프라인은 공통 재확인 루프(semantic_quotes.finalize_items)가 보강을 맡으므로 J5 전용 보강은 하지 않는다
+        if (initial.status != "OK" or not self.config.evidence_recovery_rounds or semantic.is_items(questions)
                 or self.config.web_search != "live" or "J5" not in questions or has_reference(state)):
             return initial
         prompt = evidence_recovery_prompt(initial.body, state)
@@ -273,7 +274,13 @@ class SemanticApiClient:
         verification = _verification([])
         parts, usage, attempts = [], {}, 0
         timings = {"api": 0.0, "source_verification": 0.0}
-        search_enabled = self.config.web_search == "live" and "J5" in questions and not has_reference(state)
+        search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
+        items_mode = semantic.is_items(questions)
+        not_sent = []
+        if items_mode and not search_enabled:
+            # 검색이 꺼진 설정: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
+            questions, removed = semantic.strip_search_items(questions)
+            not_sent = [{"id": item_id, "reason": semantic.SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
 
         def cancelled():
             return cancel_event is not None and cancel_event.is_set()
@@ -316,6 +323,8 @@ class SemanticApiClient:
             body["verification"]["timings_ms"] = {
                 **{name: round(seconds * 1000, 1) for name, seconds in timings.items()},
                 "total": round((time.monotonic() - started) * 1000, 1)}
+            if not_sent:
+                body["verification"]["items_not_sent"] = copy.deepcopy(not_sent)
             # Only nonmonetary request metadata is persisted. Prices and totals
             # remain in the terminal ledger, including after errors or cancellation.
             body["verification"]["usage_requests"] = copy.deepcopy(parts)
@@ -351,7 +360,7 @@ class SemanticApiClient:
                     prompt_input += "\n\n" + evidence_prompt
             payload = {
                 "model": self.config.model,
-                "instructions": semantic.system_prompt(search_enabled=search_enabled),
+                "instructions": semantic.system_prompt(search_enabled=search_enabled, questions=questions),
                 "input": prompt_input,
                 "reasoning": {"effort": self.config.reasoning_effort},
                 "max_output_tokens": self.config.max_output_tokens,
@@ -441,23 +450,42 @@ class SemanticApiClient:
         try:
             structured = json.loads("".join(texts))
             validate_json_numbers(structured)
-            if not isinstance(structured, dict) or set(structured) != set(questions):
-                raise ValueError("criterion mismatch")
-            if not all(isinstance(entry, dict) for entry in structured.values()):
-                raise ValueError("criterion objects required")
+            if items_mode:
+                if semantic.validate_items_shape(structured, questions):
+                    raise ValueError("items shape")
+            else:
+                if not isinstance(structured, dict) or set(structured) != set(questions):
+                    raise ValueError("criterion mismatch")
+                if not all(isinstance(entry, dict) for entry in structured.values()):
+                    raise ValueError("criterion objects required")
             model = raw.get("model")
             if not isinstance(model, str) or not model.strip():
                 raise ValueError("resolved model missing")
         except (ValueError, TypeError):
             return result(JevStatus.INVALID_RESPONSE, error="의미 평가 API의 JSON 판정·기준 ID·모델 기록이 올바르지 않습니다.", **common)
-        body = {"model": model, "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions},
-                "verification": verification}
+        if items_mode:
+            body = {"model": model, "items": copy.deepcopy(structured["items"]), "verification": verification}
+        else:
+            body = {"model": model, "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions},
+                    "verification": verification}
         verification["output_transport"] = "responses_json_schema"
         # An absent search event means zero only after a completed response with
         # a usable final judgment. Incomplete/failed responses retain unknown usage.
         parts[-1]["web_search_calls"] = _search_calls(output)
         if cancelled():
             return stopped()
+        if items_mode:
+            # items 본문: J5 서버 검증(server_check)이 verification 을 제자리에서 채우고 finalize_answers 는 그대로 통과한다
+            from .semantic_facts import server_check
+            source_started = time.monotonic()
+            try:
+                body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                body = finalize_answers(body, state, questions)
+            except CancelledError:
+                return stopped()
+            finally:
+                timings["source_verification"] += time.monotonic() - source_started
+            return stopped() if cancelled() else result("OK", body=body, **common)
         fact = body["answers"].get("J5", {}).get("fact_check")
         try:
             if isinstance(fact, dict) and fact.get("basis") in ("web", "mixed"):

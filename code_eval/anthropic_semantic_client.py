@@ -33,14 +33,18 @@ FETCH_TOOL = "web_fetch_20250910"
 FINAL_TOOL = "submit_evaluation"
 
 
-def _system_prompt(search_enabled):
+def _system_prompt(search_enabled, questions=None):
     # The shared CLI prompt asks for text JSON. Messages uses a final tool, so
     # replace that instruction instead of appending a contradictory exception.
-    prompt = semantic.system_prompt(search_enabled).replace("지정된 JSON 형식으로만 답합니다.", "")
+    # items 파이프라인 지시문도 같은 문장을 품고 있어 치환이 그대로 동작한다.
+    prompt = semantic.system_prompt(search_enabled, questions).replace("\n- 지정된 JSON 형식으로만 답합니다.", "")
+    prompt = prompt.replace("지정된 JSON 형식으로만 답합니다.", "")
     prompt = prompt.replace("J5 사실 확인을 위한 웹검색만 허용합니다. 파일·명령·다른 도구는 사용하지 않습니다.",
                             "J5 사실 확인에 web_search와 web_fetch 도구를 사용할 수 있습니다. 파일·명령 도구는 사용하지 않습니다.")
     prompt = prompt.replace("파일·명령·검색·외부 도구를 사용하지 않습니다.",
                             "파일·명령·검색 도구를 사용하지 않습니다.")
+    closing = ("항목마다 YES / NO / NOT_APPLICABLE 과 원문 인용을 적으세요." if semantic.is_items(questions)
+               else "근거가 부족하면 UNVERIFIED로 남기세요. confidence는 0~1입니다.")
     return prompt + (
         "\n최종 판정은 submit_evaluation 도구를 정확히 한 번 호출하여 제출하세요. "
         "일반 텍스트나 Markdown 코드 블록으로 최종 JSON을 출력하지 마세요. "
@@ -48,7 +52,7 @@ def _system_prompt(search_enabled):
         "검색·원문 도구와 submit_evaluation을 동시에 호출하지 마세요. "
         "최종 도구 인자에는 모든 요청 기준과 필요한 증거를 포함하되 원문 전문이나 같은 근거를 불필요하게 반복하지 마세요. "
         "이유는 짧은 한두 문장으로, 인용은 판정에 필요한 연속된 구절로 적으세요. "
-        "근거가 부족하면 UNVERIFIED로 남기세요. confidence는 0~1입니다."
+        + closing
     )
 
 
@@ -146,9 +150,21 @@ def _validate_output(value, schema, depth=0):
     implementation: adding a new schema keyword requires explicit support here.
     """
     supported = {"type", "properties", "required", "additionalProperties", "items",
-                 "enum", "minimum", "maximum", "description"}
+                 "enum", "minimum", "maximum", "description", "anyOf"}
     if depth > 64 or not isinstance(schema, dict) or set(schema) - supported:
         raise ValueError("Unsupported evaluation schema")
+    if "anyOf" in schema:
+        # items 스키마의 null 허용 필드(turn·fact): 분기 중 하나라도 통과하면 OK. 분기 밖의 다른 키워드는 함께 두지 않는다.
+        branches = schema["anyOf"]
+        if set(schema) - {"anyOf", "description"} or not isinstance(branches, list) or not branches:
+            raise ValueError("Unsupported evaluation schema")
+        for branch in branches:
+            try:
+                _validate_output(value, branch, depth + 1)
+                return
+            except ValueError:
+                continue
+        raise ValueError("Invalid evaluation value for anyOf")
     kinds = schema.get("type")
     kinds = kinds if isinstance(kinds, list) else [kinds]
     checks = {"object": lambda: isinstance(value, dict), "array": lambda: isinstance(value, list),
@@ -314,12 +330,20 @@ class AnthropicSemanticClient:
         parts, all_blocks, usage, attempts = [], [], {}, 0
         timings = {"api": 0.0, "source_verification": 0.0}
         verification, _ = _provenance([])
-        search_enabled = self.config.web_search == "live" and "J5" in questions and not has_reference(state)
+        search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
+        items_mode = semantic.is_items(questions)
+        not_sent = []
+        if items_mode and not search_enabled:
+            # 검색이 꺼진 설정: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
+            questions, removed = semantic.strip_search_items(questions)
+            not_sent = [{"id": item_id, "reason": semantic.SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
         def result(status, *, body=None, error=None, http_status=None):
             body = body or {"verification": verification}
             body.setdefault("verification", {})["timings_ms"] = {
                 **{name: round(seconds * 1000, 1) for name, seconds in timings.items()},
                 "total": round((time.monotonic() - started) * 1000, 1)}
+            if not_sent:
+                body["verification"]["items_not_sent"] = copy.deepcopy(not_sent)
             # Token/tool counts permit later terminal-only cost audits. Prices,
             # credentials, prompts and raw response blocks are not stored here.
             body["verification"]["usage_requests"] = copy.deepcopy(parts)
@@ -341,7 +365,7 @@ class AnthropicSemanticClient:
             payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
                        "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
                        "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
-                       "system": _system_prompt(search_enabled),
+                       "system": _system_prompt(search_enabled, questions),
                        "messages": [{"role": "user", "content": semantic.build_prompt(state, questions, search_enabled)}]}
             validate_json_numbers(payload)
             for continuation in range(self.config.max_continuations + 1):
@@ -426,9 +450,12 @@ class AnthropicSemanticClient:
                     }.get(stop_reason, "Claude 최종 판정이 미완료이거나 검색·도구 응답이 끝나지 않았습니다.")
                     return result(JevStatus.INVALID_RESPONSE, error=reason)
                 model = raw.get("model")
-                if (not isinstance(structured, dict) or set(structured) != set(questions)
-                        or not all(isinstance(entry, dict) for entry in structured.values())
-                        or not isinstance(model, str) or not model.strip()):
+                if items_mode:
+                    shape_errors = semantic.validate_items_shape(structured, questions)
+                else:
+                    shape_errors = [] if (isinstance(structured, dict) and set(structured) == set(questions)
+                                          and all(isinstance(entry, dict) for entry in structured.values())) else ["criterion mismatch"]
+                if shape_errors or not isinstance(model, str) or not model.strip():
                     return result(JevStatus.INVALID_RESPONSE, error="Claude 판정의 기준 ID·모델 기록이 올바르지 않습니다.")
                 verification["output_transport"] = output_transport
                 if part["web_search_calls"] is None and not any(
@@ -439,6 +466,16 @@ class AnthropicSemanticClient:
                     # with no search. Complete provider blocks establish zero;
                     # errors, pending tools and missing counts after a search do not.
                     part["web_search_calls"] = 0
+                if items_mode:
+                    # items 본문: {model, items, verification}. J5 서버 검증(server_check)이 verification 을 제자리에서 채운다.
+                    from .semantic_facts import server_check
+                    body = {"model": model, "items": copy.deepcopy(structured["items"]), "verification": verification}
+                    source_started = time.monotonic()
+                    try:
+                        body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                    finally:
+                        timings["source_verification"] += time.monotonic() - source_started
+                    return result("OK", body=finalize_answers(body, state, questions), http_status=response.status_code)
                 body = {"model": model, "verification": verification,
                         "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions}}
                 fact = body["answers"].get("J5", {}).get("fact_check")
