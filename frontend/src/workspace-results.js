@@ -23,6 +23,17 @@
     return `${id} · ${label}`;
   }
 
+  // Criterion-level "판정 미완료" (no PASS/FAIL): an unsupported FAIL after one re-evaluation or J5 without search.
+  function incompleteReason(id, decision) {
+    return `${id} · ` + (({JUDGE_FAIL_EVIDENCE_MISSING: '근거 없는 FAIL 재평가 후 미완료', J5_SEARCH_UNAVAILABLE: '검색 불가로 미완료',
+      J5_SEARCH_ERROR: '검색 실행 오류로 미완료'})[decision?.reason_code] || '판정 미완료');
+  }
+  const j5OutcomePending = new Set(['search_unavailable', 'search_error', 'incomplete']);
+  const citationLabels = {supported: '출처가 주장을 뒷받침', contradicted: '출처가 주장과 모순', unrelated: '출처가 주장과 무관',
+    not_found: '출처에 해당 내용 없음', inaccessible: '출처 원문 접근 불가', unverified: '판정 확정 안 함', unchecked: '확인하지 않음'};
+  const searchModes = {live: '웹 검색 사용', disabled: '웹 검색 꺼짐(설정)', unsupported: '검색 도구가 없는 평가자',
+    reference: '참조 자료로만 판정(검색 안 함)', not_requested: 'J5 미요청'};
+
   function resolvedCase(c, record) {
     const completion = record?.code_completion;
     if (completion?.status !== 'SUCCESS' || !completion.resolutions?.length) return c;
@@ -55,6 +66,7 @@
     const criteria = record?.criteria || decisions.map(([id]) => id);
     const fail = record?.status === 'SUCCESS' ? decisions.filter(([id, d]) => criteria.includes(id) && d.decision === 'FAIL').length : 0;
     const unverified = decisions.filter(([id, d]) => criteria.includes(id) && d?.status === 'UNVERIFIED' && !['PASS', 'FAIL'].includes(d.decision));
+    const incomplete = decisions.filter(([id, d]) => criteria.includes(id) && d?.status === 'INCOMPLETE');
     const complete = record?.status === 'SUCCESS' && criteria.length > 0 &&
       criteria.every((id) => ['PASS', 'FAIL'].includes(record.decisions?.[id]?.decision));
     let rawReason = record?.error || fallbackReason || '';
@@ -64,10 +76,11 @@
     } else if (complete) {
       text = fail ? `문제 ${fail}개` : '통과';
       reason = `적용된 의미 기준 ${criteria.length}개를 모두 판정했습니다.`;
-    } else if (unverified.length) {
-      text = '확인 필요';
-      rawReason = unverified.map(([id, d]) => `${id}: ${d.reason || '검증 근거가 충분하지 않습니다.'}`).join('\n');
-      reason = [...new Set(unverified.map(([id, d]) => conciseReason(id, d.reason)))].join(' · ');
+    } else if (unverified.length || incomplete.length) {
+      text = incomplete.length ? '판정 미완료' : '확인 필요';
+      rawReason = [...unverified, ...incomplete].map(([id, d]) => `${id}: ${d.reason || '검증 근거가 충분하지 않습니다.'}`).join('\n');
+      reason = [...new Set([...unverified.map(([id, d]) => conciseReason(id, d.reason)),
+        ...incomplete.map(([id, d]) => incompleteReason(id, d))])].join(' · ');
     } else if (record?.status === 'NOT_CONFIGURED') {
       text = '연결 필요'; reason = '의미 평가 서비스가 연결되지 않아 내용을 평가하지 못했습니다.';
     } else if (record?.status === 'API_ERROR') {
@@ -87,7 +100,8 @@
     } else if (record?.status) {
       text = '평가 미완료'; reason = '의미 평가를 완료하지 못했습니다.';
     }
-    return {text, reason, rawReason, fail, complete, unverified: unverified.length, waiting: !record, inProgress: record?.status === 'RUNNING',
+    return {text, reason, rawReason, fail, complete, unverified: unverified.length, incomplete: incomplete.length,
+      waiting: !record, inProgress: record?.status === 'RUNNING',
       kind: record?.status === 'RUNNING' ? 'purple' : fail ? 'danger' : complete ? 'success' : 'warning'};
   }
 
@@ -100,11 +114,14 @@
   function semanticEvidence(record, make) {
     if (!record) return null;
     const decisions = record.decisions || {}, j5 = decisions.J5, j6 = decisions.J6, verification = record.verification;
-    const hasFact = j5?.status !== 'NOT_APPLICABLE' && (j5?.fact_check || j5?.status === 'UNVERIFIED');
+    const hasFact = j5?.status !== 'NOT_APPLICABLE' && (j5?.fact_check || j5?.status === 'UNVERIFIED' || j5?.status === 'INCOMPLETE');
+    const unresolvedDecisions = Object.entries(decisions).filter(([, d]) => d?.status === 'INCOMPLETE' || d?.reevaluation);
+    const citations = Array.isArray(j5?.citation_checks) ? j5.citation_checks : [];
     const hasContext = j6?.status !== 'NOT_APPLICABLE' && (Array.isArray(j6?.context_checks) || j6?.status === 'UNVERIFIED');
     const originals = ['J5', 'J6'].filter((id) => decisions[id]?.model_original_assessment && typeof decisions[id].model_original_assessment === 'object');
     const policyDecisions = Object.entries(decisions).filter(([, value]) => value?.policy_original_assessment && ['PASS', 'FAIL'].includes(value.decision));
-    if (!hasFact && !hasContext && !verification && !originals.length && !policyDecisions.length) return null;
+    if (!hasFact && !hasContext && !verification && !originals.length && !policyDecisions.length &&
+      !unresolvedDecisions.length && !j5?.j5_outcome) return null;
     const box = make('div', {class: 'semantic-evidence'}), note = (text) => make('p', {class: 'hint field-help', text});
     const verdict = (value) => ['PASS', 'FAIL'].includes(value) ? value : '확인 필요';
     const display = (value) => typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -122,6 +139,45 @@
         note('이전 판정: ' + verdict(prior.decision)), note(prior.reason || '별도 사유 없음'),
         note('적용 정책: ' + (decision.decision_policy?.version || '최종 PASS/FAIL 판정'))));
     });
+    const outcome = j5?.j5_outcome;
+    if (outcome?.code && outcome.code !== 'not_applicable') {
+      box.append(make('div', {class: j5OutcomePending.has(outcome.code) ? 'semantic-policy-pending' :
+        j5?.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass', 'data-j5-outcome': outcome.code}, make('strong', {text: 'J5 판정 사유 · ' + (outcome.label || outcome.code)}),
+        note(outcome.factual_error_confirmed ? '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.' :
+          j5OutcomePending.has(outcome.code) ? '판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다.' :
+          j5?.decision === 'FAIL' ? '사실 오류를 확정한 FAIL이 아닙니다.' : '근거로 확인된 판정입니다.'),
+        outcome.search?.mode ? note('검색 상태: ' + (searchModes[outcome.search.mode] || outcome.search.mode) +
+          (outcome.search.limit_reached ? ' · 검색 한도 도달' : '') +
+          (outcome.search.errors?.length ? ' · 검색 오류 ' + outcome.search.errors.join(', ') : '')) : null));
+    }
+    unresolvedDecisions.forEach(([id, decision]) => {
+      const again = decision.reevaluation;
+      box.append(make('div', {class: decision.status === 'INCOMPLETE' ? 'semantic-policy-pending' :
+        decision.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass',
+        'data-incomplete-detail': decision.status === 'INCOMPLETE' ? '' : null},
+        make('strong', {text: decision.status === 'INCOMPLETE' ? incompleteReason(id, decision) :
+          `${id} 재평가 후 ${decision.decision}`}),
+        decision.status === 'INCOMPLETE' ? note(decision.reason || '판정을 완료하지 못했습니다.') : null,
+        again ? note('첫 판정: FAIL · ' + (again.first?.reason || '이유 없음') + ' — 근거 확인: ' +
+          ((again.first?.fail_evidence?.problems || []).map((p) => ({reason_missing: '이유 없음', quote_missing: '원문 인용 없음',
+            quote_not_in_evaluated_text: '인용이 원문에 없음'})[p] || p).join(', ') || '확인 안 됨')) : null,
+        again ? note('재평가 1회: ' + (again.retry ? (again.retry.decision || again.retry.status || '판정 없음') +
+          (again.retry.reason ? ' · ' + again.retry.reason : '') : '응답 없음') + ' → 최종 ' + (again.final || '미완료')) : null,
+        again ? note('근거 확인은 이유와 원문 인용의 형식 검증이며, 이유의 의미적 타당성까지 검증한 것은 아닙니다.') : null));
+    });
+    if (citations.length) {
+      box.append(make('details', {class: 'semantic-citation-evidence', open: j5?.citation_mismatch ? '' : null},
+        make('summary', {text: 'J5 답변 출처 확인'}),
+        note('답변이 직접 든 출처를 서버가 다시 받아 대조했습니다. 원문을 받지 못하거나 인용이 맞지 않으면 판정에 쓰지 않습니다.'),
+        ...citations.map((check) => {
+          const url = safeHttpUrl(check.url);
+          return make('div', {class: 'jev-reason'}, make('p', {}, make('strong', {text: (citationLabels[check.verdict] || check.verdict) + ' · '}),
+            url ? make('a', {href: url, target: '_blank', rel: 'noopener noreferrer', class: 'text-button', text: check.url}) : String(check.url || '')),
+            check.claim ? note('답변 구절: ' + check.claim) : null,
+            check.quote ? make('p', {}, make('q', {text: check.quote})) : null,
+            check.reason ? note('평가자 이유: ' + check.reason) : null, check.note ? note(check.note) : null);
+        })));
+    }
     const sourceNode = (source, showCheck = false, basis = null) => {
       const value = typeof source === 'string' ? {url: source} : source || {};
       const inputSource = ['question', 'reference', 'history_user'].includes(value.origin);
@@ -175,6 +231,7 @@
     }
     if (verification && typeof verification === 'object') {
       const section = make('details', {class: 'semantic-verification'}, make('summary', {text: '검색·검증 기록'}));
+      if (verification.search_mode) section.append(note('검색 상태: ' + (searchModes[verification.search_mode] || verification.search_mode)));
       if (typeof verification.search_performed === 'boolean') section.append(note('웹 검색 수행: ' + (verification.search_performed ? '예' : '검색하지 않음')));
       if (verification.checked_at) section.append(note('검증 시각: ' + verification.checked_at));
       if (verification.source_validation !== undefined) section.append(note('출처 검증: ' + (({provider: verification.search_performed === false ? '웹 검색을 수행하지 않음 · 출처 대조 결과는 주장별 근거 참조' : '출처 URL을 도구 기록과 대조', provider_and_content: '출처 URL을 도구 기록과 대조하고 인용문 원문 대조를 시도함'})[verification.source_validation] || display(verification.source_validation))));
@@ -346,7 +403,7 @@
   function criterionSummary(result, provider, criterion) {
     const batch = result?.evaluations?.[provider];
     let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0;
-    const pendingReasons = {unverified: 0, errors: 0, missing: 0};
+    const pendingReasons = {unverified: 0, incomplete: 0, errors: 0, missing: 0};
     if (criterion.group === 'code') {
       for (const [index, raw] of (batch?.cases || []).entries()) {
         const c = resolvedCase(raw, batch?.jev_eval?.records?.[index]);
@@ -368,6 +425,7 @@
           pending++;
           if (record.status && record.status !== 'SUCCESS') pendingReasons.errors++;
           else if (record.decisions?.[criterion.id]?.status === 'UNVERIFIED') pendingReasons.unverified++;
+          else if (record.decisions?.[criterion.id]?.status === 'INCOMPLETE') pendingReasons.incomplete++;
           else pendingReasons.missing++;
         }
       }
@@ -389,7 +447,7 @@
     if (records.length && !hasEvidence) notices.push('사실 검증 출처·대화 인용 근거가 저장되어 있지 않습니다. 점수와 판정은 저장 당시 결과입니다.');
     return notices.join(' ');
   }
-  const api = {caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
+  const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
     resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;

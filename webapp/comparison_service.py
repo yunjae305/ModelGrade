@@ -487,7 +487,7 @@ class ComparisonService:
         A confirmed common/semantic FAIL settles a question even if another
         criterion has no verdict. ``review_required`` counts only unresolved
         questions, while ``criterion_review_required`` retains every explicit
-        UNVERIFIED criterion (including those on already failed questions).
+        UNVERIFIED or INCOMPLETE criterion (including those on already failed questions).
         """
         total = run.get('question_count', 0)
         batch = run.get('evaluations', {}).get('aiona') or {}
@@ -502,7 +502,7 @@ class ComparisonService:
                 continue
             decisions = record.get('decisions') or {}
             criteria = record.get('criteria') if isinstance(record.get('criteria'), list) else list(decisions)
-            unverified = sum((decisions.get(cid) or {}).get('status') == 'UNVERIFIED'
+            unverified = sum((decisions.get(cid) or {}).get('status') in ('UNVERIFIED', 'INCOMPLETE')
                              and (decisions.get(cid) or {}).get('decision') not in ('PASS', 'FAIL')
                              for cid in criteria)
             criterion_review += unverified

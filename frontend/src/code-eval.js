@@ -46,7 +46,7 @@ function caseIndex(ref, conversationId) {
   return matches.length === 1 ? matches[0].i : -1;
 }
 const jevFails = (rec) => rec && rec.decisions ? Object.values(rec.decisions).filter((d) => d.decision === 'FAIL').map((d) => d.criterion_id) : [];
-const jevUnverified = (rec) => Object.values(rec?.decisions || {}).filter((d) => d.status === 'UNVERIFIED' && !['PASS', 'FAIL'].includes(d.decision));
+const jevUnverified = (rec) => Object.values(rec?.decisions || {}).filter((d) => ['UNVERIFIED', 'INCOMPLETE'].includes(d.status) && !['PASS', 'FAIL'].includes(d.decision));
 const verdictLabel = (v, status) => v || (['OUT_OF_SCOPE', 'APPLICABILITY_EXCEPTION'].includes(status)
   ? '해당 없음' : status === 'UNVERIFIED' ? '확인 필요' : status === 'DUPLICATE' ? '중복 제외' : '판정 미완료');
 const badge = (v, status) => el('span', { class: 'v ' + (v || 'NONE'), text: verdictLabel(v, status) });

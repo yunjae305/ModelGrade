@@ -129,3 +129,15 @@ def test_evidence_check_is_formal_and_accepts_question_or_formatting_differences
     assert fail_evidence({"reason": "질문의 ‘장점과 단점을 비교’ 요구에 단점이 없음"}, state)["matched_quotes"][0]["found_in"] == "question"
     assert fail_evidence({"reason": "단점이 없음"}, state)["problems"] == ["quote_missing"]
     assert "의미적 타당성은 검증하지 않음" in fail_evidence({"reason": ""}, state)["scope"]
+
+
+def test_report_and_combined_summary_show_incomplete_separately_from_fail():
+    from code_eval.report_html import render_report
+    judge = SequenceJudge({"J1": entry("PASS", "비교함"), "J4": entry("FAIL", ""), "J5": NO_FACTS}, {"J4": entry("FAIL", "")})
+    cfg = load_aiona_config(); cfg.enabled = False
+    batch = evaluate_batch([{"case_id": "q", "question": QUESTION, "answer": ANSWER}], cfg)
+    batch["jev_eval"] = evaluate_jev_batch(batch, judge)
+    html = render_report(batch)
+    assert "판정 미완료 1건" in html and '<span class="v NONE">판정 미완료</span>' in html
+    assert "J4 판정 미완료" in html and "재평가 1회: FAIL → 최종 INCOMPLETE" in html
+    assert combined_summary(batch)["review_items"][0]["criteria"][0]["status"] == "INCOMPLETE"

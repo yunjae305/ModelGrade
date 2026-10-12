@@ -364,7 +364,40 @@ def _semantic_evidence(record: Dict[str, Any]) -> str:
             rows.append(f'<li>{link}{quote}{details}</li>')
         return '<ul>' + ''.join(rows) + '</ul>'
 
-    if j5.get("status") != "NOT_APPLICABLE" and (j5.get("fact_check") or j5.get("status") == "UNVERIFIED"):
+    outcome = j5.get("j5_outcome") if isinstance(j5.get("j5_outcome"), dict) else None
+    if outcome and outcome.get("code") not in (None, "not_applicable"):
+        meaning = ("신뢰할 수 있는 근거와 충돌하는 사실 오류입니다." if outcome.get("factual_error_confirmed") else
+                   "판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다." if j5.get("status") == "INCOMPLETE" else
+                   "사실 오류를 확정한 FAIL이 아닙니다." if j5.get("decision") == "FAIL" else "근거로 확인된 판정입니다.")
+        sections.append(f'<div class="semantic-j5-outcome"><strong>J5 판정 사유 · {_e(outcome.get("label") or outcome.get("code"))}</strong>'
+                        f'{note(meaning)}</div>')
+    for cid, decision in sorted((record.get("decisions") or {}).items()):
+        again = decision.get("reevaluation") if isinstance(decision, dict) else None
+        if not isinstance(decision, dict) or not (decision.get("status") == "INCOMPLETE" or again):
+            continue
+        title = (f"{cid} 판정 미완료" if decision.get("status") == "INCOMPLETE" else f"{cid} 재평가 후 {decision.get('decision')}")
+        body = note(decision.get("reason") or "") if decision.get("status") == "INCOMPLETE" else ""
+        if isinstance(again, dict):
+            body += note("첫 판정: FAIL · " + str((again.get("first") or {}).get("reason") or "이유 없음"))
+            retry = again.get("retry") or {}
+            body += note("재평가 1회: " + str(retry.get("decision") or retry.get("status") or "응답 없음") + " → 최종 " + str(again.get("final")))
+            body += note("근거 확인은 이유와 원문 인용의 형식 검증이며, 이유의 의미적 타당성까지 검증한 것은 아닙니다.")
+        sections.append(f'<div class="semantic-reevaluation"><strong>{_e(title)}</strong>{body}</div>')
+    citation_checks = j5.get("citation_checks") if isinstance(j5.get("citation_checks"), list) else []
+    if citation_checks:
+        labels = {"supported": "출처가 주장을 뒷받침", "contradicted": "출처가 주장과 모순", "unrelated": "출처가 주장과 무관",
+                  "not_found": "출처에 해당 내용 없음", "inaccessible": "출처 원문 접근 불가", "unverified": "판정 확정 안 함",
+                  "unchecked": "확인하지 않음"}
+        body = note("답변이 직접 든 출처를 서버가 다시 받아 대조했습니다. 원문을 받지 못하거나 인용이 맞지 않으면 판정에 쓰지 않습니다.")
+        for check in citation_checks:
+            if not isinstance(check, dict):
+                continue
+            body += f'<p><strong>{_e(labels.get(check.get("verdict"), check.get("verdict")))} · </strong>{_e(check.get("url") or "")}</p>'
+            for key, label in (("claim", "답변 구절: "), ("quote", "출처 원문: "), ("reason", "평가자 이유: "), ("note", "")):
+                if check.get(key):
+                    body += note(label + str(check[key]))
+        sections.append(f'<details class="semantic-citation-evidence"><summary>J5 답변 출처 확인</summary>{body}</details>')
+    if j5.get("status") != "NOT_APPLICABLE" and (j5.get("fact_check") or j5.get("status") in ("UNVERIFIED", "INCOMPLETE")):
         fact = j5.get("fact_check") or {}
         claims = fact.get("claims") if isinstance(fact.get("claims"), list) else []
         body = note({"web": "검증 기준: 웹 출처", "reference": "검증 기준: 참조 데이터",
@@ -452,7 +485,8 @@ def _jev_case(record: Any, label: str, criteria: List[Dict[str, Any]]) -> str:
         if c["id"] == "J5" and record.get("j5_basis"):
             what += f'<div class="note">{_e(_J5_BASIS_KO.get(record["j5_basis"], record["j5_basis"]))}</div>'
         if d:
-            result = '<span class="v NONE">확인 필요</span>' if d.get("status") == "UNVERIFIED" and d.get("decision") not in ("PASS", "FAIL") else _verdict(d.get("decision"), Status.EXECUTED)
+            result = ('<span class="v NONE">확인 필요</span>' if d.get("status") == "UNVERIFIED" and d.get("decision") not in ("PASS", "FAIL") else
+                      '<span class="v NONE">판정 미완료</span>' if d.get("status") == "INCOMPLETE" else _verdict(d.get("decision"), Status.EXECUTED))
             confidence = d.get("confidence")
             if d.get("decision") in ("PASS", "FAIL") and isinstance(confidence, (int, float)) and math.isfinite(confidence):
                 result += f' <span class="st">판단 확신도 {confidence * 100:.0f}%</span>'
@@ -551,6 +585,9 @@ def _case(case: Dict[str, Any], jev_record: Any = None, jev_label: str = "Jev", 
     unverified = sum(d.get("status") == "UNVERIFIED" and d.get("decision") not in ("PASS", "FAIL") for d in ((jev_record or {}).get("decisions") or {}).values())
     if unverified:
         jev_chip += f'<span class="jev-chip">확인 필요 {unverified}건</span>'
+    incomplete = sum(d.get("status") == "INCOMPLETE" for d in ((jev_record or {}).get("decisions") or {}).values())
+    if incomplete:
+        jev_chip += f'<span class="jev-chip">판정 미완료 {incomplete}건</span>'
     conv = case.get("conversation")
     conv_chip = f'<span class="chip">대화 {_e(conv["id"])} · {conv["turn"]}턴</span>' if conv else ""
     reference = case.get("reference")

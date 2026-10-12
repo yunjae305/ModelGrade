@@ -466,7 +466,7 @@
     const c = window.AionaResults.resolvedCase(batch?.cases?.[index], record);
     const lines = (c?.results || []).filter((r) => r.area === 'common' && r.counted && r.verdict === 'FAIL').map((r) => `${r.title || r.check_id}: ${r.explain?.summary || r.reason || ''}`);
     for (const [id, decision] of Object.entries(record?.decisions || {})) {
-      if (decision.decision === 'FAIL' || decision.status === 'UNVERIFIED') lines.push(`${decision.status === 'UNVERIFIED' ? '확인 필요 · ' : ''}${batch.jev_eval.criteria?.find((c) => c.id === id)?.name || id}: ${decision.reason || '판정 근거 확인 필요'}`);
+      if (decision.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(decision.status)) lines.push(`${({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '})[decision.status] || ''}${batch.jev_eval.criteria?.find((c) => c.id === id)?.name || id}: ${decision.reason || '판정 근거 확인 필요'}`);
     }
     if (record?.error) lines.push('평가 오류: ' + record.error);
     return lines;

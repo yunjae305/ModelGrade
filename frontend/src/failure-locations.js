@@ -193,6 +193,15 @@
         const base = {criterionId: cid, kind, title}, prefix = `semantic:${encodeURIComponent(cid)}`;
         const facts = decision.fact_check || decision.policy_original_assessment?.fact_check;
         let locatedEvidence = false;
+        if (cid === 'J5' && decision.citation_mismatch) {
+          // A cited source that does not support the sentence it is attached to — locate that sentence.
+          list(decision.citation_checks).forEach((check, index) => {
+            if (!check || !['contradicted', 'unrelated', 'not_found'].includes(check.verdict)) return;
+            locatedEvidence = true;
+            add({...base, title: `${cid} · 출처 불일치`, id: `${prefix}:citation:${index}`,
+              reason: joinReasons(`${text(check.url)} — ${check.note || ''}`, check.reason)}, claimMatches(answer, text(check.claim), projection));
+          });
+        }
         if (cid === 'J5') {
           const sourceIndices = new Set(list(decision.decision_policy?.failures).map(failure => failure?.claim_index).filter(Number.isInteger));
           list(facts?.claims).forEach((claim, index) => {

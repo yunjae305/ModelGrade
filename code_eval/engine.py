@@ -102,6 +102,10 @@ def _with_explanations(results: List[ConditionResult], ctx: Ctx) -> List[Dict[st
     for r in results:
         d = r.to_dict()
         d["explain"] = explain_result(d, ctx)
+        inherited = d["details"].get("inherited_from") if d["source"] == "history_instruction" else None
+        if inherited:   # 현재 질문이 아니라 앞 턴의 지속 지시에서 온 조건임을 설명 첫머리에 밝힌다
+            d["explain"]["summary"] = (f"{inherited['turn']}턴 사용자 지시(‘{inherited['instruction'][:60]}’)가 "
+                                       f"이 턴에도 유지되는 조건입니다. " + (d["explain"].get("summary") or ""))
         out.append(d)
     return out
 
