@@ -57,7 +57,9 @@ def split_lines(text: str) -> List[Line]:
         # 펜스를 여는 줄과 닫는 줄 자체도 본문으로 보지 않는다.
         in_code = (block_index < len(blocks) and
                    blocks[block_index]["start"] <= offset < blocks[block_index]["end"])
-        lines.append(Line(number=number, start=offset, end=offset + len(raw), text=raw, in_code=in_code))
+        # CRLF 의 \r 은 줄바꿈의 일부다. 원문은 그대로 두고 줄 본문에서만 뺀다.
+        body = raw[:-1] if raw.endswith("\r") else raw
+        lines.append(Line(number=number, start=offset, end=offset + len(body), text=body, in_code=in_code))
         offset += len(raw) + 1
     return lines
 

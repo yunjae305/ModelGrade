@@ -74,3 +74,18 @@ def test_unparsed_source_transformation_is_reported_without_quality_verdict(ques
     assert len(rows) == 1
     assert rows[0]["status"] == Status.UNSUPPORTED
     assert rows[0]["verdict"] is None and rows[0]["reason"]
+
+
+@pytest.mark.parametrize("question,answer", [
+    ("서울과 부산 인구를 표로 정리해줘.", "| 도시 | 인구 |\n|---|---|\n| 서울 | 935만 |\n| 부산 | 330만 |\n"),
+    ("12자 이하로 답해줘.", "안녕하세요\n반갑습니다"),
+])
+def test_crlf_line_endings_measure_like_lf(question, answer):
+    # 윈도우 줄바꿈(CRLF)의 \r 은 줄바꿈의 일부다. 표 인식과 글자 수가 LF 와 같아야 한다.
+    def verdicts(text):
+        case = engine.evaluate_case({"question": question, "answer": text})
+        return [(r["check_id"], r["verdict"], r["reason"]) for r in case["results"]]
+    crlf = answer.replace("\n", "\r\n")
+    assert verdicts(crlf) == verdicts(answer)
+    assert all(verdict != "FAIL" for _, verdict, _ in verdicts(crlf))
+    assert engine.evaluate_case({"question": question, "answer": crlf})["answer"] == crlf
