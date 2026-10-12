@@ -23,7 +23,7 @@ from .textparse import _NUM_WORD, _count_governed_by_output_verb
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
            "parse_number", "NUM_WORDS"]
 
-EXTRACT_VERSION = "v16-extract-1.8"
+EXTRACT_VERSION = "v16-extract-1.9"
 
 NUM_WORDS: Dict[str, int] = dict(_NUM_WORD)
 NUM_WORDS.update({"열한": 11, "열두": 12, "열세": 13, "열네": 14, "열다섯": 15, "스무": 20})
@@ -215,6 +215,9 @@ _CHAR_COUNT = re.compile(
 _WS_RULE = re.compile(r"공백\s*(?P<ws>제외|포함|빼고|빼서)")
 
 _GENERIC_COUNT = re.compile(rf"{PRE}{NUM}\s*(?P<unit>개|가지)(?:의)?\s*(?:항목)?{POST}")
+#: 'N개' 바로 뒤에 오면 항목 수가 아니라 표·글 구조의 수다 (3개 열로 된 표, 3개 행)
+_STRUCT_NOUN_AFTER = re.compile(r"\s*(?:열|컬럼|칼럼|행|줄|문장|문단|단락|단어|어절|글자)"
+                                r"(?=$|[\s.,!?]|로|으로|을|를|이|가|은|는|의|씩|짜리|만)")
 
 _DEFAULT_OP = {"bullet_count": "==", "sentence_count": "==", "paragraph_count": "==",
                "line_count": "==", "word_count": "==", "list_count": "=="}
@@ -280,7 +283,7 @@ def _count_reqs(text: str, out: List[Req]) -> None:
     for m in _GENERIC_COUNT.finditer(text):
         if overlaps(m.start(), m.end()):
             continue
-        if _STRUCT_NOUN_BEFORE.search(text[max(0, m.start() - 14):m.start()]):
+        if _STRUCT_NOUN_BEFORE.search(text[max(0, m.start() - 14):m.start()]) or _STRUCT_NOUN_AFTER.match(text, m.end()):
             continue
         if _count_governed_by_output_verb(text, m.end()) is None:
             continue
@@ -307,6 +310,8 @@ def _count_reqs(text: str, out: List[Req]) -> None:
 _REQ_LIT = re.compile(
     LIT + r"\s*(?:라는|이라는)?\s*(?:문자열|단어|표현|문구|말|문장|키워드|낱말)?\s*"
     r"(?:을|를|이|가|도|은|는)?\s*(?:꼭\s*|반드시\s*|항상\s*|절대\s*)?"
+    # 글자 그대로를 요구하는 표현도 같은 필수 문구 요구다 (_mark_exact_literals 가 정확 일치로 표시)
+    r"(?:(?:정확히|그대로|똑같이|글자\s*그대로|공백까지|띄어쓰기까지|한\s*글자도\s*(?:바꾸지|틀리지)\s*(?:말고|않고))\s*)*"
     r"(?P<verb>포함|넣|붙|적|쓰|써|사용|들어가|언급|출력)")
 _NEG_AFTER = re.compile(r"^[^.!?\n]{0,6}?(?:지\s*(?:마|말|않)|면\s*안)")
 _LIT_LIST = re.compile(rf"(?P<items>(?:[{_OPEN_Q}][^{_CLOSE_Q}\n]{{1,40}}[{_CLOSE_Q}]\s*(?:,|와|과|및|그리고)?\s*){{2,20}})"
@@ -318,6 +323,24 @@ _BOUNDARY_LIT = re.compile(LIT + r"\s*(?:으로|로)\s*(?P<be>시작|끝|마무�
 _CHARSET = re.compile(r"(?P<set>한글|영문|영어\s*알파벳|알파벳|대문자|소문자)\s*(?:문자)?\s*만\s*(?:사용|써|쓰|적|구성|으로)")
 _EMPTY = re.compile(r"(?:아무것도|아무\s*것도|아무\s*말도)\s*(?:출력하지|쓰지|답하지|적지|말하지)\s*(?:마|말)"
                     r"|빈\s*(?:문자열|응답|출력|답변)\s*(?:으로|로|을|를|만)?\s*(?:출력|응답|반환|답|보내)")
+
+
+#: 필수 문구를 글자 그대로 요구하는 표현. '정확히 3개'처럼 개수에 붙은 '정확히'는 제외한다.
+_EXACT_LITERAL = re.compile(r"정확히|그대로|한\s*글자도|공백까지|띄어쓰기까지|토씨\s*하나|똑같이|글자\s*그대로|"
+                            r"exactly|verbatim", re.IGNORECASE)
+_EXACT_COUNT = re.compile(r"정확히\s*(?:\d|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|하나|둘|셋|넷)")
+
+
+def _mark_exact_literals(text: str, reqs: List[Req]) -> None:
+    """같은 문장에서 필수 문구를 글자 그대로 요구하면 value["exact"]=True — 그때는 공백 차이도 허용하지 않는다."""
+    for req in reqs:
+        if req.kind != "required_literal":
+            continue
+        start = max(text.rfind(c, 0, req.start) for c in ".!?\n") + 1
+        ends = [i for i in (text.find(c, req.end) for c in ".!?\n") if i >= 0]
+        sentence = text[start:min(ends) if ends else len(text)]
+        if any(not _EXACT_COUNT.match(sentence, m.start()) for m in _EXACT_LITERAL.finditer(sentence)):
+            req.value = {**req.value, "exact": True}
 
 
 def _literal_reqs(text: str, out: List[Req]) -> None:
@@ -963,6 +986,7 @@ def extract_conditions(question: str) -> QuestionConditions:
         reqs.append(Req("explicit_empty", {}, m.start(), m.end(), m.group(0).strip()))
     _count_reqs(text, reqs)
     _literal_reqs(text, reqs)
+    _mark_exact_literals(text, reqs)
     m = _CHARSET.search(text)
     if m:
         reqs.append(Req("charset", {"charset": re.sub(r"\s+", "", m.group("set"))}, m.start(), m.end(),

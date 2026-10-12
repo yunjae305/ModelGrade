@@ -153,3 +153,62 @@ def test_column_keyword_is_not_read_inside_another_word(question, expected):
     case = engine.evaluate_case({"question": question, "answer": "답변"})
     kinds = {c["kind"] for c in case["meta"]["question_conditions"]}
     assert {k for k in kinds if k.startswith("table_")} == expected
+
+
+@pytest.mark.parametrize("answer,verdict", [
+    ("개인정보   보호 정책을 따릅니다.", "PASS"),      # 연속 공백
+    ("개인정보\n보호 정책을 따릅니다.", "PASS"),       # 줄바꿈
+    ("개인정보\t보호 정책을 따릅니다.", "PASS"),       # 탭
+    ("개인정보 보호 정책을 따릅니다.", "PASS"),   # NBSP
+    ("개인정보 보호정책을 따릅니다.", "FAIL"),         # 띄어쓰기를 없앤 것은 다른 문구
+    ("개인정보, 보호 정책을 따릅니다.", "FAIL"),       # 구두점
+])
+def test_required_phrase_allows_only_whitespace_differences(answer, verdict):
+    case = engine.evaluate_case({"question": "답변에 '개인정보 보호 정책'을 반드시 포함해줘.", "answer": answer})
+    [row] = [r for r in case["results"] if r["check_id"] == "2-1.literal:required_literal"]
+    assert row["verdict"] == verdict
+    assert ("whitespace_normalized_occurrences" in row["measured"]) is (verdict == "PASS")
+
+
+@pytest.mark.parametrize("question", [
+    "답변에 '개인정보 보호 정책'을 정확히 그대로 포함해줘.",
+    "'개인정보 보호 정책'을 공백까지 그대로 포함해줘.",
+    "답변에 '개인정보 보호 정책'이라는 문구를 한 글자도 바꾸지 말고 넣어줘.",
+])
+def test_exact_phrase_request_is_compared_character_for_character(question):
+    case = engine.evaluate_case({"question": question, "answer": "개인정보   보호 정책"})
+    [row] = [r for r in case["results"] if r["check_id"] == "2-1.literal:required_literal"]
+    assert row["verdict"] == "FAIL" and row["required"] == {"literal": "개인정보 보호 정책", "exact": True}
+
+
+def test_exact_count_does_not_make_the_phrase_exact_and_case_still_matters():
+    case = engine.evaluate_case({"question": "정확히 3문장으로 쓰고 '개인정보 보호 정책'을 포함해줘.",
+                                 "answer": "개인정보   보호 정책을 지킵니다. 둘. 셋."})
+    assert [r["verdict"] for r in case["results"] if r["check_id"] == "2-1.literal:required_literal"] == ["PASS"]
+    case = engine.evaluate_case({"question": "답변에 'Hello World'를 포함해줘.", "answer": "hello   world"})
+    assert [r["verdict"] for r in case["results"] if r["check_id"] == "2-1.literal:required_literal"] == ["FAIL"]
+
+
+@pytest.mark.parametrize("question,kinds", [
+    ("3개 열로 된 표로 정리해줘.", {("table_required", None), ("table_column_count", 3)}),
+    ("3열 표로 정리해줘.", {("table_required", None), ("table_column_count", 3)}),
+    ("3행 표로 정리해줘.", {("table_required", None), ("table_rows_ambiguous", 3)}),
+    ("공부 방법 항목 3개를 정리해줘.", {("list_count", 3)}),
+    ("3개 열로 된 표에 항목 5개를 정리해줘.", {("table_column_count", 3), ("list_count", 5)}),
+])
+def test_table_columns_and_rows_are_not_read_as_item_counts(question, kinds):
+    case = engine.evaluate_case({"question": question, "answer": "답변"})
+    assert {(c["kind"], c["value"].get("n")) for c in case["meta"]["question_conditions"]} >= kinds
+    assert not ("list_count", 3) in {(c["kind"], c["value"].get("n")) for c in case["meta"]["question_conditions"]} \
+        or ("list_count", 3) in kinds
+
+
+@pytest.mark.parametrize("answer,count", [
+    ("> - 첫 번째 항목\n> - 두 번째 항목\n> - 세 번째 항목", 3),                      # 인용문 안 목록
+    ("> " + FENCE + "\n> - 코드 속 줄\n> " + FENCE + "\n- 하나\n- 둘\n- 셋", 3),       # 인용문 안 코드 펜스
+    (FENCE + "\n- 코드\n- 코드\n" + FENCE + "\n- 하나\n- 둘\n- 셋", 3),                 # 코드 블록 안 '-'
+])
+def test_blockquote_lists_count_but_code_inside_quotes_does_not(answer, count):
+    case = engine.evaluate_case({"question": "공부 방법을 불릿으로 정확히 3개 작성해줘.", "answer": answer})
+    [row] = [r for r in case["results"] if r["check_id"] == "2-1.count:bullet_count"]
+    assert (row["verdict"], row["measured"]["value"]) == ("PASS", count)

@@ -12,7 +12,7 @@ from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
 from .model import ConditionResult, Evidence, FAIL, PASS, Status
 from .scripts import SCRIPT_DATA_VERSION
 
-ENGINE_VERSION = "aiona-code-eval-v16.3.0"
+ENGINE_VERSION = "aiona-code-eval-v16.3.1"
 MD_SOURCE = "참고자료/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
@@ -33,12 +33,12 @@ CHECK_VERSIONS: Dict[str, str] = {
     "1-3.citation_link": "v16-1.1 (코드 예시 제외, 인용 번호 파서)",
     "1-3.internal_link": "v16-1.1 (코드 예시 제외, 실제 본문 제목·앵커 연결)",
     "2-1.explicit_empty": "v16-1.0",
-    "2-1.count": "v16-1.4 (질문 출력 범위·번호 제목 연결, 펜스 길이에 따른 코드 제외, 모호한 구조·결과물 내부 미판정, CommonMark 형제 항목 들여쓰기)",
+    "2-1.count": "v16-1.5 (질문 출력 범위·번호 제목 연결, 펜스 길이에 따른 코드 제외, 모호한 구조·결과물 내부 미판정, CommonMark 형제 항목 들여쓰기, 인용문 안 목록, 'N개 열'은 항목 수 아님)",
     "2-1.char_count": "v16-1.1 (코드 포인트, 펜스 길이에 따른 코드 제외·줄바꿈 제외)",
-    "2-1.literal": "v16-1.0 (코드 제외·강조 제거 투영, NFC)",
+    "2-1.literal": "v16-1.1 (코드 제외·강조 제거 투영, NFC, 정확 일치 요구가 없으면 필수 문구 안 공백 차이 허용)",
     "2-1.charset": "v16-1.0 (문자 범주 L*)",
     "2-2.table": "v17-1.3 (명시 표 개수 추가, 고정 최소 행 수 없음, 빈 헤더 줄은 헤더 아님, 코드·데이터 결과물 안의 표는 판정 제외, 양끝 파이프 생략·인용문 안 GFM 표)",
-    "2-2.list": "v16-1.1 (코드·데이터 결과물 안의 목록은 판정 제외)",
+    "2-2.list": "v16-1.2 (코드·데이터 결과물 안의 목록은 판정 제외, 인용문 안 목록 인식)",
     "2-2.heading": "v16-1.1 (ATX 제목, 코드·데이터 결과물 안의 제목은 판정 제외)",
     "2-2.json_structure": "v16-1.0",
     "3-1.question_calculation": "v16-1.1 (Fraction 정확 계산, 질문 피연산자·답변 등식 결과 부호 보존, eval 없음)",

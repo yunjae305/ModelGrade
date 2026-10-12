@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import replace
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .checks_integrity import json_targets
 from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, unsupported_from_req, verdict_of
@@ -141,6 +141,15 @@ def _list_items_measure(ctx: Ctx, numbered_only: bool, target_noun: Optional[str
     return {"value": None, "structure": None, "why": "답변에서 셀 항목 구조(목록·단일 표)를 확인하지 못함"}
 
 
+def _spaced_hits(scan: str, literal: str) -> List[Tuple[int, int]]:
+    """공백 정규화 비교 — 문구 안 공백 자리에 공백·줄바꿈·탭·NBSP 등 유니코드 공백이 하나 이상 와도 같은 문구로 본다.
+    낱말·구두점·대소문자는 그대로 비교한다. 비교용일 뿐 원문은 바꾸지 않는다."""
+    parts = [re.escape(part) for part in literal.split()]
+    if len(parts) < 2:
+        return []
+    return [(m.start(), m.end()) for m in re.finditer(r"\s+".join(parts), scan)]
+
+
 def _literal_hits(scan: str, literal: str) -> List[int]:
     hits, start = [], scan.find(literal)
     while start >= 0:
@@ -247,10 +256,19 @@ def check_2_1(ctx: Ctx) -> List:
                   "starts_with": "시작 표현", "ends_with": "끝 표현"}
         title = f"{titles[req.kind]} ‘{lit}’"
         hits = _literal_hits(scan, lit)
+        spans = [(h, h + len(lit)) for h in hits]
         stripped = scan.strip()
         dedupe_key = None
+        scope = "코드 구획·인라인 코드 제외, 강조 마커 제거, NFC"
         if req.kind == "required_literal":
             ok, measured, comp = bool(hits), {"occurrences": len(hits)}, cmp_text(len(hits), ">=", 1)
+            if not hits and not req.value.get("exact"):
+                # 정확 일치를 요구하지 않은 필수 문구는 공백·줄바꿈 차이만 허용한다
+                spans = _spaced_hits(scan, lit)
+                if spans:
+                    ok, comp = True, cmp_text(len(spans), ">=", 1) + " (공백 정규화)"
+                    measured["whitespace_normalized_occurrences"] = len(spans)
+                    scope += ", 문구 안 공백 차이 허용"
         elif req.kind == "forbidden_literal":
             ok, measured, comp = not hits, {"occurrences": len(hits)}, cmp_text(len(hits), "==", 0)
             dedupe_key = forbidden_key(lit, scan)
@@ -258,11 +276,12 @@ def check_2_1(ctx: Ctx) -> List:
             ok, measured, comp = stripped.startswith(lit), {"answer_start": stripped[:len(lit) + 10]}, "startswith"
         else:
             ok, measured, comp = stripped.endswith(lit), {"answer_end": stripped[-(len(lit) + 10):]}, "endswith"
-        ev = [q_evidence(ctx, req)] + [Evidence("answer", origin(h), (origin(h + len(lit) - 1) or 0) + 1,
-                                                excerpt(scan, h, h + len(lit)), "검출") for h in hits[:10]]
+        ev = [q_evidence(ctx, req)] + [Evidence("answer", origin(s), (origin(e - 1) or 0) + 1,
+                                                excerpt(scan, s, e), "검출") for s, e in spans[:10]]
+        required = {"literal": lit, **({"exact": True} if req.value.get("exact") else {})}
         out.append(result(f"2-1.literal:{req.kind}", SUB21, title, "question", Status.EXECUTED, verdict_of(ok),
-                          required={"literal": lit}, measured=measured, comparison=comp,
-                          scope="코드 구획·인라인 코드 제외, 강조 마커 제거, NFC", dedupe_key=dedupe_key,
+                          required=required, measured=measured, comparison=comp,
+                          scope=scope, dedupe_key=dedupe_key,
                           reason=(f"{titles[req.kind]} 조건 충족" if ok else
                                   {"required_literal": f"‘{lit}’이(가) 답변에 없음",
                                    "forbidden_literal": f"금지한 ‘{lit}’이(가) {len(hits)}회 나옴",
