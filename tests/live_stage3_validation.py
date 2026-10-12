@@ -501,7 +501,7 @@ class MockJudge:
     """기대 결과대로 판단하는 Claude Messages 대역. behaviors 로 근거 누락·검색 오류 등을 강제한다.
 
     behaviors[case_id] = {"no_evidence": [기준], "retry": "valid"|"pass"|"none"|"api_error",
-                          "search": "error"|"limit", "invalid": True, "citation_model": {url: verdict}}
+                          "search": "error"|"limit"|"fetch_only", "invalid": True, "citation_model": {url: verdict}}
     """
 
     def __init__(self, cases, behaviors=None, *, usage=(6000, 1500)):
@@ -597,6 +597,12 @@ class MockJudge:
             blocks += [{"type": "server_tool_use", "id": "s1", "name": "web_search", "input": {"query": "mock"}},
                        {"type": "web_search_tool_result", "tool_use_id": "s1",
                         "content": {"type": "web_search_tool_result_error", "error_code": "unavailable"}}]
+        elif searching and mode == "fetch_only":       # 검색 없이 답변이 든 URL 원문만 연다
+            for n, u in enumerate(dict.fromkeys([url, *cited])):
+                blocks += [{"type": "server_tool_use", "id": f"f{n}", "name": "web_fetch", "input": {"url": u}},
+                           {"type": "web_fetch_tool_result", "tool_use_id": f"f{n}", "content": {
+                               "type": "web_fetch_result", "url": u,
+                               "content": {"type": "document", "source": {"type": "text", "data": "mock"}}}}]
         elif searching:
             rounds = 4 if mode == "limit" else 1
             for n in range(rounds):
