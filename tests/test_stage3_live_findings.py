@@ -25,8 +25,8 @@ def judged(case, tmp_path, behaviors=None, fetcher=None):
     return harness.analyze([case], batch, guard, timing, mode="repro")["items"][0]["actual"]
 
 
-@pytest.mark.xfail(strict=True, reason="F1: 검색 없이 연 답변 출처 원문(web_fetch)만으로는 J5 근거로 인정하지 않음")
 def test_g4_01_fetch_only_evidence_from_the_cited_page_verifies_j5(tmp_path):
+    # F1: 검색 없이 연 답변 출처 원문(공급자 web_fetch 결과)도 서버가 인용문을 확인하면 J5 근거로 인정한다.
     actual = judged(CASES["G4-01"], tmp_path, {"G4-01": {"search": "fetch_only"}})
     assert actual["citation_checks"][0]["verdict"] == "supported"
     assert actual["j5"]["outcome"] == "verified" and actual["verdict"] == "PASS"

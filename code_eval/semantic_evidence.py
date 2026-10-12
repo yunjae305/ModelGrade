@@ -10,7 +10,7 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.6-answer-citations"
+FACT_CHECK_POLICY = "evidence-v3.7-direct-fetch"
 CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
@@ -195,6 +195,8 @@ def _fact_check(entry, state, verification):
     reference = state.get("reference")
     reference_text = reference if isinstance(reference, str) else json.dumps(reference, ensure_ascii=False)
     observed = {u for value in verification.get("source_urls", []) if (u := source_url(value))}
+    # Pages the provider opened with web_fetch count as retrieved even without a search.
+    fetched = {u for value in verification.get("fetched_urls", []) if (u := source_url(value))} & observed
     search_ok = verification.get("search_performed") is True
     normalized = []
     for claim in fact["claims"]:
@@ -230,7 +232,8 @@ def _fact_check(entry, state, verification):
                     supported_sources += 1
                 else:
                     source_problems.append("참조 자료에서 인용문을 확인하지 못했습니다.")
-            elif origin == "web" and basis in ("web", "mixed") and search_ok and source_url(url) in observed:
+            elif (origin == "web" and basis in ("web", "mixed") and source_url(url) in observed
+                  and (search_ok or source_url(url) in fetched)):
                 retained = copy.deepcopy(source)
                 # These flags are populated by the transport's independent retriever,
                 # never by the model's structured answer schema.
@@ -248,7 +251,7 @@ def _fact_check(entry, state, verification):
                                            or "검색 출처의 원문 인용을 확인하지 못했습니다.")
                 sources.append(retained)
             else:
-                source_problems.append("완료된 검색 기록 또는 허용된 제공 자료에서 이 출처를 확인하지 못했습니다.")
+                source_problems.append("완료된 검색·원문 열기 기록 또는 허용된 제공 자료에서 이 출처를 확인하지 못했습니다.")
         if item.get("verdict") in ("PASS", "FAIL") and not supported_sources:
             fallback = ("검색 출처의 원문 인용·공신력·기준 시점 근거를 모두 확인하지 못했습니다."
                         if basis == "web" else "제공 자료 또는 검색 출처의 원문 근거가 없습니다."

@@ -478,7 +478,7 @@ _REASONS = {
     "verified": "검색한 출처의 본문에서 인용문을 확인했습니다.",
     "quote_not_found": "검색한 출처의 본문에서 인용문을 확인하지 못했습니다.",
     "empty_quote": "대조할 인용문이 없습니다.",
-    "not_observed": "완료된 검색 기록에서 이 출처 URL을 확인하지 못했습니다.",
+    "not_observed": "완료된 검색 결과나 원문 열기 기록에서 이 출처 URL을 확인하지 못했습니다.",
     "source_limit": "이번 평가의 출처 수집 한도를 초과했습니다.",
     "timeout": "출처 원문 확인 제한 시간을 초과했습니다.",
     "redirect_host_changed": "출처가 다른 호스트로 이동해 기존 공신력 판단을 적용할 수 없습니다.",
@@ -528,6 +528,10 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
         verification = result["verification"] = {}
     observed = {_url(value) for value in verification.get("source_urls", []) if isinstance(value, str)} if isinstance(verification.get("source_urls"), list) else set()
     observed.discard(None)
+    # A page the provider opened directly (web_fetch) is observed retrieval even
+    # without a search. Only the transport's provider blocks populate this list.
+    opened = {_url(value) for value in verification.get("fetched_urls", []) if isinstance(value, str)} if isinstance(verification.get("fetched_urls"), list) else set()
+    opened.discard(None)
     search_performed = verification.get("search_performed") is True
     verification.update(source_validation="provider_and_content", source_checks=[])
     deadline = time.monotonic() + TOTAL_TIMEOUT
@@ -547,10 +551,10 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
             if origin != "web":
                 continue
             references += 1
-            source.update(quote_verified=False, verification_reason="", verified_at=None, resolved_url=None)
+            source.update(quote_verified=False, verification_reason="", verified_at=None, resolved_url=None, retrieval=None)
             url = _url(source.get("url"))
             quote_text = _normalize(source.get("quote"))
-            if not search_performed or not url or url not in observed:
+            if not url or url not in observed or not (search_performed or url in opened):
                 status = "not_observed"
             elif references > MAX_SOURCE_REFERENCES:
                 status = "source_limit"
@@ -594,6 +598,9 @@ def verify_web_sources(body, *, fetcher=None, cancel_event=None):
                     source.update(quote_verified=True, verified_at=checks[url]["checked_at"], resolved_url=checks[url]["resolved_url"])
                 elif checks[url]["resolved_url"]:
                     source["resolved_url"] = checks[url]["resolved_url"]
+            if status != "not_observed":
+                # How the provider reached this URL: opened directly, or only listed in search results.
+                source["retrieval"] = "web_fetch" if url in opened else "web_search"
             source["verification_status"] = status
             source["verification_reason"] = _REASONS.get(status, "출처 원문을 안전하게 수집할 수 없어 인용문을 확인하지 못했습니다.")
     _check_cancelled(cancel_event)

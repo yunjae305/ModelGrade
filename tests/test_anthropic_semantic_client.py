@@ -125,6 +125,37 @@ def test_unobserved_or_failed_search_never_accepts_model_authored_sources(blocks
     assert result.body['answers']['J5']['choice']=='UNVERIFIED'
 
 
+def fetch_blocks(url, *, error=False):
+    content = ({'type':'web_fetch_tool_error','error_code':'url_not_accessible'} if error else
+               {'type':'web_fetch_result','url':url,'content':{'type':'document','source':{'type':'text','data':'Alpha is blue.'}}})
+    return [{'type':'server_tool_use','id':'fetch1','name':'web_fetch','input':{'url':url}},
+            {'type':'web_fetch_tool_result','tool_use_id':'fetch1','content':content}]
+
+
+def test_page_opened_without_a_search_verifies_its_quote():
+    # F1 (G4-01): the provider's own web_fetch result is retrieval provenance even without a search.
+    fetched=[]
+    def fetcher(url):
+        fetched.append(url)
+        return {'status':'ok','text':'Alpha is blue.','final_url':url,'content_type':'text/plain'}
+    result,_=call(response(fact(),fetch_blocks('https://evidence.example/page')),ids=('J5',),
+                  state={'question':'색상?','answer':'Alpha is blue.'},fetcher=fetcher)
+    verification=result.body['verification']
+    assert verification['search_performed'] is False and verification['fetched_urls']==['https://evidence.example/page']
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert fetched==['https://evidence.example/page'] and source['retrieval']=='web_fetch' and source['quote_verified'] is True
+    assert result.body['answers']['J5']['choice']=='PASS'
+
+
+@pytest.mark.parametrize('blocks',[fetch_blocks('https://other.example/page'),
+                                   fetch_blocks('https://evidence.example/page', error=True)])
+def test_failed_or_different_page_fetch_never_accepts_the_cited_url(blocks):
+    result,_=call(response(fact(),blocks),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:pytest.fail('unobserved URL must not be opened'))
+    assert result.body['verification']['search_performed'] is False
+    assert result.body['answers']['J5']['choice']=='UNVERIFIED'
+
+
 def test_pending_server_tools_cannot_be_confused_with_a_final_verdict():
     result,_=call(response(entries('J1'),[{'type':'server_tool_use','id':'pending','name':'web_search'}]))
     assert result.status=='INVALID_RESPONSE'

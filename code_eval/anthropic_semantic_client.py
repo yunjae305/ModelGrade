@@ -251,7 +251,7 @@ def _complete_text_turn(blocks):
 
 def _provenance(blocks):
     calls = {b.get("id"): b for b in blocks if isinstance(b, dict) and b.get("type") == "server_tool_use"}
-    urls, searches, errors, finished = set(), 0, [], set()
+    urls, fetched, searches, errors, finished = set(), set(), 0, [], set()
     for block in blocks:
         if not isinstance(block, dict) or block.get("type") not in ("web_search_tool_result", "web_fetch_tool_result"):
             continue
@@ -272,10 +272,13 @@ def _provenance(blocks):
         elif not search and isinstance(content, dict) and content.get("type") == "web_fetch_result":
             if url := source_url(content.get("url")):
                 urls.add(url)
+                fetched.add(url)
         elif isinstance(content, dict) and str(content.get("type", "")).endswith("_error"):
             errors.append(str(content.get("error_code", "unknown"))[:80])
-    return {"search_performed": searches > 0, "source_urls": sorted(urls), "source_validation": "provider",
-            "search_calls": searches, "tool_errors": errors,
+    # fetched_urls: pages the provider itself opened (web_fetch). They are retrieval
+    # provenance even without a search; search_performed still counts searches only.
+    return {"search_performed": searches > 0, "source_urls": sorted(urls), "fetched_urls": sorted(fetched),
+            "source_validation": "provider", "search_calls": searches, "tool_errors": errors,
             "checked_at": datetime.now(timezone.utc).isoformat()}, set(calls) - finished
 
 
