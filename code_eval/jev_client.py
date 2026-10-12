@@ -301,7 +301,7 @@ def resolve_jev_client(
         # Dedicated evaluation credentials only; collection keys never select a judge.
         engine = "openai_api" if read("SEMANTIC_API_KEY") else "codex_cli"
     if engine == "anthropic_api":
-        from .anthropic_semantic_client import AnthropicSemanticClient, AnthropicSemanticConfig
+        from .anthropic_semantic_client import AnthropicSemanticClient, AnthropicSemanticConfig, prompt_cache_setting
         api_config = AnthropicSemanticConfig(
             model=read("SEMANTIC_ANTHROPIC_MODEL") or "claude-sonnet-5-5",
             reasoning_effort=read("SEMANTIC_ANTHROPIC_EFFORT") or "medium",
@@ -312,6 +312,7 @@ def resolve_jev_client(
             max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 4),
             max_fetches=int(read("SEMANTIC_ANTHROPIC_MAX_FETCHES") or 8),
             max_continuations=int(read("SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS") or 2),
+            prompt_cache=prompt_cache_setting(read("SEMANTIC_ANTHROPIC_PROMPT_CACHE")),
         )
         # Reuse the registered Claude credential only for this explicitly
         # selected evaluator. The historical auto-selection remains unchanged.

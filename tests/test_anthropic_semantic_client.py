@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from code_eval.anthropic_semantic_client import (AnthropicSemanticClient, AnthropicSemanticConfig, FINAL_TOOL,
-                                               _strict_schema, _text_submission)
+                                               _strict_schema, _text_submission, prompt_cache_setting)
 from code_eval.jev_eval import jev_request, evaluate_jev_case
 
 
@@ -51,7 +51,8 @@ def test_request_preserves_blind_inputs_uses_medium_and_strict_final_tool():
     assert '지정된 JSON 형식으로만 답합니다.' not in body['system']
     assert '외부 도구를 사용하지 않습니다.' not in body['system']
     assert 'submit_evaluation 도구를 정확히 한 번' in body['system']
-    assert json.loads(body['messages'][0]['content'].split('## 평가 대상 (데이터)\n',1)[1])==state
+    prompt=''.join(block['text'] for block in body['messages'][0]['content'])
+    assert json.loads(prompt.split('## 평가 대상 (데이터)\n',1)[1])==state
     assert len(body['tools'])==1 and body['tools'][0]['strict'] is True
     schema=body['tools'][0]['input_schema']
     assert schema['required']==['J1','J5','J6']
@@ -73,6 +74,26 @@ def test_configured_opus_5_5_request_avoids_parameters_the_model_rejects():
     assert body['thinking'] == {'type': 'adaptive'} and body['tool_choice'] == {'type': 'auto'}
     assert not {'temperature', 'top_p', 'top_k'} & body.keys()
     assert [message['role'] for message in body['messages']] == ['user']
+
+
+def test_prompt_cache_marks_only_the_reusable_instructions_and_keeps_the_text():
+    # F8: tools + system + static rules are cached; the timestamp and evaluation data follow the marker.
+    bodies=[]
+    for answer in ('첫 답변','둘째 답변'):
+        _,sent=call(response(entries('J1','J5')),ids=('J1','J5'),state={'question':'질문','answer':answer})
+        bodies.append(json.loads(sent[0].content))
+    blocks=[b['messages'][0]['content'] for b in bodies]
+    assert [[('cache_control' in block) for block in content] for content in blocks]==[[True,False]]*2
+    assert blocks[0][0]==blocks[1][0] and blocks[0][0]['cache_control']=={'type':'ephemeral'}
+    assert '실행 기준 시각' not in blocks[0][0]['text'] and '첫 답변' in blocks[0][1]['text']
+    assert sum(json.dumps(b,ensure_ascii=False).count('cache_control') for b in bodies)==2
+    _,sent=call(response(entries('J1')),config=AnthropicSemanticConfig(prompt_cache=False))
+    body=json.loads(sent[0].content)
+    assert isinstance(body['messages'][0]['content'],str) and 'cache_control' not in json.dumps(body)
+    assert AnthropicSemanticConfig(prompt_cache=False).to_manifest()['prompt_cache_policy']=='disabled'
+    assert prompt_cache_setting(None) is True and prompt_cache_setting(' OFF ') is False
+    with pytest.raises(ValueError):
+        prompt_cache_setting('sometimes')
 
 
 def web_blocks(url='https://evidence.example/page'):

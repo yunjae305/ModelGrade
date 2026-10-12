@@ -52,6 +52,16 @@ def _system_prompt(search_enabled):
     )
 
 
+def prompt_cache_setting(value):
+    """SEMANTIC_ANTHROPIC_PROMPT_CACHE — 비어 있으면 on. on/off(true/false, 1/0)만 받는다."""
+    text = (value or "on").strip().lower()
+    if text in ("on", "true", "1", "yes"):
+        return True
+    if text in ("off", "false", "0", "no"):
+        return False
+    raise ValueError("SEMANTIC_ANTHROPIC_PROMPT_CACHE 는 on 또는 off 여야 합니다.")
+
+
 @dataclass(frozen=True)
 class AnthropicSemanticConfig:
     model: str = "claude-sonnet-5-5"
@@ -63,6 +73,7 @@ class AnthropicSemanticConfig:
     max_tool_calls: int = 4
     max_fetches: int = 8
     max_continuations: int = 2
+    prompt_cache: bool = True
     engine: str = field(default="anthropic_api", init=False)
 
     def __post_init__(self):
@@ -78,6 +89,8 @@ class AnthropicSemanticConfig:
                 raise ValueError(f"{name} 설정이 올바르지 않습니다.")
         if self.max_continuations > 5:
             raise ValueError("Claude pause_turn 이어가기는 최대 5회입니다.")
+        if type(self.prompt_cache) is not bool:
+            raise ValueError("prompt_cache 설정은 true 또는 false여야 합니다.")
         if self.web_search not in ("live", "disabled"):
             raise ValueError("검색 설정은 live 또는 disabled여야 합니다.")
         try:
@@ -99,6 +112,7 @@ class AnthropicSemanticConfig:
                 "fact_check_scope": "all_answers", "context_check_policy": CONTEXT_CHECK_POLICY,
                 "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
+                "prompt_cache_policy": "static_prefix_ephemeral_5m" if self.prompt_cache else "disabled",
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
                 "confidence_note": "모델이 스스로 적은 확신도 — 보정된 확률 아님"}
@@ -345,11 +359,19 @@ class AnthropicSemanticClient:
                 tools[:0] = [{"type": SEARCH_TOOL, "name": "web_search", "max_uses": self.config.max_tool_calls},
                              {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
                               "citations": {"enabled": True}}]
+            static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
+            content = static + "\n" + dynamic
+            if self.config.prompt_cache:
+                # Same text, split at the end of the reusable instructions. The marker caches
+                # tools + system + static rules; the timestamp and evaluation data follow it.
+                # With caching on, server tools also cache their results between iterations.
+                content = [{"type": "text", "text": static + "\n", "cache_control": {"type": "ephemeral"}},
+                           {"type": "text", "text": dynamic}]
             payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
                        "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
                        "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
                        "system": _system_prompt(search_enabled),
-                       "messages": [{"role": "user", "content": semantic.build_prompt(state, questions, search_enabled)}]}
+                       "messages": [{"role": "user", "content": content}]}
             validate_json_numbers(payload)
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()

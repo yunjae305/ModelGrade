@@ -497,6 +497,12 @@ MOCK_PAGES = {
 }
 
 
+def prompt_text(body):
+    """요청의 사용자 메시지 원문 — 캐시 표시로 나뉜 텍스트 블록은 이어 붙인다."""
+    content = body["messages"][0]["content"]
+    return content if isinstance(content, str) else "".join(block["text"] for block in content)
+
+
 class MockJudge:
     """기대 결과대로 판단하는 Claude Messages 대역. behaviors 로 근거 누락·검색 오류 등을 강제한다.
 
@@ -528,7 +534,7 @@ class MockJudge:
 
     def handler(self, request):
         body = json.loads(request.content)
-        state = json.loads(body["messages"][0]["content"].split("## 평가 대상 (데이터)\n", 1)[1])
+        state = json.loads(prompt_text(body).split("## 평가 대상 (데이터)\n", 1)[1])
         ids = body["tools"][-1]["input_schema"]["required"]
         searching = any(t.get("name") == "web_search" for t in body["tools"])
         case = self.cases[state["answer"]]
@@ -770,7 +776,7 @@ def count_tokens(fixture, folder):
     rows = []
     with httpx.Client(timeout=30) as http:
         for body in sent:
-            answer = json.loads(body["messages"][0]["content"].split("## 평가 대상 (데이터)\n", 1)[1])["answer"]
+            answer = json.loads(prompt_text(body).split("## 평가 대상 (데이터)\n", 1)[1])["answer"]
             case = judge.cases[answer]
             request = {k: body[k] for k in ("model", "system", "messages", "tools", "thinking", "tool_choice")}
             response = http.post("https://api.anthropic.com/v1/messages/count_tokens", json=request,
@@ -778,9 +784,17 @@ def count_tokens(fixture, folder):
             if response.status_code != 200:
                 rows.append({"case": case["id"], "error": response.status_code, "detail": response.text[:300]})
                 continue
-            rows.append({"case": case["id"], "input_tokens": response.json().get("input_tokens"),
-                         "criteria": body["tools"][-1]["input_schema"]["required"],
-                         "search_tools": any(t.get("name") == "web_search" for t in body["tools"])})
+            row = {"case": case["id"], "input_tokens": response.json().get("input_tokens"),
+                   "criteria": body["tools"][-1]["input_schema"]["required"],
+                   "search_tools": any(t.get("name") == "web_search" for t in body["tools"])}
+            content = body["messages"][0]["content"]
+            if isinstance(content, list):     # 캐시 표시까지의 고정 부분(도구·시스템·평가 규칙)만 센다
+                cached = [block for block in content if "cache_control" in block]
+                prefix = http.post("https://api.anthropic.com/v1/messages/count_tokens",
+                                   json={**request, "messages": [{"role": "user", "content": cached}]},
+                                   headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
+                row["cacheable_prefix_tokens"] = prefix.json().get("input_tokens") if prefix.status_code == 200 else None
+            rows.append(row)
     write_json(Path(folder) / "count-tokens.json", rows)
     return rows
 

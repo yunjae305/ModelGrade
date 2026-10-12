@@ -181,7 +181,8 @@ def test_claude_judge_checks_cited_sources_inside_the_same_j5_call():
     request = sent[0]
     schema = next(t for t in request["tools"] if t.get("name") == FINAL_TOOL)["input_schema"]
     assert "citation_checks" in schema["properties"]["J5"]["required"]
-    assert "answer_citations" in request["messages"][0]["content"] and "citation_checks에 기록" in request["messages"][0]["content"]
+    prompt = "".join(block["text"] for block in request["messages"][0]["content"])
+    assert "answer_citations" in prompt and "citation_checks에 기록" in prompt
     decision = record["decisions"]["J5"]
     assert decision["decision"] == "FAIL" and decision["j5_outcome"]["code"] == "source_mismatch"
     assert decision["j5_outcome"]["factual_error_confirmed"] is False
@@ -202,4 +203,5 @@ def test_answers_without_citations_keep_the_previous_request_shape():
 
     client = AnthropicSemanticClient(AnthropicSemanticConfig(), "k", transport=httpx.MockTransport(handler))
     record = evaluate_jev_case("q", "질문", "출처 없는 답변입니다.", client, criteria=("J1",), citation_check=True)
-    assert "answer_citations" not in sent[0]["messages"][0]["content"] and "answer_citations" not in record
+    assert "answer_citations" not in json.dumps(sent[0]["messages"][0]["content"], ensure_ascii=False)
+    assert "answer_citations" not in record
