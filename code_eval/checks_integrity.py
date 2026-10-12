@@ -597,7 +597,8 @@ def _python_syntax(ctx: Ctx) -> List:
                               reason=f"코드가 {LIMITS['python_chars']}자 한도를 넘음", evidence=ev))
             continue
         try:
-            tree = ast.parse(src, filename=f"<answer-{tid}>", mode="exec")
+            # 목록 안·들여쓴 펜스는 Markdown 들여쓰기를 뺀 내용으로 읽는다 (CommonMark). 줄 번호는 같다.
+            tree = ast.parse(b.get("dedented", src), filename=f"<answer-{tid}>", mode="exec")
             compile(tree, f"<answer-{tid}>", "exec", dont_inherit=True)   # 실행·import 하지 않음
             error = None
         except SyntaxError as exc_:

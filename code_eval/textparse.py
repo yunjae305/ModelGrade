@@ -29,8 +29,14 @@ __all__ = ["Line", "ListItem", "Heading", "MarkdownTable", "Paragraph", "split_l
 TAB_WIDTH = 4
 
 _LIST_ITEM = re.compile(
-    r"^(?P<indent>[ \t]*)(?P<marker>\d{1,9}[.)]|[-*+])[ \t]+(?P<body>\S.*)$"
+    r"^(?P<indent>[ \t]*)(?P<marker>\d{1,9}[.)]|[-*+])(?P<gap>[ \t]+)(?P<body>\S.*)$"
 )
+
+
+def _content_column(indent: int, marker: str, gap: str) -> int:
+    """CommonMark 목록 항목의 내용이 시작하는 열. 표시 뒤 공백이 5칸 이상이면 1칸만 표시에 속한다."""
+    width = len(gap.expandtabs(TAB_WIDTH))
+    return indent + len(marker) + (width if width <= 4 else 1)
 
 
 @dataclass(frozen=True)
@@ -69,7 +75,7 @@ class ListItem:
     """번호 또는 불릿이 붙은 목록 줄 하나."""
 
     marker: str   # "1." · "2)" · "-" 처럼 줄에 적힌 표시 그대로
-    indent: int
+    indent: int   # 같은 목록의 형제 항목끼리 맞춘 들여쓰기 (find_list_items 참고)
     body: str     # 표시를 뗀 나머지 텍스트
     line: Line
 
@@ -83,18 +89,31 @@ class ListItem:
 
 
 def find_list_items(text: str, lines: Optional[Sequence[Line]] = None) -> List[ListItem]:
-    """코드 블록 밖에 있는 목록 줄을 모두 찾는다 (번호 목록 + 불릿 목록)."""
+    """코드 블록 밖에 있는 목록 줄을 모두 찾는다 (번호 목록 + 불릿 목록).
+
+    CommonMark 에서 앞 항목의 내용 시작 열보다 덜 들여쓴 항목은 하위 항목이 아니라 형제 항목이다.
+    같은 종류(불릿·번호) 형제가 1~3칸 어긋나 있으면 ``indent`` 를 앞 형제와 같게 맞춰 하위로 세지 않는다.
+    종류가 다른 항목은 줄에 적힌 들여쓰기를 그대로 쓴다.
+    """
     items: List[ListItem] = []
+    open_items: List[Tuple[int, int, bool]] = []   # (내용 시작 열, 맞춘 들여쓰기, 불릿 여부)
     for line in lines if lines is not None else split_lines(text):
         if line.in_code:
             continue
         match = _LIST_ITEM.match(line.text)
         if not match:
             continue
+        written = len(match.group("indent").expandtabs(TAB_WIDTH))
+        bullet = match.group("marker") in ("-", "*", "+")
+        sibling = None
+        while open_items and written < open_items[-1][0]:
+            sibling = open_items.pop()
+        indent = sibling[1] if sibling is not None and sibling[2] == bullet else written
+        open_items.append((_content_column(written, match.group("marker"), match.group("gap")), indent, bullet))
         items.append(
             ListItem(
                 marker=match.group("marker"),
-                indent=len(match.group("indent").expandtabs(TAB_WIDTH)),
+                indent=indent,
                 body=match.group("body"),
                 line=line,
             )
@@ -130,6 +149,12 @@ _TABLE_DELIMITER = re.compile(r"^[ ]{0,3}\|?[ \t]*:?-{1,}:?[ \t]*(?:\|[ \t]*:?-{
 
 #: 표 줄
 _TABLE_ROW = re.compile(r"^[ ]{0,3}\|.*\|[ \t]*$")
+
+#: GFM 은 표 양끝 파이프를 생략할 수 있다. 그때는 줄 안의 파이프로 칸을 나눈다.
+_TABLE_ROW_BARE = re.compile(r"^[ ]{0,3}\S.*\|")
+
+#: 인용문 표시. 인용문 안의 표도 GFM 표다 (같은 깊이의 인용 줄끼리만 이어 본다).
+_QUOTE_PREFIX = re.compile(r"^(?:[ ]{0,3}>[ ]?)+")
 
 #: 슬러그에서 지우는 문자 (GitHub 기준에 맞춘 최소 규칙)
 _SLUG_STRIP = re.compile(r"[^\w\s가-힣-]", re.UNICODE)
@@ -282,24 +307,40 @@ def _split_row(raw: str) -> Tuple[str, ...]:
 
 
 def find_markdown_tables(text: str, lines: Optional[Sequence[Line]] = None) -> List[MarkdownTable]:
-    """GFM 표를 찾는다. 머리글 + 구분선이 갖춰진 것만 표로 본다."""
+    """GFM 표를 찾는다. 머리글 + 구분선이 갖춰진 것만 표로 본다.
+
+    양끝 파이프가 없는 표는 구분선에도 파이프가 있어야 표로 본다 (``---`` 한 줄은 구분선·제목 밑줄과 같다).
+    인용문 안의 표는 같은 깊이의 ``>`` 를 뗀 줄로 읽는다.
+    """
     body = content_lines(text, lines)
+
+    def unquoted(line: Line) -> Tuple[int, str]:
+        prefix = _QUOTE_PREFIX.match(line.text)
+        return (prefix.group(0).count(">"), line.text[prefix.end():]) if prefix else (0, line.text)
+
     tables: List[MarkdownTable] = []
     index = 0
     while index < len(body) - 1:
         header_line, delimiter_line = body[index], body[index + 1]
-        if not _TABLE_ROW.match(header_line.text) or not _TABLE_DELIMITER.match(delimiter_line.text):
+        depth, header = unquoted(header_line)
+        delimiter_depth, delimiter = unquoted(delimiter_line)
+        piped = bool(_TABLE_ROW.match(header))
+        bare = not piped and bool(_TABLE_ROW_BARE.match(header)) and "|" in delimiter
+        if depth != delimiter_depth or not (piped or bare) or not _TABLE_DELIMITER.match(delimiter):
             index += 1
             continue
-        headers = _split_row(header_line.text)
-        if len(headers) != len(_split_row(delimiter_line.text)):
+        headers = _split_row(header)
+        if len(headers) != len(_split_row(delimiter)):
             index += 1
             continue
         rows: List[Tuple[str, ...]] = []
         end = delimiter_line.end
         cursor = index + 2
-        while cursor < len(body) and _TABLE_ROW.match(body[cursor].text):
-            rows.append(_split_row(body[cursor].text))
+        while cursor < len(body):
+            row_depth, row = unquoted(body[cursor])
+            if row_depth != depth or not (_TABLE_ROW.match(row) or bare and _TABLE_ROW_BARE.match(row)):
+                break
+            rows.append(_split_row(row))
             end = body[cursor].end
             cursor += 1
         tables.append(
@@ -402,7 +443,19 @@ def find_corruption(text: str) -> List[Dict[str, Any]]:
 
 # --- 코드 펜스 구획·JSON 값 종류 ------------------------------------------------------------
 
-_FENCE_LINE = re.compile(r"^(?P<indent>[ ]{0,3})(?P<marker>`{3,}|~{3,})(?P<info>[^\r\n]*)$")
+_FENCE_LINE = re.compile(r"^(?P<indent>[ \t]*)(?P<marker>`{3,}|~{3,})(?P<info>[^\r\n]*)$")
+
+
+def _indent_width(line: str) -> int:
+    return len(line[:len(line) - len(line.lstrip(" \t"))].expandtabs(TAB_WIDTH))
+
+
+def _dedent_content(content: str, width: int) -> str:
+    """CommonMark: 여는 펜스가 N칸 들여쓰였으면 내용 각 줄에서 앞 공백을 N칸까지 뺀다."""
+    if not width:
+        return content
+    return "".join(part[min(width, len(part) - len(part.lstrip(" "))):]
+                   for part in content.splitlines(keepends=True))
 
 
 def _fenced_code_blocks(text: str) -> List[Dict[str, Any]]:
@@ -410,6 +463,11 @@ def _fenced_code_blocks(text: str) -> List[Dict[str, Any]]:
 
     CommonMark 에서는 파일 끝의 닫히지 않은 fence도 유효한 code block이다.
     따라서 ``closed``를 근거에 남기되 구문 실패로 만들지 않는다.
+
+    목록 밖 펜스는 0~3칸 들여쓴다. 목록 항목 안 펜스는 그 항목 내용이 시작하는 열에서 0~3칸이므로
+    줄 기준으로 4칸 이상일 수 있다 (CommonMark 컨테이너 규칙). 빈 줄 뒤에 덜 들여쓴 본문이 오면 그 항목은 닫힌다.
+    ``indent`` 는 여는 줄의 들여쓰기, ``dedented`` 는 내용에서 그만큼 앞 공백을 뺀 값이다 (구문 검사용).
+    위치 계산은 원문 그대로인 ``content`` 를 쓴다.
     """
     lines = text.splitlines(keepends=True)
     blocks: List[Dict[str, Any]] = []
@@ -417,22 +475,37 @@ def _fenced_code_blocks(text: str) -> List[Dict[str, Any]]:
     opened: Optional[Dict[str, Any]] = None
     content_start = 0
     content_parts: List[str] = []
+    columns: List[int] = []   # 열려 있는 목록 항목의 내용 시작 열
+    blank_before = False
     for raw in lines:
         line = raw.rstrip("\r\n")
         match = _FENCE_LINE.match(line)
         if opened is None:
-            if match:
+            width = _indent_width(line)
+            base = 0 if width <= 3 else max((c for c in columns if 0 <= width - c <= 3), default=None)
+            if match and base is not None:
                 marker = match.group("marker")
                 info = match.group("info").strip()
                 if marker[0] == "`" and "`" in info:
                     offset += len(raw)
+                    blank_before = False
                     continue
+                if width <= 3:
+                    base = max((c for c in columns if c <= width), default=0)
                 opened = {
                     "marker": marker[0], "length": len(marker), "info": info,
-                    "start": offset, "opening": line,
+                    "start": offset, "opening": line, "indent": width, "base": base,
                 }
                 content_start = offset + len(raw)
                 content_parts = []
+            elif line.strip():
+                item = _LIST_ITEM.match(line)
+                if item or blank_before:
+                    while columns and width < columns[-1]:
+                        columns.pop()
+                if item:
+                    columns.append(_content_column(width, item.group("marker"), item.group("gap")))
+            blank_before = not line.strip()
         else:
             if match:
                 marker = match.group("marker")
@@ -440,19 +513,23 @@ def _fenced_code_blocks(text: str) -> List[Dict[str, Any]]:
                     marker[0] == opened["marker"]
                     and len(marker) >= opened["length"]
                     and not match.group("info").strip()
+                    and _indent_width(line) <= opened["base"] + 3
                 )
                 if is_close:
-                    blocks.append({**opened, "content": "".join(content_parts),
+                    content = "".join(content_parts)
+                    blocks.append({**opened, "content": content, "dedented": _dedent_content(content, opened["indent"]),
                                    "content_start": content_start, "end": offset + len(raw),
                                    "closed": True})
                     opened = None
                     content_parts = []
                     offset += len(raw)
+                    blank_before = False
                     continue
             content_parts.append(raw)
         offset += len(raw)
     if opened is not None:
-        blocks.append({**opened, "content": "".join(content_parts),
+        content = "".join(content_parts)
+        blocks.append({**opened, "content": content, "dedented": _dedent_content(content, opened["indent"]),
                        "content_start": content_start, "end": len(text), "closed": False})
     return blocks
 

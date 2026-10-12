@@ -23,7 +23,7 @@ from .textparse import _NUM_WORD, _count_governed_by_output_verb
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "EXTRACT_VERSION",
            "parse_number", "NUM_WORDS"]
 
-EXTRACT_VERSION = "v16-extract-1.6"
+EXTRACT_VERSION = "v16-extract-1.7"
 
 NUM_WORDS: Dict[str, int] = dict(_NUM_WORD)
 NUM_WORDS.update({"열한": 11, "열두": 12, "열세": 13, "열네": 14, "열다섯": 15, "스무": 20})
@@ -388,10 +388,11 @@ _LIST_NEG = re.compile(r"(?:목록|리스트|불릿|글머리\S*)\s*(?:은|는|�
 _MARKDOWN_NEG = re.compile(r"마크다운[^.!?\n]{0,30}?(?:쓰지|사용하지|넣지)\s*(?:마|말|않)|순수\s*텍스트로만|마크다운\s*(?:을|를)?\s*지원하지\s*않")
 _HEADING_REQ = re.compile(r"(?:소제목|제목|섹션|헤딩)\s*(?:을|를|도)?\s*(?:붙|달|넣|나눠|구분|사용)")
 _HEADING_COUNT = re.compile(rf"{_pre('a')}{_num('a')}\s*개의?\s*(?:소제목|섹션)|(?:소제목|섹션)\s*(?:을|를)?\s*{_pre('b')}{_num('b')}\s*개")
-_COLUMN_KW = re.compile(r"(?:열|컬럼|칼럼|column)(?:\s*이름|\s*명)?\s*(?:은|는|을|를|이|가|:)?")
-_UNQUOTED_COLUMN_LIST = re.compile(r"(?:열|컬럼|칼럼)\s*(?:은|는)\s*(?P<names>[^.!?\n]{3,120}?)\s+(?P<count>\d+)\s*개(?:입니다|예요|다|요)?")
+#: '배열·나열·진열' 안의 '열'은 표의 열이 아니다 — 앞 글자가 한글이면 열 키워드로 보지 않는다.
+_COLUMN_KW = re.compile(r"(?:(?<![가-힣])열|컬럼|칼럼|column)(?:\s*이름|\s*명)?\s*(?:은|는|을|를|이|가|:)?")
+_UNQUOTED_COLUMN_LIST = re.compile(r"(?:(?<![가-힣])열|컬럼|칼럼)\s*(?:은|는)\s*(?P<names>[^.!?\n]{3,120}?)\s+(?P<count>\d+)\s*개(?:입니다|예요|다|요)?")
 _QUOTED = re.compile(rf"[{_OPEN_Q}](?P<v>[^{_CLOSE_Q}\n]{{1,40}})[{_CLOSE_Q}]")
-_COL_COUNT = re.compile(rf"{_pre('a')}{_num('a')}\s*(?:개의?\s*)?(?:열|컬럼|칼럼)(?:로|으로|이|을|를)?(?![가-힣])|(?:열|컬럼)\s*(?:은|는|을|를)?\s*{_pre('b')}{_num('b')}\s*개")
+_COL_COUNT = re.compile(rf"{_pre('a')}{_num('a')}\s*(?:개의?\s*)?(?:열|컬럼|칼럼)(?:로|으로|이|을|를)?(?![가-힣])|(?:(?<![가-힣])열|컬럼)\s*(?:은|는|을|를)?\s*{_pre('b')}{_num('b')}\s*개")
 _HEADER_NONE = re.compile(r"헤더\s*(?:행)?\s*(?:없이|는\s*빼고|를\s*빼고|를\s*넣지\s*말)|머리글\s*(?:행)?\s*없이")
 _HEADER_YES = re.compile(r"(?:헤더|머리글)\s*(?:행)?\s*(?:을|를)?\s*(?:포함|넣어|두고|달아|붙여|있게)")
 _ROWS_DATA = (

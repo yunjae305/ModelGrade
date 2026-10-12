@@ -89,3 +89,67 @@ def test_crlf_line_endings_measure_like_lf(question, answer):
     assert verdicts(crlf) == verdicts(answer)
     assert all(verdict != "FAIL" for _, verdict, _ in verdicts(crlf))
     assert engine.evaluate_case({"question": question, "answer": crlf})["answer"] == crlf
+
+
+FENCE = "```"
+
+
+@pytest.mark.parametrize("question,answer,check_id,measured", [
+    # 같은 종류 형제 항목이 1칸 어긋나도 하위 항목이 아니다 (앞 항목 내용 시작 열보다 덜 들여씀).
+    ("공부 방법을 불릿으로 정확히 3개 작성해줘.", "- 개념 정리\n - 문제 풀이\n- 오답 복습",
+     "2-1.count:bullet_count", {"value": 3}),
+    ("방법을 번호 목록으로 정확히 3개 작성해줘.", "1. 개념 정리\n 2. 문제 풀이\n3. 오답 복습",
+     "2-1.count:list_count", {"value": 3}),
+    ("공부 방법을 알려줘.", "다음 세 가지를 추천합니다.\n\n- 개념 정리\n - 문제 풀이\n- 오답 복습",
+     "3-2.declared_count:1", {"count": 3}),
+    # 목록 항목 안 펜스는 항목 내용 열에서 0~3칸이라 줄 기준 4칸 이상일 수 있다.
+    ("설치 방법을 코드블록으로 보여줘.",
+     "1. 준비\n   - 설치\n     " + FENCE + "bash\n     pip install x\n     " + FENCE + "\n2. 끝",
+     "1-2.code_block:required", {"code_blocks": 1}),
+    ("방법을 3줄로 설명해줘.",
+     "설치합니다.\n실행합니다.\n\n- 명령\n    " + FENCE + "bash\n    pip install x\n    run x\n    " + FENCE,
+     "2-1.count:line_count", {"value": 3}),
+    # 들여쓴 펜스의 내용은 그 들여쓰기를 뺀 코드로 구문을 읽는다.
+    ("파이썬 함수를 작성해줘.", "1. 함수 작성\n   " + FENCE + "python\n   def f():\n       return 1\n   " + FENCE,
+     "1-2.python_syntax:block1", {"language_label": "python"}),
+    # GFM 표는 양끝 파이프를 생략할 수 있고, 인용문 안에도 쓸 수 있다.
+    ("과일과 가격을 표로 정리해줘. 데이터 행은 정확히 2개로 해줘.", "과일 | 가격\n---|---\n사과 | 1000\n배 | 2000",
+     "2-2.table:table_data_rows", {"data_rows": 2}),
+    ("과일과 가격을 표로 정리해줘.", "> | 과일 | 가격 |\n> |---|---|\n> | 사과 | 1000 |",
+     "2-2.table:required", None),
+])
+def test_commonmark_structures_are_measured_as_rendered(question, answer, check_id, measured):
+    case = engine.evaluate_case({"question": question, "answer": answer})
+    row = next(r for r in case["results"] if r["check_id"] == check_id)
+    assert row["verdict"] == "PASS"
+    assert measured is None or measured.items() <= row["measured"].items()
+
+
+@pytest.mark.parametrize("answer", [
+    # 목록 밖 4칸 들여쓰기와, 빈 줄 뒤 본문으로 닫힌 목록 다음의 4칸 들여쓰기는 펜스가 아니다.
+    "설치합니다.\n\n    " + FENCE + "\n    코드 아님\n    " + FENCE + "\n실행합니다.",
+    "- 설치\n\n본문 문단입니다.\n\n    " + FENCE + "bash\n    pip\n    " + FENCE,
+])
+def test_indented_backticks_outside_list_items_stay_text(answer):
+    case = engine.evaluate_case({"question": "방법을 코드블록으로 보여줘.", "answer": answer})
+    row = next(r for r in case["results"] if r["check_id"] == "1-2.code_block:required")
+    assert (row["verdict"], row["measured"]["code_blocks"]) == ("FAIL", 0)
+
+
+def test_prose_pipe_above_a_rule_is_not_a_table():
+    case = engine.evaluate_case({"question": "과일과 가격을 표로 정리해줘.", "answer": "사과 | 배 중에 고르세요.\n---\n끝입니다."})
+    row = next(r for r in case["results"] if r["check_id"] == "2-2.table:required")
+    assert row["verdict"] == "FAIL" and row["measured"]["tables"] == []
+
+
+@pytest.mark.parametrize("question,expected", [
+    # '배열' 안의 '열'은 표의 열이 아니다.
+    ('다음 JSON 배열에서 "score"가 50 이상인 항목만 남겨줘.', set()),
+    ("숫자 배열을 3개 만들어 표로 보여줘.", {"table_required"}),
+    ("할 일을 표로 정리해줘. 열 이름은 '구분', '설명'이야.", {"table_required", "table_columns"}),
+    ("표로 정리하고 열은 3개로 해줘.", {"table_required", "table_column_count"}),
+])
+def test_column_keyword_is_not_read_inside_another_word(question, expected):
+    case = engine.evaluate_case({"question": question, "answer": "답변"})
+    kinds = {c["kind"] for c in case["meta"]["question_conditions"]}
+    assert {k for k in kinds if k.startswith("table_")} == expected

@@ -33,7 +33,7 @@ from .textparse import (
 
 __all__ = ["TextAnalysis", "TableInfo", "ANALYSIS_VERSION", "mask_ranges"]
 
-ANALYSIS_VERSION = "v16-analysis-1.2"
+ANALYSIS_VERSION = "v16-analysis-1.3"
 
 _INLINE_RUN = re.compile(r"`+")
 _MATH_DELIM = re.compile(r"\$\$")
