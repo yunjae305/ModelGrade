@@ -4,7 +4,8 @@
 - 질문 안의 인용 자료(펜스 코드, ``>`` 인용 줄, 표)는 지시가 아니라 작업 데이터다. 추출 대상 문장에서 가린다.
 - 다른 따옴표 안에 들어 있는 지시(예: 번역할 문장 속의 "…를 포함해줘")는 실행하지 않는다.
 - 실제 지시가 참조하는 값(``"완료"라는 문자열을 포함해줘`` 의 ``완료``)은 제거하지 않는다.
-- 모호한 요구는 조건을 만들지 않고 ``unsupported`` 로 남긴다. 질문에 없는 값을 만들지 않는다.
+- 모호한 요구는 조건을 만들지 않는다 (코드·데이터 결과물 안의 구조, 원본이 없거나 여러 개인 변환, 마크다운 금지와
+  충돌하는 구조 요구). 비교 방식이 불명확한 요구만 ``unsupported`` 로 남긴다. 질문에 없는 값을 만들지 않는다.
 
 수사 표(``_NUM_WORD``)와 출력 동사 지배 판별(``_count_governed_by_output_verb``)은 ``textparse`` 에 있다.
 """
@@ -23,7 +24,7 @@ from .textparse import _NUM_WORD, _count_governed_by_output_verb
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "EXTRACT_VERSION",
            "parse_number", "NUM_WORDS"]
 
-EXTRACT_VERSION = "v16-extract-1.8"
+EXTRACT_VERSION = "v16-extract-1.9"
 
 NUM_WORDS: Dict[str, int] = dict(_NUM_WORD)
 NUM_WORDS.update({"열한": 11, "열두": 12, "열세": 13, "열네": 14, "열다섯": 15, "스무": 20})
@@ -592,8 +593,6 @@ _PROSE_VERB_AFTER = re.compile(r"[^.!?\n]{0,20}?(?:정리|나열|요약|비교|�
 _FORMAT_STRUCT_KINDS = ("list_required", "list_forbidden", "list_count", "heading_required", "heading_count",
                         "table_required", "table_forbidden", "table_count", "table_columns", "table_column_count",
                         "table_header", "table_data_rows", "table_total_rows", "table_rows_ambiguous")
-_STRUCT_LABEL = {"list_required": "목록", "list_forbidden": "목록", "list_count": "항목 수",
-                 "heading_required": "제목", "heading_count": "제목"}
 
 
 def _format_label(s: str) -> str:
@@ -635,21 +634,17 @@ def _structure_target(text: str, req: Req, out_req: Optional["re.Match"]) -> Opt
 
 
 def _format_internal_structure(text: str, reqs: List[Req]) -> None:
+    """코드·데이터 결과물을 요청한 질문에서 결과물 안의 자료 구조(``"data"``)를 가리키거나 답변 구성인지 확정할 수
+    없는(``"ambiguous"``) 목록·표·제목 요구는 조건을 만들지 않는다 (행 없음). 불릿·마크다운 표처럼 답변 구성을
+    가리키는 요구만 남긴다."""
     out_req = _OUTPUT_FORMAT_REQ.search(text)
     targets = [r for r in reqs if r.kind in _FORMAT_STRUCT_KINDS and r.status == "ok"]
     anchor = next((r for r in targets if r.kind in ("table_required", "table_count", "table_forbidden")), None)
     anchor_target = _structure_target(text, anchor, out_req) if anchor else None
     for r in targets:
         found = anchor_target if anchor and r.kind.startswith("table_") else _structure_target(text, r, out_req)
-        if found is None:
-            continue
-        where, fmt = found
-        label = _STRUCT_LABEL.get(r.kind, "표")
-        r.status = "unsupported"
-        r.reason = (f"요청한 {fmt} 결과물 안의 자료 구조를 가리키는 요구로 보임 — 답변의 Markdown {label} 기준으로 판정하지 않음"
-                    if where == "data" else
-                    f"{fmt} 결과물을 요청한 질문이라 결과물 안의 구조인지 답변 구성인지 확정하지 못함 — "
-                    f"Markdown {label} 기준으로 판정하지 않음")
+        if found is not None:
+            reqs.remove(r)
 
 
 def _columns(text: str) -> Optional[Req]:
@@ -843,7 +838,14 @@ _UNIQUE = re.compile(r"중복\s*(?:없이|되지\s*않게|되지\s*않도록)|�
 _RENAME = re.compile(LIT + r"\s*(?:키|필드)?\s*(?:을|를)\s*[" + _OPEN_Q + r"](?P<to>[^" + _CLOSE_Q + r"\n]{1,40})[" + _CLOSE_Q + r"]\s*(?:으로|로)\s*(?:바꿔|변경|이름을\s*바꿔|바꾸)")
 _PRESERVE = re.compile(r"(?:원본|원래|주어진)\s*(?:값|데이터|순서|자료)?\s*(?:을|를|은|는)?\s*(?:그대로|유지|보존|바꾸지)"
                        r"|(?:순서|값|ID|아이디)\s*(?:를|을|는|은)?\s*(?:그대로\s*)?(?:유지|보존)")
-_CONVERT_FORMAT = re.compile(r"(?:JSON|표|목록)\s*(?:으로|로)\s*변환", re.IGNORECASE)
+#: 코드·함수 작성 요구 — 변환·보존·고유성·집계 표현은 함수 동작 설명이지 답변 변환 조건이 아니다.
+#: 조사 범위는 _CODE_REQ 와 같다. "코드를 작성하지 말고"·"코드 작성 없이" 같은 부정·면제 꼬리는 코드 작성 요구가 아니다.
+_CODE_TASK_VERB = re.compile(r"(?:함수|코드|프로그램|알고리즘|스크립트)\s*(?:를|을|도|는|은|로|으로)?\s*[^.!?\n]{0,8}?(?:작성|구현|만들|짜)")
+_CODE_TASK_NEG = re.compile(r"^\s*(?:(?:하|해)?\s*지\s*(?:마|말|않)|할\s*필요|않아도|없이)")
+
+
+def _is_code_task(text: str) -> bool:
+    return any(not _CODE_TASK_NEG.match(text[m.end():m.end() + 12]) for m in _CODE_TASK_VERB.finditer(text))
 _AGG = re.compile(rf"(?:{LIT}|(?P<key2>[A-Za-z_][A-Za-z0-9_]{{0,30}}|[가-힣]{{1,10}}))\s*(?:열|필드|값)?\s*(?:의)?\s*"
                   r"(?P<agg>합계|총합|평균|최댓값|최솟값|최대값|최소값)")
 
@@ -925,39 +927,25 @@ def _transform_reqs(qa: TextAnalysis, text: str, out: List[Req]) -> Optional[Dic
         ops.append({"op": "rename", "from": m.group("lit").strip(), "to": m.group("to").strip()})
         evidence.append((m.start(), m.end(), m.group(0)))
     preserve = _PRESERVE.search(text)
-    convert_format = _CONVERT_FORMAT.search(text)
     unique = _UNIQUE.search(text)
     agg = _AGG.search(text)
-    if not (ops or preserve or unique or agg or convert_format):
+    if not (ops or preserve or unique or agg):
+        return None
+    # 코드·함수 작성 질문: "입력 순서를 유지" "중복 없이" 같은 표현은 함수 동작 요구다 — 원본 유무와 무관하게 조건 없음.
+    if _is_code_task(text):
         return None
     source = _source_data(qa, text)
-    if convert_format and not (ops or preserve):
-        out.append(Req("transform", {}, convert_format.start(), convert_format.end(),
-                       convert_format.group(0), status="unsupported",
-                       reason="형식 변환에 필요한 원본 필드·값 연결 규칙이 지원되지 않아 비교값을 만들 수 없음"))
+    if source is None or source.get("ambiguous"):
+        return None   # 원본 자료 없음(대화 속 일정·순서 유지 등)·후보 여러 개 → 조건 미생성 (행 없음)
     if unique:
         out.append(Req("unique_values", {}, unique.start(), unique.end(), unique.group(0)))
-    if source is None:
-        if preserve:
-            code_task = any(r.kind in ("code_requested", "python_code_requested") for r in out)
-            if not (code_task and re.search(r"(?:함수|코드|프로그램|알고리즘)\s*(?:를|을)?\s*(?:작성|구현|만들)", text)):
-                out.append(Req("transform", {}, preserve.start(), preserve.end(), preserve.group(0),
-                               status="unsupported",
-                               reason="원본 보존 요구는 있으나 지원되는 JSON 배열·표·목록 구조에서 원본 대상을 확정하지 못함"))
-        return None   # 일반 연산 단어만으로 작업 설명(예: "중복을 제거하는 함수")을 평가 요구로 만들지 않는다
     if agg:
         out.append(Req("aggregate", {"key": agg.group("lit") or agg.group("key2"), "agg": agg.group("agg")},
-                       agg.start(), agg.end(), agg.group(0),
-                       **({} if source and not source.get("ambiguous") else
-                          {"status": "unsupported", "reason": "질문에 원본 자료로 보이는 것이 여러 개라 어느 자료를 계산하라는지 정할 수 없음"})))
+                       agg.start(), agg.end(), agg.group(0)))
     if ops or preserve:
         s = min([e[0] for e in evidence] + ([preserve.start()] if preserve else []))
         e = max([e[1] for e in evidence] + ([preserve.end()] if preserve else []))
-        req = Req("transform", {"ops": ops, "preserve": bool(preserve)}, s, e, text[s:e].strip())
-        if source.get("ambiguous"):
-            req.status = "unsupported"
-            req.reason = f"질문에 원본 자료로 보이는 것이 {source['count']}개라 어느 자료를 바꾸라는지 정할 수 없음"
-        out.append(req)
+        out.append(Req("transform", {"ops": ops, "preserve": bool(preserve)}, s, e, text[s:e].strip()))
     return source
 
 
@@ -980,16 +968,14 @@ def extract_conditions(question: str) -> QuestionConditions:
     md_neg = _MARKDOWN_NEG.search(text)
     if md_neg:
         reqs.append(Req("markdown_forbidden", {}, md_neg.start(), md_neg.end(), md_neg.group(0).strip()))
-        for r in reqs:
-            if r.kind in ("table_required", "table_count", "code_block_required", "code_block_count", "list_required",
-                          "heading_required", "heading_count", "table_columns", "table_column_count",
-                          "table_header", "table_data_rows", "table_total_rows") and r.status == "ok":
-                r.status = "unsupported"
-                r.reason = ("질문이 마크다운 기호 사용을 금지해 표·코드블록·목록·제목 구조를 Markdown 문법으로 "
-                            "확인할 수 없음 (요구 간 충돌 — 판정하지 않음)")
+        # 마크다운 금지와 충돌하는 표·코드블록·목록·제목 요구는 Markdown 문법으로 확인할 수 없다 — 조건 미생성 (행 없음).
+        reqs[:] = [r for r in reqs
+                   if not (r.kind in ("table_required", "table_count", "code_block_required", "code_block_count",
+                                      "list_required", "heading_required", "heading_count", "table_columns",
+                                      "table_column_count", "table_header", "table_data_rows", "table_total_rows")
+                           and r.status == "ok")]
     _format_internal_structure(text, reqs)
     _calc_reqs(text, reqs)
     source = _transform_reqs(qa, text, reqs)
     # 표·목록 요구와 겹치는 일반 개수: 불릿 개수가 있으면 목록 요구는 개수 조건이 포함한다.
-    return QuestionConditions(reqs=reqs, instruction_text=text,
-                              source_data=source if source and not source.get("ambiguous") else None)
+    return QuestionConditions(reqs=reqs, instruction_text=text, source_data=source)

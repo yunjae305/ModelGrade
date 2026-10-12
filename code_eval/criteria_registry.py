@@ -68,7 +68,7 @@ CODE_UNITS = (
 MODIFIER_KINDS = {
     "code_requested": "코드 결과물 요청 — 결과물 안의 목록·표·제목 요구를 Markdown 구조로 세지 않음 (2-1·2-2·3-3)",
     "error_example_requested": "오류 예시 요청 — 1-2 구문 검사를 적용 예외로 둠",
-    "markdown_forbidden": "Markdown 금지 — 표·코드블록 요구와 충돌하면 해당 구조 조건을 미판정으로 둠",
+    "markdown_forbidden": "Markdown 금지 — 표·코드블록·목록·제목 요구와 충돌하면 해당 구조 조건을 만들지 않음 (행 없음)",
 }
 
 #: 같은 요구를 한 번만 검사하도록 다른 단위가 함께 보는 조건 — (조건, 함께 추출된 조건, 대신 보는 단위, 이유)

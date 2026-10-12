@@ -171,3 +171,29 @@ def test_function_behavior_without_source_data_does_not_activate_transform():
     case = check("정수 목록에서 중복을 제거하되 처음 등장한 순서를 유지하는 함수를 작성해줘.",
                  "def unique(values):\n    return values")
     assert not any(r["check_id"] == "3-3.transform" for r in case["results"])
+
+
+@pytest.mark.parametrize("question", [
+    "중간 휴식을 15분에서 20분으로 바꿀게. 시작 시각과 선택한 영화, 상영 순서는 유지해줘. 시간표를 수정하고 끝나는 시각을 알려줘.",
+    "영화 G의 상영시간도 120분으로 바꿔줘. 상영 순서를 유지해서 시간표를 다시 짜줘.",
+])
+def test_schedule_order_preservation_in_conversation_makes_no_transform_row(question):
+    # 대화 속 '순서 유지'는 보존 표현이지만 질문에 변환할 원본(JSON 배열·표·목록)이 없다 — 조건 미생성(행·skipped 없음)
+    case = check(question, "1회차 10:00 영화 A\n2회차 12:20 영화 G\n끝나는 시각은 14:40입니다.")
+    assert not rows(case, "3-3.") and not skipped(case, "3-3.")
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"]
+
+
+@pytest.mark.parametrize("answer", [
+    "- 빈 문자열은 제외합니다.\n- 입력 순서를 유지합니다.\n- 중복은 처음 것만 남깁니다.\n\n```python\n"
+    "def keep(words):\n    return [w for w in words if w]\n```",
+    "```python\ndef keep(words):\n    return [w for w in words if w]\n```",
+])
+def test_function_request_with_example_input_array_does_not_activate_transform(answer):
+    # 함수 작성 질문의 예시 배열은 변환 원본이 아니다 — 설명 불릿을 변환 결과로 잡던 거짓 FAIL·미검사 재발 방지
+    question = ('영문 소문자 문자열 목록을 받아 빈 문자열을 제외한 목록을 돌려주는 파이썬 함수를 작성해줘. '
+                '입력 순서를 유지하고 중복은 제거해줘. 입력 예시는 ["cat", "a", "dog", ""]야.')
+    case = check(question, answer)
+    assert not rows(case, "3-3.") and not skipped(case, "3-3.")
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] in ("transform", "unique_values", "aggregate")]
+    assert any(c["kind"] == "python_code_requested" for c in case["meta"]["question_conditions"])

@@ -90,8 +90,10 @@ def test_code_only_alternative_definition_does_not_hide_missing_footnote():
 def test_multiple_json_sources_cannot_be_silently_reduced_to_one(sources):
     question = "아래 두 배열을 오름차순으로 정렬해줘.\n" + sources
     case = evaluate("```json\n[1, 3]\n```", question)
+    # 원본 후보가 둘이면 하나를 골라 PASS/FAIL 하지 않는다 — 변환 조건 자체를 만들지 않음(행·skipped 모두 없음).
     assert not [r for r in case["results"] if r["check_id"] == "3-3.transform"]
-    assert any(s["check_id"] == "3-3.transform" for s in case["meta"]["skipped_conditions"])
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"] == "3-3.transform"]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"]
 
 
 @pytest.mark.parametrize("source", ["```json\n[3, 1]\n```", "원본: [3, 1]"])

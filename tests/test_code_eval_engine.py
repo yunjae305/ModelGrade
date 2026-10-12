@@ -74,12 +74,12 @@ def test_missing_table_does_not_duplicate_presence_fail_as_count_fail():
     ("아래 상담 기록을 표로 정리해 주세요. 원본 그대로 정확하게 옮겨 주세요.\n---\n상담 기록: 8월 1일 배송 문의",
      "| 날짜 | 내용 |\n|---|---|\n| 8월 1일 | 배송 문의 |"),
 ])
-def test_unparsed_source_transformation_makes_no_row(question, answer):
+def test_unparsed_source_transformation_makes_no_condition(question, answer):
+    # 'JSON으로 변환'(형식 변환)·구조화된 원본이 없는 '원본 그대로'는 변환 조건 자체를 만들지 않는다 — 행도 skipped 도 없음.
     case = engine.evaluate_case({"question": question, "answer": answer})
-    rows = [r for r in case["results"] if r["check_id"] == "3-3.transform"]
-    assert rows == []
-    skipped = [s for s in case["meta"]["skipped_conditions"] if s["check_id"] == "3-3.transform"]
-    assert skipped and skipped[0]["reason"] and skipped[0]["subcategory"] == "3-3"
+    assert not [r for r in case["results"] if r["check_id"].startswith("3-3.")]
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("3-3.")]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"] in ("transform", "unique_values", "aggregate")]
 
 
 @pytest.mark.parametrize("question,answer", [

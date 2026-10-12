@@ -685,8 +685,11 @@ def test_upper_limit_phrase_becomes_less_or_equal():
 
 def test_markdown_forbidden_conflict_and_list_negation():
     case = run("마크다운 기호는 쓰지 말고 순수 텍스트로만 주세요. 결정 사항은 표로 보여 주세요.", "결정 사항\n항목  내용")
+    # 마크다운 금지와 충돌하는 표 요구는 조건 자체를 만들지 않는다 (행·skipped 없음)
     assert rows(case, "2-2.table") == []
-    assert any(s["check_id"] == "2-2.table:required" for s in case["meta"]["skipped_conditions"])
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.table")]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"].startswith("table_")]
+    assert any(c["kind"] == "markdown_forbidden" for c in case["meta"]["question_conditions"])
     neg = run("목록으로 나열하지 말고 문단으로 설명해 주세요.", "- 하나\n- 둘")
     assert one(neg, "2-2.list:forbidden")["verdict"] == FAIL and not rows(neg, "2-2.list:required")
 
@@ -695,12 +698,15 @@ def test_structure_inside_requested_code_or_data_format_is_not_markdown():
     yaml_q = "가상의 앱 설정을 YAML로 작성해줘. 지원 언어는 `ko`와 `en`의 목록으로 넣어줘."
     yaml_a = "설정입니다.\n\n```yaml\napp:\n  supported_languages:\n    - ko\n    - en\n```"
     yaml = run(yaml_q, yaml_a)
-    assert rows(yaml, "2-2.list:required") == []
-    assert any(s["check_id"] == "2-2.list:required" for s in yaml["meta"]["skipped_conditions"])
+    # 결과물 안의 자료 구조를 가리키는 목록·표 요구는 조건 자체를 만들지 않는다 (행·skipped 없음)
+    assert rows(yaml, "2-2.list") == []
+    assert not [s for s in yaml["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.list")]
+    assert not [c for c in yaml["meta"]["question_conditions"] if c["kind"].startswith("list_")]
     py = run("파이썬 리스트는 쓰지 말고 튜플로 작성해줘.", "- 튜플은 바꿀 수 없어요.\n\n```python\nitems = (1, 2)\n```")
-    assert rows(py, "2-2.list:forbidden") == []
+    assert rows(py, "2-2.list") == [] and not [c for c in py["meta"]["question_conditions"] if c["kind"].startswith("list_")]
     html = run("HTML 표로 만들어줘.", "```html\n<table><tr><td>1</td></tr></table>\n```")
-    assert rows(html, "2-2.table:required") == []
+    assert rows(html, "2-2.table") == [] and not [c for c in html["meta"]["question_conditions"] if c["kind"].startswith("table_")]
+    assert not [s for s in html["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.table")]
 
 
 def test_answer_layout_requests_still_judged_with_code_formats():
@@ -710,6 +716,66 @@ def test_answer_layout_requests_still_judged_with_code_formats():
     assert one(bullets, "2-2.list:required")["verdict"] == FAIL
     topic = run("HTML과 CSS의 차이를 표로 정리해줘.", "HTML은 구조, CSS는 모양을 다룹니다.")
     assert one(topic, "2-2.table:required")["verdict"] == FAIL
+
+
+def test_list_word_meaning_data_type_in_function_request_makes_no_list_row():
+    # 함수 작성 질문의 '값을 목록으로 보존'은 자료형(list)이다 — 2-2.list 조건 미생성(행·skipped 없음)
+    q = ("파이썬 표준 라이브러리만 사용해서 URL의 쿼리 매개변수를 사전으로 읽는 함수를 작성해줘. "
+         "같은 키가 여러 번 나오면 값을 목록으로 보존하고, 값이 없는 키는 빈 문자열로 둬.")
+    case = run(q, "```python\nfrom urllib.parse import parse_qs\n\ndef read(url):\n    return parse_qs(url)\n```")
+    assert rows(case, "2-2.list") == []
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith("2-2.list")]
+    assert not [c for c in case["meta"]["question_conditions"] if c["kind"].startswith("list_")]
+    # 대조: 답변 구성을 정리하라는 불릿 요구는 그대로 판정한다 (test_answer_layout_requests_still_judged_with_code_formats)
+    bullets = run("파이썬 코드를 작성하고, 주의점을 불릿 목록으로 정리해줘.", "```python\nprint(1)\n```\n\n주의점은 없습니다.")
+    assert one(bullets, "2-2.list:required")["verdict"] == FAIL
+
+
+def test_code_task_gate_handles_particles_and_negation():
+    source = "\n```json\n[3, 1, 2]\n```"
+    unsorted = "```json\n[3, 1, 2]\n```"
+    # 코드 작성을 하지 말라는 질문은 순수 데이터 변환 요구다 — 정합성 검사가 그대로 남는다
+    for q in ("아래 배열을 오름차순으로 정렬해줘. 코드를 작성하지 말고 결과만 JSON으로 줘.",
+              "아래 배열을 오름차순으로 정렬해줘. 코드 작성 없이 결과만 JSON으로 줘.",
+              "아래 배열을 오름차순으로 정렬해줘. 코드를 작성할 필요는 없어.",
+              "아래 배열을 오름차순으로 정렬해줘. 함수를 짜지 말고 결과만 줘."):
+        assert one(run(q + source, unsorted), "3-3.transform")["verdict"] == FAIL, q
+    # 조사가 달라도 코드 작성 질문이면 변환 조건을 만들지 않는다 (설명 불릿이 변환 결과로 잡히지 않음)
+    for q in ("아래 배열을 오름차순으로 정렬해줘. 코드도 작성해줘.", "아래 배열을 정렬하는 함수로 만들어줘.",
+              "아래 배열을 정렬하는 파이썬 코드로 작성해줘."):
+        case = run(q + source, "- 순서 보존\n- 중복 보존\n- 빈 문자열 처리\n```python\nsorted(xs)\n```")
+        assert rows(case, "3-3") == [] and not [c for c in case["meta"]["question_conditions"] if c["kind"] == "transform"], q
+
+
+def test_source_present_but_no_result_structure_makes_no_row():
+    q = "아래 배열을 오름차순으로 정렬해줘.\n```json\n[3, 1]\n```"
+    # 원본은 있지만 답변에 JSON 배열·표·목록이 없으면 품질 FAIL 이 아니라 행 없음 + skipped (결과물 누락은 의미 평가가 봄)
+    prose = run(q, "정렬하면 1과 3 순서입니다.")
+    assert rows(prose, "3-3.transform") == []
+    assert [s["check_id"] for s in prose["meta"]["skipped_conditions"] if s["check_id"].startswith("3-3")] == ["3-3.transform"]
+    assert any(c["kind"] == "transform" and c["status"] == "ok" for c in prose["meta"]["question_conditions"])
+    assert one(run(q, "```json\n[1, 3]\n```"), "3-3.transform")["verdict"] == PASS
+    assert one(run(q, "```json\n[3, 1]\n```"), "3-3.transform")["verdict"] == FAIL
+    two = run(q, "```json\n[1, 3]\n```\n```json\n[3, 1]\n```")   # 답변 후보 여러 개 → 행 없음
+    assert rows(two, "3-3.transform") == [] and any(s["check_id"] == "3-3.transform" for s in two["meta"]["skipped_conditions"])
+
+
+@pytest.mark.parametrize("question,answer", [
+    ("아래 두 배열을 오름차순으로 정렬해줘.\n첫 번째 배열: [3, 1]\n두 번째 배열: [4, 2]", "```json\n[1, 3]\n```"),  # 원본 2개
+    ("아래 상품 데이터를 JSON으로 변환해 주세요. 상품: 헤드셋 119000원 / 웹캠 55000원", '[{"name": "헤드셋"}]'),  # 형식 변환·원본 없음
+    ("서로 다른 값만 남겨서 알려줘.", "1, 2, 3"),                                                               # 고유성·원본 없음
+    ("점수 합계를 구하는 함수를 작성해줘. [1, 2, 3]", "```python\ndef total(xs):\n    return sum(xs)\n```"),   # 집계·코드 작성
+    ("가상의 앱 설정을 YAML로 작성해줘. 지원 언어는 `ko`와 `en`의 목록으로 넣어줘.", "```yaml\nlangs:\n  - ko\n```"),
+    ("HTML 표로 만들어줘.", "```html\n<table><tr><td>1</td></tr></table>\n```"),
+    ("마크다운 기호는 쓰지 말고 순수 텍스트로만 주세요. 목록으로 정리해 주세요.", "하나, 둘"),               # 마크다운 금지 충돌
+])
+def test_no_rows_or_skips_from_transform_or_internal_structure_extraction(question, answer):
+    case = run(question, answer)
+    watched = ("3-3.", "2-2.list", "2-2.table")
+    assert case["errors"] == []
+    assert not [r for r in case["results"] if r["check_id"].startswith(watched)]
+    assert not [s for s in case["meta"]["skipped_conditions"] if s["check_id"].startswith(watched)]
+    assert all(r["verdict"] in (PASS, FAIL) for r in case["results"] if r["area"] == "common")
 
 
 def test_chained_equation_and_presented_mistakes():

@@ -644,9 +644,11 @@ def _normalize_for_compare(items: List[Any], out_kind: str, src_kind: str) -> Li
 def check_3_3(ctx: Ctx) -> List:
     out = []
     src = ctx.conds.source_data
+    # 추출 단계가 원본 없음·여러 개·코드 작성 질문의 조건을 만들지 않으므로 여기 오는 조건은 원본이 확정된 것뿐이다.
+    # 연산을 적용할 수 없거나 답변에서 결과 구조(JSON 배열·표·목록)를 찾지 못하면 FAIL 이 아니라 행 없음(skipped)이다.
     for req in ctx.conds.of("transform"):
-        if req.status != "ok" or src is None:
-            skip_condition(ctx, "3-3.transform", SUB33, req.reason or "질문에서 원본 데이터를 확정하지 못함")
+        if src is None:
+            skip_condition(ctx, "3-3.transform", SUB33, "질문에서 원본 데이터를 확정하지 못함")
             continue
         expected, why = _apply_ops(src["value"], req.value["ops"])
         if expected is None:
@@ -701,8 +703,8 @@ def check_3_3(ctx: Ctx) -> List:
                           comparison=cmp_text(len(dups), "==", 0),
                           reason="중복 항목 없음" if ok else f"중복 항목 {len(dups)}개", evidence=[q_evidence(ctx, req)]))
     for req in ctx.conds.of("aggregate"):
-        if req.status != "ok" or src is None:
-            skip_condition(ctx, "3-3.aggregate", SUB33, req.reason or "질문에서 원본 데이터를 확정하지 못함")
+        if src is None:
+            skip_condition(ctx, "3-3.aggregate", SUB33, "질문에서 원본 데이터를 확정하지 못함")
             continue
         values = [_as_number(_get(i, req.value["key"])) for i in src["value"]]
         if not values or any(v is None for v in values):
