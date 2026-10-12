@@ -5,6 +5,7 @@ import pytest
 
 from code_eval.config import load_aiona_config
 from code_eval.engine import evaluate_batch, evaluate_case
+from code_eval.extract import extract_conditions, persistent_conditions
 
 NO_TABLE = "한국에는 봄, 여름, 가을, 겨울이 있습니다."
 TABLE = "| 계절 | 특징 |\n|---|---|\n| 봄 | 따뜻함 |"
@@ -101,6 +102,51 @@ def test_five_turn_literal_instruction_and_missing_turn_is_not_guessed():
     case = evaluate_batch(gapped, cfg)["cases"][-1]
     assert rows(case, "2-1.literal:ends_with") == []
     assert case["meta"]["inherited_conditions"][0]["applied"] is False
+
+
+ENDING = "앞으로 모든 답변은 '감사합니다'로 끝내고 '참고용'이라는 문구를 넣어줘."
+TABLE_ENDING = "앞으로 모든 답변은 표로 작성하고 '감사합니다'로 끝내줘."
+TABLE_ONLY = "앞으로 모든 답변은 표로 작성해줘."
+
+
+@pytest.mark.parametrize("prior,question,expected", [
+    # 따옴표 문구를 가리킨 해제는 그 문구 지시만 지운다 (F3, G3-04)
+    ([ENDING, "이제 '감사합니다'로 끝내지 않아도 돼."], "봄을 설명해줘.", [("required_literal", "참고용")]),
+    ([ENDING, "'참고용' 문구는 이제 빼줘."], "봄을 설명해줘.", [("ends_with", "감사합니다")]),
+    ([ENDING, "더 이상 '감사합니다'를 붙일 필요 없어."], "봄을 설명해줘.", [("required_literal", "참고용")]),
+    ([TABLE_ENDING, "앞으로 '감사합니다'로 끝내지 마."], "봄을 설명해줘.", [("table_required", None)]),
+    ([TABLE_ENDING, "끝맺음 문구는 이제 안 붙여도 돼."], "봄을 설명해줘.", [("table_required", None)]),
+    # 대상 뒤에 '형식·제한'이 붙어도 그 대상만 해제한다
+    ([TABLE_ENDING, "표 형식은 이제 안 써도 돼."], "봄을 설명해줘.", [("ends_with", "감사합니다")]),
+    (["앞으로 300자 이내로 쓰고 표로 정리해줘.", "이제 글자 수 제한은 신경 쓰지 않아도 돼."], "봄을 설명해줘.",
+     [("table_required", None)]),
+    # 이번 턴만의 해제·예외는 그 턴에만 적용된다
+    ([TABLE_ENDING], "이번 답변만 예외로 해줘. 봄을 설명해줘.", []),
+    ([TABLE_ENDING, "이번 답변만 예외로 해줘. 봄을 설명해줘."], "여름을 설명해줘.",
+     [("ends_with", "감사합니다"), ("table_required", None)]),
+    ([TABLE_ONLY, "이번에는 표 안 써도 돼. 봄을 설명해줘."], "여름을 설명해줘.", [("table_required", None)]),
+    # 인용 속 해제 표현 · '무시하지 마' 같은 부정문 · 다른 낱말은 해제가 아니다
+    ([TABLE_ENDING, "다음 문장을 번역해줘: \"'감사합니다'로 끝내지 않아도 돼.\""], "봄을 설명해줘.",
+     [("ends_with", "감사합니다"), ("table_required", None)]),
+    ([TABLE_ONLY, "친구가 '이제 표로 안 해도 돼'라고 했는데 무슨 뜻이야?"], "봄을 설명해줘.", [("table_required", None)]),
+    ([TABLE_ONLY, "그 조건을 무시하지 마."], "봄을 설명해줘.", [("table_required", None)]),
+    ([TABLE_ONLY, "표현은 신경 쓰지 않아도 돼."], "봄을 설명해줘.", [("table_required", None)]),
+    # 전체 취소 · 금지했던 문구 허용 · 5턴 넘게 지난 지시 해제
+    ([TABLE_ENDING, "이전 조건은 취소해."], "봄을 설명해줘.", []),
+    (["앞으로 '음'이라는 말은 쓰지 마.", "이제 '음'은 써도 돼."], "봄을 설명해줘.", []),
+    (["앞으로 답변은 2문장 이내로 해줘."] + [f"{i}번 질문에 답해줘." for i in range(2, 7)]
+     + ["이제 문장 수는 신경 쓰지 않아도 돼."], "봄을 설명해줘.", []),
+])
+def test_cancellation_removes_only_the_named_instruction(prior, question, expected):
+    reqs, _ = persistent_conditions(list(enumerate(prior, 1)), question)
+    assert sorted((r.kind, r.value.get("literal")) for r in reqs) == expected
+
+
+def test_negated_ending_instruction_is_not_an_ending_requirement():
+    # '…로 끝내지 마 / 끝내지 않아도 돼'를 그 문구로 끝내라는 요구로 읽지 않는다.
+    for question in ("'감사합니다'로 끝내지 마. 봄을 설명해줘.", "이제 '이상입니다.'로 끝내지 않아도 돼."):
+        assert not [r for r in extract_conditions(question).reqs if r.kind in ("ends_with", "starts_with")]
+    assert [r.kind for r in extract_conditions("'감사합니다'로 끝내줘.").reqs] == ["ends_with"]
 
 
 def test_single_case_evaluation_is_unchanged():

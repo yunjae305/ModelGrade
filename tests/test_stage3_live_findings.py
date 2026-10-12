@@ -43,8 +43,8 @@ def test_g4_02_digits_inside_the_cited_url_do_not_block_an_unrelated_verdict(tmp
     assert actual["j5"]["outcome"] == "source_mismatch" and actual["verdict"] == "FAIL"
 
 
-@pytest.mark.xfail(strict=True, reason="F3: 따옴표 문구 끝맺음 지시의 해제('…로 끝내지 않아도 돼')를 인식하지 못함")
 def test_g3_04_cancelled_quoted_ending_is_not_inherited():
+    # F3: 따옴표 문구 끝맺음 지시의 해제('…로 끝내지 않아도 돼')는 다음 턴에 이어받지 않는다.
     cfg = load_aiona_config()
     cfg.enabled = False
     payloads, _ = harness.build_inputs([CASES["G3-04"]])

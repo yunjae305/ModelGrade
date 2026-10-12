@@ -12,7 +12,7 @@ from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
 from .model import ConditionResult, Evidence, FAIL, PASS, Status
 from .scripts import SCRIPT_DATA_VERSION
 
-ENGINE_VERSION = "aiona-code-eval-v16.3.1"
+ENGINE_VERSION = "aiona-code-eval-v16.3.2"
 MD_SOURCE = "참고자료/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
