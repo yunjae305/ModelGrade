@@ -62,7 +62,7 @@ def _usable(path: Path) -> bool:
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "multi_turn_rule: 멀티턴 길이 조건(10K 토큰 이상 턴 10개)을 실제 값으로 둔다")
+    config.addinivalue_line("markers", "multi_turn_rule: 멀티턴 길이 조건(10턴 이상 · 대화 전체 10K 토큰)을 실제 값으로 둔다")
     if config.option.basetemp:
         return
     try:

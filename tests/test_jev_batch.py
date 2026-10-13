@@ -343,3 +343,13 @@ def test_batch_client_contract_and_error_handling():
     with pytest.raises(ValueError):
         AnthropicBatchClient("https://api.anthropic.com/v1", "")
     assert AnthropicBatchClient.summary({"id": "x", "processing_status": "weird"})["status"] == "unknown"
+
+
+def test_batch_requests_carry_attachments_like_realtime():
+    """묶음 요청도 실시간과 같은 입력 — 첨부파일(J8)을 평가자에게 보낸다 (Codex 리뷰: 빠지면 받지 않은 파일을 판정)."""
+    fake = FakeBatches()
+    case = dict(NORMAL, attachments=[{"name": "견적서.txt", "type": "txt", "content": "합계 1,250,000원"}])
+    batch, jev, events, sleeps = run_batched(fake, cases=[case])
+    params = fake.batches["msgbatch_1"]["requests"][0]["params"]
+    text = json.dumps(params["messages"], ensure_ascii=False)
+    assert "견적서.txt" in text and "합계 1,250,000원" in text and jev["records"][0]["status"] == "SUCCESS"

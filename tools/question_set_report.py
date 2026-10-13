@@ -133,7 +133,10 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
         scale = scales.get(c["id"]) or {}
         c["multi_turn"] = scale.get("multi_turn")
         c["tokens"] = scale.get("tokens")
-    multi = [c for c in conversations if c["multi_turn"] is True]
+        c["answers_pending"] = bool(scale.get("answers_pending"))   # 답변이 없어 길이는 아직 모름 — 턴 수만 참
+    multi = [c for c in conversations if c["multi_turn"] is True and not c["answers_pending"]]
+    # 답변을 받기 전이라 대화 전체 10K 토큰을 아직 잴 수 없는 대화 — 기준을 채웠다고 쓰지 않고 따로 센다 (Codex 리뷰)
+    pending_multi = [c for c in conversations if c["answers_pending"]]
     # 판정이 없거나(예전 점검 JSON) 모름(빠지거나 겹친 턴·토크나이저 없음)은 모름 — 명시적으로 아님인 대화만 멀티턴이 아님
     unknown_multi = [c for c in conversations if c["multi_turn"] is None]
     short_multi = [c for c in conversations if c["multi_turn"] is False]
@@ -176,6 +179,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
             "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
             "conversation_rows": conversations,
             "context": {"single": report["single_questions"], "multi_turn": len(multi), "multi_turn_unknown": len(unknown_multi),
+                        "multi_turn_pending": len(pending_multi),
                         "short_conversations": len(short_multi),
                         "undetermined": dict(report.get("undetermined") or {}),
                         "long_context": {"criterion": "J7", "units": criteria["J7"]["units"], "turns": criteria["J7"]["turns"],
@@ -292,6 +296,7 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
     out.append('</div><div class="card"><h2>문맥 속성 (유형과 별도)</h2><ul>'
                f'<li><b>멀티턴 (J6)</b> — 10턴 이상이고 대화 전체 10K 토큰 이상인 대화 {ctx["multi_turn"]}개'
                + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
+               + (f' · 답변을 받기 전이라 길이를 아직 모르는 10턴 이상 대화 {ctx["multi_turn_pending"]}개' if ctx.get("multi_turn_pending") else "")
                + (f' · 판별 못 한 대화 {ctx["multi_turn_unknown"]}개' if ctx["multi_turn_unknown"] else "")
                + f' · 멀티턴이 아닌 대화 {ctx["short_conversations"]}개 · 단일 질문 {ctx["single"]}개'
                + ' (답변 길이도 세므로 모델마다 달라질 수 있음 — 여기서는 이 파일의 답변)</li>'

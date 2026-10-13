@@ -144,10 +144,12 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
         case = cases[i]
         citations, structured_sources = case_citations(case["answer"], tuple(applies[i]["criteria"]), prep.fact_screening,
                                                        case.get("answer_sources"))
+        # 실시간(evaluate_jev_case)과 같은 입력 — 첨부파일(J8)·확인 한도 밖 출처 URL(J5 PASS 확정 막음)까지 (Codex 리뷰)
         request = _case_request(case["question"], case["answer"], tuple(applies[i]["criteria"]), case.get("reference"),
                                 prep.histories.get(i) or None, client=client, cancel_event=None, pipeline=pipeline,
                                 item_specs=prep.item_specs.get(i), collected_at=prep.collected_at,
-                                citations=prompt_citations(citations))
+                                citations=prompt_citations(citations), attachments=case.get("attachments"),
+                                unchecked_citations=[c["url"] for c in citations if c.get("valid_url") and not c.get("checked")])
         try:
             payload, ctx = client.build_request(request["state"], request["questions"])
         except (ValueError, TypeError, UnicodeError) as exc:
@@ -175,7 +177,7 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
                                    history=prep.histories.get(i) or None, cancel_event=cancel_event,
                                    fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening, pipeline=pipeline,
                                    item_specs=prep.item_specs.get(i), applicability=applies[i], collected_at=prep.collected_at,
-                                   sources=case.get("answer_sources"))
+                                   sources=case.get("answer_sources"), attachments=case.get("attachments"))
         _merge_carried(record, carried.pop(i, []))
         return record
 

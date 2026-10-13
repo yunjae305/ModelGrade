@@ -116,17 +116,43 @@ def test_shared_gate_lets_one_request_write_the_cache_before_the_others(monkeypa
     from code_eval import anthropic_semantic_client as client
 
     monkeypatch.setattr(client, "_SHARED_GATES", {})
-    first, event = client._enter_shared_gate("k")
-    order = []
+    monkeypatch.setattr(client, "SHARED_GATE_POLL_S", 0.01)
+    event = client._enter_shared_gate("k")
+    order, owners = [], []
 
     def later():
-        client._enter_shared_gate("k")
+        owners.append(client._enter_shared_gate("k"))
         order.append("둘째")
     thread = threading.Thread(target=later)
     thread.start()
     thread.join(0.2)
-    assert first and thread.is_alive() and order == []   # 첫 요청이 끝나기 전에는 기다린다
+    assert event is not None and thread.is_alive() and order == []   # 첫 요청이 끝나기 전에는 기다린다
     order.append("첫째")
-    event.set()
+    client._leave_shared_gate("k", event, ok=False)   # 첫 요청이 실패하면 기다리던 요청이 새 첫 요청이 된다
     thread.join(2)
-    assert order == ["첫째", "둘째"]
+    assert order == ["첫째", "둘째"] and owners[0] is not None
+    client._leave_shared_gate("k", owners[0], ok=True)
+    assert client._enter_shared_gate("k") is None   # 성공 뒤에는 캐시가 있다고 보고 바로 보낸다
+    client._SHARED_GATES["k"]["warm_until"] = 0.0
+    assert client._enter_shared_gate("k") is not None   # 캐시가 식었을 시간이 지나면 다시 첫 요청
+
+
+def test_shared_gate_wait_stops_on_cancel_and_deadline(monkeypatch):
+    """기다리는 동안 중단 요청이면 바로 끝내고, 평가 제한 시간이 지나면 기다리지 않고 보낸다 (Codex 리뷰)."""
+    import threading
+    import time
+    from concurrent.futures import CancelledError
+    from code_eval import anthropic_semantic_client as client
+
+    monkeypatch.setattr(client, "_SHARED_GATES", {})
+    monkeypatch.setattr(client, "SHARED_GATE_POLL_S", 0.01)
+    assert client._enter_shared_gate("k") is not None
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(CancelledError):
+        client._enter_shared_gate("k", cancel_event=cancel)
+    started = time.monotonic()
+    assert client._enter_shared_gate("k", deadline=time.monotonic() + 0.05) is None and time.monotonic() - started < 1
+    owner = client._enter_shared_gate("slow")   # 응답이 늦게 끝나도 캐시 수명은 요청 시작부터 잰다
+    client._leave_shared_gate("slow", owner, ok=True, started=time.monotonic() - client.SHARED_GATE_WARM_S - 1)
+    assert client._enter_shared_gate("slow") is not None

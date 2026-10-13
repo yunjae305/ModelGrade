@@ -33,20 +33,53 @@ from .semantic_sources import verify_answer_citations, verify_web_sources
 #: 이보다 긴 현재 질문·자료(J7 참조 자료 등)는 같은 앞부분을 쓰는 요청 하나가 먼저 캐시를 만든 뒤 나머지가 보낸다 — 동시에 보내면
 #: 캐시가 생기기 전이라 모두 정가를 낸다 (4개 모델이 같은 50만 토큰 자료를 각자 쓰던 문제, 2026-10-14)
 SHARED_GATE_CHARS = 50_000
-SHARED_GATE_WAIT_S = 900
-_SHARED_GATES: dict = {}
+SHARED_GATE_WAIT_S = 900    # 첫 요청을 기다리는 최대 시간
+SHARED_GATE_WARM_S = 240    # 첫 요청이 성공한 뒤 '캐시 있음'으로 보는 시간 — 5분 캐시보다 짧게, 지나면 다음 요청이 다시 첫 요청
+SHARED_GATE_POLL_S = 0.5    # 기다리는 동안 중단 요청·제한 시간을 확인하는 간격
+_SHARED_GATES: dict = {}    # key → {"event": Event, "warm_until": None(첫 요청 진행 중) | 시각}
 _SHARED_GATES_LOCK = threading.Lock()
 
 
-def _enter_shared_gate(key):
-    """같은 앞부분의 첫 요청이면 (True, event) — 응답 뒤 event.set(). 아니면 첫 요청이 끝날 때까지 기다린 뒤 (False, None)."""
+def _enter_shared_gate(key, cancel_event=None, deadline=None):
+    """같은 앞부분의 첫 요청이면 event 를 돌려준다 — 응답 뒤 ``_leave_shared_gate``. 캐시가 있으면 None(바로 보냄).
+
+    첫 요청이 진행 중이면 끝날 때까지 기다린다. 기다리는 동안 중단 요청이면 CancelledError, 평가 제한 시간이나
+    SHARED_GATE_WAIT_S 가 지나면 기다리지 않고 None. 첫 요청이 실패하면 기다리던 요청 하나가 새 첫 요청이 된다 (Codex 리뷰)."""
+    wait_until = time.monotonic() + SHARED_GATE_WAIT_S
+    if deadline is not None:
+        wait_until = min(wait_until, deadline)
+    while True:
+        with _SHARED_GATES_LOCK:
+            now = time.monotonic()
+            for stale in [k for k, g in _SHARED_GATES.items() if g["warm_until"] is not None and g["warm_until"] <= now]:
+                del _SHARED_GATES[stale]   # 캐시가 식었을 만한 항목 — 쌓이지 않게 지운다
+            gate = _SHARED_GATES.get(key)
+            if gate is None:
+                event = threading.Event()
+                _SHARED_GATES[key] = {"event": event, "warm_until": None}
+                return event
+            if gate["warm_until"] is not None:
+                return None
+            event = gate["event"]
+        if cancel_event is not None and cancel_event.is_set():
+            raise CancelledError()
+        remaining = wait_until - time.monotonic()
+        if remaining <= 0:
+            return None
+        event.wait(min(SHARED_GATE_POLL_S, remaining))
+
+
+def _leave_shared_gate(key, event, ok, started=None):
+    """첫 요청이 끝남 — 성공이면 요청을 시작한 때(``started``)부터 SHARED_GATE_WARM_S 동안 '캐시 있음', 실패면 항목을 지워
+    기다리던 요청이 다시 첫 요청이 된다. 캐시 수명은 요청 시작부터 재므로 응답이 늦게 끝나도 그만큼 줄어든다 (Codex 리뷰)."""
     with _SHARED_GATES_LOCK:
-        event = _SHARED_GATES.get(key)
-        if event is None:
-            event = _SHARED_GATES[key] = threading.Event()
-            return True, event
-    event.wait(SHARED_GATE_WAIT_S)
-    return False, None
+        gate = _SHARED_GATES.get(key)
+        if gate is not None and gate["event"] is event:
+            if ok:
+                gate["warm_until"] = (time.monotonic() if started is None else started) + SHARED_GATE_WARM_S
+            else:
+                del _SHARED_GATES[key]
+    event.set()
 
 
 SEARCH_TOOL = "web_search_20250305"
@@ -671,7 +704,8 @@ class AnthropicSemanticClient:
             payload, context = self.build_request(state, questions)
             session["not_sent"], session["search_mode"] = context["not_sent"], context["search_mode"]
             if context.get("shared_key"):   # 긴 공유 자료 — 첫 요청이 캐시를 만든 뒤 보낸다
-                _, gate = _enter_shared_gate(context["shared_key"])
+                event = _enter_shared_gate(context["shared_key"], cancel_event, deadline)
+                gate = (context["shared_key"], event) if event is not None else None
                 check_cancel()
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()
@@ -679,12 +713,14 @@ class AnthropicSemanticClient:
                     return result(JevStatus.TIMEOUT, error="Claude 의미 평가 제한 시간을 초과했습니다.")
                 part = self._begin_attempt(session)
                 request_started = time.monotonic()
+                response = None
                 try:
                     response = asyncio.run(self._post(payload, cancel_event, deadline))
                 finally:
                     session["timings"]["api"] += time.monotonic() - request_started
-                    if gate is not None:   # 첫 응답이 끝났다 — 캐시가 만들어졌으니 기다리던 요청들을 보낸다
-                        gate.set()
+                    if gate is not None:   # 첫 응답이 끝났다 — 성공이면 캐시가 생겼으니 기다리던 요청들을 보낸다
+                        _leave_shared_gate(*gate, ok=response is not None and 200 <= response.status_code < 300,
+                                           started=request_started)
                         gate = None
                 try:
                     raw = response.json()
@@ -709,7 +745,7 @@ class AnthropicSemanticClient:
             return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
         finally:
             if gate is not None:   # 첫 요청이 보내기 전에 중단·시간 초과로 끝나도 기다리는 요청을 풀어 준다
-                gate.set()
+                _leave_shared_gate(*gate, ok=False)
 
     def finish_batch_result(self, raw, context, *, payload=None, cancel_event=None, carry=None):
         """Message Batches 결과 메시지 하나 → JevCall. pause_turn(검색 이어가기가 필요) 이면 None — 디스패처가 실시간으로 다시 보낸다.

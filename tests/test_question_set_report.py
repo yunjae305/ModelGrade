@@ -152,3 +152,12 @@ def test_an_older_check_json_without_multi_turn_measurements_reports_conversatio
     check.pop("multi_turn")
     context = analyze(check, items)["context"]
     assert (context["multi_turn"], context["multi_turn_unknown"], context["short_conversations"]) == (0, 1, 0)
+
+
+@pytest.mark.multi_turn_rule
+def test_unanswered_ten_turn_conversation_is_pending_not_reported_as_meeting_10k():
+    """답변 전 10턴 대화는 생성 점검에서 J6 적용으로 세지만, 보고서는 10K 토큰을 채웠다고 쓰지 않고 '길이를 아직 모름'으로 따로 센다."""
+    analysis = run(conversation("A", 10))
+    ctx = analysis["context"]
+    assert (ctx["multi_turn"], ctx["multi_turn_pending"]) == (0, 1)
+    assert "길이를 아직 모르는 10턴 이상 대화 1개" in render_html(analysis, "test.json")

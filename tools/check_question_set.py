@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from code_eval import multi_turn  # noqa: E402
 from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
 from code_eval.jev_applicability import fact_question, jev_applicability, sub_applicability  # noqa: E402
 from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E402
@@ -187,6 +188,15 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
     undetermined: Counter = Counter()   # 적용 여부를 판별하지 못한 질문 수 (J7 — 토크나이저 없음)
     per_case = []
     contexts = conversation_contexts(evaluated)   # 평가 준비와 같은 대화 이력 — 오류·누락 턴은 이력에서 빠지고 issues 로 남는다
+    # 답변이 아직 없는 대화(질문 생성 중·수집 전 점검)는 대화 전체 10K 토큰을 잴 수 없다 — 그 몫은 답변이 채우므로 턴 수만 차면
+    # J6 적용으로 센다(answers_pending). 길이 판정은 답변을 받은 뒤 평가가 한다 (multi-turn-v2, Codex 리뷰: 생성기가 J6 를 빠진 항목으로
+    # 보고 보충을 되풀이했다)
+    answered = {r["conversation"]["id"] for r in evaluated if r.get("conversation") and str(r.get("answer") or "").strip()}
+    for ctx in contexts.values():
+        measure = ctx.get("multi_turn")
+        if (isinstance(measure, dict) and measure.get("multi_turn") is False and ctx["id"] not in answered
+                and measure.get("turns", 0) + measure.get("uncertain_turns", 0) >= multi_turn.MIN_TURNS):
+            ctx["multi_turn"] = {**measure, "multi_turn": True, "answers_pending": True}
     usable = []
     for i, (case, result) in enumerate(zip(cases, evaluated)):
         if result.get("case_status") != "EVALUATED":   # 엔진의 입력 오류·한도 초과는 평가에서도 빠진다 — 적용 수에서 뺀다

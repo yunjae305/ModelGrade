@@ -2084,14 +2084,9 @@ class ComparisonService:
             # Keep the stop check and publication atomic with shutdown's final
             # run_error, so a late criterion_start cannot restore active markers.
             with self._lock:
-                if token.is_set():
-                    return
-                if event["type"] == "code_result":
-                    event = code_event(event["row"], event["index"], event["qid"])
-                # 화면용 이벤트는 실제 모델명 — 블라인드는 평가 모델에 보내는 요청에만 적용한다
-                label = "AIONA" if provider == "aiona" else PROVIDERS.get(provider) or run["models"].get(provider, provider)
                 if event["type"] == "batch_progress":
-                    # Message Batches 진행: 묶음 ID·상태를 실행 기록에(이어받기용), 요약 수치를 진행 상태에 남기고 저장한다
+                    # Message Batches 진행: 묶음 ID·상태를 실행 기록에(이어받기용), 요약 수치를 진행 상태에 남기고 저장한다.
+                    # 중단 뒤에도 저장한다 — 중단 직전에 접수된 묶음 ID 를 잃으면 이어받기가 다시 제출해 이중 과금된다 (Codex 리뷰)
                     run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(event.get("batches") or [])
                     run["evaluation_progress"][provider]["batch"] = {
                         "total": event.get("total"), "done": event.get("done"), "submitted": event.get("submitted"),
@@ -2099,6 +2094,12 @@ class ComparisonService:
                         "note": event.get("note"), "updated_at": datetime.now(timezone.utc).isoformat()}
                     run["revision"] += 1
                     self._save(run)
+                if token.is_set():
+                    return
+                if event["type"] == "code_result":
+                    event = code_event(event["row"], event["index"], event["qid"])
+                # 화면용 이벤트는 실제 모델명 — 블라인드는 평가 모델에 보내는 요청에만 적용한다
+                label = "AIONA" if provider == "aiona" else PROVIDERS.get(provider) or run["models"].get(provider, provider)
                 stream.publish({**event, "model": label})
         def observe(provider, event):
             with self._lock:
@@ -2167,6 +2168,9 @@ class ComparisonService:
                 dispatch = (batch.get("jev_eval") or {}).get("dispatch")
                 if dispatch in ("realtime", "batch"):
                     run["evaluation_execution"]["dispatch"] = dispatch
+                if dispatch == "batch" and isinstance((batch.get("jev_eval") or {}).get("batches"), list):
+                    # 디스패처가 마지막에 남긴 묶음 기록(취소 결과 포함)으로 맞춘다 — 마지막 진행 이벤트가 중단으로 빠져도 남게
+                    run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(batch["jev_eval"]["batches"])
                 if provider == 'aiona':
                     run['evaluation_profile'] = evaluation_profile(run)
                 run["eval_done"] += 1
