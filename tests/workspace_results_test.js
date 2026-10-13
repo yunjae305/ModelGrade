@@ -449,4 +449,16 @@ console.log('applied criteria are named in the semantic summary.');
   assert.deepEqual([metric.passed, metric.failed, metric.limitedFails], [1, 2, 1]);
 }
 console.log('criteria table separates verification-limited FAILs.');
+{
+  // 첨부 그림을 평가 모델에도 보냈는지 — 보냄·못 보냄(J8 미완료)·내용 글만 있음, 기록이 없으면 빈 문자열
+  const {attachmentImageNote} = require('../frontend/src/workspace-results.js');
+  assert.equal(attachmentImageNote({}), '');
+  const sent = attachmentImageNote({attachment_images: {sent: [{name: 'car.png', media_type: 'image/png', sha256: 'abcdef0123456789'}],
+    not_sent: [], content_only: [], held_criteria: []}});
+  assert.equal(sent, '첨부 그림 1개를 평가 모델에도 보냈습니다: car.png (image/png · sha256 abcdef012345)');
+  const held = attachmentImageNote({attachment_images: {sent: [], not_sent: [{name: 'gone.png', reason: '허용된 첨부 폴더에서 이미지 파일을 찾지 못함'}],
+    content_only: [{index: 1, name: 'chart.png'}], held_criteria: ['J8']}});
+  assert.ok(held.includes('gone.png — 허용된 첨부 폴더에서 이미지 파일을 찾지 못함 (J8 판정 미완료)') && held.includes('chart.png — 내용 글로 판정'));
+}
+console.log('question detail shows whether attachment images reached the judge.');
 

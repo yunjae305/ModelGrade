@@ -588,6 +588,25 @@
       targets: decided + pending, decided, rate: settledRate(passed, failed, pending, unknown)};
   }
 
+  // 첨부 그림을 평가 모델에도 보냈는지 (judge-attachment-images-v1) — 질문 상세의 의미 평가 칸 아래 한 줄. 기록이 없으면 ''
+  function attachmentImageNote(record) {
+    const images = record?.attachment_images;
+    if (!images) return '';
+    const parts = [];
+    if (images.sent?.length) {
+      parts.push(`첨부 그림 ${images.sent.length}개를 평가 모델에도 보냈습니다: ` +
+        images.sent.map((image) => `${image.name} (${image.media_type} · sha256 ${String(image.sha256 || '').slice(0, 12)})`).join(', '));
+    }
+    if (images.not_sent?.length) {
+      parts.push('평가 모델에 보내지 못한 그림: ' + images.not_sent.map((gap) => `${gap.name} — ${gap.reason}`).join(', ') +
+        (images.held_criteria?.length ? ` (${images.held_criteria.join('·')} 판정 미완료)` : ''));
+    }
+    if (images.content_only?.length) {
+      parts.push('그림 파일 없이 내용 글만 있는 첨부: ' + images.content_only.map((item) => item.name).join(', ') + ' — 내용 글로 판정');
+    }
+    return parts.join(' ');
+  }
+
   function evidenceNotice(run, provider = 'aiona') {
     const semantic = run?.evaluations?.[provider]?.jev_eval;
     if (!semantic) return '';
@@ -601,7 +620,7 @@
   }
   const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
     resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason,
-    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly};
+    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly, attachmentImageNote};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

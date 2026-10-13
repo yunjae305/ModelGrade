@@ -1081,9 +1081,11 @@
     box.hidden = !batch;
     if (!batch) return;
     const status = results.caseState(state.result, p, index);
+    const imageNote = results.attachmentImageNote(record);
     box.append(node('div', {class: 'answer-verdict'}, pill(status.text, status.kind), node('p', {text: status.detail})),
       node('div', {class: 'answer-checks'}, ...[['코드 검사', status.code], ['의미 평가', status.semantic]].map(([label, check]) =>
-        node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason})))));
+        node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason}),
+          label === '의미 평가' && imageNote ? node('p', {class: 'field-help', 'data-attachment-images': '', text: imageNote}) : null))));
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
