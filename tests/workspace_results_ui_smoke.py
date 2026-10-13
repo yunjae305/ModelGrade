@@ -204,7 +204,7 @@ def main():
                 warning = page.locator('.result-model-card[data-provider=aiona] .evaluation-warning').first
                 expect(warning.locator('strong')).to_have_text('미완료 사유 · 6개 질문')
                 expect(warning.locator(':scope > div > p')).to_have_count(1)
-                expect(warning.locator(':scope > div > p').first).to_have_text('J1 · 검증 근거 부족 (6개)')
+                expect(warning.locator(':scope > div > p').first).to_have_text('J1 · 판정 근거(출처·인용)가 부족해 확인 보류 (6개)')
                 expect(warning.locator('details summary')).to_have_text('상세 사유 보기')
                 expect(warning.locator('details p').first).not_to_be_visible()
                 warning.locator('details summary').click()

@@ -115,3 +115,39 @@ def test_fence_with_info_does_not_close_existing_block():
     answer = "```markdown\n```python\n- 코드 안\n```\n- 본문"
     result = row(evaluate("불릿 정확히 1개로 설명해줘.", answer), "2-1.count:bullet_count")
     assert result["verdict"] == "PASS" and result["measured"]["items"] == [5]
+
+
+# --- v16.4.1: 저장 실행에서 찾은 가짜 FAIL ---------------------------------------------------------------------
+
+@pytest.mark.parametrize("answer", [
+    "- 영업일: 20일 → 26일 = **26 ÷ 20 = 1.3배 (+30%)**",          # 화살표 뒤 값은 등식의 시작이 아니다
+    "*(총 소요 시간: 80분 + 20분 + 85분 = 185분 / 190분 이하 충족)*",  # '값 / 한도' 표기
+    "필요한 양은 2벌 × 3 + 1 = 7벌입니다.",                           # 단위에 끊긴 앞 피연산자 (2벌 ×)
+    "   2벌 × 3 + 1 = 7벌",                                          # 줄 앞 공백이 있어도
+    "**2벌** × 3 + 1 = 7벌",                                         # 굵게 표시가 앞에 있어도
+    "필요한 양은 2벌 ×3 + 1 = 7입니다.",                               # 붙여 쓴 곱셈 기호는 기울임이 아니다
+])
+def test_arrow_limit_and_cut_operand_equations_are_held(answer):
+    case = evaluate("계산해줘.", answer)
+    assert rows(case, "3-1.answer_equation") == []
+    assert any(s["check_id"] == "3-1.answer_equation:skipped" for s in case["meta"]["skipped_conditions"])
+
+
+@pytest.mark.parametrize("answer,verdict", [
+    ("- 3 + 4 = 7", "PASS"),          # 줄머리 불릿은 연산자가 아니다
+    ("- 3 + 4 = 8", "FAIL"),
+    ("   - 3 + 4 = 8", "FAIL"),       # 들여쓴 불릿
+    ("설명 *3 + 4 = 8*", "FAIL"),     # 기울임을 여는 * 는 곱셈이 아니다 — 틀린 등식이 빠지지 않는다
+    ("계산 결과:*3 + 4 = 8*", "FAIL"),  # 콜론 뒤에 붙은 기울임도
+    ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈
+])
+def test_bullet_and_plain_division_equations_still_judged(answer, verdict):
+    assert row(evaluate("계산해줘.", answer), "3-1.answer_equation")["verdict"] == verdict
+
+
+def test_sentence_end_before_closing_emphasis():
+    answer = "10월 20일 오후 1시부터 오후 3시까지 **도서 대출과 반납이 중단됩니다.**\n열람실은 정상 운영합니다.\n이용에 참고해 주시기 바랍니다."
+    result = row(evaluate("안내문을 세 문장으로 작성해줘.", answer), "2-1.count:sentence_count")
+    assert result["verdict"] == "PASS" and result["measured"]["value"] == 3
+    quoted = row(evaluate("두 문장으로 써줘.", '그가 "좋다." 말했다. 끝났다.'), "2-1.count:sentence_count")
+    assert quoted["measured"]["value"] == 2   # 따옴표 안 마침표는 문장 끝이 아니다

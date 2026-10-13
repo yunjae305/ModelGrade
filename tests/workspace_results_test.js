@@ -268,7 +268,7 @@ const verbose = '정보 신뢰도 확인 필요: 인용문은 지정한 사용�
 const rawHeld = {status: 'SUCCESS', criteria: ['J1', 'J5'], decisions: {
   J1: {decision: 'PASS'}, J5: {decision: null, status: 'UNVERIFIED', reason: verbose}}};
 const concise = semanticState(rawHeld);
-assert.equal(concise.reason, 'J5 · 자료 대조 범위 확인');
+assert.equal(concise.reason, 'J5 · 질문에 준 값을 근거로 인정할지 서버가 판단하지 못함');
 assert.equal(concise.rawReason, 'J5: ' + verbose);
 assert.equal(rawHeld.decisions.J5.reason, verbose);
 for (const status of ['EVALUATING', 'COMPLETED', 'ERROR', 'CANCELLED']) {

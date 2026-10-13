@@ -11,7 +11,7 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
-FACT_CHECK_POLICY = "evidence-v3.12-opinion-correction-scope"
+FACT_CHECK_POLICY = "evidence-v3.13-input-values-match"
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
 CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
@@ -76,92 +76,33 @@ def _aggregate(values):
 def _input_scope(claim, state, source=None):
     """Accept task inputs as inputs, never as proof of their real-world truth.
 
-    Supplied values remain valid evidence when the requested work is writing,
-    calculation or a simulated plan, not only when it contains 'summarize'. The
-    judge still assesses entailment; this gate corroborates the scope and the
-    caller separately checks the exact user quote and source turn.
+    evidence-v3.13 (2026-10-13 사용자 결정): J5 는 답변이 말한 값·정보가 실제 데이터와 맞는가를 본다. 사용자가 준 값이면
+    그 실제 데이터는 사용자 원문이다 — 요청 종류(요약·계산·작성·추천 …)를 키워드로 알아보지 못했다고 일치 확인을 막지 않는다
+    (v3.12 까지는 키워드가 안 맞으면 '확인 필요'로 남아 저장 실행의 미완료 대부분을 만들었다).
+    남는 경계: 평가 모델이 입력 일치로 분류하고 요청 인용이 사용자 원문(현재 질문 또는 이전 사용자 턴)에 있을 것,
+    진위 확인 요청·실제(외부) 데이터 요청이 아닐 것.
+    정정·이름 변경처럼 요청 문장 자체가 값을 주는 경우도 입력이다. 사용자 원문·턴의 정확한 인용 대조는 호출부(_input_source)가 한다.
     """
     quote = claim.get("scope_quote")
-    if claim.get("scope") != "input_consistency" or not _contained(quote, state.get("question", "")):
+    question = state.get("question", "")
+    # 멀티턴에서는 값을 준 요청이 앞 턴에 있다 — 이전 사용자 턴의 요청 인용도 사용자 원문이다 (이전 AI 답변은 아님)
+    user_texts = [question] + [h.get("question", "") for h in state.get("history") or []
+                               if isinstance(h, dict) and isinstance(h.get("question"), str)]
+    if claim.get("scope") != "input_consistency" or not any(_contained(quote, text) for text in user_texts):
         return False
-    material = r"가상|허구|제공|주어진|다음|아래|위의|위\s*자료|앞서|원문|공지|문서|자료|메모|following|provided|given|fictional|hypothetical|above|document|passage"
-    # 요청 문장에 바로 나열한 값도 제공 자료다 — '정리해 줘: 빨래, 청소', '비교 대상: 사과, 배',
-    # '할 일은 청소와 세탁이야'. 값이 입력이라는 뜻일 뿐 그 값의 현실 진위를 인정하지 않는다.
-    word = r"[가-힣A-Za-z0-9]{1,15}"
-    inline = (r"(?:줘|주세요|주십시오|해|하세요)\s*[:：]\s*\S"
-              r"|[:：]\s*[^:：,、\n]{1,30}(?:\s*[,、]\s*[^:：,、\n]{1,30})+"
-              rf"|(?:은|는)\s+{word}(?:와|과|랑|하고|,)\s*(?:{word}(?:와|과|랑|하고|,)\s*)*{word}?(?:이야|야|입니다|이에요|예요|이고|이다)")
-    transform = (r"요약|추출|변환|재작성|재구성|정리|분류|정렬|나열|순서대로|표로|표를\s*(?:만들|작성)|"
-                 r"summari[sz]|extract|convert|rewrite|reformat|classify|sort")
-    # Keep the established document/structured-transformation path.
-    structured_transform = (r"(?:이|주어진|제공된)\s*(?:정보|자료|값|기록)(?:를|을|만(?:을)?)?"
-                            r".{0,120}?JSON\s*(?:배열|객체)(?:로|으로)\s*(?:작성|출력)")
-    grounded_intro = (r"(?:이|주어진|제공된)\s*(?:정보|자료)만(?:을)?\s*"
-                      r"(?:사용|이용)(?:해서|해)\s*(?:온라인\s*)?소개\s*문구를\s*(?:작성|만들)")
     verification = (r"사실인지|참인지|정확한지|맞는지|진위|정확성|사실\s*(?:확인|검증)|팩트\s*체크|검증해|검색해|조사해|"
+                    # 직접 묻는 진위 질문: '이 말이 사실이야?', '맞아?', '진짜야?', 'Is this true?'
+                    r"(?:사실|진짜|정말|참)(?:이야|이에요|인가요|입니까|이니|일까|인지)?\s*\?|맞(?:아|나요|니|습니까|을까|죠|지)\s*\?|"
+                    r"\b(?:is|are) (?:this|that|it|these|they) (?:true|correct|accurate|right)\b|true or false|"
                     r"fact[ -]?check|verify|whether.{0,35}(?:true|correct)|"
                     r"(?:check|confirm).{0,50}(?:truth|accuracy|correct|authentic)")
-    # A document's introduction and its transformation request may be separate
-    # sentences. The exact request quote still has to identify a transformation;
-    # material context and any truth-verification request are checked globally.
-    question = state.get("question", "")
-    recognized_transform = any(re.search(pattern, quote, re.I)
-                               for pattern in (transform, structured_transform, grounded_intro))
     if re.search(verification, question, re.I):
-        return False
+        return False   # 주어진 자료가 사실인지 묻는 요청에서는 자료가 스스로를 증명하지 못한다
     external_request = (r"(?:국내|전국|전\s*세계|실제\s*(?:운영|시장|판매)).{0,60}"
                         r"(?:정원|가격|요금|통계|현황)|(?:nationwide|worldwide|real.world).{0,60}(?:price|data|statistic)")
-    if re.search(external_request, quote, re.I):
-        return False
-    # A user may correct supplied inventory values or rename an existing item
-    # without asking for a summary. These are updates to task inputs; accepting
-    # their exact source quote does not independently verify real-world truth.
-    input_edit = (r"(?:내역|정보|내용|값|수량|배부|기록|입력).{0,40}정정(?:할|해|합|했|하)|"
-                  r"(?:이름|명칭|품목명).{0,80}(?:바꿔|바꿀|변경|바꾸)|"
-                  r"(?:correct|amend).{0,40}(?:input|record|quantity)|"
-                  r"rename.{0,60}(?:item|name|label)")
-    if re.search(input_edit, quote, re.I):
-        return True
-    if recognized_transform and (re.search(material, question, re.I) or re.search(inline, question)):
-        return True
-    # These operations can repeat supplied inputs verbatim as part of their
-    # result. Accepting that quote does not verify a derived total or an added
-    # real-world assertion (those have their own criteria/scope).
-    calculation = r"계산|산출|추론|calculate|compute|derive"
-    writing = (r"(?:이메일|메일|메시지|문자|안내\s*문구|안내문|소개\s*문구|사과문|공지문|편지)"
-               r".{0,50}(?:작성|써\s*줘|써\s*주|만들)|"
-               r"(?:write|draft|compose).{0,50}(?:email|message|notice|letter)")
-    if re.search(calculation, quote, re.I) or re.search(writing, quote, re.I):
-        return True
-    # A simulated multi-turn task carries its user-defined world forward. Do
-    # not require every follow-up to repeat the initial 'fictional' introduction
-    # or a particular retrospective keyword before accepting supplied values.
-    scenario = r"가상|허구|가정(?:할|해|한|으로)|fictional|hypothetical|assume"
-    scenario_task = (r"작성|출력|써\s*줘|만들|정리|계산|추론|추천|골라|고르|선택|구분|표시|"
-                     r"수정|고치|갱신|교체|변경|유지|설명|알려|보여|확인|적용|"
-                     r"write|output|select|choose|update|keep|show|explain|check")
-    context = [question] + [h.get("question", "") for h in state.get("history", [])
-                            if isinstance(h, dict) and isinstance(h.get("question"), str)]
-    continuation = (r"현재|이번|기존|최신|조건|계획|다시|지금|앞서|이전|마지막|나머지|"
-                    r"선택|바꿀|바꿔|정정|추가|포함|남은|남는|그대로|상한|"
-                    r"current|previous|earlier|same|remaining|selected")
-    if (re.search(scenario_task, quote, re.I)
-            and (re.search(scenario, question, re.I) or re.search(continuation, question, re.I))
-            and any(re.search(scenario, text, re.I) for text in context)):
-        return True
-    # A later request may only name the current plan while its user-provided
-    # fictional/material introduction is in an earlier turn. Limit that fallback
-    # to a retrospective request with evidence from a specific user turn; the
-    # caller still checks the exact quote and rejects missing/duplicate turns.
-    retrospective = (r"앞서|지금까지|마지막(?:으로)?|"
-                     r"(?:이전|현재).{0,40}(?:계획|조건|설정|선택|인원|예산|할인|대화)|"
-                     r"(?:계획|조건|설정).{0,20}그대로|"
-                     r"previous|earlier|so far|last selected|current (?:plan|conditions|settings)")
-    return bool(recognized_transform and isinstance(source, dict) and source.get("origin") == "history_user"
-                and re.search(retrospective, question, re.I)
-                and any(isinstance(prior, dict) and isinstance(prior.get("question"), str)
-                        and (re.search(material, prior["question"], re.I) or re.search(inline, prior["question"]))
-                        for prior in state.get("history", [])))
+    if re.search(external_request, question, re.I):
+        return False   # 실제 데이터를 요청했으면 사용자 입력은 그 근거가 아니다 — 자료 문장만 인용해 우회하지 못하게 질문 전체에서 본다
+    return True
 
 
 def _input_source(source, claim, state):

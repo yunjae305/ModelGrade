@@ -260,11 +260,13 @@
   });
   document.querySelectorAll('[data-close]').forEach((n) => n.addEventListener('click', () => $(n.dataset.close).close()));
 
+  // conversation_id 가 없거나 null 이면 단일 질문 (업로드 API 도 null 을 단일 질문으로 받는다)
+  const inConversation = (c) => c.conversation_id !== undefined && c.conversation_id !== null;
   // 질문 단위 — 단일 질문은 1개, 같은 conversation_id 의 턴들은 묶어서 1개
   function questionUnits(cases) {
     const units = [], byConversation = new Map();
     for (const c of cases) {
-      if (c.conversation_id === undefined) { units.push([c]); continue; }
+      if (!inConversation(c)) { units.push([c]); continue; }
       if (!byConversation.has(c.conversation_id)) { byConversation.set(c.conversation_id, []); units.push(byConversation.get(c.conversation_id)); }
       byConversation.get(c.conversation_id).push(c);
     }
@@ -276,13 +278,13 @@
     error(null);
     $('dropzone').hidden = true; $('dataset-content').hidden = false;
     $('file-name').textContent = name;
-    const conversationCases = cases.filter((c) => c.conversation_id !== undefined);
+    const conversationCases = cases.filter(inConversation);
     $('file-meta').textContent = conversationCases.length ? `AIONA Q/A · 단일 질문 ${number(cases.length - conversationCases.length)}개 · 멀티턴 대화 ${number(new Set(conversationCases.map((c) => c.conversation_id)).size)}개(${number(conversationCases.length)}턴)` : 'AIONA Q/A · 질문과 답변 입력 확인 완료';
     // 질문 수는 단일 질문 1개 + 멀티턴 대화 1개(턴 수와 무관) — 대화의 턴은 따로 표시한다
     const units = questionUnits(cases);
     $('question-count').replaceChildren(number(units.length), node('small', {text: '개'}));
     $('answer-count').replaceChildren(number(units.filter((unit) => unit.every((c) => c.answer.length)).length), node('small', {text: '개'}));
-    const conversations = units.filter((unit) => unit[0].conversation_id !== undefined);
+    const conversations = units.filter((unit) => inConversation(unit[0]));
     $('conversation-count').replaceChildren(number(conversations.length), node('small', {text: conversations.length ? `개 · ${number(conversationCases.length)}턴` : '개'}));
     $('preview-body').replaceChildren(...cases.slice(0, 4).map((c, i) => node('tr', {},
       node('td', {text: c.case_id}), node('td', {}, node('button', {class: 'row-button', text: c.question,
@@ -946,6 +948,7 @@
         const entries = [...reasons].sort((a, b) => b[1] - a[1]);
         const reasonNode = ([reason, n]) => node('p', {text: reason + ' (' + number(n) + '개)'});
         const content = node('div', {}, node('strong', {text: '미완료 사유 · ' + number(summary.semanticIncomplete + summary.codeIncomplete) + '개 질문'}),
+          node('small', {class: 'hint', text: '답변이 틀렸다는 뜻이 아니라, 평가가 PASS·FAIL을 정할 근거를 확보하지 못한 질문입니다.'}),
           ...entries.slice(0, 3).map(reasonNode));
         if (originals.size) {
           const key = run.run_id + ':' + p;
@@ -1010,7 +1013,7 @@
   function conversationGroups(cases) {
     const groups = new Map();
     cases.forEach((c, i) => {
-      if (c.conversation_id === undefined) return;
+      if (!inConversation(c)) return;
       const key = 'conversation:' + c.conversation_id;
       if (!groups.has(key)) groups.set(key, {key, label: c.source_group || c.conversation_id, indices: []});
       groups.get(key).indices.push(i);
@@ -1023,7 +1026,7 @@
   }
   function answerSelection(cases) {
     const groups = conversationGroups(cases);
-    const singles = cases.map((c, i) => c.conversation_id === undefined ? i : null).filter((i) => i !== null);
+    const singles = cases.map((c, i) => inConversation(c) ? null : i).filter((i) => i !== null);
     $('answer-group').replaceChildren(node('option', {value: '', text: '전체 Q/A · ' + number(cases.length) + '개'}),
       groups.size && singles.length ? node('option', {value: 'single', text: '단건 질문 · ' + number(singles.length) + '개'}) : null,
       ...[...groups.values()].map((group) => node('option', {value: group.key, text: group.label + ' · ' + number(group.indices.length) + '턴'})));
@@ -1059,8 +1062,8 @@
     $('answer-position').textContent = `${number(position + 1)} / ${number(indices.length)}개 Q/A`;
     $('answer-id').textContent = c.case_id + (c.conversation_id ? ' · ' + (c.source_group || c.conversation_id) + ' · ' + c.turn + '턴' : '') + ' · 원문 응답';
     $('original-question').textContent = c.question;
-    $('conversation-context').hidden = c.conversation_id === undefined;
-    if (c.conversation_id !== undefined) {
+    $('conversation-context').hidden = !inConversation(c);
+    if (inConversation(c)) {
       const group = conversationGroups(cases).get('conversation:' + c.conversation_id);
       $('conversation-context').replaceChildren(icon('clock'), node('div', {},
         node('strong', {text: (c.source_group || c.conversation_id) + ' · ' + c.turn + ' / ' + group.indices.length + '턴'}),

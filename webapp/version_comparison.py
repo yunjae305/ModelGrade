@@ -150,8 +150,11 @@ def _item_key(item: Dict[str, Any]) -> str:
     return f"{base} · {turn}턴 · {quote}" if turn is not None else f"{base} · {quote}"
 
 
-def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
-    """레코드 → (기준 판정, 세부 기준 판정, 항목 판정) — NOT_APPLICABLE 은 'NA', 판정 없음은 'PENDING'."""
+def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, List[str]]]:
+    """레코드 → (기준 판정, 세부 기준 판정, 항목 판정 묶음) — NOT_APPLICABLE 은 'NA', 판정 없음은 'PENDING'.
+
+    항목은 대응 키마다 판정 목록이다. 같은 인용의 요소가 여럿이면 어느 것이 어느 것인지 알 수 없으므로 목록으로 두고,
+    두 실행을 비교할 때(``_item_rows``) 같은 판정끼리 먼저 짝짓는다."""
     criteria: Dict[str, str] = {}
     subs: Dict[str, str] = {}
     grouped: Dict[str, List[str]] = {}
@@ -172,16 +175,36 @@ def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], D
                     continue
                 grouped.setdefault(_item_key(item), []).append(
                     {"YES": "PASS", "NO": "FAIL", "NOT_APPLICABLE": "NA"}.get(item.get("decision"), "PENDING"))
-    # 같은 인용의 요소가 여럿이면 어느 것이 어느 것인지 알 수 없다 — 모델이 붙인 '#n' 대신 판정 값 순서로 [1]·[2]… 를 매겨
-    # 번호만 바뀐 경우 변화 없음으로, 판정 개수가 바뀐 만큼만 개선·악화로 센다
-    items: Dict[str, str] = {}
-    for key, values in grouped.items():
-        if len(values) == 1:
-            items[key] = values[0]
-        else:
-            for n, value in enumerate(sorted(values), 1):
-                items[f"{key} [{n}]"] = value
-    return criteria, subs, items
+    return criteria, subs, grouped
+
+
+_DECISION_ORDER = {"FAIL": 0, "PASS": 1, "NA": 2, "PENDING": 3}
+
+
+def _item_rows(a: Dict[str, List[str]], b: Dict[str, List[str]]) -> Dict[str, Dict[str, Any]]:
+    """항목 판정 묶음 두 개 → 항목 비교 행. 같은 인용의 요소 묶음은 모델이 붙인 '#n' 과 무관하게 같은 판정끼리 먼저 짝짓고
+    (번호만 바뀌면 변화 없음), 남은 판정을 FAIL·PASS·해당 없음·미완료 순으로 짝지어 개수가 바뀐 만큼만 개선·악화로 센다.
+    묶음 행의 키는 '<키>  [n]' — 정규화한 인용에는 연속 공백이 없어 실제 인용 키와 겹치지 않는다."""
+    rows: Dict[str, Dict[str, Any]] = {}
+    for key in dict.fromkeys([*a, *b]):
+        left, right = list(a.get(key) or []), list(b.get(key) or [])
+        if len(left) <= 1 and len(right) <= 1:
+            before, after = (left or [None])[0], (right or [None])[0]
+            rows[key] = {"baseline": before, "target": after, "change": _change(before, after)}
+            continue
+        pairs: List[Tuple[Optional[str], Optional[str]]] = []
+        for value in sorted(set(left) & set(right), key=lambda v: _DECISION_ORDER.get(v, 9)):
+            for _ in range(min(left.count(value), right.count(value))):
+                pairs.append((value, value))
+                left.remove(value)
+                right.remove(value)
+        left.sort(key=lambda v: _DECISION_ORDER.get(v, 9))
+        right.sort(key=lambda v: _DECISION_ORDER.get(v, 9))
+        for n in range(max(len(left), len(right))):
+            pairs.append((left[n] if n < len(left) else None, right[n] if n < len(right) else None))
+        for n, (before, after) in enumerate(pairs, 1):
+            rows[f"{key}  [{n}]"] = {"baseline": before, "target": after, "change": _change(before, after)}
+    return rows
 
 
 def _code_units(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]) -> Dict[str, str]:
@@ -233,7 +256,7 @@ def _drilldown(a_case, a_record, b_case, b_record) -> Dict[str, Any]:
     def table(a: Dict[str, str], b: Dict[str, str]) -> Dict[str, Dict[str, Any]]:
         keys = list(dict.fromkeys([*a, *b]))
         return {key: {"baseline": a.get(key), "target": b.get(key), "change": _change(a.get(key), b.get(key))} for key in keys}
-    return {"criteria": table(a_c, b_c), "subs": table(a_s, b_s), "items": table(a_i, b_i), "code": table(a_code, b_code)}
+    return {"criteria": table(a_c, b_c), "subs": table(a_s, b_s), "items": _item_rows(a_i, b_i), "code": table(a_code, b_code)}
 
 
 # --- 통계 ------------------------------------------------------------------------------------------------------

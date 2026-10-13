@@ -214,3 +214,32 @@ console.log('failure location tests passed');
   verifyPartition(answer, result);
   console.log('Source-mismatch findings are located at the cited sentence.');
 }
+
+// 위치가 없는 FAIL 은 이유를 구분한다 — 빠진 것을 지적한 CODE FAIL 은 요구·실제를, J4 누락은 빠진 내용 안내를 보인다.
+{
+  const answer = '- A: 90분\n- B: 120분';
+  const table = code({title: '표 존재', explain: {summary: '표가 없습니다.', expected: '표 1개 이상', actual: '표 0개'}});
+  const result = locateFailures(answer, {answer, results: [table]}, semantic({J4: {decision: 'FAIL', name: '충분성', reason: '110분 상한 설명이 빠졌다.'}}));
+  const [codeFinding, j4] = result.findings;
+  assert.equal(codeFinding.spans.length, 0);
+  assert.ok(codeFinding.locationNote.startsWith('요구: 표 1개 이상 · 실제: 표 0개'));
+  assert.equal(j4.spans.length, 0);
+  assert.ok(j4.locationNote.includes('빠진 내용'));
+}
+
+// items 파이프라인 — 아니오 항목은 답변 인용으로 위치를 찾고, 인용이 없을 때만 누락형 안내. 위치 없는 legacy J6 는 중립 안내.
+{
+  const answer = '이사일은 11월 17일입니다.';
+  const items = semantic({J6: {decision: 'FAIL', name: 'LONG CONTEXT', reason: '앞 턴의 이사일과 다르다.', subs: {'J6-2': {decision: 'FAIL', items: [
+    {id: 'J6-2.a#1', decision: 'NO', answer_quote: '11월 17일', reason: '앞 턴은 11월 7일'},
+    {id: 'J6-1.a#1', decision: 'NO', answer_quote: '', reason: '앞 턴 지시가 빠졌다', quote_check: {answer: {required: false}}},
+    {id: 'J6-3.a#1', decision: 'NO', answer_quote: '이사일은', unverifiable: true, reason_code: 'ITEM_UNVERIFIABLE', reason: '이전 턴 인용 확인 불가'},
+    {id: 'J6-2.a#2', decision: 'YES', answer_quote: '이사일'}]}}}});
+  const found = locateFailures(answer, {answer, results: []}, items).findings;
+  assert.equal(found.length, 3);
+  assert.equal(answer.slice(found[0].spans[0].start, found[0].spans[0].end), '11월 17일');
+  assert.ok(found[1].spans.length === 0 && found[1].locationNote.includes('빠진 내용'));
+  assert.ok(found[2].kind === 'verification' && found[2].spans.length === 0 && !found[2].locationNote.includes('빠진 내용'));
+  const legacy = locateFailures(answer, {answer, results: []}, semantic({J6: {decision: 'FAIL', name: 'LONG CONTEXT', reason: '앞 턴과 다르다.'}})).findings;
+  assert.ok(legacy[0].spans.length === 0 && !legacy[0].locationNote.includes('빠진 내용'));
+}

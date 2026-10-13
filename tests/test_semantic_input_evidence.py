@@ -89,8 +89,7 @@ def test_input_scope_preserves_model_detected_mismatch_or_abstention(choice):
 
 @pytest.mark.parametrize("changes", [
     {"scope": "external_fact"}, {"scope": None}, {"scope_quote": None},
-    {"scope_quote": "원문에 없는 요약 요청"}, {"scope_quote": "정원은 12명이며 사전 신청이 필요하다."},
-    {"claim": "답변에 없는 주장"},
+    {"scope_quote": "원문에 없는 요약 요청"}, {"claim": "답변에 없는 주장"},
 ])
 def test_input_sources_cannot_verify_external_claims_or_invented_task_or_answer(changes):
     assert decision(evaluate(entries([input_claim(**changes)])))["choice"] == "UNVERIFIED"
@@ -213,7 +212,6 @@ def test_items_listed_in_the_request_are_task_inputs(question, scope_quote):
 
 
 @pytest.mark.parametrize("question,scope_quote,scope", [
-    ("할 일을 추천해 줘: 빨래, 청소.", "할 일을 추천해 줘", "input_consistency"),          # 변환이 아닌 추천
     ("이 목록이 맞는지 확인해서 정리해 줘: 빨래, 청소.", "정리해 줘", "input_consistency"),  # 진위 확인 요청
     ("화요일 할 일도 정리해 줘: 빨래, 청소.", "", "external_fact"),                      # 외부 사실 주장
 ])
@@ -353,8 +351,8 @@ def test_retrospective_transformation_uses_material_introduction_in_user_history
 
 
 @pytest.mark.parametrize("change", ["no_retrospection", "truth_request", "external_request",
-    "assistant_material", "assistant_quote", "wrong_turn", "duplicate_turn", "wrong_quote",
-    "question_origin", "external_scope", "missing_sources", "scope_from_history"])
+    "assistant_quote", "wrong_turn", "duplicate_turn", "wrong_quote",
+    "question_origin", "external_scope", "missing_sources", "scope_from_assistant"])
 def test_history_material_fallback_does_not_widen_source_or_fact_check_boundaries(change):
     state, claim = history_material_case()
     if change == "no_retrospection":
@@ -363,8 +361,6 @@ def test_history_material_fallback_does_not_widen_source_or_fact_check_boundarie
         state["question"] += " 그 정원이 맞는지 확인해줘."
     elif change == "external_request":
         state["question"] += " 실제 운영 정원도 검색해줘."
-    elif change == "assistant_material":
-        state["history"][0].update(question="계획을 세울게.", answer="가상의 공지입니다.")
     elif change == "assistant_quote":
         state["history"][1].update(question="정원을 알려줘.", answer=NOTICE)
     elif change == "wrong_turn":
@@ -380,7 +376,7 @@ def test_history_material_fallback_does_not_widen_source_or_fact_check_boundarie
     elif change == "missing_sources":
         claim["sources"] = []
     else:
-        claim["scope_quote"] = state["history"][0]["question"]
+        claim["scope_quote"] = state["history"][1]["answer"]   # 이전 AI 답변은 사용자 원문이 아니다
     assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"
 
 
@@ -602,3 +598,38 @@ def test_transports_share_input_and_mixed_finalization_without_real_calls(engine
     assert call.status == "OK" and decision(call.body)["choice"] == "PASS"
     assert fetches == ([URL] if basis == "mixed" else [])
     assert decision(call.body)["fact_check"]["basis"] == basis
+
+
+# evidence-v3.13 (2026-10-13 사용자 결정) — J5 는 답변이 말한 값이 실제 데이터와 맞는가를 본다. 사용자가 준 값이면 그 데이터는
+# 사용자 원문이므로, 요청 종류를 키워드로 알아보지 못해도(추천·자료 문장 자체·'가상' 소개 없음) 정확한 원문 인용이면 일치로 본다.
+@pytest.mark.parametrize("case", ["recommendation", "material_as_scope", "no_fictional_intro", "scope_in_earlier_user_turn"])
+def test_user_supplied_values_match_regardless_of_request_keywords(case):
+    if case == "recommendation":
+        assert listed_item_claim("할 일을 추천해 줘: 빨래, 청소.", "할 일을 추천해 줘")["choice"] == "PASS"
+        return
+    if case == "material_as_scope":
+        result = evaluate(entries([input_claim(scope_quote="정원은 12명이며 사전 신청이 필요하다.")]))
+    elif case == "scope_in_earlier_user_turn":   # 멀티턴: 값을 준 요청이 앞 사용자 턴에 있다
+        state, claim = history_material_case()
+        claim["scope_quote"] = state["history"][0]["question"]
+        result = evaluate(entries([claim]), state)
+    else:
+        state, claim = history_material_case()
+        state["history"][0].update(question="계획을 세울게.", answer="가상의 공지입니다.")
+        result = evaluate(entries([claim]), state)
+    assert decision(result)["choice"] == "PASS"
+    source = decision(result)["fact_check"]["claims"][0]["sources"][0]
+    assert source["quote_verified"] is True and "자료 자체의 사실성은 검증하지 않습니다" in source["verification_reason"]
+
+
+# 질문 값 일치를 넓혀도 진위 질문·실제 데이터 요청은 사용자 입력으로 증명되지 않는다 (자료 문장만 요청 인용으로 줘도)
+@pytest.mark.parametrize("question", [
+    '이 말이 사실이야? "정원은 12명이며 사전 신청이 필요하다."',
+    '정원은 12명이며 사전 신청이 필요하다. 이거 맞아?',
+    'Is this true? "정원은 12명이며 사전 신청이 필요하다."',
+    '내 메모: 정원은 12명이며 사전 신청이 필요하다. 국내 독서 모임의 실제 운영 정원을 알려줘.',
+])
+def test_truth_questions_and_real_data_requests_are_not_proven_by_user_input(question):
+    state = {**STATE, "question": question}
+    claim = input_claim(scope_quote="정원은 12명이며 사전 신청이 필요하다.")
+    assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"

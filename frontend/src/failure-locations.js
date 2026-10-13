@@ -171,16 +171,27 @@
     const aligned = typeof codeCase?.answer !== 'string' || codeCase.answer === answer;
     const codepointOffsets = [0];
     for (const char of answer) codepointOffsets.push(codepointOffsets[codepointOffsets.length - 1] + char.length);
+    // 위치가 없는 FAIL 은 이유를 구분해 적는다 — 빠진 것을 지적한 FAIL(표 없음·문장 부족·J4 누락)은 고장이 아니라 원래 위치가 없다.
+    function missingNote(finding) {
+      if (finding.kind === 'code' && (finding.expected || finding.actual))
+        return `요구: ${finding.expected || '—'} · 실제: ${finding.actual || '—'} — 답변 전체에 대한 조건이라 표시할 위치가 없습니다.`;
+      if (finding.kind === 'verification') return '평가 쪽 검증 기준에 따른 판정이라 답변의 특정 위치를 가리키지 않습니다.';
+      // 누락형으로 확인된 판정만 '빠진 내용' — J4 는 정의상 빠진 것만 보고, items 는 누락형 항목(답변 인용이 필요 없는 아니오, quote_check.answer.required=false)만
+      if (finding.kind === 'semantic' && (finding.omission || finding.criterionId === 'J4' && !finding.itemId))
+        return '답변에 빠진 내용을 지적한 판정이라 표시할 위치가 없습니다. 위 사유를 확인하세요.';
+      return '저장된 판정 근거의 인용을 답변 원문에서 찾지 못해 위치를 표시하지 않습니다. 위 사유를 확인하세요.';
+    }
     function add(finding, spans) {
       finding.spans = aligned ? mergeSpans(spans) : [];
-      finding.locationNote = !aligned ? '평가한 답변과 현재 원문이 달라 위치를 표시할 수 없습니다.' : finding.spans.length ? '' : answer.length ? '답변 원문에서 특정 위치를 확인할 근거가 없습니다.' : '답변이 비어 있어 표시할 위치가 없습니다.';
+      finding.locationNote = !aligned ? '평가한 답변과 현재 원문이 달라 위치를 표시할 수 없습니다.' : finding.spans.length ? '' : answer.length ? missingNote(finding) : '답변이 비어 있어 표시할 위치가 없습니다.';
       findings.push(finding);
     }
     list(codeCase?.results).forEach((row, index) => {
       if (!row || row.area !== 'common' || row.counted !== true || row.verdict !== 'FAIL') return;
       add({id: `code:${index}`, codeIndex: index, criterionId: row.subcategory || row.check_id || '',
         kind: 'code', title: row.title || row.explain?.headline || '공통 기준 미충족',
-        reason: row.explain?.summary || row.reason || ''}, codeSpans(answer, codeCase, row, lines, codepointOffsets));
+        reason: row.explain?.summary || row.reason || '', expected: text(row.explain?.expected), actual: text(row.explain?.actual)},
+        codeSpans(answer, codeCase, row, lines, codepointOffsets));
     });
     if (semanticRecord?.status === 'SUCCESS') {
       const decisions = semanticRecord.decisions || {}, requested = new Set(Array.isArray(semanticRecord.criteria) ? semanticRecord.criteria : Object.keys(decisions));
@@ -215,6 +226,19 @@
             if (!check || check.decision !== (policy ? 'UNVERIFIED' : 'FAIL')) return;
             locatedEvidence = true;
             add({...base, id: `${prefix}:context:${index}`, reason: policy ? joinReasons(decision.reason, check.reason) : check.reason || decision.reason || ''}, claimMatches(answer, text(check.answer_quote), projection));
+          });
+        }
+        if (!locatedEvidence && decision.subs && typeof decision.subs === 'object') {
+          // items 파이프라인: 아니오 항목마다 답변 인용으로 위치를 찾는다 (인용이 없으면 누락형)
+          Object.values(decision.subs).flatMap(sub => list(sub?.items)).filter(item => item?.decision === 'NO').forEach((item, index) => {
+            locatedEvidence = true;
+            const quote = text(item.answer_quote);
+            // 서버가 인용 검증 실패로 아니오를 매긴 항목(확인 불가)은 답변 위반이 아니라 검증 실패다 — 위치도 표시하지 않는다
+            const unverifiable = Boolean(item.unverifiable) || item.reason_code === 'ITEM_UNVERIFIABLE';
+            add({...base, kind: unverifiable ? 'verification' : 'semantic', id: `${prefix}:item:${index}`, itemId: text(item.id),
+              title: `${cid} · ${text(item.id) || '점검 항목'}${unverifiable ? ' · 확인 불가' : ''}`,
+              reason: item.reason || decision.reason || '', omission: !unverifiable && !quote && item.quote_check?.answer?.required === false},
+              !unverifiable && quote ? claimMatches(answer, quote, projection) : []);
           });
         }
         if (!locatedEvidence) add({...base, id: `${prefix}:decision`,

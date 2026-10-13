@@ -84,6 +84,10 @@ _CHAIN = re.compile(rf"(?<![\w.,§]){_SEG}(?:{_EQ}{_SEG})+(?![\d.,])")
 # 나머지 오류 예시 표지(틀린·잘못·오답·오류·실수·반례 …)는 자기 줄 + 앞 2줄에서 찾는다.
 _NOUN_NEG = ("아니라", "아니고", "아닙니다", "아님", "아닌")
 _SENT_END = re.compile(r"[.!?。](?=\s|$)")   # 1.5 의 소수점은 문장 끝이 아니다 (textparse 규칙)
+# 좌변 바로 앞(같은 줄)의 화살표는 값의 변화 표시다: '20일 → 26일 = 26 ÷ 20 = 1.3배' 의 26 은 등식의 시작이 아니다.
+_ARROW_BEFORE = re.compile(r"(?:→|⇒|->|=>)[ \t\xa0]*$")
+# '185분 / 190분 이하' 처럼 '/' 뒤 값에 한도 표현이 붙으면 나눗셈이 아니라 '값 / 한도' 표기다.
+_LIMIT_AFTER = re.compile(r"[ \t\xa0]*(?:" + "|".join(map(re.escape, _UNITS)) + r")?[ \t\xa0]*(?:이하|이상|미만|초과|이내)")
 
 
 def _balance_parens(raw: str) -> Optional[Tuple[int, str]]:
@@ -186,7 +190,15 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
             continue
         follows = text[end:end + 6]
         tail = follows[:1]
-        if _SPACED_KO_UNIT.match(follows):
+        line_start = text.rfind("\n", 0, start) + 1
+        before = text[line_start:start]
+        if _ARROW_BEFORE.search(before):
+            ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
+        elif _cut_operand_before(before, ctx.answer[line_start:start], ctx.answer[end:end + 8]):
+            ch.skip_reason = "등식 앞에 연산자가 있어(단위에 끊긴 앞쪽 피연산자) 좌변을 확정할 수 없음"
+        elif "/" in ch.segments[-1] and _LIMIT_AFTER.match(text, end):
+            ch.skip_reason = "‘/’ 뒤 값에 이하·이상 같은 한도 표현이 붙어 나눗셈이 아니라 ‘값 / 한도’ 표기로 봄"
+        elif _SPACED_KO_UNIT.match(follows):
             ch.skip_reason = "등식 뒤에 띄어 쓴 한글 수 단위(만·천·억)가 붙어 값을 확정할 수 없음"
         elif re.match(r"\s*\\?%", follows):
             # Preserve the supported ratio-to-percent presentation (a / b * 100 = n%).
@@ -223,6 +235,24 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         chains.append(ch)
     ctx.shared["chains"] = chains
     return chains
+
+
+def _cut_operand_before(before: str, original: str, after: str) -> bool:
+    """좌변 바로 앞(같은 줄)의 연산자 — 등록되지 않은 단위에 끊긴 앞쪽 피연산자가 있다 ('2벌 × 3 + 1 = 7' 의 3 + 1).
+
+    ``before`` 는 등식 투영(×÷ → */, 강조 ** 는 공백), ``original`` 은 같은 구간의 답변 원문, ``after`` 는 식 바로 뒤 원문.
+    줄머리 불릿(``-``·``*``·``+``, 들여쓰기·굵게 표시 자리 공백 포함)은 연산자가 아니다. 원문의 ``×``·``÷`` 는 언제나 연산자다.
+    원문의 ``*`` 가 식에 바로 붙고 식 뒤(짧은 단위 다음)에 닫는 ``*`` 가 있으면 기울임 구간이다 ('설명 *3 + 4 = 8*', '결과:*3 + 4 = 8개*').
+    """
+    stripped = before.rstrip(" \t\xa0")
+    if not stripped or stripped[-1] not in "+-*/":
+        return False
+    if not stripped[:-1].strip():
+        return False                       # 줄머리 불릿
+    marker = original[len(stripped) - 1:len(stripped)]
+    if marker == "*" and stripped == before and re.match(r"[^\s*]{0,6}\*(?!\*)", after):
+        return False                       # 기울임 구간을 여는 표시
+    return True
 
 
 def _num(raw: str) -> Fraction:

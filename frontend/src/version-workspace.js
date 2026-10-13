@@ -542,7 +542,7 @@
       const evidence = window.AionaResults.semanticEvidence(run.evaluations?.aiona?.jev_eval?.records?.[index], node);
       if (evidence) box.append(evidence);
       if (record?.decisions?.J5?.status === 'NOT_APPLICABLE') box.append(node('p', {class: 'field-help', text: 'J5 해당 없음 · ' + (record.applicability?.not_applicable?.J5 || record.decisions.J5.reason || '검증할 사실 주장이 없습니다.')}));
-      if (source.conversation_id !== undefined) {
+      if (source.conversation_id !== undefined && source.conversation_id !== null) {   // null 은 단일 질문
         const history = (run.datasets.aiona || []).filter((r) => r && r.conversation_id === source.conversation_id && Number(r.turn) < Number(source.turn)).sort((a, b) => Number(a.turn) - Number(b.turn));
         box.append(node('details', {class: 'version-profile-raw'}, node('summary', {text: `같은 버전의 이전 대화 ${history.length}턴 원문`}), ...history.map((r) => node('pre', {text: `턴 ${r.turn}\n질문\n${r.question}\n답변\n${r.answer}`}))));
       }

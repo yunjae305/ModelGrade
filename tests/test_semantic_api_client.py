@@ -389,7 +389,7 @@ def test_manifest_is_available_without_a_client_and_pins_policy_and_limits():
     manifest = SemanticApiConfig().to_manifest()
     assert manifest["engine"] == "openai_api" and manifest["requested_model"] == "gpt-6.1-sol"
     assert manifest["api_base"] == "https://api.openai.com/v1" and manifest["max_attempts"] == 1
-    assert manifest["fact_check_policy"] == "evidence-v3.12-opinion-correction-scope" and manifest["context_check_policy"] == "history-quotes-v3-code-boundary"
+    assert manifest["fact_check_policy"] == "evidence-v3.13-input-values-match" and manifest["context_check_policy"] == "history-quotes-v3-code-boundary"
     assert manifest["fact_check_scope"] == "all_answers"
     assert manifest["search_policy"] == "J5_without_reference_grouped_evidence_v3" and manifest["web_search"] == "live"
     assert manifest["max_tool_calls"] is None and manifest["max_output_tokens"] == 12000

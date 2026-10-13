@@ -190,17 +190,28 @@ def test_expanded_items_are_matched_by_quote_not_model_numbers():
         {'id': 'J5-1.a#1', 'origin': 'answer', 'decision': 'YES', 'question_quote': '인구', 'answer_quote': '서울 인구는 933만'},
         {'id': 'J5-1.a#2', 'origin': 'answer', 'decision': 'NO', 'question_quote': '인구', 'answer_quote': '부산 인구는 900만'},
         {'id': 'J4-2.a#1', 'decision': 'YES', 'question_quote': '각각'}, {'id': 'J4-2.a#2', 'decision': 'NO', 'question_quote': '각각'}]}}}}}
-    assert vc._semantic_units(claims)[2] == {'J5-1.a · 서울 인구는 933만': 'PASS', 'J5-1.a · 부산 인구는 900만': 'FAIL',
-                                             'J4-2.a · 각각 [1]': 'FAIL', 'J4-2.a · 각각 [2]': 'PASS'}
+    assert vc._semantic_units(claims)[2] == {'J5-1.a · 서울 인구는 933만': ['PASS'], 'J5-1.a · 부산 인구는 900만': ['FAIL'],
+                                             'J4-2.a · 각각': ['PASS', 'FAIL']}
     # 같은 인용의 두 요소가 번호만 바뀌면 변화 없음, 판정 개수가 바뀐 만큼만 개선·악화
     swapped = copy.deepcopy(claims)
     j4 = swapped['decisions']['J5']['subs']['J5-1']['items']
     j4[2]['decision'], j4[3]['decision'] = 'NO', 'YES'
     assert {k: r['change'] for k, r in vc._drilldown(None, claims, None, swapped)['items'].items() if k.startswith('J4')} == {
-        'J4-2.a · 각각 [1]': 'fail_kept', 'J4-2.a · 각각 [2]': 'pass_kept'}
+        'J4-2.a · 각각  [1]': 'fail_kept', 'J4-2.a · 각각  [2]': 'pass_kept'}
     j4[2]['decision'] = 'YES'
     assert {k: r['change'] for k, r in vc._drilldown(None, claims, None, swapped)['items'].items() if k.startswith('J4')} == {
-        'J4-2.a · 각각 [1]': 'improved', 'J4-2.a · 각각 [2]': 'pass_kept'}
+        'J4-2.a · 각각  [1]': 'pass_kept', 'J4-2.a · 각각  [2]': 'improved'}
+    # 해당 없음이 섞여도 같은 판정끼리 먼저 짝지어 실제 악화를 놓치지 않는다 (NA 유지 + 나머지 YES→NO)
+    with_na = copy.deepcopy(claims)
+    with_na['decisions']['J5']['subs']['J5-1']['items'][3]['decision'] = 'NOT_APPLICABLE'   # 기준: [PASS, NA]
+    worse = copy.deepcopy(with_na)
+    worse['decisions']['J5']['subs']['J5-1']['items'][2]['decision'] = 'NO'                 # 비교: [FAIL, NA]
+    assert sorted(r['change'] for k, r in vc._drilldown(None, with_na, None, worse)['items'].items() if k.startswith('J4')) == ['na', 'regressed']
+    # 생성한 묶음 키는 실제 인용 'J4-2.a · 각각 [1]' 과 겹치지 않는다
+    literal = copy.deepcopy(claims)
+    literal['decisions']['J5']['subs']['J5-1']['items'].append({'id': 'J4-2.a#3', 'decision': 'YES', 'question_quote': '각각 [1]'})
+    rows = vc._drilldown(None, literal, None, literal)['items']
+    assert rows['J4-2.a · 각각 [1]']['change'] == 'pass_kept' and len([k for k in rows if k.startswith('J4')]) == 3
 
 
 def test_run_summary_code_rates_include_saved_completion_like_the_question_verdict():
