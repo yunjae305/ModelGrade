@@ -17,7 +17,9 @@ from .semantic_sources import _REASONS
 SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v2"
 FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
 #: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
-J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v2"
+#: v3 — 출처 원문 확인 실패(source_unavailable)의 세부 사유를 접근 실패와 인용문 미확인으로 나눠 기록한다
+#:      (code·label·판정 값은 v2 와 같음 — source_failure 상세 항목만 추가).
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v3"
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
                    "judge_fail_evidence": REASON_EVIDENCE_POLICY_VERSION, "j5_outcome": J5_OUTCOME_POLICY_VERSION}
@@ -52,6 +54,12 @@ J5_OUTCOMES = {
     "not_applicable": "해당 없음",
     "incomplete": "판정 미완료",
     "unclassified": "분류 정보 없음",
+}
+#: source_unavailable 의 세부 사유 (판정은 바꾸지 않는 기록용 구분).
+SOURCE_FAILURE_KINDS = {
+    "access_failed": "출처 원문 접근 실패",
+    "quote_not_found": "원문은 받았으나 인용문 미확인",
+    "mixed": "원문 접근 실패와 인용문 미확인이 함께 있음",
 }
 _INPUT_SCOPE_FAILURE_REASON = "사용자 원문 인용은 확인했지만, 요청에 주어진 자료·설정의 일치를 확인하는 주장인지 불명확합니다."
 
@@ -313,6 +321,10 @@ def j5_outcome(record):
         outcome = "unclassified"
     detail = {"policy": J5_OUTCOME_POLICY_VERSION, "code": outcome, "label": J5_OUTCOMES[outcome],
               "factual_error_confirmed": outcome == "contradicted", "search": j5_search(record)}
+    if outcome == "source_unavailable":
+        failure = source_failure_detail(j5)
+        if failure:
+            detail["source_failure"] = failure
     checks = [c for c in j5.get("citation_checks") or [] if isinstance(c, dict)]
     if checks:
         verdicts = [c.get("verdict") for c in checks]
@@ -321,6 +333,34 @@ def j5_outcome(record):
                                "inaccessible": verdicts.count("inaccessible"),
                                "unresolved": sum(v in ("unverified", "unchecked") for v in verdicts)}
     return detail
+
+
+def source_failure_detail(j5):
+    """SOURCE_ORIGINAL_UNAVAILABLE FAIL 의 실패 출처를 접근 실패와 인용문 미확인으로 나눈다. 판정 값은 보지 않고 바꾸지 않는다.
+
+    인용문 미확인(quote_not_found)은 서버가 원문을 받았거나, 서버는 못 받았지만 평가자 web_fetch 원문(provider_document)을
+    대신 대조한 경우다. 나머지 실패 상태는 원문을 받지 못한 접근 실패다.
+    """
+    policy = j5.get("decision_policy") if isinstance(j5.get("decision_policy"), dict) else {}
+    failures = [f for f in policy.get("failures") or [] if isinstance(f, dict)]
+    if not failures:
+        return None
+    fact = j5.get("fact_check") if isinstance(j5.get("fact_check"), dict) else {}
+    claims = fact.get("claims") if isinstance(fact.get("claims"), list) else []
+    access, quote, via_provider = [], 0, 0
+    for failure in failures:
+        if failure.get("status") == "quote_not_found":
+            quote += 1
+            try:
+                source = claims[failure["claim_index"]]["sources"][failure["source_index"]]
+            except (KeyError, IndexError, TypeError):
+                source = None
+            via_provider += isinstance(source, dict) and source.get("retrieval") == "provider_document"
+        else:
+            access.append({"status": failure.get("status"), "url": failure.get("url")})
+    kind = "mixed" if access and quote else "access_failed" if access else "quote_not_found"
+    return {"kind": kind, "label": SOURCE_FAILURE_KINDS[kind], "access_failures": access,
+            "quote_not_found": quote, "quote_not_found_in_provider_document": via_provider}
 
 
 def apply_final_decision_policy(record, *, state=None):

@@ -27,7 +27,8 @@ from .jev_applicability import APPLIES_WHEN, JEV_APPLICABILITY_VERSION, jev_appl
 from .jev_client import JevClient, JevClientConfig, JevStatus, _sum_usage, resolve_jev_client
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
-from .answer_citations import CITATION_POLICY_VERSION, answer_citations, prompt_citations, source_requested
+from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLICY_VERSION, answer_citations,
+                               merge_citations, prompt_citations, source_requested, structured_citations)
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
                                fail_evidence, incomplete_decision)
@@ -138,7 +139,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                       access_reason: Optional[str] = None, criteria: Tuple[str, ...] = ALL_IDS,
                       reference: Any = None, history: Optional[List[Dict[str, Any]]] = None,
                       cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
-                      citation_check: bool = False) -> Dict[str, Any]:
+                      citation_check: bool = False,
+                      sources: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     # Legacy native Jev keeps its historical knowledge/reference contract. New
     # CLI/API transports finalize explicit evidence before this parser runs.
     basis = {"j5_basis": ("reference" if reference is not None else "engine") if "J5" in criteria else None}
@@ -151,6 +153,10 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     started = time.monotonic()
     try:
         citations = answer_citations(answer) if citation_check and "J5" in criteria else []
+        structured = bool(citation_check and "J5" in criteria and sources)
+        if structured:
+            # 수집 단계의 구조화 출처를 먼저 쓴다. 본문에서만 찾은 링크는 같은 출처가 아닐 때 뒤에 붙인다.
+            citations = merge_citations(structured_citations(sources, answer), citations)
         request = jev_request(question, answer, criteria, reference, history, prompt_citations(citations))
         if cancel_event is not None and getattr(client, "supports_cancellation", False):
             request["cancel_event"] = cancel_event
@@ -198,8 +204,10 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     apply_final_decision_policy(record, state=request["state"])
     if citation_check and "J5" in criteria and (citations or source_requested(question)):
         # 답변이 든 출처 전체(잘못된 링크·대조 한도 밖 포함)와 질문의 출처 요구 — 기록용, 이것만으로 판정하지 않음
-        record["answer_citations"] = {"policy": CITATION_POLICY_VERSION, "requested_by_question": source_requested(question),
-                                      "citations": citations}
+        record["answer_citations"] = {"policy": STRUCTURED_CITATION_POLICY_VERSION if structured else CITATION_POLICY_VERSION,
+                                      "requested_by_question": source_requested(question), "citations": citations}
+        if structured:
+            record["answer_citations"]["structured_sources"] = len(sources)
     if fail_evidence_check and isinstance((record.get("decisions") or {}).get("J5"), dict):
         record["decisions"]["J5"]["j5_outcome"] = j5_outcome(record)
     return record
@@ -495,7 +503,8 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
         return evaluate_jev_case(case["case_id"], case["question"], case["answer"], client, access_reason,
                                  tuple(applies[i]["criteria"]), reference=case.get("reference"),
                                  history=histories.get(i) or None, cancel_event=cancel_event,
-                                 fail_evidence_check=fact_screening, citation_check=fact_screening)
+                                 fail_evidence_check=fact_screening, citation_check=fact_screening,
+                                 sources=case.get("answer_sources"))
 
     def publish(i: int, record: Dict[str, Any]) -> None:
         record["applicability"] = copy.deepcopy(applies.get(i))
