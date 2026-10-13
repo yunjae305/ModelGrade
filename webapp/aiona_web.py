@@ -6,7 +6,10 @@
   남긴다. 로그인이 풀렸으면 ``allow_login`` 일 때만 같은 값으로 다시 로그인한다. 비밀번호는 로그·화면·결과 파일에 남기지 않는다.
 - 화면 구조(2026-10-14 확인): 새 채팅 = ``/chat``, 입력칸 ``textarea[placeholder^=무엇이든]``, 전송 ``button[type=submit][title=전송]``
   (답하는 동안은 정지 버튼으로 바뀜), 내 질문 ``div.flex.justify-end``, 답변 ``div.flex.justify-start`` 안의 ``.prose``,
-  파일 올리기 ``input[type=file]`` (이미지·PDF·DOCX·TXT 등). 모델은 기본값 '자동 추천' 그대로 둔다.
+  파일 올리기 ``input[type=file]`` (이미지·PDF·DOCX·TXT 등, 이미지는 이름 글자 없이 ``img[alt=파일 이름]`` 미리보기만 보임),
+  입력 상한 100,000자. 모델은 기본값 '자동 추천' 그대로 둔다.
+- 긴 글을 보내면 의도 감지 안내('요약 뒤에 퀴즈까지 이어서 풀어볼까요?')가 떠서 고를 때까지 전송되지 않는다 — 질문을 바꾸지
+  않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
 - 답변 본문(HTML)은 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
 - 봇 확인·추가 인증 화면이 나오면 멈추고 사람에게 넘긴다 — 우회하지 않는다.
 """
@@ -140,9 +143,22 @@ class AionaChat:
 
     def _upload(self, files: List[Path]) -> None:
         self.page.locator("input[type=file]").first.set_input_files([str(f) for f in files])
-        for f in files:   # 올린 파일 칸이 보일 때까지
-            self.page.get_by_text(f.name, exact=False).first.wait_for(timeout=60_000)
+        for f in files:   # 올린 파일 칸이 보일 때까지 — 문서는 이름 글자, 이미지는 alt 가 파일 이름인 미리보기로만 보인다
+            self.page.wait_for_function(
+                "(name) => document.body.innerText.includes(name) || [...document.images].some(i => i.alt === name)",
+                arg=f.name, timeout=60_000)
         self.page.wait_for_timeout(1500)
+
+    def _send_as_is(self) -> bool:
+        """긴 글을 보내면 뜨는 의도 감지 안내('요약 뒤에 퀴즈까지…')에서 질문을 바꾸지 않는 '그냥 보내기'를 누른다."""
+        button = self.page.get_by_role("button", name="그냥 보내기", exact=True)
+        try:
+            if button.count() and button.first.is_visible():
+                button.first.click(timeout=3000)
+                return True
+        except Exception:
+            pass
+        return False
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model}."""
@@ -176,10 +192,11 @@ class AionaChat:
                     "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION,
                     "debug_screenshot": self._snapshot("send-failed")}
         deadline = time.monotonic() + self.answer_timeout_s
-        last, stable, empty = None, 0, 0
+        last, stable, empty, as_is = None, 0, 0, False
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)
             self._dismiss_popups()
+            as_is = self._send_as_is() or as_is
             if self._answers().count() <= before:
                 continue
             idle = self.page.locator("button[type=submit][title='전송']").count() > 0   # 답하는 동안은 정지 버튼
@@ -194,6 +211,7 @@ class AionaChat:
         done = (stable >= 2 and bool(answer.strip())) or (empty >= 4 and not answer.strip())
         return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE",
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
+                **({"intent_prompt": "그냥 보내기"} if as_is else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,
                 "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
                 "conversion": [q for q in converted.get("quality") or [] if q.get("severity") != "info"]}
