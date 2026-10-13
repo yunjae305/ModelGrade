@@ -179,11 +179,11 @@ def _json_object(text: str) -> Dict[str, Any]:
     fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
     if fence:
         text = fence.group(1)
-    start, end = text.find("{"), text.rfind("}")
-    if start < 0 or end <= start:
+    start = text.find("{")
+    if start < 0:
         raise GenerationError("GPT 응답에서 JSON 객체를 찾지 못했습니다.")
-    try:
-        value = json.loads(text[start:end + 1])
+    try:   # 첫 완전한 객체만 읽는다 — 끝에 괄호가 더 붙은 응답(실제 GPT 응답에서 확인)도 앞 객체는 쓸 수 있다
+        value, _ = json.JSONDecoder().raw_decode(text[start:])
     except ValueError as exc:
         raise GenerationError(f"GPT 응답 JSON 을 읽지 못했습니다: {exc}") from None
     if not isinstance(value, dict):

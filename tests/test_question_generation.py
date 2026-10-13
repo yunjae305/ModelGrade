@@ -81,6 +81,8 @@ def test_plan_prompt_lists_every_check_and_item_from_the_criteria():
     assert all(f"- {c['id']} · " in prompt for c in catalog["code"]) and all(f"- {i['id']} · " in prompt for i in catalog["items"])
     with pytest.raises(qg.GenerationError):
         qg.parse_plan("JSON 이 아닌 응답")
+    extra = json.dumps({"questions": [{"turns": [{"question": "질문"}]}]}, ensure_ascii=False) + "]}"
+    assert qg.parse_plan(extra)[0][0]["turns"][0]["question"] == "질문"   # 끝에 괄호가 더 붙은 실제 응답
 
 
 def test_service_runs_one_job_at_a_time_and_serves_the_set_and_files(tmp_path):
