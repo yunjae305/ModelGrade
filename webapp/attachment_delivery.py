@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 from code_eval import attachment_images
 
-__all__ = ["IMAGE_TYPES", "MAX_IMAGE_BYTES", "prepare", "image_blocks"]
+__all__ = ["IMAGE_TYPES", "MAX_IMAGE_BYTES", "prepare", "image_blocks", "sent_attachments"]
 
 IMAGE_TYPES = attachment_images.IMAGE_TYPES
 EXTRACTED_TYPES = {"pdf", "docx", "hwp", "hwpx", "pptx", "xlsx"}
@@ -51,6 +51,22 @@ def prepare(question: str, attachments: Any, roots: Sequence[Path]) -> Tuple[str
         delivery.append({"name": name, "type": kind, "mode": "text_extracted" if kind in EXTRACTED_TYPES else "text"})
     text = question if not text_blocks else question + "\n\n" + "\n\n".join(text_blocks)
     return text, images, delivery
+
+
+def sent_attachments(attachments: Any, delivery: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """실제로 보낸 첨부 [{name, sha256?, mode}] — 수집 결과의 ``sent`` (팀원 질문 세트 실행과 같은 모양). 받은 첨부만 J8 로 평가하도록
+    ``ComparisonService._answer_case`` 가 이 목록에 있는 첨부만 그 답변의 평가 입력에 남긴다. 못 보낸(not_sent) 첨부는 넣지 않는다."""
+    named = [item for item in attachments or [] if isinstance(item, dict) and item.get("name")]
+    out = []
+    for item, record in zip(named, delivery):
+        if record.get("mode") == "not_sent":
+            continue
+        entry = {"name": str(item["name"]), "mode": record.get("mode")}
+        sha = record.get("sha256") or item.get("sha256")
+        if isinstance(sha, str) and sha:
+            entry["sha256"] = sha
+        out.append(entry)
+    return out
 
 
 def image_blocks(provider: str, text: str, images: List[Dict[str, Any]]) -> Any:

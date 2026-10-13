@@ -196,4 +196,7 @@ def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tm
     record = next(r for r in saved['evaluations']['gpt']['jev_eval']['records'] if r.get('attachment_images'))
     assert record['case_id'] == saved['datasets']['gpt'][0]['case_id']
     assert record['attachment_images']['sent'][0]['sha256'] == hashlib.sha256(png).hexdigest()
-    assert record['attachment_images']['content_only'] == [{'index': 2, 'name': 'missing.png'}]
+    # 못 보낸 missing.png 는 GPT 답변의 평가 입력에서 빠진다 (실제로 보낸 첨부만 — e273330 의 _answer_case 규칙과 같은 sent 목록)
+    assert [a['name'] for a in saved['datasets']['gpt'][0]['attachments']] == ['견적서.txt', 'chart.png']
+    assert [s['name'] for s in saved['datasets']['gpt'][0]['collection']['sent']] == ['견적서.txt', 'chart.png']
+    assert record['attachment_images']['content_only'] == [] and record['attachment_images']['sent'][0]['index'] == 1

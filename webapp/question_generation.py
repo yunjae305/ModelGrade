@@ -430,8 +430,10 @@ class QuestionSetService:
     """질문 세트 생성 작업 — 한 번에 하나만 돈다(유료 호출). 상태는 메모리와 ``set.json`` 에 둔다."""
 
     def __init__(self, config_source: Callable[[], Optional[Dict[str, Any]]], store: Path = STORE,
-                 llm_factory: Optional[Callable[[Dict[str, Any], Dict[str, int]], LLM]] = None):
+                 llm_factory: Optional[Callable[[Dict[str, Any], Dict[str, int]], LLM]] = None,
+                 run_starter: Optional[Callable[[str], str]] = None):
         self.config_source, self.store = config_source, store
+        self.run_starter = run_starter   # 질문 세트 id → 수집·평가 실행 id (서버가 비교 서비스와 이어 준다)
         self.llm_factory = llm_factory or gpt_llm
         self._lock = threading.Lock()
         self._jobs: Dict[str, Dict[str, Any]] = {}
@@ -454,13 +456,15 @@ class QuestionSetService:
         if not config:
             raise ValueError("GPT 연결 설정(OPENAI_API_KEY·OPENAI_MODEL)이 없어 질문을 만들 수 없습니다.")
         note = payload.get("note") if isinstance(payload.get("note"), str) else ""
+        auto_run = payload.get("auto_run", True) is not False   # 만든 뒤 바로 답변 수집·평가 (사용자 요청 2026-10-14)
         with self._lock:
             if any(job["status"] == "RUNNING" for job in self._jobs.values()):
                 raise ValueError("이미 질문 세트를 만드는 중입니다. 끝난 뒤 다시 시도해 주세요.")
             set_id = "qs-" + uuid.uuid4().hex[:12]
             job = {"id": set_id, "version": QUESTION_GEN_VERSION, "status": "RUNNING", "phase": "plan", "message": "시작",
                    "created_at": datetime.now(timezone.utc).isoformat(), "model": config.get("model"), "note": note[:2000],
-                   "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None}
+                   "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None,
+                   "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
         self._save(job)
@@ -483,6 +487,8 @@ class QuestionSetService:
             with self._lock:
                 job.update(status="COMPLETED", phase="done", message="완료", warnings=builder.warnings, calls=builder.calls,
                            summary=_summary(groups, report), coverage=report["coverage"], rounds=result["rounds"])
+            if job.get("auto_run"):
+                self._start_run(job)
         except Exception as exc:   # 생성 실패는 이 작업의 오류로만 남긴다 (키·요청 원문은 남기지 않음)
             with self._lock:
                 job.update(status="CANCELLED" if cancel.is_set() else "ERROR", error=str(exc)[:500])
@@ -490,6 +496,34 @@ class QuestionSetService:
             with self._lock:
                 job["finished_at"] = datetime.now(timezone.utc).isoformat()
             self._save(job)
+
+    def _start_run(self, job: Dict[str, Any]) -> None:
+        try:
+            run_id = self.run_starter(job["id"])
+            with self._lock:
+                job.update(run_id=run_id, run_error=None)
+        except Exception as exc:   # 수집 시작 실패는 질문 세트를 실패로 만들지 않는다 — 화면에서 다시 시작할 수 있다
+            with self._lock:
+                job["run_error"] = str(exc)[:300]
+
+    def start_run(self, set_id: str) -> Dict[str, Any]:
+        """완료된 질문 세트로 수집·평가 실행을 (다시) 시작한다."""
+        job = self.status(set_id)
+        if job.get("status") != "COMPLETED":
+            raise ValueError("질문 세트를 다 만든 뒤에 답변을 수집할 수 있습니다.")
+        if self.run_starter is None:
+            raise ValueError("수집 실행을 시작할 수 없습니다.")
+        with self._lock:
+            live = self._jobs.get(set_id)
+        target = live if live is not None else job
+        self._start_run(target)
+        self._save(target)
+        if target.get("run_error"):
+            raise ValueError(target["run_error"])
+        return self.status(set_id) if live is not None else target
+
+    def files_dir(self, set_id: str) -> Path:
+        return self._path(set_id) / "files"
 
     def status(self, set_id: str) -> Dict[str, Any]:
         with self._lock:
