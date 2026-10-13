@@ -30,6 +30,11 @@ from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 from .activity_store import clean_text, event_record
+from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
+from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
+from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
+from .ingestion.schema import response_key
+from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 PROVIDER_ENV = {
@@ -202,6 +207,7 @@ class ComparisonService:
         self.semantic_workers = self._semantic_worker_count(semantic_workers)
         self.collection_workers = self._collection_worker_count(collection_workers)
         self._lock = threading.RLock()
+        self.relay_fetcher = None  # 중계 URL 확인 함수 (테스트 대역). None 이면 공개 주소 검사를 하는 기본 확인기.
         default_registry = (self.save_dir.parent if save_dir is not None else ROOT / 'data') / 'aiona_versions.json'
         self.version_registry = VersionRegistry(Path(registry_path) if registry_path is not None else default_registry)
 
@@ -395,7 +401,8 @@ class ComparisonService:
                 "required_providers": list(PROVIDERS),
                 "blind_after_collection": True,
                 "parallel_collection": True, "parallel_evaluation": True, "evaluation_events": "sse-v1",
-                "judge_input_fields": ["question", "answer", "reference", "history"]}
+                "judge_input_fields": ["question", "answer", "reference", "history"],
+                "external_import": COLLECTION_SCHEMA}
 
     def _run(self, run_id):
         run = self._runs.get(run_id)
@@ -489,13 +496,15 @@ class ComparisonService:
         questions, while ``criterion_review_required`` retains every explicit
         UNVERIFIED or INCOMPLETE criterion (including those on already failed questions).
         """
-        total = run.get('question_count', 0)
-        batch = run.get('evaluations', {}).get('aiona') or {}
-        semantic = batch.get('jev_eval') or {}
-        records = semantic.get('records') or []
-        cases = batch.get('cases') or []
+        per_model = run.get('question_count', 0)
+        # 기존 비교는 AIONA 답변만 이력 요약에 센다. AIONA 가 없는 외부 수집 실행은 모든 시스템의 답변을 센다.
+        providers = ['aiona'] if 'aiona' in run.get('providers', ['aiona']) else list(run.get('providers') or [])
+        total = per_model * len(providers)
         scored, review, criteria_complete, criterion_review = 0, 0, 0, 0
-        for index in range(total):
+        for provider, index in ((p, i) for p in providers for i in range(per_model)):
+            batch = run.get('evaluations', {}).get(provider) or {}
+            records = (batch.get('jev_eval') or {}).get('records') or []
+            cases = batch.get('cases') or []
             record = (records[index] if index < len(records) else None) or {}
             case = cases[index] if index < len(cases) else None
             if not case or case.get('case_status') != 'EVALUATED':
@@ -547,7 +556,8 @@ class ComparisonService:
 
     def _status(self, run):
         return {**{k: copy.deepcopy(v) for k, v in run.items()
-                   if not k.startswith('_activity_') and k not in ("datasets", "evaluations", "config", "input_document", "evaluation_log")},
+                   if not k.startswith('_activity_') and k not in ("datasets", "evaluations", "config", "input_document", "evaluation_log",
+                                                                   "questions")},
                 **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
                 'evaluation_conditions_summary': self._conditions_summary(run)}
 
@@ -717,6 +727,216 @@ class ComparisonService:
             if missing:
                 raise ValueError("4개 모델 비교에 필요한 연결이 없습니다: " + ", ".join(missing) + ". API 키와 모델 ID를 등록해 주세요.")
             return self.start({**payload, "providers": list(PROVIDERS), "blind": True, "auto_evaluate": True})
+
+    # --- 외부 수집 답변 (4단계) ---------------------------------------------------------------
+    @staticmethod
+    def _question_row(run, index):
+        """평가에서 제외할 행의 질문 식별자. 기존 비교는 AIONA 원문, 외부 수집 실행은 질문 목록에서 읽는다."""
+        return run["datasets"]["aiona"][index] if "aiona" in run["datasets"] else run["questions"][index]
+
+    def _external_bundle(self, payload, *, resolve=False):
+        files = payload.get("files")
+        if files is None and isinstance(payload.get("input_text"), str):
+            files = [{"name": payload.get("input_name") or "업로드 파일", "text": payload["input_text"]}]
+        if files is None and isinstance(payload.get("manual"), dict):
+            files = [{"name": "직접 입력", "manual": payload["manual"]}]
+        options = payload.get("options", {})
+        if not isinstance(options, dict):
+            raise ValueError("가져오기 설정(options)은 객체여야 합니다.")
+        # API 로 새로 수집할 때는 답변 없이 질문 목록만 가져와도 된다.
+        return import_files(files, options, resolve=resolve, fetcher=self.relay_fetcher,
+                            questions_only=bool(payload.get("api_providers")))
+
+    def _api_selection(self, payload, question_count):
+        selected = payload.get("api_providers", [])
+        if (not isinstance(selected, list) or len(selected) != len(set(selected))
+                or any(p not in PROVIDERS for p in selected)):
+            raise ValueError("API로 함께 수집할 모델 선택이 올바르지 않습니다.")
+        missing = [PROVIDERS[p] for p in selected if p not in self._keys]
+        if missing:
+            raise ValueError("API 키와 모델 ID가 연결되지 않은 모델: " + ", ".join(missing))
+        return selected, {"providers": selected, "planned_calls": question_count * len(selected),
+                          "models": {p: self._keys[p]["model"] for p in selected}}
+
+    def _find_external_duplicate(self, fingerprint):
+        """같은 내용(시스템·질문·답변)으로 이미 만든 외부 수집 평가. 재실행은 사용자가 명시할 때만 새로 만든다."""
+        candidates = {rid: run for rid, run in self._runs.items()}
+        if self.save_dir.is_dir():
+            for path in self.save_dir.glob("*.json"):
+                if path.stem in candidates:
+                    continue
+                try:
+                    run = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if isinstance(run, dict) and run.get("run_kind") == "external_import":
+                    candidates[run.get("run_id")] = run
+        matches = sorted((run for run in candidates.values() if run.get("run_kind") == "external_import"
+                          and (run.get("external_import") or {}).get("fingerprint") == fingerprint
+                          and run.get("status") != "ERROR"), key=lambda r: r.get("created_at") or "")
+        return matches[0]["run_id"] if matches else None
+
+    def preview_external(self, payload):
+        """외부 수집 파일을 변환·검증만 한다. 모델·평가자·네트워크 호출 없음."""
+        bundle = self._external_bundle(payload)
+        data = build_run_data(bundle)
+        _, plan = self._api_selection(payload, len(bundle["questions"]))
+        with self._lock:
+            duplicate = self._find_external_duplicate(bundle["import_fingerprint"])
+        questions = bundle["questions"]
+        relays = sum(1 for r in bundle["responses"] for s in r["sources"] if s.get("skip_reason") == "relay_unresolved")
+        return {"schema": COLLECTION_SCHEMA, "fingerprint": bundle["import_fingerprint"], "duplicate_of": duplicate,
+                "question_count": len(questions),
+                "conversation_count": len({q["conversation_id"] for q in questions if q["conversation_id"] is not None}),
+                "systems": data["systems"], "environment_comparison": data["environment_comparison"],
+                "import": bundle["import"], "report": bundle["report"], "relays_unresolved": relays,
+                "api_collection": plan if plan["providers"] else None,
+                "api_blocked": ("앞 턴이 빠진 대화가 있어 API 수집으로 같은 대화 맥락을 재현할 수 없습니다."
+                                if plan["providers"] and bundle["report"]["conversation_gaps"] else None),
+                "questions": [{k: q[k] for k in ("case_id", "conversation_id", "turn") if q.get(k) is not None}
+                              | {"question": q["question"][:300]} for q in questions[:20]]}
+
+    def start_external(self, payload):
+        """외부 수집 답변을 기존 CODE·J1~J6 평가기로 평가한다. 선택하면 같은 질문을 연결된 API 로도 수집한다."""
+        rerun = payload.get("rerun", False)
+        resolve = payload.get("resolve_relays", False)
+        if not isinstance(rerun, bool) or not isinstance(resolve, bool):
+            raise ValueError("rerun 과 resolve_relays 는 true 또는 false 여야 합니다.")
+        max_tokens = payload.get("max_tokens", 8192)
+        if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or not 256 <= max_tokens <= 32768:
+            raise ValueError("출력 토큰 한도는 256~32,768이어야 합니다.")
+        evaluation_payload = {"aiona_config": copy.deepcopy(payload.get("aiona_config"))}
+        self.evaluator._config(evaluation_payload)  # 잘못된 설정은 실행을 만들기 전에 거절
+        bundle = self._external_bundle(payload, resolve=resolve)
+        selected, plan = self._api_selection(payload, len(bundle["questions"]))
+        if selected and bundle["report"]["conversation_gaps"]:
+            raise ValueError("앞 턴이 빠진 대화가 있어 API 수집으로 같은 대화 맥락을 재현할 수 없습니다. "
+                             "API 수집 없이 가져온 답변만 평가하거나, 빠진 턴을 채운 파일로 다시 가져와 주세요.")
+        if not selected and not bundle["responses"]:
+            raise ValueError("평가할 답변이 없습니다.")
+        data = build_run_data(bundle)
+        questions = [{k: copy.deepcopy(q[k]) for k in ("case_id", "question", "reference", "conversation_id", "turn")
+                      if q.get(k) is not None} for q in bundle["questions"]]
+        config, api_systems = {}, {}
+        for provider in selected:
+            key = f"{provider}-api"
+            if key in data["datasets"]:
+                raise ValueError(f"가져온 데이터에 이미 '{key}' 시스템이 있어 API 수집 결과와 구분할 수 없습니다.")
+            kind, vendor, platform = LIVE_PROVIDERS[provider]
+            model = self._keys[provider]["model"]
+            api_systems[key] = {"system_key": key, "label": f"{PROVIDERS[provider]} API · {model}", "provider": vendor,
+                                "platform": platform, "model": model, "model_version": None, "access_mode": "api",
+                                "settings": {"max_output_tokens": max_tokens},
+                                "environment": {"web_search_available": False, "tools_available": [],
+                                                "system_instruction": {"known": True, "note": "시스템 프롬프트를 보내지 않음"},
+                                                "notes": ["이 서버의 기존 수집 경로로 질문(과 같은 대화의 앞 턴)만 보냈습니다."]}}
+            config[key] = {**self._keys[provider], "provider": provider}
+        with self._lock:
+            if self._closing:
+                raise ValueError("서버가 종료 중이므로 새 평가를 시작할 수 없습니다.")
+            duplicate = self._find_external_duplicate(bundle["import_fingerprint"])
+            if duplicate and not rerun and not selected:
+                raise ValueError(f"같은 내용의 외부 수집 평가가 이미 있습니다 (실행 {duplicate}). "
+                                 "같은 답변을 다시 평가하려면 '재실행'을 선택해 별도 실행으로 남기세요.")
+            active = [r for r in self._runs.values() if r["status"] in ("COLLECTING", "EVALUATING")]
+            if len(active) >= MAX_RUNS:
+                raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
+            run_id = uuid.uuid4().hex[:12]
+            created = datetime.now(timezone.utc).isoformat()
+            n = len(questions)
+            datasets = {**data["datasets"], **{key: [None] * n for key in api_systems}}
+            run = {"run_id": run_id, "name": str(payload.get("name") or "외부 수집 답변 평가")[:200], "created_at": created,
+                   "status": "COLLECTING" if selected else "READY", "phase": "COLLECT", "total": n * len(selected), "done": 0,
+                   "question_count": n, "providers": [*data["providers"], *api_systems], "max_tokens": max_tokens,
+                   "models": {**data["models"], **{k: s["label"] for k, s in api_systems.items()}},
+                   "progress": {key: {"done": 0, "success": 0, "incomplete": 0, "failed": 0, "total": n, "stage": "WAITING",
+                                      "active": None, "started_at": None, "finished_at": None, "elapsed_ms": 0,
+                                      "duration_ms": None} for key in api_systems},
+                   "datasets": datasets, "evaluations": {}, "cancel_requested": False, "error": None,
+                   "auto_evaluate": True, "input_mode": "external_import", "aiona_specialized": False,
+                   "run_kind": "external_import", "questions": questions,
+                   "systems": data["systems"], "environment_comparison": data["environment_comparison"],
+                   "external_import": {"schema": COLLECTION_SCHEMA, "fingerprint": bundle["import_fingerprint"],
+                                       "import": bundle["import"], "report": bundle["report"],
+                                       "question_meta": data["questions"],
+                                       "api_systems": api_systems, "api_collection": plan if selected else None,
+                                       "api_providers": {f"{p}-api": p for p in selected},
+                                       **({"rerun_of": duplicate} if duplicate and rerun else
+                                          {"same_import_as": duplicate} if duplicate else {})},
+                   "aiona_release": None, "dataset_fingerprint": fingerprint(questions),
+                   "source_fingerprint": bundle["import_fingerprint"]}
+            if selected:
+                chain_workers = min(self.collection_workers, len(self._collection_chains(questions)))
+                run["collection_execution"] = {"collection_workers_per_model": chain_workers,
+                                               "collection_workers_total": chain_workers * len(selected),
+                                               "conversation_order": "sequential_original_turns"}
+            started = event_record('evaluation_started', key=f'{run_id}:1:start', timestamp=created, run_id=run_id,
+                                   after={'status': run['status'], 'input_mode': 'external_import', 'question_count': n})
+            run.update(_activity_tracking=1, _activity_attempt=1, _activity_outbox=[started],
+                       _activity_started_event_id=started['event_id'])
+            self._runs[run_id] = run
+            self._cancel_events[run_id] = token = threading.Event()
+            self._cost_ledgers[run_id] = ledger = CostLedger()
+            if not self._save(run):
+                self._cancel_events.pop(run_id, None)
+                self._cost_ledgers.pop(run_id, None)
+                run['status'], run['error'] = 'ERROR', '실행 기록 또는 작업 이력을 저장하지 못해 평가를 시작하지 않았습니다.'
+                self._save(run)
+                raise OSError(run['error'])
+            if not selected:
+                self.evaluate(run_id, evaluation_payload)
+                return self.status(run_id)
+        try:
+            self._launch_worker(run, token, self._collect, (run, questions, config, evaluation_payload, token))
+        except Exception:
+            with self._lock:
+                if token.is_set():
+                    self._mark_cancelled(run)
+                else:
+                    run["status"], run["error"] = "ERROR", "응답 수집 작업을 시작하지 못했습니다."
+                self._cancel_events.pop(run_id, None)
+                self._save(run)
+                self._finish_costs(run, ledger)
+            raise ValueError(run["error"]) from None
+        return self.status(run_id)
+
+    def _finalize_external_collection(self, run):
+        """이 서버가 API 로 수집한 행을 공통 답변 형식으로 바꾼다 (원본 응답의 사용량·출처·도구 정보 포함). 반복 호출해도 같다."""
+        if run.get("run_kind") != "external_import":
+            return
+        try:
+            external = run.get("external_import") or {}
+            for key, system in (external.get("api_systems") or {}).items():
+                rows = run["datasets"][key]
+                kind = LIVE_PROVIDERS[external["api_providers"][key]][0]
+                for index, question in enumerate(run["questions"]):
+                    row = rows[index]
+                    if row is not None and (row.get("collection") or {}).get("collection_method") == "api_live":
+                        continue
+                    outcome = (row or {}).get("collection") or {"status": "NOT_COLLECTED", "error": "수집되지 않은 질문입니다."}
+                    answer = (row or {}).get("answer", "")
+                    response = {"answer": answer, "status": outcome.get("status", "ERROR"), "error": outcome.get("error"),
+                                "collected_at": outcome.get("collected_at"), "collection_method": "api_live",
+                                "answer_format": "markdown", "environment": {"web_search_used": False, "tools_used": []},
+                                "usage": {}, "sources": [], "collection_quality": []}
+                    if isinstance(outcome.get("raw"), dict):
+                        try:
+                            fields, notes = response_fields(parse_api_response(outcome["raw"], kind), answer=answer)
+                            sources, source_notes = normalize_sources(fields["sources"], answer, "sources")
+                            response.update(usage=fields["usage"], sources=sources, finish_reason=fields["finish_reason"],
+                                            collection_quality=notes + source_notes, raw=outcome["raw"])
+                        except ValueError:
+                            response["raw"] = outcome["raw"]
+                    if isinstance(outcome.get("latency_ms"), (int, float)):
+                        response["usage"]["latency_ms"] = outcome["latency_ms"]
+                    meta = next(q for q in run["external_import"]["question_meta"] if q["case_id"] == question["case_id"])
+                    response["response_key"] = response_key({**response, "system_key": key}, meta["question_key"])
+                    rows[index] = dataset_row(question, system, response, index)
+                run["systems"][key] = system_summary(system, rows)
+            gaps = (run["external_import"].get("report") or {}).get("conversation_gaps") or {}
+            run["environment_comparison"] = environment_comparison(run["systems"], run["questions"], gaps)
+        except Exception:
+            run["save_error"] = "API 수집 결과를 공통 형식으로 정리하지 못했습니다. 수집 원문은 보존했습니다."
 
     def start(self, payload):
         release = validate_release(payload.get('aiona_release'))
@@ -895,11 +1115,13 @@ class ComparisonService:
                                             return
                                         request_started = time.monotonic()
                                         try:
-                                            outcome = request_answer(provider, settings, messages, run["max_tokens"], client,
+                                            outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
                                                 usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
                                         except ProviderError as exc:
                                             outcome = {"status": "ERROR", "error": str(exc)}
                                         outcome["latency_ms"] = round((time.monotonic() - request_started) * 1000, 1)
+                                        if run.get("run_kind") == "external_import":
+                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
                                     if outcome["status"] == "SUCCESS":
                                         history = messages + [{"role": "assistant", "content": outcome["answer"]}]
                                     else:
@@ -941,6 +1163,7 @@ class ComparisonService:
                 for future in as_completed(futures):
                     future.result()
             with self._lock:
+                self._finalize_external_collection(run)
                 run["status"] = "CANCELLED" if token.is_set() or run["cancel_requested"] else "READY"
                 if token.is_set():
                     self._mark_cancelled(run)
@@ -954,6 +1177,7 @@ class ComparisonService:
                     self._finish_costs(run, ledger)
         except Exception:
             with self._lock:
+                self._finalize_external_collection(run)
                 if run.get("phase") != "EVALUATE":
                     if token.is_set() or run["cancel_requested"]:
                         self._mark_cancelled(run)
@@ -1052,7 +1276,8 @@ class ComparisonService:
                     return
                 if event["type"] == "code_result":
                     event = code_event(event["row"], event["index"], event["qid"])
-                label = run.get("blind", {}).get("labels", {}).get(provider) or ("AIONA" if provider == "aiona" else PROVIDERS[provider])
+                label = run.get("blind", {}).get("labels", {}).get(provider) or ("AIONA" if provider == "aiona" else
+                                                                                PROVIDERS.get(provider) or run["models"].get(provider, provider))
                 stream.publish({**event, "model": label})
         def observe(provider, event):
             with self._lock:
@@ -1101,7 +1326,7 @@ class ComparisonService:
                 else:
                     # Preserve indices and denominator. A network failure
                     # is INPUT_ERROR, never an empty-answer quality FAIL.
-                    original = run["datasets"]["aiona"][index]
+                    original = row if row is not None else self._question_row(run, index)
                     cases.append({**{k: original[k] for k in ("case_id", "conversation_id", "turn") if k in original},
                                   "__parse_error__": "응답 수집 실패·중단 또는 미완료로 평가에서 제외했습니다."})
             options = {"observer": lambda event, p=provider: observe(p, event),
