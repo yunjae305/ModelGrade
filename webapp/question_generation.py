@@ -71,14 +71,19 @@ class Cancelled(GenerationError):
 def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
     """프롬프트에 넣을 점검 목록 — CODE 검사(AIONA 특화 제외)와 의미 평가 항목. 기준 정의에서 만들어 기준이 바뀌면 같이 바뀐다."""
     examples: Dict[str, str] = {}
+    rules: Dict[str, List[str]] = {}
     try:
         for check in json.loads(CONDITIONS_PATH.read_text(encoding="utf-8")).get("checks") or []:
             sample = ((check.get("examples") or {}).get("PASS") or {}).get("question")
             if isinstance(sample, str):
                 examples[check["id"]] = " ".join(sample.split())[:160]
+            # 엔진이 질문에서 요구를 읽는 규칙 — 이 표현·자료 형식이 아니면 검사가 적용되지 않는다 (실제 생성에서 확인)
+            rules[check["id"]] = [f"{c.get('title')}: {' '.join(str(c.get('text') or '').split())}"
+                                  for c in check.get("conditions") or [] if isinstance(c, dict) and c.get("title")]
     except (OSError, ValueError):
         pass
-    codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], "")}
+    codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], ""),
+              "rules": rules.get(c["id"], [])}
              for c in reference_details()["code_checks"] if not c["id"].startswith("AIONA")]
     items = [{"id": item.id, "sub": SUBS_BY_ID[item.sub].name, "question": item.question, "applies": item.applies} for item in ITEMS]
     return {"code": codes, "items": items}
@@ -96,11 +101,14 @@ _FORMAT = """# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)
 - target_items 에는 [점검 목록]의 id 만, 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
 
 
-def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None) -> List[str]:
-    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문)"]
+def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None, detailed: bool = False) -> List[str]:
+    """점검 목록 줄. CODE 검사는 인식 규칙 첫 줄(``detailed`` 면 규칙 전체)을 함께 — 질문에 그 표현을 그대로 써야 적용된다."""
+    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 인식 규칙)"]
     for c in catalog["code"]:
         if only is None or c["id"] in only:
             lines.append(f"- {c['id']} · {c['name']} · {c['applies']}" + (f" · 예: {c['example']}" if c["example"] else ""))
+            for rule in (c.get("rules") or [])[: None if detailed else 1]:
+                lines.append(f"    · 인식: {rule[:600 if detailed else 220]}")
     lines.append("## 의미 평가 항목 (id · 세부 기준 · 점검 질문(예 = PASS) · 적용)")
     for item in catalog["items"]:
         if only is None or item["id"] in only:
@@ -121,7 +129,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 # 작성 규칙
 1. 답변이 요구를 지켰는지 판단할 수 있게 구체적으로 씁니다('짧게' 대신 '200자 이내', '표로' 대신 '열이 품목·가격인 표로').
-2. CODE 검사는 [적용] 문구에 맞는 표현을 질문에 넣습니다. 예시 질문의 표현을 참고합니다.
+2. CODE 검사는 [인식] 규칙에 맞는 표현과 자료 형식을 그대로 씁니다(예시 질문의 문장 구조를 따르고 숫자·주제만 바꿈). 규칙에 맞지 않으면 검사가 적용되지 않습니다. 예: 계산은 '8,000원의 15%는 얼마야?'·'146 + 279는 얼마야?', 중복 제거는 JSON 배열·표·목록 자료와 '중복 없이'.
 3. 답변 구조 검사(각주·인용 번호 출처·문서 내부 링크·HTML 태그·코드와 수식 펜스·계산식·'다음 N가지' 선언·한자나 일본어 표기)는 답변이 그 구조를 쓰도록 요청합니다(예: '각주를 [^1] 형식으로 달아 줘', '출처를 [1] 번호로 달고 끝에 [1] 출처 줄을 적어 줘', '목차를 만들고 각 항목을 #앵커 링크로 연결해 줘').
 4. 사실 확인(J5-1)은 수치·날짜·명칭처럼 확인할 수 있는 사실을 묻습니다. 시점에 따라 바뀌는 사실은 기준 시점을 적습니다.
 5. 질문에 준 자료(표·JSON 배열·목록·글)를 정렬·필터·집계·요약하게 하는 질문은 자료를 질문 안에 그대로 넣습니다.
@@ -138,7 +146,8 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 # 첨부파일 (J8)
 - 첨부 질문을 만들고 attachments 에 파일 명세를 씁니다. 종류는 {"·".join(ATTACHMENT_TYPES)}. content 에는 파일에 들어갈 실제 내용 전체를 씁니다({MAX_ATTACHMENT_CHARS:,}자 이하). 줄 표기: '# 제목', '## 소제목', '- 항목', '| a | b |' 표 행, '[다음 쪽]' 쪽 나눔.
 - image 는 막대그래프면 "chart": {{"title": "...", "labels": ["..."], "values": [숫자], "unit": "단위"}} 를 쓰고, 그 밖에는 content 의 글·표를 그립니다.
-- J8-2.a 가 적용되게 표·도표·쪽·목록 구조를 읽어야 답할 수 있는 질문을 넣습니다. 파일 종류를 고르게 씁니다.
+- 첨부 질문은 파일 종류마다 1개 이상 만듭니다({"·".join(ATTACHMENT_TYPES)} — 첨부 질문 {len(ATTACHMENT_TYPES)}개 이상). image 는 막대그래프와 표·글 그림을 섞습니다. 첨부 질문도 다른 항목을 함께 노리게 해 전체 질문 수를 줄입니다.
+- J8-2.a 가 적용되게 표·도표·쪽·목록 구조를 읽어야 답할 수 있는 질문을 넣습니다.
 
 {_FORMAT}
 """
@@ -146,15 +155,28 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
     return head + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
 
 
-def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None) -> str:
-    """앞서 만든 질문 세트에서 적용되지 않은 검사·항목만 보충한다."""
+def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
+                      missing_types: Tuple[str, ...] = ()) -> str:
+    """앞서 만든 질문 세트에서 적용되지 않은 검사·항목, 없는 첨부 종류만 보충한다."""
     catalog = catalog or criteria_catalog()
-    return ("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충합니다. 결과는 JSON 하나로만 답합니다.\n\n"
-            "# 목표\n앞서 만든 질문 세트에서 아래 [빠진 항목]이 어느 질문에도 적용되지 않았습니다. 이 항목들이 적용되는 질문만 가능한 한 적게 추가합니다. "
-            "적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
-            f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
-            "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상과 턴마다 long_paste, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
-            f"{_FORMAT}\n\n# 빠진 항목\n" + "\n".join(_catalog_lines(catalog, set(missing))))
+    parts = ["당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+             "# 목표\n앞서 만든 질문 세트에서 아래 [빠진 항목]이 어느 질문에도 적용되지 않았거나 [빠진 첨부 종류]의 첨부 질문이 없습니다. "
+             "이것들이 적용되는 질문만 가능한 한 적게 추가합니다. 적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
+             f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
+             "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상과 턴마다 long_paste, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
+             f"{_FORMAT}"]
+    if missing_types:
+        parts.append("# 빠진 첨부 종류\n" + "\n".join(f"- {kind}: 이 종류의 파일을 첨부한 질문을 1개 이상 추가합니다 (빠진 항목도 함께 노리게)."
+                                                   for kind in missing_types))
+    if missing:
+        parts.append("# 빠진 항목 (CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다)\n"
+                     + "\n".join(_catalog_lines(catalog, set(missing), detailed=True)))
+    return "\n\n".join(parts)
+
+
+def attachment_types(groups: List[Dict[str, Any]]) -> set:
+    """질문 세트에 실제로 만든 첨부파일 종류."""
+    return {a.get("type") for g in groups for t in g["turns"] for a in t.get("attachments") or []}
 
 
 def _material_prompt(topic: str, part: int, parts: int, chars: int, facts: List[str]) -> str:
@@ -239,11 +261,13 @@ class QuestionSetBuilder:
         self.count = token_count
         self.warnings: List[str] = []
         self.calls = 0
+        self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
     def _ask(self, prompt: str, max_tokens: int, partial_ok: bool = False) -> str:
         if self.cancelled():
             raise Cancelled("생성을 중단했습니다.")
-        self.calls += 1
+        with self._calls_lock:
+            self.calls += 1
         try:
             return self.llm(prompt, max_tokens)
         except IncompleteResponse as exc:
@@ -288,12 +312,17 @@ class QuestionSetBuilder:
 
     # 질문 한 개 → id/turns 묶음 -------------------------------------------------------
     def materialize(self, number: int, plan: Dict[str, Any]) -> Dict[str, Any]:
+        # 턴마다 붙여 넣을 자료(J6)는 서로 기다릴 이유가 없어 동시에 만든다 — 10턴 대화가 한 턴씩일 때보다 훨씬 빨리 끝난다
+        pasted: Dict[int, str] = {}
+        jobs = [(i, turn) for i, turn in enumerate(plan["turns"]) if turn.get("long_paste")]
+        if jobs:
+            with ThreadPoolExecutor(max_workers=MATERIAL_WORKERS) as pool:
+                texts = pool.map(lambda job: self.long_paste(job[1]["long_paste"], job[1]["question"]), jobs)
+                pasted = dict(zip((i for i, _ in jobs), texts))
         turns = []
         for t_index, turn in enumerate(plan["turns"], 1):
-            question = turn["question"]
+            question = pasted.get(t_index - 1, turn["question"])
             out: Dict[str, Any] = {"turn": t_index}
-            if turn.get("long_paste"):
-                question = self.long_paste(turn["long_paste"], question)
             if turn.get("long_reference"):
                 out["reference"] = self.long_reference(turn["long_reference"])
             files = []
@@ -334,12 +363,16 @@ class QuestionSetBuilder:
                     self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
             report = check(groups)
             missing = report["coverage"]["missing_checks"] + report["coverage"]["missing_items"]
-            if not missing or rounds >= SUPPLEMENT_ROUNDS:
+            have = attachment_types(groups)
+            missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
+            if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
                 break
             rounds += 1
-            self.progress("supplement", {"message": f"빠진 항목 {len(missing)}개 보충 요청 ({rounds}회차)", "missing": missing})
+            self.progress("supplement", {"message": f"빠진 항목 {len(missing)}개·첨부 종류 {len(missing_types)}개 보충 요청 ({rounds}회차)",
+                                         "missing": missing + [f"첨부:{kind}" for kind in missing_types]})
             try:
-                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog), PLAN_TOKENS))
+                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types),
+                                                       PLAN_TOKENS))
             except GenerationError as exc:
                 self.warnings.append(f"보충 {rounds}회차: {exc}")
                 break

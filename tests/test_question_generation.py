@@ -67,10 +67,12 @@ def test_builder_makes_files_long_inputs_and_checks_coverage(tmp_path):
     conversation = groups[3]["turns"]
     assert len(conversation) == multi_turn.MIN_LONG_TURNS
     assert all(long_context.count_tokens(t["question"]) >= multi_turn.MIN_TURN_TOKENS for t in conversation)   # 질문만으로 긴 턴
+    assert all(t["question"].endswith(f"{n}번째 요청: 앞에서 정한 대로 반말로 정리해 줘.") for n, t in enumerate(conversation, 1))   # 동시에 만들어도 턴 순서 그대로
     assert {cid: report["criteria"][cid]["applicable_units"] for cid in ("J6", "J7", "J8")} == {"J6": 1, "J7": 1, "J8": 1}
     assert report["coverage"]["items"]["J8-2.a"] == 1 and report["coverage"]["checks"]["2-1.count"] == 1
     supplements = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충")]
     assert len(supplements) == result["rounds"] == qg.SUPPLEMENT_ROUNDS and "# 빠진 항목" in supplements[0]
+    assert "# 빠진 첨부 종류" in supplements[0] and all(f"- {kind}:" in supplements[0] for kind in ("txt", "docx", "image"))   # PDF 만 있었다
     assert groups[-1]["topic"] == "보충" and report["coverage"]["checks"]["2-2.table"] >= 1
 
 

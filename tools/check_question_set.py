@@ -45,6 +45,8 @@ _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 _UNITS = [(uid, trigger, frozenset(kinds)) for uid, _, trigger, kinds in CODE_UNITS if trigger != "aiona"]
 #: 답변 구조로만 생기는 검사 — 질문만으로는 적용 여부를 셀 수 없다 (답변을 받은 뒤 확인)
 ANSWER_DEPENDENT = tuple(uid for uid, trigger, _ in _UNITS if trigger == "answer")
+#: 답변 문장으로 적용이 정해지는 의미 항목 — J5-3.a 는 답변이 확인·조회·출처를 언급할 때 켜진다 (j5_items_applicability)
+ANSWER_DEPENDENT_ITEMS = ("J5-3.a",)
 
 
 def load_items(path: Path) -> List[Any]:
@@ -106,7 +108,8 @@ def _code_checks(result: Dict[str, Any]) -> set:
 def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     """검사·항목 단위 적용 질문·대화 수 — 질문 생성기가 빠진 검사·항목을 찾는다 (단일 질문 1개·대화 1개 = 1).
 
-    답변 구조로만 생기는 검사(``ANSWER_DEPENDENT``)는 질문만으로 셀 수 없어 빠진 목록에 넣지 않는다.
+    답변 구조로만 생기는 검사(``ANSWER_DEPENDENT``)와 답변 문장으로 켜지는 항목(``ANSWER_DEPENDENT_ITEMS``)은 질문만으로 셀 수 없어
+    빠진 목록에 넣지 않는다.
     의미 항목 가운데 평가 모델이 해당 여부를 정하는 항목(model_applies)은 '보냄' 기준으로 센다."""
     checks: Dict[str, set] = {uid: set() for uid, _, _ in _UNITS}
     items: Dict[str, set] = {item.id: set() for item in ITEMS}
@@ -117,9 +120,9 @@ def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         for item_id in row.get("items") or []:
             items.setdefault(item_id, set()).add(unit)
     return {"checks": {uid: len(units) for uid, units in checks.items()}, "items": {iid: len(units) for iid, units in items.items()},
-            "answer_dependent": list(ANSWER_DEPENDENT),
+            "answer_dependent": list(ANSWER_DEPENDENT), "answer_dependent_items": list(ANSWER_DEPENDENT_ITEMS),
             "missing_checks": [uid for uid, units in checks.items() if not units and uid not in ANSWER_DEPENDENT],
-            "missing_items": [iid for iid, units in items.items() if not units]}
+            "missing_items": [iid for iid, units in items.items() if not units and iid not in ANSWER_DEPENDENT_ITEMS]}
 
 
 def check_items(items: List[Any], pipeline: Optional[str] = None, minimum: int = MIN_APPLICABLE) -> Dict[str, Any]:

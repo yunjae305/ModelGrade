@@ -29,6 +29,9 @@
       missing.length ? node('p', {class: 'field-help', text: '아직 적용 질문이 없는 항목: ' + missing.join(', ')}) : node('p', {class: 'field-help', text: '모든 검사·항목에 적용 질문이 있습니다.'}),
       (coverage.answer_dependent || []).length
         ? node('p', {class: 'field-help', text: '답변 구조로만 생기는 검사는 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent.join(', ')})
+        : null,
+      (coverage.answer_dependent_items || []).length
+        ? node('p', {class: 'field-help', text: '답변 문장으로 적용이 정해지는 항목도 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent_items.join(', ')})
         : null);
   }
 
@@ -52,7 +55,7 @@
     if (set.status !== 'COMPLETED') return;
     const s = set.summary || {};
     const usage = set.usage || {};
-    body.append(
+    body.append(...[   // null 은 글자로 붙지 않게 뺀다
       node('dl', {class: 'dataset-stats', 'aria-label': '만든 질문 세트 요약'},
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
         stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
@@ -60,7 +63,7 @@
       node('p', {class: 'field-help', text: `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`}),
       (set.warnings || []).length ? node('details', {class: 'question-set-warnings'}, node('summary', {text: `경고 ${set.warnings.length}건`}),
         node('ul', {}, set.warnings.slice(0, 20).map((w) => node('li', {text: w})))) : null,
-      node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'));
+      node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기')].filter(Boolean));
   }
 
   async function poll() {
