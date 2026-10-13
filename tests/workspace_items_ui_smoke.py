@@ -22,7 +22,7 @@ import httpx  # noqa: E402
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
 from test_blind_comparison import adapter_fixture  # noqa: E402
-from tools.items_e2e_demo import PAGES, SCENARIOS, MockJudge, _no_network  # noqa: E402
+from tools.items_e2e_demo import PAGES, SCENARIOS, MockJudge, _no_network, _short_conversations_as_multi_turn  # noqa: E402
 from webapp.code_eval_service import CodeEvalService  # noqa: E402
 from webapp.comparison_service import ComparisonService  # noqa: E402
 from webapp.server import Handler, Server  # noqa: E402
@@ -68,7 +68,9 @@ def main():
     index = {case['case_id']: i for i, case in enumerate(cases)}
     judge = AionaScriptJudge({c['question']: sc for s in SCENARIOS for c, sc in zip(s['cases'], s['scripts'])}, PAGES,
                              {c['question']: c['answer'] for c in cases})
-    with tempfile.TemporaryDirectory(prefix='aiona-items-ui-') as directory, _no_network():
+    # 시나리오 D(3턴 짧은 대화)는 J6 화면을 보여 주려는 시연 대화 — 모의 시연(items_e2e_demo)과 같게 이 스모크 동안만 멀티턴 길이
+    # 조건(multi-turn-v1)을 끈다. 공식 규칙에서는 이 대화의 J6 는 해당 없음이다 (10-14 3차: 예전 기대값만 남아 있던 실패)
+    with tempfile.TemporaryDirectory(prefix='aiona-items-ui-') as directory, _no_network(), _short_conversations_as_multi_turn():
         tmp = Path(directory)
         registry = tmp / 'versions.json'
         registry.write_text(json.dumps({'versions': ['v1'], 'current_release': {'version': 'v1'}}), encoding='utf-8')
