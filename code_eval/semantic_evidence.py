@@ -11,7 +11,7 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
-FACT_CHECK_POLICY = "evidence-v3.15-quote-markup"   # v3.15: 출처 인용 대조 — 인용의 Markdown 굵게 표시를 벗긴 형태도 원문과 대조 (원문은 그대로)
+FACT_CHECK_POLICY = "evidence-v3.16-answer-markup"   # v3.15: 출처 인용의 Markdown 굵게 표시를 벗긴 형태도 대조 · v3.16: J5 주장을 답변의 굵게 표시를 벗긴 글자로도 찾음
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
 CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
@@ -55,6 +55,45 @@ def _text(value):
 
 def _contained(quote, text):
     return bool(_text(quote)) and _text(quote) in _text(text)
+
+
+#: 답변(Markdown)의 굵게 표시 — 앞이 공백·줄 시작이고 뒤가 공백·문장부호인 짝, 안쪽은 '*'·줄바꿈 없는 200자 이내.
+#: 안쪽 길이를 묶어 40만 자 답변에서도 길이에 비례해 끝난다. '2**3'·'func(**kw)' 같은 코드 기호는 그대로 둔다.
+_ANSWER_STRONG = re.compile(r"(?:(?<=\s)|^)\*\*(?=[^\s*])([^*\n]{1,200}?)(?<=\S)\*\*(?=[\s.,;:!?)]|$)")
+_INLINE_CODE = re.compile(r"`[^`\n]*`")
+
+
+def _render_answer(answer):
+    """화면에 보이는 답변 글자 — 문장 속 굵게 표시 '**…**' 만 벗긴다. 펜스 코드 블록(```·~~~)과 인라인 코드(`…`) 안은
+    글자 그대로 둔다 ('**/cache/**' 같은 와일드카드·코드가 다른 값과 맞지 않도록). 줄 단위로 한 번씩 훑는다."""
+    if not isinstance(answer, str):
+        return answer
+    lines, fence = [], None
+    for line in answer.split("\n"):
+        mark = line.lstrip()[:3]
+        if mark in ("```", "~~~"):
+            fence = None if fence == mark else (fence or mark)
+            lines.append(line)
+        elif fence:
+            lines.append(line)
+        else:
+            parts, at = [], 0
+            for span in _INLINE_CODE.finditer(line):
+                parts += [_ANSWER_STRONG.sub(r"\1", line[at:span.start()]), span.group()]
+                at = span.end()
+            lines.append("".join(parts + [_ANSWER_STRONG.sub(r"\1", line[at:])]))
+    return "\n".join(lines)
+
+
+def _in_answer(claim, answer, rendered=None):
+    """J5 주장이 답변에 있는가 — 원문 그대로, 또는 화면에 보이는 글자(굵게 표시 '**…**' 를 벗긴 답변)에서.
+
+    평가 모델은 답변의 '- **시간 복잡도**: O(log N)' 을 '시간 복잡도: O(log N)' 처럼 보이는 글자로 옮기곤 한다.
+    ``rendered`` 는 같은 답변을 여러 주장에 쓸 때 미리 만든 값이다."""
+    if _contained(claim, answer):
+        return True
+    rendered = _render_answer(answer) if rendered is None else rendered
+    return rendered != answer and _contained(claim, rendered)
 
 
 def _unverified(entry, reason):
@@ -158,6 +197,8 @@ def _fact_check(entry, state, verification):
     fetched = {u for value in verification.get("fetched_urls", []) if (u := source_url(value))} & observed
     search_ok = verification.get("search_performed") is True
     normalized = []
+    answer = state.get("answer", "")
+    rendered = _render_answer(answer)
     for claim in fact["claims"]:
         if not isinstance(claim, dict):
             normalized.append({"claim": "", "verdict": "UNVERIFIED", "reason": "잘못된 주장 형식", "sources": []})
@@ -167,7 +208,7 @@ def _fact_check(entry, state, verification):
         supported_sources = 0
         source_problems = []
         problem = None
-        if not _contained(item.get("claim"), state.get("answer", "")):
+        if not _in_answer(item.get("claim"), answer, rendered):
             problem = "검증 주장이 평가 대상 답변 원문에 없습니다."
         if item.get("verdict") not in ("PASS", "FAIL", "UNVERIFIED"):
             problem = "주장 판정 형식이 올바르지 않습니다."
@@ -293,6 +334,7 @@ def _citation_check(entry, state, verification=None):
         return
     by_url = {source_url(c.get("url")): c for c in citations if isinstance(c, dict)}
     answer = state.get("answer", "")
+    rendered = _render_answer(answer)   # 주장마다 다시 만들지 않는다
     normalized, covered = [], set()
     for check in entry.get("citation_checks") if isinstance(entry.get("citation_checks"), list) else []:
         if not isinstance(check, dict):
@@ -311,7 +353,7 @@ def _citation_check(entry, state, verification=None):
         where = "평가자가 web_fetch 로 받은 출처 원문" if provider else "출처 원문"
         if citation is None:
             verdict, note = "unverified", "답변이 제시한 출처 URL이 아닙니다."
-        elif not _contained(check.get("claim"), answer):
+        elif not _in_answer(check.get("claim"), answer, rendered):
             verdict, note = "unverified", "주장 구절이 답변 원문에 없습니다."
         elif item["server_status"] is None:
             verdict, note = "unchecked", "서버가 출처 원문을 받지 않아 판정에 쓰지 않았습니다."

@@ -171,6 +171,51 @@ def test_a_claim_absent_from_the_answer_cannot_become_valid_through_a_real_quote
     assert claims(result)[0]["verdict"] == "UNVERIFIED"
 
 
+def test_a_claim_copied_without_the_answers_bold_markers_is_found_in_the_answer():
+    # 답변은 '**opened in 1960**' 처럼 굵게, 평가 모델은 보이는 글자 그대로 옮김 — 답변에 있는 주장으로 본다
+    state = {**copy.deepcopy(STATE), "answer": "- The fixture observatory **opened in 1960**.\n- Its first public visit was in 1962."}
+    result, _, _ = evaluate(body([claim()]), state=state)
+    assert j5(result)["choice"] == "PASS" and claims(result)[0]["verdict"] == "PASS"
+
+
+@pytest.mark.parametrize("answer", [
+    "Compute 2**3 here. The fixture observatory opened in 1960.",       # 코드 기호 — 주장이 원문 그대로 있으면 그대로 통과
+])
+def test_answer_bold_stripping_never_needed_for_literal_claims(answer):
+    state = {**copy.deepcopy(STATE), "answer": answer}
+    result, _, _ = evaluate(body([claim()]), state=state)
+    assert claims(result)[0]["verdict"] == "PASS"
+
+
+@pytest.mark.parametrize("answer,claimed", [
+    ("The rate is 2**3 here.", "The rate is 23 here."),                       # 코드의 ** 는 굵게 표시가 아니다
+    ('Call func(**{"x": 1}) now.', 'Call func({"x": 1}) now.'),
+    ("The fixture observatory **opened** in 1961.", "The fixture observatory opened in 1960."),   # 벗겨도 다른 값
+    ("```text\nThe exclusion pattern is **/cache/** for this job.\n```", "The exclusion pattern is /cache/ for this job."),   # 코드 블록 안
+    ("Use `the **opened in 1960** flag` here.", "Use the opened in 1960 flag here."),   # 인라인 코드 안
+])
+def test_answer_bold_stripping_does_not_invent_claims(answer, claimed):
+    state = {**copy.deepcopy(STATE), "answer": answer}
+    result, _, _ = evaluate(body([claim(claimed)]), state=state)
+    assert claims(result)[0]["verdict"] == "UNVERIFIED"
+
+
+def test_citation_claims_use_the_same_rendered_answer_rule():
+    from code_eval.semantic_evidence import _in_answer, _render_answer
+    answer = "- **시간 복잡도**: O(log N)\n```\npattern = **/cache/**\n```"
+    assert _in_answer("시간 복잡도: O(log N)", answer, _render_answer(answer))
+    assert not _in_answer("pattern = /cache/", answer, _render_answer(answer))
+
+
+def test_answer_bold_stripping_is_linear_for_long_answers():
+    import time
+    from code_eval.semantic_evidence import _in_answer
+    answer = "**a " * 100_000   # 짝 없는 굵게 표시 40만 자
+    started = time.perf_counter()
+    assert _in_answer("not present", answer) is False
+    assert time.perf_counter() - started < 5
+
+
 def test_one_pass_and_one_unverified_claim_keep_j5_unverified_and_other_fail_unchanged():
     mixed = [claim(), claim(SECOND, verdict="UNVERIFIED", reason="Conflicting historical accounts remain unresolved.",
                            sources=[source(SECOND_QUOTE)])]
