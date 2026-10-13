@@ -108,3 +108,36 @@ def test_plan_reuses_legacy_and_derives_a_reservation_from_saved_call_costs():
     assert (got["legacy_reused_calls"], got["items_max_new_calls"], got["legacy_cost_of_selection"]) == (0, 8, 2.0)
     assert (got["observed_call_cost_max"], got["reserve_per_call"], got["guaranteed_starts"]) == (1.0, 1.5, 3)
     assert plan(run, selection, max_usd=5, reserve_usd=2.0)["guaranteed_starts"] == 2
+
+
+def test_plan_v2_rounds_reservation_up_and_reports_budgets_tokens_and_soft_limit():
+    """3차 6단계 — 예약금은 센트 올림, 호출당 평균·최대 토큰, 예산별 범위, 최악 전체 예약액, '소프트웨어 제한' 표현."""
+    from tools.pipeline_compare import plan
+    def part(out_tokens, inp=1000):
+        return {"usage": {"input_tokens": inp, "output_tokens": out_tokens, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
+                "web_search_calls": 1, "model": "claude-opus-5-5", "service_tier": "standard", "inference_geo": "global"}
+    run = _run()
+    costs = iter([30_000, 10_000, 10_000, 10_000, 10_000, 10_000])    # $0.614 · $0.214 ×5 (입력 1,000 + 검색 1회 포함)
+    for batch in run["evaluations"].values():
+        batch["jev_eval"]["engine"] = "anthropic_api"
+        for record in batch["jev_eval"]["records"]:
+            record["verification"] = {"usage_requests": [part(next(costs))]}
+    selection = [{"system": "aiona", "index": 0}, {"system": "gpt", "index": 2}, {"system": "gpt", "index": 1}]
+    got = plan(run, selection, max_usd=8, budgets=(8, 16))
+    assert got["observed_call_cost_max"] == 0.614 and got["reserve_per_call"] == 0.93       # 0.614 × 1.5 = 0.921 → 올림 0.93
+    assert got["per_request"]["output_tokens"]["max"] == 30_000 and got["per_request"]["input_tokens"]["mean"] == 1000
+    assert got["worst_case_reservation_all_calls"] == round(12 * 0.93, 2)                  # 3답변 × (본 평가 1 + 재확인 3)
+    assert got["budgets"]["8"]["guaranteed_starts"] == 8 and got["budgets"]["16"]["guaranteed_starts"] == 12
+    assert got["budgets"]["8"]["all_main_calls_guaranteed"] is True
+    assert "소프트웨어 제한" in got["spend_bound"] and "하드캡" in got["spend_bound"]
+    assert got["output_token_cap"] == 12000 and got["prices"]["output_per_m"] == 20.0
+
+
+def test_run_first_n_answers_only_for_a_small_start(tmp_path, capsys):
+    run = tmp_path / "run.json"
+    run.write_text(json.dumps(_run(), ensure_ascii=False), encoding="utf-8")
+    sel = tmp_path / "sel.json"
+    sel.write_text(json.dumps(select(_run(), count=5), ensure_ascii=False), encoding="utf-8")
+    assert main(["run", str(run), "--selection", str(sel), "--out", str(tmp_path / "o"), "--mock", "--first", "1"]) == 0
+    meta = json.loads(capsys.readouterr().out)
+    assert len(meta["selection"]) == 1 and meta["calls"]["new"] == 1   # 승인 뒤 작게 시작 — 앞 1개 답변만 호출

@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
 import sys
 import threading
 from collections import Counter, defaultdict
@@ -280,22 +282,93 @@ def call_costs(run: Dict[str, Any]) -> List[float]:
     return costs
 
 
-def plan(run: Dict[str, Any], selection: List[Dict[str, Any]], *, max_usd: float, reserve_usd: Optional[float] = None) -> Dict[str, Any]:
-    """실호출 전 계획 — legacy 저장 판정은 그대로 다시 쓰고(호출 0), items 만 새로 부른다. 지출 상한·최대 호출 수를 계산한다."""
-    costs = call_costs(run)
+def _request_parts(run: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """저장 실행의 의미 평가 HTTP 요청마다 입력·출력 토큰·검색 수·비용 (요청별 사용량이 있는 것만)."""
+    from code_eval.cost_reporting import estimate
+    out = []
+    for batch in (run.get("evaluations") or {}).values():
+        semantic = batch.get("jev_eval") or {}
+        engine = semantic.get("engine") or (semantic.get("client") or {}).get("engine")
+        for record in semantic.get("records") or []:
+            for part in ((record or {}).get("verification") or {}).get("usage_requests") or []:
+                usage = part.get("usage") or {}
+                try:
+                    usd = float(estimate(engine, part.get("model") or record.get("model"), usage, web_search_calls=part.get("web_search_calls"),
+                                         service_tier=part.get("service_tier"), inference_geo=part.get("inference_geo"))[0])
+                except (ValueError, AttributeError):
+                    continue
+                out.append({"input_tokens": int(usage.get("input_tokens") or 0) + int(usage.get("cache_read_input_tokens") or 0)
+                            + int(usage.get("cache_creation_input_tokens") or 0),
+                            "output_tokens": int(usage.get("output_tokens") or 0), "searches": int(part.get("web_search_calls") or 0), "usd": usd})
+    return out
+
+
+def _stats(values: List[float]) -> Dict[str, Any]:
+    if not values:
+        return {"n": 0}
+    ordered = sorted(values)
+    p90 = ordered[min(len(ordered) - 1, int(round(0.9 * (len(ordered) - 1))))]
+    return {"n": len(values), "mean": round(sum(values) / len(values), 4), "median": round(statistics.median(values), 4),
+            "p90": round(p90, 4), "max": round(max(values), 4)}
+
+
+def _judge_prices(model: str = "claude-opus-5-5") -> Dict[str, float]:
+    """평가 모델 단가 — code_eval/cost_reporting.estimate 로 1M 토큰씩 넣어 읽는다 (단가를 따로 적지 않는다)."""
+    from code_eval.cost_reporting import estimate
+    zero = {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0,
+            "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 0}}
+    def price(**fields):
+        usage = {**zero, **fields}
+        if "cache_creation_input_tokens" in fields:
+            usage["cache_creation"] = {"ephemeral_5m_input_tokens": fields["cache_creation_input_tokens"], "ephemeral_1h_input_tokens": 0}
+        return float(estimate("anthropic_api", model, usage, web_search_calls=0, service_tier="standard", inference_geo="global")[0])
+    one_search = float(estimate("anthropic_api", model, zero, web_search_calls=1, service_tier="standard", inference_geo="global")[0])
+    return {"model": model, "input_per_m": price(input_tokens=1_000_000), "cache_read_per_m": price(cache_read_input_tokens=1_000_000),
+            "cache_write_5m_per_m": price(cache_creation_input_tokens=1_000_000), "output_per_m": price(output_tokens=1_000_000),
+            "search_each": one_search}
+
+
+def plan(run: Dict[str, Any], selection: List[Dict[str, Any]], *, max_usd: float, reserve_usd: Optional[float] = None,
+         budgets=(8, 16)) -> Dict[str, Any]:
+    """실호출 전 계획 — legacy 저장 판정은 그대로 다시 쓰고(호출 0), items 만 새로 부른다.
+    예약금 = 저장 실행에서 본 요청 하나의 최대 비용 × 1.5 를 센트 단위로 올림. 예산마다 최악(호출마다 예약금만큼)에도 시작할 수 있는 호출 수,
+    중앙값 비용이면 시작될 호출 수, 전체 최대 호출의 최악 예약액을 낸다. 이 제한은 소프트웨어 제한이고 실제 과금의 하드캡이 아니다."""
+    parts = _request_parts(run)
+    costs = [p["usd"] for p in parts]
     observed_max = max(costs) if costs else None
-    reserve = reserve_usd if reserve_usd is not None else (round(observed_max * 1.5, 2) if observed_max else None)
+    reserve = reserve_usd if reserve_usd is not None else (math.ceil(round(observed_max * 1.5 * 100, 6)) / 100 if observed_max else None)
     saved = {(a["system"], a["index"]): a for a in answers(run)}
     legacy = 0.0
     for pick in selection:
         record = saved[(pick["system"], pick["index"])]["record"]
         legacy += sum(call_costs({"evaluations": {"x": {"jev_eval": {"engine": "anthropic_api", "records": [record]}}}}))
     max_calls = len(selection) * (1 + RECHECK_ROUNDS)
+    median = statistics.median(costs) if costs else None
+    try:
+        from code_eval.llm_client import env_value
+        output_cap = int(env_value("SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS") or 12000)
+    except (TypeError, ValueError):
+        output_cap = 12000
+    table = {}
+    for budget in budgets:
+        guaranteed = min(max_calls, int(budget // reserve)) if reserve else None   # 계획한 최대 호출 수를 넘지 않음
+        at_median = (min(max_calls, int((budget - reserve) // median) + 1) if reserve and median and budget >= reserve else 0)
+        table[str(budget)] = {"guaranteed_starts": guaranteed, "starts_if_every_call_costs_the_median": at_median,
+                              "all_main_calls_guaranteed": bool(guaranteed is not None and guaranteed >= len(selection)),
+                              "needed_to_guarantee_all_main_calls": round(len(selection) * reserve, 2) if reserve else None}
+    spread = {"max_over_median": round(observed_max / median, 2) if median else None,
+              "p90_over_median": round(_stats(costs)["p90"] / median, 2) if median else None}
     return {"version": COMPARE_VERSION, "answers": len(selection), "legacy_reused_calls": 0, "legacy_cost_of_selection": round(legacy, 3),
-            "items_max_new_calls": max_calls, "observed_call_cost_max": round(observed_max, 3) if observed_max else None,
-            "observed_calls": len(costs), "reserve_per_call": reserve, "max_usd": max_usd,
-            "guaranteed_starts": int(max_usd // reserve) if reserve else None,
-            "spend_bound": f"지출 ≤ ${max_usd} (호출 하나가 예약 ${reserve} 를 넘지 않는 한 — 넘으면 그 호출 뒤 즉시 중단)" if reserve else None}
+            "items_max_new_calls": max_calls, "calls_per_answer": f"본 평가 1 + 재확인 최대 {RECHECK_ROUNDS} (요청마다 이어받기 최대 2회 포함)",
+            "observed_calls": len(costs), "observed_call_cost_max": round(observed_max, 3) if observed_max else None,
+            "per_request": {"input_tokens": _stats([p["input_tokens"] for p in parts]), "output_tokens": _stats([p["output_tokens"] for p in parts]),
+                            "searches": _stats([p["searches"] for p in parts]), "usd": _stats(costs)},
+            "estimate_error": {**spread, "note": "같은 평가 모델·legacy 요청의 실제 비용 분포 — items 는 점검 항목 설명이 붙어 프롬프트가 길어 위로 치우칠 수 있다"},
+            "prices": _judge_prices(), "output_token_cap": output_cap,
+            "reserve_per_call": reserve, "max_usd": max_usd, "guaranteed_starts": min(max_calls, int(max_usd // reserve)) if reserve else None,
+            "budgets": table, "worst_case_reservation_all_calls": round(max_calls * reserve, 2) if reserve else None,
+            "spend_bound": (f"소프트웨어 제한 — 쓴 금액 + 진행 중 예약 + 새 예약 ≤ ${max_usd} 일 때만 새 호출을 시작한다. 실제 과금의 하드캡이 아니다: "
+                            f"API 에 호출 하나의 비용 상한이 없어, 한 호출이 예약 ${reserve} 를 넘으면 그만큼 넘을 수 있고 그 즉시 멈춘다") if reserve else None}
 
 
 def run_items(run: Dict[str, Any], selection: List[Dict[str, Any]], out: Path, *, mode: str,
@@ -443,12 +516,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--max-calls", type=int)
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--reserve-usd", type=float, help="호출마다 잡는 예약금 (기본: 저장 실행의 호출 하나 최대 비용 × 1.5)")
+    parser.add_argument("--first", type=int, help="선택한 답변 중 앞 N 개만 (승인 뒤 작게 시작할 때)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     run = json.loads(args.run.read_text(encoding="utf-8-sig"))
     selection = json.loads(args.selection.read_text(encoding="utf-8")) if args.selection else None
+    if selection is not None and args.first:
+        selection = selection[:args.first]
     if args.command == "select":
         picked = select(run, args.count)
         text = json.dumps(picked, ensure_ascii=False, indent=1)
