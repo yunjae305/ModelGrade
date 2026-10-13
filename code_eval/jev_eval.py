@@ -26,6 +26,7 @@ from concurrent.futures import CancelledError, ThreadPoolExecutor, wait, FIRST_C
 from threading import Event
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from . import multi_turn
 from .jev_applicability import (APPLIES_WHEN, JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION, jev_applicability,
                                 long_context_size, sub_applicability)
 from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELINES, _sum_usage, resolve_jev_client,
@@ -515,7 +516,9 @@ def build_history(prior: List[Tuple[int, str, str]]) -> Tuple[List[Dict[str, Any
 
 
 def conversation_contexts(cases: List[Dict[str, Any]]) -> Dict[int, Dict[str, Any]]:
-    """대화 입력 case 마다 앞 턴 정보 — {case 인덱스: {"id", "turn", "total_turns", "prior": [(turn, 질문, 답변)…], "complete", "issues"}}.
+    """대화 입력 case 마다 앞 턴 정보 — {case 인덱스: {"id", "turn", "total_turns", "prior": [(turn, 질문, 답변)…], "complete", "issues",
+    "multi_turn"}}. ``multi_turn`` 은 그 대화 전체(이 case 목록의 답변 = 그 모델이 실제로 주고받은 대화)의 멀티턴 판정
+    (``multi_turn.measure_conversation``) — 같은 대화의 턴은 같은 값을 공유한다.
 
     turn 번호만 믿고 입력 순서는 보지 않는다. 앞 턴 누락·입력 오류·같은 turn 중복은 issues 에 남기고 complete=False 로 둔다.
     대화 입력이 아닌 case 는 포함하지 않는다.
@@ -528,6 +531,9 @@ def conversation_contexts(cases: List[Dict[str, Any]]) -> Dict[int, Dict[str, An
     contexts: Dict[int, Dict[str, Any]] = {}
     for cid, members in groups.items():
         members.sort()
+        # 멀티턴 판정 — 평가된 턴(질문 + 이 모델의 답변)만 센다. 중복 턴은 어느 쪽인지 알 수 없어 둘 다 빼지 않고 센다(이력에서는 뺌).
+        scale = multi_turn.measure_conversation((t, cases[j].get("question") or "", cases[j].get("answer") or "")
+                                                 for t, j in members if cases[j].get("case_status") == "EVALUATED")
         counts: Dict[int, int] = {}
         for turn, _ in members:
             counts[turn] = counts.get(turn, 0) + 1
@@ -562,7 +568,7 @@ def conversation_contexts(cases: List[Dict[str, Any]]) -> Dict[int, Dict[str, An
             if dup_before:
                 issues.append("중복 " + "·".join(f"{t}턴" for t in dup_before))
             contexts[i] = {"id": cid, "turn": turn, "total_turns": members[-1][0], "prior": prior,
-                           "complete": not issues, "issues": issues}
+                           "complete": not issues, "issues": issues, "multi_turn": scale}
     return contexts
 
 
@@ -599,6 +605,7 @@ def conversations_summary(cases: List[Dict[str, Any]], records: List[Dict[str, A
         turn_results, fail_turns, issues = [], [], []
         asked = decided = 0
         complete = True
+        scale = contexts[members[0][1]].get("multi_turn")
         for turn, i in members:
             record = records[i] or {}
             case = cases[i]
@@ -634,23 +641,32 @@ def conversations_summary(cases: List[Dict[str, Any]], records: List[Dict[str, A
                 bands[_band(turn)]["pass" if decision == "PASS" else "fail"] += 1
                 if decision == "FAIL":
                     fail_turns.append(turn)
-        if not asked:
+        not_multi_turn = (not asked and isinstance(scale, dict) and scale.get("multi_turn") is False
+                          and not _maybe_multi_turn(contexts[members[-1][1]]))
+        if not_multi_turn:
+            issues.append("멀티턴 대화가 아님 — " + multi_turn.describe(scale))
+        elif not asked:
             issues.append("J6 를 물은 턴 없음")
-        if fail_turns:
+        if not_multi_turn:
+            result = "NOT_APPLICABLE"   # J6 를 묻지 않는 대화 — 대화 유지율의 분모·미완료에 넣지 않는다
+        elif fail_turns:
             result = "FAIL"
         elif asked and decided == asked and complete:
             result = "PASS"
         else:
             result = "INCOMPLETE"
         items.append({"id": cid, "turns": members[-1][0], "cases": len(members), "j6_turns": asked, "result": result,
+                      "multi_turn": copy.deepcopy(scale) if isinstance(scale, dict) else None,
                       "first_fail_turn": fail_turns[0] if fail_turns else None, "fail_turns": fail_turns,
                       "issues": issues, "turn_results": turn_results})
     for band in bands.values():
         band["rate"] = _rate(band["pass"], band["fail"])
-    n = {k: sum(1 for it in items if it["result"] == k) for k in ("PASS", "FAIL", "INCOMPLETE")}
+    n = {k: sum(1 for it in items if it["result"] == k) for k in ("PASS", "FAIL", "INCOMPLETE", "NOT_APPLICABLE")}
     return {"count": len(items), "pass": n["PASS"], "fail": n["FAIL"], "incomplete": n["INCOMPLETE"],
+            "not_applicable": n["NOT_APPLICABLE"], "multi_turn_policy": multi_turn.MULTI_TURN_POLICY_VERSION,
             "rate": _rate(n["PASS"], n["FAIL"]), "bands": bands, "items": items,
-            "note": "대화는 J6 를 물은 모든 턴이 PASS 일 때 PASS, 하나라도 FAIL 이면 FAIL. "
+            "note": "멀티턴 대화(10K 토큰 이상 턴이 10개 이상)만 J6 를 묻고, 아닌 대화는 해당 없음. "
+                    "대화는 J6 를 물은 모든 턴이 PASS 일 때 PASS, 하나라도 FAIL 이면 FAIL. "
                     "앞 턴 누락·입력 오류·중복이나 미실행 턴이 있으면 미완료(INCOMPLETE)로 두고 판정하지 않음."}
 
 
@@ -709,7 +725,7 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
             prep.histories[i] = history
             ctx["truncated"] = truncated
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
-                            "history_turns": len(history) if ctx["complete"] else 0}
+                            "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx["multi_turn"]}
         # 입력 길이(J7)는 한 번만 잰다 — 두 적용 판정 사이에 토크나이저 상태가 바뀌어도 같은 값을 쓴다
         measured = long_context_size(case["question"], case.get("reference"))
         prep.applies[i] = jev_applicability(case["question"], case["answer"], reference=case.get("reference"),
@@ -731,6 +747,22 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
     return prep
 
 
+#: 토크나이저가 없어 적용 여부를 판별하지 못한 기준 — (근거를 찾은 곳, 규칙, 볼 것)
+_UNDETERMINED_LOOK = {
+    "J6": ("conversation", "대화 길이 측정", "토크나이저를 불러오지 못해 멀티턴(10K 토큰 이상 턴 10개 이상)인지 확인할 수 없음"),
+    "J7": ("question", "입력 길이 측정", "토크나이저를 불러오지 못해 입력이 250K 토큰 이상인지 확인할 수 없음"),
+}
+
+
+def _maybe_multi_turn(ctx: Dict[str, Any]) -> bool:
+    """앞 턴이 빠진 대화가 멀티턴일 수 있는가 — 빠진 턴이 모두 긴 턴이어도 조건에 못 미치면 False (J6 해당 없음)."""
+    scale = ctx.get("multi_turn")
+    if not isinstance(scale, dict) or scale.get("error") or scale.get("multi_turn"):
+        return True
+    unseen = max(0, int(ctx.get("total_turns") or 0) - int(scale.get("turns") or 0))
+    return int(scale.get("long_turns") or 0) + unseen >= int(scale.get("min_long_turns") or multi_turn.MIN_LONG_TURNS)
+
+
 def _publish_record(prep: _Prepared, i: int, record: Dict[str, Any],
                     on_record: Optional[Callable[[int, Dict[str, Any]], None]] = None) -> None:
     """레코드에 적용 판정·대화 문맥을 붙이고(앞 턴 누락 대화의 J6 는 UNVERIFIED) prep.records 에 넣는다. 메인 스레드에서만 부른다."""
@@ -748,7 +780,7 @@ def _publish_record(prep: _Prepared, i: int, record: Dict[str, Any],
             applicability.setdefault('screening', {})[cid] = copy.deepcopy(decision)
     ctx = contexts.get(i)
     if (record.get('error') != CANCEL_REASON and cases[i].get('case_status') == 'EVALUATED'
-            and ctx and ctx['turn'] > 1 and not ctx['complete']):
+            and ctx and ctx['turn'] > 1 and not ctx['complete'] and _maybe_multi_turn(ctx)):
         # Never ask the model to reconstruct missing history. Preserve other
         # valid decisions, but make this explicit unknown part of completion.
         reason = '앞 대화 이력을 확인할 수 없습니다: ' + ' · '.join(ctx['issues'])
@@ -767,23 +799,26 @@ def _publish_record(prep: _Prepared, i: int, record: Dict[str, Any],
         applicability.setdefault('evidence', {})['J6'] = {'source': 'conversation', 'status': 'UNVERIFIED',
             'rules': ['대화 이력 검증'], 'matches': list(ctx['issues']), 'excerpt': reason,
             'look_for': '앞 턴 누락·중복·입력 오류로 긴 대화 문맥을 확인할 수 없음'}
-    undetermined = ((prep.applies.get(i) or {}).get('undetermined') or {}).get('J7')
-    if undetermined and record.get('error') != CANCEL_REASON and cases[i].get('case_status') == 'EVALUATED':
-        # 입력 길이를 재지 못함(토크나이저 없음) — J7 적용 여부를 짐작하지 않고 확인 필요로 집계한다
-        if 'J7' not in record['criteria']:
-            record['criteria'].append('J7')
-        record.setdefault('not_requested', []).append('J7')
+    for cid, (source, rule, look_for) in _UNDETERMINED_LOOK.items():
+        undetermined = ((prep.applies.get(i) or {}).get('undetermined') or {}).get(cid)
+        if not undetermined or record.get('error') == CANCEL_REASON or cases[i].get('case_status') != 'EVALUATED':
+            continue
+        if cid == 'J6' and (record.get('decisions') or {}).get('J6', {}).get('status') == 'UNVERIFIED':
+            continue   # 앞 턴 이력이 불완전해 이미 확인 필요로 둔 J6
+        # 길이를 재지 못함(토크나이저 없음) — 적용 여부를 짐작하지 않고 확인 필요로 집계한다
+        if cid not in record['criteria']:
+            record['criteria'].append(cid)
+        record.setdefault('not_requested', []).append(cid)
         if record.get('decisions') is None:
             record['decisions'] = {}
-        record['decisions']['J7'] = {'criterion_id': 'J7', 'name': next(c.name for c in CRITERIA if c.id == 'J7'),
+        record['decisions'][cid] = {'criterion_id': cid, 'name': next(c.name for c in CRITERIA if c.id == cid),
             'decision': None, 'status': 'UNVERIFIED', 'confidence': None, 'probabilities': {}, 'reason': undetermined}
         record['review_required'] = True
         applicability = record['applicability']
         applicability['criteria'] = list(record['criteria'])
-        applicability.setdefault('not_applicable', {}).pop('J7', None)
-        applicability.setdefault('evidence', {})['J7'] = {'source': 'question', 'status': 'UNVERIFIED',
-            'rules': ['입력 길이 측정'], 'matches': [], 'excerpt': undetermined,
-            'look_for': '토크나이저를 불러오지 못해 입력이 8K 토큰 이상인지 확인할 수 없음'}
+        applicability.setdefault('not_applicable', {}).pop(cid, None)
+        applicability.setdefault('evidence', {})[cid] = {'source': source, 'status': 'UNVERIFIED',
+            'rules': [rule], 'matches': [], 'excerpt': undetermined, 'look_for': look_for}
     prep.records[i] = record
     if on_record:
         on_record(i, record)

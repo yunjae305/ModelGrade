@@ -40,25 +40,27 @@ def document(chars):
 
 def test_input_counts_question_and_reference_but_not_earlier_turns_and_tiers_follow_research_steps(per_char):
     assert long_context.input_text("질문", {"표": [1]}) == '질문\n{"표": [1]}' and long_context.input_text("질문", "") == "질문"
-    assert [long_context.tier(n) for n in (7_999, 8_000, 31_999, 32_000, 128_000)] == [None, "8K~32K", "8K~32K", "32K~128K", "128K 이상"]
+    assert [long_context.tier(n) for n in (249_999, 250_000, 271_999, 272_000, 300_000, 350_000, 400_000, 499_999, 500_000)] == [
+        None, "250K~272K", "250K~272K", "272K~300K", "300K~350K", "350K~400K", "400K~500K", "400K~500K", "500K 이상"]
     question = "이 계약서 기준으로 중도 해지는 언제까지 알려야 해?"
-    below = long_context.measure(question, "가" * (7_999 - len(question) - 1))
-    at = long_context.measure(question, "가" * (8_000 - len(question) - 1))
-    assert (below["tokens"], below["long"], at["tokens"], at["long"], at["tier"]) == (7_999, False, 8_000, True, "8K~32K")
-    assert at["policy"] == "long-context-v1" and at["tokenizer"] == "tiktoken o200k_base"
+    below = long_context.measure(question, "가" * (249_999 - len(question) - 1))
+    at = long_context.measure(question, "가" * (250_000 - len(question) - 1))
+    assert (below["tokens"], below["long"], at["tokens"], at["long"], at["tier"]) == (249_999, False, 250_000, True, "250K~272K")
+    assert at["above_candidate"] is False and at["candidate_tokens"] == 272_000   # 테스트 기간 — 후보 경계 272K 위아래를 따로 본다
+    assert at["policy"] == "long-context-v2-250k-test" and at["tokenizer"] == "tiktoken o200k_base"
 
 
 def test_j7_applies_only_to_long_input_and_records_size(per_char):
     question = "계약서에서 해지 통보 기한을 알려줘."
     short = jev_applicability(question)
-    assert "J7" not in short["criteria"] and short["not_applicable"]["J7"] == f"입력 {len(question)}토큰 — 8,000토큰 미만이라 롱컨텍스트가 아님"
-    long = jev_applicability(question, reference=document(16_000))
+    assert "J7" not in short["criteria"] and short["not_applicable"]["J7"] == f"입력 {len(question)}토큰 — 250,000토큰 미만이라 롱컨텍스트가 아님"
+    long = jev_applicability(question, reference=document(260_000))
     assert "J7" in long["criteria"] and "J7" not in long["not_applicable"]
     evidence = long["evidence"]["J7"]
-    tokens = f"{16_000 + len(question) + 1:,}토큰"   # 질문 + 줄바꿈 + 참조 자료
+    tokens = f"{260_000 + len(question) + 1:,}토큰"   # 질문 + 줄바꿈 + 참조 자료
     assert evidence["source"] == "reference" and evidence["matches"] == [tokens]
-    assert evidence["long_context"]["tier"] == "8K~32K" and evidence["excerpt"] == f"입력 {tokens} · 8K~32K"
-    subs = sub_applicability(question, reference=document(16_000))
+    assert evidence["long_context"]["tier"] == "250K~272K" and evidence["excerpt"] == f"입력 {tokens} · 250K~272K"
+    subs = sub_applicability(question, reference=document(260_000))
     assert subs["J7-1"]["items"] == ["J7-1.a"] and subs["J7-2"]["items"] == ["J7-2.a"] and subs["J7-1"]["model_applies"] is True
     assert sub_applicability("짧은 질문")["J7-2"]["items"] == []
 
@@ -130,14 +132,14 @@ def test_items_batch_measures_each_input_once_and_both_applicability_paths_share
     calls = []
     measure = long_context.measure
     monkeypatch.setattr(long_context, "measure", lambda *a: calls.append(1) or measure(*a))
-    case = {"case_id": "doc", "question": "이 계약서에서 중도 해지 통보 기한은?", "answer": "30일 전입니다.", "reference": document(9_000)}
+    case = {"case_id": "doc", "question": "이 계약서에서 중도 해지 통보 기한은?", "answer": "30일 전입니다.", "reference": document(251_000)}
     jev = evaluate_jev_batch(engine.evaluate_batch([case], AionaConfig()), None, access_reason="키 없음", pipeline="items")
     assert calls == [1] and "J7" in jev["records"][0]["applicability"]["criteria"]
     assert jev["records"][0]["applicability"]["subs"]["J7-1"]["items"] == ["J7-1.a"]
 
 
 def test_j7_fail_reason_may_quote_the_reference_and_records_where_the_quote_sits(per_char):
-    reference = document(16_000)
+    reference = document(260_000)
     state = {"question": "중도 해지는 언제까지 알려야 해?", "answer": "만료 60일 전까지 알려야 합니다.", "reference": reference}
     decision = {"decision": "FAIL", "reason": "입력의 '해지하려는 날의 30일 전까지' 대신 '만료 60일 전까지'라고 답함"}
     check = fail_evidence(decision, state, "J7")
@@ -160,7 +162,7 @@ def test_j7_fail_reason_may_quote_the_reference_and_records_where_the_quote_sits
     applicability = jev_applicability(state["question"], reference=reference)
     jev_eval._attach_long_context(record, state, applicability)
     recorded = record["decisions"]["J7"]["long_context"]
-    assert recorded["tokens"] == 16_000 + len(state["question"]) + 1 and recorded["tier"] == "8K~32K"
+    assert recorded["tokens"] == 260_000 + len(state["question"]) + 1 and recorded["tier"] == "250K~272K"
     assert [p["quote"] for p in recorded["quote_positions"]] == ["해지하려는 날의 30일 전까지"]
     assert 45 < recorded["quote_positions"][0]["position"] < 55   # 문서 한가운데
 
@@ -190,12 +192,12 @@ def test_summary_counts_j7_pass_and_fail_per_input_length_tier():
     def record(tier, decision):
         return {"criteria": ["J1", "J7"], "decisions": {"J7": {"decision": decision}},
                 "applicability": {"evidence": {"J7": {"long_context": {"tier": tier}}}}}
-    final = [record("8K~32K", "PASS"), record("8K~32K", "FAIL"), record("32K~128K", "PASS"), record("128K 이상", None),
+    final = [record("250K~272K", "PASS"), record("250K~272K", "FAIL"), record("272K~300K", "PASS"), record("500K 이상", None),
              {"criteria": ["J1"], "decisions": {}, "applicability": {}}]
     tiers = jev_eval._long_context_tiers(final)
-    assert list(tiers) == ["8K~32K", "32K~128K", "128K 이상"]
-    assert tiers["8K~32K"] == {"targets": 2, "pass": 1, "fail": 1, "rate": 0.5}
-    assert tiers["128K 이상"] == {"targets": 1, "pass": 0, "fail": 0, "rate": None}
+    assert list(tiers) == ["250K~272K", "272K~300K", "300K~350K", "350K~400K", "400K~500K", "500K 이상"]
+    assert tiers["250K~272K"] == {"targets": 2, "pass": 1, "fail": 1, "rate": 0.5}
+    assert tiers["500K 이상"] == {"targets": 1, "pass": 0, "fail": 0, "rate": None}
 
 
 def test_cli_single_prints_an_undetermined_j7_without_crashing(tmp_path, monkeypatch):

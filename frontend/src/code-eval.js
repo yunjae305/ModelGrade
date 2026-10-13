@@ -372,7 +372,8 @@ function renderConversations(box, conv) {
   if (!conv || !conv.count) return;
   const pct = (r) => (r === null || r === undefined ? '—' : `${Math.round(r * 100)}%`);
   box.append(el('h3', { class: 'mt', text: '대화 유지율 · J6 멀티턴 맥락 유지' }),
-    el('p', { class: 'hint', text: `대화 ${conv.count}개 · PASS ${conv.pass} · FAIL ${conv.fail} · 미완료 ${conv.incomplete} · 유지율 ${pct(conv.rate)}. ${conv.note || ''}` }));
+    el('p', { class: 'hint', text: `대화 ${conv.count}개 · PASS ${conv.pass} · FAIL ${conv.fail} · 미완료 ${conv.incomplete}` +
+      (conv.not_applicable ? ` · 멀티턴 아님 ${conv.not_applicable}` : '') + ` · 유지율 ${pct(conv.rate)}. ${conv.note || ''}` }));
   const bands = Object.entries(conv.bands || {}).filter(([, b]) => b.targets);
   if (bands.length) {
     box.append(el('div', { class: 'table-wrap' }, el('table', {},
@@ -390,7 +391,8 @@ function renderConversations(box, conv) {
         return chip;
       }));
       const tr = el('tr', {}, el('td', { class: 'cid', text: it.id }), el('td', { text: it.turns }), el('td', { text: it.j6_turns }),
-        el('td', {}, it.result === 'INCOMPLETE' ? el('span', { class: 'st', text: '미완료' }) : badge(it.result, 'EXECUTED')),
+        el('td', {}, it.result === 'INCOMPLETE' ? el('span', { class: 'st', text: '미완료' }) :
+          it.result === 'NOT_APPLICABLE' ? el('span', { class: 'st', text: '해당 없음' }) : badge(it.result, 'EXECUTED')),
         el('td', {}, first ? el('button', { type: 'button', class: 'link-btn', onclick: () => openResult(caseIndex(first, it.id)) }, `${it.first_fail_turn}턴`) : '—'),
         el('td', {}, strip), el('td', { class: 'desc', text: it.issues.length ? it.issues.join(', ') : '—' }));
       return tr;

@@ -911,6 +911,7 @@ def _conversation_section(batch: Dict[str, Any], keys: List[str]) -> str:
     items = []
     for it in conv["items"]:
         verdict = (f'<span class="v {it["result"]}">{it["result"]}</span>' if it["result"] in ("PASS", "FAIL")
+                   else '<span class="v NONE">해당 없음</span>' if it["result"] == "NOT_APPLICABLE"
                    else '<span class="v NONE">미완료</span>')
         first = "—"
         if it["first_fail_turn"] is not None:
@@ -921,8 +922,11 @@ def _conversation_section(batch: Dict[str, Any], keys: List[str]) -> str:
                          for t in it["turn_results"] if t["asked"])
         items.append(f'<tr><td class="nowrap">{_e(it["id"])}</td><td>{it["turns"]}</td><td>{it["j6_turns"]}</td><td>{verdict}</td>'
                      f'<td>{first}</td><td>{strip or "—"}</td><td class="note">{_e(", ".join(it["issues"])) if it["issues"] else "—"}</td></tr>')
+    not_multi = f' · 멀티턴 아님 {conv["not_applicable"]}' if conv.get("not_applicable") else ""   # J6 를 묻지 않는 대화
     return (f'<div class="card wrap" id="conversations"><h3>대화 유지율 · J6 멀티턴 맥락 유지</h3>'
-            f'<p class="note">대화 {conv["count"]}개 · PASS {conv["pass"]} · FAIL {conv["fail"]} · 미완료 {conv["incomplete"]} · 유지율 {rate}. {_e(conv.get("note") or "")}</p>'
+            f'<p class="note">대화 {conv["count"]}개 · PASS {conv["pass"]} · FAIL {conv["fail"]} · 미완료 {conv["incomplete"]}'
+            f'{not_multi}'
+            f' · 유지율 {rate}. {_e(conv.get("note") or "")}</p>'
             f'<table><thead><tr><th>턴 구간</th><th>J6 평가 턴</th><th>PASS</th><th>FAIL</th><th>유지율</th></tr></thead><tbody>{bands}</tbody></table>'
             f'<table style="margin-top:10px"><thead><tr><th>대화</th><th>턴 수</th><th>J6 평가 턴</th><th>결과</th><th>첫 FAIL 턴</th>'
             f'<th>턴별 J6 (번호를 누르면 해당 턴으로)</th><th>비고</th></tr></thead><tbody>{"".join(items)}</tbody></table></div>')

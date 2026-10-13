@@ -155,7 +155,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
         if ctx:
             history, _ = build_history(ctx["prior"])
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
-                            "history_turns": len(history) if ctx["complete"] else 0}
+                            "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx.get("multi_turn")}
         if pipeline == "items":   # 평가와 같은 항목별 적용 규칙
             subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
                                      conversation=conversation, answer_tools="unknown", history=history)

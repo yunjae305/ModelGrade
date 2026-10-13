@@ -74,12 +74,14 @@ ABSENT_SUFFIX = ":none"
 
 #: 입력 안전 한도 (초과는 품질 FAIL 이 아니라 실행 사유)
 LIMITS = {
-    "question_chars": 100_000,
+    # 질문·참조 자료 300만 자 — J7 롱컨텍스트 테스트(입력 250K~500K 토큰 이상, 영어 약 5자/토큰)가 CODE 입력 검증에서 막히지 않도록
+    # (2026-10-13, 예전 10만 자). 200만 자 질문의 CODE 검사는 약 5초.
+    "question_chars": 3_000_000,
     "answer_chars": 400_000,
     "displayed_chars": 400_000,
     "json_chars": 1_000_000,
     "python_chars": 200_000,
-    "reference_chars": 100_000,
+    "reference_chars": 3_000_000,
     "batch_cases": 20_000,
 }
 

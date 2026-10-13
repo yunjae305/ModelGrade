@@ -33,6 +33,17 @@ def _no_real_jev_call(monkeypatch):
     monkeypatch.setattr(jev_eval, "resolve_semantic_pipeline", lambda *_, **__: "legacy")
 
 
+@pytest.fixture(autouse=True)
+def _multi_turn_length_rule_off(request, monkeypatch):
+    """기존 J6 테스트는 짧은 대화로 J6 판정 내용(인용·이전 지시 유지)을 확인한다 — 멀티턴 길이 조건(10K 토큰 이상 턴 10개)은
+    끄고(긴 턴 0개 필요) 돌린다. 길이 조건 자체는 ``@pytest.mark.multi_turn_rule`` 테스트(test_multi_turn.py)가 실제 값으로 확인한다."""
+    if request.node.get_closest_marker("multi_turn_rule"):
+        return
+    from code_eval import multi_turn
+    monkeypatch.setattr(multi_turn, "MIN_LONG_TURNS", 0)
+
+
+
 def _usable(path: Path) -> bool:
     """pytest 가 basetemp 뿌리로 쓸 수 있는 디렉터리인지."""
     try:
@@ -50,6 +61,7 @@ def _usable(path: Path) -> bool:
 
 
 def pytest_configure(config):
+    config.addinivalue_line("markers", "multi_turn_rule: 멀티턴 길이 조건(10K 토큰 이상 턴 10개)을 실제 값으로 둔다")
     if config.option.basetemp:
         return
     try:

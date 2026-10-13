@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from code_eval.engine import _conversation_of  # noqa: E402
+from code_eval import long_context  # noqa: E402
 from tools.check_question_set import _TYPE_FIELDS, CRITERIA, TARGET_RATIOS, check_items, criteria_counts, load_items  # noqa: E402
 
 REPORT_VERSION = "question-set-report-v3"   # v3: 공식 집계를 CLI(check_question_set v2)와 같은 함수로
@@ -36,15 +37,17 @@ CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와
            "CODE 1~3 적용 — 평가와 같은 엔진이 질문(과 이전 턴 지속 지시)에서 읽은 조건, 답변은 비워 둔 채",
            "J1~J7 적용 — 평가와 같은 코드 규칙(의미 평가 방식 표시), 모델 호출 없음",
            "답변 수집 여부 — answer 가 비어 있지 않은 턴 수",
-           "J7 롱컨텍스트 — 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 8K 토큰 이상이면 적용 (설계안 v1.4). "
+           "J7 롱컨텍스트 — 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 250K 토큰 이상이면 적용 "
+           "(테스트 기간, 후보 경계 272K). J6 는 10K 토큰 이상 턴이 10개 이상인 멀티턴 대화만. "
            "토크나이저를 불러오지 못한 질문은 판별 불가로 따로 셈")
 NOT_CHECKED = ("Claude 의미 평가(J1~J7 PASS·FAIL) — 유료 호출, 이 보고서는 판정 결과가 아님",
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
                "답변에서 생기는 CODE 조건(1-2·1-3 구조, 3-1 답변 등식, 3-2 선언 개수) — 답변이 있어야 더해짐",
                "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)")
-#: J7 롱컨텍스트 경계·길이 구간 — 설계안 v1.4 '롱컨텍스트 판별' (판정은 code_eval.long_context, 이 보고서는 표시만)
-LONG_CONTEXT_RULE = "입력(현재 질문 + 참조 자료) 8K 토큰 이상 · tiktoken o200k_base · 이전 턴은 길이에 넣지 않음 (설계안 v1.4)"
-LONG_CONTEXT_BINS = ("8K~32K", "32K~128K", "128K 이상")
+#: J7 롱컨텍스트 경계·길이 구간 — 판정은 code_eval.long_context, 이 보고서는 표시만 (구간 이름도 거기서 가져온다)
+LONG_CONTEXT_RULE = (f"입력(현재 질문 + 참조 자료) {long_context.MIN_TOKENS // 1000}K 토큰 이상 · tiktoken o200k_base · "
+                     f"이전 턴은 길이에 넣지 않음 (테스트 기간, 후보 경계 {long_context.CANDIDATE_TOKENS // 1000}K)")
+LONG_CONTEXT_BINS = tuple(name for _, name in reversed(long_context.TIERS))
 
 
 def _cases(items: List[Any]) -> List[Dict[str, Any]]:
@@ -158,7 +161,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
         {"title": "유형 비율 집계 단위",
          "detail": "검사기는 유형 필드를 턴마다 센다. 10턴 대화 하나가 비율에 10번 들어가므로 질문 단위 비율과 다를 수 있다 (보고서는 둘 다 표시)."},
         {"title": "롱컨텍스트(J7) 질문 세트",
-         "detail": f"설계안 v1.4 '정할 것': 8K 토큰 이상 입력의 질문 세트는 아직 없다. J7 도 적용 질문·대화 {minimum}개 이상이어야 충족."},
+         "detail": f"설계안 v1.4 '정할 것': 250K 토큰 이상 입력의 질문 세트는 아직 없다. J7 도 적용 질문·대화 {minimum}개 이상이어야 충족."},
     ]
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],

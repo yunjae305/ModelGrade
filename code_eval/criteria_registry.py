@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v5"   # v5: J6 이름 변경, J7 롱컨텍스트 추가
+REGISTRY_VERSION = "criteria-registry-v6"   # v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -126,7 +126,7 @@ _SEMANTIC_EVIDENCE = {
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
            "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
-           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(8K~32K·32K~128K·128K 이상)·"
+           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(250K~272K·272K~300K·300K~350K·350K~400K·400K~500K·500K 이상)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
 }
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
@@ -258,6 +258,18 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "대상별 행(블록·등식마다 1행)은 상세 판정에 그대로 남는다. 판정 제외(meta.skipped_conditions)만 있는 단위는 "
                  "'확인된 위반 없음' PASS, 실행 오류가 있는 단위는 행을 두지 않는다(그 질문은 PASS 로 확정하지 않음). "
                  "질문이 만드는 검사(2-1·2-2·3-3·3-1 질문 계산값 등)와 항상 검사(1-1)는 그대로"]},
+    {"version": "long-context-v2-250k-test", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J7 적용 경계 8K → 250K 토큰 (사용자 결정, 테스트 기간): 후보 경계는 272K, 250K~500K 입력을 실제로 평가해 확정",
+                 "구간 250K~272K·272K~300K·300K~350K·350K~400K·400K~500K·500K 이상 — 구간별 통과율로 성능이 떨어지기 시작하는 곳을 봄",
+                 "질문·참조 자료 입력 한도 10만 → 300만 자 (250K~500K 토큰 입력이 CODE 입력 검증에서 막히지 않도록)"]},
+    {"version": "multi-turn-v1", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J6 멀티턴 = 한 턴(질문 + 답변)이 10K 토큰 이상인 턴이 10개 이상인 대화 (사용자 결정, 예전에는 2턴 이상)",
+                 "각 모델이 실제로 주고받은 대화(같은 질문 + 그 모델 답변)로 잼 — 같은 대화도 모델마다 다를 수 있음 (사용자 결정)",
+                 "멀티턴이면 2번째 턴부터 J6, 아니면 해당 없음(대화 유지율에서 '멀티턴 아님'으로 따로 셈), 토크나이저가 없으면 확인 필요"]},
+    {"version": "semantic-items-v3", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J7-1·J7-2 적용 조건 문구를 입력 250K 토큰 이상으로", "적용 판정 jev-applicability-v2.5-length-rules·sub-applicability-v3"]},
+    {"version": "criteria-registry-v6", "date": "2026-10-13", "scope": "registry",
+     "changes": ["J7 경계 250K(테스트 기간)·J6 멀티턴 길이 조건 반영 (long-context-v2-250k-test·multi-turn-v1)"]},
 ]
 
 
