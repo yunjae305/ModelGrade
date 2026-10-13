@@ -35,6 +35,7 @@ from .llm_client import redact
 from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLICY_VERSION, answer_citations,
                                merge_citations, prompt_citations, source_requested, structured_citations)
 from .semantic_items import SEMANTIC_ITEMS_VERSION, SUBS_BY_ID, SemanticItem, applicable_items
+from .semantic_evidence import CONTEXT_CHECK_POLICY, CONTEXT_QUOTE_PROBLEMS
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY, finalize_items
@@ -57,6 +58,10 @@ ENGINE_LABELS = {"jev": "Jev", "claude_cli": "Claude CLI", "codex_cli": "GPT CLI
 FACT_SCREENING_ENGINES = {'codex_cli', 'claude_cli', 'openai_api', 'anthropic_api'}
 FACT_SCREENING_VERSION = 'jev-applicability-v2.3-llm-screening'
 CANCEL_REASON = "평가 중단 요청으로 의미평가를 완료하지 못했습니다."
+#: J6 재질문에만 기준 지시문 끝에 붙이는 안내 (history-quotes-v4)
+CONTEXT_QUOTE_RETRY_NOTE = ("재평가 안내: 직전 평가의 context_checks 인용이 원문과 일치하지 않았습니다. "
+                            "instruction_quote는 지정한 이전 턴의 질문·답변에서, answer_quote는 현재 답변에서 연속된 구절을 "
+                            "글자·기호·Markdown 표식까지 그대로 복사하세요. 기호나 수식 표기를 바꾸거나 다시 쓰지 마세요.")
 
 #: 대화 길이 구간 — 턴 번호로 묶어 J6 유지율을 본다
 TURN_BANDS: Tuple[Tuple[str, int, Optional[int]], ...] = (("1~10", 1, 10), ("11~20", 11, 20), ("21~30", 21, 30), ("31+", 31, None))
@@ -226,7 +231,8 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                       structured_sources: int = 0) -> Dict[str, Any]:
     """JevCall → 레코드. legacy 는 parse_decisions, items 는 finalize_items→집계. 두 모드 모두 최종 판정 정책을 거친다(items 는 no-op).
 
-    legacy 의 근거 없는 J1~J4·J7 FAIL 재평가(``fail_evidence_check``, 같은 client 로 1회)와 답변 출처 기록·J5 판정 사유
+    legacy 의 근거 없는 J1~J4·J7 FAIL 재평가·인용 대조에 실패한 J6 재질문(``fail_evidence_check``, 같은 client 로 각 1회)과
+    답변 출처 기록·J5 판정 사유
     (``citation_check``·``citations``)도 여기서 한다 — 실시간과 Message Batches 가 같은 규칙을 쓴다.
     """
     def finish(status, **kw):
@@ -265,6 +271,7 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                     record['j5_basis'] = 'unverified'
         if fail_evidence_check and record["status"] == JevStatus.SUCCESS:
             _confirm_fail_evidence(record, request, client, cancel_event)
+            _retry_context_quotes(record, request, client, cancel_event)
     _attach_long_context(record, request["state"], applicability)
     # The transport has already completed any evidence recovery. Apply the
     # explicit final-outcome policy only now, before summaries/events are built.
@@ -424,6 +431,56 @@ def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], clie
                                  "final": final.get("decision") or final["status"]}
         decisions[cid] = final
     record["review_required"] = any(unresolved(d) for d in decisions.values())
+
+
+def _retry_context_quotes(record: Dict[str, Any], request: Dict[str, Any], client: JevClient,
+                          cancel_event: Optional[Event]) -> None:
+    """context_checks 인용이 원문과 맞지 않아 확인 필요가 된 J6 는 J6 만 1회 다시 묻는다 (history-quotes-v4).
+
+    같은 질문·답변·이전 턴에 '인용은 원문 그대로 복사' 안내만 더한다. 다시 받은 J6 가 서버 인용 대조를 거쳐 PASS·FAIL 이면
+    그것을 쓰고, 아니면 지금 판정(확인 필요 → 최종 정책의 '평가 근거 부족' FAIL)을 그대로 둔다. 시도는 context_reevaluation 에 남긴다.
+    """
+    decision = record["decisions"].get("J6")
+    if ("J6" not in record["criteria"] or "J6" not in request["questions"] or not isinstance(decision, dict)
+            or decision.get("status") != "UNVERIFIED"
+            or not any(isinstance(check, dict) and check.get("decision") == "UNVERIFIED"
+                       and any(problem in str(check.get("reason") or "") for problem in CONTEXT_QUOTE_PROBLEMS)
+                       for check in decision.get("context_checks") or [])):
+        return
+    entry = {"policy": CONTEXT_CHECK_POLICY, "criteria": ["J6"], "attempts": 1, "status": None, "error": None,
+             "latency_ms": None, "usage": {},
+             "first": {k: copy.deepcopy(decision.get(k)) for k in ("status", "reason", "context_checks")},
+             "retry": None, "adopted": "first"}
+    record["context_reevaluation"] = entry
+    question = copy.deepcopy(request["questions"]["J6"])
+    question["instructions"] = f"{question['instructions']}\n{CONTEXT_QUOTE_RETRY_NOTE}"
+    retry = {"state": request["state"], "questions": {"J6": question}}
+    if "cancel_event" in request:
+        retry["cancel_event"] = request["cancel_event"]
+    new = None
+    try:
+        if cancel_event is not None and cancel_event.is_set():
+            raise _Skipped()
+        call = client.system_one(**retry)
+        entry.update(status=call.status, latency_ms=call.latency_ms, usage=copy.deepcopy(call.usage or {}),
+                     error=redact(call.error) if call.error else None)
+        _sum_usage(record.setdefault("usage", {}), call.usage or {})
+        record["attempts"] = (record.get("attempts") or 0) + (call.attempts or 0)
+        if call.status == "OK":
+            new = parse_decisions(call.body or {}, ("J6",))["J6"]
+            entry["status"] = JevStatus.SUCCESS
+    except _Skipped:
+        entry.update(status=JevStatus.SKIPPED, error=CANCEL_REASON)
+    except (ValueError, TypeError, KeyError) as exc:
+        entry.update(status=JevStatus.INVALID_RESPONSE, error=str(exc))
+    except Exception as exc:  # 재질문 장애는 지금 판정을 그대로 두고 기록만 남긴다
+        entry.update(status=JevStatus.API_ERROR, error=redact(f"{type(exc).__name__}: {exc}"))
+    if new is not None:
+        entry["retry"] = {k: copy.deepcopy(new.get(k)) for k in ("decision", "status", "reason", "context_checks") if k in new}
+        if new.get("decision") in ("PASS", "FAIL"):
+            record["decisions"]["J6"] = new
+            entry["adopted"] = "retry"
+    record["review_required"] = any(unresolved(d) for d in record["decisions"].values())
 
 
 class _Skipped(Exception):
@@ -1043,6 +1100,7 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                 **({"pipeline": record["pipeline"], "items": copy.deepcopy(record.get("items")),
                     "recheck": copy.deepcopy(record.get("recheck"))} if record.get("pipeline") == "items" else {}),
                 "reevaluation": copy.deepcopy(record.get('reevaluation')),
+                "context_reevaluation": copy.deepcopy(record.get('context_reevaluation')),
                 "answer_citations": copy.deepcopy(record.get('answer_citations')),
                 "history_turns": (record.get("context") or {}).get("history_turns"),
                 "model": record["model"],

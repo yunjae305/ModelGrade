@@ -13,7 +13,12 @@ from urllib.parse import urlsplit, urlunsplit
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
 FACT_CHECK_POLICY = "evidence-v3.16-answer-markup"   # v3.15: 출처 인용의 Markdown 굵게 표시를 벗긴 형태도 대조 · v3.16: J5 주장을 답변의 굵게 표시를 벗긴 글자로도 찾음
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
-CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
+#: v4 — 인용이 원문과 맞지 않아 확인 필요가 된 J6 는 J6 만 1회 다시 묻는다 (jev_eval, 중간 점검 557a50d8baf1 Gemini Q29 7턴).
+CONTEXT_CHECK_POLICY = "history-quotes-v4-quote-retry"
+#: J6 인용 대조 실패 사유 — 의미 평가 단계가 이 사유가 남은 J6 를 1회 다시 묻는다 (jev_eval._retry_context_quotes)
+PRIOR_QUOTE_PROBLEM = "지정한 이전 턴이 없거나 그 턴의 인용문이 원문과 일치하지 않습니다."
+ANSWER_QUOTE_PROBLEM = "현재 답변의 인용문이 없거나 원문과 일치하지 않습니다."
+CONTEXT_QUOTE_PROBLEMS = (PRIOR_QUOTE_PROBLEM, ANSWER_QUOTE_PROBLEM)
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
 
@@ -296,9 +301,9 @@ def _context_check(entry, state):
             _contained(quote, state.get("answer", "")) or (not quote.strip() and item.get("decision") != "PASS"))
         problems = []
         if not valid_prior:
-            problems.append("지정한 이전 턴이 없거나 그 턴의 인용문이 원문과 일치하지 않습니다.")
+            problems.append(PRIOR_QUOTE_PROBLEM)
         if not valid_answer:
-            problems.append("현재 답변의 인용문이 없거나 원문과 일치하지 않습니다.")
+            problems.append(ANSWER_QUOTE_PROBLEM)
         if item.get("decision") not in ("PASS", "FAIL", "UNVERIFIED"):
             problems.append("대화 맥락 판정 형식이 올바르지 않습니다.")
         if problems:

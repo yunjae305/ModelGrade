@@ -118,7 +118,8 @@ _SEMANTIC_EVIDENCE = {
            "답변이 직접 든 출처는 citation_checks — 서버가 그 URL 을 받아 인용·수치를 대조하고 확정된 불일치만 FAIL. "
            "판정마다 j5_outcome(사실 오류·검증 기준 미충족·출처 불일치·검색 불가 등)"),
     "J6": ("context_checks[] — 이전 턴 번호·instruction_quote·answer_quote·decision·reason. "
-           "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈"),
+           "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
+           "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
            "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(8K~32K·32K~128K·128K 이상)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
@@ -238,6 +239,12 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "J7 롱컨텍스트 활용 추가: 입력(현재 질문 + 참조 자료) 8K 토큰 이상(tiktoken o200k_base), 세부 J7-1 위치와 관계없는 정보 찾기·"
                  "J7-2 흩어진 근거 연결. 근거: Lost in the Middle·RULER·NoLiMa·LooGLE·BABILong. 경계: 입력에 없는 내용·값 오기는 J5, 요구 항목 누락은 J4",
                  "의미 평가 기준 J1~J7, items 세부 27·항목 41 (semantic-items-v2), 적용 판정 jev-applicability-v2.4·sub-applicability-v2"]},
+    {"version": "history-quotes-v4-quote-retry", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J6: context_checks 인용이 이전 턴·현재 답변 원문과 맞지 않아 확인 필요가 되면, 같은 질문·답변·이전 턴에 "
+                 "'인용은 원문 그대로 복사' 안내만 붙여 J6 만 1회 다시 묻는다 (legacy, CLI·API 평가자) — 평가 모델이 답변의 "
+                 "'$\\rightarrow$' 를 '→' 로 바꿔 인용해 10턴 대화가 '평가 근거 부족' FAIL 이 된 문제 (중간 점검 557a50d8baf1, Gemini Q29 7턴)",
+                 "다시 받은 J6 가 인용 대조를 통과해 PASS·FAIL 이면 그것을 쓰고, 아니면 지금 판정을 그대로 둔다 — 근거를 확인하지 못한 판정은 "
+                 "여전히 PASS 가 아님. 시도는 레코드의 context_reevaluation(첫 판정·재질문 결과·쓴 쪽)에 남김"]},
 ]
 
 
