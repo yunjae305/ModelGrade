@@ -141,8 +141,12 @@ class MockJudge:
             return {"status": "http_error", "text": "", "final_url": None, "checked_at": STAMP, "content_type": None}
         return {"status": "ok", "text": self.pages[url], "final_url": url, "checked_at": STAMP, "content_type": "text/plain"}
 
+    def script_for(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """이 요청에 쓸 대본 — 기본은 질문 원문으로 찾는다 (웹 시연은 AIONA 답변에만 대본을 쓰도록 바꾼다)."""
+        return self.scripts.get(state.get("question"), {})
+
     def system_one(self, state, questions, *, cancel_event=None):
-        script = self.scripts.get(state.get("question"), {})
+        script = self.script_for(state)
         round_no = max([(q.get("recheck") or {}).get("round", 0) for q in questions.values()] or [0])
         with self._lock:
             self.calls.append({"question": state.get("question"), "round": round_no,
