@@ -70,3 +70,25 @@ def test_live_run_requires_both_caps(tmp_path):
     with pytest.raises(SystemExit) as stopped:
         main(["run", str(run), "--selection", str(sel), "--out", str(tmp_path / "o"), "--live", "--max-usd", "1"])
     assert stopped.value.code == 2 and not (tmp_path / "o").exists()   # 호출 수 상한이 없으면 아무것도 시작하지 않음
+
+
+def test_j5_routing_separates_scope_gaps_from_questions_items_still_judges():
+    """지시서 10-14 P0-1 — legacy J5 FAIL 이 items 에서 사라지는 것이 판정 개선인지 평가 대상 차이인지 나눈다."""
+    from tools.pipeline_compare import j5_routing
+    code_q = "파이썬 표준 라이브러리만 사용해서 URL의 쿼리 매개변수를 사전으로 읽는 함수를 작성해줘."
+    fact_q = "무지개는 왜 여러 색으로 보여? 초등학생이 이해할 수 있게 설명해줘."
+    fail = {"decision": "FAIL", "reason_code": "SOURCE_ORIGINAL_UNAVAILABLE",
+            "j5_outcome": {"code": "source_unavailable", "factual_error_confirmed": False, "source_failure": {"kind": "quote_not_found"}},
+            "fact_check": {"claims": [{"claim": "`+`는 공백으로 해석됩니다.", "verdict": "UNVERIFIED", "scope": "external_fact"}]}}
+    cases = [{"case_id": f"Q{n}", "case_status": "EVALUATED", "question": q, "answer": "def f(url): ...  `+`는 공백으로 해석됩니다.", "results": []}
+             for n, q in ((1, code_q), (2, fact_q))]
+    records = [{"case_id": c["case_id"], "status": "SUCCESS", "criteria": ["J1", "J5"], "decisions": {"J1": {"decision": "PASS"}, "J5": fail}}
+               for c in cases]
+    run = {"run_id": "t", "datasets": {"gpt": [{"case_id": c["case_id"]} for c in cases]},
+           "evaluations": {"gpt": {"cases": cases, "jev_eval": {"records": records}}}}
+    report = j5_routing(run)
+    kinds = {r["case_id"]: r["kind"] for r in report["rows"]}
+    assert kinds == {"Q1": "scope_gap_no_fact_query", "Q2": "items_routed"}
+    gap = next(r for r in report["rows"] if r["case_id"] == "Q1")
+    assert gap["items_j5"]["J5-1"]["reason"] == "요청 문장에 사실 질의 표현 없음" and not gap["items_j5"]["J5-2"]["items"]
+    assert gap["claims"] == 1 and gap["claim_scopes"] == {"external_fact": 1}   # 기준 정의(답변 데이터)상으로는 확인할 주장이 있었다

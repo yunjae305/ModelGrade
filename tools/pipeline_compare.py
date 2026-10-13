@@ -6,6 +6,7 @@
     python tools/pipeline_compare.py run     RUN.json --selection sel.json --out DIR --live --max-usd 3 --max-calls 16
                                                                                          # 실제 평가기 호출 (유료 — 승인 후에만)
     python tools/pipeline_compare.py diff    RUN.json --items DIR [--json]                # 판정 차이 표 (legacy 저장 판정 vs 새 items 판정)
+    python tools/pipeline_compare.py j5-routing RUN.json [--json]                        # legacy J5 FAIL 마다 items J5 세부 기준 적용 여부·이유 (무료)
 
 - legacy 쪽은 저장된 실제 판정을 그대로 쓴다(다시 호출하지 않음). items 쪽만 새로 평가한다.
 - 대화 턴은 같은 대화의 앞 턴을 이력으로만 넣고(CODE·이력용, 의미 평가 호출 없음) 고른 턴만 호출한다.
@@ -173,6 +174,66 @@ def routing(run: Dict[str, Any], selection: Optional[List[Dict[str, Any]]] = Non
             "subs_applied": dict(sorted(subs_hit.items())), "examples": dict(examples)}
 
 
+def _contexts_for(rows: List[Dict[str, Any]]):
+    cases = _code_cases(_payloads(rows))
+    return cases, conversation_contexts(cases)
+
+
+def _conversation_args(contexts, i):
+    ctx, history, conversation = contexts.get(i), [], None
+    if ctx:
+        history, _ = build_history(ctx["prior"])
+        conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
+                        "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx.get("multi_turn")}
+    return history, conversation
+
+
+def j5_routing(run: Dict[str, Any], *, fails_only: bool = True) -> Dict[str, Any]:
+    """legacy J5 FAIL 답변마다 items J5 세부 기준(J5-1 사실 정확성·J5-2 입력 자료 충실성·J5-3 확인 과정)의 적용 여부와 이유.
+
+    분류: items_routed(items 도 J5 를 묻는다 — 판정이 바뀌는지는 실호출 비교로만 안다) ·
+    scope_gap_no_fact_query(요청 문장에 사실 질의 표현이 없어 J5-1 미적용, 질문이 준 값·확인 과정 언급도 없어 J5-2·J5-3 미적용) ·
+    scope_gap_code_task(사실 질의 표현은 있으나 코드 결과물 요청이라 J5-1 보류 '정할 것') · scope_gap_other(그 밖의 이유).
+    scope_gap_* 는 items 가 J5 를 묻지 않아 생긴 차이 — 판정 개선이 아니라 평가 대상 범위 차이다.
+    legacy 쪽 주장 수는 평가자가 답변에서 뽑은 외부 사실 주장 — 기준 정의(답변의 데이터가 실제와 맞는가)상 J5 대상이었다는 근거다.
+    """
+    rows = answers(run)
+    cases, contexts = _contexts_for(rows)
+    out, counts = [], Counter()
+    for i, a in enumerate(rows):
+        d = (a["record"].get("decisions") or {}).get("J5")
+        if not d or (fails_only and d.get("decision") != "FAIL") or cases[i].get("case_status") != "EVALUATED":
+            continue
+        history, conversation = _conversation_args(contexts, i)
+        tools = "unknown" if a["system"] == "aiona" else "none"
+        subs = sub_applicability(a["question"], a["answer"], conversation=conversation, answer_tools=tools, history=history)
+        j5 = {sid: {"items": sub.get("items") or [], "reason": sub.get("not_applicable") or sub.get("reason"),
+                    "rules": sub.get("rules") or []} for sid, sub in subs.items() if sid.startswith("J5-")}
+        routed = any(sub["items"] for sub in j5.values())
+        reason1 = j5.get("J5-1", {}).get("reason") or ""
+        kind = ("items_routed" if routed else "scope_gap_no_fact_query" if reason1.startswith("요청 문장에 사실 질의 표현 없음")
+                else "scope_gap_code_task" if reason1.startswith("코드 결과물") else "scope_gap_other")
+        counts[kind] += 1
+        fact = d.get("fact_check") or (d.get("policy_original_assessment") or {}).get("fact_check") or {}
+        claims = [c for c in fact.get("claims") or [] if isinstance(c, dict)]
+        out.append({"system": a["system"], "case_id": a["case_id"], "legacy": outcome_class(d), "kind": kind,
+                    "claims": len(claims), "claim_verdicts": dict(Counter(str(c.get("verdict")) for c in claims)),
+                    "claim_scopes": dict(Counter(str(c.get("scope")) for c in claims)),
+                    "items_j5": j5, "question_excerpt": a["question"][:60]})
+    return {"version": COMPARE_VERSION, "run_id": run.get("run_id"), "rows": out, "counts": dict(counts)}
+
+
+def render_j5_routing(report: Dict[str, Any]) -> str:
+    lines = [f"# legacy J5 FAIL 의 items J5 적용 ({report['version']}, 실행 {report['run_id']}, 모델 호출 없음)",
+             "분류: " + ", ".join(f"{k} {v}" for k, v in sorted(report["counts"].items())), "",
+             "| 시스템 | 질문 | legacy | 분류 | legacy 주장(판정) | J5-1 | J5-2 | J5-3 |", "|---|---|---|---|---|---|---|---|"]
+    for r in report["rows"]:
+        cell = lambda sid: ",".join(r["items_j5"].get(sid, {}).get("items") or []) or (r["items_j5"].get(sid, {}).get("reason") or "-")
+        lines.append(f"| {r['system']} | {r['case_id']} | {r['legacy']} | {r['kind']} | {r['claims']} {r['claim_verdicts']} | "
+                     f"{cell('J5-1')} | {cell('J5-2')} | {cell('J5-3')} |")
+    return "\n".join(lines)
+
+
 # --- items 새 평가 ---------------------------------------------------------------------------
 
 def _inputs(run: Dict[str, Any], selection: List[Dict[str, Any]]) -> Tuple[Dict[str, List[Dict[str, Any]]], set]:
@@ -326,7 +387,7 @@ def render_routing(report: Dict[str, Any]) -> str:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=("select", "routing", "run", "diff"))
+    parser.add_argument("command", choices=("select", "routing", "run", "diff", "j5-routing"))
     parser.add_argument("run", type=Path, help="저장된 비교 실행 JSON (legacy 판정 원본, 읽기만 함)")
     parser.add_argument("--selection", type=Path)
     parser.add_argument("--out", type=Path)
@@ -350,6 +411,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(text, encoding="utf-8")
         print(text)
+    elif args.command == "j5-routing":
+        report = j5_routing(run)
+        print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render_j5_routing(report))
     elif args.command == "routing":
         report = routing(run, selection)
         print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render_routing(report))
