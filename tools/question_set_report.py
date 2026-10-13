@@ -128,7 +128,16 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
               "turn_ratio": round(turn_type.get(name, 0) / sum(turn_type.values()), 3) if turn_type else None,
               "units": unit_type.get(name, 0), "unit_ratio": round(unit_type.get(name, 0) / typed_units, 3) if typed_units else None}
              for name in names]
-    multi = [c for c in conversations if c["turns"] >= 2]   # 멀티턴 — 2턴 이상 오간 대화
+    # 멀티턴 — 평가와 같은 규칙(10K 토큰 이상 턴 10개 이상, multi-turn-v1)으로 이 파일의 답변에서 잰 판정
+    scales = report.get("multi_turn") or {}
+    for c in conversations:
+        scale = scales.get(c["id"]) or {}
+        c["multi_turn"] = scale.get("multi_turn")
+        c["long_turns"] = scale.get("long_turns")
+    multi = [c for c in conversations if c["multi_turn"] is True]
+    # 판정이 없거나(예전 점검 JSON) 모름(빠지거나 겹친 턴·토크나이저 없음)은 모름 — 명시적으로 아님인 대화만 멀티턴이 아님
+    unknown_multi = [c for c in conversations if c["multi_turn"] is None]
+    short_multi = [c for c in conversations if c["multi_turn"] is False]
 
     short = [c for c in CRITERIA if not criteria[c]["enough"]]
     total = len(cases)
@@ -167,7 +176,9 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
             "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
             "conversation_rows": conversations,
-            "context": {"single": report["single_questions"], "multi_turn": len(multi), "single_turn_conversations": len(conversations) - len(multi),
+            "context": {"single": report["single_questions"], "multi_turn": len(multi), "multi_turn_unknown": len(unknown_multi),
+                        "short_conversations": len(short_multi),
+                        "undetermined": dict(report.get("undetermined") or {}),
                         "long_context": {"criterion": "J7", "units": criteria["J7"]["units"], "turns": criteria["J7"]["turns"],
                                          "undetermined": (report.get("undetermined") or {}).get("J7", 0), "rule": LONG_CONTEXT_RULE,
                                          "bins": list(LONG_CONTEXT_BINS)},
@@ -281,13 +292,15 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
     ctx = a["context"]
     long_ctx = ctx["long_context"]
     out.append('</div><div class="card"><h2>문맥 속성 (유형과 별도)</h2><ul>'
-               f'<li><b>멀티턴</b> (2턴 이상 오간 대화) {ctx["multi_turn"]}개'
+               f'<li><b>멀티턴 (J6)</b> — 10K 토큰 이상 턴이 10개 이상인 대화 {ctx["multi_turn"]}개'
                + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
-               + f' · 단일 질문 {ctx["single"]}개' + (f' · 1턴 대화 {ctx["single_turn_conversations"]}개' if ctx["single_turn_conversations"] else "") + "</li>"
+               + (f' · 판별 못 한 대화 {ctx["multi_turn_unknown"]}개' if ctx["multi_turn_unknown"] else "")
+               + f' · 멀티턴이 아닌 대화 {ctx["short_conversations"]}개 · 단일 질문 {ctx["single"]}개'
+               + ' (답변 길이도 세므로 모델마다 달라질 수 있음 — 여기서는 이 파일의 답변)</li>'
                f'<li><b>롱컨텍스트 (J7)</b> 적용 질문·대화 {long_ctx["units"]}개 (적용 턴 {long_ctx["turns"]}) — {_e(long_ctx["rule"])}. '
                f'길이 구간 {_e(" · ".join(long_ctx["bins"]))}</li>'
-               + (f'<li>토크나이저를 불러오지 못해 J7 적용 여부를 판별하지 못한 질문 {long_ctx["undetermined"]}개 — 해당 없음으로 빼지 않음 (tiktoken 확인)</li>'
-                  if long_ctx["undetermined"] else "")
+               + "".join(f'<li>{_e(cid)} 적용 여부를 판별하지 못한 질문(턴) {n}개 — 해당 없음으로 빼지 않음 '
+                         f'(토크나이저를 불러오지 못했거나 대화에 빠지거나 겹친 턴)</li>' for cid, n in sorted(ctx["undetermined"].items()))
                + '<li>멀티턴(J6)과 롱컨텍스트(J7)는 한 질문에 함께 적용될 수 있음</li>'
                + (f'<li>대화별 질문만 누적 글자 수 {ctx["question_chars_range"][0]:,}~{ctx["question_chars_range"][1]:,}자 (답변 제외, 토큰 수 아님)</li>' if ctx["question_chars_range"] else "")
                + "</ul></div></section>")

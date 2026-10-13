@@ -531,12 +531,18 @@ def conversation_contexts(cases: List[Dict[str, Any]]) -> Dict[int, Dict[str, An
     contexts: Dict[int, Dict[str, Any]] = {}
     for cid, members in groups.items():
         members.sort()
-        # 멀티턴 판정 — 평가된 턴(질문 + 이 모델의 답변)만 센다. 중복 턴은 어느 쪽인지 알 수 없어 둘 다 빼지 않고 센다(이력에서는 뺌).
-        scale = multi_turn.measure_conversation((t, cases[j].get("question") or "", cases[j].get("answer") or "")
-                                                 for t, j in members if cases[j].get("case_status") == "EVALUATED")
         counts: Dict[int, int] = {}
         for turn, _ in members:
             counts[turn] = counts.get(turn, 0) + 1
+        # 멀티턴 판정 — 번호마다 평가된 행이 하나뿐인 턴(질문 + 이 모델의 답변)만 확실하게 센다. 같은 번호가 겹친 턴·
+        # 평가되지 않은 턴·빠진 번호는 길이를 모르는 턴으로 따로 센다 (모두 긴 턴일 수 있음 → 예/아니오/모름).
+        definite = [(t, j) for t, j in members if counts[t] == 1 and cases[j].get("case_status") == "EVALUATED"]
+        last = members[-1][0]
+        # 빠진 번호 수는 셈으로 (턴 번호가 아주 커도 번호마다 돌지 않음) + 겹친 번호 + 평가되지 않은 턴
+        uncertain = (max(0, last - sum(1 for t in counts if 1 <= t <= last)) + sum(1 for n in counts.values() if n > 1)
+                     + sum(1 for t, j in members if counts[t] == 1 and cases[j].get("case_status") != "EVALUATED"))
+        scale = multi_turn.measure_conversation(((t, cases[j].get("question") or "", cases[j].get("answer") or "")
+                                                 for t, j in definite), uncertain=uncertain)
         turns = sorted(counts)
         duplicates = sorted(t for t, n in counts.items() if n > 1)
         for turn, i in members:
@@ -749,18 +755,16 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
 
 #: 토크나이저가 없어 적용 여부를 판별하지 못한 기준 — (근거를 찾은 곳, 규칙, 볼 것)
 _UNDETERMINED_LOOK = {
-    "J6": ("conversation", "대화 길이 측정", "토크나이저를 불러오지 못해 멀티턴(10K 토큰 이상 턴 10개 이상)인지 확인할 수 없음"),
+    "J6": ("conversation", "대화 길이 측정", "토크나이저를 불러오지 못했거나 빠지거나 겹친·평가되지 않은 턴이 있어 "
+                                            "멀티턴(10K 토큰 이상 턴 10개 이상)인지 확인할 수 없음"),
     "J7": ("question", "입력 길이 측정", "토크나이저를 불러오지 못해 입력이 250K 토큰 이상인지 확인할 수 없음"),
 }
 
 
 def _maybe_multi_turn(ctx: Dict[str, Any]) -> bool:
-    """앞 턴이 빠진 대화가 멀티턴일 수 있는가 — 빠진 턴이 모두 긴 턴이어도 조건에 못 미치면 False (J6 해당 없음)."""
+    """이 대화가 멀티턴일 수 있는가 — 길이를 알 수 없는 턴이 모두 길어도 조건에 못 미치면 False (J6 해당 없음)."""
     scale = ctx.get("multi_turn")
-    if not isinstance(scale, dict) or scale.get("error") or scale.get("multi_turn"):
-        return True
-    unseen = max(0, int(ctx.get("total_turns") or 0) - int(scale.get("turns") or 0))
-    return int(scale.get("long_turns") or 0) + unseen >= int(scale.get("min_long_turns") or multi_turn.MIN_LONG_TURNS)
+    return not isinstance(scale, dict) or scale.get("multi_turn") is not False
 
 
 def _publish_record(prep: _Prepared, i: int, record: Dict[str, Any],

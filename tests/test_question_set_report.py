@@ -1,6 +1,8 @@
 """질문 세트 사전 점검 보고서 — 30개 공식 판정(질문·대화 단위), 대화 턴 점검, 답변 수집 상태, HTML 이스케이프 (모델 호출 없음)."""
 import json
 
+import pytest
+
 from tools.check_question_set import check_items, load_items, main as check_main
 from tools.question_set_report import ROOT, analyze, main, render_html
 
@@ -118,3 +120,35 @@ def test_longctx_example_counts_and_readiness():
     assert analysis["criteria"]["CODE 3"]["short"] == 30 and analysis["context"]["multi_turn"] == 24
     assert not any(r["missing"] or r["duplicated"] for r in analysis["conversation_rows"])
     assert analysis["status"]["code"] == "questions_only" and analysis["types"] is None
+
+
+@pytest.mark.multi_turn_rule
+def test_report_uses_the_length_based_multi_turn_rule_and_shows_j6_undetermined(monkeypatch):
+    from code_eval import long_context
+    items = conversation("C", 3)   # 짧은 3턴 대화 — 멀티턴(10K 토큰 이상 턴 10개)이 아니다
+    analysis = run(items)
+    assert (analysis["context"]["multi_turn"], analysis["context"]["short_conversations"]) == (0, 1)
+    assert "멀티턴이 아닌 대화 1개" in render_html(analysis, "set.json", generated_at="2026-10-13 00:00")
+
+    def unavailable():
+        raise long_context.TokenizerUnavailable("tiktoken o200k_base 를 불러오지 못함: ImportError")
+    long_context.count_tokens.cache_clear()
+    monkeypatch.setattr(long_context, "_encoder", unavailable)
+    analysis = run(items)
+    page = render_html(analysis, "set.json", generated_at="2026-10-13 00:00")
+    assert analysis["context"]["undetermined"].get("J6") == 2 and "J6 적용 여부를 판별하지 못한 질문(턴) 2개" in page
+
+
+@pytest.mark.multi_turn_rule
+def test_a_lone_long_turn_numbered_ten_is_an_unknown_conversation_not_a_short_one():
+    items = [{"case_id": "C-T10", "conversation_id": "C", "turn": 10, "question": "긴 질문 " * 6_000, "answer": "답 " * 2_000}]
+    context = run(items)["context"]
+    assert (context["multi_turn"], context["multi_turn_unknown"], context["short_conversations"]) == (0, 1, 0)   # 1~9턴이 빠짐
+
+
+def test_an_older_check_json_without_multi_turn_measurements_reports_conversations_as_unknown():
+    items = conversation("C", 10)
+    check = check_items(items, pipeline="items")
+    check.pop("multi_turn")
+    context = analyze(check, items)["context"]
+    assert (context["multi_turn"], context["multi_turn_unknown"], context["short_conversations"]) == (0, 1, 0)

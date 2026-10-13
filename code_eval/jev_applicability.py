@@ -324,9 +324,9 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
         scale = conversation.get("multi_turn")
         if turn <= 1:
             not_applicable["J6"] = "대화의 첫 턴 — 앞 대화 없음"
-        elif isinstance(scale, dict) and scale.get("error"):
-            undetermined["J6"] = scale["error"]   # 토크나이저 없음 — 멀티턴인지 모르므로 해당 없음으로 두지 않는다
-        elif isinstance(scale, dict) and not scale.get("multi_turn"):
+        elif isinstance(scale, dict) and scale.get("multi_turn") is None:
+            undetermined["J6"] = multi_turn.describe(scale)   # 토크나이저 없음·길이를 모르는 턴 — 해당 없음으로 두지 않는다
+        elif isinstance(scale, dict) and scale.get("multi_turn") is False:
             not_applicable["J6"] = "멀티턴 대화가 아님 — " + multi_turn.describe(scale)
         elif issues:  # 앞 턴 누락·입력 오류·중복·길이 초과 — 불완전한 이력으로는 판정하지 않는다
             not_applicable["J6"] = "대화 이력이 불완전함 — " + ", ".join(issues)
@@ -553,9 +553,9 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
         scale = conversation.get("multi_turn")
         if turn <= 1:
             j6_reason = "대화의 첫 턴 — 앞 대화 없음"
-        elif isinstance(scale, dict) and scale.get("error"):
-            j6_reason, j6_undetermined = scale["error"], True
-        elif isinstance(scale, dict) and not scale.get("multi_turn"):
+        elif isinstance(scale, dict) and scale.get("multi_turn") is None:
+            j6_reason, j6_undetermined = multi_turn.describe(scale), True
+        elif isinstance(scale, dict) and scale.get("multi_turn") is False:
             j6_reason = "멀티턴 대화가 아님 — " + multi_turn.describe(scale)
         elif issues:
             j6_reason = "대화 이력이 불완전함 — " + ", ".join(issues)

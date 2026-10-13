@@ -91,3 +91,23 @@ def test_without_tokenizer_multi_turn_is_undetermined_and_j6_is_unverified(monke
     jev = evaluate_jev_batch(engine.evaluate_batch(conversation([300] * 3), AionaConfig()), None, access_reason="키 없음")
     second = jev["records"][1]
     assert second["decisions"]["J6"]["status"] == "UNVERIFIED" and second["decisions"]["J6"]["reason"].startswith("멀티턴 여부를 판별하지 못함")
+
+
+def test_duplicate_or_invalid_turns_never_count_as_definite_long_turns():
+    rows = conversation([10_000] * 9)
+    duplicate = rows + [dict(rows[8], case_id="C1-T9b")]   # 9번 턴이 겹침 — 어느 쪽인지 몰라 확실한 턴에서 뺀다
+    jev = evaluate_jev_batch(engine.evaluate_batch(duplicate, AionaConfig()), None, access_reason="키 없음")
+    scale = jev["conversations"]["items"][0]["multi_turn"]
+    assert (scale["long_turns"], scale["uncertain_turns"], scale["multi_turn"]) == (8, 1, False)   # 9개까지만 가능 → 아님
+    invalid = rows + [{**conversation([10_000] * 10)[9], "question": ""}]   # 10번 턴 입력 오류 — 긴 턴이었을 수 있음
+    jev = evaluate_jev_batch(engine.evaluate_batch(invalid, AionaConfig()), None, access_reason="키 없음")
+    scale = jev["conversations"]["items"][0]["multi_turn"]
+    assert (scale["long_turns"], scale["uncertain_turns"], scale["multi_turn"]) == (9, 1, None)   # 모름
+    second = jev["records"][1]   # 2턴 — 앞 이력은 완전하지만 대화 전체가 멀티턴인지 모르므로 확인 필요
+    assert second["decisions"]["J6"]["status"] == "UNVERIFIED" and second["decisions"]["J6"]["reason"].startswith("멀티턴 여부를 판별하지 못함")
+    assert jev["conversations"]["items"][0]["result"] == "INCOMPLETE"
+
+
+def test_token_counts_are_cached_by_content_digest_not_by_text():
+    long_context.count_tokens("가" * 50_000)
+    assert all(len(key) == 32 for key in long_context._COUNTS) and "가" * 50_000 not in long_context._COUNTS

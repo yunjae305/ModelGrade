@@ -15,7 +15,6 @@
 """
 from __future__ import annotations
 
-import functools
 import hashlib
 import json
 import os
@@ -26,6 +25,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -118,9 +118,33 @@ def input_text(question: Any, reference: Any = None) -> str:
     return "\n".join(parts)
 
 
-@functools.lru_cache(maxsize=32)   # 같은 질문을 legacy·items 적용 판정에서 거듭 센다 — 긴 입력을 다시 토큰화하지 않게
+_COUNT_LOCK = threading.Lock()
+_COUNTS: "OrderedDict[str, int]" = OrderedDict()   # 내용 해시 → 토큰 수 (원문은 붙잡지 않음 — 입력이 수백만 자일 수 있음)
+_COUNTS_MAX = 4096
+
+
 def count_tokens(text: str) -> int:
-    return len(_encoder().encode(text or "", disallowed_special=()))
+    """토큰 수. 같은 질문·대화 턴을 적용 판정·대화 문맥에서 거듭 세므로 내용 해시로 캐시한다."""
+    text = text or ""
+    key = hashlib.blake2b(text.encode("utf-8", "surrogatepass"), digest_size=16).hexdigest()
+    with _COUNT_LOCK:
+        if key in _COUNTS:
+            _COUNTS.move_to_end(key)
+            return _COUNTS[key]
+    tokens = len(_encoder().encode(text, disallowed_special=()))
+    with _COUNT_LOCK:
+        _COUNTS[key] = tokens
+        while len(_COUNTS) > _COUNTS_MAX:
+            _COUNTS.popitem(last=False)
+    return tokens
+
+
+def _clear_counts() -> None:
+    with _COUNT_LOCK:
+        _COUNTS.clear()
+
+
+count_tokens.cache_clear = _clear_counts   # 시험에서 토크나이저를 바꿀 때 비운다
 
 
 def tier(tokens: int) -> Optional[str]:

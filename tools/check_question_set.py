@@ -186,7 +186,9 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             "conversations": conversations, "conversation_turns": sum(len(v) for v in turns.values()),
             "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "count_unit": "question_or_conversation", "criteria": criteria,
             "undetermined": dict(undetermined),
-            "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case}
+            "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case,
+            # 대화별 멀티턴 판정(평가와 같은 규칙, 이 파일의 답변으로) — {대화 ID: multi_turn.measure_conversation 결과}
+            "multi_turn": {ctx["id"]: ctx.get("multi_turn") for ctx in contexts.values()}}
 
 
 def render(report: Dict[str, Any]) -> str:
@@ -204,7 +206,7 @@ def render(report: Dict[str, Any]) -> str:
         verdict = "충족" if row["enough"] else f"부족 {row['short']}개"
         lines.append(f"    {cid:7s} {row['applicable_units']:4d}개  {verdict:8s} · 적용 턴 {row['applicable_turns']}")
     for cid, n in (report.get("undetermined") or {}).items():
-        lines.append(f"    {cid}: {n}개 질문은 적용 여부를 판별하지 못함 (토크나이저를 불러오지 못함 — tiktoken 설치·사전 내려받기 확인)")
+        lines.append(f"    {cid}: {n}개 질문(턴)은 적용 여부를 판별하지 못함 (토크나이저를 불러오지 못했거나 대화에 빠지거나 겹친 턴)")
     if report["types"]:
         lines.append("- 유형 분포 (목표 비율은 초안)")
         for name, row in report["types"].items():
