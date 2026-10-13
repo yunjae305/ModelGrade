@@ -6,6 +6,7 @@ automatically. Failed, blocked and truncated responses remain explicit outcomes.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 import threading
@@ -28,6 +29,7 @@ from .blind_comparison import blind_plan
 from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event, record_events
 from . import semantic_union
+from . import auto_collection as auto
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 from .aiona_history import aiona_history
 from .version_comparison import compare_runs
@@ -128,7 +130,9 @@ def _external_semantic_context(system):
 
 
 class ProviderError(Exception):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status  # HTTP 상태 코드 (네트워크 실패·형식 오류는 None)
 
 
 def request_answer(provider, config, messages, max_tokens, client, *, usage_observer=None):
@@ -155,6 +159,11 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
         url = "https://api.anthropic.com/v1/messages"
         headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
         body = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    elif provider == "factchat":
+        # OpenAI 호환 Chat Completions 게이트웨이 — 시스템 프롬프트·도구 없이 같은 메시지만 보낸다.
+        url = config["base_url"].rstrip("/") + "/chat/completions"
+        headers = {"Authorization": f"Bearer {key}"}
+        body = {"model": model, "messages": messages, "max_tokens": max_tokens}
     else:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers = {"x-goog-api-key": key}
@@ -172,7 +181,7 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
                       401: "API 키를 확인해 주세요.", 403: "키 또는 모델 접근 권한을 확인해 주세요.",
                       404: "모델 ID를 확인해 주세요.", 429: "사용량·요청 한도를 확인해 주세요."}.get(
                           response.status_code, "모델 제공자에서 요청을 처리하지 못했습니다.")
-            raise ProviderError(f"HTTP {response.status_code}: {reason}")
+            raise ProviderError(f"HTTP {response.status_code}: {reason}", status=response.status_code)
         try:
             raw = response.json()
             record_usage(raw)  # Keep usage even if answer parsing fails below.
@@ -188,6 +197,16 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
                 texts = [b["text"] for b in raw.get("content", []) if b.get("type") == "text"]
                 finish = raw.get("stop_reason", "unknown")
                 complete = finish in ("end_turn", "stop_sequence", "refusal")
+            elif provider == "factchat":
+                choice = (raw.get("choices") or [{}])[0]
+                message = choice.get("message") or {}
+                content = message.get("content")
+                if isinstance(content, list):
+                    texts = [part["text"] for part in content if part.get("type") == "text"]
+                else:
+                    texts = [text for text in (content, message.get("refusal")) if isinstance(text, str) and text][:1]
+                finish = choice.get("finish_reason") or "unknown"
+                complete = finish == "stop"
             else:
                 candidate = (raw.get("candidates") or [{}])[0]
                 texts = [p["text"] for p in candidate.get("content", {}).get("parts", [])
@@ -225,6 +244,10 @@ class ComparisonService:
         self.relay_fetcher = None  # 중계 URL 확인 함수 (테스트 대역). None 이면 공개 주소 검사를 하는 기본 확인기.
         default_registry = (self.save_dir.parent if save_dir is not None else ROOT / 'data') / 'aiona_versions.json'
         self.version_registry = VersionRegistry(Path(registry_path) if registry_path is not None else default_registry)
+        # 자동 수집 관리 설정(키 없음)과 작업 색인 — 같은 업로드는 같은 작업으로 돌려준다 (서버 시작 후 처음 필요할 때 저장 기록에서 만든다)
+        self.auto_policy = auto.PolicyStore((self.save_dir.parent if save_dir is not None else ROOT / 'data') / 'auto_collection_policy.json')
+        self._auto_jobs = None   # job_key → 가장 최근 run_id
+        self._auto_days = {}     # run_id → 일일 한도에 묶인 날짜
 
     def _launch_worker(self, run, token, target, args=()):
         """Register/start under one lock so shutdown cannot miss a new worker."""
@@ -379,6 +402,9 @@ class ComparisonService:
             model = env_value(model_var, environment, path)
             if key and model:
                 configs[provider] = {"key": key, "model": model}
+        key, model = env_value("FACTCHAT_API_KEY", environment, path), env_value("FACTCHAT_MODEL", environment, path)
+        if key and model:
+            configs["factchat"] = {"key": key, "model": model, "base_url": env_value("FACTCHAT_BASE_URL", environment, path) or None}
         for provider, config in configs.items():
             self.configure(provider, config)
         self.semantic_workers = workers
@@ -390,7 +416,7 @@ class ComparisonService:
                         "model": self._keys.get(p, {}).get("model", "")} for p, name in PROVIDERS.items()}
 
     def configure(self, provider, payload):
-        if provider not in PROVIDERS or not isinstance(payload, dict):
+        if (provider not in PROVIDERS and provider != "factchat") or not isinstance(payload, dict):
             raise ValueError("지원하지 않는 모델 제공자입니다.")
         with self._lock:
             if payload.get("clear") is True:
@@ -399,9 +425,19 @@ class ComparisonService:
                 key, model = payload.get("key"), payload.get("model")
                 if not isinstance(key, str) or not key.strip() or len(key) > 4096 or any(c.isspace() for c in key.strip()):
                     raise ValueError("API 키를 입력해 주세요.")
-                if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,199}", model):
-                    raise ValueError("올바른 모델 ID를 입력해 주세요.")
-                self._keys[provider] = {"key": key.strip(), "model": model}
+                if provider == "factchat":
+                    # 게이트웨이 모델 ID 는 'google/gemma-…' 처럼 제공자 경로를 포함할 수 있다
+                    if not auto.valid_gateway_model(model):
+                        raise ValueError("올바른 모델 ID를 입력해 주세요.")
+                    self._keys[provider] = {"key": key.strip(), "model": model, "base_url": auto.validate_base_url(payload.get("base_url"))}
+                else:
+                    if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,199}", model):
+                        raise ValueError("올바른 모델 ID를 입력해 주세요.")
+                    self._keys[provider] = {"key": key.strip(), "model": model}
+            if provider == "factchat":
+                config = self._keys.get(provider, {})
+                return {"name": "FactChat", "configured": provider in self._keys, "model": config.get("model", ""),
+                        "base_url": config.get("base_url")}
         return self.providers()[provider]
 
     def sample(self):
@@ -416,7 +452,7 @@ class ComparisonService:
                 "blind_after_collection": True,
                 "parallel_collection": True, "parallel_evaluation": True, "evaluation_events": "sse-v1",
                 "judge_input_fields": ["question", "answer", "reference", "history"],
-                "external_import": COLLECTION_SCHEMA}
+                "external_import": COLLECTION_SCHEMA, "auto_collection": "v1"}
 
     def _run(self, run_id):
         run = self._runs.get(run_id)
@@ -440,6 +476,7 @@ class ComparisonService:
                     progress.update(stage="ERROR", active=None, timing_interrupted=True)
             run["status"], run["error"] = "ERROR", "서버 재시작으로 실행이 중단되었습니다. 저장된 원문과 결과를 확인해 주세요."
             ComparisonService._clear_inflight(run)
+            ComparisonService._finalize_auto_collection(run)
 
     @staticmethod
     def _clear_inflight(run):
@@ -934,6 +971,407 @@ class ComparisonService:
         except Exception:
             run["save_error"] = "API 수집 결과를 공통 형식으로 정리하지 못했습니다. 수집 원문은 보존했습니다."
 
+    # --- 업로드 직후 자동 수집 ------------------------------------------------------------------
+    @staticmethod
+    def _auto_job_key(cases, input_mode):
+        """같은 업로드(질문·대화 구성·AIONA 답변이 모두 같음)는 같은 작업 — 새로고침·중복 업로드가 유료 요청을 다시 만들지 않는다."""
+        encoded = json.dumps(["auto-collection-v1", input_mode, fingerprint(cases, answers=True)], ensure_ascii=False)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _progress_entry(total):
+        return {"done": 0, "success": 0, "incomplete": 0, "failed": 0, "total": total, "stage": "WAITING", "active": None,
+                "started_at": None, "finished_at": None, "elapsed_ms": 0, "duration_ms": None}
+
+    @staticmethod
+    def _model_label(provider, config):
+        # 게이트웨이는 플랫폼과 실제 모델을 함께 적는다 — 'FactChat' 만으로 모델을 나타내지 않는다
+        return f"FactChat · {config['model']}" if provider == "factchat" else config["model"]
+
+    def _remember_auto(self, run):
+        info = run.get("auto_collection") or {}
+        key, run_id = info.get("job_key"), run.get("run_id")
+        if not key or not run_id:
+            return
+        current = self._auto_jobs.get(key)
+        if current is None or (current[0] or "") <= (run.get("created_at") or ""):
+            self._auto_jobs[key] = (run.get("created_at"), run_id)
+        self._auto_days[run_id] = (info.get("budget") or {}).get("day")
+
+    def _ensure_auto_index(self):
+        """잠금 안에서 호출. 저장된 자동 수집 기록은 서버 시작 후 처음 한 번만 읽는다."""
+        if self._auto_jobs is not None:
+            return
+        self._auto_jobs, seen = {}, set()
+        for run in list(self._runs.values()):
+            if run.get("run_kind") == "auto_collection":
+                self._remember_auto(run)
+                seen.add(run["run_id"])
+        if self.save_dir.is_dir():
+            for path in self.save_dir.glob("*.json"):
+                if path.stem in seen:
+                    continue
+                try:
+                    run = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if isinstance(run, dict) and run.get("run_kind") == "auto_collection":
+                    self._remember_auto(run)
+
+    def _find_auto_job(self, job_key):
+        self._ensure_auto_index()
+        entry = self._auto_jobs.get(job_key)
+        if entry is None:
+            return None
+        try:
+            return self._run(entry[1])
+        except (FileNotFoundError, ValueError, OSError):
+            self._auto_jobs.pop(job_key, None)
+            return None
+
+    def _today_used(self):
+        """오늘 일일 한도에 묶인 호출 수·비용 — 진행 중인 작업은 승인한 양, 끝난 작업은 실제 사용량."""
+        self._ensure_auto_index()
+        day, calls, cost = auto.today(), 0, 0.0
+        for run_id, budget_day in list(self._auto_days.items()):
+            if budget_day != day:
+                continue
+            try:
+                run = self._run(run_id)
+            except (FileNotFoundError, ValueError, OSError):
+                self._auto_days.pop(run_id, None)
+                continue
+            used_calls, used_cost = auto.committed(run["auto_collection"]["budget"], run["status"] == "COLLECTING")
+            calls, cost = calls + used_calls, cost + used_cost
+        return calls, cost
+
+    def auto_collection_status(self):
+        """연결·자동 수집 허용·한도·오늘 사용량 (키 값은 돌려주지 않는다)."""
+        policy = self.auto_policy.load()
+        with self._lock:
+            targets = []
+            for provider, target in auto.TARGETS.items():
+                state, label, reason = auto.target_state(provider, policy, self._keys)
+                config = self._keys.get(provider, {})
+                targets.append({"id": provider, "name": target["name"], "kind": target["kind"], "platform": target["platform"],
+                                "vendor": target["vendor_label"], "note": target.get("note"),
+                                "connected": provider in self._keys, "model": config.get("model", ""),
+                                "base_url": config.get("base_url"), "allowed": bool(policy["allowed"].get(provider)),
+                                "priced": provider in auto.LIVE_TARGETS and auto.priced(policy, provider),
+                                "state": state, "label": label, "reason": reason})
+            calls, cost = self._today_used()
+        return {"version": "v1", "targets": targets, "policy": policy, "limits_ready": auto.limits_ready(policy),
+                "today": {"day": auto.today(), "calls": calls, "cost_usd": round(cost, 6)},
+                "factchat_base_urls": list(auto.FACTCHAT_BASE_URLS)}
+
+    def update_auto_policy(self, payload):
+        with self._lock:
+            policy = auto.validate_policy(payload, self.auto_policy.load())
+            self.auto_policy.save(policy)
+        return self.auto_collection_status()
+
+    @staticmethod
+    def _auto_environment(run):
+        """FactChat 게이트웨이 답변은 직접 API 호출과 실행 조건이 같다고 확인되지 않는다 — 순위를 강제로 매기지 않게 표시한다."""
+        if "factchat" not in run["providers"]:
+            run.pop("environment_comparison", None)
+            return
+        values = {p: "API 게이트웨이 (FactChat)" if p == "factchat" else "제공자 API 직접 호출"
+                  for p in run["providers"] if p != "aiona"}
+        run["environment_comparison"] = {
+            "same_conditions": False, "systems": len(run["providers"]), "same_questions": True,
+            "question_count": run["question_count"],
+            "differences": [{"code": "access_mode", "label": "응답 생성 경로", "values": values, "unknown": True,
+                             "detail": "FactChat 게이트웨이의 시스템 지시·도구·웹검색 조건을 확인하지 못함"}],
+            "note": "FactChat 게이트웨이를 거친 답변은 직접 API 호출과 실행 조건(시스템 지시·도구·웹검색)이 같다고 확인되지 않아, "
+                    "점수를 같은 조건의 성능 순위로 보지 않습니다."}
+
+    def _auto_provider_entry(self, provider, config, plan):
+        entry = {"state": "collecting", "label": "자동 수집", "reason": None, "model": config["model"],
+                 "platform": auto.TARGETS[provider]["platform"], "access_mode": "api",
+                 "planned_calls": plan["calls"], "planned_cost_usd": round(plan["cost_usd"], 6)}
+        if provider == "factchat":
+            entry.update(base_url=config["base_url"], vendor=auto.gateway_vendor(config["model"]), response_models=[])
+        else:
+            entry["vendor"] = auto.TARGETS[provider]["vendor"]
+        return entry
+
+    def _auto_guard(self, run, plans, providers):
+        """요청 직전 승인 범위 확인(동시 요청은 예약으로 계산)과 응답 뒤 정산. 설정·권한 오류는 그 제공자의 남은 요청을 멈춘다."""
+        reserves = {p: plans[p]["reserves"] for p in providers}
+        prices = run["auto_collection"]["prices"]
+        pending = {"calls": 0, "cost": 0.0}
+        halted = {}
+        lock = self._lock
+
+        class Guard:
+            @staticmethod
+            def before(provider, index):
+                with lock:
+                    if provider in halted:
+                        return halted[provider]
+                    budget, reserve = run["auto_collection"]["budget"], reserves[provider][index]
+                    if (budget["spent_calls"] + pending["calls"] + 1 > budget["authorized_calls"]
+                            or budget["spent_cost_usd"] + pending["cost"] + reserve > budget["authorized_cost_usd"] + 1e-9):
+                        return "승인된 호출·비용 범위를 넘을 수 있어 요청하지 않았습니다. 관리 설정의 한도를 확인한 뒤 다시 수집해 주세요."
+                    pending["calls"] += 1
+                    pending["cost"] += reserve
+                    return None
+
+            @staticmethod
+            def after(provider, index, outcome, status):
+                with lock:
+                    reserve = reserves[provider][index]
+                    pending["calls"] -= 1
+                    pending["cost"] -= reserve
+                    usage = auto.usage_tokens(provider, outcome.get("raw"))
+                    cost = auto.cost_usd(prices[provider], *usage) if usage else reserve
+                    budget = run["auto_collection"]["budget"]
+                    budget["spent_calls"] += 1
+                    budget["spent_cost_usd"] += cost
+                    budget["estimated_calls"] += usage is None
+                    spent = budget["providers"][provider]
+                    spent["spent_calls"] += 1
+                    spent["spent_cost_usd"] += cost
+                    outcome["estimated_cost_usd"] = {"amount": round(cost, 8), "basis": "usage" if usage else "upper_bound"}
+                    raw = outcome.get("raw")
+                    if provider == "factchat" and isinstance(raw, dict) and isinstance(raw.get("model"), str):
+                        seen = run["auto_collection"]["providers"]["factchat"].setdefault("response_models", [])
+                        if raw["model"] not in seen:
+                            seen.append(raw["model"])
+                    if status in auto.HALTING_STATUS and provider not in halted:
+                        halted[provider] = (f"앞선 요청이 HTTP {status}({auto.HALTING_STATUS[status]} 확인 필요)로 실패해 이 제공자의 "
+                                            "남은 요청을 멈췄습니다. 설정을 확인한 뒤 다시 수집해 주세요.")
+        return Guard
+
+    @staticmethod
+    def _finalize_auto_collection(run):
+        """제공자별 수집 결과 요약 (반복 호출해도 같다). 수집 원문·다른 제공자의 결과는 바꾸지 않는다."""
+        info = run.get("auto_collection")
+        if run.get("run_kind") != "auto_collection" or not info:
+            return
+        for provider in run["providers"]:
+            if provider == "aiona":
+                continue
+            rows, entry = run["datasets"][provider], info["providers"].setdefault(provider, {})
+            success = sum(1 for row in rows if row and (row.get("collection") or {}).get("status") == "SUCCESS")
+            stage = (run.get("progress", {}).get(provider) or {}).get("stage")
+            if stage in ("COLLECTING", "WAITING") and run["status"] == "COLLECTING":
+                continue
+            state, label = (("cancelled", "중단됨") if stage == "CANCELLED" and success < len(rows) else
+                            ("completed", "수집 완료") if success == len(rows) else
+                            ("partial", "일부 실패") if success else ("failed", "수집 실패"))
+            failure = next(((row.get("collection") or {}).get("error") for row in rows
+                            if row and (row.get("collection") or {}).get("status") != "SUCCESS"
+                            and (row.get("collection") or {}).get("error")), None)
+            entry.update(state=state, label=label, collected=success, total=len(rows),
+                         reason=failure if state in ("partial", "failed") else None)
+            if provider == "factchat":
+                vendors = {auto.gateway_vendor(m) for m in entry.get("response_models") or [entry.get("model")]}
+                entry["vendor"] = vendors.pop() if len(vendors) == 1 else "mixed"
+
+    def _launch_collection(self, run, token, ledger, cases, config, guard):
+        try:
+            self._launch_worker(run, token, self._collect, (run, cases, config, None, token, guard, True))
+        except Exception:
+            with self._lock:
+                if token.is_set():
+                    self._mark_cancelled(run)
+                else:
+                    run["status"], run["error"] = "ERROR", "응답 수집 작업을 시작하지 못했습니다."
+                self._cancel_events.pop(run["run_id"], None)
+                self._finalize_auto_collection(run)
+                self._save(run)
+                self._finish_costs(run, ledger)
+            raise ValueError(run["error"] or "응답 수집 작업을 시작하지 못했습니다.") from None
+
+    def _register_auto_run(self, run, cases, config, plans, admitted):
+        """잠금 안에서 호출 — 저장에 실패하면 시작하지 않는다. (token, ledger, guard) 또는 수집할 제공자가 없으면 None."""
+        run_id = run["run_id"]
+        self._cancel_events[run_id] = token = threading.Event()
+        self._cost_ledgers[run_id] = ledger = CostLedger()
+        if not self._save(run):
+            self._cancel_events.pop(run_id, None)
+            self._cost_ledgers.pop(run_id, None)
+            run['status'], run['error'] = 'ERROR', '실행 기록을 저장하지 못해 수집을 시작하지 않았습니다.'
+            self._save(run)
+            raise OSError(run['error'])
+        if not admitted:
+            self._cancel_events.pop(run_id, None)
+            self._finish_costs(run, ledger)
+            return None
+        return token, ledger, self._auto_guard(run, plans, admitted)
+
+    def start_auto_collection(self, payload):
+        """업로드한 AIONA Q/A 로 자동 수집 작업을 만든다. 관리 설정에서 허용·한도 안에 드는 연결된 제공자만 요청한다.
+
+        같은 업로드는 기존 작업을 그대로 돌려주고 새 요청을 만들지 않는다 (새로 받으려면 rerun=true 를 명시).
+        평가는 시작하지 않는다 — 수집이 끝나면 사용자가 평가를 시작한다.
+        """
+        rerun = payload.get("rerun", False)
+        if not isinstance(rerun, bool):
+            raise ValueError("rerun 은 true 또는 false 여야 합니다.")
+        if payload.get("baseline_run_id") is not None or payload.get("source_run_id") is not None:
+            raise ValueError("버전 비교·재평가는 버전 관리 기능을 사용해 주세요.")
+        cases = normalize_dataset(payload)
+        input_mode = payload.get("input_mode", "file")
+        if input_mode not in ("file", "manual"):
+            raise ValueError("입력 방식이 올바르지 않습니다.")
+        if input_mode == "manual" and (len(cases) != 1 or not cases[0]["answer"].strip()):
+            raise ValueError("직접 입력은 질문과 AIONA 답변 한 쌍이 필요합니다.")
+        document = payload.get("input_document")
+        if document is not None:
+            if not isinstance(document, dict) or not isinstance(document.get("original_text"), str):
+                raise ValueError("업로드 원문 기록 형식이 올바르지 않습니다.")
+            document = {k: copy.deepcopy(document[k]) for k in ("original_text", "source_name", "format", "notes") if k in document}
+            validate_json_numbers(document)
+        policy = self.auto_policy.load()
+        max_tokens = policy["max_output_tokens"]
+        job_key = self._auto_job_key(cases, input_mode)
+        with self._lock:
+            if self._closing:
+                raise ValueError("서버가 종료 중이므로 새 수집을 시작할 수 없습니다.")
+            current = self.version_registry.current_release()
+            expected = payload.get("expected_model_version")
+            if expected is not None and expected != (current or {}).get("version"):
+                raise ValueError("현재 모델 버전이 변경되었습니다. 새로고침 후 확인해 주세요.")
+            previous = self._find_auto_job(job_key)
+            if previous is not None and not rerun:
+                return {"run": self._status(previous), "reused": True, "skipped": {}}
+            active = [r for r in self._runs.values() if r["status"] in ("COLLECTING", "EVALUATING")]
+            if len(active) >= MAX_RUNS:
+                raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
+            states = {p: auto.target_state(p, policy, self._keys) for p in auto.TARGETS}
+            eligible = [p for p in auto.LIVE_TARGETS if states[p][0] == "ready"]
+            chains, n = self._collection_chains(cases), len(cases)
+            plans = {p: auto.plan_provider(cases, chains, range(n), max_tokens, policy["prices"][p]) for p in eligible}
+            budget = auto.empty_budget(auto.today())
+            admitted, skipped = auto.admit(eligible, plans, policy, budget, self._today_used())
+            config = {p: {**self._keys[p], "provider": p} for p in admitted}
+            budget.update(authorized_calls=sum(plans[p]["calls"] for p in admitted),
+                          authorized_cost_usd=sum(plans[p]["cost_usd"] for p in admitted),
+                          providers={p: {"planned_calls": plans[p]["calls"], "planned_cost_usd": plans[p]["cost_usd"],
+                                         "spent_calls": 0, "spent_cost_usd": 0.0} for p in admitted})
+            providers_info = {}
+            for provider in auto.TARGETS:
+                state, label, reason = states[provider]
+                providers_info[provider] = (self._auto_provider_entry(provider, config[provider], plans[provider]) if provider in admitted
+                                            else {"state": "over_limit", "label": "한도 초과", "reason": skipped[provider]}
+                                            if provider in skipped else {"state": state, "label": label, "reason": reason})
+            run_id = uuid.uuid4().hex[:12]
+            run = {"run_id": run_id, "name": str(payload.get("name") or "새 비교")[:200],
+                   "created_at": datetime.now(timezone.utc).isoformat(), "status": "COLLECTING" if admitted else "READY",
+                   "phase": "COLLECT", "total": n * len(admitted), "done": 0, "question_count": n,
+                   "providers": ["aiona", *admitted], "max_tokens": max_tokens,
+                   "models": {"aiona": "업로드 원문", **{p: self._model_label(p, config[p]) for p in admitted}},
+                   "progress": {p: self._progress_entry(n) for p in admitted},
+                   "datasets": {"aiona": cases, **{p: [None] * n for p in admitted}},
+                   "evaluations": {}, "cancel_requested": False, "error": None,
+                   # 평가는 수집이 끝난 뒤 사용자가 시작한다. 평가 모델에는 모델명을 가린다 (기존 4개 모델 비교와 같음).
+                   "auto_evaluate": False, "blind_requested": True, "input_mode": input_mode, "aiona_specialized": False,
+                   "run_kind": "auto_collection", "aiona_release": current,
+                   "dataset_fingerprint": fingerprint(cases), "source_fingerprint": fingerprint(cases, answers=True),
+                   "auto_collection": {"version": 1, "job_key": job_key,
+                                       "source_name": str(payload.get("input_name") or payload.get("name") or "")[:200] or None,
+                                       "max_output_tokens": max_tokens, "limits": copy.deepcopy(policy["limits"]),
+                                       "prices": {p: copy.deepcopy(policy["prices"][p]) for p in admitted},
+                                       "providers": providers_info, "budget": budget,
+                                       **({"rerun_of": previous["run_id"]} if previous is not None else {})}}
+            if admitted:
+                chain_workers = min(self.collection_workers, len(chains))
+                run["collection_execution"] = {"collection_workers_per_model": chain_workers,
+                                               "collection_workers_total": chain_workers * len(admitted),
+                                               "conversation_order": "sequential_original_turns"}
+            if document is not None:
+                run["input_document"] = document
+            self._auto_environment(run)
+            self._runs[run_id] = run
+            self._remember_auto(run)
+            started = self._register_auto_run(run, cases, config, plans, admitted)
+            if started is None:
+                return {"run": self._status(run), "reused": False, "skipped": skipped}
+        token, ledger, guard = started
+        self._launch_collection(run, token, ledger, cases, config, guard)
+        return {"run": self.status(run_id), "reused": False, "skipped": skipped}
+
+    def collect_more(self, run_id, payload):
+        """평가 시작 전 자동 수집 작업에서 실패·미수집 답변만 다시 요청하거나, 나중에 연결한 제공자를 더한다 (명시적 요청만).
+
+        이미 받은 답변은 다시 요청하지 않고, 같은 대화의 뒤 턴은 그 답변을 이력으로 이어 쓴다.
+        """
+        providers = payload.get("providers")
+        if (not isinstance(providers, list) or not providers or len(providers) != len(set(providers))
+                or any(p not in auto.LIVE_TARGETS for p in providers)):
+            raise ValueError("다시 수집할 제공자 선택이 올바르지 않습니다.")
+        policy = self.auto_policy.load()
+        with self._lock:
+            if self._closing:
+                raise ValueError("서버가 종료 중이므로 새 수집을 시작할 수 없습니다.")
+            run = self._run(run_id)
+            if run.get("run_kind") != "auto_collection":
+                raise ValueError("자동 수집 작업에서만 다시 수집할 수 있습니다.")
+            if run.get("phase") != "COLLECT" or run.get("evaluations"):
+                raise ValueError("평가를 시작한 실행에는 답변을 더하거나 다시 수집할 수 없습니다. '새로 수집'으로 별도 실행을 만들어 주세요.")
+            if run["status"] not in ("READY", "CANCELLED", "ERROR") or self._workers.get(run_id):
+                raise ValueError("수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.")
+            info, cases = run["auto_collection"], run["datasets"]["aiona"]
+            n, max_tokens = len(cases), run["max_tokens"]
+            for provider in providers:
+                state, label, reason = auto.target_state(provider, policy, self._keys)
+                if state != "ready":
+                    raise ValueError(f"{auto.TARGETS[provider]['name']}: {label} — {reason}")
+                previous = info["providers"].get(provider) or {}
+                if provider in run["providers"] and (previous.get("model") != self._keys[provider]["model"]
+                                                     or previous.get("base_url") != self._keys[provider].get("base_url")):
+                    raise ValueError(f"{auto.TARGETS[provider]['name']}의 모델 설정이 이 작업과 달라 같은 실행에 이어 수집할 수 없습니다. "
+                                     "'새로 수집'으로 별도 실행을 만들어 주세요.")
+            wanted = {p: [i for i, row in enumerate(run["datasets"].get(p) or [None] * n)
+                          if row is None or (row.get("collection") or {}).get("status") != "SUCCESS"] for p in providers}
+            wanted = {p: indices for p, indices in wanted.items() if indices}
+            if not wanted:
+                raise ValueError("다시 수집할 답변이 없습니다. 선택한 제공자의 답변이 모두 수집되어 있습니다.")
+            chains = self._collection_chains(cases)
+            plans = {p: auto.plan_provider(cases, chains, indices, max_tokens, policy["prices"][p]) for p, indices in wanted.items()}
+            budget = info["budget"]
+            if budget["day"] != auto.today():
+                # 이어서 받는 날의 일일 한도에 이 작업의 사용량 전체를 묶는다 (보수적으로 계산)
+                budget["day"] = self._auto_days[run_id] = auto.today()
+            admitted, skipped = auto.admit(list(wanted), plans, policy, budget, self._today_used())
+            if not admitted:
+                raise ValueError("관리 설정 한도 안에서 시작할 수 없습니다. " + " ".join(skipped.values()))
+            config = {p: {**self._keys[p], "provider": p} for p in admitted}
+            info["prices"].update({p: copy.deepcopy(policy["prices"][p]) for p in admitted})
+            for provider in admitted:
+                plan = plans[provider]
+                if provider not in run["providers"]:
+                    run["providers"].append(provider)
+                    run["datasets"][provider] = [None] * n
+                    run["models"][provider] = self._model_label(provider, config[provider])
+                    info["providers"][provider] = self._auto_provider_entry(provider, config[provider], plan)
+                else:
+                    entry = info["providers"][provider]
+                    entry.update(state="collecting", label="다시 수집", reason=None,
+                                 planned_calls=entry.get("planned_calls", 0) + plan["calls"],
+                                 planned_cost_usd=round(entry.get("planned_cost_usd", 0) + plan["cost_usd"], 6))
+                kept = n - len(wanted[provider])
+                run["progress"][provider] = {**self._progress_entry(n), "done": kept, "success": kept}
+                spent = budget["providers"].setdefault(provider, {"planned_calls": 0, "planned_cost_usd": 0.0,
+                                                                  "spent_calls": 0, "spent_cost_usd": 0.0})
+                spent["planned_calls"] += plan["calls"]
+                spent["planned_cost_usd"] += plan["cost_usd"]
+            budget["authorized_calls"] = budget["spent_calls"] + sum(plans[p]["calls"] for p in admitted)
+            budget["authorized_cost_usd"] = budget["spent_cost_usd"] + sum(plans[p]["cost_usd"] for p in admitted)
+            chain_workers = min(self.collection_workers, len(chains))
+            run.update(status="COLLECTING", total=sum(len(wanted[p]) for p in admitted), done=0, error=None, cancel_requested=False,
+                       revision=run.get("revision", 0) + 1,
+                       collection_execution={"collection_workers_per_model": chain_workers,
+                                             "collection_workers_total": chain_workers * len(admitted),
+                                             "conversation_order": "sequential_original_turns"})
+            self._auto_environment(run)
+            token, ledger, guard = self._register_auto_run(run, cases, config, plans, admitted)
+        self._launch_collection(run, token, ledger, cases, config, guard)
+        return {"run": self.status(run_id), "skipped": skipped}
+
     def start(self, payload):
         release = validate_release(payload.get('aiona_release'))
         if release is None:
@@ -1051,9 +1489,10 @@ class ComparisonService:
             result["__parse_error__"] = "응답 수집 실패·중단 또는 미완료: " + outcome.get("error", "평가 제외")
         return result
 
-    def _collect(self, run, cases, config, evaluation_payload=None, cancel_event=None):
+    def _collect(self, run, cases, config, evaluation_payload=None, cancel_event=None, guard=None, skip_success=False):
         # Stable original indices remain in JSON even when turns are reordered
         # for requests. AIONA's answers are never passed as another model's history.
+        # guard (자동 수집): 요청 직전 승인 범위 확인·응답 뒤 정산. skip_success: 이미 받은 답변은 다시 요청하지 않고 이력으로 쓴다.
         chains = self._collection_chains(cases)
         workers = run.get("collection_execution", {}).get("collection_workers_per_model", 1)
         ledger = self._cost_ledgers.get(run['run_id'])
@@ -1085,6 +1524,11 @@ class ComparisonService:
                                     next_chain[0] += 1
                                 history, broken = [], False
                                 for index in chain:
+                                    kept = run["datasets"][provider][index] if skip_success else None
+                                    if not broken and kept is not None and (kept.get("collection") or {}).get("status") == "SUCCESS":
+                                        history = history + [{"role": "user", "content": cases[index]["question"]},
+                                                             {"role": "assistant", "content": kept["answer"]}]
+                                        continue
                                     with self._lock:
                                         if token.is_set() or stopped.is_set() or run["cancel_requested"]:
                                             return
@@ -1098,14 +1542,21 @@ class ComparisonService:
                                         messages = list(history) + [{"role": "user", "content": case["question"]}]
                                         if token.is_set() or stopped.is_set():
                                             return
-                                        request_started = time.monotonic()
-                                        try:
-                                            outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
-                                                usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
-                                        except ProviderError as exc:
-                                            outcome = {"status": "ERROR", "error": str(exc)}
-                                        outcome["latency_ms"] = round((time.monotonic() - request_started) * 1000, 1)
-                                        if run.get("run_kind") == "external_import":
+                                        blocked = guard.before(provider, index) if guard else None
+                                        if blocked:
+                                            outcome = {"status": "ERROR", "error": blocked, "not_requested": True}
+                                        else:
+                                            request_started, status_code = time.monotonic(), None
+                                            try:
+                                                outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
+                                                    usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
+                                            except ProviderError as exc:
+                                                outcome = {"status": "ERROR", "error": str(exc)}
+                                                status_code = exc.status
+                                            outcome["latency_ms"] = round((time.monotonic() - request_started) * 1000, 1)
+                                            if guard:
+                                                guard.after(provider, index, outcome, status_code)
+                                        if run.get("run_kind") in ("external_import", "auto_collection"):
                                             outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
                                     if outcome["status"] == "SUCCESS":
                                         history = messages + [{"role": "assistant", "content": outcome["answer"]}]
@@ -1171,6 +1622,7 @@ class ComparisonService:
                     self._finish_costs(run, ledger)
         finally:
             with self._lock:
+                self._finalize_auto_collection(run)
                 self._save(run)
 
     def cancel(self, run_id):
@@ -1227,6 +1679,9 @@ class ComparisonService:
                 for provider in run["providers"]}
             if run.get("run_kind") == "external_import":
                 semantic_contexts = {provider: _external_semantic_context(run["systems"][provider]) for provider in run["providers"]}
+            if run.get("run_kind") == "auto_collection" and "factchat" in semantic_contexts:
+                # 게이트웨이가 모델에 도구·검색을 붙였는지 확인할 수 없다 — '도구 없이 생성'으로 단정하지 않는다
+                semantic_contexts["factchat"]["answer_tools"] = "unknown"
             if run.get("blind_requested") and not run.get("blind", {}).get("enabled"):
                 run["blind"] = {**blind_plan(run["providers"]), "applied_at": started_at}
             run.update(status="EVALUATING", phase="EVALUATE", error=None, cancel_requested=False,

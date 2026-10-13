@@ -1114,3 +1114,124 @@ textarea::placeholder {color:#757f94}
 .history-trend-chart .trend-point.changed {fill:var(--amber)}
 .history-trend-chart .trend-point.incomplete {fill:var(--surface); stroke:var(--primary)}
 .history-trend-chart .trend-point.changed.incomplete {stroke:var(--amber)}
+
+/* 새 비교 — 평가 데이터 · AI 답변 자동 수집 · 질문별 답변 비교 (업로드 직후 자동 수집) */
+.dataset-panel,.collection-panel,.compare-panel {margin-bottom:22px}
+.panel-heading .panel-title p {margin-top:3px; font-size:12px; color:var(--muted)}
+.panel-actions {display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:8px 12px}
+.panel-actions .input-mode-switch {margin:0; padding:3px}
+.panel-actions .input-mode-switch button {min-height:34px; padding:0 14px; font-size:12px; white-space:nowrap}
+.dataset-panel .dropzone {flex-direction:row; justify-content:flex-start; gap:18px; min-height:0; margin:20px 24px; padding:20px 22px; text-align:left; background:linear-gradient(120deg,#FDFCFF 0%,#F7FAFF 100%)}
+.dataset-panel .upload-icon {width:48px; height:48px; margin:0; flex:none; border-radius:14px}
+.dataset-panel .upload-icon .icon {width:22px; height:22px}
+.dropzone-text {flex:1; min-width:0}
+.dataset-panel .dropzone h3 {font-size:15px} .dataset-panel .dropzone p {max-width:none; margin-top:4px; font-size:12px}
+.dataset-panel .dropzone .button {margin:0; flex:none; min-height:42px}
+.dataset-panel .file-summary {padding:18px 24px 14px}
+.dataset-panel dl.dataset-stats {grid-template-columns:repeat(5,minmax(0,1fr)); margin:0 24px 20px; padding:14px 6px}
+.dataset-panel dl.dataset-stats>div {min-width:0; padding:0 16px}
+.dataset-panel dl.dataset-stats>div:not(:first-child) {border-left:1px solid #E0DAF6; padding-left:16px}
+.dataset-panel dl.dataset-stats dt {margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:600}
+.dataset-panel dl.dataset-stats dd {margin:0; color:#3B2F8F; font-size:24px; font-weight:760; letter-spacing:-.4px; font-variant-numeric:tabular-nums; white-space:nowrap}
+.dataset-panel dl.dataset-stats dd small {margin-left:4px; font-size:12px; font-weight:500; color:var(--muted); letter-spacing:0}
+.dataset-panel dl.dataset-stats>div>small {display:block; margin-top:4px; font-size:11px; font-weight:650}
+.dataset-panel dl.dataset-stats .ready {color:var(--green)} .dataset-panel dl.dataset-stats .missing {color:var(--amber)}
+.manual-actions {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px}
+.collection-targets {display:grid; margin:0; padding:4px 0; list-style:none}
+.collection-target {display:grid; grid-template-columns:36px minmax(150px,1.2fr) auto minmax(180px,1.4fr) minmax(140px,auto); align-items:center; gap:6px 16px; padding:12px 24px; border-bottom:1px solid #F3F4F8}
+.collection-target:last-child {border-bottom:0}
+.collection-target .model-avatar {width:36px; height:36px; border-radius:11px; font-size:14px}
+.target-name {min-width:0} .target-name strong {display:block; font-size:14px}
+.target-name small {display:block; margin-top:3px; color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.target-progress {display:flex; flex-direction:column; gap:5px; min-width:0; color:var(--muted); font-size:12px}
+.target-progress progress {height:6px; margin:0}
+.target-actions {display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:6px 12px}
+.target-reason {grid-column:2 / -1; margin:0; color:var(--amber); font-size:12px; overflow-wrap:anywhere}
+.target-reason-inline {line-height:1.6; overflow-wrap:anywhere}
+.collection-target.is-idle .target-name strong {color:#4B5568}
+.collection-budget {margin:0; padding:12px 24px 16px; border-top:1px solid #F0F1F6; background:#FCFCFE; color:var(--muted); font-size:12px; line-height:1.8}
+.collection-panel>.alert {margin:14px 24px 0}
+.compare-tools {display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 24px; border-bottom:1px solid #F0F1F6; background:#FCFCFE}
+.compare-tools .search-field {flex:1; max-width:360px}
+.compare-filter {flex-direction:row; align-items:center; gap:8px; color:var(--muted); font-size:12px}
+.compare-filter select {width:auto; min-width:170px; height:40px; font-size:12px}
+.compare-item {border-bottom:1px solid #F0F1F6}
+.compare-item>summary {display:grid; grid-template-columns:minmax(64px,auto) minmax(0,1fr) auto auto 16px; align-items:center; gap:12px; min-height:56px; padding:10px 24px; cursor:pointer; list-style:none}
+.compare-item>summary::-webkit-details-marker {display:none}
+.compare-item>summary>.icon {width:14px; height:14px; color:var(--muted); transition:transform 140ms ease}
+.compare-item[open]>summary {background:#FAF9FF} .compare-item[open]>summary>.icon {transform:rotate(90deg)}
+.compare-id {color:var(--primary); font-size:11px; font-weight:650; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
+.compare-question {overflow:hidden; color:#3C4458; font-size:13px; text-overflow:ellipsis; white-space:nowrap}
+.compare-chips {display:flex; gap:5px}
+.compare-chip {position:relative; display:inline-flex}
+.compare-chip .model-avatar {width:24px; height:24px; border-radius:8px; font-size:9px}
+.compare-chip::after {content:""; position:absolute; right:-3px; bottom:-3px; width:10px; height:10px; border:2px solid #fff; border-radius:50%; background:#C3C9D6}
+.compare-chip.success::after {background:var(--success)} .compare-chip.danger::after {background:var(--danger)}
+.compare-body {display:grid; gap:18px; padding:8px 24px 22px; background:#FCFCFE}
+.compare-turn {display:grid; gap:10px}
+.compare-turn-question {padding:12px 14px; border:1px solid var(--card-line); border-radius:12px; background:#fff}
+.compare-turn-question span {display:block; margin-bottom:6px; color:var(--muted); font-size:11px; font-weight:650}
+.compare-turn-question pre {margin:0; font:inherit; font-size:13px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere}
+.compare-answers {display:grid; grid-template-columns:repeat(var(--compare-columns,2),minmax(0,1fr)); gap:10px}
+.compare-answer {display:flex; flex-direction:column; min-width:0; border:1px solid var(--card-line); border-radius:12px; background:#fff}
+.compare-answer header {display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid #F0F1F6}
+.compare-answer header .model-avatar {width:26px; height:26px; border-radius:8px; font-size:10px}
+.compare-answer header strong {flex:1; min-width:0; overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap}
+.compare-answer-body {flex:1; min-height:60px; padding:12px}
+.compare-answer .answer-text {max-height:280px; overflow:auto; color:#2F3647; font-size:13px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere}
+.compare-error {margin:8px 0 0; color:var(--red); font-size:12px}
+.compare-answer .empty-response {margin:0; color:var(--muted); font-size:12px}
+.compare-detail {align-self:flex-end; margin:0 12px 6px}
+.compare-empty {padding:28px 24px; color:var(--muted); font-size:13px; text-align:center}
+.advanced-import {margin:0 0 22px}
+.advanced-import>summary {display:flex; align-items:center; gap:12px; padding:16px 24px; cursor:pointer; list-style:none}
+.advanced-import>summary::-webkit-details-marker {display:none}
+.advanced-import-title {flex:1; min-width:0} .advanced-import-title strong {display:block; font-size:14px}
+.advanced-import-title small {display:block; margin-top:3px; color:var(--muted); font-size:12px}
+.advanced-import[open]>summary {border-bottom:1px solid #F0F1F6}
+.advanced-import .external-import {margin-top:0}
+.connection-grid {grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+dl.connection-model {display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 14px; margin:18px 0 12px}
+dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; color:var(--ink); font-weight:600; overflow-wrap:anywhere}
+.connection-note {margin:0 0 14px; color:var(--muted); font-size:12px; line-height:1.8}
+.connection-card.is-unsupported {background:#FBFBFD}
+.policy-panel {margin-top:24px}
+.policy-form {padding-bottom:20px}
+.policy-table {min-width:700px; table-layout:auto}
+.policy-table thead th small {display:block; color:var(--muted); font-weight:500}
+.policy-table tbody th {display:flex; align-items:center; gap:10px; color:var(--ink); font-weight:600; white-space:normal}
+.policy-table tbody th .model-avatar {width:30px; height:30px; border-radius:9px; font-size:11px}
+.policy-table tbody th span {display:flex; flex-direction:column} .policy-table tbody th small {color:var(--muted); font-weight:500}
+.policy-table input[type=number] {max-width:140px; height:38px}
+.policy-toggle {flex-direction:row; align-items:center; gap:8px; font-size:13px}
+.policy-unsupported td {color:var(--muted); font-size:12px}
+.policy-limits {display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; padding:18px 24px 6px}
+.policy-formula {padding:6px 24px 0; line-height:1.8}
+.policy-form .alert {margin:12px 24px 0}
+.policy-actions {display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 24px 0}
+@media(max-width:1190px) {
+  .collection-target {grid-template-columns:36px minmax(0,1fr) auto}
+  .collection-target .target-progress,.collection-target .target-actions {grid-column:2 / -1}
+  .collection-target .target-actions {justify-content:flex-start}
+  .dataset-panel dl.dataset-stats {grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:14px}
+  .dataset-panel dl.dataset-stats>div:nth-child(4) {border-left:0; padding-left:16px}
+  .compare-answers {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .policy-limits {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px) {
+  .dataset-panel .dropzone {flex-wrap:wrap; margin:16px 18px; padding:18px} .dataset-panel .dropzone .button {width:100%}
+  .dataset-panel dl.dataset-stats {grid-template-columns:repeat(2,minmax(0,1fr)); margin:0 18px 18px}
+  .dataset-panel dl.dataset-stats>div,.dataset-panel dl.dataset-stats>div:not(:first-child) {padding:0 12px; border-left:0}
+  .dataset-panel dl.dataset-stats>div:nth-child(even) {border-left:1px solid #E0DAF6}
+  .dataset-panel dl.dataset-stats dd {font-size:20px}
+  .panel-heading:has(.panel-actions) {flex-wrap:wrap; padding-block:14px} .panel-actions {justify-content:flex-start}
+  .collection-target {gap:8px 12px; padding:12px 18px}
+  .collection-budget,.compare-tools {padding-inline:18px}
+  .compare-tools .search-field {max-width:none} .compare-filter {width:100%} .compare-filter select {flex:1}
+  .compare-item>summary {grid-template-columns:minmax(0,1fr) auto; gap:6px 10px; padding:12px 18px}
+  .compare-question {grid-column:1 / -1; grid-row:2; display:-webkit-box; white-space:normal; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+  .compare-item>summary>.icon {display:none}
+  .compare-body {padding:6px 14px 18px} .compare-answers {grid-template-columns:1fr}
+  .policy-limits {grid-template-columns:1fr; padding-inline:18px} .policy-formula,.policy-actions {padding-inline:18px}
+  .advanced-import>summary {padding:14px 18px}
+}

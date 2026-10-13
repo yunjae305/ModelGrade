@@ -136,6 +136,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/aiona-history':
             return self.respond(200, service.aiona_history())
+        if path == '/api/comparison/auto-collection':
+            return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':
             if len(parts) == 5 and parts[4] == 'events':
                 stream = service.event_stream(parts[3])
@@ -220,11 +222,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, service.preview_external(payload))
             if path == '/api/comparison/external/runs':
                 return self.respond(202, service.start_external(payload))
+            if path == '/api/comparison/auto-collection/jobs':
+                return self.respond(202, service.start_auto_collection(payload))
+            if path == '/api/comparison/auto-collection/policy':
+                return self.respond(200, service.update_auto_policy(payload))
             if len(parts) == 4 and parts[2] == 'providers':
                 return self.respond(200, service.configure(parts[3], payload))
             if len(parts) == 5 and parts[2] == 'runs':
                 if parts[4] == 'evaluate':
                     return self.respond(202, service.evaluate(parts[3], payload))
+                if parts[4] == 'collect':
+                    return self.respond(202, service.collect_more(parts[3], payload))
                 if parts[4] == 'cancel':
                     return self.respond(200, service.cancel(parts[3]))
             return self.respond(404, {'error': 'API를 찾을 수 없습니다.'})

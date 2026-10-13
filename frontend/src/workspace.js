@@ -5,7 +5,7 @@
   const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
-  const labels = {setup: '새 비교', connections: '모델 연결', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
+  const labels = {setup: '새 비교', connections: '연결·수집 설정', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
@@ -39,10 +39,12 @@
     use.setAttribute('href', '#i-' + name); svg.append(use); return svg;
   }
   // 모델 로고 (frontend/assets). 블라인드 중에는 resultAvatar 가 A·B·C·D 표시를 대신 그려 로고로 정체가 드러나지 않는다.
-  const logos = {aiona: '/assets/aiona-logo.png', gpt: '/assets/gpt-logo.svg', claude: '/assets/claude-logo.svg', gemini: '/assets/gemini-logo.webp'};
+  const logos = {aiona: '/assets/aiona-logo.png', gpt: '/assets/gpt-logo.svg', claude: '/assets/claude-logo.svg', gemini: '/assets/gemini-logo.webp',
+    factchat: '/assets/factchat-logo.svg', oosoo: '/assets/oosoo-logo.svg'};
   // 외부 수집 실행은 시스템 키가 자유롭다. 기존 4개 모델 키가 아니면 저장된 시스템 정보로 이름·표시를 만든다.
   const systemOf = (p) => state.run?.systems?.[p];
   const external = () => state.run?.run_kind === 'external_import';
+  const autoRun = () => state.run?.run_kind === 'auto_collection';
   const providerName = (p) => names[p] || systemOf(p)?.label || state.run?.models?.[p] || p;
   const baseRows = () => state.result?.datasets?.aiona || state.result?.datasets?.[state.run?.providers?.[0]] || [];
   const avatar = (p) => logos[p] ? node('span', {class: 'model-avatar has-logo ' + p, 'aria-hidden': 'true'}, node('img', {src: logos[p], alt: ''}))
@@ -122,6 +124,8 @@
     if (view === 'comparison') window.dispatchEvent(new CustomEvent('aiona:comparison-open'));
     if (view === 'criteria') window.dispatchEvent(new CustomEvent('aiona:criteria-open'));
     if (view === 'results') restoreSavedRun();
+    if (view === 'setup') window.dispatchEvent(new CustomEvent('aiona:setup-open'));
+    if (view === 'connections') window.dispatchEvent(new CustomEvent('aiona:connections-open'));
   }
   document.querySelectorAll('[data-view]').forEach((n) => n.addEventListener('click', (event) => { event.preventDefault(); if (n.dataset.view === 'setup') setVersionMode(false); go(n.dataset.view); }));
   document.querySelectorAll('[data-go]').forEach((n) => n.addEventListener('click', (event) => { event.preventDefault(); go(n.dataset.go); }));
@@ -149,27 +153,20 @@
     });
     document.querySelectorAll('[data-refresh-setup]').forEach((button) => { button.disabled = state.settingsLoading; });
   }
+  // 평가를 시작할 수 없는 이유 (평가자 설정·서버 버전) — 새 비교와 버전 평가가 같은 문구를 쓴다
+  const evaluatorNotice = () => state.settingsLoading ? '평가자 설정을 확인하고 있습니다.' : state.evaluationPolicyReady === false ? '서버 재시작 후 새 평가를 시작할 수 있습니다. 저장된 결과는 계속 확인할 수 있습니다.' : '의미 평가자 설정이 필요합니다. 위 안내에서 원인을 확인하고 설정을 다시 확인해 주세요.';
   function renderReady() {
     const count = state.cases.length;
-    const missing = collectionProviders.filter((p) => !state.providers[p]?.configured);
-    $('collect-button').disabled = !state.comparisonReady || !canEvaluate() || !count || missing.length > 0 || active() || state.datasetLoading;
     $('version-evaluate-button').disabled = !state.versionReady || !canEvaluate() || !state.versionMode || !$('aiona-version').value.trim() || !count || active() || state.datasetLoading;
-    $('model-selection-count').textContent = `${4 - missing.length} / 4 연결`;
-    $('ready-summary').textContent = count ? `질문 ${number(questionUnits(state.cases).length)}개 · 4개 모델 비교` : state.inputMode === 'manual' ? '질문과 AIONA 답변을 입력하세요' : 'AIONA Q/A 파일을 업로드하세요';
-    $('ready-detail').textContent = state.datasetLoading ? '파일을 확인한 뒤 비교를 시작할 수 있습니다.' : active() ? '진행 중인 작업은 결과 비교 화면에서 확인할 수 있어요.' :
-      missing.length ? `${missing.map((p) => names[p]).join(' · ')} 연결이 필요합니다. 3개 모델을 모두 연결하면 시작할 수 있습니다.` :
-      count ? `답변 ${number(count * 3)}개 수집 후 자동 평가합니다.` : state.inputMode === 'manual' ? '두 항목을 입력하면 평가를 시작할 수 있습니다.' : '파일을 먼저 선택하세요.';
-    if (state.versionMode) {
-      $('ready-summary').textContent = count ? `AIONA ${$('aiona-version').value.trim() || '버전 미입력'} · ${number(count)}개 Q/A 평가` : '이 버전에서 생성된 AIONA Q/A 원문을 등록해 주세요';
-      $('ready-detail').textContent = state.datasetLoading ? '파일을 확인하고 있습니다.' : active() ? '진행 중인 평가를 먼저 완료해 주세요.' : !state.versionReady ? '버전 평가를 지원하는 서버에 연결해야 합니다.' : 'AIONA 답변을 현재 평가 기준으로 평가합니다. 완료된 실행은 버전 비교에서 선택할 수 있습니다.';
+    if (!state.versionMode) {
+      // 새 비교: 업로드 직후 자동 수집, 수집이 끝나면 평가 시작 (auto-collection.js 가 그린다)
+      window.AionaAutoCollection?.renderAction();
+      return;
     }
-    if (!active() && !state.datasetLoading && !canEvaluate()) $('ready-detail').textContent = state.settingsLoading ? '평가자 설정을 확인하고 있습니다.' : state.evaluationPolicyReady === false ? '서버 재시작 후 새 평가를 시작할 수 있습니다. 저장된 결과는 계속 확인할 수 있습니다.' : '의미 평가자 설정이 필요합니다. 위 안내에서 원인을 확인하고 설정을 다시 확인해 주세요.';
-    const steps = ['upload', 'connect', 'collect', 'evaluate'];
-    const stage = active() ? (state.run?.status === 'EVALUATING' ? 3 : 2) : !count ? 0 : missing.length ? 1 : 2;
-    steps.forEach((step, i) => {
-      const item = $('step-' + step); item.classList.toggle('done', i < stage); item.classList.toggle('current', i === stage);
-      if (i === stage) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
-    });
+    $('collect-button').disabled = true;
+    $('ready-summary').textContent = count ? `AIONA ${$('aiona-version').value.trim() || '버전 미입력'} · ${number(count)}개 Q/A 평가` : '이 버전에서 생성된 AIONA Q/A 원문을 등록해 주세요';
+    $('ready-detail').textContent = state.datasetLoading ? '파일을 확인하고 있습니다.' : active() ? '진행 중인 평가를 먼저 완료해 주세요.' : !state.versionReady ? '버전 평가를 지원하는 서버에 연결해야 합니다.' : 'AIONA 답변을 현재 평가 기준으로 평가합니다. 완료된 실행은 버전 비교에서 선택할 수 있습니다.';
+    if (!active() && !state.datasetLoading && !canEvaluate()) $('ready-detail').textContent = evaluatorNotice();
   }
   function setVersionMode(enabled) {
     state.versionMode = enabled;
@@ -180,12 +177,12 @@
     $('version-mode-note').hidden = !enabled;
     $('version-evaluate-button').hidden = !enabled;
     $('collect-button').hidden = enabled;
-    document.querySelector('.workflow').hidden = enabled;
-    document.querySelector('.models-panel').hidden = enabled;
-    document.querySelector('.setup-grid').classList.toggle('version-setup', enabled);
+    // 버전 평가는 AIONA 원문만 평가한다 — 다른 AI 답변을 자동 수집하지 않는다
+    $('collection-panel').hidden = enabled; $('advanced-import').hidden = enabled;
     $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : 'AIONA 모델 평가 워크스페이스';
-    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : '질문과 답변을 준비하고, 여러 AI 모델을 같은 기준으로 평가해보세요.';
+    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'AIONA 질문·답변 파일을 올리면 연결된 AI가 같은 질문에 자동으로 답변합니다. 답변을 비교한 뒤 같은 기준으로 평가하세요.';
     renderReady();
+    window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'mode'}}));
   }
   function releaseMetadata() {
     if (!state.versionMode) return undefined;
@@ -194,70 +191,10 @@
   }
   $('aiona-version').addEventListener('input', renderReady);
   $('version-mode-exit').addEventListener('click', () => setVersionMode(false));
-  function renderProviders() {
-    $('setup-models').replaceChildren(); $('connection-cards').replaceChildren();
-    for (const p of Object.keys(names)) {
-      const baseline = p === 'aiona', config = state.providers[p] || {}, configured = Boolean(config.configured);
-      const info = node('div', {class: 'model-info'}, node('strong', {}, names[p], baseline ? pill('기준 모델', 'purple') : pill(configured ? '연결됨' : '미연결', configured ? 'success' : 'neutral')),
-        node('span', {text: baseline ? state.currentRelease ? 'AIONA ' + state.currentRelease.version + ' · 질문·답변 입력' : '질문·답변 입력' : configured ? config.model : 'API 키 미등록'}));
-      const row = node('div', {class: 'model-row'}, avatar(p), info);
-      if (baseline) row.append(node('span', {class: 'model-ready', 'aria-label': '비교에 항상 포함'}, icon('check')));
-      else if (configured) {
-        row.append(node('button', {class: 'icon-button', 'aria-label': names[p] + ' 연결 설정', onclick: () => openKey(p)}, icon('key')),
-          node('span', {class: 'model-ready', 'aria-label': names[p] + ' 비교에 항상 포함'}, icon('check')));
-      } else row.append(node('button', {class: 'text-button', onclick: () => openKey(p)}, '연결하기', icon('plus')));
-      $('setup-models').append(row);
-
-      const title = node('div', {class: 'connection-top'}, avatar(p), node('div', {}, node('h2', {text: names[p]}),
-        node('p', {text: baseline ? 'AIONA 서비스에서 받은 질문과 답변 원문' : ({gemini: 'Google AI', claude: 'Anthropic', gpt: 'OpenAI'})[p]})),
-        pill(baseline ? '원문 입력' : configured ? '키 등록됨' : '미등록', baseline || configured ? 'purple' : 'neutral'));
-      const card = node('article', {class: 'panel connection-card'}, title,
-        node('div', {class: 'connection-model'}, node('span', {text: baseline ? '입력 방식' : '모델 ID'}),
-          node('strong', {text: baseline ? '파일 업로드 / 직접 입력' : config.model || '모델 연결 후 선택'})));
-      const actions = node('div', {class: 'connection-actions'});
-      if (baseline) actions.append(node('button', {class: 'button secondary', onclick: () => { setVersionMode(false); go('setup'); }}, '질문·답변 입력', icon('arrow')));
-      else {
-        if (configured) actions.append(node('button', {class: 'button secondary', onclick: async () => {
-          try { await api('/api/comparison/providers/' + p, {clear: true}); await loadProviders(); announce(names[p] + ' 키 등록을 해제했습니다.'); }
-          catch (err) { error(err.message); }
-        }}, '등록 해제'));
-        actions.append(node('button', {class: 'button primary', onclick: () => openKey(p)}, configured ? '연결 설정' : 'API 키 등록', icon('link')));
-      }
-      card.append(actions); $('connection-cards').append(card);
-    }
-    renderReady();
-  }
+  // 모델 연결 카드·키 등록 대화상자·자동 수집 관리 설정은 collection-settings.js 가 그린다
   async function loadProviders() {
     state.providers = await api('/api/comparison/providers');
-    renderProviders();
   }
-  function openKey(p) {
-    state.modalProvider = p; $('key-title').textContent = names[p] + ' 연결';
-    $('key-description').textContent = names[p] + ' 답변 수집에 사용할 연결 정보입니다.';
-    $('api-key').value = ''; $('api-key').type = 'password'; $('toggle-key').textContent = '표시'; $('toggle-key').setAttribute('aria-pressed', 'false');
-    $('model-id').value = state.providers[p]?.model || '';
-    $('key-error').hidden = true; $('key-dialog').showModal();
-  }
-  $('toggle-key').addEventListener('click', () => {
-    const visible = $('api-key').type === 'password'; $('api-key').type = visible ? 'text' : 'password';
-    $('toggle-key').textContent = visible ? '숨기기' : '표시'; $('toggle-key').setAttribute('aria-pressed', String(visible));
-  });
-  function clearKeyField() {
-    $('api-key').value = ''; $('api-key').type = 'password';
-    $('toggle-key').textContent = '표시'; $('toggle-key').setAttribute('aria-pressed', 'false');
-  }
-  $('key-dialog').addEventListener('cancel', clearKeyField);
-  $('key-dialog').addEventListener('close', clearKeyField);
-  $('key-form').addEventListener('submit', async (e) => {
-    e.preventDefault(); const p = state.modalProvider;
-    $('save-key').disabled = true; $('key-error').hidden = true;
-    try {
-      await api('/api/comparison/providers/' + p, {key: $('api-key').value, model: $('model-id').value.trim()});
-      $('api-key').value = ''; await loadProviders();
-      $('key-dialog').close(); announce(names[p] + ' API 키가 등록되었습니다.');
-    } catch (err) { $('key-error').textContent = err.message; $('key-error').hidden = false; }
-    finally { $('save-key').disabled = false; }
-  });
   document.querySelectorAll('[data-close]').forEach((n) => n.addEventListener('click', () => $(n.dataset.close).close()));
 
   // conversation_id 가 없거나 null 이면 단일 질문 (업로드 API 도 null 을 단일 질문으로 받는다)
@@ -272,32 +209,29 @@
     }
     return units;
   }
-  function setDataset(cases, name, importInfo = null) {
+  // reason: upload(파일·예제 업로드 → 자동 수집 시작) | restore(저장된 수집 작업 다시 열기 — 새 요청 없음)
+  function setDataset(cases, name, importInfo = null, reason = 'upload') {
     if (state.inputMode !== 'file') setInputMode('file');
     state.cases = cases; state.fileName = name; state.importInfo = importInfo;
     error(null);
     $('dropzone').hidden = true; $('dataset-content').hidden = false;
     $('file-name').textContent = name;
-    const conversationCases = cases.filter(inConversation);
-    $('file-meta').textContent = conversationCases.length ? `AIONA Q/A · 단일 질문 ${number(cases.length - conversationCases.length)}개 · 멀티턴 대화 ${number(new Set(conversationCases.map((c) => c.conversation_id)).size)}개(${number(conversationCases.length)}턴)` : 'AIONA Q/A · 질문과 답변 입력 확인 완료';
-    // 질문 수는 단일 질문 1개 + 멀티턴 대화 1개(턴 수와 무관) — 대화의 턴은 따로 표시한다
-    const units = questionUnits(cases);
+    // 독립 질문 = 단일 질문 1개 + 멀티턴 대화(2턴 이상) 1개 — 대화의 턴은 평가 대상 턴으로 따로 센다
+    const units = questionUnits(cases), conversations = units.filter((unit) => inConversation(unit[0]));
+    const conversationTurns = conversations.reduce((n, unit) => n + unit.length, 0);
+    const answered = cases.filter((c) => c.answer.trim()).length;
+    $('file-meta').textContent = `AIONA Q/A · ${state.importInfo?.format || (name.match(/\.(\w+)$/)?.[1] || '').toUpperCase() || '파일'} · ${number(cases.length)}턴`;
     $('question-count').replaceChildren(number(units.length), node('small', {text: '개'}));
-    $('answer-count').replaceChildren(number(units.filter((unit) => unit.every((c) => c.answer.length)).length), node('small', {text: '개'}));
-    const conversations = units.filter((unit) => inConversation(unit[0]));
-    $('conversation-count').replaceChildren(number(conversations.length), node('small', {text: conversations.length ? `개 · ${number(conversationCases.length)}턴` : '개'}));
-    $('preview-body').replaceChildren(...cases.slice(0, 4).map((c, i) => node('tr', {},
-      node('td', {text: c.case_id}), node('td', {}, node('button', {class: 'row-button', text: c.question,
-        onclick: () => openAnswer(i, 'dataset'), 'aria-label': c.case_id + ' 질문과 원문 보기'})))));
-    $('preview-caption').textContent = `${number(cases.length)}개 중 ${Math.min(cases.length, 4)}개 표시`;
-    const groups = conversationGroups(cases);
-    $('conversation-shortcuts').hidden = !groups.size;
-    $('conversation-list').replaceChildren(...[...groups.values()].map((group) => node('button', {
-      class: 'conversation-shortcut', onclick: () => openAnswer(group.indices[0], 'dataset', 'aiona', group.key),
-      'aria-label': group.label + ' ' + group.indices.length + '턴 원문 보기'},
-      icon('clock'), node('span', {}, node('strong', {text: group.label}), node('small', {text: number(group.indices.length) + '턴'})), icon('arrow'))));
+    $('single-count').replaceChildren(number(units.length - conversations.length), node('small', {text: '개'}));
+    $('conversation-count').replaceChildren(number(conversations.length), node('small', {text: conversations.length ? `개 · ${number(conversationTurns)}턴` : '개'}));
+    $('turn-count').replaceChildren(number(cases.length), node('small', {text: '턴'}));
+    $('answer-count').replaceChildren(number(answered), node('small', {text: ` / ${number(cases.length)}턴`}));
+    $('answer-ready').textContent = answered === cases.length ? '모두 준비됨' : `답변 없음 ${number(cases.length - answered)}턴`;
+    $('answer-ready').className = answered === cases.length ? 'ready' : 'missing';
     if (!$('run-name').value) $('run-name').value = name.replace(/\.(?:jsonl?|md|markdown|txt)$/i, '') + ' 비교';
-    renderProviders(); announce(number(cases.length) + '개 AIONA Q/A를 가져왔습니다.');
+    renderReady();
+    if (reason === 'upload') announce(number(cases.length) + '개 AIONA Q/A를 가져왔습니다.');
+    window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason}}));
   }
   function datasetLoading(loading, version) {
     if (version !== state.uploadVersion) return;
@@ -340,9 +274,10 @@
     const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], {type: 'application/json;charset=utf-8'}));
     const a = node('a', {href: url, download: name}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const sourceDocument = () => state.modalSource === 'result' ? state.result?.input_document : state.importInfo;
   $('view-source').addEventListener('click', () => {
-    $('import-notes').replaceChildren(...(state.importInfo?.notes || []).map((text) => node('p', {text})));
-    $('source-text').textContent = state.importInfo?.original_text || '';
+    $('import-notes').replaceChildren(...(sourceDocument()?.notes || []).map((text) => node('p', {text})));
+    $('source-text').textContent = sourceDocument()?.original_text || '';
     $('source-dialog').showModal();
   });
   $('template-download').addEventListener('click', () => download([
@@ -355,6 +290,7 @@
     state.cases = question.trim() && answer.trim() ? [{case_id: 'Q1', question, answer}] : [];
     state.fileName = '직접 입력 비교'; state.importInfo = null;
     renderReady();
+    window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'manual'}}));
   }
   function setInputMode(mode) {
     if (mode === state.inputMode) return;
@@ -371,6 +307,7 @@
     else {
       state.cases = state.fileDraft?.cases || []; state.fileName = state.fileDraft?.name || ''; state.importInfo = state.fileDraft?.info || null;
       $('run-name').value = state.fileDraft?.runName || ''; renderReady();
+      window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'mode'}}));
     }
     error(null);
   }
@@ -379,31 +316,25 @@
   function updateCurrentRelease(history) {
     state.currentRelease = history.current_release || null;
     $('setup-current-version').textContent = state.currentRelease ? 'AIONA ' + state.currentRelease.version : '모델 버전 등록';
-    renderProviders();
+    renderReady();
+    window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'release'}}));
   }
   window.addEventListener('aiona:model-version-changed', (event) => updateCurrentRelease(event.detail));
 
-  async function start() {
-    if (!state.comparisonReady || !canEvaluate() || active() || state.datasetLoading || !state.cases.length) return;
-    if (collectionProviders.some((p) => !state.providers[p]?.configured)) {
-      error('Gemini·Claude·GPT를 모두 연결한 뒤 4개 모델 비교를 시작해 주세요.'); return;
-    }
+  // 새 비교의 평가 시작 — 자동 수집이 끝난 현재 실행(답변 원문 포함)을 기존 CODE·J1~J7 평가기로 평가한다
+  async function startEvaluation() {
+    if (!state.run || !canEvaluate() || active() || !['READY', 'CANCELLED', 'ERROR'].includes(state.run.status)) return;
     state.busy = true; renderReady(); error(null);
     try {
-      state.run = await api('/api/comparison/runs', {cases: state.cases, name: $('run-name').value || state.fileName,
-        providers: collectionProviders, max_tokens: Number($('max-tokens').value),
-        blind: true, auto_evaluate: true, input_mode: state.inputMode, expected_model_version: state.currentRelease?.version,
-        input_document: state.importInfo?.converted ? state.importInfo : undefined});
-      state.result = null; resetFilters();
-      rememberRun(); go('results'); renderResult();
-      await poll();
+      state.run = await api(`/api/comparison/runs/${state.run.run_id}/evaluate`, {aiona_config: state.config});
+      rememberRun(); resetFilters(); go('results'); renderResult();
+      poll();
     } catch (err) { error(err.message); }
     finally { state.busy = false; renderReady(); }
   }
   function rememberRun() {
     try { sessionStorage.setItem('aiona-comparison-run', state.run.run_id); } catch (_) { /* session storage can be disabled */ }
   }
-  $('collect-button').addEventListener('click', start);
   $('version-evaluate-button').addEventListener('click', async () => {
     if ($('version-evaluate-button').disabled) return;
     state.busy = true; renderReady(); error(null);
@@ -509,7 +440,7 @@
     if (active() || !state.result?.datasets?.aiona?.length) return;
     const document = state.result.input_document;
     setVersionMode(false);
-    $('run-name').value = state.run.name + ' · 4개 모델';
+    $('run-name').value = state.run.name + ' · 새 비교';
     setDataset(state.result.datasets.aiona, document?.source_name || state.run.name,
       document ? {...document, converted: true} : null);
     go('setup');
@@ -532,7 +463,8 @@
       evalProgress.connect(`/api/comparison/runs/${run.run_id}/events`, `${run.run_id}:${run.eval_started_at || ''}`);
     } else { evalProgress.disconnect(); $('evaluation-ticker').hidden = true; }
     const isVersionRun = run.providers.length === 1 && run.aiona_release?.version;
-    const partial = !isVersionRun && !external() && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
+    // 자동 수집 실행은 연결·허용된 제공자만 포함하므로 4개 미만이어도 정상이다
+    const partial = !isVersionRun && !external() && !autoRun() && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
     renderEnvironment();
     $('partial-comparison').hidden = !partial;
     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
@@ -546,14 +478,14 @@
     $('result-subtitle').textContent = `${run.name} · ${size} · ${run.providers.length}개 모델${method}`;
     $('export-all').href = `/api/comparison/runs/${run.run_id}/export`;
     const collecting = run.status === 'COLLECTING', evaluating = run.status === 'EVALUATING';
-    $('results-title').textContent = collecting ? (external() ? 'API 답변을 수집하고 있어요.' : '세 모델의 답변을 수집하고 있어요.') : '평가 결과, 한눈에.';
+    $('results-title').textContent = collecting ? (external() ? 'API 답변을 수집하고 있어요.' : autoRun() ? '연결된 AI의 답변을 수집하고 있어요.' : '세 모델의 답변을 수집하고 있어요.') : '평가 결과, 한눈에.';
     const finished = run.status === 'COMPLETED', summary = results.runSummary(state.result);
     renderFinalSummary(); renderOverview(providers);
     const disconnected = state.connectionLost && (collecting || evaluating);
     const statusText = disconnected ? '서버 연결 확인 중' : finished && state.result ? summary.allComplete ? '평가 완료' : '평가 미완료' : statusLabel(run);
     $('progress-eyebrow').textContent = run.phase === 'EVALUATE' || evaluating || run.status === 'COMPLETED' ? '품질 평가' : '응답 수집';
     $('progress-title').textContent = statusText;
-    $('progress-description').textContent = disconnected ? '서버에 다시 연결하고 있습니다. 마지막 확인 상태를 표시합니다.' : collecting ? (run.cancel_requested ? '현재 요청의 응답을 보존한 후 수집을 중단합니다.' : external() ? '답변 수집을 마치면 가져온 답변과 함께 자동으로 평가합니다.' : '답변 수집을 마치면 자동으로 블라인드 평가합니다.') :
+    $('progress-description').textContent = disconnected ? '서버에 다시 연결하고 있습니다. 마지막 확인 상태를 표시합니다.' : collecting ? (run.cancel_requested ? '현재 요청의 응답을 보존한 후 수집을 중단합니다.' : external() ? '답변 수집을 마치면 가져온 답변과 함께 자동으로 평가합니다.' : autoRun() ? '수집을 마치면 새 비교 화면에서 질문별 답변을 확인하고 평가를 시작하세요.' : '답변 수집을 마치면 자동으로 블라인드 평가합니다.') :
       evaluating ? (isVersionRun ? '등록한 AIONA 원문의 ' : '') + '코드 검사와 의미 평가를 진행합니다.' : finished && state.result ?
         `답변 ${number(summary.total)}개 중 ${number(summary.complete)}개 평가 완료 · 문제 발견 ${number(summary.counts.issue)}개 · 미완료 ${number(summary.counts.pending)}개` : run.phase === 'EVALUATE' && ['ERROR', 'CANCELLED'].includes(run.status) ?
           '평가가 중단되었습니다. 저장된 원문과 완료된 결과를 확인하세요. 전체 평가 시작을 누르면 저장된 답변 전체를 다시 평가하며 평가자 호출이 발생합니다.' : '수집한 답변을 확인한 후 동일한 평가기로 평가하세요.';
@@ -590,6 +522,7 @@
       if (element.dataset.focusKey === focusKey) element.focus({preventScroll: true});
     });
     if ($('answer-dialog').open && state.modalSource === 'result') renderAnswer();
+    window.dispatchEvent(new CustomEvent('aiona:run-rendered'));
   }
   function renderFinalSummary() {
     const run = state.result, visible = Boolean(run && ['COMPLETED', 'ERROR', 'CANCELLED'].includes(run.status));
@@ -823,7 +756,7 @@
   // 외부 수집 실행의 수집 환경 비교와 평가 엔진·정책 버전. 환경이 다르면 같은 조건의 순위로 보지 않는다.
   function renderEnvironment() {
     const box = $('external-environment'), comparison = state.run?.environment_comparison;
-    box.hidden = !external() || !comparison;
+    box.hidden = !(external() || autoRun()) || !comparison;
     if (box.hidden) return;
     const fields = state.result?.evaluation_profile?.fields || {}, policy = fields.decision_policy || {};
     const versions = [fields.engine_versions?.engine && '평가 엔진 ' + fields.engine_versions.engine,
@@ -1018,7 +951,6 @@
   }
   $('previous-page').addEventListener('click', () => { state.page--; renderMatrix(); });
   $('next-page').addEventListener('click', () => { state.page++; renderMatrix(); });
-  $('preview-all').addEventListener('click', () => openAnswer(0, 'dataset'));
   const answerCases = (source) => source === 'dataset' ? state.cases : baseRows();
   function conversationGroups(cases) {
     const groups = new Map();
@@ -1065,7 +997,7 @@
       state.modalAnswerRender = null; state.modalEvaluation = null;
     }
     state.modalCase = index; state.modalSource = source; state.modalModel = provider;
-    $('view-source').hidden = source !== 'dataset' || !state.importInfo?.original_text;
+    $('view-source').hidden = !sourceDocument()?.original_text;
     const c = cases[index];
     const indices = answerIndices(), position = indices.indexOf(index);
     $('answer-select').value = String(index); $('answer-previous').disabled = position <= 0; $('answer-next').disabled = position + 1 >= indices.length;
@@ -1194,7 +1126,7 @@
       state.comparisonReady = checks[2].value.blind_version === 'comparison-blind-v1' && checks[2].value.auto_evaluate === true &&
         checks[2].value.blind_after_collection === true &&
         checks[2].value.parallel_collection === true && checks[2].value.parallel_evaluation === true &&
-        collectionProviders.every((p) => checks[2].value.required_providers?.includes(p));
+        collectionProviders.every((p) => checks[2].value.required_providers?.includes(p)) && checks[2].value.auto_collection === 'v1';
       eventStreaming = checks[2].value.evaluation_events === 'sse-v1';
       state.versionReady = checks[2].value.aiona_versions === 'v1';
       if (!state.evaluationPolicyReady || !state.comparisonReady) error('실행 중인 서버가 이전 버전입니다. 수정된 평가를 적용하려면 서버를 재시작한 뒤 새로고침해 주세요. 저장된 결과는 계속 확인할 수 있습니다.');
@@ -1205,23 +1137,39 @@
   }
   document.querySelectorAll('[data-refresh-setup]').forEach((button) => button.addEventListener('click', loadSetup));
   async function initialize() {
-    renderProviders(); renderResult(); go(location.hash.slice(1) || 'setup');
+    renderResult(); go(location.hash.slice(1) || 'setup');
     await loadSetup();
   }
   setInterval(updateLiveClock, 1000);
-  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate,
+  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate, icon, avatar, announce, openAnswer, startEvaluation, renderReady,
     currentRun: () => state.run,
+    currentResult: () => state.result,
     isBusy: active,
+    isReady: () => state.comparisonReady,
+    evaluatorNotice: () => canEvaluate() ? null : evaluatorNotice(),
+    versionMode: () => state.versionMode,
+    currentRelease: () => state.currentRelease,
+    dataset: () => ({cases: state.cases, name: state.fileName, importInfo: state.importInfo, inputMode: state.inputMode, loading: state.datasetLoading}),
+    showError: error,
+    // 저장된 자동 수집 작업을 다시 열 때 — 새 요청 없이 그 실행의 AIONA 원문을 평가 데이터로 보여 준다
+    restoreDataset(run) {
+      if (state.versionMode || state.cases.length || !run?.datasets?.aiona?.length) return false;
+      const document = run.input_document;
+      setDataset(run.datasets.aiona, run.auto_collection?.source_name || document?.source_name || run.name,
+        document ? {...document, converted: true} : null, 'restore');
+      return true;
+    },
     prepareVersion(version) {
       setInputMode('file'); state.fileDraft = null;
       ++state.uploadVersion; state.datasetLoading = false;
       state.cases = []; state.fileName = ''; state.importInfo = null;
       $('aiona-version').value = version || ''; $('aiona-collected-at').value = ''; $('aiona-release-notes').value = ''; $('run-name').value = '';
       $('dataset-content').hidden = true; $('dropzone').hidden = false;
-      $('conversation-shortcuts').hidden = true; $('dataset-loading').hidden = true;
+      $('dataset-loading').hidden = true;
       ['choose-file', 'replace-file', 'sample-button'].forEach((id) => { $(id).disabled = false; });
       $('dataset-panel').setAttribute('aria-busy', 'false');
       setVersionMode(true); go('setup'); $('aiona-version').focus();
+      window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'version-reset'}}));
     }};
   initialize();
 })();

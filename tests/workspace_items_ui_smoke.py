@@ -3,7 +3,7 @@
     python tests/workspace_items_ui_smoke.py      # 스크린샷: results/ui-preview/items-*.png
 
 SEMANTIC_PIPELINE=items 는 이 프로세스의 환경변수로만 켠다 (.env·코드 기본값 legacy 는 그대로).
-파일 업로드 → 4개 모델 비교 시작(Mock 제공자 수집) → CODE → Mock items 의미 평가 → 집계·저장 → 결과 화면 →
+파일 업로드 → 자동 수집(Mock 제공자) → 평가 시작 → CODE → Mock items 의미 평가 → 집계·저장 → 결과 화면 →
 질문별 항목 근거 → 새로고침 복원 → 이력의 평가 조건. 의미 판정 값은 tools/items_e2e_demo 의 Mock 대본이며 Claude 판정이 아니다.
 """
 import json
@@ -78,6 +78,10 @@ def main():
                                     client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handler)))
         for provider in ('gpt', 'claude', 'gemini'):
             service.configure(provider, {'key': 'fixture-only', 'model': 'fixture-' + provider})
+        # 운영자가 미리 정한 자동 수집 허용·한도 — 업로드하면 세 Mock 제공자에 자동으로 요청한다
+        service.update_auto_policy({'allowed': {p: True for p in ('gpt', 'claude', 'gemini')},
+                                    'prices': {p: {'input': 1, 'output': 2} for p in ('gpt', 'claude', 'gemini')},
+                                    'limits': {'job_calls': 100, 'job_cost_usd': 5, 'daily_calls': 1000, 'daily_cost_usd': 20}})
         server = Server(('127.0.0.1', 0), code_eval_service=evaluator, comparison_service=service)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         base = f'http://127.0.0.1:{server.server_port}'
@@ -115,6 +119,7 @@ def main():
                 page.locator('#dataset-file').set_input_files({'name': 'items-scenarios.json', 'mimeType': 'application/json',
                                                                'buffer': json.dumps(cases, ensure_ascii=False).encode('utf-8')})
                 expect(page.locator('#file-name')).to_have_text('items-scenarios.json')
+                expect(page.locator('#collection-status')).to_contain_text('수집 완료', timeout=30000)   # 업로드만으로 자동 수집
                 expect(page.locator('#collect-button')).to_be_enabled()
                 page.locator('#collect-button').click()
                 expect(page.locator('#final-summary')).to_be_visible(timeout=60000)

@@ -18,6 +18,9 @@ def main():
     Handler.log_message = lambda *args: None
     with tempfile.TemporaryDirectory(prefix='aiona-manual-ui-') as directory:
         service, judge, sent = make_service(Path(directory))
+        service.update_auto_policy({'allowed': {p: True for p in ('gpt', 'claude', 'gemini')},   # 운영자가 미리 허용한 자동 수집
+                                    'prices': {p: {'input': 1, 'output': 2} for p in ('gpt', 'claude', 'gemini')},
+                                    'limits': {'job_calls': 100, 'job_cost_usd': 5, 'daily_calls': 1000, 'daily_cost_usd': 20}})
         server = Server(('127.0.0.1', 0), code_eval_service=service.evaluator, comparison_service=service)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
@@ -40,16 +43,17 @@ def main():
                 raw = [{'case_id': 'FILE1', 'question': '파일 질문\n ', 'answer': '파일 답변\n '}]
                 page.locator('#dataset-file').set_input_files({'name': 'fixture.json', 'mimeType': 'application/json', 'buffer': json.dumps(raw).encode()})
                 expect(page.locator('#file-name')).to_have_text('fixture.json')
+                expect(page.locator('#collection-status')).to_contain_text('수집 완료', timeout=15000)   # 업로드만으로 자동 수집
                 page.locator('#input-mode-manual').click()
                 expect(page.locator('#file-input-panel')).to_be_hidden()
-                expect(page.locator('#collect-button')).to_be_disabled()
+                expect(page.locator('#manual-collect')).to_be_disabled()
                 question, answer = '  질문 원문\n두 번째 줄  ', '  AIONA 답변\n 그대로  '
                 page.locator('#manual-question').fill(question)
-                expect(page.locator('#collect-button')).to_be_disabled()
+                expect(page.locator('#manual-collect')).to_be_disabled()
                 page.locator('#manual-answer').fill('  ')
-                expect(page.locator('#collect-button')).to_be_disabled()
+                expect(page.locator('#manual-collect')).to_be_disabled()
                 page.locator('#manual-answer').fill(answer)
-                expect(page.locator('#collect-button')).to_be_enabled()
+                expect(page.locator('#manual-collect')).to_be_enabled()
                 page.locator('#input-mode-file').click()
                 expect(page.locator('#file-name')).to_have_text('fixture.json')
                 page.locator('#input-mode-manual').click()
@@ -60,6 +64,8 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.screenshot(path=str(output / 'manual-input-mobile.png'), full_page=True)
                 page.set_viewport_size({'width': 1440, 'height': 1080})
+                page.locator('#manual-collect').click()   # 직접 입력은 내용을 다 쓴 뒤 수집을 시작한다
+                expect(page.locator('#collection-status')).to_contain_text('수집 완료', timeout=15000)
                 page.locator('#collect-button').click()
                 expect(page.locator('#final-summary')).to_be_visible(timeout=15000)
                 manual = service.history()[0]
@@ -68,7 +74,7 @@ def main():
                 assert saved['input_mode'] == 'manual' and saved['aiona_release']['version'] == 'v1'
                 assert saved['datasets']['aiona'][0]['question'] == question
                 assert saved['datasets']['aiona'][0]['answer'] == answer
-                assert len(judge.calls) == 4 and all(len(calls) == 1 for calls in sent.values())
+                assert len(judge.calls) == 4 and all(len(calls) == 2 for calls in sent.values())   # 파일 1 + 직접 입력 1
                 page.locator('[data-view="setup"]').click()
                 page.locator('#input-mode-file').click()
                 expect(page.locator('#collect-button')).to_be_enabled()

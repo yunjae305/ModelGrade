@@ -80,7 +80,10 @@ async def check(url):
         await expect(page.locator('#global-error')).not_to_be_visible()
 
         # Conversation navigation follows turn order, independent of file order.
-        await page.locator('.conversation-shortcut').click()
+        # 대화는 '질문별 답변 비교'에서 펼쳐 상세 보기로 연다 (그 대화로 묶인 원문 비교 창)
+        await page.locator('#compare-filter').select_option('multi')
+        await page.locator('#compare-list .compare-item summary').click()
+        await page.locator('#compare-list .compare-turn').first.locator('[data-provider="aiona"] .compare-detail').click()
         await expect(page.locator('#answer-id')).to_contain_text('T1')
         await expect(page.locator('#answer-previous')).to_be_disabled()
         await page.locator('#answer-next').click()
@@ -96,6 +99,7 @@ async def check(url):
         await expect(page.locator('#answer-previous')).to_be_disabled()
         await expect(page.locator('#answer-next')).to_be_disabled()
         await page.keyboard.press('Escape')
+        await page.locator('#compare-filter').select_option('')
 
         # Invalid replacement leaves the usable file and its raw data intact.
         await upload([{'question': '새 질문', 'answer': {'invalid': True}}])
@@ -118,10 +122,13 @@ async def check(url):
         await expect(page.locator('#dataset-panel')).to_have_attribute('aria-busy', 'false')
         await expect(page.locator('#global-error')).not_to_be_visible()
         await expect(page.locator('#question-count')).to_have_text('30개')   # 단일 28 + 대화 2 (턴 수와 무관)
-        await expect(page.locator('#answer-count')).to_have_text('30개')
+        await expect(page.locator('#answer-count')).to_have_text('68 / 68턴')   # AIONA 답변이 있는 턴 / 평가 대상 턴
         await expect(page.locator('#conversation-count')).to_have_text('2개 · 40턴')
-        await expect(page.locator('#file-meta')).to_contain_text('단일 질문 28개 · 멀티턴 대화 2개(40턴)')
-        await expect(page.locator('.conversation-shortcut')).to_have_count(2)
+        await expect(page.locator('#single-count')).to_have_text('28개')
+        await expect(page.locator('#turn-count')).to_have_text('68턴')
+        await page.locator('#compare-filter').select_option('multi')
+        await expect(page.locator('#compare-list .compare-item')).to_have_count(2)
+        await page.locator('#compare-filter').select_option('')
         await expect(page.locator('#import-tools, #import-description, #import-confirm, #import-confirm-label, #download-dataset')).to_have_count(0)
         await expect(page.locator('#collect-button')).to_be_enabled()
         await page.set_viewport_size({'width': 1440, 'height': 1080})
@@ -158,8 +165,12 @@ async def check(url):
         await expect(page.locator('#conversation-context')).not_to_be_visible()
         await page.keyboard.press('Escape')
 
+        await page.locator('#compare-filter').select_option('multi')
         for shortcut, (group_id, count, start) in enumerate([(29, 10, 28), (30, 30, 38)]):
-            await page.locator('.conversation-shortcut').nth(shortcut).click()
+            item = page.locator('#compare-list .compare-item').nth(shortcut)
+            if not await item.get_attribute('open'):
+                await item.locator('summary').click()
+            await item.locator('.compare-turn').first.locator('[data-provider="aiona"] .compare-detail').click()
             await expect(page.locator('#answer-group')).to_have_value(f'conversation:AIONA_ID_{group_id}')
             await expect(page.locator('#answer-select option')).to_have_count(count)
             await expect(page.locator('#answer-id')).to_contain_text(f'Q{group_id}_T1')
@@ -182,7 +193,8 @@ async def check(url):
             await page.set_viewport_size({'width': width, 'height': 900})
             assert await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
         await page.set_viewport_size({'width': 390, 'height': 844})
-        await page.locator('#setup-models').get_by_role('button', name='GPT 연결 설정', exact=True).click()
+        await page.locator('[data-view=connections]').click()   # 키 등록은 연결·수집 설정 화면
+        await page.locator('#connection-cards [data-target="gpt"]').get_by_role('button', name='연결 설정').click()
         await page.locator('#api-key').fill('disposable-browser-test-key')
         await page.locator('#toggle-key').click()
         await expect(page.locator('#api-key')).to_have_attribute('type', 'text')
@@ -191,7 +203,8 @@ async def check(url):
         await expect(page.locator('#api-key')).to_have_value('')
         await expect(page.locator('#api-key')).to_have_attribute('type', 'password')
         assert not errors, errors
-        assert writes and all(value.endswith('/api/comparison/dataset') for value in writes), writes
+        # 업로드는 변환 요청과 자동 수집 작업 요청만 보낸다 — 자동 수집을 허용한 제공자가 없으므로 모델 호출은 없다
+        assert writes and all(value.endswith(('/api/comparison/dataset', '/api/comparison/auto-collection/jobs')) for value in writes), writes
         await browser.close()
 
 
@@ -210,8 +223,9 @@ def main():
         thread.start()
         try:
             asyncio.run(check(f'http://127.0.0.1:{server.server_port}'))
-            assert not comparison.history(), 'Input review must not create an evaluation run'
-            print('Input UI passed: invalid upload recovery, stale failure isolation, loading controls, unsorted turns, 72k+ original answer/copy, actual id/turns JSON with 68 exact Q/A, 28 singles and 10/30-turn navigation, immediate readiness without confirmation, optional source preview, safe text, 5 setup layouts and key clearing from model cards. No model calls or saved runs.')
+            # 업로드마다 수집 작업 기록(작업 ID)은 생기지만, 허용된 제공자가 없어 AIONA 원문만 있고 요청·평가는 없다
+            assert all(run['providers'] == ['aiona'] and run['status'] == 'READY' for run in comparison.history()), comparison.history()
+            print('Input UI passed: invalid upload recovery, stale failure isolation, loading controls, unsorted turns, 72k+ original answer/copy, actual id/turns JSON with 68 exact Q/A, 28 singles and 10/30-turn navigation, immediate readiness without confirmation, optional source preview, safe text, 5 setup layouts and key clearing from model cards. No model calls; upload jobs keep only AIONA originals.')
         finally:
             server.shutdown()
             server.server_close()

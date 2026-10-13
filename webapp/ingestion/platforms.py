@@ -46,6 +46,11 @@ PLATFORMS: List[Dict[str, Any]] = [
      "note": "실제 연결 없음"},
     {"name": "뤼튼 · Genspark · Kakao Kanana", "paths": [], "status": "보류 — 공식 API·내보내기 미확인", "sources": "미확인",
      "note": "직접 복사 입력·대화 기록 JSON 으로만 가능"},
+    {"name": "FactChat API Gateway (Mindlogic)", "paths": ["live_api", "api_import"],
+     "status": "업로드 직후 자동 수집 · API 응답 파일 (Chat Completions 형식)", "sources": "출처 필드 미확인",
+     "note": "FactChat 은 여러 제공자 모델을 중계하는 플랫폼 — 실제 모델 ID 를 따로 기록. 실제 키 연결 검증 전"},
+    {"name": "우수AI (oosoo.kr)", "paths": [], "status": "보류 — 공개 API·공식 대화 내보내기 미확인", "sources": "미확인",
+     "note": "화면 자동화·우회 로그인 안 함. 직접 복사 입력·대화 기록 JSON 으로만 가능"},
 ]
 
 

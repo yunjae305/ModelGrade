@@ -58,6 +58,7 @@ def main():
                 page.on('pageerror', lambda e: errors.append(str(e)))
                 page.goto(f'http://127.0.0.1:{server.server_port}/workspace.html')
                 expect(page.locator('#server-status')).to_contain_text('연결됨')
+                page.locator('#advanced-import > summary').click()   # 기타 응답 파일 가져오기는 고급 기능으로 접혀 있다
                 expect(page.locator('#external-start')).to_be_disabled()
                 page.locator('#external-files').set_input_files([str(web), str(api)])
                 expect(page.locator('.external-systems tbody tr')).to_have_count(2)
