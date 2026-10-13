@@ -6,7 +6,8 @@
     python tools/check_question_set.py 질문세트.json            # 사람이 읽는 보고
     python tools/check_question_set.py 질문세트.jsonl --json     # JSON 보고
 
-기준마다 적용 질문(턴) 30개 이상을 권장한다 — 설계안 v1.1 '질문 수 실험', v1.2 '질문 세트 구성'.
+기준마다 적용 질문 30개 이상이면 충족 — 단일 질문 1개 = 1, 멀티턴 대화 1개 = 1(같은 대화의 여러 턴에 적용돼도 1, 팀 확정 10-13).
+적용 턴 수는 참고로 함께 낸다(``applicable``·``applicable_turns``). 평가 자체는 턴마다 한다 — 설계안 v1.2 '질문 세트 구성'.
 """
 from __future__ import annotations
 
@@ -28,7 +29,9 @@ from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E40
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
 from code_eval.semantic_items import applicable_items  # noqa: E402
 
-CHECK_VERSION = "question-set-check-v2"   # v2: J7 롱컨텍스트(입력 8K 토큰 이상) 적용 수
+#: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(J7 롱컨텍스트 입력 8K 토큰 이상 적용 수·판별 불가 수)와 작업 브랜치 v2(충족 enough·
+#: short_criteria 를 적용 독립 질문·대화 수로, applicable 은 그대로 적용 턴 수). 둘을 합친 것 → v3.
+CHECK_VERSION = "question-set-check-v3"
 MIN_APPLICABLE = 30
 #: 팀원 구조도의 유형 비율 초안 (설계안 v1.2 질문 세트 구성) — 유형 필드가 있을 때만 비교한다
 TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .20, "분석·추론": .15, "코딩·기술": .15,
@@ -53,6 +56,31 @@ def load_items(path: Path) -> List[Any]:
 
 def _normalized(question: str) -> str:
     return re.sub(r"\s+", " ", question).strip().lower()
+
+
+def unit_of(row: Dict[str, Any]) -> str:
+    """질문 단위 — 단일 질문 1개 = 1, 대화 1개 = 1. 단일 질문은 항목 위치(index)로 구분한다 (같은 case_id 가 두 번 나와도 2)."""
+    if row.get("conversation_id") is not None:
+        return f"대화:{row['conversation_id']}"
+    return f"질문#{row['index']}" if row.get("index") is not None else f"질문:{row['case_id']}"
+
+
+def criteria_counts(rows: List[Dict[str, Any]], minimum: int = MIN_APPLICABLE) -> Dict[str, Dict[str, Any]]:
+    """기준별 공식 집계 — ``rows`` 는 턴마다 한 행 [{case_id, index?, conversation_id?, criteria}] (check_items 의 cases).
+
+    applicable·applicable_turns: 적용 턴 수(참고) · applicable_units: 적용 독립 질문·대화 수(공식) ·
+    enough: applicable_units ≥ minimum · short: minimum 까지 모자란 질문·대화 수. CLI 와 HTML 보고서가 함께 쓴다.
+    """
+    turns: Counter = Counter()
+    units: Dict[str, set] = {c: set() for c in CRITERIA}
+    for row in rows:
+        for c in row["criteria"]:
+            turns[c] += 1
+            units[c].add(unit_of(row))
+    return {c: {"applicable": turns[c], "applicable_turns": turns[c], "applicable_units": len(units[c]),
+                "units_singles": sum(1 for u in units[c] if not u.startswith("대화:")),
+                "units_conversations": sum(1 for u in units[c] if u.startswith("대화:")),
+                "enough": len(units[c]) >= minimum, "short": max(0, minimum - len(units[c]))} for c in CRITERIA}
 
 
 def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, Any]:
@@ -104,7 +132,6 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
     payloads = [{k: case[k] for k in ("case_id", "question", "answer", "reference", "conversation_id", "turn")
                  if case.get(k) is not None} for case in cases]
     evaluated = evaluate_batch(payloads)["cases"] if payloads else []
-    applicable: Counter = Counter()
     undetermined: Counter = Counter()   # 적용 여부를 판별하지 못한 질문 수 (J7 — 토크나이저 없음)
     per_case = []
     contexts = conversation_contexts(evaluated)   # 평가 준비와 같은 대화 이력 — 오류·누락 턴은 이력에서 빠지고 issues 로 남는다
@@ -140,13 +167,15 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             undetermined.update(list(semantic.get("undetermined") or {}))
             if fact_question(case["question"], history)[0]:
                 hit.add("J5")
-        applicable.update(hit)
-        per_case.append({"case_id": case["case_id"], "criteria": [c for c in CRITERIA if c in hit]})
+        row = {"case_id": case["case_id"], "index": case["index"], "criteria": [c for c in CRITERIA if c in hit]}
+        if "conversation_id" in case:
+            row.update(conversation_id=case["conversation_id"], turn=case["turn"])
+        per_case.append(row)
 
     singles = sum(1 for case in cases if "conversation_id" not in case)
     conversations = len(turns)
     units = singles + conversations
-    criteria = {c: {"applicable": applicable.get(c, 0), "enough": applicable.get(c, 0) >= MIN_APPLICABLE} for c in CRITERIA}
+    criteria = criteria_counts(per_case)
     types = Counter(case["type"] for case in cases if case["type"])
     type_report = None
     if types:
@@ -155,7 +184,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
                        for name, n in types.most_common()}
     return {"version": CHECK_VERSION, "pipeline": pipeline, "items": len(items), "questions": units, "single_questions": singles,
             "conversations": conversations, "conversation_turns": sum(len(v) for v in turns.values()),
-            "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "criteria": criteria,
+            "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "count_unit": "question_or_conversation", "criteria": criteria,
             "undetermined": dict(undetermined),
             "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case}
 
@@ -169,10 +198,11 @@ def render(report: Dict[str, Any]) -> str:
         lines.append(f"    · {error['index'] or '-'}번: {error['message']}")
     for dup in report["duplicates"][:10]:
         lines.append(f"    · {dup['case_id']} = {dup['same_as']}: {dup['question']}")
-    lines.append(f"- 기준별 적용 질문(턴) 수 — 권장 {report['min_applicable']}개 이상 "
-                 "(CODE 1 은 모든 답변, CODE 2·3 은 질문이 준 형식·계산 요구만 — 답변의 계산식·선언 개수 조건은 답변에 따라 더해짐)")
+    lines.append(f"- 기준별 적용 질문·대화 수 — {report['min_applicable']}개 이상 충족 (단일 질문 1개·대화 1개 = 1, 같은 대화의 여러 턴은 1). "
+                 "적용 턴 수는 참고 (CODE 1 은 모든 답변, CODE 2·3 은 질문이 준 형식·계산 요구만 — 답변의 계산식·선언 개수 조건은 답변에 따라 더해짐)")
     for cid, row in report["criteria"].items():
-        lines.append(f"    {cid:7s} {row['applicable']:5d}  {'충분' if row['enough'] else '부족'}")
+        verdict = "충족" if row["enough"] else f"부족 {row['short']}개"
+        lines.append(f"    {cid:7s} {row['applicable_units']:4d}개  {verdict:8s} · 적용 턴 {row['applicable_turns']}")
     for cid, n in (report.get("undetermined") or {}).items():
         lines.append(f"    {cid}: {n}개 질문은 적용 여부를 판별하지 못함 (토크나이저를 불러오지 못함 — tiktoken 설치·사전 내려받기 확인)")
     if report["types"]:

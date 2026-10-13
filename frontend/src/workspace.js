@@ -538,7 +538,12 @@
     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
     $('reuse-dataset').disabled = Boolean(active() || !state.result?.datasets?.aiona?.length);
     const providers = resultProviders();
-    $('result-subtitle').textContent = `${run.name} · ${number(run.question_count)}개 질문 · ${run.providers.length}개 모델`;
+    // 평가 방식은 저장된 실행 기록만 — 현재 설정으로 덮어 표시하지 않는다 (평가를 시작한 실행에만 붙인다)
+    const method = run.evaluation_execution || Object.keys(state.result?.evaluations || {}).length ? ` · ${window.AionaEvaluationMethod.label(state.result || run)}` : '';
+    // 질문 수는 질문 단위(단일 질문 1개·대화 1개 = 1), 턴 수는 따로 — 저장된 결과를 받기 전이거나 대화가 없으면 기존 표시
+    const units = state.result ? results.questionUnits(state.result).length : null;
+    const size = units !== null && units !== run.question_count ? `질문·대화 ${number(units)}개 · 평가 대상 턴 ${number(run.question_count)}개` : `${number(run.question_count)}개 질문`;
+    $('result-subtitle').textContent = `${run.name} · ${size} · ${run.providers.length}개 모델${method}`;
     $('export-all').href = `/api/comparison/runs/${run.run_id}/export`;
     const collecting = run.status === 'COLLECTING', evaluating = run.status === 'EVALUATING';
     $('results-title').textContent = collecting ? (external() ? 'API 답변을 수집하고 있어요.' : '세 모델의 답변을 수집하고 있어요.') : '평가 결과, 한눈에.';
