@@ -32,7 +32,8 @@ from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELIN
                          resolve_semantic_pipeline)
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
-from .answer_citations import CITATION_POLICY_VERSION, answer_citations, prompt_citations, source_requested
+from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLICY_VERSION, answer_citations,
+                               merge_citations, prompt_citations, source_requested, structured_citations)
 from .semantic_items import SEMANTIC_ITEMS_VERSION, SUBS_BY_ID, SemanticItem, applicable_items
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
@@ -213,7 +214,8 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                       basis: Dict[str, Any], *, pipeline: str = "legacy", ask: Optional[Callable] = None,
                       applicability: Optional[Dict[str, Any]] = None, cancel_event: Optional[Event] = None,
                       client: Optional[JevClient] = None, fail_evidence_check: bool = False, citation_check: bool = False,
-                      question: str = "", citations: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+                      question: str = "", citations: Optional[List[Dict[str, Any]]] = None,
+                      structured_sources: int = 0) -> Dict[str, Any]:
     """JevCall → 레코드. legacy 는 parse_decisions, items 는 finalize_items→집계. 두 모드 모두 최종 판정 정책을 거친다(items 는 no-op).
 
     legacy 의 근거 없는 J1~J4 FAIL 재평가(``fail_evidence_check``, 같은 client 로 1회)와 답변 출처 기록·J5 판정 사유
@@ -260,11 +262,27 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
     apply_final_decision_policy(record, state=request["state"])
     if citation_check and "J5" in criteria and (citations or source_requested(question)):
         # 답변이 든 출처 전체(잘못된 링크·대조 한도 밖 포함)와 질문의 출처 요구 — 기록용, 이것만으로 판정하지 않음
-        record["answer_citations"] = {"policy": CITATION_POLICY_VERSION, "requested_by_question": source_requested(question),
-                                      "citations": citations or []}
+        record["answer_citations"] = {"policy": STRUCTURED_CITATION_POLICY_VERSION if structured_sources else CITATION_POLICY_VERSION,
+                                      "requested_by_question": source_requested(question), "citations": citations or []}
+        if structured_sources:
+            record["answer_citations"]["structured_sources"] = structured_sources
     if fail_evidence_check and isinstance((record.get("decisions") or {}).get("J5"), dict):
         record["decisions"]["J5"]["j5_outcome"] = j5_outcome(record)
     return record
+
+
+def case_citations(answer: str, criteria: Tuple[str, ...], citation_check: bool,
+                   sources: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict[str, Any]], int]:
+    """J5 로 대조할 답변 출처와 그중 수집 단계 구조화 출처 수 — 실시간과 Message Batches 가 같이 쓴다.
+
+    구조화 출처(``answer_sources``)를 먼저 쓰고, 본문에서만 찾은 링크는 같은 출처가 아닐 때 뒤에 붙인다.
+    """
+    if not (citation_check and "J5" in criteria):
+        return [], 0
+    citations = answer_citations(answer)
+    if not sources:
+        return citations, 0
+    return merge_citations(structured_citations(sources, answer), citations), len(sources)
 
 
 def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional[JevClient],
@@ -272,11 +290,13 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                       reference: Any = None, history: Optional[List[Dict[str, Any]]] = None,
                       cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
                       citation_check: bool = False, *, pipeline: str = "legacy", item_specs: Any = None,
-                      applicability: Optional[Dict[str, Any]] = None, collected_at: Optional[str] = None) -> Dict[str, Any]:
+                      applicability: Optional[Dict[str, Any]] = None, collected_at: Optional[str] = None,
+                      sources: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """질문 하나의 의미 평가 — 요청 조립(_case_request) → client.system_one → 레코드(_record_from_call).
 
     items 파이프라인의 재확인은 ``ask(questions_subset)`` 콜백(같은 client.system_one, 같은 state)으로 돈다.
     ``fail_evidence_check``·``citation_check`` 는 legacy 의 근거 없는 FAIL 재평가(D-1)·답변 출처 대조(G-4)다.
+    ``sources`` 는 외부 수집 답변의 구조화 출처(``answer_sources``) — J5 출처 대조에 먼저 쓴다.
     """
     # Legacy native Jev keeps its historical knowledge/reference contract. New
     # CLI/API transports finalize explicit evidence before this parser runs.
@@ -289,7 +309,7 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return finish(JevStatus.NOT_CONFIGURED, error=access_reason, **basis)
     started = time.monotonic()
     try:
-        citations = answer_citations(answer) if citation_check and "J5" in criteria else []
+        citations, structured_sources = case_citations(answer, criteria, citation_check, sources)
         request = _case_request(question, answer, criteria, reference, history, client=client, cancel_event=cancel_event,
                                 pipeline=pipeline, item_specs=item_specs, collected_at=collected_at,
                                 citations=prompt_citations(citations))
@@ -312,7 +332,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
     return _record_from_call(case_id, criteria, call, request, started, basis, pipeline=pipeline, ask=ask,
                              applicability=applicability, cancel_event=cancel_event, client=client,
                              fail_evidence_check=fail_evidence_check, citation_check=citation_check,
-                             question=question, citations=citations)
+                             question=question, citations=citations,
+                             structured_sources=structured_sources)
 
 
 def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], client: JevClient,
@@ -749,7 +770,8 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                                  history=prep.histories.get(i) or None, cancel_event=cancel_event,
                                  fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening,
                                  pipeline=pipeline, item_specs=prep.item_specs.get(i), applicability=applies[i],
-                                 collected_at=prep.collected_at)
+                                 collected_at=prep.collected_at,
+                                 sources=case.get("answer_sources"))
 
     def publish(i: int, record: Dict[str, Any]) -> None:
         _publish_record(prep, i, record, on_record)

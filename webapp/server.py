@@ -13,6 +13,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 from .code_eval_service import CodeEvalService, JobCapacityError, ROOT
 from .comparison_service import ComparisonService, import_dataset
+from .ingestion import BundleError
+from .ingestion.platforms import formats as external_formats
 from code_eval.report_html import render_report
 from code_eval.cli_process import active_cli_count, terminate_active_cli
 
@@ -125,6 +127,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.sample())
         if path == '/api/comparison/history':
             return self.respond(200, service.history())
+        if path == '/api/comparison/external/formats':
+            return self.respond(200, external_formats())
         if path == '/api/comparison/version-history':
             return self.respond(200, service.version_history())
         if path == '/api/comparison/version-comparison':
@@ -210,6 +214,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, service.manage_release(payload))
             if path == '/api/comparison/version-check':
                 return self.respond(200, service.prepare_version_comparison(payload))
+            if path == '/api/comparison/external/preview':
+                return self.respond(200, service.preview_external(payload))
+            if path == '/api/comparison/external/runs':
+                return self.respond(202, service.start_external(payload))
             if len(parts) == 4 and parts[2] == 'providers':
                 return self.respond(200, service.configure(parts[3], payload))
             if len(parts) == 5 and parts[2] == 'runs':
@@ -220,6 +228,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(404, {'error': 'API를 찾을 수 없습니다.'})
         except JobCapacityError as exc:
             self.respond(429, {'error': str(exc)})
+        except BundleError as exc:
+            self.respond(400, {'error': str(exc), 'errors': exc.errors})
         except (ValueError, TypeError, KeyError) as exc:
             self.respond(400, {'error': str(exc)})
         except FileNotFoundError:

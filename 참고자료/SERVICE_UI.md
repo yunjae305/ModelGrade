@@ -376,6 +376,17 @@ API 키·인증 토큰·환경변수 원문·비용 금액은 기록하지 않�
 
 검증은 `tests/test_version_registry_store.py`(버전 목록·사유·롤백·동시 등록), `tests/test_evaluation_summary.py`(질문 단위 판정 요약), `tests/test_version_comparison_server.py`(AIONA 이력: 한 요인·여러 요인·버전 변경·추이)에서 합니다. 브라우저 스모크 스크립트(`tests/workspace_management_ui_smoke.py` 등)는 작업 이력 화면 기준이라 다시 써야 합니다.
 
+## 외부 AI 답변 가져오기 (2026-10-13)
+
+새 비교 화면의 **외부 AI 답변 가져오기** 패널은 API·웹·에이전트·외부 플랫폼 답변을 공통 형식 `modelgrade-collection/v1` 로 바꿔 기존 CODE·J1~J6 평가기로 평가합니다. 상세 설계·플랫폼 조사·검증 범위는 [4단계 문서](4단계_외부수집통합_2026-10-13.md)에 있습니다.
+
+- 입력: 공통 수집 형식, 대화 기록(`modelgrade-transcript/v1`), API 응답 파일(`modelgrade-api-responses/v1`), 에이전트 실행(`modelgrade-agent-run/v1`, OpenAI Agents SDK·LangSmith·OpenTelemetry GenAI), ChatGPT·Claude.ai 공식 내보내기, HTML, 기존 Q/A 파일·저장된 비교 실행. 파일에 모델 정보가 없으면 "시스템 정보 직접 입력"에 제공자·플랫폼·모델(모르면 `unknown`)·실행 방식을 적습니다.
+- 미리 확인(`POST /api/comparison/external/preview`)은 모델·평가자·네트워크를 호출하지 않습니다. 같은 내용을 다시 가져오면 막고, "같은 내용 재실행"을 고르면 별도 실행으로 남깁니다.
+- 평가 시작(`POST /api/comparison/external/runs`). 연결된 Gemini·Claude·GPT 를 고르면 같은 질문을 기존 수집 경로로 함께 수집하며 예상 유료 호출 수를 먼저 보여 줍니다. 앞 턴이 빠진 대화가 있으면 API 함께 수집은 막습니다.
+- 결과 비교 화면에는 수집 환경 비교, 모델 카드의 실행 방식·수집 경로·웹검색·도구·수집 품질, 답변 상세의 수집 정보(원래/중계 URL·연결 구절·원본 HTML·에이전트 요약)가 추가됩니다. 환경이 다르거나 확인되지 않으면 순위를 매기지 않습니다.
+- 외부 실행은 AIONA 버전이 없어 버전 관리에 나타나지 않습니다. 이력 관리 화면(AIONA 결과 이력)에도 나오지 않으며, 실행 목록 API `GET /api/comparison/history` 와 현재 세션의 최근 결과로 다시 열 수 있습니다.
+- 형식 목록과 플랫폼별 지원 현황: `GET /api/comparison/external/formats`.
+
 ## 의미평가 API 설정과 검증 근거 (2026-10-11)
 
 답변 수집 API와 의미평가 설정은 분리됩니다. 기존 코드 검사·J1~J6·화면 디자인을 유지하며, 의미평가에는 동일한 질문·답변·참조 자료·모델별 이전 대화 원문을 전달합니다.

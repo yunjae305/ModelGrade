@@ -1,0 +1,6 @@
+{
+  "schema": "modelgrade-collection/v1",
+  "questions": [{"case_id": "BAD-01", "question": "질문"}],
+  "systems": [{"system_key": "unknown-web", "platform": "알 수 없는 웹", "access_mode": "web"}],
+  "responses": [{"case_id": "BAD-01", "system_key": "unknown-web", "answer": "", "collection_method": "manual_copy"}]
+}
