@@ -12,7 +12,7 @@ import httpx
 from playwright.sync_api import expect, sync_playwright
 from test_blind_comparison import CapturingJudge, adapter_fixture, until
 from webapp.code_eval_service import CodeEvalService
-from webapp.comparison_service import ComparisonService
+from webapp.comparison_service import DEFAULT_COMPARISON_DATASET, ComparisonService
 from webapp.server import Server
 
 
@@ -40,6 +40,10 @@ def main():
     screenshots.mkdir(parents=True, exist_ok=True)
     errors = []
     comparison_posts = []
+    # 이 스모크는 비공개 165문항 세트(샘플 버튼이 여는 DEFAULT_COMPARISON_DATASET)의 행 번호·대화 구성을 단언한다 — 없으면 공개 샘플
+    # 3행으로 대체돼 엉뚱한 단언에서 실패하므로, 비공개 파일이 필요하다고 먼저 알린다 (10-14 4차)
+    if not DEFAULT_COMPARISON_DATASET.is_file():
+        raise FileNotFoundError(f'비공개 질문 세트가 필요합니다: {DEFAULT_COMPARISON_DATASET}')
     with tempfile.TemporaryDirectory(prefix='aiona-four-blind-') as directory:
         folder = Path(directory)
         judge = VariedFixtureJudge(pause=True)

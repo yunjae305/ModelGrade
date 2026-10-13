@@ -124,10 +124,11 @@ def main():
                 page.locator('#matrix-body .result-cell').first.click()
                 expect(page.locator('#answer-evaluation')).to_contain_text('평가 중단')
                 page.locator('#answer-dialog [data-close]').click()
+                # a90b6be: 이력 화면은 끝까지 평가한 AIONA 결과만 보여 준다 — 중단된 실행은 목록에 없으므로 같은 실행을 직접 다시 연다
                 page.locator('[data-view="history"]').click()
-                expect(page.locator('#history-body').get_by_text('평가 중단', exact=True)).to_be_visible()
+                expect(page.locator('#history-body').get_by_text('평가 중단', exact=True)).to_have_count(0)
                 connection['offline'] = True
-                page.locator('#history-body').get_by_role('button', name='재접속 검증용 모의 실행', exact=True).click()
+                page.evaluate('(rid) => { void AionaWorkspace.openRun(rid); }', rid)
                 expect(page.locator('#global-error')).to_contain_text('자동으로 다시 연결')
                 connection['offline'] = False
                 expect(page.locator('#view-results')).to_be_visible(timeout=4000)
