@@ -1,10 +1,11 @@
-"""Jev 의미 평가 기준 J1~J6 — 정의는 이 파일 한 곳에서만 관리한다.
+"""Jev 의미 평가 기준 J1~J7 — 정의는 이 파일 한 곳에서만 관리한다.
 
-J1~J6는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
+J1~J7는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
 Jev 요청 문구, 보고서·화면 설명은 모두 이 정의에서 만든다. Jev 가 새 기준을 만들지 않도록
-의미 평가는 이 여섯 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
+의미 평가는 이 일곱 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
 J5 DATA 신뢰도는 참조 데이터(reference)가 있으면 그것을, 없으면 확립된 사실을 기준으로 삼는다.
-J6 LONG CONTEXT 는 대화 입력(앞 턴 history)의 2번째 턴부터만 묻는다.
+J6 멀티턴 맥락 유지는 대화 입력(앞 턴 history)의 2번째 턴부터만 묻는다 (2026-10-13 이름 변경, 옛 이름 LONG CONTEXT).
+J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 8K 토큰 이상일 때만 묻는다 (``long_context``, 2026-10-13 추가).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from .model import SUBCATEGORIES
 __all__ = ["JEV_CRITERIA_VERSION", "DECISIONS", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
            "jev_questions", "describe"]
 
-JEV_CRITERIA_VERSION = "jev-criteria-v3"
+JEV_CRITERIA_VERSION = "jev-criteria-v4"   # v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
 
 #: Jev choice 질문의 선택지. AIONA 판정 표기(PASS/FAIL)와 같게 둔다.
 DECISIONS = ("PASS", "FAIL")
@@ -32,7 +33,7 @@ CODE_SCOPE_NOTE = (
 
 @dataclass(frozen=True)
 class JevCriterion:
-    id: str            # J1 … J6 — Jev 질문 키이자 결과 키
+    id: str            # J1 … J7 — Jev 질문 키이자 결과 키
     key: str
     name: str
     name_en: str
@@ -84,17 +85,27 @@ CRITERIA = (
         boundary="계산·개수·원본 변환은 코드 검사가 맡으므로 값의 출처와의 일치만 본다. 출처의 신뢰성·정보의 기준 시점·적용 조건을 함께 확인한다.",
         example="인구·가격 같은 사실 수치를 실제와 다르게 적었는지"),
     JevCriterion(
-        "J6", "long_context", "LONG CONTEXT", "Long-Context Consistency",
+        "J6", "multi_turn_context", "멀티턴 맥락 유지", "Multi-turn Context Retention",
         question="앞선 대화(history)에서 준 지시·설정을 이 답변이 계속 지키고, 앞 내용과 모순 없이 문맥을 유지하는가?",
         pass_rule="앞 대화의 지시·설정(역할·말투·금지 사항·기억할 정보)을 지키고, 앞서 정한 이름·조건·결정과 일관됨",
         fail_rule="앞 지시·설정을 잊거나 어김, 앞서 정한 내용과 모순, 앞 대화를 잊고 엉뚱한 맥락으로 답함",
         boundary="분량·형식 지시는 코드 검사 영역이고, 이 턴 질문 자체의 의도·논리는 J1~J4 가 본다.",
         example="1턴의 ‘반말로, 이름은 민수’ 지시가 15턴에서 존댓말·다른 이름으로 바뀌었는지"),
+    # 근거: Lost in the Middle(TACL 2024 — 입력 중간의 정보에서 성능 하락), RULER(COLM 2024 — 검색·다단계 추적·집계),
+    # NoLiMa(ICML 2025 — 질문과 표현이 다른 정보 찾기), LooGLE(ACL 2024 — 장거리 의존), BABILong(NeurIPS 2024 — 흩어진 사실 추론)
+    JevCriterion(
+        "J7", "long_context", "롱컨텍스트 활용", "Long-Context Utilization",
+        question="긴 입력(문서·자료)에서 질문이 묻는 정보를 위치와 관계없이 정확히 찾고, 여러 곳에 흩어진 근거를 빠짐없이 연결해 답했는가?",
+        pass_rule="질문이 묻는 정보를 입력의 앞·중간·뒤 어디에 있든(질문과 표현이 달라도) 찾아 썼고, 여러 부분을 함께 써야 할 때 필요한 근거를 모두 연결함",
+        fail_rule="입력의 다른 부분을 근거로 듦, 입력에 있는 정보를 없다고 하거나 놓침, 흩어진 근거를 일부만 연결해 결론이 달라짐",
+        boundary="‘긴 입력 속에서 찾고 연결했는가’만 본다. 입력에 없는 내용을 만들거나 맞는 부분을 보고도 값을 다르게 옮긴 것은 J5, "
+                 "질문이 요구한 항목을 빠뜨린 것은 J4, 이전 대화 턴은 J6 가 본다. FAIL 이유에는 입력 원문의 해당 부분과 답변을 따옴표로 인용한다.",
+        example="계약서 중간의 ‘해지 통보는 30일 전’ 조항 대신 뒷부분의 갱신 조항을 근거로 ‘60일 전’이라고 답했는지"),
 )
 
 
 def jev_questions() -> Dict[str, Dict[str, Any]]:
-    """J1~J6 를 Jev System One 의 choice 질문으로 바꾼다. 한 번의 호출에 적용 기준을 함께 보낸다."""
+    """J1~J7 를 Jev System One 의 choice 질문으로 바꾼다. 한 번의 호출에 적용 기준을 함께 보낸다."""
     return {c.id: {"type": "choice", "instructions": c.instructions(),
                    "criteria": {"PASS": c.pass_rule, "FAIL": c.fail_rule}}
             for c in CRITERIA}

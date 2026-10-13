@@ -9,7 +9,7 @@
 키가 없으면 호출하지 않고 ``NOT_CONFIGURED`` 로 끝낸다. 판정을 지어내지 않는다.
 
     SEMANTIC_ENGINE    jev(기본) | claude_cli | codex_cli — CLI 로그인으로 의미 평가 가능
-    SEMANTIC_PIPELINE  legacy(기본, 기준 6개를 한 번에 묻기) | items(세부 기준·점검 항목에 예/아니오+인용) — ``resolve_semantic_pipeline``
+    SEMANTIC_PIPELINE  legacy(기본, 기준 7개를 한 번에 묻기) | items(세부 기준·점검 항목에 예/아니오+인용) — ``resolve_semantic_pipeline``
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ __all__ = ["JevStatus", "JevClientConfig", "JevCall", "JevClient", "HttpJevClien
 DEFAULT_API_BASE = "https://api.typesafe.ai/v1"
 DEFAULT_MODEL = "jev-latest"
 
-#: 의미 평가 방식 — legacy(기준 6개 한 번에, 기본) | items(세부 기준 25·점검 항목 39 에 예/아니오+인용, 서버가 인용 검증·집계)
+#: 의미 평가 방식 — legacy(기준 7개 한 번에, 기본) | items(세부 기준 27·점검 항목 41 에 예/아니오+인용, 서버가 인용 검증·집계)
 SEMANTIC_PIPELINES = ("legacy", "items")
 
 #: 다시 시도할 응답 — 속도 제한(429)·과부하(529)·일시 서버 오류

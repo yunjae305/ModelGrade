@@ -9,7 +9,7 @@
   const emptyFilters = () => ({q: '', version: '', from: '', to: '', set: ''});
   const state = {entries: [], series: [], labels: {}, filters: emptyFilters(), page: 0, loaded: false, loading: false, error: '',
     generation: 0, detailGeneration: 0};
-  const criteriaNames = {J1: 'J1 의도 충족성', J2: 'J2 내용 적절성', J3: 'J3 논리 타당성', J4: 'J4 충분성', J5: 'J5 데이터 신뢰도', J6: 'J6 긴 대화 맥락 유지'};
+  const criteriaNames = {J1: 'J1 의도 충족성', J2: 'J2 내용 적절성', J3: 'J3 논리 타당성', J4: 'J4 충분성', J5: 'J5 데이터 신뢰도', J6: 'J6 멀티턴 맥락 유지', J7: 'J7 롱컨텍스트 활용'};
   const pageSize = 20;
   let returnFocus = null, restoreFocus = true;
 

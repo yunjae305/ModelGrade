@@ -797,7 +797,7 @@ class ComparisonService:
                               | {"question": q["question"][:300]} for q in questions[:20]]}
 
     def start_external(self, payload):
-        """외부 수집 답변을 기존 CODE·J1~J6 평가기로 평가한다. 선택하면 같은 질문을 연결된 API 로도 수집한다."""
+        """외부 수집 답변을 기존 CODE·J1~J7 평가기로 평가한다. 선택하면 같은 질문을 연결된 API 로도 수집한다."""
         rerun = payload.get("rerun", False)
         resolve = payload.get("resolve_relays", False)
         if not isinstance(rerun, bool) or not isinstance(resolve, bool):

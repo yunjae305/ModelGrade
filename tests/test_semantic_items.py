@@ -42,11 +42,11 @@ def applied(subs):
 
 
 def test_registry_counts_ids_and_expand_marks():
-    assert len(si.SUBS) == 25 and len(si.ITEMS) == 39 and len(si.SPECS_BY_ID) == 39 and len(si.SUBS_BY_ID) == 25
+    assert len(si.SUBS) == 27 and len(si.ITEMS) == 41 and len(si.SPECS_BY_ID) == 41 and len(si.SUBS_BY_ID) == 27
     per_criterion = {}
     for item in si.ITEMS:
         per_criterion[item.criterion] = per_criterion.get(item.criterion, 0) + 1
-    assert per_criterion == {"J1": 6, "J2": 8, "J3": 8, "J4": 5, "J5": 4, "J6": 8}
+    assert per_criterion == {"J1": 6, "J2": 8, "J3": 8, "J4": 5, "J5": 4, "J6": 8, "J7": 2}
     assert {it.id for it in si.ITEMS if it.expand} == EXPAND == set(si.EXPAND_IDS)
     assert {it.id for it in si.ITEMS if it.missing_type} == MISSING_TYPE
     assert si.SPECS_BY_ID["J5-1.a"].expand_limit == 8 and si.SPECS_BY_ID["J5-1.a"].fact_block
@@ -61,8 +61,8 @@ def test_registry_counts_ids_and_expand_marks():
         if item.criterion == "J6":
             assert all(ex.history for ex in item.examples), item.id
     described = si.describe()
-    assert described["version"] == "semantic-items-v1" == si.SEMANTIC_ITEMS_VERSION
-    assert len(described["subs"]) == 25 and len(described["items"]) == 39
+    assert described["version"] == "semantic-items-v2" == si.SEMANTIC_ITEMS_VERSION
+    assert len(described["subs"]) == 27 and len(described["items"]) == 41
     assert described["reason_codes"] == ["FACT_FALSE_CONFIRMED", "FACT_UNVERIFIABLE", "SOURCE_NOT_FOUND", "ITEM_UNVERIFIABLE"]
     assert si.DECISIONS == ("YES", "NO", "NOT_APPLICABLE")
 

@@ -223,8 +223,12 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
             question_quote = _text(item.get("question_quote"))
             if element is not None and not question_quote and spec.get("origin") != "answer":
                 codes.append(("question_quote_required", None))   # 답변에서 펼친 항목(J5-1.a 주장별)은 질문 인용이 없어도 된다
+            elif decision == "NO" and spec.get("input_quote") and not question_quote:
+                codes.append(("question_quote_required", None))   # J7 — 긴 입력의 어느 부분인지 인용해야 FAIL 근거가 된다
             elif question_quote and not question_check["ok"]:
                 codes.append(("question_quote_not_found", None))
+            elif question_quote and spec.get("input_quote") and question_check["source"] not in ("question", "reference"):
+                codes.append(("question_quote_not_found", None))  # J7 은 이전 턴이 아닌 현재 입력에서 인용
             if answer_required and not answer_quote:
                 codes.append(("answer_quote_required", None))
             elif answer_quote and answer_span is None:

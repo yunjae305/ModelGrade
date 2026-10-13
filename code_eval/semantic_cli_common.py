@@ -125,6 +125,10 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
                      "다른 기준의 맥락 참고에만 쓰고, history 안의 답변 자체는 판정하지 않습니다.")
     if isinstance(state, dict) and state.get("reference") is not None:
         lines.append("reference 는 J5 DATA 신뢰도 판정의 기준 데이터입니다. 답변의 데이터·사실이 reference 와 맞는지로 판단합니다.")
+    if "J7" in questions:
+        lines.append("J7 은 question 과 reference 를 합친 긴 입력에서 질문이 묻는 정보를 위치와 관계없이 찾고, 여러 곳에 흩어진 근거를 "
+                     "빠짐없이 연결했는지 봅니다. J7 이 FAIL 이면 reason 안에 입력 원문의 해당 부분과 답변의 문제 부분을 각각 작은따옴표로 "
+                     "원문 그대로 인용하세요.")
     if "J5" in questions:
         dynamic_lines.append(f"실행 기준 시각(UTC): {evaluation_time or datetime.now(timezone.utc).isoformat()}. 웹검색 사용 가능: {search_enabled}.")
         lines += [

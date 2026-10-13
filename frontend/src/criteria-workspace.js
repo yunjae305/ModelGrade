@@ -7,7 +7,7 @@
   const {api, node} = W;
   let taxonomy = null;
   let loading = false;
-  const names = {J5: '데이터 신뢰도', J6: '긴 대화 맥락 유지'};
+  const names = {J5: '데이터 신뢰도', J6: '멀티턴 맥락 유지', J7: '롱컨텍스트 활용'};
   const specialized = {
     'AIONA-M': {
       applies: 'AIONA의 실제 표시 답변과 여섯 범주의 내부 마커 목록이 모두 준비된 경우',
@@ -81,7 +81,7 @@
     const extras = taxonomy.specialized.filter((item) => specialized[item.id]);
     const index = [
       ['criteria-common-title', '공통 형식·수치 기준', categories.length + '개 분류 · ' + categories.reduce((sum, group) => sum + group.subs.length, 0) + '개 항목'],
-      ['criteria-semantic-title', '답변 내용 기준', criteria.length + '개 항목 · J1~J6'],
+      ['criteria-semantic-title', '답변 내용 기준', criteria.length + '개 항목 · J1~J' + criteria.length],
       ['criteria-specialized-title', 'AIONA 특화 기준', extras.length + '개 항목 · 평가 대기'],
     ];
     $('criteria-reference-content').replaceChildren(

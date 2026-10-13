@@ -153,11 +153,11 @@ def test_record_events_carry_rechecks_and_unverifiable_counts_only_for_items_rec
 
 def test_registry_lists_semantic_items_from_the_single_definition():
     data = registry()
-    assert REGISTRY_VERSION == "criteria-registry-v4" and data["version"] == REGISTRY_VERSION
+    assert REGISTRY_VERSION == "criteria-registry-v5" and data["version"] == REGISTRY_VERSION
     assert data["semantic_items"] == describe()
-    assert len(data["semantic_items"]["subs"]) == 25 and len(data["semantic_items"]["items"]) == 39
+    assert len(data["semantic_items"]["subs"]) == 27 and len(data["semantic_items"]["items"]) == 41
     assert data["semantic_items"]["version"] == SEMANTIC_ITEMS_VERSION and data["semantic_items"]["reason_codes"][0] == "FACT_FALSE_CONFIRMED"
-    assert [c["id"] for c in data["criteria"] if c["layer"] == "LLM"] == ["J1", "J2", "J3", "J4", "J5", "J6"]   # 기준 목록은 그대로
+    assert [c["id"] for c in data["criteria"] if c["layer"] == "LLM"] == ["J1", "J2", "J3", "J4", "J5", "J6", "J7"]
     json.dumps(data, ensure_ascii=False, allow_nan=False)
 
 

@@ -1,4 +1,4 @@
-"""Jev 의미 평가 단계 — CODE 평가와 별개로 모든 질문·답변에 J1~J6 중 정해진 기준을 판단한다.
+"""Jev 의미 평가 단계 — CODE 평가와 별개로 모든 질문·답변에 J1~J7 중 정해진 기준을 판단한다.
 
     CODE 결과(batch) → 평가된 질문마다 Jev 1회 호출(평가할 기준 동시) → batch["jev_eval"]
 
@@ -13,7 +13,7 @@
   앞 턴이 하나라도 빠졌거나 입력 오류·중복이면 J6 는 묻지 않고 그 대화는 미완료(INCOMPLETE)로 집계한다 — 판정을 지어내지 않는다.
   history 의 질문·답변은 공백·줄바꿈을 포함한 원문 전체를 보낸다. 길이에 따른 축약·생략은 하지 않는다.
   참조 데이터(case["reference"])는 있을 때만 state 에 넣는다.
-- 의미 평가 방식(``pipeline``)은 legacy(기본, 기준 6개를 한 번에 묻기) | items(세부 기준 25·점검 항목 39 에 예/아니오+인용,
+- 의미 평가 방식(``pipeline``)은 legacy(기본, 기준 7개를 한 번에 묻기) | items(세부 기준 27·점검 항목 41 에 예/아니오+인용,
   서버가 인용 검증·재확인(최대 3회)·집계). items 는 ``sub_applicability`` 로 보낼 항목을 정하고 ``semantic_quotes.finalize_items``
   → ``semantic_items_eval`` 로 decisions[cid](+subs) 를 만든다. legacy 호출 순서·결과 형식은 바뀌지 않는다.
 """
@@ -27,7 +27,7 @@ from threading import Event
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .jev_applicability import (APPLIES_WHEN, JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION, jev_applicability,
-                                sub_applicability)
+                                long_context_size, sub_applicability)
 from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELINES, _sum_usage, resolve_jev_client,
                          resolve_semantic_pipeline)
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
@@ -226,7 +226,7 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                       structured_sources: int = 0) -> Dict[str, Any]:
     """JevCall → 레코드. legacy 는 parse_decisions, items 는 finalize_items→집계. 두 모드 모두 최종 판정 정책을 거친다(items 는 no-op).
 
-    legacy 의 근거 없는 J1~J4 FAIL 재평가(``fail_evidence_check``, 같은 client 로 1회)와 답변 출처 기록·J5 판정 사유
+    legacy 의 근거 없는 J1~J4·J7 FAIL 재평가(``fail_evidence_check``, 같은 client 로 1회)와 답변 출처 기록·J5 판정 사유
     (``citation_check``·``citations``)도 여기서 한다 — 실시간과 Message Batches 가 같은 규칙을 쓴다.
     """
     def finish(status, **kw):
@@ -265,6 +265,7 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                     record['j5_basis'] = 'unverified'
         if fail_evidence_check and record["status"] == JevStatus.SUCCESS:
             _confirm_fail_evidence(record, request, client, cancel_event)
+    _attach_long_context(record, request["state"], applicability)
     # The transport has already completed any evidence recovery. Apply the
     # explicit final-outcome policy only now, before summaries/events are built.
     apply_final_decision_policy(record, state=request["state"])
@@ -345,9 +346,28 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                              structured_sources=structured_sources)
 
 
+def _attach_long_context(record: Dict[str, Any], state: Dict[str, Any], applicability: Optional[Dict[str, Any]]) -> None:
+    """J7 판정에 입력 길이·구간과 근거 인용의 입력 내 위치를 붙인다 (제자리). 판정 값은 바꾸지 않는다.
+
+    legacy 는 이유의 따옴표 인용, items 는 J7 항목의 질문(입력) 인용에서 위치를 잰다 — 입력 앞에서부터 0~100."""
+    from .long_context import quote_positions
+    from .semantic_reasons import _QUOTED
+    decision = (record.get("decisions") or {}).get("J7")
+    if not isinstance(decision, dict):
+        return
+    evidence = ((applicability or {}).get("evidence") or {}).get("J7") or {}
+    quotes = list(_QUOTED.findall(decision.get("reason") or ""))
+    for sub in (decision.get("subs") or {}).values():
+        for item in (sub or {}).get("items") or []:
+            if isinstance(item, dict) and isinstance(item.get("question_quote"), str):
+                quotes.append(item["question_quote"])
+    decision["long_context"] = {**copy.deepcopy(evidence.get("long_context") or {}),
+                                "quote_positions": quote_positions(quotes, state.get("question"), state.get("reference"))}
+
+
 def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], client: JevClient,
                            cancel_event: Optional[Event]) -> None:
-    """근거 없는 J1~J4 FAIL 은 그 기준만 1회 다시 묻고, 그래도 근거가 없으면 판정 미완료로 둔다.
+    """근거 없는 J1~J4·J7 FAIL 은 그 기준만 1회 다시 묻고, 그래도 근거가 없으면 판정 미완료로 둔다.
 
     다른 기준의 판정·근거는 그대로 둔다. 재평가도 같은 질문·답변·기준 정의를 쓰고 검색은 붙지 않는다.
     """
@@ -356,7 +376,7 @@ def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], clie
     for cid in CHECKED_CRITERIA:
         decision = decisions.get(cid)
         if cid in record["criteria"] and isinstance(decision, dict) and decision.get("decision") == "FAIL":
-            checks[cid] = decision["fail_evidence"] = fail_evidence(decision, state)
+            checks[cid] = decision["fail_evidence"] = fail_evidence(decision, state, cid)
     invalid = tuple(cid for cid, check in checks.items() if not check["valid"])
     if not invalid:
         return
@@ -388,7 +408,7 @@ def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], clie
         first = {"decision": "FAIL", "reason": decisions[cid].get("reason"), "fail_evidence": checks[cid]}
         new = retried.get(cid)
         if new is not None and new.get("decision") == "FAIL":
-            new["fail_evidence"] = fail_evidence(new, state)
+            new["fail_evidence"] = fail_evidence(new, state, cid)
         if new is not None and (new.get("decision") == "PASS" or
                                 new.get("decision") == "FAIL" and new["fail_evidence"]["valid"]):
             final = new
@@ -633,12 +653,15 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
             ctx["truncated"] = truncated
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
                             "history_turns": len(history) if ctx["complete"] else 0}
+        # 입력 길이(J7)는 한 번만 잰다 — 두 적용 판정 사이에 토크나이저 상태가 바뀌어도 같은 값을 쓴다
+        measured = long_context_size(case["question"], case.get("reference"))
         prep.applies[i] = jev_applicability(case["question"], case["answer"], reference=case.get("reference"),
-                                            conversation=conversation)
+                                            conversation=conversation, measured=measured)
         if prep.items_mode:
-            # 세부 기준 25개의 적용 판정(질문 기준, 앞 턴 사용자 질문의 가상 설정 제외)과 보낼 항목 목록
+            # 세부 기준 27개의 적용 판정(질문 기준, 앞 턴 사용자 질문의 가상 설정 제외)과 보낼 항목 목록
             subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
-                                     conversation=conversation, answer_tools=prep.answer_tools, history=prep.histories.get(i))
+                                     conversation=conversation, answer_tools=prep.answer_tools, history=prep.histories.get(i),
+                                     measured=measured)
             prep.item_specs[i] = applicable_items(case, subs, conversation)
             _apply_item_applicability(prep.applies[i], subs, prep.item_specs[i])
         elif prep.fact_screening:
@@ -687,6 +710,23 @@ def _publish_record(prep: _Prepared, i: int, record: Dict[str, Any],
         applicability.setdefault('evidence', {})['J6'] = {'source': 'conversation', 'status': 'UNVERIFIED',
             'rules': ['대화 이력 검증'], 'matches': list(ctx['issues']), 'excerpt': reason,
             'look_for': '앞 턴 누락·중복·입력 오류로 긴 대화 문맥을 확인할 수 없음'}
+    undetermined = ((prep.applies.get(i) or {}).get('undetermined') or {}).get('J7')
+    if undetermined and record.get('error') != CANCEL_REASON and cases[i].get('case_status') == 'EVALUATED':
+        # 입력 길이를 재지 못함(토크나이저 없음) — J7 적용 여부를 짐작하지 않고 확인 필요로 집계한다
+        if 'J7' not in record['criteria']:
+            record['criteria'].append('J7')
+        record.setdefault('not_requested', []).append('J7')
+        if record.get('decisions') is None:
+            record['decisions'] = {}
+        record['decisions']['J7'] = {'criterion_id': 'J7', 'name': next(c.name for c in CRITERIA if c.id == 'J7'),
+            'decision': None, 'status': 'UNVERIFIED', 'confidence': None, 'probabilities': {}, 'reason': undetermined}
+        record['review_required'] = True
+        applicability = record['applicability']
+        applicability['criteria'] = list(record['criteria'])
+        applicability.setdefault('not_applicable', {}).pop('J7', None)
+        applicability.setdefault('evidence', {})['J7'] = {'source': 'question', 'status': 'UNVERIFIED',
+            'rules': ['입력 길이 측정'], 'matches': [], 'excerpt': undetermined,
+            'look_for': '토크나이저를 불러오지 못해 입력이 8K 토큰 이상인지 확인할 수 없음'}
     prep.records[i] = record
     if on_record:
         on_record(i, record)
@@ -865,6 +905,26 @@ def _apply_item_applicability(applicability: Dict[str, Any], subs: Dict[str, Dic
     applicability["criteria"] = applied
 
 
+def _long_context_tiers(final: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """J7 를 물은 질문의 입력 길이 구간별 PASS·FAIL — 길이에 따른 하락을 본다 (RULER·LV-Eval 의 구간별 보고)."""
+    from .long_context import TIERS
+    tiers = {name: {"targets": 0, "pass": 0, "fail": 0} for _, name in reversed(TIERS)}
+    for r in final:
+        if "J7" not in r["criteria"]:
+            continue
+        size = ((((r.get("applicability") or {}).get("evidence") or {}).get("J7") or {}).get("long_context") or {})
+        bucket = tiers.get(size.get("tier"))
+        if bucket is None:
+            continue
+        bucket["targets"] += 1
+        decision = ((r.get("decisions") or {}).get("J7") or {}).get("decision")
+        if decision in ("PASS", "FAIL"):
+            bucket["pass" if decision == "PASS" else "fail"] += 1
+    for bucket in tiers.values():
+        bucket["rate"] = _rate(bucket["pass"], bucket["fail"])
+    return tiers
+
+
 def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str, Any]], cases: List[Dict[str, Any]], *,
                       pipeline: str = "legacy") -> Dict[str, Any]:
     """레코드 목록 → {summary, completed, review_required, unverified, conversations(, fulfillment)}. 재집계(요소 합집합 뒤)에도 쓴다."""
@@ -883,6 +943,7 @@ def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str,
                 summary[cid]['incomplete'] += 1
     for part in summary.values():
         part['pending'] = part['targets'] - part['pass'] - part['fail']
+    summary["J7"]["tiers"] = _long_context_tiers(final)
     result = {"summary": summary,
               "completed": sum(r['status'] == JevStatus.SUCCESS and not r.get('review_required') for r in final),
               "review_required": sum(bool(r.get('review_required')) for r in final),

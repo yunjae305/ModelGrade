@@ -284,7 +284,7 @@ def _jev_fails(record: Any) -> List[str]:
     return [cid for cid, d in ((record or {}).get("decisions") or {}).items() if d["decision"] == "FAIL"]
 
 
-#: 적용 근거를 찾은 곳 — 질문(J1~J4) · 답변(J5) · 참조 데이터(J5) · 대화(J6)
+#: 적용 근거를 찾은 곳 — 질문(J1~J4) · 답변(J5) · 참조 데이터(J5·J7) · 대화(J6)
 _SOURCE_LABEL = {"question": "질문 근거", "answer": "답변 근거", "reference": "참조 데이터", "conversation": "대화"}
 _J5_BASIS_KO = {"reference": "판정 기준: 참조 데이터", "web": "판정 기준: 웹 출처",
                 "input": "판정 기준: 제공 자료 일치 (자료 자체의 사실성 검증 아님)",
@@ -921,7 +921,7 @@ def _conversation_section(batch: Dict[str, Any], keys: List[str]) -> str:
                          for t in it["turn_results"] if t["asked"])
         items.append(f'<tr><td class="nowrap">{_e(it["id"])}</td><td>{it["turns"]}</td><td>{it["j6_turns"]}</td><td>{verdict}</td>'
                      f'<td>{first}</td><td>{strip or "—"}</td><td class="note">{_e(", ".join(it["issues"])) if it["issues"] else "—"}</td></tr>')
-    return (f'<div class="card wrap" id="conversations"><h3>대화 유지율 · J6 LONG CONTEXT</h3>'
+    return (f'<div class="card wrap" id="conversations"><h3>대화 유지율 · J6 멀티턴 맥락 유지</h3>'
             f'<p class="note">대화 {conv["count"]}개 · PASS {conv["pass"]} · FAIL {conv["fail"]} · 미완료 {conv["incomplete"]} · 유지율 {rate}. {_e(conv.get("note") or "")}</p>'
             f'<table><thead><tr><th>턴 구간</th><th>J6 평가 턴</th><th>PASS</th><th>FAIL</th><th>유지율</th></tr></thead><tbody>{bands}</tbody></table>'
             f'<table style="margin-top:10px"><thead><tr><th>대화</th><th>턴 수</th><th>J6 평가 턴</th><th>결과</th><th>첫 FAIL 턴</th>'

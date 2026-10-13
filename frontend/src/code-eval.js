@@ -371,7 +371,7 @@ function renderJevSummary(b) {
 function renderConversations(box, conv) {
   if (!conv || !conv.count) return;
   const pct = (r) => (r === null || r === undefined ? '—' : `${Math.round(r * 100)}%`);
-  box.append(el('h3', { class: 'mt', text: '대화 유지율 · J6 LONG CONTEXT' }),
+  box.append(el('h3', { class: 'mt', text: '대화 유지율 · J6 멀티턴 맥락 유지' }),
     el('p', { class: 'hint', text: `대화 ${conv.count}개 · PASS ${conv.pass} · FAIL ${conv.fail} · 미완료 ${conv.incomplete} · 유지율 ${pct(conv.rate)}. ${conv.note || ''}` }));
   const bands = Object.entries(conv.bands || {}).filter(([, b]) => b.targets);
   if (bands.length) {

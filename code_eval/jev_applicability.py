@@ -1,4 +1,4 @@
-"""J1~J6 적용 판정 — 질문·답변·입력 정보에서 코드 규칙으로 적용 여부와 근거를 뽑는다 (LLM 없음).
+"""J1~J7 적용 판정 — 질문·답변·입력 정보에서 코드 규칙으로 적용 여부와 근거를 뽑는다 (LLM 없음).
 
 CODE 의 질문 조건 추출(``extract.py``)과 같은 원칙을 쓴다.
 - 질문 안의 인용 자료(펜스 코드, ``>`` 인용 줄, 표, 큰따옴표 문장)는 지시가 아니라 데이터이므로 가린다.
@@ -6,8 +6,11 @@ CODE 의 질문 조건 추출(``extract.py``)과 같은 원칙을 쓴다.
 - J1 은 모든 질문에 적용한다. J2~J4 는 근거 문구가 있을 때만 적용하고, 없으면 '해당 없음'과 이유를 남긴다.
 - J5 DATA 신뢰도는 **답변**에 검증할 데이터(수치·단위, 연도·날짜, 통계·출처 표현)가 있을 때, 또는 참조 데이터(reference)가
   있을 때 적용한다. 코드 펜스·인라인 코드 안의 숫자와 목록 번호는 데이터로 보지 않는다. 명칭·고유명사는 규칙으로 잡지 못한다.
-- J6 LONG CONTEXT 는 대화 입력(conversation)의 2번째 턴부터, 앞 턴 대화가 있을 때 적용한다. 첫 턴은 '해당 없음'이고,
+- J6 멀티턴 맥락 유지는 대화 입력(conversation)의 2번째 턴부터, 앞 턴 대화가 있을 때 적용한다. 첫 턴은 '해당 없음'이고,
   단일 질문·답변 입력에는 적지 않는다.
+- J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 8K 토큰 이상일 때 적용한다 (``long_context`` — 고정 공개 토크나이저로 셈,
+  이전 대화 턴은 세지 않음). 토크나이저를 불러오지 못하면 해당 없음이 아니라 ``undetermined`` 에 남긴다 — 평가 기록에서
+  확인 필요(UNVERIFIED)로 집계되고, 적용 여부를 짐작하지 않는다.
 - 같은 입력은 언제나 같은 결과를 낸다. 단어 규칙이라 놓치거나 과하게 잡을 수 있으므로 근거 문구와 출처(source)를 함께 남긴다.
 """
 
@@ -19,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .analysis import TextAnalysis, mask_ranges
 from .extract import _instruction_text, _quote_spans
+from . import long_context
 from .jev_criteria import CRITERIA
 from .semantic_items import ITEMS, SUBS
 
@@ -27,9 +31,9 @@ __all__ = ["JEV_APPLICABILITY_VERSION", "APPLIES_WHEN", "DATA_RULES", "jev_appli
            "J5_ITEMS_APPLICABILITY_VERSION", "FACT_QUESTION_RULES", "INPUT_VALUE_RULES", "VERIFICATION_CLAIM_RULES",
            "fact_question", "j5_items_applicability"]
 
-JEV_APPLICABILITY_VERSION = "jev-applicability-v2.2"
-#: 세부 기준(25개) 적용 규칙 버전 — items 파이프라인용. legacy RULES·jev_applicability() 결과는 바꾸지 않는다.
-SUB_APPLICABILITY_VERSION = "sub-applicability-v1"
+JEV_APPLICABILITY_VERSION = "jev-applicability-v2.4-long-context"   # v2.4: J7 롱컨텍스트(입력 8K 토큰 이상) 적용 판정
+#: 세부 기준(27개) 적용 규칙 버전 — items 파이프라인용. legacy RULES·jev_applicability() 결과는 바꾸지 않는다.
+SUB_APPLICABILITY_VERSION = "sub-applicability-v2"   # v2: J7-1·J7-2 (입력 8K 토큰 이상)
 #: items 파이프라인의 J5 세부 기준 적용 규칙 버전 (질문 기반 — 네 모델의 분모가 같다)
 J5_ITEMS_APPLICABILITY_VERSION = "j5-items-applicability-v1"
 
@@ -136,6 +140,7 @@ SUB_NOT_APPLICABLE: Dict[str, str] = {
     "J4-3": "요청 문장에 방법·절차·글 작성 요청이 없음",
     "J4-4": "요청 문장에 요약 요구가 없음",
     "J6": "대화 입력이 아님 — 단일 질문·답변",
+    "J7": f"입력이 {long_context.MIN_TOKENS:,}토큰 미만 — 롱컨텍스트가 아님",
 }
 
 #: 단위·기호 — 긴 표기를 먼저 둬서 'mm' 이 'm' 으로 잡히지 않게 한다. 개·건·회·번 같은 순서·개수 낱말은 데이터로 보지 않는다.
@@ -188,6 +193,7 @@ APPLIES_WHEN = {
     "J4": "요청 문장에 비교·추가 요구·방법·절차·요약 요구가 있을 때",
     "J5": "답변에 수치·날짜·통계 데이터가 있거나 참조 데이터가 있을 때 (코드 안 숫자 제외)",
     "J6": "대화 입력의 2번째 턴부터 — 앞 턴 대화를 함께 보냄",
+    "J7": f"입력(현재 질문 + 참조 자료)이 {long_context.MIN_TOKENS:,}토큰 이상일 때 ({long_context.TOKENIZER})",
 }
 _NOT_APPLICABLE = {
     "J2": "요청 문장에 대상·말투·제약·설명 방식·글의 목적을 정한 표현이 없음",
@@ -260,12 +266,14 @@ def _reference_excerpt(reference: Any) -> str:
 
 
 def jev_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None,
-                      conversation: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                      conversation: Optional[Dict[str, Any]] = None,
+                      measured: Optional[Tuple[Optional[Dict[str, Any]], Optional[str]]] = None) -> Dict[str, Any]:
     """적용할 J 기준과 근거. {"criteria": [...], "evidence": {J: {...}}, "not_applicable": {J: 이유}}
 
     - ``answer`` 가 있으면 J5 를 답변의 데이터로 판정한다. ``reference`` 가 있으면 J5 는 항상 적용한다.
     - ``conversation`` = {"id", "turn", "history_turns"} 이면 J6 를 2번째 턴부터(앞 턴 대화가 있을 때) 적용한다.
     evidence 의 ``source`` 는 근거를 찾은 곳(question · answer · reference · conversation)이다.
+    ``measured`` 는 ``long_context_size`` 결과 — 같은 질문의 적용 판정을 여러 번 할 때 길이 측정을 공유한다.
     """
     sentences = _request_sentences(question)
     last = sentences[-1] if sentences else question.strip()
@@ -298,6 +306,16 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
         evidence["J5"] = data
 
     not_applicable = {cid: reason for cid, reason in _NOT_APPLICABLE.items() if cid not in evidence}
+    undetermined: Dict[str, str] = {}
+    size, reason = measured if measured is not None else long_context_size(question, reference)
+    if size is None:
+        undetermined["J7"] = reason   # 토크나이저 없음 — 길이를 모르므로 해당 없음으로 두지 않는다
+    elif size["long"]:
+        evidence["J7"] = {"rules": ["긴 입력"], "matches": [f"{size['tokens']:,}토큰"], "source": "reference" if has_reference else "question",
+                          "excerpt": f"입력 {size['tokens']:,}토큰 · {size['tier']}", "long_context": size,
+                          "look_for": "긴 입력의 어디에 있든 질문이 묻는 정보를 찾고, 흩어진 근거를 빠짐없이 연결했는지"}
+    else:
+        not_applicable["J7"] = reason
     if conversation:
         turn, history_turns = int(conversation.get("turn") or 0), int(conversation.get("history_turns") or 0)
         issues = list(conversation.get("issues") or [])
@@ -312,10 +330,24 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
                               "excerpt": f"대화 {conversation.get('id')} · {turn}턴 (앞 턴 {history_turns}개)",
                               "look_for": "앞 대화의 지시·설정·문맥을 이 답변이 유지했는지"}
     criteria = [c.id for c in CRITERIA if c.id in evidence]
-    return {"version": JEV_APPLICABILITY_VERSION, "criteria": criteria, "evidence": evidence, "not_applicable": not_applicable}
+    result = {"version": JEV_APPLICABILITY_VERSION, "criteria": criteria, "evidence": evidence, "not_applicable": not_applicable}
+    if undetermined:
+        result["undetermined"] = undetermined
+    return result
 
 
 # --- items 파이프라인: J5 세부 기준 (질문 기반) ------------------------------------------------------------
+
+def long_context_size(question: Any, reference: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """(길이 측정, 해당 없음 사유). 롱컨텍스트면 사유는 None. 토크나이저가 없으면 판별하지 못했다는 사유를 남긴다."""
+    try:
+        size = long_context.measure(question, reference)
+    except long_context.TokenizerUnavailable as exc:
+        return None, f"롱컨텍스트를 판별하지 못함 — {exc}"
+    if size["long"]:
+        return size, None
+    return size, f"입력 {size['tokens']:,}토큰 — {long_context.MIN_TOKENS:,}토큰 미만이라 롱컨텍스트가 아님"
+
 
 def _history_questions(history: Any) -> List[str]:
     """대화 이력(state["history"] 모양)의 앞 턴 사용자 질문 원문 목록."""
@@ -430,7 +462,7 @@ def j5_items_applicability(question: str, answer: Optional[str] = None, *, answe
             "criteria_applies": any(bool(s.get("items")) for s in subs.values())}
 
 
-# --- items 파이프라인: 세부 기준 25개 적용 (질문 기반) ----------------------------------------------------
+# --- items 파이프라인: 세부 기준 27개 적용 (질문 기반) ----------------------------------------------------
 
 _SUB_ITEMS: Dict[str, List[str]] = {}
 for _it in ITEMS:
@@ -444,13 +476,16 @@ def _ordered(ids: List[str], sub_id: str) -> List[str]:
 
 def sub_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None,
                       conversation: Optional[Dict[str, Any]] = None, answer_tools: str = "unknown",
-                      history: Any = None) -> Dict[str, Dict[str, Any]]:
-    """세부 기준 25개의 적용 여부와 근거 — {sub_id: {"items": [보낼 항목 ID…], "rules", "matches", "excerpt", "source", "reason"?}}.
+                      history: Any = None,
+                      measured: Optional[Tuple[Optional[Dict[str, Any]], Optional[str]]] = None) -> Dict[str, Dict[str, Any]]:
+    """세부 기준 27개의 적용 여부와 근거 — {sub_id: {"items": [보낼 항목 ID…], "rules", "matches", "excerpt", "source", "reason"?}}.
 
     - J1-1·J1-2·J1-4·J3-1 은 항상, J1-3 은 평가 모델이 적용 여부를 정하므로 항상 보낸다(``model_applies``).
     - J2~J4 는 요청 문장의 단어 규칙(``SUB_RULES``)으로, J5 는 ``j5_items_applicability`` 로 정한다
       (``history`` 는 state["history"] 모양의 앞 턴 목록 — 앞 턴의 가상 설정을 J5-1 제외에 쓴다).
     - J6 는 legacy 와 같은 대화 판정(2번째 턴부터·앞 턴 이력 완전)을 재사용하고, J6-2.c 는 지시어 규칙이 있을 때만 켠다.
+    - J7-1·J7-2 는 legacy J7 과 같은 길이 판정(입력 8K 토큰 이상, ``measured`` 를 주면 그 값)이고, 질문 유형에 따른 적용은
+      평가 모델이 정한다.
     적용되지 않은 세부 기준은 ``items=[]`` 와 ``reason`` 을 남긴다. 답변은 J5-3.a 에만 영향을 준다 (질문이 정한다).
     """
     question = question or ""
@@ -515,6 +550,16 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
             j6_reason = "앞 턴 입력이 없거나 입력 오류여서 앞 대화를 만들 수 없음"
         else:
             j6_excerpt = f"대화 {conversation.get('id')} · {turn}턴 (앞 턴 {history_turns}개)"
+    size, j7_reason = measured if measured is not None else long_context_size(question, reference)
+    for sid in ("J7-1", "J7-2"):
+        if j7_reason is not None:
+            subs[sid] = {"items": [], "rules": [], "matches": [], "excerpt": None, "source": "question", "reason": j7_reason}
+            if size is None:
+                subs[sid]["undetermined"] = True   # 토크나이저 없음 — 기록 단계에서 J7 을 확인 필요로 남긴다
+        else:
+            subs[sid] = {"items": list(_SUB_ITEMS[sid]), "rules": ["긴 입력"], "matches": [f"{size['tokens']:,}토큰"],
+                         "excerpt": f"입력 {size['tokens']:,}토큰 · {size['tier']}", "long_context": size,
+                         "source": "reference" if reference not in (None, "", {}, []) else "question", "model_applies": True}
     for sid in ("J6-1", "J6-2", "J6-3", "J6-4"):
         if j6_reason is not None:
             subs[sid] = {"items": [], "rules": [], "matches": [], "excerpt": None, "source": "conversation", "reason": j6_reason}
