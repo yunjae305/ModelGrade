@@ -357,7 +357,7 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
 
 
 def _attach_long_context(record: Dict[str, Any], state: Dict[str, Any], applicability: Optional[Dict[str, Any]]) -> None:
-    """J7 판정에 입력 길이·구간과 근거 인용의 입력 내 위치를 붙인다 (제자리). 판정 값은 바꾸지 않는다.
+    """J7 판정에 입력 토큰 수와 근거 인용의 입력 내 위치를 붙인다 (제자리). 판정 값은 바꾸지 않는다.
 
     legacy 는 이유의 따옴표 인용, items 는 J7 항목의 질문(입력) 인용에서 위치를 잰다 — 입력 앞에서부터 0~100."""
     from .long_context import quote_positions
