@@ -83,7 +83,9 @@ def test_compare_runs_drills_down_and_uses_conversation_units(tmp_path):
     j1 = next(row for row in result['criteria'] if row['level'] == 'criterion' and row['id'] == 'J1')
     assert j1['improved'] == 1 and j1['regressed'] == 2 and j1['pass_kept'] == 2
     assert any(row['level'] == 'code' for row in result['criteria'])
-    assert result['baseline']['aiona_release']['version'] == '10.1' and result['target']['results']['aiona']['questions'] == {'PASS': 3, 'FAIL': 2, 'PENDING': 0, 'EXCLUDED': 0}
+    # 질문 단위(대화 1개 = 1문항): Q1·Q3 통과, Q2 FAIL, 대화 C1 은 2턴 FAIL → FAIL. 턴 단위는 turns 에
+    assert result['baseline']['aiona_release']['version'] == '10.1' and result['target']['results']['aiona']['questions'] == {'PASS': 2, 'FAIL': 2, 'PENDING': 0, 'EXCLUDED': 0}
+    assert result['target']['results']['aiona']['turns'] == {'PASS': 3, 'FAIL': 2, 'PENDING': 0, 'EXCLUDED': 0}
     # 같은 실행끼리·조건이 다르면 비교 불가 사유와 '재평가로 맞추기' 안내
     same = service.version_comparison(base['run_id'], base['run_id'])
     assert same['conditions']['eligible'] is False and [r['code'] for r in same['conditions']['reasons']] == ['same_run', 'same_or_unknown_version']
@@ -136,7 +138,7 @@ def test_run_summary_and_aiona_history_track_one_factor_at_a_time(tmp_path):
     assert judge_only['changes'][0]['fields'] == ['judge.requested_model'] and judge_only['changes'][0]['field_labels'] == ['평가 모델']
     assert judge_only['attributable'] is True and judge_only['multi_factor'] is False
     assert version_only['factors'] == ['aiona_version_changed'] and version_only['changes'][0]['before'] == '10.1'
-    assert version_only['attributable'] is True and version_only['deltas']['question_pass_rate'] == -0.2
+    assert version_only['attributable'] is True and version_only['deltas']['question_pass_rate'] == -0.25   # 4문항 중 1문항
     assert version_only['deltas']['criteria']['J1']['rate'] == -0.2 and version_only['results']['criteria']['J1']['fail'] == 1
     assert both['factors'] == ['judge_changed', 'aiona_version_changed'] and both['multi_factor'] is True and both['attributable'] is False
     assert all(change['multi_factor'] for change in both['changes'])
