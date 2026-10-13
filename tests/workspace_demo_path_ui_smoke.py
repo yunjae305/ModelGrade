@@ -90,7 +90,8 @@ def main():
                     page.wait_for_timeout(500)
                     text = dialog.inner_text()
                     assert all(needle in text for needle in needles), (case, text[:600])
-                    table = dialog.locator('[data-collection-comparison]')                          # P1-6 같은 질문의 수집 방식 비교
+                    table = page.locator('#answer-collection [data-collection-comparison]')        # P1-6 같은 질문의 수집 방식 비교 (평가 칸 밖)
+                    expect(page.locator('#answer-evaluation [data-collection-comparison]')).to_have_count(0)
                     expect(table).to_contain_text('수집 방식 비교 — 같은 질문, 시스템 4개')
                     expect(table).to_contain_text('샘플 데이터')
                     table.locator('summary').click()

@@ -1118,6 +1118,10 @@
     const context = JSON.stringify([state.run?.run_id, state.modalSource, p, index]);
     const detailKey = (detail) => detail.className + ':' + detail.querySelector(':scope > summary')?.textContent;
     const expanded = new Set(state.modalEvaluationContext === context ? [...box.querySelectorAll('details[open]')].map(detailKey) : []);
+    // 수집 방식 비교는 평가 칸 밖의 별도 영역 — 평가 칸(#answer-evaluation)의 구조는 그대로 둔다
+    const holder = $('answer-collection');
+    const keepOpen = state.modalEvaluationContext === context && Boolean(holder.querySelector('details[open]'));
+    holder.hidden = true; holder.replaceChildren();
     state.modalEvaluationContext = context;
     state.modalEvaluation = fingerprint; box.replaceChildren();
     box.hidden = !batch;
@@ -1129,7 +1133,11 @@
       node('div', {class: 'answer-checks'}, ...[['코드 검사', status.code], ['의미 평가', status.semantic]].map(([label, check]) =>
         node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason}),
           label === '의미 평가' && imageNote ? node('p', {class: 'field-help', 'data-attachment-images': '', text: imageNote}) : null))));
-    if (compared?.questions?.[index]) box.append(collectionDetails(compared.questions[index], compared.sample));
+    if (compared?.questions?.[index]) {
+      const details = collectionDetails(compared.questions[index], compared.sample);
+      details.open = keepOpen;
+      holder.append(details); holder.hidden = false;
+    }
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
