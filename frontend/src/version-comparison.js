@@ -154,17 +154,28 @@
       own(record, 'context') && canonical(record.context) === canonical(entry.expectedContext);
   }
 
+  // 점수 단위 — 단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1문항(사용자 결정 10-13). 대화는 모든 턴이 PASS 여야 PASS,
+  // 한 턴이라도 FAIL 이면 FAIL. 원문 정합성 검사와 턴별 상세는 턴 단위 그대로다.
   function summary(run, identified) {
     const states = identified.rows.map((r) => compactState(run, r.index));
-    const total = states.length, batch = run?.evaluations?.aiona;
-    const integrity = total > 0 && run?.question_count === total && batch?.cases?.length === total &&
+    const answers = states.length, batch = run?.evaluations?.aiona;
+    const integrity = answers > 0 && run?.question_count === answers && batch?.cases?.length === answers &&
       identified.rows.every((r) => aligned(run, r));
-    const complete = states.filter((s) => s.complete).length;
-    const passed = states.filter((s) => s.complete && s.outcome === 'clear').length;
-    const failed = states.filter((s) => s.complete && s.outcome === 'issue').length;
+    const units = new Map();
+    identified.rows.forEach((r, i) => {
+      const key = r.context?.id != null ? 'conv:' + r.context.id : 'q:' + i;
+      if (!units.has(key)) units.set(key, []);
+      units.get(key).push(states[i]);
+    });
+    let passed = 0, failed = 0;
+    for (const members of units.values()) {
+      if (members.some((s) => s.complete && s.outcome === 'issue')) failed++;
+      else if (members.every((s) => s.complete && s.outcome === 'clear')) passed++;
+    }
+    const total = units.size, complete = passed + failed;
     const ready = integrity && complete === total && !batch?.live;
     return {runId: text(run?.run_id) ? run.run_id : null, version: text(run?.aiona_release?.version) ? run.aiona_release.version : '버전 미기록',
-      total, pass: passed, fail: failed, pending: total - complete, complete, integrity, ready,
+      total, answers, pass: passed, fail: failed, pending: total - complete, complete, integrity, ready,
       rate: ready ? passed / total : null};
   }
 

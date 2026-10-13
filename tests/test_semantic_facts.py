@@ -213,7 +213,7 @@ def test_unobserved_url_is_never_fetched():
     assert fetcher.calls == []
 
 
-def test_answer_links_only_http_404_or_dns_counts_as_not_found_and_timeout_is_inconclusive():
+def test_answer_links_that_do_not_open_are_inaccessible_and_links_beyond_the_limit_are_unchecked():
     pages = {URL: REBUTTAL, "https://gone.example/x": ""}
     fetcher = SourceStub(pages)
     links = sf.check_answer_links(ANSWER, fetcher=fetcher)
@@ -222,10 +222,12 @@ def test_answer_links_only_http_404_or_dns_counts_as_not_found_and_timeout_is_in
     links = sf.check_answer_links(ANSWER, fetcher=fetcher)
     assert links == {URL: "exists", "https://gone.example/x": "not_found"}
     timeout = SourceStub({URL: REBUTTAL, "https://gone.example/x": ""}, status="timeout")
-    assert sf.check_answer_links(ANSWER, fetcher=timeout) == {URL: "inconclusive", "https://gone.example/x": "inconclusive"}
+    # evidence-v3.14 (사용자 결정): 열리지 않으면(시간 초과 포함) 접근 불가 — 판정에서 NO
+    assert sf.check_answer_links(ANSWER, fetcher=timeout) == {URL: "inaccessible", "https://gone.example/x": "inaccessible"}
     assert sf.check_answer_links("출처: ftp://x 와 http://user:pw@host/ 를 보세요.", fetcher=SourceStub({})) == {"http://user:pw@host/": "not_found"}
     assert sf.check_answer_links("링크 없음", fetcher=SourceStub({})) == {}
-    assert len(sf.check_answer_links(" ".join(f"https://h{i}.example/" for i in range(12)), fetcher=SourceStub({}))) == sf.MAX_LINKS == 8
+    many = sf.check_answer_links(" ".join(f"https://h{i}.example/" for i in range(12)), fetcher=SourceStub({}))
+    assert sf.MAX_LINKS == 8 and len(many) == 12 and list(many.values()).count("unchecked") == 4   # 한도 밖은 열지 않고 확인 안 함으로
     # server_check: J5-3.a 에 links 가 붙고 finalize 가 모델 YES 를 NO + SOURCE_NOT_FOUND 로 바꾼다
     yes = item("J5-3.a", "YES", answer_quote="자세한 내용은")
     result, _ = check([yes], fetcher=SourceStub({URL: REBUTTAL}), qs=questions("J5-3.a"))
@@ -236,8 +238,13 @@ def test_answer_links_only_http_404_or_dns_counts_as_not_found_and_timeout_is_in
     assert entry["model_original"]["decision"] == "YES"
     sf.finalize(result["items"], 3)   # 반복 호출 안전
     assert entry["reason_code"] == "SOURCE_NOT_FOUND" and entry["model_original"]["decision"] == "YES"
-    # timeout 은 판정에 쓰지 않는다 → 모델 YES 유지
+    # 열리지 않는 URL(시간 초과)도 접근 불가 → 모델 YES 를 NO + SOURCE_NOT_FOUND 로 (evidence-v3.14)
     result, _ = check([item("J5-3.a", "YES", answer_quote="자세한 내용은")], fetcher=timeout, qs=questions("J5-3.a"))
+    sf.finalize(result["items"], 0)
+    assert result["items"][0]["decision"] == "NO" and result["items"][0]["reason_code"] == "SOURCE_NOT_FOUND"
+    # 모든 URL 이 열리면 모델 YES 유지
+    result, _ = check([item("J5-3.a", "YES", answer_quote="자세한 내용은")],
+                      fetcher=SourceStub({URL: REBUTTAL, "https://gone.example/x": "ok"}), qs=questions("J5-3.a"))
     sf.finalize(result["items"], 0)
     assert result["items"][0]["decision"] == "YES" and "reason_code" not in result["items"][0]
     assert sf.legacy_projection(result["items"]) == {"decision": "PASS", "reason": "적용 항목 모두 예", "fact_check": {"basis": "none", "claims": []}}
@@ -337,3 +344,9 @@ def test_all_claims_excluded_leaves_a_server_not_applicable_placeholder_instead_
     kept, _, dropped = sf.validate_fact_items([claim_item(1, verdict="TRUE", claim="커피 약 4잔까지가 권장 상한"), claim_item(2, verdict="TRUE")],
                                               STATE, VERIFICATION)
     assert [it["id"] for it in kept] == ["J5-1.a#2"] and len(dropped) == 1
+
+
+def test_answer_link_opened_by_the_judge_web_fetch_counts_as_open_when_the_server_cannot_fetch():
+    timeout = SourceStub({URL: REBUTTAL, "https://gone.example/x": ""}, status="timeout")
+    documents = {URL: [{"text": REBUTTAL}], "https://gone.example/x": [{"text": "page"}]}
+    assert sf.check_answer_links(ANSWER, fetcher=timeout, provider_documents=documents) == {URL: "exists", "https://gone.example/x": "exists"}

@@ -195,7 +195,7 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         if _ARROW_BEFORE.search(before):
             ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
         elif _cut_operand_before(before, ctx.answer[line_start + len(before.rstrip(" \t\xa0")) - 1:][:1],
-                                 ctx.answer[end:ctx.answer.find("\n", end) if "\n" in ctx.answer[end:] else len(ctx.answer)]):
+                                 ctx.aa.inline_masked[end:ctx.answer.find("\n", end) if "\n" in ctx.answer[end:] else len(ctx.answer)]):
             ch.skip_reason = "등식 앞에 연산자가 있어(단위에 끊긴 앞쪽 피연산자) 좌변을 확정할 수 없음"
         elif "/" in ch.segments[-1] and _LIMIT_AFTER.match(text, end):
             ch.skip_reason = "‘/’ 뒤 값에 이하·이상 같은 한도 표현이 붙어 나눗셈이 아니라 ‘값 / 한도’ 표기로 봄"
@@ -255,7 +255,9 @@ def _cut_operand_before(before: str, operator: str = "", after: str = "") -> boo
     body = stripped[:-1]
     if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
         return False                       # 목록 표지만 있음
-    emphasis = operator == "*" and stripped == before and bool(re.search(r"(?<!\\)\*", after.split("\n", 1)[0]))
+    line = after.split("\n", 1)[0]   # 인라인 코드(백틱 여러 개 포함)는 호출부가 엔진의 인라인 코드 구간으로 이미 가렸다
+    closing = any(len(m.group(1)) % 2 == 0 for m in re.finditer(r"(\\*)\*", line))           # 역슬래시가 짝수 개면 실제 '*'
+    emphasis = operator == "*" and stripped == before and closing
     excluded = r"\s\d+\-*/=().,:;!?" + (r"\[\]{}<>\"'“”‘’「」『』" if emphasis else "")
     return bool(re.search(r"[\d)](?:[ \t\xa0]?[^" + excluded + r"]{1,5})?[ \t\xa0]*$", body))
 

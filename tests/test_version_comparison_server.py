@@ -229,3 +229,12 @@ def test_run_summary_code_rates_include_saved_completion_like_the_question_verdi
     raw = sum(1 for r in batch['cases'][0]['results'] if r.get('area') == 'common' and r.get('counted') and r.get('verdict') == 'PASS'
               and str(r.get('category')) == category)
     assert expected == raw + 1   # 보완 판정으로 확정된 행이 요약에도 들어간다
+
+
+def test_sign_test_compares_unit_outcomes_not_passed_turn_counts():
+    # 2턴 대화가 [FAIL, FAIL] → [PASS, FAIL] 이면 질문 단위로는 FAIL 유지(동점) — 통과 턴 수가 늘었다고 개선으로 세지 않는다
+    pairs = [{"case_id": f"c{t}", "conversation": "C", "baseline_index": t, "target_index": t} for t in (0, 1)]
+    out = lambda *kinds: [{"outcome": k} for k in kinds]
+    unit = vc._units(pairs, out("FAIL", "FAIL"), out("PASS", "FAIL"))[0]
+    assert unit["sign"] == "tie" and unit["baseline"] == unit["target"] == "FAIL" and (unit["baseline_pass"], unit["target_pass"]) == (0, 1)
+    assert vc._units(pairs, out("PASS", "FAIL"), out("PASS", "PASS"))[0]["sign"] == "plus"

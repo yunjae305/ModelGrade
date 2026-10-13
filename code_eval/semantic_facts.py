@@ -6,8 +6,8 @@
   FALSE 는 올바른 사실(correct)과 제공자가 관측한 URL 의 반박 출처가 있어야 하고, 서버가 그 본문을 다시 받아 인용을 대조한다.
   TRUE 도 관측된 출처가 있어야 한다(기억만으로 판정 금지). 답변에 출처 링크가 있고 없고는 판정에 쓰지 않는다.
 - J5-2.a#n(값별): question_quote 는 질문(또는 reference) 원문에, answer_quote 는 답변 원문에 있어야 한다.
-- J5-3.a: 답변(코드 밖)의 URL 을 서버가 열어 존재를 확인한다. http_error·dns_error·blocked_url 만 '없음' 이고
-  timeout 등은 판정에 쓰지 않는다(답변 탓이 아닌 일시 장애로 FAIL 을 내지 않는다).
+- J5-3.a: 답변(코드 밖)의 URL 을 서버가 열어 확인한다. 열 수 없으면(시간 초과 등 포함) '접근 불가 URL 을 준 것'이라 NO 이고,
+  확인 한도(MAX_LINKS) 밖 URL 이 남아 있으면 예로 확정하지 않는다 (evidence-v3.14, 사용자 결정 2026-10-13).
 - 확인되지 않은 문제는 item["server"]["problems"] 로 남겨 ``semantic_quotes.verify_items`` 가 재확인 대상에 올린다.
   3회 뒤 남은 문제는 FACT_UNVERIFIABLE(J5-1) / ITEM_UNVERIFIABLE 로 '확인 불가 FAIL', 거짓 확인은 FACT_FALSE_CONFIRMED 로 구분한다.
 """
@@ -229,11 +229,15 @@ def check_input_values(items: List[Dict[str, Any]], state: Dict[str, Any]) -> Di
 def _link_status(status: Any) -> str:
     if status == "ok":
         return "exists"
-    return "not_found" if status in NOT_FOUND_STATUSES else "inconclusive"
+    return "not_found" if status in NOT_FOUND_STATUSES else "inaccessible"   # 열리지 않으면 접근 불가 — 일시 장애도 포함
 
 
-def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Optional[Event] = None) -> Dict[str, str]:
-    """J5-3.a: 답변(코드 밖)의 http(s) URL 최대 MAX_LINKS 개를 열어 {url: 'exists' | 'not_found' | 'inconclusive'}."""
+def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Optional[Event] = None,
+                       provider_documents: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    """J5-3.a: 답변(코드 밖)의 http(s) URL 최대 MAX_LINKS 개를 열어 {url: 'exists' | 'not_found' | 'inaccessible' | 'unchecked'}.
+
+    한도 밖 URL 은 열지 않고 'unchecked' 로 남긴다 — 확인하지 못한 출처가 있으면 예로 확정하지 않는다.
+    서버가 접근 문제로 못 연 URL 이라도 평가 모델의 web_fetch 가 같은 URL 원문을 받았으면(``provider_documents``) 열린 것으로 본다."""
     text = _data_text(answer) if isinstance(answer, str) and answer else ""
     urls: List[str] = []
     for match in _LINK.finditer(text):
@@ -256,14 +260,19 @@ def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Option
         except Exception:
             status = "fetch_error"
         semantic_sources._check_cancelled(cancel_event)
+        if status != "ok" and semantic_sources._provider_document(provider_documents, normalized, status):
+            status = "ok"   # 평가 모델이 같은 URL 을 실제로 열었다
         links[url] = _link_status(status)
+    for url in urls[MAX_LINKS:]:
+        links[url] = "unchecked"
     return links
 
 
 # --- transport 가 제출 직후 호출 -----------------------------------------------------------------------
 
 def server_check(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[str, Any], verification: Optional[Dict[str, Any]], *,
-                 fetcher: Any = None, cancel_event: Optional[Event] = None) -> Dict[str, Any]:
+                 fetcher: Any = None, cancel_event: Optional[Event] = None,
+                 provider_documents: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """items 본문의 J5 항목에 server={"problems": [...], "links": {...}} 를 덧붙인 body 사본 (fact.sources[].quote_verified 기록).
 
     J5 항목을 보내지 않았으면 본문을 그대로(사본) 돌려준다. ``verification`` 은 transport 가 모은 {search_performed, source_urls, …}
@@ -298,7 +307,8 @@ def server_check(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
         merge(check_input_values(items, state))
     links: Dict[str, str] = {}
     if "J5-3.a" in questions and any(_split_id(it.get("id"))[0] == "J5-3.a" for it in items):
-        links = check_answer_links(state.get("answer") or "", fetcher=fetcher, cancel_event=cancel_event)
+        links = check_answer_links(state.get("answer") or "", fetcher=fetcher, cancel_event=cancel_event,
+                                   provider_documents=provider_documents)
     for item in items:
         base, _ = _split_id(item.get("id"))
         if base.startswith("J5"):
@@ -320,7 +330,8 @@ def finalize(items: List[Dict[str, Any]], attempts: int) -> None:
 
     - J5-1.a: 거짓 판정의 반박 인용이 확인됐으면 FACT_FALSE_CONFIRMED. attempts(재확인 회차)가 한도에 이르렀는데 server.problems 가
       남았으면 decision NO · unverifiable · FACT_UNVERIFIABLE (fact.verdict 는 모델 값을 보존).
-    - J5-3.a: server.links 에 'not_found' 가 있으면 모델 판정과 무관하게 decision NO · SOURCE_NOT_FOUND.
+    - J5-3.a: server.links 에 'not_found'·'inaccessible' 이 있으면 모델 판정과 무관하게 decision NO · SOURCE_NOT_FOUND,
+      예인데 'unchecked'(확인 한도 밖)가 남았으면 NO · unverifiable · ITEM_UNVERIFIABLE (확인 불가).
     - 그 밖의 J5 항목: 한도 뒤 남은 problems 는 ITEM_UNVERIFIABLE 확인 불가.
     """
     for item in items:
@@ -332,10 +343,16 @@ def finalize(items: List[Dict[str, Any]], attempts: int) -> None:
         server = item.get("server") if isinstance(item.get("server"), dict) else {}
         problems = [p for p in (server.get("problems") or []) if p]
         if base == "J5-3.a":
-            dead = [url for url, status in (server.get("links") or {}).items() if status == "not_found"]
+            links = server.get("links") or {}
+            dead = [url for url, status in links.items() if status in ("not_found", "inaccessible")]
             if dead and item.get("reason_code") != SOURCE_NOT_FOUND:
                 original = _text(item.get("reason"))
-                _mark(item, SOURCE_NOT_FOUND, "답변이 든 출처 URL 이 존재하지 않음: " + ", ".join(dead) + (f" ({original})" if original else ""))
+                _mark(item, SOURCE_NOT_FOUND, "답변이 든 출처 URL 을 열 수 없음: " + ", ".join(dead) + (f" ({original})" if original else ""))
+                continue
+            unchecked = [url for url, status in links.items() if status == "unchecked"]
+            if unchecked and item.get("decision") == "YES" and not item.get("unverifiable"):
+                _mark(item, ITEM_UNVERIFIABLE, "답변이 든 출처를 모두 열어 확인하지 못함(확인 한도 밖): " + ", ".join(unchecked[:3]))
+                item["unverifiable"] = True
                 continue
         if item.get("unverifiable"):
             if base == "J5-1.a" and item.get("reason_code") != FACT_UNVERIFIABLE:

@@ -283,7 +283,7 @@ _CITATION_MISMATCH = ("contradicted", "unrelated", "not_found")
 _CITATION_FAILURES = _CITATION_MISMATCH + ("inaccessible",)
 
 
-def _citation_check(entry, state):
+def _citation_check(entry, state, verification=None):
     """평가자의 답변 출처 판정을 서버 수집 결과로 확정한다.
 
     답변이 든 URL 을 열 수 없으면(inaccessible) 출처 실패로 FAIL, 출처가 주장과 모순·무관·내용 없음이어도 FAIL 이다.
@@ -334,11 +334,22 @@ def _citation_check(entry, state):
         if citation is not None:
             covered.add(url)
         normalized.append(item)
+    # 평가자가 기록하지 않은 출처도 서버 수집 상태는 판정에 쓴다 — 열리지 않았으면 접근 불가
+    fetched = {source_url(s.get("url")): s for s in (verification or {}).get("citation_sources") or [] if isinstance(s, dict)}
     for url, citation in by_url.items():
         if url not in covered:
+            source = fetched.get(url) or {}
+            status = source.get("status")
+            inaccessible = status not in (None, "ok") and not source.get("provider_document")
             normalized.append({"id": citation.get("id"), "url": citation.get("url"), "claim": None, "model_verdict": None,
-                               "quote": "", "reason": "", "server_status": None, "quote_verified": False,
-                               "verdict": "unchecked", "note": "평가자가 이 출처의 지지 여부를 기록하지 않았습니다."})
+                               "quote": "", "reason": "", "server_status": status, "quote_verified": False,
+                               "verdict": "inaccessible" if inaccessible else "unchecked",
+                               "note": ("서버가 출처 원문을 받지 못했습니다 (" + str(status) + ")." if inaccessible else
+                                        "평가자가 이 출처의 지지 여부를 기록하지 않았습니다.")})
+    for url in state.get("answer_citations_unchecked") or [] if isinstance(state, dict) else []:
+        normalized.append({"id": None, "url": url, "claim": None, "model_verdict": None, "quote": "", "reason": "",
+                           "server_status": None, "quote_verified": False, "verdict": "unchecked",
+                           "note": "확인 한도 밖이라 열어 보지 못한 출처입니다."})
     entry["citation_checks"] = normalized
     if entry.get("choice") == "NOT_APPLICABLE":
         return
@@ -377,7 +388,7 @@ def finalize_answers(body, state, questions):
             entry.pop("model_original_assessment", None)
     if "J5" in questions and isinstance(answers.get("J5"), dict):
         _fact_check(answers["J5"], state, verification)
-        _citation_check(answers["J5"], state)
+        _citation_check(answers["J5"], state, verification)
     if "J6" in questions and isinstance(answers.get("J6"), dict):
         _context_check(answers["J6"], state)
     for cid, original in originals.items():

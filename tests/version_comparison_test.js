@@ -318,3 +318,15 @@ console.log('Version comparison checks passed: identities, context, completeness
   delete after.aiona_release;
   assert.equal(compare(before, after).eligible, false);
 }
+
+// 점수 단위(사용자 결정 10-13) — 멀티턴 대화는 1문항이고 한 턴이라도 FAIL 이면 FAIL. Codex 재현: 단일 1 + 3턴 대화
+{
+  const conv = (answerPrefix) => [question('s1', {answer: answerPrefix + 's1'}),
+    ...[1, 2, 3].map((turn) => question('c' + turn, {conversation_id: 'C', turn, answer: answerPrefix + 'c' + turn}))];
+  const before = run('u1', conv('이전 '), ['PASS', 'FAIL', 'FAIL', 'FAIL']);
+  const after = run('u2', conv('이후 '), ['FAIL', 'PASS', 'PASS', 'FAIL']);
+  const units = compare(before, after);
+  assert.equal(units.baseline.total, 2);
+  assert.equal(units.baseline.rate, .5);   // 단일 PASS · 대화 FAIL
+  assert.equal(units.target.rate, 0);      // 단일 FAIL · 대화(3턴 FAIL) FAIL — 턴 단위였다면 25% → 50% '개선'
+}

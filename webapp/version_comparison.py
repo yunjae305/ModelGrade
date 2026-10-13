@@ -10,7 +10,7 @@ import copy
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-from .run_summary import question_outcomes, run_summary
+from .run_summary import question_outcomes, run_summary, unit_outcome
 from .version_registry import evaluation_profile
 
 __all__ = ["COMPARISON_VERSION", "PROFILE_LABELS", "profile_differences", "sign_test", "compare_runs", "condition_changes"]
@@ -272,7 +272,8 @@ def sign_test(plus: int, minus: int) -> Optional[float]:
 
 
 def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """대화 단위 — 같은 대화의 턴은 한 단위(통과 턴 수 비교), 단일 질문은 그 자체. 미완료가 섞인 단위는 동점 처리하지 않고 제외."""
+    """대화 단위 — 같은 대화의 턴은 한 단위, 단일 질문은 그 자체. 단위의 판정은 질문 통과점수와 같게(unit_outcome: 한 턴이라도 FAIL
+    이면 FAIL) 비교하고, 통과 턴 수는 상세로만 남긴다. 판정이 확정되지 않은 단위는 동점 처리하지 않고 제외."""
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for pair in pairs:
         key = f"conv:{pair['conversation']}" if pair.get("conversation") not in (None, "") else f"q:{pair['case_id']}"
@@ -281,11 +282,13 @@ def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List
     for key, members in groups.items():
         outcomes_a = [a_out[p["baseline_index"]]["outcome"] for p in members]
         outcomes_b = [b_out[p["target_index"]]["outcome"] for p in members]
-        complete = all(o in ("PASS", "FAIL") for o in outcomes_a + outcomes_b)
-        score_a, score_b = outcomes_a.count("PASS"), outcomes_b.count("PASS")
+        unit_a, unit_b = unit_outcome(outcomes_a), unit_outcome(outcomes_b)
+        complete = unit_a in ("PASS", "FAIL") and unit_b in ("PASS", "FAIL")
         units.append({"unit": key, "size": len(members), "case_ids": [p["case_id"] for p in members], "complete": complete,
-                      "baseline_pass": score_a, "target_pass": score_b,
-                      "sign": None if not complete else "plus" if score_b > score_a else "minus" if score_b < score_a else "tie"})
+                      "baseline": unit_a, "target": unit_b,
+                      "baseline_pass": outcomes_a.count("PASS"), "target_pass": outcomes_b.count("PASS"),
+                      "sign": None if not complete else "plus" if (unit_a, unit_b) == ("FAIL", "PASS")
+                      else "minus" if (unit_a, unit_b) == ("PASS", "FAIL") else "tie"})
     return units
 
 
