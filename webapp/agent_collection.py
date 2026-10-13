@@ -28,10 +28,27 @@ import httpx
 from .ingestion.api_adapter import parse_api_response
 from .ingestion.sources import evaluation_sources, normalize_sources
 
-__all__ = ["AGENT_COLLECTION_VERSION", "ask_with_tools"]
+__all__ = ["AGENT_COLLECTION_VERSION", "COLLECTION_REASONING_EFFORT", "apply_reasoning", "ask_with_tools"]
 
 #: v2: 앞 턴 첨부·참조 재전송, 구조화 출처 보존, 응답 모양 검증 · v3: TXT·DOCX 도 원본 파일로 (Claude DOCX 는 Files API + 코드 실행)
-AGENT_COLLECTION_VERSION = "api-tools-v3"
+AGENT_COLLECTION_VERSION = "api-tools-v4"   # v4: 추론 강도 medium 명시
+
+#: 답변 수집 추론 강도 — GPT·Claude·Gemini 에 같은 값을 명시한다 (사용자 결정 2026-10-14).
+#: 지정하지 않으면 제공자마다 기본값이 달라(Claude Sonnet 5.5 는 high) 모델 비교가 기본값 차이에 흔들린다.
+COLLECTION_REASONING_EFFORT = "medium"
+
+
+def apply_reasoning(provider: str, body: Dict[str, Any], effort: str = COLLECTION_REASONING_EFFORT) -> Dict[str, Any]:
+    """요청 본문에 추론 강도를 넣는다 — gpt: ``reasoning.effort`` · claude: adaptive thinking + ``output_config.effort`` ·
+    gemini: ``generationConfig.thinkingConfig.thinkingLevel``. 다른 제공자(OpenAI 호환 게이트웨이 등)는 그대로 둔다."""
+    if provider == "gpt":
+        body["reasoning"] = {"effort": effort}
+    elif provider == "claude":
+        body["thinking"] = {"type": "adaptive"}
+        body["output_config"] = {**(body.get("output_config") or {}), "effort": effort}
+    elif provider == "gemini":
+        body.setdefault("generationConfig", {})["thinkingConfig"] = {"thinkingLevel": effort}
+    return body
 _MIME = {"pdf": "application/pdf", "image": "image/png", "txt": "text/plain",
          "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 _ANTHROPIC = "https://api.anthropic.com/v1"
@@ -132,8 +149,8 @@ def _openai(config, turns, parts, max_tokens):
     messages = [m for prior, answer in turns
                 for m in ({"role": "user", "content": _openai_content(prior)}, {"role": "assistant", "content": answer})]
     return ("https://api.openai.com/v1/responses", {"Authorization": f"Bearer {config['key']}"},
-            {"model": config["model"], "input": messages + [{"role": "user", "content": _openai_content(parts)}],
-             "tools": [{"type": "web_search"}], "max_output_tokens": max_tokens, "store": False})
+            apply_reasoning("gpt", {"model": config["model"], "input": messages + [{"role": "user", "content": _openai_content(parts)}],
+             "tools": [{"type": "web_search"}], "max_output_tokens": max_tokens, "store": False}))
 
 
 def _anthropic(config, turns, parts, max_tokens, uploaded=None):
@@ -144,8 +161,8 @@ def _anthropic(config, turns, parts, max_tokens, uploaded=None):
     if uploaded:   # DOCX 원본은 코드 실행 컨테이너에서 연다
         tools.append(dict(_CODE_EXECUTION))
     return (f"{_ANTHROPIC}/messages", {"x-api-key": config["key"], "anthropic-version": "2023-06-01"},
-            {"model": config["model"], "max_tokens": max_tokens,
-             "messages": messages + [{"role": "user", "content": _anthropic_content(parts, uploaded)}], "tools": tools})
+            apply_reasoning("claude", {"model": config["model"], "max_tokens": max_tokens,
+             "messages": messages + [{"role": "user", "content": _anthropic_content(parts, uploaded)}], "tools": tools}))
 
 
 def _upload_docx(client: httpx.Client, config: Dict[str, Any], all_parts: List[list], uploaded: Dict[int, str]) -> None:
@@ -192,8 +209,8 @@ def _gemini(config, turns, parts, max_tokens):
     contents = [c for prior, answer in turns
                 for c in ({"role": "user", "parts": _gemini_parts(prior)}, {"role": "model", "parts": [{"text": answer}]})]
     return (f"https://generativelanguage.googleapis.com/v1beta/models/{config['model']}:generateContent", {"x-goog-api-key": config["key"]},
-            {"contents": contents + [{"role": "user", "parts": _gemini_parts(parts)}], "tools": [{"google_search": {}}],
-             "generationConfig": {"maxOutputTokens": max_tokens}})
+            apply_reasoning("gemini", {"contents": contents + [{"role": "user", "parts": _gemini_parts(parts)}], "tools": [{"google_search": {}}],
+             "generationConfig": {"maxOutputTokens": max_tokens}}))
 
 
 def _text_blocks(provider: str, raw: Dict[str, Any]) -> List[Any]:
@@ -314,7 +331,7 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
     answer_sources?, retrieved_sources?, environment, quality, sent, error, method}.
 
     예상할 수 있는 실패(첨부 없음·읽기 오류·네트워크·HTTP 오류·응답 모양)는 예외 대신 status=ERROR 로 돌려준다."""
-    base: Dict[str, Any] = {"method": AGENT_COLLECTION_VERSION, "sent": []}
+    base: Dict[str, Any] = {"method": AGENT_COLLECTION_VERSION, "sent": [], "reasoning_effort": COLLECTION_REASONING_EFFORT}
     uploaded: Dict[int, str] = {}
     usage: Dict[str, Any] = {}   # Claude 이어 받기 사용량 — 도중에 실패해도 이미 쓴 토큰은 남긴다
     try:

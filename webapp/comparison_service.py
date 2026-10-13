@@ -39,7 +39,7 @@ from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
 from .ingestion.schema import response_key
-from .agent_collection import AGENT_COLLECTION_VERSION, ask_with_tools
+from .agent_collection import AGENT_COLLECTION_VERSION, COLLECTION_REASONING_EFFORT, apply_reasoning, ask_with_tools
 from .aiona_web import AIONA_WEB_VERSION
 from .ingestion.sources import normalize_sources
 
@@ -181,6 +181,7 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
         body = {"contents": [{"role": "model" if m["role"] == "assistant" else "user",
                                "parts": [{"text": m["content"]}]} for m in messages],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
+    apply_reasoning(provider, body)   # GPT·Claude·Gemini 추론 강도 medium 명시 (FactChat 게이트웨이는 그대로)
     try:
         try:
             response = client.post(url, headers=headers, json=body)
@@ -228,6 +229,7 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
                 raise ValueError("text is not a string")
             answer = "".join(texts)
             return {"answer": answer, "raw": raw, "finish_reason": finish,
+                    **({"reasoning_effort": COLLECTION_REASONING_EFFORT} if provider in ("gpt", "claude", "gemini") else {}),
                     "status": "SUCCESS" if complete and texts else "INCOMPLETE",
                     "error": None if complete and texts else f"응답 미완료 ({finish}). 원본 응답은 보존했습니다."}
         except (ValueError, TypeError, AttributeError, KeyError):
