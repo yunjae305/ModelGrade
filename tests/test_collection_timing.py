@@ -102,3 +102,30 @@ def test_every_collected_row_records_request_times_and_the_run_records_request_c
     request = saved['collection_execution']['request']
     assert request['access_mode'] == 'api' and request['parameters'] == {'max_output_tokens': saved['max_tokens']}
     assert (request['system_prompt'], request['tools'], request['sampling']) == (None, [], 'provider_default')
+
+
+def test_conversation_rows_record_what_was_sent_without_the_text(tmp_path):
+    """지시서 10-14 P0-2 — 모델별 입력 차이를 원문 없이 확인하도록 요청 구성(메시지 수·역할·글자 수·해시)을 행에 남긴다."""
+    import hashlib
+    answers = {'api.openai.com': '짧은 답', 'api.anthropic.com': '조금 더 긴 답변입니다'}
+    def handle(request):
+        text = answers[request.url.host]
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': text}]}]})
+        return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': text}]})
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval'), save_dir=tmp_path/'runs',
+                                client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    for provider in ('gpt', 'claude'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    cases = [{'conversation_id': 'C', 'turn': t, 'question': f'{t}번째 질문', 'answer': 'a'} for t in (1, 2)]
+    rid = service.start({'cases': cases, 'providers': ['gpt', 'claude'], 'auto_evaluate': False})['run_id']
+    until(lambda: service.status(rid)['status'] in ('READY', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    for provider, answer in (('gpt', '짧은 답'), ('claude', '조금 더 긴 답변입니다')):
+        first, second = (row['collection']['request'] for row in saved['datasets'][provider])
+        assert first == {'messages': 1, 'user': 1, 'assistant': 0, 'chars': len('1번째 질문'), 'own_answer_chars': 0,
+                         'sha256': first['sha256']}
+        assert (second['messages'], second['user'], second['assistant'], second['own_answer_chars']) == (3, 2, 1, len(answer))
+        sent = [{'role': 'user', 'content': '1번째 질문'}, {'role': 'assistant', 'content': answer}, {'role': 'user', 'content': '2번째 질문'}]
+        assert second['sha256'] == hashlib.sha256(json.dumps(sent, ensure_ascii=False).encode('utf-8')).hexdigest()[:12]
+        assert '1번째 질문' not in json.dumps(second, ensure_ascii=False)   # 원문은 남기지 않는다

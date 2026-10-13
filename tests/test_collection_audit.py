@@ -20,3 +20,20 @@ def test_audit_counts_failures_and_reports_missing_records_honestly():
     old = audit({"datasets": {"gpt": [{"collection": {"status": "SUCCESS"}}]}})
     assert old["request_conditions"] is None and old["providers"]["gpt"]["access_mode"] == "기록 없음"
     assert old["providers"]["gpt"]["requested_at"] == "기록 없음"
+
+
+def test_conversation_inputs_rebuild_each_request_and_flag_a_shrinking_input():
+    """지시서 10-14 P0-2 — 같은 대화의 모델별 입력을 원문 없이 비교: 메시지 수·자기 답변 글자·토크나이저 비율·입력 감소."""
+    from tools.collection_audit import conversation_inputs
+    def row(turn, answer, tokens):
+        return {"conversation_id": "C", "turn": turn, "question": f"{turn}번째 질문", "answer": answer,
+                "collection": {"status": "SUCCESS", "raw": {"usage": {"input_tokens": tokens}}}}
+    run = {"run_id": "r", "datasets": {"aiona": [], "gpt": [row(1, "짧다", 10), row(2, "짧다", 20), row(3, "짧다", 30)],
+                                        "claude": [row(1, "아주 길게 쓴 답변" * 20, 16), row(2, "길다", 300), row(3, "길다", 40)]}}
+    report = conversation_inputs(run)
+    gpt, claude = report["conversations"]["C"]["gpt"], report["conversations"]["C"]["claude"]
+    assert gpt["complete"] and gpt["last"]["messages"] == 5 and gpt["last"]["roles"] == {"user": 3, "assistant": 2}
+    assert claude["last"]["own_answer_chars"] > gpt["last"]["own_answer_chars"]   # 같은 질문, 자기 답변 길이가 다름
+    assert gpt["input_drops_at_turns"] == [] and claude["input_drops_at_turns"] == [3]   # 제공자 집계가 줄면 이력 누락·잘림 의심
+    assert gpt["last"]["ratio"] and "1번째 질문" not in str(report)   # 원문 없이 길이·해시만
+    assert report["system_prompt"] is None and report["tools"] == []
