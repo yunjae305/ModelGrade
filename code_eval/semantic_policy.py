@@ -425,7 +425,7 @@ def apply_final_decision_policy(record, *, state=None):
                                          "outcome_basis": "evidence_requirement", "factual_error_confirmed": False})
         result["changes"].append({"criterion_id": cid, "decision": "FAIL", "reason_code": FINAL_EVIDENCE_FAILURE_CODE})
     result["changed"] = bool(result["changes"])
-    if result["changed"] or record.get("reevaluation"):
+    if result["changed"] or record.get("reevaluation") or record.get("context_reevaluation"):
         record["decision_policy"] = copy.deepcopy(DECISION_POLICY)
         record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
     return result

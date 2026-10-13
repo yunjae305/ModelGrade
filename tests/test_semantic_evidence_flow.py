@@ -7,7 +7,9 @@ import pytest
 from code_eval.combined import combined_summary
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall
-from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case, evaluation_log, parse_decisions
+from code_eval.jev_eval import (CONTEXT_QUOTE_RETRY_NOTE, evaluate_jev_batch, evaluate_jev_case, evaluation_log,
+                                 parse_decisions)
+from code_eval.semantic_evidence import CONTEXT_CHECK_POLICY, finalize_answers
 from webapp.evaluation_events import EvaluationEvents, record_events
 from webapp.version_registry import evaluation_profile
 
@@ -181,6 +183,7 @@ def test_j6_unknown_keeps_full_history_and_finishes_as_evidence_policy_fail():
                'decision': 'UNVERIFIED', 'reason': 'could not verify'}]
     judge = EvidenceJudge({'J6': entry('UNVERIFIED', context_checks=checks)})
     batch = evaluate(cases, judge)
+    assert len(judge.calls) == 2 and 'context_reevaluation' not in batch['jev_eval']['records'][1]   # 인용 대조 실패가 아님
     sent = judge.calls[1]['state']['history']
     assert sent == [{'turn': 1, 'question': long_question, 'answer': ' first answer\n'}]
     assert batch['jev_eval']['records'][1]['context']['history_chars'] > 60_000
@@ -190,6 +193,84 @@ def test_j6_unknown_keeps_full_history_and_finishes_as_evidence_policy_fail():
     assert conv['incomplete'] == 0 and conv['fail'] == 1 and conv['rate'] == 0
     assert conv['bands']['1~10']['unverified'] == 0 and conv['bands']['1~10']['fail'] == 1
     assert batch['jev_eval']['records'][1]['decisions']['J6']['policy_original_assessment']['context_checks'] == checks
+
+
+#: 중간 점검 557a50d8baf1 Gemini Q29 7턴 — 평가 모델이 답변의 '$\rightarrow$' 를 '→' 로 바꿔 인용해 J6 가 '평가 근거 부족' FAIL 이 됐다
+Q29_HISTORY = [
+    {'turn': 5, 'question': '현재 가상 폴더에 report_3.txt와 report_4.txt가 새로 추가됐어. 나머지는 그대로야. '
+                            '기존의 접두사 변경 규칙과 덮어쓰기 금지, 충돌 항목 건너뛰기 규칙을 적용한 대응표를 만들어줘.',
+     'answer': '| `report_1.txt` | `final_1.txt` | **[충돌] 건너뛰기 (Skip)** |'},
+    {'turn': 6, 'question': '변경 후 접두사를 final_ 대신 archive_로 바꿀게. 이미 final_로 시작하는 파일은 건드리지 마. '
+                            '변경 전후 대응표를 다시 작성하되 아직 실행하지는 마.',
+     'answer': '| `report_4.txt` | `archive_4.txt` | **[정상] 변경 가능 (Rename)** |'}]
+Q29_QUESTION = '현재 폴더에 archive_3.txt라는 기존 파일이 하나 더 있다는 정보가 추가됐어. 지금도 계획만 세우는 단계야.'
+Q29_ANSWER = ('| **충돌 항목** | `report_3.txt` | `archive_3.txt` | **[충돌] 건너뛰기 (Skip)** |\n'
+              '| **정상 항목** | `report_1.txt` | `archive_1.txt` | **[정상] 변경 가능 (Rename)** |\n'
+              '* **충돌이 생기는 항목 (건너뛰기 대상):**\n'
+              '  * `report_3.txt` $\\rightarrow$ 기존 파일 보호를 위해 이름 변경을 진행하지 않고 유지합니다.\n'
+              '* **충돌 없이 바꿀 수 있는 항목 (변경 예정 대상):**\n'
+              '  * `report_4.txt` $\\rightarrow$ `archive_4.txt`\n\n'
+              '*(현재 단계는 계획만 수립된 상태이며, 실제 파일 이름은 변경되지 않았습니다.)*')
+
+
+def q29_checks(answer_quote):
+    return [{'turn': 6, 'instruction_quote': '변경 후 접두사를 final_ 대신 archive_로 바꿀게.', 'answer_quote': answer_quote,
+             'decision': 'PASS', 'reason': 'archive_ 접두사를 적용했습니다.'},
+            {'turn': 6, 'instruction_quote': '이미 final_로 시작하는 파일은 건드리지 마.',
+             'answer_quote': '| **정상 항목** | `report_1.txt` | `archive_1.txt` |', 'decision': 'PASS', 'reason': 'final_ 파일 제외'},
+            {'turn': 5, 'instruction_quote': '충돌 항목 건너뛰기 규칙을 적용한 대응표를 만들어줘.',
+             'answer_quote': '기존 파일 보호를 위해 이름 변경을 진행하지 않고 유지합니다.', 'decision': 'PASS', 'reason': '충돌 건너뛰기'},
+            {'turn': 6, 'instruction_quote': '변경 전후 대응표를 다시 작성하되 아직 실행하지는 마.',
+             'answer_quote': '현재 단계는 계획만 수립된 상태이며, 실제 파일 이름은 변경되지 않았습니다.', 'decision': 'PASS',
+             'reason': '실행하지 않음'}]
+
+
+class QuoteCheckingJudge:
+    """실제 transport 처럼 J6 응답을 서버 인용 대조(finalize_answers)에 통과시키는 대역. 호출마다 준비한 context_checks 를 쓴다."""
+    config = SimpleNamespace(engine='anthropic_api', to_manifest=lambda: {'engine': 'anthropic_api'})
+
+    def __init__(self, *checks):
+        self.checks, self.calls = list(checks), []
+
+    def system_one(self, state, questions):
+        self.calls.append(copy.deepcopy(questions))
+        body = {'model': 'fixture-judge', 'answers': {'J6': entry('PASS', context_checks=self.checks.pop(0))}}
+        return JevCall('OK', body=finalize_answers(body, state, questions), attempts=1, usage={'input_tokens': 10})
+
+
+def run_q29(judge):
+    return evaluate_jev_case('Q29_T7', Q29_QUESTION, Q29_ANSWER, judge, criteria=('J6',), history=Q29_HISTORY,
+                             fail_evidence_check=True)
+
+
+def test_q29_j6_misquote_is_asked_once_more_and_the_verbatim_retry_is_used():
+    judge = QuoteCheckingJudge(q29_checks('`report_4.txt` → `archive_4.txt`'),
+                               q29_checks('`report_4.txt` $\\rightarrow$ `archive_4.txt`'))
+    record = run_q29(judge)
+    assert len(judge.calls) == 2 and list(judge.calls[1]) == ['J6']
+    assert CONTEXT_QUOTE_RETRY_NOTE in judge.calls[1]['J6']['instructions']
+    assert CONTEXT_QUOTE_RETRY_NOTE not in judge.calls[0]['J6']['instructions']
+    j6 = record['decisions']['J6']
+    assert j6['decision'] == 'PASS' and 'reason_code' not in j6 and not record['review_required']
+    again = record['context_reevaluation']
+    assert (again['policy'], again['status'], again['adopted']) == (CONTEXT_CHECK_POLICY, 'SUCCESS', 'retry')
+    assert again['first']['status'] == 'UNVERIFIED' and again['first']['context_checks'][0]['decision'] == 'UNVERIFIED'
+    assert again['retry']['decision'] == 'PASS'
+    assert record['attempts'] == 2 and record['usage']['input_tokens'] == 20
+    logged = evaluation_log({'cases': [{'case_id': 'Q29_T7'}], 'jev_eval': {'records': [record]}})[0]['jev']
+    assert logged['context_reevaluation']['adopted'] == 'retry'
+
+
+def test_q29_j6_still_misquoted_after_one_retry_keeps_the_evidence_policy_fail():
+    misquoted = q29_checks('`report_4.txt` → `archive_4.txt`')
+    judge = QuoteCheckingJudge(misquoted, misquoted)
+    record = run_q29(judge)
+    assert len(judge.calls) == 2
+    j6 = record['decisions']['J6']
+    assert j6['decision'] == 'FAIL' and j6['reason_code'] == 'EVALUATION_EVIDENCE_INSUFFICIENT'
+    assert j6['policy_original_assessment']['status'] == 'UNVERIFIED'
+    again = record['context_reevaluation']
+    assert again['adopted'] == 'first' and again['retry']['status'] == 'UNVERIFIED'
 
 
 def test_missing_turn_is_not_inferred_or_asked_but_remains_an_unverified_target():

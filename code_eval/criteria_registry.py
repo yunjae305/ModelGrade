@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any, Dict, List, Optional
 
 from .core import CHECK_VERSIONS
@@ -118,7 +119,8 @@ _SEMANTIC_EVIDENCE = {
            "답변이 직접 든 출처는 citation_checks — 서버가 그 URL 을 받아 인용·수치를 대조하고 확정된 불일치만 FAIL. "
            "판정마다 j5_outcome(사실 오류·검증 기준 미충족·출처 불일치·검색 불가 등)"),
     "J6": ("context_checks[] — 이전 턴 번호·instruction_quote·answer_quote·decision·reason. "
-           "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈"),
+           "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
+           "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
            "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(8K~32K·32K~128K·128K 이상)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
@@ -222,6 +224,10 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "원문과 대조 (원문 쪽은 그대로, 앞뒤가 공백·문장 경계인 짝만) — 페이지에 그대로 있는 문장을 '인용문 미확인'으로 FAIL 하던 문제 "
                  "(중간 점검 실행 557a50d8baf1, Claude Q15)",
                  "백틱·이스케이프가 있거나 2,000자를 넘는 인용은 글자 그대로만 대조 (코드 기호 '2**3'·'func(**kw)' 는 벗기지 않음)"]},
+    {"version": "evidence-v3.16-answer-markup", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J5 주장-답변 대조: 평가 모델이 답변의 '- **시간 복잡도**: O(log N)' 을 '시간 복잡도: O(log N)' 처럼 화면에 보이는 "
+                 "글자로 옮긴 주장도 답변에 있는 것으로 봄 (답변의 굵게 표시 '**…**' 만 벗김, 앞뒤 공백·문장 경계, 안쪽 200자 이내) — "
+                 "중간 점검 재실행 553a9e8c90b6 의 Gemini Q15 '평가 근거 부족' FAIL"]},
     {"version": "long-context-v1", "date": "2026-10-13", "scope": "semantic",
      "changes": ["롱컨텍스트 판별: 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 8K 토큰 이상이면 J7 적용 (사용자 결정)",
                  "길이 구간 8K~32K·32K~128K·128K 이상을 판정 기록에 남김 (LV-Eval·RULER·∞Bench 단계), 토크나이저를 못 불러오면 '판별하지 못함'",
@@ -234,7 +240,41 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "J7 롱컨텍스트 활용 추가: 입력(현재 질문 + 참조 자료) 8K 토큰 이상(tiktoken o200k_base), 세부 J7-1 위치와 관계없는 정보 찾기·"
                  "J7-2 흩어진 근거 연결. 근거: Lost in the Middle·RULER·NoLiMa·LooGLE·BABILong. 경계: 입력에 없는 내용·값 오기는 J5, 요구 항목 누락은 J4",
                  "의미 평가 기준 J1~J7, items 세부 27·항목 41 (semantic-items-v2), 적용 판정 jev-applicability-v2.4·sub-applicability-v2"]},
+    {"version": "history-quotes-v4-quote-retry", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J6: context_checks 인용이 이전 턴·현재 답변 원문과 맞지 않아 확인 필요가 되면, 같은 질문·답변·이전 턴에 "
+                 "'인용은 원문 그대로 복사' 안내만 붙여 J6 만 1회 다시 묻는다 (legacy, CLI·API 평가자) — 평가 모델이 답변의 "
+                 "'$\\rightarrow$' 를 '→' 로 바꿔 인용해 10턴 대화가 '평가 근거 부족' FAIL 이 된 문제 (중간 점검 557a50d8baf1, Gemini Q29 7턴)",
+                 "다시 받은 J6 가 인용 대조를 통과해 PASS·FAIL 이면 그것을 쓰고, 아니면 지금 판정을 그대로 둔다 — 근거를 확인하지 못한 판정은 "
+                 "여전히 PASS 가 아님. 시도는 레코드의 context_reevaluation(첫 판정·재질문 결과·쓴 쪽)에 남김"]},
 ]
+
+
+#: 평가 기준 화면에 쓰는 짧은 적용 조건 — CODE 검사의 trigger 별
+_TRIGGER_LABELS = {"all": "모든 답변", "question": "질문·앞 턴 지시에 요구가 있을 때", "answer": "답변에 그 구조가 있을 때",
+                   "question_or_answer": "질문 요구 또는 답변의 해당 구조"}
+#: 점검 질문 끝의 괄호 — 다른 기준과의 경계 메모로 따로 작게 보인다
+_BOUNDARY_NOTE = re.compile(r"\s*\(([^()]*)\)\s*$")
+
+
+def reference_details() -> Dict[str, Any]:
+    """평가 기준 화면용 요약 — 판정에는 쓰지 않는다.
+
+    code_checks: CODE 검사 단위(소분류 1-1~3-3)의 이름과 짧은 적용 조건.
+    semantic: 의미 세부 기준과 점검 항목 — 점검 질문(끝 괄호는 note 로 분리)·적용 조건·PASS/FAIL 예시 설명 한 줄씩.
+    긴 예시 원문(질문·답변)은 넣지 않는다 (설계안 HTML 에 있음)."""
+    from .semantic_items import ITEMS, SUBS
+    checks = [{"id": c["id"], "group": c["group"], "name": c["name"], "applies": _TRIGGER_LABELS.get(c["trigger"], c["applies_when"])}
+              for c in _code_entries() if c["layer"] == "CODE" and re.fullmatch(r"\d-\d", c["group"] or "")]
+    items = []
+    for item in ITEMS:
+        found = _BOUNDARY_NOTE.search(item.question)
+        notes = {ex.kind: ex.note for ex in item.examples}
+        items.append({"id": item.id, "sub": item.sub, "criterion": item.criterion,
+                      "question": item.question[:found.start()] if found else item.question,
+                      "note": found.group(1) if found else "", "applies": item.applies,
+                      "pass": notes.get("PASS", ""), "fail": notes.get("FAIL", "")})
+    return {"version": REGISTRY_VERSION, "code_checks": checks,
+            "semantic": {"subs": [{"id": s.id, "criterion": s.criterion, "name": s.name} for s in SUBS], "items": items}}
 
 
 def registry() -> Dict[str, Any]:
