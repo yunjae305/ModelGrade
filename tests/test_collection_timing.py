@@ -80,3 +80,25 @@ def test_collection_failure_and_cancel_stop_timer(tmp_path, cancel):
     detail = service.status(rid)['progress']['gpt']
     assert detail['finished_at'] and detail['duration_ms'] >= 0
     assert detail['active'] is None
+
+
+def test_every_collected_row_records_request_times_and_the_run_records_request_conditions(tmp_path):
+    """지시서 10-13 D — 일반 비교 실행도 행마다 요청·수신 시각, 실행마다 호출 방식과 실제로 보낸 설정을 남긴다."""
+    def handle(request):
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'model': 'gpt-x-2026', 'output': [
+                {'type': 'message', 'content': [{'type': 'output_text', 'text': 'answer'}]}]})
+        return httpx.Response(529, json={'error': {'message': 'overloaded'}})
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval'), save_dir=tmp_path/'runs',
+                                client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    for provider in ('gpt', 'claude'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    rid = service.start({'cases': [{'question': 'q', 'answer': 'a'}], 'providers': ['gpt', 'claude'], 'auto_evaluate': False})['run_id']
+    until(lambda: service.status(rid)['status'] in ('READY', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    gpt, claude = saved['datasets']['gpt'][0]['collection'], saved['datasets']['claude'][0]['collection']
+    assert gpt['status'] == 'SUCCESS' and gpt['requested_at'] <= gpt['collected_at']
+    assert claude['status'] == 'ERROR' and claude['requested_at'] and claude['collected_at']   # 실패한 수집도 시각을 남긴다
+    request = saved['collection_execution']['request']
+    assert request['access_mode'] == 'api' and request['parameters'] == {'max_output_tokens': saved['max_tokens']}
+    assert (request['system_prompt'], request['tools'], request['sampling']) == (None, [], 'provider_default')

@@ -42,6 +42,13 @@ from .ingestion.schema import response_key
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
+
+
+def collection_request(max_tokens):
+    """수집 요청 조건 기록 — request_answer 가 실제로 보내는 값만 (모델·대화 이력·최대 출력). 재현용, 판정에는 쓰지 않는다."""
+    return {"access_mode": "api", "parameters": {"max_output_tokens": max_tokens}, "system_prompt": None, "tools": [],
+            "sampling": "provider_default", "history": "own_previous_answers",
+            "note": "시스템 프롬프트·도구·온도 없이 질문(과 같은 대화의 앞 턴, 그 모델의 이전 답변)만 보냄 · OpenAI store=false"}
 PROVIDER_ENV = {
     "gemini": ("GOOGLE_API_KEY", "GEMINI_MODEL"),
     "claude": ("ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"),
@@ -975,7 +982,8 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(self._collection_chains(questions)))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                                                "collection_workers_total": chain_workers * len(selected),
-                                               "conversation_order": "sequential_original_turns"}
+                                               "conversation_order": "sequential_original_turns",
+                                               "request": collection_request(max_tokens)}
             self._runs[run_id] = run
             self._cancel_events[run_id] = token = threading.Event()
             self._cost_ledgers[run_id] = ledger = CostLedger()
@@ -1383,7 +1391,8 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(chains))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                                                "collection_workers_total": chain_workers * len(admitted),
-                                               "conversation_order": "sequential_original_turns"}
+                                               "conversation_order": "sequential_original_turns",
+                                               "request": collection_request(run["max_tokens"])}
             if document is not None:
                 run["input_document"] = document
             self._auto_environment(run)
@@ -1533,7 +1542,7 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(self._collection_chains(cases)))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                     "collection_workers_total": chain_workers * len(selected),
-                    "conversation_order": "sequential_original_turns"}
+                    "conversation_order": "sequential_original_turns", "request": collection_request(run["max_tokens"])}
             run.update(aiona_release=release, dataset_fingerprint=fingerprint(cases),
                        source_fingerprint=fingerprint(cases, answers=True))
             if source_id is not None:
@@ -1652,6 +1661,7 @@ class ComparisonService:
                                             outcome = {"status": "ERROR", "error": blocked, "not_requested": True}
                                         else:
                                             request_started, status_code = time.monotonic(), None
+                                            requested_at = datetime.now(timezone.utc).isoformat()
                                             try:
                                                 outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
                                                     usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
@@ -1659,10 +1669,13 @@ class ComparisonService:
                                                 outcome = {"status": "ERROR", "error": str(exc)}
                                                 status_code = exc.status
                                             outcome["latency_ms"] = round((time.monotonic() - request_started) * 1000, 1)
+                                            # 요청·수신 시각 — 실패한 수집도 남긴다 (재현 기록, 판정에는 쓰지 않음)
+                                            outcome["requested_at"] = requested_at
+                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
                                             if guard:
                                                 guard.after(provider, index, outcome, status_code)
-                                        if run.get("run_kind") in ("external_import", "auto_collection"):
-                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
+                                        if run.get("run_kind") in ("external_import", "auto_collection") and "collected_at" not in outcome:
+                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()   # 요청하지 않은 행(한도 차단)
                                     if outcome["status"] == "SUCCESS":
                                         history = messages + [{"role": "assistant", "content": outcome["answer"]}]
                                     else:
