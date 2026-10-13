@@ -17,6 +17,8 @@ from .sources import resolve_relays
 
 __all__ = ["SCHEMA", "BundleError", "convert_file", "import_files", "validate_bundle", "merge_bundles"]
 MAX_FILES = 20
+#: 한 번 가져올 때 이동 주소를 확인할 중계 URL 수 (요청마다 최대 8초).
+MAX_RELAY_LOOKUPS = 40
 
 
 def _json_value(text: str, name: str) -> Any:
@@ -119,7 +121,14 @@ def import_files(files: List[Dict[str, Any]], options: Optional[Dict[str, Any]] 
         bundles.append(bundle)
     merged = merge_bundles(bundles)
     if resolve:
+        budget = MAX_RELAY_LOOKUPS
         for response in merged["responses"]:
-            response["collection_quality"].extend(resolve_relays(response["sources"], fetcher=fetcher))
+            pending = sum(1 for s in response["sources"] if s.get("url_status") == "relay_unresolved")
+            if pending and budget:
+                response["collection_quality"].extend(resolve_relays(response["sources"], fetcher=fetcher, limit=min(budget, 8)))
+                budget -= min(pending, budget, 8)
+            elif pending:
+                response["collection_quality"].append(quality("relay_lookup_limit", f"중계 URL 확인 한도({MAX_RELAY_LOOKUPS}개)를 넘어 "
+                                                                                    "원래 주소를 확인하지 않았습니다.", "info"))
         merged["import"]["relays_resolved"] = True
     return merged

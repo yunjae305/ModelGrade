@@ -234,3 +234,18 @@ def test_source_failure_detail_separates_access_failures_from_missing_quotes_wit
     mixed = j5_outcome(record("http_error", "quote_not_found"))["source_failure"]
     assert (mixed["kind"], mixed["quote_not_found"], mixed["access_failures"][0]["status"]) == ("mixed", 1, "http_error")
     assert record("http_error")["decisions"]["J5"]["decision"] == "FAIL"
+
+
+def test_five_turn_external_conversation_follows_instruction_changes_and_cancellation(tmp_path):
+    svc, _, _ = service(tmp_path)
+    table = "| 계절 | 특징 |\n|---|---|\n| 봄 | 따뜻함 |"
+    pairs = [("앞으로 3문장 이내로 답해줘.", "네."), ("앞으로는 5문장 이내로 답해줘.", "네."), ("봄을 설명해줘.", "a. b. c. d."),
+             ("앞으로 모든 답변은 표로 작성해 줘.", table), ("이제 표로 안 해도 돼. 여름을 설명해줘.", "여름은 덥습니다.")]
+    messages = [m for q, a in pairs for m in ({"role": "user", "content": q}, {"role": "assistant", "content": a})]
+    result = wait(svc, svc.start_external({"files": files(("t.json", transcript(("five", messages, {}))))})["run_id"])
+    cases = {c["case_id"]: c for c in result["evaluations"]["chatgpt-web"]["cases"]}
+    inherited = lambda cid: [(r["check_id"], r["verdict"], r["details"]["inherited_from"]["turn"])
+                             for r in cases[cid]["results"] if r["source"] == "history_instruction"]
+    assert inherited("five-T03") == [("2-1.count:sentence_count", "PASS", 2)]       # 바뀐 지시(5문장)가 적용
+    assert not any(k.startswith("2-2.table") for k, _, _ in inherited("five-T05"))   # 해제한 표 지시는 승계하지 않음
+    assert [c["conversation"]["turn"] for c in cases.values()] == [1, 2, 3, 4, 5]

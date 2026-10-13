@@ -394,3 +394,22 @@ def test_legacy_qa_files_need_model_information_and_old_runs_convert_without_new
     assert set(systems) == {"aiona-service", "gpt-api"} and systems["aiona-service"]["model_version"] == "v3"
     gpt = next(r for r in b["responses"] if r["system_key"] == "gpt-api")
     assert gpt["usage"]["latency_ms"] == 12.0 and gpt["environment"]["web_search_used"] is False and gpt["collected_at"] is None
+
+
+def test_public_samples_load_and_the_invalid_sample_reports_every_missing_field():
+    from pathlib import Path
+    folder = Path(__file__).resolve().parent.parent / "examples" / "external"
+    valid = sorted(p for p in folder.glob("*.sample.json") if p.name != "invalid.sample.json")
+    merged = import_files([{"name": p.name, "text": p.read_text(encoding="utf-8")} for p in valid])
+    assert {s["system_key"] for s in merged["systems"]} == {"chatgpt-web", "gpt-api", "perplexity-web", "gpt-api-search", "research-agent"}
+    assert merged["report"]["conversation_gaps"] == {"PX-01": [1]}
+    with pytest.raises(BundleError) as error:
+        load(("invalid.sample.json", (folder / "invalid.sample.json").read_text(encoding="utf-8")))
+    assert {e["path"].split("› ")[-1] for e in error.value.errors} == {"systems[0].provider", "systems[0].model"}
+
+
+def test_relay_lookup_keeps_the_public_address_and_port_guards_without_network():
+    from webapp.ingestion.sources import single_hop
+    assert single_hop("http://127.0.0.1/redirect")["status"] == "blocked_address"
+    assert single_hop("https://example.com:8443/redirect")["status"] == "blocked_port"
+    assert single_hop("file:///etc/passwd")["status"] == "blocked_url"
