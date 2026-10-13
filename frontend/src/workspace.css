@@ -286,6 +286,7 @@ progress::-moz-progress-bar {background:var(--brand-gradient)} .run-progress .al
 .evaluation-warning {display:flex; gap:9px; padding:14px; margin-top:16px; border:1px solid #eee2c7; border-radius:10px; color:var(--amber); background:#fffbf3; font-size:13px; line-height:1.8}
 .evaluation-warning>.icon {width:18px; height:18px; margin-top:3px}
 .evaluation-warning strong {font-size:13px; font-weight:600} .evaluation-warning p {font-size:12px; margin-top:5px}
+.recheck-note {margin-top:6px; padding:8px 10px; border-radius:8px; background:var(--sky-soft); color:#1E4E8C; font-size:12px; line-height:1.6}
 .evaluation-warning small.hint {display:block; margin-top:2px; font-size:11px; line-height:1.5; color:var(--muted)}
 .result-card-stats {color:var(--muted); font-size:12px; padding-bottom:15px}
 .result-card-bottom {display:flex; justify-content:space-between; gap:14px; margin-top:auto; padding-top:15px}

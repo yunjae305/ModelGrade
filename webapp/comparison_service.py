@@ -222,6 +222,7 @@ class ComparisonService:
         self.client_factory = client_factory or (lambda: httpx.Client(timeout=180, follow_redirects=False))
         self._keys, self._runs = {}, {}
         self._streams = {}
+        self._code_recheck_cache = {}   # (run_id, 엔진, 완료 시각) → 현재 엔진 CODE 재검사 차이
         self._cost_ledgers = {}  # Runtime only: never add costs to serialized runs.
         self._cancel_events = {}
         self._workers = {}
@@ -610,6 +611,18 @@ class ComparisonService:
             raise ValueError("기준 실행과 비교 실행의 ID 가 필요합니다.")
         with self._lock:
             return compare_runs(self.result(baseline_id), self.result(target_id))
+
+    def code_recheck(self, run_id):
+        """저장된 실행의 CODE FAIL 을 현재 엔진으로 다시 검사한 차이 (읽기 전용, 모델 호출 없음). 실행·엔진별로 한 번만 계산한다."""
+        from code_eval.core import ENGINE_VERSION
+        from .code_recheck import code_recheck
+        run = self.result(run_id)
+        if run.get('status') != 'COMPLETED':
+            raise ValueError('평가가 끝난 실행만 다시 검사할 수 있습니다.')
+        key = (run_id, ENGINE_VERSION, run.get('finished_at'))
+        if key not in self._code_recheck_cache:
+            self._code_recheck_cache[key] = code_recheck(run)
+        return self._code_recheck_cache[key]
 
     def aiona_history(self):
         """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history)."""

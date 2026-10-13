@@ -162,6 +162,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, service.status(parts[3]))
             if len(parts) == 5 and parts[4] == 'result':
                 return self.respond(200, service.result(parts[3]))
+            if len(parts) == 5 and parts[4] == 'code-recheck':
+                return self.respond(200, service.code_recheck(parts[3]))
             if len(parts) == 5 and parts[4] == 'version-template':
                 return self.respond(200, service.version_template(parts[3]))
             if len(parts) == 6 and parts[4] == 'evaluation':

@@ -139,6 +139,8 @@ def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     ("   - 3 + 4 = 8", "FAIL"),       # 들여쓴 불릿
     ("설명 *3 + 4 = 8*", "FAIL"),     # 기울임을 여는 * 는 곱셈이 아니다 — 틀린 등식이 빠지지 않는다
     ("계산 결과:*3 + 4 = 8*", "FAIL"),  # 콜론 뒤에 붙은 기울임도
+    ("설명 *3 + 4 = 8 개*", "FAIL"),    # 단위 앞 공백이 있는 기울임
+    ("설명 *3 + 4 = **8***", "FAIL"),   # 중첩 강조
     ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈
 ])
 def test_bullet_and_plain_division_equations_still_judged(answer, verdict):

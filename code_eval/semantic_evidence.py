@@ -88,19 +88,21 @@ def _input_scope(claim, state, source=None):
     # 멀티턴에서는 값을 준 요청이 앞 턴에 있다 — 이전 사용자 턴의 요청 인용도 사용자 원문이다 (이전 AI 답변은 아님)
     user_texts = [question] + [h.get("question", "") for h in state.get("history") or []
                                if isinstance(h, dict) and isinstance(h.get("question"), str)]
-    if claim.get("scope") != "input_consistency" or not any(_contained(quote, text) for text in user_texts):
+    scope_texts = [text for text in user_texts if _contained(quote, text)]
+    if claim.get("scope") != "input_consistency" or not scope_texts:
         return False
+    checked = [question] + scope_texts   # 현재 질문과, 요청 인용이 나온 사용자 턴 모두에서 진위·실제 데이터 요청을 본다
     verification = (r"사실인지|참인지|정확한지|맞는지|진위|정확성|사실\s*(?:확인|검증)|팩트\s*체크|검증해|검색해|조사해|"
                     # 직접 묻는 진위 질문: '이 말이 사실이야?', '맞아?', '진짜야?', 'Is this true?'
                     r"(?:사실|진짜|정말|참)(?:이야|이에요|인가요|입니까|이니|일까|인지)?\s*\?|맞(?:아|나요|니|습니까|을까|죠|지)\s*\?|"
                     r"\b(?:is|are) (?:this|that|it|these|they) (?:true|correct|accurate|right)\b|true or false|"
                     r"fact[ -]?check|verify|whether.{0,35}(?:true|correct)|"
                     r"(?:check|confirm).{0,50}(?:truth|accuracy|correct|authentic)")
-    if re.search(verification, question, re.I):
+    if any(re.search(verification, text, re.I) for text in checked):
         return False   # 주어진 자료가 사실인지 묻는 요청에서는 자료가 스스로를 증명하지 못한다
     external_request = (r"(?:국내|전국|전\s*세계|실제\s*(?:운영|시장|판매)).{0,60}"
                         r"(?:정원|가격|요금|통계|현황)|(?:nationwide|worldwide|real.world).{0,60}(?:price|data|statistic)")
-    if re.search(external_request, question, re.I):
+    if any(re.search(external_request, text, re.I) for text in checked):
         return False   # 실제 데이터를 요청했으면 사용자 입력은 그 근거가 아니다 — 자료 문장만 인용해 우회하지 못하게 질문 전체에서 본다
     return True
 

@@ -365,6 +365,7 @@ Playwright Python 패키지와 Chromium이 설치된 개발 환경에서는 `pyt
 |---|---|
 | `POST /api/comparison/model-versions` | `action: register, set_current: false`는 등록만 수행. 옵션 생략은 기존 클라이언트의 등록+기본 선택 동작 유지 |
 | 같은 API의 `action: activate` | `version`, `reason`, `expected_current_version`으로 변경. 마지막 값이 현재 기본 버전과 다르면 저장하지 않고 재확인 안내 |
+| `GET /api/comparison/runs/{id}/code-recheck` | 평가가 끝난 실행의 CODE FAIL 을 현재 엔진으로 다시 검사한 차이(`cleared`·`added`). 읽기 전용, 모델 호출 없음, 엔진이 같으면 검사하지 않음 |
 | `GET /api/comparison/aiona-history` | `{version, factor_labels, entries(최신순), series(질문 세트별 추이 점)}`. 평가가 끝난 실행만, AIONA 결과만. 모델 호출 없음 |
 | 기존 실행·버전 이력 API | `evaluation_conditions_summary`, `evaluation_summary`를 추가. 조건 요약과 문항 판정 완료/미완료 수를 별도로 제공 |
 

@@ -633,3 +633,10 @@ def test_truth_questions_and_real_data_requests_are_not_proven_by_user_input(que
     state = {**STATE, "question": question}
     claim = input_claim(scope_quote="정원은 12명이며 사전 신청이 필요하다.")
     assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"
+
+
+def test_truth_request_in_the_earlier_turn_that_supplies_the_scope_quote_is_not_bypassed():
+    state, claim = history_material_case("앞서 물은 질문에 한 문장으로 답해줘.")
+    state["history"][0]["question"] = "정원은 12명입니다. 이 정보가 사실인지 검증해줘."
+    claim["scope_quote"] = "이 정보가 사실인지 검증해줘."
+    assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"

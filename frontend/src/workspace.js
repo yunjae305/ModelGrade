@@ -479,6 +479,17 @@
     try { await openRun(id, {navigate: false}); }
     finally { restoringRun = false; }
   }
+  // 저장 당시 엔진과 현재 엔진의 CODE FAIL 차이(읽기 전용) — 옛 엔진의 오독 FAIL 을 상세에서 알린다. 실패해도 화면은 그대로.
+  function loadCodeRecheck(result) {
+    state.codeRecheck = null;
+    if (result?.status !== 'COMPLETED') return;
+    const id = result.run_id;
+    api(`/api/comparison/runs/${id}/code-recheck`).then((recheck) => {
+      if (state.run?.run_id !== id) return;
+      state.codeRecheck = {...recheck, run_id: id};
+      if ($('answer-dialog').open && state.modalSource === 'result') renderAnswer();
+    }).catch(() => {});
+  }
   async function openRun(id, {navigate = true} = {}) {
     const version = ++state.pollVersion;
     try {
@@ -486,6 +497,7 @@
       if (version !== state.pollVersion) return;
       state.result = result; state.run = result; connectionRestored(); resetFilters();
       rememberRun(); if (navigate) go('results'); renderResult(); renderReady();
+      loadCodeRecheck(result);
       if (['COLLECTING', 'EVALUATING'].includes(result.status)) await poll();
     } catch (err) {
       if (version !== state.pollVersion) return;
@@ -1109,6 +1121,7 @@
     const batch = state.modalSource === 'result' && state.result.evaluations[p];
     const record = batch?.jev_eval?.records?.[index], c = batch?.cases?.[index];
     const fingerprint = JSON.stringify([state.modalAnswerRender, state.run?.run_id, p, index, state.modalSource, c?.case_status, c?.summary?.common, record,
+      state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck?.providers?.[p]?.cases?.[index] || null : 'pending',
       !record || record.status === 'RUNNING' ? state.run?.status : null]);
     if (fingerprint === state.modalEvaluation) return;
     const context = JSON.stringify([state.run?.run_id, state.modalSource, p, index]);
@@ -1123,12 +1136,18 @@
       node('div', {class: 'answer-checks'}, ...[['코드 검사', status.code], ['의미 평가', status.semantic]].map(([label, check]) =>
         node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason})))));
     const findings = node('ul', {class: 'finding-list'});
+    const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
+    const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
     for (const r of status.code.checks.filter((r) => (r.counted && r.verdict === 'FAIL') || !['PASS', 'FAIL'].includes(r.verdict) && r.status !== 'NOT_APPLICABLE' && r.status !== 'DUPLICATE')) {
       findings.append(node('li', {}, node('strong', {text: r.explain?.headline || r.title || r.check_id}),
         node('p', {text: r.explain?.summary || r.reason || '이 조건을 판정하지 못했습니다.'}),
         r.source === 'history_instruction' ? node('p', {text: '이전 턴 지시에서 이어진 조건: ' + (r.explain?.requirement || r.title)}) : null,
         r.explain?.expected ? node('p', {text: '요구 조건: ' + r.explain.expected}) : null,
-        r.explain?.actual ? node('p', {text: '실제 답변: ' + r.explain.actual}) : null));
+        r.explain?.actual ? node('p', {text: '실제 답변: ' + r.explain.actual}) : null,
+        r.verdict === 'FAIL' && cleared.has(String(r.check_id)) ? node('p', {class: 'recheck-note',
+          text: `현재 엔진(${state.codeRecheck.engine.replace('aiona-code-eval-', '')})으로 다시 검사하면 이 FAIL은 나오지 않습니다. `
+            + `저장 당시 엔진(${String(recheck.stored_engine || '').replace('aiona-code-eval-', '') || '기록 없음'})이 답변을 다르게 읽은 결과입니다. `
+            + '저장된 판정은 그대로이며, 원문 재평가(새 실행)에서 새 판정이 적용됩니다.'}) : null));
     }
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);

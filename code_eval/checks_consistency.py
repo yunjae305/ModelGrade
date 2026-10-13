@@ -194,7 +194,7 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         before = text[line_start:start]
         if _ARROW_BEFORE.search(before):
             ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
-        elif _cut_operand_before(before, ctx.answer[line_start:start], ctx.answer[end:end + 8]):
+        elif _cut_operand_before(before):
             ch.skip_reason = "등식 앞에 연산자가 있어(단위에 끊긴 앞쪽 피연산자) 좌변을 확정할 수 없음"
         elif "/" in ch.segments[-1] and _LIMIT_AFTER.match(text, end):
             ch.skip_reason = "‘/’ 뒤 값에 이하·이상 같은 한도 표현이 붙어 나눗셈이 아니라 ‘값 / 한도’ 표기로 봄"
@@ -237,22 +237,16 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
     return chains
 
 
-def _cut_operand_before(before: str, original: str, after: str) -> bool:
-    """좌변 바로 앞(같은 줄)의 연산자 — 등록되지 않은 단위에 끊긴 앞쪽 피연산자가 있다 ('2벌 × 3 + 1 = 7' 의 3 + 1).
+def _cut_operand_before(before: str) -> bool:
+    """좌변 바로 앞(같은 줄)에 단위에 끊긴 앞쪽 피연산자가 있는가 ('2벌 × 3 + 1 = 7' 의 '2벌 ×').
 
-    ``before`` 는 등식 투영(×÷ → */, 강조 ** 는 공백), ``original`` 은 같은 구간의 답변 원문, ``after`` 는 식 바로 뒤 원문.
-    줄머리 불릿(``-``·``*``·``+``, 들여쓰기·굵게 표시 자리 공백 포함)은 연산자가 아니다. 원문의 ``×``·``÷`` 는 언제나 연산자다.
-    원문의 ``*`` 가 식에 바로 붙고 식 뒤(짧은 단위 다음)에 닫는 ``*`` 가 있으면 기울임 구간이다 ('설명 *3 + 4 = 8*', '결과:*3 + 4 = 8개*').
+    연산자 바로 앞이 숫자(뒤에 짧은 단위 허용)나 닫는 괄호일 때만 그렇다. 줄머리 불릿('- 3 + 4 = 7'), 기울임·강조를
+    여는 '*'('설명 *3 + 4 = 8*', '결과:*3 …'), 낱말 뒤 하이픈은 앞에 피연산자가 없으므로 등식을 그대로 검사한다.
     """
     stripped = before.rstrip(" \t\xa0")
     if not stripped or stripped[-1] not in "+-*/":
         return False
-    if not stripped[:-1].strip():
-        return False                       # 줄머리 불릿
-    marker = original[len(stripped) - 1:len(stripped)]
-    if marker == "*" and stripped == before and re.match(r"[^\s*]{0,6}\*(?!\*)", after):
-        return False                       # 기울임 구간을 여는 표시
-    return True
+    return bool(re.search(r"[\d)][^\s\d+\-*/=()]{0,4}[ \t\xa0]*$", stripped[:-1]))
 
 
 def _num(raw: str) -> Fraction:
