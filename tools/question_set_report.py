@@ -161,8 +161,9 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
                    "작업 유형(type)과 문맥 속성(단일·멀티턴·롱 컨텍스트)을 따로 기록할지 정해야 한다. 공식 비율은 바꾸지 않았다."},
         {"title": "롱 컨텍스트 판정 기준",
          "detail": "팀원 구조도는 롱 컨텍스트를 '긴 문서 요약·분석, 4K~32K 토큰'으로 적는다. 턴이 많은 대화(J6 대상)를 이 유형으로 셀지, 입력 길이로만 셀지 정해야 한다."},
-        {"title": "통과율의 문항 단위",
-         "detail": "설계안 v1.2 '정할 것': 판정은 턴마다 하되, 통과율 점수도 대화 1개를 1문항으로 계산할지."},
+        {"title": "통과율의 문항 단위 — v1.3 확정",
+         "detail": "설계안 v1.3(10-13 확정): 판정은 턴마다, 통과율 점수는 대화 1개 = 1문항(모든 턴 통과해야 통과). "
+                   f"기준별 적용 {minimum}개의 집계 단위는 여기에 포함되지 않아 위 첫 항목으로 남는다."},
     ]
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
