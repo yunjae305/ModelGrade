@@ -314,7 +314,7 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
         undetermined["J7"] = reason   # 토크나이저 없음 — 길이를 모르므로 해당 없음으로 두지 않는다
     elif size["long"]:
         evidence["J7"] = {"rules": ["긴 입력"], "matches": [f"{size['tokens']:,}토큰"], "source": "reference" if has_reference else "question",
-                          "excerpt": f"입력 {size['tokens']:,}토큰 · {size['tier']}", "long_context": size,
+                          "excerpt": f"입력 {size['tokens']:,}토큰", "long_context": size,
                           "look_for": "긴 입력의 어디에 있든 질문이 묻는 정보를 찾고, 흩어진 근거를 빠짐없이 연결했는지"}
     else:
         not_applicable["J7"] = reason
@@ -571,7 +571,7 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
                 subs[sid]["undetermined"] = True   # 토크나이저 없음 — 기록 단계에서 J7 을 확인 필요로 남긴다
         else:
             subs[sid] = {"items": list(_SUB_ITEMS[sid]), "rules": ["긴 입력"], "matches": [f"{size['tokens']:,}토큰"],
-                         "excerpt": f"입력 {size['tokens']:,}토큰 · {size['tier']}", "long_context": size,
+                         "excerpt": f"입력 {size['tokens']:,}토큰", "long_context": size,
                          "source": "reference" if reference not in (None, "", {}, []) else "question", "model_applies": True}
     for sid in ("J6-1", "J6-2", "J6-3", "J6-4"):
         if j6_reason is not None:

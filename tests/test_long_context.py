@@ -38,15 +38,14 @@ def document(chars):
     return "가" * pad + CLAUSE + "나" * (chars - len(CLAUSE) - pad)
 
 
-def test_input_counts_question_and_reference_but_not_earlier_turns_and_tiers_follow_research_steps(per_char):
+def test_input_counts_question_and_reference_but_not_earlier_turns_and_long_starts_at_272k(per_char):
     assert long_context.input_text("질문", {"표": [1]}) == '질문\n{"표": [1]}' and long_context.input_text("질문", "") == "질문"
-    assert [long_context.tier(n) for n in (250_000, 271_999, 272_000, 299_999, 300_000, 350_000, 400_000, 499_999, 500_000)] == [
-        None, None, "272K~300K", "272K~300K", "300K~350K", "350K~400K", "400K~500K", "400K~500K", "500K 이상"]
     question = "이 계약서 기준으로 중도 해지는 언제까지 알려야 해?"
     below = long_context.measure(question, "가" * (271_999 - len(question) - 1))
     at = long_context.measure(question, "가" * (272_000 - len(question) - 1))
-    assert (below["tokens"], below["long"], at["tokens"], at["long"], at["tier"]) == (271_999, False, 272_000, True, "272K~300K")
-    assert at["min_tokens"] == 272_000 and at["policy"] == "long-context-v3-272k" and at["tokenizer"] == "tiktoken o200k_base"
+    assert (below["tokens"], below["long"], at["tokens"], at["long"]) == (271_999, False, 272_000, True)
+    assert at["min_tokens"] == 272_000 and at["policy"] == "long-context-v3.1-272k" and at["tokenizer"] == "tiktoken o200k_base"
+    assert "tier" not in at   # 결과를 길이 구간으로 나눠 남기지 않는다 (사용자 결정)
 
 
 def test_j7_applies_only_to_long_input_and_records_size(per_char):
@@ -58,7 +57,7 @@ def test_j7_applies_only_to_long_input_and_records_size(per_char):
     evidence = long["evidence"]["J7"]
     tokens = f"{280_000 + len(question) + 1:,}토큰"   # 질문 + 줄바꿈 + 참조 자료
     assert evidence["source"] == "reference" and evidence["matches"] == [tokens]
-    assert evidence["long_context"]["tier"] == "272K~300K" and evidence["excerpt"] == f"입력 {tokens} · 272K~300K"
+    assert evidence["excerpt"] == f"입력 {tokens}"
     subs = sub_applicability(question, reference=document(280_000))
     assert subs["J7-1"]["items"] == ["J7-1.a"] and subs["J7-2"]["items"] == ["J7-2.a"] and subs["J7-1"]["model_applies"] is True
     assert sub_applicability("짧은 질문")["J7-2"]["items"] == []
@@ -161,7 +160,7 @@ def test_j7_fail_reason_may_quote_the_reference_and_records_where_the_quote_sits
     applicability = jev_applicability(state["question"], reference=reference)
     jev_eval._attach_long_context(record, state, applicability)
     recorded = record["decisions"]["J7"]["long_context"]
-    assert recorded["tokens"] == 280_000 + len(state["question"]) + 1 and recorded["tier"] == "272K~300K"
+    assert recorded["tokens"] == 280_000 + len(state["question"]) + 1
     assert [p["quote"] for p in recorded["quote_positions"]] == ["해지하려는 날의 30일 전까지"]
     assert 45 < recorded["quote_positions"][0]["position"] < 55   # 문서 한가운데
 
@@ -186,17 +185,6 @@ def test_real_tokenizer_counts_korean_and_english_when_available():
         pytest.skip("tiktoken o200k_base 를 불러올 수 없음")
     assert 3 <= tokens <= 15
 
-
-def test_summary_counts_j7_pass_and_fail_per_input_length_tier():
-    def record(tier, decision):
-        return {"criteria": ["J1", "J7"], "decisions": {"J7": {"decision": decision}},
-                "applicability": {"evidence": {"J7": {"long_context": {"tier": tier}}}}}
-    final = [record("272K~300K", "PASS"), record("272K~300K", "FAIL"), record("300K~350K", "PASS"), record("500K 이상", None),
-             {"criteria": ["J1"], "decisions": {}, "applicability": {}}]
-    tiers = jev_eval._long_context_tiers(final)
-    assert list(tiers) == ["272K~300K", "300K~350K", "350K~400K", "400K~500K", "500K 이상"]
-    assert tiers["272K~300K"] == {"targets": 2, "pass": 1, "fail": 1, "rate": 0.5}
-    assert tiers["500K 이상"] == {"targets": 1, "pass": 0, "fail": 0, "rate": None}
 
 
 def test_cli_single_prints_an_undetermined_j7_without_crashing(tmp_path, monkeypatch):

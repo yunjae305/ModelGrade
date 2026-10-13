@@ -126,7 +126,7 @@ _SEMANTIC_EVIDENCE = {
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
            "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
-           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(272K~300K·300K~350K·350K~400K·400K~500K·500K 이상)·"
+           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
 }
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
@@ -278,6 +278,8 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "구간 272K~300K·300K~350K·350K~400K·400K~500K·500K 이상 (250K~272K 비교 구간·후보 경계 기록 삭제)",
                  "적용 판정 jev-applicability-v2.6-272k·sub-applicability-v4",
                  "LLM 선별 엔진(CLI·OpenAI·Anthropic)의 적용 버전도 코드 규칙 버전을 담음 — jev-applicability-v2.6-272k+llm-screening (예전 v2.3-llm-screening 고정값은 길이 규칙이 바뀌어도 같아 버전 비교에서 차이가 안 보였음)"]},
+    {"version": "long-context-v3.1-272k", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J7 결과를 길이 구간(272K~300K … 500K 이상)으로 나눠 남기지 않음 (사용자 결정) — 판정 기록의 long_context 에서 tier 삭제, 근거 문구는 '입력 N토큰', 요약의 J7 구간별 통과율(summary.J7.tiers)·질문 세트 보고서의 길이 구간 표시 삭제. 입력 토큰 수와 근거 인용 위치는 그대로"]},
     {"version": "semantic-items-v4", "date": "2026-10-13", "scope": "semantic", "changes": ["J7-1·J7-2 적용 조건 문구를 입력 272K 토큰 이상으로", "J7 예시 첨부 길이를 272K 토큰 이상(한국어 약 40만·45만 자)으로 — 설계안 v1.5"]},
     {"version": "criteria-registry-v7", "date": "2026-10-13", "scope": "registry", "changes": ["J7 경계 272K 확정 반영 (long-context-v3-272k)"]},
 ]

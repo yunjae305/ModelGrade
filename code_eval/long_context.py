@@ -1,12 +1,12 @@
-"""롱컨텍스트 판별 — 질문 하나의 입력(현재 질문 + 참조 자료)을 고정 공개 토크나이저로 세어 J7 적용 여부와 길이 구간을 정한다.
+"""롱컨텍스트 판별 — 질문 하나의 입력(현재 질문 + 참조 자료)을 고정 공개 토크나이저로 세어 J7 적용 여부를 정한다.
 
 사용자 결정(2026-10-13):
 - 롱컨텍스트 = 입력이 길이 긴 것. 여러 번 주고받는 대화(멀티턴)는 J6 가 보고, 이전 대화 턴은 여기서 세지 않는다.
 - 경계(사용자 결정 2026-10-13): 입력이 272K 토큰 이상이면 롱컨텍스트. 250K~500K 를 RULER 방식으로 시험해 보니
   (tools/long_context_threshold_test.py) 세 비교 모델 모두 500K 까지 정답률이 떨어지지 않아 성능으로는 경계를 가를 수 없었다.
   그래서 실제로 쓰이는 '긴 입력' 경계 — GPT(OpenAI)가 입력 272K 토큰을 넘으면 롱컨텍스트 요금을 매기는 길이 — 를 따른다.
-  우리 셈(o200k_base)과 GPT 가 보고한 입력 토큰은 거의 같다(500K 문서: 500,028). 결과는 구간(272K~300K · 300K~350K ·
-  350K~400K · 400K~500K · 500K 이상)으로 나눠 남긴다.
+  우리 셈(o200k_base)과 GPT 가 보고한 입력 토큰은 거의 같다(500K 문서: 500,028). 결과는 길이 구간으로 나누지 않고
+  입력 토큰 수만 남긴다(사용자 결정 2026-10-13).
   (예전 경계: 250K(테스트 기간, long-context-v2), 8K 는 RULER 4K 기준선·LongBench 평균 약 8K 를 근거로 했다 — long-context-v1)
 - 토큰 수는 모델과 상관없이 같은 입력이면 늘 같은 값이 나오도록 고정 공개 토크나이저(tiktoken o200k_base)로 센다.
   처음 한 번 사전 파일을 내려받는다(이후 캐시). 토크나이저가 없으면 J7 을 판별할 수 없다고 기록한다 — 추정으로 대신하지 않는다.
@@ -31,14 +31,12 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-__all__ = ["LONG_CONTEXT_POLICY_VERSION", "MIN_TOKENS", "TIERS", "TOKENIZER", "TokenizerUnavailable", "input_text", "count_tokens",
-           "tier", "measure", "quote_positions"]
+__all__ = ["LONG_CONTEXT_POLICY_VERSION", "MIN_TOKENS", "TOKENIZER", "TokenizerUnavailable", "input_text", "count_tokens",
+           "measure", "quote_positions"]
 
-LONG_CONTEXT_POLICY_VERSION = "long-context-v3-272k"   # v3: 경계 272K 확정 · v2: 250K(테스트 기간) · v1: 8K
+LONG_CONTEXT_POLICY_VERSION = "long-context-v3.1-272k"   # v3.1: 길이 구간 기록 삭제 · v3: 경계 272K 확정 · v2: 250K(테스트 기간) · v1: 8K
 MIN_TOKENS = 272_000          # 이 이상이면 J7 을 묻는다
 TOKENIZER = "tiktoken o200k_base"
-#: (하한, 이름) — 결과에 남기는 길이 구간 (큰 것부터)
-TIERS = ((500_000, "500K 이상"), (400_000, "400K~500K"), (350_000, "350K~400K"), (300_000, "300K~350K"), (MIN_TOKENS, "272K~300K"))
 
 LOAD_TIMEOUT = 20.0   # 사전 내려받기(별도 프로세스)를 기다리는 최대 초
 RETRY_AFTER = 300.0   # 실패를 기억하는 초 — 그동안은 바로 '판별 못 함'
@@ -147,15 +145,11 @@ def _clear_counts() -> None:
 count_tokens.cache_clear = _clear_counts   # 시험에서 토크나이저를 바꿀 때 비운다
 
 
-def tier(tokens: int) -> Optional[str]:
-    return next((name for floor, name in TIERS if tokens >= floor), None)
-
-
 def measure(question: Any, reference: Any = None) -> Dict[str, Any]:
-    """{"policy", "tokenizer", "tokens", "long", "tier", "min_tokens"} — 토크나이저가 없으면 TokenizerUnavailable."""
+    """{"policy", "tokenizer", "tokens", "long", "min_tokens"} — 토크나이저가 없으면 TokenizerUnavailable."""
     tokens = count_tokens(input_text(question, reference))
     return {"policy": LONG_CONTEXT_POLICY_VERSION, "tokenizer": TOKENIZER, "tokens": tokens, "long": tokens >= MIN_TOKENS,
-            "tier": tier(tokens), "min_tokens": MIN_TOKENS}
+            "min_tokens": MIN_TOKENS}
 
 
 def _norm(text: str) -> str:

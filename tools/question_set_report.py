@@ -44,10 +44,9 @@ NOT_CHECKED = ("Claude 의미 평가(J1~J7 PASS·FAIL) — 유료 호출, 이 �
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
                "답변에서 생기는 CODE 조건(1-2·1-3 구조, 3-1 답변 등식, 3-2 선언 개수) — 답변이 있어야 더해짐",
                "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)")
-#: J7 롱컨텍스트 경계·길이 구간 — 판정은 code_eval.long_context, 이 보고서는 표시만 (구간 이름도 거기서 가져온다)
+#: J7 롱컨텍스트 경계 — 판정은 code_eval.long_context, 이 보고서는 표시만
 LONG_CONTEXT_RULE = (f"입력(현재 질문 + 참조 자료) {long_context.MIN_TOKENS // 1000}K 토큰 이상 · tiktoken o200k_base · "
                      "이전 턴은 길이에 넣지 않음")
-LONG_CONTEXT_BINS = tuple(name for _, name in reversed(long_context.TIERS))
 
 
 def _cases(items: List[Any]) -> List[Dict[str, Any]]:
@@ -180,8 +179,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
                         "short_conversations": len(short_multi),
                         "undetermined": dict(report.get("undetermined") or {}),
                         "long_context": {"criterion": "J7", "units": criteria["J7"]["units"], "turns": criteria["J7"]["turns"],
-                                         "undetermined": (report.get("undetermined") or {}).get("J7", 0), "rule": LONG_CONTEXT_RULE,
-                                         "bins": list(LONG_CONTEXT_BINS)},
+                                         "undetermined": (report.get("undetermined") or {}).get("J7", 0), "rule": LONG_CONTEXT_RULE},
                         "turn_range": [min(c["turns"] for c in multi), max(c["turns"] for c in multi)] if multi else None,
                         "question_chars_range": [min(c["question_chars"] for c in multi), max(c["question_chars"] for c in multi)] if multi else None},
             "types": types if turn_type else None, "untyped_units": unit_type.get(None, 0),
@@ -297,8 +295,7 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
                + (f' · 판별 못 한 대화 {ctx["multi_turn_unknown"]}개' if ctx["multi_turn_unknown"] else "")
                + f' · 멀티턴이 아닌 대화 {ctx["short_conversations"]}개 · 단일 질문 {ctx["single"]}개'
                + ' (답변 길이도 세므로 모델마다 달라질 수 있음 — 여기서는 이 파일의 답변)</li>'
-               f'<li><b>롱컨텍스트 (J7)</b> 적용 질문·대화 {long_ctx["units"]}개 (적용 턴 {long_ctx["turns"]}) — {_e(long_ctx["rule"])}. '
-               f'길이 구간 {_e(" · ".join(long_ctx["bins"]))}</li>'
+               f'<li><b>롱컨텍스트 (J7)</b> 적용 질문·대화 {long_ctx["units"]}개 (적용 턴 {long_ctx["turns"]}) — {_e(long_ctx["rule"])}</li>'
                + "".join(f'<li>{_e(cid)} 적용 여부를 판별하지 못한 질문(턴) {n}개 — 해당 없음으로 빼지 않음 '
                          f'(토크나이저를 불러오지 못했거나 대화에 빠지거나 겹친 턴)</li>' for cid, n in sorted(ctx["undetermined"].items()))
                + '<li>멀티턴(J6)과 롱컨텍스트(J7)는 한 질문에 함께 적용될 수 있음</li>'

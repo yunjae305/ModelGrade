@@ -1003,26 +1003,6 @@ def _apply_item_applicability(applicability: Dict[str, Any], subs: Dict[str, Dic
     applicability["criteria"] = applied
 
 
-def _long_context_tiers(final: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    """J7 를 물은 질문의 입력 길이 구간별 PASS·FAIL — 길이에 따른 하락을 본다 (RULER·LV-Eval 의 구간별 보고)."""
-    from .long_context import TIERS
-    tiers = {name: {"targets": 0, "pass": 0, "fail": 0} for _, name in reversed(TIERS)}
-    for r in final:
-        if "J7" not in r["criteria"]:
-            continue
-        size = ((((r.get("applicability") or {}).get("evidence") or {}).get("J7") or {}).get("long_context") or {})
-        bucket = tiers.get(size.get("tier"))
-        if bucket is None:
-            continue
-        bucket["targets"] += 1
-        decision = ((r.get("decisions") or {}).get("J7") or {}).get("decision")
-        if decision in ("PASS", "FAIL"):
-            bucket["pass" if decision == "PASS" else "fail"] += 1
-    for bucket in tiers.values():
-        bucket["rate"] = _rate(bucket["pass"], bucket["fail"])
-    return tiers
-
-
 def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str, Any]], cases: List[Dict[str, Any]], *,
                       pipeline: str = "legacy") -> Dict[str, Any]:
     """레코드 목록 → {summary, completed, review_required, unverified, conversations(, fulfillment)}. 재집계(요소 합집합 뒤)에도 쓴다."""
@@ -1041,7 +1021,6 @@ def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str,
                 summary[cid]['incomplete'] += 1
     for part in summary.values():
         part['pending'] = part['targets'] - part['pass'] - part['fail']
-    summary["J7"]["tiers"] = _long_context_tiers(final)
     result = {"summary": summary,
               "completed": sum(r['status'] == JevStatus.SUCCESS and not r.get('review_required') for r in final),
               "review_required": sum(bool(r.get('review_required')) for r in final),

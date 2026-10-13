@@ -260,12 +260,12 @@
       box.append(section);
     }
     if (hasLong) {
-      // J7: 입력 길이·구간과 판정 근거 인용이 입력의 어디쯤인지 (위치는 판정에 쓰지 않는 기록)
+      // J7: 입력 길이와 판정 근거 인용이 입력의 어디쯤인지 (위치는 판정에 쓰지 않는 기록)
       const size = j7.long_context || {}, positions = Array.isArray(size.quote_positions) ? size.quote_positions : [];
       const part = (position) => position < 100 / 3 ? '앞부분' : position < 200 / 3 ? '중간' : '뒷부분';
       const section = make('details', {class: 'semantic-long-context-evidence'}, make('summary', {text: 'J7 롱컨텍스트 근거'}));
       if (j7.status === 'UNVERIFIED') section.append(note('확인 필요 · ' + (j7.reason || '입력 길이를 확인하지 못했습니다.')));
-      if (Number.isFinite(size.tokens)) section.append(note(`입력 ${size.tokens.toLocaleString('ko-KR')}토큰 · ${size.tier || '구간 없음'} (질문 + 참조 자료, ${size.tokenizer || '토크나이저 미기록'})`));
+      if (Number.isFinite(size.tokens)) section.append(note(`입력 ${size.tokens.toLocaleString('ko-KR')}토큰 (질문 + 참조 자료, ${size.tokenizer || '토크나이저 미기록'})`));
       positions.forEach((found) => section.append(make('div', {class: 'jev-reason'},
         make('p', {}, make('strong', {text: `입력의 ${part(found.position)} · ${found.position}% 지점`})), make('p', {}, make('q', {text: found.quote})))));
       if (Number.isFinite(size.tokens) && !positions.length) section.append(note('판정 이유의 인용을 입력에서 찾지 못해 위치를 표시하지 않습니다.'));
