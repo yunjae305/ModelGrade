@@ -36,8 +36,17 @@ class Server(ThreadingHTTPServer):
         self.code_eval_service = code_eval_service or CodeEvalService()
         self.comparison_service = comparison_service or ComparisonService(self.code_eval_service)
         # 질문 세트 생성 — 연결·수집 설정의 GPT 연결을 그대로 쓴다 (사용자 결정 2026-10-13: 생성 모델은 GPT)
-        self.question_service = question_service or QuestionSetService(lambda: self.comparison_service.provider_config('gpt'))
+        self.question_service = question_service or QuestionSetService(lambda: self.comparison_service.provider_config('gpt'),
+                                                                       run_starter=self.start_question_set_run)
         super().__init__(address, Handler)
+
+    def start_question_set_run(self, set_id):
+        """만든 질문 세트 → 비교 실행(AIONA 웹·GPT·Claude·Gemini API + 도구 수집 → 평가). 실행 id 를 돌려준다."""
+        from .question_generation import flatten
+        rows = flatten(self.question_service.dataset(set_id))
+        run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': True,
+                                                              'files_dir': str(self.question_service.files_dir(set_id))})
+        return run['run_id']
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -243,6 +252,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, service.start_auto_collection(payload))
             if path == '/api/comparison/question-sets':
                 return self.respond(202, self.server.question_service.start(payload))
+            if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
+                return self.respond(202, self.server.question_service.start_run(parts[3]))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':
                 return self.respond(200, self.server.question_service.cancel(parts[3]))
             if path == '/api/comparison/auto-collection/policy':

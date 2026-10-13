@@ -63,7 +63,11 @@
       node('p', {class: 'field-help', text: `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`}),
       (set.warnings || []).length ? node('details', {class: 'question-set-warnings'}, node('summary', {text: `경고 ${set.warnings.length}건`}),
         node('ul', {}, set.warnings.slice(0, 20).map((w) => node('li', {text: w})))) : null,
-      node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기')].filter(Boolean));
+      node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
+      set.run_id
+        ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
+        : node('button', {class: 'button primary compact', type: 'button', onclick: runSet}, '이 질문 세트로 답변 수집·평가'),
+      set.run_error ? node('p', {class: 'field-help', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null].filter(Boolean));
   }
 
   async function poll() {
@@ -78,14 +82,23 @@
   }
 
   async function start() {
-    if (!window.confirm('GPT 호출이 발생합니다(질문 계획 1회 + 긴 자료 수십 회 + 보충 최대 2회). 질문 세트를 만들까요?')) return;
+    const chained = $('question-set-auto-run').checked;
+    if (!window.confirm('GPT 호출이 발생합니다(질문 계획 1회 + 긴 자료 수십 회 + 보충 최대 2회)'
+      + (chained ? '. 다 만든 뒤 AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가까지 이어서 진행합니다' : '') + '. 시작할까요?')) return;
     showError('');
     try {
-      render(await api('/api/comparison/question-sets', {note: $('question-set-note').value}));
+      render(await api('/api/comparison/question-sets', {note: $('question-set-note').value, auto_run: $('question-set-auto-run').checked}));
       poll();
     } catch (error) {
       showError(error.message);
     }
+  }
+
+  async function runSet() {
+    if (!current) return;
+    if (!window.confirm('AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가 모델 호출이 발생합니다. 시작할까요?')) return;
+    try { render(await api(`/api/comparison/question-sets/${encodeURIComponent(current.id)}/run`, {})); }
+    catch (error) { showError(error.message); }
   }
 
   async function cancel() {

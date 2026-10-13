@@ -9,6 +9,7 @@ import copy
 import hashlib
 import json
 import re
+import tempfile
 import threading
 import time
 import uuid
@@ -38,6 +39,8 @@ from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
 from .ingestion.schema import response_key
+from .agent_collection import AGENT_COLLECTION_VERSION, ask_with_tools
+from .aiona_web import AIONA_WEB_VERSION
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
@@ -48,6 +51,7 @@ PROVIDER_ENV = {
 }
 MAX_RUNS = 8
 DEFAULT_COLLECTION_WORKERS = 3
+QUESTION_SET_MAX_TOKENS = 8000   # 질문 세트 실행의 답변 최대 출력 토큰 (API + 도구)
 MAX_COLLECTION_WORKERS = 4
 DEFAULT_SEMANTIC_WORKERS = 12
 MAX_SEMANTIC_WORKERS = 16
@@ -1584,7 +1588,13 @@ class ComparisonService:
     @staticmethod
     def _answer_case(case, provider, model, index, outcome):
         # AIONA display text must never be reused for other models.
-        result = {k: copy.deepcopy(case[k]) for k in ("case_id", "question", "reference", "attachments", "conversation_id", "turn") if k in case}
+        result = {k: copy.deepcopy(case[k]) for k in ("case_id", "question", "reference", "conversation_id", "turn") if k in case}
+        # 실제로 보낸 첨부만 남긴다 — 받지 못한 파일로 J8 을 평가하지 않게 (글자만 보내는 기존 수집은 첨부를 남기지 않음)
+        sent = [s for s in outcome.get("sent") or [] if isinstance(s, dict)]
+        shas, names = {s.get("sha256") for s in sent if s.get("sha256")}, {s.get("name") for s in sent}
+        attached = [copy.deepcopy(a) for a in case.get("attachments") or [] if a.get("sha256") in shas or a.get("name") in names]
+        if attached:
+            result["attachments"] = attached
         result.update({"answer": outcome.get("answer", ""), "system_id": provider,
                        "source": model, "case_index": index, "collection": outcome})
         if outcome["status"] != "SUCCESS":
@@ -1730,6 +1740,163 @@ class ComparisonService:
                 self._finalize_auto_collection(run)
                 self._save(run)
 
+    # --- 질문 세트 실행: 생성한 질문 세트 → AIONA(웹)·GPT·Claude·Gemini(API + 도구) 수집 → 평가 (2026-10-14 사용자 요청) ---------
+    def start_question_set_run(self, payload):
+        """질문 세트(id/turns 행·첨부 폴더)로 새 실행을 만들고 수집을 시작한다. 수집이 끝나면 auto_evaluate 이면 바로 평가한다.
+
+        AIONA 는 웹 자동화(``aiona_web``, 새 채팅·멀티턴은 같은 채팅), GPT·Claude·Gemini 는 API + 웹 검색 도구(``agent_collection``)로
+        질문·참조 자료·첨부를 함께 보낸다. 받은 답변에는 실제로 보낸 첨부만 남긴다."""
+        rows = payload.get("rows")
+        files_dir = Path(str(payload.get("files_dir") or ""))
+        set_id = str(payload.get("set_id") or "")[:40]
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("질문 세트에 질문이 없습니다.")
+        cases = [{k: copy.deepcopy(r[k]) for k in ("case_id", "question", "reference", "attachments", "conversation_id", "turn") if k in r}
+                 for r in rows if isinstance(r, dict)]
+        if any(not isinstance(c.get("question"), str) or not c["question"].strip() for c in cases):
+            raise ValueError("질문이 빈 행이 있습니다.")
+        with self._lock:
+            if self._closing:
+                raise ValueError("서버가 종료 중이므로 새 실행을 시작할 수 없습니다.")
+            active = [r for r in self._runs.values() if r["status"] in ("COLLECTING", "EVALUATING")]
+            if len(active) >= MAX_RUNS:
+                raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
+            api = [p for p in ("gpt", "claude", "gemini") if p in self._keys]
+            providers = ["aiona", *api]
+            config = {p: {**self._keys[p], "provider": p} for p in api}
+            n, run_id = len(cases), uuid.uuid4().hex[:12]
+            run = {"run_id": run_id, "name": f"질문 세트 {set_id}" if set_id else "질문 세트 실행",
+                   "created_at": datetime.now(timezone.utc).isoformat(), "status": "COLLECTING", "phase": "COLLECT",
+                   "total": n * len(providers), "done": 0, "question_count": n, "providers": providers, "max_tokens": QUESTION_SET_MAX_TOKENS,
+                   "models": {"aiona": "AIONA 웹 · 자동 추천", **{p: self._model_label(p, config[p]) for p in api}},
+                   "progress": {p: self._progress_entry(n) for p in providers},
+                   "datasets": {p: [None] * n for p in providers}, "evaluations": {}, "cancel_requested": False, "error": None,
+                   "auto_evaluate": payload.get("auto_evaluate", True) is not False, "blind_requested": True, "aiona_specialized": False,
+                   "run_kind": "question_set", "dataset_fingerprint": fingerprint(cases),
+                   "question_set": {"set_id": set_id, "aiona": AIONA_WEB_VERSION, "api": AGENT_COLLECTION_VERSION},
+                   "collection_execution": {"collection_workers_per_model": self.collection_workers, "aiona_workers": 1,
+                                            "conversation_order": "sequential_original_turns"}}
+            self._cancel_events[run_id] = token = threading.Event()
+            self._cost_ledgers[run_id] = CostLedger()
+            self._runs[run_id] = run
+            if not self._save(run):
+                self._runs.pop(run_id, None)
+                self._cancel_events.pop(run_id, None)
+                self._cost_ledgers.pop(run_id, None)
+                raise OSError("실행 기록을 저장하지 못해 수집을 시작하지 않았습니다.")
+        self._launch_worker(run, token, self._collect_question_set, (run, cases, config, files_dir, token))
+        return self.status(run_id)
+
+    def _collect_question_set(self, run, cases, config, files_dir, token):
+        chains = self._collection_chains(cases)
+        now = lambda: datetime.now(timezone.utc).isoformat()
+
+        def record(provider, index, outcome):
+            row = self._answer_case(cases[index], provider, run["models"][provider], index, outcome)
+            with self._lock:
+                run["datasets"][provider][index] = row
+                progress = run["progress"][provider]
+                progress["done"] += 1
+                progress[{"SUCCESS": "success", "INCOMPLETE": "incomplete", "ERROR": "failed"}[outcome["status"]]] += 1
+                run["done"] += 1
+                run["revision"] = run.get("revision", 0) + 1
+                self._save(run)
+
+        def stage(provider, value):
+            with self._lock:
+                key = "started_at" if value == "COLLECTING" else "finished_at"
+                run["progress"][provider].update(stage=value, **{key: now()})
+                run["revision"] = run.get("revision", 0) + 1
+
+        def api_chain(provider, client, chain):
+            history, broken = [], False
+            for index in chain:
+                if token.is_set():
+                    return
+                case = cases[index]
+                if broken:
+                    outcome = {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다.", "sent": []}
+                else:
+                    started = time.monotonic()
+                    outcome = ask_with_tools(provider, config[provider], case["question"], case.get("attachments"), files_dir, client,
+                                             run["max_tokens"], reference=case.get("reference"), history=history)
+                    outcome.update(latency_ms=round((time.monotonic() - started) * 1000, 1), collected_at=now())
+                if outcome["status"] == "SUCCESS":
+                    history.append((case["question"], outcome["answer"]))
+                else:
+                    broken = True
+                record(provider, index, outcome)
+
+        def api_provider(provider):
+            stage(provider, "COLLECTING")
+            with httpx.Client(timeout=900, follow_redirects=False) as client:
+                with ThreadPoolExecutor(max_workers=max(1, self.collection_workers), thread_name_prefix=f"qs-{provider}") as pool:
+                    for future in [pool.submit(api_chain, provider, client, chain) for chain in chains]:
+                        future.result()
+            stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
+
+        def aiona():
+            from .aiona_web import AionaChat
+            stage("aiona", "COLLECTING")
+            with tempfile.TemporaryDirectory(prefix="aiona-files-") as temp:
+                try:
+                    with AionaChat() as chat:
+                        for chain in chains:
+                            broken = False
+                            chat.new_chat()
+                            for index in chain:
+                                if token.is_set():
+                                    return
+                                case = cases[index]
+                                if broken:
+                                    record("aiona", index, {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다.", "sent": []})
+                                    continue
+                                files = []
+                                for a in case.get("attachments") or []:   # 원래 파일 이름으로 올린다
+                                    target = Path(temp) / str(index) / str(a.get("name"))
+                                    target.parent.mkdir(parents=True, exist_ok=True)
+                                    target.write_bytes((files_dir / str(a.get("path"))).read_bytes())
+                                    files.append(target)
+                                try:
+                                    outcome = chat.ask(case["question"], files, case.get("reference"))
+                                except Exception as exc:   # 화면이 바뀌거나 막혀도 다음 질문으로 — 새 채팅에서 다시 시작
+                                    outcome = {"status": "ERROR", "error": f"AIONA 화면 처리 실패: {type(exc).__name__}", "sent": []}
+                                    chat.new_chat()
+                                outcome["collected_at"] = now()
+                                if outcome["status"] != "SUCCESS":
+                                    broken = True
+                                record("aiona", index, outcome)
+                except Exception as exc:   # 로그인·브라우저 실행 실패 — 남은 질문을 오류로 채운다 (지어내지 않음)
+                    message = str(exc)[:300] if str(exc) else type(exc).__name__
+                    for index in range(len(cases)):
+                        if run["datasets"]["aiona"][index] is None and not token.is_set():
+                            record("aiona", index, {"status": "ERROR", "error": f"AIONA 수집을 시작하지 못했습니다: {message}", "sent": []})
+            stage("aiona", "CANCELLED" if token.is_set() else "COMPLETED")
+
+        try:
+            with ThreadPoolExecutor(max_workers=1 + len(config), thread_name_prefix="question-set") as pool:
+                futures = [pool.submit(aiona)] + [pool.submit(api_provider, p) for p in config]
+                for future in as_completed(futures):
+                    future.result()
+            with self._lock:
+                run["status"] = "CANCELLED" if token.is_set() or run["cancel_requested"] else "READY"
+                if token.is_set():
+                    self._mark_cancelled(run)
+                if not run["cancel_requested"]:
+                    run["collection_completed_at"] = now()
+                if run.get("auto_evaluate") and not run["cancel_requested"]:
+                    self.evaluate(run["run_id"], {})
+        except Exception:
+            with self._lock:
+                if run.get("phase") != "EVALUATE":
+                    if token.is_set() or run["cancel_requested"]:
+                        self._mark_cancelled(run)
+                    else:
+                        run["status"], run["error"] = "ERROR", "응답 수집을 완료하지 못했습니다. 수집된 원문은 보존했습니다."
+        finally:
+            with self._lock:
+                self._save(run)
+
     def cancel(self, run_id):
         with self._lock:
             run = self._run(run_id)
@@ -1784,6 +1951,8 @@ class ComparisonService:
                 for provider in run["providers"]}
             if run.get("run_kind") == "external_import":
                 semantic_contexts = {provider: _external_semantic_context(run["systems"][provider]) for provider in run["providers"]}
+            if run.get("run_kind") == "question_set":   # API + 웹 검색 도구·AIONA 웹 — 조회 문장을 꾸밈으로 단정하지 않는다
+                semantic_contexts = {provider: {**semantic_contexts[provider], "answer_tools": "unknown"} for provider in run["providers"]}
             if run.get("run_kind") == "auto_collection" and "factchat" in semantic_contexts:
                 # 게이트웨이가 모델에 도구·검색을 붙였는지 확인할 수 없다 — '도구 없이 생성'으로 단정하지 않는다
                 semantic_contexts["factchat"]["answer_tools"] = "unknown"
