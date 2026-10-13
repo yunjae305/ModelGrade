@@ -104,7 +104,8 @@ class CodeEvalService:
                  jev_resolver: Optional[Callable] = None, semantic_workers: int = 4,
                  event_sink: Optional[Callable] = None,
                  cancel_event: Optional[Event] = None, *, pipeline: Optional[str] = None,
-                 semantic_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                 semantic_context: Optional[Dict[str, Any]] = None,
+                 dispatch_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """``pipeline``(legacy|items, 없으면 SEMANTIC_PIPELINE 설정)과 ``semantic_context``({answer_tools, collected_at}, items 에서만
         쓴다)는 comparison_service 가 실행 시작 시점에 확정해 넘긴다 — 실행 도중 설정이 바뀌어도 한 실행 안에서는 같은 방식을 쓴다."""
         token = cancel_event if cancel_event is not None else Event()
@@ -114,7 +115,7 @@ class CodeEvalService:
             self._evaluation_tokens[token] = self._evaluation_tokens.get(token, 0) + 1
         try:
             return self._evaluate(payload, observer, jev_resolver, semantic_workers, event_sink, token,
-                                  pipeline=pipeline, semantic_context=semantic_context)
+                                  pipeline=pipeline, semantic_context=semantic_context, dispatch_options=dispatch_options)
         finally:
             with self._lock:
                 remaining = self._evaluation_tokens[token] - 1
@@ -124,7 +125,7 @@ class CodeEvalService:
                     self._evaluation_tokens.pop(token)
 
     def _evaluate(self, payload, observer, jev_resolver, semantic_workers, event_sink, cancel_event, *,
-                  pipeline=None, semantic_context=None):
+                  pipeline=None, semantic_context=None, dispatch_options=None):
         cases = self._cases(payload)
         cfg = self._config(payload)
         if observer:
@@ -147,7 +148,7 @@ class CodeEvalService:
                                           on_record=record if observer or event_sink else None,
                                           on_start=started if observer else None,
                                           workers=semantic_workers, on_event=event_sink, cancel_event=cancel_event,
-                                          pipeline=pipeline, context=semantic_context)
+                                          pipeline=pipeline, context=semantic_context, dispatch_options=dispatch_options)
         batch["combined"] = combined_summary(batch)
         if payload.get("llm_review", False) and not cancel_event.is_set():
             batch["llm_review"] = review_after_code(batch, self._judge_resolver)

@@ -38,7 +38,7 @@ py -3 -X utf8 run.py
 
 수집·평가가 진행되는 동안 서버 터미널을 열어 두세요. API 비용은 계산하거나 출력하지 않습니다.
 
-현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
+현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 의미 평가 방식은 `SEMANTIC_PIPELINE`(legacy 기본 | items: 세부 기준 25·점검 항목 39에 예/아니오+인용으로 답하고 서버가 인용 검증·집계), 호출 방식은 `SEMANTIC_DISPATCH`(realtime 기본 | batch: Claude Message Batches 에 묶어 제출하고 폴링, 중단·재시작 뒤 화면의 '제출한 묶음 이어받기')로 고릅니다. 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
 
 ```powershell
 py -3 -X utf8 -m code_eval.semantic_check

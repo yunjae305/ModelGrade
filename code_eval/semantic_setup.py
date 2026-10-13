@@ -46,6 +46,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
         "connection_message": _CONNECTION_NOTE,
         "search_status": "not_checked", "search_message": "검색 지원 여부를 확인하지 않았습니다.",
         "pipeline": "legacy",   # 의미 평가 방식(SEMANTIC_PIPELINE) — 화면 표시용이며 판정에 쓰지 않는다
+        "dispatch": "realtime", # 호출 방식(SEMANTIC_DISPATCH) — Claude API 평가자만 batch 를 지원한다
         "reason": None,
     }
     if injected:
@@ -89,8 +90,11 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
                 max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 4),
                 max_fetches=int(read("SEMANTIC_ANTHROPIC_MAX_FETCHES") or 8),
                 max_continuations=int(read("SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS") or 2),
+                dispatch=(read("SEMANTIC_DISPATCH") or "realtime").strip().lower(),
+                batch_questions=int(read("SEMANTIC_ANTHROPIC_BATCH_QUESTIONS") or 20),
+                batch_poll_seconds=float(read("SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS") or 15),
             )
-            result.update(model=_model_label(config.model), reasoning_effort=_effort_label(config.reasoning_effort))
+            result.update(model=_model_label(config.model), reasoning_effort=_effort_label(config.reasoning_effort), dispatch=config.dispatch)
             search(config.web_search)
             if not read("ANTHROPIC_API_KEY"):
                 return missing("Claude API 평가에 사용할 ANTHROPIC_API_KEY가 등록되지 않았습니다.")

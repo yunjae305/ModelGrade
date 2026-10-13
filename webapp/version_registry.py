@@ -64,7 +64,8 @@ def evaluation_profile(run):
                'search_host_features', 'search_host_policy', 'max_fetches', 'max_continuations',
                'evidence_recovery_policy', 'evidence_recovery_rounds', 'evidence_recovery_timeout_s',
                'evidence_recovery_max_tool_calls', 'max_requests',
-               'thinking', 'output_mode', 'search_tool', 'fetch_tool')
+               'thinking', 'output_mode', 'search_tool', 'fetch_tool',
+               'dispatch', 'batch_questions', 'batch_poll_seconds')
     judge = {k: copy.deepcopy(client[k]) for k in allowed if k in client} if isinstance(client, dict) else {}
     if isinstance(client, dict) and isinstance(client.get('api_base'), str):
         try:

@@ -329,6 +329,9 @@ def resolve_jev_client(
             max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 4),
             max_fetches=int(read("SEMANTIC_ANTHROPIC_MAX_FETCHES") or 8),
             max_continuations=int(read("SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS") or 2),
+            dispatch=(read("SEMANTIC_DISPATCH") or "realtime").strip().lower(),
+            batch_questions=int(read("SEMANTIC_ANTHROPIC_BATCH_QUESTIONS") or 20),
+            batch_poll_seconds=float(read("SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS") or 15),
         )
         # Reuse the registered Claude credential only for this explicitly
         # selected evaluator. The historical auto-selection remains unchanged.

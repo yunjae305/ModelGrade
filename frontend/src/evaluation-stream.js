@@ -125,6 +125,10 @@
     }
     receive(e) {
       if (!this.state.apply(e)) return;
+      if (e.type === 'batch_progress') {   // Message Batches 진행 — 묶음 처리 수·제출 수 (행 집계는 바꾸지 않는다)
+        this.showText(`${this.modelLabel(e.model)} · 묶음 평가 ${e.done ?? 0}/${e.total ?? 0}개 처리 · 제출 ${e.submitted ?? 0}개${e.note ? ' · ' + e.note : ''}`, false);
+        return;
+      }
       if (e.type === 'run_start' || e.type === 'snapshot') {
         this.nodes.clear(); this.list.replaceChildren(); this.autoScroll = true;
         this.dirty = new Set(Object.keys(this.state.data.rows));

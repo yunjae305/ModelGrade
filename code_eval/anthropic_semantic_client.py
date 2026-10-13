@@ -67,11 +67,22 @@ class AnthropicSemanticConfig:
     max_tool_calls: int = 4
     max_fetches: int = 8
     max_continuations: int = 2
+    #: 호출 방식 — realtime(질문마다 Messages 호출) | batch(Message Batches 에 묶어 제출, 폴링). 판정 규칙은 같다.
+    dispatch: str = "realtime"
+    batch_questions: int = 20          # 묶음 하나에 넣는 질문 수
+    batch_poll_seconds: float = 15.0   # 묶음 상태 조회 주기(초, 10~30 권장)
     engine: str = field(default="anthropic_api", init=False)
 
     def __post_init__(self):
         if not isinstance(self.model, str) or not self.model.strip():
             raise ValueError("Claude 의미 평가 모델명이 필요합니다.")
+        if self.dispatch not in ("realtime", "batch"):
+            raise ValueError("SEMANTIC_DISPATCH 는 realtime 또는 batch 여야 합니다.")
+        if type(self.batch_questions) is not int or not 1 <= self.batch_questions <= 1000:
+            raise ValueError("묶음 질문 수(batch_questions)는 1~1000 사이의 정수여야 합니다.")
+        if (isinstance(self.batch_poll_seconds, bool) or not isinstance(self.batch_poll_seconds, (int, float))
+                or not math.isfinite(self.batch_poll_seconds) or not 1 <= self.batch_poll_seconds <= 300):
+            raise ValueError("묶음 상태 조회 주기(batch_poll_seconds)는 1~300초여야 합니다.")
         if self.reasoning_effort not in ("low", "medium", "high", "xhigh", "max"):
             raise ValueError("Claude effort 설정이 올바르지 않습니다.")
         if isinstance(self.timeout, bool) or not isinstance(self.timeout, (int, float)) or not math.isfinite(self.timeout) or self.timeout <= 0:
@@ -103,6 +114,8 @@ class AnthropicSemanticConfig:
                 "fact_check_scope": "all_answers", "context_check_policy": CONTEXT_CHECK_POLICY,
                 "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
+                "dispatch": self.dispatch,
+                **({"batch_questions": self.batch_questions, "batch_poll_seconds": self.batch_poll_seconds} if self.dispatch == "batch" else {}),
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
                 "confidence_note": "모델이 스스로 적은 확신도 — 보정된 확률 아님"}
@@ -304,6 +317,11 @@ class AnthropicSemanticClient:
         self.config, self._api_key = config, api_key
         self._transport, self._source_fetcher = transport, source_fetcher
 
+    def batch_client(self):
+        """같은 키·주소·transport 로 Message Batches 클라이언트를 만든다 (jev_batch 디스패처용)."""
+        from .anthropic_batch_client import AnthropicBatchClient
+        return AnthropicBatchClient(self.config.api_base, self._api_key, transport=self._transport, timeout=self.config.timeout)
+
     async def _post(self, payload, cancel_event, deadline):
         async with httpx.AsyncClient(base_url=self.config.api_base.rstrip("/") + "/",
                                      timeout=max(.01, deadline - time.monotonic()),
@@ -324,12 +342,14 @@ class AnthropicSemanticClient:
                     task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
 
-    def system_one(self, state, questions, *, cancel_event=None):
-        started = time.monotonic()
-        deadline = started + self.config.timeout
-        parts, all_blocks, usage, attempts = [], [], {}, 0
-        timings = {"api": 0.0, "source_verification": 0.0}
-        verification, _ = _provenance([])
+    # --- 요청 조립 · 응답 처리 · 실시간/Batch 입구 ---------------------------------------------------------
+    # 실시간(system_one)과 Message Batches(finish_batch_result)가 같은 조립·응답 처리를 쓴다. 차이는 HTTP 를 누가 보내느냐뿐이다.
+
+    def build_request(self, state, questions):
+        """(payload, context) — 첫 HTTP 요청 본문과, 응답 처리에 필요한 문맥 {questions(보낸 것), not_sent, search_enabled, items_mode}.
+
+        Batches 디스패처는 payload 를 ``params`` 로 제출하고, 결과 메시지를 ``finish_batch_result(raw, context)`` 에 넘긴다.
+        """
         search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
         items_mode = semantic.is_items(questions)
         not_sent = []
@@ -337,50 +357,187 @@ class AnthropicSemanticClient:
             # 검색이 꺼진 설정: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
             questions, removed = semantic.strip_search_items(questions)
             not_sent = [{"id": item_id, "reason": semantic.SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
+        tools = [{"name": FINAL_TOOL, "description": "검증을 끝낸 최종 기준별 판정을 제출합니다. 외부 작업을 실행하지 않습니다.",
+                  "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions))}]
+        if search_enabled:
+            tools[:0] = [{"type": SEARCH_TOOL, "name": "web_search", "max_uses": self.config.max_tool_calls},
+                         {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
+                          "citations": {"enabled": True}}]
+        payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
+                   "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
+                   "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
+                   "system": _system_prompt(search_enabled, questions),
+                   "messages": [{"role": "user", "content": semantic.build_prompt(state, questions, search_enabled)}]}
+        validate_json_numbers(payload)
+        return payload, {"questions": questions, "not_sent": not_sent, "search_enabled": search_enabled, "items_mode": items_mode}
+
+    def _session(self, context):
+        """한 질문의 응답 처리 상태 — 요청 조각(parts)·누적 블록·usage·시도 수·시간 기록·결과 만들기."""
+        started = time.monotonic()
+        session = {"parts": [], "all_blocks": [], "usage": {}, "attempts": 0, "timings": {"api": 0.0, "source_verification": 0.0},
+                   "verification": _provenance([])[0], "not_sent": context["not_sent"], "started": started}
+
         def result(status, *, body=None, error=None, http_status=None):
-            body = body or {"verification": verification}
+            body = body or {"verification": session["verification"]}
             body.setdefault("verification", {})["timings_ms"] = {
-                **{name: round(seconds * 1000, 1) for name, seconds in timings.items()},
+                **{name: round(seconds * 1000, 1) for name, seconds in session["timings"].items()},
                 "total": round((time.monotonic() - started) * 1000, 1)}
-            if not_sent:
-                body["verification"]["items_not_sent"] = copy.deepcopy(not_sent)
+            if session["not_sent"]:
+                body["verification"]["items_not_sent"] = copy.deepcopy(session["not_sent"])
             # Token/tool counts permit later terminal-only cost audits. Prices,
             # credentials, prompts and raw response blocks are not stored here.
-            body["verification"]["usage_requests"] = copy.deepcopy(parts)
-            return JevCall(status, body=body, error=error, http_status=http_status, attempts=attempts,
-                           usage=usage, latency_ms=int((time.monotonic() - started) * 1000),
-                           accounting={"model": self.config.model, "cost_parts": parts,
-                                       "unreported_attempts": 0, "usage": usage})
+            body["verification"]["usage_requests"] = copy.deepcopy(session["parts"])
+            return JevCall(status, body=body, error=error, http_status=http_status, attempts=session["attempts"],
+                           usage=session["usage"], latency_ms=int((time.monotonic() - started) * 1000),
+                           accounting={"model": self.config.model, "cost_parts": session["parts"],
+                                       "unreported_attempts": 0, "usage": session["usage"]})
+        session["result"] = result
+        return session
+
+    def _begin_attempt(self, session):
+        """요청 조각(part)을 열고 시도 수를 센다 — HTTP 를 보내기 전에 호출해, 중단·오류로 응답을 못 받아도 시도로 남는다."""
+        part = {"model": self.config.model, "usage": {}, "web_search_calls": None, "service_tier": None, "inference_geo": None}
+        session["parts"].append(part)
+        session["attempts"] += 1
+        return part
+
+    def _consume(self, raw, status_code, session, state, context, payload, *, continuation, cancel_event, part=None):
+        """응답 하나를 처리한다 → ("done", JevCall) | ("continue", None: pause_turn 이어가기 — payload 는 제자리에서 갱신됨).
+
+        실시간 루프는 "continue" 면 다시 POST 하고, Batches 는 실시간 재전송으로 넘긴다. ``part`` 가 없으면 여기서 시도를 연다.
+        """
+        questions, search_enabled, items_mode = context["questions"], context["search_enabled"], context["items_mode"]
+        result = session["result"]
+        if part is None:
+            part = self._begin_attempt(session)
+        if not isinstance(raw, dict):
+            return "done", result(JevStatus.INVALID_RESPONSE, http_status=status_code, error="Claude API 응답이 유효한 JSON 객체가 아닙니다.")
+        raw_usage = _token_usage(raw.get("usage"))
+        _sum_usage(session["usage"], raw_usage)
+        server_usage = raw_usage.get("server_tool_use") or {}
+        count = server_usage.get("web_search_requests") if isinstance(server_usage, dict) else None
+        part.update(model=raw.get("model") or self.config.model, usage=raw_usage,
+                    web_search_calls=count if type(count) is int and count >= 0 else None if search_enabled else 0,
+                    service_tier=raw_usage.get("service_tier"), inference_geo=raw_usage.get("inference_geo"))
+        if not 200 <= status_code < 300:
+            return "done", result(JevStatus.API_ERROR, http_status=status_code,
+                                  error=f"Claude 의미 평가 API HTTP {status_code}. 자동 재시도하지 않았습니다.")
+        content = raw.get("content")
+        if not isinstance(content, list) or not all(isinstance(b, dict) for b in content):
+            return "done", result(JevStatus.INVALID_RESPONSE, error="Claude API 출력 항목이 올바르지 않습니다.")
+        all_blocks = session["all_blocks"]
+        all_blocks.extend(content)
+        verification, pending = _provenance(all_blocks)
+        session["verification"] = verification
+        stop_reason = raw.get("stop_reason")
+        verification["provider_stop_reason"] = stop_reason if stop_reason in (
+            "tool_use", "pause_turn", "end_turn", "max_tokens", "stop_sequence", "refusal",
+            "model_context_window_exceeded") else "unknown"
+        if any(b.get("type") in ("compaction", "context_compaction") for b in all_blocks):
+            return "done", result(JevStatus.INVALID_RESPONSE, error="원문 이력이 축약되어 평가를 확정하지 않았습니다.")
+        if stop_reason == "pause_turn":
+            if cancel_event is not None and cancel_event.is_set():
+                raise CancelledError()
+            if continuation == self.config.max_continuations:
+                return "done", result(JevStatus.API_ERROR, error="Claude 검색 이어가기 한도를 초과해 미판정으로 남깁니다.")
+            # max_uses is per HTTP request. Preserve the case's budget
+            # across pause_turn instead of granting a fresh tool budget.
+            completed_ids = {b.get('tool_use_id') for b in all_blocks
+                             if b.get('type') in ('web_search_tool_result', 'web_fetch_tool_result')}
+            for tool in payload['tools']:
+                if tool['name'] not in ('web_search', 'web_fetch'):
+                    continue
+                used = {b.get('id') for b in all_blocks if b.get('type') == 'server_tool_use'
+                        and b.get('name') == tool['name'] and b.get('id') in completed_ids}
+                limit = self.config.max_tool_calls if tool['name'] == 'web_search' else self.config.max_fetches
+                remaining = limit - len(used)
+                if remaining <= 0:
+                    return "done", result(JevStatus.API_ERROR, error="Claude 검색·원문 확인 한도에 도달한 미완료 응답입니다. 추가 호출하지 않았습니다.")
+                tool['max_uses'] = remaining
+            # This resumes the exact paused turn, not a retry or a fresh evaluation.
+            payload["messages"].append({"role": "assistant", "content": copy.deepcopy(content)})
+            return "continue", None
+        submissions = [b for b in content if b.get("type") == "tool_use"]
+        output_transport = "strict_tool"
+        if stop_reason == "end_turn" and not submissions and not pending and _complete_text_turn(all_blocks):
+            try:
+                structured = _text_submission(content, questions)
+            except (ValueError, TypeError, UnicodeError):
+                return "done", result(JevStatus.INVALID_RESPONSE, error="Claude 일반 텍스트 최종 판정이 완전한 JSON 또는 요청된 평가 형식과 일치하지 않습니다.")
+            output_transport = "validated_text_json"
+        elif stop_reason == "tool_use" and len(submissions) == 1 and submissions[0].get("name") == FINAL_TOOL and not pending:
+            structured = submissions[0].get("input")
+        else:
+            reason = {
+                "max_tokens": "Claude 평가 출력 토큰 한도에 도달해 최종 판정이 잘렸습니다.",
+                "model_context_window_exceeded": "Claude 평가 문맥 한도에 도달해 최종 판정을 완료하지 못했습니다.",
+                "refusal": "Claude가 평가 요청에 대한 판정 제공을 거절했습니다.",
+                "end_turn": "Claude 응답이 최종 판정 제출 도구 없이 종료됐습니다.",
+            }.get(stop_reason, "Claude 최종 판정이 미완료이거나 검색·도구 응답이 끝나지 않았습니다.")
+            return "done", result(JevStatus.INVALID_RESPONSE, error=reason)
+        model = raw.get("model")
+        if items_mode:
+            shape_errors = semantic.validate_items_shape(structured, questions)
+        else:
+            shape_errors = [] if (isinstance(structured, dict) and set(structured) == set(questions)
+                                  and all(isinstance(entry, dict) for entry in structured.values())) else ["criterion mismatch"]
+        if shape_errors or not isinstance(model, str) or not model.strip():
+            return "done", result(JevStatus.INVALID_RESPONSE, error="Claude 판정의 기준 ID·모델 기록이 올바르지 않습니다.")
+        verification["output_transport"] = output_transport
+        if part["web_search_calls"] is None and not any(
+            b.get("type") == "web_search_tool_result" or
+            (b.get("type") == "server_tool_use" and b.get("name") == "web_search") for b in content
+        ):
+            # Anthropic omits server_tool_use usage on completed turns
+            # with no search. Complete provider blocks establish zero;
+            # errors, pending tools and missing counts after a search do not.
+            part["web_search_calls"] = 0
+        timings = session["timings"]
+        if items_mode:
+            # items 본문: {model, items, verification}. J5 서버 검증(server_check)이 verification 을 제자리에서 채운다.
+            from .semantic_facts import server_check
+            body = {"model": model, "items": copy.deepcopy(structured["items"]), "verification": verification}
+            source_started = time.monotonic()
+            try:
+                body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+            finally:
+                timings["source_verification"] += time.monotonic() - source_started
+            return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)
+        body = {"model": model, "verification": verification,
+                "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions}}
+        fact = body["answers"].get("J5", {}).get("fact_check")
+        if isinstance(fact, dict) and fact.get("basis") in ("web", "mixed"):
+            source_started = time.monotonic()
+            try:
+                body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
+            finally:
+                timings["source_verification"] += time.monotonic() - source_started
+        return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)
+
+    def system_one(self, state, questions, *, cancel_event=None):
+        """실시간: 요청 조립 → POST(pause_turn 이어가기 포함) → 응답 처리."""
+        deadline = time.monotonic() + self.config.timeout
+        payload, context = None, {"questions": questions, "not_sent": [], "search_enabled": False, "items_mode": False}
+        session = self._session(context)
+        result = session["result"]
+
         def check_cancel():
             if cancel_event is not None and cancel_event.is_set():
                 raise CancelledError()
         try:
             check_cancel()
-            tools = [{"name": FINAL_TOOL, "description": "검증을 끝낸 최종 기준별 판정을 제출합니다. 외부 작업을 실행하지 않습니다.",
-                      "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions))}]
-            if search_enabled:
-                tools[:0] = [{"type": SEARCH_TOOL, "name": "web_search", "max_uses": self.config.max_tool_calls},
-                             {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
-                              "citations": {"enabled": True}}]
-            payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
-                       "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
-                       "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
-                       "system": _system_prompt(search_enabled, questions),
-                       "messages": [{"role": "user", "content": semantic.build_prompt(state, questions, search_enabled)}]}
-            validate_json_numbers(payload)
+            payload, context = self.build_request(state, questions)
+            session["not_sent"] = context["not_sent"]
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()
                 if time.monotonic() >= deadline:
                     return result(JevStatus.TIMEOUT, error="Claude 의미 평가 제한 시간을 초과했습니다.")
-                part = {"model": self.config.model, "usage": {}, "web_search_calls": None,
-                        "service_tier": None, "inference_geo": None}
-                parts.append(part)
-                attempts += 1
+                part = self._begin_attempt(session)
                 request_started = time.monotonic()
                 try:
                     response = asyncio.run(self._post(payload, cancel_event, deadline))
                 finally:
-                    timings["api"] += time.monotonic() - request_started
+                    session["timings"]["api"] += time.monotonic() - request_started
                 try:
                     raw = response.json()
                     validate_json_numbers(raw)
@@ -389,103 +546,11 @@ class AnthropicSemanticClient:
                 except (ValueError, TypeError):
                     return result(JevStatus.INVALID_RESPONSE, http_status=response.status_code,
                                   error="Claude API 응답이 유효한 JSON 객체가 아닙니다.")
-                raw_usage = _token_usage(raw.get("usage"))
-                _sum_usage(usage, raw_usage)
-                server_usage = raw_usage.get("server_tool_use") or {}
-                count = server_usage.get("web_search_requests") if isinstance(server_usage, dict) else None
-                part.update(model=raw.get("model") or self.config.model, usage=raw_usage,
-                            web_search_calls=count if type(count) is int and count >= 0 else None if search_enabled else 0,
-                            service_tier=raw_usage.get("service_tier"), inference_geo=raw_usage.get("inference_geo"))
-                if not 200 <= response.status_code < 300:
-                    return result(JevStatus.API_ERROR, http_status=response.status_code,
-                                  error=f"Claude 의미 평가 API HTTP {response.status_code}. 자동 재시도하지 않았습니다.")
-                content = raw.get("content")
-                if not isinstance(content, list) or not all(isinstance(b, dict) for b in content):
-                    return result(JevStatus.INVALID_RESPONSE, error="Claude API 출력 항목이 올바르지 않습니다.")
-                all_blocks.extend(content)
-                verification, pending = _provenance(all_blocks)
-                stop_reason = raw.get("stop_reason")
-                verification["provider_stop_reason"] = stop_reason if stop_reason in (
-                    "tool_use", "pause_turn", "end_turn", "max_tokens", "stop_sequence", "refusal",
-                    "model_context_window_exceeded") else "unknown"
-                if any(b.get("type") in ("compaction", "context_compaction") for b in all_blocks):
-                    return result(JevStatus.INVALID_RESPONSE, error="원문 이력이 축약되어 평가를 확정하지 않았습니다.")
-                if raw.get("stop_reason") == "pause_turn":
-                    check_cancel()
-                    if continuation == self.config.max_continuations:
-                        return result(JevStatus.API_ERROR, error="Claude 검색 이어가기 한도를 초과해 미판정으로 남깁니다.")
-                    # max_uses is per HTTP request. Preserve the case's budget
-                    # across pause_turn instead of granting a fresh tool budget.
-                    completed_ids = {b.get('tool_use_id') for b in all_blocks
-                                     if b.get('type') in ('web_search_tool_result', 'web_fetch_tool_result')}
-                    for tool in payload['tools']:
-                        if tool['name'] not in ('web_search', 'web_fetch'):
-                            continue
-                        used = {b.get('id') for b in all_blocks if b.get('type') == 'server_tool_use'
-                                and b.get('name') == tool['name'] and b.get('id') in completed_ids}
-                        limit = self.config.max_tool_calls if tool['name'] == 'web_search' else self.config.max_fetches
-                        remaining = limit - len(used)
-                        if remaining <= 0:
-                            return result(JevStatus.API_ERROR, error="Claude 검색·원문 확인 한도에 도달한 미완료 응답입니다. 추가 호출하지 않았습니다.")
-                        tool['max_uses'] = remaining
-                    # This resumes the exact paused turn, not a retry or a fresh evaluation.
-                    payload["messages"].append({"role": "assistant", "content": copy.deepcopy(content)})
-                    continue
-                submissions = [b for b in content if b.get("type") == "tool_use"]
-                output_transport = "strict_tool"
-                if stop_reason == "end_turn" and not submissions and not pending and _complete_text_turn(all_blocks):
-                    try:
-                        structured = _text_submission(content, questions)
-                    except (ValueError, TypeError, UnicodeError):
-                        return result(JevStatus.INVALID_RESPONSE, error="Claude 일반 텍스트 최종 판정이 완전한 JSON 또는 요청된 평가 형식과 일치하지 않습니다.")
-                    output_transport = "validated_text_json"
-                elif stop_reason == "tool_use" and len(submissions) == 1 and submissions[0].get("name") == FINAL_TOOL and not pending:
-                    structured = submissions[0].get("input")
-                else:
-                    reason = {
-                        "max_tokens": "Claude 평가 출력 토큰 한도에 도달해 최종 판정이 잘렸습니다.",
-                        "model_context_window_exceeded": "Claude 평가 문맥 한도에 도달해 최종 판정을 완료하지 못했습니다.",
-                        "refusal": "Claude가 평가 요청에 대한 판정 제공을 거절했습니다.",
-                        "end_turn": "Claude 응답이 최종 판정 제출 도구 없이 종료됐습니다.",
-                    }.get(stop_reason, "Claude 최종 판정이 미완료이거나 검색·도구 응답이 끝나지 않았습니다.")
-                    return result(JevStatus.INVALID_RESPONSE, error=reason)
-                model = raw.get("model")
-                if items_mode:
-                    shape_errors = semantic.validate_items_shape(structured, questions)
-                else:
-                    shape_errors = [] if (isinstance(structured, dict) and set(structured) == set(questions)
-                                          and all(isinstance(entry, dict) for entry in structured.values())) else ["criterion mismatch"]
-                if shape_errors or not isinstance(model, str) or not model.strip():
-                    return result(JevStatus.INVALID_RESPONSE, error="Claude 판정의 기준 ID·모델 기록이 올바르지 않습니다.")
-                verification["output_transport"] = output_transport
-                if part["web_search_calls"] is None and not any(
-                    b.get("type") == "web_search_tool_result" or
-                    (b.get("type") == "server_tool_use" and b.get("name") == "web_search") for b in content
-                ):
-                    # Anthropic omits server_tool_use usage on completed turns
-                    # with no search. Complete provider blocks establish zero;
-                    # errors, pending tools and missing counts after a search do not.
-                    part["web_search_calls"] = 0
-                if items_mode:
-                    # items 본문: {model, items, verification}. J5 서버 검증(server_check)이 verification 을 제자리에서 채운다.
-                    from .semantic_facts import server_check
-                    body = {"model": model, "items": copy.deepcopy(structured["items"]), "verification": verification}
-                    source_started = time.monotonic()
-                    try:
-                        body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
-                    finally:
-                        timings["source_verification"] += time.monotonic() - source_started
-                    return result("OK", body=finalize_answers(body, state, questions), http_status=response.status_code)
-                body = {"model": model, "verification": verification,
-                        "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions}}
-                fact = body["answers"].get("J5", {}).get("fact_check")
-                if isinstance(fact, dict) and fact.get("basis") in ("web", "mixed"):
-                    source_started = time.monotonic()
-                    try:
-                        body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
-                    finally:
-                        timings["source_verification"] += time.monotonic() - source_started
-                return result("OK", body=finalize_answers(body, state, questions), http_status=response.status_code)
+                outcome, call = self._consume(raw, response.status_code, session, state, context, payload,
+                                              continuation=continuation, cancel_event=cancel_event, part=part)
+                if outcome == "done":
+                    return call
+            return result(JevStatus.API_ERROR, error="Claude 검색 이어가기 한도를 초과해 미판정으로 남깁니다.")
         except CancelledError:
             return result(JevStatus.SKIPPED, error="평가 중단 요청으로 Claude API 평가를 종료했습니다.")
         except httpx.TimeoutException:
@@ -494,3 +559,20 @@ class AnthropicSemanticClient:
             return result(JevStatus.API_ERROR, error="Claude 의미 평가 API 연결 실패. 자동 재시도하지 않았습니다.")
         except (ValueError, TypeError, UnicodeError):
             return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
+
+    def finish_batch_result(self, raw, context, *, payload=None, cancel_event=None):
+        """Message Batches 결과 메시지 하나 → JevCall. pause_turn(검색 이어가기가 필요) 이면 None — 디스패처가 실시간으로 다시 보낸다.
+
+        ``raw`` 는 결과 줄의 ``result.message`` (Messages 응답과 같은 모양). 검색·원문 확인은 Batches 안에서도 서버 도구로 실행되므로
+        결과 블록을 실시간과 같은 규칙으로 읽고, 반박 출처 원문 대조·J5 서버 검증은 여기서(디스패처 프로세스에서) 한다.
+        """
+        session = self._session(context)
+        result = session["result"]
+        try:
+            outcome, call = self._consume(raw, 200, session, context["state"], context, payload or {"tools": []},
+                                          continuation=self.config.max_continuations if payload is None else 0, cancel_event=cancel_event)
+        except CancelledError:
+            return result(JevStatus.SKIPPED, error="평가 중단 요청으로 Claude API 평가를 종료했습니다.")
+        except (ValueError, TypeError, UnicodeError):
+            return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
+        return call if outcome == "done" else None

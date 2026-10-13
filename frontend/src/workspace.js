@@ -389,14 +389,26 @@
     } catch (err) { error(err.message); }
     finally { state.busy = false; renderReady(); }
   });
-  async function evaluate() {
+  async function evaluate(options = {}) {
     if (!state.run || !canEvaluate()) return;
     $('evaluate-button').disabled = true; error(null);
-    try { state.run = await api(`/api/comparison/runs/${state.run.run_id}/evaluate`, {aiona_config: state.config}); renderResult(); $('main').focus({preventScroll: true}); await poll(); }
+    try { state.run = await api(`/api/comparison/runs/${state.run.run_id}/evaluate`, {aiona_config: state.config, ...options}); renderResult(); $('main').focus({preventScroll: true}); await poll(); }
     catch (err) { error(err.message); }
     finally { $('evaluate-button').disabled = !canEvaluate(); }
   }
-  $('evaluate-button').addEventListener('click', evaluate);
+  // Message Batches 로 평가하다 중단·오류로 끝난 실행: 제출한 묶음을 다시 제출하지 않고 이어받는다 (서버가 묶음 ID 를 저장해 둠)
+  function savedBatches(run) {
+    const batches = run?.evaluation_execution?.batches || {};
+    return Object.values(batches).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0);
+  }
+  function batchProgressText(detail) {
+    const b = detail?.batch;
+    if (!b || !b.total) return '';
+    const open = (b.batches || []).filter((x) => ['in_progress', 'canceling'].includes(x.status)).length;
+    return ` · 묶음 ${number(b.done || 0)}/${number(b.total)} 처리 (제출 ${number(b.submitted || 0)}${open ? ` · 처리 중 묶음 ${open}개` : ''})${b.note ? ' · ' + b.note : ''}`;
+  }
+  $('evaluate-button').addEventListener('click', () => evaluate());
+  $('resume-batches-button')?.addEventListener('click', () => evaluate({resume: true}));
   $('cancel-button').addEventListener('click', async () => {
     if (!state.run) return; $('cancel-button').disabled = true;
     try { state.run = await api(`/api/comparison/runs/${state.run.run_id}/cancel`, {}); renderResult(); $('main').focus({preventScroll: true}); }
@@ -513,6 +525,13 @@
     $('cancel-button').textContent = run.cancel_requested ? '중단 대기 중' : '수집 중단';
     $('evaluate-button').hidden = !['READY', 'CANCELLED', 'ERROR'].includes(run.status);
     $('evaluate-button').disabled = !canEvaluate();
+    const resumeButton = $('resume-batches-button');
+    if (resumeButton) {
+      const resumable = ['CANCELLED', 'ERROR'].includes(run.status) && run.phase === 'EVALUATE' && savedBatches(run) > 0;
+      resumeButton.hidden = !resumable;
+      resumeButton.disabled = !canEvaluate();
+      resumeButton.textContent = `제출한 묶음 ${number(savedBatches(run))}개 이어받기`;
+    }
     $('run-status').className = 'pill ' + (disconnected ? 'warning' : finished ? summary.allComplete ? 'neutral' : 'warning' : run.status === 'ERROR' || run.status === 'CANCELLED' ? 'warning' : 'purple');
     $('run-status').textContent = statusText;
     const evaluationPhase = run.phase === 'EVALUATE' || evaluating || finished;
@@ -755,7 +774,7 @@
       (sum('semantic_errors') ? ` · 오류 ${number(sum('semantic_errors'))}` : '') +
       (sum('skipped') ? ` · 제외 ${number(sum('skipped'))}` : '');
     const active = Object.entries(progress).filter(([, d]) => !['WAITING', 'COMPLETED', 'ERROR'].includes(d.stage));
-    $('live-active').textContent = !evaluating ? run.status === 'COMPLETED' ? '평가 요청 처리가 끝났습니다. 보류·오류의 원인은 아래 결과에서 확인하세요.' : '평가가 중단되었습니다. 마지막으로 저장된 처리 수를 표시합니다.' : state.connectionLost ? '서버 연결이 끊겨 마지막으로 받은 진행 상태를 표시합니다.' : active.map(([p, d]) => `${modelName(p)} · ${evaluationStageLabels[d.stage]}${d.active.length ? ' · ' + d.active.map((i) => state.result?.datasets?.aiona?.[i]?.case_id || `질문 ${i + 1}`).join(', ') + ' 응답 대기' : ''}`).join(' / ') || '다음 모델의 평가를 준비하고 있습니다.';
+    $('live-active').textContent = !evaluating ? run.status === 'COMPLETED' ? '평가 요청 처리가 끝났습니다. 보류·오류의 원인은 아래 결과에서 확인하세요.' : '평가가 중단되었습니다. 마지막으로 저장된 처리 수를 표시합니다.' : state.connectionLost ? '서버 연결이 끊겨 마지막으로 받은 진행 상태를 표시합니다.' : active.map(([p, d]) => `${modelName(p)} · ${evaluationStageLabels[d.stage]}${d.active.length ? ' · ' + d.active.map((i) => state.result?.datasets?.aiona?.[i]?.case_id || `질문 ${i + 1}`).join(', ') + ' 응답 대기' : ''}${batchProgressText(d)}`).join(' / ') || '다음 모델의 평가를 준비하고 있습니다.';
     $('live-active').hidden = !evaluating;
     const latest = Object.entries(progress).filter(([, d]) => d.latest).sort((a, b) => Date.parse(b[1].latest.updated_at) - Date.parse(a[1].latest.updated_at))[0];
     const latestRecord = latest && state.result?.evaluations?.[latest[0]]?.jev_eval?.records?.[latest[1].latest.index];
