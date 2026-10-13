@@ -6,7 +6,6 @@ automatically. Failed, blocked and truncated responses remain explicit outcomes.
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import re
 import threading
@@ -126,13 +125,6 @@ def _external_semantic_context(system):
                 and not collection.get("collected_time_unknown"))
     return {"answer_tools": "none" if env.get("web_search_available") is False and env.get("tools_available") == [] else "unknown",
             "collected_at": first[:10] if same_day else None}
-
-
-def _batch_tag(provider):
-    """Batches custom_id 의 제공자 표시(영문·숫자·-). 외부 시스템 키(최대 64자)가 길면 앞부분 + 해시로 줄여
-    run_id·질문 번호와 합쳐도 64자를 넘지 않게 한다. 기존 4개 모델 키는 그대로다."""
-    tag = re.sub(r'[^A-Za-z0-9-]', '-', provider)
-    return tag if len(tag) <= 40 else f"{tag[:31]}-{hashlib.sha1(provider.encode('utf-8')).hexdigest()[:8]}"
 
 
 class ProviderError(Exception):
@@ -1218,18 +1210,12 @@ class ComparisonService:
             # Histories contain already-collected responses, so semantic checks of
             # different turns are independent. Freeze equal concurrency per model.
             workers_per_provider = max(1, self.semantic_workers // len(run["providers"]))
-            # 이어받기(resume): 중단·오류로 끝난 실행의 Message Batches 묶음 ID 를 다시 제출하지 않고 폴링한다
-            resume = bool(payload.get("resume")) if isinstance(payload, dict) else False
-            saved_batches = copy.deepcopy((run.get("evaluation_execution") or {}).get("batches") or {}) if resume else {}
             run["evaluation_execution"] = {
                 "semantic_workers_per_model": workers_per_provider,
                 "semantic_workers_total": workers_per_provider * len(run["providers"]),
-                # 의미 평가 방식(legacy | items)과 호출 방식(realtime | batch) — 저장 결과에서 읽는 실행 조건
+                # 의미 평가 방식(legacy | items)과 호출 방식 — 호출은 실시간만(Message Batches 는 2026-10-13 제거)
                 "pipeline": pipeline,
                 "dispatch": "realtime",
-                # 제공자별 Message Batches 묶음 기록 [{id, status, counts, custom_ids, …}] — 재시작 뒤 이어받기용
-                "batches": saved_batches,
-                "resumed": resume,
             }
             # items 파이프라인의 J5-3.a 적용 판정·시점 있는 사실의 기준 — API 로 수집한 답변은 외부 도구 없이 생성(none),
             # AIONA 답변은 도구 사용 여부를 알 수 없음(unknown). 수집 날짜는 AIONA 는 등록한 수집일, API 는 수집 완료 시각의 날짜.
@@ -1282,15 +1268,6 @@ class ComparisonService:
                     event = code_event(event["row"], event["index"], event["qid"])
                 # 화면용 이벤트는 실제 모델명 — 블라인드는 평가 모델에 보내는 요청에만 적용한다
                 label = "AIONA" if provider == "aiona" else PROVIDERS.get(provider) or run["models"].get(provider, provider)
-                if event["type"] == "batch_progress":
-                    # Message Batches 진행: 묶음 ID·상태를 실행 기록에(이어받기용), 요약 수치를 진행 상태에 남기고 저장한다
-                    run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(event.get("batches") or [])
-                    run["evaluation_progress"][provider]["batch"] = {
-                        "total": event.get("total"), "done": event.get("done"), "submitted": event.get("submitted"),
-                        "batches": [{"id": b.get("id"), "status": b.get("status"), "counts": b.get("counts")} for b in event.get("batches") or []],
-                        "note": event.get("note"), "updated_at": datetime.now(timezone.utc).isoformat()}
-                    run["revision"] += 1
-                    self._save(run)
                 stream.publish({**event, "model": label})
         def observe(provider, event):
             with self._lock:
@@ -1347,18 +1324,11 @@ class ComparisonService:
                        "semantic_workers": workers_per_provider,
                        "cancel_event": token,
                        "pipeline": pipeline, "semantic_context": semantic_contexts[provider],
-                       # custom_id 는 Batches 규격(영문·숫자·_·-, 64자 이하) — run_id(12) + 제공자 + 질문 번호
-                       "dispatch_options": {"custom_id_prefix": f"{run['run_id']}_{_batch_tag(provider)}_",
-                                            "existing_batches": saved_batches.get(provider) or None},
                        "jev_resolver": shared_semantic_resolver if run.get("blind", {}).get("enabled") else resolver}
             batch = self.evaluator.evaluate({"cases": cases, "aiona_config": payload.get("aiona_config"),
                                              "aiona_specialized": False}, **options)
             with self._lock:
                 run["evaluations"][provider] = batch
-                # 호출 방식(realtime | batch)은 평가자 설정이 정한다 — 첫 결과의 jev_eval.dispatch 로 실행 조건에 기록
-                dispatch = (batch.get("jev_eval") or {}).get("dispatch")
-                if dispatch in ("realtime", "batch"):
-                    run["evaluation_execution"]["dispatch"] = dispatch
                 if provider == 'aiona':
                     run['evaluation_profile'] = evaluation_profile(run)
                 run["eval_done"] += 1

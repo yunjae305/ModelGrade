@@ -573,7 +573,7 @@ def conversations_summary(cases: List[Dict[str, Any]], records: List[Dict[str, A
 # --- 배치 -------------------------------------------------------------------------------
 
 class _Prepared:
-    """evaluate_jev_batch 와 jev_batch(Message Batches 디스패처)가 공유하는 배치 준비 상태."""
+    """evaluate_jev_batch 의 배치 준비 상태."""
 
     def __init__(self) -> None:
         self.started = time.perf_counter()
@@ -757,7 +757,7 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
 
     대화 입력은 호출 전에 앞 턴 history 를 미리 조립해 두므로 동시 호출 중에 공유 상태를 바꾸지 않는다.
     ``pipeline`` 은 legacy | items. ``context`` 는 webapp 이 넘기는 {"answer_tools": "none"|"unknown", "collected_at": "YYYY-MM-DD"|None}
-    (items 에서만 쓴다 — J5-3.a 적용 판정과 시점 있는 사실의 기준). Message Batches 호출은 ``jev_batch.evaluate_jev_batch_batched``.
+    (items 에서만 쓴다 — J5-3.a 적용 판정과 시점 있는 사실의 기준).
     """
     prep = _prepare_batch(batch, client, config, pipeline=pipeline, context=context)
     cases, targets, applies = prep.cases, prep.targets, prep.applies
@@ -911,14 +911,12 @@ def jev_after_code(batch: Dict[str, Any], resolver: Optional[Callable] = None,
                    on_start: Optional[Callable[[int], None]] = None,
                    workers: int = DEFAULT_WORKERS, on_event: Optional[Callable] = None,
                    cancel_event: Optional[Event] = None, pipeline: Optional[str] = None,
-                   context: Optional[Dict[str, Any]] = None,
-                   dispatch_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                   context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """CODE 평가 직후 실행한다. 키가 없으면 호출 없이 NOT_CONFIGURED 로 기록한다.
 
     ``engine`` 을 주면 SEMANTIC_ENGINE 설정 대신 그 엔진(jev | claude_cli | codex_cli | openai_api | anthropic_api)을 쓴다.
     ``pipeline`` 을 주면 SEMANTIC_PIPELINE 설정 대신 그 방식(legacy | items)을 쓴다. ``context`` 는 webapp 의 semantic_context.
-    평가자 설정의 ``dispatch`` 가 batch 이고 client 가 Message Batches 를 지원하면 ``jev_batch`` 디스패처로 보낸다 —
-    ``dispatch_options`` 는 {"custom_id_prefix", "existing_batches"(이어받기), "sleep"} 이며 realtime 에서는 쓰지 않는다.
+    호출은 질문마다 실시간이다 (Message Batches 호출 방식은 2026-10-13 제거).
     """
     if pipeline is None:
         pipeline = resolve_semantic_pipeline()
@@ -928,12 +926,6 @@ def jev_after_code(batch: Dict[str, Any], resolver: Optional[Callable] = None,
         client, config, reason = None, None, CANCEL_REASON
     else:
         client, config, reason = (resolver or resolve_jev_client)(**({"engine": engine} if engine else {}))
-    from .jev_batch import evaluate_jev_batch_batched, supports_batches   # 지연 import — jev_batch 가 이 모듈을 쓴다
-    if supports_batches(client, config if config is not None else getattr(client, "config", None)):
-        options = {k: v for k, v in (dispatch_options or {}).items() if k in ("custom_id_prefix", "existing_batches", "sleep") and v is not None}
-        return evaluate_jev_batch_batched(batch, client, config, reason, workers=workers, progress=progress, on_record=on_record,
-                                          on_start=on_start, on_event=on_event, cancel_event=cancel_event, pipeline=pipeline,
-                                          context=context, **options)
     return evaluate_jev_batch(batch, client, config, reason, progress=progress,
                               on_record=on_record, on_start=on_start, workers=workers, on_event=on_event,
                               cancel_event=cancel_event, pipeline=pipeline, context=context)
