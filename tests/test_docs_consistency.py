@@ -31,14 +31,22 @@ def test_measurement_rules_cite_the_current_engine_and_rule_versions():
     text = read('MEASUREMENT_v16.md')
     assert ENGINE_VERSION.rsplit('-', 1)[-1] in text                      # v16.3.0
     for check in ('2-1.literal', '3-1.answer_equation', '2-2.list', '3-3.transform', '3-3.unique_values', '3-3.aggregate'):
-        token = CHECK_VERSIONS[check].split(' ', 1)[0]                      # 코드의 규칙 버전 토큰이 문서에 그대로
-        assert f'`{token}`' in text, (check, token)
+        token = CHECK_VERSIONS[check].split(' ', 1)[0]                      # 코드의 규칙 버전 토큰이 그 검사를 적은 같은 줄에
+        assert re.search(rf'`{re.escape(check)}`[^\n]*`{re.escape(token)}`', text), (check, token)
     assert f'`{EXTRACT_VERSION}`' in text
     assert '## 18.' in text and '## 19.' in text and '## 20.' in text
     # §1 실행 상태: 옛 공통 상태 셋은 '옛 결과' 로, AIONA 가 지금도 내는 INCOMPLETE·OUT_OF_SCOPE 는 현재 상태로 적혀 있어야 한다
     row = next(line for line in text.splitlines() if line.startswith('| 실행 상태 |'))
     assert all(f'`{s}`' in row for s in ('INCOMPLETE', 'OUT_OF_SCOPE', 'CONFIG_MISSING', 'DISPLAY_MISSING', 'DUPLICATE'))
     assert row.index('`UNSUPPORTED`') > row.index('`OUT_OF_SCOPE`') and '옛 결과' in row[row.index('`UNSUPPORTED`'):]
+
+
+def prose_after_section(text, heading):
+    """heading 으로 시작하는 절(같은 수준의 다음 제목 전까지)을 뺀 나머지 뒷부분."""
+    level = heading.split(' ', 1)[0]
+    rest = text[text.index(heading) + len(heading):]
+    match = re.search(rf'^{re.escape(level)} ', rest, re.MULTILINE)
+    return rest[match.start():] if match else ''
 
 
 def test_service_guide_documents_current_settings_and_env_keys():
@@ -49,12 +57,19 @@ def test_service_guide_documents_current_settings_and_env_keys():
         assert key in text and key in env, key
     assert env['SEMANTIC_PIPELINE'] == 'legacy' and env['SEMANTIC_DISPATCH'] == 'realtime' and env['SEMANTIC_ENGINE'] == 'anthropic_api'
     heading = next(line for line in text.splitlines() if line.startswith('### 현재 설정'))
-    section = text[text.index(heading):]
-    assert f"SEMANTIC_ANTHROPIC_MODEL={env['SEMANTIC_ANTHROPIC_MODEL']}" in section and f"SEMANTIC_ANTHROPIC_EFFORT={env['SEMANTIC_ANTHROPIC_EFFORT']}" in section
+    prose = text[text.index(heading):].split('```', 1)[0]                 # 예시 블록이 아니라 본문 문단에서
+    assert f"SEMANTIC_ANTHROPIC_MODEL={env['SEMANTIC_ANTHROPIC_MODEL']}" in prose and f"SEMANTIC_ANTHROPIC_EFFORT={env['SEMANTIC_ANTHROPIC_EFFORT']}" in prose
+    # 다른 절은 모델·effort 를 직접 적지 않고 현재 설정 절로 연결한다 (설정이 바뀌면 한 곳만 고친다)
+    anchor = '#현재-설정'
+    others = text[:text.index(heading)] + prose_after_section(text, heading)   # 현재 설정 절 자신은 값을 직접 적는다
+    for line in others.splitlines():
+        if '현재 평가자 설정은' in line or '현재 평가자는' in line:
+            assert anchor in line, line[:80]
     # 낡은 '현재 설정' 문장이 남아 있으면 안 된다 (OpenAI·GPT CLI 는 대안 경로)
     for stale in ('현재 설정은 OpenAI API', '현재 연결은 OpenAI API', '현재 설정인 `openai_api`는'):
         assert stale not in text, stale
-    assert '제거' in text.split('### 공통 미판정 조건의 PASS/FAIL 보완')[1][:400]   # C 보완 절은 제거 안내로 시작
+    body = text.split('### 공통 미판정 조건의 PASS/FAIL 보완')[1].split('\n', 1)[1]   # 제목 다음 본문
+    assert body.lstrip().startswith('> **지금은 쓰지 않는 절차입니다.**') and '`code_completion` 을 만들지 않습니다' in body[:600]
     assert '/api/comparison/version-comparison' in text and 'criteria_changed' in text
 
 
@@ -62,14 +77,16 @@ def test_implementation_map_paths_exist():
     text = read('IMPLEMENTATION_MAP.md')
     tokens = set()
     for line in text.splitlines():
-        if any(word in line for word in ('삭제', '미존재', '파일 없음')):
-            continue   # 지운 파일·없는 로컬 자료를 설명하는 줄
-        tokens.update(t for t in re.findall(r'`([A-Za-z0-9_./-]+\.(?:py|js|json|html|css))`', line)
-                      if not t.startswith(('/', 'data/')))   # URL 경로·저장소에 없는 로컬 데이터는 제외
+        for cell in line.split('|'):   # 표의 칸 단위로 — '삭제'·'파일 없음' 을 설명하는 칸의 파일만 건너뛴다
+            if any(word in cell for word in ('삭제', '미존재', '파일 없음')):
+                continue
+            tokens.update(t for t in re.findall(r'`([A-Za-z0-9_./-]+\.(?:py|js|json|html|css))`', cell)
+                          if not t.startswith(('/', 'data/')))   # URL 경로·저장소에 없는 로컬 데이터는 제외
     by_name = {}
-    for path in ROOT.rglob('*'):
-        if path.is_file() and path.suffix in ('.py', '.js', '.json', '.html', '.css') and '.git' not in path.parts and 'node_modules' not in path.parts:
-            by_name.setdefault(path.name, []).append(path)
+    for folder in ('code_eval', 'webapp', 'frontend/src', 'frontend', 'tests', 'examples'):   # 구현 지도가 가리키는 폴더만
+        for path in (ROOT / folder).glob('*'):
+            if path.is_file():
+                by_name.setdefault(path.name, []).append(path)
     missing = sorted(t for t in tokens if not ((ROOT / t).exists() or ('/' not in t and t in by_name)))
     assert not missing, missing
     assert '## 10.' in text and '## 11.' in text and '## 12.' in text
@@ -85,9 +102,9 @@ def test_criteria_changelog_matches_registry_and_docs():
     assert REGISTRY_VERSION in history and JEV_CRITERIA_VERSION in history
     older = read('변경내역/2026-10-12-변경내역.md')
     assert '<a id="change-2026-10-12-26"></a>' in older and '| 26 |' in older
-    literal = CHECK_VERSIONS['2-1.literal'].split(' ', 1)[0]
-    assert literal in older and literal in read('평가기준_통합감사_2026-10-12.md')
     audit = read('평가기준_통합감사_2026-10-12.md')
+    # 10-12 역사 문서는 당시 규칙 버전(v16-1.1, 커밋 f523db2)을 그대로 두고 현재 버전은 MEASUREMENT 가 든다 — 현재 토큰과 묶지 않는다
+    assert '2-1.literal v16-1.1' in audit and '규칙 v16-1.1' in older
     assert '## 9. 처리 결과' in audit and all(tag in audit for tag in ('D-1', 'D-2', 'G-1', 'G-2', 'G-3', 'G-4', 'G-5', 'G-6'))
 
 
@@ -99,6 +116,12 @@ def test_progress_document_commit_references_exist_in_git():
     assert {'2f7ccd9', 'f1b3b62', '5fe032f', '52228cc', 'a1f1112'} <= set(shas)
     if not (ROOT / '.git').exists():
         pytest.skip('git checkout 이 아님')
+    try:
+        shallow = subprocess.run(['git', 'rev-parse', '--is-shallow-repository'], cwd=ROOT, capture_output=True, text=True)
+    except OSError:
+        pytest.skip('git 명령 없음')
+    if shallow.returncode != 0 or shallow.stdout.strip() == 'true':
+        pytest.skip('얕은 클론 — 과거 커밋을 확인할 수 없음')
     for sha in shas:
-        probe = subprocess.run(['git', 'cat-file', '-e', f'{sha}^{{commit}}'], cwd=ROOT, capture_output=True)
-        assert probe.returncode == 0, f'진행현황의 커밋 {sha} 가 git 에 없음'
+        probe = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{sha}^{{commit}}'], cwd=ROOT, capture_output=True, text=True)
+        assert probe.returncode == 0 and probe.stdout.strip().startswith(sha), f'진행현황의 커밋 {sha} 가 git 에 없음'
