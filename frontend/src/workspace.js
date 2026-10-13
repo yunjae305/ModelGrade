@@ -861,6 +861,15 @@
         node('div', {}, node('strong', {text: `검증 근거 부족 · FAIL ${number(evidencePolicyFailures)}개`}),
           node('p', {text: '최종 검증에서 평가 기준 미충족'}),
           node('button', {type: 'button', class: 'text-button', onclick: () => filterQuestions(p, 'issue'), text: 'FAIL 문항 보기'}))));
+      // J5 FAIL 사유 구성 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눠 센다 (저장 판정은 그대로)
+      const j5 = results.j5Breakdown(semantic?.records);
+      if (j5.fail) card.append(node('div', {class: 'evaluation-warning' + (j5.confirmed ? '' : ' evaluation-policy-fail'), 'data-j5-breakdown': ''}, icon('shield'),
+        node('div', {}, node('strong', {text: `J5 FAIL ${number(j5.fail)}개 · 사실 오류 확정 ${number(j5.confirmed)}개`}),
+          ...[[true, '사실 오류 확정'], [false, '검증 한계(사실 오류 확정 아님)']].map(([confirmed, title]) => {
+            const rows = Object.values(j5.codes).filter((c) => c.confirmed === confirmed).sort((a, b) => b.count - a.count);
+            return rows.length ? node('p', {text: `${title}: ` + rows.map((c) => `${c.short} ${number(c.count)}`).join(' · ')}) : null;
+          }).filter(Boolean),
+          j5.unclassified ? node('p', {text: `사유 기록 없음 ${number(j5.unclassified)}개 (이전 결과)`}) : null)));
       const evaluatorKey = run.run_id + ':' + p;
       if (semantic?.engine_label || ['openai_api', 'anthropic_api'].includes(semantic?.engine)) card.append(
         node('details', {class: 'evaluation-error-detail', open: expandedEvaluatorInfo.has(evaluatorKey) ? '' : null,
@@ -1081,7 +1090,7 @@
     }
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
-      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${decision.j5_outcome.label}${decision.j5_outcome.source_failure?.label ? ' · ' + decision.j5_outcome.source_failure.label : ''})` : '';
+      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${results.j5Detail(decision.j5_outcome, decision.decision).title})` : '';
       findings.append(node('li', {}, node('strong', {text: ({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '}[decision.status] || '의미 평가 · ') + (criterion?.name || id) + outcome}),
         node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) :
           decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));

@@ -237,7 +237,7 @@ def test_source_failure_detail_separates_access_failures_from_missing_quotes_wit
         return {"decisions": {"J5": j5}, "verification": {}}
     access = j5_outcome(record("http_error", "timeout"))
     assert (access["code"], access["source_failure"]["kind"], access["policy"]) == ("source_unavailable", "access_failed",
-                                                                                     "j5-outcome-detail-v4")
+                                                                                     "j5-outcome-detail-v5")
     assert j5_outcome(record("quote_not_found"))["source_failure"]["kind"] == "quote_not_found"
     mixed = j5_outcome(record("http_error", "quote_not_found"))["source_failure"]
     assert (mixed["kind"], mixed["quote_not_found"], mixed["access_failures"][0]["status"]) == ("mixed", 1, "http_error")

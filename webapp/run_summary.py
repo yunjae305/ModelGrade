@@ -12,7 +12,7 @@ from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "evaluation_method", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
+__all__ = ["RUN_SUMMARY_VERSION", "evaluation_method", "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
 RUN_SUMMARY_VERSION = "run-summary-v2"
@@ -98,6 +98,30 @@ def _only(values: List[Any]) -> Any:
     """모두 같은 값이면 그 값, 서로 다르면 'mixed', 없으면 None."""
     found = {v for v in values if v is not None}
     return next(iter(found)) if len(found) == 1 else "mixed" if found else None
+
+
+def j5_fail_causes(batch: Dict[str, Any]) -> Dict[str, Any]:
+    """한 모델의 J5 FAIL 을 저장된 j5_outcome 으로 센다 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눈다.
+    결과 화면 j5Breakdown(workspace-results.js)과 같은 키(code[:세부 종류]). 사유 기록이 없는 옛 FAIL 은 unclassified."""
+    out: Dict[str, Any] = {"fail": 0, "confirmed": 0, "unclassified": 0, "causes": {}}
+    for record in ((batch or {}).get("jev_eval") or {}).get("records") or []:
+        if not isinstance(record, dict) or record.get("status") != "SUCCESS" or "J5" not in (record.get("criteria") or []):
+            continue
+        j5 = (record.get("decisions") or {}).get("J5") or {}
+        if j5.get("decision") != "FAIL":
+            continue
+        out["fail"] += 1
+        outcome = j5.get("j5_outcome") if isinstance(j5.get("j5_outcome"), dict) else {}
+        if not outcome.get("code"):
+            out["unclassified"] += 1
+            continue
+        confirmed = bool(outcome.get("factual_error_confirmed"))
+        out["confirmed"] += confirmed
+        key = ":".join(str(v) for v in (outcome["code"], (outcome.get("source_failure") or {}).get("kind"),
+                                         (outcome.get("contradiction") or {}).get("basis"), (outcome.get("citation_access") or {}).get("side")) if v)
+        entry = out["causes"].setdefault(key, {"label": outcome.get("label"), "count": 0, "confirmed": confirmed})
+        entry["count"] += 1
+    return out
 
 
 def evaluation_method(run: Dict[str, Any]) -> Dict[str, Any]:
@@ -197,7 +221,7 @@ def run_summary(run: Dict[str, Any]) -> Dict[str, Any]:
         per_unit = [unit_outcome([outcomes[i]["outcome"] for i in unit]) for unit in units]
         counts = {key: per_unit.count(key) for key in kinds}
         results[provider] = {"questions": counts, "turns": turns, "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
-                             **_criteria_rates(batch)}
+                             **_criteria_rates(batch), "j5_fail_causes": j5_fail_causes(batch)}
     return {"version": RUN_SUMMARY_VERSION, "run_id": run.get("run_id"), "name": run.get("name"), "status": run.get("status"),
             "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),
             "question_set": {"fingerprint": run.get("dataset_fingerprint") or fingerprint(datasets.get("aiona") or []), "count": total,

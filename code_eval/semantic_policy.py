@@ -19,7 +19,7 @@ FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
 #: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
 #: v3 — 출처 원문 확인 실패(source_unavailable)의 세부 사유를 접근 실패와 인용문 미확인으로 나눠 기록한다
 #:      (code·label·판정 값은 v2 와 같음 — source_failure 상세 항목만 추가).
-J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v4"   # v4: 답변이 든 URL 접근 불가(citation_inaccessible) 구분
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v5"   # v4: 답변이 든 URL 접근 불가(citation_inaccessible) 구분 · v5: 충돌 근거·URL 접근 실패 주체 기록
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 #: items 파이프라인의 재확인 정책 — 3회 뒤 남은 문제는 '확인 불가로 FAIL' (semantic_quotes.RECHECK_POLICY 와 같은 값)
 ITEMS_RECHECK_POLICY_VERSION = "items-recheck-3-then-fail-v1"
@@ -52,6 +52,7 @@ J5_OUTCOMES = {
     "source_unavailable": "검증 기준 미충족 — 출처 원문 확인 실패",
     "source_mismatch": "출처 불일치 — 답변이 든 출처가 주장을 뒷받침하지 않음",
     "citation_inaccessible": "출처 접근 불가 — 답변이 열 수 없는 URL 을 출처로 제시",
+    "process_misrepresented": "확인 과정 꾸밈 — 하지 않은 확인·조회를 했다고 씀 (items J5-3, 사실 오류 아님)",
     "search_unavailable": "판정 미완료 — 검색 불가",
     "search_error": "판정 미완료 — 검색 실행 오류",
     "fetch_error": "판정 미완료 — 원문 열기 도구 오류",
@@ -64,6 +65,26 @@ SOURCE_FAILURE_KINDS = {
     "access_failed": "출처 원문 접근 실패",
     "quote_not_found": "원문은 받았으나 인용문 미확인",
     "mixed": "원문 접근 실패와 인용문 미확인이 함께 있음",
+}
+#: contradicted 의 충돌 근거 (판정·factual_error_confirmed 는 바꾸지 않는 기록용 구분 — v5).
+CONTRADICTION_BASES = {
+    "external": "외부 근거(검색·원문)와 충돌하는 사실 오류",
+    "user_input": "사용자가 준 정보(질문·앞 대화)와 불일치 — 외부 사실 확인 결과가 아님",
+    "reference": "제공된 참고 자료와 불일치",
+    "citation": "답변이 출처로 든 문서의 내용과 불일치",
+    "mixed": "여러 근거와 불일치",
+}
+_ORIGIN_BASIS = {"web": "external", "question": "user_input", "history_user": "user_input", "reference": "reference"}
+#: citation_inaccessible 의 서버 수집 실패 상태 묶음 (판정은 그대로 — v5). 확인 환경(시간·연결·크기·형식) 쪽일 수 있는 상태,
+#: 어느 쪽인지 상태만으로 알 수 없는 상태(HTTP 오류 — 404 와 접근 차단 403 이 같은 상태, 주소 없음), 답변이 든 주소 자체의 문제.
+_ENVIRONMENT_STATUSES = frozenset({"timeout", "dns_timeout", "dns_busy", "source_limit", "fetch_error", "response_too_large",
+                                   "decode_error", "unsupported_content_type", "unsupported_content_encoding", "unsupported_encoding",
+                                   "invalid_compressed_body", "incomplete_compressed_body", "trailing_compressed_data", "incomplete_body"})
+_UNCLEAR_STATUSES = frozenset({"http_error", "dns_error"})
+CITATION_ACCESS_SIDES = {
+    "evaluation_environment": "서버가 열지 못함 — 시간 초과·연결 등 확인 환경 문제일 수 있어 답변 결함으로 단정하지 않음",
+    "unclear": "서버가 열지 못함 — 없는 주소인지 접근 차단인지 상태만으로 구분되지 않음",
+    "answer_citation": "답변이 든 주소가 공개 웹 주소가 아니거나 이동이 올바르지 않음",
 }
 _INPUT_SCOPE_FAILURE_REASON = "사용자 원문 인용은 확인했지만, 요청에 주어진 자료·설정의 일치를 확인하는 주장인지 불명확합니다."
 
@@ -332,6 +353,12 @@ def j5_outcome(record):
         failure = source_failure_detail(j5)
         if failure:
             detail["source_failure"] = failure
+    if outcome == "contradicted":
+        detail["contradiction"] = contradiction_detail(j5)
+    if outcome == "citation_inaccessible":
+        access = citation_access_detail(j5)
+        if access:
+            detail["citation_access"] = access
     checks = [c for c in j5.get("citation_checks") or [] if isinstance(c, dict)]
     if checks:
         verdicts = [c.get("verdict") for c in checks]
@@ -340,6 +367,83 @@ def j5_outcome(record):
                                "inaccessible": verdicts.count("inaccessible"),
                                "unresolved": sum(v in ("unverified", "unchecked") for v in verdicts)}
     return detail
+
+
+def items_j5_outcome(record):
+    """items 파이프라인 J5 의 상세 판정 사유 — legacy 와 같은 모양(code·label·factual_error_confirmed). 판정 값은 바꾸지 않는다.
+
+    점검 항목 결과로 나눈다: J5-1 거짓 확인(FACT_FALSE_CONFIRMED) → 외부 근거와 충돌 · J5-2 아니오 → 사용자가 준 자료와 불일치 ·
+    재확인 3회 뒤 확인 불가(FACT_/ITEM_UNVERIFIABLE) → 근거 부족 · 답변이 든 URL 없음(SOURCE_NOT_FOUND) → 출처 접근 불가 ·
+    J5-3 아니오 → 확인 과정 꾸밈. 확정된 결함이 여럿이면 사실 오류 쪽을 앞에 둔다.
+    """
+    j5 = (record.get("decisions") or {}).get("J5")
+    if not isinstance(j5, dict):
+        return None
+    decision = j5.get("decision")
+    failed = [item for sub in (j5.get("subs") or {}).values() if isinstance(sub, dict)
+              for item in sub.get("items") or [] if isinstance(item, dict) and item.get("decision") == "NO"]
+    base = lambda item: str(item.get("id") or "").split("#", 1)[0]
+    confirmed = [i for i in failed if not i.get("unverifiable")]
+    bases = []
+    if any(i.get("reason_code") == "FACT_FALSE_CONFIRMED" for i in confirmed):
+        bases.append("external")
+    if any(base(i).startswith("J5-2") for i in confirmed):
+        bases.append("user_input")
+    if j5.get("status") == "NOT_APPLICABLE":
+        outcome = "not_applicable"
+    elif decision == "PASS":
+        outcome = "verified"
+    elif decision != "FAIL":
+        outcome = "incomplete"
+    elif bases:
+        outcome = "contradicted"
+    elif any(i.get("reason_code") == "SOURCE_NOT_FOUND" for i in confirmed):
+        outcome = "citation_inaccessible"
+    elif any(base(i).startswith("J5-3") for i in confirmed):
+        outcome = "process_misrepresented"
+    elif failed and all(i.get("unverifiable") for i in failed):
+        outcome = "insufficient_evidence"
+    else:
+        outcome = "unclassified"
+    detail = {"policy": J5_OUTCOME_POLICY_VERSION, "code": outcome, "label": J5_OUTCOMES[outcome],
+              "factual_error_confirmed": outcome == "contradicted", "search": j5_search(record), "pipeline": "items",
+              "items": sorted({base(i) + (" (확인 불가)" if i.get("unverifiable") else "") for i in failed})}
+    if outcome == "contradicted":
+        kind = bases[0] if len(bases) == 1 else "mixed"
+        detail["contradiction"] = {"basis": kind, "label": CONTRADICTION_BASES[kind], "bases": sorted(bases)}
+    return detail
+
+
+def contradiction_detail(j5):
+    """contradicted 의 충돌 근거 — FAIL 주장이 기댄 출처의 origin 으로 외부(web)·사용자 입력(question·history_user)·참고 자료를 나눈다.
+    FAIL 주장 없이 답변 인용 출처 불일치만 있으면 citation. 판정 값은 보지 않고 바꾸지 않는다."""
+    fact = j5.get("fact_check") if isinstance(j5.get("fact_check"), dict) else {}
+    basis = fact.get("basis")
+    bases = set()
+    for claim in fact.get("claims") or []:
+        if not isinstance(claim, dict) or claim.get("verdict") != "FAIL":
+            continue
+        origins = {s.get("origin") or (basis if basis in ("web", "reference") else None)
+                   for s in claim.get("sources") or [] if isinstance(s, dict)}
+        found = {_ORIGIN_BASIS[o] for o in origins if o in _ORIGIN_BASIS}
+        if not found:   # 출처 기록이 없는 FAIL 주장 — 주장 범위로만 구분
+            found = {"user_input" if claim.get("scope") == "input_consistency" else "external"}
+        bases |= found
+    if not bases and j5.get("citation_mismatch"):
+        bases = {"citation"}
+    kind = next(iter(bases)) if len(bases) == 1 else "mixed" if bases else "external"
+    return {"basis": kind, "label": CONTRADICTION_BASES[kind], "bases": sorted(bases)}
+
+
+def citation_access_detail(j5):
+    """citation_inaccessible 의 서버 수집 실패 상태별 수와 주체 — 확인 환경 쪽 상태가 하나라도 있으면 evaluation_environment."""
+    statuses = [str(c.get("server_status")) for c in j5.get("citation_checks") or []
+                if isinstance(c, dict) and c.get("verdict") == "inaccessible" and c.get("server_status")]
+    if not statuses:
+        return None
+    side = ("evaluation_environment" if any(s in _ENVIRONMENT_STATUSES for s in statuses)
+            else "unclear" if any(s in _UNCLEAR_STATUSES for s in statuses) else "answer_citation")
+    return {"side": side, "label": CITATION_ACCESS_SIDES[side], "statuses": {s: statuses.count(s) for s in dict.fromkeys(statuses)}}
 
 
 def source_failure_detail(j5):

@@ -38,7 +38,7 @@ from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLI
 from .semantic_items import SEMANTIC_ITEMS_VERSION, SUBS_BY_ID, SemanticItem, applicable_items
 from .semantic_evidence import CONTEXT_CHECK_POLICY, CONTEXT_QUOTE_PROBLEMS
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
-from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
+from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, items_j5_outcome, j5_outcome, unresolved
 from .semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY, finalize_items
 from .attachments import judge_view
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
@@ -222,6 +222,7 @@ def _items_record(case_id: str, criteria: Tuple[str, ...], call: Any, request: D
     record["review_required"] = False
     j5 = decisions.get("J5")
     if isinstance(j5, dict) and j5.get("status") != "NOT_APPLICABLE":
+        j5["j5_outcome"] = items_j5_outcome(record)   # legacy 와 같은 모양의 사유 기록 — 판정은 그대로
         basis = (j5.get("fact_check") or {}).get("basis")
         record["j5_basis"] = basis if basis in ("web", "reference", "input", "mixed") else None
     else:

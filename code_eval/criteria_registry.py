@@ -299,6 +299,11 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "j1-j4-j7-j8-fail-evidence-v3", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J8 FAIL 도 이유 + 원문 인용 필요 — 답변 인용이 하나 이상 맞아야 하고, 첨부 내용(attachments[].content) 인용도 근거로 셈"]},
     {"version": "criteria-registry-v8", "date": "2026-10-13", "scope": "registry", "changes": ["J8 첨부파일 활용 등록 (jev-criteria-v5·semantic-items-v5)"]},
+    {"version": "j5-outcome-detail-v5", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J5 '사실 오류 — 근거와 충돌'에 충돌 근거를 기록 (contradiction.basis: 외부 근거·사용자가 준 정보·참고 자료·답변 인용 출처) — "
+                 "사용자 제공 정보와의 불일치를 외부 사실 확인 결과로 오해하지 않게 (지시서 10-13 B)",
+                 "J5 '출처 접근 불가'에 서버 수집 실패 상태와 주체를 기록 (citation_access.side: 확인 환경 문제일 수 있음·구분 불가·답변 주소 문제)",
+                 "판정(PASS/FAIL)·사유 코드·라벨·factual_error_confirmed 는 바꾸지 않음 — 기록용 세부 구분만"]},
 ]
 
 
