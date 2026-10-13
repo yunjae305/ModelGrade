@@ -487,6 +487,7 @@
     api(`/api/comparison/runs/${id}/code-recheck`).then((recheck) => {
       if (state.run?.run_id !== id) return;
       state.codeRecheck = {...recheck, run_id: id};
+      renderResult();
       if ($('answer-dialog').open && state.modalSource === 'result') renderAnswer();
     }).catch(() => {});
   }
@@ -973,6 +974,13 @@
         }
         card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), content));
       }
+      const recheck = state.codeRecheck?.run_id === run.run_id ? state.codeRecheck.providers?.[p] : null;
+      const stale = Object.values(recheck?.cases || {}).filter((entry) => entry.cleared?.length);
+      if (stale.length) card.append(node('div', {class: 'evaluation-warning recheck-summary'}, icon('clock'), node('div', {},
+        node('strong', {text: `옛 엔진 FAIL · 질문 ${number(stale.length)}개`}),
+        node('p', {text: `저장 당시 엔진(${String(recheck.stored_engine || '').replace('aiona-code-eval-', '') || '기록 없음'})의 CODE FAIL `
+          + `${number(stale.reduce((n, entry) => n + entry.cleared.length, 0))}개는 현재 엔진(${state.codeRecheck.engine.replace('aiona-code-eval-', '')})에서 나오지 않습니다. `
+          + '저장 판정은 그대로이며 원문 재평가로 갱신됩니다.'}))));
       if (c.unjudged) card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), node('div', {},
         node('strong', {text: '미판정 코드 조건 ' + number(c.unjudged) + '개'}),
         node('p', {text: '저장 당시 엔진의 미판정 조건입니다. 질문 상세에서 원인을 확인하세요.'}))));
