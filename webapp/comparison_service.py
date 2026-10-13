@@ -256,7 +256,7 @@ class ComparisonService:
     def __init__(self, evaluator, save_dir=None, client_factory=None, registry_path=None,
                  *, semantic_workers=DEFAULT_SEMANTIC_WORKERS, collection_workers=DEFAULT_COLLECTION_WORKERS):
         # 답변 수집 때 첨부 이미지 파일을 읽어도 되는 폴더 (10-14 3차) — 이 밖의 경로는 읽지 않는다
-        self.attachment_roots = [ROOT / 'data' / 'attachments', ROOT / 'examples']
+        self.attachment_roots = [ROOT / 'data' / 'attachments', ROOT / 'data' / 'question_sets', ROOT / 'examples']
         self.evaluator = evaluator
         self.save_dir = Path(save_dir) if save_dir is not None else ROOT / "data" / "comparison_runs"
         self.client_factory = client_factory or (lambda: httpx.Client(timeout=180, follow_redirects=False))

@@ -61,3 +61,21 @@ def test_extracted_text_flows_through_existing_j8_applicability_and_collection_d
     assert report["criteria"]["J8"]["applicable_units"] == 1
     question, images, delivery = prepare("첨부한 견적서의 합계를 알려줘.", [entry], [tmp_path])
     assert "합계 | 1,250,000원" in question and images == [] and delivery[0]["mode"] == "text_extracted"
+
+
+def test_generated_attachment_with_only_a_file_name_is_found_by_sha256(tmp_path):
+    """질문 세트 생성 파일(path = 파일 이름만)은 허용 폴더 안에서 이름으로 찾고 sha256 이 맞을 때만 보낸다."""
+    import hashlib
+    from webapp.attachment_delivery import prepare
+    (tmp_path / "set1" / "files").mkdir(parents=True)
+    (tmp_path / "set2" / "files").mkdir(parents=True)
+    (tmp_path / "set1" / "files" / "chart.png").write_bytes(b"other-image")
+    (tmp_path / "set2" / "files" / "chart.png").write_bytes(b"right-image")
+    digest = hashlib.sha256(b"right-image").hexdigest()
+    entry = {"name": "chart.png", "type": "image", "content": "막대 3개", "path": "chart.png", "sha256": digest}
+    _, images, delivery = prepare("그래프를 보고 답해줘.", [entry], [tmp_path])
+    assert delivery[0]["mode"] == "image" and len(images) == 1
+    wrong = dict(entry, sha256=hashlib.sha256(b"nothing").hexdigest())
+    _, images, delivery = prepare("그래프를 보고 답해줘.", [wrong], [tmp_path])
+    assert images == [] and delivery[0]["mode"] == "not_sent"
+

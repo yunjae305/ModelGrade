@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import mimetypes
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -26,6 +27,10 @@ def _image_file(item: Dict[str, Any], roots: Sequence[Path]) -> Tuple[Optional[P
         return None, "이미지 파일(path) 없음 — 그림 속 글자로 대신하지 않음"
     path = Path(raw)
     candidates = [path] if path.is_absolute() else [root / path for root in roots]
+    expected = item.get("sha256") if isinstance(item.get("sha256"), str) else None
+    if not path.is_absolute() and len(path.parts) == 1 and expected:
+        # 질문 세트 생성(attachment_files)은 path 에 파일 이름만 남긴다 — 허용 폴더 안에서 같은 이름을 찾고 sha256 이 맞는 것만 쓴다
+        candidates += [found for root in roots if root.is_dir() for found in root.rglob(path.name)]
     for candidate in candidates:
         resolved = candidate.resolve()
         if not any(resolved.is_relative_to(root.resolve()) for root in roots):
@@ -33,8 +38,10 @@ def _image_file(item: Dict[str, Any], roots: Sequence[Path]) -> Tuple[Optional[P
         if resolved.is_file():
             if resolved.stat().st_size > MAX_IMAGE_BYTES:
                 return None, f"이미지가 {MAX_IMAGE_BYTES // (1024 * 1024)}MB 를 넘음"
+            if expected and hashlib.sha256(resolved.read_bytes()).hexdigest() != expected:
+                continue   # 같은 이름의 다른 파일 — 보내지 않는다
             return resolved, None
-    return None, "허용된 첨부 폴더에서 이미지 파일을 찾지 못함"
+    return None, "허용된 첨부 폴더에서 (sha256 이 맞는) 이미지 파일을 찾지 못함"
 
 
 def prepare(question: str, attachments: Any, roots: Sequence[Path]) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
