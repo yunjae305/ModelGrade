@@ -8,12 +8,12 @@
 
 | 항목 | 구현 |
 |---|---|
-| 판정 | `PASS` / `FAIL` / `null` 만. severity·주의·심각·HOLD·가중치 없음 |
-| 실행 상태 | `EXECUTED` · `CONFIG_MISSING` · `DISPLAY_MISSING` · `INCOMPLETE` · `UNSUPPORTED` · `DEPENDENCY_FAILED` · `CHECK_ERROR` · `LIMIT_EXCEEDED` · `OUT_OF_SCOPE` · `DUPLICATE` · `APPLICABILITY_EXCEPTION`, 케이스 단위 `INPUT_ERROR` |
+| 판정 | 공통 결과 행은 `PASS` / `FAIL` 만(엔진 v16.3.0, §18). 판정할 수 없는 조건은 행을 만들지 않고 `meta.skipped_conditions` 에 사유만 남긴다. severity·주의·심각·HOLD·가중치 없음 |
+| 실행 상태 | 공통 행은 `EXECUTED` 뿐. 검사기 오류·한도 초과는 행이 아니라 `case.errors`(`summary.errors`·`totals.check_errors`)이며 그 질문은 PASS 로 세지 않는다. AIONA 특화 행은 `CONFIG_MISSING` · `DISPLAY_MISSING` · `DUPLICATE` 를 유지. `UNSUPPORTED` · `DEPENDENCY_FAILED` · `APPLICABILITY_EXCEPTION` · `INCOMPLETE` 는 저장된 옛 결과(v16.2.x)에서만 보인다. 케이스 단위 `INPUT_ERROR` |
 | 통과율 | `PASS / (PASS + FAIL)`, 분모 0 → `null`. 미판정·관측은 분모 제외. AIONA 특화는 공통 통과율과 별도 |
 | 해당 없음 | 결과를 만들지 않는다 (분모를 늘리지 않음). 예: 표 요구가 없으면 표 결과 없음 |
 | 경로 | 질문 유형 분류·배분 없음. 모든 입력이 같은 검사 함수 목록(`engine._COMMON`)을 지난다 |
-| LLM | 이 코드 검사 단계에서는 사용하지 않음. 조건 추출·대상 선택·판정 이유 모두 정규식·파서·고정 템플릿. 기본 후속 단계는 모든 유효 질문에 대한 J1~J6 의미 평가(`code_eval/jev_eval.py`). 코드 FAIL 질문의 옛 LLM 재검토(`code_eval/llm_review.py`)는 별도 실행 |
+| LLM | 이 코드 검사 단계에서는 사용하지 않음. 조건 추출·대상 선택·판정 이유 모두 정규식·파서·고정 템플릿. 기본 후속 단계는 모든 유효 질문에 대한 J1~J6 의미 평가(`code_eval/jev_eval.py`; 방식은 `SEMANTIC_PIPELINE` legacy\|items, 호출은 `SEMANTIC_DISPATCH` realtime\|batch). 미판정 공통 조건을 LLM 에 묻던 C 보완은 v16.3.0 에서 제거(옛 결과의 `code_completion` 은 읽기 전용). 코드 FAIL 질문의 옛 LLM 재검토(`code_eval/llm_review.py`)는 별도 실행 |
 | 중복 | 같은 대상·조건·범위·정규화의 결과는 `dedupe_key` 로 한 번만 집계 (예: 질문의 금지 문자열과 AIONA 금지 목록이 같은 문자열·같은 표시본) |
 | 재현성 | `result_digest` 는 실행 시각·실행 ID·소요 시간을 뺀 결과 해시. 같은 입력·버전·설정이면 같다 (1,500건 재실행으로 확인) |
 
@@ -210,3 +210,36 @@ HTML 보고서와 CLI `single` 출력도 같은 설명을 쓴다.
 - 근거 위치는 원문 좌표를 유지한다(접힌 공백은 구간 첫 글자 위치). 금지 문자열의 중복 키(`forbidden_key`)는 접기 전 투영으로 계산해 AIONA 금지 표현과의 중복 집계가 바뀌지 않는다.
 - `정확히 포함해줘`·`그대로 넣어줘`·`정확히 "…"라고 써줘` 같은 질문은 이전에는 문자열 조건이 추출되지 않았으며, 이제 `exact` 조건으로 추출된다 (`v16-extract-1.8`).
 - 결과 기록: `2-1.literal` 규칙 버전 `v16-1.1`. 저장된 결과는 다시 계산하지 않는다.
+
+## 18. v16.3.0 공통 결과 행은 PASS/FAIL 뿐 (2026-10-13, 설계 2단계)
+
+판정에 '미검사' 를 두지 않기로 한 결정(설계안 v1.1)에 따라 상태 체계를 바꿨다. 공식 조건은 그대로이고 "판정할 수 없을 때 무엇을 남기나" 만 바뀐다.
+
+- 공통 검사는 PASS 또는 FAIL 행을 만들거나 행을 만들지 않는다. 근사 개수·읽을 수 없는 등식·원본 없음·구조 불확정처럼 코드가 판정할 수 없는 조건은 `meta.skipped_conditions` 에 사유만 남긴다 (집계·`result_digest` 제외).
+- 선행 검사가 FAIL 이면 딸린 검사 행을 만들지 않는다 (코드블록 없음 → 언어 표지·구획 수, JSON 구문 오류 → JSON 필드, 표 없음 → 열·행). 한 결함은 한 번만 FAIL 한다 (감사 G-6 의 이중 FAIL 제거).
+- 검사기 예외·크기 한도는 `case.errors` 에 질문 단위로 남긴다 (`case_status` 는 EVALUATED). 그런 질문은 결합 요약·비교 요약·보고서 KPI·화면 어디서도 PASS 로 세지 않고, 실시간 스트림과 상세 화면에 '검사 실행 오류' 로 보인다.
+- 공통 중복 행은 표시 대신 제거한다 (AIONA 특화 행의 DUPLICATE 표시는 유지). `model.ConditionResult` 는 PASS/FAIL 외의 공통 행을 거부한다.
+- C(LLM 보완) 기준 제거: 미판정 공통 조건을 의미 평가 호출에 C 기준으로 보내지 않고 `code_completion` 을 만들지 않는다. 저장된 옛 결과의 `code_completion` 은 `common_adjudication.resolved_case` 와 화면 투영이 읽기 전용으로만 쓴다.
+- 결과 기록: `versions.engine` = `aiona-code-eval-v16.3.0`. 저장된 결과는 다시 계산하지 않는다.
+- 회귀: 저장 입력 575 Q/A 에서 공통 결과 행 2,278 → 2,220(상태 정리) → 2,315(§19 PASS 증가), 미판정 58 → 0, 실행 오류 0, 보류 조건 58 → 5. 기존 테스트의 질문·답변에서 의도하지 않은 판정 변화 없음.
+
+## 19. 3-1 답변 등식 재계산 v16-1.4 (2026-10-13)
+
+줄 경계·괄호·TeX·단위·연결 어미·부정 범위를 오독해 생기던 거짓 FAIL 을 고쳤다. 공식 조건(답변 안 등식의 계산 정확성)은 그대로다.
+
+- 식은 줄을 넘어 다음 불릿까지 이어 읽지 않는다. `=` 로 시작하는 유도식 줄만 앞 식에 붙인다.
+- 끝 공백과 짝이 없는 바깥 괄호는 잘라 읽되 원문 좌표를 유지한다. TeX 구분자(`\(`·`$`)와 `\times`·`\cdot`·`\div` 는 제자리에서 연산자로 투영한다.
+- '1인당', '…이므로' 같은 연결 어미는 값을 막지 않는다. 연산자 앞 단위 목록은 `arith.MEASUREMENT_SUFFIXES` 를 따른다('자루' 추가, '월' 제외 — 달력의 달은 수량이 아님).
+- 명사 부정(아니라·아닙니다)은 같은 문장에서 바로 앞 식만 보류한다. '정답 아님:' 류 오답 예시는 계속 보류한다.
+- 불균형 조각·띄어쓴 한국어 수 단위('2 만')는 판정하거나 버리지 않고 보류 조건(`skipped_conditions`)으로 남긴다. CRLF·NBSP 는 가로 공백이다.
+- 결과 기록: `3-1.answer_equation` 규칙 버전 `v16-1.4`. 저장 입력 575 Q/A 에서 PASS 230 → 333, FAIL 6 → 2(제거된 4건은 줄바꿈 오독), 잃은 PASS 없음, 보류 33 → 5.
+- 회귀 검증: `tests/test_code_eval_refinement.py`·`tests/test_code_eval_engine.py` 의 3-1 등식 사례.
+
+## 20. 3-3·2-2 조건 추출 정리 (2026-10-13)
+
+질문이 요구하지 않은 변환·고유값·집계·목록 조건이 만들어지던 것을 정리했다. 공식 조건은 그대로이고 추출 범위만 좁힌다.
+
+- 코드·함수 작성 질문(조사 변형 포함. '작성하지 말고'·'작성 없이' 같은 면제 꼬리는 제외)은 3-3 변환·고유값·집계 조건을 만들지 않는다.
+- 원본 없음·원본 후보 여러 개·결과 구조 불확정이면 조건을 만들지 않는다. 형식 변환 요구 조건은 삭제했다. 마크다운 금지와 충돌하면 2-2 목록 조건을 만들지 않는다.
+- 결과 기록: `2-2.list` `v16-1.3`, `3-3.transform` `v17-1.4`, `3-3.unique_values`·`3-3.aggregate` `v16-1.2`, `versions.extract` `v16-extract-1.9`. 저장 입력 575 Q/A 기준 미판정 0·실행 오류 0·보류 조건 5(3-1 등식만).
+- 열린 항목: 줄 수·문장 수 범위 정의(G-2)는 공식 정의 변경 승인 대상이라 그대로다. 이전 턴 형식 지시의 코드 승계(G-3)는 채택했으나 구현 단계는 미정이다.

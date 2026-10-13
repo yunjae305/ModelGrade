@@ -107,3 +107,36 @@
 | Codex native 실행, 모델 `gpt-6.1-sol`·추론 `high` 고정, CLI 로그인 검사 | `code_eval/codex_cli_client.py`, `code_eval/jev_client.py`, `.env`, `.env.example` | `tests/test_codex_cli_client.py` |
 | CLI 공통 J 기준·원문 프롬프트·JSON Schema·확신도 변환 | `code_eval/semantic_cli_common.py`, `code_eval/claude_cli_client.py` | `tests/test_codex_cli_client.py`, `tests/test_jev_eval.py`, `tests/test_full_history_original_text.py` |
 | `codex-cli`·`gpt-cli` 선택, 엔진·모델·추론 수준 표시 및 자기 확신도 안내 | `code_eval/__main__.py`, `code_eval/jev_eval.py`, `code_eval/report_html.py`, `frontend/src/code-eval.js`, `frontend/src/workspace.js` | `tests/test_codex_cli_client.py`, `tests/workspace_ui_smoke.py`, `tests/workspace_live_ui_smoke.py` |
+
+## 10. v16.3.0 PASS·FAIL 고정·3-1·3-3 정리 (2026-10-13, 설계 2단계)
+
+| 대상 | 구현 | 검증 |
+|---|---|---|
+| 공통 행 PASS/FAIL 뿐, 보류 조건 `meta.skipped_conditions`, 검사기 오류 `case.errors`, 딸린 검사 행 미생성, C 보완 제거 | `code_eval/model.py`(`ConditionResult`), `engine.py`, `checks_*.py`, `common_adjudication.py`(옛 `code_completion` 읽기 전용), `combined.py`, `report_html.py`, `webapp/evaluation_events.py` | `tests/test_code_eval_engine.py`, `tests/test_common_adjudication.py`, `tests/test_semantic_no_completion.py` |
+| 3-1 답변 등식 v16-1.4 | `arith.py`(`MEASUREMENT_SUFFIXES`), `checks_consistency._find_chains`·`_answer_equations` | `tests/test_code_eval_refinement.py` |
+| 3-3·2-2 조건 추출 정리 | `extract._transform_reqs`·`_source_data`, `checks_consistency` 3-3 | `tests/test_code_eval_refinement.py` |
+| 2-1.literal 공백 접기 | `extract._literal_reqs`, `checks_requirements` | `tests/test_code_eval_v16.py` |
+
+## 11. 의미 평가 항목별 파이프라인 (2026-10-13, 설계 3단계)
+
+| 대상 | 구현 (`code_eval/`) | 검증 (`tests/`) |
+|---|---|---|
+| 설정 `SEMANTIC_PIPELINE` legacy\|items | `jev_client.resolve_semantic_pipeline`, `semantic_setup` | `test_semantic_setup.py`, `conftest.py`(테스트는 legacy 고정) |
+| 기준표(세부 25·항목 39·펼치기·누락형·'판정하는 곳'·reason_code) | `semantic_items.py` | `test_semantic_items.py` |
+| 적용 규칙(세부 기준별, J5 는 질문 유형) | `jev_applicability.sub_applicability`·`j5_items_applicability` | `test_semantic_items.py`, `test_j5_items_applicability.py` |
+| 프롬프트·평평한 strict 스키마·transport 공통 헬퍼 | `semantic_items_prompt.py`, `semantic_cli_common.py`(`is_items`·`strip_search_items`·`validate_items_shape`) | `test_semantic_items_prompt.py` |
+| transport 4종의 items 분기(검색 꺼짐 J5-1.a 미전송, J5 서버 검증) | `anthropic_semantic_client.py`, `semantic_api_client.py`, `claude_cli_client.py`, `codex_cli_client.py` | `test_semantic_items_transports.py` |
+| 인용 검증·재확인(≤3)·확인 불가·모델 간 요소 대조 | `semantic_quotes.py` | `test_semantic_quotes.py` |
+| J5 주장별 서버 검증(반박 출처 대조·값 대조·링크 존재)·legacy 투영 | `semantic_facts.py` | `test_semantic_facts.py` |
+| 집계(파싱 → 규칙 → 세부 → 기준, 충족률) | `semantic_items_eval.py` | `test_semantic_items_eval.py` |
+| jev_eval 통합(요청 조립·재확인 콜백·레코드·요약) | `jev_eval.py`(`jev_request`·`_items_record`·`summarize_records`) | `test_jev_eval_items.py` |
+| webapp 실시간 반영(문맥·SSE·프로필·registry·결과 화면 subs)·요소 합집합 | `webapp/comparison_service.py`, `code_eval_service.py`, `evaluation_events.py`, `version_registry.py`, `semantic_union.py`, `criteria_registry.py`, `frontend/src/workspace-results.js`·`evaluation-stream.js`·`version-comparison.js` | `test_items_webapp.py`, `workspace_results_test.js`, `evaluation_stream_test.js`, `version_comparison_test.js` |
+
+## 12. Message Batches 호출·버전 비교·이력 (2026-10-13, 설계 3c·3d)
+
+| 대상 | 구현 | 검증 |
+|---|---|---|
+| Claude 클라이언트 분리(`build_request`·`_consume`·`finish_batch_result`), 설정 `SEMANTIC_DISPATCH` | `code_eval/anthropic_semantic_client.py`, `jev_client.py`, `semantic_setup.py` | `tests/test_anthropic_semantic_client.py`, `test_jev_batch.py` |
+| Batches HTTP 클라이언트·디스패처(pilot → 묶음 → 폴링 → 재전송 → 취소 → 이어받기) | `code_eval/anthropic_batch_client.py`, `jev_batch.py`, `jev_eval._prepare_batch`·`_finish_batch` | `tests/test_jev_batch.py` |
+| webapp 묶음 ID 저장·진행·이어받기·화면 | `webapp/comparison_service.py`, `frontend/src/workspace.js`, `workspace.html` | `tests/test_batch_webapp.py` |
+| 버전 비교(조건 차이·질문→기준→세부→항목·코드 조건·대화 단위 부호검정·꼬리)·실행 요약·조건 변경 이벤트·기준 CHANGELOG·API·화면 | `webapp/version_comparison.py`, `run_summary.py`, `comparison_service.version_comparison`·`_queue_condition_changes`, `server.py`, `code_eval/criteria_registry.CHANGELOG`, `frontend/src/version-workspace.js` | `tests/test_version_comparison_server.py` |
