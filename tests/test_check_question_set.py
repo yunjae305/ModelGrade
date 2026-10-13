@@ -78,3 +78,11 @@ def test_min_applicable_option_changes_only_the_target_count(tmp_path, capsys):
     assert cli["min_applicable"] == 5 and cli["criteria"]["CODE 1"]["enough"] is True
     assert check_items(singles, pipeline="items")["min_applicable"] == 30   # 기본은 잠정 운영 기준 30 그대로
 
+
+
+def test_precheck_counts_j8_for_questions_with_attachments_like_the_evaluation():
+    """3차 재현 — 사전 점검이 J8 적용 판정에 첨부를 넘기지 못해 첨부 질문도 J8 0개로 셌다."""
+    attached = [{"question": "첨부한 견적서의 합계를 알려줘.", "attachments": [{"name": "견적서.txt", "type": "txt", "content": "합계 1,250,000원"}]},
+                {"question": "서울의 인구를 알려줘."}]
+    for pipeline in ("legacy", "items"):
+        assert check_items(attached, pipeline=pipeline)["criteria"]["J8"]["applicable_units"] == 1

@@ -147,6 +147,8 @@ def check_items(items: List[Any], pipeline: Optional[str] = None, minimum: int =
         case = {"index": index + 1, "case_id": str(item.get("case_id") or item.get("id") or f"Q{index + 1:03d}"),
                 "question": question, "answer": answer, "reference": item.get("reference"), "attachments": item.get("attachments"),
                 "type": next((str(item[f]) for f in _TYPE_FIELDS if item.get(f) not in (None, "")), None)}
+        if item.get("attachments") not in (None, []):   # J8 적용 판정·CODE 입력 검사가 평가와 같게 첨부를 본다 (10-14 3차)
+            case["attachments"] = item["attachments"]
         if conversation:
             case["conversation_id"], case["turn"] = conversation["id"], conversation["turn"]
         cases.append(case)
