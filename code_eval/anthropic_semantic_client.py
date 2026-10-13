@@ -129,7 +129,7 @@ class AnthropicSemanticConfig:
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
                 "dispatch": self.dispatch,
                 **({"batch_questions": self.batch_questions, "batch_poll_seconds": self.batch_poll_seconds} if self.dispatch == "batch" else {}),
-                "prompt_cache_policy": "static_prefix_ephemeral_5m" if self.prompt_cache else "disabled",
+                "prompt_cache_policy": "static_prefix_ephemeral_5m_items_search_only" if self.prompt_cache else "disabled",
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
                 "confidence_note": "모델이 스스로 적은 확신도 — 보정된 확률 아님"}
@@ -423,7 +423,9 @@ class AnthropicSemanticClient:
                           "citations": {"enabled": True}}]
         static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
         content = static + "\n" + dynamic
-        if self.config.prompt_cache:
+        # items 는 질문마다 앞부분(항목 목록·적용 근거·제출 스키마)이 달라 질문끼리 캐시를 나눠 쓰지 못한다 — 검색 도구가 붙어
+        # 같은 요청 안의 검색 반복 입력을 캐시로 읽을 때만 표시한다(검색 없는 요청은 저장 비용만 든다). legacy 는 기준 조합별로 공유된다.
+        if self.config.prompt_cache and (search_enabled or not items_mode):
             # Same text, split at the end of the reusable instructions. The marker caches
             # tools + system + static rules; the timestamp and evaluation data follow it.
             # With caching on, server tools also cache their results between iterations.
@@ -640,11 +642,12 @@ class AnthropicSemanticClient:
         except (ValueError, TypeError, UnicodeError):
             return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
 
-    def finish_batch_result(self, raw, context, *, payload=None, cancel_event=None):
+    def finish_batch_result(self, raw, context, *, payload=None, cancel_event=None, carry=None):
         """Message Batches 결과 메시지 하나 → JevCall. pause_turn(검색 이어가기가 필요) 이면 None — 디스패처가 실시간으로 다시 보낸다.
 
         ``raw`` 는 결과 줄의 ``result.message`` (Messages 응답과 같은 모양). 검색·원문 확인은 Batches 안에서도 서버 도구로 실행되므로
         결과 블록을 실시간과 같은 규칙으로 읽고, 반박 출처 원문 대조·J5 서버 검증은 여기서(디스패처 프로세스에서) 한다.
+        ``carry`` (list) 를 주면 None 을 돌려줄 때 이 묶음 요청의 사용량 조각을 담는다 — 실시간 재전송 레코드에 더하라고.
         """
         session = self._session(context)
         result = session["result"]
@@ -655,4 +658,6 @@ class AnthropicSemanticClient:
             return result(JevStatus.SKIPPED, error="평가 중단 요청으로 Claude API 평가를 종료했습니다.")
         except (ValueError, TypeError, UnicodeError):
             return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
+        if outcome != "done" and isinstance(carry, list):
+            carry.extend(copy.deepcopy(session["parts"]))
         return call if outcome == "done" else None

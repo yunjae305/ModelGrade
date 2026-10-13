@@ -8,7 +8,6 @@ import pytest
 from code_eval.engine import evaluate_case
 from code_eval.semantic_policy import DECISION_POLICY, FINAL_DECISION_POLICY_VERSION
 from tools import apply_source_failure_policy as migration
-from webapp.activity_store import ActivityStore
 from test_source_failure_migration import RUN_ID, files, make_run
 
 
@@ -99,8 +98,7 @@ def test_final_apply_keeps_prior_fail_and_source_audit_progress_is_current_and_i
             assert batch['jev_eval']['status'] == 'SUCCESS' and batch['jev_eval']['unverified'] == 0
         else:
             assert batch == old
-    events = ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events()['events']
-    assert [e['event_type'] for e in events].count('evaluation_policy_applied') == 2
+    assert len(current['evaluation_policy_updates']) == 2 and current['evaluation_policy_updates'][-1]['update_id'] == report['update_id']
     snapshot = files(tmp_path)
     assert migration.migrate(tmp_path, RUN_ID, policy='final', apply=True)['status'] == 'NO_CHANGES'
     assert files(tmp_path) == snapshot
@@ -116,20 +114,23 @@ def test_changed_quote_cannot_be_restored_to_pass_and_finishes_as_evidence_fail(
     assert j5['decision_policy']['factual_error_confirmed'] is False
 
 
-def test_final_sqlite_failure_rolls_back_already_policy_updated_run(tmp_path, monkeypatch):
+def test_final_replacement_failure_rolls_back_already_policy_updated_files(tmp_path, monkeypatch):
     path, _ = binary_fixture(tmp_path)
     before = files(tmp_path)
-    previous = ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events()
-    def fail(*args):
-        raise sqlite3.OperationalError('fixture failure')
-    monkeypatch.setattr(ActivityStore, 'insert', fail)
-    with pytest.raises(sqlite3.Error):
+    original_replace, replaced = migration._replace_file, []
+    def fail_after_first(source, target):
+        if replaced:   # 첫 파일은 바뀐 뒤, 두 번째 교체에서 실패 — 이미 바꾼 파일도 원래 바이트로 돌아와야 한다
+            raise OSError('fixture replacement failure')
+        original_replace(source, target)
+        replaced.append(target)
+    monkeypatch.setattr(migration, '_replace_file', fail_after_first)
+    with pytest.raises(OSError):
         migration.migrate(tmp_path, RUN_ID, policy='final', apply=True)
-    assert path.read_bytes() == before[path.relative_to(tmp_path).as_posix()]
+    monkeypatch.setattr(migration, '_replace_file', original_replace)
+    assert replaced and path.read_bytes() == before[path.relative_to(tmp_path).as_posix()]
     for provider in ('aiona', 'claude'):
         linked = json.loads(path.read_bytes())['evaluations'][provider]['run']['saved_to']
         assert (tmp_path / linked).read_bytes() == before[linked]
-    assert ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events() == previous
 
 
 def test_evaluation_state_preserves_original_full_history_and_reference(tmp_path):

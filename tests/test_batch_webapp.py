@@ -55,7 +55,7 @@ def test_batch_dispatch_run_records_batches_progress_and_results(tmp_path):
     assert set(execution['batches']) == {'aiona', 'gpt'}
     for provider in ('aiona', 'gpt'):
         saved = execution['batches'][provider]
-        assert [sorted(b['custom_ids']) for b in saved] == [[f'{rid}:{provider}:0'], [f'{rid}:{provider}:1']]   # pilot 1 + 묶음 1
+        assert [sorted(b['custom_ids']) for b in saved] == [[f'{rid}_{provider}_0'], [f'{rid}_{provider}_1']]   # pilot 1 + 묶음 1
         assert all(b['status'] == 'ended' and b['id'].startswith('msgbatch_') for b in saved)
         jev = final['evaluations'][provider]['jev_eval']
         assert jev['dispatch'] == 'batch' and [r['status'] for r in jev['records']] == ['SUCCESS', 'SUCCESS']

@@ -1,7 +1,7 @@
 """Apply a final decision policy to one saved completed comparison.
 
 Default operation is a read-only dry run. ``--apply`` retains exact-byte backups,
-updates linked evaluation files and appends one durable policy activity event.
+updates linked evaluation files and records the policy update in the run (evaluation_policy_updates).
 This never calls a judge, collects answers, or refreshes a running server cache.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ from code_eval.semantic_policy import (
     SOURCE_ORIGINAL_FAILURE_POLICY_VERSION,
     apply_source_original_failure_policy,
 )
-from webapp.activity_store import ActivityStore, event_record
+from webapp.registry_store import RegistryStore
 from webapp.version_registry import evaluation_profile
 
 
@@ -219,22 +219,12 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
                             'before_sha256': _hash(original_body), 'after_sha256': _hash(original_body)}]
         return report
 
-    event = event_record('evaluation_policy_applied',
-        key=f'{run_id}:{policy_version}', timestamp=timestamp, actor='local',
-        model_version=(changed.get('aiona_release') or {}).get('version'), run_id=run_id,
-        before={'policy': (original.get('evaluation_profile') or {}).get('fields', {}).get('decision_policy'),
-                'evaluation_summary': before},
-        after={'policy': policy_version, 'evaluation_summary': after,
-               'changed_records': [{key: item[key] for key in ('provider', 'case_id', 'criterion', 'before', 'after')}
-                                   for item in modifications]},
-        reason=policy_reason)
-    outbox = changed.setdefault('_activity_outbox', [])
-    if any(item.get('event_id') == event['event_id'] for item in outbox):
-        raise ValueError('같은 정책 적용 이력이 있지만 보류 판정이 남아 있습니다. 기록을 확인해 주세요.')
-    outbox.append(event)
+    update_id = hashlib.sha256(f'aiona-policy:{run_id}:{policy_version}'.encode('utf-8')).hexdigest()[:32]
+    if any(item.get('policy_version') == policy_version for item in changed.get('evaluation_policy_updates') or []):
+        raise ValueError('같은 정책 적용 기록이 있지만 보류 판정이 남아 있습니다. 기록을 확인해 주세요.')
     changed.setdefault('evaluation_policy_updates', []).append({
-        'policy_version': policy_version, 'applied_at': timestamp,
-        'event_id': event['event_id'], 'actor': 'local', 'changed_records': len(modifications),
+        'policy_version': policy_version, 'applied_at': timestamp, 'update_id': update_id, 'reason': policy_reason,
+        'actor': 'local', 'changed_records': len(modifications),
         'before': before, 'after': after,
         'original_evaluation_profile': copy.deepcopy(original.get('evaluation_profile')),
         'original_evaluation_progress': copy.deepcopy(original.get('evaluation_progress'))})
@@ -243,7 +233,7 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
         changed['evaluation_profile'] = evaluation_profile(changed)
     changed['revision'] = changed.get('revision', 0) + 1
     replacements[comparison_path] = _encode(changed)
-    report['event_id'] = event['event_id']
+    report['update_id'] = update_id
     report['files'] = [{'path': path.relative_to(root).as_posix(),
                        'before_sha256': _hash(originals[path]), 'after_sha256': _hash(body)}
                       for path, body in replacements.items()]
@@ -261,7 +251,8 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
     audit_path = backup_root / 'audit.json'
     report['status'] = 'PREPARED'
     _write_atomic(audit_path, _encode(report))
-    store = ActivityStore(root / 'data' / 'aiona_versions.sqlite3')
+    # 버전 목록 DB 의 쓰기 잠금으로 서버의 저장과 겹치지 않게 파일을 바꾼다 (기록은 실행 JSON 의 evaluation_policy_updates)
+    store = RegistryStore(root / 'data' / 'aiona_versions.sqlite3')
     replaced = []
     try:
         with store.connect() as db:
@@ -272,7 +263,6 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
             for path, body in replacements.items():
                 _write_atomic(path, body)
                 replaced.append(path)
-            ActivityStore.insert(db, [event])
     except Exception:
         restore_errors = []
         for path in reversed(replaced):

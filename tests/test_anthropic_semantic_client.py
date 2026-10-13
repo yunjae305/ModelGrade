@@ -91,6 +91,10 @@ def test_prompt_cache_marks_only_the_reusable_instructions_and_keeps_the_text():
     body=json.loads(sent[0].content)
     assert isinstance(body['messages'][0]['content'],str) and 'cache_control' not in json.dumps(body)
     assert AnthropicSemanticConfig(prompt_cache=False).to_manifest()['prompt_cache_policy']=='disabled'
+    assert AnthropicSemanticConfig().to_manifest()['prompt_cache_policy']=='static_prefix_ephemeral_5m_items_search_only'
+    # legacy 는 검색이 없어도 기준 조합별로 질문끼리 앞부분을 나눠 쓰므로 캐시 표시를 유지한다
+    _,sent=call(response(entries('J1')),config=AnthropicSemanticConfig(web_search='disabled'))
+    assert [('cache_control' in block) for block in json.loads(sent[0].content)['messages'][0]['content']]==[True,False]
     assert prompt_cache_setting(None) is True and prompt_cache_setting(' OFF ') is False
     with pytest.raises(ValueError):
         prompt_cache_setting('sometimes')

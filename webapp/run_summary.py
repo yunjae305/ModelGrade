@@ -83,10 +83,17 @@ def _criteria_rates(batch: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(part.get("fulfillment"), dict):
             entry["fulfillment"] = part["fulfillment"].get("rate")
         criteria[cid] = entry
+    from code_eval.common_adjudication import resolved_case
     code: Dict[str, Dict[str, int]] = {}
-    for case in batch.get("cases") or []:
+    records = jev.get("records") or []
+    for index, case in enumerate(batch.get("cases") or []):
         if not isinstance(case, dict) or case.get("case_status") != "EVALUATED":
             continue
+        record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
+        try:
+            case = resolved_case(case, record)   # 예전 실행의 보완 판정(code_completion)도 질문 판정과 같게 반영
+        except (KeyError, TypeError, IndexError):
+            pass
         for row in case.get("results") or []:
             if row.get("area") != "common" or not row.get("counted") or row.get("verdict") not in ("PASS", "FAIL"):
                 continue

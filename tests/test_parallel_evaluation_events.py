@@ -84,7 +84,7 @@ def test_all_providers_collect_and_all_four_models_evaluate_concurrently(tmp_pat
     log = final['evaluation_log']
     assert log['done'] == log['total'] == 12 and len(log['rows']) == 12
     assert log['unjudged'] == 0 and log['status'] == 'COMPLETED'
-    assert {r['model'] for r in log['rows'].values()} == {'모델 A', '모델 B', '모델 C', '모델 D'}
+    assert {r['model'] for r in log['rows'].values()} == {'AIONA', 'GPT', 'Claude', 'Gemini'}   # 화면용 기록은 실제 모델명 (블라인드는 평가 요청에만)
     assert 'secret-model' not in json.dumps(log) and 'fixture-key' not in json.dumps(log)
     assert 'evaluation_log' not in service.status(rid)
     assert final['collection_completed_at'] <= final['blind']['applied_at']

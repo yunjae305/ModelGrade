@@ -43,7 +43,7 @@
   </svg>
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
   <aside class="sidebar">
-    <a class="brand" href="/workspace.html" aria-label="AIONA 워크스페이스 홈"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#i-logo"/></svg></span><span>AIONA<span class="brand-sub">모델 평가 워크스페이스</span></span></a>
+    <a class="brand" href="/workspace.html" aria-label="AIONA 워크스페이스 홈"><span class="brand-mark logo" aria-hidden="true"><img src="/assets/aiona-logo.png" alt=""></span><span>AIONA<span class="brand-sub">모델 평가 워크스페이스</span></span></a>
     <div class="nav-label">평가 워크스페이스</div>
     <nav aria-label="주 메뉴">
       <button class="nav-item active" data-view="setup" aria-current="page"><svg class="icon"><use href="#i-grid"/></svg>새 비교<span class="nav-plus">+</span></button>
@@ -128,8 +128,7 @@ A: 이어지는 답변</pre><p>회차 제목이 있으면 같은 회차 안에�
           </section>
           <div class="result-legend" aria-label="질문별 결과 안내"><span class="legend-item issue"><svg class="icon"><use href="#i-close"/></svg><strong>FAIL · 문제 발견</strong></span><span class="legend-item clear"><svg class="icon"><use href="#i-check"/></svg><strong>PASS · 확인된 문제 없음</strong></span><span class="legend-item pending"><svg class="icon"><use href="#i-clock"/></svg><strong>평가 미완료</strong></span></div>
           <section class="blind-banner" id="blind-banner" aria-label="블라인드 평가 안내" hidden>
-            <div><strong id="blind-status"></strong><p>모델 식별 정보는 가리고, 답변 원문은 그대로 평가합니다.</p></div>
-            <button type="button" class="button secondary" id="reveal-models" disabled>평가 완료 시 모델명 자동 공개</button>
+            <div><strong id="blind-status"></strong><p>평가 모델(LLM)에는 모델명·공급자 정보를 보내지 않고 질문·답변 원문만 보내며, 평가 순서도 섞습니다. 화면에는 실제 모델을 표시합니다.</p></div>
           </section>
           <div id="result-models" class="result-model-grid"></div>
           <section class="panel criteria-panel" aria-labelledby="criteria-title">

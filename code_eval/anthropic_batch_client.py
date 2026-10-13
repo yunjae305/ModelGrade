@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
@@ -22,6 +23,8 @@ __all__ = ["BatchApiError", "AnthropicBatchClient", "BATCH_STATUSES", "RESULT_TY
 BATCH_STATUSES = ("in_progress", "canceling", "ended")
 RESULT_TYPES = ("succeeded", "errored", "canceled", "expired")
 _HEADERS_VERSION = "2023-06-01"
+#: Batches API 의 custom_id 규격 — 영문·숫자·_·- 1~64자, 묶음 안에서 유일
+CUSTOM_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 class BatchApiError(RuntimeError):
@@ -84,6 +87,9 @@ class AnthropicBatchClient:
         for entry in requests:
             if not isinstance(entry, dict) or not isinstance(entry.get("custom_id"), str) or not isinstance(entry.get("params"), dict):
                 raise ValueError("묶음 요청은 {custom_id, params} 여야 합니다.")
+        ids = [entry["custom_id"] for entry in requests]
+        if not all(CUSTOM_ID.fullmatch(custom_id) for custom_id in ids) or len(set(ids)) != len(ids):
+            raise ValueError("custom_id 는 영문·숫자·_·- 1~64자이고 묶음 안에서 겹치지 않아야 합니다.")
         payload = {"requests": [{"custom_id": e["custom_id"], "params": e["params"]} for e in requests]}
         validate_json_numbers(payload)
         return self.summary(self._json(self._request("POST", "messages/batches", payload=payload), "create"))

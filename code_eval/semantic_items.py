@@ -71,6 +71,7 @@ class SemanticItem:
     origin: str = "question"        # question | answer — answer 는 답변을 보고 생긴 항목(충족률 분모 제외)
     always: bool = False            # 코드 규칙 없이 항상 보냄
     model_applies: bool = False     # 적용 여부를 평가 모델이 정함 — NOT_APPLICABLE 허용을 지시문에 명시
+    element_na: bool = False        # 항목 적용은 코드 규칙이 정하되, 펼친 요소마다 해당 없음이 정의에 있음 (J5-2.a '쓰지 않은 값')
     fact_block: bool = False        # J5-1.a 만 — 응답에 fact 블록(claim·verdict·correct·sources) 필요
     examples: Tuple[Example, ...] = ()
 
@@ -88,7 +89,7 @@ class SemanticItem:
             "type": "item", "criterion": self.criterion, "sub": self.sub, "question": self.question,
             "applies": self.applies, "evidence": self.evidence, "expand": self.expand,
             "expand_limit": self.expand_limit if self.expand else None, "missing_type": self.missing_type,
-            "origin": self.origin, "model_applies": self.model_applies, "fact_block": self.fact_block,
+            "origin": self.origin, "model_applies": self.model_applies, "element_na": self.element_na, "fact_block": self.fact_block,
             "examples": [ex.to_dict() for ex in self.examples],
             "rules": list(found.get("rules") or []), "matches": list(found.get("matches") or []),
             "excerpt": found.get("excerpt"), "source": found.get("source") or self.origin,
@@ -574,7 +575,7 @@ ITEMS: Tuple[SemanticItem, ...] = (
                "일정에 변동이 있으면 회신 부탁드립니다.",
                "질문이 준 장소 '제2물류센터'를 '제1물류센터'로 바꿔 썼음. 메일 구성 요소와 요청 사항은 다 있어 J1·J4는 통과하고 이 값 하나만 아니오.",
                "평택 제1물류센터")),
-          expand="값별"),
+          expand="값별", element_na=True),
     _item("J5-2.b", "J5-2",
           "질문이 준 자료를 정리·요약할 때 원문에 없는 문장을 더하거나 문장 단위 의미를 바꾸지(취소→연기 등) 않았는가 (개별 값 오기는 J5-2.a)",
           "자료 정리·요약 요청", "자료 원문, 답변 인용",

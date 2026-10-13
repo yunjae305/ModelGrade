@@ -38,18 +38,20 @@
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
     use.setAttribute('href', '#i-' + name); svg.append(use); return svg;
   }
-  const avatar = (p) => node('span', {class: 'model-avatar ' + p, 'aria-hidden': 'true', text: marks[p]});
+  // 모델 로고 (frontend/assets). 블라인드 중에는 resultAvatar 가 A·B·C·D 표시를 대신 그려 로고로 정체가 드러나지 않는다.
+  const logos = {aiona: '/assets/aiona-logo.png', gpt: '/assets/gpt-logo.svg', claude: '/assets/claude-logo.svg', gemini: '/assets/gemini-logo.webp'};
+  const avatar = (p) => logos[p] ? node('span', {class: 'model-avatar has-logo ' + p, 'aria-hidden': 'true'}, node('img', {src: logos[p], alt: ''}))
+    : node('span', {class: 'model-avatar ' + p, 'aria-hidden': 'true', text: marks[p]});
   const pill = (text, kind = 'neutral') => node('span', {class: 'pill ' + kind, text});
   const number = (n) => Number(n || 0).toLocaleString('ko-KR');
   const percent = (rate) => rate === null || rate === undefined ? '—' : (rate * 100).toFixed(1) + '%';
   const blind = () => Boolean(state.run?.blind?.enabled);
-  const resultProviders = () => blind() ? state.run.blind.order : state.run.providers;
-  const modelsHidden = () => blind() && state.run.status !== 'COMPLETED';
-  const modelName = (p) => modelsHidden() ? state.run.blind.labels[p] : names[p];
+  // 블라인드는 평가 모델에 보내는 내부 처리에만 쓴다 — 화면은 처음부터 실제 모델명·로고·순서로 보여 준다
+  const resultProviders = () => state.run.providers;
+  const modelName = (p) => names[p];
   const modelId = (run, p) => p === 'aiona' && run.aiona_release?.version ? 'AIONA ' + run.aiona_release.version : run.models?.[p] || names[p];
   const statusLabel = (run) => run.status === 'CANCELLED' && run.phase === 'EVALUATE' ? '평가 중단' : statusLabels[run.status] || run.status;
-  const resultAvatar = (p) => modelsHidden() ? node('span', {class: 'model-avatar blind-avatar slot-' + resultProviders().indexOf(p),
-    'aria-hidden': 'true', text: state.run.blind.labels[p].slice(-1)}) : avatar(p);
+  const resultAvatar = avatar;
   function announce(message) {
     $('toast').querySelector('span').textContent = message; $('toast').hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4000);
@@ -491,13 +493,13 @@
   }
   function renderResult() {
     const run = state.run;
-    const blindChanged = $('result-models').dataset.blind !== String(modelsHidden());
     const focusKey = document.activeElement?.dataset.focusKey;
     renderRecentResult();
     $('result-empty').hidden = Boolean(run); $('result-content').hidden = !run;
     $('export-all').hidden = !run; $('refresh-results').hidden = !run;
     if (!run) return;
-    evalProgress.setModelLabels(blind() && !modelsHidden() ? Object.fromEntries(run.providers.map((p) => [run.blind.labels[p], names[p]])) : {});
+    // 예전 실행의 실시간 기록은 '모델 A~D' 별칭으로 남아 있을 수 있어 실제 이름으로 바꿔 보여 준다
+    evalProgress.setModelLabels(blind() ? Object.fromEntries(run.providers.map((p) => [run.blind.labels[p], names[p]])) : {});
     if (eventStreaming && (run.phase === 'EVALUATE' || run.evaluation_log)) {
       evalProgress.connect(`/api/comparison/runs/${run.run_id}/events`, `${run.run_id}:${run.eval_started_at || ''}`);
     } else { evalProgress.disconnect(); $('evaluation-ticker').hidden = true; }
@@ -548,7 +550,6 @@
     $('result-warning').hidden = !warnings.length; $('result-warning').textContent = warnings.join(' ');
     renderBlindStatus();
     $('result-models').dataset.count = providers.length;
-    $('result-models').dataset.blind = String(modelsHidden());
     $('result-models').replaceChildren(...providers.map((p) => modelResultCard(p)));
     updateLiveClock();
     renderCriteriaComparison(providers);
@@ -561,10 +562,7 @@
     if (focusKey) document.querySelectorAll('[data-focus-key]').forEach((element) => {
       if (element.dataset.focusKey === focusKey) element.focus({preventScroll: true});
     });
-    if ($('answer-dialog').open && state.modalSource === 'result') {
-      if (blindChanged) openAnswer(state.modalCase, 'result', state.modalModel);
-      else renderAnswer();
-    }
+    if ($('answer-dialog').open && state.modalSource === 'result') renderAnswer();
   }
   function renderFinalSummary() {
     const run = state.result, visible = Boolean(run && ['COMPLETED', 'ERROR', 'CANCELLED'].includes(run.status));
@@ -605,7 +603,7 @@
       scoreFill.style.width = `${ready ? model.score : 0}%`;
       const item = node('li', {class: 'summary-score-card' + (model.rank === 1 ? ' is-leading' : ''), 'data-summary-provider': p},
         node('div', {class: 'summary-score-heading'}, node('span', {class: 'summary-rank', text: rank}), resultAvatar(p), node('h3', {text: modelName(p)})),
-        node('p', {class: 'summary-model-id', text: modelsHidden() ? '모델 정보 비공개' : modelId(run, p)}),
+        node('p', {class: 'summary-model-id', text: modelId(run, p)}),
         node('div', {class: 'summary-score'}, node('strong', {text: ready ? score(model.score) : '—'}), node('span', {text: ready ? '/ 100점' : '점수 미확정'})),
         node('div', {class: 'summary-score-track', 'aria-hidden': 'true'}, scoreFill),
         node('p', {class: 'summary-score-counts', text: `PASS ${number(model.counts.clear)} · FAIL ${number(model.counts.issue)}${model.incomplete ? ' · 미완료 ' + number(model.incomplete) : ''}`}),
@@ -649,7 +647,7 @@
       const rank = !final.ready ? '점수 미확정' : single ? '질문 통과점수' : `${m.tied ? '공동 ' : ''}${m.rank}위`;
       return node('li', {class: 'benchmark-row' + (final.ready && !single && m.rank === 1 ? ' is-leading' : '')},
         node('div', {class: 'benchmark-model'}, resultAvatar(p), node('div', {}, node('strong', {text: modelName(p)}),
-          node('span', {text: modelsHidden() ? '모델 정보 비공개' : modelId(state.run, p)}))),
+          node('span', {text: modelId(state.run, p)}))),
         node('div', {class: 'benchmark-track'}, bar, node('p', {class: 'benchmark-counts', text: counts})),
         node('div', {class: 'benchmark-score'}, node('strong', {text: final.ready ? m.score.toFixed(1) : '—'}), node('span', {text: rank})));
     }));
@@ -691,12 +689,7 @@
   function renderBlindStatus() {
     $('blind-banner').hidden = !blind();
     if (!blind()) return;
-    const aliases = resultProviders().map((p) => state.run.blind.labels[p].slice(-1)).join('·');
-    $('blind-status').textContent = modelsHidden() ? '블라인드 평가 · 모델 ' + aliases + ' 무작위 배정' :
-      (results.runSummary(state.result).allComplete ? '평가 완료' : '평가 작업 종료') + ' · 실제 모델명 공개';
-    $('reveal-models').hidden = !modelsHidden();
-    $('reveal-models').disabled = true;
-    $('reveal-models').textContent = '평가 완료 시 모델명 자동 공개';
+    $('blind-status').textContent = '블라인드 평가 · 평가 모델에는 모델 이름 없이 보냅니다';
   }
   function renderCriteriaComparison(providers) {
     $('criteria-head').replaceChildren(node('tr', {}, node('th', {scope: 'col', text: '평가 기준'}),
@@ -798,7 +791,7 @@
       node('div', {class: 'result-card-heading'}, resultAvatar(p), node('strong', {text: modelName(p)}),
         pill(collectionLabel || (live ? evaluationStageLabels[live.stage] : summary.text),
           collectionLabel ? isCollecting ? 'purple' : 'neutral' : live ? 'purple' : summary.kind)),
-      node('div', {class: 'result-model-id', text: modelsHidden() ? '모델 정보 비공개' : modelId(run, p)}),
+      node('div', {class: 'result-model-id', text: modelId(run, p)}),
       node('div', {class: 'result-metric'}, node('strong', {text: number(metric)}),
         node('span', {text: '/ ' + number(run.question_count) + '개'})),
       node('div', {class: 'metric-label', text: hasEvaluation ? (summary.complete === run.question_count ? '모든 질문 최종 판정 완료' : '의미 평가 요청 처리') : '수집된 답변 · 평가 전'}));

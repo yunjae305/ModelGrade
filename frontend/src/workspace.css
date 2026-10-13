@@ -47,6 +47,7 @@ label {display:flex; flex-direction:column; gap:8px; font-size:13px; font-weight
 .brand-sub {display:block; margin-top:3px; font-size:11px; font-weight:500; color:var(--muted); letter-spacing:0}
 .brand-mark {display:grid; place-items:center; flex:none; width:40px; height:40px; border-radius:12px; color:#fff; background:var(--brand-gradient); box-shadow:0 8px 18px -8px #6454f5b3}
 .brand-mark svg {width:26px; height:26px; fill:currentColor}
+.brand-mark.logo {background:none; box-shadow:none} .brand-mark.logo img {width:100%; height:100%; object-fit:contain}
 .nav-label {margin:0 0 8px; padding:0 12px; font-size:11px; color:#8A93A6; font-weight:600}
 .nav-item {position:relative; display:flex; align-items:center; width:100%; min-height:46px; gap:11px; padding:0 12px; margin-bottom:4px; border:0; border-radius:12px; background:none; color:#4B5568; text-align:left; font-size:14px; font-weight:550; transition:background-color 140ms ease,color 140ms ease}
 .nav-item.active {color:var(--primary); background:var(--soft-gradient); font-weight:650}
@@ -164,6 +165,10 @@ details[open] summary .chevron {transform:rotate(90deg)}
 .model-avatar.gemini {color:#3B6FD8; background:#EAF2FF; font-size:25px}
 .model-avatar.claude {color:#B26A43; background:#FBF0E8; font-size:24px}
 .model-avatar.gpt {color:#1F7A55; background:#EAF7F0; font-size:13px; letter-spacing:-.6px}
+.model-avatar.has-logo {background:#fff; border:1px solid var(--line); overflow:hidden}
+.model-avatar.has-logo img {width:66%; height:66%; object-fit:contain}
+.model-avatar.has-logo.aiona {background:transparent; border:0}
+.model-avatar.has-logo.aiona img {width:100%; height:100%}
 .model-info {min-width:0; flex:1} .model-info strong {display:flex; flex-wrap:wrap; align-items:center; gap:7px; font-size:14px}
 .model-info>span {display:block; color:var(--muted); font-size:12px; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .model-info .pill {font-size:10px; padding:2px 7px}
@@ -694,10 +699,8 @@ textarea::placeholder {color:#757f94}
 .history-filter-search {grid-column:span 2}
 .history-filter-actions {display:flex; align-items:center; flex-wrap:wrap; gap:10px; min-width:0}
 .history-run-table {min-width:1080px; table-layout:auto}
-.history-activity-table {min-width:980px; table-layout:auto}
-.history-run-table td,.history-activity-table td {vertical-align:top; line-height:1.8; font-size:12px}
+.history-run-table td {vertical-align:top; line-height:1.8; font-size:12px}
 .history-run-table th:first-child {width:22%}
-.history-activity-table th:first-child {width:17%}
 .history-cell-secondary {display:block; color:var(--muted); font-size:11px; line-height:1.8; margin-top:5px; overflow-wrap:anywhere}
 .history-row-actions,.history-detail-actions {display:flex; flex-wrap:wrap; align-items:center; gap:8px}
 .history-row-actions button {min-height:40px; font-size:12px}

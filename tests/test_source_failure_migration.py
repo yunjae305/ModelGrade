@@ -12,7 +12,7 @@ from code_eval.jev_criteria import CRITERIA
 from code_eval.semantic_policy import DECISION_POLICY, SOURCE_ORIGINAL_FAILURE_POLICY_VERSION
 from code_eval.semantic_sources import _REASONS
 from tools import apply_source_failure_policy as migration
-from webapp.activity_store import ActivityStore, event_record
+from webapp.registry_store import RegistryStore
 from webapp.version_registry import evaluation_profile
 
 
@@ -41,7 +41,6 @@ def judgment(case_id, kind='pass'):
 def make_run(root):
     run = {'run_id': RUN_ID, 'status': 'COMPLETED', 'revision': 25,
            'aiona_release': {'version': 'v1'}, 'datasets': {}, 'evaluations': {},
-           '_activity_outbox': [event_record('evaluation_completed', key='fixture-terminal')],
            'input_document': {'original_text': 'exact original\r\n사용자 입력\n'}}
     modes = {'aiona': ['web', 'input'], 'gemini': ['web', 'pass'],
              'claude': ['pass', 'input'], 'gpt': ['pass', 'pass']}
@@ -72,7 +71,6 @@ def make_run(root):
     path = root / 'data' / 'comparison_runs' / f'{RUN_ID}.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(run, ensure_ascii=False), encoding='utf-8')
-    ActivityStore(root / 'data' / 'aiona_versions.sqlite3').append(run['_activity_outbox'])
     return path, run
 
 
@@ -101,7 +99,9 @@ def test_apply_preserves_originals_refreshes_all_aggregates_and_is_idempotent(tm
     assert current['datasets'] == original['datasets']
     assert current['input_document'] == original['input_document']
     assert current['revision'] == original['revision'] + 1
-    assert current['_activity_outbox'][:-1] == original['_activity_outbox']
+    update = current['evaluation_policy_updates'][0]
+    assert update['update_id'] == report['update_id'] and update['actor'] == 'local' and update['policy_version'] == SOURCE_ORIGINAL_FAILURE_POLICY_VERSION
+    assert not any(key.startswith('_activity_') for key in current)   # 작업 이력(시스템 로그)은 남기지 않는다
     assert current['evaluation_policy_updates'][0]['original_evaluation_profile'] == original['evaluation_profile']
     assert current['evaluation_profile']['fields']['decision_policy'] == SOURCE_POLICY
     assert current['evaluation_profile']['fields']['judge'] == original['evaluation_profile']['fields']['judge']
@@ -128,9 +128,6 @@ def test_apply_preserves_originals_refreshes_all_aggregates_and_is_idempotent(tm
         assert backup.read_bytes() == before_files[item['path']]
         assert migration._hash(backup.read_bytes()) == item['before_sha256']
         assert migration._hash((tmp_path / item['path']).read_bytes()) == item['after_sha256']
-    events = ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events()['events']
-    assert len(events) == 2 and events[0]['event_type'] == 'evaluation_policy_applied'
-    assert events[0]['actor']['type'] == 'local'
     snapshot = files(tmp_path)
     repeated = migration.migrate(tmp_path, RUN_ID, apply=True)
     assert repeated['status'] == 'NO_CHANGES' and files(tmp_path) == snapshot
@@ -160,11 +157,10 @@ def test_invalid_or_changed_inputs_never_write(tmp_path, alteration):
     assert files(tmp_path) == before
 
 
-@pytest.mark.parametrize('failure', ['file_replace', 'activity_insert'])
-def test_failure_restores_exact_bytes_and_leaves_no_policy_event(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize('failure', ['file_replace', 'registry_lock'])
+def test_failure_restores_exact_bytes_and_leaves_no_policy_update(tmp_path, monkeypatch, failure):
     path, _ = make_run(tmp_path)
     before = files(tmp_path)
-    old_events = ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events()
     if failure == 'file_replace':
         original_replace = migration._replace_file
         failed = False
@@ -176,17 +172,16 @@ def test_failure_restores_exact_bytes_and_leaves_no_policy_event(tmp_path, monke
             original_replace(source, target)
         monkeypatch.setattr(migration, '_replace_file', fail_once)
     else:
-        def fail_insert(*args):
-            raise sqlite3.OperationalError('fixture insert error')
-        monkeypatch.setattr(ActivityStore, 'insert', fail_insert)
+        def fail_lock(self):
+            raise sqlite3.OperationalError('fixture lock error')
+        monkeypatch.setattr(RegistryStore, 'connect', fail_lock)
     with pytest.raises((OSError, sqlite3.Error)):
         migration.migrate(tmp_path, RUN_ID, apply=True)
     for name, body in before.items():
-        # SQLite may update its header during a rolled-back transaction; its
-        # committed registry/activity content is checked separately below.
+        # SQLite may update its header during a rolled-back transaction; only the run files are compared.
         if name.endswith('.json'):
             assert (tmp_path / name).read_bytes() == body
-    assert ActivityStore(tmp_path / 'data' / 'aiona_versions.sqlite3').events() == old_events
+    assert 'evaluation_policy_updates' not in json.loads(path.read_bytes())
     audits = list((tmp_path / 'backups').rglob('audit.json'))
     assert len(audits) == 1 and json.loads(audits[0].read_bytes())['status'] == 'ROLLED_BACK'
     for name, body in before.items():

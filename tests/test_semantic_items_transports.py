@@ -87,6 +87,8 @@ def test_anthropic_items_request_uses_item_prompt_flat_schema_and_search_tools_w
     assert body["system"].startswith("당신은 AI 답변 품질 평가기의 의미 평가 단계입니다.\n- 아래 점검 항목에만 답합니다.")
     assert "web_search와 web_fetch 도구를 사용할 수 있습니다" in body["system"] and "UNVERIFIED" not in body["system"]
     assert body["system"].endswith("항목마다 YES / NO / NOT_APPLICABLE 과 원문 인용을 적으세요.")
+    content = body["messages"][0]["content"]   # 검색이 붙는 items 요청에만 캐시 표시 (같은 요청 안의 검색 반복 입력)
+    assert [("cache_control" in block) for block in content] == [True, False]
     prompt = prompt_text(body)
     assert prompt.startswith("## 점검 항목 (코드 규칙이 이 질문에 적용한 것)") and "### J5-1.a " in prompt and "## J5 사실 검증" in prompt
     assert "## 평가 대상\ncollected_at: 2026-10-01\n" in prompt and json.loads(prompt.split("collected_at: 2026-10-01\n", 1)[1]) == STATE
@@ -109,6 +111,8 @@ def test_anthropic_items_without_live_search_or_with_reference_drops_the_fact_it
     assert [tool["name"] for tool in body["tools"]] == [FINAL_TOOL]
     assert body["tools"][0]["input_schema"]["properties"]["items"]["items"]["properties"]["id"]["description"].endswith("보낸 항목: J1-1.a, J3-3.b, J5-3.a")
     assert "### J5-1.a" not in prompt_text(body) and "이 요청에서는 웹검색 도구를 쓸 수 없습니다." in prompt_text(body)
+    # 검색이 없는 items 요청은 질문끼리 앞부분을 나눠 쓰지 못하므로 캐시 표시를 붙이지 않는다 (저장 비용만 들기 때문)
+    assert isinstance(body["messages"][0]["content"], str) and "cache_control" not in sent[0].content.decode()
     assert "파일·명령·검색 도구를 사용하지 않습니다." in body["system"]
     assert call.status == "OK" and call.body["verification"]["items_not_sent"] == [{"id": "J5-1.a", "reason": common.SEARCH_NOT_AVAILABLE_REASON}]
     assert [it["id"] for it in call.body["items"]] == ["J1-1.a", "J3-3.b", "J5-3.a"]

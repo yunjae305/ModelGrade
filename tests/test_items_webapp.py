@@ -229,6 +229,39 @@ def test_reconcile_rechecks_only_the_missing_elements_keeps_verification_and_rea
     assert semantic_union.reconcile(evaluations, None)["status"] == "NOT_CONFIGURED"
 
 
+def test_union_recheck_keeps_other_criteria_and_review_flags():
+    # 앞 대화 이력을 확인할 수 없어 붙은 J6 확인 필요는 합집합 재확인(J4 만 다시 판정) 뒤에도 남는다
+    full = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩")]}])
+    partial = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각")]}])
+    code_a, aiona = run_items([NORMAL], full)
+    code_b, gpt = run_items([NORMAL], partial)
+    record = gpt["records"][0]
+    record["decisions"]["J6"] = {"criterion_id": "J6", "name": "긴 대화 맥락", "decision": None, "status": "UNVERIFIED",
+                                 "reason": "앞 대화 이력을 확인할 수 없습니다", "context_checks": []}
+    record["criteria"].append("J6")
+    record["review_required"] = True
+    judge = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩", "NO", "")]}])
+    semantic_union.reconcile({"aiona": {**code_a, "jev_eval": aiona}, "gpt": {**code_b, "jev_eval": gpt}}, judge)
+    assert record["decisions"]["J4"]["decision"] == "FAIL" and record["decisions"]["J6"]["status"] == "UNVERIFIED"
+    assert "J6" in record["criteria"] and record["review_required"] is True
+
+
+def test_union_matches_elements_by_question_position_not_model_numbers():
+    # 재확인 응답이 빠졌던 요소에 기존 번호(#1)를 다시 쓰더라도, 기존 '각각' 요소의 아니오는 사라지지 않는다
+    full = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각"), element("J4-2.a#2", "이유를 한 줄씩")]}])
+    partial = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "각각", "NO", "")]}])
+    code_a, aiona = run_items([NORMAL], full)
+    code_b, gpt = run_items([NORMAL], partial)
+    assert gpt["records"][0]["decisions"]["J4"]["decision"] == "FAIL"
+    judge = ScriptedItems([{"J4-2.a": [element("J4-2.a#1", "이유를 한 줄씩")]}])
+    semantic_union.reconcile({"aiona": {**code_a, "jev_eval": aiona}, "gpt": {**code_b, "jev_eval": gpt}}, judge)
+    record = gpt["records"][0]
+    items = record["decisions"]["J4"]["subs"]["J4-2"]["items"]
+    assert [(it["id"], it["question_quote"], it["decision"]) for it in items] == [
+        ("J4-2.a#1", "이유를 한 줄씩", "YES"), ("J4-2.a#2", "각각", "NO")]
+    assert record["decisions"]["J4"]["decision"] == "FAIL" and record["union"]["bases"]["J4-2.a"]["after"] == ["J4-2.a#1", "J4-2.a#2"]
+
+
 class ElementJudge(ScriptedItems):
     """답변에 따라 요소를 다르게 나열하는 대역 — AIONA 답변은 요소 2개, API 답변은 1개. 합집합 재확인(recheck 블록)에는 전부 답한다."""
 
@@ -268,7 +301,7 @@ def test_comparison_run_applies_the_union_pass_after_all_models_and_replays_upda
     assert any(it['id'] == 'J4' and it['source'] == '의미 평가' for it in gpt['combined']['problems'][0]['items'])   # CODE FAIL 도 함께 있는 답변
     assert final['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J4']['decision'] == 'PASS'
     rows = service.event_stream(rid).snapshot()['rows']
-    gpt_row = next(row for row in rows.values() if row['model'] == final['blind']['labels']['gpt'])
+    gpt_row = next(row for row in rows.values() if row['model'] == 'GPT')   # 화면용 이벤트는 실제 모델명 (블라인드는 평가 요청에만)
     assert gpt_row['criteria']['J4']['result'] == 'FAIL' and gpt_row['status'] == 'DONE'
     verdicts = [c['result'] for c in gpt_row['criteria'].values()]   # 교체된 J4 행은 이전 PASS 를 빼고 FAIL 로 센다 (CODE FAIL 과 합산)
     assert gpt_row['fail'] == verdicts.count('FAIL') >= 1 and gpt_row['pass'] == verdicts.count('PASS')

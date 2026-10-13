@@ -23,11 +23,12 @@ from code_eval.jev_client import JevCall
 from code_eval.jev_eval import build_history, conversation_contexts, summarize_records
 from code_eval.semantic_items import EXPAND_IDS, SPECS_BY_ID, applicable_items
 from code_eval.semantic_items_eval import aggregate_items, apply_overrides, parse_item_answers
-from code_eval.semantic_quotes import _items_in, _split_id, finalize_items, missing_elements, union_recheck_questions
+from code_eval.semantic_quotes import _items_in, _split_id, finalize_items, locate_quote, missing_elements, union_recheck_questions
 
 __all__ = ["UNION_VERSION", "UNION_BASES", "plan", "recheck", "reconcile"]
 
-UNION_VERSION = "semantic-union-v1"
+#: v2 — 다시 판정한 기준만 교체(다른 기준·확인 필요 표시 보존), 요소는 모델 번호가 아니라 질문 원문 위치로 대응
+UNION_VERSION = "semantic-union-v2"
 #: 대조하는 펼치기 항목 — 질문에서 생기고 현재 질문 원문을 인용하는 것만
 UNION_BASES: Tuple[str, ...] = tuple(sorted(base for base in EXPAND_IDS
                                             if SPECS_BY_ID[base].origin == "question" and not base.startswith("J6")))
@@ -99,8 +100,27 @@ def _questions_of(case: Dict[str, Any], record: Dict[str, Any]) -> Dict[str, Any
             if spec.id in present}
 
 
-def _reaggregate(record: Dict[str, Any], items: List[Dict[str, Any]], questions: Dict[str, Any]) -> None:
-    """교체된 항목 목록으로 decisions·items 통계·criteria 를 다시 쓴다 (jev_eval._items_record 와 같은 규칙)."""
+def _merge_elements(base: str, previous: List[Dict[str, Any]], fresh: List[Dict[str, Any]], question_text: str) -> List[Dict[str, Any]]:
+    """재확인 응답(fresh)과 이전 요소(previous)를 질문 원문 위치로 대응한다 — 모델이 붙인 '#n' 번호는 믿지 않는다.
+
+    위치가 겹치는 이전 요소는 새 판정으로 바꾸고, 응답이 다루지 않은 이전 요소(판정 포함)는 그대로 남긴다. 번호는 base#1… 로 다시 매긴다.
+    """
+    if not fresh:
+        return previous
+    spans = [locate_quote(it.get("question_quote"), question_text) for it in fresh]
+    chosen = list(fresh)
+    for it in previous:
+        span = locate_quote(it.get("question_quote"), question_text)
+        if span is None or not any(s is not None and s[0] < span[1] and span[0] < s[1] for s in spans):
+            chosen.append(copy.deepcopy(it))
+    for n, it in enumerate(chosen, 1):
+        it["id"] = f"{base}#{n}"
+    return chosen
+
+
+def _reaggregate(record: Dict[str, Any], items: List[Dict[str, Any]], questions: Dict[str, Any], affected: set) -> None:
+    """교체된 항목 목록으로 다시 집계한다 (jev_eval._items_record 와 같은 규칙). 다시 판정한 기준(affected)의 decisions 만 바꾸고,
+    다른 기준의 판정(앞 대화 이력을 확인할 수 없어 붙은 J6 UNVERIFIED 등)과 확인 필요 표시는 그대로 둔다."""
     verification = record.get("verification") if isinstance(record.get("verification"), dict) else {}
     not_sent = [entry for entry in (verification.get("items_not_sent") or []) if isinstance(entry, dict)]
     items_by_cid = parse_item_answers(items, questions)
@@ -108,13 +128,17 @@ def _reaggregate(record: Dict[str, Any], items: List[Dict[str, Any]], questions:
     decisions, stats = aggregate_items(items_by_cid, questions, applicability=record.get("applicability"),
                                        rechecks=record.get("recheck"), not_sent=not_sent)
     stats["overrides"] = overrides
-    record["decisions"] = decisions
+    merged = dict(record.get("decisions") if isinstance(record.get("decisions"), dict) else {})
+    merged.update({cid: decisions[cid] for cid in affected if cid in decisions})
+    record["decisions"] = merged
     record["items"] = stats
-    record["criteria"] = [cid for cid in decisions if decisions[cid].get("status") != "NOT_APPLICABLE"]
-    j5 = decisions.get("J5")
-    basis = (j5.get("fact_check") or {}).get("basis") if isinstance(j5, dict) and j5.get("status") != "NOT_APPLICABLE" else None
-    record["j5_basis"] = basis if basis in ("web", "reference", "input", "mixed") else None
-    record["review_required"] = False
+    record["criteria"] = [cid for cid in merged if merged[cid].get("status") != "NOT_APPLICABLE"]
+    if "J5" in affected:
+        j5 = merged.get("J5")
+        basis = (j5.get("fact_check") or {}).get("basis") if isinstance(j5, dict) and j5.get("status") != "NOT_APPLICABLE" else None
+        record["j5_basis"] = basis if basis in ("web", "reference", "input", "mixed") else None
+    record["review_required"] = bool(record.get("review_required")) or any(
+        isinstance(d, dict) and d.get("status") == "UNVERIFIED" for d in merged.values())
 
 
 def recheck(batch: Dict[str, Any], index: int, missing: Dict[str, List[Dict[str, Any]]], client: Any, *,
@@ -169,16 +193,13 @@ def recheck(batch: Dict[str, Any], index: int, missing: Dict[str, List[Dict[str,
     for base in subset:
         fresh = [it for it in new_items if _split_id(it.get("id"))[0] == base]
         previous = [it for it in old_items if _split_id(it.get("id"))[0] == base]
-        fresh_ids = {it.get("id") for it in fresh}
-        if fresh and fresh_ids <= {it.get("id") for it in previous} and len(fresh_ids) < len(previous):
-            fresh.extend(copy.deepcopy(it) for it in previous if it.get("id") not in fresh_ids)   # 일부만 답하면 나머지는 보존
-        chosen = fresh or previous
+        chosen = _merge_elements(base, previous, fresh, state["question"])
         for it in chosen:
             it["union_round"] = round_no
         union["bases"][base]["after"] = [it["id"] for it in chosen]
         replaced.extend(chosen)
     kept = [it for it in old_items if _split_id(it.get("id"))[0] not in subset]
-    _reaggregate(record, kept + replaced, questions)
+    _reaggregate(record, kept + replaced, questions, {SPECS_BY_ID[base].criterion for base in subset})
     verification = record.setdefault("verification", {})
     if isinstance(verification, dict):
         verification.setdefault("union_calls", []).append({"round": round_no, "items": sorted(subset), "status": follow.status,

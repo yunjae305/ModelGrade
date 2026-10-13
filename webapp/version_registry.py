@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
-from .activity_store import ActivityStore, clean_text, event_record
+from .registry_store import RegistryStore, clean_text
 
 
 def validate_release(value, *, required=False):
@@ -103,10 +103,10 @@ class VersionRegistry:
     def __init__(self, path: Path):
         self.path = path
         self.data = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
-        self.activity = ActivityStore(path.with_suffix('.sqlite3'))
+        self.store = RegistryStore(path.with_suffix('.sqlite3'))
 
     def _refresh(self):
-        self.data = self.activity.registry(self.data)
+        self.data = self.store.registry(self.data)
 
     def release_for(self, run):
         return copy.deepcopy(run.get('aiona_release'))
@@ -136,7 +136,7 @@ class VersionRegistry:
         if not isinstance(reason, str) or len(reason) > 2000:
             raise ValueError('변경 사유는 2,000자 이하의 문자열이어야 합니다.')
         reason = clean_text(reason.strip())
-        with self.activity.connect() as db:
+        with self.store.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT data FROM registry WHERE id=1').fetchone()
             data = json.loads(row[0]) if row else copy.deepcopy(self.data)
@@ -148,31 +148,28 @@ class VersionRegistry:
             if current and not any(item['version'] == current['version'] for item in releases):
                 releases.insert(0, current)
             existing = next((r for r in releases if r['version'] == release['version']), None)
-            events = []
+            now = datetime.now(timezone.utc).isoformat()
             if action == 'register':
                 if existing:
                     raise ValueError('이미 등록된 모델 버전입니다.')
-                release['registered_at'] = datetime.now(timezone.utc).isoformat()
+                release['registered_at'] = now
+                if reason:
+                    release['registered_reason'] = reason
                 releases.insert(0, release)
-                registered = event_record('model_version_registered', model_version=release['version'],
-                                          after=release, reason=reason, timestamp=release['registered_at'])
-                events.append(registered)
             else:
                 if existing is None:
                     raise ValueError('등록된 모델 버전을 선택해 주세요.')
                 release = existing
             change_default = action == 'activate' or set_current
             if change_default and (current or {}).get('version') != release['version']:
-                events.append(event_record('default_version_changed', model_version=release['version'],
-                              before={'version': current['version']} if current else None,
-                              after={'version': release['version']}, reason=reason,
-                              related_event_id=events[0]['event_id'] if events else None))
+                # 기본 평가 버전 변경 기록은 그 버전 기록에 남긴다 (언제·이전 버전·변경 사유)
+                release.setdefault('default_changes', []).append(
+                    {'at': now, 'from': (current or {}).get('version'), 'reason': reason})
             updated = {**data, 'releases': releases, 'versions': list(dict.fromkeys(
                 [*data.get('versions', []), *[r['version'] for r in releases]])),
                        'current_release': validate_release(release) if change_default else current}
             db.execute('INSERT OR REPLACE INTO registry(id,data) VALUES(1,?)',
                        (json.dumps(updated, ensure_ascii=False, allow_nan=False),))
-            self.activity.insert(db, events)
         self.data = updated
         return self.current_release()
 

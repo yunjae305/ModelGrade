@@ -15,8 +15,10 @@ from .version_registry import evaluation_profile
 
 __all__ = ["COMPARISON_VERSION", "PROFILE_LABELS", "profile_differences", "sign_test", "compare_runs", "condition_changes"]
 
-COMPARISON_VERSION = "version-comparison-v1"
-#: 비교 조건에 들어가는 평가 프로필 필드 (dispatch·batch 설정은 판정에 영향이 없어 뺀다)
+#: v2 — 전체 판정은 모든 문항이 연결·판정됐을 때만(부분 표본은 따로), 판정에 영향 있는 평가 설정은 모두 비교,
+#: 펼친 항목은 '#n' 번호가 아니라 인용 원문으로 대응
+COMPARISON_VERSION = "version-comparison-v2"
+#: 비교 조건에 들어가는 평가 프로필 필드 (호출 방식·묶음 설정·API 주소는 판정에 영향이 없어 뺀다)
 PROFILE_LABELS = {"engine_versions.engine": "코드 평가 엔진 버전", "engine_versions.checks": "코드 검사 버전", "aiona_config.config_hash": "AIONA 설정",
                   "pipeline": "의미 평가 방식", "semantic_version": "의미 평가 버전", "criteria_version": "의미 기준 버전",
                   "applicability_version": "적용 규칙 버전", "items_version": "점검 항목 버전", "quote_policy": "인용 검증 정책",
@@ -24,11 +26,15 @@ PROFILE_LABELS = {"engine_versions.engine": "코드 평가 엔진 버전", "engi
                   "judge.engine": "평가자 엔진", "judge.requested_model": "평가 모델", "judge.reasoning_effort": "추론 설정",
                   "judge.web_search": "웹 검색", "judge.max_tool_calls": "검색 횟수 한도", "judge.max_fetches": "원문 확인 한도",
                   "judge.fact_check_policy": "사실 검증 정책", "judge.context_check_policy": "대화 검증 정책", "judge.search_policy": "검색 정책",
-                  "judge_models": "실제 평가 모델"}
-_IGNORED_JUDGE = {"dispatch", "batch_questions", "batch_poll_seconds", "api_base", "max_continuations", "thinking", "output_mode",
-                  "search_tool", "fetch_tool", "max_output_tokens", "evidence_recovery_policy", "evidence_recovery_rounds",
-                  "evidence_recovery_timeout_s", "evidence_recovery_max_tool_calls", "max_requests", "flags", "disabled_features",
-                  "project_doc_max_bytes", "temperature", "top_p", "seed", "max_tokens", "search_host_features", "search_host_policy"}
+                  "judge_models": "실제 평가 모델",
+                  "judge.max_continuations": "검색 이어가기 한도", "judge.thinking": "추론 방식", "judge.output_mode": "출력 형식",
+                  "judge.search_tool": "검색 도구 버전", "judge.fetch_tool": "원문 도구 버전", "judge.max_output_tokens": "출력 토큰 한도",
+                  "judge.evidence_recovery_policy": "근거 보강 정책", "judge.evidence_recovery_rounds": "근거 보강 횟수",
+                  "judge.evidence_recovery_timeout_s": "근거 보강 시간 한도", "judge.evidence_recovery_max_tool_calls": "근거 보강 검색 한도",
+                  "judge.max_requests": "요청 수 한도", "judge.flags": "평가자 실행 옵션", "judge.disabled_features": "꺼 둔 평가자 기능",
+                  "judge.temperature": "temperature", "judge.top_p": "top_p", "judge.seed": "seed", "judge.max_tokens": "출력 토큰 한도"}
+#: 판정에 영향이 없는 호출 방식 설정만 뺀다 — 근거 보강·도구·출력 한도처럼 결과를 바꿀 수 있는 설정은 비교한다
+_IGNORED_JUDGE = {"dispatch", "batch_questions", "batch_poll_seconds", "api_base"}
 TAIL_SHARE = 0.1
 TAIL_MIN = 5
 SIGNIFICANCE = 0.05
@@ -129,6 +135,19 @@ def _change(before: Optional[str], after: Optional[str]) -> str:
     return "pending"
 
 
+def _item_key(item: Dict[str, Any]) -> str:
+    """항목 대응 키 — 펼친 요소(#n)는 모델이 붙인 번호 대신 인용 원문(질문, 답변에서 생긴 항목은 답변)과 턴으로 대응한다."""
+    item_id = str(item.get("id"))
+    base, _, element = item_id.partition("#")
+    if not element:
+        return item_id
+    quote = " ".join(str(item.get("question_quote") or "").split()) or " ".join(str(item.get("answer_quote") or "").split())
+    if not quote:
+        return item_id
+    turn = item.get("turn")
+    return f"{base} · {turn}턴 · {quote}" if turn is not None else f"{base} · {quote}"
+
+
 def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
     """레코드 → (기준 판정, 세부 기준 판정, 항목 판정) — NOT_APPLICABLE 은 'NA', 판정 없음은 'PENDING'."""
     criteria: Dict[str, str] = {}
@@ -149,8 +168,7 @@ def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], D
             for item in sub.get("items") or []:
                 if not isinstance(item, dict):
                     continue
-                key = f"{item.get('id')}"
-                items[key] = {"YES": "PASS", "NO": "FAIL", "NOT_APPLICABLE": "NA"}.get(item.get("decision"), "PENDING")
+                items[_item_key(item)] = {"YES": "PASS", "NO": "FAIL", "NOT_APPLICABLE": "NA"}.get(item.get("decision"), "PENDING")
     return criteria, subs, items
 
 
@@ -304,9 +322,18 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
             "fail_kept": sum(1 for r in worst if r["change"] == "fail_kept"), "pass_kept": sum(1 for r in worst if r["change"] == "pass_kept"),
             "case_ids": [r["case_id"] for r in worst]}
     tail["worsened"] = tail["regressed"] > tail["improved"]
+    # --- 전체 판정의 표본: 모든 문항이 연결되고 판정돼야 전체 버전의 개선·악화를 확정한다 ---
+    coverage = {"matched": len(pairs), "unmatched_baseline": len(unmatched["baseline"]), "unmatched_target": len(unmatched["target"]),
+                "pending": counts["pending"], "excluded": counts["excluded"], "incomplete_units": incomplete_units}
+    coverage["complete"] = not (coverage["unmatched_baseline"] or coverage["unmatched_target"] or coverage["pending"]
+                                or coverage["excluded"] or incomplete_units)
     # --- 판정 ---
     if not eligible:
         verdict = {"label": "not_comparable", "text": "비교 조건이 맞지 않아 개선·악화를 확정하지 않습니다."}
+    elif not coverage["complete"]:
+        verdict = {"label": "partial", "text": (f"연결되지 않거나 판정이 끝나지 않은 문항이 있어 전체 판정을 확정하지 않습니다 "
+                   f"(미연결 {coverage['unmatched_baseline']}·{coverage['unmatched_target']}, 미완료 {coverage['pending']}, 제외 {coverage['excluded']}). "
+                   f"판정이 끝난 공통 문항만: 개선 {plus}·악화 {minus} 단위, p={p_value if p_value is not None else '—'}")}
     elif p_value is not None and p_value < SIGNIFICANCE and plus > minus and not tail["worsened"]:
         verdict = {"label": "improved", "text": f"개선 — 개선 {plus}·악화 {minus} 단위, p={p_value} (꼬리 악화 없음)"}
     elif p_value is not None and p_value < SIGNIFICANCE and minus > plus:
@@ -338,7 +365,7 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
             "conditions": conditions, "matched": len(pairs), "unmatched": unmatched, "counts": counts, "rows": rows,
             "sign_test": {"unit": "conversation", "plus": plus, "minus": minus, "ties": ties, "incomplete": incomplete_units,
                           "n": plus + minus, "p_value": p_value, "significance": SIGNIFICANCE},
-            "tail": tail, "verdict": verdict, "regressions": regressions, "improvements": improvements, "criteria": criteria_table}
+            "tail": tail, "verdict": verdict, "coverage": coverage, "regressions": regressions, "improvements": improvements, "criteria": criteria_table}
 
 
 def _criteria_table(rows, a_cases, a_records, b_cases, b_records) -> List[Dict[str, Any]]:

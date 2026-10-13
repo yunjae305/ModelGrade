@@ -4,6 +4,7 @@
 저장된 묶음 이어받기, 제출 실패 시 전부 실시간, jev_after_code 의 dispatch 분기. 판정 규칙은 실시간과 같다(같은 _record_from_call).
 """
 import copy
+import dataclasses
 import json
 import threading
 
@@ -37,8 +38,10 @@ def message(params, *, stop_reason="tool_use"):
 class FakeBatches:
     """Batches API 대역 — polls_before_end 번 조회한 뒤 ended. outcome(custom_id, params) 가 결과 줄 종류를 정한다."""
 
-    def __init__(self, *, polls_before_end=1, outcome=None, create_status=200):
+    def __init__(self, *, polls_before_end=1, outcome=None, create_status=200, retrieve_status=None, on_create=None):
         self.polls_before_end, self.outcome, self.create_status = polls_before_end, outcome or (lambda cid, params: "succeeded"), create_status
+        self.retrieve_status = retrieve_status or (lambda batch_id: None)   # 상태 조회 HTTP 오류 주입
+        self.on_create = on_create or (lambda count: None)
         self.batches = {}
         self.calls = []
         self.realtime = []
@@ -58,6 +61,7 @@ class FakeBatches:
                 body = json.loads(request.content)
                 batch_id = f"msgbatch_{len(self.batches) + 1}"
                 self.batches[batch_id] = {"requests": body["requests"], "polls": 0, "status": "in_progress"}
+                self.on_create(len(self.batches))
                 return httpx.Response(200, json=self.describe(batch_id))
             if path.endswith("/cancel"):
                 batch_id = path.split("/")[-2]
@@ -82,6 +86,8 @@ class FakeBatches:
                 lines.append("not json")
                 return httpx.Response(200, text="\n".join(lines))
             batch_id = path.split("/")[-1]
+            if self.retrieve_status(batch_id):
+                return httpx.Response(self.retrieve_status(batch_id), json={"error": "retrieve"})
             info = self.batches[batch_id]
             info["polls"] += 1
             if info["polls"] >= self.polls_before_end and info["status"] != "canceling":
@@ -111,20 +117,20 @@ def run_batched(fake, cases=CASES, **kw):
     events = []
     sleeps = []
     jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, on_event=events.append, sleep=sleeps.append,
-                                               custom_id_prefix="run1:gpt:", **kw)
+                                               custom_id_prefix="run1_gpt_", **kw)
     return batch, jev, events, sleeps
 
 
 def test_pilot_then_chunks_poll_and_map_results_by_custom_id():
     fake = FakeBatches(polls_before_end=2)
     batch, jev, events, sleeps = run_batched(fake)
-    assert [b["custom_ids"] for b in jev["batches"]] == [{"run1:gpt:0": 0}, {"run1:gpt:1": 1, "run1:gpt:2": 2}, {"run1:gpt:3": 3, "run1:gpt:4": 4}]
+    assert [b["custom_ids"] for b in jev["batches"]] == [{"run1_gpt_0": 0}, {"run1_gpt_1": 1, "run1_gpt_2": 2}, {"run1_gpt_3": 3, "run1_gpt_4": 4}]
     assert all(b["status"] == "ended" and b["fallbacks"] == {} for b in jev["batches"]) and jev["dispatch"] == "batch"
     assert jev["batch_dispatch"] == jev_batch.BATCH_DISPATCH_VERSION and jev["status"] == "SUCCESS" and jev["completed"] == 5
     assert jev["client"]["dispatch"] == "batch" and jev["client"]["batch_questions"] == 2
     records = jev["records"]
     assert [r["status"] for r in records] == ["SUCCESS"] * 5 and all(r["model"] == "claude-opus-5-5" for r in records)
-    assert records[0]["batch"] == {"id": "msgbatch_1", "custom_id": "run1:gpt:0", "result": "succeeded"}
+    assert records[0]["batch"] == {"id": "msgbatch_1", "custom_id": "run1_gpt_0", "result": "succeeded"}
     assert records[3]["batch"]["id"] == "msgbatch_3" and records[0]["decisions"]["J1"]["decision"] == "PASS"
     assert records[0]["verification"]["provider_stop_reason"] == "tool_use" and records[0]["attempts"] == 1
     assert not fake.realtime   # 실시간 호출 없음
@@ -140,16 +146,16 @@ def test_pilot_then_chunks_poll_and_map_results_by_custom_id():
 
 
 def test_expired_errored_missing_and_pause_turn_results_are_resent_in_realtime():
-    outcomes = {"run1:gpt:1": "expired", "run1:gpt:2": "errored", "run1:gpt:3": "pause_turn", "run1:gpt:4": "omit"}
+    outcomes = {"run1_gpt_1": "expired", "run1_gpt_2": "errored", "run1_gpt_3": "pause_turn", "run1_gpt_4": "omit"}
     fake = FakeBatches(outcome=lambda cid, params: outcomes.get(cid, "succeeded"))
     batch, jev, events, _ = run_batched(fake)
     records = jev["records"]
     assert all(r["status"] == "SUCCESS" for r in records) and len(fake.realtime) == 4
     assert records[0]["batch"]["result"] == "succeeded" and "fallback" not in records[0]["batch"]
-    assert records[1]["batch"] == {"id": "msgbatch_2", "custom_id": "run1:gpt:1", "result": "expired", "fallback": jev_batch.FALLBACK_REASONS["expired"]}
+    assert records[1]["batch"] == {"id": "msgbatch_2", "custom_id": "run1_gpt_1", "result": "expired", "fallback": jev_batch.FALLBACK_REASONS["expired"]}
     assert records[2]["batch"]["result"] == "errored" and records[3]["batch"]["result"] == "pause_turn" and records[4]["batch"]["result"] == "missing"
     assert records[3]["batch"]["fallback"].startswith("검색 이어가기") and records[4]["batch"]["fallback"].startswith("묶음 결과에 이 질문이 없어")
-    assert jev["batches"][1]["fallbacks"] == {"run1:gpt:1": jev_batch.FALLBACK_REASONS["expired"], "run1:gpt:2": jev_batch.FALLBACK_REASONS["errored"]}
+    assert jev["batches"][1]["fallbacks"] == {"run1_gpt_1": jev_batch.FALLBACK_REASONS["expired"], "run1_gpt_2": jev_batch.FALLBACK_REASONS["errored"]}
     assert any("실시간 재전송 2건" in e.get("note", "") for e in events)
     assert jev["status"] == "SUCCESS" and jev["completed"] == 5
 
@@ -177,15 +183,119 @@ def test_resume_polls_saved_batches_without_resubmitting_and_submits_only_new_qu
     batch = engine.evaluate_batch(CASES, AionaConfig())
     prep = _prepare_batch(batch, client, cfg, pipeline="legacy", context=None)
     first = _case_request(NORMAL["question"], NORMAL["answer"], tuple(prep.applies[0]["criteria"]), None, None, client=client, cancel_event=None)
-    saved = client.batch_client().create([{"custom_id": "run1:gpt:0", "params": client.build_request(first["state"], first["questions"])[0]}])
+    saved = client.batch_client().create([{"custom_id": "run1_gpt_0", "params": client.build_request(first["state"], first["questions"])[0]}])
     fake.calls.clear()
-    jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, custom_id_prefix="run1:gpt:", sleep=lambda s: None,
-                                               existing_batches=[{"id": saved["id"], "custom_ids": {"run1:gpt:0": 0, "run1:gpt:9": 9}}])
-    assert jev["batches"][0]["id"] == saved["id"] and jev["batches"][0]["resumed"] is True and jev["batches"][0]["custom_ids"] == {"run1:gpt:0": 0}
+    printed = jev_batch.request_fingerprint("legacy", cfg, first)
+    jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, custom_id_prefix="run1_gpt_", sleep=lambda s: None,
+                                               existing_batches=[{"id": saved["id"], "custom_ids": {"run1_gpt_0": 0, "run1_gpt_9": 9},
+                                                                  "fingerprints": {"run1_gpt_0": printed}}])
+    assert jev["batches"][0]["id"] == saved["id"] and jev["batches"][0]["resumed"] is True and jev["batches"][0]["custom_ids"] == {"run1_gpt_0": 0}
     created = [path for method, path in fake.calls if method == "POST" and path.endswith("/messages/batches")]
     assert len(created) == 3   # 이어받은 1건 외 4건: pilot 1 + 묶음 2 (2·1)
-    assert [sorted(b["custom_ids"]) for b in jev["batches"][1:]] == [["run1:gpt:1"], ["run1:gpt:2", "run1:gpt:3"], ["run1:gpt:4"]]
+    assert [sorted(b["custom_ids"]) for b in jev["batches"][1:]] == [["run1_gpt_1"], ["run1_gpt_2", "run1_gpt_3"], ["run1_gpt_4"]]
     assert all(r["status"] == "SUCCESS" for r in jev["records"]) and jev["records"][0]["batch"]["id"] == saved["id"]
+    assert jev["batches"][0]["fingerprints"] == {"run1_gpt_0": printed} and len(jev["batches"][1]["fingerprints"]) == 1
+
+
+def test_resume_resubmits_when_judging_conditions_changed():
+    fake = FakeBatches()
+    client, cfg = judge(fake)
+    from code_eval.jev_eval import _case_request, _prepare_batch
+    batch = engine.evaluate_batch(CASES, AionaConfig())
+    prep = _prepare_batch(batch, client, cfg, pipeline="legacy", context=None)
+    first = _case_request(NORMAL["question"], NORMAL["answer"], tuple(prep.applies[0]["criteria"]), None, None, client=client, cancel_event=None)
+    saved = client.batch_client().create([{"custom_id": "run1_gpt_0", "params": client.build_request(first["state"], first["questions"])[0]}])
+    high = jev_batch.request_fingerprint("legacy", cfg, first)
+    # 묶음 크기·조회 주기는 지문에 들지 않고, 평가 설정(effort)이 바뀌면 지문이 다르다
+    assert jev_batch.request_fingerprint("legacy", dataclasses.replace(cfg, batch_questions=3, batch_poll_seconds=5), first) == high
+    low_cfg =AnthropicSemanticConfig(model="claude-opus-5-5", reasoning_effort="low", web_search="disabled", dispatch="batch",
+                                      batch_questions=2, batch_poll_seconds=1)
+    low_client = AnthropicSemanticClient(low_cfg, "secret-test-key", transport=httpx.MockTransport(fake.handler))
+    assert jev_batch.request_fingerprint("legacy", low_cfg, first) != high
+    events = []
+    jev = jev_batch.evaluate_jev_batch_batched(batch, low_client, low_cfg, custom_id_prefix="run1_gpt_", sleep=lambda s: None,
+                                               on_event=events.append,
+                                               existing_batches=[{"id": saved["id"], "custom_ids": {"run1_gpt_0": 0}, "fingerprints": {"run1_gpt_0": high}}])
+    # 쓰지 않는 진행 중 묶음은 취소하고 ID 를 기록에 남긴다 (추적에서 빠져 계속 과금되지 않게)
+    assert jev["batches"][0]["id"] == saved["id"] and jev["batches"][0]["status"] == "superseded"
+    assert jev["batches"][0]["cancel_status"] == "canceling" and any(path.endswith(f"{saved['id']}/cancel") for _, path in fake.calls)
+    assert all(not b.get("resumed") for b in jev["batches"]) and sorted(jev["batches"][1]["custom_ids"]) == ["run1_gpt_0"]
+    assert jev["client"]["reasoning_effort"] == "low" and any("판정 조건이 바뀐 1건" in e.get("note", "") for e in events)
+    # 취소를 이미 확인한 묶음은 다음 이어받기에서 다시 취소하지 않는다
+    calls = len(fake.calls)
+    jev_batch.evaluate_jev_batch_batched(batch, low_client, low_cfg, custom_id_prefix="run1_gpt_", sleep=lambda s: None,
+                                         existing_batches=[jev["batches"][0]])
+    assert not any(path.endswith(f"{saved['id']}/cancel") for _, path in fake.calls[calls:])
+    # 지문이 없는 옛 기록도 이어받지 않는다 (조건을 확인할 수 없음)
+    jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, custom_id_prefix="run1_gpt_", sleep=lambda s: None,
+                                               existing_batches=[{"id": saved["id"], "custom_ids": {"run1_gpt_0": 0}}])
+    assert all(not b.get("resumed") for b in jev["batches"])
+
+
+def test_custom_ids_must_follow_the_batches_api_format():
+    fake = FakeBatches()
+    client, _ = judge(fake)
+    batches = client.batch_client()
+    for bad in ("run:gpt:0", "x" * 65, ""):
+        with pytest.raises(ValueError):
+            batches.create([{"custom_id": bad, "params": {}}])
+    with pytest.raises(ValueError):
+        batches.create([{"custom_id": "a_1", "params": {}}, {"custom_id": "a_1", "params": {}}])
+    assert not any(method == "POST" for method, _ in fake.calls)   # 규격 위반은 보내지 않는다
+
+
+@pytest.mark.parametrize("status, limit", [(404, 1), (500, jev_batch.MAX_RETRIEVE_FAILURES)])
+def test_retrieve_errors_give_up_and_resend_in_realtime(status, limit):
+    fake = FakeBatches(retrieve_status=lambda batch_id: status)
+    batch, jev, events, sleeps = run_batched(fake)
+    records = jev["records"]
+    assert all(r["status"] == "SUCCESS" and r["batch"]["result"] == "retrieve_failed" for r in records) and len(fake.realtime) == 5
+    assert [b["status"] for b in jev["batches"]] == ["retrieve_failed"] * 3
+    retrieves = [path for method, path in fake.calls if method == "GET" and path.rsplit("/", 1)[-1].startswith("msgbatch_")]
+    assert len(retrieves) == 3 * limit   # 영구 오류는 1회, 일시 오류는 연속 5회에서 멈춘다
+    cancels = [path for _, path in fake.calls if path.endswith("/cancel")]
+    assert len(cancels) == (0 if status == 404 else 3)   # 일시 오류로 포기한 묶음은 이중 과금을 막으려 취소를 시도한다
+    if status == 500:
+        assert sleeps[:5] == [1, 2, 4, 8, 16]   # 실패가 이어지면 조회 간격을 늘린다
+
+
+def test_cancel_after_a_submission_does_not_submit_the_remaining_chunks():
+    cancel = threading.Event()
+    fake = FakeBatches(polls_before_end=1, on_create=lambda count: cancel.set() if count == 2 else None)
+    client, cfg = judge(fake)
+    batch = engine.evaluate_batch(CASES, AionaConfig())
+    jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, cancel_event=cancel, sleep=lambda s: None, custom_id_prefix="run1_gpt_")
+    created = [path for method, path in fake.calls if method == "POST" and path.endswith("/messages/batches")]
+    assert len(created) == 2 and [sorted(b["custom_ids"]) for b in jev["batches"]] == [["run1_gpt_0"], ["run1_gpt_1", "run1_gpt_2"]]
+    assert any(path.endswith("msgbatch_2/cancel") for _, path in fake.calls)
+    assert [r["status"] for r in jev["records"][3:]] == ["SKIPPED", "SKIPPED"]
+
+
+def test_pause_turn_fallback_keeps_the_batch_request_usage():
+    fake = FakeBatches(outcome=lambda cid, params: "pause_turn" if cid == "run1_gpt_0" else "succeeded")
+    batch, jev, events, _ = run_batched(fake)
+    record = jev["records"][0]
+    assert record["batch"]["result"] == "pause_turn" and record["status"] == "SUCCESS"
+    assert record["attempts"] == 2 and record["usage"]["input_tokens"] == 200 and record["usage"]["output_tokens"] == 100
+    parts = record["verification"]["usage_requests"]
+    assert len(parts) == 2 and parts[0]["dispatch"] == "batch" and "dispatch" not in parts[1]
+
+
+def test_cancel_before_the_realtime_resend_still_keeps_the_batch_usage():
+    fake = FakeBatches(outcome=lambda cid, params: "pause_turn")
+    client, cfg = judge(fake)
+    batch = engine.evaluate_batch(CASES, AionaConfig())
+    cancel = threading.Event()
+
+    def on_event(event):   # 실시간 재전송을 알리는 순간 중단 요청
+        if event.get("type") == "batch_progress" and any(b.get("fallbacks") for b in event.get("batches") or []):
+            cancel.set()
+    jev = jev_batch.evaluate_jev_batch_batched(batch, client, cfg, custom_id_prefix="run1_gpt_", cancel_event=cancel, on_event=on_event,
+                                               sleep=lambda s: None)
+    record = jev["records"][0]
+    assert record["status"] == "SKIPPED" and record["batch"]["result"] == "pause_turn" and not fake.realtime
+    assert record["attempts"] == 1 and record["usage"]["input_tokens"] == 100
+    assert [part["dispatch"] for part in record["verification"]["usage_requests"]] == ["batch"]
 
 
 def test_submit_failure_falls_back_to_realtime_for_everything():
@@ -201,8 +311,8 @@ def test_jev_after_code_routes_by_dispatch_setting(monkeypatch):
     client, cfg = judge(fake)
     batch = engine.evaluate_batch(CASES[:2], AionaConfig())
     sleeps = []
-    jev = jev_after_code(batch, resolver=lambda **_: (client, cfg, None), dispatch_options={"custom_id_prefix": "r:", "sleep": sleeps.append})
-    assert jev["dispatch"] == "batch" and jev["batches"][0]["custom_ids"] == {"r:0": 0} and not fake.realtime
+    jev = jev_after_code(batch, resolver=lambda **_: (client, cfg, None), dispatch_options={"custom_id_prefix": "r_", "sleep": sleeps.append})
+    assert jev["dispatch"] == "batch" and jev["batches"][0]["custom_ids"] == {"r_0": 0} and not fake.realtime
     realtime_client, realtime_cfg = judge(fake, dispatch="realtime") if False else (None, None)
     plain = AnthropicSemanticConfig(model="claude-opus-5-5", web_search="disabled")
     plain_client = AnthropicSemanticClient(plain, "secret-test-key", transport=httpx.MockTransport(fake.handler))

@@ -48,7 +48,7 @@ def test_normalized_locate_ignores_whitespace_markdown_list_markers_and_punctuat
     normalized, offsets = sq.normalize_text("a, b\t1,200")
     assert normalized == "ab1,200" and offsets == [0, 3, 5, 6, 7, 8, 9]
     assert sq.normalize_text(12) == ("", [])
-    assert sq.ITEM_QUOTE_POLICY == "items-normalized-quotes-v1" and sq.RECHECK_POLICY == "items-recheck-3-then-fail-v1" and sq.MAX_RECHECK_ROUNDS == 3
+    assert sq.ITEM_QUOTE_POLICY == "items-normalized-quotes-v2" and sq.RECHECK_POLICY == "items-recheck-3-then-fail-v1" and sq.MAX_RECHECK_ROUNDS == 3
 
 
 def test_yes_requires_answer_quote_and_no_allows_empty_only_for_missing_type_items():
@@ -153,7 +153,7 @@ def test_recheck_loop_resolves_on_second_round_and_records_calls_and_usage():
     assert fixed["decision"] == "YES" and "unverifiable" not in fixed and fixed["quote_check"]["answer"]["ok"] is True
     assert [r["round"] for r in fixed["rechecks"]] == [1, 2] and fixed["rechecks"][0]["replaced"]["answer_quote"] == "없는 인용"
     untouched = next(it for it in done.body["items"] if it["id"] == "J1-4.a")
-    assert "rechecks" not in untouched and done.body["verification"]["quote_policy"] == "items-normalized-quotes-v1"
+    assert "rechecks" not in untouched and done.body["verification"]["quote_policy"] == "items-normalized-quotes-v2"
 
 
 def test_three_failed_rounds_end_as_no_with_unverifiable_code_distinct_from_defect_fail():
@@ -294,6 +294,16 @@ def test_not_applicable_is_rejected_on_code_applied_items_and_ends_as_unverifiab
     result = final.body["items"][0]
     assert result["decision"] == "NO" and result["unverifiable"] is True and result["model_original"]["decision"] == "NOT_APPLICABLE"
     assert final.body["verification"]["rechecks"]["unverifiable"] == ["J1-4.a"]
+
+
+def test_value_items_allow_not_applicable_per_element_but_not_for_the_whole_item():
+    # J5-2.a 정의: 질문이 준 값 중 답변에 쓰지 않은 값은 해당 없음 — 요소(#n) 단위로만 허용, 항목 전체 해당 없음은 여전히 재확인
+    qs = questions("J5-2.a")
+    assert qs["J5-2.a"]["element_na"] is True and questions("J2-2.a")["J2-2.a"]["element_na"] is False
+    _, failures = sq.verify_items(body(item("J5-2.a#1", "NOT_APPLICABLE", "", "")), STATE, qs)
+    assert failures == []
+    _, failures = sq.verify_items(body(item("J5-2.a", "NOT_APPLICABLE", "", "")), STATE, qs)
+    assert [(f["id"], f["code"]) for f in failures] == [("J5-2.a", "not_applicable_disallowed")]
 
 
 def test_server_owned_fields_in_the_model_response_are_discarded_before_verification():

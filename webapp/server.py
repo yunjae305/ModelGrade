@@ -130,9 +130,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/comparison/version-comparison':
             query = {key: values[-1] for key, values in parse_qs(urlparse(self.path).query).items()}
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
-        if path == '/api/comparison/activity-history':
-            filters = {key: values[-1] for key, values in parse_qs(urlparse(self.path).query).items()}
-            return self.respond(200, service.activity_history(filters))
+        if path == '/api/comparison/aiona-history':
+            return self.respond(200, service.aiona_history())
         if len(parts) >= 4 and parts[2] == 'runs':
             if len(parts) == 5 and parts[4] == 'events':
                 stream = service.event_stream(parts[3])

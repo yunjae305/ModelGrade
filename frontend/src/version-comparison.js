@@ -27,11 +27,19 @@
   // items 파이프라인 이전에 저장된 평가 프로필에는 pipeline 키가 없다. 그 결과는 legacy 방식으로 평가된 것이므로
   // legacy·null 정책으로 정규화해, 새로 저장된 legacy 실행과 같은 조건으로 비교한다. 서버(version_registry)도 같은 기본값을 쓴다.
   const PIPELINE_DEFAULTS = {pipeline: 'legacy', items_version: null, quote_policy: null, recheck_policy: null};
+  // 서버(webapp/version_comparison._IGNORED_JUDGE)와 같이 호출 방식·묶음 설정·API 주소는 판정에 영향이 없어 비교에서 뺀다
+  // (예전 기록에 dispatch 가 없어도 같은 조건으로 본다)
+  const DISPATCH_ONLY = ['dispatch', 'batch_questions', 'batch_poll_seconds', 'api_base'];
   function profileFields(profile) {
     const f = profile?.fields;
     if (!object(f)) return f;
     const fields = {...f};
     for (const [key, value] of Object.entries(PIPELINE_DEFAULTS)) if (fields[key] === undefined) fields[key] = value;
+    if (object(fields.judge)) {
+      const judge = {...fields.judge};
+      for (const key of DISPATCH_ONLY) delete judge[key];
+      fields.judge = judge;
+    }
     return fields;
   }
 

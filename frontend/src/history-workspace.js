@@ -1,146 +1,94 @@
-/* Read-only run and activity history. Original inputs and judgments stay on the server. */
+/* 이력 관리 — 평가가 끝난 결과 비교마다 쌓이는 AIONA 결과 기록(/api/comparison/aiona-history). 원문과 판정은 서버에 그대로 둔다. */
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
   const W = window.AionaWorkspace, {node, pill, number, api} = W;
   const host = $('view-history');
   if (!host) return;
-  const storageKey = 'aiona-history-filters-v1';
-  const emptyRunFilters = () => ({q: '', version: '', from: '', to: '', status: '', input: ''});
-  const emptyActivityFilters = () => ({q: '', version: '', from: '', to: '', type: '', result: '', runId: ''});
-  const state = {tab: 'runs', runs: [], events: [], versions: [], runFilters: emptyRunFilters(), activityFilters: emptyActivityFilters(),
-    runPage: 0, activityPage: 0, runLoaded: false, activityLoaded: false, loading: false, runError: '', activityError: '', generation: 0, detailGeneration: 0};
-  const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', ERROR: '오류 확인 필요', CANCELLED: '실행 중단'};
-  const eventLabels = {model_version_registered: '모델 버전 등록', default_version_changed: '기본 평가 버전 변경', evaluation_started: '평가 실행 시작',
-    evaluation_completed: '평가 작업 종료', evaluation_failed: '평가 실패', evaluation_cancelled: '평가 취소', reevaluation_created: '재평가 실행 생성', evaluation_policy_applied: '평가 판정 정책 적용'};
-  const resultLabels = {success: '성공', failure: '실패', cancelled: '취소'};
+  const storageKey = 'aiona-history-filters-v2';
+  const emptyFilters = () => ({q: '', version: '', from: '', to: '', set: ''});
+  const state = {entries: [], series: [], labels: {}, filters: emptyFilters(), page: 0, loaded: false, loading: false, error: '',
+    generation: 0, detailGeneration: 0};
+  const criteriaNames = {J1: 'J1 요청 수행', J2: 'J2 지시 준수', J3: 'J3 표현 품질', J4: 'J4 내용 충실', J5: 'J5 데이터 신뢰도', J6: 'J6 긴 대화 맥락'};
   const pageSize = 20;
   let returnFocus = null, restoreFocus = true;
 
   try {
     const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
-    if (saved) {
-      state.tab = saved.tab === 'activities' ? 'activities' : 'runs';
-      for (const key of ['runFilters', 'activityFilters']) for (const field of Object.keys(state[key])) {
-        if (typeof saved[key]?.[field] === 'string') state[key][field] = saved[key][field];
-      }
-    }
+    for (const field of Object.keys(state.filters)) if (typeof saved?.[field] === 'string') state.filters[field] = saved[field];
   } catch (_) { /* Filters work in memory when session storage is unavailable. */ }
 
   function saveFilters() {
-    try { sessionStorage.setItem(storageKey, JSON.stringify({tab: state.tab, runFilters: state.runFilters, activityFilters: state.activityFilters})); }
-    catch (_) { /* Source text and result data are never stored here. */ }
+    try { sessionStorage.setItem(storageKey, JSON.stringify(state.filters)); } catch (_) { /* Source text and results are never stored here. */ }
   }
-  function time(value) {
-    return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR') : '미기록';
-  }
+  function time(value) { return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR') : '미기록'; }
   function localDate(value) {
     const date = new Date(value);
     return Number.isFinite(date.getTime()) ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
   }
-  function withinDates(value, filters) {
-    const date = localDate(value);
-    return (!filters.from || date && date >= filters.from) && (!filters.to || date && date <= filters.to);
-  }
+  const at = (entry) => entry.finished_at || entry.created_at;
   const normalize = (value) => String(value || '').toLocaleLowerCase('ko-KR');
-  const runVersion = (run) => run.aiona_release?.version || '';
-  const eventVersion = (event) => event.model_version || '';
-  const statusLabel = (run) => run.status === 'CANCELLED' ? (run.phase === 'EVALUATE' ? '평가 중단' : '수집 중단') : statusLabels[run.status] || run.status || '상태 미기록';
-  const statusKind = (status) => ['ERROR', 'CANCELLED'].includes(status) ? 'warning' : ['COLLECTING', 'EVALUATING'].includes(status) ? 'purple' : 'neutral';
-  const resultKind = (result) => result === 'failure' ? 'danger' : result === 'cancelled' ? 'warning' : result === 'success' ? 'success' : 'neutral';
-  const inputLabel = (run) => run.input_mode === 'manual' ? '직접 입력' : run.input_mode === 'file' ? '파일 업로드' : '입력 방식 미기록';
+  const percent = (rate) => typeof rate === 'number' ? (rate * 100).toFixed(1) + '%' : '—';
+  const points = (delta) => typeof delta === 'number' ? (delta > 0 ? '+' : delta < 0 ? '−' : '±') + Math.abs(delta * 100).toFixed(1) + '%p' : '—';
+  const deltaKind = (delta) => typeof delta !== 'number' || delta === 0 ? 'neutral' : delta > 0 ? 'success' : 'danger';
+  const setLabel = (set) => `${number(set?.count)}문항 · ${String(set?.fingerprint || '지문 없음').slice(0, 8)}`;
   const valueText = (value) => value === null || value === undefined || value === '' ? '미기록' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-  const actorLabel = (event) => {
-    const type = typeof event.actor === 'object' ? event.actor?.type : event.actor;
-    return ['local', 'local_user'].includes(type) ? '로컬 사용자' : type === 'system' ? '시스템' : '미기록';
-  };
-  const derived = (event) => event.derived === true || event.source === 'legacy' || event.origin === 'derived' || event.provenance === 'derived';
+  function conditionText(conditions) {
+    const c = conditions || {}, judge = c.judge || {};
+    const parts = [c.code_version && String(c.code_version).replace('aiona-code-eval-', 'CODE '), c.criteria_version,
+      judge.requested_model && judge.requested_model + (judge.reasoning_effort ? ' · ' + judge.reasoning_effort : ''),
+      c.pipeline === 'items' ? '항목별 평가' : c.pipeline ? '기존 평가' : null, c.dispatch === 'batch' ? '묶음 호출' : null];
+    return parts.filter(Boolean).join(' · ') || '평가 조건 미기록';
+  }
+  // 이전 화면(버전 관리)이 실행 기록으로 평가 조건 요약을 부를 때
   function conditionSummary(run) {
     if (run.evaluation_conditions_summary) return run.evaluation_conditions_summary;
-    const profile = run.evaluation_profile, fields = profile?.fields;
+    const fields = run.evaluation_profile?.fields;
     if (!fields) return '평가 조건 미기록';
     const parts = [fields.engine_versions?.engine, fields.criteria_version, fields.judge?.requested_model].filter(Boolean);
-    return (parts.join(' · ') || '평가 조건 기록 있음') + (profile.complete === true ? '' : ' · 조건 확인 필요');
+    return (parts.join(' · ') || '평가 조건 기록 있음') + (run.evaluation_profile.complete === true ? '' : ' · 조건 확인 필요');
   }
-  function completionSummary(run) {
-    const summary = run.evaluation_summary;
-    if (summary) {
-      const parts = [`판정 ${number(summary.scored)} / ${number(summary.total ?? run.question_count)}`];
-      if (summary.incomplete) parts.push(`미완료 ${number(summary.incomplete)}`);
-      if (summary.review_required) parts.push(`보류·확인 ${number(summary.review_required)}`);
-      return parts.join(' · ');
-    }
-    return run.status === 'COMPLETED' ? '종료 상태와 문항별 판정은 별도입니다. 상세에서 확인하세요.' : '';
+  function changeText(entry) {
+    if (!entry.previous_run_id) return '첫 기록 (같은 질문 세트의 이전 기록 없음)';
+    const labels = (entry.changes || []).map((change) => change.label);
+    const base = entry.relation === 'reevaluation' ? '재평가(같은 답변) · ' : '';
+    if (!labels.length) return base + '조건 변화 없음';
+    return base + labels.join(' · ') + (entry.multi_factor ? ' — 여러 요인 변경, 원인을 단정하지 않음' : '');
   }
   function select(id, options, value, change) {
-    const element = node('select', {id, onchange: (event) => change(event.target.value)},
-      ...options.map(([v, text]) => node('option', {value: v, text})));
+    const element = node('select', {id, onchange: (event) => change(event.target.value)}, ...options.map(([v, text]) => node('option', {value: v, text})));
     element.value = value;
     return element;
   }
   function field(label, element, className = '') { return node('label', {class: className}, node('span', {text: label}), element); }
-  function updateFilter(group, key, value) {
-    state[group][key] = value;
-    state[group === 'runFilters' ? 'runPage' : 'activityPage'] = 0;
-    saveFilters(); renderLists();
-  }
-  function dateFilters(prefix, group) {
-    return ['from', 'to'].map((key) => field(key === 'from' ? '시작일' : '종료일', node('input', {type: 'date', id: `${prefix}-${key}`, value: state[group][key],
-      onchange: (event) => updateFilter(group, key, event.target.value)})));
-  }
+  function updateFilter(key, value) { state.filters[key] = value; state.page = 0; saveFilters(); renderList(); }
   function buildFilters() {
-    const run = state.runFilters, activity = state.activityFilters;
-    const versionOptions = [['', '전체 모델 버전'], ...state.versions.map((version) => [version, 'AIONA ' + version])];
-    $('history-run-filters').replaceChildren(
-      field('실행 검색', node('input', {id: 'history-search', type: 'search', value: run.q, placeholder: '실행명 또는 실행 ID', oninput: (event) => updateFilter('runFilters', 'q', event.target.value)}), 'history-filter-search'),
-      field('모델 버전', select('history-version-filter', versionOptions, run.version, (value) => updateFilter('runFilters', 'version', value))),
-      ...dateFilters('history-date', 'runFilters'),
-      field('실행 상태', select('history-status-filter', [['', '전체 실행 상태'], ...Object.entries(statusLabels)], run.status, (value) => updateFilter('runFilters', 'status', value))),
-      field('입력 방식', select('history-input-filter', [['', '전체 입력 방식'], ['file', '파일'], ['manual', '직접 입력']], run.input, (value) => updateFilter('runFilters', 'input', value))),
-      node('button', {class: 'text-button', type: 'button', text: '필터 초기화', onclick: () => resetFilters('runs')}));
-    $('history-activity-filters').replaceChildren(
-      field('작업 검색', node('input', {id: 'activity-search', type: 'search', value: activity.q, placeholder: '이벤트·실행 ID, 작업, 사유', oninput: (event) => updateFilter('activityFilters', 'q', event.target.value)}), 'history-filter-search'),
-      field('모델 버전', select('activity-version-filter', versionOptions, activity.version, (value) => updateFilter('activityFilters', 'version', value))),
-      ...dateFilters('activity-date', 'activityFilters'),
-      field('작업 유형', select('activity-type-filter', [['', '전체 작업 유형'], ...Object.entries(eventLabels)], activity.type, (value) => updateFilter('activityFilters', 'type', value))),
-      field('결과', select('activity-result-filter', [['', '전체 결과'], ...Object.entries(resultLabels)], activity.result, (value) => updateFilter('activityFilters', 'result', value))),
-      node('button', {class: 'text-button', type: 'button', text: '필터 초기화', onclick: () => resetFilters('activities')}));
+    const f = state.filters;
+    const versions = [...new Set(state.entries.map((e) => e.aiona_version).filter(Boolean))];
+    if (f.version && !versions.includes(f.version)) versions.push(f.version);
+    $('history-filters').replaceChildren(
+      field('기록 검색', node('input', {id: 'history-search', type: 'search', value: f.q, placeholder: '실행명 또는 실행 ID', oninput: (event) => updateFilter('q', event.target.value)}), 'history-filter-search'),
+      field('AIONA 버전', select('history-version-filter', [['', '전체 버전'], ...versions.map((v) => [v, 'AIONA ' + v])], f.version, (value) => updateFilter('version', value))),
+      field('질문 세트', select('history-set-filter', [['', '전체 질문 세트'], ...state.series.map((s) => [s.fingerprint || '', setLabel(s)])], f.set, (value) => updateFilter('set', value))),
+      ...['from', 'to'].map((key) => field(key === 'from' ? '시작일' : '종료일', node('input', {type: 'date', id: `history-date-${key}`, value: f[key], onchange: (event) => updateFilter(key, event.target.value)}))),
+      node('button', {class: 'text-button', type: 'button', text: '필터 초기화', onclick: resetFilters}));
   }
-  function resetFilters(tab) {
-    state[tab === 'runs' ? 'runFilters' : 'activityFilters'] = tab === 'runs' ? emptyRunFilters() : emptyActivityFilters();
-    state[tab === 'runs' ? 'runPage' : 'activityPage'] = 0;
-    saveFilters(); buildFilters(); renderLists();
-    $(tab === 'runs' ? 'history-search' : 'activity-search').focus();
-  }
-  function tabButton(tab, label) {
-    return node('button', {type: 'button', id: `history-tab-${tab}`, class: 'answer-tab', role: 'tab', 'aria-controls': `history-panel-${tab}`,
-      onclick: () => setTab(tab), onkeydown: (event) => {
-        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault();
-        setTab(event.key === 'Home' ? 'runs' : event.key === 'End' ? 'activities' : tab === 'runs' ? 'activities' : 'runs');
-        $('history-tab-' + state.tab).focus();
-      }}, label);
-  }
-  function table(headers, bodyId, className) {
-    return node('div', {class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': (bodyId === 'history-body' ? '평가 실행' : '작업 이력') + ' 목록. 좁은 화면에서는 가로로 스크롤하세요.'}, node('table', {class: 'data-table ' + className},
-      node('thead', {}, node('tr', {}, ...headers.map((label) => node('th', {scope: 'col', text: label})))), node('tbody', {id: bodyId})));
-  }
-  function panel(tab, title, filtersId, headers, bodyId, className) {
-    return node('section', {id: 'history-panel-' + tab, class: 'panel history-list-panel', role: 'tabpanel', 'aria-labelledby': 'history-tab-' + tab},
-      node('div', {class: 'panel-heading'}, node('div', {class: 'panel-title'}, node('h2', {text: title}), node('span', {id: 'history-count-' + tab, class: 'pill neutral', 'aria-live': 'polite'}))),
-      node('div', {id: filtersId, class: 'matrix-filters history-filters'}),
-      tab === 'runs' ? node('p', {class: 'history-list-note field-help', text: '같은 모델 버전이라도 평가 조건이 다를 수 있습니다. 실행별 조건과 문항 판정을 확인하세요.'}) :
-        node('div', {id: 'activity-run-scope', class: 'history-filter-actions'}),
-      node('div', {id: 'history-feedback-' + tab, class: 'history-feedback empty-state', role: 'status'}),
-      table(headers, bodyId, className), node('div', {id: 'history-pagination-' + tab, class: 'table-pagination'}));
-  }
+  function resetFilters() { state.filters = emptyFilters(); state.page = 0; saveFilters(); buildFilters(); renderList(); $('history-search').focus(); }
+
   host.replaceChildren(
-    node('div', {class: 'page-heading'}, node('div', {}, node('div', {class: 'eyebrow', text: '실행 · 작업 이력'}), node('h1', {id: 'history-title', text: '이력 관리'}),
-      node('p', {text: '평가 실행과 작업 기록을 시간순으로 확인하세요.'})), node('button', {id: 'refresh-history', type: 'button', class: 'button secondary', text: '기록 새로고침', onclick: refresh})),
+    node('div', {class: 'page-heading'}, node('div', {}, node('div', {class: 'eyebrow', text: 'AIONA 결과 이력'}), node('h1', {id: 'history-title', text: '이력 관리'}),
+      node('p', {text: '평가가 끝난 결과 비교마다 AIONA 결과가 쌓입니다. 기준·평가 모델·AIONA 버전이 바뀔 때 결과가 어떻게 달라졌는지 같은 질문 세트의 직전 기록과 비교합니다.'})),
+      node('button', {id: 'refresh-history', type: 'button', class: 'button secondary', text: '기록 새로고침', onclick: refresh})),
     node('div', {id: 'history-summary', class: 'history-summary-grid'}),
-    node('div', {class: 'answer-tabs history-tabs', role: 'tablist', 'aria-label': '이력 유형'}, tabButton('runs', '평가 실행'), tabButton('activities', '작업 이력')),
-    panel('runs', '평가 실행', 'history-run-filters', ['실행명', '모델 버전', '평가 조건', '문항 수', '실행 시각', '실행 상태', '작업'], 'history-body', 'history-run-table'),
-    panel('activities', '작업 이력', 'history-activity-filters', ['작업 시각', '작업 유형', '작업 주체', '모델 버전 / 실행', '결과', '작업'], 'activity-body', 'history-activity-table'));
+    node('section', {id: 'history-panel', class: 'panel history-list-panel'},
+      node('div', {class: 'panel-heading'}, node('div', {class: 'panel-title'}, node('h2', {text: 'AIONA 결과 기록'}), node('span', {id: 'history-count', class: 'pill neutral', 'aria-live': 'polite'}))),
+      node('div', {id: 'history-filters', class: 'matrix-filters history-filters'}),
+      node('p', {class: 'history-list-note field-help', text: '통과율 변화는 같은 질문 세트끼리만 계산합니다. 한 요인만 바뀐 기록만 그 요인의 효과로 읽을 수 있고, 미완료 질문이 있으면 변화를 확정하지 않습니다.'}),
+      node('div', {id: 'history-feedback', class: 'history-feedback empty-state', role: 'status'}),
+      node('div', {class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'AIONA 결과 기록 목록. 좁은 화면에서는 가로로 스크롤하세요.'},
+        node('table', {class: 'data-table history-run-table'}, node('thead', {}, node('tr', {}, ...['완료 시각', 'AIONA 버전', '질문 세트', '평가 조건', 'AIONA 질문 통과율', '직전 기록 대비', '작업'].map((label) => node('th', {scope: 'col', text: label})))),
+          node('tbody', {id: 'history-body'}))),
+      node('div', {id: 'history-pagination', class: 'table-pagination'})));
 
   const detail = node('dialog', {id: 'history-detail-dialog', class: 'modal history-detail-modal', 'aria-labelledby': 'history-detail-title'},
     node('div', {class: 'modal-heading'}, node('h2', {id: 'history-detail-title', tabindex: '-1', text: '기록 상세'}),
@@ -150,7 +98,7 @@
   detail.addEventListener('close', () => {
     ++state.detailGeneration;
     if (restoreFocus) {
-      const target = returnFocus?.isConnected && !returnFocus.closest('[hidden]') ? returnFocus : !host.hidden ? $('history-tab-' + state.tab) : null;
+      const target = returnFocus?.isConnected && !returnFocus.closest('[hidden]') ? returnFocus : !host.hidden ? $('history-search') : null;
       target?.focus({preventScroll: true});
     }
     restoreFocus = true;
@@ -167,138 +115,125 @@
     if (!detail.open) { detail.showModal(); $('history-detail-close').focus(); }
     return ++state.detailGeneration;
   }
-  function leaveDetail(action) {
-    restoreFocus = false;
-    if (detail.open) detail.close();
-    action();
-  }
+  function leaveDetail(action) { restoreFocus = false; if (detail.open) detail.close(); action(); }
   function compareRun(runId) {
-    leaveDetail(() => {
-      W.go('comparison');
-      window.dispatchEvent(new CustomEvent('aiona:version-select', {detail: {runId}}));
-    });
+    leaveDetail(() => { W.go('comparison'); window.dispatchEvent(new CustomEvent('aiona:version-select', {detail: {runId}})); });
   }
   function openResults(runId) { leaveDetail(() => W.openRun(runId)); }
-  function setTab(tab) {
-    state.tab = tab === 'activities' ? 'activities' : 'runs';
-    for (const name of ['runs', 'activities']) {
-      const active = state.tab === name, button = $('history-tab-' + name);
-      button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
-      $('history-panel-' + name).hidden = !active;
-    }
-    saveFilters();
-  }
+
   function renderSummary() {
-    const activeRuns = state.runs.filter((run) => ['COLLECTING', 'EVALUATING'].includes(run.status)).length;
+    const latest = state.entries[0];
+    const value = (text) => state.error ? '조회 실패' : state.loading && !state.loaded ? '불러오는 중' : text;
     $('history-summary').replaceChildren(...[
-      ['저장된 평가 실행', state.runError ? '조회 실패' : state.loading && !state.runLoaded ? '불러오는 중' : number(state.runs.length) + '건', '모델 버전별 평가 조건은 실행에 저장됩니다.'],
-      ['진행 중인 실행', state.runError ? '확인 필요' : state.loading && !state.runLoaded ? '불러오는 중' : number(activeRuns) + '건', '응답 수집 중 또는 평가 중인 실행'],
-      ['작업 이력', state.activityError ? '조회 실패' : state.loading && !state.activityLoaded ? '불러오는 중' : number(state.events.length) + '건', '버전 등록·기본 버전 변경·평가 작업 기록']
-    ].map(([label, value, help]) => node('article', {class: 'history-summary-card'}, node('span', {class: 'field-help', text: label}), node('strong', {text: value}), node('p', {class: 'field-help', text: help}))));
+      ['쌓인 기록', value(number(state.entries.length) + '건'), '평가가 끝난 결과 비교마다 한 건'],
+      ['질문 세트', value(number(state.series.length) + '개'), '통과율 변화는 같은 질문 세트끼리만 비교'],
+      ['최근 기록', value(latest ? (latest.aiona_version ? 'AIONA ' + latest.aiona_version : '버전 미기록') : '없음'), latest ? time(at(latest)) + ' · 통과율 ' + percent(latest.results?.question_pass_rate) : '새 비교를 끝내면 기록됩니다.']
+    ].map(([label, text, help]) => node('article', {class: 'history-summary-card'}, node('span', {class: 'field-help', text: label}), node('strong', {text}), node('p', {class: 'field-help', text: help}))));
   }
-  function feedback(tab, count, allCount, errorMessage, filters) {
-    const box = $('history-feedback-' + tab), invalidDates = filters.from && filters.to && filters.from > filters.to;
+  function matches(entry) {
+    const f = state.filters, date = localDate(at(entry));
+    return (!f.q || normalize((entry.name || '') + ' ' + entry.run_id).includes(normalize(f.q))) && (!f.version || entry.aiona_version === f.version) &&
+      (!f.set || (entry.question_set?.fingerprint || '') === f.set) && (!f.from || date && date >= f.from) && (!f.to || date && date <= f.to);
+  }
+  function feedback(count) {
+    const box = $('history-feedback'), f = state.filters, invalidDates = f.from && f.to && f.from > f.to;
     box.replaceChildren();
-    box.hidden = !state.loading && !errorMessage && !invalidDates && count > 0;
-    box.setAttribute('role', errorMessage || invalidDates ? 'alert' : 'status');
+    box.hidden = !state.loading && !state.error && !invalidDates && count > 0;
+    box.setAttribute('role', state.error || invalidDates ? 'alert' : 'status');
     if (state.loading) box.append(node('p', {text: '기록을 불러오는 중입니다.'}));
-    else if (errorMessage) box.append(node('h3', {text: '기록을 불러오지 못했습니다'}), node('p', {text: errorMessage}), node('button', {class: 'button secondary', text: '다시 시도', onclick: refresh}));
+    else if (state.error) box.append(node('h3', {text: '기록을 불러오지 못했습니다'}), node('p', {text: state.error}), node('button', {class: 'button secondary', text: '다시 시도', onclick: refresh}));
     else if (invalidDates) box.append(node('p', {text: '종료일은 시작일과 같거나 이후여야 합니다.'}));
     else if (!count) {
-      box.append(node('h3', {text: allCount ? '조건에 맞는 기록이 없습니다' : tab === 'runs' ? '평가 실행이 없습니다' : '아직 작업 이력이 없습니다'}),
-        node('p', {text: allCount ? '검색어나 필터를 바꿔 다시 확인하세요.' : tab === 'runs' ? '새 비교를 실행하면 원문과 평가 결과가 이곳에 저장됩니다.' : '새로운 버전 등록·기본 버전 변경·평가 작업부터 실제 시각과 주체가 기록됩니다.'}));
-      if (allCount) box.append(node('button', {class: 'button secondary', text: '필터 초기화', onclick: () => resetFilters(tab)}));
-      else if (tab === 'runs') box.append(node('button', {class: 'button primary', text: '새 비교 만들기', onclick: () => W.go('setup')}));
+      box.append(node('h3', {text: state.entries.length ? '조건에 맞는 기록이 없습니다' : '아직 쌓인 기록이 없습니다'}),
+        node('p', {text: state.entries.length ? '검색어나 필터를 바꿔 다시 확인하세요.' : 'AIONA 답변을 올려 결과 비교를 끝까지 평가하면 이곳에 한 건씩 쌓입니다.'}));
+      box.append(state.entries.length ? node('button', {class: 'button secondary', text: '필터 초기화', onclick: resetFilters})
+        : node('button', {class: 'button primary', text: '새 비교 만들기', onclick: () => W.go('setup')}));
     }
-    const tableBox = $(tab === 'runs' ? 'history-body' : 'activity-body').closest('.table-scroll');
-    tableBox.hidden = state.loading || Boolean(errorMessage) || Boolean(invalidDates) || count === 0;
-    $('history-pagination-' + tab).hidden = tableBox.hidden;
-    $('history-panel-' + tab).setAttribute('aria-busy', String(state.loading));
+    const tableBox = $('history-body').closest('.table-scroll');
+    tableBox.hidden = state.loading || Boolean(state.error) || Boolean(invalidDates) || count === 0;
+    $('history-pagination').hidden = tableBox.hidden;
+    $('history-panel').setAttribute('aria-busy', String(state.loading));
   }
-  function pagination(tab, total) {
-    const key = tab === 'runs' ? 'runPage' : 'activityPage', pages = Math.max(1, Math.ceil(total / pageSize));
-    state[key] = Math.min(state[key], pages - 1);
-    const button = (label, direction, disabled) => node('button', {id: `history-page-${tab}-${direction}`, type: 'button', class: 'button secondary compact', text: label, disabled: disabled ? '' : null,
+  function pagination(total) {
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    state.page = Math.min(state.page, pages - 1);
+    const button = (label, direction, disabled) => node('button', {id: `history-page-${direction}`, type: 'button', class: 'button secondary compact', text: label, disabled: disabled ? '' : null,
       onclick: () => {
-        state[key] += direction; renderLists();
-        const next = $(`history-page-${tab}-${direction}`);
-        (next.disabled ? $(`history-page-${tab}-${-direction}`) : next).focus({preventScroll: true});
-        $('history-panel-' + tab).scrollIntoView({block: 'start', behavior: 'instant'});
+        state.page += direction; renderList();
+        const next = $(`history-page-${direction}`);
+        (next.disabled ? $(`history-page-${-direction}`) : next).focus({preventScroll: true});
+        $('history-panel').scrollIntoView({block: 'start', behavior: 'instant'});
       }});
-    $('history-pagination-' + tab).replaceChildren(node('span', {text: `${number(total)}건 중 ${number(total ? state[key] * pageSize + 1 : 0)}–${number(Math.min((state[key] + 1) * pageSize, total))}건`}),
-      node('div', {}, button('이전', -1, !state[key]), node('span', {text: `${state[key] + 1} / ${pages}`}), button('다음', 1, state[key] + 1 >= pages)));
+    $('history-pagination').replaceChildren(node('span', {text: `${number(total)}건 중 ${number(total ? state.page * pageSize + 1 : 0)}–${number(Math.min((state.page + 1) * pageSize, total))}건`}),
+      node('div', {}, button('이전', -1, !state.page), node('span', {text: `${state.page + 1} / ${pages}`}), button('다음', 1, state.page + 1 >= pages)));
   }
-  function runMatches(run) {
-    const f = state.runFilters;
-    return (!f.q || normalize((run.name || '') + ' ' + run.run_id).includes(normalize(f.q))) && (!f.version || runVersion(run) === f.version) &&
-      (!f.status || run.status === f.status) && (!f.input || run.input_mode === f.input) && withinDates(run.created_at, f);
-  }
-  function activityMatches(event) {
-    const f = state.activityFilters;
-    const searchable = [event.event_id, event.run_id, event.source_run_id, eventVersion(event), eventLabels[event.event_type] || event.event_type, actorLabel(event), event.reason, event.error_summary].join(' ');
-    return (!f.q || normalize(searchable).includes(normalize(f.q))) && (!f.version || eventVersion(event) === f.version) &&
-      (!f.type || event.event_type === f.type) && (!f.result || event.result === f.result) && (!f.runId || event.run_id === f.runId) && withinDates(event.timestamp, f);
-  }
-  function renderLists() {
-    const runs = state.runs.filter(runMatches), events = state.events.filter(activityMatches);
-    $('history-count-runs').textContent = `${number(runs.length)}건`;
-    $('history-count-activities').textContent = `${number(events.length)}건`;
-    pagination('runs', runs.length); pagination('activities', events.length);
-    $('history-body').replaceChildren(...runs.slice(state.runPage * pageSize, (state.runPage + 1) * pageSize).map((run) => node('tr', {'data-run-id': run.run_id},
-      node('td', {}, node('button', {class: 'row-button', text: run.name || run.run_id, onclick: () => openRunDetail(run.run_id)}),
-        node('span', {class: 'history-cell-secondary', text: inputLabel(run)})),
-      node('td', {text: runVersion(run) ? 'AIONA ' + runVersion(run) : '모델 버전 미기록'}),
-      node('td', {text: conditionSummary(run)}), node('td', {text: number(run.question_count)}), node('td', {text: time(run.created_at)}),
-      node('td', {}, pill(statusLabel(run), statusKind(run.status)),
-        completionSummary(run) ? node('span', {class: 'history-cell-secondary', text: completionSummary(run)}) : null,
-        run.save_error || run.activity_save_error ? node('span', {class: 'history-cell-secondary', text: '기록 저장 확인 필요'}) : null),
-      node('td', {}, node('div', {class: 'history-row-actions'},
-        node('button', {class: 'text-button', text: '상세 보기', onclick: () => openRunDetail(run.run_id)}),
-        node('button', {class: 'text-button', text: '비교 대상으로 선택', onclick: () => compareRun(run.run_id)}))))));
-    $('activity-body').replaceChildren(...events.slice(state.activityPage * pageSize, (state.activityPage + 1) * pageSize).map((event) => node('tr', {
-      'data-event-id': event.event_id, onclick: (click) => { if (!click.target.closest('button, a')) openEventDetail(event); }},
-      node('td', {text: time(event.timestamp)}),
-      node('td', {}, node('button', {class: 'row-button', text: eventLabels[event.event_type] || event.event_type || '작업 유형 미기록', onclick: () => openEventDetail(event)}),
-        derived(event) ? node('span', {class: 'history-cell-secondary', text: '기존 기록에서 구성됨'}) : null),
-      node('td', {text: actorLabel(event)}), node('td', {}, node('span', {text: eventVersion(event) ? 'AIONA ' + eventVersion(event) : '모델 버전 미기록'}),
-        event.run_id ? node('span', {class: 'history-cell-secondary', text: event.run_id}) : null),
-      node('td', {}, pill(resultLabels[event.result] || event.result || '미기록', resultKind(event.result))),
-      node('td', {}, node('button', {class: 'text-button', text: '상세 보기', onclick: () => openEventDetail(event)})))));
-    const scope = $('activity-run-scope'), scopeId = state.activityFilters.runId;
-    scope.hidden = !scopeId;
-    scope.replaceChildren(...(scopeId ? [node('span', {class: 'field-help', text: '연결된 실행: ' + scopeId}),
-      node('button', {class: 'text-button', text: '실행 필터 해제', onclick: () => updateFilter('activityFilters', 'runId', '')})] : []));
-    feedback('runs', runs.length, state.runs.length, state.runError, state.runFilters);
-    feedback('activities', events.length, state.events.length, state.activityError, state.activityFilters);
+  function renderList() {
+    const entries = state.entries.filter(matches);
+    $('history-count').textContent = `${number(entries.length)}건`;
+    pagination(entries.length);
+    $('history-body').replaceChildren(...entries.slice(state.page * pageSize, (state.page + 1) * pageSize).map((entry) => {
+      const delta = entry.deltas?.question_pass_rate, results = entry.results || {}, questions = results.questions || {};
+      return node('tr', {'data-run-id': entry.run_id},
+        node('td', {}, node('button', {class: 'row-button', text: time(at(entry)), onclick: () => openRunDetail(entry.run_id)}),
+          node('span', {class: 'history-cell-secondary', text: entry.name || entry.run_id})),
+        node('td', {text: entry.aiona_version ? 'AIONA ' + entry.aiona_version : '버전 미기록'}),
+        node('td', {text: setLabel(entry.question_set)}),
+        node('td', {text: conditionText(entry.conditions)}),
+        node('td', {}, node('strong', {text: percent(results.question_pass_rate)}),
+          node('span', {class: 'history-cell-secondary', text: `통과 ${number(questions.PASS)} · 실패 ${number(questions.FAIL)}` +
+            (questions.PENDING ? ` · 미완료 ${number(questions.PENDING)}` : '') + (questions.EXCLUDED ? ` · 제외 ${number(questions.EXCLUDED)}` : '')})),
+        node('td', {}, entry.deltas ? pill(points(delta), deltaKind(delta)) : null,
+          node('span', {class: 'history-cell-secondary', text: changeText(entry)}),
+          entry.deltas && (entry.changes || []).length === 1 && !entry.attributable
+            ? node('span', {class: 'history-cell-secondary', text: '미완료 질문이 있어 변화를 확정하지 않음'}) : null),
+        node('td', {}, node('div', {class: 'history-row-actions'},
+          node('button', {class: 'text-button', text: '상세 보기', onclick: () => openRunDetail(entry.run_id)}),
+          node('button', {class: 'text-button', text: '버전 비교 대상으로', onclick: () => compareRun(entry.run_id)}))));
+    }));
+    feedback(entries.length);
   }
   async function refresh() {
     const generation = ++state.generation;
-    state.loading = true; state.runError = ''; state.activityError = '';
-    $('refresh-history').disabled = true; renderSummary(); renderLists();
-    const [history, activities] = await Promise.allSettled([api('/api/comparison/version-history'), api('/api/comparison/activity-history')]);
-    if (generation !== state.generation) return;
-    if (history.status === 'fulfilled') {
-      state.runs = (history.value.runs || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-      state.versions = [...new Set([...(history.value.versions || []), ...(history.value.releases || []).map((release) => release.version), ...state.runs.map(runVersion)].filter(Boolean))];
-      state.runLoaded = true;
-    } else state.runError = history.reason.message || '평가 실행 조회에 실패했습니다.';
-    if (activities.status === 'fulfilled') {
-      state.events = (activities.value.events || []).slice().sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-      state.activityLoaded = true;
-    } else state.activityError = activities.reason.status === 404 ? '작업 이력을 지원하는 서버가 필요합니다. 서버를 재시작한 뒤 다시 시도하세요.' : activities.reason.message || '작업 이력 조회에 실패했습니다.';
-    state.versions = [...new Set([...state.versions, ...state.events.map(eventVersion), state.runFilters.version, state.activityFilters.version].filter(Boolean))];
+    state.loading = true; state.error = '';
+    $('refresh-history').disabled = true; renderSummary(); renderList();
+    try {
+      const history = await api('/api/comparison/aiona-history');
+      if (generation !== state.generation) return;
+      state.entries = history.entries || []; state.series = history.series || []; state.labels = history.factor_labels || {};
+      state.loaded = true;
+    } catch (err) {
+      if (generation !== state.generation) return;
+      state.error = err.status === 404 ? '이력 관리를 지원하는 서버가 필요합니다. 서버를 재시작한 뒤 다시 시도하세요.' : err.message || 'AIONA 결과 기록 조회에 실패했습니다.';
+    }
     state.loading = false; $('refresh-history').disabled = false;
-    buildFilters(); renderSummary(); renderLists();
+    buildFilters(); renderSummary(); renderList();
   }
   function metadata(rows) {
     return node('dl', {class: 'version-metadata history-metadata'}, ...rows.flatMap(([label, value]) => [node('dt', {text: label}), node('dd', {text: valueText(value)})]));
   }
   function section(title, ...content) { return node('section', {class: 'history-detail-section'}, node('h3', {text: title}), ...content); }
-  function eventList(events, runId = '') {
-    if (!events.length) return node('p', {class: 'field-help', text: '연결된 작업 이력이 없습니다. 과거 작업의 주체나 사유는 추정하지 않습니다.'});
-    return node('ul', {class: 'history-related-list'}, ...events.map((event) => node('li', {},
-      node('button', {class: 'row-button', text: (eventLabels[event.event_type] || event.event_type) + ' · ' + time(event.timestamp), onclick: () => openEventDetail(event, runId)}),
-      node('span', {class: 'history-cell-secondary', text: actorLabel(event) + ' · ' + (resultLabels[event.result] || event.result || '미기록')}))));
+  function changeSection(entry) {
+    if (!entry) return null;
+    if (!entry.previous_run_id) return section('직전 기록 대비', node('p', {class: 'field-help', text: '같은 질문 세트의 이전 기록이 없어 비교하지 않습니다.'}));
+    const before = state.entries.find((e) => e.run_id === entry.previous_run_id);
+    const rows = Object.entries(entry.deltas?.criteria || {}).map(([cid, d]) => node('tr', {},
+      node('th', {scope: 'row', text: criteriaNames[cid] || cid}),
+      node('td', {text: percent(before?.results?.criteria?.[cid]?.rate)}), node('td', {text: percent(entry.results?.criteria?.[cid]?.rate)}),
+      node('td', {}, pill(points(d.rate), deltaKind(d.rate)))));
+    return section('직전 기록 대비',
+      node('p', {text: changeText(entry)}),
+      node('p', {class: 'field-help', text: entry.attributable ? '한 요인만 바뀌었고 두 기록 모두 모든 질문이 판정되어 변화를 그 요인의 효과로 볼 수 있습니다.' :
+        entry.multi_factor ? '여러 요인이 함께 바뀌어 어느 요인 때문인지 단정하지 않습니다.' :
+        (entry.changes || []).length ? '미완료 질문이 있어 변화를 확정하지 않습니다.' : '조건이 같은 기록끼리의 차이는 평가 모델의 흔들림일 수 있습니다.'}),
+      ...(entry.changes || []).map((change) => node('details', {}, node('summary', {text: change.label + (change.fields?.length ? ' · ' + change.fields.join(', ') : '')}),
+        node('div', {class: 'history-change-grid'}, node('div', {}, node('h4', {text: '이전'}), node('pre', {text: valueText(change.before)})),
+          node('div', {}, node('h4', {text: '이후'}), node('pre', {text: valueText(change.after)}))),
+        ...(change.changelog || []).map((log) => node('div', {}, node('strong', {text: log.version + ' · ' + (log.date || '')}),
+          node('ul', {}, ...(log.changes || []).map((text) => node('li', {text}))))))),
+      node('div', {class: 'table-scroll'}, node('table', {class: 'data-table'}, node('thead', {}, node('tr', {}, ...['기준', '이전 통과율', '이번 통과율', '변화'].map((text) => node('th', {scope: 'col', text})))),
+        node('tbody', {}, node('tr', {}, node('th', {scope: 'row', text: '질문 통과율'}), node('td', {text: percent(before?.results?.question_pass_rate)}),
+          node('td', {text: percent(entry.results?.question_pass_rate)}), node('td', {}, pill(points(entry.deltas?.question_pass_rate), deltaKind(entry.deltas?.question_pass_rate)))), ...rows))),
+      node('button', {class: 'text-button', text: '직전 기록 보기 · ' + entry.previous_run_id, onclick: () => openRunDetail(entry.previous_run_id)}));
   }
   function originalSection(run) {
     const rows = run.datasets?.aiona || [], content = node('div', {class: 'history-original-content'});
@@ -313,70 +248,46 @@
   }
   async function openRunDetail(runId) {
     if (typeof runId !== 'string' || !runId) return;
-    const generation = beginDetail('평가 실행 상세');
+    const generation = beginDetail('AIONA 결과 기록 상세');
     $('history-detail-body').setAttribute('aria-busy', 'true');
-    const [result, activities] = await Promise.allSettled([api('/api/comparison/runs/' + encodeURIComponent(runId) + '/result'), api('/api/comparison/activity-history?run_id=' + encodeURIComponent(runId))]);
+    let run;
+    try { run = await api('/api/comparison/runs/' + encodeURIComponent(runId) + '/result'); }
+    catch (err) {
+      if (generation !== state.detailGeneration || !detail.open) return;
+      $('history-detail-body').setAttribute('aria-busy', 'false');
+      $('history-detail-body').replaceChildren(node('div', {class: 'alert error', role: 'alert', text: err.message || '실행을 불러오지 못했습니다.'}),
+        node('button', {class: 'button secondary', text: '다시 시도', onclick: () => openRunDetail(runId)}));
+      return;
+    }
     if (generation !== state.detailGeneration || !detail.open) return;
     const body = $('history-detail-body'); body.setAttribute('aria-busy', 'false');
-    if (result.status === 'rejected') {
-      body.replaceChildren(node('div', {class: 'alert error', role: 'alert', text: result.reason.message || '실행을 불러오지 못했습니다.'}),
-        node('button', {class: 'button secondary', text: '다시 시도', onclick: () => openRunDetail(runId)})); return;
-    }
-    const run = result.value, summary = window.AionaResults?.modelSummary(run, 'aiona', run.question_count || run.datasets?.aiona?.length || 0);
+    const entry = state.entries.find((e) => e.run_id === runId), version = run.aiona_release?.version;
     body.replaceChildren(
-      section(run.name || runId, pill(statusLabel(run), statusKind(run.status)),
-        run.save_error || run.activity_save_error ? node('p', {class: 'alert error', role: 'alert', text: '기록 저장에 문제가 있습니다. ' + (run.save_error || run.activity_save_error)}) : null,
-        metadata([['실행 ID', run.run_id], ['모델 버전', runVersion(run) ? 'AIONA ' + runVersion(run) : null], ['실행 시각', time(run.created_at)],
-          ['입력 방식', inputLabel(run)], ['문항 수', number(run.question_count)], ['모델 버전 변경 설명', run.aiona_release?.notes]]),
+      section(run.name || runId, pill(run.status === 'COMPLETED' ? '평가 작업 종료' : run.status, run.status === 'COMPLETED' ? 'neutral' : 'warning'),
+        run.save_error ? node('p', {class: 'alert error', role: 'alert', text: '기록 저장에 문제가 있습니다. ' + run.save_error}) : null,
+        metadata([['실행 ID', run.run_id], ['AIONA 버전', version ? 'AIONA ' + version : null], ['완료 시각', time(run.finished_at || run.created_at)],
+          ['문항 수', number(run.question_count)], ['질문 세트', entry ? setLabel(entry.question_set) : null], ['AIONA 버전 변경 설명', run.aiona_release?.notes]]),
         node('div', {class: 'history-detail-actions'}, node('button', {class: 'button primary', text: '저장된 평가 결과 열기', onclick: () => openResults(runId)}),
-          node('button', {class: 'button secondary', text: '비교 대상으로 선택', onclick: () => compareRun(runId)}))),
-      section('문항 판정 상태', node('p', {text: run.evaluation_summary ? completionSummary(run) : summary ? `판정 ${number(summary.complete)} / ${number(summary.total)} · 통과 ${number(summary.counts.clear)} · 문제 발견 ${number(summary.counts.issue)} · 미완료 ${number(summary.counts.pending)}` : '저장된 결과에서 문항별 판정을 확인하세요.'}),
-        node('p', {class: 'field-help', text: '평가 작업 종료는 모든 문항의 판정 완료를 뜻하지 않습니다. 보류·미완료 문항은 결과에서 별도로 확인할 수 있습니다.'})),
-      section('평가 조건', node('p', {text: conditionSummary(run)}), node('p', {class: 'field-help', text: '이 실행에 저장된 평가 조건입니다. 같은 모델 버전의 다른 실행과 조건이 다를 수 있습니다.'}),
-        metadata([['평가 엔진', run.evaluation_profile?.fields?.engine_versions?.engine], ['평가 기준', run.evaluation_profile?.fields?.criteria_version],
-          ['의미 평가 조건', run.evaluation_profile?.fields?.semantic_version], ['평가자 모델', run.evaluation_profile?.fields?.judge?.requested_model]]),
+          node('button', {class: 'button secondary', text: '버전 비교 대상으로', onclick: () => compareRun(runId)}))),
+      entry ? section('AIONA 결과', node('p', {text: `질문 통과율 ${percent(entry.results?.question_pass_rate)} · 통과 ${number(entry.results?.questions?.PASS)} · 실패 ${number(entry.results?.questions?.FAIL)}` +
+        (entry.results?.questions?.PENDING ? ` · 미완료 ${number(entry.results.questions.PENDING)}` : '')}),
+        node('p', {class: 'field-help', text: Object.entries(entry.results?.criteria || {}).map(([cid, part]) => `${criteriaNames[cid] || cid} ${percent(part.rate)}`).join(' · ') || '기준별 통과율 없음'})) : null,
+      changeSection(entry),
+      section('평가 조건', node('p', {text: entry ? conditionText(entry.conditions) : conditionSummary(run)}),
         node('details', {}, node('summary', {text: '기술 정보와 저장된 평가 조건'}), node('pre', {text: valueText(run.evaluation_profile)}))),
-      originalSection(run),
-      section('관련 작업 이력', activities.status === 'fulfilled' ? eventList(activities.value.events || [], runId) :
-        node('div', {class: 'alert error', role: 'alert', text: activities.reason.message || '관련 작업 이력을 불러오지 못했습니다.'}),
-        node('button', {class: 'text-button', text: '작업 이력에서 보기', onclick: () => leaveDetail(() => openActivity({runId}))})));
+      originalSection(run));
     if (run.source_run_id || run.baseline_run_id) body.append(section('연결된 평가 실행',
-      ...(run.source_run_id ? [node('p', {class: 'field-help', text: '이 실행은 원본을 보존한 별도의 재평가 실행입니다.'}), node('button', {class: 'text-button', text: '원본 실행 보기 · ' + run.source_run_id, onclick: () => openRunDetail(run.source_run_id)})] : []),
+      ...(run.source_run_id ? [node('p', {class: 'field-help', text: '이 실행은 원본 답변에 새 기준을 다시 돌린 재평가 실행입니다.'}), node('button', {class: 'text-button', text: '원본 실행 보기 · ' + run.source_run_id, onclick: () => openRunDetail(run.source_run_id)})] : []),
       ...(run.baseline_run_id ? [node('button', {class: 'text-button', text: '동일 질문의 기준 실행 보기 · ' + run.baseline_run_id, onclick: () => openRunDetail(run.baseline_run_id)})] : [])));
   }
-  function openEventDetail(event, parentRunId = '') {
-    beginDetail('작업 이력 상세');
-    const body = $('history-detail-body'); body.setAttribute('aria-busy', 'false');
-    body.replaceChildren(
-      section(eventLabels[event.event_type] || event.event_type || '작업 기록', pill(resultLabels[event.result] || event.result || '미기록', resultKind(event.result)),
-        derived(event) ? node('p', {class: 'alert warning', text: '기존 기록에서 구성됨 · 과거 작업 주체와 변경 사유는 확인된 내용만 표시합니다.'}) : null,
-        metadata([['이벤트 ID', event.event_id], ['작업 시각', time(event.timestamp)], ['작업 주체', actorLabel(event)], ['모델 버전', eventVersion(event) ? 'AIONA ' + eventVersion(event) : null],
-          ['실행 ID', event.run_id], ['변경 사유', event.reason], ['오류 요약', event.error_summary], ['관련 이벤트 ID', event.related_event_id], ['원본 실행 ID', event.source_run_id]])),
-      section('변경 전·후', node('div', {class: 'history-change-grid'},
-        node('div', {}, node('h4', {text: '변경 전'}), node('pre', {text: valueText(event.before)})),
-        node('div', {}, node('h4', {text: '변경 후'}), node('pre', {text: valueText(event.after)})))),
-      node('div', {class: 'history-detail-actions'},
-        parentRunId ? node('button', {class: 'button secondary', text: '평가 실행 상세로 돌아가기', onclick: () => openRunDetail(parentRunId)}) : null,
-        event.run_id ? node('button', {class: 'button primary', text: '연결된 실행 보기', onclick: () => openRunDetail(event.run_id)}) : null,
-        event.source_run_id ? node('button', {class: 'button secondary', text: '원본 실행 보기', onclick: () => openRunDetail(event.source_run_id)}) : null));
-    const related = state.events.find((item) => item.event_id === event.related_event_id);
-    if (related) body.append(node('button', {class: 'text-button', text: '관련 이벤트 보기', onclick: () => openEventDetail(related, parentRunId)}));
-  }
-  function openActivity({version = '', runId = ''} = {}) {
-    state.activityFilters = {...emptyActivityFilters(), version, runId}; state.activityPage = 0;
-    if (version && !state.versions.includes(version)) state.versions.push(version);
-    setTab('activities'); buildFilters(); renderLists(); W.go('history');
-  }
   function openVersionHistory(version) {
-    state.runFilters = {...emptyRunFilters(), version: typeof version === 'string' ? version : ''}; state.runPage = 0;
-    if (version && !state.versions.includes(version)) state.versions.push(version);
-    setTab('runs'); buildFilters(); renderLists(); W.go('history');
+    state.filters = {...emptyFilters(), version: typeof version === 'string' ? version : ''}; state.page = 0;
+    saveFilters(); buildFilters(); renderList(); W.go('history');
   }
   window.addEventListener('aiona:history-open', refresh);
   window.addEventListener('aiona:history-changed', () => { if (!host.hidden) refresh(); });
   window.addEventListener('aiona:history-version', (event) => openVersionHistory(event.detail?.version));
-  window.addEventListener('aiona:history-activity', (event) => openActivity(event.detail || {}));
-  window.AionaHistory = {refresh, openRunDetail, openActivity, conditionSummary};
-  buildFilters(); setTab(state.tab); renderSummary(); renderLists();
+  window.AionaHistory = {refresh, openRunDetail, conditionSummary};
+  buildFilters(); renderSummary(); renderList();
   if (!host.hidden || location.hash === '#history') refresh();
 })();

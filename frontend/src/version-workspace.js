@@ -160,32 +160,24 @@
   }
   const releaseDetail = dialog('model-release-detail', '모델 버전 상세');
   async function openRelease(release) {
-    const generation = ++state.detailGeneration, saved = runsFor(release.version);
+    ++state.detailGeneration;
+    const saved = runsFor(release.version);
     $('model-release-detail-title').textContent = 'AIONA ' + release.version;
-    const activity = node('div', {'aria-live': 'polite', text: '관련 작업 이력을 불러오고 있습니다.'});
+    // 기본 평가 버전 변경 기록(언제·이전 버전·사유)은 버전 기록에 함께 저장된다 (작업 이력 제거 뒤)
+    const changes = Array.isArray(release.default_changes) ? release.default_changes : [];
     const table = node('table', {class: 'data-table'}, node('thead', {}, node('tr', {}, ...['평가 실행', '평가 조건', '시각 · 문항', '상태', '작업'].map((text) => node('th', {text})))),
       node('tbody', {}, ...saved.map((run) => node('tr', {}, node('th', {scope: 'row', text: run.name || run.run_id}), node('td', {text: conditionSummary(run)}), node('td', {text: time(run.created_at) + ' · ' + number(run.question_count) + '문항'}), node('td', {}, pill(statusText(run), statusKind(run)), node('small', {class: 'field-help', text: completionNote(run)})), node('td', {}, node('button', {class: 'text-button', text: '상세 보기', onclick: () => { releaseDetail.element.close(); if (window.AionaHistory?.openRunDetail) window.AionaHistory.openRunDetail(run.run_id); else W.openRun(run.run_id); }}))))));
     releaseDetail.content.replaceChildren(
       node('p', {class: 'modal-description', text: release.notes || '변경 설명이 없습니다.'}),
-      node('dl', {class: 'version-metadata'}, node('dt', {text: '등록 시각'}), node('dd', {text: time(release.registered_at)}), node('dt', {text: '기본 평가 버전'}), node('dd', {text: release.version === state.history?.current_release?.version ? '선택됨 · 이후 새 평가의 기본값' : '선택 안 됨'})),
+      node('dl', {class: 'version-metadata'}, node('dt', {text: '등록 시각'}), node('dd', {text: time(release.registered_at)}),
+        ...(release.registered_reason ? [node('dt', {text: '등록 사유'}), node('dd', {text: release.registered_reason})] : []), node('dt', {text: '기본 평가 버전'}), node('dd', {text: release.version === state.history?.current_release?.version ? '선택됨 · 이후 새 평가의 기본값' : '선택 안 됨'})),
       node('section', {}, node('h3', {text: '연결된 평가 실행 ' + number(saved.length) + '건'}), node('p', {class: 'field-help', text: '실행별 평가 조건을 확인하세요. 서로 다른 조건의 점수를 하나로 합치지 않습니다.'}), saved.length ? node('div', {class: 'table-scroll'}, table) : node('p', {class: 'field-help', text: '이 버전의 평가 실행이 없습니다.'})),
-      node('section', {}, node('h3', {text: '관련 작업 이력'}), activity, node('button', {class: 'text-button', text: '작업 이력 전체 보기', onclick: () => { releaseDetail.element.close(); window.dispatchEvent(new CustomEvent('aiona:history-activity', {detail: {version: release.version}})); }})));
+      node('section', {}, node('h3', {text: '기본 평가 버전 변경 기록'}), changes.length
+        ? node('ul', {class: 'activity-list'}, ...changes.slice().reverse().map((change) => node('li', {},
+          node('strong', {text: (change.from ? 'AIONA ' + change.from : '선택 안 됨') + ' → AIONA ' + release.version}),
+          node('span', {class: 'field-help', text: time(change.at)}), change.reason ? node('p', {text: change.reason}) : null)))
+        : node('p', {class: 'field-help', text: '이 버전을 기본 평가 버전으로 바꾼 기록이 없습니다.'})));
     releaseDetail.show();
-    const loadActivity = async () => {
-      activity.textContent = '관련 작업 이력을 불러오고 있습니다.';
-      try {
-        const response = await api('/api/comparison/activity-history?version=' + encodeURIComponent(release.version));
-        if (generation !== state.detailGeneration) return;
-        const types = {model_version_registered: '모델 버전 등록', default_version_changed: '기본 평가 버전 변경', evaluation_started: '평가 시작', evaluation_completed: '평가 종료', evaluation_failed: '평가 실패', evaluation_cancelled: '평가 취소', reevaluation_created: '재평가 실행 생성'};
-        const events = response.events || [];
-        activity.replaceChildren(events.length ? node('ul', {class: 'activity-list'}, ...events.slice(0, 10).map((event) => node('li', {},
-          node('strong', {text: types[event.event_type] || event.event_type}), node('span', {class: 'field-help', text: time(event.timestamp) + ' · ' + (event.actor?.label || '미기록')}),
-          event.reason ? node('p', {text: event.reason}) : null, event.error_summary ? node('p', {text: event.error_summary}) : null))) : node('p', {class: 'field-help', text: '저장된 작업 이력이 없습니다. 과거 작업자와 변경 사유는 추정하지 않습니다.'}));
-      } catch (err) {
-        if (generation === state.detailGeneration) activity.replaceChildren(node('p', {class: 'alert error', role: 'alert', text: err.message}), node('button', {class: 'button secondary', text: '작업 이력 다시 조회', onclick: loadActivity}));
-      }
-    };
-    await loadActivity();
   }
   const defaultDialog = dialog('model-default-dialog', '기본 평가 버전 변경');
   function confirmDefault(release) {

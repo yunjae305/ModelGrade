@@ -1,4 +1,4 @@
-"""서버 버전 비교(webapp/version_comparison)·실행 요약(run_summary)·조건 변경 이벤트 — 대역 평가자, 모델 호출 없음."""
+"""서버 버전 비교(webapp/version_comparison)·실행 요약(run_summary)·AIONA 이력(aiona_history) — 대역 평가자, 모델 호출 없음."""
 import copy
 
 import pytest
@@ -96,7 +96,7 @@ def test_compare_runs_drills_down_and_uses_conversation_units(tmp_path):
         service.version_comparison(base['run_id'], None)
 
 
-def test_run_summary_and_condition_change_events_in_activity_history(tmp_path):
+def test_run_summary_and_aiona_history_track_one_factor_at_a_time(tmp_path):
     service, judge = make_service(tmp_path)
     judge.__class__ = AnswerJudge
     first = version_run(service, '10.1', {})
@@ -106,16 +106,88 @@ def test_run_summary_and_condition_change_events_in_activity_history(tmp_path):
     assert summary['profile']['pipeline'] == 'legacy' and summary['profile']['dispatch'] == 'realtime' and summary['profile']['judge']['requested_model'] == 'gpt-6.1-sol'
     assert summary['results']['aiona']['question_pass_rate'] == 1.0 and summary['results']['aiona']['criteria']['J1']['rate'] == 1.0
     assert [o['outcome'] for o in question_outcomes(first['evaluations']['aiona'])] == ['PASS'] * 5
-    assert first['condition_changes'] == {'previous_run_id': None, 'changes': [], 'summary': {k: summary[k] for k in ('profile', 'models', 'question_set')}}
-    # 평가 모델이 바뀐 다음 실행: judge_changed 이벤트가 작업 이력에 남는다
+    assert first['finished_at'] and 'condition_changes' not in first and not any(k.startswith('_activity_') for k in first)
+    # 같은 AIONA 버전에 평가 모델만 바꾼 실행 → 한 요인(평가 모델 변경)만 바뀐 비교
     judge.config = copy.deepcopy(judge.config)
     object.__setattr__(judge.config, 'model', 'gpt-7-fixture')
-    second = version_run(service, '10.2', {})
-    changes = second['condition_changes']
-    assert changes['previous_run_id'] == first['run_id'] and [c['event_type'] for c in changes['changes']] == ['judge_changed']
-    assert changes['changes'][0]['fields'] == ['requested_model'] and changes['changes'][0]['multi_factor'] is False
-    events = service.activity_history({'event_type': 'judge_changed'})['events']
-    assert len(events) == 1 and events[0]['run_id'] == second['run_id'] and events[0]['source_run_id'] == first['run_id']
-    assert events[0]['before']['requested_model'] == 'gpt-6.1-sol' and events[0]['after']['requested_model'] == 'gpt-7-fixture'
-    assert '평가 모델 변경' in events[0]['reason'] and '여러 요인' not in events[0]['reason']
+    second = version_run(service, '10.1', {})
     assert evaluation_profile(second)['fields']['judge']['requested_model'] == 'gpt-7-fixture'
+    # AIONA 버전만 바꾼 실행 (답변 하나가 나빠짐) → AIONA 버전 변경 한 요인, 질문 통과율 -0.2
+    third = version_run(service, '10.2', {'Q2': '나쁜 답'})
+    # AIONA 버전과 평가 모델이 함께 바뀐 실행 → 여러 요인 변경, 원인 단정 안 함
+    object.__setattr__(judge.config, 'model', 'gpt-6.1-sol')
+    fourth = version_run(service, '10.3', {})
+    history = service.aiona_history()
+    assert history['version'] == 'aiona-history-v1' and [e['run_id'] for e in history['entries']] == [
+        fourth['run_id'], third['run_id'], second['run_id'], first['run_id']]   # 최신순
+    by_id = {e['run_id']: e for e in history['entries']}
+    start, judge_only, version_only, both = (by_id[r['run_id']] for r in (first, second, third, fourth))
+    assert start['previous_run_id'] is None and start['changes'] == [] and start['deltas'] is None
+    assert start['aiona_version'] == '10.1' and start['results']['question_pass_rate'] == 1.0 and start['results']['complete'] is True
+    assert start['question_set'] == summary['question_set'] and start['conditions']['dispatch'] == 'realtime'
+    assert judge_only['previous_run_id'] == first['run_id'] and judge_only['factors'] == ['judge_changed']
+    assert judge_only['changes'][0]['fields'] == ['requested_model'] and judge_only['attributable'] is True and judge_only['multi_factor'] is False
+    assert version_only['factors'] == ['aiona_version_changed'] and version_only['changes'][0]['before'] == '10.1'
+    assert version_only['attributable'] is True and version_only['deltas']['question_pass_rate'] == -0.2
+    assert version_only['deltas']['criteria']['J1']['rate'] == -0.2 and version_only['results']['criteria']['J1']['fail'] == 1
+    assert both['factors'] == ['judge_changed', 'aiona_version_changed'] and both['multi_factor'] is True and both['attributable'] is False
+    assert all(change['multi_factor'] for change in both['changes'])
+    assert not any('collection_models_changed' in e['factors'] for e in history['entries'])   # 이력 관리는 AIONA 만
+    (series,) = history['series']
+    assert series['fingerprint'] == first['dataset_fingerprint'] and [p['run_id'] for p in series['points']] == [
+        first['run_id'], second['run_id'], third['run_id'], fourth['run_id']]
+    assert [p['markers'] for p in series['points']] == [[], ['judge_changed'], ['aiona_version_changed'], ['judge_changed', 'aiona_version_changed']]
+    assert history['factor_labels']['aiona_version_changed'] == 'AIONA 버전 변경'
+
+
+def test_overall_verdict_needs_every_question_linked_and_judged(tmp_path):
+    service, judge = make_service(tmp_path)
+    judge.__class__ = AnswerJudge
+    base = version_run(service, '10.1', {'Q1': '나쁜 답', 'Q2': '나쁜 답', 'Q3': '나쁜 답'})
+    target = version_run(service, '10.2', {})
+    full = vc.compare_runs(base, target)
+    assert full['coverage']['complete'] is True and full['verdict']['label'] != 'partial'
+    # 판정이 끝나지 않은 문항이 하나라도 있으면 전체 판정을 확정하지 않는다 (부분 표본 통계는 따로 보여 줌)
+    unjudged = copy.deepcopy(target)
+    unjudged['evaluations']['aiona']['jev_eval']['records'][3]['status'] = 'API_ERROR'
+    partial = vc.compare_runs(base, unjudged)
+    assert partial['coverage']['pending'] >= 1 and partial['coverage']['complete'] is False
+    assert partial['verdict']['label'] == 'partial' and '판정이 끝난 공통 문항만' in partial['verdict']['text']
+    # 문항 ID 를 바꿔 연결에서 빠진 문항이 있어도 같은 결론을 내지 않는다
+    renamed = copy.deepcopy(target)
+    for key in ('id', 'case_id'):
+        if key in renamed['datasets']['aiona'][0]:
+            renamed['datasets']['aiona'][0][key] = 'Q1-renamed'
+    assert vc.compare_runs(base, renamed)['verdict']['label'] in ('partial', 'not_comparable')
+
+
+def test_profile_differences_ignore_only_dispatch_settings():
+    a = {'fields': {'judge': {'requested_model': 'm', 'evidence_recovery_rounds': 0, 'dispatch': 'realtime', 'api_base': 'https://a'}}}
+    b = {'fields': {'judge': {'requested_model': 'm', 'evidence_recovery_rounds': 1, 'dispatch': 'batch', 'batch_questions': 20,
+                              'api_base': 'https://b'}}}
+    assert [(d['field'], d['label']) for d in vc.profile_differences(a, b)] == [('judge.evidence_recovery_rounds', '근거 보강 횟수')]
+
+
+def test_expanded_items_are_matched_by_quote_not_model_numbers():
+    def record(*items):
+        return {'decisions': {'J4': {'decision': 'FAIL', 'subs': {'J4-2': {'decision': 'FAIL', 'items': [
+            {'id': item_id, 'decision': decision, 'question_quote': quote} for item_id, quote, decision in items]}}}}}
+    before = record(('J4-2.a#1', '각각', 'YES'), ('J4-2.a#2', '이유를 한 줄씩', 'NO'))
+    after = record(('J4-2.a#1', '이유를  한 줄씩', 'NO'), ('J4-2.a#2', '각각', 'YES'))   # 나열 순서만 다름 (공백 차이 포함)
+    items = vc._drilldown(None, before, None, after)['items']
+    assert {key: row['change'] for key, row in items.items()} == {'J4-2.a · 각각': 'pass_kept', 'J4-2.a · 이유를 한 줄씩': 'fail_kept'}
+
+
+def test_run_summary_code_rates_include_saved_completion_like_the_question_verdict():
+    from code_eval.common_adjudication import resolved_batch
+    from tests.test_common_adjudication import legacy_batch
+    from webapp import run_summary as module
+    batch, index = legacy_batch()
+    category = str(batch['cases'][0]['results'][index]['category'])
+    resolved = resolved_batch(batch)['cases'][0]['results']
+    expected = sum(1 for r in resolved if r.get('area') == 'common' and r.get('counted') and r.get('verdict') == 'PASS'
+                   and str(r.get('category')) == category)
+    assert module._criteria_rates(batch)['code'][category]['pass'] == expected
+    raw = sum(1 for r in batch['cases'][0]['results'] if r.get('area') == 'common' and r.get('counted') and r.get('verdict') == 'PASS'
+              and str(r.get('category')) == category)
+    assert expected == raw + 1   # 보완 판정으로 확정된 행이 요약에도 들어간다

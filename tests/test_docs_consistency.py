@@ -70,7 +70,7 @@ def test_service_guide_documents_current_settings_and_env_keys():
         assert stale not in text, stale
     body = text.split('### 공통 미판정 조건의 PASS/FAIL 보완')[1].split('\n', 1)[1]   # 제목 다음 본문
     assert body.lstrip().startswith('> **지금은 쓰지 않는 절차입니다.**') and '`code_completion` 을 만들지 않습니다' in body[:600]
-    assert '/api/comparison/version-comparison' in text and 'criteria_changed' in text
+    assert '/api/comparison/version-comparison' in text and '/api/comparison/aiona-history' in text and 'criteria_changed' in text
 
 
 def test_implementation_map_paths_exist():

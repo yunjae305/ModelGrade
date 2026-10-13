@@ -8,7 +8,6 @@ from __future__ import annotations
 import copy
 import json
 import re
-import sqlite3
 import threading
 import time
 import uuid
@@ -30,9 +29,9 @@ from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event, record_events
 from . import semantic_union
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
-from .run_summary import run_summary
-from .version_comparison import compare_runs, condition_changes
-from .activity_store import clean_text, event_record
+from .aiona_history import aiona_history
+from .version_comparison import compare_runs
+from .registry_store import clean_text
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 PROVIDER_ENV = {
@@ -272,7 +271,6 @@ class ComparisonService:
                     already_stopped = token.is_set() and run["status"] == "CANCELLED"
                     token.set()
                     if not already_stopped:
-                        run.setdefault('_activity_cancel_actor', 'system')
                         self._mark_cancelled(run)
                         self._save(run)
             threads = [thread for group in self._workers.values() for thread in group]
@@ -410,7 +408,7 @@ class ComparisonService:
             interrupted = run['status'] in ('COLLECTING', 'EVALUATING')
             self._interrupted(run)
             self._runs[run_id] = run
-            if interrupted and run.get('_activity_tracking'):
+            if interrupted:
                 self._save(run)
         return run
 
@@ -440,8 +438,8 @@ class ComparisonService:
             # A successful replacement must not persist warnings from an earlier
             # failed attempt. The relevant warning is restored below on failure.
             run.pop('save_error', None)
-            run.pop('activity_save_error', None)
-            self._queue_terminal_activity(run)
+            if run.get('status') in ('COMPLETED', 'ERROR', 'CANCELLED') and not run.get('finished_at'):
+                run['finished_at'] = datetime.now(timezone.utc).isoformat()   # 이력 관리의 완료 시각
             stream = self._streams.get(run["run_id"])
             if stream and stream.state["generation"]:
                 run["evaluation_log"] = stream.snapshot()
@@ -454,34 +452,7 @@ class ComparisonService:
         except (OSError, ValueError):
             run["save_error"] = "실행 기록 저장 실패. JSON을 직접 다운로드해 주세요."
             return False
-        try:
-            self.version_registry.activity.append(run.get('_activity_outbox', []))
-            run.pop('activity_save_error', None)
-        except (OSError, ValueError, sqlite3.Error):
-            run['activity_save_error'] = '작업 이력 저장 실패. 저장된 실행 기록에서 다시 복구합니다.'
-            return False
         return True
-
-    def _queue_terminal_activity(self, run):
-        if not run.get('_activity_tracking') or run['status'] not in ('COMPLETED', 'ERROR', 'CANCELLED'):
-            return
-        key = f"{run['run_id']}:{run.get('_activity_attempt', 1)}:terminal"
-        event_type, result = {'COMPLETED': ('evaluation_completed', 'success'),
-                             'ERROR': ('evaluation_failed', 'failure'),
-                             'CANCELLED': ('evaluation_cancelled', 'cancelled')}[run['status']]
-        event = event_record(event_type, key=key, actor=run.get('_activity_cancel_actor', 'system')
-                             if run['status'] == 'CANCELLED' else 'system',
-                             model_version=(run.get('aiona_release') or {}).get('version'),
-                             run_id=run['run_id'], source_run_id=run.get('source_run_id'),
-                             before={'status': 'EVALUATING' if run.get('eval_started_at') else 'COLLECTING'},
-                             after={'status': run['status'], 'evaluation_summary': self._evaluation_summary(run)},
-                             result=result, error_summary=clean_text(run.get('error'), secrets=[
-                                 entry.get('key') for entry in self._keys.values()]),
-                             related_event_id=run.get('_activity_started_event_id'))
-        outbox = run.setdefault('_activity_outbox', [])
-        if not any(item['event_id'] == event['event_id'] for item in outbox):
-            run['finished_at'] = event['timestamp']
-            outbox.append(event)
 
     @staticmethod
     def _evaluation_summary(run):
@@ -590,7 +561,7 @@ class ComparisonService:
                         if run["run_id"] not in self._runs:
                             interrupted = run['status'] in ('COLLECTING', 'EVALUATING')
                             self._interrupted(run)
-                            if interrupted and run.get('_activity_tracking'):
+                            if interrupted:
                                 self._save(run)
                         stored[run["run_id"]] = self._status(run)
                     except (OSError, ValueError, KeyError):
@@ -610,40 +581,18 @@ class ComparisonService:
         with self._lock:
             return compare_runs(self.result(baseline_id), self.result(target_id))
 
-    def _previous_completed(self, run):
-        """이 실행보다 먼저 만들어진 가장 최근의 평가 완료 실행 (없으면 None)."""
-        candidates = [r for r in self.history(limit=None)
-                      if r.get('run_id') != run.get('run_id') and r.get('status') == 'COMPLETED' and r.get('created_at')
-                      and run.get('created_at') and r['created_at'] < run['created_at']]
-        if not candidates:
-            return None
-        latest = max(candidates, key=lambda r: r['created_at'])
-        try:
-            return self._run(latest['run_id'])
-        except (FileNotFoundError, ValueError, OSError):
-            return None
-
-    def _queue_condition_changes(self, run):
-        """평가 완료 시 직전 완료 실행과 조건(기준·평가 모델·수집 모델)을 대조해 바뀐 요인을 작업 이력에 남긴다 (이력 관리)."""
-        if run.get('status') != 'COMPLETED' or not run.get('_activity_tracking'):
-            return
-        previous = self._previous_completed(run)
-        current = run_summary(run)
-        changes = condition_changes(run_summary(previous) if previous else None, current)
-        run['condition_changes'] = {'previous_run_id': previous.get('run_id') if previous else None, 'changes': changes,
-                                    'summary': {k: current[k] for k in ('profile', 'models', 'question_set')}}
-        outbox = run.setdefault('_activity_outbox', [])
-        for change in changes:
-            key = f"{run['run_id']}:{run.get('_activity_attempt', 1)}:condition:{change['event_type']}"
-            note = f"{change['label']}: {', '.join(change['fields'])}"
-            if change.get('multi_factor'):
-                note += ' · 여러 요인 변경(' + ', '.join(change['factors']) + ') — 원인을 단정하지 않음'
-            event = event_record(change['event_type'], key=key, actor='system', model_version=(run.get('aiona_release') or {}).get('version'),
-                                 run_id=run['run_id'], source_run_id=previous.get('run_id') if previous else None,
-                                 before=change['before'], after=change['after'], reason=note,
-                                 related_event_id=run.get('_activity_started_event_id'))
-            if not any(item['event_id'] == event['event_id'] for item in outbox):
-                outbox.append(event)
+    def aiona_history(self):
+        """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history)."""
+        with self._lock:
+            runs = []
+            for status in self.history(limit=None):
+                if status.get('status') != 'COMPLETED':
+                    continue
+                try:
+                    runs.append(self.result(status['run_id']))
+                except (FileNotFoundError, ValueError, OSError):
+                    continue
+            return aiona_history(runs)
 
     def manage_release(self, payload):
         with self._lock:
@@ -654,25 +603,6 @@ class ComparisonService:
                     safe_payload[field] = clean_text(safe_payload[field], secrets=secrets)
             self.version_registry.manage(safe_payload)
             return self.version_history()
-
-    def activity_history(self, filters=None):
-        with self._lock:
-            # Replay only outboxes produced by this feature. Never invent past actors/events.
-            self.history(limit=None)
-            if self.save_dir.is_dir():
-                for path in self.save_dir.glob('*.json'):
-                    try:
-                        run = json.loads(path.read_text(encoding='utf-8'))
-                    except (OSError, ValueError):
-                        continue
-                    self.version_registry.activity.append(run.get('_activity_outbox', []))
-                    current = self._runs.get(run.get('run_id'), run)
-                    if run.get('activity_save_error') or current.get('activity_save_error'):
-                        # Only repair tracked warning metadata after replay; an
-                        # ordinary history read never rewrites historical runs.
-                        if not self._save(current):
-                            raise OSError('작업 이력 복구 상태를 저장하지 못했습니다.')
-            return self.version_registry.activity.events(filters)
 
     def version_template(self, run_id):
         source = self.result(run_id)
@@ -830,24 +760,13 @@ class ComparisonService:
                 run['input_document'] = document
             if blind:
                 run["blind_requested"] = True
-            started = event_record('evaluation_started', key=f'{run_id}:1:start',
-                                   timestamp=run['created_at'], model_version=(release or {}).get('version'),
-                                   run_id=run_id, after={'status': run['status'], 'input_mode': input_mode,
-                                                       'question_count': len(cases)}, source_run_id=source_id)
-            run.update(_activity_tracking=1, _activity_attempt=1, _activity_outbox=[started],
-                       _activity_started_event_id=started['event_id'])
-            if source_id:
-                run['_activity_outbox'].append(event_record('reevaluation_created', key=f'{run_id}:reevaluation',
-                    timestamp=run['created_at'], model_version=(release or {}).get('version'), run_id=run_id,
-                    source_run_id=source_id, related_event_id=started['event_id'],
-                    after={'run_id': run_id}, before={'run_id': source_id}))
             self._runs[run_id] = run
             self._cancel_events[run_id] = token = threading.Event()
             self._cost_ledgers[run_id] = ledger = CostLedger()
             if not self._save(run):
                 self._cancel_events.pop(run_id, None)
                 self._cost_ledgers.pop(run_id, None)
-                run['status'], run['error'] = 'ERROR', '실행 기록 또는 작업 이력을 저장하지 못해 평가를 시작하지 않았습니다.'
+                run['status'], run['error'] = 'ERROR', '실행 기록을 저장하지 못해 평가를 시작하지 않았습니다.'
                 self._save(run)
                 raise OSError(run['error'])
         if selected:
@@ -1019,7 +938,6 @@ class ComparisonService:
                 # Keep the operation active until its in-flight response is
                 # saved; terminal CANCELLED then means its worker has drained.
                 run["cancel_requested"] = True
-                run['_activity_cancel_actor'] = 'local'
                 run["revision"] = run.get("revision", 0) + 1
                 self._save(run)
             return self._status(run)
@@ -1042,16 +960,7 @@ class ComparisonService:
             if ledger is None:
                 self._cost_ledgers[run_id] = ledger = CostLedger()
             started_at = datetime.now(timezone.utc).isoformat()
-            if previous_status in ('ERROR', 'CANCELLED') or not run.get('_activity_tracking'):
-                attempt = run.get('_activity_attempt', 0) + 1
-                started = event_record('evaluation_started', key=f'{run_id}:{attempt}:start',
-                    timestamp=started_at, model_version=(run.get('aiona_release') or {}).get('version'),
-                    run_id=run_id, before={'status': previous_status}, after={'status': 'EVALUATING'},
-                    source_run_id=run.get('source_run_id'))
-                run.setdefault('_activity_outbox', []).append(started)
-                run.update(_activity_tracking=1, _activity_attempt=attempt, _activity_started_event_id=started['event_id'])
-                run.pop('finished_at', None)
-                run.pop('_activity_cancel_actor', None)
+            run.pop('finished_at', None)   # 다시 평가하면 완료 시각은 새 평가가 끝날 때 기록한다
             self._cancel_events[run_id] = token = threading.Event()
             # Histories contain already-collected responses, so semantic checks of
             # different turns are independent. Freeze equal concurrency per model.
@@ -1091,7 +1000,7 @@ class ComparisonService:
             stream = self.event_stream(run_id)
             stream.publish({"type": "run_start", "total": run["question_count"] * len(run["providers"])})
             if not self._save(run):
-                run['status'], run['error'] = 'ERROR', '실행 기록 또는 작업 이력을 저장하지 못해 평가를 시작하지 않았습니다.'
+                run['status'], run['error'] = 'ERROR', '실행 기록을 저장하지 못해 평가를 시작하지 않았습니다.'
                 self._save(run)
                 self._cancel_events.pop(run_id, None)
                 self._finish_costs(run, ledger)
@@ -1116,7 +1025,8 @@ class ComparisonService:
                     return
                 if event["type"] == "code_result":
                     event = code_event(event["row"], event["index"], event["qid"])
-                label = run.get("blind", {}).get("labels", {}).get(provider) or ("AIONA" if provider == "aiona" else PROVIDERS[provider])
+                # 화면용 이벤트는 실제 모델명 — 블라인드는 평가 모델에 보내는 요청에만 적용한다
+                label = "AIONA" if provider == "aiona" else PROVIDERS[provider]
                 if event["type"] == "batch_progress":
                     # Message Batches 진행: 묶음 ID·상태를 실행 기록에(이어받기용), 요약 수치를 진행 상태에 남기고 저장한다
                     run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(event.get("batches") or [])
@@ -1182,7 +1092,8 @@ class ComparisonService:
                        "semantic_workers": workers_per_provider,
                        "cancel_event": token,
                        "pipeline": pipeline, "semantic_context": semantic_contexts[provider],
-                       "dispatch_options": {"custom_id_prefix": f"{run['run_id']}:{provider}:",
+                       # custom_id 는 Batches 규격(영문·숫자·_·-, 64자 이하) — run_id(12) + 제공자 + 질문 번호
+                       "dispatch_options": {"custom_id_prefix": f"{run['run_id']}_{re.sub(r'[^A-Za-z0-9-]', '-', provider)}_",
                                             "existing_batches": saved_batches.get(provider) or None},
                        "jev_resolver": shared_semantic_resolver if run.get("blind", {}).get("enabled") else resolver}
             batch = self.evaluator.evaluate({"cases": cases, "aiona_config": payload.get("aiona_config"),
@@ -1251,7 +1162,6 @@ class ComparisonService:
                     else:
                         run["status"] = "COMPLETED"
                         stream.publish({"type": "run_done"})
-                        self._queue_condition_changes(run)
                     run["revision"] += 1
                     self._save(run)
                     self._finish_costs(run, ledger)

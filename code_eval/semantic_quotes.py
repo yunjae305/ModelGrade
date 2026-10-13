@@ -31,7 +31,8 @@ __all__ = ["ITEM_QUOTE_POLICY", "RECHECK_POLICY", "MAX_RECHECK_ROUNDS", "RECHECK
            "normalize_text", "locate_quote", "verify_items", "recheck_questions", "merge_recheck", "mark_unverifiable",
            "finalize_items", "elements_of", "missing_elements", "union_recheck_questions"]
 
-ITEM_QUOTE_POLICY = "items-normalized-quotes-v1"
+#: v2 — 펼친 요소 단위 해당 없음(element_na, J5-2.a 의 '쓰지 않은 값')을 허용한다. 항목 전체의 해당 없음은 그대로 막는다.
+ITEM_QUOTE_POLICY = "items-normalized-quotes-v2"
 RECHECK_POLICY = "items-recheck-3-then-fail-v1"
 MAX_RECHECK_ROUNDS = 3
 RECHECK_NOTICE = "이전 판정의 인용이 원문에 없습니다. 원문을 글자 그대로 복사해 같은 항목을 다시 판정하세요."
@@ -204,8 +205,10 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
             codes.append(("decision_invalid", None))
         elif decision == "NOT_APPLICABLE":
             # 적용 여부는 코드 규칙이 정한다. 평가 모델이 적용을 정하는 항목(J1-3·J2-4.b·J3-3.a·J6), 주장이 없는 J5-1.a,
-            # 서버가 둔 자리표시 항목만 해당 없음을 허용한다 — 그 밖의 해당 없음은 인용 검증을 피하는 답이라 재확인 대상이다.
-            if not (spec.get("model_applies") or base == "J5-1.a" or item.get("server_placeholder")):
+            # 서버가 둔 자리표시 항목, 정의에 요소 단위 해당 없음이 있는 항목의 펼친 요소(J5-2.a#n — 답변에 쓰지 않은 값)만
+            # 해당 없음을 허용한다 — 그 밖의 해당 없음은 인용 검증을 피하는 답이라 재확인 대상이다.
+            element_na = bool(spec.get("element_na")) and element is not None
+            if not (spec.get("model_applies") or base == "J5-1.a" or item.get("server_placeholder") or element_na):
                 codes.append(("not_applicable_disallowed", None))
         else:
             question_quote = _text(item.get("question_quote"))
