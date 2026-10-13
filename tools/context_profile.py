@@ -4,11 +4,13 @@
     python tools/context_profile.py --run data/comparison_runs/<id>.json          # 저장 실행: 근사 + 제공자가 집계한 실제 입력 토큰(모델별)
     python tools/context_profile.py 세트.json --model gpt=400000:32000            # 272K 경계 실험: 모델 최대 입력:출력 예약 (공식 문서 확인 값만)
 
-프로필 — 평가 기준의 정의를 바꾸지 않는 시험용 구분이다:
-- multi_turn_j6: 2턴 이상 대화 (J6 일반, 길이와 무관)
-- stress_multi_turn (stress-10k-100k-v1, 멘토 제안 10-13): 턴 입력 평균 10K 토큰 이상이고 마지막 턴 누적 100K 토큰 이상인 대화.
-  멀티턴의 정의가 아니라 따로 세는 스트레스 시험 집계 (--stress-turn·--stress-total 로 바꿀 수 있음)
-- long_context_j7: 현재 판정 규칙 — 한 턴 입력(질문+참조, 이전 턴 제외) 8K 토큰 이상 (long_context.MIN_TOKENS)
+프로필 — 평가 기준은 코드의 현재 규칙을 그대로 쓰고, 시험용 구분은 따로 센다:
+- conversations_2plus: 2턴 이상 대화 (예전 J6 적용 규칙, 길이와 무관)
+- j6_multi_turn: 현재 J6 적용 규칙(code_eval/multi_turn.py) — 그 턴의 질문+답변이 MIN_TURN_TOKENS 이상인 턴이 MIN_LONG_TURNS 개 이상.
+  답변마다 다르므로 저장 실행은 시스템(모델)마다 따로 잰다. 답변 없는 질문 세트는 질문만으로 재 실제보다 작게 나온다
+- stress_multi_turn (stress-10k-100k-v1, 멘토 제안 10-13): 턴 입력 평균 10K 토큰 이상이고 마지막 턴 누적 요청 100K 토큰 이상인 대화.
+  시험 프로필 집계 (--stress-turn·--stress-total 로 바꿀 수 있음)
+- long_context_j7: 현재 J7 적용 규칙 — 한 턴 입력(질문+참조, 이전 턴 제외)이 long_context.MIN_TOKENS 이상, 구간은 long_context.tier
 - boundary_272k (실험): 입력 250K·272K·500K 근방. 최대 입력과 출력 예약을 아는 모델만 '실행 가능'으로, 모르면 '한도 미확인'
 상태 — PASS/FAIL 이 아니다: tokenizer_unavailable(측정 불가) · over_model_limit(입력+출력 예약이 최대 입력 초과) · limit_unknown
 토큰 수는 tiktoken o200k_base 근사다. 모델마다 토크나이저가 달라 실제 수는 저장 실행의 제공자 사용량(provider_input_tokens)으로 본다.
@@ -25,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from code_eval import long_context  # noqa: E402
+from code_eval import long_context, multi_turn  # noqa: E402
 
 PROFILE_VERSION = "context-profile-v1"
 STRESS_PROFILE = "stress-10k-100k-v1"
@@ -78,14 +80,19 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
     except long_context.TokenizerUnavailable as exc:
         measured, status = False, f"tokenizer_unavailable: {exc}"
     out_units, max_input, provider_max = [], 0, {}
-    counts = {"units": 0, "single": 0, "multi_turn_j6": 0, "stress_multi_turn": 0, "long_context_j7_turns": 0, "turns": 0}
+    counts = {"units": 0, "single": 0, "conversations_2plus": 0, "j6_multi_turn": 0, "stress_multi_turn": 0,
+              "long_context_j7_turns": 0, "turns": 0}
+    tiers: Dict[str, int] = {}
     for unit in _units(rows):
         counts["units"] += 1
         counts["turns"] += len(unit)
         is_conversation = unit[0].get("conversation_id") not in (None, "")
         entry: Dict[str, Any] = {"id": unit[0].get("conversation_id") or unit[0].get("case_id"), "turns": len(unit)}
         if is_conversation and len(unit) >= 2:
-            counts["multi_turn_j6"] += 1
+            counts["conversations_2plus"] += 1
+            j6 = multi_turn.measure_conversation((r.get("turn"), r.get("question"), r.get("answer")) for r in unit)
+            counts["j6_multi_turn"] += bool(j6.get("multi_turn"))
+            entry["j6"] = multi_turn.describe(j6)
         elif not is_conversation:
             counts["single"] += 1
         if measured:
@@ -97,6 +104,9 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
                 total += long_context.count_tokens(r.get("answer") or "")
             j7 = sum(n >= long_context.MIN_TOKENS for n in inputs)
             counts["long_context_j7_turns"] += j7
+            for n in inputs:
+                if long_context.tier(n):
+                    tiers[long_context.tier(n)] = tiers.get(long_context.tier(n), 0) + 1
             stress = bool(is_conversation and len(unit) >= 2 and sum(inputs) / len(inputs) >= stress_turn and cumulative[-1] >= stress_total)
             counts["stress_multi_turn"] += stress
             max_input = max(max_input, max(cumulative))
@@ -113,26 +123,27 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
                                        else "runnable") for name, spec in models.items()} or {"_": "limit_unknown"}
     return {"version": PROFILE_VERSION, "status": status, "tokenizer": _tokenizer_version() if measured else None,
             "stress_profile": {"name": STRESS_PROFILE, "turn_mean_min": stress_turn, "last_turn_request_min": stress_total},
-            "j7_rule": {"min_tokens": long_context.MIN_TOKENS, "policy": long_context.LONG_CONTEXT_POLICY_VERSION},
+            "j7_rule": {"min_tokens": long_context.MIN_TOKENS, "policy": long_context.LONG_CONTEXT_POLICY_VERSION, "tiers": tiers},
+            "j6_rule": {"policy": multi_turn.MULTI_TURN_POLICY_VERSION, "min_turn_tokens": multi_turn.MIN_TURN_TOKENS,
+                        "min_long_turns": multi_turn.MIN_LONG_TURNS},
             "counts": counts, "max_request_tokens_estimate": max_input if measured else None,
             "provider_input_tokens_max": provider_max, "boundary_272k": boundary, "units": out_units}
 
 
-def rows_from_run(run: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """저장 실행 → AIONA 구조의 질문 행 + 모델별 실제 입력 토큰 (답변은 GPT 수집 답변으로 근사 누적을 낸다)."""
-    datasets = run.get("datasets") or {}
-    base = datasets.get("aiona") or next(iter(datasets.values()), [])
-    rows = []
-    for i, row in enumerate(base):
-        tokens = {}
-        for provider, data in datasets.items():
-            if provider != "aiona" and i < len(data):
-                n = provider_input_tokens(data[i])
-                if n is not None:
-                    tokens[(run.get("models") or {}).get(provider) or provider] = n
-        rows.append({**{k: row.get(k) for k in ("case_id", "question", "answer", "reference", "conversation_id", "turn")},
-                     "provider_tokens": tokens})
-    return rows
+def rows_from_run(run: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    """저장 실행 → 시스템마다 그 시스템의 답변으로 이은 질문 행 (+ 제공자가 집계한 실제 입력 토큰). J6 길이 조건은 답변마다 다르다."""
+    out = {}
+    for provider, data in (run.get("datasets") or {}).items():
+        model = (run.get("models") or {}).get(provider) if provider != "aiona" else None
+        rows = []
+        for row in data or []:
+            if not isinstance(row, dict):
+                continue
+            n = provider_input_tokens(row)
+            rows.append({**{k: row.get(k) for k in ("case_id", "question", "answer", "reference", "conversation_id", "turn")},
+                         "provider_tokens": {model or provider: n} if n is not None else {}})
+        out[provider] = rows
+    return out
 
 
 def _model_arg(value: str) -> Dict[str, Any]:
@@ -144,19 +155,27 @@ def _model_arg(value: str) -> Dict[str, Any]:
 
 
 def render(report: Dict[str, Any]) -> str:
-    c, s = report["counts"], report["stress_profile"]
-    lines = [f"긴 입력·멀티턴 프로필 ({report['version']}, 토크나이저 {report['tokenizer'] or '없음'}, API 호출 없음)",
-             f"- 상태: {report['status']}",
-             f"- 독립 단위 {c['units']}개(단일 {c['single']} · 2턴 이상 대화 {c['multi_turn_j6']}) · 턴 {c['turns']}개",
-             f"- J6 일반 멀티턴(2턴 이상): {c['multi_turn_j6']}개 대화",
-             f"- 스트레스 멀티턴({s['name']}: 턴 평균 ≥ {s['turn_mean_min']:,} · 마지막 턴 요청 ≥ {s['last_turn_request_min']:,}): {c['stress_multi_turn']}개 대화",
-             f"- J7 현재 규칙(한 턴 입력 ≥ {report['j7_rule']['min_tokens']:,}): {c['long_context_j7_turns']}개 턴",
-             f"- 가장 큰 요청(근사): {report['max_request_tokens_estimate']}"]
+    c, s, j6, j7 = report["counts"], report["stress_profile"], report["j6_rule"], report["j7_rule"]
+    lines = [f"[{report.get('system', '질문 세트')}] 상태 {report['status']} · 독립 단위 {c['units']}개(단일 {c['single']} · "
+             f"2턴 이상 대화 {c['conversations_2plus']}) · 턴 {c['turns']}개",
+             f"- J6 현재 규칙({j6['policy']}: 질문+답변 ≥ {j6['min_turn_tokens']:,} 토큰 턴 {j6['min_long_turns']}개 이상): "
+             f"{c['j6_multi_turn']}개 대화 / 2턴 이상 대화 {c['conversations_2plus']}개",
+             f"- 스트레스 멀티턴 시험 프로필({s['name']}: 턴 평균 ≥ {s['turn_mean_min']:,} · 마지막 턴 요청 ≥ {s['last_turn_request_min']:,}): "
+             f"{c['stress_multi_turn']}개 대화",
+             f"- J7 현재 규칙({j7['policy']}: 한 턴 입력 ≥ {j7['min_tokens']:,}): {c['long_context_j7_turns']}개 턴"
+             + (f" · 구간 {j7['tiers']}" if j7['tiers'] else ""),
+             f"- 가장 큰 요청(근사, 앞 턴 포함): {report['max_request_tokens_estimate']}"]
     if report["provider_input_tokens_max"]:
         lines.append("- 제공자 집계 실제 입력 토큰 최대: " + ", ".join(f"{m} {n:,}" for m, n in report["provider_input_tokens_max"].items()))
     for point, row in report["boundary_272k"].items():
         lines.append(f"- 경계 실험 {int(point):,} 토큰: " + ", ".join(f"{m} {v}" for m, v in row.items()))
     return "\n".join(lines)
+
+
+def render_all(reports: Dict[str, Dict[str, Any]]) -> str:
+    first = next(iter(reports.values()))
+    head = f"긴 입력·멀티턴 프로필 ({first['version']}, 토크나이저 {first['tokenizer'] or '없음'}, API 호출 없음)"
+    return "\n".join([head] + [render({**r, "system": name}) for name, r in reports.items()])
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -171,15 +190,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     if bool(args.path) == bool(args.run):
         parser.error("질문 세트 경로 또는 --run 중 하나")
     if args.run:
-        rows = rows_from_run(json.loads(args.run.read_text(encoding="utf-8-sig")))
+        systems = rows_from_run(json.loads(args.run.read_text(encoding="utf-8-sig")))
     else:
         from tools.check_question_set import load_items
-        rows = [r for r in load_items(args.path) if isinstance(r, dict)]
-    report = profile(rows, stress_turn=args.stress_turn, stress_total=args.stress_total,
-                     models={m["name"]: m for m in args.model})
+        systems = {"질문 세트": [r for r in load_items(args.path) if isinstance(r, dict)]}
+    reports = {name: profile(rows, stress_turn=args.stress_turn, stress_total=args.stress_total,
+                             models={m["name"]: m for m in args.model}) for name, rows in systems.items()}
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render(report))
+    print(json.dumps(reports, ensure_ascii=False, indent=1) if args.json else render_all(reports))
     return 0
 
 

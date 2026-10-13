@@ -150,7 +150,7 @@ def routing(run: Dict[str, Any], selection: Optional[List[Dict[str, Any]]] = Non
         if ctx:
             history, _ = build_history(ctx["prior"])
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
-                            "history_turns": len(history) if ctx["complete"] else 0}
+                            "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx.get("multi_turn")}
         tools = "unknown" if a["system"] == "aiona" else "none"
         subs = sub_applicability(a["question"], a["answer"], conversation=conversation, answer_tools=tools, history=history)
         sent = applicable_items({"question": a["question"], "answer": a["answer"], "answer_tools": tools, "history": history},
