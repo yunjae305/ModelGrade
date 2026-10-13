@@ -34,3 +34,12 @@ def test_cli_reads_jsonl_and_reports_type_distribution(tmp_path, capsys):
     assert main([str(path), "--json"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert report["types"]["코딩·기술"] == {"count": 1, "ratio": 0.5, "target": 0.15}
+
+
+def test_unjudged_question_conditions_items_rules_and_engine_input_errors():
+    report = check_items([{"question": "3 + 4는 얼마야?"}], pipeline="legacy")
+    assert report["criteria"]["CODE 3"]["applicable"] == 1          # 답변이 없어도 질문의 계산 조건은 적용
+    plan = [{"question": f"가상의 모임 계획을 세울게. 정원은 {n}명이야."} for n in range(10, 12)]
+    assert check_items(plan, pipeline="items")["criteria"]["J5"]["applicable"] == 2   # items 의 J5-2.a
+    bad = check_items([{"question": "안녕?", "reference": 123}], pipeline="legacy")
+    assert bad["errors"] and bad["criteria"]["J1"]["applicable"] == 0

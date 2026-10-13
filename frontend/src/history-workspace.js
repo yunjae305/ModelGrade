@@ -216,13 +216,17 @@
       chart.append(svg('circle', {cx: x(i), cy: y(p.question_pass_rate), r: 5,
         class: 'trend-point' + (factors.length ? ' changed' : '') + (p.complete ? '' : ' incomplete')},
         svg('title', {}, `${time(p.at)} · ${p.aiona_version ? 'AIONA ' + p.aiona_version : '버전 미기록'} · 통과율 ${percent(p.question_pass_rate)}`
-          + (i === 0 ? ' · 이 질문 세트의 첫 기록' : factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
+          + (p.relation === 'reevaluation' ? ' · 원본 실행 대비' + (factors.length ? ` 바뀐 요인: ${factors.join(', ')}` : ' 조건 같음')
+            : i === 0 ? ' · 이 질문 세트의 첫 기록' : factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
           + (p.complete ? '' : ' · 미완료 질문 있음(변화 확정 안 함)'))));
     }
-    const last = rated[rated.length - 1]?.[0];
+    const last = rated[rated.length - 1]?.[0], latest = points[points.length - 1];
+    const recent = !latest ? '' : typeof latest.question_pass_rate === 'number'
+      ? ` · 최근 ${percent(latest.question_pass_rate)}` + (latest.complete ? '' : ' (미완료 포함)')
+      : ' · 최근 기록 미확정' + (last ? ` · 최근 확정 ${percent(last.question_pass_rate)}` : '');
     return node('article', {class: 'history-trend-card'},
       node('strong', {text: setLabel(set)}),
-      node('span', {class: 'field-help', text: `기록 ${number(points.length)}건` + (last ? ` · 최근 ${percent(last.question_pass_rate)}` : '')}),
+      node('span', {class: 'field-help', text: `기록 ${number(points.length)}건` + recent}),
       chart);
   }
   function renderTrend() {

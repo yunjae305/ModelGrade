@@ -246,8 +246,12 @@ def _cut_operand_before(before: str) -> bool:
     stripped = before.rstrip(" \t\xa0")
     if not stripped or stripped[-1] not in "+-*/":
         return False
-    # 숫자(·닫는 괄호) 뒤에 공백 하나와 한글·영문·% 단위가 올 수 있다 — '2 벌 ×'. 목록 번호 '1.' 같은 문장부호는 단위가 아니다.
-    return bool(re.search(r"[\d)](?:[ \t\xa0]?[가-힣A-Za-z%]{1,4})?[ \t\xa0]*$", stripped[:-1]))
+    body = stripped[:-1]
+    if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
+        return False                       # 목록 표지만 있음 ('1. *3 + 4 = 8*', '1) …')
+    # 숫자(·닫는 괄호) 뒤에 공백 하나와 단위(한글·영문·%·㎡·² 같은 기호)가 올 수 있다 — '2 벌 ×', '2㎡ ×', '2m² ×'.
+    # 문장부호(. , : ; ! ?)는 단위가 아니다.
+    return bool(re.search(r"[\d)](?:[ \t\xa0]?[^\s\d+\-*/=().,:;!?]{1,4})?[ \t\xa0]*$", body))
 
 
 def _num(raw: str) -> Fraction:

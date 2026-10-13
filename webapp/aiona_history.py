@@ -144,7 +144,8 @@ def aiona_history(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
         group["points"].append({"run_id": entry["run_id"], "at": entry["finished_at"] or entry["created_at"],
                                 "aiona_version": entry["aiona_version"], "question_pass_rate": entry["results"]["question_pass_rate"],
                                 "criteria": {cid: part["rate"] for cid, part in entry["results"]["criteria"].items()},
-                                "complete": entry["results"]["complete"], "markers": list(entry["factors"])})
+                                "complete": entry["results"]["complete"], "markers": list(entry["factors"]),
+                                "relation": entry["relation"], "previous_run_id": entry["previous_run_id"]})
     for entry in entries:
         entry.pop("_profile", None)
     return {"version": HISTORY_VERSION, "factor_labels": dict(FACTOR_LABELS), "entries": list(reversed(entries)),

@@ -24,6 +24,8 @@ if str(ROOT) not in sys.path:
 
 from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
 from code_eval.jev_applicability import fact_question, jev_applicability  # noqa: E402
+from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
+from code_eval.semantic_items import applicable_items  # noqa: E402
 
 CHECK_VERSION = "question-set-check-v1"
 MIN_APPLICABLE = 30
@@ -32,6 +34,8 @@ TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .
                  "글쓰기·요약": .10, "멀티턴 대화": .10, "롱 컨텍스트": .05, "취약점·난도": .05}
 _TYPE_FIELDS = ("type", "category", "question_type", "유형")
 CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6")
+#: 답변이 만드는 조건 — 답변 없이 점검할 때 질문 조건으로 세지 않는다
+_ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 
 
 def load_items(path: Path) -> List[Any]:
@@ -54,7 +58,9 @@ def _normalized(question: str) -> str:
     return re.sub(r"\s+", " ", question).strip().lower()
 
 
-def check_items(items: List[Any]) -> Dict[str, Any]:
+def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, Any]:
+    """``pipeline`` 은 의미 평가 방식(legacy·items) — 없으면 평가와 같게 SEMANTIC_PIPELINE(.env) 을 따른다."""
+    pipeline = resolve_semantic_pipeline(pipeline=pipeline)
     errors: List[Dict[str, Any]] = []
     cases: List[Dict[str, Any]] = []
     for index, item in enumerate(items):
@@ -103,20 +109,35 @@ def check_items(items: List[Any]) -> Dict[str, Any]:
     evaluated = evaluate_batch(payloads)["cases"] if payloads else []
     applicable: Counter = Counter()
     per_case = []
+    usable = []
     for case, result in zip(cases, evaluated):
+        if result.get("case_status") != "EVALUATED":   # 엔진의 입력 오류·한도 초과는 평가에서도 빠진다 — 적용 수에서 뺀다
+            errors.append({"index": case["index"], "message": f"{result.get('case_status')}: {result.get('input_error') or '평가할 수 없는 입력'}"})
+            continue
+        usable.append((case, result))
+    for case, result in usable:
         hit = {"CODE 1"}   # 출력 무결성은 질문과 상관없이 모든 답변에 적용된다
         for row in result.get("results") or []:
             if row.get("source") in ("question", "history_instruction") and row.get("category") in ("1", "2", "3"):
                 hit.add("CODE " + row["category"])
-        history_turns = (case.get("turn") or 1) - 1
-        conversation = ({"id": case["conversation_id"], "turn": case["turn"], "history_turns": history_turns}
+        for skipped in (result.get("meta") or {}).get("skipped_conditions") or []:
+            # 답변이 없어 판정만 못 한 질문 조건(예: '3 + 4는 얼마야?' 의 계산값)도 적용이다
+            check_id = str(skipped.get("check_id") or "")
+            if check_id[:1] in "123" and not check_id.startswith(_ANSWER_CHECKS):
+                hit.add("CODE " + check_id[0])
+        prior = sorted((c for c in cases if "conversation_id" in case and c.get("conversation_id") == case["conversation_id"]
+                        and c.get("turn", 0) < case.get("turn", 0)), key=lambda c: c["turn"])
+        conversation = ({"id": case["conversation_id"], "turn": case["turn"], "history_turns": len(prior)}
                         if "conversation_id" in case else None)
-        semantic = jev_applicability(case["question"], None, reference=case.get("reference"), conversation=conversation)
-        hit.update(semantic["criteria"])
-        history = [c["question"] for c in cases if "conversation_id" in case and c.get("conversation_id") == case["conversation_id"]
-                   and c.get("turn", 0) < case.get("turn", 0)]
-        if fact_question(case["question"], [{"question": q} for q in history])[0]:
-            hit.add("J5")
+        if pipeline == "items":   # 평가와 같은 항목별 적용 규칙
+            state = {"question": case["question"], "answer": case["answer"], "reference": case.get("reference"),
+                     "history": [{"turn": c["turn"], "question": c["question"], "answer": c["answer"]} for c in prior]}
+            hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(state, conversation=conversation))
+        else:
+            semantic = jev_applicability(case["question"], None, reference=case.get("reference"), conversation=conversation)
+            hit.update(semantic["criteria"])
+            if fact_question(case["question"], [{"question": c["question"]} for c in prior])[0]:
+                hit.add("J5")
         applicable.update(hit)
         per_case.append({"case_id": case["case_id"], "criteria": [c for c in CRITERIA if c in hit]})
 
@@ -130,14 +151,14 @@ def check_items(items: List[Any]) -> Dict[str, Any]:
         total = sum(types.values())
         type_report = {name: {"count": n, "ratio": round(n / total, 3), "target": TARGET_RATIOS.get(name)}
                        for name, n in types.most_common()}
-    return {"version": CHECK_VERSION, "items": len(items), "questions": units, "single_questions": singles,
+    return {"version": CHECK_VERSION, "pipeline": pipeline, "items": len(items), "questions": units, "single_questions": singles,
             "conversations": conversations, "conversation_turns": sum(len(v) for v in turns.values()),
             "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "criteria": criteria,
             "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case}
 
 
 def render(report: Dict[str, Any]) -> str:
-    lines = [f"질문 세트 점검 ({report['version']}, API 호출 없음)",
+    lines = [f"질문 세트 점검 ({report['version']}, 의미 평가 방식 {report['pipeline']}, API 호출 없음)",
              f"- 질문 {report['questions']}개 = 단일 질문 {report['single_questions']}개 + 대화 {report['conversations']}개"
              f"({report['conversation_turns']}턴) · 항목 {report['items']}개",
              f"- 형식 오류 {len(report['errors'])}건 · 중복 질문 {len(report['duplicates'])}건"]
@@ -161,8 +182,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("path", type=Path)
     parser.add_argument("--json", action="store_true", help="JSON 으로 출력")
+    parser.add_argument("--pipeline", choices=("legacy", "items"), help="의미 평가 방식 (기본: .env 의 SEMANTIC_PIPELINE)")
     args = parser.parse_args(argv)
-    report = check_items(load_items(args.path))
+    report = check_items(load_items(args.path), args.pipeline)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render(report))

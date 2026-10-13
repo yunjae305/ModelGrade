@@ -127,6 +127,8 @@ def test_fence_with_info_does_not_close_existing_block():
     "**2벌** × 3 + 1 = 7벌",                                         # 굵게 표시가 앞에 있어도
     "필요한 양은 2벌 ×3 + 1 = 7입니다.",                               # 붙여 쓴 곱셈 기호는 기울임이 아니다
     "필요한 양은 2 벌 ×3 + 1 = 7입니다.",                              # 숫자와 단위 사이 공백
+    "총 넓이: 2㎡ ×3 + 1 = 7입니다.",                                   # 단위 기호
+    "2m² ×3 + 1 = 7입니다.",
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)
