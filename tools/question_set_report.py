@@ -4,8 +4,10 @@
     python tools/question_set_report.py 질문세트.json --check-json 점검.json    # check_question_set --json 출력을 그대로 사용
     python tools/question_set_report.py 질문세트.json --json                   # 분석 결과 JSON
 
-적용 규칙·30개 충족 판정은 ``check_question_set`` 그대로 쓴다(기본 ``--pipeline items``). 이 모듈은 같은 결과를
-독립 질문·대화 단위로 다시 셀 뿐 판정을 바꾸지 않는다. 무료 진단이며 실제 의미 평가 결과가 아니다.
+적용 규칙(턴마다 어느 기준이 적용되는지)은 ``check_question_set`` 결과 그대로 쓴다(기본 ``--pipeline items``).
+30개 충족은 공식 규칙(팀 확정 10-13)대로 독립 질문·대화 단위로 판정한다 — 단일 질문 1개 = 1, 대화 1개 = 1, 같은 대화의
+여러 턴에 적용돼도 1. 적용 턴 수와 ``check_question_set`` 의 턴 기준 판정은 참고로 함께 남긴다 (그 CLI 는 아직 턴 기준).
+무료 진단이며 실제 의미 평가 결과가 아니다.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ if str(ROOT) not in sys.path:
 from code_eval.engine import _conversation_of  # noqa: E402
 from tools.check_question_set import _TYPE_FIELDS, CRITERIA, TARGET_RATIOS, check_items, load_items  # noqa: E402
 
-REPORT_VERSION = "question-set-report-v1"
+REPORT_VERSION = "question-set-report-v2"   # v2: 30개 공식 판정을 질문·대화 단위로
 DEFAULT_OUT = ROOT / "results" / "question-set-check"
 
 CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와 turn 형식",
@@ -38,7 +40,9 @@ NOT_CHECKED = ("Claude 의미 평가(J1~J6 PASS·FAIL) — 유료 호출, 이 �
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
                "답변에서 생기는 CODE 조건(1-2·1-3 구조, 3-1 답변 등식, 3-2 선언 개수) — 답변이 있어야 더해짐",
                "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)",
-               "롱 컨텍스트 길이(팀원 구조도: 4K~32K 토큰) — 토큰을 세지 않고 질문 글자 수만 표시")
+               "롱컨텍스트 — 실제 입력 토큰 길이를 측정하지 않음(답변·토크나이저 필요). 측정 전에는 충족으로 세지 않음")
+#: 롱컨텍스트 토큰 길이 검토 참고값 — 공식 임계값이 아니다 (팀 확정 10-13: 임계값은 정하지 않음)
+LONG_CONTEXT_REFERENCE_BINS = ("4K", "8K", "16K", "32K")
 
 
 def _cases(items: List[Any]) -> List[Dict[str, Any]]:
@@ -91,10 +95,11 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
     criteria = {}
     for c in CRITERIA:
         turns, n_units = report["criteria"][c]["applicable"], len(units[c])
-        criteria[c] = {"turns": turns, "enough": report["criteria"][c]["enough"], "turns_short": max(0, minimum - turns),
-                       "units": n_units, "units_singles": sum(1 for u in units[c] if u.startswith("질문:")),
+        # 공식 — 적용 독립 질문·대화 수 (같은 대화의 여러 턴은 1) · 참고 — 적용 턴 수와 check_question_set 의 턴 기준 판정
+        criteria[c] = {"units": n_units, "units_singles": sum(1 for u in units[c] if u.startswith("질문:")),
                        "units_conversations": sum(1 for u in units[c] if u.startswith("대화:")),
-                       "units_enough": n_units >= minimum, "units_short": max(0, minimum - n_units)}
+                       "enough": n_units >= minimum, "short": max(0, minimum - n_units),
+                       "turns": turns, "cli_enough": report["criteria"][c]["enough"]}
 
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for case in cases:
@@ -123,10 +128,10 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
               "turn_ratio": round(turn_type.get(name, 0) / sum(turn_type.values()), 3) if turn_type else None,
               "units": unit_type.get(name, 0), "unit_ratio": round(unit_type.get(name, 0) / typed_units, 3) if typed_units else None}
              for name in names]
-    multi = [c for c in conversations if c["turns"] >= 2]
+    multi = [c for c in conversations if c["turns"] >= 2]   # 멀티턴 — 2턴 이상 오간 대화
 
-    short_turns = [c for c in CRITERIA if not criteria[c]["enough"]]
-    short_units_only = [c for c in CRITERIA if criteria[c]["enough"] and not criteria[c]["units_enough"]]
+    short = [c for c in CRITERIA if not criteria[c]["enough"]]
+    cli_differs = [c for c in CRITERIA if criteria[c]["cli_enough"] != criteria[c]["enough"]]
     total = len(cases)
     if report["errors"]:
         status = ("blocked", "업로드 불가 — 형식·대화 순서 오류부터 고쳐야 함")
@@ -134,7 +139,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
         status = ("questions_only", f"AIONA 답변 수집 전 — 평가 실행 불가 (답변 0/{total}턴, 질문 구조·적용 수 점검만 유효)")
     elif answered < total:
         status = ("partial", f"일부 답변 없음 ({answered}/{total}턴) — 빈 답변 턴은 평가 결과로 쓰지 않음")
-    elif short_turns:
+    elif short:
         status = ("ready_with_gaps", "평가 실행 가능 — 적용 수가 부족한 기준은 통과율 해석에 주의")
     else:
         status = ("ready", "평가 실행 가능")
@@ -144,32 +149,30 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
         {"name": "중복 질문", "level": "warn" if report["duplicates"] else "pass", "message": f"{len(report['duplicates'])}건"},
         {"name": "의미 평가 적용 규칙", "level": "pass" if report["pipeline"] == "items" else "warn",
          "message": f"{report['pipeline']}" + ("" if report["pipeline"] == "items" else " — v1.2 항목별 규칙(items)이 아님")},
-        {"name": f"기준별 적용 {minimum}개 (현재 판정: 턴)", "level": "warn" if short_turns else "pass",
-         "message": "부족: " + ", ".join(short_turns) if short_turns else "모든 기준 충족"},
+        {"name": f"기준별 적용 질문 {minimum}개 (공식: 질문·대화 단위)", "level": "warn" if short else "pass",
+         "message": "부족: " + ", ".join(f"{c} {criteria[c]['short']}개" for c in short) if short else "모든 기준 충족"},
+        {"name": "check_question_set CLI 판정과 차이", "level": "warn" if cli_differs else "pass",
+         "message": ("CLI 는 아직 적용 턴 수로 판정 — 결과가 다른 기준: " + ", ".join(cli_differs)) if cli_differs else "같음"},
         {"name": "AIONA 답변", "level": "fail" if answered == 0 else "warn" if answered < total else "pass",
          "message": f"{answered}/{total}턴 수집" + (" — 빈 답변은 평가를 마친 데이터가 아님" if answered < total else "")},
     ]
 
     decisions = [
-        {"title": f"{minimum}개 충족 판정 단위",
-         "detail": f"검사기는 적용 '턴' 수로 판정한다. 설계안 v1.2 는 질문을 대화 1개 = 1로 세지만 '기준마다 적용 질문 {minimum}개'의 단위는 정하지 않았다."
-                   + (f" 이 세트에서 턴으로는 충족하지만 독립 질문·대화로는 {minimum}개 미만인 기준: {', '.join(short_units_only)}." if short_units_only else "")},
+        {"title": "CLI·서버 반영 (이 보고서만 공식 규칙 적용)",
+         "detail": f"공식 {minimum}개 판정(질문·대화 단위)은 이 보고서에만 반영했다. tools/check_question_set.py 는 아직 적용 턴 수로 "
+                   "'충분/부족'을 출력하고(팀원 파일, 미변경), 서버 업로드는 30개 판정을 하지 않는다(형식·턴 순서만 검사)."},
         {"title": "유형 비율 집계 단위",
          "detail": "검사기는 유형 필드를 턴마다 센다. 10턴 대화 하나가 비율에 10번 들어가므로 질문 단위 비율과 다를 수 있다 (보고서는 둘 다 표시)."},
-        {"title": "유형과 문맥 속성 분리",
-         "detail": "비율 초안의 '멀티턴 대화 10%'·'롱 컨텍스트 5%'는 다른 작업 유형과 겹칠 수 있다(예: 멀티턴 코딩 질문). "
-                   "작업 유형(type)과 문맥 속성(단일·멀티턴·롱 컨텍스트)을 따로 기록할지 정해야 한다. 공식 비율은 바꾸지 않았다."},
-        {"title": "롱 컨텍스트 판정 기준",
-         "detail": "팀원 구조도는 롱 컨텍스트를 '긴 문서 요약·분석, 4K~32K 토큰'으로 적는다. 턴이 많은 대화(J6 대상)를 이 유형으로 셀지, 입력 길이로만 셀지 정해야 한다."},
-        {"title": "통과율의 문항 단위 — v1.3 확정",
-         "detail": "설계안 v1.3(10-13 확정): 판정은 턴마다, 통과율 점수는 대화 1개 = 1문항(모든 턴 통과해야 통과). "
-                   f"기준별 적용 {minimum}개의 집계 단위는 여기에 포함되지 않아 위 첫 항목으로 남는다."},
+        {"title": "롱컨텍스트 공식 토큰 임계값",
+         "detail": "확정: 롱컨텍스트는 긴 문서 또는 실제 입력 토큰 길이로 따로 검증하고 멀티턴과 동시에 적용될 수 있다. 실제 토큰 수를 확인하지 못하면 "
+                   "충족으로 보지 않는다. 남은 결정: 공식 임계값 (" + "·".join(LONG_CONTEXT_REFERENCE_BINS) + " 는 검토 참고값)."},
     ]
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
-            "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short_turns": short_turns,
-            "short_units_only": short_units_only, "conversation_rows": conversations,
-            "context": {"single": report["single_questions"], "multi_turn": len(multi),
+            "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
+            "cli_differs": cli_differs, "conversation_rows": conversations,
+            "context": {"single": report["single_questions"], "multi_turn": len(multi), "single_turn_conversations": len(conversations) - len(multi),
+                        "long_context": {"measured": False, "count": 0, "reference_bins": list(LONG_CONTEXT_REFERENCE_BINS)},
                         "turn_range": [min(c["turns"] for c in multi), max(c["turns"] for c in multi)] if multi else None,
                         "question_chars_range": [min(c["question_chars"] for c in multi), max(c["question_chars"] for c in multi)] if multi else None},
             "types": types if turn_type else None, "untyped_units": unit_type.get(None, 0),
@@ -210,7 +213,7 @@ h1,h2{color:var(--ink);letter-spacing:-.03em;margin:0;text-wrap:balance}h1{font-
 th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}thead th{background:var(--head);color:var(--muted);font-size:11.5px;letter-spacing:.02em}
 td.n,th.n{text-align:right;white-space:nowrap}
 .pill{display:inline-block;font:700 11px var(--mono);padding:1px 7px;border-radius:999px;white-space:nowrap}
-.pass{color:var(--green);background:var(--green-soft)}.warn{color:var(--amber);background:var(--amber-soft)}.fail{color:var(--red);background:var(--red-soft)}
+.pass{color:var(--green);background:var(--green-soft)}.na{color:var(--muted);background:var(--head)}.warn{color:var(--amber);background:var(--amber-soft)}.fail{color:var(--red);background:var(--red-soft)}
 .bar{position:relative;height:8px;background:var(--head);border-radius:4px;min-width:90px}.bar i{position:absolute;inset:0 auto 0 0;background:var(--blue);border-radius:4px}
 .bar s{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--red)}
 ul{margin:4px 0 0;padding-left:20px}li{margin:2px 0}code{font:12px var(--mono);background:var(--head);padding:1px 5px;border-radius:3px}
@@ -246,22 +249,23 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
         out.append(f'<tr><td>{_e(row["name"])}</td><td><span class="pill {_e(row["level"])}">{level[row["level"]]}</span></td><td>{_e(row["message"])}</td></tr>')
     out.append("</tbody></table></div></section>")
 
-    scale = max([minimum] + [r["turns"] for r in a["criteria"].values()])
-    out.append(f'<section class="card"><h2>기준별 적용 수</h2><p class="note">현재 판정은 검사기 그대로 <b>적용 턴 {minimum}개 이상</b>입니다. '
-               f'독립 질문·대화 단위 수는 같은 결과를 대화 1개 = 1로 다시 센 참고값이며, 공식 판정 단위는 결정 사항입니다. 막대의 빨간 선은 {minimum}턴.</p>'
-               '<div class="wrap"><table><thead><tr><th>기준</th><th class="n">적용 턴</th><th></th><th>현재 판정</th><th class="n">부족 턴</th>'
-               '<th class="n">적용 질문·대화</th><th>(단일 + 대화)</th><th>단위 기준(참고)</th><th class="n">부족 단위</th></tr></thead><tbody>')
+    scale = max([minimum] + [r["units"] for r in a["criteria"].values()])
+    out.append(f'<section class="card"><h2>기준별 적용 질문 수</h2><p class="note"><b>공식 판정: 적용 질문·대화 {minimum}개 이상</b> — 단일 질문 1개 = 1, '
+               f'멀티턴 대화 1개 = 1, 같은 대화의 여러 턴에 적용돼도 1 (팀 확정). 평가는 지금처럼 턴마다 합니다. 적용 턴 수와 '
+               f'check_question_set CLI 판정(아직 턴 기준)은 참고입니다. 막대의 빨간 선은 {minimum}개.</p>'
+               '<div class="wrap"><table><thead><tr><th>기준</th><th class="n">적용 질문·대화</th><th></th><th>공식 판정</th>'
+               f'<th class="n">{minimum}개까지 부족</th><th>(단일 + 대화)</th><th class="n">적용 턴 (참고)</th><th>CLI 판정 (턴 기준)</th></tr></thead><tbody>')
     for cid, row in a["criteria"].items():
         verdict = '<span class="pill pass">충족</span>' if row["enough"] else '<span class="pill fail">부족</span>'
-        unit_verdict = '<span class="pill pass">충족</span>' if row["units_enough"] else '<span class="pill warn">미달</span>'
-        out.append(f'<tr><td><b>{_e(cid)}</b></td><td class="n">{row["turns"]}</td>'
-                   f'<td><div class="bar"><i style="width:{row["turns"] / scale * 100:.1f}%"></i><s style="left:{minimum / scale * 100:.1f}%"></s></div></td>'
-                   f'<td>{verdict}</td><td class="n">{row["turns_short"] or "—"}</td><td class="n">{row["units"]}</td>'
-                   f'<td>{row["units_singles"]} + {row["units_conversations"]}</td><td>{unit_verdict}</td><td class="n">{row["units_short"] or "—"}</td></tr>')
+        cli = '<span class="pill na">충분</span>' if row["cli_enough"] else '<span class="pill na">부족</span>'
+        out.append(f'<tr><td><b>{_e(cid)}</b></td><td class="n">{row["units"]}</td>'
+                   f'<td><div class="bar"><i style="width:{row["units"] / scale * 100:.1f}%"></i><s style="left:{minimum / scale * 100:.1f}%"></s></div></td>'
+                   f'<td>{verdict}</td><td class="n">{row["short"] or "—"}</td><td>{row["units_singles"]} + {row["units_conversations"]}</td>'
+                   f'<td class="n">{row["turns"]}</td><td>{cli}</td></tr>')
     out.append("</tbody></table></div>")
-    short = [f"{c} {a['criteria'][c]['turns_short']}턴" for c in a["short_turns"]]
-    out.append(f'<p class="note">추가 질문이 필요한 기준(현재 판정): {_e(", ".join(short) or "없음")}. '
-               f'턴으로는 충족하지만 질문·대화 단위로 {minimum}개 미만: {_e(", ".join(a["short_units_only"]) or "없음")}.</p>')
+    short = [f"{c} {a['criteria'][c]['short']}개" for c in a["short"]]
+    out.append(f'<p class="note">추가 질문·대화가 필요한 기준(공식): {_e(", ".join(short) or "없음")}. '
+               f'CLI(턴 기준)와 판정이 다른 기준: {_e(", ".join(a["cli_differs"]) or "없음")}.</p>')
     if a["ambiguous_case_ids"]:
         out.append(f'<p class="note">같은 ID가 서로 다른 질문·대화에 쓰여 단위 수에서 뺀 ID: {_e(", ".join(a["ambiguous_case_ids"]))}</p>')
     out.append("</section>")
@@ -279,11 +283,16 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
         out.append('<p>유형 필드(type·category·question_type·유형)가 없어 비율 초안과 비교할 수 없습니다.</p>'
                    '<p class="note">초안: ' + _e(" · ".join(f"{k} {v * 100:.0f}%" for k, v in TARGET_RATIOS.items())) + "</p>")
     ctx = a["context"]
+    long_ctx = ctx["long_context"]
     out.append('</div><div class="card"><h2>문맥 속성 (유형과 별도)</h2><ul>'
-               f'<li>단일 질문 {ctx["single"]}개 · 멀티턴 대화 {ctx["multi_turn"]}개'
-               + (f' (대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴)' if ctx["turn_range"] else "") + "</li>"
-               + (f'<li>대화별 질문만 누적 글자 수 {ctx["question_chars_range"][0]:,}~{ctx["question_chars_range"][1]:,}자 (답변 제외)</li>' if ctx["question_chars_range"] else "")
-               + "<li>롱 컨텍스트(입력 길이) 여부는 판정하지 않음 — 토큰 기준과 답변이 필요</li></ul></div></section>")
+               f'<li><b>멀티턴</b> (2턴 이상 오간 대화) {ctx["multi_turn"]}개'
+               + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
+               + f' · 단일 질문 {ctx["single"]}개' + (f' · 1턴 대화 {ctx["single_turn_conversations"]}개' if ctx["single_turn_conversations"] else "") + "</li>"
+               f'<li><b>롱컨텍스트</b> 충족 {long_ctx["count"]}개 — 실제 입력 토큰을 측정하지 않아 충족으로 세지 않음. '
+               f'검토 참고 구간 {_e(" · ".join(long_ctx["reference_bins"]))} (공식 임계값 미정)</li>'
+               '<li>멀티턴과 롱컨텍스트는 동시에 적용될 수 있음</li>'
+               + (f'<li>대화별 질문만 누적 글자 수 {ctx["question_chars_range"][0]:,}~{ctx["question_chars_range"][1]:,}자 (답변 제외, 토큰 수 아님)</li>' if ctx["question_chars_range"] else "")
+               + "</ul></div></section>")
 
     rows = a["conversation_rows"]
     if rows:
@@ -307,7 +316,7 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
         out.append("</ul>")
     out.append("</section>")
 
-    out.append('<section class="card"><h2>결정이 필요한 사항</h2><ul>')
+    out.append('<section class="card"><h2>반영·결정이 남은 사항</h2><ul>')
     for d in a["decisions"]:
         out.append(f'<li><b>{_e(d["title"])}</b> — {_e(d["detail"])}</li>')
     out.append('</ul></section><section class="cols"><div class="card"><h2>점검한 것</h2><ul>')
