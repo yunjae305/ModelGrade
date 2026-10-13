@@ -283,6 +283,39 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
     return "\n".join(lines), "\n".join(dynamic_lines)
 
 
+#: 캐시 블록으로 나눌 때 현재 질문에 함께 두는 값 — 같은 질문을 평가하는 4개 모델이 똑같이 받는 부분
+_SHARED_KEYS = ("question", "reference", "attachments")
+DATA_LAYOUT = ("## 평가 대상 (데이터)\n아래 블록들을 합친 것이 하나의 평가 대상입니다 — history(이 턴 앞의 대화, 턴마다 한 블록) → "
+               "현재 질문(question·reference·attachments) → answer 와 그 밖의 값. 블록마다 JSON 입니다.")
+
+
+def build_prompt_blocks(state: Dict[str, Any], questions: Dict[str, Any], search_enabled: bool = False,
+                        *, evaluation_time: str | None = None) -> List[Tuple[str, bool]]:
+    """프롬프트 캐시용 블록 [(글, 캐시 표시)] — 같은 글을 다시 읽을 때 값을 덜 내도록 반복되는 부분을 앞에 둔다 (2026-10-14 비용 결정).
+
+    순서: 지시문(기준 조합별 공유) → history 턴마다 한 블록(같은 대화의 다음 턴이 앞부분을 다시 읽음, 마지막 턴 블록에 표시) →
+    현재 질문·참조 자료·첨부(같은 질문의 4개 모델이 공유, J7 의 긴 자료) → 실행 시각과 answer·그 밖의 값(매번 다름).
+    값은 하나도 빼거나 줄이지 않고 ``build_prompt_parts`` 와 같은 지시문·같은 원문을 나눠 담는다. items 파이프라인은 기존 두 덩어리."""
+    static, dynamic = build_prompt_parts(state, questions, search_enabled, evaluation_time=evaluation_time)
+    if is_items(questions) or not isinstance(state, dict):
+        return [(static + "\n", True), (dynamic, False)]
+    prefix = dynamic.partition("## 평가 대상 (데이터)")[0].strip()   # 실행 기준 시각 줄 — 매번 달라 맨 뒤 블록으로
+    blocks: List[Tuple[str, bool]] = [(static + "\n", True)]
+    history = state.get("history") if isinstance(state.get("history"), list) else []
+    layout = DATA_LAYOUT
+    for n, turn in enumerate(history):
+        label = turn.get("turn") if isinstance(turn, dict) else n + 1
+        text = (layout + "\n" if layout else "") + f"### history — {label}턴\n" + json.dumps(turn, ensure_ascii=False, indent=1) + "\n"
+        blocks.append((text, n == len(history) - 1))
+        layout = ""
+    shared = {key: state[key] for key in _SHARED_KEYS if key in state}
+    blocks.append(((layout + "\n" if layout else "") + "### 현재 질문\n" + json.dumps(shared, ensure_ascii=False, indent=1) + "\n", True))
+    rest = {key: value for key, value in state.items() if key not in _SHARED_KEYS and key != "history"}
+    tail = ((prefix + "\n") if prefix else "") + "### answer 와 그 밖의 값\n" + json.dumps(rest, ensure_ascii=False, indent=1)
+    blocks.append((tail, False))
+    return blocks
+
+
 def build_prompt(state: Dict[str, Any], questions: Dict[str, Any], search_enabled: bool = False,
                  *, evaluation_time: str | None = None) -> str:
     """Keep the single-string prompt interface used by the CLI and Claude clients."""

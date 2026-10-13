@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v8"   # v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v9"   # v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -305,6 +305,11 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "j1-j4-j7-j8-fail-evidence-v3", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J8 FAIL 도 이유 + 원문 인용 필요 — 답변 인용이 하나 이상 맞아야 하고, 첨부 내용(attachments[].content) 인용도 근거로 셈"]},
     {"version": "criteria-registry-v8", "date": "2026-10-13", "scope": "registry", "changes": ["J8 첨부파일 활용 등록 (jev-criteria-v5·semantic-items-v5)"]},
+    {"version": "multi-turn-v2", "date": "2026-10-14", "scope": "semantic",
+     "changes": ["J6 멀티턴 = 턴 10개 이상이고 대화 전체(모든 턴의 질문 + 답변)가 10K 토큰 이상인 대화 (사용자 결정으로 바로잡음 — "
+                 "v1 은 '한 턴이 10K 토큰 이상인 턴 10개'로 읽어 질문 생성기가 턴마다 약 1.5만 자 자료를 붙였다)",
+                 "각 모델의 실제 대화로 재는 것·멀티턴이 아니면 해당 없음·길이를 모르는 턴이 있으면 확인 필요는 그대로"]},
+    {"version": "criteria-registry-v9", "date": "2026-10-14", "scope": "registry", "changes": ["J6 멀티턴 길이 조건 바로잡음 (multi-turn-v2)"]},
 ]
 
 

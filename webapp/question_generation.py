@@ -47,7 +47,8 @@ CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
 MATERIAL_TOKENS = 32_000      # 긴 자료 한 조각의 최대 출력 토큰 (추론 토큰까지 함께 세는 모델이라 넉넉히)
 CHUNK_CHARS = 10_000          # 긴 자료 한 조각에 요청하는 글자 수 (한국어 약 0.72토큰/자)
-PASTE_CHARS = 15_000          # J6 턴마다 붙여 넣을 자료 글자 수 (약 10.8K 토큰)
+PASTE_CHARS = 3_000           # J6 자료가 필요한 턴에 붙여 넣을 자료 글자 수 (약 2K 토큰)
+MAX_PASTE_TURNS = 3           # 대화 하나에서 자료를 붙이는 턴 수 상한 — 사용자 결정 2026-10-14: 턴마다 과하게 붙이지 않는다
 SUPPLEMENT_ROUNDS = 2
 # 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게 (질문 수 지정의 상한이기도 하다)
 MAX_PLAN_QUESTIONS = 80
@@ -172,8 +173,9 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 6. 실제 개인의 개인정보나 위험한 요청은 넣지 않습니다. 가상의 인물·회사는 가상이라고 밝힙니다.
 
 # 멀티턴 대화 (J6)
-- 대화 1개 이상, 대화마다 턴 {multi_turn.MIN_LONG_TURNS}개 이상. J6 항목이 모두 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, 지시어("아까 두 번째"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박.
-- 멀티턴으로 인정되려면 턴마다 질문+답변이 {multi_turn.MIN_TURN_TOKENS:,}토큰 이상이어야 합니다. 턴마다 long_paste(붙여 넣을 긴 자료의 주제와 꼭 들어갈 내용)를 쓰면 시스템이 자료를 만들어 질문 앞에 붙입니다. 질문 문장 자체는 짧게 씁니다.
+- 대화 1개 이상, 대화마다 턴 {multi_turn.MIN_TURNS}개 이상. J6 항목이 모두 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, 지시어("아까 두 번째"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박.
+- 멀티턴으로 인정되려면 대화 전체(모든 턴의 질문+답변)가 {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상이어야 합니다. 표·단계별 설명·초안 작성·수정본 전체 다시 쓰기처럼 답변이 충분히 길어지는 요청으로 채웁니다.
+- 자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {PASTE_CHARS:,}자 자료를 만들어 질문 앞에 붙입니다. 대화 하나에 최대 {MAX_PASTE_TURNS}턴, 턴마다 붙이지 않습니다.
 
 # 롱컨텍스트 (J7)
 - 질문 1개 이상에 {long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상의 참조 자료가 필요합니다. long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.
@@ -227,7 +229,7 @@ def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: O
              "# 목표\n앞서 만든 질문 세트에서 아래 [빠진 항목]이 어느 질문에도 적용되지 않았거나 [빠진 첨부 종류]의 첨부 질문이 없습니다. "
              "이것들이 적용되는 질문만 가능한 한 적게 추가합니다. 적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
              f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
-             "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상과 턴마다 long_paste, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
+             "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상·대화 전체 1만 토큰 이상, 자료가 필요한 턴에만 long_paste — 대화당 최대 3턴, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
              f"{_FORMAT}"]
     if missing_types:
         parts.append("# 빠진 첨부 종류\n" + "\n".join(f"- {kind}: 이 종류의 파일을 첨부한 질문을 1개 이상 추가합니다 (빠진 항목도 함께 노리게)."
@@ -325,6 +327,7 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
             warnings.append(f"{index}번 질문: turns 가 없어 뺐습니다.")
             continue
         turns = []
+        pastes = 0
         for t_index, turn in enumerate(entry["turns"][:MAX_PLAN_TURNS], 1):
             question = turn.get("question") if isinstance(turn, dict) else None
             if not isinstance(question, str) or not question.strip():
@@ -338,8 +341,11 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
             if files:
                 clean["attachments"] = files
             for key in ("long_reference", "long_paste"):
-                if isinstance(turn.get(key), dict):
+                if key == "long_paste" and isinstance(turn.get(key), dict) and pastes >= MAX_PASTE_TURNS:
+                    warnings.append(f"{index}번 질문 {t_index}턴: 자료를 붙이는 턴이 {MAX_PASTE_TURNS}개를 넘어 long_paste 를 뺐습니다.")
+                elif isinstance(turn.get(key), dict):
                     clean[key] = _clean_spec(key, turn[key], f"{index}번 질문 {t_index}턴", warnings)
+                    pastes += key == "long_paste"
                 elif turn.get(key) is not None:
                     warnings.append(f"{index}번 질문 {t_index}턴: {key} 가 객체가 아니라 뺐습니다.")
             turns.append(clean)
@@ -424,15 +430,10 @@ class QuestionSetBuilder:
         return "\n\n".join(paragraphs)
 
     def long_paste(self, spec: Dict[str, Any], question: str) -> str:
-        """J6 — 질문만으로 턴 하나가 MIN_TURN_TOKENS 이상이 되도록 붙여 넣을 자료를 만들어 표시로 감싸고, 요청은 그 뒤에 둔다."""
-        wrap = lambda material: f"{PASTE_BEGIN}\n{escape_paste_markers(material)}\n{PASTE_END}\n\n{question}"
+        """J6 — 자료가 필요한 턴에 붙여 넣을 자료(약 PASTE_CHARS 자)를 만들어 표시로 감싸고, 요청은 그 뒤에 둔다.
+        멀티턴 길이(대화 전체 MIN_TOTAL_TOKENS)는 답변까지 합쳐 재므로 턴 하나를 자료로 채우지 않는다 (multi-turn-v2)."""
         material = self._ask(_paste_prompt(spec, PASTE_CHARS), MATERIAL_TOKENS, True).strip()
-        tries = 0
-        while self.count(wrap(material)) < multi_turn.MIN_TURN_TOKENS and tries < 3:
-            tries += 1
-            material += "\n\n" + self._ask(_paste_prompt(dict(spec, topic=f"{spec.get('topic') or '업무 자료'} (이어서)"), PASTE_CHARS // 2),
-                                           MATERIAL_TOKENS, True).strip()
-        return wrap(material)
+        return f"{PASTE_BEGIN}\n{escape_paste_markers(material)}\n{PASTE_END}\n\n{question}"
 
     # 질문 한 개 → id/turns 묶음 -------------------------------------------------------
     def materialize(self, number: int, plan: Dict[str, Any]) -> Dict[str, Any]:

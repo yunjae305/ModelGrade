@@ -38,7 +38,7 @@ CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와
            "J1~J7 적용 — 평가와 같은 코드 규칙(의미 평가 방식 표시), 모델 호출 없음",
            "답변 수집 여부 — answer 가 비어 있지 않은 턴 수",
            "J7 롱컨텍스트 — 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 272K 토큰 이상이면 적용. "
-           "J6 는 10K 토큰 이상 턴이 10개 이상인 멀티턴 대화만. "
+           "J6 는 10턴 이상이고 대화 전체가 10K 토큰 이상인 멀티턴 대화만. "
            "토크나이저를 불러오지 못한 질문은 판별 불가로 따로 셈")
 NOT_CHECKED = ("Claude 의미 평가(J1~J7 PASS·FAIL) — 유료 호출, 이 보고서는 판정 결과가 아님",
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
@@ -127,12 +127,12 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
               "turn_ratio": round(turn_type.get(name, 0) / sum(turn_type.values()), 3) if turn_type else None,
               "units": unit_type.get(name, 0), "unit_ratio": round(unit_type.get(name, 0) / typed_units, 3) if typed_units else None}
              for name in names]
-    # 멀티턴 — 평가와 같은 규칙(10K 토큰 이상 턴 10개 이상, multi-turn-v1)으로 이 파일의 답변에서 잰 판정
+    # 멀티턴 — 평가와 같은 규칙(10턴 이상 · 대화 전체 10K 토큰 이상, multi-turn-v2)으로 이 파일의 답변에서 잰 판정
     scales = report.get("multi_turn") or {}
     for c in conversations:
         scale = scales.get(c["id"]) or {}
         c["multi_turn"] = scale.get("multi_turn")
-        c["long_turns"] = scale.get("long_turns")
+        c["tokens"] = scale.get("tokens")
     multi = [c for c in conversations if c["multi_turn"] is True]
     # 판정이 없거나(예전 점검 JSON) 모름(빠지거나 겹친 턴·토크나이저 없음)은 모름 — 명시적으로 아님인 대화만 멀티턴이 아님
     unknown_multi = [c for c in conversations if c["multi_turn"] is None]
@@ -290,7 +290,7 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
     ctx = a["context"]
     long_ctx = ctx["long_context"]
     out.append('</div><div class="card"><h2>문맥 속성 (유형과 별도)</h2><ul>'
-               f'<li><b>멀티턴 (J6)</b> — 10K 토큰 이상 턴이 10개 이상인 대화 {ctx["multi_turn"]}개'
+               f'<li><b>멀티턴 (J6)</b> — 10턴 이상이고 대화 전체 10K 토큰 이상인 대화 {ctx["multi_turn"]}개'
                + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
                + (f' · 판별 못 한 대화 {ctx["multi_turn_unknown"]}개' if ctx["multi_turn_unknown"] else "")
                + f' · 멀티턴이 아닌 대화 {ctx["short_conversations"]}개 · 단일 질문 {ctx["single"]}개'

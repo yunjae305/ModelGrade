@@ -511,6 +511,25 @@ def prompt_text(body):
     return content if isinstance(content, str) else "".join(block["text"] for block in content)
 
 
+def prompt_state(body):
+    """요청에 담긴 평가 대상 — 한 덩어리 JSON(이전 형식) 또는 캐시 블록(history 턴 · 현재 질문 · answer 와 그 밖의 값, 2026-10-14)."""
+    content = body["messages"][0]["content"]
+    if isinstance(content, str) or len(content) < 3:
+        return json.loads(prompt_text(body).split("## 평가 대상 (데이터)\n", 1)[1])
+    state, history = {}, []
+    for block in content[1:]:   # 블록마다 제목 줄 하나 + JSON 하나 (첫 데이터 블록만 앞에 데이터 안내가 붙음)
+        lines = block["text"].split("\n")
+        title_at = next(i for i, line in enumerate(lines) if line.startswith("### "))
+        data = json.loads("\n".join(lines[title_at + 1:]))
+        if lines[title_at].startswith("### history"):
+            history.append(data)
+        else:
+            state.update(data)
+    if history:
+        state["history"] = history
+    return state
+
+
 class MockJudge:
     """기대 결과대로 판단하는 Claude Messages 대역. behaviors 로 근거 누락·검색 오류 등을 강제한다.
 
@@ -542,7 +561,7 @@ class MockJudge:
 
     def handler(self, request):
         body = json.loads(request.content)
-        state = json.loads(prompt_text(body).split("## 평가 대상 (데이터)\n", 1)[1])
+        state = prompt_state(body)
         ids = body["tools"][-1]["input_schema"]["required"]
         searching = any(t.get("name") == "web_search" for t in body["tools"])
         case = self.cases[state["answer"]]
@@ -784,7 +803,7 @@ def count_tokens(fixture, folder):
     rows = []
     with httpx.Client(timeout=30) as http:
         for body in sent:
-            answer = json.loads(prompt_text(body).split("## 평가 대상 (데이터)\n", 1)[1])["answer"]
+            answer = prompt_state(body)["answer"]
             case = judge.cases[answer]
             request = {k: body[k] for k in ("model", "system", "messages", "tools", "thinking", "tool_choice")}
             response = http.post("https://api.anthropic.com/v1/messages/count_tokens", json=request,

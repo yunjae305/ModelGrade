@@ -12,14 +12,13 @@ try:
 except long_context.TokenizerUnavailable:   # 긴 자료 길이를 셀 수 없으면 J6·J7 자료를 만들 수 없다
     pytest.skip("tiktoken o200k_base 를 불러올 수 없음", allow_module_level=True)
 
-pytestmark = pytest.mark.multi_turn_rule   # 멀티턴 길이 조건(긴 턴 10개)을 실제 값으로 둔다
+pytestmark = pytest.mark.multi_turn_rule   # 멀티턴 길이 조건(10턴 이상 · 대화 전체 10K 토큰)을 실제 값으로 둔다
 
 
 @pytest.fixture(autouse=True)
 def small_lengths(monkeypatch):
-    """긴 자료 길이 기준만 작게 — 흐름은 같고 시험이 빨리 끝난다 (실제 값: 272K 토큰·턴 10K 토큰)."""
+    """긴 자료 길이 기준만 작게 — 흐름은 같고 시험이 빨리 끝난다 (실제 값: 272K 토큰)."""
     monkeypatch.setattr(long_context, "MIN_TOKENS", 20_000)
-    monkeypatch.setattr(multi_turn, "MIN_TURN_TOKENS", 2_000)
 
 PLAN = {"questions": [
     {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count", "J4-3.a", "없는-id"], "difficulty": "어려움",
@@ -34,7 +33,7 @@ PLAN = {"questions": [
                 "long_reference": {"topic": "임대 계약과 지점 보고", "facts": [{"text": "중도 해지는 30일 전까지 서면으로 통보한다.", "position": 0.5}]}}]},
     {"type": "멀티턴", "topic": "행사 준비", "target_items": ["J6-1.a"],
      "turns": [{"question": f"{n}번째 요청: 앞에서 정한 대로 반말로 정리해 줘.", "long_paste": {"topic": "행사 회의록", "must_include": ["예산 300만 원"]}}
-               for n in range(1, multi_turn.MIN_LONG_TURNS + 1)]},
+               for n in range(1, multi_turn.MIN_TURNS + 1)]},
     {"turns": []},
 ]}
 SUPPLEMENT = {"questions": [{"type": "형식", "topic": "보충", "target_items": ["2-2.table"],
@@ -61,7 +60,8 @@ class FakeGPT:
 
 def test_builder_makes_files_long_inputs_and_checks_coverage(tmp_path):
     fake = FakeGPT()
-    result = qg.QuestionSetBuilder(fake, tmp_path).build()
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build()
     groups, report = result["groups"], result["check"]
     assert [g["id"] for g in groups][:4] == [1, 2, 3, 4] and groups[0]["target_items"] == ["2-1.count", "J4-3.a"]   # 모르는 id 는 버림
     pdf = groups[1]["turns"][0]["attachments"][0]
@@ -69,10 +69,11 @@ def test_builder_makes_files_long_inputs_and_checks_coverage(tmp_path):
     reference = groups[2]["turns"][0]["reference"]
     assert long_context.count_tokens(reference) >= long_context.MIN_TOKENS and "중도 해지는 30일 전까지 서면으로 통보한다." in reference
     conversation = groups[3]["turns"]
-    assert len(conversation) == multi_turn.MIN_LONG_TURNS
-    assert all(long_context.count_tokens(t["question"]) >= multi_turn.MIN_TURN_TOKENS for t in conversation)   # 질문만으로 긴 턴
+    assert len(conversation) == multi_turn.MIN_TURNS
     assert all(t["question"].endswith(f"{n}번째 요청: 앞에서 정한 대로 반말로 정리해 줘.") for n, t in enumerate(conversation, 1))   # 동시에 만들어도 턴 순서 그대로
-    assert all(t["question"].startswith("[붙여 넣은 자료]\n") and "\n[자료 끝]\n\n" in t["question"] for t in conversation)   # 자료와 요청을 표시로 구분
+    pasted, plain = conversation[:qg.MAX_PASTE_TURNS], conversation[qg.MAX_PASTE_TURNS:]   # 자료는 대화당 MAX_PASTE_TURNS 턴까지만 (multi-turn-v2)
+    assert all(t["question"].startswith("[붙여 넣은 자료]\n") and "\n[자료 끝]\n\n" in t["question"] for t in pasted)   # 자료와 요청을 표시로 구분
+    assert all("[붙여 넣은 자료]" not in t["question"] for t in plain) and any("long_paste 를 뺐습니다" in w for w in builder.warnings)
     assert {cid: report["criteria"][cid]["applicable_units"] for cid in ("J6", "J7", "J8")} == {"J6": 1, "J7": 1, "J8": 1}
     assert report["coverage"]["items"]["J8-2.a"] == 1 and report["coverage"]["checks"]["2-1.count"] == 1
     supplements = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충")]

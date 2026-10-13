@@ -937,12 +937,14 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                 progress(done, len(targets))
     else:
         limit = max(1, min(workers, len(targets)))
+        after = _turn_order(cases, targets) if getattr(client, "ordered_turns", False) else {}
         # Keep only one worker window queued, so stopping a long batch does not
         # leave hundreds of external calls waiting in the executor.
         with ThreadPoolExecutor(max_workers=limit) as pool:
             futures = {}
-            next_target = done = 0
-            while futures or next_target < len(targets):
+            pending = list(targets)
+            done = 0
+            while futures or pending:
                 cancelled = cancel_event is not None and cancel_event.is_set()
                 if cancelled:
                     for future, i in list(futures.items()):
@@ -953,19 +955,25 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                             done += 1
                             if progress:
                                 progress(done, len(targets))
-                    while next_target < len(targets):
-                        i = targets[next_target]
-                        next_target += 1
+                    while pending:
+                        i = pending.pop(0)
                         publish(i, _record(cases[i]["case_id"], JevStatus.SKIPPED,
                                            tuple(applies[i]["criteria"]), error=CANCEL_REASON))
                         done += 1
                         if progress:
                             progress(done, len(targets))
                 else:
-                    while len(futures) < limit and next_target < len(targets):
-                        i = targets[next_target]
-                        next_target += 1
+                    # 캐시를 쓰는 평가기는 같은 대화의 턴을 앞 턴이 끝난 뒤 보낸다 — 앞 턴이 만든 캐시를 다음 턴이 읽는다.
+                    # 기다리는 턴은 건너뛰고 다른 질문을 먼저 보내 동시 처리 수는 그대로 쓴다.
+                    running = set(futures.values())
+                    for i in list(pending):
+                        if len(futures) >= limit:
+                            break
+                        if after.get(i) in running or after.get(i) in pending:
+                            continue
+                        pending.remove(i)
                         futures[pool.submit(run, i)] = i
+                        running.add(i)
                 if not futures:
                     continue
                 ready, _ = wait(futures, timeout=0.1, return_when=FIRST_COMPLETED)
@@ -975,6 +983,21 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                     if progress:
                         progress(done, len(targets))
     return _finish_batch(prep, batch, client, access_reason, dispatch="realtime")
+
+
+def _turn_order(cases: List[Dict[str, Any]], targets: List[int]) -> Dict[int, int]:
+    """평가 대상 중 같은 대화의 턴 → 바로 앞 턴의 대상 번호 {i: 앞 턴 i}. 대화가 아니거나 첫 턴이면 없다."""
+    members: Dict[Any, List[Tuple[int, int]]] = {}
+    for i in targets:
+        conv = cases[i].get("conversation")
+        if isinstance(conv, dict) and conv.get("id") is not None and isinstance(conv.get("turn"), int):
+            members.setdefault(conv["id"], []).append((conv["turn"], i))
+    after: Dict[int, int] = {}
+    for turns in members.values():
+        turns.sort()
+        for (_, previous), (_, current) in zip(turns, turns[1:]):
+            after[current] = previous
+    return after
 
 
 def _apply_item_applicability(applicability: Dict[str, Any], subs: Dict[str, Dict[str, Any]],

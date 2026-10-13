@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import json
 import math
 import re
+import threading
 import time
 from concurrent.futures import CancelledError
 from dataclasses import dataclass, field
@@ -27,6 +29,25 @@ from .llm_client import redact
 from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY,
                                 finalize_answers, has_reference, search_mode, source_url)
 from .semantic_sources import verify_answer_citations, verify_web_sources
+
+#: 이보다 긴 현재 질문·자료(J7 참조 자료 등)는 같은 앞부분을 쓰는 요청 하나가 먼저 캐시를 만든 뒤 나머지가 보낸다 — 동시에 보내면
+#: 캐시가 생기기 전이라 모두 정가를 낸다 (4개 모델이 같은 50만 토큰 자료를 각자 쓰던 문제, 2026-10-14)
+SHARED_GATE_CHARS = 50_000
+SHARED_GATE_WAIT_S = 900
+_SHARED_GATES: dict = {}
+_SHARED_GATES_LOCK = threading.Lock()
+
+
+def _enter_shared_gate(key):
+    """같은 앞부분의 첫 요청이면 (True, event) — 응답 뒤 event.set(). 아니면 첫 요청이 끝날 때까지 기다린 뒤 (False, None)."""
+    with _SHARED_GATES_LOCK:
+        event = _SHARED_GATES.get(key)
+        if event is None:
+            event = _SHARED_GATES[key] = threading.Event()
+            return True, event
+    event.wait(SHARED_GATE_WAIT_S)
+    return False, None
+
 
 SEARCH_TOOL = "web_search_20250305"
 FETCH_TOOL = "web_fetch_20250910"
@@ -117,7 +138,7 @@ class AnthropicSemanticConfig:
                 "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
                 "dispatch": "realtime",   # 호출은 실시간만 (Message Batches 는 2026-10-13 제거)
-                "prompt_cache_policy": "static_prefix_ephemeral_5m_items_search_only" if self.prompt_cache else "disabled",
+                "prompt_cache_policy": "static_history_question_ephemeral_5m" if self.prompt_cache else "disabled",
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
                 "confidence_note": "모델이 스스로 적은 확신도 — 보정된 확률 아님"}
@@ -377,6 +398,11 @@ class AnthropicSemanticClient:
         self.config, self._api_key = config, api_key
         self._transport, self._source_fetcher = transport, source_fetcher
 
+    @property
+    def ordered_turns(self):
+        """캐시를 쓰면 같은 대화의 턴을 앞 턴이 끝난 뒤 평가한다 — 앞 턴이 만든 캐시를 다음 턴이 읽게 (evaluate_jev_batch 가 본다)."""
+        return bool(self.config.prompt_cache)
+
     async def _post(self, payload, cancel_event, deadline):
         async with httpx.AsyncClient(base_url=self.config.api_base.rstrip("/") + "/",
                                      timeout=max(.01, deadline - time.monotonic()),
@@ -418,14 +444,26 @@ class AnthropicSemanticClient:
                           "citations": {"enabled": True}}]
         static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
         content = static + "\n" + dynamic
+        shared_key = None
         # items 는 질문마다 앞부분(항목 목록·적용 근거·제출 스키마)이 달라 질문끼리 캐시를 나눠 쓰지 못한다 — 검색 도구가 붙어
         # 같은 요청 안의 검색 반복 입력을 캐시로 읽을 때만 표시한다(검색 없는 요청은 저장 비용만 든다). legacy 는 기준 조합별로 공유된다.
-        if self.config.prompt_cache and (search_enabled or not items_mode):
+        if self.config.prompt_cache and items_mode and search_enabled:
             # Same text, split at the end of the reusable instructions. The marker caches
             # tools + system + static rules; the timestamp and evaluation data follow it.
             # With caching on, server tools also cache their results between iterations.
             content = [{"type": "text", "text": static + "\n", "cache_control": {"type": "ephemeral"}},
                        {"type": "text", "text": dynamic}]
+        elif self.config.prompt_cache and not items_mode:
+            # legacy — 지시문 → history 턴 블록 → 현재 질문·자료 → 답변 순서로 나눠, 같은 대화의 다음 턴은 앞 턴을, 같은 질문의
+            # 다른 모델은 긴 자료를 캐시로 읽는다 (2026-10-14 비용 결정, 내용은 같은 원문). 캐시 표시는 최대 3개(한도 4).
+            blocks = semantic.build_prompt_blocks(state, questions, search_enabled)
+            content = [{"type": "text", "text": text, **({"cache_control": {"type": "ephemeral"}} if cached else {})}
+                       for text, cached in blocks]
+            history = state.get("history") if isinstance(state, dict) else None
+            shared = blocks[-2][0]
+            if not history and len(shared) >= SHARED_GATE_CHARS:   # 긴 자료를 4개 모델이 같이 읽는 질문(J7) — 한 모델이 먼저 캐시를 만든다
+                shared_key = hashlib.sha256(json.dumps([self.config.model, tools, _system_prompt(search_enabled, questions),
+                                                        blocks[0][0], shared], ensure_ascii=False).encode()).hexdigest()
         payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
                    "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
                    "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
@@ -433,7 +471,7 @@ class AnthropicSemanticClient:
                    "messages": [{"role": "user", "content": content}]}
         validate_json_numbers(payload)
         return payload, {"questions": questions, "not_sent": not_sent, "search_enabled": search_enabled, "items_mode": items_mode,
-                         "review": review, "search_mode": mode}
+                         "review": review, "search_mode": mode, "shared_key": shared_key}
 
     def _session(self, context):
         """한 질문의 응답 처리 상태 — 요청 조각(parts)·누적 블록·usage·시도 수·시간 기록·결과 만들기."""
@@ -606,10 +644,14 @@ class AnthropicSemanticClient:
         def check_cancel():
             if cancel_event is not None and cancel_event.is_set():
                 raise CancelledError()
+        gate = None
         try:
             check_cancel()
             payload, context = self.build_request(state, questions)
             session["not_sent"], session["search_mode"] = context["not_sent"], context["search_mode"]
+            if context.get("shared_key"):   # 긴 공유 자료 — 첫 요청이 캐시를 만든 뒤 보낸다
+                _, gate = _enter_shared_gate(context["shared_key"])
+                check_cancel()
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()
                 if time.monotonic() >= deadline:
@@ -620,6 +662,9 @@ class AnthropicSemanticClient:
                     response = asyncio.run(self._post(payload, cancel_event, deadline))
                 finally:
                     session["timings"]["api"] += time.monotonic() - request_started
+                    if gate is not None:   # 첫 응답이 끝났다 — 캐시가 만들어졌으니 기다리던 요청들을 보낸다
+                        gate.set()
+                        gate = None
                 try:
                     raw = response.json()
                     validate_json_numbers(raw)
@@ -641,3 +686,6 @@ class AnthropicSemanticClient:
             return result(JevStatus.API_ERROR, error="Claude 의미 평가 API 연결 실패. 자동 재시도하지 않았습니다.")
         except (ValueError, TypeError, UnicodeError):
             return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
+        finally:
+            if gate is not None:   # 첫 요청이 보내기 전에 중단·시간 초과로 끝나도 기다리는 요청을 풀어 준다
+                gate.set()

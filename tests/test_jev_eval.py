@@ -445,3 +445,38 @@ def test_claude_cli_prompt_carries_history_and_reference_and_schema_has_j5_j6(tm
     assert {"J5", "J6"} <= set(required)
     assert CONV[0]["answer"] in kw["input"] and "history 는 이 턴 앞의 대화" in kw["input"] and "reference 는 J5" in kw["input"]
     assert "DATA 신뢰도" in kw["input"] and "멀티턴 맥락 유지" in kw["input"]
+
+
+def test_cache_client_evaluates_conversation_turns_in_order_while_other_questions_run_in_parallel():
+    """캐시를 쓰는 평가기(ordered_turns)는 같은 대화의 턴을 앞 턴이 끝난 뒤 보낸다 — 다른 질문은 그동안 함께 돈다 (2026-10-14)."""
+    import threading
+    import time as _time
+
+    class Ordered(ScriptedJev):
+        ordered_turns = True
+
+        def __init__(self):
+            super().__init__()
+            self.lock, self.active, self.events = threading.Lock(), set(), []
+
+        def system_one(self, state, questions):
+            q = state["question"]
+            with self.lock:
+                self.events.append(("start", q, frozenset(self.active)))
+                self.active.add(q)
+            _time.sleep(0.05)
+            with self.lock:
+                self.active.discard(q)
+                self.events.append(("end", q))
+            return super().system_one(state, questions)
+
+    client = Ordered()
+    batch = engine.evaluate_batch(CONV + [NORMAL, MISSING], NO_CONFIG)
+    evaluate_jev_batch(batch, client, workers=4)
+    starts = {q: active for kind, q, *rest in client.events if kind == "start" for active in rest}
+    turns = [c["question"] for c in CONV]
+    for previous, current in zip(turns, turns[1:]):
+        assert previous not in starts[current]   # 앞 턴이 돌고 있을 때 다음 턴을 보내지 않는다
+        assert client.events.index(("end", previous)) < [e[:2] for e in client.events].index(("start", current))
+    assert any(starts[q] for q in (NORMAL["question"], MISSING["question"]) if q in starts) or any(
+        turns[0] in active for active in starts.values())   # 다른 질문은 대화 턴과 함께 돈다
