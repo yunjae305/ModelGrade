@@ -410,6 +410,12 @@ class ComparisonService:
         self.semantic_workers = workers
         self.collection_workers = collection_workers
 
+    def provider_config(self, provider):
+        """내부용 — 질문 세트 생성기가 같은 연결 설정(키·모델)을 쓴다. 화면·기록으로 내보내지 않는다."""
+        with self._lock:
+            config = self._keys.get(provider)
+            return dict(config) if config else None
+
     def providers(self):
         with self._lock:
             return {p: {"name": name, "configured": p in self._keys,

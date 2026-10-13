@@ -1257,3 +1257,10 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
   .policy-limits {grid-template-columns:1fr; padding-inline:18px} .policy-formula,.policy-actions {padding-inline:18px}
   .advanced-import>summary {padding:14px 18px}
 }
+
+/* 질문 세트 만들기 (question-generation.js) */
+.question-set-note { display: grid; gap: 6px; margin: 12px 0; font-size: 13px; color: var(--muted, #555); }
+.question-set-note textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--line, #d8dde3); }
+.question-set-coverage { margin: 12px 0; display: grid; gap: 4px; }
+.question-set-warnings { margin: 8px 0; font-size: 13px; }
+#question-set-body .button { margin-top: 8px; display: inline-flex; }

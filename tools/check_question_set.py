@@ -27,11 +27,12 @@ from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
 from code_eval.jev_applicability import fact_question, jev_applicability, sub_applicability  # noqa: E402
 from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E402
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
-from code_eval.semantic_items import applicable_items  # noqa: E402
+from code_eval.criteria_registry import CODE_UNITS  # noqa: E402
+from code_eval.semantic_items import ITEMS, applicable_items  # noqa: E402
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(J7 롱컨텍스트 입력 8K 토큰 이상 적용 수·판별 불가 수)와 작업 브랜치 v2(충족 enough·
 #: short_criteria 를 적용 독립 질문·대화 수로, applicable 은 그대로 적용 턴 수). 둘을 합친 것 → v3.
-CHECK_VERSION = "question-set-check-v3"
+CHECK_VERSION = "question-set-check-v4"   # v4: 검사·항목 단위 적용 수(coverage), 첨부파일
 MIN_APPLICABLE = 30
 #: 팀원 구조도의 유형 비율 초안 (설계안 v1.2 질문 세트 구성) — 유형 필드가 있을 때만 비교한다
 TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .20, "분석·추론": .15, "코딩·기술": .15,
@@ -40,6 +41,10 @@ _TYPE_FIELDS = ("type", "category", "question_type", "유형")
 CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7", "J8")
 #: 답변이 만드는 조건 — 답변 없이 점검할 때 질문 조건으로 세지 않는다
 _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
+#: CODE 검사 단위 (AIONA 특화 제외) — (id, 적용 계기, 질문 요구 종류)
+_UNITS = [(uid, trigger, frozenset(kinds)) for uid, _, trigger, kinds in CODE_UNITS if trigger != "aiona"]
+#: 답변 구조로만 생기는 검사 — 질문만으로는 적용 여부를 셀 수 없다 (답변을 받은 뒤 확인)
+ANSWER_DEPENDENT = tuple(uid for uid, trigger, _ in _UNITS if trigger == "answer")
 
 
 def load_items(path: Path) -> List[Any]:
@@ -83,6 +88,40 @@ def criteria_counts(rows: List[Dict[str, Any]], minimum: int = MIN_APPLICABLE) -
                 "enough": len(units[c]) >= minimum, "short": max(0, minimum - len(units[c]))} for c in CRITERIA}
 
 
+def _code_checks(result: Dict[str, Any]) -> set:
+    """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 질문 요구 종류가 맞는 검사 + 질문에서 나온 결과·판정 제외 행."""
+    meta = result.get("meta") or {}
+    kinds = {cond.get("kind") for cond in meta.get("question_conditions") or [] if isinstance(cond, dict)}
+    found = {uid for uid, trigger, unit_kinds in _UNITS if trigger == "all" or (unit_kinds & kinds)}
+    for row in result.get("results") or []:
+        if row.get("source") in ("question", "history_instruction"):
+            found.add(str(row.get("check_id") or "").split(":")[0])
+    for skipped in meta.get("skipped_conditions") or []:
+        check_id = str(skipped.get("check_id") or "").split(":")[0]
+        if check_id and not check_id.startswith(_ANSWER_CHECKS):
+            found.add(check_id)
+    return found & {uid for uid, _, _ in _UNITS}
+
+
+def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """검사·항목 단위 적용 질문·대화 수 — 질문 생성기가 빠진 검사·항목을 찾는다 (단일 질문 1개·대화 1개 = 1).
+
+    답변 구조로만 생기는 검사(``ANSWER_DEPENDENT``)는 질문만으로 셀 수 없어 빠진 목록에 넣지 않는다.
+    의미 항목 가운데 평가 모델이 해당 여부를 정하는 항목(model_applies)은 '보냄' 기준으로 센다."""
+    checks: Dict[str, set] = {uid: set() for uid, _, _ in _UNITS}
+    items: Dict[str, set] = {item.id: set() for item in ITEMS}
+    for row in rows:
+        unit = unit_of(row)
+        for uid in row.get("checks") or []:
+            checks.setdefault(uid, set()).add(unit)
+        for item_id in row.get("items") or []:
+            items.setdefault(item_id, set()).add(unit)
+    return {"checks": {uid: len(units) for uid, units in checks.items()}, "items": {iid: len(units) for iid, units in items.items()},
+            "answer_dependent": list(ANSWER_DEPENDENT),
+            "missing_checks": [uid for uid, units in checks.items() if not units and uid not in ANSWER_DEPENDENT],
+            "missing_items": [iid for iid, units in items.items() if not units]}
+
+
 def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, Any]:
     """``pipeline`` 은 의미 평가 방식(legacy·items) — 없으면 평가와 같게 SEMANTIC_PIPELINE(.env) 을 따른다."""
     pipeline = resolve_semantic_pipeline(pipeline=pipeline)
@@ -105,7 +144,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             errors.append({"index": index + 1, "message": problem})
             continue
         case = {"index": index + 1, "case_id": str(item.get("case_id") or item.get("id") or f"Q{index + 1:03d}"),
-                "question": question, "answer": answer, "reference": item.get("reference"),
+                "question": question, "answer": answer, "reference": item.get("reference"), "attachments": item.get("attachments"),
                 "type": next((str(item[f]) for f in _TYPE_FIELDS if item.get(f) not in (None, "")), None)}
         if conversation:
             case["conversation_id"], case["turn"] = conversation["id"], conversation["turn"]
@@ -129,7 +168,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             seen[key] = case["case_id"]
 
     # CODE 조건 — 평가 때와 같은 엔진으로 질문(과 이전 턴 지시)에서 나온 조건만 센다. 답변은 비어 있어도 된다.
-    payloads = [{k: case[k] for k in ("case_id", "question", "answer", "reference", "conversation_id", "turn")
+    payloads = [{k: case[k] for k in ("case_id", "question", "answer", "reference", "attachments", "conversation_id", "turn")
                  if case.get(k) is not None} for case in cases]
     evaluated = evaluate_batch(payloads)["cases"] if payloads else []
     undetermined: Counter = Counter()   # 적용 여부를 판별하지 못한 질문 수 (J7 — 토크나이저 없음)
@@ -156,10 +195,12 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             history, _ = build_history(ctx["prior"])
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
                             "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx.get("multi_turn")}
+        # 항목 단위 적용(coverage)은 의미 평가 방식과 상관없이 항목별 규칙으로 센다 — 생성기가 빠진 항목을 찾는 데 쓴다
+        subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"), attachments=case.get("attachments"),
+                                 conversation=conversation, answer_tools="unknown", history=history)
+        item_ids = [item.id for item, _ in applicable_items(case, subs, conversation)]
         if pipeline == "items":   # 평가와 같은 항목별 적용 규칙
-            subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"), attachments=case.get("attachments"),
-                                     conversation=conversation, answer_tools="unknown", history=history)
-            hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(case, subs, conversation))
+            hit.update(item_id.split("-", 1)[0] for item_id in item_ids)
             undetermined.update({sid.split("-", 1)[0] for sid, sub in subs.items() if sub.get("undetermined")})
         else:
             semantic = jev_applicability(case["question"], None, reference=case.get("reference"), attachments=case.get("attachments"),
@@ -168,7 +209,8 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             undetermined.update(list(semantic.get("undetermined") or {}))
             if fact_question(case["question"], history)[0]:
                 hit.add("J5")
-        row = {"case_id": case["case_id"], "index": case["index"], "criteria": [c for c in CRITERIA if c in hit]}
+        row = {"case_id": case["case_id"], "index": case["index"], "criteria": [c for c in CRITERIA if c in hit],
+               "checks": sorted(_code_checks(result)), "items": item_ids}
         if "conversation_id" in case:
             row.update(conversation_id=case["conversation_id"], turn=case["turn"])
         per_case.append(row)
@@ -188,6 +230,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "count_unit": "question_or_conversation", "criteria": criteria,
             "undetermined": dict(undetermined),
             "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case,
+            "coverage": coverage(per_case),
             # 대화별 멀티턴 판정(평가와 같은 규칙, 이 파일의 답변으로) — {대화 ID: multi_turn.measure_conversation 결과}
             "multi_turn": {ctx["id"]: ctx.get("multi_turn") for ctx in contexts.values()}}
 

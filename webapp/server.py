@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 from .code_eval_service import CodeEvalService, JobCapacityError, ROOT
 from .comparison_service import ComparisonService, import_dataset
+from .question_generation import QuestionSetService
 from .ingestion import BundleError
 from .ingestion.platforms import formats as external_formats
 from code_eval.report_html import render_report
@@ -30,10 +31,12 @@ class Server(ThreadingHTTPServer):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
 
-    def __init__(self, address, code_eval_service=None, comparison_service=None):
+    def __init__(self, address, code_eval_service=None, comparison_service=None, question_service=None):
         # v16 코드 평가기 (/code-eval.html). CLI 와 같은 code_eval.engine 을 쓴다.
         self.code_eval_service = code_eval_service or CodeEvalService()
         self.comparison_service = comparison_service or ComparisonService(self.code_eval_service)
+        # 질문 세트 생성 — 연결·수집 설정의 GPT 연결을 그대로 쓴다 (사용자 결정 2026-10-13: 생성 모델은 GPT)
+        self.question_service = question_service or QuestionSetService(lambda: self.comparison_service.provider_config('gpt'))
         super().__init__(address, Handler)
 
 
@@ -121,6 +124,20 @@ class Handler(BaseHTTPRequestHandler):
         parts = path.strip('/').split('/')
         if path == '/api/comparison/providers':
             return self.respond(200, service.providers())
+        if path == '/api/comparison/question-sets':
+            return self.respond(200, self.server.question_service.list())
+        if len(parts) >= 4 and parts[2] == 'question-sets':
+            questions = self.server.question_service
+            if len(parts) == 4:
+                return self.respond(200, questions.status(parts[3]))
+            if len(parts) == 5 and parts[4] == 'download':
+                body = json.dumps(questions.dataset(parts[3]), ensure_ascii=False, indent=1).encode()
+                return self.respond(200, body, 'application/json; charset=utf-8',
+                                    extra_headers={'Content-Disposition': f'attachment; filename="question-set-{parts[3]}.json"'})
+            if len(parts) == 6 and parts[4] == 'files':
+                body, content_type = questions.file(parts[3], parts[5])
+                return self.respond(200, body, content_type, extra_headers={'Content-Disposition': f'attachment; filename="{parts[5]}"'})
+            return self.respond(404, {'error': 'API를 찾을 수 없습니다.'})
         if path == '/api/comparison/info':
             return self.respond(200, service.info())
         if path == '/api/comparison/sample':
@@ -224,6 +241,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, service.start_external(payload))
             if path == '/api/comparison/auto-collection/jobs':
                 return self.respond(202, service.start_auto_collection(payload))
+            if path == '/api/comparison/question-sets':
+                return self.respond(202, self.server.question_service.start(payload))
+            if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':
+                return self.respond(200, self.server.question_service.cancel(parts[3]))
             if path == '/api/comparison/auto-collection/policy':
                 return self.respond(200, service.update_auto_policy(payload))
             if len(parts) == 4 and parts[2] == 'providers':
