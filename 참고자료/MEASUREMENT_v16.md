@@ -9,7 +9,7 @@
 | 항목 | 구현 |
 |---|---|
 | 판정 | 공통 결과 행은 `PASS` / `FAIL` 만(엔진 v16.3.0, §18). 판정할 수 없는 조건은 행을 만들지 않고 `meta.skipped_conditions` 에 사유만 남긴다. severity·주의·심각·HOLD·가중치 없음 |
-| 실행 상태 | 공통 행은 `EXECUTED` 뿐. 검사기 오류·한도 초과는 행이 아니라 `case.errors`(`summary.errors`·`totals.check_errors`)이며 그 질문은 PASS 로 세지 않는다. AIONA 특화 행은 `CONFIG_MISSING` · `DISPLAY_MISSING` · `DUPLICATE` 를 유지. `UNSUPPORTED` · `DEPENDENCY_FAILED` · `APPLICABILITY_EXCEPTION` · `INCOMPLETE` 는 저장된 옛 결과(v16.2.x)에서만 보인다. 케이스 단위 `INPUT_ERROR` |
+| 실행 상태 | 공통 행은 `EXECUTED` 뿐. 검사기 오류·한도 초과는 행이 아니라 `case.errors`(`summary.errors`·`totals.check_errors`)이며 그 질문은 PASS 로 세지 않는다. AIONA 특화 행은 지금도 `CONFIG_MISSING` · `DISPLAY_MISSING` · `INCOMPLETE`(표시본 일부 누락) · `OUT_OF_SCOPE`(AIONA 가 아닌 모델) · `DUPLICATE` 를 낸다(`checks_aiona.py`). `UNSUPPORTED` · `DEPENDENCY_FAILED` · `APPLICABILITY_EXCEPTION` 은 저장된 옛 결과(v16.2.x)의 공통 행에서만 보인다. 케이스 단위 `INPUT_ERROR` |
 | 통과율 | `PASS / (PASS + FAIL)`, 분모 0 → `null`. 미판정·관측은 분모 제외. AIONA 특화는 공통 통과율과 별도 |
 | 해당 없음 | 결과를 만들지 않는다 (분모를 늘리지 않음). 예: 표 요구가 없으면 표 결과 없음 |
 | 경로 | 질문 유형 분류·배분 없음. 모든 입력이 같은 검사 함수 목록(`engine._COMMON`)을 지난다 |
@@ -209,7 +209,7 @@ HTML 보고서와 CLI `single` 출력도 같은 설명을 쓴다.
 - 대소문자·구두점·코드 구획 안 문구·제로폭 문자(U+200B 등, 공백이 아님)는 접지 않으며 지금처럼 FAIL 이다. 금지 문자열과 시작·끝 표현에도 같은 접기를 적용해 줄바꿈으로 금지어를 피한 경우를 잡는다.
 - 근거 위치는 원문 좌표를 유지한다(접힌 공백은 구간 첫 글자 위치). 금지 문자열의 중복 키(`forbidden_key`)는 접기 전 투영으로 계산해 AIONA 금지 표현과의 중복 집계가 바뀌지 않는다.
 - `정확히 포함해줘`·`그대로 넣어줘`·`정확히 "…"라고 써줘` 같은 질문은 이전에는 문자열 조건이 추출되지 않았으며, 이제 `exact` 조건으로 추출된다 (`v16-extract-1.8`).
-- 결과 기록: `2-1.literal` 규칙 버전 `v16-1.1`. 저장된 결과는 다시 계산하지 않는다.
+- 결과 기록: `2-1.literal` 규칙 버전 `v16-1.2`(접기를 넣은 버전; `v16-1.1` 결과는 접지 않은 비교). 저장된 결과는 다시 계산하지 않는다.
 
 ## 18. v16.3.0 공통 결과 행은 PASS/FAIL 뿐 (2026-10-13, 설계 2단계)
 
