@@ -23,7 +23,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
-from code_eval.jev_applicability import fact_question, jev_applicability  # noqa: E402
+from code_eval.jev_applicability import fact_question, jev_applicability, sub_applicability  # noqa: E402
+from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E402
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
 from code_eval.semantic_items import applicable_items  # noqa: E402
 
@@ -109,13 +110,14 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
     evaluated = evaluate_batch(payloads)["cases"] if payloads else []
     applicable: Counter = Counter()
     per_case = []
+    contexts = conversation_contexts(evaluated)   # 평가 준비와 같은 대화 이력 — 오류·누락 턴은 이력에서 빠지고 issues 로 남는다
     usable = []
-    for case, result in zip(cases, evaluated):
+    for i, (case, result) in enumerate(zip(cases, evaluated)):
         if result.get("case_status") != "EVALUATED":   # 엔진의 입력 오류·한도 초과는 평가에서도 빠진다 — 적용 수에서 뺀다
             errors.append({"index": case["index"], "message": f"{result.get('case_status')}: {result.get('input_error') or '평가할 수 없는 입력'}"})
             continue
-        usable.append((case, result))
-    for case, result in usable:
+        usable.append((i, case, result))
+    for i, case, result in usable:
         hit = {"CODE 1"}   # 출력 무결성은 질문과 상관없이 모든 답변에 적용된다
         for row in result.get("results") or []:
             if row.get("source") in ("question", "history_instruction") and row.get("category") in ("1", "2", "3"):
@@ -125,18 +127,19 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             check_id = str(skipped.get("check_id") or "")
             if check_id[:1] in "123" and not check_id.startswith(_ANSWER_CHECKS):
                 hit.add("CODE " + check_id[0])
-        prior = sorted((c for c in cases if "conversation_id" in case and c.get("conversation_id") == case["conversation_id"]
-                        and c.get("turn", 0) < case.get("turn", 0)), key=lambda c: c["turn"])
-        conversation = ({"id": case["conversation_id"], "turn": case["turn"], "history_turns": len(prior)}
-                        if "conversation_id" in case else None)
+        ctx, history, conversation = contexts.get(i), [], None
+        if ctx:
+            history, _ = build_history(ctx["prior"])
+            conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
+                            "history_turns": len(history) if ctx["complete"] else 0}
         if pipeline == "items":   # 평가와 같은 항목별 적용 규칙
-            state = {"question": case["question"], "answer": case["answer"], "reference": case.get("reference"),
-                     "history": [{"turn": c["turn"], "question": c["question"], "answer": c["answer"]} for c in prior]}
-            hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(state, conversation=conversation))
+            subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
+                                     conversation=conversation, answer_tools="unknown", history=history)
+            hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(case, subs, conversation))
         else:
             semantic = jev_applicability(case["question"], None, reference=case.get("reference"), conversation=conversation)
             hit.update(semantic["criteria"])
-            if fact_question(case["question"], [{"question": c["question"]} for c in prior])[0]:
+            if fact_question(case["question"], history)[0]:
                 hit.add("J5")
         applicable.update(hit)
         per_case.append({"case_id": case["case_id"], "criteria": [c for c in CRITERIA if c in hit]})

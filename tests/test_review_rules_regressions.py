@@ -145,6 +145,7 @@ def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     ("설명 *3 + 4 = 8 개*", "FAIL"),    # 단위 앞 공백이 있는 기울임
     ("설명 *3 + 4 = **8***", "FAIL"),   # 중첩 강조
     ("1. *3 + 4 = 8*", "FAIL"),         # 목록 번호는 앞 피연산자가 아니다
+    ("[1] *3 + 4 = 8*", "FAIL"),        # 대괄호 표지도
     ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈
 ])
 def test_bullet_and_plain_division_equations_still_judged(answer, verdict):

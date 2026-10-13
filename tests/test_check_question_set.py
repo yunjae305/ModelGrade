@@ -43,3 +43,11 @@ def test_unjudged_question_conditions_items_rules_and_engine_input_errors():
     assert check_items(plan, pipeline="items")["criteria"]["J5"]["applicable"] == 2   # items 의 J5-2.a
     bad = check_items([{"question": "안녕?", "reference": 123}], pipeline="legacy")
     assert bad["errors"] and bad["criteria"]["J1"]["applicable"] == 0
+
+
+def test_error_turns_are_left_out_of_conversation_history_like_the_evaluation():
+    convo = [{"conversation_id": "C", "turn": 1, "question": "가상의 도시야.", "reference": 123},
+             {"conversation_id": "C", "turn": 2, "question": "서울의 인구를 알려줘."}]
+    report = check_items(convo, pipeline="items")
+    assert report["errors"] and report["criteria"]["J6"]["applicable"] == 0   # 1턴 오류 — 이력이 불완전해 J6 없음
+    assert report["criteria"]["J5"]["applicable"] == 1                         # 오류 턴의 '가상' 설정은 이력에 들어가지 않음

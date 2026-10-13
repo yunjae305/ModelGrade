@@ -220,9 +220,10 @@
             : i === 0 ? ' · 이 질문 세트의 첫 기록' : factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
           + (p.complete ? '' : ' · 미완료 질문 있음(변화 확정 안 함)'))));
     }
-    const last = rated[rated.length - 1]?.[0], latest = points[points.length - 1];
+    const settled = rated.filter(([p]) => p.complete === true), last = settled[settled.length - 1]?.[0], latest = points[points.length - 1];
     const recent = !latest ? '' : typeof latest.question_pass_rate === 'number'
-      ? ` · 최근 ${percent(latest.question_pass_rate)}` + (latest.complete ? '' : ' (미완료 포함)')
+      ? ` · 최근 ${percent(latest.question_pass_rate)}` + (latest.complete ? '' : ' (미완료 포함)'
+        + (last && last !== latest ? ` · 최근 확정 ${percent(last.question_pass_rate)}` : ''))
       : ' · 최근 기록 미확정' + (last ? ` · 최근 확정 ${percent(last.question_pass_rate)}` : '');
     return node('article', {class: 'history-trend-card'},
       node('strong', {text: setLabel(set)}),
