@@ -1265,3 +1265,6 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
 .question-set-warnings { margin: 8px 0; font-size: 13px; }
 #question-set-body .button { margin-top: 8px; display: inline-flex; }
 .question-set-option { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0 12px; }
+.question-set-options { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.question-set-options input[type=number] { width: 88px; }
+.question-set-options select { max-width: 380px; }

@@ -109,3 +109,16 @@ def test_api_tools_collector_keeps_refusals_and_turns_bad_responses_into_errors(
     shape = agent_collection.ask_with_tools("gemini", {"key": "k", "model": "m"}, "질문", [], tmp_path, httpx.Client(transport=httpx.MockTransport(
         lambda request: httpx.Response(200, json={"candidates": [{"finishReason": "STOP", "content": {"parts": 42}}]}))))
     assert shape["status"] == "ERROR" and "모양" in shape["error"]   # 본문 그릇이 목록이 아니면 예외 대신 수집 오류
+
+
+def test_weak_units_lists_checks_and_criteria_every_model_passed(tmp_path):
+    """변별력 되먹임 — 모든 모델이 모든 적용 질문에 PASS 한 CODE 검사·의미 기준만 (확정되지 않은 판정·'검사 대상 없음' 행은 제외)."""
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
+    run = {"evaluations": {
+        "gpt": {"cases": [{"results": [{"check_id": "2-1.count", "verdict": "PASS"}, {"check_id": "2-2.table", "verdict": "FAIL"},
+                                       {"check_id": "1-2.json_syntax:none", "verdict": "PASS"}]}],
+                "jev_eval": {"records": [{"decisions": {"J1": {"decision": "PASS"}, "J5": {"decision": "FAIL"}, "J7": {"decision": None}}}]}},
+        "claude": {"cases": [{"results": [{"check_id": "2-1.count", "verdict": "PASS"}]}],
+                   "jev_eval": {"records": [{"decisions": {"J1": {"decision": "PASS"}}}]}}}}
+    svc.result = lambda run_id: run
+    assert svc.weak_units("x") == [{"id": "2-1.count", "name": "불릿·항목·문장·문단·줄·어절 수"}, {"id": "J1", "name": "의도 충족성"}]

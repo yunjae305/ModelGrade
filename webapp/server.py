@@ -38,7 +38,8 @@ class Server(ThreadingHTTPServer):
         # 질문 세트 생성 — 연결·수집 설정의 GPT 연결을 그대로 쓴다 (사용자 결정 2026-10-13: 생성 모델은 GPT)
         self.question_service = question_service or QuestionSetService(lambda: self.comparison_service.provider_config('gpt'),
                                                                        run_starter=self.start_question_set_run,
-                                                                       run_canceller=self.comparison_service.cancel)
+                                                                       run_canceller=self.comparison_service.cancel,
+                                                                       weak_source=self.comparison_service.weak_units)
         super().__init__(address, Handler)
 
     def start_question_set_run(self, set_id):

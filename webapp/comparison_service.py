@@ -702,6 +702,36 @@ class ComparisonService:
             runs = sorted(stored.values(), key=lambda r: r["created_at"], reverse=True)
             return runs if limit is None else runs[:limit]
 
+    def weak_units(self, run_id):
+        """실행에서 모든 모델이 모든 적용 질문에 PASS 한 CODE 검사·의미 기준 [{id, name}] — 변별력이 없던 단위 (질문 생성 되먹임,
+        사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다). 판정이 확정되지 않은 기준(확인 필요·미완료)은 세지 않는다."""
+        from code_eval.criteria_registry import CODE_UNITS
+        from code_eval.jev_criteria import CRITERIA
+        run = self.result(run_id)
+        seen, failed = set(), set()
+        for batch in (run.get("evaluations") or {}).values():
+            if not isinstance(batch, dict):
+                continue
+            for case in batch.get("cases") or []:
+                for row in (case.get("results") or []) if isinstance(case, dict) else []:
+                    check_id = str(row.get("check_id") or "")
+                    if not check_id or check_id.endswith(":none") or row.get("verdict") not in ("PASS", "FAIL"):
+                        continue
+                    unit = check_id.split(":")[0]
+                    seen.add(unit)
+                    if row.get("verdict") == "FAIL":
+                        failed.add(unit)
+            for record in (batch.get("jev_eval") or {}).get("records") or []:
+                for cid, decision in ((record.get("decisions") or {}).items() if isinstance(record, dict) else []):
+                    verdict = decision.get("decision") if isinstance(decision, dict) else None
+                    if verdict in ("PASS", "FAIL"):
+                        seen.add(cid)
+                        if verdict == "FAIL":
+                            failed.add(cid)
+        names = {uid: name for uid, name, _, _ in CODE_UNITS}
+        names.update({c.id: c.name for c in CRITERIA})
+        return [{"id": uid, "name": names.get(uid, "")} for uid in sorted(seen - failed)]
+
     def version_history(self):
         with self._lock:
             return self.version_registry.version_history(self.history(limit=None))

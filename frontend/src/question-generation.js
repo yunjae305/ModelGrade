@@ -59,6 +59,8 @@
       node('dl', {class: 'dataset-stats', 'aria-label': '만든 질문 세트 요약'},
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
         stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
+      node('p', {class: 'field-help', text: `목표 질문 수 ${set.target_questions ?? '자동(최소)'} · 난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
+        + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목 (${set.weak_from_run})` : '')}),
       coverageBlock(set.coverage),
       node('p', {class: 'field-help', text: `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`}),
       (set.warnings || []).length ? node('details', {class: 'question-set-warnings'}, node('summary', {text: `경고 ${set.warnings.length}건`}),
@@ -87,8 +89,10 @@
       + (chained ? '. 다 만든 뒤 AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가까지 이어서 진행합니다' : '') + '. 시작할까요?')) return;
     showError('');
     touched = true;
+    const count = $('question-set-count').value.trim();
     try {
-      render(await api('/api/comparison/question-sets', {note: $('question-set-note').value, auto_run: $('question-set-auto-run').checked}));
+      render(await api('/api/comparison/question-sets', {note: $('question-set-note').value, auto_run: $('question-set-auto-run').checked,
+        target_questions: count ? Number(count) : null, weak_from_run: $('question-set-weak-run').value || null}));
       poll();
     } catch (error) {
       showError(error.message);
@@ -108,7 +112,16 @@
     catch (error) { showError(error.message); }
   }
 
+  async function loadWeakRuns() {   // 변별력 보강에 쓸 지난 질문 세트 실행(평가까지 끝난 것)
+    try {
+      const runs = (await api('/api/comparison/history')).filter((r) => r.run_kind === 'question_set' && r.status === 'COMPLETED');
+      const select = $('question-set-weak-run');
+      runs.forEach((r) => select.append(node('option', {value: r.run_id, text: `${r.name || r.run_id} · 질문 ${r.question_count ?? '?'}개 · ${(r.created_at || '').slice(0, 16).replace('T', ' ')}`})));
+    } catch (error) { /* 목록이 없어도 생성은 할 수 있다 */ }
+  }
+
   $('question-set-start').addEventListener('click', start);
   $('question-set-cancel').addEventListener('click', cancel);
+  loadWeakRuns();
   api('/api/comparison/question-sets').then((sets) => { if (!touched) { render(sets[0] || null); poll(); } }).catch(() => { if (!touched) render(null); });
 })();

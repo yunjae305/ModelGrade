@@ -75,6 +75,10 @@ def pasted_ranges(text: str) -> List[Tuple[int, int]]:
         end = _PASTE_END_LINE.search(text, begin.end())
         if end is None:
             return out
+        following = _PASTE_BEGIN_LINE.search(text, begin.end())
+        if following is not None and following.start() < end.start():   # 끝 표시 전에 다른 시작 표시 — 앞 구간은 미완성, 다음 시작부터 다시
+            cursor = following.start()
+            continue
         out.append((begin.start(), end.end()))
         cursor = end.end()
 
@@ -82,6 +86,32 @@ def pasted_ranges(text: str) -> List[Tuple[int, int]]:
 def escape_paste_markers(material: str) -> str:
     """자료 본문 안에 표시와 같은 줄이 있으면 '※ ' 를 붙여 표시로 읽히지 않게 한다 (구간이 조기에 끝나지 않도록)."""
     return _PASTE_MARK_LINE.sub(lambda m: f"{m.group(1)}※ {m.group(2)}{m.group(3)}", material)
+
+
+_FENCE_LINE = re.compile(r"^ {0,3}(`{3,}|~{3,})", re.M)
+
+
+def seal_pasted(text: str) -> str:
+    """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존). 끝 표시 줄을 같은 길이의 닫는 펜스로 바꾼다 —
+    자료 속 열린 펜스가 바깥 요청의 변환 원본(배열·표)을 코드로 가리지 않게 (Codex 리뷰). 가릴 수 없는 긴 펜스는 그대로 둔다."""
+    chars = list(text)
+    for start, end in pasted_ranges(text):
+        opened: Optional[str] = None
+        for m in _FENCE_LINE.finditer(text, start, end):
+            fence = m.group(1)
+            if opened is None:
+                opened = fence
+            elif fence[0] == opened[0] and len(fence) >= len(opened):
+                opened = None
+        marker = _PASTE_END_LINE.search(text, start, end)
+        if opened is None or marker is None:
+            continue
+        line_start, line_end = marker.start(), marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
+        if line_end - line_start < len(opened):
+            continue
+        closing = opened + " " * (line_end - line_start - len(opened))
+        chars[line_start:line_end] = list(closing)
+    return "".join(chars)
 
 
 @dataclass

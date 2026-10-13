@@ -22,7 +22,8 @@ def small_lengths(monkeypatch):
     monkeypatch.setattr(multi_turn, "MIN_TURN_TOKENS", 2_000)
 
 PLAN = {"questions": [
-    {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count", "J4-3.a", "없는-id"],
+    {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count", "J4-3.a", "없는-id"], "difficulty": "어려움",
+     "trap": "불릿을 4개 쓰거나 번호 목록으로 쓰면 FAIL",
      "turns": [{"question": "공부 방법을 불릿으로 정확히 3개 작성해줘."}]},
     {"type": "첨부", "topic": "견적", "target_items": ["J8-1.a", "J8-2.a"],
      "turns": [{"question": "첨부한 견적서에서 합계 금액이랑 노트북 단가 알려줘.",
@@ -50,6 +51,9 @@ class FakeGPT:
             return "```json\n" + json.dumps(PLAN, ensure_ascii=False) + "\n```"
         if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충"):
             return json.dumps(SUPPLEMENT, ensure_ascii=False)
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가"):
+            return json.dumps({"questions": [{"type": "사실", "topic": "추가", "target_items": ["J2-1.a"], "difficulty": "어려움", "trap": "연도를 틀리면 FAIL",
+                                              "turns": [{"question": "한글날이 공휴일로 다시 지정된 해는 언제야? 연도만 답해줘."}]}]}, ensure_ascii=False)
         # 긴 자료 — 문단마다 숫자가 달라 토큰이 고르게 나온다
         return "\n\n".join(f"{i}번 문단: 회의에서 담당자가 {i % 7 + 1}월 일정과 예산 {i * 13}만 원을 다시 확인하고 다음 할 일을 정했다."
                            for i in range(260))
@@ -148,3 +152,20 @@ def test_pasted_material_is_user_data_not_instructions():
     assert _input_scope({"scope": "input_consistency", "scope_quote": "이 주장의 진위를 확인해줘."}, {"question": bad, "history": []}) is False
     plain = "다음 자료가 맞는지 확인해줘. 정원은 12명이다."   # 요청 자체가 진위 확인이면 그대로 막힌다
     assert _input_scope({"scope": "input_consistency", "scope_quote": "다음 자료가 맞는지 확인해줘."}, {"question": plain, "history": []}) is False
+
+
+def test_target_question_count_adds_questions_and_feeds_weak_units(tmp_path):
+    """세트 전체 질문 수를 정하면 그 수에 맞춰 질문을 더 만들고, 지난 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구한다 (v1.2)."""
+    base = len(qg.QuestionSetBuilder(FakeGPT(), tmp_path / "base").build()["groups"])
+    fake = FakeGPT()
+    weak = [{"id": "J2", "name": "내용 적절성"}, {"id": "2-1.char_count", "name": "글자 수"}]
+    result = qg.QuestionSetBuilder(fake, tmp_path / "target").build(target_questions=base + 1, weak_units=weak)
+    assert len(result["groups"]) == base + 1 and result["extra_rounds"] == 1
+    assert f"정확히 {base + 1}개" in fake.prompts[0] and "# 변별력 (중요)" in fake.prompts[0] and "- J2 내용 적절성" in fake.prompts[0]
+    extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
+    assert len(extra) == 1 and "질문 1개를 추가" in extra[0] and "# 적용 질문이 적은 항목" in extra[0] and "- 2-1.char_count 글자 수" in extra[0]
+    assert result["groups"][0]["difficulty"] == "어려움" and result["groups"][0]["trap"].endswith("FAIL")
+    assert result["groups"][-1]["topic"] == "추가" and qg._summary(result["groups"], result["check"])["difficulty"]["어려움"] >= 2
+    plain = qg.QuestionSetBuilder(FakeGPT(), tmp_path / "plain")
+    plain.build()
+    assert not any("목표 질문 수" in w for w in plain.warnings)   # 지정 안 하면 목표 수 경고가 없다

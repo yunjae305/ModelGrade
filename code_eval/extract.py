@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis import TextAnalysis, mask_ranges, pasted_ranges
+from .analysis import TextAnalysis, mask_ranges, pasted_ranges, seal_pasted
 from .textparse import _NUM_WORD, _count_governed_by_output_verb
 
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
@@ -975,7 +975,7 @@ def _transform_reqs(qa: TextAnalysis, text: str, out: List[Req]) -> Optional[Dic
 # --- 진입점 ------------------------------------------------------------------------
 
 def extract_conditions(question: str) -> QuestionConditions:
-    qa = TextAnalysis(question)
+    qa = TextAnalysis(seal_pasted(question))   # 자료 속 열린 펜스를 구간 끝에서 닫아 바깥 변환 원본(배열·표) 분석에 번지지 않게 (위치 보존)
     text = _instruction_text(qa)
     reqs: List[Req] = []
     m = _EMPTY.search(text)

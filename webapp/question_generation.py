@@ -25,7 +25,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from code_eval import long_context, multi_turn
 from code_eval.analysis import PASTE_BEGIN, PASTE_END, escape_paste_markers
@@ -38,7 +38,10 @@ from .code_eval_service import ROOT
 __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "criteria_catalog", "plan_prompt", "supplement_prompt", "parse_plan",
            "QuestionSetBuilder", "QuestionSetService"]
 
-QUESTION_GEN_VERSION = "question-gen-v1.1"   # v1.1: 붙여 넣은 자료에 끝 표시([자료 끝]) — 평가기가 자료와 요청을 구분
+#: v1.1: 붙여 넣은 자료에 끝 표시([자료 끝]) — 평가기가 자료와 요청을 구분
+#: v1.2: 세트 전체 질문 수 지정(target_questions)·변별력(질문마다 trap·difficulty)·앞선 실행에서 모두 PASS 한 단위 되먹임(weak_units)
+#:       — 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다, 질문 수를 바꿔 가며 최소·충분 개수를 찾는다
+QUESTION_GEN_VERSION = "question-gen-v1.2"
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -46,8 +49,9 @@ MATERIAL_TOKENS = 32_000      # 긴 자료 한 조각의 최대 출력 토큰 (�
 CHUNK_CHARS = 10_000          # 긴 자료 한 조각에 요청하는 글자 수 (한국어 약 0.72토큰/자)
 PASTE_CHARS = 15_000          # J6 턴마다 붙여 넣을 자료 글자 수 (약 10.8K 토큰)
 SUPPLEMENT_ROUNDS = 2
-# 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게
-MAX_PLAN_QUESTIONS = 40
+# 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게 (질문 수 지정의 상한이기도 하다)
+MAX_PLAN_QUESTIONS = 80
+DIFFICULTIES = ("쉬움", "보통", "어려움")
 MAX_PLAN_TURNS = 15
 MAX_LONG_REFERENCES = 2
 MAX_CALLS = 250
@@ -97,9 +101,17 @@ def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
     return {"code": codes, "items": items}
 
 
+#: 변별력 — 전부 PASS 가 나오는 질문은 모델을 가르지 못한다 (사용자 결정 2026-10-14)
+_DISCRIMINATION = """# 변별력 (중요)
+- 모든 모델이 PASS 하는 질문은 평가에 쓸모가 없습니다. 질문마다 '틀리기 쉬운 지점'을 하나 이상 넣고, trap 에 어떤 답이 FAIL 이 되는지 한 줄로 씁니다.
+  예: 함께 지키기 어려운 조건 둘(글자 수 + 필수 문구 셋), 정확한 개수·글자 수, 주제상 자연스럽게 나오는 금지어, 흔히 잘못 아는 사실(연도·수치·명칭),
+  긴 자료에서 멀리 떨어진 근거 3곳 연결, 앞 턴에서 바꾼 조건을 뒤 턴에 다시 묻기, 자료에 없는 정보 묻기(지어내면 FAIL), 상충하는 요구에서 가정을 밝혀야 하는 질문.
+- difficulty 를 쉬움·보통·어려움으로 적고 섞습니다(어려움이 3분의 1 이상). 어려움도 요구는 명확해야 합니다 — 모호해서 어려운 질문은 안 됩니다."""
+
 _FORMAT = """# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)
 {"questions": [
   {"id": "Q01", "type": "질문 유형", "topic": "주제", "target_items": ["점검 목록의 id", "..."],
+   "difficulty": "쉬움|보통|어려움", "trap": "어떤 답이 FAIL 이 되는지 한 줄",
    "turns": [{"question": "질문 원문",
               "attachments": [{"name": "견적서.pdf", "type": "pdf", "content": "파일에 들어갈 내용 전체"}],
               "long_reference": {"topic": "자료 주제", "facts": [{"text": "자료에 넣을 사실 문장", "position": 0.5}]},
@@ -124,13 +136,27 @@ def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set]
     return lines
 
 
-def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "") -> str:
+def _weak_block(weak_units: Sequence[Dict[str, str]]) -> str:
+    """앞선 실행에서 모든 모델이 PASS 한 검사·기준 — 더 어려운 질문을 요구하는 블록 (없으면 빈 문자열)."""
+    if not weak_units:
+        return ""
+    lines = "\n".join(f"- {u.get('id')} {u.get('name') or ''}".rstrip() for u in weak_units)
+    return ("\n# 변별력 보강\n앞선 실행에서 모든 모델이 모든 질문에 PASS 한 검사·기준입니다. 각각에 더 어려운 질문(trap 이 분명한)을 1개 이상 넣습니다:\n"
+            + lines + "\n")
+
+
+def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "", *, target_questions: Optional[int] = None,
+                weak_units: Sequence[Dict[str, str]] = ()) -> str:
+    """계획 프롬프트. ``target_questions`` 가 있으면 세트 전체 질문 수(대화 1개 = 1개)를 그 수에 맞추게 하고, 없으면 가능한 한 적게."""
     catalog = catalog or criteria_catalog()
     n_code, n_items = len(catalog["code"]), len(catalog["items"])
+    count_line = (f"질문은 정확히 {target_questions}개 만듭니다(멀티턴 대화 1개 = 1개). 모든 검사·항목을 넣고 남는 질문은 틀리기 쉬운 항목과 "
+                  f"적용 질문이 적은 항목에 배분해 항목마다 적용 질문이 고르게 여러 개가 되게 합니다."
+                  if target_questions else "질문 수는 가능한 한 적게 합니다.")
     head = f"""당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계합니다. 결과는 JSON 하나로만 답합니다.
 
 # 목표
-아래 [점검 목록]의 CODE 검사 {n_code}개와 의미 평가 항목 {n_items}개가 모두 최소 1개 질문(또는 대화)에서 적용되게 하되, 질문 수는 가능한 한 적게 합니다.
+아래 [점검 목록]의 CODE 검사 {n_code}개와 의미 평가 항목 {n_items}개가 모두 최소 1개 질문(또는 대화)에서 적용되게 합니다. {count_line}
 - 한 질문이 여러 항목을 함께 적용받게 설계합니다(예: 대상 지정 + 말투 지정 + 비교 + 표 형식 + 글자 수 조건 + 출처 번호). 다만 한 질문이 노리는 항목은 {MAX_ITEMS_PER_QUESTION}개 이하로 하고 질문이 부자연스럽지 않게 합니다.
 - 서로 막는 항목은 다른 질문으로 나눕니다. 빈 출력 요구(2-1.explicit_empty)와 모순·빠진 자료(J1-3)는 다른 요구와 섞지 않습니다.
 - 주제(생활·업무·학습·건강·금융·여행·과학·역사·코딩 등)와 질문 유형(설명·사실 확인·분석·코딩·글쓰기·요약·추천·계획·계산)을 다양하게 섞고 같은 주제를 반복하지 않습니다.
@@ -157,10 +183,31 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 - 첨부 질문은 파일 종류마다 1개 이상 만듭니다({"·".join(ATTACHMENT_TYPES)} — 첨부 질문 {len(ATTACHMENT_TYPES)}개 이상). image 는 막대그래프와 표·글 그림을 섞습니다. 첨부 질문도 다른 항목을 함께 노리게 해 전체 질문 수를 줄입니다.
 - J8-2.a 가 적용되게 표·도표·쪽·목록 구조를 읽어야 답할 수 있는 질문을 넣습니다.
 
+{_DISCRIMINATION}
+
 {_FORMAT}
 """
     extra = f"\n# 추가 요청\n{note.strip()}\n" if note and note.strip() else ""
-    return head + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
+    return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
+
+
+def extra_prompt(count: int, have: int, target: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
+                 weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = ()) -> str:
+    """세트가 목표 질문 수에 못 미칠 때 질문을 더 만든다 — 변별력 보강 단위와 적용 질문이 적은 항목을 우선 노리게."""
+    catalog = catalog or criteria_catalog()
+    parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+             f"# 목표\n앞서 만든 질문 세트는 {have}개입니다. 목표 {target}개에 맞추려 질문 {count}개를 추가합니다(멀티턴 대화 1개 = 1개). "
+             f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(existing_topics[:30]) or '없음'})와 겹치지 않게 합니다. "
+             f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다.",
+             _DISCRIMINATION, _FORMAT]
+    weak = _weak_block(weak_units).strip()
+    if weak:
+        parts.append(weak)
+    if low_coverage:
+        parts.append("# 적용 질문이 적은 항목 (id · 현재 적용 질문 수)\n" + "\n".join(f"- {uid} · {n}" for uid, n in low_coverage))
+    wanted = {u.get("id") for u in weak_units} | {uid for uid, _ in low_coverage}
+    parts.append("# 점검 목록 (해당 항목만)\n" + "\n".join(_catalog_lines(catalog, wanted or None, detailed=True)))
+    return "\n\n".join(parts)
 
 
 def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
@@ -289,7 +336,10 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
             continue
         raw_targets = entry.get("target_items")
         targets = [str(x) for x in raw_targets if str(x) in known] if isinstance(raw_targets, list) else []
-        questions.append({"type": str(entry.get("type") or ""), "topic": str(entry.get("topic") or ""), "target_items": targets, "turns": turns})
+        difficulty = entry.get("difficulty") if entry.get("difficulty") in DIFFICULTIES else ""   # 셋 중 하나가 아니면 비움(지어내지 않음)
+        trap = str(entry.get("trap") or "").strip()[:300] if isinstance(entry.get("trap"), str) else ""
+        questions.append({"type": str(entry.get("type") or ""), "topic": str(entry.get("topic") or ""), "target_items": targets,
+                          "difficulty": difficulty, "trap": trap, "turns": turns})
     if not questions:
         raise GenerationError("GPT 응답에 쓸 수 있는 질문이 없습니다.")
     return questions, warnings
@@ -402,13 +452,15 @@ class QuestionSetBuilder:
             out["question"] = question
             turns.append(out)
         return {"id": number, "type": plan.get("type") or "", "topic": plan.get("topic") or "",   # 업로드 변환이 문항 ID Q{id}_T{턴} 을 만든다
-                "target_items": plan.get("target_items") or [], "turns": turns}
+                "target_items": plan.get("target_items") or [], "difficulty": plan.get("difficulty") or "", "trap": plan.get("trap") or "",
+                "turns": turns}
 
     # 전체 ---------------------------------------------------------------------------
-    def build(self, note: str = "") -> Dict[str, Any]:
+    def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = ()) -> Dict[str, Any]:
+        """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가."""
         catalog = criteria_catalog()
         self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
-        raw = self._ask(plan_prompt(catalog, note), PLAN_TOKENS)
+        raw = self._ask(plan_prompt(catalog, note, target_questions=target_questions, weak_units=weak_units), PLAN_TOKENS)
         self.out_dir.mkdir(parents=True, exist_ok=True)
         (self.out_dir / "plan.txt").write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문 — 실패해도 확인할 수 있게
         plans, warnings = parse_plan(raw)
@@ -444,7 +496,39 @@ class QuestionSetBuilder:
             self.warnings += warnings
         if not groups:
             raise GenerationError("만든 질문이 없습니다: " + " / ".join(self.warnings[-3:]))
-        return {"groups": groups, "check": report, "rounds": rounds}
+        extra_rounds = 0
+        if target_questions and len(groups) < target_questions:   # 목표 수 채우기 — 변별력 보강·적게 덮인 항목 우선 (1회)
+            count = target_questions - len(groups)
+            self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청", "count": count})
+            try:
+                plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], catalog,
+                                                                    weak_units, _low_coverage(report)), PLAN_TOKENS))
+                self.warnings += warnings
+                extra_rounds = 1
+                for plan in plans[:count]:
+                    try:
+                        groups.append(self.materialize(len(groups) + 1, plan))
+                    except Cancelled:
+                        raise
+                    except GenerationError as exc:
+                        self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
+                report = check(groups)
+            except Cancelled:
+                raise
+            except GenerationError as exc:
+                self.warnings.append(f"질문 추가: {exc}")
+        if target_questions and len(groups) != target_questions:
+            self.warnings.append(f"목표 질문 수 {target_questions}개와 달리 {len(groups)}개를 만들었습니다"
+                                 + (" (모든 항목을 덮는 데 더 필요했습니다)." if len(groups) > target_questions else "."))
+        return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds}
+
+
+def _low_coverage(report: Dict[str, Any], limit: int = 15) -> List[Tuple[str, int]]:
+    """적용 질문이 가장 적은 검사·항목 (답변 구조로만 생기는 것은 제외) — 추가 질문이 노릴 곳."""
+    coverage = report.get("coverage") or {}
+    skip = set(coverage.get("answer_dependent") or []) | set(coverage.get("answer_dependent_items") or [])
+    counts = [(uid, n) for pool in ("checks", "items") for uid, n in (coverage.get(pool) or {}).items() if uid not in skip]
+    return sorted(counts, key=lambda x: (x[1], x[0]))[:limit]
 
 
 def flatten(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -496,10 +580,12 @@ class QuestionSetService:
 
     def __init__(self, config_source: Callable[[], Optional[Dict[str, Any]]], store: Path = STORE,
                  llm_factory: Optional[Callable[[Dict[str, Any], Dict[str, int]], LLM]] = None,
-                 run_starter: Optional[Callable[[str], str]] = None, run_canceller: Optional[Callable[[str], Any]] = None):
+                 run_starter: Optional[Callable[[str], str]] = None, run_canceller: Optional[Callable[[str], Any]] = None,
+                 weak_source: Optional[Callable[[str], List[Dict[str, str]]]] = None):
         self.config_source, self.store = config_source, store
         self.run_starter = run_starter   # 질문 세트 id → 수집·평가 실행 id (서버가 비교 서비스와 이어 준다)
         self.run_canceller = run_canceller   # 실행 id → 중단 — 생성을 중단한 사이에 시작된 수집 실행도 함께 중단한다 (Codex 리뷰)
+        self.weak_source = weak_source   # 실행 id → 그 실행에서 모든 모델이 PASS 한 검사·기준 [{id, name}] (변별력 보강 되먹임)
         self.llm_factory = llm_factory or gpt_llm
         self._lock = threading.Lock()
         self._jobs: Dict[str, Dict[str, Any]] = {}
@@ -524,6 +610,20 @@ class QuestionSetService:
             raise ValueError("GPT 연결 설정(OPENAI_API_KEY·OPENAI_MODEL)이 없어 질문을 만들 수 없습니다.")
         note = payload.get("note") if isinstance(payload.get("note"), str) else ""
         auto_run = payload.get("auto_run", True) is not False   # 만든 뒤 바로 답변 수집·평가 (사용자 요청 2026-10-14)
+        target = payload.get("target_questions")   # 세트 전체 질문 수(대화 1개 = 1개) — 비우면 가능한 한 적게 (사용자 결정 2026-10-14)
+        if target in (None, ""):
+            target = None
+        elif type(target) is not int or not 1 <= target <= MAX_PLAN_QUESTIONS:
+            raise ValueError(f"질문 수는 1~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
+        weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
+        weak_units: List[Dict[str, str]] = []
+        if weak_from:
+            if not isinstance(weak_from, str) or self.weak_source is None:
+                raise ValueError("변별력 보강에 쓸 실행을 읽을 수 없습니다.")
+            try:
+                weak_units = list(self.weak_source(weak_from))
+            except (FileNotFoundError, KeyError, ValueError) as exc:
+                raise ValueError(f"변별력 보강에 쓸 실행 결과를 읽지 못했습니다: {exc}") from None
         with self._lock:
             if any(job["status"] == "RUNNING" for job in self._jobs.values()):
                 raise ValueError("이미 질문 세트를 만드는 중입니다. 끝난 뒤 다시 시도해 주세요.")
@@ -531,6 +631,7 @@ class QuestionSetService:
             job = {"id": set_id, "version": QUESTION_GEN_VERSION, "status": "RUNNING", "phase": "plan", "message": "시작",
                    "created_at": datetime.now(timezone.utc).isoformat(), "model": config.get("model"), "note": note[:2000],
                    "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None,
+                   "target_questions": target, "weak_from_run": weak_from, "weak_units": weak_units,
                    "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
@@ -554,14 +655,14 @@ class QuestionSetService:
 
         try:
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)
-            result = builder.build(note)
+            result = builder.build(note, target_questions=job.get("target_questions"), weak_units=job.get("weak_units") or [])
             if cancel.is_set():   # 마지막 단계에서 취소했으면 완료로 남기지 않는다
                 raise Cancelled("생성을 중단했습니다.")
             groups, report = result["groups"], result["check"]
             (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
             with self._lock:
                 job.update(warnings=builder.warnings, calls=builder.calls, summary=_summary(groups, report), coverage=report["coverage"],
-                           rounds=result["rounds"])
+                           rounds=result["rounds"], extra_rounds=result.get("extra_rounds", 0))
             if job.get("auto_run"):   # 수집 실행이 잡힌 뒤에 완료로 — 먼저 완료를 알리면 화면이 run_id 없이 폴링을 멈춘다 (Codex 리뷰)
                 if cancel.is_set():   # 질문 저장 사이에 접수된 중단 — 유료 수집을 시작하지 않는다
                     raise Cancelled("생성을 중단했습니다.")
@@ -688,4 +789,5 @@ def _summary(groups: List[Dict[str, Any]], report: Dict[str, Any]) -> Dict[str, 
             "attachments": sum(len(t.get("attachments") or []) for t in turns),
             "long_references": sum(1 for t in turns if t.get("reference")),
             "criteria": {cid: row["applicable_units"] for cid, row in report["criteria"].items()},
+            "difficulty": {level: sum(1 for g in groups if g.get("difficulty") == level) for level in DIFFICULTIES},
             "multi_turn": report.get("multi_turn")}
