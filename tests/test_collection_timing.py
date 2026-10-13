@@ -131,24 +131,49 @@ def test_conversation_rows_record_what_was_sent_without_the_text(tmp_path):
         assert '1번째 질문' not in json.dumps(second, ensure_ascii=False)   # 원문은 남기지 않는다
 
 
-def test_attachment_questions_record_that_api_models_did_not_receive_the_file(tmp_path):
-    """3차 재현 — 첨부 질문(J8)에서 API 모델 요청에는 첨부가 가지 않는데 그 답변에도 J8 을 묻는다. 판정은 바꾸지 않고 사실을 행에 남긴다."""
+def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tmp_path):
+    """3차 7단계 — 첨부 질문(J8)에서 API 모델에도 첨부를 보낸다: 글자 첨부는 질문 뒤에, 이미지는 허용 폴더의 실제 파일만 제공자 형식으로.
+    파일이 없는 이미지는 보내지 않고 기록한다 (그림 속 글자로 대신하지 않음). 첨부 없는 질문의 요청은 예전과 같다."""
+    import base64
     from tests.test_blind_comparison import CapturingJudge
-    bodies = []
+    bodies = {}
     def handle(request):
-        bodies.append(request.content.decode('utf-8'))
-        return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': '합계는 모릅니다.'}]}]})
+        bodies.setdefault(request.url.host, []).append(json.loads(request.content))
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': 'gpt 답'}]}]})
+        if request.url.host == 'api.anthropic.com':
+            return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': 'claude 답'}]})
+        return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': 'gemini 답'}]}, 'finishReason': 'STOP'}]})
     judge = CapturingJudge()
     service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda **_: (judge, judge.config, None)),
                                 save_dir=tmp_path/'runs', client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
-    service.configure('gpt', {'key': 'fixture', 'model': 'fixture-gpt'})
-    attachment = {'name': '견적서.txt', 'type': 'txt', 'content': '견적 합계 1,250,000원'}
-    case = {'question': '첨부한 견적서의 합계를 알려줘.', 'answer': '합계는 1,250,000원입니다.', 'attachments': [attachment]}
-    rid = service.start({'cases': [case], 'providers': ['gpt'], 'auto_evaluate': True})['run_id']
+    (tmp_path / 'files').mkdir()
+    (tmp_path / 'files' / 'chart.png').write_bytes(b'PNG-fixture-bytes')
+    service.attachment_roots = [tmp_path / 'files']
+    for provider in ('gpt', 'claude', 'gemini'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    attachments = [{'name': '견적서.txt', 'type': 'txt', 'content': '견적 합계 1,250,000원'},
+                   {'name': 'chart.png', 'type': 'image', 'content': '막대 3개', 'path': 'chart.png'},
+                   {'name': 'missing.png', 'type': 'image', 'content': '그림 속 글자'}]
+    cases = [{'question': '첨부한 견적서와 그래프를 보고 합계를 알려줘.', 'answer': 'AIONA 답', 'attachments': attachments},
+             {'question': '첨부 없는 질문', 'answer': 'AIONA 답2'}]
+    rid = service.start({'cases': cases, 'providers': ['gpt', 'claude', 'gemini'], 'auto_evaluate': True})['run_id']
     until(lambda: service.status(rid)['status'] in ('COMPLETED', 'ERROR'))
     saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
-    assert bodies and all('1,250,000' not in body and '견적서.txt' not in body for body in bodies)   # API 요청에는 첨부가 없다
+    image = base64.b64encode(b'PNG-fixture-bytes').decode('ascii')
+    gpt = next(b for b in bodies['api.openai.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    parts = gpt['input'][-1]['content']
+    assert parts[0]['type'] == 'input_text' and '[첨부파일: 견적서.txt (TXT)]\n견적 합계 1,250,000원' in parts[0]['text']
+    assert parts[1] == {'type': 'input_image', 'image_url': f'data:image/png;base64,{image}'} and len(parts) == 2
+    claude = next(b for b in bodies['api.anthropic.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    assert claude['messages'][-1]['content'][1]['source'] == {'type': 'base64', 'media_type': 'image/png', 'data': image}
+    gemini = next(b for b in bodies['generativelanguage.googleapis.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    assert gemini['contents'][-1]['parts'][1] == {'inline_data': {'mime_type': 'image/png', 'data': image}}
+    assert all('그림 속 글자' not in json.dumps(b, ensure_ascii=False) for host in bodies.values() for b in host)
     request = saved['datasets']['gpt'][0]['collection']['request']
-    assert (request['attachments_in_question'], request['attachments_sent']) == (1, 0)
-    asked = [call for call in judge.calls if call['state']['answer'] == '합계는 모릅니다.']
-    assert asked and 'J8' in asked[0]['questions']                                                   # 그런데 J8 을 묻는다
+    assert (request['attachments_in_question'], request['attachments_sent']) == (3, 2)
+    assert [d['mode'] for d in request['attachment_delivery']] == ['text', 'image', 'not_sent']
+    plain = next(b for b in bodies['api.openai.com'] if '첨부 없는 질문' in json.dumps(b, ensure_ascii=False))
+    assert plain['input'] == [{'role': 'user', 'content': '첨부 없는 질문'}]                       # 첨부 없는 요청은 예전과 같다
+    assert 'attachment_delivery' not in saved['datasets']['gpt'][1]['collection']['request']
+    assert any('J8' in call['questions'] for call in judge.calls)

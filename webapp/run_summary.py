@@ -190,7 +190,7 @@ def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:
         requests = [(r.get("collection") or {}).get("request") or {} for r in rows]
         systems[provider] = {**entry, "source": "API 수집", "requests": len(rows), "usage_recorded": len(inputs),
                              "input_tokens": sum(inputs), "output_tokens": sum(outputs), "max_request_input": max(inputs, default=None),
-                             "attachments_not_sent": sum(1 for q in requests if q.get("attachments_in_question") and not q.get("attachments_sent"))}
+                             "attachments_not_sent": sum(1 for q in requests if (q.get("attachments_in_question") or 0) > (q.get("attachments_sent") or 0))}
     notes = []
     collected = {p: s for p, s in systems.items() if s.get("source") == "API 수집" and s.get("max_request_input") is not None}
     if any(s["conversations"] for s in collected.values()) and len(collected) > 1:
@@ -198,7 +198,7 @@ def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:
                       + " · ".join(f"{p} {s['max_request_input']:,}" for p, s in collected.items()) + " 토큰 (제공자 집계, 토크나이저도 다름)"})
     missing = {p: s["attachments_not_sent"] for p, s in systems.items() if s.get("attachments_not_sent")}
     if missing:
-        notes.append({"code": "attachments_not_sent", "text": "첨부 질문을 API 모델에 보낼 때 첨부가 전달되지 않았습니다 — "
+        notes.append({"code": "attachments_not_sent", "text": "첨부 질문을 API 모델에 보낼 때 첨부 일부 또는 전부가 전달되지 않았습니다 — "
                       + " · ".join(f"{p} {n}개" for p, n in missing.items()) + ". 이 답변들의 J8(첨부파일 활용) 판정은 같은 조건이 아닙니다"})
     return {"systems": systems, "notes": notes}
 

@@ -29,6 +29,7 @@ from .blind_comparison import blind_plan
 from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event, record_events
 from . import semantic_union
+from . import attachment_delivery
 from . import auto_collection as auto
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 from .aiona_history import aiona_history
@@ -44,11 +45,14 @@ from .ingestion.sources import normalize_sources
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 
 
-def _request_shape(messages, attachments=0):
+def _request_shape(messages, attachments=0, delivery=None):
     """이번 요청에 실제로 보낸 메시지 구성 — 원문 없이 수·역할·글자 수·sha256 앞 12자 (모델별 입력 차이 확인용).
     attachments_in_question 은 질문에 딸린 첨부(J8) 수, attachments_sent 는 이 요청에 실제로 실은 수 — request_answer 는 텍스트만
-    보내므로 지금은 늘 0 이다 (첨부를 받지 못한 답변에도 J8 을 묻는다는 사실을 남긴다, 10-14 3차)."""
-    return {"attachments_in_question": attachments, "attachments_sent": 0, "messages": len(messages), "user": sum(m["role"] == "user" for m in messages),
+    보내던 때는 늘 0 이었다. 지금은 attachment_delivery 가 글자 첨부는 질문에 붙이고 이미지는 실제 파일이 있을 때만 보낸다 —
+    attachment_delivery 에 첨부마다 보낸 방식(text·text_extracted·image·not_sent)과 사유를 남긴다 (10-14 3차)."""
+    delivery = list(delivery or [])
+    return {"attachments_in_question": attachments, "attachments_sent": sum(1 for d in delivery if d.get("mode") != "not_sent"),
+            **({"attachment_delivery": delivery} if delivery else {}), "messages": len(messages), "user": sum(m["role"] == "user" for m in messages),
             "assistant": sum(m["role"] == "assistant" for m in messages), "chars": sum(len(m["content"]) for m in messages),
             "own_answer_chars": sum(len(m["content"]) for m in messages if m["role"] == "assistant"),
             "sha256": hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]}
@@ -153,8 +157,12 @@ class ProviderError(Exception):
         self.status = status  # HTTP 상태 코드 (네트워크 실패·형식 오류는 None)
 
 
-def request_answer(provider, config, messages, max_tokens, client, *, usage_observer=None):
-    """No answer strip, newline replacement, Markdown rendering or JSON-mode prompt."""
+def request_answer(provider, config, messages, max_tokens, client, *, usage_observer=None, images=None):
+    """No answer strip, newline replacement, Markdown rendering or JSON-mode prompt.
+    ``images`` (첨부 이미지, attachment_delivery.prepare) 가 있으면 마지막 사용자 메시지에 제공자 형식으로 함께 싣는다 — 없으면 예전 요청 그대로."""
+    if images:
+        last = messages[-1]
+        messages = messages[:-1] + [{"role": last["role"], "content": attachment_delivery.image_blocks(provider, last["content"], images)}]
     observed = False
 
     def record_usage(raw):
@@ -186,7 +194,8 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers = {"x-goog-api-key": key}
         body = {"contents": [{"role": "model" if m["role"] == "assistant" else "user",
-                               "parts": [{"text": m["content"]}]} for m in messages],
+                               "parts": m["content"]["gemini_parts"] if isinstance(m["content"], dict) else [{"text": m["content"]}]}
+                              for m in messages],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
     try:
         try:
@@ -246,6 +255,8 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
 class ComparisonService:
     def __init__(self, evaluator, save_dir=None, client_factory=None, registry_path=None,
                  *, semantic_workers=DEFAULT_SEMANTIC_WORKERS, collection_workers=DEFAULT_COLLECTION_WORKERS):
+        # 답변 수집 때 첨부 이미지 파일을 읽어도 되는 폴더 (10-14 3차) — 이 밖의 경로는 읽지 않는다
+        self.attachment_roots = [ROOT / 'data' / 'attachments', ROOT / 'examples']
         self.evaluator = evaluator
         self.save_dir = Path(save_dir) if save_dir is not None else ROOT / "data" / "comparison_runs"
         self.client_factory = client_factory or (lambda: httpx.Client(timeout=180, follow_redirects=False))
@@ -1667,7 +1678,9 @@ class ComparisonService:
                                     if broken:
                                         outcome = {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다."}
                                     else:
-                                        messages = list(history) + [{"role": "user", "content": case["question"]}]
+                                        question, images, delivery = attachment_delivery.prepare(
+                                            case["question"], case.get("attachments"), self.attachment_roots)
+                                        messages = list(history) + [{"role": "user", "content": question}]
                                         if token.is_set() or stopped.is_set():
                                             return
                                         blocked = guard.before(provider, index) if guard else None
@@ -1678,7 +1691,8 @@ class ComparisonService:
                                             requested_at = datetime.now(timezone.utc).isoformat()
                                             try:
                                                 outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
-                                                    usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
+                                                    usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None,
+                                                    images=images)
                                             except ProviderError as exc:
                                                 outcome = {"status": "ERROR", "error": str(exc)}
                                                 status_code = exc.status
@@ -1686,7 +1700,7 @@ class ComparisonService:
                                             # 요청·수신 시각 — 실패한 수집도 남긴다 (재현 기록, 판정에는 쓰지 않음)
                                             outcome["requested_at"] = requested_at
                                             outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
-                                            outcome["request"] = _request_shape(messages, len(case.get("attachments") or []))
+                                            outcome["request"] = _request_shape(messages, len(case.get("attachments") or []), delivery)
                                             if guard:
                                                 guard.after(provider, index, outcome, status_code)
                                         if run.get("run_kind") in ("external_import", "auto_collection") and "collected_at" not in outcome:
