@@ -6,13 +6,16 @@
 from __future__ import annotations
 
 import copy
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "COLLECTION_COMPARISON_VERSION", "collection_comparison", "evaluation_method", "input_composition",
+__all__ = ["RUN_SUMMARY_VERSION", "COLLECTION_COMPARISON_VERSION", "CRITERIA_VERIFICATION_VERSION", "collection_comparison",
+           "criteria_verification", "evaluation_method", "input_composition",
            "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
@@ -237,6 +240,71 @@ def collection_comparison(run: Dict[str, Any]) -> Dict[str, Any]:
                           "turn": first.get("turn"), "systems": entries, "outcomes_differ": len(judged) > 1})
     marks = " ".join(str(v) for v in (run.get("name"), (run.get("aiona_release") or {}).get("notes")) if v)
     return {"version": COLLECTION_COMPARISON_VERSION, "sample": "샘플" in marks, "questions": questions}
+
+
+CRITERIA_VERIFICATION_VERSION = "criteria-verification-v1"
+REVIEW_DIR = Path(__file__).resolve().parents[1] / "results" / "review"
+
+
+def _review_compare(run_id: Optional[str], criterion: str, review_dir: Path) -> Optional[Dict[str, Any]]:
+    """사람 검수 대조 결과(tools/review_kit.py compare → <실행>-<기준>-kit/compare.json) — 없으면 None. 사람 정답만 센다."""
+    if not run_id:
+        return None
+    path = review_dir / f"{run_id}-{criterion}-kit" / "compare.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def criteria_verification(run: Dict[str, Any], review_dir: Optional[Path] = None) -> Dict[str, Any]:
+    """기준별 검증 현황 — 기준마다 적용 답변·질문 단위·독립 대화·실제 판정(PASS·FAIL·검증 한계)·검증 미완료와, 사람 검수 수·정답 일치.
+    사람 검수가 없으면 정확도는 None(화면 '미측정') — 0% 로 두지 않는다 (10-14 4차 P1-7). 저장 실행과 검수 결과 파일만 읽는다."""
+    from code_eval.criteria_registry import CODE_UNITS
+    from code_eval.jev_criteria import CRITERIA
+    from code_eval.semantic_items import ITEMS, SUBS
+    review_dir = REVIEW_DIR if review_dir is None else Path(review_dir)
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    providers = [p for p in (run.get("providers") or list(evaluations)) if p in evaluations]
+    rows = []
+    for criterion in CRITERIA:
+        cid = criterion.id
+        applied = judged = passed = failed = limited = 0
+        units, conversations = set(), set()
+        for provider in providers:
+            records = ((evaluations.get(provider) or {}).get("jev_eval") or {}).get("records") or []
+            source = datasets.get(provider) or []
+            for index, record in enumerate(records):
+                if not isinstance(record, dict) or cid not in (record.get("criteria") or []):
+                    continue
+                applied += 1
+                row = source[index] if index < len(source) and isinstance(source[index], dict) else {}
+                conversation = row.get("conversation_id")
+                units.add(("conversation", conversation) if conversation else ("single", index))
+                if conversation:
+                    conversations.add(conversation)
+                decision = (record.get("decisions") or {}).get(cid) or {}
+                if decision.get("decision") in ("PASS", "FAIL"):
+                    judged += 1
+                    passed += decision["decision"] == "PASS"
+                    if decision["decision"] == "FAIL":
+                        failed += 1
+                        limited += verification_limited_decision(decision)
+        review = _review_compare(run.get("run_id"), cid, review_dir)
+        agreement = (review or {}).get("agreement") if isinstance((review or {}).get("agreement"), dict) else None
+        decided = int(agreement.get("decided") or 0) if agreement else 0
+        rows.append({"id": cid, "name": criterion.name, "applied_answers": applied, "applied_units": len(units),
+                     "conversations": len(conversations), "judged": judged, "pass": passed, "fail": failed, "limited_fail": limited,
+                     "unresolved": applied - judged, "human_reviewed": int((review or {}).get("gold") or 0),
+                     "human_agree": int(agreement.get("agree") or 0) if agreement else 0,
+                     "accuracy": round(agreement["agree"] / decided, 4) if agreement and decided else None})
+    return {"version": CRITERIA_VERIFICATION_VERSION,
+            "catalog": {"criteria": len(CRITERIA), "subs": len(SUBS), "items": len(ITEMS),
+                        "code_checks": sum(1 for unit in CODE_UNITS if unit[2] != "aiona")},
+            "criteria": rows,
+            "not_applied": [r["id"] for r in rows if not r["applied_answers"]],
+            "not_human_verified": [r["id"] for r in rows if r["accuracy"] is None]}
 
 
 def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:

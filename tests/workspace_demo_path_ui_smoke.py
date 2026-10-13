@@ -71,6 +71,11 @@ def main():
                 assert '평가 방식' in first['subtitle'] and 'items' in first['subtitle'], first['subtitle']
                 assert any('검증 한계 1' in text for text in first['criteria']), first['criteria']      # 4
                 expect(page.locator('[data-j5-breakdown]').first).to_contain_text('사실 오류 확정 1')
+                verification = page.locator('#criteria-verification')                               # P1-7 기준별 검증 현황
+                expect(verification).to_be_visible()
+                expect(verification.locator('#verification-catalog')).to_contain_text('기준 8 · 세부 30 · 점검 항목 44')
+                expect(verification.locator('[data-verification="J5"]')).to_contain_text('미측정')       # 사람 검수 0 → 0% 아님
+                expect(verification.locator('[data-verification="J8"]')).to_contain_text('미측정')
                 composition = page.locator('#input-composition')                                     # 6
                 expect(composition).to_be_visible()
                 expect(composition).to_contain_text('모델마다 입력 구성이 달랐습니다')

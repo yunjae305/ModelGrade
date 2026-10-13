@@ -536,6 +536,7 @@
     $('result-models').replaceChildren(...providers.map((p) => modelResultCard(p)));
     updateLiveClock();
     renderCriteriaComparison(providers);
+    renderCriteriaVerification(state.result?.criteria_verification);
     if ($('matrix-model').options.length !== providers.length + 1 ||
         [...$('matrix-model').options].slice(1).some((option, i) => option.value !== providers[i] || option.text !== modelName(providers[i]))) {
       $('matrix-model').replaceChildren(node('option', {value: '', text: '전체 모델'}), ...providers.map((p) => node('option', {value: p, text: modelName(p)})));
@@ -678,6 +679,27 @@
     $('blind-banner').hidden = !blind();
     if (!blind()) return;
     $('blind-status').textContent = '블라인드 평가 · 평가 모델에는 모델 이름 없이 보냅니다';
+  }
+  // 기준별 검증 현황 (서버 criteria-verification-v1, 10-14 4차) — 사람 검수가 없으면 정확도는 0% 가 아니라 '미측정'
+  function renderCriteriaVerification(report) {
+    const panel = $('criteria-verification');
+    panel.hidden = !report;
+    if (!report) return;
+    const c = report.catalog;
+    $('verification-catalog').textContent = `기준 ${number(c.criteria)} · 세부 ${number(c.subs)} · 점검 항목 ${number(c.items)} · CODE 검사 ${number(c.code_checks)}`;
+    $('verification-head').replaceChildren(node('tr', {}, ...['평가 기준', '적용 답변', '적용 질문', '독립 대화', '실제 판정', 'PASS · FAIL', '검증 미완료', '사람 검수', '검수 정답 일치', '정확도']
+      .map((text) => node('th', {scope: 'col', text}))));
+    $('verification-body').replaceChildren(...report.criteria.map((r) => node('tr', {'data-verification': r.id},
+      node('th', {scope: 'row'}, node('span', {class: 'criterion-code', text: r.id}), node('strong', {text: r.name})),
+      node('td', {text: number(r.applied_answers)}), node('td', {text: number(r.applied_units)}), node('td', {text: number(r.conversations)}),
+      node('td', {text: number(r.judged)}),
+      node('td', {text: `${number(r.pass)} · ${number(r.fail)}` + (r.limited_fail ? ` (검증 한계 ${number(r.limited_fail)})` : '')}),
+      node('td', {text: number(r.unresolved)}), node('td', {text: number(r.human_reviewed) + '건'}),
+      node('td', {text: r.accuracy == null ? '-' : number(r.human_agree) + '건'}),
+      node('td', {}, r.accuracy == null ? pill('미측정', 'neutral') : node('strong', {text: percent(r.accuracy)})))));
+    $('verification-footnote').textContent = '정확도는 사람 검수 정답(검수자 합의)과 AI 판정이 같은 비율입니다. 사람 검수가 없는 기준은 0%가 아니라 미측정입니다.' +
+      (report.not_applied.length ? ` 이 실행에서 적용되지 않은 기준: ${report.not_applied.join('·')}.` : '') +
+      (report.not_human_verified.length ? ` 사람 검수로 확인하지 않은 기준: ${report.not_human_verified.join('·')}.` : '');
   }
   function renderCriteriaComparison(providers) {
     $('criteria-head').replaceChildren(node('tr', {}, node('th', {scope: 'col', text: '평가 기준'}),

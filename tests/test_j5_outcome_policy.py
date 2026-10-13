@@ -267,3 +267,26 @@ def test_collection_comparison_lines_up_each_system_for_the_same_question():
     old["datasets"] = dict(run["datasets"], gpt=[{"case_id": "Q1", "answer": "답", "collection": {"status": "SUCCESS", "raw": {"model": "gpt-x"}}}])
     assert collection_comparison(old)["questions"][0]["systems"][1]["method"].startswith("API 수집 (방식 기록 전 실행")
     assert collection_comparison(old)["sample"] is False
+
+
+def test_criteria_verification_counts_applied_and_judged_and_keeps_accuracy_unmeasured_without_human_review(tmp_path):
+    """4차 P1-7 — 기준별 적용 답변·질문 단위·대화·판정·검증 한계·미완료, 사람 검수 정답 일치. 검수가 없으면 정확도 None('미측정')."""
+    import json
+    from webapp.run_summary import criteria_verification
+    limited = {"decision": "FAIL", "reason_code": "SOURCE_ORIGINAL_UNAVAILABLE", "j5_outcome": {"code": "source_unavailable"}}
+    records = [{"status": "SUCCESS", "criteria": ["J1", "J5"], "decisions": {"J1": {"decision": "PASS"}, "J5": limited}},
+               {"status": "SUCCESS", "criteria": ["J1", "J6"], "decisions": {"J1": {"decision": "PASS"}, "J6": {"status": "UNVERIFIED", "decision": None}}}]
+    run = {"run_id": "abc123abc123", "providers": ["aiona"],
+           "datasets": {"aiona": [{"case_id": "Q1"}, {"case_id": "C_T2", "conversation_id": "C", "turn": 2}]},
+           "evaluations": {"aiona": {"jev_eval": {"records": records}}}}
+    report = criteria_verification(run, review_dir=tmp_path)
+    rows = {r["id"]: r for r in report["criteria"]}
+    assert report["catalog"]["criteria"] == 8 and report["catalog"]["items"] == 44
+    assert (rows["J1"]["applied_answers"], rows["J1"]["applied_units"], rows["J1"]["conversations"], rows["J1"]["pass"]) == (2, 2, 1, 2)
+    assert (rows["J5"]["fail"], rows["J5"]["limited_fail"]) == (1, 1) and rows["J6"]["unresolved"] == 1
+    assert all(r["accuracy"] is None for r in report["criteria"]) and "J7" in report["not_applied"]
+    kit = tmp_path / "abc123abc123-J5-kit"
+    kit.mkdir()
+    (kit / "compare.json").write_text(json.dumps({"gold": 4, "agreement": {"decided": 4, "agree": 3, "rate": 0.75}}), encoding="utf-8")
+    rows = {r["id"]: r for r in criteria_verification(run, review_dir=tmp_path)["criteria"]}
+    assert (rows["J5"]["human_reviewed"], rows["J5"]["human_agree"], rows["J5"]["accuracy"]) == (4, 3, 0.75)
