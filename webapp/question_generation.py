@@ -194,7 +194,14 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 {_FORMAT}
 """
     extra = f"\n# 추가 요청\n{note.strip()}\n" if note and note.strip() else ""
-    return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
+    tail = "\n\n" + _count_rule(target_questions) if target_questions else ""
+    return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog)) + tail
+
+
+def _count_rule(n: int) -> str:
+    """질문 수를 지정한 요청의 맨 끝에 다시 못 박는다 — 앞에만 적으면 GPT 가 40개 요청에 31개를 줬다 (사용자 요청 2026-10-14)."""
+    return (f"# 질문 개수 (반드시 지킴)\nquestions 배열에 정확히 {n}개를 넣습니다. {n}개보다 적거나 많으면 안 됩니다(멀티턴 대화 1개 = 1개). "
+            f"답하기 전에 questions 의 개수를 세어 {n}개인지 확인하고, 모자라면 채운 뒤 답합니다.")
 
 
 def extra_prompt(count: int, have: int, target: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
@@ -217,6 +224,7 @@ def extra_prompt(count: int, have: int, target: int, existing_topics: List[str],
     parts.append("# 점검 목록 (해당 항목만)\n" + "\n".join(_catalog_lines(catalog, wanted or None, detailed=True)))
     if _note_block(note):
         parts.append(_note_block(note))
+    parts.append(_count_rule(count))
     return "\n\n".join(parts)
 
 

@@ -172,6 +172,9 @@ def test_large_target_is_planned_in_batches(tmp_path, monkeypatch):
     builder = qg.QuestionSetBuilder(fake, tmp_path / "big")
     result = builder.build(target_questions=base + 3)
     assert "정확히 2개" in fake.prompts[0] and len(result["groups"]) == base + 3 and result["extra_rounds"] == 3
+    extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
+    assert fake.prompts[0].endswith("2개인지 확인하고, 모자라면 채운 뒤 답합니다.")   # 개수는 프롬프트 맨 끝에 다시 못 박는다
+    assert [p.rsplit("questions 배열에 정확히 ", 1)[1][:2] for p in extra] == ["2개", "2개", "1개"]
     assert builder.max_calls == max(qg.MAX_CALLS, 2 * (base + 3) + 150)
 
 
