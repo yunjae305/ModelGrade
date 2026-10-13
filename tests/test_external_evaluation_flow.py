@@ -257,3 +257,21 @@ def test_five_turn_external_conversation_follows_instruction_changes_and_cancell
     assert inherited("five-T03") == [("2-1.count:sentence_count", "PASS", 2)]       # 바뀐 지시(5문장)가 적용
     assert not any(k.startswith("2-2.table") for k, _, _ in inherited("five-T05"))   # 해제한 표 지시는 승계하지 않음
     assert [c["conversation"]["turn"] for c in cases.values()] == [1, 2, 3, 4, 5]
+
+
+def test_same_question_from_web_and_a_failed_api_call_stay_separate_and_the_failure_is_recorded(tmp_path):
+    """지시서 10-14 P1-2 — 같은 질문의 웹 답변과 API 답변은 다른 시스템으로 남고, API 수집이 실패해도 사유·시각과 함께 기록된다."""
+    evaluator = CodeEvalService(save_dir=tmp_path / "eval", jev_resolver=lambda **_: (Judge(), Judge().config, None))
+    svc = ComparisonService(evaluator, save_dir=tmp_path / "runs", client_factory=lambda: httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(503, json={"error": {"message": "overloaded"}}))))
+    svc.configure("gpt", {"key": "sk-test", "model": "gpt-x"})
+    web = transcript(("c1", [{"role": "user", "content": "서울 인구를 알려줘"}, {"role": "assistant", "content": "약 930만 명입니다."}], {}))
+    result = wait(svc, svc.start_external({"files": files(("web.json", web)), "api_providers": ["gpt"]})["run_id"])
+    assert result["providers"] == ["chatgpt-web", "gpt-api"]
+    systems = result["systems"]
+    assert (systems["chatgpt-web"]["access_mode"], systems["gpt-api"]["access_mode"]) == ("web", "api")
+    failed = result["datasets"]["gpt-api"][0]["collection"]
+    assert failed["status"] == "ERROR" and failed["error"] and failed["requested_at"] and failed["collected_at"]
+    assert result["datasets"]["chatgpt-web"][0]["answer"] == "약 930만 명입니다."            # 웹 답변은 그대로
+    assert systems["gpt-api"]["collection"]["statuses"].get("ERROR") == 1
+    assert "access_mode" in {d["code"] for d in result["environment_comparison"]["differences"]}

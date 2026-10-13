@@ -1035,6 +1035,8 @@ class ComparisonService:
                     answer = (row or {}).get("answer", "")
                     response = {"answer": answer, "status": outcome.get("status", "ERROR"), "error": outcome.get("error"),
                                 "collected_at": outcome.get("collected_at"), "collection_method": "api_live",
+                                # 요청 시각·요청 구성도 외부 가져오기 행 형식으로 옮길 때 남긴다 (실패한 수집 포함, 10-14 P1-2)
+                                **{k: outcome[k] for k in ("requested_at", "request") if k in outcome},
                                 "answer_format": "markdown", "environment": {"web_search_used": False, "tools_used": []},
                                 "usage": {}, "sources": [], "collection_quality": []}
                     if isinstance(outcome.get("raw"), dict):

@@ -16,7 +16,8 @@ from .sources import evaluation_sources
 #: 같은 날로 볼 수 있는 수집 시각 차이 (초). 넘으면 '수집 시점이 다름'으로 표시한다.
 SAME_PERIOD_SECONDS = 24 * 3600
 _ROW_COLLECTION_FIELDS = ("finish_reason", "platform_ref", "original", "normalization", "agent", "retrieved_sources", "raw",
-                          "empty_answer_confirmed")
+                          "empty_answer_confirmed",
+                          "requested_at", "request")   # 실시간 API 수집의 요청 시각·요청 구성 (원문 없음, 10-14 P1-2)
 
 
 def dataset_row(question: Dict[str, Any], system: Dict[str, Any], response: Optional[Dict[str, Any]], index: int) -> Dict[str, Any]:
