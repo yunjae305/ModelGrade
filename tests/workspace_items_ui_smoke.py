@@ -118,6 +118,9 @@ def main():
                 expect(page.locator('#collect-button')).to_be_enabled()
                 page.locator('#collect-button').click()
                 expect(page.locator('#final-summary')).to_be_visible(timeout=60000)
+                expect(page.locator('#result-subtitle')).to_contain_text('질문·대화 8개 · 평가 대상 턴 10개')   # 대화 1개 = 1
+                expect(page.locator('#result-subtitle')).to_contain_text('평가 방식: 항목별 의미 평가 (items)')
+                page.locator('#view-results .page-heading').screenshot(path=str(output / 'items-result-method-label.png'))
 
                 run = service.history()[0]
                 saved = service.result(run['run_id'])
@@ -174,8 +177,11 @@ def main():
                 page.locator('#answer-dialog').screenshot(path=str(output / 'items-case-f-error.png'))
                 page.keyboard.press('Escape')
 
+                os.environ['SEMANTIC_PIPELINE'] = 'legacy'   # 현재 설정을 바꿔도 저장된 실행의 방식이 그대로 보여야 한다
                 page.reload()   # 새로고침 — sessionStorage 의 실행 ID 로 저장된 결과를 다시 연다
                 expect(page.locator('#final-summary')).to_be_visible(timeout=15000)
+                expect(page.locator('#result-subtitle')).to_contain_text('질문·대화 8개 · 평가 대상 턴 10개')
+                expect(page.locator('#result-subtitle')).to_contain_text('평가 방식: 항목별 의미 평가 (items)')
                 ev = open_case('C')
                 expect(ev).to_contain_text('J4-2.a#1 · 아니오')
                 page.keyboard.press('Escape')

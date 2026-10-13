@@ -4,9 +4,9 @@
     python tools/question_set_report.py 질문세트.json --check-json 점검.json    # check_question_set --json 출력을 그대로 사용
     python tools/question_set_report.py 질문세트.json --json                   # 분석 결과 JSON
 
-적용 규칙(턴마다 어느 기준이 적용되는지)은 ``check_question_set`` 결과 그대로 쓴다(기본 ``--pipeline items``).
-30개 충족은 공식 규칙(팀 확정 10-13)대로 독립 질문·대화 단위로 판정한다 — 단일 질문 1개 = 1, 대화 1개 = 1, 같은 대화의
-여러 턴에 적용돼도 1. 적용 턴 수와 ``check_question_set`` 의 턴 기준 판정은 참고로 함께 남긴다 (그 CLI 는 아직 턴 기준).
+적용 규칙(턴마다 어느 기준이 적용되는지)과 30개 공식 판정은 ``check_question_set`` 결과를 그대로 쓴다(기본 ``--pipeline items``).
+공식 판정은 독립 질문·대화 단위(단일 질문 1개 = 1, 대화 1개 = 1, 같은 대화의 여러 턴에 적용돼도 1 — 팀 확정 10-13)이고
+CLI 와 같은 ``criteria_counts`` 로 센다. 적용 턴 수는 참고로 함께 남긴다.
 무료 진단이며 실제 의미 평가 결과가 아니다.
 """
 from __future__ import annotations
@@ -25,9 +25,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from code_eval.engine import _conversation_of  # noqa: E402
-from tools.check_question_set import _TYPE_FIELDS, CRITERIA, TARGET_RATIOS, check_items, load_items  # noqa: E402
+from tools.check_question_set import _TYPE_FIELDS, CRITERIA, TARGET_RATIOS, check_items, criteria_counts, load_items  # noqa: E402
 
-REPORT_VERSION = "question-set-report-v2"   # v2: 30개 공식 판정을 질문·대화 단위로
+REPORT_VERSION = "question-set-report-v3"   # v3: 공식 집계를 CLI(check_question_set v2)와 같은 함수로
 DEFAULT_OUT = ROOT / "results" / "question-set-check"
 
 CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와 turn 형식",
@@ -81,25 +81,20 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
     ambiguous = sorted(cid for cid, rows in by_id.items() if len({_unit(r) for r in rows}) > 1)
     minimum = report["min_applicable"]
 
-    units: Dict[str, set] = {c: set() for c in CRITERIA}
-    j6_turns: Counter = Counter()
-    for row in report["cases"]:
-        matches = by_id.get(row["case_id"]) or []
-        if not matches or row["case_id"] in ambiguous:
-            continue
-        unit = _unit(matches[0])
-        for c in row["criteria"]:
-            units[c].add(unit)
-        if "J6" in row["criteria"] and matches[0]["conversation_id"] is not None:
-            j6_turns[matches[0]["conversation_id"]] += 1
-    criteria = {}
-    for c in CRITERIA:
-        turns, n_units = report["criteria"][c]["applicable"], len(units[c])
-        # 공식 — 적용 독립 질문·대화 수 (같은 대화의 여러 턴은 1) · 참고 — 적용 턴 수와 check_question_set 의 턴 기준 판정
-        criteria[c] = {"units": n_units, "units_singles": sum(1 for u in units[c] if u.startswith("질문:")),
-                       "units_conversations": sum(1 for u in units[c] if u.startswith("대화:")),
-                       "enough": n_units >= minimum, "short": max(0, minimum - n_units),
-                       "turns": turns, "cli_enough": report["criteria"][c]["enough"]}
+    rows = report["cases"]
+    if any("applicable_units" not in report["criteria"][c] for c in CRITERIA):
+        # 예전 CLI JSON(v1 — 행에 대화 ID 가 없음): 원본 항목에서 대화 ID 를 찾아 붙인 뒤 같은 집계 함수로 다시 센다
+        rows = [{**row, "conversation_id": by_id[row["case_id"]][0]["conversation_id"]} for row in rows
+                if by_id.get(row["case_id"]) and row["case_id"] not in ambiguous]
+        counts = criteria_counts(rows, minimum)
+    else:
+        ambiguous = []   # v2 행은 대화 ID·위치를 함께 실어 같은 ID 도 구분된다
+        counts = report["criteria"]
+    j6_turns = Counter(row["conversation_id"] for row in rows if "J6" in row["criteria"] and row.get("conversation_id") is not None)
+    # 공식 — 적용 독립 질문·대화 수 (CLI 와 같은 criteria_counts) · 참고 — 적용 턴 수
+    criteria = {c: {"units": counts[c]["applicable_units"], "units_singles": counts[c]["units_singles"],
+                    "units_conversations": counts[c]["units_conversations"], "enough": counts[c]["enough"],
+                    "short": counts[c]["short"], "turns": counts[c]["applicable_turns"]} for c in CRITERIA}
 
     groups: Dict[str, List[Dict[str, Any]]] = {}
     for case in cases:
@@ -131,7 +126,6 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
     multi = [c for c in conversations if c["turns"] >= 2]   # 멀티턴 — 2턴 이상 오간 대화
 
     short = [c for c in CRITERIA if not criteria[c]["enough"]]
-    cli_differs = [c for c in CRITERIA if criteria[c]["cli_enough"] != criteria[c]["enough"]]
     total = len(cases)
     if report["errors"]:
         status = ("blocked", "업로드 불가 — 형식·대화 순서 오류부터 고쳐야 함")
@@ -151,16 +145,14 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
          "message": f"{report['pipeline']}" + ("" if report["pipeline"] == "items" else " — v1.2 항목별 규칙(items)이 아님")},
         {"name": f"기준별 적용 질문 {minimum}개 (공식: 질문·대화 단위)", "level": "warn" if short else "pass",
          "message": "부족: " + ", ".join(f"{c} {criteria[c]['short']}개" for c in short) if short else "모든 기준 충족"},
-        {"name": "check_question_set CLI 판정과 차이", "level": "warn" if cli_differs else "pass",
-         "message": ("CLI 는 아직 적용 턴 수로 판정 — 결과가 다른 기준: " + ", ".join(cli_differs)) if cli_differs else "같음"},
         {"name": "AIONA 답변", "level": "fail" if answered == 0 else "warn" if answered < total else "pass",
          "message": f"{answered}/{total}턴 수집" + (" — 빈 답변은 평가를 마친 데이터가 아님" if answered < total else "")},
     ]
 
     decisions = [
-        {"title": "CLI·서버 반영 (이 보고서만 공식 규칙 적용)",
-         "detail": f"공식 {minimum}개 판정(질문·대화 단위)은 이 보고서에만 반영했다. tools/check_question_set.py 는 아직 적용 턴 수로 "
-                   "'충분/부족'을 출력하고(팀원 파일, 미변경), 서버 업로드는 30개 판정을 하지 않는다(형식·턴 순서만 검사)."},
+        {"title": "업로드 안내와 차단은 별개",
+         "detail": f"CLI(check_question_set)와 이 보고서는 같은 공식 {minimum}개 판정을 쓴다. 서버 업로드는 형식·턴 순서만 검사하고 "
+                   f"{minimum}개 부족을 이유로 막지 않으며, 업로드 화면에 충족 상태를 안내하지도 않는다."},
         {"title": "유형 비율 집계 단위",
          "detail": "검사기는 유형 필드를 턴마다 센다. 10턴 대화 하나가 비율에 10번 들어가므로 질문 단위 비율과 다를 수 있다 (보고서는 둘 다 표시)."},
         {"title": "롱컨텍스트 공식 토큰 임계값",
@@ -170,7 +162,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
             "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
-            "cli_differs": cli_differs, "conversation_rows": conversations,
+            "conversation_rows": conversations,
             "context": {"single": report["single_questions"], "multi_turn": len(multi), "single_turn_conversations": len(conversations) - len(multi),
                         "long_context": {"measured": False, "count": 0, "reference_bins": list(LONG_CONTEXT_REFERENCE_BINS)},
                         "turn_range": [min(c["turns"] for c in multi), max(c["turns"] for c in multi)] if multi else None,
@@ -251,21 +243,19 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
 
     scale = max([minimum] + [r["units"] for r in a["criteria"].values()])
     out.append(f'<section class="card"><h2>기준별 적용 질문 수</h2><p class="note"><b>공식 판정: 적용 질문·대화 {minimum}개 이상</b> — 단일 질문 1개 = 1, '
-               f'멀티턴 대화 1개 = 1, 같은 대화의 여러 턴에 적용돼도 1 (팀 확정). 평가는 지금처럼 턴마다 합니다. 적용 턴 수와 '
-               f'check_question_set CLI 판정(아직 턴 기준)은 참고입니다. 막대의 빨간 선은 {minimum}개.</p>'
+               f'멀티턴 대화 1개 = 1, 같은 대화의 여러 턴에 적용돼도 1 (팀 확정, check_question_set CLI 와 같은 집계). 평가는 지금처럼 턴마다 합니다. '
+               f'적용 턴 수는 참고입니다. 막대의 빨간 선은 {minimum}개.</p>'
                '<div class="wrap"><table><thead><tr><th>기준</th><th class="n">적용 질문·대화</th><th></th><th>공식 판정</th>'
-               f'<th class="n">{minimum}개까지 부족</th><th>(단일 + 대화)</th><th class="n">적용 턴 (참고)</th><th>CLI 판정 (턴 기준)</th></tr></thead><tbody>')
+               f'<th class="n">{minimum}개까지 부족</th><th>(단일 + 대화)</th><th class="n">적용 턴 (참고)</th></tr></thead><tbody>')
     for cid, row in a["criteria"].items():
         verdict = '<span class="pill pass">충족</span>' if row["enough"] else '<span class="pill fail">부족</span>'
-        cli = '<span class="pill na">충분</span>' if row["cli_enough"] else '<span class="pill na">부족</span>'
         out.append(f'<tr><td><b>{_e(cid)}</b></td><td class="n">{row["units"]}</td>'
                    f'<td><div class="bar"><i style="width:{row["units"] / scale * 100:.1f}%"></i><s style="left:{minimum / scale * 100:.1f}%"></s></div></td>'
                    f'<td>{verdict}</td><td class="n">{row["short"] or "—"}</td><td>{row["units_singles"]} + {row["units_conversations"]}</td>'
-                   f'<td class="n">{row["turns"]}</td><td>{cli}</td></tr>')
+                   f'<td class="n">{row["turns"]}</td></tr>')
     out.append("</tbody></table></div>")
     short = [f"{c} {a['criteria'][c]['short']}개" for c in a["short"]]
-    out.append(f'<p class="note">추가 질문·대화가 필요한 기준(공식): {_e(", ".join(short) or "없음")}. '
-               f'CLI(턴 기준)와 판정이 다른 기준: {_e(", ".join(a["cli_differs"]) or "없음")}.</p>')
+    out.append(f'<p class="note">추가 질문·대화가 필요한 기준(공식): {_e(", ".join(short) or "없음")}.</p>')
     if a["ambiguous_case_ids"]:
         out.append(f'<p class="note">같은 ID가 서로 다른 질문·대화에 쓰여 단위 수에서 뺀 ID: {_e(", ".join(a["ambiguous_case_ids"]))}</p>')
     out.append("</section>")

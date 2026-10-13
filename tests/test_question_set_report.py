@@ -27,16 +27,35 @@ def test_two_conversations_each_applying_a_criterion_many_times_count_two():
     assert (analysis["criteria"]["CODE 1"]["turns"], analysis["criteria"]["CODE 1"]["units"]) == (9, 2)
 
 
-def test_29_distinct_questions_are_short_and_30_are_enough_while_the_cli_still_counts_turns():
+def same_official_counts(items):
+    """CLI(check_items)와 보고서(analyze)가 기준별 질문·대화 수·턴 수·부족 수·충족을 똑같이 내는지."""
+    check = check_items(items, pipeline="items")
+    analysis = analyze(check, items)
+    for c, row in analysis["criteria"].items():
+        cli = check["criteria"][c]
+        assert (row["units"], row["turns"], row["short"], row["enough"]) == (
+            cli["applicable_units"], cli["applicable_turns"], cli["short"], cli["enough"]), c
+    assert analysis["short"] == check["short_criteria"]
+    return check, analysis
+
+
+def test_29_distinct_questions_are_short_and_30_are_enough_in_cli_and_report():
     singles = [{"question": f"{n}번 메모를 한 줄로 정리해줘."} for n in range(29)]
-    short = run(singles)["criteria"]["CODE 1"]
-    assert (short["units"], short["enough"], short["short"]) == (29, False, 1)
-    enough = run(singles + [{"question": "30번 메모를 한 줄로 정리해줘."}])["criteria"]["CODE 1"]
-    assert (enough["units"], enough["enough"], enough["short"]) == (30, True, 0)
-    turns_only = run(conversation("A", 15) + conversation("B", 16))   # 31턴이지만 대화 2개
-    code1 = turns_only["criteria"]["CODE 1"]
-    assert (code1["turns"], code1["cli_enough"], code1["units"], code1["enough"]) == (31, True, 2, False)
-    assert "CODE 1" in turns_only["cli_differs"] and "CODE 1" in turns_only["short"]
+    check, short = same_official_counts(singles)
+    assert (short["criteria"]["CODE 1"]["units"], short["criteria"]["CODE 1"]["enough"], short["criteria"]["CODE 1"]["short"]) == (29, False, 1)
+    check, enough = same_official_counts(singles + [{"question": "30번 메모를 한 줄로 정리해줘."}])
+    assert (enough["criteria"]["CODE 1"]["units"], enough["criteria"]["CODE 1"]["enough"]) == (30, True) and "CODE 1" not in check["short_criteria"]
+    check, turns_only = same_official_counts(conversation("A", 15) + conversation("B", 16))   # 31턴이지만 대화 2개
+    assert (check["criteria"]["CODE 1"]["applicable"], check["criteria"]["CODE 1"]["applicable_units"]) == (31, 2)
+    assert "CODE 1" in check["short_criteria"] and "CODE 1" in turns_only["short"]
+
+
+def test_report_reads_an_older_cli_json_without_unit_fields_the_same_way():
+    items = conversation("A", 4) + [{"case_id": "Q1", "question": "파이썬 함수를 작성해줘."}]
+    check = check_items(items, pipeline="items")
+    old = {**check, "criteria": {c: {"applicable": row["applicable"], "enough": row["applicable"] >= 30} for c, row in check["criteria"].items()},
+           "cases": [{"case_id": row["case_id"], "criteria": row["criteria"]} for row in check["cases"]]}   # question-set-check-v1 모양
+    assert analyze(old, items)["criteria"] == analyze(check, items)["criteria"]
 
 
 def test_singles_and_conversations_mixed_and_context_attributes():
@@ -92,7 +111,8 @@ def test_longctx_example_counts_and_readiness():
     analysis = run(items)
     assert (analysis["questions"], analysis["conversations"], analysis["turns"], analysis["answered"]) == (24, 24, 231, 0)
     j6 = analysis["criteria"]["J6"]
-    assert (j6["turns"], j6["units"], j6["enough"], j6["short"], j6["cli_enough"]) == (207, 24, False, 6, True)
+    assert (j6["turns"], j6["units"], j6["enough"], j6["short"]) == (207, 24, False, 6)
+    same_official_counts(items)   # CLI 와 보고서의 공식 판정이 기준마다 같다
     assert all(row["units"] <= 24 and not row["enough"] for row in analysis["criteria"].values())   # 공식: 모든 기준 30개 미만
     assert analysis["criteria"]["CODE 3"]["short"] == 30 and analysis["context"]["multi_turn"] == 24
     assert not any(r["missing"] or r["duplicated"] for r in analysis["conversation_rows"])

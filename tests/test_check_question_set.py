@@ -51,3 +51,17 @@ def test_error_turns_are_left_out_of_conversation_history_like_the_evaluation():
     report = check_items(convo, pipeline="items")
     assert report["errors"] and report["criteria"]["J6"]["applicable"] == 0   # 1턴 오류 — 이력이 불완전해 J6 없음
     assert report["criteria"]["J5"]["applicable"] == 1                         # 오류 턴의 '가상' 설정은 이력에 들어가지 않음
+
+
+def test_official_judgement_counts_questions_and_conversations_and_turns_stay_as_reference(capsys):
+    turns = [{"conversation_id": cid, "turn": t, "question": f"{cid} 대화 {t}번째 일정을 정리해줘."}
+             for cid, n in (("A", 15), ("B", 16)) for t in range(1, n + 1)]
+    report = check_items(turns, pipeline="items")
+    code1, j6 = report["criteria"]["CODE 1"], report["criteria"]["J6"]
+    assert (code1["applicable"], code1["applicable_turns"], code1["applicable_units"], code1["enough"], code1["short"]) == (31, 31, 2, False, 28)
+    assert (j6["applicable"], j6["applicable_units"], j6["units_conversations"]) == (29, 2, 2)   # 같은 대화의 여러 턴은 1
+    assert report["count_unit"] == "question_or_conversation" and report["cases"][1]["conversation_id"] == "A"
+    singles = [{"case_id": "SAME", "question": f"{n}번 메모를 한 줄로 정리해줘."} for n in range(30)]   # 같은 ID 라도 항목은 30개
+    assert check_items(singles, pipeline="items")["criteria"]["CODE 1"]["enough"] is True
+    assert check_items(singles[:29], pipeline="items")["criteria"]["CODE 1"]["short"] == 1
+
