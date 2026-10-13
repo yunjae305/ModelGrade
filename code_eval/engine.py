@@ -21,7 +21,8 @@ from .checks_requirements import check_2_1, check_2_2, table_observation
 from .config import AionaConfig, load_aiona_config
 from .explain import explain_result
 from .io import validate_json_numbers
-from .core import ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, nfc, versions
+from .core import (ABSENT_SUFFIX, ANSWER_UNITS, ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, nfc,
+                   result, versions)
 from .extract import persistent_conditions
 from .answer_citations import answer_sources_error
 from .model import CATEGORY_NAMES, FAIL, PASS, SPECIALIZED, SUBCATEGORIES, ConditionResult, Status, stable_hash
@@ -101,6 +102,60 @@ def _run_group(sub: str, fn: Callable, ctx: Ctx, *args) -> List[ConditionResult]
         return []
 
 
+def _absent_unit_rows(sub: str, group: List[ConditionResult], ctx: Ctx) -> List[ConditionResult]:
+    """답변 구조 검사(ANSWER_UNITS) 가운데 이 소분류에서 결과 행이 하나도 없는 단위에 '검사 대상 없음' PASS 행을 둔다.
+
+    질문이 같으면 모델마다 조건 수가 같아야 한다(v16.5.0). 대상이 없으면 위반도 없으므로 PASS 이고, 대상은 있으나
+    판정 제외(meta.skipped_conditions)만 있으면 '확인된 위반 없음' PASS 다. 그 단위나 소분류에 실행 오류가 있으면
+    판정을 꾸며 내지 않고 행을 두지 않는다 (사례 errors 로 남아 그 질문은 PASS 로 확정되지 않는다).
+    """
+    if any(e["check_id"] == f"{sub}.check_error" for e in ctx.errors):
+        return []
+    present = {r.check_id.split(":")[0] for r in group}
+    out = []
+    for unit, (unit_sub, title, source, target) in ANSWER_UNITS.items():
+        if unit_sub != sub or unit in present:
+            continue
+        if any(e["check_id"].split(":")[0] == unit for e in ctx.errors):
+            continue
+        skipped = [s for s in ctx.skipped if s["check_id"].split(":")[0] == unit]
+        if skipped:
+            listed = "; ".join(s["reason"][:80] for s in skipped[:3])
+            reason = (f"{target} 있음 — 판정 제외 {len(skipped)}건({listed}) 외에 확인된 위반 없음. "
+                      "답변마다 조건 1개로 집계하므로 PASS 로 둔다")
+        else:
+            reason = f"답변에 {target} 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+        out.append(result(f"{unit}{ABSENT_SUFFIX}", sub, f"{title} · 검사 대상 없음", source, Status.EXECUTED, PASS,
+                          required="답변에 해당 구조가 있으면 그 대상마다 규칙 충족", measured={"targets": 0, "excluded": len(skipped)},
+                          comparison="검사 대상 0개 → 위반 0건", reason=reason,
+                          details={"unit_scope": "answer", "absent": True, "excluded_conditions": skipped[:20]}))
+    return out
+
+
+class _Unit:
+    """집계 단위 — 답변 구조 검사의 여러 행(코드블록·등식마다 1행)을 답변마다 조건 1개로 묶는다. 행 자체는 그대로 남긴다."""
+
+    def __init__(self, rows: List[ConditionResult]) -> None:
+        head = rows[0]
+        self.check_id = head.check_id.split(":")[0]
+        self.subcategory, self.category, self.area, self.source = head.subcategory, head.category, head.area, head.source
+        self.status, self.counted, self.rows = Status.EXECUTED, True, len(rows)
+        self.verdict = FAIL if any(r.verdict == FAIL for r in rows) else PASS
+
+
+def _counting_units(results: List[ConditionResult]) -> List[Any]:
+    """행 → 집계 단위. ANSWER_UNITS 의 집계 대상 행은 단위(check_id 앞부분)마다 하나로 묶고, 나머지는 행 1개 = 조건 1개."""
+    units: List[Any] = []
+    grouped: Dict[str, List[ConditionResult]] = {}
+    for r in results:
+        if r.area == "common" and r.counted and r.check_id.split(":")[0] in ANSWER_UNITS:
+            grouped.setdefault(r.check_id.split(":")[0], []).append(r)
+        else:
+            units.append(r)
+    units.extend(rows[0] if len(rows) == 1 else _Unit(rows) for rows in grouped.values())
+    return units
+
+
 def _drop_duplicates(results: List[ConditionResult]) -> List[ConditionResult]:
     """같은 dedupe_key 의 두 번째 EXECUTED 행 처리 — 공통 행은 제외하고, AIONA 특화 행은 옛 동작대로 DUPLICATE 로 표시한다."""
     kept, seen = [], {}
@@ -133,8 +188,9 @@ def _with_explanations(results: List[ConditionResult], ctx: Ctx) -> List[Dict[st
 
 def _summarize(results: List[ConditionResult], errors: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     errors = errors or []
+    units = _counting_units(results)   # 답변 구조 검사는 답변마다 조건 1개 (행은 results 에 그대로)
 
-    def block(rows: List[ConditionResult]) -> Dict[str, Any]:
+    def block(rows: List[Any]) -> Dict[str, Any]:
         passed = sum(1 for r in rows if r.counted and r.verdict == PASS)
         failed = sum(1 for r in rows if r.counted and r.verdict == FAIL)
         unjudged = [r for r in rows if r.status in _UNJUDGED and r.verdict is None]
@@ -145,10 +201,11 @@ def _summarize(results: List[ConditionResult], errors: Optional[List[Dict[str, A
         return {"pass": passed, "fail": failed, "decided": decided,
                 "pass_rate": (passed / decided) if decided else None,
                 "unjudged": len(unjudged), "incomplete_with_fail": sum(1 for r in rows if r.status == Status.INCOMPLETE and r.verdict == FAIL),
-                "statuses": statuses, "conditions": len(rows)}
+                "statuses": statuses, "conditions": len(rows),
+                "rows": sum(getattr(r, "rows", 1) for r in rows)}
 
-    common = [r for r in results if r.area == "common"]
-    special = [r for r in results if r.area != "common"]
+    common = [r for r in units if r.area == "common"]
+    special = [r for r in units if r.area != "common"]
     by_sub = {sub: block([r for r in common if r.subcategory == sub]) for sub in SUBCATEGORIES}
     by_cat = {cat: block([r for r in common if r.category == cat]) for cat in CATEGORY_NAMES}
     by_special = {sid: block([r for r in special if r.subcategory == sid]) for sid in SPECIALIZED}
@@ -171,7 +228,9 @@ def _summarize(results: List[ConditionResult], errors: Optional[List[Dict[str, A
         "errors": len(errors),
         "check_level": "요구·계산·데이터 검사 포함" if question_checked else "기본 상태만 검사",
         "overall": overall,
-        "note": "통과율 = PASS / (PASS + FAIL). 판정할 수 없는 조건은 행을 만들지 않음(meta.skipped_conditions). "
+        "note": "통과율 = PASS / (PASS + FAIL). 답변 구조 검사(코드 구문·구획·태그·각주·인용·내부 링크·답변 등식·선언 개수)는 "
+                "답변마다 조건 1개(하나라도 FAIL 이면 FAIL, 대상이 없으면 '검사 대상 없음' PASS 행)로 세어 모델 간 조건 수가 같음(v16.5.0). "
+                "판정할 수 없는 개별 대상은 행을 만들지 않음(meta.skipped_conditions). "
                 "검사기 오류·한도 초과는 errors 에 기록. AIONA 특화 결과는 공통 통과율에 더하지 않음. 전체 내용 품질 판정이 아님.",
     }
 
@@ -274,6 +333,7 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
                       "code": sub, "name": SUBCATEGORIES[sub], "stage": "CODE"})
         errors_before = len(ctx.errors)
         group = _run_group(sub, fn, ctx)
+        group.extend(_absent_unit_rows(sub, group, ctx))   # 답변 구조 검사: 대상이 없어도 답변마다 조건 1개
         results.extend(group)
         if on_event:
             for row in group:

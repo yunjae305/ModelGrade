@@ -79,8 +79,9 @@ SUBSUMED_KINDS = (
     ("list_required", "bullet_count", "2-1.count", "불릿 형식 요구는 불릿 개수 검사가 형식과 개수를 함께 봄 — 2-2 목록 조건을 따로 만들지 않음"),
 )
 
-_TRIGGER = {"all": "모든 답변", "question": "질문 또는 대화 앞 턴의 지속 지시(앞으로·계속·모든 답변…)에 명시 요구가 있을 때", "answer": "답변에 해당 구조가 있을 때",
-            "question_or_answer": "질문 요구 또는 답변의 해당 코드블록이 있을 때",
+_TRIGGER = {"all": "모든 답변", "question": "질문 또는 대화 앞 턴의 지속 지시(앞으로·계속·모든 답변…)에 명시 요구가 있을 때",
+            "answer": "답변에 해당 구조가 있을 때 — 없으면 '검사 대상 없음' PASS 1조건 (답변마다 조건 1개, 엔진 v16.5.0)",
+            "question_or_answer": "질문 요구 또는 답변의 해당 코드블록이 있을 때 — 없으면 '검사 대상 없음' PASS 1조건 (답변마다 조건 1개, 엔진 v16.5.0)",
             "aiona": "AIONA 답변에 운영 설정·실제 표시본이 있을 때 (웹 작업 공간에서는 현재 일시 중지)"}
 
 #: 기준 사이의 관계. kind — same_cause: 한 원인이 두 조건을 함께 FAIL · boundary: 지시문으로 나눈 경계 ·
@@ -111,7 +112,10 @@ _CODE_EVIDENCE = ("결과 행마다 required(질문에서 읽은 요구)·measur
                   "evidence(답변·질문 위치)·explain(쉬운 설명). 코드 규칙으로 만들며 LLM을 쓰지 않음")
 _CODE_UNJUDGED = ("공통 결과 행은 PASS/FAIL 뿐. 코드로 확정할 수 없는 조건·선행 FAIL 에 종속된 조건은 행을 만들지 않음"
                   "(통과율 분모 제외, 사유는 meta.skipped_conditions). 검사기 오류·입력 한도 초과는 사례의 errors 에 "
-                  "실행 오류로 기록(품질 FAIL 아님, 그 질문은 PASS 로 확정하지 않음)")
+                  "실행 오류로 기록(품질 FAIL 아님, 그 질문은 PASS 로 확정하지 않음). "
+                  "답변 구조에서 생기는 검사 9개(적용 계기 answer·question_or_answer)는 답변마다 조건 1개로 집계 — 대상이 몇 개든 "
+                  "하나라도 FAIL 이면 FAIL, 대상이 없으면 '검사 대상 없음' PASS 행(check_id 끝 ':none'), 판정 제외만 있으면 "
+                  "'확인된 위반 없음' PASS (엔진 v16.5.0)")
 _SEMANTIC_EVIDENCE = {
     "J5": ("fact_check.claims[] — 답변 원문 발췌 주장별 verdict·reason·sources(url·quote·authority·temporal_relevance·origin). "
            "서버가 검색 도구 기록의 URL, 출처 원문·입력 원문의 인용 일치를 확인하고 맞지 않으면 그 주장을 확인 필요로 바꿈. "
@@ -246,12 +250,20 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "'$\\rightarrow$' 를 '→' 로 바꿔 인용해 10턴 대화가 '평가 근거 부족' FAIL 이 된 문제 (중간 점검 557a50d8baf1, Gemini Q29 7턴)",
                  "다시 받은 J6 가 인용 대조를 통과해 PASS·FAIL 이면 그것을 쓰고, 아니면 지금 판정을 그대로 둔다 — 근거를 확인하지 못한 판정은 "
                  "여전히 PASS 가 아님. 시도는 레코드의 context_reevaluation(첫 판정·재질문 결과·쓴 쪽)에 남김"]},
+    {"version": "engine v16.5.0", "date": "2026-10-13", "scope": "code",
+     "changes": ["답변 구조에서 생기는 검사 9개(코드·수식 구획 짝, JSON 구문, Python 구문, 짝 없는 닫는 태그, 각주·인용·내부 링크 연결, "
+                 "답변 등식 재계산, 선언 개수)는 답변마다 조건 1개로 집계 — 대상(코드블록·등식…)이 몇 개든 하나라도 FAIL 이면 FAIL, "
+                 "대상이 없으면 '검사 대상 없음' PASS 행(check_id 끝 ':none'). 질문이 같으면 모델마다 조건 수가 같다 "
+                 "(사용자 결정 — 실행 c692db1e6452 에서 CODE 3 조건이 AIONA 33 대 GPT 3 으로 통과율을 견줄 수 없던 문제)",
+                 "대상별 행(블록·등식마다 1행)은 상세 판정에 그대로 남는다. 판정 제외(meta.skipped_conditions)만 있는 단위는 "
+                 "'확인된 위반 없음' PASS, 실행 오류가 있는 단위는 행을 두지 않는다(그 질문은 PASS 로 확정하지 않음). "
+                 "질문이 만드는 검사(2-1·2-2·3-3·3-1 질문 계산값 등)와 항상 검사(1-1)는 그대로"]},
 ]
 
 
 #: 평가 기준 화면에 쓰는 짧은 적용 조건 — CODE 검사의 trigger 별
-_TRIGGER_LABELS = {"all": "모든 답변", "question": "질문·앞 턴 지시에 요구가 있을 때", "answer": "답변에 그 구조가 있을 때",
-                   "question_or_answer": "질문 요구 또는 답변의 해당 구조"}
+_TRIGGER_LABELS = {"all": "모든 답변", "question": "질문·앞 턴 지시에 요구가 있을 때", "answer": "답변에 그 구조가 있을 때 (없으면 대상 없음 PASS)",
+                   "question_or_answer": "질문 요구 또는 답변의 해당 구조 (없으면 대상 없음 PASS)"}
 #: 점검 질문 끝의 괄호 — 다른 기준과의 경계 메모로 따로 작게 보인다
 _BOUNDARY_NOTE = re.compile(r"\s*\(([^()]*)\)\s*$")
 
@@ -289,4 +301,5 @@ def registry() -> Dict[str, Any]:
             "aggregation": ("질문 최종 판정: 적용된 CODE 조건·의미 기준 중 하나라도 FAIL이면 FAIL, 모두 판정되고 FAIL이 없으면 PASS, "
                             "그 밖은 미완료(판정 미완료 기준 포함). 모델 점수 = PASS 질문 수 / 전체 질문 수이며 미완료 질문이 있으면 "
                             "점수를 확정하지 않음. 조건·기준 통과율 = PASS / (PASS + FAIL), 미완료는 분모에서 빼고 따로 표시. "
-                            "같은 질문의 여러 FAIL은 질문 점수에 한 번만 반영됨")}
+                            "같은 질문의 여러 FAIL은 질문 점수에 한 번만 반영됨. 답변 구조 검사 9개는 답변마다 조건 1개(대상 없음은 PASS)로 "
+                            "세어 같은 질문이면 모델마다 CODE 조건 수가 같음 (엔진 v16.5.0)")}

@@ -30,7 +30,8 @@ def run(question, answer, cfg=NO_CONFIG, **extra):
 
 
 def rows(case, prefix):
-    return [r for r in case["results"] if r["check_id"].startswith(prefix)]
+    # 답변 구조 검사의 '검사 대상 없음' PASS 행(:none, 엔진 v16.5.0)은 대상이 있을 때의 판정과 무관하므로 뺀다
+    return [r for r in case["results"] if r["check_id"].startswith(prefix) and not r["check_id"].endswith(":none")]
 
 
 def one(case, prefix):

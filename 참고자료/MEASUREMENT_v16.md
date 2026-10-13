@@ -8,10 +8,10 @@
 
 | 항목 | 구현 |
 |---|---|
-| 판정 | 공통 결과 행은 `PASS` / `FAIL` 만(엔진 v16.3.0, §18). 판정할 수 없는 조건은 행을 만들지 않고 `meta.skipped_conditions` 에 사유만 남긴다. severity·주의·심각·HOLD·가중치 없음 |
+| 판정 | 공통 결과 행은 `PASS` / `FAIL` 만(엔진 v16.3.0, §18). 판정할 수 없는 조건은 행을 만들지 않고 `meta.skipped_conditions` 에 사유만 남긴다. 답변 구조 검사 9개는 답변마다 조건 1개 — 대상이 없으면 `검사 대상 없음` PASS 행(엔진 v16.5.0, §26). severity·주의·심각·HOLD·가중치 없음 |
 | 실행 상태 | 공통 행은 `EXECUTED` 뿐. 검사기 오류·한도 초과는 행이 아니라 `case.errors`(`summary.errors`·`totals.check_errors`)이며 그 질문은 PASS 로 세지 않는다. AIONA 특화 행은 지금도 `CONFIG_MISSING` · `DISPLAY_MISSING` · `INCOMPLETE`(표시본 일부 누락) · `OUT_OF_SCOPE`(AIONA 가 아닌 모델) · `DUPLICATE` 를 낸다(`checks_aiona.py`). `UNSUPPORTED` · `DEPENDENCY_FAILED` · `APPLICABILITY_EXCEPTION` 은 저장된 옛 결과(v16.2.x)의 공통 행에서만 보인다. 케이스 단위 `INPUT_ERROR` |
 | 통과율 | `PASS / (PASS + FAIL)`, 분모 0 → `null`. 미판정·관측은 분모 제외. AIONA 특화는 공통 통과율과 별도 |
-| 해당 없음 | 결과를 만들지 않는다 (분모를 늘리지 않음). 예: 표 요구가 없으면 표 결과 없음 |
+| 해당 없음 | 질문이 만드는 검사는 결과를 만들지 않는다 (분모를 늘리지 않음). 예: 표 요구가 없으면 표 결과 없음. 답변 구조 검사(§26)는 반대로 대상이 없어도 `검사 대상 없음` PASS 1조건을 둔다 — 같은 질문이면 모델마다 조건 수가 같도록 |
 | 경로 | 질문 유형 분류·배분 없음. 모든 입력이 같은 검사 함수 목록(`engine._COMMON`)을 지난다 |
 | LLM | 이 코드 검사 단계에서는 사용하지 않음. 조건 추출·대상 선택·판정 이유 모두 정규식·파서·고정 템플릿. 기본 후속 단계는 모든 유효 질문에 대한 J1~J6 의미 평가(`code_eval/jev_eval.py`; 방식은 `SEMANTIC_PIPELINE` legacy\|items, 호출은 `SEMANTIC_DISPATCH` realtime\|batch). 미판정 공통 조건을 LLM 에 묻던 C 보완은 v16.3.0 에서 제거(옛 결과의 `code_completion` 은 읽기 전용). 코드 FAIL 질문의 옛 LLM 재검토(`code_eval/llm_review.py`)는 별도 실행 |
 | 중복 | 같은 대상·조건·범위·정규화의 결과는 `dedupe_key` 로 한 번만 집계 (예: 질문의 금지 문자열과 AIONA 금지 목록이 같은 문자열·같은 표시본) |
@@ -362,3 +362,13 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 - `3-1.answer_equation` `v16-1.5`: 등식 좌변 바로 앞(같은 줄)에 화살표(`→`·`⇒`·`->`)가 있으면 값의 변화 표시(`20일 → 26일 = 26 ÷ 20 = 1.3배`)라 보류한다. 좌변 바로 앞 연산자 앞에 숫자(짧은 단위·닫는 괄호 허용)가 있으면 등록되지 않은 단위에 끊긴 앞쪽 피연산자(`2벌 × 3 + 1 = 7`)라 보류한다 — 줄머리 불릿·기울임을 여는 `*` 는 앞에 피연산자가 없어 그대로 검사한다. 마지막 구간에 `/` 가 있고 뒤에 `이하·이상·미만·초과·이내` 가 붙으면 `값 / 한도` 표기(`185분 / 190분 이하`)로 보고 보류한다. 보류 등식은 행 없음(`meta.skipped_conditions`).
 - `2-1.count` `v16-1.7`: 문장 끝 부호 뒤에 강조 닫기(`**`·`__`·`*`·`_`)가 붙어도 문장 끝이다(`… 중단됩니다.**` 다음 줄). 따옴표·괄호 닫기는 넣지 않는다 — 인용 안 마침표는 문장 끝이 아니다.
 - 엔진 `aiona-code-eval-v16.4.1`. 저장된 결과는 다시 계산하지 않는다 — 원문 재평가(새 실행)로 새 규칙이 적용된다.
+
+## 26. v16.5.0 답변 구조 검사의 조건 단위 (2026-10-13)
+
+같은 질문·같은 기준으로 모델만 바꿔 평가하는데 모델마다 CODE 조건 수가 달라지는 문제(실행 `c692db1e6452`: CODE 3 조건이 AIONA 33 · Gemini 4 · Claude 4 · GPT 3, CODE 1 이 46 대 45)를 사용자 결정으로 바로잡았다. 공식 조건·비교식은 그대로이고 "조건을 어떻게 세나" 만 바뀐다.
+
+- 검사 단위 28개 중 **답변 구조에서 생기는 9개**(`criteria_registry.CODE_UNITS` 의 적용 계기 answer·question_or_answer — `1-2.fence_imbalance`·`1-2.json_syntax`·`1-2.python_syntax`·`1-2.orphan_closing_tag`·`1-3.footnote_link`·`1-3.citation_link`·`1-3.internal_link`·`3-1.answer_equation`·`3-2.declared_count`, `core.ANSWER_UNITS`)는 **답변마다 조건 1개**로 센다. 대상(코드블록·등식·각주…)이 몇 개든 하나라도 FAIL 이면 그 조건은 FAIL, 모두 통과하면 PASS.
+- 대상이 없으면 `검사 대상 없음` PASS 행을 둔다 (`check_id` 끝 `:none`, `details.absent=true`, 이유에 "검사 대상 0개, 위반 없음"). 대상은 있으나 판정 제외(`meta.skipped_conditions`)만 있으면 "확인된 위반 없음" PASS 이고 `measured.excluded` 에 제외 건수를 남긴다. 그 단위(또는 소분류 검사기)에 실행 오류가 있으면 행을 두지 않는다 — 판정을 꾸며 내지 않고, 그 질문은 §18 대로 PASS 로 확정되지 않는다.
+- 대상별 행(`1-2.python_syntax:block1`, `3-1.answer_equation:3` …)은 `results` 와 상세 판정에 그대로 남는다. 집계(`summary.by_category`·`by_subcategory`·`common`)만 단위로 묶으며, `conditions` 는 조건(단위) 수, 새 키 `rows` 는 행 수다. 질문이 만드는 검사(2-1·2-2·3-3·3-1 질문 계산값)와 항상 검사(1-1)는 행 1개 = 조건 1개 그대로.
+- 결과: 같은 질문이면 모든 모델의 CODE 조건 수가 (항상 3 + 답변 구조 9 + 질문이 만든 수) 로 같다. 코드·계산식을 쓰지 않은 답변은 그 9개를 "위반 없음" 으로 통과한다 — 보여 줬어야 하는지는 J1·J4, 최종 값이 맞는지는 J5·J3 몫이다. 깨진 문자 검사(1-1)가 이미 같은 방식(찾아서 없으면 PASS)이다.
+- 엔진 `aiona-code-eval-v16.5.0`, 기준표 데이터 `code-check-conditions-v2`. 저장된 결과는 다시 계산하지 않는다 — 원문 재평가(새 실행)로 새 집계가 적용되며, 버전 비교는 옛 실행과 조건 집합이 달라졌다고 표시한다.

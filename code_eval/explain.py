@@ -890,6 +890,12 @@ def explain_result(r: Dict[str, Any], ctx: Ctx) -> Dict[str, Any]:
     requirement = _q(r)
     if r["verdict"] is None:
         out = _e(STATUS_HEADLINE.get(r["status"], "판정하지 않음"), r["reason"], note=STATUS_NOTE.get(r["status"], ""))
+    elif (r.get("details") or {}).get("absent"):
+        # 답변 구조 검사의 '검사 대상 없음' 행 — 대상별 설명 함수는 대상이 있다고 가정하므로 여기서 끝낸다
+        excluded = (r.get("measured") or {}).get("excluded") or 0
+        out = _e("검사 대상 없음 — 위반 없음" if not excluded else "판정 제외 대상만 있음 — 확인된 위반 없음", r["reason"],
+                 note="답변에 이 구조가 없으면 검사할 것도, 위반도 없습니다. 질문이 같으면 모델마다 조건 수가 같도록 "
+                      "답변마다 조건 1개로 세기 때문에 PASS 행을 둡니다.")
     else:
         fn = _BY_BASE.get(base)
         try:

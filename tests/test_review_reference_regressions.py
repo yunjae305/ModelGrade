@@ -43,7 +43,9 @@ def test_unknown_definition_does_not_hide_confirmed_footnote_failure(extra):
     "```markdown\n본문[^x] [1] [링크](#missing)\n```",
 ])
 def test_code_reference_examples_do_not_create_reference_checks(answer):
-    assert not [r for r in evaluate(answer)["results"] if r["subcategory"] == "1-3"]
+    # 코드 예시 안의 표기는 검사 대상이 아니다 — 남는 1-3 행은 '검사 대상 없음' PASS 행(:none, 엔진 v16.5.0)뿐
+    rows = [r for r in evaluate(answer)["results"] if r["subcategory"] == "1-3"]
+    assert rows and all(r["check_id"].endswith(":none") and r["verdict"] == "PASS" for r in rows)
 
 
 def test_literal_reference_example_does_not_mask_real_missing_footnote():

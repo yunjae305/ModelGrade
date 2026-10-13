@@ -14,7 +14,8 @@ from .scripts import SCRIPT_DATA_VERSION
 
 #: v16.3.0 은 두 작업 줄에서 서로 다른 규칙에 쓰였다 — 이전 턴 지시 승계(fix/evaluation-reliability 21322b1)와
 #: 공통 행 PASS/FAIL 전용(main 9bf9a37). 두 줄을 합친 이 버전부터 새 번호를 쓴다 (MEASUREMENT_v16.md §23 버전 이력).
-ENGINE_VERSION = "aiona-code-eval-v16.4.1"
+#: v16.5.0 — 답변 구조에서 생기는 검사(ANSWER_UNITS)는 답변마다 조건 1개로 집계하고, 대상이 없으면 '검사 대상 없음' PASS 행을 둔다 (§26).
+ENGINE_VERSION = "aiona-code-eval-v16.5.0"
 MD_SOURCE = "참고자료/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
@@ -52,6 +53,24 @@ CHECK_VERSIONS: Dict[str, str] = {
     "AIONA-M.internal_marker": "v16-1.0 (등록 패턴 대조, 표시본 필요)",
     "AIONA-F.forbidden_expression": "v16-1.0 (질문별 등록 목록, 표시본 필요)",
 }
+
+#: 답변 구조에서 생기는 검사 단위 (criteria_registry.CODE_UNITS 의 적용 계기 answer·question_or_answer).
+#: 질문이 같으면 모델마다 조건 수가 같아야 하므로(사용자 결정, v16.5.0) 이 단위는 답변마다 조건 1개로 센다 —
+#: 대상(코드블록·등식·각주…)이 몇 개든 하나라도 FAIL 이면 FAIL, 모두 통과하면 PASS, 대상이 없으면 '검사 대상 없음' PASS 행.
+#: 값: (소분류, 결과 행 제목, source, 대상 이름)
+ANSWER_UNITS: Dict[str, Tuple[str, str, str, str]] = {
+    "1-2.fence_imbalance": ("1-2", "펜스 불균형", "md_policy", "코드·수식 구획 표시"),
+    "1-2.json_syntax": ("1-2", "JSON 구문", "format_spec", "JSON 코드블록·본문 JSON"),
+    "1-2.python_syntax": ("1-2", "Python 구문", "format_spec", "Python 코드블록"),
+    "1-2.orphan_closing_tag": ("1-2", "짝이 없는 닫는 태그", "md_policy", "닫는 HTML 태그"),
+    "1-3.footnote_link": ("1-3", "각주 ↔ 정의 연결", "answer_self", "각주 표시"),
+    "1-3.citation_link": ("1-3", "인용 번호 ↔ 출처 목록", "answer_self", "인용 번호"),
+    "1-3.internal_link": ("1-3", "내부 링크 ↔ 대상", "answer_self", "문서 내부 링크"),
+    "3-1.answer_equation": ("3-1", "답변 등식 재계산", "answer_self", "등식(계산식)"),
+    "3-2.declared_count": ("3-2", "선언 개수 ↔ 구조", "answer_self", "개수 선언 문장"),
+}
+#: 검사 대상이 없을 때 두는 행의 check_id 접미사
+ABSENT_SUFFIX = ":none"
 
 #: 입력 안전 한도 (초과는 품질 FAIL 이 아니라 실행 사유)
 LIMITS = {
