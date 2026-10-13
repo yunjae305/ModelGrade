@@ -32,15 +32,15 @@ from code_eval.semantic_items import ITEMS, SUBS_BY_ID
 from .attachment_files import ATTACHMENT_TYPES, AttachmentError, render_attachment
 from .code_eval_service import ROOT
 
-__all__ = ["QUESTION_GEN_VERSION", "GenerationError", "criteria_catalog", "plan_prompt", "supplement_prompt", "parse_plan",
+__all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "criteria_catalog", "plan_prompt", "supplement_prompt", "parse_plan",
            "QuestionSetBuilder", "QuestionSetService"]
 
 QUESTION_GEN_VERSION = "question-gen-v1"
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
-MATERIAL_TOKENS = 16_000      # 긴 자료 한 조각의 최대 출력 토큰
-CHUNK_CHARS = 14_000          # 긴 자료 한 조각에 요청하는 글자 수 (한국어 약 0.72토큰/자)
+MATERIAL_TOKENS = 32_000      # 긴 자료 한 조각의 최대 출력 토큰 (추론 토큰까지 함께 세는 모델이라 넉넉히)
+CHUNK_CHARS = 10_000          # 긴 자료 한 조각에 요청하는 글자 수 (한국어 약 0.72토큰/자)
 PASTE_CHARS = 15_000          # J6 턴마다 붙여 넣을 자료 글자 수 (약 10.8K 토큰)
 SUPPLEMENT_ROUNDS = 2
 MATERIAL_WORKERS = 4
@@ -53,6 +53,18 @@ LLM = Callable[[str, int], str]
 class GenerationError(RuntimeError):
     pass
 
+
+class IncompleteResponse(GenerationError):
+    """응답이 출력 한도 등으로 끝까지 오지 않음 — ``text`` 는 받은 데까지의 글 (긴 자료는 이것도 쓴다)."""
+
+    def __init__(self, message: str, text: str = ""):
+        super().__init__(message)
+        self.text = text
+
+
+
+class Cancelled(GenerationError):
+    pass
 
 # --- 1. 점검 목록과 프롬프트 ---------------------------------------------------------------
 
@@ -228,11 +240,16 @@ class QuestionSetBuilder:
         self.warnings: List[str] = []
         self.calls = 0
 
-    def _ask(self, prompt: str, max_tokens: int) -> str:
+    def _ask(self, prompt: str, max_tokens: int, partial_ok: bool = False) -> str:
         if self.cancelled():
-            raise GenerationError("생성을 중단했습니다.")
+            raise Cancelled("생성을 중단했습니다.")
         self.calls += 1
-        return self.llm(prompt, max_tokens)
+        try:
+            return self.llm(prompt, max_tokens)
+        except IncompleteResponse as exc:
+            if partial_ok and exc.text.strip():   # 긴 자료 조각은 잘려도 이어 붙이면 된다 — 길이는 뒤에서 다시 잰다
+                return exc.text
+            raise
 
     # 긴 자료 -------------------------------------------------------------------------
     def long_reference(self, spec: Dict[str, Any]) -> str:
@@ -244,13 +261,14 @@ class QuestionSetBuilder:
         parts = max(1, math.ceil(target / (CHUNK_CHARS * 0.7)))
         chunks: List[str] = []
         with ThreadPoolExecutor(max_workers=MATERIAL_WORKERS) as pool:
-            chunks = list(pool.map(lambda n: self._ask(_material_prompt(topic, n, parts, CHUNK_CHARS, [t for _, t in facts]), MATERIAL_TOKENS),
+            chunks = list(pool.map(lambda n: self._ask(_material_prompt(topic, n, parts, CHUNK_CHARS, [t for _, t in facts]), MATERIAL_TOKENS, True),
                                    range(1, parts + 1)))
         text = "\n\n".join(c.strip() for c in chunks)
         extra = 0
         while self.count(text) < target and extra < parts:   # 모자라면 조각을 더 쓴다
             extra += 1
-            text += "\n\n" + self._ask(_material_prompt(topic, parts + extra, parts + extra, CHUNK_CHARS, [t for _, t in facts]), MATERIAL_TOKENS).strip()
+            text += "\n\n" + self._ask(_material_prompt(topic, parts + extra, parts + extra, CHUNK_CHARS, [t for _, t in facts]),
+                                       MATERIAL_TOKENS, True).strip()
         if self.count(text) < long_context.MIN_TOKENS:
             raise GenerationError(f"긴 참조 자료가 {long_context.MIN_TOKENS:,}토큰에 못 미칩니다 ({self.count(text):,}).")
         paragraphs = [p for p in text.split("\n\n") if p.strip()]
@@ -260,12 +278,12 @@ class QuestionSetBuilder:
 
     def long_paste(self, spec: Dict[str, Any], question: str) -> str:
         """J6 — 질문만으로 턴 하나가 MIN_TURN_TOKENS 이상이 되도록 붙여 넣을 자료를 만든다."""
-        material = self._ask(_paste_prompt(spec, PASTE_CHARS), MATERIAL_TOKENS).strip()
+        material = self._ask(_paste_prompt(spec, PASTE_CHARS), MATERIAL_TOKENS, True).strip()
         tries = 0
         while self.count(f"[붙여 넣은 자료]\n{material}\n\n{question}") < multi_turn.MIN_TURN_TOKENS and tries < 3:
             tries += 1
             material += "\n\n" + self._ask(_paste_prompt(dict(spec, topic=f"{spec.get('topic') or '업무 자료'} (이어서)"), PASTE_CHARS // 2),
-                                           MATERIAL_TOKENS).strip()
+                                           MATERIAL_TOKENS, True).strip()
         return f"[붙여 넣은 자료]\n{material}\n\n{question}"
 
     # 질문 한 개 → id/turns 묶음 -------------------------------------------------------
@@ -298,14 +316,22 @@ class QuestionSetBuilder:
     def build(self, note: str = "") -> Dict[str, Any]:
         catalog = criteria_catalog()
         self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
-        plans, warnings = parse_plan(self._ask(plan_prompt(catalog, note), PLAN_TOKENS))
+        raw = self._ask(plan_prompt(catalog, note), PLAN_TOKENS)
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        (self.out_dir / "plan.txt").write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문 — 실패해도 확인할 수 있게
+        plans, warnings = parse_plan(raw)
         self.warnings += warnings
         groups: List[Dict[str, Any]] = []
         rounds = 0
         while True:
             for plan in plans:
                 self.progress("materialize", {"message": f"질문 {len(groups) + 1} 만드는 중 (첨부·긴 자료)", "done": len(groups)})
-                groups.append(self.materialize(len(groups) + 1, plan))
+                try:
+                    groups.append(self.materialize(len(groups) + 1, plan))
+                except Cancelled:
+                    raise
+                except GenerationError as exc:   # 그 질문만 빼고 계속한다 — 빠진 항목은 점검·보충이 다시 잡는다
+                    self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
             report = check(groups)
             missing = report["coverage"]["missing_checks"] + report["coverage"]["missing_items"]
             if not missing or rounds >= SUPPLEMENT_ROUNDS:
@@ -318,6 +344,8 @@ class QuestionSetBuilder:
                 self.warnings.append(f"보충 {rounds}회차: {exc}")
                 break
             self.warnings += warnings
+        if not groups:
+            raise GenerationError("만든 질문이 없습니다: " + " / ".join(self.warnings[-3:]))
         return {"groups": groups, "check": report, "rounds": rounds}
 
 
@@ -349,14 +377,19 @@ def gpt_llm(config: Dict[str, Any], usage: Dict[str, int]) -> LLM:
                 usage["output_tokens"] = usage.get("output_tokens", 0) + int(part.get("output_tokens") or 0)
 
     def call(prompt: str, max_tokens: int) -> str:
-        try:
-            with httpx.Client(timeout=900, follow_redirects=False) as client:
-                outcome = request_answer("gpt", config, [{"role": "user", "content": prompt}], max_tokens, client, usage_observer=observe)
-        except ProviderError as exc:
-            raise GenerationError(f"GPT 호출 실패: {exc}") from None
-        if outcome.get("status") != "SUCCESS" or not (outcome.get("answer") or "").strip():
-            raise GenerationError(f"GPT 응답이 끝까지 오지 않았습니다 ({outcome.get('finish_reason') or outcome.get('status')}).")
-        return outcome["answer"]
+        for attempt in (1, 2):   # 일시 오류(연결·과부하)는 한 번 더
+            try:
+                with httpx.Client(timeout=900, follow_redirects=False) as client:
+                    outcome = request_answer("gpt", config, [{"role": "user", "content": prompt}], max_tokens, client, usage_observer=observe)
+                break
+            except (ProviderError, httpx.HTTPError) as exc:
+                if attempt == 2:
+                    raise GenerationError(f"GPT 호출 실패: {exc}") from None
+                time.sleep(5)
+        answer = outcome.get("answer") or ""
+        if outcome.get("status") != "SUCCESS" or not answer.strip():
+            raise IncompleteResponse(f"GPT 응답이 끝까지 오지 않았습니다 ({outcome.get('finish_reason') or outcome.get('status')}).", answer)
+        return answer
     return call
 
 

@@ -104,3 +104,20 @@ def test_service_runs_one_job_at_a_time_and_serves_the_set_and_files(tmp_path):
     assert qg.QuestionSetService(lambda: None, store=tmp_path).list()[0]["id"] == started["id"]   # 다시 켜도 목록에 남는다
     with pytest.raises(ValueError):
         qg.QuestionSetService(lambda: None, store=tmp_path).start({})   # GPT 연결이 없으면 시작하지 않는다
+
+
+class FlakyGPT(FakeGPT):
+    def __call__(self, prompt, max_tokens):
+        text = super().__call__(prompt, max_tokens)
+        if prompt.startswith("다음 주제로 사용자가 대화창에 붙여 넣을 자료"):
+            raise qg.IncompleteResponse("출력 한도", text)   # 잘린 붙여 넣기 자료도 이어 쓴다
+        if prompt.startswith("다음 주제의 긴 업무 자료"):
+            raise qg.GenerationError("연결 끊김")   # 긴 자료 질문만 빼고 계속한다
+        return text
+
+
+def test_truncated_material_is_used_and_a_failed_question_is_skipped(tmp_path):
+    builder = qg.QuestionSetBuilder(FlakyGPT(), tmp_path)
+    topics = [g["topic"] for g in builder.build()["groups"]]
+    assert "계약서" not in topics and "행사 준비" in topics and (tmp_path / "plan.txt").is_file()
+    assert any("계약서" in w and "연결 끊김" in w for w in builder.warnings)
