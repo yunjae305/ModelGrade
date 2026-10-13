@@ -23,6 +23,7 @@ from .explain import explain_result
 from .io import validate_json_numbers
 from .core import ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, nfc, versions
 from .extract import persistent_conditions
+from .answer_citations import answer_sources_error
 from .model import CATEGORY_NAMES, FAIL, PASS, SPECIALIZED, SUBCATEGORIES, ConditionResult, Status, stable_hash
 
 __all__ = ["evaluate_case", "evaluate_batch", "summarize_batch", "result_digest", "_drop_duplicates"]
@@ -239,6 +240,12 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
     reference, reference_error = _reference_of(payload)
     if reference_error:
         return _input_error(case_id, reference_error, conversation)
+    # 수집 단계가 남긴 구조화 출처 — CODE 검사에는 쓰지 않고 J5 출처 대조에만 넘긴다.
+    sources = payload.get("answer_sources")
+    if sources is not None:
+        sources_error = answer_sources_error(sources)
+        if sources_error:
+            return _input_error(case_id, sources_error, conversation)
     reference_text = reference if isinstance(reference, str) else (
         json.dumps(reference, ensure_ascii=False) if reference is not None else "")
     for name, value, limit in (("question", question, LIMITS["question_chars"]),
@@ -307,7 +314,7 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         # 판정하지 않은 조건의 사유. 결과 행이 아니며 집계·result_digest 에 들어가지 않는다.
         "skipped_conditions": list(ctx.skipped),
     }
-    # 대화·참조 데이터 키는 입력에 있을 때만 넣는다 — 단일 질문·답변 입력의 결과 해시를 바꾸지 않기 위해
+    # 대화·참조 데이터·구조화 출처 키는 입력에 있을 때만 넣는다 — 단일 질문·답변 입력의 결과 해시를 바꾸지 않기 위해
     return {
         "case_id": case_id,
         "case_status": "EVALUATED",
@@ -316,6 +323,7 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         "displayed_text": displayed,
         **({"conversation": conversation} if conversation else {}),
         **({"reference": reference} if reference is not None else {}),
+        **({"answer_sources": sources} if sources else {}),
         "results": _with_explanations(results, ctx),
         "observations": observations,
         "errors": list(ctx.errors),

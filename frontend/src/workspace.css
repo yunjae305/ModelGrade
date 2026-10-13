@@ -1062,3 +1062,41 @@ textarea::placeholder {color:#757f94}
   .summary-score-card {padding:14px}
   .summary-score strong {font-size:32px}
 }
+
+/* 외부 AI 답변 가져오기 (4단계) — 기존 패널·표·안내 스타일을 그대로 쓰고 필요한 배치만 더한다. */
+.model-avatar.external-system {color:#4A4F66; background:#EEF1F7; font-size:16px}
+.alert.info {color:#3D4A66; background:#F3F6FC; border-color:#DCE3F2}
+.alert ul {margin:6px 0 0 18px}
+.external-import {margin-top:24px}
+.external-import .panel-title p {margin-top:4px; color:var(--muted); font-size:12px}
+.external-body {padding:20px 24px 0}
+.external-files {display:flex; align-items:center; flex-wrap:wrap; gap:12px}
+.external-system-fields summary {display:flex; align-items:center; gap:8px; min-height:44px; margin-top:8px; font-size:12px; color:var(--muted); cursor:pointer; list-style:none}
+.external-system-fields summary::-webkit-details-marker {display:none}
+.external-grid {grid-template-columns:repeat(3,minmax(0,1fr)); margin-bottom:8px}
+.external-options, .external-api-options {display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; font-size:13px}
+.external-options {margin:14px 0}
+.external-options label {display:inline-flex; align-items:center; gap:7px}
+.external-preview {display:grid; gap:14px; margin:4px 0 18px}
+.external-preview .dataset-stats {grid-template-columns:repeat(4,minmax(0,1fr)); margin:0}
+.external-preview .alert {margin-bottom:0}
+.external-systems {table-layout:auto}
+.external-systems th small {display:block; margin-top:3px; color:var(--muted); font-weight:500; font-size:11px}
+.external-systems .pill+.pill {margin-left:4px}
+.external-notes {margin-left:18px; color:var(--muted); font-size:12px; line-height:1.8}
+.external-questions summary {cursor:pointer; color:var(--muted); font-size:12px}
+.external-questions ol {margin:8px 0 0 20px; font-size:12px; line-height:1.8; overflow-wrap:anywhere}
+.external-actions {margin:4px 0 4px}
+.system-environment {display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 10px; margin:12px 0 2px; font-size:12px}
+.system-environment dt {color:var(--muted)}
+.system-environment dd {margin:0; overflow-wrap:anywhere}
+.collection-detail {margin:12px 0; font-size:13px}
+.collection-detail summary {cursor:pointer; color:var(--muted)}
+.collection-sources, .collection-quality {margin:8px 0 0 20px; display:grid; gap:6px; overflow-wrap:anywhere}
+.collection-quality {color:var(--amber); font-size:12px}
+.collection-original {max-height:240px; overflow:auto; margin-top:8px; padding:10px 12px; border-radius:10px; background:#F5F6FA; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere}
+@media(max-width:700px) {
+  .external-grid, .external-preview .dataset-stats {grid-template-columns:1fr}
+  .external-preview .dataset-stats>div:not(:first-child) {border-left:0; padding-left:0}
+  .external-body {padding:16px 16px 0}
+}

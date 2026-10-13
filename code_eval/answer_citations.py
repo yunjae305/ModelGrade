@@ -10,13 +10,19 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .analysis import TextAnalysis, mask_ranges
-from .semantic_evidence import source_url
+from .semantic_evidence import _contained, source_url
 
-__all__ = ["CITATION_POLICY_VERSION", "MAX_CITATION_URLS", "answer_citations", "prompt_citations",
-           "source_requested"]
+__all__ = ["CITATION_POLICY_VERSION", "STRUCTURED_CITATION_POLICY_VERSION", "MAX_CITATION_URLS", "MAX_ANSWER_SOURCES",
+           "answer_citations", "prompt_citations", "source_requested", "structured_citations", "merge_citations",
+           "answer_sources_error"]
 
 #: v2 — 서버가 접근 문제로 받지 못한 출처는 같은 요청의 공급자 web_fetch 원문으로 대조 (F5b)
 CITATION_POLICY_VERSION = "answer-citations-v2"
+#: v3 — 수집 단계가 남긴 구조화 출처(answer_sources)를 본문에서 찾은 링크보다 먼저 쓴다.
+#: 구조화 출처가 없는 답변은 v2 와 같은 목록을 만든다 (그때 기록하는 정책 이름도 v2).
+STRUCTURED_CITATION_POLICY_VERSION = "answer-citations-v3"
+#: 한 답변에 담을 수 있는 구조화 출처 수 (입력 한도 — 원문 대조 한도는 MAX_CITATION_URLS).
+MAX_ANSWER_SOURCES = 200
 #: 한 답변에서 원문을 대조할 서로 다른 출처 URL 수. 평가자의 원문 열기 한도(8)를 넘지 않게 둔다.
 MAX_CITATION_URLS = 4
 MAX_CLAIMS_PER_URL = 3
@@ -133,3 +139,70 @@ def answer_citations(answer: str) -> List[Dict[str, Any]]:
 def prompt_citations(citations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """평가자에게 보내는 형태 — 원문을 대조할 출처만, 주장이 없으면 답변 전체에 대한 출처로 둔다."""
     return [{"id": c["id"], "url": c["url"], "claims": list(c["claims"])} for c in citations if c["checked"]]
+
+
+def answer_sources_error(value: Any) -> Optional[str]:
+    """``answer_sources`` 입력 형식 오류 — 없으면 None. 판정이 아니라 입력 검증이다."""
+    if not isinstance(value, list) or len(value) > MAX_ANSWER_SOURCES:
+        return f"answer_sources 는 {MAX_ANSWER_SOURCES}개 이하의 객체 배열이어야 함"
+    for index, item in enumerate(value, 1):
+        if not isinstance(item, dict) or not isinstance(item.get("url"), str) or not item["url"].strip():
+            return f"answer_sources {index}번: url 문자열이 있는 객체여야 함"
+        claims = item.get("claims", [])
+        if not isinstance(claims, list) or any(not isinstance(c, str) for c in claims):
+            return f"answer_sources {index}번: claims 는 문자열 배열이어야 함"
+        for key in ("display_url", "relay_url", "original_url", "skip_reason", "title", "origin", "id"):
+            if item.get(key) is not None and not isinstance(item[key], str):
+                return f"answer_sources {index}번: {key} 는 문자열이어야 함"
+    return None
+
+
+def structured_citations(sources: List[Dict[str, Any]], answer: str) -> List[Dict[str, Any]]:
+    """수집 단계의 구조화 출처를 answer_citations 와 같은 모양으로 바꾼다.
+
+    주장은 답변 원문에 그대로 있는 구절만 남긴다 (평가자가 받는 주장은 항상 답변 원문). 원래 URL 을 풀지 못한
+    중계 URL 처럼 ``skip_reason`` 이 있는 출처는 원문 대조 대상에서 빼고 기록만 한다.
+    """
+    merged: Dict[str, Dict[str, Any]] = {}
+    for item in sources:
+        normalized = source_url(item["url"])
+        key = normalized or item["url"]
+        claims = [c for c in item.get("claims") or [] if _contained(c, answer)]
+        entry = merged.get(key)
+        if entry is None:
+            aliases = sorted({u for u in (source_url(item.get(k)) for k in ("display_url", "relay_url", "original_url"))
+                              if u and u != normalized})
+            entry = merged[key] = {"id": "", "url": normalized or item["url"], "kind": "structured",
+                                   "valid_url": normalized is not None and not item.get("skip_reason"), "claims": [],
+                                   "origin": item.get("origin") or "structured", "aliases": aliases}
+            if item.get("skip_reason"):
+                entry["skip_reason"] = item["skip_reason"]
+        for claim in claims:
+            if claim not in entry["claims"]:
+                entry["claims"].append(claim)
+    return list(merged.values())
+
+
+def merge_citations(structured: List[Dict[str, Any]], extracted: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """구조화 출처를 앞에 두고, 본문에서만 찾은 링크 중 같은 출처가 아닌 것을 뒤에 붙인다.
+
+    같은 출처 판단은 정규화한 URL·표시 URL·중계 URL 이 하나라도 같을 때다. 원문 대조 표시(checked)는 합친 목록
+    기준으로 다시 매긴다 (MAX_CITATION_URLS 한도 동일).
+    """
+    known = set()
+    for item in structured:
+        known.add(item["url"])
+        known.update(item.get("aliases") or [])
+    out = [dict(item) for item in structured]
+    for item in extracted:
+        if item["url"] in known or source_url(item["url"]) in known:
+            continue
+        known.add(item["url"])
+        out.append({**item, "origin": "answer_text"})
+    checked = 0
+    for number, item in enumerate(out, 1):
+        item["id"] = f"S{number}"
+        item["claims"] = list(item["claims"])[:MAX_CLAIMS_PER_URL]
+        item["checked"] = bool(item["valid_url"]) and checked < MAX_CITATION_URLS
+        checked += item["checked"]
+    return out

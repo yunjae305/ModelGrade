@@ -54,8 +54,13 @@ def fingerprint(cases, *, answers=False):
 
 
 def evaluation_profile(run):
-    """Describe actual saved AIONA evaluation, never today's configuration."""
-    batch = run.get('evaluations', {}).get('aiona') or {}
+    """Describe actual saved AIONA evaluation, never today's configuration.
+
+    외부 수집 실행처럼 AIONA 가 없는 실행은 첫 번째 평가 대상의 평가 조건을 쓴다 (모든 대상이 같은 평가기로 평가됨).
+    """
+    evaluations = run.get('evaluations', {})
+    batch = evaluations.get('aiona') or (evaluations.get((run.get('providers') or [None])[0]) or {}
+                                         if 'aiona' not in (run.get('providers') or ['aiona']) else {})
     semantic = batch.get('jev_eval') or {}
     client = semantic.get('client') or {}
     allowed = ('engine', 'requested_model', 'reasoning_effort', 'flags', 'disabled_features',
