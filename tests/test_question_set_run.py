@@ -179,3 +179,48 @@ def test_api_collector_sends_every_attachment_type_as_the_original_file(tmp_path
     assert claude["messages"][0]["content"][0]["source"] == {"type": "text", "media_type": "text/plain", "data": "hello"}
     assert {"type": "code_execution_20260120", "name": "code_execution"} in claude["tools"] and claude["messages"][-1]["role"] == "assistant"
     assert ("DELETE", "/v1/files/file_1", b"") in calls   # 올린 DOCX 는 요청 뒤 지운다
+
+def test_claude_docx_upload_cleanup_errors_and_continuation_are_safe(tmp_path):
+    """Claude DOCX 업로드 도중 실패해도 올린 파일을 지우고, content 가 목록이 아닌 응답·삭제 실패·제공자 오류 문구를 안전하게 다룬다.
+    pause_turn 이어 받기는 같은 컨테이너를 쓰고 사용량을 더한다 (Codex 리뷰)."""
+    for name in ("a.docx", "b.docx"):
+        (tmp_path / name).write_bytes(b"PK")
+    docs = [{"name": n, "type": "docx", "path": n} for n in ("a.docx", "b.docx")]
+    config = {"key": "k", "model": "m"}
+
+    def run(handler, attachments=docs):
+        calls = []
+
+        def wrapped(request):
+            calls.append((request.method, request.url.path, json.loads(request.content) if request.method == "POST" and request.url.path.endswith("/messages") else None))
+            return handler(request, calls)
+        out = agent_collection.ask_with_tools("claude", config, "질문", attachments, tmp_path, httpx.Client(transport=httpx.MockTransport(wrapped)))
+        return out, calls
+
+    uploads = iter([httpx.Response(200, json={"id": "file_a"}), httpx.Response(200, json=[])])
+    out, calls = run(lambda r, c: next(uploads) if r.url.path.endswith("/files") else httpx.Response(200, json={}))
+    assert out["status"] == "ERROR" and ("DELETE", "/v1/files/file_a", None) in calls   # 두 번째 업로드가 깨져도 첫 파일은 지운다
+
+    def bad_content(request, calls):
+        if "/files" in request.url.path:
+            return httpx.Response(200, json={"id": "file_x"}) if request.method == "POST" else httpx.Response(503)
+        return httpx.Response(200, json={"stop_reason": "end_turn", "content": None})
+    out, calls = run(bad_content, docs[:1])
+    assert out["status"] == "ERROR" and "content" in out["error"]   # 빈 답변 성공으로 바꾸지 않는다
+    assert out["cleanup_failed"]["provider_files"] == ["file_x"]   # 삭제가 끝내 실패하면 file_id 를 남긴다
+
+    def paused(request, calls):
+        if request.url.path.endswith("/files"):
+            return httpx.Response(200, json={"id": "file_y"})
+        first = sum(1 for c in calls if c[1].endswith("/messages")) == 1
+        return httpx.Response(200, json={"stop_reason": "pause_turn" if first else "end_turn", "container": {"id": "cont_1"},
+                                         "content": [{"type": "text", "text": "a" if first else "b"}],
+                                         "usage": {"input_tokens": 100 if first else 200, "output_tokens": 10 if first else 20}})
+    out, calls = run(paused, docs[:1])
+    second = [c[2] for c in calls if c[2] is not None][1]
+    assert out["status"] == "SUCCESS" and out["answer"] == "ab" and second["container"] == "cont_1"
+    assert out["usage"]["input_tokens"] == 300 and out["usage"]["output_tokens"] == 30
+
+    leaked = agent_collection.ask_with_tools("gpt", config, "질문", [], tmp_path, httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(429, json={"error": {"type": "insufficient_quota", "message": "secret-input echo; exceeded your current quota"}}))))
+    assert leaked["error"] == "HTTP 429 (insufficient_quota · 크레딧·사용 한도 부족 — 제공자 콘솔에서 충전 필요)"   # 제공자 문구는 남기지 않는다

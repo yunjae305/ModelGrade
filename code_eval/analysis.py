@@ -102,7 +102,9 @@ def seal_pasted(text: str) -> str:
             continue
         line_start = marker.start()
         line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        for _ in range(200):   # 여는 줄을 지우면 안쪽의 짧은 펜스가 새로 열릴 수 있다 — 닫힐 때까지 다시 읽는다 (Codex 리뷰)
+        # 여는 줄을 지우면 안쪽의 짧은 펜스가 새로 열릴 수 있다 — 닫힐 때까지 다시 읽는다 (Codex 리뷰). 매번 여는 줄 하나를 지우므로
+        # 구간의 줄 수만큼이면 반드시 끝난다 (고정 상한을 두면 펜스가 많은 자료에서 남은 펜스가 바깥을 가렸다)
+        for _ in range(text.count("\n", start, marker.start()) + 2):
             blocks = _fenced_code_blocks("".join(chars[start:marker.start()]))
             if not blocks or blocks[-1].get("closed", True):
                 break

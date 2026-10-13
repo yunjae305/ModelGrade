@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import base64
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -147,36 +148,43 @@ def _anthropic(config, turns, parts, max_tokens, uploaded=None):
              "messages": messages + [{"role": "user", "content": _anthropic_content(parts, uploaded)}], "tools": tools})
 
 
-def _upload_docx(client: httpx.Client, config: Dict[str, Any], all_parts: List[list]) -> Dict[int, str]:
-    """Claude 요청에 들어갈 DOCX 조각(앞 턴 포함)을 Files API 에 올린다 → {id(조각): file_id}. 실패하면 이미 올린 파일을 지우고 _Failure."""
-    uploaded: Dict[int, str] = {}
+def _upload_docx(client: httpx.Client, config: Dict[str, Any], all_parts: List[list], uploaded: Dict[int, str]) -> None:
+    """Claude 요청에 들어갈 DOCX 조각(앞 턴 포함)을 Files API 에 올려 ``uploaded``({id(조각): file_id})에 채운다.
+
+    ``uploaded`` 는 호출부가 가진다 — 도중에 실패해도 그때까지 올린 파일은 호출부의 정리(finally)가 지운다 (Codex 리뷰)."""
     headers = {"x-api-key": config["key"], "anthropic-version": "2023-06-01"}
-    try:
-        for parts in all_parts:
-            for p in parts:
-                if p[0] == "file" and p[1] == "docx":
-                    try:
-                        response = client.post(f"{_ANTHROPIC}/files", headers=headers, files={"file": (str(p[3]), p[5], p[2])})
-                    except httpx.HTTPError:
-                        raise _Failure("DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (네트워크)") from None
-                    file_id = response.json().get("id") if response.status_code < 400 else None
-                    if not isinstance(file_id, str):
-                        raise _Failure(f"DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (HTTP {response.status_code})")
-                    uploaded[id(p)] = file_id
-    except (_Failure, ValueError):
-        _delete_uploads(client, config, uploaded)
-        raise _Failure("DOCX 첨부를 Claude Files API 에 올리지 못했습니다") from None
-    return uploaded
+    for parts in all_parts:
+        for p in parts:
+            if p[0] != "file" or p[1] != "docx":
+                continue
+            try:
+                response = client.post(f"{_ANTHROPIC}/files", headers=headers, files={"file": (str(p[3]), p[5], p[2])})
+            except httpx.HTTPError:
+                raise _Failure("DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (네트워크)") from None
+            try:
+                body = response.json() if response.status_code < 400 else None
+            except ValueError:
+                body = None
+            file_id = body.get("id") if isinstance(body, dict) else None
+            if not isinstance(file_id, str) or not file_id:
+                raise _Failure(f"DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (HTTP {response.status_code})")
+            uploaded[id(p)] = file_id
 
 
-def _delete_uploads(client: httpx.Client, config: Dict[str, Any], uploaded: Dict[int, str]) -> None:
-    """올린 파일을 지운다 — 실패해도 수집 결과는 그대로 둔다 (파일 저장은 조직 한도 안에서 무료, 다음 정리에서 지울 수 있음)."""
+def _delete_uploads(client: httpx.Client, config: Dict[str, Any], uploaded: Dict[int, str]) -> List[str]:
+    """올린 파일을 지운다(실패하면 한 번 더) → 끝내 지우지 못한 file_id 목록. 수집 결과와 따로 기록해 나중에 정리할 수 있게 한다."""
     headers = {"x-api-key": config["key"], "anthropic-version": "2023-06-01"}
+    failed = []
     for file_id in uploaded.values():
-        try:
-            client.delete(f"{_ANTHROPIC}/files/{file_id}", headers=headers)
-        except httpx.HTTPError:
-            pass
+        for attempt in (1, 2):
+            try:
+                if client.delete(f"{_ANTHROPIC}/files/{file_id}", headers=headers).status_code < 400:
+                    break
+            except httpx.HTTPError:
+                pass
+            if attempt == 2:
+                failed.append(file_id)
+    return failed
 
 
 def _gemini(config, turns, parts, max_tokens):
@@ -235,24 +243,62 @@ def _read(provider: str, raw: Any) -> Dict[str, Any]:
         raise _Failure(f"응답 모양을 읽지 못했습니다 ({type(exc).__name__})") from None
 
 
-def _post(client: httpx.Client, url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Any:
-    """요청 1회 → 응답 JSON. 네트워크·HTTP·JSON 오류는 _Failure."""
+_ERROR_ID = re.compile(r"[A-Za-z][A-Za-z_]{1,48}")
+
+
+def _error_label(response: httpx.Response) -> str:
+    """오류 응답 → ' (invalid_request_error · 크레딧·사용 한도 부족)' 같은 고정 설명. 제공자의 오류 문구는 기록하지 않는다 —
+    입력(질문·첨부)이 되돌아올 수 있다 (Codex 리뷰). 오류 종류는 식별자 모양(영문·밑줄)일 때만 남긴다."""
+    try:
+        body = response.json()
+    except ValueError:
+        return ""
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return ""
+    ids = [v for key in ("type", "code", "status") if isinstance(v := error.get(key), str) and _ERROR_ID.fullmatch(v)]
+    message = error.get("message") if isinstance(error.get("message"), str) else ""
+    quota = re.search(r"credit balance|billing|purchase credits|insufficient[_ ]quota|exceeded your current quota", message, re.I)
+    parts = [*dict.fromkeys(ids), *(["크레딧·사용 한도 부족 — 제공자 콘솔에서 충전 필요"] if quota else [])]
+    return f" ({' · '.join(parts)})" if parts else ""
+
+
+def _post(client: httpx.Client, url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Dict[str, Any]:
+    """요청 1회 → 응답 JSON 객체. 네트워크·HTTP·JSON·객체 아님은 _Failure."""
     try:
         response = client.post(url, headers=headers, json=body)
     except httpx.HTTPError:
         raise _Failure("네트워크 요청 실패 또는 시간 초과") from None
     if response.status_code >= 400:
-        detail = ""
-        try:
-            error = response.json().get("error")
-            detail = str(error.get("message") if isinstance(error, dict) else error or "")[:300]
-        except (ValueError, AttributeError):
-            pass
-        raise _Failure(f"HTTP {response.status_code} {detail}".strip())
+        raise _Failure(f"HTTP {response.status_code}{_error_label(response)}")
     try:
-        return response.json()
+        raw = response.json()
     except ValueError:
         raise _Failure("응답 JSON 을 읽지 못했습니다.") from None
+    if not isinstance(raw, dict):
+        raise _Failure("응답이 JSON 객체가 아닙니다.")
+    return raw
+
+
+def _claude_blocks(raw: Dict[str, Any]) -> list:
+    """Claude 응답의 content 목록 — 목록이 아니면 빈 답변으로 바꾸지 않고 _Failure (Codex 리뷰)."""
+    if not isinstance(raw.get("content"), list):
+        raise _Failure("응답에 content 목록이 없습니다.")
+    return list(raw["content"])
+
+
+def _add_usage(total: Dict[str, Any], usage: Any) -> None:
+    """이어 받기 응답들의 토큰·서버 도구 사용량을 더한다."""
+    if not isinstance(usage, dict):
+        return
+    for key, value in usage.items():
+        if isinstance(value, int) and not isinstance(value, bool):
+            total[key] = total.get(key, 0) + value
+        elif key == "server_tool_use" and isinstance(value, dict):
+            inner = total.setdefault("server_tool_use", {})
+            for name, count in value.items():
+                if isinstance(count, int) and not isinstance(count, bool):
+                    inner[name] = inner.get(name, 0) + count
 
 
 def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachments: Optional[List[Dict[str, Any]]],
@@ -262,14 +308,14 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
     answer_sources?, retrieved_sources?, environment, quality, sent, error, method}.
 
     예상할 수 있는 실패(첨부 없음·읽기 오류·네트워크·HTTP 오류·응답 모양)는 예외 대신 status=ERROR 로 돌려준다."""
-    base = {"method": AGENT_COLLECTION_VERSION, "sent": []}
+    base: Dict[str, Any] = {"method": AGENT_COLLECTION_VERSION, "sent": []}
     uploaded: Dict[int, str] = {}
     try:
         turns = [_turn_parts(entry, files_dir) for entry in history]
         parts, sent = _parts(question, reference, attachments or [], files_dir)
         base["sent"] = sent
         if provider == "claude":
-            uploaded = _upload_docx(client, config, [prior for prior, _ in turns] + [parts])
+            _upload_docx(client, config, [prior for prior, _ in turns] + [parts], uploaded)
             for record in sent:
                 if record.get("type") == "docx" and record.get("how") == "파일 그대로":
                     record["how"] = "파일 그대로 (Files API · 코드 실행 컨테이너)"
@@ -277,21 +323,32 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
         else:
             url, headers, body = {"gpt": _openai, "gemini": _gemini}[provider](config, turns, parts, max_tokens)
         raw = _post(client, url, headers, body)
-        if provider == "claude":   # 도구 실행 중 멈춤(pause_turn) — 같은 응답을 이어 보내 받는다
-            blocks = list(raw.get("content") or []) if isinstance(raw.get("content"), list) else []
+        if provider == "claude":   # 도구 실행 중 멈춤(pause_turn) — 같은 응답·같은 컨테이너로 이어 보내 받는다
+            blocks, usage = _claude_blocks(raw), {}
+            _add_usage(usage, raw.get("usage"))
             for _ in range(MAX_CONTINUATIONS):
                 if raw.get("stop_reason") != "pause_turn":
                     break
-                body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": raw.get("content") or []}]}
+                body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": _claude_blocks(raw)}]}
+                container = raw.get("container") if isinstance(raw.get("container"), dict) else {}
+                if isinstance(container.get("id"), str) and container["id"]:   # 컨테이너를 이어 써야 DOCX·실행 상태가 남는다
+                    body["container"] = container["id"]
                 raw = _post(client, url, headers, body)
-                blocks += list(raw.get("content") or []) if isinstance(raw.get("content"), list) else []
-            raw = {**raw, "content": blocks}
+                blocks += _claude_blocks(raw)
+                _add_usage(usage, raw.get("usage"))
+            raw = {**raw, "content": blocks, "usage": usage}
         parsed = _read(provider, raw)
     except _Failure as exc:
-        return {**base, "answer": "", "status": "ERROR", "error": str(exc)}
+        failure = str(exc)
+    else:
+        failure = None
     finally:
-        if uploaded:
-            _delete_uploads(client, config, uploaded)
+        if uploaded:   # 정리 실패는 답변 수집과 따로 남긴다 — file_id 로 나중에 지울 수 있다
+            failed = _delete_uploads(client, config, uploaded)
+            if failed:
+                base["cleanup_failed"] = {"provider_files": failed, "note": "Claude Files API 에서 지우지 못한 첨부 — 콘솔·API 로 정리"}
+    if failure is not None:
+        return {**base, "answer": "", "status": "ERROR", "error": failure}
     answer, finish = parsed["answer"], parsed["finish_reason"]
     complete = parsed["status"] == "SUCCESS" or (not answer and finish in _COMPLETE[provider])
     sources, notes = normalize_sources(parsed["sources"], answer, "collection.sources")
