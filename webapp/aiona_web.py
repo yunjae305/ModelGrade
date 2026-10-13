@@ -10,6 +10,8 @@
   입력 상한 100,000자. 모델은 기본값 '자동 추천' 그대로 둔다.
 - 긴 글을 보내면 의도 감지 안내('요약 뒤에 퀴즈까지 이어서 풀어볼까요?')가 떠서 고를 때까지 전송되지 않는다 — 질문을 바꾸지
   않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
+- AIONA 가 답을 못 내면 답변 칸 없이 '생각을 중단했습니다 · 처리 중 오류가 생겨 멈췄습니다'(``span[role=status]``)가 뜬다 —
+  기다리지 않고 그 사유를 담아 수집 오류(ERROR)로 남긴다 (2026-10-14 실제 수집: '아무것도 출력하지 마.').
 - 답변 본문(HTML)은 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
 - 봇 확인·추가 인증 화면이 나오면 멈추고 사람에게 넘긴다 — 우회하지 않는다.
 - 같은 Chrome 프로필은 한 번에 한 브라우저만 연다(프로필 잠금 — 실행이 겹치면 뒤 실행이 기다린다). 로그인 실패는 고정 문구로만
@@ -189,6 +191,14 @@ class AionaChat:
                 arg=f.name, timeout=60_000)
         self.page.wait_for_timeout(1500)
 
+    def _stopped(self) -> List[str]:
+        """AIONA 가 답을 내지 못하고 멈춘 표시 — 답변 칸 대신 '생각을 중단했습니다'(role=status)와 사유 문구가 뜬다
+        (2026-10-14 실제 수집: '아무것도 출력하지 마.' 에 '처리 중 오류가 생겨 멈췄습니다'). 표시마다 사유 문구."""
+        return self.page.evaluate("""() => [...document.querySelectorAll("div.space-y-4 span[role=status]")]
+            .filter((s) => (s.innerText || '').includes('생각을 중단했습니다'))
+            .map((s) => { const box = s.closest('button'); const all = box ? box.innerText : s.innerText;
+                          return all.replace('생각을 중단했습니다', '').trim() || '생각을 중단했습니다'; })""")
+
     def _send_as_is(self) -> bool:
         """긴 글을 보내면 뜨는 의도 감지 안내('요약 뒤에 퀴즈까지…')에서 질문을 바꾸지 않는 '그냥 보내기'를 누른다."""
         button = self.page.get_by_role("button", name="그냥 보내기", exact=True)
@@ -216,6 +226,7 @@ class AionaChat:
             else:
                 text = f"[참조 자료]\n{reference_text}\n\n{question}"
         before = self._answers().count()
+        stopped_before = len(self._stopped())
         self._dismiss_popups()
         try:
             if files:
@@ -238,6 +249,12 @@ class AionaChat:
             self._dismiss_popups()
             as_is = self._send_as_is() or as_is
             if self._answers().count() <= before:
+                stopped = self._stopped()
+                if len(stopped) > stopped_before:   # AIONA 가 이 질문에서 멈췄다 — 기다리지 않고 AIONA 오류로 남긴다
+                    return {"answer": "", "status": "ERROR", "error": f"AIONA 가 답하지 못했습니다: {stopped[-1][:200]}", "url": self.page.url,
+                            "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천",
+                            "method": AIONA_WEB_VERSION, "debug_screenshot": self._snapshot("stopped"),
+                            **({"intent_prompt": "그냥 보내기"} if as_is else {})}
                 continue
             idle = self.page.locator("button[type=submit][title='전송']").count() > 0   # 답하는 동안은 정지 버튼
             html = self._last_answer_html()
