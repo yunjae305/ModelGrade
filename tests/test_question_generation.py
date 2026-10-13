@@ -164,6 +164,17 @@ def test_pasted_material_is_user_data_not_instructions():
     assert _input_scope({"scope": "input_consistency", "scope_quote": "다음 자료가 맞는지 확인해줘."}, {"question": plain, "history": []}) is False
 
 
+def test_large_target_is_planned_in_batches(tmp_path, monkeypatch):
+    """질문 수백 개를 지정하면 첫 계획은 PLAN_BATCH 개, 나머지는 PLAN_BATCH 개씩 여러 번 추가한다 (한 응답에 다 쓰게 하면 출력 한도에 잘림)."""
+    base = len(qg.QuestionSetBuilder(FakeGPT(), tmp_path / "base").build()["groups"])
+    monkeypatch.setattr(qg, "PLAN_BATCH", 2)
+    fake = FakeGPT()   # 추가 요청마다 질문 1개만 돌려준다
+    builder = qg.QuestionSetBuilder(fake, tmp_path / "big")
+    result = builder.build(target_questions=base + 3)
+    assert "정확히 2개" in fake.prompts[0] and len(result["groups"]) == base + 3 and result["extra_rounds"] == 3
+    assert builder.max_calls == max(qg.MAX_CALLS, 2 * (base + 3) + 150)
+
+
 def test_target_question_count_adds_questions_and_feeds_weak_units(tmp_path):
     """세트 전체 질문 수를 정하면 그 수에 맞춰 질문을 더 만들고, 지난 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구한다 (v1.2)."""
     base = len(qg.QuestionSetBuilder(FakeGPT(), tmp_path / "base").build()["groups"])

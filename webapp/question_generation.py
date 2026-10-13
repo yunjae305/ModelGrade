@@ -50,12 +50,14 @@ CHUNK_CHARS = 10_000          # 긴 자료 한 조각에 요청하는 글자 수
 PASTE_CHARS = 3_000           # J6 자료가 필요한 턴에 붙여 넣을 자료 글자 수 (약 2K 토큰)
 MAX_PASTE_TURNS = 3           # 대화 하나에서 자료를 붙이는 턴 수 상한 — 사용자 결정 2026-10-14: 턴마다 과하게 붙이지 않는다
 SUPPLEMENT_ROUNDS = 2
-# 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게 (질문 수 지정의 상한이기도 하다)
-MAX_PLAN_QUESTIONS = 80
+# 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게 (질문 수 지정의 상한이기도 하다, 사용자 요청 2026-10-14: 300개 시험)
+MAX_PLAN_QUESTIONS = 500
+PLAN_BATCH = 40               # GPT 응답 하나에 계획하게 하는 질문 수 — 수백 개를 한 응답에 쓰게 하면 출력 한도에 잘린다
+MAX_EXTRA_ROUNDS = MAX_PLAN_QUESTIONS // PLAN_BATCH + 3
 DIFFICULTIES = ("쉬움", "보통", "어려움")
 MAX_PLAN_TURNS = 15
 MAX_LONG_REFERENCES = 2
-MAX_CALLS = 250
+MAX_CALLS = 250               # 작업 하나의 GPT 호출 상한 (질문 수를 지정하면 그 수에 맞춰 늘린다 — QuestionSetBuilder.build)
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = 8
 MAX_ATTACHMENT_CHARS = 4_000
@@ -196,13 +198,15 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 
 def extra_prompt(count: int, have: int, target: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
-                 weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = (), note: str = "") -> str:
+                 weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = (), note: str = "",
+                 long_reference_ok: bool = True) -> str:
     """세트가 목표 질문 수에 못 미칠 때 질문을 더 만든다 — 변별력 보강 단위와 적용 질문이 적은 항목을 우선 노리게."""
     catalog = catalog or criteria_catalog()
     parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가합니다. 결과는 JSON 하나로만 답합니다.\n\n"
              f"# 목표\n앞서 만든 질문 세트는 {have}개입니다. 목표 {target}개에 맞추려 질문 {count}개를 추가합니다(멀티턴 대화 1개 = 1개). "
-             f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(existing_topics[:30]) or '없음'})와 겹치지 않게 합니다. "
-             f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다.",
+             f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(t for t in existing_topics if t)[:4000] or '없음'})와 겹치지 않게 합니다. "
+             f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다."
+             + ("" if long_reference_ok else " 긴 참조 자료(long_reference)는 이미 다 만들어 이번에는 쓰지 않습니다."),
              _DISCRIMINATION, _FORMAT]
     weak = _weak_block(weak_units).strip()
     if weak:
@@ -375,6 +379,7 @@ class QuestionSetBuilder:
         self.count = token_count
         self.warnings: List[str] = []
         self.calls = 0
+        self.max_calls = MAX_CALLS
         self.long_references = 0
         self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
@@ -382,8 +387,8 @@ class QuestionSetBuilder:
         if self.cancelled():
             raise Cancelled("생성을 중단했습니다.")
         with self._calls_lock:   # 작업 전체 호출 상한 — 요청 전에 센다 (재시도는 gpt_llm 안에서 1회)
-            if self.calls >= MAX_CALLS:
-                raise GenerationError(f"GPT 호출이 작업 한도({MAX_CALLS}회)에 닿았습니다.")
+            if self.calls >= self.max_calls:
+                raise GenerationError(f"GPT 호출이 작업 한도({self.max_calls}회)에 닿았습니다.")
             self.calls += 1
         try:
             return self.llm(prompt, max_tokens)
@@ -471,8 +476,12 @@ class QuestionSetBuilder:
     def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = ()) -> Dict[str, Any]:
         """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가."""
         catalog = criteria_catalog()
+        if target_questions:   # 질문 하나에 계획·자료 호출이 몇 번씩 든다 — 수백 개를 지정해도 호출 상한에 먼저 막히지 않게
+            self.max_calls = max(MAX_CALLS, 2 * target_questions + 150)
         self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
-        raw = self._ask(plan_prompt(catalog, note, target_questions=target_questions, weak_units=weak_units), PLAN_TOKENS)
+        # 첫 계획은 PLAN_BATCH 개까지 — 모든 항목을 덮게 하고, 나머지는 아래 '질문 추가'가 PLAN_BATCH 개씩 채운다
+        first = min(target_questions, PLAN_BATCH) if target_questions else None
+        raw = self._ask(plan_prompt(catalog, note, target_questions=first, weak_units=weak_units), PLAN_TOKENS)
         self.out_dir.mkdir(parents=True, exist_ok=True)
         (self.out_dir / "plan.txt").write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문 — 실패해도 확인할 수 있게
         plans, warnings = parse_plan(raw)
@@ -520,14 +529,17 @@ class QuestionSetBuilder:
         if not groups:
             raise GenerationError("만든 질문이 없습니다: " + " / ".join(self.warnings[-3:]))
         extra_rounds = 0
-        if target_questions and len(groups) < target_questions:   # 목표 수 채우기 — 변별력 보강·적게 덮인 항목 우선 (1회)
-            count = target_questions - len(groups)
-            self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청", "count": count})
+        # 목표 수 채우기 — 변별력 보강·적게 덮인 항목 우선, 응답 하나에 PLAN_BATCH 개씩
+        while target_questions and len(groups) < target_questions and extra_rounds < MAX_EXTRA_ROUNDS:
+            count, before = min(PLAN_BATCH, target_questions - len(groups)), len(groups)
+            self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청 (지금 {len(groups)}개)", "count": count,
+                                    "done": len(groups)})
             try:
                 plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], catalog,
-                                                                    weak_units, _low_coverage(report), note=note), PLAN_TOKENS))
+                                                                    weak_units, _low_coverage(report), note=note,
+                                                                    long_reference_ok=self.long_references < MAX_LONG_REFERENCES), PLAN_TOKENS))
                 self.warnings += warnings
-                extra_rounds = 1
+                extra_rounds += 1
                 for plan in plans[:count]:
                     try:
                         groups.append(self.materialize(len(groups) + 1, plan))
@@ -539,7 +551,10 @@ class QuestionSetBuilder:
             except Cancelled:
                 raise
             except GenerationError as exc:
-                self.warnings.append(f"질문 추가: {exc}")
+                self.warnings.append(f"질문 추가 {extra_rounds + 1}회차: {exc}")
+                break
+            if len(groups) == before:   # 이번 회차에 하나도 못 만듦 — 같은 요청을 되풀이하지 않는다
+                break
         if target_questions and len(groups) != target_questions:
             self.warnings.append(f"목표 질문 수 {target_questions}개와 달리 {len(groups)}개를 만들었습니다"
                                  + (" (모든 항목을 덮는 데 더 필요했습니다)." if len(groups) > target_questions else "."))
