@@ -100,17 +100,20 @@ def seal_pasted(text: str) -> str:
         marker = _PASTE_END_LINE.search(text, start, end)
         if marker is None:
             continue
-        blocks = _fenced_code_blocks(text[start:marker.start()])
-        if not blocks or blocks[-1].get("closed", True):
-            continue
-        closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
         line_start = marker.start()
         line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        if line_end - line_start >= len(closer):
-            chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
-        else:   # 긴 펜스 — 여는 줄을 지워 펜스 자체를 없앤다 (줄바꿈은 둔다)
-            open_start = start + int(blocks[-1]["start"])
+        for _ in range(200):   # 여는 줄을 지우면 안쪽의 짧은 펜스가 새로 열릴 수 있다 — 닫힐 때까지 다시 읽는다 (Codex 리뷰)
+            blocks = _fenced_code_blocks("".join(chars[start:marker.start()]))
+            if not blocks or blocks[-1].get("closed", True):
+                break
+            closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
+            if line_end - line_start >= len(closer):
+                chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
+                break
+            open_start = start + int(blocks[-1]["start"])   # 긴 펜스 — 여는 줄을 지워 펜스 자체를 없앤다 (줄바꿈은 둔다)
             open_end = open_start + len(str(blocks[-1].get("opening") or "").rstrip("\r\n"))
+            if open_end <= open_start:
+                break
             chars[open_start:open_end] = [" "] * (open_end - open_start)
     return "".join(chars)
 

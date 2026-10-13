@@ -326,7 +326,7 @@ def resolve_jev_client(
             timeout=float(read("SEMANTIC_ANTHROPIC_TIMEOUT") or 180),
             max_output_tokens=int(read("SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS") or 12000),
             web_search=read("SEMANTIC_WEB_SEARCH") or "live",
-            max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 4),
+            max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 1),   # 질문당 검색 1회 (사용자 결정 2026-10-14: 비용)
             max_fetches=int(read("SEMANTIC_ANTHROPIC_MAX_FETCHES") or 8),
             max_continuations=int(read("SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS") or 2),
             prompt_cache=prompt_cache_setting(read("SEMANTIC_ANTHROPIC_PROMPT_CACHE")),

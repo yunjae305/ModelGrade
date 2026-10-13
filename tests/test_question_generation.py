@@ -146,6 +146,9 @@ def test_pasted_material_is_user_data_not_instructions():
     assert _input_scope({"scope": "input_consistency", "scope_quote": request}, {"question": question, "history": []}) is True
     unclosed = f"{PASTE_BEGIN}\n```python\nprint(1)\n가상 서버 설정. 코드를 작성해줘.\n{PASTE_END}\n\n답변 첫 줄에 {PASTE_BEGIN} 라는 문자열을 넣어줘. 정확히 두 문장으로 작성해줘."
     assert {r.kind for r in extract_conditions(unclosed).reqs} >= {"sentence_count"}   # 자료 속 미닫은 펜스·요청 속 표시 언급은 요청을 가리지 않는다
+    nested = "[붙여 넣은 자료]\n```````text\nsample\n```\n[자료 끝]\n\n답변을 정확히 두 문장으로 작성해줘.\n아래 배열을 오름차순으로 정렬해줘.\n[3, 1]"
+    nested_conditions = extract_conditions(nested)   # 긴 여는 펜스를 지워도 안쪽 짧은 펜스가 바깥 변환 원본을 가리지 않는다 (Codex 리뷰)
+    assert {r.kind for r in nested_conditions.reqs} >= {"sentence_count", "transform"} and nested_conditions.source_data is not None
     assert pasted_ranges("[붙여 넣은 자료]\n자료\n\n요청") == []   # 끝 표시 줄이 없으면 구간을 추측하지 않는다 (v1 세트는 변환)
     assert escape_paste_markers("a\n[자료 끝]\nb") == "a\n※ [자료 끝]\nb"   # 생성기는 자료 속 표시 줄을 표시로 읽히지 않게 한다
     bad = f"{PASTE_BEGIN}\n대한민국의 수도는 부산입니다. 이 주장의 진위를 확인해줘.\n{PASTE_END}\n\n자료와 무관하게 대한민국의 수도는 어디야?"

@@ -409,7 +409,7 @@ SEMANTIC_ANTHROPIC_EFFORT=medium
 SEMANTIC_ANTHROPIC_BASE=https://api.anthropic.com/v1
 SEMANTIC_ANTHROPIC_TIMEOUT=180
 SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS=12000
-SEMANTIC_ANTHROPIC_MAX_SEARCHES=4
+SEMANTIC_ANTHROPIC_MAX_SEARCHES=1
 SEMANTIC_ANTHROPIC_MAX_FETCHES=8
 SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS=2
 SEMANTIC_WEB_SEARCH=live
@@ -419,7 +419,7 @@ Claude Messages API에 `thinking.type=adaptive`, `output_config.effort=medium`�
 
 Sonnet 5.5는 `tool_choice=any/tool` 강제 호출을 지원하지 않아 기본 자동 선택을 사용합니다. 모델이 도구 대신 일반 텍스트로 종료한 경우에도, `end_turn`이고 실행 중인 도구·이전 client tool 제출이 없으며 **텍스트 전체가 원래 판정 스키마와 정확히 일치하는 단일 JSON**이면 추가 API 호출 없이 읽습니다. 중복 키·추가 필드·비유한 수·범위 밖 confidence·잘린 JSON·설명문에 섞인 JSON은 거부합니다. 유효한 JSON도 같은 웹 출처·자료 인용·이전 대화 검증을 통과해야 합니다. 출력 경로는 `verification.output_transport`의 `strict_tool` 또는 `validated_text_json`, 실행 조건은 `strict_submit_evaluation_tool_or_validated_text_json_v3`로 구분합니다. 이 보완은 단순 설명문이나 빠진 근거를 정상 판정으로 만들지 않습니다. [Sonnet 5.5 도구 선택 제약](https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5)
 
-오류 자동 재시도와 CLI 대체는 없습니다. 서버가 정상 `pause_turn`을 반환할 때만 동일한 응답 블록을 그대로 보내 최대 2회 이어갑니다. 처음 요청을 포함해 최대 3회이며 API 요청 전체 제한 시간과 문항별 검색 4회·원문 조회 8회 한도를 나누어 사용합니다. 응답 후 서버의 출처 본문 대조는 기존 수집 제한 시간을 별도로 적용합니다. 이어가기 중 검색·조회 예산이 소진되면 추가 호출 없이 미판정으로 남깁니다. 긴 원문은 임의로 축약하지 않으며, Ctrl+C 취소 신호로 진행 중 HTTP를 중단할 수 있습니다. 원격 제공자의 이미 발생한 사용량까지 취소되는 것은 아닙니다.
+오류 자동 재시도와 CLI 대체는 없습니다. 서버가 정상 `pause_turn`을 반환할 때만 동일한 응답 블록을 그대로 보내 최대 2회 이어갑니다. 처음 요청을 포함해 최대 3회이며 API 요청 전체 제한 시간과 문항별 검색 1회(2026-10-14, 비용 — 검색 평가 1건이 검색 없는 평가의 12배 토큰)·원문 조회 8회 한도를 나누어 사용합니다. 응답 후 서버의 출처 본문 대조는 기존 수집 제한 시간을 별도로 적용합니다. 이어가기 중 검색·조회 예산이 소진되면 추가 호출 없이 미판정으로 남깁니다. 긴 원문은 임의로 축약하지 않으며, Ctrl+C 취소 신호로 진행 중 HTTP를 중단할 수 있습니다. 원격 제공자의 이미 발생한 사용량까지 취소되는 것은 아닙니다.
 
 Claude API 평가 비용은 수집 비용과 분리해 터미널에만 표시합니다. 응답별 토큰·캐시 기간·검색 횟수·서비스 등급·추론 지역을 사용하며, 사용량이 없는 실패나 취소 요청은 미확인으로 남깁니다. 설정 변경 후 서버를 다시 실행하면 새 평가에 적용됩니다. 이미 저장된 판정이나 평가자 설정은 소급 변경하지 않습니다.
 
