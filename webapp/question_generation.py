@@ -43,6 +43,11 @@ MATERIAL_TOKENS = 32_000      # 긴 자료 한 조각의 최대 출력 토큰 (�
 CHUNK_CHARS = 10_000          # 긴 자료 한 조각에 요청하는 글자 수 (한국어 약 0.72토큰/자)
 PASTE_CHARS = 15_000          # J6 턴마다 붙여 넣을 자료 글자 수 (약 10.8K 토큰)
 SUPPLEMENT_ROUNDS = 2
+# 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게
+MAX_PLAN_QUESTIONS = 40
+MAX_PLAN_TURNS = 15
+MAX_LONG_REFERENCES = 2
+MAX_CALLS = 250
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = 8
 MAX_ATTACHMENT_CHARS = 4_000
@@ -222,17 +227,23 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
     known = known_ids if known_ids is not None else {c["id"] for c in criteria_catalog()["code"]} | {i.id for i in ITEMS}
     questions, warnings = [], []
     for index, entry in enumerate(raw, 1):
+        if len(questions) >= MAX_PLAN_QUESTIONS:   # 비용 상한 — 계획이 지나치게 크면 앞에서부터만 쓴다
+            warnings.append(f"질문이 {MAX_PLAN_QUESTIONS}개를 넘어 {index}번부터는 뺐습니다.")
+            break
         if not isinstance(entry, dict) or not isinstance(entry.get("turns"), list) or not entry["turns"]:
             warnings.append(f"{index}번 질문: turns 가 없어 뺐습니다.")
             continue
         turns = []
-        for t_index, turn in enumerate(entry["turns"], 1):
+        for t_index, turn in enumerate(entry["turns"][:MAX_PLAN_TURNS], 1):
             question = turn.get("question") if isinstance(turn, dict) else None
             if not isinstance(question, str) or not question.strip():
                 warnings.append(f"{index}번 질문 {t_index}턴: question 이 비어 뺐습니다.")
                 continue
             clean: Dict[str, Any] = {"question": question.strip()}
-            files = [a for a in turn.get("attachments") or [] if isinstance(a, dict)]
+            raw_files = turn.get("attachments")
+            if raw_files is not None and not isinstance(raw_files, list):
+                warnings.append(f"{index}번 질문 {t_index}턴: attachments 가 목록이 아니라 뺐습니다.")
+            files = [a for a in raw_files if isinstance(a, dict)] if isinstance(raw_files, list) else []
             if files:
                 clean["attachments"] = files
             for key in ("long_reference", "long_paste"):
@@ -241,7 +252,8 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
             turns.append(clean)
         if not turns:
             continue
-        targets = [str(x) for x in entry.get("target_items") or [] if str(x) in known]
+        raw_targets = entry.get("target_items")
+        targets = [str(x) for x in raw_targets if str(x) in known] if isinstance(raw_targets, list) else []
         questions.append({"type": str(entry.get("type") or ""), "topic": str(entry.get("topic") or ""), "target_items": targets, "turns": turns})
     if not questions:
         raise GenerationError("GPT 응답에 쓸 수 있는 질문이 없습니다.")
@@ -261,12 +273,15 @@ class QuestionSetBuilder:
         self.count = token_count
         self.warnings: List[str] = []
         self.calls = 0
+        self.long_references = 0
         self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
     def _ask(self, prompt: str, max_tokens: int, partial_ok: bool = False) -> str:
         if self.cancelled():
             raise Cancelled("생성을 중단했습니다.")
-        with self._calls_lock:
+        with self._calls_lock:   # 작업 전체 호출 상한 — 요청 전에 센다 (재시도는 gpt_llm 안에서 1회)
+            if self.calls >= MAX_CALLS:
+                raise GenerationError(f"GPT 호출이 작업 한도({MAX_CALLS}회)에 닿았습니다.")
             self.calls += 1
         try:
             return self.llm(prompt, max_tokens)
@@ -279,7 +294,18 @@ class QuestionSetBuilder:
     def long_reference(self, spec: Dict[str, Any]) -> str:
         """J7 — 입력이 MIN_TOKENS 이상이 되도록 조각을 나눠 쓰게 하고, 사실 문장을 정한 위치(0~1)에 넣는다."""
         topic = str(spec.get("topic") or "업무 자료")
-        facts = sorted(((float(f.get("position", 0.5)), str(f.get("text") or "").strip()) for f in spec.get("facts") or []
+        with self._calls_lock:   # 비용 상한 — 긴 참조 자료(조각 수십 회 호출)는 질문 세트마다 MAX_LONG_REFERENCES 개까지
+            if self.long_references >= MAX_LONG_REFERENCES:
+                raise GenerationError(f"긴 참조 자료는 {MAX_LONG_REFERENCES}개까지만 만듭니다.")
+            self.long_references += 1
+
+        def position(value: Any) -> float:
+            try:
+                return min(max(float(value), 0.0), 1.0)
+            except (TypeError, ValueError):
+                return 0.5
+        raw_facts = spec.get("facts") if isinstance(spec.get("facts"), list) else []
+        facts = sorted(((position(f.get("position", 0.5)), str(f.get("text") or "").strip()) for f in raw_facts
                         if isinstance(f, dict) and str(f.get("text") or "").strip()), key=lambda x: x[0])
         target = int(long_context.MIN_TOKENS * 1.03)
         parts = max(1, math.ceil(target / (CHUNK_CHARS * 0.7)))
@@ -373,6 +399,8 @@ class QuestionSetBuilder:
             try:
                 plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types),
                                                        PLAN_TOKENS))
+            except Cancelled:
+                raise
             except GenerationError as exc:
                 self.warnings.append(f"보충 {rounds}회차: {exc}")
                 break
@@ -467,8 +495,14 @@ class QuestionSetService:
                    "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
-        self._save(job)
-        threading.Thread(target=self._run, args=(set_id, config, note), daemon=True).start()
+        try:
+            self._save(job)
+            threading.Thread(target=self._run, args=(set_id, config, note), daemon=True).start()
+        except Exception:   # 저장·시작에 실패하면 등록을 되돌린다 — 남겨 두면 다음 생성이 계속 '만드는 중'으로 막힌다
+            with self._lock:
+                self._jobs.pop(set_id, None)
+                self._cancel.pop(set_id, None)
+            raise
         return self.status(set_id)
 
     def _run(self, set_id: str, config: Dict[str, Any], note: str) -> None:
@@ -482,6 +516,8 @@ class QuestionSetService:
         try:
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)
             result = builder.build(note)
+            if cancel.is_set():   # 마지막 단계에서 취소했으면 완료로 남기지 않는다
+                raise Cancelled("생성을 중단했습니다.")
             groups, report = result["groups"], result["check"]
             (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
             with self._lock:
@@ -532,7 +568,14 @@ class QuestionSetService:
         path = self._path(set_id) / "set.json"
         if not path.is_file():
             raise FileNotFoundError(set_id)
-        return json.loads(path.read_text(encoding="utf-8"))
+        job = json.loads(path.read_text(encoding="utf-8"))
+        if job.get("status") == "RUNNING":   # 이 서버가 돌리는 작업이 아님 — 서버가 다시 시작돼 끊긴 작업
+            job.update(status="ERROR", error="서버가 다시 시작돼 생성이 중단됐습니다.")
+            try:
+                self._save(job)
+            except OSError:
+                pass
+        return job
 
     def list(self) -> List[Dict[str, Any]]:
         sets = []

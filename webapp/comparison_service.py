@@ -1840,7 +1840,7 @@ class ComparisonService:
             stage("aiona", "COLLECTING")
             with tempfile.TemporaryDirectory(prefix="aiona-files-") as temp:
                 try:
-                    with AionaChat() as chat:
+                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug") as chat:
                         for chain in chains:
                             broken = False
                             chat.new_chat()

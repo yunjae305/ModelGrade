@@ -305,7 +305,12 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
 
     data = _answer_data_evidence(answer) if answer else None
     has_reference = reference is not None and reference != "" and reference != {} and reference != []
-    if has_reference:
+    files = attachment_labels(attachments)
+    if files and not has_reference:   # 첨부 내용도 사용자가 준 자료 — 답변이 옮긴 값이 첨부와 맞는지 J5 가 본다 (J8 경계)
+        evidence["J5"] = {"rules": ["첨부파일"] + (data["rules"] if data else []), "matches": files + (data["matches"] if data else []),
+                          "excerpt": "첨부 " + " · ".join(files), "look_for": "답변이 첨부 내용의 값을 바꾸지 않고 옮겼는지",
+                          "source": "attachment"}
+    elif has_reference:
         evidence["J5"] = {"rules": ["참조 데이터"] + (data["rules"] if data else []),
                           "matches": ["reference"] + (data["matches"] if data else []),
                           "excerpt": _reference_excerpt(reference),
@@ -403,7 +408,7 @@ def fact_question(question: str, history: Any = None) -> Tuple[bool, str, List[T
 
 
 def j5_items_applicability(question: str, answer: Optional[str] = None, *, answer_tools: str = "unknown",
-                           reference: Any = None, history: Any = None) -> Dict[str, Any]:
+                           reference: Any = None, history: Any = None, attachments: Any = None) -> Dict[str, Any]:
     """items 파이프라인의 J5 세부 기준 적용 — {"version", "subs": {"J5-1", "J5-2", "J5-3": {...}}, "criteria_applies"}.
 
     J5-1·J5-2 는 질문(과 앞 턴 사용자 질문의 가상 설정)만 보고 정한다(네 모델의 분모가 같다). J5-3.a 는 답변에서 생긴
@@ -438,9 +443,10 @@ def j5_items_applicability(question: str, answer: Optional[str] = None, *, answe
     values = [v for v in values if not any(v != other and v in other for other in values)][:8]
     summarize = bool(_SUMMARY.search(question) and _MATERIAL.search(question))
     has_reference = reference is not None and reference != "" and reference != {} and reference != []
+    files = attachment_labels(attachments)   # 첨부에만 값이 있어도 그 값을 옮긴 답변을 본다 (Codex 리뷰)
     items2: List[str] = []
     rules2: List[str] = []
-    if values or has_reference:
+    if values or has_reference or files:
         items2.append("J5-2.a")
         rules2.extend(value_rules)
     if summarize:
@@ -448,9 +454,11 @@ def j5_items_applicability(question: str, answer: Optional[str] = None, *, answe
         rules2.append("자료 정리·요약")
     if has_reference:
         rules2.insert(0, "참조 데이터")
+    if files:
+        rules2.insert(0, "첨부파일")
     if items2:
-        subs["J5-2"] = {"items": items2, "source": "reference" if has_reference else "question", "rules": rules2,
-                        "matches": (["reference"] if has_reference else []) + values,
+        subs["J5-2"] = {"items": items2, "source": "reference" if has_reference else "attachment" if files and not values else "question",
+                        "rules": rules2, "matches": (["reference"] if has_reference else []) + files + values,
                         "excerpt": _reference_excerpt(reference) if has_reference else _clip(question, 0, min(len(question), 60), 0)}
     else:
         reason2 = "질문이 준 값·정리할 자료 없음"
@@ -551,7 +559,7 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
                 subs[sid] = {"items": [], "rules": [], "matches": [], "excerpt": None, "source": "question",
                              "reason": SUB_NOT_APPLICABLE[sid]}
         # J5·J6 는 아래에서 채운다
-    j5 = j5_items_applicability(question, answer, answer_tools=answer_tools, reference=reference, history=history)
+    j5 = j5_items_applicability(question, answer, answer_tools=answer_tools, reference=reference, history=history, attachments=attachments)
     for sid in ("J5-1", "J5-2", "J5-3"):
         subs[sid] = dict(j5["subs"][sid])
     # J6: legacy 대화 판정 재사용 — 2번째 턴부터, 앞 턴 이력이 완전할 때만

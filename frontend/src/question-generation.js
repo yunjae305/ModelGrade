@@ -7,7 +7,7 @@
   if (!W || !$('question-set-panel')) return;
   const {api, node} = W;
   const STATUS = {RUNNING: ['만드는 중', 'warning'], COMPLETED: ['완료', 'success'], ERROR: ['실패', 'danger'], CANCELLED: ['중단', 'neutral']};
-  let current = null, timer = null;
+  let current = null, timer = null, touched = false;   // touched: 사용자가 시작·수집을 누른 뒤에는 늦게 온 첫 목록 응답을 쓰지 않는다
 
   function showError(message) {
     const box = $('question-set-error');
@@ -86,6 +86,7 @@
     if (!window.confirm('GPT 호출이 발생합니다(질문 계획 1회 + 긴 자료 수십 회 + 보충 최대 2회)'
       + (chained ? '. 다 만든 뒤 AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가까지 이어서 진행합니다' : '') + '. 시작할까요?')) return;
     showError('');
+    touched = true;
     try {
       render(await api('/api/comparison/question-sets', {note: $('question-set-note').value, auto_run: $('question-set-auto-run').checked}));
       poll();
@@ -109,5 +110,5 @@
 
   $('question-set-start').addEventListener('click', start);
   $('question-set-cancel').addEventListener('click', cancel);
-  api('/api/comparison/question-sets').then((sets) => { render(sets[0] || null); poll(); }).catch(() => render(null));
+  api('/api/comparison/question-sets').then((sets) => { if (!touched) { render(sets[0] || null); poll(); } }).catch(() => { if (!touched) render(null); });
 })();

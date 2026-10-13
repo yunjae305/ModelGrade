@@ -156,5 +156,6 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
         out = _read(provider, raw)
     except _Failure as exc:
         return {**base, "answer": "", "status": "ERROR", "error": str(exc)}
-    ok = out.pop("complete") and bool(out["answer"].strip())
+    # 정상 종료면 빈 답도 성공 — '아무것도 출력하지 마' 요청에 지시대로 빈 답을 낸 경우 (실제 수집에서 확인)
+    ok = out.pop("complete")
     return {**base, **out, "status": "SUCCESS" if ok else "INCOMPLETE", "error": None if ok else f"응답 미완료 ({out['finish_reason']})"}

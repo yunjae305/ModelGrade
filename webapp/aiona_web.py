@@ -67,8 +67,10 @@ class AionaChat:
             out = chat.ask("질문", files=[Path(...)])
     """
 
-    def __init__(self, *, headless: bool = True, allow_login: bool = True, answer_timeout_s: int = 600, profile: Path = PROFILE):
+    def __init__(self, *, headless: bool = True, allow_login: bool = True, answer_timeout_s: int = 600, profile: Path = PROFILE,
+                 debug_dir: Optional[Path] = None):
         self.headless, self.allow_login, self.answer_timeout_s, self.profile = headless, allow_login, answer_timeout_s, profile
+        self.debug_dir = debug_dir   # 실패·미완료 때 그 순간 화면을 남길 곳 (원인 확인용)
         self._playwright = self._context = self.page = None
         self._temp = tempfile.TemporaryDirectory(prefix="aiona-ref-")
 
@@ -100,6 +102,18 @@ class AionaChat:
             raise AionaWebError("AIONA 로그인이 풀렸습니다. 'python tools/web_chat_login.py aiona --auto' 로 다시 로그인해 주세요.")
         login(self.page, *credentials())
         self.page.goto(f"{AIONA_URL}/chat", wait_until="domcontentloaded")
+
+    def _snapshot(self, label: str) -> Optional[str]:
+        """실패 순간의 화면 캡처 경로 (debug_dir 이 없으면 남기지 않음)."""
+        if self.debug_dir is None:
+            return None
+        try:
+            self.debug_dir.mkdir(parents=True, exist_ok=True)
+            path = self.debug_dir / f"{time.strftime('%Y%m%dT%H%M%S')}-{label}.png"
+            self.page.screenshot(path=str(path))
+            return path.name
+        except Exception:
+            return None
 
     def _dismiss_popups(self) -> None:
         for label in _POPUPS:
@@ -159,9 +173,10 @@ class AionaChat:
             send.click()
         except Exception as exc:
             return {"answer": "", "status": "ERROR", "error": f"질문을 보내지 못했습니다: {type(exc).__name__}", "url": self.page.url,
-                    "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION}
+                    "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION,
+                    "debug_screenshot": self._snapshot("send-failed")}
         deadline = time.monotonic() + self.answer_timeout_s
-        last, stable = None, 0
+        last, stable, empty = None, 0, 0
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)
             self._dismiss_popups()
@@ -170,13 +185,15 @@ class AionaChat:
             idle = self.page.locator("button[type=submit][title='전송']").count() > 0   # 답하는 동안은 정지 버튼
             html = self._last_answer_html()
             stable = stable + 1 if html and html == last and idle else 0
+            empty = empty + 1 if not html and idle else 0   # 빈 답변('아무것도 출력하지 마') — 말풍선은 생기고 본문이 없다
             last = html
-            if stable >= 2:
+            if stable >= 2 or empty >= 4:
                 break
         converted = html_to_markdown(last or "")
         answer = converted["markdown"]
-        done = stable >= 2 and bool(answer.strip())
+        done = (stable >= 2 and bool(answer.strip())) or (empty >= 4 and not answer.strip())
         return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE",
+                **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,
                 "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
                 "conversion": [q for q in converted.get("quality") or [] if q.get("severity") != "info"]}
