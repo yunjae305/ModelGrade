@@ -28,10 +28,12 @@ if str(ROOT) not in sys.path:
 
 from code_eval.common_adjudication import resolved_case  # noqa: E402
 from code_eval.cost_reporting import estimate  # noqa: E402
-from webapp.run_summary import question_units  # noqa: E402
+from webapp.run_summary import question_outcomes, question_units, unit_outcome  # noqa: E402
 
 STUDY_VERSION = "sample-size-study-v1"
 SIZES = (5, 10, 20, 30, 50, 100)
+QUESTION_SIZES = (10, 20, 30, 50, 100)   # 4차 P1-8 — 간편·정밀 검사 후보를 질문 단위 표본으로 본다
+QUICK_ORDER_KEPT, QUICK_COVERAGE, PRECISE_WIDTH = 0.8, 0.95, 0.10   # 간편: 순위 80%·기준 출현 95% · 정밀: 통과율 95% 폭 10%p 이하
 CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7")
 GOLD_VALUES = ("PASS", "FAIL", "UNVERIFIABLE", "NOT_APPLICABLE")   # NOT_APPLICABLE(적용 제외)는 일치율에서 빼고 따로 센다
 Z95, Z80 = 1.959964, 0.841621
@@ -182,7 +184,8 @@ def study(run: Dict[str, Any], gold: Optional[Dict[Tuple[str, str, str], str]] =
     turns_per_unit = {key: len(indexes) for key, indexes in units}
     report: Dict[str, Any] = {"version": STUDY_VERSION, "run_id": run.get("run_id"), "pipeline": (run.get("evaluation_execution") or {}).get("pipeline"),
                               "systems": systems, "units_total": len(units), "sizes": list(sizes), "draws": draws, "seed": seed,
-                              "gold_labels": len(gold), "judge_cost": costs, "criteria": {}}
+                              "gold_labels": len(gold), "judge_cost": costs, "criteria": {},
+                              "question_level": question_level(run, draws=draws, seed=seed, gold_labels=len(gold))}
     for cid in CRITERIA:
         per_system: Dict[str, Dict[str, str]] = {}
         gold_units: Dict[str, Dict[str, str]] = {}
@@ -245,6 +248,97 @@ def study(run: Dict[str, Any], gold: Optional[Dict[Tuple[str, str, str], str]] =
     return report
 
 
+def _latency(run: Dict[str, Any]) -> Dict[str, Any]:
+    """답변 하나의 의미 평가·수집 소요 시간(ms, 저장 기록의 중앙값) — 기록이 없으면 None."""
+    judge = [float(r["latency_ms"]) for b in (run.get("evaluations") or {}).values() for r in (((b or {}).get("jev_eval") or {}).get("records") or [])
+             if isinstance(r, dict) and isinstance(r.get("latency_ms"), (int, float))]
+    collect = [float(row["collection"]["latency_ms"]) for rows in (run.get("datasets") or {}).values() for row in rows or []
+               if isinstance(row, dict) and isinstance(row.get("collection"), dict) and isinstance(row["collection"].get("latency_ms"), (int, float))]
+    return {"judge_ms_median": round(_percentile(judge, .5)) if judge else None,
+            "collection_ms_median": round(_percentile(collect, .5)) if collect else None,
+            "workers_per_system": int(((run.get("evaluation_execution") or {}).get("semantic_workers_per_model") or 4))}
+
+
+def question_level(run: Dict[str, Any], sizes: Iterable[int] = QUESTION_SIZES, draws: int = 2000, seed: int = 0,
+                   gold_labels: int = 0) -> Dict[str, Any]:
+    """질문 단위로 n 개를 뽑았을 때 (한 질문에 여러 기준이 겹쳐 적용된다) — 기준별 적용 단위 수와 0개일 확률, 시스템 전체 질문 통과율의
+    95% 변동 폭, 전체에서 차이 나던 시스템 쌍의 순서 유지, 앞 크기 대비 정보 증가(폭 감소·새로 나타나는 기준), 심판 비용·소요 시간.
+    가용 단위보다 큰 n 은 '데이터 부족'으로 두고 외삽하지 않는다. 가용 단위의 절반을 넘는 n 은 같은 단위가 겹쳐 폭이 작게 나와
+    정밀 후보 판단에서 뺀다. 사람 정답이 없으면 일치율은 '미측정'."""
+    units, verdicts, _ = unit_table(run)
+    systems = sorted(verdicts)
+    total = max([len(rows) for rows in verdicts.values()] or [0])
+    outcomes = {s: question_outcomes((run.get("evaluations") or {}).get(s), total) for s in systems}
+    unit_result = {s: {key: unit_outcome([outcomes[s][i]["outcome"] for i in idx if i < len(outcomes[s])]) for key, idx in units} for s in systems}
+    applied = {cid: {key for key, idx in units if any(i < len(verdicts[s]) and cid in verdicts[s][i] for s in systems for i in idx)}
+               for cid in CRITERIA}
+    keys = [key for key, _ in units]
+    decided = {s: [k for k in keys if unit_result[s][k] in ("PASS", "FAIL")] for s in systems}
+    full = {s: (sum(unit_result[s][k] == "PASS" for k in decided[s]) / len(decided[s])) if decided[s] else None for s in systems}
+    pairs = [(a, b) for i, a in enumerate(systems) for b in systems[i + 1:]
+             if full.get(a) is not None and full.get(b) is not None and full[a] != full[b]]
+    costs, latency = judge_costs(run), _latency(run)
+    turns = sum(len(idx) for _, idx in units) / len(units) if units else 0
+    rng = random.Random(f"{seed}:questions")
+    orders = [rng.sample(keys, len(keys)) for _ in range(draws)] if keys else []
+    report: Dict[str, Any] = {"units_total": len(units), "turns_per_unit": round(turns, 2), "systems": systems,
+                              "applicability_rate": {cid: round(len(applied[cid]) / len(units), 4) if units else None for cid in CRITERIA},
+                              "full_pass_rate": {s: round(r, 4) if r is not None else None for s, r in full.items()},
+                              "differing_pairs": len(pairs), "gold_agreement": "미측정" if not gold_labels else "기준별 표의 일치율 참고",
+                              "latency": latency, "sizes": {}}
+    previous = None
+    for n in sizes:
+        if n > len(keys):
+            report["sizes"][str(n)] = {"status": "insufficient", "available": len(keys)}
+            continue
+        counts = {cid: [] for cid in CRITERIA}
+        rates, kept = [], []
+        for order in orders:
+            sample = order[:n]
+            chosen = set(sample)
+            for cid in CRITERIA:
+                counts[cid].append(len(applied[cid] & chosen))
+            r = {}
+            for system in systems:
+                judged = [k for k in sample if unit_result[system][k] in ("PASS", "FAIL")]
+                r[system] = sum(unit_result[system][k] == "PASS" for k in judged) / len(judged) if judged else None
+            rates.append(r)
+            usable = [(a, b) for a, b in pairs if r[a] is not None and r[b] is not None]
+            if usable:
+                kept.append(sum((r[a] - r[b]) * (full[a] - full[b]) > 0 for a, b in usable) / len(usable))
+        widths = {s: round(_percentile([x[s] for x in rates if x[s] is not None], .975) - _percentile([x[s] for x in rates if x[s] is not None], .025), 4)
+                  for s in systems if any(x[s] is not None for x in rates)}
+        coverage = {cid: round(sum(c > 0 for c in counts[cid]) / len(counts[cid]), 4) for cid in CRITERIA if applied[cid]}
+        row = {"status": "ok", "pool_dominated": n > len(keys) / 2,
+               "applied_units_mean": {cid: round(sum(counts[cid]) / len(counts[cid]), 2) for cid in CRITERIA},
+               "criterion_present": coverage,
+               "pass_rate_95_width": widths, "max_width": max(widths.values()) if widths else None,
+               "order_kept": round(sum(kept) / len(kept), 4) if kept else None,
+               "judge_cost_usd": round(costs["usd_per_answer"] * n * turns * len(systems), 2) if costs["usd_per_answer"] else None,
+               "judge_minutes": (round(latency["judge_ms_median"] * n * turns / latency["workers_per_system"] / 60000, 1)
+                                 if latency["judge_ms_median"] else None)}
+        if previous:   # 질문을 늘려 얻는 것 — 폭이 얼마나 줄었나, 새로 '늘 나타나는' 기준이 생겼나
+            row["gain"] = {"max_width_drop": (round(previous["max_width"] - row["max_width"], 4)
+                                              if previous.get("max_width") is not None and row["max_width"] is not None else None),
+                           "criteria_now_reliable": sorted(c for c, v in coverage.items() if v >= QUICK_COVERAGE
+                                                           and previous["criterion_present"].get(c, 0) < QUICK_COVERAGE)}
+        report["sizes"][str(n)] = row
+        previous = row
+    common = [c for c, rate in report["applicability_rate"].items() if rate and rate >= 0.10]
+    quick = next((int(n) for n, row in report["sizes"].items() if row.get("status") == "ok" and not row["pool_dominated"]
+                  and (row.get("order_kept") or 0) >= QUICK_ORDER_KEPT
+                  and all(row["criterion_present"].get(c, 0) >= QUICK_COVERAGE for c in common)), None)
+    precise = next((int(n) for n, row in report["sizes"].items() if row.get("status") == "ok" and not row["pool_dominated"]
+                    and row.get("max_width") is not None and row["max_width"] <= PRECISE_WIDTH), None)
+    report["proposal"] = {
+        "quick": quick, "precise": precise,
+        "rule": (f"간편 = 순위 유지 {QUICK_ORDER_KEPT:.0%} 이상이면서 적용률 10% 이상 기준이 표본 {QUICK_COVERAGE:.0%} 에 나타나는 가장 작은 n · "
+                 f"정밀 = 질문 통과율 95% 변동 폭 {PRECISE_WIDTH:.0%}p 이하인 가장 작은 n — 둘 다 가용 단위 절반 이하 표본만 (넘으면 같은 질문이 겹쳐 안정성이 부풀려진다)"),
+        "note": ("가용 단위 안에서만 판단한다 — 후보가 없으면 '현재 데이터로 결정 불가'이며 더 큰 질문 세트가 필요하다."
+                 + ("" if gold_labels else " 사람 정답이 없어 판정 정확도 기준은 반영하지 못했다 (일치율 미측정)."))}
+    return report
+
+
 def _gold_rows(per_system, gold_units, orders, n, systems) -> Dict[str, Any]:
     """정답이 붙은 단위만으로 일치율·오류 유형 — 같은 무작위 순서에서 정답 단위 앞 n 개."""
     agreement, false_fail, missed_fail, unverifiable_as_fail, used = [], 0, 0, 0, []
@@ -297,6 +391,33 @@ def render(report: Dict[str, Any]) -> str:
                          + (f" · 시스템당 심판 비용 ≈${row['judge_cost_usd_per_system']}" if row["judge_cost_usd_per_system"] is not None else "") + gold_text)
         detect = entry["detect_units_per_system"]
         lines.append("    차이 검출(독립 표본 근사, α .05·검정력 .8): " + ", ".join(f"{float(d):.0%}p → {v if v else '-'}개" for d, v in detect.items()))
+    q = report.get("question_level")
+    if q:
+        lat = q["latency"]
+        lines += ["", f"[질문 단위 표본] 질문을 n 개 뽑으면 여러 기준이 함께 따라온다 — 독립 단위 {q['units_total']}개 · 단위당 턴 {q['turns_per_unit']} · "
+                  f"사람 정답 일치율 {q['gold_agreement']}",
+                  "    기준별 적용률(단위 중 적용 비율): " + ", ".join(f"{c} {r:.0%}" for c, r in q["applicability_rate"].items() if r is not None),
+                  "    전체 질문 통과율: " + ", ".join(f"{s} {r:.0%}" for s, r in q["full_pass_rate"].items() if r is not None)
+                  + f" · 차이 나는 시스템 쌍 {q['differing_pairs']}개",
+                  f"    소요 시간 근거: 의미 평가 답변당 중앙값 {lat['judge_ms_median']}ms · 수집 답변당 {lat['collection_ms_median']}ms · 시스템당 동시 {lat['workers_per_system']}"
+                  " (평가 분은 시스템끼리 병렬이라고 보고 한 시스템 기준으로 셈 · 심판 비용은 모든 시스템 합)"]
+        for n, row in q["sizes"].items():
+            if row["status"] != "ok":
+                lines.append(f"    n={n:>3}: 데이터 부족 (단위 {row['available']}개) — 외삽하지 않음")
+                continue
+            missing = [c for c, v in row["criterion_present"].items() if v < QUICK_COVERAGE]
+            gain = row.get("gain") or {}
+            lines.append(f"    n={n:>3}: 통과율 폭 최대 {row['max_width']:.0%}" + (" (가용 단위 절반 초과 — 폭 과소추정)" if row["pool_dominated"] else "")
+                         + (f" · 순서 {row['order_kept']:.0%}" if row["order_kept"] is not None else " · 순서 비교 없음")
+                         + " · 적용 단위 평균 " + ", ".join(f"{c} {v}" for c, v in row["applied_units_mean"].items() if v)
+                         + (f" · 표본 {QUICK_COVERAGE:.0%}에 안 나타나는 기준 {'·'.join(missing)}" if missing else "")
+                         + (f" · 심판 ≈${row['judge_cost_usd']}" if row["judge_cost_usd"] is not None else "")
+                         + (f" · 평가 ≈{row['judge_minutes']}분" if row["judge_minutes"] is not None else "")
+                         + (f" · 앞 크기 대비 폭 -{gain['max_width_drop']:.0%}" if gain.get("max_width_drop") is not None else "")
+                         + (f" · 새로 늘 나타나는 기준 {'·'.join(gain['criteria_now_reliable'])}" if gain.get("criteria_now_reliable") else ""))
+        prop = q["proposal"]
+        lines += [f"    제안: 간편 {prop['quick'] or '현재 데이터로 결정 불가'} · 정밀 {prop['precise'] or '현재 데이터로 결정 불가'}",
+                  f"    규칙: {prop['rule']}", f"    주의: {prop['note']}"]
     return "\n".join(lines)
 
 
