@@ -48,6 +48,38 @@ def question_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, 
             "code_complete": code_complete, "semantic_complete": semantic_complete}
 
 
+#: 검증 한계 FAIL — 답변 결함을 확인한 것이 아니라 근거·원문을 확인하지 못해 정책상 FAIL 로 둔 것 (J5 근거 부족·원문 확인 실패·검색 한도,
+#: items 재확인 3회 뒤 확인 불가). 출처 접근 불가(citation_inaccessible)는 사용자 결정(evidence-v3.14)대로 답변 결함으로 본다.
+LIMIT_J5_CODES = frozenset({"source_unavailable", "insufficient_evidence", "search_limit_reached"})
+LIMIT_REASON_CODES = frozenset({"EVALUATION_EVIDENCE_INSUFFICIENT", "SOURCE_ORIGINAL_UNAVAILABLE", "FACT_UNVERIFIABLE", "ITEM_UNVERIFIABLE"})
+
+
+def verification_limited_decision(decision: Any) -> bool:
+    """기준 판정 하나가 검증 한계로만 FAIL 인가 — workspace-results.js verificationLimited 와 같은 규칙."""
+    if not isinstance(decision, dict) or decision.get("decision") != "FAIL":
+        return False
+    outcome = decision.get("j5_outcome") if isinstance(decision.get("j5_outcome"), dict) else {}
+    if outcome.get("factual_error_confirmed"):
+        return False
+    if outcome.get("code") in LIMIT_J5_CODES or decision.get("reason_code") in LIMIT_REASON_CODES:
+        return True
+    if (decision.get("decision_policy") or {}).get("outcome_basis") in ("evidence_requirement", "source_verification_requirement"):
+        return True
+    failed = [item for sub in (decision.get("subs") or {}).values() if isinstance(sub, dict)
+              for item in sub.get("items") or [] if isinstance(item, dict) and item.get("decision") == "NO"]
+    return bool(failed) and all(item.get("unverifiable") for item in failed)
+
+
+def verification_limited(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]) -> bool:
+    """질문 FAIL 이 검증 한계로만 생겼는가 — CODE FAIL 이 없고, FAIL 인 의미 기준이 모두 검증 한계."""
+    outcome = question_outcome(case, record)
+    common_fail = (((case or {}).get("summary") or {}).get("common") or {}).get("fail", 0)
+    if outcome["outcome"] != "FAIL" or outcome["code_fails"] or common_fail or not outcome["semantic_fails"]:
+        return False
+    decisions = (record or {}).get("decisions") or {}
+    return all(verification_limited_decision(decisions.get(cid)) for cid in outcome["semantic_fails"])
+
+
 def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = None) -> List[Dict[str, Any]]:
     """배치(provider 하나)의 질문별 최종 판정 목록 (index 순). 결과가 없는 index 는 PENDING."""
     batch = batch if isinstance(batch, dict) else {}

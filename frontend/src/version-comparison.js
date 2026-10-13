@@ -9,6 +9,8 @@
   const labels = {
     improved: '개선 · FAIL → PASS', regressed: '악화 · PASS → FAIL',
     passMaintained: 'PASS 유지', failMaintained: 'FAIL 유지', pending: '평가 미완료',
+    // 검증 한계(근거·원문 미확인 정책 FAIL)로만 바뀐 문항 — 성능 변화로 세지 않는다 (서버 version_comparison 의 limited_* 와 같음)
+    limitedRegressed: '검증 한계로 FAIL · 악화 아님', limitedImproved: '검증 한계 해소 · 개선 아님',
     unverified: '조건이 달라 변화 확정 불가'
   };
   const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -134,7 +136,9 @@
 
   function compactState(run, index) {
     const state = results.caseState(run, 'aiona', index);
-    return {outcome: state.outcome, text: state.text, detail: state.detail, complete: state.complete};
+    const batch = run?.evaluations?.aiona, record = batch?.jev_eval?.records?.[index];
+    const limited = state.outcome === 'issue' && results.limitedOnly(results.resolvedCase(batch?.cases?.[index], record), record);
+    return {outcome: state.outcome, text: state.text, detail: state.detail, complete: state.complete, limited};
   }
 
   function aligned(run, entry) {
@@ -181,8 +185,8 @@
 
   function observedChange(a, b) {
     if (!a.complete || !b.complete) return 'pending';
-    if (a.outcome === 'issue' && b.outcome === 'clear') return 'improved';
-    if (a.outcome === 'clear' && b.outcome === 'issue') return 'regressed';
+    if (a.outcome === 'issue' && b.outcome === 'clear') return a.limited ? 'limitedImproved' : 'improved';
+    if (a.outcome === 'clear' && b.outcome === 'issue') return b.limited ? 'limitedRegressed' : 'regressed';
     return a.outcome === 'clear' ? 'passMaintained' : 'failMaintained';
   }
 
@@ -288,7 +292,7 @@
     if (!baseline.ready) reason('baseline_incomplete', '기준 기록의 AIONA 평가가 모두 완료되지 않았습니다.');
     if (!target.ready) reason('target_incomplete', '대상 기록의 AIONA 평가가 모두 완료되지 않았습니다.');
     const eligible = reasons.length === 0;
-    const counts = {improved: 0, regressed: 0, passMaintained: 0, failMaintained: 0, pending: 0, unverified: 0,
+    const counts = {improved: 0, regressed: 0, limitedRegressed: 0, limitedImproved: 0, passMaintained: 0, failMaintained: 0, pending: 0, unverified: 0,
       matched: rows.length, unmatchedBaseline: unmatched.baseline.length, unmatchedTarget: unmatched.target.length, changed: changed.length};
     rows.forEach((r) => { counts[r.change]++; });
     return {schema: 'aiona-version-comparison/v1', eligible, reasons, profileMatched, sameQuestions,

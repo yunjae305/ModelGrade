@@ -10,14 +10,14 @@ import copy
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-from .run_summary import question_outcomes, run_summary, unit_outcome
+from .run_summary import question_outcomes, run_summary, unit_outcome, verification_limited
 from .version_registry import evaluation_profile
 
 __all__ = ["COMPARISON_VERSION", "PROFILE_LABELS", "profile_differences", "sign_test", "compare_runs", "condition_changes"]
 
 #: v2 — 전체 판정은 모든 문항이 연결·판정됐을 때만(부분 표본은 따로), 판정에 영향 있는 평가 설정은 모두 비교,
 #: 펼친 항목은 '#n' 번호가 아니라 인용 원문으로 대응
-COMPARISON_VERSION = "version-comparison-v2"
+COMPARISON_VERSION = "version-comparison-v3"   # v3: 검증 한계로만 바뀐 질문(limited_*)을 개선·악화·부호검정에서 분리
 #: 비교 조건에 들어가는 평가 프로필 필드 (호출 방식·묶음 설정·API 주소는 판정에 영향이 없어 뺀다)
 PROFILE_LABELS = {"engine_versions.engine": "코드 평가 엔진 버전", "engine_versions.checks": "코드 검사 버전", "aiona_config.config_hash": "AIONA 설정",
                   "pipeline": "의미 평가 방식", "semantic_version": "의미 평가 버전", "criteria_version": "의미 기준 버전",
@@ -38,7 +38,9 @@ _IGNORED_JUDGE = {"dispatch", "batch_questions", "batch_poll_seconds", "api_base
 TAIL_SHARE = 0.1
 TAIL_MIN = 5
 SIGNIFICANCE = 0.05
-CHANGE_LABELS = {"improved": "개선", "regressed": "악화", "pass_kept": "통과 유지", "fail_kept": "실패 유지", "pending": "미완료", "excluded": "제외"}
+CHANGE_LABELS = {"improved": "개선", "regressed": "악화", "pass_kept": "통과 유지", "fail_kept": "실패 유지", "pending": "미완료", "excluded": "제외",
+                 # 검증 한계(근거·원문을 확인하지 못한 정책상 FAIL)로만 바뀐 질문 — 성능 변화가 아니라 부호검정·꼬리·악화 목록에서 뺀다 (10-14 P1-1)
+                 "limited_regressed": "검증 한계로 FAIL (악화 아님)", "limited_improved": "검증 한계 해소 (개선 아님)"}
 
 
 # --- 비교 성립 조건 -------------------------------------------------------------------------------------
@@ -271,7 +273,8 @@ def sign_test(plus: int, minus: int) -> Optional[float]:
     return round(min(1.0, 2 * tail), 4)
 
 
-def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List[Dict[str, Any]],
+           a_lim: Optional[List[bool]] = None, b_lim: Optional[List[bool]] = None) -> List[Dict[str, Any]]:
     """대화 단위 — 같은 대화의 턴은 한 단위, 단일 질문은 그 자체. 단위의 판정은 질문 통과점수와 같게(unit_outcome: 한 턴이라도 FAIL
     이면 FAIL) 비교하고, 통과 턴 수는 상세로만 남긴다. 판정이 확정되지 않은 단위는 동점 처리하지 않고 제외."""
     groups: Dict[str, List[Dict[str, Any]]] = {}
@@ -284,11 +287,14 @@ def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List
         outcomes_b = [b_out[p["target_index"]]["outcome"] for p in members]
         unit_a, unit_b = unit_outcome(outcomes_a), unit_outcome(outcomes_b)
         complete = unit_a in ("PASS", "FAIL") and unit_b in ("PASS", "FAIL")
+        # 단위의 FAIL 이 검증 한계뿐인가 — FAIL 인 턴이 모두 검증 한계 FAIL
+        limited_a = bool(a_lim) and unit_a == "FAIL" and all(a_lim[p["baseline_index"]] for p, o in zip(members, outcomes_a) if o == "FAIL")
+        limited_b = bool(b_lim) and unit_b == "FAIL" and all(b_lim[p["target_index"]] for p, o in zip(members, outcomes_b) if o == "FAIL")
         units.append({"unit": key, "size": len(members), "case_ids": [p["case_id"] for p in members], "complete": complete,
                       "baseline": unit_a, "target": unit_b,
                       "baseline_pass": outcomes_a.count("PASS"), "target_pass": outcomes_b.count("PASS"),
-                      "sign": None if not complete else "plus" if (unit_a, unit_b) == ("FAIL", "PASS")
-                      else "minus" if (unit_a, unit_b) == ("PASS", "FAIL") else "tie"})
+                      "sign": None if not complete else ("limited" if limited_a else "plus") if (unit_a, unit_b) == ("FAIL", "PASS")
+                      else ("limited" if limited_b else "minus") if (unit_a, unit_b) == ("PASS", "FAIL") else "tie"})
     return units
 
 
@@ -333,6 +339,11 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
                   "suggestion": ("저장된 답변에 새 기준을 다시 돌려 조건을 맞추세요 (재평가로 맞추기: 기준 실행의 답변을 현재 설정으로 새 평가)."
                                  if differences else None)}
     # --- 질문 단위 ---
+    a_cases, a_records = a_batch.get("cases") or [], (a_batch.get("jev_eval") or {}).get("records") or []
+    b_cases, b_records = b_batch.get("cases") or [], (b_batch.get("jev_eval") or {}).get("records") or []
+    at = lambda items, i: items[i] if i < len(items) else None
+    a_lim = [verification_limited(at(a_cases, i), at(a_records, i)) for i in range(len(a_out))]
+    b_lim = [verification_limited(at(b_cases, j), at(b_records, j)) for j in range(len(b_out))]
     rows = []
     counts = {key: 0 for key in CHANGE_LABELS}
     for pair in pairs:
@@ -342,17 +353,22 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
         else:
             change = _change(a["outcome"] if a["outcome"] in ("PASS", "FAIL") else None, b["outcome"] if b["outcome"] in ("PASS", "FAIL") else None)
             change = change if change in CHANGE_LABELS else "pending"
+            if change == "regressed" and b_lim[pair["target_index"]]:
+                change = "limited_regressed"
+            elif change == "improved" and a_lim[pair["baseline_index"]]:
+                change = "limited_improved"
         counts[change] += 1
         rows.append({**pair, "baseline": a["outcome"], "target": b["outcome"], "change": change, "label": CHANGE_LABELS[change]})
     # --- 부호검정 (대화 단위) ---
-    units = _units(pairs, a_out, b_out)
+    units = _units(pairs, a_out, b_out, a_lim, b_lim)
     plus = sum(1 for u in units if u["sign"] == "plus")
     minus = sum(1 for u in units if u["sign"] == "minus")
+    limited = sum(1 for u in units if u["sign"] == "limited")
     ties = sum(1 for u in units if u["sign"] == "tie")
     incomplete_units = sum(1 for u in units if not u["complete"])
     p_value = sign_test(plus, minus)
     # --- 꼬리: 기준 실행에서 가장 나쁜 질문들 ---
-    scored = [r for r in rows if r["change"] not in ("pending", "excluded")]
+    scored = [r for r in rows if r["change"] not in ("pending", "excluded", "limited_regressed", "limited_improved")]
     size = min(len(scored), max(TAIL_MIN, math.ceil(len(scored) * TAIL_SHARE))) if scored else 0
     worst = sorted(scored, key=lambda r: _badness(a_out[r["baseline_index"]]), reverse=True)[:size]
     tail = {"size": size, "improved": sum(1 for r in worst if r["change"] == "improved"),
@@ -366,6 +382,7 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
     coverage["complete"] = not (coverage["unmatched_baseline"] or coverage["unmatched_target"] or coverage["pending"]
                                 or coverage["excluded"] or incomplete_units)
     # --- 판정 ---
+    limited_note = f" · 검증 한계로 바뀐 {limited}단위는 개선·악화에서 뺌" if limited else ""
     if not eligible:
         verdict = {"label": "not_comparable", "text": "비교 조건이 맞지 않아 개선·악화를 확정하지 않습니다."}
     elif not coverage["complete"]:
@@ -380,9 +397,9 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
         verdict = {"label": "uncertain", "text": f"평균은 올랐지만 꼬리(가장 나쁜 {size}문항)가 나빠져 개선으로 보지 않습니다 (개선 {plus}·악화 {minus}, p={p_value})"}
     else:
         verdict = {"label": "uncertain", "text": f"우연과 구분되지 않음 — 개선 {plus}·악화 {minus} 단위, p={p_value if p_value is not None else '—'}"}
+    if limited_note and verdict["label"] != "not_comparable":
+        verdict["text"] += limited_note
     # --- 악화·개선 질문 상세 ---
-    a_cases, a_records = a_batch.get("cases") or [], (a_batch.get("jev_eval") or {}).get("records") or []
-    b_cases, b_records = b_batch.get("cases") or [], (b_batch.get("jev_eval") or {}).get("records") or []
     a_sources, b_sources = (baseline_run.get("datasets") or {}).get("aiona") or [], (target_run.get("datasets") or {}).get("aiona") or []
 
     def detail(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -397,13 +414,15 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
                 "changes": _drilldown(a_case, a_record, b_case, b_record)}
     regressions = [detail(r) for r in rows if r["change"] == "regressed"]
     improvements = [detail(r) for r in rows if r["change"] == "improved"]
+    verification_limited_rows = [detail(r) for r in rows if r["change"] in ("limited_regressed", "limited_improved")]
     # --- 기준별 변화 표 (연결된 문항만) ---
     criteria_table = _criteria_table(rows, a_cases, a_records, b_cases, b_records)
     return {"version": COMPARISON_VERSION, "baseline": run_summary(baseline_run), "target": run_summary(target_run),
             "conditions": conditions, "matched": len(pairs), "unmatched": unmatched, "counts": counts, "rows": rows,
             "sign_test": {"unit": "conversation", "plus": plus, "minus": minus, "ties": ties, "incomplete": incomplete_units,
-                          "n": plus + minus, "p_value": p_value, "significance": SIGNIFICANCE},
-            "tail": tail, "verdict": verdict, "coverage": coverage, "regressions": regressions, "improvements": improvements, "criteria": criteria_table}
+                          "limited": limited, "n": plus + minus, "p_value": p_value, "significance": SIGNIFICANCE},
+            "tail": tail, "verdict": verdict, "coverage": coverage, "regressions": regressions, "improvements": improvements,
+            "verification_limited": verification_limited_rows, "criteria": criteria_table}
 
 
 def _criteria_table(rows, a_cases, a_records, b_cases, b_records) -> List[Dict[str, Any]]:

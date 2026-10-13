@@ -50,6 +50,24 @@
       : '근거로 확인된 판정입니다.';
     return {title: (outcome.label || outcome.code) + (sub ? ` (${sub})` : ''), note, confirmed: Boolean(outcome.factual_error_confirmed), pending};
   }
+  // 검증 한계 FAIL — 근거·원문을 확인하지 못해 정책상 FAIL 로 둔 판정 (webapp/run_summary.verification_limited_decision 과 같은 규칙).
+  // 출처 접근 불가(citation_inaccessible)는 사용자 결정(evidence-v3.14)대로 답변 결함으로 본다.
+  const limitJ5 = new Set(['source_unavailable', 'insufficient_evidence', 'search_limit_reached']);
+  const limitReasons = new Set(['EVALUATION_EVIDENCE_INSUFFICIENT', 'SOURCE_ORIGINAL_UNAVAILABLE', 'FACT_UNVERIFIABLE', 'ITEM_UNVERIFIABLE']);
+  function verificationLimited(decision) {
+    if (decision?.decision !== 'FAIL' || decision.j5_outcome?.factual_error_confirmed) return false;
+    if (limitJ5.has(decision.j5_outcome?.code) || limitReasons.has(decision.reason_code)) return true;
+    if (['evidence_requirement', 'source_verification_requirement'].includes(decision.decision_policy?.outcome_basis)) return true;
+    const failed = Object.values(decision.subs || {}).flatMap((sub) => sub?.items || []).filter((item) => item?.decision === 'NO');
+    return failed.length > 0 && failed.every((item) => item.unverifiable);
+  }
+  // 질문 FAIL 이 검증 한계로만 생겼는가 — CODE FAIL 이 없고 FAIL 인 의미 기준이 모두 검증 한계 (run_summary.verification_limited)
+  function limitedOnly(c, record) {
+    const codeFail = (c?.results || []).some((r) => r.area === 'common' && r.counted && r.verdict === 'FAIL') || count(c?.summary?.common?.fail) > 0;
+    const ids = Array.isArray(record?.criteria) ? record.criteria : Object.keys(record?.decisions || {});
+    const semantic = ids.filter((id) => record?.decisions?.[id]?.decision === 'FAIL');
+    return !codeFail && semantic.length > 0 && semantic.every((id) => verificationLimited(record.decisions[id]));
+  }
   // 한 모델의 J5 FAIL 을 사유별로 센다 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눠 보여 주기 위한 집계
   function j5Breakdown(records) {
     const out = {fail: 0, confirmed: 0, unclassified: 0, codes: {}};
@@ -578,7 +596,7 @@
   }
   const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
     resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason,
-    questionUnits, j5Detail, j5Breakdown};
+    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
