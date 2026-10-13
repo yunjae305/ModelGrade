@@ -13,6 +13,13 @@
 
     python tools/long_context_threshold_test.py --dry-run          # 문서만 만들고 길이 확인 (API 호출 없음)
     python tools/long_context_threshold_test.py --providers gemini claude gpt   # 실제 호출 (유료, 길이 7개 × 모델 수)
+    python tools/long_context_threshold_test.py --level hard ...   # 어려운 버전 (아래)
+
+어려운 버전(hard, 1차 결과 500K 까지 모두 정답 → 2026-10-13 사용자 요청): 사실에 표시를 붙이지 않고 기록 문장 속에 숨긴다.
+  1·2번 — 앞 10%·중간 50%, 질문과 표현이 다른 사실(NoLiMa: '부산에 사는' ↔ '해운대 바닷가 근처에 산다', 다른 도시 명소 오답 4개),
+  3번 — 뒤 90%, 다른 말로 쓴 사실과 비슷한 오답('해지' ↔ '끝내려면', '연장하려면'·'바꾸려면' 번호),
+  4번 — 20%·50%·80% 에 흩어진 3단계 연결(프로젝트 → 팀 → 팀장 → 예산 코드, 단계마다 오답),
+  5번 — 문서 전체에 흩어진 사건 횟수 세기(4~8회).
 """
 from __future__ import annotations
 
@@ -38,6 +45,7 @@ LENGTHS = (32_000, 250_000, 272_000, 300_000, 350_000, 400_000, 500_000)
 POSITIONS = {1: 0.10, 2: 0.50, 3: 0.90}
 HOP_POSITIONS = (0.25, 0.75)
 TEST_VERSION = "long-context-threshold-test-v1"
+HARD_VERSION = "long-context-threshold-test-v2-hard"
 
 _DEPTS = ["재무팀", "인사팀", "물류팀", "고객지원팀", "품질관리팀", "구매팀", "법무팀", "연구개발팀", "영업1팀", "영업2팀", "시설관리팀", "교육팀"]
 _TOPICS = ["분기 예산 집행 현황", "신규 채용 일정", "창고 재고 정리", "고객 문의 처리 시간", "협력사 납품 일정", "사내 교육 과정 개편",
@@ -98,18 +106,103 @@ def build_case(target_tokens: int, seed: int = 20261013) -> Dict[str, Any]:
             "sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest()}
 
 
-_LINE = re.compile(r"^\s*\**\s*([1-4])\s*[\)\.:번]\s*(.*)$")
+_LINE = re.compile(r"^\s*\**\s*([1-5])\s*\**\s*[\)\.:번]\s*(.*)$")
+_KOREAN_COUNTS = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5, "여섯": 6, "일곱": 7, "여덟": 8,
+                  "아홉": 9, "열": 10}
+#: 어려운 버전 — (명소, 도시). 질문은 도시, 문서는 명소만 쓴다 (세계 지식으로 이어야 함)
+_PLACES = [("해운대 바닷가", "부산"), ("경복궁 돌담길", "서울"), ("무등산 자락", "광주"), ("성산일출봉 아래", "제주"), ("불국사 입구", "경주"),
+           ("수성못 둘레길", "대구"), ("한옥마을 골목", "전주"), ("광안대교가 보이는 언덕", "부산"), ("경포대 해변", "강릉"), ("월미도 선착장", "인천")]
 
 
-def grade(answer: str, answers: Dict[int, str]) -> Dict[int, bool]:
-    """번호 줄마다 정답 코드가 있는가. 번호 줄을 못 찾으면 답 전체에서 찾는다 (코드는 문항마다 달라 섞이지 않음)."""
+def build_hard_case(target_tokens: int, seed: int = 20261013) -> Dict[str, Any]:
+    """어려운 버전 — 표시 없는 사실·다른 표현·비슷한 오답·3단계 연결·횟수 세기. 같은 (길이, 시드)면 늘 같은 내용."""
+    rng = random.Random(f"hard:{seed}:{target_tokens}")
+    places = rng.sample([p for p in _PLACES if p[1] != "부산"], 4)   # 1번 오답 도시 (부산 제외)
+    people = rng.sample(_NAMES, 12)
+    answers: Dict[int, str] = {}
+    inserts: List[Tuple[float, str]] = []
+    # 1번 — 앞 10%, '부산에 사는 연구원' ↔ '해운대 바닷가 근처에 산다'. 오답 연구원 4명은 다른 도시 명소 (문서 곳곳)
+    answers[1] = _code(rng, "KX")
+    inserts.append((0.10, f"연구원 {people[0]} 씨는 {_PLACES[0][0]} 근처에 살아 출근길이 늘 바다 풍경이다. 그의 사원 번호는 {answers[1]}이다."))
+    for depth, (place, _), person in zip((0.30, 0.45, 0.62, 0.84), places, people[1:5]):
+        inserts.append((depth, f"연구원 {person} 씨는 {place} 근처에 산다. 그의 사원 번호는 {_code(rng, 'KX')}이다."))
+    # 2번 — 중간 50%, '제주에 사는 디자이너' ↔ '성산일출봉 아래'. 오답 디자이너 4명
+    answers[2] = _code(rng, "CR")
+    others = rng.sample([p for p in _PLACES if p[1] != "제주"], 4)
+    inserts.append((0.50, f"디자이너 {people[5]} 씨는 {_PLACES[3][0]} 마을에서 지낸다. 그의 출입 코드는 {answers[2]}로 등록되어 있다."))
+    for depth, (place, _), person in zip((0.15, 0.35, 0.70, 0.93), others, people[6:10]):
+        inserts.append((depth, f"디자이너 {person} 씨는 {place} 근처에서 지낸다. 그의 출입 코드는 {_code(rng, 'CR')}로 등록되어 있다."))
+    # 3번 — 뒤 90%, '해지할 때' ↔ '끝내려면', 비슷한 오답(연장·변경)은 앞쪽에
+    answers[3] = _code(rng, "HD")
+    inserts.append((0.90, f"해오름 계약을 끝내려면 담당 부서에 {answers[3]} 번호를 함께 제출해야 한다."))
+    inserts.append((0.40, f"해오름 계약을 연장하려면 담당 부서에 {_code(rng, 'HD')} 번호를 함께 제출해야 한다."))
+    inserts.append((0.75, f"해오름 계약 내용을 바꾸려면 담당 부서에 {_code(rng, 'HD')} 번호를 함께 제출해야 한다."))
+    # 4번 — 3단계 연결 (20% → 50% → 80%), 단계마다 오답
+    teams, leaders = ["푸른솔팀", "은빛물결팀", "노을빛팀"], people[10:12] + [rng.choice(people[:10])]
+    projects = ["모래시계 사업", "바람개비 사업", "등대지기 사업"]
+    answers[4] = _code(rng, "BG")
+    inserts.append((0.20, " ".join(f"{proj}은 {team}이 맡는다." for proj, team in zip(projects, teams))))
+    inserts.append((0.52, " ".join(f"{team}의 팀장은 {leader}이다." for team, leader in zip(teams[::-1], leaders[::-1]))))
+    codes = [answers[4], _code(rng, "BG"), _code(rng, "BG")]
+    inserts.append((0.80, " ".join(f"{leader} 팀장이 승인한 예산 코드는 {code}이다." for leader, code in zip(leaders[1:] + leaders[:1], codes[1:] + codes[:1]))))
+    # 5번 — 문서 전체에 흩어진 사건 횟수
+    count = rng.randint(4, 8)
+    answers[5] = str(count)
+    for depth in sorted(rng.uniform(0.03, 0.97) for _ in range(count)):
+        inserts.append((depth, f"{rng.randint(1, 12)}월 {rng.randint(1, 28)}일 청람 물류센터에서 정전이 일어나 작업이 잠시 멈췄다."))
+    questions = ("\n\n위 기록만 보고 다음 다섯 질문에 답하세요. 각 답은 코드 또는 숫자만 '1) 답' 형식으로 한 줄씩 쓰세요.\n"
+                 "1) 부산에 사는 연구원의 사원 번호는?\n2) 제주에 사는 디자이너의 출입 코드는?\n"
+                 "3) 해오름 계약을 해지할 때 필요한 번호는?\n4) 모래시계 사업을 맡은 팀의 팀장이 승인한 예산 코드는?\n"
+                 "5) 청람 물류센터에서 정전은 모두 몇 번 일어났나요?")
+    return _assemble(rng, target_tokens, seed, sorted(inserts), questions, answers, kinds={5: "count"})
+
+
+def _assemble(rng: random.Random, target_tokens: int, seed: int, inserts: List[Tuple[float, str]], questions: str,
+              answers: Dict[int, str], kinds: Dict[int, str] | None = None) -> Dict[str, Any]:
+    fixed = long_context.count_tokens("\n".join(text for _, text in inserts) + questions)
+    sentences, tokens = [], 0
+    while tokens < target_tokens - fixed:
+        sentence = _filler_sentence(rng)
+        tokens += long_context.count_tokens(sentence + "\n")
+        sentences.append(sentence)
+    body: List[str] = []
+    cursor = 0
+    for position, text in inserts:
+        cut = int(len(sentences) * position)
+        body.extend(sentences[cursor:cut])
+        body.append(text)
+        cursor = cut
+    body.extend(sentences[cursor:])
+    prompt = "다음은 회사 업무 기록 모음입니다.\n\n" + "\n".join(body) + questions
+    return {"target_tokens": target_tokens, "seed": seed, "prompt": prompt, "answers": answers, "kinds": kinds or {},
+            "tokens": long_context.count_tokens(prompt), "chars": len(prompt),
+            "sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest()}
+
+
+def _count_in(text: str) -> int | None:
+    digits = re.search(r"\d+", text or "")
+    if digits:
+        return int(digits.group())
+    word = re.search("|".join(sorted(_KOREAN_COUNTS, key=len, reverse=True)), text or "")
+    return _KOREAN_COUNTS[word.group()] if word else None
+
+
+def grade(answer: str, answers: Dict[int, str], kinds: Dict[int, str] | None = None) -> Dict[int, bool]:
+    """번호 줄마다 정답 코드가 있는가(횟수 문항은 그 줄의 첫 숫자가 정답과 같은가). 번호 줄을 못 찾으면 답 전체에서 찾는다."""
     lines: Dict[int, str] = {}
     for line in (answer or "").splitlines():
         match = _LINE.match(line)
         if match:
             lines.setdefault(int(match.group(1)), match.group(2))
     norm = lambda text: re.sub(r"\s+", "", text or "").upper()
-    return {q: norm(code) in norm(lines.get(q, answer if not lines else "")) for q, code in answers.items()}
+    result = {}
+    for q, expected in answers.items():
+        text = lines.get(q, answer if not lines else "")
+        if (kinds or {}).get(q) == "count":
+            result[q] = lines.get(q) is not None and _count_in(text) == int(expected)   # 횟수는 번호 줄에서만
+        else:
+            result[q] = norm(expected) in norm(text)
+    return result
 
 
 def _configs() -> Dict[str, Dict[str, str]]:
@@ -133,14 +226,15 @@ def _usage(provider: str, raw: Any) -> Dict[str, Any]:
             "output_tokens": usage.get("output_tokens", usage.get("completion_tokens"))}
 
 
-def run(providers: List[str], out: Path, max_tokens: int = 1024) -> Dict[str, Any]:
+def run(providers: List[str], out: Path, max_tokens: int = 1024, level: str = "basic") -> Dict[str, Any]:
     import httpx
     from webapp.comparison_service import ProviderError, request_answer
     configs = _configs()
     missing = [p for p in providers if p not in configs]
     if missing:
         raise SystemExit("연결 설정(.env 키·모델)이 없는 모델: " + ", ".join(missing))
-    cases = [build_case(length) for length in LENGTHS]
+    builder = build_hard_case if level == "hard" else build_case
+    cases = [builder(length) for length in LENGTHS]
     results: List[Dict[str, Any]] = []
 
     def ask(provider: str) -> List[Dict[str, Any]]:
@@ -158,17 +252,20 @@ def run(providers: List[str], out: Path, max_tokens: int = 1024) -> Dict[str, An
                 except ProviderError as exc:
                     row.update(status="ERROR", answer="", error=str(exc), http_status=exc.status, usage={})
                 row["latency_s"] = round(time.monotonic() - started, 1)
-                row["correct"] = {str(q): ok for q, ok in grade(row["answer"], case["answers"]).items()}
+                row["correct"] = {str(q): ok for q, ok in grade(row["answer"], case["answers"], case.get("kinds")).items()}
                 row["score"] = sum(row["correct"].values())
                 rows.append(row)
-                print(f"{provider} {case['target_tokens']:>7,} → {row['status']} {row['score']}/4 ({row['latency_s']}s)", flush=True)
+                print(f"{provider} {case['target_tokens']:>7,} → {row['status']} {row['score']}/{len(case['answers'])} ({row['latency_s']}s)", flush=True)
         return rows
 
     with ThreadPoolExecutor(max_workers=len(providers)) as pool:   # 모델끼리는 동시에, 한 모델 안에서는 차례로
         for rows in pool.map(ask, providers):
             results.extend(rows)
-    report = {"version": TEST_VERSION, "created_at": datetime.now(timezone.utc).isoformat(), "tokenizer": long_context.TOKENIZER,
-              "lengths": list(LENGTHS), "positions": {"1": "앞 10%", "2": "중간 50%", "3": "뒤 90%", "4": "두 곳(25%·75%) 연결"},
+    labels = ({"1": "앞 10% 다른 표현", "2": "중간 50% 다른 표현", "3": "뒤 90% 비슷한 오답", "4": "3단계 연결", "5": "횟수 세기"}
+              if level == "hard" else {"1": "앞 10%", "2": "중간 50%", "3": "뒤 90%", "4": "두 곳(25%·75%) 연결"})
+    report = {"version": HARD_VERSION if level == "hard" else TEST_VERSION, "level": level,
+              "created_at": datetime.now(timezone.utc).isoformat(), "tokenizer": long_context.TOKENIZER,
+              "lengths": list(LENGTHS), "positions": labels,
               "cases": [{k: v for k, v in c.items() if k != "prompt"} for c in cases], "results": results}
     out.mkdir(parents=True, exist_ok=True)
     (out / "results.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -179,7 +276,7 @@ def run(providers: List[str], out: Path, max_tokens: int = 1024) -> Dict[str, An
 def summary(report: Dict[str, Any]) -> str:
     providers = sorted({r["provider"] for r in report["results"]})
     lines = [f"# 롱컨텍스트 경계 테스트 ({report['version']})", "",
-             "정답 수(4문항 중) — 1 앞 10% · 2 중간 50% · 3 뒤 90% · 4 두 곳 연결. ✓ 정답, ✗ 오답, ERR 호출 실패", "",
+             "정답 수 — " + " · ".join(f"{q} {label}" for q, label in report["positions"].items()) + ". ✓ 정답, ✗ 오답, ERR 호출 실패", "",
              "| 길이(목표) | 실제 토큰 | " + " | ".join(providers) + " |", "|---|---|" + "---|" * len(providers)]
     for length in report["lengths"]:
         rows = {r["provider"]: r for r in report["results"] if r["target_tokens"] == length}
@@ -192,8 +289,8 @@ def summary(report: Dict[str, Any]) -> str:
             elif r["status"] == "ERROR":
                 cells.append(f"ERR ({r.get('http_status') or ''})")
             else:
-                marks = "".join("✓" if r["correct"][q] else "✗" for q in ("1", "2", "3", "4"))
-                cells.append(f"{r['score']}/4 {marks}")
+                marks = "".join("✓" if r["correct"][q] else "✗" for q in sorted(r["correct"]))
+                cells.append(f"{r['score']}/{len(r['correct'])} {marks}")
         lines.append(f"| {length // 1000}K | {tokens:,} | " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
 
@@ -202,17 +299,18 @@ def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--providers", nargs="+", default=["gemini", "claude", "gpt"])
     parser.add_argument("--dry-run", action="store_true", help="문서만 만들고 길이를 확인 (API 호출 없음)")
+    parser.add_argument("--level", choices=("basic", "hard"), default="basic", help="hard: 표시 없는 사실·다른 표현·3단계 연결·횟수")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if args.dry_run:
         for length in LENGTHS:
-            case = build_case(length)
+            case = (build_hard_case if args.level == "hard" else build_case)(length)
             print(f"{length:>7,} 목표 → {case['tokens']:>7,} 토큰 · {case['chars']:>9,} 자 · 정답 {case['answers']}")
         return 0
-    out = args.out or ROOT / "results" / ("long-context-threshold-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
-    report = run(args.providers, out)
+    out = args.out or ROOT / "results" / (f"long-context-threshold-{args.level}-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+    report = run(args.providers, out, level=args.level)
     print(summary(report))
     print(f"저장: {out}")
     return 0
