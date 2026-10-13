@@ -45,6 +45,9 @@ def main(argv=None) -> int:
             except AionaWebError as exc:
                 print(f"AIONA 로그인 실패: {exc}", flush=True)
                 return 1
+            except Exception as exc:   # 원본 예외 문구는 찍지 않는다 — 브라우저 예외 문구(Call log)에 입력값이 섞일 수 있다
+                print(f"AIONA 로그인 실패: {type(exc).__name__}", flush=True)
+                return 1
             finally:
                 context.close()
         pages = list(context.pages)

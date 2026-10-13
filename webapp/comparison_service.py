@@ -1595,6 +1595,8 @@ class ComparisonService:
         attached = [copy.deepcopy(a) for a in case.get("attachments") or [] if a.get("sha256") in shas or a.get("name") in names]
         if attached:
             result["attachments"] = attached
+        if outcome.get("answer_sources"):   # 수집기가 남긴 구조화 출처 — 평가기가 본문 링크보다 먼저 대조한다
+            result["answer_sources"] = copy.deepcopy(outcome["answer_sources"])
         result.update({"answer": outcome.get("answer", ""), "system_id": provider,
                        "source": model, "case_index": index, "collection": outcome})
         if outcome["status"] != "SUCCESS":
@@ -1822,7 +1824,7 @@ class ComparisonService:
                                              run["max_tokens"], reference=case.get("reference"), history=history)
                     outcome.update(latency_ms=round((time.monotonic() - started) * 1000, 1), collected_at=now())
                 if outcome["status"] == "SUCCESS":
-                    history.append((case["question"], outcome["answer"]))
+                    history.append((case, outcome["answer"]))   # 질문 행째 — 다음 턴 요청에 앞 턴 참조 자료·첨부도 다시 들어간다
                 else:
                     broken = True
                 record(provider, index, outcome)
@@ -1836,11 +1838,11 @@ class ComparisonService:
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
         def aiona():
-            from .aiona_web import AionaChat
+            from .aiona_web import AionaChat, AionaWebError
             stage("aiona", "COLLECTING")
             with tempfile.TemporaryDirectory(prefix="aiona-files-") as temp:
                 try:
-                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug") as chat:
+                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug", cancelled=token.is_set) as chat:
                         for chain in chains:
                             broken = False
                             chat.new_chat()
@@ -1867,7 +1869,13 @@ class ComparisonService:
                                     broken = True
                                 record("aiona", index, outcome)
                 except Exception as exc:   # 로그인·브라우저 실행 실패 — 남은 질문을 오류로 채운다 (지어내지 않음)
-                    message = str(exc)[:300] if str(exc) else type(exc).__name__
+                    # 고정 문구(AionaWebError)만 그대로 남긴다 — 브라우저 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰)
+                    if isinstance(exc, AionaWebError):
+                        message = str(exc)[:300]
+                    elif isinstance(exc, ModuleNotFoundError):
+                        message = "playwright 가 설치되지 않았습니다 (pip install playwright, Google Chrome 필요)"
+                    else:
+                        message = type(exc).__name__
                     for index in range(len(cases)):
                         if run["datasets"]["aiona"][index] is None and not token.is_set():
                             record("aiona", index, {"status": "ERROR", "error": f"AIONA 수집을 시작하지 못했습니다: {message}", "sent": []})

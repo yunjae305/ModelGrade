@@ -12,13 +12,16 @@
   않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
 - 답변 본문(HTML)은 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
 - 봇 확인·추가 인증 화면이 나오면 멈추고 사람에게 넘긴다 — 우회하지 않는다.
+- 같은 Chrome 프로필은 한 번에 한 브라우저만 연다(프로필 잠금 — 실행이 겹치면 뒤 실행이 기다린다). 로그인 실패는 고정 문구로만
+  알린다 — Playwright 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰).
 """
 from __future__ import annotations
 
 import tempfile
+import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from code_eval.llm_client import env_value
 
@@ -38,6 +41,17 @@ class AionaWebError(RuntimeError):
     pass
 
 
+_PROFILE_LOCKS: Dict[str, threading.Lock] = {}
+_PROFILE_LOCKS_GUARD = threading.Lock()
+
+
+def _profile_lock(profile: Path) -> threading.Lock:
+    """프로필마다 잠금 하나 — Chrome 은 같은 프로필을 두 브라우저가 동시에 열지 못한다."""
+    key = str(profile.resolve())
+    with _PROFILE_LOCKS_GUARD:
+        return _PROFILE_LOCKS.setdefault(key, threading.Lock())
+
+
 def credentials(env_path: Optional[Path] = None) -> tuple[str, str]:
     """``.env`` 의 로그인 정보. 없으면 오류 (값은 돌려주기만 하고 어디에도 쓰지 않는다)."""
     path = env_path or ROOT / ".env"
@@ -48,14 +62,17 @@ def credentials(env_path: Optional[Path] = None) -> tuple[str, str]:
 
 
 def login(page: Any, user: str, password: str, timeout_ms: int = 30_000) -> None:
-    """로그인 화면을 채우고 '자동 로그인(30일 유지)'을 켠 뒤 로그인한다. 로그인 화면을 벗어나지 못하면 오류."""
-    page.goto(f"{AIONA_URL}/login")
-    page.locator("input[type=email]").fill(user)
-    page.locator("input[type=password]").fill(password)
-    toggle = page.locator("xpath=//span[contains(normalize-space(.), '자동 로그인')]/preceding-sibling::button[1]")
-    if toggle.count():
-        toggle.first.click()
-    page.locator("button[type=submit]").click()
+    """로그인 화면을 채우고 '자동 로그인(30일 유지)'을 켠 뒤 로그인한다. 실패는 고정 문구의 오류로만 알린다(입력값을 담지 않음)."""
+    try:
+        page.goto(f"{AIONA_URL}/login")
+        page.locator("input[type=email]").fill(user)
+        page.locator("input[type=password]").fill(password)
+        toggle = page.locator("xpath=//span[contains(normalize-space(.), '자동 로그인')]/preceding-sibling::button[1]")
+        if toggle.count():
+            toggle.first.click()
+        page.locator("button[type=submit]").click()
+    except Exception:
+        raise AionaWebError("로그인 화면을 채우지 못했습니다 — 로그인 화면을 열지 못했거나 화면 구성이 바뀌었습니다.") from None
     try:
         page.wait_for_url(lambda url: "/login" not in url, timeout=timeout_ms)
     except Exception:
@@ -71,30 +88,53 @@ class AionaChat:
     """
 
     def __init__(self, *, headless: bool = True, allow_login: bool = True, answer_timeout_s: int = 600, profile: Path = PROFILE,
-                 debug_dir: Optional[Path] = None):
+                 debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None):
         self.headless, self.allow_login, self.answer_timeout_s, self.profile = headless, allow_login, answer_timeout_s, profile
         self.debug_dir = debug_dir   # 실패·미완료 때 그 순간 화면을 남길 곳 (원인 확인용)
+        self.cancelled = cancelled or (lambda: False)   # 프로필 잠금을 기다리는 동안·브라우저를 열기 전에 중단 요청을 본다
         self._playwright = self._context = self.page = None
         self._temp = tempfile.TemporaryDirectory(prefix="aiona-ref-")
+        self._lock: Optional[threading.Lock] = None
 
     def __enter__(self) -> "AionaChat":
-        from playwright.sync_api import sync_playwright
-        self._playwright = sync_playwright().start()
-        self.profile.mkdir(parents=True, exist_ok=True)
-        self._context = self._playwright.chromium.launch_persistent_context(
-            str(self.profile), channel="chrome", headless=self.headless, viewport={"width": 1400, "height": 900})
-        self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
-        self.ensure_login()
+        lock = _profile_lock(self.profile)
+        while not lock.acquire(timeout=1.0):   # 같은 프로필을 쓰는 다른 실행이 끝날 때까지 기다리되, 중단 요청이면 그만둔다
+            if self.cancelled():
+                raise AionaWebError("중단 요청으로 AIONA 수집을 시작하지 않았습니다.")
+        self._lock = lock
+        try:
+            if self.cancelled():
+                raise AionaWebError("중단 요청으로 AIONA 수집을 시작하지 않았습니다.")
+            from playwright.sync_api import sync_playwright
+            self._playwright = sync_playwright().start()
+            self.profile.mkdir(parents=True, exist_ok=True)
+            self._context = self._playwright.chromium.launch_persistent_context(
+                str(self.profile), channel="chrome", headless=self.headless, viewport={"width": 1400, "height": 900})
+            self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
+            self.ensure_login()
+        except BaseException:   # 실행·로그인 실패 때도 브라우저·임시 폴더·프로필 잠금을 정리한다 (__exit__ 는 불리지 않음)
+            self._close()
+            raise
         return self
 
     def __exit__(self, *exc: Any) -> None:
+        self._close()
+
+    def _close(self) -> None:
+        """브라우저·Playwright·임시 폴더를 차례로 정리하고, 무엇이 실패하든 프로필 잠금은 반드시 푼다 (Codex 리뷰)."""
         try:
-            if self._context is not None:
-                self._context.close()
+            for step in (lambda: self._context is not None and self._context.close(),
+                         lambda: self._playwright is not None and self._playwright.stop(),
+                         self._temp.cleanup):
+                try:
+                    step()
+                except Exception:
+                    pass
+            self._context = self._playwright = None
         finally:
-            if self._playwright is not None:
-                self._playwright.stop()
-            self._temp.cleanup()
+            if self._lock is not None:
+                self._lock.release()
+                self._lock = None
 
     def ensure_login(self) -> None:
         self.page.goto(f"{AIONA_URL}/chat", wait_until="domcontentloaded")

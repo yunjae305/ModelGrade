@@ -76,7 +76,7 @@ _ITEM_NOTES: Dict[str, str] = {
                "주장이 하나도 없으면 id 'J5-1.a' 하나에 NOT_APPLICABLE 로 답합니다. 항목마다 fact 블록 "
                "{claim(= answer_quote, 답변 원문 그대로), verdict TRUE|FALSE, correct(FALSE 면 올바른 사실, TRUE 면 빈 문자열), "
                "search_queries[확인한 검색어], sources[{url, quote}]} 를 적습니다."),
-    "J5-2.a": ("현재 질문이 준 값을 모두 나열하고(값마다 question_quote 필수, 현재 질문 원문에서만) 답변이 쓴 값만 판정합니다. 쓰지 않은 값은 NOT_APPLICABLE. "
+    "J5-2.a": ("현재 질문이 준 값을 모두 나열하고(값마다 question_quote 필수, 현재 질문 원문 또는 함께 보낸 첨부파일 내용에서만) 답변이 쓴 값만 판정합니다. 쓰지 않은 값은 NOT_APPLICABLE. "
                "이전 턴의 값은 나열하지 않습니다(J6-2). 모순 조건 쌍은 나열하지 않습니다. 값 자체는 같은데 역할이 바뀐 것은 J3-5.b."),
     "J5-2.b": "개별 값 오기는 J5-2.a 에서 봅니다. 원문에 없는 문장을 더했거나 문장 단위 의미를 바꾼 곳을 answer_quote 로 인용합니다.",
     "J5-3.a": "그 문장 안의 사실 값은 J5-1 에서 따로 봅니다. 답변이 든 출처 URL 의 존재는 서버가 따로 확인합니다.",

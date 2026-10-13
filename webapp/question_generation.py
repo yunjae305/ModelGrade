@@ -194,7 +194,8 @@ def _material_prompt(topic: str, part: int, parts: int, chars: int, facts: List[
 
 
 def _paste_prompt(spec: Dict[str, Any], chars: int) -> str:
-    must = "\n".join(f"- {x}" for x in spec.get("must_include") or []) or "- (없음)"
+    raw = spec.get("must_include")
+    must = "\n".join(f"- {x}" for x in (raw if isinstance(raw, list) else [])) or "- (없음)"
     return (f"다음 주제로 사용자가 대화창에 붙여 넣을 자료(회의록·보고서·기사·메모 등)를 한국어 본문으로 약 {chars:,}자 씁니다.\n"
             f"주제: {spec.get('topic') or '업무 자료'}\n꼭 들어갈 내용:\n{must}\n- 머리말·설명 없이 자료 본문만 씁니다.")
 
@@ -216,6 +217,35 @@ def _json_object(text: str) -> Dict[str, Any]:
     if not isinstance(value, dict):
         raise GenerationError("GPT 응답이 JSON 객체가 아닙니다.")
     return value
+
+
+def _clean_spec(key: str, spec: Dict[str, Any], where: str, warnings: List[str]) -> Dict[str, Any]:
+    """긴 자료 명세의 중첩 필드 모양을 맞춘다 — 목록이 아닌 must_include·facts, 글이 아닌 text, 유한한 수가 아닌 position 은 빼고
+    경고로 남긴다 (Codex 리뷰: 그대로 두면 질문 하나의 틀린 값이 생성 전체를 중단시켰다)."""
+    out: Dict[str, Any] = {"topic": str(spec.get("topic") or "")}
+    if key == "long_paste":
+        raw = spec.get("must_include")
+        if raw is not None and not isinstance(raw, list):
+            warnings.append(f"{where}: long_paste.must_include 가 목록이 아니라 뺐습니다.")
+        out["must_include"] = [str(x).strip() for x in raw if isinstance(x, (str, int, float)) and str(x).strip()] if isinstance(raw, list) else []
+        return out
+    raw = spec.get("facts")
+    if raw is not None and not isinstance(raw, list):
+        warnings.append(f"{where}: long_reference.facts 가 목록이 아니라 뺐습니다.")
+    facts = []
+    for n, fact in enumerate(raw if isinstance(raw, list) else [], 1):
+        text = fact.get("text") if isinstance(fact, dict) else None
+        position = fact.get("position", 0.5) if isinstance(fact, dict) else None
+        try:
+            value = float(position) if not isinstance(position, bool) else math.nan
+        except (TypeError, ValueError):
+            value = math.nan
+        if not isinstance(text, str) or not text.strip() or not math.isfinite(value):
+            warnings.append(f"{where}: 사실 문장 {n}번의 모양(text 글·position 0~1 수)이 틀려 뺐습니다.")
+            continue
+        facts.append({"text": text.strip(), "position": min(max(value, 0.0), 1.0)})
+    out["facts"] = facts
+    return out
 
 
 def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -248,7 +278,9 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
                 clean["attachments"] = files
             for key in ("long_reference", "long_paste"):
                 if isinstance(turn.get(key), dict):
-                    clean[key] = turn[key]
+                    clean[key] = _clean_spec(key, turn[key], f"{index}번 질문 {t_index}턴", warnings)
+                elif turn.get(key) is not None:
+                    warnings.append(f"{index}번 질문 {t_index}턴: {key} 가 객체가 아니라 뺐습니다.")
             turns.append(clean)
         if not turns:
             continue
@@ -301,9 +333,10 @@ class QuestionSetBuilder:
 
         def position(value: Any) -> float:
             try:
-                return min(max(float(value), 0.0), 1.0)
+                number = float(value)
             except (TypeError, ValueError):
                 return 0.5
+            return min(max(number, 0.0), 1.0) if math.isfinite(number) else 0.5   # NaN·무한은 자리 계산을 깨뜨린다
         raw_facts = spec.get("facts") if isinstance(spec.get("facts"), list) else []
         facts = sorted(((position(f.get("position", 0.5)), str(f.get("text") or "").strip()) for f in raw_facts
                         if isinstance(f, dict) and str(f.get("text") or "").strip()), key=lambda x: x[0])
@@ -459,13 +492,15 @@ class QuestionSetService:
 
     def __init__(self, config_source: Callable[[], Optional[Dict[str, Any]]], store: Path = STORE,
                  llm_factory: Optional[Callable[[Dict[str, Any], Dict[str, int]], LLM]] = None,
-                 run_starter: Optional[Callable[[str], str]] = None):
+                 run_starter: Optional[Callable[[str], str]] = None, run_canceller: Optional[Callable[[str], Any]] = None):
         self.config_source, self.store = config_source, store
         self.run_starter = run_starter   # 질문 세트 id → 수집·평가 실행 id (서버가 비교 서비스와 이어 준다)
+        self.run_canceller = run_canceller   # 실행 id → 중단 — 생성을 중단한 사이에 시작된 수집 실행도 함께 중단한다 (Codex 리뷰)
         self.llm_factory = llm_factory or gpt_llm
         self._lock = threading.Lock()
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._cancel: Dict[str, threading.Event] = {}
+        self._starting: set = set()   # 수집 실행을 시작하는 중인 세트 — 같은 세트의 동시 시작을 막는다 (Codex 리뷰)
 
     def _path(self, set_id: str) -> Path:
         if not re.fullmatch(r"qs-[0-9a-f]{12}", set_id or ""):
@@ -521,10 +556,19 @@ class QuestionSetService:
             groups, report = result["groups"], result["check"]
             (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
             with self._lock:
-                job.update(status="COMPLETED", phase="done", message="완료", warnings=builder.warnings, calls=builder.calls,
-                           summary=_summary(groups, report), coverage=report["coverage"], rounds=result["rounds"])
-            if job.get("auto_run"):
+                job.update(warnings=builder.warnings, calls=builder.calls, summary=_summary(groups, report), coverage=report["coverage"],
+                           rounds=result["rounds"])
+            if job.get("auto_run"):   # 수집 실행이 잡힌 뒤에 완료로 — 먼저 완료를 알리면 화면이 run_id 없이 폴링을 멈춘다 (Codex 리뷰)
+                if cancel.is_set():   # 질문 저장 사이에 접수된 중단 — 유료 수집을 시작하지 않는다
+                    raise Cancelled("생성을 중단했습니다.")
+                with self._lock:
+                    job.update(phase="run", message="답변 수집을 시작하는 중")
                 self._start_run(job)
+                if cancel.is_set():   # 시작하는 사이에 중단 요청 — 만들어진 수집 실행도 중단하고 완료로 남기지 않는다
+                    self._cancel_run(job)
+                    raise Cancelled("생성을 중단했습니다.")
+            with self._lock:
+                job.update(status="COMPLETED", phase="done", message="완료")
         except Exception as exc:   # 생성 실패는 이 작업의 오류로만 남긴다 (키·요청 원문은 남기지 않음)
             with self._lock:
                 job.update(status="CANCELLED" if cancel.is_set() else "ERROR", error=str(exc)[:500])
@@ -534,13 +578,21 @@ class QuestionSetService:
             self._save(job)
 
     def _start_run(self, job: Dict[str, Any]) -> None:
+        set_id = job["id"]
+        with self._lock:
+            if set_id in self._starting:
+                raise ValueError("이미 이 질문 세트의 답변 수집을 시작하는 중입니다.")
+            self._starting.add(set_id)
         try:
-            run_id = self.run_starter(job["id"])
+            run_id = self.run_starter(set_id)
             with self._lock:
                 job.update(run_id=run_id, run_error=None)
         except Exception as exc:   # 수집 시작 실패는 질문 세트를 실패로 만들지 않는다 — 화면에서 다시 시작할 수 있다
             with self._lock:
                 job["run_error"] = str(exc)[:300]
+        finally:
+            with self._lock:
+                self._starting.discard(set_id)
 
     def start_run(self, set_id: str) -> Dict[str, Any]:
         """완료된 질문 세트로 수집·평가 실행을 (다시) 시작한다."""
@@ -587,11 +639,25 @@ class QuestionSetService:
                     continue
         return sets
 
+    def _cancel_run(self, job: Dict[str, Any]) -> None:
+        with self._lock:
+            run_id = job.get("run_id")
+        if run_id and self.run_canceller is not None:
+            try:
+                self.run_canceller(run_id)
+            except Exception:   # 이미 끝났거나 없는 실행 — 생성 중단 자체는 그대로 진행한다
+                pass
+
     def cancel(self, set_id: str) -> Dict[str, Any]:
         event = self._cancel.get(set_id)
         if event is None:
             raise FileNotFoundError(set_id)
         event.set()
+        with self._lock:
+            job = self._jobs.get(set_id)
+            starting = job is not None and job["status"] == "RUNNING" and job.get("phase") == "run"
+        if starting:   # 수집 실행을 막 시작한 뒤라면 그 실행도 중단한다 (완료된 세트의 실행은 실행 화면에서 따로 중단)
+            self._cancel_run(job)
         return self.status(set_id)
 
     def dataset(self, set_id: str) -> List[Dict[str, Any]]:

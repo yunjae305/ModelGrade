@@ -27,7 +27,7 @@ from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
 from code_eval.jev_applicability import fact_question, jev_applicability, sub_applicability  # noqa: E402
 from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E402
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
-from code_eval.criteria_registry import CODE_UNITS  # noqa: E402
+from code_eval.criteria_registry import CODE_UNITS, SUBSUMED_KINDS  # noqa: E402
 from code_eval.semantic_items import ITEMS, applicable_items  # noqa: E402
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(J7 롱컨텍스트 입력 8K 토큰 이상 적용 수·판별 불가 수)와 작업 브랜치 v2(충족 enough·
@@ -90,22 +90,29 @@ def criteria_counts(rows: List[Dict[str, Any]], minimum: int = MIN_APPLICABLE) -
                 "enough": len(units[c]) >= minimum, "short": max(0, minimum - len(units[c]))} for c in CRITERIA}
 
 
-def _code_checks(result: Dict[str, Any]) -> set:
-    """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 엔진이 질문에서 실제로 만든 결과·판정 제외 행.
+#: 질문 요구로 켜지는 검사 단위 — 모든 답변 검사(all)와 함께 질문만으로 셀 수 있다
+_QUESTION_UNITS = frozenset(uid for uid, trigger, _ in _UNITS if trigger in ("question", "question_or_answer"))
 
-    요구 종류(kind)만 보면 엔진이 합치는 조건(예: '불릿 3개'는 2-1.count 만 실행, 2-2.list 는 만들지 않음)까지 세게 되므로 쓰지 않는다
-    (Codex 리뷰). 질문 요구 + 답변 코드로 실행되는 두 검사(JSON·파이썬 문법)만 요구 종류로 센다 — 빈 답변에서는 행이 없다."""
+
+def _code_checks(result: Dict[str, Any]) -> set:
+    """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 질문 요구로 켜지는 검사.
+
+    질문 요구 종류(kind)로 세되, 엔진이 다른 검사에 합치는 조건(``SUBSUMED_KINDS``: '불릿 3개'는 2-1.count 만 실행, 2-2.list 는
+    만들지 않음)은 뺀다. 엔진이 실제로 만든 결과 행·판정 제외 조건의 질문 검사도 센다 — 1-2.code_fence_min 은 행의 출처가
+    md_policy 이고, 빈 답변의 언어 표지는 판정 제외에만 나온다 (Codex 리뷰 2회: 출처 문자열·접두사 필터로 세면 둘 다 빠져
+    보충 호출을 되풀이했다). 답변 구조로만 생기는 검사(answer)와 '검사 대상 없음' 행은 세지 않는다."""
     meta = result.get("meta") or {}
-    kinds = {cond.get("kind") for cond in meta.get("question_conditions") or [] if isinstance(cond, dict)}
-    found = {uid for uid, trigger, unit_kinds in _UNITS if trigger == "all" or (trigger == "question_or_answer" and unit_kinds & kinds)}
+    # status 가 ok 인 조건만 — unsupported('코드블록 약 2개') 조건은 엔진이 검사하지 않는다 (판정 제외는 skipped_conditions 로 센다)
+    kinds = {cond.get("kind") for cond in meta.get("question_conditions") or [] if isinstance(cond, dict) and cond.get("status", "ok") == "ok"}
+    effective = kinds - {cond for cond, with_cond, _, _ in SUBSUMED_KINDS if with_cond in kinds}
+    found = {uid for uid, trigger, unit_kinds in _UNITS if trigger == "all" or (uid in _QUESTION_UNITS and unit_kinds & effective)}
     for row in result.get("results") or []:
-        if row.get("source") in ("question", "history_instruction"):
-            found.add(str(row.get("check_id") or "").split(":")[0])
+        check_id = str(row.get("check_id") or "")
+        if check_id and not check_id.endswith(":none"):
+            found.add(check_id.split(":")[0])
     for skipped in meta.get("skipped_conditions") or []:
-        check_id = str(skipped.get("check_id") or "").split(":")[0]
-        if check_id and not check_id.startswith(_ANSWER_CHECKS):
-            found.add(check_id)
-    return found & {uid for uid, _, _ in _UNITS}
+        found.add(str(skipped.get("check_id") or "").split(":")[0])
+    return found & ({uid for uid, trigger, _ in _UNITS if trigger == "all"} | _QUESTION_UNITS)
 
 
 def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
