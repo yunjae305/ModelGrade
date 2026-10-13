@@ -59,3 +59,43 @@ def test_merge_uses_only_human_labels_and_records_disagreement(tmp_path):
     _sheet(tmp_path / "bad.csv", [dict(rows[0], reviewer="C", reviewed_at="", label="아마 정상")])
     with pytest.raises(ValueError, match="정상/실제 오류/검증 불가"):
         merge(kit, [tmp_path / "bad.csv"])
+
+
+def test_adjudication_resolves_disagreements_and_compare_splits_agreement_errors_unverifiable_and_excluded(tmp_path):
+    """지시서 10-14 3차 2단계 — 불일치는 합의 기록으로만 풀고, 대조는 적용 대상 일치율·오판정·검증 불가·적용 제외를 따로 센다."""
+    from tools.review_kit import compare
+    kit = tmp_path / "kit"
+    make(_run(), kit, include_pass=2, seed=1)
+    rows = _blind(kit)
+    key = json.loads((kit / "key.json").read_text(encoding="utf-8"))["items"]
+    by_ai = {key[r["item_id"]]["ai_decision"]: r["item_id"] for r in rows}            # FAIL 1·PASS 2 중 하나씩
+    fail_id = by_ai["FAIL"]
+    pass_ids = [r["item_id"] for r in rows if key[r["item_id"]]["ai_decision"] == "PASS"]
+    labels_a = {fail_id: "정상", pass_ids[0]: "정상", pass_ids[1]: "적용 제외"}
+    labels_b = {fail_id: "검증 불가", pass_ids[0]: "정상", pass_ids[1]: "적용 제외"}
+    for name, labels in (("a", labels_a), ("b", labels_b)):
+        _sheet(tmp_path / f"{name}.csv", [dict(r, reviewer=name.upper(), reviewed_at="2026-10-14 13:00", label=labels[r["item_id"]]) for r in rows])
+    first = merge(kit, [tmp_path / "a.csv", tmp_path / "b.csv"])
+    assert first["status"] == {"합의": 2, "불일치": 1} and first["adjudication_template"].endswith("adjudication.csv")
+    assert compare(kit)["gold"] == 2                                                    # 불일치 항목은 아직 정답 없음
+    with open(kit / "adjudication.csv", encoding="utf-8-sig", newline="") as handle:
+        adjudication = list(csv.DictReader(handle))
+    assert [a["item_id"] for a in adjudication] == [fail_id] and adjudication[0]["final_label"] == ""
+    adjudication[0].update(final_label="정상", decided_by="A·B", decided_at="2026-10-14 14:00", rationale="공식 문서에서 확인")
+    _sheet(kit / "adjudication.csv", adjudication)
+    second = merge(kit, [tmp_path / "a.csv", tmp_path / "b.csv"], adjudication=kit / "adjudication.csv")
+    assert second["status"] == {"합의": 2, "합의(조정)": 1} and second["gold"] == 3
+    result = compare(kit)
+    assert result["applicable"] == 2 and result["excluded"] == 1 and result["unreviewed"] == 0
+    assert result["agreement"] == {"decided": 2, "agree": 1, "rate": 0.5}
+    assert result["misjudgments"] == {"false_fail": 1, "missed_error": 0}                # AI FAIL 인데 사람은 정상
+    assert result["unverifiable"] == {"count": 0, "share_of_applicable": 0.0, "ai_fail": 0, "ai_pass": 0}
+    assert result["by_ai_cause"]["source_unavailable:access_failed"] == {"정상": 1}
+    assert load_gold(kit / "gold.jsonl") and set(load_gold(kit / "gold.jsonl").values()) == {"PASS", "NOT_APPLICABLE"}
+
+
+def test_compare_without_human_labels_reports_zero_gold(tmp_path):
+    from tools.review_kit import compare
+    make(_run(), tmp_path / "kit", include_pass=1)
+    report = compare(tmp_path / "kit")
+    assert report["gold"] == 0 and report["agreement"] is None and report["unreviewed"] == 2

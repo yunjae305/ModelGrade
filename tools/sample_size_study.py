@@ -33,7 +33,7 @@ from webapp.run_summary import question_units  # noqa: E402
 STUDY_VERSION = "sample-size-study-v1"
 SIZES = (5, 10, 20, 30, 50, 100)
 CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7")
-GOLD_VALUES = ("PASS", "FAIL", "UNVERIFIABLE")
+GOLD_VALUES = ("PASS", "FAIL", "UNVERIFIABLE", "NOT_APPLICABLE")   # NOT_APPLICABLE(적용 제외)는 일치율에서 빼고 따로 센다
 Z95, Z80 = 1.959964, 0.841621
 
 
@@ -197,7 +197,8 @@ def study(run: Dict[str, Any], gold: Optional[Dict[Tuple[str, str, str], str]] =
                 labels = [gold[(system, case_ids[system][i], cid)] for i in indexes
                           if i < len(case_ids[system]) and (system, case_ids[system][i], cid) in gold]
                 if labels and verdict is not None:
-                    gold_units[system][key] = "FAIL" if "FAIL" in labels else "UNVERIFIABLE" if "UNVERIFIABLE" in labels else "PASS"
+                    gold_units[system][key] = ("FAIL" if "FAIL" in labels else "UNVERIFIABLE" if "UNVERIFIABLE" in labels
+                                               else "NOT_APPLICABLE" if all(l == "NOT_APPLICABLE" for l in labels) else "PASS")
         common = sorted(set.intersection(*(set(v) for v in per_system.values()))) if systems else []
         full = {s: sum(per_system[s][k] == "PASS" for k in common) / len(common) for s in systems} if common else {}
         pooled_fail = (sum(v == "FAIL" for s in systems for v in per_system[s].values())
@@ -250,7 +251,7 @@ def _gold_rows(per_system, gold_units, orders, n, systems) -> Dict[str, Any]:
     for order in orders:
         hits = total = 0
         for s in systems:
-            labeled = [k for k in order if k in gold_units[s]][:n]
+            labeled = [k for k in order if k in gold_units[s] and gold_units[s][k] != "NOT_APPLICABLE"][:n]   # 적용 제외는 일치율에서 뺀다
             used.append(len(labeled))
             for k in labeled:
                 judge, truth = per_system[s][k], gold_units[s][k]

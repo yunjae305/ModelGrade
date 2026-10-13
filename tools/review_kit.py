@@ -1,16 +1,22 @@
 """사람 검수 키트 — 블라인드 검수표를 만들고(make), 검수자 시트를 합쳐 일치율·불일치·사람 합의 정답을 낸다(merge). API 호출 없음.
 
     python tools/review_kit.py make data/comparison_runs/<run>.json --include-pass 3      # results/review/<run>-J5-kit/
-    python tools/review_kit.py merge results/review/<run>-J5-kit 검수자A.csv 검수자B.csv   # 합의 → gold.jsonl
+    python tools/review_kit.py merge results/review/<run>-J5-kit 검수자A.csv 검수자B.csv   # 합의 → gold.jsonl, 불일치 → adjudication.csv
+    python tools/review_kit.py merge <kit> A.csv B.csv --adjudication <kit>/adjudication.csv   # 합의 회의 결과(final_label)로 불일치 해소
+    python tools/review_kit.py compare results/review/<run>-J5-kit                          # 정답 ↔ AI 판정 대조 → compare.json·md
 
 make 가 만드는 파일 (results/ 는 git 에 올라가지 않는다 — 내부 검수용, 외부 공유 금지):
 - review_blind.csv — 검수자가 채우는 표. 시스템(모델) 이름·AI 판정·AI 사유·AI 가 찾은 출처는 넣지 않고, FAIL 과 PASS 대조군을 섞어
   무작위 순서로 둔다. 확인할 문장(평가자가 답변에서 뽑은 주장, 판정 없이)과 답변이 든 URL 만 보조로 준다.
-  검수자는 reviewer · reviewed_at · label(정상 / 실제 오류 / 검증 불가) · evidence(근거 URL·인용) · note 를 채운다.
+  검수자는 reviewer · reviewed_at · label(정상 / 실제 오류 / 검증 불가 / 적용 제외) · evidence(근거 URL·인용) · note 를 채운다.
+  적용 제외 = 이 답변에는 확인할 사실 주장이 없어 이 기준을 물을 대상이 아님 (조용히 빼지 않고 따로 센다).
 - review_open.csv — 블라인드 검수를 마친 뒤 의견을 맞출 때 쓰는 표 (AI 판정·원인·사유·출처 포함). 블라인드 검수 전에는 열지 않는다.
 - key.json — 검수 항목 ID ↔ 실행·시스템·질문 ID·AI 판정 (merge 가 쓴다).
 merge 는 사람이 채운 label 만 쓴다. 비어 있는 항목에 AI 판정으로 정답을 채우지 않는다. 검수자가 둘 이상이면 모두 같을 때만 합의,
-다르면 '불일치'로 남기고 정답을 만들지 않는다. 한 명만 본 항목은 --allow-single 일 때만 정답에 넣는다(단독 검수로 표시).
+다르면 '불일치'로 남기고 정답을 만들지 않는다 — adjudication.csv 에 합의 회의 결과(final_label·decided_by·decided_at·rationale)를 적고
+--adjudication 으로 다시 합치면 '합의(조정)'으로 정답이 된다. 한 명만 본 항목은 --allow-single 일 때만 정답에 넣는다(단독 검수로 표시).
+compare 는 사람 정답이 있는 항목만 AI 판정과 대조한다 — 적용 대상 일치율(정상·실제 오류), 오판정(잘못된 FAIL·놓친 오류), 검증 불가,
+적용 제외, 미검수를 따로 낸다. 정답이 0건이면 일치율을 계산하지 않는다.
 """
 from __future__ import annotations
 
@@ -33,13 +39,24 @@ from code_eval.jev_criteria import CRITERIA  # noqa: E402
 from tools.export_review import _claims, _failed_sources, _text, cause_of  # noqa: E402
 
 KIT_VERSION = "review-kit-v1"
-LABELS = {"정상": "PASS", "실제 오류": "FAIL", "검증 불가": "UNVERIFIABLE"}
+LABELS = {"정상": "PASS", "실제 오류": "FAIL", "검증 불가": "UNVERIFIABLE", "적용 제외": "NOT_APPLICABLE"}
+ADJUDICATION_FIELDS = ("final_label", "decided_by", "decided_at", "rationale")
 REVIEWER_FIELDS = ("reviewer", "reviewed_at", "label", "evidence", "note")
 BLIND = ("item_id", "criterion", "criterion_question", "pass_rule", "fail_rule", "question", "answer", "check_sentences",
          "answer_urls") + REVIEWER_FIELDS
 OPEN = BLIND[:-len(REVIEWER_FIELDS)] + ("system", "case_id", "ai_decision", "ai_cause", "ai_cause_label", "ai_reason",
                                         "ai_original_choice", "ai_failed_sources") + REVIEWER_FIELDS
 _URL = re.compile(r"https?://[^\s)>\]\"'`]+")
+
+
+README_TEXT = (
+    "사람 검수 안내 (내부용 — 외부 공유 금지)\n"
+    "1. review_blind.csv 를 검수자마다 복사해 각자 채운다 (다른 검수자 시트·review_open.csv 는 보지 않는다).\n"
+    "2. label 은 '정상'(답변의 사실이 맞음) · '실제 오류'(근거로 틀렸다고 확인) · '검증 불가'(확인할 수 없음) · '적용 제외'(확인할 사실 주장이 없음) 중 하나만.\n"
+    "3. reviewer(이름), reviewed_at(예: 2026-10-14 13:20), evidence(확인한 출처 URL·인용)를 함께 적는다. 모르면 비워 둔다 — 추측해 채우지 않는다.\n"
+    "4. 다 채운 뒤 python tools/review_kit.py merge <이 폴더> <시트들> 로 합친다. 의견이 다른 항목은 adjudication.csv 에 모이고,\n"
+    "   review_open.csv 를 보고 논의한 결과를 final_label·decided_by·decided_at·rationale 에 적어 --adjudication 으로 다시 합친다.\n"
+    "5. python tools/review_kit.py compare <이 폴더> 로 AI 판정과 대조한다.\n")
 
 
 def _sentences(decision: Dict[str, Any]) -> str:
@@ -86,13 +103,7 @@ def make(run: Dict[str, Any], out: Path, *, criterion: str = "J5", include_pass:
            "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
            "items": {i["item_id"]: {k: i[k] for k in ("system", "case_id", "index", "ai_decision", "ai_cause")} for i in items}}
     (out / "key.json").write_text(json.dumps(key, ensure_ascii=False, indent=1), encoding="utf-8")
-    (out / "README.txt").write_text(
-        "사람 검수 안내 (내부용 — 외부 공유 금지)\n"
-        "1. review_blind.csv 를 검수자마다 복사해 각자 채운다 (다른 검수자 시트·review_open.csv 는 보지 않는다).\n"
-        "2. label 은 '정상'(답변의 사실이 맞음) · '실제 오류'(근거로 틀렸다고 확인) · '검증 불가'(확인할 수 없음) 중 하나만.\n"
-        "3. reviewer(이름), reviewed_at(예: 2026-10-14 13:20), evidence(확인한 출처 URL·인용)를 함께 적는다. 모르면 비워 둔다 — 추측해 채우지 않는다.\n"
-        "4. 다 채운 뒤 python tools/review_kit.py merge <이 폴더> <시트들> 로 합친다. 의견이 다른 항목은 review_open.csv 를 보고 다시 논의한다.\n",
-        encoding="utf-8")
+    (out / "README.txt").write_text(README_TEXT, encoding="utf-8")
     return {"version": KIT_VERSION, "out": str(out), "items": len(items),
             "ai_decisions": dict(Counter(i["ai_decision"] for i in items)), "text_scope": text}
 
@@ -109,8 +120,28 @@ def _kappa(pairs: List[tuple]) -> Optional[float]:
     return round((observed - expected) / (1 - expected), 3) if expected < 1 else 1.0
 
 
-def merge(kit: Path, sheets: List[Path], *, allow_single: bool = False) -> Dict[str, Any]:
+def _read_adjudication(path: Optional[Path]) -> Dict[str, Dict[str, str]]:
+    """합의 회의 기록 — final_label 이 있는 행만 쓰고, 있으면 decided_by·decided_at 도 있어야 한다."""
+    if path is None or not path.exists():
+        return {}
+    out, problems = {}, []
+    with open(path, encoding="utf-8-sig", newline="") as handle:
+        for line, row in enumerate(csv.DictReader(handle), 2):
+            final = (row.get("final_label") or "").strip()
+            if not final:
+                continue
+            if final not in LABELS or not (row.get("decided_by") or "").strip() or not (row.get("decided_at") or "").strip():
+                problems.append(f"{path.name}:{line} {row.get('item_id')} — final_label 은 {'/'.join(LABELS)}, decided_by·decided_at 필수")
+                continue
+            out[(row.get("item_id") or "").strip()] = {k: (row.get(k) or "").strip() for k in ADJUDICATION_FIELDS}
+    if problems:
+        raise ValueError("합의 기록 오류:\n" + "\n".join(problems[:20]))
+    return out
+
+
+def merge(kit: Path, sheets: List[Path], *, allow_single: bool = False, adjudication: Optional[Path] = None) -> Dict[str, Any]:
     key = json.loads((kit / "key.json").read_text(encoding="utf-8"))
+    decided = _read_adjudication(adjudication)
     by_item: Dict[str, Dict[str, Dict[str, str]]] = {item: {} for item in key["items"]}
     problems = []
     for sheet in sheets:
@@ -124,7 +155,7 @@ def merge(kit: Path, sheets: List[Path], *, allow_single: bool = False) -> Dict[
                     continue
                 reviewer, when = (row.get("reviewer") or "").strip(), (row.get("reviewed_at") or "").strip()
                 if label not in LABELS or not reviewer or not when:
-                    problems.append(f"{sheet.name}:{line} {item} — label 은 정상/실제 오류/검증 불가, reviewer·reviewed_at 필수")
+                    problems.append(f"{sheet.name}:{line} {item} — label 은 {'/'.join(LABELS)}, reviewer·reviewed_at 필수")
                     continue
                 if reviewer in by_item[item]:
                     problems.append(f"{sheet.name}:{line} {item} — 검수자 {reviewer} 의 판정이 두 번 있음")
@@ -141,9 +172,19 @@ def merge(kit: Path, sheets: List[Path], *, allow_single: bool = False) -> Dict[
             statuses["미검수"] += 1
             continue
         if len(labels) > 1:
-            statuses["불일치"] += 1
+            final = decided.get(item)
             disagreements.append({"item_id": item, **{r: marks[r]["label"] for r in marks},
-                                  "notes": " / ".join(f"{r}: {m['note']}" for r, m in marks.items() if m["note"])})
+                                  "notes": " / ".join(f"{r}: {m['note']}" for r, m in marks.items() if m["note"]), **(final or {})})
+            if not final:
+                statuses["불일치"] += 1
+                continue
+            statuses["합의(조정)"] += 1
+            meta = key["items"][item]
+            gold.append({"system": meta["system"], "case_id": meta["case_id"], "criterion": key["criterion"], "gold": LABELS[final["final_label"]],
+                         "label": final["final_label"], "item_id": item, "reviewers": sorted(marks),
+                         "reviewed_at": sorted(m["reviewed_at"] for m in marks.values()), "single_reviewer": False,
+                         "adjudicated": {k: final[k] for k in ("decided_by", "decided_at", "rationale")},
+                         "evidence": [m["evidence"] for m in marks.values() if m["evidence"]]})
             continue
         if len(marks) == 1 and not allow_single:
             statuses["단독 검수(정답 제외)"] += 1
@@ -167,8 +208,58 @@ def merge(kit: Path, sheets: List[Path], *, allow_single: bool = False) -> Dict[
         writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(disagreements)
+    # 합의 회의 기록 양식 — 불일치 항목마다 한 행, 이미 적은 결정은 그대로 옮긴다 (기록이 지워지지 않게)
+    template = kit / "adjudication.csv"
+    with open(template, "w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["item_id"] + reviewers + ["notes", *ADJUDICATION_FIELDS], extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows([{**{k: "" for k in ADJUDICATION_FIELDS}, **row} for row in disagreements])
     return {"version": KIT_VERSION, "items": len(by_item), "reviewers": reviewers, "status": dict(statuses), "gold": len(gold),
+            "adjudication_template": str(template),
             "pairs": pair_stats, "ai_vs_human": {f"AI {a} → 사람 {h}": n for (a, h), n in sorted(ai_vs_human.items())}}
+
+
+def compare(kit: Path) -> Dict[str, Any]:
+    """사람 정답(gold.jsonl) ↔ AI 판정(key.json). 적용 제외·검증 불가·미검수를 조용히 빼지 않고 따로 센다."""
+    key = json.loads((kit / "key.json").read_text(encoding="utf-8"))
+    gold_path = kit / "gold.jsonl"
+    gold = [json.loads(line) for line in gold_path.read_text(encoding="utf-8").splitlines() if line.strip()] if gold_path.exists() else []
+    labeled = {g["item_id"]: g for g in gold}
+    applicable = [g for g in gold if g["gold"] != "NOT_APPLICABLE"]
+    decided = [g for g in applicable if g["gold"] in ("PASS", "FAIL")]
+    ai = lambda g: key["items"][g["item_id"]]["ai_decision"]
+    agree = sum(1 for g in decided if ai(g) == g["gold"])
+    unverifiable = [g for g in applicable if g["gold"] == "UNVERIFIABLE"]
+    by_cause: Dict[str, Counter] = {}
+    for g in gold:
+        by_cause.setdefault(key["items"][g["item_id"]]["ai_cause"], Counter())[g["label"]] += 1
+    report = {"version": KIT_VERSION, "run_id": key.get("run_id"), "criterion": key.get("criterion"), "items": len(key["items"]),
+              "gold": len(gold), "unreviewed": len(key["items"]) - len(labeled), "applicable": len(applicable),
+              "excluded": len(gold) - len(applicable),
+              "agreement": {"decided": len(decided), "agree": agree, "rate": round(agree / len(decided), 4)} if decided else None,
+              "misjudgments": {"false_fail": sum(1 for g in decided if ai(g) == "FAIL" and g["gold"] == "PASS"),
+                               "missed_error": sum(1 for g in decided if ai(g) == "PASS" and g["gold"] == "FAIL")},
+              "unverifiable": {"count": len(unverifiable),
+                               "share_of_applicable": round(len(unverifiable) / len(applicable), 4) if applicable else None,
+                               "ai_fail": sum(1 for g in unverifiable if ai(g) == "FAIL"),
+                               "ai_pass": sum(1 for g in unverifiable if ai(g) == "PASS")},
+              "excluded_ai": dict(Counter(ai(g) for g in gold if g["gold"] == "NOT_APPLICABLE")),
+              "by_ai_cause": {cause: dict(counter) for cause, counter in sorted(by_cause.items())},
+              "adjudicated": sum(1 for g in gold if g.get("adjudicated")), "single_reviewer": sum(1 for g in gold if g.get("single_reviewer"))}
+    (kit / "compare.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    lines = [f"# 사람 검수 ↔ AI 판정 대조 ({key.get('run_id')} · {key.get('criterion')})",
+             f"- 검수 항목 {report['items']} · 정답 {report['gold']} (조정 {report['adjudicated']}, 단독 {report['single_reviewer']}) · 미검수·미합의 {report['unreviewed']}",
+             f"- 적용 대상 {report['applicable']} · 적용 제외 {report['excluded']} (AI 판정 {report['excluded_ai']})"]
+    if report["agreement"]:
+        a, m, u = report["agreement"], report["misjudgments"], report["unverifiable"]
+        lines += [f"- 판정 일치 {a['agree']}/{a['decided']} = {a['rate']:.0%} (사람이 정상·실제 오류로 정한 항목)",
+                  f"- 오판정: 잘못된 FAIL {m['false_fail']} · 놓친 오류 {m['missed_error']}",
+                  f"- 검증 불가 {u['count']} (적용 대상의 {u['share_of_applicable']:.0%}) — AI FAIL {u['ai_fail']} · AI PASS {u['ai_pass']}"]
+    else:
+        lines.append("- 사람이 정상·실제 오류로 정한 항목이 없어 일치율을 계산하지 않음")
+    lines += [f"- AI 원인 {cause}: {counts}" for cause, counts in report["by_ai_cause"].items()]
+    (kit / "compare.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -185,6 +276,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     g.add_argument("kit", type=Path)
     g.add_argument("sheets", type=Path, nargs="+")
     g.add_argument("--allow-single", action="store_true")
+    g.add_argument("--adjudication", type=Path, help="합의 회의 기록 (adjudication.csv 에 final_label 을 채운 것)")
+    c = sub.add_parser("compare")
+    c.add_argument("kit", type=Path)
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -194,8 +288,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         if (out / "key.json").exists():
             parser.error(f"{out} 에 이미 검수 키트가 있습니다 — 검수 중인 시트를 덮어쓰지 않도록 다른 --out-dir 을 쓰세요")
         report = make(run, out, criterion=args.criterion, include_pass=args.include_pass, text=args.text, seed=args.seed)
+    elif args.command == "merge":
+        report = merge(args.kit, args.sheets, allow_single=args.allow_single, adjudication=args.adjudication)
     else:
-        report = merge(args.kit, args.sheets, allow_single=args.allow_single)
+        report = compare(args.kit)
     print(json.dumps(report, ensure_ascii=False, indent=1))
     return 0
 
