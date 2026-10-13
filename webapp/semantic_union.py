@@ -151,6 +151,12 @@ def recheck(batch: Dict[str, Any], index: int, missing: Dict[str, List[Dict[str,
     subset = union_recheck_questions(questions, missing, round_no)
     union: Dict[str, Any] = {"version": UNION_VERSION, "round": round_no, "bases": {}, "status": None, "attempts": 0, "error": None}
     record["union"] = union
+    if (record.get("attachment_images") or {}).get("sent"):
+        # 그림을 직접 보고 판정한 J8 항목은 그림 없이 다시 묻지 않는다 (judge-attachment-images-v1) — 이 재확인은 첨부를 보내지 않는다
+        held = [base for base in subset if base.startswith("J8")]
+        subset = {base: spec for base, spec in subset.items() if base not in held}
+        if held:
+            union["image_items_skipped"] = held
     if not subset:
         union["status"] = "NO_TARGET"
         return union

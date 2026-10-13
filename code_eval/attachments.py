@@ -3,8 +3,9 @@
 입력 ``attachments`` 는 [{name, type, content, sha256?, size?, path?}] 이다.
 - ``type``: image · txt · docx · pdf 등 파일 종류 (소문자 확장자 이름).
 - ``content``: 파일에 실제로 든 내용 — 글자 파일은 원문, 이미지는 그림 속 글자·도표 값. 질문 생성 단계가 파일을 직접 만들기 때문에
-  정답 내용을 그대로 안다. 평가 모델은 파일 대신 이 내용을 받아 답변이 첨부를 제대로 읽고 썼는지(J8) 판단한다.
-- ``sha256``·``size``·``path``: 어떤 파일을 보냈는지 확인하는 기록 — 평가 모델에는 보내지 않는다.
+  정답 내용을 그대로 안다. 평가 모델은 이 내용을 받아 답변이 첨부를 제대로 읽고 썼는지(J8) 판단한다.
+- ``sha256``·``size``·``path``: 어떤 파일을 보냈는지 확인하는 기록 — 이 값 자체는 평가 모델에 보내지 않는다. 이미지 첨부가 파일을
+  가리키면 확인을 통과한 실제 그림을 평가 모델에도 함께 보낸다 (code_eval.attachment_images, judge-attachment-images-v1).
 """
 from __future__ import annotations
 
@@ -39,10 +40,20 @@ def attachments_of(payload: Dict[str, Any]) -> Tuple[Optional[List[Dict[str, Any
     return items, None
 
 
-def judge_view(attachments: Any) -> List[Dict[str, str]]:
-    """평가 모델에 보낼 모양 — 이름·종류·내용만 (경로·지문·크기는 보내지 않는다)."""
-    return [{"name": a["name"], "type": a["type"], "content": a.get("content") or ""}
-            for a in attachments or [] if isinstance(a, dict) and a.get("name")]
+def judge_view(attachments: Any, image_attached: Optional[Dict[int, bool]] = None) -> List[Dict[str, Any]]:
+    """평가 모델에 보낼 모양 — 이름·종류·내용만 (경로·지문·크기는 보내지 않는다).
+
+    ``image_attached`` ({첨부 순번: 그림을 함께 보냈는지}, code_eval.attachment_images) 가 있으면 그 이미지 첨부에 image_attached 를
+    붙인다 — 평가 모델이 그림을 직접 봤는지 알게 한다. 없으면 예전과 같다."""
+    view: List[Dict[str, Any]] = []
+    for index, a in enumerate(attachments or []):
+        if not (isinstance(a, dict) and a.get("name")):
+            continue
+        entry: Dict[str, Any] = {"name": a["name"], "type": a["type"], "content": a.get("content") or ""}
+        if image_attached and index in image_attached:
+            entry["image_attached"] = bool(image_attached[index])
+        view.append(entry)
+    return view
 
 
 def attachment_text(attachments: Any) -> str:

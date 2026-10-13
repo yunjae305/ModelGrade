@@ -1,4 +1,6 @@
 """Provider durations must stop independently and survive completed/interrupted reloads."""
+import copy
+import hashlib
 import json
 import threading
 
@@ -8,6 +10,8 @@ import pytest
 from webapp.code_eval_service import CodeEvalService
 from webapp.comparison_service import ComparisonService
 from test_live_comparison_progress import until
+
+PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
 
 
 def test_provider_timing_finishes_independently_and_is_saved(tmp_path):
@@ -133,9 +137,17 @@ def test_conversation_rows_record_what_was_sent_without_the_text(tmp_path):
 
 def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tmp_path):
     """3차 7단계 — 첨부 질문(J8)에서 API 모델에도 첨부를 보낸다: 글자 첨부는 질문 뒤에, 이미지는 허용 폴더의 실제 파일만 제공자 형식으로.
-    파일이 없는 이미지는 보내지 않고 기록한다 (그림 속 글자로 대신하지 않음). 첨부 없는 질문의 요청은 예전과 같다."""
+    파일이 없는 이미지는 보내지 않고 기록한다 (그림 속 글자로 대신하지 않음). 첨부 없는 질문의 요청은 예전과 같다.
+    4차: 평가 모델도 같은 그림(같은 sha256)을 받는다."""
     import base64
     from tests.test_blind_comparison import CapturingJudge
+
+    class ImageJudge(CapturingJudge):
+        supports_images = True
+
+        def system_one(self, state, questions, images=None):
+            self.images = getattr(self, 'images', []) + [copy.deepcopy(images)]
+            return super().system_one(state, questions)
     bodies = {}
     def handle(request):
         bodies.setdefault(request.url.host, []).append(json.loads(request.content))
@@ -144,11 +156,12 @@ def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tm
         if request.url.host == 'api.anthropic.com':
             return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': 'claude 답'}]})
         return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': 'gemini 답'}]}, 'finishReason': 'STOP'}]})
-    judge = CapturingJudge()
+    judge = ImageJudge()
     service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda **_: (judge, judge.config, None)),
                                 save_dir=tmp_path/'runs', client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
     (tmp_path / 'files').mkdir()
-    (tmp_path / 'files' / 'chart.png').write_bytes(b'PNG-fixture-bytes')
+    png = PNG_SIGNATURE + b'fixture-bytes'   # 파일 서명으로 형식을 확인한다 (4차)
+    (tmp_path / 'files' / 'chart.png').write_bytes(png)
     service.attachment_roots = [tmp_path / 'files']
     for provider in ('gpt', 'claude', 'gemini'):
         service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
@@ -160,7 +173,7 @@ def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tm
     rid = service.start({'cases': cases, 'providers': ['gpt', 'claude', 'gemini'], 'auto_evaluate': True})['run_id']
     until(lambda: service.status(rid)['status'] in ('COMPLETED', 'ERROR'))
     saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
-    image = base64.b64encode(b'PNG-fixture-bytes').decode('ascii')
+    image = base64.b64encode(png).decode('ascii')
     gpt = next(b for b in bodies['api.openai.com'] if '견적' in json.dumps(b, ensure_ascii=False))
     parts = gpt['input'][-1]['content']
     assert parts[0]['type'] == 'input_text' and '[첨부파일: 견적서.txt (TXT)]\n견적 합계 1,250,000원' in parts[0]['text']
@@ -177,3 +190,10 @@ def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tm
     assert plain['input'] == [{'role': 'user', 'content': '첨부 없는 질문'}]                       # 첨부 없는 요청은 예전과 같다
     assert 'attachment_delivery' not in saved['datasets']['gpt'][1]['collection']['request']
     assert any('J8' in call['questions'] for call in judge.calls)
+    # 평가 모델도 답변 모델과 같은 그림을 받고(같은 바이트), 판정 기록에 그 그림의 sha256 이 남는다 — 질문·답변·그림·판정이 같은 case_id
+    judged = [images for images in judge.images if images]
+    assert judged and all(len(images) == 1 and images[0]['data'] == image and images[0]['media_type'] == 'image/png' for images in judged)
+    record = next(r for r in saved['evaluations']['gpt']['jev_eval']['records'] if r.get('attachment_images'))
+    assert record['case_id'] == saved['datasets']['gpt'][0]['case_id']
+    assert record['attachment_images']['sent'][0]['sha256'] == hashlib.sha256(png).hexdigest()
+    assert record['attachment_images']['content_only'] == [{'index': 2, 'name': 'missing.png'}]

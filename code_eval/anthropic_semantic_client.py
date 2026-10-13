@@ -20,6 +20,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from . import attachment_images
 from . import semantic_cli_common as semantic
 from .io import validate_json_numbers
 from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
@@ -114,6 +115,7 @@ class AnthropicSemanticConfig:
                 "web_search": self.web_search, "search_tool": SEARCH_TOOL, "fetch_tool": FETCH_TOOL,
                 "search_policy": SEARCH_POLICY, "fact_check_policy": FACT_CHECK_POLICY,
                 "fact_check_scope": "all_answers", "context_check_policy": CONTEXT_CHECK_POLICY,
+                "image_input": attachment_images.JUDGE_IMAGE_POLICY_VERSION,
                 "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
                 "dispatch": "realtime",   # 호출은 실시간만 (Message Batches 는 2026-10-13 제거)
@@ -354,6 +356,7 @@ def _provider_documents(blocks):
 
 class AnthropicSemanticClient:
     supports_cancellation = True
+    supports_images = True   # 첨부 이미지를 base64 이미지 블록으로 함께 보낸다 (judge-attachment-images-v1)
 
     def __init__(self, config, api_key, transport=None, *, source_fetcher=None):
         if not isinstance(api_key, str) or not api_key.strip():
@@ -383,8 +386,10 @@ class AnthropicSemanticClient:
 
     # --- 요청 조립 · 응답 처리 ---------------------------------------------------------------------------
 
-    def build_request(self, state, questions):
-        """(payload, context) — 첫 HTTP 요청 본문과, 응답 처리에 필요한 문맥 {questions(보낸 것), not_sent, search_enabled, items_mode}."""
+    def build_request(self, state, questions, images=None):
+        """(payload, context) — 첫 HTTP 요청 본문과, 응답 처리에 필요한 문맥 {questions(보낸 것), not_sent, search_enabled, items_mode}.
+
+        ``images`` (jev_eval 이 확인한 첨부 그림 [{name, media_type, data}]) 가 있으면 공통 지시문 뒤·평가 대상 앞에 그림을 넣는다."""
         search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
         mode = search_mode(questions, state, self.config.web_search)
         items_mode = semantic.is_items(questions)
@@ -401,7 +406,10 @@ class AnthropicSemanticClient:
                          {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
                           "citations": {"enabled": True}}]
         static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
+        pictures = attachment_images.labelled_blocks("claude", images) if images else []
         content = static + "\n" + dynamic
+        if pictures:
+            content = [{"type": "text", "text": static + "\n"}, *pictures, {"type": "text", "text": dynamic}]
         # items 는 질문마다 앞부분(항목 목록·적용 근거·제출 스키마)이 달라 질문끼리 캐시를 나눠 쓰지 못한다 — 검색 도구가 붙어
         # 같은 요청 안의 검색 반복 입력을 캐시로 읽을 때만 표시한다(검색 없는 요청은 저장 비용만 든다). legacy 는 기준 조합별로 공유된다.
         if self.config.prompt_cache and (search_enabled or not items_mode):
@@ -409,7 +417,7 @@ class AnthropicSemanticClient:
             # tools + system + static rules; the timestamp and evaluation data follow it.
             # With caching on, server tools also cache their results between iterations.
             content = [{"type": "text", "text": static + "\n", "cache_control": {"type": "ephemeral"}},
-                       {"type": "text", "text": dynamic}]
+                       *pictures, {"type": "text", "text": dynamic}]
         payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
                    "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
                    "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
@@ -578,7 +586,7 @@ class AnthropicSemanticClient:
                 timings["source_verification"] += time.monotonic() - source_started
         return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)
 
-    def system_one(self, state, questions, *, cancel_event=None):
+    def system_one(self, state, questions, *, cancel_event=None, images=None):
         """실시간: 요청 조립 → POST(pause_turn 이어가기 포함) → 응답 처리."""
         deadline = time.monotonic() + self.config.timeout
         payload, context = None, {"questions": questions, "not_sent": [], "search_enabled": False, "items_mode": False}
@@ -590,7 +598,7 @@ class AnthropicSemanticClient:
                 raise CancelledError()
         try:
             check_cancel()
-            payload, context = self.build_request(state, questions)
+            payload, context = self.build_request(state, questions, images)
             session["not_sent"], session["search_mode"] = context["not_sent"], context["search_mode"]
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()

@@ -232,6 +232,10 @@ def build_item_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any], se
     dynamic.append(f"collected_at: {collected_at or '미기록'}")
     if evaluation_time:
         dynamic.append(f"evaluation_time: {evaluation_time}")
+    from .attachment_images import prompt_note
+    note = prompt_note(state)
+    if note:
+        dynamic.append(note)
     dynamic.append(json.dumps(state, ensure_ascii=False, indent=1))
     return "\n".join(lines), "\n".join(dynamic)
 

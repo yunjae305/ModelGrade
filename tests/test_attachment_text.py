@@ -69,9 +69,10 @@ def test_generated_attachment_with_only_a_file_name_is_found_by_sha256(tmp_path)
     from webapp.attachment_delivery import prepare
     (tmp_path / "set1" / "files").mkdir(parents=True)
     (tmp_path / "set2" / "files").mkdir(parents=True)
-    (tmp_path / "set1" / "files" / "chart.png").write_bytes(b"other-image")
-    (tmp_path / "set2" / "files" / "chart.png").write_bytes(b"right-image")
-    digest = hashlib.sha256(b"right-image").hexdigest()
+    png = b"\x89PNG\r\n\x1a\n"   # 보내기 전에 파일 서명으로 형식을 확인한다 (4차)
+    (tmp_path / "set1" / "files" / "chart.png").write_bytes(png + b"other-image")
+    (tmp_path / "set2" / "files" / "chart.png").write_bytes(png + b"right-image")
+    digest = hashlib.sha256(png + b"right-image").hexdigest()
     entry = {"name": "chart.png", "type": "image", "content": "막대 3개", "path": "chart.png", "sha256": digest}
     _, images, delivery = prepare("그래프를 보고 답해줘.", [entry], [tmp_path])
     assert delivery[0]["mode"] == "image" and len(images) == 1

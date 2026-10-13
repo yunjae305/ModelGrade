@@ -20,7 +20,7 @@ import httpx
 
 from code_eval.core import LIMITS
 from code_eval.common_adjudication import resolved_case
-from code_eval import jev_eval
+from code_eval import attachment_images, jev_eval
 from code_eval.engine import _conversation_of
 from code_eval.io import validate_json_numbers
 from code_eval.llm_client import env_value
@@ -255,8 +255,8 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
 class ComparisonService:
     def __init__(self, evaluator, save_dir=None, client_factory=None, registry_path=None,
                  *, semantic_workers=DEFAULT_SEMANTIC_WORKERS, collection_workers=DEFAULT_COLLECTION_WORKERS):
-        # 답변 수집 때 첨부 이미지 파일을 읽어도 되는 폴더 (10-14 3차) — 이 밖의 경로는 읽지 않는다
-        self.attachment_roots = [ROOT / 'data' / 'attachments', ROOT / 'data' / 'question_sets', ROOT / 'examples']
+        # 첨부 이미지 파일을 읽어도 되는 폴더 (10-14 3차) — 이 밖의 경로는 읽지 않는다. 의미 평가도 같은 폴더에서 같은 그림을 찾는다 (4차)
+        self.attachment_roots = list(attachment_images.DEFAULT_ROOTS)
         self.evaluator = evaluator
         self.save_dir = Path(save_dir) if save_dir is not None else ROOT / "data" / "comparison_runs"
         self.client_factory = client_factory or (lambda: httpx.Client(timeout=180, follow_redirects=False))
@@ -1827,6 +1827,8 @@ class ComparisonService:
                 for provider in run["providers"]}
             if run.get("run_kind") == "external_import":
                 semantic_contexts = {provider: _external_semantic_context(run["systems"][provider]) for provider in run["providers"]}
+            for semantic_context in semantic_contexts.values():   # 평가 모델에 보낼 첨부 그림도 답변 수집과 같은 폴더에서 찾는다
+                semantic_context["attachment_roots"] = [str(root) for root in self.attachment_roots]
             if run.get("run_kind") == "auto_collection" and "factchat" in semantic_contexts:
                 # 게이트웨이가 모델에 도구·검색을 붙였는지 확인할 수 없다 — '도구 없이 생성'으로 단정하지 않는다
                 semantic_contexts["factchat"]["answer_tools"] = "unknown"
