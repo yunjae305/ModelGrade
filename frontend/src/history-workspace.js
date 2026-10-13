@@ -9,7 +9,7 @@
   const emptyFilters = () => ({q: '', version: '', from: '', to: '', set: ''});
   const state = {entries: [], series: [], labels: {}, filters: emptyFilters(), page: 0, loaded: false, loading: false, error: '',
     generation: 0, detailGeneration: 0};
-  const criteriaNames = {J1: 'J1 요청 수행', J2: 'J2 지시 준수', J3: 'J3 표현 품질', J4: 'J4 내용 충실', J5: 'J5 데이터 신뢰도', J6: 'J6 긴 대화 맥락'};
+  const criteriaNames = {J1: 'J1 의도 충족성', J2: 'J2 내용 적절성', J3: 'J3 논리 타당성', J4: 'J4 충분성', J5: 'J5 데이터 신뢰도', J6: 'J6 긴 대화 맥락 유지'};
   const pageSize = 20;
   let returnFocus = null, restoreFocus = true;
 
@@ -80,6 +80,7 @@
       node('p', {text: '평가가 끝난 결과 비교마다 AIONA 결과가 쌓입니다. 기준·평가 모델·AIONA 버전이 바뀔 때 결과가 어떻게 달라졌는지 같은 질문 세트의 직전 기록과 비교합니다.'})),
       node('button', {id: 'refresh-history', type: 'button', class: 'button secondary', text: '기록 새로고침', onclick: refresh})),
     node('div', {id: 'history-summary', class: 'history-summary-grid'}),
+    node('section', {id: 'history-trend', class: 'panel history-trend-panel', hidden: ''}),
     node('section', {id: 'history-panel', class: 'panel history-list-panel'},
       node('div', {class: 'panel-heading'}, node('div', {class: 'panel-title'}, node('h2', {text: 'AIONA 결과 기록'}), node('span', {id: 'history-count', class: 'pill neutral', 'aria-live': 'polite'}))),
       node('div', {id: 'history-filters', class: 'matrix-filters history-filters'}),
@@ -192,6 +193,46 @@
     }));
     feedback(entries.length);
   }
+  // 질문 세트별 AIONA 질문 통과율 추이 — 기록 순서대로 점을 잇고, 바뀐 요인이 있는 기록은 색, 미완료가 있는 기록은 빈 점
+  const SVG = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs = {}, ...children) {
+    const element = document.createElementNS(SVG, tag);
+    for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+    element.append(...children);
+    return element;
+  }
+  function trendChart(set) {
+    const points = set.points || [], width = 320, height = 132, pad = 26;
+    const x = (i) => points.length === 1 ? width / 2 : pad + i * (width - 2 * pad) / (points.length - 1);
+    const y = (rate) => height - pad - (typeof rate === 'number' ? rate : 0) * (height - 2 * pad);
+    const rated = points.map((p, i) => [p, i]).filter(([p]) => typeof p.question_pass_rate === 'number');
+    const chart = svg('svg', {viewBox: `0 0 ${width} ${height}`, class: 'history-trend-chart', role: 'img',
+      'aria-label': `${setLabel(set)} 질문 통과율 추이: ` + rated.map(([p]) => percent(p.question_pass_rate)).join(', ')},
+      ...[0, .5, 1].map((r) => svg('line', {x1: pad, x2: width - pad, y1: y(r), y2: y(r), class: 'trend-grid'})),
+      ...[0, .5, 1].map((r) => svg('text', {x: 2, y: y(r) + 4, class: 'trend-axis'}, `${r * 100}%`)));
+    if (rated.length > 1) chart.append(svg('polyline', {class: 'trend-line', points: rated.map(([p, i]) => `${x(i)},${y(p.question_pass_rate)}`).join(' ')}));
+    for (const [p, i] of rated) {
+      const factors = (p.markers || []).map((m) => state.labels[m] || m);
+      chart.append(svg('circle', {cx: x(i), cy: y(p.question_pass_rate), r: 5,
+        class: 'trend-point' + (factors.length ? ' changed' : '') + (p.complete ? '' : ' incomplete')},
+        svg('title', {}, `${time(p.at)} · ${p.aiona_version ? 'AIONA ' + p.aiona_version : '버전 미기록'} · 통과율 ${percent(p.question_pass_rate)}`
+          + (factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
+          + (p.complete ? '' : ' · 미완료 질문 있음(변화 확정 안 함)'))));
+    }
+    const last = rated[rated.length - 1]?.[0];
+    return node('article', {class: 'history-trend-card'},
+      node('strong', {text: setLabel(set)}),
+      node('span', {class: 'field-help', text: `기록 ${number(points.length)}건` + (last ? ` · 최근 ${percent(last.question_pass_rate)}` : '')}),
+      chart);
+  }
+  function renderTrend() {
+    const box = $('history-trend'), series = state.series.filter((s) => (s.points || []).length);
+    box.hidden = !series.length;
+    box.replaceChildren(...(series.length ? [
+      node('div', {class: 'panel-heading'}, node('div', {class: 'panel-title'}, node('h2', {text: 'AIONA 질문 통과율 추이'}))),
+      node('p', {class: 'field-help', text: '질문 세트마다 따로 그립니다. 점에 마우스를 올리면 시각·버전·바뀐 요인을 봅니다. 색 점은 직전 기록과 조건이 바뀐 기록, 빈 점은 미완료 질문이 있어 변화를 확정하지 않은 기록입니다.'}),
+      node('div', {class: 'history-trend-grid'}, ...series.map(trendChart))] : []));
+  }
   async function refresh() {
     const generation = ++state.generation;
     state.loading = true; state.error = '';
@@ -206,7 +247,7 @@
       state.error = err.status === 404 ? '이력 관리를 지원하는 서버가 필요합니다. 서버를 재시작한 뒤 다시 시도하세요.' : err.message || 'AIONA 결과 기록 조회에 실패했습니다.';
     }
     state.loading = false; $('refresh-history').disabled = false;
-    buildFilters(); renderSummary(); renderList();
+    buildFilters(); renderSummary(); renderTrend(); renderList();
   }
   function metadata(rows) {
     return node('dl', {class: 'version-metadata history-metadata'}, ...rows.flatMap(([label, value]) => [node('dt', {text: label}), node('dd', {text: valueText(value)})]));

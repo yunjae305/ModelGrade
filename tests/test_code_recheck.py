@@ -28,3 +28,19 @@ def test_old_engine_fail_that_current_engine_no_longer_produces_is_reported_with
 def test_same_engine_is_not_rechecked():
     entry = code_recheck(stored_run(ENGINE_VERSION))["providers"]["claude"]
     assert entry["same_engine"] is True and entry["cases"] == {}
+
+
+def test_conditions_are_matched_by_expression_not_ordinal_and_displayed_text_is_kept():
+    answer = ANSWER + "\n- 합계: 3 + 4 = 8"
+    rows = [{"check_id": "3-1.answer_equation:1", "title": "답변 등식 26 = 26 / 20 = 1.3", "area": "common", "counted": True, "verdict": "FAIL"},
+            {"check_id": "3-1.answer_equation:2", "title": "답변 등식 3 + 4 = 8", "area": "common", "counted": True, "verdict": "FAIL"}]
+    run = stored_run()
+    run["datasets"]["claude"][0]["answer"] = answer
+    run["evaluations"]["claude"]["cases"][0]["results"] = rows
+    cases = code_recheck(run)["providers"]["claude"]["cases"]
+    assert cases == {"0": {"cleared": ["3-1.answer_equation:1"], "added": []}}   # 실제 오류 3 + 4 = 8 은 그대로 FAIL
+    tag = stored_run()
+    tag["datasets"]["claude"][0].update(answer="<span>OK</span>", displayed_text="OK</span>")
+    tag["evaluations"]["claude"]["cases"][0]["results"] = [{"check_id": "1-2.orphan_closing_tag", "title": "짝 없는 닫는 태그",
+                                                            "area": "common", "counted": True, "verdict": "FAIL"}]
+    assert code_recheck(tag)["providers"]["claude"]["cases"] == {}   # 표시본 기준 FAIL 은 현재 엔진에서도 FAIL

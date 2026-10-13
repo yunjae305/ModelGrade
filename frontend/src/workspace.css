@@ -1102,3 +1102,15 @@ textarea::placeholder {color:#757f94}
   .external-preview .dataset-stats>div:not(:first-child) {border-left:0; padding-left:0}
   .external-body {padding:16px 16px 0}
 }
+/* 이력 관리 — 질문 세트별 AIONA 질문 통과율 추이 */
+.history-trend-panel {margin-bottom:24px}
+.history-trend-grid {display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:12px}
+.history-trend-card {display:flex; flex-direction:column; gap:4px; min-width:0; padding:14px; border:1px solid var(--card-line); border-radius:var(--radius-sm); background:var(--surface)}
+.history-trend-chart {width:100%; height:auto; margin-top:6px}
+.history-trend-chart .trend-grid {stroke:var(--line); stroke-width:1}
+.history-trend-chart .trend-axis {fill:var(--muted); font-size:10px}
+.history-trend-chart .trend-line {fill:none; stroke:var(--primary); stroke-width:2}
+.history-trend-chart .trend-point {fill:var(--primary); stroke:var(--surface); stroke-width:2}
+.history-trend-chart .trend-point.changed {fill:var(--amber)}
+.history-trend-chart .trend-point.incomplete {fill:var(--surface); stroke:var(--primary)}
+.history-trend-chart .trend-point.changed.incomplete {stroke:var(--amber)}

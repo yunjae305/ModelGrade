@@ -640,3 +640,10 @@ def test_truth_request_in_the_earlier_turn_that_supplies_the_scope_quote_is_not_
     state["history"][0]["question"] = "정원은 12명입니다. 이 정보가 사실인지 검증해줘."
     claim["scope_quote"] = "이 정보가 사실인지 검증해줘."
     assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"
+
+
+def test_truth_request_in_the_cited_source_turn_is_checked_even_when_scope_quote_is_current():
+    state, claim = history_material_case("Answer my previous question in one sentence.")
+    state["history"][1]["question"] = NOTICE + " Verify this claim."
+    claim["scope_quote"] = "Answer my previous question in one sentence."
+    assert decision(evaluate(entries([claim]), state))["choice"] == "UNVERIFIED"

@@ -86,12 +86,19 @@ def _input_scope(claim, state, source=None):
     quote = claim.get("scope_quote")
     question = state.get("question", "")
     # 멀티턴에서는 값을 준 요청이 앞 턴에 있다 — 이전 사용자 턴의 요청 인용도 사용자 원문이다 (이전 AI 답변은 아님)
-    user_texts = [question] + [h.get("question", "") for h in state.get("history") or []
-                               if isinstance(h, dict) and isinstance(h.get("question"), str)]
-    scope_texts = [text for text in user_texts if _contained(quote, text)]
-    if claim.get("scope") != "input_consistency" or not scope_texts:
+    history = [h for h in state.get("history") or [] if isinstance(h, dict) and isinstance(h.get("question"), str)]
+    if claim.get("scope") != "input_consistency":
         return False
-    checked = [question] + scope_texts   # 현재 질문과, 요청 인용이 나온 사용자 턴 모두에서 진위·실제 데이터 요청을 본다
+    if _contained(quote, question):
+        checked = [question]
+    else:
+        earlier = [h["question"] for h in sorted(history, key=lambda h: h.get("turn") or 0) if _contained(quote, h["question"])]
+        if not earlier:
+            return False
+        checked = [question, earlier[-1]]          # 요청 인용이 나온 가장 가까운 앞 사용자 턴 하나
+    if isinstance(source, dict) and source.get("origin") == "history_user":
+        # 값을 가져온 사용자 턴 자체가 진위 확인을 요청했으면 그 값은 스스로를 증명하지 못한다
+        checked += [h["question"] for h in history if h.get("turn") == source.get("turn")]
     verification = (r"사실인지|참인지|정확한지|맞는지|진위|정확성|사실\s*(?:확인|검증)|팩트\s*체크|검증해|검색해|조사해|"
                     # 직접 묻는 진위 질문: '이 말이 사실이야?', '맞아?', '진짜야?', 'Is this true?'
                     r"(?:사실|진짜|정말|참)(?:이야|이에요|인가요|입니까|이니|일까|인지)?\s*\?|맞(?:아|나요|니|습니까|을까|죠|지)\s*\?|"

@@ -488,7 +488,10 @@
       if (state.run?.run_id !== id) return;
       state.codeRecheck = {...recheck, run_id: id};
       renderResult();
-      if ($('answer-dialog').open && state.modalSource === 'result') renderAnswer();
+      if ($('answer-dialog').open && state.modalSource === 'result') {
+        state.modalAnswerRender = null; state.modalEvaluation = null;   // 결과가 늦게 와도 열린 상세를 다시 그린다
+        renderAnswer();
+      }
     }).catch(() => {});
   }
   async function openRun(id, {navigate = true} = {}) {

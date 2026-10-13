@@ -6,7 +6,8 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Set
+import re
+from typing import Any, Dict
 
 from code_eval.common_adjudication import resolved_case
 from code_eval.core import ENGINE_VERSION
@@ -15,12 +16,23 @@ from code_eval.engine import evaluate_batch
 __all__ = ["RECHECK_VERSION", "code_recheck"]
 
 RECHECK_VERSION = "code-recheck-v1"
-_FIELDS = ("case_id", "question", "answer", "reference", "conversation_id", "turn")
+#: 판정에 쓰인 입력 필드 — 표시본(displayed_text)이 빠지면 표시본 기준 검사(닫는 태그 등)가 해제된 것처럼 보인다
+_FIELDS = ("case_id", "question", "answer", "displayed_text", "reference", "conversation_id", "turn", "system_id")
 
 
-def _fails(case: Dict[str, Any]) -> Set[str]:
-    return {str(row.get("check_id")) for row in (case or {}).get("results") or []
-            if isinstance(row, dict) and row.get("area") == "common" and row.get("counted") and row.get("verdict") == "FAIL"}
+def _fails(case: Dict[str, Any]) -> Dict[str, str]:
+    """FAIL 조건 → {대응 키: check_id}. 순번이 붙은 조건은 순번을 뺀 검사 종류 + 공백을 접은 제목(등식이면 식 자체)으로 —
+    앞 식이 보류되면 순번이 당겨지므로 순번으로 대응하면 다른 식에 '해제' 안내가 붙는다."""
+    out: Dict[str, str] = {}
+    for row in (case or {}).get("results") or []:
+        if isinstance(row, dict) and row.get("area") == "common" and row.get("counted") and row.get("verdict") == "FAIL":
+            check_id = str(row.get("check_id"))
+            ordinal = re.match(r"(.*):\d+$", check_id)
+            # 순번이 붙은 조건(답변 등식 ':1'·':2')만 제목(식)으로 짝짓는다 — 나머지 검사 ID 는 순번이 없어 그대로 안정적이고,
+            # 제목 문구는 엔진 버전마다 바뀔 수 있다
+            key = ordinal.group(1) + "|" + " ".join(str(row.get("title") or "").split()) if ordinal else check_id
+            out[key] = check_id
+    return out
 
 
 def code_recheck(run: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,6 +63,7 @@ def code_recheck(run: Dict[str, Any]) -> Dict[str, Any]:
             except (KeyError, TypeError, IndexError):
                 pass
             before, after = _fails(old), _fails(new)
-            if before != after:
-                entry["cases"][str(index)] = {"cleared": sorted(before - after), "added": sorted(after - before)}
+            if set(before) != set(after):
+                entry["cases"][str(index)] = {"cleared": sorted(before[k] for k in set(before) - set(after)),
+                                              "added": sorted(after[k] for k in set(after) - set(before))}
     return {"version": RECHECK_VERSION, "engine": ENGINE_VERSION, "providers": providers}

@@ -246,7 +246,8 @@ def _cut_operand_before(before: str) -> bool:
     stripped = before.rstrip(" \t\xa0")
     if not stripped or stripped[-1] not in "+-*/":
         return False
-    return bool(re.search(r"[\d)][^\s\d+\-*/=()]{0,4}[ \t\xa0]*$", stripped[:-1]))
+    # 숫자(·닫는 괄호) 뒤에 공백 하나와 한글·영문·% 단위가 올 수 있다 — '2 벌 ×'. 목록 번호 '1.' 같은 문장부호는 단위가 아니다.
+    return bool(re.search(r"[\d)](?:[ \t\xa0]?[가-힣A-Za-z%]{1,4})?[ \t\xa0]*$", stripped[:-1]))
 
 
 def _num(raw: str) -> Fraction:

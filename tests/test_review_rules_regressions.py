@@ -126,6 +126,7 @@ def test_fence_with_info_does_not_close_existing_block():
     "   2벌 × 3 + 1 = 7벌",                                          # 줄 앞 공백이 있어도
     "**2벌** × 3 + 1 = 7벌",                                         # 굵게 표시가 앞에 있어도
     "필요한 양은 2벌 ×3 + 1 = 7입니다.",                               # 붙여 쓴 곱셈 기호는 기울임이 아니다
+    "필요한 양은 2 벌 ×3 + 1 = 7입니다.",                              # 숫자와 단위 사이 공백
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)
@@ -141,6 +142,7 @@ def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     ("계산 결과:*3 + 4 = 8*", "FAIL"),  # 콜론 뒤에 붙은 기울임도
     ("설명 *3 + 4 = 8 개*", "FAIL"),    # 단위 앞 공백이 있는 기울임
     ("설명 *3 + 4 = **8***", "FAIL"),   # 중첩 강조
+    ("1. *3 + 4 = 8*", "FAIL"),         # 목록 번호는 앞 피연산자가 아니다
     ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈
 ])
 def test_bullet_and_plain_division_equations_still_judged(answer, verdict):
