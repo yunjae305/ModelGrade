@@ -35,14 +35,16 @@ CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와
            "중복 질문 — 공백·대소문자만 다른 완전 일치 (의미가 비슷한 질문은 찾지 않음)",
            "CODE 1~3 적용 — 평가와 같은 엔진이 질문(과 이전 턴 지속 지시)에서 읽은 조건, 답변은 비워 둔 채",
            "J1~J6 적용 — 평가와 같은 코드 규칙(의미 평가 방식 표시), 모델 호출 없음",
-           "답변 수집 여부 — answer 가 비어 있지 않은 턴 수")
+           "답변 수집 여부 — answer 가 비어 있지 않은 턴 수",
+           "J7 롱컨텍스트 — 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 8K 토큰 이상이면 적용 (설계안 v1.4). "
+           "토크나이저를 불러오지 못한 질문은 판별 불가로 따로 셈")
 NOT_CHECKED = ("Claude 의미 평가(J1~J6 PASS·FAIL) — 유료 호출, 이 보고서는 판정 결과가 아님",
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
                "답변에서 생기는 CODE 조건(1-2·1-3 구조, 3-1 답변 등식, 3-2 선언 개수) — 답변이 있어야 더해짐",
-               "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)",
-               "롱컨텍스트 — 실제 입력 토큰 길이를 측정하지 않음(답변·토크나이저 필요). 측정 전에는 충족으로 세지 않음")
-#: 롱컨텍스트 토큰 길이 검토 참고값 — 공식 임계값이 아니다 (팀 확정 10-13: 임계값은 정하지 않음)
-LONG_CONTEXT_REFERENCE_BINS = ("4K", "8K", "16K", "32K")
+               "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)")
+#: J7 롱컨텍스트 경계·길이 구간 — 설계안 v1.4 '롱컨텍스트 판별' (판정은 code_eval.long_context, 이 보고서는 표시만)
+LONG_CONTEXT_RULE = "입력(현재 질문 + 참조 자료) 8K 토큰 이상 · tiktoken o200k_base · 이전 턴은 길이에 넣지 않음 (설계안 v1.4)"
+LONG_CONTEXT_BINS = ("8K~32K", "32K~128K", "128K 이상")
 
 
 def _cases(items: List[Any]) -> List[Dict[str, Any]]:
@@ -155,16 +157,17 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
                    f"{minimum}개 부족을 이유로 막지 않으며, 업로드 화면에 충족 상태를 안내하지도 않는다."},
         {"title": "유형 비율 집계 단위",
          "detail": "검사기는 유형 필드를 턴마다 센다. 10턴 대화 하나가 비율에 10번 들어가므로 질문 단위 비율과 다를 수 있다 (보고서는 둘 다 표시)."},
-        {"title": "롱컨텍스트 공식 토큰 임계값",
-         "detail": "확정: 롱컨텍스트는 긴 문서 또는 실제 입력 토큰 길이로 따로 검증하고 멀티턴과 동시에 적용될 수 있다. 실제 토큰 수를 확인하지 못하면 "
-                   "충족으로 보지 않는다. 남은 결정: 공식 임계값 (" + "·".join(LONG_CONTEXT_REFERENCE_BINS) + " 는 검토 참고값)."},
+        {"title": "롱컨텍스트(J7) 질문 세트",
+         "detail": f"설계안 v1.4 '정할 것': 8K 토큰 이상 입력의 질문 세트는 아직 없다. J7 도 적용 질문·대화 {minimum}개 이상이어야 충족."},
     ]
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
             "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
             "conversation_rows": conversations,
             "context": {"single": report["single_questions"], "multi_turn": len(multi), "single_turn_conversations": len(conversations) - len(multi),
-                        "long_context": {"measured": False, "count": 0, "reference_bins": list(LONG_CONTEXT_REFERENCE_BINS)},
+                        "long_context": {"criterion": "J7", "units": criteria["J7"]["units"], "turns": criteria["J7"]["turns"],
+                                         "undetermined": (report.get("undetermined") or {}).get("J7", 0), "rule": LONG_CONTEXT_RULE,
+                                         "bins": list(LONG_CONTEXT_BINS)},
                         "turn_range": [min(c["turns"] for c in multi), max(c["turns"] for c in multi)] if multi else None,
                         "question_chars_range": [min(c["question_chars"] for c in multi), max(c["question_chars"] for c in multi)] if multi else None},
             "types": types if turn_type else None, "untyped_units": unit_type.get(None, 0),
@@ -278,9 +281,11 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
                f'<li><b>멀티턴</b> (2턴 이상 오간 대화) {ctx["multi_turn"]}개'
                + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
                + f' · 단일 질문 {ctx["single"]}개' + (f' · 1턴 대화 {ctx["single_turn_conversations"]}개' if ctx["single_turn_conversations"] else "") + "</li>"
-               f'<li><b>롱컨텍스트</b> 충족 {long_ctx["count"]}개 — 실제 입력 토큰을 측정하지 않아 충족으로 세지 않음. '
-               f'검토 참고 구간 {_e(" · ".join(long_ctx["reference_bins"]))} (공식 임계값 미정)</li>'
-               '<li>멀티턴과 롱컨텍스트는 동시에 적용될 수 있음</li>'
+               f'<li><b>롱컨텍스트 (J7)</b> 적용 질문·대화 {long_ctx["units"]}개 (적용 턴 {long_ctx["turns"]}) — {_e(long_ctx["rule"])}. '
+               f'길이 구간 {_e(" · ".join(long_ctx["bins"]))}</li>'
+               + (f'<li>토크나이저를 불러오지 못해 J7 적용 여부를 판별하지 못한 질문 {long_ctx["undetermined"]}개 — 해당 없음으로 빼지 않음 (tiktoken 확인)</li>'
+                  if long_ctx["undetermined"] else "")
+               + '<li>멀티턴(J6)과 롱컨텍스트(J7)는 한 질문에 함께 적용될 수 있음</li>'
                + (f'<li>대화별 질문만 누적 글자 수 {ctx["question_chars_range"][0]:,}~{ctx["question_chars_range"][1]:,}자 (답변 제외, 토큰 수 아님)</li>' if ctx["question_chars_range"] else "")
                + "</ul></div></section>")
 

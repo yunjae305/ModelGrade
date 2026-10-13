@@ -68,7 +68,8 @@ def test_singles_and_conversations_mixed_and_context_attributes():
     assert (code1["turns"], code1["units"], code1["units_singles"], code1["units_conversations"]) == (4, 2, 1, 1)
     context = analysis["context"]
     assert (context["multi_turn"], context["single"]) == (1, 1)
-    assert context["long_context"] == {"measured": False, "count": 0, "reference_bins": ["4K", "8K", "16K", "32K"]}   # 토큰 미측정 = 충족 아님
+    long_ctx = context["long_context"]   # J7 은 CLI 가 센 값을 그대로 (짧은 입력이라 적용 없음)
+    assert (long_ctx["criterion"], long_ctx["units"], long_ctx["turns"]) == ("J7", 0, 0) and "8K" in long_ctx["rule"]
     multi = next(t for t in analysis["types"] if t["name"] == "멀티턴 대화")
     assert (multi["turns"], multi["turn_ratio"], multi["units"], multi["unit_ratio"]) == (3, 0.75, 1, 0.5)   # 턴 비율 ≠ 단위 비율
 

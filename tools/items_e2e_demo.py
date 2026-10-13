@@ -44,6 +44,7 @@ URL_BAD = "https://official.example/caffeine/overview"
 REBUTTAL = "The average half-life of caffeine in healthy adults is about 5 hours."
 #: 의미 평가 요청 state 에 들어가도 되는 키 — 평가 대상 시스템·모델 이름은 보내지 않는다 (블라인드)
 STATE_KEYS = {"question", "answer", "history", "reference", "collected_at"}
+JUDGE_IDS = ("J1", "J2", "J3", "J4", "J5", "J6", "J7")   # 설계안 v1.4 — J7 롱컨텍스트 (시연 입력은 짧아 J7 은 적용되지 않음)
 
 T1_Q = "앞으로 존댓말로만 답해 주세요. 부모님과 가는 부산 1박 2일 여행이고, 숙소 예산은 1박 20만 원 이하예요. 첫날 일정을 짜 주세요."
 T2_Q = "숙소 예산을 1박 15만 원으로 줄여서 숙소만 다시 골라 주세요."
@@ -313,7 +314,7 @@ def run_demo(save_dir: Optional[Path] = None) -> Dict[str, Any]:
     records = jev["records"]
     common = [
         ("CODE 공통 검사 단위 28개 등록", sum(1 for unit in CODE_UNITS if not unit[0].startswith("AIONA")) == 28),
-        ("세부 기준 25개 · 점검 항목 39개 등록", (len(SUBS), len(ITEMS)) == (25, 39)),
+        ("세부 기준 27개 · 점검 항목 41개 등록 (설계안 v1.4, J7 포함)", (len(SUBS), len(ITEMS)) == (27, 41)),
         ("의미 평가 방식 items 로 실행·기록", jev.get("pipeline") == "items" and all(rec.get("applicability", {}).get("version") == SUB_APPLICABILITY_VERSION for rec in records)),
         ("보낸 항목 = 코드 규칙(applicable_items)이 고른 항목", all(
             list(first_calls[c["question"]]["questions"]) == [it.id for it, _ in applicable_items({"question": c["question"], "answer": c["answer"]})]
@@ -324,7 +325,7 @@ def run_demo(save_dir: Optional[Path] = None) -> Dict[str, Any]:
             (jev["summary"][cid]["pass"], jev["summary"][cid]["fail"]) ==
             (sum(1 for rec in records if ((rec.get("decisions") or {}).get(cid) or {}).get("decision") == "PASS"),
              sum(1 for rec in records if ((rec.get("decisions") or {}).get(cid) or {}).get("decision") == "FAIL"))
-            for cid in ("J1", "J2", "J3", "J4", "J5", "J6"))),
+            for cid in JUDGE_IDS if cid in jev["summary"])),
         ("CODE FAIL · 의미 FAIL 구분 집계 (결과 행·레코드에서 다시 센 값과 같음)", (combined["fail_code_only"], combined["fail_semantic_only"], combined["fail_both"]) == (
             sum(1 for row, _, _ in rows.values() if row["code_fails"] and "FAIL" not in row["semantic"].values()),
             sum(1 for row, _, _ in rows.values() if not row["code_fails"] and "FAIL" in row["semantic"].values()),
@@ -347,7 +348,7 @@ STATUS = [  # (점검 항목, 상태, 근거) — 상태: 구현됨 · 부분 �
     ("SEMANTIC_PIPELINE=items 항목별 평가", ["구현됨", "Mock 검증됨", "실호출 미검증"],
      "기본값은 legacy (jev_client.py:298) — 설계안 v1.3 '정할 것: 기본 실행 설정'(검증 뒤 items 기본 전환 여부). "
      "로컬 .env 에 SEMANTIC_PIPELINE 이 없어 웹 화면은 legacy 로 실행. 저장된 유료 실호출 기록에 items 실행 없음"),
-    ("세부 기준 25개 · 점검 항목 39개", ["구현됨"], "semantic_items.py — import 때 기준표 데이터 검증"),
+    ("세부 기준 27개 · 점검 항목 41개 (v1.4, J7 포함)", ["구현됨"], "semantic_items.py — import 때 기준표 데이터 검증"),
     ("적용 기준을 CODE 규칙으로 결정", ["구현됨", "Mock 검증됨"],
      "sub_applicability → applicable_items 가 보낼 항목을 정함. J1-3·J6 등 일부 항목은 보낸 뒤 평가 모델이 해당 여부를 정함"),
     ("평가 대상 모델 정보 블라인드", ["구현됨", "Mock 검증됨"],
@@ -401,13 +402,13 @@ def render_html(demo: Dict[str, Any]) -> str:
 
     out.append('<section class="card"><h2>CODE와 J1~J6 결과 비교</h2><p class="note">CODE 는 실제 엔진, J1~J6 은 Mock Judge 응답을 서버가 검증·집계한 값. '
                '— 는 적용되지 않음.</p><div class="wrap"><table><thead><tr><th>CASE</th><th>CODE</th>'
-               + "".join(f"<th>{c}</th>" for c in ("J1", "J2", "J3", "J4", "J5", "J6")) + "<th>질문 판정</th></tr></thead><tbody>")
+               + "".join(f"<th>{c}</th>" for c in JUDGE_IDS) + "<th>질문 판정</th></tr></thead><tbody>")
     for scenario in demo["scenarios"]:
         for row in scenario["cases"]:
             code = ('<span class="pill fail">FAIL</span> ' + _e(", ".join(f["check_id"] for f in row["code_fails"]))) if row["code_fails"] \
                 else '<span class="pill pass">PASS</span>'
             cells = []
-            for cid in ("J1", "J2", "J3", "J4", "J5", "J6"):
+            for cid in JUDGE_IDS:
                 v = row["semantic"].get(cid) if cid in row["criteria"] or row["semantic"].get(cid) in ("PASS", "FAIL") else None
                 cells.append(f'<td><span class="pill {"pass" if v == "PASS" else "fail" if v == "FAIL" else "na"}">{_e(v or "—")}</span></td>')
             outcome = row["outcome"]
