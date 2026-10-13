@@ -88,29 +88,26 @@ def escape_paste_markers(material: str) -> str:
     return _PASTE_MARK_LINE.sub(lambda m: f"{m.group(1)}※ {m.group(2)}{m.group(3)}", material)
 
 
-_FENCE_LINE = re.compile(r"^ {0,3}(`{3,}|~{3,})", re.M)
-
-
 def seal_pasted(text: str) -> str:
-    """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존). 끝 표시 줄을 같은 길이의 닫는 펜스로 바꾼다 —
-    자료 속 열린 펜스가 바깥 요청의 변환 원본(배열·표)을 코드로 가리지 않게 (Codex 리뷰). 가릴 수 없는 긴 펜스는 그대로 둔다."""
+    """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존) — 변환 원본(배열·표) 분석 전용.
+
+    구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는 펜스로
+    바꾼다(같은 길이 공백 채움). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의 ``pasted_ranges`` 로 가린다
+    (Codex 리뷰). 끝 표시 줄보다 긴 펜스는 닫지 못해 그대로 둔다."""
     chars = list(text)
     for start, end in pasted_ranges(text):
-        opened: Optional[str] = None
-        for m in _FENCE_LINE.finditer(text, start, end):
-            fence = m.group(1)
-            if opened is None:
-                opened = fence
-            elif fence[0] == opened[0] and len(fence) >= len(opened):
-                opened = None
         marker = _PASTE_END_LINE.search(text, start, end)
-        if opened is None or marker is None:
+        if marker is None:
             continue
-        line_start, line_end = marker.start(), marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        if line_end - line_start < len(opened):
+        blocks = _fenced_code_blocks(text[start:marker.start()])
+        if not blocks or blocks[-1].get("closed", True):
             continue
-        closing = opened + " " * (line_end - line_start - len(opened))
-        chars[line_start:line_end] = list(closing)
+        closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
+        line_start = marker.start()
+        line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
+        if line_end - line_start < len(closer):
+            continue
+        chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
     return "".join(chars)
 
 

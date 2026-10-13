@@ -112,13 +112,21 @@ def test_api_tools_collector_keeps_refusals_and_turns_bad_responses_into_errors(
 
 
 def test_weak_units_lists_checks_and_criteria_every_model_passed(tmp_path):
-    """변별력 되먹임 — 모든 모델이 모든 적용 질문에 PASS 한 CODE 검사·의미 기준만 (확정되지 않은 판정·'검사 대상 없음' 행은 제외)."""
+    """변별력 되먹임 — 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준만. FAIL·미확정(확인 필요·실행 오류)이 있는 단위와
+    '검사 대상 없음' 행·해당 없음은 제외하고, 수집 실패로 평가되지 않은 질문은 증거 없음(unevaluated)으로만 센다."""
     svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
     run = {"evaluations": {
-        "gpt": {"cases": [{"results": [{"check_id": "2-1.count", "verdict": "PASS"}, {"check_id": "2-2.table", "verdict": "FAIL"},
-                                       {"check_id": "1-2.json_syntax:none", "verdict": "PASS"}]}],
-                "jev_eval": {"records": [{"decisions": {"J1": {"decision": "PASS"}, "J5": {"decision": "FAIL"}, "J7": {"decision": None}}}]}},
-        "claude": {"cases": [{"results": [{"check_id": "2-1.count", "verdict": "PASS"}]}],
-                   "jev_eval": {"records": [{"decisions": {"J1": {"decision": "PASS"}}}]}}}}
+        "gpt": {"cases": [{"case_status": "EVALUATED", "results": [{"check_id": "2-1.count", "verdict": "PASS"}, {"check_id": "2-2.table", "verdict": "FAIL"},
+                                                                   {"check_id": "1-2.json_syntax:none", "verdict": "PASS"}, {"check_id": "3-3.aggregate", "verdict": "PASS"}],
+                           "errors": [{"check_id": "3-3.aggregate", "message": "오류"}]},
+                          {"case_status": "EVALUATED", "results": [{"check_id": "2-1.char_count", "verdict": "PASS"}]}],
+                "jev_eval": {"records": [{"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}, "J5": {"decision": "FAIL"},
+                                                                             "J7": {"decision": None, "status": "UNVERIFIED"}, "J8": {"decision": None, "status": "NOT_APPLICABLE"}}},
+                                         {"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}, "J2": {"decision": "PASS"}}}]}},
+        "claude": {"cases": [{"case_status": "EVALUATED", "results": [{"check_id": "2-1.count", "verdict": "PASS"}]},
+                             {"case_status": "INPUT_ERROR", "results": []}],
+                   "jev_eval": {"records": [{"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}}}, {"status": "SKIPPED", "decisions": {}}]}}}}
     svc.result = lambda run_id: run
-    assert svc.weak_units("x") == [{"id": "2-1.count", "name": "불릿·항목·문장·문단·줄·어절 수"}, {"id": "J1", "name": "의도 충족성"}]
+    assert svc.weak_units("x") == [{"id": "2-1.char_count", "name": "글자 수", "unevaluated": 1},
+                                   {"id": "2-1.count", "name": "불릿·항목·문장·문단·줄·어절 수", "unevaluated": 0},
+                                   {"id": "J1", "name": "의도 충족성", "unevaluated": 1}, {"id": "J2", "name": "내용 적절성", "unevaluated": 1}]

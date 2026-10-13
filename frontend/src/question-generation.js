@@ -1,5 +1,5 @@
-/* 질문 세트 만들기 — 버튼 하나로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문과 첨부파일을 만든다
-   (사용자 결정 2026-10-13). 서버: /api/comparison/question-sets */
+/* 질문 생성 후 평가 — 버튼 하나로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문과 첨부파일을 만들고
+   바로 답변 수집·평가까지 잇는다 (사용자 결정 2026-10-13·14, 화면에는 선택 사항 없음 — 질문 수·변별력 보강은 API 인자). 서버: /api/comparison/question-sets */
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -59,8 +59,8 @@
       node('dl', {class: 'dataset-stats', 'aria-label': '만든 질문 세트 요약'},
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
         stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
-      node('p', {class: 'field-help', text: `목표 질문 수 ${set.target_questions ?? '자동(최소)'} · 난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
-        + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목 (${set.weak_from_run})` : '')}),
+      node('p', {class: 'field-help', text: `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
+        + (set.target_questions ? ` · 목표 질문 수 ${set.target_questions}` : '') + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목` : '')}),
       coverageBlock(set.coverage),
       node('p', {class: 'field-help', text: `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`}),
       (set.warnings || []).length ? node('details', {class: 'question-set-warnings'}, node('summary', {text: `경고 ${set.warnings.length}건`}),
@@ -83,16 +83,12 @@
     if (current?.status === 'RUNNING') timer = setTimeout(poll, 2000);
   }
 
-  async function start() {
-    const chained = $('question-set-auto-run').checked;
-    if (!window.confirm('GPT 호출이 발생합니다(질문 계획 1회 + 긴 자료 수십 회 + 보충 최대 2회)'
-      + (chained ? '. 다 만든 뒤 AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가까지 이어서 진행합니다' : '') + '. 시작할까요?')) return;
+  async function start() {   // 버튼 하나 — 생성 → 수집 → 평가까지 바로 (사용자 결정 2026-10-14: 선택 사항·조정 없이)
+    if (!window.confirm('GPT 질문 생성(계획 1회 + 긴 자료 수십 회 + 보충 최대 2회) → AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집 → 평가 모델 호출까지 이어서 진행합니다. 시작할까요?')) return;
     showError('');
     touched = true;
-    const count = $('question-set-count').value.trim();
     try {
-      render(await api('/api/comparison/question-sets', {note: $('question-set-note').value, auto_run: $('question-set-auto-run').checked,
-        target_questions: count ? Number(count) : null, weak_from_run: $('question-set-weak-run').value || null}));
+      render(await api('/api/comparison/question-sets', {auto_run: true}));
       poll();
     } catch (error) {
       showError(error.message);
@@ -112,16 +108,7 @@
     catch (error) { showError(error.message); }
   }
 
-  async function loadWeakRuns() {   // 변별력 보강에 쓸 지난 질문 세트 실행(평가까지 끝난 것)
-    try {
-      const runs = (await api('/api/comparison/history')).filter((r) => r.run_kind === 'question_set' && r.status === 'COMPLETED');
-      const select = $('question-set-weak-run');
-      runs.forEach((r) => select.append(node('option', {value: r.run_id, text: `${r.name || r.run_id} · 질문 ${r.question_count ?? '?'}개 · ${(r.created_at || '').slice(0, 16).replace('T', ' ')}`})));
-    } catch (error) { /* 목록이 없어도 생성은 할 수 있다 */ }
-  }
-
   $('question-set-start').addEventListener('click', start);
   $('question-set-cancel').addEventListener('click', cancel);
-  loadWeakRuns();
   api('/api/comparison/question-sets').then((sets) => { if (!touched) { render(sets[0] || null); poll(); } }).catch(() => { if (!touched) render(null); });
 })();

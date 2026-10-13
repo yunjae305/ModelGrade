@@ -192,7 +192,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 
 def extra_prompt(count: int, have: int, target: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
-                 weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = ()) -> str:
+                 weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = (), note: str = "") -> str:
     """세트가 목표 질문 수에 못 미칠 때 질문을 더 만든다 — 변별력 보강 단위와 적용 질문이 적은 항목을 우선 노리게."""
     catalog = catalog or criteria_catalog()
     parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가합니다. 결과는 JSON 하나로만 답합니다.\n\n"
@@ -207,11 +207,18 @@ def extra_prompt(count: int, have: int, target: int, existing_topics: List[str],
         parts.append("# 적용 질문이 적은 항목 (id · 현재 적용 질문 수)\n" + "\n".join(f"- {uid} · {n}" for uid, n in low_coverage))
     wanted = {u.get("id") for u in weak_units} | {uid for uid, _ in low_coverage}
     parts.append("# 점검 목록 (해당 항목만)\n" + "\n".join(_catalog_lines(catalog, wanted or None, detailed=True)))
+    if _note_block(note):
+        parts.append(_note_block(note))
     return "\n\n".join(parts)
 
 
+def _note_block(note: str) -> str:
+    """사용자 추가 요청('금융·법률 주제는 빼 줘') — 모든 생성 호출에 같이 보낸다 (호출마다 독립이라 처음 프롬프트만으로는 모른다, Codex 리뷰)."""
+    return f"# 추가 요청\n{note.strip()}" if note and note.strip() else ""
+
+
 def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
-                      missing_types: Tuple[str, ...] = ()) -> str:
+                      missing_types: Tuple[str, ...] = (), note: str = "") -> str:
     """앞서 만든 질문 세트에서 적용되지 않은 검사·항목, 없는 첨부 종류만 보충한다."""
     catalog = catalog or criteria_catalog()
     parts = ["당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충합니다. 결과는 JSON 하나로만 답합니다.\n\n"
@@ -226,6 +233,8 @@ def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: O
     if missing:
         parts.append("# 빠진 항목 (CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다)\n"
                      + "\n".join(_catalog_lines(catalog, set(missing), detailed=True)))
+    if _note_block(note):
+        parts.append(_note_block(note))
     return "\n\n".join(parts)
 
 
@@ -467,7 +476,14 @@ class QuestionSetBuilder:
         self.warnings += warnings
         groups: List[Dict[str, Any]] = []
         rounds = 0
+
+        def budget() -> Optional[int]:   # 목표 질문 수까지 남은 수 — 계획·보충 단계마다 만들기 전에 제한한다 (Codex 리뷰: 사후 경고로는 비용을 못 막음)
+            return None if not target_questions else max(0, target_questions - len(groups))
+
         while True:
+            if budget() is not None and len(plans) > budget():
+                self.warnings.append(f"목표 질문 수 {target_questions}개를 넘는 계획 질문 {len(plans) - budget()}개는 만들지 않았습니다.")
+                plans = plans[:budget()]
             for plan in plans:
                 self.progress("materialize", {"message": f"질문 {len(groups) + 1} 만드는 중 (첨부·긴 자료)", "done": len(groups)})
                 try:
@@ -482,11 +498,15 @@ class QuestionSetBuilder:
             missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
                 break
+            if budget() == 0:   # 지정한 수 안에 모든 항목을 덮지 못함 — 더 만들지 않고 빠진 것을 보고한다
+                self.warnings.append(f"목표 질문 수 {target_questions}개 안에 모든 항목을 덮지 못했습니다 — 빠진 항목: {', '.join(missing) or '없음'}"
+                                     + (f", 빠진 첨부 종류: {', '.join(missing_types)}" if missing_types else ""))
+                break
             rounds += 1
             self.progress("supplement", {"message": f"빠진 항목 {len(missing)}개·첨부 종류 {len(missing_types)}개 보충 요청 ({rounds}회차)",
                                          "missing": missing + [f"첨부:{kind}" for kind in missing_types]})
             try:
-                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types),
+                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types, note=note),
                                                        PLAN_TOKENS))
             except Cancelled:
                 raise
@@ -502,7 +522,7 @@ class QuestionSetBuilder:
             self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청", "count": count})
             try:
                 plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], catalog,
-                                                                    weak_units, _low_coverage(report)), PLAN_TOKENS))
+                                                                    weak_units, _low_coverage(report), note=note), PLAN_TOKENS))
                 self.warnings += warnings
                 extra_rounds = 1
                 for plan in plans[:count]:

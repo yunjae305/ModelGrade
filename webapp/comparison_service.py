@@ -703,34 +703,66 @@ class ComparisonService:
             return runs if limit is None else runs[:limit]
 
     def weak_units(self, run_id):
-        """실행에서 모든 모델이 모든 적용 질문에 PASS 한 CODE 검사·의미 기준 [{id, name}] — 변별력이 없던 단위 (질문 생성 되먹임,
-        사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다). 판정이 확정되지 않은 기준(확인 필요·미완료)은 세지 않는다."""
+        """실행에서 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준 [{id, name, unevaluated}] — 변별력이 없던 단위
+        (질문 생성 되먹임, 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다).
+
+        FAIL 이 하나라도 있거나, 평가된 질문에서 확정되지 않은 판정(확인 필요·미완료·검사 실행 오류)이 있는 단위는 넣지 않는다 (Codex 리뷰:
+        미확정을 '모두 PASS' 로 세지 않음). 수집 실패로 평가되지 않은 질문은 증거가 없어 세지 않고, 다른 모델에서 그 질문에 적용된 단위의
+        ``unevaluated`` 수로만 남긴다. 해당 없음(NOT_APPLICABLE)은 어느 쪽으로도 세지 않는다."""
         from code_eval.criteria_registry import CODE_UNITS
         from code_eval.jev_criteria import CRITERIA
         run = self.result(run_id)
-        seen, failed = set(), set()
-        for batch in (run.get("evaluations") or {}).values():
+        per = {}          # (model, 질문 번호) → (평가됨, {단위: PASS|FAIL|UNDECIDED})
+        applicable = {}   # 질문 번호 → 어느 모델에서든 판정이 있었던 단위
+        for provider, batch in (run.get("evaluations") or {}).items():
             if not isinstance(batch, dict):
                 continue
-            for case in batch.get("cases") or []:
-                for row in (case.get("results") or []) if isinstance(case, dict) else []:
+            cases, records = batch.get("cases") or [], (batch.get("jev_eval") or {}).get("records") or []
+            for index in range(max(len(cases), len(records))):
+                case = cases[index] if index < len(cases) and isinstance(cases[index], dict) else {}
+                record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
+                verdicts = {}
+
+                def note(unit, verdict):
+                    if verdict == "FAIL" or verdicts.get(unit) == "FAIL":
+                        verdicts[unit] = "FAIL"
+                    elif verdict == "UNDECIDED" or verdicts.get(unit) == "UNDECIDED":
+                        verdicts[unit] = "UNDECIDED"
+                    else:
+                        verdicts[unit] = "PASS"
+                for row in case.get("results") or []:
                     check_id = str(row.get("check_id") or "")
-                    if not check_id or check_id.endswith(":none") or row.get("verdict") not in ("PASS", "FAIL"):
+                    if check_id and not check_id.endswith(":none"):
+                        note(check_id.split(":")[0], row.get("verdict") if row.get("verdict") in ("PASS", "FAIL") else "UNDECIDED")
+                for error in case.get("errors") or []:   # 검사 실행 오류 — 그 단위는 확정되지 않음
+                    if isinstance(error, dict) and error.get("check_id"):
+                        note(str(error["check_id"]).split(":")[0], "UNDECIDED")
+                for cid, decision in (record.get("decisions") or {}).items():
+                    if not isinstance(decision, dict):
                         continue
-                    unit = check_id.split(":")[0]
-                    seen.add(unit)
-                    if row.get("verdict") == "FAIL":
-                        failed.add(unit)
-            for record in (batch.get("jev_eval") or {}).get("records") or []:
-                for cid, decision in ((record.get("decisions") or {}).items() if isinstance(record, dict) else []):
-                    verdict = decision.get("decision") if isinstance(decision, dict) else None
-                    if verdict in ("PASS", "FAIL"):
-                        seen.add(cid)
-                        if verdict == "FAIL":
-                            failed.add(cid)
+                    if decision.get("decision") in ("PASS", "FAIL"):
+                        note(cid, decision["decision"])
+                    elif decision.get("status") != "NOT_APPLICABLE":
+                        note(cid, "UNDECIDED")
+                evaluated = case.get("case_status") == "EVALUATED" or record.get("status") == "SUCCESS"
+                per[(provider, index)] = (evaluated, verdicts)
+                applicable.setdefault(index, set()).update(verdicts)
+        seen, failed, undecided, unevaluated = set(), set(), set(), {}
+        for (provider, index), (evaluated, verdicts) in per.items():
+            for unit in applicable.get(index, ()):
+                verdict = verdicts.get(unit)
+                if verdict is None:
+                    if not evaluated:   # 수집 실패 등으로 평가되지 않은 질문 — 증거 없음
+                        unevaluated[unit] = unevaluated.get(unit, 0) + 1
+                    continue
+                seen.add(unit)
+                if verdict == "FAIL":
+                    failed.add(unit)
+                elif verdict == "UNDECIDED":
+                    undecided.add(unit)
         names = {uid: name for uid, name, _, _ in CODE_UNITS}
         names.update({c.id: c.name for c in CRITERIA})
-        return [{"id": uid, "name": names.get(uid, "")} for uid in sorted(seen - failed)]
+        return [{"id": uid, "name": names.get(uid, ""), "unevaluated": unevaluated.get(uid, 0)} for uid in sorted(seen - failed - undecided)]
 
     def version_history(self):
         with self._lock:

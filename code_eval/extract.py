@@ -975,8 +975,8 @@ def _transform_reqs(qa: TextAnalysis, text: str, out: List[Req]) -> Optional[Dic
 # --- 진입점 ------------------------------------------------------------------------
 
 def extract_conditions(question: str) -> QuestionConditions:
-    qa = TextAnalysis(seal_pasted(question))   # 자료 속 열린 펜스를 구간 끝에서 닫아 바깥 변환 원본(배열·표) 분석에 번지지 않게 (위치 보존)
-    text = _instruction_text(qa)
+    qa = TextAnalysis(question)
+    text = _instruction_text(qa)   # 지시는 원문의 자료 구간을 가린 글에서 — 펜스 보정본은 끝 표시가 사라져 구간을 못 찾는다 (Codex 리뷰)
     reqs: List[Req] = []
     m = _EMPTY.search(text)
     if m:
@@ -999,7 +999,8 @@ def extract_conditions(question: str) -> QuestionConditions:
                            and r.status == "ok")]
     _format_internal_structure(text, reqs)
     _calc_reqs(text, reqs)
-    source = _transform_reqs(qa, text, reqs)
+    # 변환 원본(배열·표) 분석만 자료 속 열린 펜스를 구간 끝에서 닫은 글로 — 바깥 요청의 원본을 코드로 가리지 않게 (위치 보존)
+    source = _transform_reqs(TextAnalysis(seal_pasted(question)) if pasted_ranges(question) else qa, text, reqs)
     # 표·목록 요구와 겹치는 일반 개수: 불릿 개수가 있으면 목록 요구는 개수 조건이 포함한다.
     return QuestionConditions(reqs=reqs, instruction_text=text, source_data=source)
 
