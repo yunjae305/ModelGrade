@@ -92,9 +92,10 @@ def seal_pasted(text: str) -> str:
     """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존) — 변환 원본(배열·표) 분석 전용.
 
     구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 한 번 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는
-    펜스로 바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 구간 안의 펜스 표시 줄을 모두 공백으로 지운다 —
-    한 번 훑기라 길이에 비례하고, 남는 펜스가 없어 구간 밖으로 번지지 않는다 (Codex 리뷰: 여는 줄을 하나씩 지우며 다시 읽으면
-    제곱 시간이 들고 줄바꿈 기준이 파서와 달라 펜스가 남았다). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
+    펜스로 바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 **그 열린 블록이 시작하는 줄부터 구간 끝까지**의
+    펜스 표시 줄만 공백으로 지운다 — 앞의 정상적으로 닫힌 블록과 그 안의 값은 그대로 둔다 (Codex 리뷰: 구간 전체를 지우면 닫힌
+    JSON 블록 문자열 속 '```' 까지 바뀌어 원본 보존 판정이 뒤집혔다). 열린 블록 뒤는 어차피 그 블록의 내용이라 거기서 새 펜스가
+    열리지 않게만 하면 된다 — 한 번 훑기라 길이에 비례한다. 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
     ``pasted_ranges`` 로 가린다."""
     chars = list(text)
     for start, end in pasted_ranges(text):
@@ -111,8 +112,9 @@ def seal_pasted(text: str) -> str:
         if line_end - line_start >= len(closer):
             chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
             continue
-        offset = start   # 긴 펜스 — 파서와 같은 줄 나눔(splitlines)으로 구간의 펜스 표시 줄을 모두 지운다
-        for line in region.splitlines(keepends=True):
+        tail = int(blocks[-1]["start"])   # 긴 펜스 — 열린 블록의 여는 줄부터 구간 끝까지만, 파서와 같은 줄 나눔(splitlines)으로
+        offset = start + tail
+        for line in region[tail:].splitlines(keepends=True):
             body = line.rstrip("\r\n\x0b\x0c\x1c\x1d\x1e\x85  ")
             if _FENCE_MARK.match(body):
                 chars[offset:offset + len(body)] = [" "] * len(body)
