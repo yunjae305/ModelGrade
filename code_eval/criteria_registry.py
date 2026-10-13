@@ -217,6 +217,11 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "criteria-registry-v4", "date": "2026-10-13", "scope": "registry",
      "changes": ["main v2(semantic_items·changelog)와 브랜치 v3(이전 턴 승계·출처 대조·판정 미완료 정책)을 병합",
                  "의미 평가 jev-semantic-eval-v2.8 (main v2.6 items 기록 + 브랜치 v2.7)"]},
+    {"version": "evidence-v3.15-quote-markup", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J5 출처 인용 대조: 평가 모델이 web_fetch(Markdown 변환) 원문에서 옮긴 인용의 굵게(**…**) 표시를 벗긴 형태도 "
+                 "원문과 대조 (원문 쪽은 그대로, 앞뒤가 공백·문장 경계인 짝만) — 페이지에 그대로 있는 문장을 '인용문 미확인'으로 FAIL 하던 문제 "
+                 "(중간 점검 실행 557a50d8baf1, Claude Q15)",
+                 "백틱·이스케이프가 있거나 2,000자를 넘는 인용은 글자 그대로만 대조 (코드 기호 '2**3'·'func(**kw)' 는 벗기지 않음)"]},
     {"version": "long-context-v1", "date": "2026-10-13", "scope": "semantic",
      "changes": ["롱컨텍스트 판별: 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 8K 토큰 이상이면 J7 적용 (사용자 결정)",
                  "길이 구간 8K~32K·32K~128K·128K 이상을 판정 기록에 남김 (LV-Eval·RULER·∞Bench 단계), 토크나이저를 못 불러오면 '판별하지 못함'",

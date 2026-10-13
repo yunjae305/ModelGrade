@@ -42,6 +42,14 @@ _TEXT_TYPES = {"text/html", "application/xhtml+xml", "text/plain"}
 _CHARSETS = {"utf-8", "utf8", "utf-8-sig", "ascii", "us-ascii", "iso-8859-1",
              "latin-1", "windows-1252", "cp1252", "euc-kr", "cp949", "utf-16", "utf-16le", "utf-16be"}
 _QUOTE_TYPOGRAPHY = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
+#: Markdown 을 벗긴 형태로 다시 대조하는 인용 길이 상한 — 인용은 짧은 구절이고, 짝 없는 '**' 가 많은 긴 문자열의 정규식 비용을 막는다
+_MARKDOWN_QUOTE_LIMIT = 2000
+#: 이 글자가 있는 인용은 Markdown 을 벗기지 않는다 — 이스케이프·백틱·문자열 리터럴·대입·딕셔너리 (코드 속 ** 와 구분 불가)
+_CODE_MARKS = ("\\", "`", '"', "=", "{", "}")
+#: 평가 모델의 web_fetch 는 HTML 을 Markdown 으로 바꿔 주므로 인용에 '**O(log n)**' 처럼 굵게 표시가 붙어 온다 — 앞이 공백·문장 시작이고
+#: 뒤가 공백·문장부호인 짝만 굵게 표시로 본다 ('2**3'·'func(**kw)'·'x ** y' 같은 코드 기호는 그대로). 백틱은 셸 명령 치환과
+#: 구분할 수 없어 벗기지 않는다.
+_MD_STRONG = re.compile(r"(?:(?<=\s)|^)\*\*(?=\S)(.+?)(?<=\S)\*\*(?=[\s.,;:!?)]|$)")
 
 
 class SourceError(Exception):
@@ -225,6 +233,19 @@ def _normalize(text):
     # Normalize typographic quotes only; retain punctuation and mathematical
     # primes so a different quantity or statement cannot become a matching quote.
     return " ".join(unicodedata.normalize("NFKC", html.unescape(text)).translate(_QUOTE_TYPOGRAPHY).split()) if isinstance(text, str) else ""
+
+
+def _quote_in(text, quote):
+    """정규화한 원문(text)에 정규화한 인용(quote)이 있는가. 인용 그대로 없으면, 인용에서 Markdown 굵게 표시(_MD_STRONG)만
+    벗긴 형태로 한 번 더 본다 — 원문 쪽은 바꾸지 않으므로 원문에 실제로 그 글자들이 있어야 맞는다."""
+    if quote in text:
+        return True
+    # 코드가 섞였을 수 있는 인용은 글자 그대로만 본다 — 긴 인용, 이스케이프(\\), 백틱(인라인 코드·셸 명령 치환),
+    # 코드 기호(" = { }: 문자열 리터럴·대입·딕셔너리 안의 ** 는 굵게 표시와 구분할 수 없다)
+    if len(quote) > _MARKDOWN_QUOTE_LIMIT or any(mark in quote for mark in _CODE_MARKS):
+        return False
+    plain = _MD_STRONG.sub(r"\1", quote)
+    return plain != quote and plain in text
 
 
 def _decode_text(data, content_type, charset):
@@ -679,7 +700,7 @@ def verify_answer_citations(body, state, *, fetcher=None, cancel_event=None, pro
                 continue
             texts, check["retrieval"] = [_normalize(d["text"]) for d in documents], "provider_document"
         quote = _normalize(check.get("quote"))
-        check["quote_verified"] = bool(quote) and any(quote in text for text in texts)
+        check["quote_verified"] = bool(quote) and any(_quote_in(text, quote) for text in texts)
         numbers = _claim_numbers(check.get("claim"))
         if numbers:
             check["claim_numbers_in_source"] = any(all(_normalize(n) in text for n in numbers) for text in texts)
@@ -758,11 +779,11 @@ def _verify_sources(sources, verification, *, fetcher=None, cancel_event=None, p
             status = item.get("status", "fetch_error")
             documents = _provider_document(provider_documents, url, status) if url in opened else None
             if status == "ok":
-                status = "verified" if quote_text in _normalize(item.get("text")) else "quote_not_found"
+                status = "verified" if _quote_in(_normalize(item.get("text")), quote_text) else "quote_not_found"
             elif documents:
                 # The server could not read the page; the provider's own fetch of the same URL could.
                 source["server_fetch_status"] = status
-                status = "verified" if any(quote_text in _normalize(d["text"]) for d in documents) else "quote_not_found"
+                status = "verified" if any(_quote_in(_normalize(d["text"]), quote_text) for d in documents) else "quote_not_found"
             checks[url]["quote_count"] += 1
             checks[url]["verified_quotes" if status == "verified" else "unverified_quotes"] += 1
             if status == "verified" and documents:

@@ -68,6 +68,12 @@ def test_quotes_are_verified_per_claim_with_one_fetch_and_originals_unchanged():
     ('It says \u201capproved\u201d.', 'It says "approved".'),
     ('It says "approved".', 'It says \u201capproved\u201d.'),
     ("The customer&rsquo;s bank.", "The customer's bank."),
+    # 평가 모델 web_fetch(Markdown 변환)에서 옮긴 인용의 짝 맞는 굵게·인라인 코드 표시 (evidence-v3.15) — 원문은 그대로
+    ("For binary search, the time complexity is O(log n), where n is the size.",
+     "For binary search, the time complexity is **O(log n)**, where **n** is the size."),
+    ("Run echo `id` now.", "Run echo `id` now."),                 # 원문에 실제로 있는 백틱은 그대로 맞는다
+    ("Compute 2**3 here.", "Compute 2**3 here."),
+    ("Note: always back up first.", "**Note**: always back up first."),   # 문장 시작의 굵게 표시
 ])
 def test_typographic_quote_style_matches_without_changing_saved_quotes(source_text, quote):
     original = body((quote,))
@@ -89,6 +95,27 @@ def test_typographic_quote_style_matches_without_changing_saved_quotes(source_te
     ("The customer\u02bcs bank.", "The customer's bank."),
     ("It says `pending`.", "It says 'pending'."),
     ("It says \u201epending\u201c.", 'It says "pending".'),
+    ("The time complexity is O(log n).", "The time complexity is **O(n)**."),   # 강조를 벗겨도 다른 값은 다르다
+    # 코드·수식의 기호와 보이지 않는 문자는 지우지 않는다 — 원문은 그대로, 인용에서 짝 맞는 Markdown 만 벗긴다
+    ("Compute 2**3 here.", "Compute 23 here."),
+    ("Call obj.__init__() first.", "Call obj.init() first."),
+    ("Run echo `id` now.", "Run echo id now."),
+    ("The area is 2\u20623 units.", "The area is 23 units."),     # U+2062 보이지 않는 곱하기
+    ("Use acc\u200count here.", "Use account here."),           # U+200C ZWNJ
+    ("Check typeof\ufeffx first.", "Check typeofx first."),
+    ("Worst case is O(log\u2061n).", "Worst case is O(logn)."),
+    ('Python len("a\u200bb") returns 3.', 'Python `len("ab")` returns 3.'),
+    ('Run print("admin") now.', 'Run `print("**admin**")` now.'),  # 인라인 코드 안의 ** 는 글자 그대로
+    ("Evaluate String.raw`admin` now.", "Evaluate String.raw`**admin**` now."),   # 짝으로 알아보지 못한 백틱 — 다시 보지 않음
+    ('Run ``print("admin")`` now.', 'Run ``print("**admin**")`` now.'),
+    ("The rate is 2*3 here.", "The rate is 2\\*3 here."),                 # 이스케이프가 있는 인용은 다시 보지 않음
+    # 백틱이 있는 인용은 글자 그대로만 — 인라인 코드인지 셸 명령 치환인지 알 수 없다
+    ("Run pip install requests first.", "Run `pip install requests` first."),
+    ("Run echo id now.", "Run echo `id` now."),
+    # 코드의 ** 는 굵게 표시가 아니다
+    ('Call func({"x": 1},{"y": 2}) now.', 'Call func(**{"x": 1},**{"y": 2}) now.'),
+    ("Compute x y z here.", "Compute x ** y ** z here."),
+    ('print(" admin ")', 'print(" **admin** ")'),                       # 문자열 리터럴 안 — 코드 기호가 있는 인용은 글자 그대로만
 ])
 def test_typographic_quote_normalization_does_not_erase_substantive_differences(source_text, quote):
     result = sources.verify_web_sources(body((quote,)), fetcher=lambda _: fetched(source_text))
@@ -1035,3 +1062,8 @@ def test_deadline_interrupts_detached_connection_close_response_body(monkeypatch
     result = sources.fetch_public_source(url, deadline=time.monotonic() + 0.15)
     assert result["status"] == "timeout"
     assert reading.is_set() and aborted.is_set() and raw.closed
+
+
+def test_markdown_retry_is_skipped_for_very_long_quotes():
+    long_quote = "**a " * 1000   # 짝 없는 굵게 표시가 많은 긴 인용 — 정규식 비용 없이 바로 불일치
+    assert sources._quote_in("a " * 1000, sources._normalize(long_quote)) is False

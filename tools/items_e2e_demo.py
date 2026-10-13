@@ -355,7 +355,7 @@ STATUS = [  # (점검 항목, 상태, 근거) — 상태: 구현됨 · 부분 �
      "요청 state 는 질문·답변·이력·reference·수집일만. 비교 실행은 blind_plan 순서·라벨 (webapp/blind_comparison.py). 실제 전송 본문은 기존 client 단위 테스트 범위"),
     ("항목 YES/NO · 질문·답변 인용 검증", ["구현됨", "Mock 검증됨", "실호출 미검증"], "semantic_quotes.verify_items · 재확인 ≤3회 뒤 확인 불가 FAIL"),
     ("CODE FAIL 이어도 의미 평가", ["구현됨", "Mock 검증됨"], "입력 오류(case_status≠EVALUATED)만 건너뜀 (jev_eval._prepare_batch)"),
-    ("항목 → 세부 → J1~J6 → 질문 판정·집계", ["구현됨", "Mock 검증됨"], "semantic_items_eval · combined_summary · run_summary v2 (대화 1개 = 1문항, 308a717)"),
+    ("항목 → 세부 → J1~J7 → 질문 판정·집계", ["구현됨", "Mock 검증됨"], "semantic_items_eval · combined_summary · run_summary v2 (대화 1개 = 1문항, 308a717)"),
     ("평가 결과 저장·복원", ["구현됨", "Mock 검증됨"], "CodeEvalService._save → code-eval-<run_id>.json, 다시 읽어 재집계·HTML 내보내기"),
 ]
 NOT_VERIFIED = ("Claude Opus 5.5 가 items 계약(항목별 YES/NO·인용)을 실제로 지키는지와 판정 품질 — 유료 실호출 필요",
@@ -389,7 +389,7 @@ def render_html(demo: Dict[str, Any]) -> str:
                        ("의미 평가 요청 — 질문·답변·이전 턴 원문만 (모델 이름 없음)", "real"),
                        ("평가 모델의 항목별 YES/NO·인용·이유 — 이 시연에서는 Mock Judge", "mock"),
                        ("서버 검증 — 인용 원문 대조, J5 반박 출처 원문 대조, 실패 항목만 재확인 ≤3회", "real"),
-                       ("집계 — 항목 → 세부 기준 → J1~J6 → 질문 판정 (CODE·의미 FAIL 구분)", "real"),
+                       ("집계 — 항목 → 세부 기준 → J1~J7 → 질문 판정 (CODE·의미 FAIL 구분)", "real"),
                        ("저장 — code-eval-<run_id>.json, 복원·재집계·HTML 내보내기", "real")):
         out.append(f'<li><span class="pill {"mock" if kind == "mock" else "pass"}">{"Mock" if kind == "mock" else "실제 코드"}</span> {_e(step)}</li>')
     out.append("</ol></section>")
@@ -400,7 +400,7 @@ def render_html(demo: Dict[str, Any]) -> str:
         out.append(f"<tr><td>{_e(name)}</td><td>{pills}</td><td>{_e(why)}</td></tr>")
     out.append("</tbody></table></div></section>")
 
-    out.append('<section class="card"><h2>CODE와 J1~J6 결과 비교</h2><p class="note">CODE 는 실제 엔진, J1~J6 은 Mock Judge 응답을 서버가 검증·집계한 값. '
+    out.append('<section class="card"><h2>CODE와 J1~J7 결과 비교</h2><p class="note">CODE 는 실제 엔진, J1~J7 은 Mock Judge 응답을 서버가 검증·집계한 값. '
                '— 는 적용되지 않음.</p><div class="wrap"><table><thead><tr><th>CASE</th><th>CODE</th>'
                + "".join(f"<th>{c}</th>" for c in JUDGE_IDS) + "<th>질문 판정</th></tr></thead><tbody>")
     for scenario in demo["scenarios"]:
