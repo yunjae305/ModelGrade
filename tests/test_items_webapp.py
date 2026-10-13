@@ -341,11 +341,12 @@ def test_pipeline_versions_and_judged_counts_match_in_saved_json_api_and_evaluat
     assert method['items_version'] == (SEMANTIC_ITEMS_VERSION if pipeline == "items" else None)
     assert method['judged']['answers'] == 2 and method['judged']['criteria'] == sum(
         1 for r in records for c in r['criteria'] if r['decisions'][c].get('decision') in ('PASS', 'FAIL'))
+    from code_eval.semantic_items import ITEMS, SUBS
     if pipeline == "items":
-        assert method['catalog'] == {'criteria': 7, 'subs': 27, 'items': 41}
+        assert method['catalog'] == {'criteria': len(jev_eval.CRITERIA), 'subs': len(SUBS), 'items': len(ITEMS)}
         assert method['judged']['items'] == sum(r['items']['applied'] for r in records) > 0
     else:
-        assert method['catalog'] == {'criteria': 7, 'subs': None, 'items': None} and method['judged']['items'] is None
+        assert method['catalog'] == {'criteria': len(jev_eval.CRITERIA), 'subs': None, 'items': None} and method['judged']['items'] is None
     assert service.result(rid)['evaluation_method'] == method == service.status(rid)['evaluation_method']
     log = saved['evaluation_log']['method']
     assert {k: log[k] for k in ('pipeline', 'criteria_version', 'items_version', 'catalog', 'judged')} == {
