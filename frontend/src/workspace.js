@@ -1008,7 +1008,8 @@
       node('td', {text: c.case_id}), node('td', {}, node('button', {class: 'row-button', 'data-focus-key': 'question-' + index, text: c.question, 'aria-label': c.case_id + ' 응답 비교 열기', onclick: () => openAnswer(index, 'result')})),
       ...providers.map((p) => {
         const status = results.caseState(state.result, p, index);
-        return node('td', {'data-model': modelName(p)}, node('button', {class: 'result-cell', 'data-focus-key': 'result-' + p + '-' + index, 'aria-label': c.case_id + ' ' + modelName(p) + ' ' + status.text + ' 상세 보기', onclick: () => openAnswer(index, 'result', p)},
+        // 칸에 마우스를 올리면 판정 이유(미완료면 미완료 사유)를 바로 보인다 — 상세를 열지 않아도 왜 그런지 알 수 있게
+        return node('td', {'data-model': modelName(p)}, node('button', {class: 'result-cell', 'data-focus-key': 'result-' + p + '-' + index, 'aria-label': c.case_id + ' ' + modelName(p) + ' ' + status.text + ' 상세 보기', title: status.detail || '', onclick: () => openAnswer(index, 'result', p)},
           pill(status.text, status.kind), node('span', {class: 'check-status', text: '코드: ' + status.code.text + ' · 의미: ' + status.semantic.text})));
       })));
     if (!rows.length) rows.push(node('tr', {}, node('td', {colspan: providers.length + 2, text: state.result ? '선택한 조건에 해당하는 질문이 없습니다.' : '수집을 마치면 질문별 원문을 확인할 수 있습니다.'})));
