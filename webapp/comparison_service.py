@@ -34,6 +34,7 @@ from .version_registry import VersionRegistry, evaluation_profile, fingerprint, 
 from .aiona_history import aiona_history
 from .version_comparison import compare_runs
 from .registry_store import clean_text
+from .run_summary import evaluation_method
 from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
@@ -654,7 +655,7 @@ class ComparisonService:
                    if not k.startswith('_activity_') and k not in ("datasets", "evaluations", "config", "input_document", "evaluation_log",
                                                                    "questions")},
                 **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                'evaluation_conditions_summary': self._conditions_summary(run)}
+                'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run)}
 
     def event_stream(self, run_id):
         with self._lock:
@@ -677,7 +678,7 @@ class ComparisonService:
             run = self._run(run_id)
             return {**{k: copy.deepcopy(v) for k, v in run.items() if not k.startswith('_activity_')},
                     **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                    'evaluation_conditions_summary': self._conditions_summary(run)}
+                    'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run)}
 
     def history(self, limit=30):
         with self._lock:
@@ -1799,7 +1800,13 @@ class ComparisonService:
                            "updated_at": started_at} for p in run["providers"]})
             run["evaluations"] = {}
             stream = self.event_stream(run_id)
-            stream.publish({"type": "run_start", "total": run["question_count"] * len(run["providers"])})
+            # 평가 로그에도 방식·기준 버전을 남긴다 — 시작 때는 쓸 버전(계획), 끝날 때 저장 결과에서 센 실제 판정 수로 바꾼다
+            from code_eval.semantic_items import ITEMS, SEMANTIC_ITEMS_VERSION, SUBS
+            planned = {"pipeline": pipeline, "pipeline_source": "evaluation_execution", "criteria_version": jev_eval.JEV_CRITERIA_VERSION,
+                       "items_version": SEMANTIC_ITEMS_VERSION if pipeline == "items" else None,
+                       "catalog": {"criteria": len(jev_eval.CRITERIA), "subs": len(SUBS) if pipeline == "items" else None,
+                                   "items": len(ITEMS) if pipeline == "items" else None}, "judged": None}
+            stream.publish({"type": "run_start", "total": run["question_count"] * len(run["providers"]), "method": planned})
             if not self._save(run):
                 run['status'], run['error'] = 'ERROR', '실행 기록을 저장하지 못해 평가를 시작하지 않았습니다.'
                 self._save(run)
@@ -1943,10 +1950,10 @@ class ComparisonService:
                     elif failed:
                         run["status"], run["error"] = "ERROR", "평가를 완료하지 못했습니다. 완료된 결과와 원문은 보존했습니다."
                         self._clear_inflight(run)
-                        stream.publish({"type": "run_error", "reason": run["error"]})
+                        stream.publish({"type": "run_error", "reason": run["error"], "method": evaluation_method(run)})
                     else:
                         run["status"] = "COMPLETED"
-                        stream.publish({"type": "run_done"})
+                        stream.publish({"type": "run_done", "method": evaluation_method(run)})
                     run["revision"] += 1
                     self._save(run)
                     self._finish_costs(run, ledger)

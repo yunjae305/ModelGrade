@@ -321,3 +321,32 @@ def test_criteria_screen_gets_short_details_for_every_check_sub_and_item():
     assert first["note"] == "나머지 요청의 누락은 J4-2" and not first["question"].endswith(")")   # 끝 괄호는 경계 메모로
     assert all(i["question"] and i["applies"] and i["pass"] and i["fail"] for i in items)
     assert all("answer" not in i and "examples" not in i for i in items)   # 긴 예시 원문은 보내지 않는다
+
+
+@pytest.mark.parametrize("pipeline", ["legacy", "items"])
+def test_pipeline_versions_and_judged_counts_match_in_saved_json_api_and_evaluation_log(tmp_path, monkeypatch, pipeline):
+    """완료 조건 — 저장된 실행의 방식·기준 버전·실제 판정 수가 저장 JSON·API(화면이 읽는 값)·평가 로그에서 같다."""
+    from tests.test_blind_comparison import CapturingJudge
+    from webapp.run_summary import evaluation_method
+    monkeypatch.setattr(jev_eval, "resolve_semantic_pipeline", lambda *_, **__: pipeline)
+    judge = ScriptedItems() if pipeline == "items" else CapturingJudge()
+    service = make_service(tmp_path, judge, gpt_handler)
+    rid = service.start({'cases': [{'question': QUESTION, 'answer': AIONA_ANSWER}], 'providers': ['gpt'], 'auto_evaluate': True})['run_id']
+    until(lambda: service.status(rid)['status'] == 'COMPLETED')
+    saved = json.loads((tmp_path / 'runs' / f'{rid}.json').read_text(encoding='utf-8'))
+    method = evaluation_method(saved)
+    records = [r for b in saved['evaluations'].values() for r in b['jev_eval']['records']]
+    assert method['pipeline'] == pipeline and method['pipeline_source'] == 'evaluation_execution'
+    assert method['criteria_version'] == jev_eval.JEV_CRITERIA_VERSION
+    assert method['items_version'] == (SEMANTIC_ITEMS_VERSION if pipeline == "items" else None)
+    assert method['judged']['answers'] == 2 and method['judged']['criteria'] == sum(
+        1 for r in records for c in r['criteria'] if r['decisions'][c].get('decision') in ('PASS', 'FAIL'))
+    if pipeline == "items":
+        assert method['catalog'] == {'criteria': 7, 'subs': 27, 'items': 41}
+        assert method['judged']['items'] == sum(r['items']['applied'] for r in records) > 0
+    else:
+        assert method['catalog'] == {'criteria': 7, 'subs': None, 'items': None} and method['judged']['items'] is None
+    assert service.result(rid)['evaluation_method'] == method == service.status(rid)['evaluation_method']
+    log = saved['evaluation_log']['method']
+    assert {k: log[k] for k in ('pipeline', 'criteria_version', 'items_version', 'catalog', 'judged')} == {
+        k: method[k] for k in ('pipeline', 'criteria_version', 'items_version', 'catalog', 'judged')}
