@@ -437,4 +437,16 @@ console.log('j5 detail checks passed');
   assert.equal(state.text, '문제 1개');
 }
 console.log('applied criteria are named in the semantic summary.');
+{
+  // 기준별 비교 — FAIL 중 검증 한계(근거·원문 확인 실패)로 생긴 수를 따로
+  const {criterionSummary} = require('../frontend/src/workspace-results.js');
+  const rec = (j5) => ({status: 'SUCCESS', criteria: ['J5'], decisions: {J5: j5}});
+  const result = {question_count: 3, evaluations: {gpt: {jev_eval: {records: [
+    rec({decision: 'FAIL', reason_code: 'SOURCE_ORIGINAL_UNAVAILABLE', j5_outcome: {code: 'source_unavailable', factual_error_confirmed: false}}),
+    rec({decision: 'FAIL', j5_outcome: {code: 'contradicted', factual_error_confirmed: true}}),
+    rec({decision: 'PASS'})]}}}};
+  const metric = criterionSummary(result, 'gpt', {id: 'J5', group: 'semantic'});
+  assert.deepEqual([metric.passed, metric.failed, metric.limitedFails], [1, 2, 1]);
+}
+console.log('criteria table separates verification-limited FAILs.');
 

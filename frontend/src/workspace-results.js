@@ -551,7 +551,7 @@
 
   function criterionSummary(result, provider, criterion) {
     const batch = result?.evaluations?.[provider];
-    let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0;
+    let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0, limitedFails = 0;
     const pendingReasons = {unverified: 0, incomplete: 0, errors: 0, missing: 0};
     if (criterion.group === 'code') {
       for (const [index, raw] of (batch?.cases || []).entries()) {
@@ -569,7 +569,10 @@
         if (!(record.criteria || []).includes(criterion.id)) continue;
         const decision = record.status === 'SUCCESS' ? record.decisions?.[criterion.id]?.decision : null;
         if (decision === 'PASS') passed++;
-        else if (decision === 'FAIL') failed++;
+        else if (decision === 'FAIL') {
+          failed++;
+          if (verificationLimited(record.decisions[criterion.id])) limitedFails++;   // 근거·원문 확인 실패로 생긴 FAIL (답변 결함 확인 아님)
+        }
         else {
           pending++;
           if (record.status && record.status !== 'SUCCESS') pendingReasons.errors++;
@@ -581,7 +584,7 @@
       if (batch) unknown += Math.max(0, count(result.question_count) - records.length);
     }
     const decided = passed + failed;
-    return {available: Boolean(batch), passed, failed, pending, pendingReasons, unknown, excluded,
+    return {available: Boolean(batch), passed, failed, limitedFails, pending, pendingReasons, unknown, excluded,
       targets: decided + pending, decided, rate: settledRate(passed, failed, pending, unknown)};
   }
 

@@ -673,7 +673,8 @@
           cell.append(node('span', {class: 'criterion-empty', text: !metric.available ? '평가 대기' : metric.unknown ? '판정 대기' : metric.excluded ? '적용 대상 없음 · 제외 있음' : '해당 없음'}));
         } else {
           cell.append(node('strong', {class: 'criterion-rate ' + (metric.pending || metric.unknown ? 'has-pending' : metric.failed ? 'has-fail' : 'all-pass'), text: metric.pending || metric.unknown ? '미확정' : percent(metric.rate)}),
-            node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL`}),
+            node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL` +
+              (metric.limitedFails ? ` (검증 한계 ${number(metric.limitedFails)})` : '')}),
             node('span', {class: 'criterion-targets', text: `${criterion.unit} ${number(metric.targets)}개 대상${metric.pending ? ' · 미판정 ' + number(metric.pending) : ''}${metric.unknown ? ' · 집계 중' : ''}${metric.excluded ? ' · 제외 답변 ' + number(metric.excluded) + '개' : ''}`}));
           if (criterion.group === 'semantic' && metric.pending) {
             const reasons = [['unverified', '근거 확인 필요'], ['incomplete', '판정 미완료'], ['errors', '평가 오류'], ['missing', '판정 누락']]
