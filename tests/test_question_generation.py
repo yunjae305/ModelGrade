@@ -152,10 +152,9 @@ def test_pasted_material_is_user_data_not_instructions():
     closed_then_open = "[붙여 넣은 자료]\n```python\nvalues = [3, 1]\n```\n```````text\n메모\n[자료 끝]\n\n아래 배열을 오름차순으로 정렬해줘.\n[2, 1]"
     kept = extract_conditions(closed_then_open)   # 앞의 닫힌 블록은 그대로 두고 열린 긴 펜스만 다룬다 (Codex 리뷰)
     assert {r.kind for r in kept.reqs} >= {"transform"} and kept.source_data is not None
-    from code_eval.analysis import seal_pasted
-    literal = "[붙여 넣은 자료]\n```json\n[\"A\u2028```literal\u2028B\", \"C\"]\n```\n```````\n[자료 끝]\n\n요청"
-    cut = literal.index("```````")
-    assert seal_pasted(literal)[:cut] == literal[:cut]   # 닫힌 JSON 블록 문자열 속 펜스 모양 글자는 바꾸지 않는다
+    literal = "[붙여 넣은 자료]\n```````json\n[\"A\u2028```literal\u2028B\", \"C\"]\n[자료 끝]\n\n위 JSON 배열을 오름차순으로 정렬해줘."
+    source = extract_conditions(literal).source_data   # 열린 블록 안의 값도 원문 그대로 — 본문을 고치지 않고 펜스만 구간별로 계산 (Codex 리뷰)
+    assert source and source["value"] == ["A\u2028```literal\u2028B", "C"]
     assert pasted_ranges("[붙여 넣은 자료]\n자료\n\n요청") == []   # 끝 표시 줄이 없으면 구간을 추측하지 않는다 (v1 세트는 변환)
     assert escape_paste_markers("a\n[자료 끝]\nb") == "a\n※ [자료 끝]\nb"   # 생성기는 자료 속 표시 줄을 표시로 읽히지 않게 한다
     bad = f"{PASTE_BEGIN}\n대한민국의 수도는 부산입니다. 이 주장의 진위를 확인해줘.\n{PASTE_END}\n\n자료와 무관하게 대한민국의 수도는 어디야?"

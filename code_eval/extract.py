@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis import TextAnalysis, mask_ranges, pasted_ranges, seal_pasted
+from .analysis import PastedTextAnalysis, TextAnalysis, mask_ranges, pasted_ranges
 from .textparse import _NUM_WORD, _count_governed_by_output_verb
 
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
@@ -999,8 +999,8 @@ def extract_conditions(question: str) -> QuestionConditions:
                            and r.status == "ok")]
     _format_internal_structure(text, reqs)
     _calc_reqs(text, reqs)
-    # 변환 원본(배열·표) 분석만 자료 속 열린 펜스를 구간 끝에서 닫은 글로 — 바깥 요청의 원본을 코드로 가리지 않게 (위치 보존)
-    source = _transform_reqs(TextAnalysis(seal_pasted(question)) if pasted_ranges(question) else qa, text, reqs)
+    # 변환 원본(배열·표)은 자료 구간을 따로 파싱한 분석으로 — 자료 속 열린 펜스가 바깥 원본을 코드로 가리지 않게 (본문은 그대로)
+    source = _transform_reqs(PastedTextAnalysis(question) if pasted_ranges(question) else qa, text, reqs)
     # 표·목록 요구와 겹치는 일반 개수: 불릿 개수가 있으면 목록 요구는 개수 조건이 포함한다.
     return QuestionConditions(reqs=reqs, instruction_text=text, source_data=source)
 

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -88,42 +88,6 @@ def escape_paste_markers(material: str) -> str:
     return _PASTE_MARK_LINE.sub(lambda m: f"{m.group(1)}※ {m.group(2)}{m.group(3)}", material)
 
 
-def seal_pasted(text: str) -> str:
-    """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존) — 변환 원본(배열·표) 분석 전용.
-
-    구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 한 번 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는
-    펜스로 바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 **그 열린 블록이 시작하는 줄부터 구간 끝까지**의
-    펜스 표시 줄만 공백으로 지운다 — 앞의 정상적으로 닫힌 블록과 그 안의 값은 그대로 둔다 (Codex 리뷰: 구간 전체를 지우면 닫힌
-    JSON 블록 문자열 속 '```' 까지 바뀌어 원본 보존 판정이 뒤집혔다). 열린 블록 뒤는 어차피 그 블록의 내용이라 거기서 새 펜스가
-    열리지 않게만 하면 된다 — 한 번 훑기라 길이에 비례한다. 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
-    ``pasted_ranges`` 로 가린다."""
-    chars = list(text)
-    for start, end in pasted_ranges(text):
-        marker = _PASTE_END_LINE.search(text, start, end)
-        if marker is None:
-            continue
-        region = text[start:marker.start()]
-        blocks = _fenced_code_blocks(region)
-        if not blocks or blocks[-1].get("closed", True):
-            continue
-        closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
-        line_start = marker.start()
-        line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        if line_end - line_start >= len(closer):
-            chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
-            continue
-        tail = int(blocks[-1]["start"])   # 긴 펜스 — 열린 블록의 여는 줄부터 구간 끝까지만, 파서와 같은 줄 나눔(splitlines)으로
-        offset = start + tail
-        for line in region[tail:].splitlines(keepends=True):
-            body = line.rstrip("\r\n\x0b\x0c\x1c\x1d\x1e\x85  ")
-            if _FENCE_MARK.match(body):
-                chars[offset:offset + len(body)] = [" "] * len(body)
-            offset += len(line)
-    return "".join(chars)
-
-
-#: 펜스 표시 줄 — 들여쓰기(목록 안 포함)와 백틱·물결 3개 이상
-_FENCE_MARK = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
 @dataclass
@@ -377,3 +341,37 @@ class TextAnalysis:
             "sentences": len(self.sentences),
             "paragraphs": len(self.paragraphs),
         }
+
+
+class PastedTextAnalysis(TextAnalysis):
+    """붙여 넣은 자료 구간([붙여 넣은 자료]…[자료 끝] 줄)을 원문 그대로 따로 파싱한 분석 — 변환 원본(배열·표) 찾기 전용.
+
+    자료 속 닫히지 않은 코드 펜스는 그 구간의 끝 표시 줄 앞에서 끝난 것으로 본다. 본문은 한 글자도 고치지 않는다 — 펜스 위치
+    (``fenced_blocks``·``fence_ranges``)와 줄의 코드 여부(``lines``)만 구간별로 계산한다 (Codex 리뷰 4회: 끝 표시를 닫는 펜스로
+    바꾸거나 펜스 줄을 지우는 보정은 닫힌 블록·문자열 속 값을 바꾸거나 반복 처리가 느렸다). 구간 밖은 구간을 공백으로 가린 글로
+    파싱해 위치가 그대로다. 지시 추출에는 쓰지 않는다 — 지시 구간은 ``pasted_ranges`` 로 가린다."""
+
+    @cached_property
+    def fenced_blocks(self) -> List[Dict[str, Any]]:
+        paste = pasted_ranges(self.text)
+        if not paste:
+            return super().fenced_blocks
+        blocks = _fenced_code_blocks(mask_ranges(self.text, paste))   # 구간 밖 — 구간은 공백이라 그 안의 펜스는 보이지 않는다
+        for start, end in paste:
+            marker = _PASTE_END_LINE.search(self.text, start, end)
+            stop = marker.start() if marker else end   # 끝 표시 줄 앞에서 구간 본문이 끝난다
+            for block in _fenced_code_blocks(self.text[start:stop]):
+                block = {**block, "start": block["start"] + start, "end": min(block["end"] + start, stop)}
+                if "content_start" in block:
+                    block["content_start"] += start
+                blocks.append(block)
+        blocks.sort(key=lambda b: b["start"])
+        for block in blocks:
+            info = block.get("info", "")
+            block["language_label"] = info.split()[0].lower() if info.split() else ""
+        return blocks
+
+    @cached_property
+    def lines(self) -> List[Line]:
+        ranges = self.fence_ranges
+        return [replace(line, in_code=any(s <= line.start < e for s, e in ranges)) for line in split_lines(self.text)]
