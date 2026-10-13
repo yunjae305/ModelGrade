@@ -98,6 +98,14 @@ def system_summary(system: Dict[str, Any], rows: List[Dict[str, Any]]) -> Dict[s
                            "generation_reported_cost": costs or None}}
 
 
+def _instruction(value: Dict[str, Any]) -> Optional[str]:
+    """비교용 시스템 지시 값 — 모르면 None, 알면 내용(앞 80자)이나 설명."""
+    if not value.get("known"):
+        return None
+    text = value.get("text") or value.get("note") or "확인됨"
+    return text if len(text) <= 80 else text[:80] + "…"
+
+
 def environment_comparison(summaries: Dict[str, Dict[str, Any]], questions: List[Dict[str, Any]],
                            gaps: Dict[str, List[int]]) -> Dict[str, Any]:
     """비교 공정성 — 같은 질문·같은 대화 맥락·수집 시점·웹검색·도구·생성 경로가 같은지. 모르면 같다고 보지 않는다."""
@@ -120,8 +128,8 @@ def environment_comparison(summaries: Dict[str, Dict[str, Any]], questions: List
                {s["system_key"]: s["environment"]["tools_available"] for s in items},
                any(s["environment"]["tools_available"] is None for s in items))
         differ("system_instruction", "시스템 지시",
-               {s["system_key"]: s["environment"]["system_instruction"].get("text") if s["environment"]["system_instruction"]["known"] else None
-                for s in items}, any(not s["environment"]["system_instruction"]["known"] for s in items))
+               {s["system_key"]: _instruction(s["environment"]["system_instruction"]) for s in items},
+               any(not s["environment"]["system_instruction"]["known"] for s in items))
         used = {s["system_key"]: ("사용" if s["collection"]["web_search_used"]["true"] else
                                   "미사용" if s["collection"]["web_search_used"]["false"] and not s["collection"]["web_search_used"]["unknown"] else "확인 안 됨")
                 for s in items}

@@ -38,15 +38,24 @@
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
     use.setAttribute('href', '#i-' + name); svg.append(use); return svg;
   }
-  const avatar = (p) => node('span', {class: 'model-avatar ' + p, 'aria-hidden': 'true', text: marks[p]});
+  // 외부 수집 실행은 시스템 키가 자유롭다. 기존 4개 모델 키가 아니면 저장된 시스템 정보로 이름·표시를 만든다.
+  const systemOf = (p) => state.run?.systems?.[p];
+  const external = () => state.run?.run_kind === 'external_import';
+  const providerName = (p) => names[p] || systemOf(p)?.label || state.run?.models?.[p] || p;
+  const baseRows = () => state.result?.datasets?.aiona || state.result?.datasets?.[state.run?.providers?.[0]] || [];
+  const avatar = (p) => marks[p] ? node('span', {class: 'model-avatar ' + p, 'aria-hidden': 'true', text: marks[p]}) :
+    node('span', {class: 'model-avatar external-system', 'aria-hidden': 'true', text: (systemOf(p)?.platform || providerName(p)).replace(/^unknown$/, '?').slice(0, 1).toUpperCase()});
   const pill = (text, kind = 'neutral') => node('span', {class: 'pill ' + kind, text});
   const number = (n) => Number(n || 0).toLocaleString('ko-KR');
   const percent = (rate) => rate === null || rate === undefined ? '—' : (rate * 100).toFixed(1) + '%';
   const blind = () => Boolean(state.run?.blind?.enabled);
   const resultProviders = () => blind() ? state.run.blind.order : state.run.providers;
   const modelsHidden = () => blind() && state.run.status !== 'COMPLETED';
-  const modelName = (p) => modelsHidden() ? state.run.blind.labels[p] : names[p];
-  const modelId = (run, p) => p === 'aiona' && run.aiona_release?.version ? 'AIONA ' + run.aiona_release.version : run.models?.[p] || names[p];
+  const modelName = (p) => modelsHidden() ? state.run.blind.labels[p] : providerName(p);
+  const known = (value) => value && value !== 'unknown' ? value : null;
+  const modelId = (run, p) => p === 'aiona' && run.aiona_release?.version ? 'AIONA ' + run.aiona_release.version :
+    run.systems?.[p] ? [run.systems[p].access_label, known(run.systems[p].provider), known(run.systems[p].model) || '모델 미확인', run.systems[p].model_version].filter(Boolean).join(' · ') :
+    run.models?.[p] || names[p];
   const statusLabel = (run) => run.status === 'CANCELLED' && run.phase === 'EVALUATE' ? '평가 중단' : statusLabels[run.status] || run.status;
   const resultAvatar = (p) => modelsHidden() ? node('span', {class: 'model-avatar blind-avatar slot-' + resultProviders().indexOf(p),
     'aria-hidden': 'true', text: state.run.blind.labels[p].slice(-1)}) : avatar(p);
@@ -485,12 +494,13 @@
     $('result-empty').hidden = Boolean(run); $('result-content').hidden = !run;
     $('export-all').hidden = !run; $('refresh-results').hidden = !run;
     if (!run) return;
-    evalProgress.setModelLabels(blind() && !modelsHidden() ? Object.fromEntries(run.providers.map((p) => [run.blind.labels[p], names[p]])) : {});
+    evalProgress.setModelLabels(blind() && !modelsHidden() ? Object.fromEntries(run.providers.map((p) => [run.blind.labels[p], providerName(p)])) : {});
     if (eventStreaming && (run.phase === 'EVALUATE' || run.evaluation_log)) {
       evalProgress.connect(`/api/comparison/runs/${run.run_id}/events`, `${run.run_id}:${run.eval_started_at || ''}`);
     } else { evalProgress.disconnect(); $('evaluation-ticker').hidden = true; }
     const isVersionRun = run.providers.length === 1 && run.aiona_release?.version;
-    const partial = !isVersionRun && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
+    const partial = !isVersionRun && !external() && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
+    renderEnvironment();
     $('partial-comparison').hidden = !partial;
     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
     $('reuse-dataset').disabled = Boolean(active() || !state.result?.datasets?.aiona?.length);
@@ -498,14 +508,14 @@
     $('result-subtitle').textContent = `${run.name} · ${number(run.question_count)}개 질문 · ${run.providers.length}개 모델`;
     $('export-all').href = `/api/comparison/runs/${run.run_id}/export`;
     const collecting = run.status === 'COLLECTING', evaluating = run.status === 'EVALUATING';
-    $('results-title').textContent = collecting ? '세 모델의 답변을 수집하고 있어요.' : '평가 결과, 한눈에.';
+    $('results-title').textContent = collecting ? (external() ? 'API 답변을 수집하고 있어요.' : '세 모델의 답변을 수집하고 있어요.') : '평가 결과, 한눈에.';
     const finished = run.status === 'COMPLETED', summary = results.runSummary(state.result);
     renderFinalSummary(); renderOverview(providers);
     const disconnected = state.connectionLost && (collecting || evaluating);
     const statusText = disconnected ? '서버 연결 확인 중' : finished && state.result ? summary.allComplete ? '평가 완료' : '평가 미완료' : statusLabel(run);
     $('progress-eyebrow').textContent = run.phase === 'EVALUATE' || evaluating || run.status === 'COMPLETED' ? '품질 평가' : '응답 수집';
     $('progress-title').textContent = statusText;
-    $('progress-description').textContent = disconnected ? '서버에 다시 연결하고 있습니다. 마지막 확인 상태를 표시합니다.' : collecting ? (run.cancel_requested ? '현재 요청의 응답을 보존한 후 수집을 중단합니다.' : '답변 수집을 마치면 자동으로 블라인드 평가합니다.') :
+    $('progress-description').textContent = disconnected ? '서버에 다시 연결하고 있습니다. 마지막 확인 상태를 표시합니다.' : collecting ? (run.cancel_requested ? '현재 요청의 응답을 보존한 후 수집을 중단합니다.' : external() ? '답변 수집을 마치면 가져온 답변과 함께 자동으로 평가합니다.' : '답변 수집을 마치면 자동으로 블라인드 평가합니다.') :
       evaluating ? (isVersionRun ? '등록한 AIONA 원문의 ' : '') + '코드 검사와 의미 평가를 진행합니다.' : finished && state.result ?
         `답변 ${number(summary.total)}개 중 ${number(summary.complete)}개 평가 완료 · 문제 발견 ${number(summary.counts.issue)}개 · 미완료 ${number(summary.counts.pending)}개` : run.phase === 'EVALUATE' && ['ERROR', 'CANCELLED'].includes(run.status) ?
           '평가가 중단되었습니다. 저장된 원문과 완료된 결과를 확인하세요. 전체 평가 시작을 누르면 저장된 답변 전체를 다시 평가하며 평가자 호출이 발생합니다.' : '수집한 답변을 확인한 후 동일한 평가기로 평가하세요.';
@@ -523,7 +533,7 @@
     $('run-progress').value = done || (!evaluationPhase && !run.total ? 1 : 0);
     $('run-progress').setAttribute('aria-label', evaluationPhase ? '코드 및 의미 검사 단계 처리 수' : '현재 작업 처리 수');
     $('progress-detail').replaceChildren(node('span', {text: evaluationPhase ? `${number(done)} / ${number(total)}개 검사 단계 처리 · 보류·오류·제외 포함` : `${number(run.done)} / ${number(run.total)} API 응답 처리`}),
-      node('span', {text: 'AIONA 원문 ' + number(run.question_count) + '개 포함'}));
+      node('span', {text: (external() ? '질문 ' : 'AIONA 원문 ') + number(run.question_count) + '개 포함'}));
     renderLiveProgress();
     const warnings = [run.error, run.save_error, ...Object.values(state.result?.evaluations || {}).map((b) => b.run?.save_error)].filter(Boolean);
     $('result-warning').hidden = !warnings.length; $('result-warning').textContent = warnings.join(' ');
@@ -556,7 +566,11 @@
     $('final-summary').dataset.ready = String(ready);
     $('final-summary-status').className = 'pill ' + (ready ? 'success' : 'warning');
     $('final-summary-status').textContent = ready ? `${rows.length}개 모델 · ${number(total)}문항 평가 완료` : '최종 점수 미확정';
-    if (ready) {
+    if (ready && !summary.rankable) {
+      const labels = (run.environment_comparison?.differences || []).filter((d) => d.code !== 'conversation_gaps').map((d) => d.label);
+      $('final-summary-title').textContent = '실행 환경이 달라 순위를 매기지 않았습니다.';
+      $('final-summary-description').textContent = `같은 ${number(total)}문항의 시스템별 질문 통과점수입니다. 다른 조건: ${labels.join(', ')}. 같은 조건의 성능 순위로 보지 마세요.`;
+    } else if (ready) {
       const top = leaders[0], leaderNames = leaders.map((m) => modelName(m.provider)).join(' · ');
       $('final-summary-title').textContent = rows.length === 1 ? `${leaderNames}의 질문 통과점수는 ${score(top.score)}점입니다.` :
         leaders.length === rows.length ? `모든 모델이 ${score(top.score)}점으로 동률입니다.` :
@@ -581,7 +595,7 @@
     $('summary-ranking').style.setProperty('--summary-columns', String(Math.max(1, rows.length)));
     $('summary-ranking').replaceChildren(...rows.map((model) => {
       const p = model.provider;
-      const rank = !ready ? '순위 미확정' : rows.length === 1 ? '단독 결과' : `${model.tied ? '공동 ' : ''}${model.rank}위`;
+      const rank = !ready ? '순위 미확정' : rows.length === 1 ? '단독 결과' : !summary.rankable ? '환경 상이 · 순위 없음' : `${model.tied ? '공동 ' : ''}${model.rank}위`;
       const scoreFill = node('span');
       scoreFill.style.width = `${ready ? model.score : 0}%`;
       const item = node('li', {class: 'summary-score-card' + (model.rank === 1 ? ' is-leading' : ''), 'data-summary-provider': p},
@@ -613,8 +627,8 @@
         totals.counts.pending || waiting ? `미완료 ${number(totals.counts.pending)} · 평가 전·진행 중 ${number(waiting)}` : '모든 답변 판정 완료'),
       kpi('pass', 'shield', 'PASS 답변', number(totals.counts.clear), '기준 충족 · 확인된 문제 없음'),
       kpi('fail', 'alert', 'FAIL 답변', number(totals.counts.issue), '기준 미충족 · 문제 발견'),
-      kpi('leader', 'trophy', single ? '질문 통과점수' : '최고 질문 통과점수', final.ready ? top.score.toFixed(1) + '점' : '확정 전',
-        final.ready ? !single && final.leaders.length === final.rows.length ? '모든 모델 동률' :
+      kpi('leader', 'trophy', single ? '질문 통과점수' : '최고 질문 통과점수', final.ready && !final.rankable ? '환경 상이' : final.ready ? top.score.toFixed(1) + '점' : '확정 전',
+        final.ready && !final.rankable ? '실행 환경이 달라 시스템별 점수만 표시' : final.ready ? !single && final.leaders.length === final.rows.length ? '모든 모델 동률' :
           final.leaders.map((m) => modelName(m.provider)).join(' · ') + (single ? '' : final.leaders.length > 1 ? ' 공동 1위' : ' 1위') :
           final.incomplete ? `미완료 ${number(final.incomplete)}개 답변 남음` : final.comparable ? '실행 완료 후 확정' : '문항 구성 확인 필요'));
     const byProvider = Object.fromEntries(final.rows.map((m) => [m.provider, m]));
@@ -627,7 +641,7 @@
         const segment = node('span', {class: 'benchmark-segment ' + kind, title: `${label} ${number(n)}문항`});
         segment.style.flexGrow = String(n); bar.append(segment);
       });
-      const rank = !final.ready ? '점수 미확정' : single ? '질문 통과점수' : `${m.tied ? '공동 ' : ''}${m.rank}위`;
+      const rank = !final.ready ? '점수 미확정' : single ? '질문 통과점수' : !final.rankable ? '순위 없음 · 환경 상이' : `${m.tied ? '공동 ' : ''}${m.rank}위`;
       return node('li', {class: 'benchmark-row' + (final.ready && !single && m.rank === 1 ? ' is-leading' : '')},
         node('div', {class: 'benchmark-model'}, resultAvatar(p), node('div', {}, node('strong', {text: modelName(p)}),
           node('span', {text: modelsHidden() ? '모델 정보 비공개' : modelId(state.run, p)}))),
@@ -707,8 +721,14 @@
     }));
   }
   const evaluationStageLabels = {WAITING: '평가 대기', CODE: '코드 검사 중', JEV: '의미 평가 중', SAVE: '결과 저장 중', COMPLETED: '평가 작업 종료', ERROR: '평가 중단'};
+  const shortTime = (value) => Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR', {dateStyle: 'short', timeStyle: 'short'}) : '';
   function collectionTime(p) {
     if (p === 'aiona') return '업로드 원문 · 수집 없음';
+    const imported = systemOf(p)?.collection;
+    if (imported && !state.run?.progress?.[p]) {
+      const from = shortTime(imported.collected_from), to = shortTime(imported.collected_to);
+      return from ? (from === to ? from : from + ' ~ ' + to) + (imported.collected_time_unknown ? ` · 미기록 ${number(imported.collected_time_unknown)}개` : '') : '수집 시각 미기록';
+    }
     const progress = state.run?.progress?.[p];
     if (!progress || !('started_at' in progress)) return '시간 기록 없음';
     if (!progress.started_at) return '수집 대기';
@@ -755,7 +775,7 @@
       (sum('semantic_errors') ? ` · 오류 ${number(sum('semantic_errors'))}` : '') +
       (sum('skipped') ? ` · 제외 ${number(sum('skipped'))}` : '');
     const active = Object.entries(progress).filter(([, d]) => !['WAITING', 'COMPLETED', 'ERROR'].includes(d.stage));
-    $('live-active').textContent = !evaluating ? run.status === 'COMPLETED' ? '평가 요청 처리가 끝났습니다. 보류·오류의 원인은 아래 결과에서 확인하세요.' : '평가가 중단되었습니다. 마지막으로 저장된 처리 수를 표시합니다.' : state.connectionLost ? '서버 연결이 끊겨 마지막으로 받은 진행 상태를 표시합니다.' : active.map(([p, d]) => `${modelName(p)} · ${evaluationStageLabels[d.stage]}${d.active.length ? ' · ' + d.active.map((i) => state.result?.datasets?.aiona?.[i]?.case_id || `질문 ${i + 1}`).join(', ') + ' 응답 대기' : ''}`).join(' / ') || '다음 모델의 평가를 준비하고 있습니다.';
+    $('live-active').textContent = !evaluating ? run.status === 'COMPLETED' ? '평가 요청 처리가 끝났습니다. 보류·오류의 원인은 아래 결과에서 확인하세요.' : '평가가 중단되었습니다. 마지막으로 저장된 처리 수를 표시합니다.' : state.connectionLost ? '서버 연결이 끊겨 마지막으로 받은 진행 상태를 표시합니다.' : active.map(([p, d]) => `${modelName(p)} · ${evaluationStageLabels[d.stage]}${d.active.length ? ' · ' + d.active.map((i) => baseRows()[i]?.case_id || `질문 ${i + 1}`).join(', ') + ' 응답 대기' : ''}`).join(' / ') || '다음 모델의 평가를 준비하고 있습니다.';
     $('live-active').hidden = !evaluating;
     const latest = Object.entries(progress).filter(([, d]) => d.latest).sort((a, b) => Date.parse(b[1].latest.updated_at) - Date.parse(a[1].latest.updated_at))[0];
     const latestRecord = latest && state.result?.evaluations?.[latest[0]]?.jev_eval?.records?.[latest[1].latest.index];
@@ -764,15 +784,75 @@
     if ($('live-latest').textContent !== message) $('live-latest').textContent = message;
     updateLiveClock();
   }
+  const envValue = (v) => v === true ? '허용' : v === false ? '없음' : v === null || v === undefined ? '확인 안 됨' :
+    Array.isArray(v) ? (v.length ? v.join(', ') : '없음') : String(v);
+  function differenceText(d) {
+    if (d.code === 'conversation_gaps') return Object.entries(d.values).map(([cid, turns]) => `${cid} ${turns.join('·')}턴 누락`).join(' / ');
+    if (d.code === 'collection_time') return Object.entries(d.values).map(([k, [from, to]]) => `${providerName(k)} ${shortTime(from) || '미기록'}${to && to !== from ? ' ~ ' + shortTime(to) : ''}`).join(' / ');
+    return Object.entries(d.values).map(([k, v]) => `${providerName(k)} ${envValue(v)}`).join(' / ');
+  }
+  // 외부 수집 실행의 수집 환경 비교와 평가 엔진·정책 버전. 환경이 다르면 같은 조건의 순위로 보지 않는다.
+  function renderEnvironment() {
+    const box = $('external-environment'), comparison = state.run?.environment_comparison;
+    box.hidden = !external() || !comparison;
+    if (box.hidden) return;
+    const fields = state.result?.evaluation_profile?.fields || {}, policy = fields.decision_policy || {};
+    const versions = [fields.engine_versions?.engine && '평가 엔진 ' + fields.engine_versions.engine,
+      fields.criteria_version && '의미 기준 ' + fields.criteria_version, fields.judge?.requested_model && '평가 Judge ' + fields.judge.requested_model,
+      policy.j5_source_original_failure && 'J5 출처 정책 ' + policy.j5_source_original_failure].filter(Boolean);
+    const same = comparison.same_conditions;
+    box.className = 'alert external-environment ' + (same === false ? 'warning' : 'info');
+    box.replaceChildren(node('strong', {text: same === null ? '외부 수집 답변 · 시스템 1개' : same ? '수집 환경 비교 · 확인한 조건이 같습니다' : '수집 환경 비교 · 실행 환경이 다릅니다'}),
+      node('p', {text: comparison.note}),
+      comparison.differences.length ? node('ul', {}, ...comparison.differences.map((d) => node('li', {text: `${d.label}: ${differenceText(d)}`}))) : null,
+      versions.length ? node('p', {class: 'summary-scope', text: versions.join(' · ')}) : null);
+  }
+  function systemEnvironment(system) {
+    const env = system.environment || {}, c = system.collection || {}, used = c.web_search_used || {};
+    const usedText = used.true ? `사용 ${number(used.true)}개` + (used.unknown ? ` · 확인 안 됨 ${number(used.unknown)}개` : '') :
+      used.false && !used.unknown ? '사용 안 함' : '확인 안 됨';
+    return node('dl', {class: 'system-environment'}, ...[['실행 방식', system.access_label], ['수집 경로', (c.method_labels || []).join(', ') || '미기록'],
+      ['웹검색 허용', envValue(env.web_search_available)], ['웹검색 사용', usedText],
+      ['도구', c.tools_used?.length ? c.tools_used.join(', ') : env.tools_available === null || env.tools_available === undefined ? '확인 안 됨' : '사용 기록 없음'],
+      ['수집 품질', c.quality?.warning || c.quality?.error ? `주의 ${number(c.quality.warning || 0)} · 오류 ${number(c.quality.error || 0)}` : '문제 기록 없음']]
+      .flatMap(([k, v]) => [node('dt', {text: k}), node('dd', {text: v})]));
+  }
+  const urlStatusLabels = {original: '원래 URL', tracking_removed: '플랫폼 유입 표시 제거', relay_unwrapped: '중계 URL에 담긴 원래 URL',
+    relay_resolved: '중계 URL 이동 주소 확인', relay_unresolved: '중계 URL · 원래 주소 미확인(원문 대조 제외)', invalid: '올바르지 않은 URL', missing: 'URL 없음'};
+  function collectionDetail(c) {
+    const env = c.environment || {}, usage = c.usage || {};
+    const rows = [['수집 방식', c.collection_method_label || c.collection_method || '미기록'],
+      ['수집 시각', Number.isFinite(Date.parse(c.collected_at)) ? new Date(c.collected_at).toLocaleString('ko-KR') : '미기록'],
+      ['답변 형식', ({markdown: 'Markdown', text: '텍스트', html_converted: 'HTML → Markdown 변환'})[c.answer_format] || '미기록'],
+      ['웹검색 사용', envValue(env.web_search_used)], ['사용 도구', env.tools_used ? env.tools_used.join(', ') || '없음' : '확인 안 됨'],
+      ['생성 토큰', usage.input_tokens !== undefined || usage.output_tokens !== undefined ? `입력 ${usage.input_tokens ?? '—'} · 출력 ${usage.output_tokens ?? '—'}` : '제공 안 됨'],
+      ...(usage.reported_cost ? [['제공자가 밝힌 비용', `${usage.reported_cost.amount} ${usage.reported_cost.currency}`]] : [])];
+    const box = node('details', {class: 'collection-detail'}, node('summary', {text: `수집 정보 · 출처 ${number((c.sources || []).length)}개`}),
+      node('dl', {class: 'system-environment'}, ...rows.flatMap(([k, v]) => [node('dt', {text: k}), node('dd', {text: String(v)})])));
+    if (c.sources?.length) box.append(node('ol', {class: 'collection-sources'}, ...c.sources.map((source) => {
+      const url = results.safeHttpUrl(source.url || source.display_url);
+      return node('li', {}, url ? node('a', {href: url, target: '_blank', rel: 'noopener noreferrer', text: source.title || source.url || source.display_url}) :
+        node('span', {text: source.title || source.display_url || 'URL 없음'}),
+        node('small', {text: ' · ' + (urlStatusLabels[source.url_status] || '')}),
+        source.relay_url && source.url_status !== 'relay_unresolved' ? node('small', {text: ' · 중계 URL ' + source.relay_url}) : null,
+        source.claims?.length ? node('p', {class: 'field-help', text: '연결된 답변 구절: ' + source.claims.join(' / ')}) : null);
+    })));
+    if (c.quality?.length) box.append(node('ul', {class: 'collection-quality'}, ...c.quality.map((q) =>
+      node('li', {text: `[${({info: '참고', warning: '주의', error: '오류'})[q.severity] || q.severity}] ${q.message}`}))));
+    if (c.agent) box.append(node('p', {class: 'field-help', text: `에이전트 실행 ${c.agent.status} · 도구 호출 ${number(c.agent.tool_calls)}회 · 실패 ${number(c.agent.tool_errors)}회. 도구 사용 과정은 평가 기준이 아니라 근거 정보로만 보관합니다.`}));
+    if (c.original?.content) box.append(node('details', {}, node('summary', {text: `원본 보기 (${c.original.format})`}), node('pre', {class: 'collection-original', text: c.original.content})));
+    return box;
+  }
   function modelResultCard(p) {
     const run = state.run, batch = state.result?.evaluations?.[p], c = common(batch);
     const summary = results.modelSummary(state.result, p, run.question_count);
     const live = run.status === 'EVALUATING' && run.evaluation_progress?.[p];
     const hasEvaluation = run.phase === 'EVALUATE' || run.status === 'EVALUATING' || Boolean(batch);
     const processed = results.processingProgress({...state.result, ...run}, p);
-    const progress = run.progress[p], available = p === 'aiona' ? run.question_count : progress?.success || 0;
+    const progress = run.progress[p], imported = Boolean(systemOf(p) && !progress);
+    const available = p === 'aiona' ? run.question_count : imported ? systemOf(p).collection.statuses?.SUCCESS || 0 : progress?.success || 0;
     const isCollecting = run.status === 'COLLECTING' && p !== 'aiona' && progress?.stage === 'COLLECTING';
-    const collectionLabel = run.status === 'COLLECTING' ? p === 'aiona' ? '원문 준비됨' :
+    const collectionLabel = run.status === 'COLLECTING' ? p === 'aiona' || imported ? '원문 준비됨' :
       progress?.done === progress?.total ? '수집 종료' : isCollecting ? '답변 수집 중' : '수집 대기' : null;
     const metric = hasEvaluation ? processed.semantic_done : available;
     const card = node('article', {class: 'panel result-model-card', 'data-provider': p},
@@ -785,6 +865,7 @@
       node('div', {class: 'metric-label', text: hasEvaluation ? (summary.complete === run.question_count ? '모든 질문 최종 판정 완료' : '의미 평가 요청 처리') : '수집된 답변 · 평가 전'}));
     const track = node('progress', {max: String(Math.max(1, run.question_count)), value: String(metric), 'aria-label': modelName(p) + (hasEvaluation ? ' 의미 평가 처리 수' : ' 답변 수집 수')});
     card.append(node('div', {class: 'metric-track'}, track));
+    if (systemOf(p) && !modelsHidden()) card.append(systemEnvironment(systemOf(p)));
     if (live) card.append(node('div', {class: 'model-live-progress'},
       node('p', {text: `코드 ${number(live.code_done)} / ${number(live.code_total)}개 처리 · 의미 ${number(live.semantic_done)} / ${number(live.semantic_total)}개 처리`}),
       node('p', {text: `의미 판정 완료 ${number(live.semantic_success)}개 · 확인 필요 ${number(live.semantic_unverified)}개 · 오류 ${number(live.semantic_errors)}개 · 제외 ${number(live.skipped)}개`})));
@@ -859,14 +940,14 @@
     const bottom = node('div', {class: 'result-card-bottom'});
     if (batch && !batch.live) bottom.append(node('a', {href: `/code-eval.html?comparison=${run.run_id}&provider=${p}#results`, class: 'text-button', target: '_blank', rel: 'noopener noreferrer'}, '상세 보고서', icon('arrow')));
     else if (live) bottom.append(pill('결과 도착 시 바로 반영', 'purple'));
-    else bottom.append(pill(collectionLabel || (p === 'aiona' ? '원문 준비됨' : progress?.done === progress?.total ? '수집 종료' : '수집 대기'), 'neutral'));
+    else bottom.append(pill(collectionLabel || (p === 'aiona' || imported ? '원문 준비됨' : progress?.done === progress?.total ? '수집 종료' : '수집 대기'), 'neutral'));
     bottom.append(node('a', {href: `/api/comparison/runs/${run.run_id}/export/${p}`, class: 'text-button'}, '원문 JSON', icon('download')));
-    card.append(node('div', {class: 'collection-timing'}, node('span', {}, icon('clock'), '답변 수집 시간'),
+    card.append(node('div', {class: 'collection-timing'}, node('span', {}, icon('clock'), imported ? '답변 수집 시각' : '답변 수집 시간'),
       node('strong', {'data-collection-time': p, text: collectionTime(p)})));
     card.append(bottom); return card;
   }
   function renderMatrix() {
-    const data = state.result?.datasets?.aiona || [], providers = resultProviders();
+    const data = baseRows(), providers = resultProviders();
     const scope = state.filterModel ? [state.filterModel] : providers;
     $('matrix-count').textContent = number(state.run.question_count) + '개';
     $('matrix-head').replaceChildren(node('tr', {}, node('th', {scope: 'col', text: 'ID'}), node('th', {scope: 'col', text: '질문 원문'}),
@@ -900,7 +981,7 @@
   $('previous-page').addEventListener('click', () => { state.page--; renderMatrix(); });
   $('next-page').addEventListener('click', () => { state.page++; renderMatrix(); });
   $('preview-all').addEventListener('click', () => openAnswer(0, 'dataset'));
-  const answerCases = (source) => source === 'dataset' ? state.cases : state.result.datasets.aiona;
+  const answerCases = (source) => source === 'dataset' ? state.cases : baseRows();
   function conversationGroups(cases) {
     const groups = new Map();
     cases.forEach((c, i) => {
@@ -958,7 +1039,7 @@
       const group = conversationGroups(cases).get('conversation:' + c.conversation_id);
       $('conversation-context').replaceChildren(icon('clock'), node('div', {},
         node('strong', {text: (c.source_group || c.conversation_id) + ' · ' + c.turn + ' / ' + group.indices.length + '턴'}),
-        node('p', {text: c.turn > 1 ? `이전 ${number(c.turn - 1)}개 턴의 질문·답변 전문을 사용합니다. 비교 모델은 각자 받은 답변으로 대화를 이어갑니다.` : '대화의 첫 질문입니다. 이후 턴은 이전 질문·답변 전문을 이어서 사용합니다.'})));
+        node('p', {text: c.turn > 1 ? `이전 ${number(c.turn - 1)}개 턴의 질문·답변 전문을 사용합니다. ` + (source === 'result' && external() ? '각 시스템은 원래 대화에 남은 자기 답변을 이력으로 사용합니다. 빠진 턴이 있으면 긴 대화 맥락(J6)을 판정하지 않습니다.' : '비교 모델은 각자 받은 답변으로 대화를 이어갑니다.') : '대화의 첫 질문입니다. 이후 턴은 이전 질문·답변 전문을 이어서 사용합니다.'})));
     }
     const providers = source === 'dataset' ? ['aiona'] : resultProviders();
     $('answer-tabs').replaceChildren(...providers.map((p) => node('button', {class: 'answer-tab', role: 'tab', id: 'answer-tab-' + p,
@@ -992,6 +1073,7 @@
     if (batch && !batch.live) meta.append(node('a', {href: `/code-eval.html?comparison=${state.run.run_id}&provider=${p}#results`, target: '_blank', rel: 'noopener noreferrer', text: '상세 판정 열기 ↗'}));
     box.append(meta);
     if (row.collection?.error) box.append(node('p', {class: 'alert warning', text: row.collection.error}));
+    if (state.modalSource === 'result' && systemOf(p) && row.collection) box.append(collectionDetail(row.collection));
     box.append(highlighted.element);
   }
   function renderAnswerEvaluation(p, index, highlighted) {
@@ -1022,7 +1104,7 @@
     }
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
-      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${decision.j5_outcome.label})` : '';
+      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${decision.j5_outcome.label}${decision.j5_outcome.source_failure?.label ? ' · ' + decision.j5_outcome.source_failure.label : ''})` : '';
       findings.append(node('li', {}, node('strong', {text: ({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '}[decision.status] || '의미 평가 · ') + (criterion?.name || id) + outcome}),
         node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) :
           decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));

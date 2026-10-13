@@ -48,7 +48,8 @@
   const statusLabel = (run) => run.status === 'CANCELLED' ? (run.phase === 'EVALUATE' ? '평가 중단' : '수집 중단') : statusLabels[run.status] || run.status || '상태 미기록';
   const statusKind = (status) => ['ERROR', 'CANCELLED'].includes(status) ? 'warning' : ['COLLECTING', 'EVALUATING'].includes(status) ? 'purple' : 'neutral';
   const resultKind = (result) => result === 'failure' ? 'danger' : result === 'cancelled' ? 'warning' : result === 'success' ? 'success' : 'neutral';
-  const inputLabel = (run) => run.input_mode === 'manual' ? '직접 입력' : run.input_mode === 'file' ? '파일 업로드' : '입력 방식 미기록';
+  const inputLabel = (run) => run.input_mode === 'manual' ? '직접 입력' : run.input_mode === 'file' ? '파일 업로드' :
+    run.input_mode === 'external_import' ? '외부 수집 가져오기' : '입력 방식 미기록';
   const valueText = (value) => value === null || value === undefined || value === '' ? '미기록' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
   const actorLabel = (event) => {
     const type = typeof event.actor === 'object' ? event.actor?.type : event.actor;
@@ -96,7 +97,7 @@
       field('모델 버전', select('history-version-filter', versionOptions, run.version, (value) => updateFilter('runFilters', 'version', value))),
       ...dateFilters('history-date', 'runFilters'),
       field('실행 상태', select('history-status-filter', [['', '전체 실행 상태'], ...Object.entries(statusLabels)], run.status, (value) => updateFilter('runFilters', 'status', value))),
-      field('입력 방식', select('history-input-filter', [['', '전체 입력 방식'], ['file', '파일'], ['manual', '직접 입력']], run.input, (value) => updateFilter('runFilters', 'input', value))),
+      field('입력 방식', select('history-input-filter', [['', '전체 입력 방식'], ['file', '파일'], ['manual', '직접 입력'], ['external_import', '외부 수집 가져오기']], run.input, (value) => updateFilter('runFilters', 'input', value))),
       node('button', {class: 'text-button', type: 'button', text: '필터 초기화', onclick: () => resetFilters('runs')}));
     $('history-activity-filters').replaceChildren(
       field('작업 검색', node('input', {id: 'activity-search', type: 'search', value: activity.q, placeholder: '이벤트·실행 ID, 작업, 사유', oninput: (event) => updateFilter('activityFilters', 'q', event.target.value)}), 'history-filter-search'),

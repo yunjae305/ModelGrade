@@ -327,3 +327,25 @@ liveNew.status = 'EVALUATING'; liveNew.evaluations.aiona.live = true;
 assert.equal(caseState(liveNew, 'aiona', 0).outcome, 'running');
 assert.notEqual(caseState(liveNew, 'aiona', 0).code.text, '보완 평가 대기');
 console.log('Case-level check errors and completion-free new records passed.');
+
+// External collections: arbitrary system keys are scored; different or unknown environments are never ranked.
+const externalRow = (status = 'SUCCESS') => ({case_id: 'same', question: 'question', answer: 'answer', collection: {status}});
+const externalRun = (sameConditions) => ({status: 'COMPLETED', providers: ['chatgpt-web', 'gpt-api'], question_count: 1,
+  run_kind: 'external_import', environment_comparison: {same_conditions: sameConditions},
+  datasets: {'chatgpt-web': [externalRow()], 'gpt-api': [externalRow()]},
+  evaluations: {'chatgpt-web': {cases: [code(1, 0)], jev_eval: {records: [sem()]}},
+                'gpt-api': {cases: [code(1, 1)], jev_eval: {records: [sem()]}}}});
+const differing = finalSummary(externalRun(false));
+assert.equal(differing.ready, true);
+assert.equal(differing.rankable, false);
+assert.deepEqual(differing.rows.map((row) => [row.provider, row.score, row.rank]), [['chatgpt-web', 100, null], ['gpt-api', 0, null]]);
+assert.deepEqual(differing.leaders, []);
+const same = finalSummary(externalRun(true));
+assert.equal(same.rankable, true);
+assert.deepEqual(same.rows.map((row) => [row.provider, row.rank]), [['chatgpt-web', 1], ['gpt-api', 2]]);
+assert.equal(caseState(externalRun(false), 'gpt-api', 0).outcome, 'issue');
+const notCollected = externalRun(true);
+notCollected.datasets['gpt-api'] = [externalRow('NOT_COLLECTED')];
+assert.equal(caseState(notCollected, 'gpt-api', 0).outcome, 'pending');
+assert.equal(finalSummary(notCollected).ready, false);
+console.log('External collection scores without ranks across differing environments passed.');

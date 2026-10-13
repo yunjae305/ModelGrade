@@ -369,7 +369,9 @@ def _semantic_evidence(record: Dict[str, Any]) -> str:
         meaning = ("신뢰할 수 있는 근거와 충돌하는 사실 오류입니다." if outcome.get("factual_error_confirmed") else
                    "판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다." if j5.get("status") == "INCOMPLETE" else
                    "사실 오류를 확정한 FAIL이 아닙니다." if j5.get("decision") == "FAIL" else "근거로 확인된 판정입니다.")
-        sections.append(f'<div class="semantic-j5-outcome"><strong>J5 판정 사유 · {_e(outcome.get("label") or outcome.get("code"))}</strong>'
+        failure = outcome.get("source_failure") if isinstance(outcome.get("source_failure"), dict) else {}
+        detail = f' ({_e(failure["label"])})' if isinstance(failure.get("label"), str) else ""
+        sections.append(f'<div class="semantic-j5-outcome"><strong>J5 판정 사유 · {_e(outcome.get("label") or outcome.get("code"))}{detail}</strong>'
                         f'{note(meaning)}</div>')
     for cid, decision in sorted((record.get("decisions") or {}).items()):
         again = decision.get("reevaluation") if isinstance(decision, dict) else None

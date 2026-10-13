@@ -143,7 +143,8 @@
     const outcome = j5?.j5_outcome;
     if (outcome?.code && outcome.code !== 'not_applicable') {
       box.append(make('div', {class: j5OutcomePending.has(outcome.code) ? 'semantic-policy-pending' :
-        j5?.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass', 'data-j5-outcome': outcome.code}, make('strong', {text: 'J5 판정 사유 · ' + (outcome.label || outcome.code)}),
+        j5?.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass', 'data-j5-outcome': outcome.code},
+        make('strong', {text: 'J5 판정 사유 · ' + (outcome.label || outcome.code) + (outcome.source_failure?.label ? ` (${outcome.source_failure.label})` : '')}),
         note(outcome.factual_error_confirmed ? '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.' :
           j5OutcomePending.has(outcome.code) ? '판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다.' :
           j5?.decision === 'FAIL' ? '사실 오류를 확정한 FAIL이 아닙니다.' : '근거로 확인된 판정입니다.'),
@@ -386,14 +387,16 @@
     const complete = models.length > 0 && models.every((m) => m.complete === total &&
       result?.evaluations?.[m.provider]?.cases?.length === total);
     const ready = result?.status === 'COMPLETED' && comparable && complete;
-    const ordered = ready ? [...models].sort((a, b) => b.counts.clear - a.counts.clear) : models;
+    // 외부 수집 실행에서 실행 환경이 다르거나 확인되지 않으면 점수는 보여 주되 순위는 매기지 않는다.
+    const rankable = result?.environment_comparison?.same_conditions !== false;
+    const ordered = ready && rankable ? [...models].sort((a, b) => b.counts.clear - a.counts.clear) : models;
     const rows = ordered.map((model) => ({...model,
       score: ready ? model.counts.clear / total * 100 : null,
-      rank: ready && models.length > 1 ? ordered.findIndex((m) => m.counts.clear === model.counts.clear) + 1 : null,
-      tied: ready && ordered.filter((m) => m.counts.clear === model.counts.clear).length > 1,
+      rank: ready && rankable && models.length > 1 ? ordered.findIndex((m) => m.counts.clear === model.counts.clear) + 1 : null,
+      tied: ready && rankable && ordered.filter((m) => m.counts.clear === model.counts.clear).length > 1,
       incomplete: Math.max(0, total - model.complete)}));
-    return {ready, comparable, complete, total, rows,
-      leaders: ready ? rows.filter((m) => m.counts.clear === rows[0].counts.clear) : [],
+    return {ready, rankable, comparable, complete, total, rows,
+      leaders: ready && rankable ? rows.filter((m) => m.counts.clear === rows[0].counts.clear) : [],
       incomplete: rows.reduce((n, m) => n + m.incomplete, 0)};
   }
 
