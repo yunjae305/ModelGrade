@@ -137,6 +137,7 @@ def test_fence_with_info_does_not_close_existing_block():
     r'길이(인치): 2" \times 3 + 1 = 7"',
     '길이(인치): 2" * 3 + 1 = 7"',                                     # 곱셈으로 쓴 ASCII '*'
     '길이(인치): 2" *3 + 1 = 7"',                                      # 닫는 '*' 가 없으면 붙여 써도 곱셈
+    r"총 무게: 2[kg]*3 + 1 = 7[kg]\*",                                 # 이스케이프된 '\*' 는 닫는 강조가 아니다
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)
@@ -155,6 +156,7 @@ def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     ("1. *3 + 4 = 8*", "FAIL"),         # 목록 번호는 앞 피연산자가 아니다
     ("[1] *3 + 4 = 8*", "FAIL"),        # 대괄호 표지도
     ("[1]*3 + 4 = 8*", "FAIL"),         # 붙여 쓴 강조도 닫는 '*' 가 있으면 강조
+    ("[1] *3 + 4 = 8 이므로 답은 8입니다.*", "FAIL"),   # 닫는 '*' 가 같은 줄 멀리 있어도 강조
     ("계산 1: +3 + 4 = 8", "FAIL"),     # 라벨 뒤 단항 부호는 잘린 이항 연산자가 아니다
     ("1번: +3 + 4 = 8", "FAIL"),
     ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈

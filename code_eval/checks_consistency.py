@@ -195,7 +195,7 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         if _ARROW_BEFORE.search(before):
             ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
         elif _cut_operand_before(before, ctx.answer[line_start + len(before.rstrip(" \t\xa0")) - 1:][:1],
-                                 ctx.answer[end:end + 12]):
+                                 ctx.answer[end:ctx.answer.find("\n", end) if "\n" in ctx.answer[end:] else len(ctx.answer)]):
             ch.skip_reason = "등식 앞에 연산자가 있어(단위에 끊긴 앞쪽 피연산자) 좌변을 확정할 수 없음"
         elif "/" in ch.segments[-1] and _LIMIT_AFTER.match(text, end):
             ch.skip_reason = "‘/’ 뒤 값에 이하·이상 같은 한도 표현이 붙어 나눗셈이 아니라 ‘값 / 한도’ 표기로 봄"
@@ -239,12 +239,13 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
 
 
 def _cut_operand_before(before: str, operator: str = "", after: str = "") -> bool:
-    """좌변 바로 앞(같은 줄)에 단위에 끊긴 앞쪽 피연산자가 있는가 ('2벌 × 3 + 1 = 7' 의 '2벌 ×').
+    r"""좌변 바로 앞(같은 줄)에 단위에 끊긴 앞쪽 피연산자가 있는가 ('2벌 × 3 + 1 = 7' 의 '2벌 ×').
 
     ``before`` 는 등식 투영(×÷ → */, 강조 ** 는 공백)의 줄 앞부분, ``operator`` 는 그 연산자 자리의 답변 원문 글자다.
     연산자 바로 앞이 숫자(뒤에 공백 하나와 짧은 단위 허용)나 닫는 괄호일 때만 그렇다. 목록 표지만 있으면('1.', '1)') 아니다.
-    원문 '*' 가 식에 바로 붙고 식 뒤(같은 줄, 짧은 단위 다음)에 닫는 '*' 가 있으면 강조 구간이다('설명 *3 + 4 = 8*',
-    '[1]*3 + 4 = 8*') — 닫는 '*' 가 없으면 붙여 써도 곱셈이다('2" *3 + 1 = 7"'). 강조일 때만 대괄호·따옴표를
+    원문 '*' 가 식에 바로 붙고 식 뒤 같은 줄에 이스케이프되지 않은 닫는 '*' 가 있으면 강조 구간이다('설명 *3 + 4 = 8*',
+    '[1]*3 + 4 = 8*', '[1] *3 + 4 = 8 이므로 답은 8입니다.*') — 닫는 '*' 가 없거나 '\*' 뿐이면 붙여 써도 곱셈이다
+    ('2" *3 + 1 = 7"', '2[kg]*3 + 1 = 7[kg]\*'). 강조일 때만 대괄호·따옴표를
     단위로 보지 않는다. 그 밖의 연산자(곱셈 '*'·×·÷·+·-·/·TeX \times)는 따옴표·대괄호 단위도 단위다(2" * · 6" / · 2[kg] ×).
     문장부호(. , : ; ! ?)는 어느 경우에도 단위가 아니다('계산 1: +3 + 4 = 8' 의 라벨).
     """
@@ -254,7 +255,7 @@ def _cut_operand_before(before: str, operator: str = "", after: str = "") -> boo
     body = stripped[:-1]
     if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
         return False                       # 목록 표지만 있음
-    emphasis = operator == "*" and stripped == before and bool(re.match(r"[^\n*]{0,8}\*", after))
+    emphasis = operator == "*" and stripped == before and bool(re.search(r"(?<!\\)\*", after.split("\n", 1)[0]))
     excluded = r"\s\d+\-*/=().,:;!?" + (r"\[\]{}<>\"'“”‘’「」『』" if emphasis else "")
     return bool(re.search(r"[\d)](?:[ \t\xa0]?[^" + excluded + r"]{1,5})?[ \t\xa0]*$", body))
 
