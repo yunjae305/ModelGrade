@@ -1072,7 +1072,7 @@
       const group = conversationGroups(cases).get('conversation:' + c.conversation_id);
       $('conversation-context').replaceChildren(icon('clock'), node('div', {},
         node('strong', {text: (c.source_group || c.conversation_id) + ' · ' + c.turn + ' / ' + group.indices.length + '턴'}),
-        node('p', {text: c.turn > 1 ? `이전 ${number(c.turn - 1)}개 턴의 질문·답변 전문을 사용합니다. ` + (source === 'result' && external() ? '각 시스템은 원래 대화에 남은 자기 답변을 이력으로 사용합니다. 빠진 턴이 있으면 긴 대화 맥락(J6)을 판정하지 않습니다.' : '비교 모델은 각자 받은 답변으로 대화를 이어갑니다.') : '대화의 첫 질문입니다. 이후 턴은 이전 질문·답변 전문을 이어서 사용합니다.'})));
+        node('p', {text: c.turn > 1 ? `이전 ${number(c.turn - 1)}개 턴의 질문·답변 전문을 사용합니다. ` + (source === 'result' && external() ? '각 시스템은 원래 대화에 남은 자기 답변을 이력으로 사용합니다. 빠진 턴이 있으면 멀티턴 맥락 유지(J6)를 판정하지 않습니다.' : '비교 모델은 각자 받은 답변으로 대화를 이어갑니다.') : '대화의 첫 질문입니다. 이후 턴은 이전 질문·답변 전문을 이어서 사용합니다.'})));
     }
     const providers = source === 'dataset' ? ['aiona'] : resultProviders();
     $('answer-tabs').replaceChildren(...providers.map((p) => node('button', {class: 'answer-tab', role: 'tab', id: 'answer-tab-' + p,

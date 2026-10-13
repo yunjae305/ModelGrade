@@ -2,3 +2,5 @@
 # httpx is for the FAIL-only LLM review call; pytest is for the test suite.
 httpx>=0.28,<1
 pytest>=8,<10
+# J7 롱컨텍스트 판별용 고정 공개 토크나이저 (o200k_base 사전은 처음 한 번 내려받아 캐시)
+tiktoken>=0.8,<1

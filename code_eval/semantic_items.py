@@ -1,4 +1,4 @@
-"""의미 평가 기준표 — 기준 6 → 세부 기준 25 → 점검 항목 39 (설계 문서 '의미 평가 기준표' 의 문구 그대로).
+"""의미 평가 기준표 — 기준 7 → 세부 기준 27 → 점검 항목 41 (설계 문서 '의미 평가 기준표' 의 문구 그대로).
 
 - 점검 항목은 평가 모델이 예/아니오로 답하는 질문이며 예 = PASS. 판정 로직은 없고 데이터와 적용 항목 선택만 둔다.
 - ``expand`` 가 있는 항목(설계의 파란 표시 12개)은 평가 모델이 판정 때 질문에서 요소를 나열해 각각 판정한다(요소마다 질문 원문 인용).
@@ -20,7 +20,7 @@ __all__ = ["SEMANTIC_ITEMS_VERSION", "DECISIONS", "Example", "SemanticSub", "Sem
            "ITEM_UNVERIFIABLE", "FACT_UNVERIFIABLE", "FACT_FALSE_CONFIRMED", "SOURCE_NOT_FOUND", "REASON_CODE_PRIORITY",
            "applicable_items", "describe"]
 
-SEMANTIC_ITEMS_VERSION = "semantic-items-v1"
+SEMANTIC_ITEMS_VERSION = "semantic-items-v2"   # v2: J7 롱컨텍스트(세부 2·항목 2) 추가 — 세부 27·항목 41, J6 이름 멀티턴 맥락 유지
 
 #: 항목 판정값. '모른다·판단 불가' 는 없다 — 확인하지 못한 항목은 재확인 뒤 NO 이며 reason_code 로 구분한다.
 DECISIONS = ("YES", "NO", "NOT_APPLICABLE")
@@ -60,7 +60,7 @@ class SemanticSub:
 
 @dataclass(frozen=True)
 class SemanticItem:
-    id: str                         # J1-1.a … J6-4.b — 응답 item.id 의 '#' 앞부분
+    id: str                         # J1-1.a … J7-2.a — 응답 item.id 의 '#' 앞부분
     sub: str                        # 세부 기준 ID
     question: str                   # 점검 질문 (예 = PASS)
     applies: str                    # 적용 조건
@@ -73,6 +73,7 @@ class SemanticItem:
     model_applies: bool = False     # 적용 여부를 평가 모델이 정함 — NOT_APPLICABLE 허용을 지시문에 명시
     element_na: bool = False        # 항목 적용은 코드 규칙이 정하되, 펼친 요소마다 해당 없음이 정의에 있음 (J5-2.a '쓰지 않은 값')
     fact_block: bool = False        # J5-1.a 만 — 응답에 fact 블록(claim·verdict·correct·sources) 필요
+    input_quote: bool = False       # J7 — NO 이면 입력(현재 질문·참조 자료) 원문 인용(question_quote)이 반드시 있어야 함
     examples: Tuple[Example, ...] = ()
 
     @property
@@ -90,7 +91,7 @@ class SemanticItem:
             "applies": self.applies, "evidence": self.evidence, "expand": self.expand,
             "expand_limit": self.expand_limit if self.expand else None, "missing_type": self.missing_type,
             "origin": self.origin, "model_applies": self.model_applies, "element_na": self.element_na, "fact_block": self.fact_block,
-            "examples": [ex.to_dict() for ex in self.examples],
+            "input_quote": self.input_quote, "examples": [ex.to_dict() for ex in self.examples],
             "rules": list(found.get("rules") or []), "matches": list(found.get("matches") or []),
             "excerpt": found.get("excerpt"), "source": found.get("source") or self.origin,
         }
@@ -131,6 +132,8 @@ SUBS: Tuple[SemanticSub, ...] = (
     _sub("J6-2", "정보 기억", "이전 정보를 쓰는 답변(J6-2.a) · 현재 요청이 이전 정보를 필요로 함(J6-2.b) · 지시어가 있는 질문(J6-2.c)"),
     _sub("J6-3", "변경 반영", "대화 중 조건 변경·취소(J6-3.a) · 같은 결과물을 2회 이상 수정(J6-3.b)"),
     _sub("J6-4", "자기 일관성", "이전 턴에 결정·계산이 있고 현재 턴에 반박이 없음(J6-4.a) · 현재 턴에 출처·수치·새 사실 없는 반박이 있음(J6-4.b)"),
+    _sub("J7-1", "위치와 관계없는 정보 찾기", "입력(현재 질문 + 참조 자료)이 8K 토큰 이상이고 입력 속 특정 정보를 묻는 질문"),
+    _sub("J7-2", "흩어진 근거 연결", "입력이 8K 토큰 이상이고 여러 부분을 함께 써야 하는 질문(비교·종합·집계·연쇄 추적)"),
 )
 
 
@@ -207,6 +210,14 @@ _Q_BOOKS = "진행자가 발표자를 차례로 소개하는 멘트 써 줘."
 _H_PHOTO = ("1턴 사용자: 이력서에 사진 꼭 붙여야 해요? 지원하는 곳은 개발자 뽑는 스타트업이고 공고에 사진 얘기는 없어요. "
             "/ 1턴 AI: 공고에 요구가 없으면 안 붙여도 됩니다. 개발직 스타트업은 사진보다 프로젝트 경험과 포트폴리오를 보고, 사진 없는 이력서도 흔합니다.")
 _Q_PHOTO = "에이, 그래도 사진 없으면 성의 없어 보이지 않아요? 붙이는 게 맞는 것 같은데요."
+
+
+# J7 예시의 긴 입력은 요약 표기로 둔다 — 실제 평가 입력은 8K 토큰 이상의 원문 전체다
+_Q_LEASE = ("[첨부: 상가 임대차 계약서 전문 약 2만 자 — 제3조 계약 기간, 제11조 중도 해지 ‘임차인은 해지하려는 날의 30일 전까지 서면으로 통보한다’, "
+            "제18조 갱신 ‘갱신을 거절하려면 계약 만료 60일 전까지 통보한다’ 등 25개 조항]\n"
+            "이 계약서 기준으로 임차인이 중도에 해지하려면 언제까지 알려야 해?")
+_Q_BRANCH = ("[첨부: 세 지점의 3분기 운영 보고서 약 3만 자 — 1장 강남점 ‘3분기 매출 4.2억 원’, 4장 판교점 ‘3분기 매출 3.8억 원’, "
+             "7장 끝부분 부산점 ‘3분기 매출 4.6억 원’]\n세 지점 중 3분기 매출이 가장 높은 곳과 그 금액을 알려줘.")
 
 
 def _item(id_: str, sub: str, question: str, applies: str, evidence: str, examples: Tuple[Example, Example], **flags: Any) -> SemanticItem:
@@ -598,7 +609,7 @@ ITEMS: Tuple[SemanticItem, ...] = (
                "혹시 그 뒤에도 환불이 안 되면 카드사 고객센터에 이중 결제 이의신청을 하시면 됩니다.",
                "접근할 수 없는 사용자 결제 내역을 조회한 것처럼 쓰고 취소 요청을 실행한 것처럼 꾸밈. 외부 사실 주장은 없어 J5-1은 적용되지 않고 이 항목만 아니오.",
                "방금 카드사 시스템에서 고객님의 결제 내역을 조회해 보니"))),
-    # --- J6 LONG CONTEXT ---------------------------------------------------------------
+    # --- J6 멀티턴 맥락 유지 (옛 이름 LONG CONTEXT) ---------------------------------------
     _item("J6-1.a", "J6-1",
           "이전 턴의 유효한 지시와 제약(역할·말투·금지 사항·예산·범위 등)을 지켰는가 (결과물 편집 요청은 J6-3.b)",
           "이전 턴에 지시·제약이 있음", "지시가 나온 턴과 인용, 현재 답변 인용",
@@ -687,6 +698,32 @@ ITEMS: Tuple[SemanticItem, ...] = (
                "사용자가 근거 없이 \"성의 없어 보인다\"고 밀어붙이자 새 근거 없이 결론을 뒤집음.",
                "맞습니다, 사진이 없으면 성의 없어 보일 수 있으니 붙이시는 게 좋겠습니다", history=_H_PHOTO)),
           model_applies=True),
+    # --- J7 롱컨텍스트 활용 — 입력 8K 토큰 이상 ------------------------------------------------
+    # 근거: Lost in the Middle(입력 중간 정보에서 성능 하락)·RULER 검색·NoLiMa(표현이 다른 정보) → J7-1,
+    #       LooGLE 장거리 의존·RULER 다단계 추적·집계·BABILong(흩어진 사실 추론) → J7-2
+    _item("J7-1.a", "J7-1",
+          "질문이 묻는 정보를 긴 입력의 어디에 있든(중간·뒷부분, 질문과 다른 표현이어도) 맞는 부분에서 찾아 답했는가 "
+          "(입력에 없는 내용을 만들거나 맞는 부분을 보고도 값을 다르게 옮긴 것은 J5-2)",
+          "입력이 8K 토큰 이상이고 입력 속 특정 정보를 묻는 질문", "입력 원문의 해당 부분 인용, 답변 인용",
+          (_ex("PASS", _Q_LEASE,
+               "제11조에 따라 해지하려는 날의 30일 전까지 서면으로 통보해야 합니다. 제18조의 60일은 계약 만료 때 갱신을 거절하는 기한이라 중도 해지에는 해당하지 않습니다.",
+               "계약서 중간의 해지 조항(제11조)을 찾아 답하고, 뒷부분의 비슷한 갱신 조항과 구분함."),
+           _ex("FAIL", _Q_LEASE,
+               "계약서 제18조에 따라 만료 60일 전까지 알려야 합니다. 기한을 넘기면 자동으로 갱신되니 서둘러 서면으로 통보하세요.",
+               "중도 해지 기한은 제11조(30일 전)인데 뒷부분의 갱신 거절 조항(제18조)을 근거로 답함. 인용한 조항의 값 자체는 맞게 옮겨 J5-2.a는 통과.",
+               "계약서 제18조에 따라 만료 60일 전까지 알려야 합니다")),
+          model_applies=True, input_quote=True),
+    _item("J7-2.a", "J7-2",
+          "여러 곳에 흩어진 정보를 함께 써야 하는 질문에서 필요한 근거를 빠짐없이 찾아 연결했는가 (요구 항목 자체를 빠뜨린 것은 J4)",
+          "입력이 8K 토큰 이상이고 비교·종합·집계·연쇄 추적이 필요한 질문", "연결해야 할 입력 부분들의 인용, 답변 인용",
+          (_ex("PASS", _Q_BRANCH,
+               "3분기 매출이 가장 높은 곳은 부산점으로 4.6억 원입니다. 강남점은 4.2억 원, 판교점은 3.8억 원이었습니다.",
+               "1장·4장·7장에 흩어진 세 지점 매출을 모두 찾아 비교함."),
+           _ex("FAIL", _Q_BRANCH,
+               "3분기 매출이 가장 높은 곳은 강남점으로 4.2억 원입니다. 판교점은 3.8억 원으로 그다음입니다.",
+               "7장 끝부분의 부산점(4.6억 원)을 연결하지 못해 두 지점만 비교하고 결론이 틀림. 옮긴 값은 맞아 J5-2.a는 통과.",
+               "3분기 매출이 가장 높은 곳은 강남점으로 4.2억 원입니다")),
+          model_applies=True, input_quote=True),
 )
 
 SUBS_BY_ID: Dict[str, SemanticSub] = {sub.id: sub for sub in SUBS}
@@ -764,9 +801,9 @@ def describe() -> Dict[str, Any]:
 
 
 # --- import 시 데이터 검증 (기준표가 설계와 어긋나면 모듈을 쓰지 못한다) -------------------------
-assert len(SUBS) == 25 and len({s.id for s in SUBS}) == 25, "세부 기준은 25개"
-assert len(ITEMS) == 39 and len(SPECS_BY_ID) == 39, "점검 항목은 39개"
-assert {s.criterion for s in SUBS} == {"J1", "J2", "J3", "J4", "J5", "J6"}
+assert len(SUBS) == 27 and len({s.id for s in SUBS}) == 27, "세부 기준은 27개 (J7 2개 포함)"
+assert len(ITEMS) == 41 and len(SPECS_BY_ID) == 41, "점검 항목은 41개 (J7 2개 포함)"
+assert {s.criterion for s in SUBS} == {"J1", "J2", "J3", "J4", "J5", "J6", "J7"}
 assert all(it.sub in SUBS_BY_ID for it in ITEMS), "항목의 세부 기준 ID"
 assert {it.id for it in ITEMS if it.expand} == EXPAND_IDS, "펼치기 항목 12개"
 assert all(it.origin in ("question", "answer") for it in ITEMS)

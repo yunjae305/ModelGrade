@@ -1,4 +1,4 @@
-"""Jev 대체 시험용 의미 평가 — Claude CLI(``claude -p``)로 J1~J6 중 적용 기준을 판단한다.
+"""Jev 대체 시험용 의미 평가 — Claude CLI(``claude -p``)로 J1~J7 중 적용 기준을 판단한다.
 
 Jev 키가 생기기 전 시험용이다. Jev client 와 같은 호출 모양(``system_one``)과 응답 모양
 (``answers.{J}.choice / probabilities / confidence``)을 돌려주므로 ``jev_eval`` 을 그대로 쓴다.

@@ -173,6 +173,9 @@ def item_prompt_text(item_id: str, spec: Dict[str, Any]) -> str:
         lines.append("답변에 해당 내용이 없어서 NO 인 경우에만 answer_quote 를 비웁니다.")
     elif origin != "answer" or not expand:
         lines.append("YES 와 NO 모두 answer_quote(답변 원문)가 필요합니다.")
+    if spec.get("input_quote"):
+        lines.append("NO 이면 question_quote 에 입력(현재 질문·참조 자료) 원문의 해당 부분을 반드시 인용합니다(turn 은 null). "
+                     "서버가 입력 원문과 대조합니다.")
     if item_id.startswith("J6"):
         lines.append("이전 턴 원문을 question_quote 로 인용할 때는 turn 에 그 턴 번호를 적습니다(현재 질문을 인용하면 null). "
                      "지정한 턴의 원문에서만 인용을 대조합니다.")

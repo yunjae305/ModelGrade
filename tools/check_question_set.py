@@ -28,13 +28,13 @@ from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E40
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
 from code_eval.semantic_items import applicable_items  # noqa: E402
 
-CHECK_VERSION = "question-set-check-v1"
+CHECK_VERSION = "question-set-check-v2"   # v2: J7 롱컨텍스트(입력 8K 토큰 이상) 적용 수
 MIN_APPLICABLE = 30
 #: 팀원 구조도의 유형 비율 초안 (설계안 v1.2 질문 세트 구성) — 유형 필드가 있을 때만 비교한다
 TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .20, "분석·추론": .15, "코딩·기술": .15,
                  "글쓰기·요약": .10, "멀티턴 대화": .10, "롱 컨텍스트": .05, "취약점·난도": .05}
 _TYPE_FIELDS = ("type", "category", "question_type", "유형")
-CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6")
+CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7")
 #: 답변이 만드는 조건 — 답변 없이 점검할 때 질문 조건으로 세지 않는다
 _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 
@@ -109,6 +109,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
                  if case.get(k) is not None} for case in cases]
     evaluated = evaluate_batch(payloads)["cases"] if payloads else []
     applicable: Counter = Counter()
+    undetermined: Counter = Counter()   # 적용 여부를 판별하지 못한 질문 수 (J7 — 토크나이저 없음)
     per_case = []
     contexts = conversation_contexts(evaluated)   # 평가 준비와 같은 대화 이력 — 오류·누락 턴은 이력에서 빠지고 issues 로 남는다
     usable = []
@@ -136,9 +137,11 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
                                      conversation=conversation, answer_tools="unknown", history=history)
             hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(case, subs, conversation))
+            undetermined.update({sid.split("-", 1)[0] for sid, sub in subs.items() if sub.get("undetermined")})
         else:
             semantic = jev_applicability(case["question"], None, reference=case.get("reference"), conversation=conversation)
             hit.update(semantic["criteria"])
+            undetermined.update(list(semantic.get("undetermined") or {}))
             if fact_question(case["question"], history)[0]:
                 hit.add("J5")
         applicable.update(hit)
@@ -157,6 +160,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
     return {"version": CHECK_VERSION, "pipeline": pipeline, "items": len(items), "questions": units, "single_questions": singles,
             "conversations": conversations, "conversation_turns": sum(len(v) for v in turns.values()),
             "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "criteria": criteria,
+            "undetermined": dict(undetermined),
             "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case}
 
 
@@ -173,6 +177,8 @@ def render(report: Dict[str, Any]) -> str:
                  "(CODE 1 은 모든 답변, CODE 2·3 은 질문이 준 형식·계산 요구만 — 답변의 계산식·선언 개수 조건은 답변에 따라 더해짐)")
     for cid, row in report["criteria"].items():
         lines.append(f"    {cid:7s} {row['applicable']:5d}  {'충분' if row['enough'] else '부족'}")
+    for cid, n in (report.get("undetermined") or {}).items():
+        lines.append(f"    {cid}: {n}개 질문은 적용 여부를 판별하지 못함 (토크나이저를 불러오지 못함 — tiktoken 설치·사전 내려받기 확인)")
     if report["types"]:
         lines.append("- 유형 분포 (목표 비율은 초안)")
         for name, row in report["types"].items():

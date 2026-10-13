@@ -1,4 +1,4 @@
-"""AIONA 코드 평가기 v16 — 객관적 검증은 CODE, 의미 품질(J1~J6)은 Jev 가 따로 판단한다.
+"""AIONA 코드 평가기 v16 — 객관적 검증은 CODE, 의미 품질(J1~J7)은 Jev 가 따로 판단한다.
 
 진입점
 - ``code_eval.engine.evaluate_case`` / ``evaluate_batch`` : CODE 평가
@@ -8,7 +8,7 @@
 - ``webapp.server`` 의 ``/code-eval.html`` : 로컬 웹 화면
 
 텍스트 파싱은 ``textparse``, 산술 계산은 ``arith``, LLM 호출은 ``llm_client``, Jev 호출은 ``jev_client``,
-Claude/GPT CLI 호출은 ``claude_cli_client``/``codex_cli_client``, J1~J6 정의는 ``jev_criteria`` 가 맡는다.
+Claude/GPT CLI 호출은 ``claude_cli_client``/``codex_cli_client``, J1~J7 정의는 ``jev_criteria`` 가 맡는다.
 """
 
 from .core import ENGINE_VERSION

@@ -1,4 +1,4 @@
-"""통합 평가기준 목록 — CODE 검사 단위와 J1~J6 의미 기준을 한 목록으로 묶는다. 판정에는 쓰지 않는다.
+"""통합 평가기준 목록 — CODE 검사 단위와 J1~J7 의미 기준을 한 목록으로 묶는다. 판정에는 쓰지 않는다.
 
 기준 원문은 지금 위치에 그대로 둔다. 이 모듈은 그 정의를 읽어 같은 모양의 항목으로 모을 뿐이다.
 - CODE 상위·소분류 설명: ``taxonomy.CATEGORIES`` · 검사 단위와 규칙 버전: ``core.CHECK_VERSIONS``
@@ -25,7 +25,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v4"
+REGISTRY_VERSION = "criteria-registry-v5"   # v5: J6 이름 변경, J7 롱컨텍스트 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -119,10 +119,13 @@ _SEMANTIC_EVIDENCE = {
            "판정마다 j5_outcome(사실 오류·검증 기준 미충족·출처 불일치·검색 불가 등)"),
     "J6": ("context_checks[] — 이전 턴 번호·instruction_quote·answer_quote·decision·reason. "
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈"),
+    "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
+           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(8K~32K·32K~128K·128K 이상)·"
+           "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
 }
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
                     "그 기준만 1회 재평가 (j1-j4-fail-evidence-v1). 이유의 의미적 타당성은 검증하지 않음")
-_SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
+_SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4·J7 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
                       "검색 불가·검색 실행 오류·검색 없이 연 원문의 도구 오류로 확인하지 못한 J5(J5_SEARCH_UNAVAILABLE·J5_SEARCH_ERROR·J5_FETCH_ERROR). "
                       "그 밖의 UNVERIFIED는 최종 정책으로 FAIL(EVALUATION_EVIDENCE_INSUFFICIENT, 사실 오류 확정 아님), "
                       "J5 출처 원문 확인 실패는 FAIL(SOURCE_ORIGINAL_UNAVAILABLE). 호출 오류·시간 초과·형식 오류·미연결은 "
@@ -154,7 +157,7 @@ def _code_entries() -> List[Dict[str, Any]]:
 def _semantic_entries() -> List[Dict[str, Any]]:
     out = []
     for c in jev_describe()["criteria"]:
-        trigger = {"J1": "all", "J5": "answer", "J6": "history"}.get(c["id"], "question")
+        trigger = {"J1": "all", "J5": "answer", "J6": "history", "J7": "input_length"}.get(c["id"], "question")
         out.append({
             "id": c["id"], "layer": "LLM", "group": c["id"], "group_name": c["name"], "category": "J",
             "name": c["name"], "trigger": trigger, "applies_when": APPLIES_WHEN[c["id"]],
@@ -214,13 +217,25 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "criteria-registry-v4", "date": "2026-10-13", "scope": "registry",
      "changes": ["main v2(semantic_items·changelog)와 브랜치 v3(이전 턴 승계·출처 대조·판정 미완료 정책)을 병합",
                  "의미 평가 jev-semantic-eval-v2.8 (main v2.6 items 기록 + 브랜치 v2.7)"]},
+    {"version": "long-context-v1", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["롱컨텍스트 판별: 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 8K 토큰 이상이면 J7 적용 (사용자 결정)",
+                 "길이 구간 8K~32K·32K~128K·128K 이상을 판정 기록에 남김 (LV-Eval·RULER·∞Bench 단계), 토크나이저를 못 불러오면 '판별하지 못함'",
+                 "J7 근거 인용의 입력 내 위치(0~100)를 기록 — Lost in the Middle 분석용, 판정에는 쓰지 않음"]},
+    {"version": "semantic-items-v2", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J7-1 위치와 관계없는 정보 찾기(J7-1.a)·J7-2 흩어진 근거 연결(J7-2.a) 추가 — 세부 27·항목 41",
+                 "J6 세부 기준 이름 표기를 '멀티턴 맥락 유지'로"]},
+    {"version": "criteria-registry-v5", "date": "2026-10-13", "scope": "registry",
+     "changes": ["J6 이름을 '멀티턴 맥락 유지'로 바꿈 (판정 내용은 그대로, 대화 2번째 턴부터) — 사용자 결정",
+                 "J7 롱컨텍스트 활용 추가: 입력(현재 질문 + 참조 자료) 8K 토큰 이상(tiktoken o200k_base), 세부 J7-1 위치와 관계없는 정보 찾기·"
+                 "J7-2 흩어진 근거 연결. 근거: Lost in the Middle·RULER·NoLiMa·LooGLE·BABILong. 경계: 입력에 없는 내용·값 오기는 J5, 요구 항목 누락은 J4",
+                 "의미 평가 기준 J1~J7, items 세부 27·항목 41 (semantic-items-v2), 적용 판정 jev-applicability-v2.4·sub-applicability-v2"]},
 ]
 
 
 def registry() -> Dict[str, Any]:
     from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
-            # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 6 → 세부 25 → 항목 39 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
+            # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 7 → 세부 27 → 항목 41 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),
             "modifier_kinds": copy.deepcopy(MODIFIER_KINDS),
             "subsumed_kinds": [{"kind": k, "when": w, "checked_by": u, "note": n} for k, w, u, n in SUBSUMED_KINDS],

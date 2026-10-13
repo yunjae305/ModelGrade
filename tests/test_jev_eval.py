@@ -200,7 +200,7 @@ def test_applicability_is_decided_by_code_rules_from_request_sentences():
     # J1 은 항상, J2~J4 는 요청 문장의 근거 문구가 있을 때만. 답변을 주지 않으면 J5 는 '해당 없음', J6 는 대화 입력이 아니라 적지 않는다
     a = jev_applicability(MISSING["question"])
     assert a["criteria"] == ["J1", "J4"] and a["evidence"]["J4"]["matches"] == ["비교"]
-    assert set(a["not_applicable"]) == {"J2", "J3", "J5"} and a["evidence"]["J4"]["source"] == "question"
+    assert set(a["not_applicable"]) == {"J2", "J3", "J5", "J7"} and a["evidence"]["J4"]["source"] == "question"
     # 상황 설명 문장의 '고객'은 대상이 아니고, 큰따옴표 안 인용문의 '이유'는 지시가 아니다
     assert jev_applicability("엑셀에 고객의 도시가 적혀 있어. 값이 '서울'인 셀 수를 세는 수식을 작성해줘.")["criteria"] == ["J1"]
     assert jev_applicability('“왜 늦었는지 이유를 말해”를 영어로 번역해줘.')["criteria"] == ["J1"]
@@ -351,7 +351,7 @@ def test_conversation_turns_send_history_in_turn_order_and_ask_j6_from_second_tu
     # J5 기준: 참조 데이터가 있으면 reference, 없으면 engine, J5 를 묻지 않았으면 None
     assert (first["j5_basis"], second["j5_basis"], third["j5_basis"]) == (None, "reference", "engine")
     assert decisions(third)["J6"] == "FAIL" and decisions(second)["J6"] == "PASS"
-    assert jev["summary"]["J6"] == {"name": "LONG CONTEXT", "targets": 2, "pass": 1, "fail": 1, "pending": 0, "unverified": 0, "incomplete": 0}
+    assert jev["summary"]["J6"] == {"name": "멀티턴 맥락 유지", "targets": 2, "pass": 1, "fail": 1, "pending": 0, "unverified": 0, "incomplete": 0}
     conv = jev["conversations"]
     assert (conv["count"], conv["pass"], conv["fail"], conv["incomplete"], conv["rate"]) == (1, 0, 1, 0, 0.0)
     item = conv["items"][0]
@@ -363,13 +363,13 @@ def test_conversation_turns_send_history_in_turn_order_and_ask_j6_from_second_tu
     assert log[3]["jev"]["j5_basis"] == "reference"
     # 보고서: 대화 유지율 표, 대화 표기, 근거 출처 라벨, 참조 데이터, J5 판정 기준
     html = render_report({**batch, "jev_eval": jev})
-    assert "대화 유지율 · J6 LONG CONTEXT" in html and "첫 FAIL 턴" in html and html.count('<span class="chip">대화 C1 · ') == 3
+    assert "대화 유지율 · J6 멀티턴 맥락 유지" in html and "첫 FAIL 턴" in html and html.count('<span class="chip">대화 C1 · ') == 3
     assert "대화 C1 · 3턴" in html and "답변 근거: ‘" in html and "참조 데이터: ‘" in html and "참조 데이터 (reference)" in html
     assert "판정 기준: 참조 데이터" in html and "판정 기준: 엔진 지식" in html
     assert "대화 맥락: 앞 턴 2개" in html and "대화의 첫 턴 — 앞 대화 없음" in html
     # 대화 입력이 없으면 대화 유지율 표가 없고, 적용 질문이 없는 J6 막대도 그리지 않는다
     plain = render_report({**engine.evaluate_batch([NORMAL], NO_CONFIG), "jev_eval": evaluate_jev_batch(engine.evaluate_batch([NORMAL], NO_CONFIG), None, access_reason="키 없음")})
-    assert "대화 유지율" not in plain and "J6 LONG CONTEXT</span>" not in plain and ">J5</span><h3>DATA 신뢰도</h3>" in plain
+    assert "대화 유지율" not in plain and "J6 멀티턴 맥락 유지</span>" not in plain and ">J5</span><h3>DATA 신뢰도</h3>" in plain
 
 
 def test_incomplete_conversation_history_skips_j6_and_marks_conversation_incomplete():
@@ -444,4 +444,4 @@ def test_claude_cli_prompt_carries_history_and_reference_and_schema_has_j5_j6(tm
     required = json.loads(cmd[cmd.index("--json-schema") + 1])["required"]
     assert {"J5", "J6"} <= set(required)
     assert CONV[0]["answer"] in kw["input"] and "history 는 이 턴 앞의 대화" in kw["input"] and "reference 는 J5" in kw["input"]
-    assert "DATA 신뢰도" in kw["input"] and "LONG CONTEXT" in kw["input"]
+    assert "DATA 신뢰도" in kw["input"] and "멀티턴 맥락 유지" in kw["input"]

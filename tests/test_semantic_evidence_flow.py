@@ -115,7 +115,7 @@ def test_native_jev_keeps_its_original_applicability_rules():
     judge.config = SimpleNamespace(engine='jev', to_manifest=lambda: {'engine': 'jev'})
     batch = evaluate([{'case_id': 'q', 'question': 'Say hello', 'answer': 'Hello!'}], judge)
     assert 'J5' not in judge.calls[0]['questions']
-    assert batch['jev_eval']['applicability_version'] == 'jev-applicability-v2.2'
+    assert batch['jev_eval']['applicability_version'] == 'jev-applicability-v2.4-long-context'
 
 
 @pytest.mark.parametrize('basis', ['web', 'reference', 'none'])
