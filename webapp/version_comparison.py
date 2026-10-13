@@ -41,6 +41,9 @@ SIGNIFICANCE = 0.05
 CHANGE_LABELS = {"improved": "개선", "regressed": "악화", "pass_kept": "통과 유지", "fail_kept": "실패 유지", "pending": "미완료", "excluded": "제외",
                  # 검증 한계(근거·원문을 확인하지 못한 정책상 FAIL)로만 바뀐 질문 — 성능 변화가 아니라 부호검정·꼬리·악화 목록에서 뺀다 (10-14 P1-1)
                  "limited_regressed": "검증 한계로 FAIL (악화 아님)", "limited_improved": "검증 한계 해소 (개선 아님)"}
+#: 판정이 바뀐 질문의 원인 — 점수가 왜 달라졌는지 설명용 (10-14 3차 4단계). 평가 조건 차이는 conditions.differences 에 따로 있다
+CAUSE_LABELS = {"answer_changed": "답변이 바뀜", "same_answer": "같은 답변인데 판정이 바뀜 (평가자 변동 또는 평가 조건 차이)",
+                "verification_limit": "검증 한계 (근거·원문 확인 실패)"}
 
 
 # --- 비교 성립 조건 -------------------------------------------------------------------------------------
@@ -304,6 +307,12 @@ def _badness(outcome: Dict[str, Any]) -> Tuple[int, int]:
 
 # --- 비교 ------------------------------------------------------------------------------------------------------
 
+def _source(run: Dict[str, Any], index: int) -> Dict[str, Any]:
+    rows = (run.get("datasets") or {}).get("aiona") or []
+    row = rows[index] if 0 <= index < len(rows) else None
+    return row if isinstance(row, dict) else {}
+
+
 def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Dict[str, Any]:
     """두 실행 기록(result() 모양) → 비교 결과 dict. 비교 조건이 맞지 않으면 eligible=False 와 차이 항목·'재평가로 맞추기' 안내를 준다."""
     a_batch = (baseline_run.get("evaluations") or {}).get("aiona") or {}
@@ -358,7 +367,11 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
             elif change == "improved" and a_lim[pair["baseline_index"]]:
                 change = "limited_improved"
         counts[change] += 1
-        rows.append({**pair, "baseline": a["outcome"], "target": b["outcome"], "change": change, "label": CHANGE_LABELS[change]})
+        a_answer, b_answer = _source(baseline_run, pair["baseline_index"]), _source(target_run, pair["target_index"])
+        cause = ("verification_limit" if change.startswith("limited_") else None if change not in ("improved", "regressed")
+                 else "answer_changed" if a_answer.get("answer") != b_answer.get("answer") else "same_answer")
+        rows.append({**pair, "baseline": a["outcome"], "target": b["outcome"], "change": change, "label": CHANGE_LABELS[change],
+                     "cause": cause, "cause_label": CAUSE_LABELS.get(cause)})
     # --- 부호검정 (대화 단위) ---
     units = _units(pairs, a_out, b_out, a_lim, b_lim)
     plus = sum(1 for u in units if u["sign"] == "plus")
@@ -412,6 +425,7 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
                 "target_answer": (b_sources[j] or {}).get("answer") if j < len(b_sources) and isinstance(b_sources[j], dict) else None,
                 "baseline_evidence": _evidence(a_case, a_record), "target_evidence": _evidence(b_case, b_record),
                 "changes": _drilldown(a_case, a_record, b_case, b_record)}
+    causes = {key: sum(1 for r in rows if r.get("cause") == key) for key in CAUSE_LABELS}
     regressions = [detail(r) for r in rows if r["change"] == "regressed"]
     improvements = [detail(r) for r in rows if r["change"] == "improved"]
     verification_limited_rows = [detail(r) for r in rows if r["change"] in ("limited_regressed", "limited_improved")]
@@ -422,7 +436,7 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
             "sign_test": {"unit": "conversation", "plus": plus, "minus": minus, "ties": ties, "incomplete": incomplete_units,
                           "limited": limited, "n": plus + minus, "p_value": p_value, "significance": SIGNIFICANCE},
             "tail": tail, "verdict": verdict, "coverage": coverage, "regressions": regressions, "improvements": improvements,
-            "verification_limited": verification_limited_rows, "criteria": criteria_table}
+            "verification_limited": verification_limited_rows, "causes": causes, "criteria": criteria_table}
 
 
 def _criteria_table(rows, a_cases, a_records, b_cases, b_records) -> List[Dict[str, Any]]:

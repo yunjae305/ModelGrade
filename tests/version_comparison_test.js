@@ -340,6 +340,7 @@ console.log('Version comparison checks passed: identities, context, completeness
   after.evaluations.aiona.jev_eval.records[1].decisions.J1.decision = 'FAIL';   // 실제 FAIL
   const result = compare(before, after);
   assert.deepEqual(result.rows.map((r) => r.change), ['limitedRegressed', 'regressed']);
+  assert.deepEqual(result.rows.map((r) => r.cause), ['verification_limit', 'same_answer']);   // 같은 답변 — 판정만 바뀜
   assert.equal(result.rows[0].changeLabel, '검증 한계로 FAIL · 악화 아님');
   assert.deepEqual([result.counts.regressed, result.counts.limitedRegressed, result.counts.limitedImproved], [1, 1, 0]);
   assert.equal(compare(after, before).rows[0].change, 'limitedImproved');

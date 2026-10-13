@@ -492,7 +492,8 @@
       node('td', {}, node('button', {class: 'row-button', text: original(state.before, row.baselineIndex)?.question || original(state.after, row.targetIndex)?.question || '문항 원문 보기', onclick: () => openDetail(row)})),
       node('td', {}, pill(row.baselineState?.text || (row.baselineIndex === null ? '해당 없음' : '비교 제외'), row.baselineState?.outcome === 'issue' ? 'danger' : 'neutral')),
       node('td', {}, pill(row.targetState?.text || (row.targetIndex === null ? '해당 없음' : '비교 제외'), row.targetState?.outcome === 'issue' ? 'danger' : 'neutral')),
-      node('td', {}, pill(row.label || labels[row.change], kinds[row.change])))));
+      node('td', {}, pill(row.label || labels[row.change], kinds[row.change]),
+        row.causeLabel ? node('span', {class: 'criterion-targets', 'data-change-cause': row.cause, text: row.causeLabel}) : null))));
     if (!rows.length) $('version-rows').append(node('tr', {}, node('td', {colspan: '5', text: '해당하는 문항이 없습니다.'})));
   }
   function renderCriteria() {

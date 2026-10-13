@@ -13,6 +13,8 @@
     limitedRegressed: '검증 한계로 FAIL · 악화 아님', limitedImproved: '검증 한계 해소 · 개선 아님',
     unverified: '조건이 달라 변화 확정 불가'
   };
+  const causeLabels = {answer_changed: '답변이 바뀜', same_answer: '같은 답변인데 판정이 바뀜 (평가자 변동 또는 평가 조건 차이)',
+    verification_limit: '검증 한계 (근거·원문 확인 실패)'};
   const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
   const text = (v) => typeof v === 'string' && v.trim().length > 0;
   const knownText = (v) => text(v) && !/^(unknown|not[-_ ]?recorded|미상|미기록)$/i.test(v.trim());
@@ -270,9 +272,12 @@
       const verified = conditionsMatch && baseline.integrity && target.integrity && baselineState.complete && targetState.complete &&
         aligned(baselineRun, a) && aligned(targetRun, b) && !baselineRun?.evaluations?.aiona?.live && !targetRun?.evaluations?.aiona?.live;
       const change = observed === 'pending' ? 'pending' : verified ? observed : 'unverified';
+      const answerChanged = old.source[a.index]?.answer !== next.source[b.index]?.answer;
+      // 판정이 바뀐 이유 — 서버 version_comparison 의 cause 와 같은 규칙 (10-14 3차)
+      const cause = change.startsWith('limited') ? 'verification_limit' : !['improved', 'regressed'].includes(change) ? null :
+        answerChanged ? 'answer_changed' : 'same_answer';
       rows.push({caseId: a.caseId, baselineIndex: a.index, targetIndex: b.index, baselineState, targetState,
-        change, changeLabel: labels[change], observedChange: observed, verified,
-        answerChanged: old.source[a.index]?.answer !== next.source[b.index]?.answer});
+        change, changeLabel: labels[change], observedChange: observed, verified, answerChanged, cause, causeLabel: causeLabels[cause] || null});
     }
     for (const b of next.rows) {
       if (consumed.has(b.index)) continue;

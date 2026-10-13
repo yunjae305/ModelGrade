@@ -6,13 +6,13 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "evaluation_method", "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
+__all__ = ["RUN_SUMMARY_VERSION", "evaluation_method", "input_composition", "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
 RUN_SUMMARY_VERSION = "run-summary-v2"
@@ -154,6 +154,53 @@ def j5_fail_causes(batch: Dict[str, Any]) -> Dict[str, Any]:
         entry = out["causes"].setdefault(key, {"label": outcome.get("label"), "count": 0, "confirmed": confirmed})
         entry["count"] += 1
     return out
+
+
+def _usage_tokens(raw: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+    """수집 응답의 (입력, 출력) 토큰 — 제공자 집계 그대로 (Anthropic 캐시 토큰 포함, Gemini 는 생각 토큰 포함 출력)."""
+    usage, meta = raw.get("usage") or {}, raw.get("usageMetadata") or {}
+    if meta:
+        return meta.get("promptTokenCount"), (meta.get("candidatesTokenCount") or 0) + (meta.get("thoughtsTokenCount") or 0)
+    if not usage:
+        return None, None
+    inp = usage.get("input_tokens", usage.get("prompt_tokens"))
+    if isinstance(inp, int):
+        inp += int(usage.get("cache_read_input_tokens") or 0) + int(usage.get("cache_creation_input_tokens") or 0)
+    return inp, usage.get("output_tokens", usage.get("completion_tokens"))
+
+
+def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:
+    """모델별 입력 구성 — 수집 입력·출력 토큰(제공자 집계)·요청 수·턴·대화·가장 큰 요청·판정한 기준 수·첨부 미전달 수,
+    그리고 모델마다 입력이 달랐던 이유(notes). 저장 실행만 읽는다. 점수는 바꾸지 않는다 (10-14 3차 4단계)."""
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    systems: Dict[str, Any] = {}
+    for provider, rows in datasets.items():
+        rows = [r for r in rows or [] if isinstance(r, dict)]
+        records = ((evaluations.get(provider) or {}).get("jev_eval") or {}).get("records") or []
+        judged = sum(1 for r in records if isinstance(r, dict) for cid in (r.get("criteria") or [])
+                     if ((r.get("decisions") or {}).get(cid) or {}).get("decision") in ("PASS", "FAIL"))
+        entry: Dict[str, Any] = {"turns": len(rows), "conversations": len({r.get("conversation_id") for r in rows if r.get("conversation_id") not in (None, "")}),
+                                 "judged_criteria": judged}
+        if provider == "aiona":
+            systems[provider] = {**entry, "source": "업로드 원문"}
+            continue
+        usages = [_usage_tokens(((r.get("collection") or {}).get("raw") or {})) for r in rows]
+        inputs = [i for i, _ in usages if isinstance(i, int)]
+        outputs = [o for _, o in usages if isinstance(o, int)]
+        requests = [(r.get("collection") or {}).get("request") or {} for r in rows]
+        systems[provider] = {**entry, "source": "API 수집", "requests": len(rows), "usage_recorded": len(inputs),
+                             "input_tokens": sum(inputs), "output_tokens": sum(outputs), "max_request_input": max(inputs, default=None),
+                             "attachments_not_sent": sum(1 for q in requests if q.get("attachments_in_question") and not q.get("attachments_sent"))}
+    notes = []
+    collected = {p: s for p, s in systems.items() if s.get("source") == "API 수집" and s.get("max_request_input") is not None}
+    if any(s["conversations"] for s in collected.values()) and len(collected) > 1:
+        notes.append({"code": "own_history", "text": "멀티턴 대화는 모델마다 자기 이전 답변을 이력으로 받아 입력이 다릅니다 — 가장 큰 요청 "
+                      + " · ".join(f"{p} {s['max_request_input']:,}" for p, s in collected.items()) + " 토큰 (제공자 집계, 토크나이저도 다름)"})
+    missing = {p: s["attachments_not_sent"] for p, s in systems.items() if s.get("attachments_not_sent")}
+    if missing:
+        notes.append({"code": "attachments_not_sent", "text": "첨부 질문을 API 모델에 보낼 때 첨부가 전달되지 않았습니다 — "
+                      + " · ".join(f"{p} {n}개" for p, n in missing.items()) + ". 이 답변들의 J8(첨부파일 활용) 판정은 같은 조건이 아닙니다"})
+    return {"systems": systems, "notes": notes}
 
 
 def evaluation_method(run: Dict[str, Any]) -> Dict[str, Any]:

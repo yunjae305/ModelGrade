@@ -258,6 +258,8 @@ def test_verification_limit_fail_is_not_counted_as_a_regression(tmp_path):
     assert (result['sign_test']['minus'], result['sign_test']['limited']) == (1, 1)    # 부호검정 악화에는 실제 FAIL 만
     assert [r['case_id'] for r in result['regressions']] == ['Q3']
     assert [r['case_id'] for r in result['verification_limited']] == ['Q2']
+    causes = {row['case_id']: row['cause'] for row in result['rows']}
+    assert (causes['Q2'], causes['Q3']) == ('verification_limit', 'answer_changed') and result['causes']['answer_changed'] == 1
     assert vc.CHANGE_LABELS['limited_regressed'].startswith('검증 한계')
     # 거꾸로(기준 실행이 검증 한계 FAIL → 대상 PASS)도 개선이 아니라 '검증 한계 해소'
     back = vc.compare_runs(target, base)

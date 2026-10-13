@@ -34,7 +34,7 @@ from .version_registry import VersionRegistry, evaluation_profile, fingerprint, 
 from .aiona_history import aiona_history
 from .version_comparison import compare_runs
 from .registry_store import clean_text
-from .run_summary import evaluation_method
+from .run_summary import evaluation_method, input_composition
 from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
@@ -672,7 +672,8 @@ class ComparisonService:
                    if not k.startswith('_activity_') and k not in ("datasets", "evaluations", "config", "input_document", "evaluation_log",
                                                                    "questions")},
                 **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run)}
+                'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run),
+                'input_composition': input_composition(run)}
 
     def event_stream(self, run_id):
         with self._lock:
@@ -695,7 +696,8 @@ class ComparisonService:
             run = self._run(run_id)
             return {**{k: copy.deepcopy(v) for k, v in run.items() if not k.startswith('_activity_')},
                     **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                    'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run)}
+                    'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run),
+                    'input_composition': input_composition(run)}
 
     def history(self, limit=30):
         with self._lock:

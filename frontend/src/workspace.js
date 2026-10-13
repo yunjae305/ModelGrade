@@ -466,6 +466,10 @@
     // 자동 수집 실행은 연결·허용된 제공자만 포함하므로 4개 미만이어도 정상이다
     const partial = !isVersionRun && !external() && !autoRun() && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
     renderEnvironment();
+    // 입력 구성 주의 — 모델마다 자기 답변 이력·첨부 미전달 등으로 입력이 달랐으면 점수 비교 전에 알린다 (서버 input_composition)
+    const notes = (state.result || run).input_composition?.notes || [];
+    $('input-composition').hidden = !notes.length;
+    $('input-composition-notes').replaceChildren(...notes.map((n) => node('li', {'data-note': n.code, text: n.text})));
     $('partial-comparison').hidden = !partial;
     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
     $('reuse-dataset').disabled = Boolean(active() || !state.result?.datasets?.aiona?.length);
@@ -842,6 +846,11 @@
         ...['running', 'waiting'].map((outcome) => node('button', {class: 'text-button',
           'data-focus-key': p + '-' + outcome, onclick: () => filterQuestions(p, outcome)},
           (outcome === 'running' ? '평가 중 ' : '평가 대기 ') + number(summary.counts[outcome]) + '개', icon('arrow')))));
+      const composition = (state.result || run).input_composition?.systems?.[p];
+      if (composition) card.append(node('p', {class: 'hint', 'data-input-composition': '', text: composition.source === 'API 수집' ?
+        `수집 입력 ${number(composition.input_tokens)} · 출력 ${number(composition.output_tokens)} 토큰(제공자 집계) · 가장 큰 요청 ${number(composition.max_request_input || 0)} · ` +
+        `턴 ${number(composition.turns)} · 판정한 기준 ${number(composition.judged_criteria)}건` + (composition.attachments_not_sent ? ` · 첨부 미전달 ${number(composition.attachments_not_sent)}` : '') :
+        `업로드 원문 · 턴 ${number(composition.turns)} · 판정한 기준 ${number(composition.judged_criteria)}건`}));
       card.append(node('div', {class: 'evaluation-metrics'},
         node('div', {}, node('span', {text: '공통 코드 통과율'}), node('strong', {text: c.unjudged || batch.cases?.length !== run.question_count ? '미확정' : percent(c.pass_rate)})),
         node('p', {text: `조건 PASS ${number(c.pass)}개 · FAIL ${number(c.fail)}개 · ${number(c.unjudged)}개 미완료` +

@@ -217,3 +217,23 @@ def test_run_summary_counts_j5_fail_causes_like_the_results_screen():
     assert (got["fail"], got["confirmed"], got["unclassified"]) == (4, 1, 1)
     assert {k: v["count"] for k, v in got["causes"].items()} == {"source_unavailable:quote_not_found": 2, "contradicted:user_input": 1}
     assert got["causes"]["contradicted:user_input"]["confirmed"] is True
+
+
+def test_input_composition_tracks_each_model_and_warns_when_inputs_differ():
+    """3차 4단계 — 모델별 입력·출력 토큰·턴·판정 기준 수, 입력 구성이 달랐던 이유(자기 답변 이력·첨부 미전달)를 저장 실행에서 센다."""
+    from webapp.run_summary import input_composition
+    def row(turn, out, inp, attach=0):
+        return {"case_id": f"C_T{turn}", "conversation_id": "C", "turn": turn, "question": "q", "answer": "a",
+                "collection": {"status": "SUCCESS", "raw": {"usage": {"input_tokens": inp, "output_tokens": out}},
+                               "request": {"attachments_in_question": attach, "attachments_sent": 0}}}
+    record = {"status": "SUCCESS", "criteria": ["J1", "J6"], "decisions": {"J1": {"decision": "PASS"}, "J6": {"decision": "PASS"}}}
+    run = {"datasets": {"aiona": [{"case_id": "C_T1", "conversation_id": "C", "turn": 1}, {"case_id": "C_T2", "conversation_id": "C", "turn": 2}],
+                        "gpt": [row(1, 10, 100), row(2, 10, 300)], "claude": [row(1, 50, 150, attach=1), row(2, 50, 900)]},
+           "evaluations": {p: {"jev_eval": {"records": [record, record]}} for p in ("aiona", "gpt", "claude")}}
+    report = input_composition(run)
+    gpt, claude = report["systems"]["gpt"], report["systems"]["claude"]
+    assert (gpt["input_tokens"], gpt["output_tokens"], gpt["max_request_input"], gpt["turns"], gpt["judged_criteria"]) == (400, 20, 300, 2, 4)
+    assert claude["attachments_not_sent"] == 1 and report["systems"]["aiona"]["source"] == "업로드 원문"
+    codes = {note["code"] for note in report["notes"]}
+    assert codes == {"own_history", "attachments_not_sent"}
+    assert "claude 900" in next(n["text"] for n in report["notes"] if n["code"] == "own_history")
