@@ -46,7 +46,7 @@ def test_explicit_anthropic_reuses_registered_key_and_keeps_collection_model_sep
     assert config.engine == "anthropic_api" and config.model == "claude-sonnet-5-5"
     assert config.reasoning_effort == "medium" and config.web_search == "live"
     assert (config.timeout, config.max_output_tokens, config.max_tool_calls, config.max_fetches,
-            config.max_continuations) == (180, 12000, 1, 8, 2)
+            config.max_continuations) == (180, 20000, 1, 8, 2)
     assert "secret" not in json.dumps(config.to_manifest())
     assert env["ANTHROPIC_MODEL"] == "collection-model"
 

@@ -72,7 +72,7 @@ class AnthropicSemanticConfig:
     reasoning_effort: str = "medium"
     api_base: str = "https://api.anthropic.com/v1"
     timeout: float = 180
-    max_output_tokens: int = 12000
+    max_output_tokens: int = 20000   # 12000 에서 J6 대화 평가가 추론까지 한도에 닿아 판정이 잘렸다 (2026-10-14 실행)
     web_search: str = "live"
     max_tool_calls: int = 4
     max_fetches: int = 8
@@ -352,6 +352,22 @@ def _provider_documents(blocks):
     return documents, audit
 
 
+#: Anthropic 오류 종류 → 고정 설명. 목록 밖의 종류·응답 문구는 기록하지 않는다.
+_API_ERROR_TYPES = {"invalid_request_error": "요청 오류", "authentication_error": "인증 오류", "permission_error": "권한 오류",
+                    "billing_error": "결제·크레딧 오류", "not_found_error": "모델·경로 없음", "request_too_large": "요청 크기 초과",
+                    "rate_limit_error": "요청 한도 초과", "api_error": "Anthropic 서버 오류", "overloaded_error": "Anthropic 과부하"}
+
+
+def _api_error_label(raw: Any) -> str:
+    """오류 응답 → ' (요청 오류 · 크레딧 잔액 부족)' 같은 고정 설명. 응답 문구 자체는 돌려주지 않는다."""
+    error = raw.get("error") if isinstance(raw, dict) and isinstance(raw.get("error"), dict) else {}
+    label = _API_ERROR_TYPES.get(error.get("type"))
+    message = error.get("message") if isinstance(error.get("message"), str) else ""
+    credit = bool(re.search(r"credit balance|billing|purchase credits", message, re.I))
+    parts = [p for p in (label, "크레딧 잔액 부족 — Anthropic 콘솔에서 충전 필요" if credit else None) if p]
+    return f" ({' · '.join(parts)})" if parts else ""
+
+
 class AnthropicSemanticClient:
     supports_cancellation = True
 
@@ -471,8 +487,10 @@ class AnthropicSemanticClient:
                     web_search_calls=count if type(count) is int and count >= 0 else None if search_enabled else 0,
                     service_tier=raw_usage.get("service_tier"), inference_geo=raw_usage.get("inference_geo"))
         if not 200 <= status_code < 300:
+            # 'HTTP 400' 만으로는 크레딧 부족·요청 형식 오류를 구분하지 못했다 (2026-10-14 실행) — 응답 문구는 기록하지 않고
+            # (질문·답변이 되돌아올 수 있음) 정해진 오류 종류와 크레딧 부족 여부만 고정 문구로 남긴다
             return "done", result(JevStatus.API_ERROR, http_status=status_code,
-                                  error=f"Claude 의미 평가 API HTTP {status_code}. 자동 재시도하지 않았습니다.")
+                                  error=f"Claude 의미 평가 API HTTP {status_code}{_api_error_label(raw)}. 자동 재시도하지 않았습니다.")
         content = raw.get("content")
         if not isinstance(content, list) or not all(isinstance(b, dict) for b in content):
             return "done", result(JevStatus.INVALID_RESPONSE, error="Claude API 출력 항목이 올바르지 않습니다.")

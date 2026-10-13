@@ -3,14 +3,18 @@
 웹 서비스(ChatGPT·Claude·Gemini)는 검색·파일 읽기 같은 도구를 붙여 답하므로, 도구 없는 API 보다 이 방식이 실제 서비스 답변에
 가깝다. 질문 세트 실행(질문 생성 → 수집 → 평가)에서 GPT·Claude·Gemini 답변을 이 방식으로 모은다.
 
-- 첨부: 이미지(PNG)·PDF 는 파일 그대로 보낸다. TXT·DOCX 는 세 API 가 모두 원본을 받지 않으므로 파일 안의 글자를 붙여 보내고
-  ``sent[].how`` 에 '글자로 보냄'을 남긴다. 보낸 첨부만 평가 데이터에 남긴다(받지 못한 파일로 J8 을 평가하지 않게).
+- 첨부: 이미지(PNG)·PDF·TXT·DOCX 모두 원본 파일로 보낸다 (2026-10-14 사용자 요청, 세 API 에 작은 파일로 실제 확인).
+  GPT 는 이미지 ``input_image``, 나머지 ``input_file``(파일 이름·MIME 그대로). Gemini 는 모두 ``inline_data``.
+  Claude 는 이미지 ``image``, PDF ``document``(base64), TXT ``document``(text 원본·제목=파일 이름), DOCX 는 메시지 문서로 받지 않아
+  Files API 에 올리고 ``container_upload`` + 코드 실행 도구로 원본을 열게 한다 — 요청이 끝나면 올린 파일을 지운다.
+  ``sent[].how`` 에 보낸 방식을 남기고, 보낸 첨부만 평가 데이터에 남긴다(받지 못한 파일로 J8 을 평가하지 않게).
 - 참조 자료(J7): 질문 앞에 '[참조 자료]' 로 붙여 보낸다 — J7 입력 = 질문 + 참조 자료.
 - 멀티턴: ``history`` = 앞 턴의 (질문 행, 그 모델의 답변). 앞 턴의 참조 자료·첨부도 그 턴 메시지에 다시 넣어 보낸다 — 같은 채팅을
   이어 가는 AIONA 와 입력 조건을 맞춘다 (Codex 리뷰: 글자만 남기면 다음 요청에 앞 턴 첨부가 사라짐).
 - 응답은 업로드 화면과 같은 ``parse_api_response`` 로 읽어 구조화 출처(OpenAI annotations·Claude citations·Gemini grounding)를
   ``sources`` 로 남기고, 평가기에 넘길 ``answer_sources`` 도 만든다 (Codex 리뷰: 본문에 URL 이 없으면 출처가 사라지던 문제).
-- 코드 실행 도구는 넣지 않았다(검색만). 키는 기록하지 않는다.
+- 코드 실행 도구는 Claude 의 DOCX 첨부가 있는 요청에만 넣는다(그 밖에는 검색만). Claude 가 도구 실행 중 멈추면(pause_turn)
+  같은 응답을 이어 보내 최대 2회 이어 받는다. 키는 기록하지 않는다.
 """
 from __future__ import annotations
 
@@ -25,8 +29,13 @@ from .ingestion.sources import evaluation_sources, normalize_sources
 
 __all__ = ["AGENT_COLLECTION_VERSION", "ask_with_tools"]
 
-AGENT_COLLECTION_VERSION = "api-tools-v2"   # v2: 앞 턴 첨부·참조 재전송, 구조화 출처 보존, 응답 모양 검증
-_MIME = {"pdf": "application/pdf", "image": "image/png"}
+#: v2: 앞 턴 첨부·참조 재전송, 구조화 출처 보존, 응답 모양 검증 · v3: TXT·DOCX 도 원본 파일로 (Claude DOCX 는 Files API + 코드 실행)
+AGENT_COLLECTION_VERSION = "api-tools-v3"
+_MIME = {"pdf": "application/pdf", "image": "image/png", "txt": "text/plain",
+         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+_ANTHROPIC = "https://api.anthropic.com/v1"
+_CODE_EXECUTION = {"type": "code_execution_20260120", "name": "code_execution"}
+MAX_CONTINUATIONS = 2   # Claude pause_turn 이어 받기 횟수
 _KIND = {"gpt": "openai_responses", "claude": "anthropic_messages", "gemini": "gemini_generate"}
 #: 정상 종료 사유 — 이 사유로 끝난 빈 답변은 성공('아무것도 출력하지 마' 요청에 지시대로 빈 답을 낸 경우, 실제 수집에서 확인)
 _COMPLETE = {"gpt": ("completed",), "claude": ("end_turn", "stop_sequence", "refusal"), "gemini": ("STOP",)}
@@ -50,7 +59,8 @@ def _file_bytes(attachment: Dict[str, Any], files_dir: Path) -> bytes:
 
 
 def _parts(question: str, reference: Any, attachments: List[Dict[str, Any]], files_dir: Path) -> Tuple[list, List[Dict[str, Any]]]:
-    """(provider 중립 조각 목록, 보낸 첨부 기록). 조각: ('text', 글) | ('file', kind, mime, name, base64)."""
+    """(provider 중립 조각 목록, 보낸 첨부 기록). 조각: ('text', 글) | ('file', kind, mime, name, base64, 원본 bytes).
+    알 수 없는 종류의 첨부는 파일로 보낼 수 없어 글자로 붙이고 기록에 남긴다."""
     parts: list = []
     sent: List[Dict[str, Any]] = []
     for a in attachments or []:
@@ -59,11 +69,12 @@ def _parts(question: str, reference: Any, attachments: List[Dict[str, Any]], fil
         kind = a.get("type")
         record = {"name": a.get("name"), "type": kind, "sha256": a.get("sha256")}
         if kind in _MIME:
-            parts.append(("file", kind, _MIME[kind], a.get("name"), base64.b64encode(_file_bytes(a, files_dir)).decode()))
+            data = _file_bytes(a, files_dir)
+            parts.append(("file", kind, _MIME[kind], a.get("name"), base64.b64encode(data).decode(), data))
             record["how"] = "파일 그대로"
         else:
             parts.append(("text", f"[첨부파일: {a.get('name')}]\n{a.get('content') or ''}"))
-            record["how"] = "글자로 보냄"
+            record["how"] = "글자로 보냄 (알 수 없는 종류)"
         sent.append(record)
     text = question
     if reference not in (None, "", {}, []):
@@ -94,14 +105,21 @@ def _openai_content(parts: list) -> list:
     return content
 
 
-def _anthropic_content(parts: list) -> list:
+def _anthropic_content(parts: list, uploaded: Dict[int, str]) -> list:
+    """Claude 메시지 조각. DOCX 는 미리 올린 파일 id(``uploaded``: 조각 id() → file_id)로 container_upload 한다."""
     content = []
     for p in parts:
         if p[0] == "text":
             content.append({"type": "text", "text": p[1]})
+        elif p[1] == "image":
+            content.append({"type": "image", "source": {"type": "base64", "media_type": p[2], "data": p[4]}})
+        elif p[1] == "txt":   # 텍스트 문서 — 원본 글을 문서 블록으로 (제목 = 파일 이름)
+            content.append({"type": "document", "source": {"type": "text", "media_type": "text/plain",
+                                                           "data": p[5].decode("utf-8", errors="replace")}, "title": p[3]})
+        elif p[1] == "docx":
+            content.append({"type": "container_upload", "file_id": uploaded[id(p)]})
         else:
-            block = "image" if p[1] == "image" else "document"
-            content.append({"type": block, "source": {"type": "base64", "media_type": p[2], "data": p[4]}})
+            content.append({"type": "document", "source": {"type": "base64", "media_type": p[2], "data": p[4]}})
     return content
 
 
@@ -117,12 +135,48 @@ def _openai(config, turns, parts, max_tokens):
              "tools": [{"type": "web_search"}], "max_output_tokens": max_tokens, "store": False})
 
 
-def _anthropic(config, turns, parts, max_tokens):
+def _anthropic(config, turns, parts, max_tokens, uploaded=None):
+    uploaded = uploaded or {}
     messages = [m for prior, answer in turns
-                for m in ({"role": "user", "content": _anthropic_content(prior)}, {"role": "assistant", "content": answer})]
-    return ("https://api.anthropic.com/v1/messages", {"x-api-key": config["key"], "anthropic-version": "2023-06-01"},
-            {"model": config["model"], "max_tokens": max_tokens, "messages": messages + [{"role": "user", "content": _anthropic_content(parts)}],
-             "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}]})
+                for m in ({"role": "user", "content": _anthropic_content(prior, uploaded)}, {"role": "assistant", "content": answer})]
+    tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}]
+    if uploaded:   # DOCX 원본은 코드 실행 컨테이너에서 연다
+        tools.append(dict(_CODE_EXECUTION))
+    return (f"{_ANTHROPIC}/messages", {"x-api-key": config["key"], "anthropic-version": "2023-06-01"},
+            {"model": config["model"], "max_tokens": max_tokens,
+             "messages": messages + [{"role": "user", "content": _anthropic_content(parts, uploaded)}], "tools": tools})
+
+
+def _upload_docx(client: httpx.Client, config: Dict[str, Any], all_parts: List[list]) -> Dict[int, str]:
+    """Claude 요청에 들어갈 DOCX 조각(앞 턴 포함)을 Files API 에 올린다 → {id(조각): file_id}. 실패하면 이미 올린 파일을 지우고 _Failure."""
+    uploaded: Dict[int, str] = {}
+    headers = {"x-api-key": config["key"], "anthropic-version": "2023-06-01"}
+    try:
+        for parts in all_parts:
+            for p in parts:
+                if p[0] == "file" and p[1] == "docx":
+                    try:
+                        response = client.post(f"{_ANTHROPIC}/files", headers=headers, files={"file": (str(p[3]), p[5], p[2])})
+                    except httpx.HTTPError:
+                        raise _Failure("DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (네트워크)") from None
+                    file_id = response.json().get("id") if response.status_code < 400 else None
+                    if not isinstance(file_id, str):
+                        raise _Failure(f"DOCX 첨부를 Claude Files API 에 올리지 못했습니다 (HTTP {response.status_code})")
+                    uploaded[id(p)] = file_id
+    except (_Failure, ValueError):
+        _delete_uploads(client, config, uploaded)
+        raise _Failure("DOCX 첨부를 Claude Files API 에 올리지 못했습니다") from None
+    return uploaded
+
+
+def _delete_uploads(client: httpx.Client, config: Dict[str, Any], uploaded: Dict[int, str]) -> None:
+    """올린 파일을 지운다 — 실패해도 수집 결과는 그대로 둔다 (파일 저장은 조직 한도 안에서 무료, 다음 정리에서 지울 수 있음)."""
+    headers = {"x-api-key": config["key"], "anthropic-version": "2023-06-01"}
+    for file_id in uploaded.values():
+        try:
+            client.delete(f"{_ANTHROPIC}/files/{file_id}", headers=headers)
+        except httpx.HTTPError:
+            pass
 
 
 def _gemini(config, turns, parts, max_tokens):
@@ -181,6 +235,26 @@ def _read(provider: str, raw: Any) -> Dict[str, Any]:
         raise _Failure(f"응답 모양을 읽지 못했습니다 ({type(exc).__name__})") from None
 
 
+def _post(client: httpx.Client, url: str, headers: Dict[str, str], body: Dict[str, Any]) -> Any:
+    """요청 1회 → 응답 JSON. 네트워크·HTTP·JSON 오류는 _Failure."""
+    try:
+        response = client.post(url, headers=headers, json=body)
+    except httpx.HTTPError:
+        raise _Failure("네트워크 요청 실패 또는 시간 초과") from None
+    if response.status_code >= 400:
+        detail = ""
+        try:
+            error = response.json().get("error")
+            detail = str(error.get("message") if isinstance(error, dict) else error or "")[:300]
+        except (ValueError, AttributeError):
+            pass
+        raise _Failure(f"HTTP {response.status_code} {detail}".strip())
+    try:
+        return response.json()
+    except ValueError:
+        raise _Failure("응답 JSON 을 읽지 못했습니다.") from None
+
+
 def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachments: Optional[List[Dict[str, Any]]],
                    files_dir: Path, client: httpx.Client, max_tokens: int = 8000, *, reference: Any = None,
                    history: Sequence[Turn] = ()) -> Dict[str, Any]:
@@ -189,30 +263,35 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
 
     예상할 수 있는 실패(첨부 없음·읽기 오류·네트워크·HTTP 오류·응답 모양)는 예외 대신 status=ERROR 로 돌려준다."""
     base = {"method": AGENT_COLLECTION_VERSION, "sent": []}
+    uploaded: Dict[int, str] = {}
     try:
         turns = [_turn_parts(entry, files_dir) for entry in history]
         parts, sent = _parts(question, reference, attachments or [], files_dir)
         base["sent"] = sent
-        url, headers, body = {"gpt": _openai, "claude": _anthropic, "gemini": _gemini}[provider](config, turns, parts, max_tokens)
-        try:
-            response = client.post(url, headers=headers, json=body)
-        except httpx.HTTPError:
-            raise _Failure("네트워크 요청 실패 또는 시간 초과") from None
-        if response.status_code >= 400:
-            detail = ""
-            try:
-                error = response.json().get("error")
-                detail = str(error.get("message") if isinstance(error, dict) else error or "")[:300]
-            except (ValueError, AttributeError):
-                pass
-            raise _Failure(f"HTTP {response.status_code} {detail}".strip())
-        try:
-            raw = response.json()
-        except ValueError:
-            raise _Failure("응답 JSON 을 읽지 못했습니다.") from None
+        if provider == "claude":
+            uploaded = _upload_docx(client, config, [prior for prior, _ in turns] + [parts])
+            for record in sent:
+                if record.get("type") == "docx" and record.get("how") == "파일 그대로":
+                    record["how"] = "파일 그대로 (Files API · 코드 실행 컨테이너)"
+            url, headers, body = _anthropic(config, turns, parts, max_tokens, uploaded)
+        else:
+            url, headers, body = {"gpt": _openai, "gemini": _gemini}[provider](config, turns, parts, max_tokens)
+        raw = _post(client, url, headers, body)
+        if provider == "claude":   # 도구 실행 중 멈춤(pause_turn) — 같은 응답을 이어 보내 받는다
+            blocks = list(raw.get("content") or []) if isinstance(raw.get("content"), list) else []
+            for _ in range(MAX_CONTINUATIONS):
+                if raw.get("stop_reason") != "pause_turn":
+                    break
+                body = {**body, "messages": body["messages"] + [{"role": "assistant", "content": raw.get("content") or []}]}
+                raw = _post(client, url, headers, body)
+                blocks += list(raw.get("content") or []) if isinstance(raw.get("content"), list) else []
+            raw = {**raw, "content": blocks}
         parsed = _read(provider, raw)
     except _Failure as exc:
         return {**base, "answer": "", "status": "ERROR", "error": str(exc)}
+    finally:
+        if uploaded:
+            _delete_uploads(client, config, uploaded)
     answer, finish = parsed["answer"], parsed["finish_reason"]
     complete = parsed["status"] == "SUCCESS" or (not answer and finish in _COMPLETE[provider])
     sources, notes = normalize_sources(parsed["sources"], answer, "collection.sources")

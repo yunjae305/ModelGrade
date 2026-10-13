@@ -141,3 +141,41 @@ def test_weak_units_lists_checks_and_criteria_every_model_passed(tmp_path):
     assert svc.weak_units("x") and ComparisonService.weak_units(svc, "x")   # 3-3.aggregate(검사기 오류)·J3(의미 평가 실패)는 빠진다
     run["providers"].append("gemini")   # 평가가 없는 모델이 있으면 '모든 모델 PASS' 를 말할 수 없다
     assert svc.weak_units("x") == []
+
+def test_api_collector_sends_every_attachment_type_as_the_original_file(tmp_path):
+    """TXT·DOCX·PDF·PNG 를 세 API 모두 원본 파일로 보낸다 — GPT input_file/input_image, Gemini inline_data, Claude 는 TXT 문서 블록·
+    DOCX Files API + container_upload + 코드 실행(요청 뒤 삭제) (2026-10-14 사용자 요청, 작은 파일로 실제 확인)."""
+    files = {"m.txt": b"hello", "d.docx": b"PK-docx", "r.pdf": b"%PDF", "c.png": b"PNG"}
+    for name, data in files.items():
+        (tmp_path / name).write_bytes(data)
+    attachments = [{"name": n, "type": {"txt": "txt", "docx": "docx", "pdf": "pdf", "png": "image"}[n.split(".")[1]], "path": n} for n in files]
+    calls = []
+
+    def handler(request):
+        calls.append((request.method, request.url.path, request.content))
+        if request.url.path.endswith("/files") and request.method == "POST":
+            return httpx.Response(200, json={"id": "file_1"})
+        if request.method == "DELETE":
+            return httpx.Response(200, json={"id": "file_1", "type": "file_deleted"})
+        if request.url.host == "api.openai.com":
+            return httpx.Response(200, json={"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "ok"}]}]})
+        if request.url.host == "api.anthropic.com":
+            if len([c for c in calls if c[1].endswith("/messages")]) == 1:   # 첫 응답은 도구 실행 중 멈춤 — 이어 받기
+                return httpx.Response(200, json={"stop_reason": "pause_turn", "content": [{"type": "text", "text": "읽는 중 "}]})
+            return httpx.Response(200, json={"stop_reason": "end_turn", "content": [{"type": "text", "text": "ok"}]})
+        return httpx.Response(200, json={"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": "ok"}]}}]})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    for provider in ("gpt", "gemini", "claude"):
+        out = agent_collection.ask_with_tools(provider, {"key": "k", "model": "m"}, "질문", attachments, tmp_path, client)
+        assert out["status"] == "SUCCESS" and all(s["how"].startswith("파일 그대로") for s in out["sent"]), (provider, out)
+    bodies = {path: json.loads(content) for method, path, content in calls if method == "POST" and not path.endswith("/files")}
+    gpt = [b["type"] for b in bodies["/v1/responses"]["input"][0]["content"]]
+    assert gpt == ["input_file", "input_file", "input_file", "input_image", "input_text"]
+    mimes = [p["inline_data"]["mime_type"] for p in bodies[next(k for k in bodies if k.endswith(":generateContent"))]["contents"][0]["parts"] if "inline_data" in p]
+    assert mimes == ["text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf", "image/png"]
+    claude = bodies["/v1/messages"]
+    assert [b["type"] for b in claude["messages"][0]["content"]] == ["document", "container_upload", "document", "image", "text"]
+    assert claude["messages"][0]["content"][0]["source"] == {"type": "text", "media_type": "text/plain", "data": "hello"}
+    assert {"type": "code_execution_20260120", "name": "code_execution"} in claude["tools"] and claude["messages"][-1]["role"] == "assistant"
+    assert ("DELETE", "/v1/files/file_1", b"") in calls   # 올린 DOCX 는 요청 뒤 지운다
