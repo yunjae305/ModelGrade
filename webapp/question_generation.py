@@ -71,14 +71,19 @@ class Cancelled(GenerationError):
 def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
     """프롬프트에 넣을 점검 목록 — CODE 검사(AIONA 특화 제외)와 의미 평가 항목. 기준 정의에서 만들어 기준이 바뀌면 같이 바뀐다."""
     examples: Dict[str, str] = {}
+    rules: Dict[str, List[str]] = {}
     try:
         for check in json.loads(CONDITIONS_PATH.read_text(encoding="utf-8")).get("checks") or []:
             sample = ((check.get("examples") or {}).get("PASS") or {}).get("question")
             if isinstance(sample, str):
                 examples[check["id"]] = " ".join(sample.split())[:160]
+            # 엔진이 질문에서 요구를 읽는 규칙 — 이 표현·자료 형식이 아니면 검사가 적용되지 않는다 (실제 생성에서 확인)
+            rules[check["id"]] = [f"{c.get('title')}: {' '.join(str(c.get('text') or '').split())}"
+                                  for c in check.get("conditions") or [] if isinstance(c, dict) and c.get("title")]
     except (OSError, ValueError):
         pass
-    codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], "")}
+    codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], ""),
+              "rules": rules.get(c["id"], [])}
              for c in reference_details()["code_checks"] if not c["id"].startswith("AIONA")]
     items = [{"id": item.id, "sub": SUBS_BY_ID[item.sub].name, "question": item.question, "applies": item.applies} for item in ITEMS]
     return {"code": codes, "items": items}
@@ -96,11 +101,14 @@ _FORMAT = """# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)
 - target_items 에는 [점검 목록]의 id 만, 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
 
 
-def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None) -> List[str]:
-    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문)"]
+def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None, detailed: bool = False) -> List[str]:
+    """점검 목록 줄. CODE 검사는 인식 규칙 첫 줄(``detailed`` 면 규칙 전체)을 함께 — 질문에 그 표현을 그대로 써야 적용된다."""
+    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 인식 규칙)"]
     for c in catalog["code"]:
         if only is None or c["id"] in only:
             lines.append(f"- {c['id']} · {c['name']} · {c['applies']}" + (f" · 예: {c['example']}" if c["example"] else ""))
+            for rule in (c.get("rules") or [])[: None if detailed else 1]:
+                lines.append(f"    · 인식: {rule[:600 if detailed else 220]}")
     lines.append("## 의미 평가 항목 (id · 세부 기준 · 점검 질문(예 = PASS) · 적용)")
     for item in catalog["items"]:
         if only is None or item["id"] in only:
@@ -121,7 +129,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 # 작성 규칙
 1. 답변이 요구를 지켰는지 판단할 수 있게 구체적으로 씁니다('짧게' 대신 '200자 이내', '표로' 대신 '열이 품목·가격인 표로').
-2. CODE 검사는 [적용] 문구에 맞는 표현을 질문에 넣습니다. 예시 질문의 표현을 참고합니다.
+2. CODE 검사는 [인식] 규칙에 맞는 표현과 자료 형식을 그대로 씁니다(예시 질문의 문장 구조를 따르고 숫자·주제만 바꿈). 규칙에 맞지 않으면 검사가 적용되지 않습니다. 예: 계산은 '8,000원의 15%는 얼마야?'·'146 + 279는 얼마야?', 중복 제거는 JSON 배열·표·목록 자료와 '중복 없이'.
 3. 답변 구조 검사(각주·인용 번호 출처·문서 내부 링크·HTML 태그·코드와 수식 펜스·계산식·'다음 N가지' 선언·한자나 일본어 표기)는 답변이 그 구조를 쓰도록 요청합니다(예: '각주를 [^1] 형식으로 달아 줘', '출처를 [1] 번호로 달고 끝에 [1] 출처 줄을 적어 줘', '목차를 만들고 각 항목을 #앵커 링크로 연결해 줘').
 4. 사실 확인(J5-1)은 수치·날짜·명칭처럼 확인할 수 있는 사실을 묻습니다. 시점에 따라 바뀌는 사실은 기준 시점을 적습니다.
 5. 질문에 준 자료(표·JSON 배열·목록·글)를 정렬·필터·집계·요약하게 하는 질문은 자료를 질문 안에 그대로 넣습니다.
@@ -161,7 +169,8 @@ def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: O
         parts.append("# 빠진 첨부 종류\n" + "\n".join(f"- {kind}: 이 종류의 파일을 첨부한 질문을 1개 이상 추가합니다 (빠진 항목도 함께 노리게)."
                                                    for kind in missing_types))
     if missing:
-        parts.append("# 빠진 항목\n" + "\n".join(_catalog_lines(catalog, set(missing))))
+        parts.append("# 빠진 항목 (CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다)\n"
+                     + "\n".join(_catalog_lines(catalog, set(missing), detailed=True)))
     return "\n\n".join(parts)
 
 
