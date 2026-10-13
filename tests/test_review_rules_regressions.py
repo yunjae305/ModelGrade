@@ -135,6 +135,7 @@ def test_fence_with_info_does_not_close_existing_block():
     '길이(인치): 6" / 3 + 1 = 3"',                                     # 나눗셈·뺄셈·TeX 곱셈 앞의 단위도
     '길이(인치): 10" - 3 + 1 = 4"',
     r'길이(인치): 2" \times 3 + 1 = 7"',
+    '길이(인치): 2" * 3 + 1 = 7"',                                     # 곱셈으로 쓴 ASCII '*'
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)
@@ -152,6 +153,8 @@ def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     ("설명 *3 + 4 = **8***", "FAIL"),   # 중첩 강조
     ("1. *3 + 4 = 8*", "FAIL"),         # 목록 번호는 앞 피연산자가 아니다
     ("[1] *3 + 4 = 8*", "FAIL"),        # 대괄호 표지도
+    ("계산 1: +3 + 4 = 8", "FAIL"),     # 라벨 뒤 단항 부호는 잘린 이항 연산자가 아니다
+    ("1번: +3 + 4 = 8", "FAIL"),
     ("총 185 / 5 = 37분입니다.", "PASS"),  # 한도 표현이 없으면 나눗셈
 ])
 def test_bullet_and_plain_division_equations_still_judged(answer, verdict):
