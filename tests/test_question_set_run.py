@@ -224,3 +224,17 @@ def test_claude_docx_upload_cleanup_errors_and_continuation_are_safe(tmp_path):
     leaked = agent_collection.ask_with_tools("gpt", config, "질문", [], tmp_path, httpx.Client(transport=httpx.MockTransport(
         lambda r: httpx.Response(429, json={"error": {"type": "insufficient_quota", "message": "secret-input echo; exceeded your current quota"}}))))
     assert leaked["error"] == "HTTP 429 (insufficient_quota · 크레딧·사용 한도 부족 — 제공자 콘솔에서 충전 필요)"   # 제공자 문구는 남기지 않는다
+
+def test_claude_usage_shape_changes_and_partial_failures_keep_usage(tmp_path):
+    """이어 받기 사용량은 타입이 바뀐 필드를 건너뛰고(예외 없음), 도중에 실패해도 이미 쓴 토큰을 오류 결과에 남긴다. 404 삭제는 이미 없음."""
+    (tmp_path / "a.docx").write_bytes(b"PK")
+    replies = iter([{"stop_reason": "pause_turn", "content": [], "usage": {"input_tokens": 100, "server_tool_use": 3}},
+                    {"stop_reason": "end_turn", "content": None, "usage": {"input_tokens": 50, "server_tool_use": {"web_search_requests": 1}}}])
+
+    def handler(request):
+        if "/files" in request.url.path:
+            return httpx.Response(200, json={"id": "file_z"}) if request.method == "POST" else httpx.Response(404)
+        return httpx.Response(200, json=next(replies))
+    out = agent_collection.ask_with_tools("claude", {"key": "k", "model": "m"}, "질문", [{"name": "a.docx", "type": "docx", "path": "a.docx"}],
+                                          tmp_path, httpx.Client(transport=httpx.MockTransport(handler)))
+    assert out["status"] == "ERROR" and out["usage"]["input_tokens"] == 150 and "cleanup_failed" not in out

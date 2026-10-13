@@ -91,33 +91,37 @@ def escape_paste_markers(material: str) -> str:
 def seal_pasted(text: str) -> str:
     """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존) — 변환 원본(배열·표) 분석 전용.
 
-    구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는 펜스로
-    바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 그 여는 펜스 줄을 공백으로 지운다 — 자료 속 닫히지 않은
-    펜스는 어느 쪽이든 구간 밖으로 번지지 않는다 (Codex 리뷰). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
+    구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 한 번 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는
+    펜스로 바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 구간 안의 펜스 표시 줄을 모두 공백으로 지운다 —
+    한 번 훑기라 길이에 비례하고, 남는 펜스가 없어 구간 밖으로 번지지 않는다 (Codex 리뷰: 여는 줄을 하나씩 지우며 다시 읽으면
+    제곱 시간이 들고 줄바꿈 기준이 파서와 달라 펜스가 남았다). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
     ``pasted_ranges`` 로 가린다."""
     chars = list(text)
     for start, end in pasted_ranges(text):
         marker = _PASTE_END_LINE.search(text, start, end)
         if marker is None:
             continue
+        region = text[start:marker.start()]
+        blocks = _fenced_code_blocks(region)
+        if not blocks or blocks[-1].get("closed", True):
+            continue
+        closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
         line_start = marker.start()
         line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        # 여는 줄을 지우면 안쪽의 짧은 펜스가 새로 열릴 수 있다 — 닫힐 때까지 다시 읽는다 (Codex 리뷰). 매번 여는 줄 하나를 지우므로
-        # 구간의 줄 수만큼이면 반드시 끝난다 (고정 상한을 두면 펜스가 많은 자료에서 남은 펜스가 바깥을 가렸다)
-        for _ in range(text.count("\n", start, marker.start()) + 2):
-            blocks = _fenced_code_blocks("".join(chars[start:marker.start()]))
-            if not blocks or blocks[-1].get("closed", True):
-                break
-            closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
-            if line_end - line_start >= len(closer):
-                chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
-                break
-            open_start = start + int(blocks[-1]["start"])   # 긴 펜스 — 여는 줄을 지워 펜스 자체를 없앤다 (줄바꿈은 둔다)
-            open_end = open_start + len(str(blocks[-1].get("opening") or "").rstrip("\r\n"))
-            if open_end <= open_start:
-                break
-            chars[open_start:open_end] = [" "] * (open_end - open_start)
+        if line_end - line_start >= len(closer):
+            chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
+            continue
+        offset = start   # 긴 펜스 — 파서와 같은 줄 나눔(splitlines)으로 구간의 펜스 표시 줄을 모두 지운다
+        for line in region.splitlines(keepends=True):
+            body = line.rstrip("\r\n\x0b\x0c\x1c\x1d\x1e\x85  ")
+            if _FENCE_MARK.match(body):
+                chars[offset:offset + len(body)] = [" "] * len(body)
+            offset += len(line)
     return "".join(chars)
+
+
+#: 펜스 표시 줄 — 들여쓰기(목록 안 포함)와 백틱·물결 3개 이상
+_FENCE_MARK = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
 @dataclass

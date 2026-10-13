@@ -178,7 +178,8 @@ def _delete_uploads(client: httpx.Client, config: Dict[str, Any], uploaded: Dict
     for file_id in uploaded.values():
         for attempt in (1, 2):
             try:
-                if client.delete(f"{_ANTHROPIC}/files/{file_id}", headers=headers).status_code < 400:
+                status = client.delete(f"{_ANTHROPIC}/files/{file_id}", headers=headers).status_code
+                if 200 <= status < 300 or status == 404:   # 2xx = 지움, 404 = 이미 없음 — 리다이렉트(3xx)는 성공으로 보지 않는다
                     break
             except httpx.HTTPError:
                 pass
@@ -287,18 +288,23 @@ def _claude_blocks(raw: Dict[str, Any]) -> list:
     return list(raw["content"])
 
 
+def _count(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 def _add_usage(total: Dict[str, Any], usage: Any) -> None:
-    """이어 받기 응답들의 토큰·서버 도구 사용량을 더한다."""
+    """이어 받기 응답들의 토큰·서버 도구 사용량을 더한다. 모양이 다른 값(응답마다 타입이 바뀐 필드 등)은 더하지 않고 건너뛴다."""
     if not isinstance(usage, dict):
         return
     for key, value in usage.items():
-        if isinstance(value, int) and not isinstance(value, bool):
+        if key == "server_tool_use":   # 서버 도구 사용량은 {이름: 횟수} 묶음만 — 정수 필드보다 먼저 가른다 (Codex 리뷰)
+            if isinstance(value, dict) and isinstance(total.get(key, {}), dict):
+                inner = total.setdefault(key, {})
+                for name, count in value.items():
+                    if _count(count) and _count(inner.get(name, 0)):
+                        inner[name] = inner.get(name, 0) + count
+        elif _count(value) and _count(total.get(key, 0)):
             total[key] = total.get(key, 0) + value
-        elif key == "server_tool_use" and isinstance(value, dict):
-            inner = total.setdefault("server_tool_use", {})
-            for name, count in value.items():
-                if isinstance(count, int) and not isinstance(count, bool):
-                    inner[name] = inner.get(name, 0) + count
 
 
 def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachments: Optional[List[Dict[str, Any]]],
@@ -310,6 +316,7 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
     예상할 수 있는 실패(첨부 없음·읽기 오류·네트워크·HTTP 오류·응답 모양)는 예외 대신 status=ERROR 로 돌려준다."""
     base: Dict[str, Any] = {"method": AGENT_COLLECTION_VERSION, "sent": []}
     uploaded: Dict[int, str] = {}
+    usage: Dict[str, Any] = {}   # Claude 이어 받기 사용량 — 도중에 실패해도 이미 쓴 토큰은 남긴다
     try:
         turns = [_turn_parts(entry, files_dir) for entry in history]
         parts, sent = _parts(question, reference, attachments or [], files_dir)
@@ -324,8 +331,8 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
             url, headers, body = {"gpt": _openai, "gemini": _gemini}[provider](config, turns, parts, max_tokens)
         raw = _post(client, url, headers, body)
         if provider == "claude":   # 도구 실행 중 멈춤(pause_turn) — 같은 응답·같은 컨테이너로 이어 보내 받는다
-            blocks, usage = _claude_blocks(raw), {}
             _add_usage(usage, raw.get("usage"))
+            blocks = _claude_blocks(raw)
             for _ in range(MAX_CONTINUATIONS):
                 if raw.get("stop_reason") != "pause_turn":
                     break
@@ -334,8 +341,8 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
                 if isinstance(container.get("id"), str) and container["id"]:   # 컨테이너를 이어 써야 DOCX·실행 상태가 남는다
                     body["container"] = container["id"]
                 raw = _post(client, url, headers, body)
+                _add_usage(usage, raw.get("usage"))   # 본문 검증보다 먼저 — 잘못된 본문이어도 쓴 토큰은 남는다
                 blocks += _claude_blocks(raw)
-                _add_usage(usage, raw.get("usage"))
             raw = {**raw, "content": blocks, "usage": usage}
         parsed = _read(provider, raw)
     except _Failure as exc:
@@ -348,7 +355,7 @@ def ask_with_tools(provider: str, config: Dict[str, Any], question: str, attachm
             if failed:
                 base["cleanup_failed"] = {"provider_files": failed, "note": "Claude Files API 에서 지우지 못한 첨부 — 콘솔·API 로 정리"}
     if failure is not None:
-        return {**base, "answer": "", "status": "ERROR", "error": failure}
+        return {**base, "answer": "", "status": "ERROR", "error": failure, **({"usage": usage} if usage else {})}
     answer, finish = parsed["answer"], parsed["finish_reason"]
     complete = parsed["status"] == "SUCCESS" or (not answer and finish in _COMPLETE[provider])
     sources, notes = normalize_sources(parsed["sources"], answer, "collection.sources")
