@@ -170,7 +170,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
         {"title": "유형 비율 집계 단위",
          "detail": "검사기는 유형 필드를 턴마다 센다. 10턴 대화 하나가 비율에 10번 들어가므로 질문 단위 비율과 다를 수 있다 (보고서는 둘 다 표시)."},
         {"title": "롱컨텍스트(J7) 질문 세트",
-         "detail": f"설계안 v1.4 '정할 것': {long_context.MIN_TOKENS // 1000}K 토큰 이상 입력의 질문 세트는 아직 없다. J7 도 적용 질문·대화 {minimum}개 이상이어야 충족."},
+         "detail": f"설계안 v1.5 '정할 것': {long_context.MIN_TOKENS // 1000}K 토큰 이상 입력의 질문 세트는 아직 없다. J7 도 적용 질문·대화 {minimum}개 이상이어야 충족."},
     ]
     return {"version": REPORT_VERSION, "check": report, "questions": report["questions"], "single_questions": report["single_questions"],
             "conversations": report["conversations"], "turns": total, "conversation_turns": report["conversation_turns"],
