@@ -1151,11 +1151,11 @@ textarea::placeholder {color:#757f94}
 .dataset-panel .dropzone .button {margin:0; flex:none; min-height:42px}
 .dataset-panel .file-summary {padding:18px 24px 14px}
 .dataset-panel dl.dataset-stats {grid-template-columns:repeat(5,minmax(0,1fr)); margin:0 24px 20px; padding:14px 6px}
-.dataset-panel dl.dataset-stats>div {min-width:0; padding:0 16px}
-.dataset-panel dl.dataset-stats>div:not(:first-child) {border-left:1px solid #E0DAF6; padding-left:16px}
-.dataset-panel dl.dataset-stats dt {margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:600}
-.dataset-panel dl.dataset-stats dd {margin:0; color:#3B2F8F; font-size:24px; font-weight:760; letter-spacing:-.4px; font-variant-numeric:tabular-nums; white-space:nowrap}
-.dataset-panel dl.dataset-stats dd small {margin-left:4px; font-size:12px; font-weight:500; color:var(--muted); letter-spacing:0}
+:is(.dataset-panel,.question-set-panel) dl.dataset-stats>div {min-width:0; padding:0 16px}
+:is(.dataset-panel,.question-set-panel) dl.dataset-stats>div:not(:first-child) {border-left:1px solid #E0DAF6; padding-left:16px}
+:is(.dataset-panel,.question-set-panel) dl.dataset-stats dt {margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:600}
+:is(.dataset-panel,.question-set-panel) dl.dataset-stats dd {margin:0; color:#3B2F8F; font-size:24px; font-weight:760; letter-spacing:-.4px; font-variant-numeric:tabular-nums; white-space:nowrap}
+:is(.dataset-panel,.question-set-panel) dl.dataset-stats dd small {margin-left:4px; font-size:12px; font-weight:500; color:var(--muted); letter-spacing:0}
 .dataset-panel dl.dataset-stats>div>small {display:block; margin-top:4px; font-size:11px; font-weight:650}
 .dataset-panel dl.dataset-stats .ready {color:var(--green)} .dataset-panel dl.dataset-stats .missing {color:var(--amber)}
 .manual-actions {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px}
@@ -1171,6 +1171,7 @@ textarea::placeholder {color:#757f94}
 .target-reason {grid-column:2 / -1; margin:0; color:var(--amber); font-size:12px; overflow-wrap:anywhere}
 .target-reason-inline {line-height:1.6; overflow-wrap:anywhere}
 .collection-target.is-idle .target-name strong {color:#4B5568}
+.collection-target .target-progress:not(:has(progress)):has(.target-reason-inline:empty) {display:none}
 .collection-budget {margin:0; padding:12px 24px 16px; border-top:1px solid #F0F1F6; background:#FCFCFE; color:var(--muted); font-size:12px; line-height:1.8}
 .collection-panel>.alert {margin:14px 24px 0}
 .compare-tools {display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 24px; border-bottom:1px solid #F0F1F6; background:#FCFCFE}
@@ -1232,22 +1233,23 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
 .policy-form .alert {margin:12px 24px 0}
 .policy-actions {display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 24px 0}
 @media(max-width:1190px) {
-  .collection-target {grid-template-columns:36px minmax(0,1fr) auto}
-  .collection-target .target-progress,.collection-target .target-actions {grid-column:2 / -1}
-  .collection-target .target-actions {justify-content:flex-start}
-  .dataset-panel dl.dataset-stats {grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:14px}
-  .dataset-panel dl.dataset-stats>div:nth-child(4) {border-left:0; padding-left:16px}
+  .collection-target {grid-template-columns:36px minmax(0,1fr) auto auto}
+  .collection-target .target-progress {grid-column:2 / -1; grid-row:2}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats {grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:14px}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats>div:nth-child(4) {border-left:0; padding-left:16px}
   .compare-answers {grid-template-columns:repeat(2,minmax(0,1fr))}
   .policy-limits {grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:700px) {
   .dataset-panel .dropzone {flex-wrap:wrap; margin:16px 18px; padding:18px} .dataset-panel .dropzone .button {width:100%}
-  .dataset-panel dl.dataset-stats {grid-template-columns:repeat(2,minmax(0,1fr)); margin:0 18px 18px}
-  .dataset-panel dl.dataset-stats>div,.dataset-panel dl.dataset-stats>div:not(:first-child) {padding:0 12px; border-left:0}
-  .dataset-panel dl.dataset-stats>div:nth-child(even) {border-left:1px solid #E0DAF6}
-  .dataset-panel dl.dataset-stats dd {font-size:20px}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats {grid-template-columns:repeat(2,minmax(0,1fr))} .dataset-panel dl.dataset-stats {margin:0 18px 18px}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats>div,:is(.dataset-panel,.question-set-panel) dl.dataset-stats>div:not(:first-child) {padding:0 12px; border-left:0}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats>div:nth-child(even) {border-left:1px solid #E0DAF6}
+  :is(.dataset-panel,.question-set-panel) dl.dataset-stats dd {font-size:20px}
   .panel-heading:has(.panel-actions) {flex-wrap:wrap; padding-block:14px} .panel-actions {justify-content:flex-start}
-  .collection-target {gap:8px 12px; padding:12px 18px}
+  .collection-target {grid-template-columns:36px minmax(0,1fr) auto; gap:8px 12px; padding:12px 18px}
+  .collection-target .target-progress {grid-column:2} .collection-target .target-actions {grid-column:3; grid-row:2; justify-content:flex-end}
+  .collection-target .target-actions:empty {display:none}
   .collection-budget,.compare-tools {padding-inline:18px}
   .compare-tools .search-field {max-width:none} .compare-filter {width:100%} .compare-filter select {flex:1}
   .compare-item>summary {grid-template-columns:minmax(0,1fr) auto; gap:6px 10px; padding:12px 18px}
@@ -1258,7 +1260,37 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
   .advanced-import>summary {padding:14px 18px}
 }
 
-/* 질문 세트 만들기 (question-generation.js) */
-.question-set-coverage { margin: 12px 0; display: grid; gap: 4px; }
-.question-set-warnings { margin: 8px 0; font-size: 13px; }
-#question-set-body .button { margin-top: 8px; display: inline-flex; }
+/* 새 비교 정리 (2026-10-14) — 질문 생성 후 평가 · 평가자 안내 한 줄 · 실행 설정 카드 · 단계 번호 정렬 */
+#view-setup .panel-title {align-items:flex-start} #view-setup .panel-title .section-number {margin-top:1px}
+.question-set-panel {margin-bottom:22px}
+.question-set-panel>.alert {margin:14px 24px 0}
+#question-set-body {display:grid; gap:14px; padding:18px 24px 20px} #question-set-body:empty {display:none}
+.question-set-panel dl.dataset-stats {grid-template-columns:repeat(6,minmax(0,1fr)); margin:0; padding:14px 6px}
+.question-set-summary {display:grid; gap:4px; color:#3C4458; font-size:13px; line-height:1.7}
+.question-set-missing {color:var(--amber); font-size:12px; line-height:1.7; overflow-wrap:anywhere}
+.question-set-footer {display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px 16px; padding-top:14px; border-top:1px solid #F0F1F6}
+.question-set-log {flex:1 1 280px; min-width:0; color:var(--muted); font-size:12px; line-height:1.8}
+.question-set-log summary {display:inline-flex; align-items:center; gap:6px; min-height:34px; cursor:pointer; font-weight:600; list-style:none}
+.question-set-log summary::-webkit-details-marker {display:none}
+.question-set-log summary::before {content:''; width:6px; height:6px; border:solid currentColor; border-width:0 1.5px 1.5px 0; transform:rotate(-45deg); transition:transform 140ms ease}
+.question-set-log[open] summary::before {transform:rotate(45deg)}
+.question-set-log p {overflow-wrap:anywhere}
+.question-set-warnings {margin:6px 0 0; padding-left:18px}
+.question-set-actions {display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-left:auto}
+#semantic-setup-note {align-items:center; margin:0 0 22px; padding:12px 18px}
+#semantic-setup-note>.icon {margin-top:0}
+#semantic-setup-note>div {display:flex; flex:1; flex-wrap:wrap; align-items:center; gap:4px 16px; min-width:0}
+#semantic-setup-note [data-semantic-setup] {display:flex; flex:1; flex-wrap:wrap; align-items:baseline; gap:2px 12px; min-width:0}
+#semantic-setup-note [data-semantic-setup] strong {font-size:13px} #semantic-setup-note [data-semantic-setup] p {color:var(--muted); font-size:12px}
+#view-setup .advanced-options {margin:0 0 22px; padding:0 24px; border:1px solid var(--card-line); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow)}
+#view-setup .advanced-options .advanced-grid {padding:4px 0 0; border:0; border-radius:0; background:none}
+#view-setup .advanced-options[open] {padding-bottom:16px}
+#view-setup .advanced-options summary {min-height:52px; color:#3C4458; font-size:13px; font-weight:650}
+#view-setup .action-bar {margin-bottom:22px}
+@media(max-width:1190px) {.question-set-panel dl.dataset-stats {grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:14px}}
+@media(max-width:700px) {
+  .question-set-panel dl.dataset-stats {grid-template-columns:repeat(2,minmax(0,1fr))}
+  #question-set-body {padding:16px 18px 18px} .question-set-panel>.alert {margin-inline:18px}
+  .question-set-actions {width:100%} .question-set-actions>* {flex:1 1 auto; justify-content:center}
+  #view-setup .advanced-options {padding:0 18px}
+}

@@ -19,20 +19,32 @@
     return node('div', {}, node('dt', {text: label}), node('dd', {text: String(value ?? 0)}));
   }
 
-  function coverageBlock(coverage) {
-    if (!coverage) return null;
-    const checks = Object.entries(coverage.checks || {}), items = Object.entries(coverage.items || {});
-    const counted = checks.filter(([id]) => !(coverage.answer_dependent || []).includes(id));
-    const missing = [...(coverage.missing_checks || []), ...(coverage.missing_items || [])];
-    return node('div', {class: 'question-set-coverage'},
-      node('p', {text: `CODE 검사 ${counted.filter(([, n]) => n > 0).length}/${counted.length}개 · 의미 평가 항목 ${items.filter(([, n]) => n > 0).length}/${items.length}개에 적용 질문이 있습니다.`}),
-      missing.length ? node('p', {class: 'field-help', text: '아직 적용 질문이 없는 항목: ' + missing.join(', ')}) : node('p', {class: 'field-help', text: '모든 검사·항목에 적용 질문이 있습니다.'}),
-      (coverage.answer_dependent || []).length
-        ? node('p', {class: 'field-help', text: '답변 구조로만 생기는 검사는 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent.join(', ')})
-        : null,
-      (coverage.answer_dependent_items || []).length
-        ? node('p', {class: 'field-help', text: '답변 문장으로 적용이 정해지는 항목도 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent_items.join(', ')})
-        : null);
+  // 덮은 기준 한 줄 + 빠진 항목 (늘 보임)
+  function coverageSummary(coverage, meta) {
+    const lines = [];
+    if (coverage) {
+      const checks = Object.entries(coverage.checks || {}), items = Object.entries(coverage.items || {});
+      const counted = checks.filter(([id]) => !(coverage.answer_dependent || []).includes(id));
+      const missing = [...(coverage.missing_checks || []), ...(coverage.missing_items || [])];
+      lines.push(node('p', {text: `CODE 검사 ${counted.filter(([, n]) => n > 0).length}/${counted.length}개 · 의미 평가 항목 ${items.filter(([, n]) => n > 0).length}/${items.length}개에 적용 질문이 있습니다.`}));
+      if (missing.length) lines.push(node('p', {class: 'question-set-missing', text: '아직 적용 질문이 없는 항목: ' + missing.join(', ')}));
+    }
+    lines.push(node('p', {class: 'field-help', text: meta}));
+    return node('div', {class: 'question-set-summary'}, ...lines);
+  }
+
+  // 답변을 받은 뒤 확인하는 검사·GPT 사용량·경고 — 접어 둔다
+  function generationLog(set) {
+    const coverage = set.coverage || {}, usage = set.usage || {}, warnings = set.warnings || [];
+    const notes = [
+      (coverage.answer_dependent || []).length ? '답변 구조로만 생기는 검사는 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent.join(', ') : null,
+      (coverage.answer_dependent_items || []).length ? '답변 문장으로 적용이 정해지는 항목도 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent_items.join(', ') : null,
+      `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`,
+    ].filter(Boolean);
+    return node('details', {class: 'question-set-log'},
+      node('summary', {text: '생성 기록' + (warnings.length ? ` · 경고 ${warnings.length}건` : '')}),
+      ...notes.map((text) => node('p', {text})),
+      warnings.length ? node('ul', {class: 'question-set-warnings'}, warnings.slice(0, 20).map((w) => node('li', {text: w}))) : null);
   }
 
   function render(set) {
@@ -54,22 +66,20 @@
     }
     if (set.status !== 'COMPLETED') return;
     const s = set.summary || {};
-    const usage = set.usage || {};
+    const meta = `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
+      + (set.target_questions ? ` · 목표 질문 수 ${set.target_questions}` : '') + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목` : '');
     body.append(...[   // null 은 글자로 붙지 않게 뺀다
       node('dl', {class: 'dataset-stats', 'aria-label': '만든 질문 세트 요약'},
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
         stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
-      node('p', {class: 'field-help', text: `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
-        + (set.target_questions ? ` · 목표 질문 수 ${set.target_questions}` : '') + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목` : '')}),
-      coverageBlock(set.coverage),
-      node('p', {class: 'field-help', text: `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`}),
-      (set.warnings || []).length ? node('details', {class: 'question-set-warnings'}, node('summary', {text: `경고 ${set.warnings.length}건`}),
-        node('ul', {}, set.warnings.slice(0, 20).map((w) => node('li', {text: w})))) : null,
-      node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
-      set.run_id
-        ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
-        : node('button', {class: 'button primary compact', type: 'button', onclick: runSet}, '이 질문 세트로 답변 수집·평가'),
-      set.run_error ? node('p', {class: 'field-help', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null].filter(Boolean));
+      coverageSummary(set.coverage, meta),
+      set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
+      node('div', {class: 'question-set-footer'}, generationLog(set),
+        node('div', {class: 'question-set-actions'},
+          node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
+          set.run_id
+            ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
+            : node('button', {class: 'button primary compact', type: 'button', onclick: runSet}, '이 질문 세트로 답변 수집·평가')))].filter(Boolean));
   }
 
   async function poll() {
