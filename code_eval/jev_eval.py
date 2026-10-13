@@ -144,6 +144,8 @@ def parse_decisions(body: Dict[str, Any], criteria: Tuple[str, ...] = ALL_IDS,
                 decisions[cid][key] = copy.deepcopy(entry[key])
         if entry.get('citation_mismatch') is True:
             decisions[cid]['citation_mismatch'] = True
+        if entry.get('citation_inaccessible') is True:   # 답변이 든 URL 을 열 수 없음 (evidence-v3.14)
+            decisions[cid]['citation_inaccessible'] = True
         if isinstance(entry.get('model_original_assessment'), dict):
             original = entry['model_original_assessment']
             decisions[cid]['model_original_assessment'] = {
@@ -970,7 +972,8 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                                                                     'reason_code', 'decision_policy',
                                                                     'policy_original_assessment', 'model_original_assessment',
                                                                     'fail_evidence', 'reevaluation', 'j5_outcome',
-                                                                    'citation_checks', 'citation_mismatch', 'subs') if k in d}
+                                                                    'citation_checks', 'citation_mismatch', 'citation_inaccessible',
+                                                                    'subs') if k in d}
                               for cid, d in (record["decisions"] or {}).items()},
                 "decision_policy": copy.deepcopy(record.get('decision_policy')),
                 "j5_basis": record.get("j5_basis"),

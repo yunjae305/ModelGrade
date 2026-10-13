@@ -19,7 +19,7 @@ FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
 #: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
 #: v3 — 출처 원문 확인 실패(source_unavailable)의 세부 사유를 접근 실패와 인용문 미확인으로 나눠 기록한다
 #:      (code·label·판정 값은 v2 와 같음 — source_failure 상세 항목만 추가).
-J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v3"
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v4"   # v4: 답변이 든 URL 접근 불가(citation_inaccessible) 구분
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 #: items 파이프라인의 재확인 정책 — 3회 뒤 남은 문제는 '확인 불가로 FAIL' (semantic_quotes.RECHECK_POLICY 와 같은 값)
 ITEMS_RECHECK_POLICY_VERSION = "items-recheck-3-then-fail-v1"
@@ -51,6 +51,7 @@ J5_OUTCOMES = {
     "search_limit_reached": "검증 기준 미충족 — 검색 한도 도달",
     "source_unavailable": "검증 기준 미충족 — 출처 원문 확인 실패",
     "source_mismatch": "출처 불일치 — 답변이 든 출처가 주장을 뒷받침하지 않음",
+    "citation_inaccessible": "출처 접근 불가 — 답변이 열 수 없는 URL 을 출처로 제시",
     "search_unavailable": "판정 미완료 — 검색 불가",
     "search_error": "판정 미완료 — 검색 실행 오류",
     "fetch_error": "판정 미완료 — 원문 열기 도구 오류",
@@ -315,6 +316,9 @@ def j5_outcome(record):
         outcome = "source_unavailable"
     elif decision == "FAIL" and code == FINAL_EVIDENCE_FAILURE_CODE:
         outcome = "search_limit_reached" if j5_search(record)["limit_reached"] else "insufficient_evidence"
+    elif decision == "FAIL" and j5.get("citation_inaccessible") and not any(
+            isinstance(c, dict) and c.get("verdict") == "FAIL" for c in claims):
+        outcome = "citation_inaccessible"
     elif decision == "FAIL" and j5.get("citation_mismatch") and not any(
             isinstance(c, dict) and c.get("verdict") == "FAIL" for c in claims):
         outcome = "source_mismatch"

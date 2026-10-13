@@ -11,7 +11,7 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
-FACT_CHECK_POLICY = "evidence-v3.13-input-values-match"
+FACT_CHECK_POLICY = "evidence-v3.14-cited-url-access"
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
 CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
@@ -278,10 +278,16 @@ CITATION_LABELS = {"supported": "출처가 주장을 뒷받침", "contradicted":
                    "unrelated": "출처가 주장과 무관", "not_found": "출처에 해당 내용 없음",
                    "inaccessible": "출처 원문 접근 불가", "unverified": "판정 확정 안 함", "unchecked": "확인하지 않음"}
 _CITATION_MISMATCH = ("contradicted", "unrelated", "not_found")
+#: evidence-v3.14 (2026-10-13 사용자 결정) — 답변이 준 URL 은 서버가 열어 확인한다. 열 수 없으면 '접근할 수 없는 URL 을 준 것'이라
+#: FAIL 이고(평가자 web_fetch 원문으로 대신 확인된 경우는 열린 것), PASS 도 답변이 든 모든 출처가 주장을 뒷받침한다고 확인될 때만이다.
+_CITATION_FAILURES = _CITATION_MISMATCH + ("inaccessible",)
 
 
 def _citation_check(entry, state):
-    """평가자의 답변 출처 판정을 서버 수집 결과로 확정한다. 원문을 서버가 받지 못하면 어떤 판정도 쓰지 않는다."""
+    """평가자의 답변 출처 판정을 서버 수집 결과로 확정한다.
+
+    답변이 든 URL 을 열 수 없으면(inaccessible) 출처 실패로 FAIL, 출처가 주장과 모순·무관·내용 없음이어도 FAIL 이다.
+    평가자가 PASS 라도 답변이 든 출처 가운데 '주장을 뒷받침'으로 확인되지 않은 것이 있으면 PASS 로 확정하지 않는다(확인 필요)."""
     citations = state.get("answer_citations") if isinstance(state, dict) else None
     if not isinstance(citations, list) or not citations:
         return
@@ -334,11 +340,19 @@ def _citation_check(entry, state):
                                "quote": "", "reason": "", "server_status": None, "quote_verified": False,
                                "verdict": "unchecked", "note": "평가자가 이 출처의 지지 여부를 기록하지 않았습니다."})
     entry["citation_checks"] = normalized
-    mismatched = [item for item in normalized if item["verdict"] in _CITATION_MISMATCH]
-    if entry.get("choice") == "NOT_APPLICABLE" or not mismatched:
+    if entry.get("choice") == "NOT_APPLICABLE":
+        return
+    mismatched = [item for item in normalized if item["verdict"] in _CITATION_FAILURES]
+    if not mismatched:
+        unconfirmed = [item for item in normalized if item["verdict"] != "supported"]
+        if entry.get("choice") == "PASS" and unconfirmed:
+            _unverified(entry, "답변이 든 출처에서 주장을 확인하지 못해 PASS 로 확정하지 않음: " + " · ".join(
+                f"{item['url']} ({CITATION_LABELS[item['verdict']]})" for item in unconfirmed[:3]))
         return
     entry["citation_mismatch"] = True
-    note = "답변이 든 출처가 주장을 뒷받침하지 않음: " + " · ".join(
+    if any(item["verdict"] == "inaccessible" for item in mismatched):
+        entry["citation_inaccessible"] = True
+    note = "답변이 든 출처가 주장을 뒷받침하지 않거나 열리지 않음: " + " · ".join(
         f"{item['url']} ({CITATION_LABELS[item['verdict']]})" for item in mismatched[:3])
     if entry.get("choice") != "FAIL":
         _verdict(entry, "FAIL")

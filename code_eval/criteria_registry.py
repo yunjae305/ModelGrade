@@ -207,6 +207,10 @@ CHANGELOG: List[Dict[str, Any]] = [
      "changes": ["J5: 답변이 사용자가 준 값을 그대로 쓰면 그 값의 실제 데이터는 사용자 원문 — 요청 종류(요약·계산·작성·추천 …)를 "
                  "키워드로 알아보지 못해도 정확한 원문 인용이면 '제공 자료와 일치'로 본다 (사용자 결정, 저장 실행 미완료 대부분의 원인)",
                  "남는 경계: 진위 확인 요청·실제 데이터 요청에서는 입력이 근거가 아님, 원문·턴 인용은 그대로 대조"]},
+    {"version": "evidence-v3.14-cited-url-access", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J5: 답변이 준 출처 URL 은 서버가 열어 확인 — 열 수 없으면 '접근할 수 없는 URL 을 준 것'으로 FAIL (사용자 결정)",
+                 "PASS 도 답변이 든 모든 출처가 주장을 뒷받침한다고 확인될 때만, 하나라도 확인되지 않으면 확인 필요",
+                 "J5 판정 사유에 '출처 접근 불가' 추가 (j5-outcome-detail-v4)"]},
     {"version": "criteria-registry-v4", "date": "2026-10-13", "scope": "registry",
      "changes": ["main v2(semantic_items·changelog)와 브랜치 v3(이전 턴 승계·출처 대조·판정 미완료 정책)을 병합",
                  "의미 평가 jev-semantic-eval-v2.8 (main v2.6 items 기록 + 브랜치 v2.7)"]},

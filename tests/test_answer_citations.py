@@ -84,9 +84,6 @@ def test_server_fetches_each_cited_url_and_checks_the_judges_quote():
 @pytest.mark.parametrize("checks,page_fetcher,verdict", [
     # 인용문이 원문에 없으면 '지지'를 확정하지 않는다
     ([check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 7")], fetcher, "unverified"),
-    # 서버가 원문을 받지 못하면 어떤 판정도 쓰지 않는다
-    ([check("https://cited.example/beta", "Beta is 42 [2].", "not_found", reason="없음")],
-     lambda url: {"status": "timeout", "text": ""}, "inaccessible"),
     # 주장 수치가 원문에 있으면 '내용 없음' 판단을 확정하지 않는다
     ([check("https://cited.example/beta", "Beta is 42 [2].", "not_found", reason="없음")], fetcher, "unverified"),
     # 평가자가 열지 못했다고 했어도 서버가 받았으면 판정에 쓰지 않는다
@@ -98,6 +95,8 @@ def test_unconfirmed_citation_judgments_never_fail_the_answer(checks, page_fetch
     j5, _ = finalized(checks, page_fetcher=page_fetcher)
     assert j5["citation_checks"][0]["verdict"] == verdict
     assert j5["choice"] != "FAIL" and "citation_mismatch" not in j5
+    # evidence-v3.14: 답변이 든 출처가 뒷받침으로 확인되지 않으면 PASS 로 확정하지 않는다
+    assert j5["choice"] != "PASS"
     assert j5["citation_checks"][-1]["verdict"] == "unchecked"   # alpha was not recorded by the judge
 
 
@@ -221,3 +220,26 @@ def test_answers_without_citations_keep_the_previous_request_shape():
     record = evaluate_jev_case("q", "질문", "출처 없는 답변입니다.", client, criteria=("J1",), citation_check=True)
     assert "answer_citations" not in json.dumps(sent[0]["messages"][0]["content"], ensure_ascii=False)
     assert "answer_citations" not in record
+
+
+# evidence-v3.14 (2026-10-13 사용자 결정) — 답변이 준 URL 을 열 수 없으면 FAIL, PASS 는 모든 출처가 확인될 때만
+def test_inaccessible_cited_url_fails_and_pass_needs_every_cited_source_supported():
+    blocked = lambda url: {"status": "http_error", "text": ""} if url.endswith("alpha") else fetcher(url)
+    j5, _ = finalized([check("https://cited.example/alpha", "Alpha is blue [1].", "supported", quote="Alpha is blue"),
+                       check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 42")],
+                      page_fetcher=blocked)
+    assert j5["choice"] == "FAIL" and j5["citation_inaccessible"] is True and "출처 원문 접근 불가" in j5["reason"]
+    # 출처 판정만 따로: 모든 출처가 열리고 뒷받침하면 PASS 유지, 하나라도 확인되지 않으면 PASS 로 확정하지 않는다
+    from code_eval import semantic_evidence
+    ok_pages = {"https://cited.example/alpha": "Alpha is blue.", "https://cited.example/beta": "Beta is 42 according to the registry."}
+    ok = lambda url: {"status": "ok", "text": ok_pages[url], "final_url": url}
+    def citation_only(checks):
+        body = {"answers": {"J5": {"choice": "PASS", "confidence": .9, "reason": "ok", "citation_checks": checks}}, "verification": {}}
+        entry = verify_answer_citations(body, STATE, fetcher=ok)["answers"]["J5"]
+        semantic_evidence._citation_check(entry, STATE)
+        return entry
+    both = citation_only([check("https://cited.example/alpha", "Alpha is blue [1].", "supported", quote="Alpha is blue"),
+                          check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 42")])
+    assert both["choice"] == "PASS" and "citation_mismatch" not in both
+    one = citation_only([check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 42")])
+    assert one["choice"] == "UNVERIFIED" and "PASS 로 확정하지 않음" in one["reason"]   # alpha 를 확인하지 않음

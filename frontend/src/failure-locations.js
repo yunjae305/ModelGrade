@@ -207,9 +207,9 @@
         if (cid === 'J5' && decision.citation_mismatch) {
           // A cited source that does not support the sentence it is attached to — locate that sentence.
           list(decision.citation_checks).forEach((check, index) => {
-            if (!check || !['contradicted', 'unrelated', 'not_found'].includes(check.verdict)) return;
+            if (!check || !['contradicted', 'unrelated', 'not_found', 'inaccessible'].includes(check.verdict)) return;
             locatedEvidence = true;
-            add({...base, title: `${cid} · 출처 불일치`, id: `${prefix}:citation:${index}`,
+            add({...base, title: `${cid} · ${check.verdict === 'inaccessible' ? '출처 접근 불가' : '출처 불일치'}`, id: `${prefix}:citation:${index}`,
               reason: joinReasons(`${text(check.url)} — ${check.note || ''}`, check.reason)}, claimMatches(answer, text(check.claim), projection));
           });
         }
