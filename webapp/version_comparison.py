@@ -141,7 +141,9 @@ def _item_key(item: Dict[str, Any]) -> str:
     base, _, element = item_id.partition("#")
     if not element:
         return item_id
-    quote = " ".join(str(item.get("question_quote") or "").split()) or " ".join(str(item.get("answer_quote") or "").split())
+    question = " ".join(str(item.get("question_quote") or "").split())
+    answer = " ".join(str(item.get("answer_quote") or "").split())
+    quote = (answer or question) if item.get("origin") == "answer" else (question or answer)   # J5-1.a 주장은 답변 인용으로
     if not quote:
         return item_id
     turn = item.get("turn")
@@ -152,7 +154,7 @@ def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], D
     """레코드 → (기준 판정, 세부 기준 판정, 항목 판정) — NOT_APPLICABLE 은 'NA', 판정 없음은 'PENDING'."""
     criteria: Dict[str, str] = {}
     subs: Dict[str, str] = {}
-    items: Dict[str, str] = {}
+    grouped: Dict[str, List[str]] = {}
     record = record if isinstance(record, dict) else {}
     decisions = record.get("decisions") or {}
     for cid, decision in decisions.items():
@@ -168,7 +170,17 @@ def _semantic_units(record: Optional[Dict[str, Any]]) -> Tuple[Dict[str, str], D
             for item in sub.get("items") or []:
                 if not isinstance(item, dict):
                     continue
-                items[_item_key(item)] = {"YES": "PASS", "NO": "FAIL", "NOT_APPLICABLE": "NA"}.get(item.get("decision"), "PENDING")
+                grouped.setdefault(_item_key(item), []).append(
+                    {"YES": "PASS", "NO": "FAIL", "NOT_APPLICABLE": "NA"}.get(item.get("decision"), "PENDING"))
+    # 같은 인용의 요소가 여럿이면 어느 것이 어느 것인지 알 수 없다 — 모델이 붙인 '#n' 대신 판정 값 순서로 [1]·[2]… 를 매겨
+    # 번호만 바뀐 경우 변화 없음으로, 판정 개수가 바뀐 만큼만 개선·악화로 센다
+    items: Dict[str, str] = {}
+    for key, values in grouped.items():
+        if len(values) == 1:
+            items[key] = values[0]
+        else:
+            for n, value in enumerate(sorted(values), 1):
+                items[f"{key} [{n}]"] = value
     return criteria, subs, items
 
 
@@ -385,7 +397,7 @@ def _criteria_table(rows, a_cases, a_records, b_cases, b_records) -> List[Dict[s
         for sid, cell in drill["subs"].items():
             bump("sub", sid, cell["change"], parent=sid.split("-")[0])
         for item_id, cell in drill["items"].items():
-            base = item_id.split("#")[0]
+            base = item_id.split(" · ", 1)[0].split("#", 1)[0]   # 비교 키('J4-2.a · 인용')에서 기본 항목 ID 로 합산
             bump("item", base, cell["change"], parent=base.split(".")[0])
         for key, cell in drill["code"].items():
             bump("code", key, cell["change"], parent=key.split(".")[0])

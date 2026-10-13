@@ -300,10 +300,17 @@ def test_value_items_allow_not_applicable_per_element_but_not_for_the_whole_item
     # J5-2.a 정의: 질문이 준 값 중 답변에 쓰지 않은 값은 해당 없음 — 요소(#n) 단위로만 허용, 항목 전체 해당 없음은 여전히 재확인
     qs = questions("J5-2.a")
     assert qs["J5-2.a"]["element_na"] is True and questions("J2-2.a")["J2-2.a"]["element_na"] is False
-    _, failures = sq.verify_items(body(item("J5-2.a#1", "NOT_APPLICABLE", "", "")), STATE, qs)
+    _, failures = sq.verify_items(body(item("J5-2.a#1", "NOT_APPLICABLE", "편도 6km", "")), STATE, qs)
     assert failures == []
     _, failures = sq.verify_items(body(item("J5-2.a", "NOT_APPLICABLE", "", "")), STATE, qs)
     assert [(f["id"], f["code"]) for f in failures] == [("J5-2.a", "not_applicable_disallowed")]
+    # 요소 단위라도 그 요소를 질문 원문으로 인용해야 한다 — 인용이 없거나 질문에 없는 값이면 재확인
+    _, failures = sq.verify_items(body(item("J5-2.a#1", "NOT_APPLICABLE", "", ""), item("J5-2.a#2", "NOT_APPLICABLE", "편도 9km", "")), STATE, qs)
+    assert [(f["id"], f["code"]) for f in failures] == [("J5-2.a#1", "question_quote_required"), ("J5-2.a#2", "question_quote_not_found")]
+    # 이전 턴의 값으로는 현재 질문의 값을 '쓰지 않음'으로 비울 수 없다
+    history = dict(STATE, history=[{"turn": 1, "question": "예전 거리는?", "answer": "편도 3km"}])
+    _, failures = sq.verify_items(body(dict(item("J5-2.a#1", "NOT_APPLICABLE", "편도 3km", ""), turn=1)), history, qs)
+    assert [(f["id"], f["code"]) for f in failures] == [("J5-2.a#1", "question_quote_not_found")]
 
 
 def test_server_owned_fields_in_the_model_response_are_discarded_before_verification():

@@ -7,9 +7,11 @@
   평가 방식·호출 방식, 기준·평가 모델 조건.
 - 비교 상대: 재평가 실행(같은 답변에 새 기준만 돌린 것)은 원본 실행, 그 밖에는 같은 질문 세트의 직전 기록. 질문 세트가 다르면
   통과율을 비교하지 않는다.
-- 바뀐 요인: 기준 변경·평가 모델 변경(``version_comparison.condition_changes``)과 AIONA 버전 변경. 한 요인만 바뀐 비교만 그 요인의
-  효과로 읽을 수 있고(``attributable``), 여러 요인이 함께 바뀌면 '여러 요인 변경'으로 표시하고 원인을 단정하지 않는다.
-- 기준 변경에는 ``criteria_registry.CHANGELOG`` 에서 새 버전의 변경 항목·이유를 붙인다. 판정 값은 저장된 결과를 그대로 읽는다.
+- 바뀐 요인: 저장된 평가 프로필 전체의 차이(``version_comparison.profile_differences`` — 호출 방식만 뺀다)를 기준 변경·평가 모델
+  변경으로 나누고, AIONA 버전 변경, 버전이 같은데 답변 지문(source_fingerprint)이 다르면 AIONA 답변 변경을 더한다.
+  한 요인만 바뀌고 두 기록 모두 평가 조건이 완전하며 모든 질문이 판정됐을 때만 그 요인의 효과로 읽는다(``attributable``).
+  여러 요인이 함께 바뀌면 '여러 요인 변경'으로 표시하고 원인을 단정하지 않는다.
+- 기준 변경에는 ``criteria_registry.CHANGELOG`` 에서 바뀐 버전의 변경 항목·이유를 붙인다. 판정 값은 저장된 결과를 그대로 읽는다.
 """
 from __future__ import annotations
 
@@ -19,12 +21,14 @@ from typing import Any, Dict, List, Optional
 from code_eval.criteria_registry import CHANGELOG
 
 from .run_summary import run_summary
-from .version_comparison import condition_changes
+from .version_comparison import profile_differences
+from .version_registry import evaluation_profile
 
 __all__ = ["HISTORY_VERSION", "aiona_history"]
 
 HISTORY_VERSION = "aiona-history-v1"
-FACTOR_LABELS = {"criteria_changed": "기준 변경", "judge_changed": "평가 모델 변경", "aiona_version_changed": "AIONA 버전 변경"}
+FACTOR_LABELS = {"criteria_changed": "기준 변경", "judge_changed": "평가 모델 변경", "aiona_version_changed": "AIONA 버전 변경",
+                 "answers_changed": "AIONA 답변 변경"}
 
 
 def _delta(before: Optional[float], after: Optional[float]) -> Optional[float]:
@@ -49,6 +53,7 @@ def _entry(run: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),
         "source_run_id": run.get("source_run_id"),
         "aiona_version": (summary.get("aiona_release") or {}).get("version"),
+        "answers_fingerprint": run.get("source_fingerprint"),
         "question_set": copy.deepcopy(summary["question_set"]),
         "conditions": {key: copy.deepcopy(profile.get(key)) for key in
                        ("code_version", "criteria_version", "semantic_version", "applicability_version", "items_version",
@@ -58,28 +63,36 @@ def _entry(run: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                     # 미완료·제외 질문이 있으면 통과율은 판정된 질문만의 값이라 변화 비교에 그대로 쓰지 않는다
                     "complete": not questions.get("PENDING") and not questions.get("EXCLUDED"),
                     "criteria": criteria, "fulfillment": aiona.get("fulfillment"), "code": copy.deepcopy(aiona.get("code") or {})},
-        "_summary": summary,
+        "_profile": evaluation_profile(run),
     }
 
 
 def _changelog(change: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """기준 변경의 새 버전에 해당하는 CHANGELOG 항목 (추가·삭제·문구 변경된 항목과 이유)."""
-    after = change.get("after") or {}
-    wanted = {value for key, value in after.items() if key != "code_version" and isinstance(value, str)}
-    code = after.get("code_version")
-    if isinstance(code, str) and code:
-        wanted.add("engine " + code.rsplit("-", 1)[-1])
-    before = change.get("before") or {}
-    unchanged = {value for key, value in before.items() if isinstance(value, str) and after.get(key) == value}
-    return [copy.deepcopy(entry) for entry in CHANGELOG if entry.get("version") in wanted - unchanged]
+    """기준 변경에서 실제로 바뀐 버전의 CHANGELOG 항목 (추가·삭제·문구 변경된 항목과 이유)."""
+    wanted = set()
+    for field, value in (change.get("after") or {}).items():   # after 에는 바뀐 필드만 있다
+        if not isinstance(value, str) or not value:
+            continue
+        wanted.add("engine " + value.rsplit("-", 1)[-1] if field == "engine_versions.engine" else value)
+    return [copy.deepcopy(entry) for entry in CHANGELOG if entry.get("version") in wanted]
 
 
 def _changes(previous: Dict[str, Any], current: Dict[str, Any]) -> List[Dict[str, Any]]:
-    changes = [change for change in condition_changes(previous["_summary"], current["_summary"])
-               if change["event_type"] != "collection_models_changed"]   # 이력 관리는 AIONA 만 — 수집 모델은 다루지 않는다
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for diff in profile_differences(previous["_profile"], current["_profile"]):
+        grouped.setdefault("judge_changed" if diff["field"].startswith("judge") else "criteria_changed", []).append(diff)
+    changes = [{"event_type": factor, "label": FACTOR_LABELS[factor], "fields": [d["field"] for d in grouped[factor]],
+                "field_labels": [d["label"] for d in grouped[factor]],
+                "before": {d["field"]: copy.deepcopy(d["baseline"]) for d in grouped[factor]},
+                "after": {d["field"]: copy.deepcopy(d["target"]) for d in grouped[factor]}}
+               for factor in ("criteria_changed", "judge_changed") if grouped.get(factor)]
     if previous["aiona_version"] != current["aiona_version"]:
-        changes.append({"event_type": "aiona_version_changed", "label": FACTOR_LABELS["aiona_version_changed"],
-                        "before": previous["aiona_version"], "after": current["aiona_version"], "fields": ["aiona_version"]})
+        changes.append({"event_type": "aiona_version_changed", "label": FACTOR_LABELS["aiona_version_changed"], "fields": ["aiona_version"],
+                        "field_labels": ["AIONA 버전"], "before": previous["aiona_version"], "after": current["aiona_version"]})
+    elif previous["answers_fingerprint"] != current["answers_fingerprint"]:
+        # 같은 버전인데 답변이 다르다 — 기준·평가 모델 변경의 효과로 읽지 않도록 별도 요인
+        changes.append({"event_type": "answers_changed", "label": FACTOR_LABELS["answers_changed"], "fields": ["source_fingerprint"],
+                        "field_labels": ["AIONA 답변 지문"], "before": previous["answers_fingerprint"], "after": current["answers_fingerprint"]})
     factors = [change["event_type"] for change in changes]
     for change in changes:
         change["multi_factor"] = len(factors) > 1
@@ -119,8 +132,10 @@ def aiona_history(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
             entry["changes"] = changes
             entry["factors"] = factors
             entry["multi_factor"] = len(factors) > 1
-            # 설계: 한 번에 한 요인만 바뀐 실행끼리 비교 — 그때만 변화를 그 요인의 효과로 읽는다 (둘 다 모든 질문이 판정됐을 때)
-            entry["attributable"] = len(factors) == 1 and previous["results"]["complete"] and entry["results"]["complete"]
+            # 설계: 한 번에 한 요인만 바뀐 실행끼리 비교 — 그때만 변화를 그 요인의 효과로 읽는다
+            # (두 기록 모두 평가 조건 기록이 완전하고 모든 질문이 판정됐을 때)
+            entry["attributable"] = (len(factors) == 1 and previous["results"]["complete"] and entry["results"]["complete"]
+                                     and previous["conditions_complete"] and entry["conditions_complete"])
             entry["deltas"] = _deltas(previous["results"], entry["results"])
         else:
             entry.update(changes=[], factors=[], multi_factor=False, attributable=False, deltas=None)
@@ -131,6 +146,6 @@ def aiona_history(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
                                 "criteria": {cid: part["rate"] for cid, part in entry["results"]["criteria"].items()},
                                 "complete": entry["results"]["complete"], "markers": list(entry["factors"])})
     for entry in entries:
-        entry.pop("_summary", None)
+        entry.pop("_profile", None)
     return {"version": HISTORY_VERSION, "factor_labels": dict(FACTOR_LABELS), "entries": list(reversed(entries)),
             "series": list(series.values())}

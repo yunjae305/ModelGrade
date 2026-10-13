@@ -146,7 +146,7 @@
     $('collect-button').disabled = !state.comparisonReady || !canEvaluate() || !count || missing.length > 0 || active() || state.datasetLoading;
     $('version-evaluate-button').disabled = !state.versionReady || !canEvaluate() || !state.versionMode || !$('aiona-version').value.trim() || !count || active() || state.datasetLoading;
     $('model-selection-count').textContent = `${4 - missing.length} / 4 연결`;
-    $('ready-summary').textContent = count ? `${number(count)}개 Q/A · 4개 모델 비교` : state.inputMode === 'manual' ? '질문과 AIONA 답변을 입력하세요' : 'AIONA Q/A 파일을 업로드하세요';
+    $('ready-summary').textContent = count ? `질문 ${number(questionUnits(state.cases).length)}개 · 4개 모델 비교` : state.inputMode === 'manual' ? '질문과 AIONA 답변을 입력하세요' : 'AIONA Q/A 파일을 업로드하세요';
     $('ready-detail').textContent = state.datasetLoading ? '파일을 확인한 뒤 비교를 시작할 수 있습니다.' : active() ? '진행 중인 작업은 결과 비교 화면에서 확인할 수 있어요.' :
       missing.length ? `${missing.map((p) => names[p]).join(' · ')} 연결이 필요합니다. 3개 모델을 모두 연결하면 시작할 수 있습니다.` :
       count ? `답변 ${number(count * 3)}개 수집 후 자동 평가합니다.` : state.inputMode === 'manual' ? '두 항목을 입력하면 평가를 시작할 수 있습니다.' : '파일을 먼저 선택하세요.';
@@ -251,6 +251,16 @@
   });
   document.querySelectorAll('[data-close]').forEach((n) => n.addEventListener('click', () => $(n.dataset.close).close()));
 
+  // 질문 단위 — 단일 질문은 1개, 같은 conversation_id 의 턴들은 묶어서 1개
+  function questionUnits(cases) {
+    const units = [], byConversation = new Map();
+    for (const c of cases) {
+      if (c.conversation_id === undefined) { units.push([c]); continue; }
+      if (!byConversation.has(c.conversation_id)) { byConversation.set(c.conversation_id, []); units.push(byConversation.get(c.conversation_id)); }
+      byConversation.get(c.conversation_id).push(c);
+    }
+    return units;
+  }
   function setDataset(cases, name, importInfo = null) {
     if (state.inputMode !== 'file') setInputMode('file');
     state.cases = cases; state.fileName = name; state.importInfo = importInfo;
@@ -258,10 +268,13 @@
     $('dropzone').hidden = true; $('dataset-content').hidden = false;
     $('file-name').textContent = name;
     const conversationCases = cases.filter((c) => c.conversation_id !== undefined);
-    $('file-meta').textContent = conversationCases.length ? `AIONA Q/A · 단건 ${number(cases.length - conversationCases.length)}개 · 멀티턴 ${number(conversationCases.length)}개` : 'AIONA Q/A · 질문과 답변 입력 확인 완료';
-    $('question-count').replaceChildren(number(cases.length), node('small', {text: '개'}));
-    $('answer-count').replaceChildren(number(cases.filter((c) => c.answer.length).length), node('small', {text: '개'}));
-    $('conversation-count').replaceChildren(number(new Set(cases.filter((c) => c.conversation_id !== undefined).map((c) => c.conversation_id)).size), node('small', {text: '개'}));
+    $('file-meta').textContent = conversationCases.length ? `AIONA Q/A · 단일 질문 ${number(cases.length - conversationCases.length)}개 · 멀티턴 대화 ${number(new Set(conversationCases.map((c) => c.conversation_id)).size)}개(${number(conversationCases.length)}턴)` : 'AIONA Q/A · 질문과 답변 입력 확인 완료';
+    // 질문 수는 단일 질문 1개 + 멀티턴 대화 1개(턴 수와 무관) — 대화의 턴은 따로 표시한다
+    const units = questionUnits(cases);
+    $('question-count').replaceChildren(number(units.length), node('small', {text: '개'}));
+    $('answer-count').replaceChildren(number(units.filter((unit) => unit.every((c) => c.answer.length)).length), node('small', {text: '개'}));
+    const conversations = units.filter((unit) => unit[0].conversation_id !== undefined);
+    $('conversation-count').replaceChildren(number(conversations.length), node('small', {text: conversations.length ? `개 · ${number(conversationCases.length)}턴` : '개'}));
     $('preview-body').replaceChildren(...cases.slice(0, 4).map((c, i) => node('tr', {},
       node('td', {text: c.case_id}), node('td', {}, node('button', {class: 'row-button', text: c.question,
         onclick: () => openAnswer(i, 'dataset'), 'aria-label': c.case_id + ' 질문과 원문 보기'})))));

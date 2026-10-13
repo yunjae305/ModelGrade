@@ -117,16 +117,24 @@ def test_run_summary_and_aiona_history_track_one_factor_at_a_time(tmp_path):
     # AIONA 버전과 평가 모델이 함께 바뀐 실행 → 여러 요인 변경, 원인 단정 안 함
     object.__setattr__(judge.config, 'model', 'gpt-6.1-sol')
     fourth = version_run(service, '10.3', {})
+    # 같은 버전에 답변만 다른 실행 → AIONA 답변 변경 한 요인 / 답변과 평가 모델이 함께 바뀐 실행 → 여러 요인 (평가 모델 효과로 읽지 않음)
+    fifth = version_run(service, '10.3', {'Q3': '나쁜 답'})
+    object.__setattr__(judge.config, 'model', 'gpt-7-fixture')
+    sixth = version_run(service, '10.3', {'Q1': '나쁜 답'})
     history = service.aiona_history()
     assert history['version'] == 'aiona-history-v1' and [e['run_id'] for e in history['entries']] == [
-        fourth['run_id'], third['run_id'], second['run_id'], first['run_id']]   # 최신순
+        sixth['run_id'], fifth['run_id'], fourth['run_id'], third['run_id'], second['run_id'], first['run_id']]   # 최신순
+    answers_only, answers_and_judge = (next(e for e in history['entries'] if e['run_id'] == r['run_id']) for r in (fifth, sixth))
+    assert answers_only['factors'] == ['answers_changed'] and answers_only['attributable'] is True
+    assert answers_and_judge['factors'] == ['judge_changed', 'answers_changed'] and answers_and_judge['attributable'] is False
     by_id = {e['run_id']: e for e in history['entries']}
     start, judge_only, version_only, both = (by_id[r['run_id']] for r in (first, second, third, fourth))
     assert start['previous_run_id'] is None and start['changes'] == [] and start['deltas'] is None
     assert start['aiona_version'] == '10.1' and start['results']['question_pass_rate'] == 1.0 and start['results']['complete'] is True
     assert start['question_set'] == summary['question_set'] and start['conditions']['dispatch'] == 'realtime'
     assert judge_only['previous_run_id'] == first['run_id'] and judge_only['factors'] == ['judge_changed']
-    assert judge_only['changes'][0]['fields'] == ['requested_model'] and judge_only['attributable'] is True and judge_only['multi_factor'] is False
+    assert judge_only['changes'][0]['fields'] == ['judge.requested_model'] and judge_only['changes'][0]['field_labels'] == ['평가 모델']
+    assert judge_only['attributable'] is True and judge_only['multi_factor'] is False
     assert version_only['factors'] == ['aiona_version_changed'] and version_only['changes'][0]['before'] == '10.1'
     assert version_only['attributable'] is True and version_only['deltas']['question_pass_rate'] == -0.2
     assert version_only['deltas']['criteria']['J1']['rate'] == -0.2 and version_only['results']['criteria']['J1']['fail'] == 1
@@ -135,8 +143,9 @@ def test_run_summary_and_aiona_history_track_one_factor_at_a_time(tmp_path):
     assert not any('collection_models_changed' in e['factors'] for e in history['entries'])   # 이력 관리는 AIONA 만
     (series,) = history['series']
     assert series['fingerprint'] == first['dataset_fingerprint'] and [p['run_id'] for p in series['points']] == [
-        first['run_id'], second['run_id'], third['run_id'], fourth['run_id']]
-    assert [p['markers'] for p in series['points']] == [[], ['judge_changed'], ['aiona_version_changed'], ['judge_changed', 'aiona_version_changed']]
+        first['run_id'], second['run_id'], third['run_id'], fourth['run_id'], fifth['run_id'], sixth['run_id']]
+    assert [p['markers'] for p in series['points']] == [[], ['judge_changed'], ['aiona_version_changed'], ['judge_changed', 'aiona_version_changed'],
+                                                         ['answers_changed'], ['judge_changed', 'answers_changed']]
     assert history['factor_labels']['aiona_version_changed'] == 'AIONA 버전 변경'
 
 
@@ -176,6 +185,22 @@ def test_expanded_items_are_matched_by_quote_not_model_numbers():
     after = record(('J4-2.a#1', '이유를  한 줄씩', 'NO'), ('J4-2.a#2', '각각', 'YES'))   # 나열 순서만 다름 (공백 차이 포함)
     items = vc._drilldown(None, before, None, after)['items']
     assert {key: row['change'] for key, row in items.items()} == {'J4-2.a · 각각': 'pass_kept', 'J4-2.a · 이유를 한 줄씩': 'fail_kept'}
+    # 답변에서 생긴 주장(J5-1.a)은 답변 인용으로 대응하고, 같은 인용이 둘이면 덮어쓰지 않는다
+    claims = {'decisions': {'J5': {'decision': 'FAIL', 'subs': {'J5-1': {'decision': 'FAIL', 'items': [
+        {'id': 'J5-1.a#1', 'origin': 'answer', 'decision': 'YES', 'question_quote': '인구', 'answer_quote': '서울 인구는 933만'},
+        {'id': 'J5-1.a#2', 'origin': 'answer', 'decision': 'NO', 'question_quote': '인구', 'answer_quote': '부산 인구는 900만'},
+        {'id': 'J4-2.a#1', 'decision': 'YES', 'question_quote': '각각'}, {'id': 'J4-2.a#2', 'decision': 'NO', 'question_quote': '각각'}]}}}}}
+    assert vc._semantic_units(claims)[2] == {'J5-1.a · 서울 인구는 933만': 'PASS', 'J5-1.a · 부산 인구는 900만': 'FAIL',
+                                             'J4-2.a · 각각 [1]': 'FAIL', 'J4-2.a · 각각 [2]': 'PASS'}
+    # 같은 인용의 두 요소가 번호만 바뀌면 변화 없음, 판정 개수가 바뀐 만큼만 개선·악화
+    swapped = copy.deepcopy(claims)
+    j4 = swapped['decisions']['J5']['subs']['J5-1']['items']
+    j4[2]['decision'], j4[3]['decision'] = 'NO', 'YES'
+    assert {k: r['change'] for k, r in vc._drilldown(None, claims, None, swapped)['items'].items() if k.startswith('J4')} == {
+        'J4-2.a · 각각 [1]': 'fail_kept', 'J4-2.a · 각각 [2]': 'pass_kept'}
+    j4[2]['decision'] = 'YES'
+    assert {k: r['change'] for k, r in vc._drilldown(None, claims, None, swapped)['items'].items() if k.startswith('J4')} == {
+        'J4-2.a · 각각 [1]': 'improved', 'J4-2.a · 각각 [2]': 'pass_kept'}
 
 
 def test_run_summary_code_rates_include_saved_completion_like_the_question_verdict():

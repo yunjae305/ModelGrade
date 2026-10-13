@@ -208,8 +208,17 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
             # 서버가 둔 자리표시 항목, 정의에 요소 단위 해당 없음이 있는 항목의 펼친 요소(J5-2.a#n — 답변에 쓰지 않은 값)만
             # 해당 없음을 허용한다 — 그 밖의 해당 없음은 인용 검증을 피하는 답이라 재확인 대상이다.
             element_na = bool(spec.get("element_na")) and element is not None
-            if not (spec.get("model_applies") or base == "J5-1.a" or item.get("server_placeholder") or element_na):
+            allowed = spec.get("model_applies") or base == "J5-1.a" or item.get("server_placeholder")
+            if not (allowed or element_na):
                 codes.append(("not_applicable_disallowed", None))
+            elif not allowed:
+                # 요소 단위 해당 없음은 그 요소(현재 질문이 준 값)를 현재 질문 원문 그대로 인용해야 한다 — '#1' 만 붙여 항목 전체를
+                # 비우거나, 이전 턴·참조 자료의 값을 인용해 현재 질문의 값을 피하지 못하게
+                question_quote = _text(item.get("question_quote"))
+                if not question_quote:
+                    codes.append(("question_quote_required", None))
+                elif not question_check["ok"] or question_check["source"] != "question":
+                    codes.append(("question_quote_not_found", None))
         else:
             question_quote = _text(item.get("question_quote"))
             if element is not None and not question_quote and spec.get("origin") != "answer":

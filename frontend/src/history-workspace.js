@@ -225,7 +225,7 @@
       node('p', {class: 'field-help', text: entry.attributable ? '한 요인만 바뀌었고 두 기록 모두 모든 질문이 판정되어 변화를 그 요인의 효과로 볼 수 있습니다.' :
         entry.multi_factor ? '여러 요인이 함께 바뀌어 어느 요인 때문인지 단정하지 않습니다.' :
         (entry.changes || []).length ? '미완료 질문이 있어 변화를 확정하지 않습니다.' : '조건이 같은 기록끼리의 차이는 평가 모델의 흔들림일 수 있습니다.'}),
-      ...(entry.changes || []).map((change) => node('details', {}, node('summary', {text: change.label + (change.fields?.length ? ' · ' + change.fields.join(', ') : '')}),
+      ...(entry.changes || []).map((change) => node('details', {}, node('summary', {text: change.label + ((change.field_labels || change.fields || []).length ? ' · ' + (change.field_labels || change.fields).join(', ') : '')}),
         node('div', {class: 'history-change-grid'}, node('div', {}, node('h4', {text: '이전'}), node('pre', {text: valueText(change.before)})),
           node('div', {}, node('h4', {text: '이후'}), node('pre', {text: valueText(change.after)}))),
         ...(change.changelog || []).map((log) => node('div', {}, node('strong', {text: log.version + ' · ' + (log.date || '')}),
