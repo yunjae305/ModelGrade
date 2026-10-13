@@ -163,10 +163,16 @@ def _record(case_id: str, status: str, criteria: Tuple[str, ...] = (), **kw: Any
 def _case_request(question: str, answer: str, criteria: Tuple[str, ...], reference: Any,
                   history: Optional[List[Dict[str, Any]]], *, client: Any, cancel_event: Optional[Event],
                   pipeline: str = "legacy", item_specs: Any = None, collected_at: Optional[str] = None,
-                  citations: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event)."""
+                  citations: Optional[List[Dict[str, Any]]] = None,
+                  unchecked_citations: Optional[List[str]] = None) -> Dict[str, Any]:
+    """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event).
+
+    ``unchecked_citations`` 는 답변이 든 유효한 출처 URL 가운데 확인 한도 밖이라 평가자에게 보내지 않은 것 — 판정 단계가
+    이것이 남아 있으면 J5 를 PASS 로 확정하지 않는다 (evidence-v3.14)."""
     request = jev_request(question, answer, criteria, reference, history, citations, pipeline=pipeline, item_specs=item_specs,
                           collected_at=collected_at)
+    if unchecked_citations and "J5" in criteria and pipeline != "items":
+        request["state"]["answer_citations_unchecked"] = list(unchecked_citations)
     if cancel_event is not None and getattr(client, "supports_cancellation", False):
         request["cancel_event"] = cancel_event
     return request
@@ -314,7 +320,8 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         citations, structured_sources = case_citations(answer, criteria, citation_check, sources)
         request = _case_request(question, answer, criteria, reference, history, client=client, cancel_event=cancel_event,
                                 pipeline=pipeline, item_specs=item_specs, collected_at=collected_at,
-                                citations=prompt_citations(citations))
+                                citations=prompt_citations(citations),
+                                unchecked_citations=[c["url"] for c in citations if c.get("valid_url") and not c.get("checked")])
         if cancel_event is not None and cancel_event.is_set():
             return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
         call = client.system_one(**request)

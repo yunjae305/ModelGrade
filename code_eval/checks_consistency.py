@@ -255,7 +255,9 @@ def _cut_operand_before(before: str, operator: str = "", after: str = "") -> boo
     body = stripped[:-1]
     if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
         return False                       # 목록 표지만 있음
-    emphasis = operator == "*" and stripped == before and bool(re.search(r"(?<!\\)\*", after.split("\n", 1)[0]))
+    line = re.sub(r"`[^`\n]*`", lambda m: " " * len(m.group()), after.split("\n", 1)[0])   # 인라인 코드 안은 강조가 아니다
+    closing = any(len(m.group(1)) % 2 == 0 for m in re.finditer(r"(\\*)\*", line))           # 역슬래시가 짝수 개면 실제 '*'
+    emphasis = operator == "*" and stripped == before and closing
     excluded = r"\s\d+\-*/=().,:;!?" + (r"\[\]{}<>\"'“”‘’「」『』" if emphasis else "")
     return bool(re.search(r"[\d)](?:[ \t\xa0]?[^" + excluded + r"]{1,5})?[ \t\xa0]*$", body))
 

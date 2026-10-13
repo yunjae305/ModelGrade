@@ -243,3 +243,23 @@ def test_inaccessible_cited_url_fails_and_pass_needs_every_cited_source_supporte
     assert both["choice"] == "PASS" and "citation_mismatch" not in both
     one = citation_only([check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 42")])
     assert one["choice"] == "UNVERIFIED" and "PASS 로 확정하지 않음" in one["reason"]   # alpha 를 확인하지 않음
+
+
+def test_server_fetch_status_counts_even_when_the_judge_records_no_citation_checks():
+    blocked = lambda url: {"status": "http_error", "text": ""} if url.endswith("alpha") else fetcher(url)
+    j5, verification = finalized([], page_fetcher=blocked)
+    assert {s["url"]: s["status"] for s in verification["citation_sources"]}["https://cited.example/alpha"] == "http_error"
+    assert j5["choice"] == "FAIL" and j5["citation_inaccessible"] is True
+
+
+def test_citations_beyond_the_check_limit_block_a_pass():
+    from code_eval import semantic_evidence
+    ok = lambda url: {"status": "ok", "text": "Beta is 42 according to the registry.", "final_url": url}
+    body = {"answers": {"J5": {"choice": "PASS", "confidence": .9, "reason": "ok",
+                               "citation_checks": [check("https://cited.example/beta", "Beta is 42 [2].", "supported", quote="Beta is 42")]}},
+            "verification": {}}
+    state = {**STATE, "answer_citations": [c for c in STATE["answer_citations"] if c["url"].endswith("beta")],
+             "answer_citations_unchecked": ["https://cited.example/fifth"]}
+    entry = verify_answer_citations(body, state, fetcher=ok)["answers"]["J5"]
+    semantic_evidence._citation_check(entry, state)
+    assert entry["choice"] == "UNVERIFIED" and "fifth" in entry["reason"]
