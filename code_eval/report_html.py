@@ -542,14 +542,22 @@ def _code_case(case: Dict[str, Any], fails: List[Dict[str, Any]], others: List[D
         link = f' <a class="note" href="#fail-{_e(cid)}-{no}">아래 상세 ↓</a>' if no else ""
         rows.append(f'<tr><th scope="row">{_e(crit)}</th><td>{_e(r["title"])}<div class="note">{_e(r["explain"]["checked"])}</div></td>'
                     f'<td>{_verdict(verdict, r["status"])}{link}<div class="note">{_e(r["explain"]["summary"])}</div></td></tr>')
-    n_pass = sum(1 for r in case["results"] if r["counted"] and r["verdict"] == "PASS")
+    # 조건 수는 요약(engine._summarize)과 같게 — 답변 구조 검사는 답변마다 조건 1개로 묶어 센다(v16.5.0). 표는 세부 행을 모두 보여 준다
+    summary = case.get("summary") or {}
+    n_pass = sum((summary.get(k) or {}).get("pass", 0) for k in ("common", "specialized"))
+    n_fail = sum((summary.get(k) or {}).get("fail", 0) for k in ("common", "specialized"))
+    shown = sum(1 for r in case["results"] if r["counted"] and r["verdict"] in ("PASS", "FAIL"))
+    if summary and shown != n_pass + n_fail:
+        unjudged["세부 행"] = shown
+    if not summary:   # 요약이 없는 옛 기록 — 행 수
+        n_pass, n_fail = sum(1 for r in case["results"] if r["counted"] and r["verdict"] == "PASS"), len(fails)
     table = (f'<div class="wrap"><table><thead><tr><th>기준</th><th>검사</th><th>결과</th></tr></thead>'
              f'<tbody>{"".join(rows)}</tbody></table></div>' if rows else '<p class="note">이 질문에 적용된 CODE 검사가 없습니다.</p>')
     detail = ('<h4>CODE에서 발견된 문제</h4>' + "".join(_result_html(r, no, cid) for no, r in enumerate(fails, 1))) if fails else ""
     more = (f'<details><summary>나머지 검사 상세 설명 {len(others)}건</summary>{"".join(_result_html(r) for r in others)}</details>'
             if others else "")
     extra = "".join(f" · {label} {n}" for label, n in unjudged.items())
-    return (f'<div class="code-box"><h3>CODE Evaluation {_counts(n_pass, len(fails), extra)}</h3>'
+    return (f'<div class="code-box"><h3>CODE Evaluation {_counts(n_pass, n_fail, extra)}</h3>'
             f'{table}{detail}{more}{obs_html}</div>')
 
 

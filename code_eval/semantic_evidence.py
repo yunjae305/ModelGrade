@@ -65,30 +65,66 @@ def _contained(quote, text):
 #: 답변(Markdown)의 굵게 표시 — 앞이 공백·줄 시작이고 뒤가 공백·문장부호인 짝, 안쪽은 '*'·줄바꿈 없는 200자 이내.
 #: 안쪽 길이를 묶어 40만 자 답변에서도 길이에 비례해 끝난다. '2**3'·'func(**kw)' 같은 코드 기호는 그대로 둔다.
 _ANSWER_STRONG = re.compile(r"(?:(?<=\s)|^)\*\*(?=[^\s*])([^*\n]{1,200}?)(?<=\S)\*\*(?=[\s.,;:!?)]|$)")
-_INLINE_CODE = re.compile(r"`[^`\n]*`")
+#: 펜스 코드 블록 — 인용(>) 안 포함, 줄 앞 공백 3칸까지, 백틱·물결 3개 이상. 닫는 줄은 같은 문자로 여는 줄 이상의 개수만 있어야 한다
+_QUOTE_MARK = re.compile(r" {0,3}> ?")   # 인용 표시 하나 (뒤의 공백 한 칸은 표시의 일부)
+_OPEN_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+_CLOSING_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})[ \t]*$")   # 닫는 펜스 — 들여쓰기 3칸까지, 뒤에는 공백만
+
+
+def _quote_split(line):
+    """(인용 깊이, 인용 표시를 뗀 내용)."""
+    depth = 0
+    while True:
+        mark = _QUOTE_MARK.match(line)
+        if not mark:
+            return depth, line
+        depth, line = depth + 1, line[mark.end():]
+
+
+def _indent_width(text):
+    """줄 앞 공백의 너비 — 탭은 4칸 탭 위치까지 (Markdown 들여쓰기 코드 판별)."""
+    width = 0
+    for ch in text:
+        if ch == " ":
+            width += 1
+        elif ch == "\t":
+            width += 4 - width % 4
+        else:
+            break
+    return width
+_BACKTICK_RUN = re.compile(r"`+")
 
 
 def _render_answer(answer):
-    """화면에 보이는 답변 글자 — 문장 속 굵게 표시 '**…**' 만 벗긴다. 펜스 코드 블록(```·~~~)과 인라인 코드(`…`) 안은
-    글자 그대로 둔다 ('**/cache/**' 같은 와일드카드·코드가 다른 값과 맞지 않도록). 줄 단위로 한 번씩 훑는다."""
+    """화면에 보이는 답변 글자 — 문장 속 굵게 표시 '**…**' 만 벗긴다. 코드일 수 있는 줄은 글자 그대로 둔다(보수적으로):
+    펜스 코드 블록 안(여는 줄과 같은 인용 깊이에서, 같은 문자·여는 줄 이상의 개수·들여쓰기 3칸까지인 줄로만 닫힘), 들여쓴 줄
+    (인용 표시를 뗀 뒤 탭 포함 4칸 이상), 백틱이 있는 줄, 여러 줄에 걸친 인라인 코드 안(여는 백틱 연속 개수와 같은 개수가 나올
+    때까지). 줄 단위로 한 번씩 훑는다."""
     if not isinstance(answer, str):
         return answer
-    lines, fence = [], None
+    lines, fence, fence_depth, open_run = [], None, 0, None
     for line in answer.split("\n"):
-        mark = line.lstrip()[:3]
-        if mark in ("```", "~~~"):
-            fence = None if fence == mark else (fence or mark)
+        depth, content = _quote_split(line)
+        if fence:
+            closing = _CLOSING_FENCE.match(content)
+            if (depth == fence_depth and closing and closing.group(1)[0] == fence[0]
+                    and len(closing.group(1)) >= len(fence)):
+                fence = None   # 같은 인용 깊이·같은 문자·여는 줄 이상 — 닫힘
             lines.append(line)
-        elif fence:
+            continue
+        opening = _OPEN_FENCE.match(content)
+        if opening and open_run is None:
+            fence, fence_depth = opening.group(1), depth
             lines.append(line)
-        else:
-            parts, at = [], 0
-            for span in _INLINE_CODE.finditer(line):
-                parts += [_ANSWER_STRONG.sub(r"\1", line[at:span.start()]), span.group()]
-                at = span.end()
-            lines.append("".join(parts + [_ANSWER_STRONG.sub(r"\1", line[at:])]))
+            continue
+        runs = [len(run) for run in _BACKTICK_RUN.findall(line)]
+        if open_run is not None or runs or _indent_width(content) >= 4:
+            for size in runs:   # 인라인 코드는 같은 개수의 백틱으로 닫힌다 — 줄을 넘어가면 다음 줄들도 코드
+                open_run = size if open_run is None else (None if size == open_run else open_run)
+            lines.append(line)
+            continue
+        lines.append(_ANSWER_STRONG.sub(r"\1", line))
     return "\n".join(lines)
-
 
 def _in_answer(claim, answer, rendered=None):
     """J5 주장이 답변에 있는가 — 원문 그대로, 또는 화면에 보이는 글자(굵게 표시 '**…**' 를 벗긴 답변)에서.

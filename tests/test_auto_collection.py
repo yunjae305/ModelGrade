@@ -193,19 +193,75 @@ def test_requests_outside_the_approved_call_and_cost_limits_are_never_started(tm
     assert "claude" in priced["run"]["providers"]   # 한도 안에 드는 다른 제공자는 그대로 시작
 
 
-def test_budget_guard_stops_before_exceeding_the_authorized_cost():
-    run = {"auto_collection": {"prices": {"gpt": {"input": 1.0, "output": 1.0}},
+def test_budget_guard_stops_before_exceeding_the_authorized_cost(tmp_path):
+    run = {"run_id": "abcdefabcdef", "auto_collection": {"prices": {"gpt": {"input": 1.0, "output": 1.0}},
                                "budget": {**auto.empty_budget(auto.today()), "authorized_calls": 2, "authorized_cost_usd": 0.002,
                                           "providers": {"gpt": {"planned_calls": 2, "planned_cost_usd": 0.002, "spent_calls": 0, "spent_cost_usd": 0.0}}},
                                "providers": {}}}
-    svc = ComparisonService(CodeEvalService(), save_dir="unused-runs")
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
     guard = svc._auto_guard(run, {"gpt": {"reserves": {0: 0.001, 1: 0.001, 2: 0.001}}}, ["gpt"])
     assert guard.before("gpt", 0) is None and guard.before("gpt", 1) is None   # 동시 요청은 예약으로 센다
+    ledger = tmp_path / "auto-reservations" / "abcdefabcdef.json"
+    requests = lambda: json.loads(ledger.read_text(encoding="utf-8"))["requests"] if ledger.exists() else {}
+    first, second = sorted(requests())
+    assert len({first, second}) == 2   # 요청을 보내기 전에 요청 번호별 예약을 디스크에 남긴다 (번호는 겹치지 않음)
     assert "승인된 호출·비용 범위" in guard.before("gpt", 2)
     guard.after("gpt", 0, {"status": "SUCCESS", "raw": None}, None)   # 사용량이 없으면 상한으로 정산
     assert run["auto_collection"]["budget"]["spent_cost_usd"] == pytest.approx(0.001)
+    budget = run["auto_collection"]["budget"]
+    settled = budget["settled_requests"]
+    assert len(settled) == 1 and sorted(requests()) == sorted([first, second])   # 실행 기록 저장 전까지는 예약을 지우지 않는다
+    guard.saved()
+    assert list(requests()) == [r for r in (first, second) if r not in settled]
+    assert budget["by_day"][auto.today()] == {"calls": 1, "cost_usd": pytest.approx(0.001)}
     guard.after("gpt", 1, {"status": "ERROR"}, 404)
     assert "HTTP 404" in guard.before("gpt", 2)
+
+
+@pytest.mark.parametrize("status", ["COLLECTING", "CANCELLED"])   # 종료 처리로 취소 저장된 실행도
+def test_unsettled_reservations_count_as_spend_once_after_a_restart(tmp_path, status):
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
+    day = auto.today()
+    assert svc._write_reservations("abcdefabcdef", {f"r{n}": {"cost_usd": 0.01, "day": day, "provider": "gpt"} for n in (1, 2, 3, 4)})
+    run = {"run_id": "abcdefabcdef", "status": status, "progress": {}, "providers": ["aiona"], "auto_collection": {
+        "budget": {**auto.empty_budget(day), "authorized_calls": 5, "authorized_cost_usd": 0.05, "spent_calls": 1,
+                   "spent_cost_usd": 0.01, "settled_requests": ["r1"]}, "providers": {}}}
+    svc._load_with_reservations(run)   # 재시작 — 응답을 받았는지 모르는 r2~r4 는 이미 청구됐을 수 있다 (r1 은 정산 저장됨)
+    budget = run["auto_collection"]["budget"]
+    assert (budget["spent_calls"], budget["spent_cost_usd"], budget["estimated_calls"]) == (4, pytest.approx(0.04), 3)
+    assert budget["recovered_reservations"] == {"calls": 3, "cost_usd": 0.03}
+    assert not (tmp_path / "auto-reservations" / "abcdefabcdef.json").exists()   # 저장한 뒤 지움
+    assert svc._write_reservations("abcdefabcdef", {"r2": {"cost_usd": 0.01, "day": day}})   # 같은 번호가 다시 남아 있어도
+    svc._load_with_reservations(run)
+    assert budget["spent_calls"] == 4   # 두 번 세지 않는다
+
+
+def test_legacy_spend_moves_to_its_start_day_before_new_daily_entries():
+    budget = {k: v for k, v in auto.empty_budget("2026-10-10").items() if k != "by_day"}
+    budget.update(spent_calls=5, spent_cost_usd=0.5, providers={})
+    auto.settle(budget, "gpt", 0.1, "2026-10-13", estimated=False)
+    assert budget["by_day"] == {"2026-10-10": {"calls": 5, "cost_usd": 0.5}, "2026-10-13": {"calls": 1, "cost_usd": 0.1}}
+    assert auto.latest_day(budget) == "2026-10-13"   # 일일 한도 색인은 마지막으로 비용을 쓴 날
+
+
+def test_a_job_running_past_midnight_still_counts_against_todays_limit():
+    budget = {**auto.empty_budget("2026-10-12"), "authorized_calls": 10, "authorized_cost_usd": 1.0, "spent_calls": 6,
+              "spent_cost_usd": 0.6, "by_day": {"2026-10-12": {"calls": 4, "cost_usd": 0.4}, "2026-10-13": {"calls": 2, "cost_usd": 0.2}}}
+    assert auto.used_on(budget, "2026-10-13", active=True, started_today=False) == (6, pytest.approx(0.6))   # 오늘 2 + 남은 승인 4
+    assert auto.used_on(budget, "2026-10-13", active=False, started_today=False) == (2, pytest.approx(0.2))
+    legacy = {k: v for k, v in budget.items() if k != "by_day"}
+    assert auto.used_on(legacy, "2026-10-13", active=False, started_today=False) == (0, 0.0)   # 예전 기록은 시작한 날에만
+
+
+def test_collect_more_respects_the_concurrent_run_limit(tmp_path, monkeypatch):
+    from webapp import comparison_service
+    providers = Providers(fail={"claude": 500})
+    svc, providers, _ = make(tmp_path, providers=providers, configure=("gpt", "claude"))
+    run_id = upload(svc)["run"]["run_id"]
+    wait(svc, run_id)
+    monkeypatch.setattr(comparison_service, "MAX_RUNS", 0)
+    with pytest.raises(comparison_service.JobCapacityError):
+        svc.collect_more(run_id, {"providers": ["claude"]})
 
 
 def test_retry_requests_only_failed_rows_and_reuses_collected_turns_as_history(tmp_path):
@@ -267,3 +323,11 @@ def test_collected_answers_go_through_the_existing_evaluation_and_restore_from_d
     assert judge.calls and "GPT" not in json.dumps([c["state"] for c in judge.calls], ensure_ascii=False)
     restored = ComparisonService(CodeEvalService(save_dir=tmp_path / "eval"), save_dir=tmp_path / "runs").result(run_id)
     assert restored["evaluations"] == done["evaluations"] and restored["auto_collection"] == done["auto_collection"]
+
+
+def test_daily_index_includes_reservation_days_before_recovery(tmp_path):
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
+    assert svc._write_reservations("abcdefabcdef", {"x1": {"cost_usd": 0.01, "day": "2026-10-13", "provider": "gpt"}})
+    svc._ensure_auto_index()
+    svc._remember_auto({"run_id": "abcdefabcdef", "auto_collection": {"job_key": "k", "budget": auto.empty_budget("2026-10-12")}})
+    assert svc._auto_days["abcdefabcdef"] == "2026-10-13"   # 어제 시작했지만 오늘 보낸 요청이 예약 기록에만 있다

@@ -9,13 +9,20 @@
   const SESSION_KEY = 'aiona-collection-run';
   const PAGE_SIZE = 10;
   const LIVE = ['gpt', 'claude', 'gemini', 'factchat'];
-  const state = {status: null, runId: null, starting: false, notice: '', jobs: new Map(), search: '', filter: '', page: 0,
+  const state = {status: null, runId: null, starting: false, queued: null, notice: '', jobs: new Map(), search: '', filter: '', page: 0,
     open: new Set(), items: new Map(), listKey: ''};
   const usd = (value) => '$' + Number(value || 0).toLocaleString('en-US', {maximumFractionDigits: 4});
 
   // --- 현재 작업 -----------------------------------------------------------------------------
   const inConversation = (c) => c.conversation_id !== undefined && c.conversation_id !== null;
-  const datasetKey = (cases) => cases.length + ':' + cases.map((c) => c.case_id + '\u0001' + c.question.length).join('|');
+  // 내용 지문(32비트 FNV-1a) — 질문·답변·대화 위치가 하나라도 바뀌면 다른 데이터로 본다 (같은 길이로 바꾼 글도)
+  function fingerprint(text) {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 0x01000193) >>> 0; }
+    return hash.toString(36);
+  }
+  const datasetKey = (cases) => cases.length + ':' + fingerprint(JSON.stringify(cases.map((c) =>
+    [c.case_id, c.question, c.answer, c.conversation_id ?? null, c.turn ?? null])));
   // 화면에 묶인 작업의 전체 결과 (답변 원문 포함). 다른 실행을 보고 있으면 null.
   function job() {
     const result = W.currentResult(), run = W.currentRun();
@@ -41,7 +48,17 @@
 
   async function startJob({rerun = false} = {}) {
     const dataset = W.dataset();
-    if (!dataset.cases.length || state.starting || W.versionMode()) return;
+    if (!dataset.cases.length || W.versionMode()) return;
+    // 앞 요청이 끝나지 않았으면 기다렸다가 그때의 최신 데이터로 다시 시작한다 (새 업로드를 버리지 않음)
+    // 대기열은 그때의 데이터 내용·입력 방식에 묶는다 — 끝났을 때 바뀌어 있으면(직접 입력 초안 등) 보내지 않는다.
+    // 재수집 표시는 같은 데이터를 다시 요청할 때만 이어 간다 (다른 데이터로 옮겨 붙어 유료 재수집이 되지 않게)
+    if (state.starting) {
+      const entry = {rerun, key: datasetKey(dataset.cases), mode: dataset.inputMode};
+      const same = state.queued && state.queued.key === entry.key && state.queued.mode === entry.mode;
+      state.queued = same ? {...entry, rerun: rerun || state.queued.rerun} : entry;
+      return;
+    }
+    const key = datasetKey(dataset.cases);
     state.starting = true; showError(null); render();
     try {
       const response = await api('/api/comparison/auto-collection/jobs', {cases: dataset.cases, name: $('run-name').value.trim() || dataset.name,
@@ -49,7 +66,9 @@
         input_document: dataset.importInfo?.converted ? dataset.importInfo : undefined,
         expected_model_version: W.currentRelease()?.version});
       const run = response.run;
-      state.runId = run.run_id; state.jobs.set(datasetKey(dataset.cases), run.run_id); remember(run.run_id);
+      state.jobs.set(key, run.run_id);   // 그 데이터의 작업으로 기억만 하고
+      if (datasetKey(W.dataset().cases) !== key) return;   // 그 사이 다른 데이터로 바뀌었으면 화면에 붙이지 않는다
+      state.runId = run.run_id; remember(run.run_id);
       const skipped = Object.entries(response.skipped || {}).map(([id, reason]) => `${providerLabel(id)}: ${reason}`);
       state.notice = response.reused ? '같은 파일로 만든 수집 작업을 다시 열었습니다. 새 요청은 보내지 않았습니다.' :
         run.providers.length > 1 ? `${run.providers.filter((p) => p !== 'aiona').map((p) => providerLabel(p, run)).join(' · ')}에 같은 질문을 보내고 있습니다.` +
@@ -57,8 +76,15 @@
         skipped.length ? '한도 안에서 시작할 수 있는 AI가 없습니다. ' + skipped.join(' / ') : '자동 수집할 수 있는 AI가 없습니다. 관리 설정에서 연결과 허용 여부를 확인하세요.';
       W.announce(response.reused ? '이미 수집한 작업을 열었습니다.' : '자동 수집을 시작했습니다.');
       W.openRun(run.run_id, {navigate: false});
-    } catch (err) { showError(err.message); }
-    finally { state.starting = false; render(); }
+    } catch (err) { if (datasetKey(W.dataset().cases) === key) showError(err.message); }
+    finally {
+      state.starting = false;
+      const queued = state.queued;
+      state.queued = null;
+      render();
+      const now = W.dataset();
+      if (queued && datasetKey(now.cases) === queued.key && now.inputMode === queued.mode) startJob({rerun: queued.rerun});
+    }
   }
 
   async function collectMore(providers) {
@@ -207,7 +233,7 @@
   function itemFingerprint(unit, source) {
     const open = state.open.has(unit.key);
     return JSON.stringify([open, source.run?.run_id || '', source.providers, unit.indices.map((index) => source.providers.map((p) => {
-      if (p === 'aiona') return 1;
+      if (p === 'aiona') return fingerprint((source.cases[index]?.question || '') + '\u0001' + (source.cases[index]?.answer || ''));
       const row = source.run?.datasets?.[p]?.[index];
       return open ? [row?.collection?.status || null, row?.answer?.length ?? null] : row?.collection?.status || null;
     }))]);
@@ -247,6 +273,9 @@
   }
   // 요약 줄은 그대로 두고 상태 칩과 펼친 본문만 바꾼다 — 수집이 진행돼도 포커스와 펼침이 유지된다
   function updateItem(details, unit, source) {
+    const first = source.cases[unit.indices[0]];   // 요약 줄의 질문도 현재 원문으로 (직접 입력을 고친 경우)
+    details.querySelector('.compare-id').textContent = unit.conversation ? unit.label : first.case_id;
+    details.querySelector('.compare-question').textContent = first.question;
     details.querySelector('.compare-chips').replaceWith(chips(unit, source));
     const current = details.querySelector(':scope > .compare-body');
     if (details.open) { if (current) current.replaceWith(body(unit, source)); else details.append(body(unit, source)); }

@@ -461,11 +461,8 @@ class ComparisonService:
             if not re.fullmatch(r"[a-f0-9]{12}", run_id) or not path.is_file():
                 raise FileNotFoundError(run_id)
             run = json.loads(path.read_text(encoding="utf-8"))
-            interrupted = run['status'] in ('COLLECTING', 'EVALUATING')
-            self._interrupted(run)
+            self._load_with_reservations(run)
             self._runs[run_id] = run
-            if interrupted:
-                self._save(run)
         return run
 
     @staticmethod
@@ -476,7 +473,75 @@ class ComparisonService:
                     progress.update(stage="ERROR", active=None, timing_interrupted=True)
             run["status"], run["error"] = "ERROR", "서버 재시작으로 실행이 중단되었습니다. 저장된 원문과 결과를 확인해 주세요."
             ComparisonService._clear_inflight(run)
-            ComparisonService._finalize_auto_collection(run)
+            ComparisonService._finalize_auto_collection(run)   # 반복해도 같다 — 남은 예약을 정산한 뒤 한 번 더 (_load_with_reservations)
+
+    # --- 자동 수집 요청 예약 기록 — 요청을 보내기 전에 디스크에 남겨, 재시작해도 이미 청구됐을 수 있는 요청을 사용량으로 센다 ---
+    @staticmethod
+    def _reservations_path(save_dir, run_id):
+        return Path(save_dir) / "auto-reservations" / f"{run_id}.json"   # 실행 JSON 과 다른 폴더 (실행 목록에 섞이지 않게)
+
+    def _write_reservations(self, run_id, entries):
+        """보낸 뒤 정산이 실행 기록에 저장되지 않은 요청 {요청 번호: {"cost_usd", "day"}} 을 기록한다 (비면 지움).
+        실패하면 False — 그 요청은 보내지 않는다."""
+        path = self._reservations_path(self.save_dir, run_id)
+        try:
+            if not entries:
+                path.unlink(missing_ok=True)
+                return True
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text(json.dumps({"requests": entries}), encoding="utf-8")
+            temporary.replace(path)
+            return True
+        except OSError:
+            return False
+
+    def _clear_reservations(self, run_id):
+        try:
+            self._reservations_path(self.save_dir, run_id).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    @staticmethod
+    def _recover_reservations(run, save_dir):
+        """정산이 실행 기록에 저장되지 않은 요청 — 제공자가 이미 청구했을 수 있으므로 예약한 상한 비용으로 사용량에 더한다.
+
+        실행 상태와 상관없이(중단·취소·오류) 기록이 있으면 본다. 이미 정산한 번호(settled_requests)는 건너뛰어 여러 번 불러도
+        두 번 세지 않는다. 더한 것이 있으면 True — 호출한 쪽이 실행을 저장한 뒤 기록을 지운다."""
+        budget = (run.get("auto_collection") or {}).get("budget")
+        if not isinstance(budget, dict):
+            return False
+        try:
+            entries = json.loads(ComparisonService._reservations_path(save_dir, run["run_id"]).read_text(encoding="utf-8"))["requests"]
+        except (OSError, ValueError, TypeError, KeyError):
+            return False
+        settled = budget.setdefault("settled_requests", [])
+        recovered = {"calls": 0, "cost_usd": 0.0}
+        for rid, entry in (entries.items() if isinstance(entries, dict) else []):
+            if rid in settled or not isinstance(entry, dict):
+                continue
+            cost = float(entry.get("cost_usd") or 0.0)
+            auto.settle(budget, entry.get("provider"), cost, entry.get("day") or auto.today(), estimated=True)
+            settled.append(rid)
+            recovered["calls"] += 1
+            recovered["cost_usd"] += cost
+        if recovered["calls"]:
+            previous = budget.get("recovered_reservations") or {"calls": 0, "cost_usd": 0.0}
+            budget["recovered_reservations"] = {"calls": previous["calls"] + recovered["calls"],
+                                                "cost_usd": round(previous["cost_usd"] + recovered["cost_usd"], 8)}
+        return True
+
+    def _load_with_reservations(self, run):
+        """디스크에서 읽은 실행 — 재시작으로 끊긴 실행 정리, 남은 예약 정산. 바뀌었으면 저장하고, 저장한 뒤에만 예약 기록을 지운다."""
+        interrupted = run['status'] in ('COLLECTING', 'EVALUATING')
+        self._interrupted(run)
+        recovered = self._recover_reservations(run, self.save_dir)
+        if interrupted:
+            self._finalize_auto_collection(run)
+        if (interrupted or recovered) and self._save(run) and recovered:
+            self._clear_reservations(run["run_id"])
+        if recovered and run.get("run_kind") == "auto_collection" and self._auto_jobs is not None:
+            self._remember_auto(run)   # 복구한 날짜로 일일 색인을 다시 맞춘다 (색인 전이면 나중에 저장된 기록에서 읽음)
 
     @staticmethod
     def _clear_inflight(run):
@@ -619,10 +684,7 @@ class ComparisonService:
                     try:
                         run = json.loads(path.read_text(encoding="utf-8"))
                         if run["run_id"] not in self._runs:
-                            interrupted = run['status'] in ('COLLECTING', 'EVALUATING')
-                            self._interrupted(run)
-                            if interrupted:
-                                self._save(run)
+                            self._load_with_reservations(run)
                         stored[run["run_id"]] = self._status(run)
                     except (OSError, ValueError, KeyError):
                         continue
@@ -996,7 +1058,18 @@ class ComparisonService:
         current = self._auto_jobs.get(key)
         if current is None or (current[0] or "") <= (run.get("created_at") or ""):
             self._auto_jobs[key] = (run.get("created_at"), run_id)
-        self._auto_days[run_id] = (info.get("budget") or {}).get("day")
+        budget = info.get("budget") or {}
+        # 마지막으로 비용을 쓴 날 (자정을 넘긴 작업 포함) — 정산 전 예약 기록의 날짜도 (재시작 직후 아직 복구 전일 수 있음)
+        days = [auto.latest_day(budget)] if budget else []
+        days += self._reservation_days(run_id)
+        self._auto_days[run_id] = max(days) if days else None
+
+    def _reservation_days(self, run_id):
+        try:
+            entries = json.loads(self._reservations_path(self.save_dir, run_id).read_text(encoding="utf-8"))["requests"]
+            return [entry["day"] for entry in entries.values() if isinstance(entry, dict) and isinstance(entry.get("day"), str)]
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+            return []
 
     def _ensure_auto_index(self):
         """잠금 안에서 호출. 저장된 자동 수집 기록은 서버 시작 후 처음 한 번만 읽는다."""
@@ -1030,18 +1103,23 @@ class ComparisonService:
             return None
 
     def _today_used(self):
-        """오늘 일일 한도에 묶인 호출 수·비용 — 진행 중인 작업은 승인한 양, 끝난 작업은 실제 사용량."""
+        """오늘 일일 한도에 묶인 호출 수·비용 — 날짜별로 실제 쓴 양(by_day)에, 진행 중인 작업의 남은 승인량을 더한다.
+
+        자정을 넘겨 계속 도는 작업도 오늘 쓴 양과 남은 승인량이 오늘 한도에 묶인다. by_day 가 없는 예전 기록은 시작한 날에 모두 묶는다."""
         self._ensure_auto_index()
         day, calls, cost = auto.today(), 0, 0.0
         for run_id, budget_day in list(self._auto_days.items()):
-            if budget_day != day:
-                continue
+            live = self._runs.get(run_id)
+            active = bool(live) and live["status"] == "COLLECTING"
+            if budget_day != day and not active:
+                continue   # 오늘 비용을 쓰지 않았고 진행 중도 아닌 작업 (색인은 마지막으로 비용을 쓴 날)
             try:
                 run = self._run(run_id)
             except (FileNotFoundError, ValueError, OSError):
                 self._auto_days.pop(run_id, None)
                 continue
-            used_calls, used_cost = auto.committed(run["auto_collection"]["budget"], run["status"] == "COLLECTING")
+            budget, active = run["auto_collection"]["budget"], run["status"] == "COLLECTING"
+            used_calls, used_cost = auto.used_on(budget, day, active, budget.get("day") == day)
             calls, cost = calls + used_calls, cost + used_cost
         return calls, cost
 
@@ -1102,7 +1180,8 @@ class ComparisonService:
         prices = run["auto_collection"]["prices"]
         pending = {"calls": 0, "cost": 0.0}
         halted = {}
-        lock = self._lock
+        lock, service = self._lock, self
+        ledger, request_ids = {}, {}   # 정산이 실행 기록에 저장되기 전까지 디스크 기록에 남기는 요청 · (제공자, 행) → 요청 번호
 
         class Guard:
             @staticmethod
@@ -1114,6 +1193,12 @@ class ComparisonService:
                     if (budget["spent_calls"] + pending["calls"] + 1 > budget["authorized_calls"]
                             or budget["spent_cost_usd"] + pending["cost"] + reserve > budget["authorized_cost_usd"] + 1e-9):
                         return "승인된 호출·비용 범위를 넘을 수 있어 요청하지 않았습니다. 관리 설정의 한도를 확인한 뒤 다시 수집해 주세요."
+                    rid = uuid.uuid4().hex   # 실행·재시작과 상관없이 겹치지 않는 요청 번호 (복구한 번호를 재시도가 다시 쓰지 않게)
+                    ledger[rid] = {"cost_usd": reserve, "day": auto.today(), "provider": provider}
+                    if not service._write_reservations(run["run_id"], ledger):
+                        del ledger[rid]
+                        return "요청 예약을 기록하지 못해 요청하지 않았습니다 (재시작 시 비용을 셀 수 없음). 저장 공간을 확인한 뒤 다시 수집해 주세요."
+                    request_ids[(provider, index)] = rid
                     pending["calls"] += 1
                     pending["cost"] += reserve
                     return None
@@ -1127,12 +1212,11 @@ class ComparisonService:
                     usage = auto.usage_tokens(provider, outcome.get("raw"))
                     cost = auto.cost_usd(prices[provider], *usage) if usage else reserve
                     budget = run["auto_collection"]["budget"]
-                    budget["spent_calls"] += 1
-                    budget["spent_cost_usd"] += cost
-                    budget["estimated_calls"] += usage is None
-                    spent = budget["providers"][provider]
-                    spent["spent_calls"] += 1
-                    spent["spent_cost_usd"] += cost
+                    auto.settle(budget, provider, cost, auto.today(), estimated=usage is None)
+                    rid = request_ids.pop((provider, index), None)
+                    if rid:
+                        budget.setdefault("settled_requests", []).append(rid)   # 실행 기록과 함께 저장 — 복구에서 두 번 세지 않음
+                    service._auto_days[run["run_id"]] = auto.today()   # 일일 한도 색인: 마지막으로 비용을 쓴 날
                     outcome["estimated_cost_usd"] = {"amount": round(cost, 8), "basis": "usage" if usage else "upper_bound"}
                     raw = outcome.get("raw")
                     if provider == "factchat" and isinstance(raw, dict) and isinstance(raw.get("model"), str):
@@ -1142,6 +1226,17 @@ class ComparisonService:
                     if status in auto.HALTING_STATUS and provider not in halted:
                         halted[provider] = (f"앞선 요청이 HTTP {status}({auto.HALTING_STATUS[status]} 확인 필요)로 실패해 이 제공자의 "
                                             "남은 요청을 멈췄습니다. 설정을 확인한 뒤 다시 수집해 주세요.")
+
+            @staticmethod
+            def saved():
+                """실행 기록을 저장한 뒤 — 정산이 저장된 요청만 예약 기록에서 뺀다 (저장 전에 빼면 그 사이 꺼질 때 비용이 빠짐)."""
+                with lock:
+                    settled = set(run["auto_collection"]["budget"].get("settled_requests") or ())
+                    done = [rid for rid in ledger if rid in settled]
+                    if done:
+                        for rid in done:
+                            del ledger[rid]
+                        service._write_reservations(run["run_id"], ledger)
         return Guard
 
     @staticmethod
@@ -1314,6 +1409,9 @@ class ComparisonService:
                 raise ValueError("평가를 시작한 실행에는 답변을 더하거나 다시 수집할 수 없습니다. '새로 수집'으로 별도 실행을 만들어 주세요.")
             if run["status"] not in ("READY", "CANCELLED", "ERROR") or self._workers.get(run_id):
                 raise ValueError("수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.")
+            active = [r for r in self._runs.values() if r["status"] in ("COLLECTING", "EVALUATING")]
+            if len(active) >= MAX_RUNS:   # 새로 시작할 때와 같은 한도 — 재수집으로 동시 실행이 늘지 않게
+                raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
             info, cases = run["auto_collection"], run["datasets"]["aiona"]
             n, max_tokens = len(cases), run["max_tokens"]
             for provider in providers:
@@ -1572,7 +1670,8 @@ class ComparisonService:
                                         progress["elapsed_ms"] = round((time.monotonic() - started) * 1000, 1)
                                         progress[{"SUCCESS": "success", "INCOMPLETE": "incomplete", "ERROR": "failed"}[outcome["status"]]] += 1
                                         run["done"] += 1
-                                        self._save(run)
+                                        if self._save(run) and guard:
+                                            guard.saved()
                         except Exception:
                             stopped.set()
                             raise

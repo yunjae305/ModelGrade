@@ -1103,3 +1103,14 @@ def test_no_unjudged_on_saved_comparison_inputs():
         unjudged += [r["check_id"] for r in case["results"] if r["area"] == "common" and r["verdict"] not in (PASS, FAIL)]
         errors += case["errors"]
     assert unjudged == [] and errors == []
+
+
+def test_report_code_heading_uses_the_same_grouped_condition_counts_as_the_summary():
+    from code_eval.report_html import render_report
+    batch = engine.evaluate_batch([{"case_id": "EQ", "question": "계산해줘.",
+                                    "answer": "- 2 + 3 = 5\n- 4 + 4 = 8\n- 6 + 1 = 9"}], NO_CONFIG)
+    summary = batch["cases"][0]["summary"]
+    passed = summary["common"]["pass"] + summary["specialized"]["pass"]
+    failed = summary["common"]["fail"] + summary["specialized"]["fail"]
+    html = render_report(batch)
+    assert f"CODE Evaluation <span class=\"box-count\">PASS {passed} · FAIL {failed}" in html   # 답변 등식 3개는 조건 1개

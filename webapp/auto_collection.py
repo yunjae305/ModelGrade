@@ -16,7 +16,7 @@ import json
 import math
 import re
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -233,7 +233,56 @@ def usage_tokens(kind, raw):
 
 def empty_budget(day):
     return {"day": day, "authorized_calls": 0, "authorized_cost_usd": 0.0, "spent_calls": 0, "spent_cost_usd": 0.0,
-            "estimated_calls": 0, "providers": {}}
+            "estimated_calls": 0, "providers": {}, "by_day": {}}   # by_day: 날짜별 실제 사용량 (일일 한도, used_on)
+
+
+def yesterday():
+    return (datetime.now().astimezone().date() - timedelta(days=1)).isoformat()
+
+
+def spend_day(budget, day):
+    """by_day 의 그날 칸. by_day 가 없던 예전 기록은 그때까지 쓴 양을 시작한 날 칸으로 먼저 옮긴다 (재수집해도 예전 사용량이 남게)."""
+    by_day = budget.get("by_day")
+    if not isinstance(by_day, dict):
+        by_day = budget["by_day"] = {}
+        if budget.get("spent_calls") or budget.get("spent_cost_usd"):
+            by_day[budget.get("day") or day] = {"calls": budget.get("spent_calls", 0), "cost_usd": budget.get("spent_cost_usd", 0.0)}
+    return by_day.setdefault(day, {"calls": 0, "cost_usd": 0.0})
+
+
+def settle(budget, provider, cost, day, *, estimated):
+    """요청 한 건의 비용을 작업 합계·날짜별·제공자별로 정산한다 (by_day 이전을 먼저)."""
+    bucket = spend_day(budget, day)
+    budget["spent_calls"] += 1
+    budget["spent_cost_usd"] += cost
+    budget["estimated_calls"] = budget.get("estimated_calls", 0) + bool(estimated)
+    bucket["calls"] += 1
+    bucket["cost_usd"] += cost
+    if provider is not None:
+        spent = budget["providers"].setdefault(provider, {"spent_calls": 0, "spent_cost_usd": 0.0})
+        spent["spent_calls"] += 1
+        spent["spent_cost_usd"] += cost
+
+
+def latest_day(budget):
+    """이 작업이 비용을 쓴 마지막 날 — 일일 한도 색인 (시작한 날보다 늦을 수 있음)."""
+    days = [d for d in (budget.get("by_day") or {}) if isinstance(d, str)] + [budget.get("day") or ""]
+    return max(days)
+
+
+def used_on(budget, day, active, started_today):
+    """``day`` 의 일일 한도에 묶인 (호출 수, 비용) — 그날 실제로 쓴 양(by_day) + 진행 중이면 남은 승인량.
+
+    by_day 가 없는 예전 기록은 시작한 날(started_today)에만 committed() 로 모두 묶는다."""
+    by_day = budget.get("by_day")
+    if not isinstance(by_day, dict):
+        return committed(budget, active) if started_today else (0, 0.0)
+    used = by_day.get(day) or {}
+    calls, cost = used.get("calls", 0), used.get("cost_usd", 0.0)
+    if active:   # 아직 쓰지 않은 승인량은 오늘 몫 — 자정을 넘겨도 다른 작업이 그만큼 더 시작하지 못한다
+        calls += max(0, budget["authorized_calls"] - budget["spent_calls"])
+        cost += max(0.0, budget["authorized_cost_usd"] - budget["spent_cost_usd"])
+    return calls, cost
 
 
 def committed(budget, active):

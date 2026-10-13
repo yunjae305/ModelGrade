@@ -193,11 +193,30 @@ def test_answer_bold_stripping_never_needed_for_literal_claims(answer):
     ("The fixture observatory **opened** in 1961.", "The fixture observatory opened in 1960."),   # 벗겨도 다른 값
     ("```text\nThe exclusion pattern is **/cache/** for this job.\n```", "The exclusion pattern is /cache/ for this job."),   # 코드 블록 안
     ("Use `the **opened in 1960** flag` here.", "Use the opened in 1960 flag here."),   # 인라인 코드 안
+    ("````text\n```\nThe exclusion pattern is **/cache/** for this job.\n```\n````", "The exclusion pattern is /cache/ for this job."),   # 백틱 4개 펜스 안의 ``` 줄
+    ("Run ``the **opened in 1960** `x` flag`` now.", "Run the opened in 1960 `x` flag now."),   # 백틱 두 개 인라인 코드
+
+    ("> ```\n> The exclusion pattern is **/cache/** for this job.\n> ```", "> The exclusion pattern is /cache/ for this job."),   # 인용 안 펜스
+    ("    The exclusion pattern is **/cache/** for this job.", "The exclusion pattern is /cache/ for this job."),   # 들여쓴 코드
+    ("Use `start\nThe exclusion pattern is **/cache/** for this job.\nend` here.", "The exclusion pattern is /cache/ for this job."),   # 여러 줄 인라인 코드
+
+    ("Use ``start\nThe exclusion pattern is **/cache/** for this job.\nend`` here.", "The exclusion pattern is /cache/ for this job."),   # 여러 줄 백틱 두 개
+    ("```\n    ```\nThe exclusion pattern is **/cache/** for this job.\n```", "The exclusion pattern is /cache/ for this job."),   # 4칸 들여쓴 줄은 닫는 펜스가 아님
+
+    ("```\n> ```\nThe exclusion pattern is **/cache/** for this job.\n```", "The exclusion pattern is /cache/ for this job."),   # 인용 밖 펜스는 인용 줄로 닫히지 않음
+    (">     The exclusion pattern is **/cache/** for this job.", "The exclusion pattern is /cache/ for this job."),   # 인용 안 들여쓴 코드
+    (" \tThe exclusion pattern is **/cache/** for this job.", "The exclusion pattern is /cache/ for this job."),   # 공백+탭 들여쓰기
 ])
 def test_answer_bold_stripping_does_not_invent_claims(answer, claimed):
     state = {**copy.deepcopy(STATE), "answer": answer}
     result, _, _ = evaluate(body([claim(claimed)]), state=state)
     assert claims(result)[0]["verdict"] == "UNVERIFIED"
+
+
+def test_quoted_and_listed_bold_text_is_still_rendered():
+    from code_eval.semantic_evidence import _render_answer
+    assert _render_answer("> - **시간 복잡도**: O(log N)") == "> - 시간 복잡도: O(log N)"   # 인용 안 목록의 굵게 표시
+    assert _render_answer("> ```" + "\n" + "> **x** y" + "\n" + "> ```" + "\n" + "**a** b") == "> ```" + "\n" + "> **x** y" + "\n" + "> ```" + "\n" + "a b"
 
 
 def test_citation_claims_use_the_same_rendered_answer_rule():
