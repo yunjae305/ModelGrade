@@ -24,7 +24,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis import TextAnalysis, mask_ranges
+from .analysis import TextAnalysis, mask_ranges, pasted_ranges
 from .extract import _instruction_text, _quote_spans
 from . import long_context, multi_turn
 from .attachments import labels as attachment_labels
@@ -397,10 +397,13 @@ def fact_question(question: str, history: Any = None) -> Tuple[bool, str, List[T
     if not hits:
         return False, "요청 문장에 사실 질의 표현 없음", hits
     asks_why = any(name == "원리·이유" for name, _ in hits)
-    scenario = _SCENARIO.search(question) or any(_SCENARIO.search(q) for q in _history_questions(history))
-    if scenario and not _EXTERNAL.search(question):
+    # 가상 설정·코드 요청·실제 데이터 요청은 요청 부분에서만 — 붙여 넣은 자료 속 '가상 서버'·'코드를 작성' 이 J5-1 을 끄지 않게
+    request = mask_ranges(question, pasted_ranges(question))
+    earlier = [mask_ranges(q, pasted_ranges(q)) for q in _history_questions(history)]
+    scenario = _SCENARIO.search(request) or any(_SCENARIO.search(q) for q in earlier)
+    if scenario and not _EXTERNAL.search(request):
         return False, "가상·가정 설정 — 질문이 준 값만 대조(J5-2)", hits
-    if _CODE_TASK.search(question) and not asks_why:
+    if _CODE_TASK.search(request) and not asks_why:
         return False, "코드 결과물 요청 — 결정 전까지 J5-1 제외(정할 것)", hits
     if sentences and all(_CALC_ONLY.search(s) for s in sentences) and not asks_why:
         return False, "풀이 요청 — J3·코드 3-1", hits

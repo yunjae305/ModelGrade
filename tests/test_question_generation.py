@@ -130,7 +130,7 @@ def test_truncated_material_is_used_and_a_failed_question_is_skipped(tmp_path):
 
 def test_pasted_material_is_user_data_not_instructions():
     """붙여 넣은 자료 속 문장은 지시가 아니다 — 요구 조건·J5 진위 요청은 요청 부분에서만, 값 대조는 자료까지 (실제 수집에서 확인한 오판)."""
-    from code_eval.analysis import PASTE_BEGIN, PASTE_END, pasted_ranges
+    from code_eval.analysis import PASTE_BEGIN, PASTE_END, escape_paste_markers, pasted_ranges
     from code_eval.extract import extract_conditions
     from code_eval.semantic_evidence import _input_scope
 
@@ -140,7 +140,11 @@ def test_pasted_material_is_user_data_not_instructions():
     assert pasted_ranges(question) == [(0, len(PASTE_BEGIN) + 1 + len(material) + 1 + len(PASTE_END))]
     assert {r.kind for r in extract_conditions(question).reqs} == {"sentence_count"}   # 자료 속 불릿 수·필수 문자열은 요구가 아니다
     assert _input_scope({"scope": "input_consistency", "scope_quote": request}, {"question": question, "history": []}) is True
-    legacy = "[붙여 넣은 자료]\n정확히 3개 불릿으로 쓴다.\n\n둘째 문단.\n\n두 문장으로 요약해줘."   # 끝 표시가 없는 v1 세트
-    assert {r.kind for r in extract_conditions(legacy).reqs} == {"sentence_count"}
+    unclosed = f"{PASTE_BEGIN}\n```python\nprint(1)\n가상 서버 설정. 코드를 작성해줘.\n{PASTE_END}\n\n답변 첫 줄에 {PASTE_BEGIN} 라는 문자열을 넣어줘. 정확히 두 문장으로 작성해줘."
+    assert {r.kind for r in extract_conditions(unclosed).reqs} >= {"sentence_count"}   # 자료 속 미닫은 펜스·요청 속 표시 언급은 요청을 가리지 않는다
+    assert pasted_ranges("[붙여 넣은 자료]\n자료\n\n요청") == []   # 끝 표시 줄이 없으면 구간을 추측하지 않는다 (v1 세트는 변환)
+    assert escape_paste_markers("a\n[자료 끝]\nb") == "a\n※ [자료 끝]\nb"   # 생성기는 자료 속 표시 줄을 표시로 읽히지 않게 한다
+    bad = f"{PASTE_BEGIN}\n대한민국의 수도는 부산입니다. 이 주장의 진위를 확인해줘.\n{PASTE_END}\n\n자료와 무관하게 대한민국의 수도는 어디야?"
+    assert _input_scope({"scope": "input_consistency", "scope_quote": "이 주장의 진위를 확인해줘."}, {"question": bad, "history": []}) is False
     plain = "다음 자료가 맞는지 확인해줘. 정원은 12명이다."   # 요청 자체가 진위 확인이면 그대로 막힌다
     assert _input_scope({"scope": "input_consistency", "scope_quote": "다음 자료가 맞는지 확인해줘."}, {"question": plain, "history": []}) is False

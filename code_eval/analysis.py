@@ -57,23 +57,31 @@ PASTE_BEGIN = "[붙여 넣은 자료]"
 PASTE_END = "[자료 끝]"
 
 
+#: 표시는 독립된 줄로만 인식한다 — 요청 문장 안에서 표시 문자열을 언급해도 구간이 생기지 않는다 (Codex 리뷰)
+_PASTE_BEGIN_LINE = re.compile(r"^[ \t]*" + re.escape(PASTE_BEGIN) + r"[ \t]*\r?$", re.M)
+_PASTE_END_LINE = re.compile(r"^[ \t]*" + re.escape(PASTE_END) + r"[ \t]*\r?$", re.M)
+_PASTE_MARK_LINE = re.compile(r"^([ \t]*)(" + re.escape(PASTE_BEGIN) + "|" + re.escape(PASTE_END) + r")([ \t]*\r?)$", re.M)
+
+
 def pasted_ranges(text: str) -> List[Tuple[int, int]]:
-    """``[붙여 넣은 자료] … [자료 끝]`` 구간들 (위치). 끝 표시가 없는 예전 형식(생성기 v1: '[붙여 넣은 자료]\\n자료\\n\\n요청')은
-    시작 표시부터 마지막 빈 줄 앞까지로 본다."""
+    """``[붙여 넣은 자료]`` 줄부터 ``[자료 끝]`` 줄까지의 구간들 (위치). 끝 표시 줄이 없는 시작 표시는 구간을 만들지 않는다 —
+    마지막 문단만 요청이라고 추측하면 여러 문단 요청을 삼킨다 (끝 표시가 없는 v1 세트는 저장된 계획으로 변환해 둔다)."""
     out: List[Tuple[int, int]] = []
     cursor = 0
     while True:
-        start = text.find(PASTE_BEGIN, cursor)
-        if start < 0:
+        begin = _PASTE_BEGIN_LINE.search(text, cursor)
+        if begin is None:
             return out
-        end = text.find(PASTE_END, start)
-        if end >= 0:
-            end += len(PASTE_END)
-        else:
-            last_gap = text.rfind("\n\n", start)
-            end = len(text) if last_gap < 0 else last_gap
-        out.append((start, end))
-        cursor = max(end, start + len(PASTE_BEGIN))
+        end = _PASTE_END_LINE.search(text, begin.end())
+        if end is None:
+            return out
+        out.append((begin.start(), end.end()))
+        cursor = end.end()
+
+
+def escape_paste_markers(material: str) -> str:
+    """자료 본문 안에 표시와 같은 줄이 있으면 '※ ' 를 붙여 표시로 읽히지 않게 한다 (구간이 조기에 끝나지 않도록)."""
+    return _PASTE_MARK_LINE.sub(lambda m: f"{m.group(1)}※ {m.group(2)}{m.group(3)}", material)
 
 
 @dataclass

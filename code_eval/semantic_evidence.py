@@ -166,9 +166,13 @@ def _input_scope(claim, state, source=None):
     정정·이름 변경처럼 요청 문장 자체가 값을 주는 경우도 입력이다. 사용자 원문·턴의 정확한 인용 대조는 호출부(_input_source)가 한다.
     """
     quote = claim.get("scope_quote")
-    question = state.get("question", "")
+    # 요청 근거(scope_quote)·진위 요청·실제 데이터 요청은 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝])를 가린 요청 영역에서만 본다 —
+    # 자료 속 문장을 요청 인용으로 내어 입력 일치를 얻지 못하게 (Codex 리뷰). 값의 인용 대조(_input_source)만 원문 전체를 쓴다.
+    request = lambda text: mask_ranges(text, pasted_ranges(text))
+    question = request(state.get("question", ""))
     # 멀티턴에서는 값을 준 요청이 앞 턴에 있다 — 이전 사용자 턴의 요청 인용도 사용자 원문이다 (이전 AI 답변은 아님)
-    history = [h for h in state.get("history") or [] if isinstance(h, dict) and isinstance(h.get("question"), str)]
+    history = [{**h, "question": request(h["question"])} for h in state.get("history") or []
+               if isinstance(h, dict) and isinstance(h.get("question"), str)]
     if claim.get("scope") != "input_consistency":
         return False
     if _contained(quote, question):
@@ -187,8 +191,6 @@ def _input_scope(claim, state, source=None):
                     r"\b(?:is|are) (?:this|that|it|these|they) (?:true|correct|accurate|right)\b|true or false|"
                     r"fact[ -]?check|verify|whether.{0,35}(?:true|correct)|"
                     r"(?:check|confirm).{0,50}(?:truth|accuracy|correct|authentic)")
-    # 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝]) 속 '확인한다' 같은 문장은 사용자 요청이 아니다 — 요청 부분에서만 찾는다
-    checked = [mask_ranges(text, pasted_ranges(text)) for text in checked]
     if any(re.search(verification, text, re.I) for text in checked):
         return False   # 주어진 자료가 사실인지 묻는 요청에서는 자료가 스스로를 증명하지 못한다
     external_request = (r"(?:국내|전국|전\s*세계|실제\s*(?:운영|시장|판매)).{0,60}"

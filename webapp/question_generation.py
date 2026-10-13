@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from code_eval import long_context, multi_turn
-from code_eval.analysis import PASTE_BEGIN, PASTE_END
+from code_eval.analysis import PASTE_BEGIN, PASTE_END, escape_paste_markers
 from code_eval.criteria_registry import reference_details
 from code_eval.semantic_items import ITEMS, SUBS_BY_ID
 
@@ -364,7 +364,7 @@ class QuestionSetBuilder:
 
     def long_paste(self, spec: Dict[str, Any], question: str) -> str:
         """J6 — 질문만으로 턴 하나가 MIN_TURN_TOKENS 이상이 되도록 붙여 넣을 자료를 만들어 표시로 감싸고, 요청은 그 뒤에 둔다."""
-        wrap = lambda material: f"{PASTE_BEGIN}\n{material}\n{PASTE_END}\n\n{question}"
+        wrap = lambda material: f"{PASTE_BEGIN}\n{escape_paste_markers(material)}\n{PASTE_END}\n\n{question}"
         material = self._ask(_paste_prompt(spec, PASTE_CHARS), MATERIAL_TOKENS, True).strip()
         tries = 0
         while self.count(wrap(material)) < multi_turn.MIN_TURN_TOKENS and tries < 3:
