@@ -1,0 +1,51 @@
+diff --git a/frontend/src/workspace.js b/frontend/src/workspace.js
+index 4fdd70e..d9f9202 100644
+--- a/frontend/src/workspace.js
++++ b/frontend/src/workspace.js
+@@ -538,7 +538,9 @@
+     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
+     $('reuse-dataset').disabled = Boolean(active() || !state.result?.datasets?.aiona?.length);
+     const providers = resultProviders();
+-    $('result-subtitle').textContent = `${run.name} · ${number(run.question_count)}개 질문 · ${run.providers.length}개 모델`;
++    // 평가 방식은 저장된 실행 기록만 — 현재 설정으로 덮어 표시하지 않는다 (평가를 시작한 실행에만 붙인다)
++    const method = run.evaluation_execution || Object.keys(state.result?.evaluations || {}).length ? ` · ${window.AionaEvaluationMethod.label(state.result || run)}` : '';
++    $('result-subtitle').textContent = `${run.name} · ${number(run.question_count)}개 질문 · ${run.providers.length}개 모델${method}`;
+     $('export-all').href = `/api/comparison/runs/${run.run_id}/export`;
+     const collecting = run.status === 'COLLECTING', evaluating = run.status === 'EVALUATING';
+     $('results-title').textContent = collecting ? (external() ? 'API 답변을 수집하고 있어요.' : '세 모델의 답변을 수집하고 있어요.') : '평가 결과, 한눈에.';
+diff --git a/frontend/workspace.html b/frontend/workspace.html
+index db75626..6d44e59 100644
+--- a/frontend/workspace.html
++++ b/frontend/workspace.html
+@@ -12,6 +12,7 @@
+   <script defer src="/src/answer-highlights.js"></script>
+   <script defer src="/src/version-comparison.js"></script>
+   <script defer src="/src/evaluation-stream.js"></script>
++  <script defer src="/src/evaluation-method.js"></script>
+   <script defer src="/src/workspace.js"></script>
+   <script defer src="/src/history-workspace.js"></script>
+   <script defer src="/src/external-import.js"></script>
+diff --git a/tests/workspace_items_ui_smoke.py b/tests/workspace_items_ui_smoke.py
+index 7d29e2b..245b9d0 100644
+--- a/tests/workspace_items_ui_smoke.py
++++ b/tests/workspace_items_ui_smoke.py
+@@ -118,6 +118,8 @@ def main():
+                 expect(page.locator('#collect-button')).to_be_enabled()
+                 page.locator('#collect-button').click()
+                 expect(page.locator('#final-summary')).to_be_visible(timeout=60000)
++                expect(page.locator('#result-subtitle')).to_contain_text('평가 방식: 항목별 의미 평가 (items)')
++                page.locator('#view-results .page-heading').screenshot(path=str(output / 'items-result-method-label.png'))
+ 
+                 run = service.history()[0]
+                 saved = service.result(run['run_id'])
+@@ -174,8 +176,10 @@ def main():
+                 page.locator('#answer-dialog').screenshot(path=str(output / 'items-case-f-error.png'))
+                 page.keyboard.press('Escape')
+ 
++                os.environ['SEMANTIC_PIPELINE'] = 'legacy'   # 현재 설정을 바꿔도 저장된 실행의 방식이 그대로 보여야 한다
+                 page.reload()   # 새로고침 — sessionStorage 의 실행 ID 로 저장된 결과를 다시 연다
+                 expect(page.locator('#final-summary')).to_be_visible(timeout=15000)
++                expect(page.locator('#result-subtitle')).to_contain_text('평가 방식: 항목별 의미 평가 (items)')
+                 ev = open_case('C')
+                 expect(ev).to_contain_text('J4-2.a#1 · 아니오')
+                 page.keyboard.press('Escape')
