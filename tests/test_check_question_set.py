@@ -65,3 +65,16 @@ def test_official_judgement_counts_questions_and_conversations_and_turns_stay_as
     assert check_items(singles, pipeline="items")["criteria"]["CODE 1"]["enough"] is True
     assert check_items(singles[:29], pipeline="items")["criteria"]["CODE 1"]["short"] == 1
 
+
+def test_min_applicable_option_changes_only_the_target_count(tmp_path, capsys):
+    singles = [{"question": f"{n}번 메모를 한 줄로 정리해줘."} for n in range(12)]
+    assert check_items(singles, pipeline="items", minimum=10)["criteria"]["CODE 1"]["enough"] is True
+    report = check_items(singles, pipeline="items", minimum=20)
+    assert (report["min_applicable"], report["criteria"]["CODE 1"]["short"]) == (20, 8)
+    path = tmp_path / "set.jsonl"
+    path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in singles), encoding="utf-8")
+    assert main([str(path), "--json", "--pipeline", "items", "--min-applicable", "5"]) == 0
+    cli = json.loads(capsys.readouterr().out)
+    assert cli["min_applicable"] == 5 and cli["criteria"]["CODE 1"]["enough"] is True
+    assert check_items(singles, pipeline="items")["min_applicable"] == 30   # 기본은 잠정 운영 기준 30 그대로
+
