@@ -307,3 +307,17 @@ def test_comparison_run_applies_the_union_pass_after_all_models_and_replays_upda
     assert gpt_row['fail'] == verdicts.count('FAIL') >= 1 and gpt_row['pass'] == verdicts.count('PASS')
     saved = json.loads((tmp_path / 'runs' / f'{rid}.json').read_text(encoding='utf-8'))
     assert saved['semantic_union']['rechecked'] == 1 and saved['evaluations']['gpt']['jev_eval']['records'][0]['union']['status'] == 'OK'
+
+
+def test_criteria_screen_gets_short_details_for_every_check_sub_and_item():
+    from code_eval.criteria_registry import reference_details
+    details = reference_details()
+    groups = {c["group"] for c in details["code_checks"]}
+    assert len(details["code_checks"]) == 28 and groups == {"1-1", "1-2", "1-3", "2-1", "2-2", "3-1", "3-2", "3-3"}
+    assert all(c["name"] and c["applies"] for c in details["code_checks"])
+    subs, items = details["semantic"]["subs"], details["semantic"]["items"]
+    assert len(subs) == 27 and len(items) == 41 and {s["criterion"] for s in subs} == {f"J{i}" for i in range(1, 8)}
+    first = next(i for i in items if i["id"] == "J1-1.a")
+    assert first["note"] == "나머지 요청의 누락은 J4-2" and not first["question"].endswith(")")   # 끝 괄호는 경계 메모로
+    assert all(i["question"] and i["applies"] and i["pass"] and i["fail"] for i in items)
+    assert all("answer" not in i and "examples" not in i for i in items)   # 긴 예시 원문은 보내지 않는다

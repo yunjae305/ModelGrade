@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any, Dict, List, Optional
 
 from .core import CHECK_VERSIONS
@@ -246,6 +247,34 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "다시 받은 J6 가 인용 대조를 통과해 PASS·FAIL 이면 그것을 쓰고, 아니면 지금 판정을 그대로 둔다 — 근거를 확인하지 못한 판정은 "
                  "여전히 PASS 가 아님. 시도는 레코드의 context_reevaluation(첫 판정·재질문 결과·쓴 쪽)에 남김"]},
 ]
+
+
+#: 평가 기준 화면에 쓰는 짧은 적용 조건 — CODE 검사의 trigger 별
+_TRIGGER_LABELS = {"all": "모든 답변", "question": "질문·앞 턴 지시에 요구가 있을 때", "answer": "답변에 그 구조가 있을 때",
+                   "question_or_answer": "질문 요구 또는 답변의 해당 구조"}
+#: 점검 질문 끝의 괄호 — 다른 기준과의 경계 메모로 따로 작게 보인다
+_BOUNDARY_NOTE = re.compile(r"\s*\(([^()]*)\)\s*$")
+
+
+def reference_details() -> Dict[str, Any]:
+    """평가 기준 화면용 요약 — 판정에는 쓰지 않는다.
+
+    code_checks: CODE 검사 단위(소분류 1-1~3-3)의 이름과 짧은 적용 조건.
+    semantic: 의미 세부 기준과 점검 항목 — 점검 질문(끝 괄호는 note 로 분리)·적용 조건·PASS/FAIL 예시 설명 한 줄씩.
+    긴 예시 원문(질문·답변)은 넣지 않는다 (설계안 HTML 에 있음)."""
+    from .semantic_items import ITEMS, SUBS
+    checks = [{"id": c["id"], "group": c["group"], "name": c["name"], "applies": _TRIGGER_LABELS.get(c["trigger"], c["applies_when"])}
+              for c in _code_entries() if c["layer"] == "CODE" and re.fullmatch(r"\d-\d", c["group"] or "")]
+    items = []
+    for item in ITEMS:
+        found = _BOUNDARY_NOTE.search(item.question)
+        notes = {ex.kind: ex.note for ex in item.examples}
+        items.append({"id": item.id, "sub": item.sub, "criterion": item.criterion,
+                      "question": item.question[:found.start()] if found else item.question,
+                      "note": found.group(1) if found else "", "applies": item.applies,
+                      "pass": notes.get("PASS", ""), "fail": notes.get("FAIL", "")})
+    return {"version": REGISTRY_VERSION, "code_checks": checks,
+            "semantic": {"subs": [{"id": s.id, "criterion": s.criterion, "name": s.name} for s in SUBS], "items": items}}
 
 
 def registry() -> Dict[str, Any]:

@@ -6,6 +6,7 @@
   if (!W || !$('criteria-reference-content')) return;
   const {api, node} = W;
   let taxonomy = null;
+  let details = null;   // CODE 검사·의미 세부 기준·점검 항목 요약 (info.criteria_details) — 없으면 요약 카드만
   let loading = false;
   const names = {J5: '데이터 신뢰도', J6: '멀티턴 맥락 유지', J7: '롱컨텍스트 활용'};
   const specialized = {
@@ -44,7 +45,33 @@
       node('div', {class: 'criteria-category-items'}, ...(category.subs || []).map((criterion) =>
         node('article', {class: 'criteria-code-item', 'data-criterion': criterion.id},
           node('h4', {}, node('span', {class: 'criteria-subcode', text: criterion.id}), criterion.name),
-          note('평가 대상', criterion.target), rules(criterion.pass, criterion.fail)))));
+          note('평가 대상', criterion.target), rules(criterion.pass, criterion.fail), codeChecks(criterion.id)))));
+  }
+  // 소분류의 실제 검사 목록 — 검사 이름 · 언제 적용되는지 한 줄씩
+  function codeChecks(groupId) {
+    const checks = (details?.code_checks || []).filter((check) => check.group === groupId);
+    if (!checks.length) return null;
+    return node('ul', {class: 'criteria-checks', 'aria-label': groupId + ' 검사 ' + checks.length + '개'},
+      ...checks.map((check) => node('li', {}, node('span', {text: check.name}), node('small', {text: check.applies}))));
+  }
+  // 세부 기준 → 점검 항목 표 — 점검 질문 한 줄(경계 메모는 작게), 적용 조건, PASS·FAIL 예시 한 줄씩
+  function semanticItems(criterionId) {
+    const subs = (details?.semantic?.subs || []).filter((sub) => sub.criterion === criterionId);
+    const items = details?.semantic?.items || [];
+    if (!subs.length) return null;
+    const cell = (cls, ...children) => node('div', {class: cls, role: 'cell'}, ...children);
+    return node('div', {class: 'criteria-items', role: 'table', 'aria-label': criterionId + ' 세부 기준과 점검 항목'},
+      node('div', {class: 'criteria-items-row criteria-items-head', role: 'row'},
+        ...['세부 기준', '점검 항목 (예 = PASS)', '적용', '예시'].map((text) => node('div', {role: 'columnheader', text}))),
+      ...subs.flatMap((sub) => items.filter((item) => item.sub === sub.id).map((item, index) =>
+        node('div', {class: 'criteria-items-row' + (index === 0 ? ' criteria-items-first' : ''), role: 'row'},
+          cell('criteria-items-sub', index === 0 ? node('strong', {text: sub.id}) : null, index === 0 ? ' ' + sub.name : ''),
+          cell('criteria-items-question', node('span', {class: 'criteria-subcode', text: item.id}), ' ' + item.question,
+            item.note ? node('small', {text: item.note}) : null),
+          cell('criteria-items-applies', item.applies),
+          cell('criteria-items-examples',
+            item.pass ? node('p', {}, node('b', {class: 'criteria-ok', text: 'PASS'}), ' ' + item.pass) : null,
+            item.fail ? node('p', {}, node('b', {class: 'criteria-ng', text: 'FAIL'}), ' ' + item.fail) : null)))));
   }
   function semanticCriterion(criterion) {
     const applies = criterion.id === 'J5' ?
@@ -54,7 +81,7 @@
     return node('article', {class: 'panel criteria-semantic-card', 'data-criterion': criterion.id},
       heading(criterion.id, names[criterion.id] || criterion.name),
       node('p', {class: 'criteria-question', text: criterion.question}),
-      note('적용 조건', applies), rules(criterion.pass, fail), note('판정 범위', criterion.boundary));
+      note('적용 조건', applies), rules(criterion.pass, fail), note('판정 범위', criterion.boundary), semanticItems(criterion.id));
   }
   function specializedCriterion(criterion) {
     const definition = specialized[criterion.id];
@@ -79,9 +106,11 @@
     const categories = taxonomy.categories;
     const criteria = taxonomy.jev.criteria;
     const extras = taxonomy.specialized.filter((item) => specialized[item.id]);
+    const checks = details?.code_checks?.length, subs = details?.semantic?.subs?.length, items = details?.semantic?.items?.length;
     const index = [
-      ['criteria-common-title', '공통 형식·수치 기준', categories.length + '개 분류 · ' + categories.reduce((sum, group) => sum + group.subs.length, 0) + '개 항목'],
-      ['criteria-semantic-title', '답변 내용 기준', criteria.length + '개 항목 · J1~J' + criteria.length],
+      ['criteria-common-title', '공통 형식·수치 기준', categories.length + '개 분류 · ' + categories.reduce((sum, group) => sum + group.subs.length, 0) + '개 항목' +
+        (checks ? ' · 검사 ' + checks + '개' : '')],
+      ['criteria-semantic-title', '답변 내용 기준', criteria.length + '개 기준 · J1~J' + criteria.length + (subs ? ' · 세부 ' + subs + ' · 점검 ' + items : '')],
       ['criteria-specialized-title', 'AIONA 특화 기준', extras.length + '개 항목 · 평가 대기'],
     ];
     $('criteria-reference-content').replaceChildren(
@@ -96,7 +125,7 @@
         node('div', {class: 'criteria-code-groups'}, ...categories.map(codeCategory))),
       node('section', {class: 'criteria-section', 'aria-labelledby': 'criteria-semantic-title'},
         sectionHeading('criteria-semantic-title', '답변 내용 기준', '질문의 의도와 맥락에 맞게 답했는지, 논리와 사실에 문제가 없는지 확인합니다.'),
-        node('div', {class: 'criteria-semantic-grid'}, ...criteria.map(semanticCriterion))),
+        node('div', {class: 'criteria-semantic-grid' + (details ? ' criteria-semantic-list' : '')}, ...criteria.map(semanticCriterion))),
       node('section', {class: 'criteria-section criteria-paused', 'aria-labelledby': 'criteria-specialized-title'},
         sectionHeading('criteria-specialized-title', 'AIONA 특화 기준', '평가 대기 중입니다. 현재 실행하지 않으며 점수와 평가 완료율에 포함하지 않습니다.'),
         node('details', {class: 'criteria-paused-definitions'},
@@ -116,6 +145,7 @@
       if (!Array.isArray(info.taxonomy?.categories) || !Array.isArray(info.taxonomy?.jev?.criteria) ||
           !Array.isArray(info.taxonomy?.specialized)) throw new Error('평가 기준을 불러오지 못했습니다. 다시 시도해 주세요.');
       taxonomy = info.taxonomy;
+      details = info.criteria_details && Array.isArray(info.criteria_details.code_checks) ? info.criteria_details : null;
       render();
     } catch (_) {
       taxonomy = null;

@@ -937,6 +937,24 @@ textarea::placeholder {color:#757f94}
 #view-criteria .criteria-paused-definitions[open]>summary {margin-bottom:12px}
 #view-criteria .criteria-specialized-card {background:#FAFAFE}
 #view-criteria .criteria-paused-status {width:fit-content; margin-bottom:14px; padding:4px 8px; border-radius:6px; background:#edf0f6; color:#566176; font-size:12px; line-height:1.6}
+/* 세부 기준표 — 전부 펼치되 한 줄씩 짧게 (설계안 v1.4 기준표 요약) */
+#view-criteria .criteria-checks {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 22px; margin:14px 0 0; padding:12px 0 0; border-top:1px dashed var(--line); list-style:none; font-size:12px}
+#view-criteria .criteria-checks li {display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; min-width:0; line-height:1.6}
+#view-criteria .criteria-checks li>span {color:#3d4458; font-weight:600}
+#view-criteria .criteria-checks li>small {color:var(--muted); font-size:11px}
+#view-criteria .criteria-semantic-list {grid-template-columns:minmax(0,1fr)}
+#view-criteria .criteria-items {margin-top:18px; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:12px}
+#view-criteria .criteria-items-row {display:grid; grid-template-columns:150px minmax(0,2fr) minmax(0,1.1fr) minmax(0,1.7fr); gap:14px; padding:9px 14px; line-height:1.65}
+#view-criteria .criteria-items-row+.criteria-items-row {border-top:1px solid #F0F1F6}
+#view-criteria .criteria-items-row.criteria-items-first:not(:nth-child(2)) {border-top:1px solid #E3E0F6}
+#view-criteria .criteria-items-head {background:#F8F7FF; color:#535c70; font-weight:650; font-size:11px}
+#view-criteria .criteria-items-sub {color:#3B2F8F}
+#view-criteria .criteria-items-question small {display:block; margin-top:2px; color:var(--muted); font-size:11px}
+#view-criteria .criteria-items-applies {color:#4d566a}
+#view-criteria .criteria-items-examples p {color:#4d566a}
+#view-criteria .criteria-items-examples p+p {margin-top:3px}
+#view-criteria .criteria-ok {color:var(--green); font-size:10px}
+#view-criteria .criteria-ng {color:var(--red); font-size:10px}
 @media(max-width:1000px) {
   #view-criteria .criteria-semantic-grid {grid-template-columns:minmax(0,1fr)}
   #view-criteria .criteria-index-item {padding-left:16px}
@@ -952,6 +970,10 @@ textarea::placeholder {color:#757f94}
   #view-criteria .criteria-rules {grid-template-columns:minmax(0,1fr); gap:10px}
   #view-criteria .criteria-semantic-card,#view-criteria .criteria-specialized-card {padding:20px 18px}
   #view-criteria .criteria-section {margin-top:28px}
+  #view-criteria .criteria-checks {grid-template-columns:minmax(0,1fr)}
+  #view-criteria .criteria-items-row {grid-template-columns:minmax(0,1fr); gap:4px}
+  #view-criteria .criteria-items-head {display:none}
+  #view-criteria .criteria-items-sub:empty {display:none}
 }
 
 /* Dashboard components: summary cards, model comparison chart and recent result. Values come from the saved result. */

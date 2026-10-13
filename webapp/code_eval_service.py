@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 from code_eval.combined import combined_summary
 from code_eval.config import ConfigError, load_aiona_config
 from code_eval.core import versions
+from code_eval.criteria_registry import reference_details
 from code_eval.engine import evaluate_batch
 from code_eval.io import parse_input_text, validate_json_numbers
 from code_eval.jev_eval import jev_after_code
@@ -60,6 +61,7 @@ class CodeEvalService:
 
     def info(self) -> Dict[str, Any]:
         return {"versions": versions(), "aiona_config": self._config({}).summary(), "taxonomy": taxonomy(),
+                "criteria_details": reference_details(),   # 평가 기준 화면: CODE 검사·의미 세부 기준·점검 항목 요약
                 "aiona_specialized": {"status": "PAUSED", "included_in_score": False},
                 "semantic_setup": semantic_setup(env_path=self.root / ".env", injected=self._jev_resolver is not None)}
 
