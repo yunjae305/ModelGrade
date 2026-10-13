@@ -137,6 +137,9 @@ def _question_sources(item: Dict[str, Any], state: Dict[str, Any]) -> List[Tuple
     reference = state.get("reference")
     if reference not in (None, "", {}, []):
         sources.append(("reference", None, reference if isinstance(reference, str) else json.dumps(reference, ensure_ascii=False)))
+    for attachment in state.get("attachments") or []:   # J8 — 첨부파일에 든 내용도 질문 쪽 원문으로 대조한다
+        if isinstance(attachment, dict) and attachment.get("content"):
+            sources.append(("attachment", None, attachment["content"]))
     return sources
 
 

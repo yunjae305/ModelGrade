@@ -86,7 +86,7 @@ _ANSWER_TOOLS_NOTES = {
              "존재하지 않는 출처·문헌·조문·제품을 든 문장을 모두 판정합니다."),
     "unknown": ("이 답변의 도구 사용 여부는 알 수 없습니다. 조회·실행 문장은 판정하지 말고, 존재하지 않는 출처·문헌·조문·제품을 들었는지만 판정합니다."),
 }
-_SOURCE_LABELS = {"question": "질문", "answer": "답변", "reference": "참조 데이터", "conversation": "대화"}
+_SOURCE_LABELS = {"question": "질문", "answer": "답변", "reference": "참조 데이터", "conversation": "대화", "attachment": "첨부파일"}
 
 
 def items_system_prompt(search_enabled: bool = False) -> str:
@@ -176,6 +176,9 @@ def item_prompt_text(item_id: str, spec: Dict[str, Any]) -> str:
     if spec.get("input_quote"):
         lines.append("NO 이면 question_quote 에 입력(현재 질문·참조 자료) 원문의 해당 부분을 반드시 인용합니다(turn 은 null). "
                      "서버가 입력 원문과 대조합니다.")
+    if item_id.startswith("J8"):
+        lines.append("첨부 내용을 인용할 때는 question_quote 에 attachments 의 content 원문을 글자 그대로 복사합니다(turn 은 null). "
+                     "답변이 첨부를 열 수 없다고 밝혔으면 J8-1.a·J8-2.a 는 NOT_APPLICABLE 입니다.")
     if item_id.startswith("J6"):
         lines.append("이전 턴 원문을 question_quote 로 인용할 때는 turn 에 그 턴 번호를 적습니다(현재 질문을 인용하면 null). "
                      "지정한 턴의 원문에서만 인용을 대조합니다.")

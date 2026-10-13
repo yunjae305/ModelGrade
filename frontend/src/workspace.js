@@ -321,7 +321,7 @@
   }
   window.addEventListener('aiona:model-version-changed', (event) => updateCurrentRelease(event.detail));
 
-  // 새 비교의 평가 시작 — 자동 수집이 끝난 현재 실행(답변 원문 포함)을 기존 CODE·J1~J7 평가기로 평가한다
+  // 새 비교의 평가 시작 — 자동 수집이 끝난 현재 실행(답변 원문 포함)을 기존 CODE·J1~J8 평가기로 평가한다
   async function startEvaluation() {
     if (!state.run || !canEvaluate() || active() || !['READY', 'CANCELLED', 'ERROR'].includes(state.run.status)) return;
     state.busy = true; renderReady(); error(null);

@@ -1,4 +1,4 @@
-"""CLI — 웹 화면과 같은 엔진을 호출한다. CODE 평가 뒤 Jev 의미 평가(J1~J7)를 이어서 기록한다.
+"""CLI — 웹 화면과 같은 엔진을 호출한다. CODE 평가 뒤 Jev 의미 평가(J1~J8)를 이어서 기록한다.
 
 기존 LLM 재검토는 기본 흐름에서 빠졌고 별도 명령으로만 실행한다:
     py -3 -m code_eval.llm_review --results results/set2_q100/results.json --out results/set2_q100_llm
@@ -6,7 +6,7 @@
     py -3 -m code_eval run --input data/code_eval/AIONA_winz_set2_Q100_id_question_answer_v1.json --out results/set2_q100 --overwrite
     py -3 -m code_eval single --question "5에서 8을 빼면?" --answer "결과는 -3입니다."
     py -3 -m code_eval info
-    py -3 -m code_eval criteria   # CODE 검사 단위·J1~J7 통합 목록 (판정에 쓰지 않음)
+    py -3 -m code_eval criteria   # CODE 검사 단위·J1~J8 통합 목록 (판정에 쓰지 않음)
 """
 
 from __future__ import annotations

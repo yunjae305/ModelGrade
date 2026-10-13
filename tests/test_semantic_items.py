@@ -42,11 +42,11 @@ def applied(subs):
 
 
 def test_registry_counts_ids_and_expand_marks():
-    assert len(si.SUBS) == 27 and len(si.ITEMS) == 41 and len(si.SPECS_BY_ID) == 41 and len(si.SUBS_BY_ID) == 27
+    assert len(si.SUBS) == 30 and len(si.ITEMS) == 44 and len(si.SPECS_BY_ID) == 44 and len(si.SUBS_BY_ID) == 30
     per_criterion = {}
     for item in si.ITEMS:
         per_criterion[item.criterion] = per_criterion.get(item.criterion, 0) + 1
-    assert per_criterion == {"J1": 6, "J2": 8, "J3": 8, "J4": 5, "J5": 4, "J6": 8, "J7": 2}
+    assert per_criterion == {"J1": 6, "J2": 8, "J3": 8, "J4": 5, "J5": 4, "J6": 8, "J7": 2, "J8": 3}
     assert {it.id for it in si.ITEMS if it.expand} == EXPAND == set(si.EXPAND_IDS)
     assert {it.id for it in si.ITEMS if it.missing_type} == MISSING_TYPE
     assert si.SPECS_BY_ID["J5-1.a"].expand_limit == 8 and si.SPECS_BY_ID["J5-1.a"].fact_block
@@ -61,8 +61,8 @@ def test_registry_counts_ids_and_expand_marks():
         if item.criterion == "J6":
             assert all(ex.history for ex in item.examples), item.id
     described = si.describe()
-    assert described["version"] == "semantic-items-v4" == si.SEMANTIC_ITEMS_VERSION
-    assert len(described["subs"]) == 27 and len(described["items"]) == 41
+    assert described["version"] == "semantic-items-v5" == si.SEMANTIC_ITEMS_VERSION
+    assert len(described["subs"]) == 30 and len(described["items"]) == 44
     assert described["reason_codes"] == ["FACT_FALSE_CONFIRMED", "FACT_UNVERIFIABLE", "SOURCE_NOT_FOUND", "ITEM_UNVERIFIABLE"]
     assert si.DECISIONS == ("YES", "NO", "NOT_APPLICABLE")
 
@@ -118,7 +118,7 @@ def test_sub_applicability_maps_design_examples_to_subs(question, expected):
     assert applied(subs) == {**always, **expected}
     assert list(subs) == [sub.id for sub in si.SUBS]
     for sid, entry in subs.items():
-        assert entry["source"] in ("question", "answer", "reference", "conversation")
+        assert entry["source"] in ("question", "answer", "reference", "conversation", "attachment")
         if not entry["items"]:
             assert entry["reason"], sid
 

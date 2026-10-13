@@ -99,7 +99,8 @@ def test_criteria_changelog_matches_registry_and_docs():
     assert any(entry['version'] == SEMANTIC_ITEMS_VERSION for entry in CHANGELOG)
     assert any(entry['version'].endswith(ENGINE_VERSION.rsplit('-', 1)[-1]) for entry in CHANGELOG)
     assert all({'version', 'date', 'scope', 'changes'} <= set(entry) and entry['changes'] for entry in CHANGELOG)
-    history = read('변경내역/2026-10-13-변경내역.md')
+    latest = sorted((DOCS / '변경내역').glob('????-??-??-변경내역.md'))[-1].name   # 가장 최근 날짜의 변경내역
+    history = read(f'변경내역/{latest}')
     assert REGISTRY_VERSION in history and JEV_CRITERIA_VERSION in history
     older = read('변경내역/2026-10-12-변경내역.md')
     assert '<a id="change-2026-10-12-26"></a>' in older and '| 26 |' in older

@@ -742,7 +742,7 @@ class ComparisonService:
         source = self.result(run_id)
         if source['status'] != 'COMPLETED' or not source.get('aiona_release'):
             raise ValueError('평가가 종료된 AIONA 버전 기록을 기준으로 선택해 주세요.')
-        cases = [{**{k: copy.deepcopy(row[k]) for k in ('case_id', 'question', 'reference', 'conversation_id', 'turn') if k in row},
+        cases = [{**{k: copy.deepcopy(row[k]) for k in ('case_id', 'question', 'reference', 'attachments', 'conversation_id', 'turn') if k in row},
                   'answer': ''} for row in source['datasets']['aiona']]
         ids = [row['case_id'] for row in cases]
         if len(ids) != len(set(ids)):
@@ -768,7 +768,7 @@ class ComparisonService:
         ordered = []
         for row in expected:
             candidate = by_id[row['case_id']]
-            for key in ('question', 'reference', 'conversation_id', 'turn'):
+            for key in ('question', 'reference', 'attachments', 'conversation_id', 'turn'):
                 if json.dumps(candidate.get(key), sort_keys=True, ensure_ascii=False) != json.dumps(row.get(key), sort_keys=True, ensure_ascii=False):
                     raise ValueError(f"{row['case_id']}: 질문·참조자료·대화 순서가 기준과 다릅니다. 답변만 입력해 주세요.")
             if not candidate['answer'].strip():
@@ -896,7 +896,7 @@ class ComparisonService:
                               | {"question": q["question"][:300]} for q in questions[:20]]}
 
     def start_external(self, payload):
-        """외부 수집 답변을 기존 CODE·J1~J7 평가기로 평가한다. 선택하면 같은 질문을 연결된 API 로도 수집한다."""
+        """외부 수집 답변을 기존 CODE·J1~J8 평가기로 평가한다. 선택하면 같은 질문을 연결된 API 로도 수집한다."""
         rerun = payload.get("rerun", False)
         resolve = payload.get("resolve_relays", False)
         if not isinstance(rerun, bool) or not isinstance(resolve, bool):
@@ -914,7 +914,7 @@ class ComparisonService:
         if not selected and not bundle["responses"]:
             raise ValueError("평가할 답변이 없습니다.")
         data = build_run_data(bundle)
-        questions = [{k: copy.deepcopy(q[k]) for k in ("case_id", "question", "reference", "conversation_id", "turn")
+        questions = [{k: copy.deepcopy(q[k]) for k in ("case_id", "question", "reference", "attachments", "conversation_id", "turn")
                       if q.get(k) is not None} for q in bundle["questions"]]
         config, api_systems = {}, {}
         for provider in selected:
@@ -1578,7 +1578,7 @@ class ComparisonService:
     @staticmethod
     def _answer_case(case, provider, model, index, outcome):
         # AIONA display text must never be reused for other models.
-        result = {k: copy.deepcopy(case[k]) for k in ("case_id", "question", "reference", "conversation_id", "turn") if k in case}
+        result = {k: copy.deepcopy(case[k]) for k in ("case_id", "question", "reference", "attachments", "conversation_id", "turn") if k in case}
         result.update({"answer": outcome.get("answer", ""), "system_id": provider,
                        "source": model, "case_index": index, "collection": outcome})
         if outcome["status"] != "SUCCESS":

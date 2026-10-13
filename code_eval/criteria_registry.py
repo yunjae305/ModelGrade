@@ -1,4 +1,4 @@
-"""통합 평가기준 목록 — CODE 검사 단위와 J1~J7 의미 기준을 한 목록으로 묶는다. 판정에는 쓰지 않는다.
+"""통합 평가기준 목록 — CODE 검사 단위와 J1~J8 의미 기준을 한 목록으로 묶는다. 판정에는 쓰지 않는다.
 
 기준 원문은 지금 위치에 그대로 둔다. 이 모듈은 그 정의를 읽어 같은 모양의 항목으로 모을 뿐이다.
 - CODE 상위·소분류 설명: ``taxonomy.CATEGORIES`` · 검사 단위와 규칙 버전: ``core.CHECK_VERSIONS``
@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v7"   # v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v8"   # v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -126,12 +126,15 @@ _SEMANTIC_EVIDENCE = {
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
            "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
-           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·"
+           "(j1-j4-j7-j8-fail-evidence-v3). long_context — 입력 토큰 수(tiktoken o200k_base)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
+    "J8": ("reason — FAIL 이면 답변의 문제 부분을 따옴표로 인용(답변 원문과 맞아야 함), 첨부 내용(attachments[].content) 인용도 근거로 셈. "
+           "서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 (j1-j4-j7-j8-fail-evidence-v3). items 는 첨부 내용 인용을 question_quote 로 받아 "
+           "첨부 content 와 대조. 답변이 첨부를 열 수 없다고 밝히면 J8-1·J8-2 는 해당 없음, J8-3 이 봄"),
 }
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
                     "그 기준만 1회 재평가 (j1-j4-fail-evidence-v1). 이유의 의미적 타당성은 검증하지 않음")
-_SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4·J7 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
+_SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4·J7·J8 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
                       "검색 불가·검색 실행 오류·검색 없이 연 원문의 도구 오류로 확인하지 못한 J5(J5_SEARCH_UNAVAILABLE·J5_SEARCH_ERROR·J5_FETCH_ERROR). "
                       "그 밖의 UNVERIFIED는 최종 정책으로 FAIL(EVALUATION_EVIDENCE_INSUFFICIENT, 사실 오류 확정 아님), "
                       "J5 출처 원문 확인 실패는 FAIL(SOURCE_ORIGINAL_UNAVAILABLE). 호출 오류·시간 초과·형식 오류·미연결은 "
@@ -163,7 +166,7 @@ def _code_entries() -> List[Dict[str, Any]]:
 def _semantic_entries() -> List[Dict[str, Any]]:
     out = []
     for c in jev_describe()["criteria"]:
-        trigger = {"J1": "all", "J5": "answer", "J6": "history", "J7": "input_length"}.get(c["id"], "question")
+        trigger = {"J1": "all", "J5": "answer", "J6": "history", "J7": "input_length", "J8": "attachment"}.get(c["id"], "question")
         out.append({
             "id": c["id"], "layer": "LLM", "group": c["id"], "group_name": c["name"], "category": "J",
             "name": c["name"], "trigger": trigger, "applies_when": APPLIES_WHEN[c["id"]],
@@ -282,6 +285,20 @@ CHANGELOG: List[Dict[str, Any]] = [
      "changes": ["J7 결과를 길이 구간(272K~300K … 500K 이상)으로 나눠 남기지 않음 (사용자 결정) — 판정 기록의 long_context 에서 tier 삭제, 근거 문구는 '입력 N토큰', 요약의 J7 구간별 통과율(summary.J7.tiers)·질문 세트 보고서의 길이 구간 표시 삭제. 입력 토큰 수와 근거 인용 위치는 그대로"]},
     {"version": "semantic-items-v4", "date": "2026-10-13", "scope": "semantic", "changes": ["J7-1·J7-2 적용 조건 문구를 입력 272K 토큰 이상으로", "J7 예시 첨부 길이를 272K 토큰 이상(한국어 약 40만·45만 자)으로 — 설계안 v1.5"]},
     {"version": "criteria-registry-v7", "date": "2026-10-13", "scope": "registry", "changes": ["J7 경계 272K 확정 반영 (long-context-v3-272k)"]},
+    {"version": "jev-criteria-v5", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J8 첨부파일 활용 추가 (사용자 결정) — 질문과 함께 보낸 첨부파일(이미지·TXT·DOCX·PDF 등)을 실제로 읽고 형식에 맞게 해석해 썼는지, "
+                 "읽지 못한 부분을 밝혔는지 본다. 경계: 값을 다르게 옮김 J5, 272K 이상 긴 입력의 찾기·연결 J7, 요약 누락 J4, "
+                 "파일을 열 수 없다고 밝힌 것은 거절(J1)이 아니라 J8",
+                 "입력 attachments=[{name, type, content, sha256?, size?, path?}] — content 는 파일에 실제로 든 내용(글자·표 값·그림 속 글자). "
+                 "평가 모델에는 파일 대신 name·type·content 만 보냄 (code_eval.attachments)"]},
+    {"version": "semantic-items-v5", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J8-1 첨부 내용 반영(J8-1.a)·J8-2 파일 형식 읽기(J8-2.a)·J8-3 첨부 접근 처리(J8-3.a) — 세부 30·항목 44",
+                 "J1-2.a 에 경계 메모: 첨부파일을 열 수 없다고 밝힌 것은 J8-3"]},
+    {"version": "jev-applicability-v2.7-attachments", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J8 은 첨부파일이 있을 때 적용 (sub-applicability-v5: J8-1·J8-2 는 해당 여부를 평가 모델이 정함, J8-3 은 첨부가 있으면 보냄)"]},
+    {"version": "j1-j4-j7-j8-fail-evidence-v3", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J8 FAIL 도 이유 + 원문 인용 필요 — 답변 인용이 하나 이상 맞아야 하고, 첨부 내용(attachments[].content) 인용도 근거로 셈"]},
+    {"version": "criteria-registry-v8", "date": "2026-10-13", "scope": "registry", "changes": ["J8 첨부파일 활용 등록 (jev-criteria-v5·semantic-items-v5)"]},
 ]
 
 
@@ -316,7 +333,7 @@ def reference_details() -> Dict[str, Any]:
 def registry() -> Dict[str, Any]:
     from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
-            # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 7 → 세부 27 → 항목 41 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
+            # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 8 → 세부 30 → 항목 44 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),
             "modifier_kinds": copy.deepcopy(MODIFIER_KINDS),
             "subsumed_kinds": [{"kind": k, "when": w, "checked_by": u, "note": n} for k, w, u, n in SUBSUMED_KINDS],

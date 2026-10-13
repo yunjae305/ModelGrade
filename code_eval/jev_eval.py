@@ -1,4 +1,4 @@
-"""Jev 의미 평가 단계 — CODE 평가와 별개로 모든 질문·답변에 J1~J7 중 정해진 기준을 판단한다.
+"""Jev 의미 평가 단계 — CODE 평가와 별개로 모든 질문·답변에 J1~J8 중 정해진 기준을 판단한다.
 
     CODE 결과(batch) → 평가된 질문마다 Jev 1회 호출(평가할 기준 동시) → batch["jev_eval"]
 
@@ -13,7 +13,7 @@
   앞 턴이 하나라도 빠졌거나 입력 오류·중복이면 J6 는 묻지 않고 그 대화는 미완료(INCOMPLETE)로 집계한다 — 판정을 지어내지 않는다.
   history 의 질문·답변은 공백·줄바꿈을 포함한 원문 전체를 보낸다. 길이에 따른 축약·생략은 하지 않는다.
   참조 데이터(case["reference"])는 있을 때만 state 에 넣는다.
-- 의미 평가 방식(``pipeline``)은 legacy(기본, 기준 7개를 한 번에 묻기) | items(세부 기준 27·점검 항목 41 에 예/아니오+인용,
+- 의미 평가 방식(``pipeline``)은 legacy(기본, 기준 8개를 한 번에 묻기) | items(세부 기준 30·점검 항목 44 에 예/아니오+인용,
   서버가 인용 검증·재확인(최대 3회)·집계). items 는 ``sub_applicability`` 로 보낼 항목을 정하고 ``semantic_quotes.finalize_items``
   → ``semantic_items_eval`` 로 decisions[cid](+subs) 를 만든다. legacy 호출 순서·결과 형식은 바뀌지 않는다.
 """
@@ -40,6 +40,7 @@ from .semantic_evidence import CONTEXT_CHECK_POLICY, CONTEXT_QUOTE_PROBLEMS
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
 from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY, finalize_items
+from .attachments import judge_view
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
                                fail_evidence, incomplete_decision)
 
@@ -74,7 +75,7 @@ ALL_IDS = tuple(c.id for c in CRITERIA)
 
 def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS, reference: Any = None,
                 history: Optional[List[Dict[str, Any]]] = None,
-                citations: Optional[List[Dict[str, Any]]] = None, *, pipeline: str = "legacy",
+                citations: Optional[List[Dict[str, Any]]] = None, *, pipeline: str = "legacy", attachments: Any = None,
                 item_specs: Optional[List[Tuple[SemanticItem, Dict[str, Any]]]] = None,
                 collected_at: Optional[str] = None) -> Dict[str, Any]:
     """Jev 에 보내는 내용. 질문·답변(과 있을 때만 reference·history)만 담고 평가할 기준만 묻는다 (CODE 결과·표시본 없음).
@@ -86,6 +87,8 @@ def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS,
     state: Dict[str, Any] = {"question": question, "answer": answer}
     if reference is not None:
         state["reference"] = reference
+    if attachments:
+        state["attachments"] = judge_view(attachments)   # J8 — 파일 대신 파일에 든 내용(이름·종류·내용)만 보낸다
     if history:
         state["history"] = history
     if pipeline == "items":
@@ -171,14 +174,14 @@ def _record(case_id: str, status: str, criteria: Tuple[str, ...] = (), **kw: Any
 def _case_request(question: str, answer: str, criteria: Tuple[str, ...], reference: Any,
                   history: Optional[List[Dict[str, Any]]], *, client: Any, cancel_event: Optional[Event],
                   pipeline: str = "legacy", item_specs: Any = None, collected_at: Optional[str] = None,
-                  citations: Optional[List[Dict[str, Any]]] = None,
+                  citations: Optional[List[Dict[str, Any]]] = None, attachments: Any = None,
                   unchecked_citations: Optional[List[str]] = None) -> Dict[str, Any]:
     """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event).
 
     ``unchecked_citations`` 는 답변이 든 유효한 출처 URL 가운데 확인 한도 밖이라 평가자에게 보내지 않은 것 — 판정 단계가
     이것이 남아 있으면 J5 를 PASS 로 확정하지 않는다 (evidence-v3.14)."""
     request = jev_request(question, answer, criteria, reference, history, citations, pipeline=pipeline, item_specs=item_specs,
-                          collected_at=collected_at)
+                          collected_at=collected_at, attachments=attachments)
     if unchecked_citations and "J5" in criteria and pipeline != "items":
         request["state"]["answer_citations_unchecked"] = list(unchecked_citations)
     if cancel_event is not None and getattr(client, "supports_cancellation", False):
@@ -310,7 +313,7 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                       cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
                       citation_check: bool = False, *, pipeline: str = "legacy", item_specs: Any = None,
                       applicability: Optional[Dict[str, Any]] = None, collected_at: Optional[str] = None,
-                      sources: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+                      sources: Optional[List[Dict[str, Any]]] = None, attachments: Any = None) -> Dict[str, Any]:
     """질문 하나의 의미 평가 — 요청 조립(_case_request) → client.system_one → 레코드(_record_from_call).
 
     items 파이프라인의 재확인은 ``ask(questions_subset)`` 콜백(같은 client.system_one, 같은 state)으로 돈다.
@@ -331,7 +334,7 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         citations, structured_sources = case_citations(answer, criteria, citation_check, sources)
         request = _case_request(question, answer, criteria, reference, history, client=client, cancel_event=cancel_event,
                                 pipeline=pipeline, item_specs=item_specs, collected_at=collected_at,
-                                citations=prompt_citations(citations),
+                                citations=prompt_citations(citations), attachments=attachments,
                                 unchecked_citations=[c["url"] for c in citations if c.get("valid_url") and not c.get("checked")])
         if cancel_event is not None and cancel_event.is_set():
             return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
@@ -737,10 +740,11 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
         # 입력 길이(J7)는 한 번만 잰다 — 두 적용 판정 사이에 토크나이저 상태가 바뀌어도 같은 값을 쓴다
         measured = long_context_size(case["question"], case.get("reference"))
         prep.applies[i] = jev_applicability(case["question"], case["answer"], reference=case.get("reference"),
-                                            conversation=conversation, measured=measured)
+                                            attachments=case.get("attachments"), conversation=conversation, measured=measured)
         if prep.items_mode:
-            # 세부 기준 27개의 적용 판정(질문 기준, 앞 턴 사용자 질문의 가상 설정 제외)과 보낼 항목 목록
+            # 세부 기준 30개의 적용 판정(질문 기준, 앞 턴 사용자 질문의 가상 설정 제외)과 보낼 항목 목록
             subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
+                                     attachments=case.get("attachments"),
                                      conversation=conversation, answer_tools=prep.answer_tools, history=prep.histories.get(i),
                                      measured=measured)
             prep.item_specs[i] = applicable_items(case, subs, conversation)
@@ -918,7 +922,7 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                                  fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening,
                                  pipeline=pipeline, item_specs=prep.item_specs.get(i), applicability=applies[i],
                                  collected_at=prep.collected_at,
-                                 sources=case.get("answer_sources"))
+                                 sources=case.get("answer_sources"), attachments=case.get("attachments"))
 
     def publish(i: int, record: Dict[str, Any]) -> None:
         _publish_record(prep, i, record, on_record)

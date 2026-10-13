@@ -1,4 +1,4 @@
-"""J1~J7 적용 판정 — 질문·답변·입력 정보에서 코드 규칙으로 적용 여부와 근거를 뽑는다 (LLM 없음).
+"""J1~J8 적용 판정 — 질문·답변·입력 정보에서 코드 규칙으로 적용 여부와 근거를 뽑는다 (LLM 없음).
 
 CODE 의 질문 조건 추출(``extract.py``)과 같은 원칙을 쓴다.
 - 질문 안의 인용 자료(펜스 코드, ``>`` 인용 줄, 표, 큰따옴표 문장)는 지시가 아니라 데이터이므로 가린다.
@@ -13,6 +13,8 @@ CODE 의 질문 조건 추출(``extract.py``)과 같은 원칙을 쓴다.
 - J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 272K 토큰 이상일 때 적용한다 (``long_context`` — 고정 공개 토크나이저로 셈,
   이전 대화 턴은 세지 않음). 토크나이저를 불러오지 못하면 해당 없음이 아니라 ``undetermined`` 에 남긴다 — 평가 기록에서
   확인 필요(UNVERIFIED)로 집계되고, 적용 여부를 짐작하지 않는다.
+- J8 첨부파일 활용은 질문에 첨부파일(``attachments`` — 이미지·TXT·DOCX·PDF 등)이 있을 때 적용한다. J8-2(파일 형식 읽기)는
+  답이 첨부의 구조에 기대는지 평가 모델이 정하고, 답변이 첨부를 열 수 없다고 밝혔으면 J8-1·J8-2 는 평가 모델이 해당 없음으로 둔다.
 - 같은 입력은 언제나 같은 결과를 낸다. 단어 규칙이라 놓치거나 과하게 잡을 수 있으므로 근거 문구와 출처(source)를 함께 남긴다.
 """
 
@@ -25,6 +27,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .analysis import TextAnalysis, mask_ranges
 from .extract import _instruction_text, _quote_spans
 from . import long_context, multi_turn
+from .attachments import labels as attachment_labels
 from .jev_criteria import CRITERIA
 from .semantic_items import ITEMS, SUBS
 
@@ -33,9 +36,9 @@ __all__ = ["JEV_APPLICABILITY_VERSION", "APPLIES_WHEN", "DATA_RULES", "jev_appli
            "J5_ITEMS_APPLICABILITY_VERSION", "FACT_QUESTION_RULES", "INPUT_VALUE_RULES", "VERIFICATION_CLAIM_RULES",
            "fact_question", "j5_items_applicability"]
 
-JEV_APPLICABILITY_VERSION = "jev-applicability-v2.6-272k"   # v2.6: J7 272K 이상 확정 · v2.5: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v2.4: J7 추가
+JEV_APPLICABILITY_VERSION = "jev-applicability-v2.7-attachments"   # v2.7: J8 첨부파일 활용 · v2.6: J7 272K 이상 확정 · v2.5: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v2.4: J7 추가
 #: 세부 기준(27개) 적용 규칙 버전 — items 파이프라인용. legacy RULES·jev_applicability() 결과는 바꾸지 않는다.
-SUB_APPLICABILITY_VERSION = "sub-applicability-v4"   # v4: J7 272K 이상 · v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
+SUB_APPLICABILITY_VERSION = "sub-applicability-v5"   # v5: J8-1·J8-2·J8-3 · v4: J7 272K 이상 · v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
 #: items 파이프라인의 J5 세부 기준 적용 규칙 버전 (질문 기반 — 네 모델의 분모가 같다)
 J5_ITEMS_APPLICABILITY_VERSION = "j5-items-applicability-v1"
 
@@ -143,6 +146,7 @@ SUB_NOT_APPLICABLE: Dict[str, str] = {
     "J4-4": "요청 문장에 요약 요구가 없음",
     "J6": "대화 입력이 아님 — 단일 질문·답변",
     "J7": f"입력이 {long_context.MIN_TOKENS:,}토큰 미만 — 롱컨텍스트가 아님",
+    "J8": "질문에 첨부파일이 없음",
 }
 
 #: 단위·기호 — 긴 표기를 먼저 둬서 'mm' 이 'm' 으로 잡히지 않게 한다. 개·건·회·번 같은 순서·개수 낱말은 데이터로 보지 않는다.
@@ -196,6 +200,7 @@ APPLIES_WHEN = {
     "J5": "답변에 수치·날짜·통계 데이터가 있거나 참조 데이터가 있을 때 (코드 안 숫자 제외)",
     "J6": "멀티턴 대화(10K 토큰 이상 턴이 10개 이상)의 2번째 턴부터 — 앞 턴 대화를 함께 보냄",
     "J7":f"입력(현재 질문 + 참조 자료)이 {long_context.MIN_TOKENS:,}토큰 이상일 때 ({long_context.TOKENIZER})",
+    "J8": "질문에 첨부파일(이미지·TXT·DOCX·PDF 등)이 있을 때",
 }
 _NOT_APPLICABLE = {
     "J2": "요청 문장에 대상·말투·제약·설명 방식·글의 목적을 정한 표현이 없음",
@@ -267,7 +272,7 @@ def _reference_excerpt(reference: Any) -> str:
     return text[:60] + ("…" if len(text) > 60 else "")
 
 
-def jev_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None,
+def jev_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None, attachments: Any = None,
                       conversation: Optional[Dict[str, Any]] = None,
                       measured: Optional[Tuple[Optional[Dict[str, Any]], Optional[str]]] = None) -> Dict[str, Any]:
     """적용할 J 기준과 근거. {"criteria": [...], "evidence": {J: {...}}, "not_applicable": {J: 이유}}
@@ -276,6 +281,7 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
     - ``conversation`` = {"id", "turn", "history_turns"} 이면 J6 를 2번째 턴부터(앞 턴 대화가 있을 때) 적용한다.
     evidence 의 ``source`` 는 근거를 찾은 곳(question · answer · reference · conversation)이다.
     ``measured`` 는 ``long_context_size`` 결과 — 같은 질문의 적용 판정을 여러 번 할 때 길이 측정을 공유한다.
+    ``attachments`` 가 있으면 J8 을 적용한다 (``code_eval.attachments``).
     """
     sentences = _request_sentences(question)
     last = sentences[-1] if sentences else question.strip()
@@ -336,6 +342,12 @@ def jev_applicability(question: str, answer: Optional[str] = None, *, reference:
             evidence["J6"] = {"rules": ["대화"], "matches": [], "source": "conversation",
                               "excerpt": f"대화 {conversation.get('id')} · {turn}턴 (앞 턴 {history_turns}개)",
                               "look_for": "앞 대화의 지시·설정·문맥을 이 답변이 유지했는지"}
+    names = attachment_labels(attachments)
+    if names:
+        evidence["J8"] = {"rules": ["첨부파일"], "matches": names, "source": "attachment", "excerpt": "첨부 " + " · ".join(names),
+                          "look_for": "첨부파일의 내용을 실제로 읽고 형식에 맞게 해석해 답했는지, 읽지 못한 부분을 밝혔는지"}
+    else:
+        not_applicable["J8"] = SUB_NOT_APPLICABLE["J8"]
     criteria = [c.id for c in CRITERIA if c.id in evidence]
     result = {"version": JEV_APPLICABILITY_VERSION, "criteria": criteria, "evidence": evidence, "not_applicable": not_applicable}
     if undetermined:
@@ -481,7 +493,7 @@ def _ordered(ids: List[str], sub_id: str) -> List[str]:
     return [item_id for item_id in _SUB_ITEMS[sub_id] if item_id in ids]
 
 
-def sub_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None,
+def sub_applicability(question: str, answer: Optional[str] = None, *, reference: Any = None, attachments: Any = None,
                       conversation: Optional[Dict[str, Any]] = None, answer_tools: str = "unknown",
                       history: Any = None,
                       measured: Optional[Tuple[Optional[Dict[str, Any]], Optional[str]]] = None) -> Dict[str, Dict[str, Any]]:
@@ -493,6 +505,7 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
     - J6 는 legacy 와 같은 대화 판정(2번째 턴부터·앞 턴 이력 완전)을 재사용하고, J6-2.c 는 지시어 규칙이 있을 때만 켠다.
     - J7-1·J7-2 는 legacy J7 과 같은 길이 판정(입력 272K 토큰 이상, ``measured`` 를 주면 그 값)이고, 질문 유형에 따른 적용은
       평가 모델이 정한다.
+    - J8-1·J8-2·J8-3 은 첨부파일(``attachments``)이 있을 때 보낸다. J8-1·J8-2 는 해당 여부를 평가 모델이 정한다.
     적용되지 않은 세부 기준은 ``items=[]`` 와 ``reason`` 을 남긴다. 답변은 J5-3.a 에만 영향을 준다 (질문이 정한다).
     """
     question = question or ""
@@ -573,6 +586,13 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
             subs[sid] = {"items": list(_SUB_ITEMS[sid]), "rules": ["긴 입력"], "matches": [f"{size['tokens']:,}토큰"],
                          "excerpt": f"입력 {size['tokens']:,}토큰", "long_context": size,
                          "source": "reference" if reference not in (None, "", {}, []) else "question", "model_applies": True}
+    names = attachment_labels(attachments)
+    for sid in ("J8-1", "J8-2", "J8-3"):
+        if not names:
+            subs[sid] = {"items": [], "rules": [], "matches": [], "excerpt": None, "source": "attachment", "reason": SUB_NOT_APPLICABLE["J8"]}
+        else:
+            subs[sid] = {"items": list(_SUB_ITEMS[sid]), "rules": ["첨부파일"], "matches": names, "excerpt": "첨부 " + " · ".join(names),
+                         "source": "attachment", **({"model_applies": True} if sid != "J8-3" else {})}
     for sid in ("J6-1", "J6-2", "J6-3", "J6-4"):
         if j6_reason is not None:
             subs[sid] = {"items": [], "rules": [], "matches": [], "excerpt": None, "source": "conversation", "reason": j6_reason}

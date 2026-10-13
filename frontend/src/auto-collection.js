@@ -348,7 +348,7 @@
       else {
         const notice = W.evaluatorNotice();
         disabled = Boolean(notice) || W.isBusy() || !W.isReady();
-        detail = notice || `AIONA 포함 ${number(run.providers.length)}개 답변을 기존 코드 검사와 의미 평가(J1~J7)로 평가합니다. 평가 모델에는 모델 이름을 가리고 보내며, 평가자 호출이 발생합니다.`;
+        detail = notice || `AIONA 포함 ${number(run.providers.length)}개 답변을 기존 코드 검사와 의미 평가(J1~J8)로 평가합니다. 평가 모델에는 모델 이름을 가리고 보내며, 평가자 호출이 발생합니다.`;
       }
     }
     button.replaceChildren(label, W.icon('arrow'));

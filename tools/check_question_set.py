@@ -37,7 +37,7 @@ MIN_APPLICABLE = 30
 TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .20, "분석·추론": .15, "코딩·기술": .15,
                  "글쓰기·요약": .10, "멀티턴 대화": .10, "롱 컨텍스트": .05, "취약점·난도": .05}
 _TYPE_FIELDS = ("type", "category", "question_type", "유형")
-CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7")
+CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7", "J8")
 #: 답변이 만드는 조건 — 답변 없이 점검할 때 질문 조건으로 세지 않는다
 _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 
@@ -157,12 +157,13 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             conversation = {"id": ctx["id"], "turn": ctx["turn"], "issues": ctx["issues"],
                             "history_turns": len(history) if ctx["complete"] else 0, "multi_turn": ctx.get("multi_turn")}
         if pipeline == "items":   # 평가와 같은 항목별 적용 규칙
-            subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"),
+            subs = sub_applicability(case["question"], case["answer"], reference=case.get("reference"), attachments=case.get("attachments"),
                                      conversation=conversation, answer_tools="unknown", history=history)
             hit.update(item.id.split("-", 1)[0] for item, _ in applicable_items(case, subs, conversation))
             undetermined.update({sid.split("-", 1)[0] for sid, sub in subs.items() if sub.get("undetermined")})
         else:
-            semantic = jev_applicability(case["question"], None, reference=case.get("reference"), conversation=conversation)
+            semantic = jev_applicability(case["question"], None, reference=case.get("reference"), attachments=case.get("attachments"),
+                                         conversation=conversation)
             hit.update(semantic["criteria"])
             undetermined.update(list(semantic.get("undetermined") or {}))
             if fact_question(case["question"], history)[0]:

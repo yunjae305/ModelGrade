@@ -88,7 +88,7 @@ def test_every_llm_answer_screens_non_numeric_facts(engine):
     assert 'J5' in judge.calls[0]['questions']
     record = batch['jev_eval']['records'][0]
     assert record['applicability']['evidence']['J5']['status'] == 'SCREENING'
-    assert record['applicability']['version'] == 'jev-applicability-v2.6-272k+llm-screening'   # 코드 규칙 버전이 함께 바뀜
+    assert record['applicability']['version'] == 'jev-applicability-v2.7-attachments+llm-screening'   # 코드 규칙 버전이 함께 바뀜
     assert record['decisions']['J5']['decision'] == 'FAIL'
     assert record['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED'
     assert combined_summary(batch)['pending'] == 0 and combined_summary(batch)['fail'] == 1
@@ -117,7 +117,7 @@ def test_native_jev_keeps_its_original_applicability_rules():
     judge.config = SimpleNamespace(engine='jev', to_manifest=lambda: {'engine': 'jev'})
     batch = evaluate([{'case_id': 'q', 'question': 'Say hello', 'answer': 'Hello!'}], judge)
     assert 'J5' not in judge.calls[0]['questions']
-    assert batch['jev_eval']['applicability_version'] == 'jev-applicability-v2.6-272k'
+    assert batch['jev_eval']['applicability_version'] == 'jev-applicability-v2.7-attachments'
 
 
 @pytest.mark.parametrize('basis', ['web', 'reference', 'none'])

@@ -200,7 +200,7 @@ def test_applicability_is_decided_by_code_rules_from_request_sentences():
     # J1 은 항상, J2~J4 는 요청 문장의 근거 문구가 있을 때만. 답변을 주지 않으면 J5 는 '해당 없음', J6 는 대화 입력이 아니라 적지 않는다
     a = jev_applicability(MISSING["question"])
     assert a["criteria"] == ["J1", "J4"] and a["evidence"]["J4"]["matches"] == ["비교"]
-    assert set(a["not_applicable"]) == {"J2", "J3", "J5", "J7"} and a["evidence"]["J4"]["source"] == "question"
+    assert set(a["not_applicable"]) == {"J2", "J3", "J5", "J7", "J8"} and a["evidence"]["J4"]["source"] == "question"
     # 상황 설명 문장의 '고객'은 대상이 아니고, 큰따옴표 안 인용문의 '이유'는 지시가 아니다
     assert jev_applicability("엑셀에 고객의 도시가 적혀 있어. 값이 '서울'인 셀 수를 세는 수식을 작성해줘.")["criteria"] == ["J1"]
     assert jev_applicability('“왜 늦었는지 이유를 말해”를 영어로 번역해줘.')["criteria"] == ["J1"]

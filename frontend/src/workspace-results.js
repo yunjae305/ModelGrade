@@ -490,7 +490,8 @@
     {id: 'J4', group: 'semantic', name: '충분성', unit: '질문'},
     {id: 'J5', group: 'semantic', name: '데이터 신뢰도', unit: '질문'},
     {id: 'J6', group: 'semantic', name: '멀티턴 맥락 유지', unit: '질문'},
-    {id: 'J7', group: 'semantic', name: '롱컨텍스트 활용', unit: '질문'}
+    {id: 'J7', group: 'semantic', name: '롱컨텍스트 활용', unit: '질문'},
+    {id: 'J8', group: 'semantic', name: '첨부파일 활용', unit: '질문'}
   ];
 
   function criterionSummary(result, provider, criterion) {

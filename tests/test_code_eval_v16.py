@@ -518,11 +518,12 @@ def test_report_shows_all_criteria_before_case_results():
     for level in range(1, 4):
         assert f'>{level}</span>' in html
     for jid, name in (("J1", "의도 충족성"), ("J2", "내용 적절성"), ("J3", "논리 타당성"), ("J4", "충분성"),
-                      ("J5", "DATA 신뢰도"), ("J6", "멀티턴 맥락 유지"), ("J7", "롱컨텍스트 활용")):
+                      ("J5", "DATA 신뢰도"), ("J6", "멀티턴 맥락 유지"), ("J7", "롱컨텍스트 활용"),
+                      ("J8", "첨부파일 활용")):
         assert f'>{jid}</span><h3>{name}</h3>' in html
-    assert "<p>J1~J7 · Semantic Evaluation</p>" in html and 'aria-label="Jev 의미 평가 기준 7개"' in html
+    assert "<p>J1~J8 · Semantic Evaluation</p>" in html and 'aria-label="Jev 의미 평가 기준 8개"' in html
     criteria = html[html.index('<section aria-labelledby="common-heading"'):html.index('<section id="overall"')]
-    assert criteria.count('class="criterion-example"') == 17  # 공통 8 + Jev 7 + AIONA 특화 2
+    assert criteria.count('class="criterion-example"') == 18  # 공통 8 + Jev 8 + AIONA 특화 2
     for example in ("불릿 3개를 요청했을 때 실제로 3개인지", "장단점을 물었는데 장점만 설명했는지",
                     "내부 처리용 태그가 고객에게 보이는 답변에 남아 있는지"):
         assert example in criteria

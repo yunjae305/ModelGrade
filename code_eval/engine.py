@@ -25,6 +25,7 @@ from .core import (ABSENT_SUFFIX, ANSWER_UNITS, ERROR_CHECK_ERROR, ERROR_LIMIT_E
                    result, versions)
 from .extract import persistent_conditions
 from .answer_citations import answer_sources_error
+from .attachments import attachment_text, attachments_of
 from .model import CATEGORY_NAMES, FAIL, PASS, SPECIALIZED, SUBCATEGORIES, ConditionResult, Status, stable_hash
 
 __all__ = ["evaluate_case", "evaluate_batch", "summarize_batch", "result_digest", "_drop_duplicates"]
@@ -299,6 +300,9 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
     reference, reference_error = _reference_of(payload)
     if reference_error:
         return _input_error(case_id, reference_error, conversation)
+    attachments, attachments_error = attachments_of(payload)   # 첨부파일 — CODE 검사에는 쓰지 않고 J8 에 넘긴다
+    if attachments_error:
+        return _input_error(case_id, attachments_error, conversation)
     # 수집 단계가 남긴 구조화 출처 — CODE 검사에는 쓰지 않고 J5 출처 대조에만 넘긴다.
     sources = payload.get("answer_sources")
     if sources is not None:
@@ -310,7 +314,8 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
     for name, value, limit in (("question", question, LIMITS["question_chars"]),
                                ("answer", answer, LIMITS["answer_chars"]),
                                ("displayed_text", displayed or "", LIMITS["displayed_chars"]),
-                               ("reference", reference_text, LIMITS["reference_chars"])):
+                               ("reference", reference_text, LIMITS["reference_chars"]),
+                               ("attachments", attachment_text(attachments), LIMITS["reference_chars"])):
         if len(value) > limit:
             return {"case_id": case_id, "case_status": "LIMIT_EXCEEDED",
                     "input_error": f"{name} 길이 {len(value)}자가 안전 한도 {limit}자를 넘음 — 품질 FAIL 아님",
@@ -383,6 +388,7 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
         "displayed_text": displayed,
         **({"conversation": conversation} if conversation else {}),
         **({"reference": reference} if reference is not None else {}),
+        **({"attachments": attachments} if attachments else {}),
         **({"answer_sources": sources} if sources else {}),
         "results": _with_explanations(results, ctx),
         "observations": observations,

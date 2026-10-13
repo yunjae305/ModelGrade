@@ -1,4 +1,4 @@
-"""GPT CLI(Codex)로 기존 J1~J7 의미 기준을 평가한다.
+"""GPT CLI(Codex)로 기존 J1~J8 의미 기준을 평가한다.
 
 전체 Q/A·history·reference는 UTF-8 stdin으로 전달한다. 사용자 CLI 로그인은
 Codex가 처리하며, 이 프로그램은 인증 파일을 읽거나 결과에 저장하지 않는다.

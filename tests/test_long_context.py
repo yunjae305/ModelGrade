@@ -142,7 +142,7 @@ def test_j7_fail_reason_may_quote_the_reference_and_records_where_the_quote_sits
     decision = {"decision": "FAIL", "reason": "입력의 '해지하려는 날의 30일 전까지' 대신 '만료 60일 전까지'라고 답함"}
     check = fail_evidence(decision, state, "J7")
     assert check["valid"] and [q["found_in"] for q in check["matched_quotes"]] == ["reference", "answer"]
-    assert check["policy"] == "j1-j4-j7-fail-evidence-v2"
+    assert check["policy"] == "j1-j4-j7-j8-fail-evidence-v3"
     answer_only = fail_evidence({"decision": "FAIL", "reason": "답변이 '만료 60일 전까지'라고 함"}, state, "J7")
     assert not answer_only["valid"] and answer_only["problems"] == ["input_quote_missing"]
     made_up = fail_evidence({"decision": "FAIL", "reason": "입력의 '해지는 90일 전' 대신 '만료 60일 전까지'라고 답함"}, state, "J7")

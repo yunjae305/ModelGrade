@@ -8,7 +8,7 @@
   let taxonomy = null;
   let details = null;   // CODE 검사·의미 세부 기준·점검 항목 요약 (info.criteria_details) — 없으면 요약 카드만
   let loading = false;
-  const names = {J5: '데이터 신뢰도', J6: '멀티턴 맥락 유지', J7: '롱컨텍스트 활용'};
+  const names = {J5: '데이터 신뢰도', J6: '멀티턴 맥락 유지', J7: '롱컨텍스트 활용', J8: '첨부파일 활용'};
   const specialized = {
     'AIONA-M': {
       applies: 'AIONA의 실제 표시 답변과 여섯 범주의 내부 마커 목록이 모두 준비된 경우',

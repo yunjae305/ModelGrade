@@ -285,7 +285,7 @@ def _jev_fails(record: Any) -> List[str]:
 
 
 #: 적용 근거를 찾은 곳 — 질문(J1~J4) · 답변(J5) · 참조 데이터(J5·J7) · 대화(J6)
-_SOURCE_LABEL = {"question": "질문 근거", "answer": "답변 근거", "reference": "참조 데이터", "conversation": "대화"}
+_SOURCE_LABEL = {"question": "질문 근거", "answer": "답변 근거", "reference": "참조 데이터", "conversation": "대화", "attachment": "첨부파일"}
 _J5_BASIS_KO = {"reference": "판정 기준: 참조 데이터", "web": "판정 기준: 웹 출처",
                 "input": "판정 기준: 제공 자료 일치 (자료 자체의 사실성 검증 아님)",
                 "mixed": "판정 기준: 제공 자료 일치와 외부 사실 확인 (주장별 구분)",

@@ -29,7 +29,7 @@ __all__ = ["JevStatus", "JevClientConfig", "JevCall", "JevClient", "HttpJevClien
 DEFAULT_API_BASE = "https://api.typesafe.ai/v1"
 DEFAULT_MODEL = "jev-latest"
 
-#: 의미 평가 방식 — legacy(기준 7개 한 번에, 기본) | items(세부 기준 27·점검 항목 41 에 예/아니오+인용, 서버가 인용 검증·집계)
+#: 의미 평가 방식 — legacy(기준 8개 한 번에, 기본) | items(세부 기준 30·점검 항목 44 에 예/아니오+인용, 서버가 인용 검증·집계)
 SEMANTIC_PIPELINES = ("legacy", "items")
 
 #: 다시 시도할 응답 — 속도 제한(429)·과부하(529)·일시 서버 오류

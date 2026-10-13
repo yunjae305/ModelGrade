@@ -1,12 +1,13 @@
-"""Jev 의미 평가 기준 J1~J7 — 정의는 이 파일 한 곳에서만 관리한다.
+"""Jev 의미 평가 기준 J1~J8 — 정의는 이 파일 한 곳에서만 관리한다.
 
-J1~J7는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
+J1~J8는 CODE 영역(``model.SUBCATEGORIES``)과 중복 판정하지 않는다.
 Jev 요청 문구, 보고서·화면 설명은 모두 이 정의에서 만든다. Jev 가 새 기준을 만들지 않도록
-의미 평가는 이 일곱 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
+의미 평가는 이 여덟 기준만 묻는다. 적용 기준은 ``jev_applicability`` 가 코드 규칙으로 정한다.
 J5 DATA 신뢰도는 참조 데이터(reference)가 있으면 그것을, 없으면 확립된 사실을 기준으로 삼는다.
 J6 멀티턴 맥락 유지는 멀티턴 대화(10K 토큰 이상 턴이 10개 이상, ``multi_turn``)의 2번째 턴부터만 묻는다
 (2026-10-13 이름 변경, 옛 이름 LONG CONTEXT).
 J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 272K 토큰 이상일 때만 묻는다 (``long_context``).
+J8 첨부파일 활용은 질문에 첨부파일(이미지·TXT·DOCX·PDF 등)이 있을 때만 묻는다 (``attachments``, 2026-10-13 추가).
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from .model import SUBCATEGORIES
 __all__ = ["JEV_CRITERIA_VERSION", "DECISIONS", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
            "jev_questions", "describe"]
 
-JEV_CRITERIA_VERSION = "jev-criteria-v4"   # v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
+JEV_CRITERIA_VERSION = "jev-criteria-v5"   # v5: J8 첨부파일 활용 추가 · v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
 
 #: Jev choice 질문의 선택지. AIONA 판정 표기(PASS/FAIL)와 같게 둔다.
 DECISIONS = ("PASS", "FAIL")
@@ -102,11 +103,22 @@ CRITERIA = (
         boundary="‘긴 입력 속에서 찾고 연결했는가’만 본다. 입력에 없는 내용을 만들거나 맞는 부분을 보고도 값을 다르게 옮긴 것은 J5, "
                  "질문이 요구한 항목을 빠뜨린 것은 J4, 이전 대화 턴은 J6 가 본다. FAIL 이유에는 입력 원문의 해당 부분과 답변을 따옴표로 인용한다.",
         example="계약서 중간의 ‘해지 통보는 30일 전’ 조항 대신 뒷부분의 갱신 조항을 근거로 ‘60일 전’이라고 답했는지"),
+    # 사용자 결정(2026-10-13): 질문과 함께 보낸 첨부파일을 실제로 읽고 썼는지 따로 본다 — 세부 J8-1 첨부 내용 반영·
+    # J8-2 파일 형식 읽기·J8-3 첨부 접근 처리
+    JevCriterion(
+        "J8", "attachment_use", "첨부파일 활용", "Attachment Utilization",
+        question="질문에 첨부한 파일(이미지·TXT·DOCX·PDF 등)의 내용을 실제로 읽고 형식에 맞게 해석해 답했으며, 읽지 못한 부분이 있으면 그 사실을 밝혔는가?",
+        pass_rule="첨부 내용을 근거로 답했고, 표의 행·열·그림 속 글자·페이지·목록 같은 구조를 맞게 읽었으며, 열 수 없거나 일부만 읽은 경우 그 사실을 밝힘",
+        fail_rule="첨부를 무시하고 일반론으로 답함, 첨부에 없는 내용을 있다고 함, 표의 행·열이나 다른 페이지 내용을 섞어 읽음, 읽지 못한 파일을 읽은 것처럼 답함",
+        boundary="‘첨부파일을 읽고 썼는가’만 본다. 맞는 부분을 보고도 값을 다르게 옮긴 것은 J5, 272K 토큰 이상 긴 입력에서 찾기·연결은 J7, "
+                 "첨부 요약에서 빠뜨린 것은 J4 가 본다. 파일을 열 수 없다고 밝힌 것은 거절(J1)이 아니라 여기서 본다. "
+                 "FAIL 이유에는 답변의 문제 부분을 따옴표로 인용하고, 가능하면 첨부 내용의 해당 부분도 인용한다.",
+        example="첨부한 견적서 PDF 표의 ‘합계 1,250,000원’ 대신 바로 위 행의 소계를 합계라고 답했는지"),
 )
 
 
 def jev_questions() -> Dict[str, Dict[str, Any]]:
-    """J1~J7 를 Jev System One 의 choice 질문으로 바꾼다. 한 번의 호출에 적용 기준을 함께 보낸다."""
+    """J1~J8 를 Jev System One 의 choice 질문으로 바꾼다. 한 번의 호출에 적용 기준을 함께 보낸다."""
     return {c.id: {"type": "choice", "instructions": c.instructions(),
                    "criteria": {"PASS": c.pass_rule, "FAIL": c.fail_rule}}
             for c in CRITERIA}
