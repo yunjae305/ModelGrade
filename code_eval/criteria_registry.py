@@ -336,7 +336,7 @@ def reference_details() -> Dict[str, Any]:
 
 
 def registry() -> Dict[str, Any]:
-    from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
+    from .semantic_items import describe as describe_semantic_items   # 의미 27/41 정의는 semantic_items.describe() 한 곳만 쓴다
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
             # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 8 → 세부 30 → 항목 44 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),

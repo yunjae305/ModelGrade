@@ -18,7 +18,7 @@ py -3 -m pip install -r requirements.txt
 
 입력 형식은 [공개 예제](examples/questions.sample.json)를 참고하세요. **예제 질문 불러오기**는 로컬 Q165 데이터가 있으면 해당 파일을, 없으면 이 공개 예제를 불러옵니다. 예제를 불러오는 동작 자체는 모델 API를 호출하지 않습니다.
 
-롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요.
+롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요. 기대 목록은 2턴 이상 대화에 J6 를 묻던 규칙 기준이며, 현재 J6 규칙(`multi-turn-v1`: 질문+답변 10K 토큰 이상 턴 10개 이상)에서는 이 세트의 J6 적용이 0입니다 — [J6·J7 적용 범위 정책 제안](참고자료/정책제안_J6J7_적용범위_2026-10-14.md).
 
 ## 서버 실행
 
@@ -38,7 +38,7 @@ py -3 -X utf8 run.py
 
 수집·평가가 진행되는 동안 서버 터미널을 열어 두세요. API 비용은 계산하거나 출력하지 않습니다.
 
-현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 의미 평가 방식은 `SEMANTIC_PIPELINE`(legacy 기본 | items: 세부 기준 25·점검 항목 39에 예/아니오+인용으로 답하고 서버가 인용 검증·집계)로 고르고, 호출은 질문마다 실시간입니다(Message Batches 호출 방식은 2026-10-13 제거). 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
+현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 의미 평가 방식은 `SEMANTIC_PIPELINE`(legacy 기본 | items: 세부 기준 27·점검 항목 41에 예/아니오+인용으로 답하고 서버가 인용 검증·집계)로 고르고, 호출은 질문마다 실시간입니다(Message Batches 호출 방식은 2026-10-13 제거). 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
 
 ```powershell
 py -3 -X utf8 -m code_eval.semantic_check

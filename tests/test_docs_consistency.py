@@ -127,3 +127,18 @@ def test_progress_document_commit_references_exist_in_git():
     for sha in shas:
         probe = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{sha}^{{commit}}'], cwd=ROOT, capture_output=True, text=True)
         assert probe.returncode == 0 and probe.stdout.strip().startswith(sha), f'진행현황의 커밋 {sha} 가 git 에 없음'
+
+
+def test_changelog_anchors_are_unique_and_every_index_row_points_to_one():
+    """10-14 P1-5 — 변경내역 10-13 에 '#19' 앵커가 두 개라 목차 링크가 다른 항목을 가리키던 문제."""
+    history = read('변경내역/2026-10-13-변경내역.md')
+    anchors = re.findall(r'<a id="(change-2026-10-13-\d+)"></a>', history)
+    assert len(anchors) == len(set(anchors))
+    linked = re.findall(r'^\| \d+ \|.*\]\(#(change-2026-10-13-\d+)\)', history, flags=re.M)
+    assert linked and set(linked) <= set(anchors) and set(anchors) <= set(linked)
+
+
+def test_readme_states_the_current_semantic_item_counts():
+    from code_eval.semantic_items import ITEMS, SUBS
+    readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+    assert f'세부 기준 {len(SUBS)}·점검 항목 {len(ITEMS)}' in readme
