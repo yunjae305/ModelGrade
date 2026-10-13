@@ -123,9 +123,32 @@ def test_conversation_rows_record_what_was_sent_without_the_text(tmp_path):
     saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
     for provider, answer in (('gpt', '짧은 답'), ('claude', '조금 더 긴 답변입니다')):
         first, second = (row['collection']['request'] for row in saved['datasets'][provider])
-        assert first == {'messages': 1, 'user': 1, 'assistant': 0, 'chars': len('1번째 질문'), 'own_answer_chars': 0,
-                         'sha256': first['sha256']}
+        assert first == {'attachments_in_question': 0, 'attachments_sent': 0, 'messages': 1, 'user': 1, 'assistant': 0,
+                         'chars': len('1번째 질문'), 'own_answer_chars': 0, 'sha256': first['sha256']}
         assert (second['messages'], second['user'], second['assistant'], second['own_answer_chars']) == (3, 2, 1, len(answer))
         sent = [{'role': 'user', 'content': '1번째 질문'}, {'role': 'assistant', 'content': answer}, {'role': 'user', 'content': '2번째 질문'}]
         assert second['sha256'] == hashlib.sha256(json.dumps(sent, ensure_ascii=False).encode('utf-8')).hexdigest()[:12]
         assert '1번째 질문' not in json.dumps(second, ensure_ascii=False)   # 원문은 남기지 않는다
+
+
+def test_attachment_questions_record_that_api_models_did_not_receive_the_file(tmp_path):
+    """3차 재현 — 첨부 질문(J8)에서 API 모델 요청에는 첨부가 가지 않는데 그 답변에도 J8 을 묻는다. 판정은 바꾸지 않고 사실을 행에 남긴다."""
+    from tests.test_blind_comparison import CapturingJudge
+    bodies = []
+    def handle(request):
+        bodies.append(request.content.decode('utf-8'))
+        return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': '합계는 모릅니다.'}]}]})
+    judge = CapturingJudge()
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda **_: (judge, judge.config, None)),
+                                save_dir=tmp_path/'runs', client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    service.configure('gpt', {'key': 'fixture', 'model': 'fixture-gpt'})
+    attachment = {'name': '견적서.txt', 'type': 'txt', 'content': '견적 합계 1,250,000원'}
+    case = {'question': '첨부한 견적서의 합계를 알려줘.', 'answer': '합계는 1,250,000원입니다.', 'attachments': [attachment]}
+    rid = service.start({'cases': [case], 'providers': ['gpt'], 'auto_evaluate': True})['run_id']
+    until(lambda: service.status(rid)['status'] in ('COMPLETED', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    assert bodies and all('1,250,000' not in body and '견적서.txt' not in body for body in bodies)   # API 요청에는 첨부가 없다
+    request = saved['datasets']['gpt'][0]['collection']['request']
+    assert (request['attachments_in_question'], request['attachments_sent']) == (1, 0)
+    asked = [call for call in judge.calls if call['state']['answer'] == '합계는 모릅니다.']
+    assert asked and 'J8' in asked[0]['questions']                                                   # 그런데 J8 을 묻는다

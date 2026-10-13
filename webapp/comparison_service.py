@@ -44,9 +44,11 @@ from .ingestion.sources import normalize_sources
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 
 
-def _request_shape(messages):
-    """이번 요청에 실제로 보낸 메시지 구성 — 원문 없이 수·역할·글자 수·sha256 앞 12자 (모델별 입력 차이 확인용)."""
-    return {"messages": len(messages), "user": sum(m["role"] == "user" for m in messages),
+def _request_shape(messages, attachments=0):
+    """이번 요청에 실제로 보낸 메시지 구성 — 원문 없이 수·역할·글자 수·sha256 앞 12자 (모델별 입력 차이 확인용).
+    attachments_in_question 은 질문에 딸린 첨부(J8) 수, attachments_sent 는 이 요청에 실제로 실은 수 — request_answer 는 텍스트만
+    보내므로 지금은 늘 0 이다 (첨부를 받지 못한 답변에도 J8 을 묻는다는 사실을 남긴다, 10-14 3차)."""
+    return {"attachments_in_question": attachments, "attachments_sent": 0, "messages": len(messages), "user": sum(m["role"] == "user" for m in messages),
             "assistant": sum(m["role"] == "assistant" for m in messages), "chars": sum(len(m["content"]) for m in messages),
             "own_answer_chars": sum(len(m["content"]) for m in messages if m["role"] == "assistant"),
             "sha256": hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]}
@@ -1682,7 +1684,7 @@ class ComparisonService:
                                             # 요청·수신 시각 — 실패한 수집도 남긴다 (재현 기록, 판정에는 쓰지 않음)
                                             outcome["requested_at"] = requested_at
                                             outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
-                                            outcome["request"] = _request_shape(messages)
+                                            outcome["request"] = _request_shape(messages, len(case.get("attachments") or []))
                                             if guard:
                                                 guard.after(provider, index, outcome, status_code)
                                         if run.get("run_kind") in ("external_import", "auto_collection") and "collected_at" not in outcome:
