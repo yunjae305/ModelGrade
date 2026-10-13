@@ -72,6 +72,24 @@ python tools/check_question_set.py 질문세트.json
 
 `--json` 을 붙이면 JSON 으로 출력합니다. 형식 오류가 있으면 종료 코드 1 입니다.
 
+## 시연용 샘플 실행 · J6·J7 시험 세트 (모델 호출 없음)
+
+비공개 파일 없이 결과 화면 시연 경로를 재현합니다. 모든 답변·판정은 **샘플·모의**이며, 실제 `data/` 와 API 키를 쓰지 않는 별도 서버를 띄웁니다. 출력된 주소 → AIONA 결과 이력 → 상세 보기 → 저장된 평가 결과 열기.
+
+```powershell
+py -3 -X utf8 tools/demo_run.py --serve
+```
+
+J6 멀티턴(장문 3대화·일반 6대화)과 J7 롱컨텍스트(32K~500K) 시험 세트를 만들고 사전 점검합니다. 같은 시드면 같은 데이터이며, 데이터는 `data/context_sets/` 에 만듭니다(실제 모델 답변이 없는 질문 초안).
+
+```powershell
+py -3 -X utf8 tools/context_sets.py j6 --out data/context_sets/j6-stress-v1
+py -3 -X utf8 tools/context_sets.py j7 --out data/context_sets/j7-v1
+py -3 -X utf8 tools/context_sets.py check data/context_sets/j7-v1
+```
+
+구조·현재 버전·남은 결정은 [인수인계 문서](참고자료/인수인계_2026-10-14.md)에 정리했습니다.
+
 ## 종료·재시작
 
 서버를 실행한 터미널에서 **Ctrl+C**를 한 번 누르면 수집·평가를 중단하고 서버를 종료합니다. 새 문항 호출을 멈추고 이 서버가 실행한 CLI와 자식 프로세스를 정리하며, 완료된 답변과 판정은 저장합니다. 터미널에 종료 안내가 나올 때까지 잠시 기다리세요.

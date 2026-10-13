@@ -142,3 +142,23 @@ def test_readme_states_the_current_semantic_item_counts():
     from code_eval.semantic_items import ITEMS, SUBS
     readme = (ROOT / 'README.md').read_text(encoding='utf-8')
     assert f'세부 기준 {len(SUBS)}·점검 항목 {len(ITEMS)}' in readme
+
+
+def test_handover_document_cites_the_current_versions():
+    """10-14 4차 — 인수인계 문서의 버전 표가 코드 상수와 같다 (버전을 올리면 문서도 같이 고친다)."""
+    from code_eval.attachment_images import JUDGE_IMAGE_POLICY_VERSION
+    from code_eval.jev_applicability import JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION
+    from code_eval.jev_eval import JEV_EVAL_VERSION
+    from code_eval.long_context import LONG_CONTEXT_POLICY_VERSION
+    from code_eval.multi_turn import MULTI_TURN_POLICY_VERSION
+    from code_eval.semantic_items import ITEMS, SUBS
+    from code_eval.semantic_policy import J5_OUTCOME_POLICY_VERSION
+    from webapp.run_summary import COLLECTION_COMPARISON_VERSION, CRITERIA_VERIFICATION_VERSION, RUN_SUMMARY_VERSION
+    from webapp.version_comparison import COMPARISON_VERSION
+    text = read('인수인계_2026-10-14.md')
+    for token in (ENGINE_VERSION, REGISTRY_VERSION, JEV_CRITERIA_VERSION, SEMANTIC_ITEMS_VERSION, JEV_APPLICABILITY_VERSION,
+                  SUB_APPLICABILITY_VERSION, MULTI_TURN_POLICY_VERSION, LONG_CONTEXT_POLICY_VERSION, J5_OUTCOME_POLICY_VERSION,
+                  JUDGE_IMAGE_POLICY_VERSION, JEV_EVAL_VERSION, RUN_SUMMARY_VERSION, COLLECTION_COMPARISON_VERSION,
+                  CRITERIA_VERIFICATION_VERSION, COMPARISON_VERSION):
+        assert f'`{token}`' in text, token
+    assert f'({len(SUBS)}·{len(ITEMS)})' in text
