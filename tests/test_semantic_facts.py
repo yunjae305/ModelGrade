@@ -344,3 +344,9 @@ def test_all_claims_excluded_leaves_a_server_not_applicable_placeholder_instead_
     kept, _, dropped = sf.validate_fact_items([claim_item(1, verdict="TRUE", claim="커피 약 4잔까지가 권장 상한"), claim_item(2, verdict="TRUE")],
                                               STATE, VERIFICATION)
     assert [it["id"] for it in kept] == ["J5-1.a#2"] and len(dropped) == 1
+
+
+def test_answer_link_opened_by_the_judge_web_fetch_counts_as_open_when_the_server_cannot_fetch():
+    timeout = SourceStub({URL: REBUTTAL, "https://gone.example/x": ""}, status="timeout")
+    documents = {URL: [{"text": REBUTTAL}], "https://gone.example/x": [{"text": "page"}]}
+    assert sf.check_answer_links(ANSWER, fetcher=timeout, provider_documents=documents) == {URL: "exists", "https://gone.example/x": "exists"}

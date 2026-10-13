@@ -548,9 +548,12 @@ class AnthropicSemanticClient:
             # items 본문: {model, items, verification}. J5 서버 검증(server_check)이 verification 을 제자리에서 채운다.
             from .semantic_facts import server_check
             body = {"model": model, "items": copy.deepcopy(structured["items"]), "verification": verification}
+            # 평가 모델의 web_fetch 가 실제로 받은 원문 — 서버가 접근 문제로 못 연 URL 을 '열린 것'으로 볼 근거 (메모리에서만)
+            documents, verification["provider_documents"] = _provider_documents(all_blocks)
             source_started = time.monotonic()
             try:
-                body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                body = server_check(body, state, questions, verification, fetcher=self._source_fetcher, cancel_event=cancel_event,
+                                    provider_documents=documents)
             finally:
                 timings["source_verification"] += time.monotonic() - source_started
             return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)

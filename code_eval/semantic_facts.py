@@ -232,10 +232,12 @@ def _link_status(status: Any) -> str:
     return "not_found" if status in NOT_FOUND_STATUSES else "inaccessible"   # 열리지 않으면 접근 불가 — 일시 장애도 포함
 
 
-def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Optional[Event] = None) -> Dict[str, str]:
+def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Optional[Event] = None,
+                       provider_documents: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
     """J5-3.a: 답변(코드 밖)의 http(s) URL 최대 MAX_LINKS 개를 열어 {url: 'exists' | 'not_found' | 'inaccessible' | 'unchecked'}.
 
-    한도 밖 URL 은 열지 않고 'unchecked' 로 남긴다 — 확인하지 못한 출처가 있으면 예로 확정하지 않는다."""
+    한도 밖 URL 은 열지 않고 'unchecked' 로 남긴다 — 확인하지 못한 출처가 있으면 예로 확정하지 않는다.
+    서버가 접근 문제로 못 연 URL 이라도 평가 모델의 web_fetch 가 같은 URL 원문을 받았으면(``provider_documents``) 열린 것으로 본다."""
     text = _data_text(answer) if isinstance(answer, str) and answer else ""
     urls: List[str] = []
     for match in _LINK.finditer(text):
@@ -258,6 +260,8 @@ def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Option
         except Exception:
             status = "fetch_error"
         semantic_sources._check_cancelled(cancel_event)
+        if status != "ok" and semantic_sources._provider_document(provider_documents, normalized, status):
+            status = "ok"   # 평가 모델이 같은 URL 을 실제로 열었다
         links[url] = _link_status(status)
     for url in urls[MAX_LINKS:]:
         links[url] = "unchecked"
@@ -267,7 +271,8 @@ def check_answer_links(answer: str, *, fetcher: Any = None, cancel_event: Option
 # --- transport 가 제출 직후 호출 -----------------------------------------------------------------------
 
 def server_check(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[str, Any], verification: Optional[Dict[str, Any]], *,
-                 fetcher: Any = None, cancel_event: Optional[Event] = None) -> Dict[str, Any]:
+                 fetcher: Any = None, cancel_event: Optional[Event] = None,
+                 provider_documents: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """items 본문의 J5 항목에 server={"problems": [...], "links": {...}} 를 덧붙인 body 사본 (fact.sources[].quote_verified 기록).
 
     J5 항목을 보내지 않았으면 본문을 그대로(사본) 돌려준다. ``verification`` 은 transport 가 모은 {search_performed, source_urls, …}
@@ -302,7 +307,8 @@ def server_check(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
         merge(check_input_values(items, state))
     links: Dict[str, str] = {}
     if "J5-3.a" in questions and any(_split_id(it.get("id"))[0] == "J5-3.a" for it in items):
-        links = check_answer_links(state.get("answer") or "", fetcher=fetcher, cancel_event=cancel_event)
+        links = check_answer_links(state.get("answer") or "", fetcher=fetcher, cancel_event=cancel_event,
+                                   provider_documents=provider_documents)
     for item in items:
         base, _ = _split_id(item.get("id"))
         if base.startswith("J5"):

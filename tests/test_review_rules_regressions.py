@@ -175,6 +175,7 @@ def test_sentence_end_before_closing_emphasis():
 
 @pytest.mark.parametrize("answer,held", [
     ("총 무게: 2[kg]*3 + 1 = 7[kg]. 표시 기호는 `*`입니다.", True),   # 인라인 코드 속 '*' 는 닫는 강조가 아님 → 곱셈
+    ("총 무게: 2[kg]*3 + 1 = 7[kg]. 표시 기호는 ``*``입니다.", True),  # 백틱 두 개로 감싼 인라인 코드도
     ("[1] *3 + 4 = 8\\\\*", False),                                    # 역슬래시 두 개 뒤 '*' 는 실제 닫는 강조 → 그대로 검사
 ])
 def test_emphasis_ignores_inline_code_and_counts_backslash_parity(answer, held):
