@@ -129,6 +129,9 @@ def test_fence_with_info_does_not_close_existing_block():
     "필요한 양은 2 벌 ×3 + 1 = 7입니다.",                              # 숫자와 단위 사이 공백
     "총 넓이: 2㎡ ×3 + 1 = 7입니다.",                                   # 단위 기호
     "2m² ×3 + 1 = 7입니다.",
+    '길이(인치): 2" × 3 + 1 = 7"',                                     # 따옴표·대괄호 단위 뒤 곱셈 기호
+    "길이(피트): 2' × 3 + 1 = 7'",
+    "무게: 2[kg] × 3 + 1 = 7[kg]",
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)

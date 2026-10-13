@@ -194,7 +194,7 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         before = text[line_start:start]
         if _ARROW_BEFORE.search(before):
             ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
-        elif _cut_operand_before(before):
+        elif _cut_operand_before(before, ctx.answer[line_start + len(before.rstrip(" \t\xa0")) - 1:][:1]):
             ch.skip_reason = "등식 앞에 연산자가 있어(단위에 끊긴 앞쪽 피연산자) 좌변을 확정할 수 없음"
         elif "/" in ch.segments[-1] and _LIMIT_AFTER.match(text, end):
             ch.skip_reason = "‘/’ 뒤 값에 이하·이상 같은 한도 표현이 붙어 나눗셈이 아니라 ‘값 / 한도’ 표기로 봄"
@@ -237,20 +237,23 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
     return chains
 
 
-def _cut_operand_before(before: str) -> bool:
+def _cut_operand_before(before: str, operator: str = "") -> bool:
     """좌변 바로 앞(같은 줄)에 단위에 끊긴 앞쪽 피연산자가 있는가 ('2벌 × 3 + 1 = 7' 의 '2벌 ×').
 
-    연산자 바로 앞이 숫자(뒤에 짧은 단위 허용)나 닫는 괄호일 때만 그렇다. 줄머리 불릿('- 3 + 4 = 7'), 기울임·강조를
-    여는 '*'('설명 *3 + 4 = 8*', '결과:*3 …'), 낱말 뒤 하이픈은 앞에 피연산자가 없으므로 등식을 그대로 검사한다.
+    ``before`` 는 등식 투영(×÷ → */, 강조 ** 는 공백)의 줄 앞부분, ``operator`` 는 그 연산자 자리의 답변 원문 글자다.
+    연산자 바로 앞이 숫자(뒤에 공백 하나와 짧은 단위 허용)나 닫는 괄호일 때만 그렇다. 목록 표지만 있으면('1.', '1)') 아니다.
+    원문이 곱셈 기호(×·÷)면 따옴표·대괄호 단위도 단위다(2" × · 2' × · 2[kg] ×). 강조로도 쓰이는 '*' 와 +·-·/ 앞에서는
+    대괄호·따옴표를 단위로 보지 않는다('[1] *3 + 4 = 8*', '설명 *3 + 4 = 8*' 은 그대로 검사).
     """
     stripped = before.rstrip(" \t\xa0")
     if not stripped or stripped[-1] not in "+-*/":
         return False
     body = stripped[:-1]
     if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
-        return False                       # 목록 표지만 있음 ('1. *3 + 4 = 8*', '1) …')
-    # 숫자(·닫는 괄호) 뒤에 공백 하나와 단위(한글·영문·%·㎡·² 같은 기호)가 올 수 있다 — '2 벌 ×', '2㎡ ×', '2m² ×'.
-    # 문장부호(. , : ; ! ?)와 대괄호·중괄호·따옴표·꺾쇠 같은 구분자는 단위가 아니다 ('[1] *3 + 4 = 8*').
+        return False                       # 목록 표지만 있음
+    if operator in "×÷" and operator:
+        return bool(re.search(r"[\d)](?:[ \t\xa0]?[^\s\d+\-*/=]{1,5})?[ \t\xa0]*$", body))
+    # 문장부호(. , : ; ! ?)와 대괄호·중괄호·따옴표·꺾쇠 같은 구분자는 단위가 아니다.
     return bool(re.search(r"[\d)](?:[ \t\xa0]?[^\s\d+\-*/=().,:;!?\[\]{}<>\"'“”‘’「」『』]{1,4})?[ \t\xa0]*$", body))
 
 
