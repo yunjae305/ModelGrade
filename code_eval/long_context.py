@@ -7,19 +7,24 @@
 - 토큰 수는 모델과 상관없이 같은 입력이면 늘 같은 값이 나오도록 고정 공개 토크나이저(tiktoken o200k_base)로 센다.
   처음 한 번 사전 파일을 내려받는다(이후 캐시). 토크나이저가 없으면 J7 을 판별할 수 없다고 기록한다 — 추정으로 대신하지 않는다.
 - tiktoken 은 사전을 시간 제한 없이 내려받으므로, 별도 프로세스가 먼저 tiktoken 캐시를 채우게 하고 ``LOAD_TIMEOUT`` 초가
-  지나면 그 프로세스를 끝낸다(멈춘 내려받기가 남지 않는다). 이 프로세스는 캐시에서 불러온다. 실패·시간 초과는
-  ``RETRY_AFTER`` 초 동안 기억해 질문마다 다시 받으려 하지 않고, 그 뒤에는 새로 시도한다.
+  지나면 그 프로세스를 끝낸다(멈춘 내려받기가 남지 않는다). 이 프로세스는 캐시 파일의 해시를 확인한 뒤에만 불러온다 —
+  캐시를 끈 설정이거나 캐시를 쓰지 못했으면 내려받지 않고 판별 못 함으로 둔다. 실패·시간 초과는 ``RETRY_AFTER`` 초 동안
+  기억해 질문마다 다시 받으려 하지 않고, 그 뒤에는 새로 시도한다.
 """
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import unicodedata
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 __all__ = ["LONG_CONTEXT_POLICY_VERSION", "MIN_TOKENS", "TOKENIZER", "TokenizerUnavailable", "input_text", "count_tokens",
@@ -34,6 +39,9 @@ TIERS = ((128_000, "128K 이상"), (32_000, "32K~128K"), (MIN_TOKENS, "8K~32K"))
 LOAD_TIMEOUT = 20.0   # 사전 내려받기(별도 프로세스)를 기다리는 최대 초
 RETRY_AFTER = 300.0   # 실패를 기억하는 초 — 그동안은 바로 '판별 못 함'
 _PREFETCH = "import tiktoken; tiktoken.get_encoding('o200k_base')"
+#: tiktoken_ext.openai_public.o200k_base 가 쓰는 사전 주소와 SHA-256 — 캐시 파일을 이 값으로 확인한다 (다르면 판별 못 함)
+_VOCAB_URL = "https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken"
+_VOCAB_SHA256 = "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d"
 
 _LOCK = threading.Lock()
 _STATE: Dict[str, Any] = {"encoder": None, "error": None, "failed_at": 0.0}
@@ -43,11 +51,41 @@ class TokenizerUnavailable(RuntimeError):
     """tiktoken 이 없거나 사전 파일을 불러오지 못함 — J7 을 판별할 수 없다."""
 
 
+class _VocabUnavailable(RuntimeError):
+    """확인된 사전 캐시가 없음 — 메시지를 그대로 기록한다."""
+
+
+def _cache_file() -> Optional[Path]:
+    """tiktoken 이 사전을 캐시하는 파일 (tiktoken.load.read_file_cached 와 같은 규칙). 캐시를 끈 설정이면 None."""
+    if "TIKTOKEN_CACHE_DIR" in os.environ:
+        cache_dir = os.environ["TIKTOKEN_CACHE_DIR"]
+    elif "DATA_GYM_CACHE_DIR" in os.environ:
+        cache_dir = os.environ["DATA_GYM_CACHE_DIR"]
+    else:
+        cache_dir = os.path.join(tempfile.gettempdir(), "data-gym-cache")
+    if cache_dir == "":
+        return None
+    return Path(cache_dir) / hashlib.sha1(_VOCAB_URL.encode()).hexdigest()
+
+
+def _verified(path: Path) -> bool:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest() == _VOCAB_SHA256
+    except OSError:
+        return False
+
+
 def _load() -> Any:
-    """별도 프로세스로 사전을 tiktoken 캐시에 받아 둔 뒤(최대 LOAD_TIMEOUT 초, 넘으면 그 프로세스를 끝냄) 캐시에서 불러온다."""
+    """확인된 사전 캐시에서만 불러온다. 캐시가 없으면 별도 프로세스로 받아 둔다(최대 LOAD_TIMEOUT 초, 넘으면 그 프로세스를 끝냄)."""
     import tiktoken   # 설치 안 됨 → ImportError
-    subprocess.run([sys.executable, "-c", _PREFETCH], timeout=LOAD_TIMEOUT, check=True, capture_output=True)
-    return tiktoken.get_encoding("o200k_base")
+    path = _cache_file()
+    if path is None:
+        raise _VocabUnavailable("tiktoken 캐시가 꺼져 있음(TIKTOKEN_CACHE_DIR='') — 시간 제한 없이 내려받게 되므로 쓰지 않음")
+    if not _verified(path):
+        subprocess.run([sys.executable, "-c", _PREFETCH], timeout=LOAD_TIMEOUT, check=True, capture_output=True)
+        if not _verified(path):
+            raise _VocabUnavailable(f"사전 캐시를 쓰지 못함 ({path.parent})")
+    return tiktoken.get_encoding("o200k_base")   # 해시를 확인한 캐시에서 읽는다 — 내려받지 않는다
 
 
 def _encoder() -> Any:
@@ -61,8 +99,8 @@ def _encoder() -> Any:
         except subprocess.TimeoutExpired as exc:
             _STATE.update(error=f"TimeoutError({LOAD_TIMEOUT:g}초)", failed_at=time.monotonic())
             raise TokenizerUnavailable(f"{TOKENIZER} 를 불러오지 못함: {_STATE['error']}") from exc
-        except Exception as exc:   # 설치 안 됨·내려받기 실패(네트워크·해시 불일치)
-            _STATE.update(error=type(exc).__name__, failed_at=time.monotonic())
+        except Exception as exc:   # 설치 안 됨·내려받기 실패(네트워크·해시 불일치)·캐시 없음
+            _STATE.update(error=str(exc) if isinstance(exc, _VocabUnavailable) else type(exc).__name__, failed_at=time.monotonic())
             raise TokenizerUnavailable(f"{TOKENIZER} 를 불러오지 못함: {_STATE['error']}") from exc
         _STATE.update(encoder=encoder, error=None)
         return encoder

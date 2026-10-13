@@ -100,14 +100,30 @@ def test_tokenizer_failure_is_remembered_then_retried_after_the_cooldown(monkeyp
     assert long_context.count_tokens("사아자") == 3 and calls == [1, 1]
 
 
-def test_a_stalled_vocabulary_download_is_cut_off_at_the_time_limit(monkeypatch):
+def test_a_stalled_vocabulary_download_is_cut_off_at_the_time_limit(tmp_path, monkeypatch):
     monkeypatch.setattr(long_context, "_STATE", {"encoder": None, "error": None, "failed_at": 0.0})
+    monkeypatch.setattr(long_context, "_cache_file", lambda: tmp_path / "vocab")   # 아직 받은 사전 없음
     monkeypatch.setattr(long_context, "_PREFETCH", "import time; time.sleep(30)")   # 멈춘 내려받기 대역
     monkeypatch.setattr(long_context, "LOAD_TIMEOUT", 1.0)
     started = time.monotonic()
     with pytest.raises(long_context.TokenizerUnavailable, match="TimeoutError"):
         long_context.count_tokens("가나다")
     assert time.monotonic() - started < 10
+
+
+def test_parent_never_downloads_without_a_verified_cache(tmp_path, monkeypatch):
+    import tiktoken
+    monkeypatch.setattr(tiktoken, "get_encoding", lambda name: pytest.fail("확인된 캐시 없이 불러옴"))
+    monkeypatch.setattr(long_context, "_STATE", {"encoder": None, "error": None, "failed_at": 0.0})
+    monkeypatch.setattr(long_context, "_cache_file", lambda: tmp_path / "vocab")
+    monkeypatch.setattr(long_context, "_PREFETCH", "pass")   # 받기는 성공했다고 끝나지만 캐시는 남기지 않음
+    with pytest.raises(long_context.TokenizerUnavailable, match="사전 캐시를 쓰지 못함"):
+        long_context.count_tokens("가나다")
+    monkeypatch.undo()
+    monkeypatch.setattr(long_context, "_STATE", {"encoder": None, "error": None, "failed_at": 0.0})
+    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", "")
+    with pytest.raises(long_context.TokenizerUnavailable, match="캐시가 꺼져 있음"):
+        long_context.count_tokens("라마바")
 
 
 def test_items_batch_measures_each_input_once_and_both_applicability_paths_share_it(per_char, monkeypatch):
