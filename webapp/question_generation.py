@@ -138,7 +138,8 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 # 첨부파일 (J8)
 - 첨부 질문을 만들고 attachments 에 파일 명세를 씁니다. 종류는 {"·".join(ATTACHMENT_TYPES)}. content 에는 파일에 들어갈 실제 내용 전체를 씁니다({MAX_ATTACHMENT_CHARS:,}자 이하). 줄 표기: '# 제목', '## 소제목', '- 항목', '| a | b |' 표 행, '[다음 쪽]' 쪽 나눔.
 - image 는 막대그래프면 "chart": {{"title": "...", "labels": ["..."], "values": [숫자], "unit": "단위"}} 를 쓰고, 그 밖에는 content 의 글·표를 그립니다.
-- J8-2.a 가 적용되게 표·도표·쪽·목록 구조를 읽어야 답할 수 있는 질문을 넣습니다. 파일 종류를 고르게 씁니다.
+- 첨부 질문은 파일 종류마다 1개 이상 만듭니다({"·".join(ATTACHMENT_TYPES)} — 첨부 질문 {len(ATTACHMENT_TYPES)}개 이상). image 는 막대그래프와 표·글 그림을 섞습니다. 첨부 질문도 다른 항목을 함께 노리게 해 전체 질문 수를 줄입니다.
+- J8-2.a 가 적용되게 표·도표·쪽·목록 구조를 읽어야 답할 수 있는 질문을 넣습니다.
 
 {_FORMAT}
 """
@@ -146,15 +147,27 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
     return head + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
 
 
-def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None) -> str:
-    """앞서 만든 질문 세트에서 적용되지 않은 검사·항목만 보충한다."""
+def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
+                      missing_types: Tuple[str, ...] = ()) -> str:
+    """앞서 만든 질문 세트에서 적용되지 않은 검사·항목, 없는 첨부 종류만 보충한다."""
     catalog = catalog or criteria_catalog()
-    return ("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충합니다. 결과는 JSON 하나로만 답합니다.\n\n"
-            "# 목표\n앞서 만든 질문 세트에서 아래 [빠진 항목]이 어느 질문에도 적용되지 않았습니다. 이 항목들이 적용되는 질문만 가능한 한 적게 추가합니다. "
-            "적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
-            f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
-            "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상과 턴마다 long_paste, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
-            f"{_FORMAT}\n\n# 빠진 항목\n" + "\n".join(_catalog_lines(catalog, set(missing))))
+    parts = ["당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+             "# 목표\n앞서 만든 질문 세트에서 아래 [빠진 항목]이 어느 질문에도 적용되지 않았거나 [빠진 첨부 종류]의 첨부 질문이 없습니다. "
+             "이것들이 적용되는 질문만 가능한 한 적게 추가합니다. 적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
+             f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
+             "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상과 턴마다 long_paste, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
+             f"{_FORMAT}"]
+    if missing_types:
+        parts.append("# 빠진 첨부 종류\n" + "\n".join(f"- {kind}: 이 종류의 파일을 첨부한 질문을 1개 이상 추가합니다 (빠진 항목도 함께 노리게)."
+                                                   for kind in missing_types))
+    if missing:
+        parts.append("# 빠진 항목\n" + "\n".join(_catalog_lines(catalog, set(missing))))
+    return "\n\n".join(parts)
+
+
+def attachment_types(groups: List[Dict[str, Any]]) -> set:
+    """질문 세트에 실제로 만든 첨부파일 종류."""
+    return {a.get("type") for g in groups for t in g["turns"] for a in t.get("attachments") or []}
 
 
 def _material_prompt(topic: str, part: int, parts: int, chars: int, facts: List[str]) -> str:
@@ -239,11 +252,13 @@ class QuestionSetBuilder:
         self.count = token_count
         self.warnings: List[str] = []
         self.calls = 0
+        self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
     def _ask(self, prompt: str, max_tokens: int, partial_ok: bool = False) -> str:
         if self.cancelled():
             raise Cancelled("생성을 중단했습니다.")
-        self.calls += 1
+        with self._calls_lock:
+            self.calls += 1
         try:
             return self.llm(prompt, max_tokens)
         except IncompleteResponse as exc:
@@ -288,12 +303,17 @@ class QuestionSetBuilder:
 
     # 질문 한 개 → id/turns 묶음 -------------------------------------------------------
     def materialize(self, number: int, plan: Dict[str, Any]) -> Dict[str, Any]:
+        # 턴마다 붙여 넣을 자료(J6)는 서로 기다릴 이유가 없어 동시에 만든다 — 10턴 대화가 한 턴씩일 때보다 훨씬 빨리 끝난다
+        pasted: Dict[int, str] = {}
+        jobs = [(i, turn) for i, turn in enumerate(plan["turns"]) if turn.get("long_paste")]
+        if jobs:
+            with ThreadPoolExecutor(max_workers=MATERIAL_WORKERS) as pool:
+                texts = pool.map(lambda job: self.long_paste(job[1]["long_paste"], job[1]["question"]), jobs)
+                pasted = dict(zip((i for i, _ in jobs), texts))
         turns = []
         for t_index, turn in enumerate(plan["turns"], 1):
-            question = turn["question"]
+            question = pasted.get(t_index - 1, turn["question"])
             out: Dict[str, Any] = {"turn": t_index}
-            if turn.get("long_paste"):
-                question = self.long_paste(turn["long_paste"], question)
             if turn.get("long_reference"):
                 out["reference"] = self.long_reference(turn["long_reference"])
             files = []
@@ -334,12 +354,16 @@ class QuestionSetBuilder:
                     self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
             report = check(groups)
             missing = report["coverage"]["missing_checks"] + report["coverage"]["missing_items"]
-            if not missing or rounds >= SUPPLEMENT_ROUNDS:
+            have = attachment_types(groups)
+            missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
+            if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
                 break
             rounds += 1
-            self.progress("supplement", {"message": f"빠진 항목 {len(missing)}개 보충 요청 ({rounds}회차)", "missing": missing})
+            self.progress("supplement", {"message": f"빠진 항목 {len(missing)}개·첨부 종류 {len(missing_types)}개 보충 요청 ({rounds}회차)",
+                                         "missing": missing + [f"첨부:{kind}" for kind in missing_types]})
             try:
-                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog), PLAN_TOKENS))
+                plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types),
+                                                       PLAN_TOKENS))
             except GenerationError as exc:
                 self.warnings.append(f"보충 {rounds}회차: {exc}")
                 break
