@@ -12,7 +12,8 @@ from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "evaluation_method", "input_composition", "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
+__all__ = ["RUN_SUMMARY_VERSION", "COLLECTION_COMPARISON_VERSION", "collection_comparison", "evaluation_method", "input_composition",
+           "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
 RUN_SUMMARY_VERSION = "run-summary-v2"
@@ -167,6 +168,75 @@ def _usage_tokens(raw: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
     if isinstance(inp, int):
         inp += int(usage.get("cache_read_input_tokens") or 0) + int(usage.get("cache_creation_input_tokens") or 0)
     return inp, usage.get("output_tokens", usage.get("completion_tokens"))
+
+
+COLLECTION_COMPARISON_VERSION = "collection-comparison-v1"
+_ACCESS_LABELS = {"api": "API", "web": "웹", "agent": "에이전트", "platform": "외부 플랫폼"}
+
+
+def _model_name(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return value.get("model") or value.get("label")
+    return None
+
+
+def _method(run: Dict[str, Any], provider: str, collection: Dict[str, Any]) -> str:
+    """수집 방식 이름 — 행·실행에 기록된 것만 쓴다 (추정하지 않는다)."""
+    if provider == "aiona":
+        document = run.get("input_document") if isinstance(run.get("input_document"), dict) else {}
+        return "업로드 원문" + (f" ({document['format']})" if document.get("format") else "")
+    access = collection.get("access_mode") or ((run.get("systems") or {}).get(provider) or {}).get("access_mode")
+    label = collection.get("collection_method_label")
+    if label:   # 외부 가져오기 행: 접근 경로(API·웹·…) + 수집 방식(공식 내보내기·직접 복사 등)
+        return f"{_ACCESS_LABELS.get(access, access or '경로 미기록')} · {label}"
+    request = (run.get("collection_execution") or {}).get("request") or {}
+    if request.get("access_mode") == "api" or collection.get("request") or collection.get("requested_at"):
+        return "게이트웨이 API 실시간 수집 (FactChat)" if provider == "factchat" else "API 실시간 수집"
+    if isinstance(collection.get("raw"), dict) and collection["raw"]:
+        return "API 수집 (방식 기록 전 실행 — 제공자 원본 응답으로 확인)"
+    return "수집 방식 기록 없음"
+
+
+def collection_comparison(run: Dict[str, Any]) -> Dict[str, Any]:
+    """질문마다 시스템별 수집 방식·모델(설정·응답)·입력·출력 토큰·답변 길이·요청·수신 시각·수집 상태·실패 사유·평가 여부·질문 판정 —
+    같은 질문을 나란히 본다 (10-14 4차 P1-6). 저장 실행만 읽고, 기록이 없는 값은 None 으로 둔다 (지어내지 않는다).
+    판정이 시스템마다 다르면 outcomes_differ. 실행 이름·AIONA 버전 메모에 '샘플'이 있으면 sample=True (시연용 샘플 표시)."""
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    providers = [p for p in (run.get("providers") or list(datasets)) if p in datasets]
+    total = max([len(datasets[p] or []) for p in providers] or [0])
+    models = run.get("models") if isinstance(run.get("models"), dict) else {}
+    systems = run.get("systems") if isinstance(run.get("systems"), dict) else {}
+    outcomes = {p: question_outcomes(evaluations.get(p), total) for p in providers}
+    records = {p: ((evaluations.get(p) or {}).get("jev_eval") or {}).get("records") or [] for p in providers}
+    questions = []
+    for index in range(total):
+        entries = []
+        for provider in providers:
+            rows = datasets[provider] or []
+            row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+            collection = row.get("collection") if isinstance(row.get("collection"), dict) else {}
+            raw = collection.get("raw") if isinstance(collection.get("raw"), dict) else {}
+            usage = collection.get("usage") if isinstance(collection.get("usage"), dict) else {}
+            inp, out = _usage_tokens(raw) if raw else (usage.get("input_tokens"), usage.get("output_tokens"))
+            record = records[provider][index] if index < len(records[provider]) and isinstance(records[provider][index], dict) else None
+            entries.append({
+                "system": provider, "method": _method(run, provider, collection),
+                "model": _model_name(models.get(provider)) or _model_name(systems.get(provider)),
+                "response_model": (raw.get("model") or raw.get("modelVersion")) if raw else collection.get("model"),
+                "input_tokens": inp, "output_tokens": out, "answer_chars": len(row.get("answer") or ""),
+                "requested_at": collection.get("requested_at"), "collected_at": collection.get("collected_at") or collection.get("received_at"),
+                "status": "UPLOADED" if provider == "aiona" else (collection.get("status") or "MISSING"),
+                "error": collection.get("error") if provider != "aiona" else None,
+                "evaluation": (record or {}).get("status"), "criteria": len((record or {}).get("criteria") or []),
+                "outcome": outcomes[provider][index]["outcome"] if index < len(outcomes[provider]) else "PENDING"})
+        judged = {e["outcome"] for e in entries if e["outcome"] in ("PASS", "FAIL")}
+        first = next((rows[index] for p in providers if index < len(rows := datasets[p] or []) and isinstance(rows[index], dict)), {})
+        questions.append({"index": index, "case_id": first.get("case_id"), "conversation_id": first.get("conversation_id"),
+                          "turn": first.get("turn"), "systems": entries, "outcomes_differ": len(judged) > 1})
+    marks = " ".join(str(v) for v in (run.get("name"), (run.get("aiona_release") or {}).get("notes")) if v)
+    return {"version": COLLECTION_COMPARISON_VERSION, "sample": "샘플" in marks, "questions": questions}
 
 
 def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:

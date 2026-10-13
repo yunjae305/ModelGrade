@@ -237,3 +237,33 @@ def test_input_composition_tracks_each_model_and_warns_when_inputs_differ():
     codes = {note["code"] for note in report["notes"]}
     assert codes == {"own_history", "attachments_not_sent"}
     assert "claude 900" in next(n["text"] for n in report["notes"] if n["code"] == "own_history")
+
+
+def test_collection_comparison_lines_up_each_system_for_the_same_question():
+    """4차 P1-6 — 같은 질문의 시스템별 수집 방식·모델·토큰·시각·상태·평가·판정. 기록이 없으면 None, 방식은 기록된 것만 (지어내지 않음)."""
+    from webapp.run_summary import collection_comparison
+    record = {"status": "SUCCESS", "criteria": ["J1"], "decisions": {"J1": {"decision": "PASS"}}}
+    fail = {"status": "SUCCESS", "criteria": ["J1"], "decisions": {"J1": {"decision": "FAIL"}}}
+    case = {"case_status": "EVALUATED", "summary": {"common": {"pass": 1, "fail": 0, "unjudged": 0}}}
+    run = {"name": "[샘플·모의] 시연", "providers": ["aiona", "gpt", "web"],
+           "collection_execution": {"request": {"access_mode": "api"}}, "models": {"aiona": "업로드 원문", "gpt": "gpt-x"},
+           "systems": {"web": {"access_mode": "web", "model": "web-model"}},
+           "datasets": {"aiona": [{"case_id": "Q1", "answer": "가나다"}],
+                        "gpt": [{"case_id": "Q1", "answer": "답", "collection": {"status": "SUCCESS", "requested_at": "2026-10-14T01:00:00Z",
+                                 "collected_at": "2026-10-14T01:00:02Z", "raw": {"model": "gpt-x-0101", "usage": {"input_tokens": 12, "output_tokens": 3}}}}],
+                        "web": [{"case_id": "Q1", "answer": "", "collection": {"status": "ERROR", "error": "로그인 필요", "access_mode": "web",
+                                 "collection_method_label": "직접 복사 입력", "usage": {}}}]},
+           "evaluations": {"aiona": {"cases": [case], "jev_eval": {"records": [record]}}, "gpt": {"cases": [case], "jev_eval": {"records": [fail]}}}}
+    report = collection_comparison(run)
+    assert report["sample"] is True and report["questions"][0]["case_id"] == "Q1"
+    aiona, gpt, web = report["questions"][0]["systems"]
+    assert (aiona["method"], aiona["status"], aiona["answer_chars"], aiona["outcome"]) == ("업로드 원문", "UPLOADED", 3, "PASS")
+    assert (gpt["method"], gpt["model"], gpt["response_model"], gpt["input_tokens"], gpt["output_tokens"]) == ("API 실시간 수집", "gpt-x", "gpt-x-0101", 12, 3)
+    assert gpt["requested_at"] and gpt["collected_at"] and gpt["outcome"] == "FAIL"
+    assert (web["method"], web["model"], web["status"], web["error"], web["input_tokens"], web["evaluation"]) == (
+        "웹 · 직접 복사 입력", "web-model", "ERROR", "로그인 필요", None, None)
+    assert report["questions"][0]["outcomes_differ"] is True
+    old = dict(run, collection_execution=None, name="실제 실행")
+    old["datasets"] = dict(run["datasets"], gpt=[{"case_id": "Q1", "answer": "답", "collection": {"status": "SUCCESS", "raw": {"model": "gpt-x"}}}])
+    assert collection_comparison(old)["questions"][0]["systems"][1]["method"].startswith("API 수집 (방식 기록 전 실행")
+    assert collection_comparison(old)["sample"] is False

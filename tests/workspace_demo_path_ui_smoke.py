@@ -85,6 +85,13 @@ def main():
                     page.wait_for_timeout(500)
                     text = dialog.inner_text()
                     assert all(needle in text for needle in needles), (case, text[:600])
+                    table = dialog.locator('[data-collection-comparison]')                          # P1-6 같은 질문의 수집 방식 비교
+                    expect(table).to_contain_text('수집 방식 비교 — 같은 질문, 시스템 4개')
+                    expect(table).to_contain_text('샘플 데이터')
+                    table.locator('summary').click()
+                    expect(table.locator('tbody tr')).to_have_count(4)
+                    expect(table).to_contain_text('API 실시간 수집')
+                    expect(table).to_contain_text('업로드 원문')
                     page.screenshot(path=str(output / f'demo-path-question-{case}.png'))
                     page.keyboard.press('Escape')
                 page.locator('[data-view="history"]').first.click()                                 # 7

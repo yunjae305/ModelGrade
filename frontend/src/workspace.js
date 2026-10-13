@@ -275,6 +275,26 @@
     const a = node('a', {href: url, download: name}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const sourceDocument = () => state.modalSource === 'result' ? state.result?.input_document : state.importInfo;
+  // 같은 질문의 시스템별 수집 방식·모델·토큰·시각·상태·평가·판정 (서버 collection-comparison-v1, 10-14 4차). 기록이 없으면 '기록 없음'
+  function collectionDetails(question, sample) {
+    const outcomeText = {PASS: 'PASS', FAIL: 'FAIL', PENDING: '미완료', EXCLUDED: '평가 제외'};
+    const value = (v) => v == null ? '-' : number(v);
+    const tokens = (e) => e.input_tokens == null && e.output_tokens == null ? '기록 없음' : `${value(e.input_tokens)} · ${value(e.output_tokens)}`;
+    const when = (e) => [e.requested_at, e.collected_at].filter(Boolean).map(shortTime).join(' → ') || '기록 없음';
+    const collected = (e) => e.status === 'UPLOADED' ? '업로드' : e.status === 'SUCCESS' ? '수집 완료' : e.status + (e.error ? ' · ' + e.error : '');
+    const rows = question.systems.map((e) => node('tr', {'data-system': e.system},
+      node('th', {scope: 'row', text: modelName(e.system)}), node('td', {text: e.method}),
+      node('td', {text: [e.model, e.response_model && e.response_model !== e.model ? '응답 ' + e.response_model : null].filter(Boolean).join(' · ') || '기록 없음'}),
+      node('td', {text: tokens(e)}), node('td', {text: number(e.answer_chars) + '자'}), node('td', {text: when(e)}), node('td', {text: collected(e)}),
+      node('td', {text: e.evaluation ? (e.evaluation === 'SUCCESS' ? '평가함' : e.evaluation) + ` · 기준 ${number(e.criteria)}개` : '평가 안 함'}),
+      node('td', {}, pill(outcomeText[e.outcome] || e.outcome, e.outcome === 'PASS' ? 'success' : e.outcome === 'FAIL' ? 'danger' : 'warning'))));
+    return node('details', {class: 'version-profile-raw', 'data-collection-comparison': ''},
+      node('summary', {text: `수집 방식 비교 — 같은 질문, 시스템 ${number(question.systems.length)}개` + (question.outcomes_differ ? ' · 판정이 다름' : '') +
+        (sample ? ' · 샘플 데이터' : '')}),
+      node('div', {class: 'table-scroll'}, node('table', {class: 'data-table'},
+        node('thead', {}, node('tr', {}, ...['시스템', '수집 방식', '모델 (설정 · 응답)', '입력 · 출력 토큰', '답변', '요청 → 수신', '수집 상태', '평가', '판정'].map((text) => node('th', {scope: 'col', text})))),
+        node('tbody', {}, ...rows))));
+  }
   $('view-source').addEventListener('click', () => {
     $('import-notes').replaceChildren(...(sourceDocument()?.notes || []).map((text) => node('p', {text})));
     $('source-text').textContent = sourceDocument()?.original_text || '';
@@ -1082,10 +1102,12 @@
     if (!batch) return;
     const status = results.caseState(state.result, p, index);
     const imageNote = results.attachmentImageNote(record);
+    const compared = state.modalSource === 'result' ? state.result?.collection_comparison : null;
     box.append(node('div', {class: 'answer-verdict'}, pill(status.text, status.kind), node('p', {text: status.detail})),
       node('div', {class: 'answer-checks'}, ...[['코드 검사', status.code], ['의미 평가', status.semantic]].map(([label, check]) =>
         node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason}),
           label === '의미 평가' && imageNote ? node('p', {class: 'field-help', 'data-attachment-images': '', text: imageNote}) : null))));
+    if (compared?.questions?.[index]) box.append(collectionDetails(compared.questions[index], compared.sample));
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
