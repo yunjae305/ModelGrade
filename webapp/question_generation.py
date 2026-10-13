@@ -56,7 +56,7 @@ PLAN_BATCH = 40               # GPT 응답 하나에 계획하게 하는 질문 
 MAX_EXTRA_ROUNDS = MAX_PLAN_QUESTIONS // PLAN_BATCH + 3
 DIFFICULTIES = ("쉬움", "보통", "어려움")
 MAX_PLAN_TURNS = 15
-MAX_LONG_REFERENCES = 2
+MAX_LONG_REFERENCES = 1       # 긴 참조 자료(J7, 272K 토큰 이상)는 세트당 1개 — 생성·수집·평가를 합쳐 하나에 약 $5~8 (사용자 결정 2026-10-14)
 MAX_CALLS = 250               # 작업 하나의 GPT 호출 상한 (질문 수를 지정하면 그 수에 맞춰 늘린다 — QuestionSetBuilder.build)
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = 8
@@ -180,8 +180,8 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 - 자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {PASTE_CHARS:,}자 자료를 만들어 질문 앞에 붙입니다. 대화 하나에 최대 {MAX_PASTE_TURNS}턴, 턴마다 붙이지 않습니다.
 
 # 롱컨텍스트 (J7)
-- 질문 1개 이상에 {long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상의 참조 자료가 필요합니다. long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.
-- J7-1.a 는 자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻고, J7-2.a 는 3곳 이상에 흩어진 사실을 연결·비교·집계하게 묻습니다. 한 질문으로 둘 다 물어도 됩니다.
+- 질문 정확히 1개에만 {long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상의 참조 자료를 씁니다(세트 전체에서 긴 참조 자료는 1개). long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.
+- J7-1.a 는 자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻고, J7-2.a 는 3곳 이상에 흩어진 사실을 연결·비교·집계하게 묻습니다. 그 한 질문으로 둘 다 묻습니다.
 
 # 첨부파일 (J8)
 - 첨부 질문을 만들고 attachments 에 파일 명세를 씁니다. 종류는 {"·".join(ATTACHMENT_TYPES)}. content 에는 파일에 들어갈 실제 내용 전체를 씁니다({MAX_ATTACHMENT_CHARS:,}자 이하). 줄 표기: '# 제목', '## 소제목', '- 항목', '| a | b |' 표 행, '[다음 쪽]' 쪽 나눔.

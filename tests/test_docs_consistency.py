@@ -52,11 +52,11 @@ def prose_after_section(text, heading):
 def test_service_guide_documents_current_settings_and_env_keys():
     text = read('SERVICE_UI.md')
     env = env_values()
-    for key in ('SEMANTIC_PIPELINE', 'SEMANTIC_ANTHROPIC_MODEL', 'SEMANTIC_ANTHROPIC_EFFORT'):
+    for key in ('SEMANTIC_PIPELINE', 'SEMANTIC_DISPATCH', 'SEMANTIC_ANTHROPIC_BATCH_QUESTIONS', 'SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS',
+                'SEMANTIC_ANTHROPIC_MODEL', 'SEMANTIC_ANTHROPIC_EFFORT'):
         assert key in text and key in env, key
-    # Message Batches 호출 방식은 2026-10-13 제거 — 설정 키가 남아 있으면 안 된다
-    assert not any(key.startswith(('SEMANTIC_DISPATCH', 'SEMANTIC_ANTHROPIC_BATCH_')) for key in env)
-    assert env['SEMANTIC_PIPELINE'] == 'legacy' and env['SEMANTIC_ENGINE'] == 'anthropic_api'
+    # Message Batches 호출 방식은 10-13 에 뺐다가 10-14 비용 결정으로 다시 넣음 — 예시 설정은 batch
+    assert env['SEMANTIC_PIPELINE'] == 'legacy' and env['SEMANTIC_DISPATCH'] == 'batch' and env['SEMANTIC_ENGINE'] == 'anthropic_api'
     heading = next(line for line in text.splitlines() if line.startswith('### 현재 설정'))
     prose = text[text.index(heading):].split('```', 1)[0]                 # 예시 블록이 아니라 본문 문단에서
     assert f"SEMANTIC_ANTHROPIC_MODEL={env['SEMANTIC_ANTHROPIC_MODEL']}" in prose and f"SEMANTIC_ANTHROPIC_EFFORT={env['SEMANTIC_ANTHROPIC_EFFORT']}" in prose

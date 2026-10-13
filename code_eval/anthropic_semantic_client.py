@@ -98,12 +98,23 @@ class AnthropicSemanticConfig:
     max_tool_calls: int = 4
     max_fetches: int = 8
     max_continuations: int = 2
+    #: 호출 방식 — realtime(질문마다 Messages 호출) | batch(Message Batches 에 묶어 제출, 폴링). 판정 규칙은 같다.
+    dispatch: str = "realtime"
+    batch_questions: int = 20          # 묶음 하나에 넣는 질문 수
+    batch_poll_seconds: float = 15.0   # 묶음 상태 조회 주기(초, 10~30 권장)
     prompt_cache: bool = True
     engine: str = field(default="anthropic_api", init=False)
 
     def __post_init__(self):
         if not isinstance(self.model, str) or not self.model.strip():
             raise ValueError("Claude 의미 평가 모델명이 필요합니다.")
+        if self.dispatch not in ("realtime", "batch"):
+            raise ValueError("SEMANTIC_DISPATCH 는 realtime 또는 batch 여야 합니다.")
+        if type(self.batch_questions) is not int or not 1 <= self.batch_questions <= 1000:
+            raise ValueError("묶음 질문 수(batch_questions)는 1~1000 사이의 정수여야 합니다.")
+        if (isinstance(self.batch_poll_seconds, bool) or not isinstance(self.batch_poll_seconds, (int, float))
+                or not math.isfinite(self.batch_poll_seconds) or not 1 <= self.batch_poll_seconds <= 300):
+            raise ValueError("묶음 상태 조회 주기(batch_poll_seconds)는 1~300초여야 합니다.")
         if self.reasoning_effort not in ("low", "medium", "high", "xhigh", "max"):
             raise ValueError("Claude effort 설정이 올바르지 않습니다.")
         if isinstance(self.timeout, bool) or not isinstance(self.timeout, (int, float)) or not math.isfinite(self.timeout) or self.timeout <= 0:
@@ -137,7 +148,8 @@ class AnthropicSemanticConfig:
                 "fact_check_scope": "all_answers", "context_check_policy": CONTEXT_CHECK_POLICY,
                 "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
-                "dispatch": "realtime",   # 호출은 실시간만 (Message Batches 는 2026-10-13 제거)
+                "dispatch": self.dispatch,
+                **({"batch_questions": self.batch_questions, "batch_poll_seconds": self.batch_poll_seconds} if self.dispatch == "batch" else {}),
                 "prompt_cache_policy": "static_history_question_ephemeral_5m" if self.prompt_cache else "disabled",
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
@@ -403,6 +415,11 @@ class AnthropicSemanticClient:
         """캐시를 쓰면 같은 대화의 턴을 앞 턴이 끝난 뒤 평가한다 — 앞 턴이 만든 캐시를 다음 턴이 읽게 (evaluate_jev_batch 가 본다)."""
         return bool(self.config.prompt_cache)
 
+    def batch_client(self):
+        """같은 키·주소·transport 로 Message Batches 클라이언트를 만든다 (jev_batch 디스패처용)."""
+        from .anthropic_batch_client import AnthropicBatchClient
+        return AnthropicBatchClient(self.config.api_base, self._api_key, transport=self._transport, timeout=self.config.timeout)
+
     async def _post(self, payload, cancel_event, deadline):
         async with httpx.AsyncClient(base_url=self.config.api_base.rstrip("/") + "/",
                                      timeout=max(.01, deadline - time.monotonic()),
@@ -423,10 +440,14 @@ class AnthropicSemanticClient:
                     task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
 
-    # --- 요청 조립 · 응답 처리 ---------------------------------------------------------------------------
+    # --- 요청 조립 · 응답 처리 · 실시간/Batch 입구 ---------------------------------------------------------
+    # 실시간(system_one)과 Message Batches(finish_batch_result)가 같은 조립·응답 처리를 쓴다. 차이는 HTTP 를 누가 보내느냐뿐이다.
 
     def build_request(self, state, questions):
-        """(payload, context) — 첫 HTTP 요청 본문과, 응답 처리에 필요한 문맥 {questions(보낸 것), not_sent, search_enabled, items_mode}."""
+        """(payload, context) — 첫 HTTP 요청 본문과, 응답 처리에 필요한 문맥 {questions(보낸 것), not_sent, search_enabled, items_mode}.
+
+        Batches 디스패처는 payload 를 ``params`` 로 제출하고, 결과 메시지를 ``finish_batch_result(raw, context)`` 에 넘긴다.
+        """
         search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
         mode = search_mode(questions, state, self.config.web_search)
         items_mode = semantic.is_items(questions)
@@ -689,3 +710,23 @@ class AnthropicSemanticClient:
         finally:
             if gate is not None:   # 첫 요청이 보내기 전에 중단·시간 초과로 끝나도 기다리는 요청을 풀어 준다
                 gate.set()
+
+    def finish_batch_result(self, raw, context, *, payload=None, cancel_event=None, carry=None):
+        """Message Batches 결과 메시지 하나 → JevCall. pause_turn(검색 이어가기가 필요) 이면 None — 디스패처가 실시간으로 다시 보낸다.
+
+        ``raw`` 는 결과 줄의 ``result.message`` (Messages 응답과 같은 모양). 검색·원문 확인은 Batches 안에서도 서버 도구로 실행되므로
+        결과 블록을 실시간과 같은 규칙으로 읽고, 반박 출처 원문 대조·J5 서버 검증은 여기서(디스패처 프로세스에서) 한다.
+        ``carry`` (list) 를 주면 None 을 돌려줄 때 이 묶음 요청의 사용량 조각을 담는다 — 실시간 재전송 레코드에 더하라고.
+        """
+        session = self._session(context)
+        result = session["result"]
+        try:
+            outcome, call = self._consume(raw, 200, session, context["state"], context, payload or {"tools": []},
+                                          continuation=self.config.max_continuations if payload is None else 0, cancel_event=cancel_event)
+        except CancelledError:
+            return result(JevStatus.SKIPPED, error="평가 중단 요청으로 Claude API 평가를 종료했습니다.")
+        except (ValueError, TypeError, UnicodeError):
+            return result(JevStatus.INVALID_RESPONSE, error="Claude 의미 평가 요청·응답을 원문 그대로 처리할 수 없습니다.")
+        if outcome != "done" and isinstance(carry, list):
+            carry.extend(copy.deepcopy(session["parts"]))
+        return call if outcome == "done" else None
