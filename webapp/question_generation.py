@@ -8,6 +8,8 @@
 2. 첨부파일 — 명세대로 파일을 만든다 (``attachment_files``). 내용을 우리가 정했으므로 평가 모델에 정답 내용을 줄 수 있다.
 3. 긴 자료 — J7(입력 272K 토큰 이상)은 참조 자료를 여러 번 나눠 쓰게 해 이어 붙이고 사실 문장을 정한 위치에 넣는다.
    J6(턴마다 질문+답변 10K 토큰 이상, 10턴 이상)은 턴마다 붙여 넣을 자료를 만들어 질문 앞에 붙인다 — 질문만으로 10K 토큰을 넘긴다.
+   자료는 '[붙여 넣은 자료] … [자료 끝]' 으로 감싼다(``code_eval.analysis``) — 평가기는 그 안을 사용자가 준 자료로만 보고 지시는 요청
+   부분에서 찾는다 (사용자 결정 2026-10-14: 붙여 넣은 글은 첨부가 아니라 질문 내용이며, 자료 속 문장을 지시로 읽으면 안 된다).
 4. 점검 — 질문 세트 점검(``tools.check_question_set``)과 같은 규칙으로 검사·항목별 적용 수를 세고, 빠진 것만 GPT 에 보충을
    요청한다 (최대 ``SUPPLEMENT_ROUNDS`` 회). 답변 구조로만 생기는 검사는 질문만으로 셀 수 없어 GPT 가 적은 노리는 항목으로 표시한다.
 5. 저장 — ``data/question_sets/<id>/questions.json`` (업로드 화면과 같은 id/turns JSON) 과 ``files/`` (첨부파일).
@@ -26,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from code_eval import long_context, multi_turn
+from code_eval.analysis import PASTE_BEGIN, PASTE_END
 from code_eval.criteria_registry import reference_details
 from code_eval.semantic_items import ITEMS, SUBS_BY_ID
 
@@ -35,7 +38,7 @@ from .code_eval_service import ROOT
 __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "criteria_catalog", "plan_prompt", "supplement_prompt", "parse_plan",
            "QuestionSetBuilder", "QuestionSetService"]
 
-QUESTION_GEN_VERSION = "question-gen-v1"
+QUESTION_GEN_VERSION = "question-gen-v1.1"   # v1.1: 붙여 넣은 자료에 끝 표시([자료 끝]) — 평가기가 자료와 요청을 구분
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -360,14 +363,15 @@ class QuestionSetBuilder:
         return "\n\n".join(paragraphs)
 
     def long_paste(self, spec: Dict[str, Any], question: str) -> str:
-        """J6 — 질문만으로 턴 하나가 MIN_TURN_TOKENS 이상이 되도록 붙여 넣을 자료를 만든다."""
+        """J6 — 질문만으로 턴 하나가 MIN_TURN_TOKENS 이상이 되도록 붙여 넣을 자료를 만들어 표시로 감싸고, 요청은 그 뒤에 둔다."""
+        wrap = lambda material: f"{PASTE_BEGIN}\n{material}\n{PASTE_END}\n\n{question}"
         material = self._ask(_paste_prompt(spec, PASTE_CHARS), MATERIAL_TOKENS, True).strip()
         tries = 0
-        while self.count(f"[붙여 넣은 자료]\n{material}\n\n{question}") < multi_turn.MIN_TURN_TOKENS and tries < 3:
+        while self.count(wrap(material)) < multi_turn.MIN_TURN_TOKENS and tries < 3:
             tries += 1
             material += "\n\n" + self._ask(_paste_prompt(dict(spec, topic=f"{spec.get('topic') or '업무 자료'} (이어서)"), PASTE_CHARS // 2),
                                            MATERIAL_TOKENS, True).strip()
-        return f"[붙여 넣은 자료]\n{material}\n\n{question}"
+        return wrap(material)
 
     # 질문 한 개 → id/turns 묶음 -------------------------------------------------------
     def materialize(self, number: int, plan: Dict[str, Any]) -> Dict[str, Any]:

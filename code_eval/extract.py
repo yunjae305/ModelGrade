@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis import TextAnalysis, mask_ranges
+from .analysis import TextAnalysis, mask_ranges, pasted_ranges
 from .textparse import _NUM_WORD, _count_governed_by_output_verb
 
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
@@ -141,8 +141,8 @@ def _nested(spans: List[Tuple[int, int]], start: int, end: int) -> bool:
 
 
 def _instruction_text(qa: TextAnalysis) -> str:
-    """자료로 제시된 펜스 코드·인용 줄·표를 가린 질문 (위치 보존)."""
-    ranges = list(qa.fence_ranges)
+    """자료로 제시된 펜스 코드·인용 줄·표·붙여 넣은 자료([붙여 넣은 자료]…[자료 끝])를 가린 질문 (위치 보존)."""
+    ranges = list(qa.fence_ranges) + pasted_ranges(qa.text)
     for line in qa.lines:
         if not line.in_code and line.text.lstrip().startswith(">"):
             ranges.append((line.start, line.end))

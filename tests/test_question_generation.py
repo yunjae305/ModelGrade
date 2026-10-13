@@ -68,6 +68,7 @@ def test_builder_makes_files_long_inputs_and_checks_coverage(tmp_path):
     assert len(conversation) == multi_turn.MIN_LONG_TURNS
     assert all(long_context.count_tokens(t["question"]) >= multi_turn.MIN_TURN_TOKENS for t in conversation)   # 질문만으로 긴 턴
     assert all(t["question"].endswith(f"{n}번째 요청: 앞에서 정한 대로 반말로 정리해 줘.") for n, t in enumerate(conversation, 1))   # 동시에 만들어도 턴 순서 그대로
+    assert all(t["question"].startswith("[붙여 넣은 자료]\n") and "\n[자료 끝]\n\n" in t["question"] for t in conversation)   # 자료와 요청을 표시로 구분
     assert {cid: report["criteria"][cid]["applicable_units"] for cid in ("J6", "J7", "J8")} == {"J6": 1, "J7": 1, "J8": 1}
     assert report["coverage"]["items"]["J8-2.a"] == 1 and report["coverage"]["checks"]["2-1.count"] == 1
     supplements = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 보충")]
@@ -125,3 +126,21 @@ def test_truncated_material_is_used_and_a_failed_question_is_skipped(tmp_path):
     topics = [g["topic"] for g in builder.build()["groups"]]
     assert "계약서" not in topics and "행사 준비" in topics and (tmp_path / "plan.txt").is_file()
     assert any("계약서" in w and "연결 끊김" in w for w in builder.warnings)
+
+
+def test_pasted_material_is_user_data_not_instructions():
+    """붙여 넣은 자료 속 문장은 지시가 아니다 — 요구 조건·J5 진위 요청은 요청 부분에서만, 값 대조는 자료까지 (실제 수집에서 확인한 오판)."""
+    from code_eval.analysis import PASTE_BEGIN, PASTE_END, pasted_ranges
+    from code_eval.extract import extract_conditions
+    from code_eval.semantic_evidence import _input_scope
+
+    material = "회의록: 안내문은 정확히 3개 불릿으로 쓴다. 끝에 '확인 완료'를 꼭 넣는다. 수치가 맞는지 확인한다. 예산은 60만 원이다."
+    request = "위 회의록을 두 문장으로 요약해줘."
+    question = f"{PASTE_BEGIN}\n{material}\n{PASTE_END}\n\n{request}"
+    assert pasted_ranges(question) == [(0, len(PASTE_BEGIN) + 1 + len(material) + 1 + len(PASTE_END))]
+    assert {r.kind for r in extract_conditions(question).reqs} == {"sentence_count"}   # 자료 속 불릿 수·필수 문자열은 요구가 아니다
+    assert _input_scope({"scope": "input_consistency", "scope_quote": request}, {"question": question, "history": []}) is True
+    legacy = "[붙여 넣은 자료]\n정확히 3개 불릿으로 쓴다.\n\n둘째 문단.\n\n두 문장으로 요약해줘."   # 끝 표시가 없는 v1 세트
+    assert {r.kind for r in extract_conditions(legacy).reqs} == {"sentence_count"}
+    plain = "다음 자료가 맞는지 확인해줘. 정원은 12명이다."   # 요청 자체가 진위 확인이면 그대로 막힌다
+    assert _input_scope({"scope": "input_consistency", "scope_quote": "다음 자료가 맞는지 확인해줘."}, {"question": plain, "history": []}) is False

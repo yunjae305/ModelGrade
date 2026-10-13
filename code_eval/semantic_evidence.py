@@ -10,6 +10,8 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
+from .analysis import mask_ranges, pasted_ranges
+
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
 FACT_CHECK_POLICY = "evidence-v3.16-answer-markup"   # v3.15: 출처 인용의 Markdown 굵게 표시를 벗긴 형태도 대조 · v3.16: J5 주장을 답변의 굵게 표시를 벗긴 글자로도 찾음
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
@@ -185,6 +187,8 @@ def _input_scope(claim, state, source=None):
                     r"\b(?:is|are) (?:this|that|it|these|they) (?:true|correct|accurate|right)\b|true or false|"
                     r"fact[ -]?check|verify|whether.{0,35}(?:true|correct)|"
                     r"(?:check|confirm).{0,50}(?:truth|accuracy|correct|authentic)")
+    # 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝]) 속 '확인한다' 같은 문장은 사용자 요청이 아니다 — 요청 부분에서만 찾는다
+    checked = [mask_ranges(text, pasted_ranges(text)) for text in checked]
     if any(re.search(verification, text, re.I) for text in checked):
         return False   # 주어진 자료가 사실인지 묻는 요청에서는 자료가 스스로를 증명하지 못한다
     external_request = (r"(?:국내|전국|전\s*세계|실제\s*(?:운영|시장|판매)).{0,60}"

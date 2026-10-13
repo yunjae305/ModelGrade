@@ -50,6 +50,32 @@ def mask_ranges(text: str, ranges: Sequence[Tuple[int, int]], fill: str = " ") -
     return "".join(chars)
 
 
+#: 사용자가 대화창에 붙여 넣은 긴 글의 표시 — 질문 생성기가 J6 턴을 10K 토큰 이상으로 만들 때 요청 앞에 붙인다.
+#: 붙여 넣은 글은 사용자가 준 자료이지 AI 에게 한 지시가 아니다 — 요구 조건·지속 지시·사실 질의·진위 요청은 그 밖에서만 찾고,
+#: 값 대조(J5 입력 일치·3-3 원본)는 자료까지 본다 (2026-10-14 실제 수집: 자료 속 '~라고 기록하지 않는다' 가 필수 문자열 요구로 읽힘).
+PASTE_BEGIN = "[붙여 넣은 자료]"
+PASTE_END = "[자료 끝]"
+
+
+def pasted_ranges(text: str) -> List[Tuple[int, int]]:
+    """``[붙여 넣은 자료] … [자료 끝]`` 구간들 (위치). 끝 표시가 없는 예전 형식(생성기 v1: '[붙여 넣은 자료]\\n자료\\n\\n요청')은
+    시작 표시부터 마지막 빈 줄 앞까지로 본다."""
+    out: List[Tuple[int, int]] = []
+    cursor = 0
+    while True:
+        start = text.find(PASTE_BEGIN, cursor)
+        if start < 0:
+            return out
+        end = text.find(PASTE_END, start)
+        if end >= 0:
+            end += len(PASTE_END)
+        else:
+            last_gap = text.rfind("\n\n", start)
+            end = len(text) if last_gap < 0 else last_gap
+        out.append((start, end))
+        cursor = max(end, start + len(PASTE_BEGIN))
+
+
 @dataclass
 class TableInfo:
     kind: str                       # markdown | html
