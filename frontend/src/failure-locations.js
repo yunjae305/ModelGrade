@@ -123,6 +123,13 @@
       exclusions.push(text(check?.instruction_quote));
       if (check?.decision === 'PASS') exclusions.push(text(check.answer_quote));
     }
+    // 서버가 FAIL 근거를 원문과 대조한 기록(fail_evidence) — 인용이 실제로 있는 곳(answer·question·reference·history).
+    // places_complete 가 없는 옛 기록은 첫 원문만 적었으므로 '답변에 없음'에만 쓰고 '답변에만 있음'으로는 쓰지 않는다.
+    const complete = decision.fail_evidence?.places_complete === true, places = new Map();
+    for (const match of list(decision.fail_evidence?.matched_quotes)) {
+      const quote = text(match?.quote).trim();
+      if (quote) places.set(quote, new Set([match.found_in, ...list(match.also_in)]));
+    }
     const spans = [];
     const quoted = /“([^”\n]+)”|‘([^’\n]+)’|「([^」\n]+)」|『([^』\n]+)』|"([^"\n]+)"|'([^'\n]+)'|`([^`\n]+)`/gu;
     for (const match of reason.matchAll(quoted)) {
@@ -131,13 +138,33 @@
       // turn those into guessed error locations just because the token occurs.
       if (Array.from(quote.replace(/\s/gu, '')).length < 6 || !/\p{L}/u.test(quote)) continue;
       if (exclusions.some(excluded => excluded && excluded.includes(quote))) continue;
+      const known = places.get(quote);
+      if (known && !known.has('answer')) continue;   // 서버 대조로 답변에 없는 인용(입력·질문 인용) — 답변을 먼저 보므로 옛 기록도 맞다
       const prefix = reason.slice(Math.max(0, match.index - 65), match.index).split(/[.!?\n]/u).pop().toLowerCase();
       const lastEnd = word => prefix.lastIndexOf(word) < 0 ? -1 : prefix.lastIndexOf(word) + word.length;
-      const referenced = Math.max(...['질문', '요청', '이전 대화', '앞선 대화', '앞 지시', '출처', '참조', '원문 자료',
-        '정답', '기대', '요구한', '요구된', '올바른 값', '정확한 값', '올바른 답변', '정확한 답변',
-        'history', 'question', 'source', 'expected', 'expected answer', 'expected response', 'correct answer'].map(lastEnd));
+      // 출처를 가리키는 말 — '입력에 없는'·'absent from the input' 처럼 부정하면 그 인용의 출처가 아니다
+      const sourceEnd = (word, wholeWord = false) => {
+        let end = -1;
+        const pattern = new RegExp(wholeWord ? `(?<![a-z])${word}(?![a-z])` : word.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'gu');
+        for (const found of prefix.matchAll(pattern)) {
+          const after = prefix.slice(found.index + word.length), before = prefix.slice(0, found.index);
+          if (/^\s*(?:에|에는|에도|엔)\s*(?:없|나오지 않|언급되지 않)/u.test(after) ||
+            /(?:not (?:in|from)|absent from|missing from|not found in)(?: the)?\s*$/u.test(before)) continue;
+          end = found.index + word.length;
+        }
+        return end;
+      };
+      // 기대·정답을 인용한 것 — 답변에 같은 문구가 있어도 오류 위치가 아니다 (서버 기록과 상관없이)
+      const expected = Math.max(...['정답', '기대', '요구한', '요구된', '올바른 값', '정확한 값', '올바른 답변', '정확한 답변',
+        'expected', 'expected answer', 'expected response', 'correct answer'].map(lastEnd));
+      // '입력'·input — J7 이유가 긴 입력(질문·참조 자료)의 해당 부분을 인용할 때
+      const sourced = Math.max(sourceEnd('input', true), ...['질문', '요청', '이전 대화', '앞선 대화', '앞 지시', '출처', '참조', '원문 자료', '입력',
+        'history', 'question', 'source'].map(word => sourceEnd(word)));
       const answered = Math.max(...['답변', '응답', 'answer', 'response'].map(lastEnd));
-      if (referenced >= 0 && referenced >= answered) continue;
+      if (expected >= 0 && expected >= answered) continue;
+      // 답변에만 있는 인용(서버가 모든 원문을 대조한 기록)은 출처를 가리키는 말과 상관없이 답변의 위치다
+      if (!(complete && known && !['question', 'reference', 'history'].some(place => known.has(place))) &&
+        sourced >= 0 && sourced >= answered) continue;
       spans.push(...exactMatches(answer, quote));
     }
     return mergeSpans(spans);

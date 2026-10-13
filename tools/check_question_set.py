@@ -40,16 +40,12 @@ _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 
 
 def load_items(path: Path) -> List[Any]:
-    """JSON(배열·{cases}) · JSONL · MD/TXT(업로드 화면과 같은 변환) → 항목 목록."""
+    """JSON(배열·{cases}·id/turns 묶음) · MD/TXT 는 업로드 화면과 같은 변환, JSONL 은 줄마다 객체 → 항목 목록."""
     text = path.read_text(encoding="utf-8-sig")
     suffix = path.suffix.lower()
     if suffix == ".jsonl":
         return [json.loads(line) for line in text.splitlines() if line.strip()]
-    if suffix == ".json":
-        data = json.loads(text)
-        if isinstance(data, dict) and isinstance(data.get("cases"), list):
-            return data["cases"]
-        return data if isinstance(data, list) else [data]
+    # JSON 도 업로드 화면과 같은 변환을 쓴다 — 배열·{cases}·id/turns 묶음·회차별 JSON
     from webapp.dataset_import import import_text
     rows, _ = import_text(text, path.name)
     return rows

@@ -152,6 +152,9 @@ def test_j7_fail_reason_may_quote_the_reference_and_records_where_the_quote_sits
     copied = {**state, "answer": "해지하려는 날의 30일 전까지가 아니라 만료 60일 전까지입니다."}
     both = fail_evidence({"decision": "FAIL", "reason": "답변이 입력 문구 '해지하려는 날의 30일 전까지'를 부정함"}, copied, "J7")
     assert both["valid"] and both["matched_quotes"][0]["also_in"] == ["reference"]   # 답변·입력 모두에 있는 인용
+    turns = {**copied, "history": [{"turn": 1, "question": "해지하려는 날의 30일 전까지 맞지?", "answer": "네"}]}
+    everywhere = fail_evidence({"decision": "FAIL", "reason": "답변이 입력 문구 '해지하려는 날의 30일 전까지'를 부정함"}, turns, "J7")
+    assert everywhere["places_complete"] and everywhere["matched_quotes"][0]["also_in"] == ["reference", "history"]
     assert fail_evidence({"decision": "FAIL", "reason": "답변이 '만료 60일 전까지'라고 함"}, state)["valid"]   # J1~J4 는 인용 하나면 됨
     record = {"decisions": {"J7": decision}}
     applicability = jev_applicability(state["question"], reference=reference)

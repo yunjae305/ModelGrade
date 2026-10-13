@@ -347,6 +347,16 @@ console.log('Case-level check errors and completion-free new records passed.');
   }
   assert.equal(semanticEvidence({status: 'SUCCESS', criteria: ['J1'], decisions: {J1: {decision: 'PASS', subs: {}}}}, make), null);   // legacy 레코드의 subs 는 없음
   assert.equal(semanticEvidence({status: 'SUCCESS', pipeline: 'items', criteria: ['J1'], decisions: {J1: {decision: 'PASS'}}}, make), null);
+  // J7: 입력 길이·구간과 근거 인용 위치, 토크나이저가 없으면 확인 필요
+  const longText = flat(semanticEvidence({status: 'SUCCESS', criteria: ['J1', 'J7'], decisions: {J1: {decision: 'PASS'}, J7: {decision: 'FAIL',
+    reason: "입력의 '해지는 30일 전' 대신 '만료 60일 전'이라고 답함", long_context: {tokens: 16019, tier: '8K~32K', tokenizer: 'tiktoken o200k_base',
+      quote_positions: [{quote: '해지는 30일 전', position: 48.2}, {quote: '만료 60일 전', position: 81}]}}}}, make));
+  for (const expected of ['J7 롱컨텍스트 근거', '입력 16,019토큰 · 8K~32K', '입력의 중간 · 48.2% 지점', '입력의 뒷부분 · 81% 지점', '판정에는 쓰지 않습니다'])
+    assert.ok(longText.includes(expected), expected);
+  const unknown = flat(semanticEvidence({status: 'SUCCESS', criteria: ['J7'], decisions: {J7: {decision: null, status: 'UNVERIFIED',
+    reason: '롱컨텍스트를 판별하지 못함 — tiktoken o200k_base 를 불러오지 못함: ImportError'}}}, make));
+  assert.ok(unknown.includes('확인 필요 · 롱컨텍스트를 판별하지 못함'));
+  assert.equal(semanticEvidence({status: 'SUCCESS', criteria: ['J1'], decisions: {J1: {decision: 'PASS'}, J7: {decision: null, status: 'NOT_APPLICABLE'}}}, make), null);
 }
 console.log('items 세부 기준·점검 항목 블록 passed.');
 

@@ -60,8 +60,8 @@ def fail_evidence(decision: Optional[Dict[str, Any]], state: Dict[str, Any], cri
         if not quote:
             continue
         places = [name for name, text in sources.items() if text and quote in text]
-        if not places and quote in history:
-            places = ["history"]
+        if history and quote in history:
+            places.append("history")   # 다른 원문에 있어도 이전 턴에 있으면 함께 적는다 (places_complete)
         if places:
             # 답변이 입력 문구를 그대로 옮긴 경우처럼 여러 원문에 있으면 모두 근거로 센다 (found_in 은 첫 원문)
             matched.append({"quote": raw.strip(), "found_in": places[0], **({"also_in": places[1:]} if len(places) > 1 else {})})
@@ -80,7 +80,9 @@ def fail_evidence(decision: Optional[Dict[str, Any]], state: Dict[str, Any], cri
             problems.append("input_quote_missing")
         if "answer" not in found:
             problems.append("answer_quote_missing")
-    return {"policy": REASON_EVIDENCE_POLICY_VERSION, "valid": not problems, "problems": problems,
+    # places_complete: 각 인용이 있는 곳(found_in + also_in)을 답변·질문·참조 자료·이전 턴 모두 확인해 적었다는 표시 — 화면이
+    # '답변에만 있는 인용'을 판단할 때 이 표시가 있는 기록만 믿는다 (옛 기록은 첫 원문만 적음)
+    return {"policy": REASON_EVIDENCE_POLICY_VERSION, "valid": not problems, "problems": problems, "places_complete": True,
             "matched_quotes": matched[:5], "unmatched_quotes": unmatched[:5], "scope": SCOPE}
 
 

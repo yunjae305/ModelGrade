@@ -154,11 +154,12 @@
     const unresolvedDecisions = Object.entries(decisions).filter(([, d]) => d?.status === 'INCOMPLETE' || d?.reevaluation);
     const citations = Array.isArray(j5?.citation_checks) ? j5.citation_checks : [];
     const hasContext = j6?.status !== 'NOT_APPLICABLE' && (Array.isArray(j6?.context_checks) || j6?.status === 'UNVERIFIED');
+    const j7 = decisions.J7, hasLong = j7?.status !== 'NOT_APPLICABLE' && (j7?.long_context || j7?.status === 'UNVERIFIED');
     const originals = ['J5', 'J6'].filter((id) => decisions[id]?.model_original_assessment && typeof decisions[id].model_original_assessment === 'object');
     const policyDecisions = Object.entries(decisions).filter(([, value]) => value?.policy_original_assessment && ['PASS', 'FAIL'].includes(value.decision));
     // items 파이프라인: 기준 → 세부 기준 → 점검 항목(예/아니오/해당 없음 · 인용 · 재확인 · 확인 불가)
     const subsDecisions = record.pipeline === 'items' ? Object.entries(decisions).filter(([, value]) => value?.subs && typeof value.subs === 'object') : [];
-    if (!hasFact && !hasContext && !verification && !originals.length && !policyDecisions.length &&
+    if (!hasFact && !hasContext && !hasLong && !verification && !originals.length && !policyDecisions.length &&
       !unresolvedDecisions.length && !j5?.j5_outcome && !subsDecisions.length) return null;
     const box = make('div', {class: 'semantic-evidence'}), note = (text) => make('p', {class: 'hint field-help', text});
     if (subsDecisions.length) box.append(semanticItems(record, subsDecisions, make, note));
@@ -200,7 +201,8 @@
         decision.status === 'INCOMPLETE' ? note(decision.reason || '판정을 완료하지 못했습니다.') : null,
         again ? note('첫 판정: FAIL · ' + (again.first?.reason || '이유 없음') + ' — 근거 확인: ' +
           ((again.first?.fail_evidence?.problems || []).map((p) => ({reason_missing: '이유 없음', quote_missing: '원문 인용 없음',
-            quote_not_in_evaluated_text: '인용이 원문에 없음'})[p] || p).join(', ') || '확인 안 됨')) : null,
+            quote_not_in_evaluated_text: '인용이 원문에 없음', input_quote_missing: '입력 원문 인용 없음',
+            answer_quote_missing: '답변 인용 없음'})[p] || p).join(', ') || '확인 안 됨')) : null,
         again ? note('재평가 1회: ' + (again.retry ? (again.retry.decision || again.retry.status || '판정 없음') +
           (again.retry.reason ? ' · ' + again.retry.reason : '') : '응답 없음') + ' → 최종 ' + (again.final || '미완료')) : null,
         again ? note('근거 확인은 이유와 원문 인용의 형식 검증이며, 이유의 의미적 타당성까지 검증한 것은 아닙니다.') : null));
@@ -255,6 +257,19 @@
       if (!checks.length) section.append(note('확인 필요 · 저장된 이전 턴 인용 근거가 없습니다.'));
       checks.forEach((check) => section.append(make('div', {class: 'jev-reason'}, make('p', {}, make('strong', {text: `이전 ${check.turn ?? '미기록'}턴 · ${verdict(check.decision)}`})),
         note('이전 지시: ' + (check.instruction_quote || '인용 없음')), note('현재 답변: ' + (check.answer_quote || '인용 없음')), check.reason ? note(check.reason) : null)));
+      box.append(section);
+    }
+    if (hasLong) {
+      // J7: 입력 길이·구간과 판정 근거 인용이 입력의 어디쯤인지 (위치는 판정에 쓰지 않는 기록)
+      const size = j7.long_context || {}, positions = Array.isArray(size.quote_positions) ? size.quote_positions : [];
+      const part = (position) => position < 100 / 3 ? '앞부분' : position < 200 / 3 ? '중간' : '뒷부분';
+      const section = make('details', {class: 'semantic-long-context-evidence'}, make('summary', {text: 'J7 롱컨텍스트 근거'}));
+      if (j7.status === 'UNVERIFIED') section.append(note('확인 필요 · ' + (j7.reason || '입력 길이를 확인하지 못했습니다.')));
+      if (Number.isFinite(size.tokens)) section.append(note(`입력 ${size.tokens.toLocaleString('ko-KR')}토큰 · ${size.tier || '구간 없음'} (질문 + 참조 자료, ${size.tokenizer || '토크나이저 미기록'})`));
+      positions.forEach((found) => section.append(make('div', {class: 'jev-reason'},
+        make('p', {}, make('strong', {text: `입력의 ${part(found.position)} · ${found.position}% 지점`})), make('p', {}, make('q', {text: found.quote})))));
+      if (Number.isFinite(size.tokens) && !positions.length) section.append(note('판정 이유의 인용을 입력에서 찾지 못해 위치를 표시하지 않습니다.'));
+      if (positions.length) section.append(note('위치는 입력 앞에서부터의 상대 위치이며 판정에는 쓰지 않습니다.'));
       box.append(section);
     }
     if (originals.length) {

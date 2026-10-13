@@ -243,3 +243,49 @@ console.log('failure location tests passed');
   const legacy = locateFailures(answer, {answer, results: []}, semantic({J6: {decision: 'FAIL', name: 'LONG CONTEXT', reason: '앞 턴과 다르다.'}})).findings;
   assert.ok(legacy[0].spans.length === 0 && !legacy[0].locationNote.includes('빠진 내용'));
 }
+
+{
+  // J7 이유의 '입력의 …' 인용은 답변에 같은 문구가 있어도 오류 위치가 아니다 — 답변 쪽 인용만 표시
+  const answer = '제18조에 따라 만료 60일 전까지 알려야 합니다. 해지하려는 날의 30일 전까지라는 조항은 갱신에만 해당합니다.';
+  const result = locateFailures(answer, {results: []}, semantic({J7: {decision: 'FAIL', name: '롱컨텍스트 활용',
+    reason: "입력의 '해지하려는 날의 30일 전까지' 조항 대신 답변이 '만료 60일 전까지 알려야 합니다'라고 답함"}}));
+  assert.deepEqual(quoted(answer, result, 'semantic'), ['만료 60일 전까지 알려야 합니다']);
+  // 서버 대조 기록이 답변에만 있다고 한 인용은 '입력' 같은 말이 앞에 있어도 답변 위치로 표시
+  const answerOnly = semantic({J7: {decision: 'FAIL', reason: "답변은 입력에 없는 '만료 60일 전까지 알려야 합니다'라고 안내했습니다.",
+    fail_evidence: {places_complete: true, matched_quotes: [{quote: '만료 60일 전까지 알려야 합니다', found_in: 'answer'}]}}});
+  assert.deepEqual(quoted(answer, locateFailures(answer, {results: []}, answerOnly), 'semantic'), ['만료 60일 전까지 알려야 합니다']);
+  const doc = semantic({J1: {decision: 'FAIL', reason: "답변은 문서에 없는 '만료 60일 전까지 알려야 합니다'라고 안내했습니다."}});
+  assert.deepEqual(quoted(answer, locateFailures(answer, {results: []}, doc), 'semantic'), ['만료 60일 전까지 알려야 합니다']);
+  // 답변과 입력 모두에 있는 인용은 앞 문구(입력)로 가린다
+  const both = semantic({J7: {decision: 'FAIL', reason: "입력의 '해지하려는 날의 30일 전까지' 조항을 놓침",
+    fail_evidence: {places_complete: true, matched_quotes: [{quote: '해지하려는 날의 30일 전까지', found_in: 'answer', also_in: ['reference']}]}}});
+  assert.deepEqual(quoted(answer, locateFailures(answer, {results: []}, both), 'semantic'), []);
+  const english = 'The earth is flat and round.';
+  const documents = semantic({J1: {decision: 'FAIL', reason: 'The answer incorrectly documents "The earth is flat" as a fact.'}});
+  assert.deepEqual(quoted(english, locateFailures(english, {results: []}, documents), 'semantic'), ['The earth is flat']);
+  const inputRef = semantic({J7: {decision: 'FAIL', reason: 'The input says "The earth is flat" but the answer ignores it.'}});
+  assert.deepEqual(quoted(english, locateFailures(english, {results: []}, inputRef), 'semantic'), []);
+  // 옛 기록(첫 원문만 적음)은 '답변에만 있음'으로 믿지 않고 앞 문구 규칙을 따른다
+  const legacy = semantic({J7: {decision: 'FAIL', reason: "입력의 '해지하려는 날의 30일 전까지' 조항을 놓침",
+    fail_evidence: {matched_quotes: [{quote: '해지하려는 날의 30일 전까지', found_in: 'answer'}]}}});
+  assert.deepEqual(quoted(answer, locateFailures(answer, {results: []}, legacy), 'semantic'), []);
+  // 이전 턴에도 있는 인용(서버가 history 까지 적음)은 앞 문구 규칙 — 이전 지시를 그대로 옮긴 문장을 오류로 표시하지 않음
+  const repeated = 'Safety comes before speed. Drive slowly.';
+  const history = semantic({J4: {decision: 'FAIL', reason: 'The history instruction "Safety comes before speed" is repeated without the requested explanation.',
+    fail_evidence: {places_complete: true, matched_quotes: [{quote: 'Safety comes before speed', found_in: 'answer', also_in: ['history']}]}}});
+  assert.deepEqual(quoted(repeated, locateFailures(repeated, {results: []}, history), 'semantic'), []);
+  // 기대 답변 인용은 서버 기록이 '답변에만 있음'이라도 오류 위치가 아니다
+  const berlin = 'Berlin is the capital of Germany. No supporting details.';
+  const expectedAnswer = semantic({J4: {decision: 'FAIL', reason: 'The expected answer is "Berlin is the capital of Germany", followed by a supporting explanation, but that explanation is missing.',
+    fail_evidence: {places_complete: true, matched_quotes: [{quote: 'Berlin is the capital of Germany', found_in: 'answer'}]}}});
+  assert.deepEqual(quoted(berlin, locateFailures(berlin, {results: []}, expectedAnswer), 'semantic'), []);
+  // '입력에 없는'·'absent from the input' 은 출처 표시가 아니다 — 옛 기록·기록 없음에서도 답변 위치로 표시
+  const negated = "답변은 입력에 없는 '만료 60일 전까지 알려야 합니다'라고 안내했습니다.";
+  for (const evidence of [undefined, {matched_quotes: [{quote: '만료 60일 전까지 알려야 합니다', found_in: 'answer'}]}]) {
+    const record = semantic({J7: {decision: 'FAIL', reason: negated, ...(evidence ? {fail_evidence: evidence} : {})}});
+    assert.deepEqual(quoted(answer, locateFailures(answer, {results: []}, record), 'semantic'), ['만료 60일 전까지 알려야 합니다']);
+  }
+  const absent = semantic({J7: {decision: 'FAIL', reason: 'The answer adds a claim absent from the input: "The earth is flat".'}});
+  assert.deepEqual(quoted(english, locateFailures(english, {results: []}, absent), 'semantic'), ['The earth is flat']);
+  console.log('J7 input quotes are not shown as answer error locations.');
+}
