@@ -130,7 +130,9 @@
       text = '평가 중'; reason = '의미 평가 응답을 기다리고 있습니다.';
     } else if (complete) {
       text = fail ? `문제 ${fail}개` : '통과';
-      reason = `적용된 의미 기준 ${criteria.length}개를 모두 판정했습니다.`;
+      // 어떤 기준을 적용했고 각각 어떻게 판정했는지 — 시연·검토에서 개수만이 아니라 기준 이름을 바로 본다 (10-14 3차)
+      reason = `적용된 의미 기준 ${criteria.length}개를 모두 판정했습니다: ` +
+        criteria.map((id) => `${id} ${record.decisions[id].decision}`).join(' · ') + '.';
     } else if (unverified.length || incomplete.length) {
       text = incomplete.length ? '판정 미완료' : '확인 필요';
       rawReason = [...unverified, ...incomplete].map(([id, d]) => `${id}: ${d.reason || '검증 근거가 충분하지 않습니다.'}`).join('\n');

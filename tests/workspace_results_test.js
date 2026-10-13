@@ -429,3 +429,12 @@ console.log('External collection scores without ranks across differing environme
   assert.ok(state.detail.includes('J5 출처 접근 불가 (서버가 열지 못함) — 사실 오류 확정 아님'), state.detail);
 }
 console.log('j5 detail checks passed');
+{
+  // 의미 평가 요약에 적용 기준과 판정을 함께 (개수만이 아니라 어떤 기준인지)
+  const {semanticState} = require('../frontend/src/workspace-results.js');
+  const state = semanticState({status: 'SUCCESS', criteria: ['J1', 'J5'], decisions: {J1: {decision: 'PASS'}, J5: {decision: 'FAIL'}}});
+  assert.equal(state.reason, '적용된 의미 기준 2개를 모두 판정했습니다: J1 PASS · J5 FAIL.');
+  assert.equal(state.text, '문제 1개');
+}
+console.log('applied criteria are named in the semantic summary.');
+
