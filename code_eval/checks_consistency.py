@@ -242,8 +242,8 @@ def _cut_operand_before(before: str, operator: str = "") -> bool:
 
     ``before`` 는 등식 투영(×÷ → */, 강조 ** 는 공백)의 줄 앞부분, ``operator`` 는 그 연산자 자리의 답변 원문 글자다.
     연산자 바로 앞이 숫자(뒤에 공백 하나와 짧은 단위 허용)나 닫는 괄호일 때만 그렇다. 목록 표지만 있으면('1.', '1)') 아니다.
-    원문이 곱셈 기호(×·÷)면 따옴표·대괄호 단위도 단위다(2" × · 2' × · 2[kg] ×). 강조로도 쓰이는 '*' 와 +·-·/ 앞에서는
-    대괄호·따옴표를 단위로 보지 않는다('[1] *3 + 4 = 8*', '설명 *3 + 4 = 8*' 은 그대로 검사).
+    원문 연산자가 강조로도 쓰이는 ASCII '*' 가 아니면(×·÷·+·-·/·TeX 	imes) 따옴표·대괄호 단위도 단위다
+    (2" × · 6" / · 10" - · 2[kg] ×). '*' 앞에서만 대괄호·따옴표를 단위로 보지 않는다('[1] *3 + 4 = 8*' 은 그대로 검사).
     """
     stripped = before.rstrip(" \t\xa0")
     if not stripped or stripped[-1] not in "+-*/":
@@ -251,7 +251,7 @@ def _cut_operand_before(before: str, operator: str = "") -> bool:
     body = stripped[:-1]
     if re.fullmatch(r"\s*\d{1,3}[.)]\s*", body):
         return False                       # 목록 표지만 있음
-    if operator in "×÷" and operator:
+    if operator != "*":
         return bool(re.search(r"[\d)](?:[ \t\xa0]?[^\s\d+\-*/=]{1,5})?[ \t\xa0]*$", body))
     # 문장부호(. , : ; ! ?)와 대괄호·중괄호·따옴표·꺾쇠 같은 구분자는 단위가 아니다.
     return bool(re.search(r"[\d)](?:[ \t\xa0]?[^\s\d+\-*/=().,:;!?\[\]{}<>\"'“”‘’「」『』]{1,4})?[ \t\xa0]*$", body))

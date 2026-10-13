@@ -132,6 +132,9 @@ def test_fence_with_info_does_not_close_existing_block():
     '길이(인치): 2" × 3 + 1 = 7"',                                     # 따옴표·대괄호 단위 뒤 곱셈 기호
     "길이(피트): 2' × 3 + 1 = 7'",
     "무게: 2[kg] × 3 + 1 = 7[kg]",
+    '길이(인치): 6" / 3 + 1 = 3"',                                     # 나눗셈·뺄셈·TeX 곱셈 앞의 단위도
+    '길이(인치): 10" - 3 + 1 = 4"',
+    r'길이(인치): 2" \times 3 + 1 = 7"',
 ])
 def test_arrow_limit_and_cut_operand_equations_are_held(answer):
     case = evaluate("계산해줘.", answer)
