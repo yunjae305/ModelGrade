@@ -223,6 +223,8 @@ def test_reapplied_policy_recomputes_a_saved_j5_outcome_instead_of_leaving_it_st
     assert untouched['j5_outcome']['code'] == 'verified'          # 바뀌지 않은 레코드는 그대로
     plain = json.loads(path.read_text(encoding='utf-8'))['evaluations']['claude']['jev_eval']['records'][0]['decisions']['J5']
     assert plain['j5_outcome']['code'] == 'verified'
+    from tools.j5_audit import audit_consistency
+    assert audit_consistency(saved)['violations'] == []   # 재적용 뒤 j5_outcome·사유 코드·상태가 서로 맞는다 (10-14 3차)
 
 
 def test_refreshed_summary_counts_incomplete_like_the_evaluator(tmp_path):
