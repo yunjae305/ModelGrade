@@ -357,7 +357,7 @@ footer{padding:16px 4px 0;font-size:var(--s-0);color:var(--muted);display:grid;g
           <li><b>기준마다 적용 질문 30개 이상.</b> J4·J5·J6는 적용 질문이 적게 나오기 쉽습니다(<a href="#min30">검증 · 질문 수 실험</a>).</li>
           <li><b>버전 비교는 고정된 질문 세트로 합니다.</b> 질문 세트 지문이 다르면 비교하지 않습니다.</li>
           <li><b>질문 세트는 사용자가 만듭니다.</b> 외부 LLM으로 만들어 올리고, 이 프로젝트는 생성기를 만들지 않습니다.</li>
-          <li><b>평가 전 무료 점검.</b> API를 부르지 않고 기준별 적용 질문 수, 중복 질문, 형식을 확인합니다.</li>
+          <li><b>평가 전 무료 점검.</b> API를 부르지 않고 기준별 적용 질문 수, 중복 질문, 형식을 확인합니다. 도구: <code>python tools/check_question_set.py 질문세트.json</code>(평가 때와 같은 코드 규칙으로 기준별 적용 수를 세고, 30개 미만이면 '부족'으로 표시. 유형 필드가 있으면 비율 초안과 비교).</li>
         </ul>
       </div>
       <div class="side" id="unit">
