@@ -140,9 +140,11 @@ def _weak_block(weak_units: Sequence[Dict[str, str]]) -> str:
     """앞선 실행에서 모든 모델이 PASS 한 검사·기준 — 더 어려운 질문을 요구하는 블록 (없으면 빈 문자열)."""
     if not weak_units:
         return ""
-    lines = "\n".join(f"- {u.get('id')} {u.get('name') or ''}".rstrip() for u in weak_units)
-    return ("\n# 변별력 보강\n앞선 실행에서 모든 모델이 모든 질문에 PASS 한 검사·기준입니다. 각각에 더 어려운 질문(trap 이 분명한)을 1개 이상 넣습니다:\n"
-            + lines + "\n")
+    lines = "\n".join((f"- {u.get('id')} {u.get('name') or ''}".rstrip()
+                       + (f" (일부 모델이 답을 내지 못해 평가되지 않은 질문 {u['unevaluated']}건 제외)" if u.get("unevaluated") else ""))
+                      for u in weak_units)
+    return ("\n# 변별력 보강\n앞선 실행에서 평가된 모든 질문에서 모든 모델이 PASS 한 검사·기준입니다(답을 내지 못해 평가되지 않은 질문은 제외한 결과). "
+            "각각에 더 어려운 질문(trap 이 분명한)을 1개 이상 넣습니다:\n" + lines + "\n")
 
 
 def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "", *, target_questions: Optional[int] = None,

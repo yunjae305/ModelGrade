@@ -706,22 +706,26 @@ class ComparisonService:
         """실행에서 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준 [{id, name, unevaluated}] — 변별력이 없던 단위
         (질문 생성 되먹임, 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다).
 
-        FAIL 이 하나라도 있거나, 평가된 질문에서 확정되지 않은 판정(확인 필요·미완료·검사 실행 오류)이 있는 단위는 넣지 않는다 (Codex 리뷰:
-        미확정을 '모두 PASS' 로 세지 않음). 수집 실패로 평가되지 않은 질문은 증거가 없어 세지 않고, 다른 모델에서 그 질문에 적용된 단위의
-        ``unevaluated`` 수로만 남긴다. 해당 없음(NOT_APPLICABLE)은 어느 쪽으로도 세지 않는다."""
+        FAIL 이 하나라도 있거나 확정되지 않은 판정이 있는 단위는 넣지 않는다 (Codex 리뷰: 미확정을 '모두 PASS' 로 세지 않음) —
+        확인 필요·미완료 판정, 검사기 오류(``<소분류>.check_error`` 면 그 소분류의 적용 단위 전부), 답은 받았는데 CODE 나 의미 평가가
+        끝나지 않은 질문(CODE 단위·의미 기준을 따로 봄), 실행 모델 목록에 있는데 평가가 없는 모델. 수집 실패로 답이 없는 질문은 증거가
+        없어 세지 않고 ``unevaluated`` 수로 남긴다(프롬프트에 함께 적힘). 해당 없음(NOT_APPLICABLE)은 어느 쪽으로도 세지 않는다."""
         from code_eval.criteria_registry import CODE_UNITS
         from code_eval.jev_criteria import CRITERIA
         run = self.result(run_id)
-        per = {}          # (model, 질문 번호) → (평가됨, {단위: PASS|FAIL|UNDECIDED})
+        evaluations = {p: b for p, b in (run.get("evaluations") or {}).items() if isinstance(b, dict)}
+        if any(p not in evaluations for p in run.get("providers") or []):   # 평가가 없는 모델이 있으면 '모든 모델 PASS' 를 말할 수 없다
+            return []
+        per = {}          # (model, 질문 번호) → (CODE 끝남, 의미 끝남, 답 있음, {단위: PASS|FAIL|UNDECIDED}, 오류 소분류)
         applicable = {}   # 질문 번호 → 어느 모델에서든 판정이 있었던 단위
-        for provider, batch in (run.get("evaluations") or {}).items():
-            if not isinstance(batch, dict):
-                continue
+        for provider, batch in evaluations.items():
             cases, records = batch.get("cases") or [], (batch.get("jev_eval") or {}).get("records") or []
+            rows = (run.get("datasets") or {}).get(provider) or []
             for index in range(max(len(cases), len(records))):
                 case = cases[index] if index < len(cases) and isinstance(cases[index], dict) else {}
                 record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
-                verdicts = {}
+                row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+                verdicts, error_subs = {}, set()
 
                 def note(unit, verdict):
                     if verdict == "FAIL" or verdicts.get(unit) == "FAIL":
@@ -730,13 +734,13 @@ class ComparisonService:
                         verdicts[unit] = "UNDECIDED"
                     else:
                         verdicts[unit] = "PASS"
-                for row in case.get("results") or []:
-                    check_id = str(row.get("check_id") or "")
+                for result_row in case.get("results") or []:
+                    check_id = str(result_row.get("check_id") or "")
                     if check_id and not check_id.endswith(":none"):
-                        note(check_id.split(":")[0], row.get("verdict") if row.get("verdict") in ("PASS", "FAIL") else "UNDECIDED")
-                for error in case.get("errors") or []:   # 검사 실행 오류 — 그 단위는 확정되지 않음
-                    if isinstance(error, dict) and error.get("check_id"):
-                        note(str(error["check_id"]).split(":")[0], "UNDECIDED")
+                        note(check_id.split(":")[0], result_row.get("verdict") if result_row.get("verdict") in ("PASS", "FAIL") else "UNDECIDED")
+                for error in case.get("errors") or []:   # 검사기 오류 — 그 소분류(2-1 …)의 적용 단위는 모두 확정되지 않음
+                    if isinstance(error, dict) and (error.get("subcategory") or error.get("check_id")):
+                        error_subs.add(str(error.get("subcategory") or str(error["check_id"]).split(".")[0]))
                 for cid, decision in (record.get("decisions") or {}).items():
                     if not isinstance(decision, dict):
                         continue
@@ -744,17 +748,23 @@ class ComparisonService:
                         note(cid, decision["decision"])
                     elif decision.get("status") != "NOT_APPLICABLE":
                         note(cid, "UNDECIDED")
-                evaluated = case.get("case_status") == "EVALUATED" or record.get("status") == "SUCCESS"
-                per[(provider, index)] = (evaluated, verdicts)
+                answered = bool(row) and not row.get("__parse_error__")
+                per[(provider, index)] = (case.get("case_status") == "EVALUATED", record.get("status") == "SUCCESS", answered, verdicts, error_subs)
                 applicable.setdefault(index, set()).update(verdicts)
         seen, failed, undecided, unevaluated = set(), set(), set(), {}
-        for (provider, index), (evaluated, verdicts) in per.items():
+        for (provider, index), (code_done, semantic_done, answered, verdicts, error_subs) in per.items():
             for unit in applicable.get(index, ()):
                 verdict = verdicts.get(unit)
-                if verdict is None:
-                    if not evaluated:   # 수집 실패 등으로 평가되지 않은 질문 — 증거 없음
+                if any(unit.startswith(sub + ".") for sub in error_subs):
+                    verdict = "UNDECIDED"
+                elif verdict is None:
+                    done = semantic_done if unit.startswith("J") else code_done
+                    if done:   # 평가는 끝났는데 이 모델에는 이 단위가 없다 — 그 모델엔 해당 없음
+                        continue
+                    if not answered:   # 수집 실패로 답이 없는 질문 — 증거 없음
                         unevaluated[unit] = unevaluated.get(unit, 0) + 1
-                    continue
+                        continue
+                    verdict = "UNDECIDED"   # 답은 있는데 평가가 끝나지 않음(응답 오류 등) — 확정되지 않음
                 seen.add(unit)
                 if verdict == "FAIL":
                     failed.add(unit)

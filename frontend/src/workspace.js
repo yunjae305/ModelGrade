@@ -909,7 +909,7 @@
       if (recheck?.pasted_without_end?.length) card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), node('div', {},
         node('strong', {text: `붙여 넣은 자료 끝 표시 없음 · 질문 ${number(recheck.pasted_without_end.length)}개`}),
         node('p', {text: '생성기 v1 로 만든 질문이라 자료 구간([자료 끝] 표시)을 가리지 못해, 자료 속 문장이 요구 조건·진위 요청으로 읽힐 수 있습니다. '
-          + '같은 세트를 새 실행으로 다시 평가하면(세트는 변환됨) 자료 구간이 구분됩니다.'}))));
+          + '화면의 원문 재평가는 저장된 질문을 그대로 쓰므로 해결되지 않습니다 — 변환된 질문 세트(끝 표시 추가)로 답변을 다시 수집하는 새 실행이 필요합니다.'}))));
     } else card.append(node('div', {class: 'result-card-stats'}, node('span', {text: `답변 수집 오류·미완료 ${number((progress?.failed || 0) + (progress?.incomplete || 0))}개`})));
     const bottom = node('div', {class: 'result-card-bottom'});
     if (batch && !batch.live) bottom.append(node('a', {href: `/code-eval.html?comparison=${run.run_id}&provider=${p}#results`, class: 'text-button', target: '_blank', rel: 'noopener noreferrer'}, '상세 보고서', icon('arrow')));
@@ -1074,7 +1074,7 @@
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
     if ((recheck?.pasted_without_end || []).includes(String(index))) {
       box.append(node('p', {class: 'recheck-note', text: '이 질문의 붙여 넣은 자료에 끝 표시([자료 끝])가 없어 자료 속 문장이 요구 조건·진위 요청으로 읽혔을 수 있습니다. '
-        + '새 실행으로 다시 평가하면 자료 구간이 구분됩니다.'}));
+        + '원문 재평가로는 해결되지 않고, 변환된 질문 세트로 답변을 다시 수집하는 새 실행이 필요합니다.'}));
     }
     for (const r of status.code.checks.filter((r) => (r.counted && r.verdict === 'FAIL') || !['PASS', 'FAIL'].includes(r.verdict) && r.status !== 'NOT_APPLICABLE' && r.status !== 'DUPLICATE')) {
       findings.append(node('li', {}, node('strong', {text: r.explain?.headline || r.title || r.check_id}),

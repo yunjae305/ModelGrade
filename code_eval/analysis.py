@@ -92,8 +92,9 @@ def seal_pasted(text: str) -> str:
     """자료 구간 안에서 닫히지 않은 코드 펜스를 구간 끝에서 닫은 글 (길이·위치 보존) — 변환 원본(배열·표) 분석 전용.
 
     구간 본문을 실제 펜스 파서(``_fenced_code_blocks``)로 읽어 마지막 블록이 열려 있으면 끝 표시 줄을 같은 글자·길이의 닫는 펜스로
-    바꾼다(같은 길이 공백 채움). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의 ``pasted_ranges`` 로 가린다
-    (Codex 리뷰). 끝 표시 줄보다 긴 펜스는 닫지 못해 그대로 둔다."""
+    바꾼다(같은 길이 공백 채움). 끝 표시 줄보다 긴 펜스는 닫을 수 없으므로 그 여는 펜스 줄을 공백으로 지운다 — 자료 속 닫히지 않은
+    펜스는 어느 쪽이든 구간 밖으로 번지지 않는다 (Codex 리뷰). 끝 표시가 사라지므로 지시 추출에는 쓰지 않는다 — 지시 구간은 원문의
+    ``pasted_ranges`` 로 가린다."""
     chars = list(text)
     for start, end in pasted_ranges(text):
         marker = _PASTE_END_LINE.search(text, start, end)
@@ -105,9 +106,12 @@ def seal_pasted(text: str) -> str:
         closer = str(blocks[-1]["marker"]) * int(blocks[-1]["length"])
         line_start = marker.start()
         line_end = marker.end() - (1 if text[marker.end() - 1:marker.end()] == "\r" else 0)
-        if line_end - line_start < len(closer):
-            continue
-        chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
+        if line_end - line_start >= len(closer):
+            chars[line_start:line_end] = list(closer + " " * (line_end - line_start - len(closer)))
+        else:   # 긴 펜스 — 여는 줄을 지워 펜스 자체를 없앤다 (줄바꿈은 둔다)
+            open_start = start + int(blocks[-1]["start"])
+            open_end = open_start + len(str(blocks[-1].get("opening") or "").rstrip("\r\n"))
+            chars[open_start:open_end] = [" "] * (open_end - open_start)
     return "".join(chars)
 
 

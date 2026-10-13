@@ -112,21 +112,32 @@ def test_api_tools_collector_keeps_refusals_and_turns_bad_responses_into_errors(
 
 
 def test_weak_units_lists_checks_and_criteria_every_model_passed(tmp_path):
-    """변별력 되먹임 — 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준만. FAIL·미확정(확인 필요·실행 오류)이 있는 단위와
-    '검사 대상 없음' 행·해당 없음은 제외하고, 수집 실패로 평가되지 않은 질문은 증거 없음(unevaluated)으로만 센다."""
+    """변별력 되먹임 — 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준만. FAIL·미확정(확인 필요), 검사기 소분류 오류
+    (<소분류>.check_error → 그 소분류 단위 전부), 답은 있는데 의미 평가가 실패한 질문은 제외. 수집 실패(답 없음)는 unevaluated 로만 센다."""
     svc = ComparisonService(CodeEvalService(), save_dir=tmp_path)
-    run = {"evaluations": {
+    run = {"providers": ["gpt", "claude"],
+           "datasets": {"gpt": [{"answer": "a"}, {"answer": "b"}, {"answer": "c"}],
+                        "claude": [{"answer": "a"}, {"answer": "", "__parse_error__": "수집 실패"}, {"answer": "c"}]},
+           "evaluations": {
         "gpt": {"cases": [{"case_status": "EVALUATED", "results": [{"check_id": "2-1.count", "verdict": "PASS"}, {"check_id": "2-2.table", "verdict": "FAIL"},
-                                                                   {"check_id": "1-2.json_syntax:none", "verdict": "PASS"}, {"check_id": "3-3.aggregate", "verdict": "PASS"}],
-                           "errors": [{"check_id": "3-3.aggregate", "message": "오류"}]},
-                          {"case_status": "EVALUATED", "results": [{"check_id": "2-1.char_count", "verdict": "PASS"}]}],
+                                                                   {"check_id": "1-2.json_syntax:none", "verdict": "PASS"}, {"check_id": "3-3.aggregate", "verdict": "PASS"}]},
+                          {"case_status": "EVALUATED", "results": [{"check_id": "2-1.char_count", "verdict": "PASS"}]},
+                          {"case_status": "EVALUATED", "results": [{"check_id": "2-1.literal", "verdict": "PASS"}]}],
                 "jev_eval": {"records": [{"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}, "J5": {"decision": "FAIL"},
                                                                              "J7": {"decision": None, "status": "UNVERIFIED"}, "J8": {"decision": None, "status": "NOT_APPLICABLE"}}},
-                                         {"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}, "J2": {"decision": "PASS"}}}]}},
-        "claude": {"cases": [{"case_status": "EVALUATED", "results": [{"check_id": "2-1.count", "verdict": "PASS"}]},
-                             {"case_status": "INPUT_ERROR", "results": []}],
-                   "jev_eval": {"records": [{"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}}}, {"status": "SKIPPED", "decisions": {}}]}}}}
+                                         {"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}, "J2": {"decision": "PASS"}}},
+                                         {"status": "SUCCESS", "decisions": {"J3": {"decision": "PASS"}}}]}},
+        "claude": {"cases": [{"case_status": "EVALUATED", "results": [{"check_id": "2-1.count", "verdict": "PASS"}],
+                              "errors": [{"check_id": "3-3.check_error", "subcategory": "3-3", "message": "검사기 오류"}]},
+                             {"case_status": "INPUT_ERROR", "results": []},
+                             {"case_status": "EVALUATED", "results": [{"check_id": "2-1.literal", "verdict": "PASS"}]}],
+                   "jev_eval": {"records": [{"status": "SUCCESS", "decisions": {"J1": {"decision": "PASS"}}}, {"status": "SKIPPED", "decisions": {}},
+                                            {"status": "INVALID_RESPONSE", "decisions": None}]}}}}
     svc.result = lambda run_id: run
     assert svc.weak_units("x") == [{"id": "2-1.char_count", "name": "글자 수", "unevaluated": 1},
                                    {"id": "2-1.count", "name": "불릿·항목·문장·문단·줄·어절 수", "unevaluated": 0},
+                                   {"id": "2-1.literal", "name": "필수·금지·시작·끝 문자열 (정확 일치 요구 외 공백 접기)", "unevaluated": 0},
                                    {"id": "J1", "name": "의도 충족성", "unevaluated": 1}, {"id": "J2", "name": "내용 적절성", "unevaluated": 1}]
+    assert svc.weak_units("x") and ComparisonService.weak_units(svc, "x")   # 3-3.aggregate(검사기 오류)·J3(의미 평가 실패)는 빠진다
+    run["providers"].append("gemini")   # 평가가 없는 모델이 있으면 '모든 모델 PASS' 를 말할 수 없다
+    assert svc.weak_units("x") == []
