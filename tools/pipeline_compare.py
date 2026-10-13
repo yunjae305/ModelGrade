@@ -7,11 +7,14 @@
                                                                                          # 실제 평가기 호출 (유료 — 승인 후에만)
     python tools/pipeline_compare.py diff    RUN.json --items DIR [--json]                # 판정 차이 표 (legacy 저장 판정 vs 새 items 판정)
     python tools/pipeline_compare.py j5-routing RUN.json [--json]                        # legacy J5 FAIL 마다 items J5 세부 기준 적용 여부·이유 (무료)
+    python tools/pipeline_compare.py plan    RUN.json --selection sel.json --max-usd 8      # 실호출 계획: 재사용·최대 호출 수·예약금·지출 상한 (무료)
 
 - legacy 쪽은 저장된 실제 판정을 그대로 쓴다(다시 호출하지 않음). items 쪽만 새로 평가한다.
 - 대화 턴은 같은 대화의 앞 턴을 이력으로만 넣고(CODE·이력용, 의미 평가 호출 없음) 고른 턴만 호출한다.
 - 모의 심판은 대본 없는 항목을 모두 YES 로 답한다 — 경로·저장·집계 검증용이고 판정 품질 비교가 아니다. 결과에 mode 를 남긴다.
 - 실제 호출은 --live 와 --max-usd 가 모두 있어야 하고, 추정 비용·새 호출 수가 상한에 닿으면 새 호출을 시작하지 않는다.
+  호출마다 예약금(--reserve-usd, 기본 = 저장 실행에서 본 호출 하나의 최대 비용 × 1.5)을 잡아 '쓴 금액 + 진행 중 예약 + 새 예약 ≤ 상한' 일 때만
+  시작하므로 상한이 곧 지출 상한이다. 호출 하나가 예약을 넘으면 바로 멈추고 기록한다 (API 에는 호출 하나의 비용 상한이 없다).
   호출마다 DIR/calls 에 즉시 저장하고, 같은 DIR 로 다시 실행하면 저장된 호출은 다시 하지 않는다.
 """
 from __future__ import annotations
@@ -256,8 +259,47 @@ def _inputs(run: Dict[str, Any], selection: List[Dict[str, Any]]) -> Tuple[Dict[
     return dict(by_system), targets
 
 
+RECHECK_ROUNDS = 3   # items 재확인 최대 회차 (semantic_quotes.MAX_RECHECK_ROUNDS) — 답변마다 본 평가 1회 + 재확인 최대 3회
+
+
+def call_costs(run: Dict[str, Any]) -> List[float]:
+    """저장 실행의 의미 평가 HTTP 요청마다 비용 (요청별 사용량이 있는 것만)."""
+    from code_eval.cost_reporting import estimate
+    costs = []
+    for batch in (run.get("evaluations") or {}).values():
+        semantic = batch.get("jev_eval") or {}
+        engine = semantic.get("engine") or (semantic.get("client") or {}).get("engine")
+        for record in semantic.get("records") or []:
+            for part in ((record or {}).get("verification") or {}).get("usage_requests") or []:
+                try:
+                    costs.append(float(estimate(engine, part.get("model") or record.get("model"), part.get("usage"),
+                                                web_search_calls=part.get("web_search_calls"), service_tier=part.get("service_tier"),
+                                                inference_geo=part.get("inference_geo"))[0]))
+                except (ValueError, AttributeError):
+                    continue
+    return costs
+
+
+def plan(run: Dict[str, Any], selection: List[Dict[str, Any]], *, max_usd: float, reserve_usd: Optional[float] = None) -> Dict[str, Any]:
+    """실호출 전 계획 — legacy 저장 판정은 그대로 다시 쓰고(호출 0), items 만 새로 부른다. 지출 상한·최대 호출 수를 계산한다."""
+    costs = call_costs(run)
+    observed_max = max(costs) if costs else None
+    reserve = reserve_usd if reserve_usd is not None else (round(observed_max * 1.5, 2) if observed_max else None)
+    saved = {(a["system"], a["index"]): a for a in answers(run)}
+    legacy = 0.0
+    for pick in selection:
+        record = saved[(pick["system"], pick["index"])]["record"]
+        legacy += sum(call_costs({"evaluations": {"x": {"jev_eval": {"engine": "anthropic_api", "records": [record]}}}}))
+    max_calls = len(selection) * (1 + RECHECK_ROUNDS)
+    return {"version": COMPARE_VERSION, "answers": len(selection), "legacy_reused_calls": 0, "legacy_cost_of_selection": round(legacy, 3),
+            "items_max_new_calls": max_calls, "observed_call_cost_max": round(observed_max, 3) if observed_max else None,
+            "observed_calls": len(costs), "reserve_per_call": reserve, "max_usd": max_usd,
+            "guaranteed_starts": int(max_usd // reserve) if reserve else None,
+            "spend_bound": f"지출 ≤ ${max_usd} (호출 하나가 예약 ${reserve} 를 넘지 않는 한 — 넘으면 그 호출 뒤 즉시 중단)" if reserve else None}
+
+
 def run_items(run: Dict[str, Any], selection: List[Dict[str, Any]], out: Path, *, mode: str,
-              max_usd: float = 0.0, max_calls: int = 0, workers: int = 2) -> Dict[str, Any]:
+              max_usd: float = 0.0, max_calls: int = 0, workers: int = 2, reserve_usd: float = 0.0) -> Dict[str, Any]:
     from tests.live_stage3_validation import GuardedClient, write_json
     out.mkdir(parents=True, exist_ok=True)
     by_system, targets = _inputs(run, selection)
@@ -286,7 +328,8 @@ def run_items(run: Dict[str, Any], selection: List[Dict[str, Any]], out: Path, *
             if len(index) != len(payloads):
                 raise ValueError(f"{system}: 질문·답변 쌍이 중복되어 호출 대상을 구분할 수 없습니다.")
             guard = GuardedClient(client, config, out / system, index, {t for t in targets if t in index.values()},
-                                  max_usd=spent_guard["usd"], max_calls=spent_guard["calls"], stop=stop)
+                                  max_usd=spent_guard["usd"], max_calls=spent_guard["calls"], stop=stop,
+                                  reserve_usd=reserve_usd if mode == "live" else 0)
             guards.append(guard)
             batch = {"cases": _code_cases(payloads)}
             context = {"answer_tools": "unknown" if system == "aiona" else "none",
@@ -306,7 +349,8 @@ def run_items(run: Dict[str, Any], selection: List[Dict[str, Any]], out: Path, *
             "calls": {"new": sum(g.new_calls for g in guards), "replayed": sum(1 for g in guards for r in g.rows if r.get("replayed")),
                       "not_called": sum(1 for g in guards for r in g.rows if r.get("status") == "NOT_CALLED"),
                       "usd": round(sum(float(g.spent) for g in guards), 4) if mode == "live" else 0.0},
-            "caps": {"max_usd": max_usd, "max_calls": max_calls} if mode == "live" else None}
+            "caps": {"max_usd": max_usd, "max_calls": max_calls, "reserve_per_call": reserve_usd} if mode == "live" else None,
+            "reservation_exceeded": sum(1 for g in guards for r in g.rows if r.get("reservation_exceeded"))}
     write_json(out / "meta.json", meta)
     write_json(out / "batches.json", batches)
     return {"meta": meta, "batches": batches}
@@ -387,7 +431,7 @@ def render_routing(report: Dict[str, Any]) -> str:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=("select", "routing", "run", "diff", "j5-routing"))
+    parser.add_argument("command", choices=("select", "routing", "run", "diff", "j5-routing", "plan"))
     parser.add_argument("run", type=Path, help="저장된 비교 실행 JSON (legacy 판정 원본, 읽기만 함)")
     parser.add_argument("--selection", type=Path)
     parser.add_argument("--out", type=Path)
@@ -398,6 +442,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--max-usd", type=float)
     parser.add_argument("--max-calls", type=int)
     parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--reserve-usd", type=float, help="호출마다 잡는 예약금 (기본: 저장 실행의 호출 하나 최대 비용 × 1.5)")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
@@ -411,6 +456,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(text, encoding="utf-8")
         print(text)
+    elif args.command == "plan":
+        if not selection or not args.max_usd:
+            parser.error("plan 은 --selection 과 --max-usd 가 필요")
+        print(json.dumps(plan(run, selection, max_usd=args.max_usd, reserve_usd=args.reserve_usd), ensure_ascii=False, indent=1))
     elif args.command == "j5-routing":
         report = j5_routing(run)
         print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render_j5_routing(report))
@@ -422,8 +471,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             parser.error("run 은 --selection·--out 과 --mock 또는 --live 하나가 필요")
         if args.live and (not args.max_usd or not args.max_calls or args.max_usd <= 0 or args.max_calls <= 0):
             parser.error("--live 는 --max-usd 와 --max-calls 가 모두 필요 (양수)")
+        reserve = 0.0
+        if args.live:
+            reserve = args.reserve_usd if args.reserve_usd is not None else plan(run, selection, max_usd=args.max_usd)["reserve_per_call"]
+            if not reserve or reserve <= 0:
+                parser.error("--live 는 호출마다 잡을 예약금이 필요 (--reserve-usd) — 저장 실행에 요청별 사용량이 없음")
         result = run_items(run, selection, args.out, mode="live" if args.live else "mock",
-                           max_usd=args.max_usd or 0.0, max_calls=args.max_calls or 0, workers=args.workers)
+                           max_usd=args.max_usd or 0.0, max_calls=args.max_calls or 0, workers=args.workers, reserve_usd=reserve)
         print(json.dumps(result["meta"], ensure_ascii=False, indent=1))
     else:
         if not args.items:

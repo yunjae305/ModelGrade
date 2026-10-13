@@ -143,8 +143,12 @@ class GuardedClient:
     """평가 대상 턴만 실제 클라이언트로 보내고, 호출마다 즉시 저장·상한 확인한다."""
     supports_cancellation = True
 
-    def __init__(self, client, config, folder, index, targets, *, max_usd, max_calls, stop):
+    def __init__(self, client, config, folder, index, targets, *, max_usd, max_calls, stop, reserve_usd=0):
         self.client, self.config = client, config
+        # reserve_usd > 0: 호출마다 이만큼을 미리 잡아 '쓴 금액 + 진행 중 예약 + 새 예약 ≤ 상한' 일 때만 시작한다 → 상한이 실제 지출
+        # 상한이 된다 (호출 하나의 실제 비용이 예약을 넘지 않는 한). 넘으면 바로 새 호출을 멈추고 기록한다. 0 이면 예전 방식.
+        self.reserve = Decimal(str(reserve_usd))
+        self.inflight = Decimal(0)
         self.calls_dir = Path(folder) / "calls"
         self.calls_dir.mkdir(parents=True, exist_ok=True)
         self.index, self.targets = index, targets
@@ -173,11 +177,13 @@ class GuardedClient:
                 self.rows.append({**saved["meta"], "replayed": True})
             return call
         with self.lock:
-            if self.stop.is_set() or self.spent >= self.max_usd or self.new_calls >= self.max_calls:
+            if (self.stop.is_set() or self.spent >= self.max_usd or self.new_calls >= self.max_calls
+                    or (self.reserve and self.spent + self.inflight + self.reserve > self.max_usd)):
                 self.stop.set()
                 self.rows.append({**row, "status": "NOT_CALLED", "reason": CAP_REASON, "replayed": False})
                 return JevCall(JevStatus.SKIPPED, error=CAP_REASON)
             self.new_calls += 1
+            self.inflight += self.reserve
         started = datetime.now(timezone.utc).isoformat()
         # 진행 중 호출은 상한으로 끊지 않는다 — 실제 클라이언트에는 중단 신호를 넘기지 않는다.
         call = self.client.system_one(state, questions)
@@ -188,11 +194,16 @@ class GuardedClient:
                 "usd": None if usd is None else str(usd), "unpriced_reason": unpriced, "tokens": tokens,
                 "timings_ms": verification.get("timings_ms"), "search_calls": verification.get("search_calls"),
                 "tool_errors": verification.get("tool_errors"), "stop_reason": verification.get("provider_stop_reason")}
+        exceeded = bool(self.reserve) and (usd is None or usd > self.reserve)
+        if exceeded:
+            meta["reservation_exceeded"] = True
         write_json(path, {"meta": meta, "call": dataclasses.asdict(call)})
         with self.lock:
-            self.spent += usd if usd is not None else UNPRICED_RESERVE
+            self.inflight -= self.reserve
+            # 단가를 확인하지 못한 호출은 예약금과 기존 보수값 중 큰 쪽을 쓴 것으로 본다
+            self.spent += usd if usd is not None else max(UNPRICED_RESERVE, self.reserve)
             self.rows.append({**meta, "replayed": False})
-            if self.spent >= self.max_usd or self.new_calls >= self.max_calls:
+            if self.spent >= self.max_usd or self.new_calls >= self.max_calls or exceeded:
                 self.stop.set()
         return call
 

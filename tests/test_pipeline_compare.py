@@ -92,3 +92,19 @@ def test_j5_routing_separates_scope_gaps_from_questions_items_still_judges():
     gap = next(r for r in report["rows"] if r["case_id"] == "Q1")
     assert gap["items_j5"]["J5-1"]["reason"] == "요청 문장에 사실 질의 표현 없음" and not gap["items_j5"]["J5-2"]["items"]
     assert gap["claims"] == 1 and gap["claim_scopes"] == {"external_fact": 1}   # 기준 정의(답변 데이터)상으로는 확인할 주장이 있었다
+
+
+def test_plan_reuses_legacy_and_derives_a_reservation_from_saved_call_costs():
+    from tools.pipeline_compare import plan
+    usage = {"input_tokens": 0, "output_tokens": 50_000, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
+    part = {"usage": usage, "web_search_calls": 0, "model": "claude-opus-5-5", "service_tier": "standard", "inference_geo": "global"}
+    run = _run()
+    for batch in run["evaluations"].values():
+        batch["jev_eval"]["engine"] = "anthropic_api"
+        for record in batch["jev_eval"]["records"]:
+            record["verification"] = {"usage_requests": [part]}          # 요청마다 출력 5만 토큰 = $1.00
+    selection = [{"system": "aiona", "index": 0}, {"system": "gpt", "index": 2}]
+    got = plan(run, selection, max_usd=5)
+    assert (got["legacy_reused_calls"], got["items_max_new_calls"], got["legacy_cost_of_selection"]) == (0, 8, 2.0)
+    assert (got["observed_call_cost_max"], got["reserve_per_call"], got["guaranteed_starts"]) == (1.0, 1.5, 3)
+    assert plan(run, selection, max_usd=5, reserve_usd=2.0)["guaranteed_starts"] == 2
