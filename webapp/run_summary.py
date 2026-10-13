@@ -12,9 +12,10 @@ from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "question_outcome", "question_outcomes", "run_summary"]
+__all__ = ["RUN_SUMMARY_VERSION", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
-RUN_SUMMARY_VERSION = "run-summary-v1"
+#: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
+RUN_SUMMARY_VERSION = "run-summary-v2"
 PROVIDER_NAMES = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 
 
@@ -62,6 +63,31 @@ def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = No
         else:
             out.append(question_outcome(case, record))
     return out
+
+
+def question_units(rows: List[Any], total: int) -> List[List[int]]:
+    """질문 단위 — [[index…]…]. 단일 질문은 혼자, 같은 conversation_id 의 턴은 한 단위(사용자 결정 10-13: 대화 1개 = 1문항)."""
+    units: List[List[int]] = []
+    conversations: Dict[Any, List[int]] = {}
+    for index in range(total):
+        row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+        cid = row.get("conversation_id")
+        if cid is None or cid == "":
+            units.append([index])
+        else:
+            if cid not in conversations:
+                conversations[cid] = []
+                units.append(conversations[cid])
+            conversations[cid].append(index)
+    return units
+
+
+def unit_outcome(outcomes: List[str]) -> str:
+    """질문 단위의 판정 — 한 턴이라도 FAIL 이면 FAIL, FAIL 없이 미완료 턴이 있으면 PENDING, 제외 턴이 있으면 EXCLUDED, 모두 PASS 면 PASS."""
+    for kind in ("FAIL", "PENDING", "EXCLUDED"):
+        if kind in outcomes:
+            return kind
+    return "PASS" if outcomes else "PENDING"
 
 
 def _rate(passed: int, failed: int) -> Optional[float]:
@@ -120,15 +146,22 @@ def run_summary(run: Dict[str, Any]) -> Dict[str, Any]:
                             "aiona_version": release.get("version") if provider == "aiona" else None}
     results: Dict[str, Any] = {}
     total = run.get("question_count") or len(datasets.get("aiona") or [])
+    structure = datasets.get("aiona") or next((rows for rows in datasets.values() if rows), [])
+    units = question_units(structure, total)
     for provider, batch in (run.get("evaluations") or {}).items():
         if not isinstance(batch, dict):
             continue
         outcomes = question_outcomes(batch, total)
-        counts = {key: sum(1 for o in outcomes if o["outcome"] == key) for key in ("PASS", "FAIL", "PENDING", "EXCLUDED")}
-        results[provider] = {"questions": counts, "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]), **_criteria_rates(batch)}
+        kinds = ("PASS", "FAIL", "PENDING", "EXCLUDED")
+        turns = {key: sum(1 for o in outcomes if o["outcome"] == key) for key in kinds}
+        per_unit = [unit_outcome([outcomes[i]["outcome"] for i in unit]) for unit in units]
+        counts = {key: per_unit.count(key) for key in kinds}
+        results[provider] = {"questions": counts, "turns": turns, "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
+                             **_criteria_rates(batch)}
     return {"version": RUN_SUMMARY_VERSION, "run_id": run.get("run_id"), "name": run.get("name"), "status": run.get("status"),
             "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),
-            "question_set": {"fingerprint": run.get("dataset_fingerprint") or fingerprint(datasets.get("aiona") or []), "count": total},
+            "question_set": {"fingerprint": run.get("dataset_fingerprint") or fingerprint(datasets.get("aiona") or []), "count": total,
+                             "units": len(units)},
             "aiona_release": copy.deepcopy(release) or None, "models": models,
             "profile": {"complete": profile["complete"], "pipeline": fields.get("pipeline"),
                         "dispatch": execution.get("dispatch") or judge.get("dispatch") or "realtime",

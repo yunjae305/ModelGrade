@@ -371,3 +371,17 @@ notCollected.datasets['gpt-api'] = [externalRow('NOT_COLLECTED')];
 assert.equal(caseState(notCollected, 'gpt-api', 0).outcome, 'pending');
 assert.equal(finalSummary(notCollected).ready, false);
 console.log('External collection scores without ranks across differing environments passed.');
+
+// 점수 단위(사용자 결정 10-13) — 단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1문항. 대화는 모든 턴이 PASS 여야 PASS.
+{
+  const units = result([code(), code(), code(), code(1, 1)], [sem(), sem(), sem(), sem()]);
+  units.status = 'COMPLETED';
+  units.datasets.aiona = [source('Q1'), {...source('C1'), conversation_id: 'C', turn: 1}, {...source('C2'), conversation_id: 'C', turn: 2},
+    {...source('C3'), conversation_id: 'C', turn: 3}];
+  const overview = finalSummary(units);
+  assert.equal(overview.total, 2);                         // 질문 1 + 대화 1 (턴 4개)
+  assert.equal(overview.answers, 4);
+  assert.deepEqual(overview.rows[0].counts, {issue: 1, clear: 1, pending: 0, waiting: 0, running: 0});   // 대화의 3턴 FAIL → 대화 FAIL
+  assert.equal(overview.rows[0].score, 50);
+  assert.deepEqual(overview.rows[0].turnCounts, {issue: 1, clear: 3, pending: 0, waiting: 0, running: 0});
+}

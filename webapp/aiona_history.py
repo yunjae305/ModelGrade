@@ -140,7 +140,8 @@ def aiona_history(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
         else:
             entry.update(changes=[], factors=[], multi_factor=False, attributable=False, deltas=None)
         latest_by_set[fingerprint] = entry
-        group = series.setdefault(fingerprint, {"fingerprint": fingerprint or None, "count": entry["question_set"].get("count"), "points": []})
+        group = series.setdefault(fingerprint, {"fingerprint": fingerprint or None, "count": entry["question_set"].get("count"),
+                                                "units": entry["question_set"].get("units"), "points": []})
         group["points"].append({"run_id": entry["run_id"], "at": entry["finished_at"] or entry["created_at"],
                                 "aiona_version": entry["aiona_version"], "question_pass_rate": entry["results"]["question_pass_rate"],
                                 "criteria": {cid: part["rate"] for cid, part in entry["results"]["criteria"].items()},

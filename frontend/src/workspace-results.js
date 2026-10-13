@@ -413,17 +413,44 @@
     return questionOutcome(result, providers, index) === outcome;
   }
 
+  // 점수 단위 — 단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1문항(사용자 결정 10-13). 대화는 모든 턴이 PASS 여야 PASS,
+  // 한 턴이라도 FAIL 이면 FAIL, FAIL 없이 남은 턴이 있으면 미완료다. 질문별 표와 '판정 완료 답변'은 턴(답변) 단위 그대로다.
+  function questionUnits(result) {
+    const providers = result?.providers || [];
+    const rows = result?.datasets?.[providers.includes('aiona') ? 'aiona' : providers[0]] || [];
+    const units = [], conversations = new Map();
+    for (let i = 0; i < count(result?.question_count); i++) {
+      const id = rows[i]?.conversation_id;
+      if (id === undefined || id === null || id === '') { units.push([i]); continue; }
+      if (!conversations.has(id)) { conversations.set(id, []); units.push(conversations.get(id)); }
+      conversations.get(id).push(i);
+    }
+    return units;
+  }
+  function unitCounts(rows, units) {
+    const counts = {issue: 0, clear: 0, pending: 0, waiting: 0, running: 0};
+    for (const unit of units) {
+      const outcomes = unit.map((i) => rows[i]?.outcome || 'waiting');
+      counts[['issue', 'pending', 'running', 'waiting', 'clear'].find((o) => outcomes.includes(o)) || 'waiting']++;
+    }
+    return counts;
+  }
+
   function finalSummary(result) {
-    const total = count(result?.question_count), providers = result?.providers || [];
-    const models = providers.map((provider) => ({provider, ...modelSummary(result, provider, total)}));
+    const answers = count(result?.question_count), providers = result?.providers || [];
+    const units = questionUnits(result), total = units.length;
+    const models = providers.map((provider) => {
+      const turns = modelSummary(result, provider, answers), counts = unitCounts(turns.rows, units);
+      return {provider, ...turns, turnCounts: turns.counts, counts, total, complete: counts.issue + counts.clear};
+    });
     const baseline = result?.datasets?.[providers.includes('aiona') ? 'aiona' : providers[0]] || [];
-    const comparable = total > 0 && baseline.length === total && providers.every((provider) => {
+    const comparable = answers > 0 && baseline.length === answers && providers.every((provider) => {
       const rows = result?.datasets?.[provider] || [];
-      return rows.length === total && rows.every((row, i) => row && typeof row.question === 'string' &&
+      return rows.length === answers && rows.every((row, i) => row && typeof row.question === 'string' &&
         row.question === baseline[i]?.question && row.conversation_id === baseline[i]?.conversation_id && row.turn === baseline[i]?.turn);
     });
     const complete = models.length > 0 && models.every((m) => m.complete === total &&
-      result?.evaluations?.[m.provider]?.cases?.length === total);
+      result?.evaluations?.[m.provider]?.cases?.length === answers);
     const ready = result?.status === 'COMPLETED' && comparable && complete;
     // 외부 수집 실행에서 실행 환경이 다르거나 확인되지 않으면 점수는 보여 주되 순위는 매기지 않는다.
     const rankable = result?.environment_comparison?.same_conditions !== false;
@@ -433,7 +460,7 @@
       rank: ready && rankable && models.length > 1 ? ordered.findIndex((m) => m.counts.clear === model.counts.clear) + 1 : null,
       tied: ready && rankable && ordered.filter((m) => m.counts.clear === model.counts.clear).length > 1,
       incomplete: Math.max(0, total - model.complete)}));
-    return {ready, rankable, comparable, complete, total, rows,
+    return {ready, rankable, comparable, complete, total, answers, rows,
       leaders: ready && rankable ? rows.filter((m) => m.counts.clear === rows[0].counts.clear) : [],
       incomplete: rows.reduce((n, m) => n + m.incomplete, 0)};
   }
@@ -498,7 +525,8 @@
     return notices.join(' ');
   }
   const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
-    resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason};
+    resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason,
+    questionUnits};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

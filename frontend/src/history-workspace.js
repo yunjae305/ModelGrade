@@ -31,7 +31,8 @@
   const percent = (rate) => typeof rate === 'number' ? (rate * 100).toFixed(1) + '%' : '—';
   const points = (delta) => typeof delta === 'number' ? (delta > 0 ? '+' : delta < 0 ? '−' : '±') + Math.abs(delta * 100).toFixed(1) + '%p' : '—';
   const deltaKind = (delta) => typeof delta !== 'number' || delta === 0 ? 'neutral' : delta > 0 ? 'success' : 'danger';
-  const setLabel = (set) => `${number(set?.count)}문항 · ${String(set?.fingerprint || '지문 없음').slice(0, 8)}`;
+  // 질문 단위(대화 1개 = 1문항) — 턴 수가 다르면 함께 적는다. 예전 기록(units 없음)은 턴 수로 표시
+  const setLabel = (set) => `${number(set?.units ?? set?.count)}문항${set?.units != null && set.units !== set.count ? `(${number(set?.count)}턴)` : ''} · ${String(set?.fingerprint || '지문 없음').slice(0, 8)}`;
   const valueText = (value) => value === null || value === undefined || value === '' ? '미기록' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
   function conditionText(conditions) {
     const c = conditions || {}, judge = c.judge || {};
