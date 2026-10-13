@@ -20,6 +20,7 @@ from threading import Event
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .anthropic_batch_client import BatchApiError
+from .answer_citations import answer_citations, prompt_citations
 from .jev_client import JevStatus
 from .jev_eval import (CANCEL_REASON, DEFAULT_WORKERS, _case_request, _finish_batch, _prepare_batch, _publish_record, _record,
                        _record_from_call, _start_events, evaluate_jev_case)
@@ -104,9 +105,11 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
     requests: Dict[int, Dict[str, Any]] = {}    # index → {"request", "payload", "context", "custom_id", "started"}
     for i in targets:
         case = cases[i]
+        citations = answer_citations(case["answer"]) if prep.fact_screening and "J5" in applies[i]["criteria"] else []
         request = _case_request(case["question"], case["answer"], tuple(applies[i]["criteria"]), case.get("reference"),
                                 prep.histories.get(i) or None, client=client, cancel_event=None, pipeline=pipeline,
-                                item_specs=prep.item_specs.get(i), collected_at=prep.collected_at)
+                                item_specs=prep.item_specs.get(i), collected_at=prep.collected_at,
+                                citations=prompt_citations(citations))
         try:
             payload, ctx = client.build_request(request["state"], request["questions"])
         except (ValueError, TypeError, UnicodeError) as exc:
@@ -115,7 +118,7 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
             continue
         ctx["state"] = request["state"]
         requests[i] = {"request": request, "payload": payload, "context": ctx, "custom_id": f"{custom_id_prefix}{i}",
-                       "started": time.monotonic()}
+                       "started": time.monotonic(), "citations": citations}
     by_custom_id = {entry["custom_id"]: i for i, entry in requests.items()}
     batch_client = client.batch_client()
 
@@ -128,7 +131,8 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
         _start_events(prep, i, on_start, on_event)
         return evaluate_jev_case(case["case_id"], case["question"], case["answer"], client, access_reason,
                                  tuple(applies[i]["criteria"]), reference=case.get("reference"),
-                                 history=prep.histories.get(i) or None, cancel_event=cancel_event, pipeline=pipeline,
+                                 history=prep.histories.get(i) or None, cancel_event=cancel_event,
+                                 fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening, pipeline=pipeline,
                                  item_specs=prep.item_specs.get(i), applicability=applies[i], collected_at=prep.collected_at)
 
     def from_batch(i: int, message: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -149,7 +153,9 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
         basis = {"j5_basis": ("reference" if request["state"].get("reference") is not None else "engine")
                  if "J5" in applies[i]["criteria"] and pipeline != "items" else None}
         return _record_from_call(case["case_id"], tuple(applies[i]["criteria"]), call, request, entry["started"], basis,
-                                 pipeline=pipeline, ask=ask, applicability=applies[i], cancel_event=cancel_event)
+                                 pipeline=pipeline, ask=ask, applicability=applies[i], cancel_event=cancel_event,
+                                 client=client, fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening,
+                                 question=case["question"], citations=entry["citations"])
 
     def submit(indices: List[int]) -> Optional[Dict[str, Any]]:
         try:

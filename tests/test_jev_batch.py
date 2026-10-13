@@ -23,7 +23,9 @@ CASES = [NORMAL, FORMAT_FAIL, INAPPROPRIATE, CONTRADICTION, MISSING]
 def answers_for(params):
     tools = params.get("tools") or []
     schema = tools[-1]["input_schema"] if tools else {"required": []}
-    return {cid: {"choice": "PASS", "confidence": 0.8, "reason": f"{cid} 근거"} for cid in schema["required"]}
+    # J5 는 사실 주장 없음 — 검색이 꺼진 설정에서 확인하지 못한 J5 는 판정 미완료(D-2)라 묶음 처리 흐름 확인과 섞지 않는다
+    return {cid: {"choice": "NOT_APPLICABLE", "confidence": 0.8, "reason": "사실 주장 없음", "fact_check": {"basis": "none", "claims": []}}
+            if cid == "J5" else {"choice": "PASS", "confidence": 0.8, "reason": f"{cid} 근거"} for cid in schema["required"]}
 
 
 def message(params, *, stop_reason="tool_use"):

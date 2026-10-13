@@ -21,10 +21,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from .analysis import TextAnalysis, mask_ranges
 from .textparse import _NUM_WORD, _count_governed_by_output_verb
 
-__all__ = ["Req", "QuestionConditions", "extract_conditions", "EXTRACT_VERSION",
+__all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
            "parse_number", "NUM_WORDS"]
 
-EXTRACT_VERSION = "v16-extract-1.9"
+EXTRACT_VERSION = "v16-extract-1.11"
 
 NUM_WORDS: Dict[str, int] = dict(_NUM_WORD)
 NUM_WORDS.update({"열한": 11, "열두": 12, "열세": 13, "열네": 14, "열다섯": 15, "스무": 20})
@@ -92,8 +92,13 @@ class Req:
     text: str
     status: str = "ok"                  # ok | unsupported
     reason: str = ""
+    origin: Optional[Dict[str, Any]] = None   # 이전 턴에서 이어받은 지시면 {"turn", "instruction"}
 
     def evidence(self) -> Dict[str, Any]:
+        if self.origin:
+            # 위치는 그 이전 턴 질문 기준이라 현재 질문 위치로 쓰지 않는다.
+            return {"target": "history", "start": None, "end": None, "excerpt": self.text,
+                    "note": f"{self.origin['turn']}턴 사용자 지시 유지"}
         return {"target": "question", "start": self.start, "end": self.end, "excerpt": self.text}
 
 
@@ -115,7 +120,7 @@ class QuestionConditions:
 
     def to_list(self) -> List[Dict[str, Any]]:
         return [{"kind": r.kind, "value": r.value, "status": r.status, "reason": r.reason,
-                 "evidence": r.evidence()} for r in self.reqs]
+                 "evidence": r.evidence(), **({"origin": r.origin} if r.origin else {})} for r in self.reqs]
 
 
 # --- 지시문 범위 -----------------------------------------------------------------
@@ -211,6 +216,9 @@ _CHAR_COUNT = re.compile(
 _WS_RULE = re.compile(r"공백\s*(?P<ws>제외|포함|빼고|빼서)")
 
 _GENERIC_COUNT = re.compile(rf"{PRE}{NUM}\s*(?P<unit>개|가지)(?:의)?\s*(?:항목)?{POST}")
+#: 'N개' 바로 뒤에 오면 항목 수가 아니라 표·글 구조의 수다 (3개 열로 된 표, 3개 행)
+_STRUCT_NOUN_AFTER = re.compile(r"\s*(?:열|컬럼|칼럼|행|줄|문장|문단|단락|단어|어절|글자)"
+                                r"(?=$|[\s.,!?]|로|으로|을|를|이|가|은|는|의|씩|짜리|만)")
 
 _DEFAULT_OP = {"bullet_count": "==", "sentence_count": "==", "paragraph_count": "==",
                "line_count": "==", "word_count": "==", "list_count": "=="}
@@ -276,7 +284,7 @@ def _count_reqs(text: str, out: List[Req]) -> None:
     for m in _GENERIC_COUNT.finditer(text):
         if overlaps(m.start(), m.end()):
             continue
-        if _STRUCT_NOUN_BEFORE.search(text[max(0, m.start() - 14):m.start()]):
+        if _STRUCT_NOUN_BEFORE.search(text[max(0, m.start() - 14):m.start()]) or _STRUCT_NOUN_AFTER.match(text, m.end()):
             continue
         if _count_governed_by_output_verb(text, m.end()) is None:
             continue
@@ -301,13 +309,16 @@ def _count_reqs(text: str, out: List[Req]) -> None:
 # --- 문자열 조건 -------------------------------------------------------------------
 
 #: 정확 일치 수식어 — 있으면 공백·줄바꿈을 접지 않고 원문 그대로 대조한다 (G-1).
-_EXACT = (r"정확히|그대로|똑같이|글자\s*그대로|토씨\s*하나(?:도)?\s*(?:안\s*틀리게|틀리지\s*않게)"
-          r"|한\s*글자도\s*(?:안\s*틀리게|틀리지\s*않게|바꾸지\s*(?:말고|않고))")
+_EXACT = (r"정확히|그대로|똑같이|글자\s*그대로|공백까지|띄어쓰기까지|(?i:exactly|verbatim)"
+          r"|토씨\s*하나(?:도)?\s*(?:안\s*틀리게|틀리지\s*(?:않게|않고|말고))"
+          r"|한\s*글자도\s*(?:안\s*(?:틀리게|바꾸고)|(?:틀리지|바꾸지)\s*(?:않게|않고|말고))")
+#: '정확히 그대로'·'공백까지 그대로'처럼 수식어가 이어져도 한 덩어리다 — 문구와 동사 사이에 있어도 문구 요구로 읽는다.
+_EXACT_RUN = rf"(?:{_EXACT})(?:\s*(?:{_EXACT}))*"
 _REQ_LIT = re.compile(
-    rf"(?:(?P<exact_pre>{_EXACT})\s*)?"
+    rf"(?:(?P<exact_pre>{_EXACT_RUN})\s*)?"
     + LIT + r"\s*(?:라는|이라는|라고|이라고)?\s*(?:문자열|단어|표현|문구|말|문장|키워드|낱말)?\s*"
     r"(?:을|를|이|가|도|은|는)?\s*(?:꼭\s*|반드시\s*|항상\s*|절대\s*)?"
-    rf"(?:(?P<exact_post>{_EXACT})\s*)?(?:꼭\s*|반드시\s*)?"
+    rf"(?:(?P<exact_post>{_EXACT_RUN})\s*)?(?:꼭\s*|반드시\s*)?"
     r"(?P<verb>포함|넣|붙|적|쓰|써|사용|들어가|언급|출력)")
 _NEG_AFTER = re.compile(r"^[^.!?\n]{0,6}?(?:지\s*(?:마|말|않)|면\s*안)")
 _LIT_LIST = re.compile(rf"(?P<items>(?:[{_OPEN_Q}][^{_CLOSE_Q}\n]{{1,40}}[{_CLOSE_Q}]\s*(?:,|와|과|및|그리고)?\s*){{2,20}})"
@@ -315,8 +326,8 @@ _LIT_LIST = re.compile(rf"(?P<items>(?:[{_OPEN_Q}][^{_CLOSE_Q}\n]{{1,40}}[{_CLOS
 _LIST_FORBID = re.compile(r"(?:쓰지|사용하지|넣지|포함하지|언급하지|적지)\s*(?:마|말|않)|금지|빼\s*(?:주|고)|쓰면\s*안")
 _LIST_REQUIRE = re.compile(r"들어가|포함|넣어|써\s*(?:야|줘|주)|사용해")
 _WITHOUT_LIT = re.compile(LIT + r"\s*(?:라는\s*\S+\s*)?(?:없이|빼고|제외하고)")
-_BOUNDARY_LIT = re.compile(rf"(?:(?P<exact_pre>{_EXACT})\s*)?" + LIT
-                           + rf"\s*(?:으로|로)\s*(?:(?P<exact_post>{_EXACT})\s*)?(?P<be>시작|끝|마무리|끝맺)")
+_BOUNDARY_LIT = re.compile(rf"(?:(?P<exact_pre>{_EXACT_RUN})\s*)?" + LIT
+                           + rf"\s*(?:으로|로)\s*(?:(?P<exact_post>{_EXACT_RUN})\s*)?(?P<be>시작|끝|마무리|끝맺)")
 
 
 def _exact(m) -> Dict[str, bool]:
@@ -342,6 +353,10 @@ def _literal_reqs(text: str, out: List[Req]) -> None:
         out.append(Req(kind, {"literal": lit, **(extra or {})}, m.start(), m.end(), m.group(0).strip()))
 
     for m in _BOUNDARY_LIT.finditer(text):
+        if _NEG_AFTER.search(text[m.end():m.end() + 12]):
+            # '…로 끝내지 마 / 끝내지 않아도 돼'는 그 문구로 끝내라는 요구가 아니다 (금지·해제는 J2·이전 지시 해제가 본다).
+            seen.add(("boundary", m.start()))
+            continue
         scope, why, _ = _scope(text, m.start(), m.end(), "literal")
         if scope == "per_item":
             out.append(Req("starts_with" if m.group("be") == "시작" else "ends_with",
@@ -979,3 +994,195 @@ def extract_conditions(question: str) -> QuestionConditions:
     source = _transform_reqs(qa, text, reqs)
     # 표·목록 요구와 겹치는 일반 개수: 불릿 개수가 있으면 목록 요구는 개수 조건이 포함한다.
     return QuestionConditions(reqs=reqs, instruction_text=text, source_data=source)
+
+
+# --- 이전 턴의 지속 지시 (대화 입력) ---------------------------------------------------
+
+#: 다음 턴에도 이어지는 지시 표현. 이 표현이 같은 문장에 있어야 지속 지시로 본다.
+_PERSIST = re.compile(r"앞으로|이후(?:로|에도|부터)|이제부터|지금부터|다음부터|계속(?:해서)?|매번|항상|언제나|대화\s*내내|"
+                      r"모든\s*(?:답변|대답|응답|답)")
+#: 지속 표현이 있어도 이번 한 번만 적용하는 지시
+_ONCE = re.compile(r"이번(?:에만|만|\s*답변만|\s*한\s*번만|\s*턴만|\s*질문만)|이번\s*한\s*번")
+#: 특정 작업에만 적용하는 지시 — "요약할 때는", "번역하는 경우에는"
+_COND_TASK = re.compile(r"(?P<task>[가-힣A-Za-z]{2,10}?)(?:을|를)?\s*(?:할|하는|해\s*줄)\s*(?:때|경우)(?:는|에는|에|마다|엔)?\s*")
+#: 해제·예외가 이번 턴에만 적용되는 표현 — 다음 턴부터는 원래 지속 지시가 다시 적용된다.
+_TEMP = re.compile(_ONCE.pattern + r"|이번에는|이번\s*(?:답변|질문|턴)(?:은|에서는|에는)")
+#: 이전 지속 지시 해제 — 대상 낱말(뒤에 '제한·조건' 같은 말이 붙어도 그 대상만)과 해제 표현
+_RELEASE_WORD = r"(?:무시|해제|취소|생략)(?!\s*하(?:지|면)\s*(?:마|말|안))"
+_CANCEL = re.compile(r"(?P<target>표|목록|리스트|불릿|글머리\S*|소제목|제목|코드\s*블록|코드블록|JSON|마크다운|형식|형태|양식|분량|길이|"
+                     r"글자\s*수|문장\s*수|줄\s*수|문단\s*수|"
+                     r"끝맺음(?:\s*(?:문구|말|인사))?|끝\s*인사|맺음말|마무리\s*(?:문구|인사|말)|마지막\s*(?:문구|인사|말)|끝\s*문구|"
+                     r"시작\s*(?:문구|인사|말)|첫\s*(?:문구|인사|마디)|머리말|규칙|조건|제한|지시|요청)"
+                     r"(?:\s*(?:제한|조건|규칙|지시|요청|형식))?(?:으로|로|에|에서)?(?:은|는|도|을|를|이|가|만)?\s*"
+                     r"(?:(?:이제|더\s*이상|굳이|이번(?:에는|에만|만)?|오늘은)\s*)*"
+                     r"(?:안\s*(?:해도|지켜도|써도|맞춰도|넣어도|붙여도|달아도|끝내도|적어도|나눠도)|"
+                     r"(?:하|지키|쓰|맞추|넣|붙이|달|나누)지\s*(?:않아도|마(?:세요|요|라)?(?![가-힣]))|"
+                     r"(?:할|쓸|넣을|붙일|지킬|맞출|나눌|달)\s*필요(?:가|는|도)?\s*없|"
+                     r"없어도|신경\s*쓰지|상관\s*없|그만|" + _RELEASE_WORD + r"|풀어|빼고|빼\s*줘|없이|말고|예외)")
+_CANCEL_ALL = re.compile(r"형식\s*(?:제한\s*)?없이|자유롭게\s*(?:답|써|작성|말|설명)|원래대로|처음처럼|평소처럼|제한\s*없이|"
+                         r"이번\S{0,4}\s*(?:(?:답변|질문|턴)\S{0,2}\s*)?예외로")
+#: 따옴표로 지정한 문구 지시(시작·끝·필수 문구)의 해제 — "'이상입니다.'로 끝내지 않아도 돼", "'감사합니다'는 빼줘"
+_LIT_TARGET = (r"(?P<lit>'[^'\n]{1,80}'|‘[^’\n]{1,80}’|\"[^\"\n]{1,80}\"|“[^”\n]{1,80}”)"
+               r"(?:\s*(?:이?라는\s*)?(?:문구|말|인사말?|표현|문장|끝맺음|끝인사|맺음말|조건|지시|규칙|요청))?"
+               r"\s*(?:으로|로|라고)?(?:은|는|도|을|를|이|가)?\s*(?:(?:이제|더\s*이상|굳이|앞으로|다시는?|이번(?:에는|에만|만)?)\s*)*")
+_LIT_RELEASE = re.compile(_LIT_TARGET + r"(?P<rel>"
+                          r"(?:끝내|끝맺|맺|마무리하|마치|시작하|붙이|덧붙이|넣|쓰|달|적|포함하|사용하|말하|추가하|하)"
+                          r"지\s*(?:않아도|않으셔도|말고|말아|마(?:세요|요|라)?(?![가-힣]))|"
+                          r"안\s*(?:끝내|끝맺어|맺어|마무리해|마쳐|시작해|붙여|덧붙여|넣어|써|달아|적어|포함해|사용해|말해|추가해|해)도|"
+                          r"(?:끝낼|끝맺을|맺을|마무리할|마칠|시작할|붙일|덧붙일|넣을|쓸|달|적을|포함할|사용할|말할|추가할|할)"
+                          r"\s*필요(?:가|는|도)?\s*없|"
+                          r"빼(?:고|줘|주|도|라|세요|버려)|그만|" + _RELEASE_WORD + r"|없이)")
+#: 금지했던 문구의 허용 — "'음'은 이제 써도 돼"
+_LIT_PERMIT = re.compile(_LIT_TARGET + r"(?P<rel>(?:써|넣어|붙여|사용해|포함해|말해|적어|달아|해)도\s*(?:돼|되|괜찮|상관))")
+_LITERAL_USE = ("starts_with", "ends_with", "required_literal")
+
+#: 이어받는 질문 조건 → 묶음. 현재 질문이나 뒤 턴의 같은 묶음 요구가 앞 지시를 대신한다.
+#: 항목 수·계산·변환처럼 질문마다 달라지는 요구는 이어받지 않는다.
+_STRUCTURE = ("table_required", "table_forbidden", "table_count", "table_columns", "table_column_count", "table_header",
+              "table_data_rows", "table_total_rows", "table_rows_ambiguous", "list_required", "list_forbidden",
+              "bullet_count", "json_required", "json_required_keys", "json_field_type", "markdown_forbidden")
+_INHERIT_FAMILY = {**dict.fromkeys(_STRUCTURE, "structure"),
+                   **dict.fromkeys(("heading_required", "heading_count"), "heading"),
+                   **dict.fromkeys(("code_block_required", "code_block_count", "code_block_forbidden",
+                                    "code_language_label"), "code_block"),
+                   **{k: k for k in ("sentence_count", "line_count", "paragraph_count", "word_count", "char_count",
+                                     "charset", "starts_with", "ends_with")}}
+_LENGTH = ("sentence_count", "line_count", "paragraph_count", "word_count", "char_count")
+_CANCEL_TARGET = {"표": ("structure",), "목록": ("structure",), "리스트": ("structure",), "불릿": ("structure",),
+                  "글머리": ("structure",), "JSON": ("structure",), "마크다운": ("structure", "heading", "code_block"),
+                  "제목": ("heading",), "소제목": ("heading",), "코드블록": ("code_block",),
+                  "분량": _LENGTH, "길이": _LENGTH, "글자수": ("char_count",), "문장수": ("sentence_count",),
+                  "줄수": ("line_count",), "문단수": ("paragraph_count",)}
+
+
+def _family(req: Req) -> Optional[str]:
+    if req.kind in ("required_literal", "forbidden_literal"):
+        return "literal:" + str(req.value.get("literal"))
+    return _INHERIT_FAMILY.get(req.kind)
+
+
+def _sentences(question: str) -> List[Tuple[str, str]]:
+    """(문장 원문, 따옴표 안을 가린 문장). 자료로 제시한 코드·표·인용 줄은 가린 질문 기준.
+
+    따옴표 안의 마침표에서는 문장을 나누지 않는다. 지속·해제 표현은 가린 문장에서만 찾는다 —
+    따옴표 안 과거 발언 인용은 지시가 아니다. 작은따옴표는 값 표기에 흔해서 띄어쓰기가 든 인용(발언)만 가린다.
+    조건 추출은 원문으로 한다 (따옴표로 지정한 문구 보존). 두 문장은 글자 위치가 같다.
+    """
+    text = _instruction_text(TextAnalysis(question))
+    singles = [(m.start(), m.end()) for m in re.finditer(r"'[^'\n]{0,80}'|‘[^’\n]{0,80}’", text)]
+    bounded = mask_ranges(text, _quote_spans(text) + singles, fill="x")
+    masked = mask_ranges(text, _quote_spans(text) + [(s, e) for s, e in singles if re.search(r"\s", text[s:e])])
+    out = []
+    for m in re.finditer(r"(?:[^.?!\n]|(?<=\d)\.(?=\d))+[.?!]*", bounded):
+        raw = text[m.start():m.end()]
+        if raw.strip():
+            start = m.start() + len(raw) - len(raw.lstrip())
+            end = m.end() - (len(raw) - len(raw.rstrip()))
+            out.append((text[start:end], masked[start:end]))
+    return out
+
+
+def _literal_key(value: Any) -> str:
+    return re.sub(r"[\s.!?。~…]+$", "", re.sub(r"\s+", " ", str(value or "")).strip()).casefold()
+
+
+def _cancelled_families(sentence: str, masked: str) -> Tuple[str, ...]:
+    """해제된 묶음. '*'는 전체, '~use:문구'·'~ban:문구'는 그 문구를 요구·금지한 지시만."""
+    if _CANCEL_ALL.search(masked):
+        return ("*",)
+    out: List[str] = []
+    for m in _CANCEL.finditer(masked):
+        target = re.sub(r"\s+", "", m.group("target"))
+        target = "글머리" if target.startswith("글머리") else target
+        if target.startswith(("끝맺음", "끝인사", "맺음말", "마무리", "마지막", "끝문구")):
+            out.append("ends_with")
+        elif target.startswith(("시작", "첫", "머리말")):
+            out.append("starts_with")
+        else:
+            out.extend(_CANCEL_TARGET.get(target, ("*",)))
+    # 문구는 원문에서 읽되, 해제 표현이 다른 인용(발언) 안에 있으면 지시가 아니다.
+    for pattern, mode in ((_LIT_RELEASE, "use"), (_LIT_PERMIT, "ban")):
+        for m in pattern.finditer(sentence):
+            if masked[m.start("rel"):m.end("rel")] == m.group("rel"):
+                out.append(f"~{mode}:{_literal_key(m.group('lit')[1:-1])}")
+    return tuple(out)
+
+
+def _cancels(token: str, key: str, req: Req) -> bool:
+    if token == "*" or token == key:
+        return True
+    if token.startswith("~"):
+        mode, literal = token[1:].split(":", 1)
+        kinds = _LITERAL_USE if mode == "use" else ("forbidden_literal",)
+        return req.kind in kinds and _literal_key(req.value.get("literal")) == literal
+    return False
+
+
+def persistent_conditions(prior: List[Tuple[int, str]], question: str) -> Tuple[List[Req], List[Dict[str, Any]]]:
+    """같은 대화의 이전 **사용자 질문**에서 지속 지시(앞으로·계속·매번·모든 답변…)로 준 형식·분량 조건 중
+    현재 턴에 아직 유효한 것을 돌려준다. (이어받은 조건, 판단 기록)
+
+    - 이전 AI 답변은 읽지 않는다. 따옴표 안 인용·자료로 제시한 부분은 지시로 보지 않는다.
+    - 뒤 턴의 같은 묶음 지속 지시가 앞 지시를 바꾸고, 해제 표현(…안 해도 돼·형식 제한 없이)은 지운다.
+      따옴표 문구 지시는 그 문구를 가리킨 해제('이상입니다.'로 끝내지 않아도 돼)만 지우고 다른 문구는 유지한다.
+    - 이전 턴의 '이번에는·이번 답변만' 해제·예외는 그 턴에만 적용되고 다음 턴에는 원래 지시가 다시 적용된다.
+    - 현재 질문에 같은 묶음의 요구가 있으면 현재 요구가 우선한다. 이번 턴만의 지시는 이어받지 않는다.
+    - "요약할 때는"처럼 작업이 정해진 지시는 현재 질문에 그 작업 낱말이 있을 때만 적용한다.
+    """
+    active: Dict[str, List[Tuple[Req, Optional[str]]]] = {}
+    audit: List[Dict[str, Any]] = []
+
+    def cancel(families: Tuple[str, ...], why: str) -> None:
+        for key in list(active):
+            kept = []
+            for req, task in active[key]:
+                if any(_cancels(token, key, req) for token in families):
+                    audit.append({"turn": req.origin["turn"], "instruction": req.origin["instruction"],
+                                  "requirement": req.text, "kind": req.kind, "applied": False, "why": why})
+                else:
+                    kept.append((req, task))
+            if kept:
+                active[key] = kept
+            else:
+                del active[key]
+
+    for turn, text in sorted(prior):
+        for sentence, masked in _sentences(text):
+            families = _cancelled_families(sentence, masked)
+            if families and not _TEMP.search(masked):
+                cancel(families, f"{turn}턴에서 해제: {sentence[:60]}")
+            if not _PERSIST.search(masked) or _ONCE.search(masked):
+                continue
+            task = None
+            cond = _COND_TASK.search(sentence)
+            if cond:
+                task = cond.group("task")
+                sentence = sentence[:cond.start()] + sentence[cond.end():]
+            added: Dict[str, List[Tuple[Req, Optional[str]]]] = {}
+            for req in extract_conditions(sentence).reqs:
+                key = _family(req)
+                if req.status != "ok" or key is None:
+                    continue
+                req.origin = {"turn": turn, "instruction": sentence[:200], **({"task": task} if task else {})}
+                added.setdefault(key, []).append((req, task))
+            for key, reqs in added.items():
+                if key in active:
+                    cancel((key,), f"{turn}턴의 새 지속 지시로 변경")
+                active[key] = reqs
+
+    current = extract_conditions(question)
+    for sentence, masked in _sentences(question):
+        families = _cancelled_families(sentence, masked)
+        if families:
+            cancel(families, "현재 질문에서 해제")
+    current_families = {_family(r) for r in current.reqs} - {None}
+    inherited: List[Req] = []
+    for key, reqs in active.items():
+        for req, task in reqs:
+            why = ("현재 질문의 같은 종류 요구가 우선" if key in current_families else
+                   f"'{task}' 작업에만 적용하는 지시" if task and task not in question else "")
+            audit.append({"turn": req.origin["turn"], "instruction": req.origin["instruction"],
+                          "requirement": req.text, "kind": req.kind, "applied": not why, **({"why": why} if why else {})})
+            if not why:
+                inherited.append(req)
+    return inherited, audit

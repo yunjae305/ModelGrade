@@ -36,7 +36,7 @@ def record_events(case, record, index):
         unverifiable_total += unverifiable
         yield {**base, "type": "criterion_result", "key": cid, "code": cid, "name": NAMES.get(cid, cid),
                "result": d.get("decision") or "UNJUDGED", "reason": d.get("reason") or record.get("error") or "판정 근거 없음",
-               **({'verification_status': 'UNVERIFIED'} if d.get('status') == 'UNVERIFIED' else {}),
+               **({'verification_status': d['status']} if d.get('status') in ('UNVERIFIED', 'INCOMPLETE') else {}),
                **({"unverifiable": unverifiable} if unverifiable else {}),
                "stage": "LLM"}
     yield {**base, "type": "q_done", "error": record.get("error") or completion.get("error"),

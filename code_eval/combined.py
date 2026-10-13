@@ -89,7 +89,7 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
     for i, case in evaluated:
         record = records[i] if i < len(records) else None
         decisions = (record or {}).get("decisions") or {}
-        unverified = [d for d in decisions.values() if d.get('status') == 'UNVERIFIED']
+        unverified = [d for d in decisions.values() if d.get('status') in ('UNVERIFIED', 'INCOMPLETE')]
         if unverified:
             unverified_count += len(unverified)
             review_items.append({'case_id': case['case_id'], 'case_index': i, 'question': case.get('question') or '',

@@ -29,7 +29,7 @@ from .llm_client import redact
 from .semantic_cli_common import (SYSTEM_PROMPT, build_prompt, output_schema, jev_answer as _jev_answer,
                                   system_prompt as _system_prompt, is_items, strip_search_items, validate_items_shape,
                                   SEARCH_NOT_AVAILABLE_REASON)
-from .semantic_evidence import finalize_answers, FACT_CHECK_POLICY, CONTEXT_CHECK_POLICY
+from .semantic_evidence import finalize_answers, search_mode, FACT_CHECK_POLICY, CONTEXT_CHECK_POLICY
 from .cli_process import CliCancelled, run_cli
 
 __all__ = ["ClaudeCliConfig", "ClaudeCliClient", "find_claude_executable", "build_prompt", "output_schema"]
@@ -189,7 +189,8 @@ class ClaudeCliClient:
                 return JevCall(JevStatus.INVALID_RESPONSE, attempts=attempt, latency_ms=elapsed,
                                error="claude 출력에 structured_output 이 없음", accounting=accounting.snapshot(attempt))
             usage = _token_usage(output.get("usage"))
-            verification = {"search_performed": False, "source_urls": [], "source_validation": "provider"}
+            verification = {"search_performed": False, "source_urls": [], "source_validation": "provider",
+                            "search_mode": search_mode(questions, state, "disabled", supported=False)}
             if not_sent:
                 verification["items_not_sent"] = list(not_sent)
             if items_mode:

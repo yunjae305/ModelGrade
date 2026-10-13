@@ -96,13 +96,25 @@ def find_list_items(text: str, lines: Optional[Sequence[Line]] = None) -> List[L
     종류가 다른 항목은 줄에 적힌 들여쓰기를 그대로 쓴다.
     """
     items: List[ListItem] = []
-    open_items: List[Tuple[int, int, bool]] = []   # (내용 시작 열, 맞춘 들여쓰기, 불릿 여부)
+    stacks: Dict[int, List[Tuple[int, int, bool]]] = {}   # 인용 깊이 → (내용 시작 열, 맞춘 들여쓰기, 불릿 여부)
+    quote_fences: Dict[int, bool] = {}
     for line in lines if lines is not None else split_lines(text):
         if line.in_code:
             continue
-        match = _LIST_ITEM.match(line.text)
+        # 인용문(>) 안 목록도 목록이다. 인용문 안 코드 펜스 사이의 줄은 목록으로 보지 않는다.
+        depth, content = 0, line.text
+        prefix = _QUOTE_PREFIX.match(line.text)
+        if prefix:
+            depth, content = prefix.group(0).count(">"), line.text[prefix.end():]
+            if _FENCE_LINE.match(content):
+                quote_fences[depth] = not quote_fences.get(depth, False)
+                continue
+            if quote_fences.get(depth):
+                continue
+        match = _LIST_ITEM.match(content)
         if not match:
             continue
+        open_items = stacks.setdefault(depth, [])
         written = len(match.group("indent").expandtabs(TAB_WIDTH))
         bullet = match.group("marker") in ("-", "*", "+")
         sibling = None

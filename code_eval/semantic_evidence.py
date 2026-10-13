@@ -10,14 +10,31 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-FACT_CHECK_POLICY = "evidence-v3.5-task-input-edits"
-CONTEXT_CHECK_POLICY = "history-quotes-v2-current-relevance"
+#: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
+FACT_CHECK_POLICY = "evidence-v3.12-opinion-correction-scope"
+#: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
+CONTEXT_CHECK_POLICY = "history-quotes-v3-code-boundary"
 SEARCH_POLICY = "J5_without_reference_grouped_evidence_v3"
 
 
 def has_reference(state):
     value = state.get("reference") if isinstance(state, dict) else None
     return value is not None and value not in ("", {}, []) and (not isinstance(value, str) or bool(value.strip()))
+
+
+def search_mode(questions, state, web_search, supported=True):
+    """J5 웹 검색 상태. 판정 정책이 '검색 불가'와 '검색했지만 근거 부족'을 구분할 때 쓴다.
+
+    live: 검색 사용 · reference: 참조 자료로만 판정(검색 안 함) · disabled: 설정으로 끔 ·
+    unsupported: 이 평가자에 검색 도구 없음 · not_requested: J5 를 묻지 않음 (items 파이프라인은 J5-* 항목)
+    """
+    if "J5" not in questions and not any(str(q).startswith("J5-") for q in questions):
+        return "not_requested"
+    if has_reference(state):
+        return "reference"
+    if not supported:
+        return "unsupported"
+    return "live" if web_search == "live" else "disabled"
 
 
 def source_url(value):
@@ -68,7 +85,14 @@ def _input_scope(claim, state, source=None):
     if claim.get("scope") != "input_consistency" or not _contained(quote, state.get("question", "")):
         return False
     material = r"가상|허구|제공|주어진|다음|아래|위의|위\s*자료|앞서|원문|공지|문서|자료|메모|following|provided|given|fictional|hypothetical|above|document|passage"
-    transform = r"요약|추출|변환|재작성|재구성|정리|표로|표를\s*(?:만들|작성)|summari[sz]|extract|convert|rewrite|reformat"
+    # 요청 문장에 바로 나열한 값도 제공 자료다 — '정리해 줘: 빨래, 청소', '비교 대상: 사과, 배',
+    # '할 일은 청소와 세탁이야'. 값이 입력이라는 뜻일 뿐 그 값의 현실 진위를 인정하지 않는다.
+    word = r"[가-힣A-Za-z0-9]{1,15}"
+    inline = (r"(?:줘|주세요|주십시오|해|하세요)\s*[:：]\s*\S"
+              r"|[:：]\s*[^:：,、\n]{1,30}(?:\s*[,、]\s*[^:：,、\n]{1,30})+"
+              rf"|(?:은|는)\s+{word}(?:와|과|랑|하고|,)\s*(?:{word}(?:와|과|랑|하고|,)\s*)*{word}?(?:이야|야|입니다|이에요|예요|이고|이다)")
+    transform = (r"요약|추출|변환|재작성|재구성|정리|분류|정렬|나열|순서대로|표로|표를\s*(?:만들|작성)|"
+                 r"summari[sz]|extract|convert|rewrite|reformat|classify|sort")
     # Keep the established document/structured-transformation path.
     structured_transform = (r"(?:이|주어진|제공된)\s*(?:정보|자료|값|기록)(?:를|을|만(?:을)?)?"
                             r".{0,120}?JSON\s*(?:배열|객체)(?:로|으로)\s*(?:작성|출력)")
@@ -98,7 +122,7 @@ def _input_scope(claim, state, source=None):
                   r"rename.{0,60}(?:item|name|label)")
     if re.search(input_edit, quote, re.I):
         return True
-    if recognized_transform and re.search(material, question, re.I):
+    if recognized_transform and (re.search(material, question, re.I) or re.search(inline, question)):
         return True
     # These operations can repeat supplied inputs verbatim as part of their
     # result. Accepting that quote does not verify a derived total or an added
@@ -136,7 +160,7 @@ def _input_scope(claim, state, source=None):
     return bool(recognized_transform and isinstance(source, dict) and source.get("origin") == "history_user"
                 and re.search(retrospective, question, re.I)
                 and any(isinstance(prior, dict) and isinstance(prior.get("question"), str)
-                        and re.search(material, prior["question"], re.I)
+                        and (re.search(material, prior["question"], re.I) or re.search(inline, prior["question"]))
                         for prior in state.get("history", [])))
 
 
@@ -180,6 +204,8 @@ def _fact_check(entry, state, verification):
     reference = state.get("reference")
     reference_text = reference if isinstance(reference, str) else json.dumps(reference, ensure_ascii=False)
     observed = {u for value in verification.get("source_urls", []) if (u := source_url(value))}
+    # Pages the provider opened with web_fetch count as retrieved even without a search.
+    fetched = {u for value in verification.get("fetched_urls", []) if (u := source_url(value))} & observed
     search_ok = verification.get("search_performed") is True
     normalized = []
     for claim in fact["claims"]:
@@ -215,7 +241,8 @@ def _fact_check(entry, state, verification):
                     supported_sources += 1
                 else:
                     source_problems.append("참조 자료에서 인용문을 확인하지 못했습니다.")
-            elif origin == "web" and basis in ("web", "mixed") and search_ok and source_url(url) in observed:
+            elif (origin == "web" and basis in ("web", "mixed") and source_url(url) in observed
+                  and (search_ok or source_url(url) in fetched)):
                 retained = copy.deepcopy(source)
                 # These flags are populated by the transport's independent retriever,
                 # never by the model's structured answer schema.
@@ -233,7 +260,7 @@ def _fact_check(entry, state, verification):
                                            or "검색 출처의 원문 인용을 확인하지 못했습니다.")
                 sources.append(retained)
             else:
-                source_problems.append("완료된 검색 기록 또는 허용된 제공 자료에서 이 출처를 확인하지 못했습니다.")
+                source_problems.append("완료된 검색·원문 열기 기록 또는 허용된 제공 자료에서 이 출처를 확인하지 못했습니다.")
         if item.get("verdict") in ("PASS", "FAIL") and not supported_sources:
             fallback = ("검색 출처의 원문 인용·공신력·기준 시점 근거를 모두 확인하지 못했습니다."
                         if basis == "web" else "제공 자료 또는 검색 출처의 원문 근거가 없습니다."
@@ -297,6 +324,79 @@ def _context_check(entry, state):
         entry["reason"] = " · ".join(it.get("reason") or "이전 지시를 유지하지 못함" for it in normalized if it["decision"] == "FAIL")
 
 
+CITATION_LABELS = {"supported": "출처가 주장을 뒷받침", "contradicted": "출처가 주장과 모순",
+                   "unrelated": "출처가 주장과 무관", "not_found": "출처에 해당 내용 없음",
+                   "inaccessible": "출처 원문 접근 불가", "unverified": "판정 확정 안 함", "unchecked": "확인하지 않음"}
+_CITATION_MISMATCH = ("contradicted", "unrelated", "not_found")
+
+
+def _citation_check(entry, state):
+    """평가자의 답변 출처 판정을 서버 수집 결과로 확정한다. 원문을 서버가 받지 못하면 어떤 판정도 쓰지 않는다."""
+    citations = state.get("answer_citations") if isinstance(state, dict) else None
+    if not isinstance(citations, list) or not citations:
+        return
+    by_url = {source_url(c.get("url")): c for c in citations if isinstance(c, dict)}
+    answer = state.get("answer", "")
+    normalized, covered = [], set()
+    for check in entry.get("citation_checks") if isinstance(entry.get("citation_checks"), list) else []:
+        if not isinstance(check, dict):
+            continue
+        url = source_url(check.get("url"))
+        citation = by_url.get(url)
+        model = check.get("verdict")
+        # retrieval is written by verify_answer_citations only: "server" or, when the server's fetch failed for an
+        # access reason, "provider_document" (the provider's own web_fetch text of the same URL).
+        provider = check.get("retrieval") == "provider_document" and check.get("server_status") not in (None, "ok")
+        item = {"id": citation.get("id") if citation else None, "url": check.get("url"), "claim": check.get("claim"),
+                "model_verdict": model, "quote": check.get("quote") or "", "reason": check.get("reason") or "",
+                "server_status": check.get("server_status"), "quote_verified": check.get("quote_verified") is True}
+        if provider:
+            item["retrieval"] = "provider_document"
+        where = "평가자가 web_fetch 로 받은 출처 원문" if provider else "출처 원문"
+        if citation is None:
+            verdict, note = "unverified", "답변이 제시한 출처 URL이 아닙니다."
+        elif not _contained(check.get("claim"), answer):
+            verdict, note = "unverified", "주장 구절이 답변 원문에 없습니다."
+        elif item["server_status"] is None:
+            verdict, note = "unchecked", "서버가 출처 원문을 받지 않아 판정에 쓰지 않았습니다."
+        elif item["server_status"] != "ok" and not provider:
+            verdict, note = "inaccessible", "서버가 출처 원문을 받지 못했습니다 (" + str(item["server_status"]) + ")."
+        elif model in ("supported", "contradicted"):
+            verdict, note = ((model, f"서버가 {where}에서 인용문을 확인했습니다.") if item["quote_verified"] else
+                             ("unverified", f"평가자가 인용한 구절을 {where}에서 찾지 못했습니다."))
+        elif model in ("unrelated", "not_found") and not item["reason"].strip():
+            verdict, note = "unverified", "판단 이유가 없습니다."
+        elif model in ("unrelated", "not_found") and check.get("claim_numbers_in_source") is True:
+            verdict, note = "unverified", f"주장의 수치가 {where}에 있어 '해당 내용 없음' 판단을 확정하지 않았습니다."
+        elif model in ("unrelated", "not_found"):
+            verdict, note = model, ("평가자 판단 — 서버는 평가자가 web_fetch 로 받은 원문의 존재만 확인했습니다." if provider else
+                                    "평가자 판단 — 서버는 출처 원문 수신만 확인했습니다.")
+        else:
+            verdict, note = "unverified", ("평가자가 원문 접근 불가로 판단해 판정에 쓰지 않았습니다." if provider else
+                                           "평가자는 원문을 열지 못했지만 서버는 받았으므로 판정에 쓰지 않았습니다.")
+        item.update(verdict=verdict, note=note)
+        if citation is not None:
+            covered.add(url)
+        normalized.append(item)
+    for url, citation in by_url.items():
+        if url not in covered:
+            normalized.append({"id": citation.get("id"), "url": citation.get("url"), "claim": None, "model_verdict": None,
+                               "quote": "", "reason": "", "server_status": None, "quote_verified": False,
+                               "verdict": "unchecked", "note": "평가자가 이 출처의 지지 여부를 기록하지 않았습니다."})
+    entry["citation_checks"] = normalized
+    mismatched = [item for item in normalized if item["verdict"] in _CITATION_MISMATCH]
+    if entry.get("choice") == "NOT_APPLICABLE" or not mismatched:
+        return
+    entry["citation_mismatch"] = True
+    note = "답변이 든 출처가 주장을 뒷받침하지 않음: " + " · ".join(
+        f"{item['url']} ({CITATION_LABELS[item['verdict']]})" for item in mismatched[:3])
+    if entry.get("choice") != "FAIL":
+        _verdict(entry, "FAIL")
+        entry["reason"] = note
+    else:
+        entry["reason"] = (entry.get("reason") or "").rstrip() + " · " + note
+
+
 def finalize_answers(body, state, questions):
     """Called only by LLM transports. Native Jev and saved legacy results stay unchanged."""
     if isinstance(body, dict) and isinstance(body.get("items"), list) and not body.get("answers"):
@@ -313,6 +413,7 @@ def finalize_answers(body, state, questions):
             entry.pop("model_original_assessment", None)
     if "J5" in questions and isinstance(answers.get("J5"), dict):
         _fact_check(answers["J5"], state, verification)
+        _citation_check(answers["J5"], state)
     if "J6" in questions and isinstance(answers.get("J6"), dict):
         _context_check(answers["J6"], state)
     for cid, original in originals.items():

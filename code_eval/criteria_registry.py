@@ -23,7 +23,9 @@ from .taxonomy import CATEGORIES
 
 __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS", "RELATIONS", "registry", "unit_of"]
 
-REGISTRY_VERSION = "criteria-registry-v2"   # v2: 의미 평가 세부 기준 25·점검 항목 39 (semantic_items) 추가
+#: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
+#: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
+REGISTRY_VERSION = "criteria-registry-v4"
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -76,7 +78,7 @@ SUBSUMED_KINDS = (
     ("list_required", "bullet_count", "2-1.count", "불릿 형식 요구는 불릿 개수 검사가 형식과 개수를 함께 봄 — 2-2 목록 조건을 따로 만들지 않음"),
 )
 
-_TRIGGER = {"all": "모든 답변", "question": "질문에 명시 요구가 있을 때", "answer": "답변에 해당 구조가 있을 때",
+_TRIGGER = {"all": "모든 답변", "question": "질문 또는 대화 앞 턴의 지속 지시(앞으로·계속·모든 답변…)에 명시 요구가 있을 때", "answer": "답변에 해당 구조가 있을 때",
             "question_or_answer": "질문 요구 또는 답변의 해당 코드블록이 있을 때",
             "aiona": "AIONA 답변에 운영 설정·실제 표시본이 있을 때 (웹 작업 공간에서는 현재 일시 중지)"}
 
@@ -95,11 +97,13 @@ RELATIONS = (
      "'~는 쓰지 마' 같은 금지 문자열은 2-1 문자열 검사와 J2 '제약' 적용 규칙이 함께 봄. CODE 범위 안내 예시에 문자열 조건이 없음"),
     ("3-3.transform", "J5", "overlap",
      "질문 원본 값의 보존은 3-3 정확 비교와 J5 input_consistency 주장이 함께 봄"),
-    ("1-3.citation_link", "J5", "gap",
-     "1-3은 답변 안 인용 번호 연결만, J5는 평가자의 독립 검색. 답변이 직접 든 출처가 그 주장을 뒷받침하는지는 어느 쪽도 판정하지 않음"),
-    ("2-1", "J6", "gap",
-     "이전 턴의 분량·형식 지시: CODE는 현재 질문만 읽고 J6 지시문은 분량·형식을 CODE 몫으로 제외. 긴 대화에서 어느 쪽도 판정하지 않음"),
-    ("2-2", "J6", "gap", "이전 턴의 표·목록·JSON 형식 지시도 위와 같음"),
+    ("1-3.citation_link", "J5", "boundary",
+     "1-3은 답변 안 인용 번호·각주 연결만, 답변이 든 출처가 주장을 뒷받침하는지는 J5 citation_checks 가 서버 원문 대조로 확인 "
+     "(answer-citations-v1 부터, 2026-10-12 이전에는 공백. v2 는 서버가 받지 못한 출처를 공급자 web_fetch 원문으로 대조)"),
+    ("2-1", "J6", "boundary",
+     "이전 턴의 지속 분량·형식 지시는 CODE 가 다음 턴 조건으로 이어받아 검사(작업 브랜치 엔진 v16.3.0, 통합 v16.4.0), J6는 의미 맥락만. "
+     "2026-10-12 이전에는 어느 쪽도 판정하지 않던 공백"),
+    ("2-2", "J6", "boundary", "이전 턴의 지속 표·목록·JSON 형식 지시도 위와 같음"),
 )
 
 _CODE_EVIDENCE = ("결과 행마다 required(질문에서 읽은 요구)·measured(측정값)·comparison(비교식)·reason·"
@@ -109,13 +113,18 @@ _CODE_UNJUDGED = ("공통 결과 행은 PASS/FAIL 뿐. 코드로 확정할 수 �
                   "실행 오류로 기록(품질 FAIL 아님, 그 질문은 PASS 로 확정하지 않음)")
 _SEMANTIC_EVIDENCE = {
     "J5": ("fact_check.claims[] — 답변 원문 발췌 주장별 verdict·reason·sources(url·quote·authority·temporal_relevance·origin). "
-           "서버가 검색 도구 기록의 URL, 출처 원문·입력 원문의 인용 일치를 확인하고 맞지 않으면 그 주장을 확인 필요로 바꿈"),
+           "서버가 검색 도구 기록의 URL, 출처 원문·입력 원문의 인용 일치를 확인하고 맞지 않으면 그 주장을 확인 필요로 바꿈. "
+           "서버가 접근 문제로 받지 못한 출처는 같은 요청에서 평가자 web_fetch 가 실제로 받은 원문으로만 대조(retrieval=provider_document). "
+           "답변이 직접 든 출처는 citation_checks — 서버가 그 URL 을 받아 인용·수치를 대조하고 확정된 불일치만 FAIL. "
+           "판정마다 j5_outcome(사실 오류·검증 기준 미충족·출처 불일치·검색 불가 등)"),
     "J6": ("context_checks[] — 이전 턴 번호·instruction_quote·answer_quote·decision·reason. "
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈"),
 }
-_SEMANTIC_REASON = ("reason — 지시문은 FAIL 이유에 답변 원문 인용을 요구하지만 서버가 인용을 대조하지 않고, "
-                    "빈 이유의 FAIL도 저장됨")
-_SEMANTIC_UNJUDGED = ("UNVERIFIED는 최종 정책으로 FAIL(EVALUATION_EVIDENCE_INSUFFICIENT, 사실 오류 확정 아님), "
+_SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
+                    "그 기준만 1회 재평가 (j1-j4-fail-evidence-v1). 이유의 의미적 타당성은 검증하지 않음")
+_SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근거 없는 J1~J4 FAIL(JUDGE_FAIL_EVIDENCE_MISSING), "
+                      "검색 불가·검색 실행 오류·검색 없이 연 원문의 도구 오류로 확인하지 못한 J5(J5_SEARCH_UNAVAILABLE·J5_SEARCH_ERROR·J5_FETCH_ERROR). "
+                      "그 밖의 UNVERIFIED는 최종 정책으로 FAIL(EVALUATION_EVIDENCE_INSUFFICIENT, 사실 오류 확정 아님), "
                       "J5 출처 원문 확인 실패는 FAIL(SOURCE_ORIGINAL_UNAVAILABLE). 호출 오류·시간 초과·형식 오류·미연결은 "
                       "판정 없음(미완료)")
 
@@ -182,6 +191,17 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "적용 여부는 코드 규칙이 정함 (sub-applicability-v1, j5-items-applicability-v1)"]},
     {"version": "criteria-registry-v2", "date": "2026-10-13", "scope": "registry",
      "changes": ["semantic_items(세부 25·항목 39·'판정하는 곳' 규칙·나열 규칙·reason_code) 를 목록에 포함", "changelog 추가"]},
+    {"version": "engine v16.4.0", "date": "2026-10-12", "scope": "code",
+     "changes": ["이전 턴의 지속 분량·형식 지시를 다음 턴 조건으로 이어받아 검사 (source=history_instruction, G-3)",
+                 "이전 턴 지시 해제·일시 해제 인식 (F3)", "필수 문구 공백은 main 의 접기 방식으로 일원화 (G-1)",
+                 "'N개 열'은 항목 수가 아님, 인용문 안 목록 인식",
+                 "main v16.3.0 과 작업 브랜치 v16.3.x 통합 (integrate/main-eval-reliability)"]},
+    {"version": "criteria-registry-v3", "date": "2026-10-12", "scope": "registry",
+     "changes": ["작업 브랜치 목록(이전 턴 승계·출처 대조 경계)과 main 의 C 보완 제거·공백 접기·행 없음 설명을 합침 (브랜치 integrate/main-eval-reliability)",
+                 "main 의 criteria-registry-v2 와는 다른 목록"]},
+    {"version": "criteria-registry-v4", "date": "2026-10-13", "scope": "registry",
+     "changes": ["main v2(semantic_items·changelog)와 브랜치 v3(이전 턴 승계·출처 대조·판정 미완료 정책)을 병합",
+                 "의미 평가 jev-semantic-eval-v2.8 (main v2.6 items 기록 + 브랜치 v2.7)"]},
 ]
 
 
@@ -195,5 +215,6 @@ def registry() -> Dict[str, Any]:
             "relations": [{"a": a, "b": b, "kind": kind, "note": note} for a, b, kind, note in RELATIONS],
             "decision_policy": copy.deepcopy(DECISION_POLICY),
             "aggregation": ("질문 최종 판정: 적용된 CODE 조건·의미 기준 중 하나라도 FAIL이면 FAIL, 모두 판정되고 FAIL이 없으면 PASS, "
-                            "그 밖은 미완료. 모델 점수 = PASS 질문 수 / 전체 질문 수. 조건·기준 통과율 = PASS / (PASS + FAIL). "
+                            "그 밖은 미완료(판정 미완료 기준 포함). 모델 점수 = PASS 질문 수 / 전체 질문 수이며 미완료 질문이 있으면 "
+                            "점수를 확정하지 않음. 조건·기준 통과율 = PASS / (PASS + FAIL), 미완료는 분모에서 빼고 따로 표시. "
                             "같은 질문의 여러 FAIL은 질문 점수에 한 번만 반영됨")}

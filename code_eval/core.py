@@ -12,7 +12,9 @@ from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
 from .model import ConditionResult, Evidence, FAIL, PASS
 from .scripts import SCRIPT_DATA_VERSION
 
-ENGINE_VERSION = "aiona-code-eval-v16.3.0"
+#: v16.3.0 은 두 작업 줄에서 서로 다른 규칙에 쓰였다 — 이전 턴 지시 승계(fix/evaluation-reliability 21322b1)와
+#: 공통 행 PASS/FAIL 전용(main 9bf9a37). 두 줄을 합친 이 버전부터 새 번호를 쓴다 (MEASUREMENT_v16.md §23 버전 이력).
+ENGINE_VERSION = "aiona-code-eval-v16.4.0"
 MD_SOURCE = "참고자료/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
@@ -33,12 +35,12 @@ CHECK_VERSIONS: Dict[str, str] = {
     "1-3.citation_link": "v16-1.2 (코드 예시 제외, 인용 번호 파서, 출처 목록 문법 없으면 행 없음)",
     "1-3.internal_link": "v16-1.2 (코드 예시 제외, 실제 본문 제목·앵커 연결, 대상 목록 없음·ID 규칙 차이는 행 없음)",
     "2-1.explicit_empty": "v16-1.0",
-    "2-1.count": "v16-1.5 (질문 출력 범위·번호 제목 연결, 펜스 길이에 따른 코드 제외, 모호한 구조·결과물 내부는 행 없음, CommonMark 형제 항목 들여쓰기)",
+    "2-1.count": "v16-1.6 (질문 출력 범위·번호 제목 연결, 펜스 길이에 따른 코드 제외, 모호한 구조·결과물 내부는 행 없음, CommonMark 형제 항목 들여쓰기, 인용문 안 목록, 'N개 열'은 항목 수 아님)",
     "2-1.char_count": "v16-1.2 (코드 포인트, 펜스 길이에 따른 코드 제외·줄바꿈 제외, 근사 분량은 행 없음)",
-    "2-1.literal": "v16-1.2 (코드 제외·강조 제거 투영, NFC, 정확 일치 요구가 아니면 공백·줄바꿈 접기, 항목별 요구는 행 없음)",
+    "2-1.literal": "v16-1.3 (코드 제외·강조 제거 투영, NFC, 정확 일치 요구가 아니면 공백·줄바꿈 접기, 정확 일치 수식어 여러 개·문구와 동사 사이 수식어 인식, 항목별 요구는 행 없음)",
     "2-1.charset": "v16-1.0 (문자 범주 L*)",
     "2-2.table": "v17-1.4 (명시 표 개수 추가, 고정 최소 행 수 없음, 빈 헤더 줄은 헤더 아님, 코드·데이터 결과물 안의 표는 판정 제외, 양끝 파이프 생략·인용문 안 GFM 표, 표 존재 FAIL 뒤 열·헤더·행 수 행 없음)",
-    "2-2.list": "v16-1.3 (코드·데이터 결과물 안의 목록·자료형 목록·결과물 안인지 불확정·마크다운 금지 충돌은 조건 미생성 행 없음)",
+    "2-2.list": "v16-1.4 (코드·데이터 결과물 안의 목록·자료형 목록·결과물 안인지 불확정·마크다운 금지 충돌은 조건 미생성 행 없음, 인용문 안 목록 인식)",
     "2-2.heading": "v16-1.2 (ATX 제목, 코드·데이터 결과물 안의 제목은 판정 제외, 굵은 글씨 줄만·단계 여러 개는 행 없음)",
     "2-2.json_structure": "v16-1.1 (JSON 구문 FAIL·출력 없음 FAIL 뒤 필드 행 없음, 대상 여러 개·필수 목록 밖 키 없음은 행 없음)",
     "3-1.question_calculation": "v16-1.2 (Fraction 정확 계산, 질문 피연산자·답변 등식 결과 부호 보존, eval 없음, 값 연결 실패는 행 없음)",
@@ -106,6 +108,7 @@ class Ctx:
     system_id: Optional[str] = None
     aiona_config: Any = None
     shared: Dict[str, Any] = field(default_factory=dict)
+    inherited: List[Any] = field(default_factory=list)   # 이전 턴에서 이어받은 형식·분량 조건 (Req)
     #: 검사기 실행 오류·한도 초과 (결과 행이 아니라 사례의 errors 로 나감)
     errors: List[Dict[str, Any]] = field(default_factory=list)
     #: 판정하지 않은 조건의 사유 (결과 행이 아니라 meta.skipped_conditions 로 나감, 집계·해시 제외)
@@ -125,7 +128,9 @@ class Ctx:
 
     @cached_property
     def conds(self) -> QuestionConditions:
-        return extract_conditions(self.question)
+        conds = extract_conditions(self.question)
+        conds.reqs.extend(self.inherited)
+        return conds
 
     @cached_property
     def projection(self) -> Tuple[str, List[int]]:
@@ -152,7 +157,7 @@ def excerpt(text: str, start: int, end: int, margin: int = 25) -> str:
 
 
 def q_evidence(ctx: Ctx, req) -> Evidence:
-    return Evidence(target="question", start=req.start, end=req.end, excerpt=req.text)
+    return Evidence(**req.evidence())   # 이어받은 지시는 target=history (이전 턴 위치는 쓰지 않음)
 
 
 #: 사례 errors 의 kind 값. Status 상수와 같은 문자열이지만 결과 행의 status 가 아니다.

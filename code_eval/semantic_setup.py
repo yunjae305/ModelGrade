@@ -79,7 +79,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
             raise ValueError("unsupported engine")
         result.update(engine=engine, engine_label=_LABELS[engine])
         if engine == "anthropic_api":
-            from .anthropic_semantic_client import AnthropicSemanticConfig
+            from .anthropic_semantic_client import AnthropicSemanticConfig, prompt_cache_setting
             config = AnthropicSemanticConfig(
                 model=read("SEMANTIC_ANTHROPIC_MODEL") or "claude-sonnet-5-5",
                 reasoning_effort=read("SEMANTIC_ANTHROPIC_EFFORT") or "medium",
@@ -93,6 +93,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
                 dispatch=(read("SEMANTIC_DISPATCH") or "realtime").strip().lower(),
                 batch_questions=int(read("SEMANTIC_ANTHROPIC_BATCH_QUESTIONS") or 20),
                 batch_poll_seconds=float(read("SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS") or 15),
+                prompt_cache=prompt_cache_setting(read("SEMANTIC_ANTHROPIC_PROMPT_CACHE")),
             )
             result.update(model=_model_label(config.model), reasoning_effort=_effort_label(config.reasoning_effort), dispatch=config.dispatch)
             search(config.web_search)

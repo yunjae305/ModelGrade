@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import replace
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .checks_integrity import json_targets
 from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, skip_condition, skip_req, verdict_of
@@ -288,6 +288,11 @@ def check_2_1(ctx: Ctx) -> List:
         else:
             ok, measured, comp = stripped.endswith(needle), {"answer_end": stripped[-(len(needle) + 10):]}, "endswith"
         measured["whitespace"] = "exact" if exact else "folded"
+        if not exact and req.kind in ("required_literal", "forbidden_literal"):
+            # 접어서만 찾은 출현 수 — 원문 그대로는 없고 공백·줄바꿈 차이만 있던 곳
+            normalized = len(hits) - len(_literal_hits(scan, lit))
+            if normalized > 0:
+                measured["whitespace_normalized_occurrences"] = normalized
         ev = [q_evidence(ctx, req)]
         for h in hits[:10]:
             start, end = offs[h], offs[h + len(needle) - 1] + 1

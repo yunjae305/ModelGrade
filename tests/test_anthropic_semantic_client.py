@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from code_eval.anthropic_semantic_client import (AnthropicSemanticClient, AnthropicSemanticConfig, FINAL_TOOL,
-                                               _strict_schema, _text_submission)
+                                               _strict_schema, _text_submission, prompt_cache_setting)
 from code_eval.jev_eval import jev_request, evaluate_jev_case
 
 
@@ -51,7 +51,8 @@ def test_request_preserves_blind_inputs_uses_medium_and_strict_final_tool():
     assert '지정된 JSON 형식으로만 답합니다.' not in body['system']
     assert '외부 도구를 사용하지 않습니다.' not in body['system']
     assert 'submit_evaluation 도구를 정확히 한 번' in body['system']
-    assert json.loads(body['messages'][0]['content'].split('## 평가 대상 (데이터)\n',1)[1])==state
+    prompt=''.join(block['text'] for block in body['messages'][0]['content'])
+    assert json.loads(prompt.split('## 평가 대상 (데이터)\n',1)[1])==state
     assert len(body['tools'])==1 and body['tools'][0]['strict'] is True
     schema=body['tools'][0]['input_schema']
     assert schema['required']==['J1','J5','J6']
@@ -73,6 +74,26 @@ def test_configured_opus_5_5_request_avoids_parameters_the_model_rejects():
     assert body['thinking'] == {'type': 'adaptive'} and body['tool_choice'] == {'type': 'auto'}
     assert not {'temperature', 'top_p', 'top_k'} & body.keys()
     assert [message['role'] for message in body['messages']] == ['user']
+
+
+def test_prompt_cache_marks_only_the_reusable_instructions_and_keeps_the_text():
+    # F8: tools + system + static rules are cached; the timestamp and evaluation data follow the marker.
+    bodies=[]
+    for answer in ('첫 답변','둘째 답변'):
+        _,sent=call(response(entries('J1','J5')),ids=('J1','J5'),state={'question':'질문','answer':answer})
+        bodies.append(json.loads(sent[0].content))
+    blocks=[b['messages'][0]['content'] for b in bodies]
+    assert [[('cache_control' in block) for block in content] for content in blocks]==[[True,False]]*2
+    assert blocks[0][0]==blocks[1][0] and blocks[0][0]['cache_control']=={'type':'ephemeral'}
+    assert '실행 기준 시각' not in blocks[0][0]['text'] and '첫 답변' in blocks[0][1]['text']
+    assert sum(json.dumps(b,ensure_ascii=False).count('cache_control') for b in bodies)==2
+    _,sent=call(response(entries('J1')),config=AnthropicSemanticConfig(prompt_cache=False))
+    body=json.loads(sent[0].content)
+    assert isinstance(body['messages'][0]['content'],str) and 'cache_control' not in json.dumps(body)
+    assert AnthropicSemanticConfig(prompt_cache=False).to_manifest()['prompt_cache_policy']=='disabled'
+    assert prompt_cache_setting(None) is True and prompt_cache_setting(' OFF ') is False
+    with pytest.raises(ValueError):
+        prompt_cache_setting('sometimes')
 
 
 def web_blocks(url='https://evidence.example/page'):
@@ -123,6 +144,90 @@ def test_unobserved_or_failed_search_never_accepts_model_authored_sources(blocks
     result,_=call(response(fact(),blocks),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
                   fetcher=lambda url:pytest.fail('unobserved URL must not be opened'))
     assert result.body['answers']['J5']['choice']=='UNVERIFIED'
+
+
+def fetch_blocks(url, *, error=False):
+    content = ({'type':'web_fetch_tool_error','error_code':'url_not_accessible'} if error else
+               {'type':'web_fetch_result','url':url,'content':{'type':'document','source':{'type':'text','data':'Alpha is blue.'}}})
+    return [{'type':'server_tool_use','id':'fetch1','name':'web_fetch','input':{'url':url}},
+            {'type':'web_fetch_tool_result','tool_use_id':'fetch1','content':content}]
+
+
+def test_page_opened_without_a_search_verifies_its_quote():
+    # F1 (G4-01): the provider's own web_fetch result is retrieval provenance even without a search.
+    fetched=[]
+    def fetcher(url):
+        fetched.append(url)
+        return {'status':'ok','text':'Alpha is blue.','final_url':url,'content_type':'text/plain'}
+    result,_=call(response(fact(),fetch_blocks('https://evidence.example/page')),ids=('J5',),
+                  state={'question':'색상?','answer':'Alpha is blue.'},fetcher=fetcher)
+    verification=result.body['verification']
+    assert verification['search_performed'] is False and verification['fetched_urls']==['https://evidence.example/page']
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert fetched==['https://evidence.example/page'] and source['retrieval']=='web_fetch' and source['quote_verified'] is True
+    assert result.body['answers']['J5']['choice']=='PASS'
+
+
+@pytest.mark.parametrize('blocks',[fetch_blocks('https://other.example/page'),
+                                   fetch_blocks('https://evidence.example/page', error=True)])
+def test_failed_or_different_page_fetch_never_accepts_the_cited_url(blocks):
+    result,_=call(response(fact(),blocks),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:pytest.fail('unobserved URL must not be opened'))
+    assert result.body['verification']['search_performed'] is False
+    assert result.body['answers']['J5']['choice']=='UNVERIFIED'
+
+
+PAGE = 'https://evidence.example/page'
+
+
+def provider_fetch(text='Alpha is blue.', *, url=PAGE, requested=PAGE, source=None):
+    return [{'type':'server_tool_use','id':'fetch1','name':'web_fetch','input':{'url':requested}},
+            {'type':'web_fetch_tool_result','tool_use_id':'fetch1','content':{
+                'type':'web_fetch_result','url':url,'retrieved_at':'2026-10-12T01:02:03Z',
+                'content':{'type':'document','source':source or {'type':'text','media_type':'text/plain','data':text}}}}]
+
+
+def test_blocked_source_is_checked_against_the_providers_own_fetch():
+    # F5b: the server gets 403, the provider's web_fetch of the same URL returned the page text.
+    result,_=call(response(fact(),provider_fetch()),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:{'status':'http_error','detail':'http_403','text':''})
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert (source['quote_verified'], source['retrieval'], source['server_fetch_status']) == (True, 'provider_document', 'http_error')
+    assert source['verified_at'] == '2026-10-12T01:02:03Z' and result.body['answers']['J5']['choice'] == 'PASS'
+    verification=result.body['verification']
+    assert verification['source_checks'][0]['status'] == 'http_error' and verification['source_checks'][0]['provider_document'] is True
+    assert verification['provider_documents'] == [{'url':PAGE,'retrieved_at':'2026-10-12T01:02:03Z','chars':14}]
+
+
+@pytest.mark.parametrize('server,blocks,retrieval', [
+    ({'status':'blocked_address'}, provider_fetch(), 'web_fetch'),              # 공개 주소 검사 실패는 대신하지 않음
+    ({'status':'redirect_host_changed'}, provider_fetch(), 'web_fetch'),        # 다른 발행처로 이동
+    ({'status':'http_error'}, provider_fetch(requested='https://evidence.example/other'), 'web_fetch'),  # 요청·결과 URL 불일치
+    ({'status':'http_error'}, provider_fetch(source={'type':'base64','media_type':'application/pdf','data':'JVBERi0='}), 'web_fetch'),
+    ({'status':'http_error'}, provider_fetch('Alpha is red.'), 'provider_document'),  # 원문에 인용문이 없음
+])
+def test_provider_text_replaces_only_access_failures_with_a_linked_document_containing_the_quote(server, blocks, retrieval):
+    result,_=call(response(fact(),blocks),ids=('J5',),state={'question':'색상?','answer':'Alpha is blue.'},
+                  fetcher=lambda url:{**server,'text':''})
+    source=result.body['answers']['J5']['fact_check']['claims'][0]['sources'][0]
+    assert source['quote_verified'] is False and source['retrieval'] == retrieval
+    assert result.body['answers']['J5']['choice'] == 'UNVERIFIED'
+
+
+def test_blocked_source_with_a_provider_fetched_contradiction_is_a_factual_error():
+    # D2-02: the server cannot read the page; the provider's fetched text contradicts the answer.
+    answer = 'The tower opened in 1925.'
+    values = {'J5':{'choice':'FAIL','confidence':.9,'reason':'개장 연도가 다릅니다.',
+        'fact_check':{'basis':'web','claims':[{'claim':answer,'verdict':'FAIL','reason':'공식 자료는 1889년',
+            'sources':[{'url':PAGE,'title':'Official','quote':'The tower opened in 1889.','authority':'primary',
+                        'authority_reason':'운영 기관 공식 소개','temporal_relevance':'역사적 사실'}]}]}}}
+    client = AnthropicSemanticClient(AnthropicSemanticConfig(), 'secret-test-key',
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json=response(values, provider_fetch('History: The tower opened in 1889.')))),
+        source_fetcher=lambda url:{'status':'http_error','detail':'http_403','text':''})
+    record = evaluate_jev_case('q', '탑은 언제 열었어?', answer, client, criteria=('J5',), fail_evidence_check=True)
+    j5 = record['decisions']['J5']
+    assert j5['decision'] == 'FAIL' and j5.get('reason_code') is None
+    assert j5['j5_outcome']['code'] == 'contradicted' and j5['j5_outcome']['factual_error_confirmed'] is True
 
 
 def test_pending_server_tools_cannot_be_confused_with_a_final_verdict():
@@ -510,8 +615,8 @@ def test_text_after_pause_cannot_hide_an_earlier_client_tool_submission():
 def test_text_validator_rejects_future_schema_constraints_instead_of_silently_ignoring(monkeypatch):
     from code_eval import semantic_cli_common
     original = semantic_cli_common.output_schema
-    def with_pattern(ids):
-        schema = original(ids)
+    def with_pattern(ids, **kwargs):
+        schema = original(ids, **kwargs)
         schema['properties']['J1']['properties']['reason']['pattern'] = '^specific$'
         return schema
     monkeypatch.setattr(semantic_cli_common, 'output_schema', with_pattern)
@@ -524,3 +629,21 @@ def test_text_schema_keeps_non_j_criteria_pass_fail_only():
     value = {'X1': {'choice': 'UNVERIFIED', 'confidence': .8, 'reason': 'unknown'}}
     with pytest.raises(ValueError, match='enum'):
         _text_submission([{'type': 'text', 'text': json.dumps(value)}], ('X1',))
+
+
+@pytest.mark.parametrize('config,state,ids,mode', [
+    (AnthropicSemanticConfig(), None, ('J1', 'J5'), 'live'),
+    (AnthropicSemanticConfig(web_search='disabled'), None, ('J1', 'J5'), 'disabled'),
+    (AnthropicSemanticConfig(), {'question': '질문', 'answer': '답변', 'reference': '자료'}, ('J1', 'J5'), 'reference'),
+    (AnthropicSemanticConfig(), None, ('J1',), 'not_requested'),
+])
+def test_verification_records_whether_j5_search_could_run(config, state, ids, mode):
+    # The final policy separates "search could not run" from "searched but found too little".
+    values = {**entries(*ids)}
+    if 'J5' in ids:
+        values['J5'] = {'choice': 'NOT_APPLICABLE', 'confidence': .9, 'reason': '사실 없음',
+                        'fact_check': {'basis': 'none', 'claims': []}}
+    result, sent = call(response(values), ids=ids, state=state, config=config)
+    assert result.body['verification']['search_mode'] == mode
+    assert result.body['verification']['search_limits'] == {'searches': config.max_tool_calls, 'fetches': config.max_fetches}
+    assert any(tool.get('name') == 'web_search' for tool in json.loads(sent[0].content)['tools']) is (mode == 'live')

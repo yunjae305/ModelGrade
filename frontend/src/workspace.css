@@ -749,6 +749,7 @@ textarea::placeholder {color:#757f94}
 .evaluation-policy-fail .text-button {color:var(--red); min-height:40px; font-size:12px}
 .semantic-policy-failure {padding:14px; margin:12px 0; background:var(--red-soft); border:1px solid #f0d0d6; border-radius:10px; color:var(--red)}
 .semantic-policy-pass {padding:14px; margin:12px 0; background:var(--green-soft); border:1px solid #cce8dc; border-radius:10px; color:var(--green)}
+.semantic-policy-pending {padding:14px; margin:12px 0; background:var(--amber-soft); border:1px solid #F1DFB8; border-radius:10px; color:var(--amber)}
 .semantic-policy-original {margin:12px 0; font-size:12px; color:var(--muted)}
 .semantic-policy-original>summary {min-height:40px; padding:10px 0; cursor:pointer}
 .version-detail-content section {padding:20px 0; border-top:1px solid var(--line)}

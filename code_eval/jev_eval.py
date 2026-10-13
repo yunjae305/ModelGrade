@@ -28,20 +28,25 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .jev_applicability import (APPLIES_WHEN, JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION, jev_applicability,
                                 sub_applicability)
-from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELINES, resolve_jev_client,
+from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELINES, _sum_usage, resolve_jev_client,
                          resolve_semantic_pipeline)
 from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
+from .answer_citations import CITATION_POLICY_VERSION, answer_citations, prompt_citations, source_requested
 from .semantic_items import SEMANTIC_ITEMS_VERSION, SUBS_BY_ID, SemanticItem, applicable_items
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
-from .semantic_policy import DECISION_POLICY, apply_final_decision_policy
+from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
 from .semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY, finalize_items
+from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
+                               fail_evidence, incomplete_decision)
 
 __all__ = ["JEV_EVAL_VERSION", "jev_request", "parse_decisions", "evaluate_jev_case", "evaluate_jev_batch",
            "jev_after_code", "evaluation_log", "build_history", "conversation_contexts", "conversations_summary",
            "summarize_records"]
 
-JEV_EVAL_VERSION = "jev-semantic-eval-v2.6"
+#: 두 작업 줄에서 v2.6 이 다른 뜻으로 쓰였다 — main v2.6(items 파이프라인 기록)과 브랜치 v2.6(D-1·D-2·G-4, 통합 v2.7 = + C 기준 제거).
+#: 둘을 합친 판 → v2.8. 기존 번호의 뜻은 바꾸지 않는다.
+JEV_EVAL_VERSION = "jev-semantic-eval-v2.8"
 #: items 파이프라인의 기준별 적용 조건 문구 (legacy 와 다른 것만)
 ITEMS_APPLIES_WHEN = {"J5": "코드 규칙이 사실 정보를 묻는 질문으로 판정한 질문(J5-1) · 질문이 준 값·정리할 자료가 있는 질문(J5-2) · "
                             "확인·조회·출처를 언급한 답변(J5-3)"}
@@ -59,11 +64,13 @@ ALL_IDS = tuple(c.id for c in CRITERIA)
 
 
 def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS, reference: Any = None,
-                history: Optional[List[Dict[str, Any]]] = None, *, pipeline: str = "legacy",
+                history: Optional[List[Dict[str, Any]]] = None,
+                citations: Optional[List[Dict[str, Any]]] = None, *, pipeline: str = "legacy",
                 item_specs: Optional[List[Tuple[SemanticItem, Dict[str, Any]]]] = None,
                 collected_at: Optional[str] = None) -> Dict[str, Any]:
     """Jev 에 보내는 내용. 질문·답변(과 있을 때만 reference·history)만 담고 평가할 기준만 묻는다 (CODE 결과·표시본 없음).
 
+    ``citations`` 는 답변이 직접 든 출처(answer_citations) — J5 를 물을 때만 함께 보낸다 (legacy).
     items 파이프라인이면 ``questions`` 는 {item_id: SemanticItem.to_prompt_dict(evidence)} (적용 항목만, 기준표 순서) 이고
     ``collected_at``(답변 수집 날짜)은 state 에 넣는다 — 시점이 있는 사실의 기준(J5).
     """
@@ -78,6 +85,8 @@ def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS,
         questions = {spec.id: spec.to_prompt_dict(evidence) for spec, evidence in (item_specs or [])
                      if spec.criterion in criteria}
         return {"state": state, "questions": questions}
+    if citations and "J5" in criteria:
+        state["answer_citations"] = citations
     questions = {cid: q for cid, q in jev_questions().items() if cid in criteria}
     return {"state": state, "questions": questions}
 
@@ -129,6 +138,11 @@ def parse_decisions(body: Dict[str, Any], criteria: Tuple[str, ...] = ALL_IDS,
             decisions[cid]['fact_check'] = copy.deepcopy(entry['fact_check'])
         if isinstance(entry.get('context_checks'), list):
             decisions[cid]['context_checks'] = copy.deepcopy(entry['context_checks'])
+        for key in ('citation_checks', 'citation_summary'):
+            if key in entry:
+                decisions[cid][key] = copy.deepcopy(entry[key])
+        if entry.get('citation_mismatch') is True:
+            decisions[cid]['citation_mismatch'] = True
         if isinstance(entry.get('model_original_assessment'), dict):
             original = entry['model_original_assessment']
             decisions[cid]['model_original_assessment'] = {
@@ -145,9 +159,10 @@ def _record(case_id: str, status: str, criteria: Tuple[str, ...] = (), **kw: Any
 
 def _case_request(question: str, answer: str, criteria: Tuple[str, ...], reference: Any,
                   history: Optional[List[Dict[str, Any]]], *, client: Any, cancel_event: Optional[Event],
-                  pipeline: str = "legacy", item_specs: Any = None, collected_at: Optional[str] = None) -> Dict[str, Any]:
+                  pipeline: str = "legacy", item_specs: Any = None, collected_at: Optional[str] = None,
+                  citations: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event)."""
-    request = jev_request(question, answer, criteria, reference, history, pipeline=pipeline, item_specs=item_specs,
+    request = jev_request(question, answer, criteria, reference, history, citations, pipeline=pipeline, item_specs=item_specs,
                           collected_at=collected_at)
     if cancel_event is not None and getattr(client, "supports_cancellation", False):
         request["cancel_event"] = cancel_event
@@ -196,8 +211,14 @@ def _items_record(case_id: str, criteria: Tuple[str, ...], call: Any, request: D
 
 def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, request: Dict[str, Any], started: float,
                       basis: Dict[str, Any], *, pipeline: str = "legacy", ask: Optional[Callable] = None,
-                      applicability: Optional[Dict[str, Any]] = None, cancel_event: Optional[Event] = None) -> Dict[str, Any]:
-    """JevCall → 레코드. legacy 는 parse_decisions, items 는 finalize_items→집계. 두 모드 모두 최종 판정 정책을 거친다(items 는 no-op)."""
+                      applicability: Optional[Dict[str, Any]] = None, cancel_event: Optional[Event] = None,
+                      client: Optional[JevClient] = None, fail_evidence_check: bool = False, citation_check: bool = False,
+                      question: str = "", citations: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """JevCall → 레코드. legacy 는 parse_decisions, items 는 finalize_items→집계. 두 모드 모두 최종 판정 정책을 거친다(items 는 no-op).
+
+    legacy 의 근거 없는 J1~J4 FAIL 재평가(``fail_evidence_check``, 같은 client 로 1회)와 답변 출처 기록·J5 판정 사유
+    (``citation_check``·``citations``)도 여기서 한다 — 실시간과 Message Batches 가 같은 규칙을 쓴다.
+    """
     def finish(status, **kw):
         return _record(case_id, status, criteria, **kw)
     common = {"latency_ms": call.latency_ms, "attempts": call.attempts, "usage": call.usage or {}, **basis}
@@ -222,7 +243,7 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
         else:
             record = _record(case_id, JevStatus.SUCCESS, criteria, decisions=decisions, **common)
             record['criteria'] = [cid for cid in record['criteria'] if decisions[cid].get('status') != 'NOT_APPLICABLE']
-            record['review_required'] = any(d.get('status') == 'UNVERIFIED' for d in decisions.values())
+            record['review_required'] = any(unresolved(d) for d in decisions.values())
             if 'J5' in criteria:
                 fact_check = decisions['J5'].get('fact_check')
                 if decisions['J5'].get('status') == 'NOT_APPLICABLE':
@@ -232,20 +253,30 @@ def _record_from_call(case_id: str, criteria: Tuple[str, ...], call: Any, reques
                     record['j5_basis'] = actual_basis if actual_basis in ('web', 'reference', 'input', 'mixed') else 'unverified'
                 elif decisions['J5'].get('status') == 'UNVERIFIED':
                     record['j5_basis'] = 'unverified'
+        if fail_evidence_check and record["status"] == JevStatus.SUCCESS:
+            _confirm_fail_evidence(record, request, client, cancel_event)
     # The transport has already completed any evidence recovery. Apply the
     # explicit final-outcome policy only now, before summaries/events are built.
     apply_final_decision_policy(record, state=request["state"])
+    if citation_check and "J5" in criteria and (citations or source_requested(question)):
+        # 답변이 든 출처 전체(잘못된 링크·대조 한도 밖 포함)와 질문의 출처 요구 — 기록용, 이것만으로 판정하지 않음
+        record["answer_citations"] = {"policy": CITATION_POLICY_VERSION, "requested_by_question": source_requested(question),
+                                      "citations": citations or []}
+    if fail_evidence_check and isinstance((record.get("decisions") or {}).get("J5"), dict):
+        record["decisions"]["J5"]["j5_outcome"] = j5_outcome(record)
     return record
 
 
 def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional[JevClient],
                       access_reason: Optional[str] = None, criteria: Tuple[str, ...] = ALL_IDS,
                       reference: Any = None, history: Optional[List[Dict[str, Any]]] = None,
-                      cancel_event: Optional[Event] = None, *, pipeline: str = "legacy", item_specs: Any = None,
+                      cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
+                      citation_check: bool = False, *, pipeline: str = "legacy", item_specs: Any = None,
                       applicability: Optional[Dict[str, Any]] = None, collected_at: Optional[str] = None) -> Dict[str, Any]:
     """질문 하나의 의미 평가 — 요청 조립(_case_request) → client.system_one → 레코드(_record_from_call).
 
     items 파이프라인의 재확인은 ``ask(questions_subset)`` 콜백(같은 client.system_one, 같은 state)으로 돈다.
+    ``fail_evidence_check``·``citation_check`` 는 legacy 의 근거 없는 FAIL 재평가(D-1)·답변 출처 대조(G-4)다.
     """
     # Legacy native Jev keeps its historical knowledge/reference contract. New
     # CLI/API transports finalize explicit evidence before this parser runs.
@@ -258,8 +289,10 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return finish(JevStatus.NOT_CONFIGURED, error=access_reason, **basis)
     started = time.monotonic()
     try:
+        citations = answer_citations(answer) if citation_check and "J5" in criteria else []
         request = _case_request(question, answer, criteria, reference, history, client=client, cancel_event=cancel_event,
-                                pipeline=pipeline, item_specs=item_specs, collected_at=collected_at)
+                                pipeline=pipeline, item_specs=item_specs, collected_at=collected_at,
+                                citations=prompt_citations(citations))
         if cancel_event is not None and cancel_event.is_set():
             return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
         call = client.system_one(**request)
@@ -277,7 +310,74 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return client.system_one(**{**request, "questions": subset})
 
     return _record_from_call(case_id, criteria, call, request, started, basis, pipeline=pipeline, ask=ask,
-                             applicability=applicability, cancel_event=cancel_event)
+                             applicability=applicability, cancel_event=cancel_event, client=client,
+                             fail_evidence_check=fail_evidence_check, citation_check=citation_check,
+                             question=question, citations=citations)
+
+
+def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], client: JevClient,
+                           cancel_event: Optional[Event]) -> None:
+    """근거 없는 J1~J4 FAIL 은 그 기준만 1회 다시 묻고, 그래도 근거가 없으면 판정 미완료로 둔다.
+
+    다른 기준의 판정·근거는 그대로 둔다. 재평가도 같은 질문·답변·기준 정의를 쓰고 검색은 붙지 않는다.
+    """
+    state, decisions = request["state"], record["decisions"]
+    checks = {}
+    for cid in CHECKED_CRITERIA:
+        decision = decisions.get(cid)
+        if cid in record["criteria"] and isinstance(decision, dict) and decision.get("decision") == "FAIL":
+            checks[cid] = decision["fail_evidence"] = fail_evidence(decision, state)
+    invalid = tuple(cid for cid, check in checks.items() if not check["valid"])
+    if not invalid:
+        return
+    entry = {"policy": REASON_EVIDENCE_POLICY_VERSION, "criteria": list(invalid), "attempts": 1,
+             "status": None, "error": None, "latency_ms": None, "usage": {}}
+    record["reevaluation"] = entry
+    retried: Dict[str, Dict[str, Any]] = {}
+    retry = {"state": state, "questions": {cid: request["questions"][cid] for cid in invalid}}
+    if "cancel_event" in request:
+        retry["cancel_event"] = request["cancel_event"]
+    try:
+        if cancel_event is not None and cancel_event.is_set():
+            raise _Skipped()
+        call = client.system_one(**retry)
+        entry.update(status=call.status, latency_ms=call.latency_ms, usage=copy.deepcopy(call.usage or {}),
+                     error=redact(call.error) if call.error else None)
+        _sum_usage(record.setdefault("usage", {}), call.usage or {})
+        record["attempts"] = (record.get("attempts") or 0) + (call.attempts or 0)
+        if call.status == "OK":
+            retried = parse_decisions(call.body or {}, invalid)
+            entry["status"] = JevStatus.SUCCESS
+    except _Skipped:
+        entry.update(status=JevStatus.SKIPPED, error=CANCEL_REASON)
+    except (ValueError, TypeError, KeyError) as exc:
+        entry.update(status=JevStatus.INVALID_RESPONSE, error=str(exc))
+    except Exception as exc:  # 재평가 장애는 이 기준의 미완료로만 남긴다
+        entry.update(status=JevStatus.API_ERROR, error=redact(f"{type(exc).__name__}: {exc}"))
+    for cid in invalid:
+        first = {"decision": "FAIL", "reason": decisions[cid].get("reason"), "fail_evidence": checks[cid]}
+        new = retried.get(cid)
+        if new is not None and new.get("decision") == "FAIL":
+            new["fail_evidence"] = fail_evidence(new, state)
+        if new is not None and (new.get("decision") == "PASS" or
+                                new.get("decision") == "FAIL" and new["fail_evidence"]["valid"]):
+            final = new
+        else:
+            cause = ("재평가 호출이 완료되지 않음 (" + str(entry["status"]) + ")" if new is None else
+                     "재평가에서도 판정 근거를 확인할 수 없음 (" + str(new.get("status") or "UNVERIFIED") + ")"
+                     if new.get("decision") is None else
+                     "재평가 FAIL 근거도 " + ", ".join(PROBLEM_TEXT[p] for p in new["fail_evidence"]["problems"]))
+            final = incomplete_decision(cid, decisions[cid]["name"], cause)
+        final["reevaluation"] = {"attempted": True, "first": first,
+                                 "retry": None if new is None else {k: copy.deepcopy(new.get(k)) for k in (
+                                     "decision", "status", "reason", "fail_evidence") if k in new},
+                                 "final": final.get("decision") or final["status"]}
+        decisions[cid] = final
+    record["review_required"] = any(unresolved(d) for d in decisions.values())
+
+
+class _Skipped(Exception):
+    pass
 
 
 def _overall(records: List[Dict[str, Any]]) -> str:
@@ -603,6 +703,8 @@ def _finish_batch(prep: _Prepared, batch: Dict[str, Any], client: Optional[JevCl
         "completed": summarized["completed"],
         "review_required": summarized["review_required"],
         "unverified": summarized["unverified"],
+        "incomplete": summarized["incomplete"],
+        "reevaluated": summarized["reevaluated"],
         "statuses": statuses,
         "models": sorted({r["model"] for r in final if r["model"]}),
         "applicability_version": prep.applicability_version,
@@ -645,6 +747,7 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
         return evaluate_jev_case(case["case_id"], case["question"], case["answer"], client, access_reason,
                                  tuple(applies[i]["criteria"]), reference=case.get("reference"),
                                  history=prep.histories.get(i) or None, cancel_event=cancel_event,
+                                 fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening,
                                  pipeline=pipeline, item_specs=prep.item_specs.get(i), applicability=applies[i],
                                  collected_at=prep.collected_at)
 
@@ -735,7 +838,8 @@ def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str,
                       pipeline: str = "legacy") -> Dict[str, Any]:
     """레코드 목록 → {summary, completed, review_required, unverified, conversations(, fulfillment)}. 재집계(요소 합집합 뒤)에도 쓴다."""
     # targets = 이 기준을 적용한 질문(턴) 수 (jev_applicability 결과)
-    summary = {c.id: {"name": c.name, "targets": 0, "pass": 0, "fail": 0, "unverified": 0, "pending": 0} for c in CRITERIA}
+    summary = {c.id: {"name": c.name, "targets": 0, "pass": 0, "fail": 0, "unverified": 0, "incomplete": 0, "pending": 0}
+               for c in CRITERIA}
     for r in final:
         for cid in r["criteria"]:
             summary[cid]["targets"] += 1
@@ -744,12 +848,16 @@ def summarize_records(final: List[Dict[str, Any]], contexts: Dict[int, Dict[str,
                 summary[cid]["pass" if d["decision"] == "PASS" else "fail"] += 1
             elif d.get('status') == 'UNVERIFIED':
                 summary[cid]['unverified'] += 1
+            elif d.get('status') == 'INCOMPLETE':
+                summary[cid]['incomplete'] += 1
     for part in summary.values():
         part['pending'] = part['targets'] - part['pass'] - part['fail']
     result = {"summary": summary,
               "completed": sum(r['status'] == JevStatus.SUCCESS and not r.get('review_required') for r in final),
               "review_required": sum(bool(r.get('review_required')) for r in final),
               "unverified": sum(s['unverified'] for s in summary.values()),
+              "incomplete": sum(s['incomplete'] for s in summary.values()),
+              "reevaluated": sum(bool(r.get('reevaluation')) for r in final),
               "conversations": conversations_summary(cases, final, contexts)}
     if pipeline == "items":
         rates = fulfillment(final)
@@ -839,7 +947,8 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                                                                     'reason', 'fact_check', 'context_checks',
                                                                     'reason_code', 'decision_policy',
                                                                     'policy_original_assessment', 'model_original_assessment',
-                                                                    'subs') if k in d}
+                                                                    'fail_evidence', 'reevaluation', 'j5_outcome',
+                                                                    'citation_checks', 'citation_mismatch', 'subs') if k in d}
                               for cid, d in (record["decisions"] or {}).items()},
                 "decision_policy": copy.deepcopy(record.get('decision_policy')),
                 "j5_basis": record.get("j5_basis"),
@@ -848,6 +957,8 @@ def evaluation_log(batch: Dict[str, Any]) -> List[Dict[str, Any]]:
                 # items 파이프라인 — legacy 레코드에는 없는 키라 있을 때만 싣는다
                 **({"pipeline": record["pipeline"], "items": copy.deepcopy(record.get("items")),
                     "recheck": copy.deepcopy(record.get("recheck"))} if record.get("pipeline") == "items" else {}),
+                "reevaluation": copy.deepcopy(record.get('reevaluation')),
+                "answer_citations": copy.deepcopy(record.get('answer_citations')),
                 "history_turns": (record.get("context") or {}).get("history_turns"),
                 "model": record["model"],
                 "duration_ms": jev_ms,

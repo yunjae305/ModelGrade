@@ -25,8 +25,8 @@ from .io import validate_json_numbers
 from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
 from .llm_client import redact
 from .semantic_evidence import (CONTEXT_CHECK_POLICY, FACT_CHECK_POLICY, SEARCH_POLICY,
-                                finalize_answers, has_reference, source_url)
-from .semantic_sources import verify_web_sources
+                                finalize_answers, has_reference, search_mode, source_url)
+from .semantic_sources import verify_answer_citations, verify_web_sources
 
 SEARCH_TOOL = "web_search_20250305"
 FETCH_TOOL = "web_fetch_20250910"
@@ -56,6 +56,16 @@ def _system_prompt(search_enabled, questions=None):
     )
 
 
+def prompt_cache_setting(value):
+    """SEMANTIC_ANTHROPIC_PROMPT_CACHE — 비어 있으면 on. on/off(true/false, 1/0)만 받는다."""
+    text = (value or "on").strip().lower()
+    if text in ("on", "true", "1", "yes"):
+        return True
+    if text in ("off", "false", "0", "no"):
+        return False
+    raise ValueError("SEMANTIC_ANTHROPIC_PROMPT_CACHE 는 on 또는 off 여야 합니다.")
+
+
 @dataclass(frozen=True)
 class AnthropicSemanticConfig:
     model: str = "claude-sonnet-5-5"
@@ -71,6 +81,7 @@ class AnthropicSemanticConfig:
     dispatch: str = "realtime"
     batch_questions: int = 20          # 묶음 하나에 넣는 질문 수
     batch_poll_seconds: float = 15.0   # 묶음 상태 조회 주기(초, 10~30 권장)
+    prompt_cache: bool = True
     engine: str = field(default="anthropic_api", init=False)
 
     def __post_init__(self):
@@ -93,6 +104,8 @@ class AnthropicSemanticConfig:
                 raise ValueError(f"{name} 설정이 올바르지 않습니다.")
         if self.max_continuations > 5:
             raise ValueError("Claude pause_turn 이어가기는 최대 5회입니다.")
+        if type(self.prompt_cache) is not bool:
+            raise ValueError("prompt_cache 설정은 true 또는 false여야 합니다.")
         if self.web_search not in ("live", "disabled"):
             raise ValueError("검색 설정은 live 또는 disabled여야 합니다.")
         try:
@@ -116,6 +129,7 @@ class AnthropicSemanticConfig:
                 "max_fetches": self.max_fetches, "max_continuations": self.max_continuations,
                 "dispatch": self.dispatch,
                 **({"batch_questions": self.batch_questions, "batch_poll_seconds": self.batch_poll_seconds} if self.dispatch == "batch" else {}),
+                "prompt_cache_policy": "static_prefix_ephemeral_5m" if self.prompt_cache else "disabled",
                 "timeout_s": self.timeout, "max_attempts": 1, "truncation": "disabled",
                 "credentials_source": "ANTHROPIC_API_KEY", "credentials_recorded": False,
                 "confidence_note": "모델이 스스로 적은 확신도 — 보정된 확률 아님"}
@@ -218,7 +232,7 @@ def _validate_output(value, schema, depth=0):
             _validate_output(item, schema["items"], depth + 1)
 
 
-def _text_submission(content, questions):
+def _text_submission(content, questions, citations=False):
     """Parse the complete text, never extract a convenient JSON substring."""
     fragments = [block.get("text") for block in content if block.get("type") == "text"]
     if not fragments or any(not isinstance(text, str) for text in fragments):
@@ -241,7 +255,7 @@ def _text_submission(content, questions):
     try:
         value = json.loads(text, object_pairs_hook=unique_object, parse_constant=invalid_constant)
         validate_json_numbers(value)
-        _validate_output(value, semantic.output_schema(questions))
+        _validate_output(value, semantic.output_schema(questions, citations=citations))
     except RecursionError:
         raise ValueError("Evaluation JSON nesting limit exceeded") from None
     return value
@@ -280,7 +294,8 @@ def _complete_text_turn(blocks):
 
 def _provenance(blocks):
     calls = {b.get("id"): b for b in blocks if isinstance(b, dict) and b.get("type") == "server_tool_use"}
-    urls, searches, errors, finished = set(), 0, [], set()
+    urls, fetched, searches, finished = set(), set(), 0, set()
+    errors, search_errors, fetch_errors = [], [], []
     for block in blocks:
         if not isinstance(block, dict) or block.get("type") not in ("web_search_tool_result", "web_fetch_tool_result"):
             continue
@@ -301,11 +316,52 @@ def _provenance(blocks):
         elif not search and isinstance(content, dict) and content.get("type") == "web_fetch_result":
             if url := source_url(content.get("url")):
                 urls.add(url)
+                fetched.add(url)
         elif isinstance(content, dict) and str(content.get("type", "")).endswith("_error"):
-            errors.append(str(content.get("error_code", "unknown"))[:80])
-    return {"search_performed": searches > 0, "source_urls": sorted(urls), "source_validation": "provider",
-            "search_calls": searches, "tool_errors": errors,
+            code = str(content.get("error_code", "unknown"))[:80]
+            errors.append(code)
+            (search_errors if search else fetch_errors).append(code)
+    # fetched_urls: pages the provider itself opened (web_fetch). They are retrieval
+    # provenance even without a search; search_performed still counts searches only.
+    # tool_errors keeps every tool error; search_errors / fetch_errors say which tool failed.
+    return {"search_performed": searches > 0, "source_urls": sorted(urls), "fetched_urls": sorted(fetched),
+            "source_validation": "provider", "search_calls": searches, "tool_errors": errors,
+            "search_errors": search_errors, "fetch_errors": fetch_errors,
             "checked_at": datetime.now(timezone.utc).isoformat()}, set(calls) - finished
+
+
+#: 공급자 원문 한 건의 최대 글자 수 — 서버 수집 한도(2 MiB)와 같은 크기. 넘으면 대조에 쓰지 않는다.
+MAX_PROVIDER_DOCUMENT_CHARS = 2 * 1024 * 1024
+
+
+def _provider_documents(blocks):
+    """같은 요청에서 공급자 web_fetch 가 실제로 받은 텍스트 원문 — (URL → [{text, retrieved_at}], 기록용 목록).
+
+    server_tool_use(web_fetch) 의 id·요청 URL 과 결과 블록의 tool_use_id·URL 이 모두 맞는 결과만 쓴다.
+    평가자가 확인했다고 적은 내용은 원문이 아니다. PDF(base64) 등 텍스트가 아닌 원문은 대조하지 않는다.
+    원문은 메모리에서만 쓰고 결과에는 URL·받은 시각·글자 수만 남긴다.
+    """
+    calls = {b.get("id"): b for b in blocks
+             if isinstance(b, dict) and b.get("type") == "server_tool_use" and b.get("name") == "web_fetch"}
+    documents, audit = {}, []
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != "web_fetch_tool_result":
+            continue
+        call, content = calls.get(block.get("tool_use_id")), block.get("content")
+        if not call or not isinstance(content, dict) or content.get("type") != "web_fetch_result":
+            continue
+        url = source_url(content.get("url"))
+        requested = source_url(call["input"].get("url")) if isinstance(call.get("input"), dict) else None
+        document = content.get("content")
+        source = document.get("source") if isinstance(document, dict) and document.get("type") == "document" else None
+        if (not url or url != requested or not isinstance(source, dict) or source.get("type") != "text"
+                or not isinstance(source.get("data"), str) or not source["data"].strip()
+                or len(source["data"]) > MAX_PROVIDER_DOCUMENT_CHARS):
+            continue
+        retrieved = content.get("retrieved_at") if isinstance(content.get("retrieved_at"), str) else None
+        documents.setdefault(url, []).append({"text": source["data"], "retrieved_at": retrieved})
+        audit.append({"url": url, "retrieved_at": retrieved, "chars": len(source["data"])})
+    return documents, audit
 
 
 class AnthropicSemanticClient:
@@ -351,34 +407,48 @@ class AnthropicSemanticClient:
         Batches 디스패처는 payload 를 ``params`` 로 제출하고, 결과 메시지를 ``finish_batch_result(raw, context)`` 에 넘긴다.
         """
         search_enabled = self.config.web_search == "live" and semantic.search_requested(questions) and not has_reference(state)
+        mode = search_mode(questions, state, self.config.web_search)
         items_mode = semantic.is_items(questions)
         not_sent = []
         if items_mode and not search_enabled:
             # 검색이 꺼진 설정: 라이브 검색이 있어야 하는 항목(J5-1.a)은 기억으로 판정시키지 않고 보내지 않는다
             questions, removed = semantic.strip_search_items(questions)
             not_sent = [{"id": item_id, "reason": semantic.SEARCH_NOT_AVAILABLE_REASON} for item_id in removed]
+        review = semantic.citation_review(state, questions, search_enabled)
         tools = [{"name": FINAL_TOOL, "description": "검증을 끝낸 최종 기준별 판정을 제출합니다. 외부 작업을 실행하지 않습니다.",
-                  "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions))}]
+                  "strict": True, "input_schema": _strict_schema(semantic.output_schema(questions, citations=review))}]
         if search_enabled:
             tools[:0] = [{"type": SEARCH_TOOL, "name": "web_search", "max_uses": self.config.max_tool_calls},
                          {"type": FETCH_TOOL, "name": "web_fetch", "max_uses": self.config.max_fetches,
                           "citations": {"enabled": True}}]
+        static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
+        content = static + "\n" + dynamic
+        if self.config.prompt_cache:
+            # Same text, split at the end of the reusable instructions. The marker caches
+            # tools + system + static rules; the timestamp and evaluation data follow it.
+            # With caching on, server tools also cache their results between iterations.
+            content = [{"type": "text", "text": static + "\n", "cache_control": {"type": "ephemeral"}},
+                       {"type": "text", "text": dynamic}]
         payload = {"model": self.config.model, "max_tokens": self.config.max_output_tokens,
                    "thinking": {"type": "adaptive"}, "output_config": {"effort": self.config.reasoning_effort},
                    "service_tier": "standard_only", "tools": tools, "tool_choice": {"type": "auto"},
                    "system": _system_prompt(search_enabled, questions),
-                   "messages": [{"role": "user", "content": semantic.build_prompt(state, questions, search_enabled)}]}
+                   "messages": [{"role": "user", "content": content}]}
         validate_json_numbers(payload)
-        return payload, {"questions": questions, "not_sent": not_sent, "search_enabled": search_enabled, "items_mode": items_mode}
+        return payload, {"questions": questions, "not_sent": not_sent, "search_enabled": search_enabled, "items_mode": items_mode,
+                         "review": review, "search_mode": mode}
 
     def _session(self, context):
         """한 질문의 응답 처리 상태 — 요청 조각(parts)·누적 블록·usage·시도 수·시간 기록·결과 만들기."""
         started = time.monotonic()
         session = {"parts": [], "all_blocks": [], "usage": {}, "attempts": 0, "timings": {"api": 0.0, "source_verification": 0.0},
-                   "verification": _provenance([])[0], "not_sent": context["not_sent"], "started": started}
+                   "verification": _provenance([])[0], "not_sent": context["not_sent"], "search_mode": context.get("search_mode"),
+                   "started": started}
 
         def result(status, *, body=None, error=None, http_status=None):
             body = body or {"verification": session["verification"]}
+            body.setdefault("verification", {}).update(
+                search_mode=session["search_mode"], search_limits={"searches": self.config.max_tool_calls, "fetches": self.config.max_fetches})
             body.setdefault("verification", {})["timings_ms"] = {
                 **{name: round(seconds * 1000, 1) for name, seconds in session["timings"].items()},
                 "total": round((time.monotonic() - started) * 1000, 1)}
@@ -461,7 +531,7 @@ class AnthropicSemanticClient:
         output_transport = "strict_tool"
         if stop_reason == "end_turn" and not submissions and not pending and _complete_text_turn(all_blocks):
             try:
-                structured = _text_submission(content, questions)
+                structured = _text_submission(content, questions, context.get("review", False))
             except (ValueError, TypeError, UnicodeError):
                 return "done", result(JevStatus.INVALID_RESPONSE, error="Claude 일반 텍스트 최종 판정이 완전한 JSON 또는 요청된 평가 형식과 일치하지 않습니다.")
             output_transport = "validated_text_json"
@@ -505,11 +575,21 @@ class AnthropicSemanticClient:
             return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)
         body = {"model": model, "verification": verification,
                 "answers": {cid: semantic.jev_answer(structured[cid]) for cid in questions}}
+        # Texts the provider's web_fetch actually returned: memory only, used when the server cannot fetch.
+        documents, verification["provider_documents"] = _provider_documents(all_blocks)
         fact = body["answers"].get("J5", {}).get("fact_check")
         if isinstance(fact, dict) and fact.get("basis") in ("web", "mixed"):
             source_started = time.monotonic()
             try:
-                body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event,
+                                          provider_documents=documents)
+            finally:
+                timings["source_verification"] += time.monotonic() - source_started
+        if context.get("review"):
+            source_started = time.monotonic()
+            try:
+                body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event,
+                                               provider_documents=documents)
             finally:
                 timings["source_verification"] += time.monotonic() - source_started
         return "done", result("OK", body=finalize_answers(body, state, questions), http_status=status_code)
@@ -527,7 +607,7 @@ class AnthropicSemanticClient:
         try:
             check_cancel()
             payload, context = self.build_request(state, questions)
-            session["not_sent"] = context["not_sent"]
+            session["not_sent"], session["search_mode"] = context["not_sent"], context["search_mode"]
             for continuation in range(self.config.max_continuations + 1):
                 check_cancel()
                 if time.monotonic() >= deadline:

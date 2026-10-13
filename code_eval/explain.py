@@ -233,8 +233,10 @@ def item_list(label: str, items: List[str], mark: Optional[List[int]] = None, li
 
 
 def _q(r: Dict[str, Any]) -> str:
-    ev = [e for e in r.get("evidence", []) if e["target"] == "question"]
-    return ev[0]["excerpt"] if ev else ""
+    ev = [e for e in r.get("evidence", []) if e["target"] in ("question", "history")]
+    if not ev:
+        return ""
+    return (f"({ev[0]['note']}) " if ev[0]["target"] == "history" and ev[0].get("note") else "") + ev[0]["excerpt"]
 
 
 def _answer_ev(r: Dict[str, Any], target: str = "answer") -> List[Dict[str, Any]]:

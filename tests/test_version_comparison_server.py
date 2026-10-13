@@ -26,7 +26,8 @@ class AnswerJudge(CapturingJudge):
         fails = {'J1'} if '나쁜' in state['answer'] else set()
         return JevCall('OK', body={'model': 'gpt-6.1-sol', 'answers': {
             cid: {'choice': 'FAIL' if cid in fails else 'PASS', 'probabilities': {'PASS': .05, 'FAIL': .95} if cid in fails else {'PASS': .95, 'FAIL': .05},
-                  'confidence': .9, 'reason': f'{cid} 대역 사유'} for cid in questions}})
+                  'confidence': .9, 'reason': f"{cid} 대역 사유: '{state['answer']}'" if cid in fails else f'{cid} 대역 사유'}
+            for cid in questions}})   # FAIL 은 답변 원문을 인용 — 근거 없는 FAIL 재평가(D-1) 대상이 아니다
 
 
 def version_run(service, version, answers):
@@ -76,7 +77,7 @@ def test_compare_runs_drills_down_and_uses_conversation_units(tmp_path):
     assert result['verdict']['label'] == 'uncertain'
     regression = next(r for r in result['regressions'] if r['case_id'] == 'Q2')
     assert regression['baseline_answer'] == '사과는 과일입니다.' and regression['target_answer'] == '나쁜 답'
-    assert regression['target_evidence'][0]['id'] == 'J1' and regression['target_evidence'][0]['reason'] == 'J1 대역 사유' and regression['baseline_evidence'] == []
+    assert regression['target_evidence'][0]['id'] == 'J1' and regression['target_evidence'][0]['reason'] == "J1 대역 사유: '나쁜 답'" and regression['baseline_evidence'] == []
     assert regression['changes']['criteria']['J1'] == {'baseline': 'PASS', 'target': 'FAIL', 'change': 'regressed'}
     assert [r['case_id'] for r in result['improvements']] == ['Q3']
     j1 = next(row for row in result['criteria'] if row['level'] == 'criterion' and row['id'] == 'J1')

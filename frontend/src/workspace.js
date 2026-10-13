@@ -715,7 +715,7 @@
             node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL`}),
             node('span', {class: 'criterion-targets', text: `${criterion.unit} ${number(metric.targets)}개 대상${metric.pending ? ' · 미판정 ' + number(metric.pending) : ''}${metric.unknown ? ' · 집계 중' : ''}${metric.excluded ? ' · 제외 답변 ' + number(metric.excluded) + '개' : ''}`}));
           if (criterion.group === 'semantic' && metric.pending) {
-            const reasons = [['unverified', '근거 확인 필요'], ['errors', '평가 오류'], ['missing', '판정 누락']]
+            const reasons = [['unverified', '근거 확인 필요'], ['incomplete', '판정 미완료'], ['errors', '평가 오류'], ['missing', '판정 누락']]
               .filter(([key]) => metric.pendingReasons[key]).map(([key, label]) => `${label} ${number(metric.pendingReasons[key])}`);
             cell.append(node('span', {class: 'criterion-targets', text: reasons.join(' · ')}));
           }
@@ -1035,12 +1035,16 @@
     for (const r of status.code.checks.filter((r) => (r.counted && r.verdict === 'FAIL') || !['PASS', 'FAIL'].includes(r.verdict) && r.status !== 'NOT_APPLICABLE' && r.status !== 'DUPLICATE')) {
       findings.append(node('li', {}, node('strong', {text: r.explain?.headline || r.title || r.check_id}),
         node('p', {text: r.explain?.summary || r.reason || '이 조건을 판정하지 못했습니다.'}),
+        r.source === 'history_instruction' ? node('p', {text: '이전 턴 지시에서 이어진 조건: ' + (r.explain?.requirement || r.title)}) : null,
         r.explain?.expected ? node('p', {text: '요구 조건: ' + r.explain.expected}) : null,
         r.explain?.actual ? node('p', {text: '실제 답변: ' + r.explain.actual}) : null));
     }
-    for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || d.status === 'UNVERIFIED')) {
+    for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
-      findings.append(node('li', {}, node('strong', {text: (decision.status === 'UNVERIFIED' ? '확인 필요 · ' : '의미 평가 · ') + (criterion?.name || id)}), node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));
+      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${decision.j5_outcome.label})` : '';
+      findings.append(node('li', {}, node('strong', {text: ({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '}[decision.status] || '의미 평가 · ') + (criterion?.name || id) + outcome}),
+        node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) :
+          decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));
     }
     const locationCount = highlighted?.locations.segments.filter((segment) => segment.findingIds.length).length || 0;
     if (locationCount) {
@@ -1052,7 +1056,7 @@
     if (evidence) box.append(evidence);
     if (record?.decisions?.J5?.status === 'NOT_APPLICABLE') box.append(node('p', {class: 'hint', text: 'J5 해당 없음 · ' + (record.applicability?.not_applicable?.J5 || record.decisions.J5.reason || '검증할 사실 주장이 없습니다.')}));
     if (!status.semantic.complete && status.semantic.rawReason) box.append(node('details', {class: 'evaluation-error-detail'},
-      node('summary', {text: status.semantic.unverified ? '미판정 사유 원문 보기' : '평가 오류 원문 보기'}), node('pre', {text: status.semantic.rawReason})));
+      node('summary', {text: status.semantic.unverified || status.semantic.incomplete ? '미판정 사유 원문 보기' : '평가 오류 원문 보기'}), node('pre', {text: status.semantic.rawReason})));
     box.querySelectorAll('details').forEach((detail) => { if (expanded.has(detailKey(detail))) detail.open = true; });
   }
   $('copy-answer').addEventListener('click', async () => {

@@ -9,15 +9,20 @@ from __future__ import annotations
 import copy
 
 from .semantic_evidence import finalize_answers
+from .semantic_reasons import REASON_EVIDENCE_POLICY_VERSION
 from .semantic_sources import _REASONS
 
 
-SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v1"
-FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v1"
+#: v2 — 서버가 받지 못한 출처는 같은 요청의 공급자 web_fetch 원문으로 대조한다 (F5b). 둘 다 없을 때의 FAIL 규칙은 v1 과 같다.
+SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v2"
+FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
+#: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v2"
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 #: items 파이프라인의 재확인 정책 — 3회 뒤 남은 문제는 '확인 불가로 FAIL' (semantic_quotes.RECHECK_POLICY 와 같은 값)
 ITEMS_RECHECK_POLICY_VERSION = "items-recheck-3-then-fail-v1"
 DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
+                   "judge_fail_evidence": REASON_EVIDENCE_POLICY_VERSION, "j5_outcome": J5_OUTCOME_POLICY_VERSION,
                    "items_recheck": ITEMS_RECHECK_POLICY_VERSION}
 SOURCE_ORIGINAL_FAILURE_REASON = "출처 원문 확인 실패로 검증 기준 미충족"
 SOURCE_ORIGINAL_FAILURE_CODE = "SOURCE_ORIGINAL_UNAVAILABLE"
@@ -25,6 +30,32 @@ FINAL_EVIDENCE_FAILURE_CODE = "EVALUATION_EVIDENCE_INSUFFICIENT"
 FINAL_EVIDENCE_FAILURE_REASON = "평가 근거 부족으로 검증 기준 미충족"
 INPUT_SCOPE_REVALIDATED_CODE = "INPUT_SCOPE_REVALIDATED"
 INPUT_SCOPE_REVALIDATED_REASON = "사용자 제공 정보와 일치"
+SEARCH_UNAVAILABLE_CODE = "J5_SEARCH_UNAVAILABLE"
+SEARCH_ERROR_CODE = "J5_SEARCH_ERROR"
+FETCH_ERROR_CODE = "J5_FETCH_ERROR"
+_SEARCH_BLOCKED = {
+    SEARCH_UNAVAILABLE_CODE: ("search_unavailable", "판정 미완료 — 웹 검색을 사용할 수 없는 평가 환경(설정 꺼짐 또는 검색 도구 없는 평가자)이라 "
+                                                    "외부 사실 주장을 확인하지 못했습니다. 사실 오류 판정이 아닙니다."),
+    SEARCH_ERROR_CODE: ("search_error", "판정 미완료 — 웹 검색 도구 호출이 실패해 외부 사실 주장을 확인하지 못했습니다. "
+                                        "사실 오류 판정이 아닙니다."),
+    FETCH_ERROR_CODE: ("fetch_error", "판정 미완료 — 검색 없이 연 출처 원문(web_fetch)을 평가자 도구가 받지 못해 "
+                                      "외부 사실 주장을 확인하지 못했습니다. 사실 오류 판정이 아닙니다."),
+}
+#: J5 상세 판정 사유. PASS/FAIL·미완료는 그대로 두고 그 이유만 구분한다.
+J5_OUTCOMES = {
+    "verified": "검증 완료",
+    "contradicted": "사실 오류 — 근거와 충돌",
+    "insufficient_evidence": "검증 기준 미충족 — 근거 부족",
+    "search_limit_reached": "검증 기준 미충족 — 검색 한도 도달",
+    "source_unavailable": "검증 기준 미충족 — 출처 원문 확인 실패",
+    "source_mismatch": "출처 불일치 — 답변이 든 출처가 주장을 뒷받침하지 않음",
+    "search_unavailable": "판정 미완료 — 검색 불가",
+    "search_error": "판정 미완료 — 검색 실행 오류",
+    "fetch_error": "판정 미완료 — 원문 열기 도구 오류",
+    "not_applicable": "해당 없음",
+    "incomplete": "판정 미완료",
+    "unclassified": "분류 정보 없음",
+}
 _INPUT_SCOPE_FAILURE_REASON = "사용자 원문 인용은 확인했지만, 요청에 주어진 자료·설정의 일치를 확인하는 주장인지 불명확합니다."
 
 # These are independent retriever results, not judge-generated explanations.
@@ -41,6 +72,12 @@ SOURCE_ORIGINAL_FAILURE_STATUSES = frozenset({
 _LEGACY_FAILURE_REASONS = {
     _REASONS[status]: status for status in SOURCE_ORIGINAL_FAILURE_STATUSES
 }
+
+
+def unresolved(decision):
+    """판정이 확정되지 않은 기준 — 확인 필요(UNVERIFIED) 또는 판정 미완료(INCOMPLETE)."""
+    return (isinstance(decision, dict) and decision.get("status") in ("UNVERIFIED", "INCOMPLETE")
+            and decision.get("decision") not in ("PASS", "FAIL"))
 
 
 def _has_verified_alternative(sources, basis):
@@ -132,9 +169,7 @@ def apply_source_original_failure_policy(record):
                                "outcome_basis": "source_verification_requirement",
                                "factual_error_confirmed": False, "failures": copy.deepcopy(failures)})
     record["decision_policy"] = copy.deepcopy(SOURCE_DECISION_POLICY)
-    record["review_required"] = any(
-        isinstance(decision, dict) and decision.get("status") == "UNVERIFIED"
-        for decision in record["decisions"].values())
+    record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
     return result
 
 
@@ -205,6 +240,92 @@ def _revalidate_input_scope(record, state):
     return {"fact_check": checked_j5["fact_check"], "claim_indices": rejected}
 
 
+def _codes(value):
+    return [str(e) for e in value or [] if isinstance(e, str)]
+
+
+def j5_search(record):
+    """기록된 J5 검색 상태. 옛 결과에는 search_mode 가 없어 None 이다.
+
+    errors 는 검색 도구 오류, fetch_errors 는 원문 열기(web_fetch) 도구 오류다. 둘을 나눠 기록하지 않은
+    옛 결과는 tool_errors 전체를 검색 오류로 본다 (이전 해석 그대로).
+    """
+    verification = record.get("verification") if isinstance(record.get("verification"), dict) else {}
+    split = "search_errors" in verification or "fetch_errors" in verification
+    errors = _codes(verification.get("search_errors") if split else verification.get("tool_errors"))
+    fetch_errors = _codes(verification.get("fetch_errors")) if split else []
+    limits = verification.get("search_limits") if isinstance(verification.get("search_limits"), dict) else {}
+    calls, limit = verification.get("search_calls"), limits.get("searches")
+    reached = "max_uses_exceeded" in errors or (type(calls) is int and type(limit) is int and calls >= limit)
+    return {"mode": verification.get("search_mode"), "performed": verification.get("search_performed") is True,
+            "calls": calls if type(calls) is int else None, "limit": limit if type(limit) is int else None,
+            "limit_reached": reached, "errors": [e for e in errors if e != "max_uses_exceeded"][:5],
+            "fetch_errors": [e for e in fetch_errors if e != "max_uses_exceeded"][:5]}
+
+
+def _external_unresolved(j5):
+    """외부 사실 확인이 필요한데 끝나지 않은 주장이 있는가. 주장 목록이 없으면 판단할 수 없으므로 있다고 본다."""
+    fact = j5.get("fact_check")
+    claims = fact.get("claims") if isinstance(fact, dict) else None
+    if not isinstance(claims, list) or not claims:
+        return True
+    return any(isinstance(c, dict) and c.get("verdict") == "UNVERIFIED" and c.get("scope") in (None, "external_fact")
+               for c in claims)
+
+
+def _search_blocked(record, j5):
+    """검색이 불가능해서 J5 를 확인하지 못했으면 그 사유 코드. 검색을 했거나 기록이 없으면 None."""
+    search = j5_search(record)
+    if not _external_unresolved(j5):
+        return None
+    if search["mode"] in ("disabled", "unsupported"):
+        return SEARCH_UNAVAILABLE_CODE
+    if search["mode"] == "live" and not search["performed"]:
+        # Same trigger as before (any tool error without a completed search); only the named tool differs.
+        if search["errors"]:
+            return SEARCH_ERROR_CODE
+        if search["fetch_errors"]:
+            return FETCH_ERROR_CODE
+    return None
+
+
+def j5_outcome(record):
+    """J5 상세 판정 사유 — 사실 오류와 검증 불가·불충분을 구분한다. 판정 값은 바꾸지 않는다."""
+    j5 = (record.get("decisions") or {}).get("J5")
+    if not isinstance(j5, dict):
+        return None
+    status, decision, code = j5.get("status"), j5.get("decision"), j5.get("reason_code")
+    fact = j5.get("fact_check") if isinstance(j5.get("fact_check"), dict) else None
+    claims = fact.get("claims") if fact and isinstance(fact.get("claims"), list) else []
+    if status == "NOT_APPLICABLE":
+        outcome = "not_applicable"
+    elif status == "INCOMPLETE":
+        outcome = _SEARCH_BLOCKED.get(code, ("incomplete",))[0]
+    elif decision == "PASS":
+        outcome = "verified"
+    elif decision == "FAIL" and code == SOURCE_ORIGINAL_FAILURE_CODE:
+        outcome = "source_unavailable"
+    elif decision == "FAIL" and code == FINAL_EVIDENCE_FAILURE_CODE:
+        outcome = "search_limit_reached" if j5_search(record)["limit_reached"] else "insufficient_evidence"
+    elif decision == "FAIL" and j5.get("citation_mismatch") and not any(
+            isinstance(c, dict) and c.get("verdict") == "FAIL" for c in claims):
+        outcome = "source_mismatch"
+    elif decision == "FAIL" and (fact is not None or j5.get("citation_mismatch")):
+        outcome = "contradicted"
+    else:
+        outcome = "unclassified"
+    detail = {"policy": J5_OUTCOME_POLICY_VERSION, "code": outcome, "label": J5_OUTCOMES[outcome],
+              "factual_error_confirmed": outcome == "contradicted", "search": j5_search(record)}
+    checks = [c for c in j5.get("citation_checks") or [] if isinstance(c, dict)]
+    if checks:
+        verdicts = [c.get("verdict") for c in checks]
+        detail["citations"] = {"checked": len(checks), "supported": verdicts.count("supported"),
+                               "mismatch": sum(v in ("contradicted", "unrelated", "not_found") for v in verdicts),
+                               "inaccessible": verdicts.count("inaccessible"),
+                               "unresolved": sum(v in ("unverified", "unchecked") for v in verdicts)}
+    return detail
+
+
 def apply_final_decision_policy(record, *, state=None):
     """Finish successfully evaluated criteria as PASS or FAIL, with an audit.
 
@@ -237,6 +358,17 @@ def apply_final_decision_policy(record, *, state=None):
         if source_change["changed"]:
             result["changes"].append({"criterion_id": "J5", "decision": "FAIL", "reason_code": SOURCE_ORIGINAL_FAILURE_CODE,
                                        "failures": source_change["failures"]})
+    j5 = record["decisions"].get("J5")
+    if ("J5" in requested and isinstance(j5, dict) and j5.get("status") == "UNVERIFIED"
+            and j5.get("decision") not in ("PASS", "FAIL")):
+        blocked = _search_blocked(record, j5)
+        if blocked:
+            # Search could not run, so the claim was never checked: an evaluation gap, not an answer FAIL.
+            j5["policy_original_assessment"] = copy.deepcopy(j5)
+            j5.update(status="INCOMPLETE", decision=None, reason=_SEARCH_BLOCKED[blocked][1], reason_code=blocked,
+                      decision_policy={"version": J5_OUTCOME_POLICY_VERSION, "outcome_basis": "search_not_available",
+                                       "factual_error_confirmed": False})
+            result["changes"].append({"criterion_id": "J5", "status": "INCOMPLETE", "reason_code": blocked})
     for cid, decision in record["decisions"].items():
         if (cid not in requested or not isinstance(decision, dict) or decision.get("status") != "UNVERIFIED"
                 or decision.get("decision") in ("PASS", "FAIL")):
@@ -249,8 +381,7 @@ def apply_final_decision_policy(record, *, state=None):
                                          "outcome_basis": "evidence_requirement", "factual_error_confirmed": False})
         result["changes"].append({"criterion_id": cid, "decision": "FAIL", "reason_code": FINAL_EVIDENCE_FAILURE_CODE})
     result["changed"] = bool(result["changes"])
-    if result["changed"]:
+    if result["changed"] or record.get("reevaluation"):
         record["decision_policy"] = copy.deepcopy(DECISION_POLICY)
-        record["review_required"] = any(isinstance(decision, dict) and decision.get("status") == "UNVERIFIED"
-                                         for decision in record["decisions"].values())
+        record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
     return result

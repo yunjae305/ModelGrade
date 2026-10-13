@@ -192,7 +192,7 @@ r.evaluations.aiona.cases = [{case_status: 'EVALUATED', summary: {by_category: {
 metric = criterionSummary(r, 'aiona', comparisonCriteria[0]);
 assert.deepEqual([metric.passed, metric.failed, metric.pending, metric.excluded], [2, 1, 1, 1]);
 assert.equal(metric.rate, null); // unfinished conditions cannot produce a settled pass rate
-assert.deepEqual(metric.pendingReasons, {unverified: 0, errors: 0, missing: 0}); // CODE display is unchanged.
+assert.deepEqual(metric.pendingReasons, {unverified: 0, incomplete: 0, errors: 0, missing: 0}); // CODE display is unchanged.
 
 // Semantic pending reasons partition the existing total; no PASS/FAIL or N/A leakage.
 const criterionRecords = [sem(), sem('SUCCESS', 'FAIL'),
@@ -203,14 +203,14 @@ const criterionRecords = [sem(), sem('SUCCESS', 'FAIL'),
 r = result(criterionRecords.map(() => code()), criterionRecords);
 const criterionBefore = JSON.stringify(r);
 metric = criterionSummary(r, 'aiona', j1);
-assert.deepEqual(metric.pendingReasons, {unverified: 1, errors: 2, missing: 1});
+assert.deepEqual(metric.pendingReasons, {unverified: 1, incomplete: 0, errors: 2, missing: 1});
 assert.equal(Object.values(metric.pendingReasons).reduce((a, b) => a + b, 0), metric.pending);
 assert.deepEqual([metric.pending, metric.targets, metric.passed, metric.failed, metric.rate, metric.unknown, metric.excluded],
   [4, 6, 1, 1, null, 2, 1]);
 assert.equal(JSON.stringify(r), criterionBefore);
 for (const status of ['API_ERROR', 'TIMEOUT', 'INVALID_RESPONSE', 'NOT_CONFIGURED', 'INTERRUPTED']) {
   metric = criterionSummary(result([code()], [sem(status)]), 'aiona', j1);
-  assert.deepEqual(metric.pendingReasons, {unverified: 0, errors: 1, missing: 0});
+  assert.deepEqual(metric.pendingReasons, {unverified: 0, incomplete: 0, errors: 1, missing: 0});
 }
 
 // Processing totals must not become quality-completion totals at run end.
@@ -295,6 +295,18 @@ assert.equal(caseState(r, 'aiona', 0).detail, '코드 보완 판정 실패 · �
 assert.equal(caseState(r, 'aiona', 1).code.pendingReason, '코드 보완 판정 기록 없음');
 assert.equal(modelSummary(r, 'aiona', 2).codeIncomplete, 2);
 assert.equal(modelSummary(r, 'aiona', 2).semanticIncomplete, 0);
+// Criterion-level '판정 미완료' is neither PASS, FAIL nor '확인 필요'; another confirmed FAIL still settles the question.
+const incomplete = (code) => ({status: 'INCOMPLETE', decision: null, reason_code: code, reason: '판정 미완료 — fixture'});
+r = result([code(), code()], [{status: 'SUCCESS', criteria: ['J1', 'J5'], decisions: {J1: {decision: 'PASS'}, J5: incomplete('J5_SEARCH_UNAVAILABLE')}},
+  {status: 'SUCCESS', criteria: ['J1', 'J4'], decisions: {J1: incomplete('JUDGE_FAIL_EVIDENCE_MISSING'), J4: {decision: 'FAIL'}}}]);
+assert.equal(caseState(r, 'aiona', 0).outcome, 'pending');
+assert.equal(caseState(r, 'aiona', 0).semantic.text, '판정 미완료');
+assert.equal(caseState(r, 'aiona', 0).semantic.reason, 'J5 · 검색 불가로 미완료');
+assert.equal(caseState(r, 'aiona', 0).semantic.incomplete, 1);
+assert.equal(caseState(r, 'aiona', 1).outcome, 'issue');
+const incompleteJ1 = criterionSummary(r, 'aiona', {id: 'J1', group: 'semantic'});
+assert.equal(incompleteJ1.pendingReasons.incomplete, 1);
+assert.equal(incompleteJ1.rate, null);   // unsettled criterion never shows a 100% rate
 console.log('Exclusive question outcomes, short reasons with intact originals and unsettled rates passed.');
 
 // Case-level check errors (new engine) keep the question unsettled and name the cause; new records carry no completion wording.

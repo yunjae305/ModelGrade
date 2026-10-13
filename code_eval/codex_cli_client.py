@@ -22,11 +22,11 @@ from typing import Any, Callable, Dict, Optional
 
 from .jev_client import JevCall, JevStatus, _CallAccounting, _token_usage
 from .llm_client import redact
-from .semantic_cli_common import (system_prompt, build_prompt, jev_answer, output_schema, is_items, search_requested,
-                                  strip_search_items, validate_items_shape, SEARCH_NOT_AVAILABLE_REASON)
-from .semantic_evidence import (finalize_answers, has_reference, source_url, FACT_CHECK_POLICY,
+from .semantic_cli_common import (system_prompt, build_prompt, citation_review, jev_answer, output_schema, is_items,
+                                  search_requested, strip_search_items, validate_items_shape, SEARCH_NOT_AVAILABLE_REASON)
+from .semantic_evidence import (finalize_answers, has_reference, search_mode, source_url, FACT_CHECK_POLICY,
                                 CONTEXT_CHECK_POLICY, SEARCH_POLICY)
-from .semantic_sources import verify_web_sources
+from .semantic_sources import verify_answer_citations, verify_web_sources
 from .cli_process import CliCancelled, run_cli
 
 DEFAULT_MODEL = "gpt-6.1-sol"
@@ -226,6 +226,7 @@ class CodexCliClient:
             body.setdefault("verification", verification)
             if not_sent:
                 body["verification"]["items_not_sent"] = list(not_sent)
+            body["verification"]["search_mode"] = search_mode(questions, state, self.config.web_search)
             return JevCall(status, body=body, attempts=1,
                            usage=kwargs.pop("usage", usage), accounting=accounting.snapshot(1),
                            latency_ms=int((time.monotonic() - started) * 1000), **kwargs)
@@ -235,7 +236,8 @@ class CodexCliClient:
             with tempfile.TemporaryDirectory(prefix="aiona-codex-judge-", dir=self._workdir) as folder:
                 cwd = Path(folder)
                 schema_path, output_path = cwd / "schema.json", cwd / "answer.json"
-                schema_path.write_text(json.dumps(output_schema(questions), ensure_ascii=False), encoding="utf-8")
+                schema_path.write_text(json.dumps(output_schema(questions, citations=citation_review(
+                    state, questions, search_enabled)), ensure_ascii=False), encoding="utf-8")
                 cmd = [self.config.executable, "exec", "--ignore-user-config", "--ephemeral",
                        "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", "--json",
                        "--model", self.config.model,
@@ -287,6 +289,8 @@ class CodexCliClient:
                 fact_check = j5.get('fact_check') if isinstance(j5, dict) else None
                 if isinstance(fact_check, dict) and fact_check.get('basis') in ('web', 'mixed'):
                     body = verify_web_sources(body, fetcher=self._source_fetcher, cancel_event=cancel_event)
+                if citation_review(state, questions, search_enabled):
+                    body = verify_answer_citations(body, state, fetcher=self._source_fetcher, cancel_event=cancel_event)
                 return result("OK", body=finalize_answers(body, state, questions),
                               usage=usage if isinstance(usage, dict) else {})
         except CancelledError as exc:

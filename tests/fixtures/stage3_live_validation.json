@@ -1,0 +1,435 @@
+{
+  "version": "stage3-live-validation-v1",
+  "written": "2026-10-12",
+  "purpose": "3단계 판정 정책(D-1·D-2·G-1·G-3·G-4)을 실제 Claude 평가기로 검증하기 위한 고정 문항과 사전 기대 결과. 기대 결과는 평가 실행 전에 작성했고 실행 결과를 보고 고치지 않는다.",
+  "policy_versions_at_writing": {
+    "engine": "aiona-code-eval-v16.3.1",
+    "jev_eval": "jev-semantic-eval-v2.6",
+    "final_decision_policy": "semantic-binary-outcome-v2",
+    "reason_evidence_policy": "j1-j4-fail-evidence-v1",
+    "j5_outcome_policy": "j5-outcome-detail-v1",
+    "citation_policy": "answer-citations-v1",
+    "fact_check_policy": "evidence-v3.6-answer-citations"
+  },
+  "conventions": {
+    "verdict": "질문 단위 최종 판정 — CODE·의미 평가 중 하나라도 FAIL 이면 FAIL, 적용 기준이 모두 판정되고 FAIL 이 없으면 PASS, 그 밖은 INCOMPLETE",
+    "semantic": "기준별 허용 결과 목록. PASS·FAIL·INCOMPLETE·NOT_APPLICABLE. 여기 없는 기준은 FAIL 이 아니면 기대와 일치로 본다",
+    "key": "그 문항의 검증 목적에 해당하는 핵심 기대. any_fail 은 나열한 기준 중 하나 이상 FAIL",
+    "code": "fail_expected 는 CODE FAIL 존재 여부, rows 는 검사 ID 접두어와 판정·승계 턴, absent 는 있으면 안 되는 승계 행",
+    "review_needed": "판정이 갈릴 수 있어 기대 결과가 확정적이지 않은 부분"
+  },
+  "cases": [
+    {
+      "id": "D1-01",
+      "group": "D-1",
+      "purpose": "명확한 요구사항 위반과 유효한 실패 근거 — 비교 요청에 한쪽 설명만",
+      "question": "Python의 리스트와 튜플을 비교해서 차이점을 설명해줘.",
+      "answer": "Python 리스트는 대괄호 []로 만들며, 생성한 뒤에도 append()나 remove() 같은 메서드로 요소를 추가하거나 삭제할 수 있습니다. 순서가 있는 자료형이라 인덱스로 각 요소에 접근할 수 있습니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"any_fail": ["J1", "J4"]},
+        "semantic": {"J1": ["FAIL"], "J4": ["FAIL"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "튜플에 대한 설명과 비교가 전혀 없다. 비교라는 요청 작업을 하지 않았으므로 J1, 비교 대상 한쪽이 빠졌으므로 J4 FAIL. FAIL 이유에 답변·질문 원문 인용이 있어야 한다. 리스트에 대한 사실 진술은 맞다.",
+      "references": [{"url": "https://docs.python.org/3/tutorial/datastructures.html", "note": "리스트 메서드 append·remove"}],
+      "review_needed": "J1 과 J4 중 어느 쪽에 FAIL 을 둘지는 평가자에 따라 갈릴 수 있음 — 핵심 기대는 둘 중 하나 이상 FAIL"
+    },
+    {
+      "id": "D1-02",
+      "group": "D-1",
+      "purpose": "요구사항을 충족하는 정상 PASS",
+      "question": "Git에서 새 브랜치를 만들면서 바로 그 브랜치로 이동하는 명령어를 알려줘.",
+      "answer": "`git switch -c 브랜치이름`을 실행하면 새 브랜치를 만들고 바로 그 브랜치로 이동합니다. 이전부터 쓰던 `git checkout -b 브랜치이름`도 같은 동작을 합니다.",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"semantic": {"J1": ["PASS"]}},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "j5_outcome": ["verified", "not_applicable"],
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "요청한 명령을 정확히 제시했다. git switch -c 와 git checkout -b 는 공식 문서상 새 브랜치를 만들고 전환한다.",
+      "references": [
+        {"url": "https://git-scm.com/docs/git-switch", "quote": "Create a new branch named"},
+        {"url": "https://git-scm.com/docs/git-checkout", "note": "-b <new-branch>"}
+      ],
+      "review_needed": null
+    },
+    {
+      "id": "D1-03",
+      "group": "D-1",
+      "purpose": "근거 구체성이 부족해질 수 있는 경계 사례 — 누락형 FAIL(장점만 있고 단점 없음)은 답변에서 인용할 문제 구절이 없다",
+      "question": "재택근무의 장단점을 정리해줘.",
+      "answer": "재택근무는 출퇴근 시간이 없어 하루를 더 여유 있게 쓸 수 있습니다. 집중이 잘 되는 환경을 스스로 만들 수 있고, 업무 시간을 유연하게 조정하기도 쉽습니다. 사무실 임대료나 교통비 같은 비용도 줄일 수 있습니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J4": ["FAIL"]}},
+        "semantic": {"J1": ["PASS"], "J4": ["FAIL"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false},
+        "reevaluation": "possible"
+      },
+      "rationale": "장점만 정리하고 단점이 없다. 일은 했지만 핵심(단점)이 빠졌으므로 J4 FAIL, J1 은 PASS. 빠진 내용은 답변에 없으므로 근거 인용이 질문의 '장단점' 이거나 생략될 수 있어 D-1 형식 검증이 작동할 수 있는 경계 사례.",
+      "references": [],
+      "review_needed": "J1 을 FAIL 로 볼 여지가 있음. 근거 없는 FAIL 이 실제로 나올지는 알 수 없음(강제하지 않음)"
+    },
+    {
+      "id": "D1-04",
+      "group": "D-1",
+      "purpose": "여러 평가 기준이 동시에 적용되는 복합 답변 — 한 기준만 FAIL 이고 나머지는 PASS 로 유지되는지",
+      "question": "고등학생에게 전기차와 하이브리드차의 차이를 비교해서 설명하고, 전기차 충전이 주유보다 오래 걸리는 이유도 설명해줘.",
+      "answer": "전기차는 배터리에 저장한 전기로만 모터를 돌려 달리고, 하이브리드차는 엔진과 전기 모터를 함께 사용합니다. 그래서 전기차는 주행 중 배기가스가 나오지 않지만, 하이브리드차는 엔진이 돌 때 배기가스가 나옵니다. 일반 하이브리드차는 주행 중에 엔진과 회생 제동으로 배터리를 충전하기 때문에 따로 충전기를 꽂지 않아도 됩니다. 전기차 충전이 오래 걸리는 이유는 많은 양의 전기 에너지를 배터리 안의 화학 반응으로 천천히 저장해야 하기 때문입니다. 따라서 배터리 용량이 클수록 충전은 더 빨리 끝납니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J3": ["FAIL"]}},
+        "semantic": {"J1": ["PASS"], "J2": ["PASS"], "J3": ["FAIL"], "J4": ["PASS"], "J5": ["PASS", "FAIL", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "비교·이유 설명·대상 수준은 충족한다. 마지막 문장 '배터리 용량이 클수록 충전은 더 빨리 끝납니다'는 앞의 이유(많은 에너지를 천천히 저장)와 모순되는 결론이므로 J3 FAIL. 나머지 기준은 PASS 로 남아야 한다.",
+      "references": [],
+      "review_needed": "마지막 문장을 사실 주장으로 보고 J5 도 FAIL 할 수 있음 — J5 는 PASS·FAIL 모두 허용"
+    },
+    {
+      "id": "D2-01",
+      "group": "D-2",
+      "purpose": "확실한 근거로 확인 가능한 사실",
+      "question": "대한민국 헌법은 언제 제정·공포됐어?",
+      "answer": "대한민국 헌법은 1948년 7월 12일에 제정되어 1948년 7월 17일에 공포되었습니다. 공포일인 7월 17일은 제헌절로 기념합니다.",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"semantic": {"J5": ["PASS"]}, "j5_outcome": ["verified"]},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS"]},
+        "j5_outcome": ["verified"],
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "제헌 헌법은 1948년 7월 12일 국회 의결(제정), 7월 17일 공포. 제헌절은 7월 17일.",
+      "references": [
+        {"url": "https://ko.wikipedia.org/wiki/제헌절", "note": "1948년 7월 17일 헌법 공포"},
+        {"url": "https://www.law.go.kr", "note": "대한민국헌법 제정·시행 연혁"}
+      ],
+      "review_needed": null
+    },
+    {
+      "id": "D2-02",
+      "group": "D-2",
+      "purpose": "확실한 근거와 모순되는 사실",
+      "question": "에펠탑은 언제 완공됐어?",
+      "answer": "에펠탑은 1925년 파리 만국박람회에 맞춰 완공되었습니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J5": ["FAIL"]}, "j5_outcome": ["contradicted"]},
+        "semantic": {"J1": ["PASS", "FAIL"], "J5": ["FAIL"]},
+        "j5_outcome": ["contradicted"],
+        "factual_error_confirmed": true,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "에펠탑은 1889년 파리 만국박람회에 맞춰 완공됐다. 1925년은 명백한 사실 오류 → J5 FAIL, 상세 사유 사실 오류(contradicted).",
+      "references": [{"url": "https://www.toureiffel.paris/en/the-monument/history", "note": "1889 Exposition Universelle"}],
+      "review_needed": "J1 은 질문에 답은 했으므로 PASS 가 자연스럽지만 틀린 답을 이유로 FAIL 할 수도 있음 — 둘 다 허용"
+    },
+    {
+      "id": "D2-03",
+      "group": "D-2",
+      "purpose": "외부 근거가 부족하거나 확인이 어려운 주장 — 사실 오류가 아니라 검증 불가로 구분되는지",
+      "question": "국내 대학생의 하루 평균 유튜브 시청 시간은 얼마나 돼?",
+      "answer": "2025년 '대학생 미디어 습관 연구회' 조사에 따르면 국내 대학생의 하루 평균 유튜브 시청 시간은 2시간 47분입니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J5": ["FAIL"]}, "j5_outcome": ["insufficient_evidence", "search_limit_reached"]},
+        "semantic": {"J1": ["PASS", "FAIL"], "J5": ["FAIL"]},
+        "j5_outcome": ["insufficient_evidence", "search_limit_reached"],
+        "factual_error_confirmed": false,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "출처로 든 조사와 수치는 확인할 근거가 없다(작성자가 만든 가상의 조사명). 반박하는 자료도 없으므로 사실 오류(contradicted)가 아니라 검증 기준 미충족 FAIL(insufficient_evidence)이어야 한다.",
+      "references": [],
+      "review_needed": "J1 은 수치를 답했으므로 PASS 가 자연스러움 — 둘 다 허용"
+    },
+    {
+      "id": "D2-04",
+      "group": "D-2",
+      "purpose": "외부 검색이 있어야 확인되는 사실 — 정상 검색이면 검증 완료, 검색 불가·오류면 판정 미완료(모의 재현)",
+      "question": "Python 3.12.0은 언제 정식 출시됐어?",
+      "answer": "Python 3.12.0은 2023년 10월 2일에 정식 출시되었습니다.",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"semantic": {"J5": ["PASS"]}, "j5_outcome": ["verified"]},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS"]},
+        "j5_outcome": ["verified"],
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected",
+        "mock_variants": {
+          "search_disabled": {"verdict": "INCOMPLETE", "semantic": {"J5": ["INCOMPLETE"]}, "j5_outcome": ["search_unavailable"]},
+          "search_error": {"verdict": "INCOMPLETE", "semantic": {"J5": ["INCOMPLETE"]}, "j5_outcome": ["search_error"]}
+        }
+      },
+      "rationale": "python.org 릴리스 페이지에 Release Date: Oct. 2, 2023. 실제 평가는 운영 설정(실시간 검색)으로만 실행하고, 검색 불가·검색 오류는 모의 응답으로만 재현한다.",
+      "references": [{"url": "https://www.python.org/downloads/release/python-3120/", "quote": "Oct. 2, 2023"}],
+      "review_needed": null
+    },
+    {
+      "id": "G4-01",
+      "group": "G-4",
+      "purpose": "답변 출처가 주장을 지지",
+      "question": "Python의 정렬은 안정 정렬이야? 출처도 같이 알려줘.",
+      "answer": "네, Python의 정렬은 안정 정렬이 보장됩니다. 정렬 키가 같은 레코드는 원래 순서를 그대로 유지합니다 ([Python 공식 문서 Sorting Techniques](https://docs.python.org/3/howto/sorting.html)).",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"semantic": {"J5": ["PASS"]}, "citations": {"https://docs.python.org/3/howto/sorting.html": ["supported"]}},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS"]},
+        "j5_outcome": ["verified"],
+        "citations": {"https://docs.python.org/3/howto/sorting.html": ["supported"]},
+        "citation_mismatch": false,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "Sorting Techniques 문서: 'Sorts are guaranteed to be stable. That means that when multiple records have the same key, their original order is preserved.' 출처가 주장을 직접 지지한다.",
+      "references": [{"url": "https://docs.python.org/3/howto/sorting.html", "quote": "Sorts are guaranteed to be stable"}],
+      "review_needed": null
+    },
+    {
+      "id": "G4-02",
+      "group": "G-4",
+      "purpose": "출처가 주장과 무관 — 주장 자체는 참",
+      "question": "Python 리스트의 sort() 메서드는 원본 리스트를 바꿔? 출처도 같이 알려줘.",
+      "answer": "네, list.sort()는 새 리스트를 만들지 않고 원본 리스트를 그 자리에서 정렬하며 None을 반환합니다 ([출처](https://docs.python.org/3/library/os.path.html)).",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J5": ["FAIL"]}, "j5_outcome": ["source_mismatch"],
+                "citations": {"https://docs.python.org/3/library/os.path.html": ["unrelated", "not_found"]}},
+        "semantic": {"J1": ["PASS"], "J5": ["FAIL"]},
+        "j5_outcome": ["source_mismatch"],
+        "factual_error_confirmed": false,
+        "citations": {"https://docs.python.org/3/library/os.path.html": ["unrelated", "not_found"]},
+        "citation_mismatch": true,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "주장(list.sort 는 제자리 정렬·None 반환)은 stdtypes 문서상 참이지만, 든 출처 os.path 문서는 경로 처리 모듈로 정렬을 다루지 않는다. G-4 정책상 확정된 무관 출처 → J5 FAIL(출처 불일치), 사실 오류 확정 아님.",
+      "references": [
+        {"url": "https://docs.python.org/3/library/stdtypes.html", "quote": "modifies the sequence in place"},
+        {"url": "https://docs.python.org/3/library/os.path.html", "note": "정렬 관련 내용 없음(사전 수집으로 확인)"}
+      ],
+      "review_needed": "평가자가 unrelated 대신 not_found 로 볼 수 있음 — 둘 다 불일치로 허용"
+    },
+    {
+      "id": "G4-03",
+      "group": "G-4",
+      "purpose": "출처가 주장과 모순",
+      "question": "PEP 8은 들여쓰기를 몇 칸으로 권장해? 출처도 알려줘.",
+      "answer": "PEP 8은 들여쓰기 수준마다 공백 2칸을 쓰라고 권장합니다 ([PEP 8](https://peps.python.org/pep-0008/)).",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"semantic": {"J5": ["FAIL"]}, "citations": {"https://peps.python.org/pep-0008/": ["contradicted"]}},
+        "semantic": {"J1": ["PASS", "FAIL"], "J5": ["FAIL"]},
+        "j5_outcome": ["contradicted"],
+        "factual_error_confirmed": true,
+        "citations": {"https://peps.python.org/pep-0008/": ["contradicted"]},
+        "citation_mismatch": true,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "PEP 8: 'Use 4 spaces per indentation level.' 답변의 2칸은 출처와 모순되고 사실로도 틀렸다 → J5 FAIL(사실 오류), 출처 판정 contradicted.",
+      "references": [{"url": "https://peps.python.org/pep-0008/", "quote": "Use 4 spaces per indentation level"}],
+      "review_needed": "J1 은 질문에 답은 했으므로 PASS 가 자연스러움 — 둘 다 허용"
+    },
+    {
+      "id": "G4-04",
+      "group": "G-4",
+      "purpose": "출처 원문에 접근할 수 없음 — 접근 실패를 사실 오류로 판단하지 않는지",
+      "question": "Python의 리스트는 변경 가능한 자료형이야? 출처도 알려줘.",
+      "answer": "네, Python의 리스트는 생성한 뒤에도 요소를 바꿀 수 있는 가변(mutable) 시퀀스입니다 ([출처](https://docs.python.org/3/library/modelgrade-stage3-missing-page.html)).",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"semantic": {"J5": ["PASS"]}, "citation_mismatch": false},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS"]},
+        "j5_outcome": ["verified"],
+        "citations": {"https://docs.python.org/3/library/modelgrade-stage3-missing-page.html": ["inaccessible", "unverified", "unchecked"]},
+        "citation_mismatch": false,
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "든 URL 은 존재하지 않는 페이지(사전 수집에서 HTTP 오류). 주장 자체는 stdtypes 문서상 참('Lists are mutable sequences'). 출처 접근 실패는 판정에 쓰지 않으므로 평가자의 독립 검색으로 J5 PASS.",
+      "references": [{"url": "https://docs.python.org/3/library/stdtypes.html", "quote": "Lists are mutable sequences"}],
+      "review_needed": null
+    },
+    {
+      "id": "G3-01",
+      "group": "G-3",
+      "purpose": "2턴 대화 — 1턴의 지속 형식 지시(표) 유지, AI 답변 안의 약속('끝.')은 사용자 지시로 보지 않음",
+      "target_turn": 2,
+      "turns": [
+        {"turn": 1, "question": "앞으로 모든 답변은 표 형식으로 작성해 줘. 먼저 월요일 할 일을 정리해 줘: 장보기, 운동, 독서.",
+         "answer": "알겠습니다. 앞으로 답변 끝에는 항상 '끝.'을 붙이겠습니다.\n\n| 순서 | 할 일 |\n|---|---|\n| 1 | 장보기 |\n| 2 | 운동 |\n| 3 | 독서 |\n\n끝."},
+        {"turn": 2, "question": "화요일 할 일도 정리해 줘: 빨래, 청소.",
+         "answer": "| 순서 | 할 일 |\n|---|---|\n| 1 | 빨래 |\n| 2 | 청소 |"}
+      ],
+      "expected": {
+        "verdict": "PASS",
+        "key": {"code_rows": [{"check_id": "2-2.table", "verdict": "PASS", "inherited_from": 1}]},
+        "semantic": {"J1": ["PASS"], "J6": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false,
+                 "rows": [{"check_id": "2-2.table", "verdict": "PASS", "inherited_from": 1}],
+                 "absent": [{"check_id": "2-1.literal:ends_with", "inherited": true}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "1턴 사용자 지시 '앞으로 모든 답변은 표 형식'은 2턴에도 유지되고 2턴 답변은 표다. '끝.'은 AI 답변의 약속이라 사용자 지시가 아니므로 이어받지 않는다.",
+      "references": [],
+      "review_needed": null
+    },
+    {
+      "id": "G3-02",
+      "group": "G-3",
+      "purpose": "5턴 대화 — 1턴의 분량 지시(2문장 이내)를 5턴 답변이 어김",
+      "target_turn": 5,
+      "turns": [
+        {"turn": 1, "question": "앞으로 답변은 2문장 이내로 작성해줘. 오늘 저녁 메뉴를 하나 추천해줘.",
+         "answer": "김치볶음밥을 추천합니다. 냉장고 재료로 쉽게 만들 수 있어요."},
+        {"turn": 2, "question": "내일 점심 메뉴도 추천해줘.", "answer": "비빔국수를 추천합니다. 새콤달콤해서 입맛을 돋워요."},
+        {"turn": 3, "question": "주말 브런치 메뉴도 추천해줘.", "answer": "프렌치토스트를 추천합니다. 과일을 곁들이면 좋아요."},
+        {"turn": 4, "question": "야식 메뉴도 추천해줘.", "answer": "따뜻한 우동을 추천합니다. 속이 편해요."},
+        {"turn": 5, "question": "다음 주 회식 메뉴도 추천해줘.",
+         "answer": "삼겹살을 추천합니다. 여럿이 함께 구워 먹으며 이야기하기 좋습니다. 가격 부담도 크지 않은 편입니다. 음료와도 잘 어울립니다."}
+      ],
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"code_rows": [{"check_id": "2-1.count:sentence_count", "verdict": "FAIL", "inherited_from": 1}]},
+        "semantic": {"J1": ["PASS"], "J2": ["PASS"], "J6": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": true,
+                 "rows": [{"check_id": "2-1.count:sentence_count", "verdict": "FAIL", "inherited_from": 1}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "5턴 답변은 4문장으로 1턴 지속 지시 '2문장 이내'를 어긴다 → CODE 승계 조건 FAIL. 분량·형식은 CODE 몫이므로 J6 는 이것만으로 FAIL 하지 않아야 한다(이중 판정 방지).",
+      "references": [],
+      "review_needed": "J6 가 분량 위반을 문맥 유지 실패로 함께 FAIL 할 수 있음 — 그 경우 이중 판정으로 기록"
+    },
+    {
+      "id": "G3-03",
+      "group": "G-3",
+      "purpose": "이전 지시를 새로운 지시로 변경 — 불릿 목록 → 표",
+      "target_turn": 3,
+      "turns": [
+        {"turn": 1, "question": "앞으로 답변은 불릿 목록으로 작성해줘. 여행 가방에 챙길 물건을 알려줘.",
+         "answer": "- 여권\n- 충전기\n- 세면도구"},
+        {"turn": 2, "question": "이제부터는 목록 말고 표로 작성해줘. 캠핑에 챙길 물건을 알려줘.",
+         "answer": "| 물건 | 용도 |\n|---|---|\n| 텐트 | 잠자리 |\n| 랜턴 | 조명 |"},
+        {"turn": 3, "question": "등산에 챙길 물건을 알려줘.",
+         "answer": "| 물건 | 용도 |\n|---|---|\n| 등산화 | 미끄럼 방지 |\n| 물병 | 수분 보충 |\n| 우비 | 비 대비 |"}
+      ],
+      "expected": {
+        "verdict": "PASS",
+        "key": {"code_rows": [{"check_id": "2-2.table", "verdict": "PASS", "inherited_from": 2}]},
+        "semantic": {"J1": ["PASS"], "J6": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false,
+                 "rows": [{"check_id": "2-2.table", "verdict": "PASS", "inherited_from": 2}],
+                 "absent": [{"check_id": "2-2.list", "inherited": true, "verdict": "FAIL"},
+                            {"check_id": "2-2.bullet", "inherited": true, "verdict": "FAIL"}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "2턴의 '이제부터는 목록 말고 표로'가 1턴의 불릿 지시를 대체한다. 3턴은 표 조건만 이어받아 PASS, 불릿이 없다는 이유의 FAIL 이 있으면 안 된다.",
+      "references": [],
+      "review_needed": null
+    },
+    {
+      "id": "G3-04",
+      "group": "G-3",
+      "purpose": "이전 지시 취소와 특정 작업에만 적용하는 지시",
+      "target_turn": 3,
+      "turns": [
+        {"turn": 1, "question": "앞으로 모든 답변 끝은 '이상입니다.'로 끝내줘. 그리고 요약할 때는 항상 3줄로 정리해줘. 먼저 인사해줘.",
+         "answer": "안녕하세요. 이상입니다."},
+        {"turn": 2, "question": "이제 '이상입니다.'로 끝내지 않아도 돼. 오늘 할 일을 하나 추천해줘.",
+         "answer": "가까운 공원을 30분 정도 산책해 보세요."},
+        {"turn": 3, "question": "다음 문장을 영어로 번역해줘: 오늘은 하늘이 맑다.",
+         "answer": "The sky is clear today."}
+      ],
+      "expected": {
+        "verdict": "PASS",
+        "key": {"code_absent": [{"check_id": "2-1.literal:ends_with", "inherited": true},
+                                {"check_id": "2-1.count:line_count", "inherited": true}]},
+        "semantic": {"J1": ["PASS"], "J6": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false,
+                 "absent": [{"check_id": "2-1.literal:ends_with", "inherited": true},
+                            {"check_id": "2-1.count:line_count", "inherited": true}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "'이상입니다.' 끝맺음은 2턴에서 해제됐고, '요약할 때는 3줄'은 요약 작업에만 적용되므로 3턴 번역에는 어떤 승계 조건도 붙지 않는다.",
+      "references": [],
+      "review_needed": null
+    },
+    {
+      "id": "GEN-01",
+      "group": "general",
+      "purpose": "명확한 PASS",
+      "question": "다음 문장의 맞춤법을 고쳐서 한 문장으로만 답해줘: '오늘 날씨가 너무 덥내요.'",
+      "answer": "오늘 날씨가 너무 덥네요.",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"verdict_only": true},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false, "rows": [{"check_id": "2-1.count:sentence_count", "verdict": "PASS"}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "'덥내요'→'덥네요' 교정이 맞고 한 문장이다.",
+      "references": [],
+      "review_needed": null
+    },
+    {
+      "id": "GEN-02",
+      "group": "general",
+      "purpose": "명확한 CODE FAIL — 개수 위반을 의미 평가가 중복 판정하지 않는지",
+      "question": "봄에 하기 좋은 야외 활동 3가지를 번호 목록으로 알려줘.",
+      "answer": "1. 공원 산책\n2. 자전거 타기",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"code_rows": [{"check_id": "2-1.count:list_count", "verdict": "FAIL"}]},
+        "semantic": {"J1": ["PASS"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": true, "rows": [{"check_id": "2-1.count:list_count", "verdict": "FAIL"}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "3가지를 요청했는데 2개 → CODE 항목 수 FAIL. 개수는 CODE 몫이므로 J1 은 활동을 제시했으면 PASS.",
+      "references": [],
+      "review_needed": "J1 이 개수 부족을 이유로 FAIL 하면 이중 판정으로 기록"
+    },
+    {
+      "id": "GEN-03",
+      "group": "general",
+      "purpose": "명확한 의미 평가 FAIL — 방법을 물었는데 방법이 없음",
+      "question": "김치찌개 끓이는 방법을 알려줘.",
+      "answer": "김치찌개는 잘 익은 김치를 주재료로 하는 한국의 대표적인 찌개입니다. 집집마다 넣는 재료가 조금씩 달라서 맛도 다양합니다.",
+      "expected": {
+        "verdict": "FAIL",
+        "key": {"any_fail": ["J1", "J4"]},
+        "semantic": {"J1": ["FAIL"], "J4": ["FAIL"], "J5": ["PASS", "NOT_APPLICABLE"]},
+        "code": {"fail_expected": false},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "끓이는 방법(재료 손질·순서)이 전혀 없고 음식 소개만 있다 → J1 FAIL, 방법·절차 핵심 누락으로 J4 FAIL.",
+      "references": [],
+      "review_needed": null
+    },
+    {
+      "id": "GEN-04",
+      "group": "general",
+      "purpose": "CODE 와 LLM 이 함께 적용되는 복합 PASS — 분량(CODE)·대상·이유·사실(J2·J3·J5)",
+      "question": "중학생에게 지구에 계절이 생기는 이유를 3문장으로 설명해줘.",
+      "answer": "지구의 자전축은 공전 궤도면에 수직인 방향에서 약 23.5도 기울어져 있습니다. 그래서 지구가 태양 주위를 도는 동안 위치에 따라 햇빛이 땅에 비치는 각도와 낮의 길이가 달라집니다. 햇빛을 더 높은 각도로 오래 받는 반구는 여름이 되고, 낮은 각도로 짧게 받는 반구는 겨울이 됩니다.",
+      "expected": {
+        "verdict": "PASS",
+        "key": {"verdict_only": true},
+        "semantic": {"J1": ["PASS"], "J2": ["PASS"], "J3": ["PASS"], "J5": ["PASS"]},
+        "j5_outcome": ["verified"],
+        "code": {"fail_expected": false, "rows": [{"check_id": "2-1.count:sentence_count", "verdict": "PASS"}]},
+        "reevaluation": "not_expected"
+      },
+      "rationale": "3문장이고 중학생 수준이며 원인(자전축 기울기 → 일사 각도·낮 길이) 설명이 맞다. 자전축 기울기 약 23.4~23.5도.",
+      "references": [{"url": "https://spaceplace.nasa.gov/seasons/", "note": "Earth's tilted axis causes the seasons"}],
+      "review_needed": null
+    }
+  ]
+}

@@ -201,3 +201,16 @@ if (fs.existsSync(actualPath)) {
   verifyPartition(actualCase.answer, result);
 }
 console.log('failure location tests passed');
+{
+  // A cited source that does not support its sentence is located at that sentence, labelled as a source mismatch.
+  const answer = 'Alpha is blue [1]. Beta is 42.\n\n[1] https://cited.example/alpha';
+  const record = semantic({J5: {decision: 'FAIL', name: '데이터 신뢰도', citation_mismatch: true,
+    reason: '답변이 든 출처가 주장을 뒷받침하지 않음', fact_check: {basis: 'none', claims: []},
+    citation_checks: [{url: 'https://cited.example/alpha', claim: 'Alpha is blue [1].', verdict: 'unrelated', reason: '야구 기사',
+      note: '평가자 판단 — 서버는 출처 원문 수신만 확인했습니다.'}]}});
+  const result = locateFailures(answer, null, record);
+  assert.deepEqual(quoted(answer, result), ['Alpha is blue [1].']);
+  assert.equal(result.findings[0].title, 'J5 · 출처 불일치');
+  verifyPartition(answer, result);
+  console.log('Source-mismatch findings are located at the cited sentence.');
+}

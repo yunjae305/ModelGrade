@@ -192,6 +192,37 @@ def test_task_inputs_remain_valid_evidence_outside_summarization(instruction):
     assert decision(result)["fact_check"]["claims"][0]["sources"][0]["quote_verified"] is True
 
 
+def listed_item_claim(question, scope_quote, claim="빨래", scope="input_consistency"):
+    state = {"question": question, "answer": "| 순서 | 할 일 |\n|---|---|\n| 1 | 빨래 |\n| 2 | 청소 |"}
+    item = input_claim(claim=claim, scope=scope, scope_quote=scope_quote if scope == "input_consistency" else "",
+                       reason="사용자가 준 할 일과 일치합니다.")
+    item["sources"][0]["quote"] = "빨래, 청소"
+    return decision(evaluate(entries([item]), state))
+
+
+@pytest.mark.parametrize("question,scope_quote", [
+    # F4 (G3-01): 요청 문장에 바로 나열한 값도 제공 자료다
+    ("화요일 할 일도 정리해 줘: 빨래, 청소.", "화요일 할 일도 정리해 줘: 빨래, 청소."),
+    ("다음 항목을 분류해 줘: 빨래, 청소, 설거지.", "다음 항목을 분류해 줘"),
+    ("할 일 목록: 빨래, 청소, 설거지. 순서대로 정리해줘.", "순서대로 정리해줘"),
+])
+def test_items_listed_in_the_request_are_task_inputs(question, scope_quote):
+    j5 = listed_item_claim(question, scope_quote)
+    assert j5["choice"] == "PASS"
+    assert j5["fact_check"]["claims"][0]["sources"][0]["input_scope_verified"] is True
+
+
+@pytest.mark.parametrize("question,scope_quote,scope", [
+    ("할 일을 추천해 줘: 빨래, 청소.", "할 일을 추천해 줘", "input_consistency"),          # 변환이 아닌 추천
+    ("이 목록이 맞는지 확인해서 정리해 줘: 빨래, 청소.", "정리해 줘", "input_consistency"),  # 진위 확인 요청
+    ("화요일 할 일도 정리해 줘: 빨래, 청소.", "", "external_fact"),                      # 외부 사실 주장
+])
+def test_listed_items_do_not_prove_other_tasks_or_external_facts(question, scope_quote, scope):
+    j5 = listed_item_claim(question, scope_quote, scope=scope)
+    assert j5["choice"] == "UNVERIFIED"
+    assert j5["fact_check"]["claims"][0]["verdict"] == "UNVERIFIED"
+
+
 @pytest.mark.parametrize("instruction", [
     "현재 국내 모임의 정원을 JSON 배열로 작성해줘.",
     "전국 모임의 현재 정원을 표로 작성해줘.",
@@ -374,6 +405,15 @@ def test_context_prompt_selects_current_relevant_instructions_and_requires_pass_
     assert "현재 요청상 필수 내용이 누락된 FAIL만 빈 answer_quote" in prompt
 
 
+def test_context_prompt_leaves_countable_format_instructions_to_code_but_keeps_semantic_ones():
+    # F6 (G3-02): 코드 검사가 이어받는 형식·분량 지시로 J6 를 FAIL 하지 않는다. 같은 문장의 의미 지시는 계속 본다.
+    prompt = build_prompt(STATE, {"J6": {"instructions": "검토", "criteria": {"PASS": "유지", "FAIL": "누락"}}})
+    assert "형식·분량 지시는 이전 턴 지시도 코드 검사가 이어받아 따로 판정합니다" in prompt
+    assert "context_checks에 넣지 말고 그 위반만으로 J6를 FAIL로 판단하지 마세요" in prompt
+    assert "말투·호칭·역할·금지 주제·기억할 정보 같은 의미 지시가 함께 있으면 그 의미 지시만 확인하세요" in prompt
+    assert prompt.index("최신 유효 지시를 따릅니다") < prompt.index("코드 검사가 이어받아") < prompt.index("최신 유효 지시만 넣으세요")
+
+
 @pytest.mark.parametrize("reference,search_enabled", [(None, True), ("Python list는 변경 가능합니다.", False), (None, False)])
 def test_j5_prompt_requires_evaluator_to_check_unsourced_answers_without_changing_reference_policy(reference, search_enabled):
     state = {"question": "Python list는 변경 가능한가요?", "answer": "Python list는 변경 가능합니다."}
@@ -512,6 +552,15 @@ def test_j5_prompt_requires_claims_even_when_search_fails_and_keeps_nonfactual_b
     assert "검색 실패·원문 확인 실패·근거 부족이어도" in prompt
     assert "최소 한 번 실제 웹검색" in prompt and "NOT_APPLICABLE+claims=[]" in prompt
     assert "실제 가격·기관·날짜·과학적 원리" in prompt and "**None**" in prompt
+
+
+def test_j5_prompt_excludes_evaluative_phrases_and_corrected_text_but_keeps_embedded_facts():
+    # F7 (GEN-01·G3-02): 평가 표현·교정 결과 문장 자체는 주장이 아니다. 그 안의 구체 사실은 계속 검증한다.
+    prompt = build_prompt(STATE, QUESTIONS, True)
+    assert "추천·평가·선호·적합성 표현" in prompt and "그 자체를 claims에 넣지 마세요" in prompt
+    assert "그 사실 부분만 claim으로 검증하세요" in prompt and "점유율만 claim입니다" in prompt
+    assert "교정·번역 결과 문장 자체는 claim이 아닙니다" in prompt
+    assert "답변이 근거로 든 어문 규정이나 사실 설명만 claim으로 확인하세요" in prompt
 
 
 @pytest.mark.parametrize("engine", ["codex", "openai", "anthropic"])

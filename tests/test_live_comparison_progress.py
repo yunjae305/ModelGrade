@@ -37,7 +37,8 @@ class StagedJudge:
         return JevCall('OK', body={'model': 'live-test', 'answers': {
             cid: {'choice': 'FAIL' if fail else 'PASS',
                   'probabilities': {'PASS': .1 if fail else .9, 'FAIL': .9 if fail else .1},
-                  'confidence': .8, 'reason': 'live test reason'} for cid in questions}})
+                  # FAIL reasons quote the evaluated question, as the judge contract requires.
+                  'confidence': .8, 'reason': f"live test reason: '{q}'"} for cid in questions}})
 
 
 def live_service(tmp_path, judge):
