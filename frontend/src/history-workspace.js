@@ -216,7 +216,7 @@
       chart.append(svg('circle', {cx: x(i), cy: y(p.question_pass_rate), r: 5,
         class: 'trend-point' + (factors.length ? ' changed' : '') + (p.complete ? '' : ' incomplete')},
         svg('title', {}, `${time(p.at)} · ${p.aiona_version ? 'AIONA ' + p.aiona_version : '버전 미기록'} · 통과율 ${percent(p.question_pass_rate)}`
-          + (factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
+          + (i === 0 ? ' · 이 질문 세트의 첫 기록' : factors.length ? ` · 바뀐 요인: ${factors.join(', ')}` : ' · 직전 대비 조건 같음')
           + (p.complete ? '' : ' · 미완료 질문 있음(변화 확정 안 함)'))));
     }
     const last = rated[rated.length - 1]?.[0];
