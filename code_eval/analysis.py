@@ -373,5 +373,13 @@ class PastedTextAnalysis(TextAnalysis):
 
     @cached_property
     def lines(self) -> List[Line]:
-        ranges = self.fence_ranges
-        return [replace(line, in_code=any(s <= line.start < e for s, e in ranges)) for line in split_lines(self.text)]
+        """줄의 코드 여부를 구간별 펜스 범위로 다시 계산 — 정렬된 줄과 범위를 포인터로 한 번씩 훑는다 (Codex 리뷰: 줄마다 범위를
+        처음부터 찾으면 펜스가 많을 때 제곱 시간)."""
+        ranges = sorted(self.fence_ranges)
+        out, index = [], 0
+        for line in split_lines(self.text):
+            while index < len(ranges) and ranges[index][1] <= line.start:   # 이 줄보다 앞에서 끝난 범위는 다시 보지 않는다
+                index += 1
+            inside = index < len(ranges) and ranges[index][0] <= line.start
+            out.append(line if line.in_code == inside else replace(line, in_code=inside))
+        return out
