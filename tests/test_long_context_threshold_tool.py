@@ -24,8 +24,59 @@ def test_grading_reads_numbered_lines_and_falls_back_to_the_whole_answer():
     answers = {1: "KX-1111", 2: "CR-2222", 3: "HD-3333", 4: "BG-4444"}
     assert grade("1) KX-1111\n2) CR-2222\n3) 모름\n4) BG-9999", answers) == {1: True, 2: True, 3: False, 4: False}
     assert grade("**1)** KX-1111\n2. CR-2222\n3: HD-3333\n4번 BG-4444", answers) == {1: True, 2: True, 3: True, 4: True}
-    assert grade("KX-1111, CR-2222, HD-3333, BG-4444", answers) == {1: True, 2: True, 3: True, 4: True}
-    assert grade("1) CR-2222\n2) KX-1111", answers)[1] is False   # 번호 줄이 있으면 그 줄에서만
+    assert grade("Q1: KX-1111\nQ2: CR-2222", answers) == {1: True, 2: True, 3: False, 4: False}
+    assert grade("KX-1111, CR-2222, HD-3333, BG-4444", answers) == {1: False, 2: False, 3: False, 4: False}   # 번호 줄 없으면 틀림
+    assert grade("Q1: CR-2222\nQ2: KX-1111", answers) == {1: False, 2: False, 3: False, 4: False}   # 다른 문항의 코드로 못 맞힘
+    assert grade("1) KX-11110\n2) CR-2222 또는 CR-9999\n3) hd - 3333", answers) == {1: False, 2: False, 3: True, 4: False}
+    assert grade("1) KX-1111A\n2) CR-2222-2\n3) HD-3333 또는 HD-99999", answers) == {1: False, 2: False, 3: False, 4: False}
+
+
+def test_count_answers_need_one_whole_count():
+    from tools.long_context_threshold_test import _count_in
+    assert [_count_in(t) for t in ("7", "**총 7번.**", "7회 발생했습니다", "다섯 번", "다섯", "두 번")] == [7, 7, 7, 5, 5, 2]
+    assert [_count_in(t) for t in ("-4", "4.9", "4 또는 8", "4-5", "5 또는 여섯", "모르겠네요", "네", "1월 7일")] == [None] * 8
+
+
+def test_hard_document_codes_and_outage_days_never_repeat():
+    from tools.long_context_threshold_test import build_hard_case
+    collided = build_hard_case(32_000, seed=299)   # 예전에는 1번 정답과 오답 연구원의 사원 번호가 같았다
+    assert collided["prompt"].count(collided["answers"][1]) == 1
+    outages = [line for line in build_hard_case(32_000, seed=1)["prompt"].split("\n") if "정전이 일어나" in line]
+    assert len(outages) == len(set(outages))   # 예전에는 같은 날 정전이 두 줄이었다
+
+
+def test_run_checks_the_folder_first_saves_each_answer_and_marks_incomplete(tmp_path, monkeypatch):
+    import json
+    import webapp.comparison_service as service
+    from tools import long_context_threshold_test as tool
+    calls = []
+
+    def fake(provider, config, messages, max_tokens, client):
+        calls.append(provider)
+        if len(calls) == 2 and fail_second:
+            raise RuntimeError("끊김")
+        return {"status": "INCOMPLETE", "answer": "1) 모름", "finish_reason": "max_tokens", "raw": {"usage": [1, 2]}}
+
+    monkeypatch.setattr(service, "request_answer", fake)
+    monkeypatch.setattr(tool, "_configs", lambda: {"gpt": {"key": "k", "model": "m"}})
+    monkeypatch.setattr(tool, "LENGTHS", (32_000, 33_000))
+    (tmp_path / "file").write_text("x")
+    fail_second = False
+    with pytest.raises(OSError):
+        tool.run(["gpt"], tmp_path / "file" / "out")
+    assert calls == []   # 저장할 곳이 없으면 호출 전에 멈춘다
+    fail_second = True
+    with pytest.raises(RuntimeError):
+        tool.run(["gpt"], tmp_path / "cut")
+    assert len((tmp_path / "cut" / "partial.jsonl").read_text(encoding="utf-8").splitlines()) == 1   # 끊기기 전 답은 남는다
+    fail_second, calls[:] = False, []
+    with pytest.raises(SystemExit):
+        tool.run(["gpt"], tmp_path / "cut")   # 같은 폴더로 다시 돌리면 남은 답을 지우지 않고 멈춘다
+    assert calls == [] and len((tmp_path / "cut" / "partial.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+    report = tool.run(["gpt"], tmp_path / "done")
+    assert report["results"][0]["usage"] == {"input_tokens": None, "output_tokens": None}
+    assert "(INCOMPLETE: max_tokens)" in (tmp_path / "done" / "summary.md").read_text(encoding="utf-8")
+    assert not (tmp_path / "done" / "partial.jsonl").exists() and json.loads((tmp_path / "done" / "results.json").read_text(encoding="utf-8"))["grader"]
 
 
 def test_hard_document_hides_unmarked_facts_with_one_resolvable_answer_each():
