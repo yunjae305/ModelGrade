@@ -21,7 +21,7 @@ def test_stress_conversation_is_counted_apart_from_ordinary_multi_turn():
     counts = report["counts"]
     assert (counts["units"], counts["single"], counts["conversations_2plus"]) == (4, 2, 2)
     assert (counts["j6_multi_turn"], counts["stress_multi_turn"]) == (1, 1)   # 2턴짜리 짧은 대화는 2턴 이상이지만 현재 J6 규칙·스트레스 모두 아님
-    assert counts["long_context_j7_turns"] == 1 and sum(report["j7_rule"]["tiers"].values()) == 1   # 현재 J7 하한(코드 값) 그대로
+    assert counts["long_context_j7_turns"] == 1 and report["j7_rule"]["min_tokens"] == long_context.MIN_TOKENS   # 현재 J7 하한(코드 값) 그대로
     s = next(u for u in report["units"] if u["id"] == "S")
     assert s["stress_multi_turn"] and s["last_turn_request"] > 100_000 and s["turn_input_mean"] >= 10_000
     assert next(u for u in report["units"] if u["id"] == "M")["stress_multi_turn"] is False   # 2턴 대화도 J6 멀티턴이지만 스트레스는 아님

@@ -10,7 +10,7 @@
   답변마다 다르므로 저장 실행은 시스템(모델)마다 따로 잰다. 답변 없는 질문 세트는 질문만으로 재 실제보다 작게 나온다
 - stress_multi_turn (stress-10k-100k-v1, 멘토 제안 10-13): 턴 입력 평균 10K 토큰 이상이고 마지막 턴 누적 요청 100K 토큰 이상인 대화.
   시험 프로필 집계 (--stress-turn·--stress-total 로 바꿀 수 있음)
-- long_context_j7: 현재 J7 적용 규칙 — 한 턴 입력(질문+참조, 이전 턴 제외)이 long_context.MIN_TOKENS 이상, 구간은 long_context.tier
+- long_context_j7: 현재 J7 적용 규칙 — 한 턴 입력(질문+참조, 이전 턴 제외)이 long_context.MIN_TOKENS 이상 (길이 구간은 v3.1 부터 남기지 않음)
 - boundary_272k (실험): 입력 250K·272K·500K 근방. 최대 입력과 출력 예약을 아는 모델만 '실행 가능'으로, 모르면 '한도 미확인'
 상태 — PASS/FAIL 이 아니다: tokenizer_unavailable(측정 불가) · over_model_limit(입력+출력 예약이 최대 입력 초과) · limit_unknown
 토큰 수는 tiktoken o200k_base 근사다. 모델마다 토크나이저가 달라 실제 수는 저장 실행의 제공자 사용량(provider_input_tokens)으로 본다.
@@ -82,7 +82,6 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
     out_units, max_input, provider_max = [], 0, {}
     counts = {"units": 0, "single": 0, "conversations_2plus": 0, "j6_multi_turn": 0, "stress_multi_turn": 0,
               "long_context_j7_turns": 0, "turns": 0}
-    tiers: Dict[str, int] = {}
     for unit in _units(rows):
         counts["units"] += 1
         counts["turns"] += len(unit)
@@ -104,9 +103,6 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
                 total += long_context.count_tokens(r.get("answer") or "")
             j7 = sum(n >= long_context.MIN_TOKENS for n in inputs)
             counts["long_context_j7_turns"] += j7
-            for n in inputs:
-                if long_context.tier(n):
-                    tiers[long_context.tier(n)] = tiers.get(long_context.tier(n), 0) + 1
             stress = bool(is_conversation and len(unit) >= 2 and sum(inputs) / len(inputs) >= stress_turn and cumulative[-1] >= stress_total)
             counts["stress_multi_turn"] += stress
             max_input = max(max_input, max(cumulative))
@@ -123,7 +119,7 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
                                        else "runnable") for name, spec in models.items()} or {"_": "limit_unknown"}
     return {"version": PROFILE_VERSION, "status": status, "tokenizer": _tokenizer_version() if measured else None,
             "stress_profile": {"name": STRESS_PROFILE, "turn_mean_min": stress_turn, "last_turn_request_min": stress_total},
-            "j7_rule": {"min_tokens": long_context.MIN_TOKENS, "policy": long_context.LONG_CONTEXT_POLICY_VERSION, "tiers": tiers},
+            "j7_rule": {"min_tokens": long_context.MIN_TOKENS, "policy": long_context.LONG_CONTEXT_POLICY_VERSION},
             "j6_rule": {"policy": multi_turn.MULTI_TURN_POLICY_VERSION, "min_turn_tokens": multi_turn.MIN_TURN_TOKENS,
                         "min_long_turns": multi_turn.MIN_LONG_TURNS},
             "counts": counts, "max_request_tokens_estimate": max_input if measured else None,
@@ -162,8 +158,7 @@ def render(report: Dict[str, Any]) -> str:
              f"{c['j6_multi_turn']}개 대화 / 2턴 이상 대화 {c['conversations_2plus']}개",
              f"- 스트레스 멀티턴 시험 프로필({s['name']}: 턴 평균 ≥ {s['turn_mean_min']:,} · 마지막 턴 요청 ≥ {s['last_turn_request_min']:,}): "
              f"{c['stress_multi_turn']}개 대화",
-             f"- J7 현재 규칙({j7['policy']}: 한 턴 입력 ≥ {j7['min_tokens']:,}): {c['long_context_j7_turns']}개 턴"
-             + (f" · 구간 {j7['tiers']}" if j7['tiers'] else ""),
+             f"- J7 현재 규칙({j7['policy']}: 한 턴 입력 ≥ {j7['min_tokens']:,}): {c['long_context_j7_turns']}개 턴",
              f"- 가장 큰 요청(근사, 앞 턴 포함): {report['max_request_tokens_estimate']}"]
     if report["provider_input_tokens_max"]:
         lines.append("- 제공자 집계 실제 입력 토큰 최대: " + ", ".join(f"{m} {n:,}" for m, n in report["provider_input_tokens_max"].items()))
