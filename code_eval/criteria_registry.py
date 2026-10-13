@@ -276,7 +276,8 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "경계를 가를 수 없었다 → 실제로 쓰이는 긴 입력 경계인 GPT(OpenAI) 롱컨텍스트 요금 경계 272K 를 따름. "
                  "우리 셈(tiktoken o200k_base)과 GPT 가 보고한 입력 토큰은 거의 같음(500K 문서 500,028)",
                  "구간 272K~300K·300K~350K·350K~400K·400K~500K·500K 이상 (250K~272K 비교 구간·후보 경계 기록 삭제)",
-                 "적용 판정 jev-applicability-v2.6-272k·sub-applicability-v4"]},
+                 "적용 판정 jev-applicability-v2.6-272k·sub-applicability-v4",
+                 "LLM 선별 엔진(CLI·OpenAI·Anthropic)의 적용 버전도 코드 규칙 버전을 담음 — jev-applicability-v2.6-272k+llm-screening (예전 v2.3-llm-screening 고정값은 길이 규칙이 바뀌어도 같아 버전 비교에서 차이가 안 보였음)"]},
     {"version": "semantic-items-v4", "date": "2026-10-13", "scope": "semantic", "changes": ["J7-1·J7-2 적용 조건 문구를 입력 272K 토큰 이상으로", "J7 예시 첨부 길이를 272K 토큰 이상(한국어 약 40만·45만 자)으로 — 설계안 v1.5"]},
     {"version": "criteria-registry-v7", "date": "2026-10-13", "scope": "registry", "changes": ["J7 경계 272K 확정 반영 (long-context-v3-272k)"]},
 ]

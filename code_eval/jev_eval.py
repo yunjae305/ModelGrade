@@ -57,7 +57,9 @@ DEFAULT_WORKERS = 4
 ENGINE_LABELS = {"jev": "Jev", "claude_cli": "Claude CLI", "codex_cli": "GPT CLI (Codex)",
                  "openai_api": "OpenAI API", "anthropic_api": "Claude API"}
 FACT_SCREENING_ENGINES = {'codex_cli', 'claude_cli', 'openai_api', 'anthropic_api'}
-FACT_SCREENING_VERSION = 'jev-applicability-v2.3-llm-screening'
+#: LLM 선별 엔진(CLI·OpenAI·Anthropic)의 적용 버전 — 코드 규칙 버전(J6·J7 길이 등)을 담아, 규칙이 바뀌면 이 값도 바뀐다
+#: (예전 'jev-applicability-v2.3-llm-screening' 고정값은 길이 규칙이 바뀌어도 같아 버전 비교에서 차이가 안 보였다)
+FACT_SCREENING_VERSION = f'{JEV_APPLICABILITY_VERSION}+llm-screening'
 CANCEL_REASON = "평가 중단 요청으로 의미평가를 완료하지 못했습니다."
 #: J6 재질문에만 기준 지시문 끝에 붙이는 안내 (history-quotes-v4)
 CONTEXT_QUOTE_RETRY_NOTE = ("재평가 안내: 직전 평가의 context_checks 인용이 원문과 일치하지 않았습니다. "
