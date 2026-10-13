@@ -199,8 +199,8 @@ def _input_source(source, claim, state):
     retained.update(quote_verified=False, verified_at=None, resolved_url=None)
     origin, turn = source.get("origin"), source.get("turn")
     text = None
-    if origin == "question" and turn is None:
-        text = state.get("question", "")
+    if origin == "question" and turn is None:   # 현재 질문과 함께 준 첨부파일 내용도 사용자가 준 자료다 (J8 경계, Codex 리뷰)
+        text = "\n".join([state.get("question", "")] + [a.get("content") or "" for a in state.get("attachments") or [] if isinstance(a, dict)])
     elif origin == "history_user" and type(turn) is int:
         matches = [h for h in state.get("history", []) if isinstance(h, dict) and h.get("turn") == turn]
         if len(matches) == 1:

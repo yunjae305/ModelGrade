@@ -311,7 +311,7 @@ def output_schema(ids, citations: bool = False) -> Dict[str, Any]:
                       "required": ["url", "title", "quote", "authority", "authority_reason", "temporal_relevance", "origin", "turn"],
                       "properties": {**{k: {"type": "string"} for k in ("url", "title", "quote", "authority_reason", "temporal_relevance")},
                                      "origin": {"type": "string", "enum": ["question", "reference", "history_user", "web"],
-                                                "description": "필수 출처 유형. 현재 사용자 질문=question, 명시 reference=reference, 이전 사용자 질문=history_user, 실제 검색 출처=web. null/생략 금지."},
+                                                "description": "필수 출처 유형. 현재 사용자 질문(함께 보낸 첨부파일 내용 포함)=question, 명시 reference=reference, 이전 사용자 질문=history_user, 실제 검색 출처=web. null/생략 금지."},
                                      "turn": {"type": ["integer", "null"],
                                               "description": "history_user이면 인용한 이전 사용자 턴 번호. question/reference/web이면 null."},
                                      "authority": {"type": "string", "enum": ["primary", "reliable_secondary", "unestablished"]}}}

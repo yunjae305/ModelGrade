@@ -105,7 +105,9 @@ def _write_docx(content: str, path: Path) -> None:
     document.save(str(path))
 
 
-def _write_pdf(content: str, path: Path) -> None:
+def _write_pdf(content: str, path: Path) -> str:
+    """PDF 를 만들고 평가 모델이 받을 내용을 돌려준다 — 표 칸은 자르지 않고 줄을 바꾸며, 쪽 표시('[n쪽]')는 자동 쪽 넘김까지
+    포함해 실제로 놓인 쪽을 따른다 (Codex 리뷰: 칸 40자 자름·자동 쪽 넘김 미반영)."""
     from fpdf import FPDF   # fpdf2
 
     pdf = FPDF(format="A4")
@@ -113,28 +115,51 @@ def _write_pdf(content: str, path: Path) -> None:
     pdf.add_font("KR", fname=font_path())
     pdf.add_page()
     width = pdf.w - pdf.l_margin - pdf.r_margin
+    out: List[str] = []
+    shown = [0]
+
+    def mark() -> None:   # 지금 쓰는 쪽이 바뀌었으면 쪽 표시를 넣는다
+        if pdf.page_no() != shown[0]:
+            shown[0] = pdf.page_no()
+            out.append(f"[{shown[0]}쪽]")
+
     for block in _blocks(content):
         if block["kind"] == "page":
             pdf.add_page()
-        elif block["kind"] == "heading":
+            continue
+        mark()
+        if block["kind"] == "heading":
             pdf.set_font("KR", size={1: 16, 2: 14, 3: 12}[block["level"]])
             pdf.multi_cell(width, 9, block["text"], new_x="LMARGIN", new_y="NEXT")
             pdf.ln(1)
+            out.append("#" * block["level"] + " " + block["text"])
         elif block["kind"] == "table":
             pdf.set_font("KR", size=9)
             rows = block["rows"]
             cols = max(len(row) for row in rows)
-            col_width = width / cols
+            col_width, line = width / cols, 6
             for row in rows:
-                for c in range(cols):
-                    pdf.cell(col_width, 7, (row[c] if c < len(row) else "")[:40], border=1)
-                pdf.ln(7)
+                cells = [row[c] if c < len(row) else "" for c in range(cols)]
+                lines = max(len(pdf.multi_cell(col_width - 2, line, cell or " ", dry_run=True, output="LINES")) for cell in cells)
+                height = max(1, lines) * line
+                if pdf.will_page_break(height):
+                    pdf.add_page()
+                mark()
+                x, y = pdf.l_margin, pdf.get_y()
+                for i, cell in enumerate(cells):
+                    pdf.rect(x + i * col_width, y, col_width, height)
+                    pdf.set_xy(x + i * col_width + 1, y)
+                    pdf.multi_cell(col_width - 2, line, cell or " ", new_x="RIGHT", new_y="TOP")
+                pdf.set_xy(x, y + height)
+                out.append("| " + " | ".join(cells) + " |")
             pdf.ln(2)
         else:
             pdf.set_font("KR", size=10)
             text = ("• " + block["text"]) if block["kind"] == "bullet" else block["text"]
             pdf.multi_cell(width, 6, text or " ", new_x="LMARGIN", new_y="NEXT")
+            out.append(("- " + block["text"]) if block["kind"] == "bullet" else block["text"])
     pdf.output(str(path))
+    return "\n".join(out).strip()
 
 
 def _write_image(spec: Dict[str, Any], path: Path) -> str:
@@ -202,12 +227,13 @@ def render_attachment(spec: Dict[str, Any], out_dir: Path) -> Dict[str, Any]:
         raise AttachmentError(f"{name}: 첨부 내용(content)이 비었습니다.")
     out_dir.mkdir(parents=True, exist_ok=True)
     temp = out_dir / f".tmp-{os.getpid()}-{hashlib.sha1(name.encode('utf-8')).hexdigest()[:8]}{_EXT[kind]}"
+    pdf_text = ""
     if kind == "txt":
         _write_txt(content, temp)
     elif kind == "docx":
         _write_docx(content, temp)
     elif kind == "pdf":
-        _write_pdf(content, temp)
+        pdf_text = _write_pdf(content, temp)
     else:
         content = _write_image(spec, temp)
     data = temp.read_bytes()
@@ -217,7 +243,8 @@ def render_attachment(spec: Dict[str, Any], out_dir: Path) -> Dict[str, Any]:
         temp.unlink()
     else:
         temp.replace(final)
-    return {"name": name, "type": kind, "content": judge_text(content, kind), "sha256": digest, "size": len(data), "path": final.name}
+    text = pdf_text if kind == "pdf" else judge_text(content, kind)   # PDF 는 실제로 그린 쪽 배치를 따른다
+    return {"name": name, "type": kind, "content": text, "sha256": digest, "size": len(data), "path": final.name}
 
 
 def judge_text(content: str, kind: str) -> str:

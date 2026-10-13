@@ -91,10 +91,13 @@ def criteria_counts(rows: List[Dict[str, Any]], minimum: int = MIN_APPLICABLE) -
 
 
 def _code_checks(result: Dict[str, Any]) -> set:
-    """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 질문 요구 종류가 맞는 검사 + 질문에서 나온 결과·판정 제외 행."""
+    """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 엔진이 질문에서 실제로 만든 결과·판정 제외 행.
+
+    요구 종류(kind)만 보면 엔진이 합치는 조건(예: '불릿 3개'는 2-1.count 만 실행, 2-2.list 는 만들지 않음)까지 세게 되므로 쓰지 않는다
+    (Codex 리뷰). 질문 요구 + 답변 코드로 실행되는 두 검사(JSON·파이썬 문법)만 요구 종류로 센다 — 빈 답변에서는 행이 없다."""
     meta = result.get("meta") or {}
     kinds = {cond.get("kind") for cond in meta.get("question_conditions") or [] if isinstance(cond, dict)}
-    found = {uid for uid, trigger, unit_kinds in _UNITS if trigger == "all" or (unit_kinds & kinds)}
+    found = {uid for uid, trigger, unit_kinds in _UNITS if trigger == "all" or (trigger == "question_or_answer" and unit_kinds & kinds)}
     for row in result.get("results") or []:
         if row.get("source") in ("question", "history_instruction"):
             found.add(str(row.get("check_id") or "").split(":")[0])
