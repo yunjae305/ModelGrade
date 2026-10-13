@@ -167,9 +167,27 @@ def unit_of(check_id: str) -> Optional[str]:
     return unit if unit in CHECK_VERSIONS else None
 
 
+#: 기준 변경 이력 — 버전마다 바뀐 항목과 이유 (이력 관리 '기준 변경' 의 근거). 새 항목은 끝에 더한다.
+CHANGELOG: List[Dict[str, Any]] = [
+    {"version": "criteria-registry-v1", "date": "2026-10-12", "scope": "registry",
+     "changes": ["기준 정의를 한 목록으로 묶음 (CODE 검사 단위 28 + 의미 기준 J1~J6)", "테스트가 실행 경로와 목록을 대조"]},
+    {"version": "engine v16.3.0", "date": "2026-10-13", "scope": "code",
+     "changes": ["공통 결과 행은 PASS/FAIL 뿐 — 판정할 수 없는 조건은 meta.skipped_conditions, 검사기 오류는 case.errors",
+                 "C(LLM 보완) 기준 제거, 저장된 code_completion 은 읽기 전용", "2-1.literal: 정확 일치 요구가 아니면 공백·줄바꿈을 접어 비교(G-1)",
+                 "3-1 답변 등식 재계산 v16-1.4 (줄 경계·괄호·TeX·단위·연결 어미·명사 부정 범위)",
+                 "3-3·2-2: 코드 작성 요구·원본 없음·자료형 목록은 조건을 만들지 않음"]},
+    {"version": "semantic-items-v1", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["의미 평가를 기준 6 → 세부 기준 25 → 점검 항목 39 로 세분 (SEMANTIC_PIPELINE=items)",
+                 "판정에 '모른다' 없음 — 인용 검증 실패는 재확인 ≤3회 뒤 확인 불가 FAIL", "J5: 주장별 참·거짓, 반박 출처 서버 대조, 출처 링크 유무 미사용",
+                 "적용 여부는 코드 규칙이 정함 (sub-applicability-v1, j5-items-applicability-v1)"]},
+    {"version": "criteria-registry-v2", "date": "2026-10-13", "scope": "registry",
+     "changes": ["semantic_items(세부 25·항목 39·'판정하는 곳' 규칙·나열 규칙·reason_code) 를 목록에 포함", "changelog 추가"]},
+]
+
+
 def registry() -> Dict[str, Any]:
     from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
-    return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(),
+    return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
             # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 6 → 세부 25 → 항목 39 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),
             "modifier_kinds": copy.deepcopy(MODIFIER_KINDS),

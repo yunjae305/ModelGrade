@@ -231,7 +231,17 @@
       if (generation !== state.generation) return;
       state.before = before; state.after = after;
       state.comparison = before && after ? window.AionaVersionComparison.compare(before, after) : null;
+      state.statistics = null;
       render();
+      if (before && after) {
+        // 서버 계산 비교: 대화 단위 부호검정 p값·꼬리 표본·질문→기준→세부→항목 변화 (화면 집계는 바꾸지 않는다)
+        try {
+          const statistics = await api(`/api/comparison/version-comparison?baseline=${encodeURIComponent(before.run_id)}&target=${encodeURIComponent(after.run_id)}`);
+          if (generation !== state.generation) return;
+          state.statistics = statistics;
+          renderStatistics();
+        } catch (err) { if (generation === state.generation) { state.statistics = {error: err.message}; renderStatistics(); } }
+      }
     } catch (err) { if (generation === state.generation) error(err.message); }
     finally { if (generation === state.generation) $('version-summary').setAttribute('aria-busy', 'false'); }
   }
@@ -283,6 +293,7 @@
         onclick: (event) => reevaluate(state.before, event.currentTarget, 'baseline')}), node('p', {class: 'field-help', text: '새 실행을 만들고 평가자를 호출합니다. 원본 실행과 결과는 유지됩니다.'}));
     }
     renderProfiles();
+    renderStatistics();
     $('version-change-panel').hidden = !c; $('version-criteria-panel').hidden = !c;
     if (!c) { $('version-rows').replaceChildren(); renderHighlights(); return; }
     const counts = c.counts || {};
@@ -294,6 +305,42 @@
       ...(c.unmatched?.baseline || []).filter((row) => !changedBefore.has(row.index)).map((row) => ({caseId: row.caseId, baselineIndex: row.index, targetIndex: null, change: 'unmatched', label: '기준 문항 · ' + (row.reason || '대응 문항 없음')})),
       ...(c.unmatched?.target || []).filter((row) => !changedAfter.has(row.index)).map((row) => ({caseId: row.caseId, baselineIndex: null, targetIndex: row.index, change: 'unmatched', label: '대상 문항 · ' + (row.reason || '대응 문항 없음')}))];
     renderRows(); renderCriteria(); renderHighlights();
+  }
+  function renderStatistics() {
+    const box = $('version-statistics');
+    if (!box) return;
+    const s = state.statistics;
+    box.hidden = !s || !state.before || !state.after;
+    if (box.hidden) { box.replaceChildren(); return; }
+    if (s.error) { box.replaceChildren(node('p', {class: 'field-help', text: '서버 비교를 불러오지 못했습니다: ' + s.error})); return; }
+    const sign = s.sign_test || {}, tail = s.tail || {}, verdict = s.verdict || {}, conditions = s.conditions || {};
+    const verdictLabel = {improved: '개선', regressed: '악화', uncertain: '우연과 구분되지 않음', not_comparable: '비교 조건 불일치'}[verdict.label] || '—';
+    const children = [
+      node('p', {class: 'vc-statistics-verdict', 'data-verdict': verdict.label || ''}, node('strong', {text: `통계 판정: ${verdictLabel}`}), ' · ', verdict.text || ''),
+      node('p', {class: 'field-help', text: `대화 단위 부호검정 · 개선 ${number(sign.plus || 0)} · 악화 ${number(sign.minus || 0)} · 동점 ${number(sign.ties || 0)}` +
+        (sign.incomplete ? ` · 미완료 ${number(sign.incomplete)}` : '') + ` · p값 ${sign.p_value === null || sign.p_value === undefined ? '—' : sign.p_value}` +
+        ` · 꼬리(기준 실행 최악 ${number(tail.size || 0)}문항): 개선 ${number(tail.improved || 0)} · 악화 ${number(tail.regressed || 0)}${tail.worsened ? ' · 꼬리 악화' : ''}`})];
+    if (Array.isArray(conditions.differences) && conditions.differences.length) {
+      children.push(node('details', {class: 'version-profile-raw', open: ''}, node('summary', {text: `평가 조건 차이 ${number(conditions.differences.length)}개`}),
+        node('ul', {class: 'finding-list'}, ...conditions.differences.map((d) => node('li', {}, node('strong', {text: d.label}), ` 기준 ${detailValue(d.baseline)} → 비교 ${detailValue(d.target)}`))),
+        conditions.suggestion ? node('p', {class: 'field-help', text: conditions.suggestion}) : null));
+    }
+    const table = (s.criteria || []).filter((row) => row.level !== 'code' && (row.improved || row.regressed));
+    if (table.length) {
+      children.push(node('details', {class: 'version-profile-raw'}, node('summary', {text: `기준 → 세부 기준 → 항목 변화 ${number(table.length)}개`}),
+        node('table', {class: 'version-criteria-table'}, node('thead', {}, node('tr', {}, ...['단위', 'ID', '개선', '악화', '유지'].map((h) => node('th', {text: h})))),
+          node('tbody', {}, ...table.map((row) => node('tr', {}, node('td', {text: {criterion: '기준', sub: '세부 기준', item: '항목'}[row.level] || row.level}),
+            node('td', {text: row.id}), node('td', {text: number(row.improved)}), node('td', {text: number(row.regressed)}), node('td', {text: number((row.pass_kept || 0) + (row.fail_kept || 0))})))))));
+    }
+    const regressions = s.regressions || [];
+    if (regressions.length) {
+      children.push(node('details', {class: 'version-profile-raw'}, node('summary', {text: `악화 질문 ${number(regressions.length)}개 (두 버전 답변과 근거)`}),
+        ...regressions.slice(0, 20).map((r) => node('div', {class: 'jev-reason'}, node('p', {}, node('strong', {text: r.case_id}), ' ', r.question || ''),
+          node('p', {class: 'field-help', text: '기준 답변: ' + (r.baseline_answer || '')}), node('p', {class: 'field-help', text: '비교 답변: ' + (r.target_answer || '')}),
+          node('ul', {class: 'finding-list'}, ...(r.target_evidence || []).map((e) => node('li', {}, `${e.id} ${e.title || ''} · ${e.reason || ''}` +
+            ((e.items || []).length ? ' · ' + e.items.map((it) => `${it.id} ${it.answer_quote ? '「' + it.answer_quote + '」' : ''}${it.unverifiable ? '(확인 불가)' : ''}`).join(', ') : ''))))))));
+    }
+    box.replaceChildren(...children);
   }
   function focusChanges(filter) {
     $('version-change-filter').value = filter;

@@ -30,6 +30,8 @@ from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event, record_events
 from . import semantic_union
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
+from .run_summary import run_summary
+from .version_comparison import compare_runs, condition_changes
 from .activity_store import clean_text, event_record
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
@@ -600,6 +602,48 @@ class ComparisonService:
     def version_history(self):
         with self._lock:
             return self.version_registry.version_history(self.history(limit=None))
+
+    def version_comparison(self, baseline_id, target_id):
+        """두 실행의 버전 비교(서버 계산) — 질문 → 기준 → 세부 기준 → 항목·코드 조건, 대화 단위 부호검정, 꼬리 표본."""
+        if not baseline_id or not target_id:
+            raise ValueError("기준 실행과 비교 실행의 ID 가 필요합니다.")
+        with self._lock:
+            return compare_runs(self.result(baseline_id), self.result(target_id))
+
+    def _previous_completed(self, run):
+        """이 실행보다 먼저 만들어진 가장 최근의 평가 완료 실행 (없으면 None)."""
+        candidates = [r for r in self.history(limit=None)
+                      if r.get('run_id') != run.get('run_id') and r.get('status') == 'COMPLETED' and r.get('created_at')
+                      and run.get('created_at') and r['created_at'] < run['created_at']]
+        if not candidates:
+            return None
+        latest = max(candidates, key=lambda r: r['created_at'])
+        try:
+            return self._run(latest['run_id'])
+        except (FileNotFoundError, ValueError, OSError):
+            return None
+
+    def _queue_condition_changes(self, run):
+        """평가 완료 시 직전 완료 실행과 조건(기준·평가 모델·수집 모델)을 대조해 바뀐 요인을 작업 이력에 남긴다 (이력 관리)."""
+        if run.get('status') != 'COMPLETED' or not run.get('_activity_tracking'):
+            return
+        previous = self._previous_completed(run)
+        current = run_summary(run)
+        changes = condition_changes(run_summary(previous) if previous else None, current)
+        run['condition_changes'] = {'previous_run_id': previous.get('run_id') if previous else None, 'changes': changes,
+                                    'summary': {k: current[k] for k in ('profile', 'models', 'question_set')}}
+        outbox = run.setdefault('_activity_outbox', [])
+        for change in changes:
+            key = f"{run['run_id']}:{run.get('_activity_attempt', 1)}:condition:{change['event_type']}"
+            note = f"{change['label']}: {', '.join(change['fields'])}"
+            if change.get('multi_factor'):
+                note += ' · 여러 요인 변경(' + ', '.join(change['factors']) + ') — 원인을 단정하지 않음'
+            event = event_record(change['event_type'], key=key, actor='system', model_version=(run.get('aiona_release') or {}).get('version'),
+                                 run_id=run['run_id'], source_run_id=previous.get('run_id') if previous else None,
+                                 before=change['before'], after=change['after'], reason=note,
+                                 related_event_id=run.get('_activity_started_event_id'))
+            if not any(item['event_id'] == event['event_id'] for item in outbox):
+                outbox.append(event)
 
     def manage_release(self, payload):
         with self._lock:
@@ -1207,6 +1251,7 @@ class ComparisonService:
                     else:
                         run["status"] = "COMPLETED"
                         stream.publish({"type": "run_done"})
+                        self._queue_condition_changes(run)
                     run["revision"] += 1
                     self._save(run)
                     self._finish_costs(run, ledger)

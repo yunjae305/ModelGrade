@@ -127,6 +127,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.history())
         if path == '/api/comparison/version-history':
             return self.respond(200, service.version_history())
+        if path == '/api/comparison/version-comparison':
+            query = {key: values[-1] for key, values in parse_qs(urlparse(self.path).query).items()}
+            return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/activity-history':
             filters = {key: values[-1] for key, values in parse_qs(urlparse(self.path).query).items()}
             return self.respond(200, service.activity_history(filters))
