@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v6"   # v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v7"   # v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -126,7 +126,7 @@ _SEMANTIC_EVIDENCE = {
            "서버가 두 인용문을 이전 턴·현재 답변 원문과 대조하고 맞지 않으면 확인 필요로 바꿈. 인용 대조 실패로 확인 필요가 되면 "
            "'원문 그대로 복사' 안내를 붙여 J6 만 1회 다시 묻고, 그래도 맞지 않으면 그대로 둠 (history-quotes-v4, context_reevaluation)"),
     "J7": ("reason — FAIL 이면 입력(질문·참조 자료) 원문과 답변을 각각 따옴표로 인용(둘 다 원문과 맞아야 함), 서버가 인용 일치를 형식 검증하고 근거가 없으면 1회 재평가 "
-           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(250K~272K·272K~300K·300K~350K·350K~400K·400K~500K·500K 이상)·"
+           "(j1-j4-j7-fail-evidence-v2). long_context — 입력 토큰 수(tiktoken o200k_base)·구간(272K~300K·300K~350K·350K~400K·400K~500K·500K 이상)·"
            "근거 인용의 입력 내 위치(0~100, 판정에는 쓰지 않음). 토크나이저를 못 불러오면 J7 은 확인 필요(UNVERIFIED)로 집계. items 는 J7-1.a·J7-2.a 가 NO 이면 입력 원문 인용이 필수이고 서버가 현재 질문·참조 자료와 대조"),
 }
 _SEMANTIC_REASON = ("reason — FAIL 이면 서버가 이유의 존재와 질문·답변 원문 인용 일치를 형식 검증하고, 근거가 없으면 "
@@ -270,6 +270,15 @@ CHANGELOG: List[Dict[str, Any]] = [
      "changes": ["J7-1·J7-2 적용 조건 문구를 입력 250K 토큰 이상으로", "적용 판정 jev-applicability-v2.5-length-rules·sub-applicability-v3"]},
     {"version": "criteria-registry-v6", "date": "2026-10-13", "scope": "registry",
      "changes": ["J7 경계 250K(테스트 기간)·J6 멀티턴 길이 조건 반영 (long-context-v2-250k-test·multi-turn-v1)"]},
+    {"version": "long-context-v3-272k", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J7 적용 경계 250K(테스트 기간) → 272K 토큰 확정 (사용자 결정)",
+                 "근거: 250K~500K 를 RULER 방식으로 시험(기본·어려운 버전, 세 비교 모델)한 결과 500K 까지 정답률 하락이 없어 성능으로는 "
+                 "경계를 가를 수 없었다 → 실제로 쓰이는 긴 입력 경계인 GPT(OpenAI) 롱컨텍스트 요금 경계 272K 를 따름. "
+                 "우리 셈(tiktoken o200k_base)과 GPT 가 보고한 입력 토큰은 거의 같음(500K 문서 500,028)",
+                 "구간 272K~300K·300K~350K·350K~400K·400K~500K·500K 이상 (250K~272K 비교 구간·후보 경계 기록 삭제)",
+                 "적용 판정 jev-applicability-v2.6-272k·sub-applicability-v4"]},
+    {"version": "semantic-items-v4", "date": "2026-10-13", "scope": "semantic", "changes": ["J7-1·J7-2 적용 조건 문구를 입력 272K 토큰 이상으로"]},
+    {"version": "criteria-registry-v7", "date": "2026-10-13", "scope": "registry", "changes": ["J7 경계 272K 확정 반영 (long-context-v3-272k)"]},
 ]
 
 

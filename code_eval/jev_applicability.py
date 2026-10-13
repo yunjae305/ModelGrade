@@ -10,7 +10,7 @@ CODE 의 질문 조건 추출(``extract.py``)과 같은 원칙을 쓴다.
   대화로 잰다)의 2번째 턴부터, 앞 턴 대화가 있을 때 적용한다. 멀티턴이 아니거나 첫 턴이면 '해당 없음', 토크나이저가 없어 재지
   못하면 ``undetermined`` 이다. 단일 질문·답변 입력에는 적지 않는다. ``multi_turn`` 을 주지 않은 호출(직접 만든 conversation)은
   길이 조건 없이 예전처럼 판정한다 — 평가·점검 경로는 ``conversation_contexts`` 가 늘 채운다.
-- J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 250K 토큰 이상일 때 적용한다(테스트 기간, 후보 경계 272K) (``long_context`` — 고정 공개 토크나이저로 셈,
+- J7 롱컨텍스트 활용은 입력(현재 질문 + 참조 자료)이 272K 토큰 이상일 때 적용한다 (``long_context`` — 고정 공개 토크나이저로 셈,
   이전 대화 턴은 세지 않음). 토크나이저를 불러오지 못하면 해당 없음이 아니라 ``undetermined`` 에 남긴다 — 평가 기록에서
   확인 필요(UNVERIFIED)로 집계되고, 적용 여부를 짐작하지 않는다.
 - 같은 입력은 언제나 같은 결과를 낸다. 단어 규칙이라 놓치거나 과하게 잡을 수 있으므로 근거 문구와 출처(source)를 함께 남긴다.
@@ -33,9 +33,9 @@ __all__ = ["JEV_APPLICABILITY_VERSION", "APPLIES_WHEN", "DATA_RULES", "jev_appli
            "J5_ITEMS_APPLICABILITY_VERSION", "FACT_QUESTION_RULES", "INPUT_VALUE_RULES", "VERIFICATION_CLAIM_RULES",
            "fact_question", "j5_items_applicability"]
 
-JEV_APPLICABILITY_VERSION = "jev-applicability-v2.5-length-rules"   # v2.5: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v2.4: J7 추가
+JEV_APPLICABILITY_VERSION = "jev-applicability-v2.6-272k"   # v2.6: J7 272K 이상 확정 · v2.5: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v2.4: J7 추가
 #: 세부 기준(27개) 적용 규칙 버전 — items 파이프라인용. legacy RULES·jev_applicability() 결과는 바꾸지 않는다.
-SUB_APPLICABILITY_VERSION = "sub-applicability-v3"   # v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
+SUB_APPLICABILITY_VERSION = "sub-applicability-v4"   # v4: J7 272K 이상 · v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
 #: items 파이프라인의 J5 세부 기준 적용 규칙 버전 (질문 기반 — 네 모델의 분모가 같다)
 J5_ITEMS_APPLICABILITY_VERSION = "j5-items-applicability-v1"
 
@@ -491,7 +491,7 @@ def sub_applicability(question: str, answer: Optional[str] = None, *, reference:
     - J2~J4 는 요청 문장의 단어 규칙(``SUB_RULES``)으로, J5 는 ``j5_items_applicability`` 로 정한다
       (``history`` 는 state["history"] 모양의 앞 턴 목록 — 앞 턴의 가상 설정을 J5-1 제외에 쓴다).
     - J6 는 legacy 와 같은 대화 판정(2번째 턴부터·앞 턴 이력 완전)을 재사용하고, J6-2.c 는 지시어 규칙이 있을 때만 켠다.
-    - J7-1·J7-2 는 legacy J7 과 같은 길이 판정(입력 250K 토큰 이상, ``measured`` 를 주면 그 값)이고, 질문 유형에 따른 적용은
+    - J7-1·J7-2 는 legacy J7 과 같은 길이 판정(입력 272K 토큰 이상, ``measured`` 를 주면 그 값)이고, 질문 유형에 따른 적용은
       평가 모델이 정한다.
     적용되지 않은 세부 기준은 ``items=[]`` 와 ``reason`` 을 남긴다. 답변은 J5-3.a 에만 영향을 준다 (질문이 정한다).
     """

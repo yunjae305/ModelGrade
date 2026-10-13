@@ -96,7 +96,7 @@ def test_legacy_jev_applicability_unchanged():
     q = "한국의 인구가 얼마인지 알려줘."
     legacy = jev_applicability(q, "2023년 기준 약 5,155만 명이며, 수도권에 50% 이상이 살고 있습니다.")
     assert "J5" in legacy["criteria"] and legacy["evidence"]["J5"]["source"] == "answer"
-    assert legacy["evidence"]["J5"]["rules"] == ["수치·단위", "연도·날짜", "통계·출처"] and legacy["version"] == "jev-applicability-v2.5-length-rules"
+    assert legacy["evidence"]["J5"]["rules"] == ["수치·단위", "연도·날짜", "통계·출처"] and legacy["version"] == "jev-applicability-v2.6-272k"
     assert "J5" not in jev_applicability(q, "```python\nprint(2023 + 100)\n```\n한국 인구는 늘고 있어요.")["criteria"]
     # items 규칙은 같은 질문을 답변이 아니라 질문으로 정한다 — 코드만 있는 답변이어도 J5-1 적용
     for answer in ("2023년 기준 약 5,155만 명입니다.", "```python\nprint(2023)\n```"):

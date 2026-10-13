@@ -326,7 +326,7 @@ def test_legacy_pipeline_is_unchanged_by_items_support():
     assert "pipeline" not in record and "items" not in record and "subs" not in record["decisions"]["J1"]
     assert jev["pipeline"] == "legacy" and jev["items_version"] is None and jev["quote_policy"] is None and jev["recheck_policy"] is None
     assert "fulfillment" not in jev and "subs" not in jev["summary"]["J1"] and "fulfillment" not in jev["summary"]["J1"]
-    assert jev["applicability_version"] == "jev-applicability-v2.5-length-rules"
+    assert jev["applicability_version"] == "jev-applicability-v2.6-272k"
     batch["jev_eval"] = jev
     assert "pipeline" not in evaluation_log(batch)[0]["jev"]
     # pipeline 인자 없이 context 를 넘겨도 legacy 는 그것을 쓰지 않는다

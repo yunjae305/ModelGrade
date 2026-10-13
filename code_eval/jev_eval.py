@@ -757,7 +757,7 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
 _UNDETERMINED_LOOK = {
     "J6": ("conversation", "대화 길이 측정", "토크나이저를 불러오지 못했거나 빠지거나 겹친·평가되지 않은 턴이 있어 "
                                             "멀티턴(10K 토큰 이상 턴 10개 이상)인지 확인할 수 없음"),
-    "J7": ("question", "입력 길이 측정", "토크나이저를 불러오지 못해 입력이 250K 토큰 이상인지 확인할 수 없음"),
+    "J7": ("question", "입력 길이 측정", "토크나이저를 불러오지 못해 입력이 272K 토큰 이상인지 확인할 수 없음"),
 }
 
 

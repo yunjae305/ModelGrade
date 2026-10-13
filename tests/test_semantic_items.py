@@ -61,7 +61,7 @@ def test_registry_counts_ids_and_expand_marks():
         if item.criterion == "J6":
             assert all(ex.history for ex in item.examples), item.id
     described = si.describe()
-    assert described["version"] == "semantic-items-v3" == si.SEMANTIC_ITEMS_VERSION
+    assert described["version"] == "semantic-items-v4" == si.SEMANTIC_ITEMS_VERSION
     assert len(described["subs"]) == 27 and len(described["items"]) == 41
     assert described["reason_codes"] == ["FACT_FALSE_CONFIRMED", "FACT_UNVERIFIABLE", "SOURCE_NOT_FOUND", "ITEM_UNVERIFIABLE"]
     assert si.DECISIONS == ("YES", "NO", "NOT_APPLICABLE")
