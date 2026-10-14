@@ -140,7 +140,19 @@ def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
               "rules": rules.get(c["id"], []), "question_rules": question_rules.get(c["id"], 0),
               "kinds": [{"id": f"{unit}:{kind}", "name": KIND_NAMES.get(kind, kind)} for kind, unit in KIND_UNIT.items() if unit == c["id"]]}
              for c in reference_details()["code_checks"] if not c["id"].startswith("AIONA")]
-    items = [{"id": item.id, "sub": SUBS_BY_ID[item.sub].name, "question": item.question, "applies": item.applies} for item in ITEMS]
+    def fail_note(item: Any) -> str:
+        fail = next((ex for ex in item.examples if ex.kind == "FAIL"), None)
+        return " ".join(str(getattr(fail, "note", "") or "").split())[:200] if fail else ""
+
+    def example(item: Any) -> str:
+        sample = next((ex for ex in item.examples if ex.kind == "PASS"), None)
+        return " ".join(str(getattr(sample, "question", "") or "").split())[:160] if sample else ""
+
+    # 의미 평가 점검 항목 — 세부 기준(sub)·판정 근거·펼침(요소별 판정)·적용을 평가 모델이 정하는지·FAIL 예시까지 (사용자 결정 2026-10-14:
+    # 의미 평가 기준도 세세하게 평가할 수 있게 질문을 만든다)
+    items = [{"id": item.id, "sub_id": item.sub, "sub": SUBS_BY_ID[item.sub].name, "question": item.question, "applies": item.applies,
+              "evidence": item.evidence, "expand": item.expand, "model_applies": item.model_applies, "example": example(item),
+              "fail": fail_note(item)} for item in ITEMS]
     return {"code": codes, "items": items}
 
 
@@ -177,10 +189,21 @@ def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set]
             shown = len(c.get("rules") or []) if detailed else max(1, c.get("question_rules") or 0)
             for rule in (c.get("rules") or [])[:shown]:
                 lines.append(f"    · 인식: {rule[:600 if detailed else 260]}")
-    lines.append("## 의미 평가 항목 (id · 세부 기준 · 점검 질문(예 = PASS) · 적용)")
+    lines.append("## 의미 평가 점검 항목 (id · 세부 기준 · 점검 질문(예 = PASS) · 적용 · 판정 근거 · 펼침 · FAIL 예)")
     for item in catalog["items"]:
         if only is None or item["id"] in only:
-            lines.append(f"- {item['id']} · {item['sub']} · {item['question']} · 적용: {item['applies']}")
+            line = f"- {item['id']} · {item.get('sub_id', '')} {item['sub']} · {item['question']} · 적용: {item['applies']}"
+            if item.get("evidence"):
+                line += f" · 근거: {item['evidence']}"
+            if item.get("expand"):   # 요소마다 따로 판정 — 질문에 그 요소가 여럿 있어야 세세하게 갈린다
+                line += f" · 펼침: {item['expand']}(질문에 이 요소를 2개 이상 넣음)"
+            if item.get("model_applies"):
+                line += " · 적용 여부는 평가 모델이 정함(그 상황이 분명히 생기게 설계)"
+            if item.get("example") and (detailed or only is not None):
+                line += f" · 예시 질문: {item['example']}"
+            if item.get("fail"):
+                line += f" · FAIL 예: {item['fail']}"
+            lines.append(line)
     return lines
 
 
