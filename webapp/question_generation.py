@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import math
 import re
 import threading
@@ -455,21 +456,24 @@ def _missing_closers(text: str) -> Optional[str]:
 
 def _json_object(text: str, warnings: Optional[List[str]] = None) -> Dict[str, Any]:
     text = (text or "").strip()
-    fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
-    if fence:
-        text = fence.group(1)
     start = text.find("{")
     if start < 0:
         raise GenerationError("GPT 응답에서 JSON 객체를 찾지 못했습니다.")
-    try:   # 첫 완전한 객체만 읽는다 — 끝에 괄호가 더 붙은 응답(실제 GPT 응답에서 확인)도 앞 객체는 쓸 수 있다
+    try:   # 첫 완전한 객체만 읽는다 — 펜스·앞뒤 글·끝에 더 붙은 괄호(실제 GPT 응답에서 확인)가 있어도 앞 객체는 쓸 수 있다
         value, _ = json.JSONDecoder().raw_decode(text[start:])
     except ValueError as exc:
-        # 끝 괄호만 모자란 응답(2026-10-14 실제 GPT 계획: 마지막 '}' 하나 빠짐)은 모자란 괄호만 닫아 읽는다 — 내용은 바꾸지 않는다
-        closers = _missing_closers(text[start:])
+        # 끝 괄호만 모자란 응답(2026-10-14 실제 GPT 계획: 마지막 '}' 하나 빠짐)은 모자란 괄호만 닫아 읽는다 — 내용은 바꾸지 않는다.
+        # 바깥 코드 펜스(앞에 설명 글이 있어도)는 여는 펜스 바로 뒤의 '{' 부터 응답 끝의 닫는 펜스 앞까지 — JSON 안의 ``` 는 자르지 않는다 (Codex)
+        body = text[start:]
+        opening = re.search(r"```(?:json)?\s*(?=\{)", text)
+        if opening:
+            body = text[opening.end():]
+            body = body[:-3].rstrip() if body.endswith("```") else body
+        closers = _missing_closers(body)
         try:
             if closers is None:
                 raise ValueError
-            value, _ = json.JSONDecoder().raw_decode(text[start:] + closers)
+            value, _ = json.JSONDecoder().raw_decode(body + closers)
         except ValueError:
             raise GenerationError(f"GPT 응답 JSON 을 읽지 못했습니다: {exc}") from None
         if warnings is not None:
@@ -718,6 +722,8 @@ class QuestionSetBuilder:
         if not plans or spec is None:
             self.warnings.append("긴 문서 질문을 만들지 못했습니다 (J7).")
             return []
+        self.pending = [preview_row(p, "planned") for p in plans]   # 긴 문서를 만드는 몇 분 동안에도 계획된 질문이 보이게 (Codex)
+        self.show()
         if self.shared_reference is None:
             self.progress("long_context", {"message": "긴 문서 만드는 중 (조각 여러 개)"})
             try:
@@ -726,13 +732,18 @@ class QuestionSetBuilder:
                 raise
             except GenerationError as exc:
                 self.warnings.append(f"긴 문서를 만들지 못해 긴 문서 질문을 뺐습니다: {exc}")
+                self.pending = []
+                self.show()
                 return []
             self.shared_spec = spec
         self.shared_questions += [p["turns"][0]["question"] for p in plans]
         groups = []
-        for plan in plans:
+        for index, plan in enumerate(plans):
             plan["turns"][0]["shared_reference"] = True
+            self.pending = [preview_row(p, "planned") for p in plans[index + 1:]]
             groups.append(self.materialize(start + len(groups), plan))
+        self.pending = []
+        self.show()
         return groups
 
     def multi_turn_conversations(self, count: int, catalog: Dict[str, List[Dict[str, str]]], note: str, topics: List[str],
@@ -752,7 +763,10 @@ class QuestionSetBuilder:
                 self.warnings.append(f"10턴 대화 계획 {rounds}회차: {exc}")
                 continue
             self.warnings += warnings
-            for plan in self._only(got, ("long_paste",)):
+            planned = self._only(got, ("long_paste",))
+            for index, plan in enumerate(planned):
+                self.pending = [preview_row(plan, "making")] + [preview_row(p, "planned") for p in planned[index + 1:]]   # (Codex)
+                self.show()
                 if len(groups) >= count:
                     break
                 if len(plan["turns"]) < multi_turn.MIN_TURNS:
@@ -764,6 +778,10 @@ class QuestionSetBuilder:
                     raise
                 except GenerationError as exc:
                     self.warnings.append(f"'{plan.get('topic')}' 대화를 만들지 못해 뺐습니다: {exc}")
+            self.pending = []   # 다음 회차 계획을 받는 동안 앞 회차 질문이 '만드는 중'으로 남지 않게 (Codex)
+            self.show()
+        self.pending = []
+        self.show()
         if len(groups) < count:
             self.warnings.append(f"10턴 대화를 {count}개 중 {len(groups)}개만 만들었습니다.")
         return groups
@@ -905,13 +923,18 @@ class QuestionSetBuilder:
                 plans = general_only(plans)
                 self.warnings += warnings
                 extra_rounds += 1
-                for plan in plans[:count]:
+                planned = plans[:count]
+                for index, plan in enumerate(planned):
+                    self.pending = [preview_row(plan, "making")] + [preview_row(p, "planned") for p in planned[index + 1:]]   # (Codex)
+                    self.show()
                     try:
                         groups.append(self.materialize(len(groups) + 1, plan))
                     except Cancelled:
                         raise
                     except GenerationError as exc:
                         self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
+                self.pending = []
+                self.show()
                 report = check(groups)
             except Cancelled:
                 raise
@@ -981,6 +1004,10 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
 QUESTION_INPUT_VERSION = "question-input-v1"
+# 고정 질문 세트 (사용자 결정 2026-10-14) — tools/build_fixed_sets.py 가 우리 질문 세트 300·IFEval-Ko·KoMT-Bench 에서 고른 세트
+FIXED_SET_VERSION = "fixed-set-v1"
+FIXED_SETS = ROOT / "examples" / "fixed_sets"
+FIXED_KINDS = ("simple", "precise")
 _QUESTION_KEYS = ("question", "질문", "Q", "q", "prompt")
 MAX_INPUT_TURNS_PER_CONVERSATION = 50   # 대화 하나의 턴 상한 — 점검이 앞 턴 이력을 턴마다 만들어 아주 긴 대화는 서버를 멈출 수 있다 (Codex 리뷰)
 MAX_INPUT_TURNS = 2_000                 # 한 번에 넣는 전체 턴 상한
@@ -1293,6 +1320,41 @@ class QuestionSetService:
                "created_at": datetime.now(timezone.utc).isoformat(), "model": None, "note": "", "usage": {}, "warnings": warnings,
                "summary": _summary(groups, report), "coverage": report["coverage"], "error": None, "target_questions": None,
                "weak_from_run": None, "weak_units": [], "auto_run": False, "run_id": None, "run_error": None, "calls": 0, "rounds": 0}
+        self._save(job)
+        return job
+
+    def fixed_sets(self) -> List[Dict[str, Any]]:
+        """화면 버튼용 — 고정 세트마다 이름·질문 수·턴 수·k·출처·모자란 기준."""
+        out = []
+        for kind in FIXED_KINDS:
+            path = FIXED_SETS / kind / "selection.json"
+            if path.is_file():
+                sel = json.loads(path.read_text(encoding="utf-8"))
+                out.append({key: sel.get(key) for key in ("kind", "label", "k", "questions", "turns", "sources", "short", "licenses")})
+        return out
+
+    def start_fixed(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """고정 질문 세트(간단·정밀)로 완료된 질문 세트를 만든다 — 모델 호출 없음. 수집은 화면의 '답변 수집'(start_run), 평가는 '평가 진행'."""
+        kind = payload.get("kind")
+        if kind not in FIXED_KINDS:
+            raise ValueError("고정 질문 세트는 simple(간단 평가)·precise(정밀 평가) 중 하나여야 합니다.")
+        source = FIXED_SETS / kind
+        if not (source / "questions.json").is_file() or not (source / "selection.json").is_file():
+            raise ValueError("고정 질문 세트 파일이 없습니다 — python tools/build_fixed_sets.py 로 만드세요.")
+        groups = json.loads((source / "questions.json").read_text(encoding="utf-8"))
+        selection = json.loads((source / "selection.json").read_text(encoding="utf-8"))
+        set_id = "qs-" + uuid.uuid4().hex[:12]
+        out = self._path(set_id)
+        shutil.copytree(source / "files", out / "files") if (source / "files").is_dir() else (out / "files").mkdir(parents=True, exist_ok=True)
+        (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
+        short = selection.get("short") or {}
+        warnings = [f"{selection['label']} — 세부 기준마다 {selection.get('k')}번을 목표로 골랐고, 후보에 모자라 덜 채운 기준 {len(short)}개: "
+                    + ", ".join(f"{t} {n}" for t, n in short.items())] if short else []
+        job = {"id": set_id, "version": FIXED_SET_VERSION, "source": "fixed", "fixed_kind": kind, "source_name": selection["label"],
+               "status": "COMPLETED", "phase": "done", "message": "완료", "created_at": datetime.now(timezone.utc).isoformat(), "model": None,
+               "note": "", "usage": {}, "warnings": warnings, "summary": selection.get("summary") or {}, "coverage": selection.get("coverage") or {},
+               "fixed_sources": selection.get("sources"), "error": None, "target_questions": None, "weak_from_run": None, "weak_units": [],
+               "auto_run": False, "run_id": None, "run_error": None, "calls": 0, "rounds": 0}
         self._save(job)
         return job
 

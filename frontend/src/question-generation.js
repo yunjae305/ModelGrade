@@ -11,9 +11,11 @@
   const {api, node} = W;
   const STATUS = {RUNNING: ['만드는 중', 'warning'], COMPLETED: ['질문 확인', 'success'], ERROR: ['실패', 'danger'], CANCELLED: ['중단', 'neutral']};
   const imported = (set) => ['manual', 'file'].includes(set?.source);   // 직접 넣은 세트
+  const fixed = (set) => set?.source === 'fixed';   // 고정 질문 세트(간단·정밀)
+  const twoStep = (set) => imported(set) || fixed(set);   // '답변 수집' → '평가 진행' 두 단계로 진행하는 세트
   // 패널마다 상태 — 생성(gen)과 직접 넣기(input)가 같은 확인·평가 시작 화면을 쓴다
-  const GEN = {status: 'question-set-status', error: 'question-set-error', body: 'question-set-body', current: null};
-  const INPUT = {status: 'question-input-status', error: 'question-input-error', body: 'question-input-body', current: null};
+  const GEN = {status: 'question-set-status', error: 'question-set-error', body: 'question-set-body', current: null, runBox: 'question-set-run'};
+  const INPUT = {status: 'question-input-status', error: 'question-input-error', body: 'question-input-body', current: null, runBox: 'question-input-run'};
   let timer = null, touched = false;   // touched: 사용자가 시작한 뒤에는 늦게 온 첫 목록 응답을 쓰지 않는다
   const previews = new Map();   // 세트 ID → 확인용 질문 목록 (한 번만 받아 온다)
 
@@ -44,11 +46,12 @@
     const notes = [
       (coverage.answer_dependent || []).length ? '답변 구조로만 생기는 검사는 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent.join(', ') : null,
       (coverage.answer_dependent_items || []).length ? '답변 문장으로 적용이 정해지는 항목도 답변을 받은 뒤 확인합니다: ' + coverage.answer_dependent_items.join(', ') : null,
-      imported(set) ? `직접 넣은 질문 · ${set.source_name || ''} · 모델 호출 없음`
+      fixed(set) ? `고정 질문 · ${set.source_name || ''} · 출처 ` + Object.entries(set.fixed_sources || {}).map(([k, v]) => `${k} ${v}`).join(' · ')
+      : imported(set) ? `직접 넣은 질문 · ${set.source_name || ''} · 모델 호출 없음`
         : `GPT ${set.model || ''} · 호출 ${set.calls || 0}회 · 입력 ${Number(usage.input_tokens || 0).toLocaleString('ko-KR')}토큰 · 출력 ${Number(usage.output_tokens || 0).toLocaleString('ko-KR')}토큰 · 보충 ${set.rounds || 0}회`,
     ].filter(Boolean);
     return node('details', {class: 'question-set-log'},
-      node('summary', {text: (imported(set) ? '넣은 기록' : '생성 기록') + (warnings.length ? ` · 경고 ${warnings.length}건` : '')}),
+      node('summary', {text: (fixed(set) ? '세트 기록' : imported(set) ? '넣은 기록' : '생성 기록') + (warnings.length ? ` · 경고 ${warnings.length}건` : '')}),
       ...notes.map((text) => node('p', {text})),
       warnings.length ? node('ul', {class: 'question-set-warnings'}, warnings.slice(0, 20).map((w) => node('li', {text: w}))) : null);
   }
@@ -96,7 +99,7 @@
     pill.className = 'pill ' + tone;
     const running = set?.status === 'RUNNING';
     if (panel === GEN) {
-      $('question-set-start').disabled = running;
+      ['question-set-simple', 'question-set-precise'].forEach((id) => { if ($(id)) $(id).disabled = running || Boolean(GEN.starting); });
       $('question-set-cancel').hidden = !running;
     }
     showError(set?.status === 'ERROR' ? '질문 세트를 만들지 못했습니다: ' + (set.error || '알 수 없는 오류') : '', panel);
@@ -116,7 +119,7 @@
     }
     if (set.status !== 'COMPLETED') return;
     const s = set.summary || {};
-    const meta = imported(set) ? null : `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
+    const meta = twoStep(set) ? null : `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
       + (set.target_questions ? ` · 목표 질문 수 ${set.target_questions}` : '') + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목` : '');
     body.append(...[   // null 은 글자로 붙지 않게 뺀다
       node('dl', {class: 'dataset-stats', 'aria-label': '질문 세트 요약'},
@@ -125,30 +128,36 @@
       coverageSummary(set.coverage, meta, !imported(set)),   // 직접 넣은 질문은 빠진 항목 목록을 보이지 않는다
       reviewBox(set),
       set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
-      panel === INPUT ? runBox() : null,
+      twoStep(set) ? runBox(panel) : null,
       node('div', {class: 'question-set-footer'}, generationLog(set),
         node('div', {class: 'question-set-actions'},
           node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
-          panel === INPUT ? null
+          twoStep(set) ? null
             : set.run_id
             ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
             : node('button', {class: 'button primary compact', type: 'button', onclick: () => runSet(panel)}, '평가 시작')))].filter(Boolean));
-    if (panel === INPUT) pollRun();
+    if (twoStep(set)) pollRun(panel);
   }
 
-  // 질문 직접 넣기 — 답변 수집 진행(모델마다 받은 수) → 모두 받으면 '평가 진행' → 평가 중·결과 보기 (사용자 요청 2026-10-14)
+  // 답변 수집 → 평가 진행 (질문 직접 넣기·고정 질문 세트) — 모델마다 받은 수 → 모두 받으면 '평가 진행' → 평가 중·결과 보기 (사용자 요청 2026-10-14)
+  // 패널마다 상태(run·timer·failures·starting)를 따로 두고, 응답이 늦게 와도 그 세트를 보고 있을 때만 화면에 반영한다 (Codex)
   const STAGE = {WAITING: '대기', COLLECTING: '받는 중', COMPLETED: '완료', CANCELLED: '중단', ERROR: '오류'};
-  let runTimer = null;
-  function runBox() {
-    const box = node('div', {class: 'question-input-run', id: 'question-input-run'});
-    fillRun(box, INPUT.run && INPUT.run.run_id === INPUT.current?.run_id ? INPUT.run : null);
+  function runBox(panel) {
+    const box = node('div', {class: 'question-input-run', id: panel.runBox});
+    fillRun(panel, box);
     return box;
   }
 
-  function fillRun(box, run) {
+  function fillRun(panel, box = $(panel.runBox)) {
     if (!box) return;
-    const set = INPUT.current;
-    if (!set?.run_id) { box.replaceChildren(); return; }
+    const set = panel.current;
+    const run = panel.run && panel.run.run_id === set?.run_id ? panel.run : null;
+    if (!set?.run_id) {
+      box.replaceChildren(node('div', {class: 'question-set-actions'}, panel.starting
+        ? node('button', {class: 'button primary compact', type: 'button', disabled: ''}, '답변 수집 시작 중…')
+        : node('button', {class: 'button primary compact', type: 'button', onclick: () => startCollection(panel)}, set?.run_error ? '답변 수집 다시 시작' : '답변 수집')));
+      return;
+    }
     if (!run) { box.replaceChildren(node('p', {class: 'field-help', role: 'status', text: '답변 수집 상태를 불러오는 중'})); return; }
     const rows = (run.providers || []).map((p) => {
       const g = (run.progress || {})[p] || {};
@@ -160,7 +169,7 @@
     });
     let action;
     if (run.status === 'COLLECTING') action = node('button', {class: 'button primary compact', type: 'button', disabled: ''}, '답변 수집 중…');
-    else if (run.status === 'READY') action = node('button', {class: 'button primary compact', type: 'button', onclick: evaluateRun}, '평가 진행');
+    else if (run.status === 'READY') action = node('button', {class: 'button primary compact', type: 'button', onclick: () => evaluateRun(panel)}, '평가 진행');
     else if (run.status === 'EVALUATING') action = node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(run.run_id)},
       `평가 중 (${run.eval_done || 0}/${run.eval_total || 0}) · 진행 보기`);
     else if (run.status === 'COMPLETED') action = node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(run.run_id)}, '평가 결과 보기');
@@ -172,29 +181,69 @@
       node('div', {class: 'question-set-actions'}, action));
   }
 
-  async function pollRun() {
-    clearTimeout(runTimer);
-    const id = INPUT.current?.run_id;
+  async function pollRun(panel) {
+    clearTimeout(panel.timer);
+    const id = panel.current?.run_id;
     if (!id) return;
+    let run;
     try {
-      INPUT.run = await api(`/api/comparison/runs/${encodeURIComponent(id)}`);
-    } catch (error) {
-      showError('수집 상태를 불러오지 못했습니다: ' + error.message, INPUT);
+      run = await api(`/api/comparison/runs/${encodeURIComponent(id)}`);
+    } catch (error) {   // 잠깐 끊겨도 같은 실행이면 점점 길게 다시 묻는다 (Codex) — 화면이 멈춘 채 남지 않게
+      if (panel.current?.run_id !== id) return;
+      showError('수집 상태를 불러오지 못했습니다(다시 시도 중): ' + error.message, panel);
+      panel.failures = (panel.failures || 0) + 1;
+      panel.timer = setTimeout(() => { if (panel.current?.run_id === id) pollRun(panel); }, Math.min(30000, 2000 * 2 ** panel.failures));
       return;
     }
-    if (INPUT.current?.run_id !== id) return;
-    fillRun($('question-input-run'), INPUT.run);
-    if (['COLLECTING', 'EVALUATING'].includes(INPUT.run.status)) runTimer = setTimeout(pollRun, 2000);
+    if (panel.current?.run_id !== id) return;
+    if (panel.failures) { panel.failures = 0; showError('', panel); }
+    panel.run = run;
+    fillRun(panel);
+    if (['COLLECTING', 'EVALUATING'].includes(run.status)) panel.timer = setTimeout(() => pollRun(panel), 2000);
   }
 
-  async function evaluateRun() {
-    const id = INPUT.current?.run_id;
+  // 수집 시작 — 실패했거나 아직 시작하지 않은 세트도 같은 세트로. 시작하는 동안은 그 패널의 다른 시작·새 세트를 막는다(유료 실행이 겹치지 않게, Codex)
+  async function startCollection(panel, setId = panel.current?.id) {
+    if (!setId || panel.starting) return;
+    panel.starting = setId;
+    fillRun(panel);
+    try {
+      const set = await api(`/api/comparison/question-sets/${encodeURIComponent(setId)}/run`, {});
+      if (panel.current?.id === setId) render(set, panel);
+    } catch (error) {
+      if (panel.current?.id === setId) showError('답변 수집을 시작하지 못했습니다: ' + error.message, panel);
+    } finally {
+      if (panel.starting === setId) panel.starting = null;
+      fillRun(panel);
+    }
+  }
+
+  async function evaluateRun(panel) {
+    const id = panel.current?.run_id;
     if (!id) return;
     try {
       await api(`/api/comparison/runs/${encodeURIComponent(id)}/evaluate`, {});
-      pollRun();
+      pollRun(panel);
     } catch (error) {
-      showError('평가를 시작하지 못했습니다: ' + error.message, INPUT);
+      showError('평가를 시작하지 못했습니다: ' + error.message, panel);
+    }
+  }
+
+  // 고정 질문 세트(간단·정밀) — 버튼을 누르면 세트를 만들고 바로 답변 수집 (사용자 결정 2026-10-14)
+  async function startFixed(kind) {
+    if (GEN.starting) return;
+    showError('', GEN);
+    touched = true;
+    const buttons = ['question-set-simple', 'question-set-precise'].map($).filter(Boolean);
+    buttons.forEach((b) => { b.disabled = true; });
+    try {
+      const set = await api('/api/comparison/question-sets/fixed', {kind});
+      render(set, GEN);
+      await startCollection(GEN, set.id);
+    } catch (error) {   // 켜져 있는 서버가 고정 세트 기능 전 코드면 404 — 무엇을 해야 하는지 알려 준다
+      showError(error.status === 404 ? '서버가 고정 질문 기능을 넣기 전 코드로 켜져 있습니다. python run.py 를 다시 시작해 주세요.' : error.message, GEN);
+    } finally {
+      buttons.forEach((b) => { b.disabled = false; });
     }
   }
 
@@ -207,18 +256,6 @@
       showError(error.message);
     }
     if (GEN.current?.status === 'RUNNING') timer = setTimeout(poll, 2000);
-  }
-
-  async function start() {   // 질문만 만든다 — 수집·평가는 사용자가 질문을 확인한 뒤 '평가 시작'으로
-    if (!window.confirm('GPT로 질문을 만듭니다(계획 1회 + 긴 자료 수십 회 + 보충). 답변 수집·평가는 만든 질문을 확인한 뒤 평가 시작을 눌러야 시작합니다. 만들까요?')) return;
-    showError('');
-    touched = true;
-    try {
-      render(await api('/api/comparison/question-sets', {auto_run: false}));
-      poll();
-    } catch (error) {
-      showError(error.message);
-    }
   }
 
   async function runSet(panel) {
@@ -258,19 +295,27 @@
       if (!text.trim()) return showError('질문을 입력해 주세요.', INPUT);
       payload = {text, name: '직접 입력', source: 'manual'};
     }
+    if (INPUT.starting) return showError('답변 수집을 시작하는 중입니다. 끝난 뒤 다시 넣어 주세요.', INPUT);
     touched = true;
     const button = $('question-input-submit');
     button.disabled = true;
     try {   // 질문을 넣고 바로 답변 수집 — 평가는 모두 받은 뒤 '평가 진행'으로 (사용자 요청 2026-10-14)
       const set = await api('/api/comparison/question-sets/import', payload);
       render(set, INPUT);
-      render(await api(`/api/comparison/question-sets/${encodeURIComponent(set.id)}/run`, {}), INPUT);
+      await startCollection(INPUT, set.id);
     }
     catch (error) { showError(error.message, INPUT); }
     finally { button.disabled = false; }
   }
 
-  $('question-set-start').addEventListener('click', start);
+  $('question-set-simple').addEventListener('click', () => startFixed('simple'));
+  $('question-set-precise').addEventListener('click', () => startFixed('precise'));
+  api('/api/comparison/question-sets/fixed').then((sets) => {   // 버튼에 질문 수
+    for (const item of sets) {
+      const button = $('question-set-' + item.kind);
+      if (button) button.textContent = `${item.label} · ${item.questions}문항`;
+    }
+  }).catch(() => {});
   $('question-set-cancel').addEventListener('click', cancel);
   if ($('question-input-panel')) {
     $('question-input-mode-text').addEventListener('click', () => inputMode(false));
@@ -283,7 +328,7 @@
   }
   api('/api/comparison/question-sets').then((sets) => {
     if (touched) return;
-    render(sets.find((s) => !imported(s)) || null);
+    render(sets.find(fixed) || null);   // 이 패널은 고정 질문 세트만 — 예전 질문 생성 기록은 보이지 않는다
     if ($('question-input-panel')) render(sets.find(imported) || null, INPUT);
     poll();
   }).catch(() => { if (!touched) render(null); });

@@ -189,9 +189,12 @@
           entry.deltas && (entry.changes || []).length === 1 && !entry.attributable
             ? node('span', {class: 'history-cell-secondary', text: '미완료 질문이 있어 변화를 확정하지 않음'}) : null),
         node('td', {}, node('div', {class: 'history-row-actions'},
-          // 상세 보기 = 결과 비교의 실행 결과 화면으로 (사용자 요청 2026-10-14) — 변화 요인·평가 조건 창은 '기록 정보'로
-          node('button', {class: 'text-button', text: '상세 보기', onclick: () => W.openRun(entry.run_id)}),
-          node('button', {class: 'text-button', text: '기록 정보', onclick: () => openRunDetail(entry.run_id)}),
+          // 상세 보기 = 결과 비교의 실행 결과 화면으로 (사용자 요청 2026-10-14). 큰 실행은 결과를 받는 데 몇 초 걸려 누르는 즉시 '여는 중…'
+          node('button', {class: 'text-button', text: '상세 보기', onclick: async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true; button.textContent = '여는 중…';
+            try { await W.openRun(entry.run_id); } finally { button.disabled = false; button.textContent = '상세 보기'; }
+          }}),
           node('button', {class: 'text-button', text: '버전 비교 대상으로', onclick: () => compareRun(entry.run_id)}))));
     }));
     feedback(entries.length);

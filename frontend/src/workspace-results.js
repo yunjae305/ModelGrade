@@ -202,14 +202,24 @@
   }
 
   // J5 확인한 답변 부분 → 출처 문구 한 줄씩 — PASS·FAIL 모두 '어느 부분을 무엇과 대조했는지' 보이게 (사용자 요청 2026-10-14)
-  const CLAIM_VERDICT = {SUPPORTED: '출처와 일치', CONTRADICTED: '출처와 다름', UNVERIFIED: '출처 문구 재확인 못 함', PASS: '출처와 일치', FAIL: '출처와 다름'};
+  const CLAIM_VERDICT = {SUPPORTED: '출처와 일치', PASS: '출처와 일치', CONTRADICTED: '출처와 다름', UNVERIFIED: '확인 불가'};
+  // 서버의 출처 재확인 결과(verification_status) — verified 는 확인됨, 값이 없으면 재확인하지 않음, 그 밖은 실패
+  const RECHECK = {quote_not_found: '서버가 출처 페이지 본문에서 이 문구를 다시 찾지 못함', empty_quote: '평가 모델이 출처 문구를 적지 않아 재확인하지 않음',
+    source_limit: '재확인할 출처 수 한도를 넘어 재확인하지 않음', not_observed: '검색 기록에 없는 출처라 재확인하지 않음'};
+  const recheckNote = (status) => !status || status === 'verified' ? '' : ` (${RECHECK[status] || '서버가 출처 페이지를 다시 열지 못함: ' + status})`;
+  function claimVerdict(c) {
+    // FAIL 이라도 근거가 없어서(확인 불가) 나온 것이면 '출처와 다름'이라고 쓰지 않는다 — 사실 오류가 확정된 것만 '다름' (Codex)
+    if (c.verdict === 'FAIL') return c.reason_code === 'FACT_FALSE_CONFIRMED' || !(c.unverifiable || c.reason_code) ? '출처와 다름'
+      : '확인 불가' + (c.reason ? ` (${c.reason})` : '');
+    return CLAIM_VERDICT[c.verdict] || c.verdict || '판정 없음';
+  }
   function claimLines(decision, make) {
     const claims = decision?.fact_check?.claims || decision?.policy_original_assessment?.fact_check?.claims || [];
     return claims.slice(0, 8).map((c) => {
       const src = (c.sources || [])[0];
-      return make('p', {class: 'hint field-help', text: `답변 "${c.claim}" → ${CLAIM_VERDICT[c.verdict] || c.verdict || '판정 없음'}`
+      return make('p', {class: 'hint field-help', text: `답변 "${c.claim}" → ${claimVerdict(c)}`
         + (src ? ` · 출처: ${src.title || src.url}${src.quote ? ` "${src.quote}"` : ''}` : '')
-        + (src && src.quote_verified === false ? ' (서버가 출처 페이지 본문에서 이 문구를 다시 찾지 못함)' : '')});
+        + (src ? recheckNote(src.verification_status) : '')});
     });
   }
 

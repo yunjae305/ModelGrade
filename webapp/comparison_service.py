@@ -852,17 +852,41 @@ class ComparisonService:
         return self._code_recheck_cache[key]
 
     def aiona_history(self):
-        """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history)."""
+        """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history).
+
+        실행 결과 파일(수십 MB)을 모두 다시 읽어 계산하므로 느리다(10-14 실측 12초) — 완료 실행의 상태와 저장 파일(크기·수정 시각)이
+        그대로면 앞서 계산한 결과를 돌려준다."""
         with self._lock:
+            signature = self._history_signature()
+            cached = getattr(self, '_aiona_history_cache', None)
+            if cached is not None and cached[0] == signature:
+                return copy.deepcopy(cached[1])
+            completed = [status for status in self.history(limit=None) if status.get('status') == 'COMPLETED']
             runs = []
-            for status in self.history(limit=None):
-                if status.get('status') != 'COMPLETED':
-                    continue
+            for status in completed:
                 try:
                     runs.append(self.result(status['run_id']))
                 except (FileNotFoundError, ValueError, OSError):
                     continue
-            return aiona_history(runs)
+            value = aiona_history(runs)
+            # 결과를 읽으며 저장 실행이 메모리로 올라와 열쇠가 바뀐다 — 계산 뒤의 열쇠로 둬야 바로 다음 요청부터 캐시가 맞는다 (Codex)
+            self._aiona_history_cache = (self._history_signature(), copy.deepcopy(value))
+            return value
+
+    def _history_signature(self):
+        """이력 계산 캐시 열쇠 — 저장 실행 파일(이름·수정 시각·크기), 메모리의 실행(상태·리비전·종료 시각), 버전 등록부 파일.
+        파일 메타데이터만 읽어 가볍다 (Codex 리뷰: history() 로 모든 결과를 읽은 뒤 캐시를 보면 캐시가 소용없다)."""
+        def stamp(path):
+            try:
+                stat = path.stat()
+                return (path.name, stat.st_mtime_ns, stat.st_size)
+            except OSError:
+                return (path.name, None, None)
+        files = tuple(sorted(stamp(path) for path in self.save_dir.glob('*.json'))) if self.save_dir.is_dir() else ()
+        live = tuple(sorted((rid, run.get('status'), run.get('revision'), run.get('finished_at')) for rid, run in self._runs.items()))
+        registry = Path(self.version_registry.path)
+        registry_stamps = tuple(stamp(path) for path in (registry, registry.with_suffix('.sqlite3')) if path.exists())
+        return files, live, registry_stamps
 
     def manage_release(self, payload):
         with self._lock:
