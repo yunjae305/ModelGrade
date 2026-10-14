@@ -50,7 +50,7 @@ from .ingestion.sources import normalize_sources
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 # 질문 세트 실행에서 웹 자동화로 답을 받는 모델 — FactChat·우수AI 는 .env 로그인 정보가 있을 때. 키는 API 게이트웨이(factchat)·
 # 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
-WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web")
+WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web", "chatgpt_web", "gemini_web", "claude_web")
 PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web"})   # 사용자 결정 2026-10-14: 우수AI 는 당분간 수집하지 않음 (코드는 그대로, 여기서 빼면 다시 수집)
 WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델"}
 

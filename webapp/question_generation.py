@@ -1252,8 +1252,11 @@ class QuestionSetService:
         if sum(v for v in counts.values() if v) >= limit:   # 다른 항목에 쓸 질문이 1개 이상 남아야 한다 (Codex 리뷰: 상한 우회)
             raise ValueError(f"10턴 대화 수와 긴 문서 질문 수의 합은 {limit}개보다 작아야 합니다.")
         base = payload.get("base") or None   # "public": 공개 세트(IFEval-Ko·KoMT-Bench)가 이미 덮는 기준은 목표에서 뺀다
-        if base not in (None, "public"):
-            raise ValueError("base 는 비우거나 'public' 이어야 합니다.")
+        if base is not None:                 # "public" 또는 "public,qs-…"(앞서 만든 세트의 적용 수도 더함 — 모자란 기준만 이어서 채우기)
+            parts = [x.strip() for x in str(base).split(",") if x.strip()]
+            if not parts or parts[0] != "public" or any(not self._path(x).joinpath("questions.json").is_file() for x in parts[1:]):
+                raise ValueError("base 는 비우거나 'public' 또는 'public,<완료된 세트 id>' 여야 합니다.")
+            base = ",".join(parts)
         weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
         weak_units: List[Dict[str, str]] = []
         if weak_from:
@@ -1297,9 +1300,13 @@ class QuestionSetService:
 
         try:
             base_counts = None
-            if job.get("base") == "public":   # 공개 세트가 이미 덮는 기준을 세어 생성 목표에서 뺀다 (모델 호출 없음, 1~2분)
+            if job.get("base"):   # 공개 세트(+앞서 만든 세트)가 이미 덮는 기준을 세어 생성 목표에서 뺀다 (모델 호출 없음, 1~2분)
                 progress("plan", {"message": "공개 질문(IFEval-Ko·KoMT-Bench)의 기준별 적용 수를 세는 중"})
                 base_counts = public_pool_counts()
+                for prev in str(job["base"]).split(",")[1:]:
+                    groups_prev = json.loads(self._path(prev).joinpath("questions.json").read_text(encoding="utf-8"))
+                    for key, n in target_counts(check(groups_prev)).items():
+                        base_counts[key] = base_counts.get(key, 0) + n
                 with self._lock:
                     job["base_counts"] = base_counts
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)

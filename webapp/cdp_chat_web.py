@@ -1,0 +1,403 @@
+"""ChatGPT·Gemini·Claude 웹 수집 — 수집용 Chrome(tools/chrome_cdp.py, 디버깅 포트 9222)에 붙어 각 사이트 탭에서 질문을 보내고 답을 받는다.
+
+사용자 결정 2026-10-15: 세 모델 모두 로그인 상태의 웹 화면으로 수집(답변 수집은 API 대신 웹브라우저). 로그인·봇 확인은 사용자가 그 Chrome 창에서
+직접 하고, 프로그램은 자격 증명을 다루지 않으며 봇 확인을 우회하지 않는다(막히면 고정 문구로 오류를 남긴다).
+새 채팅마다 모델 설정을 맞춘다 — ChatGPT: Chat 모드·GPT-6 Luna·파워 Medium / Gemini: 자동 모드·사고 수준 보통 / Claude: Sonnet 5.5·노력 중간.
+
+- 채팅 하나로 멀티턴(대화는 new_chat 뒤 같은 탭에서 턴 순서대로), 첨부는 파일 입력에 그대로, 긴 참조 자료(J7)는 TXT 파일로 올린다(AIONA 와 같음).
+- 답변은 사이트의 복사 버튼 원문(클립보드 가로채기)으로 받고, 복사가 안 되면 답변 영역의 글을 쓴다(capture 에 표시).
+- 화면 구조(2026-10-15 수집용 Chrome 에서 확인): 아래 각 클래스 상수. 바뀌면 상수만 고친다.
+"""
+from __future__ import annotations
+
+import re
+import tempfile
+import threading
+import time
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
+from .code_eval_service import ROOT
+from .factchat_web import COPY_CAPTURE_JS
+
+__all__ = ["CDP_WEB_VERSION", "CdpWebError", "cdp_login_status", "ChatGptChat", "GeminiChat", "ClaudeChat", "CDP_CHATS", "CDP_PROVIDERS"]
+
+CDP_WEB_VERSION = "cdp-web-v1"
+REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료는 입력칸 대신 TXT 파일로 올린다 (AIONA 와 같음)
+#: 세 사이트가 같은 Chrome 을 쓰므로 메뉴 조작·전송은 한 번에 하나씩 — 탭 간 포커스 경쟁을 막는다
+_CHROME_LOCK = threading.Lock()
+#: 한도·봇 확인 문구 — 보이면 기다리지 않고 오류로 남긴다 (우회하지 않음)
+_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지", "Cloudflare", "너무 많은 요청", "Too many requests",
+            "사용량 한도", "usage limit", "한도에 도달", "메시지 한도", "limit reached", "다시 시도해 주세요. 잠시 후")
+
+
+class CdpWebError(RuntimeError):
+    pass
+
+
+def cdp_login_status() -> Dict[str, Any]:
+    """'연결된 모델' 화면용 — 수집용 Chrome 이 떠 있는지(포트 응답)와 열린 사이트 탭. 자격 증명은 다루지 않는다."""
+    from tools.chrome_cdp import PROFILE, status
+    st = status()
+    tabs = [t["url"] for t in st["tabs"]]
+    return {"method": "웹브라우저 (수집용 Chrome, 로그인 상태)", "version": CDP_WEB_VERSION, "credentials": st["ok"],
+            "credentials_source": "python tools/chrome_cdp.py 로 띄운 Chrome 에서 사용자가 직접 로그인",
+            "profile_saved": (PROFILE / "Default").is_dir(),
+            "tabs": {name: any(host in u for u in tabs) for name, host in (("chatgpt", "chatgpt.com"), ("gemini", "gemini.google.com"), ("claude", "claude.ai"))}}
+
+
+class _CdpChat:
+    """공통 — 연결·탭·전송·대기·복사. 사이트별 값은 하위 클래스 상수."""
+    NAME = ""
+    HOST = ""
+    NEW_URL = ""
+    MODEL_LABEL = ""          # 결과에 남길 모델 이름
+    TEXTBOX_NAME = ""         # 입력칸 textbox 의 접근성 이름(앞부분)
+    ANSWER_SELECTOR = ""      # 답변 말풍선
+    COPY_NAMES: tuple = ()    # 답변 복사 버튼 이름 후보 (마지막 것을 누른다)
+    FILE_INPUT = ""           # 숨은 파일 input (없으면 메뉴 → 파일 선택 창)
+    STOP_NAMES: tuple = ()    # 답하는 동안 보이는 정지 버튼 이름
+
+    def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
+                 answer_timeout_s: int = 600) -> None:
+        self.debug_dir, self.cancelled, self.answer_timeout_s = debug_dir, cancelled or (lambda: False), answer_timeout_s
+        self.page: Any = None
+        self._playwright = self._browser = None
+        self._temp = tempfile.TemporaryDirectory(prefix=f"{self.NAME}-ref-")
+        self.model_seen: Optional[str] = None
+
+    # --- 연결 ---------------------------------------------------------------------------------------
+    def __enter__(self) -> "_CdpChat":
+        from tools.chrome_cdp import CDP_URL, status
+        if not status()["ok"]:
+            raise CdpWebError("수집용 Chrome 이 떠 있지 않습니다 — python tools/chrome_cdp.py 로 띄우고 로그인하세요.")
+        from playwright.sync_api import sync_playwright
+        self._playwright = sync_playwright().start()
+        try:
+            self._browser = self._playwright.chromium.connect_over_cdp(CDP_URL)
+            context = self._browser.contexts[0]
+            self.page = next((pg for pg in context.pages if self.HOST in pg.url and not pg.is_closed()), None) or context.new_page()
+            self.page.add_init_script(COPY_CAPTURE_JS)
+        except BaseException:
+            self._close()
+            raise
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self._close()
+
+    def _close(self) -> None:
+        try:
+            if self._browser is not None:
+                self._browser.close()   # CDP 연결만 끊는다 — Chrome 창과 로그인 상태는 그대로
+        except Exception:
+            pass
+        try:
+            if self._playwright is not None:
+                self._playwright.stop()
+        except Exception:
+            pass
+        self._browser = self._playwright = None
+        self._temp.cleanup()
+
+    def _snapshot(self, label: str) -> Optional[str]:
+        if not self.debug_dir or self.page is None:
+            return None
+        try:
+            self.debug_dir.mkdir(parents=True, exist_ok=True)
+            path = self.debug_dir / f"{int(time.time())}-{label}.png"
+            self.page.screenshot(path=str(path))
+            return str(path)
+        except Exception:
+            return None
+
+    # --- 채팅 ---------------------------------------------------------------------------------------
+    def new_chat(self) -> None:
+        with _CHROME_LOCK:
+            self.page.goto(self.NEW_URL, wait_until="domcontentloaded")
+            self.page.wait_for_timeout(4000)
+            self.page.evaluate(COPY_CAPTURE_JS)
+            self._check_blocked()
+            try:
+                self.model_seen = self._apply_model()
+            except Exception as exc:
+                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__})"
+                self._snapshot("model-settings-failed")
+
+    def _apply_model(self) -> str:   # 사이트별 — 설정을 맞추고 화면에 보이는 모델 표시를 돌려준다
+        return self.MODEL_LABEL
+
+    def _check_blocked(self) -> None:
+        text = self.page.evaluate("() => document.body.innerText.slice(0, 4000)") or ""
+        hit = next((p for p in _BLOCKED if p.lower() in text.lower()), None)
+        if hit:
+            self._snapshot("blocked")
+            raise CdpWebError(f"{self.NAME} 화면이 막혀 있습니다(한도 또는 봇 확인: '{hit}') — Chrome 창에서 직접 확인하세요.")
+
+    def _answers(self) -> Any:
+        return self.page.locator(self.ANSWER_SELECTOR)
+
+    def _menu_pick(self, opener_role: str, opener_name: str, path: List[str], *, exact_last: bool = False) -> None:
+        """메뉴를 열고(path 의 중간 항목은 하위 메뉴) 마지막 항목을 누른다."""
+        opener = self.page.get_by_role(opener_role, name=opener_name).first
+        opener.click(timeout=5000)
+        self.page.wait_for_timeout(700)
+        for i, name in enumerate(path):
+            last = i == len(path) - 1
+            item = None
+            for role in ("menuitemradio", "menuitem", "menuitemcheckbox", "option"):
+                cand = self.page.get_by_role(role, name=name, exact=exact_last and last)
+                if cand.count():
+                    item = cand.first
+                    break
+            if item is None:
+                raise CdpWebError(f"{self.NAME} 메뉴 항목 '{name}' 이 없습니다")
+            item.hover()
+            self.page.wait_for_timeout(400)
+            item.click(timeout=5000)
+            self.page.wait_for_timeout(800)
+        self.page.keyboard.press("Escape")
+        self.page.wait_for_timeout(300)
+
+    def _upload(self, files: List[Path]) -> None:
+        if self.FILE_INPUT:
+            self.page.locator(self.FILE_INPUT).first.set_input_files([str(f) for f in files])
+        else:
+            self._upload_via_menu(files)
+        self.page.wait_for_timeout(2500 + 1500 * len(files))   # 업로드 처리 시간 — 미리보기가 붙을 때까지 (크면 더)
+
+    def _upload_via_menu(self, files: List[Path]) -> None:
+        raise CdpWebError(f"{self.NAME} 파일 업로드 경로가 없습니다")
+
+    def _copy_last_answer(self) -> Optional[str]:
+        before = self.page.evaluate("() => (window.__mgCopied || []).length")
+        for name in self.COPY_NAMES:
+            btns = self.page.get_by_role("button", name=name)
+            if not btns.count():
+                continue
+            try:
+                btns.last.scroll_into_view_if_needed(timeout=2000)
+                btns.last.click(timeout=3000)
+                self.page.wait_for_timeout(600)
+                copied = self.page.evaluate("() => window.__mgCopied || []")
+                if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
+                    return copied[-1]
+            except Exception:
+                continue
+        return None
+
+    def _last_answer_text(self) -> str:
+        try:
+            return self._answers().last.inner_text(timeout=2000)
+        except Exception:
+            return ""
+
+    def _streaming(self) -> bool:
+        return any(self.page.get_by_role("button", name=n).count() for n in self.STOP_NAMES)
+
+    def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
+        """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
+        started = time.monotonic()
+        files = list(files or [])
+        sent = [{"name": f.name, "how": "파일 그대로"} for f in files]
+        text = question
+        if reference not in (None, "", {}, []):
+            reference_text = reference if isinstance(reference, str) else str(reference)
+            if len(reference_text) > REFERENCE_FILE_CHARS:
+                path = Path(self._temp.name) / "참조자료.txt"
+                path.write_text(reference_text, encoding="utf-8")
+                files.append(path)
+                sent.append({"name": path.name, "how": "참조 자료를 TXT 파일로 올림"})
+            else:
+                text = f"[참조 자료]\n{reference_text}\n\n{question}"
+        base = {"url": None, "sent": sent, "model": self.model_seen or self.MODEL_LABEL, "method": CDP_WEB_VERSION}
+        before = self._answers().count()
+        try:
+            with _CHROME_LOCK:
+                if self.cancelled():
+                    raise CdpWebError("중단 요청으로 질문을 보내지 않음")
+                self.page.bring_to_front()
+                self._check_blocked()
+                if files:
+                    self._upload(files)
+                box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
+                box.click(timeout=10_000)
+                self.page.keyboard.insert_text(text)
+                self.page.wait_for_timeout(600)
+                self.page.keyboard.press("Enter")
+                # 질문이 올라갔는지 — 답변 말풍선이 생기거나 정지 버튼이 보이면 보낸 것
+                sent_ok = False
+                for _ in range(40):
+                    self.page.wait_for_timeout(500)
+                    if self._answers().count() > before or self._streaming():
+                        sent_ok = True
+                        break
+                if not sent_ok:
+                    self._check_blocked()
+                    raise CdpWebError("전송 뒤에도 답변이 시작되지 않음")
+        except Exception as exc:
+            return {**base, "answer": "", "status": "ERROR", "url": self.page.url,
+                    "error": (str(exc)[:300] if isinstance(exc, CdpWebError) else f"질문을 보내지 못했습니다: {type(exc).__name__}"),
+                    "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("send-failed")}
+        deadline = time.monotonic() + self.answer_timeout_s
+        last, stable = None, 0
+        while time.monotonic() < deadline:
+            self.page.wait_for_timeout(1500)
+            if self.cancelled():
+                break
+            if self._streaming():
+                stable = 0
+                continue
+            current = self._last_answer_text()
+            stable = stable + 1 if current == last else 0
+            last = current
+            if stable >= 2 and self._answers().count() > before:
+                break
+        done = stable >= 2 and self._answers().count() > before
+        answer, capture = (last or ""), "text"
+        if done:
+            with _CHROME_LOCK:
+                self.page.bring_to_front()
+                copied = self._copy_last_answer()
+            if copied and copied.strip():
+                answer, capture = copied, "copy-button"
+            elif not answer.strip():
+                done = False
+        if done:
+            try:
+                self._check_blocked()   # 한도 문구가 답 대신 왔는지
+            except CdpWebError as exc:
+                return {**base, "answer": "", "status": "ERROR", "error": str(exc)[:300], "url": self.page.url,
+                        "latency_ms": round((time.monotonic() - started) * 1000)}
+        return {**base, "answer": answer if done else "", "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture, "url": self.page.url,
+                "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.",
+                **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
+                "latency_ms": round((time.monotonic() - started) * 1000)}
+
+
+class ChatGptChat(_CdpChat):
+    """chatgpt.com — 로그인(Plus) · Chat 모드 · 모델 GPT-6 Luna · 파워 Medium (사용자 결정 2026-10-15)."""
+    NAME = "ChatGPT"
+    HOST = "chatgpt.com"
+    NEW_URL = "https://chatgpt.com/"
+    MODEL_LABEL = "GPT-6 Luna · Medium (웹)"
+    TEXTBOX_NAME = "ChatGPT"
+    ANSWER_SELECTOR = "[data-message-author-role='assistant']"
+    COPY_NAMES = ("메시지 복사", "복사", "Copy")
+    FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
+    STOP_NAMES = ("스트리밍 중지", "Stop streaming", "중지")
+    MODEL_MENU = "ChatGPT 모델 선택"
+
+    def _apply_model(self) -> str:
+        chat = self.page.get_by_role("button", name="Chat")
+        if chat.count():
+            try:
+                chat.first.click(timeout=2000)
+                self.page.wait_for_timeout(500)
+            except Exception:
+                pass
+        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", "GPT-6 Luna"], exact_last=True)
+        try:
+            self._menu_pick("button", self.MODEL_MENU, ["파워", "Medium"], exact_last=True)
+            power = "Medium"
+        except CdpWebError:
+            power = "파워 메뉴 없음"
+        label = self.page.get_by_role("button", name=self.MODEL_MENU).first.inner_text(timeout=2000).strip().replace("\n", " ")
+        return f"{label or 'GPT-6 Luna'} · {power} (웹)"
+
+
+class GeminiChat(_CdpChat):
+    """gemini.google.com — 로그인(무료) · 자동 모드 · 사고 수준 보통 (사용자 결정 2026-10-15)."""
+    NAME = "Gemini"
+    HOST = "gemini.google.com"
+    NEW_URL = "https://gemini.google.com/app"
+    MODEL_LABEL = "Gemini 자동 모드 · 사고 수준 보통 (웹)"
+    TEXTBOX_NAME = "Gemini 프롬프트 입력"
+    ANSWER_SELECTOR = "model-response"
+    COPY_NAMES = ("대답 복사", "응답 복사", "복사", "Copy response")
+    FILE_INPUT = ""
+    STOP_NAMES = ("응답 중지", "Stop response", "중지")
+    MODE_MENU = "모드 선택 도구 열기"
+
+    def _apply_model(self) -> str:
+        self._menu_pick("button", self.MODE_MENU, ["자동 모드"])
+        self._menu_pick("button", self.MODE_MENU, ["사고 수준", "보통"])
+        label = self.page.get_by_role("button", name=self.MODE_MENU).first.get_attribute("aria-label") or ""
+        return f"{label.replace('모드 선택 도구 열기, 현재 ', '').replace(' 모드 사용 중', '') or 'Gemini 자동 모드'} · 사고 수준 보통 (웹)"
+
+    def _upload_via_menu(self, files: List[Path]) -> None:
+        for f in files:
+            with self.page.expect_file_chooser(timeout=10_000) as chooser:
+                self.page.get_by_role("button", name="업로드 및 도구").first.click(timeout=5000)
+                self.page.wait_for_timeout(600)
+                item = self.page.get_by_role("menuitem", name=re.compile("파일|업로드"))
+                item.first.click(timeout=5000)
+            chooser.value.set_files(str(f))
+            self.page.wait_for_timeout(1500)
+
+    def _copy_last_answer(self) -> Optional[str]:
+        # 답변 복사 버튼은 마지막 model-response 안(또는 '옵션 더보기' 메뉴)에 있다 — 프롬프트 복사 버튼과 구분한다
+        before = self.page.evaluate("() => (window.__mgCopied || []).length")
+        last = self._answers().last
+        try:
+            btn = last.locator("[data-test-id='copy-button'], button[aria-label*='복사']").last
+            if btn.count():
+                btn.click(timeout=3000)
+                self.page.wait_for_timeout(600)
+                copied = self.page.evaluate("() => window.__mgCopied || []")
+                if len(copied) > before and copied[-1].strip():
+                    return copied[-1]
+            more = last.get_by_role("button", name=re.compile("옵션 더보기|더보기"))
+            if more.count():
+                more.last.click(timeout=3000)
+                self.page.wait_for_timeout(600)
+                item = self.page.get_by_role("menuitem", name=re.compile("복사"))
+                if item.count():
+                    item.first.click(timeout=3000)
+                    self.page.wait_for_timeout(600)
+                    copied = self.page.evaluate("() => window.__mgCopied || []")
+                    if len(copied) > before and copied[-1].strip():
+                        return copied[-1]
+                self.page.keyboard.press("Escape")
+        except Exception:
+            pass
+        return None
+
+    def _last_answer_text(self) -> str:
+        try:
+            return self._answers().last.locator("message-content").first.inner_text(timeout=2000)
+        except Exception:
+            return ""
+
+
+class ClaudeChat(_CdpChat):
+    """claude.ai — 로그인(유료) · 매 채팅 Sonnet 5.5 · 노력 중간 (사용자 결정 2026-10-15)."""
+    NAME = "Claude"
+    HOST = "claude.ai"
+    NEW_URL = "https://claude.ai/new"
+    MODEL_LABEL = "Claude Sonnet 5.5 · 노력 중간 (웹)"
+    TEXTBOX_NAME = "Claude에게 프롬프트"
+    ANSWER_SELECTOR = "[data-testid='assistant-message']"
+    COPY_NAMES = ("복사", "Copy")
+    FILE_INPUT = "input[type=file][aria-label='파일 업로드']"
+    STOP_NAMES = ("응답 중지", "Stop response", "중지")
+
+    def _apply_model(self) -> str:
+        opener = re.compile(r"^모델: ")
+        self._menu_pick("button", opener, ["Sonnet 5.5"])
+        self._menu_pick("button", opener, ["노력", "중간"])
+        label = self.page.get_by_role("button", name=opener).first.inner_text(timeout=2000).strip().replace("\n", " ")
+        return f"{label or 'Sonnet 5.5 중간'} (웹)"
+
+    def _streaming(self) -> bool:
+        if super()._streaming():
+            return True
+        last = self._answers().last
+        try:
+            return last.count() > 0 and last.get_attribute("data-is-streaming") == "true"
+        except Exception:
+            return False
+
+
+CDP_CHATS = {"chatgpt_web": ChatGptChat, "gemini_web": GeminiChat, "claude_web": ClaudeChat}
+CDP_PROVIDERS = tuple(CDP_CHATS)
