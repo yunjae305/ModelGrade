@@ -16,7 +16,7 @@
   // 패널마다 상태 — 생성(gen)과 직접 넣기(input)가 같은 확인·평가 시작 화면을 쓴다
   const GEN = {status: 'question-set-status', error: 'question-set-error', body: 'question-set-body', current: null, runBox: 'question-set-run'};
   const INPUT = {status: 'question-input-status', error: 'question-input-error', body: 'question-input-body', current: null, runBox: 'question-input-run'};
-  let timer = null, touched = false;   // touched: 사용자가 시작한 뒤에는 늦게 온 첫 목록 응답을 쓰지 않는다
+  let timer = null;
   const previews = new Map();   // 세트 ID → 확인용 질문 목록 (한 번만 받아 온다)
 
   function showError(message, panel = GEN) {
@@ -242,7 +242,6 @@
   async function startFixed(kind) {
     if (GEN.starting) return;
     showError('', GEN);
-    touched = true;
     const owner = 'create:' + kind;   // 세트를 만드는 동안에도 패널을 잡아 예전 세트의 수집 버튼이 눌리지 않게 (Codex)
     GEN.starting = owner; fillRun(GEN); updateBusy(GEN);
     try {
@@ -306,7 +305,6 @@
       payload = {text, name: '직접 입력', source: 'manual'};
     }
     if (INPUT.starting) return showError('답변 수집을 시작하는 중입니다. 끝난 뒤 다시 넣어 주세요.', INPUT);
-    touched = true;
     const owner = 'import';   // 질문을 넣는 동안에도 패널을 잡는다 (Codex)
     INPUT.starting = owner; fillRun(INPUT); updateBusy(INPUT);
     try {   // 질문을 넣고 바로 답변 수집 — 평가는 모두 받은 뒤 '평가 진행'으로 (사용자 요청 2026-10-14)
@@ -339,16 +337,19 @@
     });
     $('question-input-submit').addEventListener('click', submitQuestions);
   }
-  api('/api/comparison/question-sets').then((sets) => {
-    if (touched) return;
-    // 이 패널은 고정 질문 세트만, 그것도 수집 중이거나 평가를 기다리는 실행만 이어서 보인다 — 끝났거나 중단된 지난 실행은 보이지 않는다 (사용자 요청 2026-10-14)
-    const last = sets.find(fixed);
-    if (last?.run_id) {
-      api(`/api/comparison/runs/${encodeURIComponent(last.run_id)}`)
-        .then((run) => { if (!touched && ['COLLECTING', 'READY', 'EVALUATING'].includes(run.status)) { GEN.run = run; render(last); } })
-        .catch(() => {});
+  // 새 비교 = 새로 답변을 모아 평가하는 것 — 열 때마다 두 칸을 비운다. 지난 실행은 결과 비교·이력 관리에서 본다 (사용자 요청 2026-10-14).
+  // 수집을 시작하는 중인 칸만은 그대로 둔다(시작 응답이 와야 실행이 잡힌다)
+  function resetPanels() {
+    for (const panel of [GEN, INPUT]) {
+      if (panel.starting || !$(panel.body)) continue;
+      clearTimeout(panel.timer);
+      panel.current = null; panel.run = null; panel.failures = 0;
+      showError('', panel);
+      render(null, panel);
     }
-    if ($('question-input-panel')) render(sets.find(imported) || null, INPUT);
-    poll();
-  }).catch(() => { if (!touched) render(null); });
+    if ($('question-input-text') && !INPUT.starting) $('question-input-text').value = '';
+  }
+  window.addEventListener('aiona:setup-open', resetPanels);
+  render(null);
+  if ($('question-input-panel')) render(null, INPUT);
 })();
