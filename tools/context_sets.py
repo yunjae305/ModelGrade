@@ -6,10 +6,10 @@
     python tools/context_sets.py check data/context_sets/j6-stress-v1 [--json]               # 사전 점검 (다시 만들 수 있는지 포함)
 
 공통 원칙
-- 공식 규칙(J6 multi-turn-v2, J7 long-context-v3.1-272k)은 바꾸지 않는다. 세트는 그 규칙으로 적용 여부를 그대로 센다.
+- 공식 규칙(J6 multi-turn-v1, J7 long-context-v3.1-272k)은 바꾸지 않는다. 세트는 그 규칙으로 적용 여부를 그대로 센다.
 - 대화 하나 = 독립 시험 단위 1개 (턴 수로 세지 않는다). J7 은 길이마다 문서 하나 = 1개.
-- 모델 답변 길이와 무관하게 같은 사용자 시나리오: B 는 11턴이고 사용자 턴마다 10K 토큰(o200k) 이상이라 공식 규칙(10턴 이상 · 대화 전체 10K 토큰)이
-  어떤 답변에서도 채워진다. A 는 짧은 대화라 공식 규칙에서는 J6 해당 없음, '2턴 이상' 제안 규칙에서만 적용된다 (그대로 보고).
+- 모델 답변 길이와 무관하게 같은 사용자 시나리오: B 는 사용자 턴만으로 10K 토큰(o200k) 이상이라 공식 규칙의 '긴 턴 10개'가 어떤
+  답변에서도 채워진다. A 는 짧은 대화라 공식 규칙에서는 J6 해당 없음, '2턴 이상' 제안 규칙에서만 적용된다 (그대로 보고).
 - 자료는 업무 기록(회의록·견적·문의·장애·일정·메일)을 레코드마다 다른 값·번호로 만든다 — 같은 문장 반복으로 채우지 않는다
   (중복 문장 비율을 매니페스트에 남긴다). 정답 사실은 표시 없이 같은 형식의 레코드로 넣고, 비슷한 오답 레코드를 함께 둔다.
 - 행마다 기대 행동·적용 기준·검증할 맥락·정답 조건(코드로 확인하는 must/must_not)·올바른 답 예시·의도적인 실패 답을 둔다.
@@ -493,7 +493,7 @@ def check_set(folder: Path) -> Dict[str, Any]:
                 if not good["passed"] or bad["passed"] or missing:
                     problems.append(f"{conv} T{number}")
             conversations.append({"id": conv, "turns": len(turns), "official_multi_turn": measure.get("multi_turn"),
-                                  "tokens_question_only": measure.get("tokens"),
+                                  "turns_question_only": measure.get("turns"), "tokens_question_only": measure.get("tokens"),
                                   "two_turn_rule": len(turns) >= 2, "min_user_tokens": min(c["user_tokens"] for c in checks),
                                   "checks": checks})
         report["units"] = conversations
@@ -520,7 +520,7 @@ def render(report: Dict[str, Any]) -> str:
     else:
         lines.append(f"- 공식 J6({multi_turn.MULTI_TURN_POLICY_VERSION}) 적용 대화 {report['j6_official_units']}개 · '2턴 이상' 규칙 {report['j6_two_turn_units']}개 "
                      f"/ {len(report['units'])} (대화 1개 = 시험 1개, 답변 없이 잰 하한)")
-        lines += ["", "| 대화 | 턴 | 공식 J6 | 대화 토큰(질문만) | 사용자 턴 최소 토큰 | 올바른 답 통과 | 실패 답 걸러냄 |", "|---|---:|---|---:|---:|---|---|"]
+        lines += ["", "| 대화 | 턴 | 공식 J6 | 대화 전체 토큰(질문만) | 사용자 턴 최소 토큰 | 올바른 답 통과 | 실패 답 걸러냄 |", "|---|---:|---|---:|---:|---|---|"]
         for c in report["units"]:
             lines.append(f"| {c['id']} | {c['turns']} | {c['official_multi_turn']} | {c['tokens_question_only']:,} | {c['min_user_tokens']:,} | "
                          f"{sum(x['good_passes'] for x in c['checks'])}/{len(c['checks'])} | {sum(x['bad_detected'] for x in c['checks'])}/{len(c['checks'])} |")

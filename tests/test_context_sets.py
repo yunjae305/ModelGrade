@@ -1,6 +1,6 @@
 """J6 멀티턴·J7 롱컨텍스트 시험 세트 생성기 (tools/context_sets.py, 10-14 4차) — API 호출 없음.
 
-공식 규칙(multi-turn-v2·long-context-v3.1-272k)으로 적용 여부를 그대로 세는지, 정답 조건이 올바른 답은 통과·의도적 실패 답은 걸러내는지,
+공식 규칙(multi-turn-v1·long-context-v3.1-272k)으로 적용 여부를 그대로 세는지, 정답 조건이 올바른 답은 통과·의도적 실패 답은 걸러내는지,
 근거 문장이 그 턴·문서에 실제로 있는지, 같은 시드면 같은 데이터인지 본다.
 """
 import hashlib
@@ -11,7 +11,7 @@ from code_eval import long_context, multi_turn
 from tools.context_sets import (build_j6_set, build_j7_case, build_j7_set, check_answer, check_set, duplicate_ratio, grade,
                                 write_set)
 
-# 공식 J6 길이 조건(10턴 이상 · 대화 전체 10K 토큰)을 실제 값으로 둔다 — conftest 는 기본으로 끈다
+# 공식 J6 길이 조건(multi-turn-v2: 10턴 이상 · 대화 전체 10K 토큰)을 실제 값으로 둔다 — conftest 는 기본으로 끈다
 pytestmark = pytest.mark.multi_turn_rule
 
 
@@ -22,7 +22,7 @@ def test_stress_conversation_is_multi_turn_under_the_official_rule_for_any_answe
     # 답변 없이 재도 사용자 턴만으로 11턴 · 대화 전체 10K 토큰 이상 — 어떤 모델 답변이 붙어도 J6 대상 (모델별 자기 답변 길이와 무관)
     measure = multi_turn.measure_conversation([(r["turn"], r["question"], "") for r in rows])
     assert measure["multi_turn"] is True and measure["turns"] == 11 and measure["tokens"] >= multi_turn.MIN_TOTAL_TOKENS
-    assert all(long_context.count_tokens(r["question"]) >= 10_000 for r in rows)   # 장문 시험 프로필: 사용자 턴마다 10K+
+    assert all(long_context.count_tokens(r["question"]) >= 10_000 for r in rows)   # 스트레스 프로필: 사용자 턴마다 10K 이상
     assert all(r["answer"] == "" for r in rows)   # 질문 초안
 
 

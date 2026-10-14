@@ -88,8 +88,8 @@ def main():
                 expect(page.locator('#criteria-reference-error')).to_be_hidden()
                 expect(page.locator('#criteria-reference-retry')).to_be_hidden()
                 for label, target in (
-                    ('공통 형식·수치 기준', '#criteria-common-title'),
-                    ('답변 내용 기준', '#criteria-semantic-title'),
+                    ('CODE평가', '#criteria-common-title'),
+                    ('LLM의미평가', '#criteria-semantic-title'),
                     ('AIONA 특화 기준', '#criteria-specialized-title'),
                 ):
                     criteria.get_by_role('button', name=re.compile(label)).click()

@@ -503,9 +503,9 @@ class AnthropicSemanticClient:
         static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled)
         pictures = attachment_images.labelled_blocks("claude", images) if images else []
         content = static + "\n" + dynamic
+        shared_key = None
         if pictures:
             content = [{"type": "text", "text": static + "\n"}, *pictures, {"type": "text", "text": dynamic}]
-        shared_key = None
         # items 는 질문마다 앞부분(항목 목록·적용 근거·제출 스키마)이 달라 질문끼리 캐시를 나눠 쓰지 못한다 — 검색 도구가 붙어
         # 같은 요청 안의 검색 반복 입력을 캐시로 읽을 때만 표시한다(검색 없는 요청은 저장 비용만 든다). legacy 는 기준 조합별로 공유된다.
         if self.config.prompt_cache and items_mode and search_enabled:
@@ -517,7 +517,7 @@ class AnthropicSemanticClient:
         elif self.config.prompt_cache and not items_mode:
             # legacy — 지시문 → history 턴 블록 → 현재 질문·자료 → 답변 순서로 나눠, 같은 대화의 다음 턴은 앞 턴을, 같은 질문의
             # 다른 모델은 긴 자료를 캐시로 읽는다 (2026-10-14 비용 결정, 내용은 같은 원문). 캐시 표시는 최대 3개(한도 4).
-            # 첨부 그림은 캐시 없는 요청과 같이 지시문 뒤·평가 대상 앞에 둔다.
+            # 첨부 그림(judge-attachment-images-v1)은 공통 지시문 블록 바로 뒤·평가 대상 앞에 둔다.
             blocks = semantic.build_prompt_blocks(state, questions, search_enabled)
             content = [{"type": "text", "text": text, **({"cache_control": {"type": "ephemeral"}} if cached else {})}
                        for text, cached in blocks]

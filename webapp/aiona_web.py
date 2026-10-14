@@ -12,7 +12,9 @@
   않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
 - AIONA 가 답을 못 내면 답변 칸 없이 '생각을 중단했습니다 · 처리 중 오류가 생겨 멈췄습니다'(``span[role=status]``)가 뜬다 —
   기다리지 않고 그 사유를 담아 수집 오류(ERROR)로 남긴다 (2026-10-14 실제 수집: '아무것도 출력하지 마.').
-- 답변 본문(HTML)은 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
+- 답변은 답변 아래 '복사' 버튼(``button[title=복사]``)이 클립보드에 넣는 원문으로 받는다 (2026-10-14 사용자 결정 — FactChat·우수AI 와
+  같음). 복사 버튼을 못 쓰면 답변 본문(HTML)을 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
+- 첨부 파일은 하나씩 올린다 — 여러 개를 한 번에 넣으면 첫 파일만 붙었다 (2026-10-14 Q296, PDF 2개).
 - 봇 확인·추가 인증 화면이 나오면 멈추고 사람에게 넘긴다 — 우회하지 않는다.
 - 같은 Chrome 프로필은 한 번에 한 브라우저만 연다(프로필 잠금 — 실행이 겹치면 뒤 실행이 기다린다). 로그인 실패는 고정 문구로만
   알린다 — Playwright 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰).
@@ -34,8 +36,9 @@ __all__ = ["AIONA_URL", "PROFILE", "AIONA_WEB_VERSION", "AionaWebError", "creden
 
 AIONA_URL = "https://winz.aiona.kr"
 PROFILE = ROOT / "data" / "browser_profiles" / "aiona"
-AIONA_WEB_VERSION = "aiona-web-v1"
+AIONA_WEB_VERSION = "aiona-web-v2"
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 대신 TXT 파일로 올린다
+USER_MESSAGE = "div.space-y-4 > div.flex.justify-end"   # 내 질문 칸
 _POPUPS = ("나중에", "계속 묻지 않기", "괜찮습니다.", "건너뛰기")   # 설문·저장 안내·첫 방문 안내
 
 
@@ -68,7 +71,7 @@ def login_status(env_path: Optional[Path] = None, profile: Optional[Path] = None
     아이디·비밀번호 값은 돌려주지 않는다 (사용자 결정 2026-10-14: 로그인 정보는 화면이 아니라 .env 에만 넣는다)."""
     path = env_path or ROOT / ".env"
     has = bool(env_value("AIONA_LOGIN_ID", None, path)) and bool(env_value("AIONA_LOGIN_PASSWORD", None, path))
-    return {"name": "AIONA", "url": AIONA_URL, "version": AIONA_WEB_VERSION, "method": "웹페이지 자동화(브라우저)",
+    return {"name": "AIONA", "url": AIONA_URL, "version": AIONA_WEB_VERSION, "method": "웹브라우저",
             "credentials": has, "credentials_source": ".env (AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD)",
             "profile_saved": ((profile or PROFILE) / "Default").is_dir()}
 
@@ -107,6 +110,7 @@ class AionaChat:
         self._playwright = self._context = self.page = None
         self._temp = tempfile.TemporaryDirectory(prefix="aiona-ref-")
         self._lock: Optional[threading.Lock] = None
+        self._intent_as_is = False   # 이번 질문에서 의도 감지 안내의 '그냥 보내기'를 눌렀는지
 
     def __enter__(self) -> "AionaChat":
         lock = _profile_lock(self.profile)
@@ -122,6 +126,8 @@ class AionaChat:
             self.profile.mkdir(parents=True, exist_ok=True)
             self._context = self._playwright.chromium.launch_persistent_context(
                 str(self.profile), channel="chrome", headless=self.headless, viewport={"width": 1400, "height": 900})
+            from .factchat_web import COPY_CAPTURE_JS
+            self._context.add_init_script(COPY_CAPTURE_JS)   # 복사 버튼이 클립보드에 넣는 글을 페이지 안에서 받아 둔다
             self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
             self.ensure_login()
         except BaseException:   # 실행·로그인 실패 때도 브라우저·임시 폴더·프로필 잠금을 정리한다 (__exit__ 는 불리지 않음)
@@ -193,9 +199,24 @@ class AionaChat:
             return ""
         return answers.last.evaluate("(el) => [...el.querySelectorAll('.prose')].map(p => p.innerHTML).join('<br>')")
 
+    def _copy_last_answer(self) -> Optional[str]:
+        """마지막 답변 칸 안의 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None —
+        다른 답변의 버튼은 쓰지 않는다(답변 칸마다 자기 복사 버튼이 안에 있다, 2026-10-14 확인)."""
+        try:
+            button = self._answers().last.locator("button[title='복사']")
+            if not button.count():
+                return None
+            self.page.evaluate("() => { window.__mgCopied = []; }")
+            button.first.click(timeout=5000)
+            self.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
+            return self.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
+        except Exception:
+            return None
+
     def _upload(self, files: List[Path]) -> None:
-        self.page.locator("input[type=file]").first.set_input_files([str(f) for f in files])
-        for f in files:   # 올린 파일 칸이 보일 때까지 — 문서는 이름 글자, 이미지는 alt 가 파일 이름인 미리보기로만 보인다
+        for f in files:   # 하나씩 — 여러 개를 한 번에 넣으면 첫 파일만 붙었다 (2026-10-14 Q296)
+            self.page.locator("input[type=file]").first.set_input_files(str(f))
+            # 올린 파일 칸이 보일 때까지 — 문서는 이름 글자, 이미지는 alt 가 파일 이름인 미리보기로만 보인다
             self.page.wait_for_function(
                 "(name) => document.body.innerText.includes(name) || [...document.images].some(i => i.alt === name)",
                 arg=f.name, timeout=60_000)
@@ -208,6 +229,21 @@ class AionaChat:
             .filter((s) => (s.innerText || '').includes('생각을 중단했습니다'))
             .map((s) => { const box = s.closest('button'); const all = box ? box.innerText : s.innerText;
                           return all.replace('생각을 중단했습니다', '').trim() || '생각을 중단했습니다'; })""")
+
+    def _asked(self, asked_before: int) -> bool:
+        return self.page.locator(USER_MESSAGE).count() > asked_before
+
+    def _wait_sent(self, asked_before: int, timeout_s: float = 20.0) -> bool:
+        """내 질문 칸이 하나 늘었는지 — 긴 글의 의도 감지 안내가 뜨면 '그냥 보내기'를 누르고 계속 기다린다.
+        중단 요청이면 더 누르지 않고 그만 기다린다."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline and not self.cancelled():
+            if self._asked(asked_before):
+                return True
+            if self._send_as_is():
+                self._intent_as_is = True
+            self.page.wait_for_timeout(500)
+        return self._asked(asked_before)   # 마지막 대기 사이에 올라갔을 수 있다 (Codex)
 
     def _send_as_is(self) -> bool:
         """긴 글을 보내면 뜨는 의도 감지 안내('요약 뒤에 퀴즈까지…')에서 질문을 바꾸지 않는 '그냥 보내기'를 누른다."""
@@ -237,6 +273,7 @@ class AionaChat:
                 text = f"[참조 자료]\n{reference_text}\n\n{question}"
         before = self._answers().count()
         stopped_before = len(self._stopped())
+        self._intent_as_is = False
         self._dismiss_popups()
         try:
             if files:
@@ -244,16 +281,30 @@ class AionaChat:
             box = self.page.locator("textarea[placeholder^='무엇이든']").first
             box.fill(text)
             send = self.page.locator("button[type=submit][title='전송']").first
-            send.wait_for(timeout=30_000)
-            self.page.wait_for_function("() => { const b = document.querySelector(\"button[type=submit][title='전송']\"); return b && !b.disabled; }",
-                                        timeout=60_000)
-            send.click()
+            asked_before = self.page.locator(USER_MESSAGE).count()
+            for _ in range(3):   # 전송을 눌러도 질문이 안 올라가는 때가 있다(2026-10-14 Q296, PDF 두 개) — 내 질문 칸이 생길 때까지 다시 누른다
+                if self.cancelled():
+                    raise AionaWebError("중단 요청으로 질문을 보내지 않음")
+                # 전송 버튼이 켜질 때까지 — 앞 클릭이 늦게 올라가 정지 버튼으로 바뀌었으면 기다리지 않는다 (Codex)
+                self.page.wait_for_function(
+                    "([sel, n]) => { if (document.querySelectorAll(sel).length > n) return true;"
+                    " const b = document.querySelector(\"button[type=submit][title='전송']\"); return !!b && !b.disabled; }",
+                    arg=[USER_MESSAGE, asked_before], timeout=60_000)
+                if self._asked(asked_before):
+                    break
+                if self.cancelled():   # 기다리는 동안 중단 요청이 왔으면 누르지 않는다 (Codex)
+                    raise AionaWebError("중단 요청으로 질문을 보내지 않음")
+                send.click()
+                if self._wait_sent(asked_before):
+                    break
+            else:
+                raise AionaWebError("전송 버튼을 세 번 눌러도 질문이 올라가지 않음")
         except Exception as exc:
             return {"answer": "", "status": "ERROR", "error": f"질문을 보내지 못했습니다: {type(exc).__name__}", "url": self.page.url,
                     "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION,
                     "debug_screenshot": self._snapshot("send-failed")}
         deadline = time.monotonic() + self.answer_timeout_s
-        last, stable, empty, as_is = None, 0, 0, False
+        last, stable, empty, as_is = None, 0, 0, self._intent_as_is
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)
             self._dismiss_popups()
@@ -274,9 +325,12 @@ class AionaChat:
             if stable >= 2 or empty >= 4:
                 break
         converted = html_to_markdown(last or "")
-        answer = converted["markdown"]
+        answer, capture = converted["markdown"], "html"
         done = (stable >= 2 and bool(answer.strip())) or (empty >= 4 and not answer.strip())
-        return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE",
+        copied = self._copy_last_answer() if done and answer.strip() else None
+        if copied and copied.strip():   # 복사 버튼 원문을 답으로 — HTML 변환 품질 경고는 원문에는 해당하지 않는다
+            answer, capture, converted = copied, "copy-button", {"quality": []}
+        return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture,
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 **({"intent_prompt": "그냥 보내기"} if as_is else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,

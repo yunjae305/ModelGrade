@@ -43,9 +43,23 @@ from .ingestion.runs import build_run_data, dataset_row, environment_comparison,
 from .ingestion.schema import response_key
 from .agent_collection import AGENT_COLLECTION_VERSION, COLLECTION_REASONING_EFFORT, apply_reasoning, ask_with_tools
 from .aiona_web import AIONA_WEB_VERSION
+from .factchat_web import FACTCHAT_WEB_VERSION, login_status as factchat_login_status
+from .oosoo_web import OOSOO_WEB_VERSION, login_status as oosoo_login_status
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
+# 질문 세트 실행에서 웹 자동화로 답을 받는 모델 — FactChat·우수AI 는 .env 로그인 정보가 있을 때. 키는 API 게이트웨이(factchat)·
+# 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
+WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web")
+PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web"})   # 사용자 결정 2026-10-14: 우수AI 는 당분간 수집하지 않음 (코드는 그대로, 여기서 빼면 다시 수집)
+WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델"}
+
+
+def web_headless(path=None):
+    """웹 수집 브라우저를 숨길지 — 기본은 창을 보이게 (사용자 요청 2026-10-14: 작업이 눈에 보이게). .env 의
+    WEB_COLLECTION_HEADLESS=true 면 숨긴다."""
+    value = env_value("WEB_COLLECTION_HEADLESS", None, path or ROOT / ".env")
+    return str(value or "").strip().lower() in ("1", "true", "on", "yes")
 
 
 def _request_shape(messages, attachments=0, delivery=None):
@@ -839,17 +853,41 @@ class ComparisonService:
         return self._code_recheck_cache[key]
 
     def aiona_history(self):
-        """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history)."""
+        """이력 관리 — 평가가 끝난 실행마다 AIONA 결과 한 줄, 같은 질문 세트의 직전 기록 대비 조건 변화·통과율 변화 (aiona_history).
+
+        실행 결과 파일(수십 MB)을 모두 다시 읽어 계산하므로 느리다(10-14 실측 12초) — 완료 실행의 상태와 저장 파일(크기·수정 시각)이
+        그대로면 앞서 계산한 결과를 돌려준다."""
         with self._lock:
+            signature = self._history_signature()
+            cached = getattr(self, '_aiona_history_cache', None)
+            if cached is not None and cached[0] == signature:
+                return copy.deepcopy(cached[1])
+            completed = [status for status in self.history(limit=None) if status.get('status') == 'COMPLETED']
             runs = []
-            for status in self.history(limit=None):
-                if status.get('status') != 'COMPLETED':
-                    continue
+            for status in completed:
                 try:
                     runs.append(self.result(status['run_id']))
                 except (FileNotFoundError, ValueError, OSError):
                     continue
-            return aiona_history(runs)
+            value = aiona_history(runs)
+            # 결과를 읽으며 저장 실행이 메모리로 올라와 열쇠가 바뀐다 — 계산 뒤의 열쇠로 둬야 바로 다음 요청부터 캐시가 맞는다 (Codex)
+            self._aiona_history_cache = (self._history_signature(), copy.deepcopy(value))
+            return value
+
+    def _history_signature(self):
+        """이력 계산 캐시 열쇠 — 저장 실행 파일(이름·수정 시각·크기), 메모리의 실행(상태·리비전·종료 시각), 버전 등록부 파일.
+        파일 메타데이터만 읽어 가볍다 (Codex 리뷰: history() 로 모든 결과를 읽은 뒤 캐시를 보면 캐시가 소용없다)."""
+        def stamp(path):
+            try:
+                stat = path.stat()
+                return (path.name, stat.st_mtime_ns, stat.st_size)
+            except OSError:
+                return (path.name, None, None)
+        files = tuple(sorted(stamp(path) for path in self.save_dir.glob('*.json'))) if self.save_dir.is_dir() else ()
+        live = tuple(sorted((rid, run.get('status'), run.get('revision'), run.get('finished_at')) for rid, run in self._runs.items()))
+        registry = Path(self.version_registry.path)
+        registry_stamps = tuple(stamp(path) for path in (registry, registry.with_suffix('.sqlite3')) if path.exists())
+        return files, live, registry_stamps
 
     def manage_release(self, payload):
         with self._lock:
@@ -1892,19 +1930,25 @@ class ComparisonService:
             if len(active) >= MAX_RUNS:
                 raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
             api = [p for p in ("gpt", "claude", "gemini") if p in self._keys]
-            providers = ["aiona", *api]
+            # 웹 자동화 모델 — AIONA 는 늘, FactChat 은 .env 에 로그인 정보(FACTCHAT_LOGIN_ID·PASSWORD)가 있을 때 (사용자 결정 2026-10-14)
+            web = ["aiona"] + (["factchat_web"] if factchat_login_status()["credentials"] else []) \
+                + (["oosoo_web"] if "oosoo_web" not in PAUSED_WEB_PROVIDERS and oosoo_login_status()["credentials"] else [])
+            providers = [*web, *api]
             config = {p: {**self._keys[p], "provider": p} for p in api}
             n, run_id = len(cases), uuid.uuid4().hex[:12]
             run = {"run_id": run_id, "name": f"질문 세트 {set_id}" if set_id else "질문 세트 실행",
                    "created_at": datetime.now(timezone.utc).isoformat(), "status": "COLLECTING", "phase": "COLLECT",
                    "total": n * len(providers), "done": 0, "question_count": n, "providers": providers, "max_tokens": QUESTION_SET_MAX_TOKENS,
-                   "models": {"aiona": "AIONA 웹 · 자동 추천", **{p: self._model_label(p, config[p]) for p in api}},
+                   "models": {**{p: WEB_LABELS[p] for p in web}, **{p: self._model_label(p, config[p]) for p in api}},
                    "progress": {p: self._progress_entry(n) for p in providers},
                    "datasets": {p: [None] * n for p in providers}, "evaluations": {}, "cancel_requested": False, "error": None,
                    "auto_evaluate": payload.get("auto_evaluate", True) is not False, "blind_requested": True, "aiona_specialized": False,
                    "run_kind": "question_set", "dataset_fingerprint": fingerprint(cases),
-                   "question_set": {"set_id": set_id, "aiona": AIONA_WEB_VERSION, "api": AGENT_COLLECTION_VERSION},
+                   "question_set": {"set_id": set_id, "aiona": AIONA_WEB_VERSION, "api": AGENT_COLLECTION_VERSION,
+                                    **({"factchat_web": FACTCHAT_WEB_VERSION} if "factchat_web" in web else {}),
+                                    **({"oosoo_web": OOSOO_WEB_VERSION} if "oosoo_web" in web else {})},
                    "collection_execution": {"collection_workers_per_model": self.collection_workers, "aiona_workers": 1,
+                                            "web_providers": web,
                                             "conversation_order": "sequential_original_turns"}}
             self._cancel_events[run_id] = token = threading.Event()
             self._cost_ledgers[run_id] = CostLedger()
@@ -1965,12 +2009,23 @@ class ComparisonService:
                         future.result()
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
-        def aiona():
-            from .aiona_web import AionaChat, AionaWebError
-            stage("aiona", "COLLECTING")
-            with tempfile.TemporaryDirectory(prefix="aiona-files-") as temp:
+        def web(provider):
+            """웹 자동화로 받는 모델 — AIONA(winz.aiona.kr)·FactChat(aichat.kku.ac.kr)·우수AI(app.oosoo.kr).
+            모델마다 브라우저(프로필) 하나라 서로 동시에 돈다. 브라우저 창은 기본으로 보인다(web_headless)."""
+            if provider == "factchat_web":
+                from .factchat_web import FactChatChat as Chat, FactChatWebError as WebError
+                label = "FactChat"
+            elif provider == "oosoo_web":
+                from .oosoo_web import OosooChat as Chat, OosooWebError as WebError
+                label = "우수AI"
+            else:
+                from .aiona_web import AionaChat as Chat, AionaWebError as WebError
+                label = "AIONA"
+            stage(provider, "COLLECTING")
+            with tempfile.TemporaryDirectory(prefix=f"{provider}-files-") as temp:
                 try:
-                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug", cancelled=token.is_set) as chat:
+                    with Chat(headless=web_headless(), debug_dir=self.save_dir / run["run_id"] / f"{provider}-debug",
+                              cancelled=token.is_set) as chat:
                         for chain in chains:
                             broken = False
                             chat.new_chat()
@@ -1979,7 +2034,7 @@ class ComparisonService:
                                     return
                                 case = cases[index]
                                 if broken:
-                                    record("aiona", index, {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다.", "sent": []})
+                                    record(provider, index, {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다.", "sent": []})
                                     continue
                                 files = []
                                 for a in case.get("attachments") or []:   # 원래 파일 이름으로 올린다
@@ -1990,28 +2045,29 @@ class ComparisonService:
                                 try:
                                     outcome = chat.ask(case["question"], files, case.get("reference"))
                                 except Exception as exc:   # 화면이 바뀌거나 막혀도 다음 질문으로 — 새 채팅에서 다시 시작
-                                    outcome = {"status": "ERROR", "error": f"AIONA 화면 처리 실패: {type(exc).__name__}", "sent": []}
+                                    outcome = {"status": "ERROR", "error": f"{label} 화면 처리 실패: {type(exc).__name__}", "sent": []}
                                     chat.new_chat()
                                 outcome["collected_at"] = now()
                                 if outcome["status"] != "SUCCESS":
                                     broken = True
-                                record("aiona", index, outcome)
+                                record(provider, index, outcome)
                 except Exception as exc:   # 로그인·브라우저 실행 실패 — 남은 질문을 오류로 채운다 (지어내지 않음)
-                    # 고정 문구(AionaWebError)만 그대로 남긴다 — 브라우저 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰)
-                    if isinstance(exc, AionaWebError):
+                    # 고정 문구(웹 수집 오류)만 그대로 남긴다 — 브라우저 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰)
+                    if isinstance(exc, WebError):
                         message = str(exc)[:300]
                     elif isinstance(exc, ModuleNotFoundError):
                         message = "playwright 가 설치되지 않았습니다 (pip install playwright, Google Chrome 필요)"
                     else:
                         message = type(exc).__name__
                     for index in range(len(cases)):
-                        if run["datasets"]["aiona"][index] is None and not token.is_set():
-                            record("aiona", index, {"status": "ERROR", "error": f"AIONA 수집을 시작하지 못했습니다: {message}", "sent": []})
-            stage("aiona", "CANCELLED" if token.is_set() else "COMPLETED")
+                        if run["datasets"][provider][index] is None and not token.is_set():
+                            record(provider, index, {"status": "ERROR", "error": f"{label} 수집을 시작하지 못했습니다: {message}", "sent": []})
+            stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
         try:
-            with ThreadPoolExecutor(max_workers=1 + len(config), thread_name_prefix="question-set") as pool:
-                futures = [pool.submit(aiona)] + [pool.submit(api_provider, p) for p in config]
+            web_providers = [p for p in run["providers"] if p in WEB_PROVIDERS]
+            with ThreadPoolExecutor(max_workers=len(web_providers) + len(config), thread_name_prefix="question-set") as pool:
+                futures = [pool.submit(web, p) for p in web_providers] + [pool.submit(api_provider, p) for p in config]
                 for future in as_completed(futures):
                     future.result()
             with self._lock:

@@ -2,9 +2,9 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
+  const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT', factchat_web: 'FactChat', oosoo_web: '우수AI'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
-  const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
+  const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT', factchat_web: 'F', oosoo_web: '우'};
   const labels = {setup: '새 비교', connections: '연결된 모델', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준', progress: '업무 진행 현황'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
@@ -179,12 +179,14 @@
     $('version-evaluate-button').hidden = !enabled;
     $('collect-button').hidden = enabled;
     // 버전 평가는 AIONA 원문만 평가한다 — 다른 AI 답변을 자동 수집하지 않는다
-    $('collection-panel').hidden = enabled; $('advanced-import').hidden = enabled;
+    $('collection-panel').hidden = enabled;
+    $('advanced-import').hidden = true;   // 기타 응답 파일 가져오기 — 새 비교에서 뺌 (사용자 결정 2026-10-14, 기능·API 는 그대로)
     // 새 비교는 '질문 생성 후 평가'와 '질문 직접 넣기' 두 가지 (사용자 결정 2026-10-14) — 예전 Q/A 파일 업로드 흐름은 버전 평가에서만 보인다
     $('legacy-flow').hidden = !enabled;
+    $('sample-button').hidden = !enabled || state.inputMode !== 'file';
     $('question-set-panel').hidden = enabled; $('question-input-panel').hidden = enabled;
     $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : 'AIONA 모델 평가 워크스페이스';
-    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'LLM으로 질문을 만들거나 질문을 직접 넣으면 AIONA(웹페이지 자동화)·GPT·Claude·Gemini가 답하고, 같은 기준으로 평가합니다.';
+    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'LLM으로 질문을 만들거나 질문을 직접 넣으면 AIONA(웹브라우저)·GPT·Claude·Gemini가 답하고, 같은 기준으로 평가합니다.';
     renderReady();
     window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'mode'}}));
   }
@@ -325,7 +327,7 @@
     ['choose-file', 'replace-file', 'sample-button'].forEach((id) => { $(id).disabled = false; });
     state.inputMode = mode;
     $('file-input-panel').hidden = mode !== 'file'; $('manual-input-panel').hidden = mode !== 'manual';
-    $('sample-button').hidden = mode !== 'file';
+    $('sample-button').hidden = mode !== 'file' || !state.versionMode;   // 예시 Q/A 는 예전 업로드 흐름(버전 평가)에서만 — 새 비교에서 누르면 자동 수집이 바로 시작됐다 (Codex 리뷰)
     ['file', 'manual'].forEach((value) => $('input-mode-' + value).setAttribute('aria-pressed', String(mode === value)));
     if (mode === 'manual') { $('run-name').value = state.manualRunName; syncManual(); }
     else {
@@ -1168,9 +1170,32 @@
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
       const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${results.j5Detail(decision.j5_outcome, decision.decision).title})` : '';
+      // 정책 문구('출처 원문 확인 실패로 검증 기준 미충족')보다 평가 모델이 실제로 본 판단을 먼저 보인다 (사용자 요청 2026-10-14)
+      const judged = decision.model_original_assessment?.reason;
       findings.append(node('li', {}, node('strong', {text: ({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '}[decision.status] || '의미 평가 · ') + (criterion?.name || id) + outcome}),
+        judged ? node('p', {text: '평가 모델 판단: ' + judged}) : null,
         node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) :
-          decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));
+          decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : (judged ? '최종 기록: ' : '') + (decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.')}),
+        ...results.claimLines(decision, node)));
+    }
+    // PASS 도 어느 부분을 보고 통과시켰는지 — 기준마다 평가 모델의 통과 사유와 확인한 답변 부분·출처 (사용자 요청 2026-10-14)
+    const passed = Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'PASS');
+    const codePassed = status.code.checks.filter((r) => r.counted && r.verdict === 'PASS');
+    if (passed.length || codePassed.length) {
+      const list = node('ul', {class: 'finding-list pass-list'});
+      for (const [id, decision] of passed) {
+        const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
+        list.append(node('li', {}, node('strong', {text: `${id} ${criterion?.name || ''} · PASS`}),
+          node('p', {text: decision.reason || '평가자가 PASS 근거를 남기지 않았습니다.'}), ...results.claimLines(decision, node)));
+      }
+      // 검사 대상이 없어 PASS 로 센 답변 구조 검사(코드·JSON·각주 등)는 한 줄로 묶는다
+      const empty = codePassed.filter((r) => String(r.explain?.headline || '').startsWith('검사 대상 없음'));
+      const checked = codePassed.filter((r) => !empty.includes(r));
+      if (codePassed.length) list.append(node('li', {}, node('strong', {text: `코드 검사 · 통과 조건 ${codePassed.length}개`}),
+        ...checked.map((r) => node('p', {text: (r.explain?.headline || r.title || r.check_id) + (r.explain?.summary ? ' — ' + r.explain.summary : '')})),
+        empty.length ? node('p', {class: 'hint field-help', text: `답변에 해당 구조(코드·JSON·태그·각주·인용 번호·내부 링크·계산식·개수 선언)가 없어 통과로 센 검사 ${empty.length}개`}) : null));
+      box.append(node('details', {class: 'evaluation-error-detail pass-detail', open: ''},
+        node('summary', {text: `PASS 판정 근거 (의미 기준 ${passed.length}개 · 코드 조건 ${codePassed.length}개)`}), list));
     }
     const locationCount = highlighted?.locations.segments.filter((segment) => segment.findingIds.length).length || 0;
     if (locationCount) {
@@ -1227,7 +1252,7 @@
     await loadSetup();
   }
   setInterval(updateLiveClock, 1000);
-  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate, icon, avatar, announce, openAnswer, startEvaluation, renderReady,
+  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate, icon, avatar, announce, openAnswer, startEvaluation, renderReady, providerName,
     currentRun: () => state.run,
     currentResult: () => state.result,
     isBusy: active,

@@ -360,3 +360,42 @@ def test_imported_questions_make_a_completed_set_ready_for_review(tmp_path):
     assert job["status"] == "COMPLETED" and job["source"] == "manual" and job["run_id"] is None and job["summary"]["questions"] == 2
     assert job["coverage"]["taxonomy"]["code_conditions"] > 0 and service.list()[0]["id"] == job["id"]
     assert [row["turns"][0]["question"] for row in service.preview(job["id"])] == ["146 + 279는 얼마야?", "오늘 할 일을 표로 정리해줘."]
+
+
+def test_plan_with_missing_closing_brackets_is_read_and_reported():
+    """GPT 계획 끝 괄호가 빠진 응답(2026-10-14 실제) — 모자란 괄호만 채워 읽고 경고로 남긴다. 짝이 어긋난 괄호는 고치지 않는다."""
+    text = json.dumps(PLAN, ensure_ascii=False)
+    plans, warnings = qg.parse_plan(text[:-2])
+    assert len(plans) == 4 and any("닫는 괄호 2개" in w for w in warnings)
+    fenced, warnings = qg.parse_plan("```json\n" + text[:-2] + "\n```")   # 코드 펜스로 감싼 응답도 같게 (Codex)
+    assert len(fenced) == 4 and any("닫는 괄호 2개" in w for w in warnings)
+    prose, _ = qg.parse_plan("계획입니다:\n```json\n" + text[:-2] + "\n```")   # 펜스 앞에 설명 글이 있어도 (Codex)
+    assert len(prose) == 4
+    with pytest.raises(qg.GenerationError):
+        qg.parse_plan(text[:-2] + "}]")
+
+
+def test_builder_reports_made_and_planned_questions_while_generating(tmp_path):
+    """생성 중 화면 목록 — 만든 질문은 made, 지금 만드는 질문은 making, 남은 계획은 planned (사용자 요청 2026-10-14)."""
+    seen = []
+    builder = qg.QuestionSetBuilder(FakeGPT(), tmp_path, progress=lambda phase, data: seen.append(data["questions"]) if "questions" in data else None)
+    groups = builder.build()["groups"]
+    first = next(rows for rows in seen if rows)
+    assert [r["state"] for r in first][:2] == ["making", "planned"] and first[0]["turns"][0]["question"].startswith("공부 방법")
+    assert [r["state"] for r in seen[-1]] == ["made"] * len(groups) and seen[-1][0]["id"] == 1
+    assert all(len(t["question"]) <= qg.PREVIEW_CHARS + 2 for rows in seen for r in rows for t in r["turns"])
+
+
+def test_fixed_question_sets_become_completed_sets_with_files(tmp_path):
+    """고정 질문 세트(간단·정밀) — 모델 호출 없이 완료된 세트, 첨부 파일까지 복사 (사용자 결정 2026-10-14)."""
+    service = qg.QuestionSetService(lambda: None, store=tmp_path)
+    listed = {item["kind"]: item for item in service.fixed_sets()}
+    assert set(listed) == {"simple", "precise"} and listed["simple"]["questions"] < listed["precise"]["questions"]
+    job = service.start_fixed({"kind": "simple"})
+    assert job["status"] == "COMPLETED" and job["version"] == qg.FIXED_SET_VERSION and job["source"] == "fixed" and job["run_id"] is None
+    rows = service.preview(job["id"])
+    assert len(rows) == listed["simple"]["questions"] and job["summary"]["questions"] == len(rows)
+    names = {a for r in rows for t in r["turns"] for a in t["attachments"]}
+    assert not names or any(service.files_dir(job["id"]).iterdir())   # 첨부 질문이 있으면 파일도 함께 복사
+    with pytest.raises(ValueError):
+        service.start_fixed({"kind": "huge"})

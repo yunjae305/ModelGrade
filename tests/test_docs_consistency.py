@@ -129,6 +129,19 @@ def test_progress_document_commit_references_exist_in_git():
         assert probe.returncode == 0 and probe.stdout.strip().startswith(sha), f'진행현황의 커밋 {sha} 가 git 에 없음'
 
 
+def test_latest_design_header_counts_match_the_criteria_registry():
+    """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
+    from code_eval.criteria_registry import evaluation_targets
+    designs = sorted(DOCS.glob('평가체계_설계안_v*.html'), key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
+    text = designs[-1].read_text(encoding='utf-8')
+    counts = evaluation_targets()['counts']
+    code = re.search(r'코드 평가 <b>(\d+) 대분류 · (\d+) 소분류 · (\d+) 검사 · 세부 조건 \d+ · 질문 조건 (\d+)</b>', text)
+    semantic = re.search(r'의미 평가 <b>(\d+) 기준 · (\d+) 세부 기준 · (\d+) 점검 항목</b>', text)
+    assert code and semantic, designs[-1].name
+    assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'], counts['code_conditions'])
+    assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])
+
+
 def test_changelog_anchors_are_unique_and_every_index_row_points_to_one():
     """10-14 P1-5 — 변경내역 10-13 에 '#19' 앵커가 두 개라 목차 링크가 다른 항목을 가리키던 문제."""
     history = read('변경내역/2026-10-13-변경내역.md')
@@ -162,16 +175,3 @@ def test_handover_document_cites_the_current_versions():
                   CRITERIA_VERIFICATION_VERSION, COMPARISON_VERSION):
         assert f'`{token}`' in text, token
     assert f'({len(SUBS)}·{len(ITEMS)})' in text
-
-
-def test_latest_design_header_counts_match_the_criteria_registry():
-    """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
-    from code_eval.criteria_registry import evaluation_targets
-    designs = sorted(DOCS.glob('평가체계_설계안_v*.html'), key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
-    text = designs[-1].read_text(encoding='utf-8')
-    counts = evaluation_targets()['counts']
-    code = re.search(r'코드 평가 <b>(\d+) 대분류 · (\d+) 소분류 · (\d+) 검사 · 세부 조건 \d+ · 질문 조건 (\d+)</b>', text)
-    semantic = re.search(r'의미 평가 <b>(\d+) 기준 · (\d+) 세부 기준 · (\d+) 점검 항목</b>', text)
-    assert code and semantic, designs[-1].name
-    assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'], counts['code_conditions'])
-    assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])

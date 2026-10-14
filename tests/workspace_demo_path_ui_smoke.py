@@ -24,7 +24,7 @@ from webapp.server import Handler, Server  # noqa: E402
 def open_from_history(page):
     page.locator('[data-view="history"]').first.click()
     expect(page.locator('#history-body')).to_contain_text('상세 보기', timeout=15000)
-    page.locator('#history-body').get_by_role('button', name='상세 보기').first.click()
+    page.locator('#history-body').locator('button.row-button').first.click()
     expect(page.locator('#history-detail-dialog')).to_be_visible()
     page.get_by_role('button', name='저장된 평가 결과 열기').click()
     expect(page.locator('#result-subtitle')).to_contain_text('평가 방식', timeout=20000)

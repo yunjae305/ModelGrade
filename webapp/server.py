@@ -45,9 +45,11 @@ class Server(ThreadingHTTPServer):
 
     def start_question_set_run(self, set_id):
         """만든 질문 세트 → 비교 실행(AIONA 웹·GPT·Claude·Gemini API + 도구 수집 → 평가). 실행 id 를 돌려준다."""
-        from .question_generation import flatten
+        from .question_generation import FIXED_SET_VERSION, QUESTION_INPUT_VERSION, flatten
         rows = flatten(self.question_service.dataset(set_id))
-        run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': True,
+        # 질문 직접 넣기·고정 질문 세트는 답변 수집만 — 모든 모델이 답을 받으면 화면의 '평가 진행'으로 평가한다 (사용자 결정 2026-10-14)
+        auto = self.question_service.status(set_id).get('version') not in (QUESTION_INPUT_VERSION, FIXED_SET_VERSION)
+        run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': auto,
                                                               'files_dir': str(self.question_service.files_dir(set_id))})
         return run['run_id']
 
@@ -140,6 +142,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.providers())
         if path == '/api/comparison/question-sets':
             return self.respond(200, self.server.question_service.list())
+        if path == '/api/comparison/question-sets/fixed':   # 고정 질문 세트 버튼 — 이름·질문 수
+            return self.respond(200, self.server.question_service.fixed_sets())
         if len(parts) >= 4 and parts[2] == 'question-sets':
             questions = self.server.question_service
             if len(parts) == 4:
@@ -169,9 +173,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/aiona-history':
             return self.respond(200, service.aiona_history())
-        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
+        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹브라우저 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
             from .aiona_web import login_status
             return self.respond(200, login_status())
+        if path == '/api/comparison/web-models':   # 연결된 모델 — 웹브라우저로 답을 받는 모델들 (로그인 정보 유무만)
+            from .aiona_web import login_status as aiona_status
+            from .factchat_web import login_status as factchat_status
+            from .oosoo_web import login_status as oosoo_status
+            from .comparison_service import PAUSED_WEB_PROVIDERS
+            models = [{"id": "aiona", "env_keys": "AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD", **aiona_status()},
+                      {"id": "factchat_web", "env_keys": "FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD", **factchat_status()},
+                      {"id": "oosoo_web", "env_keys": "OOSOO_LOGIN_ID · OOSOO_LOGIN_PASSWORD", **oosoo_status()}]
+            return self.respond(200, [{**m, "paused": m["id"] in PAUSED_WEB_PROVIDERS} for m in models])
         if path == '/api/comparison/auto-collection':
             return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':
@@ -264,6 +277,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, self.server.question_service.start(payload))
             if path == '/api/comparison/question-sets/import':   # 질문 직접 넣기 — 질문만, 모델 호출 없음
                 return self.respond(201, self.server.question_service.import_questions(payload))
+            if path == '/api/comparison/question-sets/fixed':   # 고정 질문 세트(간단·정밀) — 모델 호출 없음
+                return self.respond(201, self.server.question_service.start_fixed(payload))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
                 return self.respond(202, self.server.question_service.start_run(parts[3]))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':

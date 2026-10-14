@@ -356,6 +356,14 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "j1-j4-j7-j8-fail-evidence-v3", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J8 FAIL 도 이유 + 원문 인용 필요 — 답변 인용이 하나 이상 맞아야 하고, 첨부 내용(attachments[].content) 인용도 근거로 셈"]},
     {"version": "criteria-registry-v8", "date": "2026-10-13", "scope": "registry", "changes": ["J8 첨부파일 활용 등록 (jev-criteria-v5·semantic-items-v5)"]},
+    {"version": "multi-turn-v2", "date": "2026-10-14", "scope": "semantic",
+     "changes": ["J6 멀티턴 = 턴 10개 이상이고 대화 전체(모든 턴의 질문 + 답변)가 10K 토큰 이상인 대화 (사용자 결정으로 바로잡음 — "
+                 "v1 은 '한 턴이 10K 토큰 이상인 턴 10개'로 읽어 질문 생성기가 턴마다 약 1.5만 자 자료를 붙였다)",
+                 "각 모델의 실제 대화로 재는 것·멀티턴이 아니면 해당 없음·길이를 모르는 턴이 있으면 확인 필요는 그대로"]},
+    {"version": "criteria-registry-v9", "date": "2026-10-14", "scope": "registry", "changes": ["J6 멀티턴 길이 조건 바로잡음 (multi-turn-v2)"]},
+    {"version": "criteria-registry-v10", "date": "2026-10-14", "scope": "registry",
+     "changes": ["세부 기준(평가 대상) 목록을 한 곳에 고정: CODE 3 대분류 · 8 소분류 · 28 검사 → 질문 조건 37 (+ 늘 적용 3·답변 구조 7), "
+                 "의미 8 기준 → 30 세부 기준 → 44 점검 항목 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 같은 목록을 쓴다"]},
     {"version": "j5-outcome-detail-v5", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J5 '사실 오류 — 근거와 충돌'에 충돌 근거를 기록 (contradiction.basis: 외부 근거·사용자가 준 정보·참고 자료·답변 인용 출처) — "
                  "사용자 제공 정보와의 불일치를 외부 사실 확인 결과로 오해하지 않게 (지시서 10-13 B)",
@@ -368,14 +376,6 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "판정 미완료(ATTACHMENT_IMAGE_UNAVAILABLE) — 다른 기준은 글자로 그대로 평가",
                  "파일을 가리키지 않는 이미지 항목(name·type·content 만)은 예전처럼 content 로 J8 판정 (기록 content_only)",
                  "레코드 attachment_images 에 보낸 그림의 이름·형식·sha256 과 못 보낸 사유 — 그림 원본은 저장하지 않음. J8 기준 정의는 그대로"]},
-    {"version": "multi-turn-v2", "date": "2026-10-14", "scope": "semantic",
-     "changes": ["J6 멀티턴 = 턴 10개 이상이고 대화 전체(모든 턴의 질문 + 답변)가 10K 토큰 이상인 대화 (사용자 결정으로 바로잡음 — "
-                 "v1 은 '한 턴이 10K 토큰 이상인 턴 10개'로 읽어 질문 생성기가 턴마다 약 1.5만 자 자료를 붙였다)",
-                 "각 모델의 실제 대화로 재는 것·멀티턴이 아니면 해당 없음·길이를 모르는 턴이 있으면 확인 필요는 그대로"]},
-    {"version": "criteria-registry-v9", "date": "2026-10-14", "scope": "registry", "changes": ["J6 멀티턴 길이 조건 바로잡음 (multi-turn-v2)"]},
-    {"version": "criteria-registry-v10", "date": "2026-10-14", "scope": "registry",
-     "changes": ["세부 기준(평가 대상) 목록을 한 곳에 고정: CODE 3 대분류 · 8 소분류 · 28 검사 → 질문 조건 37 (+ 늘 적용 3·답변 구조 7), "
-                 "의미 8 기준 → 30 세부 기준 → 44 점검 항목 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 같은 목록을 쓴다"]},
 ]
 
 

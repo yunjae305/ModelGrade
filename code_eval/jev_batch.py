@@ -41,8 +41,8 @@ FALLBACK_REASONS = {"expired": "묶음 처리 시간(24시간) 안에 끝나지 
                     "missing": "묶음 결과에 이 질문이 없어 실시간으로 다시 보냄",
                     "pause_turn": "검색 이어가기(pause_turn)가 필요해 실시간으로 다시 보냄",
                     "submit_failed": "묶음 제출에 실패해 실시간으로 보냄",
-                    "retrieve_failed": "묶음 상태를 조회할 수 없어 실시간으로 다시 보냄",
-                    "attachment_images": "첨부 그림을 확인해 함께 보내야 해 실시간으로 보냄"}
+                    "images": "첨부 그림이 있어 실시간으로 보냄 (그림 확인·판정 미완료 처리를 실시간과 같게)",
+                    "retrieve_failed": "묶음 상태를 조회할 수 없어 실시간으로 다시 보냄"}
 #: 다시 조회해도 소용없는 상태 조회 오류(요청·인증·권한·없는 묶음)와 일시 오류의 연속 허용 횟수
 RETRIEVE_PERMANENT_STATUSES = (400, 401, 403, 404)
 MAX_RETRIEVE_FAILURES = 5
@@ -141,12 +141,12 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
 
     # --- 요청 조립 (호출 전, 메인 스레드) ---------------------------------------------------------------
     requests: Dict[int, Dict[str, Any]] = {}    # index → {"request", "payload", "context", "custom_id", "started"}
-    # 파일을 가리키는 이미지 첨부가 있는 질문 — 그림 확인·J8 보류(judge-attachment-images-v1)는 실시간 경로가 맡는다
-    image_cases = [i for i in targets if prep.images.get(i)]
+    image_cases: List[int] = []                 # 첨부 그림이 있는 질문 — 실시간으로 (judge-attachment-images-v1)
     for i in targets:
-        if i in image_cases:
-            continue
         case = cases[i]
+        if prep.images.get(i):
+            image_cases.append(i)
+            continue
         citations, structured_sources = case_citations(case["answer"], tuple(applies[i]["criteria"]), prep.fact_screening,
                                                        case.get("answer_sources"))
         # 실시간(evaluate_jev_case)과 같은 입력 — 첨부파일(J8)·확인 한도 밖 출처 URL(J5 PASS 확정 막음)까지 (Codex 리뷰)
@@ -352,6 +352,9 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
     remaining = [i for i in targets if i in requests and i not in resumed]
 
     cancelled = False
+    for i in image_cases:   # 묶음을 내기 전에 — 몇 개 안 된다
+        publish(i, realtime(i, FALLBACK_REASONS["images"]),
+                batch_info={"id": None, "custom_id": f"{custom_id_prefix}{i}", "result": "images", "fallback": FALLBACK_REASONS["images"]})
     try:
         for saved in superseded:
             supersede(saved)
@@ -361,12 +364,6 @@ def evaluate_jev_batch_batched(batch: Dict[str, Any], client: Any, config: Any =
         if resumed:
             emit_progress("저장된 묶음 이어받기")
             cancelled = poll_until_ended(batches)
-        # --- 첨부 그림이 있는 질문은 실시간으로 ---------------------------------------------------------------
-        for i in image_cases:
-            if cancelled or (cancel_event is not None and cancel_event.is_set()):
-                break
-            publish(i, realtime(i, FALLBACK_REASONS["attachment_images"]),
-                    batch_info={"id": None, "custom_id": None, "result": "attachment_images", "fallback": FALLBACK_REASONS["attachment_images"]})
         # --- pilot 1건: 묶음 경로가 동작하는지 먼저 확인한다 ----------------------------------------------
         if cancel_event is not None and cancel_event.is_set():
             cancelled = True

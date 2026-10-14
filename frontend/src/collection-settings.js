@@ -1,4 +1,4 @@
-/* 연결된 모델 — AIONA(웹페이지 자동화, 로그인 정보는 .env)와 API 모델(API 키·모델 ID) 연결 상태.
+/* 연결된 모델 — 웹브라우저 모델(AIONA·FactChat·우수AI, 로그인 정보는 .env)과 API 모델(API 키·모델 ID) 연결 상태.
    키 값은 서버 세션에만 보내고 화면·브라우저 저장소·결과에 남기지 않는다. 예전 '업로드 직후 자동 수집'의 허용·한도 칸은
    새 비교가 질문 생성·질문 직접 넣기로 바뀌어(2026-10-14) 화면에서 뺐다 — 서버 설정·API 는 그대로. */
 (() => {
@@ -8,7 +8,7 @@
   const W = window.AionaWorkspace, {node, pill, number, api} = W;
   const LIVE = ['gpt', 'claude', 'gemini', 'factchat'];
   const stateKinds = {ready: 'success', needs_connection: 'neutral', disabled: 'neutral', limits_missing: 'warning', unpriced: 'warning', unsupported: 'neutral'};
-  const state = {status: null, aiona: null, modalProvider: null, loading: false};
+  const state = {status: null, web: [], modalProvider: null, loading: false};
   const usd = (value) => '$' + Number(value || 0).toLocaleString('en-US', {maximumFractionDigits: 4});
 
   function publish() {
@@ -18,7 +18,7 @@
     if (state.loading) return;
     state.loading = true;
     try {
-      [state.status, state.aiona] = await Promise.all([api('/api/comparison/auto-collection'), api('/api/comparison/aiona-web').catch(() => null)]);
+      [state.status, state.web] = await Promise.all([api('/api/comparison/auto-collection'), api('/api/comparison/web-models').catch(() => [])]);
       render(); publish();
     }
     catch (err) { W.showError(err.message); }   // 한도 패널은 숨겨져 있어 화면 공통 오류로 알린다
@@ -26,24 +26,25 @@
   }
   const target = (id) => state.status?.targets.find((t) => t.id === id);
 
-  // AIONA — API 가 아니라 웹페이지(winz.aiona.kr)를 브라우저 자동화로 열어 답을 받는다. 로그인 정보는 .env 에만 (값은 보이지 않음)
-  function aionaCard() {
-    const a = state.aiona;
-    if (!a) return null;
-    return node('article', {class: 'panel connection-card', 'data-target': 'aiona'},
-      node('div', {class: 'connection-top'}, W.avatar('aiona'), node('div', {}, node('h2', {text: 'AIONA'}), node('p', {text: '웹페이지로 답변 수집 · 브라우저 자동화'})),
-        pill(a.credentials ? '로그인 정보 있음' : '로그인 정보 필요', a.credentials ? 'success' : 'warning')),
+  // 웹브라우저 모델 — API 가 아니라 웹사이트를 브라우저로 열어 질문하고 복사 버튼으로 답을 받는다. 로그인 정보는 .env 에만 (값은 보이지 않음)
+  function webCard(a) {
+    return node('article', {class: 'panel connection-card', 'data-target': a.id},
+      node('div', {class: 'connection-top'}, W.avatar(a.id), node('div', {}, node('h2', {text: a.name}), node('p', {text: '웹브라우저로 답변 수집'})),
+        a.paused ? pill('지금은 수집 안 함', 'neutral') : pill(a.credentials ? '로그인 정보 있음' : '로그인 정보 필요', a.credentials ? 'success' : 'warning')),
       node('dl', {class: 'connection-model'},
         node('dt', {text: '주소'}), node('dd', {text: a.url}),
         node('dt', {text: '로그인 정보'}), node('dd', {text: '.env 파일'}),
         node('dt', {text: '로그인 유지'}), node('dd', {text: a.profile_saved ? '브라우저에 로그인 상태 저장됨' : '아직 없음 — 첫 수집 때 .env 정보로 로그인'})),
-      node('p', {class: 'connection-note', text: a.credentials
-        ? '아이디·비밀번호는 .env의 AIONA_LOGIN_ID·AIONA_LOGIN_PASSWORD에서만 읽고 화면·결과에 보이지 않습니다. 바꾸려면 .env를 고친 뒤 서버를 다시 시작하세요.'
-        : '.env에 AIONA_LOGIN_ID와 AIONA_LOGIN_PASSWORD를 넣고 서버를 다시 시작하세요. 화면에서는 입력하지 않습니다.'}));
+      node('p', {class: 'connection-note', text: a.paused ? '당분간 답변을 수집하지 않습니다(사용자 결정 2026-10-14). 로그인 정보가 있어도 평가 실행에 들어가지 않습니다.'
+        : a.credentials
+        ? `아이디·비밀번호는 .env의 ${a.env_keys}에서만 읽고 화면·결과에 보이지 않습니다. 바꾸려면 .env를 고친 뒤 서버를 다시 시작하세요.`
+        : `.env에 ${a.env_keys}를 넣고 서버를 다시 시작하세요. 화면에서는 입력하지 않습니다.` + (a.id === 'aiona' ? '' : ' 로그인 정보가 없으면 이 모델은 수집에서 빠집니다.')}));
   }
+  // 예전 자동 수집 자리 — FactChat API 게이트웨이·우수AI(연동 준비 중)는 웹브라우저 모델로 바뀌어 카드에서 뺀다
+  const HIDDEN_API_TARGETS = new Set(['factchat', 'oosoo']);
 
   function renderCards() {
-    $('connection-cards').replaceChildren(...[aionaCard()].filter(Boolean), ...(state.status?.targets || []).map((t) => {
+    $('connection-cards').replaceChildren(...(state.web || []).map(webCard), ...(state.status?.targets || []).filter((t) => !HIDDEN_API_TARGETS.has(t.id)).map((t) => {
       const unsupported = t.kind === 'unsupported';
       const top = node('div', {class: 'connection-top'}, W.avatar(t.id), node('div', {}, node('h2', {text: t.name}),
         node('p', {text: t.kind === 'gateway' ? t.platform + ' · 여러 제공자 모델 중계' : t.platform})),

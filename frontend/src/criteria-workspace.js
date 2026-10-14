@@ -108,9 +108,10 @@
     const extras = taxonomy.specialized.filter((item) => specialized[item.id]);
     const checks = details?.code_checks?.length, subs = details?.semantic?.subs?.length, items = details?.semantic?.items?.length;
     const index = [
-      ['criteria-common-title', '공통 형식·수치 기준', categories.length + '개 분류 · ' + categories.reduce((sum, group) => sum + group.subs.length, 0) + '개 항목' +
-        (checks ? ' · 검사 ' + checks + '개' : '')],
-      ['criteria-semantic-title', '답변 내용 기준', criteria.length + '개 기준 · J1~J' + criteria.length + (subs ? ' · 세부 ' + subs + ' · 점검 ' + items : '')],
+      // 이름·단계 표기는 사용자 결정 2026-10-14: CODE평가 / LLM의미평가, '대분류 N개 > 중분류 N개 > 소분류 N개'
+      ['criteria-common-title', 'CODE평가', '대분류 ' + categories.length + '개 > 중분류 ' + categories.reduce((sum, group) => sum + group.subs.length, 0) + '개' +
+        (checks ? ' > 소분류 ' + checks + '개' : '')],
+      ['criteria-semantic-title', 'LLM의미평가', '대분류 ' + criteria.length + '개(J1~J' + criteria.length + ')' + (subs ? ' > 중분류 ' + subs + '개 > 소분류 ' + items + '개' : '')],
       ['criteria-specialized-title', 'AIONA 특화 기준', extras.length + '개 항목 · 평가 대기'],
     ];
     $('criteria-reference-content').replaceChildren(
@@ -121,10 +122,10 @@
         node('p', {}, node('strong', {text: '판정의 의미'}), ' 적용되는 기준을 충족하면 PASS, 위반되거나 최종 검증 근거가 부족하면 FAIL입니다.'),
         node('p', {text: '원문 확인 실패를 포함한 보류 항목도 검증 후 PASS 또는 FAIL로 확정합니다. 적용할 조건이 없으면 해당 없음이며, 평가 호출 오류는 별도로 표시합니다.'})),
       node('section', {class: 'criteria-section', 'aria-labelledby': 'criteria-common-title'},
-        sectionHeading('criteria-common-title', '공통 형식·수치 기준', '답변의 출력 상태, 질문에 명시된 조건, 직접 대조할 수 있는 값을 확인합니다.'),
+        sectionHeading('criteria-common-title', 'CODE평가', '답변의 출력 상태, 질문에 명시된 조건, 직접 대조할 수 있는 값을 확인합니다.'),
         node('div', {class: 'criteria-code-groups'}, ...categories.map(codeCategory))),
       node('section', {class: 'criteria-section', 'aria-labelledby': 'criteria-semantic-title'},
-        sectionHeading('criteria-semantic-title', '답변 내용 기준', '질문의 의도와 맥락에 맞게 답했는지, 논리와 사실에 문제가 없는지 확인합니다.'),
+        sectionHeading('criteria-semantic-title', 'LLM의미평가', '질문의 의도와 맥락에 맞게 답했는지, 논리와 사실에 문제가 없는지 확인합니다.'),
         node('div', {class: 'criteria-semantic-grid' + (details ? ' criteria-semantic-list' : '')}, ...criteria.map(semanticCriterion))),
       node('section', {class: 'criteria-section criteria-paused', 'aria-labelledby': 'criteria-specialized-title'},
         sectionHeading('criteria-specialized-title', 'AIONA 특화 기준', '평가 대기 중입니다. 현재 실행하지 않으며 점수와 평가 완료율에 포함하지 않습니다.'),

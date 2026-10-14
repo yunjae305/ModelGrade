@@ -68,6 +68,19 @@ def test_official_judgement_counts_questions_and_conversations_and_turns_stay_as
     assert check_items(singles[:29], pipeline="items")["criteria"]["CODE 1"]["short"] == 1
 
 
+
+@pytest.mark.multi_turn_rule
+def test_unanswered_conversation_counts_j6_by_turns_until_answers_arrive():
+    """답변이 없는 10턴 대화는 대화 전체 10K 토큰을 아직 잴 수 없어 J6 적용으로 센다 — 답변이 있으면 실제 길이로 판정 (multi-turn-v2)."""
+    turns = [{"question": f"{n}번째: 앞에서 정한 표 형식을 유지해서 다시 정리해 줘.", "answer": "", "conversation_id": "c1", "turn": n}
+             for n in range(1, 11)]
+    report = check_items(turns, "items")
+    assert report["criteria"]["J6"]["applicable_units"] == 1 and report["multi_turn"]["c1"]["answers_pending"]
+    answered = [dict(t, answer="네, 정리했습니다.") for t in turns]   # 답변을 받은 뒤에는 짧은 대화라 멀티턴이 아니다
+    report = check_items(answered, "items")
+    assert report["criteria"]["J6"]["applicable_units"] == 0 and report["multi_turn"]["c1"]["multi_turn"] is False
+
+
 def test_min_applicable_option_changes_only_the_target_count(tmp_path, capsys):
     singles = [{"question": f"{n}번 메모를 한 줄로 정리해줘."} for n in range(12)]
     assert check_items(singles, pipeline="items", minimum=10)["criteria"]["CODE 1"]["enough"] is True
@@ -88,15 +101,3 @@ def test_precheck_counts_j8_for_questions_with_attachments_like_the_evaluation()
                 {"question": "서울의 인구를 알려줘."}]
     for pipeline in ("legacy", "items"):
         assert check_items(attached, pipeline=pipeline)["criteria"]["J8"]["applicable_units"] == 1
-
-
-@pytest.mark.multi_turn_rule
-def test_unanswered_conversation_counts_j6_by_turns_until_answers_arrive():
-    """답변이 없는 10턴 대화는 대화 전체 10K 토큰을 아직 잴 수 없어 J6 적용으로 센다 — 답변이 있으면 실제 길이로 판정 (multi-turn-v2)."""
-    turns = [{"question": f"{n}번째: 앞에서 정한 표 형식을 유지해서 다시 정리해 줘.", "answer": "", "conversation_id": "c1", "turn": n}
-             for n in range(1, 11)]
-    report = check_items(turns, "items")
-    assert report["criteria"]["J6"]["applicable_units"] == 1 and report["multi_turn"]["c1"]["answers_pending"]
-    answered = [dict(t, answer="네, 정리했습니다.") for t in turns]   # 답변을 받은 뒤에는 짧은 대화라 멀티턴이 아니다
-    report = check_items(answered, "items")
-    assert report["criteria"]["J6"]["applicable_units"] == 0 and report["multi_turn"]["c1"]["multi_turn"] is False
