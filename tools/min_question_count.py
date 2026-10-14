@@ -1,6 +1,6 @@
 """최소 필요 질문 수 — 평가 항목마다 판정에 충분한 질문이 들어가는 가장 작은 질문 수를 찾는다 (모델 호출 없음).
 
-평가 항목 = CODE 검사 단위(AIONA 특화 제외)와 의미 평가 점검 항목. 적용 여부는 ``tools/check_question_set.py`` 와 같은 코드 규칙으로
+평가 항목 = CODE 세부 조건(검사 안의 질문 조건 종류, '2-1.count:sentence_count')과 의미 평가 점검 항목 — 질문 생성기가 채우는 단위와 같다. 적용 여부는 ``tools/check_question_set.py`` 와 같은 코드 규칙으로
 정한다(평가 때와 같은 엔진·적용 규칙). 질문 단위는 단일 질문 1개 = 1, 멀티턴 대화 1개 = 1.
 
 1. 크기별 적용 수 — 세트를 앞에서부터 N개로 잘랐을 때 항목별 적용 질문 수와, k개 이상 적용된 항목 수.
@@ -32,7 +32,7 @@ if str(ROOT) not in sys.path:
 
 from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS, check_items, load_items, unit_of  # noqa: E402
 
-VERSION = "min-question-count-v1"
+VERSION = "min-question-count-v2"   # v2: CODE 는 검사 단위가 아니라 세부 조건(검사:질문 조건 종류)으로 센다
 Z95 = 1.959964
 DEFAULT_K = (1, 5, 10, 30)
 DEFAULT_SIZES = (30, 50, 100, 150, 200, 300)
@@ -56,7 +56,7 @@ def question_units(report: Dict[str, Any]) -> Tuple[List[str], Dict[str, set], D
         if unit not in targets:
             order.append(unit)
         turns[unit] += 1
-        targets[unit].update(t for t in list(row.get("checks") or []) + list(row.get("items") or []) if t not in skip)
+        targets[unit].update(t for t in list(row.get("kinds") or []) + list(row.get("items") or []) if t not in skip)
     return order, dict(targets), dict(turns)
 
 
@@ -64,7 +64,7 @@ def all_targets(report: Dict[str, Any]) -> List[str]:
     """세어야 할 평가 항목 전체 (답변으로만 정해지는 것 제외) — 세트에 한 번도 안 나온 항목도 포함."""
     cov = report["coverage"]
     skip = set(ANSWER_DEPENDENT) | set(ANSWER_DEPENDENT_ITEMS)
-    return [t for t in list(cov["checks"]) + list(cov["items"]) if t not in skip]
+    return [t for t in list(cov["kinds"]) + list(cov["items"]) if t not in skip]
 
 
 def counts_for(units: Iterable[str], targets: Dict[str, set], names: Sequence[str]) -> Dict[str, int]:

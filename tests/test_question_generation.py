@@ -216,8 +216,7 @@ class DedicatedGPT(FakeGPT):
             n = int(re.findall(r"대화를 정확히 (\d+)개", prompt)[-1])
             convs = [{"type": "멀티턴", "topic": f"대화 {len(self.prompts)}-{i}", "target_items": ["J6-1.a", "J6-2.a"],
                       "turns": [{"question": "앞으로 존댓말로 답해 주세요. 행사 계획을 정리해 주세요."}]
-                               + [{"question": f"{t}번째 요청: 앞에서 정한 계획을 고쳐 전체를 다시 써 주세요. 1,500자 이상으로 자세히 답해 주세요."}
-                                  for t in range(2, multi_turn.MIN_TURNS)]
+                               + [{"question": f"{t}번째 요청: 앞에서 정한 계획을 고쳐 표로 전체를 다시 써 주세요."} for t in range(2, multi_turn.MIN_TURNS)]
                                + [{"question": "지금까지 내용을 세 문장으로 요약해 주세요."}]} for i in range(n)]
             convs.insert(0, {"type": "멀티턴", "topic": "짧은 대화", "turns": [{"question": "안녕"}, {"question": "다시"}]})   # 턴이 모자라 빠져야 함
             return json.dumps({"questions": convs}, ensure_ascii=False)
@@ -231,7 +230,7 @@ def test_split_counts_defaults_and_limits():
         qg.split_counts(10, -1)
 
 
-def test_dedicated_steps_make_ten_turn_conversations_with_answer_length_and_share_one_long_document(tmp_path):
+def test_dedicated_steps_make_ten_turn_conversations_and_share_one_long_document(tmp_path):
     fake = DedicatedGPT()
     builder = qg.QuestionSetBuilder(fake, tmp_path)
     result = builder.build(target_questions=12, multi_turn_count=3, long_context_count=2)
@@ -245,13 +244,12 @@ def test_dedicated_steps_make_ten_turn_conversations_with_answer_length_and_shar
     convs = [g for g in groups if len(g["turns"]) >= multi_turn.MIN_TURNS]
     assert [g["topic"] for g in groups[2:5]] == [g["topic"] for g in convs[:3]] and any("턴이라 뺐습니다" in w for w in builder.warnings)
     assert len(convs) == 4   # 전용 단계 3개 + 일반 계획이 만든 10턴 대화 1개 (이것도 분량 요구를 붙인다)
-    # 분량은 생성 프롬프트로 요구한다 — 코드가 질문에 문장을 덧붙이지 않고, 분량이 빠진 턴(첫 턴)은 경고로만 남긴다
+    # 답변 분량은 생성 프롬프트의 설계 안내로만 — 모델에게 보내는 질문 문장에는 분량을 쓰지 않는다 (사용자 결정 2026-10-14)
     ten_turn = next(p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 10턴 대화를 설계"))
-    assert f"{qg.TURN_ANSWER_CHARS:,}자 이상으로 자세히 답해 주세요." in ten_turn and "괄호 안에 넣지 않습니다" in ten_turn
+    assert f"약 {qg.TURN_ANSWER_CHARS:,}자 이상 나오도록" in ten_turn and "질문에 쓰지 않습니다" in ten_turn
+    assert not any("자 이상으로 자세히 답해" in t["question"] for g in groups for t in g["turns"])
     for conv in convs[:3]:
         assert conv["turns"][0]["question"] == "앞으로 존댓말로 답해 주세요. 행사 계획을 정리해 주세요."
-        assert conv["turns"][-1]["question"] == "지금까지 내용을 세 문장으로 요약해 주세요."
-    assert sum("1개 턴에 답변 분량 요구가 없습니다" in w for w in builder.warnings) == 3
     plan = next(p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계"))
     assert "# 멀티턴 대화 (J6)" not in plan and "J6-1.a" not in plan and "J7-1.a" not in plan and "따로 만듭니다" in plan
     coverage = result["check"]["coverage"]["items"]
@@ -264,3 +262,27 @@ def test_service_validates_dedicated_counts(tmp_path):
                 {"target_questions": 20, "multi_turn_conversations": "3"}):
         with pytest.raises(ValueError):
             service.start(bad)
+
+
+def test_catalog_lists_every_detailed_condition_kind():
+    """세부 기준 — CODE 검사 안의 질문 조건 종류마다 id('검사:종류')와 질문 쪽 인식 규칙을 프롬프트에 싣는다."""
+    from tools.check_question_set import KINDS
+    prompt = qg.plan_prompt()
+    assert all(kid in prompt for kid in KINDS) and len(KINDS) >= 30
+    lines = "\n".join(qg._catalog_lines(qg.criteria_catalog(), {"2-1.count:word_count"}))
+    assert "2-1.count:word_count(어절 수)" in lines and "단어(어절) 수" in lines and "2-2.table" not in lines
+    plans, _ = qg.parse_plan(json.dumps({"questions": [{"target_items": ["2-1.count:word_count", "없는:종류"], "turns": [{"question": "q"}]}]}))
+    assert plans[0]["target_items"] == ["2-1.count:word_count"]
+
+
+def test_per_target_adds_questions_for_criteria_below_the_target(tmp_path):
+    """질문 수 없이 기준마다 목표 적용 수만 주면, 모자란 세부 기준을 노린 질문을 더 만든다 (모자란 기준 목록을 프롬프트에)."""
+    fake = FakeGPT()
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(per_target=2, multi_turn_count=0, long_context_count=0)
+    extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
+    assert extra and "세부 기준마다 적용 질문이 2개 이상이 되도록" in extra[0] and "목표 None" not in extra[0]
+    low = extra[0].split("# 적용 질문이 적은 항목 (id · 현재 적용 질문 수)\n", 1)[1].split("\n\n", 1)[0]
+    assert any(":" in line.split(" · ")[0] for line in low.splitlines())   # 세부 조건('검사:종류')을 노린다
+    assert result["extra_rounds"] <= qg.MAX_EXTRA_ROUNDS and len(result["groups"]) > 4
+    assert all(n >= 0 for n in qg.target_counts(result["check"]).values())

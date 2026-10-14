@@ -43,7 +43,9 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #:       — 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다, 질문 수를 바꿔 가며 최소·충분 개수를 찾는다
 #: v1.3: 질문 수를 지정하면 10턴 대화(J6)와 긴 문서 질문(J7)을 전용 단계에서 정한 수만큼 — 멀티턴 턴마다 답변 분량을 프롬프트로 요구,
 #:       긴 문서 하나를 여러 J7 질문이 함께 쓴다 (사용자 결정 2026-10-14: 항목마다 판정에 충분한 질문 수)
-QUESTION_GEN_VERSION = "question-gen-v1.3"
+#: v1.4: 세부 기준(검사 안의 질문 조건 종류 37 + 의미 점검 항목)마다 적용 수를 세고 모자란 기준을 노려 추가 — 항목별 목표 적용 수(per_target),
+#:       멀티턴 답변 분량은 질문 문장에 쓰지 않고 설계 안내로만 (사용자 결정 2026-10-14)
+QUESTION_GEN_VERSION = "question-gen-v1.4"
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -66,21 +68,18 @@ MAX_ATTACHMENT_CHARS = 4_000
 #: 질문 수를 지정했을 때 10턴 대화·긴 문서 질문의 기본 비율 (설계안 v1.2 질문 세트 구성 초안: 멀티턴 10%, 롱컨텍스트 5%)
 MULTI_TURN_RATIO = 0.10
 LONG_CONTEXT_RATIO = 0.05
-#: 10턴 대화의 턴마다 요구하는 답변 글자 수 — 10턴 × 1,500자 × 약 0.72토큰/자 ≈ 10.8K 토큰 (멀티턴 조건: 대화 전체 10K 토큰).
-#: 멀티턴 여부는 모델마다 실제 답변으로 재므로, 짧게 답한 모델만 J6 '해당 없음'이 되지 않게 분량을 질문에 적는다 (사용자 제안 2026-10-14)
+#: 10턴 대화의 턴마다 노리는 답변 글자 수 — 10턴 × 1,500자 × 약 0.72토큰/자 ≈ 10.8K 토큰 (멀티턴 조건: 대화 전체 10K 토큰).
+#: 멀티턴 여부는 모델마다 실제 답변으로 재므로 답이 길어지는 요청으로 설계하게 한다 — 질문 문장에 분량을 쓰지는 않는다 (사용자 결정 2026-10-14)
 TURN_ANSWER_CHARS = 1_500
-#: 분량을 정한 턴으로 보는 질문 조건 (생성된 턴에 분량 요구가 빠졌는지 셀 때)
-LENGTH_LIMIT_KINDS = frozenset({"char_count", "sentence_count", "line_count", "paragraph_count", "word_count", "explicit_empty"})
 MULTI_TURN_BATCH = 4          # GPT 응답 하나에 계획하는 10턴 대화 수 (대화 하나가 질문 10개라 출력이 길다)
 LONG_CONTEXT_BATCH = 20       # 긴 문서 질문을 한 응답에 계획하는 수
 DEDICATED_ITEMS = ("J6-", "J7-")   # 전용 단계가 맡는 항목 — 일반 계획에서는 빼고 묻는다
-#: 멀티턴 턴 질문에 답변 분량을 적게 하는 규칙 — 모델마다 실제 답변으로 대화 전체 길이를 재므로 짧게 답한 모델만 J6 '해당 없음'이
-#: 되지 않게 한다 (사용자 결정 2026-10-14: 분량은 생성 프롬프트에 넣는다). 괄호 속 분량은 평가 엔진이 답변 일부의 조건으로 읽어 판정하지 않는다.
+#: 멀티턴 답변 분량 안내 — 생성 프롬프트에만 넣는다. 모델에게 보내는 질문 문장에는 분량을 쓰지 않는다 (사용자 결정 2026-10-14).
 _LENGTH_RULE = (f"멀티턴으로 인정되려면 대화 전체(모든 턴의 질문 + 답변)가 {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상이어야 하고, 이 길이는 모델마다 "
-                f"실제 답변으로 잽니다. 그래서 턴마다 질문 문장 안에 답변 분량을 'N자 이상으로' 형태로 직접 적습니다(턴마다 {TURN_ANSWER_CHARS:,}자 이상, "
-                f"예: '{TURN_ANSWER_CHARS:,}자 이상으로 자세히 답해 주세요.'). 괄호 안에 넣지 않습니다. 분량을 줄이는 지시(한 문장으로, N자 이내, 짧게, "
-                f"세 줄로 요약)는 쓰지 않고, 조건 변경·수정 요청도 분량을 줄이지 않는 방식으로 씁니다(예: '표의 열을 바꿔 전체를 다시 써 줘', "
-                f"'존댓말로 바꿔 수정본 전체를 다시 보여 줘').")
+                f"실제 답변으로 잽니다. 그래서 턴마다 답변이 약 {TURN_ANSWER_CHARS:,}자 이상 나오도록 요청 자체를 설계합니다 — 표·단계별 설명·초안 작성·"
+                f"수정본 전체 다시 쓰기·여러 안 비교처럼 답이 길어지는 요청. 답변 분량을 요구하는 문구('N자 이상')는 질문에 쓰지 않습니다(모델에게 보내는 "
+                f"질문은 평소 사용자 질문 그대로). 분량을 줄이는 지시(한 문장으로, N자 이내, 짧게, 세 줄로 요약)도 쓰지 않고, 조건 변경·수정 요청도 분량을 "
+                f"줄이지 않는 방식으로 씁니다(예: '표의 열을 바꿔 전체를 다시 써 줘', '존댓말로 바꿔 수정본 전체를 다시 보여 줘').")
 
 LLM = Callable[[str, int], str]
 
@@ -103,22 +102,43 @@ class Cancelled(GenerationError):
 
 # --- 1. 점검 목록과 프롬프트 ---------------------------------------------------------------
 
+#: 세부 조건(검사 안에서 질문이 만드는 조건 종류)의 화면 이름 — 생성기가 이 단위로 적용 수를 채운다 (사용자 결정 2026-10-14:
+#: 세세한 평가 기준을 보고 질문을 만들어 모두 평가되게)
+KIND_NAMES = {
+    "code_block_required": "코드블록 요구", "code_block_count": "코드블록 개수", "code_block_forbidden": "코드블록 금지",
+    "code_language_label": "코드블록 언어 표지", "json_required": "JSON 출력 요구", "python_code_requested": "파이썬 코드 요구",
+    "explicit_empty": "빈 출력 요구", "bullet_count": "불릿 개수", "list_count": "항목 개수", "sentence_count": "문장 수",
+    "paragraph_count": "문단 수", "line_count": "줄 수", "word_count": "어절 수", "char_count": "글자 수",
+    "required_literal": "필수 문구", "forbidden_literal": "금지 문구", "starts_with": "시작 문구", "ends_with": "끝 문구",
+    "charset": "허용 문자", "table_required": "표 요구", "table_forbidden": "표 금지", "table_count": "표 개수",
+    "table_columns": "표 열 이름", "table_column_count": "표 열 수", "table_header": "표 머리글", "table_data_rows": "표 데이터 행 수",
+    "table_total_rows": "표 전체 행 수", "list_required": "목록 요구", "list_forbidden": "목록 금지", "heading_required": "제목 요구",
+    "heading_count": "제목 개수", "json_required_keys": "JSON 필수 키", "json_field_type": "JSON 필드 자료형", "calculation": "질문 계산값",
+    "transform": "정렬·필터·변환", "unique_values": "중복 없이", "aggregate": "합계·평균 집계",
+}
+
 def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
     """프롬프트에 넣을 점검 목록 — CODE 검사(AIONA 특화 제외)와 의미 평가 항목. 기준 정의에서 만들어 기준이 바뀌면 같이 바뀐다."""
+    from tools.check_question_set import KIND_UNIT
     examples: Dict[str, str] = {}
     rules: Dict[str, List[str]] = {}
+    question_rules: Dict[str, int] = {}
     try:
         for check in json.loads(CONDITIONS_PATH.read_text(encoding="utf-8")).get("checks") or []:
             sample = ((check.get("examples") or {}).get("PASS") or {}).get("question")
             if isinstance(sample, str):
                 examples[check["id"]] = " ".join(sample.split())[:160]
             # 엔진이 질문에서 요구를 읽는 규칙 — 이 표현·자료 형식이 아니면 검사가 적용되지 않는다 (실제 생성에서 확인)
-            rules[check["id"]] = [f"{c.get('title')}: {' '.join(str(c.get('text') or '').split())}"
-                                  for c in check.get("conditions") or [] if isinstance(c, dict) and c.get("title")]
+            conditions = [c for c in check.get("conditions") or [] if isinstance(c, dict) and c.get("title")]
+            # 질문 요구로 생기는 세부 조건을 앞에 — 생성기가 질문에 넣어야 할 표현이다 (답변 자체·고정 정책 조건은 뒤)
+            conditions.sort(key=lambda c: c.get("source") != "question")
+            rules[check["id"]] = [f"{c.get('title')}: {' '.join(str(c.get('text') or '').split())}" for c in conditions]
+            question_rules[check["id"]] = sum(1 for c in conditions if c.get("source") == "question")
     except (OSError, ValueError):
         pass
     codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], ""),
-              "rules": rules.get(c["id"], [])}
+              "rules": rules.get(c["id"], []), "question_rules": question_rules.get(c["id"], 0),
+              "kinds": [{"id": f"{unit}:{kind}", "name": KIND_NAMES.get(kind, kind)} for kind, unit in KIND_UNIT.items() if unit == c["id"]]}
              for c in reference_details()["code_checks"] if not c["id"].startswith("AIONA")]
     items = [{"id": item.id, "sub": SUBS_BY_ID[item.sub].name, "question": item.question, "applies": item.applies} for item in ITEMS]
     return {"code": codes, "items": items}
@@ -141,17 +161,22 @@ _FORMAT = """# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)
               "long_paste": {"topic": "붙여 넣을 자료 주제", "must_include": ["꼭 들어갈 내용"]}}]}
 ]}
 - 필요 없는 attachments·long_reference·long_paste 는 빼거나 null 로 둡니다. 단일 질문은 turns 가 1개, 멀티턴 대화는 여러 개입니다.
-- target_items 에는 [점검 목록]의 id 만, 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
+- target_items 에는 [점검 목록]의 id 만(CODE 는 세부 조건 id '검사:종류'를 우선), 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
 
 
 def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None, detailed: bool = False) -> List[str]:
-    """점검 목록 줄. CODE 검사는 인식 규칙 첫 줄(``detailed`` 면 규칙 전체)을 함께 — 질문에 그 표현을 그대로 써야 적용된다."""
-    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 인식 규칙)"]
+    """점검 목록 줄. CODE 검사는 세부 조건(id '검사:종류')과 질문 쪽 인식 규칙 전부(``detailed`` 면 나머지 규칙까지)를 함께 —
+    질문에 그 표현을 그대로 써야 적용된다. ``only`` 에 세부 조건 id 가 있으면 그 검사와 해당 세부 조건만."""
+    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 세부 조건 · 인식 규칙)"]
     for c in catalog["code"]:
-        if only is None or c["id"] in only:
+        kinds = [k for k in c.get("kinds") or [] if only is None or k["id"] in only or c["id"] in only]
+        if only is None or c["id"] in only or kinds:
             lines.append(f"- {c['id']} · {c['name']} · {c['applies']}" + (f" · 예: {c['example']}" if c["example"] else ""))
-            for rule in (c.get("rules") or [])[: None if detailed else 1]:
-                lines.append(f"    · 인식: {rule[:600 if detailed else 220]}")
+            if kinds:
+                lines.append("    · 세부 조건: " + ", ".join(f"{k['id']}({k['name']})" for k in kinds))
+            shown = len(c.get("rules") or []) if detailed else max(1, c.get("question_rules") or 0)
+            for rule in (c.get("rules") or [])[:shown]:
+                lines.append(f"    · 인식: {rule[:600 if detailed else 260]}")
     lines.append("## 의미 평가 항목 (id · 세부 기준 · 점검 질문(예 = PASS) · 적용)")
     for item in catalog["items"]:
         if only is None or item["id"] in only:
@@ -230,14 +255,17 @@ def _count_rule(n: int) -> str:
             f"답하기 전에 questions 의 개수를 세어 {n}개인지 확인하고, 모자라면 채운 뒤 답합니다.")
 
 
-def extra_prompt(count: int, have: int, target: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
+def extra_prompt(count: int, have: int, target: Optional[int], existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None,
                  weak_units: Sequence[Dict[str, str]] = (), low_coverage: Sequence[Tuple[str, int]] = (), note: str = "",
-                 long_reference_ok: bool = True) -> str:
+                 long_reference_ok: bool = True, per_target: Optional[int] = None) -> str:
     """세트가 목표 질문 수에 못 미칠 때 질문을 더 만든다 — 변별력 보강 단위와 적용 질문이 적은 항목을 우선 노리게."""
     catalog = catalog or criteria_catalog()
     parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가합니다. 결과는 JSON 하나로만 답합니다.\n\n"
-             f"# 목표\n앞서 만든 질문 세트는 {have}개입니다. 목표 {target}개에 맞추려 질문 {count}개를 추가합니다(멀티턴 대화 1개 = 1개). "
-             f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(t for t in existing_topics if t)[:4000] or '없음'})와 겹치지 않게 합니다. "
+             f"# 목표\n앞서 만든 질문 세트는 {have}개입니다. "
+             + (f"목표 {target}개에 맞추려 질문 {count}개를 추가합니다(멀티턴 대화 1개 = 1개). " if target else
+                f"세부 기준마다 적용 질문이 {per_target}개 이상이 되도록, [적용 질문이 적은 항목]의 모자란 기준을 노린 질문 {count}개를 추가합니다"
+                f"(멀티턴 대화 1개 = 1개). 질문 하나가 모자란 기준 여러 개에 함께 적용되게 설계해 전체 질문 수를 줄입니다. ")
+             + f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(t for t in existing_topics if t)[:4000] or '없음'})와 겹치지 않게 합니다. "
              f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다."
              + ("" if long_reference_ok else " 긴 참조 자료(long_reference)는 이미 다 만들어 이번에는 쓰지 않습니다."),
              _DISCRIMINATION, _FORMAT]
@@ -301,14 +329,20 @@ def _paste_prompt(spec: Dict[str, Any], chars: int) -> str:
             f"주제: {spec.get('topic') or '업무 자료'}\n꼭 들어갈 내용:\n{must}\n- 머리말·설명 없이 자료 본문만 씁니다.")
 
 
-def split_counts(target: Optional[int], multi_turn: Optional[int] = None, long_context: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
-    """세트 질문 수 → (10턴 대화 수, 긴 문서 질문 수). 질문 수를 지정하지 않으면 (None, None) — 전용 단계 없이 예전처럼 만든다.
+def split_counts(target: Optional[int], multi_turn: Optional[int] = None, long_context: Optional[int] = None,
+                 per_target: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    """세트 질문 수 → (10턴 대화 수, 긴 문서 질문 수). 질문 수도 항목별 목표 적용 수도 없으면 (None, None) — 전용 단계 없이 예전처럼.
 
-    값을 주면 그대로 쓰고, 비우면 기본 비율(최소 1개). 둘을 합쳐 세트 질문 수를 넘지 않게 줄인다(나머지 질문 1개 이상)."""
-    if not target:
+    값을 주면 그대로, 비우면 항목별 목표 적용 수(``per_target``)만큼(J6·J7 항목이 그 수만큼 적용되게), 그것도 없으면 질문 수의 기본 비율
+    (최소 1개). 질문 수가 있으면 둘을 합쳐 그 수를 넘지 않게 줄인다(나머지 질문 1개 이상)."""
+    if not target and not per_target:
         return None, None
-    m = max(1, round(target * MULTI_TURN_RATIO)) if multi_turn is None else int(multi_turn)
-    l = max(1, round(target * LONG_CONTEXT_RATIO)) if long_context is None else int(long_context)
+    m = (int(multi_turn) if multi_turn is not None else per_target if per_target else max(1, round(target * MULTI_TURN_RATIO)))
+    l = (int(long_context) if long_context is not None else per_target if per_target else max(1, round(target * LONG_CONTEXT_RATIO)))
+    if not target:
+        if m < 0 or l < 0:
+            raise ValueError("10턴 대화 수·긴 문서 질문 수는 0 이상이어야 합니다.")
+        return m, l
     if m < 0 or l < 0:
         raise ValueError("10턴 대화 수·긴 문서 질문 수는 0 이상이어야 합니다.")
     while m + l >= target and (m or l):   # 다른 항목에 쓸 질문을 1개 이상 남긴다 — 큰 쪽부터 줄인다
@@ -337,7 +371,7 @@ def multi_turn_prompt(count: int, existing_topics: List[str], catalog: Optional[
              f"아래 J6 항목이 모든 대화에 걸쳐 고르게, 항목마다 가능한 한 많은 대화에서 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, "
              f"지시어(\"아까 두 번째\"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박. "
              f"주제는 서로 겹치지 않게 하고, 기존 주제({', '.join(t for t in existing_topics if t)[:2000] or '없음'})와도 겹치지 않게 합니다.\n\n"
-             f"# 답변 분량 (턴마다 질문에 직접 적음)\n{_LENGTH_RULE}\n\n"
+             f"# 답변 분량\n{_LENGTH_RULE}\n\n"
              f"# 붙여 넣는 자료\n자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {PASTE_CHARS:,}자 자료를 만들어 "
              f"질문 앞에 붙입니다. 대화 하나에 최대 {MAX_PASTE_TURNS}턴. long_reference·attachments 는 쓰지 않습니다.",
              _DISCRIMINATION, _FORMAT,
@@ -385,12 +419,6 @@ def long_context_prompt(count: int, catalog: Optional[Dict[str, List[Dict[str, s
         parts.append(_note_block(note))
     parts.append(f"# 질문 개수 (반드시 지킴)\nquestions 배열에 정확히 {count}개를 넣습니다. 답하기 전에 개수를 세어 확인합니다.")
     return "\n\n".join(parts)
-
-
-def needs_length(question: str) -> bool:
-    """턴 질문에 분량 요구가 없는지 — 엔진이 분량 조건(글자·문장·줄·문단·어절 수, 빈 출력)을 하나도 읽지 못하면 True."""
-    from code_eval.extract import extract_conditions
-    return not any(req.kind in LENGTH_LIMIT_KINDS for req in extract_conditions(question).reqs)
 
 
 # --- 2. 계획 응답 읽기 -------------------------------------------------------------------
@@ -447,7 +475,11 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
     raw = value.get("questions")
     if not isinstance(raw, list) or not raw:
         raise GenerationError("GPT 응답에 questions 목록이 없습니다.")
-    known = known_ids if known_ids is not None else {c["id"] for c in criteria_catalog()["code"]} | {i.id for i in ITEMS}
+    if known_ids is None:
+        catalog = criteria_catalog()
+        known = {c["id"] for c in catalog["code"]} | {k["id"] for c in catalog["code"] for k in c["kinds"]} | {i.id for i in ITEMS}
+    else:
+        known = known_ids
     questions, warnings = [], []
     for index, entry in enumerate(raw, 1):
         if len(questions) >= MAX_PLAN_QUESTIONS:   # 비용 상한 — 계획이 지나치게 크면 앞에서부터만 쓴다
@@ -671,9 +703,6 @@ class QuestionSetBuilder:
                 if len(plan["turns"]) < multi_turn.MIN_TURNS:
                     self.warnings.append(f"'{plan.get('topic')}' 대화가 {len(plan['turns'])}턴이라 뺐습니다 (멀티턴은 {multi_turn.MIN_TURNS}턴 이상).")
                     continue
-                missing = sum(1 for t in plan["turns"] if needs_length(t["question"]))
-                if missing:   # 분량은 프롬프트로 요구한다 — 빠진 턴은 고치지 않고 알린다
-                    self.warnings.append(f"'{plan.get('topic')}' 대화의 {missing}개 턴에 답변 분량 요구가 없습니다.")
                 try:
                     groups.append(self.materialize(start + len(groups), plan))
                 except Cancelled:
@@ -686,12 +715,15 @@ class QuestionSetBuilder:
 
     # 전체 ---------------------------------------------------------------------------
     def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = (),
-              multi_turn_count: Optional[int] = None, long_context_count: Optional[int] = None) -> Dict[str, Any]:
+              multi_turn_count: Optional[int] = None, long_context_count: Optional[int] = None,
+              per_target: Optional[int] = None) -> Dict[str, Any]:
         """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가."""
         catalog = criteria_catalog()
         if target_questions:   # 질문 하나에 계획·자료 호출이 몇 번씩 든다 — 수백 개를 지정해도 호출 상한에 먼저 막히지 않게
             self.max_calls = max(MAX_CALLS, 2 * target_questions + 150)
-        multi_count, long_count = split_counts(target_questions, multi_turn_count, long_context_count)
+        if per_target and not target_questions:   # 질문 수 없이 항목별 목표 적용 수만 — 다 채울 때까지 (상한 MAX_PLAN_QUESTIONS)
+            self.max_calls = max(MAX_CALLS, 2 * MAX_PLAN_QUESTIONS + 150)
+        multi_count, long_count = split_counts(target_questions, multi_turn_count, long_context_count, per_target)
         dedicated = multi_count is not None   # 질문 수를 지정하면 10턴 대화·긴 문서 질문을 전용 단계에서 정한 수만큼 먼저 만든다
         general = general_catalog(catalog) if dedicated else catalog
         self.out_dir.mkdir(parents=True, exist_ok=True)
@@ -736,7 +768,7 @@ class QuestionSetBuilder:
                 except GenerationError as exc:   # 그 질문만 빼고 계속한다 — 빠진 항목은 점검·보충이 다시 잡는다
                     self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
             report = check(groups)
-            missing = report["coverage"]["missing_checks"] + [i for i in report["coverage"]["missing_items"] if not (dedicated and _dedicated(i))]
+            missing = [t for t, n in target_counts(report, dedicated).items() if n == 0]   # 한 번도 적용되지 않은 세부 기준
             have = attachment_types(groups)
             missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
@@ -762,15 +794,28 @@ class QuestionSetBuilder:
             raise GenerationError("만든 질문이 없습니다: " + " / ".join(self.warnings[-3:]))
         extra_rounds = 0
         # 목표 수 채우기 — 변별력 보강·적게 덮인 항목 우선, 응답 하나에 PLAN_BATCH 개씩
-        while target_questions and len(groups) < target_questions and extra_rounds < MAX_EXTRA_ROUNDS:
-            count, before = min(PLAN_BATCH, target_questions - len(groups)), len(groups)
-            self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청 (지금 {len(groups)}개)", "count": count,
+        def short() -> int:   # 항목별 목표 적용 수에 모자란 적용 수 합
+            return sum(per_target - n for n in target_counts(report, dedicated).values() if n < per_target) if per_target else 0
+
+        def more() -> bool:
+            if target_questions:
+                return len(groups) < target_questions
+            return bool(per_target) and short() > 0 and len(groups) < MAX_PLAN_QUESTIONS
+
+        while more() and extra_rounds < MAX_EXTRA_ROUNDS:
+            limit = (target_questions or MAX_PLAN_QUESTIONS) - len(groups)
+            # 질문 하나가 기준 여러 개(평균 약 3개)에 적용되므로 모자란 수의 3분의 1 정도씩 — 목표 질문 수가 있으면 그 수까지
+            count = min(PLAN_BATCH, limit) if target_questions else min(PLAN_BATCH, limit, max(5, math.ceil(short() / 3)))
+            before = len(groups)
+            self.progress("extra", {"message": (f"목표 {target_questions}개에 맞춰" if target_questions else f"기준마다 {per_target}개 적용까지 (모자란 적용 {short()})")
+                                               + f" 질문 {count}개 추가 요청 (지금 {len(groups)}개)", "count": count,
                                     "done": len(groups)})
             try:
-                low = [(uid, n) for uid, n in _low_coverage(report, 15 + (10 if dedicated else 0)) if not (dedicated and _dedicated(uid))][:15]
+                low = _low_coverage(report, 30 if per_target else 15, dedicated, per_target)
                 plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], general,
                                                                     weak_units, low, note=note,
-                                                                    long_reference_ok=not dedicated and self.long_references < MAX_LONG_REFERENCES), PLAN_TOKENS))
+                                                                    long_reference_ok=not dedicated and self.long_references < MAX_LONG_REFERENCES,
+                                                                    per_target=per_target), PLAN_TOKENS))
                 plans = general_only(plans)
                 self.warnings += warnings
                 extra_rounds += 1
@@ -795,12 +840,22 @@ class QuestionSetBuilder:
         return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds}
 
 
-def _low_coverage(report: Dict[str, Any], limit: int = 15) -> List[Tuple[str, int]]:
-    """적용 질문이 가장 적은 검사·항목 (답변 구조로만 생기는 것은 제외) — 추가 질문이 노릴 곳."""
+def target_counts(report: Dict[str, Any], dedicated: bool = False) -> Dict[str, int]:
+    """생성기가 채우는 세부 기준별 적용 질문 수 — CODE 는 질문 조건 종류('검사:종류'), 의미 평가는 점검 항목.
+    답변으로만 정해지는 항목은 빼고, ``dedicated`` 면 전용 단계가 맡는 J6·J7 도 뺀다."""
     coverage = report.get("coverage") or {}
-    skip = set(coverage.get("answer_dependent") or []) | set(coverage.get("answer_dependent_items") or [])
-    counts = [(uid, n) for pool in ("checks", "items") for uid, n in (coverage.get(pool) or {}).items() if uid not in skip]
-    return sorted(counts, key=lambda x: (x[1], x[0]))[:limit]
+    skip = set(coverage.get("answer_dependent_items") or [])
+    counts = dict(coverage.get("kinds") or {})
+    counts.update({iid: n for iid, n in (coverage.get("items") or {}).items() if iid not in skip and not (dedicated and _dedicated(iid))})
+    return counts
+
+
+def _low_coverage(report: Dict[str, Any], limit: int = 15, dedicated: bool = False, per_target: Optional[int] = None) -> List[Tuple[str, int]]:
+    """적용 질문이 가장 적은 세부 기준 — 추가 질문이 노릴 곳. ``per_target`` 이 있으면 그 수에 못 미친 기준만."""
+    counts = sorted(target_counts(report, dedicated).items(), key=lambda x: (x[1], x[0]))
+    if per_target:
+        counts = [(t, n) for t, n in counts if n < per_target]
+    return counts[:limit]
 
 
 def flatten(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -887,6 +942,11 @@ class QuestionSetService:
             target = None
         elif type(target) is not int or not 1 <= target <= MAX_PLAN_QUESTIONS:
             raise ValueError(f"질문 수는 1~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
+        per_target = payload.get("per_target")   # 세부 기준마다 채울 적용 질문 수 — 비우면 쓰지 않음
+        if per_target in (None, ""):
+            per_target = None
+        elif type(per_target) is not int or not 1 <= per_target <= 200:
+            raise ValueError("per_target 은 1~200 사이의 정수여야 합니다.")
         counts = {}
         for key in ("multi_turn_conversations", "long_context_questions"):   # 10턴 대화·긴 문서 질문 수 — 비우면 질문 수의 기본 비율
             value = payload.get(key)
@@ -894,8 +954,8 @@ class QuestionSetService:
                 counts[key] = None
             elif type(value) is not int or not 0 <= value <= MAX_PLAN_QUESTIONS:
                 raise ValueError(f"{key} 는 0~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
-            elif target is None:
-                raise ValueError("10턴 대화·긴 문서 질문 수는 세트 질문 수(target_questions)를 정했을 때만 지정할 수 있습니다.")
+            elif target is None and per_target is None:
+                raise ValueError("10턴 대화·긴 문서 질문 수는 세트 질문 수(target_questions)나 per_target 을 정했을 때만 지정할 수 있습니다.")
             else:
                 counts[key] = value
         weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
@@ -914,7 +974,7 @@ class QuestionSetService:
             job = {"id": set_id, "version": QUESTION_GEN_VERSION, "status": "RUNNING", "phase": "plan", "message": "시작",
                    "created_at": datetime.now(timezone.utc).isoformat(), "model": config.get("model"), "note": note[:2000],
                    "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None,
-                   "target_questions": target, "weak_from_run": weak_from, "weak_units": weak_units, **counts,
+                   "target_questions": target, "per_target": per_target, "weak_from_run": weak_from, "weak_units": weak_units, **counts,
                    "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
@@ -939,7 +999,8 @@ class QuestionSetService:
         try:
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)
             result = builder.build(note, target_questions=job.get("target_questions"), weak_units=job.get("weak_units") or [],
-                                   multi_turn_count=job.get("multi_turn_conversations"), long_context_count=job.get("long_context_questions"))
+                                   multi_turn_count=job.get("multi_turn_conversations"), long_context_count=job.get("long_context_questions"),
+                                   per_target=job.get("per_target"))
             if cancel.is_set():   # 마지막 단계에서 취소했으면 완료로 남기지 않는다
                 raise Cancelled("생성을 중단했습니다.")
             groups, report = result["groups"], result["check"]

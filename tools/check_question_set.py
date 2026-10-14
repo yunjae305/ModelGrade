@@ -33,7 +33,7 @@ from code_eval.semantic_items import ITEMS, applicable_items  # noqa: E402
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(J7 롱컨텍스트 입력 8K 토큰 이상 적용 수·판별 불가 수)와 작업 브랜치 v2(충족 enough·
 #: short_criteria 를 적용 독립 질문·대화 수로, applicable 은 그대로 적용 턴 수). 둘을 합친 것 → v3.
-CHECK_VERSION = "question-set-check-v4"   # v4: 검사·항목 단위 적용 수(coverage), 첨부파일
+CHECK_VERSION = "question-set-check-v5"   # v5: 세부 조건(검사·질문 조건 종류) 단위 적용 수 · v4: 검사·항목 단위 적용 수(coverage), 첨부파일
 MIN_APPLICABLE = 30
 #: 팀원 구조도의 유형 비율 초안 (설계안 v1.2 질문 세트 구성) — 유형 필드가 있을 때만 비교한다
 TARGET_RATIOS = {"일반 지식·설명": .20, "정보 검색·사실 확인": .20, "분석·추론": .15, "코딩·기술": .15,
@@ -44,6 +44,15 @@ CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J
 _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 #: CODE 검사 단위 (AIONA 특화 제외) — (id, 적용 계기, 질문 요구 종류)
 _UNITS = [(uid, trigger, frozenset(kinds)) for uid, _, trigger, kinds in CODE_UNITS if trigger != "aiona"]
+#: 세부 조건 — 검사 단위 안에서 질문이 만드는 조건 종류 ('2-1.count:sentence_count'). 같은 종류를 두 검사가 함께 보면(코드블록 요구 →
+#: 1-2.code_block·code_fence_min, JSON 요구 → json_syntax·json_structure) 처음 검사에만 둔다. 판정하지 않는 종류(표 행 수가 모호함)는 뺀다.
+_UNSCORED_KINDS = frozenset({"table_rows_ambiguous"})
+KIND_UNIT: Dict[str, str] = {}
+for _uid, _trigger, _kinds in _UNITS:
+    for _kind in sorted(_kinds):
+        if _kind not in _UNSCORED_KINDS:
+            KIND_UNIT.setdefault(_kind, _uid)
+KINDS = tuple(f"{unit}:{kind}" for kind, unit in KIND_UNIT.items())
 #: 답변 구조로만 생기는 검사 — 질문만으로는 적용 여부를 셀 수 없다 (답변을 받은 뒤 확인)
 ANSWER_DEPENDENT = tuple(uid for uid, trigger, _ in _UNITS if trigger == "answer")
 #: 답변 문장으로 적용이 정해지는 의미 항목 — J5-3.a 는 답변이 확인·조회·출처를 언급할 때 켜진다 (j5_items_applicability)
@@ -95,6 +104,14 @@ def criteria_counts(rows: List[Dict[str, Any]], minimum: int = MIN_APPLICABLE) -
 _QUESTION_UNITS = frozenset(uid for uid, trigger, _ in _UNITS if trigger in ("question", "question_or_answer"))
 
 
+def _code_kinds(result: Dict[str, Any]) -> List[str]:
+    """이 질문(턴)에서 엔진이 읽은 세부 조건 (status ok, 다른 조건에 합쳐지는 것 제외) — '검사:종류'."""
+    meta = result.get("meta") or {}
+    kinds = {cond.get("kind") for cond in meta.get("question_conditions") or [] if isinstance(cond, dict) and cond.get("status", "ok") == "ok"}
+    effective = kinds - {cond for cond, with_cond, _, _ in SUBSUMED_KINDS if with_cond in kinds}
+    return sorted(f"{KIND_UNIT[k]}:{k}" for k in effective if k in KIND_UNIT)
+
+
 def _code_checks(result: Dict[str, Any]) -> set:
     """이 질문(턴)에 적용되는 CODE 검사 단위 — 모든 답변 검사 + 질문 요구로 켜지는 검사.
 
@@ -123,14 +140,19 @@ def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     빠진 목록에 넣지 않는다.
     의미 항목 가운데 평가 모델이 해당 여부를 정하는 항목(model_applies)은 '보냄' 기준으로 센다."""
     checks: Dict[str, set] = {uid: set() for uid, _, _ in _UNITS}
+    kinds: Dict[str, set] = {kid: set() for kid in KINDS}
     items: Dict[str, set] = {item.id: set() for item in ITEMS}
     for row in rows:
         unit = unit_of(row)
         for uid in row.get("checks") or []:
             checks.setdefault(uid, set()).add(unit)
+        for kid in row.get("kinds") or []:
+            kinds.setdefault(kid, set()).add(unit)
         for item_id in row.get("items") or []:
             items.setdefault(item_id, set()).add(unit)
     return {"checks": {uid: len(units) for uid, units in checks.items()}, "items": {iid: len(units) for iid, units in items.items()},
+            "kinds": {kid: len(units) for kid, units in kinds.items()},
+            "missing_kinds": [kid for kid, units in kinds.items() if not units],
             "answer_dependent": list(ANSWER_DEPENDENT), "answer_dependent_items": list(ANSWER_DEPENDENT_ITEMS),
             "missing_checks": [uid for uid, units in checks.items() if not units and uid not in ANSWER_DEPENDENT],
             "missing_items": [iid for iid, units in items.items() if not units and iid not in ANSWER_DEPENDENT_ITEMS]}
@@ -233,7 +255,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
             if fact_question(case["question"], history)[0]:
                 hit.add("J5")
         row = {"case_id": case["case_id"], "index": case["index"], "criteria": [c for c in CRITERIA if c in hit],
-               "checks": sorted(_code_checks(result)), "items": item_ids}
+               "checks": sorted(_code_checks(result)), "kinds": _code_kinds(result), "items": item_ids}
         if "conversation_id" in case:
             row.update(conversation_id=case["conversation_id"], turn=case["turn"])
         per_case.append(row)
