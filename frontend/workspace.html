@@ -7,6 +7,7 @@
   <title>AIONA · 모델 비교 워크스페이스</title>
   <link rel="stylesheet" href="/src/workspace.css">
   <link rel="stylesheet" href="/src/evaluation-stream.css">
+  <link rel="stylesheet" href="/src/progress-workspace.css">
   <script defer src="/src/workspace-results.js"></script>
   <script defer src="/src/failure-locations.js"></script>
   <script defer src="/src/answer-highlights.js"></script>
@@ -21,6 +22,7 @@
   <script defer src="/src/auto-collection.js"></script>
   <script defer src="/src/version-workspace.js"></script>
   <script defer src="/src/criteria-workspace.js"></script>
+  <script defer src="/src/progress-workspace.js"></script>
 </head>
 <body>
   <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -60,6 +62,7 @@
     <div class="sidebar-divider"></div><div class="nav-label">참고 자료</div>
     <nav class="resource-nav" aria-label="자료">
       <a class="nav-item" href="#criteria" data-view="criteria"><svg class="icon"><use href="#i-book"/></svg>평가 기준</a>
+      <a class="nav-item" href="#progress" data-view="progress"><svg class="icon"><use href="#i-file"/></svg>업무 진행 현황</a>
     </nav>
     <div class="sidebar-bottom"><div class="preserve-card"><svg class="icon"><use href="#i-shield"/></svg><strong>원문 그대로, 같은 기준으로.</strong><p>블라인드 평가 · 원문 보존</p></div></div>
   </aside>
@@ -240,6 +243,10 @@ A: 이어지는 답변</pre><p>회차 제목이 있으면 같은 회차 안에�
         <div class="alert error" id="criteria-reference-error" role="alert" hidden></div>
         <button type="button" class="button secondary" id="criteria-reference-retry" hidden>다시 불러오기</button>
         <div id="criteria-reference-content" aria-live="polite"></div>
+      </section>
+      <section class="page-view progress-view" id="view-progress" hidden aria-labelledby="progress-title">
+        <div class="page-heading"><div><div class="eyebrow">참고 자료</div><h1 id="progress-title">업무 진행 현황</h1><p>멘토 요구사항의 담당자, 구현 근거, 남은 검증과 완료 조건을 확인합니다.</p></div></div>
+        <div id="progress-content" aria-live="polite"><p class="progress-loading">현황 데이터를 불러오는 중입니다.</p></div>
       </section>
       <footer class="page-footer"><span>AIONA Evaluation Workspace</span><span id="engine-label">같은 질문 · 같은 기준 · 원문 보존</span></footer>
     </main>

@@ -30,6 +30,10 @@ py -3 -X utf8 run.py
 
 브라우저에서 **[모델 비교 워크스페이스](http://localhost:8080/workspace.html)**에 접속합니다.
 
+왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개의 담당자, 구현 근거, 검증 공백, 다음 작업과 완료 조건을 확인합니다. 직접 주소는 `http://localhost:8080/workspace.html#progress`입니다. 현황 화면은 ZIP의 보고서 디자인과 내용을 현재 워크스페이스 화면으로 옮긴 것으로, 별도 iframe이나 HTML 재생성 없이 [requirements.json](frontend/data/requirements.json)을 읽습니다. 이 JSON이 유일한 현황 원본입니다. 담당자의 실제 결과를 확인한 뒤 해당 항목의 상태·근거·남은 문제와 `as_of`를 수정하고 화면을 새로고침하거나 다른 메뉴에서 돌아오면 반영됩니다. 코드 작성이나 테스트 통과만으로 실제 판정 정확도 검증을 완료로 바꾸지 않습니다.
+
+현황 화면 검증: `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요). 캡처는 `results/progress-workspace/`에 저장됩니다.
+
 배치 파일로도 실행할 수 있습니다.
 
 ```powershell

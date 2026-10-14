@@ -5,7 +5,7 @@
   const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
-  const labels = {setup: '새 비교', connections: '연결·수집 설정', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
+  const labels = {setup: '새 비교', connections: '연결·수집 설정', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준', progress: '업무 진행 현황'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
@@ -113,7 +113,7 @@
     });
     $('breadcrumb-current').textContent = labels[view];
     $('topbar-title').textContent = pageTitles[view];
-    $('engine-label').hidden = view === 'criteria';
+    $('engine-label').hidden = view === 'criteria' || view === 'progress';
     try { sessionStorage.setItem('aiona-workspace-view', view); } catch (_) { /* session storage can be disabled */ }
     revealActiveNavigation();
     if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
@@ -123,6 +123,7 @@
     if (view === 'versions') window.dispatchEvent(new CustomEvent('aiona:versions-open'));
     if (view === 'comparison') window.dispatchEvent(new CustomEvent('aiona:comparison-open'));
     if (view === 'criteria') window.dispatchEvent(new CustomEvent('aiona:criteria-open'));
+    if (view === 'progress') window.dispatchEvent(new CustomEvent('aiona:progress-open'));
     if (view === 'results') restoreSavedRun();
     if (view === 'setup') window.dispatchEvent(new CustomEvent('aiona:setup-open'));
     if (view === 'connections') window.dispatchEvent(new CustomEvent('aiona:connections-open'));
