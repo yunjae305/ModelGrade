@@ -252,3 +252,38 @@ def test_aiona_login_status_reports_presence_only(tmp_path):
     assert status["credentials"] is True and status["profile_saved"] is True
     assert "tester@example.test" not in str(status) and "not-a-real-password" not in str(status)
     assert login_status(tmp_path / "missing.env", tmp_path / "none")["credentials"] is False
+
+
+def test_cdp_web_models_replace_their_api_models_when_the_collection_chrome_is_up(tmp_path, monkeypatch):
+    """수집용 Chrome(tools/chrome_cdp.py)이 떠 있고 사이트 탭이 열려 있으면 ChatGPT·Gemini·Claude 는 웹 탭으로 받고 같은 회사 API 는 빼며,
+    각 웹 모델은 자기 어댑터로 새 채팅 → 질문 순서대로 묻는다 (사용자 결정 2026-10-15: 수집은 전부 웹브라우저)."""
+    from webapp import cdp_chat_web
+
+    class WebFake(FakeChat):
+        NAME = "웹"
+
+        def ask(self, question, files=None, reference=None):
+            FakeChat.asked.append(question)
+            return {"answer": f"{self.NAME}: {question}", "status": "SUCCESS", "sent": []}
+
+    fakes = {p: type(f"Fake{p}", (WebFake,), {"NAME": p}) for p in cdp_chat_web.CDP_PROVIDERS}
+    monkeypatch.setattr(aiona_web, "AionaChat", FakeChat)
+    monkeypatch.setattr(cdp_chat_web, "CDP_CHATS", fakes)
+    monkeypatch.setattr(comparison_service, "cdp_login_status",
+                        lambda *_, **__: {"credentials": True, "tabs": {"chatgpt": True, "gemini": True, "claude": False}})
+    monkeypatch.setattr(comparison_service, "ask_with_tools",
+                        lambda provider, *a, **k: {"answer": f"{provider}: api", "status": "SUCCESS", "sent": []})
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path / "runs")
+    svc.configure("gpt", {"key": "k", "model": "gpt-x"})
+    svc.configure("claude", {"key": "k", "model": "claude-x"})
+    run = svc.start_question_set_run({"set_id": "qs-2", "rows": ROWS[1:], "auto_evaluate": False})
+    for _ in range(500):
+        if svc.status(run["run_id"])["status"] != "COLLECTING":
+            break
+        time.sleep(0.01)
+    result = svc.result(run["run_id"])
+    # Claude 탭이 없으니 Claude 는 API 그대로, ChatGPT 는 웹 탭이 API(gpt) 를 대신한다
+    assert result["providers"] == ["aiona", "chatgpt_web", "gemini_web", "claude"]
+    assert result["models"]["chatgpt_web"].startswith("ChatGPT 웹브라우저") and result["question_set"]["chatgpt_web"] == cdp_chat_web.CDP_WEB_VERSION
+    assert [r["answer"] for r in result["datasets"]["gemini_web"]] == ["gemini_web: 첫 질문", "gemini_web: 이어지는 질문"]
+    assert [r["answer"] for r in result["datasets"]["claude"]] == ["claude: api", "claude: api"]

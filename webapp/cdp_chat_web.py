@@ -27,8 +27,8 @@ REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료는 입력칸 대�
 #: 세 사이트가 같은 Chrome 을 쓰므로 메뉴 조작·전송은 한 번에 하나씩 — 탭 간 포커스 경쟁을 막는다
 _CHROME_LOCK = threading.Lock()
 #: 한도·봇 확인 문구 — 보이면 기다리지 않고 오류로 남긴다 (우회하지 않음)
-_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지", "Cloudflare", "너무 많은 요청", "Too many requests",
-            "사용량 한도", "usage limit", "한도에 도달", "메시지 한도", "limit reached", "다시 시도해 주세요. 잠시 후")
+_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지 확인", "Just a moment", "너무 많은 요청", "Too many requests",
+            "사용량 한도", "usage limit", "한도에 도달", "메시지 한도", "limit reached")   # 'Cloudflare' 낱말은 채팅 제목에도 나와 쓰지 않는다
 
 
 class CdpWebError(RuntimeError):
@@ -54,6 +54,7 @@ class _CdpChat:
     MODEL_LABEL = ""          # 결과에 남길 모델 이름
     TEXTBOX_NAME = ""         # 입력칸 textbox 의 접근성 이름(앞부분)
     ANSWER_SELECTOR = ""      # 답변 말풍선
+    USER_SELECTOR = ""        # 내 질문 말풍선 — 전송 확인용
     COPY_NAMES: tuple = ()    # 답변 복사 버튼 이름 후보 (마지막 것을 누른다)
     FILE_INPUT = ""           # 숨은 파일 input (없으면 메뉴 → 파일 선택 창)
     STOP_NAMES: tuple = ()    # 답하는 동안 보이는 정지 버튼 이름
@@ -114,14 +115,20 @@ class _CdpChat:
     # --- 채팅 ---------------------------------------------------------------------------------------
     def new_chat(self) -> None:
         with _CHROME_LOCK:
+            self.page.bring_to_front()   # 뒤에 있는 탭은 메뉴가 그려지지 않아 설정이 실패한다 (동시 실행 시험 2026-10-15)
             self.page.goto(self.NEW_URL, wait_until="domcontentloaded")
-            self.page.wait_for_timeout(4000)
+            self.page.wait_for_timeout(3000)
             self.page.evaluate(COPY_CAPTURE_JS)
             self._check_blocked()
+            try:   # 입력칸·설정 버튼이 늦게 뜨는 화면이 있다 — 최대 20초
+                self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first.wait_for(state="visible", timeout=20_000)
+            except Exception:
+                pass
+            self.page.wait_for_timeout(1500)
             try:
                 self.model_seen = self._apply_model()
             except Exception as exc:
-                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__})"
+                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__}: {str(exc)[:80]})"
                 self._snapshot("model-settings-failed")
 
     def _apply_model(self) -> str:   # 사이트별 — 설정을 맞추고 화면에 보이는 모델 표시를 돌려준다
@@ -140,6 +147,14 @@ class _CdpChat:
     def _menu_pick(self, opener_role: str, opener_name: str, path: List[str], *, exact_last: bool = False) -> None:
         """메뉴를 열고(path 의 중간 항목은 하위 메뉴) 마지막 항목을 누른다."""
         opener = self.page.get_by_role(opener_role, name=opener_name).first
+        opener.wait_for(state="visible", timeout=15_000)
+        try:
+            self._menu_walk(opener, path, exact_last)
+        finally:   # 실패해도 열린 메뉴를 닫는다 — 열린 채 두면 입력칸을 가린다
+            self.page.keyboard.press("Escape")
+            self.page.wait_for_timeout(300)
+
+    def _menu_walk(self, opener: Any, path: List[str], exact_last: bool) -> None:
         opener.click(timeout=5000)
         self.page.wait_for_timeout(700)
         for i, name in enumerate(path):
@@ -156,8 +171,6 @@ class _CdpChat:
             self.page.wait_for_timeout(400)
             item.click(timeout=5000)
             self.page.wait_for_timeout(800)
-        self.page.keyboard.press("Escape")
-        self.page.wait_for_timeout(300)
 
     def _upload(self, files: List[Path]) -> None:
         if self.FILE_INPUT:
@@ -170,20 +183,23 @@ class _CdpChat:
         raise CdpWebError(f"{self.NAME} 파일 업로드 경로가 없습니다")
 
     def _copy_last_answer(self) -> Optional[str]:
+        """마지막 답변의 복사 버튼(이름 정확히 일치) — 먼저 그 답변 말풍선 안에서, 없으면 화면 전체의 마지막 것. 내 질문의 복사 버튼은 이름이 달라 섞이지 않는다."""
         before = self.page.evaluate("() => (window.__mgCopied || []).length")
-        for name in self.COPY_NAMES:
-            btns = self.page.get_by_role("button", name=name)
-            if not btns.count():
-                continue
-            try:
-                btns.last.scroll_into_view_if_needed(timeout=2000)
-                btns.last.click(timeout=3000)
-                self.page.wait_for_timeout(600)
-                copied = self.page.evaluate("() => window.__mgCopied || []")
-                if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
-                    return copied[-1]
-            except Exception:
-                continue
+        scopes = [self._answers().last, self.page]
+        for scope in scopes:
+            for name in self.COPY_NAMES:
+                try:
+                    btns = scope.get_by_role("button", name=name, exact=True)
+                    if not btns.count():
+                        continue
+                    btns.last.scroll_into_view_if_needed(timeout=2000)
+                    btns.last.click(timeout=3000)
+                    self.page.wait_for_timeout(600)
+                    copied = self.page.evaluate("() => window.__mgCopied || []")
+                    if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
+                        return copied[-1]
+                except Exception:
+                    continue
         return None
 
     def _last_answer_text(self) -> str:
@@ -193,7 +209,14 @@ class _CdpChat:
             return ""
 
     def _streaming(self) -> bool:
-        return any(self.page.get_by_role("button", name=n).count() for n in self.STOP_NAMES)
+        btn = self.page.get_by_role("button", name=re.compile("|".join(re.escape(n) for n in self.STOP_NAMES)))
+        try:
+            return any(b.is_visible() for b in btn.all()[:4])
+        except Exception:
+            return False
+
+    def _asked(self) -> int:
+        return self.page.locator(self.USER_SELECTOR).count() if self.USER_SELECTOR else 0
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
@@ -212,6 +235,7 @@ class _CdpChat:
                 text = f"[참조 자료]\n{reference_text}\n\n{question}"
         base = {"url": None, "sent": sent, "model": self.model_seen or self.MODEL_LABEL, "method": CDP_WEB_VERSION}
         before = self._answers().count()
+        asked_before = self._asked()
         try:
             with _CHROME_LOCK:
                 if self.cancelled():
@@ -220,16 +244,18 @@ class _CdpChat:
                 self._check_blocked()
                 if files:
                     self._upload(files)
+                self.page.keyboard.press("Escape")   # 남아 있는 메뉴·팝업 닫기
+                self.page.wait_for_timeout(200)
                 box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
                 box.click(timeout=10_000)
                 self.page.keyboard.insert_text(text)
                 self.page.wait_for_timeout(600)
                 self.page.keyboard.press("Enter")
-                # 질문이 올라갔는지 — 답변 말풍선이 생기거나 정지 버튼이 보이면 보낸 것
+                # 질문이 올라갔는지 — 내 질문 말풍선이 늘거나, 답변 말풍선이 생기거나, 정지 버튼이 보이면 보낸 것
                 sent_ok = False
-                for _ in range(40):
+                for _ in range(60):
                     self.page.wait_for_timeout(500)
-                    if self._answers().count() > before or self._streaming():
+                    if self._asked() > asked_before or self._answers().count() > before or self._streaming():
                         sent_ok = True
                         break
                 if not sent_ok:
@@ -276,34 +302,48 @@ class _CdpChat:
 
 
 class ChatGptChat(_CdpChat):
-    """chatgpt.com — 로그인(Plus) · Chat 모드 · 모델 GPT-6 Luna · 파워 Medium (사용자 결정 2026-10-15)."""
+    """chatgpt.com — 로그인(Plus) · Chat 모드 · 모델 GPT-6 · 추론 수준 Medium (사용자 결정 2026-10-15; 'GPT-6 Luna' 는 이 메뉴에 없음)."""
     NAME = "ChatGPT"
     HOST = "chatgpt.com"
     NEW_URL = "https://chatgpt.com/"
-    MODEL_LABEL = "GPT-6 Luna · Medium (웹)"
+    MODEL_LABEL = "GPT-6 · Medium (웹)"
+    MODEL_NAME = "GPT-6"
     TEXTBOX_NAME = "ChatGPT"
-    ANSWER_SELECTOR = "[data-message-author-role='assistant']"
-    COPY_NAMES = ("메시지 복사", "복사", "Copy")
+    # 로그인 화면(2026-10-15): 답변 묶음 data-content-search-unit-key="…:assistant", 내 질문 data-user-message-bubble — 비로그인 화면 표식도 함께 둔다
+    ANSWER_SELECTOR = "[data-content-search-unit-key$=':assistant'], [data-message-role='assistant'], [data-message-author-role='assistant']"
+    USER_SELECTOR = "[data-user-message-bubble], [data-message-role='user'], [data-message-author-role='user']"
+    COPY_NAMES = ("복사", "Copy")   # 답변 복사 버튼은 '복사', 내 질문 쪽은 '메시지 복사'
     FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
-    STOP_NAMES = ("스트리밍 중지", "Stop streaming", "중지")
+    STOP_NAMES = ("중지", "Stop")
     MODEL_MENU = "ChatGPT 모델 선택"
 
     def _apply_model(self) -> str:
-        chat = self.page.get_by_role("button", name="Chat")
+        chat = self.page.get_by_role("button", name="Chat", exact=True)
         if chat.count():
             try:
                 chat.first.click(timeout=2000)
                 self.page.wait_for_timeout(500)
             except Exception:
                 pass
-        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", "GPT-6 Luna"], exact_last=True)
+        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
+        # 추론 수준(파워)은 슬라이더 — 표시 값만 읽어 확인한다 (기본 Medium, 사용자 결정)
+        power = "?"
         try:
-            self._menu_pick("button", self.MODEL_MENU, ["파워", "Medium"], exact_last=True)
-            power = "Medium"
-        except CdpWebError:
-            power = "파워 메뉴 없음"
-        label = self.page.get_by_role("button", name=self.MODEL_MENU).first.inner_text(timeout=2000).strip().replace("\n", " ")
-        return f"{label or 'GPT-6 Luna'} · {power} (웹)"
+            self.page.get_by_role("button", name=self.MODEL_MENU).first.click(timeout=5000)
+            self.page.wait_for_timeout(700)
+            self.page.get_by_role("menuitem", name="파워").first.click(timeout=5000)
+            self.page.wait_for_timeout(900)
+            text = self.page.evaluate("() => document.body.innerText")
+            power = next((lv for lv in ("Medium", "High", "Light", "Max", "Ultra", "Extra High", "최소한", "없음") if lv in text), "?")
+        except Exception:
+            pass
+        finally:
+            self.page.keyboard.press("Escape")
+            self.page.wait_for_timeout(300)
+            self.page.keyboard.press("Escape")
+        if power != "Medium":
+            raise CdpWebError(f"ChatGPT 추론 수준이 Medium 이 아닙니다({power}) — Chrome 창에서 Medium 으로 맞추세요")
+        return f"{self.MODEL_NAME} · {power} (웹)"
 
 
 class GeminiChat(_CdpChat):
@@ -314,14 +354,17 @@ class GeminiChat(_CdpChat):
     MODEL_LABEL = "Gemini 자동 모드 · 사고 수준 보통 (웹)"
     TEXTBOX_NAME = "Gemini 프롬프트 입력"
     ANSWER_SELECTOR = "model-response"
+    USER_SELECTOR = "user-query"
     COPY_NAMES = ("대답 복사", "응답 복사", "복사", "Copy response")
     FILE_INPUT = ""
-    STOP_NAMES = ("응답 중지", "Stop response", "중지")
+    STOP_NAMES = ("중지", "Stop")
     MODE_MENU = "모드 선택 도구 열기"
 
     def _apply_model(self) -> str:
-        self._menu_pick("button", self.MODE_MENU, ["자동 모드"])
-        self._menu_pick("button", self.MODE_MENU, ["사고 수준", "보통"])
+        current = self.page.get_by_role("button", name=self.MODE_MENU).first.get_attribute("aria-label") or ""
+        if "자동 모드" not in current:
+            self._menu_pick("button", self.MODE_MENU, ["자동 모드"])
+        self._menu_pick("button", self.MODE_MENU, ["사고 수준", "보통"])   # 사고 수준은 버튼에 안 보여 매번 맞춘다
         label = self.page.get_by_role("button", name=self.MODE_MENU).first.get_attribute("aria-label") or ""
         return f"{label.replace('모드 선택 도구 열기, 현재 ', '').replace(' 모드 사용 중', '') or 'Gemini 자동 모드'} · 사고 수준 보통 (웹)"
 
@@ -378,13 +421,18 @@ class ClaudeChat(_CdpChat):
     MODEL_LABEL = "Claude Sonnet 5.5 · 노력 중간 (웹)"
     TEXTBOX_NAME = "Claude에게 프롬프트"
     ANSWER_SELECTOR = "[data-testid='assistant-message']"
+    USER_SELECTOR = "[data-testid='user-message']"
     COPY_NAMES = ("복사", "Copy")
     FILE_INPUT = "input[type=file][aria-label='파일 업로드']"
-    STOP_NAMES = ("응답 중지", "Stop response", "중지")
+    STOP_NAMES = ("중지", "Stop")
 
     def _apply_model(self) -> str:
         opener = re.compile(r"^모델: ")
-        self._menu_pick("button", opener, ["Sonnet 5.5"])
+        current = " ".join(self.page.get_by_role("button", name=opener).first.inner_text(timeout=5000).split())
+        if "Sonnet 5.5" in current and "중간" in current:
+            return f"{current} (웹)"
+        if "Sonnet 5.5" not in current:
+            self._menu_pick("button", opener, ["Sonnet 5.5"])
         self._menu_pick("button", opener, ["노력", "중간"])
         label = self.page.get_by_role("button", name=opener).first.inner_text(timeout=2000).strip().replace("\n", " ")
         return f"{label or 'Sonnet 5.5 중간'} (웹)"

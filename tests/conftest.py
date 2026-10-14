@@ -40,6 +40,7 @@ def _no_real_web_logins(monkeypatch):
     from webapp import comparison_service
     monkeypatch.setattr(comparison_service, "factchat_login_status", lambda *_, **__: {"credentials": False})
     monkeypatch.setattr(comparison_service, "oosoo_login_status", lambda *_, **__: {"credentials": False})
+    monkeypatch.setattr(comparison_service, "cdp_login_status", lambda *_, **__: {"credentials": False, "tabs": {}})
 
 
 @pytest.fixture(autouse=True)

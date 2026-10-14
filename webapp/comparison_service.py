@@ -45,6 +45,7 @@ from .agent_collection import AGENT_COLLECTION_VERSION, COLLECTION_REASONING_EFF
 from .aiona_web import AIONA_WEB_VERSION
 from .factchat_web import FACTCHAT_WEB_VERSION, login_status as factchat_login_status
 from .oosoo_web import OOSOO_WEB_VERSION, login_status as oosoo_login_status
+from .cdp_chat_web import CDP_WEB_VERSION, CDP_PROVIDERS, cdp_login_status
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
@@ -52,7 +53,11 @@ PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 # 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
 WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web", "chatgpt_web", "gemini_web", "claude_web")
 PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web"})   # 사용자 결정 2026-10-14: 우수AI 는 당분간 수집하지 않음 (코드는 그대로, 여기서 빼면 다시 수집)
-WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델"}
+WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델",
+              "chatgpt_web": "ChatGPT 웹브라우저 · GPT-6 · Medium", "gemini_web": "Gemini 웹브라우저 · 자동 모드 · 사고 수준 보통",
+              "claude_web": "Claude 웹브라우저 · Sonnet 5.5 · 노력 중간"}
+#: 수집용 Chrome(tools/chrome_cdp.py)이 떠 있으면 이 웹 모델이 같은 회사의 API 모델을 대신한다 — 같은 모델을 두 번 받지 않는다 (사용자 결정 2026-10-15: 수집은 웹브라우저)
+WEB_REPLACES_API = {"chatgpt_web": "gpt", "gemini_web": "gemini", "claude_web": "claude"}
 
 
 def web_headless(path=None):
@@ -1933,6 +1938,12 @@ class ComparisonService:
             # 웹 자동화 모델 — AIONA 는 늘, FactChat 은 .env 에 로그인 정보(FACTCHAT_LOGIN_ID·PASSWORD)가 있을 때 (사용자 결정 2026-10-14)
             web = ["aiona"] + (["factchat_web"] if factchat_login_status()["credentials"] else []) \
                 + (["oosoo_web"] if "oosoo_web" not in PAUSED_WEB_PROVIDERS and oosoo_login_status()["credentials"] else [])
+            cdp = cdp_login_status()   # 수집용 Chrome 이 떠 있고 그 사이트 탭이 열려 있으면 ChatGPT·Gemini·Claude 는 웹으로 (API 대신)
+            if cdp["credentials"]:
+                for provider in CDP_PROVIDERS:
+                    if provider not in PAUSED_WEB_PROVIDERS and cdp["tabs"].get(provider.replace("_web", "")):
+                        web.append(provider)
+                        api = [p for p in api if p != WEB_REPLACES_API[provider]]
             providers = [*web, *api]
             config = {p: {**self._keys[p], "provider": p} for p in api}
             n, run_id = len(cases), uuid.uuid4().hex[:12]
@@ -1946,7 +1957,8 @@ class ComparisonService:
                    "run_kind": "question_set", "dataset_fingerprint": fingerprint(cases),
                    "question_set": {"set_id": set_id, "aiona": AIONA_WEB_VERSION, "api": AGENT_COLLECTION_VERSION,
                                     **({"factchat_web": FACTCHAT_WEB_VERSION} if "factchat_web" in web else {}),
-                                    **({"oosoo_web": OOSOO_WEB_VERSION} if "oosoo_web" in web else {})},
+                                    **({"oosoo_web": OOSOO_WEB_VERSION} if "oosoo_web" in web else {}),
+                                    **({p: CDP_WEB_VERSION for p in web if p in CDP_PROVIDERS})},
                    "collection_execution": {"collection_workers_per_model": self.collection_workers, "aiona_workers": 1,
                                             "web_providers": web,
                                             "conversation_order": "sequential_original_turns"}}
@@ -2018,6 +2030,10 @@ class ComparisonService:
             elif provider == "oosoo_web":
                 from .oosoo_web import OosooChat as Chat, OosooWebError as WebError
                 label = "우수AI"
+            elif provider in CDP_PROVIDERS:   # 수집용 Chrome 탭 — 세 사이트가 같은 Chrome 을 쓰고 어댑터 안의 잠금으로 번갈아 보낸다
+                from .cdp_chat_web import CDP_CHATS, CdpWebError as WebError
+                Chat = CDP_CHATS[provider]
+                label = Chat.NAME
             else:
                 from .aiona_web import AionaChat as Chat, AionaWebError as WebError
                 label = "AIONA"
