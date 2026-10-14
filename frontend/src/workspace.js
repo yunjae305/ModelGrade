@@ -179,7 +179,8 @@
     $('version-evaluate-button').hidden = !enabled;
     $('collect-button').hidden = enabled;
     // 버전 평가는 AIONA 원문만 평가한다 — 다른 AI 답변을 자동 수집하지 않는다
-    $('collection-panel').hidden = enabled; $('advanced-import').hidden = enabled;
+    $('collection-panel').hidden = enabled;
+    $('advanced-import').hidden = true;   // 기타 응답 파일 가져오기 — 새 비교에서 뺌 (사용자 결정 2026-10-14, 기능·API 는 그대로)
     // 새 비교는 '질문 생성 후 평가'와 '질문 직접 넣기' 두 가지 (사용자 결정 2026-10-14) — 예전 Q/A 파일 업로드 흐름은 버전 평가에서만 보인다
     $('legacy-flow').hidden = !enabled;
     $('question-set-panel').hidden = enabled; $('question-input-panel').hidden = enabled;

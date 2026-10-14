@@ -127,8 +127,10 @@ def test_actual_68_questions_keep_204_calls_original_text_indices_and_model_spec
     assert result['status'] == 'READY' and result['done'] == result['total'] == 204
     assert len(cases) == 68 and cases == originals and DATA.read_bytes() == original_bytes
     assert peaks == {provider: 3 for provider in MODELS}
-    assert result['collection_execution'] == {'collection_workers_per_model': 3,
-        'collection_workers_total': 9, 'conversation_order': 'sequential_original_turns'}
+    execution = result['collection_execution']   # 수집 재현성 기록(request, 7f0f49f)이 더해졌다 — 동시 실행 조건만 그대로인지 본다
+    assert {key: execution[key] for key in ('collection_workers_per_model', 'collection_workers_total', 'conversation_order')} == {
+        'collection_workers_per_model': 3, 'collection_workers_total': 9, 'conversation_order': 'sequential_original_turns'}
+    assert execution['request']['history'] == 'own_previous_answers'
     assert all(p['success'] == 68 and p['done'] == 68 and p['active'] is None for p in result['progress'].values())
     assert_history_and_text(result, captured)
     saved = json.loads((tmp_path / 'runs' / f'{rid}.json').read_text(encoding='utf-8'))

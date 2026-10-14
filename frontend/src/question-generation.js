@@ -27,21 +27,33 @@
     return node('div', {}, node('dt', {text: label}), node('dd', {text: String(value ?? 0)}));
   }
 
-  // 평가 항목 구조(대분류 → … ⇒ 총 항목) 한 줄 + 이 세트로 적용되는 항목 + 빠진 항목 (늘 보임)
+  // 평가 항목 구조 표 — 단계별 개수 ⇒ 검사 항목 수 · 이 질문들로 적용되는 수 (사용자 요청 2026-10-14: 한 줄로 늘어뜨리지 말고 표로)
+  // CODE평가·LLM의미평가를 열로 — '대분류 N개 > 중분류 N개 > 소분류 N개'(사용자 결정 2026-10-14), 소분류 합계, 이 질문들로 적용되는 소분류
+  function scopeTable(t, codeHit, codeAll, itemHit, itemAll) {
+    const steps = (...counts) => counts.flatMap(([label, n], i) => [i ? ' > ' : '', label + ' ', node('b', {text: String(n)}), '개']);
+    const row = (label, cells, cls) => node('tr', cls ? {class: cls} : {}, node('th', {scope: 'row', text: label}), ...cells.map((c) => node('td', {}, ...[c].flat())));
+    return node('div', {class: 'table-scroll'}, node('table', {class: 'question-set-scope'},
+      node('thead', {}, node('tr', {}, ...['', 'CODE평가', 'LLM의미평가', '합계'].map((text) => node('th', {scope: 'col', text})))),
+      node('tbody', {},
+        row('분류', [steps(['대분류', t.code_categories], ['중분류', t.code_subcategories], ['소분류', t.code_checks]),
+          steps(['대분류', t.semantic_criteria], ['중분류', t.semantic_subs], ['소분류', t.semantic_items]),
+          steps(['소분류', t.code_checks + t.semantic_items])], 'question-set-scope-total'),
+        row('이 질문들로 적용', [`소분류 ${codeHit} / ${codeAll}`, `소분류 ${itemHit} / ${itemAll}`, `${codeHit + itemHit} / ${codeAll + itemAll}`],
+          'question-set-scope-hit'))));
+  }
+
+  // 평가 항목 구조 표 + 이 세트로 적용되는 항목 + 빠진 항목 (늘 보임)
   function coverageSummary(coverage, meta, showMissing = true) {
     const lines = [];
     if (coverage) {
       const t = coverage.taxonomy;
-      if (t) lines.push(node('p', {class: 'question-set-taxonomy'},
-        node('strong', {text: `총 ${t.code_conditions + t.semantic_items}개 항목 검사`}),
-        ` — CODE 대분류 ${t.code_categories} · 소분류 ${t.code_subcategories} · 검사 ${t.code_checks} ⇒ 질문 조건 ${t.code_conditions}개, `
-        + `의미 평가 기준 ${t.semantic_criteria} · 세부 기준 ${t.semantic_subs} ⇒ 점검 항목 ${t.semantic_items}개`));
       const later = new Set(coverage.answer_dependent || []);
-      const kinds = Object.entries(coverage.kinds || {});
-      const code = kinds.length ? kinds.filter(([id]) => !later.has(id.split(':')[0])) : Object.entries(coverage.checks || {}).filter(([id]) => !later.has(id));
+      const code = Object.entries(coverage.checks || {});   // CODE 소분류 = 검사 28 (답변 구조로 생기는 검사는 답변 뒤에 정해진다)
       const items = Object.entries(coverage.items || {});
-      lines.push(node('p', {text: `이 질문들로 적용되는 항목 — CODE ${kinds.length ? '질문 조건' : '검사'} ${code.filter(([, n]) => n > 0).length}/${code.length}개 · `
-        + `의미 점검 항목 ${items.filter(([, n]) => n > 0).length}/${items.length}개` + (later.size ? ` (답변 구조로 생기는 검사 ${later.size}개는 답변을 받은 뒤 확인)` : '')}));
+      const codeHit = code.filter(([, n]) => n > 0).length, itemHit = items.filter(([, n]) => n > 0).length;
+      if (t) lines.push(scopeTable(t, codeHit, code.length, itemHit, items.length));
+      else lines.push(node('p', {text: `이 질문들로 적용되는 항목 — CODE ${codeHit}/${code.length}개 · 의미 점검 항목 ${itemHit}/${items.length}개`}));
+      if (later.size) lines.push(node('p', {class: 'field-help', text: `답변 구조로 생기는 검사 ${later.size}개는 답변을 받은 뒤 확인합니다.`}));
       const missing = [...(coverage.missing_checks || []), ...(coverage.missing_items || [])];
       if (showMissing && missing.length) lines.push(node('p', {class: 'question-set-missing', text: '아직 적용 질문이 없는 항목: ' + missing.join(', ')}));
     }

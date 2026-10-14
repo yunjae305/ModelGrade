@@ -34,6 +34,14 @@ def _no_real_jev_call(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_web_logins(monkeypatch):
+    """개발자 .env 에 FactChat 등 웹 로그인 정보가 있어도 테스트는 실제 웹 브라우저 수집을 실행 대상에 넣지 않는다 —
+    테스트가 진짜 사이트에 로그인하지 않게 (AIONA 는 테스트마다 대역 AionaChat 을 쓴다)."""
+    from webapp import comparison_service
+    monkeypatch.setattr(comparison_service, "factchat_login_status", lambda *_, **__: {"credentials": False})
+
+
+@pytest.fixture(autouse=True)
 def _multi_turn_length_rule_off(request, monkeypatch):
     """기존 J6 테스트는 짧은 대화로 J6 판정 내용(인용·이전 지시 유지)을 확인한다 — 멀티턴 길이 조건(10턴 이상 · 대화 전체 10K 토큰)은
     끄고(턴 0개·토큰 0 필요) 돌린다. 길이 조건 자체는 ``@pytest.mark.multi_turn_rule`` 테스트(test_multi_turn.py)가 실제 값으로 확인한다."""
