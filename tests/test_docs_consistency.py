@@ -127,3 +127,16 @@ def test_progress_document_commit_references_exist_in_git():
     for sha in shas:
         probe = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{sha}^{{commit}}'], cwd=ROOT, capture_output=True, text=True)
         assert probe.returncode == 0 and probe.stdout.strip().startswith(sha), f'진행현황의 커밋 {sha} 가 git 에 없음'
+
+
+def test_latest_design_header_counts_match_the_criteria_registry():
+    """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
+    from code_eval.criteria_registry import evaluation_targets
+    designs = sorted(DOCS.glob('평가체계_설계안_v*.html'), key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
+    text = designs[-1].read_text(encoding='utf-8')
+    counts = evaluation_targets()['counts']
+    code = re.search(r'코드 평가 <b>(\d+) 대분류 · (\d+) 소분류 · (\d+) 검사 · 세부 조건 \d+ · 질문 조건 (\d+)</b>', text)
+    semantic = re.search(r'의미 평가 <b>(\d+) 기준 · (\d+) 세부 기준 · (\d+) 점검 항목</b>', text)
+    assert code and semantic, designs[-1].name
+    assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'], counts['code_conditions'])
+    assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])
