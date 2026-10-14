@@ -192,6 +192,10 @@ def _scope(text: str, start: int, end: int, kind: str) -> Tuple[str, str, Option
         return "per_item", "항목별 적용 범위(각·마다)는 지원하지 않음 — 답변 전체 수로 대체하지 않음", None
     if kind in ("list_count", "bullet_count", "heading_count", "literal"):
         return "whole", "", op_fix
+    if kind == "char_count":
+        # "공백 포함 20자", "글자 수는 공백 포함 25자" — 세는 방식 설명은 적용 대상이 아니다
+        clause = _WS_PHRASE_END.sub("", clause)
+        clause = re.sub(r"글자\s*수\s*(?:는|가|를|은)?\s*$", "", clause)
     tokens = clause.split()
     last = tokens[-1] if tokens else ""
     if last and not _VERBISH.search(last):
@@ -219,9 +223,10 @@ _COUNT_PATTERNS = (
 
 _CHAR_COUNT = re.compile(
     rf"{PRE}(?P<n>\d{{1,3}}(?:,\d{{3}})+|\d{{1,6}})\s*(?:자|글자)"
-    r"(?=\s|$|[.,!?)\]'\"’”]|로|를|을|이|내|안|정|까|의|만|씩|내외)"
+    r"(?=\s|$|[.,!?()\]'\"’”]|로|를|을|이|내|안|정|까|의|만|씩|여|내외)"
     r"(?:\s*(?P<post>이상|이하|이내|미만|초과|까지|정도|내외|안팎|쯤|가량|넘지\s*않게))?")
-_WS_RULE = re.compile(r"공백\s*(?P<ws>제외|포함|빼고|빼서)")
+_WS_RULE = re.compile(r"(?:공백|띄어쓰기|빈칸)\s*(?:을|를)?\s*(?P<ws>제외|포함|빼고|빼서)")
+_WS_PHRASE_END = re.compile(r"(?:공백|띄어쓰기|빈칸)\s*(?:을|를)?\s*(?:제외|포함|빼고|빼서)(?:하여|해서|해|한|하고)?\s*$")
 
 _GENERIC_COUNT = re.compile(rf"{PRE}{NUM}\s*(?P<unit>개|가지)(?:의)?\s*(?:항목)?{POST}")
 #: 'N개' 바로 뒤에 오면 항목 수가 아니라 표·글 구조의 수다 (3개 열로 된 표, 3개 행)
@@ -277,6 +282,8 @@ def _count_reqs(text: str, out: List[Req]) -> None:
         if scope in ("reference", "conditional"):
             continue
         op = op_fix or op
+        if op is None and ws and not approx:
+            op = "=="   # 세는 방식(공백 포함·제외)까지 적은 "20자로" 는 딱 그 수를 요구한 것
         req = Req("char_count", {"op": op, "n": n, "exclude_whitespace": exclude_ws, "scope": scope},
                   m.start(), m.end(), m.group(0).strip())
         if scope != "whole" and not approx:

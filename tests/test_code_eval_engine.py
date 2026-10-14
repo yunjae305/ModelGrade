@@ -366,3 +366,45 @@ def test_duplicate_common_condition_rows_are_dropped():
     kept = engine._drop_duplicates([first, second, other])
     assert kept == [first, other]
     assert all(r.status == Status.EXECUTED for r in kept) and not any(r.status == Status.DUPLICATE for r in kept)
+
+
+@pytest.mark.parametrize("answer, verdict", [
+    ("상자 7개 × 상자마다 구슬 6개 = 7 × 6 = **42개**예요.", "PASS"),   # 말로 쓴 앞부분('… 구슬 6개')은 떼고 나머지만 재계산
+    ("상자 7개 × 상자마다 구슬 6개 = 7 × 6 = 48개예요.", "FAIL"),
+    ("13묶음 × 묶음당 9장 = 13 × 9\n= (10 × 9) + (3 × 9)\n= 90 + 27\n= **117장**", "PASS"),
+])
+def test_verbal_expression_before_an_equation_is_not_its_left_side(answer, verdict):
+    """2026-10-14 실제 AIONA 답변 오판 — '7개 × 상자마다 구슬 6개 = …' 의 좌변을 '6' 하나로 읽어 FAIL 이 났다."""
+    case = engine.evaluate_case({"question": "구슬은 총 몇 개야?", "answer": answer})
+    rows = [r for r in case["results"] if str(r["check_id"]).startswith("3-1.answer_equation:") and r["check_id"] != "3-1.answer_equation:none"]
+    assert [r["verdict"] for r in rows] == [verdict]
+
+
+def test_a_question_back_to_the_user_is_not_a_declared_count():
+    """2026-10-14 실제 GPT 답변 오판 — '선택지 세 가지를 안내해드릴까요?' 는 개수 선언이 아니다. 진짜 선언은 그대로 잰다."""
+    asking = engine.evaluate_case({"question": "선택지 세 개를 안내해줘.",
+                                   "answer": "- 어떤 주제의 선택지 세 가지를 안내해드릴까요?\n- 주제를 알려주시면 정리해드릴게요."})
+    declared = engine.evaluate_case({"question": "팁을 알려줘", "answer": "다음 3가지 팁을 소개합니다.\n- 하나\n- 둘"})
+    count = lambda case: [r["verdict"] for r in case["results"] if str(r["check_id"]).startswith("3-2.declared_count:") and r["check_id"] != "3-2.declared_count:none"]
+    assert count(asking) == [] and count(declared) == ["FAIL"]
+
+
+@pytest.mark.parametrize("question, op, n, exclude_ws", [
+    ("감사 문구를 공백 포함 20자로 써줘.", "==", 20, False),          # 세는 방식까지 적은 'N자로' 는 정확히 N자
+    ("공백 포함 30자 이내로 요약해줘.", "<=", 30, False),
+    ("글자 수는 공백 포함 25자여야 해.", "==", 25, False),
+    ("유물 포장 표기 문구를 정확히 20자(공백 포함)로 작성해", "==", 20, False),
+    ("띄어쓰기를 빼고 30자 이내로 요약해", "<=", 30, True),
+])
+def test_char_count_with_a_whitespace_rule_is_recognised(question, op, n, exclude_ws):
+    """2026-10-14 326세트 점검 — '공백 포함 N자' 의 '포함' 을 적용 대상 명사로 읽어 조건을 버리고 있었다."""
+    from code_eval.extract import extract_conditions
+    reqs = [r for r in extract_conditions(question).to_list() if r["kind"] == "char_count"]
+    assert [(r["status"], r["value"]["op"], r["value"]["n"], r["value"]["exclude_whitespace"], r["value"]["scope"]) for r in reqs] \
+        == [("ok", op, n, exclude_ws, "whole")]
+
+
+def test_char_count_without_a_rule_or_operator_stays_unsupported():
+    from code_eval.extract import extract_conditions
+    reqs = [r for r in extract_conditions("20자로 써줘.").to_list() if r["kind"] == "char_count"]
+    assert [r["status"] for r in reqs] == ["unsupported"]

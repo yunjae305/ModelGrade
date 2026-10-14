@@ -86,6 +86,10 @@ _NOUN_NEG = ("아니라", "아니고", "아닙니다", "아님", "아닌")
 _SENT_END = re.compile(r"[.!?。](?=\s|$)")   # 1.5 의 소수점은 문장 끝이 아니다 (textparse 규칙)
 # 좌변 바로 앞(같은 줄)의 화살표는 값의 변화 표시다: '20일 → 26일 = 26 ÷ 20 = 1.3배' 의 26 은 등식의 시작이 아니다.
 _ARROW_BEFORE = re.compile(r"(?:→|⇒|->|=>)[ \t\xa0]*$")
+#: 좌변 앞 같은 줄에 말로 쓴 식이 있다 — '상자 7개 × 상자마다 구슬 6개 = 7 × 6 = 42' 의 '7개 × 상자마다 구슬' (숫자·연산자 뒤에 단어가
+#: 이어지다 좌변 숫자가 나옴). 좌변은 그 식의 일부라 혼자 값으로 확정할 수 없다 (2026-10-14 실제 AIONA 답변에서 오판 4건)
+#: 말로 쓴 구간은 공백 아닌 글자로 시작해야 한다 — '2벌 × 3 + 1' 의 '2벌 × ' 는 단위에 끊긴 피연산자(보류)이지 말로 쓴 식이 아니다
+_VERBAL_OPERAND_BEFORE = re.compile(r"[\d)][^\d\s+\-*/=]{0,5}[ \t\xa0]*[+*/][ \t\xa0]*[^\d\s=+\-*/().!?:;][^\d\n=+\-*/().!?:;]{0,19}$")
 # '185분 / 190분 이하' 처럼 '/' 뒤 값에 한도 표현이 붙으면 나눗셈이 아니라 '값 / 한도' 표기다.
 _LIMIT_AFTER = re.compile(r"[ \t\xa0]*(?:" + "|".join(map(re.escape, _UNITS)) + r")?[ \t\xa0]*(?:이하|이상|미만|초과|이내)")
 
@@ -192,6 +196,15 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
         tail = follows[:1]
         line_start = text.rfind("\n", 0, start) + 1
         before = text[line_start:start]
+        if _VERBAL_OPERAND_BEFORE.search(before):
+            # 좌변이 말로 쓴 식의 일부 — 그 첫 구간만 떼고 나머지('7 × 6 = 42')는 그대로 재계산한다
+            cut = body.index("=") + 1
+            rest = body[cut:]
+            start = start + cut + (len(rest) - len(rest.lstrip()))
+            ch = Chain(rest.strip(), start, end)
+            if len(ch.segments) < 2 or not ch.has_operation:
+                continue
+            before = text[line_start:start]
         if _ARROW_BEFORE.search(before):
             ch.skip_reason = "등식 앞의 화살표(→)는 값의 변화 표시라 좌변을 등식의 시작으로 확정할 수 없음"
         elif _cut_operand_before(before, ctx.answer[line_start + len(before.rstrip(" \t\xa0")) - 1:][:1],
@@ -493,6 +506,10 @@ def check_3_2(ctx: Ctx) -> List:
         ev = Evidence("answer", m.start(), m.end(), sentence.strip()[:100], "선언")
         if _PARTIAL.search(sentence):
             skip_condition(ctx, cid, SUB32, f"‘{m.group(0).strip()}’ — 부분집합·예시 소개 표현이라 전체 개수 선언으로 보지 않음")
+            continue
+        if re.match(r"[^.!?。\n]*[?？]", sentence[m.end() - line.start:]):
+            # '선택지 세 가지를 안내해드릴까요?' — 묻는 문장은 개수를 선언한 것이 아니다 (2026-10-14 실제 GPT 답변에서 오판)
+            skip_condition(ctx, cid, SUB32, f"‘{m.group(0).strip()}’ — 묻는 문장이라 개수 선언으로 보지 않음")
             continue
         structure = _next_structure(ctx, line)
         if structure is None:
