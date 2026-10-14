@@ -41,7 +41,9 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #: v1.1: 붙여 넣은 자료에 끝 표시([자료 끝]) — 평가기가 자료와 요청을 구분
 #: v1.2: 세트 전체 질문 수 지정(target_questions)·변별력(질문마다 trap·difficulty)·앞선 실행에서 모두 PASS 한 단위 되먹임(weak_units)
 #:       — 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다, 질문 수를 바꿔 가며 최소·충분 개수를 찾는다
-QUESTION_GEN_VERSION = "question-gen-v1.2"
+#: v1.3: 질문 수를 지정하면 10턴 대화(J6)와 긴 문서 질문(J7)을 전용 단계에서 정한 수만큼 — 멀티턴 턴마다 답변 분량을 프롬프트로 요구,
+#:       긴 문서 하나를 여러 J7 질문이 함께 쓴다 (사용자 결정 2026-10-14: 항목마다 판정에 충분한 질문 수)
+QUESTION_GEN_VERSION = "question-gen-v1.3"
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -61,6 +63,24 @@ MAX_CALLS = 250               # 작업 하나의 GPT 호출 상한 (질문 수�
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = 8
 MAX_ATTACHMENT_CHARS = 4_000
+#: 질문 수를 지정했을 때 10턴 대화·긴 문서 질문의 기본 비율 (설계안 v1.2 질문 세트 구성 초안: 멀티턴 10%, 롱컨텍스트 5%)
+MULTI_TURN_RATIO = 0.10
+LONG_CONTEXT_RATIO = 0.05
+#: 10턴 대화의 턴마다 요구하는 답변 글자 수 — 10턴 × 1,500자 × 약 0.72토큰/자 ≈ 10.8K 토큰 (멀티턴 조건: 대화 전체 10K 토큰).
+#: 멀티턴 여부는 모델마다 실제 답변으로 재므로, 짧게 답한 모델만 J6 '해당 없음'이 되지 않게 분량을 질문에 적는다 (사용자 제안 2026-10-14)
+TURN_ANSWER_CHARS = 1_500
+#: 분량을 정한 턴으로 보는 질문 조건 (생성된 턴에 분량 요구가 빠졌는지 셀 때)
+LENGTH_LIMIT_KINDS = frozenset({"char_count", "sentence_count", "line_count", "paragraph_count", "word_count", "explicit_empty"})
+MULTI_TURN_BATCH = 4          # GPT 응답 하나에 계획하는 10턴 대화 수 (대화 하나가 질문 10개라 출력이 길다)
+LONG_CONTEXT_BATCH = 20       # 긴 문서 질문을 한 응답에 계획하는 수
+DEDICATED_ITEMS = ("J6-", "J7-")   # 전용 단계가 맡는 항목 — 일반 계획에서는 빼고 묻는다
+#: 멀티턴 턴 질문에 답변 분량을 적게 하는 규칙 — 모델마다 실제 답변으로 대화 전체 길이를 재므로 짧게 답한 모델만 J6 '해당 없음'이
+#: 되지 않게 한다 (사용자 결정 2026-10-14: 분량은 생성 프롬프트에 넣는다). 괄호 속 분량은 평가 엔진이 답변 일부의 조건으로 읽어 판정하지 않는다.
+_LENGTH_RULE = (f"멀티턴으로 인정되려면 대화 전체(모든 턴의 질문 + 답변)가 {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상이어야 하고, 이 길이는 모델마다 "
+                f"실제 답변으로 잽니다. 그래서 턴마다 질문 문장 안에 답변 분량을 'N자 이상으로' 형태로 직접 적습니다(턴마다 {TURN_ANSWER_CHARS:,}자 이상, "
+                f"예: '{TURN_ANSWER_CHARS:,}자 이상으로 자세히 답해 주세요.'). 괄호 안에 넣지 않습니다. 분량을 줄이는 지시(한 문장으로, N자 이내, 짧게, "
+                f"세 줄로 요약)는 쓰지 않고, 조건 변경·수정 요청도 분량을 줄이지 않는 방식으로 씁니다(예: '표의 열을 바꿔 전체를 다시 써 줘', "
+                f"'존댓말로 바꿔 수정본 전체를 다시 보여 줘').")
 
 LLM = Callable[[str, int], str]
 
@@ -151,13 +171,19 @@ def _weak_block(weak_units: Sequence[Dict[str, str]]) -> str:
 
 
 def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "", *, target_questions: Optional[int] = None,
-                weak_units: Sequence[Dict[str, str]] = ()) -> str:
+                weak_units: Sequence[Dict[str, str]] = (), dedicated: bool = False) -> str:
     """계획 프롬프트. ``target_questions`` 가 있으면 세트 전체 질문 수(대화 1개 = 1개)를 그 수에 맞추게 하고, 없으면 가능한 한 적게."""
     catalog = catalog or criteria_catalog()
+    if dedicated:   # 10턴 대화(J6)·긴 문서(J7)는 전용 단계가 만든다 — 여기서는 그 항목을 빼고 묻는다
+        catalog = general_catalog(catalog)
     n_code, n_items = len(catalog["code"]), len(catalog["items"])
     count_line = (f"질문은 정확히 {target_questions}개 만듭니다(멀티턴 대화 1개 = 1개). 모든 검사·항목을 넣고 남는 질문은 틀리기 쉬운 항목과 "
                   f"적용 질문이 적은 항목에 배분해 항목마다 적용 질문이 고르게 여러 개가 되게 합니다."
                   if target_questions else "질문 수는 가능한 한 적게 합니다.")
+    _long_sections = ("# 멀티턴 대화·롱컨텍스트\n- 10턴 대화(J6)와 긴 참조 자료 질문(J7)은 따로 만듭니다. 이 계획에는 넣지 않습니다(long_reference 금지, "
+                      "대화는 앞 턴 지시 승계처럼 짧은 2~4턴만).\n\n") if dedicated else _MULTI_LONG.format(
+                          min_turns=multi_turn.MIN_TURNS, min_total=f"{multi_turn.MIN_TOTAL_TOKENS:,}", paste=f"{PASTE_CHARS:,}",
+                          max_paste=MAX_PASTE_TURNS, min_tokens=f"{long_context.MIN_TOKENS:,}")
     head = f"""당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계합니다. 결과는 JSON 하나로만 답합니다.
 
 # 목표
@@ -174,16 +200,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 5. 질문에 준 자료(표·JSON 배열·목록·글)를 정렬·필터·집계·요약하게 하는 질문은 자료를 질문 안에 그대로 넣습니다.
 6. 실제 개인의 개인정보나 위험한 요청은 넣지 않습니다. 가상의 인물·회사는 가상이라고 밝힙니다.
 
-# 멀티턴 대화 (J6)
-- 대화 1개 이상, 대화마다 턴 {multi_turn.MIN_TURNS}개 이상. J6 항목이 모두 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, 지시어("아까 두 번째"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박.
-- 멀티턴으로 인정되려면 대화 전체(모든 턴의 질문+답변)가 {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상이어야 합니다. 표·단계별 설명·초안 작성·수정본 전체 다시 쓰기처럼 답변이 충분히 길어지는 요청으로 채웁니다.
-- 자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {PASTE_CHARS:,}자 자료를 만들어 질문 앞에 붙입니다. 대화 하나에 최대 {MAX_PASTE_TURNS}턴, 턴마다 붙이지 않습니다.
-
-# 롱컨텍스트 (J7)
-- 질문 정확히 1개에만 {long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상의 참조 자료를 씁니다(세트 전체에서 긴 참조 자료는 1개). long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.
-- J7-1.a 는 자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻고, J7-2.a 는 3곳 이상에 흩어진 사실을 연결·비교·집계하게 묻습니다. 그 한 질문으로 둘 다 묻습니다.
-
-# 첨부파일 (J8)
+{_long_sections}# 첨부파일 (J8)
 - 첨부 질문을 만들고 attachments 에 파일 명세를 씁니다. 종류는 {"·".join(ATTACHMENT_TYPES)}. content 에는 파일에 들어갈 실제 내용 전체를 씁니다({MAX_ATTACHMENT_CHARS:,}자 이하). 줄 표기: '# 제목', '## 소제목', '- 항목', '| a | b |' 표 행, '[다음 쪽]' 쪽 나눔.
 - image 는 막대그래프면 "chart": {{"title": "...", "labels": ["..."], "values": [숫자], "unit": "단위"}} 를 쓰고, 그 밖에는 content 의 글·표를 그립니다.
 - 첨부 질문은 파일 종류마다 1개 이상 만듭니다({"·".join(ATTACHMENT_TYPES)} — 첨부 질문 {len(ATTACHMENT_TYPES)}개 이상). image 는 막대그래프와 표·글 그림을 섞습니다. 첨부 질문도 다른 항목을 함께 노리게 해 전체 질문 수를 줄입니다.
@@ -196,6 +213,15 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
     extra = f"\n# 추가 요청\n{note.strip()}\n" if note and note.strip() else ""
     tail = "\n\n" + _count_rule(target_questions) if target_questions else ""
     return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog)) + tail
+
+
+_MULTI_LONG_BASE = '# 멀티턴 대화 (J6)\n- 대화 1개 이상, 대화마다 턴 {min_turns}개 이상. J6 항목이 모두 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, 지시어("아까 두 번째"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박.\n- 멀티턴으로 인정되려면 대화 전체(모든 턴의 질문+답변)가 {min_total}토큰 이상이어야 합니다. 표·단계별 설명·초안 작성·수정본 전체 다시 쓰기처럼 답변이 충분히 길어지는 요청으로 채웁니다.\n- 자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {paste}자 자료를 만들어 질문 앞에 붙입니다. 대화 하나에 최대 {max_paste}턴, 턴마다 붙이지 않습니다.\n\n# 롱컨텍스트 (J7)\n- 질문 정확히 1개에만 {min_tokens}토큰(한국어 약 38만 자) 이상의 참조 자료를 씁니다(세트 전체에서 긴 참조 자료는 1개). long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.\n- J7-1.a 는 자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻고, J7-2.a 는 3곳 이상에 흩어진 사실을 연결·비교·집계하게 묻습니다. 그 한 질문으로 둘 다 묻습니다.\n\n'
+
+
+_TOKENS_LINE = "- 멀티턴으로 인정되려면 대화 전체(모든 턴의 질문+답변)가 {min_total}토큰 이상이어야 합니다. "
+assert _TOKENS_LINE in _MULTI_LONG_BASE
+#: 대화 길이 줄을 분량 규칙으로 바꾼다 — 턴마다 질문에 'N자 이상으로'를 적게 (사용자 결정 2026-10-14)
+_MULTI_LONG = _MULTI_LONG_BASE.replace(_TOKENS_LINE, "- " + _LENGTH_RULE.replace("{", "{{").replace("}", "}}") + " ", 1)
 
 
 def _count_rule(n: int) -> str:
@@ -273,6 +299,98 @@ def _paste_prompt(spec: Dict[str, Any], chars: int) -> str:
     must = "\n".join(f"- {x}" for x in (raw if isinstance(raw, list) else [])) or "- (없음)"
     return (f"다음 주제로 사용자가 대화창에 붙여 넣을 자료(회의록·보고서·기사·메모 등)를 한국어 본문으로 약 {chars:,}자 씁니다.\n"
             f"주제: {spec.get('topic') or '업무 자료'}\n꼭 들어갈 내용:\n{must}\n- 머리말·설명 없이 자료 본문만 씁니다.")
+
+
+def split_counts(target: Optional[int], multi_turn: Optional[int] = None, long_context: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    """세트 질문 수 → (10턴 대화 수, 긴 문서 질문 수). 질문 수를 지정하지 않으면 (None, None) — 전용 단계 없이 예전처럼 만든다.
+
+    값을 주면 그대로 쓰고, 비우면 기본 비율(최소 1개). 둘을 합쳐 세트 질문 수를 넘지 않게 줄인다(나머지 질문 1개 이상)."""
+    if not target:
+        return None, None
+    m = max(1, round(target * MULTI_TURN_RATIO)) if multi_turn is None else int(multi_turn)
+    l = max(1, round(target * LONG_CONTEXT_RATIO)) if long_context is None else int(long_context)
+    if m < 0 or l < 0:
+        raise ValueError("10턴 대화 수·긴 문서 질문 수는 0 이상이어야 합니다.")
+    while m + l >= target and (m or l):   # 다른 항목에 쓸 질문을 1개 이상 남긴다 — 큰 쪽부터 줄인다
+        if m >= l:
+            m -= 1
+        else:
+            l -= 1
+    return m, l
+
+
+def _dedicated(item_id: str) -> bool:
+    return item_id.startswith(DEDICATED_ITEMS)
+
+
+def general_catalog(catalog: Dict[str, List[Dict[str, str]]]) -> Dict[str, List[Dict[str, str]]]:
+    """전용 단계(J6·J7)가 맡는 항목을 뺀 점검 목록 — 일반 계획이 10턴 대화·긴 자료를 따로 만들지 않게."""
+    return {"code": catalog["code"], "items": [i for i in catalog["items"] if not _dedicated(i["id"])]}
+
+
+def multi_turn_prompt(count: int, existing_topics: List[str], catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "") -> str:
+    """10턴 대화를 정확히 ``count`` 개 — J6 항목을 대화들에 고르게 나눈다. 턴마다 답변 분량 요구는 시스템이 붙인다."""
+    catalog = catalog or criteria_catalog()
+    j6 = {i["id"] for i in catalog["items"] if i["id"].startswith("J6-")}
+    parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 10턴 대화를 설계합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+             f"# 목표\n멀티턴 대화를 정확히 {count}개 만듭니다. 대화마다 턴은 정확히 {multi_turn.MIN_TURNS}개입니다. "
+             f"아래 J6 항목이 모든 대화에 걸쳐 고르게, 항목마다 가능한 한 많은 대화에서 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, "
+             f"지시어(\"아까 두 번째\"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박. "
+             f"주제는 서로 겹치지 않게 하고, 기존 주제({', '.join(t for t in existing_topics if t)[:2000] or '없음'})와도 겹치지 않게 합니다.\n\n"
+             f"# 답변 분량 (턴마다 질문에 직접 적음)\n{_LENGTH_RULE}\n\n"
+             f"# 붙여 넣는 자료\n자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {PASTE_CHARS:,}자 자료를 만들어 "
+             f"질문 앞에 붙입니다. 대화 하나에 최대 {MAX_PASTE_TURNS}턴. long_reference·attachments 는 쓰지 않습니다.",
+             _DISCRIMINATION, _FORMAT,
+             "# 점검 목록 (J6 항목 — target_items 에는 이 id 와, 대화가 함께 노리는 다른 항목 id)\n" + "\n".join(_catalog_lines(catalog, j6))]
+    if _note_block(note):
+        parts.append(_note_block(note))
+    parts.append(f"# 대화 개수 (반드시 지킴)\nquestions 배열에 대화를 정확히 {count}개, 대화마다 turns 를 정확히 {multi_turn.MIN_TURNS}개 넣습니다. "
+                 "답하기 전에 개수를 세어 확인합니다.")
+    return "\n\n".join(parts)
+
+
+def long_context_prompt(count: int, catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "",
+                        fixed: Optional[Dict[str, Any]] = None, existing: Sequence[str] = ()) -> str:
+    """긴 문서 하나와 그 문서를 함께 쓰는 질문 ``count`` 개 — 문서는 한 번만 만든다 (생성 비용 1회).
+    ``fixed`` (이미 정한 문서 주제·facts)를 주면 그 문서로 질문만 더 만든다 — 앞서 만든 질문(``existing``)과 겹치지 않게."""
+    catalog = catalog or criteria_catalog()
+    if fixed:
+        j7 = {i["id"] for i in catalog["items"] if i["id"].startswith("J7-")}
+        facts = "\n".join(f"- ({f.get('position')}) {f.get('text')}" for f in fixed.get("facts") or [])
+        asked = "\n".join(f"- {q[:200]}" for q in existing) or "- (없음)"
+        return "\n\n".join([
+            f"당신은 한국어 AI 답변 품질 평가에 쓸 긴 참조 자료 질문을 설계합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+            f"# 목표\n이미 정한 긴 문서(주제: {fixed.get('topic')})의 아래 사실 문장(facts, 괄호는 문서 속 위치 0~1)만으로 답이 정해지는 질문을 "
+            f"정확히 {count}개 더 만듭니다. 질문마다 J7-1.a(중간·뒷부분 사실을 다른 표현으로 묻기)와 J7-2.a(3곳 이상 사실 연결·비교·집계)를 함께 묻고, "
+            f"앞서 만든 질문과 다른 사실 묶음을 씁니다. 단일 턴, attachments·long_paste·long_reference 는 쓰지 않습니다.\n\n# facts\n{facts}\n\n# 앞서 만든 질문\n{asked}",
+            _DISCRIMINATION, _FORMAT, "# 점검 목록 (J7 항목)\n" + "\n".join(_catalog_lines(catalog, j7)),
+            *([_note_block(note)] if _note_block(note) else []),
+            f"# 질문 개수 (반드시 지킴)\nquestions 배열에 정확히 {count}개를 넣습니다."])
+    j7 = {i["id"] for i in catalog["items"] if i["id"].startswith("J7-")}
+    facts = min(80, max(6, 3 * count))
+    parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 긴 참조 자료 질문을 설계합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+             f"# 목표\n{long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상의 긴 문서 하나를 시스템이 만들고, 그 같은 문서를 참조 자료로 주는 질문을 "
+             f"정확히 {count}개 만듭니다. 문서 주제와, 문서 속 정해진 위치(position 0~1)에 넣을 사실 문장(facts)을 약 {facts}개 씁니다. "
+             f"질문은 이 facts 만으로 답이 정해지게 씁니다(문서의 나머지 본문은 시스템이 지어 씁니다).\n"
+             f"- 질문마다 J7-1.a(자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻기)와 J7-2.a(3곳 이상에 흩어진 사실을 연결·비교·집계)를 함께 묻습니다.\n"
+             f"- 질문마다 서로 다른 사실 묶음을 쓰고, 문서 앞·중간·뒤를 고르게 씁니다. 자료에 없는 정보를 묻는 함정(지어내면 FAIL)도 일부 넣습니다.\n"
+             f"- 질문은 단일 턴입니다. attachments·long_paste 는 쓰지 않습니다.\n\n"
+             "# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)\n"
+             '{"long_reference": {"topic": "문서 주제", "facts": [{"text": "사실 문장", "position": 0.37}, ...]},\n'
+             ' "questions": [{"id": "Q01", "type": "롱컨텍스트", "topic": "주제", "target_items": ["J7-1.a", "J7-2.a"], "difficulty": "쉬움|보통|어려움",\n'
+             '   "trap": "어떤 답이 FAIL 이 되는지 한 줄", "turns": [{"question": "질문 원문"}]}, ...]}',
+             _DISCRIMINATION,
+             "# 점검 목록 (J7 항목)\n" + "\n".join(_catalog_lines(catalog, j7))]
+    if _note_block(note):
+        parts.append(_note_block(note))
+    parts.append(f"# 질문 개수 (반드시 지킴)\nquestions 배열에 정확히 {count}개를 넣습니다. 답하기 전에 개수를 세어 확인합니다.")
+    return "\n\n".join(parts)
+
+
+def needs_length(question: str) -> bool:
+    """턴 질문에 분량 요구가 없는지 — 엔진이 분량 조건(글자·문장·줄·문단·어절 수, 빈 출력)을 하나도 읽지 못하면 True."""
+    from code_eval.extract import extract_conditions
+    return not any(req.kind in LENGTH_LIMIT_KINDS for req in extract_conditions(question).reqs)
 
 
 # --- 2. 계획 응답 읽기 -------------------------------------------------------------------
@@ -388,6 +506,7 @@ class QuestionSetBuilder:
         self.warnings: List[str] = []
         self.calls = 0
         self.max_calls = MAX_CALLS
+        self.shared_reference: Optional[str] = None   # 긴 문서 질문(J7)이 함께 쓰는 문서 — 한 번만 만든다
         self.long_references = 0
         self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
@@ -461,7 +580,9 @@ class QuestionSetBuilder:
         for t_index, turn in enumerate(plan["turns"], 1):
             question = pasted.get(t_index - 1, turn["question"])
             out: Dict[str, Any] = {"turn": t_index}
-            if turn.get("long_reference"):
+            if turn.get("shared_reference"):
+                out["reference"] = self.shared_reference
+            elif turn.get("long_reference"):
                 out["reference"] = self.long_reference(turn["long_reference"])
             files = []
             for spec in turn.get("attachments") or []:
@@ -480,25 +601,127 @@ class QuestionSetBuilder:
                 "target_items": plan.get("target_items") or [], "difficulty": plan.get("difficulty") or "", "trap": plan.get("trap") or "",
                 "turns": turns}
 
+    # 전용 단계 ------------------------------------------------------------------------
+    @staticmethod
+    def _only(plans: List[Dict[str, Any]], keep: Tuple[str, ...], turns: Optional[int] = None) -> List[Dict[str, Any]]:
+        """계획의 턴에서 ``keep`` 밖의 자료 필드(첨부·긴 자료·붙여 넣기)를 뺀다 — 전용 단계가 정한 모양만 남긴다."""
+        fields = ("attachments", "long_reference", "long_paste")
+        return [dict(plan, turns=[{k: v for k, v in t.items() if k not in fields or k in keep} for t in plan["turns"][:turns]]) for plan in plans]
+
+    def long_context_questions(self, count: int, catalog: Dict[str, List[Dict[str, str]]], note: str, start: int) -> List[Dict[str, Any]]:
+        """긴 문서 하나 + 그 문서를 함께 쓰는 단일 턴 질문 ``count`` 개 (J7). 문서를 못 만들면 경고만 남기고 빈 목록."""
+        plans: List[Dict[str, Any]] = []
+        spec: Optional[Dict[str, Any]] = None
+        rounds = 0
+        while len(plans) < count and rounds < count // LONG_CONTEXT_BATCH + 3:
+            rounds += 1
+            want = min(LONG_CONTEXT_BATCH, count - len(plans))
+            self.progress("long_context", {"message": f"긴 문서 질문 {want}개 계획 요청 (지금 {len(plans)}개 / {count}개)"})
+            try:
+                value = _json_object(self._ask(long_context_prompt(want, catalog, note, spec, [p["turns"][0]["question"] for p in plans]), PLAN_TOKENS))
+                if spec is None:
+                    if not isinstance(value.get("long_reference"), dict):
+                        raise GenerationError("긴 문서 명세(long_reference)가 없습니다.")
+                    spec = _clean_spec("long_reference", value["long_reference"], "긴 문서", self.warnings)
+                got, warnings = parse_plan(json.dumps({"questions": value.get("questions")}, ensure_ascii=False))
+            except Cancelled:
+                raise
+            except GenerationError as exc:
+                self.warnings.append(f"긴 문서 질문 계획 {rounds}회차: {exc}")
+                continue
+            self.warnings += warnings
+            plans += self._only(got, (), turns=1)[:want]
+        if not plans or spec is None:
+            self.warnings.append("긴 문서 질문을 만들지 못했습니다 (J7).")
+            return []
+        self.progress("long_context", {"message": "긴 문서 만드는 중 (조각 여러 개)"})
+        try:
+            self.shared_reference = self.long_reference(spec)
+        except Cancelled:
+            raise
+        except GenerationError as exc:
+            self.warnings.append(f"긴 문서를 만들지 못해 긴 문서 질문을 뺐습니다: {exc}")
+            return []
+        groups = []
+        for plan in plans:
+            plan["turns"][0]["shared_reference"] = True
+            groups.append(self.materialize(start + len(groups), plan))
+        return groups
+
+    def multi_turn_conversations(self, count: int, catalog: Dict[str, List[Dict[str, str]]], note: str, topics: List[str],
+                                 start: int) -> List[Dict[str, Any]]:
+        """10턴 대화 ``count`` 개 (J6) — 턴이 모자란 대화는 멀티턴이 아니므로 빼고 다시 요청한다. 턴마다 답변 분량 요구를 붙인다."""
+        groups: List[Dict[str, Any]] = []
+        rounds = 0
+        while len(groups) < count and rounds < count // MULTI_TURN_BATCH + 4:
+            rounds += 1
+            want = min(MULTI_TURN_BATCH, count - len(groups))
+            self.progress("multi_turn", {"message": f"10턴 대화 {want}개 계획 요청 (지금 {len(groups)}개 / {count}개)", "done": len(groups)})
+            try:
+                got, warnings = parse_plan(self._ask(multi_turn_prompt(want, topics + [g["topic"] for g in groups], catalog, note), PLAN_TOKENS))
+            except Cancelled:
+                raise
+            except GenerationError as exc:
+                self.warnings.append(f"10턴 대화 계획 {rounds}회차: {exc}")
+                continue
+            self.warnings += warnings
+            for plan in self._only(got, ("long_paste",)):
+                if len(groups) >= count:
+                    break
+                if len(plan["turns"]) < multi_turn.MIN_TURNS:
+                    self.warnings.append(f"'{plan.get('topic')}' 대화가 {len(plan['turns'])}턴이라 뺐습니다 (멀티턴은 {multi_turn.MIN_TURNS}턴 이상).")
+                    continue
+                missing = sum(1 for t in plan["turns"] if needs_length(t["question"]))
+                if missing:   # 분량은 프롬프트로 요구한다 — 빠진 턴은 고치지 않고 알린다
+                    self.warnings.append(f"'{plan.get('topic')}' 대화의 {missing}개 턴에 답변 분량 요구가 없습니다.")
+                try:
+                    groups.append(self.materialize(start + len(groups), plan))
+                except Cancelled:
+                    raise
+                except GenerationError as exc:
+                    self.warnings.append(f"'{plan.get('topic')}' 대화를 만들지 못해 뺐습니다: {exc}")
+        if len(groups) < count:
+            self.warnings.append(f"10턴 대화를 {count}개 중 {len(groups)}개만 만들었습니다.")
+        return groups
+
     # 전체 ---------------------------------------------------------------------------
-    def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = ()) -> Dict[str, Any]:
+    def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = (),
+              multi_turn_count: Optional[int] = None, long_context_count: Optional[int] = None) -> Dict[str, Any]:
         """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가."""
         catalog = criteria_catalog()
         if target_questions:   # 질문 하나에 계획·자료 호출이 몇 번씩 든다 — 수백 개를 지정해도 호출 상한에 먼저 막히지 않게
             self.max_calls = max(MAX_CALLS, 2 * target_questions + 150)
-        self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
-        # 첫 계획은 PLAN_BATCH 개까지 — 모든 항목을 덮게 하고, 나머지는 아래 '질문 추가'가 PLAN_BATCH 개씩 채운다
-        first = min(target_questions, PLAN_BATCH) if target_questions else None
-        raw = self._ask(plan_prompt(catalog, note, target_questions=first, weak_units=weak_units), PLAN_TOKENS)
+        multi_count, long_count = split_counts(target_questions, multi_turn_count, long_context_count)
+        dedicated = multi_count is not None   # 질문 수를 지정하면 10턴 대화·긴 문서 질문을 전용 단계에서 정한 수만큼 먼저 만든다
+        general = general_catalog(catalog) if dedicated else catalog
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        (self.out_dir / "plan.txt").write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문 — 실패해도 확인할 수 있게
-        plans, warnings = parse_plan(raw)
-        self.warnings += warnings
         groups: List[Dict[str, Any]] = []
+        if dedicated:
+            if long_count:
+                groups += self.long_context_questions(long_count, catalog, note, len(groups) + 1)
+            if multi_count:
+                groups += self.multi_turn_conversations(multi_count, catalog, note, [g["topic"] for g in groups], len(groups) + 1)
         rounds = 0
 
         def budget() -> Optional[int]:   # 목표 질문 수까지 남은 수 — 계획·보충 단계마다 만들기 전에 제한한다 (Codex 리뷰: 사후 경고로는 비용을 못 막음)
             return None if not target_questions else max(0, target_questions - len(groups))
+
+        def general_only(plans: List[Dict[str, Any]]) -> List[Dict[str, Any]]:   # 전용 단계가 있으면 일반 계획의 긴 자료는 쓰지 않는다 (세트당 1개)
+            if dedicated and any(t.get("long_reference") for p in plans for t in p["turns"]):
+                self.warnings.append("일반 계획의 긴 참조 자료(long_reference)는 뺐습니다 — 긴 문서 질문은 전용 단계가 만듭니다.")
+            return self._only(plans, ("attachments", "long_paste")) if dedicated else plans
+
+        self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
+        # 첫 계획은 PLAN_BATCH 개까지 — 모든 항목을 덮게 하고, 나머지는 아래 '질문 추가'가 PLAN_BATCH 개씩 채운다
+        first = min(budget(), PLAN_BATCH) if target_questions else None
+        if first == 0:   # 전용 단계만으로 목표 수를 채움
+            plans = []
+        else:
+            raw = self._ask(plan_prompt(catalog, note, target_questions=first, weak_units=weak_units, dedicated=dedicated), PLAN_TOKENS)
+            (self.out_dir / "plan.txt").write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문 — 실패해도 확인할 수 있게
+            plans, warnings = parse_plan(raw)
+            self.warnings += warnings
+            plans = general_only(plans)
 
         while True:
             if budget() is not None and len(plans) > budget():
@@ -513,7 +736,7 @@ class QuestionSetBuilder:
                 except GenerationError as exc:   # 그 질문만 빼고 계속한다 — 빠진 항목은 점검·보충이 다시 잡는다
                     self.warnings.append(f"'{plan.get('topic') or plan['turns'][0]['question'][:30]}' 질문을 만들지 못해 뺐습니다: {exc}")
             report = check(groups)
-            missing = report["coverage"]["missing_checks"] + report["coverage"]["missing_items"]
+            missing = report["coverage"]["missing_checks"] + [i for i in report["coverage"]["missing_items"] if not (dedicated and _dedicated(i))]
             have = attachment_types(groups)
             missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
@@ -528,6 +751,7 @@ class QuestionSetBuilder:
             try:
                 plans, warnings = parse_plan(self._ask(supplement_prompt(missing, [g["topic"] for g in groups], catalog, missing_types, note=note),
                                                        PLAN_TOKENS))
+                plans = general_only(plans)
             except Cancelled:
                 raise
             except GenerationError as exc:
@@ -543,9 +767,11 @@ class QuestionSetBuilder:
             self.progress("extra", {"message": f"목표 {target_questions}개에 맞춰 질문 {count}개 추가 요청 (지금 {len(groups)}개)", "count": count,
                                     "done": len(groups)})
             try:
-                plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], catalog,
-                                                                    weak_units, _low_coverage(report), note=note,
-                                                                    long_reference_ok=self.long_references < MAX_LONG_REFERENCES), PLAN_TOKENS))
+                low = [(uid, n) for uid, n in _low_coverage(report, 15 + (10 if dedicated else 0)) if not (dedicated and _dedicated(uid))][:15]
+                plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], general,
+                                                                    weak_units, low, note=note,
+                                                                    long_reference_ok=not dedicated and self.long_references < MAX_LONG_REFERENCES), PLAN_TOKENS))
+                plans = general_only(plans)
                 self.warnings += warnings
                 extra_rounds += 1
                 for plan in plans[:count]:
@@ -661,6 +887,17 @@ class QuestionSetService:
             target = None
         elif type(target) is not int or not 1 <= target <= MAX_PLAN_QUESTIONS:
             raise ValueError(f"질문 수는 1~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
+        counts = {}
+        for key in ("multi_turn_conversations", "long_context_questions"):   # 10턴 대화·긴 문서 질문 수 — 비우면 질문 수의 기본 비율
+            value = payload.get(key)
+            if value in (None, ""):
+                counts[key] = None
+            elif type(value) is not int or not 0 <= value <= MAX_PLAN_QUESTIONS:
+                raise ValueError(f"{key} 는 0~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
+            elif target is None:
+                raise ValueError("10턴 대화·긴 문서 질문 수는 세트 질문 수(target_questions)를 정했을 때만 지정할 수 있습니다.")
+            else:
+                counts[key] = value
         weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
         weak_units: List[Dict[str, str]] = []
         if weak_from:
@@ -677,7 +914,7 @@ class QuestionSetService:
             job = {"id": set_id, "version": QUESTION_GEN_VERSION, "status": "RUNNING", "phase": "plan", "message": "시작",
                    "created_at": datetime.now(timezone.utc).isoformat(), "model": config.get("model"), "note": note[:2000],
                    "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None,
-                   "target_questions": target, "weak_from_run": weak_from, "weak_units": weak_units,
+                   "target_questions": target, "weak_from_run": weak_from, "weak_units": weak_units, **counts,
                    "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
@@ -701,7 +938,8 @@ class QuestionSetService:
 
         try:
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)
-            result = builder.build(note, target_questions=job.get("target_questions"), weak_units=job.get("weak_units") or [])
+            result = builder.build(note, target_questions=job.get("target_questions"), weak_units=job.get("weak_units") or [],
+                                   multi_turn_count=job.get("multi_turn_conversations"), long_context_count=job.get("long_context_questions"))
             if cancel.is_set():   # 마지막 단계에서 취소했으면 완료로 남기지 않는다
                 raise Cancelled("생성을 중단했습니다.")
             groups, report = result["groups"], result["check"]

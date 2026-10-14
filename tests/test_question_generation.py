@@ -170,7 +170,7 @@ def test_large_target_is_planned_in_batches(tmp_path, monkeypatch):
     monkeypatch.setattr(qg, "PLAN_BATCH", 2)
     fake = FakeGPT()   # 추가 요청마다 질문 1개만 돌려준다
     builder = qg.QuestionSetBuilder(fake, tmp_path / "big")
-    result = builder.build(target_questions=base + 3)
+    result = builder.build(target_questions=base + 3, multi_turn_count=0, long_context_count=0)   # 전용 단계 없이 일반 계획의 묶음만 본다
     assert "정확히 2개" in fake.prompts[0] and len(result["groups"]) == base + 3 and result["extra_rounds"] == 3
     extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
     assert fake.prompts[0].endswith("2개인지 확인하고, 모자라면 채운 뒤 답합니다.")   # 개수는 프롬프트 맨 끝에 다시 못 박는다
@@ -183,7 +183,8 @@ def test_target_question_count_adds_questions_and_feeds_weak_units(tmp_path):
     base = len(qg.QuestionSetBuilder(FakeGPT(), tmp_path / "base").build()["groups"])
     fake = FakeGPT()
     weak = [{"id": "J2", "name": "내용 적절성"}, {"id": "2-1.char_count", "name": "글자 수"}]
-    result = qg.QuestionSetBuilder(fake, tmp_path / "target").build(target_questions=base + 1, weak_units=weak)
+    result = qg.QuestionSetBuilder(fake, tmp_path / "target").build(target_questions=base + 1, weak_units=weak,
+                                                                    multi_turn_count=0, long_context_count=0)   # 일반 계획만
     assert len(result["groups"]) == base + 1 and result["extra_rounds"] == 1
     assert f"정확히 {base + 1}개" in fake.prompts[0] and "# 변별력 (중요)" in fake.prompts[0] and "- J2 내용 적절성" in fake.prompts[0]
     extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
@@ -193,3 +194,73 @@ def test_target_question_count_adds_questions_and_feeds_weak_units(tmp_path):
     plain = qg.QuestionSetBuilder(FakeGPT(), tmp_path / "plain")
     plain.build()
     assert not any("목표 질문 수" in w for w in plain.warnings)   # 지정 안 하면 목표 수 경고가 없다
+
+
+class DedicatedGPT(FakeGPT):
+    """전용 단계(긴 문서 질문·10턴 대화) 프롬프트에도 답하는 가짜 GPT — 요청한 개수를 프롬프트에서 읽어 그만큼 돌려준다."""
+    def __call__(self, prompt, max_tokens):
+        import re
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 긴 참조 자료 질문을 설계"):
+            self.prompts.append(prompt)
+            n = int(re.findall(r"questions 배열에 정확히 (\d+)개", prompt)[-1])
+            first = len([p for p in self.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 긴 참조 자료 질문을 설계")]) == 1
+            body = {"questions": [{"type": "롱컨텍스트", "topic": f"문서 질문 {i}", "target_items": ["J7-1.a", "J7-2.a"], "difficulty": "어려움",
+                                   "trap": "자료에 없는 값을 지어내면 FAIL",
+                                   "turns": [{"question": f"자료 기준으로 {i}번째 지점의 해지 통보 기한과 세 지점 매출 합계를 알려줘.",
+                                              "attachments": [{"name": "x.txt", "type": "txt", "content": "빼야 함"}]}]} for i in range(n)]}
+            if first:
+                body["long_reference"] = {"topic": "임대 계약과 지점 보고", "facts": [{"text": "중도 해지는 30일 전까지 서면으로 통보한다.", "position": 0.6}]}
+            return json.dumps(body, ensure_ascii=False)
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 10턴 대화를 설계"):
+            self.prompts.append(prompt)
+            n = int(re.findall(r"대화를 정확히 (\d+)개", prompt)[-1])
+            convs = [{"type": "멀티턴", "topic": f"대화 {len(self.prompts)}-{i}", "target_items": ["J6-1.a", "J6-2.a"],
+                      "turns": [{"question": "앞으로 존댓말로 답해 주세요. 행사 계획을 정리해 주세요."}]
+                               + [{"question": f"{t}번째 요청: 앞에서 정한 계획을 고쳐 전체를 다시 써 주세요. 1,500자 이상으로 자세히 답해 주세요."}
+                                  for t in range(2, multi_turn.MIN_TURNS)]
+                               + [{"question": "지금까지 내용을 세 문장으로 요약해 주세요."}]} for i in range(n)]
+            convs.insert(0, {"type": "멀티턴", "topic": "짧은 대화", "turns": [{"question": "안녕"}, {"question": "다시"}]})   # 턴이 모자라 빠져야 함
+            return json.dumps({"questions": convs}, ensure_ascii=False)
+        return super().__call__(prompt, max_tokens)
+
+
+def test_split_counts_defaults_and_limits():
+    assert qg.split_counts(None) == (None, None) and qg.split_counts(300) == (30, 15) and qg.split_counts(300, 40, 20) == (40, 20)
+    assert qg.split_counts(5) == (1, 1) and qg.split_counts(2) == (0, 1) and qg.split_counts(10, 9, 9) == (4, 5)   # 다른 질문 1개 이상 남김
+    with pytest.raises(ValueError):
+        qg.split_counts(10, -1)
+
+
+def test_dedicated_steps_make_ten_turn_conversations_with_answer_length_and_share_one_long_document(tmp_path):
+    fake = DedicatedGPT()
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(target_questions=12, multi_turn_count=3, long_context_count=2)
+    groups = result["groups"]
+    assert len(groups) == 12
+    long_qs = [g for g in groups if g["turns"][0].get("reference")]
+    assert len(long_qs) == 2 and long_qs[0]["turns"][0]["reference"] is long_qs[1]["turns"][0]["reference"] or \
+        long_qs[0]["turns"][0]["reference"] == long_qs[1]["turns"][0]["reference"]
+    assert builder.long_references == 1 and "중도 해지는 30일 전까지 서면으로 통보한다." in long_qs[0]["turns"][0]["reference"]
+    assert all("attachments" not in t for g in long_qs for t in g["turns"])   # 긴 문서 질문은 단일 턴·자료 필드 없음
+    convs = [g for g in groups if len(g["turns"]) >= multi_turn.MIN_TURNS]
+    assert [g["topic"] for g in groups[2:5]] == [g["topic"] for g in convs[:3]] and any("턴이라 뺐습니다" in w for w in builder.warnings)
+    assert len(convs) == 4   # 전용 단계 3개 + 일반 계획이 만든 10턴 대화 1개 (이것도 분량 요구를 붙인다)
+    # 분량은 생성 프롬프트로 요구한다 — 코드가 질문에 문장을 덧붙이지 않고, 분량이 빠진 턴(첫 턴)은 경고로만 남긴다
+    ten_turn = next(p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 10턴 대화를 설계"))
+    assert f"{qg.TURN_ANSWER_CHARS:,}자 이상으로 자세히 답해 주세요." in ten_turn and "괄호 안에 넣지 않습니다" in ten_turn
+    for conv in convs[:3]:
+        assert conv["turns"][0]["question"] == "앞으로 존댓말로 답해 주세요. 행사 계획을 정리해 주세요."
+        assert conv["turns"][-1]["question"] == "지금까지 내용을 세 문장으로 요약해 주세요."
+    assert sum("1개 턴에 답변 분량 요구가 없습니다" in w for w in builder.warnings) == 3
+    plan = next(p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계"))
+    assert "# 멀티턴 대화 (J6)" not in plan and "J6-1.a" not in plan and "J7-1.a" not in plan and "따로 만듭니다" in plan
+    coverage = result["check"]["coverage"]["items"]
+    assert coverage["J7-1.a"] == 2 and coverage["J6-1.a"] >= 3   # 질문만으로 센 적용 수 (답변 전 10턴 대화는 J6 적용으로 센다)
+
+
+def test_service_validates_dedicated_counts(tmp_path):
+    service = qg.QuestionSetService(lambda: {"key": "k", "model": "gpt-test"}, store=tmp_path, llm_factory=lambda config, usage: FakeGPT())
+    for bad in ({"multi_turn_conversations": 3}, {"target_questions": 20, "long_context_questions": -1},
+                {"target_questions": 20, "multi_turn_conversations": "3"}):
+        with pytest.raises(ValueError):
+            service.start(bad)
