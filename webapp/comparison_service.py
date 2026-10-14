@@ -52,7 +52,7 @@ PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 # 질문 세트 실행에서 웹 자동화로 답을 받는 모델 — FactChat·우수AI 는 .env 로그인 정보가 있을 때. 키는 API 게이트웨이(factchat)·
 # 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
 WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web", "chatgpt_web", "gemini_web", "claude_web")
-PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web"})   # 사용자 결정 2026-10-14: 우수AI 는 당분간 수집하지 않음 (코드는 그대로, 여기서 빼면 다시 수집)
+PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web", "factchat_web"})   # 사용자 결정 2026-10-14 우수AI·2026-10-15 FactChat: 당분간 수집하지 않음 (여기서 빼면 다시 수집)
 WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델",
               "chatgpt_web": "ChatGPT 웹브라우저 · GPT-6 · Medium", "gemini_web": "Gemini 웹브라우저 · 자동 모드 · 사고 수준 보통",
               "claude_web": "Claude 웹브라우저 · Sonnet 5.5 · 노력 중간"}
@@ -1936,7 +1936,7 @@ class ComparisonService:
                 raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
             api = [p for p in ("gpt", "claude", "gemini") if p in self._keys]
             # 웹 자동화 모델 — AIONA 는 늘, FactChat 은 .env 에 로그인 정보(FACTCHAT_LOGIN_ID·PASSWORD)가 있을 때 (사용자 결정 2026-10-14)
-            web = ["aiona"] + (["factchat_web"] if factchat_login_status()["credentials"] else []) \
+            web = ["aiona"] + (["factchat_web"] if "factchat_web" not in PAUSED_WEB_PROVIDERS and factchat_login_status()["credentials"] else []) \
                 + (["oosoo_web"] if "oosoo_web" not in PAUSED_WEB_PROVIDERS and oosoo_login_status()["credentials"] else [])
             cdp = cdp_login_status()   # 수집용 Chrome 이 떠 있고 그 사이트 탭이 열려 있으면 ChatGPT·Gemini·Claude 는 웹으로 (API 대신)
             if cdp["credentials"]:
