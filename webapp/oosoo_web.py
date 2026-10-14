@@ -151,6 +151,8 @@ class OosooChat:
                 raise OosooWebError("중단 요청으로 우수AI 수집을 시작하지 않았습니다.")
         self._lock = lock
         try:
+            if self.cancelled():   # 잠금을 바로 얻었어도 이미 중단 요청이면 브라우저를 열지 않는다 (Codex)
+                raise OosooWebError("중단 요청으로 우수AI 수집을 시작하지 않았습니다.")
             from playwright.sync_api import sync_playwright
             self._playwright = sync_playwright().start()
             self.profile.mkdir(parents=True, exist_ok=True)

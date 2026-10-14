@@ -21,16 +21,16 @@
   "status_counts": {
    "aiona": {
     "ERROR": 8,
-    "SUCCESS": 441,
-    "INCOMPLETE": 1
+    "INCOMPLETE": 1,
+    "SUCCESS": 441
    },
    "gpt": {
     "SUCCESS": 450
    },
    "gemini": {
-    "SUCCESS": 448,
+    "ERROR": 1,
     "INCOMPLETE": 1,
-    "ERROR": 1
+    "SUCCESS": 448
    }
   },
   "evaluation": "하지 않음"
@@ -23790,10 +23790,20 @@
     "aiona": {
      "answer": null,
      "status": "INCOMPLETE",
-     "error": "답변이 제한 시간 안에 끝나지 않았습니다.",
-     "latency_ms": 602079,
-     "collected_at": "2026-10-14T01:53:35.165125+00:00",
-     "method": "aiona-web-v1",
+     "error": "AIONA 가 답하지 않음 — 화면에는 주문A.pdf·주문B.pdf 두 칸이 보이지만 AIONA 대화 기록에는 주문A.pdf 만 저장되고 '생각하는 중'에서 멈춤 (10-14 01:58·03:15 UTC 두 번 같은 현상, 01:58 대화는 1시간 넘게 답 없음)",
+     "latency_ms": 602714,
+     "collected_at": "2026-10-14T03:17:42.300014+00:00",
+     "method": "aiona-web-v2",
+     "sent": [
+      {
+       "name": "주문A.pdf",
+       "how": "파일 그대로"
+      },
+      {
+       "name": "주문B.pdf",
+       "how": "파일 그대로"
+      }
+     ],
      "retried": true
     },
     "gpt": {
