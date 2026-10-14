@@ -236,6 +236,7 @@ class _CdpChat:
         base = {"url": None, "sent": sent, "model": self.model_seen or self.MODEL_LABEL, "method": CDP_WEB_VERSION}
         before = self._answers().count()
         asked_before = self._asked()
+        text_before = self._last_answer_text()   # 긴 대화는 화면이 지난 턴을 치워(가상화) 말풍선 수가 안 늘 수 있다 — 글이 바뀌었는지도 본다
         try:
             with _CHROME_LOCK:
                 if self.cancelled():
@@ -277,9 +278,9 @@ class _CdpChat:
             current = self._last_answer_text()
             stable = stable + 1 if current == last else 0
             last = current
-            if stable >= 2 and self._answers().count() > before:
+            if stable >= 2 and (self._answers().count() > before or (current and current != text_before)):
                 break
-        done = stable >= 2 and self._answers().count() > before
+        done = stable >= 2 and (self._answers().count() > before or bool(last) and last != text_before)
         answer, capture = (last or ""), "text"
         if done:
             with _CHROME_LOCK:
