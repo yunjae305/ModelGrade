@@ -27,33 +27,10 @@
     return node('div', {}, node('dt', {text: label}), node('dd', {text: String(value ?? 0)}));
   }
 
-  // 평가 항목 구조 표 — 단계별 개수 ⇒ 검사 항목 수 · 이 질문들로 적용되는 수 (사용자 요청 2026-10-14: 한 줄로 늘어뜨리지 말고 표로)
-  // CODE평가·LLM의미평가를 열로 — '대분류 N개 > 중분류 N개 > 소분류 N개'(사용자 결정 2026-10-14), 소분류 합계, 이 질문들로 적용되는 소분류
-  function scopeTable(t, codeHit, codeAll, itemHit, itemAll) {
-    const steps = (...counts) => counts.flatMap(([label, n], i) => [i ? ' > ' : '', label + ' ', node('b', {text: String(n)}), '개']);
-    const row = (label, cells, cls) => node('tr', cls ? {class: cls} : {}, node('th', {scope: 'row', text: label}), ...cells.map((c) => node('td', {}, ...[c].flat())));
-    return node('div', {class: 'table-scroll'}, node('table', {class: 'question-set-scope'},
-      node('thead', {}, node('tr', {}, ...['', 'CODE평가', 'LLM의미평가', '합계'].map((text) => node('th', {scope: 'col', text})))),
-      node('tbody', {},
-        row('분류', [steps(['대분류', t.code_categories], ['중분류', t.code_subcategories], ['소분류', t.code_checks]),
-          steps(['대분류', t.semantic_criteria], ['중분류', t.semantic_subs], ['소분류', t.semantic_items]),
-          steps(['소분류', t.code_checks + t.semantic_items])], 'question-set-scope-total'),
-        row('이 질문들로 적용', [`소분류 ${codeHit} / ${codeAll}`, `소분류 ${itemHit} / ${itemAll}`, `${codeHit + itemHit} / ${codeAll + itemAll}`],
-          'question-set-scope-hit'))));
-  }
-
-  // 평가 항목 구조 표 + 이 세트로 적용되는 항목 + 빠진 항목 (늘 보임)
+  // 빠진 항목 + 난도 줄 — 기준 적용 표(CODE평가·LLM의미평가·합계)는 뺐다 (사용자 요청 2026-10-14)
   function coverageSummary(coverage, meta, showMissing = true) {
     const lines = [];
     if (coverage) {
-      const t = coverage.taxonomy;
-      const later = new Set(coverage.answer_dependent || []);
-      const code = Object.entries(coverage.checks || {});   // CODE 소분류 = 검사 28 (답변 구조로 생기는 검사는 답변 뒤에 정해진다)
-      const items = Object.entries(coverage.items || {});
-      const codeHit = code.filter(([, n]) => n > 0).length, itemHit = items.filter(([, n]) => n > 0).length;
-      if (t) lines.push(scopeTable(t, codeHit, code.length, itemHit, items.length));
-      else lines.push(node('p', {text: `이 질문들로 적용되는 항목 — CODE ${codeHit}/${code.length}개 · 의미 점검 항목 ${itemHit}/${items.length}개`}));
-      if (later.size) lines.push(node('p', {class: 'field-help', text: `답변 구조로 생기는 검사 ${later.size}개는 답변을 받은 뒤 확인합니다.`}));
       const missing = [...(coverage.missing_checks || []), ...(coverage.missing_items || [])];
       if (showMissing && missing.length) lines.push(node('p', {class: 'question-set-missing', text: '아직 적용 질문이 없는 항목: ' + missing.join(', ')}));
     }
@@ -77,11 +54,13 @@
   }
 
   // 질문 확인 — 질문마다 유형·난도·턴 원문·첨부 이름·긴 자료 글자 수·노리는 항목·함정. 평가 시작 전에 펼쳐 둔다
+  const STATE = {making: '만드는 중', planned: '계획'};   // 생성 중 목록의 아직 다 만들지 않은 질문
   function questionRow(q) {
     const turns = q.turns || [];
     return node('li', {class: 'question-set-question'},
       node('div', {class: 'question-set-question-head'},
-        node('span', {class: 'question-set-qid', text: 'Q' + String(q.id ?? '').padStart(3, '0')}),
+        q.id != null ? node('span', {class: 'question-set-qid', text: 'Q' + String(q.id).padStart(3, '0')}) : null,
+        STATE[q.state] ? node('span', {class: 'pill ' + (q.state === 'making' ? 'warning' : 'neutral'), text: STATE[q.state]}) : null,
         node('strong', {text: q.topic || q.type || '질문'}),
         q.type && q.topic ? node('span', {class: 'question-set-tag', text: q.type}) : null,
         q.difficulty ? node('span', {class: 'question-set-tag', text: q.difficulty}) : null,
@@ -91,7 +70,8 @@
         node('div', {class: 'question-set-turn-text'},
           node('p', {text: t.question}),
           (t.attachments || []).length ? node('p', {class: 'field-help', text: '첨부: ' + t.attachments.join(', ')}) : null,
-          t.reference_chars ? node('p', {class: 'field-help', text: `긴 참조 자료 ${Number(t.reference_chars).toLocaleString('ko-KR')}자 함께 보냄`}) : null)))),
+          t.reference_chars ? node('p', {class: 'field-help', text: `긴 참조 자료 ${Number(t.reference_chars).toLocaleString('ko-KR')}자 함께 보냄`})
+            : t.long_reference ? node('p', {class: 'field-help', text: '긴 참조 자료를 만들어 함께 보냄'}) : null)))),
       (q.target_items || []).length ? node('p', {class: 'question-set-items', text: '노리는 항목 ' + q.target_items.join(' · ')}) : null,
       q.trap ? node('p', {class: 'question-set-trap', text: '함정 ' + q.trap}) : null);
   }
@@ -125,6 +105,13 @@
     if (!set) return;
     if (running) {
       body.append(node('p', {class: 'field-help', role: 'status', text: (set.message || '준비 중') + ' — 긴 자료가 있으면 몇 분 걸립니다.'}));
+      const rows = set.preview || [];   // 만든 질문과 계획된 질문 (사용자 요청 2026-10-14: 어떤 질문이 만들어지는지 보이게)
+      if (rows.length) {
+        const made = rows.filter((r) => r.state === 'made').length;
+        body.append(node('details', {class: 'question-set-review', open: ''},
+          node('summary', {text: `만든 질문 ${made}개` + (rows.length > made ? ` · 계획된 질문 ${rows.length - made}개` : '')}),
+          node('ol', {class: 'question-set-questions'}, rows.map(questionRow))));
+      }
       return;
     }
     if (set.status !== 'COMPLETED') return;

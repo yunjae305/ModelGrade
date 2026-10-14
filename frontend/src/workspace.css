@@ -1292,14 +1292,6 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
 #question-input-body {display:grid; gap:14px; padding:4px 24px 20px} #question-input-body:empty {display:none}
 .question-input-panel>.alert {margin:0 24px 14px}
 .visually-hidden {position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
-.question-set-scope {width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink)}
-.question-set-scope th, .question-set-scope td {padding:7px 10px; border-bottom:1px solid #F0F1F6; text-align:left; white-space:nowrap}
-.question-set-scope thead th {color:var(--muted); font-size:12px; font-weight:600}
-.question-set-scope tbody th {font-weight:650}
-.question-set-scope td b {color:var(--purple-dark); font-weight:700}
-.question-set-scope tbody th {color:var(--muted); font-weight:600; font-size:12px}
-.question-set-scope-total th, .question-set-scope-total td {background:var(--purple-soft)}
-.question-set-scope-hit td {color:var(--muted); border-bottom:0}
 /* 만든 질문 확인 — 평가 시작 전에 펼쳐 둔다. 목록이 길어도 패널 안에서만 스크롤 */
 .question-set-review {border:1px solid var(--card-line); border-radius:var(--radius-sm); background:var(--surface)}
 .question-set-review>summary {padding:12px 16px; cursor:pointer; font-size:13px; font-weight:650; color:var(--ink)}

@@ -360,3 +360,23 @@ def test_imported_questions_make_a_completed_set_ready_for_review(tmp_path):
     assert job["status"] == "COMPLETED" and job["source"] == "manual" and job["run_id"] is None and job["summary"]["questions"] == 2
     assert job["coverage"]["taxonomy"]["code_conditions"] > 0 and service.list()[0]["id"] == job["id"]
     assert [row["turns"][0]["question"] for row in service.preview(job["id"])] == ["146 + 279는 얼마야?", "오늘 할 일을 표로 정리해줘."]
+
+
+def test_plan_with_missing_closing_brackets_is_read_and_reported():
+    """GPT 계획 끝 괄호가 빠진 응답(2026-10-14 실제) — 모자란 괄호만 채워 읽고 경고로 남긴다. 짝이 어긋난 괄호는 고치지 않는다."""
+    text = json.dumps(PLAN, ensure_ascii=False)
+    plans, warnings = qg.parse_plan(text[:-2])
+    assert len(plans) == 4 and any("닫는 괄호 2개" in w for w in warnings)
+    with pytest.raises(qg.GenerationError):
+        qg.parse_plan(text[:-2] + "}]")
+
+
+def test_builder_reports_made_and_planned_questions_while_generating(tmp_path):
+    """생성 중 화면 목록 — 만든 질문은 made, 지금 만드는 질문은 making, 남은 계획은 planned (사용자 요청 2026-10-14)."""
+    seen = []
+    builder = qg.QuestionSetBuilder(FakeGPT(), tmp_path, progress=lambda phase, data: seen.append(data["questions"]) if "questions" in data else None)
+    groups = builder.build()["groups"]
+    first = next(rows for rows in seen if rows)
+    assert [r["state"] for r in first][:2] == ["making", "planned"] and first[0]["turns"][0]["question"].startswith("공부 방법")
+    assert [r["state"] for r in seen[-1]] == ["made"] * len(groups) and seen[-1][0]["id"] == 1
+    assert all(len(t["question"]) <= qg.PREVIEW_CHARS + 2 for rows in seen for r in rows for t in r["turns"])
