@@ -279,6 +279,10 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
             lines += ["외부 사실 주장이 있으면 최종 제출 전에 최소 한 번 실제 웹검색을 실행하고 원문을 확인하세요. "
                       "입력 자료 일치만 검토하거나 J5 미적용이면 불필요한 검색은 하지 마세요. "
                       "검색 도구가 실패하더라도 claim을 지우지 말고 확인 불가 이유와 UNVERIFIED를 제출하세요."]
+    from .attachment_images import prompt_note
+    note = prompt_note(state)
+    if note:   # 이미지 첨부의 그림을 함께 보냈는지(image_attached) — 질문마다 다른 뒷부분에만 붙여 공통 지시문은 그대로
+        dynamic_lines.append(note)
     dynamic_lines += ["## 평가 대상 (데이터)", json.dumps(state, ensure_ascii=False, indent=1)]
     return "\n".join(lines), "\n".join(dynamic_lines)
 

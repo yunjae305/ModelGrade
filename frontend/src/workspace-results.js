@@ -35,6 +35,58 @@
     not_found: '출처에 해당 내용 없음', inaccessible: '출처 원문 접근 불가', unverified: '판정 확정 안 함', unchecked: '확인하지 않음'};
   const searchModes = {live: '웹 검색 사용', disabled: '웹 검색 꺼짐(설정)', unsupported: '검색 도구가 없는 평가자',
     reference: '참조 자료로만 판정(검색 안 함)', not_requested: 'J5 미요청'};
+  // J5 판정 사유 한 줄 — 판정 사유 상자·질문 카드·FAIL 목록·요약 카드가 같은 문구를 쓴다. 저장된 판정을 읽기만 한다.
+  // 세부 구분(원문 확인 실패 종류·충돌 근거·URL 접근 실패 주체)은 j5-outcome-detail-v4/v5 기록이 있을 때만 붙는다.
+  function j5Detail(outcome, decision) {
+    if (!outcome?.code) return null;
+    const sub = outcome.source_failure?.label || outcome.contradiction?.label || outcome.citation_access?.label || '';
+    const pending = j5OutcomePending.has(outcome.code), basis = outcome.contradiction?.basis;
+    const note = outcome.factual_error_confirmed ? ({user_input: '질문·앞 대화에서 사용자가 준 정보와 답변이 어긋납니다. 외부 자료로 확인한 사실 오류는 아닙니다.',
+        reference: '제공된 참고 자료와 답변이 어긋납니다.', citation: '답변이 출처로 든 문서와 답변 내용이 어긋납니다.'})[basis]
+        || '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.'
+      : pending ? '판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다.'
+      : decision === 'FAIL' ? '사실 오류를 확정한 FAIL이 아닙니다.' + (outcome.citation_access?.side === 'evaluation_environment' ?
+        ' 서버가 답변의 출처를 열지 못했으며 확인 환경 문제일 수 있습니다.' : '')
+      : '근거로 확인된 판정입니다.';
+    return {title: (outcome.label || outcome.code) + (sub ? ` (${sub})` : ''), note, confirmed: Boolean(outcome.factual_error_confirmed), pending};
+  }
+  // 검증 한계 FAIL — 근거·원문을 확인하지 못해 정책상 FAIL 로 둔 판정 (webapp/run_summary.verification_limited_decision 과 같은 규칙).
+  // 출처 접근 불가(citation_inaccessible)는 사용자 결정(evidence-v3.14)대로 답변 결함으로 본다.
+  const limitJ5 = new Set(['source_unavailable', 'insufficient_evidence', 'search_limit_reached']);
+  const limitReasons = new Set(['EVALUATION_EVIDENCE_INSUFFICIENT', 'SOURCE_ORIGINAL_UNAVAILABLE', 'FACT_UNVERIFIABLE', 'ITEM_UNVERIFIABLE']);
+  function verificationLimited(decision) {
+    if (decision?.decision !== 'FAIL' || decision.j5_outcome?.factual_error_confirmed) return false;
+    if (limitJ5.has(decision.j5_outcome?.code) || limitReasons.has(decision.reason_code)) return true;
+    if (['evidence_requirement', 'source_verification_requirement'].includes(decision.decision_policy?.outcome_basis)) return true;
+    const failed = Object.values(decision.subs || {}).flatMap((sub) => sub?.items || []).filter((item) => item?.decision === 'NO');
+    return failed.length > 0 && failed.every((item) => item.unverifiable);
+  }
+  // 질문 FAIL 이 검증 한계로만 생겼는가 — CODE FAIL 이 없고 FAIL 인 의미 기준이 모두 검증 한계 (run_summary.verification_limited)
+  function limitedOnly(c, record) {
+    const codeFail = (c?.results || []).some((r) => r.area === 'common' && r.counted && r.verdict === 'FAIL') || count(c?.summary?.common?.fail) > 0;
+    const ids = Array.isArray(record?.criteria) ? record.criteria : Object.keys(record?.decisions || {});
+    const semantic = ids.filter((id) => record?.decisions?.[id]?.decision === 'FAIL');
+    return !codeFail && semantic.length > 0 && semantic.every((id) => verificationLimited(record.decisions[id]));
+  }
+  // 한 모델의 J5 FAIL 을 사유별로 센다 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눠 보여 주기 위한 집계
+  function j5Breakdown(records) {
+    const out = {fail: 0, confirmed: 0, unclassified: 0, codes: {}};
+    for (const record of records || []) {
+      const j5 = record?.status === 'SUCCESS' && record.criteria?.includes('J5') ? record.decisions?.J5 : null;
+      if (j5?.decision !== 'FAIL') continue;
+      out.fail += 1;
+      const outcome = j5.j5_outcome;
+      if (!outcome?.code) { out.unclassified += 1; continue; }
+      if (outcome.factual_error_confirmed) out.confirmed += 1;
+      const key = [outcome.code, outcome.source_failure?.kind, outcome.contradiction?.basis, outcome.citation_access?.side].filter(Boolean).join(':');
+      // short — 요약 카드용 짧은 이름 (세부 구분이 있으면 그것, 없으면 '검증 기준 미충족 — ' 을 뺀 라벨)
+      const short = outcome.source_failure?.label || outcome.contradiction?.label || outcome.citation_access?.label
+        || String(outcome.label || outcome.code).replace(/^검증 기준 미충족 — /, '');
+      const entry = out.codes[key] || (out.codes[key] = {label: j5Detail(outcome, 'FAIL').title, short, count: 0, confirmed: Boolean(outcome.factual_error_confirmed)});
+      entry.count += 1;
+    }
+    return out;
+  }
 
   // 옛 저장 결과(v16.2.x, code_completion SUCCESS)의 LLM 보완 판정을 투영한다. 새 결과에는 code_completion 이 없어 그대로 돌려준다.
   function resolvedCase(c, record) {
@@ -78,7 +130,9 @@
       text = '평가 중'; reason = '의미 평가 응답을 기다리고 있습니다.';
     } else if (complete) {
       text = fail ? `문제 ${fail}개` : '통과';
-      reason = `적용된 의미 기준 ${criteria.length}개를 모두 판정했습니다.`;
+      // 어떤 기준을 적용했고 각각 어떻게 판정했는지 — 시연·검토에서 개수만이 아니라 기준 이름을 바로 본다 (10-14 3차)
+      reason = `적용된 의미 기준 ${criteria.length}개를 모두 판정했습니다: ` +
+        criteria.map((id) => `${id} ${record.decisions[id].decision}`).join(' · ') + '.';
     } else if (unverified.length || incomplete.length) {
       text = incomplete.length ? '판정 미완료' : '확인 필요';
       rawReason = [...unverified, ...incomplete].map(([id, d]) => `${id}: ${d.reason || '검증 근거가 충분하지 않습니다.'}`).join('\n');
@@ -183,10 +237,8 @@
     if (outcome?.code && outcome.code !== 'not_applicable') {
       box.append(make('div', {class: j5OutcomePending.has(outcome.code) ? 'semantic-policy-pending' :
         j5?.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass', 'data-j5-outcome': outcome.code},
-        make('strong', {text: 'J5 판정 사유 · ' + (outcome.label || outcome.code) + (outcome.source_failure?.label ? ` (${outcome.source_failure.label})` : '')}),
-        note(outcome.factual_error_confirmed ? '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.' :
-          j5OutcomePending.has(outcome.code) ? '판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다.' :
-          j5?.decision === 'FAIL' ? '사실 오류를 확정한 FAIL이 아닙니다.' : '근거로 확인된 판정입니다.'),
+        make('strong', {text: 'J5 판정 사유 · ' + j5Detail(outcome, j5?.decision).title}),
+        note(j5Detail(outcome, j5?.decision).note),
         outcome.search?.mode ? note('검색 상태: ' + (searchModes[outcome.search.mode] || outcome.search.mode) +
           (outcome.search.limit_reached ? ' · 검색 한도 도달' : '') +
           (outcome.search.errors?.length ? ' · 검색 오류 ' + outcome.search.errors.join(', ') : '')) : null));
@@ -345,6 +397,9 @@
         outcome = 'issue'; detail = `코드 검사 ${code.fail}개 · 의미 평가 ${semantic.fail}개 문제 발견`;
         if (record?.decisions?.J5?.decision === 'FAIL' && record.decisions.J5.reason_code === 'SOURCE_ORIGINAL_UNAVAILABLE') detail += ' · J5 출처 원문 확인 실패';
         if (Object.values(record?.decisions || {}).some((d) => d.decision === 'FAIL' && d.reason_code === 'EVALUATION_EVIDENCE_INSUFFICIENT')) detail += ' · 검증 근거 부족';
+        const j5Outcome = record?.decisions?.J5?.decision === 'FAIL' ? record.decisions.J5.j5_outcome : null;
+        if (j5Outcome?.factual_error_confirmed) detail += ' · J5 ' + (j5Outcome.contradiction?.basis === 'user_input' ? '사용자 제공 정보와 불일치' : '사실 오류');
+        else if (j5Outcome && ['citation_inaccessible', 'source_mismatch', 'unclassified'].includes(j5Outcome.code)) detail += ' · J5 ' + j5Detail(j5Outcome, 'FAIL').title + ' — 사실 오류 확정 아님';
         if (!code.complete || !semantic.complete) detail += ' · 남은 평가 있음';
       } else if (code.complete && semantic.complete) {
         outcome = 'clear'; detail = '적용된 코드 검사와 의미 기준에서 문제를 발견하지 못했습니다.';
@@ -496,7 +551,7 @@
 
   function criterionSummary(result, provider, criterion) {
     const batch = result?.evaluations?.[provider];
-    let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0;
+    let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0, limitedFails = 0;
     const pendingReasons = {unverified: 0, incomplete: 0, errors: 0, missing: 0};
     if (criterion.group === 'code') {
       for (const [index, raw] of (batch?.cases || []).entries()) {
@@ -514,7 +569,10 @@
         if (!(record.criteria || []).includes(criterion.id)) continue;
         const decision = record.status === 'SUCCESS' ? record.decisions?.[criterion.id]?.decision : null;
         if (decision === 'PASS') passed++;
-        else if (decision === 'FAIL') failed++;
+        else if (decision === 'FAIL') {
+          failed++;
+          if (verificationLimited(record.decisions[criterion.id])) limitedFails++;   // 근거·원문 확인 실패로 생긴 FAIL (답변 결함 확인 아님)
+        }
         else {
           pending++;
           if (record.status && record.status !== 'SUCCESS') pendingReasons.errors++;
@@ -526,8 +584,27 @@
       if (batch) unknown += Math.max(0, count(result.question_count) - records.length);
     }
     const decided = passed + failed;
-    return {available: Boolean(batch), passed, failed, pending, pendingReasons, unknown, excluded,
+    return {available: Boolean(batch), passed, failed, limitedFails, pending, pendingReasons, unknown, excluded,
       targets: decided + pending, decided, rate: settledRate(passed, failed, pending, unknown)};
+  }
+
+  // 첨부 그림을 평가 모델에도 보냈는지 (judge-attachment-images-v1) — 질문 상세의 의미 평가 칸 아래 한 줄. 기록이 없으면 ''
+  function attachmentImageNote(record) {
+    const images = record?.attachment_images;
+    if (!images) return '';
+    const parts = [];
+    if (images.sent?.length) {
+      parts.push(`첨부 그림 ${images.sent.length}개를 평가 모델에도 보냈습니다: ` +
+        images.sent.map((image) => `${image.name} (${image.media_type} · sha256 ${String(image.sha256 || '').slice(0, 12)})`).join(', '));
+    }
+    if (images.not_sent?.length) {
+      parts.push('평가 모델에 보내지 못한 그림: ' + images.not_sent.map((gap) => `${gap.name} — ${gap.reason}`).join(', ') +
+        (images.held_criteria?.length ? ` (${images.held_criteria.join('·')} 판정 미완료)` : ''));
+    }
+    if (images.content_only?.length) {
+      parts.push('그림 파일 없이 내용 글만 있는 첨부: ' + images.content_only.map((item) => item.name).join(', ') + ' — 내용 글로 판정');
+    }
+    return parts.join(' ');
   }
 
   function evidenceNotice(run, provider = 'aiona') {
@@ -543,7 +620,7 @@
   }
   const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
     resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason,
-    questionUnits};
+    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly, attachmentImageNote};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

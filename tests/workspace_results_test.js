@@ -395,3 +395,70 @@ console.log('External collection scores without ranks across differing environme
   assert.equal(overview.rows[0].score, 50);
   assert.deepEqual(overview.rows[0].turnCounts, {issue: 1, clear: 3, pending: 0, waiting: 0, running: 0});
 }
+{
+  // J5 판정 사유 — 사실 오류 확정과 검증 한계를 같은 문구로 (판정 사유 상자·질문 카드·요약 카드 공통)
+  const {j5Detail, j5Breakdown} = require('../frontend/src/workspace-results.js');
+  const outcome = (code, extra = {}) => ({code, label: code, factual_error_confirmed: code === 'contradicted', ...extra});
+  assert.equal(j5Detail(outcome('contradicted', {contradiction: {basis: 'external', label: '외부'}}), 'FAIL').note, '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.');
+  const user = j5Detail(outcome('contradicted', {contradiction: {basis: 'user_input', label: '사용자 정보와 불일치'}}), 'FAIL');
+  assert.ok(user.confirmed && user.title === 'contradicted (사용자 정보와 불일치)' && user.note.includes('외부 자료로 확인한 사실 오류는 아닙니다'));
+  const timeout = j5Detail(outcome('citation_inaccessible', {citation_access: {side: 'evaluation_environment', label: '서버가 열지 못함'}}), 'FAIL');
+  assert.ok(!timeout.confirmed && timeout.note.startsWith('사실 오류를 확정한 FAIL이 아닙니다.') && timeout.note.includes('확인 환경 문제'));
+  assert.ok(j5Detail(outcome('search_unavailable'), null).pending && j5Detail(outcome('search_unavailable'), null).note.includes('FAIL이 아닙니다'));
+  assert.equal(j5Detail(outcome('verified'), 'PASS').note, '근거로 확인된 판정입니다.');
+  assert.equal(j5Detail(null), null);
+  const record = (j5) => ({status: 'SUCCESS', criteria: ['J1', 'J5'], decisions: {J1: {decision: 'PASS'}, J5: j5}});
+  const fail = (o) => record({decision: 'FAIL', j5_outcome: o});
+  const breakdown = j5Breakdown([
+    fail(outcome('source_unavailable', {source_failure: {kind: 'access_failed', label: '접근 실패'}})),
+    fail(outcome('source_unavailable', {source_failure: {kind: 'quote_not_found', label: '인용문 미확인'}})),
+    fail(outcome('source_unavailable', {source_failure: {kind: 'quote_not_found', label: '인용문 미확인'}})),
+    fail(outcome('contradicted', {contradiction: {basis: 'user_input', label: '사용자'}})),
+    record({decision: 'FAIL'}), record({decision: 'PASS', j5_outcome: outcome('verified')}),
+    {status: 'API_ERROR', criteria: ['J5'], decisions: {J5: {decision: 'FAIL', j5_outcome: outcome('contradicted')}}}]);
+  assert.deepEqual([breakdown.fail, breakdown.confirmed, breakdown.unclassified], [5, 1, 1]);
+  assert.deepEqual(Object.fromEntries(Object.entries(breakdown.codes).map(([k, v]) => [k, v.count])),
+    {'source_unavailable:access_failed': 1, 'source_unavailable:quote_not_found': 2, 'contradicted:user_input': 1});
+  // 질문 카드 상세 — 사실 오류 확정이 아닌 J5 FAIL 은 그렇다고 밝힌다
+  const c = {case_id: 'q', case_status: 'EVALUATED', question: 'q', answer: 'a', errors: [], results: [],
+    summary: {common: {pass: 1, fail: 0, unjudged: 0}}};
+  const inaccessible = {status: 'SUCCESS', criteria: ['J5'], decisions: {J5: {decision: 'FAIL',
+    j5_outcome: outcome('citation_inaccessible', {label: '출처 접근 불가', citation_access: {side: 'evaluation_environment', label: '서버가 열지 못함'}})}}};
+  const state = caseState({status: 'COMPLETED', datasets: {aiona: [{case_id: 'q', question: 'q', answer: 'a'}]},
+    evaluations: {aiona: {cases: [c], jev_eval: {records: [inaccessible]}}}}, 'aiona', 0);
+  assert.ok(state.detail.includes('J5 출처 접근 불가 (서버가 열지 못함) — 사실 오류 확정 아님'), state.detail);
+}
+console.log('j5 detail checks passed');
+{
+  // 의미 평가 요약에 적용 기준과 판정을 함께 (개수만이 아니라 어떤 기준인지)
+  const {semanticState} = require('../frontend/src/workspace-results.js');
+  const state = semanticState({status: 'SUCCESS', criteria: ['J1', 'J5'], decisions: {J1: {decision: 'PASS'}, J5: {decision: 'FAIL'}}});
+  assert.equal(state.reason, '적용된 의미 기준 2개를 모두 판정했습니다: J1 PASS · J5 FAIL.');
+  assert.equal(state.text, '문제 1개');
+}
+console.log('applied criteria are named in the semantic summary.');
+{
+  // 기준별 비교 — FAIL 중 검증 한계(근거·원문 확인 실패)로 생긴 수를 따로
+  const {criterionSummary} = require('../frontend/src/workspace-results.js');
+  const rec = (j5) => ({status: 'SUCCESS', criteria: ['J5'], decisions: {J5: j5}});
+  const result = {question_count: 3, evaluations: {gpt: {jev_eval: {records: [
+    rec({decision: 'FAIL', reason_code: 'SOURCE_ORIGINAL_UNAVAILABLE', j5_outcome: {code: 'source_unavailable', factual_error_confirmed: false}}),
+    rec({decision: 'FAIL', j5_outcome: {code: 'contradicted', factual_error_confirmed: true}}),
+    rec({decision: 'PASS'})]}}}};
+  const metric = criterionSummary(result, 'gpt', {id: 'J5', group: 'semantic'});
+  assert.deepEqual([metric.passed, metric.failed, metric.limitedFails], [1, 2, 1]);
+}
+console.log('criteria table separates verification-limited FAILs.');
+{
+  // 첨부 그림을 평가 모델에도 보냈는지 — 보냄·못 보냄(J8 미완료)·내용 글만 있음, 기록이 없으면 빈 문자열
+  const {attachmentImageNote} = require('../frontend/src/workspace-results.js');
+  assert.equal(attachmentImageNote({}), '');
+  const sent = attachmentImageNote({attachment_images: {sent: [{name: 'car.png', media_type: 'image/png', sha256: 'abcdef0123456789'}],
+    not_sent: [], content_only: [], held_criteria: []}});
+  assert.equal(sent, '첨부 그림 1개를 평가 모델에도 보냈습니다: car.png (image/png · sha256 abcdef012345)');
+  const held = attachmentImageNote({attachment_images: {sent: [], not_sent: [{name: 'gone.png', reason: '허용된 첨부 폴더에서 이미지 파일을 찾지 못함'}],
+    content_only: [{index: 1, name: 'chart.png'}], held_criteria: ['J8']}});
+  assert.ok(held.includes('gone.png — 허용된 첨부 폴더에서 이미지 파일을 찾지 못함 (J8 판정 미완료)') && held.includes('chart.png — 내용 글로 판정'));
+}
+console.log('question detail shows whether attachment images reached the judge.');
+

@@ -117,8 +117,10 @@ def main():
                 page.locator('[data-model-version="v1"]').get_by_role('button', name='평가 이력', exact=True).click()
                 expect(page.locator('#history-version-filter')).to_have_value('v1')
                 expect(page.locator('#history-body tr')).to_have_count(2)
-                expect(page.locator('#history-body')).to_contain_text('직접 입력')
-                expect(page.locator('#history-body')).to_contain_text('파일 업로드')
+                # a90b6be 가 이력 행의 입력 방식 표시(직접 입력·파일 업로드)를 없앴다 — 두 실행(직접 입력·파일 업로드)이 모두 행으로 있는지로 본다
+                for entry in service.history():
+                    expect(page.locator(f'#history-body [data-run-id="{entry["run_id"]}"]')).to_have_count(1)
+                assert {service.result(r['run_id']).get('input_mode') for r in service.history()} == {'manual', 'file'}
                 detail_trigger = page.locator(f'[data-run-id="{manual["run_id"]}"] .row-button')
                 detail_trigger.click()
                 expect(page.locator('#history-detail-dialog')).to_be_visible()
@@ -133,9 +135,9 @@ def main():
                 expect(page.locator('#view-results')).to_be_visible()
                 page.locator('[data-view="history"]').click()
                 expect(page.locator('#history-version-filter')).to_have_value('v1')
-                page.locator('#history-version-filter').select_option('v2')
-                expect(page.locator('#history-body tr')).to_have_count(0)
-                expect(page.locator('#history-feedback-runs')).to_be_visible()
+                # a90b6be: 이력 필터는 AIONA 결과 기록이 있는 버전만 보인다 — v2 는 아직 기록이 없어 고를 수 없다
+                options = page.locator('#history-version-filter option').evaluate_all('els => els.map((e) => e.value)')
+                assert options == ['', 'v1'], options
                 page.locator('[data-view="setup"]').click()
                 expect(page.locator('#setup-current-version')).to_have_text('AIONA v2')
                 page.locator('[data-view="versions"]').click()
@@ -144,9 +146,9 @@ def main():
                 page.locator('#model-default-confirm').click()
                 expect(page.locator('[data-model-version="v1"]')).to_have_attribute('data-current', 'true')
                 assert all(r['aiona_release']['version'] == 'v1' for r in service.history())
-                activities = page.request.get(base + '/api/comparison/activity-history').json()['events']
-                changes = [event for event in activities if event['event_type'] == 'default_version_changed']
-                assert len(changes) == 2 and {event['reason'] for event in changes} == {'문맥 유지 개선 평가를 위한 기본값 변경', '이전 모델의 추가 평가'}
+                # a90b6be 가 작업 이력(activity-history)을 없앴다 — 기본 버전 변경 사유는 버전 레지스트리의 default_changes 에 남는다
+                reasons = {change['reason'] for release in service.version_registry.releases() for change in release.get('default_changes', [])}
+                assert {'문맥 유지 개선 평가를 위한 기본값 변경', '이전 모델의 추가 평가'} <= reasons, reasons
                 assert service.result(manual['run_id'])['datasets']['aiona'] == saved['datasets']['aiona']
                 assert len(judge.calls) == 8 and len(service.history()) == 2
                 assert not errors, errors
@@ -154,7 +156,7 @@ def main():
         finally:
             server.shutdown()
             server.server_close()
-    print('PASS: manual/file evaluation, exact source, explicit default selection with reasons, saved-run reopening, history filters, dialog focus return, activity persistence, desktop/mobile; mocked models only.')
+    print('PASS: manual/file evaluation, exact source, explicit default selection with reasons, saved-run reopening, history filters (recorded versions only), dialog focus return, default-change reasons in the version registry, desktop/mobile; mocked models only.')
 
 
 if __name__ == '__main__':

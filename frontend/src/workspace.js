@@ -5,7 +5,7 @@
   const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
-  const labels = {setup: '새 비교', connections: '연결된 모델', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
+  const labels = {setup: '새 비교', connections: '연결된 모델', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준', progress: '업무 진행 현황'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
@@ -113,7 +113,7 @@
     });
     $('breadcrumb-current').textContent = labels[view];
     $('topbar-title').textContent = pageTitles[view];
-    $('engine-label').hidden = view === 'criteria';
+    $('engine-label').hidden = view === 'criteria' || view === 'progress';
     try { sessionStorage.setItem('aiona-workspace-view', view); } catch (_) { /* session storage can be disabled */ }
     revealActiveNavigation();
     if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
@@ -123,6 +123,7 @@
     if (view === 'versions') window.dispatchEvent(new CustomEvent('aiona:versions-open'));
     if (view === 'comparison') window.dispatchEvent(new CustomEvent('aiona:comparison-open'));
     if (view === 'criteria') window.dispatchEvent(new CustomEvent('aiona:criteria-open'));
+    if (view === 'progress') window.dispatchEvent(new CustomEvent('aiona:progress-open'));
     if (view === 'results') restoreSavedRun();
     if (view === 'setup') window.dispatchEvent(new CustomEvent('aiona:setup-open'));
     if (view === 'connections') window.dispatchEvent(new CustomEvent('aiona:connections-open'));
@@ -278,6 +279,26 @@
     const a = node('a', {href: url, download: name}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const sourceDocument = () => state.modalSource === 'result' ? state.result?.input_document : state.importInfo;
+  // 같은 질문의 시스템별 수집 방식·모델·토큰·시각·상태·평가·판정 (서버 collection-comparison-v1, 10-14 4차). 기록이 없으면 '기록 없음'
+  function collectionDetails(question, sample) {
+    const outcomeText = {PASS: 'PASS', FAIL: 'FAIL', PENDING: '미완료', EXCLUDED: '평가 제외'};
+    const value = (v) => v == null ? '-' : number(v);
+    const tokens = (e) => e.input_tokens == null && e.output_tokens == null ? '기록 없음' : `${value(e.input_tokens)} · ${value(e.output_tokens)}`;
+    const when = (e) => [e.requested_at, e.collected_at].filter(Boolean).map(shortTime).join(' → ') || '기록 없음';
+    const collected = (e) => e.status === 'UPLOADED' ? '업로드' : e.status === 'SUCCESS' ? '수집 완료' : e.status + (e.error ? ' · ' + e.error : '');
+    const rows = question.systems.map((e) => node('tr', {'data-system': e.system},
+      node('th', {scope: 'row', text: modelName(e.system)}), node('td', {text: e.method}),
+      node('td', {text: [e.model, e.response_model && e.response_model !== e.model ? '응답 ' + e.response_model : null].filter(Boolean).join(' · ') || '기록 없음'}),
+      node('td', {text: tokens(e)}), node('td', {text: number(e.answer_chars) + '자'}), node('td', {text: when(e)}), node('td', {text: collected(e)}),
+      node('td', {text: e.evaluation ? (e.evaluation === 'SUCCESS' ? '평가함' : e.evaluation) + ` · 기준 ${number(e.criteria)}개` : '평가 안 함'}),
+      node('td', {}, pill(outcomeText[e.outcome] || e.outcome, e.outcome === 'PASS' ? 'success' : e.outcome === 'FAIL' ? 'danger' : 'warning'))));
+    return node('details', {class: 'version-profile-raw', 'data-collection-comparison': ''},
+      node('summary', {text: `수집 방식 비교 — 같은 질문, 시스템 ${number(question.systems.length)}개` + (question.outcomes_differ ? ' · 판정이 다름' : '') +
+        (sample ? ' · 샘플 데이터' : '')}),
+      node('div', {class: 'table-scroll'}, node('table', {class: 'data-table'},
+        node('thead', {}, node('tr', {}, ...['시스템', '수집 방식', '모델 (설정 · 응답)', '입력 · 출력 토큰', '답변', '요청 → 수신', '수집 상태', '평가', '판정'].map((text) => node('th', {scope: 'col', text})))),
+        node('tbody', {}, ...rows))));
+  }
   $('view-source').addEventListener('click', () => {
     $('import-notes').replaceChildren(...(sourceDocument()?.notes || []).map((text) => node('p', {text})));
     $('source-text').textContent = sourceDocument()?.original_text || '';
@@ -470,6 +491,10 @@
     // 자동 수집 실행은 연결·허용된 제공자만 포함하므로 4개 미만이어도 정상이다
     const partial = !isVersionRun && !external() && !autoRun() && (run.providers.length !== 4 || collectionProviders.some((p) => !run.providers.includes(p)));
     renderEnvironment();
+    // 입력 구성 주의 — 모델마다 자기 답변 이력·첨부 미전달 등으로 입력이 달랐으면 점수 비교 전에 알린다 (서버 input_composition)
+    const notes = (state.result || run).input_composition?.notes || [];
+    $('input-composition').hidden = !notes.length;
+    $('input-composition-notes').replaceChildren(...notes.map((n) => node('li', {'data-note': n.code, text: n.text})));
     $('partial-comparison').hidden = !partial;
     $('partial-comparison-description').textContent = `이 기록은 ${run.providers.length}개 모델만 포함한 실행입니다. Gemini·Claude·GPT 전체 응답을 수집하는 4개 모델 비교는 별도로 시작해야 합니다. 원문은 그대로 다시 사용할 수 있습니다.`;
     $('reuse-dataset').disabled = Boolean(active() || !state.result?.datasets?.aiona?.length);
@@ -516,6 +541,7 @@
     $('result-models').replaceChildren(...providers.map((p) => modelResultCard(p)));
     updateLiveClock();
     renderCriteriaComparison(providers);
+    renderCriteriaVerification(state.result?.criteria_verification);
     if ($('matrix-model').options.length !== providers.length + 1 ||
         [...$('matrix-model').options].slice(1).some((option, i) => option.value !== providers[i] || option.text !== modelName(providers[i]))) {
       $('matrix-model').replaceChildren(node('option', {value: '', text: '전체 모델'}), ...providers.map((p) => node('option', {value: p, text: modelName(p)})));
@@ -659,6 +685,27 @@
     if (!blind()) return;
     $('blind-status').textContent = '블라인드 평가 · 평가 모델에는 모델 이름 없이 보냅니다';
   }
+  // 기준별 검증 현황 (서버 criteria-verification-v1, 10-14 4차) — 사람 검수가 없으면 정확도는 0% 가 아니라 '미측정'
+  function renderCriteriaVerification(report) {
+    const panel = $('criteria-verification');
+    panel.hidden = !report;
+    if (!report) return;
+    const c = report.catalog;
+    $('verification-catalog').textContent = `기준 ${number(c.criteria)} · 세부 ${number(c.subs)} · 점검 항목 ${number(c.items)} · CODE 검사 ${number(c.code_checks)}`;
+    $('verification-head').replaceChildren(node('tr', {}, ...['평가 기준', '적용 답변', '적용 질문', '독립 대화', '실제 판정', 'PASS · FAIL', '검증 미완료', '사람 검수', '검수 정답 일치', '정확도']
+      .map((text) => node('th', {scope: 'col', text}))));
+    $('verification-body').replaceChildren(...report.criteria.map((r) => node('tr', {'data-verification': r.id},
+      node('th', {scope: 'row'}, node('span', {class: 'criterion-code', text: r.id}), node('strong', {text: r.name})),
+      node('td', {text: number(r.applied_answers)}), node('td', {text: number(r.applied_units)}), node('td', {text: number(r.conversations)}),
+      node('td', {text: number(r.judged)}),
+      node('td', {text: `${number(r.pass)} · ${number(r.fail)}` + (r.limited_fail ? ` (검증 한계 ${number(r.limited_fail)})` : '')}),
+      node('td', {text: number(r.unresolved)}), node('td', {text: number(r.human_reviewed) + '건'}),
+      node('td', {text: r.accuracy == null ? '-' : number(r.human_agree) + '건'}),
+      node('td', {}, r.accuracy == null ? pill('미측정', 'neutral') : node('strong', {text: percent(r.accuracy)})))));
+    $('verification-footnote').textContent = '정확도는 사람 검수 정답(검수자 합의)과 AI 판정이 같은 비율입니다. 사람 검수가 없는 기준은 0%가 아니라 미측정입니다.' +
+      (report.not_applied.length ? ` 이 실행에서 적용되지 않은 기준: ${report.not_applied.join('·')}.` : '') +
+      (report.not_human_verified.length ? ` 사람 검수로 확인하지 않은 기준: ${report.not_human_verified.join('·')}.` : '');
+  }
   function renderCriteriaComparison(providers) {
     $('criteria-head').replaceChildren(node('tr', {}, node('th', {scope: 'col', text: '평가 기준'}),
       ...providers.map((p) => node('th', {scope: 'col'}, resultAvatar(p), node('strong', {text: modelName(p)})))));
@@ -673,7 +720,8 @@
           cell.append(node('span', {class: 'criterion-empty', text: !metric.available ? '평가 대기' : metric.unknown ? '판정 대기' : metric.excluded ? '적용 대상 없음 · 제외 있음' : '해당 없음'}));
         } else {
           cell.append(node('strong', {class: 'criterion-rate ' + (metric.pending || metric.unknown ? 'has-pending' : metric.failed ? 'has-fail' : 'all-pass'), text: metric.pending || metric.unknown ? '미확정' : percent(metric.rate)}),
-            node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL`}),
+            node('span', {class: 'criterion-counts', text: `${number(metric.passed)} PASS · ${number(metric.failed)} FAIL` +
+              (metric.limitedFails ? ` (검증 한계 ${number(metric.limitedFails)})` : '')}),
             node('span', {class: 'criterion-targets', text: `${criterion.unit} ${number(metric.targets)}개 대상${metric.pending ? ' · 미판정 ' + number(metric.pending) : ''}${metric.unknown ? ' · 집계 중' : ''}${metric.excluded ? ' · 제외 답변 ' + number(metric.excluded) + '개' : ''}`}));
           if (criterion.group === 'semantic' && metric.pending) {
             const reasons = [['unverified', '근거 확인 필요'], ['incomplete', '판정 미완료'], ['errors', '평가 오류'], ['missing', '판정 누락']]
@@ -846,6 +894,11 @@
         ...['running', 'waiting'].map((outcome) => node('button', {class: 'text-button',
           'data-focus-key': p + '-' + outcome, onclick: () => filterQuestions(p, outcome)},
           (outcome === 'running' ? '평가 중 ' : '평가 대기 ') + number(summary.counts[outcome]) + '개', icon('arrow')))));
+      const composition = (state.result || run).input_composition?.systems?.[p];
+      if (composition) card.append(node('p', {class: 'hint', 'data-input-composition': '', text: composition.source === 'API 수집' ?
+        `수집 입력 ${number(composition.input_tokens)} · 출력 ${number(composition.output_tokens)} 토큰(제공자 집계) · 가장 큰 요청 ${number(composition.max_request_input || 0)} · ` +
+        `턴 ${number(composition.turns)} · 판정한 기준 ${number(composition.judged_criteria)}건` + (composition.attachments_not_sent ? ` · 첨부 미전달 ${number(composition.attachments_not_sent)}` : '') :
+        `업로드 원문 · 턴 ${number(composition.turns)} · 판정한 기준 ${number(composition.judged_criteria)}건`}));
       card.append(node('div', {class: 'evaluation-metrics'},
         node('div', {}, node('span', {text: '공통 코드 통과율'}), node('strong', {text: c.unjudged || batch.cases?.length !== run.question_count ? '미확정' : percent(c.pass_rate)})),
         node('p', {text: `조건 PASS ${number(c.pass)}개 · FAIL ${number(c.fail)}개 · ${number(c.unjudged)}개 미완료` +
@@ -865,6 +918,15 @@
         node('div', {}, node('strong', {text: `검증 근거 부족 · FAIL ${number(evidencePolicyFailures)}개`}),
           node('p', {text: '최종 검증에서 평가 기준 미충족'}),
           node('button', {type: 'button', class: 'text-button', onclick: () => filterQuestions(p, 'issue'), text: 'FAIL 문항 보기'}))));
+      // J5 FAIL 사유 구성 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눠 센다 (저장 판정은 그대로)
+      const j5 = results.j5Breakdown(semantic?.records);
+      if (j5.fail) card.append(node('div', {class: 'evaluation-warning' + (j5.confirmed ? '' : ' evaluation-policy-fail'), 'data-j5-breakdown': ''}, icon('shield'),
+        node('div', {}, node('strong', {text: `J5 FAIL ${number(j5.fail)}개 · 사실 오류 확정 ${number(j5.confirmed)}개`}),
+          ...[[true, '사실 오류 확정'], [false, '검증 한계(사실 오류 확정 아님)']].map(([confirmed, title]) => {
+            const rows = Object.values(j5.codes).filter((c) => c.confirmed === confirmed).sort((a, b) => b.count - a.count);
+            return rows.length ? node('p', {text: `${title}: ` + rows.map((c) => `${c.short} ${number(c.count)}`).join(' · ')}) : null;
+          }).filter(Boolean),
+          j5.unclassified ? node('p', {text: `사유 기록 없음 ${number(j5.unclassified)}개 (이전 결과)`}) : null)));
       const evaluatorKey = run.run_id + ':' + p;
       if (semantic?.engine_label || ['openai_api', 'anthropic_api'].includes(semantic?.engine)) card.append(
         node('details', {class: 'evaluation-error-detail', open: expandedEvaluatorInfo.has(evaluatorKey) ? '' : null,
@@ -1065,14 +1127,26 @@
     const context = JSON.stringify([state.run?.run_id, state.modalSource, p, index]);
     const detailKey = (detail) => detail.className + ':' + detail.querySelector(':scope > summary')?.textContent;
     const expanded = new Set(state.modalEvaluationContext === context ? [...box.querySelectorAll('details[open]')].map(detailKey) : []);
+    // 수집 방식 비교는 평가 칸 밖의 별도 영역 — 평가 칸(#answer-evaluation)의 구조는 그대로 둔다
+    const holder = $('answer-collection');
+    const keepOpen = state.modalEvaluationContext === context && Boolean(holder.querySelector('details[open]'));
+    holder.hidden = true; holder.replaceChildren();
     state.modalEvaluationContext = context;
     state.modalEvaluation = fingerprint; box.replaceChildren();
     box.hidden = !batch;
     if (!batch) return;
     const status = results.caseState(state.result, p, index);
+    const imageNote = results.attachmentImageNote(record);
+    const compared = state.modalSource === 'result' ? state.result?.collection_comparison : null;
     box.append(node('div', {class: 'answer-verdict'}, pill(status.text, status.kind), node('p', {text: status.detail})),
       node('div', {class: 'answer-checks'}, ...[['코드 검사', status.code], ['의미 평가', status.semantic]].map(([label, check]) =>
-        node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason})))));
+        node('div', {}, node('strong', {text: label}), pill(check.text, check.kind), node('p', {text: check.reason}),
+          label === '의미 평가' && imageNote ? node('p', {class: 'field-help', 'data-attachment-images': '', text: imageNote}) : null))));
+    if (compared?.questions?.[index]) {
+      const details = collectionDetails(compared.questions[index], compared.sample);
+      details.open = keepOpen;
+      holder.append(details); holder.hidden = false;
+    }
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
@@ -1093,7 +1167,7 @@
     }
     for (const [id, decision] of Object.entries(record?.decisions || {}).filter(([, d]) => d.decision === 'FAIL' || ['UNVERIFIED', 'INCOMPLETE'].includes(d.status))) {
       const criterion = batch.jev_eval.criteria?.find((c) => c.id === id);
-      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${decision.j5_outcome.label}${decision.j5_outcome.source_failure?.label ? ' · ' + decision.j5_outcome.source_failure.label : ''})` : '';
+      const outcome = id === 'J5' && decision.j5_outcome?.label ? ` (${results.j5Detail(decision.j5_outcome, decision.decision).title})` : '';
       findings.append(node('li', {}, node('strong', {text: ({UNVERIFIED: '확인 필요 · ', INCOMPLETE: '판정 미완료 · '}[decision.status] || '의미 평가 · ') + (criterion?.name || id) + outcome}),
         node('p', {text: decision.status === 'UNVERIFIED' ? results.conciseReason(id, decision.reason) :
           decision.status === 'INCOMPLETE' ? results.incompleteReason(id, decision) : decision.reason || '평가자가 FAIL 근거를 남기지 않았습니다.'})));

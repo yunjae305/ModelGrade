@@ -79,3 +79,25 @@ def test_unanswered_conversation_counts_j6_by_turns_until_answers_arrive():
     answered = [dict(t, answer="네, 정리했습니다.") for t in turns]   # 답변을 받은 뒤에는 짧은 대화라 멀티턴이 아니다
     report = check_items(answered, "items")
     assert report["criteria"]["J6"]["applicable_units"] == 0 and report["multi_turn"]["c1"]["multi_turn"] is False
+
+
+def test_min_applicable_option_changes_only_the_target_count(tmp_path, capsys):
+    singles = [{"question": f"{n}번 메모를 한 줄로 정리해줘."} for n in range(12)]
+    assert check_items(singles, pipeline="items", minimum=10)["criteria"]["CODE 1"]["enough"] is True
+    report = check_items(singles, pipeline="items", minimum=20)
+    assert (report["min_applicable"], report["criteria"]["CODE 1"]["short"]) == (20, 8)
+    path = tmp_path / "set.jsonl"
+    path.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in singles), encoding="utf-8")
+    assert main([str(path), "--json", "--pipeline", "items", "--min-applicable", "5"]) == 0
+    cli = json.loads(capsys.readouterr().out)
+    assert cli["min_applicable"] == 5 and cli["criteria"]["CODE 1"]["enough"] is True
+    assert check_items(singles, pipeline="items")["min_applicable"] == 30   # 기본은 잠정 운영 기준 30 그대로
+
+
+
+def test_precheck_counts_j8_for_questions_with_attachments_like_the_evaluation():
+    """3차 재현 — 사전 점검이 J8 적용 판정에 첨부를 넘기지 못해 첨부 질문도 J8 0개로 셌다."""
+    attached = [{"question": "첨부한 견적서의 합계를 알려줘.", "attachments": [{"name": "견적서.txt", "type": "txt", "content": "합계 1,250,000원"}]},
+                {"question": "서울의 인구를 알려줘."}]
+    for pipeline in ("legacy", "items"):
+        assert check_items(attached, pipeline=pipeline)["criteria"]["J8"]["applicable_units"] == 1

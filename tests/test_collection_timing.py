@@ -1,4 +1,6 @@
 """Provider durations must stop independently and survive completed/interrupted reloads."""
+import copy
+import hashlib
 import json
 import threading
 
@@ -8,6 +10,8 @@ import pytest
 from webapp.code_eval_service import CodeEvalService
 from webapp.comparison_service import ComparisonService
 from test_live_comparison_progress import until
+
+PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
 
 
 def test_provider_timing_finishes_independently_and_is_saved(tmp_path):
@@ -80,3 +84,119 @@ def test_collection_failure_and_cancel_stop_timer(tmp_path, cancel):
     detail = service.status(rid)['progress']['gpt']
     assert detail['finished_at'] and detail['duration_ms'] >= 0
     assert detail['active'] is None
+
+
+def test_every_collected_row_records_request_times_and_the_run_records_request_conditions(tmp_path):
+    """지시서 10-13 D — 일반 비교 실행도 행마다 요청·수신 시각, 실행마다 호출 방식과 실제로 보낸 설정을 남긴다."""
+    def handle(request):
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'model': 'gpt-x-2026', 'output': [
+                {'type': 'message', 'content': [{'type': 'output_text', 'text': 'answer'}]}]})
+        return httpx.Response(529, json={'error': {'message': 'overloaded'}})
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval'), save_dir=tmp_path/'runs',
+                                client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    for provider in ('gpt', 'claude'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    rid = service.start({'cases': [{'question': 'q', 'answer': 'a'}], 'providers': ['gpt', 'claude'], 'auto_evaluate': False})['run_id']
+    until(lambda: service.status(rid)['status'] in ('READY', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    gpt, claude = saved['datasets']['gpt'][0]['collection'], saved['datasets']['claude'][0]['collection']
+    assert gpt['status'] == 'SUCCESS' and gpt['requested_at'] <= gpt['collected_at']
+    assert claude['status'] == 'ERROR' and claude['requested_at'] and claude['collected_at']   # 실패한 수집도 시각을 남긴다
+    request = saved['collection_execution']['request']
+    assert request['access_mode'] == 'api' and request['parameters'] == {'max_output_tokens': saved['max_tokens']}
+    assert (request['system_prompt'], request['tools'], request['sampling']) == (None, [], 'provider_default')
+
+
+def test_conversation_rows_record_what_was_sent_without_the_text(tmp_path):
+    """지시서 10-14 P0-2 — 모델별 입력 차이를 원문 없이 확인하도록 요청 구성(메시지 수·역할·글자 수·해시)을 행에 남긴다."""
+    import hashlib
+    answers = {'api.openai.com': '짧은 답', 'api.anthropic.com': '조금 더 긴 답변입니다'}
+    def handle(request):
+        text = answers[request.url.host]
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': text}]}]})
+        return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': text}]})
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval'), save_dir=tmp_path/'runs',
+                                client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    for provider in ('gpt', 'claude'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    cases = [{'conversation_id': 'C', 'turn': t, 'question': f'{t}번째 질문', 'answer': 'a'} for t in (1, 2)]
+    rid = service.start({'cases': cases, 'providers': ['gpt', 'claude'], 'auto_evaluate': False})['run_id']
+    until(lambda: service.status(rid)['status'] in ('READY', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    for provider, answer in (('gpt', '짧은 답'), ('claude', '조금 더 긴 답변입니다')):
+        first, second = (row['collection']['request'] for row in saved['datasets'][provider])
+        assert first == {'attachments_in_question': 0, 'attachments_sent': 0, 'messages': 1, 'user': 1, 'assistant': 0,
+                         'chars': len('1번째 질문'), 'own_answer_chars': 0, 'sha256': first['sha256']}
+        assert (second['messages'], second['user'], second['assistant'], second['own_answer_chars']) == (3, 2, 1, len(answer))
+        sent = [{'role': 'user', 'content': '1번째 질문'}, {'role': 'assistant', 'content': answer}, {'role': 'user', 'content': '2번째 질문'}]
+        assert second['sha256'] == hashlib.sha256(json.dumps(sent, ensure_ascii=False).encode('utf-8')).hexdigest()[:12]
+        assert '1번째 질문' not in json.dumps(second, ensure_ascii=False)   # 원문은 남기지 않는다
+
+
+def test_attachments_reach_api_models_text_inline_images_only_from_real_files(tmp_path):
+    """3차 7단계 — 첨부 질문(J8)에서 API 모델에도 첨부를 보낸다: 글자 첨부는 질문 뒤에, 이미지는 허용 폴더의 실제 파일만 제공자 형식으로.
+    파일이 없는 이미지는 보내지 않고 기록한다 (그림 속 글자로 대신하지 않음). 첨부 없는 질문의 요청은 예전과 같다.
+    4차: 평가 모델도 같은 그림(같은 sha256)을 받는다."""
+    import base64
+    from tests.test_blind_comparison import CapturingJudge
+
+    class ImageJudge(CapturingJudge):
+        supports_images = True
+
+        def system_one(self, state, questions, images=None):
+            self.images = getattr(self, 'images', []) + [copy.deepcopy(images)]
+            return super().system_one(state, questions)
+    bodies = {}
+    def handle(request):
+        bodies.setdefault(request.url.host, []).append(json.loads(request.content))
+        if request.url.host == 'api.openai.com':
+            return httpx.Response(200, json={'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': 'gpt 답'}]}]})
+        if request.url.host == 'api.anthropic.com':
+            return httpx.Response(200, json={'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': 'claude 답'}]})
+        return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': 'gemini 답'}]}, 'finishReason': 'STOP'}]})
+    judge = ImageJudge()
+    service = ComparisonService(CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda **_: (judge, judge.config, None)),
+                                save_dir=tmp_path/'runs', client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handle)))
+    (tmp_path / 'files').mkdir()
+    png = PNG_SIGNATURE + b'fixture-bytes'   # 파일 서명으로 형식을 확인한다 (4차)
+    (tmp_path / 'files' / 'chart.png').write_bytes(png)
+    service.attachment_roots = [tmp_path / 'files']
+    for provider in ('gpt', 'claude', 'gemini'):
+        service.configure(provider, {'key': 'fixture', 'model': 'fixture-' + provider})
+    attachments = [{'name': '견적서.txt', 'type': 'txt', 'content': '견적 합계 1,250,000원'},
+                   {'name': 'chart.png', 'type': 'image', 'content': '막대 3개', 'path': 'chart.png'},
+                   {'name': 'missing.png', 'type': 'image', 'content': '그림 속 글자'}]
+    cases = [{'question': '첨부한 견적서와 그래프를 보고 합계를 알려줘.', 'answer': 'AIONA 답', 'attachments': attachments},
+             {'question': '첨부 없는 질문', 'answer': 'AIONA 답2'}]
+    rid = service.start({'cases': cases, 'providers': ['gpt', 'claude', 'gemini'], 'auto_evaluate': True})['run_id']
+    until(lambda: service.status(rid)['status'] in ('COMPLETED', 'ERROR'))
+    saved = json.loads((tmp_path/'runs'/f'{rid}.json').read_text(encoding='utf-8'))
+    image = base64.b64encode(png).decode('ascii')
+    gpt = next(b for b in bodies['api.openai.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    parts = gpt['input'][-1]['content']
+    assert parts[0]['type'] == 'input_text' and '[첨부파일: 견적서.txt (TXT)]\n견적 합계 1,250,000원' in parts[0]['text']
+    assert parts[1] == {'type': 'input_image', 'image_url': f'data:image/png;base64,{image}'} and len(parts) == 2
+    claude = next(b for b in bodies['api.anthropic.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    assert claude['messages'][-1]['content'][1]['source'] == {'type': 'base64', 'media_type': 'image/png', 'data': image}
+    gemini = next(b for b in bodies['generativelanguage.googleapis.com'] if '견적' in json.dumps(b, ensure_ascii=False))
+    assert gemini['contents'][-1]['parts'][1] == {'inline_data': {'mime_type': 'image/png', 'data': image}}
+    assert all('그림 속 글자' not in json.dumps(b, ensure_ascii=False) for host in bodies.values() for b in host)
+    request = saved['datasets']['gpt'][0]['collection']['request']
+    assert (request['attachments_in_question'], request['attachments_sent']) == (3, 2)
+    assert [d['mode'] for d in request['attachment_delivery']] == ['text', 'image', 'not_sent']
+    plain = next(b for b in bodies['api.openai.com'] if '첨부 없는 질문' in json.dumps(b, ensure_ascii=False))
+    assert plain['input'] == [{'role': 'user', 'content': '첨부 없는 질문'}]                       # 첨부 없는 요청은 예전과 같다
+    assert 'attachment_delivery' not in saved['datasets']['gpt'][1]['collection']['request']
+    assert any('J8' in call['questions'] for call in judge.calls)
+    # 평가 모델도 답변 모델과 같은 그림을 받고(같은 바이트), 판정 기록에 그 그림의 sha256 이 남는다 — 질문·답변·그림·판정이 같은 case_id
+    judged = [images for images in judge.images if images]
+    assert judged and all(len(images) == 1 and images[0]['data'] == image and images[0]['media_type'] == 'image/png' for images in judged)
+    record = next(r for r in saved['evaluations']['gpt']['jev_eval']['records'] if r.get('attachment_images'))
+    assert record['case_id'] == saved['datasets']['gpt'][0]['case_id']
+    assert record['attachment_images']['sent'][0]['sha256'] == hashlib.sha256(png).hexdigest()
+    # 못 보낸 missing.png 는 GPT 답변의 평가 입력에서 빠진다 (실제로 보낸 첨부만 — e273330 의 _answer_case 규칙과 같은 sent 목록)
+    assert [a['name'] for a in saved['datasets']['gpt'][0]['attachments']] == ['견적서.txt', 'chart.png']
+    assert [s['name'] for s in saved['datasets']['gpt'][0]['collection']['sent']] == ['견적서.txt', 'chart.png']
+    assert record['attachment_images']['content_only'] == [] and record['attachment_images']['sent'][0]['index'] == 1

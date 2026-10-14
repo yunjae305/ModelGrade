@@ -67,12 +67,13 @@ def test_compare_runs_drills_down_and_uses_conversation_units(tmp_path):
     result = service.version_comparison(base['run_id'], target['run_id'])
     assert result['version'] == vc.COMPARISON_VERSION and result['conditions']['eligible'] is True and result['conditions']['differences'] == []
     assert result['matched'] == 5 and result['unmatched'] == {'baseline': [], 'target': []}
-    assert result['counts'] == {'improved': 1, 'regressed': 2, 'pass_kept': 2, 'fail_kept': 0, 'pending': 0, 'excluded': 0}
+    assert result['counts'] == {'improved': 1, 'regressed': 2, 'pass_kept': 2, 'fail_kept': 0, 'pending': 0, 'excluded': 0,
+                                'limited_regressed': 0, 'limited_improved': 0}   # 검증 한계로만 바뀐 질문은 따로 (10-14 P1-1)
     by_id = {row['case_id']: row for row in result['rows']}
     assert by_id['Q3']['change'] == 'improved' and by_id['Q2']['change'] == 'regressed' and by_id['C1-T2']['change'] == 'regressed'
     assert by_id['C1-T1']['change'] == 'pass_kept' and by_id['Q1']['label'] == '통과 유지'
     sign = result['sign_test']
-    assert sign == {'unit': 'conversation', 'plus': 1, 'minus': 2, 'ties': 1, 'incomplete': 0, 'n': 3, 'p_value': 1.0, 'significance': 0.05}
+    assert sign == {'unit': 'conversation', 'plus': 1, 'minus': 2, 'ties': 1, 'incomplete': 0, 'limited': 0, 'n': 3, 'p_value': 1.0, 'significance': 0.05}
     assert result['tail']['size'] == 5 and result['tail']['case_ids'][0] == 'Q3' and result['tail']['improved'] == 1 and result['tail']['regressed'] == 2
     assert result['verdict']['label'] == 'uncertain'
     regression = next(r for r in result['regressions'] if r['case_id'] == 'Q2')
@@ -238,3 +239,29 @@ def test_sign_test_compares_unit_outcomes_not_passed_turn_counts():
     unit = vc._units(pairs, out("FAIL", "FAIL"), out("PASS", "FAIL"))[0]
     assert unit["sign"] == "tie" and unit["baseline"] == unit["target"] == "FAIL" and (unit["baseline_pass"], unit["target_pass"]) == (0, 1)
     assert vc._units(pairs, out("PASS", "FAIL"), out("PASS", "PASS"))[0]["sign"] == "plus"
+
+
+def test_verification_limit_fail_is_not_counted_as_a_regression(tmp_path):
+    """지시서 10-14 P1-1 — 검증 한계(원문 확인 실패·근거 부족·확인 불가)로만 생긴 PASS→FAIL 은 악화가 아니라 따로 센다."""
+    service, judge = make_service(tmp_path)
+    judge.__class__ = AnswerJudge
+    base = version_run(service, '10.1', {})
+    target = version_run(service, '10.2', {'Q3': '나쁜 답'})   # Q3: J1 실제 FAIL (근거 있는 판정)
+    limited = target['evaluations']['aiona']['jev_eval']['records'][1]   # Q2: J5 검증 한계 FAIL 만
+    limited['criteria'].append('J5')
+    limited['decisions']['J5'] = {'criterion_id': 'J5', 'decision': 'FAIL', 'reason_code': 'SOURCE_ORIGINAL_UNAVAILABLE',
+                                  'j5_outcome': {'code': 'source_unavailable', 'factual_error_confirmed': False}}
+    result = vc.compare_runs(base, target)
+    changes = {row['case_id']: row['change'] for row in result['rows']}
+    assert changes['Q2'] == 'limited_regressed' and changes['Q3'] == 'regressed'
+    assert result['counts']['limited_regressed'] == 1 and result['counts']['regressed'] == 1
+    assert (result['sign_test']['minus'], result['sign_test']['limited']) == (1, 1)    # 부호검정 악화에는 실제 FAIL 만
+    assert [r['case_id'] for r in result['regressions']] == ['Q3']
+    assert [r['case_id'] for r in result['verification_limited']] == ['Q2']
+    causes = {row['case_id']: row['cause'] for row in result['rows']}
+    assert (causes['Q2'], causes['Q3']) == ('verification_limit', 'answer_changed') and result['causes']['answer_changed'] == 1
+    assert vc.CHANGE_LABELS['limited_regressed'].startswith('검증 한계')
+    # 거꾸로(기준 실행이 검증 한계 FAIL → 대상 PASS)도 개선이 아니라 '검증 한계 해소'
+    back = vc.compare_runs(target, base)
+    assert {row['case_id']: row['change'] for row in back['rows']}['Q2'] == 'limited_improved'
+    assert back['sign_test']['plus'] == 1 and back['sign_test']['limited'] == 1

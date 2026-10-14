@@ -21,7 +21,7 @@ import httpx
 
 from code_eval.core import LIMITS
 from code_eval.common_adjudication import resolved_case
-from code_eval import jev_eval
+from code_eval import attachment_images, jev_eval
 from code_eval.engine import _conversation_of
 from code_eval.io import validate_json_numbers
 from code_eval.llm_client import env_value
@@ -30,11 +30,13 @@ from .blind_comparison import blind_plan
 from .dataset_import import import_text
 from .evaluation_events import EvaluationEvents, code_event, record_events
 from . import semantic_union
+from . import attachment_delivery
 from . import auto_collection as auto
 from .version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 from .aiona_history import aiona_history
 from .version_comparison import compare_runs
 from .registry_store import clean_text
+from .run_summary import collection_comparison, criteria_verification, evaluation_method, input_composition
 from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
@@ -44,6 +46,26 @@ from .aiona_web import AIONA_WEB_VERSION
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
+
+
+def _request_shape(messages, attachments=0, delivery=None):
+    """이번 요청에 실제로 보낸 메시지 구성 — 원문 없이 수·역할·글자 수·sha256 앞 12자 (모델별 입력 차이 확인용).
+    attachments_in_question 은 질문에 딸린 첨부(J8) 수, attachments_sent 는 이 요청에 실제로 실은 수 — request_answer 는 텍스트만
+    보내던 때는 늘 0 이었다. 지금은 attachment_delivery 가 글자 첨부는 질문에 붙이고 이미지는 실제 파일이 있을 때만 보낸다 —
+    attachment_delivery 에 첨부마다 보낸 방식(text·text_extracted·image·not_sent)과 사유를 남긴다 (10-14 3차)."""
+    delivery = list(delivery or [])
+    return {"attachments_in_question": attachments, "attachments_sent": sum(1 for d in delivery if d.get("mode") != "not_sent"),
+            **({"attachment_delivery": delivery} if delivery else {}), "messages": len(messages), "user": sum(m["role"] == "user" for m in messages),
+            "assistant": sum(m["role"] == "assistant" for m in messages), "chars": sum(len(m["content"]) for m in messages),
+            "own_answer_chars": sum(len(m["content"]) for m in messages if m["role"] == "assistant"),
+            "sha256": hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]}
+
+
+def collection_request(max_tokens):
+    """수집 요청 조건 기록 — request_answer 가 실제로 보내는 값만 (모델·대화 이력·최대 출력). 재현용, 판정에는 쓰지 않는다."""
+    return {"access_mode": "api", "parameters": {"max_output_tokens": max_tokens}, "system_prompt": None, "tools": [],
+            "sampling": "provider_default", "history": "own_previous_answers",
+            "note": "시스템 프롬프트·도구·온도 없이 질문(과 같은 대화의 앞 턴, 그 모델의 이전 답변)만 보냄 · OpenAI store=false"}
 PROVIDER_ENV = {
     "gemini": ("GOOGLE_API_KEY", "GEMINI_MODEL"),
     "claude": ("ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"),
@@ -146,8 +168,12 @@ class ProviderError(Exception):
         self.status = status  # HTTP 상태 코드 (네트워크 실패·형식 오류는 None)
 
 
-def request_answer(provider, config, messages, max_tokens, client, *, usage_observer=None):
-    """No answer strip, newline replacement, Markdown rendering or JSON-mode prompt."""
+def request_answer(provider, config, messages, max_tokens, client, *, usage_observer=None, images=None):
+    """No answer strip, newline replacement, Markdown rendering or JSON-mode prompt.
+    ``images`` (첨부 이미지, attachment_delivery.prepare) 가 있으면 마지막 사용자 메시지에 제공자 형식으로 함께 싣는다 — 없으면 예전 요청 그대로."""
+    if images:
+        last = messages[-1]
+        messages = messages[:-1] + [{"role": last["role"], "content": attachment_delivery.image_blocks(provider, last["content"], images)}]
     observed = False
 
     def record_usage(raw):
@@ -179,7 +205,8 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers = {"x-goog-api-key": key}
         body = {"contents": [{"role": "model" if m["role"] == "assistant" else "user",
-                               "parts": [{"text": m["content"]}]} for m in messages],
+                               "parts": m["content"]["gemini_parts"] if isinstance(m["content"], dict) else [{"text": m["content"]}]}
+                              for m in messages],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
     apply_reasoning(provider, body)   # GPT·Claude·Gemini 추론 강도 medium 명시 (FactChat 게이트웨이는 그대로)
     try:
@@ -241,6 +268,8 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
 class ComparisonService:
     def __init__(self, evaluator, save_dir=None, client_factory=None, registry_path=None,
                  *, semantic_workers=DEFAULT_SEMANTIC_WORKERS, collection_workers=DEFAULT_COLLECTION_WORKERS):
+        # 첨부 이미지 파일을 읽어도 되는 폴더 (10-14 3차) — 이 밖의 경로는 읽지 않는다. 의미 평가도 같은 폴더에서 같은 그림을 찾는다 (4차)
+        self.attachment_roots = list(attachment_images.DEFAULT_ROOTS)
         self.evaluator = evaluator
         self.save_dir = Path(save_dir) if save_dir is not None else ROOT / "data" / "comparison_runs"
         self.client_factory = client_factory or (lambda: httpx.Client(timeout=180, follow_redirects=False))
@@ -667,7 +696,8 @@ class ComparisonService:
                    if not k.startswith('_activity_') and k not in ("datasets", "evaluations", "config", "input_document", "evaluation_log",
                                                                    "questions")},
                 **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                'evaluation_conditions_summary': self._conditions_summary(run)}
+                'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run),
+                'input_composition': input_composition(run)}
 
     def event_stream(self, run_id):
         with self._lock:
@@ -690,7 +720,9 @@ class ComparisonService:
             run = self._run(run_id)
             return {**{k: copy.deepcopy(v) for k, v in run.items() if not k.startswith('_activity_')},
                     **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
-                    'evaluation_conditions_summary': self._conditions_summary(run)}
+                    'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run),
+                    'input_composition': input_composition(run), 'collection_comparison': collection_comparison(run),
+                    'criteria_verification': criteria_verification(run)}
 
     def history(self, limit=30):
         with self._lock:
@@ -1059,7 +1091,8 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(self._collection_chains(questions)))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                                                "collection_workers_total": chain_workers * len(selected),
-                                               "conversation_order": "sequential_original_turns"}
+                                               "conversation_order": "sequential_original_turns",
+                                               "request": collection_request(max_tokens)}
             self._runs[run_id] = run
             self._cancel_events[run_id] = token = threading.Event()
             self._cost_ledgers[run_id] = ledger = CostLedger()
@@ -1103,6 +1136,8 @@ class ComparisonService:
                     answer = (row or {}).get("answer", "")
                     response = {"answer": answer, "status": outcome.get("status", "ERROR"), "error": outcome.get("error"),
                                 "collected_at": outcome.get("collected_at"), "collection_method": "api_live",
+                                # 요청 시각·요청 구성도 외부 가져오기 행 형식으로 옮길 때 남긴다 (실패한 수집 포함, 10-14 P1-2)
+                                **{k: outcome[k] for k in ("requested_at", "request") if k in outcome},
                                 "answer_format": "markdown", "environment": {"web_search_used": False, "tools_used": []},
                                 "usage": {}, "sources": [], "collection_quality": []}
                     if isinstance(outcome.get("raw"), dict):
@@ -1467,7 +1502,8 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(chains))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                                                "collection_workers_total": chain_workers * len(admitted),
-                                               "conversation_order": "sequential_original_turns"}
+                                               "conversation_order": "sequential_original_turns",
+                                               "request": collection_request(run["max_tokens"])}
             if document is not None:
                 run["input_document"] = document
             self._auto_environment(run)
@@ -1617,7 +1653,7 @@ class ComparisonService:
                 chain_workers = min(self.collection_workers, len(self._collection_chains(cases)))
                 run["collection_execution"] = {"collection_workers_per_model": chain_workers,
                     "collection_workers_total": chain_workers * len(selected),
-                    "conversation_order": "sequential_original_turns"}
+                    "conversation_order": "sequential_original_turns", "request": collection_request(run["max_tokens"])}
             run.update(aiona_release=release, dataset_fingerprint=fingerprint(cases),
                        source_fingerprint=fingerprint(cases, answers=True))
             if source_id is not None:
@@ -1670,7 +1706,8 @@ class ComparisonService:
     def _answer_case(case, provider, model, index, outcome):
         # AIONA display text must never be reused for other models.
         result = {k: copy.deepcopy(case[k]) for k in ("case_id", "question", "reference", "conversation_id", "turn") if k in case}
-        # 실제로 보낸 첨부만 남긴다 — 받지 못한 파일로 J8 을 평가하지 않게 (글자만 보내는 기존 수집은 첨부를 남기지 않음)
+        # 실제로 보낸 첨부만 남긴다 — 받지 못한 파일로 J8 을 평가하지 않게. 질문 세트 실행은 수집기가, 업로드 자동 수집·비교 수집은
+        # attachment_delivery.sent_attachments 가 outcome["sent"] 를 채운다 (sent 가 없는 옛 경로·실패 행은 첨부를 남기지 않음)
         sent = [s for s in outcome.get("sent") or [] if isinstance(s, dict)]
         shas, names = {s.get("sha256") for s in sent if s.get("sha256")}, {s.get("name") for s in sent}
         attached = [copy.deepcopy(a) for a in case.get("attachments") or [] if a.get("sha256") in shas or a.get("name") in names]
@@ -1736,7 +1773,9 @@ class ComparisonService:
                                     if broken:
                                         outcome = {"status": "ERROR", "error": "앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다."}
                                     else:
-                                        messages = list(history) + [{"role": "user", "content": case["question"]}]
+                                        question, images, delivery = attachment_delivery.prepare(
+                                            case["question"], case.get("attachments"), self.attachment_roots)
+                                        messages = list(history) + [{"role": "user", "content": question}]
                                         if token.is_set() or stopped.is_set():
                                             return
                                         blocked = guard.before(provider, index) if guard else None
@@ -1744,17 +1783,25 @@ class ComparisonService:
                                             outcome = {"status": "ERROR", "error": blocked, "not_requested": True}
                                         else:
                                             request_started, status_code = time.monotonic(), None
+                                            requested_at = datetime.now(timezone.utc).isoformat()
                                             try:
                                                 outcome = request_answer(settings.get("provider", provider), settings, messages, run["max_tokens"], client,
-                                                    usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None)
+                                                    usage_observer=(lambda raw: ledger.record_collection(provider, settings['model'], raw)) if ledger else None,
+                                                    images=images)
                                             except ProviderError as exc:
                                                 outcome = {"status": "ERROR", "error": str(exc)}
                                                 status_code = exc.status
                                             outcome["latency_ms"] = round((time.monotonic() - request_started) * 1000, 1)
+                                            # 요청·수신 시각 — 실패한 수집도 남긴다 (재현 기록, 판정에는 쓰지 않음)
+                                            outcome["requested_at"] = requested_at
+                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
+                                            outcome["request"] = _request_shape(messages, len(case.get("attachments") or []), delivery)
+                                            # 실제로 보낸 첨부 — _answer_case 가 이 목록의 첨부만 평가 입력에 남긴다 (받지 못한 첨부로 J8 을 묻지 않게)
+                                            outcome["sent"] = attachment_delivery.sent_attachments(case.get("attachments"), delivery)
                                             if guard:
                                                 guard.after(provider, index, outcome, status_code)
-                                        if run.get("run_kind") in ("external_import", "auto_collection"):
-                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()
+                                        if run.get("run_kind") in ("external_import", "auto_collection") and "collected_at" not in outcome:
+                                            outcome["collected_at"] = datetime.now(timezone.utc).isoformat()   # 요청하지 않은 행(한도 차단)
                                     if outcome["status"] == "SUCCESS":
                                         history = messages + [{"role": "assistant", "content": outcome["answer"]}]
                                     else:
@@ -2048,6 +2095,8 @@ class ComparisonService:
                 semantic_contexts = {provider: _external_semantic_context(run["systems"][provider]) for provider in run["providers"]}
             if run.get("run_kind") == "question_set":   # API + 웹 검색 도구·AIONA 웹 — 조회 문장을 꾸밈으로 단정하지 않는다
                 semantic_contexts = {provider: {**semantic_contexts[provider], "answer_tools": "unknown"} for provider in run["providers"]}
+            for semantic_context in semantic_contexts.values():   # 평가 모델에 보낼 첨부 그림도 답변 수집과 같은 폴더에서 찾는다
+                semantic_context["attachment_roots"] = [str(root) for root in self.attachment_roots]
             if run.get("run_kind") == "auto_collection" and "factchat" in semantic_contexts:
                 # 게이트웨이가 모델에 도구·검색을 붙였는지 확인할 수 없다 — '도구 없이 생성'으로 단정하지 않는다
                 semantic_contexts["factchat"]["answer_tools"] = "unknown"
@@ -2063,7 +2112,13 @@ class ComparisonService:
                            "updated_at": started_at} for p in run["providers"]})
             run["evaluations"] = {}
             stream = self.event_stream(run_id)
-            stream.publish({"type": "run_start", "total": run["question_count"] * len(run["providers"])})
+            # 평가 로그에도 방식·기준 버전을 남긴다 — 시작 때는 쓸 버전(계획), 끝날 때 저장 결과에서 센 실제 판정 수로 바꾼다
+            from code_eval.semantic_items import ITEMS, SEMANTIC_ITEMS_VERSION, SUBS
+            planned = {"pipeline": pipeline, "pipeline_source": "evaluation_execution", "criteria_version": jev_eval.JEV_CRITERIA_VERSION,
+                       "items_version": SEMANTIC_ITEMS_VERSION if pipeline == "items" else None,
+                       "catalog": {"criteria": len(jev_eval.CRITERIA), "subs": len(SUBS) if pipeline == "items" else None,
+                                   "items": len(ITEMS) if pipeline == "items" else None}, "judged": None}
+            stream.publish({"type": "run_start", "total": run["question_count"] * len(run["providers"]), "method": planned})
             if not self._save(run):
                 run['status'], run['error'] = 'ERROR', '실행 기록을 저장하지 못해 평가를 시작하지 않았습니다.'
                 self._save(run)
@@ -2227,10 +2282,10 @@ class ComparisonService:
                     elif failed:
                         run["status"], run["error"] = "ERROR", "평가를 완료하지 못했습니다. 완료된 결과와 원문은 보존했습니다."
                         self._clear_inflight(run)
-                        stream.publish({"type": "run_error", "reason": run["error"]})
+                        stream.publish({"type": "run_error", "reason": run["error"], "method": evaluation_method(run)})
                     else:
                         run["status"] = "COMPLETED"
-                        stream.publish({"type": "run_done"})
+                        stream.publish({"type": "run_done", "method": evaluation_method(run)})
                     run["revision"] += 1
                     self._save(run)
                     self._finish_costs(run, ledger)

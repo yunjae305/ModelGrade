@@ -9,8 +9,12 @@
   const labels = {
     improved: '개선 · FAIL → PASS', regressed: '악화 · PASS → FAIL',
     passMaintained: 'PASS 유지', failMaintained: 'FAIL 유지', pending: '평가 미완료',
+    // 검증 한계(근거·원문 미확인 정책 FAIL)로만 바뀐 문항 — 성능 변화로 세지 않는다 (서버 version_comparison 의 limited_* 와 같음)
+    limitedRegressed: '검증 한계로 FAIL · 악화 아님', limitedImproved: '검증 한계 해소 · 개선 아님',
     unverified: '조건이 달라 변화 확정 불가'
   };
+  const causeLabels = {answer_changed: '답변이 바뀜', same_answer: '같은 답변인데 판정이 바뀜 (평가자 변동 또는 평가 조건 차이)',
+    verification_limit: '검증 한계 (근거·원문 확인 실패)'};
   const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
   const text = (v) => typeof v === 'string' && v.trim().length > 0;
   const knownText = (v) => text(v) && !/^(unknown|not[-_ ]?recorded|미상|미기록)$/i.test(v.trim());
@@ -134,7 +138,9 @@
 
   function compactState(run, index) {
     const state = results.caseState(run, 'aiona', index);
-    return {outcome: state.outcome, text: state.text, detail: state.detail, complete: state.complete};
+    const batch = run?.evaluations?.aiona, record = batch?.jev_eval?.records?.[index];
+    const limited = state.outcome === 'issue' && results.limitedOnly(results.resolvedCase(batch?.cases?.[index], record), record);
+    return {outcome: state.outcome, text: state.text, detail: state.detail, complete: state.complete, limited};
   }
 
   function aligned(run, entry) {
@@ -181,8 +187,8 @@
 
   function observedChange(a, b) {
     if (!a.complete || !b.complete) return 'pending';
-    if (a.outcome === 'issue' && b.outcome === 'clear') return 'improved';
-    if (a.outcome === 'clear' && b.outcome === 'issue') return 'regressed';
+    if (a.outcome === 'issue' && b.outcome === 'clear') return a.limited ? 'limitedImproved' : 'improved';
+    if (a.outcome === 'clear' && b.outcome === 'issue') return b.limited ? 'limitedRegressed' : 'regressed';
     return a.outcome === 'clear' ? 'passMaintained' : 'failMaintained';
   }
 
@@ -266,9 +272,12 @@
       const verified = conditionsMatch && baseline.integrity && target.integrity && baselineState.complete && targetState.complete &&
         aligned(baselineRun, a) && aligned(targetRun, b) && !baselineRun?.evaluations?.aiona?.live && !targetRun?.evaluations?.aiona?.live;
       const change = observed === 'pending' ? 'pending' : verified ? observed : 'unverified';
+      const answerChanged = old.source[a.index]?.answer !== next.source[b.index]?.answer;
+      // 판정이 바뀐 이유 — 서버 version_comparison 의 cause 와 같은 규칙 (10-14 3차)
+      const cause = change.startsWith('limited') ? 'verification_limit' : !['improved', 'regressed'].includes(change) ? null :
+        answerChanged ? 'answer_changed' : 'same_answer';
       rows.push({caseId: a.caseId, baselineIndex: a.index, targetIndex: b.index, baselineState, targetState,
-        change, changeLabel: labels[change], observedChange: observed, verified,
-        answerChanged: old.source[a.index]?.answer !== next.source[b.index]?.answer});
+        change, changeLabel: labels[change], observedChange: observed, verified, answerChanged, cause, causeLabel: causeLabels[cause] || null});
     }
     for (const b of next.rows) {
       if (consumed.has(b.index)) continue;
@@ -288,7 +297,7 @@
     if (!baseline.ready) reason('baseline_incomplete', '기준 기록의 AIONA 평가가 모두 완료되지 않았습니다.');
     if (!target.ready) reason('target_incomplete', '대상 기록의 AIONA 평가가 모두 완료되지 않았습니다.');
     const eligible = reasons.length === 0;
-    const counts = {improved: 0, regressed: 0, passMaintained: 0, failMaintained: 0, pending: 0, unverified: 0,
+    const counts = {improved: 0, regressed: 0, limitedRegressed: 0, limitedImproved: 0, passMaintained: 0, failMaintained: 0, pending: 0, unverified: 0,
       matched: rows.length, unmatchedBaseline: unmatched.baseline.length, unmatchedTarget: unmatched.target.length, changed: changed.length};
     rows.forEach((r) => { counts[r.change]++; });
     return {schema: 'aiona-version-comparison/v1', eligible, reasons, profileMatched, sameQuestions,

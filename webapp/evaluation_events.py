@@ -66,6 +66,8 @@ class EvaluationEvents:
             if kind == "run_start":
                 self.state = {"generation": uuid.uuid4().hex, "total": event["total"], "done": 0,
                               "pass": 0, "fail": 0, "unjudged": 0, "skipped": 0, "status": "RUNNING", "rows": {}}
+                if event.get("method"):   # 의미 평가 방식·기준 버전(계획) — 끝날 때 실제 판정 수가 붙은 값으로 바뀐다
+                    self.state["method"] = event["method"]
                 event["generation"] = self.state["generation"]
             elif kind.startswith("q_") or kind.startswith("criterion_"):
                 key = f'{event["model"]}:{event["index"]}'  # duplicate qids are deliberately allowed
@@ -103,6 +105,8 @@ class EvaluationEvents:
                     event.update({k: row[k] for k in ("pass", "fail", "unjudged")})
             elif kind in ("run_done", "run_error"):
                 self.state["status"] = "COMPLETED" if kind == "run_done" else "ERROR"
+                if event.get("method"):
+                    self.state["method"] = event["method"]
                 if kind == "run_error":
                     for row in self.state["rows"].values():
                         if row["status"] == "RUNNING":

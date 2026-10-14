@@ -8,8 +8,8 @@
     const saved = JSON.parse(sessionStorage.getItem('aiona-version-comparison') || 'null');
     if (saved && ['baseline', 'target', 'baselineVersion', 'targetVersion', 'changeFilter'].every((key) => saved[key] === undefined || typeof saved[key] === 'string')) state.selection = saved;
   } catch (_) { /* Session storage is optional; no source text is stored here. */ }
-  const labels = {improved: '개선', regressed: '악화', passMaintained: '통과 유지', failMaintained: '실패 유지', pending: '미완료', unverified: '조건 확인 필요', unmatched: '문항 불일치'};
-  const kinds = {improved: 'success', regressed: 'danger', passMaintained: 'neutral', failMaintained: 'neutral', pending: 'warning', unverified: 'warning', unmatched: 'warning'};
+  const labels = {improved: '개선', regressed: '악화', limitedRegressed: '검증 한계로 FAIL', limitedImproved: '검증 한계 해소', passMaintained: '통과 유지', failMaintained: '실패 유지', pending: '미완료', unverified: '조건 확인 필요', unmatched: '문항 불일치'};
+  const kinds = {improved: 'success', regressed: 'danger', limitedRegressed: 'warning', limitedImproved: 'warning', passMaintained: 'neutral', failMaintained: 'neutral', pending: 'warning', unverified: 'warning', unmatched: 'warning'};
   const releaseName = (run, fallback = '') => run?.aiona_release?.version ? 'AIONA ' + run.aiona_release.version : fallback || '버전 미등록';
   const time = (value) => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR') : value || '기록 없음';
   const signed = (value, suffix = '') => value === null || value === undefined ? '—' : `${value > 0 ? '+' : ''}${(value * 100).toFixed(1)}${suffix}`;
@@ -289,7 +289,8 @@
     $('version-change-panel').hidden = !c; $('version-criteria-panel').hidden = !c;
     if (!c) { $('version-rows').replaceChildren(); renderHighlights(); return; }
     const counts = c.counts || {};
-    const countGroups = [['improved', '개선', counts.improved], ['regressed', '악화', counts.regressed], ['passMaintained', '통과 유지', counts.passMaintained], ['failMaintained', '실패 유지', counts.failMaintained], ['pending', '미완료', counts.pending], ['unverified', '조건 확인 필요', counts.unverified], ['unmatched', '문항 불일치', (counts.unmatchedBaseline || 0) + (counts.unmatchedTarget || 0) - (counts.changed || 0)]];
+    const countGroups = [['improved', '개선', counts.improved], ['regressed', '악화', counts.regressed],
+      ['limitedRegressed', '검증 한계로 FAIL', counts.limitedRegressed || 0], ['limitedImproved', '검증 한계 해소', counts.limitedImproved || 0], ['passMaintained', '통과 유지', counts.passMaintained], ['failMaintained', '실패 유지', counts.failMaintained], ['pending', '미완료', counts.pending], ['unverified', '조건 확인 필요', counts.unverified], ['unmatched', '문항 불일치', (counts.unmatchedBaseline || 0) + (counts.unmatchedTarget || 0) - (counts.changed || 0)]];
     $('version-change-counts').replaceChildren(...countGroups.map(([filter, label, count]) => node('button', {class: 'outcome-count ' + ({improved: 'clear', regressed: 'issue', pending: 'pending'}[filter] || ''), onclick: () => { $('version-change-filter').value = filter; renderRows(); }}, node('strong', {text: number(count)}), node('span', {text: label}))));
     const changedBefore = new Set((c.changed || []).map((row) => row.baselineIndex)), changedAfter = new Set((c.changed || []).map((row) => row.targetIndex));
     state.rows = [...(c.rows || []).map((row) => ({...row, label: row.changeLabel || labels[row.change]})),
@@ -491,7 +492,8 @@
       node('td', {}, node('button', {class: 'row-button', text: original(state.before, row.baselineIndex)?.question || original(state.after, row.targetIndex)?.question || '문항 원문 보기', onclick: () => openDetail(row)})),
       node('td', {}, pill(row.baselineState?.text || (row.baselineIndex === null ? '해당 없음' : '비교 제외'), row.baselineState?.outcome === 'issue' ? 'danger' : 'neutral')),
       node('td', {}, pill(row.targetState?.text || (row.targetIndex === null ? '해당 없음' : '비교 제외'), row.targetState?.outcome === 'issue' ? 'danger' : 'neutral')),
-      node('td', {}, pill(row.label || labels[row.change], kinds[row.change])))));
+      node('td', {}, pill(row.label || labels[row.change], kinds[row.change]),
+        row.causeLabel ? node('span', {class: 'criterion-targets', 'data-change-cause': row.cause, text: row.causeLabel}) : null))));
     if (!rows.length) $('version-rows').append(node('tr', {}, node('td', {colspan: '5', text: '해당하는 문항이 없습니다.'})));
   }
   function renderCriteria() {

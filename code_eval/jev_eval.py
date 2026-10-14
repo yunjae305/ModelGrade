@@ -23,6 +23,7 @@ from __future__ import annotations
 import copy
 import time
 from concurrent.futures import CancelledError, ThreadPoolExecutor, wait, FIRST_COMPLETED
+from pathlib import Path
 from threading import Event
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -38,8 +39,9 @@ from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLI
 from .semantic_items import SEMANTIC_ITEMS_VERSION, SUBS_BY_ID, SemanticItem, applicable_items
 from .semantic_evidence import CONTEXT_CHECK_POLICY, CONTEXT_QUOTE_PROBLEMS
 from .semantic_items_eval import aggregate_items, apply_overrides, fulfillment, parse_item_answers
-from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, j5_outcome, unresolved
+from .semantic_policy import DECISION_POLICY, apply_final_decision_policy, items_j5_outcome, j5_outcome, unresolved
 from .semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY, finalize_items
+from . import attachment_images
 from .attachments import judge_view
 from .semantic_reasons import (CHECKED_CRITERIA, PROBLEMS as PROBLEM_TEXT, REASON_EVIDENCE_POLICY_VERSION,
                                fail_evidence, incomplete_decision)
@@ -77,7 +79,7 @@ def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS,
                 history: Optional[List[Dict[str, Any]]] = None,
                 citations: Optional[List[Dict[str, Any]]] = None, *, pipeline: str = "legacy", attachments: Any = None,
                 item_specs: Optional[List[Tuple[SemanticItem, Dict[str, Any]]]] = None,
-                collected_at: Optional[str] = None) -> Dict[str, Any]:
+                collected_at: Optional[str] = None, image_attached: Optional[Dict[int, bool]] = None) -> Dict[str, Any]:
     """Jev 에 보내는 내용. 질문·답변(과 있을 때만 reference·history)만 담고 평가할 기준만 묻는다 (CODE 결과·표시본 없음).
 
     ``citations`` 는 답변이 직접 든 출처(answer_citations) — J5 를 물을 때만 함께 보낸다 (legacy).
@@ -88,7 +90,8 @@ def jev_request(question: str, answer: str, criteria: Tuple[str, ...] = ALL_IDS,
     if reference is not None:
         state["reference"] = reference
     if attachments:
-        state["attachments"] = judge_view(attachments)   # J8 — 파일 대신 파일에 든 내용(이름·종류·내용)만 보낸다
+        # J8 — 파일에 든 내용(이름·종류·내용). 이미지 첨부는 그림을 함께 보냈는지(image_attached)도 적는다 (judge-attachment-images-v1)
+        state["attachments"] = judge_view(attachments, image_attached)
     if history:
         state["history"] = history
     if pipeline == "items":
@@ -175,13 +178,23 @@ def _case_request(question: str, answer: str, criteria: Tuple[str, ...], referen
                   history: Optional[List[Dict[str, Any]]], *, client: Any, cancel_event: Optional[Event],
                   pipeline: str = "legacy", item_specs: Any = None, collected_at: Optional[str] = None,
                   citations: Optional[List[Dict[str, Any]]] = None, attachments: Any = None,
-                  unchecked_citations: Optional[List[str]] = None) -> Dict[str, Any]:
-    """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event).
+                  unchecked_citations: Optional[List[str]] = None, images: Optional[Dict[str, Any]] = None,
+                  send_images: bool = False) -> Dict[str, Any]:
+    """client.system_one 에 넘길 인자 (state·questions·지원하면 cancel_event·images).
+
+    ``images`` 는 attachment_images.prepare 결과 — ``send_images``(평가 모델 연결이 이미지 입력을 지원)이면 확인을 통과한 그림을
+    ``images`` 로 함께 넘기고, state 의 이미지 첨부마다 image_attached 를 적는다.
 
     ``unchecked_citations`` 는 답변이 든 유효한 출처 URL 가운데 확인 한도 밖이라 평가자에게 보내지 않은 것 — 판정 단계가
     이것이 남아 있으면 J5 를 PASS 로 확정하지 않는다 (evidence-v3.14)."""
+    attached = None
+    if images:
+        sent = {image["index"] for image in images["images"]} if send_images else set()
+        attached = {entry["index"]: entry["index"] in sent for entry in images["images"] + images["issues"]}
     request = jev_request(question, answer, criteria, reference, history, citations, pipeline=pipeline, item_specs=item_specs,
-                          collected_at=collected_at, attachments=attachments)
+                          collected_at=collected_at, attachments=attachments, image_attached=attached)
+    if images and send_images and images["images"]:
+        request["images"] = [{key: image[key] for key in ("index", "name", "media_type", "data")} for image in images["images"]]
     if unchecked_citations and "J5" in criteria and pipeline != "items":
         request["state"]["answer_citations_unchecked"] = list(unchecked_citations)
     if cancel_event is not None and getattr(client, "supports_cancellation", False):
@@ -222,6 +235,7 @@ def _items_record(case_id: str, criteria: Tuple[str, ...], call: Any, request: D
     record["review_required"] = False
     j5 = decisions.get("J5")
     if isinstance(j5, dict) and j5.get("status") != "NOT_APPLICABLE":
+        j5["j5_outcome"] = items_j5_outcome(record)   # legacy 와 같은 모양의 사유 기록 — 판정은 그대로
         basis = (j5.get("fact_check") or {}).get("basis")
         record["j5_basis"] = basis if basis in ("web", "reference", "input", "mixed") else None
     else:
@@ -313,8 +327,12 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
                       cancel_event: Optional[Event] = None, fail_evidence_check: bool = False,
                       citation_check: bool = False, *, pipeline: str = "legacy", item_specs: Any = None,
                       applicability: Optional[Dict[str, Any]] = None, collected_at: Optional[str] = None,
-                      sources: Optional[List[Dict[str, Any]]] = None, attachments: Any = None) -> Dict[str, Any]:
+                      sources: Optional[List[Dict[str, Any]]] = None, attachments: Any = None,
+                      images: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """질문 하나의 의미 평가 — 요청 조립(_case_request) → client.system_one → 레코드(_record_from_call).
+
+    ``images`` (attachment_images.prepare) — 파일을 가리키는 이미지 첨부가 있는데 확인을 통과하지 못했거나(누락·해시·형식·크기)
+    평가 모델 연결이 이미지를 받지 않으면, 그림이 있어야 하는 기준(J8)은 묻지 않고 판정 미완료로 남긴다. 다른 기준은 그대로 묻는다.
 
     items 파이프라인의 재확인은 ``ask(questions_subset)`` 콜백(같은 client.system_one, 같은 state)으로 돈다.
     ``fail_evidence_check``·``citation_check`` 는 legacy 의 근거 없는 FAIL 재평가(D-1)·답변 출처 대조(G-4)다.
@@ -329,13 +347,23 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
         return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
     if client is None:
         return finish(JevStatus.NOT_CONFIGURED, error=access_reason, **basis)
+    supports_images = bool(getattr(client, "supports_images", False))
+    gaps = _image_gaps(images, supports_images)
+    held = tuple(cid for cid in criteria if gaps and cid in attachment_images.IMAGE_REQUIRED_CRITERIA)
+    if held:
+        criteria = tuple(cid for cid in criteria if cid not in held)
+        if item_specs:
+            item_specs = [(spec, evidence) for spec, evidence in item_specs if spec.criterion not in held]
+        if not criteria:   # 그림이 있어야 하는 기준만 적용된 질문 — 호출 없이 미완료만 남긴다
+            return _with_images(finish(JevStatus.SUCCESS, decisions={}), images, held, gaps, supports_images)
     started = time.monotonic()
     try:
         citations, structured_sources = case_citations(answer, criteria, citation_check, sources)
         request = _case_request(question, answer, criteria, reference, history, client=client, cancel_event=cancel_event,
                                 pipeline=pipeline, item_specs=item_specs, collected_at=collected_at,
                                 citations=prompt_citations(citations), attachments=attachments,
-                                unchecked_citations=[c["url"] for c in citations if c.get("valid_url") and not c.get("checked")])
+                                unchecked_citations=[c["url"] for c in citations if c.get("valid_url") and not c.get("checked")],
+                                images=images, send_images=supports_images)
         if cancel_event is not None and cancel_event.is_set():
             return finish(JevStatus.SKIPPED, error=CANCEL_REASON, **basis)
         call = client.system_one(**request)
@@ -352,11 +380,56 @@ def evaluate_jev_case(case_id: str, question: str, answer: str, client: Optional
             raise CancelledError("items recheck cancelled")
         return client.system_one(**{**request, "questions": subset})
 
-    return _record_from_call(case_id, criteria, call, request, started, basis, pipeline=pipeline, ask=ask,
-                             applicability=applicability, cancel_event=cancel_event, client=client,
-                             fail_evidence_check=fail_evidence_check, citation_check=citation_check,
-                             question=question, citations=citations,
-                             structured_sources=structured_sources)
+    record = _record_from_call(case_id, criteria, call, request, started, basis, pipeline=pipeline, ask=ask,
+                               applicability=applicability, cancel_event=cancel_event, client=client,
+                               fail_evidence_check=fail_evidence_check, citation_check=citation_check,
+                               question=question, citations=citations,
+                               structured_sources=structured_sources)
+    return _with_images(record, images, held, gaps, supports_images)
+
+
+def _image_gaps(images: Optional[Dict[str, Any]], supports_images: bool) -> List[Dict[str, Any]]:
+    """그림이 있어야 하는 기준을 판정할 수 없게 만드는 문제 — 파일을 가리키는 이미지 첨부가 있을 때만 본다."""
+    if not images or not images.get("required"):
+        return []
+    if images["issues"]:
+        return copy.deepcopy(images["issues"])
+    if not supports_images:
+        return [{"index": image["index"], "name": image["name"], "code": "JUDGE_IMAGES_UNSUPPORTED",
+                 "reason": attachment_images.issue_reason("JUDGE_IMAGES_UNSUPPORTED")} for image in images["images"]]
+    return []
+
+
+def _with_images(record: Dict[str, Any], images: Optional[Dict[str, Any]], held: Tuple[str, ...],
+                 gaps: List[Dict[str, Any]], supports_images: bool) -> Dict[str, Any]:
+    """레코드에 첨부 이미지 기록(보낸 그림의 이름·형식·sha256, 못 보낸 사유)을 남기고, 묻지 않은 기준을 판정 미완료로 채운다.
+
+    같은 case_id 로 질문·답변·그림(sha256)·판정이 이어진다. 그림 원본(base64)은 기록에 남기지 않는다."""
+    if not images:
+        return record
+    sent = images["images"] if supports_images else []
+    record["attachment_images"] = {
+        "policy": attachment_images.JUDGE_IMAGE_POLICY_VERSION, "judge_supports_images": supports_images,
+        "sent": [{key: image[key] for key in ("index", "name", "media_type", "sha256", "size", "sha256_verified")} for image in sent],
+        "not_sent": copy.deepcopy(gaps) if gaps else [],
+        "content_only": copy.deepcopy(images["content_only"]), "held_criteria": list(held)}
+    if not held:
+        return record
+    record["criteria"] = list(record.get("criteria") or []) + [cid for cid in held if cid not in (record.get("criteria") or [])]
+    if record.get("status") == JevStatus.SUCCESS:
+        names = {c.id: c.name for c in CRITERIA}
+        detail = " · ".join(f"{gap['name']}: {gap['reason']}" for gap in gaps)
+        decisions = record.get("decisions") or {}
+        for cid in held:
+            decisions[cid] = {"criterion_id": cid, "name": names.get(cid, cid), "decision": None, "status": "INCOMPLETE",
+                              "confidence": None, "probabilities": {}, "reason_code": "ATTACHMENT_IMAGE_UNAVAILABLE",
+                              "reason": "판정 미완료 — 첨부 이미지를 평가 모델이 직접 볼 수 없어 판정하지 않았습니다 (" + detail + ")",
+                              "attachment_issues": copy.deepcopy(gaps),
+                              "decision_policy": {"version": attachment_images.JUDGE_IMAGE_POLICY_VERSION,
+                                                  "outcome_basis": "attachment_image_unavailable", "factual_error_confirmed": False}}
+        record["decisions"] = decisions
+        record["review_required"] = True
+    return record
 
 
 def _attach_long_context(record: Dict[str, Any], state: Dict[str, Any], applicability: Optional[Dict[str, Any]]) -> None:
@@ -398,8 +471,9 @@ def _confirm_fail_evidence(record: Dict[str, Any], request: Dict[str, Any], clie
     record["reevaluation"] = entry
     retried: Dict[str, Dict[str, Any]] = {}
     retry = {"state": state, "questions": {cid: request["questions"][cid] for cid in invalid}}
-    if "cancel_event" in request:
-        retry["cancel_event"] = request["cancel_event"]
+    for key in ("cancel_event", "images"):
+        if key in request:
+            retry[key] = request[key]
     try:
         if cancel_event is not None and cancel_event.is_set():
             raise _Skipped()
@@ -461,8 +535,9 @@ def _retry_context_quotes(record: Dict[str, Any], request: Dict[str, Any], clien
     question = copy.deepcopy(request["questions"]["J6"])
     question["instructions"] = f"{question['instructions']}\n{CONTEXT_QUOTE_RETRY_NOTE}"
     retry = {"state": request["state"], "questions": {"J6": question}}
-    if "cancel_event" in request:
-        retry["cancel_event"] = request["cancel_event"]
+    for key in ("cancel_event", "images"):
+        if key in request:
+            retry[key] = request[key]
     new = None
     try:
         if cancel_event is not None and cancel_event.is_set():
@@ -703,6 +778,7 @@ class _Prepared:
         self.config: Any = None
         self.answer_tools = "unknown"
         self.collected_at: Optional[str] = None
+        self.images: Dict[int, Dict[str, Any]] = {}
 
 
 def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: Optional[JevClientConfig], *,
@@ -715,6 +791,9 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
     context = context if isinstance(context, dict) else {}
     prep.answer_tools = context.get("answer_tools") if context.get("answer_tools") in ("none", "unknown") else "unknown"
     prep.collected_at = context.get("collected_at") if isinstance(context.get("collected_at"), str) else None
+    # 첨부 이미지를 찾는 허용 폴더 — webapp 이 답변 수집과 같은 폴더를 넘긴다 (없으면 기본 폴더)
+    roots = context.get("attachment_roots")
+    image_roots = [Path(root) for root in roots] if isinstance(roots, (list, tuple)) else None
     prep.config = config if config is not None else getattr(client, 'config', None)
     prep.engine = getattr(prep.config, 'engine', 'jev')
     prep.fact_screening = prep.engine in FACT_SCREENING_ENGINES and not prep.items_mode   # items 는 J5 도 코드 규칙(질문)이 정한다
@@ -730,6 +809,9 @@ def _prepare_batch(batch: Dict[str, Any], client: Optional[JevClient], config: O
                                       error=f"CODE 입력 검증 결과 {case.get('case_status')} — 평가할 질문·답변이 없음")
             continue
         prep.targets.append(i)
+        checked = attachment_images.prepare(case.get("attachments"), image_roots)
+        if checked:
+            prep.images[i] = checked
         conversation = None
         if ctx:
             history, truncated = build_history(ctx["prior"])
@@ -884,6 +966,7 @@ def _finish_batch(prep: _Prepared, batch: Dict[str, Any], client: Optional[JevCl
         "items_version": SEMANTIC_ITEMS_VERSION if prep.items_mode else None,
         "quote_policy": ITEM_QUOTE_POLICY if prep.items_mode else None,
         "recheck_policy": RECHECK_POLICY if prep.items_mode else None,
+        **({"attachment_image_policy": attachment_images.JUDGE_IMAGE_POLICY_VERSION} if prep.images else {}),
         "summary": summarized["summary"],
         **({"fulfillment": summarized["fulfillment"]} if prep.items_mode else {}),
         "conversations": summarized["conversations"],
@@ -922,7 +1005,8 @@ def evaluate_jev_batch(batch: Dict[str, Any], client: Optional[JevClient],
                                  fail_evidence_check=prep.fact_screening, citation_check=prep.fact_screening,
                                  pipeline=pipeline, item_specs=prep.item_specs.get(i), applicability=applies[i],
                                  collected_at=prep.collected_at,
-                                 sources=case.get("answer_sources"), attachments=case.get("attachments"))
+                                 sources=case.get("answer_sources"), attachments=case.get("attachments"),
+                                 images=prep.images.get(i))
 
     def publish(i: int, record: Dict[str, Any]) -> None:
         _publish_record(prep, i, record, on_record)

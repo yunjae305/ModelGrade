@@ -83,8 +83,11 @@ def make(tmp_path, providers=None, judge=None, configure=("gpt", "claude", "gemi
 
 
 def wait(svc, run_id):
-    for _ in range(500):
-        if svc.status(run_id)["status"] not in ("COLLECTING", "EVALUATING"):
+    """작업이 완전히 끝날 때까지 — 상태가 READY 여도 작업 스레드가 아직 등록 해제되지 않았으면 collect_more 가 '수집 진행 중'으로
+    거절한다 (상태 변경과 스레드 정리 사이의 짧은 틈, 전체 테스트 부하에서 간헐 실패하던 원인 · 10-14 4차). 상한 15초."""
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if svc.status(run_id)["status"] not in ("COLLECTING", "EVALUATING") and not svc._workers.get(run_id):
             return svc.result(run_id)
         time.sleep(0.01)
     raise AssertionError("run did not finish")

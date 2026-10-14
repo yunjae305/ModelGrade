@@ -330,3 +330,21 @@ console.log('Version comparison checks passed: identities, context, completeness
   assert.equal(units.baseline.rate, .5);   // 단일 PASS · 대화 FAIL
   assert.equal(units.target.rate, 0);      // 단일 FAIL · 대화(3턴 FAIL) FAIL — 턴 단위였다면 25% → 50% '개선'
 }
+
+// 검증 한계(원문 확인 실패·근거 부족)로만 생긴 PASS→FAIL 은 악화가 아니라 따로 (10-14 P1-1, 서버 version_comparison 과 같은 규칙)
+{
+  const before = run('L-old', [question('a'), question('b')]), after = run('L-new', [question('a'), question('b')]);
+  const limited = after.evaluations.aiona.jev_eval.records[0];
+  limited.criteria = ['J1', 'J5'];
+  limited.decisions.J5 = {decision: 'FAIL', reason_code: 'SOURCE_ORIGINAL_UNAVAILABLE', j5_outcome: {code: 'source_unavailable', factual_error_confirmed: false}};
+  after.evaluations.aiona.jev_eval.records[1].decisions.J1.decision = 'FAIL';   // 실제 FAIL
+  const result = compare(before, after);
+  assert.deepEqual(result.rows.map((r) => r.change), ['limitedRegressed', 'regressed']);
+  assert.deepEqual(result.rows.map((r) => r.cause), ['verification_limit', 'same_answer']);   // 같은 답변 — 판정만 바뀜
+  assert.equal(result.rows[0].changeLabel, '검증 한계로 FAIL · 악화 아님');
+  assert.deepEqual([result.counts.regressed, result.counts.limitedRegressed, result.counts.limitedImproved], [1, 1, 0]);
+  assert.equal(compare(after, before).rows[0].change, 'limitedImproved');
+  limited.decisions.J5.j5_outcome.factual_error_confirmed = true;   // 사실 오류로 확정된 FAIL 은 그대로 악화
+  assert.equal(compare(before, after).rows[0].change, 'regressed');
+  console.log('verification-limited changes are kept apart from regressions.');
+}

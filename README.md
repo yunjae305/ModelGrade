@@ -18,7 +18,7 @@ py -3 -m pip install -r requirements.txt
 
 입력 형식은 [공개 예제](examples/questions.sample.json)를 참고하세요. **예제 질문 불러오기**는 로컬 Q165 데이터가 있으면 해당 파일을, 없으면 이 공개 예제를 불러옵니다. 예제를 불러오는 동작 자체는 모델 API를 호출하지 않습니다.
 
-롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요.
+롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요. 기대 목록은 2턴 이상 대화에 J6 를 묻던 규칙 기준이며, 현재 J6 규칙(`multi-turn-v1`: 질문+답변 10K 토큰 이상 턴 10개 이상)에서는 이 세트의 J6 적용이 0입니다 — [J6·J7 적용 범위 정책 제안](참고자료/정책제안_J6J7_적용범위_2026-10-14.md).
 
 ## 서버 실행
 
@@ -30,6 +30,10 @@ py -3 -X utf8 run.py
 
 브라우저에서 **[모델 비교 워크스페이스](http://localhost:8080/workspace.html)**에 접속합니다.
 
+왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개의 담당자, 구현 근거, 검증 공백, 다음 작업과 완료 조건을 확인합니다. 직접 주소는 `http://localhost:8080/workspace.html#progress`입니다. 현황 화면은 ZIP의 보고서 디자인과 내용을 현재 워크스페이스 화면으로 옮긴 것으로, 별도 iframe이나 HTML 재생성 없이 [requirements.json](frontend/data/requirements.json)을 읽습니다. 이 JSON이 유일한 현황 원본입니다. 담당자의 실제 결과를 확인한 뒤 해당 항목의 상태·근거·남은 문제와 `as_of`를 수정하고 화면을 새로고침하거나 다른 메뉴에서 돌아오면 반영됩니다. 코드 작성이나 테스트 통과만으로 실제 판정 정확도 검증을 완료로 바꾸지 않습니다.
+
+현황 화면 검증: `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요). 캡처는 `results/progress-workspace/`에 저장됩니다.
+
 배치 파일로도 실행할 수 있습니다.
 
 ```powershell
@@ -38,7 +42,7 @@ py -3 -X utf8 run.py
 
 수집·평가가 진행되는 동안 서버 터미널을 열어 두세요. API 비용은 계산하거나 출력하지 않습니다.
 
-현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 의미 평가 방식은 `SEMANTIC_PIPELINE`(legacy 기본 | items: 세부 기준 25·점검 항목 39에 예/아니오+인용으로 답하고 서버가 인용 검증·집계)로 고르고, 호출 방식은 `SEMANTIC_DISPATCH`(batch 권장: Claude Message Batches 에 묶어 제출 — 평가 비용 절반, 결과는 보통 1시간 안 | realtime: 질문마다 바로 호출)로 고릅니다(10-13 에 뺐다가 10-14 비용 결정으로 다시 넣음). 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
+현재 의미평가는 `SEMANTIC_ENGINE=anthropic_api`로 **Claude Opus 5.5 / effort high**를 사용하며, 키는 답변 수집용 `ANTHROPIC_API_KEY`를 함께 씁니다. 의미 평가 방식은 `SEMANTIC_PIPELINE`(legacy 기본 | items: 세부 기준 30·점검 항목 44에 예/아니오+인용으로 답하고 서버가 인용 검증·집계)로 고르고, 호출 방식은 `SEMANTIC_DISPATCH`(batch 권장: Claude Message Batches 에 묶어 제출 — 평가 비용 절반, 결과는 보통 1시간 안 | realtime: 질문마다 바로 호출)로 고릅니다(10-13 에 뺐다가 10-14 비용 결정으로 다시 넣음). 웹검색과 출처 원문 대조를 사용하며, 근거를 확보하지 못한 경우에는 검증 기준 미충족 FAIL로 판정하고 사유를 남깁니다. J5 미확인 근거를 한 번 더 찾는 추가 검증은 OpenAI 평가(`openai_api`)에서만 동작합니다. 평가 호출 자체의 오류는 별도로 표시합니다. 실제 설정만 확인하려면 아래 명령을 실행하세요. 이 명령은 모델을 호출하지 않습니다.
 
 ```powershell
 py -3 -X utf8 -m code_eval.semantic_check
@@ -51,7 +55,7 @@ py -3 -X utf8 -m code_eval.semantic_check
 1. **연결·수집 설정**(왼쪽 메뉴)에서 API 키·모델 ID를 연결하거나 `.env`에 넣습니다(`FACTCHAT_API_KEY`·`FACTCHAT_MODEL`·`FACTCHAT_BASE_URL` 포함). 키는 서버 메모리에만 있고 화면·결과 파일에 남지 않습니다.
 2. 같은 화면의 **자동 수집 허용 · 한도**에서 제공자별 자동 수집 허용, 입력·출력 단가(USD / 100만 토큰), 작업당·일일 최대 호출 수와 비용 한도, 요청당 최대 출력 토큰을 정하고 저장합니다(`data/auto_collection_policy.json`). 저장 전 기본값은 모든 제공자 꺼짐이며, 한도·단가가 모두 있어야 자동 수집합니다. 제공자 하나의 전체 요청 계획이 남은 한도 안에 들 때만 그 제공자를 시작합니다.
 3. **새 비교**에서 파일을 올리면 수집이 바로 시작됩니다. AI별 연결 상태·진행률·완료 건수·오류를 보여 주며, 연결이 없으면 "연결 필요", 지원하지 않는 플랫폼(우수AI)은 "연동 준비 중"으로 표시합니다. 같은 파일을 다시 올리거나 새로고침하면 기존 작업을 다시 열고 새 요청을 보내지 않습니다. 실패한 답변만 **다시 수집**, 진행 중 **수집 중단**, 새 실행으로 **새로 수집**할 수 있습니다.
-4. **질문별 답변 비교**에서 질문을 검색·펼쳐 AIONA 원문과 각 AI 답변을 나란히 확인한 뒤 **평가 시작**을 누르면 기존 CODE + 의미 평가(J1~J7)로 평가합니다(평가자 호출 발생). FactChat 게이트웨이 답변이 포함되면 실행 조건이 같다고 확인되지 않아 순위를 매기지 않습니다.
+4. **질문별 답변 비교**에서 질문을 검색·펼쳐 AIONA 원문과 각 AI 답변을 나란히 확인한 뒤 **평가 시작**을 누르면 기존 CODE + 의미 평가(J1~J8)로 평가합니다(평가자 호출 발생). FactChat 게이트웨이 답변이 포함되면 실행 조건이 같다고 확인되지 않아 순위를 매기지 않습니다.
 
 ## 기타 응답 파일 가져오기 (고급)
 
@@ -71,6 +75,24 @@ python tools/check_question_set.py 질문세트.json
 ```
 
 `--json` 을 붙이면 JSON 으로 출력합니다. 형식 오류가 있으면 종료 코드 1 입니다.
+
+## 시연용 샘플 실행 · J6·J7 시험 세트 (모델 호출 없음)
+
+비공개 파일 없이 결과 화면 시연 경로를 재현합니다. 모든 답변·판정은 **샘플·모의**이며, 실제 `data/` 와 API 키를 쓰지 않는 별도 서버를 띄웁니다. 출력된 주소 → AIONA 결과 이력 → 상세 보기 → 저장된 평가 결과 열기.
+
+```powershell
+py -3 -X utf8 tools/demo_run.py --serve
+```
+
+J6 멀티턴(장문 3대화·일반 6대화)과 J7 롱컨텍스트(32K~500K) 시험 세트를 만들고 사전 점검합니다. 같은 시드면 같은 데이터이며, 데이터는 `data/context_sets/` 에 만듭니다(실제 모델 답변이 없는 질문 초안).
+
+```powershell
+py -3 -X utf8 tools/context_sets.py j6 --out data/context_sets/j6-stress-v1
+py -3 -X utf8 tools/context_sets.py j7 --out data/context_sets/j7-v1
+py -3 -X utf8 tools/context_sets.py check data/context_sets/j7-v1
+```
+
+구조·현재 버전·남은 결정은 [인수인계 문서](참고자료/인수인계_2026-10-14.md)에 정리했습니다.
 
 ## 종료·재시작
 

@@ -152,8 +152,9 @@ def coverage(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
             "missing_items": [iid for iid, units in items.items() if not units and iid not in ANSWER_DEPENDENT_ITEMS]}
 
 
-def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, Any]:
-    """``pipeline`` 은 의미 평가 방식(legacy·items) — 없으면 평가와 같게 SEMANTIC_PIPELINE(.env) 을 따른다."""
+def check_items(items: List[Any], pipeline: Optional[str] = None, minimum: int = MIN_APPLICABLE) -> Dict[str, Any]:
+    """``pipeline`` 은 의미 평가 방식(legacy·items) — 없으면 평가와 같게 SEMANTIC_PIPELINE(.env) 을 따른다.
+    ``minimum`` 은 기준별 목표 적용 수 — 기본 30 은 잠정 운영 기준이라 비교용으로 바꿔 볼 수 있다(통계적 타당성은 미확인)."""
     pipeline = resolve_semantic_pipeline(pipeline=pipeline)
     errors: List[Dict[str, Any]] = []
     cases: List[Dict[str, Any]] = []
@@ -257,7 +258,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
     singles = sum(1 for case in cases if "conversation_id" not in case)
     conversations = len(turns)
     units = singles + conversations
-    criteria = criteria_counts(per_case)
+    criteria = criteria_counts(per_case, minimum)
     types = Counter(case["type"] for case in cases if case["type"])
     type_report = None
     if types:
@@ -266,7 +267,7 @@ def check_items(items: List[Any], pipeline: Optional[str] = None) -> Dict[str, A
                        for name, n in types.most_common()}
     return {"version": CHECK_VERSION, "pipeline": pipeline, "items": len(items), "questions": units, "single_questions": singles,
             "conversations": conversations, "conversation_turns": sum(len(v) for v in turns.values()),
-            "errors": errors, "duplicates": duplicates, "min_applicable": MIN_APPLICABLE, "count_unit": "question_or_conversation", "criteria": criteria,
+            "errors": errors, "duplicates": duplicates, "min_applicable": minimum, "count_unit": "question_or_conversation", "criteria": criteria,
             "undetermined": dict(undetermined),
             "short_criteria": [c for c in CRITERIA if not criteria[c]["enough"]], "types": type_report, "cases": per_case,
             "coverage": coverage(per_case),
@@ -303,8 +304,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("path", type=Path)
     parser.add_argument("--json", action="store_true", help="JSON 으로 출력")
     parser.add_argument("--pipeline", choices=("legacy", "items"), help="의미 평가 방식 (기본: .env 의 SEMANTIC_PIPELINE)")
+    parser.add_argument("--min-applicable", type=int, default=MIN_APPLICABLE, metavar="N",
+                        help=f"기준별 목표 적용 질문·대화 수 (기본 {MIN_APPLICABLE} — 잠정 운영 기준, 비교용으로 바꿀 수 있음)")
     args = parser.parse_args(argv)
-    report = check_items(load_items(args.path), args.pipeline)
+    if args.min_applicable < 1:
+        parser.error("--min-applicable 은 1 이상")
+    report = check_items(load_items(args.path), args.pipeline, args.min_applicable)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=1) if args.json else render(report))

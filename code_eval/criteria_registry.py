@@ -364,6 +364,18 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "criteria-registry-v10", "date": "2026-10-14", "scope": "registry",
      "changes": ["세부 기준(평가 대상) 목록을 한 곳에 고정: CODE 3 대분류 · 8 소분류 · 28 검사 → 질문 조건 37 (+ 늘 적용 3·답변 구조 7), "
                  "의미 8 기준 → 30 세부 기준 → 44 점검 항목 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 같은 목록을 쓴다"]},
+    {"version": "j5-outcome-detail-v5", "date": "2026-10-13", "scope": "semantic",
+     "changes": ["J5 '사실 오류 — 근거와 충돌'에 충돌 근거를 기록 (contradiction.basis: 외부 근거·사용자가 준 정보·참고 자료·답변 인용 출처) — "
+                 "사용자 제공 정보와의 불일치를 외부 사실 확인 결과로 오해하지 않게 (지시서 10-13 B)",
+                 "J5 '출처 접근 불가'에 서버 수집 실패 상태와 주체를 기록 (citation_access.side: 확인 환경 문제일 수 있음·구분 불가·답변 주소 문제)",
+                 "판정(PASS/FAIL)·사유 코드·라벨·factual_error_confirmed 는 바꾸지 않음 — 기록용 세부 구분만"]},
+    {"version": "judge-attachment-images-v1", "date": "2026-10-14", "scope": "semantic",
+     "changes": ["J8 이미지 첨부: 파일을 가리키는(path·sha256) 이미지는 허용 폴더·sha256·파일 서명(형식)·크기를 확인해 평가 모델(Claude API)에도 "
+                 "실제 그림을 보냄 — 답변 수집과 같은 확인 규칙(code_eval.attachment_images)",
+                 "확인 실패(파일 누락·sha256 불일치·형식 오류·5MB 초과)나 이미지를 받지 않는 평가 연결이면 그림이 있어야 하는 J8 은 묻지 않고 "
+                 "판정 미완료(ATTACHMENT_IMAGE_UNAVAILABLE) — 다른 기준은 글자로 그대로 평가",
+                 "파일을 가리키지 않는 이미지 항목(name·type·content 만)은 예전처럼 content 로 J8 판정 (기록 content_only)",
+                 "레코드 attachment_images 에 보낸 그림의 이름·형식·sha256 과 못 보낸 사유 — 그림 원본은 저장하지 않음. J8 기준 정의는 그대로"]},
 ]
 
 
@@ -396,7 +408,7 @@ def reference_details() -> Dict[str, Any]:
 
 
 def registry() -> Dict[str, Any]:
-    from .semantic_items import describe as describe_semantic_items   # 의미 25/39 정의는 semantic_items.describe() 한 곳만 쓴다
+    from .semantic_items import describe as describe_semantic_items   # 의미 27/41 정의는 semantic_items.describe() 한 곳만 쓴다
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
             # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 8 → 세부 30 → 항목 44 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),

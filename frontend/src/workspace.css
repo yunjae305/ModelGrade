@@ -448,6 +448,7 @@ progress::-moz-progress-bar {background:var(--brand-gradient)} .run-progress .al
 }
 .empty-response {color:var(--muted); padding:30px; font-size:13px}
 .answer-evaluation {margin:0 0 18px; padding:18px; border:1px solid var(--card-line); border-radius:16px; background:#FAFAFE}
+.answer-collection {margin:16px 0 0; min-width:0}
 .answer-verdict {display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px} .answer-verdict p {color:var(--muted); font-size:13px}
 .answer-checks {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
 .answer-checks>div {padding:14px; border:1px solid var(--card-line); border-radius:12px; background:#fff}
@@ -1050,6 +1051,10 @@ textarea::placeholder {color:#757f94}
   .answer-modal:has(#answer-evaluation:not([hidden])) {width:1240px}
   .answer-modal[open]:has(#answer-evaluation:not([hidden])) {display:grid; grid-template-columns:minmax(0,1fr) 380px; grid-template-rows:auto auto auto auto auto auto 1fr auto; column-gap:24px; align-items:start;
     grid-template-areas:"head head" "group eval" "nav eval" "context eval" "question eval" "tabs eval" "answer eval" "foot foot"}
+  /* 결과 화면의 수집 방식 비교(전체 폭)가 있을 때만 — 답변 칸(overflow:hidden)이 눌려 겹치지 않게 답변 행도 내용 높이로 (10-14 4차) */
+  .answer-modal[open]:has(#answer-evaluation:not([hidden])):has(#answer-collection:not([hidden])) {grid-template-rows:auto auto auto auto auto auto auto auto auto;
+    grid-template-areas:"head head" "group eval" "nav eval" "context eval" "question eval" "tabs eval" "answer eval" "compare compare" "foot foot"}
+  .answer-modal>.answer-collection {grid-area:compare}
   .answer-modal>.modal-heading {grid-area:head}
   .answer-modal>.answer-group {grid-area:group}
   .answer-modal>.answer-navigation {grid-area:nav}

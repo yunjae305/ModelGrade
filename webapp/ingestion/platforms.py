@@ -49,6 +49,9 @@ PLATFORMS: List[Dict[str, Any]] = [
     {"name": "FactChat API Gateway (Mindlogic)", "paths": ["live_api", "api_import"],
      "status": "업로드 직후 자동 수집 · API 응답 파일 (Chat Completions 형식)", "sources": "출처 필드 미확인",
      "note": "FactChat 은 여러 제공자 모델을 중계하는 플랫폼 — 실제 모델 ID 를 따로 기록. 실제 키 연결 검증 전"},
+    {"name": "FactChat (웹 서비스)", "paths": [], "status": "보류 — 웹 화면의 공식 대화 내보내기 미확인",
+     "sources": "미확인",
+     "note": "게이트웨이 API 답변(access_mode api)과 다른 경로 — 웹 답변은 access_mode web 으로만 기록. 화면 자동화·로그인 우회 안 함"},
     {"name": "우수AI (oosoo.kr)", "paths": [], "status": "보류 — 공개 API·공식 대화 내보내기 미확인", "sources": "미확인",
      "note": "화면 자동화·우회 로그인 안 함. 직접 복사 입력·대화 기록 JSON 으로만 가능"},
 ]

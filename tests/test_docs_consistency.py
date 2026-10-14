@@ -140,3 +140,38 @@ def test_latest_design_header_counts_match_the_criteria_registry():
     assert code and semantic, designs[-1].name
     assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'], counts['code_conditions'])
     assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])
+
+
+def test_changelog_anchors_are_unique_and_every_index_row_points_to_one():
+    """10-14 P1-5 — 변경내역 10-13 에 '#19' 앵커가 두 개라 목차 링크가 다른 항목을 가리키던 문제."""
+    history = read('변경내역/2026-10-13-변경내역.md')
+    anchors = re.findall(r'<a id="(change-2026-10-13-\d+)"></a>', history)
+    assert len(anchors) == len(set(anchors))
+    linked = re.findall(r'^\| \d+ \|.*\]\(#(change-2026-10-13-\d+)\)', history, flags=re.M)
+    assert linked and set(linked) <= set(anchors) and set(anchors) <= set(linked)
+
+
+def test_readme_states_the_current_semantic_item_counts():
+    from code_eval.semantic_items import ITEMS, SUBS
+    readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+    assert f'세부 기준 {len(SUBS)}·점검 항목 {len(ITEMS)}' in readme
+
+
+def test_handover_document_cites_the_current_versions():
+    """10-14 4차 — 인수인계 문서의 버전 표가 코드 상수와 같다 (버전을 올리면 문서도 같이 고친다)."""
+    from code_eval.attachment_images import JUDGE_IMAGE_POLICY_VERSION
+    from code_eval.jev_applicability import JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION
+    from code_eval.jev_eval import JEV_EVAL_VERSION
+    from code_eval.long_context import LONG_CONTEXT_POLICY_VERSION
+    from code_eval.multi_turn import MULTI_TURN_POLICY_VERSION
+    from code_eval.semantic_items import ITEMS, SUBS
+    from code_eval.semantic_policy import J5_OUTCOME_POLICY_VERSION
+    from webapp.run_summary import COLLECTION_COMPARISON_VERSION, CRITERIA_VERIFICATION_VERSION, RUN_SUMMARY_VERSION
+    from webapp.version_comparison import COMPARISON_VERSION
+    text = read('인수인계_2026-10-14.md')
+    for token in (ENGINE_VERSION, REGISTRY_VERSION, JEV_CRITERIA_VERSION, SEMANTIC_ITEMS_VERSION, JEV_APPLICABILITY_VERSION,
+                  SUB_APPLICABILITY_VERSION, MULTI_TURN_POLICY_VERSION, LONG_CONTEXT_POLICY_VERSION, J5_OUTCOME_POLICY_VERSION,
+                  JUDGE_IMAGE_POLICY_VERSION, JEV_EVAL_VERSION, RUN_SUMMARY_VERSION, COLLECTION_COMPARISON_VERSION,
+                  CRITERIA_VERIFICATION_VERSION, COMPARISON_VERSION):
+        assert f'`{token}`' in text, token
+    assert f'({len(SUBS)}·{len(ITEMS)})' in text

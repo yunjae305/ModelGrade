@@ -26,6 +26,7 @@ from code_eval.semantic_policy import (
     DECISION_POLICY,
     SOURCE_ORIGINAL_FAILURE_POLICY_VERSION,
     apply_source_original_failure_policy,
+    j5_outcome,
 )
 from webapp.registry_store import RegistryStore
 from webapp.version_registry import evaluation_profile
@@ -49,7 +50,7 @@ def _refresh_summary(batch, *, decision_policy=None, refresh_conversations=False
     semantic = batch['jev_eval']
     records = semantic['records']
     for part in semantic['summary'].values():
-        for field in ('targets', 'pass', 'fail', 'pending', 'unverified'):
+        for field in ('targets', 'pass', 'fail', 'pending', 'unverified', 'incomplete'):
             part[field] = 0
     for record in records:
         for cid in record['criteria']:
@@ -59,16 +60,27 @@ def _refresh_summary(batch, *, decision_policy=None, refresh_conversations=False
                 semantic['summary'][cid][decision['decision'].lower()] += 1
             elif decision.get('status') == 'UNVERIFIED':
                 semantic['summary'][cid]['unverified'] += 1
+            elif decision.get('status') == 'INCOMPLETE':   # 평가기 summarize_records 와 같게 (검색 불가 등 판정 미완료)
+                semantic['summary'][cid]['incomplete'] += 1
     for part in semantic['summary'].values():
         part['pending'] = part['targets'] - part['pass'] - part['fail']
     semantic['completed'] = sum(record['status'] == 'SUCCESS' and not record.get('review_required') for record in records)
     semantic['review_required'] = sum(bool(record.get('review_required')) for record in records)
     semantic['unverified'] = sum(part['unverified'] for part in semantic['summary'].values())
+    semantic['incomplete'] = sum(part['incomplete'] for part in semantic['summary'].values())
     semantic['status'] = _overall(records)
     semantic['decision_policy'] = copy.deepcopy(DECISION_POLICY if decision_policy is None else decision_policy)
     if refresh_conversations:
         semantic['conversations'] = conversations_summary(batch['cases'], records, conversation_contexts(batch['cases']))
     batch['combined'] = combined_summary(batch)
+
+
+def _refresh_j5_outcome(record, had_outcome):
+    """정책으로 J5 가 바뀐 레코드의 j5_outcome 을 다시 계산한다 — 저장 당시 j5_outcome 이 있던 레코드만
+    (평가기가 j5_outcome 을 남기지 않던 옛 결과는 새 해석을 덧붙이지 않는다)."""
+    j5 = (record.get('decisions') or {}).get('J5')
+    if had_outcome and isinstance(j5, dict):
+        j5['j5_outcome'] = j5_outcome(record)
 
 
 def _evaluation_state(batch, index, contexts=None):
@@ -172,9 +184,11 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
         provider_modifications = []
         contexts = conversation_contexts(batch['cases']) if policy == 'final' else {}
         for index, record in enumerate(batch.get('jev_eval', {}).get('records', [])):
+            had_outcome = isinstance(record, dict) and 'j5_outcome' in ((record.get('decisions') or {}).get('J5') or {})
             if policy == 'source_original':
                 update = apply_source_original_failure_policy(record)
                 if update['changed']:
+                    _refresh_j5_outcome(record, had_outcome)
                     provider_modifications.append({'provider': provider, 'case_index': index,
                         'case_id': record['case_id'], 'criterion': 'J5', 'before': 'UNVERIFIED',
                         'after': 'FAIL', 'source_failures': copy.deepcopy(update['failures'])})
@@ -183,6 +197,7 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
                 previous = copy.deepcopy(record.get('decisions') or {})
                 update = apply_final_decision_policy(record, state=_evaluation_state(batch, index, contexts))
                 if update['changed']:
+                    _refresh_j5_outcome(record, had_outcome)
                     for cid, decision in (record.get('decisions') or {}).items():
                         old = previous.get(cid) or {}
                         if old.get('status') == 'UNVERIFIED' and decision.get('decision') in ('PASS', 'FAIL'):

@@ -6,13 +6,17 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List, Optional
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from code_eval.common_adjudication import resolved_case
 
 from .version_registry import evaluation_profile, fingerprint
 
-__all__ = ["RUN_SUMMARY_VERSION", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
+__all__ = ["RUN_SUMMARY_VERSION", "COLLECTION_COMPARISON_VERSION", "CRITERIA_VERIFICATION_VERSION", "collection_comparison",
+           "criteria_verification", "evaluation_method", "input_composition",
+           "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
 RUN_SUMMARY_VERSION = "run-summary-v2"
@@ -46,6 +50,38 @@ def question_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, 
         outcome = "PENDING"
     return {"outcome": outcome, "code_fails": [c for c in code_fails if c], "semantic_fails": semantic_fails,
             "code_complete": code_complete, "semantic_complete": semantic_complete}
+
+
+#: 검증 한계 FAIL — 답변 결함을 확인한 것이 아니라 근거·원문을 확인하지 못해 정책상 FAIL 로 둔 것 (J5 근거 부족·원문 확인 실패·검색 한도,
+#: items 재확인 3회 뒤 확인 불가). 출처 접근 불가(citation_inaccessible)는 사용자 결정(evidence-v3.14)대로 답변 결함으로 본다.
+LIMIT_J5_CODES = frozenset({"source_unavailable", "insufficient_evidence", "search_limit_reached"})
+LIMIT_REASON_CODES = frozenset({"EVALUATION_EVIDENCE_INSUFFICIENT", "SOURCE_ORIGINAL_UNAVAILABLE", "FACT_UNVERIFIABLE", "ITEM_UNVERIFIABLE"})
+
+
+def verification_limited_decision(decision: Any) -> bool:
+    """기준 판정 하나가 검증 한계로만 FAIL 인가 — workspace-results.js verificationLimited 와 같은 규칙."""
+    if not isinstance(decision, dict) or decision.get("decision") != "FAIL":
+        return False
+    outcome = decision.get("j5_outcome") if isinstance(decision.get("j5_outcome"), dict) else {}
+    if outcome.get("factual_error_confirmed"):
+        return False
+    if outcome.get("code") in LIMIT_J5_CODES or decision.get("reason_code") in LIMIT_REASON_CODES:
+        return True
+    if (decision.get("decision_policy") or {}).get("outcome_basis") in ("evidence_requirement", "source_verification_requirement"):
+        return True
+    failed = [item for sub in (decision.get("subs") or {}).values() if isinstance(sub, dict)
+              for item in sub.get("items") or [] if isinstance(item, dict) and item.get("decision") == "NO"]
+    return bool(failed) and all(item.get("unverifiable") for item in failed)
+
+
+def verification_limited(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]) -> bool:
+    """질문 FAIL 이 검증 한계로만 생겼는가 — CODE FAIL 이 없고, FAIL 인 의미 기준이 모두 검증 한계."""
+    outcome = question_outcome(case, record)
+    common_fail = (((case or {}).get("summary") or {}).get("common") or {}).get("fail", 0)
+    if outcome["outcome"] != "FAIL" or outcome["code_fails"] or common_fail or not outcome["semantic_fails"]:
+        return False
+    decisions = (record or {}).get("decisions") or {}
+    return all(verification_limited_decision(decisions.get(cid)) for cid in outcome["semantic_fails"])
 
 
 def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -92,6 +128,251 @@ def unit_outcome(outcomes: List[str]) -> str:
 
 def _rate(passed: int, failed: int) -> Optional[float]:
     return round(passed / (passed + failed), 4) if passed + failed else None
+
+
+def _only(values: List[Any]) -> Any:
+    """모두 같은 값이면 그 값, 서로 다르면 'mixed', 없으면 None."""
+    found = {v for v in values if v is not None}
+    return next(iter(found)) if len(found) == 1 else "mixed" if found else None
+
+
+def j5_fail_causes(batch: Dict[str, Any]) -> Dict[str, Any]:
+    """한 모델의 J5 FAIL 을 저장된 j5_outcome 으로 센다 — 사실 오류 확정과 검증 한계(원문·근거·검색·출처 접근)를 나눈다.
+    결과 화면 j5Breakdown(workspace-results.js)과 같은 키(code[:세부 종류]). 사유 기록이 없는 옛 FAIL 은 unclassified."""
+    out: Dict[str, Any] = {"fail": 0, "confirmed": 0, "unclassified": 0, "causes": {}}
+    for record in ((batch or {}).get("jev_eval") or {}).get("records") or []:
+        if not isinstance(record, dict) or record.get("status") != "SUCCESS" or "J5" not in (record.get("criteria") or []):
+            continue
+        j5 = (record.get("decisions") or {}).get("J5") or {}
+        if j5.get("decision") != "FAIL":
+            continue
+        out["fail"] += 1
+        outcome = j5.get("j5_outcome") if isinstance(j5.get("j5_outcome"), dict) else {}
+        if not outcome.get("code"):
+            out["unclassified"] += 1
+            continue
+        confirmed = bool(outcome.get("factual_error_confirmed"))
+        out["confirmed"] += confirmed
+        key = ":".join(str(v) for v in (outcome["code"], (outcome.get("source_failure") or {}).get("kind"),
+                                         (outcome.get("contradiction") or {}).get("basis"), (outcome.get("citation_access") or {}).get("side")) if v)
+        entry = out["causes"].setdefault(key, {"label": outcome.get("label"), "count": 0, "confirmed": confirmed})
+        entry["count"] += 1
+    return out
+
+
+def _usage_tokens(raw: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]]:
+    """수집 응답의 (입력, 출력) 토큰 — 제공자 집계 그대로 (Anthropic 캐시 토큰 포함, Gemini 는 생각 토큰 포함 출력)."""
+    usage, meta = raw.get("usage") or {}, raw.get("usageMetadata") or {}
+    if meta:
+        return meta.get("promptTokenCount"), (meta.get("candidatesTokenCount") or 0) + (meta.get("thoughtsTokenCount") or 0)
+    if not usage:
+        return None, None
+    inp = usage.get("input_tokens", usage.get("prompt_tokens"))
+    if isinstance(inp, int):
+        inp += int(usage.get("cache_read_input_tokens") or 0) + int(usage.get("cache_creation_input_tokens") or 0)
+    return inp, usage.get("output_tokens", usage.get("completion_tokens"))
+
+
+COLLECTION_COMPARISON_VERSION = "collection-comparison-v1"
+_ACCESS_LABELS = {"api": "API", "web": "웹", "agent": "에이전트", "platform": "외부 플랫폼"}
+
+
+def _model_name(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return value.get("model") or value.get("label")
+    return None
+
+
+def _method(run: Dict[str, Any], provider: str, collection: Dict[str, Any]) -> str:
+    """수집 방식 이름 — 행·실행에 기록된 것만 쓴다 (추정하지 않는다)."""
+    if provider == "aiona":
+        document = run.get("input_document") if isinstance(run.get("input_document"), dict) else {}
+        return "업로드 원문" + (f" ({document['format']})" if document.get("format") else "")
+    access = collection.get("access_mode") or ((run.get("systems") or {}).get(provider) or {}).get("access_mode")
+    label = collection.get("collection_method_label")
+    if label:   # 외부 가져오기 행: 접근 경로(API·웹·…) + 수집 방식(공식 내보내기·직접 복사 등)
+        return f"{_ACCESS_LABELS.get(access, access or '경로 미기록')} · {label}"
+    request = (run.get("collection_execution") or {}).get("request") or {}
+    if request.get("access_mode") == "api" or collection.get("request") or collection.get("requested_at"):
+        return "게이트웨이 API 실시간 수집 (FactChat)" if provider == "factchat" else "API 실시간 수집"
+    if isinstance(collection.get("raw"), dict) and collection["raw"]:
+        return "API 수집 (방식 기록 전 실행 — 제공자 원본 응답으로 확인)"
+    return "수집 방식 기록 없음"
+
+
+def collection_comparison(run: Dict[str, Any]) -> Dict[str, Any]:
+    """질문마다 시스템별 수집 방식·모델(설정·응답)·입력·출력 토큰·답변 길이·요청·수신 시각·수집 상태·실패 사유·평가 여부·질문 판정 —
+    같은 질문을 나란히 본다 (10-14 4차 P1-6). 저장 실행만 읽고, 기록이 없는 값은 None 으로 둔다 (지어내지 않는다).
+    판정이 시스템마다 다르면 outcomes_differ. 실행 이름·AIONA 버전 메모에 '샘플'이 있으면 sample=True (시연용 샘플 표시)."""
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    providers = [p for p in (run.get("providers") or list(datasets)) if p in datasets]
+    total = max([len(datasets[p] or []) for p in providers] or [0])
+    models = run.get("models") if isinstance(run.get("models"), dict) else {}
+    systems = run.get("systems") if isinstance(run.get("systems"), dict) else {}
+    outcomes = {p: question_outcomes(evaluations.get(p), total) for p in providers}
+    records = {p: ((evaluations.get(p) or {}).get("jev_eval") or {}).get("records") or [] for p in providers}
+    questions = []
+    for index in range(total):
+        entries = []
+        for provider in providers:
+            rows = datasets[provider] or []
+            row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+            collection = row.get("collection") if isinstance(row.get("collection"), dict) else {}
+            raw = collection.get("raw") if isinstance(collection.get("raw"), dict) else {}
+            usage = collection.get("usage") if isinstance(collection.get("usage"), dict) else {}
+            inp, out = _usage_tokens(raw) if raw else (usage.get("input_tokens"), usage.get("output_tokens"))
+            record = records[provider][index] if index < len(records[provider]) and isinstance(records[provider][index], dict) else None
+            entries.append({
+                "system": provider, "method": _method(run, provider, collection),
+                "model": _model_name(models.get(provider)) or _model_name(systems.get(provider)),
+                "response_model": (raw.get("model") or raw.get("modelVersion")) if raw else collection.get("model"),
+                "input_tokens": inp, "output_tokens": out, "answer_chars": len(row.get("answer") or ""),
+                "requested_at": collection.get("requested_at"), "collected_at": collection.get("collected_at") or collection.get("received_at"),
+                "status": "UPLOADED" if provider == "aiona" else (collection.get("status") or "MISSING"),
+                "error": collection.get("error") if provider != "aiona" else None,
+                "evaluation": (record or {}).get("status"), "criteria": len((record or {}).get("criteria") or []),
+                "outcome": outcomes[provider][index]["outcome"] if index < len(outcomes[provider]) else "PENDING"})
+        judged = {e["outcome"] for e in entries if e["outcome"] in ("PASS", "FAIL")}
+        first = next((rows[index] for p in providers if index < len(rows := datasets[p] or []) and isinstance(rows[index], dict)), {})
+        questions.append({"index": index, "case_id": first.get("case_id"), "conversation_id": first.get("conversation_id"),
+                          "turn": first.get("turn"), "systems": entries, "outcomes_differ": len(judged) > 1})
+    marks = " ".join(str(v) for v in (run.get("name"), (run.get("aiona_release") or {}).get("notes")) if v)
+    return {"version": COLLECTION_COMPARISON_VERSION, "sample": "샘플" in marks, "questions": questions}
+
+
+CRITERIA_VERIFICATION_VERSION = "criteria-verification-v1"
+REVIEW_DIR = Path(__file__).resolve().parents[1] / "results" / "review"
+
+
+def _review_compare(run_id: Optional[str], criterion: str, review_dir: Path) -> Optional[Dict[str, Any]]:
+    """사람 검수 대조 결과(tools/review_kit.py compare → <실행>-<기준>-kit/compare.json) — 없으면 None. 사람 정답만 센다."""
+    if not run_id:
+        return None
+    path = review_dir / f"{run_id}-{criterion}-kit" / "compare.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def criteria_verification(run: Dict[str, Any], review_dir: Optional[Path] = None) -> Dict[str, Any]:
+    """기준별 검증 현황 — 기준마다 적용 답변·질문 단위·독립 대화·실제 판정(PASS·FAIL·검증 한계)·검증 미완료와, 사람 검수 수·정답 일치.
+    사람 검수가 없으면 정확도는 None(화면 '미측정') — 0% 로 두지 않는다 (10-14 4차 P1-7). 저장 실행과 검수 결과 파일만 읽는다."""
+    from code_eval.criteria_registry import CODE_UNITS
+    from code_eval.jev_criteria import CRITERIA
+    from code_eval.semantic_items import ITEMS, SUBS
+    review_dir = REVIEW_DIR if review_dir is None else Path(review_dir)
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    providers = [p for p in (run.get("providers") or list(evaluations)) if p in evaluations]
+    rows = []
+    for criterion in CRITERIA:
+        cid = criterion.id
+        applied = judged = passed = failed = limited = 0
+        units, conversations = set(), set()
+        for provider in providers:
+            records = ((evaluations.get(provider) or {}).get("jev_eval") or {}).get("records") or []
+            source = datasets.get(provider) or []
+            for index, record in enumerate(records):
+                if not isinstance(record, dict) or cid not in (record.get("criteria") or []):
+                    continue
+                applied += 1
+                row = source[index] if index < len(source) and isinstance(source[index], dict) else {}
+                conversation = row.get("conversation_id")
+                units.add(("conversation", conversation) if conversation else ("single", index))
+                if conversation:
+                    conversations.add(conversation)
+                decision = (record.get("decisions") or {}).get(cid) or {}
+                if decision.get("decision") in ("PASS", "FAIL"):
+                    judged += 1
+                    passed += decision["decision"] == "PASS"
+                    if decision["decision"] == "FAIL":
+                        failed += 1
+                        limited += verification_limited_decision(decision)
+        review = _review_compare(run.get("run_id"), cid, review_dir)
+        agreement = (review or {}).get("agreement") if isinstance((review or {}).get("agreement"), dict) else None
+        decided = int(agreement.get("decided") or 0) if agreement else 0
+        rows.append({"id": cid, "name": criterion.name, "applied_answers": applied, "applied_units": len(units),
+                     "conversations": len(conversations), "judged": judged, "pass": passed, "fail": failed, "limited_fail": limited,
+                     "unresolved": applied - judged, "human_reviewed": int((review or {}).get("gold") or 0),
+                     "human_agree": int(agreement.get("agree") or 0) if agreement else 0,
+                     "accuracy": round(agreement["agree"] / decided, 4) if agreement and decided else None})
+    return {"version": CRITERIA_VERIFICATION_VERSION,
+            "catalog": {"criteria": len(CRITERIA), "subs": len(SUBS), "items": len(ITEMS),
+                        "code_checks": sum(1 for unit in CODE_UNITS if unit[2] != "aiona")},
+            "criteria": rows,
+            "not_applied": [r["id"] for r in rows if not r["applied_answers"]],
+            "not_human_verified": [r["id"] for r in rows if r["accuracy"] is None]}
+
+
+def input_composition(run: Dict[str, Any]) -> Dict[str, Any]:
+    """모델별 입력 구성 — 수집 입력·출력 토큰(제공자 집계)·요청 수·턴·대화·가장 큰 요청·판정한 기준 수·첨부 미전달 수,
+    그리고 모델마다 입력이 달랐던 이유(notes). 저장 실행만 읽는다. 점수는 바꾸지 않는다 (10-14 3차 4단계)."""
+    datasets, evaluations = run.get("datasets") or {}, run.get("evaluations") or {}
+    systems: Dict[str, Any] = {}
+    for provider, rows in datasets.items():
+        rows = [r for r in rows or [] if isinstance(r, dict)]
+        records = ((evaluations.get(provider) or {}).get("jev_eval") or {}).get("records") or []
+        judged = sum(1 for r in records if isinstance(r, dict) for cid in (r.get("criteria") or [])
+                     if ((r.get("decisions") or {}).get(cid) or {}).get("decision") in ("PASS", "FAIL"))
+        entry: Dict[str, Any] = {"turns": len(rows), "conversations": len({r.get("conversation_id") for r in rows if r.get("conversation_id") not in (None, "")}),
+                                 "judged_criteria": judged}
+        if provider == "aiona":
+            systems[provider] = {**entry, "source": "업로드 원문"}
+            continue
+        usages = [_usage_tokens(((r.get("collection") or {}).get("raw") or {})) for r in rows]
+        inputs = [i for i, _ in usages if isinstance(i, int)]
+        outputs = [o for _, o in usages if isinstance(o, int)]
+        requests = [(r.get("collection") or {}).get("request") or {} for r in rows]
+        systems[provider] = {**entry, "source": "API 수집", "requests": len(rows), "usage_recorded": len(inputs),
+                             "input_tokens": sum(inputs), "output_tokens": sum(outputs), "max_request_input": max(inputs, default=None),
+                             "attachments_not_sent": sum(1 for q in requests if (q.get("attachments_in_question") or 0) > (q.get("attachments_sent") or 0))}
+    notes = []
+    collected = {p: s for p, s in systems.items() if s.get("source") == "API 수집" and s.get("max_request_input") is not None}
+    if any(s["conversations"] for s in collected.values()) and len(collected) > 1:
+        notes.append({"code": "own_history", "text": "멀티턴 대화는 모델마다 자기 이전 답변을 이력으로 받아 입력이 다릅니다 — 가장 큰 요청 "
+                      + " · ".join(f"{p} {s['max_request_input']:,}" for p, s in collected.items()) + " 토큰 (제공자 집계, 토크나이저도 다름)"})
+    missing = {p: s["attachments_not_sent"] for p, s in systems.items() if s.get("attachments_not_sent")}
+    if missing:
+        notes.append({"code": "attachments_not_sent", "text": "첨부 질문을 API 모델에 보낼 때 첨부 일부 또는 전부가 전달되지 않았습니다 — "
+                      + " · ".join(f"{p} {n}개" for p, n in missing.items()) + ". 이 답변들의 J8(첨부파일 활용) 판정은 같은 조건이 아닙니다"})
+    return {"systems": systems, "notes": notes}
+
+
+def evaluation_method(run: Dict[str, Any]) -> Dict[str, Any]:
+    """저장된 실행의 의미 평가 방식·기준 버전·실제 판정 수 — 결과 화면(API)·평가 로그·검증 도구가 같은 계산을 쓴다 (현재 설정 소급 없음).
+
+    pipeline_source: evaluation_execution(실행 시작 때 기록) · jev_eval(평가 배치 기록) · inferred(방식 기록이 생기기 전 실행 → legacy).
+    catalog 는 저장된 기준 목록 수와, items 판의 세부 기준·점검 항목 수(저장된 items_version 이 현재 코드와 같을 때만).
+    judged 는 저장된 레코드에서 센 실제 수 — answers(판정 완료 답변) · criteria(PASS/FAIL 로 확정된 기준 판정) · items(적용된 점검 항목, items 만).
+    """
+    from code_eval.semantic_items import ITEMS, SEMANTIC_ITEMS_VERSION, SUBS
+    batches = [b["jev_eval"] for b in (run.get("evaluations") or {}).values()
+               if isinstance(b, dict) and not b.get("live") and isinstance(b.get("jev_eval"), dict)]
+    records = [r for jev in batches for r in jev.get("records") or [] if isinstance(r, dict)]
+    recorded = (run.get("evaluation_execution") or {}).get("pipeline")
+    batch_pipeline = _only([jev.get("pipeline") for jev in batches])
+    if recorded in ("legacy", "items"):
+        pipeline, source = recorded, "evaluation_execution"
+    elif batch_pipeline in ("legacy", "items"):
+        pipeline, source = batch_pipeline, "jev_eval"
+    elif records and batch_pipeline is None and not any(r.get("pipeline") == "items" for r in records):
+        pipeline, source = "legacy", "inferred"
+    else:
+        pipeline, source = None, None
+    items_version = _only([jev.get("items_version") for jev in batches])
+    catalog_criteria = _only([len(jev["criteria"]) for jev in batches if isinstance(jev.get("criteria"), list)])
+    current_items = pipeline == "items" and items_version == SEMANTIC_ITEMS_VERSION
+    judged_criteria = sum(1 for r in records for cid in (r.get("criteria") if isinstance(r.get("criteria"), list) else [])
+                          if ((r.get("decisions") or {}).get(cid) or {}).get("decision") in ("PASS", "FAIL"))
+    applied = [((r.get("items") or {}).get("applied")) for r in records]
+    return {"pipeline": pipeline, "pipeline_source": source, "criteria_version": _only([jev.get("criteria_version") for jev in batches]),
+            "items_version": items_version,
+            "catalog": {"criteria": catalog_criteria, "subs": len(SUBS) if current_items else None, "items": len(ITEMS) if current_items else None},
+            "judged": {"answers": sum(1 for r in records if r.get("status") == "SUCCESS"), "criteria": judged_criteria,
+                       "items": sum(a for a in applied if isinstance(a, int)) if pipeline == "items" else None}}
 
 
 def _criteria_rates(batch: Dict[str, Any]) -> Dict[str, Any]:
@@ -157,7 +438,7 @@ def run_summary(run: Dict[str, Any]) -> Dict[str, Any]:
         per_unit = [unit_outcome([outcomes[i]["outcome"] for i in unit]) for unit in units]
         counts = {key: per_unit.count(key) for key in kinds}
         results[provider] = {"questions": counts, "turns": turns, "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
-                             **_criteria_rates(batch)}
+                             **_criteria_rates(batch), "j5_fail_causes": j5_fail_causes(batch)}
     return {"version": RUN_SUMMARY_VERSION, "run_id": run.get("run_id"), "name": run.get("name"), "status": run.get("status"),
             "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),
             "question_set": {"fingerprint": run.get("dataset_fingerprint") or fingerprint(datasets.get("aiona") or []), "count": total,

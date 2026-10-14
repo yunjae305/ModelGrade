@@ -79,7 +79,7 @@ def main():
                 expect(page.locator('#live-semantic')).to_have_text('2 / 3개', timeout=6000)
                 expect(page.locator('#live-semantic-detail')).to_contain_text('오류 1')
                 expect(page.locator('#matrix-body tr').nth(2).locator('.pill')).to_have_text('평가 미완료')
-                expect(page.locator('.evaluation-warning')).to_contain_text('미완료 사유 · 1개 질문')
+                expect(page.locator('.evaluation-warning').filter(has_text='미완료 사유')).to_contain_text('미완료 사유 · 1개 질문')
                 page.locator('#matrix-body tr').nth(2).locator('.result-cell').click()
                 page.locator('#answer-evaluation summary').click()
                 judge.release['first'].set()

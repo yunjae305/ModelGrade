@@ -112,46 +112,43 @@ def main():
                 page.locator('#history-body').get_by_role('button', name='상세 보기', exact=True).click()
                 expect(page.locator('#history-detail-dialog')).to_contain_text('저장된 원문')
                 expect(page.locator('#history-detail-dialog')).to_contain_text('평가 조건')
-                expect(page.locator('#history-detail-dialog')).to_contain_text('관련 작업 이력')
+                # a90b6be 가 작업 이력(관련 작업 이력·작업 이력 탭·activity-history API)을 없앴다 — 같은 정보는 아래 버전 상세의 변경 기록에서 본다
                 page.keyboard.press('Escape')
                 page.locator('[data-view="versions"]').click()
                 page.locator('[data-view="history"]').click()
                 expect(page.locator('#history-search')).to_have_value(source['run_id'])
                 page.locator('#history-search').fill('')
                 page.screenshot(path=str(output / 'runs-desktop.png'), full_page=True)
-                page.locator('#history-tab-activities').click()
-                page.locator('#activity-type-filter').select_option('default_version_changed')
-                page.locator('#activity-search').fill('회귀 검증용 기본값 변경')
-                expect(page.locator('#activity-body tr')).to_have_count(1)
-                page.locator('#activity-body').get_by_role('button', name='상세 보기', exact=True).click()
-                expect(page.locator('#history-detail-dialog')).to_contain_text('로컬 사용자')
-                expect(page.locator('#history-detail-dialog')).to_contain_text('변경 전')
-                expect(page.locator('#history-detail-dialog')).to_contain_text('v2')
-                expect(page.locator('#history-detail-dialog')).to_contain_text('v3')
+                # 기본 평가 버전 변경 기록(이전 버전 → 새 버전 · 사유)은 버전 상세에 남는다 (예전 작업 이력 상세 대신)
+                page.locator('[data-view="versions"]').click()
+                page.locator('[data-model-version="v3"]').get_by_role('button', name='상세 보기', exact=True).click()
+                expect(page.locator('#model-release-detail')).to_contain_text('기본 평가 버전 변경 기록')
+                expect(page.locator('#model-release-detail')).to_contain_text('AIONA v2 → AIONA v3')
+                expect(page.locator('#model-release-detail')).to_contain_text('회귀 검증용 기본값 변경')
                 page.screenshot(path=str(output / 'activity-detail-desktop.png'), full_page=True)
                 page.keyboard.press('Escape')
-                page.screenshot(path=str(output / 'activities-desktop.png'), full_page=True)
+                page.locator('[data-view="history"]').click()
                 for view in ['versions', 'comparison', 'history']:
                     page.set_viewport_size({'width': 390, 'height': 844})
                     page.evaluate('(view) => AionaWorkspace.go(view)', view)
                     expect(page.locator('#view-' + view)).to_be_visible()
                     if view == 'history':
-                        expect(page.locator('#history-panel-activities')).to_have_attribute('aria-busy', 'false')
+                        expect(page.locator('#history-panel')).to_have_attribute('aria-busy', 'false')
                     else:
                         expect(page.locator('#version-summary')).to_have_attribute('aria-busy', 'false')
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), view
                     page.screenshot(path=str(output / (view + '-mobile.png')), full_page=True)
 
-                # Explicit API failure and truly empty state are different from filtered results.
-                page.route('**/api/comparison/activity-history', lambda route: route.fulfill(status=503, json={'error': '검증용 조회 오류'}))
+                # Explicit API failure and truly empty state are different from filtered results (AIONA 결과 이력 API).
+                page.route('**/api/comparison/aiona-history', lambda route: route.fulfill(status=503, json={'error': '검증용 조회 오류'}))
                 page.locator('#refresh-history').click()
-                expect(page.locator('#history-feedback-activities')).to_contain_text('검증용 조회 오류')
+                expect(page.locator('#history-feedback')).to_contain_text('검증용 조회 오류')
                 page.screenshot(path=str(output / 'activity-error-mobile.png'), full_page=True)
-                page.unroute('**/api/comparison/activity-history')
-                page.route('**/api/comparison/activity-history', lambda route: route.fulfill(json={'events': [], 'total': 0}))
+                page.unroute('**/api/comparison/aiona-history')
+                page.route('**/api/comparison/aiona-history', lambda route: route.fulfill(json={'entries': [], 'series': []}))
                 page.locator('#refresh-history').click()
-                expect(page.locator('#history-feedback-activities')).to_contain_text('아직 작업 이력이 없습니다')
-                page.unroute('**/api/comparison/activity-history')
+                expect(page.locator('#history-feedback')).to_contain_text('아직 쌓인 기록이 없습니다')
+                page.unroute('**/api/comparison/aiona-history')
                 page.set_viewport_size({'width': 1440, 'height': 1080})
                 page.locator('[data-view="versions"]').click()
                 page.locator('#version-register-next').click()
@@ -176,7 +173,7 @@ def main():
         finally:
             server.shutdown()
             server.server_close()
-    print('PASS: registration/default reason, persisted activity, exact saved comparison, filters, details, focus, empty/error/save failure, mobile; mocked evaluation only.')
+    print('PASS: registration/default reason, default-change record in the version detail, exact saved comparison, filters, details, focus, empty/error/save failure, mobile; mocked evaluation only.')
 
 
 if __name__ == '__main__':

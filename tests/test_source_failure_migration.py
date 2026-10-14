@@ -190,3 +190,59 @@ def test_failure_restores_exact_bytes_and_leaves_no_policy_update(tmp_path, monk
             if backup.is_file():
                 assert backup.read_bytes() == body
     assert not list(tmp_path.rglob('*.tmp'))
+
+
+def _rewrite(path, run, edit):
+    """저장 실행과 연결된 평가 파일을 같은 내용으로 함께 고친다 (마이그레이션 입력 준비용)."""
+    for batch in run['evaluations'].values():
+        edit(batch)
+        linked = path.parents[2] / batch['run']['saved_to']
+        standalone = copy.deepcopy(batch)
+        standalone['run'].pop('saved_to')   # 연결 파일은 saved_to 없이 저장된 그대로
+        linked.write_text(json.dumps(standalone, ensure_ascii=False), encoding='utf-8')
+    path.write_text(json.dumps(run, ensure_ascii=False), encoding='utf-8')
+
+
+def test_reapplied_policy_recomputes_a_saved_j5_outcome_instead_of_leaving_it_stale(tmp_path):
+    """지시서 10-14 P0-1 — 정책으로 J5 가 FAIL 이 됐는데 j5_outcome 이 정책 전 값(분류 정보 없음)으로 남던 문제."""
+    from code_eval.semantic_policy import j5_outcome
+    path, run = make_run(tmp_path)
+
+    def stamp(batch):
+        for record in batch['jev_eval']['records']:
+            record['decisions']['J5']['j5_outcome'] = j5_outcome(record)   # 새 평가기가 저장하는 대로
+    _rewrite(path, run, stamp)
+    assert run['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J5']['j5_outcome']['code'] == 'unclassified'
+    migration.migrate(tmp_path, RUN_ID, apply=True)
+    saved = json.loads(path.read_text(encoding='utf-8'))
+    j5 = saved['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J5']
+    assert j5['decision'] == 'FAIL' and j5['reason_code'] == 'SOURCE_ORIGINAL_UNAVAILABLE'
+    assert j5['j5_outcome']['code'] == 'source_unavailable' and j5['j5_outcome']['factual_error_confirmed'] is False
+    assert j5['j5_outcome']['source_failure']['kind'] == 'access_failed'
+    untouched = saved['evaluations']['gemini']['jev_eval']['records'][1]['decisions']['J5']
+    assert untouched['j5_outcome']['code'] == 'verified'          # 바뀌지 않은 레코드는 그대로
+    plain = json.loads(path.read_text(encoding='utf-8'))['evaluations']['claude']['jev_eval']['records'][0]['decisions']['J5']
+    assert plain['j5_outcome']['code'] == 'verified'
+    from tools.j5_audit import audit_consistency
+    assert audit_consistency(saved)['violations'] == []   # 재적용 뒤 j5_outcome·사유 코드·상태가 서로 맞는다 (10-14 3차)
+
+
+def test_refreshed_summary_counts_incomplete_like_the_evaluator(tmp_path):
+    """검색이 꺼져 미완료가 된 J5 를 재집계가 세지 않아 summary.incomplete 가 비거나 옛 값으로 남던 문제."""
+    path, run = make_run(tmp_path)
+
+    def search_off(batch):
+        if batch is run['evaluations']['aiona']:
+            record = batch['jev_eval']['records'][0]
+            record['verification'] = {'search_mode': 'disabled', 'search_performed': False}
+            record['decisions']['J5']['fact_check'] = {'basis': 'none', 'claims': [
+                {'claim': 'fixture answer', 'verdict': 'UNVERIFIED', 'scope': 'external_fact', 'reason': '검색 없음', 'sources': []}]}
+        migration._refresh_summary(batch)
+        batch['jev_eval'].pop('decision_policy')
+    _rewrite(path, run, search_off)
+    report = migration.migrate(tmp_path, RUN_ID, apply=True, policy='final')
+    saved = json.loads(path.read_text(encoding='utf-8'))
+    semantic = saved['evaluations']['aiona']['jev_eval']
+    assert semantic['records'][0]['decisions']['J5']['status'] == 'INCOMPLETE'
+    assert semantic['summary']['J5']['incomplete'] == 1 and semantic['incomplete'] == 1
+    assert report['status'] == 'APPLIED'
