@@ -125,12 +125,77 @@
       coverageSummary(set.coverage, meta, !imported(set)),   // 직접 넣은 질문은 빠진 항목 목록을 보이지 않는다
       reviewBox(set),
       set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
+      panel === INPUT ? runBox() : null,
       node('div', {class: 'question-set-footer'}, generationLog(set),
         node('div', {class: 'question-set-actions'},
           node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
-          set.run_id
+          panel === INPUT ? null
+            : set.run_id
             ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
             : node('button', {class: 'button primary compact', type: 'button', onclick: () => runSet(panel)}, '평가 시작')))].filter(Boolean));
+    if (panel === INPUT) pollRun();
+  }
+
+  // 질문 직접 넣기 — 답변 수집 진행(모델마다 받은 수) → 모두 받으면 '평가 진행' → 평가 중·결과 보기 (사용자 요청 2026-10-14)
+  const STAGE = {WAITING: '대기', COLLECTING: '받는 중', COMPLETED: '완료', CANCELLED: '중단', ERROR: '오류'};
+  let runTimer = null;
+  function runBox() {
+    const box = node('div', {class: 'question-input-run', id: 'question-input-run'});
+    fillRun(box, INPUT.run && INPUT.run.run_id === INPUT.current?.run_id ? INPUT.run : null);
+    return box;
+  }
+
+  function fillRun(box, run) {
+    if (!box) return;
+    const set = INPUT.current;
+    if (!set?.run_id) { box.replaceChildren(); return; }
+    if (!run) { box.replaceChildren(node('p', {class: 'field-help', role: 'status', text: '답변 수집 상태를 불러오는 중'})); return; }
+    const rows = (run.providers || []).map((p) => {
+      const g = (run.progress || {})[p] || {};
+      const failed = (g.failed || 0) + (g.incomplete || 0);
+      return node('li', {}, node('strong', {text: W.providerName ? W.providerName(p) : p}),
+        node('span', {text: ` ${run.models?.[p] || ''}`}),
+        node('span', {class: 'pill ' + (g.stage === 'COMPLETED' ? 'success' : g.stage === 'COLLECTING' ? 'warning' : 'neutral'),
+          text: `${STAGE[g.stage] || g.stage || '대기'} · ${g.done || 0}/${g.total || 0}` + (failed ? ` · 실패 ${failed}` : '')}));
+    });
+    let action;
+    if (run.status === 'COLLECTING') action = node('button', {class: 'button primary compact', type: 'button', disabled: ''}, '답변 수집 중…');
+    else if (run.status === 'READY') action = node('button', {class: 'button primary compact', type: 'button', onclick: evaluateRun}, '평가 진행');
+    else if (run.status === 'EVALUATING') action = node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(run.run_id)},
+      `평가 중 (${run.eval_done || 0}/${run.eval_total || 0}) · 진행 보기`);
+    else if (run.status === 'COMPLETED') action = node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(run.run_id)}, '평가 결과 보기');
+    else action = node('p', {class: 'question-set-missing', text: (run.status === 'CANCELLED' ? '수집이 중단됐습니다.' : '수집·평가 오류: ') + (run.error || '')});
+    box.replaceChildren(
+      node('p', {class: 'field-help', text: run.status === 'COLLECTING' ? '모델마다 동시에 답을 받는 중입니다. 모두 받으면 평가 진행 버튼이 켜집니다.'
+        : run.status === 'READY' ? '모든 모델의 답변 수집이 끝났습니다. 평가 진행을 누르면 평가 모델이 채점합니다.' : '답변 수집'}),
+      node('ul', {class: 'question-input-run-models'}, rows),
+      node('div', {class: 'question-set-actions'}, action));
+  }
+
+  async function pollRun() {
+    clearTimeout(runTimer);
+    const id = INPUT.current?.run_id;
+    if (!id) return;
+    try {
+      INPUT.run = await api(`/api/comparison/runs/${encodeURIComponent(id)}`);
+    } catch (error) {
+      showError('수집 상태를 불러오지 못했습니다: ' + error.message, INPUT);
+      return;
+    }
+    if (INPUT.current?.run_id !== id) return;
+    fillRun($('question-input-run'), INPUT.run);
+    if (['COLLECTING', 'EVALUATING'].includes(INPUT.run.status)) runTimer = setTimeout(pollRun, 2000);
+  }
+
+  async function evaluateRun() {
+    const id = INPUT.current?.run_id;
+    if (!id) return;
+    try {
+      await api(`/api/comparison/runs/${encodeURIComponent(id)}/evaluate`, {});
+      pollRun();
+    } catch (error) {
+      showError('평가를 시작하지 못했습니다: ' + error.message, INPUT);
+    }
   }
 
   async function poll() {
@@ -196,7 +261,11 @@
     touched = true;
     const button = $('question-input-submit');
     button.disabled = true;
-    try { render(await api('/api/comparison/question-sets/import', payload), INPUT); }
+    try {   // 질문을 넣고 바로 답변 수집 — 평가는 모두 받은 뒤 '평가 진행'으로 (사용자 요청 2026-10-14)
+      const set = await api('/api/comparison/question-sets/import', payload);
+      render(set, INPUT);
+      render(await api(`/api/comparison/question-sets/${encodeURIComponent(set.id)}/run`, {}), INPUT);
+    }
     catch (error) { showError(error.message, INPUT); }
     finally { button.disabled = false; }
   }

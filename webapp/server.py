@@ -44,9 +44,11 @@ class Server(ThreadingHTTPServer):
 
     def start_question_set_run(self, set_id):
         """만든 질문 세트 → 비교 실행(AIONA 웹·GPT·Claude·Gemini API + 도구 수집 → 평가). 실행 id 를 돌려준다."""
-        from .question_generation import flatten
+        from .question_generation import QUESTION_INPUT_VERSION, flatten
         rows = flatten(self.question_service.dataset(set_id))
-        run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': True,
+        # 질문 직접 넣기는 답변 수집만 — 모든 모델이 답을 받으면 화면의 '평가 진행'으로 평가한다 (사용자 결정 2026-10-14)
+        auto = self.question_service.status(set_id).get('version') != QUESTION_INPUT_VERSION
+        run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': auto,
                                                               'files_dir': str(self.question_service.files_dir(set_id))})
         return run['run_id']
 

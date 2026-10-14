@@ -1327,3 +1327,7 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
   .question-set-actions {width:100%} .question-set-actions>* {flex:1 1 auto; justify-content:center}
   #view-setup .advanced-options {padding:0 18px}
 }
+.question-input-run {display:flex; flex-direction:column; gap:10px; padding:14px 0; border-top:1px solid #F0F1F6}
+.question-input-run-models {list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.question-input-run-models li {display:flex; align-items:center; gap:8px; font-size:13px}
+.question-input-run-models li span:nth-child(2) {color:var(--muted); flex:1}

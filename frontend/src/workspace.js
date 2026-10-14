@@ -1229,7 +1229,7 @@
     await loadSetup();
   }
   setInterval(updateLiveClock, 1000);
-  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate, icon, avatar, announce, openAnswer, startEvaluation, renderReady,
+  window.AionaWorkspace = {api, node, pill, percent, number, go, openRun, canEvaluate, icon, avatar, announce, openAnswer, startEvaluation, renderReady, providerName,
     currentRun: () => state.run,
     currentResult: () => state.result,
     isBusy: active,
