@@ -1962,6 +1962,9 @@ class ComparisonService:
                    "collection_execution": {"collection_workers_per_model": self.collection_workers, "aiona_workers": 1,
                                             "web_providers": web,
                                             "conversation_order": "sequential_original_turns"}}
+            resume_from = str(payload.get("resume_from") or "")[:12]
+            if resume_from:   # 이어서 수집 — 앞선 실행에서 성공한 턴은 그대로 가져오고 못 받은 턴만 받는다 (사용자 요청 2026-10-15)
+                self._prefill_from(run, cases, self._run(resume_from))
             self._cancel_events[run_id] = token = threading.Event()
             self._cost_ledgers[run_id] = CostLedger()
             self._runs[run_id] = run
@@ -1973,9 +1976,39 @@ class ComparisonService:
         self._launch_worker(run, token, self._collect_question_set, (run, cases, config, files_dir, token))
         return self.status(run_id)
 
+    def _prefill_from(self, run, cases, previous):
+        """앞선 실행(같은 질문 세트)에서 모델마다 성공한 턴을 새 실행에 옮긴다. 대화는 모든 턴이 성공했을 때만 통째로 옮기고,
+        한 턴이라도 빠진 대화는 채팅 하나로 다시 이어져야 하므로 전부 다시 받는다. 옮긴 턴은 ``prefilled`` 에 적어 수집에서 뺀다."""
+        if previous.get("dataset_fingerprint") != run["dataset_fingerprint"]:
+            raise ValueError("이어서 받을 실행의 질문 세트가 다릅니다.")
+        prefilled = {}
+        for provider in run["providers"]:
+            rows = (previous.get("datasets") or {}).get(provider)
+            if not isinstance(rows, list) or len(rows) != len(cases):
+                continue
+            kept = []
+            for chain in self._collection_chains(cases):
+                if all(isinstance(rows[i], dict) and (rows[i].get("collection") or {}).get("status") == "SUCCESS" for i in chain):
+                    for i in chain:
+                        run["datasets"][provider][i] = copy.deepcopy(rows[i])
+                        kept.append(i)
+            if kept:
+                prefilled[provider] = sorted(kept)
+                progress = run["progress"][provider]
+                progress["done"] += len(kept)
+                progress["success"] += len(kept)
+                run["done"] += len(kept)
+        run["prefilled"] = prefilled
+        run["resumed_from"] = previous["run_id"]
+
     def _collect_question_set(self, run, cases, config, files_dir, token):
-        chains = self._collection_chains(cases)
+        all_chains = self._collection_chains(cases)
         now = lambda: datetime.now(timezone.utc).isoformat()
+        prefilled = run.get("prefilled") or {}
+
+        def chains_for(provider):   # 이어서 받기 — 앞선 실행에서 옮겨 온 턴은 다시 묻지 않는다
+            done = set(prefilled.get(provider) or [])
+            return [chain for chain in all_chains if not all(i in done for i in chain)]
 
         def record(provider, index, outcome):
             row = self._answer_case(cases[index], provider, run["models"][provider], index, outcome)
@@ -2017,7 +2050,7 @@ class ComparisonService:
             stage(provider, "COLLECTING")
             with httpx.Client(timeout=900, follow_redirects=False) as client:
                 with ThreadPoolExecutor(max_workers=max(1, self.collection_workers), thread_name_prefix=f"qs-{provider}") as pool:
-                    for future in [pool.submit(api_chain, provider, client, chain) for chain in chains]:
+                    for future in [pool.submit(api_chain, provider, client, chain) for chain in chains_for(provider)]:
                         future.result()
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
@@ -2042,7 +2075,7 @@ class ComparisonService:
                 try:
                     with Chat(headless=web_headless(), debug_dir=self.save_dir / run["run_id"] / f"{provider}-debug",
                               cancelled=token.is_set) as chat:
-                        for chain in chains:
+                        for chain in chains_for(provider):
                             broken = False
                             chat.new_chat()
                             for index in chain:

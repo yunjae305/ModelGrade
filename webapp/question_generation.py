@@ -1340,14 +1340,14 @@ class QuestionSetService:
                 job["finished_at"] = datetime.now(timezone.utc).isoformat()
             self._save(job)
 
-    def _start_run(self, job: Dict[str, Any]) -> None:
+    def _start_run(self, job: Dict[str, Any], resume_from: Optional[str] = None) -> None:
         set_id = job["id"]
         with self._lock:
             if set_id in self._starting:
                 raise ValueError("이미 이 질문 세트의 답변 수집을 시작하는 중입니다.")
             self._starting.add(set_id)
         try:
-            run_id = self.run_starter(set_id)
+            run_id = self.run_starter(set_id, resume_from) if resume_from else self.run_starter(set_id)   # 이어서 수집이면 앞선 실행 id 를 넘긴다
             with self._lock:
                 job.update(run_id=run_id, run_error=None)
         except Exception as exc:   # 수집 시작 실패는 질문 세트를 실패로 만들지 않는다 — 화면에서 다시 시작할 수 있다
@@ -1357,8 +1357,8 @@ class QuestionSetService:
             with self._lock:
                 self._starting.discard(set_id)
 
-    def start_run(self, set_id: str) -> Dict[str, Any]:
-        """완료된 질문 세트로 수집·평가 실행을 (다시) 시작한다."""
+    def start_run(self, set_id: str, resume_from: Optional[str] = None) -> Dict[str, Any]:
+        """완료된 질문 세트로 수집·평가 실행을 (다시) 시작한다. ``resume_from`` 은 이어서 받을 앞선 실행 id."""
         job = self.status(set_id)
         if job.get("status") != "COMPLETED":
             raise ValueError("질문 세트를 다 만든 뒤에 답변을 수집할 수 있습니다.")
@@ -1367,7 +1367,7 @@ class QuestionSetService:
         with self._lock:
             live = self._jobs.get(set_id)
         target = live if live is not None else job
-        self._start_run(target)
+        self._start_run(target, resume_from)
         self._save(target)
         if target.get("run_error"):
             raise ValueError(target["run_error"])

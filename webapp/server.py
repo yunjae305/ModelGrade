@@ -43,15 +43,17 @@ class Server(ThreadingHTTPServer):
                                                                        weak_source=self.comparison_service.weak_units)
         super().__init__(address, Handler)
 
-    def start_question_set_run(self, set_id):
-        """만든 질문 세트 → 비교 실행(AIONA 웹·GPT·Claude·Gemini API + 도구 수집 → 평가). 실행 id 를 돌려준다."""
+    def start_question_set_run(self, set_id, resume_from=None):
+        """만든 질문 세트 → 비교 실행(AIONA 웹·GPT·Claude·Gemini API + 도구 수집 → 평가). 실행 id 를 돌려준다.
+        ``resume_from`` 이 있으면 그 실행에서 성공한 턴은 가져오고 못 받은 턴만 받는다(이어서 수집)."""
         from .question_generation import flatten
         rows = flatten(self.question_service.dataset(set_id))
         # 모든 질문 세트는 답변 수집만 — 모든 모델이 답을 받으면 화면의 '평가 진행'으로 평가한다
         # (사용자 결정 2026-10-14: 직접 넣기·고정 세트, 2026-10-15: 생성 세트도 — 평가 방식(Opus+Jev 병행) 확정 전 자동 평가로 비용이 나가지 않게)
         auto = False
         run = self.comparison_service.start_question_set_run({'set_id': set_id, 'rows': rows, 'auto_evaluate': auto,
-                                                              'files_dir': str(self.question_service.files_dir(set_id))})
+                                                              'files_dir': str(self.question_service.files_dir(set_id)),
+                                                              **({'resume_from': resume_from} if resume_from else {})})
         return run['run_id']
 
 
@@ -281,7 +283,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/comparison/question-sets/fixed':   # 고정 질문 세트(간단·정밀) — 모델 호출 없음
                 return self.respond(201, self.server.question_service.start_fixed(payload))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
-                return self.respond(202, self.server.question_service.start_run(parts[3]))
+                resume = payload.get('resume_from') if isinstance(payload, dict) else None   # 이어서 수집: 앞선 실행 id
+                return self.respond(202, self.server.question_service.start_run(parts[3], resume_from=resume or None))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':
                 return self.respond(200, self.server.question_service.cancel(parts[3]))
             if path == '/api/comparison/auto-collection/policy':

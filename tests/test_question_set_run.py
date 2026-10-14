@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import time
 
+import pytest
+
 import httpx
 
 from webapp import agent_collection, aiona_web, comparison_service
@@ -287,3 +289,31 @@ def test_cdp_web_models_replace_their_api_models_when_the_collection_chrome_is_u
     assert result["models"]["chatgpt_web"].startswith("ChatGPT 웹브라우저") and result["question_set"]["chatgpt_web"] == cdp_chat_web.CDP_WEB_VERSION
     assert [r["answer"] for r in result["datasets"]["gemini_web"]] == ["gemini_web: 첫 질문", "gemini_web: 이어지는 질문"]
     assert [r["answer"] for r in result["datasets"]["claude"]] == ["claude: api", "claude: api"]
+
+
+def test_resume_keeps_successful_turns_and_recollects_broken_conversations_whole(tmp_path, monkeypatch):
+    """이어서 수집(resume_from): 앞선 실행에서 성공한 단일 질문은 그대로 옮기고 다시 묻지 않는다. 한 턴이라도 못 받은 대화는
+    채팅 하나로 이어져야 하므로 통째로 다시 받는다 (사용자 요청 2026-10-15: 50분까지 하고 멈췄다가 나중에 이어서)."""
+    monkeypatch.setattr(aiona_web, "AionaChat", FakeChat)
+    svc = ComparisonService(CodeEvalService(), save_dir=tmp_path / "runs")
+    rows = [{"case_id": "Q1", "question": "단일 질문"}, *ROWS[1:]]
+    first = svc.start_question_set_run({"set_id": "qs-3", "rows": rows, "auto_evaluate": False})
+    for _ in range(500):
+        if svc.status(first["run_id"])["status"] != "COLLECTING":
+            break
+        time.sleep(0.01)
+    prev = svc._runs[first["run_id"]]   # 저장된 실행 기록을 직접 — result() 는 복사본
+    prev["datasets"]["aiona"][2]["collection"]["status"] = "ERROR"   # 대화 C2 의 2번째 턴을 못 받은 것으로
+    FakeChat.asked.clear()
+    second = svc.start_question_set_run({"set_id": "qs-3", "rows": rows, "auto_evaluate": False, "resume_from": first["run_id"]})
+    for _ in range(500):
+        if svc.status(second["run_id"])["status"] != "COLLECTING":
+            break
+        time.sleep(0.01)
+    result = svc.result(second["run_id"])
+    assert result["resumed_from"] == first["run_id"] and result["prefilled"] == {"aiona": [0]}
+    assert "단일 질문" not in FakeChat.asked and FakeChat.asked == ["새 채팅", "첫 질문", "이어지는 질문"]   # 대화만 통째로 다시
+    assert [r["answer"] for r in result["datasets"]["aiona"]] == ["AIONA: 단일 질문", "AIONA: 첫 질문", "AIONA: 이어지는 질문"]
+    assert result["done"] == 3 and result["progress"]["aiona"]["success"] == 3
+    with pytest.raises(ValueError):   # 다른 질문 세트의 실행으로는 이어받지 않는다
+        svc.start_question_set_run({"set_id": "qs-4", "rows": ROWS[:1], "auto_evaluate": False, "resume_from": first["run_id"]})
