@@ -905,7 +905,97 @@ def flatten(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
     """질문 세트 점검과 같은 규칙의 기준·검사·항목별 적용 수 (모델 호출 없음)."""
     from tools.check_question_set import check_items
-    return check_items(flatten(groups), "items")
+    from code_eval.criteria_registry import registry
+    report = check_items(flatten(groups), "items")
+    # 평가 항목 구조(CODE 대분류·소분류·검사 ⇒ 질문 조건, 의미 기준·세부 기준 ⇒ 점검 항목) — 화면의 '총 N개 항목 검사' 줄
+    report["coverage"]["taxonomy"] = registry()["targets"]["counts"]
+    return report
+
+
+# --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
+QUESTION_INPUT_VERSION = "question-input-v1"
+_QUESTION_KEYS = ("question", "질문", "Q", "q", "prompt")
+
+
+def parse_question_input(text: str, name: str = "직접 입력") -> Tuple[List[Dict[str, Any]], List[str]]:
+    """질문만 담긴 입력 → id/turns 묶음과 경고. 답변은 받지 않는다(들어 있어도 쓰지 않음 — 답변은 수집에서 받는다).
+
+    - JSON: 질문 글 목록, {question|질문|Q} 객체 목록(conversation_id 가 같으면 turn 순서대로 한 대화), {"questions": [...]},
+      또는 질문 생성기가 내려 준 세트(id/turns 묶음 — 내려받아 고친 뒤 다시 올릴 수 있음). JSONL 은 줄마다 같은 모양.
+    - 글(TXT·MD·직접 입력): '---' 만 있는 줄로 질문을 나눈다. 나누는 줄이 없으면 전체가 질문 하나.
+    첨부파일은 파일이 함께 오지 않아 빼고 경고로 남긴다. 긴 참조 자료(reference)는 그대로 둔다."""
+    warnings: List[str] = []
+    text = (text or "").lstrip("﻿")
+    if not text.strip():
+        raise ValueError("질문이 비어 있습니다.")
+    raw_groups: List[Dict[str, Any]] = []
+    if text.lstrip().startswith(("[", "{")) or Path(name).suffix.lower() in (".json", ".jsonl"):
+        try:
+            value: Any = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                value = [json.loads(line) for line in text.splitlines() if line.strip()]
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{name}: JSON 을 읽지 못했습니다 ({exc.lineno}번째 줄).") from None
+        if isinstance(value, dict):
+            value = value["questions"] if isinstance(value.get("questions"), list) else [value]
+        if not isinstance(value, list):
+            raise ValueError(f"{name}: 질문 목록(JSON 배열)이 아닙니다.")
+        conversations: Dict[str, Dict[str, Any]] = {}
+        for n, entry in enumerate(value, 1):
+            if isinstance(entry, str):
+                raw_groups.append({"turns": [{"question": entry}]})
+                continue
+            if not isinstance(entry, dict):
+                warnings.append(f"{n}번째 항목은 질문이 아니라 뺐습니다.")
+                continue
+            if isinstance(entry.get("turns"), list):   # 질문 생성기 세트 형식
+                raw_groups.append({**entry, "turns": [t for t in entry["turns"] if isinstance(t, dict)]})
+                continue
+            question = next((entry[k] for k in _QUESTION_KEYS if isinstance(entry.get(k), str)), None)
+            if question is None:
+                warnings.append(f"{n}번째 항목에 질문(question)이 없어 뺐습니다.")
+                continue
+            turn = {"question": question, **({"reference": entry["reference"]} if entry.get("reference") is not None else {})}
+            cid = entry.get("conversation_id")
+            if cid is None or not str(cid).strip():
+                raw_groups.append({"turns": [turn]})
+                continue
+            group = conversations.get(str(cid))
+            if group is None:
+                group = conversations[str(cid)] = {"turns": [], "_order": []}
+                raw_groups.append(group)
+            number = entry.get("turn") if type(entry.get("turn")) is int else len(group["_order"]) + 1
+            group["_order"].append((number, len(group["_order"]), turn))
+        for group in conversations.values():   # 대화는 turn 번호 순서로 (같은 번호는 넣은 순서)
+            group["turns"] = [turn for _, _, turn in sorted(group.pop("_order"), key=lambda x: (x[0], x[1]))]
+    else:
+        blocks = re.split(r"(?m)^[ \t]*-{3,}[ \t]*$", text.replace("\r\n", "\n"))
+        raw_groups = [{"turns": [{"question": block.strip("\n")}]} for block in blocks if block.strip()]
+    groups: List[Dict[str, Any]] = []
+    for n, group in enumerate(raw_groups, 1):
+        turns = []
+        for turn in group["turns"]:
+            question = turn.get("question")
+            if not isinstance(question, str) or not question.strip():
+                warnings.append(f"{n}번째 질문에 빈 턴이 있어 뺐습니다.")
+                continue
+            if turn.get("attachments"):
+                warnings.append(f"{n}번째 질문의 첨부파일은 파일이 함께 오지 않아 뺐습니다 — 질문 글만 씁니다.")
+            turns.append({"turn": len(turns) + 1, "question": question,
+                          **({"reference": turn["reference"]} if turn.get("reference") is not None else {})})
+        if not turns:
+            continue
+        items = group.get("target_items")
+        groups.append({"id": len(groups) + 1, "type": str(group.get("type") or "직접 입력"), "topic": str(group.get("topic") or ""),
+                       "target_items": [str(x) for x in items] if isinstance(items, list) else [],
+                       "difficulty": group.get("difficulty") if group.get("difficulty") in DIFFICULTIES else "",
+                       "trap": str(group.get("trap") or ""), "turns": turns})
+    if not groups:
+        raise ValueError("넣을 질문이 없습니다.")
+    if len(groups) > MAX_PLAN_QUESTIONS:
+        raise ValueError(f"질문은 한 번에 {MAX_PLAN_QUESTIONS}개까지 넣을 수 있습니다 (지금 {len(groups)}개).")
+    return groups, warnings
 
 
 # --- 4. 웹 서비스 ------------------------------------------------------------------------
@@ -1102,6 +1192,26 @@ class QuestionSetService:
         if target.get("run_error"):
             raise ValueError(target["run_error"])
         return self.status(set_id) if live is not None else target
+
+    def import_questions(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """질문 직접 넣기 — 직접 입력한 글이나 질문 파일로 완료된 질문 세트를 만든다(모델 호출 없음). 수집·평가는
+        만든 질문을 확인한 뒤 ``start_run``(평가 시작)으로 — 생성한 세트와 같은 경로다."""
+        text, name = payload.get("text"), str(payload.get("name") or "직접 입력")[:200]
+        if not isinstance(text, str):
+            raise ValueError("질문(text)은 글이어야 합니다.")
+        groups, warnings = parse_question_input(text, name)
+        report = check(groups)
+        set_id = "qs-" + uuid.uuid4().hex[:12]
+        out = self._path(set_id)
+        (out / "files").mkdir(parents=True, exist_ok=True)
+        (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
+        job = {"id": set_id, "version": QUESTION_INPUT_VERSION, "source": "file" if payload.get("source") == "file" else "manual",
+               "source_name": name, "status": "COMPLETED", "phase": "done", "message": "완료",
+               "created_at": datetime.now(timezone.utc).isoformat(), "model": None, "note": "", "usage": {}, "warnings": warnings,
+               "summary": _summary(groups, report), "coverage": report["coverage"], "error": None, "target_questions": None,
+               "weak_from_run": None, "weak_units": [], "auto_run": False, "run_id": None, "run_error": None, "calls": 0, "rounds": 0}
+        self._save(job)
+        return job
 
     def preview(self, set_id: str) -> List[Dict[str, Any]]:
         """화면에서 확인할 질문 목록 — 질문 원문은 그대로, 긴 참조 자료 본문·첨부 내용은 빼고 글자 수·파일 이름만."""

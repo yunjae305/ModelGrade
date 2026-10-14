@@ -1,5 +1,6 @@
-/* 관리 설정 — 모델 연결(API 키·모델 ID)과 업로드 직후 자동 수집의 허용·단가·호출·비용 한도.
-   키 값은 서버 세션에만 보내고 화면·브라우저 저장소·결과에 남기지 않는다. */
+/* 연결된 모델 — AIONA(웹페이지 자동화, 로그인 정보는 .env)와 API 모델(API 키·모델 ID) 연결 상태.
+   키 값은 서버 세션에만 보내고 화면·브라우저 저장소·결과에 남기지 않는다. 예전 '업로드 직후 자동 수집'의 허용·한도 칸은
+   새 비교가 질문 생성·질문 직접 넣기로 바뀌어(2026-10-14) 화면에서 뺐다 — 서버 설정·API 는 그대로. */
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -7,7 +8,7 @@
   const W = window.AionaWorkspace, {node, pill, number, api} = W;
   const LIVE = ['gpt', 'claude', 'gemini', 'factchat'];
   const stateKinds = {ready: 'success', needs_connection: 'neutral', disabled: 'neutral', limits_missing: 'warning', unpriced: 'warning', unsupported: 'neutral'};
-  const state = {status: null, modalProvider: null, loading: false};
+  const state = {status: null, aiona: null, modalProvider: null, loading: false};
   const usd = (value) => '$' + Number(value || 0).toLocaleString('en-US', {maximumFractionDigits: 4});
 
   function publish() {
@@ -16,25 +17,45 @@
   async function load() {
     if (state.loading) return;
     state.loading = true;
-    try { state.status = await api('/api/comparison/auto-collection'); render(); publish(); }
-    catch (err) { $('policy-error').textContent = err.message; $('policy-error').hidden = false; }
+    try {
+      [state.status, state.aiona] = await Promise.all([api('/api/comparison/auto-collection'), api('/api/comparison/aiona-web').catch(() => null)]);
+      render(); publish();
+    }
+    catch (err) { W.showError(err.message); }   // 한도 패널은 숨겨져 있어 화면 공통 오류로 알린다
     finally { state.loading = false; }
   }
   const target = (id) => state.status?.targets.find((t) => t.id === id);
 
+  // AIONA — API 가 아니라 웹페이지(winz.aiona.kr)를 브라우저 자동화로 열어 답을 받는다. 로그인 정보는 .env 에만 (값은 보이지 않음)
+  function aionaCard() {
+    const a = state.aiona;
+    if (!a) return null;
+    return node('article', {class: 'panel connection-card', 'data-target': 'aiona'},
+      node('div', {class: 'connection-top'}, W.avatar('aiona'), node('div', {}, node('h2', {text: 'AIONA'}), node('p', {text: '웹페이지로 답변 수집 · 브라우저 자동화'})),
+        pill(a.credentials ? '로그인 정보 있음' : '로그인 정보 필요', a.credentials ? 'success' : 'warning')),
+      node('dl', {class: 'connection-model'},
+        node('dt', {text: '주소'}), node('dd', {text: a.url}),
+        node('dt', {text: '로그인 정보'}), node('dd', {text: '.env 파일'}),
+        node('dt', {text: '로그인 유지'}), node('dd', {text: a.profile_saved ? '브라우저에 로그인 상태 저장됨' : '아직 없음 — 첫 수집 때 .env 정보로 로그인'})),
+      node('p', {class: 'connection-note', text: a.credentials
+        ? '아이디·비밀번호는 .env의 AIONA_LOGIN_ID·AIONA_LOGIN_PASSWORD에서만 읽고 화면·결과에 보이지 않습니다. 바꾸려면 .env를 고친 뒤 서버를 다시 시작하세요.'
+        : '.env에 AIONA_LOGIN_ID와 AIONA_LOGIN_PASSWORD를 넣고 서버를 다시 시작하세요. 화면에서는 입력하지 않습니다.'}));
+  }
+
   function renderCards() {
-    $('connection-cards').replaceChildren(...(state.status?.targets || []).map((t) => {
+    $('connection-cards').replaceChildren(...[aionaCard()].filter(Boolean), ...(state.status?.targets || []).map((t) => {
       const unsupported = t.kind === 'unsupported';
       const top = node('div', {class: 'connection-top'}, W.avatar(t.id), node('div', {}, node('h2', {text: t.name}),
         node('p', {text: t.kind === 'gateway' ? t.platform + ' · 여러 제공자 모델 중계' : t.platform})),
-        pill(t.label, stateKinds[t.state] || 'neutral'));
+        // 자동 수집 허용·한도는 화면에서 뺐다 — 카드에는 연결 여부만 (질문 세트 실행은 연결된 API 모델에 모두 묻는다)
+        unsupported ? pill(t.label, 'neutral') : pill(t.connected ? '연결됨 · API' : '연결 필요', t.connected ? 'success' : 'neutral'));
       const facts = node('dl', {class: 'connection-model'},
         node('dt', {text: unsupported ? '연동 방식' : '모델 ID'}),
         node('dd', {text: unsupported ? '공개 API·공식 내보내기 미확인' : t.model || '연결 후 입력'}));
       if (t.kind === 'gateway') facts.append(node('dt', {text: '게이트웨이 주소'}), node('dd', {text: t.base_url || '연결 시 선택'}));
       const card = node('article', {class: 'panel connection-card' + (unsupported ? ' is-unsupported' : ''), 'data-target': t.id}, top, facts);
       if (t.note) card.append(node('p', {class: 'connection-note', text: t.note}));
-      else if (t.reason && t.state !== 'ready') card.append(node('p', {class: 'connection-note', text: t.reason}));
+      else if (!t.connected && t.reason) card.append(node('p', {class: 'connection-note', text: t.reason}));
       const actions = node('div', {class: 'connection-actions'});
       if (!unsupported) {
         if (t.connected) actions.append(node('button', {type: 'button', class: 'button secondary', onclick: () => disconnect(t)}, '등록 해제'));

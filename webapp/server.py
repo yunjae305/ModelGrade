@@ -166,6 +166,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/aiona-history':
             return self.respond(200, service.aiona_history())
+        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
+            from .aiona_web import login_status
+            return self.respond(200, login_status())
         if path == '/api/comparison/auto-collection':
             return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':
@@ -256,6 +259,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, service.start_auto_collection(payload))
             if path == '/api/comparison/question-sets':
                 return self.respond(202, self.server.question_service.start(payload))
+            if path == '/api/comparison/question-sets/import':   # 질문 직접 넣기 — 질문만, 모델 호출 없음
+                return self.respond(201, self.server.question_service.import_questions(payload))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
                 return self.respond(202, self.server.question_service.start_run(parts[3]))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':

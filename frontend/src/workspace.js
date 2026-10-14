@@ -5,7 +5,7 @@
   const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
-  const labels = {setup: '새 비교', connections: '연결·수집 설정', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
+  const labels = {setup: '새 비교', connections: '연결된 모델', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
@@ -179,8 +179,11 @@
     $('collect-button').hidden = enabled;
     // 버전 평가는 AIONA 원문만 평가한다 — 다른 AI 답변을 자동 수집하지 않는다
     $('collection-panel').hidden = enabled; $('advanced-import').hidden = enabled;
+    // 새 비교는 '질문 생성 후 평가'와 '질문 직접 넣기' 두 가지 (사용자 결정 2026-10-14) — 예전 Q/A 파일 업로드 흐름은 버전 평가에서만 보인다
+    $('legacy-flow').hidden = !enabled;
+    $('question-set-panel').hidden = enabled; $('question-input-panel').hidden = enabled;
     $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : 'AIONA 모델 평가 워크스페이스';
-    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'AIONA 질문·답변 파일을 올리면 연결된 AI가 같은 질문에 자동으로 답변합니다. 답변을 비교한 뒤 같은 기준으로 평가하세요.';
+    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'LLM으로 질문을 만들거나 질문을 직접 넣으면 AIONA(웹페이지 자동화)·GPT·Claude·Gemini가 답하고, 같은 기준으로 평가합니다.';
     renderReady();
     window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'mode'}}));
   }
@@ -443,6 +446,7 @@
     $('run-name').value = state.run.name + ' · 새 비교';
     setDataset(state.result.datasets.aiona, document?.source_name || state.run.name,
       document ? {...document, converted: true} : null);
+    $('legacy-flow').hidden = false;   // 저장된 AIONA 원문으로 다시 비교 — 예전 업로드 흐름을 그대로 보인다
     go('setup');
   });
   function common(batch) { return AionaResults.resolvedBatch(batch)?.summary?.common || {}; }

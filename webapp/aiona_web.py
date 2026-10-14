@@ -63,6 +63,16 @@ def credentials(env_path: Optional[Path] = None) -> tuple[str, str]:
     return user, password
 
 
+def login_status(env_path: Optional[Path] = None, profile: Optional[Path] = None) -> Dict[str, Any]:
+    """'연결된 모델' 화면용 — ``.env`` 에 로그인 정보가 있는지, 로그인 상태를 담은 브라우저 프로필이 있는지만 알린다.
+    아이디·비밀번호 값은 돌려주지 않는다 (사용자 결정 2026-10-14: 로그인 정보는 화면이 아니라 .env 에만 넣는다)."""
+    path = env_path or ROOT / ".env"
+    has = bool(env_value("AIONA_LOGIN_ID", None, path)) and bool(env_value("AIONA_LOGIN_PASSWORD", None, path))
+    return {"name": "AIONA", "url": AIONA_URL, "version": AIONA_WEB_VERSION, "method": "웹페이지 자동화(브라우저)",
+            "credentials": has, "credentials_source": ".env (AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD)",
+            "profile_saved": ((profile or PROFILE) / "Default").is_dir()}
+
+
 def login(page: Any, user: str, password: str, timeout_ms: int = 30_000) -> None:
     """로그인 화면을 채우고 '자동 로그인(30일 유지)'을 켠 뒤 로그인한다. 실패는 고정 문구의 오류로만 알린다(입력값을 담지 않음)."""
     try:

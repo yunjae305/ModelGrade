@@ -238,3 +238,15 @@ def test_claude_usage_shape_changes_and_partial_failures_keep_usage(tmp_path):
     out = agent_collection.ask_with_tools("claude", {"key": "k", "model": "m"}, "질문", [{"name": "a.docx", "type": "docx", "path": "a.docx"}],
                                           tmp_path, httpx.Client(transport=httpx.MockTransport(handler)))
     assert out["status"] == "ERROR" and out["usage"]["input_tokens"] == 150 and "cleanup_failed" not in out
+
+
+def test_aiona_login_status_reports_presence_only(tmp_path):
+    """연결된 모델 화면 — .env 에 AIONA 로그인 정보가 있는지와 로그인 프로필이 있는지만 알리고 값은 돌려주지 않는다."""
+    from webapp.aiona_web import login_status
+    env = tmp_path / ".env"
+    env.write_text("AIONA_LOGIN_ID=tester@example.test\nAIONA_LOGIN_PASSWORD=not-a-real-password\n", encoding="utf-8")
+    (tmp_path / "profile" / "Default").mkdir(parents=True)
+    status = login_status(env, tmp_path / "profile")
+    assert status["credentials"] is True and status["profile_saved"] is True
+    assert "tester@example.test" not in str(status) and "not-a-real-password" not in str(status)
+    assert login_status(tmp_path / "missing.env", tmp_path / "none")["credentials"] is False

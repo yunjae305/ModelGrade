@@ -1277,6 +1277,18 @@ dl.connection-model dt {color:var(--muted)} dl.connection-model dd {margin:0; co
 .question-set-log p {overflow-wrap:anywhere}
 .question-set-warnings {margin:6px 0 0; padding-left:18px}
 .question-set-actions {display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-left:auto}
+/* 질문 직접 넣기 — 직접 입력('---' 줄로 여러 질문) 또는 질문 파일 */
+.question-input-panel .input-mode-switch {margin:0; min-width:200px}
+.question-input-panel .input-mode-switch button {min-height:34px; font-size:13px}
+.question-input-form {display:grid; gap:10px; padding:16px 24px 0}
+.question-input-label {display:block; margin-bottom:6px; font-size:13px; font-weight:600; color:var(--ink)}
+.question-input-file {display:flex; align-items:center; gap:12px; flex-wrap:wrap; cursor:pointer; font-size:13px; color:var(--muted)}
+.question-input-actions {display:flex; justify-content:flex-end; padding-bottom:18px}
+#question-input-body {display:grid; gap:14px; padding:4px 24px 20px} #question-input-body:empty {display:none}
+.question-input-panel>.alert {margin:0 24px 14px}
+.visually-hidden {position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.question-set-taxonomy {color:var(--ink); font-size:13px; line-height:1.7}
+.question-set-taxonomy strong {color:var(--purple-dark)}
 /* 만든 질문 확인 — 평가 시작 전에 펼쳐 둔다. 목록이 길어도 패널 안에서만 스크롤 */
 .question-set-review {border:1px solid var(--card-line); border-radius:var(--radius-sm); background:var(--surface)}
 .question-set-review>summary {padding:12px 16px; cursor:pointer; font-size:13px; font-weight:650; color:var(--ink)}

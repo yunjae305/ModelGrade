@@ -337,3 +337,26 @@ def test_dedicated_recovery_runs_before_general_questions_fill_the_cap(tmp_path)
     result = builder.build(target_questions=4, per_target=1, long_context_count=0)
     assert len(result["groups"]) == 4
     assert sum(1 for g in result["groups"] if len(g["turns"]) >= multi_turn.MIN_TURNS) >= 1 and result["check"]["coverage"]["items"]["J6-1.a"] >= 1
+
+
+def test_question_input_reads_text_json_conversations_and_generated_sets():
+    """질문 직접 넣기 — 글은 '---' 줄로 나누고, JSON 은 질문 목록·대화(conversation_id·turn)·생성 세트를 읽는다. 답변·첨부는 쓰지 않는다."""
+    groups, warnings = qg.parse_question_input("146 + 279는 얼마야?\n---\n공부 방법을 불릿으로 정확히 3개 작성해줘.\n")
+    assert [g["turns"][0]["question"] for g in groups] == ["146 + 279는 얼마야?", "공부 방법을 불릿으로 정확히 3개 작성해줘."] and not warnings
+    rows = [{"question": "두 번째", "conversation_id": "c", "turn": 2, "answer": "쓰지 않음"}, {"question": "첫 번째", "conversation_id": "c", "turn": 1},
+            "단일 질문", {"answer": "질문 없음"}]
+    groups, warnings = qg.parse_question_input(json.dumps(rows, ensure_ascii=False), "q.json")
+    assert [[t["question"] for t in g["turns"]] for g in groups] == [["첫 번째", "두 번째"], ["단일 질문"]] and len(warnings) == 1
+    generated = [{"id": 7, "type": "첨부", "topic": "견적", "target_items": ["J8-1.a"], "turns": [{"turn": 1, "question": "합계는?", "attachments": [{"name": "a.pdf"}]}]}]
+    groups, warnings = qg.parse_question_input(json.dumps(generated, ensure_ascii=False), "set.json")
+    assert groups[0]["id"] == 1 and groups[0]["topic"] == "견적" and "attachments" not in groups[0]["turns"][0] and "첨부파일" in warnings[0]
+    with pytest.raises(ValueError):
+        qg.parse_question_input("   ")
+
+
+def test_imported_questions_make_a_completed_set_ready_for_review(tmp_path):
+    service = qg.QuestionSetService(lambda: None, store=tmp_path)
+    job = service.import_questions({"text": "146 + 279는 얼마야?\n---\n오늘 할 일을 표로 정리해줘.", "source": "manual"})
+    assert job["status"] == "COMPLETED" and job["source"] == "manual" and job["run_id"] is None and job["summary"]["questions"] == 2
+    assert job["coverage"]["taxonomy"]["code_conditions"] > 0 and service.list()[0]["id"] == job["id"]
+    assert [row["turns"][0]["question"] for row in service.preview(job["id"])] == ["146 + 279는 얼마야?", "오늘 할 일을 표로 정리해줘."]
