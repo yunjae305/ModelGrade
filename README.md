@@ -30,9 +30,13 @@ py -3 -X utf8 run.py
 
 브라우저에서 **[모델 비교 워크스페이스](http://localhost:8080/workspace.html)**에 접속합니다.
 
-왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개의 담당자, 구현 근거, 검증 공백, 다음 작업과 완료 조건을 확인합니다. 직접 주소는 `http://localhost:8080/workspace.html#progress`입니다. 현황 화면은 ZIP의 보고서 디자인과 내용을 현재 워크스페이스 화면으로 옮긴 것으로, 별도 iframe이나 HTML 재생성 없이 [requirements.json](frontend/data/requirements.json)을 읽습니다. 이 JSON이 유일한 현황 원본입니다. 담당자의 실제 결과를 확인한 뒤 해당 항목의 상태·근거·남은 문제와 `as_of`를 수정하고 화면을 새로고침하거나 다른 메뉴에서 돌아오면 반영됩니다. 코드 작성이나 테스트 통과만으로 실제 판정 정확도 검증을 완료로 바꾸지 않습니다.
+왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개를 담당자별로 확인합니다(직접 주소 `http://localhost:8080/workspace.html#progress`). 요구사항을 펼치면 **A 멘토 요구사항**(회의 날짜·시각, 목적, 완료 조건) → **B 실제 산출물**(프롬프트 원문·표·그래프·실행 기록, CSV 다운로드) → **C 결과 해석**(무엇을·어떻게·결과·의미·부족한 점) → **D 검증 근거**(테스트·실행 ID·모델·기준 버전·시각·커밋·검수) → 남은 일 순서로 보입니다. 검증 단계는 '구현 완료 · 자동 테스트 확인 · 실제 모델 실행 · 판정 정확도 검증'을 따로 표시하고, 실제 성능을 확인하지 않은 산출물에는 '실측 미완료'가 붙습니다.
 
-현황 화면 검증: `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요). 캡처는 `results/progress-workspace/`에 저장됩니다.
+- [requirements.json](frontend/data/requirements.json) — 요구사항·상태·검증 단계·결과 해석. 담당자가 실제 결과를 확인한 뒤 손으로 고칩니다(`as_of` 함께).
+- [artifacts.json](frontend/data/artifacts.json) — 실제 산출물. 직접 고치지 않고 `python tools/progress_artifacts.py` 로 실제 결과 파일(질문 세트 300·수집 답변, 코드의 프롬프트·기준 목록, 이 PC 의 저장 실행)에서 다시 계산합니다. `--check` 는 저장된 값과 다시 계산한 값이 같은지만 봅니다(모델 호출 없음).
+- 저장 실행 같은 비공개 원본(`data/`)은 개수·비율 같은 공개 요약만 artifacts.json 에 남고, 원본이 없는 PC 에서는 화면에 '자료 없음 — 공개 요약만 표시'로 나옵니다(`/api/progress/files` 는 파일이 있는지만 알려 주고 내용은 보내지 않음).
+
+현황 화면 검증: `python -m pytest tests/test_progress_artifacts.py` (표·그래프 수치 = 실제 결과 파일) · `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요, 캡처는 `results/progress-workspace/`).
 
 배치 파일로도 실행할 수 있습니다.
 

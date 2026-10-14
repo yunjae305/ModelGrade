@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .code_eval_service import CodeEvalService, JobCapacityError, ROOT
 from .comparison_service import ComparisonService, import_dataset
 from .question_generation import QuestionSetService
+from . import progress_files
 from .ingestion import BundleError
 from .ingestion.platforms import formats as external_formats
 from code_eval.report_html import render_report
@@ -89,6 +90,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.code_eval_get(path)
             if path.startswith('/api/comparison/'):
                 return self.comparison_get(path)
+            if path == '/api/progress/files':   # 업무 진행 현황 — 산출물 파일이 이 PC 에 있는지만 (내용은 보내지 않음)
+                return self.respond(200, progress_files.files_report(ROOT, parse_qs(url.query).get('path', [])))
             if path.startswith('/api/'):
                 return self.respond(404, {'error': 'API를 찾을 수 없습니다.'})
             # 루트는 비교 워크스페이스로 보낸다. 영구 캐시를 피하려고 302를 쓴다.
