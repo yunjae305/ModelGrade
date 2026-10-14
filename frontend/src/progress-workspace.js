@@ -196,7 +196,7 @@
   function barChart(box, chart, tip) {
     const series = chart.series || [];
     const categories = chart.categories || [];
-    const width = 640, labelWidth = 104, right = 58, bar = series.length > 1 ? 11 : 14, gap = 2, pad = 10;
+    const width = 640, labelWidth = chart.label_width || 104, right = 58, bar = series.length > 1 ? 11 : 14, gap = 2, pad = 10;
     const band = series.length * bar + (series.length - 1) * gap + pad;
     const height = categories.length * band + 26;
     const values = series.flatMap(s => s.values || []).filter(v => typeof v === 'number');
@@ -594,7 +594,7 @@
       }
       if (artifacts.length) {
         const source = artifacts[0];
-        const historical = ['W04', 'W08'].includes(item.id) && source.data_source?.revision === '0346246';
+        const historical = Boolean(source.data_source?.history);
         append(box, 'p', 'progress-source-line', `${historical ? '이전 실행 결과 · ' : ''}${source.data_source?.label || '자료 출처 확인 필요'} · 실행 ${source.data_source?.run_id || '기록 없음'} · 기준 시점 ${source.created_at || '기록 없음'}`);
       }
     }
@@ -639,12 +639,7 @@
     append(raw, 'summary', '', '기준별 원본 수치 표');
     dataTable(raw, intent.content.table, intent.title);
   }
-  function w01Highlights(parent, artifacts) {
-    const intent = artifactOf(artifacts, 'W01-INTENT');
-    const prompt = artifactOf(artifacts, 'W01-PROMPT');
-    const generated = artifactOf(artifacts, 'W01-SET300');
-    if (!intent || !prompt || !generated) return false;
-    const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
+  function intentBar(parent, intent, generatedVersion) {
     const applied = Number(statOf(intent, '실제 적용'));
     const missed = Number(statOf(intent, '적용 안 됨'));
     const pending = Number(statOf(intent, '답변 필요'));
@@ -661,6 +656,15 @@
     append(legend, 'strong', 'applied', `실제 적용 ${fmt(applied)}건 · ${(applied / judged * 100).toFixed(1)}%`);
     append(legend, 'strong', 'missed', `미적용 ${fmt(missed)}건 · ${(missed / judged * 100).toFixed(1)}%`);
     append(main, 'p', 'progress-chart-interpretation', `${generatedVersion} 질문 세트에서 노린 ${fmt(target)}건 중 ${fmt(pending)}건은 답변이 있어야 판단할 수 있어 제외했습니다. 비율의 분모는 판단 가능 ${fmt(judged)}건입니다. 이는 평가 기준 적용 규칙의 일치율이며 사람 검수 정확도나 모델 평가 성능은 아닙니다.`);
+    return main;
+  }
+  function w01Highlights(parent, artifacts) {
+    const intent = artifactOf(artifacts, 'W01-INTENT');
+    const prompt = artifactOf(artifacts, 'W01-PROMPT');
+    const generated = artifactOf(artifacts, 'W01-SET300');
+    if (!intent || !prompt || !generated) return false;
+    const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
+    intentBar(parent, intent, generatedVersion);
     w01Criteria(parent, intent);
     const j6 = intent.content.table.rows.find(row => row.family === 'J6');
     const comparison = append(parent, 'div', 'progress-j6-explainer');
@@ -685,7 +689,7 @@
     if (selected.length) {
       for (const artifact of selected) {
         chartBlock(box, artifact.content.charts[0]);
-        const historical = ['W04', 'W08'].includes(item.id) && artifact.data_source?.revision === '0346246';
+        const historical = Boolean(artifact.data_source?.history);
         append(box, 'p', 'progress-source-line', `${historical ? '이전 실행 결과 · ' : ''}${artifact.data_source?.label || '자료 출처 확인 필요'} · 실행 ${artifact.data_source?.run_id || '기록 없음'} · ${artifact.created_at || '시각 기록 없음'}`);
       }
       append(box, 'p', 'progress-chart-interpretation', item.interpretation?.meaning || selected[0].result_summary);
@@ -827,9 +831,152 @@
     return details;
   }
 
+  // --- 우영 담당 통합 요약 A·B·C — 수치·상태는 artifacts.json 의 overview(tools/progress_artifacts.py 가 계산) 그대로 ------------
+  const STEP_STATES = {real: '실제 실행 완료', tested: '코드 구현·테스트 완료', partial: '부분 완료', pending: '미실행·검증 대기'};
+  function scrollToId(id) {
+    document.getElementById(id)?.scrollIntoView({block: 'start'});
+  }
+  function groupCharts(parent, group, byId) {
+    const charts = group.charts || (group.chart ? [{kind: 'inline', chart: group.chart}] : []);
+    if (!charts.length) return;
+    const box = append(parent, 'div', 'progress-group-chart');
+    const buttons = [];
+    if (charts.length > 1) {
+      const tabs = append(box, 'div', 'progress-chart-switch');
+      tabs.setAttribute('role', 'group');
+      tabs.setAttribute('aria-label', `${group.id} 그래프 선택`);
+      charts.forEach((spec, index) => {
+        const button = append(tabs, 'button', 'progress-mini-button', spec.label);
+        button.type = 'button';
+        button.addEventListener('click', () => show(index));
+        buttons.push(button);
+      });
+    }
+    const stage = append(box, 'div');
+    function show(index) {
+      const spec = charts[index];
+      stage.replaceChildren();
+      buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
+      if (spec.kind === 'inline') { chartBlock(stage, spec.chart); return; }
+      const artifact = byId[spec.artifact_id];
+      if (!artifact) { append(stage, 'p', 'progress-no-artifact', `그래프 자료(${spec.artifact_id})가 없습니다.`); return; }
+      if (spec.kind === 'intent') { intentBar(stage, artifact, spec.version); return; }
+      chartBlock(stage, artifact.content.charts[spec.chart || 0]);
+      append(stage, 'p', 'progress-chart-interpretation', artifact.result_summary);
+    }
+    show(0);
+  }
+  function pipeline(parent, group) {
+    const flow = append(parent, 'ol', 'progress-pipeline');
+    flow.setAttribute('aria-label', '질문 생성부터 결과 비교까지 단계별 실제 상태');
+    for (const step of group.steps || []) {
+      const li = append(flow, 'li', 'progress-pipeline-step ' + step.state);
+      append(li, 'span', 'progress-pipeline-state', STEP_STATES[step.state] || step.state);
+      append(li, 'strong', '', step.name);
+      append(li, 'small', '', step.detail);
+    }
+    if (group.saved_run) {
+      const refs = append(parent, 'ul', 'progress-references');
+      const files = [];
+      referenceRow(refs, group.saved_run, files);
+      checkFiles(files);
+    }
+  }
+  function groupRequirements(parent, group, ctx) {
+    const box = append(parent, 'div', 'progress-group-reqs');
+    for (const id of group.requirements || []) {
+      const item = ctx.items.find(entry => entry.id === id);
+      if (!item) continue;
+      const row = append(box, 'div', 'progress-group-req');
+      append(row, 'span', 'progress-id', id);
+      const copy = append(row, 'div');
+      const top = append(copy, 'div', 'progress-group-req-title');
+      append(top, 'strong', '', item.title);
+      append(top, 'span', 'progress-badge ' + groupOf(item), item.status);
+      verificationLine(copy, item);
+      const button = append(row, 'button', 'progress-mini-button', `${id} 상세 보기`);
+      button.type = 'button';
+      button.addEventListener('click', () => ctx.openRequirement(id));
+    }
+  }
+  function groupCard(parent, group, ctx) {
+    const card = append(parent, 'article', 'progress-group-card');
+    card.id = 'progress-group-' + group.id;
+    const head = append(card, 'div', 'progress-group-head');
+    append(head, 'span', 'progress-group-letter', group.id);
+    const title = append(head, 'div');
+    append(title, 'h3', '', group.title);
+    append(title, 'small', '', (group.requirements || []).join(' · '));
+    append(card, 'p', 'progress-group-finding', group.finding);
+    if (group.scope) append(card, 'p', 'progress-source-line', group.scope);
+    const metrics = append(card, 'div', 'progress-focus-metrics');
+    for (const metric of group.metrics || []) summaryMetric(metrics, metric.label, metric.value, metric.note);
+    if (group.steps) pipeline(card, group);
+    else groupCharts(card, group, ctx.byId);
+    if (group.missing?.length) {
+      const missing = append(card, 'div', 'progress-missing');
+      append(missing, 'strong', '', '실측 없음 · 미완료');
+      for (const name of group.missing) append(missing, 'span', '', name);
+    }
+    if (group.table) {
+      const details = append(card, 'details', 'progress-chart-data');
+      append(details, 'summary', '', `서비스별 수집 기록 표 · ${group.table.rows.length}행 (실행 ID·시점·실패 원인·구현 상태)`);
+      dataTable(details, group.table, group.title + ' 서비스별 기록');
+    }
+    const issue = append(card, 'p', 'progress-group-issue');
+    append(issue, 'strong', '', '가장 중요한 미완료');
+    issue.append(' ' + group.open_issue);
+    groupRequirements(card, group, ctx);
+    return card;
+  }
+  function ownerOverview(parent, overview, ctx) {
+    const head = append(parent, 'div', 'progress-overview-head');
+    append(head, 'span', 'progress-kicker', 'OWNER SUMMARY · ' + overview.owner);
+    append(head, 'h2', '', overview.title);
+    const reviewed = Number(overview.human_reviewed) || 0;
+    append(head, 'p', '', `요구사항 ${overview.requirements.length}개를 질문 생성 → 답변 수집 → 평가 연동 세 묶음으로 모았습니다. 수치는 저장소의 실제 결과 파일에서 계산했습니다(데이터 기준 ${overview.data_as_of || '기록 없음'} · 커밋 ${overview.data_revision}). `
+      + (reviewed ? `사람 검수 ${fmt(reviewed)}건.` : '사람 검수 0건이라 판정 정확도는 미측정입니다.'));
+    const nav = append(parent, 'nav', 'progress-demo-nav');
+    nav.setAttribute('aria-label', '3분 시연 순서');
+    append(nav, 'strong', '', '3분 시연 순서');
+    for (const [id, label] of [['progress-overview-strip', '① 전체 성과'], ['progress-group-A', '② A 질문 생성'], ['progress-group-B', '③ B 답변 수집'],
+      ['progress-group-C', '④ C 평가 연동'], ['progress-group-plan', `⑤ ${ctx.due}까지 남은 일`]]) {
+      const button = append(nav, 'button', 'progress-mini-button', label);
+      button.type = 'button';
+      button.addEventListener('click', () => scrollToId(id));
+    }
+    const strip = append(parent, 'div', 'progress-group-strip');
+    strip.id = 'progress-overview-strip';
+    for (const group of overview.groups || []) {
+      const tile = append(strip, 'button', 'progress-group-tile');
+      tile.type = 'button';
+      append(tile, 'span', 'progress-group-letter', group.id);
+      const copy = append(tile, 'span', 'progress-group-tile-copy');
+      append(copy, 'strong', '', group.title);
+      append(copy, 'small', '', group.headline);
+      tile.addEventListener('click', () => scrollToId('progress-group-' + group.id));
+    }
+    for (const group of overview.groups || []) groupCard(parent, group, ctx);
+    const plan = append(parent, 'section', 'progress-group-card progress-plan');
+    plan.id = 'progress-group-plan';
+    const planHead = append(plan, 'div', 'progress-group-head');
+    append(planHead, 'span', 'progress-group-letter', '→');
+    append(planHead, 'h3', '', `${ctx.due}까지 남은 작업과 필요한 승인`);
+    const columns = append(plan, 'div', 'progress-fields');
+    const left = append(columns, 'div', 'progress-field');
+    append(left, 'h4', '', '남은 작업');
+    const todo = append(left, 'ol', 'progress-list-plain');
+    for (const entry of overview.plan?.remaining || []) { const li = append(todo, 'li'); append(li, 'code', '', entry.requirement); li.append(' ' + entry.text); }
+    const right = append(columns, 'div', 'progress-field');
+    append(right, 'h4', '', '승인이 필요한 일 (승인 전에는 실행하지 않음)');
+    const asks = append(right, 'ul', 'progress-list-plain');
+    for (const entry of overview.plan?.approvals || []) { const li = append(asks, 'li'); append(li, 'strong', '', entry.what); li.append(' — ' + entry.why); }
+  }
+
   function render(data, artifactData) {
     const items = data.items;
-    const artifactState = {error: artifactData.error || null, list: artifactData.list || [], skipped: artifactData.skipped || 0};
+    const artifactState = {error: artifactData.error || null, list: artifactData.list || [], skipped: artifactData.skipped || 0,
+      overview: artifactData.overview || null};
     const byRequirement = {};
     for (const artifact of artifactState.list) (byRequirement[artifact.requirement_id] ||= []).push(artifact);
     host.replaceChildren();
@@ -893,8 +1040,26 @@
       button.addEventListener('click', () => {
         owner = owner === name ? 'all' : name;
         update();
-        document.getElementById('progress-list-title').scrollIntoView({block: 'start'});
+        scrollToId(overviewBox.hidden ? 'progress-list-title' : 'progress-owner-overview');
       });
+    }
+    const overviewBox = append(host, 'section', 'progress-owner-overview');
+    overviewBox.id = 'progress-owner-overview';
+    overviewBox.hidden = true;
+    let overviewBuilt = false;
+    function buildOverview() {
+      overviewBuilt = true;
+      if (!artifactState.overview) {
+        append(overviewBox, 'p', 'progress-error-inline', '우영 통합 요약 자료(artifacts.json 의 overview)를 불러오지 못했습니다' + (artifactState.error ? ': ' + artifactState.error : '.'));
+        return;
+      }
+      ownerOverview(overviewBox, artifactState.overview, {items, due: data.due || '최종 목표일',
+        byId: Object.fromEntries(artifactState.list.map(artifact => [artifact.artifact_id, artifact])), openRequirement});
+    }
+    function openRequirement(id) {
+      status = 'all'; search = ''; input.value = ''; update();
+      const target = document.getElementById('requirement-' + id);
+      if (target) { target.open = true; target.scrollIntoView({block: 'start'}); }
     }
 
     const listSection = append(host, 'section', 'progress-list-section');
@@ -947,6 +1112,8 @@
       ownerSelect.value = owner;
       statusSelect.value = status;
       for (const button of ownerButtons.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.owner === owner));
+      overviewBox.hidden = owner !== '우영';   // 우영 담당을 고르면 A·B·C 통합 요약을 목록 위에
+      if (!overviewBox.hidden && !overviewBuilt) buildOverview();
       const found = items.filter(item =>
         (owner === 'all' || item.owner === owner) &&
         (status === 'all' || groupOf(item) === status) &&
@@ -968,7 +1135,7 @@
       const data = await response.json();
       if (!Array.isArray(data.artifacts)) throw new Error('artifacts 목록이 없습니다.');
       const list = data.artifacts.filter(validArtifact);
-      return {list, skipped: data.artifacts.length - list.length};
+      return {list, skipped: data.artifacts.length - list.length, overview: data.overview && Array.isArray(data.overview.groups) ? data.overview : null};
     } catch (error) {
       return {error: error.message || '알 수 없는 오류'};
     }

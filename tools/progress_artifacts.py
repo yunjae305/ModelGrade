@@ -7,6 +7,8 @@
   기준 목록(code_eval/criteria_registry.py), 적용 규칙(tools/check_question_set.py·min_question_count.py).
 - 비공개 자료: 저장 실행 data/comparison_runs/e3c60d3efd18.json (저장소 밖). 개수·비율 같은 공개 요약만 남기고 질문·답변 원문은 넣지 않는다.
   이 파일이 없는 PC 에서 다시 만들면 저장된 artifacts.json 의 그 산출물을 그대로 둔다 (원본 없이 지어내지 않는다).
+- 이전 기록: 같은 실행의 재시도 전 AIONA 기록은 git 커밋 0346246 의 answers.json 에서 읽는다(이력으로만, git 이력이 없으면 저장된 요약 유지).
+- 우영 통합 요약(overview): 위 산출물에서 A 질문 생성 · B 답변 수집 · C 평가 연동 세 묶음의 수치·상태를 모은다.
 - 표·그래프 수치는 모두 여기서 계산한 값이다. 화면(frontend/src/progress-workspace.js)은 이 값을 그대로 그린다.
 - 판정 정확도는 사람 검수 결과가 있어야 채운다 — 이 도구는 정확도를 만들지 않는다.
 """
@@ -636,8 +638,8 @@ def w03_conclusion(qs: QuestionSet, run: Optional[Dict[str, Any]], existing: Opt
 
 # --- W04·W05·W08 답변 수집 ----------------------------------------------------------------------
 
-def _collection_stats(qs: QuestionSet, system: str) -> Dict[str, Any]:
-    entries = [i["answers"][system] for i in qs.answers["items"] if system in i.get("answers", {})]
+def _collection_stats(answers: Dict[str, Any], system: str) -> Dict[str, Any]:
+    entries = [i["answers"][system] for i in answers["items"] if system in i.get("answers", {})]
     status = collections.Counter(e.get("status") for e in entries)
     ok = [e for e in entries if e.get("status") == "SUCCESS"]
     latency = [e["latency_ms"] for e in ok if isinstance(e.get("latency_ms"), (int, float))]
@@ -649,13 +651,14 @@ def _collection_stats(qs: QuestionSet, system: str) -> Dict[str, Any]:
         for key in ("input_tokens", "output_tokens", "reasoning_tokens"):
             if isinstance((e.get("usage") or {}).get(key), int):
                 tokens[key] += e["usage"][key]
-    return {"system": system, "model": qs.meta["models"].get(system), "method": qs.meta["collection"].get(system),
+    return {"system": system, "model": answers["meta"]["models"].get(system), "method": answers["meta"]["collection"].get(system),
             "turns": len(entries), "status": dict(status), "success": status.get("SUCCESS", 0),
             "success_rate": _pct(status.get("SUCCESS", 0), len(entries)), "retried": sum(1 for e in entries if e.get("retried")),
             "latency_median_ms": round(statistics.median(latency)) if latency else None,
             "answer_chars_median": round(statistics.median(lengths)) if lengths else None, "empty_answers": sum(1 for n in lengths if n == 0),
             "first": kst(stamps[0]) if stamps else None, "last": kst(stamps[-1]) if stamps else None,
-            "errors": errors.most_common(5), "tokens": dict(tokens)}
+            "errors": errors.most_common(5), "tokens": dict(tokens),
+            "routed": collections.Counter(e["routed_model"] for e in ok if e.get("routed_model")).most_common()}
 
 
 def _status_chart(stats: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -682,23 +685,33 @@ def _log(qs: QuestionSet, system: str, limit: int = 6) -> List[Dict[str, Any]]:
     return rows
 
 
-def w04_aiona(qs: QuestionSet) -> Dict[str, Any]:
-    s = _collection_stats(qs, "aiona")
+def _empty_asks(qs: QuestionSet, answers: Dict[str, Any]) -> int:
+    """AIONA 오류 턴 중 빈 출력을 요구한 질문(2-1.explicit_empty)의 수."""
     groups = {f"Q{g['id']}": g for g in qs.groups}
+    failed = [i for i in answers["items"] if (i["answers"].get("aiona") or {}).get("status") == "ERROR"]
+    return sum(1 for i in failed if "2-1.explicit_empty" in (groups.get(i["case_id"].split("_")[0]) or {}).get("target_items", []))
+
+
+def w04_aiona(qs: QuestionSet) -> Dict[str, Any]:
+    s = _collection_stats(qs.answers, "aiona")
     failed = [i for i in qs.answers["items"] if (i["answers"].get("aiona") or {}).get("status") == "ERROR"]
-    empty_asks = sum(1 for i in failed if "2-1.explicit_empty" in (groups.get(i["case_id"].split("_")[0]) or {}).get("target_items", []))
+    empty_asks = _empty_asks(qs, qs.answers)
     top = s["errors"][0] if s["errors"] else None
     failures = s["turns"] - s["success"]
+    original = qs.meta.get("aiona_original") or {}
+    routed = ", ".join(f"{m} {n}" for m, n in s["routed"])
     return artifact(
         "W04-AIONA-RUN", "W04", "AIONA 웹 자동화 수집 — 질문 세트 300 실제 실행", "run",
-        description="winz.aiona.kr 웹 화면을 브라우저 자동화로 열어 질문 450턴을 보내고 답변 원문을 받은 실제 수집 결과입니다(팀원 실행, 실패한 턴만 다시 받음).",
+        description=("winz.aiona.kr 웹 화면을 브라우저 자동화로 열어 질문 450턴을 보내고 답변을 받은 실제 수집 결과입니다(팀원 실행, 실패한 턴만 다시 받음)."
+                     + (f" 성공 답 {original['count']}개는 AIONA 대화 기록 원문(답변 아래 복사 버튼 원문과 같음)으로 바꿨습니다." if original.get("count") else "")),
         result_summary=(f"턴 {s['turns']}개 중 성공 {s['success']}({s['success_rate']:.1%}) · 오류 {s['status'].get('ERROR', 0)} · 미완료 {s['status'].get('INCOMPLETE', 0)}. "
                         + (f"오류 {len(failed)}턴 중 {empty_asks}턴은 '아무것도 출력하지 마' 같은 빈 출력 요구 질문. " if failed else "")
                         + (f"가장 많은 실패 사유: '{top[0]}' {top[1]}건. " if top else "")
                         + f"다시 받은 턴 {s['retried']}개, 성공 답변 응답 시간 중앙값 {s['latency_median_ms']:,}ms."),
         data_source=qs.source(), created_at=qs.exported, code_revision=revision("webapp/aiona_web.py"), level="real_run",
         level_note="실제 AIONA 웹 서비스에서 받은 답변. 이 답변들은 아직 평가하지 않았음.",
-        limitations=["AIONA 웹은 기본 '자동 추천' 모델이라 어떤 모델이 답했는지 기록되지 않는다.",
+        limitations=[(f"AIONA 웹은 기본 '자동 추천'이라 답한 모델이 질문마다 다르다 — 기록된 모델: {routed}." if routed else
+                      "AIONA 웹은 기본 '자동 추천' 모델이라 어떤 모델이 답했는지 기록되지 않는다."),
                      "빈 출력 요구 질문의 오류는 수집 실패인지 AIONA 의 실제 반응인지 평가 기준(CODE 2-1 빈 출력)으로 따로 정해야 한다.",
                      f"실패 {failures}턴은 답변이 없어 평가 대상에서 빠진다.",
                      "수집 → JSON 저장까지만 있고 평가기까지 이어진 실행은 아직 없다(T01)."],
@@ -711,14 +724,45 @@ def w04_aiona(qs: QuestionSet) -> Dict[str, Any]:
                  "outputs": [{"label": "성공", "value": s["success"]}, {"label": "오류", "value": s["status"].get("ERROR", 0)},
                              {"label": "미완료", "value": s["status"].get("INCOMPLETE", 0)},
                              {"label": "오류 중 빈 출력 요구 질문", "value": empty_asks},
-                             {"label": "다시 받은 턴", "value": s["retried"]}, {"label": "답변 길이 중앙값", "value": f"{s['answer_chars_median']}자"}],
+                             {"label": "다시 받은 턴", "value": s["retried"]}, {"label": "답변 길이 중앙값", "value": f"{s['answer_chars_median']}자"}]
+                            + ([{"label": "자동 추천이 고른 모델", "value": routed}] if routed else []),
                  "charts": [_status_chart([s])],
                  "errors": [{"reason": e, "count": n} for e, n in s["errors"]],
                  "log": _log(qs, "aiona")})
 
 
+HISTORY_REV = "0346246"   # 같은 실행의 재시도 전 기록(AIONA 286/450)을 담은 커밋 — 이력으로만 보여 준다
+
+
+def w04_history(qs: QuestionSet) -> Optional[Dict[str, Any]]:
+    text = _git("show", f"{HISTORY_REV}:{ANSWERS}")
+    if not text:   # git 이력이 없는 사본 — 저장된 요약을 그대로 둔다(build 의 KEEP_IDS)
+        return None
+    old = json.loads(text)
+    s = _collection_stats(old, "aiona")
+    top = s["errors"][0] if s["errors"] else None
+    run_id = old["meta"].get("run_id")
+    return artifact(
+        "W04-AIONA-HISTORY", "W04", f"AIONA 수집 이전 기록 — 같은 실행 {run_id} 의 재시도 전 (이력)", "run",
+        description=(f"같은 실행 {run_id} 의 처음 내보낸 기록입니다. 그 뒤 실패한 턴만 다시 받아 최신 기록(W04-AIONA-RUN)으로 바뀌었습니다. "
+                     "성능 비교가 아니라 수집 과정의 이력입니다."),
+        result_summary=(f"턴 {s['turns']}개 중 성공 {s['success']}({s['success_rate']:.1%}) · 오류 {s['status'].get('ERROR', 0)}."
+                        + (f" 가장 많은 실패 사유: '{top[0]}' {top[1]}건." if top else "")),
+        data_source={"label": f"이전 기록 — 커밋 {HISTORY_REV} 의 answers.json (재시도 전)", "kind": "repo_file", "path": ANSWERS,
+                     "visibility": "public", "revision": HISTORY_REV, "run_id": run_id, "history": True},
+        created_at=kst(old["meta"].get("exported_at")), code_revision=HISTORY_REV, level="real_run",
+        level_note="실제 AIONA 웹 수집의 재시도 전 상태. 최신 기록으로 대체됐다.",
+        limitations=["최신 기록과 같은 질문·같은 실행이다 — 성공률 차이는 실패한 턴을 다시 받은 결과이지 AIONA 가 나아진 것이 아니다."],
+        references=[repo_ref(f"이전 answers.json (커밋 {HISTORY_REV})", ANSWERS, HISTORY_REV)],
+        content={"run_id": run_id,
+                 "outputs": [{"label": "성공", "value": s["success"]}, {"label": "오류", "value": s["status"].get("ERROR", 0)},
+                             {"label": "미완료", "value": s["status"].get("INCOMPLETE", 0)}, {"label": "다시 받은 턴", "value": s["retried"]},
+                             {"label": "내보낸 시각", "value": kst(old["meta"].get("exported_at"))}],
+                 "errors": [{"reason": e, "count": n} for e, n in s["errors"]]})
+
+
 def w05_api(qs: QuestionSet) -> Dict[str, Any]:
-    stats = [_collection_stats(qs, system) for system in ("gpt", "gemini")]
+    stats = [_collection_stats(qs.answers, system) for system in ("gpt", "gemini")]
     rows = [{"system": s["system"].upper(), "model": s["model"], "method": s["method"], "success": s["success"], "turns": s["turns"],
              "latency": s["latency_median_ms"], "chars": s["answer_chars_median"], "empty": s["empty_answers"],
              "input_tokens": s["tokens"].get("input_tokens"), "output_tokens": s["tokens"].get("output_tokens")} for s in stats]
@@ -775,7 +819,7 @@ def w05_saved(run: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 
 
 def w08_paths(qs: QuestionSet) -> Dict[str, Any]:
-    stats = [_collection_stats(qs, system) for system in ("aiona", "gpt", "gemini")]
+    stats = [_collection_stats(qs.answers, system) for system in ("aiona", "gpt", "gemini")]
     rows = [{"system": "AIONA" if s["system"] == "aiona" else s["system"].upper(), "path": "웹 자동화" if s["system"] == "aiona" else "API + 검색 도구",
              "model": s["model"], "success_rate": s["success_rate"], "latency": s["latency_median_ms"], "chars": s["answer_chars_median"],
              "retried": s["retried"]} for s in stats]
@@ -910,9 +954,172 @@ def y03_policy(run: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
                               "open": "길이를 '자기 답변'으로 잴지 '같은 시나리오'로 잴지는 아직 결정되지 않았다."}})
 
 
+# --- 우영 담당 통합 요약 (W01~W09 를 A 질문 생성 · B 답변 수집 · C 평가 연동으로) ----------------------------
+
+def _value(source: Optional[Dict[str, Any]], label: str, key: str = "stats") -> Any:
+    return next((s["value"] for s in ((source or {}).get("content") or {}).get(key) or [] if s["label"] == label), None)
+
+
+def _service(service: str, method: str, requirement: str, state: str, *, requests: Optional[int] = None, success: Optional[int] = None,
+             run_id: Optional[str] = None, when: Optional[str] = None, cause: str = "—", status: str = "",
+             chart_label: Optional[str] = None) -> Dict[str, Any]:
+    measured = requests is not None and success is not None
+    return {"service": service, "method": method, "requirement": requirement, "state": state,
+            "record": {"real": "실측", "history": "이력(같은 실행 재시도 전)", "none": "실측 없음 — 미완료"}[state],
+            "requests": requests, "success": success, "failed": requests - success if measured else None,
+            "rate": _pct(success, requests) if measured else None, "run_id": run_id, "when": when, "cause": cause, "status": status,
+            "chart_label": chart_label}
+
+
+def _causes(errors: Sequence[Sequence[Any]]) -> str:
+    return "; ".join(f"{_cut(reason, 60)} ({count}턴)" for reason, count in list(errors)[:2]) or "—"
+
+
+def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str, Any]:
+    """우영 담당 W01~W09 를 세 묶음으로 — 수치는 모두 위 산출물과 저장소 결과 파일에서 가져온다(새로 지어내지 않는다)."""
+    from webapp.question_generation import QUESTION_GEN_VERSION
+    intent, generated, matrix = by_id["W01-INTENT"], by_id["W01-SET300"], by_id["W02-MATRIX"]
+    conclusion, saved, history = by_id["W03-CONCLUSION"], by_id.get("W05-SAVED-RUN"), by_id.get("W04-AIONA-HISTORY")
+    meta, run_id, turns = qs.meta, qs.meta.get("run_id"), qs.meta["turns"]
+    gen = str(meta.get("question_generator") or "버전 기록 없음").split(" ")[0]
+    questions, rate, rest = _value(generated, "질문(대화)"), _value(intent, "적용률"), _value(intent, "J6 제외 적용률")
+    applied, missed = _value(intent, "실제 적용"), _value(intent, "적용 안 됨")
+    j6_missed = next((r["missed"] for r in intent["content"]["table"]["rows"] if r["family"] == "J6"), 0)
+    countable, never = _value(matrix, "최하위 기준(셀 수 있음)"), _value(matrix, "적용 0")
+
+    group_a = {
+        "id": "A", "title": "질문 생성 및 품질 검증", "requirements": ["W01", "W02", "W03"],
+        "headline": f"질문 {questions}개 실제 생성 · 목표 항목 적용 {rate}",
+        "finding": (f"{QUESTION_GEN_VERSION} 는 구현됐고 실제 생성은 아직 하지 않았습니다. 실제로 만든 질문 {questions}개({gen})에서 생성기가 노린 평가 항목은 "
+                    f"판단 가능한 {applied + missed}건 중 {applied}건({rate})만 실제로 적용됐고, 빗나간 {missed}건 중 {j6_missed}건이 J6 조건 차이입니다."),
+        "scope": f"아래 수치는 모두 {gen} 실제 생성 결과(실행 {run_id}) · 현재 코드 {QUESTION_GEN_VERSION} 는 구현·모의 테스트만 확인",
+        "metrics": [{"label": "실제 생성 질문", "value": questions, "note": f"{gen} · 실제 GPT 생성", "artifact_id": "W01-SET300"},
+                    {"label": "목표 항목 실제 적용", "value": f"{applied}/{applied + missed}건", "note": f"{rate} · {gen} · 코드 규칙 계산",
+                     "artifact_id": "W01-INTENT"},
+                    {"label": "J6 제외 적용률", "value": rest, "note": f"{gen} · J6 를 뺀 집계", "artifact_id": "W01-INTENT"},
+                    {"label": "최하위 기준 중 미적용", "value": f"{never}/{countable}개",
+                     "note": f"질문 세트 300 에서 한 번도 적용 안 됨 · {countable}개 = 늘 적용 검사 "
+                             f"{sum(r['group'] == 'CODE 늘 적용' for r in matrix['content']['table']['rows'])}개 포함",
+                     "artifact_id": "W02-MATRIX"}],
+        "charts": [{"label": "목표 항목 적용률", "kind": "intent", "artifact_id": "W01-INTENT", "version": gen},
+                   {"label": "기준별 질문 커버리지", "kind": "chart", "artifact_id": "W02-MATRIX", "chart": 0},
+                   {"label": "질문 수 연구", "kind": "chart", "artifact_id": "W03-COVERAGE", "chart": 0}],
+        "open_issue": "간편·정밀 검사 적정 질문 수 미확정 — " + conclusion["result_summary"]}
+
+    stats = {system: _collection_stats(qs.answers, system) for system in ("aiona", "gpt", "gemini")}
+    a = stats["aiona"]
+    when = lambda s: f"{s['first']} ~ {s['last']}"
+    services = [_service("AIONA 웹", "웹 자동화 (aiona-web-v1)", "W04", "real", requests=a["turns"], success=a["success"], run_id=run_id,
+                         when=when(a), cause=f"빈 출력 요구 질문 {_empty_asks(qs, qs.answers)}턴 포함 · " + _causes(a["errors"]),
+                         status="구현 · 실제 수집", chart_label="AIONA 웹")]
+    if history:
+        ok, err, inc = (_value(history, label, "outputs") for label in ("성공", "오류", "미완료"))
+        services.append(_service("AIONA 웹 (재시도 전 기록)", "웹 자동화 (aiona-web-v1)", "W04", "history", requests=ok + err + inc, success=ok,
+                                 run_id=history["data_source"].get("run_id"), when=history["created_at"],
+                                 cause=_causes([(e["reason"], e["count"]) for e in history["content"]["errors"]]),
+                                 status=f"이력 — 실패한 턴만 다시 받아 위 기록으로 대체 (커밋 {HISTORY_REV})"))
+    for system, name in (("gpt", "GPT API"), ("gemini", "Gemini API")):
+        s = stats[system]
+        services.append(_service(name, s["method"], "W05", "real", requests=s["turns"], success=s["success"], run_id=run_id, when=when(s),
+                                 cause=_causes(s["errors"]), status="구현 · 실제 수집", chart_label=name))
+    services.append(_service("Claude API (질문 세트 300)", "API (api-tools-v4)", "W05", "none", cause="계정 크레딧 부족으로 수집하지 않음",
+                             status="수집 코드 있음 · 이 세트 실측 없음"))
+    claude = next((r for r in ((saved or {}).get("content") or {}).get("table", {}).get("rows", []) if r["system"] == "CLAUDE"), None)
+    if claude:
+        services.append(_service(f"Claude API (저장 실행 {SAVED_RUN_ID})", "API", "W05", "real", requests=claude["rows"], success=claude["answered"],
+                                 run_id=SAVED_RUN_ID, when=saved["created_at"], status=f"다른 질문 {claude['rows']}턴 · 평가까지 끝난 실행",
+                                 chart_label="Claude API (다른 실행)"))
+    for name in ("GPT 웹", "Claude 웹", "Gemini 웹"):
+        services.append(_service(name, "웹 자동화", "W06", "none", cause="수집 코드 없음",
+                                 status="로그인 창을 여는 도구만 — 질문을 보내 답을 받는 코드 없음"))
+    services.append(_service("FactChat 웹", "웹 자동화", "W07", "none", cause="이 브랜치에 수집 코드 없음",
+                             status="main 039a4f0 에 웹 수집 코드(질문 1개 시험 성공 — 커밋 기록) · 이 브랜치 미반영 · 저장된 수집 기록 없음"))
+    services.append(_service("FactChat API 게이트웨이", "API", "W07", "none", cause="실제 호출 기록 없음", status="설정·모의 테스트만 (W07-FACTCHAT-API)"))
+    charted = [r for r in services if r["state"] == "real"]
+    missing = [r["service"] for r in services if r["state"] == "none"]
+    conditions = [f"AIONA·GPT·Gemini — 같은 질문 세트 300 · {turns}턴 · 실행 {run_id} · 수집 "
+                  f"{min(s['first'] for s in stats.values())} ~ {max(s['last'] for s in stats.values())}"]
+    if claude:
+        conditions.append(f"Claude — 다른 실행: 저장 실행 {SAVED_RUN_ID} · 다른 질문 {claude['rows']}턴 · {saved['created_at']} (위 세트와 같은 조건이 아님)")
+    rates = {system: f"{s['success']}/{s['turns']}" for system, s in stats.items()}
+    group_b = {
+        "id": "B", "title": "모델별 답변 수집", "requirements": ["W04", "W05", "W06", "W07"],
+        "headline": " · ".join(f"{n} {stats[k]['success_rate']:.1%}" for k, n in (("aiona", "AIONA"), ("gpt", "GPT"), ("gemini", "Gemini"))) + " 실측",
+        "finding": (f"같은 질문 세트 300({turns}턴, 실행 {run_id})에서 AIONA 웹 {rates['aiona']}({a['success_rate']:.1%}), GPT API {rates['gpt']}, "
+                    f"Gemini API {rates['gemini']}를 실제로 받았습니다. AIONA 실패 {a['turns'] - a['success']}턴 중 "
+                    f"{_empty_asks(qs, qs.answers)}턴은 빈 출력을 요구한 질문에 AIONA 가 오류로 멈춘 경우입니다."),
+        "scope": " / ".join(conditions),
+        "metrics": [{"label": "AIONA 웹", "value": rates["aiona"], "artifact_id": "W04-AIONA-RUN",
+                     "note": f"{a['success_rate']:.1%} · 최신 기록" + (f" (재시도 전 {services[1]['success']}/{services[1]['requests']})" if history else "")},
+                    {"label": "GPT API", "value": rates["gpt"], "note": f"{stats['gpt']['success_rate']:.1%} · {stats['gpt']['model']}", "artifact_id": "W05-API-RUN"},
+                    {"label": "Gemini API", "value": rates["gemini"], "note": f"{stats['gemini']['success_rate']:.1%} · {stats['gemini']['model']}",
+                     "artifact_id": "W05-API-RUN"},
+                    {"label": "실측 없는 경로", "value": len(missing), "note": "웹 3종(W06) · FactChat(W07) · 이 세트의 Claude API"}],
+        "chart": {"kind": "bar", "title": "서비스별 수집 완료율 — 성공 턴 ÷ 요청 턴 (실측이 있는 것만)", "unit": "%", "max": 100, "label_width": 150,
+                  "categories": [r["chart_label"] for r in charted], "series": [{"name": "수집 완료율", "values": [round(r["rate"] * 100, 1) for r in charted]}]},
+        "conditions": conditions, "missing": missing,
+        "table": {"columns": [{"key": "service", "label": "모델·서비스"}, {"key": "method", "label": "수집 방식"}, {"key": "requirement", "label": "요구사항"},
+                              {"key": "record", "label": "기록"}, {"key": "requests", "label": "요청 턴", "numeric": True},
+                              {"key": "success", "label": "성공", "numeric": True}, {"key": "failed", "label": "실패·미완료", "numeric": True},
+                              {"key": "rate", "label": "완료율", "percent": True}, {"key": "run_id", "label": "실행 ID"}, {"key": "when", "label": "시점"},
+                              {"key": "cause", "label": "실패 원인"}, {"key": "status", "label": "현재 구현 상태"}],
+                  "rows": services, "download": "woo-collection-services.csv"},
+        "open_issue": "GPT·Claude·Gemini 웹 수집(W06)과 FactChat 웹 수집(W07)은 실측이 없습니다 — 같은 모델을 API 와 웹으로 받아 비교(W08)할 수 없습니다."}
+
+    total_ok = sum(s["success"] for s in stats.values())
+    per_answer = (conclusion.get("content") or {}).get("per_answer_usd")
+    estimate = f"추정 약 ${round(per_answer * turns * 3, 1)}, Batches 사용 시 약 절반" if per_answer else "비용 추정 자료 없음"
+    evaluated = meta.get("evaluation") not in (None, "하지 않음")
+    reviewed = _value(by_id.get("W02-SAVED-JUDGMENTS"), "사람 검수")
+    saved_turns = _value(saved, "질문", "inputs") if saved else None
+    saved_note = f" 끝까지 이어진 실행은 다른 질문 세트(저장 실행 {SAVED_RUN_ID}, {saved_turns})뿐입니다." if saved else ""
+    steps = [
+        {"name": "질문 생성", "state": "real", "requirement": "W01",
+         "detail": f"질문 {questions}개 · 턴 {turns}개 ({gen}, {meta.get('generator_model')}). 현재 {QUESTION_GEN_VERSION} 는 구현·모의 테스트만"},
+        {"name": "모델별 답변 수집", "state": "partial", "requirement": "W04",
+         "detail": f"AIONA 웹 {rates['aiona']} · GPT API {rates['gpt']} · Gemini API {rates['gemini']}. 실측 없음: {', '.join(missing)}"},
+        {"name": "JSON 저장", "state": "real", "requirement": "W09",
+         "detail": f"questions.json · answers.json — 턴 {turns} × 시스템 3, 성공 답변 {total_ok:,}개 (실행 {run_id})"},
+        {"name": "평가 기준 적용", "state": "tested", "requirement": "W02",
+         "detail": f"질문만으로 정해지는 기준은 평가와 같은 코드 규칙으로 계산(모델 호출 없음) — 최하위 기준 {countable}개 중 {never}개 미적용. 답변이 필요한 기준은 평가 때 정해짐"},
+        {"name": "CODE·LLM 평가", "state": "real" if evaluated else "pending", "requirement": "W09",
+         "detail": ("질문 세트 300 평가 완료" if evaluated else f"질문 세트 300 답변 평가 미실행 — LLM 평가는 유료라 승인 필요({estimate}).") + saved_note},
+        {"name": "결과 비교", "state": "real" if evaluated else "pending", "requirement": "W08",
+         "detail": ("질문 세트 300 비교 결과 있음" if evaluated else "질문 세트 300 의 모델별 점수 비교는 아직 없음.")
+                   + (f" 저장 실행 {SAVED_RUN_ID} 는 결과 화면에서 모델별 비교를 볼 수 있음" if saved else "")}]
+    group_c = {
+        "id": "C", "title": "수집 결과 비교 및 평가 연동", "requirements": ["W08", "W09"],
+        "headline": "생성 → 수집 → JSON 저장 실제 연결 · " + ("300세트 평가 완료" if evaluated else "300세트 평가 미실행"),
+        "finding": ("질문 생성 → 답변 수집 → JSON 저장까지는 질문 세트 300 으로 실제 연결됐습니다. 평가 기준 적용은 코드 규칙으로 계산만 했고, "
+                    + ("CODE·LLM 평가와 결과 비교도 끝났습니다." if evaluated else "CODE·LLM 평가와 결과 비교는 이 세트로 아직 실행하지 않았습니다.") + saved_note),
+        "metrics": [{"label": "300세트 성공 답변", "value": total_ok, "note": "JSON 저장 · 평가 전" if not evaluated else "JSON 저장"},
+                    {"label": "300세트 평가", "value": "완료" if evaluated else "미실행", "note": "유료 · 승인 필요" if not evaluated else ""},
+                    {"label": "평가까지 끝난 저장 실행", "value": 1 if saved else 0, "note": f"{SAVED_RUN_ID} · 다른 질문 {saved_turns}" if saved else "이 PC 기록 없음"},
+                    {"label": "사람 검수", "value": reviewed if reviewed is not None else "기록 없음",
+                     "note": "판정 정확도 미측정" if not reviewed else "검수 결과 확인"}],
+        "steps": steps, "saved_run": saved_run_ref() if saved else None,
+        "open_issue": "질문 세트 300 답변을 평가기에 넣어 결과 식별자까지 잇는 한 건 시연(T01)이 없습니다 — LLM 평가는 유료라 승인이 필요합니다."}
+
+    plan = {"remaining": [
+                {"requirement": "W09", "text": "질문 세트 300 답변 → 평가기 → 결과 식별자까지 한 건 시연 (T01)"},
+                {"requirement": "W03", "text": "300세트 평가 결과로 간편·정밀 질문 수를 다시 판단 — 지금은 결정 보류"},
+                {"requirement": "W01", "text": f"{QUESTION_GEN_VERSION} 로 실제 생성해 목표 항목 적용률을 다시 측정"},
+                {"requirement": "W06", "text": "GPT·Claude·Gemini 웹 수집 코드와 실측"},
+                {"requirement": "W07", "text": "FactChat 웹 수집 — main 039a4f0 코드를 반영한 뒤 질문 세트로 실측"}],
+            "approvals": [
+                {"what": "질문 세트 300 답변 평가 (유료 Claude 호출)", "why": f"턴 {turns} × 시스템 3 — {estimate}"},
+                {"what": f"{QUESTION_GEN_VERSION} 실제 질문 생성 (유료 GPT 호출)", "why": f"v1.4 실측이 없어 지금 판단은 {gen} 결과로만 함"},
+                {"what": "최신 main 병합", "why": "충돌이 있어 보류 — 이 브랜치에는 질문 세트 300 수집 결과 파일만 반영"},
+                {"what": "FactChat 웹 계정·허용 범위 확인", "why": "W07 실측 전에 필요"}]}
+    return {"owner": "우영", "title": "우영 담당 통합 성과 (W01~W09)", "requirements": [f"W0{i}" for i in range(1, 10)],
+            "data_as_of": qs.exported, "data_revision": qs.data_rev, "human_reviewed": reviewed,
+            "groups": [group_a, group_b, group_c], "plan": plan}
+
+
 # --- 모으기 -----------------------------------------------------------------------------------
 
 PRIVATE_IDS = ("W02-SAVED-JUDGMENTS", "W03-STABILITY", "W05-SAVED-RUN", "Y03-J6-POLICY")
+KEEP_IDS = PRIVATE_IDS + ("W04-AIONA-HISTORY",)   # 원본(비공개 실행·git 이력)이 없을 때 저장된 요약을 그대로 두는 산출물
 
 
 def build(existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -923,11 +1130,11 @@ def build(existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     made = [w01_prompt(), w01_set(qs), w01_intent(qs), w01_code(),
             w02_matrix(qs), w02_criteria(qs), w02_saved(run),
             w03_coverage(qs), w03_stability(run), w03_conclusion(qs, run, existing_by_id.get("W03-CONCLUSION")),
-            w04_aiona(qs), w05_api(qs), w05_saved(run), w07_code(), w08_paths(qs), w09_contract(qs),
+            w04_aiona(qs), w04_history(qs), w05_api(qs), w05_saved(run), w07_code(), w08_paths(qs), w09_contract(qs),
             y01_targets(), y03_policy(run)]
     kept: List[str] = []
     out = [value for value in made if value is not None]
-    for artifact_id in PRIVATE_IDS:   # 비공개 원본이 없는 PC — 저장된 공개 요약을 그대로 둔다
+    for artifact_id in KEEP_IDS:   # 비공개 원본(또는 git 이력)이 없는 PC — 저장된 공개 요약을 그대로 둔다
         if not any(a["artifact_id"] == artifact_id for a in out) and artifact_id in existing_by_id:
             out.append(existing_by_id[artifact_id])
             kept.append(artifact_id)
@@ -937,7 +1144,8 @@ def build(existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             "levels": {"none": "미확인", "implemented": "구현 완료", "auto_tested": "자동 테스트 확인", "measured": "실제 데이터 계산",
                        "real_run": "실제 모델 실행", "accuracy_verified": "판정 정확도 검증"},
             "private_sources": {SAVED_RUN: "present" if run is not None else "missing"},
-            "kept_without_source": kept, "artifacts": out}
+            "kept_without_source": kept, "artifacts": out,
+            "overview": woo_overview({a["artifact_id"]: a for a in out}, qs)}
     return json.loads(json.dumps(result, ensure_ascii=False))   # 저장 파일과 같은 모양(튜플 → 목록)으로 비교한다
 
 
@@ -949,6 +1157,8 @@ def _diff(saved: Dict[str, Any], fresh: Dict[str, Any]) -> List[str]:
         for field in sorted(set(a[key]) | set(b[key])):
             if a[key].get(field) != b[key].get(field):
                 lines.append(f"{key}.{field} 가 다름")
+    if saved.get("overview") != fresh.get("overview"):
+        lines.append("overview(우영 통합 요약) 가 다름")
     return lines
 
 

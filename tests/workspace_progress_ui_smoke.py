@@ -167,11 +167,58 @@ def main():
                 expect(page.locator('#requirement-W03 .progress-warning')).to_contain_text('같은 조건')
                 expect(page.locator('#artifact-W03-CONCLUSION')).to_contain_text(by_id['W03-CONCLUSION']['content']['judgment'][:30])
 
-                for historical_id in ['W04', 'W08']:
-                    historical = page.locator(f'#requirement-{historical_id}')
-                    historical.locator('summary').click()
-                    expect(historical.locator('.progress-executive .progress-source-line')).to_contain_text('이전 실행 결과')
-                    expect(historical.locator('.progress-executive .progress-source-line')).to_contain_text('c9b09c1ddfba')
+                for latest_id in ['W04', 'W08']:   # 최신 수집 기록(재시도 후)이 기본, 재시도 전 기록은 W04 의 이력 산출물로
+                    latest = page.locator(f'#requirement-{latest_id}')
+                    latest.locator('summary').click()
+                    expect(latest.locator('.progress-executive .progress-source-line')).to_contain_text('c9b09c1ddfba')
+                    expect(latest.locator('.progress-executive .progress-source-line')).not_to_contain_text('이전 실행 결과')
+                page.locator('#requirement-W04 .progress-detailed > summary').click()
+                expect(page.locator('#artifact-W04-AIONA-HISTORY .progress-result')).to_have_text(by_id['W04-AIONA-HISTORY']['result_summary'])
+
+                # 우영 담당 통합 요약 A·B·C — 수치는 artifacts.json overview 그대로, 상세 보기로 W01~W09 연결
+                overview = {g['id']: g for g in artifacts['overview']['groups']}
+                page.get_by_role('button', name='우영 담당 · 9개').click()
+                panel = page.locator('#progress-owner-overview')
+                expect(panel).to_be_visible()
+                expect(panel.locator('.progress-group-tile')).to_have_count(3)
+                expect(panel.locator('.progress-group-card')).to_have_count(4)   # A·B·C + 남은 일
+                expect(panel.locator('.progress-demo-nav button')).to_have_count(5)
+                for gid, group in overview.items():
+                    card = panel.locator(f'#progress-group-{gid}')
+                    expect(card.locator('.progress-group-finding')).to_have_text(group['finding'])
+                    expect(card.locator('.progress-focus-metric strong')).to_have_text(
+                        [f"{m['value']:,}" if isinstance(m['value'], int) else str(m['value']) for m in group['metrics']])
+                    expect(card.locator('.progress-group-issue')).to_contain_text(group['open_issue'])
+                    expect(card.locator('.progress-group-req')).to_have_count(len(group['requirements']))
+                a_card = panel.locator('#progress-group-A')
+                expect(a_card.locator('.progress-intent-bar')).to_have_attribute('aria-label',
+                    f'판단 가능 {applied + missed}건 중 실제 적용 {applied}건, 미적용 {missed}건. 별도 판단 보류 {pending}건.')
+                panel.screenshot(path=str(output / 'woo-overview-desktop.png'))
+                a_card.get_by_role('button', name='기준별 질문 커버리지').click()
+                coverage = by_id['W02-MATRIX']['content']['charts'][0]['series'][0]['values']
+                expect(a_card.locator('svg text.value')).to_have_text([f'{v:,}' for v in coverage])
+                a_card.get_by_role('button', name='질문 수 연구').click()
+                expect(a_card.locator('svg')).to_contain_text(f"{last['name']} {last['values'][-1]}")
+                b_card = panel.locator('#progress-group-B')
+                expect(b_card.locator('svg text.value')).to_have_text([f'{v:g}%' for v in overview['B']['chart']['series'][0]['values']])
+                expect(b_card.locator('.progress-missing span')).to_have_count(len(overview['B']['missing']))
+                b_card.locator('summary', has_text='서비스별 수집 기록 표').click()
+                services = len(overview['B']['table']['rows'])
+                expect(b_card.locator('.progress-table-count').last).to_have_text(f'{services}행 중 {services}행')
+                expect(b_card.locator('.progress-table').last).to_contain_text('이력(같은 실행 재시도 전)')
+                c_card = panel.locator('#progress-group-C')
+                states = {'real': '실제 실행 완료', 'tested': '코드 구현·테스트 완료', 'partial': '부분 완료', 'pending': '미실행·검증 대기'}
+                expect(c_card.locator('.progress-pipeline-state')).to_have_text([states[s['state']] for s in overview['C']['steps']])
+                expect(c_card.locator('.progress-file')).to_contain_text('비공개 원본')
+                panel.get_by_role('button', name='④ C 평가 연동').click()
+                expect(c_card).to_be_in_viewport()
+                expect(panel.locator('#progress-group-plan')).to_contain_text(data['due'])
+                panel.get_by_role('button', name='W03 상세 보기').click()
+                expect(page.locator('#requirement-W03')).to_have_attribute('open', '')
+                expect(page.locator('#requirement-W03 .progress-key-results .progress-chart')).to_have_count(2)
+                page.get_by_label('담당자 필터').select_option('윤재')
+                expect(panel).to_be_hidden()
+                page.get_by_label('담당자 필터').select_option('all')
 
                 # W06 — 산출물 없음 안내, 근거 없는 칸은 미확인
                 page.locator('#requirement-W06 summary').click()
@@ -266,13 +313,17 @@ def main():
                 expect(mobile_w01.locator('.progress-intent-bar')).to_be_visible()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.screenshot(path=str(output / 'w01-after-mobile.png'), full_page=False)
+                page.get_by_label('담당자 필터').select_option('우영')
+                expect(page.locator('#progress-group-B svg')).to_be_visible()
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                page.locator('#progress-owner-overview').screenshot(path=str(output / 'woo-overview-mobile.png'))
                 assert not errors and not writes, (errors, writes)
                 browser.close()
         finally:
             server.shutdown()
             server.server_close()
     print(f"PASS: progress 18 items, {len(artifacts['artifacts'])} artifacts (A~D, prompt, charts = JSON, table filter, CSV), "
-          'no-artifact notice, private missing / bad path / broken artifact / artifacts 404, filters, refresh, mobile, no model calls')
+          'woo overview A·B·C (numbers = JSON, detail links, mobile), no-artifact notice, private missing / bad path / broken artifact / artifacts 404, filters, refresh, mobile, no model calls')
 
 
 if __name__ == '__main__':

@@ -73,6 +73,34 @@ def test_charts_and_tables_use_the_same_numbers_as_the_question_set_and_answers(
     assert sum(buckets) == sum(1 for r in matrix["table"]["rows"] if r["units"] is not None)
 
 
+def test_owner_overview_numbers_come_from_the_artifacts_and_the_answers_file():
+    """우영 통합 요약 A·B·C 는 산출물·answers.json 과 같은 수치이고, 실측이 없는 경로에는 수치를 쓰지 않으며, 재시도 전 기록은 이력으로 따로 둔다."""
+    overview = ARTIFACTS["overview"]
+    assert _strip_links(overview) == _strip_links(pa.build(ARTIFACTS)["overview"])
+    groups = {g["id"]: g for g in overview["groups"]}
+    assert list(groups) == ["A", "B", "C"] and sum((g["requirements"] for g in groups.values()), []) == overview["requirements"]
+    intent = {s["label"]: s["value"] for s in BY_ID["W01-INTENT"]["content"]["stats"]}
+    metrics = {m["label"]: m["value"] for m in groups["A"]["metrics"]}
+    assert metrics["목표 항목 실제 적용"] == f"{intent['실제 적용']}/{intent['실제 적용'] + intent['적용 안 됨']}건"
+    assert metrics["J6 제외 적용률"] == intent["J6 제외 적용률"]
+    answers = json.loads((ROOT / pa.ANSWERS).read_text(encoding="utf-8"))["meta"]
+    rows = {r["service"]: r for r in groups["B"]["table"]["rows"]}
+    for name, system in (("AIONA 웹", "aiona"), ("GPT API", "gpt"), ("Gemini API", "gemini")):
+        assert (rows[name]["success"], rows[name]["requests"], rows[name]["run_id"]) == (
+            answers["status_counts"][system]["SUCCESS"], answers["turns"], answers["run_id"])
+    chart = groups["B"]["chart"]
+    real = [r for r in rows.values() if r["state"] == "real"]
+    assert chart["categories"] == [r["chart_label"] for r in real]
+    assert chart["series"][0]["values"] == [round(r["success"] / r["requests"] * 100, 1) for r in real]
+    assert all(r["requests"] is None and r["rate"] is None for r in rows.values() if r["state"] == "none")
+    old = json.loads(pa._git("show", f"{pa.HISTORY_REV}:{pa.ANSWERS}"))["meta"]["status_counts"]["aiona"]
+    history = rows["AIONA 웹 (재시도 전 기록)"]
+    assert history["state"] == "history" and history["success"] == old["SUCCESS"] and history["chart_label"] is None
+    steps = {s["name"]: s["state"] for s in groups["C"]["steps"]}
+    if answers["evaluation"] == "하지 않음":
+        assert steps["CODE·LLM 평가"] == steps["결과 비교"] == "pending"
+
+
 def test_without_the_private_run_the_saved_public_summary_is_kept_not_invented(monkeypatch, tmp_path):
     monkeypatch.setattr(pa, "SAVED_RUN", "data/comparison_runs/없는-실행.json")
     kept = pa.build(ARTIFACTS)

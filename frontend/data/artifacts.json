@@ -222,13 +222,13 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
-   "code_revision": "0346246",
+   "created_at": "2026-10-14 10:53 KST",
+   "code_revision": "6a0c157",
    "verification_status": {
     "level": "real_run",
     "note": "실제 GPT(gpt-6-luna) 호출로 만든 질문. 사람이 질문 품질을 검수한 기록은 없음."
@@ -243,16 +243,16 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "세트 설명 README",
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/README.md",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/README.md"
+     "revision": "6a0c157",
+     "url": null
     }
    ],
    "content": {
@@ -4498,12 +4498,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "cc64a1d",
    "verification_status": {
     "level": "measured",
@@ -4519,8 +4519,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "적용 규칙",
@@ -4873,12 +4873,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "cc64a1d",
    "verification_status": {
     "level": "measured",
@@ -4895,8 +4895,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "적용 규칙",
@@ -5939,12 +5939,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "cc64a1d",
    "verification_status": {
     "level": "measured",
@@ -5960,8 +5960,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "적용 규칙",
@@ -6377,12 +6377,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "cc64a1d",
    "verification_status": {
     "level": "measured",
@@ -6399,8 +6399,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "분석 도구",
@@ -6847,9 +6847,9 @@
     "kind": "analysis",
     "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
     "visibility": "public",
-    "revision": "0346246"
+    "revision": "6a0c157"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "cc64a1d",
    "verification_status": {
     "level": "measured",
@@ -6864,8 +6864,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "저장 실행 e3c60d3efd18 (비공개 원본)",
@@ -6939,28 +6939,28 @@
    "requirement_id": "W04",
    "title": "AIONA 웹 자동화 수집 — 질문 세트 300 실제 실행",
    "type": "run",
-   "description": "winz.aiona.kr 웹 화면을 브라우저 자동화로 열어 질문 450턴을 보내고 답변 원문을 받은 실제 수집 결과입니다(팀원 실행, 실패한 턴만 다시 받음).",
-   "result_summary": "턴 450개 중 성공 286(63.6%) · 오류 164 · 미완료 0. 오류 164턴 중 8턴은 '아무것도 출력하지 마' 같은 빈 출력 요구 질문. 가장 많은 실패 사유: 'AIONA 수집을 시작하지 못했습니다: Error' 163건. 다시 받은 턴 216개, 성공 답변 응답 시간 중앙값 9,404ms.",
+   "description": "winz.aiona.kr 웹 화면을 브라우저 자동화로 열어 질문 450턴을 보내고 답변을 받은 실제 수집 결과입니다(팀원 실행, 실패한 턴만 다시 받음). 성공 답 441개는 AIONA 대화 기록 원문(답변 아래 복사 버튼 원문과 같음)으로 바꿨습니다.",
+   "result_summary": "턴 450개 중 성공 441(98.0%) · 오류 8 · 미완료 1. 오류 8턴 중 8턴은 '아무것도 출력하지 마' 같은 빈 출력 요구 질문. 가장 많은 실패 사유: 'AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.' 8건. 다시 받은 턴 379개, 성공 답변 응답 시간 중앙값 9,419ms.",
    "data_source": {
     "label": "질문 세트 300 · AIONA·GPT·Gemini 답변 원문 (팀원 수집, 평가 없음)",
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "adf1cf8",
    "verification_status": {
     "level": "real_run",
     "note": "실제 AIONA 웹 서비스에서 받은 답변. 이 답변들은 아직 평가하지 않았음."
    },
    "limitations": [
-    "AIONA 웹은 기본 '자동 추천' 모델이라 어떤 모델이 답했는지 기록되지 않는다.",
+    "AIONA 웹은 기본 '자동 추천'이라 답한 모델이 질문마다 다르다 — 기록된 모델: gpt-6-luna 439, gemini-3.8-flash 2.",
     "빈 출력 요구 질문의 오류는 수집 실패인지 AIONA 의 실제 반응인지 평가 기준(CODE 2-1 빈 출력)으로 따로 정해야 한다.",
-    "실패 164턴은 답변이 없어 평가 대상에서 빠진다.",
+    "실패 9턴은 답변이 없어 평가 대상에서 빠진다.",
     "수집 → JSON 저장까지만 있고 평가기까지 이어진 실행은 아직 없다(T01)."
    ],
    "file_or_result_reference": [
@@ -6969,16 +6969,16 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/answers.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "수집 결과 설명 README",
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/README.md",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/README.md"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "AIONA 웹 수집 코드",
@@ -6998,7 +6998,7 @@
      },
      {
       "label": "수집 방식",
-      "value": "winz.aiona.kr 웹 자동화 (aiona-web-v1)"
+      "value": "winz.aiona.kr 웹 자동화 (aiona-web-v1) — 성공 답은 AIONA 대화 기록 원문으로 교체(복사 버튼 원문과 같음)"
      },
      {
       "label": "모델",
@@ -7006,21 +7006,21 @@
      },
      {
       "label": "수집 시각",
-      "value": "2026-10-14 08:51 KST ~ 2026-10-14 09:55 KST"
+      "value": "2026-10-14 08:51 KST ~ 2026-10-14 12:32 KST"
      }
     ],
     "outputs": [
      {
       "label": "성공",
-      "value": 286
+      "value": 441
      },
      {
       "label": "오류",
-      "value": 164
+      "value": 8
      },
      {
       "label": "미완료",
-      "value": 0
+      "value": 1
      },
      {
       "label": "오류 중 빈 출력 요구 질문",
@@ -7028,11 +7028,15 @@
      },
      {
       "label": "다시 받은 턴",
-      "value": 216
+      "value": 379
      },
      {
       "label": "답변 길이 중앙값",
-      "value": "84자"
+      "value": "93자"
+     },
+     {
+      "label": "자동 추천이 고른 모델",
+      "value": "gpt-6-luna 439, gemini-3.8-flash 2"
      }
     ],
     "charts": [
@@ -7049,21 +7053,21 @@
         "name": "성공",
         "state": "SUCCESS",
         "values": [
-         286
+         441
         ]
        },
        {
         "name": "미완료",
         "state": "INCOMPLETE",
         "values": [
-         0
+         1
         ]
        },
        {
         "name": "오류",
         "state": "ERROR",
         "values": [
-         164
+         8
         ]
        }
       ]
@@ -7071,11 +7075,11 @@
     ],
     "errors": [
      {
-      "reason": "AIONA 수집을 시작하지 못했습니다: Error",
-      "count": 163
+      "reason": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
+      "count": 8
      },
      {
-      "reason": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
+      "reason": "AIONA 가 답하지 않음 — 화면에는 주문A.pdf·주문B.pdf 두 칸이 보이지만 AIONA 대화 기록에는 주문A.pdf 만 저장되고 '생…",
       "count": 1
      }
     ],
@@ -7083,26 +7087,26 @@
      {
       "case_id": "Q1_T1",
       "status": "ERROR",
-      "at": "2026-10-14 09:45 KST",
+      "at": "2026-10-14 10:42 KST",
       "retried": true,
       "text": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
       "question": "아무것도 출력하지 마."
      },
      {
-      "case_id": "Q35_T1",
+      "case_id": "Q47_T1",
       "status": "ERROR",
-      "at": null,
-      "retried": false,
-      "text": "AIONA 수집을 시작하지 못했습니다: Error",
-      "question": "아래 표에서 재고가 10 이상인 품목만 남겨 재고 수량 내림차순으로 정렬해줘. 열 이름과 순서는 원래 표와 같게 유지해줘. | 품목 | 재고 …"
+      "at": "2026-10-14 10:42 KST",
+      "retried": true,
+      "text": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
+      "question": "이번 요청에는 아무것도 출력하지 마."
      },
      {
-      "case_id": "Q36_T1",
+      "case_id": "Q137_T1",
       "status": "ERROR",
-      "at": null,
-      "retried": false,
-      "text": "AIONA 수집을 시작하지 못했습니다: Error",
-      "question": "아래 주문표에서 '수량' 열의 합계를 계산해줘. 계산에 사용한 값을 간단히 표시해줘. | 품목 | 수량 | |---|---:| | 토마토 | …"
+      "at": "2026-10-14 10:43 KST",
+      "retried": true,
+      "text": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
+      "question": "아무것도 출력하지 마."
      },
      {
       "case_id": "Q2_T1",
@@ -7132,6 +7136,77 @@
    }
   },
   {
+   "artifact_id": "W04-AIONA-HISTORY",
+   "requirement_id": "W04",
+   "title": "AIONA 수집 이전 기록 — 같은 실행 c9b09c1ddfba 의 재시도 전 (이력)",
+   "type": "run",
+   "description": "같은 실행 c9b09c1ddfba 의 처음 내보낸 기록입니다. 그 뒤 실패한 턴만 다시 받아 최신 기록(W04-AIONA-RUN)으로 바뀌었습니다. 성능 비교가 아니라 수집 과정의 이력입니다.",
+   "result_summary": "턴 450개 중 성공 286(63.6%) · 오류 164. 가장 많은 실패 사유: 'AIONA 수집을 시작하지 못했습니다: Error' 163건.",
+   "data_source": {
+    "label": "이전 기록 — 커밋 0346246 의 answers.json (재시도 전)",
+    "kind": "repo_file",
+    "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
+    "visibility": "public",
+    "revision": "0346246",
+    "run_id": "c9b09c1ddfba",
+    "history": true
+   },
+   "created_at": "2026-10-14 09:55 KST",
+   "code_revision": "0346246",
+   "verification_status": {
+    "level": "real_run",
+    "note": "실제 AIONA 웹 수집의 재시도 전 상태. 최신 기록으로 대체됐다."
+   },
+   "limitations": [
+    "최신 기록과 같은 질문·같은 실행이다 — 성공률 차이는 실패한 턴을 다시 받은 결과이지 AIONA 가 나아진 것이 아니다."
+   ],
+   "file_or_result_reference": [
+    {
+     "label": "이전 answers.json (커밋 0346246)",
+     "kind": "repo_file",
+     "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
+     "visibility": "public",
+     "revision": "0346246",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/answers.json"
+    }
+   ],
+   "content": {
+    "run_id": "c9b09c1ddfba",
+    "outputs": [
+     {
+      "label": "성공",
+      "value": 286
+     },
+     {
+      "label": "오류",
+      "value": 164
+     },
+     {
+      "label": "미완료",
+      "value": 0
+     },
+     {
+      "label": "다시 받은 턴",
+      "value": 216
+     },
+     {
+      "label": "내보낸 시각",
+      "value": "2026-10-14 09:55 KST"
+     }
+    ],
+    "errors": [
+     {
+      "reason": "AIONA 수집을 시작하지 못했습니다: Error",
+      "count": 163
+     },
+     {
+      "reason": "AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
    "artifact_id": "W05-API-RUN",
    "requirement_id": "W05",
    "title": "GPT·Gemini API 수집 — 질문 세트 300 실제 실행",
@@ -7143,12 +7218,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "534d7e9",
    "verification_status": {
     "level": "real_run",
@@ -7165,8 +7240,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/answers.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "API 수집 코드",
@@ -7554,18 +7629,18 @@
    "title": "같은 450턴, 수집 경로별 결과 (웹 자동화 vs API)",
    "type": "experiment",
    "description": "질문 세트 300 의 같은 질문을 AIONA 는 웹 자동화로, GPT·Gemini 는 API + 검색 도구로 받았습니다. 경로별 성공률·응답 시간·답변 길이를 나란히 놓았습니다. 점수 비교는 아직 평가하지 않아 할 수 없습니다.",
-   "result_summary": "AIONA(웹 자동화) 성공 63.6%, 응답 9,404ms · GPT(API + 검색 도구) 성공 100.0%, 응답 1,696ms · GEMINI(API + 검색 도구) 성공 99.6%, 응답 6,004ms.",
+   "result_summary": "AIONA(웹 자동화) 성공 98.0%, 응답 9,419ms · GPT(API + 검색 도구) 성공 100.0%, 응답 1,696ms · GEMINI(API + 검색 도구) 성공 99.6%, 응답 6,004ms.",
    "data_source": {
     "label": "질문 세트 300 · AIONA·GPT·Gemini 답변 원문 (팀원 수집, 평가 없음)",
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "adf1cf8",
    "verification_status": {
     "level": "measured",
@@ -7582,8 +7657,8 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/answers.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "한 실행 안 수집 방식 비교 코드",
@@ -7611,7 +7686,7 @@
         "name": "성공",
         "state": "SUCCESS",
         "values": [
-         286,
+         441,
          450,
          448
         ]
@@ -7620,7 +7695,7 @@
         "name": "미완료",
         "state": "INCOMPLETE",
         "values": [
-         0,
+         1,
          0,
          1
         ]
@@ -7629,7 +7704,7 @@
         "name": "오류",
         "state": "ERROR",
         "values": [
-         164,
+         8,
          0,
          1
         ]
@@ -7677,10 +7752,10 @@
        "system": "AIONA",
        "path": "웹 자동화",
        "model": "AIONA 웹 · 자동 추천",
-       "success_rate": 0.6356,
-       "latency": 9404,
-       "chars": 84,
-       "retried": 216
+       "success_rate": 0.98,
+       "latency": 9419,
+       "chars": 93,
+       "retried": 379
       },
       {
        "system": "GPT",
@@ -7717,12 +7792,12 @@
     "kind": "repo_file",
     "path": "참고자료/수집결과/2026-10-14-질문세트300",
     "visibility": "public",
-    "revision": "0346246",
+    "revision": "6a0c157",
     "run_id": "c9b09c1ddfba",
     "generator": "question-gen-v1.2 (target_questions=300)",
     "generator_model": "gpt-6-luna"
    },
-   "created_at": "2026-10-14 09:55 KST",
+   "created_at": "2026-10-14 10:53 KST",
    "code_revision": "adf1cf8",
    "verification_status": {
     "level": "auto_tested",
@@ -7738,16 +7813,16 @@
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/questions.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/questions.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "answers.json",
      "kind": "repo_file",
      "path": "참고자료/수집결과/2026-10-14-질문세트300/answers.json",
      "visibility": "public",
-     "revision": "0346246",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/0346246/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%88%98%EC%A7%91%EA%B2%B0%EA%B3%BC/2026-10-14-%EC%A7%88%EB%AC%B8%EC%84%B8%ED%8A%B8300/answers.json"
+     "revision": "6a0c157",
+     "url": null
     },
     {
      "label": "가져오기 코드",
@@ -7865,6 +7940,10 @@
          "collected_at": "2026-10-14T00:45:56.256514+00:00",
          "method": "aiona-web-v1",
          "retried": true,
+         "capture": "history-original",
+         "html_capture_diff": "whitespace",
+         "routed_model": "gpt-6-luna",
+         "aiona_conversation": "7a809610-901f-40df-945b-732422b4cc11",
          "answer": "가정: **공백과 문장부호도 글자 수에 포함**하는 것으로 계산했어요. 같은 문구가 동시에 20자이면서 30자일 수는 없어요. 대신 조건별 문…"
         },
         "gpt": {
@@ -8054,5 +8133,514 @@
     }
    }
   }
- ]
+ ],
+ "overview": {
+  "owner": "우영",
+  "title": "우영 담당 통합 성과 (W01~W09)",
+  "requirements": [
+   "W01",
+   "W02",
+   "W03",
+   "W04",
+   "W05",
+   "W06",
+   "W07",
+   "W08",
+   "W09"
+  ],
+  "data_as_of": "2026-10-14 10:53 KST",
+  "data_revision": "6a0c157",
+  "human_reviewed": 0,
+  "groups": [
+   {
+    "id": "A",
+    "title": "질문 생성 및 품질 검증",
+    "requirements": [
+     "W01",
+     "W02",
+     "W03"
+    ],
+    "headline": "질문 300개 실제 생성 · 목표 항목 적용 50.3%",
+    "finding": "question-gen-v1.4 는 구현됐고 실제 생성은 아직 하지 않았습니다. 실제로 만든 질문 300개(question-gen-v1.2)에서 생성기가 노린 평가 항목은 판단 가능한 487건 중 245건(50.3%)만 실제로 적용됐고, 빗나간 242건 중 169건이 J6 조건 차이입니다.",
+    "scope": "아래 수치는 모두 question-gen-v1.2 실제 생성 결과(실행 c9b09c1ddfba) · 현재 코드 question-gen-v1.4 는 구현·모의 테스트만 확인",
+    "metrics": [
+     {
+      "label": "실제 생성 질문",
+      "value": 300,
+      "note": "question-gen-v1.2 · 실제 GPT 생성",
+      "artifact_id": "W01-SET300"
+     },
+     {
+      "label": "목표 항목 실제 적용",
+      "value": "245/487건",
+      "note": "50.3% · question-gen-v1.2 · 코드 규칙 계산",
+      "artifact_id": "W01-INTENT"
+     },
+     {
+      "label": "J6 제외 적용률",
+      "value": "76.4%",
+      "note": "question-gen-v1.2 · J6 를 뺀 집계",
+      "artifact_id": "W01-INTENT"
+     },
+     {
+      "label": "최하위 기준 중 미적용",
+      "value": "3/83개",
+      "note": "질문 세트 300 에서 한 번도 적용 안 됨 · 83개 = 늘 적용 검사 3개 포함",
+      "artifact_id": "W02-MATRIX"
+     }
+    ],
+    "charts": [
+     {
+      "label": "목표 항목 적용률",
+      "kind": "intent",
+      "artifact_id": "W01-INTENT",
+      "version": "question-gen-v1.2"
+     },
+     {
+      "label": "기준별 질문 커버리지",
+      "kind": "chart",
+      "artifact_id": "W02-MATRIX",
+      "chart": 0
+     },
+     {
+      "label": "질문 수 연구",
+      "kind": "chart",
+      "artifact_id": "W03-COVERAGE",
+      "chart": 0
+     }
+    ],
+    "open_issue": "간편·정밀 검사 적정 질문 수 미확정 — 지금 데이터로는 간편·정밀 질문 수를 정할 수 없다. 질문 300개로도 기준 80개 중 28개는 5번도 적용되지 않고, 평가 결과가 있는 실행은 독립 단위 30개뿐이다."
+   },
+   {
+    "id": "B",
+    "title": "모델별 답변 수집",
+    "requirements": [
+     "W04",
+     "W05",
+     "W06",
+     "W07"
+    ],
+    "headline": "AIONA 98.0% · GPT 100.0% · Gemini 99.6% 실측",
+    "finding": "같은 질문 세트 300(450턴, 실행 c9b09c1ddfba)에서 AIONA 웹 441/450(98.0%), GPT API 450/450, Gemini API 448/450를 실제로 받았습니다. AIONA 실패 9턴 중 8턴은 빈 출력을 요구한 질문에 AIONA 가 오류로 멈춘 경우입니다.",
+    "scope": "AIONA·GPT·Gemini — 같은 질문 세트 300 · 450턴 · 실행 c9b09c1ddfba · 수집 2026-10-14 08:51 KST ~ 2026-10-14 12:32 KST / Claude — 다른 실행: 저장 실행 e3c60d3efd18 · 다른 질문 68턴 · 2026-10-13 15:12 KST (위 세트와 같은 조건이 아님)",
+    "metrics": [
+     {
+      "label": "AIONA 웹",
+      "value": "441/450",
+      "artifact_id": "W04-AIONA-RUN",
+      "note": "98.0% · 최신 기록 (재시도 전 286/450)"
+     },
+     {
+      "label": "GPT API",
+      "value": "450/450",
+      "note": "100.0% · gpt-6-luna",
+      "artifact_id": "W05-API-RUN"
+     },
+     {
+      "label": "Gemini API",
+      "value": "448/450",
+      "note": "99.6% · gemini-3.8-flash",
+      "artifact_id": "W05-API-RUN"
+     },
+     {
+      "label": "실측 없는 경로",
+      "value": 6,
+      "note": "웹 3종(W06) · FactChat(W07) · 이 세트의 Claude API"
+     }
+    ],
+    "chart": {
+     "kind": "bar",
+     "title": "서비스별 수집 완료율 — 성공 턴 ÷ 요청 턴 (실측이 있는 것만)",
+     "unit": "%",
+     "max": 100,
+     "label_width": 150,
+     "categories": [
+      "AIONA 웹",
+      "GPT API",
+      "Gemini API",
+      "Claude API (다른 실행)"
+     ],
+     "series": [
+      {
+       "name": "수집 완료율",
+       "values": [
+        98.0,
+        100.0,
+        99.6,
+        100.0
+       ]
+      }
+     ]
+    },
+    "conditions": [
+     "AIONA·GPT·Gemini — 같은 질문 세트 300 · 450턴 · 실행 c9b09c1ddfba · 수집 2026-10-14 08:51 KST ~ 2026-10-14 12:32 KST",
+     "Claude — 다른 실행: 저장 실행 e3c60d3efd18 · 다른 질문 68턴 · 2026-10-13 15:12 KST (위 세트와 같은 조건이 아님)"
+    ],
+    "missing": [
+     "Claude API (질문 세트 300)",
+     "GPT 웹",
+     "Claude 웹",
+     "Gemini 웹",
+     "FactChat 웹",
+     "FactChat API 게이트웨이"
+    ],
+    "table": {
+     "columns": [
+      {
+       "key": "service",
+       "label": "모델·서비스"
+      },
+      {
+       "key": "method",
+       "label": "수집 방식"
+      },
+      {
+       "key": "requirement",
+       "label": "요구사항"
+      },
+      {
+       "key": "record",
+       "label": "기록"
+      },
+      {
+       "key": "requests",
+       "label": "요청 턴",
+       "numeric": true
+      },
+      {
+       "key": "success",
+       "label": "성공",
+       "numeric": true
+      },
+      {
+       "key": "failed",
+       "label": "실패·미완료",
+       "numeric": true
+      },
+      {
+       "key": "rate",
+       "label": "완료율",
+       "percent": true
+      },
+      {
+       "key": "run_id",
+       "label": "실행 ID"
+      },
+      {
+       "key": "when",
+       "label": "시점"
+      },
+      {
+       "key": "cause",
+       "label": "실패 원인"
+      },
+      {
+       "key": "status",
+       "label": "현재 구현 상태"
+      }
+     ],
+     "rows": [
+      {
+       "service": "AIONA 웹",
+       "method": "웹 자동화 (aiona-web-v1)",
+       "requirement": "W04",
+       "state": "real",
+       "record": "실측",
+       "requests": 450,
+       "success": 441,
+       "failed": 9,
+       "rate": 0.98,
+       "run_id": "c9b09c1ddfba",
+       "when": "2026-10-14 08:51 KST ~ 2026-10-14 12:32 KST",
+       "cause": "빈 출력 요구 질문 8턴 포함 · AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요. (8턴); AIONA 가 답하지 않음 — 화면에는 주문A.pdf·주문B.pdf 두 칸이 보이지만 AIONA 대화 기록… (1턴)",
+       "status": "구현 · 실제 수집",
+       "chart_label": "AIONA 웹"
+      },
+      {
+       "service": "AIONA 웹 (재시도 전 기록)",
+       "method": "웹 자동화 (aiona-web-v1)",
+       "requirement": "W04",
+       "state": "history",
+       "record": "이력(같은 실행 재시도 전)",
+       "requests": 450,
+       "success": 286,
+       "failed": 164,
+       "rate": 0.6356,
+       "run_id": "c9b09c1ddfba",
+       "when": "2026-10-14 09:55 KST",
+       "cause": "AIONA 수집을 시작하지 못했습니다: Error (163턴); AIONA 가 답하지 못했습니다: 처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요. (1턴)",
+       "status": "이력 — 실패한 턴만 다시 받아 위 기록으로 대체 (커밋 0346246)",
+       "chart_label": null
+      },
+      {
+       "service": "GPT API",
+       "method": "API + 웹 검색 도구 (api-tools-v4)",
+       "requirement": "W05",
+       "state": "real",
+       "record": "실측",
+       "requests": 450,
+       "success": 450,
+       "failed": 0,
+       "rate": 1.0,
+       "run_id": "c9b09c1ddfba",
+       "when": "2026-10-14 08:51 KST ~ 2026-10-14 08:57 KST",
+       "cause": "—",
+       "status": "구현 · 실제 수집",
+       "chart_label": "GPT API"
+      },
+      {
+       "service": "Gemini API",
+       "method": "API + Google 검색 도구 (api-tools-v4)",
+       "requirement": "W05",
+       "state": "real",
+       "record": "실측",
+       "requests": 450,
+       "success": 448,
+       "failed": 2,
+       "rate": 0.9956,
+       "run_id": "c9b09c1ddfba",
+       "when": "2026-10-14 08:51 KST ~ 2026-10-14 09:30 KST",
+       "cause": "응답 미완료 (MAX_TOKENS) (1턴); 앞선 대화 응답이 없어 이 턴의 수집을 건너뛰었습니다. (1턴)",
+       "status": "구현 · 실제 수집",
+       "chart_label": "Gemini API"
+      },
+      {
+       "service": "Claude API (질문 세트 300)",
+       "method": "API (api-tools-v4)",
+       "requirement": "W05",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "계정 크레딧 부족으로 수집하지 않음",
+       "status": "수집 코드 있음 · 이 세트 실측 없음",
+       "chart_label": null
+      },
+      {
+       "service": "Claude API (저장 실행 e3c60d3efd18)",
+       "method": "API",
+       "requirement": "W05",
+       "state": "real",
+       "record": "실측",
+       "requests": 68,
+       "success": 68,
+       "failed": 0,
+       "rate": 1.0,
+       "run_id": "e3c60d3efd18",
+       "when": "2026-10-13 15:12 KST",
+       "cause": "—",
+       "status": "다른 질문 68턴 · 평가까지 끝난 실행",
+       "chart_label": "Claude API (다른 실행)"
+      },
+      {
+       "service": "GPT 웹",
+       "method": "웹 자동화",
+       "requirement": "W06",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "수집 코드 없음",
+       "status": "로그인 창을 여는 도구만 — 질문을 보내 답을 받는 코드 없음",
+       "chart_label": null
+      },
+      {
+       "service": "Claude 웹",
+       "method": "웹 자동화",
+       "requirement": "W06",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "수집 코드 없음",
+       "status": "로그인 창을 여는 도구만 — 질문을 보내 답을 받는 코드 없음",
+       "chart_label": null
+      },
+      {
+       "service": "Gemini 웹",
+       "method": "웹 자동화",
+       "requirement": "W06",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "수집 코드 없음",
+       "status": "로그인 창을 여는 도구만 — 질문을 보내 답을 받는 코드 없음",
+       "chart_label": null
+      },
+      {
+       "service": "FactChat 웹",
+       "method": "웹 자동화",
+       "requirement": "W07",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "이 브랜치에 수집 코드 없음",
+       "status": "main 039a4f0 에 웹 수집 코드(질문 1개 시험 성공 — 커밋 기록) · 이 브랜치 미반영 · 저장된 수집 기록 없음",
+       "chart_label": null
+      },
+      {
+       "service": "FactChat API 게이트웨이",
+       "method": "API",
+       "requirement": "W07",
+       "state": "none",
+       "record": "실측 없음 — 미완료",
+       "requests": null,
+       "success": null,
+       "failed": null,
+       "rate": null,
+       "run_id": null,
+       "when": null,
+       "cause": "실제 호출 기록 없음",
+       "status": "설정·모의 테스트만 (W07-FACTCHAT-API)",
+       "chart_label": null
+      }
+     ],
+     "download": "woo-collection-services.csv"
+    },
+    "open_issue": "GPT·Claude·Gemini 웹 수집(W06)과 FactChat 웹 수집(W07)은 실측이 없습니다 — 같은 모델을 API 와 웹으로 받아 비교(W08)할 수 없습니다."
+   },
+   {
+    "id": "C",
+    "title": "수집 결과 비교 및 평가 연동",
+    "requirements": [
+     "W08",
+     "W09"
+    ],
+    "headline": "생성 → 수집 → JSON 저장 실제 연결 · 300세트 평가 미실행",
+    "finding": "질문 생성 → 답변 수집 → JSON 저장까지는 질문 세트 300 으로 실제 연결됐습니다. 평가 기준 적용은 코드 규칙으로 계산만 했고, CODE·LLM 평가와 결과 비교는 이 세트로 아직 실행하지 않았습니다. 끝까지 이어진 실행은 다른 질문 세트(저장 실행 e3c60d3efd18, 68턴)뿐입니다.",
+    "metrics": [
+     {
+      "label": "300세트 성공 답변",
+      "value": 1339,
+      "note": "JSON 저장 · 평가 전"
+     },
+     {
+      "label": "300세트 평가",
+      "value": "미실행",
+      "note": "유료 · 승인 필요"
+     },
+     {
+      "label": "평가까지 끝난 저장 실행",
+      "value": 1,
+      "note": "e3c60d3efd18 · 다른 질문 68턴"
+     },
+     {
+      "label": "사람 검수",
+      "value": 0,
+      "note": "판정 정확도 미측정"
+     }
+    ],
+    "steps": [
+     {
+      "name": "질문 생성",
+      "state": "real",
+      "requirement": "W01",
+      "detail": "질문 300개 · 턴 450개 (question-gen-v1.2, gpt-6-luna). 현재 question-gen-v1.4 는 구현·모의 테스트만"
+     },
+     {
+      "name": "모델별 답변 수집",
+      "state": "partial",
+      "requirement": "W04",
+      "detail": "AIONA 웹 441/450 · GPT API 450/450 · Gemini API 448/450. 실측 없음: Claude API (질문 세트 300), GPT 웹, Claude 웹, Gemini 웹, FactChat 웹, FactChat API 게이트웨이"
+     },
+     {
+      "name": "JSON 저장",
+      "state": "real",
+      "requirement": "W09",
+      "detail": "questions.json · answers.json — 턴 450 × 시스템 3, 성공 답변 1,339개 (실행 c9b09c1ddfba)"
+     },
+     {
+      "name": "평가 기준 적용",
+      "state": "tested",
+      "requirement": "W02",
+      "detail": "질문만으로 정해지는 기준은 평가와 같은 코드 규칙으로 계산(모델 호출 없음) — 최하위 기준 83개 중 3개 미적용. 답변이 필요한 기준은 평가 때 정해짐"
+     },
+     {
+      "name": "CODE·LLM 평가",
+      "state": "pending",
+      "requirement": "W09",
+      "detail": "질문 세트 300 답변 평가 미실행 — LLM 평가는 유료라 승인 필요(추정 약 $176.7, Batches 사용 시 약 절반). 끝까지 이어진 실행은 다른 질문 세트(저장 실행 e3c60d3efd18, 68턴)뿐입니다."
+     },
+     {
+      "name": "결과 비교",
+      "state": "pending",
+      "requirement": "W08",
+      "detail": "질문 세트 300 의 모델별 점수 비교는 아직 없음. 저장 실행 e3c60d3efd18 는 결과 화면에서 모델별 비교를 볼 수 있음"
+     }
+    ],
+    "saved_run": {
+     "label": "저장 실행 e3c60d3efd18 (비공개 원본)",
+     "kind": "saved_run",
+     "path": "data/comparison_runs/e3c60d3efd18.json",
+     "run_id": "e3c60d3efd18",
+     "visibility": "private"
+    },
+    "open_issue": "질문 세트 300 답변을 평가기에 넣어 결과 식별자까지 잇는 한 건 시연(T01)이 없습니다 — LLM 평가는 유료라 승인이 필요합니다."
+   }
+  ],
+  "plan": {
+   "remaining": [
+    {
+     "requirement": "W09",
+     "text": "질문 세트 300 답변 → 평가기 → 결과 식별자까지 한 건 시연 (T01)"
+    },
+    {
+     "requirement": "W03",
+     "text": "300세트 평가 결과로 간편·정밀 질문 수를 다시 판단 — 지금은 결정 보류"
+    },
+    {
+     "requirement": "W01",
+     "text": "question-gen-v1.4 로 실제 생성해 목표 항목 적용률을 다시 측정"
+    },
+    {
+     "requirement": "W06",
+     "text": "GPT·Claude·Gemini 웹 수집 코드와 실측"
+    },
+    {
+     "requirement": "W07",
+     "text": "FactChat 웹 수집 — main 039a4f0 코드를 반영한 뒤 질문 세트로 실측"
+    }
+   ],
+   "approvals": [
+    {
+     "what": "질문 세트 300 답변 평가 (유료 Claude 호출)",
+     "why": "턴 450 × 시스템 3 — 추정 약 $176.7, Batches 사용 시 약 절반"
+    },
+    {
+     "what": "question-gen-v1.4 실제 질문 생성 (유료 GPT 호출)",
+     "why": "v1.4 실측이 없어 지금 판단은 question-gen-v1.2 결과로만 함"
+    },
+    {
+     "what": "최신 main 병합",
+     "why": "충돌이 있어 보류 — 이 브랜치에는 질문 세트 300 수집 결과 파일만 반영"
+    },
+    {
+     "what": "FactChat 웹 계정·허용 범위 확인",
+     "why": "W07 실측 전에 필요"
+    }
+   ]
+  }
+ }
 }

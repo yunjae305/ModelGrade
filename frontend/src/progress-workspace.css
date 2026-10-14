@@ -258,3 +258,53 @@
   .progress-j6-columns{grid-template-columns:1fr}
   .progress-key-chart{padding:12px}
 }
+/* 우영 담당 통합 요약 A·B·C (2026-10-14 미팅) */
+.progress-owner-overview {display:grid; gap:14px; margin-top:16px; scroll-margin-top:20px}
+.progress-owner-overview[hidden] {display:none}
+.progress-overview-head {padding:20px 22px; border:1px solid var(--primary-line); border-radius:16px; background:linear-gradient(120deg,#fff,#f4f1ff 78%,#eef5ff)}
+.progress-overview-head h2 {font-size:clamp(18px,1.9vw,23px); margin-bottom:6px}
+.progress-overview-head p {color:var(--muted); font-size:12.5px; line-height:1.7}
+.progress-demo-nav {display:flex; flex-wrap:wrap; align-items:center; gap:7px; padding:10px 14px; border:1px dashed var(--primary-line); border-radius:12px; background:#fbfaff; font-size:12px}
+.progress-demo-nav strong {margin-right:4px; color:#4b3cc3}
+.progress-group-strip {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; scroll-margin-top:20px}
+.progress-group-tile {display:flex; align-items:flex-start; gap:11px; min-width:0; padding:14px 16px; border:1px solid var(--card-line); border-radius:14px; background:#fff; color:var(--ink); text-align:left; box-shadow:var(--shadow)}
+.progress-group-tile:hover {border-color:var(--primary); background:var(--primary-soft)}
+.progress-group-tile-copy {display:grid; gap:4px; min-width:0}
+.progress-group-tile-copy strong {font-size:13.5px}
+.progress-group-tile-copy small {color:#4b3cc3; font-size:12px; font-weight:650; line-height:1.5; overflow-wrap:anywhere}
+.progress-group-letter {display:inline-grid; place-items:center; flex:none; width:32px; height:32px; border-radius:10px; background:var(--primary); color:#fff; font-size:14px; font-weight:800}
+.progress-group-card {display:grid; gap:12px; min-width:0; padding:20px; border:1px solid #d7d0fb; border-radius:16px; background:#fff; box-shadow:var(--shadow); scroll-margin-top:20px}
+.progress-group-head {display:flex; align-items:center; gap:11px}
+.progress-group-head h3 {font-size:17px; color:#292454}
+.progress-group-head small {color:var(--muted); font-size:11px; font-weight:650}
+.progress-group-finding {color:#292454; font-size:14.5px; font-weight:650; line-height:1.65; word-break:keep-all}
+.progress-group-chart {display:grid; gap:8px; min-width:0}
+.progress-chart-switch {display:flex; flex-wrap:wrap; gap:6px}
+.progress-chart-switch .progress-mini-button[aria-pressed=true] {border-color:var(--primary); background:var(--primary); color:#fff}
+.progress-missing {display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:11.5px}
+.progress-missing strong {color:#a74842; margin-right:2px}
+.progress-missing span {padding:3px 9px; border:1px solid #f3cfcc; border-radius:999px; background:#fff4f3; color:#a74842; font-weight:650}
+.progress-group-issue {padding:10px 13px; border-left:4px solid #d39b2a; border-radius:9px; background:#fffaf0; color:#5b4a26; font-size:12.5px; line-height:1.65}
+.progress-group-issue strong {color:#80521f}
+.progress-group-reqs {display:grid; gap:6px; padding-top:4px; border-top:1px solid var(--card-line)}
+.progress-group-req {display:grid; grid-template-columns:47px minmax(0,1fr) auto; align-items:center; gap:11px; padding:7px 0}
+.progress-group-req-title {display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-bottom:4px; font-size:12.5px}
+.progress-pipeline {display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin:0; padding:0; list-style:none; counter-reset:step}
+.progress-pipeline-step {display:grid; align-content:start; gap:5px; min-width:0; padding:11px 12px; border:1px solid #e4e7f0; border-radius:11px; background:#fff; font-size:11px; counter-increment:step}
+.progress-pipeline-step strong {font-size:12.5px; color:#292454}
+.progress-pipeline-step strong::before {content:counter(step) '. '; color:var(--primary)}
+.progress-pipeline-step small {color:#536073; font-size:10.5px; line-height:1.55; overflow-wrap:anywhere}
+.progress-pipeline-state {justify-self:start; padding:2px 7px; border-radius:6px; font-size:10.5px; font-weight:750}
+.progress-pipeline-step.real {border-color:#bfe6cf; background:#f5fcf8} .progress-pipeline-step.real .progress-pipeline-state {background:#e6f5ec; color:#187b53}
+.progress-pipeline-step.tested {border-color:#d7d0fb; background:#faf9ff} .progress-pipeline-step.tested .progress-pipeline-state {background:var(--primary-soft); color:#4b3cc3}
+.progress-pipeline-step.partial {border-color:#f3dcb7; background:#fffbf3} .progress-pipeline-step.partial .progress-pipeline-state {background:#fff1da; color:#8b5a10}
+.progress-pipeline-step.pending {border-color:#f3cfcc; background:#fff8f7} .progress-pipeline-step.pending .progress-pipeline-state {background:#fff0ee; color:#a74842}
+.progress-plan li {color:#4f5c70; font-size:12px; line-height:1.7; overflow-wrap:anywhere}
+.progress-plan li code {margin-right:3px; color:var(--primary); font-weight:750}
+@media(max-width:1100px){.progress-pipeline{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){
+  .progress-group-strip,.progress-pipeline{grid-template-columns:1fr}
+  .progress-group-card{padding:14px}
+  .progress-group-req{grid-template-columns:42px minmax(0,1fr); }
+  .progress-group-req .progress-mini-button{grid-column:2; justify-self:start}
+}
