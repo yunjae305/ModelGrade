@@ -177,9 +177,11 @@ class Handler(BaseHTTPRequestHandler):
             from .aiona_web import login_status as aiona_status
             from .factchat_web import login_status as factchat_status
             from .oosoo_web import login_status as oosoo_status
-            return self.respond(200, [{"id": "aiona", "env_keys": "AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD", **aiona_status()},
-                                      {"id": "factchat_web", "env_keys": "FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD", **factchat_status()},
-                                      {"id": "oosoo_web", "env_keys": "OOSOO_LOGIN_ID · OOSOO_LOGIN_PASSWORD", **oosoo_status()}])
+            from .comparison_service import PAUSED_WEB_PROVIDERS
+            models = [{"id": "aiona", "env_keys": "AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD", **aiona_status()},
+                      {"id": "factchat_web", "env_keys": "FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD", **factchat_status()},
+                      {"id": "oosoo_web", "env_keys": "OOSOO_LOGIN_ID · OOSOO_LOGIN_PASSWORD", **oosoo_status()}]
+            return self.respond(200, [{**m, "paused": m["id"] in PAUSED_WEB_PROVIDERS} for m in models])
         if path == '/api/comparison/auto-collection':
             return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':

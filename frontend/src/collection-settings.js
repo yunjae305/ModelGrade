@@ -30,12 +30,13 @@
   function webCard(a) {
     return node('article', {class: 'panel connection-card', 'data-target': a.id},
       node('div', {class: 'connection-top'}, W.avatar(a.id), node('div', {}, node('h2', {text: a.name}), node('p', {text: '웹브라우저로 답변 수집'})),
-        pill(a.credentials ? '로그인 정보 있음' : '로그인 정보 필요', a.credentials ? 'success' : 'warning')),
+        a.paused ? pill('지금은 수집 안 함', 'neutral') : pill(a.credentials ? '로그인 정보 있음' : '로그인 정보 필요', a.credentials ? 'success' : 'warning')),
       node('dl', {class: 'connection-model'},
         node('dt', {text: '주소'}), node('dd', {text: a.url}),
         node('dt', {text: '로그인 정보'}), node('dd', {text: '.env 파일'}),
         node('dt', {text: '로그인 유지'}), node('dd', {text: a.profile_saved ? '브라우저에 로그인 상태 저장됨' : '아직 없음 — 첫 수집 때 .env 정보로 로그인'})),
-      node('p', {class: 'connection-note', text: a.credentials
+      node('p', {class: 'connection-note', text: a.paused ? '당분간 답변을 수집하지 않습니다(사용자 결정 2026-10-14). 로그인 정보가 있어도 평가 실행에 들어가지 않습니다.'
+        : a.credentials
         ? `아이디·비밀번호는 .env의 ${a.env_keys}에서만 읽고 화면·결과에 보이지 않습니다. 바꾸려면 .env를 고친 뒤 서버를 다시 시작하세요.`
         : `.env에 ${a.env_keys}를 넣고 서버를 다시 시작하세요. 화면에서는 입력하지 않습니다.` + (a.id === 'aiona' ? '' : ' 로그인 정보가 없으면 이 모델은 수집에서 빠집니다.')}));
   }

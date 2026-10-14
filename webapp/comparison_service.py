@@ -51,6 +51,7 @@ PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 # 질문 세트 실행에서 웹 자동화로 답을 받는 모델 — FactChat·우수AI 는 .env 로그인 정보가 있을 때. 키는 API 게이트웨이(factchat)·
 # 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
 WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web")
+PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web"})   # 사용자 결정 2026-10-14: 우수AI 는 당분간 수집하지 않음 (코드는 그대로, 여기서 빼면 다시 수집)
 WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델"}
 
 
@@ -1931,7 +1932,7 @@ class ComparisonService:
             api = [p for p in ("gpt", "claude", "gemini") if p in self._keys]
             # 웹 자동화 모델 — AIONA 는 늘, FactChat 은 .env 에 로그인 정보(FACTCHAT_LOGIN_ID·PASSWORD)가 있을 때 (사용자 결정 2026-10-14)
             web = ["aiona"] + (["factchat_web"] if factchat_login_status()["credentials"] else []) \
-                + (["oosoo_web"] if oosoo_login_status()["credentials"] else [])
+                + (["oosoo_web"] if "oosoo_web" not in PAUSED_WEB_PROVIDERS and oosoo_login_status()["credentials"] else [])
             providers = [*web, *api]
             config = {p: {**self._keys[p], "provider": p} for p in api}
             n, run_id = len(cases), uuid.uuid4().hex[:12]

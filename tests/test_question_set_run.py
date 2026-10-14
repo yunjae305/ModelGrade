@@ -46,6 +46,8 @@ def test_question_set_run_collects_web_and_api_with_history_and_keeps_only_sent_
 
     monkeypatch.setattr(aiona_web, "AionaChat", FakeChat)
     monkeypatch.setattr(comparison_service, "ask_with_tools", fake_ask)
+    # 우수AI 는 일시 중지 — 로그인 정보가 있어도 수집 대상에 넣지 않는다 (사용자 결정 2026-10-14, 아래 providers 확인)
+    monkeypatch.setattr(comparison_service, "oosoo_login_status", lambda *_, **__: {"credentials": True})
     (tmp_path / "files").mkdir()
     (tmp_path / "files" / "a1.pdf").write_bytes(b"%PDF")
     svc = ComparisonService(CodeEvalService(), save_dir=tmp_path / "runs")
