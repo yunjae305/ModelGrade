@@ -295,11 +295,13 @@ def test_per_target_adds_questions_for_criteria_below_the_target(tmp_path):
 def test_service_rejects_dedicated_counts_that_exhaust_the_cap(tmp_path):
     """전용 단계 수의 합이 상한(질문 수, 없으면 MAX_PLAN_QUESTIONS)에 닿으면 거절 — 다른 항목에 쓸 질문이 남아야 한다 (Codex 리뷰)."""
     service = qg.QuestionSetService(lambda: {"key": "k", "model": "gpt-test"}, store=tmp_path, llm_factory=lambda config, usage: FakeGPT())
-    for bad in ({"per_target": 1, "multi_turn_conversations": 300, "long_context_questions": 300},
+    half = qg.MAX_PLAN_QUESTIONS // 2 + 1   # 상한(지금 800)을 바꿔도 합이 상한에 닿게
+    for bad in ({"per_target": 1, "multi_turn_conversations": half, "long_context_questions": half},
                 {"target_questions": 10, "multi_turn_conversations": 5, "long_context_questions": 5}):
         with pytest.raises(ValueError):
             service.start(bad)
-    assert qg.split_counts(None, 500, 500, per_target=1) == (249, 250)   # 직접 부를 때도 상한 안으로 줄인다
+    cap = qg.MAX_PLAN_QUESTIONS
+    assert qg.split_counts(None, cap, cap, per_target=1) == (cap // 2 - 1, cap // 2)   # 직접 부를 때도 상한 안으로 줄인다
 
 
 class FlakyMultiTurnGPT(DedicatedGPT):
@@ -399,3 +401,27 @@ def test_fixed_question_sets_become_completed_sets_with_files(tmp_path):
     assert not names or any(service.files_dir(job["id"]).iterdir())   # 첨부 질문이 있으면 파일도 함께 복사
     with pytest.raises(ValueError):
         service.start_fixed({"kind": "huge"})
+
+
+def test_plan_prompt_only_lists_the_criteria_still_needed():
+    """공개 질문이 이미 덮는 기준은 첫 계획의 점검 목록에서 빠진다 — 세부 조건은 그 검사와 그 조건만, 항목은 그 id 만 (10-15 사용자 결정)."""
+    catalog = qg.criteria_catalog()
+    prompt = qg.plan_prompt(catalog, only={"2-2.table:table_required", "J2-1.a"})
+    assert "- 2-2.table · " in prompt and "2-2.table:table_required(" in prompt and "2-2.table:table_forbidden(" not in prompt
+    assert "- J2-1.a · " in prompt and "- J3-1.a · " not in prompt and "- 2-1.count · " not in prompt
+    assert "이미 다른 질문이 충분히 덮는 기준을 뺀 것입니다" in prompt
+    assert qg.plan_prompt(catalog) == qg.plan_prompt(catalog, only=None)   # only 가 없으면 전과 같다
+
+
+def test_base_counts_skip_covered_criteria_and_count_toward_the_target(tmp_path):
+    """밖에서 확보한 적용 수(base_counts)는 빠진 항목·모자란 기준을 셀 때 더해진다 — 이미 덮인 기준은 첫 계획에 묻지 않고 부족 목록에도 없다."""
+    names = list(qg.target_counts(qg.check([])))
+    covered = {t: 3 for t in names if t not in ("2-2.table:table_required", "J2-1.a")}
+    fake = FakeGPT()
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(per_target=2, multi_turn_count=0, long_context_count=0, base_counts=covered)
+    first = next(p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계"))
+    assert "- 2-2.table · " in first and "- J2-1.a · " in first and "- J3-1.a · " not in first
+    assert not any(t in result["short"] for t in covered)   # 밖에서 3개씩 확보한 기준은 목표 2개를 넘어 부족 목록에 없다
+    low = [p for p in fake.prompts if "# 적용 질문이 적은 항목" in p]
+    assert all("- J3-1.a · " not in p.split("# 적용 질문이 적은 항목", 1)[1].split("\n\n", 1)[0] for p in low)

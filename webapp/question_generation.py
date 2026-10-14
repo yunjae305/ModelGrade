@@ -56,7 +56,7 @@ PASTE_CHARS = 3_000           # J6 자료가 필요한 턴에 붙여 넣을 자�
 MAX_PASTE_TURNS = 3           # 대화 하나에서 자료를 붙이는 턴 수 상한 — 사용자 결정 2026-10-14: 턴마다 과하게 붙이지 않는다
 SUPPLEMENT_ROUNDS = 2
 # 비용 상한 — GPT 계획이 지나치게 커도 호출이 끝없이 늘지 않게 (질문 수 지정의 상한이기도 하다, 사용자 요청 2026-10-14: 300개 시험)
-MAX_PLAN_QUESTIONS = 500
+MAX_PLAN_QUESTIONS = 800          # 생성기가 한 작업에서 만들 수 있는 질문 수 상한 — 기준마다 20건(10-15 사용자 결정)이면 500 을 넘을 수 있어 올림
 PLAN_BATCH = 40               # GPT 응답 하나에 계획하게 하는 질문 수 — 수백 개를 한 응답에 쓰게 하면 출력 한도에 잘린다
 MAX_EXTRA_ROUNDS = MAX_PLAN_QUESTIONS // PLAN_BATCH + 3
 DIFFICULTIES = ("쉬움", "보통", "어려움")
@@ -207,16 +207,28 @@ def _weak_block(weak_units: Sequence[Dict[str, str]]) -> str:
             "각각에 더 어려운 질문(trap 이 분명한)을 1개 이상 넣습니다:\n" + lines + "\n")
 
 
+def restrict_catalog(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set]) -> Dict[str, List[Dict[str, str]]]:
+    """점검 목록을 ``only`` 의 세부 조건('검사:종류')·점검 항목만으로 줄인다 — 이미 다른 질문(공개 세트)이 충분히 덮는 기준은 빼고 묻는다."""
+    if only is None:
+        return catalog
+    code = [c for c in catalog["code"] if c["id"] in only or any(k["id"] in only for k in c.get("kinds") or [])]
+    return {"code": code, "items": [i for i in catalog["items"] if i["id"] in only]}
+
+
 def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "", *, target_questions: Optional[int] = None,
-                weak_units: Sequence[Dict[str, str]] = (), dedicated: bool = False) -> str:
-    """계획 프롬프트. ``target_questions`` 가 있으면 세트 전체 질문 수(대화 1개 = 1개)를 그 수에 맞추게 하고, 없으면 가능한 한 적게."""
+                weak_units: Sequence[Dict[str, str]] = (), dedicated: bool = False, only: Optional[set] = None) -> str:
+    """계획 프롬프트. ``target_questions`` 가 있으면 세트 전체 질문 수(대화 1개 = 1개)를 그 수에 맞추게 하고, 없으면 가능한 한 적게.
+    ``only`` 가 있으면 그 세부 조건·항목만 점검 목록에 넣는다(공개 질문이 이미 덮는 기준은 빼고 — 10-15 사용자 결정, 프롬프트도 짧아진다)."""
     catalog = catalog or criteria_catalog()
     if dedicated:   # 10턴 대화(J6)·긴 문서(J7)는 전용 단계가 만든다 — 여기서는 그 항목을 빼고 묻는다
         catalog = general_catalog(catalog)
+    catalog = restrict_catalog(catalog, only)
     n_code, n_items = len(catalog["code"]), len(catalog["items"])
     count_line = (f"질문은 정확히 {target_questions}개 만듭니다(멀티턴 대화 1개 = 1개). 모든 검사·항목을 넣고 남는 질문은 틀리기 쉬운 항목과 "
                   f"적용 질문이 적은 항목에 배분해 항목마다 적용 질문이 고르게 여러 개가 되게 합니다."
                   if target_questions else "질문 수는 가능한 한 적게 합니다.")
+    if only is not None:
+        count_line += " 아래 [점검 목록]은 이미 다른 질문이 충분히 덮는 기준을 뺀 것입니다 — 목록에 있는 기준만 노리고, 목록에 없는 기준은 따로 노리지 않습니다."
     _long_sections = ("# 멀티턴 대화·롱컨텍스트\n- 10턴 대화(J6)와 긴 참조 자료 질문(J7)은 따로 만듭니다. 이 계획에는 넣지 않습니다(long_reference 금지, "
                       "대화는 앞 턴 지시 승계처럼 짧은 2~4턴만).\n\n") if dedicated else _MULTI_LONG.format(
                           min_turns=multi_turn.MIN_TURNS, min_total=f"{multi_turn.MIN_TOTAL_TOKENS:,}", paste=f"{PASTE_CHARS:,}",
@@ -231,7 +243,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 # 작성 규칙
 1. 답변이 요구를 지켰는지 판단할 수 있게 구체적으로 씁니다('짧게' 대신 '200자 이내', '표로' 대신 '열이 품목·가격인 표로').
-2. CODE 검사는 [인식] 규칙에 맞는 표현과 자료 형식을 그대로 씁니다(예시 질문의 문장 구조를 따르고 숫자·주제만 바꿈). 규칙에 맞지 않으면 검사가 적용되지 않습니다. 예: 계산은 '8,000원의 15%는 얼마야?'·'146 + 279는 얼마야?', 중복 제거는 JSON 배열·표·목록 자료와 '중복 없이'.
+2. CODE 검사는 [인식] 규칙에 맞는 표현과 자료 형식을 그대로 씁니다(예시 질문의 문장 구조를 따르고 숫자·주제만 바꿈). 규칙에 맞지 않으면 검사가 적용되지 않습니다. 예: 계산은 '8,000원의 15%는 얼마야?'·'146 + 279는 얼마야?', 중복 제거는 JSON 배열·표·목록 자료와 '중복 없이', 글자 수는 '공백 포함 300자 이내로'·'공백 제외 200자 이상으로'처럼 공백 기준과 비교 방식(이내·이상·정확히)을 함께 씁니다.
 3. 답변 구조 검사(각주·인용 번호 출처·문서 내부 링크·HTML 태그·코드와 수식 펜스·계산식·'다음 N가지' 선언·한자나 일본어 표기)는 답변이 그 구조를 쓰도록 요청합니다(예: '각주를 [^1] 형식으로 달아 줘', '출처를 [1] 번호로 달고 끝에 [1] 출처 줄을 적어 줘', '목차를 만들고 각 항목을 #앵커 링크로 연결해 줘').
 4. 사실 확인(J5-1)은 수치·날짜·명칭처럼 확인할 수 있는 사실을 묻습니다. 시점에 따라 바뀌는 사실은 기준 시점을 적습니다.
 5. 질문에 준 자료(표·JSON 배열·목록·글)를 정렬·필터·집계·요약하게 하는 질문은 자료를 질문 안에 그대로 넣습니다.
@@ -249,7 +261,7 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 """
     extra = f"\n# 추가 요청\n{note.strip()}\n" if note and note.strip() else ""
     tail = "\n\n" + _count_rule(target_questions) if target_questions else ""
-    return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog)) + tail
+    return head + _weak_block(weak_units) + extra + "\n# 점검 목록\n" + "\n".join(_catalog_lines(catalog, only)) + tail
 
 
 _MULTI_LONG_BASE = '# 멀티턴 대화 (J6)\n- 대화 1개 이상, 대화마다 턴 {min_turns}개 이상. J6 항목이 모두 적용되게 턴을 설계합니다: 앞 턴의 지시·제약 유지, 이전 정보 사용, 지시어("아까 두 번째"), 조건 변경·취소, 같은 결과물 2회 이상 수정, 이전 결정에 이어지는 요청, 근거 없는 반박.\n- 멀티턴으로 인정되려면 대화 전체(모든 턴의 질문+답변)가 {min_total}토큰 이상이어야 합니다. 표·단계별 설명·초안 작성·수정본 전체 다시 쓰기처럼 답변이 충분히 길어지는 요청으로 채웁니다.\n- 자료가 꼭 필요한 턴에만 long_paste(붙여 넣을 자료의 주제와 꼭 들어갈 내용)를 씁니다. 시스템이 약 {paste}자 자료를 만들어 질문 앞에 붙입니다. 대화 하나에 최대 {max_paste}턴, 턴마다 붙이지 않습니다.\n\n# 롱컨텍스트 (J7)\n- 질문 정확히 1개에만 {min_tokens}토큰(한국어 약 38만 자) 이상의 참조 자료를 씁니다(세트 전체에서 긴 참조 자료는 1개). long_reference 에 자료 주제와, 자료 속에 넣을 사실 문장(facts)과 위치(position 0~1)를 씁니다. 시스템이 자료를 만들고 사실을 그 위치에 넣습니다.\n- J7-1.a 는 자료 중간·뒷부분의 사실을 질문과 다른 표현으로 묻고, J7-2.a 는 3곳 이상에 흩어진 사실을 연결·비교·집계하게 묻습니다. 그 한 질문으로 둘 다 묻습니다.\n\n'
@@ -789,9 +801,13 @@ class QuestionSetBuilder:
     # 전체 ---------------------------------------------------------------------------
     def build(self, note: str = "", target_questions: Optional[int] = None, weak_units: Sequence[Dict[str, str]] = (),
               multi_turn_count: Optional[int] = None, long_context_count: Optional[int] = None,
-              per_target: Optional[int] = None) -> Dict[str, Any]:
-        """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가."""
+              per_target: Optional[int] = None, base_counts: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+        """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가.
+
+        ``base_counts`` 는 이 세트 밖에서 이미 확보한 세부 기준별 적용 질문 수(공개 세트 IFEval-Ko·KoMT-Bench 등) — 빠진 항목·모자란 기준을
+        셀 때 더해서, 이미 충분히 덮인 기준은 노리지 않고 못 덮는 기준에 생성을 집중한다 (10-15 사용자 결정)."""
         catalog = criteria_catalog()
+        base = {k: int(v) for k, v in (base_counts or {}).items() if isinstance(v, int) and v > 0}
         if target_questions:   # 질문 하나에 계획·자료 호출이 몇 번씩 든다 — 수백 개를 지정해도 호출 상한에 먼저 막히지 않게
             self.max_calls = max(MAX_CALLS, 2 * target_questions + 150)
         if per_target and not target_questions:   # 질문 수 없이 항목별 목표 적용 수만 — 다 채울 때까지 (상한 MAX_PLAN_QUESTIONS)
@@ -803,6 +819,13 @@ class QuestionSetBuilder:
         general = general_catalog(catalog) if dedicated else catalog
         self.out_dir.mkdir(parents=True, exist_ok=True)
         groups: List[Dict[str, Any]] = []
+
+        def counts(rep: Dict[str, Any]) -> Dict[str, int]:   # 이 세트의 적용 수 + 밖에서 이미 확보한 수
+            merged = target_counts(rep, dedicated)
+            for key, n in base.items():
+                if key in merged:
+                    merged[key] += n
+            return merged
         if dedicated:
             if long_count:
                 groups += self.long_context_questions(long_count, catalog, note, len(groups) + 1)
@@ -839,11 +862,17 @@ class QuestionSetBuilder:
         self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
         # 첫 계획은 PLAN_BATCH 개까지 — 모든 항목을 덮게 하고, 나머지는 아래 '질문 추가'가 PLAN_BATCH 개씩 채운다
         first = min(budget(), PLAN_BATCH) if cap else None
+        # 밖에서 이미 목표만큼 덮인 기준은 첫 계획에서 빼고 묻는다 — 공개 질문이 못 덮는 기준에 집중, 프롬프트도 짧아진다
+        only = ({t for t, n in counts(check(groups)).items() if n < (per_target or 1)} if base else None)
+        if only is not None and not only:
+            self.warnings.append("밖에서 확보한 적용 수만으로 모든 세부 기준이 목표를 채워 첫 계획을 요청하지 않았습니다.")
+            first = 0
         if first == 0:   # 전용 단계만으로 목표 수를 채움
             plans = []
         else:
             for attempt in (1, 2):   # 계획 JSON 이 깨지면 한 번 더 요청한다 — 첫 계획이 없으면 세트를 만들 수 없다
-                raw = self._ask(plan_prompt(catalog, note, target_questions=first, weak_units=weak_units, dedicated=dedicated), PLAN_TOKENS)
+                raw = self._ask(plan_prompt(catalog, note, target_questions=first, weak_units=weak_units, dedicated=dedicated, only=only),
+                                PLAN_TOKENS)
                 (self.out_dir / ("plan.txt" if attempt == 1 else "plan-retry.txt")).write_text(raw, encoding="utf-8")   # GPT 가 쓴 계획 원문
                 try:
                     plans, warnings = parse_plan(raw)
@@ -872,7 +901,7 @@ class QuestionSetBuilder:
             self.pending = []
             self.show()
             report = check(groups)
-            missing = [t for t, n in target_counts(report, dedicated).items() if n == 0]   # 한 번도 적용되지 않은 세부 기준
+            missing = [t for t, n in counts(report).items() if n == 0]   # 한 번도 적용되지 않은 세부 기준 (밖에서 확보한 것 포함)
             have = attachment_types(groups)
             missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
@@ -899,7 +928,7 @@ class QuestionSetBuilder:
         extra_rounds = 0
         # 목표 수 채우기 — 변별력 보강·적게 덮인 항목 우선, 응답 하나에 PLAN_BATCH 개씩
         def short() -> int:   # 항목별 목표 적용 수에 모자란 적용 수 합
-            return sum(per_target - n for n in target_counts(report, dedicated).values() if n < per_target) if per_target else 0
+            return sum(per_target - n for n in counts(report).values() if n < per_target) if per_target else 0
 
         def more() -> bool:
             if target_questions:
@@ -915,7 +944,7 @@ class QuestionSetBuilder:
                                                + f" 질문 {count}개 추가 요청 (지금 {len(groups)}개)", "count": count,
                                     "done": len(groups)})
             try:
-                low = _low_coverage(report, 30 if per_target else 15, dedicated, per_target)
+                low = _low_coverage(report, 30 if per_target else 15, dedicated, per_target, base)
                 plans, warnings = parse_plan(self._ask(extra_prompt(count, len(groups), target_questions, [g["topic"] for g in groups], general,
                                                                     weak_units, low, note=note,
                                                                     long_reference_ok=not dedicated and self.long_references < MAX_LONG_REFERENCES,
@@ -943,7 +972,7 @@ class QuestionSetBuilder:
                 break
             if len(groups) == before:   # 이번 회차에 하나도 못 만듦 — 같은 요청을 되풀이하지 않는다
                 break
-        short_targets = ({t: n for t, n in target_counts(report).items() if n < per_target} if per_target else {})
+        short_targets = ({t: n for t, n in counts(report).items() if n < per_target} if per_target else {})
         if short_targets:   # 상한·실패로 다 채우지 못한 기준 — 숨기지 않고 알린다
             self.warnings.append(f"기준마다 {per_target}개 적용을 채우지 못한 세부 기준 {len(short_targets)}개: "
                                  + ", ".join(f"{t}={n}" for t, n in sorted(short_targets.items(), key=lambda x: (x[1], x[0]))[:40]))
@@ -963,9 +992,14 @@ def target_counts(report: Dict[str, Any], dedicated: bool = False) -> Dict[str, 
     return counts
 
 
-def _low_coverage(report: Dict[str, Any], limit: int = 15, dedicated: bool = False, per_target: Optional[int] = None) -> List[Tuple[str, int]]:
-    """적용 질문이 가장 적은 세부 기준 — 추가 질문이 노릴 곳. ``per_target`` 이 있으면 그 수에 못 미친 기준만."""
-    counts = sorted(target_counts(report, dedicated).items(), key=lambda x: (x[1], x[0]))
+def _low_coverage(report: Dict[str, Any], limit: int = 15, dedicated: bool = False, per_target: Optional[int] = None,
+                  base: Optional[Dict[str, int]] = None) -> List[Tuple[str, int]]:
+    """적용 질문이 가장 적은 세부 기준 — 추가 질문이 노릴 곳. ``per_target`` 이 있으면 그 수에 못 미친 기준만. ``base`` 는 밖에서 확보한 수."""
+    merged = target_counts(report, dedicated)
+    for key, n in (base or {}).items():
+        if key in merged:
+            merged[key] += n
+    counts = sorted(merged.items(), key=lambda x: (x[1], x[0]))
     if per_target:
         counts = [(t, n) for t, n in counts if n < per_target]
     return counts[:limit]
@@ -990,6 +1024,31 @@ def flatten(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """id/turns 묶음 → 업로드 화면과 같은 행 목록 (dataset_import.id_turn_rows)."""
     from .dataset_import import id_turn_rows
     return id_turn_rows([{"id": g["id"], "turns": [dict(t, answer=t.get("answer", "")) for t in g["turns"]]} for g in groups])
+
+
+PUBLIC_POOL_FILES = (("ifeval_ko.json", "IFEval-Ko"), ("komt_question_ko.jsonl", "KoMT-Bench"))   # examples/fixed_sets/sources
+
+
+def public_pool_groups() -> List[Dict[str, Any]]:
+    """공개 세트(IFEval-Ko·KoMT-Bench) 질문을 생성기 질문 묶음 모양으로 — 생성 목표에서 이미 덮인 기준을 빼는 데 쓴다 (10-15 사용자 결정)."""
+    groups: List[Dict[str, Any]] = []
+    sources = FIXED_SETS / "sources"
+    for name, label in PUBLIC_POOL_FILES:
+        path = sources / name
+        if not path.is_file():
+            raise FileNotFoundError(f"공개 질문 파일이 없습니다: {path}")
+        text = path.read_text(encoding="utf-8")
+        rows = [json.loads(line) for line in text.splitlines() if line.strip()] if name.endswith(".jsonl") else json.loads(text)
+        for row in rows:
+            turns = row["turns"] if isinstance(row.get("turns"), list) else [row["prompt"]]
+            groups.append({"id": len(groups) + 1, "type": label, "topic": label, "difficulty": "", "trap": "", "target_items": [],
+                           "turns": [{"turn": i, "question": q} for i, q in enumerate(turns, 1)], "source": label})
+    return groups
+
+
+def public_pool_counts() -> Dict[str, int]:
+    """공개 세트 질문이 세부 기준(80 단위)마다 몇 개나 적용되는지 — 평가와 같은 코드 규칙, 모델 호출 없음."""
+    return target_counts(check(public_pool_groups()))
 
 
 def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1192,6 +1251,9 @@ class QuestionSetService:
         limit = target or MAX_PLAN_QUESTIONS
         if sum(v for v in counts.values() if v) >= limit:   # 다른 항목에 쓸 질문이 1개 이상 남아야 한다 (Codex 리뷰: 상한 우회)
             raise ValueError(f"10턴 대화 수와 긴 문서 질문 수의 합은 {limit}개보다 작아야 합니다.")
+        base = payload.get("base") or None   # "public": 공개 세트(IFEval-Ko·KoMT-Bench)가 이미 덮는 기준은 목표에서 뺀다
+        if base not in (None, "public"):
+            raise ValueError("base 는 비우거나 'public' 이어야 합니다.")
         weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
         weak_units: List[Dict[str, str]] = []
         if weak_from:
@@ -1208,7 +1270,7 @@ class QuestionSetService:
             job = {"id": set_id, "version": QUESTION_GEN_VERSION, "status": "RUNNING", "phase": "plan", "message": "시작",
                    "created_at": datetime.now(timezone.utc).isoformat(), "model": config.get("model"), "note": note[:2000],
                    "usage": {}, "warnings": [], "summary": None, "coverage": None, "error": None,
-                   "target_questions": target, "per_target": per_target, "weak_from_run": weak_from, "weak_units": weak_units, **counts,
+                   "target_questions": target, "per_target": per_target, "base": base, "weak_from_run": weak_from, "weak_units": weak_units, **counts,
                    "auto_run": auto_run and self.run_starter is not None, "run_id": None, "run_error": None}
             self._jobs[set_id] = job
             self._cancel[set_id] = threading.Event()
@@ -1234,10 +1296,16 @@ class QuestionSetService:
                     job["preview"] = data["questions"]
 
         try:
+            base_counts = None
+            if job.get("base") == "public":   # 공개 세트가 이미 덮는 기준을 세어 생성 목표에서 뺀다 (모델 호출 없음, 1~2분)
+                progress("plan", {"message": "공개 질문(IFEval-Ko·KoMT-Bench)의 기준별 적용 수를 세는 중"})
+                base_counts = public_pool_counts()
+                with self._lock:
+                    job["base_counts"] = base_counts
             builder = QuestionSetBuilder(self.llm_factory(config, job["usage"]), out, progress=progress, cancelled=cancel.is_set)
             result = builder.build(note, target_questions=job.get("target_questions"), weak_units=job.get("weak_units") or [],
                                    multi_turn_count=job.get("multi_turn_conversations"), long_context_count=job.get("long_context_questions"),
-                                   per_target=job.get("per_target"))
+                                   per_target=job.get("per_target"), base_counts=base_counts)
             if cancel.is_set():   # 마지막 단계에서 취소했으면 완료로 남기지 않는다
                 raise Cancelled("생성을 중단했습니다.")
             groups, report = result["groups"], result["check"]
