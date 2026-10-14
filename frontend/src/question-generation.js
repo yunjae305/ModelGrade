@@ -130,13 +130,13 @@
       details ? reviewBox(set) : null,
       set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
       twoStep(set) ? runBox(panel) : null,
-      node('div', {class: 'question-set-footer'}, generationLog(set),
+      details ? node('div', {class: 'question-set-footer'}, generationLog(set),
         node('div', {class: 'question-set-actions'},
           node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
           twoStep(set) ? null
             : set.run_id
             ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
-            : node('button', {class: 'button primary compact', type: 'button', onclick: () => runSet(panel)}, '평가 시작')))].filter(Boolean));
+            : node('button', {class: 'button primary compact', type: 'button', onclick: () => runSet(panel)}, '평가 시작'))) : null].filter(Boolean));
     if (twoStep(set)) pollRun(panel);
   }
 
@@ -341,7 +341,13 @@
   }
   api('/api/comparison/question-sets').then((sets) => {
     if (touched) return;
-    render(sets.find(fixed) || null);   // 이 패널은 고정 질문 세트만 — 예전 질문 생성 기록은 보이지 않는다
+    // 이 패널은 고정 질문 세트만, 그것도 수집 중이거나 평가를 기다리는 실행만 이어서 보인다 — 끝났거나 중단된 지난 실행은 보이지 않는다 (사용자 요청 2026-10-14)
+    const last = sets.find(fixed);
+    if (last?.run_id) {
+      api(`/api/comparison/runs/${encodeURIComponent(last.run_id)}`)
+        .then((run) => { if (!touched && ['COLLECTING', 'READY', 'EVALUATING'].includes(run.status)) { GEN.run = run; render(last); } })
+        .catch(() => {});
+    }
     if ($('question-input-panel')) render(sets.find(imported) || null, INPUT);
     poll();
   }).catch(() => { if (!touched) render(null); });
