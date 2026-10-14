@@ -70,23 +70,76 @@ def main():
                 # W01 — 담당자 요구사항 A~D 와 실제 산출물, 프롬프트 원문, 파일 확인
                 w01 = page.locator('#requirement-W01')
                 w01.locator('summary').click()
-                expect(w01.locator('.progress-section-letter')).to_have_text(['A', 'B', 'C', 'D', '→'])
+                expect(w01.locator('.progress-executive h3')).to_contain_text('question-gen-v1.4')
+                expect(w01.locator('.progress-executive h3')).to_contain_text('300개')
+                expect(w01.locator('.progress-executive h3')).to_contain_text('50.3%')
+                expect(w01.locator('.progress-focus-metric')).to_have_count(4)
+                expect(w01.locator('.progress-focus-metric').last).to_contain_text('미실행')
+                expect(w01.locator('.progress-verification-step')).to_have_count(4)
+                intent = by_id['W01-INTENT']['content']
+                applied = next(s['value'] for s in intent['stats'] if s['label'] == '실제 적용')
+                missed = next(s['value'] for s in intent['stats'] if s['label'] == '적용 안 됨')
+                pending = next(s['value'] for s in intent['stats'] if s['label'] == '답변 필요')
+                expect(w01.locator('.progress-intent-bar')).to_have_attribute('aria-label',
+                    f'판단 가능 {applied + missed}건 중 실제 적용 {applied}건, 미적용 {missed}건. 별도 판단 보류 {pending}건.')
+                expect(w01.locator('.progress-intent-legend')).to_contain_text(f'{applied}건 · {applied / (applied + missed) * 100:.1f}%')
+                expect(w01.locator('.progress-criteria-row').first).to_contain_text('J6')
+                w01.get_by_label('W01 기준별 적용률 보기').select_option('all')
+                expect(w01.locator('.progress-criteria-row')).to_have_count(len(intent['table']['rows']))
+                expect(w01.locator('.progress-j6-explainer')).to_contain_text('multi-turn-v2')
+                expect(w01.locator('.progress-criteria-chart')).to_contain_text('J7은 2/2건, J8은 22/22건으로 100%지만 표본')
+                expect(w01.locator('.progress-key-results')).to_contain_text('판단 가능 487건')
+                expect(w01.locator('.progress-representatives .progress-sample')).to_have_count(5)
+                w01.scroll_into_view_if_needed()
+                page.screenshot(path=str(output / 'w01-after-desktop.png'), full_page=False)
+                w01.locator('.progress-detailed > summary').click()
                 expect(w01.locator('.progress-artifact')).to_have_count(len(by_requirement['W01']))
-                expect(w01).to_contain_text(data['items'][0]['acceptance'])
-                expect(w01).to_contain_text(data['items'][0]['meeting']['request'])
                 expect(page.locator('#artifact-W01-INTENT .progress-result')).to_have_text(by_id['W01-INTENT']['result_summary'])
                 prompt = by_id['W01-PROMPT']['content']['prompts'][0]
                 page.locator('#artifact-W01-PROMPT .progress-prompt summary').first.click()
                 expect(page.locator('#artifact-W01-PROMPT .progress-prompt pre').first).to_contain_text(prompt['text'][:60])
+                page.context.grant_permissions(['clipboard-read', 'clipboard-write'])
+                page.locator('#artifact-W01-PROMPT .progress-prompt').first.get_by_role('button', name='원문 복사').click()
+                expect(page.locator('#artifact-W01-PROMPT .progress-prompt').first).to_contain_text('복사됨')
+                copied = page.evaluate('navigator.clipboard.readText()')
+                assert copied.replace('\r\n', '\n') == prompt['text'].replace('\r\n', '\n'), (len(copied), len(prompt['text']), repr(copied[:80]), repr(prompt['text'][:80]))
+                with page.expect_download() as prompt_download:
+                    page.locator('#artifact-W01-PROMPT .progress-prompt').first.get_by_role('button', name='원문 다운로드').click()
+                assert Path(prompt_download.value.path()).read_text(encoding='utf-8') == prompt['text']
                 expect(page.locator('#artifact-W01-SET300 .progress-file').first).to_have_text('이 PC 에 있음')
                 expect(page.locator('#artifact-W01-SET300 .progress-sample')).to_have_count(len(by_id['W01-SET300']['content']['samples']))
+                full_questions = page.locator('#artifact-W01-SET300 .progress-table-block').first
+                expect(full_questions.locator('tbody tr')).to_have_count(25)
+                expect(full_questions.locator('.progress-paging')).to_have_text('1 / 12쪽')
+                first_question = full_questions.locator('tbody tr').first.inner_text()
+                full_questions.get_by_role('button', name='다음').click()
+                expect(full_questions.locator('.progress-paging')).to_have_text('2 / 12쪽')
+                assert full_questions.locator('tbody tr').first.inner_text() != first_question
+                full_questions.get_by_label('난도 필터').select_option('어려움')
+                expect(full_questions.locator('.progress-table-count')).to_have_text('300행 중 138행')
+                full_questions.get_by_label(by_id['W01-SET300']['title'] + ' 검색').fill('아무것도 출력하지 마.')
+                expect(full_questions.locator('.progress-table-count')).to_have_text('300행 중 0행')
+                full_questions.get_by_label('난도 필터').select_option('')
+                expect(full_questions.locator('tbody')).to_contain_text('아무것도 출력하지 마.')
+                full_questions.get_by_label(by_id['W01-SET300']['title'] + ' 검색').fill('')
+                full_questions.get_by_label('난도 필터').select_option('어려움')
+                with page.expect_download() as questions_download:
+                    full_questions.get_by_role('button', name='CSV 다운로드').click()
+                assert len(Path(questions_download.value.path()).read_text(encoding='utf-8-sig').splitlines()) == 139
+                w01.locator('.progress-management > summary').click()
+                expect(w01.locator('.progress-section-letter')).to_have_text(['B', 'A', 'C', 'D', '→'])
+                expect(w01).to_contain_text(data['items'][0]['acceptance'])
+                expect(w01).to_contain_text(data['items'][0]['meeting']['request'])
 
                 # W02 — 그래프 수치·표 필터·CSV 가 artifacts.json 과 같다
                 page.locator('#requirement-W02 summary').click()
+                expect(page.locator('#requirement-W02 .progress-key-results .progress-chart')).to_have_count(2)
+                page.locator('#requirement-W02 .progress-detailed > summary').click()
                 criteria = by_id['W02-CRITERIA']['content']['charts'][0]
-                chart = page.locator('#artifact-W02-CRITERIA .progress-chart')
-                values = [v for v in chart.locator('svg text.value').all_text_contents()]
+                chart = page.locator('#requirement-W02 .progress-key-results .progress-chart').nth(1)
                 expected = [f'{v:,}' for row in range(len(criteria['categories'])) for v in (s['values'][row] for s in criteria['series'])]
+                expect(chart.locator('svg text.value')).to_have_count(len(expected))
+                values = chart.locator('svg text.value').all_text_contents()
                 assert values == expected, (values, expected)
                 chart.locator('.progress-chart-data summary').click()
                 first_row = chart.locator('.progress-chart-data tbody tr').first.locator('td').all_text_contents()
@@ -105,15 +158,26 @@ def main():
 
                 # W03 — 선 그래프 끝 라벨과 결론, 서로 다른 자료 경고
                 page.locator('#requirement-W03 summary').click()
+                expect(page.locator('#requirement-W03 .progress-key-results .progress-chart')).to_have_count(2)
+                expect(page.locator('#requirement-W03 .progress-key-results')).to_contain_text('질문 수를 숫자로 정할 수 없다')
+                page.locator('#requirement-W03 .progress-detailed > summary').click()
                 line = by_id['W03-COVERAGE']['content']['charts'][0]
                 last = line['series'][-1]
-                expect(page.locator('#artifact-W03-COVERAGE svg')).to_contain_text(f"{last['name']} {last['values'][-1]}")
+                expect(page.locator('#requirement-W03 .progress-key-results svg').first).to_contain_text(f"{last['name']} {last['values'][-1]}")
                 expect(page.locator('#requirement-W03 .progress-warning')).to_contain_text('같은 조건')
                 expect(page.locator('#artifact-W03-CONCLUSION')).to_contain_text(by_id['W03-CONCLUSION']['content']['judgment'][:30])
 
+                for historical_id in ['W04', 'W08']:
+                    historical = page.locator(f'#requirement-{historical_id}')
+                    historical.locator('summary').click()
+                    expect(historical.locator('.progress-executive .progress-source-line')).to_contain_text('이전 실행 결과')
+                    expect(historical.locator('.progress-executive .progress-source-line')).to_contain_text('c9b09c1ddfba')
+
                 # W06 — 산출물 없음 안내, 근거 없는 칸은 미확인
                 page.locator('#requirement-W06 summary').click()
-                expect(page.locator('#requirement-W06 .progress-no-artifact')).to_contain_text('실제 산출물 없음')
+                page.locator('#requirement-W06 .progress-detailed > summary').click()
+                page.locator('#requirement-W06 .progress-management > summary').click()
+                expect(page.locator('#requirement-W06 .progress-no-artifact').last).to_contain_text('실제 산출물 없음')
                 expect(page.locator('#requirement-W06 .progress-unverified').first).to_have_text('미확인')
                 page.screenshot(path=str(output / 'progress-desktop.png'), full_page=False)
 
@@ -155,9 +219,11 @@ def main():
                 page.get_by_role('button', name='새로고침').click()
                 expect(page.locator('.progress-note')).to_contain_text('형식이 맞지 않는 산출물 1개')
                 page.locator('#requirement-W03 summary').click()
+                page.locator('#requirement-W03 .progress-detailed > summary').click()
                 expect(page.locator('#artifact-W03-STABILITY .progress-file').first).to_contain_text('자료 없음')
                 expect(page.locator('#artifact-W03-STABILITY')).to_contain_text(by_id['W03-STABILITY']['result_summary'][:20])
                 page.locator('#requirement-W06 summary').click()
+                page.locator('#requirement-W06 .progress-detailed > summary').click()
                 expect(page.locator('#artifact-W06-BAD-PATH .progress-file')).to_have_text('잘못된 경로')
                 page.unroute('**/api/progress/files*')
                 page.unroute('**/data/artifacts.json')
@@ -168,6 +234,7 @@ def main():
                 expect(page.locator('.progress-item')).to_have_count(18)
                 expect(page.locator('.progress-note')).to_contain_text('산출물 자료를 불러오지 못했습니다')
                 page.locator('#requirement-W01 summary').click()
+                page.locator('#requirement-W01 .progress-detailed > summary').click()
                 expect(page.locator('#requirement-W01 .progress-error-inline')).to_contain_text('HTTP 404')
                 page.unroute('**/data/artifacts.json')
 
@@ -190,9 +257,15 @@ def main():
 
                 page.set_viewport_size({'width': 390, 'height': 844})
                 page.locator('#requirement-W03 summary').click()
-                expect(page.locator('#artifact-W03-COVERAGE .progress-chart')).to_be_visible()
+                expect(page.locator('#requirement-W03 .progress-key-results .progress-chart').first).to_be_visible()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.screenshot(path=str(output / 'progress-mobile.png'), full_page=False)
+                mobile_w01 = page.locator('#requirement-W01')
+                mobile_w01.locator('summary').first.click()
+                mobile_w01.scroll_into_view_if_needed()
+                expect(mobile_w01.locator('.progress-intent-bar')).to_be_visible()
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                page.screenshot(path=str(output / 'w01-after-mobile.png'), full_page=False)
                 assert not errors and not writes, (errors, writes)
                 browser.close()
         finally:

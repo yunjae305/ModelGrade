@@ -79,20 +79,6 @@
     anchor.rel = 'noopener noreferrer';
     return anchor;
   }
-  function stageChips(parent, item, compact) {
-    const strip = append(parent, compact ? 'span' : 'div', compact ? 'progress-stages compact' : 'progress-stages');
-    if (compact) strip.setAttribute('aria-label', '검증 단계');
-    for (const [key, label, short] of STAGES) {
-      const stage = (item.stages || {})[key] || {state: 'none', note: '기록 없음'};
-      const chip = append(strip, 'span', 'progress-stage ' + (stage.state || 'none'));
-      append(chip, 'b', '', compact ? short : label);
-      append(chip, 'span', '', STATES[stage.state] || '확인 필요');
-      chip.title = (compact ? label + ' · ' : '') + (stage.note || '');
-      if (!compact && stage.note) append(chip, 'small', '', stage.note);
-    }
-    return strip;
-  }
-
   // --- 표 · 다운로드 ------------------------------------------------------------------------
   function csvCell(value) {
     const text = String(value ?? '');
@@ -110,7 +96,7 @@
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(anchor.href), 1000);
   }
-  function dataTable(parent, spec, caption) {
+  function dataTable(parent, spec, caption, pageSize = 0) {
     const columns = spec.columns || [];
     const rows = Array.isArray(spec.rows) ? spec.rows : [];
     const wrap = append(parent, 'div', 'progress-table-block');
@@ -129,6 +115,13 @@
     const input = rows.length > 8 ? append(tools, 'input') : null;
     if (input) { input.type = 'search'; input.placeholder = '표 안에서 찾기'; input.setAttribute('aria-label', (caption || '표') + ' 검색'); }
     const count = append(tools, 'span', 'progress-table-count');
+    const paging = pageSize && rows.length > pageSize ? append(tools, 'span', 'progress-paging') : null;
+    let page = 0;
+    let previous, next;
+    if (paging) {
+      previous = append(tools, 'button', 'progress-mini-button', '이전'); previous.type = 'button';
+      next = append(tools, 'button', 'progress-mini-button', '다음'); next.type = 'button';
+    }
     let shown = rows;
     if (spec.download && rows.length) {
       const button = append(tools, 'button', 'progress-mini-button', 'CSV 다운로드');
@@ -145,16 +138,28 @@
       const term = (input?.value || '').trim().toLocaleLowerCase('ko');
       shown = rows.filter(row => selects.every(([key, select]) => !select.value || String(row[key] ?? '') === select.value) &&
         (!term || columns.some(column => String(row[column.key] ?? '').toLocaleLowerCase('ko').includes(term))));
-      body.replaceChildren(...shown.map(row => {
+      const pages = Math.max(1, Math.ceil(shown.length / (pageSize || shown.length || 1)));
+      page = Math.min(page, pages - 1);
+      const visible = paging ? shown.slice(page * pageSize, (page + 1) * pageSize) : shown;
+      body.replaceChildren(...visible.map(row => {
         const tr = element('tr');
         for (const column of columns) append(tr, 'td', column.numeric || column.percent ? 'num' : '', cellText(column, row[column.key]));
         return tr;
       }));
       if (!shown.length) append(append(body, 'tr'), 'td', 'progress-empty-cell', '조건에 맞는 행이 없습니다.').colSpan = columns.length || 1;
       count.textContent = `${rows.length}행 중 ${shown.length}행`;
+      if (paging) {
+        paging.textContent = `${page + 1} / ${pages}쪽`;
+        previous.disabled = page === 0;
+        next.disabled = page >= pages - 1;
+      }
     }
-    for (const [, select] of selects) select.addEventListener('change', update);
-    if (input) input.addEventListener('input', update);
+    for (const [, select] of selects) select.addEventListener('change', () => { page = 0; update(); });
+    if (input) input.addEventListener('input', () => { page = 0; update(); });
+    if (paging) {
+      previous.addEventListener('click', () => { page--; update(); });
+      next.addEventListener('click', () => { page++; update(); });
+    }
     update();
     return wrap;
   }
@@ -337,6 +342,20 @@
       const details = append(parent, 'details', 'progress-prompt');
       append(details, 'summary', '', `프롬프트 원문 — ${prompt.name} · ${fmt(prompt.chars)}자 · sha256 ${prompt.sha256}`);
       append(details, 'p', 'progress-muted', '만드는 호출: ' + prompt.call);
+      const actions = append(details, 'div', 'progress-prompt-actions');
+      const copy = append(actions, 'button', 'progress-mini-button', '원문 복사'); copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(prompt.text); copy.textContent = '복사됨'; }
+        catch (_) { copy.textContent = '복사 실패 — 원문을 선택해 복사하세요'; }
+      });
+      const save = append(actions, 'button', 'progress-mini-button', '원문 다운로드'); save.type = 'button';
+      save.addEventListener('click', () => {
+        const url = URL.createObjectURL(new Blob([prompt.text], {type: 'text/plain;charset=utf-8'}));
+        const anchor = document.createElement('a');
+        anchor.href = url; anchor.download = `ModelGrade-${content.version}-${content.prompts.indexOf(prompt) + 1}.txt`;
+        document.body.append(anchor); anchor.click(); anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
       append(details, 'pre', '', prompt.text);
     }
     if (content.settings) dataTable(block(parent, '생성 조건'), {columns: [{key: 'name', label: '조건'}, {key: 'value', label: '값', numeric: true}, {key: 'meaning', label: '뜻'}], rows: content.settings});
@@ -415,7 +434,7 @@
     if (artifact.type === 'code') renderCode(parent, content);
     if (artifact.type === 'run') renderRun(parent, content);
     for (const chart of content.charts || []) chartBlock(parent, chart);
-    if (content.table) dataTable(block(parent, '표'), content.table, artifact.title);
+    if (content.table) dataTable(block(parent, '표'), content.table, artifact.title, artifact.artifact_id === 'W01-SET300' ? 25 : 0);
     if (content.minimum) dataTable(block(parent, '기준마다 k번을 채우는 가장 작은 질문 묶음 (탐욕 근사 — 실제 최소보다 클 수 있음)'), content.minimum);
     if (content.precision) dataTable(block(parent, '이론 기준 — 통과율 p 를 95% 신뢰구간 ±h 로 재는 데 필요한 기준별 적용 수'),
       {columns: [{key: 'p', label: '예상 통과율 p', numeric: true}, {key: 'half_width', label: '반폭 h', numeric: true}, {key: 'n', label: '필요 적용 수', numeric: true}], rows: content.precision});
@@ -527,24 +546,200 @@
       else list(td, values);
     }
   }
-  function buildBody(item, body, artifacts, artifactState) {
-    const metadata = append(body, 'div', 'progress-meta');
+  function artifactOf(artifacts, id) { return artifacts.find(artifact => artifact.artifact_id === id); }
+  function statOf(artifact, label) { return artifact?.content?.stats?.find(stat => stat.label === label)?.value; }
+  function verificationLine(parent, item) {
+    const line = append(parent, 'div', 'progress-verification-line');
+    append(line, 'strong', '', '검증');
+    for (const [key, label] of STAGES) {
+      const stage = item.stages?.[key] || {state: 'none'};
+      const span = append(line, 'span', 'progress-verification-step ' + (stage.state || 'none'), `${label} ${STATES[stage.state] || '미확인'}`);
+      span.title = stage.note || '';
+    }
+    return line;
+  }
+  function summaryMetric(parent, label, value, note) {
+    const metric = append(parent, 'div', 'progress-focus-metric');
+    append(metric, 'span', '', label);
+    append(metric, 'strong', '', fmt(value));
+    if (note) append(metric, 'small', '', note);
+  }
+  function executiveSummary(parent, item, artifacts) {
+    const box = append(parent, 'section', 'progress-executive');
+    const top = append(box, 'div', 'progress-executive-top');
+    append(top, 'span', 'progress-badge ' + groupOf(item), item.status);
+    append(top, 'span', '', `담당 ${item.owner} · ${item.priority}`);
+    const prompt = artifactOf(artifacts, 'W01-PROMPT');
+    const generated = artifactOf(artifacts, 'W01-SET300');
+    const intent = artifactOf(artifacts, 'W01-INTENT');
+    if (item.id === 'W01' && prompt && generated && intent) {
+      const count = statOf(generated, '질문(대화)');
+      const rate = statOf(intent, '적용률');
+      const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
+      const promptVersion = prompt.content.version?.match(/v\d+(?:\.\d+)+/)?.[0] || prompt.content.version;
+      append(box, 'h3', '', `${prompt.content.version}가 구현됐습니다. 이전 ${generatedVersion}로 만든 ${fmt(count)}개 질문의 목표 항목 적용 일치율은 ${rate}였고, J6 적용 조건 차이가 큰 원인이었습니다.`);
+      const metrics = append(box, 'div', 'progress-focus-metrics');
+      summaryMetric(metrics, '실제 생성 질문', count, `${generatedVersion} · 실제 GPT 생성`);
+      summaryMetric(metrics, '목표 항목 적용 일치율', rate, `${generatedVersion} · 코드 규칙 분석`);
+      summaryMetric(metrics, 'J6 제외 적용률', statOf(intent, 'J6 제외 적용률'), `${generatedVersion} · J6 제외 집계`);
+      summaryMetric(metrics, `최신 ${promptVersion} 실측`, '미실행', '구현·모의 테스트만 확인');
+      append(box, 'p', 'progress-source-line', `실제 생성 ${generated.data_source.generator} · 실행 ${generated.data_source.run_id || '기록 없음'} · ${generated.created_at || '시각 기록 없음'} / 현재 코드 ${prompt.content.version} · 실제 생성 미실행`);
+    } else {
+      append(box, 'h3', '', item.interpretation?.result || artifacts[0]?.result_summary || item.gap || '확인된 결과가 없습니다.');
+      const primary = artifacts.find(a => a.content?.stats?.length || a.content?.outputs?.some(o => typeof o.value === 'number'));
+      const values = (primary?.content?.stats || primary?.content?.outputs || []).filter(v => typeof v.value === 'number').slice(0, 3);
+      if (values.length) {
+        const metrics = append(box, 'div', 'progress-focus-metrics');
+        for (const value of values) summaryMetric(metrics, value.label, value.value, primary?.title);
+      }
+      if (artifacts.length) {
+        const source = artifacts[0];
+        const historical = ['W04', 'W08'].includes(item.id) && source.data_source?.revision === '0346246';
+        append(box, 'p', 'progress-source-line', `${historical ? '이전 실행 결과 · ' : ''}${source.data_source?.label || '자료 출처 확인 필요'} · 실행 ${source.data_source?.run_id || '기록 없음'} · 기준 시점 ${source.created_at || '기록 없음'}`);
+      }
+    }
+    verificationLine(box, item);
+    return box;
+  }
+  function w01Criteria(parent, intent) {
+    const rows = intent.content.table.rows;
+    const figure = append(parent, 'figure', 'progress-key-chart progress-criteria-chart');
+    append(figure, 'figcaption', '', '평가 기준별로 노린 항목이 실제 적용된 비율은?');
+    const controls = append(figure, 'div', 'progress-chart-controls');
+    const select = append(controls, 'select');
+    select.setAttribute('aria-label', 'W01 기준별 적용률 보기');
+    for (const [value, label] of [['low', '적용률 낮은 기준 먼저'], ['all', '전체 기준'], ['code', 'CODE만'], ['semantic', '의미 평가만']]) {
+      append(select, 'option', '', label).value = value;
+    }
+    const list = append(figure, 'div', 'progress-criteria-bars');
+    function update() {
+      let chosen = rows;
+      if (select.value === 'low') chosen = [...rows].sort((a, b) => a.rate - b.rate).slice(0, 6);
+      if (select.value === 'code') chosen = rows.filter(row => row.family.startsWith('CODE'));
+      if (select.value === 'semantic') chosen = rows.filter(row => !row.family.startsWith('CODE'));
+      list.replaceChildren();
+      for (const row of chosen) {
+        const line = append(list, 'div', 'progress-criteria-row');
+        append(line, 'strong', 'progress-criteria-name', row.family);
+        const track = append(line, 'div', 'progress-criteria-track');
+        const fill = append(track, 'span', row.family.startsWith('CODE') ? 'code' : row.family === 'J6' ? 'j6' : 'semantic');
+        fill.style.width = `${Math.max(0, Math.min(100, row.rate * 100))}%`;
+        track.setAttribute('role', 'img');
+        track.setAttribute('aria-label', `${row.family} 적용 ${row.applied} / 판단 가능 ${row.applied + row.missed}건`);
+        append(line, 'span', 'progress-criteria-value', `${(row.rate * 100).toFixed(1)}% · ${row.applied}/${row.applied + row.missed}건`);
+      }
+    }
+    select.addEventListener('change', update); update();
+    const j6 = rows.find(row => row.family === 'J6');
+    const j7 = rows.find(row => row.family === 'J7');
+    const j8 = rows.find(row => row.family === 'J8');
+    const totalRate = statOf(intent, '적용률');
+    append(figure, 'p', 'progress-chart-interpretation', `J6는 ${j6.applied}/${j6.applied + j6.missed}건(${(j6.rate * 100).toFixed(1)}%)만 적용됐습니다. J7은 ${j7.applied}/${j7.applied + j7.missed}건, J8은 ${j8.applied}/${j8.applied + j8.missed}건으로 100%지만 표본과 항목 성격이 달라 질문 품질이나 모델 성능을 뜻하지 않습니다. 전체 ${totalRate}와 기준별 비율은 집계 단위가 다릅니다.`);
+    const raw = append(figure, 'details', 'progress-chart-data');
+    append(raw, 'summary', '', '기준별 원본 수치 표');
+    dataTable(raw, intent.content.table, intent.title);
+  }
+  function w01Highlights(parent, artifacts) {
+    const intent = artifactOf(artifacts, 'W01-INTENT');
+    const prompt = artifactOf(artifacts, 'W01-PROMPT');
+    const generated = artifactOf(artifacts, 'W01-SET300');
+    if (!intent || !prompt || !generated) return false;
+    const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
+    const applied = Number(statOf(intent, '실제 적용'));
+    const missed = Number(statOf(intent, '적용 안 됨'));
+    const pending = Number(statOf(intent, '답변 필요'));
+    const target = Number(statOf(intent, '노린 항목(건)'));
+    const judged = applied + missed;
+    const main = append(parent, 'figure', 'progress-key-chart');
+    append(main, 'figcaption', '', '생성기가 목표로 한 평가 항목이 실제로 얼마나 적용됐는가?');
+    const bar = append(main, 'div', 'progress-intent-bar');
+    bar.setAttribute('role', 'img');
+    bar.setAttribute('aria-label', `판단 가능 ${judged}건 중 실제 적용 ${applied}건, 미적용 ${missed}건. 별도 판단 보류 ${pending}건.`);
+    const yes = append(bar, 'span', 'applied'); yes.style.width = `${applied / judged * 100}%`;
+    const no = append(bar, 'span', 'missed'); no.style.width = `${missed / judged * 100}%`;
+    const legend = append(main, 'div', 'progress-intent-legend');
+    append(legend, 'strong', 'applied', `실제 적용 ${fmt(applied)}건 · ${(applied / judged * 100).toFixed(1)}%`);
+    append(legend, 'strong', 'missed', `미적용 ${fmt(missed)}건 · ${(missed / judged * 100).toFixed(1)}%`);
+    append(main, 'p', 'progress-chart-interpretation', `${generatedVersion} 질문 세트에서 노린 ${fmt(target)}건 중 ${fmt(pending)}건은 답변이 있어야 판단할 수 있어 제외했습니다. 비율의 분모는 판단 가능 ${fmt(judged)}건입니다. 이는 평가 기준 적용 규칙의 일치율이며 사람 검수 정확도나 모델 평가 성능은 아닙니다.`);
+    w01Criteria(parent, intent);
+    const j6 = intent.content.table.rows.find(row => row.family === 'J6');
+    const comparison = append(parent, 'div', 'progress-j6-explainer');
+    append(comparison, 'h4', '', '가장 큰 불일치 · J6');
+    const columns = append(comparison, 'div', 'progress-j6-columns');
+    field(columns, `${generatedVersion} 생성기 의도`, '2~4턴의 짧은 대화에도 J6 목표 항목을 붙였습니다.');
+    field(columns, '평가기 적용 조건', '현재 multi-turn-v2는 대화 10턴 이상, 질문과 답변을 합친 대화 전체 10K 토큰 이상을 요구합니다.');
+    field(columns, '실제 결과와 다음 점검', `${fmt(j6?.missed)}건이 미적용됐습니다. ${prompt.content.version}는 10턴 전용 생성 단계를 구현했지만 실제 생성·적용 점검은 아직 없습니다.`);
+    append(comparison, 'p', 'progress-chart-interpretation', `J6 제외 적용률 ${statOf(intent, 'J6 제외 적용률')}는 집계에서 J6를 뺀 값입니다. 이를 전체 질문 생성 품질 향상으로 해석하지 않습니다.`);
+    return true;
+  }
+  function highlightedArtifacts(item, artifacts) {
+    const preferred = item.id === 'W02' ? ['W02-MATRIX', 'W02-CRITERIA'] : item.id === 'W03' ? ['W03-COVERAGE', 'W03-STABILITY'] : [];
+    if (preferred.length) return preferred.map(id => artifactOf(artifacts, id)).filter(artifact => artifact?.content?.charts?.length);
+    return artifacts.filter(artifact => artifact.content?.charts?.length).slice(0, 1);
+  }
+  function keyResults(parent, item, artifacts) {
+    const box = append(parent, 'section', 'progress-key-results');
+    append(box, 'h3', '', '주요 결과와 시각화');
+    if (item.id === 'W01' && w01Highlights(box, artifacts)) return;
+    const selected = highlightedArtifacts(item, artifacts);
+    if (selected.length) {
+      for (const artifact of selected) {
+        chartBlock(box, artifact.content.charts[0]);
+        const historical = ['W04', 'W08'].includes(item.id) && artifact.data_source?.revision === '0346246';
+        append(box, 'p', 'progress-source-line', `${historical ? '이전 실행 결과 · ' : ''}${artifact.data_source?.label || '자료 출처 확인 필요'} · 실행 ${artifact.data_source?.run_id || '기록 없음'} · ${artifact.created_at || '시각 기록 없음'}`);
+      }
+      append(box, 'p', 'progress-chart-interpretation', item.interpretation?.meaning || selected[0].result_summary);
+      if (item.interpretation?.gaps) append(box, 'p', 'progress-chart-limit', '남은 검증 · ' + item.interpretation.gaps);
+    } else if (artifacts.length) {
+      const summaries = append(box, 'div', 'progress-result-list');
+      for (const artifact of artifacts.slice(0, 2)) {
+        const row = append(summaries, 'div');
+        append(row, 'strong', '', artifact.title);
+        append(row, 'p', '', artifact.result_summary);
+      }
+      if (item.interpretation?.meaning) append(box, 'p', 'progress-chart-interpretation', item.interpretation.meaning);
+    } else append(box, 'p', 'progress-no-artifact', '확인된 실제 산출물이 없습니다. 아래에서 필요한 증거와 다음 작업을 확인하세요.');
+  }
+  function representativeCases(parent, item, artifacts) {
+    const sampleArtifact = artifacts.find(artifact => artifact.content?.samples?.length);
+    const runArtifact = artifacts.find(artifact => artifact.content?.log?.length);
+    if (!sampleArtifact && !runArtifact) return;
+    const box = append(parent, 'section', 'progress-representatives');
+    append(box, 'h3', '', '대표 실제 사례');
+    if (sampleArtifact) {
+      const samples = sampleArtifact.content.samples;
+      const keys = item.id === 'W01' ? ['빈 출력', '계산', '표 형식', '10턴', '첨부파일'] : [];
+      const chosen = keys.length ? keys.map(key => samples.find(sample => sample.why.includes(key))).filter(Boolean) : samples.slice(0, 5);
+      renderSamples(box, chosen);
+      if (samples.length > chosen.length) append(box, 'p', 'progress-muted', `대표 ${chosen.length}개를 먼저 표시했습니다. 나머지 사례와 전체 표는 '상세 산출물 전체 보기'에서 확인하세요.`);
+    } else {
+      const log = runArtifact.content.log.slice(0, 3);
+      const cards = append(box, 'div', 'progress-representative-log');
+      for (const row of log) {
+        const card = append(cards, 'article', 'progress-sample');
+        append(card, 'strong', '', `${row.case_id || '질문 ID 없음'} · ${row.status || '상태 미기록'}`);
+        append(card, 'p', '', row.question || '질문 원문 없음');
+        append(card, 'p', 'progress-muted', row.text || '답변·오류 기록 없음');
+      }
+      append(box, 'p', 'progress-muted', `실행 ${runArtifact.data_source?.run_id || 'ID 미기록'} · ${runArtifact.created_at || '시각 미기록'}의 공개 요약 일부입니다. 전체 기록은 상세 산출물에서 확인하세요.`);
+    }
+  }
+  function management(parent, item, artifacts) {
+    const metadata = append(parent, 'div', 'progress-meta');
     append(metadata, 'span', '', '담당 · ' + item.owner);
     append(metadata, 'span', '', '우선순위 · ' + item.priority);
     append(metadata, 'span', '', '검증 수준 · ' + item.level);
-    stageChips(body, item, false);
     if (item.status_change) {
-      const note = append(body, 'div', 'progress-callout');
+      const note = append(parent, 'div', 'progress-callout');
       append(note, 'strong', '', `상태 정정: ${item.status_change.from} → ${item.status_change.to}`);
       append(note, 'p', '', item.status_change.reason);
     }
     if (item.evidence_correction) {
-      const note = append(body, 'div', 'progress-callout');
+      const note = append(parent, 'div', 'progress-callout');
       append(note, 'strong', '', '이전 문서 근거 정정');
       append(note, 'p', '', item.evidence_correction);
     }
-
-    const a = section(body, 'A', '멘토 요구사항');
+    const a = section(parent, 'A', '멘토 요구사항');
     const meeting = item.meeting || {};
     const grid = append(a, 'div', 'progress-fields');
     field(grid, '실제 미팅에서 요청한 내용', meeting.request || item.requirement);
@@ -553,21 +748,7 @@
     field(grid, '완료 인정 조건', item.acceptance);
     if (meeting.notes || meeting.confidence) append(a, 'p', 'progress-muted', `전사 확인 · 신뢰도 ${meeting.confidence || '—'}${meeting.notes ? ' · ' + meeting.notes : ''} · ${meeting.basis || ''}`);
 
-    const b = section(body, 'B', '실제 산출물', artifacts.length ? `${artifacts.length}개` : '');
-    if (artifactState.error) append(b, 'p', 'progress-error-inline', '산출물 자료(artifacts.json)를 불러오지 못해 표시할 수 없습니다: ' + artifactState.error);
-    else if (!artifacts.length) {
-      const empty = append(b, 'div', 'progress-no-artifact');
-      append(empty, 'strong', '', '실제 산출물 없음');
-      append(empty, 'p', '', '아직 확인할 수 있는 결과(데이터·실행 기록)가 없습니다. 예시나 계획을 결과처럼 표시하지 않습니다. 필요한 작업은 아래 \'남은 일\'에 있습니다.');
-    } else {
-      const distinct = sources(artifacts);
-      if (distinct.length > 1) append(b, 'p', 'progress-warning', '이 요구사항의 산출물은 서로 다른 자료에서 나왔습니다 — 같은 조건(실행·모델·기준 버전)으로 합치거나 비교하지 마세요: ' + distinct.join(' / '));
-      const files = [];
-      for (const artifact of artifacts) artifactCard(b, artifact, files);
-      checkFiles(files);
-    }
-
-    const c = section(body, 'C', '결과 해석');
+    const c = section(parent, 'C', '결과 해석');
     const answers = item.interpretation || {};
     const qa = append(c, 'dl', 'progress-qa');
     for (const [key, question] of [['goal', '무엇을 확인하려고 했나?'], ['method', '어떤 방법으로 확인했나?'], ['result', '실제로 어떤 결과가 나왔나?'],
@@ -575,10 +756,8 @@
       append(qa, 'dt', '', question);
       append(qa, 'dd', '', answers[key] || '미확인');
     }
-
-    evidenceRows(section(body, 'D', '검증 근거'), item, artifacts);
-
-    const rest = section(body, '→', '남은 일');
+    evidenceRows(section(parent, 'D', '검증 근거'), item, artifacts);
+    const rest = section(parent, '→', '남은 일');
     const restGrid = append(rest, 'div', 'progress-fields');
     field(restGrid, '현재 근거 요약', item.evidence);
     field(restGrid, '남은 문제', item.gap);
@@ -591,6 +770,43 @@
       for (const entry of item.links) link(links, entry.label || 'GitHub 근거', entry.url);
     }
   }
+  function detailedArtifacts(parent, item, artifacts, artifactState) {
+    const b = section(parent, 'B', '실제 산출물', artifacts.length ? `${artifacts.length}개` : '');
+    if (artifactState.error) append(b, 'p', 'progress-error-inline', '산출물 자료(artifacts.json)를 불러오지 못해 표시할 수 없습니다: ' + artifactState.error);
+    else if (!artifacts.length) {
+      const empty = append(b, 'div', 'progress-no-artifact');
+      append(empty, 'strong', '', '실제 산출물 없음');
+      append(empty, 'p', '', '아직 확인할 수 있는 결과(데이터·실행 기록)가 없습니다. 예시나 계획을 결과처럼 표시하지 않습니다. 필요한 작업은 아래 \'남은 일\'에 있습니다.');
+    } else {
+      const distinct = sources(artifacts);
+      if (distinct.length > 1) append(b, 'p', 'progress-warning', '이 요구사항의 산출물은 서로 다른 자료에서 나왔습니다 — 같은 조건(실행·모델·기준 버전)으로 합치거나 비교하지 마세요: ' + distinct.join(' / '));
+      const files = [];
+      const highlighted = highlightedArtifacts(item, artifacts);
+      for (const artifact of artifacts) {
+        const card = artifactCard(b, artifact, files);
+        if ((item.id === 'W01' && artifact.artifact_id === 'W01-INTENT') || highlighted.includes(artifact)) {
+          card.querySelector('.progress-chart')?.remove();
+        }
+      }
+      checkFiles(files);
+    }
+  }
+  function buildBody(item, body, artifacts, artifactState) {
+    executiveSummary(body, item, artifacts);
+    keyResults(body, item, artifacts);
+    representativeCases(body, item, artifacts);
+    const detailed = append(body, 'details', 'progress-disclosure progress-detailed');
+    append(detailed, 'summary', '', `상세 산출물 전체 보기 · ${artifacts.length}개`);
+    let built = false;
+    detailed.addEventListener('toggle', () => {
+      if (!detailed.open || built) return;
+      built = true;
+      detailedArtifacts(detailed, item, artifacts, artifactState);
+    });
+    const evidence = append(body, 'details', 'progress-disclosure progress-management');
+    append(evidence, 'summary', '', '검증 근거·멘토 요청·남은 일 보기');
+    management(evidence, item, artifacts);
+  }
   function itemCard(item, artifacts, artifactState) {
     const details = element('details', 'progress-item');
     details.id = 'requirement-' + item.id;
@@ -599,7 +815,6 @@
     const heading = append(summary, 'span', 'progress-item-heading');
     append(heading, 'strong', '', item.title);
     append(heading, 'small', '', item.requirement);
-    stageChips(heading, item, true);
     append(summary, 'span', 'progress-badge ' + groupOf(item), item.status);
     append(summary, 'span', 'progress-priority', artifacts.length ? `산출물 ${artifacts.length}` : '산출물 없음');
     const body = append(details, 'div', 'progress-item-body');
@@ -621,7 +836,7 @@
     const intro = append(host, 'div', 'progress-intro');
     const title = append(intro, 'div');
     append(title, 'span', 'progress-kicker', 'MEETING REQUIREMENTS · EVIDENCE');
-    append(title, 'h2', '', '요구사항 → 실제 결과 → 검증 근거 → 남은 일을 순서대로 확인합니다.');
+    append(title, 'h2', '', '핵심 결과부터 확인하고, 필요한 근거를 펼쳐 보세요.');
     append(title, 'p', '', '10월 12·13일 멘토 미팅의 요청마다 실제 산출물(표·그래프·프롬프트·실행 기록)을 붙였습니다. 수치는 저장소의 실제 결과 파일에서 계산했고, 구현·자동 테스트·실제 모델 실행·판정 정확도를 따로 표시합니다.');
     const date = append(intro, 'div', 'progress-date');
     append(date, 'small', '', '마지막 업데이트');
@@ -684,7 +899,7 @@
 
     const listSection = append(host, 'section', 'progress-list-section');
     append(listSection, 'h2', '', '요구사항 상세').id = 'progress-list-title';
-    append(listSection, 'p', 'progress-muted', '요구사항을 펼치면 A 멘토 요구사항 → B 실제 산출물 → C 결과 해석 → D 검증 근거 → 남은 일 순서로 보입니다.');
+    append(listSection, 'p', 'progress-muted', '요구사항을 펼치면 핵심 성과, 주요 결과, 대표 사례를 먼저 보여줍니다. 전체 산출물과 검증·관리 정보는 아래에서 펼쳐 볼 수 있습니다.');
     const controls = append(listSection, 'div', 'progress-controls');
     const ownerSelect = append(controls, 'select');
     ownerSelect.setAttribute('aria-label', '담당자 필터');
