@@ -28,7 +28,7 @@ from code_eval.engine import _conversation_of, evaluate_batch  # noqa: E402
 from code_eval.jev_applicability import fact_question, jev_applicability, sub_applicability  # noqa: E402
 from code_eval.jev_eval import build_history, conversation_contexts  # noqa: E402
 from code_eval.jev_client import resolve_semantic_pipeline  # noqa: E402
-from code_eval.criteria_registry import CODE_UNITS, SUBSUMED_KINDS  # noqa: E402
+from code_eval.criteria_registry import CODE_UNITS, SUBSUMED_KINDS, condition_kinds  # noqa: E402
 from code_eval.semantic_items import ITEMS, applicable_items  # noqa: E402
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(J7 롱컨텍스트 입력 8K 토큰 이상 적용 수·판별 불가 수)와 작업 브랜치 v2(충족 enough·
@@ -44,15 +44,9 @@ CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J
 _ANSWER_CHECKS = ("1-2.", "1-3.", "3-1.answer_equation", "3-2.declared_count")
 #: CODE 검사 단위 (AIONA 특화 제외) — (id, 적용 계기, 질문 요구 종류)
 _UNITS = [(uid, trigger, frozenset(kinds)) for uid, _, trigger, kinds in CODE_UNITS if trigger != "aiona"]
-#: 세부 조건 — 검사 단위 안에서 질문이 만드는 조건 종류 ('2-1.count:sentence_count'). 같은 종류를 두 검사가 함께 보면(코드블록 요구 →
-#: 1-2.code_block·code_fence_min, JSON 요구 → json_syntax·json_structure) 처음 검사에만 둔다. 판정하지 않는 종류(표 행 수가 모호함)는 뺀다.
-_UNSCORED_KINDS = frozenset({"table_rows_ambiguous"})
-KIND_UNIT: Dict[str, str] = {}
-for _uid, _trigger, _kinds in _UNITS:
-    for _kind in sorted(_kinds):
-        if _kind not in _UNSCORED_KINDS:
-            KIND_UNIT.setdefault(_kind, _uid)
-KINDS = tuple(f"{unit}:{kind}" for kind, unit in KIND_UNIT.items())
+#: 세부 조건 — 검사 안에서 질문이 만드는 조건 종류 ('2-1.count:sentence_count'). 정의는 criteria_registry.condition_kinds() 한 곳.
+KIND_UNIT: Dict[str, str] = {c["kind"]: c["check"] for c in condition_kinds()}
+KINDS = tuple(c["id"] for c in condition_kinds())
 #: 답변 구조로만 생기는 검사 — 질문만으로는 적용 여부를 셀 수 없다 (답변을 받은 뒤 확인)
 ANSWER_DEPENDENT = tuple(uid for uid, trigger, _ in _UNITS if trigger == "answer")
 #: 답변 문장으로 적용이 정해지는 의미 항목 — J5-3.a 는 답변이 확인·조회·출처를 언급할 때 켜진다 (j5_items_applicability)

@@ -29,7 +29,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from code_eval import long_context, multi_turn
 from code_eval.analysis import PASTE_BEGIN, PASTE_END, escape_paste_markers
-from code_eval.criteria_registry import reference_details
+from code_eval.criteria_registry import CONDITION_KIND_NAMES, reference_details
 from code_eval.semantic_items import ITEMS, SUBS_BY_ID
 
 from .attachment_files import ATTACHMENT_TYPES, AttachmentError, render_attachment
@@ -102,20 +102,8 @@ class Cancelled(GenerationError):
 
 # --- 1. 점검 목록과 프롬프트 ---------------------------------------------------------------
 
-#: 세부 조건(검사 안에서 질문이 만드는 조건 종류)의 화면 이름 — 생성기가 이 단위로 적용 수를 채운다 (사용자 결정 2026-10-14:
-#: 세세한 평가 기준을 보고 질문을 만들어 모두 평가되게)
-KIND_NAMES = {
-    "code_block_required": "코드블록 요구", "code_block_count": "코드블록 개수", "code_block_forbidden": "코드블록 금지",
-    "code_language_label": "코드블록 언어 표지", "json_required": "JSON 출력 요구", "python_code_requested": "파이썬 코드 요구",
-    "explicit_empty": "빈 출력 요구", "bullet_count": "불릿 개수", "list_count": "항목 개수", "sentence_count": "문장 수",
-    "paragraph_count": "문단 수", "line_count": "줄 수", "word_count": "어절 수", "char_count": "글자 수",
-    "required_literal": "필수 문구", "forbidden_literal": "금지 문구", "starts_with": "시작 문구", "ends_with": "끝 문구",
-    "charset": "허용 문자", "table_required": "표 요구", "table_forbidden": "표 금지", "table_count": "표 개수",
-    "table_columns": "표 열 이름", "table_column_count": "표 열 수", "table_header": "표 머리글", "table_data_rows": "표 데이터 행 수",
-    "table_total_rows": "표 전체 행 수", "list_required": "목록 요구", "list_forbidden": "목록 금지", "heading_required": "제목 요구",
-    "heading_count": "제목 개수", "json_required_keys": "JSON 필수 키", "json_field_type": "JSON 필드 자료형", "calculation": "질문 계산값",
-    "transform": "정렬·필터·변환", "unique_values": "중복 없이", "aggregate": "합계·평균 집계",
-}
+#: 세부 조건(검사 안에서 질문이 만드는 조건 종류)의 이름 — 정의는 criteria_registry 한 곳 (생성기가 이 단위로 적용 수를 채운다)
+KIND_NAMES = dict(CONDITION_KIND_NAMES)
 
 def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
     """프롬프트에 넣을 점검 목록 — CODE 검사(AIONA 특화 제외)와 의미 평가 항목. 기준 정의에서 만들어 기준이 바뀌면 같이 바뀐다."""
