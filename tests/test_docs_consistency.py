@@ -52,11 +52,11 @@ def prose_after_section(text, heading):
 def test_service_guide_documents_current_settings_and_env_keys():
     text = read('SERVICE_UI.md')
     env = env_values()
-    for key in ('SEMANTIC_PIPELINE', 'SEMANTIC_ANTHROPIC_MODEL', 'SEMANTIC_ANTHROPIC_EFFORT'):
+    for key in ('SEMANTIC_PIPELINE', 'SEMANTIC_DISPATCH', 'SEMANTIC_ANTHROPIC_BATCH_QUESTIONS', 'SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS',
+                'SEMANTIC_ANTHROPIC_MODEL', 'SEMANTIC_ANTHROPIC_EFFORT'):
         assert key in text and key in env, key
-    # Message Batches 호출 방식은 2026-10-13 제거 — 설정 키가 남아 있으면 안 된다
-    assert not any(key.startswith(('SEMANTIC_DISPATCH', 'SEMANTIC_ANTHROPIC_BATCH_')) for key in env)
-    assert env['SEMANTIC_PIPELINE'] == 'legacy' and env['SEMANTIC_ENGINE'] == 'anthropic_api'
+    # Message Batches 호출 방식은 10-13 에 뺐다가 10-14 비용 결정으로 다시 넣음 — 예시 설정은 batch
+    assert env['SEMANTIC_PIPELINE'] == 'legacy' and env['SEMANTIC_DISPATCH'] == 'batch' and env['SEMANTIC_ENGINE'] == 'anthropic_api'
     heading = next(line for line in text.splitlines() if line.startswith('### 현재 설정'))
     prose = text[text.index(heading):].split('```', 1)[0]                 # 예시 블록이 아니라 본문 문단에서
     assert f"SEMANTIC_ANTHROPIC_MODEL={env['SEMANTIC_ANTHROPIC_MODEL']}" in prose and f"SEMANTIC_ANTHROPIC_EFFORT={env['SEMANTIC_ANTHROPIC_EFFORT']}" in prose
@@ -162,3 +162,16 @@ def test_handover_document_cites_the_current_versions():
                   CRITERIA_VERIFICATION_VERSION, COMPARISON_VERSION):
         assert f'`{token}`' in text, token
     assert f'({len(SUBS)}·{len(ITEMS)})' in text
+
+
+def test_latest_design_header_counts_match_the_criteria_registry():
+    """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
+    from code_eval.criteria_registry import evaluation_targets
+    designs = sorted(DOCS.glob('평가체계_설계안_v*.html'), key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
+    text = designs[-1].read_text(encoding='utf-8')
+    counts = evaluation_targets()['counts']
+    code = re.search(r'코드 평가 <b>(\d+) 대분류 · (\d+) 소분류 · (\d+) 검사 · 세부 조건 \d+ · 질문 조건 (\d+)</b>', text)
+    semantic = re.search(r'의미 평가 <b>(\d+) 기준 · (\d+) 세부 기준 · (\d+) 점검 항목</b>', text)
+    assert code and semantic, designs[-1].name
+    assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'], counts['code_conditions'])
+    assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])

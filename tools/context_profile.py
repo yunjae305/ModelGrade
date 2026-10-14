@@ -6,7 +6,7 @@
 
 프로필 — 평가 기준은 코드의 현재 규칙을 그대로 쓰고, 시험용 구분은 따로 센다:
 - conversations_2plus: 2턴 이상 대화 (예전 J6 적용 규칙, 길이와 무관)
-- j6_multi_turn: 현재 J6 적용 규칙(code_eval/multi_turn.py) — 그 턴의 질문+답변이 MIN_TURN_TOKENS 이상인 턴이 MIN_LONG_TURNS 개 이상.
+- j6_multi_turn: 현재 J6 적용 규칙(code_eval/multi_turn.py) — 턴이 MIN_TURNS 개 이상이고 대화 전체(모든 턴의 질문+답변)가 MIN_TOTAL_TOKENS 이상.
   답변마다 다르므로 저장 실행은 시스템(모델)마다 따로 잰다. 답변 없는 질문 세트는 질문만으로 재 실제보다 작게 나온다
 - stress_multi_turn (stress-10k-100k-v1, 멘토 제안 10-13): 턴 입력 평균 10K 토큰 이상이고 마지막 턴 누적 요청 100K 토큰 이상인 대화.
   시험 프로필 집계 (--stress-turn·--stress-total 로 바꿀 수 있음)
@@ -120,8 +120,8 @@ def profile(rows: List[Dict[str, Any]], *, stress_turn: int = 10_000, stress_tot
     return {"version": PROFILE_VERSION, "status": status, "tokenizer": _tokenizer_version() if measured else None,
             "stress_profile": {"name": STRESS_PROFILE, "turn_mean_min": stress_turn, "last_turn_request_min": stress_total},
             "j7_rule": {"min_tokens": long_context.MIN_TOKENS, "policy": long_context.LONG_CONTEXT_POLICY_VERSION},
-            "j6_rule": {"policy": multi_turn.MULTI_TURN_POLICY_VERSION, "min_turn_tokens": multi_turn.MIN_TURN_TOKENS,
-                        "min_long_turns": multi_turn.MIN_LONG_TURNS},
+            "j6_rule": {"policy": multi_turn.MULTI_TURN_POLICY_VERSION, "min_turns": multi_turn.MIN_TURNS,
+                        "min_total_tokens": multi_turn.MIN_TOTAL_TOKENS},
             "counts": counts, "max_request_tokens_estimate": max_input if measured else None,
             "provider_input_tokens_max": provider_max, "boundary_272k": boundary, "units": out_units}
 
@@ -154,7 +154,7 @@ def render(report: Dict[str, Any]) -> str:
     c, s, j6, j7 = report["counts"], report["stress_profile"], report["j6_rule"], report["j7_rule"]
     lines = [f"[{report.get('system', '질문 세트')}] 상태 {report['status']} · 독립 단위 {c['units']}개(단일 {c['single']} · "
              f"2턴 이상 대화 {c['conversations_2plus']}) · 턴 {c['turns']}개",
-             f"- J6 현재 규칙({j6['policy']}: 질문+답변 ≥ {j6['min_turn_tokens']:,} 토큰 턴 {j6['min_long_turns']}개 이상): "
+             f"- J6 현재 규칙({j6['policy']}: {j6['min_turns']}턴 이상 · 대화 전체 질문+답변 ≥ {j6['min_total_tokens']:,} 토큰): "
              f"{c['j6_multi_turn']}개 대화 / 2턴 이상 대화 {c['conversations_2plus']}개",
              f"- 스트레스 멀티턴 시험 프로필({s['name']}: 턴 평균 ≥ {s['turn_mean_min']:,} · 마지막 턴 요청 ≥ {s['last_turn_request_min']:,}): "
              f"{c['stress_multi_turn']}개 대화",

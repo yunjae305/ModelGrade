@@ -183,10 +183,9 @@ def test_anthropic_judge_puts_labelled_images_between_shared_rules_and_case_data
     assert result.status == "OK" and content[0]["cache_control"] == {"type": "ephemeral"}   # 공통 지시문 캐시는 그대로
     assert content[1] == {"type": "text", "text": "[첨부 이미지 1: car.png]"}
     assert content[2] == {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image["data"]}}
-    assert "image_attached 가 true 인 항목은 실제 그림이" in content[3]["text"] and len(content) == 4
+    assert "image_attached 가 true 인 항목은 실제 그림이" in content[-1]["text"]   # 안내는 질문마다 다른 마지막 블록에
     plain = AnthropicSemanticClient(AnthropicSemanticConfig(web_search="disabled"), "k").build_request(request["state"], request["questions"])[0]
-    assert plain["messages"][0]["content"][0]["text"] == content[0]["text"]   # 그림이 없으면 예전 두 부분 그대로
-    assert len(plain["messages"][0]["content"]) == 2
+    assert plain["messages"][0]["content"] == [content[0], *content[3:]]   # 그림이 없으면 캐시 블록 그대로, 그림은 지시문 바로 뒤에만 끼운다
 
 
 def test_items_pipeline_drops_j8_items_when_the_picture_cannot_be_judged(tmp_path):

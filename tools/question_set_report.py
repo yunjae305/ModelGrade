@@ -35,12 +35,12 @@ CHECKED = ("JSON 형식·필수 필드(question·answer 문자열)·대화 ID와
            "대화별 turn 이 1부터 빠짐·중복 없이 이어지는지",
            "중복 질문 — 공백·대소문자만 다른 완전 일치 (의미가 비슷한 질문은 찾지 않음)",
            "CODE 1~3 적용 — 평가와 같은 엔진이 질문(과 이전 턴 지속 지시)에서 읽은 조건, 답변은 비워 둔 채",
-           "J1~J7 적용 — 평가와 같은 코드 규칙(의미 평가 방식 표시), 모델 호출 없음",
+           "J1~J8 적용 — 평가와 같은 코드 규칙(의미 평가 방식 표시), 모델 호출 없음",
            "답변 수집 여부 — answer 가 비어 있지 않은 턴 수",
            "J7 롱컨텍스트 — 입력(현재 질문 + 참조 자료, 이전 턴 제외)을 tiktoken o200k_base 로 세어 272K 토큰 이상이면 적용. "
-           "J6 는 10K 토큰 이상 턴이 10개 이상인 멀티턴 대화만. "
+           "J6 는 10턴 이상이고 대화 전체가 10K 토큰 이상인 멀티턴 대화만. "
            "토크나이저를 불러오지 못한 질문은 판별 불가로 따로 셈")
-NOT_CHECKED = ("Claude 의미 평가(J1~J7 PASS·FAIL) — 유료 호출, 이 보고서는 판정 결과가 아님",
+NOT_CHECKED = ("Claude 의미 평가(J1~J8 PASS·FAIL) — 유료 호출, 이 보고서는 판정 결과가 아님",
                "비교 모델(GPT·Claude·Gemini) 답변 수집 — 유료 호출",
                "답변에서 생기는 CODE 조건(1-2·1-3 구조, 3-1 답변 등식, 3-2 선언 개수) — 답변이 있어야 더해짐",
                "J5-3.a 등 답변에서 생기는 의미 항목, J1-3 의 실제 해당 여부(평가 모델이 정함 — 여기서는 적용으로 셈)")
@@ -127,13 +127,16 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
               "turn_ratio": round(turn_type.get(name, 0) / sum(turn_type.values()), 3) if turn_type else None,
               "units": unit_type.get(name, 0), "unit_ratio": round(unit_type.get(name, 0) / typed_units, 3) if typed_units else None}
              for name in names]
-    # 멀티턴 — 평가와 같은 규칙(10K 토큰 이상 턴 10개 이상, multi-turn-v1)으로 이 파일의 답변에서 잰 판정
+    # 멀티턴 — 평가와 같은 규칙(10턴 이상 · 대화 전체 10K 토큰 이상, multi-turn-v2)으로 이 파일의 답변에서 잰 판정
     scales = report.get("multi_turn") or {}
     for c in conversations:
         scale = scales.get(c["id"]) or {}
         c["multi_turn"] = scale.get("multi_turn")
-        c["long_turns"] = scale.get("long_turns")
-    multi = [c for c in conversations if c["multi_turn"] is True]
+        c["tokens"] = scale.get("tokens")
+        c["answers_pending"] = bool(scale.get("answers_pending"))   # 답변이 없어 길이는 아직 모름 — 턴 수만 참
+    multi = [c for c in conversations if c["multi_turn"] is True and not c["answers_pending"]]
+    # 답변을 받기 전이라 대화 전체 10K 토큰을 아직 잴 수 없는 대화 — 기준을 채웠다고 쓰지 않고 따로 센다 (Codex 리뷰)
+    pending_multi = [c for c in conversations if c["answers_pending"]]
     # 판정이 없거나(예전 점검 JSON) 모름(빠지거나 겹친 턴·토크나이저 없음)은 모름 — 명시적으로 아님인 대화만 멀티턴이 아님
     unknown_multi = [c for c in conversations if c["multi_turn"] is None]
     short_multi = [c for c in conversations if c["multi_turn"] is False]
@@ -176,6 +179,7 @@ def analyze(report: Dict[str, Any], items: List[Any]) -> Dict[str, Any]:
             "answered": answered, "ambiguous_case_ids": ambiguous, "criteria": criteria, "short": short,
             "conversation_rows": conversations,
             "context": {"single": report["single_questions"], "multi_turn": len(multi), "multi_turn_unknown": len(unknown_multi),
+                        "multi_turn_pending": len(pending_multi),
                         "short_conversations": len(short_multi),
                         "undetermined": dict(report.get("undetermined") or {}),
                         "long_context": {"criterion": "J7", "units": criteria["J7"]["units"], "turns": criteria["J7"]["turns"],
@@ -290,8 +294,9 @@ def render_html(analysis: Dict[str, Any], source: str, generated_at: Optional[st
     ctx = a["context"]
     long_ctx = ctx["long_context"]
     out.append('</div><div class="card"><h2>문맥 속성 (유형과 별도)</h2><ul>'
-               f'<li><b>멀티턴 (J6)</b> — 10K 토큰 이상 턴이 10개 이상인 대화 {ctx["multi_turn"]}개'
+               f'<li><b>멀티턴 (J6)</b> — 10턴 이상이고 대화 전체 10K 토큰 이상인 대화 {ctx["multi_turn"]}개'
                + (f' — 대화당 {ctx["turn_range"][0]}~{ctx["turn_range"][1]}턴' if ctx["turn_range"] else "")
+               + (f' · 답변을 받기 전이라 길이를 아직 모르는 10턴 이상 대화 {ctx["multi_turn_pending"]}개' if ctx.get("multi_turn_pending") else "")
                + (f' · 판별 못 한 대화 {ctx["multi_turn_unknown"]}개' if ctx["multi_turn_unknown"] else "")
                + f' · 멀티턴이 아닌 대화 {ctx["short_conversations"]}개 · 단일 질문 {ctx["single"]}개'
                + ' (답변 길이도 세므로 모델마다 달라질 수 있음 — 여기서는 이 파일의 답변)</li>'

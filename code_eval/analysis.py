@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -48,6 +48,46 @@ def mask_ranges(text: str, ranges: Sequence[Tuple[int, int]], fill: str = " ") -
             if chars[i] != "\n":
                 chars[i] = fill
     return "".join(chars)
+
+
+#: 사용자가 대화창에 붙여 넣은 긴 글의 표시 — 질문 생성기가 J6 턴을 10K 토큰 이상으로 만들 때 요청 앞에 붙인다.
+#: 붙여 넣은 글은 사용자가 준 자료이지 AI 에게 한 지시가 아니다 — 요구 조건·지속 지시·사실 질의·진위 요청은 그 밖에서만 찾고,
+#: 값 대조(J5 입력 일치·3-3 원본)는 자료까지 본다 (2026-10-14 실제 수집: 자료 속 '~라고 기록하지 않는다' 가 필수 문자열 요구로 읽힘).
+PASTE_BEGIN = "[붙여 넣은 자료]"
+PASTE_END = "[자료 끝]"
+
+
+#: 표시는 독립된 줄로만 인식한다 — 요청 문장 안에서 표시 문자열을 언급해도 구간이 생기지 않는다 (Codex 리뷰)
+_PASTE_BEGIN_LINE = re.compile(r"^[ \t]*" + re.escape(PASTE_BEGIN) + r"[ \t]*\r?$", re.M)
+_PASTE_END_LINE = re.compile(r"^[ \t]*" + re.escape(PASTE_END) + r"[ \t]*\r?$", re.M)
+_PASTE_MARK_LINE = re.compile(r"^([ \t]*)(" + re.escape(PASTE_BEGIN) + "|" + re.escape(PASTE_END) + r")([ \t]*\r?)$", re.M)
+
+
+def pasted_ranges(text: str) -> List[Tuple[int, int]]:
+    """``[붙여 넣은 자료]`` 줄부터 ``[자료 끝]`` 줄까지의 구간들 (위치). 끝 표시 줄이 없는 시작 표시는 구간을 만들지 않는다 —
+    마지막 문단만 요청이라고 추측하면 여러 문단 요청을 삼킨다 (끝 표시가 없는 v1 세트는 저장된 계획으로 변환해 둔다)."""
+    out: List[Tuple[int, int]] = []
+    cursor = 0
+    while True:
+        begin = _PASTE_BEGIN_LINE.search(text, cursor)
+        if begin is None:
+            return out
+        end = _PASTE_END_LINE.search(text, begin.end())
+        if end is None:
+            return out
+        following = _PASTE_BEGIN_LINE.search(text, begin.end())
+        if following is not None and following.start() < end.start():   # 끝 표시 전에 다른 시작 표시 — 앞 구간은 미완성, 다음 시작부터 다시
+            cursor = following.start()
+            continue
+        out.append((begin.start(), end.end()))
+        cursor = end.end()
+
+
+def escape_paste_markers(material: str) -> str:
+    """자료 본문 안에 표시와 같은 줄이 있으면 '※ ' 를 붙여 표시로 읽히지 않게 한다 (구간이 조기에 끝나지 않도록)."""
+    return _PASTE_MARK_LINE.sub(lambda m: f"{m.group(1)}※ {m.group(2)}{m.group(3)}", material)
+
+
 
 
 @dataclass
@@ -301,3 +341,45 @@ class TextAnalysis:
             "sentences": len(self.sentences),
             "paragraphs": len(self.paragraphs),
         }
+
+
+class PastedTextAnalysis(TextAnalysis):
+    """붙여 넣은 자료 구간([붙여 넣은 자료]…[자료 끝] 줄)을 원문 그대로 따로 파싱한 분석 — 변환 원본(배열·표) 찾기 전용.
+
+    자료 속 닫히지 않은 코드 펜스는 그 구간의 끝 표시 줄 앞에서 끝난 것으로 본다. 본문은 한 글자도 고치지 않는다 — 펜스 위치
+    (``fenced_blocks``·``fence_ranges``)와 줄의 코드 여부(``lines``)만 구간별로 계산한다 (Codex 리뷰 4회: 끝 표시를 닫는 펜스로
+    바꾸거나 펜스 줄을 지우는 보정은 닫힌 블록·문자열 속 값을 바꾸거나 반복 처리가 느렸다). 구간 밖은 구간을 공백으로 가린 글로
+    파싱해 위치가 그대로다. 지시 추출에는 쓰지 않는다 — 지시 구간은 ``pasted_ranges`` 로 가린다."""
+
+    @cached_property
+    def fenced_blocks(self) -> List[Dict[str, Any]]:
+        paste = pasted_ranges(self.text)
+        if not paste:
+            return super().fenced_blocks
+        blocks = _fenced_code_blocks(mask_ranges(self.text, paste))   # 구간 밖 — 구간은 공백이라 그 안의 펜스는 보이지 않는다
+        for start, end in paste:
+            marker = _PASTE_END_LINE.search(self.text, start, end)
+            stop = marker.start() if marker else end   # 끝 표시 줄 앞에서 구간 본문이 끝난다
+            for block in _fenced_code_blocks(self.text[start:stop]):
+                block = {**block, "start": block["start"] + start, "end": min(block["end"] + start, stop)}
+                if "content_start" in block:
+                    block["content_start"] += start
+                blocks.append(block)
+        blocks.sort(key=lambda b: b["start"])
+        for block in blocks:
+            info = block.get("info", "")
+            block["language_label"] = info.split()[0].lower() if info.split() else ""
+        return blocks
+
+    @cached_property
+    def lines(self) -> List[Line]:
+        """줄의 코드 여부를 구간별 펜스 범위로 다시 계산 — 정렬된 줄과 범위를 포인터로 한 번씩 훑는다 (Codex 리뷰: 줄마다 범위를
+        처음부터 찾으면 펜스가 많을 때 제곱 시간)."""
+        ranges = sorted(self.fence_ranges)
+        out, index = [], 0
+        for line in split_lines(self.text):
+            while index < len(ranges) and ranges[index][1] <= line.start:   # 이 줄보다 앞에서 끝난 범위는 다시 보지 않는다
+                index += 1
+            inside = index < len(ranges) and ranges[index][0] <= line.start
+            out.append(line if line.in_code == inside else replace(line, in_code=inside))
+        return out

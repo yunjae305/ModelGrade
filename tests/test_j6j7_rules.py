@@ -22,7 +22,7 @@ def _run():
 
 @pytest.mark.multi_turn_rule
 def test_own_answer_measure_diverges_while_shared_scenario_does_not():
-    report = j6(_run(), turn_tokens=300, long_turns=3)
+    report = j6(_run(), min_turns=3, total_tokens=900)   # 3턴 · 대화 전체 900 토큰으로 낮춰 같은 계산
     rules = report["rules"]
     assert rules["claude"]["current"] == {"conversations": 1, "turns": 2}     # 긴 답변을 쓴 모델만 멀티턴
     assert rules["gpt"]["current"] == {"conversations": 0, "turns": 0}

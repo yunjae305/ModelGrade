@@ -11,7 +11,7 @@ def _long(tokens):
     return text * (tokens // unit + 1)
 
 
-@pytest.mark.multi_turn_rule   # J6 길이 조건을 실제 값(10K 토큰 턴 10개)으로
+@pytest.mark.multi_turn_rule   # J6 길이 조건을 실제 값(10턴 이상 · 대화 전체 10K 토큰)으로
 def test_stress_conversation_is_counted_apart_from_ordinary_multi_turn():
     big = _long(10_500)
     stress = [{"conversation_id": "S", "turn": t, "question": big, "answer": "확인했습니다."} for t in range(1, 11)]

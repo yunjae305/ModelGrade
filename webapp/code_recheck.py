@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict
 
+from code_eval.analysis import _PASTE_BEGIN_LINE, pasted_ranges
 from code_eval.common_adjudication import resolved_case
 from code_eval.core import ENGINE_VERSION
 from code_eval.engine import evaluate_batch
@@ -47,12 +48,17 @@ def code_recheck(run: Dict[str, Any]) -> Dict[str, Any]:
         stored_engine = (batch.get("versions") or {}).get("engine")
         entry: Dict[str, Any] = {"stored_engine": stored_engine, "same_engine": stored_engine == ENGINE_VERSION, "cases": {}}
         providers[provider] = entry
+        rows = (run.get("datasets") or {}).get(provider) or []
+        payloads = [{key: row[key] for key in _FIELDS if key in row} if isinstance(row, dict) else {} for row in rows]
+        # 호환성 진단 — 끝 표시 없는 붙여 넣은 자료(생성기 v1 로 수집한 실행)는 자료 구간을 가리지 못한다 (엔진 v16.6.0). 엔진이 같아도 남긴다
+        legacy = [str(i) for i, p in enumerate(payloads)
+                  if isinstance(p.get("question"), str) and _PASTE_BEGIN_LINE.search(p["question"]) and not pasted_ranges(p["question"])]
+        if legacy:
+            entry["pasted_without_end"] = legacy
         if entry["same_engine"]:
             continue
-        rows = (run.get("datasets") or {}).get(provider) or []
         stored = batch.get("cases") or []
         records = (batch.get("jev_eval") or {}).get("records") or []
-        payloads = [{key: row[key] for key in _FIELDS if key in row} if isinstance(row, dict) else {} for row in rows]
         fresh = evaluate_batch(payloads)["cases"] if payloads else []
         for index, (old, new) in enumerate(zip(stored, fresh)):
             if not isinstance(old, dict) or old.get("case_status") != "EVALUATED" or new.get("case_status") != "EVALUATED":

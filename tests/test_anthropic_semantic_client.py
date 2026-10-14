@@ -13,6 +13,21 @@ from code_eval.anthropic_semantic_client import (AnthropicSemanticClient, Anthro
 from code_eval.jev_eval import jev_request, evaluate_jev_case
 
 
+def reassemble(content):
+    """캐시 블록(history 턴 · 현재 질문 · answer 와 그 밖의 값)의 JSON 을 다시 합친 평가 대상."""
+    state, history = {}, []
+    for block in content[1:]:
+        text = block['text']
+        body = text[text.index('### '):].split('\n', 1)[1]
+        if text[text.index('### '):].startswith('### history'):
+            history.append(json.loads(body))
+        else:
+            state.update(json.loads(body))
+    if history:
+        state['history'] = history
+    return state
+
+
 def entries(*ids):
     return {cid: {'choice':'PASS','confidence':.8,'reason':'자료와 일치합니다.'} for cid in ids}
 
@@ -52,7 +67,8 @@ def test_request_preserves_blind_inputs_uses_medium_and_strict_final_tool():
     assert '외부 도구를 사용하지 않습니다.' not in body['system']
     assert 'submit_evaluation 도구를 정확히 한 번' in body['system']
     prompt=''.join(block['text'] for block in body['messages'][0]['content'])
-    assert json.loads(prompt.split('## 평가 대상 (데이터)\n',1)[1])==state
+    assert reassemble(body['messages'][0]['content'])==state   # 블록으로 나눠도 원문 값은 하나도 바뀌지 않는다
+    assert '## 평가 대상 (데이터)' in prompt
     assert len(body['tools'])==1 and body['tools'][0]['strict'] is True
     schema=body['tools'][0]['input_schema']
     assert schema['required']==['J1','J5','J6']
@@ -83,18 +99,19 @@ def test_prompt_cache_marks_only_the_reusable_instructions_and_keeps_the_text():
         _,sent=call(response(entries('J1','J5')),ids=('J1','J5'),state={'question':'질문','answer':answer})
         bodies.append(json.loads(sent[0].content))
     blocks=[b['messages'][0]['content'] for b in bodies]
-    assert [[('cache_control' in block) for block in content] for content in blocks]==[[True,False]]*2
-    assert blocks[0][0]==blocks[1][0] and blocks[0][0]['cache_control']=={'type':'ephemeral'}
-    assert '실행 기준 시각' not in blocks[0][0]['text'] and '첫 답변' in blocks[0][1]['text']
-    assert sum(json.dumps(b,ensure_ascii=False).count('cache_control') for b in bodies)==2
+    # 지시문 · 현재 질문(같은 질문의 다른 답변이 공유)에 표시하고, 실행 시각과 답변은 표시 뒤에 둔다
+    assert [[('cache_control' in block) for block in content] for content in blocks]==[[True,True,False]]*2
+    assert blocks[0][:2]==blocks[1][:2] and blocks[0][0]['cache_control']=={'type':'ephemeral'}
+    assert '실행 기준 시각' not in blocks[0][0]['text'] + blocks[0][1]['text'] and '첫 답변' in blocks[0][2]['text']
+    assert sum(json.dumps(b,ensure_ascii=False).count('cache_control') for b in bodies)==4
     _,sent=call(response(entries('J1')),config=AnthropicSemanticConfig(prompt_cache=False))
     body=json.loads(sent[0].content)
     assert isinstance(body['messages'][0]['content'],str) and 'cache_control' not in json.dumps(body)
     assert AnthropicSemanticConfig(prompt_cache=False).to_manifest()['prompt_cache_policy']=='disabled'
-    assert AnthropicSemanticConfig().to_manifest()['prompt_cache_policy']=='static_prefix_ephemeral_5m_items_search_only'
+    assert AnthropicSemanticConfig().to_manifest()['prompt_cache_policy']=='static_history_question_ephemeral_5m'
     # legacy 는 검색이 없어도 기준 조합별로 질문끼리 앞부분을 나눠 쓰므로 캐시 표시를 유지한다
     _,sent=call(response(entries('J1')),config=AnthropicSemanticConfig(web_search='disabled'))
-    assert [('cache_control' in block) for block in json.loads(sent[0].content)['messages'][0]['content']]==[True,False]
+    assert [('cache_control' in block) for block in json.loads(sent[0].content)['messages'][0]['content']]==[True,True,False]
     assert prompt_cache_setting(None) is True and prompt_cache_setting(' OFF ') is False
     with pytest.raises(ValueError):
         prompt_cache_setting('sometimes')

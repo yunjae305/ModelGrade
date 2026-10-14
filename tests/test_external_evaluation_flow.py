@@ -11,6 +11,7 @@ import time
 import httpx
 import pytest
 
+from code_eval import jev_batch
 from code_eval.anthropic_semantic_client import FINAL_TOOL, AnthropicSemanticClient, AnthropicSemanticConfig
 from code_eval.config import AionaConfig
 from code_eval.engine import evaluate_batch, evaluate_case
@@ -18,7 +19,9 @@ from code_eval.jev_eval import evaluate_jev_case
 from code_eval.semantic_policy import j5_outcome
 from semantic_judge_fixture import Judge
 from webapp.code_eval_service import CodeEvalService
-from webapp.comparison_service import ComparisonService, _external_semantic_context
+from code_eval.anthropic_batch_client import CUSTOM_ID
+from webapp.comparison_service import ComparisonService, _batch_tag, _external_semantic_context
+from tests.test_jev_batch import FakeBatches, judge as batch_judge
 
 WEB = {"system_key": "chatgpt-web", "provider": "openai", "platform": "ChatGPT", "model": "gpt-5", "access_mode": "web"}
 
@@ -215,6 +218,27 @@ def test_structured_sources_reach_j5_first_and_unresolved_relays_are_not_checked
     client, sent = claude_client()
     plain = evaluate_jev_case("Q1", "q", answer, client, criteria=("J1", "J5"), fail_evidence_check=True, citation_check=True)
     assert plain["answer_citations"]["policy"] == "answer-citations-v2"
+
+
+def test_message_batches_use_the_same_structured_sources_as_realtime():
+    fake = FakeBatches()
+    client, config = batch_judge(fake)
+    case = {"case_id": "Q1", "question": "서울 인구 출처와 함께", "answer": "서울 인구는 약 930만 명입니다.",
+            "answer_sources": [{"id": "S1", "url": "https://data.seoul.go.kr/p", "claims": ["서울 인구는 약 930만 명입니다."],
+                                "origin": "export_metadata"}]}
+    jev = jev_batch.evaluate_jev_batch_batched(evaluate_batch([case], AionaConfig()), client, config, sleep=lambda _: None,
+                                               custom_id_prefix="run1_chatgpt-web_")
+    params = next(iter(fake.batches.values()))["requests"][0]["params"]
+    assert "https://data.seoul.go.kr/p" in json.dumps(params, ensure_ascii=False) and not fake.realtime
+    citations = jev["records"][0]["answer_citations"]
+    assert citations["policy"] == "answer-citations-v3" and citations["structured_sources"] == 1
+
+
+def test_batch_custom_ids_stay_within_the_api_limit_for_long_system_keys():
+    assert [_batch_tag(key) for key in ("aiona", "gpt", "chatgpt-web")] == ["aiona", "gpt", "chatgpt-web"]
+    longest = "a" * 30 + ".web_" + "b" * 29   # system_key 는 64자까지
+    assert len(longest) == 64 and _batch_tag(longest) != _batch_tag(longest[:-1] + "c")
+    assert CUSTOM_ID.fullmatch(f"{'f' * 12}_{_batch_tag(longest)}_99999")
 
 
 def test_invalid_answer_sources_are_input_errors_and_valid_ones_do_not_change_code_results():

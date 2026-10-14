@@ -1,6 +1,8 @@
 """질문 세트 무료 점검 도구 — 질문 단위·형식 오류·중복·기준별 적용 수 (모델 호출 없음)."""
 import json
 
+import pytest
+
 from tools.check_question_set import check_items, load_items, main
 
 
@@ -86,3 +88,15 @@ def test_precheck_counts_j8_for_questions_with_attachments_like_the_evaluation()
                 {"question": "서울의 인구를 알려줘."}]
     for pipeline in ("legacy", "items"):
         assert check_items(attached, pipeline=pipeline)["criteria"]["J8"]["applicable_units"] == 1
+
+
+@pytest.mark.multi_turn_rule
+def test_unanswered_conversation_counts_j6_by_turns_until_answers_arrive():
+    """답변이 없는 10턴 대화는 대화 전체 10K 토큰을 아직 잴 수 없어 J6 적용으로 센다 — 답변이 있으면 실제 길이로 판정 (multi-turn-v2)."""
+    turns = [{"question": f"{n}번째: 앞에서 정한 표 형식을 유지해서 다시 정리해 줘.", "answer": "", "conversation_id": "c1", "turn": n}
+             for n in range(1, 11)]
+    report = check_items(turns, "items")
+    assert report["criteria"]["J6"]["applicable_units"] == 1 and report["multi_turn"]["c1"]["answers_pending"]
+    answered = [dict(t, answer="네, 정리했습니다.") for t in turns]   # 답변을 받은 뒤에는 짧은 대화라 멀티턴이 아니다
+    report = check_items(answered, "items")
+    assert report["criteria"]["J6"]["applicable_units"] == 0 and report["multi_turn"]["c1"]["multi_turn"] is False

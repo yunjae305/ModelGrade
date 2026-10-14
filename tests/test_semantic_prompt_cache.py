@@ -91,3 +91,68 @@ def test_public_prompt_keeps_single_string_and_existing_conditional_instructions
     assert ("reference 는 J5 DATA 신뢰도" in static) == (state.get("reference") is not None)
     assert ("J5 검색 절차:" in static) == ("J5" in ids and search_enabled)
     assert ("J6: history의 처음부터" in static) == ("J6" in ids)
+
+
+def test_cache_blocks_put_history_turns_then_shared_question_then_answer(monkeypatch):
+    """캐시 블록: 지시문 → history 턴마다 한 블록(마지막 턴에 표시) → 현재 질문·자료(표시) → 실행 시각과 답변. 값은 그대로 (2026-10-14)."""
+    freeze_time(monkeypatch, datetime(2026, 1, 1, tzinfo=timezone.utc))
+    state = {"question": "현재 질문", "answer": "답변 원문", "reference": {"value": 1}, "attachments": [{"name": "a.txt", "type": "txt", "content": "내용"}],
+             "history": [{"turn": 1, "question": "1턴", "answer": "1턴 답"}, {"turn": 2, "question": "2턴", "answer": "2턴 답"}]}
+    questions = jev_request("", "", ("J1", "J5", "J6"))["questions"]
+    blocks = semantic.build_prompt_blocks(state, questions, True)
+    static, _ = semantic.build_prompt_parts(state, questions, True)
+    assert [cached for _, cached in blocks] == [True, False, True, True, False]
+    assert blocks[0][0] == static + "\n" and "2026-01-01" in blocks[-1][0] and all("2026-01-01" not in text for text, _ in blocks[:-1])
+    assert json.loads(blocks[3][0].split("### 현재 질문\n", 1)[1]) == {k: state[k] for k in ("question", "reference", "attachments")}
+    assert json.loads(blocks[-1][0].split("### answer 와 그 밖의 값\n", 1)[1]) == {"answer": "답변 원문"}
+    assert [json.loads(text.split("턴\n", 1)[1]) for text, _ in blocks[1:3]] == state["history"]
+    first_turn = semantic.build_prompt_blocks({**state, "history": state["history"][:1]}, questions, True)
+    assert first_turn[1][0] == blocks[1][0]   # 다음 턴의 앞부분이 이전 턴과 글자까지 같아 캐시를 다시 읽는다
+
+
+def test_shared_gate_lets_one_request_write_the_cache_before_the_others(monkeypatch):
+    """긴 공유 자료(J7)는 같은 앞부분의 첫 요청이 끝난 뒤에 나머지가 보낸다 — 동시에 보내면 모두 정가를 낸다."""
+    import threading
+    from code_eval import anthropic_semantic_client as client
+
+    monkeypatch.setattr(client, "_SHARED_GATES", {})
+    monkeypatch.setattr(client, "SHARED_GATE_POLL_S", 0.01)
+    event = client._enter_shared_gate("k")
+    order, owners = [], []
+
+    def later():
+        owners.append(client._enter_shared_gate("k"))
+        order.append("둘째")
+    thread = threading.Thread(target=later)
+    thread.start()
+    thread.join(0.2)
+    assert event is not None and thread.is_alive() and order == []   # 첫 요청이 끝나기 전에는 기다린다
+    order.append("첫째")
+    client._leave_shared_gate("k", event, ok=False)   # 첫 요청이 실패하면 기다리던 요청이 새 첫 요청이 된다
+    thread.join(2)
+    assert order == ["첫째", "둘째"] and owners[0] is not None
+    client._leave_shared_gate("k", owners[0], ok=True)
+    assert client._enter_shared_gate("k") is None   # 성공 뒤에는 캐시가 있다고 보고 바로 보낸다
+    client._SHARED_GATES["k"]["warm_until"] = 0.0
+    assert client._enter_shared_gate("k") is not None   # 캐시가 식었을 시간이 지나면 다시 첫 요청
+
+
+def test_shared_gate_wait_stops_on_cancel_and_deadline(monkeypatch):
+    """기다리는 동안 중단 요청이면 바로 끝내고, 평가 제한 시간이 지나면 기다리지 않고 보낸다 (Codex 리뷰)."""
+    import threading
+    import time
+    from concurrent.futures import CancelledError
+    from code_eval import anthropic_semantic_client as client
+
+    monkeypatch.setattr(client, "_SHARED_GATES", {})
+    monkeypatch.setattr(client, "SHARED_GATE_POLL_S", 0.01)
+    assert client._enter_shared_gate("k") is not None
+    cancel = threading.Event()
+    cancel.set()
+    with pytest.raises(CancelledError):
+        client._enter_shared_gate("k", cancel_event=cancel)
+    started = time.monotonic()
+    assert client._enter_shared_gate("k", deadline=time.monotonic() + 0.05) is None and time.monotonic() - started < 1
+    owner = client._enter_shared_gate("slow")   # 응답이 늦게 끝나도 캐시 수명은 요청 시작부터 잰다
+    client._leave_shared_gate("slow", owner, ok=True, started=time.monotonic() - client.SHARED_GATE_WARM_S - 1)
+    assert client._enter_shared_gate("slow") is not None

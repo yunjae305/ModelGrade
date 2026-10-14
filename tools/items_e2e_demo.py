@@ -225,13 +225,13 @@ def _consistent(record: Dict[str, Any]) -> bool:
 @contextmanager
 def _short_conversations_as_multi_turn():
     """시나리오 D 는 3턴짜리 짧은 대화로 J6 판정 경로(이전 턴 원문 전달·인용 확인·FAIL)를 보여 준다 — 시연하는 동안만
-    멀티턴 길이 조건(10K 토큰 이상 턴 10개, multi-turn-v1)을 끈다. 실제 평가에서는 이 대화의 J6 는 해당 없음이다."""
-    saved = multi_turn.MIN_LONG_TURNS
-    multi_turn.MIN_LONG_TURNS = 0
+    멀티턴 길이 조건(10턴 이상 · 대화 전체 10K 토큰, multi-turn-v2)을 끈다. 실제 평가에서는 이 대화의 J6 는 해당 없음이다."""
+    saved = multi_turn.MIN_TURNS, multi_turn.MIN_TOTAL_TOKENS
+    multi_turn.MIN_TURNS = multi_turn.MIN_TOTAL_TOKENS = 0
     try:
         yield
     finally:
-        multi_turn.MIN_LONG_TURNS = saved
+        multi_turn.MIN_TURNS, multi_turn.MIN_TOTAL_TOKENS = saved
 
 
 def run_demo(save_dir: Optional[Path] = None) -> Dict[str, Any]:

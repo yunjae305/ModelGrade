@@ -215,12 +215,14 @@ def verify_items(body: Dict[str, Any], state: Dict[str, Any], questions: Dict[st
             if not (allowed or element_na):
                 codes.append(("not_applicable_disallowed", None))
             elif not allowed:
-                # 요소 단위 해당 없음은 그 요소(현재 질문이 준 값)를 현재 질문 원문 그대로 인용해야 한다 — '#1' 만 붙여 항목 전체를
-                # 비우거나, 이전 턴·참조 자료의 값을 인용해 현재 질문의 값을 피하지 못하게
+                # 요소 단위 해당 없음은 그 요소(현재 질문·함께 보낸 첨부가 준 값)를 그 원문 그대로 인용해야 한다 — '#1' 만 붙여 항목
+                # 전체를 비우거나, 이전 턴·참조 자료의 값을 인용해 현재 질문의 값을 피하지 못하게 (첨부 원문 허용: Codex 리뷰)
                 question_quote = _text(item.get("question_quote"))
+                # 허용 출처(현재 질문·첨부)에서 직접 찾는다 — 전체 검색은 참조 자료가 먼저 맞으면 첨부를 보지 않는다 (Codex 리뷰)
+                allowed = [text for source, _, text in _question_sources(item, state) if source in ("question", "attachment")]
                 if not question_quote:
                     codes.append(("question_quote_required", None))
-                elif not question_check["ok"] or question_check["source"] != "question":
+                elif not any(locate_quote(question_quote, text) is not None for text in allowed):
                     codes.append(("question_quote_not_found", None))
         else:
             question_quote = _text(item.get("question_quote"))

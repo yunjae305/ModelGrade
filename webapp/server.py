@@ -37,7 +37,9 @@ class Server(ThreadingHTTPServer):
         self.comparison_service = comparison_service or ComparisonService(self.code_eval_service)
         # 질문 세트 생성 — 연결·수집 설정의 GPT 연결을 그대로 쓴다 (사용자 결정 2026-10-13: 생성 모델은 GPT)
         self.question_service = question_service or QuestionSetService(lambda: self.comparison_service.provider_config('gpt'),
-                                                                       run_starter=self.start_question_set_run)
+                                                                       run_starter=self.start_question_set_run,
+                                                                       run_canceller=self.comparison_service.cancel,
+                                                                       weak_source=self.comparison_service.weak_units)
         super().__init__(address, Handler)
 
     def start_question_set_run(self, set_id):
@@ -139,6 +141,8 @@ class Handler(BaseHTTPRequestHandler):
             questions = self.server.question_service
             if len(parts) == 4:
                 return self.respond(200, questions.status(parts[3]))
+            if len(parts) == 5 and parts[4] == 'questions':   # 평가 시작 전에 화면에서 확인할 질문 목록
+                return self.respond(200, questions.preview(parts[3]))
             if len(parts) == 5 and parts[4] == 'download':
                 body = json.dumps(questions.dataset(parts[3]), ensure_ascii=False, indent=1).encode()
                 return self.respond(200, body, 'application/json; charset=utf-8',
@@ -162,6 +166,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/aiona-history':
             return self.respond(200, service.aiona_history())
+        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
+            from .aiona_web import login_status
+            return self.respond(200, login_status())
         if path == '/api/comparison/auto-collection':
             return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':
@@ -252,6 +259,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, service.start_auto_collection(payload))
             if path == '/api/comparison/question-sets':
                 return self.respond(202, self.server.question_service.start(payload))
+            if path == '/api/comparison/question-sets/import':   # 질문 직접 넣기 — 질문만, 모델 호출 없음
+                return self.respond(201, self.server.question_service.import_questions(payload))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
                 return self.respond(202, self.server.question_service.start_run(parts[3]))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'cancel':

@@ -324,11 +324,14 @@ def resolve_jev_client(
             reasoning_effort=read("SEMANTIC_ANTHROPIC_EFFORT") or "medium",
             api_base=read("SEMANTIC_ANTHROPIC_BASE") or "https://api.anthropic.com/v1",
             timeout=float(read("SEMANTIC_ANTHROPIC_TIMEOUT") or 180),
-            max_output_tokens=int(read("SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS") or 12000),
+            max_output_tokens=int(read("SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS") or 20000),
             web_search=read("SEMANTIC_WEB_SEARCH") or "live",
-            max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 4),
+            max_tool_calls=int(read("SEMANTIC_ANTHROPIC_MAX_SEARCHES") or 1),   # 질문당 검색 1회 (사용자 결정 2026-10-14: 비용)
             max_fetches=int(read("SEMANTIC_ANTHROPIC_MAX_FETCHES") or 8),
             max_continuations=int(read("SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS") or 2),
+            dispatch=(read("SEMANTIC_DISPATCH") or "realtime").strip().lower(),
+            batch_questions=int(read("SEMANTIC_ANTHROPIC_BATCH_QUESTIONS") or 20),
+            batch_poll_seconds=float(read("SEMANTIC_ANTHROPIC_BATCH_POLL_SECONDS") or 15),
             prompt_cache=prompt_cache_setting(read("SEMANTIC_ANTHROPIC_PROMPT_CACHE")),
         )
         # Reuse the registered Claude credential only for this explicitly

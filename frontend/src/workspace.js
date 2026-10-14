@@ -5,7 +5,7 @@
   const names = {aiona: 'AIONA', gemini: 'Gemini', claude: 'Claude', gpt: 'GPT'};
   const collectionProviders = ['gemini', 'claude', 'gpt'];
   const marks = {aiona: 'A', gemini: '✦', claude: '✳', gpt: 'GPT'};
-  const labels = {setup: '새 비교', connections: '연결·수집 설정', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준', progress: '업무 진행 현황'};
+  const labels = {setup: '새 비교', connections: '연결된 모델', results: '결과 비교', comparison: '결과 비교', history: '이력 관리', versions: '버전 관리', criteria: '평가 기준', progress: '업무 진행 현황'};
   const pageTitles = {...labels, comparison: '버전별 결과 비교'};
   const statusLabels = {COLLECTING: '응답 수집 중', READY: '평가 대기', EVALUATING: '평가 중', COMPLETED: '평가 작업 종료', CANCELLED: '수집 중단', ERROR: '오류 확인 필요'};
   const results = window.AionaResults;
@@ -180,8 +180,11 @@
     $('collect-button').hidden = enabled;
     // 버전 평가는 AIONA 원문만 평가한다 — 다른 AI 답변을 자동 수집하지 않는다
     $('collection-panel').hidden = enabled; $('advanced-import').hidden = enabled;
+    // 새 비교는 '질문 생성 후 평가'와 '질문 직접 넣기' 두 가지 (사용자 결정 2026-10-14) — 예전 Q/A 파일 업로드 흐름은 버전 평가에서만 보인다
+    $('legacy-flow').hidden = !enabled;
+    $('question-set-panel').hidden = enabled; $('question-input-panel').hidden = enabled;
     $('setup-title').textContent = enabled ? 'AIONA 버전 원문 등록' : 'AIONA 모델 평가 워크스페이스';
-    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'AIONA 질문·답변 파일을 올리면 연결된 AI가 같은 질문에 자동으로 답변합니다. 답변을 비교한 뒤 같은 기준으로 평가하세요.';
+    $('setup-description').textContent = enabled ? '해당 버전에서 받은 AIONA 원문을 평가하고, 저장된 이전 실행과 비교하세요.' : 'LLM으로 질문을 만들거나 질문을 직접 넣으면 AIONA(웹페이지 자동화)·GPT·Claude·Gemini가 답하고, 같은 기준으로 평가합니다.';
     renderReady();
     window.dispatchEvent(new CustomEvent('aiona:dataset-changed', {detail: {reason: 'mode'}}));
   }
@@ -464,6 +467,7 @@
     $('run-name').value = state.run.name + ' · 새 비교';
     setDataset(state.result.datasets.aiona, document?.source_name || state.run.name,
       document ? {...document, converted: true} : null);
+    $('legacy-flow').hidden = false;   // 저장된 AIONA 원문으로 다시 비교 — 예전 업로드 흐름을 그대로 보인다
     go('setup');
   });
   function common(batch) { return AionaResults.resolvedBatch(batch)?.summary?.common || {}; }
@@ -968,6 +972,10 @@
       if (c.unjudged) card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), node('div', {},
         node('strong', {text: '미판정 코드 조건 ' + number(c.unjudged) + '개'}),
         node('p', {text: '저장 당시 엔진의 미판정 조건입니다. 질문 상세에서 원인을 확인하세요.'}))));
+      if (recheck?.pasted_without_end?.length) card.append(node('div', {class: 'evaluation-warning'}, icon('clock'), node('div', {},
+        node('strong', {text: `붙여 넣은 자료 끝 표시 없음 · 질문 ${number(recheck.pasted_without_end.length)}개`}),
+        node('p', {text: '생성기 v1 로 만든 질문이라 자료 구간([자료 끝] 표시)을 가리지 못해, 자료 속 문장이 요구 조건·진위 요청으로 읽힐 수 있습니다. '
+          + '화면의 원문 재평가는 저장된 질문을 그대로 쓰므로 해결되지 않습니다 — 변환된 질문 세트(끝 표시 추가)로 답변을 다시 수집하는 새 실행이 필요합니다.'}))));
     } else card.append(node('div', {class: 'result-card-stats'}, node('span', {text: `답변 수집 오류·미완료 ${number((progress?.failed || 0) + (progress?.incomplete || 0))}개`})));
     const bottom = node('div', {class: 'result-card-bottom'});
     if (batch && !batch.live) bottom.append(node('a', {href: `/code-eval.html?comparison=${run.run_id}&provider=${p}#results`, class: 'text-button', target: '_blank', rel: 'noopener noreferrer'}, '상세 보고서', icon('arrow')));
@@ -1142,6 +1150,10 @@
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;
     const cleared = new Set(recheck?.cases?.[index]?.cleared || []);
+    if ((recheck?.pasted_without_end || []).includes(String(index))) {
+      box.append(node('p', {class: 'recheck-note', text: '이 질문의 붙여 넣은 자료에 끝 표시([자료 끝])가 없어 자료 속 문장이 요구 조건·진위 요청으로 읽혔을 수 있습니다. '
+        + '원문 재평가로는 해결되지 않고, 변환된 질문 세트로 답변을 다시 수집하는 새 실행이 필요합니다.'}));
+    }
     for (const r of status.code.checks.filter((r) => (r.counted && r.verdict === 'FAIL') || !['PASS', 'FAIL'].includes(r.verdict) && r.status !== 'NOT_APPLICABLE' && r.status !== 'DUPLICATE')) {
       findings.append(node('li', {}, node('strong', {text: r.explain?.headline || r.title || r.check_id}),
         node('p', {text: r.explain?.summary || r.reason || '이 조건을 판정하지 못했습니다.'}),

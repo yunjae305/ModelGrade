@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v8"   # v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v10"   # v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -182,6 +182,57 @@ def _semantic_entries() -> List[Dict[str, Any]]:
     return out
 
 
+#: 세부 기준(평가 대상) — 질문 생성·적용 수 점검·최소 질문 수가 함께 세는 단위. 정의는 여기 한 곳 (사용자 결정 2026-10-14: 평가 기준을
+#: 확실하게 고정한다). CODE: 검사 28개 중 질문 요구로 생기는 검사의 질문 조건 종류('검사:종류'). 같은 종류를 두 검사가 함께 보면 처음 검사에만
+#: 둔다. 판정하지 않는 종류(표 행 수가 모호함)는 뺀다. 의미 평가: 점검 항목(semantic_items).
+CONDITION_KIND_NAMES = {
+    "code_block_required": "코드블록 요구", "code_block_count": "코드블록 개수", "code_block_forbidden": "코드블록 금지",
+    "code_language_label": "코드블록 언어 표지", "json_required": "JSON 출력 요구", "python_code_requested": "파이썬 코드 요구",
+    "explicit_empty": "빈 출력 요구", "bullet_count": "불릿 개수", "list_count": "항목 개수", "sentence_count": "문장 수",
+    "paragraph_count": "문단 수", "line_count": "줄 수", "word_count": "어절 수", "char_count": "글자 수",
+    "required_literal": "필수 문구", "forbidden_literal": "금지 문구", "starts_with": "시작 문구", "ends_with": "끝 문구",
+    "charset": "허용 문자", "table_required": "표 요구", "table_forbidden": "표 금지", "table_count": "표 개수",
+    "table_columns": "표 열 이름", "table_column_count": "표 열 수", "table_header": "표 머리글", "table_data_rows": "표 데이터 행 수",
+    "table_total_rows": "표 전체 행 수", "list_required": "목록 요구", "list_forbidden": "목록 금지", "heading_required": "제목 요구",
+    "heading_count": "제목 개수", "json_required_keys": "JSON 필수 키", "json_field_type": "JSON 필드 자료형", "calculation": "질문 계산값",
+    "transform": "정렬·필터·변환", "unique_values": "중복 없이", "aggregate": "합계·평균 집계",
+}
+UNSCORED_KINDS = frozenset({"table_rows_ambiguous"})
+
+
+def condition_kinds() -> List[Dict[str, str]]:
+    """CODE 세부 조건 목록 [{id: '검사:종류', check, kind, name}] — CODE_UNITS 순서, 검사 안에서는 종류 이름순."""
+    out: List[Dict[str, str]] = []
+    seen = set()
+    for unit, _, trigger, kinds in CODE_UNITS:
+        if trigger == "aiona":
+            continue
+        for kind in sorted(kinds):
+            if kind in UNSCORED_KINDS or kind in seen:
+                continue
+            seen.add(kind)
+            out.append({"id": f"{unit}:{kind}", "check": unit, "kind": kind, "name": CONDITION_KIND_NAMES[kind]})
+    return out
+
+
+def evaluation_targets() -> Dict[str, Any]:
+    """평가 기준 전체를 단계별로 — CODE 대분류 → 소분류 → 검사 → 세부 조건, 의미 기준 → 세부 기준 → 점검 항목 (개수 포함)."""
+    from .semantic_items import ITEMS, SUBS
+    checks = [unit for unit, _, trigger, _ in CODE_UNITS if trigger != "aiona"]
+    conditions = condition_kinds()
+    criteria = sorted({s.criterion for s in SUBS}, key=lambda c: int(c[1:]))
+    return {"code": {"categories": [c["id"] for c in CATEGORIES], "subcategories": list(SUBCATEGORIES), "checks": checks,
+                     "conditions": conditions,
+                     # 질문 요구로 생기는 검사 18 — 세부 조건 37 로 나눠 센다(코드 구획 표시 수는 코드블록 요구 조건을 함께 쓴다)
+                     "question_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger in ("question", "question_or_answer")],
+                     "always_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "all"],
+                     "answer_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "answer"]},
+            "semantic": {"criteria": criteria, "subs": [s.id for s in SUBS], "items": [i.id for i in ITEMS]},
+            "counts": {"code_categories": len(CATEGORIES), "code_subcategories": len(SUBCATEGORIES), "code_checks": len(checks),
+                       "code_conditions": len(conditions), "semantic_criteria": len(criteria), "semantic_subs": len(SUBS),
+                       "semantic_items": len(ITEMS)}}
+
+
 def unit_of(check_id: str) -> Optional[str]:
     """결과 행의 check_id(예: ``2-1.count:bullet_count``)가 속한 검사 단위. 엔진 오류 행은 None."""
     unit = check_id.split(":")[0]
@@ -253,6 +304,12 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "'$\\rightarrow$' 를 '→' 로 바꿔 인용해 10턴 대화가 '평가 근거 부족' FAIL 이 된 문제 (중간 점검 557a50d8baf1, Gemini Q29 7턴)",
                  "다시 받은 J6 가 인용 대조를 통과해 PASS·FAIL 이면 그것을 쓰고, 아니면 지금 판정을 그대로 둔다 — 근거를 확인하지 못한 판정은 "
                  "여전히 PASS 가 아님. 시도는 레코드의 context_reevaluation(첫 판정·재질문 결과·쓴 쪽)에 남김"]},
+    {"version": "engine v16.6.0", "date": "2026-10-14", "scope": "code",
+     "changes": ["질문 본문 속 붙여 넣은 자료('[붙여 넣은 자료]' 줄 ~ '[자료 끝]' 줄)는 사용자가 준 자료이지 지시가 아니다 — 요구 조건 추출, "
+                 "앞 턴 지속 지시·작업명 판별, J5 사실 질의·가상 설정·코드 요청·진위 요청 판별은 그 구간을 가린 요청 부분에서만 한다. "
+                 "값 대조(J5 입력 일치 인용·J5-2.a 값·3-3 원본)는 자료까지 본다 (첫 실제 실행에서 J6 자료 속 '…라고 기록하지 않는다' 가 "
+                 "필수 문자열 요구로 읽힌 문제, 사용자 결정 2026-10-14: 붙여 넣은 글은 첨부가 아니라 질문 내용)",
+                 "표시는 독립된 줄로만 인식하고, 자료를 먼저 가린 뒤 펜스·표·인용 구조를 본다. 끝 표시가 없는 v1 세트는 저장된 계획으로 변환"]},
     {"version": "engine v16.5.0", "date": "2026-10-13", "scope": "code",
      "changes": ["답변 구조에서 생기는 검사 9개(코드·수식 구획 짝, JSON 구문, Python 구문, 짝 없는 닫는 태그, 각주·인용·내부 링크 연결, "
                  "답변 등식 재계산, 선언 개수)는 답변마다 조건 1개로 집계 — 대상(코드블록·등식…)이 몇 개든 하나라도 FAIL 이면 FAIL, "
@@ -311,6 +368,14 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "판정 미완료(ATTACHMENT_IMAGE_UNAVAILABLE) — 다른 기준은 글자로 그대로 평가",
                  "파일을 가리키지 않는 이미지 항목(name·type·content 만)은 예전처럼 content 로 J8 판정 (기록 content_only)",
                  "레코드 attachment_images 에 보낸 그림의 이름·형식·sha256 과 못 보낸 사유 — 그림 원본은 저장하지 않음. J8 기준 정의는 그대로"]},
+    {"version": "multi-turn-v2", "date": "2026-10-14", "scope": "semantic",
+     "changes": ["J6 멀티턴 = 턴 10개 이상이고 대화 전체(모든 턴의 질문 + 답변)가 10K 토큰 이상인 대화 (사용자 결정으로 바로잡음 — "
+                 "v1 은 '한 턴이 10K 토큰 이상인 턴 10개'로 읽어 질문 생성기가 턴마다 약 1.5만 자 자료를 붙였다)",
+                 "각 모델의 실제 대화로 재는 것·멀티턴이 아니면 해당 없음·길이를 모르는 턴이 있으면 확인 필요는 그대로"]},
+    {"version": "criteria-registry-v9", "date": "2026-10-14", "scope": "registry", "changes": ["J6 멀티턴 길이 조건 바로잡음 (multi-turn-v2)"]},
+    {"version": "criteria-registry-v10", "date": "2026-10-14", "scope": "registry",
+     "changes": ["세부 기준(평가 대상) 목록을 한 곳에 고정: CODE 3 대분류 · 8 소분류 · 28 검사 → 질문 조건 37 (+ 늘 적용 3·답변 구조 7), "
+                 "의미 8 기준 → 30 세부 기준 → 44 점검 항목 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 같은 목록을 쓴다"]},
 ]
 
 
@@ -347,6 +412,7 @@ def registry() -> Dict[str, Any]:
     return {"version": REGISTRY_VERSION, "criteria": _code_entries() + _semantic_entries(), "changelog": copy.deepcopy(CHANGELOG),
             # items 파이프라인(SEMANTIC_PIPELINE=items)의 기준 8 → 세부 30 → 항목 44 정의·'판정하는 곳' 규칙·나열 규칙·reason_code
             "semantic_items": describe_semantic_items(),
+            "targets": evaluation_targets(),   # 세부 기준 목록과 개수 — 질문 생성·적용 수 점검이 세는 단위
             "modifier_kinds": copy.deepcopy(MODIFIER_KINDS),
             "subsumed_kinds": [{"kind": k, "when": w, "checked_by": u, "note": n} for k, w, u, n in SUBSUMED_KINDS],
             "relations": [{"a": a, "b": b, "kind": kind, "note": note} for a, b, kind, note in RELATIONS],

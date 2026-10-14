@@ -77,3 +77,26 @@ def test_approved_gaps_are_now_covered_by_a_running_check():
     relations = reg.registry()["relations"]
     assert not [r for r in relations if r["kind"] == "gap"]
     assert {(r["a"], r["b"]) for r in relations if r["kind"] == "boundary"} >= {("2-1", "J6"), ("2-2", "J6"), ("1-3.citation_link", "J5")}
+
+
+def test_evaluation_targets_are_pinned():
+    """평가 기준을 한 곳에 고정 — 개수가 바뀌면 이 테스트와 설계안·변경내역을 함께 고친다 (사용자 결정 2026-10-14)."""
+    targets = reg.evaluation_targets()
+    assert targets["counts"] == {"code_categories": 3, "code_subcategories": 8, "code_checks": 28, "code_conditions": 37,
+                                 "semantic_criteria": 8, "semantic_subs": 30, "semantic_items": 44}
+    code = targets["code"]
+    assert len(code["always_checks"]) + len(code["answer_checks"]) + len(code["question_checks"]) == 28 == len(set(code["checks"]))
+    assert {c["check"] for c in code["conditions"]} <= set(code["question_checks"])
+    assert all(c["name"] and c["id"] == f"{c['check']}:{c['kind']}" for c in code["conditions"])
+    assert targets["semantic"]["criteria"] == [f"J{i}" for i in range(1, 9)]
+    assert reg.registry()["targets"] == targets
+
+
+def test_generator_and_check_tools_use_the_registry_targets():
+    from tools import check_question_set as cqs
+    from webapp import question_generation as qg
+    ids = [c["id"] for c in reg.condition_kinds()]
+    assert list(cqs.KINDS) == ids
+    catalog = qg.criteria_catalog()
+    assert [k["id"] for c in catalog["code"] for k in c["kinds"]] == ids
+    assert [i["id"] for i in catalog["items"]] == reg.evaluation_targets()["semantic"]["items"]

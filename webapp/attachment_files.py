@@ -105,6 +105,19 @@ def _write_docx(content: str, path: Path) -> None:
     document.save(str(path))
 
 
+def _slice_original(text: str, lines: List[str], start: int, end: int) -> str:
+    """줄로 나뉜 글의 [start, end) 줄에 해당하는 원문 구간. 줄 글자를 원문에서 차례로 찾아 자르므로 원문 띄어쓰기가 보존된다."""
+    cursor, spans = 0, []
+    for piece in lines:
+        found = text.find(piece.strip(), cursor) if piece.strip() else -1
+        if found < 0:
+            return " ".join(p.strip() for p in lines[start:end])   # 못 찾으면 줄을 이어 쓴다 (예외 상황)
+        spans.append((found, found + len(piece.strip())))
+        cursor = found + len(piece.strip())
+    chosen = spans[start:end]
+    return text[chosen[0][0]:chosen[-1][1]].strip() if chosen else ""
+
+
 def _write_pdf(content: str, path: Path) -> str:
     """PDF 를 만들고 평가 모델이 받을 내용을 돌려준다 — 표 칸은 자르지 않고 줄을 바꾸며, 쪽 표시('[n쪽]')는 자동 쪽 넘김까지
     포함해 실제로 놓인 쪽을 따른다 (Codex 리뷰: 칸 40자 자름·자동 쪽 넘김 미반영)."""
@@ -123,41 +136,65 @@ def _write_pdf(content: str, path: Path) -> str:
             shown[0] = pdf.page_no()
             out.append(f"[{shown[0]}쪽]")
 
+    def place(height: float) -> None:   # 이 높이가 남은 자리에 안 들어가면 다음 쪽부터 — 쪽 표시가 실제 출력 위치를 따른다
+        if pdf.will_page_break(height):
+            pdf.add_page()
+        mark()
+
+    page_height = pdf.h - pdf.t_margin - pdf.b_margin
+
+    def write_text(text: str, line: float, shown_text: str) -> None:
+        """글 한 덩이를 쓴다. 한 쪽에 들어가면 통째로 한 쪽에 두고, 쪽보다 길면 줄마다 쪽을 확인해 쓴다 (Codex 리뷰: 자동 쪽 넘김으로
+        갈라진 문단이 평가용 원문에서는 앞 쪽에 적히던 문제)."""
+        lines = pdf.multi_cell(width, line, text or " ", dry_run=True, output="LINES")
+        if len(lines) * line <= page_height:
+            place(len(lines) * line)
+            pdf.multi_cell(width, line, text or " ", new_x="LMARGIN", new_y="NEXT")
+            out.append(shown_text)
+            return
+        for n, piece in enumerate(lines):
+            place(line)
+            pdf.multi_cell(width, line, piece or " ", new_x="LMARGIN", new_y="NEXT")
+            out.append((shown_text[:len(shown_text) - len(text)] + piece) if n == 0 else piece)
+
     for block in _blocks(content):
         if block["kind"] == "page":
             pdf.add_page()
             continue
-        mark()
         if block["kind"] == "heading":
             pdf.set_font("KR", size={1: 16, 2: 14, 3: 12}[block["level"]])
-            pdf.multi_cell(width, 9, block["text"], new_x="LMARGIN", new_y="NEXT")
+            write_text(block["text"], 9, "#" * block["level"] + " " + block["text"])
             pdf.ln(1)
-            out.append("#" * block["level"] + " " + block["text"])
         elif block["kind"] == "table":
             pdf.set_font("KR", size=9)
             rows = block["rows"]
             cols = max(len(row) for row in rows)
             col_width, line = width / cols, 6
+            per_page = max(1, int(page_height // line))
             for row in rows:
                 cells = [row[c] if c < len(row) else "" for c in range(cols)]
-                lines = max(len(pdf.multi_cell(col_width - 2, line, cell or " ", dry_run=True, output="LINES")) for cell in cells)
-                height = max(1, lines) * line
-                if pdf.will_page_break(height):
-                    pdf.add_page()
-                mark()
-                x, y = pdf.l_margin, pdf.get_y()
-                for i, cell in enumerate(cells):
-                    pdf.rect(x + i * col_width, y, col_width, height)
-                    pdf.set_xy(x + i * col_width + 1, y)
-                    pdf.multi_cell(col_width - 2, line, cell or " ", new_x="RIGHT", new_y="TOP")
-                pdf.set_xy(x, y + height)
-                out.append("| " + " | ".join(cells) + " |")
+                cell_lines = [pdf.multi_cell(col_width - 2, line, cell or " ", dry_run=True, output="LINES") or [" "] for cell in cells]
+                total = max(len(lines) for lines in cell_lines)
+                # 한 쪽보다 긴 행은 줄 단위로 쪽마다 나눠 쓰고, 평가용 원문도 같은 자리에서 나눈다 (Codex 리뷰: 시작 쪽만 적히던 문제).
+                # 나뉜 조각의 글은 원문 칸 글자를 줄 위치로 잘라 쓴다 — 줄을 공백으로 이으면 낱말 가운데 공백이 생긴다.
+                for offset in range(0, total, per_page):
+                    pieces = ["\n".join(lines[offset:offset + per_page]) for lines in cell_lines]
+                    height = max(1, max(len(lines[offset:offset + per_page]) for lines in cell_lines)) * line
+                    place(height)
+                    x, y = pdf.l_margin, pdf.get_y()
+                    for i, piece in enumerate(pieces):
+                        pdf.rect(x + i * col_width, y, col_width, height)
+                        pdf.set_xy(x + i * col_width + 1, y)
+                        pdf.multi_cell(col_width - 2, line, piece or " ", new_x="RIGHT", new_y="TOP")
+                    pdf.set_xy(x, y + height)
+                    shown_cells = cells if total <= per_page else [_slice_original(cell, lines, offset, offset + per_page)
+                                                                   for cell, lines in zip(cells, cell_lines)]
+                    out.append("| " + " | ".join(shown_cells) + " |")
             pdf.ln(2)
         else:
             pdf.set_font("KR", size=10)
             text = ("• " + block["text"]) if block["kind"] == "bullet" else block["text"]
-            pdf.multi_cell(width, 6, text or " ", new_x="LMARGIN", new_y="NEXT")
-            out.append(("- " + block["text"]) if block["kind"] == "bullet" else block["text"])
+            write_text(text, 6, ("- " + block["text"]) if block["kind"] == "bullet" else block["text"])
     pdf.output(str(path))
     return "\n".join(out).strip()
 

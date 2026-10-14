@@ -41,7 +41,7 @@ from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
 from .ingestion.schema import response_key
-from .agent_collection import AGENT_COLLECTION_VERSION, ask_with_tools
+from .agent_collection import AGENT_COLLECTION_VERSION, COLLECTION_REASONING_EFFORT, apply_reasoning, ask_with_tools
 from .aiona_web import AIONA_WEB_VERSION
 from .ingestion.sources import normalize_sources
 
@@ -155,6 +155,13 @@ def _external_semantic_context(system):
             "collected_at": first[:10] if same_day else None}
 
 
+def _batch_tag(provider):
+    """Batches custom_id 의 제공자 표시(영문·숫자·-). 외부 시스템 키(최대 64자)가 길면 앞부분 + 해시로 줄여
+    run_id·질문 번호와 합쳐도 64자를 넘지 않게 한다. 기존 4개 모델 키는 그대로다."""
+    tag = re.sub(r'[^A-Za-z0-9-]', '-', provider)
+    return tag if len(tag) <= 40 else f"{tag[:31]}-{hashlib.sha1(provider.encode('utf-8')).hexdigest()[:8]}"
+
+
 class ProviderError(Exception):
     def __init__(self, message, status=None):
         super().__init__(message)
@@ -201,6 +208,7 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
                                "parts": m["content"]["gemini_parts"] if isinstance(m["content"], dict) else [{"text": m["content"]}]}
                               for m in messages],
                 "generationConfig": {"maxOutputTokens": max_tokens}}
+    apply_reasoning(provider, body)   # GPT·Claude·Gemini 추론 강도 medium 명시 (FactChat 게이트웨이는 그대로)
     try:
         try:
             response = client.post(url, headers=headers, json=body)
@@ -248,6 +256,7 @@ def request_answer(provider, config, messages, max_tokens, client, *, usage_obse
                 raise ValueError("text is not a string")
             answer = "".join(texts)
             return {"answer": answer, "raw": raw, "finish_reason": finish,
+                    **({"reasoning_effort": COLLECTION_REASONING_EFFORT} if provider in ("gpt", "claude", "gemini") else {}),
                     "status": "SUCCESS" if complete and texts else "INCOMPLETE",
                     "error": None if complete and texts else f"응답 미완료 ({finish}). 원본 응답은 보존했습니다."}
         except (ValueError, TypeError, AttributeError, KeyError):
@@ -733,6 +742,78 @@ class ComparisonService:
             stored.update({rid: self._status(r) for rid, r in self._runs.items()})
             runs = sorted(stored.values(), key=lambda r: r["created_at"], reverse=True)
             return runs if limit is None else runs[:limit]
+
+    def weak_units(self, run_id):
+        """실행에서 모든 모델이 모든 평가된 적용 질문에 PASS 한 CODE 검사·의미 기준 [{id, name, unevaluated}] — 변별력이 없던 단위
+        (질문 생성 되먹임, 사용자 결정 2026-10-14: 전부 PASS 가 뜨는 질문은 좋은 질문이 아니다).
+
+        FAIL 이 하나라도 있거나 확정되지 않은 판정이 있는 단위는 넣지 않는다 (Codex 리뷰: 미확정을 '모두 PASS' 로 세지 않음) —
+        확인 필요·미완료 판정, 검사기 오류(``<소분류>.check_error`` 면 그 소분류의 적용 단위 전부), 답은 받았는데 CODE 나 의미 평가가
+        끝나지 않은 질문(CODE 단위·의미 기준을 따로 봄), 실행 모델 목록에 있는데 평가가 없는 모델. 수집 실패로 답이 없는 질문은 증거가
+        없어 세지 않고 ``unevaluated`` 수로 남긴다(프롬프트에 함께 적힘). 해당 없음(NOT_APPLICABLE)은 어느 쪽으로도 세지 않는다."""
+        from code_eval.criteria_registry import CODE_UNITS
+        from code_eval.jev_criteria import CRITERIA
+        run = self.result(run_id)
+        evaluations = {p: b for p, b in (run.get("evaluations") or {}).items() if isinstance(b, dict)}
+        if any(p not in evaluations for p in run.get("providers") or []):   # 평가가 없는 모델이 있으면 '모든 모델 PASS' 를 말할 수 없다
+            return []
+        per = {}          # (model, 질문 번호) → (CODE 끝남, 의미 끝남, 답 있음, {단위: PASS|FAIL|UNDECIDED}, 오류 소분류)
+        applicable = {}   # 질문 번호 → 어느 모델에서든 판정이 있었던 단위
+        for provider, batch in evaluations.items():
+            cases, records = batch.get("cases") or [], (batch.get("jev_eval") or {}).get("records") or []
+            rows = (run.get("datasets") or {}).get(provider) or []
+            for index in range(max(len(cases), len(records))):
+                case = cases[index] if index < len(cases) and isinstance(cases[index], dict) else {}
+                record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
+                row = rows[index] if index < len(rows) and isinstance(rows[index], dict) else {}
+                verdicts, error_subs = {}, set()
+
+                def note(unit, verdict):
+                    if verdict == "FAIL" or verdicts.get(unit) == "FAIL":
+                        verdicts[unit] = "FAIL"
+                    elif verdict == "UNDECIDED" or verdicts.get(unit) == "UNDECIDED":
+                        verdicts[unit] = "UNDECIDED"
+                    else:
+                        verdicts[unit] = "PASS"
+                for result_row in case.get("results") or []:
+                    check_id = str(result_row.get("check_id") or "")
+                    if check_id and not check_id.endswith(":none"):
+                        note(check_id.split(":")[0], result_row.get("verdict") if result_row.get("verdict") in ("PASS", "FAIL") else "UNDECIDED")
+                for error in case.get("errors") or []:   # 검사기 오류 — 그 소분류(2-1 …)의 적용 단위는 모두 확정되지 않음
+                    if isinstance(error, dict) and (error.get("subcategory") or error.get("check_id")):
+                        error_subs.add(str(error.get("subcategory") or str(error["check_id"]).split(".")[0]))
+                for cid, decision in (record.get("decisions") or {}).items():
+                    if not isinstance(decision, dict):
+                        continue
+                    if decision.get("decision") in ("PASS", "FAIL"):
+                        note(cid, decision["decision"])
+                    elif decision.get("status") != "NOT_APPLICABLE":
+                        note(cid, "UNDECIDED")
+                answered = bool(row) and not row.get("__parse_error__")
+                per[(provider, index)] = (case.get("case_status") == "EVALUATED", record.get("status") == "SUCCESS", answered, verdicts, error_subs)
+                applicable.setdefault(index, set()).update(verdicts)
+        seen, failed, undecided, unevaluated = set(), set(), set(), {}
+        for (provider, index), (code_done, semantic_done, answered, verdicts, error_subs) in per.items():
+            for unit in applicable.get(index, ()):
+                verdict = verdicts.get(unit)
+                if any(unit.startswith(sub + ".") for sub in error_subs):
+                    verdict = "UNDECIDED"
+                elif verdict is None:
+                    done = semantic_done if unit.startswith("J") else code_done
+                    if done:   # 평가는 끝났는데 이 모델에는 이 단위가 없다 — 그 모델엔 해당 없음
+                        continue
+                    if not answered:   # 수집 실패로 답이 없는 질문 — 증거 없음
+                        unevaluated[unit] = unevaluated.get(unit, 0) + 1
+                        continue
+                    verdict = "UNDECIDED"   # 답은 있는데 평가가 끝나지 않음(응답 오류 등) — 확정되지 않음
+                seen.add(unit)
+                if verdict == "FAIL":
+                    failed.add(unit)
+                elif verdict == "UNDECIDED":
+                    undecided.add(unit)
+        names = {uid: name for uid, name, _, _ in CODE_UNITS}
+        names.update({c.id: c.name for c in CRITERIA})
+        return [{"id": uid, "name": names.get(uid, ""), "unevaluated": unevaluated.get(uid, 0)} for uid in sorted(seen - failed - undecided)]
 
     def version_history(self):
         with self._lock:
@@ -1632,6 +1713,8 @@ class ComparisonService:
         attached = [copy.deepcopy(a) for a in case.get("attachments") or [] if a.get("sha256") in shas or a.get("name") in names]
         if attached:
             result["attachments"] = attached
+        if outcome.get("answer_sources"):   # 수집기가 남긴 구조화 출처 — 평가기가 본문 링크보다 먼저 대조한다
+            result["answer_sources"] = copy.deepcopy(outcome["answer_sources"])
         result.update({"answer": outcome.get("answer", ""), "system_id": provider,
                        "source": model, "case_index": index, "collection": outcome})
         if outcome["status"] != "SUCCESS":
@@ -1869,7 +1952,7 @@ class ComparisonService:
                                              run["max_tokens"], reference=case.get("reference"), history=history)
                     outcome.update(latency_ms=round((time.monotonic() - started) * 1000, 1), collected_at=now())
                 if outcome["status"] == "SUCCESS":
-                    history.append((case["question"], outcome["answer"]))
+                    history.append((case, outcome["answer"]))   # 질문 행째 — 다음 턴 요청에 앞 턴 참조 자료·첨부도 다시 들어간다
                 else:
                     broken = True
                 record(provider, index, outcome)
@@ -1883,11 +1966,11 @@ class ComparisonService:
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
         def aiona():
-            from .aiona_web import AionaChat
+            from .aiona_web import AionaChat, AionaWebError
             stage("aiona", "COLLECTING")
             with tempfile.TemporaryDirectory(prefix="aiona-files-") as temp:
                 try:
-                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug") as chat:
+                    with AionaChat(debug_dir=self.save_dir / run["run_id"] / "aiona-debug", cancelled=token.is_set) as chat:
                         for chain in chains:
                             broken = False
                             chat.new_chat()
@@ -1914,7 +1997,13 @@ class ComparisonService:
                                     broken = True
                                 record("aiona", index, outcome)
                 except Exception as exc:   # 로그인·브라우저 실행 실패 — 남은 질문을 오류로 채운다 (지어내지 않음)
-                    message = str(exc)[:300] if str(exc) else type(exc).__name__
+                    # 고정 문구(AionaWebError)만 그대로 남긴다 — 브라우저 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰)
+                    if isinstance(exc, AionaWebError):
+                        message = str(exc)[:300]
+                    elif isinstance(exc, ModuleNotFoundError):
+                        message = "playwright 가 설치되지 않았습니다 (pip install playwright, Google Chrome 필요)"
+                    else:
+                        message = type(exc).__name__
                     for index in range(len(cases)):
                         if run["datasets"]["aiona"][index] is None and not token.is_set():
                             record("aiona", index, {"status": "ERROR", "error": f"AIONA 수집을 시작하지 못했습니다: {message}", "sent": []})
@@ -1981,12 +2070,18 @@ class ComparisonService:
             # Histories contain already-collected responses, so semantic checks of
             # different turns are independent. Freeze equal concurrency per model.
             workers_per_provider = max(1, self.semantic_workers // len(run["providers"]))
+            # 이어받기(resume): 중단·오류로 끝난 실행의 Message Batches 묶음 ID 를 다시 제출하지 않고 폴링한다
+            resume = bool(payload.get("resume")) if isinstance(payload, dict) else False
+            saved_batches = copy.deepcopy((run.get("evaluation_execution") or {}).get("batches") or {}) if resume else {}
             run["evaluation_execution"] = {
                 "semantic_workers_per_model": workers_per_provider,
                 "semantic_workers_total": workers_per_provider * len(run["providers"]),
-                # 의미 평가 방식(legacy | items)과 호출 방식 — 호출은 실시간만(Message Batches 는 2026-10-13 제거)
+                # 의미 평가 방식(legacy | items)과 호출 방식(realtime | batch) — 저장 결과에서 읽는 실행 조건
                 "pipeline": pipeline,
                 "dispatch": "realtime",
+                # 제공자별 Message Batches 묶음 기록 [{id, status, counts, custom_ids, …}] — 재시작 뒤 이어받기용
+                "batches": saved_batches,
+                "resumed": resume,
             }
             # items 파이프라인의 J5-3.a 적용 판정·시점 있는 사실의 기준 — API 로 수집한 답변은 외부 도구 없이 생성(none),
             # AIONA 답변은 도구 사용 여부를 알 수 없음(unknown). 수집 날짜는 AIONA 는 등록한 수집일, API 는 수집 완료 시각의 날짜.
@@ -2046,6 +2141,16 @@ class ComparisonService:
             # Keep the stop check and publication atomic with shutdown's final
             # run_error, so a late criterion_start cannot restore active markers.
             with self._lock:
+                if event["type"] == "batch_progress":
+                    # Message Batches 진행: 묶음 ID·상태를 실행 기록에(이어받기용), 요약 수치를 진행 상태에 남기고 저장한다.
+                    # 중단 뒤에도 저장한다 — 중단 직전에 접수된 묶음 ID 를 잃으면 이어받기가 다시 제출해 이중 과금된다 (Codex 리뷰)
+                    run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(event.get("batches") or [])
+                    run["evaluation_progress"][provider]["batch"] = {
+                        "total": event.get("total"), "done": event.get("done"), "submitted": event.get("submitted"),
+                        "batches": [{"id": b.get("id"), "status": b.get("status"), "counts": b.get("counts")} for b in event.get("batches") or []],
+                        "note": event.get("note"), "updated_at": datetime.now(timezone.utc).isoformat()}
+                    run["revision"] += 1
+                    self._save(run)
                 if token.is_set():
                     return
                 if event["type"] == "code_result":
@@ -2108,11 +2213,21 @@ class ComparisonService:
                        "semantic_workers": workers_per_provider,
                        "cancel_event": token,
                        "pipeline": pipeline, "semantic_context": semantic_contexts[provider],
+                       # custom_id 는 Batches 규격(영문·숫자·_·-, 64자 이하) — run_id(12) + 제공자 + 질문 번호
+                       "dispatch_options": {"custom_id_prefix": f"{run['run_id']}_{_batch_tag(provider)}_",
+                                            "existing_batches": saved_batches.get(provider) or None},
                        "jev_resolver": shared_semantic_resolver if run.get("blind", {}).get("enabled") else resolver}
             batch = self.evaluator.evaluate({"cases": cases, "aiona_config": payload.get("aiona_config"),
                                              "aiona_specialized": False}, **options)
             with self._lock:
                 run["evaluations"][provider] = batch
+                # 호출 방식(realtime | batch)은 평가자 설정이 정한다 — 첫 결과의 jev_eval.dispatch 로 실행 조건에 기록
+                dispatch = (batch.get("jev_eval") or {}).get("dispatch")
+                if dispatch in ("realtime", "batch"):
+                    run["evaluation_execution"]["dispatch"] = dispatch
+                if dispatch == "batch" and isinstance((batch.get("jev_eval") or {}).get("batches"), list):
+                    # 디스패처가 마지막에 남긴 묶음 기록(취소 결과 포함)으로 맞춘다 — 마지막 진행 이벤트가 중단으로 빠져도 남게
+                    run["evaluation_execution"].setdefault("batches", {})[provider] = copy.deepcopy(batch["jev_eval"]["batches"])
                 if provider == 'aiona':
                     run['evaluation_profile'] = evaluation_profile(run)
                 run["eval_done"] += 1

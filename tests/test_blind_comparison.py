@@ -191,7 +191,7 @@ def test_semantic_parallelism_preserves_blind_inputs_full_history_and_call_count
         live = service.result(rid)
         assert live['evaluation_execution'] == {
             'semantic_workers_per_model': per_model, 'semantic_workers_total': workers,
-            'pipeline': 'legacy', 'dispatch': 'realtime'}
+            'pipeline': 'legacy', 'dispatch': 'realtime', 'batches': {}, 'resumed': False}
         owners = {row['answer']: p for p, rows in live['datasets'].items() for row in rows}
         assert {p: sum(owners[c['state']['answer']] == p for c in judge.calls)
                 for p in live['providers']} == {p: per_model for p in live['providers']}

@@ -10,6 +10,8 @@ import json
 import re
 from urllib.parse import urlsplit, urlunsplit
 
+from .analysis import mask_ranges, pasted_ranges
+
 #: v3.12 — 추천·평가·선호 표현과 교정·번역 결과 문장 자체는 J5 주장이 아니다 (F7, J5 지시문 한 문단).
 FACT_CHECK_POLICY = "evidence-v3.16-answer-markup"   # v3.15: 출처 인용의 Markdown 굵게 표시를 벗긴 형태도 대조 · v3.16: J5 주장을 답변의 굵게 표시를 벗긴 글자로도 찾음
 #: v3 — 코드 검사가 이어받는 형식·분량 지시는 J6 context_checks 에서 뺀다 (F6, J6 지시문 한 문단).
@@ -164,9 +166,13 @@ def _input_scope(claim, state, source=None):
     정정·이름 변경처럼 요청 문장 자체가 값을 주는 경우도 입력이다. 사용자 원문·턴의 정확한 인용 대조는 호출부(_input_source)가 한다.
     """
     quote = claim.get("scope_quote")
-    question = state.get("question", "")
+    # 요청 근거(scope_quote)·진위 요청·실제 데이터 요청은 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝])를 가린 요청 영역에서만 본다 —
+    # 자료 속 문장을 요청 인용으로 내어 입력 일치를 얻지 못하게 (Codex 리뷰). 값의 인용 대조(_input_source)만 원문 전체를 쓴다.
+    request = lambda text: mask_ranges(text, pasted_ranges(text))
+    question = request(state.get("question", ""))
     # 멀티턴에서는 값을 준 요청이 앞 턴에 있다 — 이전 사용자 턴의 요청 인용도 사용자 원문이다 (이전 AI 답변은 아님)
-    history = [h for h in state.get("history") or [] if isinstance(h, dict) and isinstance(h.get("question"), str)]
+    history = [{**h, "question": request(h["question"])} for h in state.get("history") or []
+               if isinstance(h, dict) and isinstance(h.get("question"), str)]
     if claim.get("scope") != "input_consistency":
         return False
     if _contained(quote, question):

@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple
 
-from .analysis import TextAnalysis, mask_ranges
+from .analysis import PastedTextAnalysis, TextAnalysis, mask_ranges, pasted_ranges
 from .textparse import _NUM_WORD, _count_governed_by_output_verb
 
 __all__ = ["Req", "QuestionConditions", "extract_conditions", "persistent_conditions", "EXTRACT_VERSION",
@@ -140,9 +140,17 @@ def _nested(spans: List[Tuple[int, int]], start: int, end: int) -> bool:
     return any(s < start and end <= e and (s, e) != (start, end) for s, e in spans)
 
 
+def _request_text(question: str) -> str:
+    """붙여 넣은 자료([붙여 넣은 자료]…[자료 끝] 줄)를 가린 질문 (위치 보존) — 지시·작업명·설정은 이 글에서만 찾는다."""
+    return mask_ranges(question, pasted_ranges(question))
+
+
 def _instruction_text(qa: TextAnalysis) -> str:
-    """자료로 제시된 펜스 코드·인용 줄·표를 가린 질문 (위치 보존)."""
-    ranges = list(qa.fence_ranges)
+    """자료로 제시된 펜스 코드·인용 줄·표·붙여 넣은 자료([붙여 넣은 자료]…[자료 끝])를 가린 질문 (위치 보존)."""
+    paste = pasted_ranges(qa.text)
+    if paste:   # 자료를 먼저 가린 글에서 펜스·표·인용을 본다 — 자료 속 닫히지 않은 펜스가 바깥 요청까지 가리지 않게 (Codex 리뷰)
+        qa = TextAnalysis(mask_ranges(qa.text, paste))
+    ranges = list(qa.fence_ranges) + paste
     for line in qa.lines:
         if not line.in_code and line.text.lstrip().startswith(">"):
             ranges.append((line.start, line.end))
@@ -968,7 +976,7 @@ def _transform_reqs(qa: TextAnalysis, text: str, out: List[Req]) -> Optional[Dic
 
 def extract_conditions(question: str) -> QuestionConditions:
     qa = TextAnalysis(question)
-    text = _instruction_text(qa)
+    text = _instruction_text(qa)   # 지시는 원문의 자료 구간을 가린 글에서 — 펜스 보정본은 끝 표시가 사라져 구간을 못 찾는다 (Codex 리뷰)
     reqs: List[Req] = []
     m = _EMPTY.search(text)
     if m:
@@ -991,7 +999,8 @@ def extract_conditions(question: str) -> QuestionConditions:
                            and r.status == "ok")]
     _format_internal_structure(text, reqs)
     _calc_reqs(text, reqs)
-    source = _transform_reqs(qa, text, reqs)
+    # 변환 원본(배열·표)은 자료 구간을 따로 파싱한 분석으로 — 자료 속 열린 펜스가 바깥 원본을 코드로 가리지 않게 (본문은 그대로)
+    source = _transform_reqs(PastedTextAnalysis(question) if pasted_ranges(question) else qa, text, reqs)
     # 표·목록 요구와 겹치는 일반 개수: 불릿 개수가 있으면 목록 요구는 개수 조건이 포함한다.
     return QuestionConditions(reqs=reqs, instruction_text=text, source_data=source)
 
@@ -1176,11 +1185,12 @@ def persistent_conditions(prior: List[Tuple[int, str]], question: str) -> Tuple[
         if families:
             cancel(families, "현재 질문에서 해제")
     current_families = {_family(r) for r in current.reqs} - {None}
+    request = _request_text(question)   # 작업 낱말은 요청 부분에서 찾는다 — 붙여 넣은 자료의 '회의 요약본' 이 '요약' 지시를 끌어오지 않게
     inherited: List[Req] = []
     for key, reqs in active.items():
         for req, task in reqs:
             why = ("현재 질문의 같은 종류 요구가 우선" if key in current_families else
-                   f"'{task}' 작업에만 적용하는 지시" if task and task not in question else "")
+                   f"'{task}' 작업에만 적용하는 지시" if task and task not in request else "")
             audit.append({"turn": req.origin["turn"], "instruction": req.origin["instruction"],
                           "requirement": req.text, "kind": req.kind, "applied": not why, **({"why": why} if why else {})})
             if not why:

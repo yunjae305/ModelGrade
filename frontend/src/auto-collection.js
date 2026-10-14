@@ -120,7 +120,8 @@
       node('div', {class: 'target-name'}, node('strong', {text: 'AIONA 원본 답변'}),
         node('small', {text: run?.aiona_release?.version ? 'AIONA ' + run.aiona_release.version + ' · 업로드 원문' : release ? 'AIONA ' + release.version + ' · 업로드 원문' : '업로드 원문 · 다시 생성하지 않음'})),
       cases.length ? pill(answered === cases.length ? '준비됨' : `답변 없음 ${number(cases.length - answered)}턴`, answered === cases.length ? 'success' : 'warning') : pill('파일 대기', 'neutral'),
-      node('div', {class: 'target-progress'}, bar(answered, cases.length || 1, 'success'), node('span', {text: cases.length ? `${number(answered)} / ${number(cases.length)}턴` : '—'})),
+      node('div', {class: 'target-progress'}, cases.length ? [bar(answered, cases.length, 'success'), node('span', {text: `${number(answered)} / ${number(cases.length)}턴`})]
+        : node('span', {class: 'target-reason-inline'})),   // 파일 전에는 빈 막대 대신 줄을 숨긴다
       node('div', {class: 'target-actions'}, cases.length ? action('답변 보기', () => W.openAnswer(firstAnswer(run || {datasets: {aiona: cases}}, 'aiona'), run ? 'result' : 'dataset', 'aiona')) : null));
   }
   const stageLabels = {completed: ['수집 완료', 'success'], partial: ['일부 실패', 'warning'], failed: ['수집 실패', 'danger'],
@@ -186,7 +187,7 @@
     $('collection-rerun').hidden = !run || collecting(run) || !(state.status?.targets || []).some((t) => t.state === 'ready');
     $('collection-description').textContent = state.notice && run ? state.notice :
       dataset.inputMode === 'manual' && !run ? '직접 입력한 질문은 “이 질문으로 답변 수집”을 누르면 연결된 AI에 보냅니다.' :
-      '파일을 올리면 관리 설정에서 허용한 AI가 같은 질문에 답변합니다. 멀티턴은 턴 순서대로, 각 AI 자신의 앞 답변만 이어 씁니다.';
+      '파일을 올리면 허용한 AI가 같은 질문에 답합니다. 멀티턴은 각 AI가 자기 앞 답변을 이어 씁니다.';
   }
   function renderBudget(run) {
     const status = state.status, limits = status?.policy?.limits;
@@ -320,11 +321,13 @@
       return cached.node;
     });
     const host = $('compare-list');
-    if (nodes.length !== host.children.length || nodes.some((n, i) => host.children[i] !== n)) {
-      host.replaceChildren(...nodes);
-      if (!nodes.length) host.append(node('p', {class: 'compare-empty', text: source.cases.length ? '조건에 맞는 질문이 없습니다.' : 'AIONA Q/A 파일을 올리면 질문 목록이 여기에 나타납니다.'}));
-    }
+    // 비었을 때도 안내 한 줄을 둔다 (처음 그릴 때 목록이 비어 있어도 빈 칸으로 남지 않게)
+    if (!nodes.length) host.replaceChildren(node('p', {class: 'compare-empty', text: source.cases.length ? '조건에 맞는 질문이 없습니다.' : 'AIONA Q/A 파일을 올리면 질문 목록이 여기에 나타납니다.'}));
+    else if (nodes.length !== host.children.length || nodes.some((n, i) => host.children[i] !== n)) host.replaceChildren(...nodes);
     $('compare-count').textContent = `질문·대화 ${number(all.length)}개`;
+    // 파일 전에는 검색·쪽 넘기기를 숨기고 안내 한 줄만 둔다
+    $('compare-search').closest('.compare-tools').hidden = !source.cases.length;
+    $('compare-page').closest('.table-pagination').hidden = !source.cases.length;
     $('compare-caption').textContent = list.length ? `${number(list.length)}개 중 ${number(state.page * PAGE_SIZE + 1)}–${number(Math.min(list.length, (state.page + 1) * PAGE_SIZE))} 표시` : '';
     $('compare-page').textContent = `${state.page + 1} / ${pages}`;
     $('compare-previous').disabled = state.page === 0; $('compare-next').disabled = state.page + 1 >= pages;
