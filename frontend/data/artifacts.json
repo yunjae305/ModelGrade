@@ -26,10 +26,10 @@
     "kind": "code",
     "path": "webapp/question_generation.py",
     "visibility": "public",
-    "revision": "cc64a1d"
+    "revision": "04cde1f"
    },
-   "created_at": "2026-10-14 10:50 KST",
-   "code_revision": "cc64a1d",
+   "created_at": "2026-10-14 14:48 KST",
+   "code_revision": "04cde1f",
    "verification_status": {
     "level": "auto_tested",
     "note": "프롬프트·생성 흐름은 tests/test_question_generation.py 가 모의 GPT 로 확인. 이 판(v1.4)으로 실제 생성한 결과는 저장소에 없음 — 실측 미완료."
@@ -45,16 +45,16 @@
      "kind": "repo_file",
      "path": "webapp/question_generation.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/question_generation.py"
+     "revision": "04cde1f",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/04cde1f/webapp/question_generation.py"
     },
     {
      "label": "생성기 테스트",
      "kind": "repo_file",
      "path": "tests/test_question_generation.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/tests/test_question_generation.py"
+     "revision": "ea5defb",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/ea5defb/tests/test_question_generation.py"
     }
    ],
    "content": {
@@ -250,10 +250,10 @@
     "kind": "code",
     "path": "webapp/question_generation.py",
     "visibility": "public",
-    "revision": "cc64a1d"
+    "revision": "04cde1f"
    },
-   "created_at": "2026-10-14 10:50 KST",
-   "code_revision": "cc64a1d",
+   "created_at": "2026-10-14 14:48 KST",
+   "code_revision": "04cde1f",
    "verification_status": {
     "level": "measured",
     "note": "코드와 실제 세트에서 계산한 설명. 프롬프트 구성 요소가 실제로 효과가 있는지는 v1.4 실제 생성이 없어 확인하지 않았음."
@@ -268,16 +268,16 @@
      "kind": "repo_file",
      "path": "webapp/question_generation.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/question_generation.py"
+     "revision": "04cde1f",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/04cde1f/webapp/question_generation.py"
     },
     {
      "label": "기준 목록",
      "kind": "repo_file",
      "path": "code_eval/criteria_registry.py",
      "visibility": "public",
-     "revision": "cc64a1d",
-     "url": null
+     "revision": "9b4e548",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/9b4e548/code_eval/criteria_registry.py"
     },
     {
      "label": "J6 멀티턴 규칙",
@@ -5628,7 +5628,7 @@
     "generator_model": "gpt-6-luna"
    },
    "created_at": "2026-10-14 10:53 KST",
-   "code_revision": "adf1cf8",
+   "code_revision": "04cde1f",
    "verification_status": {
     "level": "measured",
     "note": "실제 세트와 코드에서 계산 (모델 호출 없음). 계획 토큰은 저장된 질문으로 되돌려 센 추정치이고 추론 토큰은 포함하지 않음."
@@ -5644,8 +5644,8 @@
      "kind": "repo_file",
      "path": "webapp/question_generation.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/question_generation.py"
+     "revision": "04cde1f",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/04cde1f/webapp/question_generation.py"
     },
     {
      "label": "질문 원본 questions.json",
@@ -6133,16 +6133,16 @@
    "title": "질문 생성 기능 구현과 자동 테스트",
    "type": "code",
    "description": "질문 생성 버튼 → GPT 계획 → 첨부·자료 생성 → 코드 규칙 점검 → 보충·추가 → 질문 확인 → 평가 시작까지의 구현 위치와 테스트입니다.",
-   "result_summary": "구현 파일 4개, 관련 테스트 32개(모의 GPT·저장 데이터). 실제 GPT 호출은 테스트에 없음.",
+   "result_summary": "구현 파일 4개, 관련 테스트 35개(모의 GPT·저장 데이터). 실제 GPT 호출은 테스트에 없음.",
    "data_source": {
     "label": "저장소 코드",
     "kind": "code",
     "path": "webapp/question_generation.py",
     "visibility": "public",
-    "revision": "cc64a1d"
+    "revision": "709ffd3"
    },
-   "created_at": "2026-10-14 10:50 KST",
-   "code_revision": "cc64a1d",
+   "created_at": "2026-10-14 14:53 KST",
+   "code_revision": "709ffd3",
    "verification_status": {
     "level": "auto_tested",
     "note": "자동 테스트는 모의 GPT 응답으로 흐름·형식·상한을 확인한다. 실제 생성 품질은 확인하지 않는다."
@@ -6156,16 +6156,16 @@
      "kind": "repo_file",
      "path": "webapp/question_generation.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/question_generation.py"
+     "revision": "04cde1f",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/04cde1f/webapp/question_generation.py"
     },
     {
      "label": "frontend/src/question-generation.js",
      "kind": "repo_file",
      "path": "frontend/src/question-generation.js",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/frontend/src/question-generation.js"
+     "revision": "709ffd3",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/709ffd3/frontend/src/question-generation.js"
     },
     {
      "label": "tools/check_question_set.py",
@@ -6194,11 +6194,11 @@
     "files": [
      {
       "path": "webapp/question_generation.py",
-      "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/question_generation.py"
+      "url": "https://github.com/yunjae305/ModelGrade/blob/04cde1f/webapp/question_generation.py"
      },
      {
       "path": "frontend/src/question-generation.js",
-      "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/frontend/src/question-generation.js"
+      "url": "https://github.com/yunjae305/ModelGrade/blob/709ffd3/frontend/src/question-generation.js"
      },
      {
       "path": "tools/check_question_set.py",
@@ -6212,7 +6212,7 @@
     "tests": [
      {
       "path": "tests/test_question_generation.py",
-      "count": 17
+      "count": 20
      },
      {
       "path": "tests/test_check_question_set.py",
@@ -6280,7 +6280,7 @@
     "generator_model": "gpt-6-luna"
    },
    "created_at": "2026-10-14 10:53 KST",
-   "code_revision": "cc64a1d",
+   "code_revision": "9b4e548",
    "verification_status": {
     "level": "measured",
     "note": "실제 질문 세트를 평가와 같은 코드 규칙으로 계산 (모델 호출 없음). 실제 판정은 0건."
@@ -6312,8 +6312,8 @@
      "kind": "repo_file",
      "path": "code_eval/criteria_registry.py",
      "visibility": "public",
-     "revision": "cc64a1d",
-     "url": null
+     "revision": "9b4e548",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/9b4e548/code_eval/criteria_registry.py"
     }
    ],
    "content": {
@@ -8367,7 +8367,7 @@
     "generator_model": "gpt-6-luna"
    },
    "created_at": "2026-10-14 10:53 KST",
-   "code_revision": "adf1cf8",
+   "code_revision": "3ea0bbd",
    "verification_status": {
     "level": "real_run",
     "note": "실제 AIONA 웹 서비스에서 받은 답변. 이 답변들은 아직 평가하지 않았음."
@@ -8400,8 +8400,8 @@
      "kind": "repo_file",
      "path": "webapp/aiona_web.py",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/webapp/aiona_web.py"
+     "revision": "3ea0bbd",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/3ea0bbd/webapp/aiona_web.py"
     }
    ],
    "content": {
@@ -8870,7 +8870,7 @@
     }
    },
    "created_at": "2026-10-13 15:12 KST",
-   "code_revision": "cc64a1d",
+   "code_revision": "dadd77c",
    "verification_status": {
     "level": "real_run",
     "note": "실제 API 수집과 실제 평가 호출 결과. 판정 정확도는 사람 검수 0건이라 미측정."
@@ -8980,10 +8980,10 @@
     "kind": "code",
     "path": "webapp/auto_collection.py",
     "visibility": "public",
-    "revision": "adf1cf8"
+    "revision": "dadd77c"
    },
-   "created_at": "2026-10-14 10:34 KST",
-   "code_revision": "adf1cf8",
+   "created_at": "2026-10-14 16:29 KST",
+   "code_revision": "dadd77c",
    "verification_status": {
     "level": "auto_tested",
     "note": "자동 수집 테스트가 모의 응답으로 게이트웨이 경로를 확인. 실제 호출은 확인하지 않음 — 실측 미완료."
@@ -9006,8 +9006,8 @@
      "kind": "repo_file",
      "path": "frontend/src/collection-settings.js",
      "visibility": "public",
-     "revision": "adf1cf8",
-     "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/frontend/src/collection-settings.js"
+     "revision": "dadd77c",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/dadd77c/frontend/src/collection-settings.js"
     }
    ],
    "content": {
@@ -9023,11 +9023,11 @@
      },
      {
       "path": "frontend/src/collection-settings.js",
-      "url": "https://github.com/yunjae305/ModelGrade/blob/adf1cf8/frontend/src/collection-settings.js"
+      "url": "https://github.com/yunjae305/ModelGrade/blob/dadd77c/frontend/src/collection-settings.js"
      },
      {
       "path": ".env.example",
-      "url": "https://github.com/yunjae305/ModelGrade/blob/752139a/.env.example"
+      "url": "https://github.com/yunjae305/ModelGrade/blob/f9b37af/.env.example"
      }
     ],
     "tests": [
@@ -9056,7 +9056,7 @@
     "generator_model": "gpt-6-luna"
    },
    "created_at": "2026-10-14 10:53 KST",
-   "code_revision": "adf1cf8",
+   "code_revision": "3ea0bbd",
    "verification_status": {
     "level": "measured",
     "note": "실제 수집 결과에서 계산. 모델 자체가 달라 '경로 차이'만의 효과로 볼 수 없음."
@@ -9213,7 +9213,7 @@
     "generator_model": "gpt-6-luna"
    },
    "created_at": "2026-10-14 10:53 KST",
-   "code_revision": "adf1cf8",
+   "code_revision": "04cde1f",
    "verification_status": {
     "level": "auto_tested",
     "note": "형식 읽기는 자동 테스트로 확인. 질문 세트 300 의 수집 결과를 평가기에 넣어 평가까지 간 기록은 없음 — 실측 미완료."
@@ -9399,10 +9399,10 @@
     "kind": "code",
     "path": "code_eval/criteria_registry.py",
     "visibility": "public",
-    "revision": "cc64a1d"
+    "revision": "9b4e548"
    },
-   "created_at": "2026-10-14 10:50 KST",
-   "code_revision": "cc64a1d",
+   "created_at": "2026-10-14 10:53 KST",
+   "code_revision": "9b4e548",
    "verification_status": {
     "level": "auto_tested",
     "note": "문서·설계안 머리말과 수가 같은지 자동 테스트(test_docs_consistency)로 확인. 기준별 판정 정확도는 미측정."
@@ -9416,8 +9416,8 @@
      "kind": "repo_file",
      "path": "code_eval/criteria_registry.py",
      "visibility": "public",
-     "revision": "cc64a1d",
-     "url": null
+     "revision": "9b4e548",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/9b4e548/code_eval/criteria_registry.py"
     }
    ],
    "content": {
@@ -9481,7 +9481,7 @@
     "run_id": "e3c60d3efd18"
    },
    "created_at": "2026-10-13 15:28 KST",
-   "code_revision": "cc64a1d",
+   "code_revision": "9b4e548",
    "verification_status": {
     "level": "measured",
     "note": "저장된 실제 대화로 규칙별 적용 수를 계산 (모델 호출 없음). J6 판정 자체는 새로 하지 않았음."
@@ -9503,8 +9503,8 @@
      "kind": "repo_file",
      "path": "tools/j6j7_rules.py",
      "visibility": "public",
-     "revision": "cc64a1d",
-     "url": null
+     "revision": "9b4e548",
+     "url": "https://github.com/yunjae305/ModelGrade/blob/9b4e548/tools/j6j7_rules.py"
     },
     {
      "label": "정책 제안 문서",
