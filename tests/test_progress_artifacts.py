@@ -101,6 +101,54 @@ def test_owner_overview_numbers_come_from_the_artifacts_and_the_answers_file():
         assert steps["CODE·LLM 평가"] == steps["결과 비교"] == "pending"
 
 
+def test_w01_criterion_counts_and_names_come_from_the_registry_and_the_real_prompt():
+    """화면의 기준 수 28·34·83·80 과 기준 이름은 기준 목록·실제 생성 프롬프트·다른 산출물과 같은 값이다 (손으로 적지 않는다)."""
+    from code_eval.criteria_registry import evaluation_targets, registry
+    design = BY_ID["W01-DESIGN"]["content"]
+    numbers = {row["what"]: row["number"] for row in design["numbers"]}
+    counts = evaluation_targets()["counts"]
+    assert numbers["CODE 검사"] == counts["code_checks"] and numbers["의미 점검 항목"] == counts["semantic_items"]
+    goal = next(p["excerpt"] for p in design["prompt_parts"] if p["name"] == "목표 평가 기준")
+    assert f"CODE 검사 {numbers['CODE 검사']}개와 의미 평가 항목 {numbers['일반 계획 프롬프트의 의미 항목']}개" in goal
+    matrix = {s["label"]: s["value"] for s in BY_ID["W02-MATRIX"]["content"]["stats"]}
+    assert numbers["질문만으로 셀 수 있는 최하위 기준"] == matrix["최하위 기준(셀 수 있음)"]
+    assert numbers["질문 수 분석·생성기가 채우는 기준"] == BY_ID["W03-COVERAGE"]["content"]["stats"][0]["value"]
+    official = {c["id"]: c["name"] for c in registry()["criteria"] if c["layer"] != "CODE"}
+    glossary = {g["id"]: g for g in design["glossary"]}
+    assert list(glossary) == ["CODE 1", "CODE 2", "CODE 3"] + list(official)
+    assert all(glossary[i]["name"] == name for i, name in official.items()) and all(g["easy"] and g["applies"] and g["fail"] for g in glossary.values())
+
+
+def test_w01_intent_funnel_and_j6_split_add_up():
+    """적용률 그래프의 분모·분자가 맞고, J6 를 대화 길이로 나눈 값이 J6 행과 같다."""
+    content = BY_ID["W01-INTENT"]["content"]
+    funnel, stats = content["funnel"], {s["label"]: s["value"] for s in content["stats"]}
+    assert funnel["intended"] == funnel["applied"] + funnel["missed"] + funnel["answer_dependent"] + funnel["unknown"]
+    assert funnel["judged"] == funnel["applied"] + funnel["missed"] and f"{funnel['applied'] / funnel['judged']:.1%}" == stats["적용률"]
+    j6 = next(row for row in content["families"] if row["family"] == "J6")
+    assert sum(b["targets"] for b in content["j6"]["bins"]) == j6["intended"] - j6["answer_dependent"]
+    assert sum(b["applied"] for b in content["j6"]["bins"]) == j6["applied"]
+    assert all(row["name"] and row["cause"] for row in content["families"])
+
+
+def test_w01_quantity_keeps_the_batch_size_apart_from_the_set_size_and_cases_are_real_questions():
+    """40(한 번에 계획) · 300(지난 실험) · 기준별 필요 수 · 신뢰 표본 수를 다른 숫자로 두고, 대표 사례는 실제 질문 원문이다."""
+    from webapp.question_generation import PLAN_BATCH
+    quantity = BY_ID["W01-QUANTITY"]["content"]
+    four = quantity["four_numbers"]
+    groups = json.loads((ROOT / pa.QUESTIONS).read_text(encoding="utf-8"))
+    assert [n["value"] for n in four[:2]] == [PLAN_BATCH, len(groups)] and len({n["name"] for n in four}) == 4
+    assert quantity["batch"]["value"] == PLAN_BATCH and "미검증" in quantity["batch"]["verdict"]
+    last = BY_ID["W03-COVERAGE"]["content"]["table"]["rows"][-1]
+    assert quantity["table"]["rows"][-1]["order_k1"] == last["k1"] and quantity["table"]["rows"][-1]["order_k5"] == last["k5"]
+    by_id = {g["id"]: g for g in groups}
+    for case in BY_ID["W01-SET300"]["content"]["cases"]:
+        original = [t["question"] for t in by_id[case["id"]]["turns"]]
+        shown = [t["question"] for t in case["turns"]] if "turns" in case else [case["question"]]
+        assert all(text in source for text, source in zip(shown, original)) and len(shown) == len(original)
+        assert case["fail"] == by_id[case["id"]]["trap"]
+
+
 def test_without_the_private_run_the_saved_public_summary_is_kept_not_invented(monkeypatch, tmp_path):
     monkeypatch.setattr(pa, "SAVED_RUN", "data/comparison_runs/없는-실행.json")
     kept = pa.build(ARTIFACTS)

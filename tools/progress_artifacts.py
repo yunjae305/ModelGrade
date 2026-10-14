@@ -18,6 +18,8 @@ import argparse
 import collections
 import hashlib
 import json
+import random
+import re
 import statistics
 import subprocess
 import sys
@@ -196,17 +198,29 @@ GEN_HISTORY = [
 ]
 
 
-def w01_prompt() -> Dict[str, Any]:
+def w01_prompt(qs: QuestionSet) -> Dict[str, Any]:
     from webapp import question_generation as qg
     catalog = qg.criteria_catalog()
     target = 300
     multi, long_ = qg.split_counts(target)
     first = min(qg.PLAN_BATCH, target - multi - long_)
+    topics = [g.get("topic") or "" for g in qs.groups]
+    never = [k for k, n in qs.report["coverage"]["kinds"].items() if n == 0]
+    low = qg._low_coverage(qs.report, 30, True, 30)
     texts = [("계획 — 첫 묶음", f"plan_prompt(target_questions={first}, dedicated=True)",
               qg.plan_prompt(catalog, "", target_questions=first, dedicated=True)),
              ("10턴 대화(J6) 전용 — 한 번에 4개", f"multi_turn_prompt({qg.MULTI_TURN_BATCH}, 기존 주제 없음)",
               qg.multi_turn_prompt(qg.MULTI_TURN_BATCH, [], catalog)),
-             ("긴 문서(J7) 전용", f"long_context_prompt({long_})", qg.long_context_prompt(long_, catalog))]
+             ("긴 문서(J7) 전용", f"long_context_prompt({long_})", qg.long_context_prompt(long_, catalog)),
+             # 4~7: 앞 단계 결과로 내용이 달라지는 프롬프트 — 질문 세트 300 점검 결과·예시 주제를 넣어 만든 원문 (실제 호출 원문 아님)
+             ("보충 — 예시 입력(질문 세트 300 에서 한 번도 적용 안 된 조건)", f"supplement_prompt({never}, 질문 세트 300 주제)",
+              qg.supplement_prompt(never, topics, catalog)),
+             ("추가 — 예시 입력(질문 세트 300 에서 기준마다 30개 적용까지 모자란 기준)", f"extra_prompt({qg.PLAN_BATCH}, 300, per_target=30)",
+              qg.extra_prompt(qg.PLAN_BATCH, len(qs.groups), None, topics, qg.general_catalog(catalog), (), low, per_target=30)),
+             ("긴 문서 본문 조각 — 예시 입력", "_material_prompt('가상 도시의 대중교통 개편 보고서', 1, 40)",
+              qg._material_prompt("가상 도시의 대중교통 개편 보고서", 1, 40, qg.CHUNK_CHARS, ["(예시) 개편안의 시행일은 가상의 2031년 3월 1일이다."])),
+             ("붙여 넣을 자료 — 예시 입력", "_paste_prompt({topic: '가상 박람회 준비 회의록'})",
+              qg._paste_prompt({"topic": "가상 박람회 준비 회의록", "must_include": ["(예시) 참가자 36명", "(예시) 예산 상한 48만 원"]}, qg.PASTE_CHARS))]
     prompts = [{"name": name, "call": call, "chars": len(text), "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()[:16],
                 "text": text} for name, call, text in texts]
     paths = ("webapp/question_generation.py", "code_eval/criteria_registry.py", "code_eval/semantic_items.py",
@@ -225,14 +239,14 @@ def w01_prompt() -> Dict[str, Any]:
         description="질문 생성 버튼이 GPT 에 보내는 실제 프롬프트입니다. 질문 300개를 요청할 때의 첫 호출 세 가지를 코드로 다시 만들어 그대로 담았습니다.",
         result_summary=(f"{qg.QUESTION_GEN_VERSION}: 긴 문서(J7) {long_}개 → 10턴 대화(J6) {multi}개 → 일반 질문 {qg.PLAN_BATCH}개씩 계획 → "
                         "첨부·자료 생성 → 평가와 같은 코드 규칙으로 점검 → 빠진 항목 보충 → 목표 수까지 추가. "
-                        f"프롬프트 {len(prompts)}종 · 계획 프롬프트 {prompts[0]['chars']:,}자."),
+                        f"프롬프트 {len(prompts)}종(질문 300개 요청 때 처음 보내는 대표 3종 + 상황에 따라 내용이 바뀌는 4종 예시) · 계획 프롬프트 {prompts[0]['chars']:,}자."),
         data_source={"label": "코드에서 다시 만든 프롬프트 (모델 호출 없음)", "kind": "code", "path": paths[0], "visibility": "public",
                      "revision": rev},
         created_at=committed_at(rev), code_revision=rev, level="auto_tested",
         level_note="프롬프트·생성 흐름은 tests/test_question_generation.py 가 모의 GPT 로 확인. 이 판(v1.4)으로 실제 생성한 결과는 저장소에 없음 — 실측 미완료.",
         limitations=["질문 세트 300 은 이전 판 question-gen-v1.2 로 만든 결과다. v1.4 프롬프트의 실제 생성 품질은 아직 확인하지 않았다.",
                      "생성 품질(중복·모호함·평가 가능성)을 사람이 검수한 기록이 없다.",
-                     "보충·추가 프롬프트는 앞 단계 결과(빠진 항목·적게 덮인 항목)로 달라져 여기에는 담지 않았다."],
+                     "4~7번(보충·추가·자료 본문)은 앞 단계 결과로 내용이 달라져, 질문 세트 300 점검 결과와 예시 주제를 넣어 만든 원문이다 — 실제로 보낸 원문이 아니다."],
         references=[repo_ref("생성기 코드", paths[0], revision(paths[0])), repo_ref("생성기 테스트", "tests/test_question_generation.py")],
         content={"version": qg.QUESTION_GEN_VERSION, "model_setting": "연결된 GPT (.env OPENAI_MODEL) — 질문 세트 300 은 gpt-6-luna",
                  "prompts": prompts,
@@ -288,7 +302,7 @@ def w01_set(qs: QuestionSet) -> Dict[str, Any]:
                  "distribution": {"turns": dict(sorted((str(k), v) for k, v in turns.items())),
                                   "difficulty": {k: difficulty.get(k, 0) for k in ("쉬움", "보통", "어려움")},
                                   "attachments": dict(sorted(attach.items())), "types_top": types.most_common(10)},
-                 "samples": _samples(groups)})
+                 "samples": _samples(groups), "cases": _cases(qs)})
 
 
 def w01_intent(qs: QuestionSet) -> Dict[str, Any]:
@@ -335,6 +349,7 @@ def w01_intent(qs: QuestionSet) -> Dict[str, Any]:
     j6 = families.get("J6", {"intended": 0, "applied": 0, "answer_dependent": 0, "unknown": 0})
     j6_base = j6["intended"] - j6["answer_dependent"] - j6["unknown"]
     rest_rate = _pct(totals["applied"] - j6["applied"], judged - j6_base)
+    explained = _intent_explained(qs, rows, misses, answer_dependent, applied)
     return artifact(
         "W01-INTENT", "W01", "생성기가 노린 항목이 실제로 적용됐는가", "experiment",
         description=("질문마다 생성기가 노렸다고 적은 평가 항목(target_items)을, 평가 때와 같은 코드 규칙으로 계산한 실제 적용 항목과 대조했습니다. "
@@ -351,14 +366,68 @@ def w01_intent(qs: QuestionSet) -> Dict[str, Any]:
                            {"label": "적용 안 됨", "value": judged - totals["applied"]}, {"label": "적용률", "value": f"{rate:.1%}"},
                            {"label": "J6 제외 적용률", "value": f"{rest_rate:.1%}"},
                            {"label": "답변 필요", "value": totals["answer_dependent"]}],
-                 "charts": [{"kind": "bar", "title": "기준별 '노린 항목이 실제로 적용된 비율'", "unit": "%", "max": 100,
-                             "categories": [r["family"] for r in rows],
+                 "charts": [{"kind": "bar", "title": "기준별 '노린 항목이 실제로 적용된 비율'", "unit": "%", "max": 100, "label_width": 170,
+                             "categories": [r["family"] for r in rows], "category_labels": _family_labels([r["family"] for r in rows]),
                              "series": [{"name": "적용률", "values": [round(r["rate"] * 100, 1) if r["rate"] is not None else None for r in rows]}]}],
                  "table": {"columns": [{"key": "family", "label": "기준"}, {"key": "intended", "label": "노린 건수", "numeric": True},
                                        {"key": "applied", "label": "실제 적용", "numeric": True}, {"key": "missed", "label": "적용 안 됨", "numeric": True},
                                        {"key": "answer_dependent", "label": "답변 필요", "numeric": True}, {"key": "rate", "label": "적용률", "percent": True}],
                            "rows": rows, "download": "w01-intent-by-criterion.csv"},
+                 "funnel": {"intended": totals["intended"], "answer_dependent": totals["answer_dependent"], "unknown": totals["unknown"],
+                            "judged": judged, "applied": totals["applied"], "missed": judged - totals["applied"]},
+                 **explained,
                  "notes": ["가장 자주 빗나간 항목: " + ", ".join(f"{t} {n}건" for t, n in misses.most_common(8))]})
+
+
+def _intent_explained(qs: QuestionSet, rows: List[Dict[str, Any]], misses: collections.Counter, answer_dependent: set,
+                      applied: Dict[int, set]) -> Dict[str, Any]:
+    """적용률 표의 기준마다 한국어 이름·주요 원인, J6 불일치를 대화 길이·생성 단계로 나눈 값."""
+    from code_eval import multi_turn
+    from code_eval.semantic_items import ITEMS
+    names = {f["id"]: f["name"] for f in family_glossary()}
+    target_names = _target_names()
+    applies = {i.id: i.applies for i in ITEMS}
+    by_family: Dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    for target, n in misses.items():
+        by_family[target.split("-")[0] if target.startswith("J") else "CODE " + target.split("-")[0]][target] = n
+    j6_groups = [g for g in qs.groups if any(t.startswith("J6") for t in g.get("target_items") or [])]
+    bins = [("10턴 이상 대화", lambda n: n >= multi_turn.MIN_TURNS), ("2~4턴 짧은 대화", lambda n: 2 <= n < multi_turn.MIN_TURNS),
+            ("1턴 단일 질문", lambda n: n == 1)]
+    j6_bins = []
+    for label, test in bins:
+        groups = [g for g in j6_groups if test(len(g["turns"]))]
+        targets = [(g, t) for g in groups for t in g["target_items"] if t.startswith("J6")]
+        j6_bins.append({"label": label, "conversations": len(groups), "targets": len(targets),
+                        "applied": sum(1 for g, t in targets if t in applied[g["id"]])})
+    short = [g for g in j6_groups if 2 <= len(g["turns"]) < multi_turn.MIN_TURNS]
+    from webapp.question_generation import PLAN_BATCH
+    head = [g for g in qs.groups if g["id"] <= PLAN_BATCH]
+    head_conv = sum(1 for g in head if len(g["turns"]) > 1)
+    head_long = sum(1 for g in head if len(g["turns"]) >= multi_turn.MIN_TURNS)
+    out_rows = []
+    for row in rows:
+        family = row["family"]
+        top = by_family[family].most_common(1)
+        if family == "J6":
+            cause = (f"2~4턴 짧은 대화 {len(short)}개에 J6 를 노렸지만 평가기는 {multi_turn.MIN_TURNS}턴 이상 · 대화 전체 "
+                     f"{multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상인 대화에만 J6 를 적용한다 (생성 조건과 평가 조건의 불일치)")
+        elif not top:
+            cause = "빗나간 건 없음"
+        elif family.startswith("CODE"):
+            cause = f"질문 문장이 평가기 인식 규칙과 달라 검사가 켜지지 않음 — 가장 많이: {target_names.get(top[0][0], top[0][0])} {top[0][1]}건"
+        else:
+            cause = (f"질문에 평가기가 찾는 요구 표현이 없어 적용 안 됨 — 가장 많이: {target_names.get(top[0][0], top[0][0])} {top[0][1]}건 "
+                     f"(적용 조건: {_cut(applies.get(top[0][0]), 40)})")
+        out_rows.append({**row, "name": names.get(family, ""), "cause": cause})
+    return {"families": out_rows,
+            "j6": {"targets": sum(b["targets"] for b in j6_bins), "applied": sum(b["applied"] for b in j6_bins), "bins": j6_bins,
+                   "short_conversations": len(short), "short_ids": [min(g["id"] for g in short), max(g["id"] for g in short)] if short else None,
+                   "rule": f"{multi_turn.MIN_TURNS}턴 이상 · 대화 전체(질문+답변) {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상 ({multi_turn.MULTI_TURN_POLICY_VERSION})",
+                   "where": (f"J6 를 노린 2~4턴 짧은 대화 {len(short)}개를 만들었습니다(Q{min(g['id'] for g in short)}~Q{max(g['id'] for g in short)}). "
+                             f"첫 계획 {PLAN_BATCH}개(Q1~Q{PLAN_BATCH})에는 대화가 {head_conv}개(10턴 대화 {head_long}개)뿐이라, "
+                             f"{'짧은 대화는 모두 첫 계획 뒤 보충·추가 단계에서 나왔습니다. ' if min(g['id'] for g in short) > PLAN_BATCH else ''}"
+                             "v1.2 의 '질문 추가' 요청문에는 10턴 조건이 없었습니다(코드 776f3bd).")
+                            if short else ""}}
 
 
 def w01_code() -> Dict[str, Any]:
@@ -388,6 +457,535 @@ def _test_count(path: str) -> int:
     return sum(1 for line in file.read_text(encoding="utf-8").splitlines() if line.startswith("def test_")) if file.is_file() else 0
 
 
+# --- W01 설명 자료 — 처음 보는 사람이 '왜·어떻게·몇 개'를 이해하도록 (수치는 아래에서 계산, 쉬운 설명만 손으로 씀) ------------
+
+#: 상위 기준 11개의 쉬운 설명 — (무엇을 확인하나, 어떤 질문이면 적용되나, 어떤 답이 FAIL 인가). 공식 이름·정의는 기준 목록에서 읽는다.
+FAMILY_GUIDE = {
+    "CODE 1": ("답이 깨지지 않고 제대로 나왔는지 프로그램이 확인합니다. 빈 답, 깨진 글자, 문법이 틀린 코드·JSON, 번호만 있고 연결이 끊긴 각주를 찾습니다.",
+               "모든 답변(빈 답·깨진 글자) · 코드나 JSON 을 요청한 질문 · 각주·출처 번호를 달게 한 질문",
+               "답이 비어 있거나, 요청한 JSON 이 문법 오류로 읽히지 않는 답"),
+    "CODE 2": ("질문이 정한 개수·글자 수·꼭 넣을 말·표 모양 같은 조건을 지켰는지 프로그램이 셉니다.",
+               "'3문장으로', '200자 이내', '열이 품목·가격인 표로', '아무것도 출력하지 마'처럼 조건을 숫자·형식으로 분명히 적은 질문",
+               "'3문장'이라고 했는데 4문장을 쓰거나, '아무것도 출력하지 마'인데 인사말을 붙인 답"),
+    "CODE 3": ("계산 결과나 자료를 정리한 결과가 맞는지 프로그램이 직접 다시 계산해 봅니다.",
+               "'18,000원의 15%는 얼마야?', '이 목록에서 중복 없이 뽑아 줘'처럼 정답을 계산·대조할 수 있는 질문",
+               "계산값이 틀리거나, 중복을 빼라고 했는데 같은 값이 남아 있는 답"),
+    "J1": ("질문이 시킨 일을 실제로 했는지 봅니다. 비교하라면 비교했는지, 추천하라면 추천했는지.",
+           "모든 질문", "비교해 달라는데 각각 설명만 하고 끝낸 답"),
+    "J2": ("질문이 정한 대상·말투·조건에 맞게 답했는지 봅니다.",
+           "'초등학생에게', '존댓말로', '~는 빼고'처럼 대상·말투·제약을 적은 질문",
+           "초등학생에게 설명하라는데 전문 용어로 가득한 답, 빼라고 한 것을 넣은 답"),
+    "J3": ("이유와 결론이 서로 맞는지, 앞뒤 말이 모순되지 않는지 봅니다.",
+           "이유·원리·풀이·계획을 묻는 질문",
+           "앞에서는 A가 낫다고 하고 결론에서 B를 고르는 답, 같은 사람을 같은 시간에 두 곳에 배정한 계획"),
+    "J4": ("꼭 필요한 내용이 빠지지 않았는지 봅니다.",
+           "비교·방법·절차·요약을 요청하거나 요구를 여러 개 함께 한 질문", "장단점을 물었는데 장점만 쓴 답"),
+    "J5": ("숫자·날짜·이름 같은 사실이 맞는지, 질문에 준 자료를 옮길 때 값을 바꾸지 않았는지 봅니다.",
+           "연도·수치·명칭 같은 사실을 묻거나, 자료를 주고 정리·요약하게 하는 질문",
+           "틀린 연도를 쓰거나, 질문에 준 금액을 다르게 옮겨 적은 답"),
+    "J6": ("긴 대화에서 앞에서 정한 조건과 내용을 끝까지 기억하고 지키는지 봅니다.",
+           None,   # 적용 조건은 평가기 코드(multi_turn)에서 만든다 — family_glossary
+           "앞 턴에서 '존댓말로'라고 했는데 뒤 턴에서 반말로 돌아가거나, 근거 없는 반박에 맞춰 정한 내용을 바꾼 답"),
+    "J7": ("아주 긴 자료 속에서 필요한 정보를 위치와 상관없이 찾아, 여러 곳의 근거를 이어 답하는지 봅니다.",
+           None, "자료 중간에 있는 사실을 '없다'고 하거나, 다른 부분을 근거로 든 답"),
+    "J8": ("첨부한 파일(PDF·문서·이미지)을 실제로 읽고 답했는지 봅니다.",
+           "PDF·DOCX·TXT·이미지를 첨부한 질문", "첨부를 무시하고 일반론만 쓰거나, 표의 행과 열을 섞어 읽은 답"),
+}
+
+
+def family_glossary() -> List[Dict[str, Any]]:
+    """CODE 대분류 3개 + 의미 기준 J1~J8 — 공식 이름·정의는 기준 목록(criteria_registry·taxonomy)에서, 쉬운 설명은 FAMILY_GUIDE."""
+    from code_eval import long_context, multi_turn
+    from code_eval.criteria_registry import condition_kinds, registry
+    from code_eval.semantic_items import ITEMS, SUBS_BY_ID
+    from code_eval.taxonomy import CATEGORIES
+    criteria = [c for c in registry()["criteria"] if not c["id"].startswith("AIONA")]
+    kinds = collections.Counter(c["check"].split("-")[0] for c in condition_kinds())
+    rows = []
+    for cat in CATEGORIES:
+        fid = "CODE " + cat["id"]
+        easy, applies, fail = FAMILY_GUIDE[fid]
+        checks = [c for c in criteria if c["layer"] == "CODE" and c["category"] == cat["id"]]
+        rows.append({"id": fid, "layer": "CODE", "name": cat["name"], "official": cat["question"], "easy": easy, "applies": applies, "fail": fail,
+                     "parts": " · ".join(s["name"] for s in cat["subs"]),
+                     "size": f"소분류 {len(cat['subs'])} · 검사 {len(checks)} · 질문 조건 {kinds.get(cat['id'], 0)}"})
+    for c in (c for c in criteria if c["layer"] != "CODE"):
+        easy, applies, fail = FAMILY_GUIDE[c["id"]]
+        if c["id"] == "J6":   # 판정 코드(multi_turn) 기준 — 설명 문자열(APPLIES_WHEN)은 이전 판 표현이 남아 있다
+            applies = (f"{multi_turn.MIN_TURNS}턴 이상이고 질문·답변을 합친 대화 전체가 {multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상인 대화의 2번째 턴부터 "
+                       f"({multi_turn.MULTI_TURN_POLICY_VERSION}, 모델마다 자기 답변으로 잼)")
+        if c["id"] == "J7":
+            applies = f"질문과 참조 자료를 합친 입력이 {long_context.MIN_TOKENS:,}토큰(한국어 약 38만 자) 이상인 질문"
+        subs = [s for s in SUBS_BY_ID if s.startswith(c["id"] + "-")]
+        rows.append({"id": c["id"], "layer": "LLM", "name": c["name"], "official": c["question"], "easy": easy, "applies": applies, "fail": fail,
+                     "parts": " · ".join(SUBS_BY_ID[s].name for s in subs),
+                     "size": f"세부 기준 {len(subs)} · 점검 항목 {sum(1 for i in ITEMS if i.id.startswith(c['id'] + '-'))}"})
+    return rows
+
+
+def _family_labels(ids: Sequence[str]) -> List[str]:
+    """'J6' → 'J6 · 멀티턴 맥락 유지' — 그래프·표에 코드만 보이지 않게 (이름은 기준 목록)."""
+    names = {f["id"]: f["name"] for f in family_glossary()}
+    return [f"{i} · {names[i]}" if i in names else i for i in ids]
+
+
+def _target_names() -> Dict[str, str]:
+    """목표 id → 한국어 이름 ('2-1.explicit_empty' → 'CODE 2 · 명시 빈 출력', 'J2-3.a' → 'J2 내용 적절성 · 조건·제약 준수')."""
+    from code_eval.criteria_registry import condition_kinds, reference_details, registry
+    from code_eval.semantic_items import ITEMS, SUBS_BY_ID
+    checks = {c["id"]: c["name"] for c in reference_details()["code_checks"]}
+    families = {c["id"]: c["name"] for c in registry()["criteria"] if c["layer"] != "CODE"}
+    names = {cid: f"CODE {cid.split('-')[0]} · {name}" for cid, name in checks.items()}
+    names.update({k["id"]: f"CODE {k['check'].split('-')[0]} · {checks.get(k['check'], k['check'])} — {k['name']}" for k in condition_kinds()})
+    names.update({i.id: f"{i.id.split('-')[0]} {families.get(i.id.split('-')[0], '')} · {SUBS_BY_ID[i.sub].name}" for i in ITEMS})
+    return names
+
+
+def number_map() -> List[Dict[str, Any]]:
+    """화면 곳곳의 기준 수(28·37·44·34·83·80 …)가 무엇을 센 것인지 — 모두 기준 목록과 점검 규칙에서 계산."""
+    from code_eval.criteria_registry import evaluation_targets
+    from code_eval.semantic_items import ITEMS
+    from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS
+    from webapp import question_generation as qg
+    targets = evaluation_targets()
+    counts = targets["counts"]
+    always, answer = len(targets["code"]["always_checks"]), len(targets["code"]["answer_checks"])
+    question_checks = counts["code_checks"] - always - answer
+    dedicated = sum(1 for i in ITEMS if qg._dedicated(i.id))
+    general = len(qg.general_catalog(qg.criteria_catalog())["items"])
+    items_countable = counts["semantic_items"] - len(ANSWER_DEPENDENT_ITEMS)
+    lowest = counts["code_conditions"] + always + items_countable
+    fill = counts["code_conditions"] + items_countable
+    assert len(ANSWER_DEPENDENT) == answer, "답변 구조 검사 수가 기준 목록과 점검 규칙에서 다르다"
+    return [
+        {"number": counts["code_checks"], "what": "CODE 검사", "level": "중간 단위(검사)",
+         "meaning": f"프로그램이 규칙으로 판정하는 검사 단위. 모든 답에 늘 적용 {always} + 질문 요구로 켜짐 {question_checks} + 답변 구조로 생김 {answer}.",
+         "where": "생성 프롬프트 '# 목표' — 'CODE 검사 N개가 모두 최소 1개 질문에서 적용되게'"},
+        {"number": counts["code_conditions"], "what": "CODE 질문 조건", "level": "최하위(세부 조건)",
+         "meaning": f"질문 요구로 켜지는 검사 {question_checks}개 안의 조건 종류(예: 표 검사 안의 '열 이름'·'행 수'). 같은 표 검사라도 조건마다 따로 시험해야 한다.",
+         "where": "v1.4 기준별 목표 적용 수(per_target)를 채우는 단위 · W02 표"},
+        {"number": counts["semantic_items"], "what": "의미 점검 항목", "level": "최하위",
+         "meaning": f"의미 기준 {counts['semantic_criteria']}개(J1~J8) → 세부 기준 {counts['semantic_subs']}개 → 점검 항목 {counts['semantic_items']}개.",
+         "where": "질문 수를 정하지 않은 생성 프롬프트 '# 목표'"},
+        {"number": general, "what": "일반 계획 프롬프트의 의미 항목", "level": "생성 단계 구분",
+         "meaning": f"점검 항목 {counts['semantic_items']}개 − 10턴 대화·긴 문서 전용 단계가 맡는 J6·J7 항목 {dedicated}개. 질문 수를 정하면 일반 계획은 이 {general}개만 노린다.",
+         "where": "생성 프롬프트(질문 수 지정) '# 목표' — 'CODE 검사 28개와 의미 평가 항목 34개'"},
+        {"number": lowest, "what": "질문만으로 셀 수 있는 최하위 기준", "level": "최하위(점검표)",
+         "meaning": f"CODE 질문 조건 {counts['code_conditions']} + 늘 적용 검사 {always} + 의미 항목 {items_countable}(답변이 있어야 정해지는 "
+                    f"{', '.join(ANSWER_DEPENDENT_ITEMS)} 제외). 답변 구조 검사 {answer}개도 답변이 있어야 세므로 뺀다.",
+         "where": "W02 최하위 기준 표 · 질문 세트 점검 화면"},
+        {"number": fill, "what": "질문 수 분석·생성기가 채우는 기준", "level": "최하위(채울 대상)",
+         "meaning": f"위 {lowest}개 − 모든 답에 늘 적용되는 검사 {always}개(질문과 상관없이 항상 적용되므로 채울 필요 없음).",
+         "where": f"W03 질문 수 분석 · v1.4 per_target (질문 수를 정하면 일반 단계는 J6·J7 {dedicated}개를 뺀 {fill - dedicated}개)"},
+    ]
+
+
+def _prompt_line(text: str, keyword: str) -> str:
+    """프롬프트에서 keyword 가 든 줄 — 프롬프트가 바뀌어 줄이 없어지면 설명도 고치도록 멈춘다."""
+    line = next((line.strip() for line in text.splitlines() if keyword in line), None)
+    assert line, f"생성 프롬프트에서 '{keyword}' 줄을 찾지 못함 — W01 설명(prompt_parts)을 고칠 것"
+    return line
+
+
+def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]) -> Dict[str, Any]:
+    """W01 화면 ①②⑤ — 왜 질문을 만드나, 어떤 원리로 만드나, 무엇을 고쳐야 하나. 수치는 코드·실제 세트에서 계산한다."""
+    from code_eval import multi_turn
+    from code_eval.criteria_registry import evaluation_targets
+    from webapp import question_generation as qg
+    catalog = qg.criteria_catalog()
+    multi, long_ = qg.split_counts(300)
+    first = min(qg.PLAN_BATCH, 300 - multi - long_)
+    prompt = qg.plan_prompt(catalog, "", target_questions=first, dedicated=True)
+    sections = {s.splitlines()[0]: len(s) for s in re.split(r"(?m)^(?=# )", prompt) if s.startswith("# ")}
+    checklist = next(n for head, n in sections.items() if head.startswith("# 점검 목록"))
+    counts = evaluation_targets()["counts"]
+    stats = {s["label"]: s["value"] for s in intent["content"]["stats"]}
+    funnel = intent["content"]["funnel"]
+    j6 = intent["content"]["j6"]
+    gen = {s["label"]: s["value"] for s in w01_set_stats(qs)}
+    never = [k for k, n in qs.report["coverage"]["kinds"].items() if n == 0]
+    names = _target_names()
+    per_question = quantity["content"]["per_question"]
+    growth = quantity["content"]["table"]["rows"]
+    at50, last = next(r for r in growth if r["questions"] == 50), growth[-1]
+    fill = quantity["content"]["growth_targets"]
+    dup = quantity["content"]["duplicates"]
+    hard_short = quantity["content"]["difficulty"]["hard_short_ids"]
+    parts = [
+        ("목표 평가 기준", _prompt_line(prompt, "[점검 목록]의 CODE 검사"),
+         "GPT 가 무엇을 시험할 질문을 만들어야 하는지 정합니다. 기준 목록이 바뀌면 이 줄과 아래 점검 목록도 자동으로 바뀝니다.",
+         "사용자 결정", "10-13 사용자 결정: 세부 평가 항목 전부를 시험할 수 있게, 가장 적은 개수로 (생성기 코드 머리말)"),
+        ("질문 작성 규칙", _prompt_line(prompt, "'짧게' 대신"),
+         "평가기는 '200자 이내'처럼 숫자·형식으로 적힌 요구만 인식합니다. 모호하게 쓰면 기준이 켜지지 않습니다.",
+         "근거 있음", "실제 생성에서 확인 — 인식 규칙에 맞지 않는 표현은 CODE 검사가 적용되지 않았다 (예: 계산 목표 14건 빗나감, 아래 ④)"),
+        ("평가기 인식 표현 그대로 쓰기", _prompt_line(prompt, "[인식] 규칙에 맞는 표현"),
+         "평가기가 질문에서 요구를 읽는 규칙(인식 규칙)을 프롬프트에 함께 넣어, 그 문장 모양을 따르게 합니다.",
+         "근거 있음", "생성기 v1 부터 적용. 그래도 v1.2 세트에서 CODE 3 목표 19건이 빗나갔다 — 완전히 해결되지 않음"),
+        ("난이도 조건", _prompt_line(prompt, "difficulty 를"),
+         "쉬운 질문만 있으면 모든 AI 가 통과해 차이가 보이지 않습니다. 그래서 어려운 질문을 일정 비율 이상 넣습니다.",
+         "가정", f"'어려움 3분의 1 이상' 비율은 실험으로 정한 값이 아님. v1.2 세트의 어려움 비율 {gen['어려움 비율']} — GPT 가 붙인 난도라 사람 확인 필요"),
+        ("틀리기 쉬운 지점(trap)", _prompt_line(prompt, "모든 모델이 PASS 하는 질문은"),
+         "질문마다 'AI 가 실수하기 쉬운 지점'과 '어떤 답이 FAIL 인지'를 적게 해, 좋은 답과 부족한 답을 구별할 수 있게 합니다.",
+         "사용자 결정", "10-14 사용자 결정 '전부 PASS 가 뜨는 질문은 좋은 질문이 아니다'. 실제로 구별되는지는 평가 전이라 미검증"),
+        ("한 질문에 여러 기준", _prompt_line(prompt, "한 질문이 여러 항목을 함께"),
+         "질문 하나로 여러 기준을 함께 시험하면 질문 수를 줄일 수 있습니다. 너무 많이 넣으면 질문이 부자연스러워져 상한을 둡니다.",
+         "멘토 요청", f"10-13 멘토: '한 질문이 여러 항목을 평가하니 더 줄 수 있다'. 상한 {qg.MAX_ITEMS_PER_QUESTION}개는 가정. "
+                     f"실제로는 질문 하나에 세부 기준 평균 {per_question['applied_mean']}개가 적용됨(목표로 적은 것은 평균 {per_question['target_mean']}개)"),
+        ("기준끼리 충돌 막기", _prompt_line(prompt, "서로 막는 항목은"),
+         "'아무것도 출력하지 마'와 '표로 정리해'를 한 질문에 넣으면 둘 다 지킬 수 없습니다. 이런 조합은 다른 질문으로 나눕니다.",
+         "가정", "설계 규칙 — 따로 실험한 기록은 없음"),
+        ("10턴 대화·긴 문서는 따로 만들기", _prompt_line(prompt, "10턴 대화(J6)와 긴 참조 자료 질문(J7)은 따로"),
+         "10턴 대화와 27만 토큰 문서 질문은 만드는 방법이 달라 전용 단계가 정한 수만큼 만듭니다(v1.3~).",
+         "근거 있음", f"v1.2 에서는 일반 단계가 J6 를 노린 짧은 대화 {j6['short_conversations']}개를 만들었고 모두 J6 조건에 맞지 않았다(④). "
+                     "다만 이 줄은 여전히 짧은 2~4턴 대화를 허용한다 — v1.4 실제 생성으로 확인 필요"),
+        ("질문 개수 못 박기", _prompt_line(prompt, "questions 배열에 정확히"),
+         "프롬프트 끝에 개수를 다시 적고 '답하기 전에 세어 보라'고 합니다.",
+         "근거 있음", "실제 사례: 첫 계획에 40개를 요청하자 31개만 왔다 (776f3bd · 변경내역 10-14 #10)"),
+        ("JSON 출력 형식", _prompt_line(prompt, '{"questions": ['),
+         "프로그램이 답을 자동으로 읽어 첨부파일을 만들고 점검하려면 정해진 모양이 필요합니다.",
+         "근거 있음", "실제 사례: v1.4 화면 생성에서 GPT 가 끝 괄호 2개를 빠뜨려 생성 전체가 실패 → main 3fe29d5 에서 복구·재요청 추가 (이 브랜치 미반영)"),
+    ]
+    builders = [
+        {"name": "plan_prompt", "role": "첫 계획 — 모든 기준을 덮는 질문 최대 40개", "when": "생성 시작 때 1번", "shown": "원문 보관 (1번)"},
+        {"name": "multi_turn_prompt", "role": "10턴 대화(J6) 전용 — 한 번에 4개", "when": "질문 수를 정했을 때, 대화 수만큼", "shown": "원문 보관 (2번)"},
+        {"name": "long_context_prompt", "role": "긴 문서(J7) 질문 — 문서 주제·사실 문장과 질문", "when": "질문 수를 정했을 때 (같은 문서로 질문을 더 만드는 변형 포함)",
+         "shown": "원문 보관 (3번)"},
+        {"name": "supplement_prompt", "role": "보충 — 한 번도 적용되지 않은 기준·첨부 종류만", "when": f"점검 뒤 빠진 기준이 있으면 최대 {qg.SUPPLEMENT_ROUNDS}번",
+         "shown": "예시 입력으로 만든 원문 (4번)"},
+        {"name": "extra_prompt", "role": "추가 — 목표 수까지 적게 적용된 기준을 노려 40개씩", "when": "목표 질문 수(또는 기준별 목표 수)에 못 미치면 반복",
+         "shown": "예시 입력으로 만든 원문 (5번)"},
+        {"name": "_material_prompt", "role": "질문이 아니라 긴 문서(J7) 본문 조각 쓰기", "when": "긴 문서 하나에 조각 수십 번", "shown": "예시 입력으로 만든 원문 (6번)"},
+        {"name": "_paste_prompt", "role": "질문이 아니라 대화에 붙여 넣을 자료(J6) 쓰기", "when": f"자료가 필요한 턴마다 (대화당 최대 {qg.MAX_PASTE_TURNS}턴)",
+         "shown": "예시 입력으로 만든 원문 (7번)"},
+    ]
+    flow = [
+        ("평가 기준 불러오기", "기준이 바뀌면 질문도 바뀌어야 해서, 사람이 옮겨 적지 않고 기준 목록에서 직접 읽습니다.",
+         f"CODE 검사 {counts['code_checks']}개(세부 조건 {counts['code_conditions']}) · 의미 점검 항목 {counts['semantic_items']}개", "code"),
+        ("시험할 기준 나누기", "10턴 대화(J6)·긴 문서(J7)는 만드는 방법이 달라 따로 맡기고, 나머지는 일반 질문으로 만듭니다.",
+         f"현재 v1.4 로 300개를 요청하면 긴 문서 질문 {long_} · 10턴 대화 {multi} · 일반 {300 - multi - long_}. "
+         f"(실제 300개 세트를 만든 v1.2 에는 이 단계가 없어 10턴 대화 {gen['10턴 대화']}개 · 긴 문서 질문 {gen['긴 문서 질문']}개뿐)", "code"),
+        ("GPT 에 질문 요청", "수백 개 질문을 사람이 쓰기 어렵고, 같은 설정이면 같은 요청을 다시 보낼 수 있습니다.",
+         f"한 번에 최대 {qg.PLAN_BATCH}개씩 요청(출력 길이 관리용 기술 설정). 300개 세트는 GPT {qs.meta.get('generator_model')} 로 생성", "real"),
+        ("질문과 목표 기준 함께 받기", "질문마다 '무엇을 시험하려 했는지'와 'FAIL 조건'이 있어야 나중에 맞는지 확인할 수 있습니다.",
+         f"300개 모두 목표 기준·난도·FAIL 조건 기록 — 질문당 목표 기준 평균 {per_question['target_mean']}개", "real"),
+        ("평가기와 같은 규칙으로 점검", "GPT 가 '시험한다'고 적어도 평가기가 그 기준을 켜지 않으면 시험한 것이 아닙니다.",
+         f"목표 {funnel['intended']}건 중 판단 가능 {funnel['judged']}건, 실제 적용 {funnel['applied']}건({stats['적용률']})", "real"),
+        ("적용되지 않은 기준 찾기", "한 번도 시험되지 않은 기준은 점수를 낼 수 없습니다.",
+         f"채울 세부 기준 {fill}개 중 {len(never)}개는 300개 중 한 번도 적용 안 됨: "
+         + ", ".join(names.get(k, k).split(" — ")[-1] for k in never), "real"),
+        ("부족한 기준 보충·추가", "빠진 기준만 노려 다시 요청하면 적은 질문으로 채울 수 있습니다.",
+         f"보충 최대 {qg.SUPPLEMENT_ROUNDS}번 + 목표 수까지 {qg.PLAN_BATCH}개씩 추가. v1.2 의 추가 단계에서 J6 를 노린 짧은 대화 {j6['short_conversations']}개가 "
+         f"나왔지만 J6 조건({multi_turn.MIN_TURNS}턴 이상)에 맞지 않아 적용 안 됨", "real"),
+        ("질문 세트 저장", "모든 AI 에 똑같은 질문을 보내 비교하려면 고정된 파일이 필요합니다.",
+         f"questions.json — 질문 {gen['질문(대화)']}개 · 턴 {gen['턴']}개 · 첨부 질문 {gen['첨부 질문']}개 → AIONA·GPT·Gemini 답변 수집(실행 {qs.meta.get('run_id')})", "real"),
+    ]
+    improve = [
+        {"title": "J6 생성 조건과 평가 조건 맞추기",
+         "problem": f"v1.2 는 J6(긴 대화)를 2~4턴 대화 {j6['short_conversations']}개에 노렸지만 평가기는 {multi_turn.MIN_TURNS}턴 이상 · 대화 전체 "
+                    f"{multi_turn.MIN_TOTAL_TOKENS:,}토큰 이상만 J6 로 본다. v1.4 는 J6 를 10턴 전용 단계로 옮겼지만 일반 계획이 여전히 짧은 대화를 허용하고, "
+                    "GPT 가 거기에 J6 를 적어도 막지 않는다. 평가기 설명 문구(J6 적용 조건)에는 이전 판 표현이 남아 있다.",
+         "next": "v1.4 실제 생성에서 J6 목표가 10턴 대화에만 붙는지 확인. 설명 문구 정리는 평가 기준 담당과 확인(이번 작업에서 고치지 않음)."},
+        {"title": "v1.4 실제 생성 품질 확인",
+         "problem": "지금 화면의 실측 수치는 모두 이전 판 v1.2 로 만든 세트에서 나왔다. v1.4 는 구현·모의 테스트만 확인했다.",
+         "next": f"승인 후 소규모(예: {qg.PLAN_BATCH}개) 실제 생성 → 같은 적용률 점검으로 v1.2 와 비교 (유료 GPT 호출)."},
+        {"title": "질문 수가 적정한지 확인",
+         "problem": f"{qg.PLAN_BATCH}개(한 번에 요청하는 수)와 300개(지난 실험의 목표 수)는 둘 다 검증된 적정 수가 아니다. "
+                    f"앞의 50개로 기준 {at50['order_k1']}/{fill}개가 시험됐고 나머지 250개가 더한 것은 {last['order_k1'] - at50['order_k1']}개뿐이다.",
+         "next": "기준별 목표 적용 수로 생성(v1.4 per_target)하고, 몇 개가 있어야 결과를 믿을 수 있는지는 W03 에서 평가 결과로 실험."},
+        {"title": "사람이 질문 품질 확인",
+         "problem": f"사람 검수 0건. 첫 문장이 완전히 같은 질문 {dup['exact_questions']}개, 20자 이하 단일 질문인데 '어려움'으로 표시된 질문 "
+                    f"{len(hard_short)}개({', '.join(f'Q{i}' for i in hard_short[:5])}) — GPT 가 붙인 난도를 그대로 믿기 어렵다.",
+         "next": "표본을 뽑아 중복·모호함·평가 불가·난도 오표기를 두 사람이 따로 표시하고 합의."},
+        {"title": "CODE 계산·중복 질문의 문장 모양",
+         "problem": "같은 계산 질문이라도 평가기가 인식하는 문장 모양이 아니면 계산 검사가 켜지지 않는다(③ 계산 사례, ④ CODE 3 원인).",
+         "next": "빗나간 표현을 모아 생성 프롬프트의 예시 문장에 반영 — 다음 실제 생성에서 CODE 3 적용률로 확인."},
+    ]
+    paths = ("webapp/question_generation.py", "code_eval/criteria_registry.py", "code_eval/multi_turn.py")
+    rev = revision(*paths)
+    return artifact(
+        "W01-DESIGN", "W01", "질문 생성 설계와 근거 — 왜·어떤 기준으로·어떤 원리로", "research",
+        description=("질문을 만드는 이유, 시험하는 평가 기준 11개(쉬운 설명), 화면에 나오는 기준 수 28·34·83 의 관계, 생성 8단계, 프롬프트 구성 요소별 이유와 "
+                     "근거 수준(근거 있음·사용자 결정·멘토 요청·가정)을 코드와 실제 세트에서 모았습니다."),
+        result_summary=(f"생성 프롬프트 {len(prompt):,}자 중 {checklist:,}자({checklist / len(prompt):.0%})가 기준 정의(점검 목록)다. 구성 요소 {len(parts)}개 중 "
+                        f"'가정'(실험 근거 없음)이 {sum(1 for p in parts if p[3] == '가정')}개 — 난이도 비율·충돌 방지. 프롬프트 함수는 대표 3종이 아니라 "
+                        f"{len(builders)}종(질문 계획 3 · 보충·추가 2 · 자료 본문 2)이다."),
+        data_source={"label": "생성기 코드·기준 목록 (모델 호출 없음) + 질문 세트 300 점검 결과", "kind": "code", "path": paths[0],
+                     "visibility": "public", "revision": rev},
+        created_at=committed_at(rev), code_revision=rev, level="measured",
+        level_note="코드와 실제 세트에서 계산한 설명. 프롬프트 구성 요소가 실제로 효과가 있는지는 v1.4 실제 생성이 없어 확인하지 않았음.",
+        limitations=["쉬운 설명(FAMILY_GUIDE)은 공식 기준 정의를 사람이 풀어 쓴 것이다 — 판정은 공식 정의로 한다.",
+                     "근거 수준은 코드 주석·변경내역·회의 기록에서 찾은 것만 '근거 있음'으로 표시했다. 효과 크기는 측정하지 않았다."],
+        references=[repo_ref("생성기 코드", paths[0]), repo_ref("기준 목록", paths[1]), repo_ref("J6 멀티턴 규칙", paths[2])],
+        content={"question": "평가 질문을 왜, 어떤 기준으로, 어떤 원리로 만드는가?",
+                 "why": {
+                     "lead": "AI 답변을 평가하려면 먼저 '시험 문제'가 있어야 합니다. 예를 들어 'AI 가 문장 수를 지키는가'를 보려면 '3문장으로 설명해 줘' 같은 질문이 필요합니다. "
+                             "평가 기준은 정해졌으니, 그 기준을 하나하나 실제로 시험할 질문을 만드는 것이 이 작업입니다.",
+                     "methods": [
+                         {"name": "CODE 검사", "who": "프로그램이 규칙으로 셉니다", "checks": "개수·글자 수·표 모양·계산값처럼 정답이 정해진 것",
+                          "good": "빠르고 비용이 들지 않으며 늘 같은 결과", "limit": "질문 의도를 했는지, 논리가 맞는지는 판단하지 못함"},
+                         {"name": "의미 평가", "who": "AI 심사위원(Claude)이 읽고 판단합니다", "checks": "의도·대상·논리·사실·대화 맥락처럼 내용을 읽어야 아는 것",
+                          "good": "사람처럼 내용을 판단", "limit": "비용이 들고, 판정이 맞는지 사람 검수로 확인해야 함"}],
+                     "together": "한쪽만 쓰면 '형식은 맞는데 엉뚱한 답'(CODE 만) 이나 '내용은 좋은데 200자 제한을 넘긴 답'(의미 평가만)을 놓칩니다. 그래서 질문 하나가 두 종류 기준을 함께 시험하게 만듭니다.",
+                     "by_criterion": "질문 '유형'이 아니라 '세부 기준'을 기준으로 만듭니다. 멘토는 10-13 미팅에서 '유형 7개 × 30개'로는 세부 기준마다 몇 번 시험되는지 알 수 없다고 지적했습니다.",
+                     "multi": f"질문 하나는 여러 기준을 함께 시험합니다. 실제 300개 세트에서 질문 하나에 세부 기준이 평균 {per_question['applied_mean']}개 적용됐습니다"
+                              "(모든 답에 늘 적용되는 기본 검사 제외). 그래서 '기준 수 × 30개'처럼 곱해서 질문 수를 정하지 않습니다."},
+                 "glossary": family_glossary(), "numbers": number_map(),
+                 "flow": [{"step": n, "title": t, "why": w, "result": r, "state": s} for n, (t, w, r, s) in enumerate(flow, 1)],
+                 "prompt_parts": [{"name": n, "excerpt": _cut(e, 240), "why": w, "basis": b, "evidence": ev} for n, e, w, b, ev in parts],
+                 "prompt_sections": [{"heading": h[2:], "chars": n} for h, n in sections.items()], "prompt_chars": len(prompt),
+                 "prompt_builders": builders, "improve": improve,
+                 "method": ["생성기 코드에서 실제 프롬프트를 다시 만들어 구성 요소별로 나눔 (모델 호출 없음)",
+                            "기준 목록·점검 규칙에서 기준 수를 단계별로 계산 (28·37·44·34·83·80)",
+                            "질문 세트 300 을 평가기와 같은 규칙으로 점검한 결과를 단계마다 연결"],
+                 "findings": [f"프롬프트의 {checklist / len(prompt):.0%}는 기준 정의(점검 목록) — 기준이 바뀌면 프롬프트가 함께 바뀐다.",
+                              f"질문 하나에 적용되는 세부 기준은 평균 {per_question['applied_mean']}개로, GPT 가 목표로 적은 평균 {per_question['target_mean']}개보다 훨씬 많다.",
+                              "프롬프트 함수는 7종 — 화면의 원문 3종은 질문 수를 정했을 때 처음 보내는 대표 호출이다."],
+                 "judgment": "질문 생성 방법은 코드로 고정돼 같은 설정이면 같은 프롬프트가 나온다. 하지만 구성 요소 일부(난이도 비율·충돌 방지·항목 상한)는 실험 근거가 없는 가정이고, "
+                             "현재 판(v1.4)의 실제 생성 품질은 아직 확인하지 않았다.",
+                 "next": [i["title"] + " — " + i["next"] for i in improve]})
+
+
+def w01_set_stats(qs: QuestionSet) -> List[Dict[str, Any]]:
+    turns = collections.Counter(len(g["turns"]) for g in qs.groups)
+    difficulty = collections.Counter(g.get("difficulty") for g in qs.groups)
+    hard = difficulty.get("어려움", 0)
+    return [{"label": "질문(대화)", "value": len(qs.groups)}, {"label": "턴", "value": sum(n * c for n, c in turns.items())},
+            {"label": "어려움 비율", "value": f"{hard / len(qs.groups):.0%}", "note": "생성 규칙: 3분의 1 이상"},
+            {"label": "첨부 질문", "value": sum(1 for g in qs.groups if any(t.get("attachments") for t in g["turns"]))},
+            {"label": "10턴 대화", "value": turns.get(10, 0)},
+            {"label": "긴 문서 질문", "value": sum(1 for g in qs.groups if any(t.get("reference") for t in g["turns"]))}]
+
+
+def _applied_by_group(qs: QuestionSet) -> Dict[int, set]:
+    """질문(대화)마다 평가기와 같은 규칙으로 적용된 검사·세부 조건·의미 항목(과 그 상위 id)."""
+    applied: Dict[int, set] = collections.defaultdict(set)
+    for row in qs.report["cases"]:
+        gid = (((qs.items[row["index"] - 1].get("import_source") or {}).get("group") or {}).get("id"))
+        found = set(row.get("checks") or []) | set(row.get("kinds") or []) | set(row.get("items") or [])
+        found |= {i.split(".")[0] for i in row.get("items") or []} | {k.split(":")[0] for k in row.get("kinds") or []}
+        applied[gid] |= found
+    return applied
+
+
+def _applied_per_question(qs: QuestionSet) -> Dict[str, float]:
+    """질문 하나에 실제 적용된 세부 기준 수(세부 조건 + 의미 항목, 늘 적용 검사·답변 필요 제외) 평균과, GPT 가 적은 목표 수 평균."""
+    from tools.min_question_count import all_targets, question_units
+    order, targets, _ = question_units(qs.report)
+    names = set(all_targets(qs.report))
+    applied = [len(targets[u] & names) for u in order]
+    return {"applied_mean": round(statistics.mean(applied), 1),
+            "target_mean": round(statistics.mean(len(g.get("target_items") or []) for g in qs.groups), 1)}
+
+
+def _strip_paste(question: str) -> Dict[str, Any]:
+    """붙여 넣은 자료([붙여 넣은 자료] … [자료 끝])는 글자 수만 남기고 요청 문장만 보인다."""
+    from code_eval.analysis import PASTE_BEGIN, PASTE_END
+    if PASTE_BEGIN in question and PASTE_END in question:
+        head, tail = question.split(PASTE_END, 1)
+        return {"question": tail.strip(), "pasted_chars": len(head.replace(PASTE_BEGIN, "").strip())}
+    return {"question": question}
+
+
+BATCH_REV = "1466c41"        # PLAN_BATCH = 40 을 넣은 커밋 (질문 수백 개 지정 시 40개씩 나눠 계획)
+COUNT_RULE_REV = "776f3bd"   # '40개 요청에 31개를 준 사례'로 질문 개수를 프롬프트 끝에 다시 못 박은 커밋
+GROWTH_SIZES = (10, 20, 30, 40, 50, 100, 150, 200, 250, 300)
+
+
+def _plan_entry(group: Dict[str, Any]) -> Dict[str, Any]:
+    """저장된 질문(대화)을 GPT 가 계획 응답에 썼을 모양으로 되돌린다 — 붙여 넣은 자료·긴 문서 본문은 시스템이 따로 만들어 뺀다."""
+    turns = []
+    for turn in group["turns"]:
+        entry: Dict[str, Any] = {"question": _strip_paste(turn["question"])["question"]}
+        if turn.get("attachments"):
+            entry["attachments"] = [{"name": a.get("name"), "type": a.get("type"), "content": a.get("content")} for a in turn["attachments"]]
+        turns.append(entry)
+    return {"id": f"Q{group['id']:02d}", "type": group.get("type"), "topic": group.get("topic"), "target_items": group.get("target_items"),
+            "difficulty": group.get("difficulty"), "trap": group.get("trap"), "turns": turns}
+
+
+def _grams(text: str) -> set:
+    text = " ".join(text.split())
+    return {text[i:i + 3] for i in range(max(1, len(text) - 2))}
+
+
+def w01_quantity(qs: QuestionSet, per_answer: Optional[float]) -> Dict[str, Any]:
+    """왜 40개씩 계획하나(기술 설정), 왜 300개였나(실험 설정), 질문 수를 늘리면 기준이 얼마나 더 시험되나 — 실제 세트로 계산 (모델 호출 없음)."""
+    from code_eval import long_context
+    from tools.min_question_count import all_targets, counts_for, question_units
+    from webapp import question_generation as qg
+    # 1. 계획 한 번의 출력 크기 추정 — 저장된 질문을 계획 JSON 모양으로 되돌려 o200k_base 로 센다 (추론 토큰은 모른다)
+    tokens = [long_context.count_tokens(json.dumps(_plan_entry(g), ensure_ascii=False)) for g in qs.groups]
+    mean = statistics.mean(tokens)
+    batches = [sum(tokens[i:i + qg.PLAN_BATCH]) for i in range(0, len(tokens), qg.PLAN_BATCH)]
+    author, when = (_git("show", "-s", "--format=%an|%cI", BATCH_REV) or "기록 없음|").split("|")
+    batch = {"value": qg.PLAN_BATCH, "plan_tokens": qg.PLAN_TOKENS, "multi_turn_batch": qg.MULTI_TURN_BATCH, "long_context_batch": qg.LONG_CONTEXT_BATCH,
+             "introduced": {"commit": BATCH_REV, "author": author, "at": kst(when) if when else None,
+                            "reason": "질문 300개 시험(사용자 요청 10-14) — 수백 개를 한 응답에 쓰게 하면 출력 한도에 잘린다(변경내역 10-14 #10)"},
+             "model_limit": "확인되지 않음 — 생성 모델(gpt-6-luna)의 최대 출력 토큰은 코드·저장소에 기록이 없다",
+             "per_question": {"mean": round(mean), "median": round(statistics.median(tokens)), "p90": round(statistics.quantiles(tokens, n=10)[-1]),
+                              "max": max(tokens)},
+             "estimates": [{"questions": n, "tokens": round(n * mean), "share": _pct(round(n * mean), qg.PLAN_TOKENS)} for n in (20, qg.PLAN_BATCH, 60, 80)],
+             "first_batch_tokens": batches[0], "batch_tokens": batches,
+             "measured": "20·40·60개를 같은 조건으로 비교한 실행 기록 없음 — 생성 실행 로그(plan.txt·사용 토큰)도 이 저장소에 없다",
+             "incidents": [f"첫 계획에 40개를 요청하자 31개만 왔다 → 프롬프트 끝에 개수를 다시 못 박음 ({COUNT_RULE_REV})",
+                           "v1.4 화면 생성(qs-685805060697)에서 계획 JSON 끝 괄호 2개가 빠져 생성 전체 실패 → main 3fe29d5 에서 괄호 복구·재요청 (이 브랜치 미반영)"],
+             "verdict": "출력 길이 관리를 위한 임시 기술 설정이며 적정 개수는 미검증"}
+    # 2. 질문 수에 따른 기준 증가 — 생성 순서와 무작위 순서(300번 평균)
+    order, targets, turns = question_units(qs.report)
+    names = all_targets(qs.report)
+
+    def covered(units: Sequence[str], k: int) -> int:
+        return sum(1 for v in counts_for(units, targets, names).values() if v >= k)
+    rng = random.Random(7)
+    growth = []
+    for n in (s for s in GROWTH_SIZES if s <= len(order)):
+        draws = [rng.sample(order, n) for _ in range(300)]
+        k1 = [covered(d, 1) for d in draws]
+        k5 = [covered(d, 5) for d in draws]
+        prefix_turns = sum(turns[u] for u in order[:n])
+        growth.append({"questions": n, "turns": prefix_turns, "order_k1": covered(order[:n], 1), "random_k1": round(statistics.mean(k1), 1),
+                       "random_k1_range": f"{min(k1)}~{max(k1)}", "order_k5": covered(order[:n], 5), "random_k5": round(statistics.mean(k5), 1),
+                       "eval_usd": round(per_answer * prefix_turns * 3, 1) if per_answer else None})
+    seen: set = set()
+    marginal = []
+    for i in range(0, len(order), 10):
+        before = len(seen)
+        for unit in order[i:i + 10]:
+            seen |= targets[unit] & set(names)
+        marginal.append(len(seen) - before)
+    # 3. 중복·난도
+    first = [(g["id"], " ".join(g["turns"][0]["question"].split())) for g in qs.groups]
+    same: Dict[str, List[int]] = collections.defaultdict(list)
+    for gid, text in first:
+        same[text].append(gid)
+    exact = [{"question": text, "ids": ids, "count": len(ids)} for text, ids in same.items() if len(ids) > 1]
+    grams = [(gid, _grams(text)) for gid, text in first]
+    near = []
+    for a in range(len(grams)):
+        for b in range(a + 1, len(grams)):
+            x, y = grams[a][1], grams[b][1]
+            score = len(x & y) / len(x | y)
+            if 0.5 <= score < 1:
+                near.append({"ids": [grams[a][0], grams[b][0]], "similarity": round(score, 2)})
+    difficulty = collections.Counter(g.get("difficulty") for g in qs.groups)
+    hard_short = [g["id"] for g in qs.groups if g.get("difficulty") == "어려움" and len(g["turns"]) == 1
+                  and not g["turns"][0].get("attachments") and len(g["turns"][0]["question"].strip()) <= 20]
+    per_question = _applied_per_question(qs)
+    k1_50 = next(r for r in growth if r["questions"] == 50)
+    last = growth[-1]
+    four = [
+        {"name": "한 번에 계획하는 질문 수", "value": qg.PLAN_BATCH, "kind": "기술 설정",
+         "what": "GPT 응답 하나에 계획하게 하는 질문 수 (코드 PLAN_BATCH)", "basis": "수백 개를 한 응답에 쓰면 출력 한도에 잘린다는 설계 이유",
+         "verified": "적정 개수 미검증 — 20·60개와 비교한 실측 없음"},
+        {"name": "전체 생성 목표 질문 수", "value": len(qs.groups), "kind": "실험 설정",
+         "what": "지난 실험(질문 세트 300)에서 화면에 지정한 세트 크기", "basis": "사용자 요청 10-14 '질문 300개를 만들어 시험' — 필요한 수를 계산해 정한 값이 아님",
+         "verified": "적정 수로 검증되지 않음"},
+        {"name": "기준마다 필요한 독립 질문 수", "value": "미정", "kind": "운영 기준 후보",
+         "what": "세부 기준 하나를 몇 개의 독립 질문·대화로 시험할지 (v1.4 '기준별 목표 적용 수', 사전 점검 기본값 30)",
+         "basis": "30 은 팀 잠정 운영 기준(10-13) — 통계로 정한 값이 아님", "verified": "미검증 — W03 에서 실험"},
+        {"name": "결과를 믿기 위한 표본 수", "value": "미측정", "kind": "통계·검수 문제",
+         "what": "모델 사이 점수 차이와 판정 정확도를 믿을 수 있는 질문 수", "basis": "사람 검수·반복 평가·오차 범위가 있어야 정할 수 있다",
+         "verified": "사람 검수 0건 — W03 에서 결정 보류"}]
+    return artifact(
+        "W01-QUANTITY", "W01", "질문을 몇 개씩, 몇 개까지 만드나 — 40·300 의 근거와 질문 수에 따른 기준 증가", "experiment",
+        description=("'한 번에 40개'와 '전체 300개'가 어디서 나온 숫자인지 기록을 찾고, 질문 300개를 앞에서부터(생성 순서)·무작위로 N개씩 골라 "
+                     "새로 시험되는 세부 기준이 얼마나 늘어나는지, 중복·난도 분포를 계산했습니다."),
+        result_summary=(f"40개씩은 {batch['introduced']['at'] or '기록 없음'} 커밋 {BATCH_REV} 의 기술 설정 — 적정 개수 미검증. 질문 1개 계획은 약 {round(mean)}토큰"
+                        f"(추정)이라 40개 ≈ {round(qg.PLAN_BATCH * mean):,}토큰으로 호출당 상한 {qg.PLAN_TOKENS:,}의 {qg.PLAN_BATCH * mean / qg.PLAN_TOKENS:.0%}. "
+                        f"300개는 지난 실험의 지정값이다. 채울 기준 {len(names)}개 중 질문 50개(생성 순서)로 {k1_50['order_k1']}개가 한 번 이상 시험됐고, "
+                        f"나머지 250개가 더한 것은 {last['order_k1'] - k1_50['order_k1']}개 — 5번 이상 시험된 기준은 300개에서도 {last['order_k5']}개."),
+        data_source=qs.source(), created_at=qs.exported, code_revision=revision("webapp/question_generation.py", "tools/min_question_count.py"),
+        level="measured",
+        level_note="실제 세트와 코드에서 계산 (모델 호출 없음). 계획 토큰은 저장된 질문으로 되돌려 센 추정치이고 추론 토큰은 포함하지 않음.",
+        limitations=["계획 토큰 추정은 GPT 가 실제로 쓴 응답이 아니라 저장된 질문을 같은 모양으로 되돌려 센 값이다 — 추론 토큰·긴 문서 명세는 빠져 있다.",
+                     "생성 순서 곡선은 첫 계획이 모든 기준을 덮도록 요청된 순서라 앞쪽이 유리하다 — 무작위 순서 평균을 함께 보았다.",
+                     "기준이 '적용된다'는 시험할 기회가 생긴다는 뜻일 뿐 결과가 믿을 만하다는 뜻이 아니다(W03)."],
+        references=[repo_ref("생성기 코드", "webapp/question_generation.py"), repo_ref("질문 원본 questions.json", QUESTIONS, qs.data_rev),
+                    repo_ref(f"40개씩 나눠 계획을 넣은 커밋 {BATCH_REV} 의 생성기 코드", "webapp/question_generation.py", BATCH_REV)],
+        content={"stats": [{"label": "한 번에 계획", "value": qg.PLAN_BATCH, "note": "기술 설정 · 적정 수 미검증"},
+                           {"label": "계획 1개 추정", "value": f"{round(mean)}토큰", "note": "o200k_base · 추론 토큰 제외"},
+                           {"label": "40개 추정", "value": f"{round(qg.PLAN_BATCH * mean):,}토큰", "note": f"호출당 상한 {qg.PLAN_TOKENS:,}"},
+                           {"label": "질문 50개로 시험된 기준", "value": f"{k1_50['order_k1']}/{len(names)}"},
+                           {"label": "300개로 시험된 기준", "value": f"{last['order_k1']}/{len(names)}"}],
+                 "four_numbers": four, "batch": batch,
+                 "charts": [{"kind": "line", "title": "질문 수 N 에 따라 한 번 이상(k≥1)·다섯 번 이상(k≥5) 시험된 세부 기준 수", "unit": "개", "max": len(names),
+                             "x_label": "질문 수", "categories": [r["questions"] for r in growth],
+                             "series": [{"name": "생성 순서 k≥1", "values": [r["order_k1"] for r in growth]},
+                                        {"name": "무작위 평균 k≥1", "values": [r["random_k1"] for r in growth]},
+                                        {"name": "생성 순서 k≥5", "values": [r["order_k5"] for r in growth]},
+                                        {"name": "무작위 평균 k≥5", "values": [r["random_k5"] for r in growth]}]}],
+                 "table": {"columns": [{"key": "questions", "label": "질문 수", "numeric": True}, {"key": "turns", "label": "턴(생성 순서)", "numeric": True},
+                                       {"key": "order_k1", "label": "1번 이상 · 생성 순서", "numeric": True},
+                                       {"key": "random_k1", "label": "1번 이상 · 무작위 평균", "numeric": True},
+                                       {"key": "random_k1_range", "label": "무작위 범위"},
+                                       {"key": "order_k5", "label": "5번 이상 · 생성 순서", "numeric": True},
+                                       {"key": "random_k5", "label": "5번 이상 · 무작위 평균", "numeric": True},
+                                       {"key": "eval_usd", "label": "평가 비용 추정($, 3개 시스템)", "numeric": True}],
+                           "rows": growth, "download": "w01-question-count-growth.csv"},
+                 "growth_targets": len(names), "marginal_per_10": marginal,
+                 "duplicates": {"exact_groups": exact, "exact_questions": sum(e["count"] for e in exact), "near_pairs": len(near),
+                                "near_examples": sorted(near, key=lambda p: -p["similarity"])[:5]},
+                 "difficulty": {"counts": {k: difficulty.get(k, 0) for k in ("쉬움", "보통", "어려움")},
+                                "hard_per_batch": [sum(1 for g in qs.groups[i:i + qg.PLAN_BATCH] if g.get("difficulty") == "어려움")
+                                                   for i in range(0, len(qs.groups), qg.PLAN_BATCH)],
+                                "hard_short_ids": hard_short},
+                 "per_question": per_question, "per_answer_usd": per_answer,
+                 "notes": [f"10개씩 더할 때 새로 시험된 기준 수(생성 순서): {', '.join(str(n) for n in marginal)}",
+                           "평가 비용 추정은 다른 질문 세트(저장 실행 e3c60d3efd18)의 답변당 평가 비용으로 계산한 참고값이다. 질문 생성 비용은 기록이 없어 계산하지 않았다."]})
+
+
+#: 대표 사례 고르는 규칙 —(이름, 기준 종류, 생성 이유(쉬운 말), 고르는 규칙). 질문 원문·FAIL 조건·적용 여부는 실제 세트에서 읽는다.
+CASE_RULES = [
+    ("빈 출력 지시 준수", "CODE", "'아무것도 출력하지 마'처럼 아주 단순한 지시도 정확히 지키는지 보려고 만들었습니다. AI 는 '알겠습니다' 같은 말을 덧붙이기 쉬워서 틀리기 쉬운 지점입니다.",
+     lambda g, applied: "2-1.explicit_empty" in (g.get("target_items") or [])),
+    ("계산 정확성", "CODE", "프로그램이 정답을 직접 계산해 맞는지 확인할 수 있는 질문입니다. 퍼센트처럼 AI 가 자주 틀리는 계산을 넣고, 답 형식까지 정해 비교하기 쉽게 했습니다.",
+     lambda g, applied: "3-1.question_calculation" in (g.get("target_items") or []) and "%" in g["turns"][0]["question"]
+     and "3-1.question_calculation" in applied),
+    ("표 형식 준수", "CODE", "열 이름·순서·행 수를 정확히 정해 주면, 답의 표가 그 모양인지 프로그램이 셀 수 있습니다. 하나라도 어긋나면 FAIL 입니다.",
+     lambda g, applied: any(t.startswith("2-2.table") for t in g.get("target_items") or []) and len(g["turns"]) == 1
+     and sum(1 for k in applied if k.startswith("2-2.table:")) >= 3),
+    ("멀티턴 맥락 유지", "LLM", "긴 대화에서 앞에서 정한 조건을 끝까지 기억하는지 보려면, 조건을 정하고 · 바꾸고 · 근거 없이 되돌리려는 요청을 10턴에 걸쳐 넣어야 합니다.",
+     lambda g, applied: len(g["turns"]) >= 10),
+]
+
+
+def _cases(qs: QuestionSet) -> List[Dict[str, Any]]:
+    applied = _applied_by_group(qs)
+    names = _target_names()
+    out = []
+    for title, layer, why, rule in CASE_RULES:
+        group = next((g for g in qs.groups if rule(g, applied[g["id"]])), None)
+        if group is None:
+            continue
+        turns = [dict(_strip_paste(t["question"]), turn=t["turn"]) for t in group["turns"]]
+        targets = [{"id": t, "name": names.get(t, t), "applied": t in applied[group["id"]]} for t in group.get("target_items") or []]
+        case = {"id": group["id"], "title": title, "layer": layer, "type": group.get("type"), "topic": group.get("topic"),
+                "difficulty": group.get("difficulty"), "why": why, "fail": group.get("trap"), "targets": targets,
+                "applied_total": len({k for k in applied[group["id"]] if ":" in k or (k.startswith("J") and "." in k)}),
+                "turns_total": len(turns)}
+        if len(turns) > 1:   # 대표 턴 — 첫 턴(조건 설정), 조건을 바꾸는 턴, 근거 없이 되돌리려는 턴
+            picks = {0: "처음에 조건 정하기"}
+            for cue, label in (("변경", "중간에 조건 바꾸기"), ("근거", "근거 없이 이전 값으로 되돌리라는 요구")):
+                index = next((i for i, t in enumerate(turns) if cue in t["question"] and i not in picks), None)
+                if index is not None:
+                    picks[index] = label
+            case["highlights"] = [{"index": i, "label": picks[i]} for i in sorted(picks)]
+            case["turns"] = turns
+        else:
+            case["question"] = turns[0]["question"]
+            if group["turns"][0].get("attachments"):
+                case["attachments"] = [a.get("name") for a in group["turns"][0]["attachments"]]
+        out.append(case)
+    calc = [g for g in qs.groups if "3-1.question_calculation" in (g.get("target_items") or [])]
+    missed = next((g for g in calc if "3-1.question_calculation" not in applied[g["id"]]), None)
+    if missed is not None:   # 같은 목표인데 평가기가 인식하지 못한 질문 — 문장 모양의 중요성
+        for case in out:
+            if case["title"] == "계산 정확성":
+                case["contrast"] = {"id": missed["id"], "question": missed["turns"][0]["question"],
+                                    "missed": sum(1 for g in calc if "3-1.question_calculation" not in applied[g["id"]]), "total": len(calc)}
+    return out
+
+
 # --- W02 기준별 적용 -----------------------------------------------------------------------------
 
 def _turn_counts(report: Dict[str, Any]) -> collections.Counter:
@@ -407,9 +1005,10 @@ def w02_matrix(qs: QuestionSet) -> Dict[str, Any]:
     cov = qs.report["coverage"]
     turns = _turn_counts(qs.report)
     rows: List[Dict[str, Any]] = []
+    family = dict(zip(*(lambda ids: (ids, _family_labels(ids)))([f["id"] for f in family_glossary()])))
 
     def add(group: str, parent: str, target: str, name: str, units: Optional[int]) -> None:
-        rows.append({"group": group, "parent": parent, "id": target, "name": name, "units": units,
+        rows.append({"group": group, "parent": family.get(parent, parent), "id": target, "name": name, "units": units,
                      "turns": turns.get(target, 0) if units is not None else None, "judged": 0,
                      "short": max(0, TARGET_SHORT - units) if units is not None else None})
     for cond in targets["code"]["conditions"]:
@@ -468,6 +1067,7 @@ def w02_criteria(qs: QuestionSet) -> Dict[str, Any]:
                      "턴 수로 세면 대화가 많은 기준이 부풀려진다. 충분성은 독립 단위로 본다."],
         references=[repo_ref("질문 원본 questions.json", QUESTIONS, qs.data_rev), repo_ref("적용 규칙", "tools/check_question_set.py")],
         content={"charts": [{"kind": "bar", "title": "기준별 독립 단위와 턴", "unit": "개", "categories": [r["id"] for r in rows],
+                             "category_labels": _family_labels([r["id"] for r in rows]), "label_width": 170,
                              "series": [{"name": "독립 단위(질문·대화)", "values": [r["units"] for r in rows]},
                                         {"name": "적용 턴", "values": [r["turns"] for r in rows]}]}],
                  "table": {"columns": [{"key": "id", "label": "기준"}, {"key": "units", "label": "독립 단위", "numeric": True},
@@ -977,6 +1577,7 @@ def _causes(errors: Sequence[Sequence[Any]]) -> str:
 
 def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str, Any]:
     """우영 담당 W01~W09 를 세 묶음으로 — 수치는 모두 위 산출물과 저장소 결과 파일에서 가져온다(새로 지어내지 않는다)."""
+    from code_eval.multi_turn import MIN_TURNS
     from webapp.question_generation import QUESTION_GEN_VERSION
     intent, generated, matrix = by_id["W01-INTENT"], by_id["W01-SET300"], by_id["W02-MATRIX"]
     conclusion, saved, history = by_id["W03-CONCLUSION"], by_id.get("W05-SAVED-RUN"), by_id.get("W04-AIONA-HISTORY")
@@ -990,8 +1591,9 @@ def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str,
     group_a = {
         "id": "A", "title": "질문 생성 및 품질 검증", "requirements": ["W01", "W02", "W03"],
         "headline": f"질문 {questions}개 실제 생성 · 목표 항목 적용 {rate}",
-        "finding": (f"{QUESTION_GEN_VERSION} 는 구현됐고 실제 생성은 아직 하지 않았습니다. 실제로 만든 질문 {questions}개({gen})에서 생성기가 노린 평가 항목은 "
-                    f"판단 가능한 {applied + missed}건 중 {applied}건({rate})만 실제로 적용됐고, 빗나간 {missed}건 중 {j6_missed}건이 J6 조건 차이입니다."),
+        "finding": (f"질문 생성기 {QUESTION_GEN_VERSION} 는 구현됐지만 실제 생성은 아직 하지 않았습니다. 이전 판({gen})으로 실제 만든 질문 {questions}개에서 "
+                    f"'시험하려던 기준'이 실제로 적용된 것은 판단 가능한 {applied + missed}건 중 {applied}건({rate})이고, 빗나간 {missed}건 중 {j6_missed}건은 "
+                    f"J6(긴 대화) 조건 불일치 — 짧은 대화를 J6 로 노렸지만 평가기는 {MIN_TURNS}턴 이상 대화에만 J6 를 적용합니다. AI 답변 품질과는 관계없는 수치입니다."),
         "scope": f"아래 수치는 모두 {gen} 실제 생성 결과(실행 {run_id}) · 현재 코드 {QUESTION_GEN_VERSION} 는 구현·모의 테스트만 확인",
         "metrics": [{"label": "실제 생성 질문", "value": questions, "note": f"{gen} · 실제 GPT 생성", "artifact_id": "W01-SET300"},
                     {"label": "목표 항목 실제 적용", "value": f"{applied}/{applied + missed}건", "note": f"{rate} · {gen} · 코드 규칙 계산",
@@ -1127,7 +1729,13 @@ def build(existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     run_path = ROOT / SAVED_RUN
     run = json.loads(run_path.read_text(encoding="utf-8")) if run_path.is_file() else None
     qs = QuestionSet()
-    made = [w01_prompt(), w01_set(qs), w01_intent(qs), w01_code(),
+    if run is not None:
+        from tools.sample_size_study import judge_costs
+        per_answer = judge_costs(run)["usd_per_answer"]
+    else:   # 비공개 실행이 없는 PC — 저장된 값(같은 실행에서 계산해 둔 답변당 비용)을 쓴다
+        per_answer = ((existing_by_id.get("W01-QUANTITY") or {}).get("content") or {}).get("per_answer_usd")
+    intent, quantity = w01_intent(qs), w01_quantity(qs, per_answer)
+    made = [w01_prompt(qs), w01_design(qs, intent, quantity), w01_set(qs), intent, quantity, w01_code(),
             w02_matrix(qs), w02_criteria(qs), w02_saved(run),
             w03_coverage(qs), w03_stability(run), w03_conclusion(qs, run, existing_by_id.get("W03-CONCLUSION")),
             w04_aiona(qs), w04_history(qs), w05_api(qs), w05_saved(run), w07_code(), w08_paths(qs), w09_contract(qs),

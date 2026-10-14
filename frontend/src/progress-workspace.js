@@ -209,7 +209,8 @@
       svg(root, 'line', {x1: x, x2: x, y1: 4, y2: height - 22, class: 'grid'});
       svg(root, 'text', {x, y: height - 8, 'text-anchor': 'middle', class: 'tick'}, fmt(Math.round(max * i / steps * 10) / 10) + (chart.unit === '%' ? '%' : ''));
     }
-    categories.forEach((category, row) => {
+    categories.forEach((code, row) => {
+      const category = (chart.category_labels || [])[row] || code;   // 'J6' 대신 'J6 · 멀티턴 맥락 유지'
       const top = 6 + row * band;
       svg(root, 'text', {x: labelWidth - 8, y: top + (band - pad) / 2 + 4, 'text-anchor': 'end', class: 'label'}, category);
       series.forEach((entry, index) => {
@@ -311,7 +312,7 @@
     const details = append(figure, 'details', 'progress-chart-data');
     append(details, 'summary', '', '그래프 수치 표로 보기');
     const columns = [{key: 'category', label: chart.x_label || '항목'}].concat(series.map((entry, i) => ({key: 's' + i, label: entry.name, numeric: true})));
-    const rows = (chart.categories || []).map((category, row) => Object.fromEntries([['category', category]].concat(series.map((entry, i) => ['s' + i, (entry.values || [])[row]]))));
+    const rows = (chart.categories || []).map((category, row) => Object.fromEntries([['category', (chart.category_labels || [])[row] || category]].concat(series.map((entry, i) => ['s' + i, (entry.values || [])[row]]))));
     dataTable(details, {columns, rows}, chart.title);
     return figure;
   }
@@ -569,21 +570,29 @@
     const top = append(box, 'div', 'progress-executive-top');
     append(top, 'span', 'progress-badge ' + groupOf(item), item.status);
     append(top, 'span', '', `담당 ${item.owner} · ${item.priority}`);
+    if (item.role) append(box, 'p', 'progress-role', '이 화면의 역할 · ' + item.role);
     const prompt = artifactOf(artifacts, 'W01-PROMPT');
     const generated = artifactOf(artifacts, 'W01-SET300');
     const intent = artifactOf(artifacts, 'W01-INTENT');
     if (item.id === 'W01' && prompt && generated && intent) {
       const count = statOf(generated, '질문(대화)');
       const rate = statOf(intent, '적용률');
-      const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
-      const promptVersion = prompt.content.version?.match(/v\d+(?:\.\d+)+/)?.[0] || prompt.content.version;
-      append(box, 'h3', '', `${prompt.content.version}가 구현됐습니다. 이전 ${generatedVersion}로 만든 ${fmt(count)}개 질문의 목표 항목 적용 일치율은 ${rate}였고, J6 적용 조건 차이가 큰 원인이었습니다.`);
+      const generatedVersion = versionOf(generated.data_source.generator);
+      const promptVersion = versionOf(prompt.content.version);
+      append(box, 'h3', '', `평가 기준을 하나하나 시험할 질문을 GPT 로 만드는 방법(질문 생성기 ${promptVersion})을 정했습니다. 이전 판 ${generatedVersion}으로 실제 만든 질문 ${fmt(count)}개에서는 시험하려던 기준 중 ${rate}만 실제로 적용됐고, 가장 큰 원인은 J6(긴 대화) 조건 불일치였습니다.`);
       const metrics = append(box, 'div', 'progress-focus-metrics');
-      summaryMetric(metrics, '실제 생성 질문', count, `${generatedVersion} · 실제 GPT 생성`);
-      summaryMetric(metrics, '목표 항목 적용 일치율', rate, `${generatedVersion} · 코드 규칙 분석`);
-      summaryMetric(metrics, 'J6 제외 적용률', statOf(intent, 'J6 제외 적용률'), `${generatedVersion} · J6 제외 집계`);
-      summaryMetric(metrics, `최신 ${promptVersion} 실측`, '미실행', '구현·모의 테스트만 확인');
-      append(box, 'p', 'progress-source-line', `실제 생성 ${generated.data_source.generator} · 실행 ${generated.data_source.run_id || '기록 없음'} · ${generated.created_at || '시각 기록 없음'} / 현재 코드 ${prompt.content.version} · 실제 생성 미실행`);
+      summaryMetric(metrics, '실제로 만든 질문', count, `이전 판 ${generatedVersion} · GPT 실제 생성`);
+      summaryMetric(metrics, '시험하려던 기준이 실제 적용된 비율', rate, `${generatedVersion} · AI 정답률 아님`);
+      summaryMetric(metrics, 'J6(긴 대화) 빼면', statOf(intent, 'J6 제외 적용률'), `${generatedVersion} · J6 제외 집계`);
+      summaryMetric(metrics, `현재 ${promptVersion} 실제 생성`, '미실행', '성능 검증 대기 · 모의 테스트만');
+      append(box, 'p', 'progress-source-line', `자료: 질문 세트 300 (${generatedVersion}, 실행 ${generated.data_source.run_id || '기록 없음'}, ${generated.created_at || '시각 기록 없음'}) · 현재 코드 ${promptVersion} 는 실제 생성 전`);
+      const nav = append(box, 'nav', 'w01-nav');
+      nav.setAttribute('aria-label', 'W01 설명 순서');
+      W01_STEPS.forEach(([number, title], index) => {
+        const button = append(nav, 'button', 'progress-mini-button', `${number} ${title}`);
+        button.type = 'button';
+        button.addEventListener('click', () => box.parentElement?.querySelector('#w01-step-' + (index + 1))?.scrollIntoView({block: 'start'}));
+      });
     } else {
       append(box, 'h3', '', item.interpretation?.result || artifacts[0]?.result_summary || item.gap || '확인된 결과가 없습니다.');
       const primary = artifacts.find(a => a.content?.stats?.length || a.content?.outputs?.some(o => typeof o.value === 'number'));
@@ -600,44 +609,6 @@
     }
     verificationLine(box, item);
     return box;
-  }
-  function w01Criteria(parent, intent) {
-    const rows = intent.content.table.rows;
-    const figure = append(parent, 'figure', 'progress-key-chart progress-criteria-chart');
-    append(figure, 'figcaption', '', '평가 기준별로 노린 항목이 실제 적용된 비율은?');
-    const controls = append(figure, 'div', 'progress-chart-controls');
-    const select = append(controls, 'select');
-    select.setAttribute('aria-label', 'W01 기준별 적용률 보기');
-    for (const [value, label] of [['low', '적용률 낮은 기준 먼저'], ['all', '전체 기준'], ['code', 'CODE만'], ['semantic', '의미 평가만']]) {
-      append(select, 'option', '', label).value = value;
-    }
-    const list = append(figure, 'div', 'progress-criteria-bars');
-    function update() {
-      let chosen = rows;
-      if (select.value === 'low') chosen = [...rows].sort((a, b) => a.rate - b.rate).slice(0, 6);
-      if (select.value === 'code') chosen = rows.filter(row => row.family.startsWith('CODE'));
-      if (select.value === 'semantic') chosen = rows.filter(row => !row.family.startsWith('CODE'));
-      list.replaceChildren();
-      for (const row of chosen) {
-        const line = append(list, 'div', 'progress-criteria-row');
-        append(line, 'strong', 'progress-criteria-name', row.family);
-        const track = append(line, 'div', 'progress-criteria-track');
-        const fill = append(track, 'span', row.family.startsWith('CODE') ? 'code' : row.family === 'J6' ? 'j6' : 'semantic');
-        fill.style.width = `${Math.max(0, Math.min(100, row.rate * 100))}%`;
-        track.setAttribute('role', 'img');
-        track.setAttribute('aria-label', `${row.family} 적용 ${row.applied} / 판단 가능 ${row.applied + row.missed}건`);
-        append(line, 'span', 'progress-criteria-value', `${(row.rate * 100).toFixed(1)}% · ${row.applied}/${row.applied + row.missed}건`);
-      }
-    }
-    select.addEventListener('change', update); update();
-    const j6 = rows.find(row => row.family === 'J6');
-    const j7 = rows.find(row => row.family === 'J7');
-    const j8 = rows.find(row => row.family === 'J8');
-    const totalRate = statOf(intent, '적용률');
-    append(figure, 'p', 'progress-chart-interpretation', `J6는 ${j6.applied}/${j6.applied + j6.missed}건(${(j6.rate * 100).toFixed(1)}%)만 적용됐습니다. J7은 ${j7.applied}/${j7.applied + j7.missed}건, J8은 ${j8.applied}/${j8.applied + j8.missed}건으로 100%지만 표본과 항목 성격이 달라 질문 품질이나 모델 성능을 뜻하지 않습니다. 전체 ${totalRate}와 기준별 비율은 집계 단위가 다릅니다.`);
-    const raw = append(figure, 'details', 'progress-chart-data');
-    append(raw, 'summary', '', '기준별 원본 수치 표');
-    dataTable(raw, intent.content.table, intent.title);
   }
   function intentBar(parent, intent, generatedVersion) {
     const applied = Number(statOf(intent, '실제 적용'));
@@ -658,22 +629,315 @@
     append(main, 'p', 'progress-chart-interpretation', `${generatedVersion} 질문 세트에서 노린 ${fmt(target)}건 중 ${fmt(pending)}건은 답변이 있어야 판단할 수 있어 제외했습니다. 비율의 분모는 판단 가능 ${fmt(judged)}건입니다. 이는 평가 기준 적용 규칙의 일치율이며 사람 검수 정확도나 모델 평가 성능은 아닙니다.`);
     return main;
   }
-  function w01Highlights(parent, artifacts) {
+  // --- W01 설명 화면: ① 왜 → ② 원리 → ③ 실제 질문 → ④ 잘 작동했나 → ⑤ 개선 (문장·수치는 artifacts.json 그대로) ------------
+  const BASIS = {'근거 있음': 'evidence', '사용자 결정': 'decision', '멘토 요청': 'decision', '가정': 'assumption'};
+  const W01_STEPS = [['①', '왜 질문을 만들었나요?'], ['②', '어떤 원리로 만들었나요?'], ['③', '실제로 어떤 질문을 만들었나요?'],
+    ['④', '실제로 잘 작동했나요?'], ['⑤', '무엇을 개선해야 하나요?']];
+  function versionOf(text) { return String(text || '').match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록'; }
+  function storySection(parent, index, lead) {
+    const [number, title] = W01_STEPS[index];
+    const box = append(parent, 'section', 'w01-step');
+    box.id = 'w01-step-' + (index + 1);
+    const head = append(box, 'div', 'w01-step-head');
+    append(head, 'span', 'w01-step-number', number);
+    append(head, 'h3', '', title);
+    if (lead) append(box, 'p', 'w01-lead', lead);
+    return box;
+  }
+  function more(parent, label) {
+    const details = append(parent, 'details', 'w01-more');
+    append(details, 'summary', '', label);
+    return details;
+  }
+  function storyWhy(parent, design) {
+    const why = design.content.why;
+    const box = storySection(parent, 0, why.lead);
+    const methods = append(box, 'div', 'w01-methods');
+    for (const method of why.methods) {
+      const card = append(methods, 'div', 'w01-method');
+      append(card, 'strong', '', method.name);
+      append(card, 'span', 'w01-method-who', method.who);
+      pairs(card, [{label: '보는 것', value: method.checks}, {label: '장점', value: method.good}, {label: '한계', value: method.limit}]);
+    }
+    append(box, 'p', 'w01-note', why.together);
+    list(box, [why.by_criterion, why.multi]).classList.add('w01-points');
+    const glossary = design.content.glossary;
+    append(box, 'h4', 'w01-subhead', `시험하는 평가 기준 ${glossary.length}개 — CODE 검사 ${glossary.filter(g => g.layer === 'CODE').length}개 · 의미 평가 ${glossary.filter(g => g.layer !== 'CODE').length}개`);
+    const grid = append(box, 'div', 'w01-glossary');
+    for (const term of glossary) {
+      const card = append(grid, 'div', 'w01-term ' + (term.layer === 'CODE' ? 'code' : 'llm'));
+      const head = append(card, 'div', 'w01-term-head');
+      append(head, 'span', 'w01-term-id', term.id);
+      append(head, 'strong', '', term.name);
+      append(card, 'p', '', term.easy);
+    }
+    dataTable(more(box, '기준별 자세히 — 어떤 질문이면 적용되고, 어떤 답이 FAIL 인가'), {columns: [{key: 'id', label: '기준'}, {key: 'name', label: '이름'},
+      {key: 'easy', label: '무엇을 확인하나'}, {key: 'applies', label: '어떤 질문이면 적용되나'}, {key: 'fail', label: '어떤 답이 FAIL 인가'},
+      {key: 'official', label: '공식 정의(기준 목록)'}, {key: 'size', label: '세부 개수'}], rows: glossary}, '평가 기준 쉬운 설명');
+    const numbers = design.content.numbers;
+    const box2 = more(box, `화면에 나오는 기준 수 ${numbers.map(n => n.number).join(' · ')} 는 무엇인가요?`);
+    append(box2, 'p', 'progress-muted', '세는 단계가 달라 숫자가 다릅니다. 위에서 아래로 갈수록 더 잘게 나눈 단위입니다.');
+    const rows = append(box2, 'div', 'w01-numbers');
+    for (const entry of numbers) {
+      const row = append(rows, 'div', 'w01-number');
+      append(row, 'strong', '', fmt(entry.number));
+      const copy = append(row, 'div');
+      append(copy, 'b', '', `${entry.what} · ${entry.level}`);
+      append(copy, 'p', '', entry.meaning);
+      append(copy, 'small', '', '나오는 곳: ' + entry.where);
+    }
+  }
+  function storyHow(parent, design, quantity) {
+    const box = storySection(parent, 1, '평가 기준 → 시험할 기준 나누기 → GPT 에 질문 요청 → 평가기 규칙으로 점검 → 부족한 기준 보충. 단계마다 왜 필요한지와 실제 결과를 함께 적었습니다.');
+    const flow = append(box, 'ol', 'w01-flow');
+    for (const step of design.content.flow) {
+      const li = append(flow, 'li', 'w01-flow-step');
+      append(li, 'span', 'w01-flow-number', step.step);
+      const copy = append(li, 'div');
+      append(copy, 'strong', '', step.title);
+      append(copy, 'p', '', step.why);
+      const result = append(copy, 'p', 'w01-flow-result');
+      append(result, 'span', 'w01-tag ' + step.state, step.state === 'real' ? '실제 결과' : '코드 설정');
+      result.append(' ' + step.result);
+    }
+    const batch = quantity.content.batch;
+    const estimate = batch.estimates.find(entry => entry.questions === batch.value);
+    const why = append(box, 'div', 'w01-callout');
+    append(why, 'h4', '', `왜 한 번에 ${batch.value}개씩 나눠 만드나요?`);
+    append(why, 'p', '', `GPT 는 한 번에 쓸 수 있는 답의 길이에 한도가 있어, 300개를 한 번에 요청하면 중간에 잘릴 수 있습니다. 그래서 한 번에 최대 ${batch.value}개씩 나눠 요청합니다.`);
+    append(why, 'p', '', `${batch.value} 은 ${batch.introduced.at || '시각 기록 없음'} 커밋 ${batch.introduced.commit}(${batch.introduced.author})에서 정한 값입니다. 질문 1개 계획은 약 ${fmt(batch.per_question.mean)}토큰(추정)이라 ${batch.value}개는 약 ${fmt(estimate?.tokens)}토큰 — 한 번 호출의 출력 상한 ${fmt(batch.plan_tokens)}토큰의 ${Math.round((estimate?.share || 0) * 100)}% 입니다. 생성 모델 자체의 출력 한도는 ${batch.model_limit.split(' — ')[0]}.`);
+    append(why, 'p', '', '실제로 생긴 문제는 길이보다 개수와 형식이었습니다:');
+    list(why, batch.incidents);
+    append(why, 'p', 'w01-verdict', `결론: ${batch.verdict}. ${batch.measured}.`);
+    append(box, 'h4', 'w01-subhead', '헷갈리기 쉬운 질문 수 네 가지 — 서로 다른 숫자입니다');
+    const four = append(box, 'div', 'w01-four');
+    for (const entry of quantity.content.four_numbers) {
+      const card = append(four, 'div', 'w01-four-card');
+      append(card, 'span', 'w01-tag ' + (typeof entry.value === 'number' ? 'code' : 'open'), entry.kind);
+      append(card, 'strong', '', typeof entry.value === 'number' ? `${fmt(entry.value)}개` : entry.value);
+      append(card, 'b', '', entry.name);
+      append(card, 'p', '', entry.what);
+      append(card, 'small', '', '근거: ' + entry.basis);
+      append(card, 'small', 'w01-verified', entry.verified);
+    }
+    const parts = design.content.prompt_parts;
+    const checklist = design.content.prompt_sections.find(section => section.heading.startsWith('점검 목록'));
+    append(box, 'h4', 'w01-subhead', `요청문(프롬프트)에 넣은 것 ${parts.length}가지와 이유`);
+    append(box, 'p', 'progress-muted', `GPT 에 보내는 첫 요청문 ${fmt(design.content.prompt_chars)}자 중 ${fmt(checklist?.chars)}자(${Math.round((checklist?.chars || 0) / design.content.prompt_chars * 100)}%)는 평가 기준 정의를 그대로 옮긴 '점검 목록'입니다. 기준 목록이 바뀌면 요청문도 자동으로 바뀝니다. 표시: 근거 있음 = 실제 사례·결과가 있음 · 사용자 결정/멘토 요청 = 회의·결정 기록 · 가정 = 실험 근거 없음.`);
+    const grid = append(box, 'div', 'w01-parts');
+    for (const part of parts) {
+      const card = append(grid, 'article', 'w01-part');
+      const head = append(card, 'div', 'w01-part-head');
+      append(head, 'strong', '', part.name);
+      append(head, 'span', 'w01-basis ' + (BASIS[part.basis] || 'assumption'), part.basis);
+      append(card, 'p', '', part.why);
+      append(card, 'p', 'w01-quote', part.excerpt);
+      append(card, 'small', '', part.evidence);
+    }
+    const builders = design.content.prompt_builders;
+    dataTable(more(box, `요청문은 몇 종류인가요? — ${builders.length}종 (원문은 아래 '기술 자료 및 원본 보기')`), {columns: [{key: 'role', label: '역할'},
+      {key: 'when', label: '언제 보내나'}, {key: 'shown', label: '원문 보관'}, {key: 'name', label: '코드 함수'}], rows: builders}, '질문 생성 요청문 종류');
+  }
+  function targetChips(parent, targets) {
+    const box = append(parent, 'div', 'w01-targets');
+    const merged = new Map();   // 같은 세부 기준 이름(J6 정보 기억 a·b·c)은 한 칩으로
+    for (const target of targets || []) {
+      const previous = merged.get(target.name);
+      merged.set(target.name, {name: target.name, applied: previous ? previous.applied && target.applied : target.applied});
+    }
+    for (const target of merged.values()) {
+      const chip = append(box, 'span', 'w01-chip ' + (target.applied ? 'applied' : 'missed'));
+      append(chip, 'i', '', target.applied ? '적용' : '미적용');
+      chip.append(' ' + target.name);
+    }
+  }
+  function caseLine(parent, label, value, extra) {
+    const row = append(parent, 'div', 'w01-line' + (extra ? ' ' + extra : ''));
+    append(row, 'b', '', label);
+    append(row, 'span', '', value || '기록 없음');
+  }
+  function caseHead(card, item) {
+    const head = append(card, 'div', 'w01-case-head');
+    append(head, 'span', 'w01-layer ' + (item.layer === 'CODE' ? 'code' : 'llm'), item.layer === 'CODE' ? 'CODE 검사' : '의미 평가');
+    append(head, 'strong', '', item.title);
+    append(card, 'small', 'w01-case-meta', `Q${item.id} · ${item.type || '유형 없음'} · 난도 ${item.difficulty || '—'}${item.turns_total > 1 ? ` · ${item.turns_total}턴 대화` : ''} · 이 질문에 실제 적용된 세부 기준 ${item.applied_total}개`);
+  }
+  function questionCase(grid, item) {
+    const card = append(grid, 'article', 'w01-case');
+    caseHead(card, item);
+    const quote = append(card, 'blockquote', 'w01-question', item.question);
+    if (item.question.length > 120) {
+      quote.classList.add('clamp');
+      const toggle = append(card, 'button', 'progress-mini-button w01-toggle', '질문 전체 보기');
+      toggle.type = 'button';
+      toggle.addEventListener('click', () => { toggle.textContent = quote.classList.toggle('clamp') ? '질문 전체 보기' : '접기'; });
+    }
+    if (item.attachments) append(card, 'small', 'w01-case-meta', '첨부: ' + item.attachments.join(', '));
+    append(card, 'h5', '', '확인할 기준 (평가기 규칙으로 점검한 결과)');
+    targetChips(card, item.targets);
+    caseLine(card, '왜 만들었나', item.why);
+    caseLine(card, 'FAIL 인 답', item.fail, 'fail');
+    if (item.contrast) {
+      const contrast = append(card, 'div', 'w01-contrast');
+      append(contrast, 'strong', '', `같은 목표인데 평가기가 알아보지 못한 질문 — 계산을 노린 ${item.contrast.total}개 중 ${item.contrast.missed}개`);
+      append(contrast, 'p', '', `Q${item.contrast.id} “${item.contrast.question}”`);
+      append(contrast, 'small', '', '평가기는 정해진 문장 모양에서만 계산 요구를 읽습니다. 이런 질문에는 CODE 계산 검사가 켜지지 않습니다(④ CODE 3 미적용의 주요 원인).');
+    }
+  }
+  function bubble(list, turn, label) {
+    const li = append(list, 'li', 'w01-bubble' + (label ? ' marked' : ''));
+    append(li, 'span', 'w01-turn', `${turn.turn}턴${label ? ' · ' + label : ''}`);
+    append(li, 'p', '', turn.question);
+    if (turn.pasted_chars) append(li, 'small', '', `질문 앞에 붙여 넣은 자료 ${fmt(turn.pasted_chars)}자는 생략했습니다.`);
+  }
+  function conversationCase(grid, item) {
+    const card = append(grid, 'article', 'w01-case w01-case-wide');
+    caseHead(card, item);
+    caseLine(card, '대화 목적', `주제 '${item.topic}' — ${item.why}`);
+    append(card, 'h5', '', '확인할 기준 (평가기 규칙으로 점검한 결과)');
+    targetChips(card, item.targets);
+    append(card, 'h5', '', `대표 턴 ${item.highlights.length}개 (전체 ${item.turns_total}턴)`);
+    const chat = append(card, 'ol', 'w01-chat');
+    for (const pick of item.highlights) bubble(chat, item.turns[pick.index], pick.label);
+    caseLine(card, 'FAIL 인 답', item.fail, 'fail');
+    const timeline = append(more(card, `전체 ${item.turns_total}턴 보기`), 'ol', 'w01-timeline');
+    const labels = Object.fromEntries(item.highlights.map(pick => [pick.index, pick.label]));
+    item.turns.forEach((turn, index) => bubble(timeline, turn, labels[index]));
+  }
+  function storyCases(parent, generated) {
+    const cases = generated.content.cases || [];
+    const box = storySection(parent, 2, `이전 판으로 실제 만든 질문 ${fmt(statOf(generated, '질문(대화)'))}개 중 대표 ${cases.length}개입니다. 질문은 원문 그대로이고, 기준 옆 '적용·미적용'은 평가기와 같은 규칙으로 점검한 결과입니다.`);
+    const grid = append(box, 'div', 'w01-cases');
+    for (const item of cases) (item.turns ? conversationCase : questionCase)(grid, item);
+  }
+  function legendItem(parent, kind, title, note) {
+    const item = append(parent, 'div', 'w01-legend-item');
+    append(item, 'i', kind);
+    append(item, 'strong', '', title);
+    if (note) append(item, 'small', '', note);
+  }
+  function segment(bar, kind, value, total) {
+    const part = append(bar, 'span', kind);
+    part.style.width = `${total ? value / total * 100 : 0}%`;
+    return part;
+  }
+  function openRequirementCard(id) {
+    const target = document.getElementById('requirement-' + id);
+    if (target) { target.open = true; target.scrollIntoView({block: 'start'}); }
+  }
+  function storyWorked(parent, intent, quantity, prompt, generated) {
+    const f = intent.content.funnel;
+    const rate = statOf(intent, '적용률');
+    const version = versionOf(generated.data_source.generator);
+    const box = storySection(parent, 3, `이전 판(${version})으로 만든 질문 ${fmt(statOf(generated, '질문(대화)'))}개를 평가기와 같은 규칙으로 점검했습니다. AI 에게 답을 받아 채점한 결과가 아닙니다.`);
+    const figure = append(box, 'figure', 'w01-figure');
+    append(figure, 'figcaption', '', '생성한 질문이 의도한 평가 기준에 실제로 적용됐을까?');
+    append(figure, 'p', 'progress-muted', `GPT 가 질문마다 '이 기준을 시험한다'고 적은 목표는 모두 ${fmt(f.intended)}건입니다. 그중 ${fmt(f.answer_dependent)}건은 AI 의 답을 받아야 적용 여부를 알 수 있어 따로 두고, 나머지 ${fmt(f.judged)}건을 확인했습니다.`);
+    const bar = append(figure, 'div', 'w01-funnel');
+    bar.setAttribute('role', 'img');
+    bar.setAttribute('aria-label', `목표 ${f.intended}건 중 실제 적용 ${f.applied}건, 미적용 ${f.missed}건, 판단 보류 ${f.answer_dependent}건. 적용률은 ${f.applied} ÷ ${f.judged}.`);
+    segment(bar, 'applied', f.applied, f.intended);
+    segment(bar, 'missed', f.missed, f.intended);
+    segment(bar, 'pending', f.answer_dependent, f.intended);
+    const legendBox = append(figure, 'div', 'w01-legend');
+    legendItem(legendBox, 'applied', `실제 적용 ${fmt(f.applied)}건`, `판단 가능 ${fmt(f.judged)}건 중 ${rate}`);
+    legendItem(legendBox, 'missed', `미적용 ${fmt(f.missed)}건`, `판단 가능 ${fmt(f.judged)}건 중 ${(f.missed / f.judged * 100).toFixed(1)}%`);
+    legendItem(legendBox, 'pending', `판단 보류 ${fmt(f.answer_dependent)}건`, '답을 받아야 알 수 있어 비율 계산에서 뺌');
+    const meaning = append(figure, 'div', 'w01-not');
+    append(meaning, 'strong', '', `${rate} 는 무엇을 뜻하나요?`);
+    list(meaning, ['AI 의 정답률이 아닙니다 — 이 질문들의 답은 아직 채점하지 않았습니다.', '질문 품질 점수가 아닙니다 — 질문이 좋은지는 사람이 검수해야 합니다.',
+      `'시험하려던 기준이 평가기에서 실제로 켜진 비율'입니다 — 실제 적용 ${fmt(f.applied)} ÷ 판단 가능 ${fmt(f.judged)}.`]);
+
+    const j6 = intent.content.j6;
+    const j6row = intent.content.families.find(row => row.family === 'J6');
+    const cause = append(box, 'div', 'w01-j6');
+    append(cause, 'h4', '', `가장 큰 원인 — J6 · ${j6row.name}: 미적용 ${fmt(f.missed)}건 중 ${fmt(j6row.missed)}건`);
+    const j6bar = append(cause, 'div', 'w01-j6-bar');
+    j6bar.setAttribute('role', 'img');
+    j6bar.setAttribute('aria-label', `J6 를 노린 목표 ${j6.targets}건 — ` + j6.bins.map(bin => `${bin.label} ${bin.targets}건 중 적용 ${bin.applied}건`).join(', '));
+    for (const bin of j6.bins) segment(j6bar, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', bin.targets, j6.targets);
+    const j6legend = append(cause, 'div', 'w01-legend');
+    for (const bin of j6.bins) legendItem(j6legend, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', `${bin.label} ${fmt(bin.conversations)}개`, `J6 목표 ${fmt(bin.targets)}건 중 적용 ${fmt(bin.applied)}건`);
+    const compare = append(cause, 'div', 'w01-compare');
+    const made = append(compare, 'div');
+    append(made, 'b', '', `질문을 만든 쪽 — 생성기 ${version}`);
+    append(made, 'p', '', j6.where);
+    const judge = append(compare, 'div');
+    append(judge, 'b', '', '평가하는 쪽 — 평가기의 J6 적용 조건');
+    append(judge, 'p', '', `${j6.rule}. 짧은 대화는 J6 를 묻지 않습니다(해당 없음).`);
+    append(cause, 'p', 'w01-verdict', `즉 AI 답변이 나빠서 생긴 문제가 아니라, 질문을 만든 조건과 평가하는 조건이 달라서 생긴 문제입니다. J6 를 빼고 계산하면 적용률은 ${statOf(intent, 'J6 제외 적용률')} 입니다.`);
+
+    append(box, 'h4', 'w01-subhead', '기준별로 보면 — 빗나간 기준과 주요 원인');
+    const rows = intent.content.families.filter(row => row.missed > 0).sort((a, b) => b.missed - a.missed);
+    const scroll = append(box, 'div', 'w01-mini-scroll');
+    const table = append(scroll, 'table', 'w01-mini');
+    append(table, 'caption', '', '기준별 시험하려던 건수·실제 적용·미적용·주요 원인');
+    const head = append(append(table, 'thead'), 'tr');
+    for (const [label, numeric] of [['기준', false], ['시험하려던 건수', true], ['실제 적용', true], ['미적용', true], ['주요 원인', false]]) append(head, 'th', numeric ? 'num' : '', label).scope = 'col';
+    const body = append(table, 'tbody');
+    for (const row of rows) {
+      const tr = append(body, 'tr');
+      const name = append(append(tr, 'td'), 'div', 'w01-mini-name');
+      append(name, 'strong', '', `${row.family} · ${row.name}`);
+      const mini = append(name, 'div', 'w01-mini-bar');
+      mini.setAttribute('aria-hidden', 'true');
+      segment(mini, 'applied', row.applied, row.applied + row.missed);
+      segment(mini, 'missed', row.missed, row.applied + row.missed);
+      for (const [key, label] of [['intended', '시험하려던'], ['applied', '적용'], ['missed', '미적용']]) append(tr, 'td', 'num', fmt(row[key])).dataset.label = label;
+      append(tr, 'td', 'w01-mini-cause', row.cause);
+    }
+    const clean = intent.content.families.filter(row => row.missed === 0);
+    append(box, 'p', 'progress-muted', `빗나간 건 없음: ${clean.map(row => `${row.family} ${row.name}(${row.applied}건)`).join(' · ')} — 시험하려던 건수가 적은 기준도 있어 100% 를 질문 품질로 읽지 않습니다. '시험하려던 건수'에는 답을 받아야 알 수 있는 판단 보류 건이 들어 있어 적용+미적용보다 클 수 있습니다.`);
+
+    const growth = quantity.content.table.rows;
+    const targets = quantity.content.growth_targets;
+    const at50 = growth.find(row => row.questions === 50);
+    const last = growth[growth.length - 1];
+    const grow = append(box, 'div', 'w01-growth');
+    append(grow, 'h4', 'w01-subhead', '질문을 많이 만들면 기준이 계속 채워질까요?');
+    for (const row of growth.filter(r => [10, 50, 100, last.questions].includes(r.questions))) {
+      const line = append(grow, 'div', 'w01-growth-row');
+      append(line, 'strong', '', `${fmt(row.questions)}개`);
+      const track = append(line, 'div', 'w01-growth-track');
+      track.setAttribute('role', 'img');
+      track.setAttribute('aria-label', `질문 ${row.questions}개로 기준 ${row.order_k1}/${targets}개가 한 번 이상 시험됨`);
+      append(track, 'span').style.width = `${row.order_k1 / targets * 100}%`;
+      append(line, 'span', '', `기준 ${row.order_k1}/${targets}개 시험 (무작위로 고르면 평균 ${row.random_k1})`);
+    }
+    append(grow, 'p', 'progress-chart-interpretation', `처음 50개로 기준 ${at50.order_k1}개가 한 번 이상 시험됐고, 나머지 ${fmt(last.questions - 50)}개가 더한 것은 ${last.order_k1 - at50.order_k1}개뿐입니다. 다섯 번 이상 시험된 기준은 ${fmt(last.questions)}개에서도 ${last.order_k5}개입니다. 그래서 '질문 수'보다 '기준마다 몇 번 시험되는지'를 목표로 만들어야 합니다(v1.4). 300개는 지난 실험에서 정한 수일 뿐 적정 수로 검증된 값이 아닙니다.`);
+    const w03 = append(grow, 'button', 'progress-mini-button', '몇 개가 필요한지 — W03 질문 수 실험 보기');
+    w03.type = 'button';
+    w03.addEventListener('click', () => openRequirementCard('W03'));
+    append(box, 'p', 'w01-pending', `현재 생성기 ${versionOf(prompt?.content?.version)}: 성능 검증 대기 — 구현과 모의 테스트만 확인했고 실제 생성 실험은 아직 없습니다. 위 수치는 모두 이전 판 ${version} 결과입니다.`);
+
+    const raw = more(box, '자세한 데이터 보기 — 기준별 전체 수치 · J6 나눔 · 질문 수별 기준 증가');
+    dataTable(raw, intent.content.table, intent.title);
+    dataTable(raw, {columns: [{key: 'label', label: 'J6 를 노린 질문'}, {key: 'conversations', label: '질문·대화 수', numeric: true},
+      {key: 'targets', label: 'J6 목표 건수', numeric: true}, {key: 'applied', label: '실제 적용', numeric: true}], rows: j6.bins}, 'J6 목표를 대화 길이로 나눈 표');
+    dataTable(raw, quantity.content.table, quantity.title);
+  }
+  function storyImprove(parent, design) {
+    const box = storySection(parent, 4, '아직 확인하지 못한 것과 다음에 확인할 방법입니다. 유료 호출이 필요한 확인은 승인 뒤에 합니다.');
+    const items = append(box, 'ol', 'w01-improve');
+    for (const entry of design.content.improve) {
+      const li = append(items, 'li', 'w01-improve-item');
+      append(li, 'strong', '', entry.title);
+      append(li, 'p', '', entry.problem);
+      append(li, 'p', 'w01-next', '다음 확인: ' + entry.next);
+    }
+  }
+  function w01Story(parent, artifacts) {
+    const design = artifactOf(artifacts, 'W01-DESIGN');
     const intent = artifactOf(artifacts, 'W01-INTENT');
-    const prompt = artifactOf(artifacts, 'W01-PROMPT');
     const generated = artifactOf(artifacts, 'W01-SET300');
-    if (!intent || !prompt || !generated) return false;
-    const generatedVersion = generated.data_source.generator?.match(/v\d+(?:\.\d+)+/)?.[0] || '버전 미기록';
-    intentBar(parent, intent, generatedVersion);
-    w01Criteria(parent, intent);
-    const j6 = intent.content.table.rows.find(row => row.family === 'J6');
-    const comparison = append(parent, 'div', 'progress-j6-explainer');
-    append(comparison, 'h4', '', '가장 큰 불일치 · J6');
-    const columns = append(comparison, 'div', 'progress-j6-columns');
-    field(columns, `${generatedVersion} 생성기 의도`, '2~4턴의 짧은 대화에도 J6 목표 항목을 붙였습니다.');
-    field(columns, '평가기 적용 조건', '현재 multi-turn-v2는 대화 10턴 이상, 질문과 답변을 합친 대화 전체 10K 토큰 이상을 요구합니다.');
-    field(columns, '실제 결과와 다음 점검', `${fmt(j6?.missed)}건이 미적용됐습니다. ${prompt.content.version}는 10턴 전용 생성 단계를 구현했지만 실제 생성·적용 점검은 아직 없습니다.`);
-    append(comparison, 'p', 'progress-chart-interpretation', `J6 제외 적용률 ${statOf(intent, 'J6 제외 적용률')}는 집계에서 J6를 뺀 값입니다. 이를 전체 질문 생성 품질 향상으로 해석하지 않습니다.`);
+    const quantity = artifactOf(artifacts, 'W01-QUANTITY');
+    if (!design || !intent?.content?.funnel || !generated?.content?.cases || !quantity) return false;
+    const story = append(parent, 'div', 'w01-story');
+    storyWhy(story, design);
+    storyHow(story, design, quantity);
+    storyCases(story, generated);
+    storyWorked(story, intent, quantity, artifactOf(artifacts, 'W01-PROMPT'), generated);
+    storyImprove(story, design);
     return true;
   }
   function highlightedArtifacts(item, artifacts) {
@@ -684,7 +948,6 @@
   function keyResults(parent, item, artifacts) {
     const box = append(parent, 'section', 'progress-key-results');
     append(box, 'h3', '', '주요 결과와 시각화');
-    if (item.id === 'W01' && w01Highlights(box, artifacts)) return;
     const selected = highlightedArtifacts(item, artifacts);
     if (selected.length) {
       for (const artifact of selected) {
@@ -712,8 +975,7 @@
     append(box, 'h3', '', '대표 실제 사례');
     if (sampleArtifact) {
       const samples = sampleArtifact.content.samples;
-      const keys = item.id === 'W01' ? ['빈 출력', '계산', '표 형식', '10턴', '첨부파일'] : [];
-      const chosen = keys.length ? keys.map(key => samples.find(sample => sample.why.includes(key))).filter(Boolean) : samples.slice(0, 5);
+      const chosen = samples.slice(0, 5);
       renderSamples(box, chosen);
       if (samples.length > chosen.length) append(box, 'p', 'progress-muted', `대표 ${chosen.length}개를 먼저 표시했습니다. 나머지 사례와 전체 표는 '상세 산출물 전체 보기'에서 확인하세요.`);
     } else {
@@ -788,7 +1050,7 @@
       const highlighted = highlightedArtifacts(item, artifacts);
       for (const artifact of artifacts) {
         const card = artifactCard(b, artifact, files);
-        if ((item.id === 'W01' && artifact.artifact_id === 'W01-INTENT') || highlighted.includes(artifact)) {
+        if (highlighted.includes(artifact)) {
           card.querySelector('.progress-chart')?.remove();
         }
       }
@@ -797,10 +1059,14 @@
   }
   function buildBody(item, body, artifacts, artifactState) {
     executiveSummary(body, item, artifacts);
-    keyResults(body, item, artifacts);
-    representativeCases(body, item, artifacts);
+    const story = item.id === 'W01' && w01Story(body, artifacts);   // W01 은 ①~⑤ 설명 화면이 주요 결과·대표 사례를 대신한다
+    if (!story) {
+      keyResults(body, item, artifacts);
+      representativeCases(body, item, artifacts);
+    }
     const detailed = append(body, 'details', 'progress-disclosure progress-detailed');
-    append(detailed, 'summary', '', `상세 산출물 전체 보기 · ${artifacts.length}개`);
+    append(detailed, 'summary', '', story ? `기술 자료 및 원본 보기 · 프롬프트 원문 · 질문 ${fmt(statOf(artifactOf(artifacts, 'W01-SET300'), '질문(대화)'))}개 전체 · JSON 형식 · 버전 기록 · 테스트 (산출물 ${artifacts.length}개)`
+      : `상세 산출물 전체 보기 · ${artifacts.length}개`);
     let built = false;
     detailed.addEventListener('toggle', () => {
       if (!detailed.open || built) return;

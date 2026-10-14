@@ -70,28 +70,50 @@ def main():
                 # W01 — 담당자 요구사항 A~D 와 실제 산출물, 프롬프트 원문, 파일 확인
                 w01 = page.locator('#requirement-W01')
                 w01.locator('summary').click()
-                expect(w01.locator('.progress-executive h3')).to_contain_text('question-gen-v1.4')
+                expect(w01.locator('.progress-executive h3')).to_contain_text('생성기 v1.4')
                 expect(w01.locator('.progress-executive h3')).to_contain_text('300개')
                 expect(w01.locator('.progress-executive h3')).to_contain_text('50.3%')
+                expect(w01.locator('.progress-role')).to_contain_text('W02')
                 expect(w01.locator('.progress-focus-metric')).to_have_count(4)
                 expect(w01.locator('.progress-focus-metric').last).to_contain_text('미실행')
                 expect(w01.locator('.progress-verification-step')).to_have_count(4)
+                # ① 왜 → ② 원리 → ③ 실제 질문 → ④ 잘 작동했나 → ⑤ 개선 (수치·문장은 artifacts.json 그대로)
+                expect(w01.locator('.w01-step h3')).to_have_text(['왜 질문을 만들었나요?', '어떤 원리로 만들었나요?', '실제로 어떤 질문을 만들었나요?',
+                                                               '실제로 잘 작동했나요?', '무엇을 개선해야 하나요?'])
+                design = by_id['W01-DESIGN']['content']
+                expect(w01.locator('.w01-glossary .w01-term')).to_have_count(len(design['glossary']))
+                expect(w01.locator('#w01-step-1')).to_contain_text(' · '.join(str(n['number']) for n in design['numbers']))
+                expect(w01.locator('.w01-flow-step')).to_have_count(len(design['flow']))
+                expect(w01.locator('.w01-part')).to_have_count(len(design['prompt_parts']))
+                batch = by_id['W01-QUANTITY']['content']['batch']
+                expect(w01.locator('.w01-callout')).to_contain_text(batch['introduced']['commit'])
+                expect(w01.locator('.w01-callout')).to_contain_text('적정 개수는 미검증')
+                expect(w01.locator('.w01-four-card')).to_have_count(4)
                 intent = by_id['W01-INTENT']['content']
                 applied = next(s['value'] for s in intent['stats'] if s['label'] == '실제 적용')
                 missed = next(s['value'] for s in intent['stats'] if s['label'] == '적용 안 됨')
                 pending = next(s['value'] for s in intent['stats'] if s['label'] == '답변 필요')
-                expect(w01.locator('.progress-intent-bar')).to_have_attribute('aria-label',
-                    f'판단 가능 {applied + missed}건 중 실제 적용 {applied}건, 미적용 {missed}건. 별도 판단 보류 {pending}건.')
-                expect(w01.locator('.progress-intent-legend')).to_contain_text(f'{applied}건 · {applied / (applied + missed) * 100:.1f}%')
-                expect(w01.locator('.progress-criteria-row').first).to_contain_text('J6')
-                w01.get_by_label('W01 기준별 적용률 보기').select_option('all')
-                expect(w01.locator('.progress-criteria-row')).to_have_count(len(intent['table']['rows']))
-                expect(w01.locator('.progress-j6-explainer')).to_contain_text('multi-turn-v2')
-                expect(w01.locator('.progress-criteria-chart')).to_contain_text('J7은 2/2건, J8은 22/22건으로 100%지만 표본')
-                expect(w01.locator('.progress-key-results')).to_contain_text('판단 가능 487건')
-                expect(w01.locator('.progress-representatives .progress-sample')).to_have_count(5)
+                funnel = intent['funnel']
+                expect(w01.locator('.w01-funnel')).to_have_attribute('aria-label',
+                    f"목표 {funnel['intended']}건 중 실제 적용 {applied}건, 미적용 {missed}건, 판단 보류 {pending}건. 적용률은 {applied} ÷ {applied + missed}.")
+                expect(w01.locator('.w01-figure .w01-legend')).to_contain_text(f'판단 가능 {applied + missed}건 중 {applied / (applied + missed) * 100:.1f}%')
+                j6 = next(row for row in intent['families'] if row['family'] == 'J6')
+                expect(w01.locator('.w01-j6')).to_contain_text('multi-turn-v2')
+                expect(w01.locator('.w01-j6 h4')).to_contain_text(f"{j6['missed']}건")
+                expect(w01.locator('.w01-mini tbody tr')).to_have_count(sum(row['missed'] > 0 for row in intent['families']))
+                expect(w01.locator('.w01-mini tbody tr').first).to_contain_text('J6 · 멀티턴 맥락 유지')
+                cases = by_id['W01-SET300']['content']['cases']
+                expect(w01.locator('.w01-case')).to_have_count(len(cases))
+                conversation = next(case for case in cases if 'turns' in case)
+                expect(w01.locator('.w01-chat .w01-bubble')).to_have_count(len(conversation['highlights']))
+                w01.locator('.w01-case-wide summary').click()
+                expect(w01.locator('.w01-timeline .w01-bubble')).to_have_count(conversation['turns_total'])
+                single = w01.locator('.w01-case').first.bounding_box()['height']
+                wide = w01.locator('.w01-case-wide').bounding_box()['height']
+                assert single < 500 and single < wide / 2, (single, wide)   # 짧은 사례 카드가 긴 대화 카드 높이로 늘어나지 않는다
                 w01.scroll_into_view_if_needed()
                 page.screenshot(path=str(output / 'w01-after-desktop.png'), full_page=False)
+                expect(w01.locator('.progress-detailed > summary')).to_contain_text('기술 자료 및 원본 보기')
                 w01.locator('.progress-detailed > summary').click()
                 expect(w01.locator('.progress-artifact')).to_have_count(len(by_requirement['W01']))
                 expect(page.locator('#artifact-W01-INTENT .progress-result')).to_have_text(by_id['W01-INTENT']['result_summary'])
@@ -143,7 +165,7 @@ def main():
                 assert values == expected, (values, expected)
                 chart.locator('.progress-chart-data summary').click()
                 first_row = chart.locator('.progress-chart-data tbody tr').first.locator('td').all_text_contents()
-                assert first_row == [criteria['categories'][0]] + [f"{s['values'][0]:,}" for s in criteria['series']], first_row
+                assert first_row == [(criteria.get('category_labels') or criteria['categories'])[0]] + [f"{s['values'][0]:,}" for s in criteria['series']], first_row
                 matrix = page.locator('#artifact-W02-MATRIX')
                 rows = by_id['W02-MATRIX']['content']['table']['rows']
                 matrix.get_by_label('구분 필터').select_option('의미 점검 항목')
@@ -310,7 +332,7 @@ def main():
                 mobile_w01 = page.locator('#requirement-W01')
                 mobile_w01.locator('summary').first.click()
                 mobile_w01.scroll_into_view_if_needed()
-                expect(mobile_w01.locator('.progress-intent-bar')).to_be_visible()
+                expect(mobile_w01.locator('.w01-funnel')).to_be_visible()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.screenshot(path=str(output / 'w01-after-mobile.png'), full_page=False)
                 page.get_by_label('담당자 필터').select_option('우영')
