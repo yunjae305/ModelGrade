@@ -54,3 +54,21 @@ def test_analyze_runs_on_a_real_question_set_with_the_check_tool_rules(tmp_path)
     assert result["questions"] >= 1 and result["targets"] > 50 and result["minimum"][0]["k"] == 1
     assert "3-2.declared_count" not in result["available"] and "J5-3.a" not in result["available"]   # 답변으로만 정해지는 항목은 세지 않음
     assert "질문" in mq.render(result)
+
+
+def test_unit_verdicts_use_detailed_kinds_and_semantic_items():
+    """부트스트랩도 적용 수 분석과 같은 세부 기준 단위 — CODE 는 '검사:종류', 의미 평가는 점검 항목 (펼친 요소는 하나라도 NO 면 FAIL)."""
+    case = {"case_status": "EVALUATED", "results": [
+        {"area": "common", "counted": True, "check_id": "2-1.count:sentence_count", "verdict": "FAIL"},
+        {"area": "common", "counted": True, "check_id": "1-1.response_nonempty", "verdict": "PASS"}]}
+    record = {"decisions": {"J2": {"decision": "FAIL", "subs": {"J2-2": {"items": [
+        {"id": "J2-2.a#1", "item_id": "J2-2.a", "decision": "YES"}, {"id": "J2-2.a#2", "item_id": "J2-2.a", "decision": "NO"},
+        {"id": "J2-3.a", "decision": "NOT_APPLICABLE"}]}}}, "J1": {"decision": "PASS"}}}
+    data = mq.unit_verdicts({"evaluations": {"gpt": {"cases": [case], "jev_eval": {"records": [record]}}}})
+    assert data["gpt"]["질문#1"] == {"2-1.count:sentence_count": "FAIL", "1-1.response_nonempty": "PASS", "J2-2.a": "FAIL", "J1": "PASS"}
+
+
+def test_greedy_result_is_labelled_as_an_upper_bound():
+    order, targets = ["a", "b", "c"], {"a": {1, 2, 3, 4}, "b": {1, 2, 5}, "c": {3, 4, 6}}
+    result = mq.greedy_multicover(order, targets, [1, 2, 3, 4, 5, 6], 1)
+    assert result["questions"] >= 2   # 정확한 최소는 2(b·c) — 탐욕은 3을 고를 수 있어 근사로만 표기한다

@@ -286,3 +286,50 @@ def test_per_target_adds_questions_for_criteria_below_the_target(tmp_path):
     assert any(":" in line.split(" · ")[0] for line in low.splitlines())   # 세부 조건('검사:종류')을 노린다
     assert result["extra_rounds"] <= qg.MAX_EXTRA_ROUNDS and len(result["groups"]) > 4
     assert all(n >= 0 for n in qg.target_counts(result["check"]).values())
+
+
+def test_service_rejects_dedicated_counts_that_exhaust_the_cap(tmp_path):
+    """전용 단계 수의 합이 상한(질문 수, 없으면 MAX_PLAN_QUESTIONS)에 닿으면 거절 — 다른 항목에 쓸 질문이 남아야 한다 (Codex 리뷰)."""
+    service = qg.QuestionSetService(lambda: {"key": "k", "model": "gpt-test"}, store=tmp_path, llm_factory=lambda config, usage: FakeGPT())
+    for bad in ({"per_target": 1, "multi_turn_conversations": 300, "long_context_questions": 300},
+                {"target_questions": 10, "multi_turn_conversations": 5, "long_context_questions": 5}):
+        with pytest.raises(ValueError):
+            service.start(bad)
+    assert qg.split_counts(None, 500, 500, per_target=1) == (249, 250)   # 직접 부를 때도 상한 안으로 줄인다
+
+
+class FlakyMultiTurnGPT(DedicatedGPT):
+    """10턴 대화 요청의 처음 몇 번은 턴이 모자란 대화만 준다 — 전용 단계가 목표에 못 미치는 경우."""
+    def __init__(self, failures):
+        super().__init__()
+        self.failures = failures
+
+    def __call__(self, prompt, max_tokens):
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 10턴 대화를 설계") and self.failures > 0:
+            self.failures -= 1
+            self.prompts.append(prompt)
+            return json.dumps({"questions": [{"type": "멀티턴", "topic": "짧음", "turns": [{"question": "안녕"}, {"question": "다시"}]}]},
+                              ensure_ascii=False)
+        return super().__call__(prompt, max_tokens)
+
+
+def test_per_target_tops_up_j6_through_the_dedicated_step_and_reports_shortfalls(tmp_path):
+    """전용 단계가 처음에 10턴 대화를 못 만들어도, J6 항목이 목표에 못 미치면 전용 단계로 다시 만든다. 못 채운 기준은 숨기지 않는다."""
+    fake = FlakyMultiTurnGPT(failures=4)   # 첫 전용 단계(최대 4회 요청)는 전부 실패
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(per_target=1, long_context_count=0)
+    assert any("10턴 대화를 1개 중 0개만" in w for w in builder.warnings)
+    assert sum(1 for g in result["groups"] if len(g["turns"]) >= multi_turn.MIN_TURNS) >= 1
+    assert result["check"]["coverage"]["items"]["J6-1.a"] >= 1
+    assert isinstance(result["short"], dict)
+    if result["short"]:
+        assert any("채우지 못한 세부 기준" in w for w in builder.warnings)
+
+
+def test_dedicated_recovery_runs_before_general_questions_fill_the_cap(tmp_path):
+    """질문 수와 per_target 을 함께 줘도, 전용 단계가 처음에 실패하면 일반 질문이 자리를 다 쓰기 전에 다시 만든다 (Codex 리뷰 2회)."""
+    fake = FlakyMultiTurnGPT(failures=4)
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(target_questions=4, per_target=1, long_context_count=0)
+    assert len(result["groups"]) == 4
+    assert sum(1 for g in result["groups"] if len(g["turns"]) >= multi_turn.MIN_TURNS) >= 1 and result["check"]["coverage"]["items"]["J6-1.a"] >= 1

@@ -5,7 +5,8 @@
 
 1. 크기별 적용 수 — 세트를 앞에서부터 N개로 잘랐을 때 항목별 적용 질문 수와, k개 이상 적용된 항목 수.
    질문 생성기는 첫 묶음으로 모든 항목을 덮고 그 뒤 적용 질문이 적은 항목을 우선 노려 추가하므로, 앞에서 자른 세트도 의미가 있다.
-2. 최소 부분집합 — 항목마다 적용 질문이 k개 이상(세트에 그만큼 없으면 있는 만큼)이 되도록 고른 가장 작은 질문 수(탐욕 다중 덮개).
+2. 최소 부분집합(근사) — 항목마다 적용 질문이 k개 이상(세트에 그만큼 없으면 있는 만큼)이 되도록 탐욕 다중 덮개로 고른 질문 수.
+   탐욕 결과는 실제 최소보다 클 수 있다(상한). 정확한 최소가 필요하면 정수 계획 풀이기를 쓴다.
    세트에 k개가 없는 항목은 '병목'으로 따로 적고, 세트 안 출현 비율로 k개를 채우는 데 필요한 질문 수를 추정한다.
 3. 정밀도 기준 k — 통과율 p 를 95% 신뢰구간 반폭 h 로 재려면 항목마다 n = 1.96²·p(1-p)/h² 개가 필요하다. 이 n 을 k 로 쓴다.
 4. (선택) 평가 결과(--run, 저장된 비교 실행 JSON)가 있으면 질문 단위로 다시 뽑아(부트스트랩) 크기별로 항목 통과율의 신뢰구간 반폭과
@@ -30,9 +31,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS, check_items, load_items, unit_of  # noqa: E402
+from code_eval.semantic_quotes import _split_id  # noqa: E402
+from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS, KIND_UNIT, check_items, load_items, unit_of  # noqa: E402
 
-VERSION = "min-question-count-v2"   # v2: CODE 는 검사 단위가 아니라 세부 조건(검사:질문 조건 종류)으로 센다
+VERSION = "min-question-count-v3"   # v3: 부트스트랩도 세부 기준 단위 · 탐욕 결과는 근사로 표기 · v2: CODE 세부 조건으로 센다
 Z95 = 1.959964
 DEFAULT_K = (1, 5, 10, 30)
 DEFAULT_SIZES = (30, 50, 100, 150, 200, 300)
@@ -127,8 +129,10 @@ def greedy_multicover(order: List[str], targets: Dict[str, set], names: Sequence
 # --- 평가 결과가 있을 때: 크기별 부트스트랩 -------------------------------------------------------------
 
 def unit_verdicts(run: Dict[str, Any]) -> Dict[str, Dict[str, Dict[str, str]]]:
-    """저장된 비교 실행 → {모델: {질문 단위: {항목: PASS|FAIL}}}. CODE 검사는 결과 행(집계 대상)으로, 의미 평가는 기준 판정으로.
+    """저장된 비교 실행 → {모델: {질문 단위: {세부 기준: PASS|FAIL}}} — 적용 수 분석과 같은 단위로 (Codex 리뷰).
 
+    CODE 결과 행은 세부 조건('검사:종류')으로, 종류가 없는 행(모든 답변·답변 구조 검사)은 검사로. 의미 평가는 점검 항목
+    (decisions → subs → items, YES=PASS · NO=FAIL, 펼친 요소는 하나라도 NO 면 FAIL) — 항목 결과가 없는 옛 기록은 기준 판정으로.
     같은 단위(대화의 여러 턴)에서 한 번이라도 FAIL 이면 FAIL."""
     out: Dict[str, Dict[str, Dict[str, str]]] = {}
     for provider, batch in (run.get("evaluations") or {}).items():
@@ -145,12 +149,23 @@ def unit_verdicts(run: Dict[str, Any]) -> Dict[str, Dict[str, Dict[str, str]]]:
             for row in case.get("results") or []:
                 if row.get("area") != "common" or not row.get("counted") or row.get("verdict") not in ("PASS", "FAIL"):
                     continue
-                check = str(row.get("check_id") or "").split(":")[0]
-                if verdicts.get(check) != "FAIL":
-                    verdicts[check] = row["verdict"]
+                check, _, rest = str(row.get("check_id") or "").partition(":")
+                kind = rest.split(":")[0]
+                target = f"{check}:{kind}" if KIND_UNIT.get(kind) == check else check
+                if verdicts.get(target) != "FAIL":
+                    verdicts[target] = row["verdict"]
             record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
             for cid, decision in (record.get("decisions") or {}).items():
-                if isinstance(decision, dict) and decision.get("decision") in ("PASS", "FAIL"):
+                if not isinstance(decision, dict):
+                    continue
+                items = [item for sub in (decision.get("subs") or {}).values() if isinstance(sub, dict)
+                         for item in sub.get("items") or [] if isinstance(item, dict) and item.get("decision") in ("YES", "NO")]
+                if items:
+                    for item in items:
+                        base = item.get("item_id") or _split_id(item.get("id"))[0]
+                        if verdicts.get(base) != "FAIL":
+                            verdicts[base] = "PASS" if item["decision"] == "YES" else "FAIL"
+                elif decision.get("decision") in ("PASS", "FAIL"):
                     verdicts[cid] = decision["decision"]
             for target, verdict in verdicts.items():
                 if per_unit[unit].get(target) != "FAIL":
@@ -218,7 +233,7 @@ def analyze(items: List[Any], ks: Sequence[int] = DEFAULT_K, sizes: Sequence[int
         result = greedy_multicover(order, targets, names, k, turns)
         result.pop("chosen")
         covers.append(result)
-    out = {"version": VERSION, "questions": len(order), "turns": sum(turns.values()), "targets": len(names),
+    out = {"version": VERSION, "minimum_method": "greedy_upper_bound", "questions": len(order), "turns": sum(turns.values()), "targets": len(names),
            "answer_dependent": list(ANSWER_DEPENDENT) + list(ANSWER_DEPENDENT_ITEMS),
            "available": dict(sorted(available.items(), key=lambda kv: (kv[1], kv[0]))),
            "prefix": prefix_table(order, targets, names, sizes, ks), "minimum": covers,
@@ -236,7 +251,7 @@ def render(result: Dict[str, Any]) -> str:
         covered = " · ".join(f"k≥{k}: {n}/{row['targets']}" for k, n in row["covered"].items())
         lowest = ", ".join(f"{t}={n}" for t, n in row["lowest"][:5])
         lines.append(f"  {row['questions']:>4}개  최소 {row['min']:>3} · 중앙 {row['median']:>3} · {covered}  (가장 적음: {lowest})")
-    lines += ["", "[항목마다 k개 이상 적용되는 최소 질문 수 — 이 세트 안에서 고름]"]
+    lines += ["", "[항목마다 k개 이상 적용되는 질문 수 — 이 세트 안에서 탐욕 근사로 고름(실제 최소보다 클 수 있음)]"]
     for row in result["minimum"]:
         line = f"  k={row['k']:>3}: {row['questions']:>4}개 (턴 {row['turns']})"
         if row["short"]:

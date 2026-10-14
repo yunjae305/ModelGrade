@@ -362,12 +362,9 @@ def split_counts(target: Optional[int], multi_turn: Optional[int] = None, long_c
         return None, None
     m = (int(multi_turn) if multi_turn is not None else per_target if per_target else max(1, round(target * MULTI_TURN_RATIO)))
     l = (int(long_context) if long_context is not None else per_target if per_target else max(1, round(target * LONG_CONTEXT_RATIO)))
-    if not target:
-        if m < 0 or l < 0:
-            raise ValueError("10턴 대화 수·긴 문서 질문 수는 0 이상이어야 합니다.")
-        return m, l
     if m < 0 or l < 0:
         raise ValueError("10턴 대화 수·긴 문서 질문 수는 0 이상이어야 합니다.")
+    target = target or MAX_PLAN_QUESTIONS   # 질문 수 없이 per_target 만이면 전체 상한 안에서 (Codex 리뷰: 전용 단계가 상한을 우회했다)
     while m + l >= target and (m or l):   # 다른 항목에 쓸 질문을 1개 이상 남긴다 — 큰 쪽부터 줄인다
         if m >= l:
             m -= 1
@@ -562,6 +559,8 @@ class QuestionSetBuilder:
         self.calls = 0
         self.max_calls = MAX_CALLS
         self.shared_reference: Optional[str] = None   # 긴 문서 질문(J7)이 함께 쓰는 문서 — 한 번만 만든다
+        self.shared_spec: Optional[Dict[str, Any]] = None
+        self.shared_questions: List[str] = []
         self.long_references = 0
         self._calls_lock = threading.Lock()   # 긴 자료는 여러 스레드가 동시에 부른다
 
@@ -666,14 +665,15 @@ class QuestionSetBuilder:
     def long_context_questions(self, count: int, catalog: Dict[str, List[Dict[str, str]]], note: str, start: int) -> List[Dict[str, Any]]:
         """긴 문서 하나 + 그 문서를 함께 쓰는 단일 턴 질문 ``count`` 개 (J7). 문서를 못 만들면 경고만 남기고 빈 목록."""
         plans: List[Dict[str, Any]] = []
-        spec: Optional[Dict[str, Any]] = None
+        spec: Optional[Dict[str, Any]] = self.shared_spec   # 이미 만든 문서가 있으면 그 facts 로 질문만 더 만든다 (문서는 세트당 1개)
         rounds = 0
         while len(plans) < count and rounds < count // LONG_CONTEXT_BATCH + 3:
             rounds += 1
             want = min(LONG_CONTEXT_BATCH, count - len(plans))
             self.progress("long_context", {"message": f"긴 문서 질문 {want}개 계획 요청 (지금 {len(plans)}개 / {count}개)"})
             try:
-                value = _json_object(self._ask(long_context_prompt(want, catalog, note, spec, [p["turns"][0]["question"] for p in plans]), PLAN_TOKENS))
+                asked = self.shared_questions + [p["turns"][0]["question"] for p in plans]
+                value = _json_object(self._ask(long_context_prompt(want, catalog, note, spec, asked), PLAN_TOKENS))
                 if spec is None:
                     if not isinstance(value.get("long_reference"), dict):
                         raise GenerationError("긴 문서 명세(long_reference)가 없습니다.")
@@ -689,14 +689,17 @@ class QuestionSetBuilder:
         if not plans or spec is None:
             self.warnings.append("긴 문서 질문을 만들지 못했습니다 (J7).")
             return []
-        self.progress("long_context", {"message": "긴 문서 만드는 중 (조각 여러 개)"})
-        try:
-            self.shared_reference = self.long_reference(spec)
-        except Cancelled:
-            raise
-        except GenerationError as exc:
-            self.warnings.append(f"긴 문서를 만들지 못해 긴 문서 질문을 뺐습니다: {exc}")
-            return []
+        if self.shared_reference is None:
+            self.progress("long_context", {"message": "긴 문서 만드는 중 (조각 여러 개)"})
+            try:
+                self.shared_reference = self.long_reference(spec)
+            except Cancelled:
+                raise
+            except GenerationError as exc:
+                self.warnings.append(f"긴 문서를 만들지 못해 긴 문서 질문을 뺐습니다: {exc}")
+                return []
+            self.shared_spec = spec
+        self.shared_questions += [p["turns"][0]["question"] for p in plans]
         groups = []
         for plan in plans:
             plan["turns"][0]["shared_reference"] = True
@@ -748,6 +751,8 @@ class QuestionSetBuilder:
             self.max_calls = max(MAX_CALLS, 2 * MAX_PLAN_QUESTIONS + 150)
         multi_count, long_count = split_counts(target_questions, multi_turn_count, long_context_count, per_target)
         dedicated = multi_count is not None   # 질문 수를 지정하면 10턴 대화·긴 문서 질문을 전용 단계에서 정한 수만큼 먼저 만든다
+        # 세트 질문 수 상한 — 질문 수를 정했으면 그 수, per_target 만이면 MAX_PLAN_QUESTIONS. 전용·계획·보충·추가 모든 단계가 이 하나를 나눠 쓴다
+        cap = target_questions or (MAX_PLAN_QUESTIONS if per_target else None)
         general = general_catalog(catalog) if dedicated else catalog
         self.out_dir.mkdir(parents=True, exist_ok=True)
         groups: List[Dict[str, Any]] = []
@@ -756,10 +761,28 @@ class QuestionSetBuilder:
                 groups += self.long_context_questions(long_count, catalog, note, len(groups) + 1)
             if multi_count:
                 groups += self.multi_turn_conversations(multi_count, catalog, note, [g["topic"] for g in groups], len(groups) + 1)
+            # J6·J7 부족분은 일반 질문이 자리를 채우기 전에 전용 단계로 다시 만든다 — 일반 계획은 J6·J7 을 만들지 않으므로 지금 센 수가 끝까지
+            # 같다 (Codex 리뷰 2회: 뒤에서 채우면 일반 질문이 상한을 다 써 버려 복구가 돌지 못했다)
+            for _ in range(3):
+                if not per_target or not cap or cap - len(groups) <= 1:   # 다른 항목에 쓸 질문 1개는 남긴다
+                    break
+                full = target_counts(check(groups)) if groups else {}
+                need = {prefix: max(0, per_target - min((n for i, n in full.items() if i.startswith(prefix)), default=0))
+                        for prefix in DEDICATED_ITEMS}
+                if (multi_count == 0 and long_count == 0) or not ((need["J6-"] and multi_count) or (need["J7-"] and long_count)):
+                    break
+                before = len(groups)
+                if need["J7-"] and long_count:   # 사용자가 0 으로 정한 단계는 다시 돌리지 않는다
+                    groups += self.long_context_questions(min(need["J7-"], cap - len(groups) - 1), catalog, note, len(groups) + 1)
+                if need["J6-"] and multi_count and cap - len(groups) > 1:
+                    groups += self.multi_turn_conversations(min(need["J6-"], cap - len(groups) - 1), catalog, note,
+                                                            [g["topic"] for g in groups], len(groups) + 1)
+                if len(groups) == before:
+                    break
         rounds = 0
 
-        def budget() -> Optional[int]:   # 목표 질문 수까지 남은 수 — 계획·보충 단계마다 만들기 전에 제한한다 (Codex 리뷰: 사후 경고로는 비용을 못 막음)
-            return None if not target_questions else max(0, target_questions - len(groups))
+        def budget() -> Optional[int]:   # 상한까지 남은 수 — 계획·보충 단계마다 만들기 전에 제한한다 (Codex 리뷰: 사후 경고로는 비용을 못 막음)
+            return None if not cap else max(0, cap - len(groups))
 
         def general_only(plans: List[Dict[str, Any]]) -> List[Dict[str, Any]]:   # 전용 단계가 있으면 일반 계획의 긴 자료는 쓰지 않는다 (세트당 1개)
             if dedicated and any(t.get("long_reference") for p in plans for t in p["turns"]):
@@ -768,7 +791,7 @@ class QuestionSetBuilder:
 
         self.progress("plan", {"message": "GPT 가 질문 계획을 쓰는 중"})
         # 첫 계획은 PLAN_BATCH 개까지 — 모든 항목을 덮게 하고, 나머지는 아래 '질문 추가'가 PLAN_BATCH 개씩 채운다
-        first = min(budget(), PLAN_BATCH) if target_questions else None
+        first = min(budget(), PLAN_BATCH) if cap else None
         if first == 0:   # 전용 단계만으로 목표 수를 채움
             plans = []
         else:
@@ -780,7 +803,7 @@ class QuestionSetBuilder:
 
         while True:
             if budget() is not None and len(plans) > budget():
-                self.warnings.append(f"목표 질문 수 {target_questions}개를 넘는 계획 질문 {len(plans) - budget()}개는 만들지 않았습니다.")
+                self.warnings.append(f"질문 수 상한 {cap}개를 넘는 계획 질문 {len(plans) - budget()}개는 만들지 않았습니다.")
                 plans = plans[:budget()]
             for plan in plans:
                 self.progress("materialize", {"message": f"질문 {len(groups) + 1} 만드는 중 (첨부·긴 자료)", "done": len(groups)})
@@ -797,7 +820,7 @@ class QuestionSetBuilder:
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
                 break
             if budget() == 0:   # 지정한 수 안에 모든 항목을 덮지 못함 — 더 만들지 않고 빠진 것을 보고한다
-                self.warnings.append(f"목표 질문 수 {target_questions}개 안에 모든 항목을 덮지 못했습니다 — 빠진 항목: {', '.join(missing) or '없음'}"
+                self.warnings.append(f"질문 수 {cap}개 안에 모든 항목을 덮지 못했습니다 — 빠진 항목: {', '.join(missing) or '없음'}"
                                      + (f", 빠진 첨부 종류: {', '.join(missing_types)}" if missing_types else ""))
                 break
             rounds += 1
@@ -823,10 +846,10 @@ class QuestionSetBuilder:
         def more() -> bool:
             if target_questions:
                 return len(groups) < target_questions
-            return bool(per_target) and short() > 0 and len(groups) < MAX_PLAN_QUESTIONS
+            return bool(per_target) and short() > 0 and bool(budget())
 
         while more() and extra_rounds < MAX_EXTRA_ROUNDS:
-            limit = (target_questions or MAX_PLAN_QUESTIONS) - len(groups)
+            limit = budget() or 0
             # 질문 하나가 기준 여러 개(평균 약 3개)에 적용되므로 모자란 수의 3분의 1 정도씩 — 목표 질문 수가 있으면 그 수까지
             count = min(PLAN_BATCH, limit) if target_questions else min(PLAN_BATCH, limit, max(5, math.ceil(short() / 3)))
             before = len(groups)
@@ -857,10 +880,14 @@ class QuestionSetBuilder:
                 break
             if len(groups) == before:   # 이번 회차에 하나도 못 만듦 — 같은 요청을 되풀이하지 않는다
                 break
+        short_targets = ({t: n for t, n in target_counts(report).items() if n < per_target} if per_target else {})
+        if short_targets:   # 상한·실패로 다 채우지 못한 기준 — 숨기지 않고 알린다
+            self.warnings.append(f"기준마다 {per_target}개 적용을 채우지 못한 세부 기준 {len(short_targets)}개: "
+                                 + ", ".join(f"{t}={n}" for t, n in sorted(short_targets.items(), key=lambda x: (x[1], x[0]))[:40]))
         if target_questions and len(groups) != target_questions:
             self.warnings.append(f"목표 질문 수 {target_questions}개와 달리 {len(groups)}개를 만들었습니다"
                                  + (" (모든 항목을 덮는 데 더 필요했습니다)." if len(groups) > target_questions else "."))
-        return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds}
+        return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds, "short": short_targets}
 
 
 def target_counts(report: Dict[str, Any], dedicated: bool = False) -> Dict[str, int]:
@@ -981,6 +1008,9 @@ class QuestionSetService:
                 raise ValueError("10턴 대화·긴 문서 질문 수는 세트 질문 수(target_questions)나 per_target 을 정했을 때만 지정할 수 있습니다.")
             else:
                 counts[key] = value
+        limit = target or MAX_PLAN_QUESTIONS
+        if sum(v for v in counts.values() if v) >= limit:   # 다른 항목에 쓸 질문이 1개 이상 남아야 한다 (Codex 리뷰: 상한 우회)
+            raise ValueError(f"10턴 대화 수와 긴 문서 질문 수의 합은 {limit}개보다 작아야 합니다.")
         weak_from = payload.get("weak_from_run") or None   # 앞선 실행에서 모두 PASS 한 단위에 더 어려운 질문을 요구
         weak_units: List[Dict[str, str]] = []
         if weak_from:
