@@ -1004,7 +1004,7 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
 QUESTION_INPUT_VERSION = "question-input-v1"
-# 고정 질문 세트 (사용자 결정 2026-10-14) — tools/build_fixed_sets.py 가 공개 세트 IFEval-Ko·KoMT-Bench 에서만 고른 세트
+# 고정 질문 세트 (사용자 결정 2026-10-14) — tools/build_fixed_sets.py 가 공개 세트를 먼저, 빈 기준만 우리 질문으로 고른 간단 50·정밀 300문항
 FIXED_SET_VERSION = "fixed-set-v1"
 FIXED_SETS = ROOT / "examples" / "fixed_sets"
 FIXED_KINDS = ("simple", "precise")
