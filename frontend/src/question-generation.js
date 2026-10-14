@@ -99,7 +99,7 @@
     pill.className = 'pill ' + tone;
     const running = set?.status === 'RUNNING';
     if (panel === GEN) {
-      ['question-set-simple', 'question-set-precise'].forEach((id) => { if ($(id)) $(id).disabled = running || Boolean(GEN.starting); });
+      updateBusy(GEN);
       $('question-set-cancel').hidden = !running;
     }
     showError(set?.status === 'ERROR' ? '질문 세트를 만들지 못했습니다: ' + (set.error || '알 수 없는 오류') : '', panel);
@@ -202,11 +202,19 @@
     if (['COLLECTING', 'EVALUATING'].includes(run.status)) panel.timer = setTimeout(() => pollRun(panel), 2000);
   }
 
-  // 수집 시작 — 실패했거나 아직 시작하지 않은 세트도 같은 세트로. 시작하는 동안은 그 패널의 다른 시작·새 세트를 막는다(유료 실행이 겹치지 않게, Codex)
-  async function startCollection(panel, setId = panel.current?.id) {
-    if (!setId || panel.starting) return;
+  // 패널의 바쁨 — 세트 만들기·질문 넣기·수집 시작 중이면 그 패널의 시작 버튼(간단·정밀 평가, 질문 넣기)을 끈다 (Codex: 한곳에서 켜고 끈다)
+  function updateBusy(panel) {
+    const busy = Boolean(panel.starting) || panel.current?.status === 'RUNNING';
+    const ids = panel === GEN ? ['question-set-simple', 'question-set-precise'] : ['question-input-submit'];
+    ids.forEach((id) => { if ($(id)) $(id).disabled = busy; });
+  }
+
+  // 수집 시작 — 실패했거나 아직 시작하지 않은 세트도 같은 세트로. 시작하는 동안은 그 패널의 다른 시작·새 세트를 막는다(유료 실행이 겹치지 않게, Codex).
+  // owner: 세트를 만든 쪽(startFixed·submitQuestions)이 이미 패널을 잡고 있으면 그 표시를 이어받는다
+  async function startCollection(panel, setId = panel.current?.id, owner = null) {
+    if (!setId || (panel.starting && panel.starting !== owner)) return;
     panel.starting = setId;
-    fillRun(panel);
+    fillRun(panel); updateBusy(panel);
     try {
       const set = await api(`/api/comparison/question-sets/${encodeURIComponent(setId)}/run`, {});
       if (panel.current?.id === setId) render(set, panel);
@@ -214,7 +222,7 @@
       if (panel.current?.id === setId) showError('답변 수집을 시작하지 못했습니다: ' + error.message, panel);
     } finally {
       if (panel.starting === setId) panel.starting = null;
-      fillRun(panel);
+      fillRun(panel); updateBusy(panel);
     }
   }
 
@@ -234,16 +242,17 @@
     if (GEN.starting) return;
     showError('', GEN);
     touched = true;
-    const buttons = ['question-set-simple', 'question-set-precise'].map($).filter(Boolean);
-    buttons.forEach((b) => { b.disabled = true; });
+    const owner = 'create:' + kind;   // 세트를 만드는 동안에도 패널을 잡아 예전 세트의 수집 버튼이 눌리지 않게 (Codex)
+    GEN.starting = owner; fillRun(GEN); updateBusy(GEN);
     try {
       const set = await api('/api/comparison/question-sets/fixed', {kind});
       render(set, GEN);
-      await startCollection(GEN, set.id);
+      await startCollection(GEN, set.id, owner);
     } catch (error) {   // 켜져 있는 서버가 고정 세트 기능 전 코드면 404 — 무엇을 해야 하는지 알려 준다
       showError(error.status === 404 ? '서버가 고정 질문 기능을 넣기 전 코드로 켜져 있습니다. python run.py 를 다시 시작해 주세요.' : error.message, GEN);
     } finally {
-      buttons.forEach((b) => { b.disabled = false; });
+      if (GEN.starting === owner) GEN.starting = null;
+      fillRun(GEN); updateBusy(GEN);
     }
   }
 
@@ -297,15 +306,18 @@
     }
     if (INPUT.starting) return showError('답변 수집을 시작하는 중입니다. 끝난 뒤 다시 넣어 주세요.', INPUT);
     touched = true;
-    const button = $('question-input-submit');
-    button.disabled = true;
+    const owner = 'import';   // 질문을 넣는 동안에도 패널을 잡는다 (Codex)
+    INPUT.starting = owner; fillRun(INPUT); updateBusy(INPUT);
     try {   // 질문을 넣고 바로 답변 수집 — 평가는 모두 받은 뒤 '평가 진행'으로 (사용자 요청 2026-10-14)
       const set = await api('/api/comparison/question-sets/import', payload);
       render(set, INPUT);
-      await startCollection(INPUT, set.id);
+      await startCollection(INPUT, set.id, owner);
     }
     catch (error) { showError(error.message, INPUT); }
-    finally { button.disabled = false; }
+    finally {
+      if (INPUT.starting === owner) INPUT.starting = null;
+      fillRun(INPUT); updateBusy(INPUT);
+    }
   }
 
   $('question-set-simple').addEventListener('click', () => startFixed('simple'));
