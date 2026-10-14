@@ -121,12 +121,13 @@
     const s = set.summary || {};
     const meta = twoStep(set) ? null : `난도 쉬움 ${s.difficulty?.['쉬움'] ?? 0} · 보통 ${s.difficulty?.['보통'] ?? 0} · 어려움 ${s.difficulty?.['어려움'] ?? 0}`
       + (set.target_questions ? ` · 목표 질문 수 ${set.target_questions}` : '') + ((set.weak_units || []).length ? ` · 변별력 보강 ${set.weak_units.length}개 항목` : '');
+    const details = !fixed(set);   // 고정 질문 세트는 요약 칸·질문 목록을 보이지 않고 수집·평가 진행만 (사용자 요청 2026-10-14)
     body.append(...[   // null 은 글자로 붙지 않게 뺀다
-      node('dl', {class: 'dataset-stats', 'aria-label': '질문 세트 요약'},
+      details ? node('dl', {class: 'dataset-stats', 'aria-label': '질문 세트 요약'},
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
-        stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
-      coverageSummary(set.coverage, meta, !imported(set)),   // 직접 넣은 질문은 빠진 항목 목록을 보이지 않는다
-      reviewBox(set),
+        stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)) : null,
+      details ? coverageSummary(set.coverage, meta, !imported(set)) : null,   // 직접 넣은 질문은 빠진 항목 목록을 보이지 않는다
+      details ? reviewBox(set) : null,
       set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
       twoStep(set) ? runBox(panel) : null,
       node('div', {class: 'question-set-footer'}, generationLog(set),
