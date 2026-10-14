@@ -109,7 +109,7 @@ def main():
                 expect(page.locator('#history-body tr')).to_have_count(4)
                 page.locator('#history-search').fill(source['run_id'])
                 expect(page.locator('#history-body tr')).to_have_count(1)
-                page.locator('#history-body').get_by_role('button', name='상세 보기', exact=True).click()
+                page.locator('#history-body').get_by_role('button', name='기록 정보', exact=True).click()
                 expect(page.locator('#history-detail-dialog')).to_contain_text('저장된 원문')
                 expect(page.locator('#history-detail-dialog')).to_contain_text('평가 조건')
                 # a90b6be 가 작업 이력(관련 작업 이력·작업 이력 탭·activity-history API)을 없앴다 — 같은 정보는 아래 버전 상세의 변경 기록에서 본다

@@ -114,7 +114,7 @@ def main():
                 page.locator('#saved-results-button').click()
                 expect(page.locator('#view-history')).to_be_visible()
                 assert page.evaluate("sessionStorage.getItem('aiona-workspace-view')") == 'history'
-                page.locator('#history-body tr').filter(has_text=seed['name']).get_by_role('button', name='상세 보기', exact=True).click()
+                page.locator('#history-body tr').filter(has_text=seed['name']).get_by_role('button', name='기록 정보', exact=True).click()
                 expect(page.locator('#history-detail-dialog')).to_be_visible()
                 page.locator('#history-detail-dialog').get_by_role('button', name='저장된 평가 결과 열기', exact=True).click()
                 expect(page.locator('#final-summary')).to_be_visible()

@@ -201,6 +201,18 @@
     return section;
   }
 
+  // J5 확인한 답변 부분 → 출처 문구 한 줄씩 — PASS·FAIL 모두 '어느 부분을 무엇과 대조했는지' 보이게 (사용자 요청 2026-10-14)
+  const CLAIM_VERDICT = {SUPPORTED: '출처와 일치', CONTRADICTED: '출처와 다름', UNVERIFIED: '출처 문구 재확인 못 함', PASS: '출처와 일치', FAIL: '출처와 다름'};
+  function claimLines(decision, make) {
+    const claims = decision?.fact_check?.claims || decision?.policy_original_assessment?.fact_check?.claims || [];
+    return claims.slice(0, 8).map((c) => {
+      const src = (c.sources || [])[0];
+      return make('p', {class: 'hint field-help', text: `답변 "${c.claim}" → ${CLAIM_VERDICT[c.verdict] || c.verdict || '판정 없음'}`
+        + (src ? ` · 출처: ${src.title || src.url}${src.quote ? ` "${src.quote}"` : ''}` : '')
+        + (src && src.quote_verified === false ? ' (서버가 출처 페이지 본문에서 이 문구를 다시 찾지 못함)' : '')});
+    });
+  }
+
   function semanticEvidence(record, make) {
     if (!record) return null;
     const decisions = record.decisions || {}, j5 = decisions.J5, j6 = decisions.J6, verification = record.verification;
@@ -225,6 +237,7 @@
       box.append(make('div', {class: failed ? 'semantic-policy-failure' : 'semantic-policy-pass',
         [sourceFailure ? 'data-source-policy-detail' : 'data-evidence-policy-detail']: ''},
         make('strong', {text: `${id} ${decision.decision} · ` + (sourceFailure ? '출처 원문 확인 실패' : failed ? '검증 기준 미충족' : '제공 자료 대조 완료')}),
+        decision.model_original_assessment?.reason ? note('평가 모델 판단: ' + decision.model_original_assessment.reason) : null,
         note(decision.reason || '최종 검증 기준에 따라 판정했습니다.'),
         failed ? note(prior.reason ? '구체 사유: ' + prior.reason : '평가자가 남긴 구체 사유가 없습니다.') : null,
         failed ? note('근거 검증 기준 미충족에 따른 FAIL입니다. 주장 자체의 오류를 확정한 것은 아닙니다.') : null));
@@ -620,7 +633,7 @@
   }
   const api = {incompleteReason, caseState, semanticState, modelSummary, runSummary, finalSummary, questionOutcome, questionMatches, comparisonCriteria, criterionSummary,
     resolvedCase, resolvedBatch, safeHttpUrl, semanticEvidence, semanticEngineLabel, evidenceNotice, processingProgress, settledRate, conciseReason,
-    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly, attachmentImageNote};
+    questionUnits, j5Detail, j5Breakdown, verificationLimited, limitedOnly, attachmentImageNote, claimLines};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.AionaResults = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
