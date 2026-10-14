@@ -141,6 +141,8 @@ class Handler(BaseHTTPRequestHandler):
             questions = self.server.question_service
             if len(parts) == 4:
                 return self.respond(200, questions.status(parts[3]))
+            if len(parts) == 5 and parts[4] == 'questions':   # 평가 시작 전에 화면에서 확인할 질문 목록
+                return self.respond(200, questions.preview(parts[3]))
             if len(parts) == 5 and parts[4] == 'download':
                 body = json.dumps(questions.dataset(parts[3]), ensure_ascii=False, indent=1).encode()
                 return self.respond(200, body, 'application/json; charset=utf-8',

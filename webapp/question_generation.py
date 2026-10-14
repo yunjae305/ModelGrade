@@ -974,7 +974,9 @@ class QuestionSetService:
         if not config:
             raise ValueError("GPT 연결 설정(OPENAI_API_KEY·OPENAI_MODEL)이 없어 질문을 만들 수 없습니다.")
         note = payload.get("note") if isinstance(payload.get("note"), str) else ""
-        auto_run = payload.get("auto_run", True) is not False   # 만든 뒤 바로 답변 수집·평가 (사용자 요청 2026-10-14)
+        # 기본은 만들기만 — 사용자가 화면에서 질문을 확인한 뒤 '평가 시작'(start_run)으로 수집·평가 (사용자 결정 2026-10-14,
+        # 그 전에는 만든 뒤 바로 수집·평가). auto_run=true 를 직접 보내면 예전처럼 바로 이어서 한다
+        auto_run = payload.get("auto_run") is True
         target = payload.get("target_questions")   # 세트 전체 질문 수(대화 1개 = 1개) — 비우면 가능한 한 적게 (사용자 결정 2026-10-14)
         if target in (None, ""):
             target = None
@@ -1100,6 +1102,19 @@ class QuestionSetService:
         if target.get("run_error"):
             raise ValueError(target["run_error"])
         return self.status(set_id) if live is not None else target
+
+    def preview(self, set_id: str) -> List[Dict[str, Any]]:
+        """화면에서 확인할 질문 목록 — 질문 원문은 그대로, 긴 참조 자료 본문·첨부 내용은 빼고 글자 수·파일 이름만."""
+        rows = []
+        for group in self.dataset(set_id):
+            turns = []
+            for turn in group.get("turns") or []:
+                ref = turn.get("reference")
+                size = len(ref) if isinstance(ref, str) else (len(json.dumps(ref, ensure_ascii=False)) if ref else 0)
+                turns.append({"question": str(turn.get("question") or ""), "reference_chars": size,
+                              "attachments": [str(a.get("name")) for a in turn.get("attachments") or [] if isinstance(a, dict)]})
+            rows.append({**{key: group.get(key) for key in ("id", "type", "topic", "difficulty", "trap", "target_items")}, "turns": turns})
+        return rows
 
     def files_dir(self, set_id: str) -> Path:
         return self._path(set_id) / "files"

@@ -105,6 +105,10 @@ def test_service_runs_one_job_at_a_time_and_serves_the_set_and_files(tmp_path):
             break
         time.sleep(0.1)
     assert status["status"] == "COMPLETED" and status["summary"]["attachments"] == 1 and status["summary"]["conversations"] == 1
+    assert status["auto_run"] is False and status["run_id"] is None   # 기본은 만들기만 — 질문을 확인한 뒤 평가 시작
+    preview = service.preview(started["id"])
+    assert preview[1]["turns"][0]["attachments"] == ["견적서.pdf"] and "content" not in json.dumps(preview[1], ensure_ascii=False)
+    assert preview[2]["turns"][0]["reference_chars"] > 0 and "서면으로 통보한다" not in json.dumps(preview[2], ensure_ascii=False)   # 긴 자료 본문은 빼고 글자 수만
     dataset = service.dataset(started["id"])
     name = dataset[1]["turns"][0]["attachments"][0]["path"]
     body, kind = service.file(started["id"], name)

@@ -1,5 +1,6 @@
-/* 질문 생성 후 평가 — 버튼 하나로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문과 첨부파일을 만들고
-   바로 답변 수집·평가까지 잇는다 (사용자 결정 2026-10-13·14, 화면에는 선택 사항 없음 — 질문 수·변별력 보강은 API 인자). 서버: /api/comparison/question-sets */
+/* 질문 생성 후 평가 — '질문 생성' 버튼으로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문과 첨부파일을 만들고,
+   사용자가 만든 질문을 확인한 뒤 '평가 시작'을 눌러야 답변 수집·평가를 시작한다 (사용자 결정 2026-10-14 — 그 전에는 생성 직후 자동으로 이어졌다).
+   화면에는 선택 사항 없음 — 질문 수·변별력 보강은 API 인자. 서버: /api/comparison/question-sets */
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -8,6 +9,7 @@
   const {api, node} = W;
   const STATUS = {RUNNING: ['만드는 중', 'warning'], COMPLETED: ['완료', 'success'], ERROR: ['실패', 'danger'], CANCELLED: ['중단', 'neutral']};
   let current = null, timer = null, touched = false;   // touched: 사용자가 시작·수집을 누른 뒤에는 늦게 온 첫 목록 응답을 쓰지 않는다
+  const previews = new Map();   // 세트 ID → 확인용 질문 목록 (한 번만 받아 온다)
 
   function showError(message) {
     const box = $('question-set-error');
@@ -47,6 +49,38 @@
       warnings.length ? node('ul', {class: 'question-set-warnings'}, warnings.slice(0, 20).map((w) => node('li', {text: w}))) : null);
   }
 
+  // 만든 질문 확인 — 질문마다 유형·난도·턴 원문·첨부 이름·긴 자료 글자 수·노리는 항목·함정. 평가 시작 전에 펼쳐 둔다
+  function questionRow(q) {
+    const turns = q.turns || [];
+    return node('li', {class: 'question-set-question'},
+      node('div', {class: 'question-set-question-head'},
+        node('span', {class: 'question-set-qid', text: 'Q' + String(q.id ?? '').padStart(3, '0')}),
+        node('strong', {text: q.topic || q.type || '질문'}),
+        q.type ? node('span', {class: 'question-set-tag', text: q.type}) : null,
+        q.difficulty ? node('span', {class: 'question-set-tag', text: q.difficulty}) : null,
+        turns.length > 1 ? node('span', {class: 'question-set-tag', text: `${turns.length}턴 대화`}) : null),
+      node('ol', {class: 'question-set-turns'}, turns.map((t, i) => node('li', {},
+        turns.length > 1 ? node('span', {class: 'question-set-turn-no', text: `T${i + 1}`}) : null,
+        node('div', {class: 'question-set-turn-text'},
+          node('p', {text: t.question}),
+          (t.attachments || []).length ? node('p', {class: 'field-help', text: '첨부: ' + t.attachments.join(', ')}) : null,
+          t.reference_chars ? node('p', {class: 'field-help', text: `긴 참조 자료 ${Number(t.reference_chars).toLocaleString('ko-KR')}자 함께 보냄`}) : null)))),
+      (q.target_items || []).length ? node('p', {class: 'question-set-items', text: '노리는 항목 ' + q.target_items.join(' · ')}) : null,
+      q.trap ? node('p', {class: 'question-set-trap', text: '함정 ' + q.trap}) : null);
+  }
+
+  function reviewBox(set) {
+    const box = node('details', {class: 'question-set-review', open: ''},
+      node('summary', {text: set.run_id ? '만든 질문 보기' : '만든 질문 확인 — 확인한 뒤 평가 시작을 누르세요'}),
+      node('p', {class: 'field-help', role: 'status', text: '질문 목록을 불러오는 중'}));
+    const fill = (rows) => box.replaceChildren(box.firstChild, node('ol', {class: 'question-set-questions'}, rows.map(questionRow)));
+    if (previews.has(set.id)) fill(previews.get(set.id));
+    else api(`/api/comparison/question-sets/${encodeURIComponent(set.id)}/questions`)
+      .then((rows) => { previews.set(set.id, rows); fill(rows); })
+      .catch((error) => box.replaceChildren(box.firstChild, node('p', {class: 'question-set-missing', text: '질문 목록을 불러오지 못했습니다: ' + error.message})));
+    return box;
+  }
+
   function render(set) {
     current = set;
     const [label, tone] = STATUS[set?.status] || ['대기', 'neutral'];
@@ -73,13 +107,14 @@
         stat('독립 질문·대화', s.questions), stat('단일 질문', s.single_questions), stat('멀티턴 대화', s.conversations),
         stat('턴', s.turns), stat('첨부파일', s.attachments), stat('긴 참조 자료', s.long_references)),
       coverageSummary(set.coverage, meta),
+      reviewBox(set),
       set.run_error ? node('p', {class: 'question-set-missing', text: '답변 수집을 시작하지 못했습니다: ' + set.run_error}) : null,
       node('div', {class: 'question-set-footer'}, generationLog(set),
         node('div', {class: 'question-set-actions'},
           node('a', {class: 'button secondary compact', href: `/api/comparison/question-sets/${encodeURIComponent(set.id)}/download`, download: ''}, '질문 세트 JSON 내려받기'),
           set.run_id
             ? node('button', {class: 'button primary compact', type: 'button', onclick: () => W.openRun(set.run_id)}, '답변 수집·평가 진행 보기')
-            : node('button', {class: 'button primary compact', type: 'button', onclick: runSet}, '이 질문 세트로 답변 수집·평가')))].filter(Boolean));
+            : node('button', {class: 'button primary compact', type: 'button', onclick: runSet}, '평가 시작')))].filter(Boolean));
   }
 
   async function poll() {
@@ -93,12 +128,12 @@
     if (current?.status === 'RUNNING') timer = setTimeout(poll, 2000);
   }
 
-  async function start() {   // 버튼 하나 — 생성 → 수집 → 평가까지 바로 (사용자 결정 2026-10-14: 선택 사항·조정 없이)
-    if (!window.confirm('GPT 질문 생성(계획 1회 + 긴 자료 수십 회 + 보충 최대 2회) → AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집 → 평가 모델 호출까지 이어서 진행합니다. 시작할까요?')) return;
+  async function start() {   // 질문만 만든다 — 수집·평가는 사용자가 질문을 확인한 뒤 '평가 시작'으로 (사용자 결정 2026-10-14)
+    if (!window.confirm('GPT로 질문을 만듭니다(계획 1회 + 긴 자료 수십 회 + 보충). 답변 수집·평가는 만든 질문을 확인한 뒤 평가 시작을 눌러야 시작합니다. 만들까요?')) return;
     showError('');
     touched = true;
     try {
-      render(await api('/api/comparison/question-sets', {auto_run: true}));
+      render(await api('/api/comparison/question-sets', {auto_run: false}));
       poll();
     } catch (error) {
       showError(error.message);
@@ -107,7 +142,8 @@
 
   async function runSet() {
     if (!current) return;
-    if (!window.confirm('AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가 모델 호출이 발생합니다. 시작할까요?')) return;
+    const s = current.summary || {};
+    if (!window.confirm(`질문 ${s.questions ?? '?'}개(턴 ${s.turns ?? '?'}개)로 AIONA(웹)·GPT·Claude·Gemini(API) 답변 수집과 평가 모델 호출을 시작합니다. 유료 호출이 발생합니다. 시작할까요?`)) return;
     try { render(await api(`/api/comparison/question-sets/${encodeURIComponent(current.id)}/run`, {})); }
     catch (error) { showError(error.message); }
   }
