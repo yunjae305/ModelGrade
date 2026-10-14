@@ -166,9 +166,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.version_comparison(query.get('baseline'), query.get('target')))
         if path == '/api/comparison/aiona-history':
             return self.respond(200, service.aiona_history())
-        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
+        if path == '/api/comparison/aiona-web':   # 연결된 모델 — AIONA 웹브라우저 수집 준비 상태 (로그인 정보 값은 내보내지 않음)
             from .aiona_web import login_status
             return self.respond(200, login_status())
+        if path == '/api/comparison/web-models':   # 연결된 모델 — 웹브라우저로 답을 받는 모델들 (로그인 정보 유무만)
+            from .aiona_web import login_status as aiona_status
+            from .factchat_web import login_status as factchat_status
+            from .oosoo_web import login_status as oosoo_status
+            return self.respond(200, [{"id": "aiona", "env_keys": "AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD", **aiona_status()},
+                                      {"id": "factchat_web", "env_keys": "FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD", **factchat_status()},
+                                      {"id": "oosoo_web", "env_keys": "OOSOO_LOGIN_ID · OOSOO_LOGIN_PASSWORD", **oosoo_status()}])
         if path == '/api/comparison/auto-collection':
             return self.respond(200, service.auto_collection_status())
         if len(parts) >= 4 and parts[2] == 'runs':

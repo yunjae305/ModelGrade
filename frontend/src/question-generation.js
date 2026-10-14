@@ -1,7 +1,7 @@
 /* 새 비교의 두 가지 질문 준비 (사용자 결정 2026-10-14)
    - 질문 생성 후 평가: '질문 생성' 버튼으로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문과 첨부파일을 만든다.
    - 질문 직접 넣기: 직접 입력하거나 질문 파일을 올린다(답변 없이 질문만, 모델 호출 없음).
-   어느 쪽이든 만든 질문을 확인한 뒤 '평가 시작'을 눌러야 AIONA(웹페이지 자동화)·GPT·Claude·Gemini(API) 답변 수집과 평가를 시작한다.
+   어느 쪽이든 만든 질문을 확인한 뒤 '평가 시작'을 눌러야 AIONA(웹브라우저)·GPT·Claude·Gemini(API) 답변 수집과 평가를 시작한다.
    화면에는 생성 선택 사항 없음 — 질문 수·변별력 보강은 API 인자. 서버: /api/comparison/question-sets */
 (() => {
   'use strict';
@@ -173,7 +173,7 @@
     const set = panel.current;
     if (!set) return;
     const s = set.summary || {};
-    if (!window.confirm(`질문 ${s.questions ?? '?'}개(턴 ${s.turns ?? '?'}개)로 AIONA(웹페이지 자동화)·GPT·Claude·Gemini(API) 답변 수집과 평가 모델 호출을 시작합니다. 유료 호출이 발생합니다. 시작할까요?`)) return;
+    if (!window.confirm(`질문 ${s.questions ?? '?'}개(턴 ${s.turns ?? '?'}개)로 AIONA(웹브라우저)·GPT·Claude·Gemini(API) 답변 수집과 평가 모델 호출을 시작합니다. 유료 호출이 발생합니다. 시작할까요?`)) return;
     try { render(await api(`/api/comparison/question-sets/${encodeURIComponent(set.id)}/run`, {}), panel); }
     catch (error) { showError(error.message, panel); }
   }

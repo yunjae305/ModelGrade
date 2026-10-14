@@ -44,10 +44,21 @@ from .ingestion.schema import response_key
 from .agent_collection import AGENT_COLLECTION_VERSION, COLLECTION_REASONING_EFFORT, apply_reasoning, ask_with_tools
 from .aiona_web import AIONA_WEB_VERSION
 from .factchat_web import FACTCHAT_WEB_VERSION, login_status as factchat_login_status
+from .oosoo_web import OOSOO_WEB_VERSION, login_status as oosoo_login_status
 from .ingestion.sources import normalize_sources
 
 PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
-WEB_PROVIDERS = ("aiona", "factchat")   # 질문 세트 실행에서 웹 자동화로 답을 받는 모델 (FactChat 은 .env 로그인 정보가 있을 때)
+# 질문 세트 실행에서 웹 자동화로 답을 받는 모델 — FactChat·우수AI 는 .env 로그인 정보가 있을 때. 키는 API 게이트웨이(factchat)·
+# 예전 자동 수집 자리(oosoo)와 겹치지 않게 따로 둔다
+WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web")
+WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델"}
+
+
+def web_headless(path=None):
+    """웹 수집 브라우저를 숨길지 — 기본은 창을 보이게 (사용자 요청 2026-10-14: 작업이 눈에 보이게). .env 의
+    WEB_COLLECTION_HEADLESS=true 면 숨긴다."""
+    value = env_value("WEB_COLLECTION_HEADLESS", None, path or ROOT / ".env")
+    return str(value or "").strip().lower() in ("1", "true", "on", "yes")
 
 
 def _request_shape(messages, attachments=0, delivery=None):
@@ -1895,21 +1906,22 @@ class ComparisonService:
                 raise JobCapacityError("실행 중인 비교가 많습니다. 완료 후 다시 시도해 주세요.")
             api = [p for p in ("gpt", "claude", "gemini") if p in self._keys]
             # 웹 자동화 모델 — AIONA 는 늘, FactChat 은 .env 에 로그인 정보(FACTCHAT_LOGIN_ID·PASSWORD)가 있을 때 (사용자 결정 2026-10-14)
-            web = ["aiona"] + (["factchat"] if factchat_login_status()["credentials"] else [])
+            web = ["aiona"] + (["factchat_web"] if factchat_login_status()["credentials"] else []) \
+                + (["oosoo_web"] if oosoo_login_status()["credentials"] else [])
             providers = [*web, *api]
             config = {p: {**self._keys[p], "provider": p} for p in api}
             n, run_id = len(cases), uuid.uuid4().hex[:12]
             run = {"run_id": run_id, "name": f"질문 세트 {set_id}" if set_id else "질문 세트 실행",
                    "created_at": datetime.now(timezone.utc).isoformat(), "status": "COLLECTING", "phase": "COLLECT",
                    "total": n * len(providers), "done": 0, "question_count": n, "providers": providers, "max_tokens": QUESTION_SET_MAX_TOKENS,
-                   "models": {"aiona": "AIONA 웹 · 자동 추천", **({"factchat": "FactChat 웹 · 기본 에이전트"} if "factchat" in web else {}),
-                              **{p: self._model_label(p, config[p]) for p in api}},
+                   "models": {**{p: WEB_LABELS[p] for p in web}, **{p: self._model_label(p, config[p]) for p in api}},
                    "progress": {p: self._progress_entry(n) for p in providers},
                    "datasets": {p: [None] * n for p in providers}, "evaluations": {}, "cancel_requested": False, "error": None,
                    "auto_evaluate": payload.get("auto_evaluate", True) is not False, "blind_requested": True, "aiona_specialized": False,
                    "run_kind": "question_set", "dataset_fingerprint": fingerprint(cases),
                    "question_set": {"set_id": set_id, "aiona": AIONA_WEB_VERSION, "api": AGENT_COLLECTION_VERSION,
-                                    **({"factchat": FACTCHAT_WEB_VERSION} if "factchat" in web else {})},
+                                    **({"factchat_web": FACTCHAT_WEB_VERSION} if "factchat_web" in web else {}),
+                                    **({"oosoo_web": OOSOO_WEB_VERSION} if "oosoo_web" in web else {})},
                    "collection_execution": {"collection_workers_per_model": self.collection_workers, "aiona_workers": 1,
                                             "web_providers": web,
                                             "conversation_order": "sequential_original_turns"}}
@@ -1973,17 +1985,22 @@ class ComparisonService:
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
         def web(provider):
-            """웹 자동화로 받는 모델 — AIONA(winz.aiona.kr)·FactChat(aichat.kku.ac.kr). 모델마다 브라우저(프로필) 하나라 서로 동시에 돈다."""
-            if provider == "factchat":
+            """웹 자동화로 받는 모델 — AIONA(winz.aiona.kr)·FactChat(aichat.kku.ac.kr)·우수AI(app.oosoo.kr).
+            모델마다 브라우저(프로필) 하나라 서로 동시에 돈다. 브라우저 창은 기본으로 보인다(web_headless)."""
+            if provider == "factchat_web":
                 from .factchat_web import FactChatChat as Chat, FactChatWebError as WebError
                 label = "FactChat"
+            elif provider == "oosoo_web":
+                from .oosoo_web import OosooChat as Chat, OosooWebError as WebError
+                label = "우수AI"
             else:
                 from .aiona_web import AionaChat as Chat, AionaWebError as WebError
                 label = "AIONA"
             stage(provider, "COLLECTING")
             with tempfile.TemporaryDirectory(prefix=f"{provider}-files-") as temp:
                 try:
-                    with Chat(debug_dir=self.save_dir / run["run_id"] / f"{provider}-debug", cancelled=token.is_set) as chat:
+                    with Chat(headless=web_headless(), debug_dir=self.save_dir / run["run_id"] / f"{provider}-debug",
+                              cancelled=token.is_set) as chat:
                         for chain in chains:
                             broken = False
                             chat.new_chat()

@@ -915,6 +915,8 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
 # --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
 QUESTION_INPUT_VERSION = "question-input-v1"
 _QUESTION_KEYS = ("question", "질문", "Q", "q", "prompt")
+MAX_INPUT_TURNS_PER_CONVERSATION = 50   # 대화 하나의 턴 상한 — 점검이 앞 턴 이력을 턴마다 만들어 아주 긴 대화는 서버를 멈출 수 있다 (Codex 리뷰)
+MAX_INPUT_TURNS = 2_000                 # 한 번에 넣는 전체 턴 상한
 
 
 def parse_question_input(text: str, name: str = "직접 입력") -> Tuple[List[Dict[str, Any]], List[str]]:
@@ -993,6 +995,11 @@ def parse_question_input(text: str, name: str = "직접 입력") -> Tuple[List[D
                        "trap": str(group.get("trap") or ""), "turns": turns})
     if not groups:
         raise ValueError("넣을 질문이 없습니다.")
+    long = [g["id"] for g in groups if len(g["turns"]) > MAX_INPUT_TURNS_PER_CONVERSATION]
+    if long:
+        raise ValueError(f"대화 하나는 {MAX_INPUT_TURNS_PER_CONVERSATION}턴까지 넣을 수 있습니다 (넘는 질문: {', '.join(map(str, long[:10]))}번).")
+    if sum(len(g["turns"]) for g in groups) > MAX_INPUT_TURNS:
+        raise ValueError(f"한 번에 넣는 턴은 {MAX_INPUT_TURNS:,}개까지입니다.")
     if len(groups) > MAX_PLAN_QUESTIONS:
         raise ValueError(f"질문은 한 번에 {MAX_PLAN_QUESTIONS}개까지 넣을 수 있습니다 (지금 {len(groups)}개).")
     return groups, warnings
@@ -1201,6 +1208,11 @@ class QuestionSetService:
             raise ValueError("질문(text)은 글이어야 합니다.")
         groups, warnings = parse_question_input(text, name)
         report = check(groups)
+        if report.get("errors"):   # 평가 엔진이 받지 못하는 입력(예: 참조 자료가 숫자) — 완료로 저장하지 않는다 (Codex 리뷰)
+            rows = flatten(groups)
+            details = [f"{rows[e['index'] - 1]['case_id'] if 0 < e.get('index', 0) <= len(rows) else e.get('index')}: {e.get('message')}"
+                       for e in report["errors"][:5]]
+            raise ValueError("질문을 평가할 수 없는 형식입니다 — " + " / ".join(details))
         set_id = "qs-" + uuid.uuid4().hex[:12]
         out = self._path(set_id)
         (out / "files").mkdir(parents=True, exist_ok=True)

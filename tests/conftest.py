@@ -39,6 +39,7 @@ def _no_real_web_logins(monkeypatch):
     테스트가 진짜 사이트에 로그인하지 않게 (AIONA 는 테스트마다 대역 AionaChat 을 쓴다)."""
     from webapp import comparison_service
     monkeypatch.setattr(comparison_service, "factchat_login_status", lambda *_, **__: {"credentials": False})
+    monkeypatch.setattr(comparison_service, "oosoo_login_status", lambda *_, **__: {"credentials": False})
 
 
 @pytest.fixture(autouse=True)

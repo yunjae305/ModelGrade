@@ -12,7 +12,9 @@
   않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
 - AIONA 가 답을 못 내면 답변 칸 없이 '생각을 중단했습니다 · 처리 중 오류가 생겨 멈췄습니다'(``span[role=status]``)가 뜬다 —
   기다리지 않고 그 사유를 담아 수집 오류(ERROR)로 남긴다 (2026-10-14 실제 수집: '아무것도 출력하지 마.').
-- 답변 본문(HTML)은 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
+- 답변은 답변 아래 '복사' 버튼(``button[title=복사]``)이 클립보드에 넣는 원문으로 받는다 (2026-10-14 사용자 결정 — FactChat·우수AI 와
+  같음). 복사 버튼을 못 쓰면 답변 본문(HTML)을 표·목록·코드 서식을 살려 Markdown 으로 옮긴다 (``ingestion.html_markdown``).
+- 첨부 파일은 하나씩 올린다 — 여러 개를 한 번에 넣으면 첫 파일만 붙었다 (2026-10-14 Q296, PDF 2개).
 - 봇 확인·추가 인증 화면이 나오면 멈추고 사람에게 넘긴다 — 우회하지 않는다.
 - 같은 Chrome 프로필은 한 번에 한 브라우저만 연다(프로필 잠금 — 실행이 겹치면 뒤 실행이 기다린다). 로그인 실패는 고정 문구로만
   알린다 — Playwright 예외 문구(Call log)에는 입력값이 섞일 수 있다 (Codex 리뷰).
@@ -34,7 +36,7 @@ __all__ = ["AIONA_URL", "PROFILE", "AIONA_WEB_VERSION", "AionaWebError", "creden
 
 AIONA_URL = "https://winz.aiona.kr"
 PROFILE = ROOT / "data" / "browser_profiles" / "aiona"
-AIONA_WEB_VERSION = "aiona-web-v1"
+AIONA_WEB_VERSION = "aiona-web-v2"
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 대신 TXT 파일로 올린다
 _POPUPS = ("나중에", "계속 묻지 않기", "괜찮습니다.", "건너뛰기")   # 설문·저장 안내·첫 방문 안내
 
@@ -68,7 +70,7 @@ def login_status(env_path: Optional[Path] = None, profile: Optional[Path] = None
     아이디·비밀번호 값은 돌려주지 않는다 (사용자 결정 2026-10-14: 로그인 정보는 화면이 아니라 .env 에만 넣는다)."""
     path = env_path or ROOT / ".env"
     has = bool(env_value("AIONA_LOGIN_ID", None, path)) and bool(env_value("AIONA_LOGIN_PASSWORD", None, path))
-    return {"name": "AIONA", "url": AIONA_URL, "version": AIONA_WEB_VERSION, "method": "웹페이지 자동화(브라우저)",
+    return {"name": "AIONA", "url": AIONA_URL, "version": AIONA_WEB_VERSION, "method": "웹브라우저",
             "credentials": has, "credentials_source": ".env (AIONA_LOGIN_ID · AIONA_LOGIN_PASSWORD)",
             "profile_saved": ((profile or PROFILE) / "Default").is_dir()}
 
@@ -122,6 +124,8 @@ class AionaChat:
             self.profile.mkdir(parents=True, exist_ok=True)
             self._context = self._playwright.chromium.launch_persistent_context(
                 str(self.profile), channel="chrome", headless=self.headless, viewport={"width": 1400, "height": 900})
+            from .factchat_web import COPY_CAPTURE_JS
+            self._context.add_init_script(COPY_CAPTURE_JS)   # 복사 버튼이 클립보드에 넣는 글을 페이지 안에서 받아 둔다
             self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
             self.ensure_login()
         except BaseException:   # 실행·로그인 실패 때도 브라우저·임시 폴더·프로필 잠금을 정리한다 (__exit__ 는 불리지 않음)
@@ -193,9 +197,29 @@ class AionaChat:
             return ""
         return answers.last.evaluate("(el) => [...el.querySelectorAll('.prose')].map(p => p.innerHTML).join('<br>')")
 
+    def _copy_last_answer(self) -> Optional[str]:
+        """마지막 답변 아래 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None."""
+        try:
+            marked = self._answers().last.evaluate("""(el) => {
+                document.querySelectorAll('[data-mg-copy]').forEach((b) => b.removeAttribute('data-mg-copy'));
+                for (let box = el, i = 0; box && i < 4; box = box.parentElement, i++) {   // 위로 갈수록 앞 답변도 섞여 마지막 것을 쓴다
+                    const b = [...box.querySelectorAll("button[title='복사']")].pop();
+                    if (b) { b.setAttribute('data-mg-copy', '1'); return true; }
+                }
+                return false; }""")
+            if not marked:
+                return None
+            self.page.evaluate("() => { window.__mgCopied = []; }")
+            self.page.locator("button[data-mg-copy]").first.click(timeout=5000)
+            self.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
+            return self.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
+        except Exception:
+            return None
+
     def _upload(self, files: List[Path]) -> None:
-        self.page.locator("input[type=file]").first.set_input_files([str(f) for f in files])
-        for f in files:   # 올린 파일 칸이 보일 때까지 — 문서는 이름 글자, 이미지는 alt 가 파일 이름인 미리보기로만 보인다
+        for f in files:   # 하나씩 — 여러 개를 한 번에 넣으면 첫 파일만 붙었다 (2026-10-14 Q296)
+            self.page.locator("input[type=file]").first.set_input_files(str(f))
+            # 올린 파일 칸이 보일 때까지 — 문서는 이름 글자, 이미지는 alt 가 파일 이름인 미리보기로만 보인다
             self.page.wait_for_function(
                 "(name) => document.body.innerText.includes(name) || [...document.images].some(i => i.alt === name)",
                 arg=f.name, timeout=60_000)
@@ -274,9 +298,12 @@ class AionaChat:
             if stable >= 2 or empty >= 4:
                 break
         converted = html_to_markdown(last or "")
-        answer = converted["markdown"]
+        answer, capture = converted["markdown"], "html"
         done = (stable >= 2 and bool(answer.strip())) or (empty >= 4 and not answer.strip())
-        return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE",
+        copied = self._copy_last_answer() if done and answer.strip() else None
+        if copied and copied.strip():   # 복사 버튼 원문을 답으로 — HTML 변환 품질 경고는 원문에는 해당하지 않는다
+            answer, capture, converted = copied, "copy-button", {"quality": []}
+        return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture,
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 **({"intent_prompt": "그냥 보내기"} if as_is else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,

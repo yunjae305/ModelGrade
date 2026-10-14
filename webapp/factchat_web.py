@@ -48,7 +48,7 @@ def login_status(env_path: Optional[Path] = None, profile: Optional[Path] = None
     """'연결된 모델' 화면용 — 로그인 정보가 .env 에 있는지, 로그인 상태를 담은 프로필이 있는지만 (값은 돌려주지 않는다)."""
     path = env_path or ROOT / ".env"
     has = bool(env_value("FACTCHAT_LOGIN_ID", None, path)) and bool(env_value("FACTCHAT_LOGIN_PASSWORD", None, path))
-    return {"name": "FactChat", "url": FACTCHAT_URL, "version": FACTCHAT_WEB_VERSION, "method": "웹페이지 자동화(브라우저)",
+    return {"name": "FactChat", "url": FACTCHAT_URL, "version": FACTCHAT_WEB_VERSION, "method": "웹브라우저",
             "credentials": has, "credentials_source": ".env (FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD)",
             "profile_saved": ((profile or PROFILE) / "Default").is_dir()}
 
@@ -102,10 +102,11 @@ def inspect_chat(page: Any, out: Path, question: Optional[str] = None, wait_s: i
     page.wait_for_timeout(4000)
     result: Dict[str, Any] = {"before": page.evaluate(_INSPECT_JS, None)}
     if question:
-        box = page.locator("textarea, [contenteditable=true]").first
-        box.click()
-        box.fill(question)
-        page.keyboard.press("Enter")
+        # 수집과 같은 입력 — 키보드 입력 + '메시지 보내기' 버튼 (fill + Enter 는 이 편집기에서 보내지지 않는 경우가 있다, Codex 리뷰)
+        page.locator(EDITOR).first.click()
+        page.keyboard.insert_text(question)
+        page.locator(SEND_BUTTON).first.click(timeout=15_000)
+        page.wait_for_selector(USER_MESSAGE, timeout=30_000)
         page.wait_for_timeout(wait_s * 1000)
         result["after"] = page.evaluate(_INSPECT_JS, question)
     out.parent.mkdir(parents=True, exist_ok=True)
