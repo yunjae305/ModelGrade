@@ -432,8 +432,13 @@ class GeminiChat(_CdpChat):
         return None
 
     def _last_answer_text(self) -> str:
+        """마지막 답변 본문. 짧은 거절 답('저는 텍스트 기반 AI입니다…')은 message-content 없이 그려져(2026-10-15 Q34) 답변 묶음 전체 글로 대신한다."""
+        last = self._answers().last
         try:
-            return self._answers().last.locator("message-content").first.inner_text(timeout=2000)
+            content = last.locator("message-content")
+            if content.count():
+                return content.first.inner_text(timeout=2000)
+            return last.inner_text(timeout=2000)
         except Exception:
             return ""
 
