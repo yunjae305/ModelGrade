@@ -79,6 +79,7 @@ class _CdpChat:
             context = self._browser.contexts[0]
             self.page = next((pg for pg in context.pages if self.HOST in pg.url and not pg.is_closed()), None) or context.new_page()
             self.page.add_init_script(COPY_CAPTURE_JS)
+            self.page.set_default_timeout(60_000)   # 시간 제한을 따로 주지 않은 동작도 1분이면 끝난다
         except BaseException:
             self._close()
             raise
@@ -100,6 +101,12 @@ class _CdpChat:
             pass
         self._browser = self._playwright = None
         self._temp.cleanup()
+
+    def _eval(self, fn: str, timeout_ms: int = 20_000) -> Any:
+        """시간 제한이 있는 page.evaluate — 탭이 응답하지 않으면 무한정 기다리지 않고 예외로 끝낸다 (Gemini 수집 스레드 멈춤 2026-10-15).
+        ``fn`` 은 '() => 값' 형태. 값이 0·빈 문자열이어도 끝나도록 객체에 담아 기다린다(간격 폴링 — 뒤 탭에서도 돈다)."""
+        handle = self.page.wait_for_function(f"() => ({{v: ({fn})()}})", timeout=timeout_ms, polling=250)
+        return handle.json_value()["v"]
 
     def _snapshot(self, label: str) -> Optional[str]:
         if not self.debug_dir or self.page is None:
@@ -148,7 +155,7 @@ class _CdpChat:
                 continue
 
     def _check_blocked(self) -> None:
-        text = self.page.evaluate("() => document.body.innerText.slice(0, 4000)") or ""
+        text = self._eval("() => document.body.innerText.slice(0, 4000)") or ""
         hit = next((p for p in _BLOCKED if p.lower() in text.lower()), None)
         if hit:
             self._snapshot("blocked")
@@ -197,7 +204,7 @@ class _CdpChat:
 
     def _copy_last_answer(self) -> Optional[str]:
         """마지막 답변의 복사 버튼(이름 정확히 일치) — 먼저 그 답변 말풍선 안에서, 없으면 화면 전체의 마지막 것. 내 질문의 복사 버튼은 이름이 달라 섞이지 않는다."""
-        before = self.page.evaluate("() => (window.__mgCopied || []).length")
+        before = self._eval("() => (window.__mgCopied || []).length")
         scopes = [self._answers().last, self.page]
         for scope in scopes:
             for name in self.COPY_NAMES:
@@ -208,7 +215,7 @@ class _CdpChat:
                     btns.last.scroll_into_view_if_needed(timeout=2000)
                     btns.last.click(timeout=3000)
                     self.page.wait_for_timeout(600)
-                    copied = self.page.evaluate("() => window.__mgCopied || []")
+                    copied = self._eval("() => window.__mgCopied || []")
                     if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
                         return copied[-1]
                 except Exception:
@@ -351,7 +358,7 @@ class ChatGptChat(_CdpChat):
             self.page.wait_for_timeout(700)
             self.page.get_by_role("menuitem", name="파워").first.click(timeout=5000)
             self.page.wait_for_timeout(900)
-            text = self.page.evaluate("() => document.body.innerText")
+            text = self._eval("() => document.body.innerText")
             power = next((lv for lv in ("Medium", "High", "Light", "Max", "Ultra", "Extra High", "최소한", "없음") if lv in text), "?")
         except Exception:
             pass
@@ -398,14 +405,14 @@ class GeminiChat(_CdpChat):
 
     def _copy_last_answer(self) -> Optional[str]:
         # 답변 복사 버튼은 마지막 model-response 안(또는 '옵션 더보기' 메뉴)에 있다 — 프롬프트 복사 버튼과 구분한다
-        before = self.page.evaluate("() => (window.__mgCopied || []).length")
+        before = self._eval("() => (window.__mgCopied || []).length")
         last = self._answers().last
         try:
             btn = last.locator("[data-test-id='copy-button'], button[aria-label*='복사']").last
             if btn.count():
                 btn.click(timeout=3000)
                 self.page.wait_for_timeout(600)
-                copied = self.page.evaluate("() => window.__mgCopied || []")
+                copied = self._eval("() => window.__mgCopied || []")
                 if len(copied) > before and copied[-1].strip():
                     return copied[-1]
             more = last.get_by_role("button", name=re.compile("옵션 더보기|더보기"))
@@ -416,7 +423,7 @@ class GeminiChat(_CdpChat):
                 if item.count():
                     item.first.click(timeout=3000)
                     self.page.wait_for_timeout(600)
-                    copied = self.page.evaluate("() => window.__mgCopied || []")
+                    copied = self._eval("() => window.__mgCopied || []")
                     if len(copied) > before and copied[-1].strip():
                         return copied[-1]
                 self.page.keyboard.press("Escape")
