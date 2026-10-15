@@ -102,7 +102,7 @@ def test_owner_overview_numbers_come_from_the_artifacts_and_the_answers_file():
 
 
 def test_w01_criterion_counts_and_names_come_from_the_registry_and_the_real_prompt():
-    """화면의 기준 수 28·34·83·80 과 기준 이름은 기준 목록·실제 생성 프롬프트·다른 산출물과 같은 값이다 (손으로 적지 않는다)."""
+    """화면의 기준 수 28·44·72·64·34 와 기준 이름은 기준 목록·실제 생성 프롬프트·다른 산출물과 같은 값이다 (손으로 적지 않는다)."""
     from code_eval.criteria_registry import evaluation_targets, registry
     design = BY_ID["W01-DESIGN"]["content"]
     numbers = {row["what"]: row["number"] for row in design["numbers"]}
@@ -111,8 +111,8 @@ def test_w01_criterion_counts_and_names_come_from_the_registry_and_the_real_prom
     goal = next(p["excerpt"] for p in design["prompt_parts"] if p["name"] == "목표 평가 기준")
     assert f"CODE 검사 {numbers['CODE 검사']}개와 의미 평가 항목 {numbers['일반 계획 프롬프트의 의미 항목']}개" in goal
     matrix = {s["label"]: s["value"] for s in BY_ID["W02-MATRIX"]["content"]["stats"]}
-    assert numbers["질문만으로 셀 수 있는 최하위 기준"] == matrix["최하위 기준(셀 수 있음)"]
-    assert numbers["질문 수 분석·생성기가 채우는 기준"] == BY_ID["W03-COVERAGE"]["content"]["stats"][0]["value"]
+    assert numbers["평가 기준 전체"] == counts["total"] == counts["code_checks"] + counts["semantic_items"]   # 72 단위 하나 (10-15)
+    assert numbers["질문만으로 셀 수 있는 기준"] == matrix["질문으로 셀 수 있는 기준"] == BY_ID["W03-COVERAGE"]["content"]["stats"][0]["value"]
     official = {c["id"]: c["name"] for c in registry()["criteria"] if c["layer"] != "CODE"}
     glossary = {g["id"]: g for g in design["glossary"]}
     assert list(glossary) == ["CODE 1", "CODE 2", "CODE 3"] + list(official)

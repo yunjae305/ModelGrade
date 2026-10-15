@@ -1021,10 +1021,10 @@ def w02_matrix(qs: QuestionSet) -> Dict[str, Any]:
     bucket_counts = {label: sum(1 for r in countable if lo <= r["units"] <= hi) for label, lo, hi in buckets}
     never = [r["id"] for r in countable if r["units"] == 0]
     return artifact(
-        "W02-MATRIX", "W02", "최하위 기준별 적용 표 (질문 세트 300)", "data",
+        "W02-MATRIX", "W02", "평가 기준별 적용 표 (질문 세트 300)", "data",
         description=("CODE 검사(질문 요구·늘 적용·답변 구조)와 의미 점검 항목 각각에, 질문 세트 300 의 어떤 질문이 몇 번 적용되는지 "
                      "평가와 같은 코드 규칙으로 센 표입니다. 독립 단위(단일 질문 1 · 대화 1), 턴 수, 실제 판정 수를 나눠 적었습니다."),
-        result_summary=(f"셀 수 있는 최하위 기준 {len(countable)}개(늘 적용 검사 3개 포함) 중 한 번도 적용되지 않은 것 {len(never)}개, "
+        result_summary=(f"셀 수 있는 평가 기준 {len(countable)}개(늘 적용 검사 3개 포함) 중 한 번도 적용되지 않은 것 {len(never)}개, "
                         f"독립 단위 30개 이상 {bucket_counts['30 이상']}개, 10~29개 {bucket_counts['10~29']}개, 1~9개 "
                         f"{bucket_counts['1~4'] + bucket_counts['5~9']}개. 이 세트는 평가하지 않아 실제 판정 수는 모두 0."),
         data_source=qs.source(), created_at=qs.exported, code_revision=revision("tools/check_question_set.py", "code_eval/criteria_registry.py"),
@@ -1034,11 +1034,11 @@ def w02_matrix(qs: QuestionSet) -> Dict[str, Any]:
                      f"'부족' 열은 잠정 운영 기준 {TARGET_SHORT}개 대비다 — 통계적으로 정한 필요량이 아니다(W03 참고)."],
         references=[repo_ref("질문 원본 questions.json", QUESTIONS, qs.data_rev), repo_ref("적용 규칙", "tools/check_question_set.py"),
                     repo_ref("기준 목록", "code_eval/criteria_registry.py")],
-        content={"stats": [{"label": "최하위 기준(셀 수 있음)", "value": len(countable)}, {"label": "답변 필요", "value": len(rows) - len(countable)},
+        content={"stats": [{"label": "질문으로 셀 수 있는 기준", "value": len(countable)}, {"label": "답변 필요", "value": len(rows) - len(countable)},
                            {"label": "적용 0", "value": len(never)}, {"label": "30개 이상", "value": bucket_counts["30 이상"]},
                            {"label": "실제 판정", "value": 0, "note": "평가하지 않은 세트"}],
-                 "charts": [{"kind": "bar", "title": "독립 단위 수 구간별 최하위 기준 개수", "unit": "개",
-                             "categories": list(bucket_counts), "series": [{"name": "최하위 기준 수", "values": list(bucket_counts.values())}]}],
+                 "charts": [{"kind": "bar", "title": "독립 단위 수 구간별 평가 기준 개수", "unit": "개",
+                             "categories": list(bucket_counts), "series": [{"name": "평가 기준 수", "values": list(bucket_counts.values())}]}],
                  "table": {"columns": [{"key": "group", "label": "구분"}, {"key": "parent", "label": "상위 기준"}, {"key": "id", "label": "ID"},
                                        {"key": "name", "label": "이름"}, {"key": "units", "label": "독립 단위", "numeric": True},
                                        {"key": "turns", "label": "적용 턴", "numeric": True}, {"key": "judged", "label": "실제 판정", "numeric": True},
@@ -1118,7 +1118,7 @@ def w03_coverage(qs: QuestionSet) -> Dict[str, Any]:
     last = prefix[-1]
     return artifact(
         "W03-COVERAGE", "W03", "질문 수를 늘릴 때 기준이 채워지는 속도 (질문 세트 300)", "experiment",
-        description=("질문 세트 300 을 앞에서부터 N개로 잘랐을 때, 최하위 평가 기준 각각이 k개 이상의 질문에서 적용되는지 셌습니다(k = 1·5·10·30). "
+        description=("질문 세트 300 을 앞에서부터 N개로 잘랐을 때, 평가 기준 각각이 k개 이상의 질문에서 적용되는지 셌습니다(k = 1·5·10·30). "
                      "또 기준마다 k개를 채우는 가장 작은 질문 묶음을 탐욕 근사로 골랐습니다."),
         result_summary=(f"평가 기준 {result['targets']}개 기준, 300개 전체에서도 k≥1 {last['covered']['1']}개 · k≥5 {last['covered']['5']}개 · "
                         f"k≥10 {last['covered']['10']}개 · k≥30 {last['covered']['30']}개. 모든 기준을 1번씩 덮는 데 {minimum[0]['questions']}개, "
@@ -1214,7 +1214,7 @@ def w03_conclusion(qs: QuestionSet, run: Optional[Dict[str, Any]], existing: Opt
         limitations=["평가 비용 추정은 다른 질문 세트·이전 기준 버전의 실제 사용량에서 나온 참고값이다."],
         references=[repo_ref("질문 원본 questions.json", QUESTIONS, qs.data_rev), saved_run_ref()],
         content={"question": "간편 검사와 정밀 검사에 각각 질문이 몇 개 있어야 결과를 믿을 수 있는가?",
-                 "method": ["질문 세트 300 에서 질문 수 N 에 따라 최하위 기준마다 적용 질문이 몇 개 생기는지 계산 (W03-COVERAGE)",
+                 "method": ["질문 세트 300 에서 질문 수 N 에 따라 평가 기준마다 적용 질문이 몇 개 생기는지 계산 (W03-COVERAGE)",
                             f"평가가 끝난 저장 실행 {SAVED_RUN_ID} 에서 질문 n개를 다시 뽑아 통과율 폭·순서 유지 측정 (W03-STABILITY)",
                             "통과율을 원하는 정밀도로 재는 데 필요한 적용 수를 정규 근사로 계산 (아래 이론 기준)"],
                  "findings": [f"300개 전체에서도 k≥5 인 기준 {last['covered']['5']}/{result['targets']}, k≥30 {last['covered']['30']}/{result['targets']} — 적용 수가 고르지 않다.",
@@ -1580,7 +1580,7 @@ def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str,
     questions, rate, rest = _value(generated, "질문(대화)"), _value(intent, "적용률"), _value(intent, "J6 제외 적용률")
     applied, missed = _value(intent, "실제 적용"), _value(intent, "적용 안 됨")
     j6_missed = next((r["missed"] for r in intent["content"]["table"]["rows"] if r["family"] == "J6"), 0)
-    countable, never = _value(matrix, "최하위 기준(셀 수 있음)"), _value(matrix, "적용 0")
+    countable, never = _value(matrix, "질문으로 셀 수 있는 기준"), _value(matrix, "적용 0")
 
     group_a = {
         "id": "A", "title": "질문 생성 및 품질 검증", "requirements": ["W01", "W02", "W03"],
@@ -1593,7 +1593,7 @@ def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str,
                     {"label": "목표 항목 실제 적용", "value": f"{applied}/{applied + missed}건", "note": f"{rate} · {gen} · 코드 규칙 계산",
                      "artifact_id": "W01-INTENT"},
                     {"label": "J6 제외 적용률", "value": rest, "note": f"{gen} · J6 를 뺀 집계", "artifact_id": "W01-INTENT"},
-                    {"label": "최하위 기준 중 미적용", "value": f"{never}/{countable}개",
+                    {"label": "평가 기준 중 미적용", "value": f"{never}/{countable}개",
                      "note": f"질문 세트 300 에서 한 번도 적용 안 됨 · {countable}개 = 늘 적용 검사 "
                              f"{sum(r['group'] == 'CODE 늘 적용' for r in matrix['content']['table']['rows'])}개 포함",
                      "artifact_id": "W02-MATRIX"}],
@@ -1677,7 +1677,7 @@ def woo_overview(by_id: Dict[str, Dict[str, Any]], qs: QuestionSet) -> Dict[str,
         {"name": "JSON 저장", "state": "real", "requirement": "W09",
          "detail": f"questions.json · answers.json — 턴 {turns} × 시스템 3, 성공 답변 {total_ok:,}개 (실행 {run_id})"},
         {"name": "평가 기준 적용", "state": "tested", "requirement": "W02",
-         "detail": f"질문만으로 정해지는 기준은 평가와 같은 코드 규칙으로 계산(모델 호출 없음) — 최하위 기준 {countable}개 중 {never}개 미적용. 답변이 필요한 기준은 평가 때 정해짐"},
+         "detail": f"질문만으로 정해지는 기준은 평가와 같은 코드 규칙으로 계산(모델 호출 없음) — 평가 기준 {countable}개 중 {never}개 미적용. 답변이 필요한 기준은 평가 때 정해짐"},
         {"name": "CODE·LLM 평가", "state": "real" if evaluated else "pending", "requirement": "W09",
          "detail": ("질문 세트 300 평가 완료" if evaluated else f"질문 세트 300 답변 평가 미실행 — LLM 평가는 유료라 승인 필요({estimate}).") + saved_note},
         {"name": "결과 비교", "state": "real" if evaluated else "pending", "requirement": "W08",
