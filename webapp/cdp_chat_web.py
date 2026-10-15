@@ -313,7 +313,8 @@ class _CdpChat:
             if copied and copied.strip():
                 answer, capture = copied, "copy-button"
             elif not answer.strip():
-                done = False
+                # 답 말풍선은 생겼는데 글이 비었다 — '아무것도 출력하지 마' 를 지킨 빈 답이다 (Gemini Q44, 2026-10-15). 실패가 아니라 빈 답으로 남긴다
+                answer, capture = "", "empty"
         if done:
             try:
                 self._check_blocked()   # 한도 문구가 답 대신 왔는지
