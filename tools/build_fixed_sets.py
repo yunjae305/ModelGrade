@@ -4,7 +4,8 @@
 - 공개: IFEval-Ko(allganize, Apache-2.0) · KoMT-Bench(LGAI-EXAONE, LGPL-3.0) · LogicKor(maywell, CC BY-SA 4.0) ·
   Ko-Arena-Hard-Auto(qwopqwop, Apache-2.0) · KOFFVQA(maum-ai, Apache-2.0, 이미지) · HAERAE-Vision(HAERAE-HUB, CC BY 4.0, 이미지) ·
   RAG-Evaluation-Dataset-KO(allganize, MIT — 질문, PDF 는 각 기관 사이트 원본, 20쪽 이하만)
-- 우리: 질문 세트 300 (형식 조건·10턴 대화 J6·긴 문서 J7 등) + 보충 질문(어느 후보에도 없던 '표 열 수' 조건)
+- 우리: Jev 테스트 데이터 300 (v1.2 로 만든 예전 '질문 세트 300' — 형식 조건·10턴 대화 J6·긴 문서 J7 등) + 보충 질문(어느 후보에도 없던
+  '표 열 수' 조건). 지금 간단·정밀 세트의 질문은 이 후보로 고른 그대로다 (10-15 사용자 결정: 질문은 그대로, 출처 이름만 변경)
 적용 여부는 평가 때와 같은 코드 규칙(tools/check_question_set.check_items)으로 정하고 모델은 부르지 않는다. 답변 모양으로만 적용이 정해지는
 검사(코드 펜스 짝·각주 등)는 모든 답변에서 늘 검사되므로 고르는 기준에서 뺀다.
 
@@ -46,10 +47,11 @@ from webapp.question_generation import _summary, check, flatten  # noqa: E402
 FIXED_SET_VERSION = "fixed-set-v2"
 OUT = ROOT / "examples" / "fixed_sets"
 SOURCES = OUT / "sources"
-SET300 = ROOT / "참고자료" / "수집결과" / "2026-10-14-질문세트300"
+# 우리 질문 후보 폴더 — tools/build_set300.py 가 이 이름(SET300)을 질문 세트 326 폴더로 바꿔 쓰므로 이름은 그대로 둔다
+SET300 = ROOT / "참고자료" / "수집결과" / "2026-10-14-Jev테스트데이터300-v1.2"
 KINDS = {"simple": {"size": 50, "label": "간단 평가"}, "precise": {"size": 300, "label": "정밀 평가"}}
 MAX_PDF_PAGES = 20
-OURS = "질문 세트 300"
+OURS = "Jev 테스트 데이터 300"
 SUPPLEMENT = "보충 질문"
 OURS_WEIGHT = 0.5   # 고르게 채우기에서 우리 질문 점수 — 공개 질문이 먼저 들어가게
 # 어느 후보에도 없던 조건(2-2.table:table_column_count)을 거치는 보충 질문 — 우리가 쓴 질문 (사용자 결정: 부족한 부분은 우리 질문으로)

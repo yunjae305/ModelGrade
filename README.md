@@ -33,7 +33,7 @@ py -3 -X utf8 run.py
 왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개를 담당자별로 확인합니다(직접 주소 `http://localhost:8080/workspace.html#progress`). 요구사항을 펼치면 **핵심 성과 요약 → 주요 결과와 시각화 → 대표 실제 사례**가 먼저 나옵니다. 그 아래에서 **상세 산출물 전체 보기**와 **검증 근거 및 관리 정보**를 필요할 때 펼칠 수 있습니다. W01에는 v1.4 구현과 v1.2 실제 생성 결과를 구별해 표시하며, 목표 항목 적용 결과와 기준별 비율, J6 불일치 원인을 보여줍니다. W02는 최하위 기준 적용 분포와 기준별 독립 단위·턴 수를, W03은 질문 수별 커버리지와 저장 실행의 결과 안정성을 출처와 함께 표시합니다. 300개 질문 전체 표는 상세 영역에서 25개씩 이동하고 검색·필터·CSV 다운로드를 지원합니다. 프롬프트 원문 3종은 접힌 상태로 보관하며 복사·다운로드할 수 있습니다. 검증 단계는 '구현 완료 · 자동 테스트 확인 · 실제 모델 실행 · 판정 정확도 검증'을 한 줄로 표시하고, 상세 산출물에는 검증 수준과 출처를 유지합니다.
 
 - [requirements.json](frontend/data/requirements.json) — 요구사항·상태·검증 단계·결과 해석. 담당자가 실제 결과를 확인한 뒤 손으로 고칩니다(`as_of` 함께).
-- [artifacts.json](frontend/data/artifacts.json) — 실제 산출물. 직접 고치지 않고 `python tools/progress_artifacts.py` 로 실제 결과 파일(질문 세트 300·수집 답변, 코드의 프롬프트·기준 목록, 이 PC 의 저장 실행)에서 다시 계산합니다. `--check` 는 저장된 값과 다시 계산한 값이 같은지만 봅니다(모델 호출 없음).
+- [artifacts.json](frontend/data/artifacts.json) — 실제 산출물. 직접 고치지 않고 `python tools/progress_artifacts.py` 로 실제 결과 파일(질문 세트 326·수집 답변, 코드의 프롬프트·기준 목록, 이 PC 의 저장 실행 — 질문 세트 구분은 [질문세트_목록](참고자료/질문세트_목록.md))에서 다시 계산합니다. `--check` 는 저장된 값과 다시 계산한 값이 같은지만 봅니다(모델 호출 없음).
 - 저장 실행 같은 비공개 원본(`data/`)은 개수·비율 같은 공개 요약만 artifacts.json 에 남고, 원본이 없는 PC 에서는 화면에 '자료 없음 — 공개 요약만 표시'로 나옵니다(`/api/progress/files` 는 파일이 있는지만 알려 주고 내용은 보내지 않음).
 
 현황 화면 검증: `python -m pytest tests/test_progress_artifacts.py` (표·그래프 수치 = 실제 결과 파일) · `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요, 캡처는 `results/progress-workspace/`).

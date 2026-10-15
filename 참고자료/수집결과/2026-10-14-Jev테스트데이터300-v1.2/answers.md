@@ -1,4 +1,4 @@
-# 질문 세트 300 — AIONA·GPT·Gemini 답변 원문
+# Jev 테스트 데이터 300 (v1.2) — AIONA·GPT·Gemini 답변 원문
 
 - 질문 300개(턴 450개) · 생성 question-gen-v1.2 · 실행 c9b09c1ddfba · 내보낸 시각(UTC) 2026-10-14T01:53:40+00:00
 - 모델: AIONA `AIONA 웹 · 자동 추천` · GPT `gpt-6-luna` · Gemini `gemini-3.8-flash` · 추론 강도 medium · 평가는 하지 않음

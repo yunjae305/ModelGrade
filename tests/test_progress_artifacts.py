@@ -74,7 +74,7 @@ def test_charts_and_tables_use_the_same_numbers_as_the_question_set_and_answers(
 
 
 def test_owner_overview_numbers_come_from_the_artifacts_and_the_answers_file():
-    """우영 통합 요약 A·B·C 는 산출물·answers.json 과 같은 수치이고, 실측이 없는 경로에는 수치를 쓰지 않으며, 재시도 전 기록은 이력으로 따로 둔다."""
+    """우영 통합 요약 A·B·C 는 산출물·answers.json 과 같은 수치이고, 실측이 없는 경로에는 수치를 쓰지 않는다."""
     overview = ARTIFACTS["overview"]
     assert _strip_links(overview) == _strip_links(pa.build(ARTIFACTS)["overview"])
     groups = {g["id"]: g for g in overview["groups"]}
@@ -93,9 +93,7 @@ def test_owner_overview_numbers_come_from_the_artifacts_and_the_answers_file():
     assert chart["categories"] == [r["chart_label"] for r in real]
     assert chart["series"][0]["values"] == [round(r["success"] / r["requests"] * 100, 1) for r in real]
     assert all(r["requests"] is None and r["rate"] is None for r in rows.values() if r["state"] == "none")
-    old = json.loads(pa._git("show", f"{pa.HISTORY_REV}:{pa.ANSWERS}"))["meta"]["status_counts"]["aiona"]
-    history = rows["AIONA 웹 (재시도 전 기록)"]
-    assert history["state"] == "history" and history["success"] == old["SUCCESS"] and history["chart_label"] is None
+    assert {r["state"] for r in rows.values()} <= {"real", "none"}   # 예전 질문 세트 300 의 재시도 전 이력 행은 없다 (10-15)
     steps = {s["name"]: s["state"] for s in groups["C"]["steps"]}
     if answers["evaluation"] == "하지 않음":
         assert steps["CODE·LLM 평가"] == steps["결과 비교"] == "pending"
@@ -132,7 +130,7 @@ def test_w01_intent_funnel_and_j6_split_add_up():
 
 
 def test_w01_quantity_keeps_the_batch_size_apart_from_the_set_size_and_cases_are_real_questions():
-    """40(한 번에 계획) · 300(지난 실험) · 기준별 필요 수 · 신뢰 표본 수를 다른 숫자로 두고, 대표 사례는 실제 질문 원문이다."""
+    """40(한 번에 계획) · 실제 세트 질문 수 · 기준별 필요 수 · 신뢰 표본 수를 다른 숫자로 두고, 대표 사례는 실제 질문 원문이다."""
     from webapp.question_generation import PLAN_BATCH
     quantity = BY_ID["W01-QUANTITY"]["content"]
     four = quantity["four_numbers"]
@@ -142,7 +140,7 @@ def test_w01_quantity_keeps_the_batch_size_apart_from_the_set_size_and_cases_are
     last = BY_ID["W03-COVERAGE"]["content"]["table"]["rows"][-1]
     assert quantity["table"]["rows"][-1]["order_k1"] == last["k1"] and quantity["table"]["rows"][-1]["order_k5"] == last["k5"]
     by_id = {g["id"]: g for g in groups}
-    for case in BY_ID["W01-SET300"]["content"]["cases"]:
+    for case in BY_ID[pa.SET_ARTIFACT]["content"]["cases"]:
         original = [t["question"] for t in by_id[case["id"]]["turns"]]
         shown = [t["question"] for t in case["turns"]] if "turns" in case else [case["question"]]
         assert all(text in source for text, source in zip(shown, original)) and len(shown) == len(original)

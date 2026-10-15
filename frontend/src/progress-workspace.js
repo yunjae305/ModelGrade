@@ -13,6 +13,7 @@
   const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100'];   // dataviz 기본 범주 1~4 (흰 배경 검증, 노랑·청록은 직접 라벨·표 함께)
   const STATUS_COLORS = {SUCCESS: '#0ca30c', INCOMPLETE: '#fab219', ERROR: '#d03b3b'};
   const SVGNS = 'http://www.w3.org/2000/svg';
+  const SET_ARTIFACT = 'W01-SET326';   // 실제 생성 질문 세트 산출물 — 질문 세트 326 (10-15, tools/progress_artifacts.py SET_ARTIFACT)
   let requestId = 0;
   let owner = 'all';
   let status = 'all';
@@ -435,7 +436,7 @@
     if (artifact.type === 'code') renderCode(parent, content);
     if (artifact.type === 'run') renderRun(parent, content);
     for (const chart of content.charts || []) chartBlock(parent, chart);
-    if (content.table) dataTable(block(parent, '표'), content.table, artifact.title, artifact.artifact_id === 'W01-SET300' ? 25 : 0);
+    if (content.table) dataTable(block(parent, '표'), content.table, artifact.title, artifact.artifact_id === SET_ARTIFACT ? 25 : 0);
     if (content.minimum) dataTable(block(parent, '기준마다 k번을 채우는 가장 작은 질문 묶음 (탐욕 근사 — 실제 최소보다 클 수 있음)'), content.minimum);
     if (content.precision) dataTable(block(parent, '이론 기준 — 통과율 p 를 95% 신뢰구간 ±h 로 재는 데 필요한 기준별 적용 수'),
       {columns: [{key: 'p', label: '예상 통과율 p', numeric: true}, {key: 'half_width', label: '반폭 h', numeric: true}, {key: 'n', label: '필요 적용 수', numeric: true}], rows: content.precision});
@@ -572,20 +573,21 @@
     append(top, 'span', '', `담당 ${item.owner} · ${item.priority}`);
     if (item.role) append(box, 'p', 'progress-role', '이 화면의 역할 · ' + item.role);
     const prompt = artifactOf(artifacts, 'W01-PROMPT');
-    const generated = artifactOf(artifacts, 'W01-SET300');
+    const generated = artifactOf(artifacts, SET_ARTIFACT);
     const intent = artifactOf(artifacts, 'W01-INTENT');
     if (item.id === 'W01' && prompt && generated && intent) {
       const count = statOf(generated, '질문(대화)');
       const rate = statOf(intent, '적용률');
       const generatedVersion = versionOf(generated.data_source.generator);
       const promptVersion = versionOf(prompt.content.version);
-      append(box, 'h3', '', `평가 기준을 하나하나 시험할 질문을 GPT 로 만드는 방법(질문 생성기 ${promptVersion})을 정했습니다. 이전 판 ${generatedVersion}으로 실제 만든 질문 ${fmt(count)}개에서는 시험하려던 기준 중 ${rate}만 실제로 적용됐고, 가장 큰 원인은 J6(긴 대화) 조건 불일치였습니다.`);
+      const topMiss = [...(intent.content.families || [])].sort((a, b) => b.missed - a.missed).find(row => row.missed > 0);
+      append(box, 'h3', '', `평가 기준을 하나하나 시험할 질문을 GPT 로 만드는 방법(질문 생성기 ${promptVersion})을 정했습니다. 이전 판 ${generatedVersion}으로 실제 만든 질문 ${fmt(count)}개에서는 시험하려던 기준 중 ${rate}만 실제로 적용됐습니다.${topMiss ? ` 가장 많이 빗나간 기준은 ${topMiss.family}(${topMiss.name}) ${fmt(topMiss.missed)}건입니다.` : ''}`);
       const metrics = append(box, 'div', 'progress-focus-metrics');
       summaryMetric(metrics, '실제로 만든 질문', count, `이전 판 ${generatedVersion} · GPT 실제 생성`);
       summaryMetric(metrics, '시험하려던 기준이 실제 적용된 비율', rate, `${generatedVersion} · AI 정답률 아님`);
       summaryMetric(metrics, 'J6(긴 대화) 빼면', statOf(intent, 'J6 제외 적용률'), `${generatedVersion} · J6 제외 집계`);
       summaryMetric(metrics, `현재 ${promptVersion} 실제 생성`, '미실행', '성능 검증 대기 · 모의 테스트만');
-      append(box, 'p', 'progress-source-line', `자료: 질문 세트 300 (${generatedVersion}, 실행 ${generated.data_source.run_id || '기록 없음'}, ${generated.created_at || '시각 기록 없음'}) · 현재 코드 ${promptVersion} 는 실제 생성 전`);
+      append(box, 'p', 'progress-source-line', `자료: ${generated.data_source.set || '질문 세트'} (${generatedVersion}, 실행 ${generated.data_source.run_id || '기록 없음'}, ${generated.created_at || '시각 기록 없음'}) · 현재 코드 ${promptVersion} 는 실제 생성 전`);
       const nav = append(box, 'nav', 'w01-nav');
       nav.setAttribute('aria-label', 'W01 설명 순서');
       W01_STEPS.forEach(([number, title], index) => {
@@ -850,22 +852,24 @@
 
     const j6 = intent.content.j6;
     const j6row = intent.content.families.find(row => row.family === 'J6');
-    const cause = append(box, 'div', 'w01-j6');
-    append(cause, 'h4', '', `가장 큰 원인 — J6 · ${j6row.name}: 미적용 ${fmt(f.missed)}건 중 ${fmt(j6row.missed)}건`);
-    const j6bar = append(cause, 'div', 'w01-j6-bar');
-    j6bar.setAttribute('role', 'img');
-    j6bar.setAttribute('aria-label', `J6 를 노린 목표 ${j6.targets}건 — ` + j6.bins.map(bin => `${bin.label} ${bin.targets}건 중 적용 ${bin.applied}건`).join(', '));
-    for (const bin of j6.bins) segment(j6bar, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', bin.targets, j6.targets);
-    const j6legend = append(cause, 'div', 'w01-legend');
-    for (const bin of j6.bins) legendItem(j6legend, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', `${bin.label} ${fmt(bin.conversations)}개`, `J6 목표 ${fmt(bin.targets)}건 중 적용 ${fmt(bin.applied)}건`);
-    const compare = append(cause, 'div', 'w01-compare');
-    const made = append(compare, 'div');
-    append(made, 'b', '', `질문을 만든 쪽 — 생성기 ${version}`);
-    append(made, 'p', '', j6.where);
-    const judge = append(compare, 'div');
-    append(judge, 'b', '', '평가하는 쪽 — 평가기의 J6 적용 조건');
-    append(judge, 'p', '', `${j6.rule}. 짧은 대화는 J6 를 묻지 않습니다(해당 없음).`);
-    append(cause, 'p', 'w01-verdict', `즉 AI 답변이 나빠서 생긴 문제가 아니라, 질문을 만든 조건과 평가하는 조건이 달라서 생긴 문제입니다. J6 를 빼고 계산하면 적용률은 ${statOf(intent, 'J6 제외 적용률')} 입니다.`);
+    if (j6row?.missed) {   // J6 를 짧은 대화에 노려 빗나간 건이 있을 때만
+      const cause = append(box, 'div', 'w01-j6');
+      append(cause, 'h4', '', `가장 큰 원인 — J6 · ${j6row.name}: 미적용 ${fmt(f.missed)}건 중 ${fmt(j6row.missed)}건`);
+      const j6bar = append(cause, 'div', 'w01-j6-bar');
+      j6bar.setAttribute('role', 'img');
+      j6bar.setAttribute('aria-label', `J6 를 노린 목표 ${j6.targets}건 — ` + j6.bins.map(bin => `${bin.label} ${bin.targets}건 중 적용 ${bin.applied}건`).join(', '));
+      for (const bin of j6.bins) segment(j6bar, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', bin.targets, j6.targets);
+      const j6legend = append(cause, 'div', 'w01-legend');
+      for (const bin of j6.bins) legendItem(j6legend, bin.targets && bin.applied === bin.targets ? 'applied' : 'missed', `${bin.label} ${fmt(bin.conversations)}개`, `J6 목표 ${fmt(bin.targets)}건 중 적용 ${fmt(bin.applied)}건`);
+      const compare = append(cause, 'div', 'w01-compare');
+      const made = append(compare, 'div');
+      append(made, 'b', '', `질문을 만든 쪽 — 생성기 ${version}`);
+      append(made, 'p', '', j6.where);
+      const judge = append(compare, 'div');
+      append(judge, 'b', '', '평가하는 쪽 — 평가기의 J6 적용 조건');
+      append(judge, 'p', '', `${j6.rule}. 짧은 대화는 J6 를 묻지 않습니다(해당 없음).`);
+      append(cause, 'p', 'w01-verdict', `즉 AI 답변이 나빠서 생긴 문제가 아니라, 질문을 만든 조건과 평가하는 조건이 달라서 생긴 문제입니다. J6 를 빼고 계산하면 적용률은 ${statOf(intent, 'J6 제외 적용률')} 입니다.`);
+    }
 
     append(box, 'h4', 'w01-subhead', '기준별로 보면 — 빗나간 기준과 주요 원인');
     const rows = intent.content.families.filter(row => row.missed > 0).sort((a, b) => b.missed - a.missed);
@@ -929,7 +933,7 @@
   function w01Story(parent, artifacts) {
     const design = artifactOf(artifacts, 'W01-DESIGN');
     const intent = artifactOf(artifacts, 'W01-INTENT');
-    const generated = artifactOf(artifacts, 'W01-SET300');
+    const generated = artifactOf(artifacts, SET_ARTIFACT);
     const quantity = artifactOf(artifacts, 'W01-QUANTITY');
     if (!design || !intent?.content?.funnel || !generated?.content?.cases || !quantity) return false;
     const story = append(parent, 'div', 'w01-story');
@@ -1065,7 +1069,7 @@
       representativeCases(body, item, artifacts);
     }
     const detailed = append(body, 'details', 'progress-disclosure progress-detailed');
-    append(detailed, 'summary', '', story ? `기술 자료 및 원본 보기 · 프롬프트 원문 · 질문 ${fmt(statOf(artifactOf(artifacts, 'W01-SET300'), '질문(대화)'))}개 전체 · JSON 형식 · 버전 기록 · 테스트 (산출물 ${artifacts.length}개)`
+    append(detailed, 'summary', '', story ? `기술 자료 및 원본 보기 · 프롬프트 원문 · 질문 ${fmt(statOf(artifactOf(artifacts, SET_ARTIFACT), '질문(대화)'))}개 전체 · JSON 형식 · 버전 기록 · 테스트 (산출물 ${artifacts.length}개)`
       : `상세 산출물 전체 보기 · ${artifacts.length}개`);
     let built = false;
     detailed.addEventListener('toggle', () => {

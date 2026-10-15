@@ -70,9 +70,13 @@ def main():
                 # W01 — 담당자 요구사항 A~D 와 실제 산출물, 프롬프트 원문, 파일 확인
                 w01 = page.locator('#requirement-W01')
                 w01.locator('summary').click()
-                expect(w01.locator('.progress-executive h3')).to_contain_text('생성기 v1.4')
-                expect(w01.locator('.progress-executive h3')).to_contain_text('300개')
-                expect(w01.locator('.progress-executive h3')).to_contain_text('50.3%')
+                generated = by_id['W01-SET326']   # 실제 생성 질문 세트 — 질문 세트 326 (10-15)
+                questions = generated['content']['table']['rows']
+                expect(w01.locator('.progress-executive h3')).to_contain_text('생성기 ' + by_id['W01-PROMPT']['content']['version'].removeprefix('question-gen-'))
+                expect(w01.locator('.progress-executive h3')).to_contain_text(f'{len(questions)}개')
+                expect(w01.locator('.progress-executive h3')).to_contain_text(
+                    next(s['value'] for s in by_id['W01-INTENT']['content']['stats'] if s['label'] == '적용률'))
+                expect(w01.locator('.progress-source-line').first).to_contain_text('질문 세트 326')
                 expect(w01.locator('.progress-role')).to_contain_text('W02')
                 expect(w01.locator('.progress-focus-metric')).to_have_count(4)
                 expect(w01.locator('.progress-focus-metric').last).to_contain_text('미실행')
@@ -98,11 +102,15 @@ def main():
                     f"목표 {funnel['intended']}건 중 실제 적용 {applied}건, 미적용 {missed}건, 판단 보류 {pending}건. 적용률은 {applied} ÷ {applied + missed}.")
                 expect(w01.locator('.w01-figure .w01-legend')).to_contain_text(f'판단 가능 {applied + missed}건 중 {applied / (applied + missed) * 100:.1f}%')
                 j6 = next(row for row in intent['families'] if row['family'] == 'J6')
-                expect(w01.locator('.w01-j6')).to_contain_text('multi-turn-v2')
-                expect(w01.locator('.w01-j6 h4')).to_contain_text(f"{j6['missed']}건")
+                if j6['missed']:   # J6 를 짧은 대화에 노려 빗나간 건이 있을 때만 J6 원인 단락
+                    expect(w01.locator('.w01-j6')).to_contain_text('multi-turn-v2')
+                    expect(w01.locator('.w01-j6 h4')).to_contain_text(f"{j6['missed']}건")
+                else:
+                    expect(w01.locator('.w01-j6')).to_have_count(0)
                 expect(w01.locator('.w01-mini tbody tr')).to_have_count(sum(row['missed'] > 0 for row in intent['families']))
-                expect(w01.locator('.w01-mini tbody tr').first).to_contain_text('J6 · 멀티턴 맥락 유지')
-                cases = by_id['W01-SET300']['content']['cases']
+                top = max(intent['families'], key=lambda row: row['missed'])
+                expect(w01.locator('.w01-mini tbody tr').first).to_contain_text(f"{top['family']} · {top['name']}")
+                cases = generated['content']['cases']
                 expect(w01.locator('.w01-case')).to_have_count(len(cases))
                 conversation = next(case for case in cases if 'turns' in case)
                 expect(w01.locator('.w01-chat .w01-bubble')).to_have_count(len(conversation['highlights']))
@@ -128,26 +136,30 @@ def main():
                 with page.expect_download() as prompt_download:
                     page.locator('#artifact-W01-PROMPT .progress-prompt').first.get_by_role('button', name='원문 다운로드').click()
                 assert Path(prompt_download.value.path()).read_text(encoding='utf-8') == prompt['text']
-                expect(page.locator('#artifact-W01-SET300 .progress-file').first).to_have_text('이 PC 에 있음')
-                expect(page.locator('#artifact-W01-SET300 .progress-sample')).to_have_count(len(by_id['W01-SET300']['content']['samples']))
-                full_questions = page.locator('#artifact-W01-SET300 .progress-table-block').first
+                expect(page.locator('#artifact-W01-SET326 .progress-file').first).to_have_text('이 PC 에 있음')
+                expect(page.locator('#artifact-W01-SET326 .progress-sample')).to_have_count(len(generated['content']['samples']))
+                full_questions = page.locator('#artifact-W01-SET326 .progress-table-block').first
+                pages = -(-len(questions) // 25)
                 expect(full_questions.locator('tbody tr')).to_have_count(25)
-                expect(full_questions.locator('.progress-paging')).to_have_text('1 / 12쪽')
+                expect(full_questions.locator('.progress-paging')).to_have_text(f'1 / {pages}쪽')
                 first_question = full_questions.locator('tbody tr').first.inner_text()
                 full_questions.get_by_role('button', name='다음').click()
-                expect(full_questions.locator('.progress-paging')).to_have_text('2 / 12쪽')
+                expect(full_questions.locator('.progress-paging')).to_have_text(f'2 / {pages}쪽')
                 assert full_questions.locator('tbody tr').first.inner_text() != first_question
+                hard = [row for row in questions if row['difficulty'] == '어려움']
+                empty = '아무것도 출력하지 마.'
+                hard_empty = sum(any(empty in str(value) for value in row.values()) for row in hard)
                 full_questions.get_by_label('난도 필터').select_option('어려움')
-                expect(full_questions.locator('.progress-table-count')).to_have_text('300행 중 138행')
-                full_questions.get_by_label(by_id['W01-SET300']['title'] + ' 검색').fill('아무것도 출력하지 마.')
-                expect(full_questions.locator('.progress-table-count')).to_have_text('300행 중 0행')
+                expect(full_questions.locator('.progress-table-count')).to_have_text(f'{len(questions)}행 중 {len(hard)}행')
+                full_questions.get_by_label(generated['title'] + ' 검색').fill(empty)
+                expect(full_questions.locator('.progress-table-count')).to_have_text(f'{len(questions)}행 중 {hard_empty}행')
                 full_questions.get_by_label('난도 필터').select_option('')
-                expect(full_questions.locator('tbody')).to_contain_text('아무것도 출력하지 마.')
-                full_questions.get_by_label(by_id['W01-SET300']['title'] + ' 검색').fill('')
+                expect(full_questions.locator('tbody')).to_contain_text(empty)
+                full_questions.get_by_label(generated['title'] + ' 검색').fill('')
                 full_questions.get_by_label('난도 필터').select_option('어려움')
                 with page.expect_download() as questions_download:
                     full_questions.get_by_role('button', name='CSV 다운로드').click()
-                assert len(Path(questions_download.value.path()).read_text(encoding='utf-8-sig').splitlines()) == 139
+                assert len(Path(questions_download.value.path()).read_text(encoding='utf-8-sig').splitlines()) == len(hard) + 1
                 w01.locator('.progress-management > summary').click()
                 expect(w01.locator('.progress-section-letter')).to_have_text(['B', 'A', 'C', 'D', '→'])
                 expect(w01).to_contain_text(data['items'][0]['acceptance'])
@@ -189,13 +201,12 @@ def main():
                 expect(page.locator('#requirement-W03 .progress-warning')).to_contain_text('같은 조건')
                 expect(page.locator('#artifact-W03-CONCLUSION')).to_contain_text(by_id['W03-CONCLUSION']['content']['judgment'][:30])
 
-                for latest_id in ['W04', 'W08']:   # 최신 수집 기록(재시도 후)이 기본, 재시도 전 기록은 W04 의 이력 산출물로
+                for latest_id in ['W04', 'W08']:   # 질문 세트 326 수집 실행 (예전 질문 세트 300 의 재시도 전 이력 산출물은 없음 — 10-15)
                     latest = page.locator(f'#requirement-{latest_id}')
                     latest.locator('summary').click()
-                    expect(latest.locator('.progress-executive .progress-source-line')).to_contain_text('c9b09c1ddfba')
+                    expect(latest.locator('.progress-executive .progress-source-line')).to_contain_text(by_id['W04-AIONA-RUN']['content']['run_id'])
                     expect(latest.locator('.progress-executive .progress-source-line')).not_to_contain_text('이전 실행 결과')
-                page.locator('#requirement-W04 .progress-detailed > summary').click()
-                expect(page.locator('#artifact-W04-AIONA-HISTORY .progress-result')).to_have_text(by_id['W04-AIONA-HISTORY']['result_summary'])
+                expect(page.locator('#artifact-W04-AIONA-HISTORY')).to_have_count(0)
 
                 # 우영 담당 통합 요약 A·B·C — 수치는 artifacts.json overview 그대로, 상세 보기로 W01~W09 연결
                 overview = {g['id']: g for g in artifacts['overview']['groups']}
@@ -227,7 +238,7 @@ def main():
                 b_card.locator('summary', has_text='서비스별 수집 기록 표').click()
                 services = len(overview['B']['table']['rows'])
                 expect(b_card.locator('.progress-table-count').last).to_have_text(f'{services}행 중 {services}행')
-                expect(b_card.locator('.progress-table').last).to_contain_text('이력(같은 실행 재시도 전)')
+                expect(b_card.locator('.progress-table').last).not_to_contain_text('재시도 전')
                 c_card = panel.locator('#progress-group-C')
                 states = {'real': '실제 실행 완료', 'tested': '코드 구현·테스트 완료', 'partial': '부분 완료', 'pending': '미실행·검증 대기'}
                 expect(c_card.locator('.progress-pipeline-state')).to_have_text([states[s['state']] for s in overview['C']['steps']])
