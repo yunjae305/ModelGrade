@@ -134,6 +134,19 @@ class _CdpChat:
     def _apply_model(self) -> str:   # 사이트별 — 설정을 맞추고 화면에 보이는 모델 표시를 돌려준다
         return self.MODEL_LABEL
 
+    def _close_overlays(self) -> None:
+        """입력칸을 덮은 사이드바·메뉴를 닫는다 — 좁은 창에서는 사이드바가 화면 위에 겹쳐 열린다."""
+        self.page.keyboard.press("Escape")
+        for name in ("사이드바 닫기", "기본 메뉴 닫기", "메뉴 닫기", "닫기", "Close sidebar"):
+            btn = self.page.get_by_role("button", name=name, exact=True)
+            try:
+                if btn.count() and btn.first.is_visible():
+                    btn.first.click(timeout=3000)
+                    self.page.wait_for_timeout(600)
+                    return
+            except Exception:
+                continue
+
     def _check_blocked(self) -> None:
         text = self.page.evaluate("() => document.body.innerText.slice(0, 4000)") or ""
         hit = next((p for p in _BLOCKED if p.lower() in text.lower()), None)
@@ -248,7 +261,11 @@ class _CdpChat:
                 self.page.keyboard.press("Escape")   # 남아 있는 메뉴·팝업 닫기
                 self.page.wait_for_timeout(200)
                 box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
-                box.click(timeout=10_000)
+                try:
+                    box.click(timeout=5_000)
+                except Exception:   # 창이 좁으면 사이드바가 입력칸을 덮는다(Gemini, 2026-10-15) — 닫고 한 번 더
+                    self._close_overlays()
+                    box.click(timeout=10_000)
                 self.page.keyboard.insert_text(text)
                 self.page.wait_for_timeout(600)
                 self.page.keyboard.press("Enter")
