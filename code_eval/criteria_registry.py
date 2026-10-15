@@ -356,6 +356,10 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "j1-j4-j7-j8-fail-evidence-v3", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J8 FAIL 도 이유 + 원문 인용 필요 — 답변 인용이 하나 이상 맞아야 하고, 첨부 내용(attachments[].content) 인용도 근거로 셈"]},
     {"version": "criteria-registry-v8", "date": "2026-10-13", "scope": "registry", "changes": ["J8 첨부파일 활용 등록 (jev-criteria-v5·semantic-items-v5)"]},
+    {"version": "jev-criteria-v6", "date": "2026-10-15", "scope": "semantic",
+     "changes": ["J1·J4 판정 규칙에 빠진 자료·모순 질문 예외 추가 — 질문에 꼭 필요한 자료가 없거나 조건이 서로 모순되면, 그 사실을 밝히고 자료를 "
+                 "요청하거나 가능한 범위만 답한 것이 PASS (44개 항목의 J1-3 과 같은 규칙). Jev 관찰 시험에서 '이 계약서의 위약금 조항을 요약해줘'"
+                 "(계약서 없음)에 자료를 요청한 답을 Jev 만 J1·J4 FAIL 로 본 8건이 계기"]},
     {"version": "multi-turn-v2", "date": "2026-10-14", "scope": "semantic",
      "changes": ["J6 멀티턴 = 턴 10개 이상이고 대화 전체(모든 턴의 질문 + 답변)가 10K 토큰 이상인 대화 (사용자 결정으로 바로잡음 — "
                  "v1 은 '한 턴이 10K 토큰 이상인 턴 10개'로 읽어 질문 생성기가 턴마다 약 1.5만 자 자료를 붙였다)",

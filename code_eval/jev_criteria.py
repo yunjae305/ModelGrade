@@ -20,7 +20,7 @@ from .model import SUBCATEGORIES
 __all__ = ["JEV_CRITERIA_VERSION", "DECISIONS", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
            "jev_questions", "describe"]
 
-JEV_CRITERIA_VERSION = "jev-criteria-v5"   # v5: J8 첨부파일 활용 추가 · v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
+JEV_CRITERIA_VERSION = "jev-criteria-v6"   # v6: J1·J4 에 빠진 자료·모순 질문 예외(J1-3 과 같은 규칙, Jev 관찰 시험 2026-10-15) · v5: J8 첨부파일 활용 추가 · v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
 
 #: Jev choice 질문의 선택지. AIONA 판정 표기(PASS/FAIL)와 같게 둔다.
 DECISIONS = ("PASS", "FAIL")
@@ -53,9 +53,11 @@ CRITERIA = (
     JevCriterion(
         "J1", "intent_fulfillment", "의도 충족성", "Intent Fulfillment",
         question="질문이 시킨 일(비교·추천·설명·작성 등)을 답변이 실제로 했는가?",
-        pass_rule="요청한 작업의 결과물(비교 결과·추천 대상·해결 방법·요청한 글)이 답변에 있음",
+        pass_rule="요청한 작업의 결과물(비교 결과·추천 대상·해결 방법·요청한 글)이 답변에 있음. "
+                  "질문에 꼭 필요한 자료가 빠졌거나 조건이 서로 모순되면, 그 사실을 밝히고 자료를 요청하거나 가능한 범위만 답한 것도 PASS",
         fail_rule="요청과 다른 일을 함 — 비교 요청에 각각 설명만, 추천 요청에 추천 없이 고르는 법만, 해결 방법 요청에 문제 설명만",
-        boundary="‘했는가’만 본다. 내용이 대상·상황에 맞는지는 J2, 핵심이 빠졌는지는 J4 가 본다. 개수·분량·형식은 판단하지 않는다.",
+        boundary="‘했는가’만 본다. 내용이 대상·상황에 맞는지는 J2, 핵심이 빠졌는지는 J4 가 본다. 개수·분량·형식은 판단하지 않는다. "
+                 "‘이 계약서를 요약해줘’처럼 대상 자료가 질문에 없으면 요약할 수 없으므로, 자료가 없다고 밝히고 요청한 답변은 할 일을 한 것이다(J1-3 과 같은 규칙).",
         example="요리법을 물었는데 재료 설명만 하고 만드는 법은 주지 않았는지"),
     JevCriterion(
         "J2", "content_appropriateness", "내용 적절성", "Content Appropriateness",
@@ -77,7 +79,8 @@ CRITERIA = (
         pass_rule="목적 달성에 필요한 핵심 요소(양쪽 비교 항목·핵심 단계·판단 근거)가 모두 있음",
         fail_rule="일은 했지만 핵심이 빠짐 — 장단점 요청에 장점만, 해결 방법에 핵심 단계 누락, 선택 질문에 결론만",
         boundary="‘빠진 것이 있는가’를 본다. 일을 아예 안 한 것은 J1, 내용이 맞지 않는 것은 J2 가 본다. "
-                 "'5개 요청에 4개 제공' 같은 개수 누락은 코드 검사가 맡으므로 개수만으로 FAIL 하지 않는다.",
+                 "'5개 요청에 4개 제공' 같은 개수 누락은 코드 검사가 맡으므로 개수만으로 FAIL 하지 않는다. "
+                 "질문에 꼭 필요한 자료가 빠져 있으면, 자료가 없다는 사실과 무엇을 주면 되는지를 담은 답변은 그 상황에서 필요한 핵심을 갖춘 것이다(J1-3 과 같은 규칙).",
         example="장단점을 물었는데 장점만 설명했는지"),
     JevCriterion(
         "J5", "data_reliability", "DATA 신뢰도", "Data Reliability",
