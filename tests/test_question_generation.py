@@ -268,15 +268,17 @@ def test_service_validates_dedicated_counts(tmp_path):
             service.start(bad)
 
 
-def test_catalog_lists_every_detailed_condition_kind():
-    """세부 기준 — CODE 검사 안의 질문 조건 종류마다 id('검사:종류')와 질문 쪽 인식 규칙을 프롬프트에 싣는다."""
-    from tools.check_question_set import KINDS
+def test_catalog_targets_are_checks_and_items_with_condition_hints():
+    """기준 단위는 72(CODE 검사 + 의미 항목) — 검사가 알아보는 질문 조건은 id 없이 표현 안내로만 싣는다 (사용자 결정 2026-10-15)."""
+    from code_eval.criteria_registry import condition_kinds
     prompt = qg.plan_prompt()
-    assert all(kid in prompt for kid in KINDS) and len(KINDS) >= 30
-    lines = "\n".join(qg._catalog_lines(qg.criteria_catalog(), {"2-1.count:word_count"}))
-    assert "2-1.count:word_count(어절 수)" in lines and "단어(어절) 수" in lines and "2-2.table" not in lines
-    plans, _ = qg.parse_plan(json.dumps({"questions": [{"target_items": ["2-1.count:word_count", "없는:종류"], "turns": [{"question": "q"}]}]}))
-    assert plans[0]["target_items"] == ["2-1.count:word_count"]
+    hints = [line for line in prompt.splitlines() if "알아보는 질문 조건(섞어 씀)" in line]
+    assert len(hints) >= 15 and not any(c["id"] in line for c in condition_kinds() for line in hints)   # '검사:종류' id 는 노릴 대상이 아니다
+    assert "세부 조건 id" not in prompt and "'검사:종류'" not in prompt
+    lines = "\n".join(qg._catalog_lines(qg.criteria_catalog(), {"2-1.count"}))
+    assert "- 2-1.count · " in lines and "어절 수" in lines and "단어(어절) 수" in lines and "2-2.table" not in lines
+    plans, _ = qg.parse_plan(json.dumps({"questions": [{"target_items": ["2-1.count", "2-1.count:word_count", "J2-1.a"], "turns": [{"question": "q"}]}]}))
+    assert plans[0]["target_items"] == ["2-1.count", "J2-1.a"]
 
 
 def test_per_target_adds_questions_for_criteria_below_the_target(tmp_path):
@@ -285,9 +287,9 @@ def test_per_target_adds_questions_for_criteria_below_the_target(tmp_path):
     builder = qg.QuestionSetBuilder(fake, tmp_path)
     result = builder.build(per_target=2, multi_turn_count=0, long_context_count=0)
     extra = [p for p in fake.prompts if p.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가")]
-    assert extra and "세부 기준마다 적용 질문이 2개 이상이 되도록" in extra[0] and "목표 None" not in extra[0]
+    assert extra and "기준(CODE 검사·의미 점검 항목)마다 적용 질문이 2개 이상이 되도록" in extra[0] and "목표 None" not in extra[0]
     low = extra[0].split("# 적용 질문이 적은 항목 (id · 현재 적용 질문 수)\n", 1)[1].split("\n\n", 1)[0]
-    assert any(":" in line.split(" · ")[0] for line in low.splitlines())   # 세부 조건('검사:종류')을 노린다
+    assert low and not any(":" in line.split(" · ")[0] for line in low.splitlines())   # 검사·항목 id 만 — 질문 조건 종류 단위는 없다
     assert result["extra_rounds"] <= qg.MAX_EXTRA_ROUNDS and len(result["groups"]) > 4
     assert all(n >= 0 for n in qg.target_counts(result["check"]).values())
 
@@ -329,7 +331,7 @@ def test_per_target_tops_up_j6_through_the_dedicated_step_and_reports_shortfalls
     assert result["check"]["coverage"]["items"]["J6-1.a"] >= 1
     assert isinstance(result["short"], dict)
     if result["short"]:
-        assert any("채우지 못한 세부 기준" in w for w in builder.warnings)
+        assert any("채우지 못한 기준" in w for w in builder.warnings)
 
 
 def test_dedicated_recovery_runs_before_general_questions_fill_the_cap(tmp_path):
@@ -360,7 +362,7 @@ def test_imported_questions_make_a_completed_set_ready_for_review(tmp_path):
     service = qg.QuestionSetService(lambda: None, store=tmp_path)
     job = service.import_questions({"text": "146 + 279는 얼마야?\n---\n오늘 할 일을 표로 정리해줘.", "source": "manual"})
     assert job["status"] == "COMPLETED" and job["source"] == "manual" and job["run_id"] is None and job["summary"]["questions"] == 2
-    assert job["coverage"]["taxonomy"]["code_conditions"] > 0 and service.list()[0]["id"] == job["id"]
+    assert job["coverage"]["taxonomy"]["total"] == 72 and service.list()[0]["id"] == job["id"]
     assert [row["turns"][0]["question"] for row in service.preview(job["id"])] == ["146 + 279는 얼마야?", "오늘 할 일을 표로 정리해줘."]
 
 
@@ -404,10 +406,10 @@ def test_fixed_question_sets_become_completed_sets_with_files(tmp_path):
 
 
 def test_plan_prompt_only_lists_the_criteria_still_needed():
-    """공개 질문이 이미 덮는 기준은 첫 계획의 점검 목록에서 빠진다 — 세부 조건은 그 검사와 그 조건만, 항목은 그 id 만 (10-15 사용자 결정)."""
+    """공개 질문이 이미 덮는 기준은 첫 계획의 점검 목록에서 빠진다 — 검사·항목은 그 id 만 (10-15 사용자 결정)."""
     catalog = qg.criteria_catalog()
-    prompt = qg.plan_prompt(catalog, only={"2-2.table:table_required", "J2-1.a"})
-    assert "- 2-2.table · " in prompt and "2-2.table:table_required(" in prompt and "2-2.table:table_forbidden(" not in prompt
+    prompt = qg.plan_prompt(catalog, only={"2-2.table", "J2-1.a"})
+    assert "- 2-2.table · " in prompt and "- 2-2.list · " not in prompt
     assert "- J2-1.a · " in prompt and "- J3-1.a · " not in prompt and "- 2-1.count · " not in prompt
     assert "이미 다른 질문이 충분히 덮는 기준을 뺀 것입니다" in prompt
     assert qg.plan_prompt(catalog) == qg.plan_prompt(catalog, only=None)   # only 가 없으면 전과 같다
@@ -416,7 +418,8 @@ def test_plan_prompt_only_lists_the_criteria_still_needed():
 def test_base_counts_skip_covered_criteria_and_count_toward_the_target(tmp_path):
     """밖에서 확보한 적용 수(base_counts)는 빠진 항목·모자란 기준을 셀 때 더해진다 — 이미 덮인 기준은 첫 계획에 묻지 않고 부족 목록에도 없다."""
     names = list(qg.target_counts(qg.check([])))
-    covered = {t: 3 for t in names if t not in ("2-2.table:table_required", "J2-1.a")}
+    assert len(names) == 64   # 72 − 답변으로만 정해지는 검사 7 · J5-3.a
+    covered = {t: 3 for t in names if t not in ("2-2.table", "J2-1.a")}
     fake = FakeGPT()
     builder = qg.QuestionSetBuilder(fake, tmp_path)
     result = builder.build(per_target=2, multi_turn_count=0, long_context_count=0, base_counts=covered)

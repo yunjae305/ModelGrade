@@ -1,6 +1,6 @@
 """최소 필요 질문 수 — 평가 항목마다 판정에 충분한 질문이 들어가는 가장 작은 질문 수를 찾는다 (모델 호출 없음).
 
-평가 항목 = CODE 세부 조건(검사 안의 질문 조건 종류, '2-1.count:sentence_count')과 의미 평가 점검 항목 — 질문 생성기가 채우는 단위와 같다. 적용 여부는 ``tools/check_question_set.py`` 와 같은 코드 규칙으로
+평가 항목 = 기준 단위 72(CODE 검사 28 + 의미 평가 점검 항목 44, 사용자 결정 2026-10-15) 가운데 질문으로 셀 수 있는 64 — 질문 생성기가 채우는 단위와 같다. 적용 여부는 ``tools/check_question_set.py`` 와 같은 코드 규칙으로
 정한다(평가 때와 같은 엔진·적용 규칙). 질문 단위는 단일 질문 1개 = 1, 멀티턴 대화 1개 = 1.
 
 1. 크기별 적용 수 — 세트를 앞에서부터 N개로 잘랐을 때 항목별 적용 질문 수와, k개 이상 적용된 항목 수.
@@ -32,9 +32,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from code_eval.semantic_quotes import _split_id  # noqa: E402
-from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS, KIND_UNIT, check_items, load_items, unit_of  # noqa: E402
+from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS, check_items, load_items, unit_of  # noqa: E402
 
-VERSION = "min-question-count-v3"   # v3: 부트스트랩도 세부 기준 단위 · 탐욕 결과는 근사로 표기 · v2: CODE 세부 조건으로 센다
+VERSION = "min-question-count-v4"   # v4: 기준 단위 72(CODE 검사 + 의미 항목) — 질문 조건 종류 단위 뺌 · v3: 부트스트랩도 세부 기준 단위 · 탐욕 결과는 근사로 표기 · v2: CODE 세부 조건으로 센다
 Z95 = 1.959964
 DEFAULT_K = (1, 5, 10, 30)
 DEFAULT_SIZES = (30, 50, 100, 150, 200, 300)
@@ -58,7 +58,7 @@ def question_units(report: Dict[str, Any]) -> Tuple[List[str], Dict[str, set], D
         if unit not in targets:
             order.append(unit)
         turns[unit] += 1
-        targets[unit].update(t for t in list(row.get("kinds") or []) + list(row.get("items") or []) if t not in skip)
+        targets[unit].update(t for t in list(row.get("checks") or []) + list(row.get("items") or []) if t not in skip)
     return order, dict(targets), dict(turns)
 
 
@@ -66,7 +66,7 @@ def all_targets(report: Dict[str, Any]) -> List[str]:
     """세어야 할 평가 항목 전체 (답변으로만 정해지는 것 제외) — 세트에 한 번도 안 나온 항목도 포함."""
     cov = report["coverage"]
     skip = set(ANSWER_DEPENDENT) | set(ANSWER_DEPENDENT_ITEMS)
-    return [t for t in list(cov["kinds"]) + list(cov["items"]) if t not in skip]
+    return [t for t in list(cov["checks"]) + list(cov["items"]) if t not in skip]
 
 
 def counts_for(units: Iterable[str], targets: Dict[str, set], names: Sequence[str]) -> Dict[str, int]:
@@ -129,9 +129,9 @@ def greedy_multicover(order: List[str], targets: Dict[str, set], names: Sequence
 # --- 평가 결과가 있을 때: 크기별 부트스트랩 -------------------------------------------------------------
 
 def unit_verdicts(run: Dict[str, Any]) -> Dict[str, Dict[str, Dict[str, str]]]:
-    """저장된 비교 실행 → {모델: {질문 단위: {세부 기준: PASS|FAIL}}} — 적용 수 분석과 같은 단위로 (Codex 리뷰).
+    """저장된 비교 실행 → {모델: {질문 단위: {기준: PASS|FAIL}}} — 적용 수 분석과 같은 72 단위로 (Codex 리뷰).
 
-    CODE 결과 행은 세부 조건('검사:종류')으로, 종류가 없는 행(모든 답변·답변 구조 검사)은 검사로. 의미 평가는 점검 항목
+    CODE 결과 행은 검사('2-1.count:sentence_count' → '2-1.count')로. 의미 평가는 점검 항목
     (decisions → subs → items, YES=PASS · NO=FAIL, 펼친 요소는 하나라도 NO 면 FAIL) — 항목 결과가 없는 옛 기록은 기준 판정으로.
     같은 단위(대화의 여러 턴)에서 한 번이라도 FAIL 이면 FAIL."""
     out: Dict[str, Dict[str, Dict[str, str]]] = {}
@@ -149,9 +149,7 @@ def unit_verdicts(run: Dict[str, Any]) -> Dict[str, Dict[str, Dict[str, str]]]:
             for row in case.get("results") or []:
                 if row.get("area") != "common" or not row.get("counted") or row.get("verdict") not in ("PASS", "FAIL"):
                     continue
-                check, _, rest = str(row.get("check_id") or "").partition(":")
-                kind = rest.split(":")[0]
-                target = f"{check}:{kind}" if KIND_UNIT.get(kind) == check else check
+                target = str(row.get("check_id") or "").split(":")[0]
                 if verdicts.get(target) != "FAIL":
                     verdicts[target] = row["verdict"]
             record = records[index] if index < len(records) and isinstance(records[index], dict) else {}

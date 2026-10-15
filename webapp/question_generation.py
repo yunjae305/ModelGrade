@@ -1,4 +1,4 @@
-"""질문 세트 생성 — 웹 버튼 하나로 GPT 가 우리 세부 기준(CODE 검사·의미 평가 항목)을 모두 평가할 수 있는 질문을 최소 개수로 만든다.
+"""질문 세트 생성 — 웹 버튼 하나로 GPT 가 우리 평가 기준 72개(CODE 검사 28 · 의미 점검 항목 44)를 모두 평가할 수 있는 질문을 최소 개수로 만든다.
 
 사용자 결정(2026-10-13): 질문 목록은 우리가 세운 세세한 평가 항목 전부를 평가할 수 있게, 가장 적은 개수로, 주제·유형은 다양하게
 만든다. 생성 모델은 GPT. 첨부파일(이미지·TXT·DOCX·PDF)도 질문을 만들 때 함께 만들고, 질문과 같이 각 모델에 보내 답변을 받는다.
@@ -46,7 +46,9 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #:       긴 문서 하나를 여러 J7 질문이 함께 쓴다 (사용자 결정 2026-10-14: 항목마다 판정에 충분한 질문 수)
 #: v1.4: 세부 기준(검사 안의 질문 조건 종류 37 + 의미 점검 항목)마다 적용 수를 세고 모자란 기준을 노려 추가 — 항목별 목표 적용 수(per_target),
 #:       멀티턴 답변 분량은 질문 문장에 쓰지 않고 설계 안내로만 (사용자 결정 2026-10-14)
-QUESTION_GEN_VERSION = "question-gen-v1.4"
+#: v1.5: 기준 단위 하나 — CODE 검사 28 + 의미 점검 항목 44 = 72 (질문으로 셀 수 있는 64)로 적용 수를 센다. v1.4 의 질문 조건 종류
+#:       37 단위는 뺐고, 조건 종류는 검사마다 쓸 수 있는 표현 안내로만 (사용자 결정 2026-10-15)
+QUESTION_GEN_VERSION = "question-gen-v1.5"
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -103,7 +105,7 @@ class Cancelled(GenerationError):
 
 # --- 1. 점검 목록과 프롬프트 ---------------------------------------------------------------
 
-#: 세부 조건(검사 안에서 질문이 만드는 조건 종류)의 이름 — 정의는 criteria_registry 한 곳 (생성기가 이 단위로 적용 수를 채운다)
+#: 검사가 질문에서 알아보는 조건 종류의 이름 — 정의는 criteria_registry 한 곳 (기준 단위가 아니라 검사별 표현 안내)
 KIND_NAMES = dict(CONDITION_KIND_NAMES)
 
 def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
@@ -127,7 +129,8 @@ def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
         pass
     codes = [{"id": c["id"], "name": c["name"], "applies": c["applies"], "example": examples.get(c["id"], ""),
               "rules": rules.get(c["id"], []), "question_rules": question_rules.get(c["id"], 0),
-              "kinds": [{"id": f"{unit}:{kind}", "name": KIND_NAMES.get(kind, kind)} for kind, unit in KIND_UNIT.items() if unit == c["id"]]}
+              # 검사가 질문에서 알아보는 조건 종류 — 기준이 아니라 그 검사에 쓸 수 있는 표현 안내 (기준은 검사 하나, 사용자 결정 2026-10-15)
+              "kinds": [KIND_NAMES.get(kind, kind) for kind, unit in KIND_UNIT.items() if unit == c["id"]]}
              for c in reference_details()["code_checks"] if not c["id"].startswith("AIONA")]
     def fail_note(item: Any) -> str:
         fail = next((ex for ex in item.examples if ex.kind == "FAIL"), None)
@@ -162,19 +165,18 @@ _FORMAT = """# 출력 형식 (JSON 하나만, 설명·코드 펜스 없이)
               "long_paste": {"topic": "붙여 넣을 자료 주제", "must_include": ["꼭 들어갈 내용"]}}]}
 ]}
 - 필요 없는 attachments·long_reference·long_paste 는 빼거나 null 로 둡니다. 단일 질문은 turns 가 1개, 멀티턴 대화는 여러 개입니다.
-- target_items 에는 [점검 목록]의 id 만(CODE 는 세부 조건 id '검사:종류'를 우선), 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
+- target_items 에는 [점검 목록]의 id(CODE 검사 id · 의미 점검 항목 id)만, 그 질문(대화)에서 적용되도록 의도한 것을 씁니다."""
 
 
 def _catalog_lines(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set] = None, detailed: bool = False) -> List[str]:
-    """점검 목록 줄. CODE 검사는 세부 조건(id '검사:종류')과 질문 쪽 인식 규칙 전부(``detailed`` 면 나머지 규칙까지)를 함께 —
-    질문에 그 표현을 그대로 써야 적용된다. ``only`` 에 세부 조건 id 가 있으면 그 검사와 해당 세부 조건만."""
-    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 세부 조건 · 인식 규칙)"]
+    """점검 목록 줄. CODE 검사는 알아보는 질문 조건과 질문 쪽 인식 규칙 전부(``detailed`` 면 나머지 규칙까지)를 함께 —
+    질문에 그 표현을 그대로 써야 적용된다. ``only`` 가 있으면 그 검사·항목만."""
+    lines = ["## CODE 검사 (id · 이름 · 적용 · 예시 질문 · 알아보는 질문 조건 · 인식 규칙)"]
     for c in catalog["code"]:
-        kinds = [k for k in c.get("kinds") or [] if only is None or k["id"] in only or c["id"] in only]
-        if only is None or c["id"] in only or kinds:
+        if only is None or c["id"] in only:
             lines.append(f"- {c['id']} · {c['name']} · {c['applies']}" + (f" · 예: {c['example']}" if c["example"] else ""))
-            if kinds:
-                lines.append("    · 세부 조건: " + ", ".join(f"{k['id']}({k['name']})" for k in kinds))
+            if c.get("kinds"):   # 같은 검사를 여러 질문이 노릴 때 조건 종류를 섞어 쓰게
+                lines.append("    · 알아보는 질문 조건(섞어 씀): " + ", ".join(c["kinds"]))
             shown = len(c.get("rules") or []) if detailed else max(1, c.get("question_rules") or 0)
             for rule in (c.get("rules") or [])[:shown]:
                 lines.append(f"    · 인식: {rule[:600 if detailed else 260]}")
@@ -208,17 +210,17 @@ def _weak_block(weak_units: Sequence[Dict[str, str]]) -> str:
 
 
 def restrict_catalog(catalog: Dict[str, List[Dict[str, str]]], only: Optional[set]) -> Dict[str, List[Dict[str, str]]]:
-    """점검 목록을 ``only`` 의 세부 조건('검사:종류')·점검 항목만으로 줄인다 — 이미 다른 질문(공개 세트)이 충분히 덮는 기준은 빼고 묻는다."""
+    """점검 목록을 ``only`` 의 CODE 검사·점검 항목만으로 줄인다 — 이미 다른 질문(공개 세트)이 충분히 덮는 기준은 빼고 묻는다."""
     if only is None:
         return catalog
-    code = [c for c in catalog["code"] if c["id"] in only or any(k["id"] in only for k in c.get("kinds") or [])]
+    code = [c for c in catalog["code"] if c["id"] in only]
     return {"code": code, "items": [i for i in catalog["items"] if i["id"] in only]}
 
 
 def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note: str = "", *, target_questions: Optional[int] = None,
                 weak_units: Sequence[Dict[str, str]] = (), dedicated: bool = False, only: Optional[set] = None) -> str:
     """계획 프롬프트. ``target_questions`` 가 있으면 세트 전체 질문 수(대화 1개 = 1개)를 그 수에 맞추게 하고, 없으면 가능한 한 적게.
-    ``only`` 가 있으면 그 세부 조건·항목만 점검 목록에 넣는다(공개 질문이 이미 덮는 기준은 빼고 — 10-15 사용자 결정, 프롬프트도 짧아진다)."""
+    ``only`` 가 있으면 그 검사·항목만 점검 목록에 넣는다(공개 질문이 이미 덮는 기준은 빼고 — 10-15 사용자 결정, 프롬프트도 짧아진다)."""
     catalog = catalog or criteria_catalog()
     if dedicated:   # 10턴 대화(J6)·긴 문서(J7)는 전용 단계가 만든다 — 여기서는 그 항목을 빼고 묻는다
         catalog = general_catalog(catalog)
@@ -287,7 +289,7 @@ def extra_prompt(count: int, have: int, target: Optional[int], existing_topics: 
     parts = [f"당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트에 질문을 추가합니다. 결과는 JSON 하나로만 답합니다.\n\n"
              f"# 목표\n앞서 만든 질문 세트는 {have}개입니다. "
              + (f"목표 {target}개에 맞추려 질문 {count}개를 추가합니다(멀티턴 대화 1개 = 1개). " if target else
-                f"세부 기준마다 적용 질문이 {per_target}개 이상이 되도록, [적용 질문이 적은 항목]의 모자란 기준을 노린 질문 {count}개를 추가합니다"
+                f"기준(CODE 검사·의미 점검 항목)마다 적용 질문이 {per_target}개 이상이 되도록, [적용 질문이 적은 항목]의 모자란 기준을 노린 질문 {count}개를 추가합니다"
                 f"(멀티턴 대화 1개 = 1개). 질문 하나가 모자란 기준 여러 개에 함께 적용되게 설계해 전체 질문 수를 줄입니다. ")
              + f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(t for t in existing_topics if t)[:4000] or '없음'})와 겹치지 않게 합니다. "
              f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다."
@@ -533,7 +535,7 @@ def parse_plan(text: str, known_ids: Optional[set] = None) -> Tuple[List[Dict[st
         raise GenerationError("GPT 응답에 questions 목록이 없습니다.")
     if known_ids is None:
         catalog = criteria_catalog()
-        known = {c["id"] for c in catalog["code"]} | {k["id"] for c in catalog["code"] for k in c["kinds"]} | {i.id for i in ITEMS}
+        known = {c["id"] for c in catalog["code"]} | {i.id for i in ITEMS}
     else:
         known = known_ids
     questions, warnings = [], list(repaired)
@@ -804,7 +806,7 @@ class QuestionSetBuilder:
               per_target: Optional[int] = None, base_counts: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
         """계획 → 만들기 → 빠진 항목·첨부 종류 보충 → (목표 질문 수에 못 미치면) 변별력·적게 덮인 항목으로 질문 추가.
 
-        ``base_counts`` 는 이 세트 밖에서 이미 확보한 세부 기준별 적용 질문 수(공개 세트 IFEval-Ko·KoMT-Bench 등) — 빠진 항목·모자란 기준을
+        ``base_counts`` 는 이 세트 밖에서 이미 확보한 기준별 적용 질문 수(공개 세트 IFEval-Ko·KoMT-Bench 등) — 빠진 항목·모자란 기준을
         셀 때 더해서, 이미 충분히 덮인 기준은 노리지 않고 못 덮는 기준에 생성을 집중한다 (10-15 사용자 결정)."""
         catalog = criteria_catalog()
         base = {k: int(v) for k, v in (base_counts or {}).items() if isinstance(v, int) and v > 0}
@@ -865,7 +867,7 @@ class QuestionSetBuilder:
         # 밖에서 이미 목표만큼 덮인 기준은 첫 계획에서 빼고 묻는다 — 공개 질문이 못 덮는 기준에 집중, 프롬프트도 짧아진다
         only = ({t for t, n in counts(check(groups)).items() if n < (per_target or 1)} if base else None)
         if only is not None and not only:
-            self.warnings.append("밖에서 확보한 적용 수만으로 모든 세부 기준이 목표를 채워 첫 계획을 요청하지 않았습니다.")
+            self.warnings.append("밖에서 확보한 적용 수만으로 모든 기준이 목표를 채워 첫 계획을 요청하지 않았습니다.")
             first = 0
         if first == 0:   # 전용 단계만으로 목표 수를 채움
             plans = []
@@ -901,7 +903,7 @@ class QuestionSetBuilder:
             self.pending = []
             self.show()
             report = check(groups)
-            missing = [t for t, n in counts(report).items() if n == 0]   # 한 번도 적용되지 않은 세부 기준 (밖에서 확보한 것 포함)
+            missing = [t for t, n in counts(report).items() if n == 0]   # 한 번도 적용되지 않은 기준 (밖에서 확보한 것 포함)
             have = attachment_types(groups)
             missing_types = tuple(kind for kind in ATTACHMENT_TYPES if kind not in have)   # 첨부 종류마다 질문 1개 이상 (사용자 요청 '다양하게')
             if (not missing and not missing_types) or rounds >= SUPPLEMENT_ROUNDS:
@@ -974,7 +976,7 @@ class QuestionSetBuilder:
                 break
         short_targets = ({t: n for t, n in counts(report).items() if n < per_target} if per_target else {})
         if short_targets:   # 상한·실패로 다 채우지 못한 기준 — 숨기지 않고 알린다
-            self.warnings.append(f"기준마다 {per_target}개 적용을 채우지 못한 세부 기준 {len(short_targets)}개: "
+            self.warnings.append(f"기준마다 {per_target}개 적용을 채우지 못한 기준 {len(short_targets)}개: "
                                  + ", ".join(f"{t}={n}" for t, n in sorted(short_targets.items(), key=lambda x: (x[1], x[0]))[:40]))
         if target_questions and len(groups) != target_questions:
             self.warnings.append(f"목표 질문 수 {target_questions}개와 달리 {len(groups)}개를 만들었습니다"
@@ -983,18 +985,18 @@ class QuestionSetBuilder:
 
 
 def target_counts(report: Dict[str, Any], dedicated: bool = False) -> Dict[str, int]:
-    """생성기가 채우는 세부 기준별 적용 질문 수 — CODE 는 질문 조건 종류('검사:종류'), 의미 평가는 점검 항목.
-    답변으로만 정해지는 항목은 빼고, ``dedicated`` 면 전용 단계가 맡는 J6·J7 도 뺀다."""
+    """생성기가 채우는 기준별 적용 질문 수 — 기준 단위 72(CODE 검사 28 + 의미 점검 항목 44, 사용자 결정 2026-10-15) 가운데
+    질문으로 셀 수 있는 64: 답변 구조로만 적용되는 검사 7·답변으로 정해지는 항목(J5-3.a)은 빼고, ``dedicated`` 면 전용 단계가 맡는 J6·J7 도 뺀다."""
     coverage = report.get("coverage") or {}
-    skip = set(coverage.get("answer_dependent_items") or [])
-    counts = dict(coverage.get("kinds") or {})
+    skip = set(coverage.get("answer_dependent_items") or []) | set(coverage.get("answer_dependent") or [])
+    counts = {cid: n for cid, n in (coverage.get("checks") or {}).items() if cid not in skip}
     counts.update({iid: n for iid, n in (coverage.get("items") or {}).items() if iid not in skip and not (dedicated and _dedicated(iid))})
     return counts
 
 
 def _low_coverage(report: Dict[str, Any], limit: int = 15, dedicated: bool = False, per_target: Optional[int] = None,
                   base: Optional[Dict[str, int]] = None) -> List[Tuple[str, int]]:
-    """적용 질문이 가장 적은 세부 기준 — 추가 질문이 노릴 곳. ``per_target`` 이 있으면 그 수에 못 미친 기준만. ``base`` 는 밖에서 확보한 수."""
+    """적용 질문이 가장 적은 기준 — 추가 질문이 노릴 곳. ``per_target`` 이 있으면 그 수에 못 미친 기준만. ``base`` 는 밖에서 확보한 수."""
     merged = target_counts(report, dedicated)
     for key, n in (base or {}).items():
         if key in merged:
@@ -1047,7 +1049,7 @@ def public_pool_groups() -> List[Dict[str, Any]]:
 
 
 def public_pool_counts() -> Dict[str, int]:
-    """공개 세트 질문이 세부 기준(80 단위)마다 몇 개나 적용되는지 — 평가와 같은 코드 규칙, 모델 호출 없음."""
+    """공개 세트 질문이 기준(72 단위 중 질문으로 셀 수 있는 64)마다 몇 개나 적용되는지 — 평가와 같은 코드 규칙, 모델 호출 없음."""
     return target_counts(check(public_pool_groups()))
 
 
@@ -1056,7 +1058,7 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
     from tools.check_question_set import check_items
     from code_eval.criteria_registry import registry
     report = check_items(flatten(groups), "items")
-    # 평가 항목 구조(CODE 대분류·소분류·검사 ⇒ 질문 조건, 의미 기준·세부 기준 ⇒ 점검 항목) — 화면의 '총 N개 항목 검사' 줄
+    # 평가 기준 구조(CODE 대분류·소분류·검사, 의미 기준·세부 기준·점검 항목 — 검사 + 항목 = 72) — 화면의 '총 N개 항목 검사' 줄
     report["coverage"]["taxonomy"] = registry()["targets"]["counts"]
     return report
 
@@ -1232,7 +1234,7 @@ class QuestionSetService:
             target = None
         elif type(target) is not int or not 1 <= target <= MAX_PLAN_QUESTIONS:
             raise ValueError(f"질문 수는 1~{MAX_PLAN_QUESTIONS} 사이의 정수여야 합니다.")
-        per_target = payload.get("per_target")   # 세부 기준마다 채울 적용 질문 수 — 비우면 쓰지 않음
+        per_target = payload.get("per_target")   # 기준(CODE 검사·의미 점검 항목)마다 채울 적용 질문 수 — 비우면 쓰지 않음
         if per_target in (None, ""):
             per_target = None
         elif type(per_target) is not int or not 1 <= per_target <= 200:
@@ -1423,7 +1425,7 @@ class QuestionSetService:
         shutil.copytree(source / "files", out / "files") if (source / "files").is_dir() else (out / "files").mkdir(parents=True, exist_ok=True)
         (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
         short = selection.get("short") or {}
-        warnings = [f"{selection['label']} — 세부 기준마다 {selection.get('k')}번을 목표로 골랐고, 후보에 모자라 덜 채운 기준 {len(short)}개: "
+        warnings = [f"{selection['label']} — 기준마다 {selection.get('k')}번을 목표로 골랐고, 후보에 모자라 덜 채운 기준 {len(short)}개: "
                     + ", ".join(f"{t} {n}" for t, n in short.items())] if short else []
         job = {"id": set_id, "version": FIXED_SET_VERSION, "source": "fixed", "fixed_kind": kind, "source_name": selection["label"],
                "status": "COMPLETED", "phase": "done", "message": "완료", "created_at": datetime.now(timezone.utc).isoformat(), "model": None,

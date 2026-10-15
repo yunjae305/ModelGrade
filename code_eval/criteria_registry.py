@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v10"   # v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v11"   # v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -201,7 +201,8 @@ UNSCORED_KINDS = frozenset({"table_rows_ambiguous"})
 
 
 def condition_kinds() -> List[Dict[str, str]]:
-    """CODE 세부 조건 목록 [{id: '검사:종류', check, kind, name}] — CODE_UNITS 순서, 검사 안에서는 종류 이름순."""
+    """CODE 검사가 질문에서 알아보는 조건 종류 [{id: '검사:종류', check, kind, name}] — CODE_UNITS 순서, 검사 안에서는 종류 이름순.
+    평가 기준이 아니다(기준은 검사 28) — 생성기가 검사마다 질문에 넣을 수 있는 표현을 보여 주는 데만 쓴다 (사용자 결정 2026-10-15)."""
     out: List[Dict[str, str]] = []
     seen = set()
     for unit, _, trigger, kinds in CODE_UNITS:
@@ -216,21 +217,20 @@ def condition_kinds() -> List[Dict[str, str]]:
 
 
 def evaluation_targets() -> Dict[str, Any]:
-    """평가 기준 전체를 단계별로 — CODE 대분류 → 소분류 → 검사 → 세부 조건, 의미 기준 → 세부 기준 → 점검 항목 (개수 포함)."""
+    """평가 기준 전체를 단계별로 — CODE 대분류 → 소분류 → 검사, 의미 기준 → 세부 기준 → 점검 항목 (개수 포함).
+    평가 기준 단위는 하나: CODE 검사 28 + 의미 점검 항목 44 = 72 (사용자 결정 2026-10-15)."""
     from .semantic_items import ITEMS, SUBS
     checks = [unit for unit, _, trigger, _ in CODE_UNITS if trigger != "aiona"]
-    conditions = condition_kinds()
     criteria = sorted({s.criterion for s in SUBS}, key=lambda c: int(c[1:]))
     return {"code": {"categories": [c["id"] for c in CATEGORIES], "subcategories": list(SUBCATEGORIES), "checks": checks,
-                     "conditions": conditions,
-                     # 질문 요구로 생기는 검사 18 — 세부 조건 37 로 나눠 센다(코드 구획 표시 수는 코드블록 요구 조건을 함께 쓴다)
+                     # 검사 28 = 늘 적용 3 + 질문 요구로 적용 18 + 답변 구조로만 적용 7
                      "question_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger in ("question", "question_or_answer")],
                      "always_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "all"],
                      "answer_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "answer"]},
             "semantic": {"criteria": criteria, "subs": [s.id for s in SUBS], "items": [i.id for i in ITEMS]},
             "counts": {"code_categories": len(CATEGORIES), "code_subcategories": len(SUBCATEGORIES), "code_checks": len(checks),
-                       "code_conditions": len(conditions), "semantic_criteria": len(criteria), "semantic_subs": len(SUBS),
-                       "semantic_items": len(ITEMS)}}
+                       "semantic_criteria": len(criteria), "semantic_subs": len(SUBS), "semantic_items": len(ITEMS),
+                       "total": len(checks) + len(ITEMS)}}
 
 
 def unit_of(check_id: str) -> Optional[str]:
@@ -364,6 +364,10 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "criteria-registry-v10", "date": "2026-10-14", "scope": "registry",
      "changes": ["세부 기준(평가 대상) 목록을 한 곳에 고정: CODE 3 대분류 · 8 소분류 · 28 검사 → 질문 조건 37 (+ 늘 적용 3·답변 구조 7), "
                  "의미 8 기준 → 30 세부 기준 → 44 점검 항목 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 같은 목록을 쓴다"]},
+    {"version": "criteria-registry-v11", "date": "2026-10-15", "scope": "registry",
+     "changes": ["평가 기준 단위를 하나로: CODE 검사 28 + 의미 점검 항목 44 = 72 (사용자 결정). v10 의 '질문 조건 37' 단위(37 + 43 = 80)는 "
+                 "기준이 아니라 검사가 질문에서 알아보는 표현 목록이라 기준 수에서 뺌 — 질문 생성기·질문 세트 점검·최소 질문 수 도구가 72 단위로 센다",
+                 "질문만으로 적용 여부를 셀 수 있는 기준은 64 (답변 구조로만 적용되는 검사 7 · J5-3.a 제외)"]},
     {"version": "j5-outcome-detail-v5", "date": "2026-10-13", "scope": "semantic",
      "changes": ["J5 '사실 오류 — 근거와 충돌'에 충돌 근거를 기록 (contradiction.basis: 외부 근거·사용자가 준 정보·참고 자료·답변 인용 출처) — "
                  "사용자 제공 정보와의 불일치를 외부 사실 확인 결과로 오해하지 않게 (지시서 10-13 B)",

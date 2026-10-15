@@ -205,7 +205,7 @@ def w01_prompt(qs: QuestionSet) -> Dict[str, Any]:
     multi, long_ = qg.split_counts(target)
     first = min(qg.PLAN_BATCH, target - multi - long_)
     topics = [g.get("topic") or "" for g in qs.groups]
-    never = [k for k, n in qs.report["coverage"]["kinds"].items() if n == 0]
+    never = [k for k, n in qg.target_counts(qs.report).items() if n == 0]
     low = qg._low_coverage(qs.report, 30, True, 30)
     texts = [("계획 — 첫 묶음", f"plan_prompt(target_questions={first}, dedicated=True)",
               qg.plan_prompt(catalog, "", target_questions=first, dedicated=True)),
@@ -252,7 +252,7 @@ def w01_prompt(qs: QuestionSet) -> Dict[str, Any]:
                  "prompts": prompts,
                  "stages": [f"긴 문서 질문(J7): 272K 토큰 이상 문서 1개를 만들고 그 문서를 함께 쓰는 질문 {long_}개",
                             f"10턴 대화(J6): 한 번에 {qg.MULTI_TURN_BATCH}개씩 {multi}개, J6 항목을 대화마다 고르게",
-                            f"계획: 일반 질문을 {qg.PLAN_BATCH}개씩 — 점검 목록(CODE 세부 조건·인식 규칙, 의미 점검 항목)과 변별력 규칙(trap·난도)",
+                            f"계획: 일반 질문을 {qg.PLAN_BATCH}개씩 — 점검 목록(CODE 검사·인식 규칙, 의미 점검 항목)과 변별력 규칙(trap·난도)",
                             "만들기: 첨부(PDF·DOCX·TXT·이미지)·붙여 넣는 자료를 실제 파일·글로",
                             "점검: 평가와 같은 코드 규칙(tools/check_question_set.py)으로 질문마다 적용 기준 계산",
                             f"보충: 한 번도 적용되지 않은 항목·첨부 종류만 최대 {qg.SUPPLEMENT_ROUNDS}회",
@@ -260,7 +260,7 @@ def w01_prompt(qs: QuestionSet) -> Dict[str, Any]:
                  "settings": [{"name": n, "value": v, "meaning": m} for n, v, m in settings],
                  "output_fields": [{"field": f, "meaning": m} for f, m in (
                      ("id", "질문(대화) 번호"), ("type · topic", "질문 유형·주제"),
-                     ("target_items", "노린 평가 항목 id (CODE 세부 조건 '검사:종류' 또는 의미 점검 항목)"),
+                     ("target_items", "노린 평가 기준 id (CODE 검사 또는 의미 점검 항목)"),
                      ("difficulty · trap", "난도(쉬움·보통·어려움)와 FAIL 이 되는 답 한 줄"),
                      ("turns[].question", "질문 원문 (대화면 턴마다)"),
                      ("turns[].attachments", "첨부파일 이름·종류·내용 (저장 때 파일 경로·sha256)"),
@@ -289,7 +289,7 @@ def w01_set(qs: QuestionSet) -> Dict[str, Any]:
                         f"첨부 {sum(attach.values())}개({', '.join(f'{k} {v}' for k, v in sorted(attach.items()))})."),
         data_source=qs.source(), created_at=qs.exported, code_revision=qs.data_rev, level="real_run",
         level_note=f"실제 GPT({qs.meta.get('generator_model')}) 호출로 만든 질문. 사람이 질문 품질을 검수한 기록은 없음.",
-        limitations=["현재 생성기(v1.4)가 아니라 v1.2 결과다 — 세부 조건 단위 채우기·10턴 대화·긴 문서 질문 수 지정 전.",
+        limitations=["현재 생성기(v1.5)가 아니라 v1.2 결과다 — 기준별 목표 적용 수 채우기·10턴 대화·긴 문서 질문 수 지정 전.",
                      "질문이 의도한 대로 모델을 가르는지(변별력)는 평가를 돌려야 알 수 있다 — 이 세트는 아직 평가하지 않았다."],
         references=[repo_ref("질문 원본 questions.json", QUESTIONS, qs.data_rev), repo_ref("세트 설명 README", f"{SET_DIR}/README.md")],
         content={"stats": stats,
@@ -309,13 +309,13 @@ def w01_intent(qs: QuestionSet) -> Dict[str, Any]:
     """생성기가 질문마다 노린 항목(target_items)이 평가와 같은 코드 규칙에서 실제로 적용됐는지."""
     from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS
     cov = qs.report["coverage"]
-    known = set(cov["checks"]) | set(cov["kinds"]) | set(cov["items"]) | {i.split(".")[0] for i in cov["items"]}
+    known = set(cov["checks"]) | set(cov["items"]) | {i.split(".")[0] for i in cov["items"]}
     answer_dependent = set(ANSWER_DEPENDENT) | set(ANSWER_DEPENDENT_ITEMS)
     applied: Dict[int, set] = collections.defaultdict(set)
     for row in qs.report["cases"]:
         gid = (((qs.items[row["index"] - 1].get("import_source") or {}).get("group") or {}).get("id"))
-        found = set(row.get("checks") or []) | set(row.get("kinds") or []) | set(row.get("items") or [])
-        found |= {i.split(".")[0] for i in row.get("items") or []} | {k.split(":")[0] for k in row.get("kinds") or []}
+        found = set(row.get("checks") or []) | set(row.get("items") or [])
+        found |= {i.split(".")[0] for i in row.get("items") or []}
         applied[gid] |= found
     families: Dict[str, Dict[str, int]] = collections.OrderedDict()
     misses: collections.Counter = collections.Counter()
@@ -496,11 +496,10 @@ FAMILY_GUIDE = {
 def family_glossary() -> List[Dict[str, Any]]:
     """CODE 대분류 3개 + 의미 기준 J1~J8 — 공식 이름·정의는 기준 목록(criteria_registry·taxonomy)에서, 쉬운 설명은 FAMILY_GUIDE."""
     from code_eval import long_context, multi_turn
-    from code_eval.criteria_registry import condition_kinds, registry
+    from code_eval.criteria_registry import registry
     from code_eval.semantic_items import ITEMS, SUBS_BY_ID
     from code_eval.taxonomy import CATEGORIES
     criteria = [c for c in registry()["criteria"] if not c["id"].startswith("AIONA")]
-    kinds = collections.Counter(c["check"].split("-")[0] for c in condition_kinds())
     rows = []
     for cat in CATEGORIES:
         fid = "CODE " + cat["id"]
@@ -508,7 +507,7 @@ def family_glossary() -> List[Dict[str, Any]]:
         checks = [c for c in criteria if c["layer"] == "CODE" and c["category"] == cat["id"]]
         rows.append({"id": fid, "layer": "CODE", "name": cat["name"], "official": cat["question"], "easy": easy, "applies": applies, "fail": fail,
                      "parts": " · ".join(s["name"] for s in cat["subs"]),
-                     "size": f"소분류 {len(cat['subs'])} · 검사 {len(checks)} · 질문 조건 {kinds.get(cat['id'], 0)}"})
+                     "size": f"소분류 {len(cat['subs'])} · 검사 {len(checks)}"})
     for c in (c for c in criteria if c["layer"] != "CODE"):
         easy, applies, fail = FAMILY_GUIDE[c["id"]]
         if c["id"] == "J6":   # 판정 코드(multi_turn) 기준 — 설명 문자열(APPLIES_WHEN)은 이전 판 표현이 남아 있다
@@ -531,18 +530,18 @@ def _family_labels(ids: Sequence[str]) -> List[str]:
 
 def _target_names() -> Dict[str, str]:
     """목표 id → 한국어 이름 ('2-1.explicit_empty' → 'CODE 2 · 명시 빈 출력', 'J2-3.a' → 'J2 내용 적절성 · 조건·제약 준수')."""
-    from code_eval.criteria_registry import condition_kinds, reference_details, registry
+    from code_eval.criteria_registry import reference_details, registry
     from code_eval.semantic_items import ITEMS, SUBS_BY_ID
     checks = {c["id"]: c["name"] for c in reference_details()["code_checks"]}
     families = {c["id"]: c["name"] for c in registry()["criteria"] if c["layer"] != "CODE"}
     names = {cid: f"CODE {cid.split('-')[0]} · {name}" for cid, name in checks.items()}
-    names.update({k["id"]: f"CODE {k['check'].split('-')[0]} · {checks.get(k['check'], k['check'])} — {k['name']}" for k in condition_kinds()})
     names.update({i.id: f"{i.id.split('-')[0]} {families.get(i.id.split('-')[0], '')} · {SUBS_BY_ID[i.sub].name}" for i in ITEMS})
     return names
 
 
 def number_map() -> List[Dict[str, Any]]:
-    """화면 곳곳의 기준 수(28·37·44·34·83·80 …)가 무엇을 센 것인지 — 모두 기준 목록과 점검 규칙에서 계산."""
+    """화면 곳곳의 기준 수(28·44·72·64·34 …)가 무엇을 센 것인지 — 모두 기준 목록과 점검 규칙에서 계산.
+    평가 기준 단위는 하나: CODE 검사 28 + 의미 점검 항목 44 = 72 (사용자 결정 2026-10-15)."""
     from code_eval.criteria_registry import evaluation_targets
     from code_eval.semantic_items import ITEMS
     from tools.check_question_set import ANSWER_DEPENDENT, ANSWER_DEPENDENT_ITEMS
@@ -554,29 +553,25 @@ def number_map() -> List[Dict[str, Any]]:
     dedicated = sum(1 for i in ITEMS if qg._dedicated(i.id))
     general = len(qg.general_catalog(qg.criteria_catalog())["items"])
     items_countable = counts["semantic_items"] - len(ANSWER_DEPENDENT_ITEMS)
-    lowest = counts["code_conditions"] + always + items_countable
-    fill = counts["code_conditions"] + items_countable
+    fill = always + question_checks + items_countable
     assert len(ANSWER_DEPENDENT) == answer, "답변 구조 검사 수가 기준 목록과 점검 규칙에서 다르다"
     return [
-        {"number": counts["code_checks"], "what": "CODE 검사", "level": "중간 단위(검사)",
-         "meaning": f"프로그램이 규칙으로 판정하는 검사 단위. 모든 답에 늘 적용 {always} + 질문 요구로 켜짐 {question_checks} + 답변 구조로 생김 {answer}.",
+        {"number": counts["code_checks"], "what": "CODE 검사", "level": "CODE 평가 기준",
+         "meaning": f"프로그램이 규칙으로 판정하는 검사. 모든 답에 늘 적용 {always} + 질문 요구로 켜짐 {question_checks} + 답변 구조로 생김 {answer}.",
          "where": "생성 프롬프트 '# 목표' — 'CODE 검사 N개가 모두 최소 1개 질문에서 적용되게'"},
-        {"number": counts["code_conditions"], "what": "CODE 질문 조건", "level": "최하위(세부 조건)",
-         "meaning": f"질문 요구로 켜지는 검사 {question_checks}개 안의 조건 종류(예: 표 검사 안의 '열 이름'·'행 수'). 같은 표 검사라도 조건마다 따로 시험해야 한다.",
-         "where": "v1.4 기준별 목표 적용 수(per_target)를 채우는 단위 · W02 표"},
-        {"number": counts["semantic_items"], "what": "의미 점검 항목", "level": "최하위",
+        {"number": counts["semantic_items"], "what": "의미 점검 항목", "level": "LLM 의미 평가 기준",
          "meaning": f"의미 기준 {counts['semantic_criteria']}개(J1~J8) → 세부 기준 {counts['semantic_subs']}개 → 점검 항목 {counts['semantic_items']}개.",
          "where": "질문 수를 정하지 않은 생성 프롬프트 '# 목표'"},
+        {"number": counts["total"], "what": "평가 기준 전체", "level": "기준 단위",
+         "meaning": f"CODE 검사 {counts['code_checks']} + 의미 점검 항목 {counts['semantic_items']}. 기준 수는 이 하나로 센다.",
+         "where": "설계안 머리말 · 기준 목록(criteria_registry) · 서비스 화면"},
         {"number": general, "what": "일반 계획 프롬프트의 의미 항목", "level": "생성 단계 구분",
          "meaning": f"점검 항목 {counts['semantic_items']}개 − 10턴 대화·긴 문서 전용 단계가 맡는 J6·J7 항목 {dedicated}개. 질문 수를 정하면 일반 계획은 이 {general}개만 노린다.",
-         "where": "생성 프롬프트(질문 수 지정) '# 목표' — 'CODE 검사 28개와 의미 평가 항목 34개'"},
-        {"number": lowest, "what": "질문만으로 셀 수 있는 최하위 기준", "level": "최하위(점검표)",
-         "meaning": f"CODE 질문 조건 {counts['code_conditions']} + 늘 적용 검사 {always} + 의미 항목 {items_countable}(답변이 있어야 정해지는 "
-                    f"{', '.join(ANSWER_DEPENDENT_ITEMS)} 제외). 답변 구조 검사 {answer}개도 답변이 있어야 세므로 뺀다.",
-         "where": "W02 최하위 기준 표 · 질문 세트 점검 화면"},
-        {"number": fill, "what": "질문 수 분석·생성기가 채우는 기준", "level": "최하위(채울 대상)",
-         "meaning": f"위 {lowest}개 − 모든 답에 늘 적용되는 검사 {always}개(질문과 상관없이 항상 적용되므로 채울 필요 없음).",
-         "where": f"W03 질문 수 분석 · v1.4 per_target (질문 수를 정하면 일반 단계는 J6·J7 {dedicated}개를 뺀 {fill - dedicated}개)"},
+         "where": "생성 프롬프트(질문 수 지정) '# 목표' — 'CODE 검사 N개와 의미 평가 항목 34개'"},
+        {"number": fill, "what": "질문만으로 셀 수 있는 기준", "level": "채울 대상",
+         "meaning": f"평가 기준 {counts['total']}개 − 답변 구조로만 생기는 검사 {answer}개 − 답변이 있어야 정해지는 의미 항목 "
+                    f"{', '.join(ANSWER_DEPENDENT_ITEMS)}. = CODE 검사 {always + question_checks} + 의미 항목 {items_countable}.",
+         "where": f"W02 기준 표 · W03 질문 수 분석 · 생성기 per_target (질문 수를 정하면 일반 단계는 J6·J7 {dedicated}개를 뺀 {fill - dedicated}개)"},
     ]
 
 
@@ -603,7 +598,7 @@ def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]
     funnel = intent["content"]["funnel"]
     j6 = intent["content"]["j6"]
     gen = {s["label"]: s["value"] for s in w01_set_stats(qs)}
-    never = [k for k, n in qs.report["coverage"]["kinds"].items() if n == 0]
+    never = [k for k, n in qg.target_counts(qs.report).items() if n == 0]
     names = _target_names()
     per_question = quantity["content"]["per_question"]
     growth = quantity["content"]["table"]["rows"]
@@ -660,7 +655,7 @@ def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]
     ]
     flow = [
         ("평가 기준 불러오기", "기준이 바뀌면 질문도 바뀌어야 해서, 사람이 옮겨 적지 않고 기준 목록에서 직접 읽습니다.",
-         f"CODE 검사 {counts['code_checks']}개(세부 조건 {counts['code_conditions']}) · 의미 점검 항목 {counts['semantic_items']}개", "code"),
+         f"CODE 검사 {counts['code_checks']}개 + 의미 점검 항목 {counts['semantic_items']}개 = 평가 기준 {counts['total']}개", "code"),
         ("시험할 기준 나누기", "10턴 대화(J6)·긴 문서(J7)는 만드는 방법이 달라 따로 맡기고, 나머지는 일반 질문으로 만듭니다.",
          f"현재 v1.4 로 300개를 요청하면 긴 문서 질문 {long_} · 10턴 대화 {multi} · 일반 {300 - multi - long_}. "
          f"(실제 300개 세트를 만든 v1.2 에는 이 단계가 없어 10턴 대화 {gen['10턴 대화']}개 · 긴 문서 질문 {gen['긴 문서 질문']}개뿐)", "code"),
@@ -671,7 +666,7 @@ def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]
         ("평가기와 같은 규칙으로 점검", "GPT 가 '시험한다'고 적어도 평가기가 그 기준을 켜지 않으면 시험한 것이 아닙니다.",
          f"목표 {funnel['intended']}건 중 판단 가능 {funnel['judged']}건, 실제 적용 {funnel['applied']}건({stats['적용률']})", "real"),
         ("적용되지 않은 기준 찾기", "한 번도 시험되지 않은 기준은 점수를 낼 수 없습니다.",
-         f"채울 세부 기준 {fill}개 중 {len(never)}개는 300개 중 한 번도 적용 안 됨: "
+         f"채울 기준 {fill}개 중 {len(never)}개는 300개 중 한 번도 적용 안 됨: "
          + ", ".join(names.get(k, k).split(" — ")[-1] for k in never), "real"),
         ("부족한 기준 보충·추가", "빠진 기준만 노려 다시 요청하면 적은 질문으로 채울 수 있습니다.",
          f"보충 최대 {qg.SUPPLEMENT_ROUNDS}번 + 목표 수까지 {qg.PLAN_BATCH}개씩 추가. v1.2 의 추가 단계에서 J6 를 노린 짧은 대화 {j6['short_conversations']}개가 "
@@ -704,7 +699,7 @@ def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]
     rev = revision(*paths)
     return artifact(
         "W01-DESIGN", "W01", "질문 생성 설계와 근거 — 왜·어떤 기준으로·어떤 원리로", "research",
-        description=("질문을 만드는 이유, 시험하는 평가 기준 11개(쉬운 설명), 화면에 나오는 기준 수 28·34·83 의 관계, 생성 8단계, 프롬프트 구성 요소별 이유와 "
+        description=("질문을 만드는 이유, 시험하는 평가 기준 11개(쉬운 설명), 화면에 나오는 기준 수 28·44·72·64·34 의 관계, 생성 8단계, 프롬프트 구성 요소별 이유와 "
                      "근거 수준(근거 있음·사용자 결정·멘토 요청·가정)을 코드와 실제 세트에서 모았습니다."),
         result_summary=(f"생성 프롬프트 {len(prompt):,}자 중 {checklist:,}자({checklist / len(prompt):.0%})가 기준 정의(점검 목록)다. 구성 요소 {len(parts)}개 중 "
                         f"'가정'(실험 근거 없음)이 {sum(1 for p in parts if p[3] == '가정')}개 — 난이도 비율·충돌 방지. 프롬프트 함수는 대표 3종이 아니라 "
@@ -735,7 +730,7 @@ def w01_design(qs: QuestionSet, intent: Dict[str, Any], quantity: Dict[str, Any]
                  "prompt_sections": [{"heading": h[2:], "chars": n} for h, n in sections.items()], "prompt_chars": len(prompt),
                  "prompt_builders": builders, "improve": improve,
                  "method": ["생성기 코드에서 실제 프롬프트를 다시 만들어 구성 요소별로 나눔 (모델 호출 없음)",
-                            "기준 목록·점검 규칙에서 기준 수를 단계별로 계산 (28·37·44·34·83·80)",
+                            "기준 목록·점검 규칙에서 기준 수를 단계별로 계산 (28·44·72·64·34)",
                             "질문 세트 300 을 평가기와 같은 규칙으로 점검한 결과를 단계마다 연결"],
                  "findings": [f"프롬프트의 {checklist / len(prompt):.0%}는 기준 정의(점검 목록) — 기준이 바뀌면 프롬프트가 함께 바뀐다.",
                               f"질문 하나에 적용되는 세부 기준은 평균 {per_question['applied_mean']}개로, GPT 가 목표로 적은 평균 {per_question['target_mean']}개보다 훨씬 많다.",
@@ -757,18 +752,18 @@ def w01_set_stats(qs: QuestionSet) -> List[Dict[str, Any]]:
 
 
 def _applied_by_group(qs: QuestionSet) -> Dict[int, set]:
-    """질문(대화)마다 평가기와 같은 규칙으로 적용된 검사·세부 조건·의미 항목(과 그 상위 id)."""
+    """질문(대화)마다 평가기와 같은 규칙으로 적용된 검사·의미 항목(과 그 상위 id)."""
     applied: Dict[int, set] = collections.defaultdict(set)
     for row in qs.report["cases"]:
         gid = (((qs.items[row["index"] - 1].get("import_source") or {}).get("group") or {}).get("id"))
-        found = set(row.get("checks") or []) | set(row.get("kinds") or []) | set(row.get("items") or [])
-        found |= {i.split(".")[0] for i in row.get("items") or []} | {k.split(":")[0] for k in row.get("kinds") or []}
+        found = set(row.get("checks") or []) | set(row.get("items") or [])
+        found |= {i.split(".")[0] for i in row.get("items") or []}
         applied[gid] |= found
     return applied
 
 
 def _applied_per_question(qs: QuestionSet) -> Dict[str, float]:
-    """질문 하나에 실제 적용된 세부 기준 수(세부 조건 + 의미 항목, 늘 적용 검사·답변 필요 제외) 평균과, GPT 가 적은 목표 수 평균."""
+    """질문 하나에 실제 적용된 기준 수(CODE 검사 + 의미 항목, 답변 필요 제외) 평균과, GPT 가 적은 목표 수 평균."""
     from tools.min_question_count import all_targets, question_units
     order, targets, _ = question_units(qs.report)
     names = set(all_targets(qs.report))
@@ -991,7 +986,7 @@ def _cases(qs: QuestionSet) -> List[Dict[str, Any]]:
 def _turn_counts(report: Dict[str, Any]) -> collections.Counter:
     counts: collections.Counter = collections.Counter()
     for row in report["cases"]:
-        for key in set(row.get("checks") or []) | set(row.get("kinds") or []) | set(row.get("items") or []):
+        for key in set(row.get("checks") or []) | set(row.get("items") or []):
             counts[key] += 1
     return counts
 
@@ -1011,9 +1006,8 @@ def w02_matrix(qs: QuestionSet) -> Dict[str, Any]:
         rows.append({"group": group, "parent": family.get(parent, parent), "id": target, "name": name, "units": units,
                      "turns": turns.get(target, 0) if units is not None else None, "judged": 0,
                      "short": max(0, TARGET_SHORT - units) if units is not None else None})
-    for cond in targets["code"]["conditions"]:
-        add("CODE 질문 조건", "CODE " + cond["check"].split("-")[0], cond["id"], f"{names.get(cond['check'], cond['check'])} · {cond['name']}",
-            cov["kinds"].get(cond["id"], 0))
+    for check in targets["code"]["question_checks"]:
+        add("CODE 질문 요구", "CODE " + check.split("-")[0], check, names.get(check, check), cov["checks"].get(check, 0))
     for check in targets["code"]["always_checks"]:
         add("CODE 늘 적용", "CODE " + check.split("-")[0], check, names.get(check, check), cov["checks"].get(check, 0))
     for check in targets["code"]["answer_checks"]:
@@ -1028,7 +1022,7 @@ def w02_matrix(qs: QuestionSet) -> Dict[str, Any]:
     never = [r["id"] for r in countable if r["units"] == 0]
     return artifact(
         "W02-MATRIX", "W02", "최하위 기준별 적용 표 (질문 세트 300)", "data",
-        description=("CODE 질문 조건·늘 적용 검사·답변 구조 검사와 의미 점검 항목 각각에, 질문 세트 300 의 어떤 질문이 몇 번 적용되는지 "
+        description=("CODE 검사(질문 요구·늘 적용·답변 구조)와 의미 점검 항목 각각에, 질문 세트 300 의 어떤 질문이 몇 번 적용되는지 "
                      "평가와 같은 코드 규칙으로 센 표입니다. 독립 단위(단일 질문 1 · 대화 1), 턴 수, 실제 판정 수를 나눠 적었습니다."),
         result_summary=(f"셀 수 있는 최하위 기준 {len(countable)}개(늘 적용 검사 3개 포함) 중 한 번도 적용되지 않은 것 {len(never)}개, "
                         f"독립 단위 30개 이상 {bucket_counts['30 이상']}개, 10~29개 {bucket_counts['10~29']}개, 1~9개 "
@@ -1503,8 +1497,8 @@ def y01_targets() -> Dict[str, Any]:
     counts = evaluation_targets()["counts"]
     rev = revision("code_eval/criteria_registry.py")
     labels = [("code_categories", "CODE 대분류"), ("code_subcategories", "CODE 소분류"), ("code_checks", "CODE 검사"),
-              ("code_conditions", "CODE 질문 조건"), ("semantic_criteria", "의미 기준"), ("semantic_subs", "의미 세부 기준"),
-              ("semantic_items", "의미 점검 항목")]
+              ("semantic_criteria", "의미 기준"), ("semantic_subs", "의미 세부 기준"), ("semantic_items", "의미 점검 항목"),
+              ("total", "평가 기준 합계(CODE 검사 + 의미 항목)")]
     return artifact(
         "Y01-TARGETS", "Y01", f"평가 기준 목록 ({REGISTRY_VERSION})", "data",
         description="코드의 기준 목록(한 곳에서 관리)에서 센 단계별 기준 수입니다. 질문 생성기·사전 점검·최소 질문 수 도구가 같은 목록을 씁니다.",

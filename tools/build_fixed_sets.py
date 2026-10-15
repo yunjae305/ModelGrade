@@ -8,7 +8,7 @@
 적용 여부는 평가 때와 같은 코드 규칙(tools/check_question_set.check_items)으로 정하고 모델은 부르지 않는다. 답변 모양으로만 적용이 정해지는
 검사(코드 펜스 짝·각주 등)는 모든 답변에서 늘 검사되므로 고르는 기준에서 뺀다.
 
-고르기 (모든 세부 기준을 반드시 검사 — 사용자 요청 2026-10-14):
+고르기 (평가 기준 72(CODE 검사 28 + 의미 점검 항목 44) 중 질문으로 셀 수 있는 64개를 모두 반드시 검사 — 사용자 요청 2026-10-14·10-15):
 1. 덮기 — 기준마다 1번 이상이 될 때까지 공개 후보에서 먼저, 남은 기준만 우리 질문에서 고른다.
 2. 고르게 채우기 — 정한 문항 수까지, 적게 적용된 기준을 더 거치는 질문(가중치 1/(지금 적용 수+1)²)을 고른다. 우리 질문은 점수를 절반으로 쳐서
    공개 질문이 먼저 들어가게 한다.
@@ -211,7 +211,7 @@ def main() -> int:
     pools = {u: groups[by_unit[u] - 1]["pool"] for u in order}
     available = Counter(t for u in order for t in targets[u])
     public = Counter(t for u in order if pools[u] == "public" for t in targets[u])
-    print(f"후보 {len(groups)}개 · 세부 기준 {len(names)}개 · 공개로 덮는 기준 {sum(1 for t in names if public[t])} · "
+    print(f"후보 {len(groups)}개 · 평가 기준 {len(names)}개 · 공개로 덮는 기준 {sum(1 for t in names if public[t])} · "
           f"어디에도 없는 기준 {sorted(t for t in names if not available[t])}")
     rag = json.loads((SOURCES / "rag_evaluation_ko.json").read_text(encoding="utf-8"))
     rag_docs = {d["file_name"]: d for d in rag["documents"]}
