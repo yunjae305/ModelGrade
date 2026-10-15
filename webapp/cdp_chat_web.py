@@ -335,9 +335,42 @@ class ChatGptChat(_CdpChat):
     MODEL_NAME = "GPT-6"
     TEXTBOX_NAME = "ChatGPT"
     # 로그인 화면(2026-10-15): 답변 묶음 data-content-search-unit-key="…:assistant", 내 질문 data-user-message-bubble — 비로그인 화면 표식도 함께 둔다
-    ANSWER_SELECTOR = "[data-content-search-unit-key$=':assistant'], [data-message-role='assistant'], [data-message-author-role='assistant']"
+    # 답 하나가 여러 덩어리(본문·'글쓰기' 카드 등)로 그려진다 — 덩어리가 아니라 턴 전체(data-turn-key: 내 질문 + 'ChatGPT 답변:' 제목 + 답)를 잡고
+    # 글은 제목 뒤만 읽는다 (2026-10-15 Q32_T8: 마지막 덩어리인 카드만 복사돼 965자만 받음). 비로그인 화면 표식도 함께 둔다
+    ANSWER_SELECTOR = ("[data-turn-key]:has(h4[data-conversation-role='assistant']), "
+                       "[data-message-role='assistant'], [data-message-author-role='assistant']")
+    ANSWER_HEADING = "ChatGPT 답변:"
+
+    def _last_answer_text(self) -> str:
+        text = super()._last_answer_text()
+        return text.split(self.ANSWER_HEADING)[-1].strip() if self.ANSWER_HEADING in text else text
     USER_SELECTOR = "[data-user-message-bubble], [data-message-role='user'], [data-message-author-role='user']"
     COPY_NAMES = ("복사", "Copy")   # 답변 복사 버튼은 '복사', 내 질문 쪽은 '메시지 복사'
+
+    def _copy_last_answer(self) -> Optional[str]:
+        """답 전체 안의 '복사' 버튼을 모두 눌러 가장 긴 원문을 쓴다 — 카드 안 복사 버튼은 카드 내용만 복사한다."""
+        last = self._answers().last
+        best: Optional[str] = None
+        try:
+            buttons = last.get_by_role("button", name=re.compile(r"^(복사|Copy)$")).all()
+        except Exception:
+            buttons = []
+        for btn in buttons:
+            try:
+                before = self._eval("() => (window.__mgCopied || []).length")
+                btn.scroll_into_view_if_needed(timeout=2000)
+                btn.click(timeout=3000)
+                self.page.wait_for_timeout(500)
+                copied = self._eval("() => window.__mgCopied || []")
+                if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
+                    if best is None or len(copied[-1]) > len(best):
+                        best = copied[-1]
+            except Exception:
+                continue
+        visible = self._last_answer_text()
+        if best and visible and len(best) < 0.6 * len(visible.strip()):   # 복사 원문이 화면 글보다 훨씬 짧으면 일부만 복사된 것
+            return None
+        return best or super()._copy_last_answer()
     FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
     STOP_NAMES = ("중지", "Stop")
     MODEL_MENU = "ChatGPT 모델 선택"
