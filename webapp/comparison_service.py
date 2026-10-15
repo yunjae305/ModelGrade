@@ -1976,6 +1976,15 @@ class ComparisonService:
         self._launch_worker(run, token, self._collect_question_set, (run, cases, config, files_dir, token))
         return self.status(run_id)
 
+    @staticmethod
+    def _reusable(row):
+        """이어받기에서 그대로 옮겨도 되는 턴 — 성공했고, 웹 수집이면 정한 모델 설정을 맞춘 뒤 받은 답.
+        모델 설정에 실패한 답(예: Gemini 무료 한도에 걸려 사고 수준 메뉴가 막힘, 2026-10-15)은 다른 모델이 답했을 수 있어 다시 받는다."""
+        collection = (row or {}).get("collection") if isinstance(row, dict) else None
+        if not isinstance(collection, dict) or collection.get("status") != "SUCCESS":
+            return False
+        return "설정 확인 못 함" not in str(collection.get("model") or "")
+
     def _prefill_from(self, run, cases, previous):
         """앞선 실행(같은 질문 세트)에서 모델마다 성공한 턴을 새 실행에 옮긴다. 대화는 모든 턴이 성공했을 때만 통째로 옮기고,
         한 턴이라도 빠진 대화는 채팅 하나로 다시 이어져야 하므로 전부 다시 받는다. 옮긴 턴은 ``prefilled`` 에 적어 수집에서 뺀다."""
@@ -1988,7 +1997,7 @@ class ComparisonService:
                 continue
             kept = []
             for chain in self._collection_chains(cases):
-                if all(isinstance(rows[i], dict) and (rows[i].get("collection") or {}).get("status") == "SUCCESS" for i in chain):
+                if all(self._reusable(rows[i]) for i in chain):
                     for i in chain:
                         run["datasets"][provider][i] = copy.deepcopy(rows[i])
                         kept.append(i)

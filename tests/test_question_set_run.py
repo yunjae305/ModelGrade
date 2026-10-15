@@ -317,3 +317,12 @@ def test_resume_keeps_successful_turns_and_recollects_broken_conversations_whole
     assert result["done"] == 3 and result["progress"]["aiona"]["success"] == 3
     with pytest.raises(ValueError):   # 다른 질문 세트의 실행으로는 이어받지 않는다
         svc.start_question_set_run({"set_id": "qs-4", "rows": ROWS[:1], "auto_evaluate": False, "resume_from": first["run_id"]})
+
+
+def test_resume_recollects_web_answers_taken_without_the_chosen_model_settings():
+    """웹 수집에서 모델 설정을 맞추지 못한 채 받은 답(한도 등)은 성공이어도 이어받기에서 옮기지 않는다 (2026-10-15 Gemini 한도)."""
+    ok = {"collection": {"status": "SUCCESS", "model": "Gemini 자동 모드 · 사고 수준 보통 (웹)"}}
+    degraded = {"collection": {"status": "SUCCESS", "model": "Gemini 자동 모드 · 사고 수준 보통 (웹) (설정 확인 못 함: TimeoutError)"}}
+    failed = {"collection": {"status": "ERROR", "model": "Gemini 자동 모드 · 사고 수준 보통 (웹)"}}
+    assert ComparisonService._reusable(ok) and not ComparisonService._reusable(degraded)
+    assert not ComparisonService._reusable(failed) and not ComparisonService._reusable(None)
