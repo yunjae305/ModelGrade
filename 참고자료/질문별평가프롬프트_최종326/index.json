@@ -1040,7 +1040,7 @@
   },
   {
    "id": "Q31",
-   "fingerprint": "2c0141018112",
+   "fingerprint": "fa64cff5374d",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -1053,15 +1053,15 @@
     "J3-1.a"
    ],
    "n_items": 8,
-   "n_code_conditions": 6,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2269
+   "chars": 2202
   },
   {
    "id": "Q32",
-   "fingerprint": "b46d61e5be19",
+   "fingerprint": "17e9da1845fc",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -1079,7 +1079,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2372
+   "chars": 2348
   },
   {
    "id": "Q33",
@@ -1605,7 +1605,7 @@
   },
   {
    "id": "Q54",
-   "fingerprint": "f5685269e4fd",
+   "fingerprint": "e9c1389b7d58",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -1621,11 +1621,11 @@
     "J4-2.a"
    ],
    "n_items": 11,
-   "n_code_conditions": 2,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2588
+   "chars": 3256
   },
   {
    "id": "Q55",
@@ -1806,7 +1806,7 @@
   },
   {
    "id": "Q62",
-   "fingerprint": "b0eaf0d35b47",
+   "fingerprint": "46be1c1e2d9b",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -1825,7 +1825,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 3269
+   "chars": 3255
   },
   {
    "id": "Q63",
@@ -1880,7 +1880,7 @@
   },
   {
    "id": "Q65",
-   "fingerprint": "717fdd24e9d2",
+   "fingerprint": "147a6f316544",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -1896,11 +1896,11 @@
     "J4-2.a"
    ],
    "n_items": 11,
-   "n_code_conditions": 2,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2528
+   "chars": 2847
   },
   {
    "id": "Q66",
@@ -2023,7 +2023,7 @@
   },
   {
    "id": "Q71",
-   "fingerprint": "eb345cbbe662",
+   "fingerprint": "98aae67823be",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -2036,11 +2036,11 @@
     "J3-1.a"
    ],
    "n_items": 8,
-   "n_code_conditions": 6,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2300
+   "chars": 2233
   },
   {
    "id": "Q72",
@@ -2278,7 +2278,7 @@
   },
   {
    "id": "Q82",
-   "fingerprint": "a5c2bb618cc1",
+   "fingerprint": "59900dd70bc4",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -2292,11 +2292,11 @@
     "J5-2.a"
    ],
    "n_items": 9,
-   "n_code_conditions": 4,
+   "n_code_conditions": 7,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2561
+   "chars": 2924
   },
   {
    "id": "Q83",
@@ -3297,7 +3297,7 @@
   },
   {
    "id": "Q125",
-   "fingerprint": "0de04f368f65",
+   "fingerprint": "1fd4ba38e2b6",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -3317,7 +3317,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2529
+   "chars": 2480
   },
   {
    "id": "Q126",
@@ -3721,7 +3721,7 @@
   },
   {
    "id": "Q143",
-   "fingerprint": "1fc3ae58827b",
+   "fingerprint": "213419e6d5ba",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -3740,7 +3740,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2685
+   "chars": 2640
   },
   {
    "id": "Q144",
@@ -3770,7 +3770,7 @@
   },
   {
    "id": "Q145",
-   "fingerprint": "734ff774246f",
+   "fingerprint": "11fbb0e7b588",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -3783,15 +3783,15 @@
     "J3-1.a"
    ],
    "n_items": 8,
-   "n_code_conditions": 6,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2278
+   "chars": 2211
   },
   {
    "id": "Q146",
-   "fingerprint": "b3bcffc25c1e",
+   "fingerprint": "3e2595a3f38a",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -3804,11 +3804,11 @@
     "J3-1.a"
    ],
    "n_items": 8,
-   "n_code_conditions": 6,
+   "n_code_conditions": 5,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2292
+   "chars": 2225
   },
   {
    "id": "Q147",
@@ -6647,7 +6647,7 @@
   },
   {
    "id": "Q262",
-   "fingerprint": "37382e04345e",
+   "fingerprint": "8dfa1b543d08",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -6661,15 +6661,14 @@
     "J3-2.a",
     "J3-2.b",
     "J4-1.a",
-    "J4-1.b",
     "J5-2.a"
    ],
-   "n_items": 13,
-   "n_code_conditions": 0,
+   "n_items": 12,
+   "n_code_conditions": 1,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2532
+   "chars": 2429
   },
   {
    "id": "Q263",
@@ -7245,7 +7244,7 @@
   },
   {
    "id": "Q288",
-   "fingerprint": "63e74c6d33e4",
+   "fingerprint": "72b1456d2a09",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -7259,11 +7258,11 @@
     "J5-2.b"
    ],
    "n_items": 9,
-   "n_code_conditions": 3,
+   "n_code_conditions": 4,
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2675
+   "chars": 2585
   },
   {
    "id": "Q289",
@@ -7859,7 +7858,7 @@
   },
   {
    "id": "Q314",
-   "fingerprint": "6889eb4e45b6",
+   "fingerprint": "88c9a72f1e8c",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -7880,7 +7879,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2831
+   "chars": 2804
   },
   {
    "id": "Q315",
@@ -7933,7 +7932,7 @@
   },
   {
    "id": "Q317",
-   "fingerprint": "b75c6094e7ed",
+   "fingerprint": "5f39deabe205",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -7952,7 +7951,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2605
+   "chars": 2576
   },
   {
    "id": "Q318",
@@ -8053,7 +8052,7 @@
   },
   {
    "id": "Q322",
-   "fingerprint": "6140e1a8c6ee",
+   "fingerprint": "bfc602d361e9",
    "turns": 1,
    "items": [
     "J1-1.a",
@@ -8074,7 +8073,7 @@
    "role": null,
    "base_id": null,
    "k_actual": null,
-   "chars": 2927
+   "chars": 2889
   },
   {
    "id": "Q323",
