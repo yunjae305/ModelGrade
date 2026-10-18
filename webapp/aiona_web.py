@@ -36,7 +36,7 @@ __all__ = ["AIONA_URL", "PROFILE", "AIONA_WEB_VERSION", "AionaWebError", "creden
 
 AIONA_URL = "https://winz.aiona.kr"
 PROFILE = ROOT / "data" / "browser_profiles" / "aiona"
-AIONA_WEB_VERSION = "aiona-web-v2"
+AIONA_WEB_VERSION = "aiona-web-v3"   # v3: 개인정보 확인 안내("마스킹하거나 그대로 전송")가 뜨면 '마스킹 후 전송' 을 누른다 (사용자 결정 2026-10-18)
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 대신 TXT 파일로 올린다
 USER_MESSAGE = "div.space-y-4 > div.flex.justify-end"   # 내 질문 칸
 _POPUPS = ("나중에", "계속 묻지 않기", "괜찮습니다.", "건너뛰기")   # 설문·저장 안내·첫 방문 안내
@@ -234,16 +234,30 @@ class AionaChat:
         return self.page.locator(USER_MESSAGE).count() > asked_before
 
     def _wait_sent(self, asked_before: int, timeout_s: float = 20.0) -> bool:
-        """내 질문 칸이 하나 늘었는지 — 긴 글의 의도 감지 안내가 뜨면 '그냥 보내기'를 누르고 계속 기다린다.
-        중단 요청이면 더 누르지 않고 그만 기다린다."""
+        """내 질문 칸이 하나 늘었는지 — 긴 글의 의도 감지 안내가 뜨면 '그냥 보내기'를, 개인정보 확인 안내가 뜨면 '마스킹 후 전송'을 누르고
+        계속 기다린다. 중단 요청이면 더 누르지 않고 그만 기다린다."""
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline and not self.cancelled():
             if self._asked(asked_before):
                 return True
             if self._send_as_is():
                 self._intent_as_is = True
+            if self._mask_and_send():
+                self._pii_masked = True
             self.page.wait_for_timeout(500)
         return self._asked(asked_before)   # 마지막 대기 사이에 올라갔을 수 있다 (Codex)
+
+    def _mask_and_send(self) -> bool:
+        """개인정보 확인 안내('메시지는 먼저 이동했지만 실제 전송은 보류했습니다 — 마스킹하거나 그대로 전송')에서 '마스킹 후 전송'을 누른다.
+        이 안내는 내 질문 칸이 이미 올라간 뒤에도 뜨므로 답변 대기 중에도 확인한다 (사용자 결정 2026-10-18: 마스킹 후 전송)."""
+        button = self.page.get_by_role("button", name="마스킹 후 전송", exact=True)
+        try:
+            if button.count() and button.first.is_visible():
+                button.first.click(timeout=3000)
+                return True
+        except Exception:
+            pass
+        return False
 
     def _send_as_is(self) -> bool:
         """긴 글을 보내면 뜨는 의도 감지 안내('요약 뒤에 퀴즈까지…')에서 질문을 바꾸지 않는 '그냥 보내기'를 누른다."""
@@ -274,6 +288,7 @@ class AionaChat:
         before = self._answers().count()
         stopped_before = len(self._stopped())
         self._intent_as_is = False
+        self._pii_masked = False
         self._dismiss_popups()
         try:
             if files:
@@ -304,18 +319,19 @@ class AionaChat:
                     "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION,
                     "debug_screenshot": self._snapshot("send-failed")}
         deadline = time.monotonic() + self.answer_timeout_s
-        last, stable, empty, as_is = None, 0, 0, self._intent_as_is
+        last, stable, empty, as_is, masked = None, 0, 0, self._intent_as_is, self._pii_masked
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)
             self._dismiss_popups()
             as_is = self._send_as_is() or as_is
+            masked = self._mask_and_send() or masked   # 개인정보 확인 안내는 질문 칸이 올라간 뒤 뜬다 — 전송 보류를 풀어야 답이 온다
             if self._answers().count() <= before:
                 stopped = self._stopped()
                 if len(stopped) > stopped_before:   # AIONA 가 이 질문에서 멈췄다 — 기다리지 않고 AIONA 오류로 남긴다
                     return {"answer": "", "status": "ERROR", "error": f"AIONA 가 답하지 못했습니다: {stopped[-1][:200]}", "url": self.page.url,
                             "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천",
                             "method": AIONA_WEB_VERSION, "debug_screenshot": self._snapshot("stopped"),
-                            **({"intent_prompt": "그냥 보내기"} if as_is else {})}
+                            **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {})}
                 continue
             idle = self.page.locator("button[type=submit][title='전송']").count() > 0   # 답하는 동안은 정지 버튼
             html = self._last_answer_html()
@@ -332,7 +348,7 @@ class AionaChat:
             answer, capture, converted = copied, "copy-button", {"quality": []}
         return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture,
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
-                **({"intent_prompt": "그냥 보내기"} if as_is else {}),
+                **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,
                 "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
                 "conversion": [q for q in converted.get("quality") or [] if q.get("severity") != "info"]}
