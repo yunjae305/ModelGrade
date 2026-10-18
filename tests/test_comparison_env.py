@@ -95,7 +95,7 @@ def test_semantic_concurrency_defaults_to_twelve_and_loads_bounded_override(tmp_
     assert ce.semantic_workers == 12
 
 
-@pytest.mark.parametrize('value', ['0', '3', '17', '-4', '8.5', 'true', 'unlimited'])
+@pytest.mark.parametrize('value', ['0', '3', '33', '-4', '8.5', 'true', 'unlimited'])
 def test_semantic_concurrency_rejects_invalid_environment_without_changing_settings(tmp_path, value):
     ce = service(tmp_path, lambda _: None)
     with pytest.raises(ValueError, match='COMPARISON_SEMANTIC_WORKERS'):

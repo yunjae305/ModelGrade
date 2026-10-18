@@ -95,7 +95,7 @@ def test_disabled_search_is_a_limitation_not_a_configuration_failure(tmp_path, e
     {"SEMANTIC_ENGINE": "private-invalid-engine"},
     {"SEMANTIC_API_TIMEOUT": "secret-invalid-number"},
     {"SEMANTIC_API_MAX_TOOL_CALLS": "-1"},
-    {"SEMANTIC_API_MAX_OUTPUT_TOKENS": "0"},
+    {"SEMANTIC_API_MAX_OUTPUT_TOKENS": "-1"},   # 0 은 한도 없음 (사용자 결정 2026-10-19)
     {"SEMANTIC_WEB_SEARCH": "private-invalid-policy"},
     {"SEMANTIC_API_BASE": "https://name:private-credential@example.test/v1"},
     {"SEMANTIC_ENGINE": "codex_cli", "CODEX_CLI_REASONING": "private-invalid-reasoning"},

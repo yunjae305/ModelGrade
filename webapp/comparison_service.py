@@ -95,7 +95,7 @@ DEFAULT_COLLECTION_WORKERS = 3
 QUESTION_SET_MAX_TOKENS = 16000   # 질문 세트 실행의 답변 최대 출력 토큰 (API + 도구) — 10턴 대화의 긴 답이 8,000 에 잘려 16,000 으로 (사용자 결정 2026-10-18)
 MAX_COLLECTION_WORKERS = 4
 DEFAULT_SEMANTIC_WORKERS = 12
-MAX_SEMANTIC_WORKERS = 16
+MAX_SEMANTIC_WORKERS = 32   # 4모델 동시 평가에서 모델당 3개는 느려 늘림 (2026-10-19: 326 질문 평가가 8시간 걸릴 속도)
 DEFAULT_COMPARISON_DATASET = ROOT / "data" / "code_eval" / "AIONA_winz_Q165_Q100_multiturn65_v1.json"
 PUBLIC_COMPARISON_DATASET = ROOT / "examples" / "questions.sample.json"
 

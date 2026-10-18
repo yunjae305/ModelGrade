@@ -399,6 +399,16 @@ def test_manifest_is_available_without_a_client_and_pins_policy_and_limits():
     assert manifest["credentials_source"] == "SEMANTIC_API_KEY" and manifest["credentials_recorded"] is False
 
 
+
+def test_no_output_cap_omits_the_field_and_zero_in_env_means_no_cap(tmp_path):
+    """출력 한도 없음(None) — 요청에 max_output_tokens 를 넣지 않는다. .env 의 0 은 한도 없음 (사용자 결정 2026-10-19)."""
+    from code_eval.jev_client import resolve_jev_client
+    call, requests = call_with_response(completed_response(), config=SemanticApiConfig(max_output_tokens=None, evidence_recovery_rounds=0))
+    assert call.status == "OK" and "max_output_tokens" not in json.loads(requests[0].content)
+    env = {"SEMANTIC_API_KEY": "sk-semantic-fixture-only", "SEMANTIC_API_MAX_OUTPUT_TOKENS": "0"}
+    _, config, _ = resolve_jev_client(env, tmp_path / "missing.env", "openai_api")
+    assert config.max_output_tokens is None and config.to_manifest()["max_output_tokens"] is None
+
 @pytest.mark.parametrize("kwargs", [
     {"model": ""}, {"timeout": 0}, {"timeout": float("inf")}, {"timeout": True},
     {"max_output_tokens": 0}, {"max_output_tokens": True}, {"max_tool_calls": 0}, {"max_tool_calls": 1.5},

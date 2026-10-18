@@ -51,7 +51,7 @@ class SemanticApiConfig:
     model: str = DEFAULT_MODEL
     api_base: str = DEFAULT_API_BASE
     timeout: float = 180
-    max_output_tokens: int = 12000
+    max_output_tokens: int | None = 12000   # None = 앱 한도 없음(요청에 넣지 않음, 모델 자체 한도만) — 사용자 결정 2026-10-19
     reasoning_effort: str = "high"
     web_search: str = "live"
     max_tool_calls: int | None = None
@@ -67,7 +67,7 @@ class SemanticApiConfig:
             raise ValueError("의미 평가 API 제한 시간은 양의 유한한 초여야 합니다.")
         for name in ("max_output_tokens", "max_tool_calls", "evidence_recovery_max_tool_calls"):
             value = getattr(self, name)
-            if name != "max_output_tokens" and value is None:
+            if value is None:
                 continue
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"{name}은 1 이상의 정수여야 합니다.")
@@ -369,12 +369,13 @@ class SemanticApiClient:
                 "instructions": semantic.system_prompt(search_enabled=search_enabled, questions=questions),
                 "input": prompt_input,
                 "reasoning": {"effort": self.config.reasoning_effort},
-                "max_output_tokens": self.config.max_output_tokens,
                 "text": {"format": {"type": "json_schema", "name": "aiona_semantic_evaluation",
                                     "strict": True, "schema": semantic.output_schema(
                                         questions, citations=semantic.citation_review(state, questions, search_enabled))}},
                 "store": False, "truncation": "disabled",
             }
+            if self.config.max_output_tokens is not None:
+                payload["max_output_tokens"] = self.config.max_output_tokens
             if self.config.model == DEFAULT_MODEL:
                 payload["prompt_cache_options"] = {"mode": "explicit", "ttl": "30m"}
             if search_enabled:

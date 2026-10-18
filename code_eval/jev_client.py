@@ -356,7 +356,7 @@ def resolve_jev_client(
             model=read("SEMANTIC_API_MODEL") or "gpt-6.1-sol",
             api_base=read("SEMANTIC_API_BASE") or "https://api.openai.com/v1",
             timeout=float(read("SEMANTIC_API_TIMEOUT") or 180),
-            max_output_tokens=int(read("SEMANTIC_API_MAX_OUTPUT_TOKENS") or 12000),
+            max_output_tokens=optional_tool_call_limit(read("SEMANTIC_API_MAX_OUTPUT_TOKENS") or "12000"),   # 0 = 앱 한도 없음 (사용자 결정 2026-10-19)
             reasoning_effort=read("SEMANTIC_API_REASONING") or "high",
             web_search=read("SEMANTIC_WEB_SEARCH") or "live",
             max_tool_calls=optional_tool_call_limit(read("SEMANTIC_API_MAX_TOOL_CALLS")),

@@ -2,7 +2,7 @@
 
     python tools/reeval_failed.py <run_id>                 # 무엇을 다시 할지 보여 주기만
     python tools/reeval_failed.py <run_id> --apply         # 다시 평가하고 실행 파일에 반영 (서버가 멈춘 상태에서)
-    옵션: --timeout 6000 (GPT-6 Luna 제한 시간, 초 — 기본은 .env SEMANTIC_API_TIMEOUT), --workers 6
+    옵션: --timeout 6000 (GPT-6 Luna 제한 시간, 초 — 기본은 .env SEMANTIC_API_TIMEOUT), --max-output 0 (GPT-6 Luna 출력 한도, 0 = 한도 없음 — 기본은 .env SEMANTIC_API_MAX_OUTPUT_TOKENS), --workers 6
 
 - 대상: run.evaluations[provider].jev_eval.records 중 status 가 TIMEOUT·API_ERROR·INVALID_RESPONSE 인 턴.
 - 대화(conversation_id)는 앞 턴 이력이 판정에 들어가므로 그 대화의 모든 턴을 한 배치로 다시 보내고, 실패했던 턴의 레코드만 바꾼다.
@@ -33,10 +33,13 @@ def main(argv=None) -> int:
     ap.add_argument("run_id")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--timeout", type=float, default=None)
+    ap.add_argument("--max-output", type=int, default=None)
     ap.add_argument("--workers", type=int, default=6)
     args = ap.parse_args(argv)
     if args.timeout:
         os.environ["SEMANTIC_API_TIMEOUT"] = str(int(args.timeout))   # resolve_jev_client 는 환경변수를 .env 보다 먼저 읽는다
+    if args.max_output is not None:
+        os.environ["SEMANTIC_API_MAX_OUTPUT_TOKENS"] = str(args.max_output)   # 추론이 출력 한도를 다 써 '응답 미완료'가 난 판정용 (2026-10-19 GPT Q11_T4: 32,000 중 추론 29,766)
     path = RUNS / f"{args.run_id}.json"
     run = json.loads(path.read_text(encoding="utf-8"))
     plan = {}
@@ -120,7 +123,7 @@ def main(argv=None) -> int:
                                  unverified=summarized["unverified"], incomplete=summarized["incomplete"], reevaluated=summarized["reevaluated"],
                                  conversations=summarized["conversations"], statuses=dict(statuses))
         batch["jev_eval"].setdefault("reeval", []).append({"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "replaced": replaced, "still_failed": still,
-                                                          "timeout_s": args.timeout})
+                                                          "timeout_s": args.timeout, "max_output_tokens": args.max_output})
         batch["combined"] = combined_summary(batch)
         print(f"{provider}: 바꿈 {replaced} · 여전히 실패 {len(still)} {still[:10]} · {int(time.time() - started)}초", flush=True)
     run["revision"] = run.get("revision", 0) + 1
