@@ -22,7 +22,7 @@ from .factchat_web import COPY_CAPTURE_JS
 
 __all__ = ["CDP_WEB_VERSION", "CdpWebError", "cdp_login_status", "ChatGptChat", "GeminiChat", "ClaudeChat", "CDP_CHATS", "CDP_PROVIDERS"]
 
-CDP_WEB_VERSION = "cdp-web-v1"
+CDP_WEB_VERSION = "cdp-web-v3"
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료는 입력칸 대신 TXT 파일로 올린다 (AIONA 와 같음)
 #: 세 사이트가 같은 Chrome 을 쓰므로 메뉴 조작·전송은 한 번에 하나씩 — 탭 간 포커스 경쟁을 막는다
 _CHROME_LOCK = threading.Lock()
@@ -58,6 +58,8 @@ class _CdpChat:
     COPY_NAMES: tuple = ()    # 답변 복사 버튼 이름 후보 (마지막 것을 누른다)
     FILE_INPUT = ""           # 숨은 파일 input (없으면 메뉴 → 파일 선택 창)
     STOP_NAMES: tuple = ()    # 답하는 동안 보이는 정지 버튼 이름
+    SEND_NAMES: tuple = ()    # 보내기 버튼 이름 — 파일 처리 중에는 꺼져 있다 (켜질 때까지 기다린다)
+    REMOVE_FILE = None        # 입력칸에 남은 첨부를 지우는 버튼 이름 패턴 (지난 질문이 실패해 남은 파일)
 
     def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
                  answer_timeout_s: int = 600) -> None:
@@ -235,6 +237,84 @@ class _CdpChat:
         except Exception:
             return False
 
+    def _box_text(self, box: Any) -> str:
+        try:
+            return (box.inner_text(timeout=2000) or "").strip()
+        except Exception:
+            return ""
+
+    def _click_box(self, box: Any) -> None:
+        try:
+            box.click(timeout=5_000)
+        except Exception:   # 창이 좁으면 사이드바가 입력칸을 덮는다(Gemini, 2026-10-15) — 닫고 한 번 더
+            self._close_overlays()
+            box.click(timeout=10_000)
+
+    def _clear_composer(self, box: Any) -> None:
+        """지난 질문이 보내지지 못하고 남긴 글·첨부를 지운다 — ChatGPT 는 보내지 않은 글을 새 채팅에도 남겨,
+        다음 질문이 그 사이에 끼어 뒤섞였다 (긴 참조 자료 TXT 업로드 중 Enter 무시, 2026-10-15)."""
+        if self.REMOVE_FILE is not None:
+            try:   # 입력칸이 든 양식 안의 제거 버튼만 — 화면 다른 곳(파일 목록 등)의 같은 이름 버튼을 누르지 않게
+                scope = box.locator("xpath=ancestor::form[1]")
+                scope = scope if scope.count() else self.page
+            except Exception:
+                scope = self.page
+            for _ in range(10):
+                btn = scope.get_by_role("button", name=self.REMOVE_FILE)
+                if not btn.count():
+                    break
+                try:
+                    btn.first.click(timeout=3000)
+                    self.page.wait_for_timeout(400)
+                except Exception:
+                    break
+        if self._box_text(box):
+            self._click_box(box)
+            self.page.keyboard.press("Control+A")
+            self.page.keyboard.press("Delete")
+            self.page.wait_for_timeout(300)
+            if self._box_text(box):   # 포커스가 입력칸 밖이면 Ctrl+A 가 페이지를 골라 지워지지 않는다 — 섞인 질문을 보내지 않게 멈춘다
+                raise CdpWebError("입력칸에 남은 글을 지우지 못함")
+
+    def _send_button(self) -> Any:
+        return self.page.get_by_role("button", name=re.compile("^(" + "|".join(re.escape(n) for n in self.SEND_NAMES) + ")$"))
+
+    def _wait_send_ready(self, timeout_ms: int) -> None:
+        """보내기 버튼이 켜질 때까지 — 큰 파일은 올린 뒤 처리하는 동안 버튼이 꺼져 있어 Enter 가 무시된다.
+        버튼이 잠깐 안 보이는(다른 버튼으로 바뀐) 동안에도 바로 돌아가지 않고 기다린다 — 5초 넘게 계속 없을 때만 돌아간다."""
+        if not self.SEND_NAMES:
+            return
+        btn = self._send_button()
+        waited = missing = 0
+        while waited < timeout_ms:
+            try:
+                if btn.count():
+                    missing = 0
+                    if any(b.is_enabled() for b in btn.all()[:3]):
+                        return
+                else:
+                    missing += 1000
+                    if missing > 5000:
+                        return
+            except Exception:
+                return
+            self.page.wait_for_timeout(1000)
+            waited += 1000
+        raise CdpWebError(f"{timeout_ms // 1000}초가 지나도 보내기 버튼이 켜지지 않음")
+
+    def _press_send(self) -> None:
+        """보내기 버튼(켜진 것)을 누른다 — 버튼 이름을 모르는 사이트나 버튼이 없으면 Enter."""
+        if self.SEND_NAMES:
+            btn = self._send_button()
+            try:
+                for b in btn.all()[:3]:
+                    if b.is_visible() and b.is_enabled():
+                        b.click(timeout=5_000)
+                        return
+            except Exception:
+                pass
+        self.page.keyboard.press("Enter")
+
     def _asked(self) -> int:
         return self.page.locator(self.USER_SELECTOR).count() if self.USER_SELECTOR else 0
 
@@ -263,26 +343,34 @@ class _CdpChat:
                     raise CdpWebError("중단 요청으로 질문을 보내지 않음")
                 self.page.bring_to_front()
                 self._check_blocked()
+                box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
+                self._clear_composer(box)
                 if files:
                     self._upload(files)
                 self.page.keyboard.press("Escape")   # 남아 있는 메뉴·팝업 닫기
                 self.page.wait_for_timeout(200)
-                box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
-                try:
-                    box.click(timeout=5_000)
-                except Exception:   # 창이 좁으면 사이드바가 입력칸을 덮는다(Gemini, 2026-10-15) — 닫고 한 번 더
-                    self._close_overlays()
-                    box.click(timeout=10_000)
+                self._click_box(box)
                 self.page.keyboard.insert_text(text)
                 self.page.wait_for_timeout(600)
-                self.page.keyboard.press("Enter")
-                # 질문이 올라갔는지 — 내 질문 말풍선이 늘거나, 답변 말풍선이 생기거나, 정지 버튼이 보이면 보낸 것
+                self._wait_send_ready(300_000 if files else 30_000)
+                self._press_send()
+                # 질문이 올라갔는지 — 내 질문 말풍선이 늘거나, 답변 말풍선이 생기거나, 정지 버튼이 보이면 보낸 것.
+                # 보내기 버튼을 아는 사이트(ChatGPT)만: 10초마다 입력칸에 글이 그대로면(전송이 무시됨) 다시 누른다 — 전체 2분 안에서.
+                # 버튼을 모르는 사이트는 Enter 를 다시 누르지 않는다 — 감지가 늦을 때 같은 질문이 두 번 올라갈 수 있다(코드 리뷰)
                 sent_ok = False
-                for _ in range(60):
+                send_deadline = time.monotonic() + 120
+                tick = 0
+                while time.monotonic() < send_deadline:
                     self.page.wait_for_timeout(500)
+                    tick += 1
                     if self._asked() > asked_before or self._answers().count() > before or self._streaming():
                         sent_ok = True
                         break
+                    if self.SEND_NAMES and tick % 20 == 0 and self._box_text(box):
+                        left = int((send_deadline - time.monotonic()) * 1000)
+                        if left > 1000:
+                            self._wait_send_ready(min(left, 20_000))
+                            self._press_send()
                 if not sent_ok:
                     self._check_blocked()
                     raise CdpWebError("전송 뒤에도 답변이 시작되지 않음")
@@ -374,6 +462,8 @@ class ChatGptChat(_CdpChat):
         return best or super()._copy_last_answer()
     FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
     STOP_NAMES = ("중지", "Stop")
+    SEND_NAMES = ("보내기", "프롬프트 보내기")   # 입력칸 오른쪽 파란 버튼 — 큰 파일 처리 중에는 꺼져 있다
+    REMOVE_FILE = re.compile(r"\.\w+ 제거$")      # 첨부 미리보기의 'OOO.txt 제거' 버튼
     MODEL_MENU = "ChatGPT 모델 선택"
 
     def _apply_model(self) -> str:
