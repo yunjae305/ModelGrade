@@ -24,9 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from webapp.run_summary import evaluation_method  # noqa: E402
+from webapp.run_summary import EMPTY_OUTPUT_HOLD_POLICY, evaluation_method, question_outcomes  # noqa: E402
 
-EXPORT_VERSION = "review-export-v2-held"   # v2: --held 보류 목록(기준 무관, 심판 갈림·J5 확인 실패 사유), J8 선택 가능
+EXPORT_VERSION = "review-export-v3-held"   # v3: --held 에 빈 출력 요구 질문(질문 전체 보류, 10-19) · v2: --held 보류 목록(기준 무관, 심판 갈림·J5 확인 실패 사유), J8 선택 가능
 LIMITS = {"question": 120, "answer": 200}
 COLUMNS = ("system", "case_id", "conversation_id", "turn", "criterion", "decision", "cause", "cause_label", "factual_error_confirmed",
            "reason_code", "judge_reason", "judge_original_choice", "judge_original_reason", "search_calls", "search_limit",
@@ -47,7 +47,8 @@ def _text(value: str, kind: str, scope: str) -> str:
 
 
 HELD_CAUSES = {"judge_disagreement": "심판 갈림 (Jev·GPT-6 Luna·재판정이 다름)", "held": "J5 근거 부족 — 확인 못 함",
-               "source_unavailable": "J5 출처 원문 확인 실패", "search_limit_reached": "J5 검색 한도", "unverified": "확인 필요"}
+               "source_unavailable": "J5 출처 원문 확인 실패", "search_limit_reached": "J5 검색 한도", "unverified": "확인 필요",
+               "empty_output_hold": "빈 출력 요구 질문 — 질문 전체 보류 (사용자 결정 10-19)"}
 
 
 def is_held(decision: Dict[str, Any]) -> bool:
@@ -138,6 +139,23 @@ def export_rows(run: Dict[str, Any], criterion: str = "J5", include_pass: int = 
                          "question": _text(case.get("question") or "", "question", text),
                          "answer": _text(case.get("answer") or "", "answer", text), "text_scope": text,
                          "gold": "", "reviewer_note": ""})
+        if held:   # 빈 출력 요구 질문 — 판정·수집 결과와 상관없이 질문 전체가 보류라 사람이 PASS/FAIL 을 정한다 (empty-output-hold-v1)
+            for index, outcome in enumerate(question_outcomes(batch, len(data) or None, data)):
+                if outcome.get("hold") != "empty_output":
+                    continue
+                case = cases[index] if index < len(cases) else {}
+                row = data[index] if index < len(data) and isinstance(data[index], dict) else {}
+                collection = row.get("collection") if isinstance(row.get("collection"), dict) else {}
+                status = collection.get("status", "SUCCESS")
+                answer = row.get("answer") if isinstance(row.get("answer"), str) else case.get("answer") or ""
+                rows.append({**{key: "" for key in COLUMNS}, "system": system, "case_id": case.get("case_id") or row.get("case_id"),
+                             "conversation_id": row.get("conversation_id"), "turn": row.get("turn"), "criterion": "2-1.explicit_empty",
+                             "decision": None, "cause": "empty_output_hold", "cause_label": HELD_CAUSES["empty_output_hold"],
+                             "factual_error_confirmed": False, "reason_code": EMPTY_OUTPUT_HOLD_POLICY,
+                             "judge_reason": (f"평가 판정 {outcome.get('judged_outcome')}" + (f" · 수집 {status}: {collection.get('error') or ''}".rstrip(": ")
+                                                                                         if status != "SUCCESS" else f" · 답변 {len(answer.strip())}자")),
+                             "question": _text(case.get("question") or row.get("question") or "", "question", text),
+                             "answer": _text(answer, "answer", text), "text_scope": text})
     return rows
 
 

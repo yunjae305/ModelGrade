@@ -9,6 +9,7 @@
 - 순서: k_var 가 큰 질문부터. 같은 k 면 아직 적용 수가 ``--min-apply`` 에 못 미친 기준을 더 많이 채우는 질문부터(욕심 방식).
 - 질문 판정(모델마다): 유효 FAIL(CODE·의미)이 하나라도 있으면 FAIL, 모두 판정되고 FAIL 없으면 PASS, 그 밖은 보류(분모에 둠).
   답을 못 받은 질문(수집 실패)은 모델 쪽 원인이므로 FAIL 로 센다(사용자 규칙). 통과율 = PASS / n.
+  빈 출력을 요구한 질문은 판정·수집 결과와 상관없이 보류(사용자 결정 2026-10-19, run_summary.EMPTY_OUTPUT_HOLD_POLICY).
 - 안정 지점: 그 수 이상 어디서 잘라도 ① 모델 순위가 전체 세트와 같고 ② 모델마다 통과율이 전체 세트 값의 ±tolerance 안인 가장 작은 n.
 - 결과: <out>/gradient.md(표·결론), gradient.svg(통과율·커버리지 선 그래프), gradient.json.
 """
@@ -26,7 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from webapp import question_generation as qg  # noqa: E402
-from webapp.run_summary import question_outcomes, unit_outcome  # noqa: E402
+from webapp.run_summary import asks_empty_output, question_outcomes, unit_verdict  # noqa: E402
 
 RUNS = ROOT / "data" / "comparison_runs"
 SETS = ROOT / "data" / "question_sets"
@@ -60,21 +61,25 @@ def verdicts_from_run(run: Dict[str, Any]) -> Dict[str, Dict[int, str]]:
         case_ids = [r["case_id"] for r in flat] if flat and len(flat) == len(rows) else [(r or {}).get("case_id") for r in rows]
         if any(c is None for c in case_ids):
             raise SystemExit(f"{provider}: 질문 세트 없이 빈 행의 질문 번호를 정할 수 없습니다.")
-        outcomes = question_outcomes(batch, len(rows)) if batch else [{"outcome": "PENDING"}] * len(rows)
-        per_q: Dict[int, List[str]] = defaultdict(list)
+        outcomes = question_outcomes(batch, len(rows), rows) if batch else [{"outcome": "PENDING"}] * len(rows)
+        per_q: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
         for index, cid in enumerate(case_ids):
             row = rows[index]
+            question = (row or {}).get("question") or (flat[index].get("question") if flat and len(flat) == len(rows) else None)
+            if asks_empty_output(None, question) or outcomes[index].get("hold") == "empty_output":
+                per_q[_qid(cid)].append({"outcome": "PENDING", "hold": "empty_output"})   # 수집 실패여도 FAIL 이 아니라 보류
+                continue
             # 빈 행·명시적 수집 실패만 '답 없음' — 직접 올린 원문(collection 없음)은 수집된 답으로 본다 (Codex 검토)
             collected = row is not None and (row.get("collection") or {}).get("status", "SUCCESS") == "SUCCESS"
-            per_q[_qid(cid)].append("FAIL" if not collected else outcomes[index]["outcome"])
-        out[provider] = {q: ("FAIL" if (k := unit_outcome(kinds)) in ("FAIL", "EXCLUDED") else "PASS" if k == "PASS" else "HOLD")
+            per_q[_qid(cid)].append({"outcome": "FAIL"} if not collected else outcomes[index])
+        out[provider] = {q: ("FAIL" if (k := unit_verdict(kinds)) in ("FAIL", "EXCLUDED") else "PASS" if k == "PASS" else "HOLD")
                          for q, kinds in per_q.items()}
     return out
 
 
 def verdicts_from_records(run: Dict[str, Any], records_dir: Path) -> Dict[str, Dict[int, str]]:
     """실험용 — jsonl 판정 파일(Luna 가 모든 기준, Jev 가 J1~J4)과 CODE 평가로 질문 판정. 병행 규칙: 둘이 갈리면 보류(재판정 없음),
-    J5 확인 실패는 보류. 수집 실패는 FAIL."""
+    J5 확인 실패는 보류. 수집 실패는 FAIL. 빈 출력 요구 질문은 보류."""
     from code_eval import engine
     from code_eval.config import load_aiona_config
     cfg = load_aiona_config(); cfg.enabled = False
@@ -123,9 +128,12 @@ def verdicts_from_records(run: Dict[str, Any], records_dir: Path) -> Dict[str, D
                     state[q]["fail"] = True
                 elif decision != "PASS" and d.get("status") not in ("NOT_APPLICABLE", None):
                     state[q]["hold"] = True
+        empty = {_qid(row["case_id"]) for row in rows if asks_empty_output(None, row.get("question"))}   # 빈 출력 요구 — 보류 (10-19)
         verdict: Dict[int, str] = {}
         for q, s in state.items():
-            if s["fail"] or code_fail[q]:
+            if q in empty:
+                verdict[q] = "HOLD"
+            elif s["fail"] or code_fail[q]:
                 verdict[q] = "FAIL"
             elif s["hold"] or not s["seen"]:
                 verdict[q] = "HOLD"

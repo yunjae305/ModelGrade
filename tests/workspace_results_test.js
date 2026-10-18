@@ -462,3 +462,25 @@ console.log('criteria table separates verification-limited FAILs.');
 }
 console.log('question detail shows whether attachment images reached the judge.');
 
+
+// 빈 출력 요구 질문은 판정·수집 결과와 상관없이 우선 보류 — 서버가 준 empty_output_holds 를 따른다 (사용자 결정 2026-10-19)
+{
+  const held = result([code(1, 1), code(), {case_status: 'INPUT_ERROR', input_error: 'AIONA 가 답하지 못했습니다'}], [sem(), sem(), null]);
+  held.empty_output_holds = {aiona: [0, 2]};
+  assert.equal(caseState(held, 'aiona', 0).outcome, 'pending');
+  assert.equal(caseState(held, 'aiona', 0).emptyHeld, true);
+  assert.match(caseState(held, 'aiona', 0).detail, /빈 출력을 요구한 질문이라 우선 보류/);
+  assert.match(caseState(held, 'aiona', 0).detail, /평가 결과: 문제 발견/);
+  assert.equal(caseState(held, 'aiona', 1).outcome, 'clear');
+  assert.equal(caseState(held, 'aiona', 2).outcome, 'pending');
+  assert.deepEqual(modelSummary(held, 'aiona', 3).counts, {issue: 0, clear: 1, pending: 2, waiting: 0, running: 0});
+  held.datasets.aiona = held.datasets.aiona.map((row, i) => ({...row, conversation_id: i < 2 ? 'c1' : undefined, turn: i + 1}));
+  held.status = 'COMPLETED';
+  const summary = finalSummary(held);   // 대화 c1(보류 턴 + PASS 턴) → 보류, 단일 질문 → 보류
+  assert.equal(summary.rows[0].counts.pending, 2);
+  assert.equal(summary.rows[0].counts.issue, 0);
+  assert.equal(summary.rows[0].emptyHeld, 2);
+  assert.equal(summary.complete, true);   // 보류는 판정 끝남으로 봐 점수가 나온다 — PASS 0 / 2
+  assert.equal(summary.rows[0].score, 0);
+  console.log('empty-output questions are held, counted in the denominator.');
+}

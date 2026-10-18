@@ -36,7 +36,7 @@ from .version_registry import VersionRegistry, evaluation_profile, fingerprint, 
 from .aiona_history import aiona_history
 from .version_comparison import compare_runs
 from .registry_store import clean_text
-from .run_summary import collection_comparison, criteria_verification, evaluation_method, input_composition
+from .run_summary import collection_comparison, criteria_verification, empty_output_holds, evaluation_method, input_composition
 from .ingestion import SCHEMA as COLLECTION_SCHEMA, import_files
 from .ingestion.api_adapter import LIVE_PROVIDERS, parse_api_response, response_fields
 from .ingestion.runs import build_run_data, dataset_row, environment_comparison, system_summary
@@ -741,7 +741,9 @@ class ComparisonService:
                     **self.version_registry.metadata(run), 'evaluation_summary': self._evaluation_summary(run),
                     'evaluation_conditions_summary': self._conditions_summary(run), 'evaluation_method': evaluation_method(run),
                     'input_composition': input_composition(run), 'collection_comparison': collection_comparison(run),
-                    'criteria_verification': criteria_verification(run)}
+                    'criteria_verification': criteria_verification(run),
+                    # 빈 출력 요구 질문은 우선 보류 (사용자 결정 2026-10-19) — 화면 판정이 서버 집계와 같게
+                    'empty_output_holds': empty_output_holds(run)}
 
     def history(self, limit=30):
         with self._lock:

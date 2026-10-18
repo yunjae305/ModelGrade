@@ -9,6 +9,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from webapp.run_summary import question_outcomes  # noqa: E402
 
 
 def bucket(k, v):
@@ -42,7 +46,11 @@ def main(run_id: str) -> None:
             for k, v in (r.get("decisions") or {}).items():
                 if isinstance(v, dict) and v.get("decision") is None:
                     turn[bucket(k, v)] += 1
+        rows = s["datasets"][p]
+        empty = sum(1 for o in question_outcomes(ev, len(rows), rows) if o.get("hold") == "empty_output")
         print(f"\n[{p}] 보류 항목(턴) 사유")
+        if empty:   # 의미 판정과 별개로 질문(턴) 전체가 보류 — empty-output-hold-v1
+            print(f"  {empty:4d}  빈 출력 요구 질문 — 질문 전체 보류(사용자 결정 10-19, 판정·수집 결과와 무관)")
         for b, n in turn.most_common():
             print(f"  {n:4d}  {b}")
 

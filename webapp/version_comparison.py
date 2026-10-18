@@ -10,7 +10,7 @@ import copy
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-from .run_summary import question_outcomes, run_summary, unit_outcome, verification_limited
+from .run_summary import question_outcomes, run_summary, unit_verdict, verification_limited
 from .version_registry import evaluation_profile
 
 __all__ = ["COMPARISON_VERSION", "PROFILE_LABELS", "profile_differences", "sign_test", "compare_runs", "condition_changes"]
@@ -288,7 +288,9 @@ def _units(pairs: List[Dict[str, Any]], a_out: List[Dict[str, Any]], b_out: List
     for key, members in groups.items():
         outcomes_a = [a_out[p["baseline_index"]]["outcome"] for p in members]
         outcomes_b = [b_out[p["target_index"]]["outcome"] for p in members]
-        unit_a, unit_b = unit_outcome(outcomes_a), unit_outcome(outcomes_b)
+        # 빈 출력 요구 질문은 보류 단위 — 완료로 보지 않아 부호 검정에서 빠진다 (empty-output-hold-v1)
+        unit_a = unit_verdict([a_out[p["baseline_index"]] for p in members])
+        unit_b = unit_verdict([b_out[p["target_index"]] for p in members])
         complete = unit_a in ("PASS", "FAIL") and unit_b in ("PASS", "FAIL")
         # 단위의 FAIL 이 검증 한계뿐인가 — FAIL 인 턴이 모두 검증 한계 FAIL
         limited_a = bool(a_lim) and unit_a == "FAIL" and all(a_lim[p["baseline_index"]] for p, o in zip(members, outcomes_a) if o == "FAIL")
@@ -319,7 +321,8 @@ def compare_runs(baseline_run: Dict[str, Any], target_run: Dict[str, Any]) -> Di
     b_batch = (target_run.get("evaluations") or {}).get("aiona") or {}
     a_total = baseline_run.get("question_count") or len((baseline_run.get("datasets") or {}).get("aiona") or [])
     b_total = target_run.get("question_count") or len((target_run.get("datasets") or {}).get("aiona") or [])
-    a_out, b_out = question_outcomes(a_batch, a_total), question_outcomes(b_batch, b_total)
+    a_out = question_outcomes(a_batch, a_total, (baseline_run.get("datasets") or {}).get("aiona"))
+    b_out = question_outcomes(b_batch, b_total, (target_run.get("datasets") or {}).get("aiona"))
     a_profile, b_profile = evaluation_profile(baseline_run), evaluation_profile(target_run)
     differences = profile_differences(a_profile, b_profile)
     a_fp = baseline_run.get("dataset_fingerprint")

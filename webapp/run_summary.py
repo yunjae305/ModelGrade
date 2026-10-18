@@ -6,16 +6,18 @@
 from __future__ import annotations
 
 import copy
+import functools
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from code_eval.common_adjudication import resolved_case
+from code_eval.extract import extract_conditions
 
 from .version_registry import evaluation_profile, fingerprint
 
 __all__ = ["RUN_SUMMARY_VERSION", "COLLECTION_COMPARISON_VERSION", "CRITERIA_VERIFICATION_VERSION", "collection_comparison",
-           "criteria_verification", "evaluation_method", "input_composition",
+           "criteria_verification", "evaluation_method", "input_composition", "EMPTY_OUTPUT_HOLD_POLICY", "asks_empty_output", "empty_output_holds", "unit_verdict",
            "j5_fail_causes", "question_outcome", "question_outcomes", "question_units", "unit_outcome", "run_summary"]
 
 #: v2 — 질문 통과율의 단위가 질문 단위(단일 질문 1개, 멀티턴 대화는 턴 수와 상관없이 1개)로 바뀜. 턴 단위 집계는 turns 에 남긴다.
@@ -23,9 +25,52 @@ RUN_SUMMARY_VERSION = "run-summary-v2"
 PROVIDER_NAMES = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 
 
-def question_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+#: 빈 출력을 요구한 질문('아무것도 출력하지 마' 등, CODE 2-1.explicit_empty)은 판정·수집 결과와 상관없이 우선 보류(PENDING) —
+#: 사용자 결정 2026-10-19. AIONA 는 이 질문에 오류 화면을 내 답을 못 받고, 빈 답을 PASS 로 볼지도 정하지 않았다. 판정 값은 그대로 두고 집계만 보류로.
+EMPTY_OUTPUT_HOLD_POLICY = "empty-output-hold-v1"
+
+
+def asks_empty_output(case: Optional[Dict[str, Any]] = None, question: Optional[str] = None) -> bool:
+    """이 질문(턴)이 빈 출력을 요구했는가 — 평가 결과(2-1.explicit_empty 행·질문 조건)가 있으면 그것으로, 없으면(수집 실패로 입력 오류가 된 행)
+    질문 원문을 평가와 같은 조건 추출(``extract_conditions``, 붙여 넣은 자료 구간은 가림)로 본다."""
+    if isinstance(case, dict):
+        if any(str(row.get("check_id") or "").startswith("2-1.explicit_empty") for row in case.get("results") or [] if isinstance(row, dict)):
+            return True
+        if any(isinstance(c, dict) and c.get("kind") == "explicit_empty" for c in (case.get("meta") or {}).get("question_conditions") or []):
+            return True
+    return bool(isinstance(question, str) and question.strip() and _question_asks_empty(question))
+
+
+@functools.lru_cache(maxsize=4096)
+def _question_asks_empty(question: str) -> bool:   # 같은 질문을 모델마다·화면 갱신마다 다시 읽지 않게
+    return bool(extract_conditions(question).first("explicit_empty"))
+
+
+def empty_output_holds(run: Dict[str, Any]) -> Dict[str, List[int]]:
+    """실행의 모델별 빈 출력 요구 행 번호 — 결과 화면이 질문(턴)을 보류로 보이게 (서버와 같은 규칙, empty-output-hold-v1)."""
+    out: Dict[str, List[int]] = {}
+    for provider, rows in (run.get("datasets") or {}).items():
+        cases = ((run.get("evaluations") or {}).get(provider) or {}).get("cases") or []
+        out[provider] = [i for i, row in enumerate(rows or [])
+                         if asks_empty_output(cases[i] if i < len(cases) else None, (row or {}).get("question") if isinstance(row, dict) else None)]
+    return out
+
+
+def _held_empty(base: Dict[str, Any]) -> Dict[str, Any]:
+    return {**base, "outcome": "PENDING", "hold": "empty_output", "hold_policy": EMPTY_OUTPUT_HOLD_POLICY,
+            "judged_outcome": base["outcome"]}
+
+
+def question_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]], question: Optional[str] = None) -> Dict[str, Any]:
     """질문 하나의 최종 판정 — {"outcome": PASS|FAIL|PENDING|EXCLUDED, "code_fails": [check_id…], "semantic_fails": [cid…],
-    "code_complete", "semantic_complete"}. 공통 CODE FAIL 이나 의미 기준 FAIL 이 하나라도 확정되면 FAIL, 모두 판정되고 FAIL 이 없으면 PASS."""
+    "code_complete", "semantic_complete"}. 공통 CODE FAIL 이나 의미 기준 FAIL 이 하나라도 확정되면 FAIL, 모두 판정되고 FAIL 이 없으면 PASS.
+    빈 출력을 요구한 질문은 우선 보류 — outcome PENDING, hold "empty_output", 원래 판정은 judged_outcome (``EMPTY_OUTPUT_HOLD_POLICY``).
+    ``question`` 은 평가 결과가 없는 행(수집 실패)에서 빈 출력 요구를 알아보는 데만 쓴다."""
+    out = _judged_outcome(case, record)
+    return _held_empty(out) if asks_empty_output(case, question) else out
+
+
+def _judged_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not isinstance(case, dict) or case.get("case_status") != "EVALUATED":
         return {"outcome": "EXCLUDED", "code_fails": [], "semantic_fails": [], "code_complete": False, "semantic_complete": False}
     record = record if isinstance(record, dict) else {}
@@ -84,8 +129,10 @@ def verification_limited(case: Optional[Dict[str, Any]], record: Optional[Dict[s
     return all(verification_limited_decision(decisions.get(cid)) for cid in outcome["semantic_fails"])
 
 
-def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = None) -> List[Dict[str, Any]]:
-    """배치(provider 하나)의 질문별 최종 판정 목록 (index 순). 결과가 없는 index 는 PENDING."""
+def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = None,
+                      rows: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    """배치(provider 하나)의 질문별 최종 판정 목록 (index 순). 결과가 없는 index 는 PENDING.
+    ``rows`` 는 그 provider 의 입력 행(run["datasets"][provider]) — 평가 결과가 없는 행의 빈 출력 요구를 질문 원문으로 알아본다."""
     batch = batch if isinstance(batch, dict) else {}
     cases = batch.get("cases") or []
     records = (batch.get("jev_eval") or {}).get("records") or []
@@ -94,10 +141,12 @@ def question_outcomes(batch: Optional[Dict[str, Any]], total: Optional[int] = No
     for index in range(count):
         case = cases[index] if index < len(cases) else None
         record = records[index] if index < len(records) else None
+        row = rows[index] if rows and index < len(rows) and isinstance(rows[index], dict) else {}
         if case is None:
-            out.append({"outcome": "PENDING", "code_fails": [], "semantic_fails": [], "code_complete": False, "semantic_complete": False})
+            pending = {"outcome": "PENDING", "code_fails": [], "semantic_fails": [], "code_complete": False, "semantic_complete": False}
+            out.append(_held_empty(pending) if asks_empty_output(None, row.get("question")) else pending)
         else:
-            out.append(question_outcome(case, record))
+            out.append(question_outcome(case, record, row.get("question")))
     return out
 
 
@@ -124,6 +173,14 @@ def unit_outcome(outcomes: List[str]) -> str:
         if kind in outcomes:
             return kind
     return "PASS" if outcomes else "PENDING"
+
+
+def unit_verdict(outcomes: List[Dict[str, Any]]) -> str:
+    """질문 단위의 판정(턴 판정 dict 목록) — 빈 출력 요구 턴이 있으면 단위 전체를 보류(PENDING, 대화의 다른 턴 FAIL 이 있어도),
+    아니면 ``unit_outcome`` (사용자 결정 2026-10-19 '빈 출력을 요구한 질문은 전부 보류')."""
+    if any(o.get("hold") == "empty_output" for o in outcomes):
+        return "PENDING"
+    return unit_outcome([o["outcome"] for o in outcomes])
 
 
 def _rate(passed: int, failed: int) -> Optional[float]:
@@ -211,7 +268,7 @@ def collection_comparison(run: Dict[str, Any]) -> Dict[str, Any]:
     total = max([len(datasets[p] or []) for p in providers] or [0])
     models = run.get("models") if isinstance(run.get("models"), dict) else {}
     systems = run.get("systems") if isinstance(run.get("systems"), dict) else {}
-    outcomes = {p: question_outcomes(evaluations.get(p), total) for p in providers}
+    outcomes = {p: question_outcomes(evaluations.get(p), total, datasets.get(p)) for p in providers}
     records = {p: ((evaluations.get(p) or {}).get("jev_eval") or {}).get("records") or [] for p in providers}
     questions = []
     for index in range(total):
@@ -432,12 +489,13 @@ def run_summary(run: Dict[str, Any]) -> Dict[str, Any]:
     for provider, batch in (run.get("evaluations") or {}).items():
         if not isinstance(batch, dict):
             continue
-        outcomes = question_outcomes(batch, total)
+        outcomes = question_outcomes(batch, total, datasets.get(provider))
         kinds = ("PASS", "FAIL", "PENDING", "EXCLUDED")
         turns = {key: sum(1 for o in outcomes if o["outcome"] == key) for key in kinds}
-        per_unit = [unit_outcome([outcomes[i]["outcome"] for i in unit]) for unit in units]
+        per_unit = [unit_verdict([outcomes[i] for i in unit]) for unit in units]
         counts = {key: per_unit.count(key) for key in kinds}
-        results[provider] = {"questions": counts, "turns": turns, "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
+        results[provider] = {"questions": counts, "turns": turns,
+                             "empty_output_held": sum(1 for unit in units if any(outcomes[i].get("hold") == "empty_output" for i in unit)), "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
                              **_criteria_rates(batch), "j5_fail_causes": j5_fail_causes(batch)}
     return {"version": RUN_SUMMARY_VERSION, "run_id": run.get("run_id"), "name": run.get("name"), "status": run.get("status"),
             "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),

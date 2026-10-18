@@ -437,12 +437,19 @@
         outcome = 'pending'; detail = !semantic.complete ? semantic.reason : code.pendingDetail || '일부 코드 조건을 판정하지 못했습니다.';
       }
     }
+    // 빈 출력을 요구한 질문은 판정·수집 결과와 상관없이 우선 보류 (사용자 결정 2026-10-19, 서버 run_summary 와 같은 규칙)
+    const emptyHeld = Boolean(batch && result?.empty_output_holds?.[provider]?.includes(index));
+    if (emptyHeld) {
+      detail = '빈 출력을 요구한 질문이라 우선 보류합니다(사용자 결정 10-19) — ' + (outcome === 'issue' ? '평가 결과: 문제 발견 · ' :
+        outcome === 'clear' ? '평가 결과: 문제 없음 · ' : '') + detail;
+      outcome = 'pending';
+    }
     const criteriaComplete = Boolean(source && c?.case_status === 'EVALUATED' && code.complete && semantic.complete);
     // One confirmed failure settles the question's outcome. Unfinished
     // criteria remain visible in the detail, never as a second question count.
     const complete = outcome === 'issue' || outcome === 'clear';
     return {outcome, text: outcomeLabels[outcome], kind: outcomeKinds[outcome], detail, code, semantic,
-      complete, criteriaComplete, pending: outcome === 'pending'};
+      complete, criteriaComplete, pending: outcome === 'pending', emptyHeld};
   }
 
   function modelSummary(result, provider, total) {
@@ -529,6 +536,8 @@
     const counts = {issue: 0, clear: 0, pending: 0, waiting: 0, running: 0};
     for (const unit of units) {
       const outcomes = unit.map((i) => rows[i]?.outcome || 'waiting');
+      // 빈 출력 요구 턴이 있는 단위는 다른 턴의 FAIL 이 있어도 전체 보류 (run_summary.unit_verdict 와 같게)
+      if (unit.some((i) => rows[i]?.emptyHeld)) { counts.pending++; continue; }
       counts[['issue', 'pending', 'running', 'waiting', 'clear'].find((o) => outcomes.includes(o)) || 'waiting']++;
     }
     return counts;
@@ -539,7 +548,9 @@
     const units = questionUnits(result), total = units.length;
     const models = providers.map((provider) => {
       const turns = modelSummary(result, provider, answers), counts = unitCounts(turns.rows, units);
-      return {provider, ...turns, turnCounts: turns.counts, counts, total, complete: counts.issue + counts.clear};
+      // 빈 출력 요구로 보류한 질문은 '판정 끝남'으로 보고 분모에 둔다(PASS 아님) — 이 질문 때문에 점수가 끝없이 미완료로 남지 않게
+      const held = units.filter((unit) => unit.some((i) => turns.rows[i]?.emptyHeld)).length;
+      return {provider, ...turns, turnCounts: turns.counts, counts, total, emptyHeld: held, complete: counts.issue + counts.clear + held};
     });
     const baseline = result?.datasets?.[providers.includes('aiona') ? 'aiona' : providers[0]] || [];
     const comparable = answers > 0 && baseline.length === answers && providers.every((provider) => {
