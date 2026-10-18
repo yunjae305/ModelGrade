@@ -437,12 +437,15 @@
         outcome = 'pending'; detail = !semantic.complete ? semantic.reason : code.pendingDetail || '일부 코드 조건을 판정하지 못했습니다.';
       }
     }
-    // 빈 출력을 요구한 질문은 판정·수집 결과와 상관없이 우선 보류 (사용자 결정 2026-10-19, 서버 run_summary 와 같은 규칙)
+    // 빈 출력을 요구한 질문은 판정·수집 결과와 상관없이 우선 보류 — 원래 평가(CODE·의미)도 보이지 않고 보류 하나로
+    // (사용자 결정 2026-10-19, 서버 run_summary empty-output-hold-v2 와 같은 규칙)
     const emptyHeld = Boolean(batch && result?.empty_output_holds?.[provider]?.includes(index));
     if (emptyHeld) {
-      detail = '빈 출력을 요구한 질문이라 우선 보류합니다(사용자 결정 10-19) — ' + (outcome === 'issue' ? '평가 결과: 문제 발견 · ' :
-        outcome === 'clear' ? '평가 결과: 문제 없음 · ' : '') + detail;
-      outcome = 'pending';
+      outcome = 'pending'; detail = '빈 출력을 요구한 질문이라 우선 보류합니다(사용자 결정 10-19).';
+      for (const part of [code, semantic]) {
+        Object.assign(part, {text: '보류', kind: 'warning', reason: detail, complete: false, fail: 0});
+      }
+      Object.assign(code, {checks: [], fails: [], pass: 0, unjudged: 0, errors: 0, pendingReason: '', pendingDetail: ''});
     }
     const criteriaComplete = Boolean(source && c?.case_status === 'EVALUATED' && code.complete && semantic.complete);
     // One confirmed failure settles the question's outcome. Unfinished
@@ -592,17 +595,20 @@
     const batch = result?.evaluations?.[provider];
     let passed = 0, failed = 0, pending = 0, unknown = 0, excluded = 0, limitedFails = 0;
     const pendingReasons = {unverified: 0, incomplete: 0, errors: 0, missing: 0};
+    // 빈 출력 요구로 보류한 질문의 원래 평가는 기준 통과율에 넣지 않는다 (empty-output-hold-v2)
+    const held = new Set(result?.empty_output_holds?.[provider] || []);
     if (criterion.group === 'code') {
       for (const [index, raw] of (batch?.cases || []).entries()) {
         const c = resolvedCase(raw, batch?.jev_eval?.records?.[index]);
-        if (c.case_status !== 'EVALUATED') { excluded++; continue; }
+        if (c.case_status !== 'EVALUATED' || held.has(index)) { excluded++; continue; }
         const part = c.summary?.by_category?.[criterion.id] || {};
         passed += count(part.pass); failed += count(part.fail); pending += count(part.unjudged);
       }
       if (batch) unknown += Math.max(0, count(result.question_count) - (batch.cases || []).length);
     } else {
       const records = batch?.jev_eval?.records || [];
-      for (const record of records) {
+      for (const [index, record] of records.entries()) {
+        if (held.has(index)) { excluded++; continue; }
         if (!record || record.status === 'RUNNING') { unknown++; continue; }
         if (record.status === 'SKIPPED') { excluded++; continue; }
         if (!(record.criteria || []).includes(criterion.id)) continue;

@@ -1106,7 +1106,10 @@
     const fingerprint = JSON.stringify([state.modalSource, state.run?.run_id, p, index, row, codeCase, record, batch?.live, state.run?.status]);
     if (state.modalAnswerRender === fingerprint) return;
     state.modalAnswerRender = fingerprint;
-    const highlighted = row && window.AionaAnswerHighlights.create(row.answer, codeCase, record, node);
+    // 빈 출력 요구로 보류한 질문은 원래 평가를 답변 위에 표시하지 않는다 (empty-output-hold-v2)
+    const held = Boolean(batch && state.result?.empty_output_holds?.[p]?.includes(index));
+    const highlighted = row && window.AionaAnswerHighlights.create(row.answer, held ? results.resolvedCase(undefined, undefined) : codeCase,
+      held ? undefined : record, node);
     renderAnswerEvaluation(p, index, highlighted);
     const box = $('original-answer'); box.replaceChildren();
     $('copy-answer').disabled = !row || (p !== 'aiona' && row.collection?.status === 'ERROR');
@@ -1148,6 +1151,10 @@
       const details = collectionDetails(compared.questions[index], compared.sample);
       details.open = keepOpen;
       holder.append(details); holder.hidden = false;
+    }
+    if (status.emptyHeld) {   // 보류 하나로 — 원래 평가(FAIL·PASS 근거·의미 평가 근거)는 보이지 않는다 (empty-output-hold-v2)
+      box.querySelectorAll('details').forEach((detail) => { if (expanded.has(detailKey(detail))) detail.open = true; });
+      return;
     }
     const findings = node('ul', {class: 'finding-list'});
     const recheck = state.modalSource === 'result' && state.codeRecheck?.run_id === state.run?.run_id ? state.codeRecheck.providers?.[p] : null;

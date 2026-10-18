@@ -470,7 +470,11 @@ console.log('question detail shows whether attachment images reached the judge.'
   assert.equal(caseState(held, 'aiona', 0).outcome, 'pending');
   assert.equal(caseState(held, 'aiona', 0).emptyHeld, true);
   assert.match(caseState(held, 'aiona', 0).detail, /빈 출력을 요구한 질문이라 우선 보류/);
-  assert.match(caseState(held, 'aiona', 0).detail, /평가 결과: 문제 발견/);
+  // 원래 평가(코드 FAIL 1개)는 보이지 않고 보류 하나로
+  assert.doesNotMatch(caseState(held, 'aiona', 0).detail, /문제|통과/);
+  assert.equal(caseState(held, 'aiona', 0).code.text, '보류');
+  assert.equal(caseState(held, 'aiona', 0).semantic.text, '보류');
+  assert.deepEqual(caseState(held, 'aiona', 0).code.checks, []);
   assert.equal(caseState(held, 'aiona', 1).outcome, 'clear');
   assert.equal(caseState(held, 'aiona', 2).outcome, 'pending');
   assert.deepEqual(modelSummary(held, 'aiona', 3).counts, {issue: 0, clear: 1, pending: 2, waiting: 0, running: 0});
@@ -482,5 +486,11 @@ console.log('question detail shows whether attachment images reached the judge.'
   assert.equal(summary.rows[0].emptyHeld, 2);
   assert.equal(summary.complete, true);   // 보류는 판정 끝남으로 봐 점수가 나온다 — PASS 0 / 2
   assert.equal(summary.rows[0].score, 0);
+  const codeTwo = require('../frontend/src/workspace-results.js').comparisonCriteria.find((c) => c.id === '2');
+  held.evaluations.aiona.cases[0].summary.by_category = {'2': {pass: 0, fail: 1}};
+  held.evaluations.aiona.cases[1].summary.by_category = {'2': {pass: 1, fail: 0}};
+  const metricTwo = require('../frontend/src/workspace-results.js').criterionSummary(held, 'aiona', codeTwo);
+  assert.equal(metricTwo.failed, 0);   // 보류 질문의 원래 FAIL 은 기준 통과율에 세지 않는다
+  assert.equal(metricTwo.passed, 1);
   console.log('empty-output questions are held, counted in the denominator.');
 }

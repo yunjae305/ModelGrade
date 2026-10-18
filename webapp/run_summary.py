@@ -26,8 +26,9 @@ PROVIDER_NAMES = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": 
 
 
 #: 빈 출력을 요구한 질문('아무것도 출력하지 마' 등, CODE 2-1.explicit_empty)은 판정·수집 결과와 상관없이 우선 보류(PENDING) —
-#: 사용자 결정 2026-10-19. AIONA 는 이 질문에 오류 화면을 내 답을 못 받고, 빈 답을 PASS 로 볼지도 정하지 않았다. 판정 값은 그대로 두고 집계만 보류로.
-EMPTY_OUTPUT_HOLD_POLICY = "empty-output-hold-v1"
+#: 사용자 결정 2026-10-19. AIONA 는 이 질문에 오류 화면을 내 답을 못 받고, 빈 답을 PASS 로 볼지도 정하지 않았다.
+#: v2: 원래 평가(CODE·의미 PASS/FAIL)도 보이지 않고 세지 않는다 — 질문 판정·기준별 통과율 모두 보류 하나로 (사용자 결정 2026-10-19)
+EMPTY_OUTPUT_HOLD_POLICY = "empty-output-hold-v2"
 
 
 def asks_empty_output(case: Optional[Dict[str, Any]] = None, question: Optional[str] = None) -> bool:
@@ -57,14 +58,15 @@ def empty_output_holds(run: Dict[str, Any]) -> Dict[str, List[int]]:
 
 
 def _held_empty(base: Dict[str, Any]) -> Dict[str, Any]:
-    return {**base, "outcome": "PENDING", "hold": "empty_output", "hold_policy": EMPTY_OUTPUT_HOLD_POLICY,
-            "judged_outcome": base["outcome"]}
+    """보류 — 원래 평가는 남기지 않는다(FAIL 목록·완료 여부도 비움)."""
+    return {"outcome": "PENDING", "code_fails": [], "semantic_fails": [], "code_complete": False, "semantic_complete": False,
+            "hold": "empty_output", "hold_policy": EMPTY_OUTPUT_HOLD_POLICY}
 
 
 def question_outcome(case: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]], question: Optional[str] = None) -> Dict[str, Any]:
     """질문 하나의 최종 판정 — {"outcome": PASS|FAIL|PENDING|EXCLUDED, "code_fails": [check_id…], "semantic_fails": [cid…],
     "code_complete", "semantic_complete"}. 공통 CODE FAIL 이나 의미 기준 FAIL 이 하나라도 확정되면 FAIL, 모두 판정되고 FAIL 이 없으면 PASS.
-    빈 출력을 요구한 질문은 우선 보류 — outcome PENDING, hold "empty_output", 원래 판정은 judged_outcome (``EMPTY_OUTPUT_HOLD_POLICY``).
+    빈 출력을 요구한 질문은 우선 보류 — outcome PENDING, hold "empty_output", 원래 평가는 남기지 않음 (``EMPTY_OUTPUT_HOLD_POLICY``).
     ``question`` 은 평가 결과가 없는 행(수집 실패)에서 빈 출력 요구를 알아보는 데만 쓴다."""
     out = _judged_outcome(case, record)
     return _held_empty(out) if asks_empty_output(case, question) else out
@@ -432,15 +434,30 @@ def evaluation_method(run: Dict[str, Any]) -> Dict[str, Any]:
                        "items": sum(a for a in applied if isinstance(a, int)) if pipeline == "items" else None}}
 
 
-def _criteria_rates(batch: Dict[str, Any]) -> Dict[str, Any]:
-    """기준별·세부 기준별 통과율(저장된 jev_eval.summary)과 충족률, CODE 대분류별 통과율."""
+def _criteria_rates(batch: Dict[str, Any], held: Optional[set] = None) -> Dict[str, Any]:
+    """기준별·세부 기준별 통과율(저장된 jev_eval.summary)과 충족률, CODE 대분류별 통과율.
+    ``held`` (빈 출력 요구로 보류한 행 번호)의 판정은 기준 통과율에서 뺀다 — 보류 질문의 원래 평가는 세지 않는다."""
     jev = batch.get("jev_eval") or {}
+    held = held or set()
+    records = jev.get("records") or []
+    held_decisions: Dict[str, Dict[str, int]] = {}
+    for index in held:
+        record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
+        for cid, decision in (record.get("decisions") or {}).items() if record.get("status") == "SUCCESS" else ():
+            value = (decision or {}).get("decision") if isinstance(decision, dict) else None
+            if value in ("PASS", "FAIL"):
+                tally = held_decisions.setdefault(cid, {"PASS": 0, "FAIL": 0})
+                tally[value] += 1
     criteria: Dict[str, Any] = {}
     for cid, part in (jev.get("summary") or {}).items():
         if not isinstance(part, dict):
             continue
-        entry = {"name": part.get("name"), "targets": part.get("targets", 0), "pass": part.get("pass", 0), "fail": part.get("fail", 0),
-                 "rate": _rate(part.get("pass", 0), part.get("fail", 0))}
+        minus = held_decisions.get(cid, {"PASS": 0, "FAIL": 0})
+        passed, failed = max(0, part.get("pass", 0) - minus["PASS"]), max(0, part.get("fail", 0) - minus["FAIL"])
+        entry = {"name": part.get("name"), "targets": max(0, part.get("targets", 0) - minus["PASS"] - minus["FAIL"]), "pass": passed,
+                 "fail": failed, "rate": _rate(passed, failed)}
+        if minus["PASS"] + minus["FAIL"]:
+            entry["empty_output_held"] = minus["PASS"] + minus["FAIL"]   # 세부 기준(subs)·충족률은 저장값 그대로
         if isinstance(part.get("subs"), dict):
             entry["subs"] = {sid: {"name": sub.get("name"), "targets": sub.get("targets", 0), "pass": sub.get("pass", 0), "fail": sub.get("fail", 0),
                                    "rate": _rate(sub.get("pass", 0), sub.get("fail", 0))} for sid, sub in part["subs"].items() if isinstance(sub, dict)}
@@ -449,9 +466,8 @@ def _criteria_rates(batch: Dict[str, Any]) -> Dict[str, Any]:
         criteria[cid] = entry
     from code_eval.common_adjudication import resolved_case
     code: Dict[str, Dict[str, int]] = {}
-    records = jev.get("records") or []
     for index, case in enumerate(batch.get("cases") or []):
-        if not isinstance(case, dict) or case.get("case_status") != "EVALUATED":
+        if not isinstance(case, dict) or case.get("case_status") != "EVALUATED" or index in held:
             continue
         record = records[index] if index < len(records) and isinstance(records[index], dict) else {}
         try:
@@ -496,7 +512,8 @@ def run_summary(run: Dict[str, Any]) -> Dict[str, Any]:
         counts = {key: per_unit.count(key) for key in kinds}
         results[provider] = {"questions": counts, "turns": turns,
                              "empty_output_held": sum(1 for unit in units if any(outcomes[i].get("hold") == "empty_output" for i in unit)), "question_pass_rate": _rate(counts["PASS"], counts["FAIL"]),
-                             **_criteria_rates(batch), "j5_fail_causes": j5_fail_causes(batch)}
+                             **_criteria_rates(batch, {i for i, o in enumerate(outcomes) if o.get("hold") == "empty_output"}),
+                             "j5_fail_causes": j5_fail_causes(batch)}
     return {"version": RUN_SUMMARY_VERSION, "run_id": run.get("run_id"), "name": run.get("name"), "status": run.get("status"),
             "created_at": run.get("created_at"), "finished_at": run.get("finished_at"),
             "question_set": {"fingerprint": run.get("dataset_fingerprint") or fingerprint(datasets.get("aiona") or []), "count": total,

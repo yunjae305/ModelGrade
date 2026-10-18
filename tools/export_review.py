@@ -152,8 +152,9 @@ def export_rows(run: Dict[str, Any], criterion: str = "J5", include_pass: int = 
                              "conversation_id": row.get("conversation_id"), "turn": row.get("turn"), "criterion": "2-1.explicit_empty",
                              "decision": None, "cause": "empty_output_hold", "cause_label": HELD_CAUSES["empty_output_hold"],
                              "factual_error_confirmed": False, "reason_code": EMPTY_OUTPUT_HOLD_POLICY,
-                             "judge_reason": (f"평가 판정 {outcome.get('judged_outcome')}" + (f" · 수집 {status}: {collection.get('error') or ''}".rstrip(": ")
-                                                                                         if status != "SUCCESS" else f" · 답변 {len(answer.strip())}자")),
+                             # 원래 평가는 적지 않는다(보류 하나로) — 사람이 판정할 사실만: 수집 상태·답변 길이
+                             "judge_reason": (f"수집 {status}: {collection.get('error') or ''}".rstrip(": ") if status != "SUCCESS"
+                                              else f"답변 {len(answer.strip())}자"),
                              "question": _text(case.get("question") or row.get("question") or "", "question", text),
                              "answer": _text(answer, "answer", text), "text_scope": text})
     return rows
