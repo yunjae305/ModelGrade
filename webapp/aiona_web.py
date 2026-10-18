@@ -203,11 +203,19 @@ class AionaChat:
         """마지막 답변 칸 안의 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None —
         다른 답변의 버튼은 쓰지 않는다(답변 칸마다 자기 복사 버튼이 안에 있다, 2026-10-14 확인)."""
         try:
-            button = self._answers().last.locator("button[title='복사']")
-            if not button.count():
+            buttons = self._answers().last.locator("button[title='복사']")
+            # 코드블록마다 자기 '복사' 버튼이 있어 첫 번째를 누르면 코드만 복사된다(2026-10-18 사용자 지적) — 답변 맨 아래 도구 줄
+            # (🔄·📋·👍·👎····)의 📋 를 쓴다: 뒤에서부터 보되 코드블록(pre) 안에 있는 버튼은 건너뛴다 (tools/aiona_recopy.py 와 같은 규칙)
+            button = None
+            for index in range(buttons.count() - 1, -1, -1):
+                candidate = buttons.nth(index)
+                if not candidate.evaluate("(el) => !!el.closest('pre')"):
+                    button = candidate
+                    break
+            if button is None:
                 return None
             self.page.evaluate("() => { window.__mgCopied = []; }")
-            button.first.click(timeout=5000)
+            button.click(timeout=5000)
             self.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
             return self.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
         except Exception:

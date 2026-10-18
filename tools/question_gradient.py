@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from webapp import question_generation as qg  # noqa: E402
-from webapp.run_summary import question_outcomes, question_units, unit_outcome  # noqa: E402
+from webapp.run_summary import question_outcomes, unit_outcome  # noqa: E402
 
 RUNS = ROOT / "data" / "comparison_runs"
 SETS = ROOT / "data" / "question_sets"
@@ -47,23 +47,28 @@ def _qid(case_id: str) -> int:
 # --- 판정 ---------------------------------------------------------------------------------------------------------------
 
 def verdicts_from_run(run: Dict[str, Any]) -> Dict[str, Dict[int, str]]:
-    """서버가 평가한 실행 — {provider: {질문 id: PASS|FAIL|HOLD}}. run_summary 와 같은 질문 판정·단위 규칙."""
+    """서버가 평가한 실행 — {provider: {질문 id: PASS|FAIL|HOLD}}. run_summary 와 같은 질문 판정 규칙.
+    행 번호 ↔ 질문은 실행의 질문 세트를 펼친 순서로 정한다(빈 행이 있어도 밀리지 않게, Codex 검토). 답을 받지 못한 질문(수집 실패·빈 행)은
+    모든 모델에서 FAIL — 모델 쪽 원인은 FAIL, 분모 유지 (사용자 규칙). 보류(미완료)는 HOLD 로 분모에 둔다."""
+    from webapp.question_generation import flatten
+    set_id = (run.get("question_set") or {}).get("set_id")
+    flat = flatten(_load(SETS / str(set_id) / "questions.json")) if set_id and (SETS / str(set_id) / "questions.json").exists() else None
     out: Dict[str, Dict[int, str]] = {}
     for provider in run["providers"]:
         batch = (run.get("evaluations") or {}).get(provider)
         rows = run["datasets"][provider]
+        case_ids = [r["case_id"] for r in flat] if flat and len(flat) == len(rows) else [(r or {}).get("case_id") for r in rows]
+        if any(c is None for c in case_ids):
+            raise SystemExit(f"{provider}: 질문 세트 없이 빈 행의 질문 번호를 정할 수 없습니다.")
         outcomes = question_outcomes(batch, len(rows)) if batch else [{"outcome": "PENDING"}] * len(rows)
-        verdict: Dict[int, str] = {}
-        for unit in question_units(rows, len(rows)):
-            kinds = []
-            for index in unit:
-                row = rows[index] or {}
-                collected = (row.get("collection") or {}).get("status") == "SUCCESS"
-                kinds.append("FAIL" if not collected and provider != "aiona" else outcomes[index]["outcome"])
-            qid = _qid((rows[unit[0]] or {}).get("case_id") or f"Q{unit[0] + 1}_T1")
-            kind = unit_outcome(kinds)
-            verdict[qid] = "FAIL" if kind in ("FAIL", "EXCLUDED") else "PASS" if kind == "PASS" else "HOLD"
-        out[provider] = verdict
+        per_q: Dict[int, List[str]] = defaultdict(list)
+        for index, cid in enumerate(case_ids):
+            row = rows[index]
+            # 빈 행·명시적 수집 실패만 '답 없음' — 직접 올린 원문(collection 없음)은 수집된 답으로 본다 (Codex 검토)
+            collected = row is not None and (row.get("collection") or {}).get("status", "SUCCESS") == "SUCCESS"
+            per_q[_qid(cid)].append("FAIL" if not collected else outcomes[index]["outcome"])
+        out[provider] = {q: ("FAIL" if (k := unit_outcome(kinds)) in ("FAIL", "EXCLUDED") else "PASS" if k == "PASS" else "HOLD")
+                         for q, kinds in per_q.items()}
     return out
 
 

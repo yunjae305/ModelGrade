@@ -466,29 +466,44 @@ def test_k_repair_prompt_and_plan_prompt_state_the_range():
     assert "## Q3 — 지금 2개 → 조건을 덧붙여" in repair and "J3-5.a" in repair and "# 점검 목록" in repair
 
 
-def test_builder_repairs_out_of_range_questions_and_reverts_when_coverage_breaks(tmp_path, monkeypatch):
-    """범위 밖이 상한을 넘으면 조건만 고쳐 다시 세고, 고친 뒤 어떤 기준의 적용 수가 떨어지면 그 고침은 되돌린다."""
+def test_builder_repairs_one_question_at_a_time_and_rejects_rewrites_that_change_the_original(tmp_path, monkeypatch):
+    """k 고치기 v2.1 — 질문마다 따로 묻고(다른 질문 내용이 섞이지 않게), 원래 문단을 바꾼 고침은 받아들이지 않는다."""
     monkeypatch.setattr(qg, "K_OUT_RATIO", 0.0)   # 범위 밖 질문을 하나도 허용하지 않아 고치기 단계가 꼭 돈다
+    monkeypatch.setattr(qg, "K_REPAIR_ROUNDS", 2)
+    q1 = "공부 방법을 불릿으로 정확히 3개 작성해줘."
+    q2 = "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘."
     plan = {"questions": [
-        {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count"], "turns": [{"question": "공부 방법을 불릿으로 정확히 3개 작성해줘."}]},
-        {"type": "형식", "topic": "인구", "target_items": ["2-2.table"], "turns": [{"question": "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘."}]}]}
-    repaired = "공부 방법을 초등학생에게 존댓말로, 불릿으로 정확히 3개, 공백 포함 300자 이내로 작성하고 '꾸준히'라는 말을 꼭 넣어줘."
+        {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count"], "turns": [{"question": q1}]},
+        {"type": "형식", "topic": "인구", "target_items": ["2-2.table"], "turns": [{"question": q2}]}]}
+    added = (" 초등학생이 이해할 수 있게 쉬운 말로 설명해 주세요. 처음부터 끝까지 존댓말을 써 주세요. 공백 포함 300자 이내로 작성해 주세요."
+             " '꾸준히'라는 말을 꼭 넣어 주세요. '벼락치기'라는 말은 쓰지 마세요.")
     seen = []
 
     def fake(prompt, max_tokens):
         if prompt.startswith("당신은 한국어 AI 답변 품질 평가 질문의 조건 수를 조정"):
             seen.append(prompt)
-            # 1회차: Q1 은 조건을 더해 고치고, Q2 는 표 요구를 빼 버려(2-2.table 적용 0) 되돌려져야 한다
-            return json.dumps({"questions": [{"id": "Q1", "question": repaired, "target_items": ["2-1.count", "2-1.char_count"]},
-                                             {"id": "Q2", "question": "서울과 부산의 인구를 알려 줘.", "target_items": []}]}, ensure_ascii=False)
+            if "## Q1" in prompt:   # 원문을 그대로 두고 조건만 덧붙임 → 받아들임
+                return json.dumps({"questions": [{"id": "Q1", "question": q1 + added, "target_items": ["2-1.count", "2-1.char_count"]}]}, ensure_ascii=False)
+            # Q2: 원문(표 요구)을 바꿔 버림 → 검증에서 거절, 원문 유지
+            return json.dumps({"questions": [{"id": "Q2", "question": "서울과 부산의 인구를 알려 줘.", "target_items": []}]}, ensure_ascii=False)
         if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계"):
             return json.dumps(plan, ensure_ascii=False)
         return json.dumps({"questions": []}, ensure_ascii=False)
     builder = qg.QuestionSetBuilder(fake, tmp_path)
     result = builder.build(target_questions=2)
     groups = result["groups"]
-    assert seen and "## Q1" in seen[0] and "## Q2" in seen[0] and result["k_rounds"] >= 1
-    assert groups[0]["turns"][0]["question"] == repaired and groups[0]["k_repaired"] == 1 and groups[0]["target_items"] == ["2-1.count", "2-1.char_count"]
-    assert groups[1]["turns"][0]["question"] == "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘." and "k_repaired" not in groups[1]   # 되돌림
-    assert any("되돌렸습니다" in w and "Q2" in w for w in builder.warnings)
+    assert seen and all(p.count("## Q") == 1 for p in seen)   # 요청 하나에 질문 하나
+    assert "원래 질문의 문단은 한 글자도 바꾸지 않습니다" in seen[0] and "표현 형식만" in seen[0]
+    assert groups[1]["turns"][0]["question"] == q2 and "k_repaired" not in groups[1]   # 원문을 바꾼 고침은 거절
+    assert any("검증을 통과하지 못한" in w and "Q2" in w and "원래 문단이 바뀜" in w for w in builder.warnings)
+    if "k_repaired" in groups[0]:   # Q1 이 범위에 들면 받아들여짐
+        assert groups[0]["turns"][0]["question"] == q1 + added
     assert result["check"]["coverage"]["checks"]["2-2.table"] >= 1 and result["k_var"]["singles"] == 2
+
+
+def test_repair_problems_keeps_paragraphs_data_numbers_and_rejects_repeats():
+    original = "표의 합계를 구해줘.\n\n| a | b |\n|---|---|\n| 1 | 2 |"
+    assert qg.repair_problems(original, original + "\n\n존댓말로 답해 주세요. 공백 포함 200자 이내로 써 주세요.", False) == []
+    changed = qg.repair_problems(original, "표의 합계를 구해줘. 존댓말로.\n\n| a | b |\n|---|---|\n| 1 | 3 |", False)
+    assert any("원래 문단" in x for x in changed) and any("자료가" in x for x in changed) and any("수치" in x for x in changed)
+    assert any("되풀이" in x for x in qg.repair_problems(original, original + "\n\n존댓말로 답해 주세요. 존댓말로 답해 주세요!", False))

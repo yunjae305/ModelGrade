@@ -35,7 +35,9 @@ def main(argv=None) -> int:
         raise SystemExit("비울 질문 id 가 없습니다.")
     path = RUNS / f"{args.run_id}.json"
     run = json.loads(path.read_text(encoding="utf-8"))
-    backup = path.with_suffix(".before-null.json")
+    backup_dir = ROOT / "data" / "comparison_runs_backup"   # 실행 폴더 밖 — 서버는 실행 폴더의 *.json 을 모두 실행으로 읽는다 (Codex 검토)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup = backup_dir / f"{args.run_id}.before-null.json"
     if not backup.exists():
         backup.write_bytes(path.read_bytes())
     cleared = {}
@@ -46,10 +48,12 @@ def main(argv=None) -> int:
                 rows[i] = None; n += 1
         cleared[provider] = n
         prog = run.get("progress", {}).get(provider)
-        if isinstance(prog, dict):
-            prog["done"] = max(0, prog.get("done", 0) - n)
-            prog["success"] = sum(1 for r in rows if r and r.get("collection", {}).get("status") == "SUCCESS")
-            prog["failed"] = sum(1 for r in rows if r and r.get("collection", {}).get("status") != "SUCCESS")
+        if isinstance(prog, dict):   # 남은 행에서 상태별로 다시 센다 (INCOMPLETE 는 failed 에 넣지 않는다 — Codex 검토)
+            statuses = [(r.get("collection") or {}).get("status") for r in rows if r]
+            prog["done"] = len(statuses)
+            prog["success"] = statuses.count("SUCCESS")
+            prog["incomplete"] = statuses.count("INCOMPLETE")
+            prog["failed"] = len(statuses) - prog["success"] - prog["incomplete"]
     run["done"] = sum(1 for rows in run["datasets"].values() for r in rows if r)
     # 세트의 새 지문 — 이어서 수집(_prefill_from)은 지문이 같아야 앞 실행의 답을 가져온다
     set_id = (run.get("question_set") or {}).get("set_id")

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import difflib
 import json
 import re
 import sys
@@ -34,47 +33,28 @@ def compact(text: str) -> str:
 
 
 def data_blocks(text: str):
-    """원문에서 자료 블록을 뽑는다 — 연속된 자료 줄(표 행·코드 펜스 안·JSON 줄·'자료:' 줄과 그 뒤 들여쓴/이어지는 줄)을 한 덩어리로."""
-    lines = text.split("\n")
-    blocks, cur, in_fence = [], [], False
-    for line in lines:
-        fence = line.strip().startswith("```")
-        if fence:
-            in_fence = not in_fence
-            cur.append(line)
-            if not in_fence:
-                blocks.append("\n".join(cur)); cur = []
-            continue
-        if in_fence:
-            cur.append(line); continue
-        if _DATA_LINE.match(line) or (cur and line.strip() and not _SENT_SPLIT.split(line.strip())[0].endswith(("요.", "다.", "요?", "까?", "줘.", "주세요."))):
-            cur.append(line)
-        else:
-            if cur:
-                blocks.append("\n".join(cur)); cur = []
-    if cur:
-        blocks.append("\n".join(cur))
-    return [b for b in blocks if len(compact(b)) >= 6]
+    """자료 블록 — webapp.question_generation.question_data_blocks 와 같은 규칙(코드 펜스·여러 줄 JSON·표·목록·이름표 자료)."""
+    return qg.question_data_blocks(text)
 
 
-def dedupe_sentences(text: str):
-    """비슷한 문장(유사도 0.8 이상)이 다시 나오면 지운다 — 자료 블록(표·코드·콜론 줄)은 건드리지 않는다."""
-    out_lines, removed = [], 0
+def dedupe_sentences(text: str, original: str = ""):
+    """고치기가 **덧붙인** 문장 가운데 글자(공백 제외)가 완전히 같은 문장이 다시 나오면 지운다. 자료 블록(코드 펜스·JSON·표·목록·이름표 자료)
+    안의 줄과 원래 질문의 문장은 절대 지우지 않는다 (Codex 검토: Q32 조건, JSON 중복 값)."""
+    data_lines = {compact(line) for block in qg.question_data_blocks(text) + qg.question_data_blocks(original) for line in block.split("\n")}
+    protected = {compact(x) for line in (original or "").split("\n") for x in _SENT_SPLIT.split(line) if x.strip()}
+    out_lines, removed, seen = [], 0, set()
     for line in text.split("\n"):
-        if _DATA_LINE.match(line) or line.strip().startswith("```"):
+        if compact(line) in data_lines or not line.strip():
             out_lines.append(line); continue
-        sents = [s for s in _SENT_SPLIT.split(line) if s.strip()]
         kept = []
-        for s in sents:
-            if any(difflib.SequenceMatcher(None, s.strip(), t.strip()).ratio() >= 0.8 for t in kept + _seen(out_lines)):
+        for sent in [x for x in _SENT_SPLIT.split(line) if x.strip()]:
+            key = compact(sent)
+            if key in seen and key not in protected:
                 removed += 1; continue
-            kept.append(s)
+            seen.add(key)
+            kept.append(sent)
         out_lines.append(" ".join(kept))
     return "\n".join(out_lines), removed
-
-
-def _seen(lines):
-    return [s for l in lines if not _DATA_LINE.match(l) for s in _SENT_SPLIT.split(l) if s.strip()]
 
 
 def main(argv=None) -> int:
@@ -92,7 +72,7 @@ def main(argv=None) -> int:
             continue
         original, current = before[g["id"]]["turns"][0]["question"], g["turns"][0]["question"]
         text = current
-        missing = [b for b in data_blocks(original) if compact(b) not in compact(text)]
+        missing = [b for b in data_blocks(original) if not qg.data_block_kept(b, text)]   # 코드·JSON 은 들여쓰기·문자열 공백까지 (Codex 검토)
         if missing:
             # 원문에서 자료가 앞쪽(첫 절반)에 있었으면 앞에, 아니면 뒤에 붙인다
             front = [b for b in missing if original.find(b) < len(original) / 2]
@@ -102,7 +82,7 @@ def main(argv=None) -> int:
             if back:
                 text = text.rstrip() + "\n\n" + "\n\n".join(back)
             restored.append((g["id"], [b[:40].replace("\n", " ") for b in missing]))
-        text, removed = dedupe_sentences(text)
+        text, removed = dedupe_sentences(text, original)
         if removed:
             deduped.append((g["id"], removed))
         if text != current:

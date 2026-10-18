@@ -25,10 +25,26 @@ from webapp.aiona_web import AionaChat  # noqa: E402
 
 RUNS = ROOT / "data" / "comparison_runs"
 _WS = re.compile(r"\s+")
+_MARKS = re.compile(r"[\s>*#`|_~]+")   # '-' 는 지우지 않는다 — '-123' 과 '123' 이 같아지면 안 된다 (Codex 검토)   # 마크다운 기호 — 카드 내용이 전체 답변에서는 인용 블록(> **…**)으로 들어간다 (2026-10-18)
 
 
 def _compact(text: str) -> str:
     return _WS.sub("", text or "")
+
+
+def _bare(text: str) -> str:
+    """공백과 마크다운 기호를 뺀 글자 — 카드 복사본(기호 없음)과 전체 답변 안의 같은 내용(인용·굵게)을 맞춘다."""
+    return _MARKS.sub("", text or "")
+
+
+def _contains(new: str, old: str) -> bool:
+    """새 원문이 기존 답을 담는가 — 글자 그대로, 기호를 뺀 글자로, 또는 기존 답 문장의 80% 이상이 기호를 뺀 새 원문에 있을 때."""
+    if set(re.findall(r"-?\d+(?:[.,]\d+)*", old)) - set(re.findall(r"-?\d+(?:[.,]\d+)*", new)):
+        return False   # 기존 답의 수치(부호 포함)가 하나라도 없으면 다른 답 — 다른 검사보다 먼저 (Codex 검토)
+    if _compact(old) in _compact(new) or _bare(old) in _bare(new):
+        return True
+    sents = [x for x in re.split(r"(?<=[.?!다요])\s+|\n+", old) if _bare(x)]   # 짧은 결론(예/아니요)도 포함 (Codex 검토)
+    return bool(sents) and all(_bare(x) in _bare(new) for x in sents)
 
 
 def copy_answer(chat: AionaChat, index: int):
@@ -61,10 +77,13 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     path = RUNS / f"{args.run_id}.json"
     run = json.loads(path.read_text(encoding="utf-8"))
+    if args.apply and (run.get("evaluations") or run.get("status") in ("EVALUATING", "COMPLETED")):
+        # 답을 바꾸면 그 답의 이전 판정이 남는다 — 평가 전 실행에만 쓴다(평가 뒤라면 바꾼 행만 tools/reeval_failed.py 로 다시 평가) (Codex 검토)
+        raise SystemExit("이 실행은 이미 평가가 있습니다 — 답을 바꾸면 이전 판정과 어긋나 --apply 를 하지 않습니다. 평가 전 실행에 쓰세요.")
     rows = run["datasets"].get("aiona") or []
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     targets = [(i, r) for i, r in enumerate(rows)
-               if r and r.get("collection", {}).get("status") == "SUCCESS" and r["collection"].get("capture") == "copy-button"
+               if r and r.get("collection", {}).get("status") == "SUCCESS" and r["collection"].get("capture") in ("copy-button", "copy-button-recopied")
                and r["collection"].get("url") and (not only or r["case_id"] in only)]
     by_url = defaultdict(list)
     for i, r in targets:
@@ -90,7 +109,7 @@ def main(argv=None) -> int:
                     failed.append((r["case_id"], "복사 실패")); continue
                 if _compact(new) == _compact(old):
                     same.append(r["case_id"]); continue
-                if len(_compact(new)) > len(_compact(old)) and _compact(old) in _compact(new):
+                if len(_compact(new)) > len(_compact(old)) and _contains(new, old):
                     changed.append((r["case_id"], len(old), len(new)))
                     if args.apply:
                         r["answer"] = new
@@ -108,7 +127,9 @@ def main(argv=None) -> int:
     for c in failed[:20]:
         print("  실패", c)
     if args.apply and changed:
-        backup = path.with_suffix(".before-recopy.json")
+        backup_dir = ROOT / "data" / "comparison_runs_backup"   # 실행 폴더 밖 — 서버가 실행 폴더의 *.json 을 실행으로 읽는다 (Codex 검토)
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup = backup_dir / f"{args.run_id}.before-recopy.json"
         if not backup.exists():
             backup.write_bytes(path.read_bytes())
         path.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")

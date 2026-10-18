@@ -48,7 +48,7 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #:       멀티턴 답변 분량은 질문 문장에 쓰지 않고 설계 안내로만 (사용자 결정 2026-10-14)
 #: v1.5: 기준 단위 하나 — CODE 검사 28 + 의미 점검 항목 44 = 72 (질문으로 셀 수 있는 64)로 적용 수를 센다. v1.4 의 질문 조건 종류
 #:       37 단위는 뺐고, 조건 종류는 검사마다 쓸 수 있는 표현 안내로만 (사용자 결정 2026-10-15)
-QUESTION_GEN_VERSION = "question-gen-v2.0-kvar"   # v2.0: 질문당 변동 기준 수(k_var) 6~10 범위·범위 밖 상한·고치기 단계 (통제 실험 2026-10-18)
+QUESTION_GEN_VERSION = "question-gen-v2.1-kvar"   # v2.1: k 고치기를 질문 하나씩·원문 문단 보존·결과 검증 후 반영 (묶음 고치기에서 다른 질문 내용이 섞임, 2026-10-18)   # v2.0: 질문당 변동 기준 수(k_var) 6~10 범위·범위 밖 상한·고치기 단계 (통제 실험 2026-10-18)
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -75,7 +75,8 @@ K_RANGE = (6, 10)
 K_OUT_RATIO = 0.0             # 범위 밖 단일 질문 상한 비율 — 사용자 결정 2026-10-18: 단일 질문 전부 6~10 (0 = 상한 0개). 실험 때 쓰던 15% 는 폐기
 K_EXEMPT_UNITS = frozenset({"2-1.explicit_empty"})   # 예외 — 빈 출력 요구 질문은 조건을 붙이면 모순이라 범위 밖이어도 허용 (사용자 결정 2026-10-18)
 K_REPAIR_ROUNDS = 8           # 범위 밖이 상한을 넘으면 조건을 고치는 요청 회차 상한 — 상한에 들거나 더 나아지지 않으면 먼저 멈춘다
-K_REPAIR_BATCH = 30           # 고치기 요청 하나에 넣는 질문 수
+K_REPAIR_BATCH = 1            # 고치기 요청 하나에 넣는 질문 수 — 1(질문 하나씩). 묶으면 다른 질문의 주제·수치가 섞인다 (2026-10-18 Q62 에 Q22 의 '서리 날짜')
+K_REPAIR_WORKERS = 6          # 질문 하나씩 고치는 요청을 동시에 보내는 수
 #: 질문 수를 지정했을 때 10턴 대화·긴 문서 질문의 기본 비율 (설계안 v1.2 질문 세트 구성 초안: 멀티턴 10%, 롱컨텍스트 5%)
 MULTI_TURN_RATIO = 0.10
 LONG_CONTEXT_RATIO = 0.05
@@ -826,99 +827,96 @@ class QuestionSetBuilder:
     # 전체 ---------------------------------------------------------------------------
     def repair_k_range(self, groups: List[Dict[str, Any]], report: Dict[str, Any], catalog: Dict[str, List[Dict[str, str]]], note: str,
                        per_target: Optional[int], counts: Callable[[Dict[str, Any]], Dict[str, int]]) -> Tuple[Dict[str, Any], int, Dict[str, Any]]:
-        """질문당 기준 수 맞추기 — 만든 세트(groups)에서 돌며 조건만 고친다. 반환 (다시 센 report, 회차 수, k 요약). build() 와
-        tools/repair_k_range.py(이미 만든 세트에 다시 적용)가 같이 쓴다. ``counts`` 는 기준별 적용 수(밖에서 확보한 수 포함)."""
-        # 질문당 기준 수 맞추기 — 단일 질문의 k_var 가 범위 밖인 수가 상한(단일 질문 × K_OUT_RATIO)을 넘으면 조건만 고쳐 다시 센다
-        # (통제 실험 2026-10-18). 긴 입력·첨부 질문도 고친다(자료·첨부는 그대로, 본문 조건만). 빈 출력 요구 질문만 예외
+        """질문당 기준 수 맞추기 (v2.1) — 범위 밖 단일 질문을 **하나씩 따로** GPT 에 보내 조건만 고치고, 결과가 검증(repair_problems:
+        원래 문단·자료·수치 보존, 되풀이 없음)과 k 범위를 통과할 때만 받아들인다. 통과 못 한 질문은 다음 회차에 다시(최대 K_REPAIR_ROUNDS).
+        build() 와 tools/repair_k_range.py 가 같이 쓴다. ``counts`` 는 기준별 적용 수(밖에서 확보한 수 포함). 빈 출력 요구 질문만 예외."""
         k_rounds = 0
-        last_out = None
-        stalled = 0
-        batch_size = K_REPAIR_BATCH
         units = k_var_units(catalog)
         info = {c["id"]: c for c in catalog["code"]} | {i["id"]: i for i in catalog["items"]}
-        exempt_units = set(K_EXEMPT_UNITS)   # 빈 출력 요구 질문만 예외 — 그 밖의 범위 밖 질문은 전부 고치거나 재생성 (사용자 결정 2026-10-18)
+        exempt_units = set(K_EXEMPT_UNITS)
         single_only = {u for u in units if not u.startswith(("J6-", "J7-", "J8-"))}   # 단일 질문에 덧붙일 수 있는 기준
+        lo, hi = K_RANGE
+        failures: Dict[int, List[str]] = {}
         while k_rounds < K_REPAIR_ROUNDS:
             ksum = k_var_summary(groups, report)
             if ksum["out_of_range"] <= ksum["cap"]:
                 break
             kmap = k_var_by_group(groups, report, units)
-            lo, hi = K_RANGE
             cov = counts(report)
-            # 긴 문서(J7) 질문도 고친다 — 참조 자료는 그대로 두고 본문 조건만 (사용자 결정 2026-10-18: 빈 출력 요구 외 예외 없음)
             fixable = [g for g in groups if g["id"] in set(ksum["out_of_range_ids"]) and not (kmap[g["id"]]["units"] & exempt_units)]
-            # 범위에서 먼 것부터, 상한을 넘는 만큼만 (+ 여유 2개)
-            fixable.sort(key=lambda g: -min(abs(kmap[g["id"]]["k"] - lo), abs(kmap[g["id"]]["k"] - hi)))
-            need = ksum["out_of_range"] - ksum["cap"]
-            batch = fixable[:min(batch_size, need + 2)]
-            # 진행 척도 = 범위까지 남은 거리의 합 (개수만 보면 k 3→5 처럼 나아져도 정체로 보인다)
-            distance = sum(max(lo - kmap[g["id"]]["k"], kmap[g["id"]]["k"] - hi, 0) for g in fixable)
-            if last_out is not None and distance >= last_out:
-                stalled += 1
-            else:
-                stalled = 0
-            if not batch or stalled >= 2:   # 2회 연속 더 나아지지 않으면 멈춘다
+            if not fixable:
                 break
-            last_out = distance
             k_rounds += 1
-            self.progress("k_repair", {"message": f"질문당 기준 수 범위 {lo}~{hi} 밖 {ksum['out_of_range']}개(상한 {ksum['cap']}) — {len(batch)}개 조건 고치기 ({k_rounds}회차)",
+            self.progress("k_repair", {"message": f"질문당 기준 수 범위 {lo}~{hi} 밖 {ksum['out_of_range']}개(상한 {ksum['cap']}) — 하나씩 고치기 ({k_rounds}회차)",
                                        "out_of_range": ksum["out_of_range"], "cap": ksum["cap"]})
-            protect = sorted(t for t, n in counts(report).items() if n <= (per_target or 10))
-            def candidates(g):   # 아직 적용되지 않은, 단일 질문에 붙일 수 있는 기준 — 적용 질문이 적은 것부터 12개, 예시 문장 포함
+            protect = sorted(t for t, n in cov.items() if n <= (per_target or 10))
+
+            def one(g):
                 have = kmap[g["id"]]["units"]
+                k = kmap[g["id"]]["k"]
                 picks = sorted((u for u in single_only if u not in have and u not in exempt_units), key=lambda u: (cov.get(u, 0), u))[:12]
-                return [{"id": u, "name": info[u].get("name") or info[u].get("sub") or "", "example": info[u].get("example") or ""} for u in picks]
-            items = [{"id": f"Q{g['id']}", "k": kmap[g["id"]]["k"], "units": kmap[g["id"]]["units"], "target_items": g.get("target_items") or [],
-                      "target": lo + 1 if kmap[g["id"]]["k"] < lo else hi - 1, "question": g["turns"][0]["question"],
-                      "candidates": candidates(g) if kmap[g["id"]]["k"] < lo else []} for g in batch]
-            try:
-                fixes, warnings = parse_k_repair(self._ask(k_repair_prompt(items, catalog, protect, note), PLAN_TOKENS))
-            except Cancelled:
-                raise
-            except GenerationError as exc:   # 응답 JSON 이 깨지면 묶음을 반으로 줄여 다음 회차에 다시 (출력이 길어 잘리는 경우)
-                self.warnings.append(f"질문당 기준 수 고치기 {k_rounds}회차: {exc} — 묶음을 {max(5, batch_size // 2)}개로 줄여 다시 시도")
-                batch_size = max(5, batch_size // 2)
-                last_out = None
-                continue
-            self.warnings += warnings
-            by_id = {g["id"]: g for g in batch}
+                item = {"id": f"Q{g['id']}", "k": k, "units": have, "target_items": g.get("target_items") or [],
+                        "target": lo + 1 if k < lo else hi - 1, "question": g["turns"][0]["question"],
+                        "candidates": [{"id": u, "name": info[u].get("name") or info[u].get("sub") or "", "example": info[u].get("example") or ""}
+                                       for u in picks] if k < lo else []}
+                try:
+                    fixes, warnings = parse_k_repair(self._ask(k_repair_prompt([item], catalog, protect, note), PLAN_TOKENS))
+                except Cancelled:
+                    raise
+                except GenerationError as exc:
+                    return g, None, [f"응답 오류: {exc}"], []
+                fix = fixes.get(g["id"])
+                if fix is None:
+                    return g, None, ["응답에 이 질문이 없음"], warnings
+                problems = repair_problems(g["turns"][0]["question"], fix["question"], lower=k > hi)
+                if not problems:   # 이 질문만 다시 세어 범위 안인지
+                    trial = dict(g, turns=[dict(g["turns"][0], question=fix["question"]), *g["turns"][1:]])
+                    new_k = k_var_by_group([trial], check([trial]), units)[g["id"]]["k"]
+                    if not lo <= new_k <= hi:
+                        problems.append(f"고친 뒤 k {new_k} (범위 {lo}~{hi} 밖)")
+                return g, (None if problems else fix), problems, warnings
+
+            with ThreadPoolExecutor(max_workers=K_REPAIR_WORKERS) as pool:
+                results = list(pool.map(one, fixable))
             before_counts = counts(report)
             backup: Dict[int, Tuple[str, List[str]]] = {}
-            for qid, fix in fixes.items():
-                g = by_id.get(qid)
-                if g is None:
+            for g, fix, problems, warnings in results:
+                self.warnings += warnings
+                if fix is None:
+                    failures[g["id"]] = problems
                     continue
-                backup[qid] = (g["turns"][0]["question"], list(g.get("target_items") or []))
+                failures.pop(g["id"], None)
+                backup[g["id"]] = (g["turns"][0]["question"], list(g.get("target_items") or []))
                 g["turns"][0]["question"] = fix["question"]
                 if fix["target_items"]:
                     g["target_items"] = fix["target_items"]
                 g["k_repaired"] = k_rounds
             if not backup:
-                break
+                continue   # 이번 회차에 받아들인 것이 없음 — 다음 회차에 다시 (응답이 매번 달라진다)
             report = check(groups)
-            # 고친 뒤 커버리지 검사 — 여러 질문이 같은 기준을 빼면 보호 목록으로는 못 막는다 (Codex 검토). 어떤 기준이 목표(또는 고치기 전 수)
-            # 아래로 떨어지면 그 기준을 쓰던 고침을 되돌리고 다시 센다 — 목표 커버리지는 깨지 않는다
+            # 고친 뒤 커버리지 검사 — 어떤 기준이 목표(또는 고치기 전 수) 아래로 떨어지면 그 기준을 쓰던 고침을 되돌린다(연쇄 반복)
+            by_id = {g["id"]: g for g in groups}
             floor = per_target or 10
             reverted_all: List[str] = []
-            while True:   # 되돌린 질문이 다른 기준을 채우고 있었으면 또 떨어질 수 있다 — 하한을 만족할 때까지 반복 (Codex 검토)
+            while True:
                 after_counts = counts(report)
                 broken = {t for t, n in before_counts.items() if after_counts.get(t, 0) < min(n, floor)}
                 still = [qid for qid in backup if by_id[qid].get("k_repaired") == k_rounds]
                 if not broken or not still:
                     break
-                targets = [qid for qid in still if kmap[qid]["units"] & broken] or still   # 관련 질문이 없으면 남은 고침을 모두 되돌린다
+                targets = [qid for qid in still if kmap[qid]["units"] & broken] or still
                 for qid in targets:
                     question, target_items = backup[qid]
-                    g = by_id[qid]
-                    g["turns"][0]["question"], g["target_items"] = question, target_items
-                    g.pop("k_repaired", None)
+                    by_id[qid]["turns"][0]["question"], by_id[qid]["target_items"] = question, target_items
+                    by_id[qid].pop("k_repaired", None)
                     reverted_all.append(f"Q{qid}")
                 report = check(groups)
             if reverted_all:
                 self.warnings.append(f"질문당 기준 수 고치기 {k_rounds}회차: 기준 적용 수가 줄어 {', '.join(reverted_all)} 은 되돌렸습니다.")
-            if len(reverted_all) == len(backup):
-                break
         ksum = k_var_summary(groups, report)
+        if failures:
+            self.warnings.append("질문당 기준 수 고치기에서 검증을 통과하지 못한 질문: "
+                                 + "; ".join(f"Q{q} ({', '.join(v)[:80]})" for q, v in sorted(failures.items())[:30]))
         if ksum["out_of_range"] > ksum["cap"]:
             self.warnings.append(f"질문당 기준 수 {K_RANGE[0]}~{K_RANGE[1]} 밖 단일 질문이 {ksum['out_of_range']}개로 상한 {ksum['cap']}개를 넘습니다"
                                  f" (k 분포 {ksum['by_k']}).")
@@ -1164,8 +1162,8 @@ def k_repair_prompt(items: List[Dict[str, Any]], catalog: Dict[str, List[Dict[st
         if it["k"] < lo:
             add = it["target"] - it["k"]
             cands = "\n".join(f"  - {c['id']} · {c['name']} · 예시 문장: \"{c['example']}\"" for c in it.get("candidates") or [])
-            how = (f"\n- **정확히 {add}개**의 조건을 아래 후보에서 골라 덧붙입니다. 후보의 예시 문장에 있는 핵심 표현(예: '공백 포함 N자 이내로', '존댓말로', "
-                   f"'초등학생이 이해할 수 있게', '표로', 'JSON으로')을 그대로 살려 이 질문의 주제에 맞게 바꿔 씁니다. 표현을 바꾸면 시스템이 인식하지 못해 k 가 오르지 않습니다. "
+            how = (f"\n- **정확히 {add}개**의 조건 문장을 아래 후보에서 골라 덧붙입니다. 후보의 예시 문장은 **표현 형식만** 참고합니다(예: '공백 포함 N자 이내로', "
+                   f"'존댓말로', '초등학생이 이해할 수 있게', '표로', 'JSON으로'). 예시 문장의 주제·사물·이름·수치는 가져오지 말고, **이 질문의 주제·자료·과제에서 나온 내용**으로 씁니다. "
                    f"같은 기준을 두 번 쓰거나 서로 막는 조건(예: 표 요구 + 표 금지)은 안 됩니다.\n- 덧붙일 후보 (적용 질문이 적은 기준부터):\n{cands}")
         else:
             how = f"\n- 핵심 과제와 무관한 조건 {it['k'] - it['target']}개를 뺍니다. 빼는 조건의 기준이 다른 질문에서 모자라면(아래 보호 목록) 다른 조건을 뺍니다."
@@ -1174,6 +1172,15 @@ def k_repair_prompt(items: List[Dict[str, Any]], catalog: Dict[str, List[Dict[st
     head = (f"당신은 한국어 AI 답변 품질 평가 질문의 조건 수를 조정합니다. 결과는 JSON 하나로만 답합니다.\n\n"
             f"# 목표\n아래 질문들은 질문당 기준 수(k_var)가 목표 범위 {lo}~{hi}개를 벗어났습니다. **주제·자료·핵심 과제·정답의 핵심은 그대로 두고 덧붙이는 조건만 고쳐** k_var 가 범위 안에 들게 합니다.\n"
             "- 늘릴 때는 [점검 목록]에서 그 질문에 자연스러운 기준을 고르고, CODE 검사 조건은 [인식] 규칙의 표현을 그대로 씁니다. 외부 검색·최신 사실·첨부 요구·답변 분량 늘리기로 늘리지 않습니다.\n"
+            "- **원래 질문의 문단은 한 글자도 바꾸지 않습니다.** 새 조건 문장은 원래 문단 사이나 끝에 덧붙입니다. 질문 안의 자료(표·JSON·목록·'공지:'·'자료:' 같은 붙여 넣은 자료)는 그대로 둡니다.\n"
+            "- 덧붙이는 조건은 이 질문의 주제·자료에서 나온 것이어야 합니다. 다른 주제·사물·수치를 새로 만들어 넣지 않습니다.\n"
+            "- 조건은 질문의 자료와 모순되지 않아야 합니다(예: 자료 값이 모두 1~2인데 '100 이상만 남겨'처럼 결과가 비는 조건, 자료에 없는 열을 정렬하라는 조건 금지). "
+            "원래 질문이 일부러 모순·빠진 자료를 둔 질문이면 그 모순은 그대로 둡니다.\n"
+            "- 같은 요구를 다른 말로 다시 쓰지 않습니다(조건 하나당 문장 하나). 원래 질문에 이미 있는 조건(소제목 수·번호 목록·코드블록 언어·표기 보존 등)을 또 요구하지 않습니다. "
+            "실제 사용자가 보낼 법한 자연스러운 질문으로 읽혀야 합니다.\n"
+            "- 과제와 무관한 계산(예: '1과 4를 더하면 얼마인지도', '소제목 수와 항목 수를 더한 값')을 끼워 넣지 않습니다. 계산 조건은 질문의 자료로 하는 자연스러운 계산만 씁니다.\n"
+            "- 출력 형식을 제한한 질문('JSON 객체만 출력', '이름만 적어')에는 그 형식으로 지킬 수 없는 조건(존댓말 문장, 설명, 이름 밖 계산 결과)을 붙이지 않습니다. "
+            "자료에 있는 개수보다 많은 항목을 요구하지 않습니다(안건 2개인데 '서로 다른 안건 3개').\n"
             "- 줄일 때는 핵심 과제와 무관한 조건부터 뺍니다. 조건은 서로 어긋나지 않고 한 질문으로 자연스럽게 읽혀야 합니다.\n"
             f"{protect_line}- 첨부파일·참조 자료는 그대로 쓰므로 질문 본문만 씁니다(첨부 명세를 다시 쓰지 않습니다).\n\n"
             # 질문당 기준 수 규칙은 질문 생성(계획·추가·보충)과 같은 글 — 두 단계가 다른 정의를 쓰지 않게 (사용자 요청 2026-10-18: 프롬프트 합치기)
@@ -1185,6 +1192,153 @@ def k_repair_prompt(items: List[Dict[str, Any]], catalog: Dict[str, List[Dict[st
             + "# 점검 목록 (k_var 에 세는 기준만 — 여기 없는 기준(각주·출처 번호·HTML·코드 펜스·선언 개수·J5-3.a 등 답변 구조로 정해지는 것과 항상 적용되는 것)은 k 에 들어가지 않습니다)\n"
             + "\n".join(_catalog_lines(restrict_catalog(catalog, counted))))
 
+
+# --- k 고치기 결과 검증 (v2.1) ----------------------------------------------------------------------------------------------
+_REPAIR_WS = re.compile(r"\s+")
+_REPAIR_SENT = re.compile(r"(?<=[.?!])\s+")
+_REPAIR_NUM = re.compile(r"\d+(?:[.,:]\d+)*")
+
+
+def _repair_compact(text: str) -> str:
+    return _REPAIR_WS.sub("", text or "")
+
+
+def _repair_sentences(text: str) -> List[str]:
+    out = []
+    for line in (text or "").split("\n"):
+        if line.lstrip().startswith(("|", "```", "{", "[", "- ")):
+            continue   # 자료 줄은 문장으로 세지 않는다
+        out += [x.strip() for x in _REPAIR_SENT.split(line) if len(x.strip()) >= 8]
+    return out
+
+
+_DATA_LINE = re.compile(r"^\s*(\||```|[{\[]|[-*+] |\d{1,3}[.)] |(자료|공지|기록|메모|표|목록|데이터|원문|본문|문서|안내문|회의록|일정)\s*[:：])")
+_LABEL_LINE = re.compile(r"^\s*[가-힣A-Za-z ]{1,12}\s*[:：]")
+
+
+def question_data_blocks(text: str) -> List[str]:
+    """질문 안의 자료 블록 — 코드 펜스 전체, 여러 줄 JSON(여는 괄호부터 닫는 괄호까지), 표·목록 줄이 이어진 덩어리, '공지:'·'자료:' 같은
+    이름표 줄과 그 뒤 빈 줄 전까지의 줄. 문장 끝말로 끊지 않는다. k 고치기 검증과 tools/fix_repaired_questions.py 가 같이 쓴다."""
+    lines = (text or "").split("\n")
+    blocks, cur, in_fence, labeled, depth = [], [], False, False, 0
+
+    def close():
+        nonlocal cur, labeled
+        if cur:
+            blocks.append("\n".join(cur))
+        cur, labeled = [], False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            cur.append(line)
+            in_fence = not in_fence
+            if not in_fence:
+                close()
+            continue
+        if in_fence:
+            cur.append(line); continue
+        if depth > 0:   # 여러 줄 JSON 안
+            cur.append(line)
+            depth += _bracket_delta(line)
+            if depth <= 0:
+                depth = 0; close()
+            continue
+        if stripped.startswith(("{", "[")):
+            close()
+            cur.append(line)
+            depth = _bracket_delta(line)
+            if depth <= 0:
+                depth = 0; close()
+            continue
+        if not stripped:
+            close(); continue
+        if _DATA_LINE.match(line):
+            cur.append(line)
+            labeled = labeled or bool(_LABEL_LINE.match(line))
+        elif labeled:
+            cur.append(line)
+        else:
+            close()
+    close()
+    return [b for b in blocks if len(_repair_compact(b)) >= 2]
+
+
+def _bracket_delta(line: str) -> int:
+    """문자열 밖의 { [ 와 } ] 수 차이."""
+    depth, in_str, esc = 0, False, False
+    for ch in line:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch in "{[":
+            depth += 1
+        elif ch in "}]":
+            depth -= 1
+    return depth
+
+
+def _strip_line_ends(text: str) -> str:
+    return "\n".join(line.rstrip() for line in (text or "").split("\n"))
+
+
+def data_block_kept(block: str, text: str) -> bool:
+    """자료 블록이 text 에 그대로 있는가 — 코드 펜스·JSON·표·목록은 들여쓰기·문자열 안 공백까지 같아야 하고(줄 끝 공백만 무시),
+    이름표 뒤 글 자료('공지: …')는 공백만 무시한다. 들여쓰기를 바꾸면 코드 동작이, 문자열 안 공백을 바꾸면 값이 달라진다 (Codex 검토)."""
+    # 블록 안 어느 줄이든 코드 펜스·JSON·표·목록이면 엄격하게 (이름표 줄 뒤에 코드 펜스가 오는 경우 포함 — Codex 검토)
+    structured = any(re.match(r"^\s*(```|[{\[]|[-*+] |\d{1,3}[.)] |\|)", line) for line in block.split("\n"))
+    if structured:
+        # 줄 단위로 — 앞뒤 줄 경계까지 같아야 한다('- apple' 이 '- applesauce' 의 앞부분으로 남는 것을 보존으로 보지 않게)
+        return "\n" + _strip_line_ends(block).strip("\n") + "\n" in "\n" + _strip_line_ends(text) + "\n"
+    return _repair_compact(block) in _repair_compact(text)
+
+
+def _spaced_pattern(text: str):
+    """공백 차이를 무시하고 찾는 정규식 — 글자 사이에 공백 0개 이상(\\s*)을 둔다."""
+    chars = [re.escape(c) for c in _repair_compact(text)]
+    return re.compile(r"\s*".join(chars)) if chars else None
+
+
+def repair_problems(original: str, fixed: str, lower: bool) -> List[str]:
+    """고친 질문이 지켜야 할 것 — 어긴 것 목록(빈 목록이면 통과). ``lower`` 는 k 를 줄이는 고침(조건 문장을 지울 수 있음).
+    ① 늘리는 고침은 원래 질문의 문단을 모두 그대로 담는다(순서 유지, 공백만 무시). ② 늘리든 줄이든 자료 블록(코드 펜스·JSON·표·목록·이름표 자료)은
+    모두 그대로. ③ 원래 수치는 모두 남는다. ④ 덧붙인 부분(원래 문단을 뺀 나머지)의 문장이 원래 문장이나 다른 덧붙인 문장과 거의 같지 않다(0.85)."""
+    import difflib
+    problems = []
+    added_text = fixed or ""
+    if not lower:
+        pos = 0
+        for para in [x for x in re.split(r"\n\s*\n", original or "") if x.strip()]:
+            pattern = _spaced_pattern(para)
+            match = pattern.search(added_text, pos) if pattern else None
+            if not match:
+                problems.append("원래 문단이 바뀜: " + para.strip()[:40])
+                break
+            added_text = added_text[:match.start()] + "\n" + added_text[match.end():]   # 원래 문단 자리를 지우고 덧붙인 부분만 남긴다
+            pos = match.start() + 1
+    for block in question_data_blocks(original):
+        if not data_block_kept(block, fixed):
+            problems.append("자료가 바뀌거나 사라짐: " + block.strip()[:40])
+            break
+    nums = set(_REPAIR_NUM.findall(original or "")) - set(_REPAIR_NUM.findall(fixed or ""))
+    if nums:
+        problems.append("원래 수치가 사라짐: " + ", ".join(sorted(nums)[:5]))
+    old = _repair_sentences(original)
+    new = _repair_sentences(added_text) if not lower else [x for x in _repair_sentences(fixed) if x not in old]
+    # 줄이는 고침은 원래 문장을 고쳐 쓰므로 원래 문장과 닮는 것이 정상 — 새 문장끼리만 되풀이를 본다
+    seen: List[str] = [] if lower else list(old)
+    for x in new:
+        if any(difflib.SequenceMatcher(None, _repair_compact(x), _repair_compact(y)).ratio() >= 0.85 for y in seen):
+            problems.append("같은 요구를 되풀이: " + x[:40])
+            break
+        seen.append(x)
+    return problems
 
 def parse_k_repair(text: str, known_ids: Optional[set] = None) -> Tuple[Dict[int, Dict[str, Any]], List[str]]:
     """고치기 응답 → ({질문 id: {"question", "target_items"}}, 경고). 모양이 틀린 항목·모르는 기준 id 는 버리고 경고로 남긴다 (지어내지 않음)."""
