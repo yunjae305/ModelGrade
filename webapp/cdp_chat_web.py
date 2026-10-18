@@ -2,7 +2,7 @@
 
 사용자 결정 2026-10-15: 세 모델 모두 로그인 상태의 웹 화면으로 수집(답변 수집은 API 대신 웹브라우저). 로그인·봇 확인은 사용자가 그 Chrome 창에서
 직접 하고, 프로그램은 자격 증명을 다루지 않으며 봇 확인을 우회하지 않는다(막히면 고정 문구로 오류를 남긴다).
-새 채팅마다 모델 설정을 맞춘다 — ChatGPT: Chat 모드·GPT-6 Luna·파워 Medium / Gemini: 자동 모드·사고 수준 보통 / Claude: Sonnet 5.5·노력 중간.
+새 채팅마다 모델 설정을 맞춘다 — ChatGPT: Chat 모드·GPT-6 Luna·파워 Medium / Gemini: 3.6 Flash·사고 수준 보통(Plus 계정, 10-18) / Claude: Sonnet 5.5·노력 중간.
 
 - 채팅 하나로 멀티턴(대화는 new_chat 뒤 같은 탭에서 턴 순서대로), 첨부는 파일 입력에 그대로, 긴 참조 자료(J7)는 TXT 파일로 올린다(AIONA 와 같음).
 - 답변은 사이트의 복사 버튼 원문(클립보드 가로채기)으로 받고, 복사가 안 되면 답변 영역의 글을 쓴다(capture 에 표시).
@@ -496,11 +496,14 @@ class ChatGptChat(_CdpChat):
 
 
 class GeminiChat(_CdpChat):
-    """gemini.google.com — 로그인(무료) · 자동 모드 · 사고 수준 보통 (사용자 결정 2026-10-15)."""
+    """gemini.google.com — 로그인(Plus) · 3.6 Flash · 사고 수준 보통 (사용자 결정 2026-10-18: 계정을 Plus 로 바꿔 메뉴가
+    모델 직접 선택(3.5 Flash-Lite / 3.6 Flash / 3.1 Pro / 4 Argon) + 사고 수준(최저가·보통·최고가)으로 바뀜.
+    이전 무료 계정 설정은 자동 모드 · 사고 수준 보통, 2026-10-15)."""
     NAME = "Gemini"
     HOST = "gemini.google.com"
     NEW_URL = "https://gemini.google.com/app"
-    MODEL_LABEL = "Gemini 자동 모드 · 사고 수준 보통 (웹)"
+    MODEL_LABEL = "Gemini 3.6 Flash · 사고 수준 보통 (웹)"
+    MODEL_NAME = "3.6 Flash"   # 'Flash' 만 쓰면 '3.5 Flash-Lite' 가 먼저 걸린다
     TEXTBOX_NAME = "Gemini 프롬프트 입력"
     ANSWER_SELECTOR = "model-response"
     USER_SELECTOR = "user-query"
@@ -510,12 +513,13 @@ class GeminiChat(_CdpChat):
     MODE_MENU = "모드 선택 도구 열기"
 
     def _apply_model(self) -> str:
-        current = self.page.get_by_role("button", name=self.MODE_MENU).first.get_attribute("aria-label") or ""
-        if "자동 모드" not in current:
-            self._menu_pick("button", self.MODE_MENU, ["자동 모드"])
-        self._menu_pick("button", self.MODE_MENU, ["사고 수준", "보통"])   # 사고 수준은 버튼에 안 보여 매번 맞춘다
-        label = self.page.get_by_role("button", name=self.MODE_MENU).first.get_attribute("aria-label") or ""
-        return f"{label.replace('모드 선택 도구 열기, 현재 ', '').replace(' 모드 사용 중', '') or 'Gemini 자동 모드'} · 사고 수준 보통 (웹)"
+        # 버튼에는 'Flash' 만 보여 버전·사고 수준을 확인할 수 없다 — 매번 메뉴에서 둘 다 고른다
+        self._menu_pick("button", self.MODE_MENU, [self.MODEL_NAME])
+        self._menu_pick("button", self.MODE_MENU, ["사고 수준", "보통"])
+        btn = self.page.get_by_role("button", name=self.MODE_MENU).first
+        if "Flash" not in f"{btn.inner_text(timeout=3000) or ''} {btn.get_attribute('aria-label') or ''}":
+            raise CdpWebError("Gemini 모델 버튼에 'Flash' 가 보이지 않음")
+        return self.MODEL_LABEL
 
     def _upload_via_menu(self, files: List[Path]) -> None:
         for f in files:

@@ -1,4 +1,5 @@
-"""Successful semantic judgments finish as binary outcomes with full provenance."""
+"""최종 판정 정책(semantic-hold-unverified-v3) — 근거가 부족해 확인하지 못한 기준은 FAIL 이 아니라 보류(UNVERIFIED 유지)로 두고
+원래 판정을 policy_original_assessment 에 보존한다. 확인된 PASS/FAIL·입력 범위 재검증 PASS 는 그대로다."""
 import copy
 from types import SimpleNamespace
 
@@ -10,10 +11,16 @@ from code_eval.jev_client import JevCall
 from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case, evaluation_log
 from code_eval.semantic_evidence import finalize_answers
 from code_eval.semantic_policy import (
-    DECISION_POLICY, FINAL_DECISION_POLICY_VERSION, FINAL_EVIDENCE_FAILURE_CODE,
+    DECISION_POLICY, FINAL_DECISION_POLICY_VERSION, FINAL_EVIDENCE_FAILURE_CODE, FINAL_EVIDENCE_FAILURE_REASON,
     INPUT_SCOPE_REVALIDATED_CODE, SOURCE_ORIGINAL_FAILURE_CODE,
     apply_final_decision_policy,
 )
+
+
+def held(decision):
+    """보류 — 판정 값 없이 UNVERIFIED 를 유지하고 근거 부족 사유 코드를 단 기준인가."""
+    return (decision.get("decision") is None and decision.get("status") == "UNVERIFIED"
+            and decision.get("reason_code") == FINAL_EVIDENCE_FAILURE_CODE)
 
 
 SCOPE_FAILURE = "사용자 원문 인용은 확인했지만, 요청에 주어진 자료·설정의 일치를 확인하는 주장인지 불명확합니다."
@@ -42,19 +49,20 @@ def input_scope_record(question, answer, source_quote=None):
 
 
 @pytest.mark.parametrize("cid", ["J1", "J2", "J3", "J4", "J5", "J6"])
-def test_successful_held_judgment_is_binary_fail_with_unchanged_original(cid):
+def test_successful_held_judgment_stays_held_for_review_with_unchanged_original(cid):
     value = record(cid)
     before = copy.deepcopy(value["decisions"][cid])
     result = apply_final_decision_policy(value)
     assert result["changed"] and result["policy_version"] == FINAL_DECISION_POLICY_VERSION
+    assert result["changes"] == [{"criterion_id": cid, "status": "UNVERIFIED", "reason_code": FINAL_EVIDENCE_FAILURE_CODE}]
     decision = value["decisions"][cid]
-    assert decision["decision"] == "FAIL" and "status" not in decision
-    assert decision["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE
+    assert held(decision)   # FAIL 로 바꾸지 않고 보류 — 사람이 PASS/FAIL 을 정한다
+    assert decision["reason"] == FINAL_EVIDENCE_FAILURE_REASON + " · Could not establish evidence"
     assert decision["policy_original_assessment"] == before
     assert decision["confidence"] == 0.0 and decision["probabilities"] == {}
-    assert decision["decision_policy"]["factual_error_confirmed"] is False
-    assert decision["decision_policy"]["outcome_basis"] == "evidence_requirement"
-    assert not value["review_required"] and value["decision_policy"] == DECISION_POLICY
+    assert decision["decision_policy"] == {"version": FINAL_DECISION_POLICY_VERSION, "outcome_basis": "held_for_review",
+                                           "factual_error_confirmed": False}
+    assert value["review_required"] is True and value["decision_policy"] == DECISION_POLICY
     snapshot = copy.deepcopy(value)
     assert not apply_final_decision_policy(value)["changed"]
     assert value == snapshot
@@ -142,7 +150,7 @@ def test_input_pass_cannot_be_invented_from_a_previous_model_pass_alone(violatio
         claim["reason"] = "No confirmed original quotation"
     original = copy.deepcopy(decision)
     apply_final_decision_policy(value, state=state)
-    assert decision["decision"] == "FAIL" and decision["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE
+    assert held(decision) and value["review_required"] is True   # PASS 로 되살리지 않고 보류로 남는다
     assert decision["policy_original_assessment"] == original
 
 
@@ -150,8 +158,7 @@ def test_truth_check_request_cannot_use_input_edit_as_proof():
     question = "자료의 수량을 정정해줘. 노트가 실제로 4권인지 정확한지 검증해줘."
     value = input_scope_record(question, "배부 4권")
     apply_final_decision_policy(value, state={"question": question, "answer": "배부 4권"})
-    assert value["decisions"]["J5"]["decision"] == "FAIL"
-    assert value["decisions"]["J5"]["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE
+    assert held(value["decisions"]["J5"]) and value["review_required"] is True
 
 
 def test_new_evidence_gate_keeps_valid_input_correction_as_pass_before_final_policy():
@@ -163,7 +170,8 @@ def test_new_evidence_gate_keeps_valid_input_correction_as_pass_before_final_pol
     assert finalized["answers"]["J5"]["choice"] == "PASS"
 
 
-def test_final_binary_outcomes_reach_events_aggregates_and_log_consistently():
+def test_final_held_outcomes_reach_events_aggregates_and_log_consistently():
+    """보류된 J5 는 배치 집계(unverified·pending)·결합 요약(semantic_unverified·review_required)·평가 로그에 FAIL 이 아니라 보류로 남는다."""
     answers = {"J1": {"choice": "PASS", "confidence": .8, "probabilities": {"PASS": .9, "FAIL": .1}},
                "J5": {"choice": "UNVERIFIED", "confidence": 0.0, "probabilities": {},
                       "reason": "No final evidence", "fact_check": {"basis": "none", "claims": []}}}
@@ -175,12 +183,16 @@ def test_final_binary_outcomes_reach_events_aggregates_and_log_consistently():
     batch["jev_eval"] = evaluate_jev_batch(batch, judge, workers=1, on_record=lambda _, item: published.append(copy.deepcopy(item)))
     assert batch["cases"] == original["cases"] and batch["result_digest"] == original["result_digest"]
     jev = batch["jev_eval"]
-    assert jev["status"] == "SUCCESS" and jev["completed"] == 1 and jev["review_required"] == jev["unverified"] == 0
-    assert jev["summary"]["J5"]["fail"] == 1 and jev["summary"]["J5"]["pending"] == 0
-    assert published[0]["decisions"]["J5"]["decision"] == "FAIL"
+    assert jev["status"] == "PARTIAL" and jev["completed"] == 0 and jev["review_required"] == jev["unverified"] == 1
+    assert jev["summary"]["J5"]["fail"] == 0 and jev["summary"]["J5"]["unverified"] == jev["summary"]["J5"]["pending"] == 1
+    assert held(published[0]["decisions"]["J5"]) and published[0]["review_required"] is True
     summary = combined_summary(batch)
-    assert summary["fail"] == 1 and summary["pending"] == summary["pass"] == 0
-    assert evaluation_log(batch)[0]["jev"]["decisions"]["J5"]["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE
+    assert summary["pending"] == 1 and summary["fail"] == summary["pass"] == 0
+    assert summary["semantic_unverified"] == summary["review_required"] == 1
+    assert [d["criterion_id"] for d in summary["review_items"][0]["criteria"]] == ["J5"]
+    logged = evaluation_log(batch)[0]["jev"]
+    assert held(logged["decisions"]["J5"]) and logged["review_required"] is True
+    assert logged["decision_policy"] == DECISION_POLICY
 
 
 def test_direct_case_remains_an_error_when_provider_request_failed():

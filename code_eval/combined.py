@@ -174,7 +174,7 @@ def combined_summary(batch: Dict[str, Any]) -> Dict[str, Any]:
         "fail_both": both,
         "semantic_engine": (jev.get("engine_label") or {
             "anthropic_api": "Claude API", "openai_api": "OpenAI API", "codex_cli": "GPT CLI (Codex)",
-            "claude_cli": "Claude CLI"}.get(jev.get("engine"), "Jev")) if jev else None,
+            "claude_cli": "Claude CLI", "dual": "Jev + GPT-6 Luna 병행"}.get(jev.get("engine"), "Jev")) if jev else None,
         "semantic_status": jev.get("status") if jev else None,
         "semantic_pending": pending,
         "semantic_unverified": unverified_count,

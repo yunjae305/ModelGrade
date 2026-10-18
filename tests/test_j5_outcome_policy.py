@@ -11,7 +11,7 @@ from code_eval.config import load_aiona_config
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall
 from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case
-from code_eval.semantic_policy import (FETCH_ERROR_CODE, SEARCH_ERROR_CODE, SEARCH_UNAVAILABLE_CODE,
+from code_eval.semantic_policy import (FETCH_ERROR_CODE, FINAL_EVIDENCE_FAILURE_CODE, SEARCH_ERROR_CODE, SEARCH_UNAVAILABLE_CODE,
                                        apply_final_decision_policy)
 
 ANSWER = "서울의 인구는 약 935만 명입니다."
@@ -51,9 +51,10 @@ def run(answer, **verification):
 @pytest.mark.parametrize("answer,verification,decision,status,code", [
     (j5("PASS", [claim("PASS")]), {}, "PASS", None, "verified"),
     (j5("FAIL", [claim("FAIL")]), {}, "FAIL", None, "contradicted"),
-    (j5("UNVERIFIED", [claim("UNVERIFIED")]), {}, "FAIL", None, "insufficient_evidence"),
+    # 검색은 했지만 근거가 부족한 경우 — v3 부터 FAIL 이 아니라 보류(held). 검색 한도 도달도 보류로 같이 묶인다.
+    (j5("UNVERIFIED", [claim("UNVERIFIED")]), {}, None, "UNVERIFIED", "held"),
     (j5("UNVERIFIED", [claim("UNVERIFIED")]), {"search_calls": 4, "tool_errors": ["max_uses_exceeded"]},
-     "FAIL", None, "search_limit_reached"),
+     None, "UNVERIFIED", "held"),
     (j5("UNVERIFIED", [claim("UNVERIFIED")], basis="none"), {"search_mode": "disabled", "search_performed": False, "search_calls": 0},
      None, "INCOMPLETE", "search_unavailable"),
     (j5("UNVERIFIED", [claim("UNVERIFIED")], basis="none"), {"search_mode": "unsupported", "search_performed": False},
@@ -72,6 +73,9 @@ def test_j5_outcome_separates_errors_from_unchecked_claims(answer, verification,
         assert decision_j5["reason_code"] in (SEARCH_UNAVAILABLE_CODE, SEARCH_ERROR_CODE)
         assert "사실 오류 판정이 아닙니다" in decision_j5["reason"] and record["review_required"]
         assert decision_j5["policy_original_assessment"]["status"] == "UNVERIFIED"
+    if status == "UNVERIFIED":   # 보류 — 사람이 PASS/FAIL 을 정한다
+        assert decision_j5["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE and record["review_required"]
+        assert decision_j5["policy_original_assessment"]["status"] == "UNVERIFIED"
 
 
 @pytest.mark.parametrize("errors,code,outcome", [
@@ -88,11 +92,12 @@ def test_fetch_tool_errors_are_named_separately_from_search_errors(errors, code,
     assert decision_j5["j5_outcome"]["code"] == outcome and decision_j5["j5_outcome"]["factual_error_confirmed"] is False
 
 
-def test_input_only_claims_do_not_need_search_and_keep_the_evidence_policy():
-    # 검색이 꺼져 있어도 사용자 제공 값의 일치 확인은 검색 없이 가능하므로 미완료로 만들지 않는다.
+def test_input_only_claims_do_not_need_search_and_are_held_not_incomplete():
+    # 검색이 꺼져 있어도 사용자 제공 값의 일치 확인은 검색 없이 가능하므로 미완료(INCOMPLETE)로 만들지 않고 보류로 둔다.
     record, decision_j5 = run(j5("UNVERIFIED", [claim("UNVERIFIED", scope="input_consistency")], basis="input"),
                               search_mode="disabled", search_performed=False)
-    assert decision_j5["decision"] == "FAIL" and decision_j5["j5_outcome"]["code"] == "insufficient_evidence"
+    assert decision_j5["decision"] is None and decision_j5["status"] == "UNVERIFIED"
+    assert decision_j5["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE and decision_j5["j5_outcome"]["code"] == "held"
 
 
 def test_search_unavailable_question_is_pending_not_failed():
@@ -112,7 +117,9 @@ def test_saved_records_without_search_mode_keep_the_previous_outcome():
               "decisions": {"J5": {"criterion_id": "J5", "name": "DATA 신뢰도", "decision": None, "status": "UNVERIFIED",
                                    "fact_check": {"basis": "none", "claims": []}}}}
     apply_final_decision_policy(record)
-    assert record["decisions"]["J5"]["decision"] == "FAIL" and "j5_outcome" not in record["decisions"]["J5"]
+    j5_saved = record["decisions"]["J5"]
+    assert j5_saved["decision"] is None and j5_saved["status"] == "UNVERIFIED"   # 보류 — 미완료(INCOMPLETE)로 재해석하지 않음
+    assert j5_saved["reason_code"] == FINAL_EVIDENCE_FAILURE_CODE and "j5_outcome" not in j5_saved
 
 
 # --- 지시서 10-13 B-4: 다섯 원인을 따로 시험 — 판정은 그대로, 사실 오류 확정과 검증 한계를 구분하는 기록만 본다 -------------
@@ -159,17 +166,18 @@ def test_page_access_failure_keeps_fail_but_records_who_could_not_open_the_page(
 
 
 def test_five_causes_are_told_apart_end_to_end():
-    """검색 미지원 · 웹 페이지 접근 실패 · 검색 한도 · 실제 틀린 사실 · 사용자 제공 정보 불일치 — 사실 오류 확정은 마지막 둘뿐."""
+    """검색 미지원 · 웹 페이지 접근 실패 · 검색 한도(보류) · 실제 틀린 사실 · 사용자 제공 정보 불일치 — 사실 오류 확정은 마지막 둘뿐."""
     from code_eval.semantic_policy import j5_outcome
     _, no_search = run(j5("UNVERIFIED", [claim("UNVERIFIED")], basis="none"), search_mode="unsupported", search_performed=False)
     source = _fail_record(reason_code="SOURCE_ORIGINAL_UNAVAILABLE", decision_policy={"failures": [
-        {"status": "timeout", "url": "https://example.org/x", "claim_index": 0, "source_index": 0}]})
+        {"status": "timeout", "url": "https://example.org/x", "claim_index": 0, "source_index": 0}]})   # v2 때 저장된 FAIL 레코드
     _, limit = run(j5("UNVERIFIED", [claim("UNVERIFIED")]), search_calls=4, tool_errors=["max_uses_exceeded"])
     wrong = j5_outcome(_fail_record(fact_check={"basis": "web", "claims": [_fail_claim("web")]}))
     mismatch = j5_outcome(_fail_record(fact_check={"basis": "input", "claims": [_fail_claim("question")]}))
     got = [no_search["j5_outcome"]["code"], j5_outcome(source)["code"], limit["j5_outcome"]["code"], wrong["code"], mismatch["code"]]
-    assert got == ["search_unavailable", "source_unavailable", "search_limit_reached", "contradicted", "contradicted"]
+    assert got == ["search_unavailable", "source_unavailable", "held", "contradicted", "contradicted"]
     assert no_search["decision"] is None and no_search["status"] == "INCOMPLETE"          # 검색 미지원은 FAIL 이 아님
+    assert limit["decision"] is None and limit["status"] == "UNVERIFIED"                  # 검색 한도 도달은 보류 (v3)
     assert [o["factual_error_confirmed"] for o in (no_search["j5_outcome"], j5_outcome(source), limit["j5_outcome"])] == [False] * 3
     assert (wrong["contradiction"]["basis"], mismatch["contradiction"]["basis"]) == ("external", "user_input")
     assert j5_outcome(source)["source_failure"]["kind"] == "access_failed"

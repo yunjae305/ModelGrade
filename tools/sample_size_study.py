@@ -34,7 +34,7 @@ STUDY_VERSION = "sample-size-study-v1"
 SIZES = (5, 10, 20, 30, 50, 100)
 QUESTION_SIZES = (10, 20, 30, 50, 100)   # 4차 P1-8 — 간편·정밀 검사 후보를 질문 단위 표본으로 본다
 QUICK_ORDER_KEPT, QUICK_COVERAGE, PRECISE_WIDTH = 0.8, 0.95, 0.10   # 간편: 순위 80%·기준 출현 95% · 정밀: 통과율 95% 폭 10%p 이하
-CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7")
+CRITERIA = ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7", "J8")   # J8 첨부파일 활용 — 보류 검수 파일(--held)의 J8 행도 읽는다
 GOLD_VALUES = ("PASS", "FAIL", "UNVERIFIABLE", "NOT_APPLICABLE")   # NOT_APPLICABLE(적용 제외)는 일치율에서 빼고 따로 센다
 Z95, Z80 = 1.959964, 0.841621
 

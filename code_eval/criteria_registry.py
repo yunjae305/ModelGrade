@@ -384,6 +384,18 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "판정 미완료(ATTACHMENT_IMAGE_UNAVAILABLE) — 다른 기준은 글자로 그대로 평가",
                  "파일을 가리키지 않는 이미지 항목(name·type·content 만)은 예전처럼 content 로 J8 판정 (기록 content_only)",
                  "레코드 attachment_images 에 보낸 그림의 이름·형식·sha256 과 못 보낸 사유 — 그림 원본은 저장하지 않음. J8 기준 정의는 그대로"]},
+    {"version": "semantic-hold-unverified-v3", "date": "2026-10-18", "scope": "semantic",
+     "changes": ["근거가 부족해 확인하지 못한 기준(J1~J8 UNVERIFIED)은 FAIL 로 확정하지 않고 보류(UNVERIFIED 유지·확인 필요)로 두어 사람이 PASS/FAIL 을 "
+                 "정한다 (사용자 결정 2026-10-18). 출처 원문 확인 실패(j5-source-original-failure-v3)도 보류. 확인된 사실 오류·출처 불일치·답변이 든 "
+                 "URL 접근 불가는 그대로 FAIL. J5 사유에 '보류'(held) 추가 (j5-outcome-detail-v6)",
+                 "근거: 통제 실험 300문항 × 3모델에서 J5 '근거 부족' 109건 중 상당수가 답변이 자료에 없는 내용을 덧붙인 경우이거나 평가 쪽 원인(인용 글자 "
+                 "불일치·첨부 이미지 미전달)이어서 FAIL 로 확정할 수 없었다"]},
+    {"version": "dual-judge-v1", "date": "2026-10-18", "scope": "semantic",
+     "changes": ["병행 판정(SEMANTIC_ENGINE=dual): GPT-6 Luna(OpenAI API)가 모든 기준을, Jev 가 J1~J4 를 함께 판정. 둘이 같으면 확정, 다르면 Luna 가 그 기준만 "
+                 "한 번 더 — 처음 Luna 판정과 같으면 확정, 또 다르면 보류(심판 갈림, 사람이 정함). 어느 쪽도 다른 쪽을 덮어쓰지 않음(Jev 고확신 PASS 확정 없음)",
+                 "근거: 두 심판이 갈린 184/2,366 항목은 Luna 가 같은 규칙으로 다시 봐도 26% 가 바뀌는 경계 사례 — 규칙 문구 보강(184→171)은 효과 없어 되돌림. "
+                 "이 방식의 갈림 보류는 모델마다 3~5/300",
+                 "J5 주장 대조에 꾸밈·공백을 뺀 느슨한 비교 추가(JSON·표·굵은 글씨 답변), OpenAI API 평가자도 첨부 이미지를 받음(judge-attachment-images-v1)"]},
 ]
 
 

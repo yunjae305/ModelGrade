@@ -24,6 +24,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
+from . import attachment_images
 from . import semantic_cli_common as semantic
 from .io import validate_json_numbers
 from .jev_client import JevCall, JevStatus, _sum_usage, _token_usage
@@ -173,6 +174,7 @@ def _search_calls(output):
 
 class SemanticApiClient:
     supports_cancellation = True
+    supports_images = True   # 첨부 이미지를 input_image 블록으로 함께 보낸다 (judge-attachment-images-v1, OpenAI Responses)
 
     def __init__(self, config: SemanticApiConfig, api_key: str, transport: Any = None, *, source_fetcher=None) -> None:
         if not isinstance(api_key, str) or not api_key.strip():
@@ -204,11 +206,11 @@ class SemanticApiClient:
                     task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
 
-    def system_one(self, state: Any, questions: Dict[str, Any], *, cancel_event=None) -> JevCall:
+    def system_one(self, state: Any, questions: Dict[str, Any], *, cancel_event=None, images=None) -> JevCall:
         started = time.monotonic()
         evaluation_time = datetime.now(timezone.utc).isoformat()
         initial = self._system_one_once(state, questions, cancel_event=cancel_event,
-                                        evaluation_time=evaluation_time)
+                                        evaluation_time=evaluation_time, images=images)
         # items 파이프라인은 공통 재확인 루프(semantic_quotes.finalize_items)가 보강을 맡으므로 J5 전용 보강은 하지 않는다
         if (initial.status != "OK" or not self.config.evidence_recovery_rounds or semantic.is_items(questions)
                 or self.config.web_search != "live" or "J5" not in questions or has_reference(state)):
@@ -226,7 +228,7 @@ class SemanticApiClient:
         supplemental = client._system_one_once(state, {"J5": questions["J5"]},
                                                cancel_event=cancel_event, evidence_prompt=prompt,
                                                evaluation_time=evaluation_time,
-                                               prior_verification=initial.body.get("verification"))
+                                               prior_verification=initial.body.get("verification"), images=images)
         cancelled = (cancel_event is not None and cancel_event.is_set()) or supplemental.status == JevStatus.SKIPPED
         body = (merge_evidence_recovery(initial.body, supplemental.body, state, questions)
                 if supplemental.status == "OK" and not cancelled else copy.deepcopy(initial.body))
@@ -270,7 +272,7 @@ class SemanticApiClient:
                                                "unreported_attempts": 0})
 
     def _system_one_once(self, state: Any, questions: Dict[str, Any], *, cancel_event=None,
-                         evidence_prompt=None, evaluation_time=None, prior_verification=None) -> JevCall:
+                         evidence_prompt=None, evaluation_time=None, prior_verification=None, images=None) -> JevCall:
         started = time.monotonic()
         verification = _verification([])
         parts, usage, attempts = [], {}, 0
@@ -345,16 +347,18 @@ class SemanticApiClient:
             # Only this verified model supports the explicit-cache request shape.
             # Preserve the user-message role and send every original data byte;
             # only the reusable evaluation instructions receive a breakpoint.
-            if self.config.model == DEFAULT_MODEL:
+            # 첨부 그림(judge-attachment-images-v1)은 공통 지시문 뒤·평가 대상 앞에 둔다 — Responses 입력은 input_text/input_image 블록
+            pictures = [{"type": "input_text", "text": block["text"]} if block.get("type") == "text" else block
+                        for block in attachment_images.labelled_blocks("gpt", images)] if images else []
+            if self.config.model == DEFAULT_MODEL or pictures:
                 static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled=search_enabled,
                                                               evaluation_time=evaluation_time)
                 if evidence_prompt:
                     dynamic += "\n\n" + evidence_prompt
-                prompt_input = [{"role": "user", "content": [
-                    {"type": "input_text", "text": static,
-                     "prompt_cache_breakpoint": {"mode": "explicit"}},
-                    {"type": "input_text", "text": "\n" + dynamic},
-                ]}]
+                head = {"type": "input_text", "text": static}
+                if self.config.model == DEFAULT_MODEL:   # 이 모델만 명시적 캐시 요청 형식을 지원한다
+                    head["prompt_cache_breakpoint"] = {"mode": "explicit"}
+                prompt_input = [{"role": "user", "content": [head, *pictures, {"type": "input_text", "text": "\n" + dynamic}]}]
             else:
                 prompt_input = semantic.build_prompt(state, questions, search_enabled=search_enabled,
                                                       evaluation_time=evaluation_time)

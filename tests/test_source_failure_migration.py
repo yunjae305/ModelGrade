@@ -85,8 +85,9 @@ def test_dry_run_writes_nothing_and_selects_only_source_failures(tmp_path):
     assert files(tmp_path) == before
     assert report['status'] == 'DRY_RUN' and report['external_calls'] == 0
     assert [(r['provider'], r['case_id']) for r in report['changed_records']] == [('aiona', 'Q1'), ('gemini', 'Q1')]
-    assert report['after']['aiona'] == {'questions': 2, 'pass': 0, 'fail': 1, 'pending': 1}
-    assert report['after']['gemini'] == {'questions': 2, 'pass': 1, 'fail': 1, 'pending': 0}
+    # v3: 출처 원문 확인 실패는 FAIL 이 아니라 보류 — 질문은 FAIL 로 세지 않고 미결(pending)로 남는다
+    assert report['after']['aiona'] == {'questions': 2, 'pass': 0, 'fail': 0, 'pending': 2}
+    assert report['after']['gemini'] == {'questions': 2, 'pass': 1, 'fail': 0, 'pending': 1}
     assert len(report['files']) == 3 and report['running_server_refresh_required']
 
 
@@ -114,10 +115,14 @@ def test_apply_preserves_originals_refreshes_all_aggregates_and_is_idempotent(tm
             assert batch['jev_eval']['decision_policy'] == SOURCE_POLICY
             assert batch['jev_eval']['records'][0]['decisions']['J5']['policy_original_assessment'] == old['jev_eval']['records'][0]['decisions']['J5']
             assert batch['jev_eval']['records'][1] == old['jev_eval']['records'][1]
-            assert batch['jev_eval']['summary']['J5']['fail'] == 1
-            assert batch['jev_eval']['completed'] == (1 if provider == 'aiona' else 2)
-            assert batch['jev_eval']['review_required'] == (1 if provider == 'aiona' else 0)
-            assert batch['jev_eval']['status'] == ('PARTIAL' if provider == 'aiona' else 'SUCCESS')
+            held = batch['jev_eval']['records'][0]['decisions']['J5']
+            assert held['decision'] is None and held['status'] == 'UNVERIFIED' and held['reason_code'] == 'SOURCE_ORIGINAL_UNAVAILABLE'
+            # 보류는 unverified 로 세고 fail 로 세지 않는다 (aiona 는 Q2 의 입력 일치 미확인 보류가 하나 더 있다)
+            assert batch['jev_eval']['summary']['J5']['fail'] == 0
+            assert batch['jev_eval']['summary']['J5']['unverified'] == (2 if provider == 'aiona' else 1)
+            assert batch['jev_eval']['completed'] == (0 if provider == 'aiona' else 1)
+            assert batch['jev_eval']['review_required'] == (2 if provider == 'aiona' else 1)
+            assert batch['jev_eval']['status'] == 'PARTIAL'
             assert batch['combined'] == combined_summary(batch)
             standalone = json.loads((tmp_path / batch['run']['saved_to']).read_bytes())
             assert migration._without_saved_to(standalone) == migration._without_saved_to(batch)
@@ -204,7 +209,7 @@ def _rewrite(path, run, edit):
 
 
 def test_reapplied_policy_recomputes_a_saved_j5_outcome_instead_of_leaving_it_stale(tmp_path):
-    """지시서 10-14 P0-1 — 정책으로 J5 가 FAIL 이 됐는데 j5_outcome 이 정책 전 값(분류 정보 없음)으로 남던 문제."""
+    """지시서 10-14 P0-1 — 정책으로 J5 사유가 바뀌었는데 j5_outcome 이 정책 전 값으로 남던 문제 (v3: 보류 held → 출처 원문 확인 실패)."""
     from code_eval.semantic_policy import j5_outcome
     path, run = make_run(tmp_path)
 
@@ -212,11 +217,11 @@ def test_reapplied_policy_recomputes_a_saved_j5_outcome_instead_of_leaving_it_st
         for record in batch['jev_eval']['records']:
             record['decisions']['J5']['j5_outcome'] = j5_outcome(record)   # 새 평가기가 저장하는 대로
     _rewrite(path, run, stamp)
-    assert run['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J5']['j5_outcome']['code'] == 'unclassified'
+    assert run['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J5']['j5_outcome']['code'] == 'held'
     migration.migrate(tmp_path, RUN_ID, apply=True)
     saved = json.loads(path.read_text(encoding='utf-8'))
     j5 = saved['evaluations']['aiona']['jev_eval']['records'][0]['decisions']['J5']
-    assert j5['decision'] == 'FAIL' and j5['reason_code'] == 'SOURCE_ORIGINAL_UNAVAILABLE'
+    assert j5['decision'] is None and j5['status'] == 'UNVERIFIED' and j5['reason_code'] == 'SOURCE_ORIGINAL_UNAVAILABLE'
     assert j5['j5_outcome']['code'] == 'source_unavailable' and j5['j5_outcome']['factual_error_confirmed'] is False
     assert j5['j5_outcome']['source_failure']['kind'] == 'access_failed'
     untouched = saved['evaluations']['gemini']['jev_eval']['records'][1]['decisions']['J5']
@@ -230,6 +235,8 @@ def test_reapplied_policy_recomputes_a_saved_j5_outcome_instead_of_leaving_it_st
 def test_refreshed_summary_counts_incomplete_like_the_evaluator(tmp_path):
     """검색이 꺼져 미완료가 된 J5 를 재집계가 세지 않아 summary.incomplete 가 비거나 옛 값으로 남던 문제."""
     path, run = make_run(tmp_path)
+    scope = '사용자 원문 인용은 확인했지만, 요청에 주어진 자료·설정의 일치를 확인하는 주장인지 불명확합니다.'
+    question, answer = '처음 배부한 내역을 정정할게. 노트는 4권을 배부했어.', '배부 4권'
 
     def search_off(batch):
         if batch is run['evaluations']['aiona']:
@@ -237,6 +244,14 @@ def test_refreshed_summary_counts_incomplete_like_the_evaluator(tmp_path):
             record['verification'] = {'search_mode': 'disabled', 'search_performed': False}
             record['decisions']['J5']['fact_check'] = {'basis': 'none', 'claims': [
                 {'claim': 'fixture answer', 'verdict': 'UNVERIFIED', 'scope': 'external_fact', 'reason': '검색 없음', 'sources': []}]}
+            # 도구는 PASS/FAIL 로 바뀐 기준이 있는 평가만 다시 집계·저장한다(v3 의 보류 전환은 세지 않음) —
+            # Q2 를 입력 범위 재검증으로 PASS 가 되는 보류로 두어 aiona 평가의 재집계를 일으킨다
+            batch['cases'][1].update(question=question, answer=answer)
+            batch['jev_eval']['records'][1]['decisions']['J5'].update(
+                reason=scope, model_original_assessment={'choice': 'PASS', 'reason': '사용자 제공값과 일치'},
+                fact_check={'basis': 'input', 'claims': [{'claim': answer, 'verdict': 'UNVERIFIED', 'scope': 'input_consistency',
+                    'scope_quote': question, 'reason': scope, 'sources': [{'url': '', 'origin': 'question', 'turn': None, 'quote': question,
+                    'input_quote_verified': True, 'input_scope_verified': False, 'quote_verified': False, 'verification_reason': scope}]}]})
         migration._refresh_summary(batch)
         batch['jev_eval'].pop('decision_policy')
     _rewrite(path, run, search_off)
@@ -244,5 +259,6 @@ def test_refreshed_summary_counts_incomplete_like_the_evaluator(tmp_path):
     saved = json.loads(path.read_text(encoding='utf-8'))
     semantic = saved['evaluations']['aiona']['jev_eval']
     assert semantic['records'][0]['decisions']['J5']['status'] == 'INCOMPLETE'
+    assert semantic['records'][1]['decisions']['J5']['decision'] == 'PASS'
     assert semantic['summary']['J5']['incomplete'] == 1 and semantic['incomplete'] == 1
     assert report['status'] == 'APPLIED'

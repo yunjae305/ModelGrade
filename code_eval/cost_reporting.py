@@ -210,7 +210,7 @@ class CostLedger:
         model_usage = accounting.get('model_usage')
         usage = accounting.get('usage', getattr(call, 'usage', {}))
         unreported = _count(accounting.get('unreported_attempts', 0))
-        if provider in ('anthropic_api', 'openai_api') and 'cost_parts' in accounting:
+        if provider in ('anthropic_api', 'openai_api', 'dual') and 'cost_parts' in accounting:
             # Each API request (including pause_turn continuation) has its
             # own cache details, tier, geography, and search counter. Aggregate usage is
             # for display only and must never be priced again here.
@@ -221,15 +221,26 @@ class CostLedger:
                 if not isinstance(part, dict):
                     self._record('평가', provider, model, reason='요청별 사용량 형식 미확인')
                     continue
-                if provider == 'openai_api' and part.get('service_tier') is None:
-                    self._record('평가', provider, part.get('model') or model, reason='서비스 등급 미기록')
+                part_model = part.get('model') or model
+                # 병행 판정(dual)의 요청별 사용량은 심판마다 단가가 다르다 — Jev 요청은 jev, 나머지는 openai_api 로 센다
+                part_provider = ('jev' if str(part_model).startswith('jev') else 'openai_api') if provider == 'dual' else provider
+                if part_provider == 'openai_api' and part.get('service_tier') is None:
+                    self._record('평가', part_provider, part_model, reason='서비스 등급 미기록')
                     continue
-                self._record('평가', provider, part.get('model') or model, part.get('usage'),
+                self._record('평가', part_provider, part_model, part.get('usage'),
                              web_search_calls=part.get('web_search_calls'),
                              service_tier=part.get('service_tier'), inference_geo=part.get('inference_geo'))
             attempts = getattr(call, 'attempts', None)
             if attempts is not None:
                 unreported = max(unreported, max(0, _count(attempts) - len(parts)))
+            by_model = accounting.get('unreported_by_model') if provider == 'dual' else None
+            if isinstance(by_model, dict) and sum(_count(n) for n in by_model.values()) >= unreported:
+                # 병행 판정 — 미확인 요청도 심판(모델)별 행에 적는다 (Jev 시간 초과를 Luna 행으로 세지 않게)
+                for part_model, n in by_model.items():
+                    part_provider = 'jev' if str(part_model).startswith('jev') else 'openai_api'
+                    for _ in range(min(_count(n), 100)):
+                        self._record('평가', part_provider, part_model, reason='요청 사용량 미확인')
+                return
             for _ in range(min(unreported, 100)):
                 self._record('평가', provider, model, reason='요청 사용량 미확인')
             return

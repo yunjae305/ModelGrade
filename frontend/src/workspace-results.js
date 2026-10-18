@@ -31,6 +31,10 @@
       J5_SEARCH_ERROR: '검색 실행 오류로 미완료', J5_FETCH_ERROR: '원문 열기 도구 오류로 미완료'})[decision?.reason_code] || '판정 미완료');
   }
   const j5OutcomePending = new Set(['search_unavailable', 'search_error', 'fetch_error', 'incomplete']);
+  // 보류(semantic-hold-unverified-v3, 2026-10-18) — 근거를 확인하지 못해 PASS/FAIL 을 정하지 않은 판정. 저장된 옛 결과의 같은 코드 FAIL 과는
+  // decision 으로 구분한다(FAIL 이면 예전 정책의 검증 한계 FAIL, 판정이 없으면 보류).
+  const j5OutcomeHeld = new Set(['held', 'source_unavailable', 'insufficient_evidence', 'search_limit_reached']);
+  function j5Held(outcome, decision) { return Boolean(outcome?.code) && j5OutcomeHeld.has(outcome.code) && decision !== 'FAIL' && decision !== 'PASS'; }
   const citationLabels = {supported: '출처가 주장을 뒷받침', contradicted: '출처가 주장과 모순', unrelated: '출처가 주장과 무관',
     not_found: '출처에 해당 내용 없음', inaccessible: '출처 원문 접근 불가', unverified: '판정 확정 안 함', unchecked: '확인하지 않음'};
   const searchModes = {live: '웹 검색 사용', disabled: '웹 검색 꺼짐(설정)', unsupported: '검색 도구가 없는 평가자',
@@ -40,15 +44,16 @@
   function j5Detail(outcome, decision) {
     if (!outcome?.code) return null;
     const sub = outcome.source_failure?.label || outcome.contradiction?.label || outcome.citation_access?.label || '';
-    const pending = j5OutcomePending.has(outcome.code), basis = outcome.contradiction?.basis;
+    const held = j5Held(outcome, decision), pending = j5OutcomePending.has(outcome.code) || held, basis = outcome.contradiction?.basis;
     const note = outcome.factual_error_confirmed ? ({user_input: '질문·앞 대화에서 사용자가 준 정보와 답변이 어긋납니다. 외부 자료로 확인한 사실 오류는 아닙니다.',
         reference: '제공된 참고 자료와 답변이 어긋납니다.', citation: '답변이 출처로 든 문서와 답변 내용이 어긋납니다.'})[basis]
         || '신뢰할 수 있는 근거와 충돌하는 사실 오류입니다.'
+      : held ? '보류 — 근거를 확인하지 못해 PASS/FAIL 을 정하지 않았습니다. 질문·답변을 직접 보고 정해 주세요. FAIL이 아닙니다.'
       : pending ? '판정 미완료 — 사실 여부를 확인하지 못한 평가 상태이며 FAIL이 아닙니다.'
       : decision === 'FAIL' ? '사실 오류를 확정한 FAIL이 아닙니다.' + (outcome.citation_access?.side === 'evaluation_environment' ?
         ' 서버가 답변의 출처를 열지 못했으며 확인 환경 문제일 수 있습니다.' : '')
       : '근거로 확인된 판정입니다.';
-    return {title: (outcome.label || outcome.code) + (sub ? ` (${sub})` : ''), note, confirmed: Boolean(outcome.factual_error_confirmed), pending};
+    return {title: (outcome.label || outcome.code) + (sub ? ` (${sub})` : ''), note, confirmed: Boolean(outcome.factual_error_confirmed), pending, held};
   }
   // 검증 한계 FAIL — 근거·원문을 확인하지 못해 정책상 FAIL 로 둔 판정 (webapp/run_summary.verification_limited_decision 과 같은 규칙).
   // 출처 접근 불가(citation_inaccessible)는 사용자 결정(evidence-v3.14)대로 답변 결함으로 본다.
@@ -258,7 +263,7 @@
     });
     const outcome = j5?.j5_outcome;
     if (outcome?.code && outcome.code !== 'not_applicable') {
-      box.append(make('div', {class: j5OutcomePending.has(outcome.code) ? 'semantic-policy-pending' :
+      box.append(make('div', {class: j5OutcomePending.has(outcome.code) || j5Held(outcome, j5?.decision) ? 'semantic-policy-pending' :
         j5?.decision === 'FAIL' ? 'semantic-policy-failure' : 'semantic-policy-pass', 'data-j5-outcome': outcome.code},
         make('strong', {text: 'J5 판정 사유 · ' + j5Detail(outcome, j5?.decision).title}),
         note(j5Detail(outcome, j5?.decision).note),

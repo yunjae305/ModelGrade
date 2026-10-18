@@ -54,7 +54,7 @@ PROVIDERS = {"gemini": "Gemini", "claude": "Claude", "gpt": "GPT"}
 WEB_PROVIDERS = ("aiona", "factchat_web", "oosoo_web", "chatgpt_web", "gemini_web", "claude_web")
 PAUSED_WEB_PROVIDERS = frozenset({"oosoo_web", "factchat_web"})   # 사용자 결정 2026-10-14 우수AI·2026-10-15 FactChat: 당분간 수집하지 않음 (여기서 빼면 다시 수집)
 WEB_LABELS = {"aiona": "AIONA 웹브라우저 · 자동 추천", "factchat_web": "FactChat 웹브라우저 · 기본 에이전트", "oosoo_web": "우수AI 웹브라우저 · 기본 모델",
-              "chatgpt_web": "ChatGPT 웹브라우저 · GPT-6 · Medium", "gemini_web": "Gemini 웹브라우저 · 자동 모드 · 사고 수준 보통",
+              "chatgpt_web": "ChatGPT 웹브라우저 · GPT-6 · Medium", "gemini_web": "Gemini 웹브라우저 · 3.6 Flash · 사고 수준 보통",
               "claude_web": "Claude 웹브라우저 · Sonnet 5.5 · 노력 중간"}
 #: 수집용 Chrome(tools/chrome_cdp.py)이 떠 있으면 이 웹 모델이 같은 회사의 API 모델을 대신한다 — 같은 모델을 두 번 받지 않는다 (사용자 결정 2026-10-15: 수집은 웹브라우저)
 WEB_REPLACES_API = {"chatgpt_web": "gpt", "gemini_web": "gemini", "claude_web": "claude"}

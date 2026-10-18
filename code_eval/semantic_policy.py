@@ -14,22 +14,24 @@ from .semantic_sources import _REASONS
 
 
 #: v2 — 서버가 받지 못한 출처는 같은 요청의 공급자 web_fetch 원문으로 대조한다 (F5b). 둘 다 없을 때의 FAIL 규칙은 v1 과 같다.
-SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v2"
-FINAL_DECISION_POLICY_VERSION = "semantic-binary-outcome-v2"
+SOURCE_ORIGINAL_FAILURE_POLICY_VERSION = "j5-source-original-failure-v3"   # v3: 확인 실패는 FAIL 대신 보류 (semantic-hold-unverified-v3 와 함께)
+#: v3(2026-10-18, 사용자 결정) — 근거가 부족해 확인하지 못한 기준은 FAIL 이 아니라 **보류**(UNVERIFIED 유지, review_required)로 두고
+#:      사람이 PASS/FAIL 을 정한다. 확인된 사실 오류·출처 불일치·답변이 든 URL 접근 불가는 그대로 FAIL. v2 까지는 근거 부족을 FAIL 로 확정했다.
+FINAL_DECISION_POLICY_VERSION = "semantic-hold-unverified-v3"
 #: v2 — 원문 열기(web_fetch) 도구 오류를 검색 오류와 따로 기록한다 (판정 값은 v1 과 같음).
 #: v3 — 출처 원문 확인 실패(source_unavailable)의 세부 사유를 접근 실패와 인용문 미확인으로 나눠 기록한다
 #:      (code·label·판정 값은 v2 와 같음 — source_failure 상세 항목만 추가).
-J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v5"   # v4: 답변이 든 URL 접근 불가(citation_inaccessible) 구분 · v5: 충돌 근거·URL 접근 실패 주체 기록
+J5_OUTCOME_POLICY_VERSION = "j5-outcome-detail-v6"   # v4: 답변이 든 URL 접근 불가(citation_inaccessible) 구분 · v5: 충돌 근거·URL 접근 실패 주체 기록 · v6: 보류(held) 사유 추가
 SOURCE_DECISION_POLICY = {"j5_source_original_failure": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION}
 #: items 파이프라인의 재확인 정책 — 3회 뒤 남은 문제는 '확인 불가로 FAIL' (semantic_quotes.RECHECK_POLICY 와 같은 값)
 ITEMS_RECHECK_POLICY_VERSION = "items-recheck-3-then-fail-v1"
 DECISION_POLICY = {**SOURCE_DECISION_POLICY, "semantic_final_outcome": FINAL_DECISION_POLICY_VERSION,
                    "judge_fail_evidence": REASON_EVIDENCE_POLICY_VERSION, "j5_outcome": J5_OUTCOME_POLICY_VERSION,
                    "items_recheck": ITEMS_RECHECK_POLICY_VERSION}
-SOURCE_ORIGINAL_FAILURE_REASON = "출처 원문 확인 실패로 검증 기준 미충족"
+SOURCE_ORIGINAL_FAILURE_REASON = "보류 — 출처 원문을 확인하지 못함 (사람이 PASS/FAIL 을 정함)"
 SOURCE_ORIGINAL_FAILURE_CODE = "SOURCE_ORIGINAL_UNAVAILABLE"
 FINAL_EVIDENCE_FAILURE_CODE = "EVALUATION_EVIDENCE_INSUFFICIENT"
-FINAL_EVIDENCE_FAILURE_REASON = "평가 근거 부족으로 검증 기준 미충족"
+FINAL_EVIDENCE_FAILURE_REASON = "보류 — 평가 근거가 부족해 확인하지 못함 (사람이 PASS/FAIL 을 정함)"
 INPUT_SCOPE_REVALIDATED_CODE = "INPUT_SCOPE_REVALIDATED"
 INPUT_SCOPE_REVALIDATED_REASON = "사용자 제공 정보와 일치"
 SEARCH_UNAVAILABLE_CODE = "J5_SEARCH_UNAVAILABLE"
@@ -48,6 +50,7 @@ J5_OUTCOMES = {
     "verified": "검증 완료",
     "contradicted": "사실 오류 — 근거와 충돌",
     "insufficient_evidence": "검증 기준 미충족 — 근거 부족",
+    "held": "보류 — 확인하지 못해 사람이 판단",
     "search_limit_reached": "검증 기준 미충족 — 검색 한도 도달",
     "source_unavailable": "검증 기준 미충족 — 출처 원문 확인 실패",
     "source_mismatch": "출처 불일치 — 답변이 든 출처가 주장을 뒷받침하지 않음",
@@ -191,12 +194,15 @@ def apply_source_original_failure_policy(record):
     if not failures:
         return result
     j5 = record["decisions"]["J5"]
+    if j5.get("reason_code") == SOURCE_ORIGINAL_FAILURE_CODE:   # 이미 보류로 정리한 레코드 — 다시 적용해도 바뀌지 않는다
+        result["changed"] = False
+        return result
     j5["policy_original_assessment"] = copy.deepcopy(j5)
-    j5.pop("status", None)
-    j5.update(decision="FAIL", reason=SOURCE_ORIGINAL_FAILURE_REASON,
+    # 보류 — 확인하지 못한 것이지 사실 오류가 아니다. 판정 값을 비우고 UNVERIFIED 로 두어 사람이 정하게 한다 (v3)
+    j5.update(status="UNVERIFIED", decision=None, confidence=None, probabilities={}, reason=SOURCE_ORIGINAL_FAILURE_REASON,
               reason_code=SOURCE_ORIGINAL_FAILURE_CODE,
               decision_policy={"version": SOURCE_ORIGINAL_FAILURE_POLICY_VERSION,
-                               "outcome_basis": "source_verification_requirement",
+                               "outcome_basis": "held_for_review",
                                "factual_error_confirmed": False, "failures": copy.deepcopy(failures)})
     record["decision_policy"] = copy.deepcopy(SOURCE_DECISION_POLICY)
     record["review_required"] = any(unresolved(decision) for decision in record["decisions"].values())
@@ -331,6 +337,8 @@ def j5_outcome(record):
         outcome = "not_applicable"
     elif status == "INCOMPLETE":
         outcome = _SEARCH_BLOCKED.get(code, ("incomplete",))[0]
+    elif status == "UNVERIFIED" and decision not in ("PASS", "FAIL"):
+        outcome = "source_unavailable" if code == SOURCE_ORIGINAL_FAILURE_CODE else "held"
     elif decision == "PASS":
         outcome = "verified"
     elif decision == "FAIL" and code == SOURCE_ORIGINAL_FAILURE_CODE:
@@ -447,7 +455,7 @@ def citation_access_detail(j5):
 
 
 def source_failure_detail(j5):
-    """SOURCE_ORIGINAL_UNAVAILABLE FAIL 의 실패 출처를 접근 실패와 인용문 미확인으로 나눈다. 판정 값은 보지 않고 바꾸지 않는다.
+    """SOURCE_ORIGINAL_UNAVAILABLE 보류(v2 까지는 FAIL)의 실패 출처를 접근 실패와 인용문 미확인으로 나눈다. 판정 값은 보지 않고 바꾸지 않는다.
 
     인용문 미확인(quote_not_found)은 서버가 원문을 받았거나, 서버는 못 받았지만 평가자 web_fetch 원문(provider_document)을
     대신 대조한 경우다. 나머지 실패 상태는 원문을 받지 못한 접근 실패다.
@@ -475,12 +483,12 @@ def source_failure_detail(j5):
 
 
 def apply_final_decision_policy(record, *, state=None):
-    """Finish successfully evaluated criteria as PASS or FAIL, with an audit.
+    """Finish successfully evaluated criteria: PASS/FAIL stay, unverified ones are held for review (v3), with an audit.
 
     Provider/tool errors and unrequested criteria (for example a missing-history
     J6 check) remain evaluation errors. Existing binary outcomes are never
-    overwritten. A deterministic lack-of-evidence FAIL is not a factual-error
-    assertion, and a recovered input PASS requires revalidated original input.
+    overwritten. A lack of evidence is never turned into a FAIL (it is held, UNVERIFIED,
+    for a person to decide), and a recovered input PASS requires revalidated original input.
     """
     result = {"changed": False, "policy_version": FINAL_DECISION_POLICY_VERSION, "changes": []}
     if not isinstance(record, dict) or record.get("status") != "SUCCESS" or not isinstance(record.get("decisions"), dict):
@@ -504,7 +512,7 @@ def apply_final_decision_policy(record, *, state=None):
     if "J5" in requested:
         source_change = apply_source_original_failure_policy(record)
         if source_change["changed"]:
-            result["changes"].append({"criterion_id": "J5", "decision": "FAIL", "reason_code": SOURCE_ORIGINAL_FAILURE_CODE,
+            result["changes"].append({"criterion_id": "J5", "status": "UNVERIFIED", "reason_code": SOURCE_ORIGINAL_FAILURE_CODE,
                                        "failures": source_change["failures"]})
     j5 = record["decisions"].get("J5")
     if ("J5" in requested and isinstance(j5, dict) and j5.get("status") == "UNVERIFIED"
@@ -519,15 +527,17 @@ def apply_final_decision_policy(record, *, state=None):
             result["changes"].append({"criterion_id": "J5", "status": "INCOMPLETE", "reason_code": blocked})
     for cid, decision in record["decisions"].items():
         if (cid not in requested or not isinstance(decision, dict) or decision.get("status") != "UNVERIFIED"
-                or decision.get("decision") in ("PASS", "FAIL")):
+                or decision.get("decision") in ("PASS", "FAIL")
+                or decision.get("reason_code") in (FINAL_EVIDENCE_FAILURE_CODE, SOURCE_ORIGINAL_FAILURE_CODE)):   # 이미 보류
             continue
         decision["policy_original_assessment"] = copy.deepcopy(decision)
-        decision.pop("status", None)
-        decision.update(decision="FAIL", reason=FINAL_EVIDENCE_FAILURE_REASON,
+        # 보류(v3) — UNVERIFIED 를 유지하고 사유만 적는다. 평가 모델이 남긴 사유는 policy_original_assessment 에 그대로 있다.
+        original_reason = decision.get("reason") if isinstance(decision.get("reason"), str) else ""
+        decision.update(decision=None, reason=FINAL_EVIDENCE_FAILURE_REASON + (f" · {original_reason}" if original_reason else ""),
                         reason_code=FINAL_EVIDENCE_FAILURE_CODE,
                         decision_policy={"version": FINAL_DECISION_POLICY_VERSION,
-                                         "outcome_basis": "evidence_requirement", "factual_error_confirmed": False})
-        result["changes"].append({"criterion_id": cid, "decision": "FAIL", "reason_code": FINAL_EVIDENCE_FAILURE_CODE})
+                                         "outcome_basis": "held_for_review", "factual_error_confirmed": False})
+        result["changes"].append({"criterion_id": cid, "status": "UNVERIFIED", "reason_code": FINAL_EVIDENCE_FAILURE_CODE})
     result["changed"] = bool(result["changes"])
     if result["changed"] or record.get("reevaluation") or record.get("context_reevaluation"):
         record["decision_policy"] = copy.deepcopy(DECISION_POLICY)

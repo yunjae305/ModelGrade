@@ -128,15 +128,50 @@ def _render_answer(answer):
         lines.append(_ANSWER_STRONG.sub(r"\1", line))
     return "\n".join(lines)
 
-def _in_answer(claim, answer, rendered=None):
-    """J5 주장이 답변에 있는가 — 원문 그대로, 또는 화면에 보이는 글자(굵게 표시 '**…**' 를 벗긴 답변)에서.
+#: 느슨한 대조 — 서식용 공백만 지운다: JSON·표의 구조 기호({ } [ ] , : |) 옆의 공백(줄바꿈·들여쓰기 포함)은 없애고, 그 밖의 공백은
+#: 하나로 남긴다. 그래서 JSON '{\n  "a": 1\n}' 과 '{"a":1}' 은 같아지지만 '12 34' 와 '1234', '" A "' 와 '"A"', 'x + ++y' 와 'x++ + y',
+#: '2**3' 과 '23', '123 | 456' 과 '123456' 은 다르다 (Codex 검토 2026-10-18). 굵게 표시는 _render_answer 규칙(코드 안은 보존)을 따른다.
+_LOOSE_SPACE = re.compile(r"\s+")
+_LOOSE_AROUND_SYMBOL = re.compile(r"\s*([{}\[\],:|])\s*")
+_LOOSE_STRING = re.compile(r'''"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*\'''')   # 큰·작은따옴표 문자열 — 안의 공백은 값의 일부라 건드리지 않는다 ("a | b" ≠ "a|b")
+_LOOSE_QUOTES = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'", "「": '"', "」": '"', "『": '"', "』": '"'})
+#: 느슨한 대조로 인정하는 주장의 최소 길이(서식 공백을 뺀 글자 수) — 너무 짧으면 우연히 포함될 수 있다
+_LOOSE_MIN_CHARS = 6
 
-    평가 모델은 답변의 '- **시간 복잡도**: O(log N)' 을 '시간 복잡도: O(log N)' 처럼 보이는 글자로 옮기곤 한다.
-    ``rendered`` 는 같은 답변을 여러 주장에 쓸 때 미리 만든 값이다."""
+
+def _loose(value):
+    """서식 공백을 뺀 글자열 — 평가 모델이 JSON 조각·표 칸을 줄바꿈·들여쓰기 없이 옮겨 적어도 같은 글자가 되게. 낱말 사이 공백과
+    큰따옴표 문자열 안은 보존한다(문자열 밖의 구조 기호 옆 공백만 정규화)."""
+    if not isinstance(value, str):
+        return ""
+    text = value.translate(_LOOSE_QUOTES)
+    parts, last = [], 0
+    for match in _LOOSE_STRING.finditer(text):
+        parts.append(_LOOSE_AROUND_SYMBOL.sub(r"\1", _LOOSE_SPACE.sub(" ", text[last:match.start()])))
+        parts.append(match.group(0))
+        last = match.end()
+    parts.append(_LOOSE_AROUND_SYMBOL.sub(r"\1", _LOOSE_SPACE.sub(" ", text[last:])))
+    return "".join(parts).strip()
+
+
+def _in_answer(claim, answer, rendered=None, loose=True):
+    """J5 주장이 답변에 있는가 — 원문 그대로, 화면에 보이는 글자(굵게 표시 '**…**' 를 벗긴 답변), 또는(``loose``) 서식 공백을 뺀 느슨한 대조.
+
+    느슨한 대조는 **PASS·확인 불가 주장에만** 쓴다(호출자가 FAIL 주장에는 loose=False) — 공백 차이만 있는 다른 글자열을 같다고 보고
+    사실 오류 FAIL 을 확정하는 일이 없게 (Codex 검토 2026-10-18). 보류였을 주장을 PASS 로 올리는 쪽은 자료 대조가 한 번 더 걸러 준다.
+
+    평가 모델은 답변의 '- **시간 복잡도**: O(log N)' 을 '시간 복잡도: O(log N)' 처럼 보이는 글자로 옮기곤 하고, JSON·표 답변은
+    줄바꿈·들여쓰기를 빼고 옮긴다(2026-10-18 실험: J5 '근거 부족' 보류의 상당수가 이 때문). 느슨한 대조는 보이는 글자(rendered)에서
+    공백만 지우고 비교하므로 코드 속 '**'·연산자·표 칸 구분은 그대로 남는다. ``rendered`` 는 같은 답변을 여러 주장에 쓸 때 미리 만든 값이다."""
     if _contained(claim, answer):
         return True
     rendered = _render_answer(answer) if rendered is None else rendered
-    return rendered != answer and _contained(claim, rendered)
+    if rendered != answer and _contained(claim, rendered):
+        return True
+    if not loose:
+        return False
+    relaxed = _loose(claim)
+    return len(relaxed) >= _LOOSE_MIN_CHARS and relaxed in _loose(rendered)
 
 
 def _unverified(entry, reason):
@@ -255,7 +290,7 @@ def _fact_check(entry, state, verification):
         supported_sources = 0
         source_problems = []
         problem = None
-        if not _in_answer(item.get("claim"), answer, rendered):
+        if not _in_answer(item.get("claim"), answer, rendered, loose=item.get("verdict") != "FAIL"):   # FAIL 주장은 글자 그대로만
             problem = "검증 주장이 평가 대상 답변 원문에 없습니다."
         if item.get("verdict") not in ("PASS", "FAIL", "UNVERIFIED"):
             problem = "주장 판정 형식이 올바르지 않습니다."
@@ -400,7 +435,7 @@ def _citation_check(entry, state, verification=None):
         where = "평가자가 web_fetch 로 받은 출처 원문" if provider else "출처 원문"
         if citation is None:
             verdict, note = "unverified", "답변이 제시한 출처 URL이 아닙니다."
-        elif not _in_answer(check.get("claim"), answer, rendered):
+        elif not _in_answer(check.get("claim"), answer, rendered, loose=False):   # 출처 대조 주장은 글자 그대로만
             verdict, note = "unverified", "주장 구절이 답변 원문에 없습니다."
         elif item["server_status"] is None:
             verdict, note = "unchecked", "서버가 출처 원문을 받지 않아 판정에 쓰지 않았습니다."

@@ -636,7 +636,7 @@ class MockJudge:
         blocks, searches = [], 0
         mode = behavior.get("search")
         unverified = (not searching or mode in ("error", "limit")
-                      or set(outcomes) & {"insufficient_evidence", "search_limit_reached"})
+                      or set(outcomes) & {"held", "insufficient_evidence", "search_limit_reached"})   # held: v3 보류
         if searching and mode == "error":
             blocks += [{"type": "server_tool_use", "id": "s1", "name": "web_search", "input": {"query": "mock"}},
                        {"type": "web_search_tool_result", "tool_use_id": "s1",
@@ -717,10 +717,11 @@ SCENARIOS = (
      {"D2-04": {"verdict": "INCOMPLETE", "J5": "INCOMPLETE", "outcome": "search_unavailable"}}),
     ("검색 오류", ["D2-04"], {"D2-04": {"search": "error"}}, "live", False,
      {"D2-04": {"verdict": "INCOMPLETE", "J5": "INCOMPLETE", "outcome": "search_error"}}),
+    # v3(semantic-hold-unverified-v3): 검색 한도 도달·출처 원문 확보 실패는 FAIL 이 아니라 보류(UNVERIFIED 유지) — 질문은 미완료
     ("검색 한도 초과", ["D2-03"], {"D2-03": {"search": "limit"}}, "live", False,
-     {"D2-03": {"verdict": "FAIL", "J5": "FAIL", "outcome": "search_limit_reached", "factual": False}}),
+     {"D2-03": {"verdict": "INCOMPLETE", "J5": "UNVERIFIED", "outcome": "held", "factual": False}}),
     ("출처 원문 확보 실패", ["G4-01"], {}, "live", True,
-     {"G4-01": {"verdict": "FAIL", "J5": "FAIL", "outcome": "source_unavailable", "factual": False, "mismatch": False}}),
+     {"G4-01": {"verdict": "INCOMPLETE", "J5": "UNVERIFIED", "outcome": "source_unavailable", "factual": False, "mismatch": False}}),
     ("구조화 판정 응답 오류", ["GEN-01"], {"GEN-01": {"invalid": True}}, "live", False,
      {"GEN-01": {"verdict": "INCOMPLETE", "status": JevStatus.INVALID_RESPONSE}}),
 )

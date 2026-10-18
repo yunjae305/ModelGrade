@@ -119,11 +119,11 @@ def _policy_settings(policy):
         return (SOURCE_ORIGINAL_FAILURE_POLICY_VERSION,
                 {'j5_source_original_failure': SOURCE_ORIGINAL_FAILURE_POLICY_VERSION},
                 'source-failure-policy',
-                '사용자 요청: 출처 원문 확인 실패는 보류 대신 신뢰도 검증 기준 미충족 FAIL로 반영. 답변 재수집·재평가 호출 없음.')
+                '출처 원문 확인 실패는 보류(사람이 PASS/FAIL 을 정함, 2026-10-18 전에는 FAIL)로 반영. 답변 재수집·재평가 호출 없음.')
     if policy == 'final':
         from code_eval.semantic_policy import FINAL_DECISION_POLICY_VERSION
         return (FINAL_DECISION_POLICY_VERSION, DECISION_POLICY, 'binary-decision-policy',
-                '사용자 요청: 보류 판정을 원문 근거 재검증 후 PASS 또는 검증 기준 미충족 FAIL로 확정. 답변 재수집·재평가 호출 없음.')
+                '보류 판정을 원문 근거 재검증 후 PASS 로 복원하거나 보류 사유 코드를 붙임(2026-10-18 전에는 FAIL 확정). 답변 재수집·재평가 호출 없음.')
     raise ValueError('지원하지 않는 최종 판정 정책입니다.')
 
 
@@ -191,7 +191,7 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
                     _refresh_j5_outcome(record, had_outcome)
                     provider_modifications.append({'provider': provider, 'case_index': index,
                         'case_id': record['case_id'], 'criterion': 'J5', 'before': 'UNVERIFIED',
-                        'after': 'FAIL', 'source_failures': copy.deepcopy(update['failures'])})
+                        'after': 'HELD', 'source_failures': copy.deepcopy(update['failures'])})
             elif isinstance(record, dict):
                 from code_eval.semantic_policy import apply_final_decision_policy
                 previous = copy.deepcopy(record.get('decisions') or {})
@@ -200,10 +200,14 @@ def migrate(root, run_id, *, apply=False, policy='source_original'):
                     _refresh_j5_outcome(record, had_outcome)
                     for cid, decision in (record.get('decisions') or {}).items():
                         old = previous.get(cid) or {}
-                        if old.get('status') == 'UNVERIFIED' and decision.get('decision') in ('PASS', 'FAIL'):
+                        # PASS/FAIL 전환뿐 아니라 보류 정리(사유 코드 부여·INCOMPLETE 전환)도 변경이다 — 빠뜨리면 비교 실행 파일만 바뀌고
+                        # 연결된 평가 파일은 그대로 남아 둘이 어긋난다 (시험 갱신 중 확인 2026-10-18)
+                        if old.get('status') == 'UNVERIFIED' and old != decision:
+                            outcome_after = decision.get('decision') if decision.get('decision') in ('PASS', 'FAIL') else \
+                                ('INCOMPLETE' if decision.get('status') == 'INCOMPLETE' else 'HELD')
                             provider_modifications.append({'provider': provider, 'case_index': index,
                                 'case_id': record['case_id'], 'criterion': cid, 'before': 'UNVERIFIED',
-                                'after': decision['decision'], 'reason_code': decision.get('reason_code'),
+                                'after': outcome_after, 'reason_code': decision.get('reason_code'),
                                 'reason': decision.get('reason')})
         if provider_modifications:
             linked = _linked_path(root, original_batch)
@@ -303,7 +307,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--policy', choices=('source_original', 'final'), default='source_original',
-                        help='final은 원문 재검증 후 모든 의미 보류를 PASS/FAIL로 확정합니다.')
+                        help='final은 원문 재검증 후 입력 범위 PASS 를 복원하고 나머지 보류에 사유 코드를 붙입니다(FAIL 확정 아님).')
     parser.add_argument('--apply', action='store_true', help='정확한 원본 백업 후 변경을 저장합니다. 기본값은 읽기 전용 검토입니다.')
     args = parser.parse_args()
     print(json.dumps(migrate(ROOT, args.run_id, apply=args.apply, policy=args.policy), ensure_ascii=False, indent=2))

@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlsplit
 
-from .jev_client import resolve_semantic_pipeline
+from .jev_client import resolve_jev_client, resolve_semantic_pipeline
 from .llm_client import env_value, redact
 
 _LABELS ={"openai_api": "OpenAI API", "anthropic_api": "Claude API", "codex_cli": "GPT CLI (Codex)",
-           "claude_cli": "Claude CLI", "jev": "Jev", "injected": "주입된 평가자"}
+           "claude_cli": "Claude CLI", "jev": "Jev", "dual": "Jev + GPT-6 Luna 병행", "injected": "주입된 평가자"}
 _CONNECTION_NOTE = "설정만 확인했습니다. 실제 연결·로그인·모델 접근은 평가 실행 시 확인합니다."
 
 
@@ -29,6 +29,14 @@ def _model_label(value: Optional[str]) -> Optional[str]:
 
 def _effort_label(value):
     return value if value in ("none", "minimal", "low", "medium", "high", "xhigh", "max") else None
+
+
+def _check_jev_base(value: str) -> None:
+    """Jev 주소가 http(s) 와 호스트를 갖추고 포트가 읽히는지 — 아니면 ValueError (설정 점검은 invalid 로 표시)."""
+    base = urlsplit(value)
+    if base.scheme not in ("http", "https") or not base.hostname:
+        raise ValueError("invalid base")
+    base.port
 
 
 def semantic_setup(environment: Optional[Dict[str, str]] = None,
@@ -99,24 +107,25 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
             search(config.web_search)
             if not read("ANTHROPIC_API_KEY"):
                 return missing("Claude API 평가에 사용할 ANTHROPIC_API_KEY가 등록되지 않았습니다.")
-        elif engine == "openai_api":
-            from .semantic_api_client import SemanticApiConfig, optional_tool_call_limit
-            config = SemanticApiConfig(
-                model=read("SEMANTIC_API_MODEL") or "gpt-6.1-sol",
-                api_base=read("SEMANTIC_API_BASE") or "https://api.openai.com/v1",
-                timeout=float(read("SEMANTIC_API_TIMEOUT") or 180),
-                max_output_tokens=int(read("SEMANTIC_API_MAX_OUTPUT_TOKENS") or 12000),
-                reasoning_effort=read("SEMANTIC_API_REASONING") or "high",
-                web_search=read("SEMANTIC_WEB_SEARCH") or "live",
-                max_tool_calls=optional_tool_call_limit(read("SEMANTIC_API_MAX_TOOL_CALLS")),
-                evidence_recovery_rounds=int(read("SEMANTIC_API_EVIDENCE_RECOVERY_ROUNDS") or 1),
-                evidence_recovery_timeout=float(read("SEMANTIC_API_EVIDENCE_RECOVERY_TIMEOUT") or 120),
-                evidence_recovery_max_tool_calls=optional_tool_call_limit(read("SEMANTIC_API_EVIDENCE_RECOVERY_MAX_TOOL_CALLS")),
-            )
-            result.update(model=_model_label(config.model), reasoning_effort=_effort_label(config.reasoning_effort))
-            search(config.web_search)
-            if not read("SEMANTIC_API_KEY"):
-                return missing("의미 평가용 SEMANTIC_API_KEY가 등록되지 않았습니다. 답변 수집용 키는 대신 사용하지 않습니다.")
+        elif engine in ("openai_api", "dual"):
+            # 실행 경로(jev_client.resolve_jev_client)와 같은 설정 생성 — 잘못된 값(시간·검색 설정)은 여기서도 invalid 가 된다 (Codex 검토)
+            _, config, reason = resolve_jev_client(environment, env_path, "openai_api")
+            if engine == "dual":
+                # 병행 판정(dual-judge-v1): Luna(openai_api)가 모든 기준, Jev 가 J1~J4 — 두 키가 다 있어야 한다. 호출은 늘 realtime
+                _, jev_config, jev_reason = resolve_jev_client(environment, env_path, "jev")
+                _check_jev_base(jev_config.api_base)
+                result.update(model=f"{_model_label(config.model)} + {_model_label(jev_config.model)}",
+                              reasoning_effort=_effort_label(config.reasoning_effort))
+                search(config.web_search)
+                if reason:
+                    return missing("병행 판정의 GPT-6 Luna 쪽 — " + reason)
+                if jev_reason:
+                    return missing("병행 판정의 Jev 쪽 — " + jev_reason)
+            else:
+                result.update(model=_model_label(config.model), reasoning_effort=_effort_label(config.reasoning_effort))
+                search(config.web_search)
+                if reason:
+                    return missing(reason)
         elif engine == "codex_cli":
             from .codex_cli_client import CodexCliConfig, find_codex_executable
             executable = find_codex_executable(read("CODEX_CLI_PATH"))
@@ -137,10 +146,7 @@ def semantic_setup(environment: Optional[Dict[str, str]] = None,
             if not find_claude_executable(read("CLAUDE_CLI_PATH")):
                 return missing("Claude CLI 실행 파일을 찾지 못했습니다. 설치 또는 CLAUDE_CLI_PATH 설정을 확인해 주세요.")
         else:
-            base = urlsplit(read("TYPESAFE_API_BASE") or "https://api.typesafe.ai/v1")
-            if base.scheme not in ("http", "https") or not base.hostname:
-                raise ValueError("invalid base")
-            base.port
+            _check_jev_base(read("TYPESAFE_API_BASE") or "https://api.typesafe.ai/v1")
             result["model"] = _model_label(read("JEV_MODEL") or "jev-latest")
             result.update(search_status="not_supported", search_message="Jev 연결에서는 별도 웹 검색을 실행하지 않습니다. 사실 검증용 참조 자료를 확인해 주세요.")
             if not read("TYPESAFE_API_KEY"):

@@ -1,4 +1,4 @@
-"""Binary outcome migration restores only proven input PASS and audits changes."""
+"""최종 판정 정책 마이그레이션(final) — 입력 범위 재검증으로 증명된 PASS 만 되살리고, 나머지 보류는 보류로 남기며 변경을 기록한다."""
 import copy
 import json
 import sqlite3
@@ -61,11 +61,13 @@ def test_final_dry_run_restores_two_original_input_passes_without_writes(tmp_pat
     assert report['status'] == 'DRY_RUN' and files(tmp_path) == before
     assert [(r['provider'], r['after'], r['reason_code']) for r in report['changed_records']] == [
         ('aiona', 'PASS', 'INPUT_SCOPE_REVALIDATED'), ('claude', 'PASS', 'INPUT_SCOPE_REVALIDATED')]
-    assert all(counts['pending'] == 0 for counts in report['after'].values())
+    # 출처 원문 확인 실패 보류(aiona·gemini Q1)는 v3 에서 FAIL 로 확정하지 않으므로 미결로 남는다
+    assert {provider: counts['pending'] for provider, counts in report['after'].items()} == {'aiona': 1, 'gemini': 1, 'claude': 0, 'gpt': 0}
+    assert all(counts['fail'] == 0 for counts in report['after'].values())
     assert report['before']['gemini'] == report['after']['gemini']
 
 
-def test_final_apply_keeps_prior_fail_and_source_audit_progress_is_current_and_idempotent(tmp_path):
+def test_final_apply_keeps_prior_hold_and_source_audit_progress_is_current_and_idempotent(tmp_path):
     path, original = binary_fixture(tmp_path)
     # An unrelated historical run is never rewritten.
     historical = path.with_name('111111111111.json')
@@ -87,7 +89,9 @@ def test_final_apply_keeps_prior_fail_and_source_audit_progress_is_current_and_i
         assert batch['jev_eval']['client'] == old['jev_eval']['client']
         assert batch['jev_eval']['records'][0] == old['jev_eval']['records'][0]
         detail = current['evaluation_progress'][provider]
-        assert detail['semantic_success'] == 2 and detail['semantic_unverified'] == 0
+        # Q1 의 출처 원문 확인 실패 보류(aiona·gemini)는 그대로 확인 필요로 남는다
+        held_q1 = provider in ('aiona', 'gemini')
+        assert detail['semantic_success'] == (1 if held_q1 else 2) and detail['semantic_unverified'] == (1 if held_q1 else 0)
         assert detail['semantic_done'] == 2 and detail['updated_at'] == 'original-time'
         assert detail['latest'] == original['evaluation_progress'][provider]['latest']
         if provider in ('aiona', 'claude'):
@@ -95,7 +99,8 @@ def test_final_apply_keeps_prior_fail_and_source_audit_progress_is_current_and_i
             assert j5['decision'] == 'PASS'
             assert j5['policy_original_assessment'] == old['jev_eval']['records'][1]['decisions']['J5']
             assert j5['fact_check']['claims'][0]['sources'][0]['quote_verified'] is True
-            assert batch['jev_eval']['status'] == 'SUCCESS' and batch['jev_eval']['unverified'] == 0
+            assert batch['jev_eval']['status'] == ('PARTIAL' if held_q1 else 'SUCCESS')
+            assert batch['jev_eval']['unverified'] == (1 if held_q1 else 0)
         else:
             assert batch == old
     assert len(current['evaluation_policy_updates']) == 2 and current['evaluation_policy_updates'][-1]['update_id'] == report['update_id']
@@ -104,14 +109,16 @@ def test_final_apply_keeps_prior_fail_and_source_audit_progress_is_current_and_i
     assert files(tmp_path) == snapshot
 
 
-def test_changed_quote_cannot_be_restored_to_pass_and_finishes_as_evidence_fail(tmp_path):
+def test_changed_quote_cannot_be_restored_to_pass_and_stays_held(tmp_path):
     path, original = binary_fixture(tmp_path, broken_quote=True)
     report = migration.migrate(tmp_path, RUN_ID, policy='final', apply=True)
-    changed = next(item for item in report['changed_records'] if item['provider'] == 'claude')
-    assert changed['after'] == 'FAIL' and changed['reason_code'] != 'INPUT_SCOPE_REVALIDATED'
+    # 인용이 원문과 다르면 PASS 로 되살리지 않는다 — v3 에서는 FAIL 도 아니라 보류(HELD)로 정리되고, 그 정리도 변경 목록에 올라
+    # 연결된 평가 파일까지 같이 바뀐다 (보류 전환을 빠뜨리면 비교 실행 파일과 평가 파일이 어긋남)
+    assert [(item['provider'], item['after']) for item in report['changed_records']] == [('aiona', 'PASS'), ('claude', 'HELD')]
     j5 = json.loads(path.read_bytes())['evaluations']['claude']['jev_eval']['records'][1]['decisions']['J5']
+    assert j5['decision'] is None and j5['status'] == 'UNVERIFIED' and j5['reason_code'] == 'EVALUATION_EVIDENCE_INSUFFICIENT'
     assert j5['policy_original_assessment'] == original['evaluations']['claude']['jev_eval']['records'][1]['decisions']['J5']
-    assert j5['decision_policy']['factual_error_confirmed'] is False
+    assert j5['decision_policy']['factual_error_confirmed'] is False and j5['decision_policy']['outcome_basis'] == 'held_for_review'
 
 
 def test_final_replacement_failure_rolls_back_already_policy_updated_files(tmp_path, monkeypatch):

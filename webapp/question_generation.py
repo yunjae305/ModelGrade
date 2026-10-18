@@ -48,7 +48,7 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #:       멀티턴 답변 분량은 질문 문장에 쓰지 않고 설계 안내로만 (사용자 결정 2026-10-14)
 #: v1.5: 기준 단위 하나 — CODE 검사 28 + 의미 점검 항목 44 = 72 (질문으로 셀 수 있는 64)로 적용 수를 센다. v1.4 의 질문 조건 종류
 #:       37 단위는 뺐고, 조건 종류는 검사마다 쓸 수 있는 표현 안내로만 (사용자 결정 2026-10-15)
-QUESTION_GEN_VERSION = "question-gen-v1.5"
+QUESTION_GEN_VERSION = "question-gen-v2.0-kvar"   # v2.0: 질문당 변동 기준 수(k_var) 6~10 범위·범위 밖 상한·고치기 단계 (통제 실험 2026-10-18)
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -68,6 +68,13 @@ MAX_CALLS = 250               # 작업 하나의 GPT 호출 상한 (질문 수�
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = None   # 질문 하나가 노리는 항목 수 상한 — 10-15 사용자 결정으로 없앰(조건 많은 질문과 적은 질문을 섞되 자연스럽게)
 MAX_ATTACHMENT_CHARS = 4_000
+#: 질문당 변동 기준 수(k_var) 목표 범위와 범위 밖 단일 질문 상한 비율 — 통제 실험(기본 질문 18개 × k 1~16, 세 모델 API 답, Jev+Luna 평가,
+#: 2026-10-18): k 1~6 은 세 모델이 모두 PASS(72~94%), 7~10 에서 가장 잘 갈림(23~47%), 12 이상은 대부분 모두 FAIL(67~78%).
+#: k_var = 질문에 적용되는 변동 기준 54개(항상 적용 CODE 3·의미 7·답변 의존 항목 제외) 중 서로 다른 기준 수 — 코드 규칙(check)으로 센다
+K_RANGE = (6, 10)
+K_OUT_RATIO = 0.15            # 범위 밖 단일 질문 상한 = floor(단일 질문 수 × 비율) — 310개면 46개. "±15%" 가 아니라 개수 상한
+K_REPAIR_ROUNDS = 2           # 범위 밖이 상한을 넘으면 조건을 고치는 요청 회차 상한
+K_REPAIR_BATCH = 20           # 고치기 요청 하나에 넣는 질문 수
 #: 질문 수를 지정했을 때 10턴 대화·긴 문서 질문의 기본 비율 (설계안 v1.2 질문 세트 구성 초안: 멀티턴 10%, 롱컨텍스트 5%)
 MULTI_TURN_RATIO = 0.10
 LONG_CONTEXT_RATIO = 0.05
@@ -149,6 +156,10 @@ def criteria_catalog() -> Dict[str, List[Dict[str, str]]]:
 
 
 #: 변별력 — 전부 PASS 가 나오는 질문은 모델을 가르지 못한다 (사용자 결정 2026-10-14)
+_K_RULE = f"""- 질문당 기준 수(k_var)는 단일 질문마다 {K_RANGE[0]}개 이상 {K_RANGE[1]}개 이하를 목표로 합니다. k_var 는 그 질문에 실제로 적용되는 변동 기준(CODE 검사 id·의미 점검 항목 id, 항상 적용되는 검사·항목과 답변으로만 정해지는 항목은 제외)의 서로 다른 id 수이며, 시스템이 코드 규칙으로 다시 셉니다. target_items 수·조건 문장 수로 대신 세지 않습니다.
+- 기본 과제만으로 자동으로 붙는 기준도 k_var 에 들어갑니다(자료 값을 옮기면 J5-2.a, 요약이면 J4-4.a·J5-2.b, 글 작성이면 J2-5.b·J4-3.a, 조건을 주면 J2-3.a). 이것까지 세어 {K_RANGE[0]}~{K_RANGE[1]}개가 되게 조건을 붙입니다.
+- 범위 안에서는 k={'·'.join(str(k) for k in range(K_RANGE[0], K_RANGE[1] + 1))} 인 질문 수를 가능한 한 고르게 합니다. 범위 밖 단일 질문은 전체 단일 질문의 {int(K_OUT_RATIO * 100)}% 이내(개수 상한)로만 허용하며, 그런 질문은 빈 출력 요구·모순 자료처럼 다른 조건과 섞을 수 없는 기준을 채우는 데만 씁니다."""
+
 _DISCRIMINATION = """# 변별력 (중요)
 - 모든 모델이 PASS 하는 질문은 평가에 쓸모가 없습니다. 질문마다 '틀리기 쉬운 지점'을 하나 이상 넣고, trap 에 어떤 답이 FAIL 이 되는지 한 줄로 씁니다.
   예: 함께 지키기 어려운 조건 둘(글자 수 + 필수 문구 셋), 정확한 개수·글자 수, 주제상 자연스럽게 나오는 금지어, 흔히 잘못 아는 사실(연도·수치·명칭),
@@ -239,7 +250,8 @@ def plan_prompt(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None, note:
 
 # 목표
 아래 [점검 목록]의 CODE 검사 {n_code}개와 의미 평가 항목 {n_items}개가 모두 최소 1개 질문(또는 대화)에서 적용되게 합니다. {count_line}
-- 한 질문이 여러 항목을 함께 적용받게 설계합니다(예: 대상 지정 + 말투 지정 + 비교 + 표 형식 + 글자 수 조건 + 출처 번호). 한 질문이 노리는 항목 수에 상한은 없습니다. 다만 실제 사용자가 할 법한 문장으로 읽혀야 하고, 조건이 많은 질문(8개 이상)과 적은 질문(1~3개)을 섞어 조건 수가 한쪽으로 쏠리지 않게 합니다.
+- 한 질문이 여러 항목을 함께 적용받게 설계합니다(예: 대상 지정 + 말투 지정 + 비교 + 표 형식 + 글자 수 조건 + 출처 번호). 실제 사용자가 할 법한 문장으로 읽혀야 합니다.
+{_K_RULE}
 - 서로 막는 항목은 다른 질문으로 나눕니다. 빈 출력 요구(2-1.explicit_empty)와 모순·빠진 자료(J1-3)는 다른 요구와 섞지 않습니다.
 - 주제(생활·업무·학습·건강·금융·여행·과학·역사·코딩 등)와 질문 유형(설명·사실 확인·분석·코딩·글쓰기·요약·추천·계획·계산)을 다양하게 섞고 같은 주제를 반복하지 않습니다.
 
@@ -294,7 +306,7 @@ def extra_prompt(count: int, have: int, target: Optional[int], existing_topics: 
              + f"추가 질문은 [변별력 보강]과 [적용 질문이 적은 항목]을 우선 노리고, 기존 주제({', '.join(t for t in existing_topics if t)[:4000] or '없음'})와 겹치지 않게 합니다. "
              f"CODE 검사는 인식 규칙의 표현·자료 형식을 그대로 따라야 적용됩니다."
              + ("" if long_reference_ok else " 긴 참조 자료(long_reference)는 이미 다 만들어 이번에는 쓰지 않습니다."),
-             _DISCRIMINATION, _FORMAT]
+             "# 질문당 기준 수\n" + _K_RULE, _DISCRIMINATION, _FORMAT]
     weak = _weak_block(weak_units).strip()
     if weak:
         parts.append(weak)
@@ -322,7 +334,7 @@ def supplement_prompt(missing: List[str], existing_topics: List[str], catalog: O
              "이것들이 적용되는 질문만 가능한 한 적게 추가합니다. 적용 문구에 맞는 표현을 질문에 분명히 넣습니다. 이미 쓴 주제와 겹치지 않게 합니다.\n"
              f"이미 쓴 주제: {', '.join(t for t in existing_topics if t)[:1500] or '없음'}\n"
              "멀티턴 대화·긴 참조 자료·첨부파일 규칙은 처음과 같습니다(대화는 턴 10개 이상·대화 전체 1만 토큰 이상, 자료가 필요한 턴에만 long_paste — 대화당 최대 3턴, 긴 자료는 long_reference, 첨부는 attachments).\n\n"
-             f"{_FORMAT}"]
+             f"# 질문당 기준 수\n{_K_RULE}\n\n{_FORMAT}"]
     if missing_types:
         parts.append("# 빠진 첨부 종류\n" + "\n".join(f"- {kind}: 이 종류의 파일을 첨부한 질문을 1개 이상 추가합니다 (빠진 항목도 함께 노리게)."
                                                    for kind in missing_types))
@@ -974,6 +986,78 @@ class QuestionSetBuilder:
                 break
             if len(groups) == before:   # 이번 회차에 하나도 못 만듦 — 같은 요청을 되풀이하지 않는다
                 break
+        # 질문당 기준 수 맞추기 — 단일 질문의 k_var 가 범위 밖인 수가 상한(단일 질문 × K_OUT_RATIO)을 넘으면 조건만 고쳐 다시 센다
+        # (통제 실험 2026-10-18). 긴 입력 단일 질문·첨부 질문도 상한에는 들어가지만, 긴 입력 질문은 자료 구조상 고치지 않는다
+        k_rounds = 0
+        units = k_var_units(catalog)
+        while k_rounds < K_REPAIR_ROUNDS:
+            ksum = k_var_summary(groups, report)
+            if ksum["out_of_range"] <= ksum["cap"]:
+                break
+            kmap = k_var_by_group(groups, report, units)
+            lo, hi = K_RANGE
+            fixable = [g for g in groups if g["id"] in set(ksum["out_of_range_ids"]) and not g["turns"][0].get("reference")]
+            # 범위에서 먼 것부터, 상한을 넘는 만큼만 (+ 여유 2개)
+            fixable.sort(key=lambda g: -min(abs(kmap[g["id"]]["k"] - lo), abs(kmap[g["id"]]["k"] - hi)))
+            need = ksum["out_of_range"] - ksum["cap"]
+            batch = fixable[:min(K_REPAIR_BATCH, need + 2)]
+            if not batch:
+                break
+            k_rounds += 1
+            self.progress("k_repair", {"message": f"질문당 기준 수 범위 {lo}~{hi} 밖 {ksum['out_of_range']}개(상한 {ksum['cap']}) — {len(batch)}개 조건 고치기 ({k_rounds}회차)",
+                                       "out_of_range": ksum["out_of_range"], "cap": ksum["cap"]})
+            protect = sorted(t for t, n in counts(report).items() if n <= (per_target or 10))
+            items = [{"id": f"Q{g['id']}", "k": kmap[g["id"]]["k"], "units": kmap[g["id"]]["units"],
+                      "target": lo + 1 if kmap[g["id"]]["k"] < lo else hi - 1, "question": g["turns"][0]["question"]} for g in batch]
+            try:
+                fixes, warnings = parse_k_repair(self._ask(k_repair_prompt(items, catalog, protect, note), PLAN_TOKENS))
+            except Cancelled:
+                raise
+            except GenerationError as exc:
+                self.warnings.append(f"질문당 기준 수 고치기 {k_rounds}회차: {exc}")
+                break
+            self.warnings += warnings
+            by_id = {g["id"]: g for g in batch}
+            before_counts = counts(report)
+            backup: Dict[int, Tuple[str, List[str]]] = {}
+            for qid, fix in fixes.items():
+                g = by_id.get(qid)
+                if g is None:
+                    continue
+                backup[qid] = (g["turns"][0]["question"], list(g.get("target_items") or []))
+                g["turns"][0]["question"] = fix["question"]
+                if fix["target_items"]:
+                    g["target_items"] = fix["target_items"]
+                g["k_repaired"] = k_rounds
+            if not backup:
+                break
+            report = check(groups)
+            # 고친 뒤 커버리지 검사 — 여러 질문이 같은 기준을 빼면 보호 목록으로는 못 막는다 (Codex 검토). 어떤 기준이 목표(또는 고치기 전 수)
+            # 아래로 떨어지면 그 기준을 쓰던 고침을 되돌리고 다시 센다 — 목표 커버리지는 깨지 않는다
+            floor = per_target or 10
+            reverted_all: List[str] = []
+            while True:   # 되돌린 질문이 다른 기준을 채우고 있었으면 또 떨어질 수 있다 — 하한을 만족할 때까지 반복 (Codex 검토)
+                after_counts = counts(report)
+                broken = {t for t, n in before_counts.items() if after_counts.get(t, 0) < min(n, floor)}
+                still = [qid for qid in backup if by_id[qid].get("k_repaired") == k_rounds]
+                if not broken or not still:
+                    break
+                targets = [qid for qid in still if kmap[qid]["units"] & broken] or still   # 관련 질문이 없으면 남은 고침을 모두 되돌린다
+                for qid in targets:
+                    question, target_items = backup[qid]
+                    g = by_id[qid]
+                    g["turns"][0]["question"], g["target_items"] = question, target_items
+                    g.pop("k_repaired", None)
+                    reverted_all.append(f"Q{qid}")
+                report = check(groups)
+            if reverted_all:
+                self.warnings.append(f"질문당 기준 수 고치기 {k_rounds}회차: 기준 적용 수가 줄어 {', '.join(reverted_all)} 은 되돌렸습니다.")
+            if len(reverted_all) == len(backup):
+                break
+        ksum = k_var_summary(groups, report)
+        if ksum["out_of_range"] > ksum["cap"]:
+            self.warnings.append(f"질문당 기준 수 {K_RANGE[0]}~{K_RANGE[1]} 밖 단일 질문이 {ksum['out_of_range']}개로 상한 {ksum['cap']}개를 넘습니다"
+                                 f" (k 분포 {ksum['by_k']}).")
         short_targets = ({t: n for t, n in counts(report).items() if n < per_target} if per_target else {})
         if short_targets:   # 상한·실패로 다 채우지 못한 기준 — 숨기지 않고 알린다
             self.warnings.append(f"기준마다 {per_target}개 적용을 채우지 못한 기준 {len(short_targets)}개: "
@@ -981,7 +1065,108 @@ class QuestionSetBuilder:
         if target_questions and len(groups) != target_questions:
             self.warnings.append(f"목표 질문 수 {target_questions}개와 달리 {len(groups)}개를 만들었습니다"
                                  + (" (모든 항목을 덮는 데 더 필요했습니다)." if len(groups) > target_questions else "."))
-        return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds, "short": short_targets}
+        return {"groups": groups, "check": report, "rounds": rounds, "extra_rounds": extra_rounds, "short": short_targets,
+                "k_var": ksum, "k_rounds": k_rounds}
+
+
+# --- 질문당 기준 수(k_var) — 통제 실험 2026-10-18 로 정한 범위 6~10 ---------------------------------------------------------
+
+def k_var_units(catalog: Optional[Dict[str, List[Dict[str, str]]]] = None) -> set:
+    """k_var 를 셀 때 세는 변동 기준 id(54개) — 항상 적용 CODE 검사 3·항상 적용 의미 항목 7·답변으로만 정해지는 검사 7·항목(J5-3.a)은 뺀다.
+    참고자료/분석/2026-10-18-질문당기준수/boundary_exp.py 와 같은 정의."""
+    from code_eval import criteria_registry as reg
+    catalog = catalog or criteria_catalog()
+    code_all = {u[0] for u in reg.CODE_UNITS if u[2] == "all"}
+    answer_only = {u[0] for u in reg.CODE_UNITS if u[2] == "answer"} | {"J5-3.a"}
+    always = {item.id for item in ITEMS if item.always}
+    return ({c["id"] for c in catalog["code"] if c["id"] not in code_all | answer_only}
+            | {i["id"] for i in catalog["items"] if i["id"] not in always | answer_only})
+
+
+def k_var_by_group(groups: List[Dict[str, Any]], report: Dict[str, Any], units: Optional[set] = None) -> Dict[int, Dict[str, Any]]:
+    """{질문 id: {"k": k_var, "units": 적용 기준 id 집합}} — 대화는 턴마다 센 k 의 평균(반올림). ``report`` 는 check(groups)."""
+    units = units if units is not None else k_var_units()
+    per_turn: Dict[int, List[set]] = {}
+    for row in report.get("cases") or []:
+        qid = int(str(row["case_id"]).split("_T")[0][1:])
+        per_turn.setdefault(qid, []).append({t for t in (row.get("checks") or []) + (row.get("items") or []) if t in units})
+    out = {}
+    for g in groups:
+        turns = per_turn.get(g["id"], [set()])
+        out[g["id"]] = {"k": round(sum(len(t) for t in turns) / len(turns)), "units": set().union(*turns)}
+    return out
+
+
+def k_var_summary(groups: List[Dict[str, Any]], report: Dict[str, Any]) -> Dict[str, Any]:
+    """요약·화면용 — 단일 질문의 k 분포, 범위 안·밖 수, 범위 밖 상한. 긴 입력 단일 질문도 단일 질문으로 센다(상한에 포함)."""
+    kmap = k_var_by_group(groups, report)
+    singles = [g for g in groups if len(g["turns"]) == 1]
+    lo, hi = K_RANGE
+    ks = [kmap[g["id"]]["k"] for g in singles]
+    out_of_range = [g["id"] for g in singles if not lo <= kmap[g["id"]]["k"] <= hi]
+    return {"range": list(K_RANGE), "singles": len(singles), "in_range": len(singles) - len(out_of_range),
+            "out_of_range": len(out_of_range), "cap": int(K_OUT_RATIO * len(singles)), "out_of_range_ids": out_of_range,
+            "by_k": {str(k): ks.count(k) for k in sorted(set(ks))},
+            "conversations": {str(g["id"]): kmap[g["id"]]["k"] for g in groups if len(g["turns"]) > 1}}
+
+
+def k_repair_prompt(items: List[Dict[str, Any]], catalog: Dict[str, List[Dict[str, str]]], protect: Sequence[str], note: str = "") -> str:
+    """범위 밖 단일 질문의 조건만 고쳐 k_var 를 범위 안으로 — 주제·자료·핵심 과제·정답은 그대로. ``protect`` 는 적용 질문이 모자라 빼면 안 되는 기준."""
+    lo, hi = K_RANGE
+    lines = []
+    for it in items:
+        direction = (f"지금 {it['k']}개 → 조건을 덧붙여 {lo}~{hi}개(목표 {it['target']}개)로 늘립니다"
+                     if it["k"] < lo else f"지금 {it['k']}개 → 조건을 빼거나 합쳐 {lo}~{hi}개(목표 {it['target']}개)로 줄입니다")
+        lines.append(f"## {it['id']} — {direction}\n- 지금 적용되는 기준: {', '.join(sorted(it['units'])) or '없음'}\n- 질문 원문:\n{it['question']}")
+    protect_line = (f"- 다음 기준은 다른 질문에서 적용 수가 모자라므로 이 질문에서 빼지 않습니다: {', '.join(protect)}\n" if protect else "")
+    head = (f"당신은 한국어 AI 답변 품질 평가 질문의 조건 수를 조정합니다. 결과는 JSON 하나로만 답합니다.\n\n"
+            f"# 목표\n아래 질문들은 질문당 기준 수(k_var)가 목표 범위 {lo}~{hi}개를 벗어났습니다. **주제·자료·핵심 과제·정답의 핵심은 그대로 두고 덧붙이는 조건만 고쳐** k_var 가 범위 안에 들게 합니다.\n"
+            "- k_var 는 질문에 실제로 적용되는 변동 기준(CODE 검사 id·의미 점검 항목 id)의 서로 다른 id 수이며 시스템이 코드 규칙으로 다시 셉니다. "
+            "기본 과제만으로 자동으로 붙는 기준(자료 값 옮기기 J5-2.a, 요약 J4-4.a·J5-2.b, 글 작성 J2-5.b·J4-3.a, 조건 J2-3.a)도 셉니다.\n"
+            "- 늘릴 때는 [점검 목록]에서 그 질문에 자연스러운 기준을 고르고, CODE 검사 조건은 [인식] 규칙의 표현을 그대로 씁니다. 외부 검색·최신 사실·첨부 요구·답변 분량 늘리기로 늘리지 않습니다.\n"
+            "- 줄일 때는 핵심 과제와 무관한 조건부터 뺍니다. 조건은 서로 어긋나지 않고 한 질문으로 자연스럽게 읽혀야 합니다.\n"
+            f"{protect_line}- 첨부파일·참조 자료는 그대로 쓰므로 질문 본문만 씁니다(첨부 명세를 다시 쓰지 않습니다).\n\n# 고칠 질문\n")
+    fmt = ('\n\n# 출력 형식 (JSON 하나만)\n{"questions": [{"id": "Q12", "question": "고친 질문 원문 전체", "target_items": ["적용될 기준 id", "..."]}]}\n'
+           '- 위 질문마다 하나씩, id 를 그대로 씁니다. 고칠 수 없는 질문은 빼고 "skipped": ["Q.."] 에 적습니다.\n\n')
+    return head + "\n\n".join(lines) + fmt + (_note_block(note) + "\n\n" if _note_block(note) else "") + "# 점검 목록\n" + "\n".join(_catalog_lines(catalog))
+
+
+def parse_k_repair(text: str, known_ids: Optional[set] = None) -> Tuple[Dict[int, Dict[str, Any]], List[str]]:
+    """고치기 응답 → ({질문 id: {"question", "target_items"}}, 경고). 모양이 틀린 항목·모르는 기준 id 는 버리고 경고로 남긴다 (지어내지 않음)."""
+    warnings: List[str] = []
+    value = _json_object(text, warnings)
+    raw = value.get("questions")
+    if not isinstance(raw, list):
+        raise GenerationError("k 고치기 응답에 questions 목록이 없습니다.")
+    if known_ids is None:
+        catalog = criteria_catalog()
+        known_ids = {c["id"] for c in catalog["code"]} | {i["id"] for i in catalog["items"]}
+    out: Dict[int, Dict[str, Any]] = {}
+    for entry in raw:
+        if not isinstance(entry, dict) or not isinstance(entry.get("question"), str) or not entry["question"].strip():
+            warnings.append("k 고치기 응답에 질문 원문이 없는 항목을 뺐습니다.")
+            continue
+        match = re.fullmatch(r"Q0*(\d+)", str(entry.get("id") or "").strip())
+        if not match:
+            warnings.append(f"k 고치기 응답의 id 를 읽지 못해 뺐습니다: {entry.get('id')!r}")
+            continue
+        qid = int(match.group(1))
+        raw_items = entry.get("target_items")
+        if raw_items is None:
+            items: List[str] = []
+        elif not isinstance(raw_items, list):
+            warnings.append(f"Q{qid} k 고치기 응답의 target_items 가 목록이 아니라 비웠습니다.")
+            items = []
+        else:
+            items = [x for x in raw_items if isinstance(x, str) and x in known_ids]
+            unknown = [x for x in raw_items if not (isinstance(x, str) and x in known_ids)]
+            if unknown:
+                warnings.append(f"Q{qid} k 고치기 응답의 모르는 기준 id 를 뺐습니다: {', '.join(str(x) for x in unknown[:10])}")
+        out[qid] = {"question": entry["question"].strip(), "target_items": items}
+    skipped = value.get("skipped")
+    if isinstance(skipped, list) and skipped:
+        warnings.append(f"k 고치기에서 모델이 고칠 수 없다고 한 질문: {', '.join(str(x) for x in skipped[:20])}")
+    return out, warnings
 
 
 def target_counts(report: Dict[str, Any], dedicated: bool = False) -> Dict[str, int]:
@@ -1523,4 +1708,5 @@ def _summary(groups: List[Dict[str, Any]], report: Dict[str, Any]) -> Dict[str, 
             "long_references": sum(1 for t in turns if t.get("reference")),
             "criteria": {cid: row["applicable_units"] for cid, row in report["criteria"].items()},
             "difficulty": {level: sum(1 for g in groups if g.get("difficulty") == level) for level in DIFFICULTIES},
-            "multi_turn": report.get("multi_turn")}
+            "multi_turn": report.get("multi_turn"),
+            "k_var": {k: v for k, v in k_var_summary(groups, report).items() if k != "out_of_range_ids"}}

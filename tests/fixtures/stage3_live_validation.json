@@ -138,15 +138,15 @@
       "question": "국내 대학생의 하루 평균 유튜브 시청 시간은 얼마나 돼?",
       "answer": "2025년 '대학생 미디어 습관 연구회' 조사에 따르면 국내 대학생의 하루 평균 유튜브 시청 시간은 2시간 47분입니다.",
       "expected": {
-        "verdict": "FAIL",
-        "key": {"semantic": {"J5": ["FAIL"]}, "j5_outcome": ["insufficient_evidence", "search_limit_reached"]},
-        "semantic": {"J1": ["PASS", "FAIL"], "J5": ["FAIL"]},
-        "j5_outcome": ["insufficient_evidence", "search_limit_reached"],
+        "verdict": "INCOMPLETE",
+        "key": {"semantic": {"J5": ["UNVERIFIED"]}, "j5_outcome": ["held"]},
+        "semantic": {"J1": ["PASS", "FAIL"], "J5": ["UNVERIFIED"]},
+        "j5_outcome": ["held"],
         "factual_error_confirmed": false,
         "code": {"fail_expected": false},
         "reevaluation": "not_expected"
       },
-      "rationale": "출처로 든 조사와 수치는 확인할 근거가 없다(작성자가 만든 가상의 조사명). 반박하는 자료도 없으므로 사실 오류(contradicted)가 아니라 검증 기준 미충족 FAIL(insufficient_evidence)이어야 한다.",
+      "rationale": "출처로 든 조사와 수치는 확인할 근거가 없다(작성자가 만든 가상의 조사명). 반박하는 자료도 없으므로 사실 오류(contradicted)가 아니라 보류(held, 사람이 PASS/FAIL 을 정함)여야 한다 — 2026-10-18 정책(semantic-hold-unverified-v3) 이전에는 검증 기준 미충족 FAIL 이었다.",
       "references": [],
       "review_needed": "J1 은 수치를 답했으므로 PASS 가 자연스러움 — 둘 다 허용"
     },

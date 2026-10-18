@@ -1,4 +1,4 @@
-"""Final J5 source policy, using fake judges and HTTP transports only."""
+"""J5 출처 원문 확인 실패 정책(j5-source-original-failure-v3) — 확인 실패는 FAIL 이 아니라 보류. 가짜 평가자·HTTP 전송만 쓴다."""
 import copy
 import json
 from types import SimpleNamespace
@@ -13,9 +13,15 @@ from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case, evaluation
 from code_eval.jev_criteria import describe, jev_questions
 from code_eval.semantic_api_client import SemanticApiClient, SemanticApiConfig
 from code_eval.semantic_policy import (
-    DECISION_POLICY, SOURCE_DECISION_POLICY, SOURCE_ORIGINAL_FAILURE_CODE, SOURCE_ORIGINAL_FAILURE_REASON,
-    SOURCE_ORIGINAL_FAILURE_STATUSES, apply_source_original_failure_policy,
+    DECISION_POLICY, SOURCE_DECISION_POLICY, SOURCE_ORIGINAL_FAILURE_CODE, SOURCE_ORIGINAL_FAILURE_POLICY_VERSION,
+    SOURCE_ORIGINAL_FAILURE_REASON, SOURCE_ORIGINAL_FAILURE_STATUSES, apply_source_original_failure_policy,
 )
+
+
+def held_source(j5):
+    """출처 원문 확인 실패 보류 — 판정 값 없이 UNVERIFIED 를 유지하고 SOURCE_ORIGINAL_UNAVAILABLE 사유 코드를 단 J5 인가."""
+    return (j5.get("decision") is None and j5.get("status") == "UNVERIFIED"
+            and j5.get("reason_code") == SOURCE_ORIGINAL_FAILURE_CODE)
 from code_eval.semantic_sources import _REASONS, verify_web_sources
 
 
@@ -45,22 +51,24 @@ def record(status="http_error", *, legacy=False):
 
 @pytest.mark.parametrize("status", sorted(SOURCE_ORIGINAL_FAILURE_STATUSES))
 @pytest.mark.parametrize("legacy", [False, True])
-def test_unavailable_original_is_final_fail_and_preserves_entire_original(status, legacy):
+def test_unavailable_original_is_held_for_review_and_preserves_entire_original(status, legacy):
     value = record(status, legacy=legacy)
     before = copy.deepcopy(value)
     result = apply_source_original_failure_policy(value)
     assert result["changed"] and result["failures"][0]["status"] == status
     j5 = value["decisions"]["J5"]
-    assert j5["decision"] == "FAIL" and "status" not in j5
+    assert held_source(j5)   # 확인하지 못한 것이지 사실 오류가 아니다 — 사람이 PASS/FAIL 을 정한다
     assert j5["reason"] == SOURCE_ORIGINAL_FAILURE_REASON
-    assert j5["reason_code"] == SOURCE_ORIGINAL_FAILURE_CODE
     assert j5["policy_original_assessment"] == before["decisions"]["J5"]
-    assert j5["confidence"] == 0.0 and j5["probabilities"] == {}
+    assert j5["confidence"] is None and j5["probabilities"] == {}
     assert j5["fact_check"] == before["decisions"]["J5"]["fact_check"]
+    assert j5["decision_policy"]["version"] == SOURCE_ORIGINAL_FAILURE_POLICY_VERSION
+    assert j5["decision_policy"]["outcome_basis"] == "held_for_review"
     assert j5["decision_policy"]["factual_error_confirmed"] is False
+    assert j5["decision_policy"]["failures"] == result["failures"]
     assert value["verification"] == before["verification"]
     assert value["decisions"]["J1"] == before["decisions"]["J1"]
-    assert value["decision_policy"] == SOURCE_DECISION_POLICY and value["review_required"] is False
+    assert value["decision_policy"] == SOURCE_DECISION_POLICY and value["review_required"] is True
     repeated = copy.deepcopy(value)
     assert not apply_source_original_failure_policy(value)["changed"]
     assert value == repeated
@@ -164,20 +172,24 @@ def test_policy_runs_before_summary_log_and_progress_event_publication():
     batch["jev_eval"] = evaluate_jev_batch(batch, judge, workers=1,
                                           on_record=lambda _, result: published.append(copy.deepcopy(result)))
     assert batch["cases"] == source["cases"] and batch["result_digest"] == source["result_digest"]
-    jev = batch["jev_eval"]
-    assert jev["status"] == "SUCCESS" and jev["completed"] == 1
-    assert jev["review_required"] == jev["unverified"] == 0
+    jev = batch["jev_eval"]   # 보류된 질문은 완료가 아니라 확인 필요로 집계된다
+    assert jev["status"] == "PARTIAL" and jev["completed"] == 0
+    assert jev["review_required"] == jev["unverified"] == 1
     assert jev["decision_policy"] == DECISION_POLICY
-    assert jev["summary"]["J5"]["fail"] == 1 and jev["summary"]["J5"]["pending"] == 0
-    assert published[0]["decisions"]["J5"]["decision"] == "FAIL"
+    assert jev["summary"]["J5"]["fail"] == 0 and jev["summary"]["J5"]["unverified"] == jev["summary"]["J5"]["pending"] == 1
+    assert held_source(published[0]["decisions"]["J5"]) and published[0]["review_required"] is True
     combined = combined_summary(batch)
-    assert combined["fail"] == 1 and combined["pending"] == combined["pass"] == 0
-    assert evaluation_log(batch)[0]["jev"]["decisions"]["J5"]["reason_code"] == SOURCE_ORIGINAL_FAILURE_CODE
+    assert combined["pending"] == 1 and combined["fail"] == combined["pass"] == 0
+    assert combined["semantic_unverified"] == combined["review_required"] == 1
+    logged = evaluation_log(batch)[0]["jev"]
+    assert held_source(logged["decisions"]["J5"]) and logged["review_required"] is True
 
 
 def test_criteria_display_describes_final_policy_without_suppressing_evidence_recovery():
     displayed = next(item for item in describe()["criteria"] if item["id"] == "J5")
-    assert "추가 검증 후에도" in displayed["fail"] and "검증 기준 미충족" in displayed["fail"]
+    # 화면 설명 — 확인된 사실 오류·출처 불일치·열 수 없는 URL 만 FAIL, 확인 실패는 보류(사람이 정함)
+    assert "확인된 사실 오류" in displayed["fail"] and "보류" in displayed["fail"] and "사람이 PASS/FAIL 을 정함" in displayed["fail"]
+    assert "FAIL 로 확정하지 않음" in displayed["fail"]
     assert "UNVERIFIED" in jev_questions()["J5"]["criteria"]["FAIL"]
 
 
@@ -201,11 +213,12 @@ def test_policy_waits_for_real_transport_recovery_and_retains_recovery_audit(rec
         if url == ALTERNATIVE else {"status": "http_error"})
     final = evaluate_jev_case("q", "Describe Alpha.", "Alpha is blue.", client, criteria=("J1", "J5"))
     assert len(sent) == 2 and final["attempts"] == 2
-    assert final["decisions"]["J5"]["decision"] == ("PASS" if recovered else "FAIL")
-    assert not final["review_required"]
     recovery = final["verification"]["evidence_recovery"]
     assert recovery["initial_choice"] == "UNVERIFIED"
     assert recovery["status"] == ("RESOLVED" if recovered else "UNRESOLVED")
-    if not recovered:
+    if recovered:
+        assert final["decisions"]["J5"]["decision"] == "PASS" and not final["review_required"]
+    else:   # 복구 뒤에도 원문을 받지 못하면 보류 — FAIL 로 확정하지 않고 사람이 정한다
+        assert held_source(final["decisions"]["J5"]) and final["review_required"] is True
         assert final["decisions"]["J5"]["policy_original_assessment"]["status"] == "UNVERIFIED"
         assert recovery["final_choice"] == "UNVERIFIED"

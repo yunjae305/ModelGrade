@@ -137,8 +137,8 @@ def describe() -> Dict[str, Any]:
     # Describe the final server policy separately from those stage instructions.
     for item in items:
         if item["id"] == "J5":
-            item["fail"] = ("참조 데이터·신뢰할 수 있는 출처·질문의 값과 다른 사실을 제시했거나, "
-                            "추가 검증 후에도 외부 출처 원문을 읽거나 인용문을 확인하지 못한 경우 FAIL. "
-                            "원문 확인 실패는 검증 기준 미충족이며 사실 오류가 확인되었다는 뜻은 아님")
-        item["fail"] += ". 평가를 마친 뒤에도 기준 충족을 입증할 근거가 부족하면 검증 기준 미충족으로 FAIL"
+            item["fail"] = ("참조 데이터·신뢰할 수 있는 출처·질문의 값과 다른 사실을 제시한 경우(확인된 사실 오류·출처 불일치)와 "
+                            "답변이 든 URL 을 열 수 없는 경우 FAIL. 외부 출처 원문을 읽거나 인용문을 확인하지 못한 것은 FAIL 이 아니라 "
+                            "보류 — 사람이 PASS/FAIL 을 정함")
+        item["fail"] += ". 평가를 마친 뒤에도 근거가 부족해 확인하지 못한 기준은 보류(사람이 정함) — 확인 실패는 FAIL 로 확정하지 않음 (2026-10-18)"
     return {"version": JEV_CRITERIA_VERSION, "criteria": items, "code_scope_note": CODE_SCOPE_NOTE}

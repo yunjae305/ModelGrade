@@ -58,8 +58,8 @@ ITEMS_APPLIES_WHEN = {"J5": "코드 규칙이 사실 정보를 묻는 질문으�
                             "확인·조회·출처를 언급한 답변(J5-3)"}
 DEFAULT_WORKERS = 4
 ENGINE_LABELS = {"jev": "Jev", "claude_cli": "Claude CLI", "codex_cli": "GPT CLI (Codex)",
-                 "openai_api": "OpenAI API", "anthropic_api": "Claude API"}
-FACT_SCREENING_ENGINES = {'codex_cli', 'claude_cli', 'openai_api', 'anthropic_api'}
+                 "openai_api": "OpenAI API", "anthropic_api": "Claude API", "dual": "Jev + GPT-6 Luna 병행"}
+FACT_SCREENING_ENGINES = {'codex_cli', 'claude_cli', 'openai_api', 'anthropic_api', 'dual'}   # dual 의 J5 는 Luna 가 본다
 #: LLM 선별 엔진(CLI·OpenAI·Anthropic)의 적용 버전 — 코드 규칙 버전(J6·J7 길이 등)을 담아, 규칙이 바뀌면 이 값도 바뀐다
 #: (예전 'jev-applicability-v2.3-llm-screening' 고정값은 길이 규칙이 바뀌어도 같아 버전 비교에서 차이가 안 보였다)
 FACT_SCREENING_VERSION = f'{JEV_APPLICABILITY_VERSION}+llm-screening'
@@ -160,6 +160,8 @@ def parse_decisions(body: Dict[str, Any], criteria: Tuple[str, ...] = ALL_IDS,
             decisions[cid]['citation_mismatch'] = True
         if entry.get('citation_inaccessible') is True:   # 답변이 든 URL 을 열 수 없음 (evidence-v3.14)
             decisions[cid]['citation_inaccessible'] = True
+        if isinstance(entry.get('dual_judge'), dict):   # 병행 판정(dual-judge-v1): Jev·Luna·재판정 결과와 보류 여부
+            decisions[cid]['dual_judge'] = copy.deepcopy(entry['dual_judge'])
         if isinstance(entry.get('model_original_assessment'), dict):
             original = entry['model_original_assessment']
             decisions[cid]['model_original_assessment'] = {

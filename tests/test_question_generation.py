@@ -428,3 +428,67 @@ def test_base_counts_skip_covered_criteria_and_count_toward_the_target(tmp_path)
     assert not any(t in result["short"] for t in covered)   # 밖에서 3개씩 확보한 기준은 목표 2개를 넘어 부족 목록에 없다
     low = [p for p in fake.prompts if "# 적용 질문이 적은 항목" in p]
     assert all("- J3-1.a · " not in p.split("# 적용 질문이 적은 항목", 1)[1].split("\n\n", 1)[0] for p in low)
+
+
+# --- 질문당 기준 수(k_var) 범위 — question-gen-v2.0-kvar (통제 실험 2026-10-18) --------------------------------------------------
+
+def test_k_var_counts_variable_criteria_only_and_summarises_singles():
+    groups = [{"id": 1, "turns": [{"turn": 1, "question": "공부 방법을 불릿으로 정확히 3개 작성해줘."}]},
+              {"id": 2, "turns": [{"turn": 1, "question": "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘."}]}]
+    report = qg.check(groups)
+    units = qg.k_var_units()
+    assert len(units) == 54 and "1-1.response_nonempty" not in units and "J5-3.a" not in units   # 항상 적용·답변 전용은 빼고 센다
+    kmap = qg.k_var_by_group(groups, report)
+    assert set(kmap) == {1, 2} and all(isinstance(v["k"], int) and v["units"] <= units for v in kmap.values())
+    summary = qg.k_var_summary(groups, report)
+    assert summary["range"] == list(qg.K_RANGE) and summary["singles"] == 2 and summary["cap"] == int(qg.K_OUT_RATIO * 2)
+    assert summary["in_range"] + summary["out_of_range"] == 2 and sum(summary["by_k"].values()) == 2
+    assert "k_var" in qg._summary(groups, report) and "out_of_range_ids" not in qg._summary(groups, report)["k_var"]
+
+
+def test_k_repair_response_is_validated_without_inventing_ids():
+    fixes, warnings = qg.parse_k_repair(json.dumps({"questions": [
+        {"id": "Q07", "question": "고친 질문", "target_items": ["2-1.count", "없는-id", 7]},
+        {"id": "Q08", "question": "목록 아님", "target_items": 7},
+        {"id": "Q9", "question": ""}, {"id": "bad", "question": "x"}], "skipped": ["Q10"]}, ensure_ascii=False))
+    assert fixes == {7: {"question": "고친 질문", "target_items": ["2-1.count"]}, 8: {"question": "목록 아님", "target_items": []}}
+    assert any("모르는 기준 id" in w for w in warnings) and any("목록이 아니라" in w for w in warnings)
+    assert any("원문이 없는" in w for w in warnings) and any("id 를 읽지 못해" in w for w in warnings) and any("Q10" in w for w in warnings)
+    with pytest.raises(qg.GenerationError):
+        qg.parse_k_repair('{"questions": "아님"}')
+
+
+def test_k_repair_prompt_and_plan_prompt_state_the_range():
+    prompt = qg.plan_prompt(target_questions=40)
+    assert f"{qg.K_RANGE[0]}개 이상 {qg.K_RANGE[1]}개 이하" in prompt and "조건이 많은 질문(8개 이상)" not in prompt
+    assert f"{qg.K_RANGE[0]}개 이상 {qg.K_RANGE[1]}개 이하" in qg.extra_prompt(5, 10, 40, [])
+    repair = qg.k_repair_prompt([{"id": "Q3", "k": 2, "units": {"J4-3.a"}, "target": 7, "question": "짧은 질문"}], qg.criteria_catalog(), ["J3-5.a"])
+    assert "## Q3 — 지금 2개 → 조건을 덧붙여" in repair and "J3-5.a" in repair and "# 점검 목록" in repair
+
+
+def test_builder_repairs_out_of_range_questions_and_reverts_when_coverage_breaks(tmp_path, monkeypatch):
+    """범위 밖이 상한을 넘으면 조건만 고쳐 다시 세고, 고친 뒤 어떤 기준의 적용 수가 떨어지면 그 고침은 되돌린다."""
+    monkeypatch.setattr(qg, "K_OUT_RATIO", 0.0)   # 범위 밖 질문을 하나도 허용하지 않아 고치기 단계가 꼭 돈다
+    plan = {"questions": [
+        {"type": "글쓰기", "topic": "공부", "target_items": ["2-1.count"], "turns": [{"question": "공부 방법을 불릿으로 정확히 3개 작성해줘."}]},
+        {"type": "형식", "topic": "인구", "target_items": ["2-2.table"], "turns": [{"question": "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘."}]}]}
+    repaired = "공부 방법을 초등학생에게 존댓말로, 불릿으로 정확히 3개, 공백 포함 300자 이내로 작성하고 '꾸준히'라는 말을 꼭 넣어줘."
+    seen = []
+
+    def fake(prompt, max_tokens):
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가 질문의 조건 수를 조정"):
+            seen.append(prompt)
+            # 1회차: Q1 은 조건을 더해 고치고, Q2 는 표 요구를 빼 버려(2-2.table 적용 0) 되돌려져야 한다
+            return json.dumps({"questions": [{"id": "Q1", "question": repaired, "target_items": ["2-1.count", "2-1.char_count"]},
+                                             {"id": "Q2", "question": "서울과 부산의 인구를 알려 줘.", "target_items": []}]}, ensure_ascii=False)
+        if prompt.startswith("당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계"):
+            return json.dumps(plan, ensure_ascii=False)
+        return json.dumps({"questions": []}, ensure_ascii=False)
+    builder = qg.QuestionSetBuilder(fake, tmp_path)
+    result = builder.build(target_questions=2)
+    groups = result["groups"]
+    assert seen and "## Q1" in seen[0] and "## Q2" in seen[0] and result["k_rounds"] >= 1
+    assert groups[0]["turns"][0]["question"] == repaired and groups[0]["k_repaired"] == 1 and groups[0]["target_items"] == ["2-1.count", "2-1.char_count"]
+    assert groups[1]["turns"][0]["question"] == "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘." and "k_repaired" not in groups[1]   # 되돌림
+    assert any("되돌렸습니다" in w and "Q2" in w for w in builder.warnings)
+    assert result["check"]["coverage"]["checks"]["2-2.table"] >= 1 and result["k_var"]["singles"] == 2

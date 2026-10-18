@@ -10,7 +10,14 @@ from code_eval.jev_client import JevCall
 from code_eval.jev_eval import (CONTEXT_QUOTE_RETRY_NOTE, evaluate_jev_batch, evaluate_jev_case, evaluation_log,
                                  parse_decisions)
 from code_eval.semantic_evidence import CONTEXT_CHECK_POLICY, finalize_answers
+from code_eval.semantic_policy import FINAL_EVIDENCE_FAILURE_CODE, FINAL_EVIDENCE_FAILURE_REASON
 from webapp.evaluation_events import EvaluationEvents, record_events
+
+
+def held(decision):
+    """보류(semantic-hold-unverified-v3) — 판정 값 없이 UNVERIFIED 를 유지하고 근거 부족 사유 코드를 단 기준인가."""
+    return (decision.get('decision') is None and decision.get('status') == 'UNVERIFIED'
+            and decision.get('reason_code') == FINAL_EVIDENCE_FAILURE_CODE)
 from webapp.version_registry import evaluation_profile
 
 
@@ -89,9 +96,10 @@ def test_every_llm_answer_screens_non_numeric_facts(engine):
     record = batch['jev_eval']['records'][0]
     assert record['applicability']['evidence']['J5']['status'] == 'SCREENING'
     assert record['applicability']['version'] == 'jev-applicability-v2.7-attachments+llm-screening'   # 코드 규칙 버전이 함께 바뀜
-    assert record['decisions']['J5']['decision'] == 'FAIL'
+    assert held(record['decisions']['J5'])   # 확인하지 못한 J5 는 보류 — FAIL 로 세지 않는다
     assert record['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED'
-    assert combined_summary(batch)['pending'] == 0 and combined_summary(batch)['fail'] == 1
+    summary = combined_summary(batch)
+    assert summary['pending'] == 1 and summary['fail'] == 0 and summary['semantic_unverified'] == 1
 
 
 def test_no_factual_claims_are_excluded_from_all_quality_denominators():
@@ -131,9 +139,9 @@ def test_j5_actual_basis_and_verification_are_saved_without_guessing(basis):
     assert record['j5_basis'] == ('unverified' if basis == 'none' else basis)
     assert record['decisions']['J5']['fact_check'] == fact
     assert record['verification']['web_search_calls'] == 0
-    assert record['review_required'] is False
+    assert record['review_required'] is (basis == 'none')   # 근거 없는 J5 만 보류로 남아 사람 확인이 필요하다
     if basis == 'none':
-        assert record['decisions']['J5']['reason_code'] == 'EVALUATION_EVIDENCE_INSUFFICIENT'
+        assert held(record['decisions']['J5'])
 
 
 def test_transport_failure_keeps_attempted_verification_metadata():
@@ -145,19 +153,21 @@ def test_transport_failure_keeps_attempted_verification_metadata():
     assert record['j5_basis'] == 'unverified' and record['decisions'] is None
 
 
-def test_unverified_j5_finishes_as_evidence_policy_fail_with_original_audit():
+def test_unverified_j5_is_held_for_review_with_original_audit():
+    """확인하지 못한 J5 는 보류 — 배치는 PARTIAL·review_required, 결합 요약은 pending·review_items, 로그는 UNVERIFIED 로 남는다."""
     judge = EvidenceJudge({'J5': entry('UNVERIFIED', fact_check={'basis': 'none', 'claims': []})})
     batch = evaluate([{'case_id': 'q', 'question': 'Explain this', 'answer': 'A response', 'reference': {'fact': 'value'}}], judge)
     jev = batch['jev_eval']
-    assert jev['engine_label'] == 'OpenAI API' and jev['status'] == 'SUCCESS'
-    assert jev['completed'] == 1 and jev['review_required'] == 0 and jev['unverified'] == 0
-    assert jev['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 1, 'pass': 0, 'fail': 1, 'unverified': 0, 'incomplete': 0, 'pending': 0}
+    assert jev['engine_label'] == 'OpenAI API' and jev['status'] == 'PARTIAL'
+    assert jev['completed'] == 0 and jev['review_required'] == 1 and jev['unverified'] == 1
+    assert jev['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 1, 'pass': 0, 'fail': 0, 'unverified': 1, 'incomplete': 0, 'pending': 1}
     summary = combined_summary(batch)
-    assert (summary['pass'], summary['fail'], summary['pending']) == (0, 1, 0)
-    assert summary['semantic_unverified'] == summary['review_required'] == 0
-    assert summary['review_items'] == []
+    assert (summary['pass'], summary['fail'], summary['pending']) == (0, 0, 1)
+    assert summary['semantic_unverified'] == summary['review_required'] == 1
+    assert [d['criterion_id'] for d in summary['review_items'][0]['criteria']] == ['J5']
     logged = evaluation_log(batch)[0]['jev']
-    assert logged['decisions']['J5']['decision'] == 'FAIL' and not logged['review_required']
+    assert held(logged['decisions']['J5']) and logged['review_required'] is True
+    assert logged['decisions']['J5']['reason'].startswith(FINAL_EVIDENCE_FAILURE_REASON)
     assert logged['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED'
     assert logged['decisions']['J5']['policy_original_assessment']['fact_check']['basis'] == 'none'
     assert logged['verification']['checked_at'] == '2026-10-09T00:00:00Z'
@@ -169,13 +179,13 @@ def test_existing_fail_evidence_survives_another_unverified_criterion():
                            'J5': entry('UNVERIFIED', fact_check={'basis': 'none', 'claims': []})})
     batch = evaluate([{'case_id': 'q', 'question': 'Explain this', 'answer': 'A response', 'reference': {'fact': 'value'}}], judge)
     summary = combined_summary(batch)
-    assert summary['fail'] == 1 and summary['pass'] == 0 and summary['semantic_pending'] == 0
+    assert summary['fail'] == 1 and summary['pass'] == 0 and summary['semantic_pending'] == 1   # J1 FAIL 질문이되 J5 는 보류로 남음
     assert summary['problems'][0]['items'][0]['id'] == 'J1'
-    assert batch['jev_eval']['summary']['J5']['fail'] == 1
-    assert summary['review_required'] == 0
+    assert batch['jev_eval']['summary']['J5']['fail'] == 0 and batch['jev_eval']['summary']['J5']['unverified'] == 1
+    assert summary['review_required'] == 1
 
 
-def test_j6_unknown_keeps_full_history_and_finishes_as_evidence_policy_fail():
+def test_j6_unknown_keeps_full_history_and_is_held_for_review():
     long_question = ' preserve whitespace\r\n' + 'x' * 60_000 + '\n'
     cases = [{'case_id': 't1', 'conversation_id': 'c', 'turn': 1, 'question': long_question, 'answer': ' first answer\n'},
              {'case_id': 't2', 'conversation_id': 'c', 'turn': 2, 'question': 'Continue', 'answer': 'second answer'}]
@@ -189,13 +199,15 @@ def test_j6_unknown_keeps_full_history_and_finishes_as_evidence_policy_fail():
     assert batch['jev_eval']['records'][1]['context']['history_chars'] > 60_000
     assert batch['jev_eval']['records'][1]['context']['history_truncated'] is False
     assert batch['jev_eval']['records'][1]['decisions']['J6']['context_checks'] == checks
-    conv = batch['jev_eval']['conversations']
-    assert conv['incomplete'] == 0 and conv['fail'] == 1 and conv['rate'] == 0
-    assert conv['bands']['1~10']['unverified'] == 0 and conv['bands']['1~10']['fail'] == 1
+    assert held(batch['jev_eval']['records'][1]['decisions']['J6']) and batch['jev_eval']['records'][1]['review_required'] is True
+    conv = batch['jev_eval']['conversations']   # 보류 턴이 있는 대화는 FAIL 이 아니라 미완료
+    assert conv['incomplete'] == 1 and conv['fail'] == 0 and conv['rate'] is None
+    assert conv['bands']['1~10']['unverified'] == 1 and conv['bands']['1~10']['pending'] == 1 and conv['bands']['1~10']['fail'] == 0
     assert batch['jev_eval']['records'][1]['decisions']['J6']['policy_original_assessment']['context_checks'] == checks
 
 
-#: 중간 점검 557a50d8baf1 Gemini Q29 7턴 — 평가 모델이 답변의 '$\rightarrow$' 를 '→' 로 바꿔 인용해 J6 가 '평가 근거 부족' FAIL 이 됐다
+#: 중간 점검 557a50d8baf1 Gemini Q29 7턴 — 평가 모델이 답변의 '$\rightarrow$' 를 '→' 로 바꿔 인용해 J6 가 '평가 근거 부족' 이 됐다
+#: (당시 정책 v2 는 FAIL, 지금 v3 는 보류)
 Q29_HISTORY = [
     {'turn': 5, 'question': '현재 가상 폴더에 report_3.txt와 report_4.txt가 새로 추가됐어. 나머지는 그대로야. '
                             '기존의 접두사 변경 규칙과 덮어쓰기 금지, 충돌 항목 건너뛰기 규칙을 적용한 대응표를 만들어줘.',
@@ -261,13 +273,13 @@ def test_q29_j6_misquote_is_asked_once_more_and_the_verbatim_retry_is_used():
     assert logged['context_reevaluation']['adopted'] == 'retry'
 
 
-def test_q29_j6_still_misquoted_after_one_retry_keeps_the_evidence_policy_fail():
+def test_q29_j6_still_misquoted_after_one_retry_is_held_for_review():
     misquoted = q29_checks('`report_4.txt` → `archive_4.txt`')
     judge = QuoteCheckingJudge(misquoted, misquoted)
     record = run_q29(judge)
-    assert len(judge.calls) == 2
+    assert len(judge.calls) == 2   # 재질문은 1회뿐
     j6 = record['decisions']['J6']
-    assert j6['decision'] == 'FAIL' and j6['reason_code'] == 'EVALUATION_EVIDENCE_INSUFFICIENT'
+    assert held(j6) and record['review_required'] is True
     assert j6['policy_original_assessment']['status'] == 'UNVERIFIED'
     again = record['context_reevaluation']
     assert again['adopted'] == 'first' and again['retry']['status'] == 'UNVERIFIED'
@@ -287,7 +299,8 @@ def test_missing_turn_is_not_inferred_or_asked_but_remains_an_unverified_target(
     assert combined_summary(batch)['pending'] == 1
 
 
-def test_events_count_final_policy_failure_and_keep_confirmed_fail_evidence():
+def test_events_count_held_criterion_as_unjudged_and_keep_confirmed_fail_evidence():
+    """진행 이벤트 — 보류된 J5 는 FAIL 로 세지 않고 미판정(UNJUDGED)+확인 필요 상태로 보내며, 확인된 J1 FAIL 은 그대로 센다."""
     record = evaluate_jev_case('q', 'q', 'a', EvidenceJudge({'J1': entry('FAIL'), 'J5': entry('UNVERIFIED')}), criteria=('J1', 'J5'))
     stream = EvaluationEvents()
     stream.publish({'type': 'run_start', 'total': 1})
@@ -295,11 +308,12 @@ def test_events_count_final_policy_failure_and_keep_confirmed_fail_evidence():
         stream.publish({**event, 'model': 'aiona'})
     snapshot = stream.snapshot()
     row = snapshot['rows']['aiona:0']
-    assert snapshot['fail'] == 2 and snapshot['unjudged'] == 0
-    assert row['review_required'] is False
-    assert row['criteria']['J5']['result'] == 'FAIL'
-    assert row['criteria']['J5']['reason'] == '평가 근거 부족으로 검증 기준 미충족'
-    assert 'verification_status' not in row['criteria']['J5']
+    assert snapshot['fail'] == 1 and snapshot['unjudged'] == 1
+    assert row['review_required'] is True
+    assert row['criteria']['J1']['result'] == 'FAIL'
+    assert row['criteria']['J5']['result'] == 'UNJUDGED'
+    assert row['criteria']['J5']['reason'] == FINAL_EVIDENCE_FAILURE_REASON + ' · fixture evidence'
+    assert row['criteria']['J5']['verification_status'] == 'UNVERIFIED'
 
 
 def test_profile_tracks_evidence_policy_api_and_output_limits_but_not_runtime_secrets():

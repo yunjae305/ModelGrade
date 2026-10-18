@@ -6,7 +6,8 @@
 consistency 규칙 (어긋나면 위반으로 센다):
 - PASS ↔ verified · NOT_APPLICABLE ↔ not_applicable · INCOMPLETE ↔ 판정 없음 + 미완료 코드(search_unavailable·search_error·fetch_error·incomplete)
 - FAIL 이면 FAIL 코드, factual_error_confirmed 는 contradicted 일 때만
-- SOURCE_ORIGINAL_UNAVAILABLE ↔ source_unavailable, EVALUATION_EVIDENCE_INSUFFICIENT → insufficient_evidence·search_limit_reached
+- SOURCE_ORIGINAL_UNAVAILABLE ↔ source_unavailable, EVALUATION_EVIDENCE_INSUFFICIENT → insufficient_evidence·search_limit_reached(옛 FAIL)·held(보류)
+- 보류(UNVERIFIED·판정 없음, semantic-hold-unverified-v3) ↔ held 또는 source_unavailable
 - 저장된 j5_outcome 을 지금 규칙으로 다시 계산해도 같은 code (판정 값은 바꾸지 않고 비교만)
 scope: 적용 규칙이 셋이다 — legacy 규칙(코드 밖 수치·날짜·통계, CLI 평가자) · legacy API 평가자의 LLM 선별(모든 답변) ·
 items(질문의 사실 질의 표현 J5-1, 질문 값 J5-2, 확인 언급 J5-3). items 가 묻지 않는 답변마다 legacy 평가자가 뽑은 외부 사실 주장을
@@ -31,6 +32,7 @@ from code_eval.semantic_policy import items_j5_outcome, j5_outcome  # noqa: E402
 
 AUDIT_VERSION = "j5-audit-v1"
 PENDING = {"search_unavailable", "search_error", "fetch_error", "incomplete"}
+HELD = {"held", "source_unavailable"}   # 보류 — UNVERIFIED 이고 판정 없음 (semantic-hold-unverified-v3)
 FAIL_CODES = {"source_unavailable", "insufficient_evidence", "search_limit_reached", "citation_inaccessible", "source_mismatch",
               "contradicted", "process_misrepresented", "unclassified"}
 _TECH = re.compile(r"`[^`]+`|\(\)|O\s*\(|\$O\(|라이브러리|모듈|함수|메서드|표준|JOIN|SELECT|NULL|인덱스|정렬|복잡도|파이썬|Python|SQL|HTML|CSS|JSON|정규식")
@@ -54,6 +56,10 @@ def consistency(record: Dict[str, Any]) -> List[str]:
         problems.append(f"미완료인데 decision={decision}, code={code}")
     if code in PENDING and status != "INCOMPLETE":
         problems.append(f"미완료 코드 {code} 인데 status={status}")
+    if status == "UNVERIFIED" and decision is None and code not in HELD:
+        problems.append(f"보류인데 code={code}")
+    if code == "held" and (status != "UNVERIFIED" or decision is not None):
+        problems.append(f"held 인데 status={status}, decision={decision}")
     if decision == "FAIL" and code not in FAIL_CODES:
         problems.append(f"FAIL 인데 code={code}")
     if bool(outcome.get("factual_error_confirmed")) != (code == "contradicted"):
@@ -61,7 +67,7 @@ def consistency(record: Dict[str, Any]) -> List[str]:
     reason = j5.get("reason_code")
     if reason == "SOURCE_ORIGINAL_UNAVAILABLE" and code != "source_unavailable":
         problems.append(f"SOURCE_ORIGINAL_UNAVAILABLE 인데 code={code}")
-    if reason == "EVALUATION_EVIDENCE_INSUFFICIENT" and code not in ("insufficient_evidence", "search_limit_reached"):
+    if reason == "EVALUATION_EVIDENCE_INSUFFICIENT" and code not in ("insufficient_evidence", "search_limit_reached", "held"):
         problems.append(f"EVALUATION_EVIDENCE_INSUFFICIENT 인데 code={code}")
     again = items_j5_outcome(record) if record.get("pipeline") == "items" else j5_outcome(record)
     if again and again.get("code") != code:

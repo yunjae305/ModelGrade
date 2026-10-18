@@ -314,6 +314,16 @@ def resolve_jev_client(
         return env_value(name, environment, env_path)
 
     engine = (engine or read("SEMANTIC_ENGINE") or "jev").strip().lower().replace("-", "_")
+    if engine == "dual":
+        # 병행 판정(사용자 결정 2026-10-18): GPT-6 Luna(openai_api) 가 모든 기준을, Jev 가 J1~J4 를 함께 판정하고 갈리면 재판정→보류.
+        # 둘 중 하나라도 준비되지 않으면 한 심판으로 조용히 바꾸지 않고 멈춘다.
+        from .dual_judge import DualJudgeClient, DualJudgeConfig
+        luna, luna_config, luna_reason = resolve_jev_client(environment, env_path, "openai_api")
+        jev, jev_config, jev_reason = resolve_jev_client(environment, env_path, "jev")
+        config = DualJudgeConfig(luna_config, jev_config)
+        if luna is None or jev is None:
+            return None, config, "병행 판정을 시작할 수 없습니다 — " + " / ".join(r for r in (luna_reason, jev_reason) if r)
+        return DualJudgeClient(luna, jev, config), config, None
     if engine == "auto":
         # Dedicated evaluation credentials only; collection keys never select a judge.
         engine = "openai_api" if read("SEMANTIC_API_KEY") else "codex_cli"
@@ -384,7 +394,7 @@ def resolve_jev_client(
             return None, cli_config, "Claude CLI(claude) 실행 파일을 찾지 못해 의미 평가를 실행하지 않았습니다. CODE 평가 결과는 그대로입니다."
         return ClaudeCliClient(cli_config), cli_config, None
     if engine != "jev":
-        raise ValueError(f"알 수 없는 의미 평가 엔진: {engine!r} (auto, anthropic_api, openai_api, jev, claude_cli 또는 codex_cli)")
+        raise ValueError(f"알 수 없는 의미 평가 엔진: {engine!r} (auto, dual, anthropic_api, openai_api, jev, claude_cli 또는 codex_cli)")
 
     config = JevClientConfig(model=read("JEV_MODEL") or DEFAULT_MODEL,
                              api_base=read("TYPESAFE_API_BASE") or DEFAULT_API_BASE)
