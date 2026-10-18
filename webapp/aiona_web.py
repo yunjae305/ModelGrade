@@ -344,6 +344,9 @@ class AionaChat:
         answer, capture = converted["markdown"], "html"
         done = (stable >= 2 and bool(answer.strip())) or (empty >= 4 and not answer.strip())
         copied = self._copy_last_answer() if done and answer.strip() else None
+        if copied and copied.strip() and len(copied.strip()) < 0.6 * len(answer.strip()):
+            # 복사 원문이 화면 글보다 훨씬 짧으면 일부(코드블록 하나 등)만 복사된 것 — 화면 글을 쓴다 (2026-10-18 사용자 지적)
+            capture, copied = "html-partial-copy", None
         if copied and copied.strip():   # 복사 버튼 원문을 답으로 — HTML 변환 품질 경고는 원문에는 해당하지 않는다
             answer, capture, converted = copied, "copy-button", {"quality": []}
         return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture,
