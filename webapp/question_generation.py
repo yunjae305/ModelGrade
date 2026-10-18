@@ -1292,7 +1292,8 @@ def data_block_kept(block: str, text: str) -> bool:
     """자료 블록이 text 에 그대로 있는가 — 코드 펜스·JSON·표·목록은 들여쓰기·문자열 안 공백까지 같아야 하고(줄 끝 공백만 무시),
     이름표 뒤 글 자료('공지: …')는 공백만 무시한다. 들여쓰기를 바꾸면 코드 동작이, 문자열 안 공백을 바꾸면 값이 달라진다 (Codex 검토)."""
     # 블록 안 어느 줄이든 코드 펜스·JSON·표·목록이면 엄격하게 (이름표 줄 뒤에 코드 펜스가 오는 경우 포함 — Codex 검토)
-    structured = any(re.match(r"^\s*(```|[{\[]|[-*+] |\d{1,3}[.)] |\|)", line) for line in block.split("\n"))
+    # 같은 줄의 이름표 뒤에 JSON·목록이 오는 경우('자료: {"name": "A B"}')도 엄격하게 (Codex 5차)
+    structured = any(re.match(r"^\s*(?:[가-힣A-Za-z ]{1,12}\s*[:：]\s*)?(```|[{\[]|[-*+] |\d{1,3}[.)] |\|)", line) for line in block.split("\n"))
     if structured:
         # 줄 단위로 — 앞뒤 줄 경계까지 같아야 한다('- apple' 이 '- applesauce' 의 앞부분으로 남는 것을 보존으로 보지 않게)
         return "\n" + _strip_line_ends(block).strip("\n") + "\n" in "\n" + _strip_line_ends(text) + "\n"
