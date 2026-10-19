@@ -311,7 +311,7 @@ GROUP_LABEL = {"CODE 1": "CODE 1 출력 무결성", "CODE 2": "CODE 2 형식·�
 
 
 def cmp_chart():
-    W, H, L, T, ph = 1000, 300, 90, 36, 200
+    W, H, L, T, ph = 1000, 310, 90, 46, 200
     out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="정밀 326 과 최소 78 의 모델별 PASS·FAIL·보류 비율">']
     for pct in (0, 25, 50, 75, 100):
         y = T + ph - ph * pct / 100
@@ -330,7 +330,8 @@ def cmp_chart():
                 yb -= hgt
             out.append(f'<text class="tick" x="{x + 35}" y="{T + ph + 16}" text-anchor="middle">{lab}</text>')
             a_, b_, c_ = pf(pp, ff, hh)
-            out.append(f'<text class="inl" x="{x + 35}" y="{T - 8}" text-anchor="middle">{a_:.0f}:{b_:.0f} · 보류 {c_:.0f}%</text>')
+            out.append(f'<text class="inl" x="{x + 35}" y="{T - 20}" text-anchor="middle">{a_:.0f} : {b_:.0f}</text>')
+            out.append(f'<text class="tick" x="{x + 35}" y="{T - 6}" text-anchor="middle">보류 {c_:.0f}%</text>')
         out.append(f'<text class="atitle" x="{x0 + 80}" y="{T + ph + 36}" text-anchor="middle">{E(name)}</text>')
     out.append('</svg>')
     return "\n".join(out)
@@ -670,11 +671,11 @@ s6 = f"""
         "한 번도 FAIL 이 안 난 기준 8개는 깨진 출력을 잡는 안전망 검사 — 느슨해서가 아닙니다 (장 끝 표).")}
   <div class="three">
     <div class="card"><div class="card-head"><b>① 질문 생성</b><span>10-18 · GPT-6 Luna 67회 호출</span></div><div class="card-body">
-      <p>326개 = 단일 284 · 대화 32(10턴 15 · 11턴 1 · 2턴 16) · 긴 문서 10 (487턴). 첨부 28개.</p>
+      <p>326개 = 단일 284 · 대화 32(10턴 15 · 11턴 1 · 2턴 16) · 긴 문서 10 (487턴). 첨부 28개.</p></div></div>
     <div class="card"><div class="card-head"><b>② 답변 수집</b><span>10-18 밤 ~ 10-19 새벽</span></div><div class="card-body">
-      <p>이번은 GPT·Claude·Gemini 를 API 로 487/487, <b>AIONA 웹브라우저 479/487</b>(빈 출력 요구 8개는 오류 화면 → 보류). <b>다음부터는 네 모델 모두 웹브라우저</b>로 받습니다(사용자 결정 10-19).</p>
+      <p>이번은 GPT·Claude·Gemini 를 API 로 487/487, <b>AIONA 웹브라우저 479/487</b>(빈 출력 요구 8개는 오류 화면 → 보류). <b>다음부터는 네 모델 모두 웹브라우저</b>로 받습니다(사용자 결정 10-19).</p></div></div>
     <div class="card"><div class="card-head"><b>③ 평가</b><span>10-19 02:20 ~ 10:32</span></div><div class="card-body">
-      <p>CODE 즉시. 의미 평가 1,938판정 + 재판정 — 판정 하나에 20초~15분(웹 검색·긴 대화).</p>
+      <p>CODE 즉시. 의미 평가 1,938판정 + 재판정 — 판정 하나에 20초~15분(웹 검색·긴 대화).</p></div></div>
   </div>
   <div class="card"><div class="card-head"><b>모델별 PASS : FAIL 비율과 보류 비율</b><span>막대 = 326 중 PASS·FAIL·보류 질문 수 · 오른쪽 = 확정 질문(PASS+FAIL) 중 비율과 보류 비율 · CODE 28 + 의미 44 (Jev + GPT-6 Luna 병행)</span></div>
     <div class="card-body">{res_rows}
@@ -701,7 +702,7 @@ s7 = f"""
       <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div>
     <div class="chart-scroll">{cmp_chart()}</div>
   </figure>
-  <div class="two">
+  <div class="block">
     <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 전체</caption>
       <thead><tr><th>기준 묶음</th><th>GPT</th><th>AIONA</th><th>Claude</th><th>Gemini</th></tr></thead><tbody>{fbg_rows}</tbody></table></div>
     <div class="cmpt rtab"><table><caption>목록 크기별 비교</caption>
