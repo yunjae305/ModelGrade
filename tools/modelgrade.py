@@ -123,6 +123,13 @@ def load_run(run_id: str) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+META_KEYS = ("run_id", "name", "created_at", "question_set", "eval_kind", "run_kind", "providers", "question_count")
+
+
+def run_meta(run: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: run.get(k) for k in META_KEYS}
+
+
 def save_run(run: Dict[str, Any]) -> Path:
     RUNS.mkdir(parents=True, exist_ok=True)
     path = RUNS / f"{run['run_id']}.json"
@@ -131,7 +138,29 @@ def save_run(run: Dict[str, Any]) -> Path:
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     tmp.replace(path)
+    (RUNS / f"{run['run_id']}.meta.json").write_text(json.dumps(run_meta(run), ensure_ascii=False), encoding="utf-8")   # 실행 찾기용 작은 색인
     return path
+
+
+def run_metas() -> List[Dict[str, Any]]:
+    """실행마다 작은 메타(.meta.json) — 없으면 한 번 큰 파일을 읽어 만들어 둔다(실행 JSON 은 수십 MB 라 매번 다 읽으면 20초, 2026-10-20)."""
+    out = []
+    for f in sorted(RUNS.glob("*.json")):
+        if f.name.endswith(".meta.json"):
+            continue
+        meta_path = f.with_name(f.stem + ".meta.json")
+        try:
+            if meta_path.exists() and meta_path.stat().st_mtime >= f.stat().st_mtime:
+                out.append(json.loads(meta_path.read_text(encoding="utf-8")))
+                continue
+            r = json.loads(f.read_text(encoding="utf-8"))
+            if isinstance(r, dict) and r.get("run_id"):
+                meta = run_meta(r)
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+                out.append(meta)
+        except Exception:
+            continue
+    return out
 
 
 def new_run(name: str, set_dir: Path, groups: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -500,24 +529,17 @@ def question_numbers(kind: str, groups: List[Dict[str, Any]]) -> List[int]:
 def find_run_for(set_dir: Path, kind: str) -> Optional[str]:
     """같은 질문 세트·같은 평가 종류로 쓰던 실행(가장 최근). 정밀평가는 CLI 로 만든 실행(AIONA 웹 답을 올린 것)도 이어 쓴다."""
     sid = set_id_of(set_dir)
-    cands = []
-    for f in RUNS.glob("*.json"):
-        try:
-            r = json.loads(f.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if isinstance(r, dict) and (r.get("question_set") or {}).get("set_id") == sid:
-            cands.append(r)
-    tagged = [r for r in cands if r.get("eval_kind") == kind]
+    cands = [m for m in run_metas() if (m.get("question_set") or {}).get("set_id") == sid]
+    tagged = [m for m in cands if m.get("eval_kind") == kind]
     if tagged:
-        return max(tagged, key=lambda r: r.get("created_at") or "")["run_id"]
+        return max(tagged, key=lambda m: m.get("created_at") or "")["run_id"]
     if kind == "full326":
-        cli = [r for r in cands if not r.get("eval_kind") and r.get("run_kind") == "manual-web-import"]
+        cli = [m for m in cands if not m.get("eval_kind") and m.get("run_kind") == "manual-web-import"]
         if cli:
-            r = max(cli, key=lambda r: r.get("created_at") or "")
-            r["eval_kind"] = kind
-            save_run(r)
-            return r["run_id"]
+            run = load_run(max(cli, key=lambda m: m.get("created_at") or "")["run_id"])
+            run["eval_kind"] = kind
+            save_run(run)
+            return run["run_id"]
     return None
 
 
@@ -541,9 +563,11 @@ def cmd_start(args: argparse.Namespace) -> int:
     set_dir = Path(args.set)
     choice = args.choice or ask_choice()
     kind, title = EVAL_KINDS[choice]
+    print(f"{title} 준비 중 — 질문 세트 읽는 중 …", flush=True)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     qs = question_numbers(kind, groups)
     providers = split_providers(args.providers, APP_LABELS)
+    print("이어 쓸 실행 찾는 중 …", flush=True)
     run_id = args.run or find_run_for(set_dir, kind)
     if not run_id:
         run = new_run(title, set_dir, groups)
@@ -551,6 +575,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         run_id = save_run(run).stem
         print(f"새 실행 {run_id}", flush=True)
     print(f"{title} — 질문 {len(qs)}개 · 모델 {', '.join(providers)} 동시 수집 · 실행 {run_id}", flush=True)
+    print("앱·수집용 Chrome 을 켜는 중 — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
                             set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True)
     t_collect = time.monotonic()

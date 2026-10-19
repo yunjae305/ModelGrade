@@ -9,6 +9,11 @@ import pytest
 from tools import modelgrade as mg
 
 
+
+def _runs(tmp_path):
+    """실행 JSON 만 (작은 색인 .meta.json 은 뺀다)."""
+    return [f for f in sorted((tmp_path / "runs").glob("*.json")) if not f.name.endswith(".meta.json")]
+
 def _set(tmp_path: Path) -> Path:
     d = tmp_path / "set"; d.mkdir()
     groups = [{"id": 1, "topic": "인사", "turns": [{"turn": 1, "question": "정확히 2개의 문장으로 인사말을 써줘. 존댓말로 답해줘."}]},
@@ -34,7 +39,7 @@ def test_collect_import_builds_run_with_collection_status_and_code_eval(tmp_path
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     assert mg.main(["collect", "import", "--provider", "claude", "--csv", str(_csv(tmp_path)), "--set", str(_set(tmp_path)), "--new", "시험"]) == 0
     out = capsys.readouterr().out
-    run = json.loads(next((tmp_path / "runs").glob("*.json")).read_text(encoding="utf-8"))
+    run = json.loads(_runs(tmp_path)[0].read_text(encoding="utf-8"))
     rows = {r["case_id"]: r for r in run["datasets"]["claude"]}
     assert list(rows) == ["Q1_T1", "Q2_T1", "Q2_T2", "Q3_T1"]            # 질문 세트 순서, 세트에 없는 Q9 는 무시
     assert rows["Q1_T1"]["collection"]["status"] == "SUCCESS" and rows["Q1_T1"]["collection"]["url"] == "https://claude.ai/chat/1"
@@ -94,7 +99,7 @@ def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_p
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "2,1", "--new", "앱 시험"]) == 0
     assert calls == ["new", ("ask", "가게 이름을 하나 정해줘."[:10], []), ("ask", "아까 정한 이름으로 간판 문구를 써줘."[:10], []), "new", ("ask", "정확히 2개의 문장으로 인사말을 써줘. 존댓말로 답해줘."[:10], [])]
-    run = json.loads(next((tmp_path / "runs").glob("*.json")).read_text(encoding="utf-8"))
+    run = json.loads(_runs(tmp_path)[0].read_text(encoding="utf-8"))
     rows = {r["case_id"]: r for r in run["datasets"]["gpt"]}
     assert [r["case_id"] for r in run["datasets"]["gpt"]] == ["Q1_T1", "Q2_T1", "Q2_T2", "Q3_T1"]
     assert rows["Q2_T2"]["collection"]["status"] == "SUCCESS" and rows["Q2_T2"]["turn"] == 2
@@ -137,7 +142,7 @@ def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collec
     monkeypatch.setattr(mg, "app_chat_class", fake_cls)
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt,claude", "--set", str(set_dir), "--only", "1", "--new", "두 앱"]) == 0
-    runs = list((tmp_path / "runs").glob("*.json"))
+    runs = list(_runs(tmp_path))
     assert len(runs) == 1 and seen == ["gpt", "claude"] and places == ["left", "right"]
     run = json.loads(runs[0].read_text(encoding="utf-8"))
     assert run["datasets"]["gpt"][0]["answer"] == "gpt 답입니다." and run["datasets"]["claude"][0]["answer"] == "claude 답입니다."
@@ -224,7 +229,7 @@ def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path,
     monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1", "--new", "x"]) == 0
-    run_id = next((tmp_path / "runs").glob("*.json")).stem
+    run_id = _runs(tmp_path)[0].stem
     asked.clear()
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run_id, "--skip-done"]) == 0
     assert asked == ["아무것도 출력"[:6]]
