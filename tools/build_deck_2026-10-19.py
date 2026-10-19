@@ -180,6 +180,50 @@ MIN = [("기준마다 1번↑", 7, "대화 1 · 단일 5 · 긴 문서 1", "57% 
        ("기준마다 5번↑", 37, "대화 5 · 단일 27 · 긴 문서 5", "43% · 38% · 30% · 35%", "aiona > gpt > gemini > claude", "다름"),
        ("기준마다 10번↑", 78, "대화 11 · 단일 57 · 긴 문서 10", "40% · 44% · 37% · 33%", "gpt > aiona > claude > gemini", "같음"),
        ("정밀 (전체)", 326, "", "51% · 58% · 40% · 37%", "gpt > aiona > claude > gemini", "기준")]
+# 정밀 326 vs 최소 78 (qs-c5d8a1624770) — 같은 실행의 판정, 질문 단위
+MIN78 = {"gpt": (34, 23, 21), "aiona": (31, 25, 22), "claude": (29, 28, 21), "gemini": (26, 29, 23)}
+FBG = json.load(open(ROOT / "참고자료/최소평가/fail_by_group_min78_vs_full.json", encoding="utf-8"))   # {기준 묶음: {모델: [정밀 FAIL 질문 수, 그중 최소 78 안]}}
+GROUP_LABEL = {"CODE 1": "CODE 1 출력 무결성", "CODE 2": "CODE 2 형식·지시", "CODE 3": "CODE 3 계산·자료", "J1": "J1 의도 충족", "J2": "J2 맥락 적합", "J3": "J3 논리 일관",
+               "J4": "J4 완결성", "J5": "J5 DATA 신뢰도", "J6": "J6 멀티턴 맥락", "J7": "J7 롱컨텍스트", "J8": "J8 첨부 해석"}
+
+
+def cmp_chart():
+    """모델마다 막대 두 개(정밀 326 · 최소 78) — PASS·FAIL·보류 비율."""
+    W, H, L, T, ph = 1000, 300, 90, 36, 200
+    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="정밀 326 과 최소 78 의 모델별 PASS·FAIL·보류 비율">']
+    for pct in (0, 25, 50, 75, 100):
+        y = T + ph - ph * pct / 100
+        out.append(f'<line class="grid" x1="{L}" y1="{y:.1f}" x2="{W - 20}" y2="{y:.1f}"/><text class="tick" x="{L - 8}" y="{y + 4:.1f}" text-anchor="end">{pct}%</text>')
+    slot = (W - 20 - L) / 4
+    for i, (name, m, p_, f, h) in enumerate(RES):
+        x0 = L + i * slot + 30
+        for j, (lab, tot, (pp, ff, hh)) in enumerate((("정밀 326", 326, (p_, f, h)), ("최소 78", 78, MIN78[m]))):
+            x = x0 + j * 90
+            yb = T + ph
+            for val, cls in ((hh, "h"), (ff, "f2"), (pp, "p")):
+                hgt = ph * val / tot
+                out.append(f'<rect class="cb {cls}" x="{x}" y="{yb - hgt:.1f}" width="70" height="{hgt:.1f}"/>')
+                if val / tot >= 0.12:
+                    out.append(f'<text class="kv" x="{x + 35}" y="{yb - hgt / 2 + 4:.1f}" text-anchor="middle">{val}</text>')
+                yb -= hgt
+            out.append(f'<text class="tick" x="{x + 35}" y="{T + ph + 16}" text-anchor="middle">{lab}</text>')
+            out.append(f'<text class="inl" x="{x + 35}" y="{T - 8}" text-anchor="middle">{pp / tot * 100:.0f}%</text>')
+        out.append(f'<text class="atitle" x="{x0 + 80}" y="{T + ph + 36}" text-anchor="middle">{E(name)}</text>')
+    out.append(f'<text class="note" x="{L}" y="{H - 4}">막대 안 숫자 = 질문 수 · 위 숫자 = 통과율(PASS / 질문 수, 보류 포함). 최소 78 은 정밀 326 의 부분집합이라 같은 판정을 그대로 셈.</text>')
+    out.append('</svg>')
+    return "\n".join(out)
+
+
+fbg_rows = []
+for g in ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7", "J8"):
+    row = FBG.get(g, {})
+    cells = []
+    for _, m, *_ in RES:
+        full_n, sub_n = row.get(m, (0, 0))
+        cells.append(f'<td class="num">{sub_n} <span class="muted">/ {full_n}</span></td>' if full_n else '<td class="num muted">—</td>')
+    fbg_rows.append(f'<tr><th scope="row">{E(GROUP_LABEL[g])}</th>{"".join(cells)}</tr>')
+fbg_rows = "".join(fbg_rows)
+
 min_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td><td class="exq">{E(e)}</td><td>{E(f)}</td></tr>' for a, b, c, d, e, f in MIN)
 
 # ---------- 7. 비용 ----------
@@ -227,6 +271,7 @@ pre.show { margin: 0; padding: 14px 16px; font-family: var(--font-num); font-siz
 .steps4 b { font-size: 0.98rem; } .steps4 span { font-size: 0.86rem; color: var(--muted); }
 svg .kb.pass { fill: var(--ok); opacity: 0.55; } svg .kb.disc { fill: var(--accent); } svg .kb.fail { fill: var(--risk); opacity: 0.6; }
 svg .kv { fill: #fff; font-family: var(--font-num); font-size: 12px; font-weight: 700; }
+svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } svg .cb.h { fill: var(--warn); opacity: 0.55; }
 .ktab table { min-width: 560px; } .ktab tr.pick td, .ktab tr.pick th { background: var(--ok-soft); } .ktab td.d { font-weight: 700; color: var(--accent); }
 .ctab table { min-width: 720px; font-size: 0.86rem; } .ctab td.ex { font-family: var(--font-body); color: var(--muted); white-space: normal; } .ctab td { white-space: normal; font-family: var(--font-body); }
 .ctab th[scope="row"] { white-space: nowrap; } .ctab code { font-family: var(--font-num); font-size: 0.8rem; }
@@ -457,7 +502,14 @@ s6 = f"""
   <div class="subhead"><h3>질문을 줄일 수 있나</h3><p>평가가 끝난 기록만으로(AI 호출 없이) 확인했습니다. "덜 채운 기준을 가장 많이 채우는 질문부터" 고르면 7개로 기준 64개를 한 번씩 덮고, 78개면 기준마다 10번 이상 — 이때 순위도 전체와 같습니다. 적은 목록은 어려운 질문 위주라 통과율이 낮게 나옵니다.</p></div>
   <div class="cmpt rtab"><table><caption>최소 평가 vs 정밀 평가 <span>표준 탐욕법(v2) 목록 · 통과율 순서 AIONA · GPT · Claude · Gemini</span></caption>
     <thead><tr><th>목록</th><th>질문 수</th><th>구성</th><th>통과율</th><th>순위</th><th>정밀과</th></tr></thead><tbody>{min_rows}</tbody></table></div>
-  <figure class="fig"><div class="fig-head"><h3>기울기 — 기준 많은 순으로 10개씩 늘릴 때 모델별 통과율</h3><span class="muted">순서 = 덜 채운 기준을 가장 많이 채우는 질문부터(표준 탐욕법). <b>78개</b>에서 기준 64개 모두 10번 이상. 순위·통과율이 정밀과 같아지는 지점 <b>273개</b>. 자세한 시험은 07장.</span></div>
+  <figure class="fig">
+    <div class="fig-head"><h3>정밀 326 vs 최소 78 — 모델별 PASS·FAIL·보류</h3>
+      <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span><span class="muted">최소 78 = 세트 qs-c5d8a1624770 (정밀에서 골라냄, 기준마다 10번↑)</span></div></div>
+    <div class="chart-scroll">{cmp_chart()}</div>
+  </figure>
+  <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 326 전체 <span>모델마다 그 묶음에서 FAIL 이 난 질문 수. 최소 78 에서도 거의 모든 묶음에 FAIL 이 보여 "어디서 틀리나"를 같은 모양으로 읽을 수 있음</span></caption>
+    <thead><tr><th>기준 묶음</th><th>GPT-6 Luna</th><th>AIONA</th><th>Claude Sonnet 5.5</th><th>Gemini 3.6 Flash</th></tr></thead><tbody>{fbg_rows}</tbody></table></div>
+  <figure class="fig"><div class="fig-head"><h3>기울기 — 덜 채운 기준을 많이 채우는 순으로 10개씩 늘릴 때 모델별 통과율</h3><span class="muted">순서 = 덜 채운 기준을 가장 많이 채우는 질문부터(표준 탐욕법). <b>78개</b>에서 기준 64개 모두 10번 이상. 순위·통과율이 정밀과 같아지는 지점 <b>273개</b>. 자세한 시험은 07장.</span></div>
     <div class="gradwrap">{gradient_svg}</div></figure>
 </section>
 """
