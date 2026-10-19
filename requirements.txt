@@ -11,3 +11,4 @@ Pillow>=10
 # AIONA 답변 수집·로그인 창(tools/web_chat_login.py) — 브라우저 자동화. 설치된 Google Chrome 을 channel="chrome" 으로 쓰므로
 # 브라우저를 따로 내려받지 않는다 (Chrome 이 없으면 AIONA 수집은 오류로 남고 다른 모델 수집은 계속된다)
 playwright>=1.45,<2
+pywinauto>=0.6.9; sys_platform == "win32"   # Claude 데스크톱 앱 수집(UIA, Windows 전용)

@@ -624,7 +624,12 @@ class ChatGptAppChat(ChatGptChat):
     METHOD = "chatgpt-app-v1"
 
     def __enter__(self) -> "ChatGptAppChat":
-        from tools.chatgpt_app_cdp import cdp_url, status
+        from tools.chatgpt_app_cdp import cdp_url, launch, status
+        if not status()["ok"]:
+            try:
+                launch(restart=True)   # 포트 없이 떠 있으면 닫고 포트를 열어 다시 켠다, 안 떠 있으면 켠다 (로그인은 앱에 남아 있다)
+            except Exception as exc:
+                raise CdpWebError(f"ChatGPT 앱을 켜지 못했습니다: {str(exc)[:120]}")
         if not status()["ok"]:
             raise CdpWebError("ChatGPT 앱이 디버깅 포트로 떠 있지 않습니다 — python tools/chatgpt_app_cdp.py --restart 로 띄우고 앱에서 로그인하세요.")
         from playwright.sync_api import sync_playwright

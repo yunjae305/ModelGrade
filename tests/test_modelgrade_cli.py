@@ -106,3 +106,33 @@ def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_p
     assert calls == ["new", ("ask", "아무것도 출력하지 마. 공백 포함 정확히 0자로 유지해."[:10], [])]            # 1·2번은 받았으니 3번만
     out = capsys.readouterr().out
     assert "이미 받은 질문 2개" in out
+
+
+def test_collect_app_runs_each_app_in_turn_on_one_run_and_claude_maps_to_uia_collector(tmp_path, monkeypatch):
+    """--provider gpt,claude: 첫 앱이 만든 실행에 둘째 앱이 이어 쓴다. claude 는 UIA 앱 수집기(ClaudeAppChat)."""
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    seen = []
+
+    def fake_cls(provider):
+        class FakeChat:
+            def __init__(self, **kw): pass
+            def __enter__(self): return self
+            def __exit__(self, *a): return None
+            def new_chat(self): pass
+            def ask(self, question, files=None, reference=None):
+                seen.append(provider)
+                return {"answer": f"{provider} 답입니다.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 10, "model": provider, "method": "x", "error": None, "url": None, "sent": []}
+        return FakeChat
+    monkeypatch.setattr(mg, "app_chat_class", fake_cls)
+    set_dir = _set(tmp_path)
+    assert mg.main(["collect", "app", "--provider", "gpt,claude", "--set", str(set_dir), "--only", "1", "--new", "두 앱"]) == 0
+    runs = list((tmp_path / "runs").glob("*.json"))
+    assert len(runs) == 1 and seen == ["gpt", "claude"]
+    run = json.loads(runs[0].read_text(encoding="utf-8"))
+    assert run["datasets"]["gpt"][0]["answer"] == "gpt 답입니다." and run["datasets"]["claude"][0]["answer"] == "claude 답입니다."
+    assert run["models"] == {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}
+    with pytest.raises(SystemExit):
+        mg.main(["collect", "app", "--provider", "gemini", "--set", str(set_dir), "--only", "1"])
+    monkeypatch.undo()
+    assert mg.app_chat_class("claude").__name__ == "ClaudeAppChat"

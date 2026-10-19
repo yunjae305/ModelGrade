@@ -38,7 +38,8 @@ IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
-LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 앱 (GPT-6 · Medium)", "aiona": "AIONA 웹브라우저"}
+LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
+APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}   # collect app(데스크톱 앱 자동 수집)
 
 
 def _now() -> str:
@@ -166,11 +167,23 @@ def cmd_collect_import(args: argparse.Namespace) -> int:
 # --- collect app (데스크톱 앱에서 받기) -----------------------------------------------------------------------------
 
 def app_chat_class(provider: str):
-    """모델 → 데스크톱 앱 수집기. 지금은 ChatGPT 앱(gpt)만 (2026-10-19). 시험에서는 monkeypatch 로 가짜를 넣는다."""
+    """모델 → 데스크톱 앱 수집기: gpt = ChatGPT 앱(디버깅 포트, CDP), claude = Claude 앱(UIA 접근성 API, 2026-10-19). Gemini 는 앱이 없어 웹 CSV.
+    시험에서는 monkeypatch 로 가짜를 넣는다."""
     if provider == "gpt":
         from webapp.cdp_chat_web import ChatGptAppChat
         return ChatGptAppChat
-    raise SystemExit(f"{provider} 는 데스크톱 앱 수집기가 아직 없습니다 (gpt 만). 웹 수집 CSV 를 collect import 로 올리세요.")
+    if provider == "claude":
+        from webapp.uia_chat_app import ClaudeAppChat
+        return ClaudeAppChat
+    raise SystemExit(f"{provider} 는 데스크톱 앱 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
+
+
+def split_providers(text: str, allowed: Dict[str, str]) -> List[str]:
+    out = [x.strip() for x in (text or "").split(",") if x.strip()]
+    bad = [x for x in out if x not in allowed]
+    if bad or not out:
+        raise SystemExit(f"--provider 는 {', '.join(allowed)} 중에서 쉼표로: {text!r}")
+    return out
 
 
 def materialize_attachments(turn: Dict[str, Any], set_dir: Path, tmp: Path) -> List[Path]:
@@ -192,15 +205,30 @@ def materialize_attachments(turn: Dict[str, Any], set_dir: Path, tmp: Path) -> L
 
 
 def cmd_collect_app(args: argparse.Namespace) -> int:
-    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. 대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅.
-    이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다 — 같은 명령을 다시 부르면 이어서."""
+    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. --provider gpt,claude 처럼 여러 앱이면 차례로(앱은 알아서 켠다).
+    대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅. 이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다 — 같은 명령을 다시 부르면 이어서."""
+    providers = split_providers(args.provider, APP_LABELS)
+    run_id = args.run
+    for provider in providers:
+        code = collect_app_one(argparse.Namespace(**{**vars(args), "provider": provider, "run": run_id}))
+        if code:
+            return code
+        run_id = run_id or _LAST_RUN_ID[0]   # 첫 앱이 새 실행을 만들면 다음 앱은 그 실행에 이어 쓴다
+    return 0
+
+
+_LAST_RUN_ID: List[Optional[str]] = [None]
+
+
+def collect_app_one(args: argparse.Namespace) -> int:
     import tempfile
     from webapp.question_generation import flatten
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     rows_all = flatten(groups)
-    label = args.label or LABELS.get(args.provider, args.provider)
+    label = args.label or APP_LABELS.get(args.provider, args.provider)
     run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
+    _LAST_RUN_ID[0] = run["run_id"]
     existing = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(args.provider) or [] if isinstance(r, dict)}
     by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in rows_all:
@@ -323,7 +351,13 @@ def cmd_judge(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    """올리기(선택) → 다음 묶음 판정 → 결과. 한 번 부를 때마다 한 묶음(기본 20개)만 — 다시 부르면 이어서."""
+    """앱 수집(선택, --collect gpt,claude: 앱을 켜서 다음 묶음 받기) → 올리기(선택) → 다음 묶음 판정 → 결과.
+    한 번 부를 때마다 한 묶음(기본 20개)만 — 다시 부르면 이어서."""
+    if args.collect:
+        code = cmd_collect_app(argparse.Namespace(provider=args.collect, run=args.run, new=None, only=None, next=args.next, set=args.set,
+                                                  label=None, allow_large=False))
+        if code:
+            return code
     if args.import_csv:
         if not args.import_provider:
             raise SystemExit("--import-csv 에는 --import-provider 가 필요합니다.")
@@ -372,14 +406,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     imp.add_argument("--set", default=str(DEFAULT_SET))
     imp.add_argument("--label", help="결과에 보일 모델 이름 (기본: '<모델> 웹브라우저')")
     imp.set_defaults(func=cmd_collect_import)
-    app = collect.add_parser("app", help="데스크톱 앱(ChatGPT 앱)에서 질문 묶음의 답 받기 (+ CODE 평가). 같은 명령을 다시 부르면 이어서")
-    app.add_argument("--provider", required=True, choices=["gpt"])
+    app = collect.add_parser("app", help="데스크톱 앱(ChatGPT 앱·Claude 앱)을 켜서 질문 묶음의 답 받기 (+ CODE 평가). 같은 명령을 다시 부르면 이어서")
+    app.add_argument("--provider", required=True, help="gpt, claude — 쉼표로 여럿 (예: gpt,claude)")
     app.add_argument("--run", help="기존 실행 id (비우면 새 실행)")
     app.add_argument("--new", help="새 실행 이름")
     app.add_argument("--only", help="질문 번호, 쉼표로")
     app.add_argument("--next", type=int, default=JUDGE_BATCH_MAX, help="아직 안 받은 질문 중 다음 N개 (기본 20)")
     app.add_argument("--set", default=str(DEFAULT_SET))
-    app.add_argument("--label", help="결과에 보일 모델 이름 (기본 'ChatGPT 웹브라우저' 대신 지정 가능)")
+    app.add_argument("--label", help="결과에 보일 모델 이름 (기본: 'ChatGPT 앱 (GPT-6 · Medium)' · 'Claude 앱 (Sonnet 5.5 · 노력 중간)')")
     app.add_argument("--allow-large", action="store_true")
     app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
@@ -392,8 +426,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     jd.add_argument("--workers", type=int, default=1)
     jd.add_argument("--allow-large", action="store_true")
     jd.set_defaults(func=cmd_judge)
-    rn = sub.add_parser("run", help="올리기(선택) → 다음 묶음 판정 → 결과. 부를 때마다 한 묶음, 다시 부르면 이어서")
+    rn = sub.add_parser("run", help="앱 수집(선택) → 올리기(선택) → 다음 묶음 판정 → 결과. 부를 때마다 한 묶음, 다시 부르면 이어서")
     rn.add_argument("--run", required=True)
+    rn.add_argument("--collect", help="먼저 데스크톱 앱을 켜서 다음 묶음의 답을 받을 모델: gpt, claude (쉼표로 여럿)")
     rn.add_argument("--providers")
     rn.add_argument("--next", type=int, default=JUDGE_BATCH_MAX)
     rn.add_argument("--out")
