@@ -412,6 +412,15 @@ class ClaudeAppChat:
     def _page_text(self) -> str:
         return "\n".join((e.element_info.name or "") for e in self._all("Text"))
 
+    def _wait_group(self, timeout_s: float) -> Any:
+        deadline = time.monotonic() + timeout_s
+        while True:
+            g = self._last_message_group()
+            if g is not None or time.monotonic() >= deadline:
+                return g
+            time.sleep(0.5)
+            self._select_chat_tab()
+
     def _last_message_group(self) -> Any:
         """마지막 말풍선 Group('N개 메시지 중 K번째' 의 K 최대)."""
         best, best_k = None, -1
@@ -436,15 +445,20 @@ class ClaudeAppChat:
     COPY_SENTINEL = "\u2063modelgrade-copy-wait\u2063"
 
     def _copy_last_answer(self) -> str:
-        """마지막 답의 복사 아이콘 → 클립보드. 다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 화면의 답과 맞는지 대조한다(최대 3번)."""
-        bars = self._answer_bars()
+        """마지막 답의 복사 아이콘 → 클립보드. 반드시 채팅 탭의 마지막 말풍선 아래 버튼만 — Code 탭이 앞에 있으면 그 탭의 글을 복사한다(Q3 사고 2026-10-19).
+        다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 그 말풍선의 글과 맞는지 대조한다(최대 3번)."""
+        self._select_chat_tab()
+        group = self._wait_group(10)
+        if group is None:
+            raise UiaChatError("채팅 탭의 말풍선을 찾지 못해 복사하지 않음 (앱이 다른 탭에 있음?) — 이 질문은 다음에 다시 받습니다")
+        top = group.element_info.rectangle.top
+        bars = [b for b in self._answer_bars() if b.element_info.rectangle.top >= top - 10]   # 그 말풍선 아래의 툴바만
         if not bars:
             return ""
         btn = next((b for b in bars[-1].descendants(control_type="Button") if re.match(self.COPY, b.element_info.name or "")), None)
         if btn is None:
             return ""
-        group = self._last_message_group()
-        screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text"))) if group is not None else ""
+        screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text")))
         for _ in range(3):
             _clipboard_set(self.COPY_SENTINEL)
             self._press(btn)
@@ -510,6 +524,10 @@ class ClaudeAppChat:
             time.sleep(1.5)
             if self.cancelled():
                 break
+            try:
+                self._select_chat_tab()   # 기다리는 동안 사람이 Code 탭으로 옮기면 되돌린다 — 답 감지·복사가 그 탭에서 이뤄져야 한다
+            except Exception:
+                pass
             if self._streaming():
                 stable = 0
                 continue

@@ -153,7 +153,7 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
         if not items:
             return
         situations = {t["case_id"]: ji.situations_for(table[t["case_id"]], items.get(int(t.get("turn") or 1), [])) for t in turns}
-        text = ji.question_input(mark, turns, situations, answers)
+        text = ji.question_input(mark, turns, situations, answers, entry.get("deliveries"))
         search = any("J5-1.a" in v for v in items.values()) and not any((t.get("reference") or "").strip() for t in turns)
         t0 = time.monotonic()
         status, output, error = gpt.judge(prompt, text, search) if gpt else ("ERROR", None, "GPT CLI 없음")

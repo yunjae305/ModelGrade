@@ -99,14 +99,26 @@ def attachments_block(row: Dict[str, Any]) -> str:
     return "[첨부파일]\n" + "\n".join(f"- {a.get('name')} · {a.get('type')}\n{a.get('content') or '(내용 없음)'}" for a in files)
 
 
-def turn_block(mark: str, row: Dict[str, Any], situation: str, answer: str) -> str:
+def turn_block(mark: str, row: Dict[str, Any], situation: str, answer: str, delivery: str = "") -> str:
     parts = [f"<<{mark} {_turn(row)}턴 시작>>", "[이 턴의 상황]", situation, "[질문]", row.get("question") or ""]
     if attachments_block(row):
         parts.append(attachments_block(row))
     if isinstance(row.get("reference"), str) and row["reference"].strip():
         parts += ["[참조 자료]", row["reference"]]
+    if delivery:
+        parts += ["[전달 방식]", delivery]   # 긴 참조 자료는 수집기가 TXT 파일로 올려 보냈다 — 답변의 '첨부 파일' 표현은 꾸밈이 아니다 (Q3 GPT J5-3.a, 2026-10-19)
     parts += ["[답변]", answer, f"<<{mark} {_turn(row)}턴 끝>>"]
     return "\n".join(parts)
+
+
+def delivery_note(row: Optional[Dict[str, Any]]) -> str:
+    """수집 기록의 sent 에서 '참조 자료를 TXT 파일로 올림' 을 찾아 심판에게 알릴 한 줄 — 없으면 빈 문자열."""
+    if not isinstance(row, dict):
+        return ""
+    for s in (row.get("collection") or {}).get("sent") or []:
+        if isinstance(s, dict) and "파일로 올림" in str(s.get("how") or ""):
+            return f"참조 자료는 모델에게 '{s.get('name')}' 파일로 첨부해 보냈음 — 답변이 이를 '첨부 파일'·'첨부된 자료'라 불러도 맞는 표현임"
+    return ""
 
 
 def situations_for(row: Dict[str, Any], items: List[str]) -> str:
@@ -116,9 +128,11 @@ def situations_for(row: Dict[str, Any], items: List[str]) -> str:
     return render([i for i in row["items"] if i in items], [{**s, "items": [i for i in s["items"] if i in items]} for s in keep])
 
 
-def question_input(mark: str, turns: List[Dict[str, Any]], situations: Dict[str, str], answers: Dict[str, str]) -> str:
+def question_input(mark: str, turns: List[Dict[str, Any]], situations: Dict[str, str], answers: Dict[str, str],
+                   deliveries: Optional[Dict[str, str]] = None) -> str:
     """고정 프롬프트 뒤에 붙일 [입력] — 프롬프트 '입력 형식' 그대로."""
-    body = [turn_block(mark, row, situations[row["case_id"]], answers[row["case_id"]]) for row in turns]
+    deliveries = deliveries or {}
+    body = [turn_block(mark, row, situations[row["case_id"]], answers[row["case_id"]], deliveries.get(row["case_id"], "")) for row in turns]
     return "\n".join([f"실행 표식: {mark}", f"<<{mark} 질문 시작>>", *body, f"<<{mark} 질문 끝>>"])
 
 
@@ -163,8 +177,10 @@ def build(run: Dict[str, Any], set_dir: Path, out: Path, providers: Optional[Lis
             elif missing:
                 entry.update(status="no_answer", reason=f"답을 받지 못한 턴 {', '.join(missing)} — FAIL 로 셈, 보내지 않음")
             else:
-                text = question_input(mark, turns, {t["case_id"]: table[t["case_id"]]["case_situations"] for t in turns}, answers[provider])
-                entry.update(status="ready", input=text, chars=len(text), sha256=_sha(text))
+                deliveries = {t["case_id"]: delivery_note(datasets[provider].get(t["case_id"])) for t in turns}
+                deliveries = {k: v for k, v in deliveries.items() if v}
+                text = question_input(mark, turns, {t["case_id"]: table[t["case_id"]]["case_situations"] for t in turns}, answers[provider], deliveries)
+                entry.update(status="ready", input=text, chars=len(text), sha256=_sha(text), deliveries=deliveries)
             counts[(provider, entry["status"])] += 1
             lines.append(json.dumps(entry, ensure_ascii=False))
         (out / f"{provider}.jsonl").write_text("".join(line + "\n" for line in lines), encoding="utf-8")
