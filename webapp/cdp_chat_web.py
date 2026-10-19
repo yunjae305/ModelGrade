@@ -407,7 +407,7 @@ class _CdpChat:
             return {**base, "answer": "", "status": "ERROR", "url": self.page.url,
                     "error": (str(exc)[:300] if isinstance(exc, CdpWebError) else f"질문을 보내지 못했습니다: {type(exc).__name__}"),
                     "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("send-failed")}
-        deadline = time.monotonic() + self.answer_timeout_s
+        deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable = None, 0
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)

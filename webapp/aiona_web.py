@@ -356,7 +356,7 @@ class AionaChat:
             return {"answer": "", "status": "ERROR", "error": f"질문을 보내지 못했습니다: {type(exc).__name__}", "url": self.page.url,
                     "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "method": AIONA_WEB_VERSION,
                     "debug_screenshot": self._snapshot("send-failed")}
-        deadline = time.monotonic() + self.answer_timeout_s
+        deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable, empty, as_is, masked = None, 0, 0, self._intent_as_is, self._pii_masked
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)

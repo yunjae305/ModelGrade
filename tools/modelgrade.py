@@ -399,7 +399,9 @@ def collect_app_one(args: argparse.Namespace) -> int:
             backed_up[0] = True
         except SystemExit as exc:
             print(f"  (중간 저장 실패: {exc})", flush=True)
-    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None)) as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
+    from code_eval.llm_client import env_value
+    answer_timeout = int(env_value("COLLECT_ANSWER_TIMEOUT") or 0)   # 답변 대기 제한(초), 기본 0 = 제한 없음 (사용자 지시 10-20: 제한 시간 해제)
+    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout) as chat,             tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
         for i, q in enumerate(wanted, 1):
             turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))

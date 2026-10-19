@@ -518,7 +518,7 @@ class ClaudeAppChat:
             return {**base, "answer": "", "status": "ERROR",
                     "error": (str(exc)[:300] if isinstance(exc, UiaChatError) else f"질문을 보내지 못했습니다: {type(exc).__name__}: {str(exc)[:120]}"),
                     "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("send-failed")}
-        deadline = time.monotonic() + self.answer_timeout_s
+        deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable = None, 0
         while time.monotonic() < deadline:
             time.sleep(1.5)
