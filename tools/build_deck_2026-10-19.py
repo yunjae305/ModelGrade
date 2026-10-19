@@ -638,7 +638,7 @@ s3 = f"""
   <div class="block"><h3>① 어떻게 시험했나</h3>
     <div class="steps4">
       <div><span class="k">1</span><b>뼈대 질문 18개</b><span>과제와 붙여 넣은 자료가 서로 다른 질문 18개 (예: 도서관 메모의 승인 문구 옮기기). 뼈대는 변형에서 바꾸지 않음</span></div>
-      <div><span class="k">2</span><b>조건 수만 바꾼 변형 255개</b><span>뼈대마다 덧붙이는 조건 문장만 늘리거나 줄여 k = 1, 2, … 16 짜리를 하나씩 (18 × 16 = 288 중 자연스럽게 못 만든 33개 제외). 아래 예: 같은 메모에 k 2 · 8 · 12</span></div>
+      <div><span class="k">2</span><b>조건 수를 늘려 가며 만든 변형 255개</b><span>뼈대마다 덧붙이는 조건 문장을 하나씩 늘려 k = 1, 2, … 16 짜리를 만듦 (18 × 16 = 288 중 자연스럽게 못 만든 33개 제외). 아래 예: 같은 메모에 k 2 · 8 · 12</span></div>
       <div><span class="k">3</span><b>세 모델에 던짐</b><span>GPT · Claude · Gemini (10-18). AIONA 는 지금 수집 중</span></div>
       <div><span class="k">4</span><b>질문마다 판정 분류</b><span>Jev + GPT-6 Luna 평가 → 모델들이 <b>모두 PASS</b> / <b>갈림</b> / <b>모두 FAIL</b></span></div>
     </div>
