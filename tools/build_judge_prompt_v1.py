@@ -44,6 +44,8 @@ def item_lines() -> list[str]:
             tags.append("항상 적용")
         if it.model_applies:
             tags.append("적용 여부는 심판이 정함 → NOT_APPLICABLE 가능")
+        if it.id == "J5-3.a":   # 답변을 보고 생기는 유일한 항목 — 표에는 모든 턴에 넣고 심판이 적용 여부를 정한다
+            tags.append("모든 질문에 포함 — 답변에 확인·조회·출처 언급이 없으면 적용 여부는 심판이 정함 → NOT_APPLICABLE")
         if it.expand:
             tags.append(f"펼침({it.expand}): 요소마다 #1, #2… 로 따로 판정")
         if it.missing_type:
@@ -132,7 +134,7 @@ def main() -> int:
 | `{{{{RUN_MARK}}}}` | 실행 표식(짧은 무작위 문자열). 답변이 구분 줄을 흉내 내지 못하게 실행마다 바꿈 | 실행 때 생성 |
 | `{{{{QUESTION_BLOCK}}}}` | 질문 원문. 멀티턴이면 `[앞 대화]`(1턴부터 바로 앞 턴까지 질문·답변) + `[현재 질문]`, 첨부가 있으면 `[첨부파일]`(이름·종류·내용), 긴 문서면 `[참조 자료]` | 고정 질문 세트 326 (data/question_sets) |
 | `{{{{ANSWER}}}}` | 평가할 모델의 답변 원문. 어느 모델인지는 넣지 않음 | 수집 결과 |
-| `{{{{ITEM_IDS}}}}` | 이 질문에서 판정할 항목 번호 (예: `J1-1.a J1-2.a J2-2.a …`) | 고정 적용 표 (2단계에서 만듦: 질문 326 × 의미 항목 {n_items}) |
+| `{{{{ITEM_IDS}}}}` | 이 턴에서 판정할 항목 번호 (예: `J1-1.a J1-2.a J2-2.a …`) | 고정 판정 항목 표 `참고자료/질문세트_326/판정항목표_v1.csv` (judge-items-v1: 턴 487줄 × 의미 항목 {n_items}개 중, `tools/build_judge_items_table.py`) |
 
 본문의 나머지 글(원칙 · 판정 방법 · 점검 항목 {n_items}개 전체 · 출력 형식)은 어떤 질문·답변·심판에도 같습니다.
 
