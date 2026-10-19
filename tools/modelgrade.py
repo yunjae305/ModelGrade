@@ -594,32 +594,21 @@ def _hms(seconds: float) -> str:
 
 def print_collection_times(run_id: str, providers: Optional[List[str]] = None) -> None:
     """모델별 답변 수집 시간 — 받은 턴의 답변 시간 합(모델이 답하는 데 걸린 시간)과 수집 묶음의 벽시계 합. (사용자 요청 10-19)"""
+    from tools.report_html import collection_time_rows
     try:
         run = load_run(run_id)
     except SystemExit:
         return
-    providers = providers or list(run.get("providers") or [])
     print("| 모델 | 받은 질문 | 답변 시간 합 | 질문당 평균 | 수집 묶음 벽시계 합 |\n|---|---|---|---|---|")
-    for p in providers:
-        rows = [r for r in (run.get("datasets") or {}).get(p) or [] if isinstance(r, dict)]
-        ok = [r for r in rows if (r.get("collection") or {}).get("status") == "SUCCESS"]
-        qs = {int(r["case_id"].split("_T")[0][1:]) for r in ok}
-        answer_s = sum((r.get("collection") or {}).get("latency_ms") or 0 for r in rows) / 1000
-        wall = sum(e.get("seconds") or 0 for e in run.get("imports") or [] if e.get("provider") == p and e.get("method") == "collect-app-v1")
-        per_q = answer_s / len(qs) if qs else 0
-        print(f"| {p} | {len(qs)} | {_hms(answer_s)} | {per_q:.0f}초 | {_hms(wall)} |")
+    for c in collection_time_rows(run, providers):
+        print(f"| {c['provider']} | {c['questions']} | {_hms(c['answer_seconds'])} | {c['per_question']:.0f}초 | {_hms(c['wall_seconds'])} |")
 
 
 def print_judge_times(out_dir: Path) -> None:
-    f = out_dir / "timing.jsonl"
-    if not f.exists():
-        return
-    recs = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]
-    judge = [r for r in recs if r.get("kind") == "judge"]
-    if judge:
-        total = sum(r.get("seconds") or 0 for r in judge)
-        n = sum(r.get("judgments") or 0 for r in judge)
-        print(f"판정 시간: 총 {_hms(total)} · 판정 {n}건(질문×모델) · 건당 평균 {total / n:.0f}초" if n else f"판정 시간: 총 {_hms(total)}")
+    from tools.report_html import judge_time_info
+    jt = judge_time_info(out_dir)
+    if jt:
+        print(f"판정 시간: 총 {_hms(jt['seconds'])} · 판정 {jt['judgments']}건(질문×모델) · 건당 평균 {jt['per_judgment']:.0f}초")
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -642,6 +631,13 @@ def cmd_report(args: argparse.Namespace) -> int:
         print((d / "summary.md").read_text(encoding="utf-8"))
     print_collection_times(d.name)
     print_judge_times(d)
+    from tools.report_html import write_report
+    try:
+        run = load_run(d.name)
+    except SystemExit:
+        run = None
+    html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장
+    print(f"HTML 보고서: {html_path}")
     return 0
 
 

@@ -236,3 +236,33 @@ def test_place_rect_puts_apps_left_right_and_web_windows_in_right_column():
     assert place_rect("right", 2880, 1800) == (1152, 0, 1728, 1800)
     assert place_rect("top-right", 1440, 900) == (864, 0, 576, 450)
     assert place_rect("bottom-right", 1440, 900) == (864, 450, 576, 450)
+
+
+def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path, monkeypatch, capsys):
+    """report: 결과 폴더의 results.jsonl·summary.json·timing.jsonl 과 실행 JSON 으로 report.html 을 만든다(모델 요약·시간·질문별 FAIL 사유·빈 출력 비고)."""
+    import tools.modelgrade as mg
+    from tools.report_html import write_report
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    set_dir = _set(tmp_path)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    run = mg.new_run("보고서", set_dir, groups)
+    run["providers"] = ["gpt"]; run["models"] = {"gpt": "ChatGPT 앱"}
+    run["datasets"] = {"gpt": [{"case_id": "Q1_T1", "question": "정확히 2개의 문장으로 인사말을 써줘.", "answer": "안녕하세요. 반갑습니다.", "collection": {"status": "SUCCESS", "latency_ms": 30000}},
+                               {"case_id": "Q3_T1", "question": "아무것도 출력하지 마.", "answer": "", "collection": {"status": "SUCCESS", "capture": "empty", "latency_ms": 5000}}]}
+    run["imports"] = [{"provider": "gpt", "method": "collect-app-v1", "seconds": 70.0}]
+    mg.save_run(run)
+    out = tmp_path / "judge" / run["run_id"]; out.mkdir(parents=True)
+    lines = [{"provider": "gpt", "question": 1, "turns": 1, "status": "judged", "verdict": "FAIL", "code_fails": [], "seconds": 20.0, "calls": {"jev_flagged": {"1": ["J1-4.b"]}},
+              "results": {"1": {"J1-4.b": {"decision": "FAIL", "judge": "jev+gpt", "jev": {"decision": "FAIL", "probabilities": {"FAIL": 0.8}}, "entries": [{"reason": "같은 말을 두 번", "answer_quote": "반갑습니다."}], "problems": []},
+                                "J5-1.a": {"decision": "PASS", "judge": "gpt", "entries": [], "problems": []}}}},
+             {"provider": "gpt", "question": 3, "turns": 1, "status": "empty_output_pass", "verdict": "PASS", "collection_note": "Q3_T1: SUCCESS · 받은 방법 empty"}]
+    (out / "results.jsonl").write_text("".join(json.dumps(l, ensure_ascii=False) + "\n" for l in lines), encoding="utf-8")
+    (out / "summary.json").write_text(json.dumps({"judges": {"gpt": {"model": "gpt-6-luna", "reasoning": "low"}, "jev": {"model": "jev-latest"}},
+                                                  "models": {"gpt": {"n": 3, "seconds": {"gpt": {"mean": 20.0}, "jev": {"mean": 0.5}}, "jev_flagged": 1, "fallback": 0}}}), encoding="utf-8")
+    (out / "timing.jsonl").write_text(json.dumps({"kind": "judge", "judgments": 2, "seconds": 41.0}) + "\n", encoding="utf-8")
+    assert mg.main(["report", "--dir", str(out)]) == 0
+    text = (out / "report.html").read_text(encoding="utf-8")
+    assert "ChatGPT 앱" in text and "1 / 3" not in text or "2 / 3" in text   # 판정한 질문 2 / 전체 3
+    assert "같은 말을 두 번" in text and "Jev FAIL 0.8" in text and "받은 방법 empty" in text and "1분 10초" in text and "판정 시간" in text
+    assert "HTML 보고서" in capsys.readouterr().out
+    assert write_report(out, None).name == "report.html"   # 실행 JSON 없이도 만들어진다

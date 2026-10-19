@@ -45,6 +45,15 @@ JEV_TRIM_CHARS = 35_000   # Jev 입력 예산 — 넘으면 긴 자료(첨부·�
 
 # --- 심판 호출 -------------------------------------------------------------------------------------------------------
 
+_SAY_LOCK = threading.Lock()
+
+
+def say(text: str) -> None:
+    """판정 진행 한 줄 — 질문 2개가 동시에 돌아도 줄이 섞이지 않게 잠금 아래 바로 찍는다."""
+    with _SAY_LOCK:
+        print(text, flush=True)
+
+
 class CodexJudge:
     """``codex exec`` 로 고정 프롬프트 v3 + 입력을 보내고 JSON 결과를 받는다. 실패하면 한 번 다시.
     429(구독 사용량 한도)는 실패로 적지 않고 풀릴 때까지 기다렸다 다시 보낸다 — 60·120·300초, 그 뒤 600초마다, 횟수 제한 없음(사용자 결정 10-19)."""
@@ -68,7 +77,52 @@ class CodexJudge:
         text = (error or "").lower()
         return "429" in text or "too many requests" in text or "rate limit" in text or "usage limit" in text
 
-    def judge(self, prompt: str, input_text: str, search: bool) -> Tuple[str, Any, str]:
+    def _stream(self, cmd: List[str], text: str, cwd: str, tag: str) -> Any:
+        """``codex exec`` 를 띄우고 stdout 의 JSON 이벤트를 한 줄씩 받아 그때그때 터미널에 보인다(생각 요약·답 도착·완료). 결과는 subprocess.run 과 같은 모양."""
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                                errors="replace", cwd=cwd, shell=False)
+        err_buf: List[str] = []
+        reader = threading.Thread(target=lambda: err_buf.append(proc.stderr.read() if proc.stderr else ""), daemon=True)
+        reader.start()
+        try:
+            proc.stdin.write(text)
+            proc.stdin.close()
+        except (OSError, ValueError):
+            pass
+        lines: List[str] = []
+        started = last_seen = time.monotonic()
+        for line in proc.stdout:
+            lines.append(line)
+            now = time.monotonic()
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            kind = event.get("type")
+            item = event.get("item") or {}
+            if kind == "item.completed" and item.get("type") == "reasoning":
+                say(f"      💭 {tag} Codex 생각: {(item.get('text') or '').strip().replace(chr(10), ' ')[:110]}")
+            elif kind == "item.completed" and item.get("type") == "agent_message":
+                say(f"      💬 {tag} Codex 답 도착 ({len(item.get('text') or ''):,}자, {now - started:.0f}초)")
+            elif kind == "item.started" and item.get("type") == "web_search_call":
+                say(f"      🌐 {tag} Codex 웹 검색 …")
+            elif kind == "turn.completed":
+                usage = event.get("usage") or {}
+                say(f"      ✅ {tag} Codex 완료 — 입력 {usage.get('input_tokens', '?')} · 출력 {usage.get('output_tokens', '?')} 토큰, {now - started:.0f}초")
+            elif kind in ("error", "turn.failed"):
+                say(f"      ⚠ {tag} Codex: {str(event.get('message') or event.get('error') or event)[:120]}")
+            elif now - last_seen > 20:
+                say(f"      … {tag} Codex 작업 중 ({now - started:.0f}초)")
+            last_seen = now
+        try:
+            proc.wait(timeout=self.timeout or None)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            raise
+        reader.join(timeout=5)
+        return subprocess.CompletedProcess(cmd, proc.returncode, "".join(lines), "".join(err_buf))
+
+    def judge(self, prompt: str, input_text: str, search: bool, tag: str = "") -> Tuple[str, Any, str]:
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
         last = ""
@@ -89,8 +143,11 @@ class CodexJudge:
                     cmd += ["--enable" if live else "--disable", feature]
                 cmd.append("-")
                 try:   # 고정 프롬프트 뒤에 [입력] — 프롬프트 '입력 형식' 그대로
-                    proc = self._run(cmd, input=prompt + "\n[입력]\n" + input_text, capture_output=True, text=True, encoding="utf-8",
-                                     timeout=self.timeout or None, cwd=folder, shell=False)
+                    if self._run is subprocess.run:   # 실제 실행: 이벤트를 흘리며 받는다. 시험의 대역 실행기는 그대로 부른다
+                        proc = self._stream(cmd, prompt + "\n[입력]\n" + input_text, folder, tag)
+                    else:
+                        proc = self._run(cmd, input=prompt + "\n[입력]\n" + input_text, capture_output=True, text=True, encoding="utf-8",
+                                         timeout=self.timeout or None, cwd=folder, shell=False)
                 except subprocess.TimeoutExpired:
                     last = f"Codex CLI 가 {self.timeout:.0f}초 안에 끝나지 않음"
                     continue
@@ -102,7 +159,7 @@ class CodexJudge:
                     if self.is_rate_limited(last):
                         pause = self.RATE_LIMIT_WAITS[waits] if waits < len(self.RATE_LIMIT_WAITS) else self.RATE_LIMIT_WAIT_MAX
                         waits += 1
-                        print(f"  [codex] 사용량 한도(429) — {pause}초 기다렸다 다시 ({waits}번째)", file=sys.stderr, flush=True)
+                        say(f"   ⏳ Codex 사용량 한도(429) — {pause}초 기다렸다 다시 ({waits}번째)")
                         time.sleep(pause)
                         attempt -= 1   # 한도 대기는 시도 횟수에 세지 않는다
                     continue
@@ -151,16 +208,21 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
     calls: Dict[str, Any] = {}
     results: Dict[int, Dict[str, Dict[str, Any]]] = {n: {} for n in by_turn}
 
+    tag = f"Q{entry['question']} {entry['provider']}"
+
     def run_gpt(items: Dict[int, List[str]], label: str) -> None:
         if not items:
             return
         situations = {t["case_id"]: ji.situations_for(table[t["case_id"]], items.get(int(t.get("turn") or 1), [])) for t in turns}
         text = ji.question_input(mark, turns, situations, answers, entry.get("deliveries"))
         search = any("J5-1.a" in v for v in items.values()) and not any((t.get("reference") or "").strip() for t in turns)
+        n_items = sum(len(v) for v in items.values())
+        say(f"   🖥 {tag} Codex CLI 판정 중 — {'J1~J4 대신 ' if label != 'gpt' else ''}{n_items}항목 · 입력 {len(text):,}자 · 웹 검색 {'켬' if search else '끔'} …")
         t0 = time.monotonic()
-        status, output, error = gpt.judge(prompt, text, search) if gpt else ("ERROR", None, "GPT CLI 없음")
+        status, output, error = gpt.judge(prompt, text, search, tag) if gpt else ("ERROR", None, "GPT CLI 없음")
         calls[label] = {"status": status, "error": error, "seconds": round(time.monotonic() - t0, 1), "search": search,
                         "input_chars": len(text)}
+        say(f"   🖥 {tag} Codex {status} {calls[label]['seconds']}초" + (f" — {str(error)[:100]}" if status != "OK" else ""))
         checked = js.check_gpt(output if status == "OK" else None, turns, answers, items)
         for n, part in checked.items():
             for item, value in part.items():
@@ -178,10 +240,12 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
         state, questions = js.jev_request(turns, situations, answers, jev_items, fixed)
         raw_chars = js.state_chars(state)
         trimmed = js.trim_material(state, getattr(jev, "trim_chars", JEV_TRIM_CHARS))   # 긴 자료만 줄여 Jev 가 받게 (사용자 10-19: Jev 가 제대로 일하게)
+        say(f"   🔎 {tag} Jev 판정 중 — J1~J4 {len(questions)}항목 · 입력 {js.state_chars(state):,}자" + (f"(자료 {trimmed:,}자 줄임)" if trimmed else "") + " …")
         t0 = time.monotonic()
         status, body, error = jev.judge(state, questions)
         calls["jev"] = {"status": status, "error": error, "seconds": round(time.monotonic() - t0, 1), "input_chars": js.state_chars(state),
                         "raw_chars": raw_chars, "trimmed_chars": trimmed}
+        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" — {str(error)[:100]}" if status != "OK" else ""))
         if status == "OK":
             for n, part in js.check_jev(body, jev_items, fixed).items():
                 results[n].update(part)
@@ -203,18 +267,27 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
                     flagged.setdefault(n, []).append(item)
                     first.setdefault(n, {})[item] = dict(v)
     merged = {n: list(gpt_items.get(n, [])) + list(flagged.get(n, [])) for n in sorted(set(gpt_items) | set(flagged))}
+    if flagged:
+        say(f"   ↪ {tag} Jev 가 걸러낸 항목(FAIL·애매) → Codex 확정: " + " ".join(f"T{n}:{i}" for n, items in flagged.items() for i in items))
+    elif jev_items and jev_status == "OK":
+        say(f"   ↪ {tag} Jev J1~J4 모두 확신 PASS → Codex 는 J5~J8 만")
     run_gpt(merged, "gpt")
     for n, items in flagged.items():
         for item in items:
             results[n][item] = js.combine_jev_gpt(first[n][item], results[n].get(item) or {})
     calls["jev_flagged"] = {str(n): items for n, items in flagged.items()}
     if jev_items and jev_status != "OK":   # Jev 가 못 한 J1~J4 는 GPT 가 같은 고정 프롬프트로
+        say(f"   ↪ {tag} Jev 가 못 봐서 Codex 가 J1~J4 도 대신")
         run_gpt(jev_items, "gpt_fallback")
     for part in results.values():
         js.apply_overrides(part)
     semantic = js.semantic_verdict(results)
     code_fails = sorted({c for t in turns for c in (case_outcomes.get(t["case_id"]) or {}).get("code_fails") or []})
     verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
+    fails = [f"T{n}:{i}" for n, part in sorted(results.items()) for i, v in part.items() if v.get("decision") == "FAIL"]
+    holds = [f"T{n}:{i}" for n, part in sorted(results.items()) for i, v in part.items() if v.get("decision") == "UNVERIFIED"]
+    say(f"■ {tag}: {verdict} · {round(time.monotonic() - started)}초" + (f" · CODE FAIL {' '.join(code_fails)}" if code_fails else "")
+        + (f" · FAIL {' '.join(fails)}" if fails else "") + (f" · 보류 {' '.join(holds)}" if holds else ""))
     return {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "judged", "verdict": verdict,
             "semantic": semantic, "code_fails": code_fails, "calls": calls, "seconds": round(time.monotonic() - started, 1),
             "results": {str(n): items for n, items in sorted(results.items())}}
@@ -276,9 +349,11 @@ def run(run_data: Dict[str, Any], set_dir: Path, out: Path, gpt: Optional[CodexJ
             verdict = {"empty_output_pass": "PASS", "empty_output_fail": "FAIL"}.get(entry["status"], "HOLD")
             line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": entry["status"], "verdict": verdict,
                     "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}
+            say(f"■ Q{entry['question']} {entry['provider']}: {verdict} (빈 출력 요구, 심판 없이) — {entry.get('collection_note')}")
         elif entry["status"] == "no_answer":
             line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "no_answer", "verdict": "FAIL",
                     "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}
+            say(f"■ Q{entry['question']} {entry['provider']}: FAIL (답 없음) — {entry.get('reason')}")
         else:
             turns = sorted(questions[entry["question"]], key=ji._turn)
             line = judge_question(entry, turns, table, answers, prompt, fixed, manifest["run_mark"], gpt, jev, outcomes)
@@ -287,6 +362,8 @@ def run(run_data: Dict[str, Any], set_dir: Path, out: Path, gpt: Optional[CodexJ
                 f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
     wall0 = time.monotonic()
+    say(f"판정 시작 — {len(tasks)}건(질문×모델) · {min(max(1, workers), max(1, len(tasks)))}건씩 동시에 · 심판: "
+        + (f"Codex CLI {gpt.model}·{gpt.reasoning}" if gpt else "Codex 없음") + " + " + (f"Jev {(jev.manifest() or {}).get('model')}" if jev else "Jev 없음"))
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         list(pool.map(work, tasks))
     wall = round(time.monotonic() - wall0, 1)
