@@ -24,6 +24,10 @@ class UiaChatError(RuntimeError):
     pass
 
 
+class CopyFailed(UiaChatError):
+    """답은 있는데 복사해 오지 못함 — 수집 상태 COPY_FAILED(판정 보류, 사용자 규칙 2026-10-20)."""
+
+
 def file_dialog_text(files: List[Path]) -> str:
     """열기 대화상자의 파일 이름 칸에 넣을 글 — 하나면 경로 그대로, 여럿이면 "경로" "경로" (대화상자가 여러 파일을 받는다)."""
     paths = [str(Path(f).resolve()) for f in files]
@@ -476,6 +480,17 @@ class ClaudeAppChat:
                     continue
                 bars = self._answer_bars()   # 말풍선 이름이 안 잡혀도 채팅 탭이면 마지막 답변 툴바가 마지막 답이다
                 screen = _squash(self._page_text())
+            if not bars and group is not None:   # 긴 대화에서 마지막 답의 툴바가 안 그려져 있으면 말풍선에 마우스를 올려 띄운다 (10턴째 실패, 2026-10-20)
+                try:
+                    self._front()
+                    r = group.element_info.rectangle
+                    from pywinauto import mouse
+                    mouse.move(coords=((r.left + r.right) // 2, min(r.bottom - 40, r.top + 200)))
+                    time.sleep(1.2)
+                    top = group.element_info.rectangle.top
+                    bars = [b for b in self._answer_bars() if b.element_info.rectangle.top >= top - 10]
+                except Exception:
+                    bars = []
             if not bars:
                 last_error = "답변 툴바 없음"
                 time.sleep(3)
@@ -497,7 +512,24 @@ class ClaudeAppChat:
                 return text
             last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
             time.sleep(3)
-        raise UiaChatError(f"복사 실패({last_error}) — 3번 다시 시도함, 이 질문은 다음에 다시 받습니다")
+        self._dump_copy_failure(last_error)
+        raise CopyFailed(f"복사 실패({last_error}) — 3번 다시 시도함, 보류(사용자 규칙 10-20)")
+
+    def _dump_copy_failure(self, why: str) -> None:
+        """복사 실패 순간의 화면(png)과 말풍선·툴바·버튼 이름 목록(txt)을 남긴다 — 원인 확인용."""
+        path = self._snapshot(f"copy-failed-{why[:10]}")
+        if not self.debug_dir:
+            return
+        try:
+            lines = [f"why: {why}", f"docs: {[d.element_info.name for d in self._all('Document')]}"]
+            for e in self._all():
+                i = e.element_info
+                if i.control_type in ("Group", "ToolBar") and i.name and (re.match(self.MESSAGE_GROUP, i.name) or re.match(self.ACTION_BAR, i.name)):
+                    lines.append(f"{i.control_type} {i.rectangle} {i.name[:50]}")
+            lines += [f"Button {b.element_info.rectangle.top} {b.element_info.name[:40]}" for b in self._all("Button") if re.match(self.COPY, b.element_info.name or "")]
+            (self.debug_dir / f"{self.NAME}-copy-failed-{int(time.time())}.txt").write_text("\n".join(lines), encoding="utf-8")
+        except Exception:
+            pass
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
@@ -590,6 +622,9 @@ class ClaudeAppChat:
             drafts = len(self._draft_blocks(group)) if group is not None else 0   # 기록만 — 답은 복사 아이콘 글 그대로(사용자 결정 10-19)
             try:
                 copied = self._copy_last_answer()
+            except CopyFailed as exc:
+                return {**base, "answer": "", "status": "COPY_FAILED", "capture": "none", "error": str(exc)[:300],
+                        "latency_ms": round((time.monotonic() - started) * 1000), "draft_blocks": drafts}
             except UiaChatError as exc:
                 return {**base, "answer": "", "status": "ERROR", "error": str(exc)[:300], "latency_ms": round((time.monotonic() - started) * 1000),
                         "draft_blocks": drafts}
