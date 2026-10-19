@@ -455,6 +455,7 @@ svg .ln.claude { stroke: var(--m-claude); } svg .pt.claude { fill: var(--m-claud
 .rtab td.exq ul.cl { margin: 0; padding-left: 1.1em; } .rtab td.exq ul.cl li { margin: 3px 0; line-height: 1.5; }
 .tpl .slot { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-radius: 4px; padding: 1px 6px; }
 .psum th[scope="row"] { white-space: nowrap; width: 1%; padding-right: 18px; }
+.ctr th, .ctr td { text-align: center; vertical-align: middle; } .ctr th[scope="row"] { text-align: center; }
 .s-head h2 { font-size: 1.75rem; }
 .gist { margin: 0; padding: 14px 18px 14px 36px; background: var(--accent-soft); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.98rem; }
 .gist li::marker { color: var(--accent); } .gist b { color: var(--ink); }
@@ -817,7 +818,7 @@ s7 = f"""
     <p class="muted">78개가 끝나면 최소 평가 결과, 나머지 248개(번호순)까지 끝나면 정밀 평가 결과입니다.</p>
   </div>
   <div class="block">
-    <div class="cmpt rtab"><table><caption>던지는 순서 세 가지 — 기준마다 목표 횟수를 채우는 데 필요한 질문 수 (326 세트, AI 호출 없이 셈)</caption>
+    <div class="cmpt rtab ctr"><table><caption>던지는 순서 세 가지 — 기준마다 목표 횟수를 채우는 데 필요한 질문 수 (326 세트, AI 호출 없이 셈)</caption>
       <thead><tr><th>목표 (기준마다)</th><th>적용 기준이 많은 질문부터 그대로</th><th>기준 많은 순이되, 모자란 기준이 하나도 없는 질문은 건너뜀 (팀원 검산)</th><th>아직 목표가 안 된 기준을 가장 많이 가진 질문부터 (지금 방식)</th></tr></thead><tbody>{order_rows}</tbody></table>
       <div class="qnote">어느 목표에서도 지금 방식이 가장 적습니다. 기준 많은 순 그대로는 기준이 적은 질문에만 든 기준이 맨 끝에 와 거의 전부가 필요합니다.</div></div>
   </div>
