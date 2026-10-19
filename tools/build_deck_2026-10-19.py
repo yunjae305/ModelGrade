@@ -207,12 +207,13 @@ def ksplit_chart():
         out.append(f'<text class="tick" x="{x + bw / 2:.1f}" y="{T + plot_h + 18}" text-anchor="middle">k={k}</text>')
         out.append(f'<text class="tick muted" x="{x + bw / 2:.1f}" y="{T + plot_h + 34}" text-anchor="middle">n={n}</text>')
     xr = L + len(rows) * gap + 30
-    out.append(f'<text class="atitle" x="{xr}" y="{T + 20}">실험(세 모델)과 비교</text>')
+    out.append(f'<text class="atitle" x="{xr}" y="{T + 20}">갈림 비율 — 326(네 모델) vs 실험(세 모델)</text>')
+    out.append(f'<text class="note" x="{xr}" y="{T + 40}">갈림 = 모델 판정이 서로 다른 질문의 비율</text>')
     exp = {r["k"]: r for r in kexp}
     for j, (k, v) in enumerate(rows):
         e = exp.get(k)
         if e:
-            out.append(f'<text class="inl" x="{xr}" y="{T + 46 + j * 20}">k={k}: 갈림 네 모델 <tspan class="c1">{v["split"] / v["n"] * 100:.0f}%</tspan> · 실험 {max(0, 1 - e["all_pass"] - e["all_fail"]) * 100:.0f}%</text>')
+            out.append(f'<text class="inl" x="{xr}" y="{T + 66 + j * 20}">k={k}: 네 모델 <tspan class="c1">{v["split"] / v["n"] * 100:.0f}%</tspan> (질문 {v["n"]}개) · 실험 {max(0, 1 - e["all_pass"] - e["all_fail"]) * 100:.0f}% ({e["n"]}개)</text>')
     excl = f", 보류 남은 {KSPLIT['excluded_hold']}개 제외" if KSPLIT["excluded_hold"] else ""
     out.append(f'<text class="asub" x="{L}" y="{H - 8}">단일 질문 {KSPLIT["confirmed"]}개 (긴 문서 제외{excl}). 326 세트는 k 6~10 으로만 만들어 그 밖의 k 는 없음.</text>')
     out.append('</svg>')
