@@ -727,16 +727,48 @@ s_pick = f"""
   </div>
 """
 
+# 한 기준을 검사하는 질문이 몇 개인가 — 326 전체 vs 최소 78 (2026-10-19 계산, qs-b468b011e6c3 / qs-c5d8a1624770)
+CRIT_COUNT = [("표 요구 (2-2.table)", 46, 14), ("글자 수 (2-1.char_count)", 73, 21), ("코드블록 (1-2.code_block)", 47, 16), ("말투·존댓말 (J2-2.a)", 62, 17),
+              ("자료 값 충실 (J5-2.a)", 233, 49), ("앞 턴 지시 유지 (J6-1.a)", 16, 10), ("긴 문서 정보 찾기 (J7-1.a)", 10, 10), ("빈 출력 요구 (2-1.explicit_empty)", 10, 10)]
+crit_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="num"><b>{c}</b></td></tr>' for a, b, c in CRIT_COUNT)
+
 s7 = f"""
 <section class="slide" id="s7">
-  {head("07", "최소 78 vs 정밀 326 — 같은 판정으로 비교", "")}
-  {gist("78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.")}
+  {head("07", "최소 78 vs 정밀 326 — 어떻게 뽑고, 결과는 어떤가", "")}
+  {gist("기준 72개에 맞춰 질문 326개를 만들었습니다. 그래서 <b>한 기준을 검사하는 질문이 여러 개</b>입니다 — 예: '표로 정리해' 기준은 46개 질문에 들어 있습니다.",
+        "정밀 평가는 326개를 다 던집니다. 최소 평가는 <b>기준마다 10개 질문까지만</b> 던집니다 — 그 이상은 굳이 안 던집니다.",
+        "질문 하나에 기준이 평균 20개 걸려 있어 질문 하나가 기준 20개를 동시에 1번씩 채웁니다. 그래서 <b>78개</b>면 기준 64개가 모두 10번 이상 평가됩니다.")}
+  <div class="two">
+    <div class="cmpt rtab"><table><caption>한 기준을 검사하는 질문 수 — 326 전체 vs 최소 78</caption>
+      <thead><tr><th>기준</th><th>326 중</th><th>78 중</th></tr></thead><tbody>{crit_rows}</tbody></table>
+      <div class="qnote">기준 64개 전부가 78 안에서 10개 이상의 질문에 걸립니다. 그 기준을 가진 질문이 딱 10개면(긴 문서·빈 출력 요구) 10개 모두 들어갑니다.</div></div>
+    <div class="defbox"><h3>무작위로 10개씩 뽑는 게 아닙니다</h3>
+      <p>기준마다 따로 10개를 뽑으면 겹치는 기준이 많아 100개가 넘게 필요합니다. 대신 <b>아직 10번을 못 채운 기준을 가장 많이 가진 질문</b>을 하나씩 고릅니다. 고른 질문의 기준들을 1씩 채우고, 모든 기준이 10에 닿으면 멈춥니다.</p>
+      <p>"기준이 많은 질문부터"만으로 던지면 110개가 필요합니다. 기준이 가장 많은 질문들(10턴 대화)끼리 기준이 거의 같아, 몇 개 던지고 나면 다음 대화는 새로 채우는 게 1~2개뿐이기 때문입니다. 그래서 '기준 수'가 아니라 '아직 모자란 기준 수'로 고릅니다.</p>
+      <p>이 순서는 답변을 받기 전에 정해집니다 — 질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 셉니다. 고른 순서가 곧 던지는 순서입니다.</p></div>
+  </div>
+  <div class="two">
+    <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
+      <thead><tr><th>순서</th><th>고른 질문</th><th>횟수 표</th><th>왜</th></tr></thead><tbody>{pick_rows}</tbody></table>
+      <div class="qnote">질문: Q1=A B C D · Q2=A B C · Q3=A B · Q4=D E · Q5=E. 5개 중 <b>4개</b>로 기준 5개가 모두 2번. Q3 은 이미 채운 기준만 가져 던지지 않습니다. 첫 질문은 늘 기준이 가장 많은 질문입니다(처음엔 모든 기준이 모자라므로).</div></div>
+    <div class="cmpt rtab"><table><caption>실제 — 326개에서 고른 순서 (앞 8개 = 던지는 순서)</caption>
+      <thead><tr><th>순서</th><th>질문</th><th>새로 채운 기준</th></tr></thead><tbody>{real_rows}</tbody></table>
+      <div class="qnote">처음엔 기준이 가장 많은 10턴 대화부터, 뒤로 갈수록 아직 모자란 기준(코드·첨부·긴 문서 등)을 가진 단일 질문이 뽑힙니다. 78개 전체 순서: 참고자료/최소평가/min_eval_m10.md. 78개가 끝나면 최소 평가 결과, 나머지 248개(번호순)까지 끝나면 정밀 평가 결과입니다.</div></div>
+  </div>
+  <div class="two">
+    <div class="cmpt rtab"><table><caption>목표를 몇 번으로 두느냐에 따라 질문 수가 달라집니다 (326 결과로 셈)</caption>
+      <thead><tr><th>목표 횟수</th><th>필요한 질문 수</th><th>FAIL 조합 포착</th></tr></thead><tbody>{goal_rows}</tbody></table></div>
+    <div class="defbox"><h3>왜 10번인가</h3>
+      <p>10번은 질문 생성 프롬프트에 있는 값이 아니라 최소 평가 목록을 만들 때 정한 값입니다(도구 옵션, 바꿀 수 있음).</p>
+      <p>기준마다 10번은 평가돼야 "이 모델이 이 기준에서 몇 번 중 몇 번 틀리나"를 말할 수 있습니다. 3번 중 1번은 운일 수 있지만 10번 중 3번이면 경향입니다.</p>
+      <p>10번까지는 질문을 늘린 만큼 FAIL 포착이 크게 오르고(61% → 80%), 10을 넘기면 질문은 두 배(78 → 155)인데 7%p 만 더 오릅니다.</p></div>
+  </div>
   <figure class="fig">
-    <div class="fig-head"><h3>모델별 PASS · FAIL · 보류 — 정밀 326 과 최소 78</h3>
+    <div class="fig-head"><h3>결과 — 정밀 326 과 최소 78 을 같은 판정으로 비교</h3>
       <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div>
     <div class="chart-scroll">{cmp_chart()}</div>
+    <p class="muted">최소 78 은 정밀 326 의 부분집합이라 따로 수집·평가하지 않고 같은 판정을 78개만 센 것입니다. 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 {"<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>"}. 어려운 질문 위주라 PASS:FAIL 은 FAIL 쪽으로 기웁니다.</p>
   </figure>
-  {s_pick}
 </section>
 """
 
