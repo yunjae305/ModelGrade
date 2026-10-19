@@ -65,7 +65,7 @@ def item_lines() -> list[str]:
 
 
 def prompt_text() -> str:
-    rules = "\n".join(f"- {r}" for r in si.LISTING_RULES)
+    rules = "\n".join(f"  · {r}" for r in si.LISTING_RULES)
     items = "\n".join(item_lines())
     return f"""당신은 한국어 AI 답변 품질 평가의 의미 평가 심판입니다. 아래 [평가 대상]의 답변을 [판정할 항목]마다 판정합니다.
 이 지시문은 모든 질문에 같습니다. 질문마다 바뀌는 것은 [평가 대상](질문·답변)과 [판정할 항목]의 번호뿐입니다.
