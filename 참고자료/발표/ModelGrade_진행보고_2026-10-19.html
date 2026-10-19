@@ -619,8 +619,8 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 <path class="fa" d="M690,56 L738,56" marker-end="url(#ah)"/>
 <rect class="fb " x="740" y="10" width="300" height="92" rx="10"/>
 <text class="fn" x="754" y="34">3</text>
-<text class="ft" x="780" y="34">답변 수집</text>
-<text class="fl" x="754" y="58">AIONA 웹브라우저 · GPT·Claude·Gemini API</text>
+<text class="ft" x="780" y="34">답변 수집 — 모두 웹브라우저</text>
+<text class="fl" x="754" y="58">AIONA · ChatGPT · Claude · Gemini (API 안 씀)</text>
 <path class="fa" d="M890,102 L890,119"/><path class="fa" d="M150,119 L890,119"/>
 <path class="fa" d="M150,119 L150,134" marker-end="url(#ah)"/><path class="fa" d="M695,119 L695,134" marker-end="url(#ah)"/>
 <rect class="fb code" x="0" y="136" width="300" height="110" rx="10"/>
@@ -1259,7 +1259,7 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
       <p>326개 = 단일 284 · 대화 32(10턴 15 · 11턴 1 · 2턴 16) · 긴 문서 10 (487턴). 첨부 28개.</p>
       <p>생성 직후 k 범위 밖 175개 → 하나씩 고치기 3회차 + 손질 → <b>범위 밖 0</b>.</p></div></div>
     <div class="card"><div class="card-head"><b>② 답변 수집</b><span>10-18 밤 ~ 10-19 새벽</span></div><div class="card-body">
-      <p>GPT·Claude·Gemini API 487/487. <b>AIONA 웹브라우저 479/487</b> — 빈 출력 요구 질문 8개는 오류 화면(보류).</p>
+      <p>이번은 GPT·Claude·Gemini 를 API 로 487/487, <b>AIONA 웹브라우저 479/487</b>(빈 출력 요구 8개는 오류 화면 → 보류). <b>다음부터는 네 모델 모두 웹브라우저</b>로 받습니다(사용자 결정 10-19).</p>
       <p>Claude 출력 한도 16,000 으로 · 429 는 이어서 수집. AIONA 복사 버튼 문제를 고쳐 108턴 재복사.</p></div></div>
     <div class="card"><div class="card-head"><b>③ 평가</b><span>10-19 02:20 ~ 10:32</span></div><div class="card-body">
       <p>CODE 즉시. 의미 평가 1,938판정 + 재판정 — 판정 하나에 20초~15분(웹 검색·긴 대화).</p>
@@ -1489,7 +1489,7 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 
 <section class="slide" id="s9">
   <div class="s-head"><span class="s-no">09 / 09</span><h2>비용 — 이틀 약 $160</h2><p>실행 기록의 토큰 사용량에 우리 단가표(code_eval/cost_reporting.py)를 곱한 추정입니다. 실제 청구서와 조금 다를 수 있습니다. 토큰은 입력 / 출력(추론 포함).</p></div>
-  <ul class="gist"><li>의미 평가(GPT-6 Luna)가 <b>약 $80</b> — 웹 검색 2,207회($22)와 앞 대화를 매번 다시 읽은 입력이 큼.</li><li>Claude 답변 수집이 <b>$54</b> — 입력 단가가 Luna 의 20배이고 긴 문서를 52.5만 토큰으로 셈.</li><li>줄일 곳: 입력을 대화 순서로(캐시, 반영) · 웹 검색 상한 · Claude 재수집 최소화 · Jev 동시 호출(반영).</li></ul>
+  <ul class="gist"><li>의미 평가(GPT-6 Luna)가 <b>약 $80</b> — 웹 검색 2,207회($22)와 앞 대화를 매번 다시 읽은 입력이 큼.</li><li>Claude 답변 수집이 <b>$54</b> — 입력 단가가 Luna 의 20배이고 긴 문서를 52.5만 토큰으로 셈.</li><li>줄일 곳: 답변 수집을 <b>네 모델 모두 웹브라우저</b>로(API 비용 $66 → 0, 사용자 결정) · 입력을 대화 순서로(캐시, 반영) · 웹 검색 상한 · Jev 동시 호출(반영).</li></ul>
   <div class="cmpt rtab"><table><caption>단계 × 모델 <span>326 세트 기준, 10-18 실험은 따로 표시</span></caption>
     <thead><tr><th>단계</th><th>모델</th><th>무엇</th><th>토큰 입력 / 출력</th><th>추정 비용</th></tr></thead><tbody><tr><th scope="row">질문 생성</th><td>GPT-6 Luna</td><td class="exq">326 세트 생성 67회 호출</td><td class="num">18.6만 / 47.3만</td><td class="num">$0.26</td></tr><tr><th scope="row">질문 생성</th><td>GPT-6 Luna</td><td class="exq">k 고치기(질문 하나씩, 3회차) · 10-18 실험 세트</td><td class="num">기록 일부 없음</td><td class="num">약 $1~2</td></tr><tr><th scope="row">답변 수집</th><td>GPT-6 Luna (API)</td><td class="exq">487턴 + 재수집 (긴 문서 29만 토큰 × 20회 포함)</td><td class="num">1,108만 / 63만</td><td class="num">$1.0</td></tr><tr><th scope="row">답변 수집</th><td>Claude Sonnet 5.5 (API)</td><td class="exq">487턴 + 재수집 — 긴 문서 10개 $19 · 대화 32개 $27 · 단일 $8</td><td class="num">1,953만 / 151만</td><td class="num">$54.2</td></tr><tr><th scope="row">답변 수집</th><td>Gemini 3.6 Flash (API)</td><td class="exq">487턴 + 재수집 (추론 토큰 포함)</td><td class="num">714만 / 158만</td><td class="num">$11.3</td></tr><tr><th scope="row">답변 수집</th><td>AIONA (웹브라우저)</td><td class="exq">487턴 — API 비용 없음</td><td class="num">—</td><td class="num">$0</td></tr><tr><th scope="row">답변 수집</th><td>GPT·Claude·Gemini</td><td class="exq">10-18 통제 실험 300문항 (세 모델)</td><td class="num">348만 / 100만</td><td class="num">$8.2</td></tr><tr><th scope="row">의미 평가</th><td>GPT-6 Luna</td><td class="exq">326 최종 평가 1,938판정 + 재판정·J5 보강 (호출 2,600회) · 웹 검색 2,207회($22)</td><td class="num">1억 200만 / 2,050만</td><td class="num">$44.0</td></tr><tr><th scope="row">의미 평가</th><td>GPT-6 Luna</td><td class="exq">326 평가 중 취소·재평가로 버린 판정 (기록 없음, 추정)</td><td class="num">약 2,000만</td><td class="num">약 $13~16</td></tr><tr><th scope="row">의미 평가</th><td>GPT-6 Luna</td><td class="exq">10-18 실험 평가 (기존 326 세트 1,275판정 · 통제 실험 1,849 · 판정 갈림 시험 458)</td><td class="num">7,470만 / 1,790만</td><td class="num">$23.9</td></tr><tr><th scope="row">의미 평가</th><td>Jev (J1~J4)</td><td class="exq">326 최종 평가 1,821회 호출 (긴 입력 96턴은 한도 초과) + 10-18 실험</td><td class="num">1,270만 / 10만 (+실험)</td><td class="num">단가표 없음</td></tr></tbody></table></div>
   <div class="cmpt rtab"><table><caption>청구처별 합계</caption>
