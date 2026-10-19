@@ -399,10 +399,10 @@ def err_chart():
     for n in (25, 50, 100, 150, 200, 250, 326):
         out.append(f'<text class="tick" x="{xs(n):.1f}" y="{T + ph + 18}" text-anchor="middle">{n}</text>')
     out.append(f'<text class="tick" x="{L + pw / 2:.1f}" y="{H - 6}" text-anchor="middle">질문 수 N (326개에서 무작위로 뽑은 개수)</text>')
-    out.append(f'<text class="tick" x="{L - 44}" y="{T - 12}">점수 오차 (±%p)</text>')
+    out.append(f'<text class="tick" x="{L - 44}" y="{T - 12}">통과율이 흔들리는 폭 (±%p)</text>')
     for gap, lab, dy in ((GAP12, f"GPT·AIONA 통과율 차이 {GAP12}pp", -5), (GAP34, f"Claude·Gemini 차이 {GAP34}pp", 14)):
         out.append(f'<line class="grid strong" x1="{L}" y1="{ys(gap):.1f}" x2="{L + pw}" y2="{ys(gap):.1f}"/><text class="note" x="{L + pw - 4}" y="{ys(gap) + dy:.1f}" text-anchor="end">{lab}</text>')
-    out.append(f'<text class="zlab r" x="{L + pw - 8}" y="{T + 18}" text-anchor="end">오차가 {GAP12}pp 보다 크면 — 1·2위 순서도 못 믿음</text>')
+    out.append(f'<text class="zlab r" x="{L + pw - 8}" y="{T + 18}" text-anchor="end">폭이 {GAP12}pp 보다 크면 — 1·2위 순서도 못 믿음</text>')
     out.append(f'<text class="zlab y" x="{L + 10}" y="{ys(GAP12) + 17:.1f}">{GAP34}~{GAP12}pp — GPT·AIONA 순서는 믿을 수 있음</text>')
     out.append(f'<text class="zlab g" x="{L + 10}" y="{ys(GAP34) + 17:.1f}">{GAP34}pp 아래 — 넷 다 가릴 수 있음 (326개로는 못 닿음)</text>')
     for pv in EQ["rank"]:
@@ -828,31 +828,31 @@ s8 = f"""
 <section class="slide" id="s8">
   {head("08", "질문 수 근거 — 왜 정밀은 326인가", "")}
   {gist("질문 수를 임의로 정하지 않고, 평가가 끝난 326개 결과에서 <b>질문을 N개만 골라 다시 세어 보며</b> 몇 개부터 결과를 믿을 수 있는지 확인했습니다 (10/15 보고와 같은 방법 — 그때는 CODE 평가·세 모델, 이번엔 CODE+의미 평가·네 모델).",
-        "보는 것은 두 가지 — <b>점수가 얼마나 흔들리나</b>(같은 개수의 다른 질문으로 다시 하면 통과율이 위아래로 달라지는 폭)와 <b>빠지는 기준이 있나</b>.")}
+        "보는 것은 두 가지 — <b>통과율이 얼마나 흔들리나</b>(같은 개수의 다른 질문으로 다시 하면 통과율이 위아래로 달라지는 폭)와 <b>빠지는 기준이 있나</b>.")}
   <div class="block"><h3>방법</h3>
     <div class="steps4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><span class="k">1</span><b>326개 평가 결과 준비</b><span>네 모델의 질문별 PASS · FAIL · 보류 (보류는 PASS 아님). 통과율 = PASS 질문 수 / N.</span></div>
       <div><span class="k">2</span><b>N개를 제비뽑기로 골라 다시 세기</b><span>326개 중 아무 질문이나 N개를 골라 그 N개만으로 통과율을 다시 셉니다(AI 호출 없음). 뽑을 때마다 다른 질문이 들어오니 점수가 달라집니다 — 개수마다 3,000번 반복. N = 10 · 25 · 50 · 78 · 100 · 150 · 200 · 250 · 300 · 326.</span></div>
-      <div><span class="k">3</span><b>두 가지 확인</b><span>점수 오차 = 3,000번의 점수 중 가운데 95%가 들어오는 폭(±%p). 예: AIONA 는 전체로 {EQ["full"]["aiona"]:.1%}인데 50개만 뽑으면 {EQ["full"]["aiona"] * 100 - eq_at[50]["error_pp"]["aiona"]:.0f}~{EQ["full"]["aiona"] * 100 + eq_at[50]["error_pp"]["aiona"]:.0f}% 사이로 나옵니다. 그리고 64개 기준 가운데 10번 이상 평가되는 수.</span></div>
+      <div><span class="k">3</span><b>두 가지 확인</b><span>통과율이 흔들리는 폭 = 3,000번의 통과율 중 가운데 95%가 들어오는 폭(±%p). 예: AIONA 는 전체로 {EQ["full"]["aiona"]:.1%}인데 50개만 뽑으면 {EQ["full"]["aiona"] * 100 - eq_at[50]["error_pp"]["aiona"]:.0f}~{EQ["full"]["aiona"] * 100 + eq_at[50]["error_pp"]["aiona"]:.0f}% 사이로 나옵니다. 그리고 64개 기준 가운데 10번 이상 평가되는 수.</span></div>
     </div>
   </div>
   <figure class="fig">
-    <div class="fig-head"><h3>질문이 적으면 같은 모델 점수도 크게 흔들린다 — 질문 수에 따른 점수 오차</h3>
+    <div class="fig-head"><h3>질문이 적으면 같은 모델의 통과율도 크게 흔들린다 — 질문 수에 따른 흔들림 폭</h3>
       <div class="legend">{"".join(f'<span><i style="background:var(--m-{pv})"></i>{EQ_LABEL[pv]}</span>' for pv in EQ["rank"])}</div></div>
     <div class="chart-scroll">{err_chart()}</div>
     <p class="muted">선이 가로 점선(두 모델의 통과율 차이) 아래로 내려가야 그 두 모델의 순서를 믿을 수 있습니다. 네 모델 선이 거의 겹치는 것은 통과율이 모두 37~58% 근처라 흔들리는 폭이 같기 때문입니다.</p>
   </figure>
   <div class="two">
-    <div class="cmpt ktab"><table><caption>질문 N개만 썼을 때 — 점수 오차 · 기준 커버</caption>
-      <thead><tr><th>N</th><th>점수 오차 (네 모델 중 가장 큰 값)</th><th>10번↑ 평가되는 기준 (64개 중)</th></tr></thead><tbody>{eq_rows}</tbody></table>
+    <div class="cmpt ktab"><table><caption>질문 N개만 썼을 때 — 통과율이 흔들리는 폭 · 기준 커버</caption>
+      <thead><tr><th>N</th><th>통과율이 흔들리는 폭 (네 모델 중 가장 큰 값)</th><th>10번↑ 평가되는 기준 (64개 중)</th></tr></thead><tbody>{eq_rows}</tbody></table>
       <div class="qnote">기준 수는 N개를 뽑았을 때의 평균.</div></div>
     <div class="concl"><span class="concl-tag">결정</span>
       <h3>정밀 326</h3>
       <ul>
-        <li><b>점수</b> — 326개면 오차 <b>±{eq_at[326]["error_max_pp"]}%p</b>. GPT·AIONA 통과율 차이({GAP12}pp)보다 작아 두 모델의 순서를 믿을 수 있습니다. 200개(±{eq_at[200]["error_max_pp"]}%p)는 차이와 거의 같아 아슬아슬합니다.</li>
+        <li><b>통과율</b> — 326개면 흔들리는 폭이 <b>±{eq_at[326]["error_max_pp"]}%p</b>. GPT·AIONA 통과율 차이({GAP12}pp)보다 작아 두 모델의 순서를 믿을 수 있습니다. 200개(±{eq_at[200]["error_max_pp"]}%p)는 차이와 거의 같아 아슬아슬합니다.</li>
         <li><b>기준</b> — 64개 기준이 모두 10번 이상 평가되는 것은 <b>326 전체일 때뿐</b>입니다(300개만 뽑으면 {eq_at[300]["criteria"]["10"]:.0f}개). 326은 기준마다 10번씩 노려 만든 세트라 전부 씁니다.</li>
-        <li><b>더 늘려도</b> — 250 → 326(76개 더)에 오차는 {eq_at[250]["error_max_pp"] - eq_at[326]["error_max_pp"]:.1f}%p 줄었을 뿐입니다. Claude·Gemini 차이({GAP34}pp)를 가리려면 오차가 그 아래여야 하는데 326개로도 ±{eq_at[326]["error_max_pp"]}%p 라 "같은 수준"으로 보고합니다.</li>
-        <li><b>최소 78</b> — 78개면 ±{eq_at[78]["error_max_pp"]}%p 라 점수·순위 비교에는 모자랍니다. 최소 78 은 점수 비교용이 아니라 <b>FAIL 분석용</b>입니다(07장).</li>
+        <li><b>더 늘려도</b> — 250 → 326(76개 더)에 폭은 {eq_at[250]["error_max_pp"] - eq_at[326]["error_max_pp"]:.1f}%p 줄었을 뿐입니다. Claude·Gemini 차이({GAP34}pp)를 가리려면 폭이 그 아래여야 하는데 326개로도 ±{eq_at[326]["error_max_pp"]}%p 라 "같은 수준"으로 보고합니다.</li>
+        <li><b>최소 78</b> — 78개면 ±{eq_at[78]["error_max_pp"]}%p 라 통과율·순위 비교에는 모자랍니다. 최소 78 은 점수 비교용이 아니라 <b>FAIL 분석용</b>입니다(07장).</li>
       </ul></div>
   </div>
 </section>
