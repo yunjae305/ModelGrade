@@ -235,8 +235,11 @@ def check_items(items: List[Any], pipeline: Optional[str] = None, minimum: int =
             undetermined.update(list(semantic.get("undetermined") or {}))
             if fact_question(case["question"], history)[0]:
                 hit.add("J5")
+        # 판정 상황 — 항목을 보낸 세부 기준마다 코드 규칙이 질문에서 찾은 근거 (고정 판정 프롬프트의 상황 색인, judge-situations)
+        situations = {sid: {key: sub[key] for key in ("rules", "matches", "excerpt", "source", "model_applies") if sub.get(key) not in (None, [], "")}
+                      for sid, sub in subs.items() if isinstance(sub, dict) and any(i.startswith(sid + ".") for i in item_ids)}
         row = {"case_id": case["case_id"], "index": case["index"], "criteria": [c for c in CRITERIA if c in hit],
-               "checks": sorted(_code_checks(result)), "items": item_ids}
+               "checks": sorted(_code_checks(result)), "items": item_ids, "situations": situations}
         if "conversation_id" in case:
             row.update(conversation_id=case["conversation_id"], turn=case["turn"])
         per_case.append(row)
