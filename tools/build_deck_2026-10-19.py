@@ -790,12 +790,18 @@ way_rows = "".join(f'<tr{" class=pick" if n == 78 else ""}><th scope="row">{w}</
 s7 = f"""
 <section class="slide" id="s7">
   {head("07", "최소 78 — 어떻게 뽑았고 왜 78인가", "")}
-  {gist("정밀 평가는 326개를 다 던집니다. 최소 평가는 <b>기준 64개(질문으로 셀 수 있는 것)가 모두 10번 이상 평가될 때까지만</b> 던집니다.",
-        "어떤 순서로 던지느냐에 따라 필요한 질문 수가 크게 달라집니다 — 두 방식을 같은 326 세트로 비교했습니다.")}
+  <div class="concl"><span class="concl-tag">결정</span>
+    <h3>최소는 78 — 고른 수가 아니라, 두 가지를 정하니 나온 수입니다</h3>
+    <div class="concl-cols" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div><b class="keep">① 기준마다 몇 번 보나 → 10번</b><ul><li>10번은 봐야 "이 기준에서 10번 중 몇 번 틀리나"를 말할 수 있습니다. 3번 중 1번은 운일 수 있습니다.</li><li>10번까지는 FAIL 포착이 크게 오르고(5번 61% → 10번 80%), 그 뒤는 질문이 두 배(155개)인데 7%p 만 더 오릅니다 (아래 표).</li></ul></div>
+      <div><b class="fix">② 어떤 순서로 던지나 → 아직 10번이 안 된 기준을 가장 많이 가진 질문부터</b><ul><li>적용 기준이 많은 질문부터 순서대로 던지면 326개 전부가 필요합니다 (아래 표).</li><li>모자란 기준을 가진 질문을 먼저 당겨 오면 78개에서 기준 64개가 모두 10번을 채웁니다.</li></ul></div>
+    </div>
+    <p style="margin:0">그래서 최소 평가 = <b>78개</b>. 새 세트에서는 75~85개쯤으로 달라지며, 고정하는 것은 숫자가 아니라 규칙 ①②입니다. 정밀 평가는 326개를 다 던집니다.</p>
+  </div>
   <div class="block">
     <div class="cmpt rtab"><table><caption>기준 64개를 모두 10번 이상 평가하려면 몇 개를 던져야 하나 — 두 방식 비교 (326 세트, AI 호출 없이 셈)</caption>
       <thead><tr><th>던지는 순서</th><th>필요한 질문 수</th><th>왜</th></tr></thead><tbody>{way_rows}</tbody></table>
-      <div class="qnote">기준 많은 순에서 다 찬 기준만 가진 질문을 건너뛰어도 110개(팀원 검산). <b>그래서 최소 평가는 지금 방식으로 고른 78개입니다.</b></div></div>
+      <div class="qnote">기준 많은 순에서 다 찬 기준만 가진 질문을 건너뛰어도 110개(팀원 검산).</div></div>
   </div>
   <div class="block"><h3>78개를 고르는 순서</h3>
     <div class="steps4">
