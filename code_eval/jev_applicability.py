@@ -38,9 +38,9 @@ __all__ = ["JEV_APPLICABILITY_VERSION", "APPLIES_WHEN", "DATA_RULES", "jev_appli
 
 JEV_APPLICABILITY_VERSION = "jev-applicability-v2.7-attachments"   # v2.7: J8 첨부파일 활용 · v2.6: J7 272K 이상 확정 · v2.5: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v2.4: J7 추가
 #: 세부 기준(27개) 적용 규칙 버전 — items 파이프라인용. legacy RULES·jev_applicability() 결과는 바꾸지 않는다.
-SUB_APPLICABILITY_VERSION = "sub-applicability-v5"   # v5: J8-1·J8-2·J8-3 · v4: J7 272K 이상 · v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
+SUB_APPLICABILITY_VERSION = "sub-applicability-v6"   # v6: J5-1 사실 확인 요청 (j5-items-applicability-v2) · v5: J8-1·J8-2·J8-3 · v4: J7 272K 이상 · v3: J7 250K 이상·J6 멀티턴 길이 조건 · v2: J7-1·J7-2
 #: items 파이프라인의 J5 세부 기준 적용 규칙 버전 (질문 기반 — 네 모델의 분모가 같다)
-J5_ITEMS_APPLICABILITY_VERSION = "j5-items-applicability-v1"
+J5_ITEMS_APPLICABILITY_VERSION = "j5-items-applicability-v2"   # v2: 사실 확인 요청 규칙 (2026-10-19)
 
 _AUDIENCE = r"(?:초등학생|중학생|고등학생|대학생|어린이|고객|팀장|상사|동료|사용자|친구|동기|초보자|부모님)"
 
@@ -176,6 +176,10 @@ FACT_QUESTION_RULES: Tuple[Tuple[str, str, str], ...] = (
     ("개념·정의", r"(?:뜻|의미|정의|개념|차이|유래|역사|약점|한계)(?:[은는이가을를]|\s)|(?:이|란|이란)\s*(?:뭐|무엇)", "개념 정의·명칭이 사실과 맞는지"),
     ("정보 질의", r"언제|어디(?:서|에|야)|누구|몇\s*(?:년|월|일|명|개국|살)|(?:인구|수도|면적|가격|요금|기간|기한|날짜|연도)(?:[은는이가을를]|\s)",
      "수치·날짜·명칭이 사실과 맞는지"),
+    # 사실인지 확인해 달라는 요청 — '끓는점이 몇 도인지 사실을 확인해줘'(326 Q36) 가 J5-1 을 받지 못했다 (2026-10-19).
+    # 동사형만: '사실 검증표'·'사실 확인 목록'(문서 구성 요소)·'정확한지 확인해'(구두점 등)는 사실 질의가 아니다
+    ("사실 확인 요청", r"사실(?:인지|\s*여부)?(?:을|를|가)?\s*(?:확인|검증|체크)\s*(?:해|하여|하고|해서|하세요|하십시오|부탁)|팩트\s*체크\s*(?:해|하여|부탁)",
+     "확인을 요청한 사실이 맞는지"),
 )
 #: 질문 전체(인용 자료 포함)에서 찾는 '질문이 준 값' — J5-2.a 값별 판정의 적용 근거
 INPUT_VALUE_RULES: Tuple[Tuple[str, str], ...] = (

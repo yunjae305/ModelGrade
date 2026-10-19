@@ -41,10 +41,13 @@ def test_situation_index_is_fixed_and_matches_the_items_table():
     fresh = bs.build(SET)
     assert fresh["rows"] == saved["rows"] and len(saved["rows"]) == 487   # 다시 만들어도 글자 하나 같다
     table = {r["case_id"]: r["items"] for r in json.loads((SET / "판정항목표_v1.json").read_text(encoding="utf-8"))["rows"]}
-    assert all(table[r["case_id"]] == r["items"] for r in saved["rows"])
+    changed = [r["case_id"] for r in saved["rows"] if table[r["case_id"]] != r["items"]]
+    # v1 과 다른 곳은 적용 규칙 sub-applicability-v6(사실 확인 요청)로 Q36 에 J5-1.a 가 더해진 것 하나뿐
+    assert changed == ["Q36_T1"] and saved["items_table"]["changed"] == [{"case_id": "Q36_T1", "added": ["J5-1.a"], "removed": []}]
     assert "AIONA" not in json.dumps(saved, ensure_ascii=False)   # 대화 id(AIONA_ID_…) 가 근거 글에 새지 않는다
     q36 = next(r for r in saved["rows"] if r["case_id"] == "Q36_T1")["case_situations"]
-    assert q36.startswith("판정할 항목 (17개): J1-1.a") and '근거: "존댓말로 답해줘." (찾은 말: 존댓말)' in q36
+    assert q36.startswith("판정할 항목 (18개): J1-1.a") and '근거: "존댓말로 답해줘." (찾은 말: 존댓말)' in q36
+    assert '- J5-1 사실 정확성 → J5-1.a · 근거: "해수면 기준 순수한 물의 끓는점이 몇 도인지 사실을 확인해줘." (찾은 말: 사실을 확인해)' in q36
 
 
 def _example_answer() -> str:

@@ -25,7 +25,7 @@ def test_fact_question_examples():
     ok, why, hits = fact_question(CAFFEINE)
     assert ok and why == "" and hits[0][0] == "원리·이유" and "이유" in hits[0][1]
     j5 = j5_items_applicability(CAFFEINE, "카페인의 반감기는 약 5시간입니다.")
-    assert j5["version"] == J5_ITEMS_APPLICABILITY_VERSION == "j5-items-applicability-v1" and j5["criteria_applies"]
+    assert j5["version"] == J5_ITEMS_APPLICABILITY_VERSION == "j5-items-applicability-v2" and j5["criteria_applies"]
     assert j5["subs"]["J5-1"]["items"] == ["J5-1.a"] and j5["subs"]["J5-1"]["needs_search"] is True
     assert j5["subs"]["J5-1"]["source"] == "question" and j5["subs"]["J5-1"]["rules"] == ["원리·이유"]
     # 질문이 준 값(날짜·이름·시각)은 J5-2.a 값별, 요약 요청은 J5-2.b

@@ -1,7 +1,9 @@
 """판정 상황표 v2 (judge-situations-v2) — 고정 판정 프롬프트 v2 의 ``{{CASE_SITUATIONS}}`` 에 들어갈 글을 턴마다 미리 정해 둔다 (AI 호출 없음).
 
 - 줄 = 질문의 턴 하나. 상황 = 코드 규칙(``sub_applicability``)이 질문 글(앞 대화·첨부·참조 포함)에서 찾은 세부 기준과 그 근거 문장.
-  판정할 항목 = 그 상황의 항목 + J5-3.a(답변을 보고 생기는 유일한 항목 — 모든 턴에 넣고 적용 여부는 프롬프트 상황표 2). 판정항목표_v1 과 같아야 한다.
+  판정할 항목 = 그 상황의 항목 + J5-3.a(답변을 보고 생기는 유일한 항목 — 모든 턴에 넣고 적용 여부는 프롬프트 상황표 2).
+  이 표의 판정 항목이 집계 분모다(판정항목표_v1 을 대신함). v1 과 다른 턴은 ``items_table.changed`` 에 남긴다 — 적용 규칙
+  적용 규칙 sub-applicability-v6(사실 확인 요청)로 Q36_T1 에 J5-1.a 가 더해진 것뿐이어야 한다.
 - 답변과 무관하게 질문만으로 정해지므로 모델·심판·실행이 달라도 같은 턴이면 글자 하나 다르지 않다. 질문 세트가 바뀌면 다시 만들고 v 를 올린다.
 
     python -X utf8 tools/build_judge_situations.py [질문 세트 폴더]   (기본: 참고자료/질문세트_326 — 서버 원본 data/question_sets/qs-b468b011e6c3 와 같은 사본)
@@ -90,12 +92,13 @@ def main(argv: List[str]) -> int:
     set_dir = Path(argv[0]) if argv else DEFAULT_SET
     payload = build(set_dir)
     v1 = set_dir / ITEMS_V1
-    if v1.is_file():   # 판정 항목은 판정항목표_v1 과 같아야 한다 — 다르면 멈춘다(색인이 흔들리면 안 됨)
+    if v1.is_file():   # 판정항목표_v1 과 다른 턴을 남긴다 — 적용 규칙을 바꾼 결과만이어야 한다
         old = {r["case_id"]: r["items"] for r in json.loads(v1.read_text(encoding="utf-8"))["rows"]}
-        differ = [r["case_id"] for r in payload["rows"] if old.get(r["case_id"]) != r["items"]]
-        if differ or len(old) != len(payload["rows"]):
-            raise SystemExit(f"판정항목표_v1 과 판정 항목이 다릅니다: {differ[:10]} (줄 {len(old)} vs {len(payload['rows'])})")
-        payload["items_table"] = {"version": "judge-items-v1", "sha256": hashlib.sha256(v1.read_bytes()).hexdigest()[:16], "same": True}
+        if set(old) != {r["case_id"] for r in payload["rows"]}:
+            raise SystemExit(f"판정항목표_v1 과 턴 목록이 다릅니다 (줄 {len(old)} vs {len(payload['rows'])})")
+        changed = [{"case_id": r["case_id"], "added": [i for i in r["items"] if i not in old[r["case_id"]]],
+                    "removed": [i for i in old[r["case_id"]] if i not in r["items"]]} for r in payload["rows"] if old[r["case_id"]] != r["items"]]
+        payload["items_table"] = {"version": "judge-items-v1", "sha256": hashlib.sha256(v1.read_bytes()).hexdigest()[:16], "changed": changed}
     out_json, out_csv = set_dir / "판정상황표_v2.json", set_dir / "판정상황표_v2.csv"
     out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     with out_csv.open("w", encoding="utf-8-sig", newline="") as f:
@@ -105,7 +108,8 @@ def main(argv: List[str]) -> int:
             w.writerow([r["case_id"], f"Q{r['question']}", r["turn"], r["kind"], len(r["items"]), " ".join(s["sub"] for s in r["situations"]),
                         r["case_situations"]])
     digest = hashlib.sha256(out_json.read_bytes()).hexdigest()[:16]
-    print(f"{VERSION} | 줄(턴) {len(payload['rows'])} | 판정항목표_v1 과 같음: {bool(payload.get('items_table'))} | sha256 {digest} | 저장: {out_json.name}, {out_csv.name}")
+    changed = (payload.get("items_table") or {}).get("changed")
+    print(f"{VERSION} | 줄(턴) {len(payload['rows'])} | 판정항목표_v1 과 다른 턴: {changed} | sha256 {digest} | 저장: {out_json.name}, {out_csv.name}")
     return 0
 
 
