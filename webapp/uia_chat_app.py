@@ -662,14 +662,16 @@ def _squash(text: str) -> str:
 
 
 def _matches_screen(copied: str, screen: str) -> bool:
-    """복사한 글이 화면의 답과 같은 글인가 — 앞·가운데·뒤 30자 조각 중 하나라도 화면 글에 있으면 같은 글로 본다."""
-    c = _squash(copied)
-    if not screen or not c:
+    """복사한 글이 화면의 답과 같은 글인가 — 줄마다 대조해 절반 이상(최소 한 줄)이 화면 글에 있으면 같은 글로 본다.
+    화면 글에는 생각 요약 등이 사이에 끼어 있어 긴 조각 대조는 목록 답에서 어긋난다(2026-10-20)."""
+    if not screen:
         return True
-    if len(c) <= 30:
-        return c in screen
-    chunks = (c[:30], c[len(c) // 2 - 15: len(c) // 2 + 15], c[-30:])
-    return any(ch and ch in screen for ch in chunks)
+    lines = [_squash(l) for l in (copied or "").splitlines()]
+    lines = [l for l in lines if len(l) >= 4]
+    if not lines:
+        return bool(_squash(copied)) and _squash(copied) in screen
+    found = sum(1 for l in lines if (l if len(l) <= 40 else l[:40]) in screen)
+    return found >= max(1, len(lines) // 2)
 
 
 def place_window(win: Any, place: str) -> None:
