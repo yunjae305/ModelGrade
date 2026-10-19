@@ -454,6 +454,7 @@ extra_css = """
 svg .ln.claude { stroke: var(--m-claude); } svg .pt.claude { fill: var(--m-claude); }
 .rtab td.exq ul.cl { margin: 0; padding-left: 1.1em; } .rtab td.exq ul.cl li { margin: 3px 0; line-height: 1.5; }
 .tpl .slot { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+.psum th[scope="row"] { white-space: nowrap; width: 1%; padding-right: 18px; }
 .s-head h2 { font-size: 1.75rem; }
 .gist { margin: 0; padding: 14px 18px 14px 36px; background: var(--accent-soft); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.98rem; }
 .gist li::marker { color: var(--accent); } .gist b { color: var(--ink); }
@@ -632,7 +633,7 @@ s2 = f"""
   {head("02", "질문생성 프롬프트", "")}
   <div class="steps4">{"".join(f'<div><span class="k">{a} {b}</span><b>{E(c)}</b><span>{E(d)}</span></div>' for a, b, c, d in gen_struct)}</div>
   <div class="block"><h3>프롬프트 요약 — 원문 순서대로</h3>
-    <div class="cmpt rtab"><table><caption>단계 ①(단일 질문)의 공통 규칙과 ②③④ 단계의 다른 점</caption>
+    <div class="cmpt rtab psum"><table><caption>단계 ①(단일 질문)의 공통 규칙과 ②③④ 단계의 다른 점</caption>
       <thead><tr><th>부분</th><th>무엇을 시키나</th></tr></thead><tbody>{prompt_sum_rows}</tbody></table></div>
   </div>
   {details("k 규칙 원문 (모든 단계에 들어가는 문장)", k_rule_text)}
