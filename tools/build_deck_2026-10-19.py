@@ -714,7 +714,7 @@ s5 = f"""
 
 s6 = f"""
 <section class="slide" id="s6">
-  {head("06", "결과 — PASS : FAIL  " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][0]:.0f}:{PF[m][1]:.0f}" for m in ("gpt", "aiona", "claude", "gemini")), "질문 단위(대화 1개 = 1개). 결과는 <b>확정 질문의 PASS : FAIL</b>과 <b>보류 비율</b>로 봅니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else ""))}
+  {head("06", "결과", "질문 단위(대화 1개 = 1개). 결과는 <b>확정 질문의 PASS : FAIL</b>과 <b>보류 비율</b>로 봅니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else ""))}
   {gist("<b>PASS : FAIL</b> (확정 질문 중) — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][0]:.0f}:{PF[m][1]:.0f}" for m in ("gpt", "aiona", "claude", "gemini")) + ". <b>보류</b> " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][2]:.0f}%" for m in ("gpt", "aiona", "claude", "gemini")) + " — 사람이 정하면 비율이 바뀝니다.",
         "FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴</b>에 몰려 있습니다.",
         "한 번도 FAIL 이 안 난 기준 8개는 깨진 출력을 잡는 안전망 검사 — 느슨해서가 아닙니다 (장 끝 표).")}
