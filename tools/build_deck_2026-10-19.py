@@ -362,46 +362,34 @@ MIN = [("기준마다 1번↑", 7, "커버 점검", pf_str(MIN_CNT[7]), "aiona >
 min_rows = "".join(f'<tr{" class=pick" if b in (78, 326) else ""}><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td><td class="exq">{E(e)}</td><td>{E(f)}</td><td class="num">{g}</td></tr>' for a, b, c, d, e, f, g in MIN)
 
 # ---------- 08 질문 수 근거 ----------
-FC = [(7, 1, 24.1, 3.9, 12.5), (21, 3, 49.4, 12.8, 29.9), (37, 5, 60.9, 18.3, 42.5), (78, 10, 80.5, 35.7, 64.5), (155, 20, 87.4, 62.1, 82.5), (326, 0, 100.0, 100.0, 100.0)]
 BS = [(50, 52.3, 80.2, 89.5, 64.5), (100, 67.3, 89.8, 97.2, 72.1), (150, 77.1, 94.4, 98.8, 78.1), (250, 86.1, 98.4, 100.0, 84.5), (326, 88.5, 99.1, 100.0, 87.9), (500, 92.7, 99.9, 100.0, 91.6)]
 
 
 def ss_chart():
-    W, H = 1000, 340
-    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="질문 수에 따른 FAIL 포착률과 순위 일치 확률">']
-    L, T, pw, ph = 50, 40, 400, 240
-    xs = lambda n: L + pw * (n / 326)
-    ys = lambda c: T + ph - ph * (c / 100)
-    out.append(f'<text class="atitle" x="{L}" y="{T - 16}">① 전체 FAIL 조합(모델×기준 87개) 중 목록에서 보이는 비율</text>')
-    for c in (25, 50, 75, 100):
-        out.append(f'<line class="grid" x1="{L}" y1="{ys(c):.1f}" x2="{L + pw}" y2="{ys(c):.1f}"/><text class="tick" x="{L - 6}" y="{ys(c) + 4:.1f}" text-anchor="end">{c}%</text>')
-    for n in (7, 78, 155, 326):
-        out.append(f'<text class="tick" x="{xs(n):.1f}" y="{T + ph + 16}" text-anchor="middle">{n}</text>')
-    for idx, cls in ((2, "ln cv20"), (4, "ln gpt")):
-        pts = " ".join(f"{xs(r[0]):.1f},{ys(r[idx]):.1f}" for r in FC)
-        out.append(f'<polyline class="{cls}" points="{pts}"/>')
-    for r in FC[:-1]:
-        out.append(f'<circle class="pt cv20" cx="{xs(r[0]):.1f}" cy="{ys(r[2]):.1f}" r="4"/><text class="inl" x="{xs(r[0]) + 6:.1f}" y="{ys(r[2]) - 6:.1f}">{r[1]}번↑ {r[0]}개 {r[2]:.0f}%</text>')
-    out.append(f'<line class="guide" x1="{xs(78):.1f}" y1="{T}" x2="{xs(78):.1f}" y2="{T + ph}"/>')
-    L2 = 540
-    xs2 = lambda n: L2 + pw * (n / 500)
-    ys2 = lambda p: T + ph - ph * (p / 100)
-    out.append(f'<text class="atitle" x="{L2}" y="{T - 16}">② 새 세트 N개일 때 두 모델의 순서가 맞을 확률</text>')
-    for p in (50, 75, 95, 100):
-        out.append(f'<line class="grid{" strong" if p == 95 else ""}" x1="{L2}" y1="{ys2(p):.1f}" x2="{L2 + pw}" y2="{ys2(p):.1f}"/><text class="tick" x="{L2 - 6}" y="{ys2(p) + 4:.1f}" text-anchor="end">{p}%</text>')
-    for n in (50, 100, 250, 326, 500):
-        out.append(f'<text class="tick" x="{xs2(n):.1f}" y="{T + ph + 16}" text-anchor="middle">{n}</text>')
-    for idx, cls, lab in ((3, "ln gpt", "AIONA > Claude (10.7pp)"), (2, "ln aiona", "GPT > AIONA (7.4pp)"), (4, "ln gemini", "Claude > Gemini (3.4pp)")):
-        pts = " ".join(f"{xs2(r[0]):.1f},{ys2(r[idx]):.1f}" for r in BS)
-        out.append(f'<polyline class="{cls}" points="{pts}"/>')
-        out.append(f'<text class="inl" x="{xs2(BS[-1][0]) + 4:.1f}" y="{ys2(BS[-1][idx]) + 4:.1f}">{lab}</text>')
-    out.append(f'<line class="guide" x1="{xs2(250):.1f}" y1="{T}" x2="{xs2(250):.1f}" y2="{T + ph}"/><text class="mk" x="{xs2(250) + 4:.1f}" y="{T + 14}">250: GPT>AIONA 98%</text>')
+    """질문 N개만 썼을 때 326 전체와 같은 순위가 나올 확률 — 막대 두 개(네 모델 순위 전부 / GPT > AIONA)."""
+    W, H = 900, 320
+    L, T, pw, ph = 60, 36, 800, 230
+    gw = pw / len(BS); bw = gw * 0.3
+    ys = lambda p: T + ph - ph * (p / 100)
+    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="질문 수에 따른 순위 일치 확률">']
+    for p in (25, 50, 75, 100):
+        out.append(f'<line class="grid" x1="{L}" y1="{ys(p):.1f}" x2="{L + pw}" y2="{ys(p):.1f}"/><text class="tick" x="{L - 6}" y="{ys(p) + 4:.1f}" text-anchor="end">{p}%</text>')
+    out.append(f'<line class="guide" x1="{L}" y1="{ys(95):.1f}" x2="{L + pw}" y2="{ys(95):.1f}"/><text class="mk" x="{L + 4}" y="{ys(95) - 5:.1f}">95% 선</text>')
+    for i, r in enumerate(BS):
+        gx = L + i * gw
+        if r[0] == 326:
+            out.append(f'<rect x="{gx + 4:.1f}" y="{T}" width="{gw - 8:.1f}" height="{ph}" rx="8" style="fill:var(--ok-soft)"/>')
+        for j, (idx, color) in enumerate(((1, "var(--accent)"), (2, "var(--m-gpt)"))):
+            x = gx + gw / 2 - bw + j * bw
+            out.append(f'<rect x="{x:.1f}" y="{ys(r[idx]):.1f}" width="{bw - 3:.1f}" height="{T + ph - ys(r[idx]):.1f}" rx="3" style="fill:{color}"/>')
+            out.append(f'<text class="inl" x="{x + (bw - 3) / 2:.1f}" y="{ys(r[idx]) - 5:.1f}" text-anchor="middle">{r[idx]:.0f}%</text>')
+        out.append(f'<text class="tick" x="{gx + gw / 2:.1f}" y="{T + ph + 18}" text-anchor="middle">{"326 (지금)" if r[0] == 326 else r[0]}</text>')
+    out.append(f'<text class="tick" x="{L + pw / 2:.1f}" y="{H - 4}" text-anchor="middle">질문 수 N</text>')
     out.append('</svg>')
     return "\n".join(out)
 
 
-fc_rows = "".join(f'<tr{" class=pick" if r[0] in (78, 326) else ""}><th scope="row">{r[0]}</th><td>{"정밀" if r[1] == 0 else f"{r[1]}번↑"}</td><td class="d">{r[2]:.0f}%</td><td>{r[3]:.0f}%</td><td>{r[4]:.0f}%</td></tr>' for r in FC)
-bs_rows = "".join(f'<tr{" class=pick" if r[0] in (250, 326) else ""}><th scope="row">{r[0]}</th><td>{r[1]:.0f}%</td><td class="d">{r[2]:.0f}%</td><td>{r[3]:.0f}%</td><td>{r[4]:.0f}%</td></tr>' for r in BS)
+bs_rows = "".join(f'<tr{" class=pick" if r[0] in (250, 326) else ""}><th scope="row">{r[0]}</th><td class="d">{r[1]:.0f}%</td><td>{r[2]:.0f}%</td><td>{r[3]:.0f}%</td><td>{r[4]:.0f}%</td></tr>' for r in BS)
 
 # ---------- 09 비용 ----------
 COST = [
@@ -692,44 +680,13 @@ s6 = f"""
 </section>
 """
 
-# 최소 평가를 어떻게 뽑나 — 작은 예(기준 5개, 목표 2번) + 실제 첫 순서
-_m10 = json.load(open(ROOT / "참고자료/최소평가/min_eval_m10.json", encoding="utf-8"))
-pick_steps = [("1", "Q1 (A B C D)", "A1 B1 C1 D1 E0", "모자란 기준을 4개 가짐 — 가장 많음"),
-              ("2", "Q2 (A B C)", "A2 B2 C2 D1 E0", "모자란 기준 3개 (Q4 는 2개)"),
-              ("3", "Q4 (D E)", "D2 E1", "A·B·C 는 2번을 채워 더 안 셈. Q3 (A B) 는 모자란 게 0개라 건너뜀"),
-              ("4", "Q5 (E)", "E2 → 끝", "모든 기준이 2번")]
-pick_rows = "".join(f'<tr><th scope="row">{n}</th><td><b>{E(q)}</b></td><td class="num">{E(t)}</td><td>{E(w)}</td></tr>' for n, q, t, w in pick_steps)
-real_rows = "".join(f'<tr><th scope="row">{i}</th><td><b>Q{c["id"]}</b> <span class="muted">({E(c["kind"])}, 기준 {c["k"]}개)</span></td><td class="num">{len(c["new"])}개</td></tr>'
-                    for i, c in enumerate(_m10["chosen"][:8], 1))
-GOAL = [("1번", 7, "24%"), ("3번", 21, "49%"), ("5번", 37, "61%"), ("10번", 78, "80%"), ("20번", 155, "87%")]
-goal_rows = "".join(f'<tr{" class=pick" if g == "10번" else ""}><th scope="row">{g}</th><td class="num">{n}</td><td class="num">{r}</td></tr>' for g, n, r in GOAL)
+# (목표 횟수, 기준 많은 순으로 그대로 던질 때 필요한 질문 수, 지금 방식, FAIL 조합 포착) — 2026-10-19 326 세트로 셈 (참고자료/최소평가/order_compare_kdesc_vs_greedy.json)
+GOAL = [("1번", 304, 7, "24%"), ("3번", 306, 21, "49%"), ("5번", 308, 37, "61%"), ("10번", 326, 78, "80%"), ("20번", 326, 155, "87%")]
+goal_rows = "".join(f'<tr{" class=pick" if g == "10번" else ""}><th scope="row">{g}</th><td class="num">{a}</td><td class="num"><b>{b}</b></td><td class="num">{r}</td></tr>' for g, a, b, r in GOAL)
 
-s_pick = f"""
-  <div class="block"><h3>최소 78 은 어떻게 뽑나</h3>
-    {gist("질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 셉니다 — 답변을 받기 전에 목록과 순서가 정해집니다.",
-          "규칙: <b>아직 목표 횟수를 못 채운 기준을 가장 많이 가진 질문</b>을 하나씩 고르고, 모든 기준이 목표에 닿으면 멈춥니다. 목표는 <b>기준마다 10번</b>.",
-          "질문 하나에 기준이 평균 20개 걸려 있어, 78개면 기준 64개가 모두 10개 이상의 질문에서 평가됩니다. 이미 채운 기준만 가진 질문은 던지지 않습니다.")}
-    <div class="two">
-      <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
-        <thead><tr><th>순서</th><th>고른 질문</th><th>횟수 표</th><th>왜</th></tr></thead><tbody>{pick_rows}</tbody></table>
-        <div class="qnote">질문: Q1=A B C D · Q2=A B C · Q3=A B · Q4=D E · Q5=E. 5개 중 <b>4개</b>로 기준 5개가 모두 2번. "기준 많은 순"으로만 던지면 Q3 도 던져 5개가 필요합니다.</div></div>
-      <div class="cmpt rtab"><table><caption>실제 — 326개에서 고른 순서 (앞 8개)</caption>
-        <thead><tr><th>순서</th><th>질문</th><th>새로 채운 기준</th></tr></thead><tbody>{real_rows}</tbody></table>
-        <div class="qnote">던지는 순서 = 고른 순서. 처음엔 모든 기준이 모자라 기준이 가장 많은 10턴 대화부터, 뒤로 갈수록 아직 모자란 기준(코드·첨부·긴 문서 등)을 가진 단일 질문이 뽑힙니다. 전체 78개 순서: 참고자료/최소평가/min_eval_m10.md</div></div>
-    </div>
-    <div class="two">
-      <div class="cmpt rtab"><table><caption>목표를 몇 번으로 두느냐에 따라 질문 수가 달라집니다</caption>
-        <thead><tr><th>목표 횟수</th><th>필요한 질문 수</th><th>FAIL 조합 포착</th></tr></thead><tbody>{goal_rows}</tbody></table></div>
-      <div class="defbox"><h3>왜 10번인가</h3>
-        <p>기준마다 10번은 평가돼야 "이 모델이 이 기준에서 몇 번 중 몇 번 틀리나"를 말할 수 있습니다.</p>
-        <p>10번까지는 질문을 늘린 만큼 FAIL 포착이 크게 오르고(61% → 80%), 10을 넘기면 질문은 두 배(78 → 155)인데 7%p 만 더 오릅니다. 326 결과로 1·3·5·10·20번을 다 세어 본 값입니다.</p></div>
-    </div>
-  </div>
-"""
 
 # 한 기준을 검사하는 질문이 몇 개인가 — 326 전체 vs 최소 78 (2026-10-19 계산, qs-b468b011e6c3 / qs-c5d8a1624770)
-CRIT_COUNT = [("표 요구 (2-2.table)", 46, 14), ("글자 수 (2-1.char_count)", 73, 21), ("코드블록 (1-2.code_block)", 47, 16), ("말투·존댓말 (J2-2.a)", 62, 17),
-              ("자료 값 충실 (J5-2.a)", 233, 49), ("앞 턴 지시 유지 (J6-1.a)", 16, 10), ("긴 문서 정보 찾기 (J7-1.a)", 10, 10), ("빈 출력 요구 (2-1.explicit_empty)", 10, 10)]
+CRIT_COUNT = [("표로 정리해", 46, 14), ("글자 수 지켜", 73, 21), ("코드블록으로", 47, 16), ("존댓말로", 62, 17), ("자료 값 그대로", 233, 49), ("앞 턴 조건 유지", 16, 10), ("긴 문서에서 찾기", 10, 10)]
 crit_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="num"><b>{c}</b></td></tr>' for a, b, c in CRIT_COUNT)
 
 s7 = f"""
@@ -739,21 +696,23 @@ s7 = f"""
         "정밀 평가는 326개를 다 던집니다. 최소 평가는 <b>기준마다 10개 질문까지만</b> 던집니다 — 그 이상은 굳이 안 던집니다.",
         "질문 하나에 기준이 평균 20개 걸려 있어 질문 하나가 기준 20개를 동시에 1번씩 채웁니다. 그래서 <b>78개</b>면 기준 64개가 모두 10번 이상 평가됩니다.")}
   <div class="block">
-    <div class="cmpt rtab"><table><caption>한 기준을 검사하는 질문 수 — 326 전체 vs 최소 78</caption>
-      <thead><tr><th>기준</th><th>326 중</th><th>78 중</th></tr></thead><tbody>{crit_rows}</tbody></table>
-      <div class="qnote">기준 64개 전부가 78 안에서 10개 이상의 질문에 걸립니다. 그 기준을 가진 질문이 딱 10개면(긴 문서·빈 출력 요구) 10개 모두 들어갑니다.</div></div>
+    <div class="cmpt rtab"><table><caption>예 — 기준 하나를 검사하는 질문은 여러 개, 최소 평가는 그중 10개 이상만</caption>
+      <thead><tr><th>기준 (조건)</th><th>이 조건이 든 질문 수 (326개 중)</th><th>최소 평가에서 던지는 수 (78개 중)</th></tr></thead><tbody>{crit_rows}</tbody></table>
+      <div class="qnote">기준 64개 모두 78개 안에서 10번 이상 평가됩니다. 조건이 든 질문이 딱 10개인 기준(긴 문서 등)은 10개 모두 들어갑니다.</div></div>
+  </div>
+  <div class="block"><h3>78개를 고르는 순서</h3>
+    <div class="steps4">
+      <div><span class="k">1</span><b>횟수 표를 0으로 시작</b><span>기준 64개마다 "몇 번 평가됐나"를 셉니다. 질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 세므로 답변 전에 할 수 있습니다.</span></div>
+      <div><span class="k">2</span><b>아직 10번이 안 된 기준을 가장 많이 가진 질문을 하나 고름</b><span>처음엔 모든 기준이 0이라 기준이 가장 많은 질문(Q12, 36개)이 먼저입니다.</span></div>
+      <div><span class="k">3</span><b>고른 질문의 기준들에 1씩 더함</b><span>이미 10번이 찬 기준은 더 세지 않습니다. 그런 기준만 가진 질문은 던지지 않습니다.</span></div>
+      <div><span class="k">4</span><b>모든 기준이 10번이 되면 끝</b><span>이번 세트는 78개에서 끝났습니다. 고른 순서가 던지는 순서입니다: Q12 → Q15 → Q21 → Q22 → Q26 → … (전체 순서: 참고자료/최소평가/min_eval_m10.md)</span></div>
+    </div>
+    <p class="muted">78개가 끝나면 최소 평가 결과, 나머지 248개(번호순)까지 끝나면 정밀 평가 결과입니다.</p>
   </div>
   <div class="two">
-    <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
-      <thead><tr><th>순서</th><th>고른 질문</th><th>횟수 표</th><th>왜</th></tr></thead><tbody>{pick_rows}</tbody></table>
-      <div class="qnote">질문: Q1=A B C D · Q2=A B C · Q3=A B · Q4=D E · Q5=E. 5개 중 <b>4개</b>로 기준 5개가 모두 2번. Q3 은 이미 채운 기준만 가져 던지지 않습니다. 첫 질문은 늘 기준이 가장 많은 질문입니다(처음엔 모든 기준이 모자라므로).</div></div>
-    <div class="cmpt rtab"><table><caption>실제 — 326개에서 고른 순서 (앞 8개 = 던지는 순서)</caption>
-      <thead><tr><th>순서</th><th>질문</th><th>새로 채운 기준</th></tr></thead><tbody>{real_rows}</tbody></table>
-      <div class="qnote">처음엔 기준이 가장 많은 10턴 대화부터, 뒤로 갈수록 아직 모자란 기준(코드·첨부·긴 문서 등)을 가진 단일 질문이 뽑힙니다. 78개 전체 순서: 참고자료/최소평가/min_eval_m10.md. 78개가 끝나면 최소 평가 결과, 나머지 248개(번호순)까지 끝나면 정밀 평가 결과입니다.</div></div>
-  </div>
-  <div class="two">
-    <div class="cmpt rtab"><table><caption>목표를 몇 번으로 두느냐에 따라 질문 수가 달라집니다 (326 결과로 셈)</caption>
-      <thead><tr><th>목표 횟수</th><th>필요한 질문 수</th><th>FAIL 조합 포착</th></tr></thead><tbody>{goal_rows}</tbody></table></div>
+    <div class="cmpt rtab"><table><caption>기준마다 목표 횟수를 채우려면 몇 개를 던져야 하나 — 기준 많은 순 vs 지금 방식 (326 세트로 셈)</caption>
+      <thead><tr><th>목표 (기준마다)</th><th>기준 많은 순으로 던지면</th><th>지금 방식</th><th>FAIL 조합 포착 (지금 방식)</th></tr></thead><tbody>{goal_rows}</tbody></table>
+      <div class="qnote">기준 많은 순은 '빈 출력 요구'처럼 <b>기준이 적은 질문(11~15개)에만 든 기준</b>이 맨 끝에 와서 거의 전부를 던져야 합니다. 지금 방식은 아직 모자란 기준을 가진 질문을 먼저 당겨 옵니다. FAIL 조합 포착 = 326 전체에서 드러난 "어떤 모델이 어떤 기준에서 틀렸다" 짝 87개 중, 그 질문들만으로 드러나는 비율.</div></div>
     <div class="defbox"><h3>왜 10번인가</h3>
       <p>10번은 질문 생성 프롬프트에 있는 값이 아니라 최소 평가 목록을 만들 때 정한 값입니다(도구 옵션, 바꿀 수 있음).</p>
       <p>기준마다 10번은 평가돼야 "이 모델이 이 기준에서 몇 번 중 몇 번 틀리나"를 말할 수 있습니다. 3번 중 1번은 운일 수 있지만 10번 중 3번이면 경향입니다.</p>
@@ -775,17 +734,20 @@ s8 = f"""
     <h3>정밀 326 (순위·FAIL 전부) / 최소 78 (기준마다 10번↑, FAIL 조합 80%) / 커버 점검 7</h3>
     <div class="concl-cols">
       <div><b class="keep">왜 326 인가</b><ul><li>GPT 와 AIONA 는 통과율 차이가 <b>7.4pp</b>. 이 순서를 95% 확률로 맞히려면 <b>250개</b>가 필요합니다.</li><li>326 이면 99%. 기준마다 10번 이상이라 기준별 FAIL 도 셀 수 있습니다.</li><li>Claude·Gemini 는 차이 3.4pp — 326 으로도 못 가릅니다. "같은 수준"으로 보고합니다.</li></ul></div>
-      <div><b class="fix">왜 78 인가</b><ul><li>7개·21개는 전체 FAIL 조합의 24~49%만 보입니다.</li><li><b>78개(기준마다 10번)에서 80%</b>. 155개로 늘려도 87% — 그 뒤는 늘어나는 폭이 작습니다.</li><li>78 은 이 세트의 결과값입니다. 새 세트에서는 75~85개쯤 — 규칙(10번↑)을 고정합니다.</li></ul></div>
-      <div><b class="wait">왜 규칙을 바꿨나</b><ul><li>이전 규칙(기준 많은 순)은 이미 채운 기준까지 세어 10턴 대화만 연달아 골랐습니다 → 같은 목표에 110개.</li><li>바꾼 규칙(덜 채운 기준을 가장 많이 채우는 질문부터)은 세트 6개 × 목표 5개 모두에서 더 적었습니다 (팀원 검산).</li></ul></div>
+      <div><b class="fix">왜 78 인가</b><ul><li>326개를 다 돌리면 "어떤 모델이 어떤 기준에서 틀렸다"는 짝(FAIL 조합)이 <b>87개</b> 나옵니다.</li><li>질문 7개만 던지면 그중 24%만 드러나고, 21개면 49%, <b>78개면 80%</b>. 155개로 두 배 늘려도 87%라 더 늘릴 이유가 약합니다.</li><li>78 은 이번 세트에서 나온 숫자입니다. 고정하는 규칙은 <b>기준마다 10번 이상</b>이고, 새 세트에서는 75~85개쯤이 됩니다.</li></ul></div>
+      <div><b class="wait">왜 '기준 많은 순'이 아닌가</b><ul><li>기준 많은 순으로 그대로 던지면 10번 목표에 <b>326개 전부</b> — 기준이 적은 질문에만 든 기준이 맨 끝에 옵니다 (07장 표).</li><li>다 찬 기준만 가진 질문을 건너뛰어도 110개. 지금 방식(모자란 기준을 가장 많이 가진 질문부터)은 78개 (팀원 검산).</li></ul></div>
     </div></div>
+  <div class="defbox"><h3>'순위가 맞을 확률'이란</h3>
+    <p>326개로 얻은 순위는 GPT &gt; AIONA &gt; Claude &gt; Gemini 입니다. 질문을 <b>N개만 썼다면 같은 순위가 나왔을까</b>를 본 것입니다.</p>
+    <p>326개 결과에서 질문 N개를 무작위로 뽑아 통과율 순위를 다시 매기기를 3,000번 반복하고, 그중 전체 순위와 같게 나온 비율을 셌습니다. N이 작으면 어떤 질문이 뽑히느냐에 따라 순위가 뒤집힙니다.</p></div>
   <figure class="fig">
-    <div class="fig-head"><h3>시험 결과</h3>
-      <div class="legend"><span><i style="background:var(--k20)"></i>표준 탐욕 목록</span><span><i style="background:var(--m-gpt)"></i>무작위 평균 / AIONA>Claude</span><span><i style="background:var(--m-aiona)"></i>GPT>AIONA</span><span><i style="background:var(--m-gemini)"></i>Claude>Gemini</span></div></div>
+    <div class="fig-head"><h3>질문 N개만 썼을 때 326 과 같은 순위가 나올 확률</h3>
+      <div class="legend"><span><i style="background:var(--accent)"></i>네 모델 순위 전부 같음</span><span><i style="background:var(--m-gpt)"></i>1·2위(GPT &gt; AIONA) 같음</span></div></div>
     <div class="chart-scroll">{ss_chart()}</div>
   </figure>
   <div class="two">
-    <div class="cmpt ktab"><table><caption>새 세트 N개일 때 순서가 맞을 확률</caption>
-      <thead><tr><th>N</th><th>전체 순위</th><th>GPT>AIONA</th><th>AIONA>Claude</th><th>Claude>Gemini</th></tr></thead><tbody>{bs_rows}</tbody></table></div>
+    <div class="cmpt ktab"><table><caption>질문 N개만 썼을 때 같은 순위가 나올 확률 (두 모델씩)</caption>
+      <thead><tr><th>N</th><th>네 모델 전부</th><th>GPT &gt; AIONA</th><th>AIONA &gt; Claude</th><th>Claude &gt; Gemini</th></tr></thead><tbody>{bs_rows}</tbody></table></div>
   </div>
 </section>
 """
