@@ -1,0 +1,4820 @@
+{
+ "run": "e4ce7a342251",
+ "providers": [
+  "gpt",
+  "claude",
+  "gemini"
+ ],
+ "rule": "strict (확인 못 한 J5 = FAIL)",
+ "bases": {
+  "B01": {
+   "topic": "도서관 반납 안내 문구",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    }
+   }
+  },
+  "B02": {
+   "topic": "시설 점검에 따른 출입 안내",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J1",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    }
+   }
+  },
+  "B03": {
+   "topic": "도서관 독서 모임 일정 변경 안내",
+   "by_k": {
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "J2",
+       "J5"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "2-2.table",
+       "J5"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.table",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B04": {
+   "topic": "공방 행사 주차 안내와 시간대별 예외 규정",
+   "by_k": {
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "J4"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "J5"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J2"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table",
+       "J4"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.table",
+       "J2"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.table",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "J4",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B05": {
+   "topic": "동네 도서관의 자료실 이전 안내",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "J4"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.heading",
+       "2-2.list",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B06": {
+   "topic": "공유 장비 대여 규정과 요금 안내",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J3",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "J4"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J4"
+      ]
+     }
+    }
+   }
+  },
+  "B07": {
+   "topic": "가상 마을 도서관의 보수 및 대체 이용 안내",
+   "by_k": {
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J2",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "2-2.heading",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading",
+       "2-2.list",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B08": {
+   "topic": "가상 냉장 배송 운영 기록의 수량·예외 규정",
+   "by_k": {
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J2",
+       "J5"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J5"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": null,
+      "fails": [
+       "수집 실패"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "J2",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.heading"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "J4"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "J4",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B09": {
+   "topic": "사내 비품 대여 기록",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.json_structure",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.json_structure"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.json_structure",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal"
+      ]
+     }
+    }
+   }
+  },
+  "B10": {
+   "topic": "정산 기록의 최종 인정액",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J3"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-2.heading"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "J3"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.heading",
+       "2-2.json_structure",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.json_structure",
+       "2-2.list",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.json_structure",
+       "2-2.list"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.json_structure",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-2.json_structure",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-2.json_structure"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.json_structure",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-2.json_structure"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.charset",
+       "2-1.count",
+       "2-2.json_structure"
+      ]
+     }
+    }
+   }
+  },
+  "B11": {
+   "topic": "도서관 구역별 토요일 운영 안내",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.table"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.table",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.table",
+       "J2",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table",
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table",
+       "J2"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "2-2.table",
+       "J2"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    }
+   }
+  },
+  "B12": {
+   "topic": "도서관 보관함 대여 한도와 예외 승인 규정",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.table"
+      ]
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table",
+       "J3"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table",
+       "J5"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-2.list",
+       "2-2.table",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table",
+       "J3",
+       "J4"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count",
+       "2-1.literal",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    }
+   }
+  },
+  "B13": {
+   "topic": "텃밭 급수 기록의 리터-밀리리터 변환",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "1-2.code_language_label"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "1-2.code_language_label"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "1-2.code_language_label"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    }
+   }
+  },
+  "B14": {
+   "topic": "냉장 물류 출고량의 조건부 제외와 리터-밀리리터 변환",
+   "by_k": {
+    "1": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "2-2.heading",
+       "2-2.list",
+       "2-2.table"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J3"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    }
+   }
+  },
+  "B15": {
+   "topic": "가상 빵집 주문 기록의 두 금액 합산",
+   "by_k": {
+    "2": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "3": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "12": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "1-2.json_syntax",
+       "2-1.char_count",
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    }
+   }
+  },
+  "B16": {
+   "topic": "가상 교육비 지원 규정에 따른 신청 판정",
+   "by_k": {
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "8": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.count"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "10": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J2",
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J2",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J4",
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J4"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.char_count",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B17": {
+   "topic": "도서관 모둠학습실 예약 승인 판단",
+   "by_k": {
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal",
+       "J5"
+      ]
+     }
+    }
+   }
+  },
+  "B18": {
+   "topic": "특수 장비 대여 승인 판단",
+   "by_k": {
+    "4": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "5": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "6": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "7": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "9": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "11": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "13": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "J5"
+      ]
+     }
+    },
+    "14": {
+     "gpt": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    },
+    "15": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "gemini": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     }
+    },
+    "16": {
+     "gpt": {
+      "verdict": "FAIL",
+      "fails": [
+       "2-1.literal"
+      ]
+     },
+     "claude": {
+      "verdict": "PASS",
+      "fails": []
+     },
+     "gemini": {
+      "verdict": "PASS",
+      "fails": []
+     }
+    }
+   }
+  }
+ }
+}

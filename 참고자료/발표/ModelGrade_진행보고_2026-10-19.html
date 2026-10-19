@@ -507,6 +507,7 @@ pre.show { margin: 0; padding: 14px 16px; font-family: var(--font-num); font-siz
 svg .kb.pass { fill: var(--ok); opacity: 0.55; } svg .kb.disc { fill: var(--accent); } svg .kb.fail { fill: var(--risk); opacity: 0.6; }
 svg .kv { fill: #fff; font-family: var(--font-num); font-size: 12px; font-weight: 700; }
 svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } svg .cb.h { fill: var(--warn); opacity: 0.55; }
+svg .cell.pass { fill: var(--ok); opacity: 0.7; } svg .cell.disc { fill: var(--accent); } svg .cell.fail { fill: var(--risk); opacity: 0.7; } svg .cell.none { fill: var(--line); opacity: 0.5; }
 .ktab table { min-width: 480px; } .ktab tr.pick td, .ktab tr.pick th { background: var(--ok-soft); } .ktab td.d { font-weight: 700; color: var(--accent); }
 .ctab table { min-width: 720px; font-size: 0.86rem; } .ctab td.ex { font-family: var(--font-body); color: var(--muted); white-space: normal; } .ctab td { white-space: normal; font-family: var(--font-body); }
 .ctab th[scope="row"] { white-space: nowrap; } .ctab code { font-family: var(--font-num); font-size: 0.8rem; }
@@ -965,6 +966,339 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
   </div>
 
   <div class="block"><h3>② 결과 — k 별로 모델 판정이 어떻게 나뉘나</h3>
+    <figure class="fig">
+      <div class="fig-head"><h3>기본 질문 18개 × k 1~16 — 한 칸이 질문 하나</h3>
+        <div class="legend"><span><i style="background:var(--ok);opacity:.7"></i>세 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림</span><span><i style="background:var(--risk);opacity:.7"></i>세 모델 모두 FAIL</span><span><i style="background:var(--line)"></i>변형 없음·판정 없음</span></div></div>
+      <div class="chart-scroll"><svg class="chart" viewBox="0 0 1018 542" role="img" aria-label="기본 질문별 k 1~16 판정 격자">
+<rect class="zr" x="230" y="30" width="240" height="476" opacity="0.5"/>
+<rect class="zg" x="470" y="30" width="240" height="476" opacity="0.6"/>
+<rect class="zr" x="710" y="30" width="288" height="476" opacity="0.5"/>
+<text class="tick" x="254.0" y="24" text-anchor="middle">k=1</text>
+<text class="tick" x="302.0" y="24" text-anchor="middle">k=2</text>
+<text class="tick" x="350.0" y="24" text-anchor="middle">k=3</text>
+<text class="tick" x="398.0" y="24" text-anchor="middle">k=4</text>
+<text class="tick" x="446.0" y="24" text-anchor="middle">k=5</text>
+<text class="tick" x="494.0" y="24" text-anchor="middle">k=6</text>
+<text class="tick" x="542.0" y="24" text-anchor="middle">k=7</text>
+<text class="tick" x="590.0" y="24" text-anchor="middle">k=8</text>
+<text class="tick" x="638.0" y="24" text-anchor="middle">k=9</text>
+<text class="tick" x="686.0" y="24" text-anchor="middle">k=10</text>
+<text class="tick" x="734.0" y="24" text-anchor="middle">k=11</text>
+<text class="tick" x="782.0" y="24" text-anchor="middle">k=12</text>
+<text class="tick" x="830.0" y="24" text-anchor="middle">k=13</text>
+<text class="tick" x="878.0" y="24" text-anchor="middle">k=14</text>
+<text class="tick" x="926.0" y="24" text-anchor="middle">k=15</text>
+<text class="tick" x="974.0" y="24" text-anchor="middle">k=16</text>
+<text class="inl" x="222" y="52" text-anchor="end">도서관 반납 안내 문구</text>
+<rect x="232" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="36" width="44" height="22" rx="4" class="cell disc"><title>B01 k=9: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="664" y="36" width="44" height="22" rx="4" class="cell disc"><title>B01 k=10: gpt PASS · claude PASS · gemini FAIL(J2)</title></rect>
+<rect x="712" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="36" width="44" height="22" rx="4" class="cell disc"><title>B01 k=12: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="808" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=13: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="856" y="36" width="44" height="22" rx="4" class="cell pass"><title>B01 k=14: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="904" y="36" width="44" height="22" rx="4" class="cell disc"><title>B01 k=15: gpt PASS · claude FAIL(J2, J5) · gemini PASS</title></rect>
+<rect x="952" y="36" width="44" height="22" rx="4" class="cell fail"><title>B01 k=16: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count)</title></rect>
+<text class="inl" x="222" y="78" text-anchor="end">시설 점검에 따른 출입 안</text>
+<rect x="232" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="62" width="44" height="22" rx="4" class="cell disc"><title>B02 k=2: gpt FAIL(J1, J5) · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="62" width="44" height="22" rx="4" class="cell disc"><title>B02 k=7: gpt PASS · claude PASS · gemini FAIL(J2)</title></rect>
+<rect x="568" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=9: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="664" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=10: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=12: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="808" y="62" width="44" height="22" rx="4" class="cell fail"><title>B02 k=13: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count)</title></rect>
+<rect x="856" y="62" width="44" height="22" rx="4" class="cell fail"><title>B02 k=14: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count)</title></rect>
+<rect x="904" y="62" width="44" height="22" rx="4" class="cell pass"><title>B02 k=15: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="952" y="62" width="44" height="22" rx="4" class="cell disc"><title>B02 k=16: gpt PASS · claude FAIL(J2, J4) · gemini PASS</title></rect>
+<text class="inl" x="222" y="104" text-anchor="end">도서관 독서 모임 일정 변</text>
+<rect x="232" y="88" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="88" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=3: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="376" y="88" width="44" height="22" rx="4" class="cell pass"><title>B03 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="88" width="44" height="22" rx="4" class="cell pass"><title>B03 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=6: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="520" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=7: gpt FAIL(J5) · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="568" y="88" width="44" height="22" rx="4" class="cell pass"><title>B03 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=9: gpt FAIL(J5) · claude PASS · gemini FAIL(2-1.count)</title></rect>
+<rect x="664" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=10: gpt PASS · claude FAIL(J5) · gemini FAIL(2-1.count)</title></rect>
+<rect x="712" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=11: gpt PASS · claude PASS · gemini FAIL(2-1.count, J5)</title></rect>
+<rect x="760" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=12: gpt PASS · claude PASS · gemini FAIL(2-2.heading, J5)</title></rect>
+<rect x="808" y="88" width="44" height="22" rx="4" class="cell fail"><title>B03 k=13: gpt FAIL(J5) · claude FAIL(J5) · gemini FAIL(2-1.count, 2-2.heading, J2)</title></rect>
+<rect x="856" y="88" width="44" height="22" rx="4" class="cell disc"><title>B03 k=14: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="904" y="88" width="44" height="22" rx="4" class="cell fail"><title>B03 k=15: gpt FAIL(2-1.char_count) · claude FAIL(J2, J4, J5) · gemini FAIL(2-2.heading, 2-2.table, J5)</title></rect>
+<rect x="952" y="88" width="44" height="22" rx="4" class="cell fail"><title>B03 k=16: gpt FAIL(2-1.count, 2-1.literal, 2-2.heading) · claude FAIL(J5) · gemini FAIL(2-1.count, J5)</title></rect>
+<text class="inl" x="222" y="130" text-anchor="end">공방 행사 주차 안내와 시</text>
+<rect x="232" y="114" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="114" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="114" width="44" height="22" rx="4" class="cell disc"><title>B04 k=3: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="376" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=4: gpt FAIL(J5) · claude FAIL(J5) · gemini FAIL(J5)</title></rect>
+<rect x="424" y="114" width="44" height="22" rx="4" class="cell disc"><title>B04 k=5: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="472" y="114" width="44" height="22" rx="4" class="cell disc"><title>B04 k=6: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="520" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=7: gpt FAIL(J5) · claude FAIL(2-1.count, J5) · gemini FAIL(J5)</title></rect>
+<rect x="568" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=8: gpt FAIL(J2, J5) · claude FAIL(2-1.count, J5) · gemini FAIL(2-1.count, J5)</title></rect>
+<rect x="616" y="114" width="44" height="22" rx="4" class="cell disc"><title>B04 k=9: gpt FAIL(J5) · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="664" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=10: gpt FAIL(2-1.char_count) · claude FAIL(J4) · gemini FAIL(2-1.count, 2-2.heading, J4)</title></rect>
+<rect x="712" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=11: gpt FAIL(2-1.char_count, J4) · claude FAIL(2-1.char_count, 2-1.count, J2) · gemini FAIL(2-1.count, 2-2.heading, J5)</title></rect>
+<rect x="760" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=12: gpt FAIL(2-1.char_count, J2) · claude FAIL(2-1.char_count, 2-1.count, J2) · gemini FAIL(J4)</title></rect>
+<rect x="808" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=13: gpt FAIL(2-1.char_count, 2-1.count, J4) · claude FAIL(2-2.heading, J4, J5) · gemini FAIL(2-1.count, 2-2.table, J4)</title></rect>
+<rect x="856" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=14: gpt FAIL(2-1.count, 2-1.literal, 2-2.heading) · claude FAIL(J4, J5) · gemini FAIL(J2, J4, J5)</title></rect>
+<rect x="904" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=15: gpt FAIL(2-1.count, 2-1.literal, 2-2.heading) · claude FAIL(2-1.char_count, 2-1.count, J4) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="952" y="114" width="44" height="22" rx="4" class="cell fail"><title>B04 k=16: gpt FAIL(2-1.count, 2-1.literal, J4) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, 2-1.literal, J2)</title></rect>
+<text class="inl" x="222" y="156" text-anchor="end">동네 도서관의 자료실 이전</text>
+<rect x="232" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=1: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="280" y="140" width="44" height="22" rx="4" class="cell pass"><title>B05 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="140" width="44" height="22" rx="4" class="cell pass"><title>B05 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=4: gpt FAIL(J5) · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=5: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="472" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=6: gpt FAIL(J5) · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="520" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=7: gpt PASS · claude PASS · gemini FAIL(J4)</title></rect>
+<rect x="568" y="140" width="44" height="22" rx="4" class="cell disc"><title>B05 k=8: gpt PASS · claude PASS · gemini FAIL(2-2.heading, J4)</title></rect>
+<rect x="616" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=9: gpt FAIL(2-1.literal, J5) · claude FAIL(2-1.count) · gemini FAIL(J5)</title></rect>
+<rect x="664" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=10: gpt FAIL(2-1.literal) · claude FAIL(2-1.count) · gemini FAIL(J4)</title></rect>
+<rect x="712" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=11: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.char_count, 2-1.count, 2-2.heading) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<rect x="760" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=12: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.count, J5) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<rect x="808" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=13: gpt FAIL(2-1.char_count, 2-1.count, 2-2.list) · claude FAIL(2-1.count, 2-2.list, J4) · gemini FAIL(2-1.count, 2-2.heading, 2-2.list)</title></rect>
+<rect x="856" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=14: gpt FAIL(2-1.char_count, 2-1.count, 2-2.list) · claude FAIL(2-1.count, J4) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<rect x="904" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=15: gpt FAIL(2-1.char_count, 2-1.count, 2-2.list) · claude FAIL(2-1.char_count, 2-1.count, J4) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="952" y="140" width="44" height="22" rx="4" class="cell fail"><title>B05 k=16: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.count, J5) · gemini FAIL(2-1.count, J4, J5)</title></rect>
+<text class="inl" x="222" y="182" text-anchor="end">공유 장비 대여 규정과 요</text>
+<rect x="232" y="166" width="44" height="22" rx="4" class="cell pass"><title>B06 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="166" width="44" height="22" rx="4" class="cell pass"><title>B06 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=3: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="376" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=4: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="424" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=5: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="472" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=6: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="520" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=7: gpt PASS · claude FAIL(J3, J5) · gemini FAIL(J5)</title></rect>
+<rect x="568" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=8: gpt PASS · claude FAIL(2-1.count) · gemini FAIL(J5)</title></rect>
+<rect x="616" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=9: gpt PASS · claude PASS · gemini FAIL(J4, J5)</title></rect>
+<rect x="664" y="166" width="44" height="22" rx="4" class="cell disc"><title>B06 k=10: gpt PASS · claude FAIL(2-1.count) · gemini FAIL(J4)</title></rect>
+<rect x="712" y="166" width="44" height="22" rx="4" class="cell pass"><title>B06 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="166" width="44" height="22" rx="4" class="cell fail"><title>B06 k=12: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.count, 2-2.list) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<rect x="808" y="166" width="44" height="22" rx="4" class="cell fail"><title>B06 k=13: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.count, 2-2.list) · gemini FAIL(2-1.count, 2-2.heading, 2-2.list)</title></rect>
+<rect x="856" y="166" width="44" height="22" rx="4" class="cell fail"><title>B06 k=14: gpt FAIL(2-1.char_count, 2-1.count, 2-2.list) · claude FAIL(2-1.count, 2-2.list, J5) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<rect x="904" y="166" width="44" height="22" rx="4" class="cell fail"><title>B06 k=15: gpt FAIL(2-1.char_count, 2-1.count, J4) · claude FAIL(2-1.char_count, 2-1.count, J5) · gemini FAIL(2-1.count, 2-2.heading, J4)</title></rect>
+<rect x="952" y="166" width="44" height="22" rx="4" class="cell fail"><title>B06 k=16: gpt FAIL(2-1.char_count, 2-1.count, 2-2.list) · claude FAIL(2-1.count, 2-2.list, J4) · gemini FAIL(2-1.count, 2-2.list, J4)</title></rect>
+<text class="inl" x="222" y="208" text-anchor="end">가상 마을 도서관의 보수 </text>
+<rect x="232" y="192" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="192" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="192" width="44" height="22" rx="4" class="cell pass"><title>B07 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="192" width="44" height="22" rx="4" class="cell pass"><title>B07 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="192" width="44" height="22" rx="4" class="cell pass"><title>B07 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="192" width="44" height="22" rx="4" class="cell disc"><title>B07 k=6: gpt PASS · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="520" y="192" width="44" height="22" rx="4" class="cell disc"><title>B07 k=7: gpt PASS · claude FAIL(J5) · gemini FAIL(J5)</title></rect>
+<rect x="568" y="192" width="44" height="22" rx="4" class="cell disc"><title>B07 k=8: gpt PASS · claude FAIL(J5) · gemini FAIL(J4)</title></rect>
+<rect x="616" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=9: gpt FAIL(J5) · claude FAIL(J5) · gemini FAIL(J4, J5)</title></rect>
+<rect x="664" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=10: gpt FAIL(2-1.count, J4) · claude FAIL(2-1.count, J2, J5) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="712" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=11: gpt FAIL(2-1.count) · claude FAIL(2-1.count, J4, J5) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="760" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=12: gpt FAIL(2-2.list, J4, J5) · claude FAIL(2-1.count, J4) · gemini FAIL(2-1.count, J4, J5)</title></rect>
+<rect x="808" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=13: gpt FAIL(2-1.count, 2-2.list, J5) · claude FAIL(2-1.count, 2-2.list, J2) · gemini FAIL(2-2.list, J4)</title></rect>
+<rect x="856" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=14: gpt FAIL(2-2.heading, 2-2.list, J4) · claude FAIL(2-1.char_count, 2-1.count, 2-2.heading) · gemini FAIL(2-1.count, 2-2.heading, 2-2.list)</title></rect>
+<rect x="904" y="192" width="44" height="22" rx="4" class="cell none"/>
+<rect x="952" y="192" width="44" height="22" rx="4" class="cell fail"><title>B07 k=16: gpt FAIL(2-1.count, 2-1.literal, 2-2.heading) · claude FAIL(2-1.count, 2-1.literal, 2-2.heading) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<text class="inl" x="222" y="234" text-anchor="end">가상 냉장 배송 운영 기록</text>
+<rect x="232" y="218" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="218" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="218" width="44" height="22" rx="4" class="cell pass"><title>B08 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="218" width="44" height="22" rx="4" class="cell disc"><title>B08 k=4: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="424" y="218" width="44" height="22" rx="4" class="cell disc"><title>B08 k=5: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="472" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=6: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J4, J5)</title></rect>
+<rect x="520" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=7: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="568" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=8: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J2, J5)</title></rect>
+<rect x="616" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=9: gpt FAIL(2-1.count, J5) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J5)</title></rect>
+<rect x="664" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=10: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count, J2, J4)</title></rect>
+<rect x="712" y="218" width="44" height="22" rx="4" class="cell none"><title>B08 k=11: gpt FAIL(2-2.list, J4) · claude FAIL(2-1.count, J4) · gemini ?(수집 실패)</title></rect>
+<rect x="760" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=12: gpt FAIL(2-2.heading, J2, J5) · claude FAIL(2-1.count, J4) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="808" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=13: gpt FAIL(2-1.count, 2-2.heading) · claude FAIL(2-1.char_count, 2-1.count, J4) · gemini FAIL(2-1.count, J4)</title></rect>
+<rect x="856" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=14: gpt FAIL(2-2.heading, 2-2.list) · claude FAIL(2-1.char_count, J4) · gemini FAIL(2-2.list, J4)</title></rect>
+<rect x="904" y="218" width="44" height="22" rx="4" class="cell none"/>
+<rect x="952" y="218" width="44" height="22" rx="4" class="cell fail"><title>B08 k=16: gpt FAIL(2-1.count, 2-1.literal, 2-2.heading) · claude FAIL(2-1.char_count, 2-1.literal, 2-2.heading) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<text class="inl" x="222" y="260" text-anchor="end">사내 비품 대여 기록</text>
+<rect x="232" y="244" width="44" height="22" rx="4" class="cell disc"><title>B09 k=1: gpt FAIL(2-1.literal) · claude PASS · gemini FAIL(2-1.literal)</title></rect>
+<rect x="280" y="244" width="44" height="22" rx="4" class="cell disc"><title>B09 k=2: gpt FAIL(2-1.literal) · claude PASS · gemini FAIL(2-1.literal)</title></rect>
+<rect x="328" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=3: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="376" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=4: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="424" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=5: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal, J5)</title></rect>
+<rect x="472" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=6: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="520" y="244" width="44" height="22" rx="4" class="cell disc"><title>B09 k=7: gpt FAIL(2-1.literal) · claude PASS · gemini FAIL(2-1.literal)</title></rect>
+<rect x="568" y="244" width="44" height="22" rx="4" class="cell disc"><title>B09 k=8: gpt FAIL(2-1.literal) · claude PASS · gemini FAIL(2-1.literal)</title></rect>
+<rect x="616" y="244" width="44" height="22" rx="4" class="cell disc"><title>B09 k=9: gpt FAIL(2-1.literal) · claude PASS · gemini FAIL(2-1.literal)</title></rect>
+<rect x="664" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=10: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="712" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=11: gpt FAIL(2-1.charset, 2-1.literal, 2-2.heading) · claude FAIL(2-1.charset, 2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="760" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=12: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal) · gemini FAIL(2-1.charset, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="808" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=13: gpt FAIL(2-1.literal, 2-2.heading, 2-2.json_structure) · claude FAIL(2-1.literal, 2-2.json_structure) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="856" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=14: gpt FAIL(2-1.count, 2-1.literal, 2-2.list) · claude FAIL(2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal)</title></rect>
+<rect x="904" y="244" width="44" height="22" rx="4" class="cell fail"><title>B09 k=15: gpt FAIL(2-1.count, 2-1.literal, 2-2.list) · claude FAIL(2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal)</title></rect>
+<rect x="952" y="244" width="44" height="22" rx="4" class="cell none"/>
+<text class="inl" x="222" y="286" text-anchor="end">정산 기록의 최종 인정액</text>
+<rect x="232" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="270" width="44" height="22" rx="4" class="cell disc"><title>B10 k=4: gpt PASS · claude FAIL(2-1.charset) · gemini PASS</title></rect>
+<rect x="424" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="270" width="44" height="22" rx="4" class="cell disc"><title>B10 k=7: gpt FAIL(2-1.count) · claude PASS · gemini FAIL(2-1.count)</title></rect>
+<rect x="568" y="270" width="44" height="22" rx="4" class="cell pass"><title>B10 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=9: gpt FAIL(2-1.charset, 2-1.count) · claude FAIL(2-1.count, J3) · gemini FAIL(2-1.count)</title></rect>
+<rect x="664" y="270" width="44" height="22" rx="4" class="cell disc"><title>B10 k=10: gpt FAIL(2-1.charset) · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=11: gpt FAIL(2-1.charset, 2-2.heading) · claude FAIL(2-1.charset, 2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="760" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=12: gpt FAIL(2-2.heading, 2-2.list) · claude FAIL(2-1.charset, 2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="808" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=13: gpt FAIL(2-2.heading, 2-2.json_structure, 2-2.list) · claude FAIL(2-1.charset, 2-1.count, 2-1.literal) · gemini FAIL(2-1.count, 2-1.literal, 2-2.heading)</title></rect>
+<rect x="856" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=14: gpt FAIL(2-1.charset, 2-1.count) · claude FAIL(2-1.charset, 2-1.count) · gemini FAIL(2-1.charset)</title></rect>
+<rect x="904" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=15: gpt FAIL(2-1.count, 2-1.literal, 2-2.json_structure) · claude FAIL(2-1.charset, 2-1.count, 2-2.json_structure) · gemini FAIL(2-1.charset, 2-2.json_structure)</title></rect>
+<rect x="952" y="270" width="44" height="22" rx="4" class="cell fail"><title>B10 k=16: gpt FAIL(2-2.json_structure, 2-2.table) · claude FAIL(2-1.charset, 2-1.count, 2-2.json_structure) · gemini FAIL(2-1.charset, 2-1.count, 2-2.json_structure)</title></rect>
+<text class="inl" x="222" y="312" text-anchor="end">도서관 구역별 토요일 운영</text>
+<rect x="232" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="296" width="44" height="22" rx="4" class="cell disc"><title>B11 k=4: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="424" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="296" width="44" height="22" rx="4" class="cell pass"><title>B11 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="296" width="44" height="22" rx="4" class="cell disc"><title>B11 k=8: gpt FAIL(2-1.count) · claude PASS · gemini FAIL(2-1.count)</title></rect>
+<rect x="616" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=9: gpt FAIL(2-1.count) · claude FAIL(2-1.count) · gemini FAIL(2-1.count)</title></rect>
+<rect x="664" y="296" width="44" height="22" rx="4" class="cell disc"><title>B11 k=10: gpt FAIL(2-1.count, 2-2.list) · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=11: gpt FAIL(2-1.count, 2-2.list, 2-2.table) · claude FAIL(2-1.count, 2-2.table) · gemini FAIL(2-2.table)</title></rect>
+<rect x="760" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=12: gpt FAIL(2-1.count, 2-2.table) · claude FAIL(2-1.count, 2-2.table) · gemini FAIL(2-1.count, 2-2.table)</title></rect>
+<rect x="808" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=13: gpt FAIL(2-1.count, 2-2.list, 2-2.table) · claude FAIL(2-1.count, 2-2.table, J4) · gemini FAIL(2-2.table, J2, J4)</title></rect>
+<rect x="856" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=14: gpt FAIL(2-2.list, 2-2.table) · claude FAIL(2-2.list, 2-2.table) · gemini FAIL(2-2.list, 2-2.table, J5)</title></rect>
+<rect x="904" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=15: gpt FAIL(2-1.literal, 2-2.list, 2-2.table) · claude FAIL(2-1.count, 2-2.list, 2-2.table) · gemini FAIL(2-2.list, 2-2.table)</title></rect>
+<rect x="952" y="296" width="44" height="22" rx="4" class="cell fail"><title>B11 k=16: gpt FAIL(2-2.list, 2-2.table) · claude FAIL(2-2.list, 2-2.table, J5) · gemini FAIL(2-2.list, 2-2.table)</title></rect>
+<text class="inl" x="222" y="338" text-anchor="end">도서관 보관함 대여 한도와</text>
+<rect x="232" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="322" width="44" height="22" rx="4" class="cell disc"><title>B12 k=8: gpt FAIL(2-1.count) · claude PASS · gemini FAIL(2-1.count)</title></rect>
+<rect x="616" y="322" width="44" height="22" rx="4" class="cell pass"><title>B12 k=9: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="664" y="322" width="44" height="22" rx="4" class="cell disc"><title>B12 k=10: gpt FAIL(2-1.count) · claude PASS · gemini FAIL(2-1.count)</title></rect>
+<rect x="712" y="322" width="44" height="22" rx="4" class="cell disc"><title>B12 k=11: gpt PASS · claude FAIL(2-2.table) · gemini FAIL(2-2.table)</title></rect>
+<rect x="760" y="322" width="44" height="22" rx="4" class="cell fail"><title>B12 k=12: gpt FAIL(2-1.count, 2-2.list) · claude FAIL(2-1.count, J4) · gemini FAIL(J5)</title></rect>
+<rect x="808" y="322" width="44" height="22" rx="4" class="cell fail"><title>B12 k=13: gpt FAIL(2-2.list) · claude FAIL(2-2.table) · gemini FAIL(2-1.count)</title></rect>
+<rect x="856" y="322" width="44" height="22" rx="4" class="cell fail"><title>B12 k=14: gpt FAIL(2-2.list, 2-2.table, J5) · claude FAIL(2-1.count, 2-1.literal, 2-2.list) · gemini FAIL(2-1.count, 2-1.literal, 2-2.list)</title></rect>
+<rect x="904" y="322" width="44" height="22" rx="4" class="cell fail"><title>B12 k=15: gpt FAIL(2-1.count, 2-2.list, 2-2.table) · claude FAIL(2-1.count, 2-1.literal, 2-2.list) · gemini FAIL(2-1.count, 2-1.literal, 2-2.list)</title></rect>
+<rect x="952" y="322" width="44" height="22" rx="4" class="cell fail"><title>B12 k=16: gpt FAIL(2-2.list, 2-2.table, J5) · claude FAIL(2-1.count, 2-1.literal, 2-2.list) · gemini FAIL(2-1.count, 2-1.literal, 2-2.list)</title></rect>
+<text class="inl" x="222" y="364" text-anchor="end">텃밭 급수 기록의 리터-밀</text>
+<rect x="232" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=9: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="664" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=10: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="348" width="44" height="22" rx="4" class="cell fail"><title>B13 k=12: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="808" y="348" width="44" height="22" rx="4" class="cell fail"><title>B13 k=13: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="856" y="348" width="44" height="22" rx="4" class="cell fail"><title>B13 k=14: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="904" y="348" width="44" height="22" rx="4" class="cell fail"><title>B13 k=15: gpt FAIL(1-2.code_language_label) · claude FAIL(1-2.code_language_label) · gemini FAIL(1-2.code_language_label)</title></rect>
+<rect x="952" y="348" width="44" height="22" rx="4" class="cell pass"><title>B13 k=16: gpt PASS · claude PASS · gemini PASS</title></rect>
+<text class="inl" x="222" y="390" text-anchor="end">냉장 물류 출고량의 조건부</text>
+<rect x="232" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=1: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="280" y="374" width="44" height="22" rx="4" class="cell disc"><title>B14 k=2: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="328" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=8: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="616" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=9: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="664" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=10: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="374" width="44" height="22" rx="4" class="cell pass"><title>B14 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="374" width="44" height="22" rx="4" class="cell fail"><title>B14 k=12: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="808" y="374" width="44" height="22" rx="4" class="cell fail"><title>B14 k=13: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="856" y="374" width="44" height="22" rx="4" class="cell fail"><title>B14 k=14: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.literal, 2-2.heading, 2-2.list) · gemini FAIL(2-1.literal, 2-2.heading, 2-2.list)</title></rect>
+<rect x="904" y="374" width="44" height="22" rx="4" class="cell disc"><title>B14 k=15: gpt FAIL(2-1.literal, 2-2.heading, 2-2.list) · claude FAIL(2-1.char_count) · gemini PASS</title></rect>
+<rect x="952" y="374" width="44" height="22" rx="4" class="cell disc"><title>B14 k=16: gpt PASS · claude FAIL(J3) · gemini PASS</title></rect>
+<text class="inl" x="222" y="416" text-anchor="end">가상 빵집 주문 기록의 두</text>
+<rect x="232" y="400" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=2: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="328" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=3: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="376" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="400" width="44" height="22" rx="4" class="cell none"/>
+<rect x="616" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=9: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="664" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=10: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="400" width="44" height="22" rx="4" class="cell pass"><title>B15 k=12: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="808" y="400" width="44" height="22" rx="4" class="cell disc"><title>B15 k=13: gpt PASS · claude FAIL(2-1.count) · gemini PASS</title></rect>
+<rect x="856" y="400" width="44" height="22" rx="4" class="cell disc"><title>B15 k=14: gpt PASS · claude FAIL(2-1.count) · gemini PASS</title></rect>
+<rect x="904" y="400" width="44" height="22" rx="4" class="cell disc"><title>B15 k=15: gpt PASS · claude FAIL(1-2.json_syntax, 2-1.char_count, 2-1.count) · gemini PASS</title></rect>
+<rect x="952" y="400" width="44" height="22" rx="4" class="cell none"/>
+<text class="inl" x="222" y="442" text-anchor="end">가상 교육비 지원 규정에 </text>
+<rect x="232" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="376" y="426" width="44" height="22" rx="4" class="cell disc"><title>B16 k=4: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="424" y="426" width="44" height="22" rx="4" class="cell pass"><title>B16 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="426" width="44" height="22" rx="4" class="cell pass"><title>B16 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="426" width="44" height="22" rx="4" class="cell pass"><title>B16 k=7: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="568" y="426" width="44" height="22" rx="4" class="cell disc"><title>B16 k=8: gpt PASS · claude FAIL(2-1.count) · gemini PASS</title></rect>
+<rect x="616" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="664" y="426" width="44" height="22" rx="4" class="cell pass"><title>B16 k=10: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="712" y="426" width="44" height="22" rx="4" class="cell disc"><title>B16 k=11: gpt PASS · claude FAIL(2-1.char_count, J5) · gemini FAIL(J5)</title></rect>
+<rect x="760" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="808" y="426" width="44" height="22" rx="4" class="cell fail"><title>B16 k=13: gpt FAIL(J2, J4) · claude FAIL(2-1.char_count, J2, J5) · gemini FAIL(2-1.char_count, J4, J5)</title></rect>
+<rect x="856" y="426" width="44" height="22" rx="4" class="cell none"/>
+<rect x="904" y="426" width="44" height="22" rx="4" class="cell fail"><title>B16 k=15: gpt FAIL(J4) · claude FAIL(2-1.char_count) · gemini FAIL(2-1.char_count, J5)</title></rect>
+<rect x="952" y="426" width="44" height="22" rx="4" class="cell none"/>
+<text class="inl" x="222" y="468" text-anchor="end">도서관 모둠학습실 예약 승</text>
+<rect x="232" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="376" y="452" width="44" height="22" rx="4" class="cell pass"><title>B17 k=4: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="424" y="452" width="44" height="22" rx="4" class="cell pass"><title>B17 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="452" width="44" height="22" rx="4" class="cell pass"><title>B17 k=6: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="520" y="452" width="44" height="22" rx="4" class="cell disc"><title>B17 k=7: gpt PASS · claude FAIL(J5) · gemini FAIL(J5)</title></rect>
+<rect x="568" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="616" y="452" width="44" height="22" rx="4" class="cell disc"><title>B17 k=9: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="664" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="712" y="452" width="44" height="22" rx="4" class="cell pass"><title>B17 k=11: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="760" y="452" width="44" height="22" rx="4" class="cell none"/>
+<rect x="808" y="452" width="44" height="22" rx="4" class="cell fail"><title>B17 k=13: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal, J5) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="856" y="452" width="44" height="22" rx="4" class="cell disc"><title>B17 k=14: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="904" y="452" width="44" height="22" rx="4" class="cell fail"><title>B17 k=15: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal, J5)</title></rect>
+<rect x="952" y="452" width="44" height="22" rx="4" class="cell fail"><title>B17 k=16: gpt FAIL(2-1.literal, J5) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal, J5)</title></rect>
+<text class="inl" x="222" y="494" text-anchor="end">특수 장비 대여 승인 판단</text>
+<rect x="232" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="280" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="328" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="376" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=4: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="424" y="478" width="44" height="22" rx="4" class="cell pass"><title>B18 k=5: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="472" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=6: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="520" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=7: gpt PASS · claude FAIL(J5) · gemini PASS</title></rect>
+<rect x="568" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="616" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=9: gpt PASS · claude FAIL(J5) · gemini FAIL(J5)</title></rect>
+<rect x="664" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="712" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=11: gpt PASS · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="760" y="478" width="44" height="22" rx="4" class="cell none"/>
+<rect x="808" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=13: gpt FAIL(J5) · claude PASS · gemini FAIL(J5)</title></rect>
+<rect x="856" y="478" width="44" height="22" rx="4" class="cell pass"><title>B18 k=14: gpt PASS · claude PASS · gemini PASS</title></rect>
+<rect x="904" y="478" width="44" height="22" rx="4" class="cell fail"><title>B18 k=15: gpt FAIL(2-1.literal) · claude FAIL(2-1.literal) · gemini FAIL(2-1.literal)</title></rect>
+<rect x="952" y="478" width="44" height="22" rx="4" class="cell disc"><title>B18 k=16: gpt FAIL(2-1.literal) · claude PASS · gemini PASS</title></rect>
+<text class="note" x="230" y="532">칸 = 기본 질문 하나를 그 k 로 변형한 질문 1개. 빈 칸 = 그 k 변형이 없음. 칸에 마우스를 올리면 모델별 판정과 틀린 기준이 보입니다.</text>
+</svg></div>
+      <p class="muted">같은 질문인데 조건이 늘수록 왼쪽 초록(다 맞힘) → 가운데 파랑(갈림) → 오른쪽 빨강(다 틀림)으로 옮겨 갑니다. 아래 막대는 이 격자를 k 별로 세로로 합친 것입니다.</p>
+    </figure>
     <figure class="fig">
       <div class="fig-head"><h3>k 별 질문 판정 분포 (GPT · Claude · Gemini)</h3>
         <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>모두 PASS</span><span><i style="background:var(--accent)"></i>갈림 — 모델마다 판정이 다름</span><span><i style="background:var(--risk);opacity:.6"></i>모두 FAIL</span></div></div>
