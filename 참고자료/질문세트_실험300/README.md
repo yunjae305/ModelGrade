@@ -25,3 +25,7 @@
 ## 돌려주는 법
 
 `answers.csv` 를 채워 이 폴더에 그대로 두고 push 하거나 보내 주세요. 받으면 (평가 PC 에서) ① 답을 AIONA 실행으로 올리고 ② CODE + Jev·Luna 병행 평가 ③ k 별 "모두 PASS / 갈림 / 모두 FAIL" 을 네 모델로 다시 세어 03장 표·차트를 바꿉니다. 평가 비용은 Luna 약 $5~8 추정.
+
+## 프로그램으로 받기 (다른 PC 의 Claude Code 세션에서)
+
+`set.json` · `questions.json` · `set_files/`(첨부 원본, 해시 이름) 를 그 PC 의 `data/question_sets/qs-e2e58d7835df/` 에 `set.json`·`questions.json`·`files/` 로 복사하면 서버 화면 '질문 세트'에 이 세트가 나타난다. 거기서 **AIONA 만** 골라 수집을 시작하면 웹브라우저 수집기가 질문 300개를 새 채팅마다 보내고 맨 아래 복사 버튼으로 답을 받는다(AIONA 로그인은 사람이 그 브라우저 창에서 직접). 끝나면 실행 JSON(`data/comparison_runs/<실행>.json`)의 `datasets.aiona` 에서 case_id·answer 를 `answers.csv` 로 뽑아 push.
