@@ -262,12 +262,21 @@ MODEL_NAME = {"gpt": "GPT-6 Luna", "aiona": "AIONA", "claude": "Claude Sonnet 5.
 # 모델별 질문 판정 — 위 KSPLIT(k_split JSON, 보류 정리 반영본 우선)에서. 보류 정리 전 값: GPT 190·77·59 / AIONA 166·84·76 / Claude 131·112·83 / Gemini 120·124·82
 RES = [(MODEL_NAME[m], m, KSPLIT["models"][m]["PASS"], KSPLIT["models"][m]["FAIL"], KSPLIT["models"][m]["HOLD"]) for m in ("gpt", "aiona", "claude", "gemini")]
 RATE = {m: p / 326 * 100 for _, m, p, _, _ in RES}
-RANK = sorted(RATE, key=lambda m: -RATE[m])
+
+
+def pf(p_, f, h):
+    """PASS:FAIL 비율(확정 질문 중, %)과 보류 비율(전체 중, %) — 사용자 결정 10-19: 결과는 이 두 숫자로 보인다."""
+    d = p_ + f
+    return (p_ / d * 100 if d else 0.0, f / d * 100 if d else 0.0, h / (p_ + f + h) * 100 if p_ + f + h else 0.0)
+
+
+PF = {m: pf(p_, f, h) for _, m, p_, f, h in RES}
+RANK = sorted(PF, key=lambda m: -PF[m][0])
 GOLD_APPLIED = bool(KSPLIT["gold"])
 res_rows = "".join(
     f'<div class="fs-row"><span class="who"><i style="background:var(--m-{m})"></i>{E(n)}</span>'
     f'<div class="fs-track"><span class="p" style="width:{p / 326 * 100:.1f}%" title="PASS {p}"></span><span class="f2" style="width:{f / 326 * 100:.1f}%" title="FAIL {f}"></span><span class="h" style="width:{h / 326 * 100:.1f}%" title="보류 {h}"></span></div>'
-    f'<span class="val"><b>{p}</b> · {f} · {h} <span class="muted">/ 326 ({p / 326 * 100:.1f}%)</span></span></div>' for n, m, p, f, h in RES)
+    f'<span class="val"><b>PASS {PF[m][0]:.0f}</b> : FAIL {PF[m][1]:.0f} <span class="muted">({p}·{f}) · 보류 {PF[m][2]:.0f}% ({h})</span></span></div>' for n, m, p, f, h in RES)
 CODE_FAIL = {"gpt": (55, [("문장 수", 11), ("자료 변환", 11), ("소제목", 7), ("JSON 구조", 7)]), "aiona": (73, [("문장 수", 16), ("자료 변환", 10), ("닫는 태그", 9), ("빈 응답", 7)]),
              "claude": (68, [("문장 수", 23), ("자료 변환", 12), ("글자 수", 8), ("질문 계산", 5)]), "gemini": (80, [("문장 수", 20), ("자료 변환", 13), ("소제목", 13), ("목록", 7)])}
 SEM_FAIL = {"gpt": (29, [("J5 사실", 29), ("J6 멀티턴", 16), ("J4 완결", 5), ("J7 긴 문서", 3)]), "aiona": (27, [("J6 멀티턴", 20), ("J5 사실", 15), ("J2 맥락", 8), ("J1 의도", 5)]),
@@ -296,7 +305,8 @@ cf_zero_line = " · ".join(f'<code>{E(r["id"])}</code>({r["applied"]:,})' for r 
 MIN78 = {m: (v["PASS"], v["FAIL"], v["HOLD"]) for m, v in (KSPLIT.get("min78") or {"gpt": {"PASS": 34, "FAIL": 23, "HOLD": 21}, "aiona": {"PASS": 31, "FAIL": 25, "HOLD": 22},
                                                                                    "claude": {"PASS": 29, "FAIL": 28, "HOLD": 21}, "gemini": {"PASS": 26, "FAIL": 29, "HOLD": 23}}).items()}
 RATE78 = {m: MIN78[m][0] / 78 * 100 for m in MIN78}
-RANK78 = sorted(RATE78, key=lambda m: -RATE78[m])
+PF78 = {m: pf(*MIN78[m]) for m in MIN78}
+RANK78 = sorted(PF78, key=lambda m: -PF78[m][0])
 GROUP_LABEL = {"CODE 1": "CODE 1 출력 무결성", "CODE 2": "CODE 2 형식·지시", "CODE 3": "CODE 3 계산·자료", "J1": "J1 의도 충족", "J2": "J2 맥락 적합", "J3": "J3 논리 일관",
                "J4": "J4 완결성", "J5": "J5 DATA 신뢰도", "J6": "J6 멀티턴 맥락", "J7": "J7 롱컨텍스트", "J8": "J8 첨부 해석"}
 
@@ -320,9 +330,10 @@ def cmp_chart():
                     out.append(f'<text class="kv" x="{x + 35}" y="{yb - hgt / 2 + 4:.1f}" text-anchor="middle">{val}</text>')
                 yb -= hgt
             out.append(f'<text class="tick" x="{x + 35}" y="{T + ph + 16}" text-anchor="middle">{lab}</text>')
-            out.append(f'<text class="inl" x="{x + 35}" y="{T - 8}" text-anchor="middle">{pp / tot * 100:.0f}%</text>')
+            a_, b_, c_ = pf(pp, ff, hh)
+            out.append(f'<text class="inl" x="{x + 35}" y="{T - 8}" text-anchor="middle">{a_:.0f}:{b_:.0f} · 보류 {c_:.0f}%</text>')
         out.append(f'<text class="atitle" x="{x0 + 80}" y="{T + ph + 36}" text-anchor="middle">{E(name)}</text>')
-    out.append(f'<text class="note" x="{L}" y="{H - 4}">막대 안 숫자 = 질문 수 · 위 숫자 = 통과율. 최소 78 은 정밀 326 의 부분집합이라 같은 판정을 그대로 셈.</text>')
+    out.append(f'<text class="note" x="{L}" y="{H - 4}">막대 안 숫자 = 질문 수 · 위 숫자 = PASS:FAIL 비율(확정 질문 중) · 보류 비율. 최소 78 은 정밀 326 의 부분집합이라 같은 판정을 그대로 셈.</text>')
     out.append('</svg>')
     return "\n".join(out)
 
@@ -336,11 +347,19 @@ for g in ("CODE 1", "CODE 2", "CODE 3", "J1", "J2", "J3", "J4", "J5", "J6", "J7"
         cells.append(f'<td class="num">{sub_n} <span class="muted">/ {full_n}</span></td>' if full_n else '<td class="num muted">—</td>')
     fbg_rows.append(f'<tr><th scope="row">{E(GROUP_LABEL[g])}</th>{"".join(cells)}</tr>')
 fbg_rows = "".join(fbg_rows)
-MIN = [("기준마다 1번↑", 7, "커버 점검", "57 · 29 · 29 · 29", "aiona > claude > gemini > gpt", "다름", "24%"),
-       ("기준마다 3번↑", 21, "", "33 · 33 · 29 · 29", "aiona > gpt > claude > gemini", "다름", "49%"),
-       ("기준마다 5번↑", 37, "", "43 · 38 · 30 · 35", "aiona > gpt > gemini > claude", "다름", "61%"),
-       ("기준마다 10번↑", 78, "최소 평가", " · ".join(f"{RATE78[m]:.0f}" for m in ("aiona", "gpt", "claude", "gemini")), " > ".join(RANK78), "같음" if RANK78 == RANK else "다름", "80%"),
-       ("전체", 326, "정밀 평가", " · ".join(f"{RATE[m]:.0f}" for m in ("aiona", "gpt", "claude", "gemini")), " > ".join(RANK), "기준", "100%")]
+def pf_str(counts):
+    return " · ".join(f"{pf(*counts[m])[0]:.0f}:{pf(*counts[m])[1]:.0f}" for m in ("aiona", "gpt", "claude", "gemini"))
+
+
+MIN_CNT = {7: {"aiona": (4, 2, 1), "gpt": (2, 3, 2), "claude": (2, 2, 3), "gemini": (2, 3, 2)},
+           21: {"aiona": (7, 9, 5), "gpt": (7, 10, 4), "claude": (6, 8, 7), "gemini": (6, 10, 5)},
+           37: {"aiona": (16, 12, 9), "gpt": (14, 13, 10), "claude": (11, 14, 12), "gemini": (13, 15, 9)}}
+FULL_CNT = {m: (p_, f, h) for _, m, p_, f, h in RES}
+MIN = [("기준마다 1번↑", 7, "커버 점검", pf_str(MIN_CNT[7]), "aiona > claude > gemini > gpt", "다름", "24%"),
+       ("기준마다 3번↑", 21, "", pf_str(MIN_CNT[21]), "aiona > gpt > claude > gemini", "다름", "49%"),
+       ("기준마다 5번↑", 37, "", pf_str(MIN_CNT[37]), "aiona > gpt > gemini > claude", "다름", "61%"),
+       ("기준마다 10번↑", 78, "최소 평가", pf_str(MIN78), " > ".join(RANK78), "같음" if RANK78 == RANK else "다름", "80%"),
+       ("전체", 326, "정밀 평가", pf_str(FULL_CNT), " > ".join(RANK), "기준", "100%")]
 min_rows = "".join(f'<tr{" class=pick" if b in (78, 326) else ""}><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td><td class="exq">{E(e)}</td><td>{E(f)}</td><td class="num">{g}</td></tr>' for a, b, c, d, e, f, g in MIN)
 
 # ---------- 08 질문 수 근거 ----------
@@ -633,8 +652,8 @@ s5 = f"""
 
 s6 = f"""
 <section class="slide" id="s6">
-  {head("06", "결과 — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {RATE[m]:.0f}%" for m in ("gpt", "aiona", "claude", "gemini")), "326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위, 보류는 분모에 둡니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else " 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다."))}
-  {gist("<b>PASS / 326</b> — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {KSPLIT['models'][m]['PASS']}" for m in ("gpt", "aiona", "claude", "gemini")) + f". 보류(사람이 정할 것) {min(h for *_, h in RES)}~{max(h for *_, h in RES)}개.",
+  {head("06", "결과 — PASS : FAIL  " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][0]:.0f}:{PF[m][1]:.0f}" for m in ("gpt", "aiona", "claude", "gemini")), "326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위(대화 1개 = 1개). 결과는 <b>확정된 질문의 PASS : FAIL 비율</b>과 <b>보류 비율(326 중)</b> 두 숫자로 봅니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else ""))}
+  {gist("<b>PASS : FAIL</b> (확정 질문 중) — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][0]:.0f}:{PF[m][1]:.0f}" for m in ("gpt", "aiona", "claude", "gemini")) + ". <b>보류</b> " + " · ".join(f"{MODEL_NAME[m].split()[0]} {PF[m][2]:.0f}%" for m in ("gpt", "aiona", "claude", "gemini")) + " — 사람이 정하면 비율이 바뀝니다.",
         "FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴</b>에 몰려 있습니다.",
         "한 번도 FAIL 이 안 난 기준 8개는 깨진 출력을 잡는 안전망 검사 — 느슨해서가 아닙니다 (장 끝 표).")}
   <div class="three">
@@ -648,7 +667,7 @@ s6 = f"""
       <p>CODE 즉시. 의미 평가 1,938판정 + 재판정 — 판정 하나에 20초~15분(웹 검색·긴 대화).</p>
       <p>출력 한도에 걸린 21턴 + 시간 초과 2턴 → 한도 없음·6,000초로 재평가 → <b>판정 오류 0</b>.</p></div></div>
   </div>
-  <div class="card"><div class="card-head"><b>모델별 PASS · FAIL · 보류 / 326</b><span>CODE 28 + 의미 44 (Jev + GPT-6 Luna 병행) · 보류 = 확인 못 한 것이 있어 사람이 정할 질문</span></div>
+  <div class="card"><div class="card-head"><b>모델별 PASS : FAIL 비율과 보류 비율</b><span>막대 = 326 중 PASS·FAIL·보류 질문 수 · 오른쪽 = 확정 질문(PASS+FAIL) 중 비율과 보류 비율 · CODE 28 + 의미 44 (Jev + GPT-6 Luna 병행)</span></div>
     <div class="card-body">{res_rows}
       <div class="fs-legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL (기준 하나라도)</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div></div>
   <div class="block">
@@ -667,7 +686,7 @@ s7 = f"""
 <section class="slide" id="s7">
   {head("07", "최소 78 vs 정밀 326 — 같은 판정으로 비교", "최소 78 은 정밀 326 에서 골라낸 부분집합(세트 qs-c5d8a1624770)이라, 따로 수집·평가하지 않고 같은 판정을 그대로 셀 수 있습니다.")}
   {gist("고르는 규칙: <b>아직 덜 채운 기준을 가장 많이 채우는 질문부터</b>, 기준마다 10번 이상이 될 때까지 (집합 덮기 표준 탐욕법, 팀원 검산으로 교체).",
-        "78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". 통과율은 어려운 질문 위주라 정밀보다 낮게 나옵니다.",
+        "78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.",
         "7개(기준마다 1번)는 기준이 다 걸리는지 점검하는 용도 — FAIL 은 24%만 보여 분석에는 부족합니다.")}
   <figure class="fig">
     <div class="fig-head"><h3>모델별 PASS · FAIL · 보류 — 정밀 326 과 최소 78</h3>
@@ -677,8 +696,8 @@ s7 = f"""
   <div class="two">
     <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 전체 <span>최소 78 에서도 거의 모든 묶음에 FAIL 이 보여 "어디서 틀리나"를 같은 모양으로 읽을 수 있음</span></caption>
       <thead><tr><th>기준 묶음</th><th>GPT</th><th>AIONA</th><th>Claude</th><th>Gemini</th></tr></thead><tbody>{fbg_rows}</tbody></table></div>
-    <div class="cmpt rtab"><table><caption>목록 크기별 비교 <span>통과율 순서 AIONA · GPT · Claude · Gemini (%)</span></caption>
-      <thead><tr><th>목록</th><th>질문 수</th><th>용도</th><th>통과율</th><th>순위</th><th>정밀과</th><th>FAIL 조합</th></tr></thead><tbody>{min_rows}</tbody></table></div>
+    <div class="cmpt rtab"><table><caption>목록 크기별 비교 <span>PASS:FAIL 순서 AIONA · GPT · Claude · Gemini (%)</span></caption>
+      <thead><tr><th>목록</th><th>질문 수</th><th>용도</th><th>PASS:FAIL (확정 중)</th><th>순위</th><th>정밀과</th><th>FAIL 조합</th></tr></thead><tbody>{min_rows}</tbody></table></div>
   </div>
   <figure class="fig"><div class="fig-head"><h3>기울기 — 같은 순서로 10개씩 늘릴 때 모델별 통과율</h3><span class="muted">78개에서 기준 64개 모두 10번 이상. 순위·통과율이 정밀과 같아지는 지점 <b>273개</b>.</span></div>
     <div class="gradwrap">{gradient_svg}</div></figure>
