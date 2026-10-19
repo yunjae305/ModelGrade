@@ -613,14 +613,14 @@ prompt_sum_rows = "".join(f'<tr><th scope="row">{a}</th><td class="exq"><ul clas
 
 s2 = f"""
 <section class="slide" id="s2">
-  {head("02", "질문생성 프롬프트 — 규칙 한 벌, 네 단계", "한 번에 326개를 받을 수 없어 단계로 나눕니다. 모든 단계가 같은 점검 목록 72개와 같은 k 규칙을 봅니다. 합계 326개 = 단일 284 + 짧은 대화 16 + 10턴 대화 16 + 긴 문서 10 (대화 1개 = 질문 1개).")}
+  {head("02", "질문생성 프롬프트 — 규칙 한 벌, 네 단계", "한 번에 326개를 받을 수 없어 단계로 나눕니다. 호출마다 그 단계의 글만 보냅니다 — 점검 목록 72개는 ①에 통째로(J6·J7 제외), ②는 J6 항목만, ③은 J7 항목만, ④는 그 질문의 후보 항목만. 합계 326개 = 단일 284 + 짧은 대화 16 + 10턴 대화 16 + 긴 문서 10 (대화 1개 = 질문 1개).")}
   <div class="steps4">{"".join(f'<div><span class="k">{a} {b}</span><b>{E(c)}</b><span>{E(d)}</span></div>' for a, b, c, d in gen_struct)}</div>
   <div class="block"><h3>프롬프트 요약 — 원문 순서대로</h3>
     <div class="cmpt rtab"><table><caption>단계 ①(단일 질문)의 공통 규칙과 ②③④ 단계의 다른 점</caption>
       <thead><tr><th>부분</th><th>무엇을 시키나</th></tr></thead><tbody>{prompt_sum_rows}</tbody></table></div>
   </div>
   {details("k 규칙 원문 (모든 단계에 들어가는 문장)", k_rule_text)}
-  <div class="block"><h3>프롬프트 원문 전체 (question-gen-v2.2-kvar)</h3>
+  <div class="block"><h3>프롬프트 원문 전체 (question-gen-v2.2-kvar) — 호출마다 해당 단계 글 + 그 단계에 필요한 점검 목록만 붙음</h3>
     {"".join(details(t, b) for t, b in sections)}</div>
 </section>
 """
