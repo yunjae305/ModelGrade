@@ -129,6 +129,11 @@ def arrow(x1, y1, x2, y2):
     return f'<path class="fa" d="M{x1},{y1} L{x2},{y2}" marker-end="url(#ah)"/>'
 
 
+def line(x1, y1, x2, y2):
+    """화살촉 없는 연결선 — 갈라지고 모이는 자리에 쓴다."""
+    return f'<path class="fa" d="M{x1},{y1} L{x2},{y2}"/>'
+
+
 flow = f'''
 <svg class="flow" viewBox="0 0 1040 385" role="img" aria-label="평가기 전체 흐름">
 <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fah"/></marker></defs>
@@ -137,11 +142,12 @@ flow = f'''
 {box(350, 10, 340, 92, "2", "질문 세트 326", ["정밀 평가 326개 · 최소 평가 78개 (골라냄)"])}
 {arrow(690, 56, 738, 56)}
 {box(740, 10, 300, 92, "3", "답변 수집", ["AIONA 웹브라우저 · GPT·Claude·Gemini API"])}
-{arrow(890, 102, 890, 134)}
-{arrow(890, 118, 150, 118)}{arrow(150, 118, 150, 134)}
+{line(890, 102, 890, 119)}{line(150, 119, 890, 119)}
+{arrow(150, 119, 150, 134)}{arrow(695, 119, 695, 134)}
 {box(0, 136, 300, 110, "4a", "CODE 평가 — 28개 검사", ["프로그램이 형식·개수·계산을 검사"], "code")}
 {box(350, 136, 690, 110, "4b", "의미 평가 — 44개 항목", ["GPT-6 Luna (J1~J8) ∥ Jev (J1~J4) 병행 — 갈리면 재판정, 또 다르면 보류"], "sem")}
-{arrow(150, 246, 150, 278)}{arrow(695, 246, 695, 278)}
+{line(150, 246, 150, 262)}{line(695, 246, 695, 262)}{line(150, 262, 695, 262)}
+{arrow(240, 262, 240, 278)}
 {box(0, 280, 480, 92, "5", "질문 단위 판정", ["PASS · FAIL · 보류 — 대화 1개 = 질문 1개"])}
 {arrow(480, 326, 558, 326)}
 {box(560, 280, 480, 92, "6", "결과", ["모델별 N / 326 · 기준별 FAIL · 보류 목록(사람이 판정)"])}
