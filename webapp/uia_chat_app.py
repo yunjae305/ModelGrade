@@ -473,6 +473,14 @@ class ClaudeAppChat:
             time.sleep(1.0)
         raise UiaChatError("복사한 글이 화면의 답과 다릅니다 (다른 프로그램이 클립보드를 쓰는 중?) — 이 질문은 다음에 다시 받습니다")
 
+    def recopy(self) -> str:
+        """마지막 답의 복사 아이콘을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
+        try:
+            self._front()
+            return self._copy_last_answer() or ""
+        except Exception:
+            return ""
+
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
         started = time.monotonic()

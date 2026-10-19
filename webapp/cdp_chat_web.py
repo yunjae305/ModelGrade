@@ -253,6 +253,15 @@ class _CdpChat:
                     continue
         return None
 
+    def recopy(self) -> str:
+        """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
+        try:
+            with _CHROME_LOCK:
+                self.page.bring_to_front()
+                return self._copy_last_answer() or ""
+        except Exception:
+            return ""
+
     def _last_answer_text(self) -> str:
         try:
             return self._answers().last.inner_text(timeout=2000)

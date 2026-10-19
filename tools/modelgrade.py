@@ -343,6 +343,21 @@ def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List
             pass
 
 
+COPY_FAILED = "COPY_FAILED"   # 답은 있었는데 복사해 오지 못함(재시도 뒤) — 판정은 보류 (사용자 규칙 2026-10-20)
+
+
+def retry_empty_answer(chat: Any, row: Dict[str, Any]) -> Dict[str, Any]:
+    """빈 출력 요구가 아닌 질문에 빈 답이 왔을 때(사용자 규칙 10-20): 복사만 다시 시도하고, 그래도 비면 사유를 적어 COPY_FAILED(판정 보류)."""
+    print(f"  {row['case_id']}: 답이 비어 있음 — 복사 다시 시도", flush=True)
+    again = getattr(chat, "recopy", None)
+    text = (again() if callable(again) else "") or ""
+    if text.strip():
+        return {"answer": text, "status": "SUCCESS", "capture": "copy-button(재시도)", "error": None, "latency_ms": 0, "url": None, "sent": [],
+                "model": getattr(chat, "model_seen", None), "method": getattr(chat, "METHOD", None), "retried": "복사 다시"}
+    return {"answer": "", "status": COPY_FAILED, "capture": "empty", "latency_ms": 0, "url": None, "sent": [],
+            "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류(복사 실패, 사용자 규칙 10-20)", "retried": "실패"}
+
+
 def collect_app_one(args: argparse.Namespace) -> int:
     import tempfile
     from webapp.question_generation import flatten
@@ -355,7 +370,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in rows_all:
         by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r)
-    done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") == "SUCCESS" for t in turns)}
+    done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") in ("SUCCESS", "COPY_FAILED") for t in turns)}   # 복사 실패(보류)는 자동으로 다시 받지 않는다 — --only 로 지정하면 다시
     if args.only:
         wanted = [int(x) for x in args.only.split(",") if x.strip()]
         if getattr(args, "skip_done", False):   # start: 목록 전체를 주되 이미 받은 질문은 건너뛴다
@@ -415,7 +430,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
                 files = materialize_attachments(r, set_dir, Path(tmpd))
                 res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
-                    res = {**res, "status": "ERROR", "error": f"답이 비어 있음(받은 방법 {res.get('capture')}) — 복사 실패로 보고 다음에 다시 받음"}   # Claude Q12 1턴 사고 10-20
+                    res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
                 col = {k: v for k, v in res.items() if k != "answer"}
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",

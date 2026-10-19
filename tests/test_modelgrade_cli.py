@@ -294,6 +294,9 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"]]) == 0
     rows = {r["case_id"]: r for r in mg.load_run(run["run_id"])["datasets"]["gpt"]}
     assert rows["Q3_T1"]["collection"]["status"] == "SUCCESS" and rows["Q3_T1"]["collection"]["capture"] == "empty"   # 빈 출력 요구 → 빈 답 성공
-    assert rows["Q1_T1"]["collection"]["status"] == "ERROR" and "답이 비어 있음" in rows["Q1_T1"]["collection"]["error"]   # 보통 질문 → 다시 받기
+    assert rows["Q1_T1"]["collection"]["status"] == "COPY_FAILED" and "보류" in rows["Q1_T1"]["collection"]["error"]   # 보통 질문 → 복사 재시도·새 채팅 재시도 뒤에도 비면 보류
+    assert len(saves) == 2   # Q1 한 번 + Q3 한 번 (새 채팅 재시도는 하지 않는다 — 복사만 다시)
     # 둘째 질문(Q3)을 물을 때 이미 첫 질문(Q1) 결과가 파일에 저장돼 있다
-    assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["status"] == "ERROR" for r in saves[1]["datasets"]["gpt"])
+    assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["status"] == "COPY_FAILED" for r in saves[1]["datasets"]["gpt"])
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"], "--skip-done"]) == 0
+    assert len(saves) == 2   # 복사 실패(보류)·빈 출력 성공은 자동으로 다시 받지 않는다

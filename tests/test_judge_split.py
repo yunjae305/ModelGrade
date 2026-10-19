@@ -75,7 +75,8 @@ def _run(tmp_path, jev_max=jr.JEV_MAX_STATE_CHARS):
     data = {"run_id": "t", "providers": ["aiona", "gpt"],
             "datasets": {"aiona": [{"case_id": "Q36_T1", "answer": Q36_ANSWER}, {"case_id": empty["case_id"], "answer": ""}]
                          + [{"case_id": r["case_id"], "answer": f"답{r['turn']}"} for r in q11],
-                         "gpt": [{"case_id": "Q36_T1", "answer": "", "collection": {"status": "ERROR"}}]}}
+                         "gpt": [{"case_id": "Q36_T1", "answer": "", "collection": {"status": "ERROR"}},
+                                 {"case_id": "Q11_T1", "answer": "", "collection": {"status": "COPY_FAILED", "error": "답이 비어 있음 — 보류"}}]}}
     codex, jev = FakeCodex(), FakeJev()
     gpt = jr.CodexJudge("codex", "gpt-test", "low", 60, "live", runner=codex)
     only = {36, 11, int(empty["case_id"].split("_T")[0][1:])}
@@ -107,6 +108,7 @@ def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     empty_line = lines[("aiona", int(empty["case_id"].split("_T")[0][1:]))]
     assert empty_line["verdict"] == "PASS" and empty_line["status"] == "empty_output_pass" and empty_line["collection_note"]   # 빈 출력 요구에 빈 답 → PASS, 수집 상태 명시 (사용자 규칙 10-19)
     assert lines[("gpt", 36)]["status"] == "no_answer" and lines[("gpt", 36)]["verdict"] == "FAIL"
+    assert lines[("gpt", 11)]["status"] == "held_copy_failed" and lines[("gpt", 11)]["verdict"] == "HOLD" and "COPY_FAILED" in lines[("gpt", 11)]["collection_note"]   # 복사 실패 → 보류
     assert summary["models"]["aiona"]["FAIL"] == 1 and summary["models"]["aiona"]["HOLD"] == (1 if expected == "HOLD" else 0) and summary["models"]["aiona"]["PASS"] >= 1
     assert summary["wall_seconds"] >= 0 and (tmp_path / "timing.jsonl").exists()
     calls = len(codex.inputs)

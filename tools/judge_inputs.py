@@ -172,8 +172,12 @@ def build(run: Dict[str, Any], set_dir: Path, out: Path, providers: Optional[Lis
             entry: Dict[str, Any] = {"question": qid, "provider": provider, "turns": len(turns),
                                      "items_by_turn": {str(_turn(t)): table[t["case_id"]]["items"] for t in turns}}
             missing = [t["case_id"] for t in turns if t["case_id"] not in answers[provider]]
+            copy_failed = [t["case_id"] for t in turns if ((datasets[provider].get(t["case_id"]) or {}).get("collection") or {}).get("status") == "COPY_FAILED"]
             if any(asks_empty_output(None, t.get("question")) for t in turns):
                 entry.update(**empty_output_entry(turns, datasets[provider], answers[provider]))
+            elif copy_failed:   # 답은 있었는데 복사해 오지 못함(재시도 뒤) → 보류 (사용자 규칙 2026-10-20)
+                entry.update(status="held_copy_failed", reason=f"복사 실패 턴 {', '.join(copy_failed)} — 보류, 보내지 않음",
+                             collection_note="; ".join(f"{cid}: {collection_note(datasets[provider].get(cid))}" for cid in copy_failed))
             elif missing:
                 entry.update(status="no_answer", reason=f"답을 받지 못한 턴 {', '.join(missing)} — FAIL 로 셈, 보내지 않음")
             else:

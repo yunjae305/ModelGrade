@@ -229,6 +229,13 @@ class AionaChat:
             return ""
         return answers.last.evaluate("(el) => [...el.querySelectorAll('.prose')].map(p => p.innerHTML).join('<br>')")
 
+    def recopy(self) -> str:
+        """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
+        try:
+            return self._copy_last_answer() or ""
+        except Exception:
+            return ""
+
     def _copy_last_answer(self) -> Optional[str]:
         """마지막 답변 칸 안의 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None —
         다른 답변의 버튼은 쓰지 않는다(답변 칸마다 자기 복사 버튼이 안에 있다, 2026-10-14 확인)."""
