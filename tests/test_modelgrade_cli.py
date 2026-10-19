@@ -65,3 +65,13 @@ def test_judge_refuses_more_than_twenty_questions_at_once(tmp_path):
         mg.main(["judge", "--run", "abc", "--only", ",".join(str(i) for i in range(1, 22))])
     with pytest.raises(SystemExit, match="--only"):
         mg.main(["judge", "--run", "abc"])
+
+
+def test_next_questions_skips_judged_ones_and_caps_batch(tmp_path):
+    run = {"question_count": 6, "providers": ["aiona", "gpt"], "datasets": {}}
+    out = tmp_path / "out"; out.mkdir()
+    (out / "results.jsonl").write_text('{"provider":"aiona","question":1}\n{"provider":"gpt","question":1}\n{"provider":"aiona","question":2}\n', encoding="utf-8")
+    picked, pending = mg.next_questions(run, ["aiona", "gpt"], out, 3)
+    assert picked == [2, 3, 4] and pending == 5          # 1번은 두 모델 다 끝남, 2번은 gpt 가 남음
+    picked, pending = mg.next_questions(run, ["aiona"], out, 20)
+    assert picked == [3, 4, 5, 6] and pending == 4

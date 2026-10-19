@@ -5,6 +5,10 @@
         --run 을 비우면 새 실행을 만든다(--new 이름). --label 은 결과 화면에 보일 모델 이름.
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --only 36,30,46 --providers aiona,gpt [--out DIR]
         고정 프롬프트 v3 로 나눠서 판정(J1~J4 Jev · J5~J8 Codex CLI). 한 번에 질문 20개까지(사용자 규칙) — 넘기려면 --allow-large.
+    python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --next 20 --providers aiona,gpt
+        아직 안 한 질문 중 다음 20개를 자동으로 골라 판정(이어 돌리기). 결과 폴더 기본 data/judge_runs/<run>.
+    python -X utf8 tools/modelgrade.py run --run 8c61f117e661 --providers aiona [--import-csv … --import-provider claude]
+        올리기(선택) → 다음 묶음(20개) 판정 → 결과. 부를 때마다 한 묶음씩 — 다시 부르면 이어서.
     python -X utf8 tools/modelgrade.py report --dir data/judge_runs/pilot10b
         판정 결과 폴더의 모델별 PASS·FAIL·보류와 시간.
 
@@ -159,11 +163,47 @@ def cmd_collect_import(args: argparse.Namespace) -> int:
 
 # --- judge · report -------------------------------------------------------------------------------------------------
 
+def judged_questions(out_dir: Path, providers: List[str]) -> Dict[str, set]:
+    """결과 폴더의 results.jsonl 에서 모델별로 이미 판정한 질문 번호."""
+    done: Dict[str, set] = {p: set() for p in providers}
+    f = out_dir / "results.jsonl"
+    if f.exists():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                d = json.loads(line)
+                done.setdefault(d["provider"], set()).add(int(d["question"]))
+    return done
+
+
+def next_questions(run: Dict[str, Any], providers: List[str], out_dir: Path, n: int) -> List[int]:
+    """요청한 모델 전부가 아직 판정하지 않은 질문부터 번호순으로 n개."""
+    done = judged_questions(out_dir, providers)
+    total = run.get("question_count") or max(int(r["case_id"].split("_T")[0][1:]) for p in providers for r in run["datasets"].get(p) or [] if r)
+    pending = [q for q in range(1, int(total) + 1) if any(q not in done.get(p, set()) for p in providers)]
+    return pending[:n], len(pending)
+
+
 def cmd_judge(args: argparse.Namespace) -> int:
     from tools import judge_run
     only = [x.strip() for x in (args.only or "").split(",") if x.strip()]
+    if args.next:
+        if only:
+            raise SystemExit("--only 와 --next 는 같이 쓰지 않습니다.")
+        if args.next > JUDGE_BATCH_MAX and not args.allow_large:
+            raise SystemExit(f"--next 는 {JUDGE_BATCH_MAX}개까지입니다 (사용자 규칙: 평가는 10~20개씩).")
+        run = load_run(args.run)
+        providers = [x.strip() for x in (args.providers or ",".join(run["providers"])).split(",") if x.strip()]
+        out_dir = Path(args.out) if args.out else ROOT / "data" / "judge_runs" / args.run
+        picked, pending = next_questions(run, providers, out_dir, args.next)
+        if not picked:
+            print(f"남은 질문이 없습니다 — {', '.join(providers)} 모두 판정 완료 ({out_dir})")
+            return 0
+        print(f"다음 묶음: 질문 {len(picked)}개 {picked} (남은 질문 {pending}개 중) · 모델 {', '.join(providers)}", flush=True)
+        only = [str(q) for q in picked]
+        args.only = ",".join(only)
+        args.providers = ",".join(providers)
     if not only and not args.allow_large:
-        raise SystemExit(f"--only 로 질문 번호를 {JUDGE_BATCH_MAX}개까지 지정하세요 (사용자 규칙: 평가는 10~20개씩). 전체를 돌리려면 --allow-large.")
+        raise SystemExit(f"--only 로 질문 번호를 {JUDGE_BATCH_MAX}개까지 지정하거나 --next 20 을 쓰세요 (사용자 규칙: 평가는 10~20개씩). 전체를 돌리려면 --allow-large.")
     if len(only) > JUDGE_BATCH_MAX and not args.allow_large:
         raise SystemExit(f"한 번에 {JUDGE_BATCH_MAX}개까지입니다 ({len(only)}개 지정). 나눠서 돌리거나 --allow-large.")
     argv = [str(RUNS / f"{args.run}.json"), "--set", str(args.set)]
@@ -175,6 +215,23 @@ def cmd_judge(args: argparse.Namespace) -> int:
         argv += ["--out", str(args.out)]
     argv += ["--workers", str(args.workers)]
     return judge_run.main(argv)
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    """올리기(선택) → 다음 묶음 판정 → 결과. 한 번 부를 때마다 한 묶음(기본 20개)만 — 다시 부르면 이어서."""
+    if args.import_csv:
+        if not args.import_provider:
+            raise SystemExit("--import-csv 에는 --import-provider 가 필요합니다.")
+        ns = argparse.Namespace(provider=args.import_provider, csv=args.import_csv, run=args.run, new=None, set=args.set, label=args.label)
+        cmd_collect_import(ns)
+    out_dir = Path(args.out) if args.out else ROOT / "data" / "judge_runs" / args.run
+    code = cmd_judge(argparse.Namespace(run=args.run, only=None, next=args.next, providers=args.providers, out=str(out_dir), set=args.set,
+                                        workers=args.workers, allow_large=False))
+    if code:
+        return code
+    if (out_dir / "results.jsonl").exists():
+        cmd_report(argparse.Namespace(dir=str(out_dir)))
+    return 0
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -213,12 +270,24 @@ def main(argv: Optional[List[str]] = None) -> int:
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)
     jd.add_argument("--only", help="질문 번호, 쉼표로")
+    jd.add_argument("--next", type=int, help="아직 안 한 질문 중 다음 N개 (20까지)")
     jd.add_argument("--providers")
     jd.add_argument("--out", help="결과 폴더 (기본 data/judge_runs/<run>)")
     jd.add_argument("--set", default=str(DEFAULT_SET))
     jd.add_argument("--workers", type=int, default=1)
     jd.add_argument("--allow-large", action="store_true")
     jd.set_defaults(func=cmd_judge)
+    rn = sub.add_parser("run", help="올리기(선택) → 다음 묶음 판정 → 결과. 부를 때마다 한 묶음, 다시 부르면 이어서")
+    rn.add_argument("--run", required=True)
+    rn.add_argument("--providers")
+    rn.add_argument("--next", type=int, default=JUDGE_BATCH_MAX)
+    rn.add_argument("--out")
+    rn.add_argument("--set", default=str(DEFAULT_SET))
+    rn.add_argument("--workers", type=int, default=1)
+    rn.add_argument("--import-csv", help="먼저 올릴 웹 답변 CSV")
+    rn.add_argument("--import-provider", choices=["aiona", "gpt", "claude", "gemini"])
+    rn.add_argument("--label")
+    rn.set_defaults(func=cmd_run)
     rp = sub.add_parser("report", help="판정 결과 요약")
     rp.add_argument("--dir", required=True)
     rp.set_defaults(func=cmd_report)
