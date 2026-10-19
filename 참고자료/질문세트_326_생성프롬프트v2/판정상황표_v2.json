@@ -1,7 +1,7 @@
 {
  "version": "judge-situations-v2",
  "prompt_version": "judge-prompt-v2",
- "set": "질문세트_326",
+ "set": "질문세트_326_생성프롬프트v2",
  "answer_items_always": [
   "J5-3.a"
  ],

@@ -7,8 +7,8 @@
   적용 규칙 sub-applicability-v6(사실 확인 요청)로 Q36_T1 에 J5-1.a 가 더해진 것뿐이어야 한다.
 - 답변과 무관하게 질문만으로 정해지므로 모델·심판·실행이 달라도 같은 턴이면 글자 하나 다르지 않다. 질문 세트가 바뀌면 다시 만들고 v 를 올린다.
 
-    python -X utf8 tools/build_judge_situations.py [질문 세트 폴더]   (기본: 참고자료/질문세트_326 — 서버 원본 data/question_sets/qs-b468b011e6c3 와 같은 사본)
-    → 참고자료/질문세트_326/판정상황표_v2.json · .csv
+    python -X utf8 tools/build_judge_situations.py [질문 세트 폴더]   (기본: 참고자료/질문세트_326_생성프롬프트v2 — 서버 원본 data/question_sets/qs-b468b011e6c3 와 같은 사본)
+    → 참고자료/질문세트_326_생성프롬프트v2/판정상황표_v2.json · .csv
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from webapp import question_generation as qg  # noqa: E402
 VERSION = "judge-situations-v2"
 PROMPT_VERSION = "judge-prompt-v2"
 ANSWER_ITEMS = ("J5-3.a",)   # 답변을 보고 생기는 항목 — 모든 턴에 넣음 (판정항목표_v1 과 같은 규칙)
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_326"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 ITEMS_V1 = "판정항목표_v1.json"
 GENERIC_RULES = {"요청", "답변"}   # 모든 질문·답변에 걸리는 규칙 — 근거 문장을 적지 않는다
 EXCERPT_CHARS = 200

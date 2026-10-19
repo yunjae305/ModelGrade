@@ -10,7 +10,7 @@ from tools import judge_run as jr
 from tools import judge_split as js
 
 ROOT = Path(__file__).resolve().parents[1]
-SET = ROOT / "참고자료" / "질문세트_326"
+SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 Q36_ANSWER = "해수면에서 물은 100도에서 끓습니다. 101.325킬로파스칼 기준입니다."
 
 

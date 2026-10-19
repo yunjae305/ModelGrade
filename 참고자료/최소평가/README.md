@@ -19,8 +19,8 @@ AI 호출 없이 **이미 평가가 끝난 실행 기록만으로** 확인한다
 
 | 파일 | 내용 |
 |---|---|
-| `../질문세트_326/질문별_기준.csv` | 질문 326개의 적용 기준(64개 중) 목록 (기준 많은 순 정렬) |
-| `../질문세트_326/기준별_적용_질문수.csv` | 기준 64개마다 적용 질문 수와 그 질문 목록 |
+| `../질문세트_326_생성프롬프트v2/질문별_기준.csv` | 질문 326개의 적용 기준(64개 중) 목록 (기준 많은 순 정렬) |
+| `../질문세트_326_생성프롬프트v2/기준별_적용_질문수.csv` | 기준 64개마다 적용 질문 수와 그 질문 목록 |
 | `min_eval.md` (1번↑ 7개) · `min_eval_m3.md` (3번↑ 21개) · `min_eval_m5.md` (5번↑ 37개) · `min_eval_m10.md` (10번↑ 78개) | 고른 질문·새로 덮은 기준 + 정밀(326) 대비 통과율·순위·**FAIL 포착** |
 | `질문수_결정_2026-10-19.json` | N 별 커버·순위 일치 확률 (`tools/sample_size_from_run.py`) |
 | `../분석/2026-10-19-기울기/gradient.md·svg` | 표준 탐욕 순서로 10개씩 늘릴 때 커버리지·통과율·순위 |
@@ -71,4 +71,4 @@ python -X utf8 tools/min_eval_list.py qs-b468b011e6c3 --run 8c61f117e661 --min 1
 python -X utf8 tools/question_gradient.py 8c61f117e661                               # 기울기
 python -X utf8 tools/sample_size_from_run.py 8c61f117e661                            # N 별 커버·순위 확률
 ```
-실행 기록(`data/comparison_runs/8c61f117e661.json`, 346MB)은 git 에 없고 평가를 돌린 PC 에만 있다. 질문 세트는 `참고자료/질문세트_326/` 을 `data/question_sets/qs-b468b011e6c3/` 로 복사하면 `--run` 없이 목록만은 만들 수 있다.
+실행 기록(`data/comparison_runs/8c61f117e661.json`, 346MB)은 git 에 없고 평가를 돌린 PC 에만 있다. 질문 세트는 `참고자료/질문세트_326_생성프롬프트v2/` 을 `data/question_sets/qs-b468b011e6c3/` 로 복사하면 `--run` 없이 목록만은 만들 수 있다.

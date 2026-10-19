@@ -1,7 +1,7 @@
 """수집용 묶음 내보내기 — 고정 질문 세트(326)를 사람이 웹브라우저(Claude·Gemini 등)에 직접 넣어 답을 받을 수 있는 파일로 만든다 (AI 호출 없음).
 
-    python -X utf8 tools/export_collection_package.py                      # → 참고자료/질문세트_326/수집용/
-    python -X utf8 tools/export_collection_package.py --answers 8c61f117e661   # 추가로 실행의 답변을 참고자료/질문세트_326/답변/<모델>.csv 로 보관
+    python -X utf8 tools/export_collection_package.py                      # → 참고자료/질문세트_326_생성프롬프트v2/수집용/
+    python -X utf8 tools/export_collection_package.py --answers 8c61f117e661   # 추가로 실행의 답변을 참고자료/질문세트_326_생성프롬프트v2/답변/<모델>.csv 로 보관
 
 묶음: README.md · questions.md(턴 순서대로 원문) · questions.csv · 첨부/(Qn_이름) · 참조자료/(긴 문서 TXT) · answers_<모델>.csv(답 적을 파일, 턴마다 한 줄).
 """
@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SET_DIR = ROOT / "참고자료" / "질문세트_326"
+SET_DIR = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 OUT = SET_DIR / "수집용"
 MODELS = ("claude", "gemini")
 MODEL_LABEL = {"claude": "Claude (claude.ai 웹)", "gemini": "Gemini (gemini.google.com 웹)", "gpt": "ChatGPT (웹)", "aiona": "AIONA (웹)"}
@@ -26,7 +26,7 @@ def kind(g):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--answers", help="실행 id — 그 실행의 모델별 답변을 참고자료/질문세트_326/답변/ 에 CSV 로 보관")
+    ap.add_argument("--answers", help="실행 id — 그 실행의 모델별 답변을 참고자료/질문세트_326_생성프롬프트v2/답변/ 에 CSV 로 보관")
     args = ap.parse_args()
     groups = json.load(open(SET_DIR / "questions.json", encoding="utf-8"))
     (OUT / "첨부").mkdir(parents=True, exist_ok=True)

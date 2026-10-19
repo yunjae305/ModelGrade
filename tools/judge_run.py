@@ -2,7 +2,7 @@
 
     python -X utf8 tools/judge_run.py data/comparison_runs/8c61f117e661.json --only 36,17 --providers aiona   # 시험
     python -X utf8 tools/judge_run.py data/comparison_runs/8c61f117e661.json                                   # 전체 326 × 모델
-    옵션: --workers 2 · --out DIR(기본 data/judge_runs/<run_id>) · --set 참고자료/질문세트_326
+    옵션: --workers 2 · --out DIR(기본 data/judge_runs/<run_id>) · --set 참고자료/질문세트_326_생성프롬프트v2
     설정(.env): CODEX_CLI_PATH·CODEX_CLI_MODEL·CODEX_CLI_REASONING·CODEX_CLI_TIMEOUT·SEMANTIC_WEB_SEARCH (GPT) ·
                TYPESAFE_API_KEY·JEV_MODEL (Jev) · JEV_MAX_STATE_CHARS(기본 0 = 상한 없음 — 사용자 결정 10-19: GPT·Jev 모두 상한 없음. Jev 가 거부(HTTP 400)하면 GPT 가 J1~J4 도)
     CODEX_CLI_TIMEOUT 기본 0 = 제한 없음.

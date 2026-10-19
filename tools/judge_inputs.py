@@ -33,7 +33,7 @@ from webapp.run_summary import asks_empty_output  # noqa: E402
 VERSION = "judge-input-v1"
 PROMPT = ROOT / "참고자료" / "프롬프트" / "judge_prompt_v3.txt"
 PROMPT_VERSION = "judge-prompt-v3"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_326"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 SITUATIONS = "판정상황표_v2.json"
 
 

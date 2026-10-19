@@ -4,7 +4,7 @@
 - 프롬프트에는 넣지 않는다(심판은 44개 전부에 답하고 적용 조건에 안 맞으면 NOT_APPLICABLE). 집계 때 이 표에 적힌 항목만 센다 — 분모가 어느 심판이든 같다. 다시 계산하지 않는다.
 - 질문 세트가 바뀌면 이 표도 다시 만들고 v 를 올린다. 표의 sha256 을 결과 기록에 남긴다.
 
-    python -X utf8 tools/build_judge_items_table.py [세트 id]   → 참고자료/질문세트_326/판정항목표_v1.csv · .json
+    python -X utf8 tools/build_judge_items_table.py [세트 id]   → 참고자료/질문세트_326_생성프롬프트v2/판정항목표_v1.csv · .json
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from code_eval import semantic_items as si  # noqa: E402
 
 VERSION = "judge-items-v1"
 ANSWER_ITEMS = ("J5-3.a",)   # 답변을 보고 생기는 항목 — 모든 턴에 넣음
-OUT_DIR = ROOT / "참고자료" / "질문세트_326"
+OUT_DIR = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 
 
 def main(set_id: str = "qs-b468b011e6c3") -> int:

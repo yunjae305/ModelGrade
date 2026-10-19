@@ -15,7 +15,7 @@ from tools import judge_inputs as ji
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "참고자료"
-SET = DOCS / "질문세트_326"
+SET = DOCS / "질문세트_326_생성프롬프트v2"
 EXAMPLE = DOCS / "프롬프트" / "예시_판정프롬프트_Q36_AIONA_v1.txt"
 
 
