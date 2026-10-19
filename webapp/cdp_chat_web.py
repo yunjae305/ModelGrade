@@ -733,22 +733,43 @@ class ChatGptAppChat(ChatGptChat):
             raise CdpWebError(f"ChatGPT 추론 수준이 Medium 이 아닙니다({power}) — 앱 입력칸 옆에서 Medium 으로 맞추세요")
         return f"{self.MODEL_NAME} · {power} (앱)"
 
+    IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
+
+    def _attached_count(self) -> int:
+        """입력칸에 붙은 첨부 수 — 'OOO.ext 제거' 버튼 수(이미지는 이름이 글로 안 보여 이 버튼으로 센다)."""
+        return self._eval("""() => [...document.querySelectorAll('button')].filter(b => /\\.\\w+ 제거$/.test((b.getAttribute('aria-label')||b.innerText||'').trim())).length""")
+
     def _upload(self, files: List[Path]) -> None:
-        """앱 화면에는 지난 채팅의 '파일 첨부' input 이 여러 개 남아 있고 입력칸에 연결된 것은 마지막 것(2026-10-19 확인: 15개 중 마지막만 붙음).
-        마지막 것부터 거꾸로 넣어 보고, 파일 이름이 입력칸에 보이면 성공. 안 보이면 다음 input."""
-        inputs = self.page.locator(self.FILE_INPUT)
-        n = inputs.count()
-        names = [f.name for f in files]
-        shown = lambda: self._eval("(names) => names.every(n => document.body.innerText.includes(n))".replace("(names)", "()").replace("names.every", json.dumps(names) + ".every"))
-        for i in range(n - 1, -1, -1):
-            try:
-                inputs.nth(i).set_input_files([str(f) for f in files])
-            except Exception:
+        """앱 화면에는 지난 채팅의 첨부 input 이 여러 개 남아 있고 입력칸에 연결된 것은 마지막 것(2026-10-19 확인: 15개 중 마지막만 붙음).
+        이미지는 '사진 첨부'(image/*) input, 그 밖은 '파일 첨부' input — 마지막 것부터 거꾸로 넣어 보고 '제거' 버튼이 늘면 성공."""
+        images = [f for f in files if f.suffix.lower() in self.IMAGE_EXT]
+        others = [f for f in files if f.suffix.lower() not in self.IMAGE_EXT]
+        before = self._attached_count()
+        want = before
+        for batch, labels in ((others, ("파일 첨부",)), (images, ("사진 첨부", "사진 또는 동영상 첨부", "파일 첨부"))):
+            if not batch:
                 continue
-            self.page.wait_for_timeout(2500 + 1500 * len(files))
-            if shown():
-                return
-        raise CdpWebError(f"{self.NAME} 첨부를 입력칸에 붙이지 못했습니다 ({', '.join(names)})")
+            want += len(batch)
+            done = False
+            for label in labels:
+                inputs = self.page.locator(f"input[type=file][aria-label='{label}']")
+                for i in range(inputs.count() - 1, -1, -1):
+                    try:
+                        inputs.nth(i).set_input_files([str(f) for f in batch])
+                    except Exception:
+                        continue
+                    for _ in range(12):   # 미리보기가 붙을 때까지 (큰 파일은 더)
+                        self.page.wait_for_timeout(1000)
+                        if self._attached_count() >= want:
+                            break
+                    if self._attached_count() >= want:
+                        done = True
+                        break
+                if done:
+                    break
+            if not done:
+                raise CdpWebError(f"{self.NAME} 첨부를 입력칸에 붙이지 못했습니다 ({', '.join(f.name for f in batch)})")
+        self.page.wait_for_timeout(1500)
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         out = super().ask(question, files, reference)
