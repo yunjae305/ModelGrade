@@ -54,6 +54,50 @@ def app_exe() -> Path:
     return exe
 
 
+def app_pids() -> list:
+    """앱 메인 프로세스(--type 자식 제외) PID."""
+    cmd = ("Get-CimInstance Win32_Process -Filter \"name='ChatGPT.exe'\" | Where-Object { $_.CommandLine -notlike '*--type=*' } | ForEach-Object { $_.ProcessId }")
+    out = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, encoding="utf-8", timeout=30).stdout
+    return [int(x) for x in out.split() if x.strip().isdigit()]
+
+
+def main_hwnd(visible_only: bool = True) -> int:
+    """앱 메인 창(제목 있는 Chrome_WidgetWin_1) 핸들 — 보이는 것 우선, 없으면 0."""
+    import win32gui
+    import win32process
+    pids = set(app_pids())
+    found = []
+
+    def cb(h, _):
+        try:
+            _, pid = win32process.GetWindowThreadProcessId(h)
+            if pid in pids and win32gui.GetClassName(h) == "Chrome_WidgetWin_1" and win32gui.GetWindowText(h):
+                found.append((win32gui.IsWindowVisible(h), h))
+        except Exception:
+            pass
+    win32gui.EnumWindows(cb, None)
+    vis = [h for v, h in found if v]
+    if vis:
+        return vis[0]
+    return 0 if visible_only or not found else found[0][1]
+
+
+def show_window(wait_s: int = 15) -> int:
+    """앱이 창 없이(트레이) 떠 있으면 실행 파일을 한 번 더 실행한다 — 단일 인스턴스라 새 프로세스는 바로 끝나고 떠 있던 앱이 창을 보여 준다(2026-10-19 확인, 포트 유지)."""
+    h = main_hwnd()
+    if h:
+        return h
+    subprocess.Popen([str(app_exe())], close_fds=True,
+                     creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+    deadline = time.monotonic() + wait_s
+    while time.monotonic() < deadline:
+        time.sleep(1.0)
+        h = main_hwnd()
+        if h:
+            return h
+    return 0
+
+
 def running() -> bool:
     out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq ChatGPT.exe"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     return "ChatGPT.exe" in out

@@ -23,6 +23,7 @@ import csv
 import json
 import shutil
 import sys
+import time
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
@@ -205,19 +206,87 @@ def materialize_attachments(turn: Dict[str, Any], set_dir: Path, tmp: Path) -> L
 
 
 def cmd_collect_app(args: argparse.Namespace) -> int:
-    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. --provider gpt,claude 처럼 여러 앱이면 차례로(앱은 알아서 켠다).
-    대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅. 이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다 — 같은 명령을 다시 부르면 이어서."""
+    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. --provider gpt,claude 처럼 여러 앱이면 **동시에**(사용자 지시 10-19:
+    앱마다 별도 프로세스, 창은 좌/우 반씩). 대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅. 이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다."""
     providers = split_providers(args.provider, APP_LABELS)
+    if len(providers) == 1:
+        return collect_app_one(argparse.Namespace(**{**vars(args), "provider": providers[0]}))
     run_id = args.run
-    for provider in providers:
-        code = collect_app_one(argparse.Namespace(**{**vars(args), "provider": provider, "run": run_id}))
-        if code:
-            return code
-        run_id = run_id or _LAST_RUN_ID[0]   # 첫 앱이 새 실행을 만들면 다음 앱은 그 실행에 이어 쓴다
+    if not run_id:   # 자식들이 같은 실행에 쓰도록 먼저 만든다
+        set_dir = Path(args.set)
+        groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+        run_id = save_run(new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)).stem
+        print(f"새 실행 {run_id}", flush=True)
+    return run_collectors_parallel(providers, args, run_id)
+
+
+PLACES = ("left", "right")
+
+
+def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_id: str) -> int:
+    """앱마다 자식 프로세스(이 CLI 의 collect app --provider 하나)를 띄워 같이 돌리고 출력을 [모델] 머리말로 섞어 보여 준다."""
+    import subprocess
+    import threading
+    procs = []
+    for i, provider in enumerate(providers):
+        cmd = [sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "collect", "app", "--provider", provider, "--run", run_id,
+               "--set", str(args.set), "--place", PLACES[i % len(PLACES)]]
+        if args.only:
+            cmd += ["--only", args.only]
+        else:
+            cmd += ["--next", str(args.next)]
+        if args.allow_large:
+            cmd.append("--allow-large")
+        if getattr(args, "label", None):
+            cmd += ["--label", args.label]
+        procs.append((provider, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT))))
+
+    def pump(provider: str, proc: Any) -> None:
+        for line in proc.stdout:
+            print(f"[{provider}] {line.rstrip()}", flush=True)
+
+    threads = [threading.Thread(target=pump, args=(p, proc), daemon=True) for p, proc in procs]
+    for t in threads:
+        t.start()
+    codes = {p: proc.wait() for p, proc in procs}
+    for t in threads:
+        t.join(timeout=5)
+    bad = [p for p, c in codes.items() if c]
+    if bad:
+        print(f"실패한 앱: {', '.join(bad)} (종료 코드 {codes})", flush=True)
+        return 1
+    print(f"동시 수집 끝 — 실행 {run_id} | 다음: judge --run {run_id} --next 20", flush=True)
     return 0
 
 
-_LAST_RUN_ID: List[Optional[str]] = [None]
+def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List[Dict[str, Any]], evaluation: Dict[str, Any], import_entry: Dict[str, Any]) -> Path:
+    """실행 JSON 을 잠금 아래 다시 읽어 이 모델 자리만 바꿔 저장 — 다른 앱의 자식 프로세스가 같은 파일을 동시에 쓴다."""
+    import os
+    lock = RUNS / f"{run_id}.lock"
+    deadline = time.monotonic() + 120
+    while True:
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            break
+        except FileExistsError:
+            if time.monotonic() > deadline:
+                raise SystemExit(f"실행 파일 잠금을 얻지 못했습니다: {lock} (남은 잠금 파일이면 지우세요)")
+            time.sleep(0.3)
+    try:
+        run = load_run(run_id)
+        if provider not in run["providers"]:
+            run["providers"].append(provider)
+        run.setdefault("models", {})[provider] = label
+        run.setdefault("datasets", {})[provider] = merged
+        run.setdefault("evaluations", {})[provider] = evaluation
+        run.setdefault("imports", []).append(import_entry)
+        return save_run(run)
+    finally:
+        try:
+            lock.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def collect_app_one(args: argparse.Namespace) -> int:
@@ -228,7 +297,6 @@ def collect_app_one(args: argparse.Namespace) -> int:
     rows_all = flatten(groups)
     label = args.label or APP_LABELS.get(args.provider, args.provider)
     run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
-    _LAST_RUN_ID[0] = run["run_id"]
     existing = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(args.provider) or [] if isinstance(r, dict)}
     by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in rows_all:
@@ -243,12 +311,15 @@ def collect_app_one(args: argparse.Namespace) -> int:
         raise SystemExit(f"한 번에 {JUDGE_BATCH_MAX}개까지입니다 ({len(wanted)}개). 나눠서 돌리거나 --allow-large.")
     if not wanted:
         print("받을 질문이 없습니다 — 모두 답을 받았습니다."); return 0
-    print(f"{args.provider} · {label}: 질문 {len(wanted)}개 {wanted} (이미 받은 질문 {len(done)}개)", flush=True)
+    total = len(by_q)
+    print(f"{args.provider} · {label}: 이번 묶음 질문 {len(wanted)}개 {wanted} · 전체 {total}개 중 이미 받은 질문 {len(done)}개", flush=True)
     chat_cls = app_chat_class(args.provider)
     new_rows: Dict[str, Dict[str, Any]] = {}
-    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug") as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
-        for q in wanted:
+    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None)) as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
+        got = len(done)
+        for i, q in enumerate(wanted, 1):
             turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))
+            print(f"▶ Q{q} ({len(turns)}턴) — 이번 묶음 {i}/{len(wanted)} · 전체 {got + 1}/{total}", flush=True)
             try:
                 chat.new_chat()
             except Exception as exc:
@@ -269,6 +340,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
                 if res.get("status") != "SUCCESS" and len(turns) > 1:
                     print(f"  Q{q}: 턴이 실패해 이 대화의 나머지 턴은 보내지 않음", flush=True)
                     break
+            if all(new_rows.get(t["case_id"], {}).get("collection", {}).get("status") == "SUCCESS" for t in turns):
+                got += 1
     # 실행에 합치기 — 질문 세트 순서로, 새 행이 있으면 바꾸고 없으면 전 행(또는 답 없음) 유지
     merged = []
     for index, r in enumerate(rows_all):
@@ -280,17 +353,25 @@ def collect_app_one(args: argparse.Namespace) -> int:
                 if r.get(key) not in (None, "", []):
                     row[key] = r[key]
         merged.append(row)
-    if args.provider not in run["providers"]:
-        run["providers"].append(args.provider)
-    run.setdefault("models", {})[args.provider] = label
-    run.setdefault("datasets", {})[args.provider] = merged
     print("CODE 평가 중 …", flush=True)
-    run.setdefault("evaluations", {})[args.provider] = code_evaluate(merged, args.provider)
-    run.setdefault("imports", []).append({"provider": args.provider, "method": "collect-app-v1", "at": _now(), "questions": wanted,
-                                          "answered": sum(1 for r in new_rows.values() if r["collection"].get("status") == "SUCCESS")})
-    path = save_run(run)
+    evaluation = code_evaluate(merged, args.provider)
+    entry = {"provider": args.provider, "method": "collect-app-v1", "at": _now(), "questions": wanted,
+             "answered": sum(1 for r in new_rows.values() if r["collection"].get("status") == "SUCCESS")}
+    if not args.run:
+        run["providers"].append(args.provider)
+        run.setdefault("models", {})[args.provider] = label
+        run.setdefault("datasets", {})[args.provider] = merged
+        run.setdefault("evaluations", {})[args.provider] = evaluation
+        run.setdefault("imports", []).append(entry)
+        path = save_run(run)
+    else:
+        path = merge_provider_into_run(run["run_id"], args.provider, label, merged, evaluation, entry)   # 동시 수집: 다른 앱이 쓴 자리는 건드리지 않는다
     ok = sum(1 for r in merged if r["collection"].get("status") == "SUCCESS")
-    print(f"저장: {path} (실행 {run['run_id']}) | {args.provider} 답 있음 {ok} / {len(merged)}턴 | 다음: 같은 명령으로 이어서, 또는 judge --run {run['run_id']} --providers {args.provider} --next 20")
+    rows_by_q: Dict[int, List[Dict[str, Any]]] = {}
+    for r in merged:
+        rows_by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r)
+    done_q = sum(1 for rs in rows_by_q.values() if all(r["collection"].get("status") == "SUCCESS" for r in rs))
+    print(f"저장: {path} (실행 {run['run_id']}) | {args.provider} 받은 질문 {done_q}/{total} ({ok}/{len(merged)}턴) | 다음: 같은 명령으로 이어서, 또는 judge --run {run['run_id']} --providers {args.provider} --next 20")
     return 0
 
 
@@ -355,7 +436,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     한 번 부를 때마다 한 묶음(기본 20개)만 — 다시 부르면 이어서."""
     if args.collect:
         code = cmd_collect_app(argparse.Namespace(provider=args.collect, run=args.run, new=None, only=None, next=args.next, set=args.set,
-                                                  label=None, allow_large=False))
+                                                  label=None, allow_large=False, place=None))
         if code:
             return code
     if args.import_csv:
@@ -415,6 +496,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     app.add_argument("--set", default=str(DEFAULT_SET))
     app.add_argument("--label", help="결과에 보일 모델 이름 (기본: 'ChatGPT 앱 (GPT-6 · Medium)' · 'Claude 앱 (Sonnet 5.5 · 노력 중간)')")
     app.add_argument("--allow-large", action="store_true")
+    app.add_argument("--place", choices=list(PLACES), help="앱 창을 화면 왼쪽/오른쪽 반에 놓기 (동시 수집 때 부모가 넣음)")
     app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)

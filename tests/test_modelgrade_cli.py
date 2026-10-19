@@ -108,11 +108,21 @@ def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_p
     assert "이미 받은 질문 2개" in out
 
 
-def test_collect_app_runs_each_app_in_turn_on_one_run_and_claude_maps_to_uia_collector(tmp_path, monkeypatch):
-    """--provider gpt,claude: 첫 앱이 만든 실행에 둘째 앱이 이어 쓴다. claude 는 UIA 앱 수집기(ClaudeAppChat)."""
+def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collector(tmp_path, monkeypatch):
+    """--provider gpt,claude: 실행을 먼저 만들고 앱마다 자식 프로세스로 동시에(시험에서는 같은 프로세스에서 차례로) — 둘 다 같은 실행에 자기 자리만 쓴다.
+    claude 는 UIA 앱 수집기(ClaudeAppChat)."""
+    import argparse
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     seen = []
+    places = []
+
+    def fake_parallel(providers, args, run_id):
+        for i, provider in enumerate(providers):
+            places.append(mg.PLACES[i % 2])
+            assert mg.collect_app_one(argparse.Namespace(**{**vars(args), "provider": provider, "run": run_id, "place": mg.PLACES[i % 2]})) == 0
+        return 0
+    monkeypatch.setattr(mg, "run_collectors_parallel", fake_parallel)
 
     def fake_cls(provider):
         class FakeChat:
@@ -128,11 +138,32 @@ def test_collect_app_runs_each_app_in_turn_on_one_run_and_claude_maps_to_uia_col
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt,claude", "--set", str(set_dir), "--only", "1", "--new", "두 앱"]) == 0
     runs = list((tmp_path / "runs").glob("*.json"))
-    assert len(runs) == 1 and seen == ["gpt", "claude"]
+    assert len(runs) == 1 and seen == ["gpt", "claude"] and places == ["left", "right"]
     run = json.loads(runs[0].read_text(encoding="utf-8"))
     assert run["datasets"]["gpt"][0]["answer"] == "gpt 답입니다." and run["datasets"]["claude"][0]["answer"] == "claude 답입니다."
     assert run["models"] == {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}
+    assert not list((tmp_path / "runs").glob("*.lock"))
     with pytest.raises(SystemExit):
         mg.main(["collect", "app", "--provider", "gemini", "--set", str(set_dir), "--only", "1"])
     monkeypatch.undo()
     assert mg.app_chat_class("claude").__name__ == "ClaudeAppChat"
+
+
+def test_merge_provider_into_run_keeps_other_providers_written_meanwhile(tmp_path, monkeypatch):
+    """동시 수집: 두 자식이 같은 실행 파일에 쓴다 — 잠금 아래 다시 읽어 자기 모델 자리만 바꾸므로 먼저 쓴 쪽이 안 지워진다."""
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    set_dir = _set(tmp_path)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    run = mg.new_run("동시", set_dir, groups)
+    mg.save_run(run)
+    row = lambda p: [{"case_id": "Q1_T1", "question": "q", "answer": f"{p} 답", "system_id": p, "source": p, "case_index": 0, "collection": {"status": "SUCCESS"}}]
+    mg.merge_provider_into_run(run["run_id"], "gpt", "GPT 앱", row("gpt"), {"cases": []}, {"provider": "gpt"})
+    mg.merge_provider_into_run(run["run_id"], "claude", "Claude 앱", row("claude"), {"cases": []}, {"provider": "claude"})
+    saved = mg.load_run(run["run_id"])
+    assert saved["providers"] == ["gpt", "claude"] and saved["datasets"]["gpt"][0]["answer"] == "gpt 답" and saved["datasets"]["claude"][0]["answer"] == "claude 답"
+    assert [e["provider"] for e in saved["imports"]] == ["gpt", "claude"]
+    (tmp_path / "runs" / f"{run['run_id']}.lock").write_text("")   # 남은 잠금은 기다리다 오류
+    monkeypatch.setattr(mg.time, "monotonic", lambda c=[0]: c.__setitem__(0, c[0] + 100) or c[0])
+    with pytest.raises(SystemExit):
+        mg.merge_provider_into_run(run["run_id"], "gpt", "GPT 앱", row("gpt"), {"cases": []}, {"provider": "gpt"})

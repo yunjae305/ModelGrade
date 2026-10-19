@@ -63,8 +63,8 @@ class _CdpChat:
     REMOVE_FILE = None        # 입력칸에 남은 첨부를 지우는 버튼 이름 패턴 (지난 질문이 실패해 남은 파일)
 
     def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
-                 answer_timeout_s: int = 600) -> None:
-        self.debug_dir, self.cancelled, self.answer_timeout_s = debug_dir, cancelled or (lambda: False), answer_timeout_s
+                 answer_timeout_s: int = 600, place: Optional[str] = None) -> None:
+        self.debug_dir, self.cancelled, self.answer_timeout_s, self.place = debug_dir, cancelled or (lambda: False), answer_timeout_s, place
         self.page: Any = None
         self._playwright = self._browser = None
         self._temp = tempfile.TemporaryDirectory(prefix=f"{self.NAME}-ref-")
@@ -632,6 +632,8 @@ class ChatGptAppChat(ChatGptChat):
                 raise CdpWebError(f"ChatGPT 앱을 켜지 못했습니다: {str(exc)[:120]}")
         if not status()["ok"]:
             raise CdpWebError("ChatGPT 앱이 디버깅 포트로 떠 있지 않습니다 — python tools/chatgpt_app_cdp.py --restart 로 띄우고 앱에서 로그인하세요.")
+        from tools.chatgpt_app_cdp import show_window
+        show_window()   # 트레이에만 떠 있으면 창을 보이게 (사용자가 수집 과정을 본다)
         from playwright.sync_api import sync_playwright
         self._playwright = sync_playwright().start()
         try:
@@ -642,10 +644,24 @@ class ChatGptAppChat(ChatGptChat):
                 raise CdpWebError("ChatGPT 앱 메인 페이지(app://-/index.html)를 찾지 못했습니다.")
             self.page.add_init_script(COPY_CAPTURE_JS)
             self.page.set_default_timeout(60_000)
+            if self.place:
+                self._place_window()
         except BaseException:
             self._close()
             raise
         return self
+
+    def _place_window(self) -> None:
+        """동시 수집: 앱 창을 화면 반쪽에 놓고, 그동안은 창을 앞으로 가져오지 않는다(Claude 앱 창의 키 입력을 뺏지 않게). 페이지는 하나라 탭 전환이 필요 없다."""
+        try:
+            from tools.chatgpt_app_cdp import show_window
+            from webapp.uia_chat_app import place_window
+            hwnd = show_window()
+            if hwnd:
+                place_window(hwnd, self.place)
+            self.page.bring_to_front = lambda: None
+        except Exception as exc:
+            self._snapshot(f"place-failed-{type(exc).__name__}")
 
     # --- 모드 ---
     def _mode_button(self) -> Optional[Dict[str, Any]]:

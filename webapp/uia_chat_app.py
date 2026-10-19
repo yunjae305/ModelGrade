@@ -59,8 +59,8 @@ class ClaudeAppChat:
     DIALOG_TITLE = r"^(열기|Open)"
 
     def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
-                 answer_timeout_s: int = 600) -> None:
-        self.debug_dir, self.cancelled, self.answer_timeout_s = debug_dir, cancelled or (lambda: False), answer_timeout_s
+                 answer_timeout_s: int = 600, place: Optional[str] = None) -> None:
+        self.debug_dir, self.cancelled, self.answer_timeout_s, self.place = debug_dir, cancelled or (lambda: False), answer_timeout_s, place
         self.win: Any = None
         self._temp = tempfile.TemporaryDirectory(prefix="claude-app-ref-")
         self.model_seen: Optional[str] = None
@@ -75,6 +75,8 @@ class ClaudeAppChat:
         self.win = claude_app.main_window(s["pids"])
         if self.win is None:
             raise UiaChatError("Claude 앱 창을 찾지 못했습니다.")
+        if self.place:
+            place_window(self.win, self.place)
         self._select_chat_tab()
         return self
 
@@ -131,13 +133,32 @@ class ClaudeAppChat:
         mouse.move(coords=((r.left + r.right) // 2, (r.top + r.bottom) // 2))
         time.sleep(1.2)
 
-    def _escape(self) -> None:
-        from pywinauto.keyboard import send_keys
+    def _is_foreground(self) -> bool:
         try:
-            send_keys("{ESC}")
+            import win32gui
+            return win32gui.GetForegroundWindow() == self.win.handle
         except Exception:
-            pass
+            return True
+
+    def _escape(self) -> None:
+        """열린 메뉴 닫기 — 키 대신 메뉴 버튼 접기(다른 앱 창이 앞에 있어도 안전). 그래도 남아 있고 이 창이 앞이면 Esc."""
+        if not self._all("Menu"):
+            return
+        for pat in (self.MODEL_BTN, self.ATTACH):
+            btn = self._find("Button", pat)
+            if btn is not None:
+                try:
+                    btn.collapse()
+                except Exception:
+                    pass
         time.sleep(0.4)
+        if self._all("Menu") and self._is_foreground():
+            from pywinauto.keyboard import send_keys
+            try:
+                send_keys("{ESC}")
+            except Exception:
+                pass
+            time.sleep(0.4)
 
     def _snapshot(self, tag: str) -> Optional[str]:
         if not self.debug_dir:
@@ -327,13 +348,18 @@ class ClaudeAppChat:
         before = self._attached_count()
         want = before + len(files)
         box = self._textbox()
-        _clipboard_set_files(files)
-        box.set_focus()
-        time.sleep(0.4)
-        send_keys("^v")
-        if self._wait_attached(want, 20):
-            time.sleep(1.0)
-            return
+        for _ in range(2):
+            _clipboard_set_files(files)
+            self._front()
+            box.set_focus()
+            time.sleep(0.4)
+            if not self._is_foreground():   # 다른 앱 창이 앞이면 Ctrl+V 가 그쪽에 들어간다 — 보내지 않고 다시
+                time.sleep(1.0)
+                continue
+            send_keys("^v")
+            if self._wait_attached(want, 20):
+                time.sleep(1.0)
+                return
         self._snapshot("paste-attach-failed")
         self._upload_via_dialog(files, want)
 
@@ -434,21 +460,31 @@ class ClaudeAppChat:
                 out.append(v)
         return out
 
+    COPY_SENTINEL = "\u2063modelgrade-copy-wait\u2063"
+
     def _copy_last_answer(self) -> str:
+        """마지막 답의 복사 아이콘 → 클립보드. 다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 화면의 답과 맞는지 대조한다(최대 3번)."""
         bars = self._answer_bars()
         if not bars:
             return ""
         btn = next((b for b in bars[-1].descendants(control_type="Button") if re.match(self.COPY, b.element_info.name or "")), None)
         if btn is None:
             return ""
-        _clipboard_set("")
-        self._press(btn)
-        for _ in range(10):
-            time.sleep(0.5)
-            text = _clipboard_get()
-            if text.strip():
+        group = self._last_message_group()
+        screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text"))) if group is not None else ""
+        for _ in range(3):
+            _clipboard_set(self.COPY_SENTINEL)
+            self._press(btn)
+            text = ""
+            for _ in range(10):
+                time.sleep(0.5)
+                text = _clipboard_get()
+                if text and text != self.COPY_SENTINEL:
+                    break
+            if text and text != self.COPY_SENTINEL and (not screen or _squash(text)[:40] in screen or _squash(text)[-40:] in screen):
                 return text
-        return ""
+            time.sleep(1.0)
+        raise UiaChatError("복사한 글이 화면의 답과 다릅니다 (다른 프로그램이 클립보드를 쓰는 중?) — 이 질문은 다음에 다시 받습니다")
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
@@ -515,7 +551,11 @@ class ClaudeAppChat:
             self._front()
             group = self._last_message_group()
             drafts = len(self._draft_blocks(group)) if group is not None else 0   # 기록만 — 답은 복사 아이콘 글 그대로(사용자 결정 10-19)
-            copied = self._copy_last_answer()
+            try:
+                copied = self._copy_last_answer()
+            except UiaChatError as exc:
+                return {**base, "answer": "", "status": "ERROR", "error": str(exc)[:300], "latency_ms": round((time.monotonic() - started) * 1000),
+                        "draft_blocks": drafts}
             if copied and copied.strip():
                 answer, capture = copied, "copy-button"
             else:
@@ -524,6 +564,30 @@ class ClaudeAppChat:
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.",
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 "latency_ms": round((time.monotonic() - started) * 1000)}
+
+
+# --- 창 배치 · 대조 -----------------------------------------------------------------------------------
+
+def _squash(text: str) -> str:
+    """대조용 — 공백·마크다운 표시 제거."""
+    return re.sub(r"[\s#*_`>|\-]+", "", text or "")
+
+
+def place_window(win: Any, place: str) -> None:
+    """앱 창(UIA 래퍼 또는 창 핸들)을 화면 왼쪽/오른쪽 반에 놓는다 — 동시 수집 때 두 앱 창이 겹치지 않게(마우스 클릭이 다른 창에 가지 않도록)."""
+    import win32api
+    import win32con
+    import win32gui
+    hwnd = win if isinstance(win, int) else win.handle
+    w, h = win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1)
+    half = w // 2
+    x = 0 if place == "left" else half
+    try:
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        win32gui.MoveWindow(hwnd, x, 0, half, h, True)
+    except Exception:
+        pass
+    time.sleep(0.8)
 
 
 # --- 클립보드 -----------------------------------------------------------------------------------------
