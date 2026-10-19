@@ -1,0 +1,506 @@
+[
+ {
+  "id": "3-3.transform",
+  "name": "원본 보존·변환",
+  "applied": 92,
+  "fail": 46,
+  "hold": 0,
+  "rate": 0.5,
+  "by_model": {
+   "aiona": 10,
+   "gpt": 11,
+   "claude": 12,
+   "gemini": 13
+  }
+ },
+ {
+  "id": "2-1.count",
+  "name": "불릿·항목·문장·문단·줄·어절 수",
+  "applied": 225,
+  "fail": 84,
+  "hold": 0,
+  "rate": 0.3733,
+  "by_model": {
+   "aiona": 19,
+   "gpt": 13,
+   "claude": 28,
+   "gemini": 24
+  }
+ },
+ {
+  "id": "J6",
+  "name": "멀티턴 맥락 유지",
+  "applied": 580,
+  "fail": 141,
+  "hold": 99,
+  "rate": 0.2431,
+  "by_model": {
+   "aiona": 20,
+   "gpt": 16,
+   "claude": 27,
+   "gemini": 78
+  }
+ },
+ {
+  "id": "J7",
+  "name": "롱컨텍스트",
+  "applied": 40,
+  "fail": 9,
+  "hold": 0,
+  "rate": 0.225,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 3,
+   "claude": 1,
+   "gemini": 1
+  }
+ },
+ {
+  "id": "3-1.question_calculation",
+  "name": "질문이 요구한 계산값",
+  "applied": 88,
+  "fail": 18,
+  "hold": 0,
+  "rate": 0.2045,
+  "by_model": {
+   "aiona": 5,
+   "gpt": 4,
+   "claude": 5,
+   "gemini": 4
+  }
+ },
+ {
+  "id": "2-1.explicit_empty",
+  "name": "명시 빈 출력",
+  "applied": 32,
+  "fail": 5,
+  "hold": 0,
+  "rate": 0.1562,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 1,
+   "claude": 1,
+   "gemini": 1
+  }
+ },
+ {
+  "id": "3-3.aggregate",
+  "name": "명시 집계값",
+  "applied": 28,
+  "fail": 4,
+  "hold": 0,
+  "rate": 0.1429,
+  "by_model": {
+   "aiona": 1,
+   "gpt": 2,
+   "claude": 1,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "2-2.heading",
+  "name": "제목 존재·개수",
+  "applied": 169,
+  "fail": 24,
+  "hold": 0,
+  "rate": 0.142,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 7,
+   "claude": 2,
+   "gemini": 13
+  }
+ },
+ {
+  "id": "J5",
+  "name": "DATA 신뢰도",
+  "applied": 1940,
+  "fail": 175,
+  "hold": 828,
+  "rate": 0.0902,
+  "by_model": {
+   "aiona": 15,
+   "gpt": 29,
+   "claude": 52,
+   "gemini": 79
+  }
+ },
+ {
+  "id": "2-1.char_count",
+  "name": "글자 수",
+  "applied": 212,
+  "fail": 14,
+  "hold": 0,
+  "rate": 0.066,
+  "by_model": {
+   "aiona": 3,
+   "gpt": 3,
+   "claude": 8,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-2.code_block",
+  "name": "코드블록 존재·개수·금지",
+  "applied": 188,
+  "fail": 12,
+  "hold": 0,
+  "rate": 0.0638,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 2,
+   "claude": 3,
+   "gemini": 5
+  }
+ },
+ {
+  "id": "2-2.list",
+  "name": "목록 사용·금지",
+  "applied": 192,
+  "fail": 12,
+  "hold": 0,
+  "rate": 0.0625,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 1,
+   "claude": 0,
+   "gemini": 7
+  }
+ },
+ {
+  "id": "2-2.json_structure",
+  "name": "JSON 최상위 자료형·필수 키·필드 자료형",
+  "applied": 380,
+  "fail": 23,
+  "hold": 0,
+  "rate": 0.0605,
+  "by_model": {
+   "aiona": 7,
+   "gpt": 7,
+   "claude": 5,
+   "gemini": 4
+  }
+ },
+ {
+  "id": "2-1.literal",
+  "name": "필수·금지·시작·끝 문자열 (정확 일치 요구 외 공백 접기)",
+  "applied": 332,
+  "fail": 19,
+  "hold": 0,
+  "rate": 0.0572,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 5,
+   "claude": 3,
+   "gemini": 7
+  }
+ },
+ {
+  "id": "J2",
+  "name": "맥락 적합성",
+  "applied": 1212,
+  "fail": 60,
+  "hold": 107,
+  "rate": 0.0495,
+  "by_model": {
+   "aiona": 8,
+   "gpt": 1,
+   "claude": 14,
+   "gemini": 37
+  }
+ },
+ {
+  "id": "2-2.table",
+  "name": "표 존재·개수·열·헤더·명시 행 수",
+  "applied": 267,
+  "fail": 13,
+  "hold": 0,
+  "rate": 0.0487,
+  "by_model": {
+   "aiona": 6,
+   "gpt": 3,
+   "claude": 1,
+   "gemini": 3
+  }
+ },
+ {
+  "id": "J3",
+  "name": "논리 일관성",
+  "applied": 704,
+  "fail": 30,
+  "hold": 31,
+  "rate": 0.0426,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 1,
+   "claude": 10,
+   "gemini": 17
+  }
+ },
+ {
+  "id": "1-2.code_language_label",
+  "name": "코드블록 언어 표지",
+  "applied": 152,
+  "fail": 5,
+  "hold": 0,
+  "rate": 0.0329,
+  "by_model": {
+   "aiona": 1,
+   "gpt": 1,
+   "claude": 2,
+   "gemini": 1
+  }
+ },
+ {
+  "id": "J4",
+  "name": "완결성",
+  "applied": 1228,
+  "fail": 24,
+  "hold": 28,
+  "rate": 0.0195,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 5,
+   "claude": 6,
+   "gemini": 9
+  }
+ },
+ {
+  "id": "J8",
+  "name": "첨부 해석",
+  "applied": 112,
+  "fail": 2,
+  "hold": 0,
+  "rate": 0.0179,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 2,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "2-1.charset",
+  "name": "허용 문자",
+  "applied": 180,
+  "fail": 3,
+  "hold": 0,
+  "rate": 0.0167,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 3
+  }
+ },
+ {
+  "id": "3-2.declared_count",
+  "name": "답변이 선언한 개수와 이어지는 구조",
+  "applied": 1941,
+  "fail": 12,
+  "hold": 0,
+  "rate": 0.0062,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 2,
+   "claude": 2,
+   "gemini": 4
+  }
+ },
+ {
+  "id": "1-2.orphan_closing_tag",
+  "name": "짝이 없는 닫는 태그 (MD 169)",
+  "applied": 1940,
+  "fail": 9,
+  "hold": 0,
+  "rate": 0.0046,
+  "by_model": {
+   "aiona": 9,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-1.response_nonempty",
+  "name": "일반 응답 존재",
+  "applied": 1908,
+  "fail": 7,
+  "hold": 0,
+  "rate": 0.0037,
+  "by_model": {
+   "aiona": 7,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "J1",
+  "name": "의도 충족성",
+  "applied": 1940,
+  "fail": 6,
+  "hold": 15,
+  "rate": 0.0031,
+  "by_model": {
+   "aiona": 5,
+   "gpt": 1,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-2.python_syntax",
+  "name": "Python 구문",
+  "applied": 1958,
+  "fail": 4,
+  "hold": 0,
+  "rate": 0.002,
+  "by_model": {
+   "aiona": 3,
+   "gpt": 0,
+   "claude": 1,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-1.foreign_script",
+  "name": "설명 없는 외국 문자",
+  "applied": 1760,
+  "fail": 1,
+  "hold": 0,
+  "rate": 0.0006,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 1
+  }
+ },
+ {
+  "id": "1-3.internal_link",
+  "name": "문서 내부 링크 연결",
+  "applied": 1940,
+  "fail": 1,
+  "hold": 0,
+  "rate": 0.0005,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 1
+  }
+ },
+ {
+  "id": "1-1.character_rules",
+  "name": "깨진 문자·제어 문자",
+  "applied": 1940,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-2.fence_imbalance",
+  "name": "코드·수식 구획 표시 짝 (MD 170)",
+  "applied": 1940,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-2.json_syntax",
+  "name": "JSON 구문",
+  "applied": 1940,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-3.footnote_link",
+  "name": "각주 사용·정의 연결",
+  "applied": 1940,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-3.citation_link",
+  "name": "인용 번호·출처 목록 연결",
+  "applied": 1940,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "3-1.answer_equation",
+  "name": "답변 등식 재계산",
+  "applied": 2006,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "1-2.code_fence_min",
+  "name": "코드 구획 표시 2개 이상 (MD 165)",
+  "applied": 168,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ },
+ {
+  "id": "3-3.unique_values",
+  "name": "명시 고유성",
+  "applied": 99,
+  "fail": 0,
+  "hold": 0,
+  "rate": 0.0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  }
+ }
+]
