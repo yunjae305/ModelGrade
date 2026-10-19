@@ -1243,7 +1243,7 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 
 <section class="slide" id="s7">
   <div class="s-head"><span class="s-no">07 / 09</span><h2>최소 78 vs 정밀 326 — 같은 판정으로 비교</h2></div>
-  <ul class="gist"><li>고르는 규칙: <b>아직 덜 채운 기준을 가장 많이 채우는 질문부터</b>, 기준마다 10번 이상이 될 때까지 (집합 덮기 표준 탐욕법, 팀원 검산으로 교체).</li><li>78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 <b>순위도 정밀과 같습니다</b>. PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.</li></ul>
+  <ul class="gist"><li>78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 <b>순위도 정밀과 같습니다</b>. PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.</li></ul>
   <figure class="fig">
     <div class="fig-head"><h3>모델별 PASS · FAIL · 보류 — 정밀 326 과 최소 78</h3>
       <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div>
@@ -1331,6 +1331,26 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 <text class="atitle" x="867.5" y="282" text-anchor="middle">Gemini 3.6 Flash</text>
 </svg></div>
   </figure>
+  
+  <div class="block"><h3>최소 78 은 어떻게 뽑나</h3>
+    <ul class="gist"><li>질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 셉니다 — 답변을 받기 전에 목록과 순서가 정해집니다.</li><li>규칙: <b>아직 목표 횟수를 못 채운 기준을 가장 많이 가진 질문</b>을 하나씩 고르고, 모든 기준이 목표에 닿으면 멈춥니다. 목표는 <b>기준마다 10번</b>.</li><li>질문 하나에 기준이 평균 20개 걸려 있어, 78개면 기준 64개가 모두 10개 이상의 질문에서 평가됩니다. 이미 채운 기준만 가진 질문은 던지지 않습니다.</li></ul>
+    <div class="two">
+      <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
+        <thead><tr><th>순서</th><th>고른 질문</th><th>횟수 표</th><th>왜</th></tr></thead><tbody><tr><th scope="row">1</th><td><b>Q1 (A B C D)</b></td><td class="num">A1 B1 C1 D1 E0</td><td>모자란 기준을 4개 가짐 — 가장 많음</td></tr><tr><th scope="row">2</th><td><b>Q2 (A B C)</b></td><td class="num">A2 B2 C2 D1 E0</td><td>모자란 기준 3개 (Q4 는 2개)</td></tr><tr><th scope="row">3</th><td><b>Q4 (D E)</b></td><td class="num">D2 E1</td><td>A·B·C 는 2번을 채워 더 안 셈. Q3 (A B) 는 모자란 게 0개라 건너뜀</td></tr><tr><th scope="row">4</th><td><b>Q5 (E)</b></td><td class="num">E2 → 끝</td><td>모든 기준이 2번</td></tr></tbody></table>
+        <div class="qnote">질문: Q1=A B C D · Q2=A B C · Q3=A B · Q4=D E · Q5=E. 5개 중 <b>4개</b>로 기준 5개가 모두 2번. "기준 많은 순"으로만 던지면 Q3 도 던져 5개가 필요합니다.</div></div>
+      <div class="cmpt rtab"><table><caption>실제 — 326개에서 고른 순서 (앞 8개)</caption>
+        <thead><tr><th>순서</th><th>질문</th><th>새로 채운 기준</th></tr></thead><tbody><tr><th scope="row">1</th><td><b>Q12</b> <span class="muted">(대화, 기준 36개)</span></td><td class="num">36개</td></tr><tr><th scope="row">2</th><td><b>Q15</b> <span class="muted">(대화, 기준 36개)</span></td><td class="num">36개</td></tr><tr><th scope="row">3</th><td><b>Q21</b> <span class="muted">(대화, 기준 36개)</span></td><td class="num">36개</td></tr><tr><th scope="row">4</th><td><b>Q22</b> <span class="muted">(대화, 기준 35개)</span></td><td class="num">35개</td></tr><tr><th scope="row">5</th><td><b>Q26</b> <span class="muted">(대화, 기준 35개)</span></td><td class="num">35개</td></tr><tr><th scope="row">6</th><td><b>Q11</b> <span class="muted">(대화, 기준 34개)</span></td><td class="num">34개</td></tr><tr><th scope="row">7</th><td><b>Q17</b> <span class="muted">(대화, 기준 34개)</span></td><td class="num">34개</td></tr><tr><th scope="row">8</th><td><b>Q18</b> <span class="muted">(대화, 기준 33개)</span></td><td class="num">33개</td></tr></tbody></table>
+        <div class="qnote">던지는 순서 = 고른 순서. 처음엔 모든 기준이 모자라 기준이 가장 많은 10턴 대화부터, 뒤로 갈수록 아직 모자란 기준(코드·첨부·긴 문서 등)을 가진 단일 질문이 뽑힙니다. 전체 78개 순서: 참고자료/최소평가/min_eval_m10.md</div></div>
+    </div>
+    <div class="two">
+      <div class="cmpt rtab"><table><caption>목표를 몇 번으로 두느냐에 따라 질문 수가 달라집니다</caption>
+        <thead><tr><th>목표 횟수</th><th>필요한 질문 수</th><th>FAIL 조합 포착</th></tr></thead><tbody><tr><th scope="row">1번</th><td class="num">7</td><td class="num">24%</td></tr><tr><th scope="row">3번</th><td class="num">21</td><td class="num">49%</td></tr><tr><th scope="row">5번</th><td class="num">37</td><td class="num">61%</td></tr><tr class=pick><th scope="row">10번</th><td class="num">78</td><td class="num">80%</td></tr><tr><th scope="row">20번</th><td class="num">155</td><td class="num">87%</td></tr></tbody></table></div>
+      <div class="defbox"><h3>왜 10번인가</h3>
+        <p>기준마다 10번은 평가돼야 "이 모델이 이 기준에서 몇 번 중 몇 번 틀리나"를 말할 수 있습니다.</p>
+        <p>10번까지는 질문을 늘린 만큼 FAIL 포착이 크게 오르고(61% → 80%), 10을 넘기면 질문은 두 배(78 → 155)인데 7%p 만 더 오릅니다. 326 결과로 1·3·5·10·20번을 다 세어 본 값입니다.</p></div>
+    </div>
+  </div>
+
   <div class="block">
     <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 전체</caption>
       <thead><tr><th>기준 묶음</th><th>GPT</th><th>AIONA</th><th>Claude</th><th>Gemini</th></tr></thead><tbody><tr><th scope="row">CODE 1 출력 무결성</th><td class="num">1 <span class="muted">/ 3</span></td><td class="num">7 <span class="muted">/ 15</span></td><td class="num">1 <span class="muted">/ 6</span></td><td class="num">2 <span class="muted">/ 8</span></td></tr><tr><th scope="row">CODE 2 형식·지시</th><td class="num">8 <span class="muted">/ 36</span></td><td class="num">10 <span class="muted">/ 44</span></td><td class="num">9 <span class="muted">/ 45</span></td><td class="num">10 <span class="muted">/ 59</span></td></tr><tr><th scope="row">CODE 3 계산·자료</th><td class="num">4 <span class="muted">/ 17</span></td><td class="num">7 <span class="muted">/ 17</span></td><td class="num">6 <span class="muted">/ 19</span></td><td class="num">7 <span class="muted">/ 20</span></td></tr><tr><th scope="row">J1 의도 충족</th><td class="num">1 <span class="muted">/ 1</span></td><td class="num">4 <span class="muted">/ 5</span></td><td class="num muted">—</td><td class="num muted">—</td></tr><tr><th scope="row">J2 맥락 적합</th><td class="num">1 <span class="muted">/ 1</span></td><td class="num">5 <span class="muted">/ 8</span></td><td class="num">5 <span class="muted">/ 13</span></td><td class="num">9 <span class="muted">/ 21</span></td></tr><tr><th scope="row">J3 논리 일관</th><td class="num">1 <span class="muted">/ 1</span></td><td class="num">0 <span class="muted">/ 2</span></td><td class="num">2 <span class="muted">/ 10</span></td><td class="num">6 <span class="muted">/ 17</span></td></tr><tr><th scope="row">J4 완결성</th><td class="num">3 <span class="muted">/ 5</span></td><td class="num">3 <span class="muted">/ 4</span></td><td class="num">4 <span class="muted">/ 6</span></td><td class="num">3 <span class="muted">/ 8</span></td></tr><tr><th scope="row">J5 DATA 신뢰도</th><td class="num">8 <span class="muted">/ 20</span></td><td class="num">7 <span class="muted">/ 12</span></td><td class="num">9 <span class="muted">/ 41</span></td><td class="num">15 <span class="muted">/ 41</span></td></tr><tr><th scope="row">J6 멀티턴 맥락</th><td class="num">8 <span class="muted">/ 10</span></td><td class="num">6 <span class="muted">/ 10</span></td><td class="num">10 <span class="muted">/ 15</span></td><td class="num">10 <span class="muted">/ 16</span></td></tr><tr><th scope="row">J7 롱컨텍스트</th><td class="num">3 <span class="muted">/ 3</span></td><td class="num">4 <span class="muted">/ 4</span></td><td class="num">1 <span class="muted">/ 1</span></td><td class="num">1 <span class="muted">/ 1</span></td></tr><tr><th scope="row">J8 첨부 해석</th><td class="num muted">—</td><td class="num muted">—</td><td class="num">1 <span class="muted">/ 2</span></td><td class="num muted">—</td></tr></tbody></table></div>
@@ -1390,9 +1410,7 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 </svg></div>
   </figure>
   <div class="two">
-    <div class="cmpt ktab"><table><caption>① 목록이 FAIL 을 얼마나 잡나</caption>
-      <thead><tr><th>N</th><th>목표</th><th>FAIL 조합</th><th>FAIL 사건</th><th>무작위(조합)</th></tr></thead><tbody><tr><th scope="row">7</th><td>1번↑</td><td class="d">24%</td><td>4%</td><td>12%</td></tr><tr><th scope="row">21</th><td>3번↑</td><td class="d">49%</td><td>13%</td><td>30%</td></tr><tr><th scope="row">37</th><td>5번↑</td><td class="d">61%</td><td>18%</td><td>42%</td></tr><tr class=pick><th scope="row">78</th><td>10번↑</td><td class="d">80%</td><td>36%</td><td>64%</td></tr><tr><th scope="row">155</th><td>20번↑</td><td class="d">87%</td><td>62%</td><td>82%</td></tr><tr class=pick><th scope="row">326</th><td>정밀</td><td class="d">100%</td><td>100%</td><td>100%</td></tr></tbody></table></div>
-    <div class="cmpt ktab"><table><caption>② 새 세트 N개일 때 순서가 맞을 확률</caption>
+    <div class="cmpt ktab"><table><caption>새 세트 N개일 때 순서가 맞을 확률</caption>
       <thead><tr><th>N</th><th>전체 순위</th><th>GPT>AIONA</th><th>AIONA>Claude</th><th>Claude>Gemini</th></tr></thead><tbody><tr><th scope="row">50</th><td>52%</td><td class="d">80%</td><td>90%</td><td>64%</td></tr><tr><th scope="row">100</th><td>67%</td><td class="d">90%</td><td>97%</td><td>72%</td></tr><tr><th scope="row">150</th><td>77%</td><td class="d">94%</td><td>99%</td><td>78%</td></tr><tr class=pick><th scope="row">250</th><td>86%</td><td class="d">98%</td><td>100%</td><td>84%</td></tr><tr class=pick><th scope="row">326</th><td>88%</td><td class="d">99%</td><td>100%</td><td>88%</td></tr><tr><th scope="row">500</th><td>93%</td><td class="d">100%</td><td>100%</td><td>92%</td></tr></tbody></table></div>
   </div>
 </section>

@@ -692,16 +692,51 @@ s6 = f"""
 </section>
 """
 
+# 최소 평가를 어떻게 뽑나 — 작은 예(기준 5개, 목표 2번) + 실제 첫 순서
+_m10 = json.load(open(ROOT / "참고자료/최소평가/min_eval_m10.json", encoding="utf-8"))
+pick_steps = [("1", "Q1 (A B C D)", "A1 B1 C1 D1 E0", "모자란 기준을 4개 가짐 — 가장 많음"),
+              ("2", "Q2 (A B C)", "A2 B2 C2 D1 E0", "모자란 기준 3개 (Q4 는 2개)"),
+              ("3", "Q4 (D E)", "D2 E1", "A·B·C 는 2번을 채워 더 안 셈. Q3 (A B) 는 모자란 게 0개라 건너뜀"),
+              ("4", "Q5 (E)", "E2 → 끝", "모든 기준이 2번")]
+pick_rows = "".join(f'<tr><th scope="row">{n}</th><td><b>{E(q)}</b></td><td class="num">{E(t)}</td><td>{E(w)}</td></tr>' for n, q, t, w in pick_steps)
+real_rows = "".join(f'<tr><th scope="row">{i}</th><td><b>Q{c["id"]}</b> <span class="muted">({E(c["kind"])}, 기준 {c["k"]}개)</span></td><td class="num">{len(c["new"])}개</td></tr>'
+                    for i, c in enumerate(_m10["chosen"][:8], 1))
+GOAL = [("1번", 7, "24%"), ("3번", 21, "49%"), ("5번", 37, "61%"), ("10번", 78, "80%"), ("20번", 155, "87%")]
+goal_rows = "".join(f'<tr{" class=pick" if g == "10번" else ""}><th scope="row">{g}</th><td class="num">{n}</td><td class="num">{r}</td></tr>' for g, n, r in GOAL)
+
+s_pick = f"""
+  <div class="block"><h3>최소 78 은 어떻게 뽑나</h3>
+    {gist("질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 셉니다 — 답변을 받기 전에 목록과 순서가 정해집니다.",
+          "규칙: <b>아직 목표 횟수를 못 채운 기준을 가장 많이 가진 질문</b>을 하나씩 고르고, 모든 기준이 목표에 닿으면 멈춥니다. 목표는 <b>기준마다 10번</b>.",
+          "질문 하나에 기준이 평균 20개 걸려 있어, 78개면 기준 64개가 모두 10개 이상의 질문에서 평가됩니다. 이미 채운 기준만 가진 질문은 던지지 않습니다.")}
+    <div class="two">
+      <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
+        <thead><tr><th>순서</th><th>고른 질문</th><th>횟수 표</th><th>왜</th></tr></thead><tbody>{pick_rows}</tbody></table>
+        <div class="qnote">질문: Q1=A B C D · Q2=A B C · Q3=A B · Q4=D E · Q5=E. 5개 중 <b>4개</b>로 기준 5개가 모두 2번. "기준 많은 순"으로만 던지면 Q3 도 던져 5개가 필요합니다.</div></div>
+      <div class="cmpt rtab"><table><caption>실제 — 326개에서 고른 순서 (앞 8개)</caption>
+        <thead><tr><th>순서</th><th>질문</th><th>새로 채운 기준</th></tr></thead><tbody>{real_rows}</tbody></table>
+        <div class="qnote">던지는 순서 = 고른 순서. 처음엔 모든 기준이 모자라 기준이 가장 많은 10턴 대화부터, 뒤로 갈수록 아직 모자란 기준(코드·첨부·긴 문서 등)을 가진 단일 질문이 뽑힙니다. 전체 78개 순서: 참고자료/최소평가/min_eval_m10.md</div></div>
+    </div>
+    <div class="two">
+      <div class="cmpt rtab"><table><caption>목표를 몇 번으로 두느냐에 따라 질문 수가 달라집니다</caption>
+        <thead><tr><th>목표 횟수</th><th>필요한 질문 수</th><th>FAIL 조합 포착</th></tr></thead><tbody>{goal_rows}</tbody></table></div>
+      <div class="defbox"><h3>왜 10번인가</h3>
+        <p>기준마다 10번은 평가돼야 "이 모델이 이 기준에서 몇 번 중 몇 번 틀리나"를 말할 수 있습니다.</p>
+        <p>10번까지는 질문을 늘린 만큼 FAIL 포착이 크게 오르고(61% → 80%), 10을 넘기면 질문은 두 배(78 → 155)인데 7%p 만 더 오릅니다. 326 결과로 1·3·5·10·20번을 다 세어 본 값입니다.</p></div>
+    </div>
+  </div>
+"""
+
 s7 = f"""
 <section class="slide" id="s7">
   {head("07", "최소 78 vs 정밀 326 — 같은 판정으로 비교", "")}
-  {gist("고르는 규칙: <b>아직 덜 채운 기준을 가장 많이 채우는 질문부터</b>, 기준마다 10번 이상이 될 때까지 (집합 덮기 표준 탐욕법, 팀원 검산으로 교체).",
-        "78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.")}
+  {gist("78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". PASS:FAIL 은 어려운 질문 위주라 정밀보다 FAIL 쪽으로 기웁니다.")}
   <figure class="fig">
     <div class="fig-head"><h3>모델별 PASS · FAIL · 보류 — 정밀 326 과 최소 78</h3>
       <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div>
     <div class="chart-scroll">{cmp_chart()}</div>
   </figure>
+  {s_pick}
   <div class="block">
     <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 전체</caption>
       <thead><tr><th>기준 묶음</th><th>GPT</th><th>AIONA</th><th>Claude</th><th>Gemini</th></tr></thead><tbody>{fbg_rows}</tbody></table></div>
@@ -727,9 +762,7 @@ s8 = f"""
     <div class="chart-scroll">{ss_chart()}</div>
   </figure>
   <div class="two">
-    <div class="cmpt ktab"><table><caption>① 목록이 FAIL 을 얼마나 잡나</caption>
-      <thead><tr><th>N</th><th>목표</th><th>FAIL 조합</th><th>FAIL 사건</th><th>무작위(조합)</th></tr></thead><tbody>{fc_rows}</tbody></table></div>
-    <div class="cmpt ktab"><table><caption>② 새 세트 N개일 때 순서가 맞을 확률</caption>
+    <div class="cmpt ktab"><table><caption>새 세트 N개일 때 순서가 맞을 확률</caption>
       <thead><tr><th>N</th><th>전체 순위</th><th>GPT>AIONA</th><th>AIONA>Claude</th><th>Claude>Gemini</th></tr></thead><tbody>{bs_rows}</tbody></table></div>
   </div>
 </section>
