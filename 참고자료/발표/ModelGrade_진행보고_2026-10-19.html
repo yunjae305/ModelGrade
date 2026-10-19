@@ -1244,14 +1244,10 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 <section class="slide" id="s7">
   <div class="s-head"><span class="s-no">07 / 09</span><h2>최소 78 vs 정밀 326 — 어떻게 뽑고, 결과는 어떤가</h2></div>
   <ul class="gist"><li>기준 72개에 맞춰 질문 326개를 만들었습니다. 그래서 <b>한 기준을 검사하는 질문이 여러 개</b>입니다 — 예: '표로 정리해' 기준은 46개 질문에 들어 있습니다.</li><li>정밀 평가는 326개를 다 던집니다. 최소 평가는 <b>기준마다 10개 질문까지만</b> 던집니다 — 그 이상은 굳이 안 던집니다.</li><li>질문 하나에 기준이 평균 20개 걸려 있어 질문 하나가 기준 20개를 동시에 1번씩 채웁니다. 그래서 <b>78개</b>면 기준 64개가 모두 10번 이상 평가됩니다.</li></ul>
-  <div class="two">
+  <div class="block">
     <div class="cmpt rtab"><table><caption>한 기준을 검사하는 질문 수 — 326 전체 vs 최소 78</caption>
       <thead><tr><th>기준</th><th>326 중</th><th>78 중</th></tr></thead><tbody><tr><th scope="row">표 요구 (2-2.table)</th><td class="num">46</td><td class="num"><b>14</b></td></tr><tr><th scope="row">글자 수 (2-1.char_count)</th><td class="num">73</td><td class="num"><b>21</b></td></tr><tr><th scope="row">코드블록 (1-2.code_block)</th><td class="num">47</td><td class="num"><b>16</b></td></tr><tr><th scope="row">말투·존댓말 (J2-2.a)</th><td class="num">62</td><td class="num"><b>17</b></td></tr><tr><th scope="row">자료 값 충실 (J5-2.a)</th><td class="num">233</td><td class="num"><b>49</b></td></tr><tr><th scope="row">앞 턴 지시 유지 (J6-1.a)</th><td class="num">16</td><td class="num"><b>10</b></td></tr><tr><th scope="row">긴 문서 정보 찾기 (J7-1.a)</th><td class="num">10</td><td class="num"><b>10</b></td></tr><tr><th scope="row">빈 출력 요구 (2-1.explicit_empty)</th><td class="num">10</td><td class="num"><b>10</b></td></tr></tbody></table>
       <div class="qnote">기준 64개 전부가 78 안에서 10개 이상의 질문에 걸립니다. 그 기준을 가진 질문이 딱 10개면(긴 문서·빈 출력 요구) 10개 모두 들어갑니다.</div></div>
-    <div class="defbox"><h3>무작위로 10개씩 뽑는 게 아닙니다</h3>
-      <p>기준마다 따로 10개를 뽑으면 겹치는 기준이 많아 100개가 넘게 필요합니다. 대신 <b>아직 10번을 못 채운 기준을 가장 많이 가진 질문</b>을 하나씩 고릅니다. 고른 질문의 기준들을 1씩 채우고, 모든 기준이 10에 닿으면 멈춥니다.</p>
-      <p>"기준이 많은 질문부터"만으로 던지면 110개가 필요합니다. 기준이 가장 많은 질문들(10턴 대화)끼리 기준이 거의 같아, 몇 개 던지고 나면 다음 대화는 새로 채우는 게 1~2개뿐이기 때문입니다. 그래서 '기준 수'가 아니라 '아직 모자란 기준 수'로 고릅니다.</p>
-      <p>이 순서는 답변을 받기 전에 정해집니다 — 질문마다 어떤 기준이 걸리는지는 질문 글만 보고 코드가 셉니다. 고른 순서가 곧 던지는 순서입니다.</p></div>
   </div>
   <div class="two">
     <div class="cmpt rtab"><table><caption>작은 예 — 기준 5개(A~E), 목표 2번</caption>
