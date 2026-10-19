@@ -271,3 +271,29 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
     assert "같은 말을 두 번" in text and "Jev FAIL 0.8" in text and "받은 방법 empty" in text and "1분 10초" in text and "판정 시간" in text
     assert "HTML 보고서" in capsys.readouterr().out
     assert write_report(out, None).name == "report.html"   # 실행 JSON 없이도 만들어진다
+
+
+def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_and_progress_is_saved_per_question(tmp_path, monkeypatch):
+    """빈 출력 요구 질문(Q3)의 빈 답은 SUCCESS, 보통 질문(Q1)의 빈 답은 ERROR(복사 실패로 보고 다시 받음). 질문마다 실행 파일에 중간 저장된다."""
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    saves = []
+
+    class FakeChat:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+        def new_chat(self): pass
+        def ask(self, question, files=None, reference=None):
+            saves.append(len(list(_runs(tmp_path))) and json.loads(_runs(tmp_path)[0].read_text(encoding="utf-8")))
+            return {"answer": "", "status": "SUCCESS", "capture": "empty", "latency_ms": 1, "model": "m", "method": "x", "error": None, "url": None, "sent": []}
+    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    set_dir = _set(tmp_path)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    run = mg.new_run("빈답", set_dir, groups); mg.save_run(run)
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"]]) == 0
+    rows = {r["case_id"]: r for r in mg.load_run(run["run_id"])["datasets"]["gpt"]}
+    assert rows["Q3_T1"]["collection"]["status"] == "SUCCESS" and rows["Q3_T1"]["collection"]["capture"] == "empty"   # 빈 출력 요구 → 빈 답 성공
+    assert rows["Q1_T1"]["collection"]["status"] == "ERROR" and "답이 비어 있음" in rows["Q1_T1"]["collection"]["error"]   # 보통 질문 → 다시 받기
+    # 둘째 질문(Q3)을 물을 때 이미 첫 질문(Q1) 결과가 파일에 저장돼 있다
+    assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["status"] == "ERROR" for r in saves[1]["datasets"]["gpt"])

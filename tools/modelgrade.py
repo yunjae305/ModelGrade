@@ -130,10 +130,10 @@ def run_meta(run: Dict[str, Any]) -> Dict[str, Any]:
     return {k: run.get(k) for k in META_KEYS}
 
 
-def save_run(run: Dict[str, Any]) -> Path:
+def save_run(run: Dict[str, Any], backup: bool = True) -> Path:
     RUNS.mkdir(parents=True, exist_ok=True)
     path = RUNS / f"{run['run_id']}.json"
-    if path.exists():
+    if backup and path.exists():
         shutil.copyfile(path, path.with_suffix(f".json.bak-{datetime.now().strftime('%Y%m%d-%H%M%S')}"))
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
@@ -309,8 +309,10 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
     return 0
 
 
-def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List[Dict[str, Any]], evaluation: Dict[str, Any], import_entry: Dict[str, Any]) -> Path:
-    """실행 JSON 을 잠금 아래 다시 읽어 이 모델 자리만 바꿔 저장 — 다른 앱의 자식 프로세스가 같은 파일을 동시에 쓴다."""
+def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List[Dict[str, Any]], evaluation: Optional[Dict[str, Any]],
+                            import_entry: Optional[Dict[str, Any]], backup: bool = True) -> Path:
+    """실행 JSON 을 잠금 아래 다시 읽어 이 모델 자리만 바꿔 저장 — 다른 앱의 자식 프로세스가 같은 파일을 동시에 쓴다.
+    evaluation·import_entry 가 None 이면 그 자리는 그대로(질문마다 중간 저장할 때)."""
     import os
     lock = RUNS / f"{run_id}.lock"
     deadline = time.monotonic() + 120
@@ -329,9 +331,11 @@ def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List
             run["providers"].append(provider)
         run.setdefault("models", {})[provider] = label
         run.setdefault("datasets", {})[provider] = merged
-        run.setdefault("evaluations", {})[provider] = evaluation
-        run.setdefault("imports", []).append(import_entry)
-        return save_run(run)
+        if evaluation is not None:
+            run.setdefault("evaluations", {})[provider] = evaluation
+        if import_entry is not None:
+            run.setdefault("imports", []).append(import_entry)
+        return save_run(run, backup=backup)
     finally:
         try:
             lock.unlink()
@@ -368,6 +372,33 @@ def collect_app_one(args: argparse.Namespace) -> int:
     chat_cls = app_chat_class(args.provider)
     new_rows: Dict[str, Dict[str, Any]] = {}
     started_wall = time.monotonic()
+    from webapp.run_summary import asks_empty_output
+
+    def merged_rows() -> List[Dict[str, Any]]:
+        """질문 세트 순서로 — 새 행이 있으면 바꾸고 없으면 전 행(또는 답 없음) 유지."""
+        out = []
+        for index, r in enumerate(rows_all):
+            row = new_rows.get(r["case_id"]) or existing.get(r["case_id"])
+            if row is None:
+                row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": "", "system_id": args.provider, "source": label, "case_index": index,
+                       "collection": {"status": "ERROR", "error": "아직 받지 않음", "method": "pending"}}
+                for key in ("reference", "attachments", "conversation_id", "turn"):
+                    if r.get(key) not in (None, "", []):
+                        row[key] = r[key]
+            out.append(row)
+        return out
+
+    backed_up = [False]
+
+    def checkpoint() -> None:
+        """질문 하나를 받을 때마다 실행 파일에 저장 — 중간에 멈춰도 받은 답이 남는다(10-20). 백업은 프로세스당 한 번만(파일이 수십 MB)."""
+        if not args.run:
+            return
+        try:
+            merge_provider_into_run(run["run_id"], args.provider, label, merged_rows(), None, None, backup=not backed_up[0])
+            backed_up[0] = True
+        except SystemExit as exc:
+            print(f"  (중간 저장 실패: {exc})", flush=True)
     with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None)) as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
         for i, q in enumerate(wanted, 1):
@@ -381,6 +412,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
             for r in turns:
                 files = materialize_attachments(r, set_dir, Path(tmpd))
                 res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
+                if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
+                    res = {**res, "status": "ERROR", "error": f"답이 비어 있음(받은 방법 {res.get('capture')}) — 복사 실패로 보고 다음에 다시 받음"}   # Claude Q12 1턴 사고 10-20
                 col = {k: v for k, v in res.items() if k != "answer"}
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
@@ -395,17 +428,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     break
             if all(new_rows.get(t["case_id"], {}).get("collection", {}).get("status") == "SUCCESS" for t in turns):
                 got += 1
-    # 실행에 합치기 — 질문 세트 순서로, 새 행이 있으면 바꾸고 없으면 전 행(또는 답 없음) 유지
-    merged = []
-    for index, r in enumerate(rows_all):
-        row = new_rows.get(r["case_id"]) or existing.get(r["case_id"])
-        if row is None:
-            row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": "", "system_id": args.provider, "source": label, "case_index": index,
-                   "collection": {"status": "ERROR", "error": "아직 받지 않음", "method": "pending"}}
-            for key in ("reference", "attachments", "conversation_id", "turn"):
-                if r.get(key) not in (None, "", []):
-                    row[key] = r[key]
-        merged.append(row)
+            checkpoint()
+    merged = merged_rows()
     print("CODE 평가 중 …", flush=True)
     evaluation = code_evaluate(merged, args.provider)
     entry = {"provider": args.provider, "method": "collect-app-v1", "at": _now(), "questions": wanted,
@@ -419,7 +443,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
         run.setdefault("imports", []).append(entry)
         path = save_run(run)
     else:
-        path = merge_provider_into_run(run["run_id"], args.provider, label, merged, evaluation, entry)   # 동시 수집: 다른 앱이 쓴 자리는 건드리지 않는다
+        path = merge_provider_into_run(run["run_id"], args.provider, label, merged, evaluation, entry, backup=not backed_up[0])   # 동시 수집: 다른 앱이 쓴 자리는 건드리지 않는다
     ok = sum(1 for r in merged if r["collection"].get("status") == "SUCCESS")
     rows_by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in merged:
