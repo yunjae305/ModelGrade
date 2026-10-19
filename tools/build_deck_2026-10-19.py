@@ -712,6 +712,26 @@ s5 = f"""
 </section>
 """
 
+# AIONA 보류 예시 — 사유마다 하나 (2026-10-19, 보류목록 CSV 에서 고름)
+AIONA_HOLD_EX = [
+    ("J5 심판이 옮겨 적은 문장이 답변과 안 맞음", "Q11 8턴 (10턴 대화) — 모집 공지문을 수정해 촬영 금지를 눈에 띄게, 휠체어 이동 경로 문의 안내 추가",
+     "답변의 공지문 항목 '행사 당일 오전 10시에 예보를 확인합니다. 비가 예보되면 행사를 취소합니다.'",
+     "심판이 이 문장을 옮겨 적을 때 소제목을 답변과 다르게 적어 \"검증 주장이 답변 원문에 없습니다\"로 대조 실패 → 확인 못 함 → 보류. 답변 잘못이 아니라 대조 규칙 보강 대상"),
+    ("J5 웹 출처 원문을 못 엶", "Q15 1턴 — 동네 수리카페 개설 기획 (예산 80만 원·자원봉사자 4명, 안전 규정은 단정하지 말 것)",
+     "'접수 후 바로 작업대로 보내기보다 먼저 상태와 안전성을 살피면 … 도움이 됩니다' 같은 안전 관련 주장",
+     "심판이 근거로 찾은 미국 산업안전청 페이지(osha.gov)가 열리지 않음(http 오류) → 주장 확인 못 함 → 보류"),
+    ("J6 멀티턴 근거 부족", "Q11 9턴 (10턴 대화) — 공지문 마지막 문장을 지정 문구로 바꾸되, 앞 턴에서 추가한 촬영 금지 강조·이동 경로 문의·앉아서 참여 내용은 유지",
+     "수정된 공지문 전체 (앞 턴 조건을 유지했는지가 쟁점)",
+     "\"이전 지시와 현재 답변의 검증 가능한 근거가 부족합니다\" — 앞 턴 조건을 지켰는지 심판이 확정하지 못함 → 보류"),
+    ("J1~J4 두 심판이 갈림", "Q12 8턴 (10턴 대화) — 가게 신제품 소개문을 같은 결과물로 수정: '죄책감 없이'·건강 단정 문구 빼고 향과 식감에 초점",
+     "'밀숲의 신제품 두 가지를 준비했습니다.'",
+     "Jev PASS · GPT-6 Luna FAIL(설정상 아직 준비 중인데 준비 완료처럼 표현) · 재판정 PASS — 셋이 달라 사람이 정함 → 보류"),
+    ("빈 출력 요구 질문", "Q31 1턴 — '아무것도 출력하지 마. 공백 포함 정확히 0자로 유지…'",
+     "답 대신 오류 화면: '처리 중 오류가 생겨 멈췄습니다. 잠시 후 다시 시도해 주세요.'",
+     "빈 출력을 지킨 것인지 오류인지 가릴 수 없어 질문 10개 전체를 보류(사용자 결정 10-19). AIONA 는 그중 8개가 오류 화면"),
+]
+aiona_hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="exq">{E(b)}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td></tr>' for a, b, c, d in AIONA_HOLD_EX)
+
 s6 = f"""
 <section class="slide" id="s6">
   {head("06", "결과", "질문 단위(대화 1개 = 1개). 결과는 <b>확정 질문의 PASS : FAIL</b>과 <b>보류 비율</b>로 봅니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else ""))}
@@ -734,6 +754,8 @@ s6 = f"""
       <thead><tr><th>모델</th><th>CODE FAIL<br>질문 수</th><th>많이 걸린 검사 (질문 수)</th><th>의미 FAIL<br>질문 수</th><th>많이 걸린 항목 (턴 수)</th></tr></thead><tbody>{fail_rows}</tbody></table></div>
     <div class="cmpt rtab"><table><caption>보류는 왜 생겼나</caption>
       <thead><tr><th>사유</th><th>AIONA</th><th>GPT</th><th>Claude</th><th>Gemini</th><th>설명</th></tr></thead><tbody>{hold_rows}</tbody></table></div>
+    <div class="cmpt rtab"><table><caption>AIONA 보류 예 — 사유마다 하나 (참고자료/보류목록/8c61f117e661-held.csv)</caption>
+      <thead><tr><th>사유</th><th>질문</th><th>답변에서 문제가 된 부분</th><th>심판이 남긴 것 → 왜 보류인가</th></tr></thead><tbody>{aiona_hold_rows}</tbody></table></div>
   </div>
   <div class="cmpt rtab"><table><caption>기준별 FAIL 률 — 많이 틀린 기준 12개</caption>
     <thead><tr><th>기준</th><th>판정 수</th><th>FAIL (률)</th><th>모델별 FAIL</th></tr></thead><tbody>{cf_rows}</tbody></table>
