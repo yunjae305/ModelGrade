@@ -371,6 +371,9 @@ class AionaChat:
             as_is = self._send_as_is() or as_is
             masked = self._mask_and_send() or masked   # 개인정보 확인 안내는 질문 칸이 올라간 뒤 뜬다 — 전송 보류를 풀어야 답이 온다
             if self._answers().count() <= before:
+                empty += 1   # 말풍선조차 안 생긴 채 시간이 간다 — 90초(60틱)면 빈 답으로 끝낸다 (무한 대기 방지 2026-10-20)
+                if empty >= 60:
+                    break
                 stopped = self._stopped()
                 if len(stopped) > stopped_before:   # AIONA 가 이 질문에서 멈췄다 — 기다리지 않고 AIONA 오류로 남긴다
                     return {"answer": "", "status": "ERROR", "error": f"AIONA 가 답하지 못했습니다: {stopped[-1][:200]}", "url": self.page.url,

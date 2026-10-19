@@ -446,6 +446,20 @@ class ClaudeAppChat:
                 best, best_k = g, int(m.group(2))
         return best
 
+    def _group_screen_text(self, group: Any) -> str:
+        """말풍선 안의 글 전부 — 이름 있는 모든 요소(Text·ListItem·셀 등)와 편집 블록 값. 목록 항목은 Text 가 아니라 ListItem 이름에 들어 있다(2026-10-20)."""
+        parts = []
+        for d in group.descendants():
+            i = d.element_info
+            if i.name and i.control_type not in ("Button", "ToolBar"):
+                parts.append(i.name)
+            if i.control_type == "Edit":
+                try:
+                    parts.append(d.get_value() or "")
+                except Exception:
+                    pass
+        return "\n".join(parts)
+
     def _draft_blocks(self, group: Any) -> List[str]:
         """답 안의 편집 블록(초안·문서 카드, Edit) 값들 — 복사 아이콘 글에는 이 블록이 안 들어간다(Q56, 2026-10-19). 수만 기록한다."""
         out = []
@@ -471,7 +485,7 @@ class ClaudeAppChat:
             if group is not None:
                 top = group.element_info.rectangle.top
                 bars = [b for b in self._answer_bars() if b.element_info.rectangle.top >= top - 10]
-                screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text")))
+                screen = _squash(self._group_screen_text(group))
             else:
                 docs = [d.element_info.name or "" for d in self._all("Document")]
                 if any("Claude Code" in d for d in docs) and not any(d.endswith("- Claude") for d in docs):
@@ -508,7 +522,7 @@ class ClaudeAppChat:
                 text = _clipboard_get()
                 if text and text != self.COPY_SENTINEL:
                     break
-            if text and text != self.COPY_SENTINEL and (not screen or _squash(text)[:40] in screen or _squash(text)[-40:] in screen):
+            if text and text != self.COPY_SENTINEL and _matches_screen(text, screen):
                 return text
             last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
             time.sleep(3)
@@ -614,7 +628,9 @@ class ClaudeAppChat:
             last = current
             if stable >= 2 and (len(self._answer_bars()) > before or (current and current != text_before)):
                 break
-        done = stable >= 2 and (len(self._answer_bars()) > before or bool(last) and last != text_before)
+            if stable >= 60:   # 정지 버튼 없이 90초째 아무 변화 없음 — 빈 답으로 끝난 것
+                break
+        done = (stable >= 2 and (len(self._answer_bars()) > before or bool(last) and last != text_before)) or stable >= 60
         answer, capture, drafts = "", "text", 0
         if done:
             self._front()
@@ -641,8 +657,19 @@ class ClaudeAppChat:
 # --- 창 배치 · 대조 -----------------------------------------------------------------------------------
 
 def _squash(text: str) -> str:
-    """대조용 — 공백·마크다운 표시 제거."""
-    return re.sub(r"[\s#*_`>|\-]+", "", text or "")
+    """대조용 — 공백·마크다운 표시·숫자·구두점 제거(목록 번호 '1.'·표 테두리가 화면 글에는 없다, 2026-10-20)."""
+    return re.sub(r"[\s#*_`>|\-\d.,:;()\[\]~·\"'“”‘’%+=/\\!?]+", "", text or "")
+
+
+def _matches_screen(copied: str, screen: str) -> bool:
+    """복사한 글이 화면의 답과 같은 글인가 — 앞·가운데·뒤 30자 조각 중 하나라도 화면 글에 있으면 같은 글로 본다."""
+    c = _squash(copied)
+    if not screen or not c:
+        return True
+    if len(c) <= 30:
+        return c in screen
+    chunks = (c[:30], c[len(c) // 2 - 15: len(c) // 2 + 15], c[-30:])
+    return any(ch and ch in screen for ch in chunks)
 
 
 def place_window(win: Any, place: str) -> None:

@@ -430,7 +430,9 @@ class _CdpChat:
             last = current
             if stable >= 2 and (self._answers().count() > before or (current and current != text_before)):
                 break
-        done = stable >= 2 and (self._answers().count() > before or bool(last) and last != text_before)
+            if stable >= 60:   # 정지 버튼 없이 90초째 아무 변화 없음 — 빈 답으로 끝난 것 (제한 시간을 없앤 뒤 무한 대기 사고 2026-10-20)
+                break
+        done = (stable >= 2 and (self._answers().count() > before or bool(last) and last != text_before)) or stable >= 60
         answer, capture = (last or ""), "text"
         if done:
             with _CHROME_LOCK:
