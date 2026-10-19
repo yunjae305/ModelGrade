@@ -273,6 +273,29 @@ def apply_overrides(turn_items: Dict[str, Dict[str, Any]]) -> None:
                 entry["override"] = f"{cond} {when} → 해당 없음 (상황표 2)"
 
 
+def combine_jev_gpt(jev_v: Dict[str, Any], gpt_v: Dict[str, Any]) -> Dict[str, Any]:
+    """Jev 가 FAIL·애매하다고 한 항목을 Codex 가 다시 본 결과를 합친다(judge-split-v2, 사용자 승인 2026-10-19).
+    Codex FAIL → FAIL(사유·인용은 Codex 것) · Jev FAIL + Codex PASS → 보류(심판 갈림) · Jev 애매 + Codex PASS → PASS · Codex 가 못 보면 보류."""
+    probs = jev_v.get("probabilities") or {}
+    jev_mark = {"decision": jev_v.get("decision"), "probabilities": probs}
+    out = {**gpt_v, "judge": "jev+gpt", "jev": jev_mark}
+    gpt_decision = gpt_v.get("decision")
+    problems = list(gpt_v.get("problems") or [])
+    if gpt_decision == "FAIL":
+        out["decision"] = "FAIL"
+    elif gpt_decision == "PASS" and jev_v.get("decision") == "FAIL":
+        out["decision"] = "UNVERIFIED"
+        problems.append(f"심판 갈림: Jev FAIL(확률 {probs.get('FAIL', '?')}) · GPT PASS — 사람이 확인")
+    elif gpt_decision == "PASS":
+        out["decision"] = "PASS"
+    else:   # NOT_APPLICABLE·UNVERIFIED·없음 — Codex 쪽 판단을 따르되 보류로 남긴다
+        out["decision"] = gpt_decision or "UNVERIFIED"
+        if not gpt_decision:
+            problems.append("Codex 가 이 항목을 확정하지 못함(Jev " + str(jev_v.get("decision")) + ")")
+    out["problems"] = problems
+    return out
+
+
 def semantic_verdict(turn_results: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
     """질문의 의미 평가 판정 — 항목 하나라도 FAIL 이면 FAIL, 아니면 확인 못 함(UNVERIFIED)이 있으면 HOLD, 그 밖은 PASS."""
     decisions = [e["decision"] for items in turn_results.values() for e in items.values()]

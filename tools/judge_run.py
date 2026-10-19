@@ -39,6 +39,7 @@ from webapp.run_summary import question_outcome  # noqa: E402
 
 VERSION = "judge-run-v1"
 JEV_MAX_STATE_CHARS = 0   # 0 = 상한 없음 (사용자 결정 2026-10-19)
+JEV_CONFIDENT = 0.7   # Jev 결정의 최대 확률이 이보다 낮으면 '애매' — Codex 가 다시 본다 (.env JEV_CONFIDENT)
 JEV_TRIM_CHARS = 35_000   # Jev 입력 예산 — 넘으면 긴 자료(첨부·참조)만 줄인다(.env JEV_TRIM_CHARS, 0 = 안 줄임). 3.6만 자는 받고 5.2만 자는 400 (2026-10-19)
 
 
@@ -117,12 +118,13 @@ class JevJudge:
 
     name = "jev"
 
-    def __init__(self, client: Any, max_chars: int = JEV_MAX_STATE_CHARS, trim_chars: int = JEV_TRIM_CHARS) -> None:
-        self.client, self.max_chars, self.trim_chars = client, max_chars, trim_chars
+    def __init__(self, client: Any, max_chars: int = JEV_MAX_STATE_CHARS, trim_chars: int = JEV_TRIM_CHARS, confident: float = JEV_CONFIDENT) -> None:
+        self.client, self.max_chars, self.trim_chars, self.confident = client, max_chars, trim_chars, confident
 
     def manifest(self) -> Dict[str, Any]:
         config = getattr(self.client, "config", None)
-        return {"engine": "jev", "model": getattr(config, "model", None), "max_state_chars": self.max_chars, "trim_chars": self.trim_chars}
+        return {"engine": "jev", "model": getattr(config, "model", None), "max_state_chars": self.max_chars, "trim_chars": self.trim_chars,
+                "confident": self.confident}
 
     def judge(self, state: Dict[str, Any], questions: Dict[str, Any]) -> Tuple[str, Any, str]:
         if self.max_chars and js.state_chars(state) > self.max_chars:
@@ -185,10 +187,27 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
                 results[n].update(part)
         return status
 
-    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="judge-jev") as pool:   # 두 심판을 동시에
-        pending = pool.submit(run_jev)
-        run_gpt(gpt_items, "gpt")
-        jev_status = pending.result()
+    # 흐름 v2(사용자 승인 2026-10-19): Jev 먼저(0.5~2초) → Jev 가 FAIL 이거나 확률이 애매한 J1~J4 항목을 골라 Codex 호출 하나(J5~J8 과 함께)에 넣어
+    # 사유·인용과 함께 확정한다. Codex FAIL → FAIL, Jev FAIL·Codex PASS → 보류(심판 갈림), 애매·Codex PASS → PASS.
+    jev_status = run_jev()
+    confident = getattr(jev, "confident", JEV_CONFIDENT) if jev is not None else JEV_CONFIDENT
+    flagged: Dict[int, List[str]] = {}
+    first: Dict[int, Dict[str, Dict[str, Any]]] = {}
+    if jev_items and jev_status == "OK":
+        for n, items in jev_items.items():
+            for item in items:
+                v = results[n].get(item) or {}
+                probs = v.get("probabilities") or {}
+                conf = max(probs.values()) if probs else 1.0
+                if v.get("decision") == "FAIL" or conf < confident:
+                    flagged.setdefault(n, []).append(item)
+                    first.setdefault(n, {})[item] = dict(v)
+    merged = {n: list(gpt_items.get(n, [])) + list(flagged.get(n, [])) for n in sorted(set(gpt_items) | set(flagged))}
+    run_gpt(merged, "gpt")
+    for n, items in flagged.items():
+        for item in items:
+            results[n][item] = js.combine_jev_gpt(first[n][item], results[n].get(item) or {})
+    calls["jev_flagged"] = {str(n): items for n, items in flagged.items()}
     if jev_items and jev_status != "OK":   # Jev 가 못 한 J1~J4 는 GPT 가 같은 고정 프롬프트로
         run_gpt(jev_items, "gpt_fallback")
     for part in results.values():
@@ -216,6 +235,7 @@ def summarize(lines: List[Dict[str, Any]], total: int) -> Dict[str, Any]:
         out[provider] = {"n": total, "done": len(mine), "PASS": tally["PASS"], "FAIL": tally["FAIL"], "HOLD": tally["HOLD"],
                          "pass_rate": round(tally["PASS"] / total, 4) if total else None,
                          "fallback": sum(1 for l in judged if "gpt_fallback" in (l.get("calls") or {})),
+                         "jev_flagged": sum(len(v) for l in judged for v in ((l.get("calls") or {}).get("jev_flagged") or {}).values()),
                          "seconds": {k: {"mean": round(sum(v) / len(v), 1), "total": round(sum(v), 1)} for k, v in seconds.items() if v}}
     return out
 
@@ -266,20 +286,27 @@ def run(run_data: Dict[str, Any], set_dir: Path, out: Path, gpt: Optional[CodexJ
             with results_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
+    wall0 = time.monotonic()
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         list(pool.map(work, tasks))
+    wall = round(time.monotonic() - wall0, 1)
+    if tasks:   # 판정 시간 기록 — 결과(report)에서 합산 (사용자 요청 10-19: 평가를 마치는 데 걸린 시간)
+        with (out / "timing.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"kind": "judge", "at": datetime.now(timezone.utc).isoformat(), "judgments": len(tasks),
+                                "questions": sorted({e["question"] for e, _, _ in tasks}), "providers": providers, "seconds": wall}, ensure_ascii=False) + "\n")
     lines = [json.loads(x) for x in results_path.read_text(encoding="utf-8").splitlines() if x.strip()]
     total = len({e["question"] for e in lines}) if only else len(questions)
     summary = {"version": VERSION, "split": js.VERSION, "prompt": manifest["prompt"], "jev_questions": fixed["version"],
                "situations": manifest["situations"], "run_id": run_data.get("run_id"), "finished_at": datetime.now(timezone.utc).isoformat(),
                "judges": {"gpt": gpt.manifest() if gpt else None, "jev": jev.manifest() if jev else None},
-               "models": summarize(lines, total)}
+               "models": summarize(lines, total), "wall_seconds": wall, "judgments": len(tasks)}
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
-    md = ["| 모델 | PASS | FAIL | 보류 | 통과율 (PASS / n) | GPT 대신 판정 | 평균 시간(초) GPT · Jev |", "|---|---|---|---|---|---|---|"]
+    md = ["| 모델 | PASS | FAIL | 보류 | 통과율 (PASS / n) | GPT 대신 판정 | Jev→Codex 확정 항목 | 평균 시간(초) GPT · Jev |", "|---|---|---|---|---|---|---|---|"]
     for p, m in summary["models"].items():
         sec = m["seconds"]
-        md.append(f"| {p} | {m['PASS']} | {m['FAIL']} | {m['HOLD']} | {m['pass_rate']:.1%} ({m['PASS']}/{m['n']}) | {m['fallback']} | "
+        md.append(f"| {p} | {m['PASS']} | {m['FAIL']} | {m['HOLD']} | {m['pass_rate']:.1%} ({m['PASS']}/{m['n']}) | {m['fallback']} | {m.get('jev_flagged', 0)} | "
                   f"{(sec.get('gpt') or {}).get('mean', '-')} · {(sec.get('jev') or {}).get('mean', '-')} |")
+    md.append(f"\n이번 판정 {len(tasks)}건 · 벽시계 {wall:.0f}초")
     (out / "summary.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     return summary
 
@@ -301,7 +328,8 @@ def judges_from_env() -> Tuple[Optional[CodexJudge], Optional[JevJudge], List[st
     if reason:
         notes.append(reason + " — J1~J4 는 GPT CLI 가 대신 판정")
     jev = JevJudge(client, int(env_value("JEV_MAX_STATE_CHARS") or JEV_MAX_STATE_CHARS),
-                   int(env_value("JEV_TRIM_CHARS") if env_value("JEV_TRIM_CHARS") not in (None, "") else JEV_TRIM_CHARS)) if client else None
+                   int(env_value("JEV_TRIM_CHARS") if env_value("JEV_TRIM_CHARS") not in (None, "") else JEV_TRIM_CHARS),
+                   float(env_value("JEV_CONFIDENT") or JEV_CONFIDENT)) if client else None
     return gpt, jev, notes
 
 

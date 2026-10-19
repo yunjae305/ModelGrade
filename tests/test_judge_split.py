@@ -89,21 +89,26 @@ def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     q36 = lines[("aiona", 36)]
     assert q36["status"] == "judged" and q36["verdict"] == "FAIL"   # Jev J2-1.a FAIL · GPT J5-3.a FAIL
     items = q36["results"]["1"]
-    assert items["J2-1.a"] == {**items["J2-1.a"], "decision": "FAIL", "judge": "jev"} and items["J5-3.a"]["judge"] == "gpt"
-    assert all(v["judge"] == ("jev" if k.startswith(js.JEV_PREFIXES) else "gpt") for k, v in items.items())
-    # GPT 입력에는 J5~J8 만, Jev 질문에는 J1~J4 만 — 같은 질문을 두 심판이 겹쳐 보지 않는다
+    # 흐름 v2: Jev 가 FAIL 이라 한 J2-1.a 는 Codex 가 다시 보고(가짜 Codex 는 PASS) → 심판 갈림 → 보류, Jev 1차 결정은 함께 남는다
+    assert items["J2-1.a"]["decision"] == "UNVERIFIED" and items["J2-1.a"]["judge"] == "jev+gpt" and items["J2-1.a"]["jev"]["decision"] == "FAIL"
+    assert any("심판 갈림" in x for x in items["J2-1.a"]["problems"]) and items["J5-3.a"]["judge"] == "gpt"
+    assert all(v["judge"] in (("jev", "jev+gpt") if k.startswith(js.JEV_PREFIXES) else ("gpt",)) for k, v in items.items())
+    # GPT 입력에는 J5~J8 + Jev 가 걸러 낸 J2-1.a 만 — Jev 가 PASS 라 한 J1~J4 는 Codex 가 보지 않는다
     gpt_input = next(i for i in codex.inputs if Q36_ANSWER in i)
-    assert "판정할 항목 (2개): J5-1.a J5-3.a" in gpt_input and "J2-1.a" not in gpt_input.partition("\n[입력]\n")[2]
+    body = gpt_input.partition("\n[입력]\n")[2]
+    assert "판정할 항목 (3개): J2-1.a J5-1.a J5-3.a" in body and "J1-1.a" not in body.split("[질문]")[0]
+    assert q36["calls"]["jev_flagged"] == {"1": ["J2-1.a"]}
     state, questions = next(r for r in jev.requests if r[0]["turns"][0]["answer"] == Q36_ANSWER)
     assert set(questions) == {f"T1:{i}" for i in items if i.startswith(js.JEV_PREFIXES)} and "guide" in state
     q11 = lines[("aiona", 11)]
     assert q11["turns"] == 10 and set(q11["results"]) == {str(n) for n in range(1, 11)}   # 대화 1개 = 판정 1번, 턴마다 결과
-    expected = "FAIL" if "J2-1.a" in q11["results"]["1"] else "PASS"   # 대역 Jev 는 T1:J2-1.a 만 FAIL
+    expected = "HOLD" if "J2-1.a" in q11["results"]["1"] else "PASS"   # 대역 Jev 는 T1:J2-1.a 만 FAIL → Codex PASS 와 갈려 보류
     assert q11["verdict"] == expected and len([i for i in codex.inputs if "답10" in i]) == 1
     empty_line = lines[("aiona", int(empty["case_id"].split("_T")[0][1:]))]
     assert empty_line["verdict"] == "PASS" and empty_line["status"] == "empty_output_pass" and empty_line["collection_note"]   # 빈 출력 요구에 빈 답 → PASS, 수집 상태 명시 (사용자 규칙 10-19)
     assert lines[("gpt", 36)]["status"] == "no_answer" and lines[("gpt", 36)]["verdict"] == "FAIL"
-    assert summary["models"]["aiona"]["FAIL"] == 1 + (expected == "FAIL") and summary["models"]["aiona"]["HOLD"] == 0 and summary["models"]["aiona"]["PASS"] >= 1
+    assert summary["models"]["aiona"]["FAIL"] == 1 and summary["models"]["aiona"]["HOLD"] == (1 if expected == "HOLD" else 0) and summary["models"]["aiona"]["PASS"] >= 1
+    assert summary["wall_seconds"] >= 0 and (tmp_path / "timing.jsonl").exists()
     calls = len(codex.inputs)
     jr.run(json.loads(json.dumps({"run_id": "t", "providers": ["aiona"], "datasets": {"aiona": []}})), SET, tmp_path,
            jr.CodexJudge("codex", "m", "low", 60, "live", runner=codex), None, only={36})
@@ -180,3 +185,16 @@ def test_trim_material_cuts_only_long_attachments_and_reference_to_fit_jev_budge
     assert js.trim_material(short, 35_000) == 0 and short["turns"][0]["reference"] == "r" * 1000
     long_chat = {"guide": "g", "turns": [{"turn": n, "situations": "s", "question": "q", "answer": "a" * 9_000} for n in range(1, 11)]}
     assert js.trim_material(long_chat, 35_000) == 0   # 자료가 없는 긴 대화는 줄일 것이 없다 → Jev 가 거부하면 GPT 가 대신
+
+
+def test_combine_jev_gpt_follows_the_agreed_rule():
+    """Codex FAIL → FAIL · Jev FAIL + Codex PASS → 보류(심판 갈림) · Jev 애매 + Codex PASS → PASS · Codex 가 못 보면 보류."""
+    jev_fail = {"decision": "FAIL", "judge": "jev", "probabilities": {"PASS": 0.4, "FAIL": 0.6}}
+    jev_unsure = {"decision": "PASS", "judge": "jev", "probabilities": {"PASS": 0.55, "FAIL": 0.45}}
+    gpt_fail = {"decision": "FAIL", "judge": "gpt", "entries": [{"reason": "반복"}], "problems": []}
+    gpt_pass = {"decision": "PASS", "judge": "gpt", "entries": [], "problems": []}
+    assert js.combine_jev_gpt(jev_fail, gpt_fail)["decision"] == "FAIL" and js.combine_jev_gpt(jev_fail, gpt_fail)["entries"] == [{"reason": "반복"}]
+    held = js.combine_jev_gpt(jev_fail, gpt_pass)
+    assert held["decision"] == "UNVERIFIED" and "심판 갈림" in held["problems"][0] and held["jev"]["probabilities"]["FAIL"] == 0.6
+    assert js.combine_jev_gpt(jev_unsure, gpt_pass)["decision"] == "PASS"
+    assert js.combine_jev_gpt(jev_fail, {"problems": ["GPT CLI 실패"]})["decision"] == "UNVERIFIED"

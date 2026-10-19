@@ -338,6 +338,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     print(f"{args.provider} · {label}: 이번 묶음 질문 {len(wanted)}개 {wanted} · 전체 {total}개 중 이미 받은 질문 {len(done)}개", flush=True)
     chat_cls = app_chat_class(args.provider)
     new_rows: Dict[str, Dict[str, Any]] = {}
+    started_wall = time.monotonic()
     with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None)) as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
         for i, q in enumerate(wanted, 1):
@@ -379,7 +380,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
     print("CODE 평가 중 …", flush=True)
     evaluation = code_evaluate(merged, args.provider)
     entry = {"provider": args.provider, "method": "collect-app-v1", "at": _now(), "questions": wanted,
-             "answered": sum(1 for r in new_rows.values() if r["collection"].get("status") == "SUCCESS")}
+             "answered": sum(1 for r in new_rows.values() if r["collection"].get("status") == "SUCCESS"),
+             "seconds": round(time.monotonic() - started_wall, 1)}   # 이 묶음 수집에 걸린 벽시계 시간 (사용자 요청 10-19)
     if not args.run:
         run["providers"].append(args.provider)
         run.setdefault("models", {})[args.provider] = label
@@ -551,9 +553,12 @@ def cmd_start(args: argparse.Namespace) -> int:
     print(f"{title} — 질문 {len(qs)}개 · 모델 {', '.join(providers)} 동시 수집 · 실행 {run_id}", flush=True)
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
                             set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True)
+    t_collect = time.monotonic()
     code = cmd_collect_app(ns)
     if code:
         return code
+    print(f"수집 단계 끝 — 벽시계 {_hms(time.monotonic() - t_collect)}", flush=True)
+    print_collection_times(run_id, providers)
     out_dir = ROOT / "data" / "judge_runs" / run_id
     go = args.judge
     if go == "ask":
@@ -564,6 +569,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     if go != "y":
         print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --choice {choice} --judge y  (수집은 건너뛰고 판정만 이어서)", flush=True)
         return 0
+    t_judge = time.monotonic()
     while True:
         judged = judged_questions(out_dir, providers)
         pending = [q for q in qs if any(q not in judged.get(p, set()) for p in providers)]
@@ -575,9 +581,45 @@ def cmd_start(args: argparse.Namespace) -> int:
                                             out=str(out_dir), set=str(set_dir), workers=1, allow_large=False))
         if code:
             return code
+    print(f"판정 단계 끝 — 벽시계 {_hms(time.monotonic() - t_judge)}", flush=True)
     if (out_dir / "results.jsonl").exists():
         cmd_report(argparse.Namespace(dir=str(out_dir)))
     return 0
+
+
+def _hms(seconds: float) -> str:
+    s = int(seconds)
+    return f"{s // 3600}시간 {s % 3600 // 60}분 {s % 60}초" if s >= 3600 else (f"{s // 60}분 {s % 60}초" if s >= 60 else f"{s}초")
+
+
+def print_collection_times(run_id: str, providers: Optional[List[str]] = None) -> None:
+    """모델별 답변 수집 시간 — 받은 턴의 답변 시간 합(모델이 답하는 데 걸린 시간)과 수집 묶음의 벽시계 합. (사용자 요청 10-19)"""
+    try:
+        run = load_run(run_id)
+    except SystemExit:
+        return
+    providers = providers or list(run.get("providers") or [])
+    print("| 모델 | 받은 질문 | 답변 시간 합 | 질문당 평균 | 수집 묶음 벽시계 합 |\n|---|---|---|---|---|")
+    for p in providers:
+        rows = [r for r in (run.get("datasets") or {}).get(p) or [] if isinstance(r, dict)]
+        ok = [r for r in rows if (r.get("collection") or {}).get("status") == "SUCCESS"]
+        qs = {int(r["case_id"].split("_T")[0][1:]) for r in ok}
+        answer_s = sum((r.get("collection") or {}).get("latency_ms") or 0 for r in rows) / 1000
+        wall = sum(e.get("seconds") or 0 for e in run.get("imports") or [] if e.get("provider") == p and e.get("method") == "collect-app-v1")
+        per_q = answer_s / len(qs) if qs else 0
+        print(f"| {p} | {len(qs)} | {_hms(answer_s)} | {per_q:.0f}초 | {_hms(wall)} |")
+
+
+def print_judge_times(out_dir: Path) -> None:
+    f = out_dir / "timing.jsonl"
+    if not f.exists():
+        return
+    recs = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]
+    judge = [r for r in recs if r.get("kind") == "judge"]
+    if judge:
+        total = sum(r.get("seconds") or 0 for r in judge)
+        n = sum(r.get("judgments") or 0 for r in judge)
+        print(f"판정 시간: 총 {_hms(total)} · 판정 {n}건(질문×모델) · 건당 평균 {total / n:.0f}초" if n else f"판정 시간: 총 {_hms(total)}")
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -598,6 +640,8 @@ def cmd_report(args: argparse.Namespace) -> int:
         print(f"| {p} | {b['PASS']} | {b['FAIL']} | {b['HOLD']} | {b['_sec'] / max(1, n):.0f} |")
     if (d / "summary.md").exists():
         print((d / "summary.md").read_text(encoding="utf-8"))
+    print_collection_times(d.name)
+    print_judge_times(d)
     return 0
 
 
