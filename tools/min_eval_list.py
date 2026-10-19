@@ -120,7 +120,8 @@ def save_set(set_id: str, groups: List[Dict[str, Any]], ids: List[int], need: in
     out.mkdir(parents=True)
     if (src / "files").is_dir():
         shutil.copytree(src / "files", out / "files")
-    picked = [g for g in groups if g["id"] in set(ids)]
+    by_id = {g["id"]: g for g in groups}
+    picked = [by_id[i] for i in ids if i in by_id]   # 고른 순서 그대로 — 화면에서 수집하면 이 순서로 던진다 (사용자 요청 2026-10-19)
     (out / "questions.json").write_text(json.dumps(picked, ensure_ascii=False, indent=1), encoding="utf-8")
     report = qg.check(picked)
     job = {"id": new_id, "version": MIN_LIST_VERSION, "source": "min_eval", "source_name": f"최소 평가 ({len(picked)}개, 정밀 {set_id} 에서 기준 {need}번 이상)",
