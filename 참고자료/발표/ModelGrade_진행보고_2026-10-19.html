@@ -663,7 +663,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 - 기본 과제만으로 자동으로 붙는 기준도 k_var 에 들어갑니다(자료 값을 옮기면 J5-2.a, 요약이면 J4-4.a·J5-2.b, 글 작성이면 J2-5.b·J4-3.a, 조건을 주면 J2-3.a). 이것까지 세어 6~10개가 되게 조건을 붙입니다.
 - 범위 안에서는 k=6·7·8·9·10 인 질문 수를 가능한 한 고르게 합니다. **범위 밖 단일 질문은 허용하지 않습니다** — 단일 질문은 모두 6~10개여야 하며, 예외는 빈 출력 요구(2-1.explicit_empty) 질문뿐입니다(조건을 붙이면 모순이라 범위 밖 허용). 그 밖의 모순 자료 같은 기준도 자연스러운 조건(대상·말투·글자 수·형식 등)을 더해 범위 안에 넣습니다.
 - k_var 에 **세지 않는** 기준(그래도 적용은 되니 요구는 해도 됨): 1-1.response_nonempty, 1-1.character_rules, 1-1.foreign_script, 1-2.fence_imbalance, 1-2.orphan_closing_tag, 1-3.footnote_link, 1-3.citation_link, 1-3.internal_link, 3-1.answer_equation, 3-2.declared_count, J1-1.a, J1-2.a, J1-3.a, J1-3.b, J1-4.a, J1-4.b, J3-1.a, J5-3.a. 이 기준으로 조건을 늘려도 k_var 는 그대로이므로, 6~10개는 그 밖의 기준으로 채웁니다.</pre></details>
-  <div class="block"><h3>프롬프트 원문 전체 (question-gen-v2.2-kvar) — 호출마다 해당 단계 글 + 그 단계에 필요한 점검 목록만 붙음</h3>
+  <div class="block"><h3>프롬프트 원문</h3>
     <details class="src"><summary><span>공통 규칙 + ① 단일 질문 계획 (한 묶음 40개)</span><span class="muted">3,919자</span></summary><pre>당신은 한국어 AI 답변 품질 평가에 쓸 질문 세트를 설계합니다. 결과는 JSON 하나로만 답합니다.
 
 # 목표

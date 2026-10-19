@@ -637,7 +637,7 @@ s2 = f"""
       <thead><tr><th>부분</th><th>무엇을 시키나</th></tr></thead><tbody>{prompt_sum_rows}</tbody></table></div>
   </div>
   {details("k 규칙 원문 (모든 단계에 들어가는 문장)", k_rule_text)}
-  <div class="block"><h3>프롬프트 원문 전체 (question-gen-v2.2-kvar) — 호출마다 해당 단계 글 + 그 단계에 필요한 점검 목록만 붙음</h3>
+  <div class="block"><h3>프롬프트 원문</h3>
     {"".join(details(t, b) for t, b in sections)}</div>
 </section>
 """
