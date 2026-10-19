@@ -776,9 +776,6 @@ s6 = f"""
     <div class="cmpt rtab"><table><caption>AIONA 보류 예 — 사유마다 하나 (참고자료/보류목록/8c61f117e661-held.csv)</caption>
       <thead><tr><th>사유</th><th>질문</th><th>답변에서 문제가 된 부분</th><th>심판이 남긴 것 → 왜 보류인가</th></tr></thead><tbody>{aiona_hold_rows}</tbody></table></div>
   </div>
-  <div class="cmpt rtab"><table><caption>기준별 FAIL — 많이 틀린 기준 12개 (질문 단위 — 대화는 어느 턴이든 FAIL 이면 그 질문 FAIL)</caption>
-    <thead><tr><th>기준</th><th>적용 질문 (326 중, 네 모델 같음)</th><th>모델별 FAIL 질문 수</th><th>FAIL 률 (네 모델 평균)</th></tr></thead><tbody>{cf_rows}</tbody></table>
-    <div class="qnote">적용 질문 = 질문 글에서 이 기준이 걸리는 질문 수라 네 모델이 같습니다. FAIL 이 아닌 나머지는 PASS 또는 보류(확인 못 함·판정 못 함)이고 보류도 분모에 남깁니다. <b>한 번도 FAIL 이 안 난 기준 {len(CF_ZERO)}개</b>: {cf_zero_line} — 깨진 출력을 잡는 안전망 검사거나 요구가 쉬워 모두 지킨 것(느슨한 기준 아님).</div></div>
 </section>
 """
 
