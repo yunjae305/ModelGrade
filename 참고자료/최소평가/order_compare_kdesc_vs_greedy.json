@@ -1,22 +1,27 @@
 {
  "1": {
   "k_desc": 304,
+  "k_desc_skip": 17,
   "greedy": 7
  },
  "3": {
   "k_desc": 306,
+  "k_desc_skip": 37,
   "greedy": 21
  },
  "5": {
   "k_desc": 308,
+  "k_desc_skip": 56,
   "greedy": 37
  },
  "10": {
   "k_desc": 326,
+  "k_desc_skip": 110,
   "greedy": 78
  },
  "20": {
   "k_desc": 326,
+  "k_desc_skip": 198,
   "greedy": 155
  }
 }

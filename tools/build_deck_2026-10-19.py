@@ -782,6 +782,10 @@ s6 = f"""
 # (목표 횟수, 기준 많은 순으로 그대로 던질 때 필요한 질문 수, 지금 방식, FAIL 조합 포착) — 2026-10-19 326 세트로 셈 (참고자료/최소평가/order_compare_kdesc_vs_greedy.json)
 GOAL = [("1번", 304, 7, "24%"), ("3번", 306, 21, "49%"), ("5번", 308, 37, "61%"), ("10번", 326, 78, "80%"), ("20번", 326, 155, "87%")]
 goal_rows = "".join(f'<tr{" class=pick" if g == "10번" else ""}><th scope="row">{g}</th><td class="num"><b>{b}</b></td><td class="num">{r}</td></tr>' for g, a, b, r in GOAL)
+# 목표 횟수별 — 세 가지 던지는 순서에 필요한 질문 수 (참고자료/최소평가/order_compare_kdesc_vs_greedy.json, 팀원 검산 2026-10-19 와 같음: 1번 17 · 3번 37 · 10번 110)
+ORDER_CMP = json.load(open(ROOT / "참고자료/최소평가/order_compare_kdesc_vs_greedy.json", encoding="utf-8"))
+order_rows = "".join(f'<tr{" class=pick" if k == "10" else ""}><th scope="row">{k}번</th><td class="num">{v["k_desc"]}</td><td class="num">{v["k_desc_skip"]}</td><td class="num"><b>{v["greedy"]}</b></td></tr>'
+                     for k, v in ORDER_CMP.items())
 # 두 방식 비교 (목표 = 기준마다 10번): 기준 많은 순 그대로 / 지금 방식
 WAYS = [("적용 기준이 <b>많은</b> 질문부터 순서대로", 326, "기준이 적은 질문(11~15개)에만 든 기준('빈 출력 요구' 등)이 맨 끝에 와서 전부 던져야 함"),
         ("아직 10번이 안 된 기준을 <b>가장 많이 가진</b> 질문부터 (지금 방식)", 78, "모자란 기준이 든 질문을 먼저 당겨 옴 — 다 찬 기준만 가진 질문은 던지지 않음")]
@@ -811,6 +815,11 @@ s7 = f"""
       <div><span class="k">4</span><b>모든 기준이 10번이 되면 끝</b><span>이번 세트는 78개에서 끝났습니다. 고른 순서가 던지는 순서입니다: Q12 → Q15 → Q21 → Q22 → Q26 → … (전체 순서: 참고자료/최소평가/min_eval_m10.md)</span></div>
     </div>
     <p class="muted">78개가 끝나면 최소 평가 결과, 나머지 248개(번호순)까지 끝나면 정밀 평가 결과입니다.</p>
+  </div>
+  <div class="block">
+    <div class="cmpt rtab"><table><caption>던지는 순서 세 가지 — 기준마다 목표 횟수를 채우는 데 필요한 질문 수 (326 세트, AI 호출 없이 셈)</caption>
+      <thead><tr><th>목표 (기준마다)</th><th>적용 기준이 많은 질문부터 그대로</th><th>기준 많은 순이되, 모자란 기준이 하나도 없는 질문은 건너뜀 (팀원 검산)</th><th>아직 목표가 안 된 기준을 가장 많이 가진 질문부터 (지금 방식)</th></tr></thead><tbody>{order_rows}</tbody></table>
+      <div class="qnote">어느 목표에서도 지금 방식이 가장 적습니다. 기준 많은 순 그대로는 기준이 적은 질문에만 든 기준이 맨 끝에 와 거의 전부가 필요합니다.</div></div>
   </div>
   <div class="two">
     <div class="cmpt rtab"><table><caption>왜 10번인가 — 목표 횟수를 바꿔 가며 센 결과 (326 세트)</caption>
