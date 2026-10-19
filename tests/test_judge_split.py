@@ -125,6 +125,21 @@ def test_jev_input_limit_falls_back_to_gpt_with_the_same_fixed_prompt(tmp_path):
     assert not jev.requests
 
 
+def test_trimmed_material_sends_every_jev_item_to_codex_with_the_full_text(tmp_path):
+    # 사용자 10-19: 자료를 줄여 Jev 에 보낸 질문은 Jev 가 확신 PASS 라 해도 J1~J4 전부를 Codex 가 원문으로 다시 본다
+    data = {"run_id": "t", "providers": ["aiona"], "datasets": {"aiona": [{"case_id": "Q1_T1", "answer": "요약 답변입니다."}]}}
+    codex, jev = FakeCodex(), FakeJev()
+    jr.run(data, SET, tmp_path, jr.CodexJudge("codex", "gpt-test", "low", 60, "live", runner=codex), jr.JevJudge(jev), only={1}, workers=1)
+    line = json.loads((tmp_path / "results.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert line["calls"]["jev"]["trimmed_chars"] > 0 and line["calls"]["jev"]["flagged_reason"] == "trimmed"
+    jev_ids = [i for i in line["results"]["1"] if i.startswith(js.JEV_PREFIXES)]
+    assert jev_ids and line["calls"]["jev_flagged"] == {"1": jev_ids}
+    assert all(line["results"]["1"][i]["judge"] == "jev+gpt" for i in jev_ids)
+    body = codex.inputs[0].partition("\n[입력]\n")[2]
+    assert all(i in body.split("[질문]")[0] for i in jev_ids)
+    assert js.JEV_TRIM_MARK not in body and len(body) > jr.JEV_TRIM_CHARS   # Codex 는 줄이지 않은 원문
+
+
 def test_quote_not_in_the_answer_holds_the_item():
     turns = [{"case_id": "Q1_T1", "turn": 1, "question": "질문"}]
     out = js.check_gpt({"turns": [{"turn": 1, "items": [{"id": "J5-3.a", "decision": "FAIL", "answer_quote": "없는 문장", "question_quote": ""}]}]},

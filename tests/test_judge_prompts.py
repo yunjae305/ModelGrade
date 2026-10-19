@@ -104,7 +104,7 @@ def test_conversation_is_one_input_with_every_turn_and_skips_held_or_missing(tmp
     assert aiona[11]["turns"] == len(conv) and text.count("[이 턴의 상황]") == len(conv)   # 대화 1개 = 입력 1개, 턴마다 상황
     assert all(f"<<m0m0m0 {n}턴 시작>>" in text and f"[답변]\nAIONA답{n}\n<<m0m0m0 {n}턴 끝>>" in text for n in range(1, len(conv) + 1))
     assert "GPT답" not in text
-    assert aiona[int(empty.split("_T")[0][1:])]["status"] == "held_empty_output"
+    assert aiona[int(empty.split("_T")[0][1:])]["status"] == "empty_output_pass"   # 빈 출력 요구에 빈 답 → PASS (사용자 규칙 10-19)
     gpt = {e["question"]: e for e in _lines(tmp_path / "gpt.jsonl")}
     assert gpt[11]["status"] == "no_answer" and "input" not in gpt[11]
-    assert manifest["counts"]["aiona"] == {"held_empty_output": 1, "ready": 1}
+    assert manifest["counts"]["aiona"] == {"empty_output_pass": 1, "ready": 1}

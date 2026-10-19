@@ -257,17 +257,21 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
     confident = getattr(jev, "confident", JEV_CONFIDENT) if jev is not None else JEV_CONFIDENT
     flagged: Dict[int, List[str]] = {}
     first: Dict[int, Dict[str, Dict[str, Any]]] = {}
+    # 자료를 줄여 Jev 에 보낸 질문은 Jev 가 원문 전부를 못 봤으므로 확신 PASS 도 전부 Codex(원문 그대로)가 다시 본다 (사용자 10-19)
+    trimmed = bool((calls.get("jev") or {}).get("trimmed_chars"))
     if jev_items and jev_status == "OK":
         for n, items in jev_items.items():
             for item in items:
                 v = results[n].get(item) or {}
                 probs = v.get("probabilities") or {}
                 conf = max(probs.values()) if probs else 1.0
-                if v.get("decision") == "FAIL" or conf < confident:
+                if trimmed or v.get("decision") == "FAIL" or conf < confident:
                     flagged.setdefault(n, []).append(item)
                     first.setdefault(n, {})[item] = dict(v)
     merged = {n: list(gpt_items.get(n, [])) + list(flagged.get(n, [])) for n in sorted(set(gpt_items) | set(flagged))}
-    if flagged:
+    if flagged and trimmed:
+        say(f"   ↪ {tag} Jev 는 줄인 자료로 봐서 J1~J4 전부 → Codex 가 원문으로 다시 확정: " + " ".join(f"T{n}:{i}" for n, items in flagged.items() for i in items))
+    elif flagged:
         say(f"   ↪ {tag} Jev 가 걸러낸 항목(FAIL·애매) → Codex 확정: " + " ".join(f"T{n}:{i}" for n, items in flagged.items() for i in items))
     elif jev_items and jev_status == "OK":
         say(f"   ↪ {tag} Jev J1~J4 모두 확신 PASS → Codex 는 J5~J8 만")
@@ -276,6 +280,8 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
         for item in items:
             results[n][item] = js.combine_jev_gpt(first[n][item], results[n].get(item) or {})
     calls["jev_flagged"] = {str(n): items for n, items in flagged.items()}
+    if flagged:
+        calls["jev"]["flagged_reason"] = "trimmed" if trimmed else "fail_or_unsure"
     if jev_items and jev_status != "OK":   # Jev 가 못 한 J1~J4 는 GPT 가 같은 고정 프롬프트로
         say(f"   ↪ {tag} Jev 가 못 봐서 Codex 가 J1~J4 도 대신")
         run_gpt(jev_items, "gpt_fallback")
