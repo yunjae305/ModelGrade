@@ -1460,10 +1460,7 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
 QUESTION_INPUT_VERSION = "question-input-v1"
-# 고정 질문 세트 (사용자 결정 2026-10-14) — tools/build_fixed_sets.py 가 공개 세트를 먼저, 빈 기준만 우리 질문으로 고른 간단 50·정밀 300문항
-FIXED_SET_VERSION = "fixed-set-v1"
-FIXED_SETS = ROOT / "examples" / "fixed_sets"
-FIXED_KINDS = ("simple", "precise")
+FIXED_SETS = ROOT / "examples" / "fixed_sets"   # 공개 질문 원본(sources)만 쓴다 — 간단 50·정밀 300 고정 세트는 2026-10-19 폐기(참고자료/질문세트_목록.md)
 _QUESTION_KEYS = ("question", "질문", "Q", "q", "prompt")
 MAX_INPUT_TURNS_PER_CONVERSATION = 50   # 대화 하나의 턴 상한 — 점검이 앞 턴 이력을 턴마다 만들어 아주 긴 대화는 서버를 멈출 수 있다 (Codex 리뷰)
 MAX_INPUT_TURNS = 2_000                 # 한 번에 넣는 전체 턴 상한
@@ -1792,41 +1789,6 @@ class QuestionSetService:
                "created_at": datetime.now(timezone.utc).isoformat(), "model": None, "note": "", "usage": {}, "warnings": warnings,
                "summary": _summary(groups, report), "coverage": report["coverage"], "error": None, "target_questions": None,
                "weak_from_run": None, "weak_units": [], "auto_run": False, "run_id": None, "run_error": None, "calls": 0, "rounds": 0}
-        self._save(job)
-        return job
-
-    def fixed_sets(self) -> List[Dict[str, Any]]:
-        """화면 버튼용 — 고정 세트마다 이름·질문 수·턴 수·k·출처·모자란 기준."""
-        out = []
-        for kind in FIXED_KINDS:
-            path = FIXED_SETS / kind / "selection.json"
-            if path.is_file():
-                sel = json.loads(path.read_text(encoding="utf-8"))
-                out.append({key: sel.get(key) for key in ("kind", "label", "k", "questions", "turns", "sources", "short", "licenses")})
-        return out
-
-    def start_fixed(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """고정 질문 세트(간단·정밀)로 완료된 질문 세트를 만든다 — 모델 호출 없음. 수집은 화면의 '답변 수집'(start_run), 평가는 '평가 진행'."""
-        kind = payload.get("kind")
-        if kind not in FIXED_KINDS:
-            raise ValueError("고정 질문 세트는 simple(간단 평가)·precise(정밀 평가) 중 하나여야 합니다.")
-        source = FIXED_SETS / kind
-        if not (source / "questions.json").is_file() or not (source / "selection.json").is_file():
-            raise ValueError("고정 질문 세트 파일이 없습니다 — python tools/build_fixed_sets.py 로 만드세요.")
-        groups = json.loads((source / "questions.json").read_text(encoding="utf-8"))
-        selection = json.loads((source / "selection.json").read_text(encoding="utf-8"))
-        set_id = "qs-" + uuid.uuid4().hex[:12]
-        out = self._path(set_id)
-        shutil.copytree(source / "files", out / "files") if (source / "files").is_dir() else (out / "files").mkdir(parents=True, exist_ok=True)
-        (out / "questions.json").write_text(json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
-        short = selection.get("short") or {}
-        warnings = [f"{selection['label']} — 기준마다 {selection.get('k')}번을 목표로 골랐고, 후보에 모자라 덜 채운 기준 {len(short)}개: "
-                    + ", ".join(f"{t} {n}" for t, n in short.items())] if short else []
-        job = {"id": set_id, "version": FIXED_SET_VERSION, "source": "fixed", "fixed_kind": kind, "source_name": selection["label"],
-               "status": "COMPLETED", "phase": "done", "message": "완료", "created_at": datetime.now(timezone.utc).isoformat(), "model": None,
-               "note": "", "usage": {}, "warnings": warnings, "summary": selection.get("summary") or {}, "coverage": selection.get("coverage") or {},
-               "fixed_sources": selection.get("sources"), "error": None, "target_questions": None, "weak_from_run": None, "weak_units": [],
-               "auto_run": False, "run_id": None, "run_error": None, "calls": 0, "rounds": 0}
         self._save(job)
         return job
 

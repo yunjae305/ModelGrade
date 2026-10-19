@@ -145,8 +145,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, service.providers())
         if path == '/api/comparison/question-sets':
             return self.respond(200, self.server.question_service.list())
-        if path == '/api/comparison/question-sets/fixed':   # 고정 질문 세트 버튼 — 이름·질문 수
-            return self.respond(200, self.server.question_service.fixed_sets())
         if len(parts) >= 4 and parts[2] == 'question-sets':
             questions = self.server.question_service
             if len(parts) == 4:
@@ -280,8 +278,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(202, self.server.question_service.start(payload))
             if path == '/api/comparison/question-sets/import':   # 질문 직접 넣기 — 질문만, 모델 호출 없음
                 return self.respond(201, self.server.question_service.import_questions(payload))
-            if path == '/api/comparison/question-sets/fixed':   # 고정 질문 세트(간단·정밀) — 모델 호출 없음
-                return self.respond(201, self.server.question_service.start_fixed(payload))
             if len(parts) == 5 and parts[2] == 'question-sets' and parts[4] == 'run':
                 resume = payload.get('resume_from') if isinstance(payload, dict) else None   # 이어서 수집: 앞선 실행 id
                 return self.respond(202, self.server.question_service.start_run(parts[3], resume_from=resume or None))

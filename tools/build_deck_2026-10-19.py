@@ -644,10 +644,9 @@ s2 = f"""
 """
 
 # B01 예시 — 실험 세트에서 같은 기본 질문의 k 2·8·12 변형 (조건 문장만 다름)
-_exp_groups = json.load(open(ROOT / "참고자료/질문세트_실험300/questions.json", encoding="utf-8"))
-_b01 = {int(x["k_actual"]): x["turns"][0]["question"] for x in _exp_groups if x.get("role") == "변형" and x.get("base_id") == "B01"}
-_memo = _b01[2].split("\n\n", 1)[1].strip()
-_ex = {k: _b01[k].split("\n\n", 1)[0].strip() for k in (2, 8, 12)}
+_b01x = json.load(open(ROOT / "참고자료/최소평가/k_exp_b01_example.json", encoding="utf-8"))   # 실험300 세트는 10-19 삭제(기록: 참고자료/질문세트_목록.md) — 예시 3개만 보관
+_memo = _b01x["memo"]
+_ex = {int(k): v for k, v in _b01x["ex"].items()}
 
 s3 = f"""
 <section class="slide" id="s3">

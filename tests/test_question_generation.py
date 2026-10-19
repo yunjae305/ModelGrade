@@ -390,21 +390,6 @@ def test_builder_reports_made_and_planned_questions_while_generating(tmp_path):
     assert all(len(t["question"]) <= qg.PREVIEW_CHARS + 2 for rows in seen for r in rows for t in r["turns"])
 
 
-def test_fixed_question_sets_become_completed_sets_with_files(tmp_path):
-    """고정 질문 세트(간단·정밀) — 모델 호출 없이 완료된 세트, 첨부 파일까지 복사 (사용자 결정 2026-10-14)."""
-    service = qg.QuestionSetService(lambda: None, store=tmp_path)
-    listed = {item["kind"]: item for item in service.fixed_sets()}
-    assert set(listed) == {"simple", "precise"} and listed["simple"]["questions"] < listed["precise"]["questions"]
-    job = service.start_fixed({"kind": "simple"})
-    assert job["status"] == "COMPLETED" and job["version"] == qg.FIXED_SET_VERSION and job["source"] == "fixed" and job["run_id"] is None
-    rows = service.preview(job["id"])
-    assert len(rows) == listed["simple"]["questions"] and job["summary"]["questions"] == len(rows)
-    names = {a for r in rows for t in r["turns"] for a in t["attachments"]}
-    assert not names or any(service.files_dir(job["id"]).iterdir())   # 첨부 질문이 있으면 파일도 함께 복사
-    with pytest.raises(ValueError):
-        service.start_fixed({"kind": "huge"})
-
-
 def test_plan_prompt_only_lists_the_criteria_still_needed():
     """공개 질문이 이미 덮는 기준은 첫 계획의 점검 목록에서 빠진다 — 검사·항목은 그 id 만 (10-15 사용자 결정)."""
     catalog = qg.criteria_catalog()

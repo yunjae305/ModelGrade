@@ -1,6 +1,6 @@
 """ModelGrade CLI (modelgrade-cli-v1) — 수집 → 판정 → 결과를 명령 하나로. 어디서 멈춰도 이어 돌린다 (사용자 방향 2026-10-19 오후 미팅: 파이썬 CLI, 에이전트·구독, API 최소).
 
-    python -X utf8 tools/modelgrade.py collect import --provider claude --csv 참고자료/질문세트_326/수집용/answers_claude.csv --run 8c61f117e661
+    python -X utf8 tools/modelgrade.py collect import --provider claude --csv 참고자료/질문세트_326_생성프롬프트v2/수집용/answers_claude.csv --run 8c61f117e661
         사람이 웹브라우저에서 받아 적은 답변 CSV(case_id · answer · chat_url · note)를 실행 JSON 의 그 모델 자리에 올리고 CODE 평가(28개)까지 끝낸다.
         --run 을 비우면 새 실행을 만든다(--new 이름). --label 은 결과 화면에 보일 모델 이름.
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --only 36,30,46 --providers aiona,gpt [--out DIR]
@@ -30,7 +30,7 @@ if str(ROOT) not in sys.path:
 VERSION = "modelgrade-cli-v1"
 IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_326"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}
 
