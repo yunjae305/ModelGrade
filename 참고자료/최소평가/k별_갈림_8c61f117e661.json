@@ -58,5 +58,27 @@
    "FAIL": 124,
    "HOLD": 82
   }
+ },
+ "min78": {
+  "aiona": {
+   "PASS": 31,
+   "FAIL": 25,
+   "HOLD": 22
+  },
+  "gpt": {
+   "PASS": 34,
+   "FAIL": 23,
+   "HOLD": 21
+  },
+  "claude": {
+   "PASS": 29,
+   "FAIL": 28,
+   "HOLD": 21
+  },
+  "gemini": {
+   "PASS": 26,
+   "FAIL": 29,
+   "HOLD": 23
+  }
  }
 }

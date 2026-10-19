@@ -32,6 +32,15 @@ def _qid(case_id: str) -> int:
     return int(str(case_id).split("_T")[0].lstrip("Q"))
 
 
+def _subset_counts(verdicts, providers):
+    """최소 평가 78(참고자료/최소평가/min_eval_m10.json 의 ids)만 센 모델별 PASS·FAIL·보류 — 발표 07장용."""
+    path = ROOT / "참고자료" / "최소평가" / "min_eval_m10.json"
+    if not path.exists():
+        return None
+    ids = set(json.loads(path.read_text(encoding="utf-8"))["ids"])
+    return {p: {st: sum(1 for q, v in verdicts[p].items() if q in ids and v == st) for st in ("PASS", "FAIL", "HOLD")} for p in providers}
+
+
 def apply_gold(verdicts, gold_path: Path):
     """보류 목록 CSV(gold 열)로 질문 판정을 갱신한 사본과 반영 통계."""
     rows = list(csv.DictReader(open(gold_path, encoding="utf-8-sig")))
@@ -98,7 +107,8 @@ def main(argv=None) -> int:
     out.with_suffix(".json").write_text(json.dumps({
         "run": args.run_id, "gold": bool(args.gold), "singles": len(singles), "confirmed": len(singles) - excluded, "excluded_hold": excluded, "gold_stats": stats,
         "by_k": {str(k): {"n": v[0], "all_pass": v[1], "split": v[2], "all_fail": v[3]} for k, v in sorted(by_k.items())},
-        "models": {p: {st: sum(1 for v in verdicts[p].values() if v == st) for st in ("PASS", "FAIL", "HOLD")} for p in providers}},
+        "models": {p: {st: sum(1 for v in verdicts[p].values() if v == st) for st in ("PASS", "FAIL", "HOLD")} for p in providers},
+        "min78": _subset_counts(verdicts, providers)},
         ensure_ascii=False, indent=1), encoding="utf-8")
     print(text); print("저장:", out)
     return 0

@@ -198,7 +198,12 @@ for it in cat["items"]:
     sem_rows.append(f'<tr><th scope="row"><code>{E(it["id"])}</code> <span class="muted">{E(it.get("sub") or "")}</span></th><td>{E(it.get("question") or "")}</td><td class="ex">{short(it.get("applies"), 60)}</td><td>{tag(it["id"])}</td></tr>')
 
 # ---------- 06 결과 ----------
-RES = [("GPT-6 Luna", "gpt", 190, 77, 59), ("AIONA", "aiona", 166, 84, 76), ("Claude Sonnet 5.5", "claude", 131, 112, 83), ("Gemini 3.6 Flash", "gemini", 120, 124, 82)]
+MODEL_NAME = {"gpt": "GPT-6 Luna", "aiona": "AIONA", "claude": "Claude Sonnet 5.5", "gemini": "Gemini 3.6 Flash"}
+# 모델별 질문 판정 — 위 KSPLIT(k_split JSON, 보류 정리 반영본 우선)에서. 보류 정리 전 값: GPT 190·77·59 / AIONA 166·84·76 / Claude 131·112·83 / Gemini 120·124·82
+RES = [(MODEL_NAME[m], m, KSPLIT["models"][m]["PASS"], KSPLIT["models"][m]["FAIL"], KSPLIT["models"][m]["HOLD"]) for m in ("gpt", "aiona", "claude", "gemini")]
+RATE = {m: p / 326 * 100 for _, m, p, _, _ in RES}
+RANK = sorted(RATE, key=lambda m: -RATE[m])
+GOLD_APPLIED = bool(KSPLIT["gold"])
 res_rows = "".join(
     f'<div class="fs-row"><span class="who"><i style="background:var(--m-{m})"></i>{E(n)}</span>'
     f'<div class="fs-track"><span class="p" style="width:{p / 326 * 100:.1f}%" title="PASS {p}"></span><span class="f2" style="width:{f / 326 * 100:.1f}%" title="FAIL {f}"></span><span class="h" style="width:{h / 326 * 100:.1f}%" title="보류 {h}"></span></div>'
@@ -221,7 +226,10 @@ CF_ZERO = [r for r in CRIT_FAIL if r["fail"] == 0]
 cf_zero_line = " · ".join(f'<code>{E(r["id"])}</code>({r["applied"]:,})' for r in CF_ZERO)
 
 # ---------- 07 최소 78 vs 정밀 326 ----------
-MIN78 = {"gpt": (34, 23, 21), "aiona": (31, 25, 22), "claude": (29, 28, 21), "gemini": (26, 29, 23)}
+MIN78 = {m: (v["PASS"], v["FAIL"], v["HOLD"]) for m, v in (KSPLIT.get("min78") or {"gpt": {"PASS": 34, "FAIL": 23, "HOLD": 21}, "aiona": {"PASS": 31, "FAIL": 25, "HOLD": 22},
+                                                                                   "claude": {"PASS": 29, "FAIL": 28, "HOLD": 21}, "gemini": {"PASS": 26, "FAIL": 29, "HOLD": 23}}).items()}
+RATE78 = {m: MIN78[m][0] / 78 * 100 for m in MIN78}
+RANK78 = sorted(RATE78, key=lambda m: -RATE78[m])
 GROUP_LABEL = {"CODE 1": "CODE 1 출력 무결성", "CODE 2": "CODE 2 형식·지시", "CODE 3": "CODE 3 계산·자료", "J1": "J1 의도 충족", "J2": "J2 맥락 적합", "J3": "J3 논리 일관",
                "J4": "J4 완결성", "J5": "J5 DATA 신뢰도", "J6": "J6 멀티턴 맥락", "J7": "J7 롱컨텍스트", "J8": "J8 첨부 해석"}
 
@@ -264,8 +272,8 @@ fbg_rows = "".join(fbg_rows)
 MIN = [("기준마다 1번↑", 7, "커버 점검", "57 · 29 · 29 · 29", "aiona > claude > gemini > gpt", "다름", "24%"),
        ("기준마다 3번↑", 21, "", "33 · 33 · 29 · 29", "aiona > gpt > claude > gemini", "다름", "49%"),
        ("기준마다 5번↑", 37, "", "43 · 38 · 30 · 35", "aiona > gpt > gemini > claude", "다름", "61%"),
-       ("기준마다 10번↑", 78, "최소 평가", "40 · 44 · 37 · 33", "gpt > aiona > claude > gemini", "같음", "80%"),
-       ("전체", 326, "정밀 평가", "51 · 58 · 40 · 37", "gpt > aiona > claude > gemini", "기준", "100%")]
+       ("기준마다 10번↑", 78, "최소 평가", " · ".join(f"{RATE78[m]:.0f}" for m in ("aiona", "gpt", "claude", "gemini")), " > ".join(RANK78), "같음" if RANK78 == RANK else "다름", "80%"),
+       ("전체", 326, "정밀 평가", " · ".join(f"{RATE[m]:.0f}" for m in ("aiona", "gpt", "claude", "gemini")), " > ".join(RANK), "기준", "100%")]
 min_rows = "".join(f'<tr{" class=pick" if b in (78, 326) else ""}><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td><td class="exq">{E(e)}</td><td>{E(f)}</td><td class="num">{g}</td></tr>' for a, b, c, d, e, f, g in MIN)
 
 # ---------- 08 질문 수 근거 ----------
@@ -408,8 +416,8 @@ s0 = f"""
   <div class="keys">
     <div class="key"><span class="lab">질문 세트</span><span class="big">326<small>개</small></span>
       <p>단일 284 · 대화 32 · 긴 문서 10. 질문당 기준 수(k) <b>6~10 범위 밖 0개</b>, 기준 64개 모두 10번 이상 적용.</p></div>
-    <div class="key"><span class="lab">네 모델 평가 (PASS / 326)</span><span class="big">58 · 51 · 40 · 37<small>%</small></span>
-      <p><b>GPT 190 · AIONA 166 · Claude 131 · Gemini 120</b>. CODE 28 검사 + 의미 44 항목(두 심판 병행). 보류는 분모에 둠.</p></div>
+    <div class="key"><span class="lab">네 모델 평가 (PASS / 326){" · 보류 정리 반영" if GOLD_APPLIED else ""}</span><span class="big">{" · ".join(f"{RATE[m]:.0f}" for m in ("gpt", "aiona", "claude", "gemini"))}<small>%</small></span>
+      <p><b>{" · ".join(f"{MODEL_NAME[m].split()[0]} {KSPLIT['models'][m]['PASS']}" for m in ("gpt", "aiona", "claude", "gemini"))}</b>. CODE 28 검사 + 의미 44 항목(두 심판 병행). 보류는 분모에 둠.</p></div>
     <div class="key"><span class="lab">질문 수 — 정밀 / 최소</span><span class="big">326 <small>/</small> 78<small>개</small></span>
       <p><b>정밀 326</b>: 순위·FAIL 전부. <b>최소 78</b>: 덜 채운 기준을 가장 많이 채우는 질문부터 골라 기준마다 10번 이상 — FAIL 조합의 <b>80%</b>를 보고 순위도 같음.</p></div>
     <div class="key alert"><span class="lab">비용 (이틀, 단가표 추정)</span><span class="big">≈ $160</span>
@@ -519,8 +527,8 @@ s5 = f"""
 
 s6 = f"""
 <section class="slide" id="s6">
-  {head("06", "결과 — GPT 58% · AIONA 51% · Claude 40% · Gemini 37%", "326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위, 보류는 분모에 둡니다. 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다.")}
-  {gist("<b>PASS / 326</b> — GPT 190 · AIONA 166 · Claude 131 · Gemini 120. 보류(사람이 정할 것) 59~83개.",
+  {head("06", "결과 — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {RATE[m]:.0f}%" for m in ("gpt", "aiona", "claude", "gemini")), "326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위, 보류는 분모에 둡니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else " 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다."))}
+  {gist("<b>PASS / 326</b> — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {KSPLIT['models'][m]['PASS']}" for m in ("gpt", "aiona", "claude", "gemini")) + f". 보류(사람이 정할 것) {min(h for *_, h in RES)}~{max(h for *_, h in RES)}개.",
         "FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴 맥락</b>에 몰려 있습니다.",
         "한 번도 FAIL 이 안 난 기준 8개는 대부분 깨진 출력을 잡는 안전망 검사 — 느슨한 기준은 아닙니다(아래 표).")}
   <div class="three">
@@ -553,7 +561,7 @@ s7 = f"""
 <section class="slide" id="s7">
   {head("07", "최소 78 vs 정밀 326 — 같은 판정으로 비교", "최소 78 은 정밀 326 에서 골라낸 부분집합(세트 qs-c5d8a1624770)이라, 따로 수집·평가하지 않고 같은 판정을 그대로 셀 수 있습니다.")}
   {gist("고르는 규칙: <b>아직 덜 채운 기준을 가장 많이 채우는 질문부터</b>, 기준마다 10번 이상이 될 때까지 (집합 덮기 표준 탐욕법, 팀원 검산으로 교체).",
-        "78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 <b>순위도 정밀과 같습니다</b>. 통과율은 어려운 질문 위주라 정밀보다 낮게 나옵니다.",
+        "78개에서 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 " + ("<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>") + ". 통과율은 어려운 질문 위주라 정밀보다 낮게 나옵니다.",
         "7개(기준마다 1번)는 기준이 다 걸리는지 점검하는 용도 — FAIL 은 24%만 보여 분석에는 부족합니다.")}
   <figure class="fig">
     <div class="fig-head"><h3>모델별 PASS · FAIL · 보류 — 정밀 326 과 최소 78</h3>
