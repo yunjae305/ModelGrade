@@ -3,12 +3,7 @@
   "id": "J6",
   "name": "멀티턴 맥락 유지",
   "applied": 16,
-  "applied_by_model": {
-   "aiona": 16,
-   "gpt": 16,
-   "claude": 16,
-   "gemini": 16
-  },
+  "applied_basis": "question",
   "fail": 51,
   "by_model": {
    "aiona": 10,
@@ -17,18 +12,13 @@
    "gemini": 16
   },
   "rate": 0.7969,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "3-3.transform",
   "name": "원본 보존·변환",
-  "applied": 26,
-  "applied_by_model": {
-   "aiona": 22,
-   "gpt": 21,
-   "claude": 23,
-   "gemini": 26
-  },
+  "applied": 32,
+  "applied_basis": "question",
   "fail": 46,
   "by_model": {
    "aiona": 10,
@@ -36,19 +26,14 @@
    "claude": 12,
    "gemini": 13
   },
-  "rate": 0.5,
-  "unit": "question-per-model"
+  "rate": 0.3594,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "2-1.count",
   "name": "불릿·항목·문장·문단·줄·어절 수",
-  "applied": 55,
-  "applied_by_model": {
-   "aiona": 55,
-   "gpt": 54,
-   "claude": 54,
-   "gemini": 54
-  },
+  "applied": 70,
+  "applied_basis": "question",
   "fail": 83,
   "by_model": {
    "aiona": 19,
@@ -56,19 +41,14 @@
    "claude": 28,
    "gemini": 23
   },
-  "rate": 0.3827,
-  "unit": "question-per-model"
+  "rate": 0.2964,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J7",
   "name": "롱컨텍스트",
   "applied": 10,
-  "applied_by_model": {
-   "aiona": 10,
-   "gpt": 10,
-   "claude": 10,
-   "gemini": 10
-  },
+  "applied_basis": "question",
   "fail": 9,
   "by_model": {
    "aiona": 4,
@@ -77,78 +57,13 @@
    "gemini": 1
   },
   "rate": 0.225,
-  "unit": "question-per-model"
- },
- {
-  "id": "3-1.question_calculation",
-  "name": "질문이 요구한 계산값",
-  "applied": 27,
-  "applied_by_model": {
-   "aiona": 27,
-   "gpt": 20,
-   "claude": 22,
-   "gemini": 17
-  },
-  "fail": 18,
-  "by_model": {
-   "aiona": 5,
-   "gpt": 4,
-   "claude": 5,
-   "gemini": 4
-  },
-  "rate": 0.2119,
-  "unit": "question-per-model"
- },
- {
-  "id": "3-3.aggregate",
-  "name": "명시 집계값",
-  "applied": 10,
-  "applied_by_model": {
-   "aiona": 9,
-   "gpt": 5,
-   "claude": 10,
-   "gemini": 4
-  },
-  "fail": 4,
-  "by_model": {
-   "aiona": 1,
-   "gpt": 2,
-   "claude": 1,
-   "gemini": 0
-  },
-  "rate": 0.1528,
-  "unit": "question-per-model"
- },
- {
-  "id": "2-2.heading",
-  "name": "제목 존재·개수",
-  "applied": 50,
-  "applied_by_model": {
-   "aiona": 50,
-   "gpt": 50,
-   "claude": 28,
-   "gemini": 41
-  },
-  "fail": 24,
-  "by_model": {
-   "aiona": 2,
-   "gpt": 7,
-   "claude": 2,
-   "gemini": 13
-  },
-  "rate": 0.1421,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "2-2.json_structure",
   "name": "JSON 최상위 자료형·필수 키·필드 자료형",
   "applied": 44,
-  "applied_by_model": {
-   "aiona": 44,
-   "gpt": 44,
-   "claude": 44,
-   "gemini": 44
-  },
+  "applied_basis": "question",
   "fail": 23,
   "by_model": {
    "aiona": 7,
@@ -157,78 +72,73 @@
    "gemini": 4
   },
   "rate": 0.1307,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "2-1.explicit_empty",
+  "name": "명시 빈 출력",
+  "applied": 10,
+  "applied_basis": "question",
+  "fail": 5,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 1,
+   "claude": 1,
+   "gemini": 1
+  },
+  "rate": 0.125,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "2-2.heading",
+  "name": "제목 존재·개수",
+  "applied": 50,
+  "applied_basis": "question",
+  "fail": 24,
+  "by_model": {
+   "aiona": 2,
+   "gpt": 7,
+   "claude": 2,
+   "gemini": 13
+  },
+  "rate": 0.12,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "3-1.question_calculation",
+  "name": "질문이 요구한 계산값",
+  "applied": 43,
+  "applied_basis": "question",
+  "fail": 18,
+  "by_model": {
+   "aiona": 5,
+   "gpt": 4,
+   "claude": 5,
+   "gemini": 4
+  },
+  "rate": 0.1047,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J5",
   "name": "DATA 신뢰도",
-  "applied": 246,
-  "applied_by_model": {
-   "aiona": 226,
-   "gpt": 246,
-   "claude": 229,
-   "gemini": 216
-  },
-  "fail": 114,
+  "applied": 280,
+  "applied_basis": "question",
+  "fail": 105,
   "by_model": {
    "aiona": 12,
    "gpt": 20,
-   "claude": 41,
-   "gemini": 41
+   "claude": 36,
+   "gemini": 37
   },
-  "rate": 0.1258,
-  "unit": "question-per-model"
- },
- {
-  "id": "2-2.table",
-  "name": "표 존재·개수·열·헤더·명시 행 수",
-  "applied": 34,
-  "applied_by_model": {
-   "aiona": 34,
-   "gpt": 34,
-   "claude": 34,
-   "gemini": 34
-  },
-  "fail": 11,
-  "by_model": {
-   "aiona": 5,
-   "gpt": 2,
-   "claude": 1,
-   "gemini": 3
-  },
-  "rate": 0.0809,
-  "unit": "question-per-model"
- },
- {
-  "id": "2-2.list",
-  "name": "목록 사용·금지",
-  "applied": 41,
-  "applied_by_model": {
-   "aiona": 41,
-   "gpt": 41,
-   "claude": 41,
-   "gemini": 41
-  },
-  "fail": 12,
-  "by_model": {
-   "aiona": 4,
-   "gpt": 1,
-   "claude": 0,
-   "gemini": 7
-  },
-  "rate": 0.0732,
-  "unit": "question-per-model"
+  "rate": 0.0938,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "2-1.literal",
   "name": "필수·금지·시작·끝 문자열 (정확 일치 요구 외 공백 접기)",
-  "applied": 67,
-  "applied_by_model": {
-   "aiona": 67,
-   "gpt": 67,
-   "claude": 67,
-   "gemini": 67
-  },
+  "applied": 71,
+  "applied_basis": "question",
   "fail": 19,
   "by_model": {
    "aiona": 4,
@@ -236,39 +146,14 @@
    "claude": 3,
    "gemini": 7
   },
-  "rate": 0.0709,
-  "unit": "question-per-model"
- },
- {
-  "id": "2-1.char_count",
-  "name": "글자 수",
-  "applied": 50,
-  "applied_by_model": {
-   "aiona": 50,
-   "gpt": 50,
-   "claude": 50,
-   "gemini": 50
-  },
-  "fail": 14,
-  "by_model": {
-   "aiona": 3,
-   "gpt": 3,
-   "claude": 8,
-   "gemini": 0
-  },
-  "rate": 0.07,
-  "unit": "question-per-model"
+  "rate": 0.0669,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-2.code_block",
   "name": "코드블록 존재·개수·금지",
-  "applied": 46,
-  "applied_by_model": {
-   "aiona": 46,
-   "gpt": 46,
-   "claude": 46,
-   "gemini": 46
-  },
+  "applied": 47,
+  "applied_basis": "question",
   "fail": 12,
   "by_model": {
    "aiona": 2,
@@ -276,19 +161,44 @@
    "claude": 3,
    "gemini": 5
   },
-  "rate": 0.0652,
-  "unit": "question-per-model"
+  "rate": 0.0638,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "2-2.list",
+  "name": "목록 사용·금지",
+  "applied": 49,
+  "applied_basis": "question",
+  "fail": 12,
+  "by_model": {
+   "aiona": 4,
+   "gpt": 1,
+   "claude": 0,
+   "gemini": 7
+  },
+  "rate": 0.0612,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "2-2.table",
+  "name": "표 존재·개수·열·헤더·명시 행 수",
+  "applied": 46,
+  "applied_basis": "question",
+  "fail": 11,
+  "by_model": {
+   "aiona": 5,
+   "gpt": 2,
+   "claude": 1,
+   "gemini": 3
+  },
+  "rate": 0.0598,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J2",
   "name": "지시 준수",
-  "applied": 189,
-  "applied_by_model": {
-   "aiona": 187,
-   "gpt": 189,
-   "claude": 179,
-   "gemini": 170
-  },
+  "applied": 216,
+  "applied_basis": "question",
   "fail": 43,
   "by_model": {
    "aiona": 8,
@@ -296,39 +206,59 @@
    "claude": 13,
    "gemini": 21
   },
-  "rate": 0.0611,
-  "unit": "question-per-model"
+  "rate": 0.0498,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
-  "id": "J3",
-  "name": "일관성·논리",
-  "applied": 152,
-  "applied_by_model": {
-   "aiona": 151,
-   "gpt": 152,
-   "claude": 141,
-   "gemini": 143
-  },
-  "fail": 30,
+  "id": "2-1.char_count",
+  "name": "글자 수",
+  "applied": 73,
+  "applied_basis": "question",
+  "fail": 14,
   "by_model": {
-   "aiona": 2,
-   "gpt": 1,
-   "claude": 10,
-   "gemini": 17
+   "aiona": 3,
+   "gpt": 3,
+   "claude": 8,
+   "gemini": 0
   },
-  "rate": 0.0524,
-  "unit": "question-per-model"
+  "rate": 0.0479,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "3-3.aggregate",
+  "name": "명시 집계값",
+  "applied": 28,
+  "applied_basis": "question",
+  "fail": 4,
+  "by_model": {
+   "aiona": 1,
+   "gpt": 2,
+   "claude": 1,
+   "gemini": 0
+  },
+  "rate": 0.0357,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "1-2.python_syntax",
+  "name": "Python 구문",
+  "applied": 31,
+  "applied_basis": "question",
+  "fail": 4,
+  "by_model": {
+   "aiona": 3,
+   "gpt": 0,
+   "claude": 1,
+   "gemini": 0
+  },
+  "rate": 0.0323,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-2.code_language_label",
   "name": "코드블록 언어 표지",
-  "applied": 39,
-  "applied_by_model": {
-   "aiona": 39,
-   "gpt": 39,
-   "claude": 38,
-   "gemini": 36
-  },
+  "applied": 41,
+  "applied_basis": "question",
   "fail": 5,
   "by_model": {
    "aiona": 1,
@@ -336,19 +266,14 @@
    "claude": 2,
    "gemini": 1
   },
-  "rate": 0.0329,
-  "unit": "question-per-model"
+  "rate": 0.0305,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J4",
   "name": "완결성",
-  "applied": 216,
-  "applied_by_model": {
-   "aiona": 216,
-   "gpt": 213,
-   "claude": 214,
-   "gemini": 212
-  },
+  "applied": 228,
+  "applied_basis": "question",
   "fail": 23,
   "by_model": {
    "aiona": 4,
@@ -356,39 +281,29 @@
    "claude": 6,
    "gemini": 8
   },
-  "rate": 0.0269,
-  "unit": "question-per-model"
+  "rate": 0.0252,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
-  "id": "2-1.charset",
-  "name": "허용 문자",
-  "applied": 42,
-  "applied_by_model": {
-   "aiona": 42,
-   "gpt": 42,
-   "claude": 42,
-   "gemini": 42
-  },
-  "fail": 3,
+  "id": "J3",
+  "name": "일관성·논리",
+  "applied": 326,
+  "applied_basis": "question",
+  "fail": 30,
   "by_model": {
-   "aiona": 0,
-   "gpt": 0,
-   "claude": 0,
-   "gemini": 3
+   "aiona": 2,
+   "gpt": 1,
+   "claude": 10,
+   "gemini": 17
   },
-  "rate": 0.0179,
-  "unit": "question-per-model"
+  "rate": 0.023,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J8",
   "name": "첨부파일 활용",
   "applied": 28,
-  "applied_by_model": {
-   "aiona": 28,
-   "gpt": 28,
-   "claude": 28,
-   "gemini": 28
-  },
+  "applied_basis": "question",
   "fail": 2,
   "by_model": {
    "aiona": 0,
@@ -397,18 +312,28 @@
    "gemini": 0
   },
   "rate": 0.0179,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "2-1.charset",
+  "name": "허용 문자",
+  "applied": 46,
+  "applied_basis": "question",
+  "fail": 3,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 3
+  },
+  "rate": 0.0163,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "3-2.declared_count",
   "name": "답변이 선언한 개수와 이어지는 구조",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 12,
   "by_model": {
    "aiona": 4,
@@ -416,19 +341,14 @@
    "claude": 2,
    "gemini": 4
   },
-  "rate": 0.0095,
-  "unit": "question-per-model"
+  "rate": 0.0092,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-2.orphan_closing_tag",
   "name": "짝이 없는 닫는 태그 (MD 169)",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 7,
   "by_model": {
    "aiona": 7,
@@ -436,39 +356,29 @@
    "claude": 0,
    "gemini": 0
   },
-  "rate": 0.0055,
-  "unit": "question-per-model"
+  "rate": 0.0054,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "J1",
   "name": "요청 충실",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 316,
-   "claude": 316,
-   "gemini": 316
-  },
-  "fail": 5,
+  "applied": 326,
+  "applied_basis": "question",
+  "fail": 6,
   "by_model": {
-   "aiona": 4,
+   "aiona": 5,
    "gpt": 1,
    "claude": 0,
    "gemini": 0
   },
-  "rate": 0.0039,
-  "unit": "question-per-model"
+  "rate": 0.0046,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-1.response_nonempty",
   "name": "일반 응답 존재",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "question",
   "fail": 4,
   "by_model": {
    "aiona": 4,
@@ -476,59 +386,14 @@
    "claude": 0,
    "gemini": 0
   },
-  "rate": 0.0032,
-  "unit": "question-per-model"
- },
- {
-  "id": "1-2.python_syntax",
-  "name": "Python 구문",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
-  "fail": 4,
-  "by_model": {
-   "aiona": 3,
-   "gpt": 0,
-   "claude": 1,
-   "gemini": 0
-  },
-  "rate": 0.0032,
-  "unit": "question-per-model"
+  "rate": 0.0031,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-1.foreign_script",
   "name": "설명 없는 외국 문자",
-  "applied": 277,
-  "applied_by_model": {
-   "aiona": 277,
-   "gpt": 277,
-   "claude": 277,
-   "gemini": 277
-  },
-  "fail": 1,
-  "by_model": {
-   "aiona": 0,
-   "gpt": 0,
-   "claude": 0,
-   "gemini": 1
-  },
-  "rate": 0.0009,
-  "unit": "question-per-model"
- },
- {
-  "id": "1-3.internal_link",
-  "name": "문서 내부 링크 연결",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "question",
   "fail": 1,
   "by_model": {
    "aiona": 0,
@@ -537,18 +402,28 @@
    "gemini": 1
   },
   "rate": 0.0008,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "1-3.internal_link",
+  "name": "문서 내부 링크 연결",
+  "applied": 326,
+  "applied_basis": "union",
+  "fail": 1,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 1
+  },
+  "rate": 0.0008,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-1.character_rules",
   "name": "깨진 문자·제어 문자",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "question",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -557,18 +432,13 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-2.fence_imbalance",
   "name": "코드·수식 구획 표시 짝 (MD 170)",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -577,38 +447,13 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
- },
- {
-  "id": "1-2.json_syntax",
-  "name": "JSON 구문",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
-  "fail": 0,
-  "by_model": {
-   "aiona": 0,
-   "gpt": 0,
-   "claude": 0,
-   "gemini": 0
-  },
-  "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-3.citation_link",
   "name": "인용 번호·출처 목록 연결",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -617,18 +462,13 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-3.footnote_link",
   "name": "각주 사용·정의 연결",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -637,18 +477,13 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "3-1.answer_equation",
   "name": "답변 등식 재계산",
-  "applied": 317,
-  "applied_by_model": {
-   "aiona": 317,
-   "gpt": 317,
-   "claude": 317,
-   "gemini": 317
-  },
+  "applied": 326,
+  "applied_basis": "union",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -657,18 +492,13 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "1-2.code_fence_min",
   "name": "코드 구획 표시 2개 이상 (MD 165)",
-  "applied": 42,
-  "applied_by_model": {
-   "aiona": 42,
-   "gpt": 42,
-   "claude": 41,
-   "gemini": 39
-  },
+  "applied": 45,
+  "applied_basis": "question",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -677,18 +507,28 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
+ },
+ {
+  "id": "1-2.json_syntax",
+  "name": "JSON 구문",
+  "applied": 44,
+  "applied_basis": "question",
+  "fail": 0,
+  "by_model": {
+   "aiona": 0,
+   "gpt": 0,
+   "claude": 0,
+   "gemini": 0
+  },
+  "rate": 0.0,
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  },
  {
   "id": "3-3.unique_values",
   "name": "명시 고유성",
-  "applied": 28,
-  "applied_by_model": {
-   "aiona": 23,
-   "gpt": 23,
-   "claude": 25,
-   "gemini": 28
-  },
+  "applied": 29,
+  "applied_basis": "question",
   "fail": 0,
   "by_model": {
    "aiona": 0,
@@ -697,6 +537,6 @@
    "gemini": 0
   },
   "rate": 0.0,
-  "unit": "question-per-model"
+  "unit": "question-per-model, denominator from question (same for all models), holds stay in denominator"
  }
 ]

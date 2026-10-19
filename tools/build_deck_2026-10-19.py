@@ -310,7 +310,7 @@ hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th>' + "".join(f'<td class="nu
 CF_SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 CF_TOP = [r for r in CRIT_FAIL if r["applied"] >= 10 and r["fail"] > 0][:12]
 cf_rows = "".join(f'<tr><th scope="row"><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]}</td>'
-                  f'<td class="exq">{" · ".join(f"{CF_SHORT[k]} <b>{r["by_model"][k]}</b>/{v}" for k, v in r["applied_by_model"].items() if v)}</td>'
+                  f'<td class="exq">{" · ".join(f"{CF_SHORT[k]} <b>{v}</b>" for k, v in r["by_model"].items())}</td>'
                   f'<td class="num"><b>{r["rate"] * 100:.0f}%</b></td></tr>' for r in CF_TOP)
 CF_ZERO = [r for r in CRIT_FAIL if r["fail"] == 0]
 cf_zero_line = " · ".join(f'<code>{E(r["id"])}</code>({r["applied"]})' for r in CF_ZERO)
@@ -629,7 +629,7 @@ prompt_sum_rows = "".join(f'<tr><th scope="row">{a}</th><td class="exq"><ul clas
 
 s2 = f"""
 <section class="slide" id="s2">
-  {head("02", "질문생성 프롬프트 — 규칙 한 벌, 네 단계", "한 번에 326개를 받을 수 없어 단계로 나눕니다. 호출마다 그 단계의 글만 보냅니다 — 점검 목록 72개는 ①에 통째로(J6·J7 제외), ②는 J6 항목만, ③은 J7 항목만, ④는 그 질문의 후보 항목만. 합계 326개 = 단일 284 + 짧은 대화 16 + 10턴 대화 16 + 긴 문서 10 (대화 1개 = 질문 1개).")}
+  {head("02", "질문생성 프롬프트", "")}
   <div class="steps4">{"".join(f'<div><span class="k">{a} {b}</span><b>{E(c)}</b><span>{E(d)}</span></div>' for a, b, c, d in gen_struct)}</div>
   <div class="block"><h3>프롬프트 요약 — 원문 순서대로</h3>
     <div class="cmpt rtab"><table><caption>단계 ①(단일 질문)의 공통 규칙과 ②③④ 단계의 다른 점</caption>
@@ -776,8 +776,8 @@ s6 = f"""
       <thead><tr><th>사유</th><th>질문</th><th>답변에서 문제가 된 부분</th><th>심판이 남긴 것 → 왜 보류인가</th></tr></thead><tbody>{aiona_hold_rows}</tbody></table></div>
   </div>
   <div class="cmpt rtab"><table><caption>기준별 FAIL — 많이 틀린 기준 12개 (질문 단위 — 대화는 어느 턴이든 FAIL 이면 그 질문 FAIL)</caption>
-    <thead><tr><th>기준</th><th>이 기준이 판정된 질문 (326 중)</th><th>모델별 FAIL 질문 수 / 판정된 질문 수</th><th>FAIL 률 (네 모델 평균)</th></tr></thead><tbody>{cf_rows}</tbody></table>
-    <div class="qnote">판정된 질문 = 그 모델에서 이 기준이 PASS 나 FAIL 로 확정된 질문(보류·확인 못 함은 뺌). <b>한 번도 FAIL 이 안 난 기준 {len(CF_ZERO)}개</b>: {cf_zero_line} — 깨진 출력을 잡는 안전망 검사거나 요구가 쉬워 모두 지킨 것(느슨한 기준 아님).</div></div>
+    <thead><tr><th>기준</th><th>적용 질문 (326 중, 네 모델 같음)</th><th>모델별 FAIL 질문 수</th><th>FAIL 률 (네 모델 평균)</th></tr></thead><tbody>{cf_rows}</tbody></table>
+    <div class="qnote">적용 질문 = 질문 글에서 이 기준이 걸리는 질문 수라 네 모델이 같습니다. FAIL 이 아닌 나머지는 PASS 또는 보류(확인 못 함·판정 못 함)이고 보류도 분모에 남깁니다. <b>한 번도 FAIL 이 안 난 기준 {len(CF_ZERO)}개</b>: {cf_zero_line} — 깨진 출력을 잡는 안전망 검사거나 요구가 쉬워 모두 지킨 것(느슨한 기준 아님).</div></div>
 </section>
 """
 
