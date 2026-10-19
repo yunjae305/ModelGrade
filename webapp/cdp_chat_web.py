@@ -501,8 +501,14 @@ class ChatGptChat(_CdpChat):
         for btn in buttons:
             try:
                 before = self._eval("() => (window.__mgCopied || []).length")
-                btn.scroll_into_view_if_needed(timeout=2000)
-                btn.click(timeout=3000)
+                try:
+                    btn.scroll_into_view_if_needed(timeout=2000)
+                except Exception:
+                    pass
+                try:
+                    btn.click(timeout=3000)
+                except Exception:
+                    btn.dispatch_event("click")   # 상단 바 등이 포인터를 가로채면 클릭이 거부된다 — DOM 에 바로 클릭 이벤트 (짧은 답 복사 실패, 2026-10-20)
                 self.page.wait_for_timeout(500)
                 copied = self._eval("() => window.__mgCopied || []")
                 if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
