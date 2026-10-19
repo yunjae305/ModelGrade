@@ -46,7 +46,7 @@ class ClaudeAppChat:
     STOP = r"^(응답 중지|중지|Stop)"
     ATTACH = r"^파일, 커넥터 등 추가"
     ATTACH_ITEM = r"^파일 업로드 또는 추가"
-    REMOVE = r"(제거|삭제|Remove)"        # 입력칸에 붙은 첨부의 지우기 버튼 — 첨부 수 세기
+    REMOVE = r"\.[A-Za-z0-9]{1,5} (삭제|제거)$|^Remove .+\.[A-Za-z0-9]{1,5}$"   # 입력칸 첨부 칩의 지우기 버튼('1792…_이름.txt 삭제')만 — 채팅 이름에 '제거' 가 든 사이드바 버튼을 누른 사고(2026-10-20)
     MODEL_BTN = r"^모델: "
     MODEL_RADIO = r"^Sonnet 5\.5"
     EFFORT_ITEM = r"^노력"
