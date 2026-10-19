@@ -125,7 +125,13 @@ def main() -> int:
 | 출력 | `{{"items": [...]}}` | `{{"turns": [{{"turn", "items": [...]}}]}}` — 턴마다 판정할 항목 전부 |
 | 상황표·항목 정의 | — | v2 와 같음('항상 적용'은 {'·'.join(fixed)} 에만, 모델 이름 없음) |
 
-## 판정하는 법 (에이전트·API 공통)
+## 판정하는 법 — 나눠서 판정 (2026-10-19 결정)
+
+J1~J4 항목은 **Jev**(고정 질문 묶음 `jev_questions_v1.json`), J5~J8 항목은 **GPT CLI(Codex)**(이 고정 프롬프트)가 판정한다. 한 질문에 심판마다 한 번, 동시에.
+Jev 가 못 하면(입력 상한·오류·키 없음) 그 J1~J4 는 GPT CLI 가 이 프롬프트로 대신 판정하고 기록한다.
+실행: `python -X utf8 tools/judge_run.py data/comparison_runs/<run_id>.json [--only 36,17]` → `data/judge_runs/<run_id>/results.jsonl`·`summary.md`.
+
+### 프롬프트만 따로 쓸 때 (에이전트·API 공통)
 
 1. 고정 프롬프트(`judge_prompt_v3.txt`)를 그대로 둔다(API 면 system, 에이전트면 처음에 한 번 읽힘).
 2. `python -X utf8 tools/judge_inputs.py data/comparison_runs/<run_id>.json` → `data/judge_inputs/<run_id>/<모델>.jsonl` (질문 한 줄 = 입력 하나).

@@ -68,6 +68,13 @@ def turn_block(mark: str, row: Dict[str, Any], situation: str, answer: str) -> s
     return "\n".join(parts)
 
 
+def situations_for(row: Dict[str, Any], items: List[str]) -> str:
+    """판정상황표 한 줄을 ``items`` (그 심판이 맡은 항목)만 남겨 같은 글 모양으로 다시 쓴다 — 나눠서 판정(judge-split)용."""
+    from tools.build_judge_situations import render
+    keep = [s for s in row["situations"] if any(i in items for i in s["items"])]
+    return render([i for i in row["items"] if i in items], [{**s, "items": [i for i in s["items"] if i in items]} for s in keep])
+
+
 def question_input(mark: str, turns: List[Dict[str, Any]], situations: Dict[str, str], answers: Dict[str, str]) -> str:
     """고정 프롬프트 뒤에 붙일 [입력] — 프롬프트 '입력 형식' 그대로."""
     body = [turn_block(mark, row, situations[row["case_id"]], answers[row["case_id"]]) for row in turns]
