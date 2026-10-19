@@ -457,21 +457,34 @@ class ClaudeAppChat:
     COPY_SENTINEL = "\u2063modelgrade-copy-wait\u2063"
 
     def _copy_last_answer(self) -> str:
-        """마지막 답의 복사 아이콘 → 클립보드. 반드시 채팅 탭의 마지막 말풍선 아래 버튼만 — Code 탭이 앞에 있으면 그 탭의 글을 복사한다(Q3 사고 2026-10-19).
-        다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 그 말풍선의 글과 맞는지 대조한다(최대 3번)."""
-        self._select_chat_tab()
-        group = self._wait_group(10)
-        if group is None:
-            raise UiaChatError("채팅 탭의 말풍선을 찾지 못해 복사하지 않음 (앱이 다른 탭에 있음?) — 이 질문은 다음에 다시 받습니다")
-        top = group.element_info.rectangle.top
-        bars = [b for b in self._answer_bars() if b.element_info.rectangle.top >= top - 10]   # 그 말풍선 아래의 툴바만
-        if not bars:
-            return ""
-        btn = next((b for b in bars[-1].descendants(control_type="Button") if re.match(self.COPY, b.element_info.name or "")), None)
-        if btn is None:
-            return ""
-        screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text")))
-        for _ in range(3):
+        """마지막 답의 복사 아이콘 → 클립보드. 반드시 채팅 탭에서 — Code 탭이 앞에 있으면 그 탭의 글을 복사한다(Q3 사고 2026-10-19).
+        긴 대화에서는 말풍선 이름('N개 메시지 중 K번째')이 잠시 안 잡히거나 글이 늦게 갱신되므로 3번까지 다시 본다(간단평가 재수집 2026-10-20).
+        다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 화면의 답과 맞는지 대조한다."""
+        last_error = ""
+        for round_ in range(3):
+            self._select_chat_tab()
+            group = self._wait_group(5)
+            if group is not None:
+                top = group.element_info.rectangle.top
+                bars = [b for b in self._answer_bars() if b.element_info.rectangle.top >= top - 10]
+                screen = _squash("\n".join((e.element_info.name or "") for e in group.descendants(control_type="Text")))
+            else:
+                docs = [d.element_info.name or "" for d in self._all("Document")]
+                if any("Claude Code" in d for d in docs) and not any(d.endswith("- Claude") for d in docs):
+                    last_error = "채팅 탭이 아님(Claude Code 화면)"
+                    time.sleep(3)
+                    continue
+                bars = self._answer_bars()   # 말풍선 이름이 안 잡혀도 채팅 탭이면 마지막 답변 툴바가 마지막 답이다
+                screen = _squash(self._page_text())
+            if not bars:
+                last_error = "답변 툴바 없음"
+                time.sleep(3)
+                continue
+            btn = next((b for b in bars[-1].descendants(control_type="Button") if re.match(self.COPY, b.element_info.name or "")), None)
+            if btn is None:
+                last_error = "복사 버튼 없음"
+                time.sleep(3)
+                continue
             _clipboard_set(self.COPY_SENTINEL)
             self._press(btn)
             text = ""
@@ -482,16 +495,9 @@ class ClaudeAppChat:
                     break
             if text and text != self.COPY_SENTINEL and (not screen or _squash(text)[:40] in screen or _squash(text)[-40:] in screen):
                 return text
-            time.sleep(1.0)
-        raise UiaChatError("복사한 글이 화면의 답과 다릅니다 (다른 프로그램이 클립보드를 쓰는 중?) — 이 질문은 다음에 다시 받습니다")
-
-    def recopy(self) -> str:
-        """마지막 답의 복사 아이콘을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
-        try:
-            self._front()
-            return self._copy_last_answer() or ""
-        except Exception:
-            return ""
+            last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
+            time.sleep(3)
+        raise UiaChatError(f"복사 실패({last_error}) — 3번 다시 시도함, 이 질문은 다음에 다시 받습니다")
 
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         """현재 채팅에 질문을 보내고 답변이 끝날 때까지 기다린다 → {answer, status, error, url, sent, latency_ms, model, method, capture}."""
