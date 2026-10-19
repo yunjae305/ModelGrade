@@ -124,3 +124,30 @@ def test_quote_not_in_the_answer_holds_the_item():
     assert out[1]["J5-3.a"]["decision"] == "UNVERIFIED" and "answer_quote" in out[1]["J5-3.a"]["problems"][0]
     assert out[1]["J7-1.a"]["problems"] == ["판정 없음"]
     assert js.semantic_verdict(out) == "HOLD"
+
+
+def test_quotes_pass_when_stitched_lines_or_attachment_header_match_the_rendered_input():
+    """2026-10-19 시험: 심판이 떨어진 두 줄을 이어 붙여 인용(Q48)하거나 [첨부파일] 머리줄까지 인용(Q30·Q46)한 경우는 원문 대조 통과."""
+    turns = [{"case_id": "Q1_T1", "turn": 1, "question": "첨부를 요약해줘.", "attachments": [{"name": "공지.txt", "type": "txt", "content": "# 안내\n- 기간: 6월"}]}]
+    answer = "- 기간은 6월입니다.\n\n### 준비물\n- 활동지를 준비합니다."
+    items = [{"id": "J8-1.a", "decision": "PASS", "answer_quote": "- 기간은 6월입니다.\n- 활동지를 준비합니다.",
+              "question_quote": "[첨부파일]\n- 공지.txt · txt\n# 안내"},
+             {"id": "J8-3.a", "decision": "FAIL", "answer_quote": "원문에 없는 문장", "question_quote": ""}]
+    out = js.check_gpt({"turns": [{"turn": 1, "items": items}]}, turns, {"Q1_T1": answer}, {1: ["J8-1.a", "J8-3.a"]})
+    assert out[1]["J8-1.a"]["problems"] == [] and out[1]["J8-1.a"]["decision"] == "PASS"
+    assert out[1]["J8-3.a"]["decision"] == "UNVERIFIED"
+
+
+def test_codex_rate_limit_waits_and_retries_instead_of_failing(monkeypatch):
+    calls = []
+    def runner(cmd, **kw):
+        calls.append(cmd)
+        if len(calls) == 1:
+            return SimpleNamespace(returncode=1, stdout="", stderr="exceeded retry limit, last status: 429 Too Many Requests")
+        Path([c for c in cmd if c.endswith("answer.json")][0]).write_text('{"turns": []}', encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout='{"type":"turn.completed"}', stderr="")
+    slept = []
+    monkeypatch.setattr(jr.time, "sleep", lambda s: slept.append(s))
+    judge = jr.CodexJudge("codex", "m", "low", 0, "live", runner=runner)
+    status, body, err = judge.judge("프롬프트", "입력", False)
+    assert status == "OK" and body == {"turns": []} and slept == [60] and len(calls) == 2

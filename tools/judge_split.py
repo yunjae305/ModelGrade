@@ -129,6 +129,21 @@ def fold(entries: List[Dict[str, Any]]) -> str:
     return "PASS"
 
 
+def quoted_in(quote: str, sources: List[str]) -> bool:
+    """인용이 원문에 있는가 — 통째로 있으면 통과, 아니면 줄마다(빈 줄 제외) 어느 원문에든 있으면 통과
+    (심판이 떨어진 두 줄을 이어 붙여 인용한 경우: 2026-10-19 시험 Q48). 공백 차이는 무시한다."""
+    import re
+    squash = lambda s: re.sub(r"\s+", "", s or "")
+    pool = [squash(s) for s in sources if s]
+    q = squash(quote)
+    if not q:
+        return True
+    if any(q in s for s in pool):
+        return True
+    lines = [squash(l) for l in quote.splitlines() if l.strip()]
+    return bool(lines) and all(any(l in s for s in pool) for l in lines)
+
+
 def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], gpt_items: Dict[int, List[str]]) -> Dict[int, Dict[str, Any]]:
     """GPT CLI 출력({"turns": [...]}) → {턴: {항목: {decision, entries, problems}}}. 빠진 항목·형식 오류·원문과 다른 인용은 problems 에 남기고 보류."""
     by_turn: Dict[int, List[Dict[str, Any]]] = {}
@@ -140,7 +155,8 @@ def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str],
     for n, items in gpt_items.items():
         row = rows[n]
         answer = answers[row["case_id"]]
-        sources = [row.get("question") or "", row.get("reference") or ""] + [str(a.get("content") or "") for a in row.get("attachments") or [] if isinstance(a, dict)]
+        from tools.judge_inputs import attachments_block
+        sources = [row.get("question") or "", row.get("reference") or "", attachments_block(row)]   # 첨부는 심판이 본 렌더링 그대로
         out[n] = {}
         for item in items:
             entries = [e for e in by_turn.get(n, []) if _base(e.get("id")) == item]
@@ -151,12 +167,12 @@ def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str],
                 if e.get("decision") not in DECISIONS:
                     problems.append(f"{e.get('id')}: 판정 값 {e.get('decision')!r}")
                 aq, qq = e.get("answer_quote") or "", e.get("question_quote") or ""
-                if aq and aq not in answer:
+                if aq and not quoted_in(aq, [answer]):
                     problems.append(f"{e.get('id')}: answer_quote 가 답변 원문에 없음")
                 if qq:
                     quoted = rows.get(e.get("quote_turn")) if isinstance(e.get("quote_turn"), int) else None
                     pool = sources + ([quoted.get("question") or "", answers.get(quoted["case_id"], "")] if quoted else [])
-                    if not any(qq in s for s in pool):
+                    if not quoted_in(qq, pool):
                         problems.append(f"{e.get('id')}: question_quote 가 질문 원문에 없음")
             decision = "UNVERIFIED" if problems else fold(entries)
             out[n][item] = {"decision": decision, "judge": "gpt", "entries": entries, "problems": problems}

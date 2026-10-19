@@ -4,7 +4,8 @@
     python -X utf8 tools/judge_run.py data/comparison_runs/8c61f117e661.json                                   # 전체 326 × 모델
     옵션: --workers 2 · --out DIR(기본 data/judge_runs/<run_id>) · --set 참고자료/질문세트_326
     설정(.env): CODEX_CLI_PATH·CODEX_CLI_MODEL·CODEX_CLI_REASONING·CODEX_CLI_TIMEOUT·SEMANTIC_WEB_SEARCH (GPT) ·
-               TYPESAFE_API_KEY·JEV_MODEL (Jev) · JEV_MAX_STATE_CHARS(Jev 에 보낼 입력 상한, 기본 150000 — 넘으면 GPT 가 J1~J4 도)
+               TYPESAFE_API_KEY·JEV_MODEL (Jev) · JEV_MAX_STATE_CHARS(기본 0 = 상한 없음 — 사용자 결정 10-19: GPT·Jev 모두 상한 없음. Jev 가 거부(HTTP 400)하면 GPT 가 J1~J4 도)
+    CODEX_CLI_TIMEOUT 기본 0 = 제한 없음.
 
 - GPT CLI 에는 고정 프롬프트 v3 + [입력](그 질문에서 GPT 가 맡은 항목만 [이 턴의 상황]에)을 한 번에 보낸다(``codex exec``, 출력 형식 고정).
 - Jev 에는 고정 질문 묶음(jev_questions_v1)과 state(질문의 모든 턴)를 보낸다. 두 심판은 동시에 부른다.
@@ -37,13 +38,17 @@ from tools import judge_split as js  # noqa: E402
 from webapp.run_summary import question_outcome  # noqa: E402
 
 VERSION = "judge-run-v1"
-JEV_MAX_STATE_CHARS = 150_000
+JEV_MAX_STATE_CHARS = 0   # 0 = 상한 없음 (사용자 결정 2026-10-19)
 
 
 # --- 심판 호출 -------------------------------------------------------------------------------------------------------
 
 class CodexJudge:
-    """``codex exec`` 로 고정 프롬프트 v3 + 입력을 보내고 JSON 결과를 받는다. 실패하면 한 번 다시."""
+    """``codex exec`` 로 고정 프롬프트 v3 + 입력을 보내고 JSON 결과를 받는다. 실패하면 한 번 다시.
+    429(구독 사용량 한도)는 실패로 적지 않고 풀릴 때까지 기다렸다 다시 보낸다 — 60·120·300초, 그 뒤 600초마다, 횟수 제한 없음(사용자 결정 10-19)."""
+
+    RATE_LIMIT_WAITS = (60, 120, 300)
+    RATE_LIMIT_WAIT_MAX = 600
 
     name = "gpt"
 
@@ -53,13 +58,22 @@ class CodexJudge:
         self._run = runner
 
     def manifest(self) -> Dict[str, Any]:
-        return {"engine": "codex_cli", "model": self.model, "reasoning": self.reasoning, "web_search": self.web_search}
+        return {"engine": "codex_cli", "model": self.model, "reasoning": self.reasoning, "web_search": self.web_search,
+                "rate_limit_wait": "60·120·300s then 600s, unlimited"}
+
+    @staticmethod
+    def is_rate_limited(error: str) -> bool:
+        text = (error or "").lower()
+        return "429" in text or "too many requests" in text or "rate limit" in text or "usage limit" in text
 
     def judge(self, prompt: str, input_text: str, search: bool) -> Tuple[str, Any, str]:
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
         last = ""
-        for _ in range(2):
+        waits = 0
+        attempt = 0
+        while attempt < 2:
+            attempt += 1
             with tempfile.TemporaryDirectory(prefix="judge-run-") as folder:
                 schema, output = Path(folder) / "schema.json", Path(folder) / "answer.json"
                 schema.write_text(json.dumps(js.gpt_output_schema(), ensure_ascii=False), encoding="utf-8")
@@ -74,7 +88,7 @@ class CodexJudge:
                 cmd.append("-")
                 try:   # 고정 프롬프트 뒤에 [입력] — 프롬프트 '입력 형식' 그대로
                     proc = self._run(cmd, input=prompt + "\n[입력]\n" + input_text, capture_output=True, text=True, encoding="utf-8",
-                                     timeout=self.timeout, cwd=folder, shell=False)
+                                     timeout=self.timeout or None, cwd=folder, shell=False)
                 except subprocess.TimeoutExpired:
                     last = f"Codex CLI 가 {self.timeout:.0f}초 안에 끝나지 않음"
                     continue
@@ -83,6 +97,12 @@ class CodexJudge:
                 events = _events(proc.stdout or "")
                 if proc.returncode or not any(e.get("type") == "turn.completed" for e in events):
                     last = _error(events, proc.stderr or "", proc.returncode)
+                    if self.is_rate_limited(last):
+                        pause = self.RATE_LIMIT_WAITS[waits] if waits < len(self.RATE_LIMIT_WAITS) else self.RATE_LIMIT_WAIT_MAX
+                        waits += 1
+                        print(f"  [codex] 사용량 한도(429) — {pause}초 기다렸다 다시 ({waits}번째)", file=sys.stderr, flush=True)
+                        time.sleep(pause)
+                        attempt -= 1   # 한도 대기는 시도 횟수에 세지 않는다
                     continue
                 try:
                     return "OK", json.loads(output.read_text(encoding="utf-8-sig")), ""
@@ -104,7 +124,7 @@ class JevJudge:
         return {"engine": "jev", "model": getattr(config, "model", None), "max_state_chars": self.max_chars}
 
     def judge(self, state: Dict[str, Any], questions: Dict[str, Any]) -> Tuple[str, Any, str]:
-        if js.state_chars(state) > self.max_chars:
+        if self.max_chars and js.state_chars(state) > self.max_chars:
             return "TOO_LONG", None, f"입력 {js.state_chars(state):,}자 — Jev 입력 상한 {self.max_chars:,}자 초과"
         try:
             call = self.client.system_one(state, questions)
@@ -269,7 +289,7 @@ def judges_from_env() -> Tuple[Optional[CodexJudge], Optional[JevJudge], List[st
         notes.append(reason)
     else:
         gpt = CodexJudge(executable, env_value("CODEX_CLI_MODEL") or "gpt-6.1-sol", env_value("CODEX_CLI_REASONING") or "high",
-                         float(env_value("CODEX_CLI_TIMEOUT") or 1800), env_value("SEMANTIC_WEB_SEARCH") or "live")
+                         float(env_value("CODEX_CLI_TIMEOUT") or 0), env_value("SEMANTIC_WEB_SEARCH") or "live")
     client, _, reason = resolve_jev_client(engine="jev")
     if reason:
         notes.append(reason + " — J1~J4 는 GPT CLI 가 대신 판정")

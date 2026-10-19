@@ -57,11 +57,18 @@ def collected(row: Optional[Dict[str, Any]]) -> bool:
     return isinstance(row, dict) and (row.get("collection") or {}).get("status", "SUCCESS") == "SUCCESS"
 
 
+def attachments_block(row: Dict[str, Any]) -> str:
+    """[첨부파일] 블록 글 — 심판 입력과 인용 검사가 같은 글을 본다 (머리줄 '- 이름 · 종류' 포함). 첨부가 없으면 빈 문자열."""
+    files = [a for a in row.get("attachments") or [] if isinstance(a, dict)]
+    if not files:
+        return ""
+    return "[첨부파일]\n" + "\n".join(f"- {a.get('name')} · {a.get('type')}\n{a.get('content') or '(내용 없음)'}" for a in files)
+
+
 def turn_block(mark: str, row: Dict[str, Any], situation: str, answer: str) -> str:
     parts = [f"<<{mark} {_turn(row)}턴 시작>>", "[이 턴의 상황]", situation, "[질문]", row.get("question") or ""]
-    files = [a for a in row.get("attachments") or [] if isinstance(a, dict)]
-    if files:
-        parts += ["[첨부파일]", "\n".join(f"- {a.get('name')} · {a.get('type')}\n{a.get('content') or '(내용 없음)'}" for a in files)]
+    if attachments_block(row):
+        parts.append(attachments_block(row))
     if isinstance(row.get("reference"), str) and row["reference"].strip():
         parts += ["[참조 자료]", row["reference"]]
     parts += ["[답변]", answer, f"<<{mark} {_turn(row)}턴 끝>>"]
