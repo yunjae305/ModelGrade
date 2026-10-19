@@ -94,6 +94,12 @@ def main(argv=None) -> int:
     text = "\n".join(lines) + "\n"
     out = ROOT / "참고자료" / "최소평가" / f"k별_갈림_{args.run_id}{'_보류반영' if args.gold else ''}.md"
     out.write_text(text, encoding="utf-8")
+    # 발표 자료(tools/build_deck_2026-10-19.py)가 읽는 JSON — 보류 반영본이 있으면 그것을 우선 쓴다
+    out.with_suffix(".json").write_text(json.dumps({
+        "run": args.run_id, "gold": bool(args.gold), "singles": len(singles), "confirmed": len(singles) - excluded, "excluded_hold": excluded, "gold_stats": stats,
+        "by_k": {str(k): {"n": v[0], "all_pass": v[1], "split": v[2], "all_fail": v[3]} for k, v in sorted(by_k.items())},
+        "models": {p: {st: sum(1 for v in verdicts[p].values() if v == st) for st in ("PASS", "FAIL", "HOLD")} for p in providers}},
+        ensure_ascii=False, indent=1), encoding="utf-8")
     print(text); print("저장:", out)
     return 0
 

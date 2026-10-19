@@ -521,6 +521,8 @@ svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } 
 .defbox { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
 .defbox h3 { font-size: 1.05rem; } .defbox p { font-size: 0.95rem; color: var(--muted); } .defbox p b { color: var(--ink); }
 .defbox.warn { border-left-color: var(--warn); }
+table.mini { border-collapse: collapse; font-size: 0.86rem; width: 100%; } table.mini th, table.mini td { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; font-family: var(--font-num); }
+table.mini thead th { font-family: var(--font-body); color: var(--muted); font-size: 0.78rem; border-top: 0; } table.mini td.d { color: var(--accent); font-weight: 700; }
 @media (max-width: 900px) { .steps4, .three { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -1048,7 +1050,9 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
         <p><b>기준 자체가 느슨한지</b>는 따로 봅니다 — 326 평가 전체에서 한 번도 FAIL 이 안 난 기준을 06장 끝에 정리했습니다.</p></div>
       <div class="note"><h3>결정</h3><p><b>단일 질문은 모두 k 6~10</b>. 범위 밖은 상한 없이 전부 고치거나 다시 만듭니다. 예외는 빈 출력 요구 질문뿐.</p></div>
       <div class="defbox"><h3>AIONA 를 넣어도 같은가 — 326 결과로 확인</h3>
-        <p>위 실험에는 AIONA 가 없었습니다(API 세 모델). 326 정밀 평가(AIONA 포함 네 모델, 보류 없는 단일 질문 154개)로 다시 세면 <b>갈림이 k 6: 46% · 7: 42% · 8: 36% · 9: 44% · 10: 56%</b> — 실험의 33~50% 와 같은 모양입니다. 모두 PASS 는 19~43%, 모두 FAIL 은 11~25%.</p></div>
+        <p>위 실험에는 AIONA 가 없었습니다(API 세 모델). 326 정밀 평가(AIONA 포함 네 모델, 보류 없는 단일 질문 154개, 보류 남은 130개 제외)로 다시 세면 실험과 같은 모양입니다.</p>
+        <table class="mini"><thead><tr><th>k</th><th>질문</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead><tbody><tr><th>6</th><td>46</td><td>43%</td><td class="d">46%</td><td>11%</td></tr><tr><th>7</th><td>48</td><td>33%</td><td class="d">42%</td><td>25%</td></tr><tr><th>8</th><td>28</td><td>39%</td><td class="d">36%</td><td>25%</td></tr><tr><th>9</th><td>16</td><td>31%</td><td class="d">44%</td><td>25%</td></tr><tr><th>10</th><td>16</td><td>19%</td><td class="d">56%</td><td>25%</td></tr></tbody></table>
+        <p class="muted">도구: tools/k_split_from_run.py — 보류 목록(참고자료/보류목록)의 gold 를 채운 뒤 --gold 로 다시 세면 이 표가 갱신됩니다.</p></div>
       <div class="note"><h3>326 세트 실제 분포</h3><p>단일 294개 = 범위 안 285 + 빈 출력 예외 9, <b>범위 밖 0</b>. k 6: 72 · 7: 80 · 8: 68 · 9: 40 · 10: 25.</p></div>
       <div class="note warnnote"><h3>한계</h3><p>세 모델 API 답(AIONA 제외)·기본 질문 18개 기준. 확인 못 한 사실(J5)을 FAIL 로 센 값이며, 보류로 세도 구간 모양은 같습니다.</p></div>
     </div>

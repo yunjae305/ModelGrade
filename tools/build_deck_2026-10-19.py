@@ -34,6 +34,17 @@ cat = qg.criteria_catalog()
 kexp = json.load(open(ROOT / "참고자료/분석/2026-10-18-질문당기준수/boundary_exp_3models.json", encoding="utf-8"))["results"]["strict"]["by_k"]
 CRIT_FAIL = json.load(open(ROOT / "참고자료/최소평가/criterion_fail_rates_326.json", encoding="utf-8"))
 FBG = json.load(open(ROOT / "참고자료/최소평가/fail_by_group_min78_vs_full.json", encoding="utf-8"))
+# k 별 갈림(AIONA 포함 네 모델) — tools/k_split_from_run.py 결과. 보류 반영본이 있으면 우선
+_ks_gold = ROOT / "참고자료/최소평가/k별_갈림_8c61f117e661_보류반영.json"
+_ks_base = ROOT / "참고자료/최소평가/k별_갈림_8c61f117e661.json"
+KSPLIT = json.load(open(_ks_gold if _ks_gold.exists() else _ks_base, encoding="utf-8"))
+ksplit_rows = "".join(f'<tr><th>{k}</th><td>{v["n"]}</td><td>{v["all_pass"] / v["n"] * 100:.0f}%</td><td class="d">{v["split"] / v["n"] * 100:.0f}%</td><td>{v["all_fail"] / v["n"] * 100:.0f}%</td></tr>'
+                      for k, v in KSPLIT["by_k"].items())
+ksplit_title = "AIONA 를 넣어도 같은가 — 326 결과로 확인" + (" (보류 정리 반영)" if KSPLIT["gold"] else "")
+_ks_scope = "보류를 사람이 정리한 뒤" if KSPLIT["gold"] else "보류 없는"
+_ks_excl = f", 보류 남은 {KSPLIT['excluded_hold']}개 제외" if KSPLIT["excluded_hold"] else ""
+ksplit_lead = (f"위 실험에는 AIONA 가 없었습니다(API 세 모델). 326 정밀 평가(AIONA 포함 네 모델, {_ks_scope} 단일 질문 {KSPLIT['confirmed']}개{_ks_excl})로 "
+               f"다시 세면 실험과 같은 모양입니다.")
 
 
 def prompt_sections(doc):
@@ -364,6 +375,8 @@ svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } 
 .defbox { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
 .defbox h3 { font-size: 1.05rem; } .defbox p { font-size: 0.95rem; color: var(--muted); } .defbox p b { color: var(--ink); }
 .defbox.warn { border-left-color: var(--warn); }
+table.mini { border-collapse: collapse; font-size: 0.86rem; width: 100%; } table.mini th, table.mini td { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; font-family: var(--font-num); }
+table.mini thead th { font-family: var(--font-body); color: var(--muted); font-size: 0.78rem; border-top: 0; } table.mini td.d { color: var(--accent); font-weight: 700; }
 @media (max-width: 900px) { .steps4, .three { grid-template-columns: 1fr; } }
 </style>"""
 
@@ -459,8 +472,10 @@ s3 = f"""
         <p>이 실험에서 다 PASS 는 <b>질문이 쉬워서</b>입니다 — 같은 기준인데 조건이 1~5개면 모델들이 다 지키고, 7~10개로 늘면 FAIL 이 나옵니다. 기준이 바뀐 게 아니라 과제 난이도가 바뀐 것입니다.</p>
         <p><b>기준 자체가 느슨한지</b>는 따로 봅니다 — 326 평가 전체에서 한 번도 FAIL 이 안 난 기준을 06장 끝에 정리했습니다.</p></div>
       <div class="note"><h3>결정</h3><p><b>단일 질문은 모두 k 6~10</b>. 범위 밖은 상한 없이 전부 고치거나 다시 만듭니다. 예외는 빈 출력 요구 질문뿐.</p></div>
-      <div class="defbox"><h3>AIONA 를 넣어도 같은가 — 326 결과로 확인</h3>
-        <p>위 실험에는 AIONA 가 없었습니다(API 세 모델). 326 정밀 평가(AIONA 포함 네 모델, 보류 없는 단일 질문 154개)로 다시 세면 <b>갈림이 k 6: 46% · 7: 42% · 8: 36% · 9: 44% · 10: 56%</b> — 실험의 33~50% 와 같은 모양입니다. 모두 PASS 는 19~43%, 모두 FAIL 은 11~25%.</p></div>
+      <div class="defbox"><h3>{E(ksplit_title)}</h3>
+        <p>{E(ksplit_lead)}</p>
+        <table class="mini"><thead><tr><th>k</th><th>질문</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead><tbody>{ksplit_rows}</tbody></table>
+        <p class="muted">도구: tools/k_split_from_run.py — 보류 목록(참고자료/보류목록)의 gold 를 채운 뒤 --gold 로 다시 세면 이 표가 갱신됩니다.</p></div>
       <div class="note"><h3>326 세트 실제 분포</h3><p>단일 294개 = 범위 안 285 + 빈 출력 예외 9, <b>범위 밖 0</b>. k 6: 72 · 7: 80 · 8: 68 · 9: 40 · 10: 25.</p></div>
       <div class="note warnnote"><h3>한계</h3><p>세 모델 API 답(AIONA 제외)·기본 질문 18개 기준. 확인 못 한 사실(J5)을 FAIL 로 센 값이며, 보류로 세도 구간 모양은 같습니다.</p></div>
     </div>
