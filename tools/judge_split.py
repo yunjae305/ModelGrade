@@ -136,9 +136,14 @@ _ENDING = re.compile(r"(?:습니다|입니다|니다|어요|아요|예요|에요
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
+def _norm(t: str) -> str:
+    """대조용 정규화 — 공백·백슬래시(마크다운 이스케이프 \\*·LaTeX)·강조 표시(* _ `) 제거. 앱 복사 버튼은 **굵게** 를 \\*\\*굵게\\*\\* 로 내놓는다(2026-10-19)."""
+    return re.sub(r"[\s\\*_`|]+", "", t or "")   # 표의 세로줄(|)도 — '멘토 6명' 을 표 칸에서 인용하면 '멘토 | 6명' 이 된다
+
+
 def _piece_in(piece: str, pool: List[str]) -> bool:
-    """글 조각 하나가 원문 어딘가에 있는가 — 공백 무시, 앞뒤 줄임표(…)·구두점 제거, 그래도 없으면 끝 어미 하나(기록했다→기록했)를 떼고 다시."""
-    squash = lambda t: re.sub(r"\s+", "", t or "")
+    """글 조각 하나가 원문 어딘가에 있는가 — 공백·강조·이스케이프 무시, 앞뒤 줄임표(…)·구두점 제거, 그래도 없으면 끝 어미 하나(기록했다→기록했)를 떼고 다시."""
+    squash = _norm
     text = _ELLIPSIS.sub("", piece or "").strip()
     cands = [text, text.rstrip(".!?。 ")]
     if _ENDING.search(cands[1]):
@@ -154,12 +159,12 @@ def quoted_in(quote: str, sources: List[str]) -> bool:
     """인용이 원문에 있는가 — 통째로 있으면 통과. 아니면 줄·문장마다(빈 것 제외) 어느 원문에든 있으면 통과
     (심판이 떨어진 두 줄·두 문장을 이어 붙이거나(Q48·Q1), 앞에 …를 붙이거나(Q2), 끝 어미를 '기록했으며→기록했다'로 바꾼 경우(Q1)).
     공백 차이는 무시한다. 글 자체가 다르면(원문에 없는 문장) 여전히 불일치 — 2026-10-19 시험으로 정한 규칙."""
-    pool = [re.sub(r"\s+", "", s) for s in sources if s]
+    pool = [_norm(s) for s in sources if s]
     if not (quote or "").strip():
         return True
     if _piece_in(quote, pool):
         return True
-    pieces = [x for x in _SENTENCE_SPLIT.split(quote) if x and x.strip(" …")]
+    pieces = [x for x in _SENTENCE_SPLIT.split(quote) if x and x.strip(" ….")]   # '...' 만 있는 조각(떨어진 두 곳을 이은 표시)은 뺀다
     return len(pieces) > 1 and all(_piece_in(x, pool) for x in pieces)
 
 
@@ -175,7 +180,10 @@ def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str],
         row = rows[n]
         answer = answers[row["case_id"]]
         from tools.judge_inputs import attachments_block
-        sources = [row.get("question") or "", row.get("reference") or "", attachments_block(row)]   # 첨부는 심판이 본 렌더링 그대로
+        sources = [row.get("question") or "", row.get("reference") or "", attachments_block(row), "[질문]", "[첨부파일]", "[참조 자료]", "[이 턴의 상황]"]   # 첨부는 심판이 본 렌더링 그대로, 구획 표식도 인용될 수 있음
+        for m, prev in rows.items():   # 멀티턴: 앞 턴의 질문·답변도 인용 범위 (심판이 quote_turn 을 안 적는 경우가 많다 — 2026-10-19 시험)
+            if m < n:
+                sources += [prev.get("question") or "", answers.get(prev["case_id"], "")]
         out[n] = {}
         for item in items:
             entries = [e for e in by_turn.get(n, []) if _base(e.get("id")) == item]
