@@ -475,7 +475,21 @@ class ChatGptChat(_CdpChat):
     COPY_NAMES = ("복사", "Copy")   # 답변 복사 버튼은 '복사', 내 질문 쪽은 '메시지 복사'
 
     def _copy_last_answer(self) -> Optional[str]:
-        """답 전체 안의 '복사' 버튼을 모두 눌러 가장 긴 원문을 쓴다 — 카드 안 복사 버튼은 카드 내용만 복사한다."""
+        """답 전체 안의 '복사' 버튼을 모두 눌러 가장 긴 원문을 쓴다 — 카드 안 복사 버튼은 카드 내용만 복사한다.
+        툴바가 늦게 그려지거나 화면 밖이면 못 누르므로 말풍선에 마우스를 올리고 3번까지 다시(간단평가 재수집에서 (text) 로 빠진 턴, 2026-10-20)."""
+        for attempt in range(3):
+            best = self._copy_last_answer_once()
+            if best:
+                return best
+            try:
+                self._answers().last.scroll_into_view_if_needed(timeout=2000)
+                self._answers().last.hover(timeout=2000)
+            except Exception:
+                pass
+            self.page.wait_for_timeout(1500)
+        return None
+
+    def _copy_last_answer_once(self) -> Optional[str]:
         last = self._answers().last
         best: Optional[str] = None
         try:

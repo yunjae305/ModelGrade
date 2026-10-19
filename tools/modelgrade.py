@@ -349,6 +349,18 @@ LIMIT_WORDS = ("한도", "limit")
 COPY_FAILED = "COPY_FAILED"   # 답은 있었는데 복사해 오지 못함(재시도 뒤) — 판정은 보류 (사용자 규칙 2026-10-20)
 
 
+def retry_text_capture(chat: Any, row: Dict[str, Any], res: Dict[str, Any]) -> Dict[str, Any]:
+    """복사 버튼 대신 화면 글(text)로 받은 답: 복사만 다시 시도하고, 그래도 안 되면 COPY_FAILED(보류). 받은 화면 글은 note 로 남긴다."""
+    print(f"  {row['case_id']}: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도", flush=True)
+    again = getattr(chat, "recopy", None)
+    text = (again() if callable(again) else "") or ""
+    if text.strip():
+        return {**res, "answer": text, "capture": "copy-button(재시도)", "retried": "복사 다시"}
+    return {**res, "answer": "", "status": COPY_FAILED, "capture": "text",
+            "error": f"복사 버튼이 안 눌려 화면 글({len(res.get('answer') or '')}자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)",
+            "screen_text": (res.get("answer") or "")[:20000], "retried": "실패"}
+
+
 def retry_empty_answer(chat: Any, row: Dict[str, Any]) -> Dict[str, Any]:
     """빈 출력 요구가 아닌 질문에 빈 답이 왔을 때(사용자 규칙 10-20): 복사만 다시 시도하고, 그래도 비면 사유를 적어 COPY_FAILED(판정 보류)."""
     print(f"  {row['case_id']}: 답이 비어 있음 — 복사 다시 시도", flush=True)
@@ -440,6 +452,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
                     res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
+                elif res.get("status") == "SUCCESS" and res.get("capture") == "text":
+                    res = retry_text_capture(chat, r, res)   # 복사 버튼이 안 눌려 화면 글만 받음 → 복사 다시 → 안 되면 보류(마크다운이 빠진 글로 판정하지 않는다)
                 col = {k: v for k, v in res.items() if k != "answer"}
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
