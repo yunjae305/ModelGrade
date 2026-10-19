@@ -5,6 +5,7 @@
 - J1~J4: 두 심판이 같으면 확정. 다르면 Luna 에 그 기준만 한 번 더 묻는다 — 재판정이 처음 Luna 판정과 같으면 확정,
   다르면 **보류**(UNVERIFIED — 사람이 PASS/FAIL 을 정한다). 어느 쪽도 다른 쪽을 덮어쓰지 않는다.
 - Jev 가 답하지 못하면(한도 초과·오류·키 없음) Luna 판정만으로 확정하고 그 사실을 기록한다. items 방식은 Jev 가 받지 않으므로 Luna 만 쓴다.
+- Jev 는 Luna 1차 판정과 동시에 부른다(2026-10-19). Luna 가 실패하면 Jev 판정은 버리고 사용량만 남긴다.
 - 결과 body 는 Luna 의 것(answers·verification)에 ``verification.dual_judge`` 를 더한 것이다. 사용량·비용 부분은 두 심판 것을 합친다.
 
 근거(통제 실험 300문항 × 3모델): J1~J4 에서 두 심판이 갈린 항목 184/2,366. 갈린 항목은 Luna 가 같은 규칙으로 다시 봐도 26% 가
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import copy
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 
@@ -44,7 +46,7 @@ class DualJudgeConfig:
         return f"{getattr(self.luna, 'model', '?')} + {getattr(self.jev, 'model', '?')}"
 
     def to_manifest(self) -> Dict[str, Any]:
-        return {"engine": self.engine, "policy": DUAL_JUDGE_VERSION, "jev_criteria": list(JEV_CRITERIA),
+        return {"engine": self.engine, "policy": DUAL_JUDGE_VERSION, "jev_criteria": list(JEV_CRITERIA), "jev_timing": "concurrent",
                 "luna": self.luna.to_manifest() if callable(getattr(self.luna, "to_manifest", None)) else None,
                 "jev": self.jev.to_manifest() if callable(getattr(self.jev, "to_manifest", None)) else None,
                 "credentials_recorded": False}
@@ -123,25 +125,32 @@ class DualJudgeClient:
 
     def system_one(self, state: Any, questions: Dict[str, Any], *, cancel_event=None, images=None) -> JevCall:
         started = time.monotonic()
-        first = self._luna(state, questions, cancel_event, images)
         note: Dict[str, Any] = {"policy": DUAL_JUDGE_VERSION, "jev_criteria": [], "jev": None,
                                 "agreed": [], "disputed": [], "recheck": None, "confirmed": [], "held": []}
         asked = [cid for cid in JEV_CRITERIA if cid in questions]
-        if first.status != "OK" or not asked or is_items(questions):
+        jev_questions = {cid: questions[cid] for cid in asked} if asked and not is_items(questions) else None
+        if jev_questions is None:
+            first, jev_call = self._luna(state, questions, cancel_event, images), None
+        else:
+            # Jev 는 Luna 1차 판정과 동시에 부른다 — 둘은 서로의 결과를 쓰지 않으므로 판정은 같고 기다리는 시간만 준다 (사용자 결정 2026-10-19).
+            with ThreadPoolExecutor(max_workers=1, thread_name_prefix="dual-jev") as pool:
+                pending = pool.submit(self._jev, state, jev_questions)
+                first = self._luna(state, questions, cancel_event, images)
+                jev_call = pending.result()
+        calls = [first] if jev_call is None else [first, jev_call]   # calls[1] 이 Jev — Luna 가 실패해도 이미 부른 Jev 사용량은 남긴다
+        if first.status != "OK" or jev_call is None:
             note["skipped"] = ("luna_failed" if first.status != "OK" else "items_pipeline" if is_items(questions) else "no_jev_criteria")
-            return self._finish(first, [first], note, started)
+            if jev_call is not None:
+                note["jev_discarded"] = {"status": jev_call.status}   # Luna 실패 — Jev 판정은 쓰지 않는다
+            return self._finish(first, calls, note, started)
         if self._cancelled(cancel_event):   # 중단 요청 뒤에는 어느 판정도 확정하지 않는다 — 사용량만 남긴다 (Codex 검토)
-            return self._finish(self._skipped(first), [first], dict(note, skipped="cancelled"), started)
+            return self._finish(self._skipped(first), calls, dict(note, skipped="cancelled"), started)
         note["jev_criteria"] = asked
-        jev_call = self._jev(state, {cid: questions[cid] for cid in asked})
         jev_answers = _answers(jev_call)
         note["jev"] = {"status": jev_call.status, "error": redact(jev_call.error) if jev_call.error else None,
                        "model": (jev_call.body or {}).get("model") if isinstance(jev_call.body, dict) else None,
                        "answers": {cid: {k: jev_answers[cid].get(k) for k in ("choice", "confidence")}
                                    for cid in asked if isinstance(jev_answers.get(cid), dict)}}
-        calls = [first, jev_call]
-        if self._cancelled(cancel_event):
-            return self._finish(self._skipped(first), calls, dict(note, skipped="cancelled"), started)
         luna_answers = _answers(first)
         if jev_call.status != "OK":
             return self._finish(first, calls, note, started)

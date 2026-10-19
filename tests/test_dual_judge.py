@@ -1,4 +1,5 @@
 """병행 판정(dual-judge-v1) — 두 심판 합치기 규칙. 모델·웹 호출 없음."""
+import threading
 from types import SimpleNamespace
 
 from code_eval.dual_judge import DualJudgeClient, DualJudgeConfig, HOLD_REASON
@@ -102,11 +103,33 @@ def test_jev_failure_falls_back_to_luna_and_is_recorded():
     assert parse_decisions(call.body, tuple(QUESTIONS))["J2"]["decision"] == "FAIL"
 
 
-def test_luna_failure_returns_error_without_calling_jev():
+def test_luna_failure_returns_error_and_discards_the_concurrent_jev_answer():
     jev = FakeJev({"J1": "PASS"})
     call = client(FakeLuna({}, fail=True), jev).system_one(STATE, {"J1": {"type": "choice"}})
-    assert call.status == JevStatus.API_ERROR and jev.calls == []
-    assert call.body["verification"]["dual_judge"]["skipped"] == "luna_failed"
+    note = call.body["verification"]["dual_judge"]
+    assert call.status == JevStatus.API_ERROR and len(jev.calls) == 1   # Jev 는 Luna 와 동시에 불려 이미 끝남
+    assert note["skipped"] == "luna_failed" and note["jev"] is None and note["jev_discarded"] == {"status": "OK"}
+    assert call.usage == {"input_tokens": 3, "output_tokens": 1}   # 버린 Jev 판정의 사용량은 남긴다
+
+
+def test_jev_starts_at_the_same_time_as_luna():
+    """Jev 는 Luna 1차 판정이 끝나기를 기다리지 않는다 — Luna 가 Jev 시작을 기다려도 멈추지 않아야 한다 (2026-10-19)."""
+    jev_started = threading.Event()
+
+    class StartingJev(FakeJev):
+        def system_one(self, state, questions):
+            jev_started.set()
+            return super().system_one(state, questions)
+
+    class WaitingLuna(FakeLuna):
+        def system_one(self, state, questions, **kwargs):
+            if not self.calls:
+                assert jev_started.wait(5), "Jev 가 Luna 와 동시에 시작되지 않았습니다"
+            return super().system_one(state, questions, **kwargs)
+
+    luna = WaitingLuna({"J1": "PASS", "J2": "FAIL", "J4": "PASS", "J5": "PASS"})
+    call = client(luna, StartingJev({"J1": "PASS", "J2": "FAIL", "J4": "PASS"})).system_one(STATE, QUESTIONS)
+    assert call.status == "OK" and call.body["verification"]["dual_judge"]["agreed"] == ["J1", "J2", "J4"]
 
 
 def test_items_pipeline_uses_luna_only():
