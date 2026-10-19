@@ -75,3 +75,34 @@ def test_next_questions_skips_judged_ones_and_caps_batch(tmp_path):
     assert picked == [2, 3, 4] and pending == 5          # 1번은 두 모델 다 끝남, 2번은 gpt 가 남음
     picked, pending = mg.next_questions(run, ["aiona"], out, 20)
     assert picked == [3, 4, 5, 6] and pending == 4
+
+
+def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_path, monkeypatch, capsys):
+    """데스크톱 앱 수집 — 대화는 새 채팅 하나에서 턴 순서대로, 이미 받은 질문은 건너뜀, 받은 행은 CODE 평가."""
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    calls = []
+
+    class FakeChat:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+        def new_chat(self): calls.append("new")
+        def ask(self, question, files=None, reference=None):
+            calls.append(("ask", question[:10], [f.name for f in files or []]))
+            return {"answer": "답입니다. 두 문장입니다.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 1200, "model": "GPT-6 · Medium (앱)", "method": "chatgpt-app-v1", "error": None, "url": None, "sent": []}
+    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    set_dir = _set(tmp_path)
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "2,1", "--new", "앱 시험"]) == 0
+    assert calls == ["new", ("ask", "가게 이름을 하나 정해줘."[:10], []), ("ask", "아까 정한 이름으로 간판 문구를 써줘."[:10], []), "new", ("ask", "정확히 2개의 문장으로 인사말을 써줘. 존댓말로 답해줘."[:10], [])]
+    run = json.loads(next((tmp_path / "runs").glob("*.json")).read_text(encoding="utf-8"))
+    rows = {r["case_id"]: r for r in run["datasets"]["gpt"]}
+    assert [r["case_id"] for r in run["datasets"]["gpt"]] == ["Q1_T1", "Q2_T1", "Q2_T2", "Q3_T1"]
+    assert rows["Q2_T2"]["collection"]["status"] == "SUCCESS" and rows["Q2_T2"]["turn"] == 2
+    assert rows["Q3_T1"]["collection"]["status"] == "ERROR"            # 아직 안 받음 → 판정에서 FAIL 이 아니라 다음 묶음 대상
+    assert {c["case_id"] for c in run["evaluations"]["gpt"]["cases"]} == {"Q1_T1", "Q2_T1", "Q2_T2"}
+    calls.clear()
+    run_id = run["run_id"]
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--run", run_id, "--next", "20"]) == 0
+    assert calls == ["new", ("ask", "아무것도 출력하지 마. 공백 포함 정확히 0자로 유지해."[:10], [])]            # 1·2번은 받았으니 3번만
+    out = capsys.readouterr().out
+    assert "이미 받은 질문 2개" in out

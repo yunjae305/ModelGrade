@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import threading
@@ -607,3 +608,149 @@ class ClaudeChat(_CdpChat):
 
 CDP_CHATS = {"chatgpt_web": ChatGptChat, "gemini_web": GeminiChat, "claude_web": ClaudeChat}
 CDP_PROVIDERS = tuple(CDP_CHATS)
+
+
+class ChatGptAppChat(ChatGptChat):
+    """ChatGPT 데스크톱 앱(OpenAI.Codex 패키지, Electron) — tools/chatgpt_app_cdp.py 로 포트를 열어 띄운 앱의 메인 페이지(app://-/index.html)에 붙는다.
+    ChatGPT 모드 화면은 chatgpt.com 웹과 같은 구조라(2026-10-19 확인) 웹 수집기를 그대로 쓰고, 다른 점만 바꾼다:
+    붙는 포트·페이지, 새 채팅은 주소 이동 대신 '새 채팅' 버튼, 모드가 Codex 면 ChatGPT 로 바꿈(보이는 '모드 전환' 버튼 → '만들고, 배우고, 탐색하세요'),
+    모델 메뉴는 하위 메뉴 없이 'GPT-6' 바로, 추론 수준은 입력칸 옆 표시(Medium)로 확인. 사용자 결정 10-19: 모델 GPT-6 · 추론 Medium 유지."""
+    NAME = "ChatGPT앱"
+    HOST = "app://-/index.html"
+    NEW_URL = ""
+    MODEL_LABEL = "GPT-6 · Medium (앱)"
+    TEXTBOX_NAME = "ChatGPT에게 물어보세요"
+    MODE_ITEM_CHATGPT = "만들고, 배우고, 탐색하세요"
+    METHOD = "chatgpt-app-v1"
+
+    def __enter__(self) -> "ChatGptAppChat":
+        from tools.chatgpt_app_cdp import cdp_url, status
+        if not status()["ok"]:
+            raise CdpWebError("ChatGPT 앱이 디버깅 포트로 떠 있지 않습니다 — python tools/chatgpt_app_cdp.py --restart 로 띄우고 앱에서 로그인하세요.")
+        from playwright.sync_api import sync_playwright
+        self._playwright = sync_playwright().start()
+        try:
+            self._browser = self._playwright.chromium.connect_over_cdp(cdp_url())
+            context = self._browser.contexts[0]
+            self.page = next((pg for pg in context.pages if pg.url == self.HOST and not pg.is_closed()), None)
+            if self.page is None:
+                raise CdpWebError("ChatGPT 앱 메인 페이지(app://-/index.html)를 찾지 못했습니다.")
+            self.page.add_init_script(COPY_CAPTURE_JS)
+            self.page.set_default_timeout(60_000)
+        except BaseException:
+            self._close()
+            raise
+        return self
+
+    # --- 모드 ---
+    def _mode_button(self) -> Optional[Dict[str, Any]]:
+        """보이는 '모드 전환' 버튼(같은 이름의 숨은 버튼이 하나 더 있다) — {x, y, mode}."""
+        return self.page.evaluate("""() => { const bs=[...document.querySelectorAll('button')].filter(b => (b.getAttribute('aria-label')||'').startsWith('모드 전환'))
+            .map(b => ({r: b.getBoundingClientRect(), aria: b.getAttribute('aria-label')})).filter(o => o.r.width > 0);
+            return bs.length ? {x: bs[0].r.x + bs[0].r.width - 8, y: bs[0].r.y + bs[0].r.height / 2, mode: bs[0].aria.replace('모드 전환, 현재 모드: ', '')} : null; }""")
+
+    def ensure_chatgpt_mode(self) -> str:
+        btn = self._mode_button()
+        if btn is None:
+            raise CdpWebError("ChatGPT 앱의 모드 전환 버튼을 찾지 못했습니다 — 앱 창이 너무 작거나 화면이 다릅니다.")
+        if btn["mode"] == "ChatGPT":
+            return "ChatGPT"
+        self.page.mouse.click(btn["x"], btn["y"])
+        self.page.wait_for_timeout(800)
+        item = self.page.evaluate("""(h) => { const e=[...document.querySelectorAll('*')].find(e => e.children.length===0 && (e.textContent||'').includes(h));
+            if (!e) return null; const r=e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; }""", self.MODE_ITEM_CHATGPT)
+        if item is None:
+            self.page.keyboard.press("Escape")
+            raise CdpWebError("모드 메뉴에서 'ChatGPT' 항목을 찾지 못했습니다.")
+        self.page.mouse.click(item["x"], item["y"])
+        self.page.wait_for_timeout(2500)
+        btn = self._mode_button()
+        if not btn or btn["mode"] != "ChatGPT":
+            raise CdpWebError("ChatGPT 모드로 바꾸지 못했습니다 — 앱 왼쪽 위에서 직접 ChatGPT 로 바꾸세요.")
+        return "ChatGPT"
+
+    # --- 새 채팅 · 모델 ---
+    def new_chat(self) -> None:
+        with _CHROME_LOCK:
+            self.page.bring_to_front()
+            self.ensure_chatgpt_mode()
+            btn = self.page.get_by_role("button", name="새 채팅", exact=True)
+            clicked = False
+            for i in range(btn.count()):
+                try:
+                    if btn.nth(i).is_visible():
+                        btn.nth(i).click(timeout=5000)
+                        clicked = True
+                        break
+                except Exception:
+                    continue
+            if not clicked:
+                raise CdpWebError("ChatGPT 앱에서 '새 채팅' 버튼을 찾지 못했습니다.")
+            self.page.wait_for_timeout(2000)
+            self.page.evaluate(COPY_CAPTURE_JS)
+            self._check_blocked()
+            self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first.wait_for(state="visible", timeout=20_000)
+            self.page.wait_for_timeout(800)
+            try:
+                self.model_seen = self._apply_model()
+            except Exception as exc:
+                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__}: {str(exc)[:80]})"
+                self._snapshot("model-settings-failed")
+
+    def _apply_model(self) -> str:
+        """앱의 모델 메뉴('ChatGPT 모델 선택')를 열면 모델 라디오(GPT-6 · GPT-5.6 Sol)와 '파워' 슬라이더가 바로 보인다.
+        Playwright 역할 검색이 이 메뉴를 못 보므로 DOM 을 직접 읽는다(2026-10-19). GPT-6 가 선택돼 있으면 두고, 아니면 누른다.
+        추론 수준은 메뉴 글의 단계 표시(Medium)로 확인 — 사용자 결정 10-19: GPT-6 · Medium 유지."""
+        FIND = """(name) => { const rs=[...document.querySelectorAll('[role=menuitemradio]')].filter(e => e.getBoundingClientRect().width > 0)
+            .map(e => ({t: (e.innerText||'').trim().split('\\n')[0], checked: (e.getAttribute('aria-checked')||'') === 'true'}));
+            const hit = rs.findIndex(r => r.t === name || r.t.startsWith(name + ' '));
+            return {all: rs.map(r => r.t), hit, checked: hit >= 0 ? rs[hit].checked : null}; }"""
+        CLICK = """(name) => { const e=[...document.querySelectorAll('[role=menuitemradio]')].filter(e => e.getBoundingClientRect().width > 0)
+            .find(e => { const t=(e.innerText||'').trim().split('\\n')[0]; return t === name || t.startsWith(name + ' '); }); if (!e) return false; e.click(); return true; }"""
+        opener = self.page.get_by_role("button", name=self.MODEL_MENU).first
+        opener.wait_for(state="visible", timeout=15_000)
+        power = "?"
+        try:
+            opener.click(timeout=5000)
+            self.page.wait_for_timeout(900)
+            found = self.page.evaluate(FIND, self.MODEL_NAME)
+            if found["hit"] < 0:
+                raise CdpWebError(f"{self.NAME} 모델 메뉴에 '{self.MODEL_NAME}' 이 없습니다 (항목: {found['all']})")
+            if not found["checked"]:
+                self.page.evaluate(CLICK, self.MODEL_NAME)
+                self.page.wait_for_timeout(800)
+                opener.click(timeout=5000)
+                self.page.wait_for_timeout(900)
+                found = self.page.evaluate(FIND, self.MODEL_NAME)
+                if not found["checked"]:
+                    raise CdpWebError(f"{self.NAME} 모델을 {self.MODEL_NAME} 로 바꾸지 못했습니다")
+            text = self._eval("() => document.body.innerText")
+            power = next((lv for lv in ("Extra High", "Medium", "High", "Light", "Max", "Ultra", "최소한", "없음") if lv in text), "?")
+        finally:
+            self.page.keyboard.press("Escape")
+            self.page.wait_for_timeout(300)
+        if power != "Medium":
+            raise CdpWebError(f"ChatGPT 추론 수준이 Medium 이 아닙니다({power}) — 앱 입력칸 옆에서 Medium 으로 맞추세요")
+        return f"{self.MODEL_NAME} · {power} (앱)"
+
+    def _upload(self, files: List[Path]) -> None:
+        """앱 화면에는 지난 채팅의 '파일 첨부' input 이 여러 개 남아 있고 입력칸에 연결된 것은 마지막 것(2026-10-19 확인: 15개 중 마지막만 붙음).
+        마지막 것부터 거꾸로 넣어 보고, 파일 이름이 입력칸에 보이면 성공. 안 보이면 다음 input."""
+        inputs = self.page.locator(self.FILE_INPUT)
+        n = inputs.count()
+        names = [f.name for f in files]
+        shown = lambda: self._eval("(names) => names.every(n => document.body.innerText.includes(n))".replace("(names)", "()").replace("names.every", json.dumps(names) + ".every"))
+        for i in range(n - 1, -1, -1):
+            try:
+                inputs.nth(i).set_input_files([str(f) for f in files])
+            except Exception:
+                continue
+            self.page.wait_for_timeout(2500 + 1500 * len(files))
+            if shown():
+                return
+        raise CdpWebError(f"{self.NAME} 첨부를 입력칸에 붙이지 못했습니다 ({', '.join(names)})")
+
+    def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
+        out = super().ask(question, files, reference)
+        out["method"] = self.METHOD
+        return out

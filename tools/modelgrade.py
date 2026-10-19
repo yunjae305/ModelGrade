@@ -3,6 +3,8 @@
     python -X utf8 tools/modelgrade.py collect import --provider claude --csv 참고자료/질문세트_326_생성프롬프트v2/수집용/answers_claude.csv --run 8c61f117e661
         사람이 웹브라우저에서 받아 적은 답변 CSV(case_id · answer · chat_url · note)를 실행 JSON 의 그 모델 자리에 올리고 CODE 평가(28개)까지 끝낸다.
         --run 을 비우면 새 실행을 만든다(--new 이름). --label 은 결과 화면에 보일 모델 이름.
+    python -X utf8 tools/modelgrade.py collect app --provider gpt --run 889e429f6d07 --only 36,30
+        ChatGPT 데스크톱 앱(tools/chatgpt_app_cdp.py 로 포트 열어 띄움, 로그인은 사람이)에서 질문 묶음의 답을 받아 올리고 CODE 평가. 다시 부르면 이어서(--next 20).
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --only 36,30,46 --providers aiona,gpt [--out DIR]
         고정 프롬프트 v3 로 나눠서 판정(J1~J4 Jev · J5~J8 Codex CLI). 한 번에 질문 20개까지(사용자 규칙) — 넘기려면 --allow-large.
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --next 20 --providers aiona,gpt
@@ -36,7 +38,7 @@ IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
-LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}
+LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 앱 (GPT-6 · Medium)", "aiona": "AIONA 웹브라우저"}
 
 
 def _now() -> str:
@@ -161,6 +163,109 @@ def cmd_collect_import(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- collect app (데스크톱 앱에서 받기) -----------------------------------------------------------------------------
+
+def app_chat_class(provider: str):
+    """모델 → 데스크톱 앱 수집기. 지금은 ChatGPT 앱(gpt)만 (2026-10-19). 시험에서는 monkeypatch 로 가짜를 넣는다."""
+    if provider == "gpt":
+        from webapp.cdp_chat_web import ChatGptAppChat
+        return ChatGptAppChat
+    raise SystemExit(f"{provider} 는 데스크톱 앱 수집기가 아직 없습니다 (gpt 만). 웹 수집 CSV 를 collect import 로 올리세요.")
+
+
+def materialize_attachments(turn: Dict[str, Any], set_dir: Path, tmp: Path) -> List[Path]:
+    """질문 세트의 첨부(파일 저장소의 해시 이름)를 원래 이름으로 임시 폴더에 만들어 올린다."""
+    out = []
+    for a in turn.get("attachments") or []:
+        if not isinstance(a, dict):
+            continue
+        src = set_dir / "files" / str(a.get("path") or "")
+        dst = tmp / str(a.get("name") or src.name)
+        if src.is_file():
+            shutil.copyfile(src, dst)
+        elif a.get("content"):
+            dst.write_text(str(a["content"]), encoding="utf-8")
+        else:
+            continue
+        out.append(dst)
+    return out
+
+
+def cmd_collect_app(args: argparse.Namespace) -> int:
+    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. 대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅.
+    이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다 — 같은 명령을 다시 부르면 이어서."""
+    import tempfile
+    from webapp.question_generation import flatten
+    set_dir = Path(args.set)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    rows_all = flatten(groups)
+    label = args.label or LABELS.get(args.provider, args.provider)
+    run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
+    existing = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(args.provider) or [] if isinstance(r, dict)}
+    by_q: Dict[int, List[Dict[str, Any]]] = {}
+    for r in rows_all:
+        by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r)
+    done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") == "SUCCESS" for t in turns)}
+    if args.only:
+        wanted = [int(x) for x in args.only.split(",") if x.strip()]
+    else:
+        wanted = [q for q in sorted(by_q) if q not in done][:args.next]
+    wanted = [q for q in wanted if q in by_q]
+    if len(wanted) > JUDGE_BATCH_MAX and not args.allow_large:
+        raise SystemExit(f"한 번에 {JUDGE_BATCH_MAX}개까지입니다 ({len(wanted)}개). 나눠서 돌리거나 --allow-large.")
+    if not wanted:
+        print("받을 질문이 없습니다 — 모두 답을 받았습니다."); return 0
+    print(f"{args.provider} · {label}: 질문 {len(wanted)}개 {wanted} (이미 받은 질문 {len(done)}개)", flush=True)
+    chat_cls = app_chat_class(args.provider)
+    new_rows: Dict[str, Dict[str, Any]] = {}
+    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug") as chat, tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
+        for q in wanted:
+            turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))
+            try:
+                chat.new_chat()
+            except Exception as exc:
+                print(f"  Q{q}: 새 채팅 실패 — {exc}", flush=True)
+                continue
+            for r in turns:
+                files = materialize_attachments(r, set_dir, Path(tmpd))
+                res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
+                col = {k: v for k, v in res.items() if k != "answer"}
+                col["collected_at"] = _now()
+                row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
+                       "system_id": args.provider, "source": label, "case_index": rows_all.index(r), "collection": col}
+                for key in ("reference", "attachments", "conversation_id", "turn"):
+                    if r.get(key) not in (None, "", []):
+                        row[key] = r[key]
+                new_rows[r["case_id"]] = row
+                print(f"  {r['case_id']}: {res.get('status')} {len(res.get('answer') or '')}자 {res.get('latency_ms', 0) // 1000}초 ({res.get('capture')})" + (f" — {res.get('error')}" if res.get("error") else ""), flush=True)
+                if res.get("status") != "SUCCESS" and len(turns) > 1:
+                    print(f"  Q{q}: 턴이 실패해 이 대화의 나머지 턴은 보내지 않음", flush=True)
+                    break
+    # 실행에 합치기 — 질문 세트 순서로, 새 행이 있으면 바꾸고 없으면 전 행(또는 답 없음) 유지
+    merged = []
+    for index, r in enumerate(rows_all):
+        row = new_rows.get(r["case_id"]) or existing.get(r["case_id"])
+        if row is None:
+            row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": "", "system_id": args.provider, "source": label, "case_index": index,
+                   "collection": {"status": "ERROR", "error": "아직 받지 않음", "method": "pending"}}
+            for key in ("reference", "attachments", "conversation_id", "turn"):
+                if r.get(key) not in (None, "", []):
+                    row[key] = r[key]
+        merged.append(row)
+    if args.provider not in run["providers"]:
+        run["providers"].append(args.provider)
+    run.setdefault("models", {})[args.provider] = label
+    run.setdefault("datasets", {})[args.provider] = merged
+    print("CODE 평가 중 …", flush=True)
+    run.setdefault("evaluations", {})[args.provider] = code_evaluate(merged, args.provider)
+    run.setdefault("imports", []).append({"provider": args.provider, "method": "collect-app-v1", "at": _now(), "questions": wanted,
+                                          "answered": sum(1 for r in new_rows.values() if r["collection"].get("status") == "SUCCESS")})
+    path = save_run(run)
+    ok = sum(1 for r in merged if r["collection"].get("status") == "SUCCESS")
+    print(f"저장: {path} (실행 {run['run_id']}) | {args.provider} 답 있음 {ok} / {len(merged)}턴 | 다음: 같은 명령으로 이어서, 또는 judge --run {run['run_id']} --providers {args.provider} --next 20")
+    return 0
+
+
 # --- judge · report -------------------------------------------------------------------------------------------------
 
 def judged_questions(out_dir: Path, providers: List[str]) -> Dict[str, set]:
@@ -267,6 +372,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     imp.add_argument("--set", default=str(DEFAULT_SET))
     imp.add_argument("--label", help="결과에 보일 모델 이름 (기본: '<모델> 웹브라우저')")
     imp.set_defaults(func=cmd_collect_import)
+    app = collect.add_parser("app", help="데스크톱 앱(ChatGPT 앱)에서 질문 묶음의 답 받기 (+ CODE 평가). 같은 명령을 다시 부르면 이어서")
+    app.add_argument("--provider", required=True, choices=["gpt"])
+    app.add_argument("--run", help="기존 실행 id (비우면 새 실행)")
+    app.add_argument("--new", help="새 실행 이름")
+    app.add_argument("--only", help="질문 번호, 쉼표로")
+    app.add_argument("--next", type=int, default=JUDGE_BATCH_MAX, help="아직 안 받은 질문 중 다음 N개 (기본 20)")
+    app.add_argument("--set", default=str(DEFAULT_SET))
+    app.add_argument("--label", help="결과에 보일 모델 이름 (기본 'ChatGPT 웹브라우저' 대신 지정 가능)")
+    app.add_argument("--allow-large", action="store_true")
+    app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)
     jd.add_argument("--only", help="질문 번호, 쉼표로")
