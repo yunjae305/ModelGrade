@@ -573,18 +573,22 @@ def _squash(text: str) -> str:
     return re.sub(r"[\s#*_`>|\-]+", "", text or "")
 
 
-def place_window(win: Any, place: str) -> None:
-    """앱 창(UIA 래퍼 또는 창 핸들)을 화면 왼쪽/오른쪽 반에 놓는다 — 동시 수집 때 두 앱 창이 겹치지 않게(마우스 클릭이 다른 창에 가지 않도록)."""
+PLACE_FRACTION = 0.6   # 창 폭 = 화면의 60% — ChatGPT 앱은 물리 1,600px(2,880 화면의 56%)보다 좁으면 모드 전환 버튼을 숨긴다(2026-10-19 측정)
+
+
+def place_window(win: Any, place: str, fraction: float = PLACE_FRACTION) -> None:
+    """앱 창(UIA 래퍼 또는 창 핸들)을 화면 왼쪽/오른쪽에 화면 폭의 60% 로 놓는다 — 동시 수집 때 가운데만 겹친다.
+    Claude 수집기는 조작할 때마다 자기 창을 앞으로 올리므로 마우스 클릭이 ChatGPT 창에 가지 않고, ChatGPT 쪽은 CDP 라 창이 뒤에 있어도 된다."""
     import win32api
     import win32con
     import win32gui
     hwnd = win if isinstance(win, int) else win.handle
     w, h = win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1)
-    half = w // 2
-    x = 0 if place == "left" else half
+    width = int(w * fraction)
+    x = 0 if place == "left" else w - width
     try:
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        win32gui.MoveWindow(hwnd, x, 0, half, h, True)
+        win32gui.MoveWindow(hwnd, x, 0, width, h, True)
     except Exception:
         pass
     time.sleep(0.8)
