@@ -1,0 +1,233 @@
+{
+ "run": "8c61f117e661",
+ "set": "qs-b468b011e6c3",
+ "total": 326,
+ "draws": 3000,
+ "providers": [
+  "aiona",
+  "gpt",
+  "claude",
+  "gemini"
+ ],
+ "full": {
+  "aiona": 0.5092,
+  "gpt": 0.5828,
+  "claude": 0.4018,
+  "gemini": 0.3681
+ },
+ "rank": [
+  "gpt",
+  "aiona",
+  "claude",
+  "gemini"
+ ],
+ "universe": 64,
+ "rows": [
+  {
+   "n": 10,
+   "error_pp": {
+    "aiona": 30.0,
+    "gpt": 30.0,
+    "claude": 30.0,
+    "gemini": 30.0
+   },
+   "rank_all": 0.23,
+   "rank_top2": 0.554,
+   "criteria": {
+    "1": 48.1,
+    "2": 31.5,
+    "10": 10.0,
+    "20": 0.0
+   },
+   "error_max_pp": 30.0
+  },
+  {
+   "n": 25,
+   "error_pp": {
+    "aiona": 20.0,
+    "gpt": 18.0,
+    "claude": 20.0,
+    "gemini": 20.0
+   },
+   "rank_all": 0.379,
+   "rank_top2": 0.692,
+   "criteria": {
+    "1": 59.0,
+    "2": 50.4,
+    "10": 12.6,
+    "20": 10.2
+   },
+   "error_max_pp": 20.0
+  },
+  {
+   "n": 50,
+   "error_pp": {
+    "aiona": 14.0,
+    "gpt": 14.0,
+    "claude": 14.0,
+    "gemini": 13.0
+   },
+   "rank_all": 0.508,
+   "rank_top2": 0.794,
+   "criteria": {
+    "1": 62.8,
+    "2": 59.7,
+    "10": 23.6,
+    "20": 12.0
+   },
+   "error_max_pp": 14.0
+  },
+  {
+   "n": 78,
+   "error_pp": {
+    "aiona": 11.5,
+    "gpt": 10.9,
+    "claude": 10.3,
+    "gemini": 10.9
+   },
+   "rank_all": 0.627,
+   "rank_top2": 0.866,
+   "criteria": {
+    "1": 63.7,
+    "2": 62.5,
+    "10": 38.0,
+    "20": 17.0
+   },
+   "error_max_pp": 11.5
+  },
+  {
+   "n": 100,
+   "error_pp": {
+    "aiona": 10.0,
+    "gpt": 9.5,
+    "claude": 9.5,
+    "gemini": 9.5
+   },
+   "rank_all": 0.675,
+   "rank_top2": 0.903,
+   "criteria": {
+    "1": 63.9,
+    "2": 63.4,
+    "10": 45.4,
+    "20": 22.1
+   },
+   "error_max_pp": 10.0
+  },
+  {
+   "n": 150,
+   "error_pp": {
+    "aiona": 8.3,
+    "gpt": 8.0,
+    "claude": 8.0,
+    "gemini": 7.7
+   },
+   "rank_all": 0.762,
+   "rank_top2": 0.945,
+   "criteria": {
+    "1": 64.0,
+    "2": 63.9,
+    "10": 52.6,
+    "20": 36.4
+   },
+   "error_max_pp": 8.3
+  },
+  {
+   "n": 200,
+   "error_pp": {
+    "aiona": 7.0,
+    "gpt": 6.8,
+    "claude": 7.0,
+    "gemini": 6.5
+   },
+   "rank_all": 0.816,
+   "rank_top2": 0.97,
+   "criteria": {
+    "1": 64.0,
+    "2": 64.0,
+    "10": 57.6,
+    "20": 45.6
+   },
+   "error_max_pp": 7.0
+  },
+  {
+   "n": 250,
+   "error_pp": {
+    "aiona": 6.2,
+    "gpt": 6.2,
+    "claude": 5.8,
+    "gemini": 5.8
+   },
+   "rank_all": 0.854,
+   "rank_top2": 0.983,
+   "criteria": {
+    "1": 64.0,
+    "2": 64.0,
+    "10": 60.8,
+    "20": 50.3
+   },
+   "error_max_pp": 6.2
+  },
+  {
+   "n": 300,
+   "error_pp": {
+    "aiona": 5.7,
+    "gpt": 5.7,
+    "claude": 5.7,
+    "gemini": 5.5
+   },
+   "rank_all": 0.877,
+   "rank_top2": 0.988,
+   "criteria": {
+    "1": 64.0,
+    "2": 64.0,
+    "10": 62.3,
+    "20": 51.9
+   },
+   "error_max_pp": 5.7
+  },
+  {
+   "n": 326,
+   "error_pp": {
+    "aiona": 5.4,
+    "gpt": 5.4,
+    "claude": 5.4,
+    "gemini": 5.2
+   },
+   "rank_all": 0.891,
+   "rank_top2": 0.994,
+   "criteria": {
+    "1": 64.0,
+    "2": 64.0,
+    "10": 64.0,
+    "20": 52.0
+   },
+   "error_max_pp": 5.4
+  },
+  {
+   "n": 400,
+   "error_pp": {
+    "aiona": 5.0,
+    "gpt": 4.7,
+    "claude": 4.9,
+    "gemini": 4.6
+   },
+   "rank_all": 0.916,
+   "rank_top2": 0.996,
+   "criteria": null,
+   "error_max_pp": 5.0
+  },
+  {
+   "n": 500,
+   "error_pp": {
+    "aiona": 4.3,
+    "gpt": 4.3,
+    "claude": 4.2,
+    "gemini": 4.2
+   },
+   "rank_all": 0.939,
+   "rank_top2": 0.999,
+   "criteria": null,
+   "error_max_pp": 4.3
+  }
+ ]
+}
