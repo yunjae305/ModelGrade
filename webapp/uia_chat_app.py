@@ -479,8 +479,11 @@ class ClaudeAppChat:
         긴 대화에서는 말풍선 이름('N개 메시지 중 K번째')이 잠시 안 잡히거나 글이 늦게 갱신되므로 3번까지 다시 본다(간단평가 재수집 2026-10-20).
         다른 앱(동시 수집)이 그 사이 클립보드를 쓸 수 있어, 표식을 넣어 두고 바뀐 글이 화면의 답과 맞는지 대조한다."""
         last_error = ""
-        for round_ in range(3):
+        for round_ in range(6):
             self._select_chat_tab()
+            if round_:
+                self._close_artifact_panel()   # 아티팩트 패널이 열리면 채팅 말풍선·툴바가 트리에서 사라진다
+                self._scroll_chat_bottom()     # 가상화된 긴 대화는 아래로 내려야 마지막 말풍선이 나타난다
             group = self._wait_group(5)
             if group is not None:
                 top = group.element_info.rectangle.top
@@ -527,7 +530,36 @@ class ClaudeAppChat:
             last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
             time.sleep(3)
         self._dump_copy_failure(last_error)
-        raise CopyFailed(f"복사 실패({last_error}) — 3번 다시 시도함, 보류(사용자 규칙 10-20)")
+        raise CopyFailed(f"복사 실패({last_error}) — 6번 다시 시도함, 보류(사용자 규칙 10-20)")
+
+    def _close_artifact_panel(self) -> bool:
+        """아티팩트 패널(오른쪽, Document 'User-generated artifact content')이 열려 있으면 그 '닫기' 를 누른다."""
+        docs = [(d.element_info.name or "") for d in self._all("Document")]
+        if not any("artifact" in d.lower() for d in docs):
+            return False
+        closers = [b for b in self._all("Button") if (b.element_info.name or "") in ("닫기", "Close")]
+        if not closers:
+            return False
+        btn = max(closers, key=lambda b: b.element_info.rectangle.left)   # 패널의 닫기는 오른쪽 끝
+        try:
+            self._press(btn)
+            time.sleep(1.5)
+            return True
+        except Exception:
+            return False
+
+    def _scroll_chat_bottom(self) -> None:
+        """채팅 영역을 끝까지 내린다 — 마우스 휠(이 창이 앞에 있을 때만)."""
+        try:
+            if not self._is_foreground():
+                self._front()
+            from pywinauto import mouse
+            r = self.win.rectangle()
+            x, y = (r.left + r.right) // 2, (r.top + r.bottom) // 2
+            mouse.scroll(coords=(x, y), wheel_dist=-40)
+            time.sleep(0.8)
+        except Exception:
+            pass
 
     def _dump_copy_failure(self, why: str) -> None:
         """복사 실패 순간의 화면(png)과 말풍선·툴바·버튼 이름 목록(txt)을 남긴다 — 원인 확인용."""
