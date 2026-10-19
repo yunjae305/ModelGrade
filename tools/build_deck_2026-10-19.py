@@ -24,9 +24,6 @@ E = html.escape
 # ---------- 자료 ----------
 prompt_doc = (ROOT / "참고자료/프롬프트/질문생성_프롬프트_v2.0.md").read_text(encoding="utf-8")
 q36 = (ROOT / "참고자료/질문별평가프롬프트_최종326/Q36.md").read_text(encoding="utf-8")
-q12 = (ROOT / "참고자료/질문별평가프롬프트_최종326/Q12.md").read_text(encoding="utf-8")
-q12_t1 = q12[q12.index("# 1턴"):q12.index("# 2턴")]
-q12_head = q12[:q12.index("# 1턴")]
 gradient_svg = (ROOT / "참고자료/분석/2026-10-19-기울기/gradient.svg").read_text(encoding="utf-8")
 gradient_svg = re.sub(r'<svg ([^>]*)width="760" height="420"', r'<svg \1viewBox="0 0 760 420" style="width:100%;height:auto;max-width:900px"', gradient_svg, count=1)
 gradient_svg = gradient_svg.replace('<rect width="760" height="420" fill="white"/>', '<rect width="760" height="420" fill="white" rx="8"/>')
@@ -65,6 +62,22 @@ k_rule_text = k_rule_block[k_rule_block.index("# 질문당 기준 수"):k_rule_b
 def details(title, body, open_=False, note=""):
     return (f'<details class="src"{" open" if open_ else ""}><summary><span>{E(title)}{f" <span class=muted>— {E(note)}</span>" if note else ""}</span>'
             f'<span class="muted">{len(body):,}자</span></summary><pre>{E(body)}</pre></details>')
+
+
+def eval_template():
+    """평가 프롬프트 틀 — 공통 머리글(원칙·판정 방법·출력)은 Q36 전문에서 그대로, 그 뒤 질문마다 채우는 자리를 색칠해 표시."""
+    common = q36[:q36.index("# 질문")].rstrip()
+    slot = lambda t: f'<span class="slot">{E(t)}</span>'
+    body = "\n".join([
+        "", "# 질문",
+        "[질문]", slot("이 질문의 원문 (붙여 넣은 자료·조건 포함) — 질문마다 바뀜"),
+        "[앞 대화] (멀티턴일 때만)", slot("1턴부터 바로 앞 턴까지의 질문·답변 — 턴마다 바뀜"),
+        "[참조 자료] · [첨부파일] (있을 때만)", slot("긴 문서 원문 · 첨부 파일 내용"),
+        "[CODE 조건] (프로그램이 판정 — 참고만)", slot("코드가 질문에서 찾은 형식·개수 조건 — 질문마다 바뀜"),
+        "[이 질문의 점검 항목] (이 항목만 판정)", slot("코드 규칙이 이 질문에 적용한 의미 항목만 (44개 중 n개) — 질문마다 바뀜"),
+        "[답변]", slot("모델 답변 원문 — 모델마다 바뀜 (어느 모델인지는 숨김)"),
+    ])
+    return f'<pre class="show tpl">{E(common)}\n{body}</pre>'
 
 
 def q36_block():
@@ -373,7 +386,7 @@ eq_at = {r["n"]: r for r in EQ_ROWS}
 def err_chart():
     """질문 수 N 에 따른 점수 오차(±%p, 네 모델 선) — 가로 점선은 모델 간 통과율 차이: 선이 그 아래로 내려가야 두 모델의 순서를 믿을 수 있다."""
     W, H = 1000, 380
-    L, T, pw, ph, YMAX, XMAX, XMIN = 60, 30, 820, 270, 22, 500, 25   # N=10(±30)은 표에만
+    L, T, pw, ph, YMAX, XMAX, XMIN = 60, 30, 820, 270, 22, 326, 25   # N=10(±30)은 표에만 · 세트가 326개라 그 이상은 보이지 않음
     xs = lambda n: L + pw * (n / XMAX)
     ys = lambda e: T + ph - ph * (e / YMAX)
     out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="질문 수에 따른 점수 오차">']
@@ -383,7 +396,7 @@ def err_chart():
     for e in (5, 10, 15, 20):
         out.append(f'<line class="grid" x1="{L}" y1="{ys(e):.1f}" x2="{L + pw}" y2="{ys(e):.1f}"/><text class="tick" x="{L - 6}" y="{ys(e) + 4:.1f}" text-anchor="end">±{e}</text>')
     out.append(f'<text class="tick" x="{L - 6}" y="{ys(0) + 4:.1f}" text-anchor="end">0</text>')
-    for n in (25, 50, 100, 200, 326, 400, 500):
+    for n in (25, 50, 100, 150, 200, 250, 326):
         out.append(f'<text class="tick" x="{xs(n):.1f}" y="{T + ph + 18}" text-anchor="middle">{n}</text>')
     out.append(f'<text class="tick" x="{L + pw / 2:.1f}" y="{H - 6}" text-anchor="middle">질문 수 N (326개에서 무작위로 뽑은 개수)</text>')
     out.append(f'<text class="tick" x="{L - 44}" y="{T - 12}">점수 오차 (±%p)</text>')
@@ -391,7 +404,7 @@ def err_chart():
         out.append(f'<line class="grid strong" x1="{L}" y1="{ys(gap):.1f}" x2="{L + pw}" y2="{ys(gap):.1f}"/><text class="note" x="{L + pw - 4}" y="{ys(gap) + dy:.1f}" text-anchor="end">{lab}</text>')
     out.append(f'<text class="zlab r" x="{L + pw - 8}" y="{T + 18}" text-anchor="end">오차가 {GAP12}pp 보다 크면 — 1·2위 순서도 못 믿음</text>')
     out.append(f'<text class="zlab y" x="{L + 10}" y="{ys(GAP12) + 17:.1f}">{GAP34}~{GAP12}pp — GPT·AIONA 순서는 믿을 수 있음</text>')
-    out.append(f'<text class="zlab g" x="{L + 10}" y="{ys(GAP34) + 17:.1f}">{GAP34}pp 아래 — 넷 다 가릴 수 있음 (500개로도 못 닿음)</text>')
+    out.append(f'<text class="zlab g" x="{L + 10}" y="{ys(GAP34) + 17:.1f}">{GAP34}pp 아래 — 넷 다 가릴 수 있음 (326개로는 못 닿음)</text>')
     for pv in EQ["rank"]:
         pts = " ".join(f"{xs(r['n']):.1f},{ys(r['error_pp'][pv]):.1f}" for r in EQ_ROWS if XMIN <= r["n"] <= XMAX)
         out.append(f'<polyline class="ln {pv}" points="{pts}"/>')
@@ -399,7 +412,7 @@ def err_chart():
             if XMIN <= r["n"] <= XMAX:
                 out.append(f'<circle class="pt {pv}" cx="{xs(r["n"]):.1f}" cy="{ys(r["error_pp"][pv]):.1f}" r="3.5"/>')
     e326 = eq_at[326]["error_max_pp"]
-    out.append(f'<line class="guide" x1="{xs(326):.1f}" y1="{T}" x2="{xs(326):.1f}" y2="{T + ph}"/><text class="mk" x="{xs(326) + 5:.1f}" y="{ys(e326) - 10:.1f}">326: ±{e326}%p</text>')
+    out.append(f'<line class="guide" x1="{xs(326):.1f}" y1="{T}" x2="{xs(326):.1f}" y2="{T + ph}"/><text class="mk" x="{xs(326) - 6:.1f}" y="{ys(e326) - 10:.1f}" text-anchor="end">326: ±{e326}%p</text>')
     e78 = eq_at[78]["error_max_pp"]
     out.append(f'<text class="mk" x="{xs(78) + 9:.1f}" y="{ys(e78) + 4:.1f}">78: ±{e78}%p</text>')
     out.append('</svg>')
@@ -408,7 +421,7 @@ def err_chart():
 
 eq_rows = "".join(f'<tr{" class=pick" if r["n"] == 326 else ""}><th scope="row">{r["n"]}</th><td class="d">±{r["error_max_pp"]:.1f}%p</td><td>{r["criteria"]["10"]:.0f}개</td></tr>' if r["criteria"] else
                   f'<tr><th scope="row">{r["n"]}</th><td class="d">±{r["error_max_pp"]:.1f}%p</td><td>—</td></tr>'
-                  for r in EQ_ROWS if r["n"] in (10, 50, 78, 100, 200, 250, 326, 500))
+                  for r in EQ_ROWS if r["n"] in (10, 50, 78, 100, 200, 250, 326))
 
 # ---------- 09 비용 ----------
 COST = [
@@ -438,6 +451,7 @@ extra_css = """
 :root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
 svg .ln.claude { stroke: var(--m-claude); } svg .pt.claude { fill: var(--m-claude); }
 .rtab td.exq ul.cl { margin: 0; padding-left: 1.1em; } .rtab td.exq ul.cl li { margin: 3px 0; line-height: 1.5; }
+.tpl .slot { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-radius: 4px; padding: 1px 6px; }
 .s-head h2 { font-size: 1.75rem; }
 .gist { margin: 0; padding: 14px 18px 14px 36px; background: var(--accent-soft); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.98rem; }
 .gist li::marker { color: var(--accent); } .gist b { color: var(--ink); }
@@ -697,18 +711,20 @@ s4 = f"""
 
 s5 = f"""
 <section class="slide" id="s5">
-  {head("05", "평가 프롬프트 — 질문 · 답변 · 그 질문의 항목만", "CODE 평가는 프로그램이라 프롬프트가 없습니다. 의미 평가는 질문마다 적용 항목을 뽑아 그 항목만 묻습니다.")}
+  {head("05", "평가 프롬프트 — 틀은 하나, 질문마다 채우는 자리만 다름", "CODE 평가는 프로그램이라 프롬프트가 없습니다. 의미 평가는 질문마다 적용 항목을 뽑아 그 항목만 묻습니다.")}
   <div class="steps4">
     <div><span class="k">보내는 것</span><b>원문 그대로</b><span>질문·답변·앞 대화·참조 자료·첨부를 줄이지 않고 보냅니다. 어느 모델의 답인지는 숨깁니다.</span></div>
     <div><span class="k">묻는 것</span><b>그 질문의 항목만</b><span>항목마다 PASS / FAIL / 해당 없음 / 확인 못 함. FAIL 은 답변 문장을 따옴표로 인용해야 합니다.</span></div>
     <div><span class="k">멀티턴</span><b>1턴부터 순서대로</b><span>n턴 판정에 1~(n-1)턴 질문·답변을 대화 순서로 넣습니다.</span></div>
     <div><span class="k">두 심판</span><b>같은 입력</b><span>Luna 는 J1~J8, Jev 는 J1~J4. Jev 가 받을 수 없는 긴 입력(96턴)은 Luna 만 판정.</span></div>
   </div>
-  <div class="block"><h3>예시 1 — 단일 질문 Q36 (사실 확인 + 형식 조건)</h3>
+  <div class="block"><h3>틀 원문 — 색칠한 자리만 질문마다 바뀝니다</h3>
+    {eval_template()}
+    <p class="muted">원칙·판정 방법·출력 형식은 모든 질문에 같은 글입니다. 질문에 따라 색칠한 자리에만 내용을 넣어 질문마다 평가 프롬프트를 달리 만듭니다. 멀티턴은 턴마다 하나씩, 같은 질문도 모델 4개면 프롬프트 4개입니다.</p>
+  </div>
+  <div class="block"><h3>예시 — 단일 질문 Q36 (사실 확인 + 형식 조건)에 채운 모습</h3>
     {q36_block()}
     {details("Q36 평가 프롬프트 전문", q36, note="원칙 · 판정 방법 · 출력 형식 포함")}</div>
-  <div class="block"><h3>예시 2 — 10턴 대화 Q12</h3>
-    {details("Q12 — 공통 원칙 + 1턴", q12_head.strip() + "\\n\\n" + q12_t1.strip() + "\\n\\n# 2턴 … # 10턴 (같은 구조, J6 항목 추가)", note="10턴 대화")}</div>
 </section>
 """
 
@@ -816,7 +832,7 @@ s8 = f"""
   <div class="block"><h3>방법</h3>
     <div class="steps4" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div><span class="k">1</span><b>326개 평가 결과 준비</b><span>네 모델의 질문별 PASS · FAIL · 보류 (보류는 PASS 아님). 통과율 = PASS 질문 수 / N.</span></div>
-      <div><span class="k">2</span><b>N개를 제비뽑기로 골라 다시 세기</b><span>326개 중 아무 질문이나 N개를 골라 그 N개만으로 통과율을 다시 셉니다(AI 호출 없음). 뽑을 때마다 다른 질문이 들어오니 점수가 달라집니다 — 개수마다 3,000번 반복. N = 10 · 25 · 50 · 78 · 100 · … · 500.</span></div>
+      <div><span class="k">2</span><b>N개를 제비뽑기로 골라 다시 세기</b><span>326개 중 아무 질문이나 N개를 골라 그 N개만으로 통과율을 다시 셉니다(AI 호출 없음). 뽑을 때마다 다른 질문이 들어오니 점수가 달라집니다 — 개수마다 3,000번 반복. N = 10 · 25 · 50 · 78 · 100 · 150 · 200 · 250 · 300 · 326.</span></div>
       <div><span class="k">3</span><b>두 가지 확인</b><span>점수 오차 = 3,000번의 점수 중 가운데 95%가 들어오는 폭(±%p). 예: AIONA 는 전체로 {EQ["full"]["aiona"]:.1%}인데 50개만 뽑으면 {EQ["full"]["aiona"] * 100 - eq_at[50]["error_pp"]["aiona"]:.0f}~{EQ["full"]["aiona"] * 100 + eq_at[50]["error_pp"]["aiona"]:.0f}% 사이로 나옵니다. 그리고 64개 기준 가운데 10번 이상 평가되는 수.</span></div>
     </div>
   </div>
@@ -829,13 +845,13 @@ s8 = f"""
   <div class="two">
     <div class="cmpt ktab"><table><caption>질문 N개만 썼을 때 — 점수 오차 · 기준 커버</caption>
       <thead><tr><th>N</th><th>점수 오차 (네 모델 중 가장 큰 값)</th><th>10번↑ 평가되는 기준 (64개 중)</th></tr></thead><tbody>{eq_rows}</tbody></table>
-      <div class="qnote">기준 수는 N개를 뽑았을 때의 평균. 400·500은 세트(326)보다 커서 기준 수가 없습니다.</div></div>
+      <div class="qnote">기준 수는 N개를 뽑았을 때의 평균.</div></div>
     <div class="concl"><span class="concl-tag">결정</span>
       <h3>정밀 326</h3>
       <ul>
         <li><b>점수</b> — 326개면 오차 <b>±{eq_at[326]["error_max_pp"]}%p</b>. GPT·AIONA 통과율 차이({GAP12}pp)보다 작아 두 모델의 순서를 믿을 수 있습니다. 200개(±{eq_at[200]["error_max_pp"]}%p)는 차이와 거의 같아 아슬아슬합니다.</li>
         <li><b>기준</b> — 64개 기준이 모두 10번 이상 평가되는 것은 <b>326 전체일 때뿐</b>입니다(300개만 뽑으면 {eq_at[300]["criteria"]["10"]:.0f}개). 326은 기준마다 10번씩 노려 만든 세트라 전부 씁니다.</li>
-        <li><b>더 늘려도</b> — 500개(174개 더)에 ±{eq_at[500]["error_max_pp"]}%p, 1%p 남짓 줄어듭니다. Claude·Gemini 차이({GAP34}pp)는 500개로도 못 가르므로 "같은 수준"으로 보고합니다.</li>
+        <li><b>더 늘려도</b> — 250 → 326(76개 더)에 오차는 {eq_at[250]["error_max_pp"] - eq_at[326]["error_max_pp"]:.1f}%p 줄었을 뿐입니다. Claude·Gemini 차이({GAP34}pp)를 가리려면 오차가 그 아래여야 하는데 326개로도 ±{eq_at[326]["error_max_pp"]}%p 라 "같은 수준"으로 보고합니다.</li>
         <li><b>최소 78</b> — 78개면 ±{eq_at[78]["error_max_pp"]}%p 라 점수·순위 비교에는 모자랍니다. 최소 78 은 점수 비교용이 아니라 <b>FAIL 분석용</b>입니다(07장).</li>
       </ul></div>
   </div>
