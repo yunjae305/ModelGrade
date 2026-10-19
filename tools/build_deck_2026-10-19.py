@@ -737,12 +737,6 @@ s7 = f"""
     <div class="chart-scroll">{cmp_chart()}</div>
   </figure>
   {s_pick}
-  <div class="block">
-    <div class="cmpt rtab"><table><caption>기준 묶음별 FAIL 질문 수 — 최소 78 안 / 정밀 전체</caption>
-      <thead><tr><th>기준 묶음</th><th>GPT</th><th>AIONA</th><th>Claude</th><th>Gemini</th></tr></thead><tbody>{fbg_rows}</tbody></table></div>
-    <div class="cmpt rtab"><table><caption>목록 크기별 비교</caption>
-      <thead><tr><th>목록</th><th>질문 수</th><th>용도</th><th>PASS:FAIL (확정 중)</th><th>순위</th><th>정밀과</th><th>FAIL 조합</th></tr></thead><tbody>{min_rows}</tbody></table></div>
-  </div>
 </section>
 """
 
