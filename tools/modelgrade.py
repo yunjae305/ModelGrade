@@ -40,7 +40,12 @@ RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
-APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}   # collect app(데스크톱 앱 자동 수집)
+APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
+              "gemini": "Gemini 웹브라우저 (3.6 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 둘 + 웹 둘)
+ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
+PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
+SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
+EVAL_KINDS = {"1": ("simple78", "간단평가 (78개 질문)"), "2": ("full326", "정밀평가 (326개 질문)")}
 
 
 def _now() -> str:
@@ -176,7 +181,21 @@ def app_chat_class(provider: str):
     if provider == "claude":
         from webapp.uia_chat_app import ClaudeAppChat
         return ClaudeAppChat
-    raise SystemExit(f"{provider} 는 데스크톱 앱 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
+    if provider == "gemini":
+        from webapp.cdp_chat_web import GeminiChat   # 데스크톱 앱이 없어 수집용 Chrome(CDP)의 gemini.google.com
+        return GeminiChat
+    if provider == "aiona":
+        return aiona_collector
+    raise SystemExit(f"{provider} 는 자동 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
+
+
+def aiona_collector(*, debug_dir: Optional[Path] = None, place: Optional[str] = None, cancelled: Any = None, answer_timeout_s: int = 600, **_: Any):
+    """AIONA 웹브라우저 수집기(webapp.aiona_web.AionaChat, 별도 Chrome 프로필)를 앱 수집기와 같은 인자로 — 창 보이게.
+    로그인은 .env 의 AIONA_LOGIN_ID·PASSWORD 로 수집기가 하되, AIONA_AUTO_LOGIN=0 이면 안 한다(로그인이 풀렸으면 오류로 알림)."""
+    from code_eval.llm_client import env_value
+    from webapp.aiona_web import AionaChat
+    return AionaChat(headless=False, allow_login=(env_value("AIONA_AUTO_LOGIN") or "1") != "0", answer_timeout_s=answer_timeout_s,
+                     debug_dir=debug_dir, cancelled=cancelled, place=place, attach=True)
 
 
 def split_providers(text: str, allowed: Dict[str, str]) -> List[str]:
@@ -230,13 +249,15 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
     procs = []
     for i, provider in enumerate(providers):
         cmd = [sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "collect", "app", "--provider", provider, "--run", run_id,
-               "--set", str(args.set), "--place", PLACES[i % len(PLACES)]]
+               "--set", str(args.set), "--place", PLACE_BY_PROVIDER.get(provider, PLACES[i % len(PLACES)])]
         if args.only:
             cmd += ["--only", args.only]
         else:
             cmd += ["--next", str(args.next)]
         if args.allow_large:
             cmd.append("--allow-large")
+        if getattr(args, "skip_done", False):
+            cmd.append("--skip-done")
         if getattr(args, "label", None):
             cmd += ["--label", args.label]
         procs.append((provider, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT))))
@@ -304,6 +325,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
     done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") == "SUCCESS" for t in turns)}
     if args.only:
         wanted = [int(x) for x in args.only.split(",") if x.strip()]
+        if getattr(args, "skip_done", False):   # start: 목록 전체를 주되 이미 받은 질문은 건너뛴다
+            wanted = [q for q in wanted if q not in done]
     else:
         wanted = [q for q in sorted(by_q) if q not in done][:args.next]
     wanted = [q for q in wanted if q in by_q]
@@ -454,6 +477,109 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- start (메뉴: 간단 78 / 정밀 326 → 네 모델 동시 수집 → 판정 20개씩 → 결과) ------------------------------------
+
+def set_id_of(set_dir: Path) -> str:
+    f = set_dir / "set.json"
+    return (json.loads(f.read_text(encoding="utf-8")).get("id") if f.exists() else None) or set_dir.name
+
+
+def question_numbers(kind: str, groups: List[Dict[str, Any]]) -> List[int]:
+    """평가 종류의 질문 번호 — 간단평가는 최소78 ids.json 의 번호를 그 순서(던지는 순서 = 고른 순서)로, 정밀평가는 세트 전체를 번호순으로."""
+    from webapp.question_generation import flatten
+    nums = sorted({int(r["case_id"].split("_T")[0][1:]) for r in flatten(groups)})
+    if kind == "simple78":
+        ids = json.loads(SIMPLE_IDS_FILE.read_text(encoding="utf-8"))["ids"]
+        have = set(nums)
+        return [int(q) for q in ids if int(q) in have]
+    return nums
+
+
+def find_run_for(set_dir: Path, kind: str) -> Optional[str]:
+    """같은 질문 세트·같은 평가 종류로 쓰던 실행(가장 최근). 정밀평가는 CLI 로 만든 실행(AIONA 웹 답을 올린 것)도 이어 쓴다."""
+    sid = set_id_of(set_dir)
+    cands = []
+    for f in RUNS.glob("*.json"):
+        try:
+            r = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(r, dict) and (r.get("question_set") or {}).get("set_id") == sid:
+            cands.append(r)
+    tagged = [r for r in cands if r.get("eval_kind") == kind]
+    if tagged:
+        return max(tagged, key=lambda r: r.get("created_at") or "")["run_id"]
+    if kind == "full326":
+        cli = [r for r in cands if not r.get("eval_kind") and r.get("run_kind") == "manual-web-import"]
+        if cli:
+            r = max(cli, key=lambda r: r.get("created_at") or "")
+            r["eval_kind"] = kind
+            save_run(r)
+            return r["run_id"]
+    return None
+
+
+def ask_choice() -> str:
+    print("어떤 평가를 진행할까요?")
+    for key, (_, title) in EVAL_KINDS.items():
+        print(f"  {key}. {title}")
+    while True:
+        try:
+            choice = input("번호 입력 후 Enter: ").strip()
+        except EOFError:
+            raise SystemExit("입력이 없어 그만둡니다.")
+        if choice in EVAL_KINDS:
+            return choice
+        print("1 또는 2 를 입력하세요.")
+
+
+def cmd_start(args: argparse.Namespace) -> int:
+    """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT 앱·Claude 앱·Gemini 웹·AIONA 웹)이 동시에 그 세트의 답을 받고, 원하면 판정을 20개씩 끝까지 돌린 뒤 결과를 보인다.
+    이미 받은 질문·판정한 질문은 건너뛰므로 같은 명령을 다시 부르면 이어서."""
+    set_dir = Path(args.set)
+    choice = args.choice or ask_choice()
+    kind, title = EVAL_KINDS[choice]
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    qs = question_numbers(kind, groups)
+    providers = split_providers(args.providers, APP_LABELS)
+    run_id = args.run or find_run_for(set_dir, kind)
+    if not run_id:
+        run = new_run(title, set_dir, groups)
+        run["eval_kind"] = kind
+        run_id = save_run(run).stem
+        print(f"새 실행 {run_id}", flush=True)
+    print(f"{title} — 질문 {len(qs)}개 · 모델 {', '.join(providers)} 동시 수집 · 실행 {run_id}", flush=True)
+    ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
+                            set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True)
+    code = cmd_collect_app(ns)
+    if code:
+        return code
+    out_dir = ROOT / "data" / "judge_runs" / run_id
+    go = args.judge
+    if go == "ask":
+        try:
+            go = "y" if input("이어서 판정할까요? 20개씩 끝날 때까지 돌립니다 (y/N): ").strip().lower() == "y" else "n"
+        except EOFError:
+            go = "n"
+    if go != "y":
+        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --choice {choice} --judge y  (수집은 건너뛰고 판정만 이어서)", flush=True)
+        return 0
+    while True:
+        judged = judged_questions(out_dir, providers)
+        pending = [q for q in qs if any(q not in judged.get(p, set()) for p in providers)]
+        if not pending:
+            break
+        batch = pending[:JUDGE_BATCH_MAX]
+        print(f"판정 {len(batch)}개 {batch} (남은 질문 {len(pending)}개)", flush=True)
+        code = cmd_judge(argparse.Namespace(run=run_id, only=",".join(str(q) for q in batch), next=None, providers=",".join(providers),
+                                            out=str(out_dir), set=str(set_dir), workers=1, allow_large=False))
+        if code:
+            return code
+    if (out_dir / "results.jsonl").exists():
+        cmd_report(argparse.Namespace(dir=str(out_dir)))
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     d = Path(args.dir)
     results = d / "results.jsonl"
@@ -487,8 +613,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     imp.add_argument("--set", default=str(DEFAULT_SET))
     imp.add_argument("--label", help="결과에 보일 모델 이름 (기본: '<모델> 웹브라우저')")
     imp.set_defaults(func=cmd_collect_import)
-    app = collect.add_parser("app", help="데스크톱 앱(ChatGPT 앱·Claude 앱)을 켜서 질문 묶음의 답 받기 (+ CODE 평가). 같은 명령을 다시 부르면 이어서")
-    app.add_argument("--provider", required=True, help="gpt, claude — 쉼표로 여럿 (예: gpt,claude)")
+    app = collect.add_parser("app", help="앱·웹을 켜서 질문 묶음의 답 받기 (+ CODE 평가): gpt=ChatGPT 앱, claude=Claude 앱, gemini=수집용 Chrome, aiona=AIONA 웹. 같은 명령을 다시 부르면 이어서")
+    app.add_argument("--provider", required=True, help="gpt, claude, gemini, aiona — 쉼표로 여럿이면 동시에 (예: gpt,claude,gemini,aiona)")
     app.add_argument("--run", help="기존 실행 id (비우면 새 실행)")
     app.add_argument("--new", help="새 실행 이름")
     app.add_argument("--only", help="질문 번호, 쉼표로")
@@ -496,7 +622,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     app.add_argument("--set", default=str(DEFAULT_SET))
     app.add_argument("--label", help="결과에 보일 모델 이름 (기본: 'ChatGPT 앱 (GPT-6 · Medium)' · 'Claude 앱 (Sonnet 5.5 · 노력 중간)')")
     app.add_argument("--allow-large", action="store_true")
-    app.add_argument("--place", choices=list(PLACES), help="앱 창을 화면 왼쪽/오른쪽 반에 놓기 (동시 수집 때 부모가 넣음)")
+    app.add_argument("--place", choices=sorted(set(PLACE_BY_PROVIDER.values())), help="창 자리 (동시 수집 때 부모가 넣음)")
+    app.add_argument("--skip-done", action="store_true", help="--only 목록에서 이미 받은 질문은 건너뛰기")
     app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)
@@ -523,6 +650,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     rp = sub.add_parser("report", help="판정 결과 요약")
     rp.add_argument("--dir", required=True)
     rp.set_defaults(func=cmd_report)
+    st = sub.add_parser("start", help="메뉴: 1 간단평가(78) / 2 정밀평가(326) → 네 모델 동시 수집 → 판정 20개씩 → 결과 (인자 없이 부르면 이것)")
+    st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
+    st.add_argument("--providers", default=",".join(ALL_PROVIDERS))
+    st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
+    st.add_argument("--set", default=str(DEFAULT_SET))
+    st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")
+    st.set_defaults(func=cmd_start)
+    if not argv and len(sys.argv) <= 1 or argv == []:
+        argv = ["start"]
     args = parser.parse_args(argv)
     return args.func(args)
 

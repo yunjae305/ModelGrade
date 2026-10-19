@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = ROOT / "data" / "browser_profiles"
-SITES = {"aiona": ("https://winz.aiona.kr/login",), "factchat": ("https://aichat.kku.ac.kr/auth",), "oosoo": ("https://oosoo.kr/login/",),
+SITES = {"aiona": (None,),   # AIONA 는 webapp.aiona_web.AIONA_URL + /login (.env AIONA_URL, 기본 dev.aiona.kr) "factchat": ("https://aichat.kku.ac.kr/auth",), "oosoo": ("https://oosoo.kr/login/",),
          "web-chat": ("https://chatgpt.com/", "https://claude.ai/", "https://gemini.google.com/app")}
 
 
@@ -31,6 +31,31 @@ def main(argv=None) -> int:
     auto, inspect = "--auto" in args, "--inspect" in args
     args = [a for a in args if a not in ("--auto", "--inspect")]
     name = (args or ["aiona"])[0]
+    if name == "aiona":   # AIONA 는 수집용 Chrome(tools/chrome_cdp.py, Gemini 와 같은 프로필)에서 — 수집기가 그 프로필에 붙는다 (2026-10-19)
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from tools.chrome_cdp import attach, find_or_open
+        from webapp.aiona_web import AIONA_URL, AionaWebError, credentials, login
+        with sync_playwright() as p:
+            browser = attach(p)
+            page = find_or_open(browser, AIONA_URL.split("//", 1)[-1], f"{AIONA_URL}/login")
+            if not auto:
+                page.goto(f"{AIONA_URL}/login")
+                print("수집용 Chrome 의 AIONA 창에서 로그인해 주세요 (창은 그대로 두어도 됩니다).", flush=True)
+                browser.close()
+                return 0
+            try:
+                login(page, *credentials())
+                print("AIONA 로그인 완료 — 수집용 Chrome 프로필에 저장했습니다.", flush=True)
+                return 0
+            except AionaWebError as exc:
+                print(f"AIONA 로그인 실패: {exc}", flush=True)
+                return 1
+            except Exception as exc:   # 원본 예외 문구는 찍지 않는다 — 브라우저 예외 문구(Call log)에 입력값이 섞일 수 있다
+                print(f"AIONA 로그인 실패: {type(exc).__name__}", flush=True)
+                return 1
+            finally:
+                browser.close()
     if name not in SITES:
         raise SystemExit("사용: python tools/web_chat_login.py aiona|factchat|oosoo|web-chat [--auto] [--inspect]")
     profile = PROFILES / name

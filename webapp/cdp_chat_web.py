@@ -32,6 +32,31 @@ _BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 �
             "사용량 한도", "usage limit", "한도에 도달", "메시지 한도", "limit reached")   # 'Cloudflare' 낱말은 채팅 제목에도 나와 쓰지 않는다
 
 
+# --- 창 배치 (동시 수집: 네 창이 서로 덮지 않게) -------------------------------------------------------------
+#: 자리 → (x 비율, y 비율, 폭 비율, 높이 비율). 앱 창(Claude 왼쪽·ChatGPT 오른쪽)은 폭 60%(ChatGPT 앱은 물리 1,600px 보다 좁으면 모드 버튼을 숨긴다),
+#: 웹 창(Gemini·AIONA)은 오른쪽 40% 를 위아래로 — Claude 창(마우스로 조작)과 겹치지 않는다.
+PLACE_RECTS = {"left": (0.0, 0.0, 0.6, 1.0), "right": (0.4, 0.0, 0.6, 1.0), "top-right": (0.6, 0.0, 0.4, 0.5), "bottom-right": (0.6, 0.5, 0.4, 0.5)}
+
+
+def place_rect(place: str, width: int, height: int) -> tuple:
+    fx, fy, fw, fh = PLACE_RECTS[place]
+    return int(width * fx), int(height * fy), int(width * fw), int(height * fh)
+
+
+def cdp_place_window(page: Any, place: str) -> None:
+    """CDP 로 브라우저 창(Chrome·Playwright Chromium)을 화면 자리로 옮긴다 — 좌표는 페이지가 보는 screen 크기(논리 픽셀) 기준. 실패해도 수집은 계속."""
+    try:
+        sw, sh = page.evaluate("() => [screen.availWidth, screen.availHeight]")
+        x, y, w, h = place_rect(place, int(sw), int(sh))
+        session = page.context.new_cdp_session(page)
+        wid = session.send("Browser.getWindowForTarget")["windowId"]
+        session.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "normal"}})
+        session.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"left": x, "top": y, "width": w, "height": h}})
+        session.detach()
+    except Exception:
+        pass
+
+
 class CdpWebError(RuntimeError):
     pass
 
@@ -72,17 +97,19 @@ class _CdpChat:
 
     # --- 연결 ---------------------------------------------------------------------------------------
     def __enter__(self) -> "_CdpChat":
-        from tools.chrome_cdp import CDP_URL, status
-        if not status()["ok"]:
-            raise CdpWebError("수집용 Chrome 이 떠 있지 않습니다 — python tools/chrome_cdp.py 로 띄우고 로그인하세요.")
+        from tools.chrome_cdp import attach, find_or_open
         from playwright.sync_api import sync_playwright
         self._playwright = sync_playwright().start()
         try:
-            self._browser = self._playwright.chromium.connect_over_cdp(CDP_URL)
-            context = self._browser.contexts[0]
-            self.page = next((pg for pg in context.pages if self.HOST in pg.url and not pg.is_closed()), None) or context.new_page()
+            try:
+                self._browser = attach(self._playwright)   # 수집용 Chrome(보조 프로세스가 띄움)에 붙는다 — 로그인은 그 프로필에 남아 있다
+            except Exception as exc:
+                raise CdpWebError(f"수집용 Chrome 에 붙지 못했습니다: {str(exc).splitlines()[0][:160]}")
+            self.page = find_or_open(self._browser, self.HOST, self.NEW_URL or f"https://{self.HOST}/")   # 수집기마다 자기 창
             self.page.add_init_script(COPY_CAPTURE_JS)
             self.page.set_default_timeout(60_000)   # 시간 제한을 따로 주지 않은 동작도 1분이면 끝난다
+            if self.place:
+                cdp_place_window(self.page, self.place)
         except BaseException:
             self._close()
             raise
@@ -126,7 +153,8 @@ class _CdpChat:
     def new_chat(self) -> None:
         with _CHROME_LOCK:
             self.page.bring_to_front()   # 뒤에 있는 탭은 메뉴가 그려지지 않아 설정이 실패한다 (동시 실행 시험 2026-10-15)
-            self.page.goto(self.NEW_URL, wait_until="domcontentloaded")
+            from tools.chrome_cdp import goto_tolerant
+            goto_tolerant(self.page, self.NEW_URL)   # Gemini 는 /app 이 바로 다른 주소로 바뀌어 ERR_ABORTED 가 난다 (2026-10-19)
             self.page.wait_for_timeout(3000)
             self.page.evaluate(COPY_CAPTURE_JS)
             self._check_blocked()

@@ -34,7 +34,7 @@ from .ingestion.html_markdown import html_to_markdown
 
 __all__ = ["AIONA_URL", "PROFILE", "AIONA_WEB_VERSION", "AionaWebError", "credentials", "login", "AionaChat"]
 
-AIONA_URL = "https://winz.aiona.kr"
+AIONA_URL = (env_value("AIONA_URL") or "https://dev.aiona.kr").rstrip("/")   # 사용자 10-19 밤: dev.aiona.kr (.env AIONA_URL 로 바꿀 수 있음)
 PROFILE = ROOT / "data" / "browser_profiles" / "aiona"
 AIONA_WEB_VERSION = "aiona-web-v3"   # v3: 개인정보 확인 안내("마스킹하거나 그대로 전송")가 뜨면 '마스킹 후 전송' 을 누른다 (사용자 결정 2026-10-18)
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 대신 TXT 파일로 올린다
@@ -103,8 +103,12 @@ class AionaChat:
     """
 
     def __init__(self, *, headless: bool = True, allow_login: bool = True, answer_timeout_s: int = 600, profile: Path = PROFILE,
-                 debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None):
+                 debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None, place: Optional[str] = None,
+                 attach: bool = False):
         self.headless, self.allow_login, self.answer_timeout_s, self.profile = headless, allow_login, answer_timeout_s, profile
+        self.place = place   # 동시 수집 때 창 자리 (webapp.cdp_chat_web.PLACE_RECTS)
+        self.attach = attach   # True 면 자기 프로필 대신 수집용 Chrome(tools/chrome_cdp.py, Gemini 와 같은 창 묶음)에 붙어 자기 창을 쓴다 (CLI 수집, 2026-10-19)
+        self._browser = None
         self.debug_dir = debug_dir   # 실패·미완료 때 그 순간 화면을 남길 곳 (원인 확인용)
         self.cancelled = cancelled or (lambda: False)   # 프로필 잠금을 기다리는 동안·브라우저를 열기 전에 중단 요청을 본다
         self._playwright = self._context = self.page = None
@@ -113,6 +117,8 @@ class AionaChat:
         self._intent_as_is = False   # 이번 질문에서 의도 감지 안내의 '그냥 보내기'를 눌렀는지
 
     def __enter__(self) -> "AionaChat":
+        if self.attach:
+            return self._enter_attached()
         lock = _profile_lock(self.profile)
         while not lock.acquire(timeout=1.0):   # 같은 프로필을 쓰는 다른 실행이 끝날 때까지 기다리되, 중단 요청이면 그만둔다
             if self.cancelled():
@@ -129,8 +135,31 @@ class AionaChat:
             from .factchat_web import COPY_CAPTURE_JS
             self._context.add_init_script(COPY_CAPTURE_JS)   # 복사 버튼이 클립보드에 넣는 글을 페이지 안에서 받아 둔다
             self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
+            if self.place:
+                from .cdp_chat_web import cdp_place_window
+                cdp_place_window(self.page, self.place)
             self.ensure_login()
         except BaseException:   # 실행·로그인 실패 때도 브라우저·임시 폴더·프로필 잠금을 정리한다 (__exit__ 는 불리지 않음)
+            self._close()
+            raise
+        return self
+
+    def _enter_attached(self) -> "AionaChat":
+        """수집용 Chrome 에 붙어 AIONA 창을 쓴다 — 로그인 상태는 그 프로필(chrome-cdp)에 남는다."""
+        from tools.chrome_cdp import attach, find_or_open
+        from playwright.sync_api import sync_playwright
+        self._playwright = sync_playwright().start()
+        try:
+            self._browser = attach(self._playwright)
+            self.page = find_or_open(self._browser, AIONA_URL.split("//", 1)[-1], f"{AIONA_URL}/chat")
+            from .factchat_web import COPY_CAPTURE_JS
+            self.page.add_init_script(COPY_CAPTURE_JS)
+            self.page.set_default_timeout(60_000)
+            if self.place:
+                from .cdp_chat_web import cdp_place_window
+                cdp_place_window(self.page, self.place)
+            self.ensure_login()
+        except BaseException:
             self._close()
             raise
         return self
@@ -141,14 +170,15 @@ class AionaChat:
     def _close(self) -> None:
         """브라우저·Playwright·임시 폴더를 차례로 정리하고, 무엇이 실패하든 프로필 잠금은 반드시 푼다 (Codex 리뷰)."""
         try:
-            for step in (lambda: self._context is not None and self._context.close(),
+            for step in (lambda: self._browser is not None and self._browser.close(),   # 붙기 방식: 연결만 끊는다(Chrome 은 그대로)
+                         lambda: self._context is not None and self._context.close(),
                          lambda: self._playwright is not None and self._playwright.stop(),
                          self._temp.cleanup):
                 try:
                     step()
                 except Exception:
                     pass
-            self._context = self._playwright = None
+            self._context = self._playwright = self._browser = None
         finally:
             if self._lock is not None:
                 self._lock.release()

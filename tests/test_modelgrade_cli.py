@@ -144,7 +144,7 @@ def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collec
     assert run["models"] == {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}
     assert not list((tmp_path / "runs").glob("*.lock"))
     with pytest.raises(SystemExit):
-        mg.main(["collect", "app", "--provider", "gemini", "--set", str(set_dir), "--only", "1"])
+        mg.main(["collect", "app", "--provider", "factchat", "--set", str(set_dir), "--only", "1"])
     monkeypatch.undo()
     assert mg.app_chat_class("claude").__name__ == "ClaudeAppChat"
 
@@ -167,3 +167,72 @@ def test_merge_provider_into_run_keeps_other_providers_written_meanwhile(tmp_pat
     monkeypatch.setattr(mg.time, "monotonic", lambda c=[0]: c.__setitem__(0, c[0] + 100) or c[0])
     with pytest.raises(SystemExit):
         mg.merge_provider_into_run(run["run_id"], "gpt", "GPT 앱", row("gpt"), {"cases": []}, {"provider": "gpt"})
+
+
+def test_start_menu_collects_chosen_set_for_all_four_then_judges_in_batches_and_reuses_run(tmp_path, monkeypatch, capsys):
+    """start: 1(간단) 이면 ids.json 번호를 그 순서로, 네 모델 동시 수집(이미 받은 질문 건너뜀) → 판정 20개씩 끝까지 → 결과. 다시 부르면 같은 실행."""
+    import argparse
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "ROOT", tmp_path)
+    ids = tmp_path / "ids.json"
+    ids.write_text(json.dumps({"ids": [2, 1, 99]}), encoding="utf-8")
+    monkeypatch.setattr(mg, "SIMPLE_IDS_FILE", ids)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "1")
+    calls = {"collect": [], "judge": []}
+
+    def fake_parallel(providers, args, run_id):
+        calls["collect"].append((providers, args.only, args.skip_done, args.allow_large, run_id))
+        return 0
+
+    def fake_judge(ns):
+        calls["judge"].append(ns.only)
+        out = Path(ns.out); out.mkdir(parents=True, exist_ok=True)
+        with (out / "results.jsonl").open("a", encoding="utf-8") as f:
+            for q in ns.only.split(","):
+                for p in ns.providers.split(","):
+                    f.write(json.dumps({"provider": p, "question": int(q), "verdict": "PASS", "seconds": 1}) + "\n")
+        return 0
+    monkeypatch.setattr(mg, "run_collectors_parallel", fake_parallel)
+    monkeypatch.setattr(mg, "cmd_judge", fake_judge)
+    set_dir = _set(tmp_path)
+    assert mg.main(["start", "--set", str(set_dir), "--judge", "y"]) == 0
+    assert calls["collect"] == [(mg.ALL_PROVIDERS, "2,1", True, True, calls["collect"][0][4])]   # 99 는 세트에 없어 빠짐
+    assert calls["judge"] == ["2,1"]
+    run = mg.load_run(calls["collect"][0][4])
+    assert run["eval_kind"] == "simple78" and run["name"].startswith("간단평가")
+    out = capsys.readouterr().out
+    assert "어떤 평가를 진행할까요?" in out and "간단평가 (78개 질문) — 질문 2개" in out
+    # 다시 부르면 같은 실행을 이어 쓰고, 판정할 게 없으면 바로 결과
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0
+    assert calls["collect"][1][4] == calls["collect"][0][4] and calls["judge"] == ["2,1"]
+
+
+def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    asked = []
+
+    class FakeChat:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+        def new_chat(self): pass
+        def ask(self, question, files=None, reference=None):
+            asked.append(question[:6])
+            return {"answer": "답.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 1, "model": "m", "method": "x", "error": None, "url": None, "sent": []}
+    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    set_dir = _set(tmp_path)
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1", "--new", "x"]) == 0
+    run_id = next((tmp_path / "runs").glob("*.json")).stem
+    asked.clear()
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run_id, "--skip-done"]) == 0
+    assert asked == ["아무것도 출력"[:6]]
+
+
+def test_place_rect_puts_apps_left_right_and_web_windows_in_right_column():
+    from webapp.cdp_chat_web import place_rect
+    assert place_rect("left", 2880, 1800) == (0, 0, 1728, 1800)
+    assert place_rect("right", 2880, 1800) == (1152, 0, 1728, 1800)
+    assert place_rect("top-right", 1440, 900) == (864, 0, 576, 450)
+    assert place_rect("bottom-right", 1440, 900) == (864, 450, 576, 450)
