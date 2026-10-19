@@ -303,6 +303,18 @@ class ClaudeAppChat:
         if self._box_text()[:40] != text.strip()[:40]:
             raise UiaChatError("입력칸에 질문이 들어가지 않았습니다.")
 
+    def _clear_leftover_attachments(self) -> int:
+        """입력칸에 남은 첨부(앞 질문이 실패해 남은 파일)를 지운다 — 남아 있으면 다음 질문이 계속 막힌다(간단평가 1차 실행, 2026-10-20)."""
+        removed = 0
+        for _ in range(20):
+            btn = next((e for e in self._all("Button") if re.search(self.REMOVE, e.element_info.name or "")), None)
+            if btn is None:
+                break
+            self._press(btn)
+            removed += 1
+            time.sleep(0.5)
+        return removed
+
     def _attached_count(self) -> int:
         return sum(1 for e in self._all("Button") if re.search(self.REMOVE, e.element_info.name or ""))
 
@@ -508,6 +520,9 @@ class ClaudeAppChat:
             if self._box_text():
                 self._textbox().set_edit_text("")
                 time.sleep(0.4)
+            left = self._clear_leftover_attachments()
+            if left:
+                print(f"   (입력칸에 남아 있던 첨부 {left}개 지움)", flush=True)
             if files:
                 self._upload(files)
             self._set_text(text)
@@ -515,11 +530,28 @@ class ClaudeAppChat:
             self._press(btn)
             sent_ok = False
             send_deadline = time.monotonic() + 120
+            tick = 0
             while time.monotonic() < send_deadline:
                 time.sleep(0.7)
+                tick += 1
                 if self._streaming() or len(self._answer_bars()) > before or not self._box_text():
                     sent_ok = True
                     break
+                if tick == 12:   # 8초가 지나도 안 보내졌으면 보내기 버튼을 마우스로
+                    b2 = self._send_button()
+                    if b2 is not None:
+                        try:
+                            self._front()
+                            b2.click_input()
+                        except Exception:
+                            pass
+                elif tick == 30 and self._is_foreground():   # 20초 — 입력칸에서 Enter
+                    from pywinauto.keyboard import send_keys
+                    try:
+                        self._textbox().set_focus()
+                        send_keys("{ENTER}")
+                    except Exception:
+                        pass
             if not sent_ok:
                 raise UiaChatError("전송 뒤에도 답변이 시작되지 않음")
         except Exception as exc:

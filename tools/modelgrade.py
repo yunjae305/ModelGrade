@@ -343,6 +343,9 @@ def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List
             pass
 
 
+LIMIT_WAIT_S = 15 * 60        # 사용량 한도 오류 — 이만큼 기다렸다 같은 턴을 다시 (ChatGPT '한도에 도달' 로 34개 못 받음, 2026-10-20)
+LIMIT_WAIT_MAX_S = 6 * 3600   # 이보다 오래 막혀 있으면 포기(ERROR 로 남겨 다음 실행에서 다시)
+LIMIT_WORDS = ("한도", "limit")
 COPY_FAILED = "COPY_FAILED"   # 답은 있었는데 복사해 오지 못함(재시도 뒤) — 판정은 보류 (사용자 규칙 2026-10-20)
 
 
@@ -429,6 +432,12 @@ def collect_app_one(args: argparse.Namespace) -> int:
             for r in turns:
                 files = materialize_attachments(r, set_dir, Path(tmpd))
                 res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
+                waited = 0
+                while res.get("status") != "SUCCESS" and any(w in (res.get("error") or "").lower() for w in LIMIT_WORDS) and waited < LIMIT_WAIT_MAX_S:
+                    print(f"  {r['case_id']}: 사용량 한도로 막힘 — {LIMIT_WAIT_S // 60}분 기다렸다 다시 (누적 {waited // 60}분) · {res.get('error', '')[:80]}", flush=True)
+                    time.sleep(LIMIT_WAIT_S)
+                    waited += LIMIT_WAIT_S
+                    res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
                     res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
                 col = {k: v for k, v in res.items() if k != "answer"}
