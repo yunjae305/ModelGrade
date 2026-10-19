@@ -159,6 +159,41 @@ def k_chart(rows):
     return "\n".join(out)
 
 
+def ksplit_chart():
+    """326 정밀 평가 — AIONA 포함 네 모델, 단일 질문 k 6~10 의 '모두 PASS / 갈림 / 모두 FAIL' 비율 (보류 정리 반영본이 있으면 그것)."""
+    rows = [(int(k), v) for k, v in KSPLIT["by_k"].items()]
+    W, H, L, T, bw, plot_h, gap = 1000, 330, 60, 30, 70, 220, 110
+    out = [f'<svg class="chart kchart" viewBox="0 0 {W} {H}" role="img" aria-label="326 평가에서 AIONA 포함 네 모델의 k 별 판정 분포">']
+    out.append(f'<rect class="zg" x="{L}" y="{T}" width="{len(rows) * gap}" height="{plot_h}"/>')
+    out.append(f'<text class="zlab g" x="{L + len(rows) * gap / 2}" y="{T - 10}" text-anchor="middle">k 6~10 · 326 정밀 평가 — AIONA 포함 네 모델{" (보류 정리 반영)" if KSPLIT["gold"] else " (보류 없는 질문만)"}</text>')
+    for pct in (0, 25, 50, 75, 100):
+        y = T + plot_h - plot_h * pct / 100
+        out.append(f'<line class="grid" x1="{L}" y1="{y:.1f}" x2="{L + len(rows) * gap}" y2="{y:.1f}"/><text class="tick" x="{L - 8}" y="{y + 4:.1f}" text-anchor="end">{pct}%</text>')
+    for i, (k, v) in enumerate(rows):
+        n = v["n"]; x = L + i * gap + (gap - bw) / 2; y0 = T + plot_h
+        parts = ((v["all_fail"] / n, "fail"), (v["split"] / n, "disc"), (v["all_pass"] / n, "pass"))
+        yb = y0
+        for frac, cls in parts:
+            h = plot_h * frac
+            out.append(f'<rect class="kb {cls}" x="{x:.1f}" y="{yb - h:.1f}" width="{bw}" height="{h:.1f}"/>')
+            if cls == "disc" and frac >= 0.15:
+                out.append(f'<text class="kv" x="{x + bw / 2:.1f}" y="{yb - h / 2 + 4:.1f}" text-anchor="middle">{frac * 100:.0f}%</text>')
+            yb -= h
+        out.append(f'<text class="tick" x="{x + bw / 2:.1f}" y="{T + plot_h + 18}" text-anchor="middle">k={k}</text>')
+        out.append(f'<text class="tick muted" x="{x + bw / 2:.1f}" y="{T + plot_h + 34}" text-anchor="middle">n={n}</text>')
+    xr = L + len(rows) * gap + 30
+    out.append(f'<text class="atitle" x="{xr}" y="{T + 20}">실험(세 모델)과 비교</text>')
+    exp = {r["k"]: r for r in kexp}
+    for j, (k, v) in enumerate(rows):
+        e = exp.get(k)
+        if e:
+            out.append(f'<text class="inl" x="{xr}" y="{T + 46 + j * 20}">k={k}: 갈림 네 모델 <tspan class="c1">{v["split"] / v["n"] * 100:.0f}%</tspan> · 실험 {max(0, 1 - e["all_pass"] - e["all_fail"]) * 100:.0f}%</text>')
+    excl = f", 보류 남은 {KSPLIT['excluded_hold']}개 제외" if KSPLIT["excluded_hold"] else ""
+    out.append(f'<text class="asub" x="{L}" y="{H - 8}">단일 질문 {KSPLIT["confirmed"]}개 (긴 문서 제외{excl}). 326 세트는 k 6~10 으로만 만들어 그 밖의 k 는 없음.</text>')
+    out.append('</svg>')
+    return "\n".join(out)
+
+
 k_table_rows = "".join(
     f'<tr class="{"pick" if 6 <= r["k"] <= 10 else ""}"><th scope="row">{r["k"]}</th><td>{r["n"]}</td><td>{round(r["all_pass"] * 100)}%</td>'
     f'<td class="d">{round(max(0, 1 - r["all_pass"] - r["all_fail"]) * 100)}%</td><td>{round(r["all_fail"] * 100)}%</td></tr>' for r in kexp)
@@ -470,9 +505,14 @@ s3 = f"""
       <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>세 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림 (변별)</span><span><i style="background:var(--risk);opacity:.6"></i>세 모델 모두 FAIL</span></div></div>
     <div class="chart-scroll">{k_chart(kexp)}</div>
   </figure>
+  <figure class="fig">
+    <div class="fig-head"><h3>AIONA 를 넣어도 같은가 — 326 정밀 평가로 다시 그림</h3>
+      <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>네 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림</span><span><i style="background:var(--risk);opacity:.6"></i>네 모델 모두 FAIL</span></div></div>
+    <div class="chart-scroll">{ksplit_chart()}</div>
+  </figure>
   <div class="two">
     <div class="cmpt ktab"><table>
-      <caption>k 별 수치 <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
+      <caption>k 별 수치 (실험, 세 모델) <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
       <thead><tr><th>k</th><th>질문 수</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead>
       <tbody>{k_table_rows}</tbody></table></div>
     <div class="side-notes">

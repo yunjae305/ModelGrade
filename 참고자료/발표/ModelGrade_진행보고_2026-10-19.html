@@ -1039,9 +1039,59 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 <text class="asub" x="60" y="352">막대 = 그 k 의 질문 중 비율. 기본 질문 18개를 조건 수만 바꿔 k 1~16 으로 변형(255개) + 보충 · GPT·Claude·Gemini API 답 · Jev + GPT-6 Luna 평가 (2026-10-18)</text>
 </svg></div>
   </figure>
+  <figure class="fig">
+    <div class="fig-head"><h3>AIONA 를 넣어도 같은가 — 326 정밀 평가로 다시 그림</h3>
+      <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>네 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림</span><span><i style="background:var(--risk);opacity:.6"></i>네 모델 모두 FAIL</span></div></div>
+    <div class="chart-scroll"><svg class="chart kchart" viewBox="0 0 1000 330" role="img" aria-label="326 평가에서 AIONA 포함 네 모델의 k 별 판정 분포">
+<rect class="zg" x="60" y="30" width="550" height="220"/>
+<text class="zlab g" x="335.0" y="20" text-anchor="middle">k 6~10 · 326 정밀 평가 — AIONA 포함 네 모델 (보류 없는 질문만)</text>
+<line class="grid" x1="60" y1="250.0" x2="610" y2="250.0"/><text class="tick" x="52" y="254.0" text-anchor="end">0%</text>
+<line class="grid" x1="60" y1="195.0" x2="610" y2="195.0"/><text class="tick" x="52" y="199.0" text-anchor="end">25%</text>
+<line class="grid" x1="60" y1="140.0" x2="610" y2="140.0"/><text class="tick" x="52" y="144.0" text-anchor="end">50%</text>
+<line class="grid" x1="60" y1="85.0" x2="610" y2="85.0"/><text class="tick" x="52" y="89.0" text-anchor="end">75%</text>
+<line class="grid" x1="60" y1="30.0" x2="610" y2="30.0"/><text class="tick" x="52" y="34.0" text-anchor="end">100%</text>
+<rect class="kb fail" x="80.0" y="226.1" width="70" height="23.9"/>
+<rect class="kb disc" x="80.0" y="125.7" width="70" height="100.4"/>
+<text class="kv" x="115.0" y="179.9" text-anchor="middle">46%</text>
+<rect class="kb pass" x="80.0" y="30.0" width="70" height="95.7"/>
+<text class="tick" x="115.0" y="268" text-anchor="middle">k=6</text>
+<text class="tick muted" x="115.0" y="284" text-anchor="middle">n=46</text>
+<rect class="kb fail" x="190.0" y="195.0" width="70" height="55.0"/>
+<rect class="kb disc" x="190.0" y="103.3" width="70" height="91.7"/>
+<text class="kv" x="225.0" y="153.2" text-anchor="middle">42%</text>
+<rect class="kb pass" x="190.0" y="30.0" width="70" height="73.3"/>
+<text class="tick" x="225.0" y="268" text-anchor="middle">k=7</text>
+<text class="tick muted" x="225.0" y="284" text-anchor="middle">n=48</text>
+<rect class="kb fail" x="300.0" y="195.0" width="70" height="55.0"/>
+<rect class="kb disc" x="300.0" y="116.4" width="70" height="78.6"/>
+<text class="kv" x="335.0" y="159.7" text-anchor="middle">36%</text>
+<rect class="kb pass" x="300.0" y="30.0" width="70" height="86.4"/>
+<text class="tick" x="335.0" y="268" text-anchor="middle">k=8</text>
+<text class="tick muted" x="335.0" y="284" text-anchor="middle">n=28</text>
+<rect class="kb fail" x="410.0" y="195.0" width="70" height="55.0"/>
+<rect class="kb disc" x="410.0" y="98.8" width="70" height="96.2"/>
+<text class="kv" x="445.0" y="150.9" text-anchor="middle">44%</text>
+<rect class="kb pass" x="410.0" y="30.0" width="70" height="68.8"/>
+<text class="tick" x="445.0" y="268" text-anchor="middle">k=9</text>
+<text class="tick muted" x="445.0" y="284" text-anchor="middle">n=16</text>
+<rect class="kb fail" x="520.0" y="195.0" width="70" height="55.0"/>
+<rect class="kb disc" x="520.0" y="71.2" width="70" height="123.8"/>
+<text class="kv" x="555.0" y="137.1" text-anchor="middle">56%</text>
+<rect class="kb pass" x="520.0" y="30.0" width="70" height="41.2"/>
+<text class="tick" x="555.0" y="268" text-anchor="middle">k=10</text>
+<text class="tick muted" x="555.0" y="284" text-anchor="middle">n=16</text>
+<text class="atitle" x="640" y="50">실험(세 모델)과 비교</text>
+<text class="inl" x="640" y="76">k=6: 갈림 네 모델 <tspan class="c1">46%</tspan> · 실험 33%</text>
+<text class="inl" x="640" y="96">k=7: 갈림 네 모델 <tspan class="c1">42%</tspan> · 실험 50%</text>
+<text class="inl" x="640" y="116">k=8: 갈림 네 모델 <tspan class="c1">36%</tspan> · 실험 47%</text>
+<text class="inl" x="640" y="136">k=9: 갈림 네 모델 <tspan class="c1">44%</tspan> · 실험 41%</text>
+<text class="inl" x="640" y="156">k=10: 갈림 네 모델 <tspan class="c1">56%</tspan> · 실험 38%</text>
+<text class="asub" x="60" y="322">단일 질문 154개 (긴 문서 제외, 보류 남은 130개 제외). 326 세트는 k 6~10 으로만 만들어 그 밖의 k 는 없음.</text>
+</svg></div>
+  </figure>
   <div class="two">
     <div class="cmpt ktab"><table>
-      <caption>k 별 수치 <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
+      <caption>k 별 수치 (실험, 세 모델) <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
       <thead><tr><th>k</th><th>질문 수</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead>
       <tbody><tr class=""><th scope="row">1</th><td>10</td><td>80%</td><td class="d">20%</td><td>0%</td></tr><tr class=""><th scope="row">2</th><td>11</td><td>73%</td><td class="d">27%</td><td>0%</td></tr><tr class=""><th scope="row">3</th><td>15</td><td>73%</td><td class="d">20%</td><td>7%</td></tr><tr class=""><th scope="row">4</th><td>18</td><td>50%</td><td class="d">39%</td><td>11%</td></tr><tr class=""><th scope="row">5</th><td>18</td><td>72%</td><td class="d">22%</td><td>6%</td></tr><tr class="pick"><th scope="row">6</th><td>18</td><td>56%</td><td class="d">33%</td><td>11%</td></tr><tr class="pick"><th scope="row">7</th><td>18</td><td>39%</td><td class="d">50%</td><td>11%</td></tr><tr class="pick"><th scope="row">8</th><td>15</td><td>40%</td><td class="d">47%</td><td>13%</td></tr><tr class="pick"><th scope="row">9</th><td>17</td><td>29%</td><td class="d">41%</td><td>29%</td></tr><tr class="pick"><th scope="row">10</th><td>16</td><td>31%</td><td class="d">38%</td><td>31%</td></tr><tr class=""><th scope="row">11</th><td>17</td><td>41%</td><td class="d">24%</td><td>35%</td></tr><tr class=""><th scope="row">12</th><td>15</td><td>13%</td><td class="d">13%</td><td>73%</td></tr><tr class=""><th scope="row">13</th><td>18</td><td>6%</td><td class="d">11%</td><td>83%</td></tr><tr class=""><th scope="row">14</th><td>17</td><td>12%</td><td class="d">18%</td><td>71%</td></tr><tr class=""><th scope="row">15</th><td>16</td><td>6%</td><td class="d">19%</td><td>75%</td></tr><tr class=""><th scope="row">16</th><td>15</td><td>7%</td><td class="d">20%</td><td>73%</td></tr></tbody></table></div>
     <div class="side-notes">
