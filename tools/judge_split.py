@@ -109,6 +109,42 @@ def jev_request(turns: List[Dict[str, Any]], situations: Dict[str, str], answers
     return {"guide": fixed["guide"], "turns": state_turns}, questions
 
 
+JEV_TRIM_MARK = "…[중략: {n:,}자 생략 — 긴 자료는 J5~J8 을 맡은 GPT CLI 가 전문으로 본다]…"
+
+
+def trim_material(state: Dict[str, Any], budget: int) -> int:
+    """Jev 입력이 예산(글자 수)을 넘으면 긴 자료(첨부 본문·참조 자료)만 줄인다 — 앞 60%·뒤 40% 를 남기고 가운데를 생략 표시로.
+    질문 지시·답변·상황은 손대지 않는다(J1~J4 는 지시 이행·형식·표현이라 자료 전문이 필요 없다). Jev 는 약 5만 자부터 HTTP 400 (2026-10-19).
+    돌려주는 값은 줄인 글자 수. 자료를 다 줄여도 예산을 넘으면(긴 대화) 그대로 두고 0 — Jev 가 거부하면 GPT 가 대신 판정한다."""
+    if not budget or state_chars(state) <= budget:
+        return 0
+    slots: List[Tuple[Any, Any]] = []   # (담고 있는 dict/리스트 항목, 키)
+    for turn in state.get("turns") or []:
+        for att in turn.get("attachments") or []:
+            if isinstance(att, dict) and isinstance(att.get("content"), str):
+                slots.append((att, "content"))
+        if isinstance(turn.get("reference"), str):
+            slots.append((turn, "reference"))
+    material = sum(len(holder[key]) for holder, key in slots)
+    if not material:
+        return 0
+    other = state_chars(state) - material
+    allowance = budget - other
+    if allowance < 400 * len(slots):   # 자료를 거의 다 지워야 맞출 수 있으면 줄이지 않는다
+        return 0
+    trimmed = 0
+    for holder, key in slots:
+        text = holder[key]
+        share = max(400, int(allowance * len(text) / material)) - 80   # 생략 표시 자리
+        if len(text) <= share:
+            continue
+        head, tail = int(share * 0.6), share - int(share * 0.6)
+        cut = len(text) - head - tail
+        holder[key] = text[:head] + JEV_TRIM_MARK.format(n=cut) + text[-tail:]
+        trimmed += cut
+    return trimmed
+
+
 def state_chars(state: Dict[str, Any]) -> int:
     return len(json.dumps(state, ensure_ascii=False))
 

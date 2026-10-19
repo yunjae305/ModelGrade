@@ -39,6 +39,7 @@ from webapp.run_summary import question_outcome  # noqa: E402
 
 VERSION = "judge-run-v1"
 JEV_MAX_STATE_CHARS = 0   # 0 = 상한 없음 (사용자 결정 2026-10-19)
+JEV_TRIM_CHARS = 35_000   # Jev 입력 예산 — 넘으면 긴 자료(첨부·참조)만 줄인다(.env JEV_TRIM_CHARS, 0 = 안 줄임). 3.6만 자는 받고 5.2만 자는 400 (2026-10-19)
 
 
 # --- 심판 호출 -------------------------------------------------------------------------------------------------------
@@ -116,12 +117,12 @@ class JevJudge:
 
     name = "jev"
 
-    def __init__(self, client: Any, max_chars: int = JEV_MAX_STATE_CHARS) -> None:
-        self.client, self.max_chars = client, max_chars
+    def __init__(self, client: Any, max_chars: int = JEV_MAX_STATE_CHARS, trim_chars: int = JEV_TRIM_CHARS) -> None:
+        self.client, self.max_chars, self.trim_chars = client, max_chars, trim_chars
 
     def manifest(self) -> Dict[str, Any]:
         config = getattr(self.client, "config", None)
-        return {"engine": "jev", "model": getattr(config, "model", None), "max_state_chars": self.max_chars}
+        return {"engine": "jev", "model": getattr(config, "model", None), "max_state_chars": self.max_chars, "trim_chars": self.trim_chars}
 
     def judge(self, state: Dict[str, Any], questions: Dict[str, Any]) -> Tuple[str, Any, str]:
         if self.max_chars and js.state_chars(state) > self.max_chars:
@@ -173,9 +174,12 @@ def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Di
             return "ERROR"
         situations = {t["case_id"]: ji.situations_for(table[t["case_id"]], jev_items.get(int(t.get("turn") or 1), [])) for t in turns}
         state, questions = js.jev_request(turns, situations, answers, jev_items, fixed)
+        raw_chars = js.state_chars(state)
+        trimmed = js.trim_material(state, getattr(jev, "trim_chars", JEV_TRIM_CHARS))   # 긴 자료만 줄여 Jev 가 받게 (사용자 10-19: Jev 가 제대로 일하게)
         t0 = time.monotonic()
         status, body, error = jev.judge(state, questions)
-        calls["jev"] = {"status": status, "error": error, "seconds": round(time.monotonic() - t0, 1), "input_chars": js.state_chars(state)}
+        calls["jev"] = {"status": status, "error": error, "seconds": round(time.monotonic() - t0, 1), "input_chars": js.state_chars(state),
+                        "raw_chars": raw_chars, "trimmed_chars": trimmed}
         if status == "OK":
             for n, part in js.check_jev(body, jev_items, fixed).items():
                 results[n].update(part)
@@ -248,10 +252,13 @@ def run(run_data: Dict[str, Any], set_dir: Path, out: Path, gpt: Optional[CodexJ
 
     def work(task) -> None:
         entry, answers, outcomes = task
-        if entry["status"] == "held_empty_output":
-            line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "held_empty_output", "verdict": "HOLD"}
+        if entry["status"] in ("held_empty_output", "empty_output_pass", "empty_output_fail"):   # 빈 출력 요구: 심판 없이 수집 결과로 정한다 (사용자 규칙 10-19)
+            verdict = {"empty_output_pass": "PASS", "empty_output_fail": "FAIL"}.get(entry["status"], "HOLD")
+            line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": entry["status"], "verdict": verdict,
+                    "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}
         elif entry["status"] == "no_answer":
-            line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "no_answer", "verdict": "FAIL"}
+            line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "no_answer", "verdict": "FAIL",
+                    "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}
         else:
             turns = sorted(questions[entry["question"]], key=ji._turn)
             line = judge_question(entry, turns, table, answers, prompt, fixed, manifest["run_mark"], gpt, jev, outcomes)
@@ -293,7 +300,8 @@ def judges_from_env() -> Tuple[Optional[CodexJudge], Optional[JevJudge], List[st
     client, _, reason = resolve_jev_client(engine="jev")
     if reason:
         notes.append(reason + " — J1~J4 는 GPT CLI 가 대신 판정")
-    jev = JevJudge(client, int(env_value("JEV_MAX_STATE_CHARS") or JEV_MAX_STATE_CHARS)) if client else None
+    jev = JevJudge(client, int(env_value("JEV_MAX_STATE_CHARS") or JEV_MAX_STATE_CHARS),
+                   int(env_value("JEV_TRIM_CHARS") if env_value("JEV_TRIM_CHARS") not in (None, "") else JEV_TRIM_CHARS)) if client else None
     return gpt, jev, notes
 
 

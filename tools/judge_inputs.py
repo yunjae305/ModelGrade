@@ -52,6 +52,40 @@ def _question(case_id: str) -> int:
     return int(case_id.split("_T")[0][1:])
 
 
+def collection_note(row: Optional[Dict[str, Any]]) -> str:
+    """한 턴의 수집 기록을 한 줄로 — 상태·받은 방법·오류 (빈 출력 요구 질문의 PASS 근거로 남긴다)."""
+    if not isinstance(row, dict):
+        return "행 없음"
+    c = row.get("collection") or {}
+    if not c:
+        return "직접 올린 원문"
+    parts = [str(c.get("status") or "?")]
+    if c.get("capture"):
+        parts.append(f"받은 방법 {c['capture']}")
+    if c.get("error"):
+        parts.append(f"오류: {str(c['error'])[:160]}")
+    return " · ".join(parts)
+
+
+def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, Any]], answers: Dict[str, str]) -> Dict[str, Any]:
+    """빈 출력 요구 질문의 판정 상태(empty-output-pass-v3, 사용자 규칙 2026-10-19):
+    - 수집을 시도했고 받은 글이 모두 공백뿐이거나(복사할 답이 없어·모델 오류로) 못 받았으면 PASS — 수집 상태·오류를 note 에 명시
+    - 수집을 시도했는데 글을 냈으면 FAIL(2-1 명시 빈 출력 위반) — 심판은 부르지 않는다
+    - 아직 수집을 시도하지 않은 턴이 있으면 답 없음(no_answer, FAIL)"""
+    turn_rows = [rows.get(t["case_id"]) for t in turns]
+    attempted = all(isinstance(r, dict) and ((r.get("collection") or {}).get("method") != "pending") for r in turn_rows)
+    note = "; ".join(f"{t['case_id']}: {collection_note(r)}" for t, r in zip(turns, turn_rows))
+    if not attempted:
+        pending = [t["case_id"] for t, r in zip(turns, turn_rows) if not (isinstance(r, dict) and (r.get("collection") or {}).get("method") != "pending")]
+        return {"status": "no_answer", "reason": f"빈 출력 요구 질문인데 아직 받지 않은 턴 {', '.join(pending)} — FAIL 로 셈, 보내지 않음", "collection_note": note}
+    texts = [(answers.get(t["case_id"]) or (r or {}).get("answer") or "") for t, r in zip(turns, turn_rows)]
+    if all(not x.strip() for x in texts):
+        return {"status": "empty_output_pass", "reason": "빈 출력 요구 — 답이 비었거나 받을 답이 없음 → PASS (empty-output-pass-v3, 사용자 규칙 10-19), 보내지 않음",
+                "collection_note": note}
+    longest = max(len(x.strip()) for x in texts)
+    return {"status": "empty_output_fail", "reason": f"빈 출력 요구인데 글을 냄({longest}자) → FAIL (2-1 명시 빈 출력 위반), 보내지 않음", "collection_note": note}
+
+
 def collected(row: Optional[Dict[str, Any]]) -> bool:
     """답을 받았는가 — 빈 행·명시적 수집 실패만 '답 없음'(직접 올린 원문은 collection 이 없어도 받은 답). question_gradient 와 같은 규칙."""
     return isinstance(row, dict) and (row.get("collection") or {}).get("status", "SUCCESS") == "SUCCESS"
@@ -125,7 +159,7 @@ def build(run: Dict[str, Any], set_dir: Path, out: Path, providers: Optional[Lis
                                      "items_by_turn": {str(_turn(t)): table[t["case_id"]]["items"] for t in turns}}
             missing = [t["case_id"] for t in turns if t["case_id"] not in answers[provider]]
             if any(asks_empty_output(None, t.get("question")) for t in turns):
-                entry.update(status="held_empty_output", reason="빈 출력 요구 질문 — 보류(empty-output-hold-v2), 보내지 않음")
+                entry.update(**empty_output_entry(turns, datasets[provider], answers[provider]))
             elif missing:
                 entry.update(status="no_answer", reason=f"답을 받지 못한 턴 {', '.join(missing)} — FAIL 로 셈, 보내지 않음")
             else:

@@ -100,9 +100,10 @@ def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     assert q11["turns"] == 10 and set(q11["results"]) == {str(n) for n in range(1, 11)}   # 대화 1개 = 판정 1번, 턴마다 결과
     expected = "FAIL" if "J2-1.a" in q11["results"]["1"] else "PASS"   # 대역 Jev 는 T1:J2-1.a 만 FAIL
     assert q11["verdict"] == expected and len([i for i in codex.inputs if "답10" in i]) == 1
-    assert lines[("aiona", int(empty["case_id"].split("_T")[0][1:]))]["verdict"] == "HOLD"
+    empty_line = lines[("aiona", int(empty["case_id"].split("_T")[0][1:]))]
+    assert empty_line["verdict"] == "PASS" and empty_line["status"] == "empty_output_pass" and empty_line["collection_note"]   # 빈 출력 요구에 빈 답 → PASS, 수집 상태 명시 (사용자 규칙 10-19)
     assert lines[("gpt", 36)]["status"] == "no_answer" and lines[("gpt", 36)]["verdict"] == "FAIL"
-    assert summary["models"]["aiona"]["FAIL"] == 1 + (expected == "FAIL") and summary["models"]["aiona"]["HOLD"] == 1
+    assert summary["models"]["aiona"]["FAIL"] == 1 + (expected == "FAIL") and summary["models"]["aiona"]["HOLD"] == 0 and summary["models"]["aiona"]["PASS"] >= 1
     calls = len(codex.inputs)
     jr.run(json.loads(json.dumps({"run_id": "t", "providers": ["aiona"], "datasets": {"aiona": []}})), SET, tmp_path,
            jr.CodexJudge("codex", "m", "low", 60, "live", runner=codex), None, only={36})
@@ -162,3 +163,20 @@ def test_quotes_tolerate_ellipsis_sentence_stitching_and_one_changed_ending_but_
     assert js.quoted_in("강수량 조사에서 물새섬 지점은 15밀리미터를 기록했다.", [ref])
     assert not js.quoted_in("물새섬 지점은 25밀리미터를 기록했다.", [ref])
     assert not js.quoted_in("## 누리섬 군도 생태관측 기록", ["답변에는 이런 제목이 없다."])
+
+
+def test_trim_material_cuts_only_long_attachments_and_reference_to_fit_jev_budget():
+    """Jev 예산을 넘으면 첨부 본문·참조 자료만 앞뒤를 남기고 줄이고, 질문·답변은 그대로. 자료가 없거나 예산 안이면 손대지 않는다."""
+    doc = "가" * 300_000
+    state = {"guide": "지침", "turns": [{"turn": 1, "situations": "s", "question": "질문 " * 10, "answer": "답 " * 100,
+                                        "attachments": [{"name": "a.txt", "type": "text", "content": doc}], "reference": "나" * 200_000}]}
+    before = js.state_chars(state)
+    cut = js.trim_material(state, 35_000)
+    turn = state["turns"][0]
+    assert cut > 0 and js.state_chars(state) <= 35_200 and before - js.state_chars(state) >= cut - 400   # 생략 표시 두 개만큼은 늘어난다
+    assert turn["attachments"][0]["content"].startswith("가가가") and turn["attachments"][0]["content"].endswith("가가가") and "중략" in turn["attachments"][0]["content"]
+    assert turn["reference"].startswith("나나") and "중략" in turn["reference"] and turn["answer"] == "답 " * 100 and turn["question"] == "질문 " * 10
+    short = {"guide": "g", "turns": [{"turn": 1, "situations": "s", "question": "q", "answer": "a", "reference": "r" * 1000}]}
+    assert js.trim_material(short, 35_000) == 0 and short["turns"][0]["reference"] == "r" * 1000
+    long_chat = {"guide": "g", "turns": [{"turn": n, "situations": "s", "question": "q", "answer": "a" * 9_000} for n in range(1, 11)]}
+    assert js.trim_material(long_chat, 35_000) == 0   # 자료가 없는 긴 대화는 줄일 것이 없다 → Jev 가 거부하면 GPT 가 대신
