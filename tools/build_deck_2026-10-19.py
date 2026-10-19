@@ -154,38 +154,6 @@ flow = f'''
 </svg>'''
 
 # ---------- 03 k 실험 차트 ----------
-GRID = json.load(open(ROOT / "참고자료/최소평가/k_experiment_grid.json", encoding="utf-8"))
-
-
-def grid_svg():
-    """기본 질문(행) × k 1~16(열) — 칸 색 = 그 변형에 대한 모델들의 판정: 모두 PASS / 갈림 / 모두 FAIL."""
-    bases = list(GRID["bases"].items())
-    cw, ch, L, T = 48, 26, 230, 34
-    W, H = L + 16 * cw + 20, T + len(bases) * ch + 40
-    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="기본 질문별 k 1~16 판정 격자">']
-    out.append(f'<rect class="zr" x="{L}" y="{T - 4}" width="{5 * cw}" height="{len(bases) * ch + 8}" opacity="0.5"/>')
-    out.append(f'<rect class="zg" x="{L + 5 * cw}" y="{T - 4}" width="{5 * cw}" height="{len(bases) * ch + 8}" opacity="0.6"/>')
-    out.append(f'<rect class="zr" x="{L + 10 * cw}" y="{T - 4}" width="{6 * cw}" height="{len(bases) * ch + 8}" opacity="0.5"/>')
-    for k in range(1, 17):
-        out.append(f'<text class="tick" x="{L + (k - 0.5) * cw:.1f}" y="{T - 10}" text-anchor="middle">k={k}</text>')
-    for i, (b, info) in enumerate(bases):
-        y = T + i * ch
-        label = (info.get("topic") or b)[:14]
-        out.append(f'<text class="inl" x="{L - 8}" y="{y + ch - 8}" text-anchor="end">{E(label)}</text>')
-        for k in range(1, 17):
-            cell = info["by_k"].get(str(k))
-            x = L + (k - 1) * cw
-            if not cell:
-                out.append(f'<rect x="{x + 2}" y="{y + 2}" width="{cw - 4}" height="{ch - 4}" rx="4" class="cell none"/>'); continue
-            vs = [cell[m]["verdict"] for m in GRID["providers"]]
-            cls = "pass" if all(v == "PASS" for v in vs) else "fail" if all(v == "FAIL" for v in vs) else "none" if None in vs else "disc"
-            out.append(f'<rect x="{x + 2}" y="{y + 2}" width="{cw - 4}" height="{ch - 4}" rx="4" class="cell {cls}"><title>{E(b)} k={k}: ' +
-                       E(" · ".join(f"{m} {cell[m]['verdict'] or '?'}" + (f"({', '.join(cell[m]['fails'][:3])})" if cell[m]["fails"] else "") for m in GRID["providers"])) + '</title></rect>')
-    out.append(f'<text class="note" x="{L}" y="{H - 10}">칸 = 기본 질문 하나를 그 k 로 변형한 질문 1개. 빈 칸 = 그 k 변형이 없음. 칸에 마우스를 올리면 모델별 판정과 틀린 기준이 보입니다.</text>')
-    out.append('</svg>')
-    return "\n".join(out)
-
-
 def k_chart(rows):
     W, H, L, T, bw, plot_h = 1000, 360, 60, 30, 50, 250
     out = [f'<svg class="chart kchart" viewBox="0 0 {W} {H}" role="img" aria-label="질문당 기준 수 k 별 세 모델 판정 분포">']
@@ -488,7 +456,6 @@ pre.show { margin: 0; padding: 14px 16px; font-family: var(--font-num); font-siz
 svg .kb.pass { fill: var(--ok); opacity: 0.55; } svg .kb.disc { fill: var(--accent); } svg .kb.fail { fill: var(--risk); opacity: 0.6; }
 svg .kv { fill: #fff; font-family: var(--font-num); font-size: 12px; font-weight: 700; }
 svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } svg .cb.h { fill: var(--warn); opacity: 0.55; }
-svg .cell.pass { fill: var(--ok); opacity: 0.7; } svg .cell.disc { fill: var(--accent); } svg .cell.fail { fill: var(--risk); opacity: 0.7; } svg .cell.none { fill: var(--line); opacity: 0.5; }
 .ktab table { min-width: 480px; } .ktab tr.pick td, .ktab tr.pick th { background: var(--ok-soft); } .ktab td.d { font-weight: 700; color: var(--accent); }
 .ctab table { min-width: 720px; font-size: 0.86rem; } .ctab td.ex { font-family: var(--font-body); color: var(--muted); white-space: normal; } .ctab td { white-space: normal; font-family: var(--font-body); }
 .ctab th[scope="row"] { white-space: nowrap; } .ctab code { font-family: var(--font-num); font-size: 0.8rem; }
@@ -640,12 +607,6 @@ s3 = f"""
   </div>
 
   <div class="block"><h3>② 결과 — k 별로 모델 판정이 어떻게 나뉘나</h3>
-    <figure class="fig">
-      <div class="fig-head"><h3>기본 질문 18개 × k 1~16 — 한 칸이 질문 하나</h3>
-        <div class="legend"><span><i style="background:var(--ok);opacity:.7"></i>세 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림</span><span><i style="background:var(--risk);opacity:.7"></i>세 모델 모두 FAIL</span><span><i style="background:var(--line)"></i>변형 없음·판정 없음</span></div></div>
-      <div class="chart-scroll">{grid_svg()}</div>
-      <p class="muted">같은 질문인데 조건이 늘수록 왼쪽 초록(다 맞힘) → 가운데 파랑(갈림) → 오른쪽 빨강(다 틀림)으로 옮겨 갑니다. 아래 막대는 이 격자를 k 별로 세로로 합친 것입니다.</p>
-    </figure>
     <figure class="fig">
       <div class="fig-head"><h3>k 별 질문 판정 분포 (GPT · Claude · Gemini)</h3>
         <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>모두 PASS</span><span><i style="background:var(--accent)"></i>갈림 — 모델마다 판정이 다름</span><span><i style="background:var(--risk);opacity:.6"></i>모두 FAIL</span></div></div>
