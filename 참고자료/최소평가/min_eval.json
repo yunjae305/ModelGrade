@@ -1,25 +1,15 @@
 {
- "version": "min-eval-list-v1",
+ "version": "min-eval-list-v2-setcover",
  "set_id": "qs-b468b011e6c3",
  "need": 1,
  "ids": [
   12,
-  15,
-  21,
-  26,
-  23,
-  24,
-  36,
-  54,
-  56,
-  70,
-  72,
   82,
-  272,
   288,
+  323,
+  119,
   5,
-  30,
-  31
+  187
  ],
  "chosen": [
   {
@@ -66,61 +56,14 @@
    "kind": "대화"
   },
   {
-   "id": 15,
-   "k": 36,
-   "new": [
-    "J2-4.a",
-    "J2-4.b",
-    "J3-3.a",
-    "J3-3.b"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 21,
-   "k": 36,
-   "new": [
-    "J4-1.b"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 26,
-   "k": 35,
-   "new": [
-    "2-1.count"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 23,
-   "k": 33,
-   "new": [
-    "2-1.literal"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 24,
-   "k": 32,
-   "new": [
-    "2-2.list"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 36,
+   "id": 82,
    "k": 20,
    "new": [
-    "2-2.heading"
-   ],
-   "kind": "단일"
-  },
-  {
-   "id": 54,
-   "k": 20,
-   "new": [
-    "3-1.question_calculation",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
     "3-3.aggregate",
     "3-3.transform",
     "3-3.unique_values"
@@ -128,69 +71,24 @@
    "kind": "단일"
   },
   {
-   "id": 56,
-   "k": 20,
-   "new": [
-    "2-1.char_count"
-   ],
-   "kind": "대화"
-  },
-  {
-   "id": 70,
-   "k": 20,
-   "new": [
-    "1-2.code_block",
-    "1-2.code_fence_min",
-    "1-2.code_language_label"
-   ],
-   "kind": "단일"
-  },
-  {
-   "id": 72,
-   "k": 20,
-   "new": [
-    "2-1.charset"
-   ],
-   "kind": "단일"
-  },
-  {
-   "id": 82,
-   "k": 20,
-   "new": [
-    "1-2.json_syntax",
-    "2-2.json_structure"
-   ],
-   "kind": "단일"
-  },
-  {
-   "id": 272,
-   "k": 20,
-   "new": [
-    "1-2.python_syntax"
-   ],
-   "kind": "단일"
-  },
-  {
    "id": 288,
    "k": 20,
    "new": [
+    "2-1.char_count",
+    "2-1.charset",
+    "2-2.heading",
+    "J2-4.a",
+    "J2-4.b",
     "J4-4.a"
    ],
    "kind": "단일"
   },
   {
-   "id": 5,
-   "k": 19,
+   "id": 323,
+   "k": 18,
    "new": [
-    "J7-1.a",
-    "J7-2.a"
-   ],
-   "kind": "긴 문서"
-  },
-  {
-   "id": 30,
-   "k": 19,
-   "new": [
+    "2-1.count",
+    "2-2.list",
     "J8-1.a",
     "J8-2.a",
     "J8-3.a"
@@ -198,20 +96,42 @@
    "kind": "단일"
   },
   {
-   "id": 31,
+   "id": 119,
+   "k": 19,
+   "new": [
+    "1-2.python_syntax",
+    "3-1.question_calculation",
+    "J3-3.a",
+    "J3-3.b"
+   ],
+   "kind": "단일"
+  },
+  {
+   "id": 5,
+   "k": 19,
+   "new": [
+    "J4-1.b",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "kind": "긴 문서"
+  },
+  {
+   "id": 187,
    "k": 15,
    "new": [
-    "2-1.explicit_empty"
+    "2-1.explicit_empty",
+    "2-1.literal"
    ],
    "kind": "단일"
   }
  ],
  "short": {},
  "sizes": {
-  "1": 17,
-  "3": 37,
-  "5": 56,
-  "10": 110
+  "1": 7,
+  "3": 21,
+  "5": 37,
+  "10": 78
  },
  "compare": {
   "정밀": {
@@ -252,41 +172,49 @@
   },
   "최소": {
    "aiona": {
-    "n": 17,
+    "n": 7,
     "pass": 4,
-    "fail": 8,
-    "hold": 5,
-    "rate": 0.2353
+    "fail": 2,
+    "hold": 1,
+    "rate": 0.5714
    },
    "gpt": {
-    "n": 17,
-    "pass": 6,
-    "fail": 10,
-    "hold": 1,
-    "rate": 0.3529
+    "n": 7,
+    "pass": 2,
+    "fail": 3,
+    "hold": 2,
+    "rate": 0.2857
    },
    "claude": {
-    "n": 17,
-    "pass": 5,
-    "fail": 10,
-    "hold": 2,
-    "rate": 0.2941
+    "n": 7,
+    "pass": 2,
+    "fail": 2,
+    "hold": 3,
+    "rate": 0.2857
    },
    "gemini": {
-    "n": 17,
-    "pass": 4,
-    "fail": 11,
+    "n": 7,
+    "pass": 2,
+    "fail": 3,
     "hold": 2,
-    "rate": 0.2353
+    "rate": 0.2857
    },
    "_ranking": [
-    "gpt",
-    "claude",
     "aiona",
-    "gemini"
+    "claude",
+    "gemini",
+    "gpt"
    ]
   },
-  "same_ranking": false
+  "same_ranking": false,
+  "fail_capture": {
+   "pairs": 87,
+   "pairs_seen": 21,
+   "events": 586,
+   "events_captured": 23,
+   "pairs_rate": 0.2414,
+   "events_rate": 0.0392
+  }
  },
- "min_set_id": "qs-cd683972a31f"
+ "min_set_id": null
 }

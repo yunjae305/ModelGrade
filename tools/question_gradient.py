@@ -1,4 +1,4 @@
-"""기울기 그래프 — 질문을 **적용 기준 수(k_var)가 많은 순서**로 넣어 가며, 몇 번째 질문에서 기준 커버리지가 차고 모델별 통과율·순위가
+"""기울기 그래프 — 질문을 **아직 덜 채운 기준을 가장 많이 채우는 순서(집합 덮기 표준 탐욕법, 같으면 k_var 큰 것)**로 넣어 가며, 몇 번째 질문에서 기준 커버리지가 차고 모델별 통과율·순위가
 안정되는지 본다 (사용자 생각 2026-10-18: 기준이 많은 질문부터 던지면 적은 질문으로도 평가가 끝난다). 모델·웹 호출 없음.
 
     python tools/question_gradient.py <run_id>                       # 서버가 평가까지 끝낸 실행 (run JSON 의 evaluations)
@@ -6,7 +6,7 @@
     옵션: --step 10 --min-apply 10 --tolerance 0.03 --out 참고자료/분석/<폴더>
 
 - 단위: 단일 질문 1개 = 1, 대화 1개 = 1. k_var 는 질문 생성기와 같은 정의(``question_generation.k_var_by_group``, 변동 기준 54개).
-- 순서: k_var 가 큰 질문부터. 같은 k 면 아직 적용 수가 ``--min-apply`` 에 못 미친 기준을 더 많이 채우는 질문부터(욕심 방식).
+- 순서: 아직 적용 수가 ``--min-apply`` 에 못 미친 기준을 가장 많이 채우는 질문부터, 같으면 k_var 큰 것(팀원 검산 2026-10-19 — v1 은 k_var 순이 먼저였음)(욕심 방식).
 - 질문 판정(모델마다): 유효 FAIL(CODE·의미)이 하나라도 있으면 FAIL, 모두 판정되고 FAIL 없으면 PASS, 그 밖은 보류(분모에 둠).
   답을 못 받은 질문(수집 실패)은 모델 쪽 원인이므로 FAIL 로 센다(사용자 규칙). 통과율 = PASS / n.
   빈 출력을 요구한 질문은 판정·수집 결과와 상관없이 보류(사용자 결정 2026-10-19, run_summary.EMPTY_OUTPUT_HOLD_POLICY).
@@ -31,6 +31,7 @@ from webapp.run_summary import asks_empty_output, question_outcomes, unit_verdic
 
 RUNS = ROOT / "data" / "comparison_runs"
 SETS = ROOT / "data" / "question_sets"
+RARE_LIMIT = 60   # 기준 많은 순 이 수 안에 한 번도 안 나오는 기준은 그 기준을 가진 질문을 맨 앞에 (사용자 결정 2026-10-19)
 JEV_CRITERIA = ("J1", "J2", "J3", "J4")
 #: J5 FAIL 가운데 '확인 실패'라 보류로 두는 사유 코드 — semantic_policy(semantic-hold-unverified-v3)·run_summary.LIMIT_J5_CODES 와 같은 집합.
 #: 확정 FAIL(사실 오류·출처 불일치·답변이 든 URL 접근 불가 등)은 그대로 FAIL
@@ -146,7 +147,8 @@ def verdicts_from_records(run: Dict[str, Any], records_dir: Path) -> Dict[str, D
 # --- 순서·기울기 ---------------------------------------------------------------------------------------------------------
 
 def order_by_k(groups: List[Dict[str, Any]], report: Dict[str, Any], min_apply: int) -> Tuple[List[int], Dict[int, int], Dict[int, set]]:
-    """k_var 가 큰 질문부터. 같은 k 면 아직 min_apply 에 못 미친 기준을 많이 채우는 질문부터. 반환 (질문 id 순서, k, 질문별 적용 기준 집합)."""
+    """아직 min_apply 에 못 미친 기준을 가장 많이 채우는 질문부터(집합 덮기 표준 탐욕법, 팀원 검산 2026-10-19). 같으면 k_var 큰 것.
+    v1 은 k_var 순이 먼저라 이미 채운 기준까지 세어 10턴 대화를 연달아 넣었다. 반환 (질문 id 순서, k, 질문별 적용 기준 집합)."""
     kmap = qg.k_var_by_group(groups, report)
     countable = set(qg.target_counts(report).keys())   # 질문으로 셀 수 있는 기준 64
     applied: Dict[int, set] = defaultdict(set)
@@ -156,10 +158,23 @@ def order_by_k(groups: List[Dict[str, Any]], report: Dict[str, Any], min_apply: 
     counts: Counter = Counter()
     order: List[int] = []
     while remaining:
-        best = max(remaining, key=lambda q: (kmap[q]["k"], sum(1 for t in applied[q] if counts[t] < min_apply), -q))
+        best = max(remaining, key=lambda q: (sum(1 for t in applied[q] if counts[t] < min_apply), kmap[q]["k"], -q))
         remaining.remove(best)
         order.append(best)
         counts.update(applied[best])
+    # 희귀 기준 먼저 (사용자 결정 2026-10-19): 기준 많은 순 RARE_LIMIT 개 안에 한 번도 안 나오는 기준(예: 빈 출력 요구 2-1.explicit_empty —
+    # 조건을 붙이면 모순이라 k 가 낮음)은 그 기준을 가진 질문 중 적용 기준이 가장 많은 것을 맨 앞에 둔다. 다음 세트에서 다른 기준이 늦어도 자동으로 잡힌다.
+    first: Dict[str, int] = {}
+    for position, q in enumerate(order, 1):
+        for t in applied[q]:
+            first.setdefault(t, position)
+    pinned: List[int] = []
+    for t in sorted(countable, key=lambda t: -first.get(t, 10**6)):
+        if first.get(t, 10**6) > RARE_LIMIT:
+            carrier = max((q for q in order if t in applied[q] and q not in pinned), key=lambda q: len(applied[q]), default=None)
+            if carrier is not None:
+                pinned.append(carrier)
+    order = pinned + [q for q in order if q not in pinned]
     return order, {q: kmap[q]["k"] for q in kmap}, applied
 
 
@@ -231,7 +246,7 @@ def _markdown(result: Dict[str, Any], labels: Dict[str, str], run_id: str, kdist
     head = "| 질문 수 | 기준 1회↑ | 기준 " + str(result["min_apply"]) + "회↑ | " + " | ".join(f"{labels.get(p, p)} PASS·FAIL·보류 (통과율)" for p in providers) + " | 순위 |"
     sep = "|" + "---|" * (3 + len(providers) + 1)
     lines = [f"# 기울기 그래프 — 실행 {run_id}", "",
-             f"질문을 적용 기준 수(k_var)가 많은 순서로 넣었다. k 분포: {dict(sorted(kdist.items()))}. 기준 {result['total_criteria']}개(질문으로 셀 수 있는 것), "
+             f"질문을 덜 채운 기준을 가장 많이 채우는 순서(집합 덮기 표준 탐욕법, 같으면 k_var 큰 것)로 넣었다. k 분포: {dict(sorted(kdist.items()))}. 기준 {result['total_criteria']}개(질문으로 셀 수 있는 것), "
              f"통과율 = PASS / 질문 수(보류·수집 실패 포함). 순위 안정 허용 오차 ±{int(result['tolerance'] * 100)}pp.", "",
              f"- 모든 기준이 1회 이상 적용되는 질문 수: **{result['coverage_1_n'] or '전체로도 미달'}**",
              f"- 모든 기준이 {result['min_apply']}회 이상 적용되는 질문 수: **{result['coverage_min_n'] or '전체로도 미달'}**",

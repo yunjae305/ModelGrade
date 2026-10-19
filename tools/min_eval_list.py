@@ -1,4 +1,4 @@
-"""최소 평가 리스트 — 정밀 평가(질문 세트 전체, 예: 326개)에서 질문당 평가 기준이 많은 질문부터 골라, 적은 질문으로 평가 기준을 모두 덮는 목록을 만든다.
+"""최소 평가 리스트 — 정밀 평가(질문 세트 전체, 예: 326개)에서 **아직 덜 채운 기준을 가장 많이 채우는 질문부터** 골라, 적은 질문으로 평가 기준을 모두 덮는 목록을 만든다.
 (사용자 생각 2026-10-18: 기준이 많은 질문부터 평가하면 적은 질문과 답변으로도 우리 평가 기준을 전부 평가할 수 있다.) 모델 호출 없음.
 
     python tools/min_eval_list.py <세트 id>                         # 목록만 (기본: 기준마다 1번 이상)
@@ -6,7 +6,7 @@
     python tools/min_eval_list.py <세트 id> --run <실행 id>          # 그 실행의 판정으로 최소 vs 정밀 결과 비교
     python tools/min_eval_list.py <세트 id> --save-set               # 최소 평가 질문 세트를 data/question_sets 에 만든다(화면에서 수집·평가 가능)
 
-고르는 법 (욕심 방식, 기준 수 우선):
+고르는 법 (집합 덮기 표준 탐욕법 — v2, 팀원 검산 2026-10-19: "기준 많은 순"은 이미 채운 기준까지 세어 10턴 대화를 연달아 골라 1번↑ 17개가 걸렸고, 표준 탐욕은 7개):
 - 질문마다 적용 기준 = 코드 규칙(check)이 그 질문(대화는 모든 턴)에서 찾은 기준 중 질문으로 셀 수 있는 것(72 중 64 — 답변 구조로만 정해지는 검사 7·J5-3.a 제외).
 - 남은 질문 가운데 '적용 기준 수'가 가장 많은 질문부터 본다. 아직 목표 횟수를 못 채운 기준을 하나도 더하지 못하면 건너뛴다.
 - 모든 기준이 목표 횟수에 닿으면 멈춘다. 대화 1개 = 1개.
@@ -31,7 +31,7 @@ if str(ROOT) not in sys.path:
 from webapp import question_generation as qg  # noqa: E402
 
 OUT = ROOT / "참고자료" / "최소평가"
-MIN_LIST_VERSION = "min-eval-list-v1"
+MIN_LIST_VERSION = "min-eval-list-v2-setcover"
 
 
 def _qid(case_id: str) -> int:
@@ -48,7 +48,8 @@ def applied_by_question(groups: List[Dict[str, Any]], report: Dict[str, Any]) ->
 
 
 def select(groups: List[Dict[str, Any]], applied: Dict[int, set], need: int = 1, universe: Optional[set] = None) -> Dict[str, Any]:
-    """기준 수 많은 순으로 보며 새 기준을 더하는 질문만 고른다 — 반환 {chosen: [{id, k, new, kind}], counts, short}.
+    """매번 '아직 목표에 못 미친 기준'을 가장 많이 채우는 질문을 고른다(같으면 기준 수 많은 것, 그다음 번호) — 반환 {chosen: [{id, k, new, kind}], counts, short}.
+    v1(기준 수 많은 순으로 훑기)은 이미 채운 기준까지 점수에 넣어 10턴 대화를 연달아 골랐다 — 1번↑ 17개 → 7개, 3번↑ 37 → 21, 10번↑ 110 → 78 (팀원 검산 2026-10-19).
     ``universe`` 는 덮어야 할 기준 전체(기본: 질문으로 셀 수 있는 64개). 목표 횟수는 낮추지 않는다 — 세트에 모자라면 short 에 남긴다 (Codex 검토)."""
     universe = set(universe) if universe is not None else (set().union(*applied.values()) if applied else set())
     available = {t: sum(1 for s in applied.values() if t in s) for t in universe}
@@ -56,13 +57,13 @@ def select(groups: List[Dict[str, Any]], applied: Dict[int, set], need: int = 1,
     kind = {g["id"]: ("긴 문서" if g["turns"][0].get("reference") else "대화" if len(g["turns"]) > 1 else "단일") for g in groups}
     counts: Counter = Counter()
     chosen = []
-    order = sorted(applied, key=lambda q: (-len(applied[q]), q))   # 기준 수 많은 순, 같으면 번호 순
-    for q in order:
-        if all(counts[t] >= target[t] for t in universe):
-            break
+    remaining = set(applied)
+    while remaining and not all(counts[t] >= target[t] for t in universe):
+        q = max(remaining, key=lambda q: (sum(1 for t in applied[q] if counts[t] < target[t]), len(applied[q]), -q))
         new = sorted(t for t in applied[q] if counts[t] < target[t])
         if not new:
-            continue
+            break
+        remaining.remove(q)
         chosen.append({"id": q, "k": len(applied[q]), "new": new, "kind": kind[q]})
         counts.update(applied[q])
     short = {t: (counts[t], need) for t in universe if counts[t] < need}   # 요청 횟수 기준 — 세트에 모자란 기준도 숨기지 않는다
@@ -84,7 +85,31 @@ def compare(run: Dict[str, Any], ids: List[int]) -> Dict[str, Any]:
         row["_ranking"] = sorted((p for p in verdicts), key=lambda p: (-(row[p]["rate"] or 0), p))
         out[label] = row
     out["same_ranking"] = out["정밀"]["_ranking"] == out["최소"]["_ranking"]
+    out["fail_capture"] = fail_capture(run, set(ids))
     return out
+
+
+def fail_capture(run: Dict[str, Any], picked: set) -> Dict[str, Any]:
+    """전체 실행에서 나온 (모델, 기준) FAIL 조합과 FAIL 사건(질문 단위)이 고른 목록에 얼마나 들어 있나 — FAIL 을 보는 것이 목적이므로(사용자 2026-10-19).
+    CODE 는 check_id 의 검사 부분(2-1.count:sentence_count → 2-1.count), 의미는 J1~J8 로 센다."""
+    fails: Dict[tuple, set] = defaultdict(set)
+    for p in run["providers"]:
+        batch = (run.get("evaluations") or {}).get(p) or {}
+        records = (batch.get("jev_eval") or {}).get("records") or []
+        for case, rec in zip(batch.get("cases") or [], records):
+            q = _qid(case["case_id"])
+            for res in case.get("results") or []:
+                if res.get("verdict") == "FAIL" and res.get("counted", True):
+                    fails[(p, str(res.get("check_id", "")).split(":")[0])].add(q)
+            if isinstance(rec, dict):
+                for cid, d in (rec.get("decisions") or {}).items():
+                    if isinstance(d, dict) and d.get("decision") == "FAIL":
+                        fails[(p, cid)].add(q)
+    events = sum(len(v) for v in fails.values())
+    seen = sum(1 for v in fails.values() if v & picked)
+    captured = sum(len(v & picked) for v in fails.values())
+    return {"pairs": len(fails), "pairs_seen": seen, "events": events, "events_captured": captured,
+            "pairs_rate": round(seen / len(fails), 4) if fails else None, "events_rate": round(captured / events, 4) if events else None}
 
 
 def save_set(set_id: str, groups: List[Dict[str, Any]], ids: List[int], need: int) -> str:
@@ -135,8 +160,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                                                   "min_set_id": new_set}, ensure_ascii=False, indent=1, default=list), encoding="utf-8")
     kinds = Counter(c["kind"] for c in result["chosen"])
     lines = [f"# 최소 평가 리스트 ({MIN_LIST_VERSION})", "",
-             f"정밀 평가 = 질문 세트 `{args.set_id}` 전체 {len(groups)}개. 최소 평가 = 그중 **{len(ids)}개** — 질문당 평가 기준이 많은 질문부터 보며, "
-             f"평가 기준({result['universe']}개, 질문으로 셀 수 있는 것)이 모두 **{args.min}번 이상** 적용될 때까지 고름(새 기준을 더하지 못하는 질문은 건너뜀).",
+             f"정밀 평가 = 질문 세트 `{args.set_id}` 전체 {len(groups)}개. 최소 평가 = 그중 **{len(ids)}개** — 아직 덜 채운 기준을 가장 많이 채우는 질문부터(집합 덮기 표준 탐욕법) "
+             f"평가 기준({result['universe']}개, 질문으로 셀 수 있는 것)이 모두 **{args.min}번 이상** 적용될 때까지 고름.",
              f"구성: {dict(kinds)}. 기준마다 목표 횟수별 필요 질문 수: " + ", ".join(f"{m}번↑ {n}개" for m, n in sizes.items()) + ".",
              *( [f"목표를 못 채운 기준: {result['short']}"] if result["short"] else ["모든 기준이 목표 횟수를 채움."] ),
              *( [f"최소 평가 질문 세트: `{new_set}` (화면 '질문 세트'에서 수집·평가 가능)"] if new_set else [] ), ""]
@@ -149,12 +174,16 @@ def main(argv: Optional[List[str]] = None) -> int:
             lines.append(f"| {p} | {a['pass']}·{a['fail']}·{a['hold']} / {a['n']} ({a['rate']:.0%}) | {b['pass']}·{b['fail']}·{b['hold']} / {b['n']} ({b['rate']:.0%}) |")
         lines += ["", f"순위 — 정밀: {' > '.join(cmp['정밀']['_ranking'])} · 최소: {' > '.join(cmp['최소']['_ranking'])} · "
                       f"{'같음' if cmp['same_ranking'] else '다름'}", ""]
+        fc = cmp.get("fail_capture") or {}
+        if fc:
+            lines += [f"**FAIL 포착** (FAIL 을 보는 것이 목적): 전체에서 나온 (모델, 기준) FAIL 조합 {fc['pairs']}개 중 이 목록에서 한 번이라도 보이는 것 "
+                      f"**{fc['pairs_seen']}개 ({fc['pairs_rate']:.0%})** · FAIL 사건 {fc['events']}건 중 {fc['events_captured']}건 ({fc['events_rate']:.0%}).", ""]
     lines += ["## 고른 질문 (고른 순서)", "", "| 순서 | 질문 | 종류 | 기준 수 | 새로 덮은 기준 |", "|---|---|---|---|---|"]
     for n, c in enumerate(result["chosen"], 1):
         lines.append(f"| {n} | Q{c['id']} | {c['kind']} | {c['k']} | {', '.join(c['new'])} |")
     (OUT / f"{stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"최소 평가 {len(ids)}개 / 정밀 {len(groups)}개 | 구성 {dict(kinds)} | 목표별 {sizes} | 못 채움 {len(result['short'])}"
-          + (f" | 세트 {new_set}" if new_set else "") + (f" | 순위 같음 {cmp['same_ranking']}" if cmp else ""))
+          + (f" | 세트 {new_set}" if new_set else "") + (f" | 순위 같음 {cmp['same_ranking']} | FAIL 조합 포착 {cmp['fail_capture']['pairs_rate']:.0%}" if cmp else ""))
     print("저장:", OUT / f"{stem}.md")
     return 0
 

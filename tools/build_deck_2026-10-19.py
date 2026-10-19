@@ -175,9 +175,11 @@ HOLD = [("J5 — Luna 가 옮겨 적은 주장이 답변 원문과 안 맞음", 
         ("빈 출력 요구 질문 (AIONA 오류 화면 8개 포함)", "질문 10개 전체 보류", "'아무것도 출력하지 마' 류 — 사용자 결정으로 우선 보류")]
 hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{E(b)}</td><td class="exq">{E(c)}</td></tr>' for a, b, c in HOLD)
 
-MIN = [("기준마다 1번↑", 17, "대화 7 · 단일 9 · 긴 문서 1", "24% · 35% · 29% · 24%", "gpt > claude > aiona > gemini", "다름"),
-       ("기준마다 3번↑", 37, "대화 11 · 단일 23 · 긴 문서 3", "35% · 38% · 22% · 27%", "gpt > aiona > gemini > claude", "다름"),
-       ("기준마다 5번↑", 56, "", "", "", ""), ("기준마다 10번↑", 110, "", "", "", ""), ("정밀 (전체)", 326, "", "51% · 58% · 40% · 37%", "gpt > aiona > claude > gemini", "기준")]
+MIN = [("기준마다 1번↑", 7, "대화 1 · 단일 5 · 긴 문서 1", "57% · 29% · 29% · 29%", "aiona > claude > gemini > gpt", "다름"),
+       ("기준마다 3번↑", 21, "대화 3 · 단일 15 · 긴 문서 3", "33% · 33% · 29% · 29%", "aiona > gpt > claude > gemini", "다름"),
+       ("기준마다 5번↑", 37, "대화 5 · 단일 27 · 긴 문서 5", "43% · 38% · 30% · 35%", "aiona > gpt > gemini > claude", "다름"),
+       ("기준마다 10번↑", 78, "대화 11 · 단일 57 · 긴 문서 10", "40% · 44% · 37% · 33%", "gpt > aiona > claude > gemini", "같음"),
+       ("정밀 (전체)", 326, "", "51% · 58% · 40% · 37%", "gpt > aiona > claude > gemini", "기준")]
 min_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{b}</td><td class="exq">{E(c)}</td><td class="exq">{E(d)}</td><td class="exq">{E(e)}</td><td>{E(f)}</td></tr>' for a, b, c, d, e, f in MIN)
 
 # ---------- 7. 비용 ----------
@@ -251,7 +253,8 @@ nav = """
       <a href="#s4"><span class="n">04</span>평가 기준 72개</a>
       <a href="#s5"><span class="n">05</span>평가 프롬프트</a>
       <a href="#s6"><span class="n">06</span>결과</a>
-      <a href="#s7"><span class="n">07</span>비용·토큰</a>
+      <a href="#s7"><span class="n">07</span>질문 수 결정</a>
+      <a href="#s8"><span class="n">08</span>비용·토큰</a>
     </div>
     <div class="pager">
       <button type="button" id="prev" aria-label="이전 장">←</button>
@@ -281,9 +284,9 @@ s0 = """
       <p><b>GPT-6 Luna 190 · AIONA 166 · Claude 131 · Gemini 120</b>. CODE 28 검사 + 의미 44 항목(Jev + GPT-6 Luna 병행), 보류는 분모에 둠.</p>
     </div>
     <div class="key">
-      <span class="lab">질문을 줄일 수 있나</span>
-      <span class="big">17<small>개로 기준 커버</small> · 247<small>개에 순위 안정</small></span>
-      <p>기준 많은 질문부터 고르면 <b>17개</b>로 기준 64개를 한 번씩 봅니다. 그러나 모델 <b>순위</b>가 전체와 같아지는 데는 약 250개가 필요했습니다.</p>
+      <span class="lab">질문 수 — 정밀 / 최소</span>
+      <span class="big">326 <small>/</small> 78<small>개</small></span>
+      <p><b>정밀 326</b>: 순위·FAIL 전부. <b>최소 78</b>: 덜 채운 기준을 가장 많이 채우는 질문부터 골라 기준마다 10번 이상 — 전체 FAIL 조합의 <b>80%</b>를 보고 순위도 같음(팀원 검산으로 방식 교체).</p>
     </div>
     <div class="key alert">
       <span class="lab">비용 (10-18~19 이틀, 단가표 추정)</span>
@@ -298,7 +301,8 @@ s0 = """
     <li><a href="#s4"><span class="n">04</span><strong>평가 기준 72개</strong><span class="d">CODE 28 + 의미 44</span></a></li>
     <li><a href="#s5"><span class="n">05</span><strong>평가 프롬프트</strong><span class="d">심판에게 무엇을 보내나 — 예시 2개</span></a></li>
     <li><a href="#s6"><span class="n">06</span><strong>결과</strong><span class="d">생성 · 수집 · 평가 · 최소 평가 · 기울기</span></a></li>
-    <li><a href="#s7"><span class="n">07</span><strong>비용·토큰</strong><span class="d">단계 × 모델</span></a></li>
+    <li><a href="#s7"><span class="n">07</span><strong>질문 수 결정</strong><span class="d">정밀 326 · 최소 50 — 시험 결과</span></a></li>
+    <li><a href="#s8"><span class="n">08</span><strong>비용·토큰</strong><span class="d">단계 × 모델</span></a></li>
   </ol>
 </section>
 """
@@ -306,7 +310,7 @@ s0 = """
 s1 = f"""
 <section class="slide" id="s1">
   <div class="s-head">
-    <span class="s-no">01 / 07</span>
+    <span class="s-no">01 / 08</span>
     <h2>평가기는 질문 생성 → 답변 수집 → CODE + 의미 평가 → 질문 단위 판정 순서로 돈다</h2>
     <p>기준은 72개(CODE 28 + 의미 44)입니다. CODE 는 프로그램이, 의미는 두 심판(GPT-6 Luna · Jev)이 병행 판정합니다.</p>
   </div>
@@ -327,7 +331,7 @@ gen_struct = [("①", "단일 질문 계획", "40개씩 묶음 · 공통 규칙 
 s2 = f"""
 <section class="slide" id="s2">
   <div class="s-head">
-    <span class="s-no">02 / 07</span>
+    <span class="s-no">02 / 08</span>
     <h2>질문생성 프롬프트는 규칙 한 벌에 "이번 요청"만 바꿔 네 단계로 쓴다</h2>
     <p>한 번에 326개를 받을 수 없어(출력 한도) 단계·묶음으로 나눕니다. 모든 단계가 같은 점검 목록 72개와 같은 k 규칙을 봅니다. 공개 질문 세트는 쓰지 않습니다.</p>
   </div>
@@ -347,7 +351,7 @@ s2 = f"""
 s3 = f"""
 <section class="slide" id="s3">
   <div class="s-head">
-    <span class="s-no">03 / 07</span>
+    <span class="s-no">03 / 08</span>
     <h2>k 6~10 은 "세 모델이 갈리는 구간"이다 — 1~5 는 다 맞히고 11 이상은 다 틀린다</h2>
     <p>k = 한 질문에 걸리는 변동 기준 수(항상 적용되는 10개와 답변 따라 정해지는 8개를 뺀 54개 중). 같은 기본 질문을 k 만 바꿔 변형해 세 모델에 던지고 평가했습니다.</p>
   </div>
@@ -374,7 +378,7 @@ s3 = f"""
 s4 = f"""
 <section class="slide" id="s4">
   <div class="s-head">
-    <span class="s-no">04 / 07</span>
+    <span class="s-no">04 / 08</span>
     <h2>평가 기준 72개 — CODE 28개는 프로그램이, 의미 44개는 심판 모델이 본다</h2>
     <p>CODE 는 "질문이 요구한 형식·개수·계산을 지켰나"를 규칙으로 셉니다. 의미는 "요청을 실제로 수행했나, 맥락에 맞나, 앞뒤가 맞나, 빠짐없나, 사실이 맞나, 대화·긴 문서·첨부를 제대로 다뤘나"를 판정합니다.</p>
   </div>
@@ -397,7 +401,7 @@ s4 = f"""
 s5 = f"""
 <section class="slide" id="s5">
   <div class="s-head">
-    <span class="s-no">05 / 07</span>
+    <span class="s-no">05 / 08</span>
     <h2>심판에게는 질문 원문 · 답변 · "이 질문에서 볼 항목"만 보낸다</h2>
     <p>CODE 평가는 프롬프트가 없습니다(프로그램). 의미 평가는 질문마다 적용 항목을 미리 뽑아(질문별 해석 프롬프트) 그 항목만 묻습니다. 아래는 질문별 평가 프롬프트 326개 중 2개입니다.</p>
   </div>
@@ -426,7 +430,7 @@ s5 = f"""
 s6 = f"""
 <section class="slide" id="s6">
   <div class="s-head">
-    <span class="s-no">06 / 07</span>
+    <span class="s-no">06 / 08</span>
     <h2>326개를 만들어 네 모델 답을 받고 끝까지 평가했다 — GPT 58% · AIONA 51% · Claude 40% · Gemini 37%</h2>
     <p>질문 단위(대화 1개 = 1개), 보류는 분모에 둡니다. 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다.</p>
   </div>
@@ -450,18 +454,123 @@ s6 = f"""
     <div class="cmpt rtab"><table><caption>보류는 왜 생겼나 <span>턴 단위 항목 수 — AIONA · GPT · Claude · Gemini</span></caption>
       <thead><tr><th>사유</th><th>건수</th><th>설명</th></tr></thead><tbody>{hold_rows}</tbody></table></div>
   </div>
-  <div class="subhead"><h3>질문을 줄일 수 있나 — 기준 많은 질문부터</h3><p>평가가 끝난 기록만으로(AI 호출 없이) 확인했습니다. 기준 많은 질문부터 "새 기준을 더하는 질문"만 고르면 기준 64개를 금방 덮지만, 그 질문들은 어려운 질문이라 통과율이 모두 낮아지고 순위가 바뀝니다.</p></div>
-  <div class="cmpt rtab"><table><caption>최소 평가 vs 정밀 평가 <span>통과율 순서 AIONA · GPT · Claude · Gemini</span></caption>
+  <div class="subhead"><h3>질문을 줄일 수 있나</h3><p>평가가 끝난 기록만으로(AI 호출 없이) 확인했습니다. "덜 채운 기준을 가장 많이 채우는 질문부터" 고르면 7개로 기준 64개를 한 번씩 덮고, 78개면 기준마다 10번 이상 — 이때 순위도 전체와 같습니다. 적은 목록은 어려운 질문 위주라 통과율이 낮게 나옵니다.</p></div>
+  <div class="cmpt rtab"><table><caption>최소 평가 vs 정밀 평가 <span>표준 탐욕법(v2) 목록 · 통과율 순서 AIONA · GPT · Claude · Gemini</span></caption>
     <thead><tr><th>목록</th><th>질문 수</th><th>구성</th><th>통과율</th><th>순위</th><th>정밀과</th></tr></thead><tbody>{min_rows}</tbody></table></div>
-  <figure class="fig"><div class="fig-head"><h3>기울기 — 기준 많은 순으로 10개씩 늘릴 때 모델별 통과율</h3><span class="muted">기준 63개는 60개 질문에서 덮이고, 마지막 1개(빈 출력 요구)는 310번째. 순위·통과율이 정밀과 같아지는 지점 <b>247개</b>.</span></div>
+  <figure class="fig"><div class="fig-head"><h3>기울기 — 기준 많은 순으로 10개씩 늘릴 때 모델별 통과율</h3><span class="muted">순서 = 덜 채운 기준을 가장 많이 채우는 질문부터(표준 탐욕법). <b>78개</b>에서 기준 64개 모두 10번 이상. 순위·통과율이 정밀과 같아지는 지점 <b>273개</b>. 자세한 시험은 07장.</span></div>
     <div class="gradwrap">{gradient_svg}</div></figure>
 </section>
 """
 
-s7 = f"""
+# ---------- 7. 질문 수 결정 ----------
+# tools/sample_size_from_run.py 8c61f117e661 --samples 3000 (2026-10-19) 결과. 커버 = 기준 64개 중 1회↑ 걸린 수.
+# 표준 탐욕(v2) 목록 — N, 목표(기준마다 n번↑), FAIL 조합 87개 중 보이는 비율, FAIL 사건 586건 중 비율, 무작위 같은 수(조합), 무작위(사건), 순위가 정밀과 같은가
+FC = [(7, 1, 24.1, 3.9, 12.5, 2.1, False), (21, 3, 49.4, 12.8, 29.9, 6.4, False), (37, 5, 60.9, 18.3, 42.5, 10.9, False),
+      (78, 10, 80.5, 35.7, 64.5, 24.2, True), (155, 20, 87.4, 62.1, 82.5, 47.0, True), (326, 0, 100.0, 100.0, 100.0, 100.0, True)]
+SS = [  # N, 커버(기준순), 커버(빈 출력 맨 앞), 커버(무작위 평균), 3회↑(기준순), 순위 일치(무작위 추출), 1위 일치, ±3pp
+    (10, 43, 48, 48.0, 38, 25.4, 55.4, 0.0), (20, 50, 50, 57.1, 43, 34.0, 65.7, 0.2), (30, 56, 59, 60.4, 56, 42.5, 73.1, 0.1),
+    (50, 63, 64, 62.8, 57, 55.5, 82.3, 2.6), (60, 63, 64, 63.3, 58, 61.6, 86.2, 1.9), (80, 63, 64, 63.8, 58, 69.8, 91.0, 6.4),
+    (100, 63, 64, 63.9, 63, 77.5, 94.3, 11.2), (150, 63, 64, 64.0, 63, 87.9, 98.3, 28.2), (200, 63, 64, 64.0, 63, 95.1, 100.0, 54.5),
+    (250, 63, 64, 64.0, 63, 98.9, 100.0, 84.9), (300, 63, 64, 64.0, 63, 100.0, 100.0, 99.9), (326, 64, 64, 64.0, 64, 100.0, 100.0, 100.0)]
+# 새 세트 흉내(복원 추출 4,000회): N, 전체 순위 일치, 1위 일치, GPT>AIONA(7.4pp), AIONA>Claude(10.7pp), Claude>Gemini(3.4pp), ±3pp
+BS = [(30, 40.2, 70.8, 71.1, 81.6, 58.0, 0.2), (50, 52.3, 80.0, 80.2, 89.5, 64.5, 1.7), (80, 62.6, 86.1, 86.1, 95.3, 68.5, 3.7),
+      (100, 67.3, 89.8, 89.8, 97.2, 72.1, 6.1), (150, 77.1, 94.4, 94.4, 98.8, 78.1, 11.6), (200, 81.8, 97.2, 97.2, 99.7, 80.7, 18.3),
+      (250, 86.1, 98.4, 98.4, 100.0, 84.5, 25.7), (300, 87.4, 99.1, 99.1, 99.9, 86.2, 30.4), (400, 91.3, 99.7, 99.7, 100.0, 90.2, 43.6),
+      (500, 92.7, 99.9, 99.9, 100.0, 91.6, 52.9), (800, 97.3, 100.0, 100.0, 100.0, 97.0, 74.7)]
+
+
+def ss_chart():
+    """왼쪽: N 별 기준 커버(세 순서) · 오른쪽: 새 세트 N 개일 때 인접 모델 순서가 맞을 확률."""
+    W, H = 1000, 340
+    out = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="질문 수에 따른 기준 커버리지와 순위 일치 확률">']
+    L, T, pw, ph = 50, 40, 400, 240
+    xs = lambda n: L + pw * (n / 326)
+    ys = lambda c: T + ph - ph * (c / 64)
+    ys = lambda c: T + ph - ph * (c / 100)
+    out.append(f'<text class="atitle" x="{L}" y="{T - 16}">전체 FAIL 조합(모델×기준 87개) 중 목록에서 보이는 비율</text>')
+    for c in (25, 50, 75, 100):
+        out.append(f'<line class="grid" x1="{L}" y1="{ys(c):.1f}" x2="{L + pw}" y2="{ys(c):.1f}"/><text class="tick" x="{L - 6}" y="{ys(c) + 4:.1f}" text-anchor="end">{c}%</text>')
+    for n in (7, 78, 155, 326):
+        out.append(f'<text class="tick" x="{xs(n):.1f}" y="{T + ph + 16}" text-anchor="middle">{n}</text>')
+    for idx, cls in ((2, "ln cv20"), (4, "ln gpt")):
+        pts = " ".join(f"{xs(r[0]):.1f},{ys(r[idx]):.1f}" for r in FC)
+        out.append(f'<polyline class="{cls}" points="{pts}"/>')
+    for r in FC[:-1]:
+        out.append(f'<circle class="pt cv20" cx="{xs(r[0]):.1f}" cy="{ys(r[2]):.1f}" r="4"/><text class="inl" x="{xs(r[0]) + 6:.1f}" y="{ys(r[2]) - 6:.1f}">{r[1]}번↑ {r[0]}개 {r[2]:.0f}%</text>')
+    out.append(f'<line class="guide" x1="{xs(78):.1f}" y1="{T}" x2="{xs(78):.1f}" y2="{T + ph}"/>')
+    out.append(f'<text class="note" x="{L}" y="{H - 8}">진한 선 = 표준 탐욕 목록(기준마다 n번↑) · 초록 = 같은 수를 무작위로 뽑은 평균(300회)</text>')
+    L2 = 540
+    xs2 = lambda n: L2 + pw * (n / 500)
+    ys2 = lambda p: T + ph - ph * (p / 100)
+    out.append(f'<text class="atitle" x="{L2}" y="{T - 16}">새 세트 N개일 때 순서가 맞을 확률</text>')
+    for p in (50, 75, 95, 100):
+        out.append(f'<line class="grid{" strong" if p == 95 else ""}" x1="{L2}" y1="{ys2(p):.1f}" x2="{L2 + pw}" y2="{ys2(p):.1f}"/><text class="tick" x="{L2 - 6}" y="{ys2(p) + 4:.1f}" text-anchor="end">{p}%</text>')
+    for n in (50, 100, 250, 326, 500):
+        out.append(f'<text class="tick" x="{xs2(n):.1f}" y="{T + ph + 16}" text-anchor="middle">{n}</text>')
+    series = ((4, "ln gpt", "AIONA > Claude (10.7pp)"), (3, "ln aiona", "GPT > AIONA (7.4pp)"), (5, "ln gemini", "Claude > Gemini (3.4pp)"))
+    for idx, cls, lab in series:
+        pts = " ".join(f"{xs2(r[0]):.1f},{ys2(r[idx]):.1f}" for r in BS if r[0] <= 500)
+        out.append(f'<polyline class="{cls}" points="{pts}"/>')
+        last = [r for r in BS if r[0] <= 500][-1]
+        out.append(f'<text class="inl" x="{xs2(last[0]) + 4:.1f}" y="{ys2(last[idx]) + 4:.1f}">{lab}</text>')
+    out.append(f'<line class="guide" x1="{xs2(250):.1f}" y1="{T}" x2="{xs2(250):.1f}" y2="{T + ph}"/><text class="mk" x="{xs2(250) + 4:.1f}" y="{T + 14}">250: GPT>AIONA 98%</text>')
+    out.append(f'<line class="guide" x1="{xs2(326):.1f}" y1="{T}" x2="{xs2(326):.1f}" y2="{T + ph}"/><text class="mk" x="{xs2(326) + 4:.1f}" y="{T + 30}">326</text>')
+    out.append(f'<text class="note" x="{L2}" y="{H - 8}">같은 분포에서 N개를 새로 뽑는다고 보고 4,000번 반복(복원 추출). 점선 = 95%.</text>')
+    out.append('</svg>')
+    return "\n".join(out)
+
+
+def _pick(flag):
+    return ' class="pick"' if flag else ''
+
+
+ss_rows = "".join(f'<tr{_pick(r[0] in (78, 326))}><th scope="row">{r[0]}</th><td>{"정밀" if r[1] == 0 else f"{r[1]}번↑"}</td><td class="d">{r[2]:.0f}%</td><td>{r[3]:.0f}%</td><td>{r[4]:.0f}% / {r[5]:.0f}%</td><td>{"같음" if r[6] else "다름"}</td></tr>' for r in FC)
+bs_rows = "".join(f'<tr{_pick(r[0] in (250, 300))}><th scope="row">{r[0]}</th><td>{r[1]:.0f}%</td><td>{r[2]:.0f}%</td><td class="d">{r[3]:.0f}%</td><td>{r[4]:.0f}%</td><td>{r[5]:.0f}%</td><td>{r[6]:.0f}%</td></tr>' for r in BS)
+
+s_n = f"""
 <section class="slide" id="s7">
   <div class="s-head">
-    <span class="s-no">07 / 07</span>
+    <span class="s-no">07 / 08</span>
+    <h2>정밀 평가는 326개, 최소 평가는 78개 — "덜 채운 기준을 가장 많이 채우는 질문부터" 고르면 FAIL 의 80%를 본다</h2>
+    <p>평가가 끝난 기록만으로(AI 호출 없이) 셌습니다. 대화 1개 = 질문 1개. 보는 것은 통과율이 아니라 <b>FAIL</b>(어느 모델이 어느 기준에서 틀리나)이고, 다음 세트는 내용이 달라지므로 "몇 개를 어떤 규칙으로"가 답입니다. 고르는 규칙은 팀원 검산으로 바꿨습니다.</p>
+  </div>
+  <div class="concl">
+    <span class="concl-tag">결정</span>
+    <h3>정밀 326 (순위·FAIL 전부) / 최소 78 (기준마다 10번 이상, FAIL 조합 80%) / 커버 점검 7</h3>
+    <div class="concl-cols">
+      <div><b class="keep">정밀 평가 — 326개</b><ul><li>GPT 와 AIONA(차이 7.4pp) 순서를 95% 로 가르려면 <b>250개 이상</b> 필요 → 326 은 여유 포함(99%)</li><li>기준마다 10번 이상 적용 → 기준별 FAIL 분석 가능</li><li>Claude·Gemini(차이 3.4pp)는 326 으로도 못 가름(약 1,100개 필요) → "같은 수준"으로 보고</li></ul></div>
+      <div><b class="fix">최소 평가 — 78개 (기준마다 10번↑)</b><ul><li>규칙: <b>아직 덜 채운 기준을 가장 많이 채우는 질문부터</b>(집합 덮기 표준 탐욕법). 이전 규칙(기준 많은 순)은 같은 목표에 110개 → 팀원 검산으로 교체</li><li>전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고, 순위도 정밀과 같음. 무작위 78개는 65%</li><li>7개(1번↑)는 기준이 다 걸리는지 점검용 — FAIL 은 24%만 보여 분석에는 부족</li></ul></div>
+      <div><b class="wait">주의</b><ul><li>적은 목록은 어려운 질문 위주라 통과율이 전체보다 낮음(78개: 33~44% vs 전체 37~58%) — 숫자 비교가 아니라 FAIL 목록으로 본다</li><li>Claude·Gemini 처럼 차이가 3~4pp 면 어떤 수로도 순서를 못 가름</li><li>나머지 8개 기준(답변 구조 검사·J5-3.a)은 어느 질문에서든 답변에 따라 검사됨 → 72개 전부 평가</li></ul></div>
+    </div>
+  </div>
+  <figure class="fig">
+    <div class="fig-head"><h3>시험 결과 — 질문 수에 따른 FAIL 포착률(왼쪽)과 새 세트에서 순서가 맞을 확률(오른쪽)</h3>
+      <div class="legend"><span><i style="background:var(--k20)"></i>표준 탐욕 목록</span><span><i style="background:var(--m-gpt)"></i>무작위 평균 / AIONA>Claude</span><span><i style="background:var(--m-aiona)"></i>GPT>AIONA</span><span><i style="background:var(--m-gemini)"></i>Claude>Gemini</span></div></div>
+    <div class="chart-scroll">{ss_chart()}</div>
+  </figure>
+  <div class="two">
+    <div class="cmpt ktab"><table>
+      <caption>① 표준 탐욕 목록이 FAIL 을 얼마나 잡나 <span>전체 326 에서 나온 (모델, 기준) FAIL 조합 87개 · FAIL 사건 586건 기준 · 무작위는 같은 수를 300번 뽑은 평균</span></caption>
+      <thead><tr><th>N</th><th>목표</th><th>FAIL 조합 보임</th><th>FAIL 사건</th><th>무작위 (조합 / 사건)</th><th>순위</th></tr></thead>
+      <tbody>{ss_rows}</tbody></table></div>
+    <div class="cmpt ktab"><table>
+      <caption>② 새 세트 N개를 가정하면 <span>같은 분포에서 N개를 새로 뽑는 복원 추출 4,000번 — 전체 순위 · 1위 · 인접 쌍 순서 · 통과율 ±3pp</span></caption>
+      <thead><tr><th>N</th><th>전체 순위</th><th>1위 GPT</th><th>GPT>AIONA 7.4pp</th><th>AIONA>Claude 10.7pp</th><th>Claude>Gemini 3.4pp</th><th>±3pp</th></tr></thead>
+      <tbody>{bs_rows}</tbody></table></div>
+  </div>
+  <div class="steps4">
+    <div><span class="k">왜 250 인가</span><b>통과율 차이 7.4pp</b><span>두 모델 통과율 차이 d 를 95% 로 가르려면 N ≈ (1.645·√(2p(1−p)) / d)². GPT·AIONA 는 약 247개, AIONA·Claude 는 116개, Claude·Gemini 는 1,125개.</span></div>
+    <div><span class="k">왜 78 인가</span><b>기준마다 10번 + FAIL 80%</b><span>1번↑(7개)·3번↑(21개)는 FAIL 조합을 24~49%만 봄. 10번↑에서 80%, 20번↑(155개)에서 87% — 78 이후는 늘어나는 폭이 작다. 기준마다 10번은 기준별 FAIL 을 셀 수 있는 최소.</span></div>
+    <div><span class="k">왜 규칙을 바꿨나</span><b>팀원 검산</b><span>"기준 많은 순"은 이미 채운 기준까지 세어 10턴 대화를 연달아 골랐다(새 기준 4·1·1·1개). 표준 탐욕은 세트 6개 × 목표 5개 모두에서 더 적었고 이론상 최소(정수계획)에 평균 5% 차이.</span></div>
+    <div><span class="k">도구</span><b>AI 호출 없음</b><span>tools/sample_size_from_run.py · tools/min_eval_list.py · tools/question_gradient.py (희귀 기준 먼저 규칙 RARE_LIMIT=60). 결과 JSON 은 참고자료/최소평가/.</span></div>
+  </div>
+</section>
+"""
+
+s7 = f"""
+<section class="slide" id="s8">
+  <div class="s-head">
+    <span class="s-no">08 / 08</span>
     <h2>이틀 동안 약 $160 — 의미 평가(GPT-6 Luna)와 Claude 답변 수집이 대부분이다</h2>
     <p>금액은 실행 기록의 토큰 사용량에 우리 단가표(code_eval/cost_reporting.py)를 곱한 추정입니다. 실제 청구서와 조금 다를 수 있습니다. 토큰은 입력 / 출력(추론 포함).</p>
   </div>
@@ -479,7 +588,7 @@ s7 = f"""
 </section>
 """
 
-script = old[old.index("<script>"):old.index("</script>") + len("</script>")]
+script = old[old.index("<script>"):old.index("</script>") + len("</script>")].replace("var ids = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7'];", "var ids = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'];")
 page = f"""<!doctype html>
 <html lang="ko">
 <head>
@@ -503,6 +612,7 @@ page = f"""<!doctype html>
 {s4}
 {s5}
 {s6}
+{s_n}
 {s7}
 </main>
 {script}

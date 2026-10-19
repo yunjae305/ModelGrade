@@ -3,7 +3,7 @@
   {
    "n": 10,
    "covered_1": 43,
-   "covered_min": 27,
+   "covered_min": 26,
    "models": {
     "aiona": {
      "pass": 0,
@@ -40,31 +40,31 @@
   {
    "n": 20,
    "covered_1": 58,
-   "covered_min": 31,
+   "covered_min": 30,
    "models": {
     "aiona": {
-     "pass": 7,
-     "fail": 11,
+     "pass": 6,
+     "fail": 12,
      "hold": 2,
-     "rate": 0.35
+     "rate": 0.3
     },
     "gpt": {
      "pass": 6,
-     "fail": 13,
-     "hold": 1,
+     "fail": 12,
+     "hold": 2,
      "rate": 0.3
     },
     "claude": {
      "pass": 4,
-     "fail": 16,
-     "hold": 0,
-     "rate": 0.2
-    },
-    "gemini": {
-     "pass": 4,
      "fail": 15,
      "hold": 1,
      "rate": 0.2
+    },
+    "gemini": {
+     "pass": 3,
+     "fail": 16,
+     "hold": 1,
+     "rate": 0.15
     }
    },
    "ranking": [
@@ -76,291 +76,69 @@
   },
   {
    "n": 30,
-   "covered_1": 58,
+   "covered_1": 61,
    "covered_min": 35,
    "models": {
     "aiona": {
-     "pass": 13,
-     "fail": 15,
-     "hold": 2,
-     "rate": 0.4333
+     "pass": 14,
+     "fail": 13,
+     "hold": 3,
+     "rate": 0.4667
     },
     "gpt": {
-     "pass": 10,
-     "fail": 18,
-     "hold": 2,
-     "rate": 0.3333
+     "pass": 15,
+     "fail": 12,
+     "hold": 3,
+     "rate": 0.5
     },
     "claude": {
-     "pass": 7,
-     "fail": 22,
-     "hold": 1,
-     "rate": 0.2333
+     "pass": 11,
+     "fail": 17,
+     "hold": 2,
+     "rate": 0.3667
     },
     "gemini": {
-     "pass": 5,
-     "fail": 21,
-     "hold": 4,
-     "rate": 0.1667
+     "pass": 11,
+     "fail": 17,
+     "hold": 2,
+     "rate": 0.3667
     }
    },
    "ranking": [
-    "aiona",
     "gpt",
+    "aiona",
     "claude",
     "gemini"
    ]
   },
   {
    "n": 40,
-   "covered_1": 58,
-   "covered_min": 39,
-   "models": {
-    "aiona": {
-     "pass": 16,
-     "fail": 17,
-     "hold": 7,
-     "rate": 0.4
-    },
-    "gpt": {
-     "pass": 14,
-     "fail": 19,
-     "hold": 7,
-     "rate": 0.35
-    },
-    "claude": {
-     "pass": 9,
-     "fail": 28,
-     "hold": 3,
-     "rate": 0.225
-    },
-    "gemini": {
-     "pass": 7,
-     "fail": 26,
-     "hold": 7,
-     "rate": 0.175
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 50,
    "covered_1": 61,
-   "covered_min": 44,
+   "covered_min": 42,
    "models": {
     "aiona": {
      "pass": 21,
-     "fail": 20,
-     "hold": 9,
-     "rate": 0.42
+     "fail": 14,
+     "hold": 5,
+     "rate": 0.525
     },
     "gpt": {
-     "pass": 21,
-     "fail": 21,
-     "hold": 8,
-     "rate": 0.42
-    },
-    "claude": {
-     "pass": 13,
-     "fail": 30,
-     "hold": 7,
-     "rate": 0.26
-    },
-    "gemini": {
-     "pass": 12,
-     "fail": 31,
-     "hold": 7,
-     "rate": 0.24
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 60,
-   "covered_1": 63,
-   "covered_min": 49,
-   "models": {
-    "aiona": {
-     "pass": 25,
-     "fail": 24,
-     "hold": 11,
-     "rate": 0.4167
-    },
-    "gpt": {
-     "pass": 25,
-     "fail": 25,
-     "hold": 10,
-     "rate": 0.4167
-    },
-    "claude": {
-     "pass": 18,
-     "fail": 33,
-     "hold": 9,
-     "rate": 0.3
-    },
-    "gemini": {
-     "pass": 17,
-     "fail": 34,
-     "hold": 9,
-     "rate": 0.2833
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 70,
-   "covered_1": 63,
-   "covered_min": 50,
-   "models": {
-    "aiona": {
-     "pass": 31,
-     "fail": 26,
-     "hold": 13,
-     "rate": 0.4429
-    },
-    "gpt": {
-     "pass": 30,
-     "fail": 27,
-     "hold": 13,
-     "rate": 0.4286
-    },
-    "claude": {
-     "pass": 19,
-     "fail": 39,
-     "hold": 12,
-     "rate": 0.2714
-    },
-    "gemini": {
-     "pass": 19,
-     "fail": 38,
-     "hold": 13,
-     "rate": 0.2714
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 80,
-   "covered_1": 63,
-   "covered_min": 50,
-   "models": {
-    "aiona": {
-     "pass": 36,
-     "fail": 27,
-     "hold": 17,
-     "rate": 0.45
-    },
-    "gpt": {
-     "pass": 36,
-     "fail": 29,
-     "hold": 15,
-     "rate": 0.45
-    },
-    "claude": {
      "pass": 22,
-     "fail": 41,
-     "hold": 17,
-     "rate": 0.275
-    },
-    "gemini": {
-     "pass": 21,
-     "fail": 41,
-     "hold": 18,
-     "rate": 0.2625
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 90,
-   "covered_1": 63,
-   "covered_min": 54,
-   "models": {
-    "aiona": {
-     "pass": 42,
-     "fail": 30,
-     "hold": 18,
-     "rate": 0.4667
-    },
-    "gpt": {
-     "pass": 42,
-     "fail": 33,
-     "hold": 15,
-     "rate": 0.4667
+     "fail": 13,
+     "hold": 5,
+     "rate": 0.55
     },
     "claude": {
-     "pass": 26,
-     "fail": 46,
-     "hold": 18,
-     "rate": 0.2889
+     "pass": 17,
+     "fail": 19,
+     "hold": 4,
+     "rate": 0.425
     },
     "gemini": {
-     "pass": 26,
-     "fail": 43,
-     "hold": 21,
-     "rate": 0.2889
-    }
-   },
-   "ranking": [
-    "aiona",
-    "gpt",
-    "claude",
-    "gemini"
-   ]
-  },
-  {
-   "n": 100,
-   "covered_1": 63,
-   "covered_min": 55,
-   "models": {
-    "aiona": {
-     "pass": 43,
-     "fail": 33,
-     "hold": 24,
-     "rate": 0.43
-    },
-    "gpt": {
-     "pass": 46,
-     "fail": 36,
-     "hold": 18,
-     "rate": 0.46
-    },
-    "claude": {
-     "pass": 30,
-     "fail": 48,
-     "hold": 22,
-     "rate": 0.3
-    },
-    "gemini": {
-     "pass": 31,
-     "fail": 45,
-     "hold": 24,
-     "rate": 0.31
+     "pass": 18,
+     "fail": 18,
+     "hold": 4,
+     "rate": 0.45
     }
    },
    "ranking": [
@@ -371,33 +149,255 @@
    ]
   },
   {
-   "n": 110,
+   "n": 50,
    "covered_1": 63,
-   "covered_min": 58,
+   "covered_min": 53,
    "models": {
     "aiona": {
-     "pass": 49,
-     "fail": 35,
-     "hold": 26,
-     "rate": 0.4455
+     "pass": 26,
+     "fail": 16,
+     "hold": 8,
+     "rate": 0.52
     },
     "gpt": {
-     "pass": 53,
-     "fail": 36,
-     "hold": 21,
-     "rate": 0.4818
+     "pass": 27,
+     "fail": 16,
+     "hold": 7,
+     "rate": 0.54
     },
     "claude": {
-     "pass": 36,
-     "fail": 50,
-     "hold": 24,
-     "rate": 0.3273
+     "pass": 22,
+     "fail": 23,
+     "hold": 5,
+     "rate": 0.44
     },
     "gemini": {
-     "pass": 36,
-     "fail": 48,
+     "pass": 20,
+     "fail": 23,
+     "hold": 7,
+     "rate": 0.4
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 60,
+   "covered_1": 64,
+   "covered_min": 57,
+   "models": {
+    "aiona": {
+     "pass": 28,
+     "fail": 20,
+     "hold": 12,
+     "rate": 0.4667
+    },
+    "gpt": {
+     "pass": 29,
+     "fail": 20,
+     "hold": 11,
+     "rate": 0.4833
+    },
+    "claude": {
+     "pass": 25,
+     "fail": 25,
+     "hold": 10,
+     "rate": 0.4167
+    },
+    "gemini": {
+     "pass": 23,
+     "fail": 24,
+     "hold": 13,
+     "rate": 0.3833
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 70,
+   "covered_1": 64,
+   "covered_min": 62,
+   "models": {
+    "aiona": {
+     "pass": 31,
+     "fail": 24,
+     "hold": 15,
+     "rate": 0.4429
+    },
+    "gpt": {
+     "pass": 34,
+     "fail": 22,
+     "hold": 14,
+     "rate": 0.4857
+    },
+    "claude": {
+     "pass": 28,
+     "fail": 28,
+     "hold": 14,
+     "rate": 0.4
+    },
+    "gemini": {
+     "pass": 26,
+     "fail": 29,
+     "hold": 15,
+     "rate": 0.3714
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 80,
+   "covered_1": 64,
+   "covered_min": 64,
+   "models": {
+    "aiona": {
+     "pass": 31,
+     "fail": 26,
+     "hold": 23,
+     "rate": 0.3875
+    },
+    "gpt": {
+     "pass": 34,
+     "fail": 24,
+     "hold": 22,
+     "rate": 0.425
+    },
+    "claude": {
+     "pass": 29,
+     "fail": 30,
+     "hold": 21,
+     "rate": 0.3625
+    },
+    "gemini": {
+     "pass": 26,
+     "fail": 31,
+     "hold": 23,
+     "rate": 0.325
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 90,
+   "covered_1": 64,
+   "covered_min": 64,
+   "models": {
+    "aiona": {
+     "pass": 35,
+     "fail": 29,
      "hold": 26,
-     "rate": 0.3273
+     "rate": 0.3889
+    },
+    "gpt": {
+     "pass": 39,
+     "fail": 26,
+     "hold": 25,
+     "rate": 0.4333
+    },
+    "claude": {
+     "pass": 32,
+     "fail": 35,
+     "hold": 23,
+     "rate": 0.3556
+    },
+    "gemini": {
+     "pass": 30,
+     "fail": 35,
+     "hold": 25,
+     "rate": 0.3333
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 100,
+   "covered_1": 64,
+   "covered_min": 64,
+   "models": {
+    "aiona": {
+     "pass": 40,
+     "fail": 33,
+     "hold": 27,
+     "rate": 0.4
+    },
+    "gpt": {
+     "pass": 42,
+     "fail": 32,
+     "hold": 26,
+     "rate": 0.42
+    },
+    "claude": {
+     "pass": 35,
+     "fail": 41,
+     "hold": 24,
+     "rate": 0.35
+    },
+    "gemini": {
+     "pass": 30,
+     "fail": 42,
+     "hold": 28,
+     "rate": 0.3
+    }
+   },
+   "ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  {
+   "n": 110,
+   "covered_1": 64,
+   "covered_min": 64,
+   "models": {
+    "aiona": {
+     "pass": 47,
+     "fail": 34,
+     "hold": 29,
+     "rate": 0.4273
+    },
+    "gpt": {
+     "pass": 48,
+     "fail": 34,
+     "hold": 28,
+     "rate": 0.4364
+    },
+    "claude": {
+     "pass": 38,
+     "fail": 43,
+     "hold": 29,
+     "rate": 0.3455
+    },
+    "gemini": {
+     "pass": 35,
+     "fail": 44,
+     "hold": 31,
+     "rate": 0.3182
     }
    },
    "ranking": [
@@ -409,32 +409,32 @@
   },
   {
    "n": 120,
-   "covered_1": 63,
-   "covered_min": 58,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 57,
-     "fail": 36,
-     "hold": 27,
-     "rate": 0.475
+     "pass": 52,
+     "fail": 35,
+     "hold": 33,
+     "rate": 0.4333
     },
     "gpt": {
-     "pass": 59,
-     "fail": 37,
-     "hold": 24,
-     "rate": 0.4917
+     "pass": 54,
+     "fail": 36,
+     "hold": 30,
+     "rate": 0.45
     },
     "claude": {
      "pass": 41,
-     "fail": 51,
-     "hold": 28,
+     "fail": 47,
+     "hold": 32,
      "rate": 0.3417
     },
     "gemini": {
-     "pass": 41,
-     "fail": 49,
-     "hold": 30,
-     "rate": 0.3417
+     "pass": 39,
+     "fail": 46,
+     "hold": 35,
+     "rate": 0.325
     }
    },
    "ranking": [
@@ -446,69 +446,69 @@
   },
   {
    "n": 130,
-   "covered_1": 63,
-   "covered_min": 58,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 61,
-     "fail": 37,
-     "hold": 32,
-     "rate": 0.4692
+     "pass": 59,
+     "fail": 36,
+     "hold": 35,
+     "rate": 0.4538
     },
     "gpt": {
-     "pass": 63,
-     "fail": 39,
-     "hold": 28,
-     "rate": 0.4846
+     "pass": 59,
+     "fail": 36,
+     "hold": 35,
+     "rate": 0.4538
     },
     "claude": {
-     "pass": 43,
-     "fail": 53,
-     "hold": 34,
-     "rate": 0.3308
+     "pass": 44,
+     "fail": 49,
+     "hold": 37,
+     "rate": 0.3385
     },
     "gemini": {
-     "pass": 41,
-     "fail": 52,
-     "hold": 37,
-     "rate": 0.3154
+     "pass": 44,
+     "fail": 48,
+     "hold": 38,
+     "rate": 0.3385
     }
    },
    "ranking": [
-    "gpt",
     "aiona",
+    "gpt",
     "claude",
     "gemini"
    ]
   },
   {
    "n": 140,
-   "covered_1": 63,
-   "covered_min": 58,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 65,
-     "fail": 40,
-     "hold": 35,
-     "rate": 0.4643
+     "pass": 64,
+     "fail": 36,
+     "hold": 40,
+     "rate": 0.4571
     },
     "gpt": {
-     "pass": 68,
-     "fail": 41,
-     "hold": 31,
-     "rate": 0.4857
+     "pass": 66,
+     "fail": 37,
+     "hold": 37,
+     "rate": 0.4714
     },
     "claude": {
-     "pass": 46,
-     "fail": 58,
-     "hold": 36,
-     "rate": 0.3286
+     "pass": 49,
+     "fail": 50,
+     "hold": 41,
+     "rate": 0.35
     },
     "gemini": {
-     "pass": 42,
-     "fail": 57,
-     "hold": 41,
-     "rate": 0.3
+     "pass": 49,
+     "fail": 49,
+     "hold": 42,
+     "rate": 0.35
     }
    },
    "ranking": [
@@ -520,32 +520,32 @@
   },
   {
    "n": 150,
-   "covered_1": 63,
-   "covered_min": 61,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 72,
-     "fail": 42,
-     "hold": 36,
-     "rate": 0.48
+     "pass": 69,
+     "fail": 37,
+     "hold": 44,
+     "rate": 0.46
     },
     "gpt": {
-     "pass": 73,
-     "fail": 43,
-     "hold": 34,
-     "rate": 0.4867
+     "pass": 71,
+     "fail": 39,
+     "hold": 40,
+     "rate": 0.4733
     },
     "claude": {
-     "pass": 51,
-     "fail": 62,
-     "hold": 37,
-     "rate": 0.34
+     "pass": 52,
+     "fail": 52,
+     "hold": 46,
+     "rate": 0.3467
     },
     "gemini": {
-     "pass": 45,
-     "fail": 61,
-     "hold": 44,
-     "rate": 0.3
+     "pass": 50,
+     "fail": 52,
+     "hold": 48,
+     "rate": 0.3333
     }
    },
    "ranking": [
@@ -557,32 +557,32 @@
   },
   {
    "n": 160,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 76,
-     "fail": 47,
-     "hold": 37,
-     "rate": 0.475
+     "pass": 73,
+     "fail": 41,
+     "hold": 46,
+     "rate": 0.4562
     },
     "gpt": {
-     "pass": 79,
-     "fail": 46,
-     "hold": 35,
-     "rate": 0.4938
+     "pass": 75,
+     "fail": 42,
+     "hold": 43,
+     "rate": 0.4688
     },
     "claude": {
-     "pass": 53,
-     "fail": 65,
-     "hold": 42,
-     "rate": 0.3312
+     "pass": 55,
+     "fail": 57,
+     "hold": 48,
+     "rate": 0.3438
     },
     "gemini": {
-     "pass": 47,
-     "fail": 67,
-     "hold": 46,
-     "rate": 0.2938
+     "pass": 51,
+     "fail": 57,
+     "hold": 52,
+     "rate": 0.3187
     }
    },
    "ranking": [
@@ -594,32 +594,32 @@
   },
   {
    "n": 170,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 83,
-     "fail": 50,
-     "hold": 37,
-     "rate": 0.4882
+     "pass": 79,
+     "fail": 43,
+     "hold": 48,
+     "rate": 0.4647
     },
     "gpt": {
-     "pass": 88,
-     "fail": 47,
-     "hold": 35,
-     "rate": 0.5176
+     "pass": 81,
+     "fail": 44,
+     "hold": 45,
+     "rate": 0.4765
     },
     "claude": {
-     "pass": 60,
-     "fail": 67,
-     "hold": 43,
-     "rate": 0.3529
+     "pass": 59,
+     "fail": 62,
+     "hold": 49,
+     "rate": 0.3471
     },
     "gemini": {
-     "pass": 54,
-     "fail": 69,
-     "hold": 47,
-     "rate": 0.3176
+     "pass": 52,
+     "fail": 63,
+     "hold": 55,
+     "rate": 0.3059
     }
    },
    "ranking": [
@@ -631,32 +631,32 @@
   },
   {
    "n": 180,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 89,
-     "fail": 52,
-     "hold": 39,
-     "rate": 0.4944
+     "pass": 84,
+     "fail": 48,
+     "hold": 48,
+     "rate": 0.4667
     },
     "gpt": {
-     "pass": 94,
-     "fail": 50,
-     "hold": 36,
-     "rate": 0.5222
+     "pass": 87,
+     "fail": 47,
+     "hold": 46,
+     "rate": 0.4833
     },
     "claude": {
-     "pass": 64,
-     "fail": 71,
-     "hold": 45,
-     "rate": 0.3556
+     "pass": 62,
+     "fail": 66,
+     "hold": 52,
+     "rate": 0.3444
     },
     "gemini": {
-     "pass": 57,
-     "fail": 74,
-     "hold": 49,
-     "rate": 0.3167
+     "pass": 55,
+     "fail": 69,
+     "hold": 56,
+     "rate": 0.3056
     }
    },
    "ranking": [
@@ -668,32 +668,32 @@
   },
   {
    "n": 190,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 95,
-     "fail": 55,
-     "hold": 40,
-     "rate": 0.5
+     "pass": 91,
+     "fail": 51,
+     "hold": 48,
+     "rate": 0.4789
     },
     "gpt": {
-     "pass": 99,
-     "fail": 54,
-     "hold": 37,
-     "rate": 0.5211
+     "pass": 96,
+     "fail": 48,
+     "hold": 46,
+     "rate": 0.5053
     },
     "claude": {
-     "pass": 71,
-     "fail": 74,
-     "hold": 45,
-     "rate": 0.3737
+     "pass": 68,
+     "fail": 69,
+     "hold": 53,
+     "rate": 0.3579
     },
     "gemini": {
-     "pass": 61,
-     "fail": 78,
-     "hold": 51,
-     "rate": 0.3211
+     "pass": 60,
+     "fail": 72,
+     "hold": 58,
+     "rate": 0.3158
     }
    },
    "ranking": [
@@ -705,32 +705,32 @@
   },
   {
    "n": 200,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 101,
-     "fail": 58,
-     "hold": 41,
-     "rate": 0.505
+     "pass": 97,
+     "fail": 53,
+     "hold": 50,
+     "rate": 0.485
     },
     "gpt": {
-     "pass": 106,
-     "fail": 57,
-     "hold": 37,
-     "rate": 0.53
+     "pass": 101,
+     "fail": 52,
+     "hold": 47,
+     "rate": 0.505
     },
     "claude": {
-     "pass": 78,
-     "fail": 76,
-     "hold": 46,
-     "rate": 0.39
+     "pass": 73,
+     "fail": 72,
+     "hold": 55,
+     "rate": 0.365
     },
     "gemini": {
-     "pass": 68,
-     "fail": 80,
-     "hold": 52,
-     "rate": 0.34
+     "pass": 63,
+     "fail": 76,
+     "hold": 61,
+     "rate": 0.315
     }
    },
    "ranking": [
@@ -742,31 +742,31 @@
   },
   {
    "n": 210,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 102,
-     "fail": 62,
-     "hold": 46,
-     "rate": 0.4857
+     "pass": 103,
+     "fail": 56,
+     "hold": 51,
+     "rate": 0.4905
     },
     "gpt": {
-     "pass": 109,
-     "fail": 63,
-     "hold": 38,
-     "rate": 0.519
+     "pass": 106,
+     "fail": 57,
+     "hold": 47,
+     "rate": 0.5048
     },
     "claude": {
      "pass": 79,
-     "fail": 83,
-     "hold": 48,
+     "fail": 75,
+     "hold": 56,
      "rate": 0.3762
     },
     "gemini": {
      "pass": 69,
-     "fail": 87,
-     "hold": 54,
+     "fail": 79,
+     "hold": 62,
      "rate": 0.3286
     }
    },
@@ -779,32 +779,32 @@
   },
   {
    "n": 220,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 108,
-     "fail": 64,
-     "hold": 48,
-     "rate": 0.4909
+     "pass": 104,
+     "fail": 61,
+     "hold": 55,
+     "rate": 0.4727
     },
     "gpt": {
-     "pass": 114,
-     "fail": 67,
-     "hold": 39,
-     "rate": 0.5182
+     "pass": 110,
+     "fail": 62,
+     "hold": 48,
+     "rate": 0.5
     },
     "claude": {
-     "pass": 83,
-     "fail": 86,
-     "hold": 51,
-     "rate": 0.3773
+     "pass": 81,
+     "fail": 81,
+     "hold": 58,
+     "rate": 0.3682
     },
     "gemini": {
-     "pass": 75,
-     "fail": 90,
-     "hold": 55,
-     "rate": 0.3409
+     "pass": 71,
+     "fail": 85,
+     "hold": 64,
+     "rate": 0.3227
     }
    },
    "ranking": [
@@ -816,32 +816,32 @@
   },
   {
    "n": 230,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 111,
-     "fail": 69,
-     "hold": 50,
-     "rate": 0.4826
+     "pass": 108,
+     "fail": 64,
+     "hold": 58,
+     "rate": 0.4696
     },
     "gpt": {
-     "pass": 122,
-     "fail": 69,
-     "hold": 39,
-     "rate": 0.5304
+     "pass": 114,
+     "fail": 67,
+     "hold": 49,
+     "rate": 0.4957
     },
     "claude": {
-     "pass": 87,
-     "fail": 91,
-     "hold": 52,
-     "rate": 0.3783
+     "pass": 83,
+     "fail": 86,
+     "hold": 61,
+     "rate": 0.3609
     },
     "gemini": {
-     "pass": 77,
-     "fail": 98,
-     "hold": 55,
-     "rate": 0.3348
+     "pass": 75,
+     "fail": 90,
+     "hold": 65,
+     "rate": 0.3261
     }
    },
    "ranking": [
@@ -853,32 +853,32 @@
   },
   {
    "n": 240,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 118,
-     "fail": 71,
-     "hold": 51,
-     "rate": 0.4917
+     "pass": 111,
+     "fail": 69,
+     "hold": 60,
+     "rate": 0.4625
     },
     "gpt": {
-     "pass": 130,
-     "fail": 71,
-     "hold": 39,
-     "rate": 0.5417
+     "pass": 122,
+     "fail": 69,
+     "hold": 49,
+     "rate": 0.5083
     },
     "claude": {
-     "pass": 92,
-     "fail": 94,
-     "hold": 54,
-     "rate": 0.3833
+     "pass": 87,
+     "fail": 91,
+     "hold": 62,
+     "rate": 0.3625
     },
     "gemini": {
-     "pass": 82,
-     "fail": 103,
-     "hold": 55,
-     "rate": 0.3417
+     "pass": 77,
+     "fail": 98,
+     "hold": 65,
+     "rate": 0.3208
     }
    },
    "ranking": [
@@ -890,32 +890,32 @@
   },
   {
    "n": 250,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 127,
-     "fail": 72,
-     "hold": 51,
-     "rate": 0.508
+     "pass": 118,
+     "fail": 71,
+     "hold": 61,
+     "rate": 0.472
     },
     "gpt": {
-     "pass": 140,
+     "pass": 130,
      "fail": 71,
-     "hold": 39,
-     "rate": 0.56
+     "hold": 49,
+     "rate": 0.52
     },
     "claude": {
-     "pass": 101,
+     "pass": 92,
      "fail": 94,
-     "hold": 55,
-     "rate": 0.404
+     "hold": 64,
+     "rate": 0.368
     },
     "gemini": {
-     "pass": 89,
-     "fail": 105,
-     "hold": 56,
-     "rate": 0.356
+     "pass": 82,
+     "fail": 103,
+     "hold": 65,
+     "rate": 0.328
     }
    },
    "ranking": [
@@ -927,32 +927,32 @@
   },
   {
    "n": 260,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 132,
-     "fail": 75,
-     "hold": 53,
-     "rate": 0.5077
+     "pass": 127,
+     "fail": 72,
+     "hold": 61,
+     "rate": 0.4885
     },
     "gpt": {
-     "pass": 150,
+     "pass": 140,
      "fail": 71,
-     "hold": 39,
-     "rate": 0.5769
+     "hold": 49,
+     "rate": 0.5385
     },
     "claude": {
-     "pass": 107,
-     "fail": 97,
-     "hold": 56,
-     "rate": 0.4115
+     "pass": 101,
+     "fail": 94,
+     "hold": 65,
+     "rate": 0.3885
     },
     "gemini": {
-     "pass": 97,
-     "fail": 107,
-     "hold": 56,
-     "rate": 0.3731
+     "pass": 89,
+     "fail": 105,
+     "hold": 66,
+     "rate": 0.3423
     }
    },
    "ranking": [
@@ -964,32 +964,32 @@
   },
   {
    "n": 270,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 139,
-     "fail": 78,
-     "hold": 53,
-     "rate": 0.5148
+     "pass": 132,
+     "fail": 75,
+     "hold": 63,
+     "rate": 0.4889
     },
     "gpt": {
-     "pass": 156,
-     "fail": 74,
-     "hold": 40,
-     "rate": 0.5778
+     "pass": 150,
+     "fail": 71,
+     "hold": 49,
+     "rate": 0.5556
     },
     "claude": {
-     "pass": 111,
-     "fail": 100,
-     "hold": 59,
-     "rate": 0.4111
+     "pass": 107,
+     "fail": 97,
+     "hold": 66,
+     "rate": 0.3963
     },
     "gemini": {
-     "pass": 102,
-     "fail": 110,
-     "hold": 58,
-     "rate": 0.3778
+     "pass": 97,
+     "fail": 107,
+     "hold": 66,
+     "rate": 0.3593
     }
    },
    "ranking": [
@@ -1001,32 +1001,32 @@
   },
   {
    "n": 280,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 144,
-     "fail": 80,
-     "hold": 56,
-     "rate": 0.5143
+     "pass": 139,
+     "fail": 78,
+     "hold": 63,
+     "rate": 0.4964
     },
     "gpt": {
-     "pass": 164,
-     "fail": 75,
-     "hold": 41,
-     "rate": 0.5857
+     "pass": 156,
+     "fail": 74,
+     "hold": 50,
+     "rate": 0.5571
     },
     "claude": {
-     "pass": 115,
-     "fail": 103,
-     "hold": 62,
-     "rate": 0.4107
+     "pass": 111,
+     "fail": 100,
+     "hold": 69,
+     "rate": 0.3964
     },
     "gemini": {
-     "pass": 104,
-     "fail": 115,
-     "hold": 61,
-     "rate": 0.3714
+     "pass": 102,
+     "fail": 110,
+     "hold": 68,
+     "rate": 0.3643
     }
    },
    "ranking": [
@@ -1038,32 +1038,32 @@
   },
   {
    "n": 290,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 147,
+     "pass": 144,
      "fail": 80,
-     "hold": 63,
-     "rate": 0.5069
+     "hold": 66,
+     "rate": 0.4966
     },
     "gpt": {
-     "pass": 169,
-     "fail": 76,
-     "hold": 45,
-     "rate": 0.5828
+     "pass": 164,
+     "fail": 75,
+     "hold": 51,
+     "rate": 0.5655
     },
     "claude": {
-     "pass": 117,
-     "fail": 108,
-     "hold": 65,
-     "rate": 0.4034
+     "pass": 115,
+     "fail": 103,
+     "hold": 72,
+     "rate": 0.3966
     },
     "gemini": {
-     "pass": 106,
-     "fail": 117,
-     "hold": 67,
-     "rate": 0.3655
+     "pass": 104,
+     "fail": 115,
+     "hold": 71,
+     "rate": 0.3586
     }
    },
    "ranking": [
@@ -1075,32 +1075,32 @@
   },
   {
    "n": 300,
-   "covered_1": 63,
-   "covered_min": 63,
+   "covered_1": 64,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 155,
-     "fail": 81,
-     "hold": 64,
-     "rate": 0.5167
+     "pass": 147,
+     "fail": 80,
+     "hold": 73,
+     "rate": 0.49
     },
     "gpt": {
-     "pass": 179,
+     "pass": 169,
      "fail": 76,
-     "hold": 45,
-     "rate": 0.5967
+     "hold": 55,
+     "rate": 0.5633
     },
     "claude": {
-     "pass": 125,
-     "fail": 110,
-     "hold": 65,
-     "rate": 0.4167
+     "pass": 117,
+     "fail": 108,
+     "hold": 75,
+     "rate": 0.39
     },
     "gemini": {
-     "pass": 113,
-     "fail": 120,
-     "hold": 67,
-     "rate": 0.3767
+     "pass": 106,
+     "fail": 117,
+     "hold": 77,
+     "rate": 0.3533
     }
    },
    "ranking": [
@@ -1113,30 +1113,30 @@
   {
    "n": 310,
    "covered_1": 64,
-   "covered_min": 63,
+   "covered_min": 64,
    "models": {
     "aiona": {
-     "pass": 157,
+     "pass": 155,
      "fail": 81,
-     "hold": 72,
-     "rate": 0.5065
+     "hold": 74,
+     "rate": 0.5
     },
     "gpt": {
-     "pass": 180,
-     "fail": 77,
-     "hold": 53,
-     "rate": 0.5806
+     "pass": 179,
+     "fail": 76,
+     "hold": 55,
+     "rate": 0.5774
     },
     "claude": {
-     "pass": 126,
-     "fail": 111,
-     "hold": 73,
-     "rate": 0.4065
+     "pass": 125,
+     "fail": 110,
+     "hold": 75,
+     "rate": 0.4032
     },
     "gemini": {
      "pass": 113,
-     "fail": 122,
-     "hold": 75,
+     "fail": 120,
+     "hold": 77,
      "rate": 0.3645
     }
    },
@@ -1150,7 +1150,7 @@
   {
    "n": 320,
    "covered_1": 64,
-   "covered_min": 63,
+   "covered_min": 64,
    "models": {
     "aiona": {
      "pass": 162,
@@ -1159,10 +1159,10 @@
      "rate": 0.5062
     },
     "gpt": {
-     "pass": 186,
+     "pass": 185,
      "fail": 77,
-     "hold": 57,
-     "rate": 0.5813
+     "hold": 58,
+     "rate": 0.5781
     },
     "claude": {
      "pass": 130,
@@ -1228,9 +1228,9 @@
   "claude",
   "gemini"
  ],
- "stable_n": 247,
- "coverage_1_n": 303,
- "coverage_min_n": 326,
+ "stable_n": 273,
+ "coverage_1_n": 53,
+ "coverage_min_n": 78,
  "total_criteria": 64,
  "min_apply": 10,
  "tolerance": 0.03,
@@ -1239,76 +1239,114 @@
  "run_id": "8c61f117e661",
  "order": [
   12,
-  11,
-  14,
   21,
+  15,
   26,
+  22,
+  11,
+  17,
   18,
   23,
-  15,
-  22,
-  17,
+  25,
   65,
   272,
-  283,
+  119,
   41,
   82,
   288,
+  102,
+  304,
   89,
-  54,
-  72,
-  100,
-  210,
-  314,
-  24,
-  70,
-  86,
-  130,
-  144,
-  284,
-  322,
-  25,
-  36,
-  63,
-  168,
+  283,
   315,
-  193,
-  223,
-  312,
+  48,
+  121,
+  171,
+  27,
+  75,
+  90,
+  278,
+  290,
+  323,
+  30,
+  258,
+  107,
+  270,
+  289,
+  298,
+  86,
+  144,
+  62,
+  92,
+  227,
+  162,
+  72,
+  314,
+  143,
+  4,
+  115,
+  113,
+  136,
+  54,
+  130,
+  148,
+  187,
+  265,
+  5,
+  1,
+  2,
+  7,
+  8,
+  10,
+  317,
+  3,
+  6,
+  9,
+  120,
+  57,
+  61,
+  79,
+  169,
+  218,
+  84,
+  31,
+  71,
+  145,
+  146,
+  271,
+  310,
+  266,
+  14,
   16,
   19,
   20,
-  102,
-  48,
-  30,
-  171,
-  304,
-  166,
-  52,
-  119,
-  62,
-  79,
-  169,
-  292,
-  5,
-  125,
-  134,
-  188,
-  32,
-  57,
-  61,
-  121,
-  218,
+  24,
+  36,
+  63,
+  70,
+  100,
+  168,
+  193,
+  210,
+  223,
+  284,
+  312,
+  322,
   13,
+  32,
   42,
   50,
+  52,
   58,
   87,
+  125,
   133,
-  143,
+  134,
   149,
   154,
+  166,
   174,
+  188,
   195,
   202,
   215,
@@ -1318,50 +1356,32 @@
   242,
   257,
   263,
+  292,
   293,
-  323,
-  75,
-  227,
-  229,
-  278,
-  49,
-  84,
-  90,
-  115,
-  140,
-  141,
-  320,
-  1,
-  2,
-  4,
-  7,
-  8,
-  10,
-  184,
-  306,
-  317,
-  95,
-  170,
-  203,
-  27,
   28,
   29,
   38,
   45,
+  49,
   68,
   77,
   85,
-  92,
   94,
+  95,
   135,
+  140,
+  141,
   150,
   155,
   161,
   163,
+  170,
   173,
   181,
+  184,
   185,
   200,
+  203,
   204,
   207,
   208,
@@ -1372,6 +1392,7 @@
   219,
   221,
   224,
+  229,
   231,
   233,
   234,
@@ -1380,17 +1401,13 @@
   245,
   247,
   248,
-  258,
   259,
   268,
-  290,
   291,
   295,
+  306,
+  320,
   321,
-  107,
-  3,
-  6,
-  9,
   34,
   35,
   43,
@@ -1409,20 +1426,16 @@
   96,
   103,
   104,
-  113,
   122,
   123,
   126,
   127,
   129,
   131,
-  136,
   142,
-  148,
   152,
   158,
   159,
-  162,
   164,
   165,
   167,
@@ -1449,13 +1462,10 @@
   261,
   267,
   269,
-  270,
   279,
   281,
   282,
   285,
-  289,
-  298,
   299,
   300,
   303,
@@ -1540,15 +1550,6 @@
   301,
   302,
   319,
-  31,
-  71,
-  120,
-  145,
-  146,
-  187,
-  265,
-  271,
-  310,
   78,
   99,
   297,
@@ -1562,8 +1563,7 @@
   307,
   318,
   325,
-  226,
-  266
+  226
  ],
  "k": {
   "1": 8,
