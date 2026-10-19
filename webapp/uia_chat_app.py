@@ -6,7 +6,7 @@
   채팅 탭(RadioButton 'Claude') → '새로 생성' → 모델 버튼 '모델: Sonnet 5.5 중간'(아니면 메뉴에서 'Sonnet 5.5' 라디오·'노력' → '중간')
   → 첨부: 파일을 클립보드에 올리고(탐색기의 복사와 같음) 입력칸에 Ctrl+V (사용자 확인 10-19) — 안 붙으면 '파일, 커넥터 등 추가' → '파일 업로드 또는 추가' → 열기 대화상자
   → 입력칸(Edit 'Claude에게 프롬프트…')에 값 설정(ValuePattern, 포커스 불필요) → '메시지 보내기'
-  → 정지 버튼이 사라지고 글이 멈추면 마지막 '메시지 작업' 툴바의 '복사' → 클립보드 원문.
+  → 정지 버튼이 사라지고 글이 멈추면 마지막 '메시지 작업' 툴바의 '복사' → 클립보드 원문. 끝나도 모델은 되돌리지 않는다(사용자 10-19).
 수집기 인터페이스는 webapp/cdp_chat_web.py 의 _CdpChat 과 같다(new_chat · ask → {answer, status, …}) — tools/modelgrade.py collect app 이 그대로 쓴다.
 """
 from __future__ import annotations
@@ -64,7 +64,6 @@ class ClaudeAppChat:
         self.win: Any = None
         self._temp = tempfile.TemporaryDirectory(prefix="claude-app-ref-")
         self.model_seen: Optional[str] = None
-        self._initial_label: Optional[str] = None   # 수집 전 사용자가 쓰던 모델 버튼 글 — 끝날 때 되돌린다
 
     # --- 연결 ---------------------------------------------------------------------------------------
     def __enter__(self) -> "ClaudeAppChat":
@@ -81,10 +80,6 @@ class ClaudeAppChat:
         return self
 
     def __exit__(self, *exc: Any) -> None:
-        try:
-            self._restore_model()
-        except Exception:
-            pass
         try:
             self._temp.cleanup()
         except Exception:
@@ -204,35 +199,13 @@ class ClaudeAppChat:
         return (btn.element_info.name or "").replace("모델: ", "").strip()
 
     def _apply_model(self) -> str:
-        """수집 설정(사용자 결정 10-15): Sonnet 5.5 · 노력 중간. 처음 본 모델 버튼 글은 기억해 두었다가 끝날 때 되돌린다."""
+        """수집 설정(사용자 결정 10-15): Sonnet 5.5 · 노력 중간. 끝나도 되돌리지 않는다(사용자 10-19: "안 그래도 돼")."""
         label = self._model_label()
-        if self._initial_label is None:
-            self._initial_label = label
         if not model_ok(label):
             label = self._pick_model("Sonnet 5.5", "중간")
         if not model_ok(label):
             raise UiaChatError(f"모델을 Sonnet 5.5 · 노력 중간으로 맞추지 못했습니다 (지금 {label}) — 앱에서 직접 맞추세요")
         return f"Claude {label} (앱)"
-
-    def _restore_model(self) -> None:
-        """수집이 끝나면 사용자가 쓰던 모델·노력(예: 'Opus 5.5 엑스트라')으로 되돌린다 — 새 채팅 기본값은 마지막에 고른 것이 남기 때문.
-        반드시 빈 새 채팅 화면에서: 기존 채팅에서 바꾸면 그 채팅에만 남고 새 채팅 기본값은 그대로다(2026-10-19 확인)."""
-        want = (self._initial_label or "").strip()
-        if not want:
-            return
-        self._front()
-        self._select_chat_tab()
-        self._escape()
-        btn = self._wait_for("Button", self.NEW_CHAT, 10)
-        if btn is not None:
-            self._press(btn)
-            time.sleep(1.5)
-        if self._find("Button", self.MODEL_BTN) is None or self._model_label() == want:
-            return
-        words = want.split()
-        model = " ".join(words[:2]) if len(words) >= 2 else want
-        effort = words[-1] if len(words) >= 3 else ""
-        self._pick_model(model, effort)
 
     def _pick_model(self, model: str, effort: str) -> str:
         """모델 메뉴에서 모델 라디오('Sonnet 5.5 …')와 노력 단계('중간')를 고른다 — 고른 뒤 버튼 글로 확인하고, 안 바뀌면 방법을 바꿔 다시(최대 3번).
