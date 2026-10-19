@@ -578,7 +578,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         batch = pending[:JUDGE_BATCH_MAX]
         print(f"판정 {len(batch)}개 {batch} (남은 질문 {len(pending)}개)", flush=True)
         code = cmd_judge(argparse.Namespace(run=run_id, only=",".join(str(q) for q in batch), next=None, providers=",".join(providers),
-                                            out=str(out_dir), set=str(set_dir), workers=1, allow_large=False))
+                                            out=str(out_dir), set=str(set_dir), workers=2, allow_large=False))   # 질문 2개씩 동시에 (Codex 429 는 알아서 기다림)
         if code:
             return code
     print(f"판정 단계 끝 — 벽시계 {_hms(time.monotonic() - t_judge)}", flush=True)
