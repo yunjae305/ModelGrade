@@ -174,7 +174,7 @@ def test_openai_items_request_schema_prompt_and_no_j5_recovery_round():
     assert body["instructions"] == items_system_prompt(True)
     static, dynamic = (part["text"] for part in body["input"][0]["content"])   # 기본 모델은 static(캐시 경계)·dynamic 두 조각
     assert static.startswith("## 점검 항목") and "### J5-1.a " in static and [t["type"] for t in body["tools"]] == ["web_search"]
-    assert dynamic.startswith("\n## 평가 대상\ncollected_at: 2026-10-01\nevaluation_time: ") and "실행 기준 시각" not in dynamic
+    assert static.endswith("\n") and dynamic.startswith("## 평가 대상\ncollected_at: 2026-10-01\nevaluation_time: ") and "실행 기준 시각" not in dynamic   # 블록 경계 줄바꿈은 앞 블록 끝에 (conversation-order-v1)
     assert call.status == "OK" and call.body["model"] == "resolved-judge-v1" and "answers" not in call.body
     assert [it["id"] for it in call.body["items"]] == list(IDS) and "evidence_recovery" not in call.body["verification"]
     assert call.body["verification"]["output_transport"] == "responses_json_schema"

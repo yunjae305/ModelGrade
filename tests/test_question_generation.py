@@ -441,7 +441,7 @@ def test_k_var_counts_variable_criteria_only_and_summarises_singles():
     kmap = qg.k_var_by_group(groups, report)
     assert set(kmap) == {1, 2} and all(isinstance(v["k"], int) and v["units"] <= units for v in kmap.values())
     summary = qg.k_var_summary(groups, report)
-    assert summary["range"] == list(qg.K_RANGE) and summary["singles"] == 2 and summary["cap"] == int(qg.K_OUT_RATIO * 2)
+    assert summary["range"] == list(qg.K_RANGE) and summary["singles"] == 2 and "cap" not in summary   # 상한 없음 — 범위 밖은 모두 고친다
     assert summary["in_range"] + summary["out_of_range"] == 2 and sum(summary["by_k"].values()) == 2
     assert "k_var" in qg._summary(groups, report) and "out_of_range_ids" not in qg._summary(groups, report)["k_var"]
 
@@ -463,12 +463,12 @@ def test_k_repair_prompt_and_plan_prompt_state_the_range():
     assert f"{qg.K_RANGE[0]}개 이상 {qg.K_RANGE[1]}개 이하" in prompt and "조건이 많은 질문(8개 이상)" not in prompt
     assert f"{qg.K_RANGE[0]}개 이상 {qg.K_RANGE[1]}개 이하" in qg.extra_prompt(5, 10, 40, [])
     repair = qg.k_repair_prompt([{"id": "Q3", "k": 2, "units": {"J4-3.a"}, "target": 7, "question": "짧은 질문"}], qg.criteria_catalog(), ["J3-5.a"])
-    assert "## Q3 — 지금 2개 → 조건을 덧붙여" in repair and "J3-5.a" in repair and "# 점검 목록" in repair
+    assert "## Q3 — 지금 2개 → 조건을 덧붙여 6~10개 안으로" in repair and "J3-5.a" in repair and "# 점검 목록" in repair
+    assert "목표 " not in repair.split("# 목표", 1)[1].split("# 점검 목록")[0].replace("목표 범위", "")   # 목표 k(7·9) 없음 — 6~10 범위만
 
 
 def test_builder_repairs_one_question_at_a_time_and_rejects_rewrites_that_change_the_original(tmp_path, monkeypatch):
     """k 고치기 v2.1 — 질문마다 따로 묻고(다른 질문 내용이 섞이지 않게), 원래 문단을 바꾼 고침은 받아들이지 않는다."""
-    monkeypatch.setattr(qg, "K_OUT_RATIO", 0.0)   # 범위 밖 질문을 하나도 허용하지 않아 고치기 단계가 꼭 돈다
     monkeypatch.setattr(qg, "K_REPAIR_ROUNDS", 2)
     q1 = "공부 방법을 불릿으로 정확히 3개 작성해줘."
     q2 = "서울과 부산의 인구를 열이 도시·인구인 표로 정리해 줘."

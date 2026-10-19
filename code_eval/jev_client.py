@@ -238,7 +238,9 @@ class HttpJevClient:
     def system_one(self, state: Any, questions: Dict[str, Any]) -> JevCall:
         import httpx
 
-        payload = {"state": state, "model": self.config.model, "questions": questions}
+        from .semantic_cli_common import chronological_state
+        # 대화 순서로 보낸다 — history(1턴부터) → 현재 질문 → 현재 답변 (semantic_cli_common.PROMPT_LAYOUT, 사용자 결정 2026-10-19)
+        payload = {"state": chronological_state(state), "model": self.config.model, "questions": questions}
         started = time.monotonic()
         status, error, http_status = JevStatus.API_ERROR, None, None
         attempt = 0

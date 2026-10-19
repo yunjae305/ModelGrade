@@ -34,7 +34,7 @@ def main(argv=None) -> int:
     job = json.loads(spath.read_text(encoding="utf-8")) if spath.exists() else {}
     report = qg.check(groups)
     before = qg.k_var_summary(groups, report)
-    print("고치기 전:", {k: before[k] for k in ("singles", "in_range", "out_of_range", "exempt", "cap", "by_k")})
+    print("고치기 전:", {k: before[k] for k in ("singles", "in_range", "out_of_range", "exempt", "by_k")})
     if args.dry_run:
         return 0
     from code_eval.llm_client import env_value
@@ -59,10 +59,10 @@ def main(argv=None) -> int:
         job["warnings"] = [w for w in job.get("warnings") or [] if "질문당 기준 수" not in w] + builder.warnings
         job["k_repair"] = {"rounds": rounds, "calls": builder.calls, "usage": usage, "before": {k: before[k] for k in ("in_range", "out_of_range", "by_k")}}
         spath.write_text(json.dumps(job, ensure_ascii=False, indent=1), encoding="utf-8")
-    print("고치기 후:", {k: after[k] for k in ("singles", "in_range", "out_of_range", "exempt", "cap", "by_k")}, "| 회차", rounds, "| 호출", builder.calls, "| 사용량", usage)
+    print("고치기 후:", {k: after[k] for k in ("singles", "in_range", "out_of_range", "exempt", "by_k")}, "| 회차", rounds, "| 호출", builder.calls, "| 사용량", usage)
     for w in builder.warnings:
         print("경고:", w[:300])
-    return 0 if after["out_of_range"] <= after["cap"] else 1
+    return 0 if not after["out_of_range"] else 1   # 범위 밖이 하나라도 남으면 실패 (상한 없음)
 
 
 if __name__ == "__main__":

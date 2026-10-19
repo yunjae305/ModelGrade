@@ -104,8 +104,9 @@ class SemanticApiConfig:
             "fact_check_scope": "all_answers",
             "context_check_policy": CONTEXT_CHECK_POLICY,
             "max_output_tokens": self.max_output_tokens, "max_tool_calls": self.max_tool_calls,
-            "prompt_cache_policy": ("explicit_static_prefix_v1" if self.model == DEFAULT_MODEL
+            "prompt_cache_policy": ("explicit_conversation_prefix_v2" if self.model == DEFAULT_MODEL
                                     else "provider_default"),
+            "prompt_layout": semantic.PROMPT_LAYOUT,
             "timeout_s": self.timeout, "max_attempts": 1,
             "evidence_recovery_policy": "j5_targeted_evidence_v1",
             "evidence_recovery_rounds": self.evidence_recovery_rounds,
@@ -344,26 +345,26 @@ class SemanticApiClient:
         if cancelled():
             return stopped()
         try:
-            # Only this verified model supports the explicit-cache request shape.
-            # Preserve the user-message role and send every original data byte;
-            # only the reusable evaluation instructions receive a breakpoint.
-            # 첨부 그림(judge-attachment-images-v1)은 공통 지시문 뒤·평가 대상 앞에 둔다 — Responses 입력은 input_text/input_image 블록
+            # 대화 순서(semantic.PROMPT_LAYOUT): 지시문 → 1턴부터 앞 대화(턴마다 한 블록) → 현재 질문·참조·첨부 → 실행 시각·현재 답변.
+            # 원문은 하나도 빼거나 줄이지 않고 나눠 담는다. 매번 달라지는 실행 시각·답변이 맨 뒤라 앞 대화가 캐시 접두가 된다 (사용자 결정 2026-10-19).
+            # 첨부 그림(judge-attachment-images-v1)은 현재 질문 뒤·답변 앞에 둔다 — Responses 입력은 input_text/input_image 블록
             pictures = [{"type": "input_text", "text": block["text"]} if block.get("type") == "text" else block
                         for block in attachment_images.labelled_blocks("gpt", images)] if images else []
+            blocks = semantic.build_prompt_blocks(state, questions, search_enabled=search_enabled, evaluation_time=evaluation_time)
+            if evidence_prompt:
+                blocks[-1] = (blocks[-1][0] + "\n\n" + evidence_prompt, blocks[-1][1])
             if self.config.model == DEFAULT_MODEL or pictures:
-                static, dynamic = semantic.build_prompt_parts(state, questions, search_enabled=search_enabled,
-                                                              evaluation_time=evaluation_time)
-                if evidence_prompt:
-                    dynamic += "\n\n" + evidence_prompt
-                head = {"type": "input_text", "text": static}
-                if self.config.model == DEFAULT_MODEL:   # 이 모델만 명시적 캐시 요청 형식을 지원한다
-                    head["prompt_cache_breakpoint"] = {"mode": "explicit"}
-                prompt_input = [{"role": "user", "content": [head, *pictures, {"type": "input_text", "text": "\n" + dynamic}]}]
+                content = []
+                for position, (text, mark) in enumerate(blocks):
+                    if position == len(blocks) - 1:
+                        content.extend(pictures)
+                    block = {"type": "input_text", "text": text}
+                    if mark and self.config.model == DEFAULT_MODEL:   # 이 모델만 명시적 캐시 요청 형식을 지원한다 — 표시는 많아야 3개(요청당 4개까지)
+                        block["prompt_cache_breakpoint"] = {"mode": "explicit"}
+                    content.append(block)
+                prompt_input = [{"role": "user", "content": content}]
             else:
-                prompt_input = semantic.build_prompt(state, questions, search_enabled=search_enabled,
-                                                      evaluation_time=evaluation_time)
-                if evidence_prompt:
-                    prompt_input += "\n\n" + evidence_prompt
+                prompt_input = "".join(text for text, _ in blocks)
             payload = {
                 "model": self.config.model,
                 "instructions": semantic.system_prompt(search_enabled=search_enabled, questions=questions),

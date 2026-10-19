@@ -99,8 +99,23 @@ def main(argv=None) -> int:
         send_rows = [src[i] for i in p["send"]]
         ctx = {"answer_tools": "unknown", "collected_at": (run.get("collection_completed_at") or "")[:10] or None, "attachment_roots": roots}
         started = time.time()
-        fresh = service.evaluate({"cases": send_rows, "aiona_specialized": False}, semantic_workers=args.workers, pipeline="legacy",
-                                 semantic_context=ctx)
+        failed_ids = {cases[i].get("case_id") for i in p["failed"]}
+        progress = {"done": 0, "failed_done": 0}
+
+        def observe(event, provider=provider, total=len(send_rows), failed_ids=failed_ids, progress=progress):
+            # 판정이 하나 끝날 때마다 바로 찍는다 — 끝까지 기다려야 몇 개가 끝났는지 알던 문제 (사용자 지적 2026-10-19)
+            record = event.get("record") if isinstance(event, dict) and event.get("phase") == "JEV" else None
+            if not isinstance(record, dict) or record.get("status") in (None, "RUNNING"):
+                return
+            progress["done"] += 1
+            cid = record.get("case_id")
+            if cid in failed_ids:
+                progress["failed_done"] += 1
+            print(f"{time.strftime('%H:%M:%S')} {provider}: 판정 끝 {cid} {record.get('status')} · 보낸 턴 {progress['done']}/{total}"
+                  f" · 다시 평가할 턴 {progress['failed_done']}/{len(failed_ids)}", flush=True)
+
+        fresh = service.evaluate({"cases": send_rows, "aiona_specialized": False}, observer=observe, semantic_workers=args.workers,
+                                 pipeline="legacy", semantic_context=ctx)
         new_records = (fresh.get("jev_eval") or {}).get("records") or []
         by_case = {r.get("case_id"): r for r in new_records if isinstance(r, dict)}
         replaced, still = 0, []

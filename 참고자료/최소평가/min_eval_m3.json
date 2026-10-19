@@ -501,6 +501,80 @@
   "5": 56,
   "10": 110
  },
- "compare": null,
- "min_set_id": null
+ "compare": {
+  "정밀": {
+   "aiona": {
+    "n": 326,
+    "pass": 166,
+    "fail": 84,
+    "hold": 76,
+    "rate": 0.5092
+   },
+   "gpt": {
+    "n": 326,
+    "pass": 190,
+    "fail": 77,
+    "hold": 59,
+    "rate": 0.5828
+   },
+   "claude": {
+    "n": 326,
+    "pass": 131,
+    "fail": 112,
+    "hold": 83,
+    "rate": 0.4018
+   },
+   "gemini": {
+    "n": 326,
+    "pass": 120,
+    "fail": 124,
+    "hold": 82,
+    "rate": 0.3681
+   },
+   "_ranking": [
+    "gpt",
+    "aiona",
+    "claude",
+    "gemini"
+   ]
+  },
+  "최소": {
+   "aiona": {
+    "n": 37,
+    "pass": 13,
+    "fail": 16,
+    "hold": 8,
+    "rate": 0.3514
+   },
+   "gpt": {
+    "n": 37,
+    "pass": 14,
+    "fail": 18,
+    "hold": 5,
+    "rate": 0.3784
+   },
+   "claude": {
+    "n": 37,
+    "pass": 8,
+    "fail": 21,
+    "hold": 8,
+    "rate": 0.2162
+   },
+   "gemini": {
+    "n": 37,
+    "pass": 10,
+    "fail": 20,
+    "hold": 7,
+    "rate": 0.2703
+   },
+   "_ranking": [
+    "gpt",
+    "aiona",
+    "gemini",
+    "claude"
+   ]
+  },
+  "same_ranking": false
+ },
+ "min_set_id": "qs-cf1dae73c18f"
 }

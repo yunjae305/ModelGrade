@@ -289,6 +289,18 @@ def build_prompt_parts(state: Dict[str, Any], questions: Dict[str, Any],
 
 #: 캐시 블록으로 나눌 때 현재 질문에 함께 두는 값 — 같은 질문을 평가하는 4개 모델이 똑같이 받는 부분
 _SHARED_KEYS = ("question", "reference", "attachments")
+#: 판정 입력 배치 — 대화 순서(1턴 질문·답변 → … → 현재 질문·참조·첨부 → 실행 시각·현재 답변). 사용자 결정 2026-10-19:
+#: 멀티턴은 질문1 → 답변1 → … → 마지막 질문 → 마지막 답변 순서로 처음부터 끝까지의 맥락을 보게 한다.
+PROMPT_LAYOUT = "conversation-order-v1"
+
+
+def chronological_state(state: Any) -> Any:
+    """대화 순서로 키를 다시 놓은 state 사본 — history(1턴부터) → question·reference·attachments → answer·그 밖의 값. 값은 그대로."""
+    if not isinstance(state, dict):
+        return state
+    ordered = {key: state[key] for key in ("history", *_SHARED_KEYS) if key in state}
+    ordered.update((key, value) for key, value in state.items() if key not in ordered)
+    return ordered
 DATA_LAYOUT = ("## 평가 대상 (데이터)\n아래 블록들을 합친 것이 하나의 평가 대상입니다 — history(이 턴 앞의 대화, 턴마다 한 블록) → "
                "현재 질문(question·reference·attachments) → answer 와 그 밖의 값. 블록마다 JSON 입니다.")
 

@@ -27,6 +27,20 @@ def completed_response(values=None, *, events=(), annotations=(), **extra):
             "usage": {"input_tokens": 150, "output_tokens": 60}, **extra}
 
 
+def transmitted_state(text):
+    """대화 순서 블록(semantic.PROMPT_LAYOUT)으로 보낸 원문을 되살린다 — '### …' 블록마다 JSON 하나, history 는 1턴부터."""
+    data = text.split("## 평가 대상 (데이터)\n", 1)[1]
+    history, state = [], {}
+    for chunk in data.split("\n### ")[1:]:
+        header, _, body = chunk.partition("\n")
+        value, _ = json.JSONDecoder().raw_decode(body.lstrip())
+        if header.startswith("history"):
+            history.append(value)
+        else:
+            state.update(value)
+    return {"history": history, **state} if history else state
+
+
 def call_with_response(raw, *, state=None, ids=("J1",), config=None, status_code=200, source_fetcher=None):
     requests = []
 
@@ -57,7 +71,9 @@ def test_responses_request_uses_semantic_key_pinned_model_and_preserves_all_orig
     assert request.method == "POST" and str(request.url) == "https://api.openai.com/v1/responses"
     assert request.headers["Authorization"] == "Bearer sk-semantic-fixture-only"
     body = json.loads(request.content)
-    assert json.dumps(state, ensure_ascii=False, indent=1) in body["input"]
+    assert transmitted_state(body["input"]) == snapshot   # 원문을 하나도 빼거나 줄이지 않음
+    order = [body["input"].index(text) for text in (" 이전 질문", "  질문", " 참조 원문", "  답변")]
+    assert order == sorted(order)   # 대화 순서: 1턴 질문·답변 → 현재 질문·참조 → 현재 답변 (사용자 결정 2026-10-19)
     assert len(body["input"]) > 60_000 and state == snapshot
     assert body["model"] == "requested-judge-v1" and body["reasoning"] == {"effort": "high"}
     assert body["max_output_tokens"] == 9999 and body["store"] is False and body["truncation"] == "disabled"
@@ -89,18 +105,19 @@ def test_gpt_explicit_cache_preserves_all_six_criteria_and_long_original_data_ou
     assert payload["prompt_cache_options"] == {"mode": "explicit", "ttl": "30m"}
     assert payload["instructions"] == semantic.system_prompt(search_enabled=False)
     assert len(payload["input"]) == 1 and payload["input"][0]["role"] == "user"
-    static, dynamic = payload["input"][0]["content"]
-    assert static["type"] == dynamic["type"] == "input_text"
-    assert static["prompt_cache_breakpoint"] == {"mode": "explicit"}
-    assert set(dynamic) == {"type", "text"}
+    static, history, current, tail = payload["input"][0]["content"]
+    assert all(block["type"] == "input_text" for block in (static, history, current, tail))
+    # \uce90\uc2dc \ud45c\uc2dc: \uc9c0\uc2dc\ubb38 \u00b7 \uc55e \ub300\ud654 \ub9c8\uc9c0\ub9c9 \ud134 \u00b7 \ud604\uc7ac \uc9c8\ubb38 (\uc694\uccad\ub2f9 4\uac1c\uae4c\uc9c0) \u2014 \ub9e4\ubc88 \ub2e4\ub978 \uc2e4\ud589 \uc2dc\uac01\u00b7\ub2f5\ubcc0 \ube14\ub85d\uc5d0\ub294 \uc5c6\uc74c
+    assert static["prompt_cache_breakpoint"] == history["prompt_cache_breakpoint"] == current["prompt_cache_breakpoint"] == {"mode": "explicit"}
+    assert set(tail) == {"type", "text"}
     # Decode the complete transmitted JSON, not a substring or shortened fixture.
-    serialized = dynamic["text"].split("## \ud3c9\uac00 \ub300\uc0c1 (\ub370\uc774\ud130)\n", 1)[1]
-    assert serialized == json.dumps(snapshot, ensure_ascii=False, indent=1)
-    assert json.loads(serialized) == snapshot and state == snapshot
-    assert len(serialized) > 60_000
+    data = "".join(block["text"] for block in (static, history, current, tail))
+    assert transmitted_state(data) == snapshot and state == snapshot
+    assert " earlier question" in history["text"] and "original question" in current["text"] and "original answer" in tail["text"]
+    assert len(tail["text"]) > 60_000
     assert "original question" not in static["text"] and "original reference" not in static["text"]
     timestamp_label = "\uc2e4\ud589 \uae30\uc900 \uc2dc\uac01(UTC):"
-    assert timestamp_label not in static["text"] and timestamp_label in dynamic["text"]
+    assert timestamp_label not in static["text"] and timestamp_label in tail["text"]
     for cid in ids:
         assert f"### {cid}\n" in static["text"]
     assert payload["text"]["format"]["schema"]["required"] == list(ids)
@@ -120,14 +137,14 @@ def test_gpt_reuses_same_static_boundary_for_different_original_questions_and_ca
                                            ids=("J1", "J5"))
         payload = json.loads(requests[0].content)
         captured.append(payload)
-        static, dynamic = payload["input"][0]["content"]
-        assert label not in static["text"] and label in dynamic["text"]
+        static, *rest = payload["input"][0]["content"]
+        assert label not in static["text"] and label in "".join(block["text"] for block in rest)
         assert "prompt_cache_key" not in payload
         assert call.usage == usage
         assert call.body["verification"]["usage_requests"][0]["usage"] == usage
         assert payload["tools"] == [{"type": "web_search"}] and "max_tool_calls" not in payload
     assert captured[0]["input"][0]["content"][0] == captured[1]["input"][0]["content"][0]
-    assert captured[0]["input"][0]["content"][1] != captured[1]["input"][0]["content"][1]
+    assert captured[0]["input"][0]["content"][1:] != captured[1]["input"][0]["content"][1:]
 
 
 @pytest.mark.parametrize("model", ["gpt-5.4", "gpt-6.1-sol-2026-10-01", "requested-judge-v1"])
@@ -136,7 +153,7 @@ def test_unverified_models_keep_legacy_string_request_without_explicit_cache_fie
     _, requests = call_with_response(completed_response(), state=state, config=SemanticApiConfig(model=model))
     payload = json.loads(requests[0].content)
     assert isinstance(payload["input"], str)
-    assert json.dumps(state, ensure_ascii=False, indent=1) in payload["input"]
+    assert transmitted_state(payload["input"]) == state
     assert not {"prompt_cache_options", "prompt_cache_key", "prompt_cache_retention"} & payload.keys()
     assert "prompt_cache_breakpoint" not in payload
     assert SemanticApiConfig(model=model).to_manifest()["prompt_cache_policy"] == "provider_default"
@@ -395,7 +412,7 @@ def test_manifest_is_available_without_a_client_and_pins_policy_and_limits():
     assert manifest["max_tool_calls"] is None and manifest["max_output_tokens"] == 12000
     assert manifest["evidence_recovery_max_tool_calls"] is None
     assert manifest["store"] is False and manifest["truncation"] == "disabled"
-    assert manifest["prompt_cache_policy"] == "explicit_static_prefix_v1"
+    assert manifest["prompt_cache_policy"] == "explicit_conversation_prefix_v2" and manifest["prompt_layout"] == "conversation-order-v1"
     assert manifest["credentials_source"] == "SEMANTIC_API_KEY" and manifest["credentials_recorded"] is False
 
 

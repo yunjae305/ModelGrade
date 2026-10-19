@@ -48,7 +48,7 @@ __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "cri
 #:       멀티턴 답변 분량은 질문 문장에 쓰지 않고 설계 안내로만 (사용자 결정 2026-10-14)
 #: v1.5: 기준 단위 하나 — CODE 검사 28 + 의미 점검 항목 44 = 72 (질문으로 셀 수 있는 64)로 적용 수를 센다. v1.4 의 질문 조건 종류
 #:       37 단위는 뺐고, 조건 종류는 검사마다 쓸 수 있는 표현 안내로만 (사용자 결정 2026-10-15)
-QUESTION_GEN_VERSION = "question-gen-v2.1-kvar"   # v2.1: k 고치기를 질문 하나씩·원문 문단 보존·결과 검증 후 반영 (묶음 고치기에서 다른 질문 내용이 섞임, 2026-10-18)   # v2.0: 질문당 변동 기준 수(k_var) 6~10 범위·범위 밖 상한·고치기 단계 (통제 실험 2026-10-18)
+QUESTION_GEN_VERSION = "question-gen-v2.2-kvar"   # v2.2: 범위 밖 상한 개념·고치기 목표 k(7·9) 없앰 — 범위 밖은 모두 고치고, 6~10 안이면 몇 개든 됨 (사용자 결정 2026-10-19)   # v2.1: k 고치기를 질문 하나씩·원문 문단 보존·결과 검증 후 반영 (묶음 고치기에서 다른 질문 내용이 섞임, 2026-10-18)   # v2.0: 질문당 변동 기준 수(k_var) 6~10 범위·범위 밖 상한·고치기 단계 (통제 실험 2026-10-18)
 STORE = ROOT / "data" / "question_sets"
 CONDITIONS_PATH = ROOT / "code_eval" / "settings" / "code_check_conditions.json"
 PLAN_TOKENS = 60_000          # 계획 응답 최대 출력 토큰
@@ -68,13 +68,13 @@ MAX_CALLS = 250               # 작업 하나의 GPT 호출 상한 (질문 수�
 MATERIAL_WORKERS = 4
 MAX_ITEMS_PER_QUESTION = None   # 질문 하나가 노리는 항목 수 상한 — 10-15 사용자 결정으로 없앰(조건 많은 질문과 적은 질문을 섞되 자연스럽게)
 MAX_ATTACHMENT_CHARS = 4_000
-#: 질문당 변동 기준 수(k_var) 목표 범위와 범위 밖 단일 질문 상한 비율 — 통제 실험(기본 질문 18개 × k 1~16, 세 모델 API 답, Jev+Luna 평가,
+#: 질문당 변동 기준 수(k_var) 범위 — 통제 실험(기본 질문 18개 × k 1~16, 세 모델 API 답, Jev+Luna 평가,
 #: 2026-10-18): k 1~6 은 세 모델이 모두 PASS(72~94%), 7~10 에서 가장 잘 갈림(23~47%), 12 이상은 대부분 모두 FAIL(67~78%).
 #: k_var = 질문에 적용되는 변동 기준 54개(항상 적용 CODE 3·의미 7·답변 의존 항목 제외) 중 서로 다른 기준 수 — 코드 규칙(check)으로 센다
 K_RANGE = (6, 10)
-K_OUT_RATIO = 0.0             # 범위 밖 단일 질문 상한 비율 — 사용자 결정 2026-10-18: 단일 질문 전부 6~10 (0 = 상한 0개). 실험 때 쓰던 15% 는 폐기
+# 범위 밖 단일 질문은 하나도 두지 않는다 — 모두 고쳐 6~10 안에 넣는다(상한 개념 없음, 사용자 결정 2026-10-18·19). 실험 때 쓰던 15% 는 폐기
 K_EXEMPT_UNITS = frozenset({"2-1.explicit_empty"})   # 예외 — 빈 출력 요구 질문은 조건을 붙이면 모순이라 범위 밖이어도 허용 (사용자 결정 2026-10-18)
-K_REPAIR_ROUNDS = 8           # 범위 밖이 상한을 넘으면 조건을 고치는 요청 회차 상한 — 상한에 들거나 더 나아지지 않으면 먼저 멈춘다
+K_REPAIR_ROUNDS = 8           # 범위 밖 질문을 고치는 요청 회차 수 — 범위 밖이 없어지거나 고칠 질문이 없으면 먼저 멈춘다
 K_REPAIR_BATCH = 1            # 고치기 요청 하나에 넣는 질문 수 — 1(질문 하나씩). 묶으면 다른 질문의 주제·수치가 섞인다 (2026-10-18 Q62 에 Q22 의 '서리 날짜')
 K_REPAIR_WORKERS = 6          # 질문 하나씩 고치는 요청을 동시에 보내는 수
 #: 질문 수를 지정했을 때 10턴 대화·긴 문서 질문의 기본 비율 (설계안 v1.2 질문 세트 구성 초안: 멀티턴 10%, 롱컨텍스트 5%)
@@ -167,7 +167,7 @@ def _k_excluded_line() -> str:
             + ". 이 기준으로 조건을 늘려도 k_var 는 그대로이므로, 6~10개는 그 밖의 기준으로 채웁니다.")
 
 
-_K_RULE = f"""- 질문당 기준 수(k_var)는 단일 질문마다 {K_RANGE[0]}개 이상 {K_RANGE[1]}개 이하를 목표로 합니다. k_var 는 그 질문에 실제로 적용되는 변동 기준(CODE 검사 id·의미 점검 항목 id, 항상 적용되는 검사·항목과 답변으로만 정해지는 항목은 제외)의 서로 다른 id 수이며, 시스템이 코드 규칙으로 다시 셉니다. target_items 수·조건 문장 수로 대신 세지 않습니다.
+_K_RULE = f"""- 질문당 기준 수(k_var)는 단일 질문마다 {K_RANGE[0]}개 이상 {K_RANGE[1]}개 이하여야 합니다. k_var 는 그 질문에 실제로 적용되는 변동 기준(CODE 검사 id·의미 점검 항목 id, 항상 적용되는 검사·항목과 답변으로만 정해지는 항목은 제외)의 서로 다른 id 수이며, 시스템이 코드 규칙으로 다시 셉니다. target_items 수·조건 문장 수로 대신 세지 않습니다.
 - 기본 과제만으로 자동으로 붙는 기준도 k_var 에 들어갑니다(자료 값을 옮기면 J5-2.a, 요약이면 J4-4.a·J5-2.b, 글 작성이면 J2-5.b·J4-3.a, 조건을 주면 J2-3.a). 이것까지 세어 {K_RANGE[0]}~{K_RANGE[1]}개가 되게 조건을 붙입니다.
 - 범위 안에서는 k={'·'.join(str(k) for k in range(K_RANGE[0], K_RANGE[1] + 1))} 인 질문 수를 가능한 한 고르게 합니다. **범위 밖 단일 질문은 허용하지 않습니다** — 단일 질문은 모두 {K_RANGE[0]}~{K_RANGE[1]}개여야 하며, 예외는 빈 출력 요구(2-1.explicit_empty) 질문뿐입니다(조건을 붙이면 모순이라 범위 밖 허용). 그 밖의 모순 자료 같은 기준도 자연스러운 조건(대상·말투·글자 수·형식 등)을 더해 범위 안에 넣습니다."""
 
@@ -839,7 +839,7 @@ class QuestionSetBuilder:
         failures: Dict[int, List[str]] = {}
         while k_rounds < K_REPAIR_ROUNDS:
             ksum = k_var_summary(groups, report)
-            if ksum["out_of_range"] <= ksum["cap"]:
+            if not ksum["out_of_range"]:   # 범위 밖 단일 질문이 하나도 없을 때까지 (상한 없음)
                 break
             kmap = k_var_by_group(groups, report, units)
             cov = counts(report)
@@ -847,8 +847,8 @@ class QuestionSetBuilder:
             if not fixable:
                 break
             k_rounds += 1
-            self.progress("k_repair", {"message": f"질문당 기준 수 범위 {lo}~{hi} 밖 {ksum['out_of_range']}개(상한 {ksum['cap']}) — 하나씩 고치기 ({k_rounds}회차)",
-                                       "out_of_range": ksum["out_of_range"], "cap": ksum["cap"]})
+            self.progress("k_repair", {"message": f"질문당 기준 수 범위 {lo}~{hi} 밖 {ksum['out_of_range']}개 — 하나씩 고치기 ({k_rounds}회차)",
+                                       "out_of_range": ksum["out_of_range"]})
             protect = sorted(t for t, n in cov.items() if n <= (per_target or 10))
 
             def one(g):
@@ -856,7 +856,7 @@ class QuestionSetBuilder:
                 k = kmap[g["id"]]["k"]
                 picks = sorted((u for u in single_only if u not in have and u not in exempt_units), key=lambda u: (cov.get(u, 0), u))[:12]
                 item = {"id": f"Q{g['id']}", "k": k, "units": have, "target_items": g.get("target_items") or [],
-                        "target": lo + 1 if k < lo else hi - 1, "question": g["turns"][0]["question"],
+                        "question": g["turns"][0]["question"],
                         "candidates": [{"id": u, "name": info[u].get("name") or info[u].get("sub") or "", "example": info[u].get("example") or ""}
                                        for u in picks] if k < lo else []}
                 try:
@@ -917,8 +917,8 @@ class QuestionSetBuilder:
         if failures:
             self.warnings.append("질문당 기준 수 고치기에서 검증을 통과하지 못한 질문: "
                                  + "; ".join(f"Q{q} ({', '.join(v)[:80]})" for q, v in sorted(failures.items())[:30]))
-        if ksum["out_of_range"] > ksum["cap"]:
-            self.warnings.append(f"질문당 기준 수 {K_RANGE[0]}~{K_RANGE[1]} 밖 단일 질문이 {ksum['out_of_range']}개로 상한 {ksum['cap']}개를 넘습니다"
+        if ksum["out_of_range"]:
+            self.warnings.append(f"질문당 기준 수 {K_RANGE[0]}~{K_RANGE[1]} 밖 단일 질문이 {ksum['out_of_range']}개 남았습니다 — 다시 고치거나 재생성해야 합니다"
                                  f" (k 분포 {ksum['by_k']}).")
         return report, k_rounds, ksum
 
@@ -1136,7 +1136,7 @@ def k_var_by_group(groups: List[Dict[str, Any]], report: Dict[str, Any], units: 
 
 
 def k_var_summary(groups: List[Dict[str, Any]], report: Dict[str, Any]) -> Dict[str, Any]:
-    """요약·화면용 — 단일 질문의 k 분포, 범위 안·밖 수, 범위 밖 상한. 긴 입력 단일 질문도 단일 질문으로 센다(상한에 포함)."""
+    """요약·화면용 — 단일 질문의 k 분포, 범위 안·밖 수(범위 밖은 0개여야 함, 빈 출력 요구 예외는 따로). 긴 입력 단일 질문도 단일 질문으로 센다."""
     kmap = k_var_by_group(groups, report)
     singles = [g for g in groups if len(g["turns"]) == 1]
     lo, hi = K_RANGE
@@ -1144,7 +1144,7 @@ def k_var_summary(groups: List[Dict[str, Any]], report: Dict[str, Any]) -> Dict[
     exempt = [g["id"] for g in singles if kmap[g["id"]]["units"] & K_EXEMPT_UNITS]   # 빈 출력 요구 — 범위 밖이어도 허용, 따로 센다
     out_of_range = [g["id"] for g in singles if not lo <= kmap[g["id"]]["k"] <= hi and g["id"] not in exempt]
     return {"range": list(K_RANGE), "singles": len(singles), "in_range": len(singles) - len(out_of_range) - len(exempt),
-            "out_of_range": len(out_of_range), "cap": int(K_OUT_RATIO * len(singles)), "out_of_range_ids": out_of_range,
+            "out_of_range": len(out_of_range), "out_of_range_ids": out_of_range,
             "exempt": len(exempt), "exempt_ids": exempt,
             "by_k": {str(k): ks.count(k) for k in sorted(set(ks))},
             "conversations": {str(g["id"]): kmap[g["id"]]["k"] for g in groups if len(g["turns"]) > 1}}
@@ -1155,22 +1155,22 @@ def k_repair_prompt(items: List[Dict[str, Any]], catalog: Dict[str, List[Dict[st
     lo, hi = K_RANGE
     lines = []
     for it in items:
-        direction = (f"지금 {it['k']}개 → 조건을 덧붙여 {lo}~{hi}개(목표 {it['target']}개)로 늘립니다"
-                     if it["k"] < lo else f"지금 {it['k']}개 → 조건을 빼거나 합쳐 {lo}~{hi}개(목표 {it['target']}개)로 줄입니다")
+        direction = (f"지금 {it['k']}개 → 조건을 덧붙여 {lo}~{hi}개 안으로 늘립니다"
+                     if it["k"] < lo else f"지금 {it['k']}개 → 조건을 빼거나 합쳐 {lo}~{hi}개 안으로 줄입니다")
         missed = sorted(set(it.get("target_items") or []) - set(it["units"]))
         note_line = (f"\n- 노렸지만 k 에 안 잡힌 기준: {', '.join(missed)} (k 에 세지 않는 기준이거나 인식 규칙 표현을 안 따른 것 — 세는 기준의 [인식] 표현을 그대로 쓰세요)" if missed else "")
         if it["k"] < lo:
-            add = it["target"] - it["k"]
+            fewest, most = lo - it["k"], hi - it["k"]   # 6~10 안이면 몇 개든 된다 — 목표 개수는 두지 않는다 (사용자 결정 2026-10-19)
             cands = "\n".join(f"  - {c['id']} · {c['name']} · 예시 문장: \"{c['example']}\"" for c in it.get("candidates") or [])
-            how = (f"\n- **정확히 {add}개**의 조건 문장을 아래 후보에서 골라 덧붙입니다. 후보의 예시 문장은 **표현 형식만** 참고합니다(예: '공백 포함 N자 이내로', "
+            how = (f"\n- **{fewest}~{most}개**의 조건 문장을 아래 후보에서 골라 덧붙입니다(덧붙인 뒤 {lo}~{hi}개 안이면 됩니다). 후보의 예시 문장은 **표현 형식만** 참고합니다(예: '공백 포함 N자 이내로', "
                    f"'존댓말로', '초등학생이 이해할 수 있게', '표로', 'JSON으로'). 예시 문장의 주제·사물·이름·수치는 가져오지 말고, **이 질문의 주제·자료·과제에서 나온 내용**으로 씁니다. "
                    f"같은 기준을 두 번 쓰거나 서로 막는 조건(예: 표 요구 + 표 금지)은 안 됩니다.\n- 덧붙일 후보 (적용 질문이 적은 기준부터):\n{cands}")
         else:
-            how = f"\n- 핵심 과제와 무관한 조건 {it['k'] - it['target']}개를 뺍니다. 빼는 조건의 기준이 다른 질문에서 모자라면(아래 보호 목록) 다른 조건을 뺍니다."
+            how = f"\n- 핵심 과제와 무관한 조건 {it['k'] - hi}~{it['k'] - lo}개를 뺍니다(뺀 뒤 {lo}~{hi}개 안이면 됩니다). 빼는 조건의 기준이 다른 질문에서 모자라면(아래 보호 목록) 다른 조건을 뺍니다."
         lines.append(f"## {it['id']} — {direction}\n- 지금 적용되는 기준(k 에 세는 것): {', '.join(sorted(it['units'])) or '없음'}{note_line}{how}\n- 질문 원문:\n{it['question']}")
     protect_line = (f"- 다음 기준은 다른 질문에서 적용 수가 모자라므로 이 질문에서 빼지 않습니다: {', '.join(protect)}\n" if protect else "")
     head = (f"당신은 한국어 AI 답변 품질 평가 질문의 조건 수를 조정합니다. 결과는 JSON 하나로만 답합니다.\n\n"
-            f"# 목표\n아래 질문들은 질문당 기준 수(k_var)가 목표 범위 {lo}~{hi}개를 벗어났습니다. **주제·자료·핵심 과제·정답의 핵심은 그대로 두고 덧붙이는 조건만 고쳐** k_var 가 범위 안에 들게 합니다.\n"
+            f"# 목표\n아래 질문들은 질문당 기준 수(k_var)가 범위 {lo}~{hi}개를 벗어났습니다. **주제·자료·핵심 과제·정답의 핵심은 그대로 두고 덧붙이는 조건만 고쳐** k_var 가 범위 안에 들게 합니다.\n"
             "- 늘릴 때는 [점검 목록]에서 그 질문에 자연스러운 기준을 고르고, CODE 검사 조건은 [인식] 규칙의 표현을 그대로 씁니다. 외부 검색·최신 사실·첨부 요구·답변 분량 늘리기로 늘리지 않습니다.\n"
             "- **원래 질문의 문단은 한 글자도 바꾸지 않습니다.** 새 조건 문장은 원래 문단 사이나 끝에 덧붙입니다. 질문 안의 자료(표·JSON·목록·'공지:'·'자료:' 같은 붙여 넣은 자료)는 그대로 둡니다.\n"
             "- 덧붙이는 조건은 이 질문의 주제·자료에서 나온 것이어야 합니다. 다른 주제·사물·수치를 새로 만들어 넣지 않습니다.\n"

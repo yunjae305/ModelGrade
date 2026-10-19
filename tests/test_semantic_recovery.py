@@ -12,6 +12,7 @@ from code_eval.jev_client import resolve_jev_client
 from code_eval.jev_eval import jev_request
 from code_eval.semantic_api_client import SemanticApiClient, SemanticApiConfig
 from code_eval.semantic_setup import semantic_setup
+from tests.test_semantic_api_client import transmitted_state
 from webapp.version_registry import evaluation_profile
 
 
@@ -92,9 +93,9 @@ def test_recovery_targets_j5_preserves_original_inputs_and_aggregates_actual_usa
         static, *dynamic = payload["input"][0]["content"]
         assert static["prompt_cache_breakpoint"] == {"mode": "explicit"}
         assert "original private text" not in static["text"]
-        combined = "\n".join(item["text"] for item in dynamic)
-        assert json.dumps(state, ensure_ascii=False, indent=1) in combined
-        assert all("prompt_cache_breakpoint" not in item for item in dynamic)
+        combined = "".join(item["text"] for item in payload["input"][0]["content"])
+        assert transmitted_state(combined) == state   # 대화 순서 블록으로 나눠도 원문은 그대로
+        assert "prompt_cache_breakpoint" not in dynamic[-1]   # 매번 다른 실행 시각·답변 블록은 캐시 표시 없음
     assert RECOVERED_URL in fetched
     parts = call.body["verification"]["usage_requests"]
     assert len(parts) == 2 and parts == call.accounting["cost_parts"]
