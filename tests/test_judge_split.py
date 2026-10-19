@@ -151,3 +151,14 @@ def test_codex_rate_limit_waits_and_retries_instead_of_failing(monkeypatch):
     judge = jr.CodexJudge("codex", "m", "low", 0, "live", runner=runner)
     status, body, err = judge.judge("프롬프트", "입력", False)
     assert status == "OK" and body == {"turns": []} and slept == [60] and len(calls) == 2
+
+
+def test_quotes_tolerate_ellipsis_sentence_stitching_and_one_changed_ending_but_not_different_text():
+    """2026-10-19 긴 문서 시험(Q1·Q2): 앞의 … · 떨어진 두 문장 이어 붙임 · 끝 어미 하나 바뀜은 통과, 원문에 없는 문장은 불일치."""
+    ref = "강수량 조사에서 물새섬 지점은 15밀리미터를 기록했으며, 조사일은 5월 14일이었다. 다른 문장이다."
+    q = "세 지점을 비교해 가장 많은 곳도 밝혀 주세요. 초등학생도 이해할 수 있게 설명해 주세요. 합계는 계산식과 함께 제시해 주세요."
+    assert js.quoted_in("…가장 많은 곳도 밝혀 주세요.", [q])
+    assert js.quoted_in("세 지점을 비교해 가장 많은 곳도 밝혀 주세요. 합계는 계산식과 함께 제시해 주세요.", [q])
+    assert js.quoted_in("강수량 조사에서 물새섬 지점은 15밀리미터를 기록했다.", [ref])
+    assert not js.quoted_in("물새섬 지점은 25밀리미터를 기록했다.", [ref])
+    assert not js.quoted_in("## 누리섬 군도 생태관측 기록", ["답변에는 이런 제목이 없다."])

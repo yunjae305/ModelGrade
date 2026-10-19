@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import re
+
 import hashlib
 import json
 from pathlib import Path
@@ -129,19 +131,36 @@ def fold(entries: List[Dict[str, Any]]) -> str:
     return "PASS"
 
 
+_ELLIPSIS = re.compile(r"^(?:…|\.\.\.|\s)+|(?:…|\.\.\.|\s)+$")
+_ENDING = re.compile(r"(?:습니다|입니다|니다|어요|아요|예요|에요|해요|세요|다|요)[.!?]?$")
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _piece_in(piece: str, pool: List[str]) -> bool:
+    """글 조각 하나가 원문 어딘가에 있는가 — 공백 무시, 앞뒤 줄임표(…)·구두점 제거, 그래도 없으면 끝 어미 하나(기록했다→기록했)를 떼고 다시."""
+    squash = lambda t: re.sub(r"\s+", "", t or "")
+    text = _ELLIPSIS.sub("", piece or "").strip()
+    cands = [text, text.rstrip(".!?。 ")]
+    if _ENDING.search(cands[1]):
+        cands.append(_ENDING.sub("", cands[1]))
+    for c in cands:
+        c = squash(c)
+        if len(c) >= 2 and any(c in s for s in pool):
+            return True
+    return False
+
+
 def quoted_in(quote: str, sources: List[str]) -> bool:
-    """인용이 원문에 있는가 — 통째로 있으면 통과, 아니면 줄마다(빈 줄 제외) 어느 원문에든 있으면 통과
-    (심판이 떨어진 두 줄을 이어 붙여 인용한 경우: 2026-10-19 시험 Q48). 공백 차이는 무시한다."""
-    import re
-    squash = lambda s: re.sub(r"\s+", "", s or "")
-    pool = [squash(s) for s in sources if s]
-    q = squash(quote)
-    if not q:
+    """인용이 원문에 있는가 — 통째로 있으면 통과. 아니면 줄·문장마다(빈 것 제외) 어느 원문에든 있으면 통과
+    (심판이 떨어진 두 줄·두 문장을 이어 붙이거나(Q48·Q1), 앞에 …를 붙이거나(Q2), 끝 어미를 '기록했으며→기록했다'로 바꾼 경우(Q1)).
+    공백 차이는 무시한다. 글 자체가 다르면(원문에 없는 문장) 여전히 불일치 — 2026-10-19 시험으로 정한 규칙."""
+    pool = [re.sub(r"\s+", "", s) for s in sources if s]
+    if not (quote or "").strip():
         return True
-    if any(q in s for s in pool):
+    if _piece_in(quote, pool):
         return True
-    lines = [squash(l) for l in quote.splitlines() if l.strip()]
-    return bool(lines) and all(any(l in s for s in pool) for l in lines)
+    pieces = [x for x in _SENTENCE_SPLIT.split(quote) if x and x.strip(" …")]
+    return len(pieces) > 1 and all(_piece_in(x, pool) for x in pieces)
 
 
 def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], gpt_items: Dict[int, List[str]]) -> Dict[int, Dict[str, Any]]:
