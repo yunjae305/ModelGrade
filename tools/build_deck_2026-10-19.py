@@ -67,6 +67,25 @@ def details(title, body, open_=False, note=""):
             f'<span class="muted">{len(body):,}자</span></summary><pre>{E(body)}</pre></details>')
 
 
+def q36_block():
+    """Q36 평가 프롬프트의 핵심을 블록으로 — 질문 / CODE 조건 / 점검 항목(4개 + 수) / 답변 자리."""
+    body = q36[q36.index("# 질문"):]
+    body = body[body.index("[질문]"):]
+    question = body[len("[질문]"):body.index("[CODE 조건]")].strip()
+    code_part = body[body.index("[CODE 조건]"):body.index("[이 질문의 점검 항목]")]
+    items_part = body[body.index("[이 질문의 점검 항목]"):body.index("[답변]")]
+    code_lines = [ln[2:] for ln in code_part.split("\n") if ln.startswith("- ")]
+    item_lines = [ln[2:] for ln in items_part.split("\n") if ln.startswith("- ")]
+
+    def li(text):
+        cid, _, rest = text.partition(" · ")
+        return f"<li><code>{E(cid)}</code> {E(rest.split(' (적용:')[0])}</li>"
+    return (f'<div class="exq-block"><span class="lab">질문</span><div class="q">{E(question)}</div>'
+            f'<span class="lab">CODE 조건</span><div><ul>{"".join(li(x) for x in code_lines) or "<li>없음</li>"}</ul><p class="muted" style="font-size:.84rem;margin-top:4px">프로그램이 판정 — 심판에게는 참고만</p></div>'
+            f'<span class="lab">점검 항목 {len(item_lines)}개</span><div><ul>{"".join(li(x) for x in item_lines[:4])}<li class="muted">… 나머지 {len(item_lines) - 4}개</li></ul></div>'
+            f'<span class="lab">답변</span><div class="ans">여기에 모델 답변 원문이 들어갑니다 (어느 모델인지는 숨김)</div></div>')
+
+
 def q36_excerpt():
     """Q36 평가 프롬프트의 핵심만 — 질문 · CODE 조건 · 점검 항목 4개 · 답변 자리."""
     body = q36[q36.index("# 질문"):]
@@ -243,16 +262,23 @@ res_rows = "".join(
     f'<div class="fs-row"><span class="who"><i style="background:var(--m-{m})"></i>{E(n)}</span>'
     f'<div class="fs-track"><span class="p" style="width:{p / 326 * 100:.1f}%" title="PASS {p}"></span><span class="f2" style="width:{f / 326 * 100:.1f}%" title="FAIL {f}"></span><span class="h" style="width:{h / 326 * 100:.1f}%" title="보류 {h}"></span></div>'
     f'<span class="val"><b>{p}</b> · {f} · {h} <span class="muted">/ 326 ({p / 326 * 100:.1f}%)</span></span></div>' for n, m, p, f, h in RES)
-CODE_FAIL = {"gpt": (55, "문장 수 11 · 자료 변환 11 · 소제목 7 · JSON 구조 7"), "aiona": (73, "문장 수 16 · 자료 변환 10 · 닫는 태그 9 · 빈 응답 7"),
-             "claude": (68, "문장 수 23 · 자료 변환 12 · 글자 수 8 · 질문 계산 5"), "gemini": (80, "문장 수 20 · 자료 변환 13 · 소제목 13 · 목록 7")}
-SEM_FAIL = {"gpt": (29, "J5 29 · J6 16 · J4 5 · J7 3"), "aiona": (27, "J6 20 · J5 15 · J2 8 · J1 5"), "claude": (55, "J5 52 · J6 27 · J2 14 · J3 10"), "gemini": (57, "J5 79 · J6 78 · J2 37 · J3 17")}
-fail_rows = "".join(f'<tr><th scope="row">{E(n)}</th><td class="num">{CODE_FAIL[m][0]}</td><td class="exq">{E(CODE_FAIL[m][1])}</td><td class="num">{SEM_FAIL[m][0]}</td><td class="exq">{E(SEM_FAIL[m][1])}</td></tr>' for n, m, *_ in RES)
-HOLD = [("J5 — Luna 가 옮겨 적은 주장이 답변 원문과 안 맞음", "67 · 18 · 14 · 7", "답변 '우천 안내' 를 '날씨 안내' 로 적는 식. 문장은 답변에 있음 → 대조 규칙 보강 대상"),
-        ("J5 — 웹 출처 원문을 확인하지 못함", "60 · 8 · 5 · 11", "검색은 했지만 원문을 열지 못했거나 인용문을 찾지 못함"),
-        ("J6 — 멀티턴 맥락 유지 근거 부족", "26 · 15 · 7 · 9", "앞 턴 조건을 지켰는지 확정할 근거가 모자람"),
-        ("J1~J4 — 두 심판이 갈리고 재판정도 다름", "모델마다 3~16", "설계한 보류(경계 사례)"),
-        ("빈 출력 요구 질문", "질문 10개 전체", "'아무것도 출력하지 마' 류 — 우선 보류(AIONA 오류 화면 8개 포함)")]
-hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th><td class="num">{E(b)}</td><td class="exq">{E(c)}</td></tr>' for a, b, c in HOLD)
+CODE_FAIL = {"gpt": (55, [("문장 수", 11), ("자료 변환", 11), ("소제목", 7), ("JSON 구조", 7)]), "aiona": (73, [("문장 수", 16), ("자료 변환", 10), ("닫는 태그", 9), ("빈 응답", 7)]),
+             "claude": (68, [("문장 수", 23), ("자료 변환", 12), ("글자 수", 8), ("질문 계산", 5)]), "gemini": (80, [("문장 수", 20), ("자료 변환", 13), ("소제목", 13), ("목록", 7)])}
+SEM_FAIL = {"gpt": (29, [("J5 사실", 29), ("J6 멀티턴", 16), ("J4 완결", 5), ("J7 긴 문서", 3)]), "aiona": (27, [("J6 멀티턴", 20), ("J5 사실", 15), ("J2 맥락", 8), ("J1 의도", 5)]),
+            "claude": (55, [("J5 사실", 52), ("J6 멀티턴", 27), ("J2 맥락", 14), ("J3 논리", 10)]), "gemini": (57, [("J5 사실", 79), ("J6 멀티턴", 78), ("J2 맥락", 37), ("J3 논리", 17)])}
+
+
+def chips(items):
+    return '<div class="chips">' + "".join(f'<span>{E(k)}<b>{v}</b></span>' for k, v in items) + '</div>'
+
+
+fail_rows = "".join(f'<tr><th scope="row">{E(n)}</th><td class="num">{CODE_FAIL[m][0]}</td><td>{chips(CODE_FAIL[m][1])}</td><td class="num">{SEM_FAIL[m][0]}</td><td>{chips(SEM_FAIL[m][1])}</td></tr>' for n, m, *_ in RES)
+HOLD = [("J5 심판이 옮겨 적은 문장이 답변과 안 맞음", (67, 18, 14, 7), "'우천 안내' 를 '날씨 안내' 로 적는 식 — 대조 규칙 보강 대상"),
+        ("J5 웹 출처 원문을 못 열음", (60, 8, 5, 11), "검색은 했으나 원문·인용문 확인 실패"),
+        ("J6 멀티턴 근거 부족", (26, 15, 7, 9), "앞 턴 조건을 지켰는지 확정 못 함"),
+        ("J1~J4 두 심판이 갈림", ("3~16", "", "", ""), "재판정도 달라 보류 — 설계한 경우"),
+        ("빈 출력 요구 질문", ("10", "", "", ""), "질문 10개 전체 보류 (AIONA 오류 화면 8 포함)")]
+hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th>' + "".join(f'<td class="num">{E(str(v))}</td>' for v in b) + f'<td>{E(c)}</td></tr>' for a, b, c in HOLD)
 # 기준별 FAIL 률 — 4 모델 턴 단위 판정 합. 의미 기준은 J 묶음 단위로 기록됨
 CF_TOP = [r for r in CRIT_FAIL if r["applied"] >= 20 and r["fail"] > 0][:12]
 cf_rows = "".join(f'<tr><th scope="row"><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]:,}</td><td class="num"><b>{r["fail"]}</b> ({r["rate"] * 100:.0f}%)</td>'
@@ -413,6 +439,38 @@ svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } 
 .rtab table { min-width: 640px; } .rtab td.exq { white-space: normal; font-family: var(--font-body); } .rtab td.num { color: var(--ink); }
 .rtab tr.tot th, .rtab tr.tot td { background: var(--accent-soft); font-weight: 700; } .rtab tr.pick th, .rtab tr.pick td { background: var(--ok-soft); }
 .rtab code { font-family: var(--font-num); font-size: 0.8rem; }
+/* v3 가독성: 표는 본문체, 숫자만 고정폭 · 칩 · 용어 줄 · 예시 블록 */
+.cmpt table, .ktab table, .rtab table { font-size: 0.95rem; }
+.cmpt td, .rtab td, .ktab td { font-family: var(--font-body); white-space: normal; color: var(--ink); line-height: 1.5; }
+.cmpt td.num, .rtab td.num, .ktab td, .ktab td.d, .cmpt td .n { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmpt th, .cmpt td, .rtab th, .rtab td { padding: 12px 16px; vertical-align: top; }
+.cmpt thead th { font-size: 0.84rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips span { font-size: 0.82rem; padding: 2px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); white-space: nowrap; }
+.chips span b { font-family: var(--font-num); color: var(--risk); margin-left: 4px; }
+.terms { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.9rem; color: var(--muted); padding: 12px 16px; border: 1px dashed var(--line); border-radius: 10px; }
+.terms span b { color: var(--ink); margin-right: 4px; }
+.gist { font-size: 1rem; line-height: 1.6; }
+.concl-cols ul { font-size: 0.95rem; gap: 6px; } .concl-cols li { line-height: 1.55; }
+.exq-block { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 0.95rem; }
+.exq-block .lab { font-size: 0.8rem; font-weight: 700; color: var(--accent); padding-top: 3px; }
+.exq-block .q { line-height: 1.7; }
+.exq-block ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 5px; }
+.exq-block li code { font-family: var(--font-num); font-size: 0.82rem; color: var(--accent); }
+.exq-block .ans { color: var(--muted); font-style: normal; }
+.card-body p { font-size: 0.95rem; line-height: 1.6; }
+.note p, .defbox p { line-height: 1.6; }
+@media (max-width: 640px) { .exq-block { grid-template-columns: 1fr; } }
+/* 가로 스크롤 없이 다 보이게 (사용자 요청 10-19) — 최소 너비 제거, 표 칸은 줄바꿈, 차트는 폭에 맞춰 축소 */
+.cmpt, .rtab, .ktab, .chart-scroll, .qtable, .effect { overflow-x: visible; }
+.cmpt table, .ktab table, .rtab table, .ctab table, .ttable, .qtable table, .effect table { min-width: 0; width: 100%; table-layout: auto; }
+svg.chart { min-width: 0; }
+.cmpt th, .cmpt td { white-space: normal; }
+.cmpt td.num, .ktab td { white-space: nowrap; }
+.ctab th[scope="row"] { white-space: normal; }
+.ctab table { font-size: 0.84rem; } .ctab th, .ctab td { padding: 8px 10px; }
+.ktab th, .ktab td { padding: 8px 10px; }
+.fs-row { grid-template-columns: 150px minmax(0, 1fr) 230px; } .fs-row .val { white-space: normal; }
 .gradwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; justify-content: center; }
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .defbox { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
@@ -457,6 +515,14 @@ s0 = f"""
       <p><b>정밀 326</b>: 순위·FAIL 전부. <b>최소 78</b>: 덜 채운 기준을 가장 많이 채우는 질문부터 골라 기준마다 10번 이상 — FAIL 조합의 <b>80%</b>를 보고 순위도 같음.</p></div>
     <div class="key alert"><span class="lab">비용 (이틀, 단가표 추정)</span><span class="big">≈ $160</span>
       <p>OpenAI 약 $88(의미 평가가 대부분) · Anthropic 약 $59(Claude 답변 수집) · Google 약 $14. 토큰 약 2억 7천만.</p></div>
+  </div>
+  <div class="terms">
+    <span><b>k</b> 질문 하나에 걸리는 기준 수 (6~10 이 목표)</span>
+    <span><b>갈림</b> 같은 질문에 모델들의 PASS/FAIL 이 서로 다름</span>
+    <span><b>보류</b> 확인 못 해 사람이 PASS/FAIL 을 정할 판정</span>
+    <span><b>기준 72 / 64</b> 전체 72개 중 질문 조건으로 걸리는 64개</span>
+    <span><b>정밀 / 최소</b> 326개 전부 / 그중 골라낸 78개</span>
+    <span><b>N / 326</b> 모델마다 질문 326개 기준, 대화 1개 = 1개</span>
   </div>
   <ol class="toc">{"".join(f'<li><a href="#{i}"><span class="n">{n}</span><strong>{t}</strong><span class="d">{d}</span></a></li>' for i, n, t, d in TOC)}</ol>
 </section>
@@ -556,8 +622,8 @@ s5 = f"""
     <div><span class="k">두 심판</span><b>같은 입력</b><span>Luna 는 J1~J8, Jev 는 J1~J4. Jev 가 받을 수 없는 긴 입력(96턴)은 Luna 만 판정.</span></div>
   </div>
   <div class="block"><h3>예시 1 — 단일 질문 Q36 (사실 확인 + 형식 조건)</h3>
-    <p class="lead">심판에게 가는 글의 핵심 부분입니다. 앞에 붙는 원칙·판정 방법·출력 형식은 326개가 모두 같아 접어 두었습니다.</p>
-    <pre class="show">{E(q36_excerpt())}</pre>
+    <p class="lead">심판에게 가는 글의 핵심만 블록으로 보였습니다. 앞에 붙는 원칙·판정 방법·출력 형식은 326개가 모두 같아 접어 두었습니다.</p>
+    {q36_block()}
     {details("Q36 평가 프롬프트 전문", q36, note="원칙 · 판정 방법 · 출력 형식 포함")}</div>
   <div class="block"><h3>예시 2 — 10턴 대화 Q12</h3>
     <p class="lead">턴마다 [질문]·[점검 항목]·[답변] 블록이 이어지고, 2턴부터 J6(앞 턴 조건 유지) 항목이 추가됩니다. 전체 49,688자 중 1턴만 펼쳐 볼 수 있습니다.</p>
@@ -569,8 +635,8 @@ s6 = f"""
 <section class="slide" id="s6">
   {head("06", "결과 — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {RATE[m]:.0f}%" for m in ("gpt", "aiona", "claude", "gemini")), "326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위, 보류는 분모에 둡니다." + (" <b>보류 목록을 사람이 정리한 뒤의 숫자입니다.</b>" if GOLD_APPLIED else " 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다."))}
   {gist("<b>PASS / 326</b> — " + " · ".join(f"{MODEL_NAME[m].split()[0]} {KSPLIT['models'][m]['PASS']}" for m in ("gpt", "aiona", "claude", "gemini")) + f". 보류(사람이 정할 것) {min(h for *_, h in RES)}~{max(h for *_, h in RES)}개.",
-        "FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴 맥락</b>에 몰려 있습니다.",
-        "한 번도 FAIL 이 안 난 기준 8개는 대부분 깨진 출력을 잡는 안전망 검사 — 느슨한 기준은 아닙니다(아래 표).")}
+        "FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴</b>에 몰려 있습니다.",
+        "한 번도 FAIL 이 안 난 기준 8개는 깨진 출력을 잡는 안전망 검사 — 느슨해서가 아닙니다 (장 끝 표).")}
   <div class="three">
     <div class="card"><div class="card-head"><b>① 질문 생성</b><span>10-18 · GPT-6 Luna 67회 호출</span></div><div class="card-body">
       <p>326개 = 단일 284 · 대화 32(10턴 15 · 11턴 1 · 2턴 16) · 긴 문서 10 (487턴). 첨부 28개.</p>
@@ -585,11 +651,11 @@ s6 = f"""
   <div class="card"><div class="card-head"><b>모델별 PASS · FAIL · 보류 / 326</b><span>CODE 28 + 의미 44 (Jev + GPT-6 Luna 병행) · 보류 = 확인 못 한 것이 있어 사람이 정할 질문</span></div>
     <div class="card-body">{res_rows}
       <div class="fs-legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL (기준 하나라도)</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div></div>
-  <div class="two">
+  <div class="block">
     <div class="cmpt rtab"><table><caption>어디서 틀렸나 <span>FAIL 이 하나라도 있는 질문 수와 많이 걸린 기준</span></caption>
-      <thead><tr><th>모델</th><th>CODE FAIL 질문</th><th>많이 걸린 검사</th><th>의미 FAIL 질문</th><th>많이 걸린 항목(턴)</th></tr></thead><tbody>{fail_rows}</tbody></table></div>
-    <div class="cmpt rtab"><table><caption>보류는 왜 생겼나 <span>턴 단위 항목 수 — AIONA · GPT · Claude · Gemini</span></caption>
-      <thead><tr><th>사유</th><th>건수</th><th>설명</th></tr></thead><tbody>{hold_rows}</tbody></table></div>
+      <thead><tr><th>모델</th><th>CODE FAIL<br>질문 수</th><th>많이 걸린 검사 (질문 수)</th><th>의미 FAIL<br>질문 수</th><th>많이 걸린 항목 (턴 수)</th></tr></thead><tbody>{fail_rows}</tbody></table></div>
+    <div class="cmpt rtab"><table><caption>보류는 왜 생겼나 <span>턴 단위 항목 수</span></caption>
+      <thead><tr><th>사유</th><th>AIONA</th><th>GPT</th><th>Claude</th><th>Gemini</th><th>설명</th></tr></thead><tbody>{hold_rows}</tbody></table></div>
   </div>
   <div class="cmpt rtab"><table><caption>기준별 FAIL 률 — 많이 틀린 기준 12개 <span>네 모델 턴 단위 판정 합. 의미 기준은 J 묶음 단위로 기록됨(항목 44개 단위 FAIL 률은 다음 평가에서)</span></caption>
     <thead><tr><th>기준</th><th>판정 수</th><th>FAIL (률)</th><th>모델별 FAIL</th></tr></thead><tbody>{cf_rows}</tbody></table>
@@ -625,9 +691,9 @@ s8 = f"""
   <div class="concl"><span class="concl-tag">결정</span>
     <h3>정밀 326 (순위·FAIL 전부) / 최소 78 (기준마다 10번↑, FAIL 조합 80%) / 커버 점검 7</h3>
     <div class="concl-cols">
-      <div><b class="keep">왜 326 인가</b><ul><li>GPT 와 AIONA(차이 7.4pp) 순서를 95% 로 가르려면 <b>250개 이상</b> 필요 → 326 은 여유 포함(99%)</li><li>기준마다 10번 이상 → 기준별 FAIL 분석 가능</li><li>Claude·Gemini(차이 3.4pp)는 326 으로도 못 가름(약 1,100개) → "같은 수준"으로 보고</li></ul></div>
-      <div><b class="fix">왜 78 인가</b><ul><li>1번↑(7개)·3번↑(21개)는 FAIL 조합을 24~49%만 봄. 10번↑에서 <b>80%</b>, 20번↑(155개)에서 87% — 78 이후는 늘어나는 폭이 작음</li><li>기준마다 10번은 기준별 FAIL 을 셀 수 있는 최소</li><li>78 은 결과값 — 새 세트에서는 75~85개쯤. 규칙(10번↑)을 고정</li></ul></div>
-      <div><b class="wait">왜 규칙을 바꿨나</b><ul><li>이전 "기준 많은 순"은 이미 채운 기준까지 세어 10턴 대화를 연달아 골랐다(새 기준 4·1·1·1개) → 같은 목표에 110개</li><li>표준 탐욕은 세트 6개 × 목표 5개 모두에서 더 적었고 이론상 최소에 평균 5% 차이(팀원 검산)</li></ul></div>
+      <div><b class="keep">왜 326 인가</b><ul><li>GPT 와 AIONA 는 통과율 차이가 <b>7.4pp</b>. 이 순서를 95% 확률로 맞히려면 <b>250개</b>가 필요합니다.</li><li>326 이면 99%. 기준마다 10번 이상이라 기준별 FAIL 도 셀 수 있습니다.</li><li>Claude·Gemini 는 차이 3.4pp — 326 으로도 못 가릅니다. "같은 수준"으로 보고합니다.</li></ul></div>
+      <div><b class="fix">왜 78 인가</b><ul><li>7개·21개는 전체 FAIL 조합의 24~49%만 보입니다.</li><li><b>78개(기준마다 10번)에서 80%</b>. 155개로 늘려도 87% — 그 뒤는 늘어나는 폭이 작습니다.</li><li>78 은 이 세트의 결과값입니다. 새 세트에서는 75~85개쯤 — 규칙(10번↑)을 고정합니다.</li></ul></div>
+      <div><b class="wait">왜 규칙을 바꿨나</b><ul><li>이전 규칙(기준 많은 순)은 이미 채운 기준까지 세어 10턴 대화만 연달아 골랐습니다 → 같은 목표에 110개.</li><li>바꾼 규칙(덜 채운 기준을 가장 많이 채우는 질문부터)은 세트 6개 × 목표 5개 모두에서 더 적었습니다 (팀원 검산).</li></ul></div>
     </div></div>
   <figure class="fig">
     <div class="fig-head"><h3>시험 결과</h3>

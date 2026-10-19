@@ -516,6 +516,38 @@ svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } 
 .rtab table { min-width: 640px; } .rtab td.exq { white-space: normal; font-family: var(--font-body); } .rtab td.num { color: var(--ink); }
 .rtab tr.tot th, .rtab tr.tot td { background: var(--accent-soft); font-weight: 700; } .rtab tr.pick th, .rtab tr.pick td { background: var(--ok-soft); }
 .rtab code { font-family: var(--font-num); font-size: 0.8rem; }
+/* v3 가독성: 표는 본문체, 숫자만 고정폭 · 칩 · 용어 줄 · 예시 블록 */
+.cmpt table, .ktab table, .rtab table { font-size: 0.95rem; }
+.cmpt td, .rtab td, .ktab td { font-family: var(--font-body); white-space: normal; color: var(--ink); line-height: 1.5; }
+.cmpt td.num, .rtab td.num, .ktab td, .ktab td.d, .cmpt td .n { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmpt th, .cmpt td, .rtab th, .rtab td { padding: 12px 16px; vertical-align: top; }
+.cmpt thead th { font-size: 0.84rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips span { font-size: 0.82rem; padding: 2px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); white-space: nowrap; }
+.chips span b { font-family: var(--font-num); color: var(--risk); margin-left: 4px; }
+.terms { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.9rem; color: var(--muted); padding: 12px 16px; border: 1px dashed var(--line); border-radius: 10px; }
+.terms span b { color: var(--ink); margin-right: 4px; }
+.gist { font-size: 1rem; line-height: 1.6; }
+.concl-cols ul { font-size: 0.95rem; gap: 6px; } .concl-cols li { line-height: 1.55; }
+.exq-block { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 0.95rem; }
+.exq-block .lab { font-size: 0.8rem; font-weight: 700; color: var(--accent); padding-top: 3px; }
+.exq-block .q { line-height: 1.7; }
+.exq-block ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 5px; }
+.exq-block li code { font-family: var(--font-num); font-size: 0.82rem; color: var(--accent); }
+.exq-block .ans { color: var(--muted); font-style: normal; }
+.card-body p { font-size: 0.95rem; line-height: 1.6; }
+.note p, .defbox p { line-height: 1.6; }
+@media (max-width: 640px) { .exq-block { grid-template-columns: 1fr; } }
+/* 가로 스크롤 없이 다 보이게 (사용자 요청 10-19) — 최소 너비 제거, 표 칸은 줄바꿈, 차트는 폭에 맞춰 축소 */
+.cmpt, .rtab, .ktab, .chart-scroll, .qtable, .effect { overflow-x: visible; }
+.cmpt table, .ktab table, .rtab table, .ctab table, .ttable, .qtable table, .effect table { min-width: 0; width: 100%; table-layout: auto; }
+svg.chart { min-width: 0; }
+.cmpt th, .cmpt td { white-space: normal; }
+.cmpt td.num, .ktab td { white-space: nowrap; }
+.ctab th[scope="row"] { white-space: normal; }
+.ctab table { font-size: 0.84rem; } .ctab th, .ctab td { padding: 8px 10px; }
+.ktab th, .ktab td { padding: 8px 10px; }
+.fs-row { grid-template-columns: 150px minmax(0, 1fr) 230px; } .fs-row .val { white-space: normal; }
 .gradwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; justify-content: center; }
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .defbox { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
@@ -557,6 +589,14 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
       <p><b>정밀 326</b>: 순위·FAIL 전부. <b>최소 78</b>: 덜 채운 기준을 가장 많이 채우는 질문부터 골라 기준마다 10번 이상 — FAIL 조합의 <b>80%</b>를 보고 순위도 같음.</p></div>
     <div class="key alert"><span class="lab">비용 (이틀, 단가표 추정)</span><span class="big">≈ $160</span>
       <p>OpenAI 약 $88(의미 평가가 대부분) · Anthropic 약 $59(Claude 답변 수집) · Google 약 $14. 토큰 약 2억 7천만.</p></div>
+  </div>
+  <div class="terms">
+    <span><b>k</b> 질문 하나에 걸리는 기준 수 (6~10 이 목표)</span>
+    <span><b>갈림</b> 같은 질문에 모델들의 PASS/FAIL 이 서로 다름</span>
+    <span><b>보류</b> 확인 못 해 사람이 PASS/FAIL 을 정할 판정</span>
+    <span><b>기준 72 / 64</b> 전체 72개 중 질문 조건으로 걸리는 64개</span>
+    <span><b>정밀 / 최소</b> 326개 전부 / 그중 골라낸 78개</span>
+    <span><b>N / 326</b> 모델마다 질문 326개 기준, 대화 1개 = 1개</span>
   </div>
   <ol class="toc"><li><a href="#s1"><span class="n">01</span><strong>평가기 흐름</strong><span class="d">질문 생성부터 결과까지 한 그림</span></a></li><li><a href="#s2"><span class="n">02</span><strong>질문생성 프롬프트</strong><span class="d">구조와 원문 전체</span></a></li><li><a href="#s3"><span class="n">03</span><strong>k 범위 근거</strong><span class="d">왜 6~10인가 — 통제 실험</span></a></li><li><a href="#s4"><span class="n">04</span><strong>평가 기준 72개</strong><span class="d">CODE 28 + 의미 44</span></a></li><li><a href="#s5"><span class="n">05</span><strong>평가 프롬프트</strong><span class="d">심판에게 무엇을 보내나</span></a></li><li><a href="#s6"><span class="n">06</span><strong>결과</strong><span class="d">네 모델 326개 · 어디서 틀렸나</span></a></li><li><a href="#s7"><span class="n">07</span><strong>최소 78 vs 정밀 326</strong><span class="d">같은 판정으로 비교</span></a></li><li><a href="#s8"><span class="n">08</span><strong>질문 수 근거</strong><span class="d">왜 78 / 왜 326</span></a></li><li><a href="#s9"><span class="n">09</span><strong>비용·토큰</strong><span class="d">단계 × 모델</span></a></li></ol>
 </section>
@@ -1133,23 +1173,8 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
     <div><span class="k">두 심판</span><b>같은 입력</b><span>Luna 는 J1~J8, Jev 는 J1~J4. Jev 가 받을 수 없는 긴 입력(96턴)은 Luna 만 판정.</span></div>
   </div>
   <div class="block"><h3>예시 1 — 단일 질문 Q36 (사실 확인 + 형식 조건)</h3>
-    <p class="lead">심판에게 가는 글의 핵심 부분입니다. 앞에 붙는 원칙·판정 방법·출력 형식은 326개가 모두 같아 접어 두었습니다.</p>
-    <pre class="show"># 질문
-[질문]
-해수면 기준 순수한 물의 끓는점이 몇 도인지 사실을 확인해줘. 정확히 2개의 소제목으로 나누고, 사실 주장에는 [1] 형식의 출처 번호를 달아 끝에 [1] 출처 줄을 적어줘. 핵심 설명에는 [^boiling] 형식으로 각주를 달고 답변 끝에 해당 각주 정의도 써줘. 실제로 확인하지 않은 자료를 조회했다고 말하지 마. 초등학생도 이해할 수 있는 쉬운 말로 설명해줘. 존댓말로 답해줘. 물이 끓는 현상은 일상적인 비유를 들어 설명해줘. 섭씨와 화씨로 나타낸 끓는점을 수치와 단위 변환 관계를 기준으로 비교해줘.
-
-[CODE 조건] (프로그램이 판정 — 참고만)
-- 2-2.heading 제목 존재·개수 · 제목 개수 · op===, n=2 · 질문 근거: &quot;정확히 2개의 소제목&quot;
-
-[이 질문의 점검 항목] (이 항목만 판정)
-- J1-1.a · 질문의 주 요청에 대해, 요청한 작업의 최종 결과물(비교 결과·추천·완성된 글·최종 값)을 제시했는가 (나머지 요청의 누락은 J4-2) (적용: 모든 질문. 단 J1-2.a가 아니오이거나 J1-3이 적용되면 해당 없음)
-- J1-2.a · 결과물 대신 거절·&quot;모른다&quot;·전문가 문의로 대신하지 않았는가 (결과물을 낸 뒤 덧붙인 권유는 무관. 첨부파일을 열 수 없다고 밝힌 것은 J8-3) (적용: J1-3이 적용되지 않는 모든 질문)
-- J1-3.a · 서로 모순되는 조건이나 빠진 자료가 있음을 밝혔는가 (적용: 질문에 서로 모순되는 조건이나 빠진 자료가 있는 경우 (평가 모델이 판정하고 모순 지점을 질문에서 인용))
-- J1-3.b · 가능한 범위의 결과, 확인 질문, 필요한 자료 요청 중 하나를 제시했는가 (적용: 위와 같음)
-- … (이 질문의 점검 항목은 모두 16개)
-
-[답변]
-{{ANSWER}}</pre>
+    <p class="lead">심판에게 가는 글의 핵심만 블록으로 보였습니다. 앞에 붙는 원칙·판정 방법·출력 형식은 326개가 모두 같아 접어 두었습니다.</p>
+    <div class="exq-block"><span class="lab">질문</span><div class="q">해수면 기준 순수한 물의 끓는점이 몇 도인지 사실을 확인해줘. 정확히 2개의 소제목으로 나누고, 사실 주장에는 [1] 형식의 출처 번호를 달아 끝에 [1] 출처 줄을 적어줘. 핵심 설명에는 [^boiling] 형식으로 각주를 달고 답변 끝에 해당 각주 정의도 써줘. 실제로 확인하지 않은 자료를 조회했다고 말하지 마. 초등학생도 이해할 수 있는 쉬운 말로 설명해줘. 존댓말로 답해줘. 물이 끓는 현상은 일상적인 비유를 들어 설명해줘. 섭씨와 화씨로 나타낸 끓는점을 수치와 단위 변환 관계를 기준으로 비교해줘.</div><span class="lab">CODE 조건</span><div><ul><li><code>2-2.heading 제목 존재·개수</code> 제목 개수 · op===, n=2 · 질문 근거: &quot;정확히 2개의 소제목&quot;</li></ul><p class="muted" style="font-size:.84rem;margin-top:4px">프로그램이 판정 — 심판에게는 참고만</p></div><span class="lab">점검 항목 16개</span><div><ul><li><code>J1-1.a</code> 질문의 주 요청에 대해, 요청한 작업의 최종 결과물(비교 결과·추천·완성된 글·최종 값)을 제시했는가 (나머지 요청의 누락은 J4-2)</li><li><code>J1-2.a</code> 결과물 대신 거절·&quot;모른다&quot;·전문가 문의로 대신하지 않았는가 (결과물을 낸 뒤 덧붙인 권유는 무관. 첨부파일을 열 수 없다고 밝힌 것은 J8-3)</li><li><code>J1-3.a</code> 서로 모순되는 조건이나 빠진 자료가 있음을 밝혔는가</li><li><code>J1-3.b</code> 가능한 범위의 결과, 확인 질문, 필요한 자료 요청 중 하나를 제시했는가</li><li class="muted">… 나머지 12개</li></ul></div><span class="lab">답변</span><div class="ans">여기에 모델 답변 원문이 들어갑니다 (어느 모델인지는 숨김)</div></div>
     <details class="src"><summary><span>Q36 평가 프롬프트 전문 <span class=muted>— 원칙 · 판정 방법 · 출력 형식 포함</span></span><span class="muted">2,813자</span></summary><pre>당신은 한국어 AI 답변 품질 평가의 의미 평가 심판입니다. 아래 [질문]에 대한 [답변]을 [이 질문의 점검 항목]마다 판정합니다.
 
 # 지켜야 할 원칙
@@ -1248,7 +1273,7 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
 
 <section class="slide" id="s6">
   <div class="s-head"><span class="s-no">06 / 09</span><h2>결과 — GPT-6 58% · AIONA 51% · Claude 40% · Gemini 37%</h2><p>326개를 만들어 네 모델 답을 받고 끝까지 평가했습니다(실행 8c61f117e661). 질문 단위, 보류는 분모에 둡니다. 판정이 끝나지 않은 턴은 제한 시간·출력 한도를 올려 다시 평가해 0개로 만들었습니다.</p></div>
-  <ul class="gist"><li><b>PASS / 326</b> — GPT-6 190 · AIONA 166 · Claude 131 · Gemini 120. 보류(사람이 정할 것) 59~83개.</li><li>FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴 맥락</b>에 몰려 있습니다.</li><li>한 번도 FAIL 이 안 난 기준 8개는 대부분 깨진 출력을 잡는 안전망 검사 — 느슨한 기준은 아닙니다(아래 표).</li></ul>
+  <ul class="gist"><li><b>PASS / 326</b> — GPT-6 190 · AIONA 166 · Claude 131 · Gemini 120. 보류(사람이 정할 것) 59~83개.</li><li>FAIL 은 CODE 에서는 <b>문장 수·자료 변환</b>, 의미에서는 <b>J5 사실 확인·J6 멀티턴</b>에 몰려 있습니다.</li><li>한 번도 FAIL 이 안 난 기준 8개는 깨진 출력을 잡는 안전망 검사 — 느슨해서가 아닙니다 (장 끝 표).</li></ul>
   <div class="three">
     <div class="card"><div class="card-head"><b>① 질문 생성</b><span>10-18 · GPT-6 Luna 67회 호출</span></div><div class="card-body">
       <p>326개 = 단일 284 · 대화 32(10턴 15 · 11턴 1 · 2턴 16) · 긴 문서 10 (487턴). 첨부 28개.</p>
@@ -1263,11 +1288,11 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
   <div class="card"><div class="card-head"><b>모델별 PASS · FAIL · 보류 / 326</b><span>CODE 28 + 의미 44 (Jev + GPT-6 Luna 병행) · 보류 = 확인 못 한 것이 있어 사람이 정할 질문</span></div>
     <div class="card-body"><div class="fs-row"><span class="who"><i style="background:var(--m-gpt)"></i>GPT-6 Luna</span><div class="fs-track"><span class="p" style="width:58.3%" title="PASS 190"></span><span class="f2" style="width:23.6%" title="FAIL 77"></span><span class="h" style="width:18.1%" title="보류 59"></span></div><span class="val"><b>190</b> · 77 · 59 <span class="muted">/ 326 (58.3%)</span></span></div><div class="fs-row"><span class="who"><i style="background:var(--m-aiona)"></i>AIONA</span><div class="fs-track"><span class="p" style="width:50.9%" title="PASS 166"></span><span class="f2" style="width:25.8%" title="FAIL 84"></span><span class="h" style="width:23.3%" title="보류 76"></span></div><span class="val"><b>166</b> · 84 · 76 <span class="muted">/ 326 (50.9%)</span></span></div><div class="fs-row"><span class="who"><i style="background:var(--m-claude)"></i>Claude Sonnet 5.5</span><div class="fs-track"><span class="p" style="width:40.2%" title="PASS 131"></span><span class="f2" style="width:34.4%" title="FAIL 112"></span><span class="h" style="width:25.5%" title="보류 83"></span></div><span class="val"><b>131</b> · 112 · 83 <span class="muted">/ 326 (40.2%)</span></span></div><div class="fs-row"><span class="who"><i style="background:var(--m-gemini)"></i>Gemini 3.6 Flash</span><div class="fs-track"><span class="p" style="width:36.8%" title="PASS 120"></span><span class="f2" style="width:38.0%" title="FAIL 124"></span><span class="h" style="width:25.2%" title="보류 82"></span></div><span class="val"><b>120</b> · 124 · 82 <span class="muted">/ 326 (36.8%)</span></span></div>
       <div class="fs-legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL (기준 하나라도)</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div></div>
-  <div class="two">
+  <div class="block">
     <div class="cmpt rtab"><table><caption>어디서 틀렸나 <span>FAIL 이 하나라도 있는 질문 수와 많이 걸린 기준</span></caption>
-      <thead><tr><th>모델</th><th>CODE FAIL 질문</th><th>많이 걸린 검사</th><th>의미 FAIL 질문</th><th>많이 걸린 항목(턴)</th></tr></thead><tbody><tr><th scope="row">GPT-6 Luna</th><td class="num">55</td><td class="exq">문장 수 11 · 자료 변환 11 · 소제목 7 · JSON 구조 7</td><td class="num">29</td><td class="exq">J5 29 · J6 16 · J4 5 · J7 3</td></tr><tr><th scope="row">AIONA</th><td class="num">73</td><td class="exq">문장 수 16 · 자료 변환 10 · 닫는 태그 9 · 빈 응답 7</td><td class="num">27</td><td class="exq">J6 20 · J5 15 · J2 8 · J1 5</td></tr><tr><th scope="row">Claude Sonnet 5.5</th><td class="num">68</td><td class="exq">문장 수 23 · 자료 변환 12 · 글자 수 8 · 질문 계산 5</td><td class="num">55</td><td class="exq">J5 52 · J6 27 · J2 14 · J3 10</td></tr><tr><th scope="row">Gemini 3.6 Flash</th><td class="num">80</td><td class="exq">문장 수 20 · 자료 변환 13 · 소제목 13 · 목록 7</td><td class="num">57</td><td class="exq">J5 79 · J6 78 · J2 37 · J3 17</td></tr></tbody></table></div>
-    <div class="cmpt rtab"><table><caption>보류는 왜 생겼나 <span>턴 단위 항목 수 — AIONA · GPT · Claude · Gemini</span></caption>
-      <thead><tr><th>사유</th><th>건수</th><th>설명</th></tr></thead><tbody><tr><th scope="row">J5 — Luna 가 옮겨 적은 주장이 답변 원문과 안 맞음</th><td class="num">67 · 18 · 14 · 7</td><td class="exq">답변 &#x27;우천 안내&#x27; 를 &#x27;날씨 안내&#x27; 로 적는 식. 문장은 답변에 있음 → 대조 규칙 보강 대상</td></tr><tr><th scope="row">J5 — 웹 출처 원문을 확인하지 못함</th><td class="num">60 · 8 · 5 · 11</td><td class="exq">검색은 했지만 원문을 열지 못했거나 인용문을 찾지 못함</td></tr><tr><th scope="row">J6 — 멀티턴 맥락 유지 근거 부족</th><td class="num">26 · 15 · 7 · 9</td><td class="exq">앞 턴 조건을 지켰는지 확정할 근거가 모자람</td></tr><tr><th scope="row">J1~J4 — 두 심판이 갈리고 재판정도 다름</th><td class="num">모델마다 3~16</td><td class="exq">설계한 보류(경계 사례)</td></tr><tr><th scope="row">빈 출력 요구 질문</th><td class="num">질문 10개 전체</td><td class="exq">&#x27;아무것도 출력하지 마&#x27; 류 — 우선 보류(AIONA 오류 화면 8개 포함)</td></tr></tbody></table></div>
+      <thead><tr><th>모델</th><th>CODE FAIL<br>질문 수</th><th>많이 걸린 검사 (질문 수)</th><th>의미 FAIL<br>질문 수</th><th>많이 걸린 항목 (턴 수)</th></tr></thead><tbody><tr><th scope="row">GPT-6 Luna</th><td class="num">55</td><td><div class="chips"><span>문장 수<b>11</b></span><span>자료 변환<b>11</b></span><span>소제목<b>7</b></span><span>JSON 구조<b>7</b></span></div></td><td class="num">29</td><td><div class="chips"><span>J5 사실<b>29</b></span><span>J6 멀티턴<b>16</b></span><span>J4 완결<b>5</b></span><span>J7 긴 문서<b>3</b></span></div></td></tr><tr><th scope="row">AIONA</th><td class="num">73</td><td><div class="chips"><span>문장 수<b>16</b></span><span>자료 변환<b>10</b></span><span>닫는 태그<b>9</b></span><span>빈 응답<b>7</b></span></div></td><td class="num">27</td><td><div class="chips"><span>J6 멀티턴<b>20</b></span><span>J5 사실<b>15</b></span><span>J2 맥락<b>8</b></span><span>J1 의도<b>5</b></span></div></td></tr><tr><th scope="row">Claude Sonnet 5.5</th><td class="num">68</td><td><div class="chips"><span>문장 수<b>23</b></span><span>자료 변환<b>12</b></span><span>글자 수<b>8</b></span><span>질문 계산<b>5</b></span></div></td><td class="num">55</td><td><div class="chips"><span>J5 사실<b>52</b></span><span>J6 멀티턴<b>27</b></span><span>J2 맥락<b>14</b></span><span>J3 논리<b>10</b></span></div></td></tr><tr><th scope="row">Gemini 3.6 Flash</th><td class="num">80</td><td><div class="chips"><span>문장 수<b>20</b></span><span>자료 변환<b>13</b></span><span>소제목<b>13</b></span><span>목록<b>7</b></span></div></td><td class="num">57</td><td><div class="chips"><span>J5 사실<b>79</b></span><span>J6 멀티턴<b>78</b></span><span>J2 맥락<b>37</b></span><span>J3 논리<b>17</b></span></div></td></tr></tbody></table></div>
+    <div class="cmpt rtab"><table><caption>보류는 왜 생겼나 <span>턴 단위 항목 수</span></caption>
+      <thead><tr><th>사유</th><th>AIONA</th><th>GPT</th><th>Claude</th><th>Gemini</th><th>설명</th></tr></thead><tbody><tr><th scope="row">J5 심판이 옮겨 적은 문장이 답변과 안 맞음</th><td class="num">67</td><td class="num">18</td><td class="num">14</td><td class="num">7</td><td>&#x27;우천 안내&#x27; 를 &#x27;날씨 안내&#x27; 로 적는 식 — 대조 규칙 보강 대상</td></tr><tr><th scope="row">J5 웹 출처 원문을 못 열음</th><td class="num">60</td><td class="num">8</td><td class="num">5</td><td class="num">11</td><td>검색은 했으나 원문·인용문 확인 실패</td></tr><tr><th scope="row">J6 멀티턴 근거 부족</th><td class="num">26</td><td class="num">15</td><td class="num">7</td><td class="num">9</td><td>앞 턴 조건을 지켰는지 확정 못 함</td></tr><tr><th scope="row">J1~J4 두 심판이 갈림</th><td class="num">3~16</td><td class="num"></td><td class="num"></td><td class="num"></td><td>재판정도 달라 보류 — 설계한 경우</td></tr><tr><th scope="row">빈 출력 요구 질문</th><td class="num">10</td><td class="num"></td><td class="num"></td><td class="num"></td><td>질문 10개 전체 보류 (AIONA 오류 화면 8 포함)</td></tr></tbody></table></div>
   </div>
   <div class="cmpt rtab"><table><caption>기준별 FAIL 률 — 많이 틀린 기준 12개 <span>네 모델 턴 단위 판정 합. 의미 기준은 J 묶음 단위로 기록됨(항목 44개 단위 FAIL 률은 다음 평가에서)</span></caption>
     <thead><tr><th>기준</th><th>판정 수</th><th>FAIL (률)</th><th>모델별 FAIL</th></tr></thead><tbody><tr><th scope="row"><code>3-3.transform</code> 원본 보존·변환</th><td class="num">92</td><td class="num"><b>46</b> (50%)</td><td class="exq">aiona 10 · gpt 11 · claude 12 · gemini 13</td></tr><tr><th scope="row"><code>2-1.count</code> 불릿·항목·문장·문단·줄·어절 수</th><td class="num">225</td><td class="num"><b>84</b> (37%)</td><td class="exq">aiona 19 · gpt 13 · claude 28 · gemini 24</td></tr><tr><th scope="row"><code>J6</code> 멀티턴 맥락 유지</th><td class="num">580</td><td class="num"><b>141</b> (24%)</td><td class="exq">aiona 20 · gpt 16 · claude 27 · gemini 78</td></tr><tr><th scope="row"><code>J7</code> 롱컨텍스트</th><td class="num">40</td><td class="num"><b>9</b> (22%)</td><td class="exq">aiona 4 · gpt 3 · claude 1 · gemini 1</td></tr><tr><th scope="row"><code>3-1.question_calculation</code> 질문이 요구한 계산값</th><td class="num">88</td><td class="num"><b>18</b> (20%)</td><td class="exq">aiona 5 · gpt 4 · claude 5 · gemini 4</td></tr><tr><th scope="row"><code>2-1.explicit_empty</code> 명시 빈 출력</th><td class="num">32</td><td class="num"><b>5</b> (16%)</td><td class="exq">aiona 2 · gpt 1 · claude 1 · gemini 1</td></tr><tr><th scope="row"><code>3-3.aggregate</code> 명시 집계값</th><td class="num">28</td><td class="num"><b>4</b> (14%)</td><td class="exq">aiona 1 · gpt 2 · claude 1</td></tr><tr><th scope="row"><code>2-2.heading</code> 제목 존재·개수</th><td class="num">169</td><td class="num"><b>24</b> (14%)</td><td class="exq">aiona 2 · gpt 7 · claude 2 · gemini 13</td></tr><tr><th scope="row"><code>J5</code> DATA 신뢰도</th><td class="num">1,940</td><td class="num"><b>175</b> (9%)</td><td class="exq">aiona 15 · gpt 29 · claude 52 · gemini 79</td></tr><tr><th scope="row"><code>2-1.char_count</code> 글자 수</th><td class="num">212</td><td class="num"><b>14</b> (7%)</td><td class="exq">aiona 3 · gpt 3 · claude 8</td></tr><tr><th scope="row"><code>1-2.code_block</code> 코드블록 존재·개수·금지</th><td class="num">188</td><td class="num"><b>12</b> (6%)</td><td class="exq">aiona 2 · gpt 2 · claude 3 · gemini 5</td></tr><tr><th scope="row"><code>2-2.list</code> 목록 사용·금지</th><td class="num">192</td><td class="num"><b>12</b> (6%)</td><td class="exq">aiona 4 · gpt 1 · gemini 7</td></tr></tbody></table>
@@ -1426,9 +1451,9 @@ questions 배열에 정확히 40개를 넣습니다. 40개보다 적거나 많�
   <div class="concl"><span class="concl-tag">결정</span>
     <h3>정밀 326 (순위·FAIL 전부) / 최소 78 (기준마다 10번↑, FAIL 조합 80%) / 커버 점검 7</h3>
     <div class="concl-cols">
-      <div><b class="keep">왜 326 인가</b><ul><li>GPT 와 AIONA(차이 7.4pp) 순서를 95% 로 가르려면 <b>250개 이상</b> 필요 → 326 은 여유 포함(99%)</li><li>기준마다 10번 이상 → 기준별 FAIL 분석 가능</li><li>Claude·Gemini(차이 3.4pp)는 326 으로도 못 가름(약 1,100개) → "같은 수준"으로 보고</li></ul></div>
-      <div><b class="fix">왜 78 인가</b><ul><li>1번↑(7개)·3번↑(21개)는 FAIL 조합을 24~49%만 봄. 10번↑에서 <b>80%</b>, 20번↑(155개)에서 87% — 78 이후는 늘어나는 폭이 작음</li><li>기준마다 10번은 기준별 FAIL 을 셀 수 있는 최소</li><li>78 은 결과값 — 새 세트에서는 75~85개쯤. 규칙(10번↑)을 고정</li></ul></div>
-      <div><b class="wait">왜 규칙을 바꿨나</b><ul><li>이전 "기준 많은 순"은 이미 채운 기준까지 세어 10턴 대화를 연달아 골랐다(새 기준 4·1·1·1개) → 같은 목표에 110개</li><li>표준 탐욕은 세트 6개 × 목표 5개 모두에서 더 적었고 이론상 최소에 평균 5% 차이(팀원 검산)</li></ul></div>
+      <div><b class="keep">왜 326 인가</b><ul><li>GPT 와 AIONA 는 통과율 차이가 <b>7.4pp</b>. 이 순서를 95% 확률로 맞히려면 <b>250개</b>가 필요합니다.</li><li>326 이면 99%. 기준마다 10번 이상이라 기준별 FAIL 도 셀 수 있습니다.</li><li>Claude·Gemini 는 차이 3.4pp — 326 으로도 못 가릅니다. "같은 수준"으로 보고합니다.</li></ul></div>
+      <div><b class="fix">왜 78 인가</b><ul><li>7개·21개는 전체 FAIL 조합의 24~49%만 보입니다.</li><li><b>78개(기준마다 10번)에서 80%</b>. 155개로 늘려도 87% — 그 뒤는 늘어나는 폭이 작습니다.</li><li>78 은 이 세트의 결과값입니다. 새 세트에서는 75~85개쯤 — 규칙(10번↑)을 고정합니다.</li></ul></div>
+      <div><b class="wait">왜 규칙을 바꿨나</b><ul><li>이전 규칙(기준 많은 순)은 이미 채운 기준까지 세어 10턴 대화만 연달아 골랐습니다 → 같은 목표에 110개.</li><li>바꾼 규칙(덜 채운 기준을 가장 많이 채우는 질문부터)은 세트 6개 × 목표 5개 모두에서 더 적었습니다 (팀원 검산).</li></ul></div>
     </div></div>
   <figure class="fig">
     <div class="fig-head"><h3>시험 결과</h3>
