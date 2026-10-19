@@ -446,6 +446,7 @@ details.src { background: var(--surface); border: 1px solid var(--line); border-
 details.src summary { cursor: pointer; padding: 12px 16px; font-weight: 600; font-size: 0.95rem; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
 details.src summary::after { content: "펼치기"; font-size: 0.8rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
 details.src[open] summary::after { content: "접기"; }
+details.src > div { border-top: 1px solid var(--line); }
 details.src pre { margin: 0; border-top: 1px solid var(--line); padding: 14px 16px; max-height: 560px; overflow: auto; font-family: var(--font-num); font-size: 0.78rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; color: var(--ink); background: var(--bg); border-radius: 0 0 10px 10px; }
 pre.show { margin: 0; padding: 14px 16px; font-family: var(--font-num); font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; color: var(--ink); }
 .steps4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -580,40 +581,58 @@ s2 = f"""
 </section>
 """
 
+# B01 예시 — 실험 세트에서 같은 기본 질문의 k 2·8·12 변형 (조건 문장만 다름)
+_exp_groups = json.load(open(ROOT / "참고자료/질문세트_실험300/questions.json", encoding="utf-8"))
+_b01 = {int(x["k_actual"]): x["turns"][0]["question"] for x in _exp_groups if x.get("role") == "변형" and x.get("base_id") == "B01"}
+_memo = _b01[2].split("\n\n", 1)[1].strip()
+_ex = {k: _b01[k].split("\n\n", 1)[0].strip() for k in (2, 8, 12)}
+
 s3 = f"""
 <section class="slide" id="s3">
-  {head("03", "k 범위 6~10 — 세 모델이 갈리는 구간", "같은 질문을 조건 수(k)만 바꿔 세 모델에 던지고 평가했습니다. 기준은 똑같이 적용했으니, 결과 차이는 k 때문입니다.")}
-  {gist("<b>갈림</b> = 같은 질문에 세 모델의 판정(PASS/FAIL)이 서로 같지 않음. 모두 PASS·모두 FAIL 인 질문은 누가 더 나은지 말해 주지 못합니다.",
-        "k 1~5 는 모두 PASS 가 50~80% (너무 쉬움) · <b>k 7~10 은 갈림 38~50% 로 가장 높음</b> · k 12 부터 모두 FAIL 이 70% 넘음 (너무 어려움).",
-        "k 6 은 갈림 33% 로 경계지만 자연스러운 질문을 만들기 쉬워 하한으로, 11 부터 내려가 10 을 상한으로.")}
-  <figure class="fig">
-    <div class="fig-head"><h3>k 별 질문 판정 분포 (세 모델 공통)</h3>
-      <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>세 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림 (변별)</span><span><i style="background:var(--risk);opacity:.6"></i>세 모델 모두 FAIL</span></div></div>
-    <div class="chart-scroll">{k_chart(kexp)}</div>
-  </figure>
-  <figure class="fig">
-    <div class="fig-head"><h3>AIONA 를 넣어도 같은가 — 326 정밀 평가로 다시 그림</h3>
-      <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>네 모델 모두 PASS</span><span><i style="background:var(--accent)"></i>갈림</span><span><i style="background:var(--risk);opacity:.6"></i>네 모델 모두 FAIL</span></div></div>
-    <div class="chart-scroll">{ksplit_chart()}</div>
-  </figure>
-  <div class="two">
-    <div class="cmpt ktab"><table>
-      <caption>k 별 수치 (실험, 세 모델) <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
-      <thead><tr><th>k</th><th>질문 수</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead>
-      <tbody>{k_table_rows}</tbody></table></div>
-    <div class="side-notes">
-      <div class="defbox"><h3>"다 PASS 면 기준이 헐렁한 것 아닌가?"</h3>
-        <p>이 실험에서 다 PASS 는 <b>질문이 쉬워서</b>입니다 — 같은 기준인데 조건이 1~5개면 모델들이 다 지키고, 7~10개로 늘면 FAIL 이 나옵니다. 기준이 바뀐 게 아니라 과제 난이도가 바뀐 것입니다.</p>
-        <p><b>기준 자체가 느슨한지</b>는 따로 봅니다 — 326 평가 전체에서 한 번도 FAIL 이 안 난 기준을 06장 끝에 정리했습니다.</p></div>
-      <div class="note"><h3>결정</h3><p><b>단일 질문은 모두 k 6~10</b>. 범위 밖은 상한 없이 전부 고치거나 다시 만듭니다. 예외는 빈 출력 요구 질문뿐.</p></div>
-      <div class="defbox"><h3>{E(ksplit_title)}</h3>
-        <p>{E(ksplit_lead)}</p>
-        <table class="mini"><thead><tr><th>k</th><th>질문</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead><tbody>{ksplit_rows}</tbody></table>
-        <p class="muted">도구: tools/k_split_from_run.py — 보류 목록(참고자료/보류목록)의 gold 를 채운 뒤 --gold 로 다시 세면 이 표가 갱신됩니다.</p></div>
-      <div class="note"><h3>326 세트 실제 분포</h3><p>단일 294개 = 범위 안 285 + 빈 출력 예외 9, <b>범위 밖 0</b>. k 6: 72 · 7: 80 · 8: 68 · 9: 40 · 10: 25.</p></div>
-      <div class="note warnnote"><h3>한계</h3><p>세 모델 API 답(AIONA 제외)·기본 질문 18개 기준. 확인 못 한 사실(J5)을 FAIL 로 센 값이며, 보류로 세도 구간 모양은 같습니다.</p></div>
+  {head("03", "k 범위 6~10 — 어떻게 시험했고, 왜 이렇게 정했나", "k = 질문 하나에 걸리는 기준 수. 조건 문장을 더할수록 k 가 올라갑니다.")}
+
+  <div class="block"><h3>① 어떻게 시험했나</h3>
+    <div class="steps4">
+      <div><span class="k">1</span><b>기본 질문 18개</b><span>주제·자료가 다른 질문 18개를 고름</span></div>
+      <div><span class="k">2</span><b>조건 수만 바꿔 k 1~16 변형</b><span>같은 질문에 조건 문장을 더하거나 빼서 k 마다 한 개씩 → 255개</span></div>
+      <div><span class="k">3</span><b>세 모델에 던짐</b><span>GPT · Claude · Gemini (10-18). AIONA 는 지금 수집 중</span></div>
+      <div><span class="k">4</span><b>질문마다 판정 분류</b><span>Jev + GPT-6 Luna 평가 → 모델들이 <b>모두 PASS</b> / <b>갈림</b> / <b>모두 FAIL</b></span></div>
+    </div>
+    <div class="exq-block">
+      <span class="lab">같은 메모</span><div class="q muted">{E(_memo)}</div>
+      <span class="lab">k = 2</span><div class="q">{E(_ex[2])}</div>
+      <span class="lab">k = 8</span><div class="q">{E(_ex[8])}</div>
+      <span class="lab">k = 12</span><div class="q">{E(_ex[12])}</div>
     </div>
   </div>
+
+  <div class="block"><h3>② 결과 — k 별로 모델 판정이 어떻게 나뉘나</h3>
+    <figure class="fig">
+      <div class="fig-head"><h3>k 별 질문 판정 분포 (GPT · Claude · Gemini)</h3>
+        <div class="legend"><span><i style="background:var(--ok);opacity:.55"></i>모두 PASS</span><span><i style="background:var(--accent)"></i>갈림 — 모델마다 판정이 다름</span><span><i style="background:var(--risk);opacity:.6"></i>모두 FAIL</span></div></div>
+      <div class="chart-scroll">{k_chart(kexp)}</div>
+    </figure>
+    {gist("<b>k 1~5</b>: 모두 PASS 가 50~80% — 다 맞혀서 모델을 가르지 못함",
+          "<b>k 6~10</b>: 갈림이 33~50% 로 가장 높음 — 모델 차이가 드러남",
+          "<b>k 12 이상</b>: 모두 FAIL 이 70% 넘음 — 다 틀려서 역시 가르지 못함")}
+  </div>
+
+  <div class="concl"><span class="concl-tag">③ 그래서</span>
+    <h3>단일 질문은 모두 k 6~10 으로 만든다</h3>
+    <div class="concl-cols">
+      <div><b class="keep">근거</b><ul><li>갈리는 질문만 "어느 모델이 어디서 틀리나"를 보여 준다</li><li>6 은 갈림 33% 로 경계지만 자연스러운 질문을 만들 수 있어 하한, 11 부터 내려가 10 이 상한</li></ul></div>
+      <div><b class="fix">적용</b><ul><li>범위 밖은 상한 없이 전부 고치거나 다시 만든다 (326 세트: 범위 밖 0)</li><li>예외는 빈 출력 요구 질문뿐 — 조건을 붙이면 모순</li></ul></div>
+      <div><b class="wait">AIONA 확인</b><ul><li>326 평가(k 6~10)에 AIONA 를 넣어 세어도 갈림 36~56% 로 같은 모양</li><li>실험 300개를 AIONA 로 수집 중 → 끝나면 위 그래프를 네 모델로 교체</li></ul></div>
+    </div></div>
+
+  <details class="src"><summary><span>k 별 수치 표 · AIONA 포함 k 6~10 · 한계</span><span class="muted">펼쳐 보기</span></summary>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+      <div class="cmpt ktab"><table><caption>실험 (세 모델) <span>갈림 = 세 모델의 판정이 같지 않은 질문 비율</span></caption>
+        <thead><tr><th>k</th><th>질문 수</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead><tbody>{k_table_rows}</tbody></table></div>
+      <div class="cmpt ktab"><table><caption>{E(ksplit_title)} <span>{E(ksplit_lead)}</span></caption>
+        <thead><tr><th>k</th><th>질문</th><th>모두 PASS</th><th>갈림</th><th>모두 FAIL</th></tr></thead><tbody>{ksplit_rows}</tbody></table></div>
+      <p class="muted">"다 PASS 면 기준이 헐렁한 것 아닌가" — 이 실험에서 다 PASS 는 같은 기준인데 조건이 적어서(질문이 쉬워서)입니다. 기준 자체가 느슨한지는 06장 끝 '기준별 FAIL 률'로 따로 봅니다. 한계: 기본 질문 18개·확인 못 한 사실(J5)을 FAIL 로 센 값이며, 보류로 세도 구간 모양은 같습니다.</p>
+    </div></details>
 </section>
 """
 
