@@ -17,7 +17,7 @@ ORDER = ("gpt", "aiona", "claude", "gemini")
 _gold = ROOT / "참고자료/최소평가" / f"k별_갈림_{RUN}_보류반영.json"
 _base = ROOT / "참고자료/최소평가" / f"k별_갈림_{RUN}.json"
 K = json.load(open(_gold if _gold.exists() else _base, encoding="utf-8"))
-CF = json.load(open(ROOT / "참고자료/최소평가/criterion_fail_rates_326.json", encoding="utf-8"))
+CF = json.load(open(ROOT / "참고자료/최소평가/criterion_fail_rates_8c61f117e661.json", encoding="utf-8"))   # 질문 단위 (tools/criterion_fail_by_question.py)
 FBG = json.load(open(ROOT / "참고자료/최소평가/fail_by_group_min78_vs_full.json", encoding="utf-8"))
 
 
@@ -43,8 +43,9 @@ fbg_rows = "".join(
     f'<tr><th>{E(GROUP_LABEL[g])}</th>' + "".join(
         (f'<td class="num">{FBG[g][m][0]} <span class="muted">/ {FBG[g][m][1]} (최소 78)</span></td>' if m in FBG.get(g, {}) else '<td class="num muted">—</td>') for m in ORDER) + '</tr>'
     for g in GROUP_LABEL)
-cf_rows = "".join(f'<tr><th><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]:,}</td><td class="num"><b>{r["fail"]}</b> ({r["rate"] * 100:.0f}%)</td>'
-                  f'<td>{" · ".join(f"{MODEL_NAME[k].split()[0]} {v}" for k, v in r["by_model"].items() if v)}</td></tr>' for r in [x for x in CF if x["applied"] >= 20 and x["fail"] > 0][:12])
+cf_rows = "".join(f'<tr><th><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]}</td>'
+                  f'<td>{" · ".join(f"{MODEL_NAME[k].split()[0]} {r["by_model"][k]}/{v}" for k, v in r["applied_by_model"].items() if v)}</td>'
+                  f'<td class="num"><b>{r["rate"] * 100:.0f}%</b></td></tr>' for r in [x for x in CF if x["applied"] >= 10 and x["fail"] > 0][:12])
 zero = ", ".join(f'<code>{E(r["id"])}</code>' for r in CF if r["fail"] == 0)
 gold_note = " · <b>보류 정리 반영</b>" if K["gold"] else " · 보류 정리 전"
 
@@ -70,7 +71,7 @@ code {{ font-family: ui-monospace, Menlo, monospace; font-size:0.85rem; color:va
 <div class="card"><h2>정밀 평가 — 326개</h2>{table(K["models"], 326)}</div>
 <div class="card"><h2>최소 평가 — 78개 (정밀에서 골라냄, 기준마다 10번↑)</h2>{table(K["min78"], 78)}<p style="margin-top:8px">같은 판정을 78개만 세었을 때. 어려운 질문 위주라 FAIL 쪽으로 기울지만 순위는 정밀과 같음.</p></div>
 <div class="card"><h2>기준 묶음별 FAIL 질문 수 — 정밀 / 최소 78</h2><table><thead><tr><th>기준 묶음</th>{"".join(f"<th>{E(MODEL_NAME[m])}</th>" for m in ORDER)}</tr></thead><tbody>{fbg_rows}</tbody></table></div>
-<div class="card"><h2>많이 틀린 기준 12개 (네 모델 턴 단위 판정 합)</h2><table><thead><tr><th>기준</th><th>판정 수</th><th>FAIL (률)</th><th>모델별</th></tr></thead><tbody>{cf_rows}</tbody></table>
+<div class="card"><h2>많이 틀린 기준 12개 (질문 단위 — 대화는 어느 턴이든 FAIL 이면 그 질문 FAIL)</h2><table><thead><tr><th>기준</th><th>판정된 질문 (326 중)</th><th>모델별 FAIL 질문 수 / 판정된 질문 수</th><th>FAIL 률 (네 모델 평균)</th></tr></thead><tbody>{cf_rows}</tbody></table>
 <p style="margin-top:8px">한 번도 FAIL 이 안 난 기준: {zero} — 대부분 깨진 출력을 잡는 안전망 검사.</p></div>
 <div class="note">보류 목록(참고자료/보류목록/{RUN}-held.csv)의 gold 를 채운 뒤 <code>tools/k_split_from_run.py {RUN} --gold …</code> 와 이 스크립트를 다시 돌리면 숫자가 갱신됩니다. 전체 발표 자료: 참고자료/발표/ModelGrade_진행보고_2026-10-19.html</div>
 </main></body></html>

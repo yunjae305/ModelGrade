@@ -29,7 +29,7 @@ gradient_svg = re.sub(r'<svg ([^>]*)width="760" height="420"', r'<svg \1viewBox=
 gradient_svg = gradient_svg.replace('<rect width="760" height="420" fill="white"/>', '<rect width="760" height="420" fill="white" rx="8"/>')
 cat = qg.criteria_catalog()
 kexp = json.load(open(ROOT / "참고자료/분석/2026-10-18-질문당기준수/boundary_exp_3models.json", encoding="utf-8"))["results"]["strict"]["by_k"]
-CRIT_FAIL = json.load(open(ROOT / "참고자료/최소평가/criterion_fail_rates_326.json", encoding="utf-8"))
+CRIT_FAIL = json.load(open(ROOT / "참고자료/최소평가/criterion_fail_rates_8c61f117e661.json", encoding="utf-8"))   # tools/criterion_fail_by_question.py — 질문 단위, 모델마다 /326
 FBG = json.load(open(ROOT / "참고자료/최소평가/fail_by_group_min78_vs_full.json", encoding="utf-8"))
 # k 별 갈림(AIONA 포함 네 모델) — tools/k_split_from_run.py 결과. 보류 반영본이 있으면 우선
 _ks_gold = ROOT / "참고자료/최소평가/k별_갈림_8c61f117e661_보류반영.json"
@@ -306,12 +306,14 @@ HOLD = [("J5 심판이 옮겨 적은 문장이 답변과 안 맞음", (67, 18, 1
         ("J1~J4 두 심판이 갈림", ("3~16", "", "", ""), "재판정도 달라 보류 — 설계한 경우"),
         ("빈 출력 요구 질문", ("10", "", "", ""), "질문 10개 전체 보류 (AIONA 오류 화면 8 포함)")]
 hold_rows = "".join(f'<tr><th scope="row">{E(a)}</th>' + "".join(f'<td class="num">{E(str(v))}</td>' for v in b) + f'<td>{E(c)}</td></tr>' for a, b, c in HOLD)
-# 기준별 FAIL 률 — 4 모델 턴 단위 판정 합. 의미 기준은 J 묶음 단위로 기록됨
-CF_TOP = [r for r in CRIT_FAIL if r["applied"] >= 20 and r["fail"] > 0][:12]
-cf_rows = "".join(f'<tr><th scope="row"><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]:,}</td><td class="num"><b>{r["fail"]}</b> ({r["rate"] * 100:.0f}%)</td>'
-                  f'<td class="exq">{" · ".join(f"{k} {v}" for k, v in r["by_model"].items() if v)}</td></tr>' for r in CF_TOP)
+# 기준별 FAIL — 질문 단위(대화 1개 = 1개, 어느 턴이든 FAIL 이면 FAIL), 모델마다 판정된 질문 수 분모, 률은 네 모델 평균
+CF_SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
+CF_TOP = [r for r in CRIT_FAIL if r["applied"] >= 10 and r["fail"] > 0][:12]
+cf_rows = "".join(f'<tr><th scope="row"><code>{E(r["id"])}</code> {E(r["name"])}</th><td class="num">{r["applied"]}</td>'
+                  f'<td class="exq">{" · ".join(f"{CF_SHORT[k]} <b>{r["by_model"][k]}</b>/{v}" for k, v in r["applied_by_model"].items() if v)}</td>'
+                  f'<td class="num"><b>{r["rate"] * 100:.0f}%</b></td></tr>' for r in CF_TOP)
 CF_ZERO = [r for r in CRIT_FAIL if r["fail"] == 0]
-cf_zero_line = " · ".join(f'<code>{E(r["id"])}</code>({r["applied"]:,})' for r in CF_ZERO)
+cf_zero_line = " · ".join(f'<code>{E(r["id"])}</code>({r["applied"]})' for r in CF_ZERO)
 
 # ---------- 07 최소 78 vs 정밀 326 ----------
 MIN78 = {m: (v["PASS"], v["FAIL"], v["HOLD"]) for m, v in (KSPLIT.get("min78") or {"gpt": {"PASS": 34, "FAIL": 23, "HOLD": 21}, "aiona": {"PASS": 31, "FAIL": 25, "HOLD": 22},
@@ -773,9 +775,9 @@ s6 = f"""
     <div class="cmpt rtab"><table><caption>AIONA 보류 예 — 사유마다 하나 (참고자료/보류목록/8c61f117e661-held.csv)</caption>
       <thead><tr><th>사유</th><th>질문</th><th>답변에서 문제가 된 부분</th><th>심판이 남긴 것 → 왜 보류인가</th></tr></thead><tbody>{aiona_hold_rows}</tbody></table></div>
   </div>
-  <div class="cmpt rtab"><table><caption>기준별 FAIL 률 — 많이 틀린 기준 12개</caption>
-    <thead><tr><th>기준</th><th>판정 수</th><th>FAIL (률)</th><th>모델별 FAIL</th></tr></thead><tbody>{cf_rows}</tbody></table>
-    <div class="qnote"><b>한 번도 FAIL 이 안 난 기준 {len(CF_ZERO)}개</b>: {cf_zero_line} — 깨진 출력을 잡는 안전망 검사거나 요구가 쉬워 모두 지킨 것(느슨한 기준 아님).</div></div>
+  <div class="cmpt rtab"><table><caption>기준별 FAIL — 많이 틀린 기준 12개 (질문 단위 — 대화는 어느 턴이든 FAIL 이면 그 질문 FAIL)</caption>
+    <thead><tr><th>기준</th><th>이 기준이 판정된 질문 (326 중)</th><th>모델별 FAIL 질문 수 / 판정된 질문 수</th><th>FAIL 률 (네 모델 평균)</th></tr></thead><tbody>{cf_rows}</tbody></table>
+    <div class="qnote">판정된 질문 = 그 모델에서 이 기준이 PASS 나 FAIL 로 확정된 질문(보류·확인 못 함은 뺌). <b>한 번도 FAIL 이 안 난 기준 {len(CF_ZERO)}개</b>: {cf_zero_line} — 깨진 출력을 잡는 안전망 검사거나 요구가 쉬워 모두 지킨 것(느슨한 기준 아님).</div></div>
 </section>
 """
 
@@ -815,12 +817,6 @@ s7 = f"""
       <p>10번까지는 질문을 늘린 만큼 FAIL 포착이 크게 오르고(61% → 80%), 10을 넘기면 질문은 두 배(78 → 155)인데 7%p 만 더 오릅니다.</p>
       <p>10번은 질문 생성 프롬프트에 있는 값이 아니라 최소 평가 목록을 만들 때 정한 값입니다(도구 옵션, 바꿀 수 있음). 78 은 이번 세트에서 나온 숫자이고, 새 세트에서는 75~85개쯤이 됩니다.</p></div>
   </div>
-  <figure class="fig">
-    <div class="fig-head"><h3>결과 — 정밀 326 과 최소 78 을 같은 판정으로 비교</h3>
-      <div class="legend"><span><i style="background:var(--ok)"></i>PASS</span><span><i style="background:var(--risk);opacity:.75"></i>FAIL</span><span><i style="background:repeating-linear-gradient(135deg,var(--warn) 0 6px,var(--warn-soft) 6px 10px)"></i>보류</span></div></div>
-    <div class="chart-scroll">{cmp_chart()}</div>
-    <p class="muted">최소 78 은 정밀 326 의 부분집합이라 따로 수집·평가하지 않고 같은 판정을 78개만 센 것입니다. 전체 FAIL 조합 87개 중 <b>70개(80%)</b>가 보이고 {"<b>순위도 정밀과 같습니다</b>" if RANK78 == RANK else "<b>순위는 정밀과 다릅니다</b>"}. 어려운 질문 위주라 PASS:FAIL 은 FAIL 쪽으로 기웁니다.</p>
-  </figure>
 </section>
 """
 
@@ -847,12 +843,12 @@ s8 = f"""
       <thead><tr><th>N</th><th>통과율이 흔들리는 폭 (네 모델 중 가장 큰 값)</th><th>10번↑ 평가되는 기준 (64개 중)</th></tr></thead><tbody>{eq_rows}</tbody></table>
       <div class="qnote">기준 수는 N개를 뽑았을 때의 평균.</div></div>
     <div class="concl"><span class="concl-tag">결정</span>
-      <h3>정밀 326</h3>
+      <h3>정밀은 326 — 이유 네 가지</h3>
       <ul>
-        <li><b>통과율</b> — 326개면 흔들리는 폭이 <b>±{eq_at[326]["error_max_pp"]}%p</b>. GPT·AIONA 통과율 차이({GAP12}pp)보다 작아 두 모델의 순서를 믿을 수 있습니다. 200개(±{eq_at[200]["error_max_pp"]}%p)는 차이와 거의 같아 아슬아슬합니다.</li>
-        <li><b>기준</b> — 64개 기준이 모두 10번 이상 평가되는 것은 <b>326 전체일 때뿐</b>입니다(300개만 뽑으면 {eq_at[300]["criteria"]["10"]:.0f}개). 326은 기준마다 10번씩 노려 만든 세트라 전부 씁니다.</li>
-        <li><b>더 늘려도</b> — 250 → 326(76개 더)에 폭은 {eq_at[250]["error_max_pp"] - eq_at[326]["error_max_pp"]:.1f}%p 줄었을 뿐입니다. Claude·Gemini 차이({GAP34}pp)를 가리려면 폭이 그 아래여야 하는데 326개로도 ±{eq_at[326]["error_max_pp"]}%p 라 "같은 수준"으로 보고합니다.</li>
-        <li><b>최소 78</b> — 78개면 ±{eq_at[78]["error_max_pp"]}%p 라 통과율·순위 비교에는 모자랍니다. 최소 78 은 점수 비교용이 아니라 <b>FAIL 분석용</b>입니다(07장).</li>
+        <li><b>순위를 믿으려면 흔들림 폭이 모델 간 차이보다 작아야 합니다.</b> GPT·AIONA 통과율 차이는 {GAP12}%p. 200개면 폭이 ±{eq_at[200]["error_max_pp"]}%p 라 질문을 바꾸면 1·2위가 뒤집힐 수 있고, 326개면 ±{eq_at[326]["error_max_pp"]}%p 라 순서가 유지됩니다.</li>
+        <li><b>기준 64개를 모두 10번 이상 보려면 전부 필요합니다.</b> 326은 기준마다 10번씩 노려 만든 세트라, 300개만 뽑으면 10번이 안 되는 기준이 {64 - round(eq_at[300]["criteria"]["10"])}개 생깁니다.</li>
+        <li><b>더 만들어도 얻는 게 적습니다.</b> 250 → 326(76개 더)에 폭은 {eq_at[250]["error_max_pp"] - eq_at[326]["error_max_pp"]:.1f}%p 줄었을 뿐입니다. Claude·Gemini(차이 {GAP34}%p)를 가르려면 800개가 넘게 필요해, 둘은 "같은 수준"으로 보고합니다.</li>
+        <li><b>최소 78은 다른 용도입니다.</b> 78개면 폭이 ±{eq_at[78]["error_max_pp"]}%p 라 통과율·순위를 말할 수 없습니다. 기준마다 10번씩 FAIL 을 살펴보는 분석용이고, 순위는 326으로 봅니다.</li>
       </ul></div>
   </div>
 </section>
