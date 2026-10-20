@@ -67,24 +67,36 @@ def collection_note(row: Optional[Dict[str, Any]]) -> str:
     return " · ".join(parts)
 
 
+_INVISIBLE = "ᅟᅠㅤﾠ"   # 한글 채움 문자 — 화면에 보이지 않음 (Claude Q31 이 빈 출력 대신 U+115F 하나를 냄, 10-20)
+
+
+def visible(text: str) -> str:
+    """보이는 글자만 — 공백·제어(Cc)·서식(Cf)·한글 채움 문자를 뺀다 (사용자 규칙: 공백으로만 수집되면 빈 답)."""
+    import unicodedata
+    return "".join(ch for ch in text or "" if not (ch.isspace() or unicodedata.category(ch) in ("Cc", "Cf") or ch in _INVISIBLE))
+
+
 def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, Any]], answers: Dict[str, str]) -> Dict[str, Any]:
-    """빈 출력 요구 질문의 판정 상태(empty-output-hold-v4, 사용자 규칙 2026-10-20 — 10-19 의 'PASS' 를 바꿈):
-    - 수집을 시도했고 받은 글이 모두 비었으면(복사 아이콘이 없거나 '응답이 중지되었습니다'·모델 오류로 복사하지 못함) 우선 보류 — 수집 상태·오류를 note 에 명시
-    - 수집을 시도했는데 글을 냈으면 FAIL(2-1 명시 빈 출력 위반) — 심판은 부르지 않는다
-    - 아직 수집을 시도하지 않은 턴이 있으면 답 없음(no_answer, FAIL)"""
+    """빈 출력 요구 질문의 판정 상태(empty-output-hold-v5, 사용자 규칙 2026-10-20 오후 — "빈출력요구질문은 일단 다 보류"):
+    답이 비었든, 글을 냈든, 오류로 못 받았든 모두 보류(held_empty_output) — 심판은 부르지 않고 사람이 정한다.
+    어떤 답이 왔는지(빈 답 · 보이지 않는 글자만 · 글 N자 · 아직 안 받음)와 수집 상태·오류는 reason·note 에 적는다.
+    대화는 빈 출력을 요구한 턴만 본다 — Q266 1턴('상태 확인이라 하면 알려 줘')의 정상 답을 '글을 냄'으로 센 일 (10-20)."""
+    asked = [t for t in turns if asks_empty_output(None, t.get("question"))]
+    if asked:
+        turns = asked
     turn_rows = [rows.get(t["case_id"]) for t in turns]
-    attempted = all(isinstance(r, dict) and ((r.get("collection") or {}).get("method") != "pending") for r in turn_rows)
     note = "; ".join(f"{t['case_id']}: {collection_note(r)}" for t, r in zip(turns, turn_rows))
-    if not attempted:
-        pending = [t["case_id"] for t, r in zip(turns, turn_rows) if not (isinstance(r, dict) and (r.get("collection") or {}).get("method") != "pending")]
-        return {"status": "no_answer", "reason": f"빈 출력 요구 질문인데 아직 받지 않은 턴 {', '.join(pending)} — FAIL 로 셈, 보내지 않음", "collection_note": note}
+    pending = [t["case_id"] for t, r in zip(turns, turn_rows) if not (isinstance(r, dict) and (r.get("collection") or {}).get("method") != "pending")]
     texts = [(answers.get(t["case_id"]) or (r or {}).get("answer") or "") for t, r in zip(turns, turn_rows)]
-    if all(not x.strip() for x in texts):
-        return {"status": "held_empty_output",
-                "reason": "빈 출력 요구 — 복사 아이콘이 없거나 응답이 중지되어 복사할 답이 없음 → 우선 보류 (empty-output-hold-v4, 사용자 규칙 10-20), 보내지 않음",
-                "collection_note": note}
-    longest = max(len(x.strip()) for x in texts)
-    return {"status": "empty_output_fail", "reason": f"빈 출력 요구인데 글을 냄({longest}자) → FAIL (2-1 명시 빈 출력 위반), 보내지 않음", "collection_note": note}
+    if pending:
+        what = f"아직 받지 않은 턴 {', '.join(pending)}"
+    elif all(not visible(x) for x in texts):
+        what = "보이지 않는 글자만 있음(공백으로 봄)" if any(x.strip() for x in texts) else "복사할 답이 없음(빈 답·응답 중지·오류)"
+    else:
+        what = f"글을 냄({max(len(visible(x)) for x in texts)}자)"
+    return {"status": "held_empty_output", "answer_kind": what,
+            "reason": f"빈 출력 요구 — {what} → 보류, 사람이 정함 (empty-output-hold-v5, 사용자 규칙 10-20), 보내지 않음",
+            "collection_note": note}
 
 
 def collected(row: Optional[Dict[str, Any]]) -> bool:

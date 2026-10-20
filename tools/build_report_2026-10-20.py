@@ -354,36 +354,26 @@ parts, A_h, _ = module(y, "A", "질문 세트 — 고정", [
     ("원칙", ["새로 만들지 않음 · 고칠 땐 버전을 올림"]),
 ], "set")
 P += parts
+f1_y = A_y + 10
+parts, f1_h = filenode(f1_y, "질문 세트 파일", ["질문 326 · 간단 78", "지금 v2.2"])
+P += parts
+P.append(file_read(A_y + 30, f1_y + 26))
 y += A_h
 P.append(arrow(CC, y, CC, y + 24))
 y += 26
 
 B_y = y
-parts, B_h, _ = module(y, "B", "질문 해석 — 코드, AI 없음", [
-    ("기준 찾기", ["턴마다 채점할 항목과 근거 문장", "글자 수·형식 같은 CODE 조건"]),
-    ("결과", ["판정상황표 — 답과 무관, 미리 고정"]),
-], "code")
-P += parts
-y += B_h
-f1_y = A_y + 24
-parts, f1_h = filenode(f1_y, "질문 세트 파일", ["질문 326 · 간단 78", "판정상황표"])
-P += parts
-P += [file_read(f1_y + 22), file_write(B_y + 30, f1_y + f1_h - 14)]
-P.append(arrow(CC, y, CC, y + 24))
-y += 26
-
-C_y = y
-parts, C_h, spots = module(y, "C", "답변 수집 — 네 모델 동시", [
+parts, B_h, spots = module(y, "B", "답변 수집 — 네 모델 동시", [
     ("앱", ["ChatGPT · Claude 데스크톱 앱"]),
     ("웹", ["Gemini · AIONA(개발 서버)"]),
-    ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "질문마다 저장 · 받은 질문은 건너뜀"]),
+    ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "첨부는 붙여넣기 · 받은 질문은 건너뜀"]),
 ], "ai")
 P += parts
-parts, _ = aibox(C_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.6 Flash · 보통",
+parts, _ = aibox(B_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.6 Flash · 보통",
                                              "AIONA", "로그인은 사람이 미리"])
 P += parts
 P.append(ai_link(spots[0][0] + spots[0][1] / 2))
-y += C_h
+y += B_h
 
 # 분기 1 — 답을 받았나?
 P.append(arrow(DX, y, DX, y + 22))
@@ -397,17 +387,27 @@ y = cy1 + 30
 P += [arrow(DX, y, DX, y + 24), lab(DX + 7, y + 16, "예")]
 y += 26
 
+C_y = y
+parts, C_h, _ = module(y, "C", "질문·답변 JSON 저장 — 코드", [
+    ("저장", ["질문마다 바로 저장 · 멈춰도 이어서"]),
+    ("내용", ["질문·첨부·답변 원문 · 수집 상태·시간"]),
+], "code")
+P += parts
+y += C_h
+P.append(arrow(CC, y, CC, y + 24))
+y += 26
+
 D_y = y
 parts, D_h, _ = module(y, "D", "CODE 평가 — 28가지 검사, 코드", [
-    ("검사", ["형식·글자 수·계산 등 — 수집 직후 바로"]),
-    ("결과", ["검사마다 PASS·FAIL 과 이유"]),
+    ("검사", ["형식·글자 수·계산 등 — 저장 직후 바로"]),
+    ("결과", ["검사마다 PASS·FAIL 과 이유 (모델당 1~2초)"]),
 ], "code")
 P += parts
 y += D_h
-f2_y = C_y + 70
-parts, f2_h = filenode(f2_y, "실행 기록", ["답변 원문", "CODE 결과"])
+f2_y = C_y + 6
+parts, f2_h = filenode(f2_y, "질문·답변 JSON", ["실행 기록 · 결과 JSON", "CODE 결과도 함께"])
 P += parts
-P += [file_write(f2_y + 22), file_write(D_y + 30, f2_y + f2_h - 14)]
+P += [file_write(C_y + 30, f2_y + 22), file_write(D_y + 30, f2_y + f2_h - 12)]
 
 # 판정 묶음 — 되돌아오는 자리
 P.append(arrow(CC, y, CC, y + 24))
@@ -428,52 +428,34 @@ y = cy2 + 32
 P += [arrow(DX, y, DX, y + 24), lab(DX + 7, y + 16, "아니오")]
 y += 26
 
-# E — 판정 입력 → Jev → (넘길 항목?) → Codex
+# E — 심판 둘이 같은 JSON 을 본다 (판정 v4: 상황을 심판이 찾는다)
 E_y = y
-inner = []
-yb = E_y + 40
-parts, h1 = block(yb, "입력", ["고정 프롬프트 + 질문·첨부·답변", "어느 모델 답인지는 숨김"])
-inner += parts
-yb += h1 + 6
-jev_y = yb
-parts, h2 = block(yb, "Jev", ["J1~J4 를 먼저 판정 (0.5~2초)", "FAIL·애매한 항목만 Codex 로"])
-inner += parts
-yb += h2
-inner.append(arrow(CC, yb, CC, yb + 14))
-yb += 14
-dcy = yb + 30
-inner += diamond(CC, dcy, 180, 60, ["Jev 가 FAIL", "또는 애매?"])
-inner += [lab(CX0 + 20, dcy - 4, "예: 그 항목도"), lab(CX0 + 20, dcy + 13, "Codex 로"),
-          lab(CC + 96, dcy - 4, "아니오: Codex 는"), lab(CC + 96, dcy + 13, "J5~J8 만")]
-yb = dcy + 30
-inner.append(arrow(CC, yb, CC, yb + 14))
-yb += 16
-codex_y = yb
-parts, h3 = block(yb, "Codex", ["J5~J8 + 넘겨받은 항목을 확정", "이유·인용 첨부 · 사실은 웹검색"])
-inner += parts
-yb += h3 + 6
-E_h = yb - E_y + 4
-P += frame(E_y, E_h, "E", "의미 평가 — 심판 둘", "ai") + inner
-parts, _ = aibox(jev_y - 4, "AI · 심판 1 — Jev", ["외부 API (TypeSafe)", "J1~J4 만"])
+parts, E_h, spots = module(y, "E", "의미 평가 — 심판 둘이 같은 JSON 을 봄", [
+    ("입력", ["고정 프롬프트 v4 + 질문·답변 JSON", "판정할 항목은 안 줌 · 모델 이름 숨김"]),
+    ("Codex", ["상황 찾기 → J1~J8 판정 → 결론", "이유·인용 · 빠진 턴은 다시 물음"]),
+    ("Jev", ["J1~J4 를 함께 판정", "턴마다 한 번 · 1~4초"]),
+], "ai")
 P += parts
-parts, _ = aibox(codex_y - 4, "AI · 심판 2 — Codex CLI", ["GPT-6 Luna · 추론 low", "ChatGPT Pro 구독"])
+parts, _ = aibox(spots[1][0] - 1, "AI · 심판 1 — Codex CLI", ["GPT-6 Luna · low · 구독"])
 P += parts
-P += [ai_link(jev_y + h2 / 2), ai_link(codex_y + h3 / 2)]
-parts, f3_h = filenode(E_y + 10, "고정 프롬프트", ["판정 프롬프트 v3", "Jev 질문 묶음"])
+parts, _ = aibox(spots[2][0] - 1, "AI · 심판 2 — Jev", ["외부 API (TypeSafe)"])
 P += parts
-P.append(file_read(E_y + 40))
+P += [ai_link(spots[1][0] + spots[1][1] / 2), ai_link(spots[2][0] + spots[2][1] / 2)]
+parts, f3_h = filenode(E_y + 10, "고정 프롬프트", ["판정 프롬프트 v4", "Jev 질문 묶음 v4"])
+P += parts
+P.append(file_read(E_y + 52, E_y + 36))
 f4_y = E_y + 22 + f3_h
-parts, f4_h = filenode(f4_y, "판정 입력", ["질문마다 한 줄"])
+parts, f4_h = filenode(f4_y, "질문·답변 JSON", ["C 에서 저장한 것", "질문 하나씩"])
 P += parts
-P.append(file_write(f4_y + 30))
+P.append(file_read(spots[0][0] + 30, f4_y + 26))
 y = E_y + E_h
 P.append(arrow(CC, y, CC, y + 24))
 y += 26
 
 F_y = y
-parts, F_h, _ = module(y, "F", "재판정·보류 — 규칙, 코드", [
-    ("확정", ["Codex FAIL → FAIL", "Jev 애매 + Codex PASS → PASS"]),
-    ("보류", ["Jev FAIL + Codex PASS (심판 갈림)", "확인 못 함 · 인용이 원문에 없음"]),
+parts, F_h, _ = module(y, "F", "합치기·보류 — 규칙, 코드", [
+    ("확정", ["Codex FAIL → FAIL", "그 밖에는 Codex 판정대로"]),
+    ("보류", ["Jev FAIL + Codex FAIL 아님 (갈림)", "인용이 원문에 없음 · 판정 없음"]),
 ], "code")
 P += parts
 y += F_h
@@ -578,9 +560,9 @@ legend = ('<div class="pcard"><h4>도형</h4><ul class="p-legend">'
 
 side_cards = (
     mini("누가 하나", ["단계", "누가"], [
-        ["A·B·D·F·G·H", "코드 (정해진 규칙)"],
-        ["C 답변 수집", "답하는 모델 4개 — 앱·웹 자동 조작"],
-        ["E 의미 평가", "심판 2개 — Jev(API) · Codex(구독)"],
+        ["A·C·D·F·G·H", "코드 (정해진 규칙)"],
+        ["B 답변 수집", "답하는 모델 4개 — 앱·웹 자동 조작"],
+        ["E 의미 평가", "심판 2개 — Codex(구독) · Jev(API)"],
         ["보류 정리", "사람"],
     ], "ai")
     + mini("판정 규칙", ["상황", "결과"], [
@@ -588,149 +570,112 @@ side_cards = (
         ["답 복사 실패", HOLD],
         ["빈 답 요구 질문", f"빈 답 {HOLD} · 글 {FAIL}"],
         ["Codex FAIL", FAIL],
-        ["Jev FAIL + Codex PASS", HOLD],
-        ["확인 못 함 · 인용 불일치", HOLD],
+        ["Jev FAIL + Codex FAIL 아님", HOLD],
+        ["인용 불일치 · 판정 없음", HOLD],
     ])
     + legend)
 
 steps_table = table("단계별 요약", ["단계", "하는 일", "누가", "파일"], [
     [step("A", "질문 세트"), "고정된 질문 326개와 그중 78개. 고칠 때만 버전을 올림.", "고정 파일",
      files("questions.json", "질문세트_최소78/ids.json")],
-    [step("B", "질문 해석"), "질문 글에서 채점할 항목·근거를 찾아 표로 고정.", "코드", files("build_judge_situations.py", "판정상황표_v2.json")],
-    [step("C", "답변 수집"), "네 모델에 동시에 묻고 복사 버튼으로 원문을 받음. 질문마다 저장.", "앱·웹 자동 조작",
+    [step("B", "답변 수집"), "네 모델에 동시에 묻고 복사 버튼으로 원문을 받음. 첨부는 붙여넣기.", "앱·웹 자동 조작",
      files("modelgrade.py collect", "uia_chat_app.py", "cdp_chat_web.py")],
+    [step("C", "JSON 저장"), "질문마다 질문·첨부·답변 원문과 수집 상태·시간을 바로 저장. 멈춰도 이어서.", "코드",
+     files("data/comparison_runs/<실행>.json", "참고자료/결과/<실행>_*.json")],
     [step("D", "CODE 평가"), "형식·글자 수·계산 등 28가지를 프로그램이 검사.", "코드", files("code_eval/engine.py")],
-    [step("E", "의미 평가"), "Jev 가 J1~J4 를 먼저 보고, Codex 가 J5~J8 과 넘겨받은 항목을 이유·인용과 함께 확정.",
-     "Jev(API) · Codex(구독)", files("judge_run.py", "judge_prompt_v3.txt")],
-    [step("F", "재판정·보류"), "다시 묻지 않고 규칙으로 확정하거나 보류.", "코드", files("judge_split.py")],
+    [step("E", "의미 평가"), "고정 프롬프트 v4 + 질문·답변 JSON 을 Codex·Jev 에 함께 보냄. Codex 가 상황을 찾고 J1~J8 판정과 결론을, "
+     "Jev 는 J1~J4 를 판정. 지금은 시험 단계(3건).", "Codex(구독) · Jev(API)", files("judge_v4.py", "judge_prompt_v4.txt")],
+    [step("F", "합치기·보류"), "다시 묻지 않고 규칙으로 확정하거나 보류.", "코드", files("judge_v4.py · combine")],
     [step("G", "질문 단위 판정"), f"{FAIL} 하나라도 → {FAIL}, 아니면 보류 하나라도 → {HOLD}, 나머지 {PASS}.", "코드", files("judge_run.py")],
     [step("H", "결과·보류 추출"), "모델별 결과 · 질문별 이유 · 보류 목록을 명령 하나로.", "코드",
      files("modelgrade.py report", "export_results_json.py")],
 ], [13, 45, 18, 24])
 
-# ---------- 02 10-19 → 지금 (체크리스트 t2) ----------
-# 10-19 = 정밀 326 실행 8c61f117e661 의 기록(참고자료/결과/8c61f117e661_정밀326_2026-10-19.json — 턴마다 수집 방법·의미 판정),
-#         10-19 발표, 변경내역 dual-judge-v1. 지금 = 10-20 저장소 코드와 간단 78 실행 ac6507c00276 의 기록.
-# (단계, 이름, 10-19 띠(종류, 짧은 글), 지금 띠(종류, 짧은 글), 10-19 방식, 지금 방식, 바뀐 점(종류, 글))
-SHIFT = [
-    ("0", "질문 생성", ("api", "GPT-6 Luna API"), ("none", "안 함"),
-     "GPT-6 Luna(API)로 생성 · k 맞춤", "안 함 — 세트 고정", ("none", "안 함")),
-    ("A", "질문 세트", ("code", "326 v2.0"), ("code", "326 v2.2"),
-     "326개(v2.0) · 간단 78", "같음 · 문서형 53개만 '본문 글로' 문구 추가(v2.2)", ("same", "거의 그대로")),
-    ("B", "질문 해석", ("code", "평가 때 계산"), ("code", "미리 고정"),
-     "평가할 때마다 코드가 계산", "판정상황표로 미리 고정", ("chg", "고정 파일로")),
-    ("C", "답변 수집", ("api", "API 3 · 웹 1"), ("sub", "앱 2 · 웹 2"),
-     "GPT·Claude·Gemini: API<br>AIONA: 웹(운영 서버)", "ChatGPT·Claude: 데스크톱 앱<br>Gemini·AIONA: 웹(개발 서버)", ("sub", "API → 앱·웹")),
-    ("D", "CODE 평가", ("code", "28가지"), ("code", "28가지"),
-     "28가지 검사", "같음", ("same", "그대로")),
-    ("E", "의미 평가", ("api", "Luna·Jev API"), ("part", "Jev API · Codex 구독"),
-     "Luna(API) J1~J8 + Jev(API) J1~J4 함께<br>턴마다 판정", "Jev(API) J1~J4 먼저 → Codex(구독) 확정<br>질문마다 판정", ("sub", "API → 구독")),
-    ("F", "재판정·보류", ("api", "Luna 재호출"), ("code", "규칙만"),
-     "갈리면 Luna 다시 호출 → 또 갈리면 보류", "다시 부르지 않고 규칙으로", ("chg", "재호출 없음")),
-    ("G", "질문 단위 판정", ("code", "턴 → 질문"), ("code", "질문 단위"),
-     "턴 판정을 모아 질문 1개로", "처음부터 질문 단위 (셈은 같음)", ("same", "셈은 그대로")),
-    ("H", "결과·보류 추출", ("code", "화면·스크립트"), ("code", "명령 하나"),
-     "웹 화면 + 스크립트 따로", "report 명령 하나", ("chg", "명령 하나로")),
-    ("·", "실행 방식", None, None,
-     "웹 화면(서버)", "파이썬 명령 · 20개씩 · 멈춰도 이어서", ("chg", "화면 → 명령")),
+# ---------- 02 바뀐 점 — 기존 → 현재 (사용자 10-20: 간략하게, 기존 → 현재만) ----------
+# 기존 = 10-19 정밀 326 실행 8c61f117e661 의 기록(참고자료/결과/8c61f117e661_정밀326_2026-10-19.json), 현재 = 10-20 저장소 코드와 간단 78 실행 ac6507c00276.
+# (항목, 바뀐 정도(chg·small·same·none), 기존, 현재)
+CHANGES = [
+    ("답변 수집 방법", "chg", "API 3 (GPT·Claude·Gemini) · 웹 1 (AIONA)", "앱 2 (ChatGPT·Claude 데스크톱) · 웹 2 (Gemini·AIONA)"),
+    ("답을 받는 법", "chg", "API 응답 글 그대로", "화면의 복사 버튼으로 원문 — 화면 글은 읽지 않음"),
+    ("질문 세트", "small", "326개 v2.0", "326개 v2.2 — 문서형 53개에 '채팅 본문 글로' 한 문장 (기준·78개 그대로)"),
+    ("질문 생성", "none", "GPT-6 Luna API 로 생성", "안 함 — 세트 고정"),
+    ("심판에게 주는 것", "chg", "질문마다 코드가 조립 (판정할 항목 목록 포함)", "고정 프롬프트 v4 + 질문·답변 JSON — 심판이 상황을 찾음 (03장)"),
+    ("심판", "chg", "GPT-6 Luna API + Jev API", "Codex CLI (ChatGPT 구독) + Jev API"),
+    ("판정 단위", "chg", "턴마다 (모델당 487번)", "질문마다 (모델당 326번)"),
+    ("심판이 갈릴 때", "chg", "Luna 를 다시 불러 재판정 → 또 갈리면 보류", "다시 부르지 않고 보류"),
+    ("빈 출력 요구 질문", "small", "답과 상관없이 보류", "복사할 답이 없으면 보류 · 글을 쓰면 FAIL"),
+    ("실행", "chg", "웹 화면(서버)", "명령 하나 — 메뉴 1 간단 78 · 2 정밀 326"),
+    ("CODE 평가", "same", "28가지 검사", "28가지 검사"),
 ]
+CHANGE_TAG = {"chg": ("t-chg", "바뀜"), "small": ("t-sub", "조금"), "same": ("t-same", "그대로"), "none": ("t-none", "안 함")}
 
 
-def chip(key, name, spec):
-    kind, label = spec
-    return f'<li class="sh-chip {kind}"><b>{E(key)} {E(name)}</b><small>{E(label)}</small></li>'
+def change_rows():
+    out = []
+    for i, (name, kind, before, after) in enumerate(CHANGES):
+        cls, tag = CHANGE_TAG[kind]
+        out.append(f'<li class="chg-row{" first" if i == 0 else ""}"><span class="chg-name">{E(name)}</span>'
+                   f'<span class="chg-old">{E(before)}</span><span class="chg-arrow" aria-hidden="true">→</span>'
+                   f'<span class="chg-new">{E(after)}</span><span class="ch-tag {cls}">{tag}</span></li>')
+    return "".join(out)
 
 
-shift_strip = f"""
-  <div class="shift" role="group" aria-label="단계별 10-19 방식과 지금 방식">
-    <div class="shift-row"><span class="shift-k">10-19</span><ol class="sh-steps">{"".join(chip(k, n, b) for k, n, b, *_r in SHIFT if b)}</ol></div>
-    <div class="shift-row"><span class="shift-k">지금</span><ol class="sh-steps">{"".join(chip(k, n, a) for k, n, _b, a, *_r in SHIFT if a)}</ol></div>
-    <ul class="shift-key"><li><i class="api"></i>API 호출</li><li><i class="part"></i>일부 API</li><li><i class="sub"></i>앱·웹·구독 (사람 계정)</li>
-      <li><i class="code"></i>코드</li><li><i class="none"></i>안 함</li></ul>
-  </div>"""
+change_list = f"""
+  <div class="chg-head" aria-hidden="true"><span>항목</span><span>기존 (10-19)</span><span></span><span>현재 (10-20)</span><span></span></div>
+  <ol class="chg-list">{change_rows()}</ol>"""
 
-glance_table = table("한눈에", ["항목", "10-19", "지금"], [
-    ["API 를 쓰는 곳", "질문 생성 · 답변 수집(3모델) · 심판 2개", "<b>Jev 1개</b> (대체는 다음 과제)"],
-    ["답변 수집", "API 3 · 웹 1", "앱 2 · 웹 2"],
-    ["판정 단위", "턴마다 (모델당 487번)", "질문마다 (모델당 326번)"],
-    ["판정 프롬프트", "질문마다 코드가 조립", "고정 파일 1개 (03장)"],
-    ["실행", "웹 화면(서버)", "파이썬 명령 하나"],
-], [22, 39, 39])
-
-shift_table = table("단계별", ["단계", "10-19", "지금", "바뀐 점"], [
-    [step(k, n), before, after, f'<span class="ch-tag t-{tk}">{E(tl)}</span>'] for k, n, _b, _a, before, after, (tk, tl) in SHIFT
-], [16, 34, 34, 16])
-
-# ---------- 03 판정 프롬프트는 고정 (체크리스트 t7) ----------
-# 판정 때 쓰는 함수(tools/judge_inputs.py · judge_split.py)로 Q36 입력을 다시 만든다 — AI 호출 없음, 빌드 때마다 다시 계산.
+# ---------- 03 평가 프롬프트 — 고정 프롬프트 v4 + 질문·답변 JSON ----------
+# v4 는 심판이 질문을 읽고 상황(판정할 항목)을 직접 찾는다 (사용자 10-20). 숫자는 빌드 때마다 같은 함수로 다시 계산 — AI 호출 없음.
 RESULT_1019 = ROOT / "참고자료" / "결과" / "8c61f117e661_정밀326_2026-10-19.json"
-EXAMPLE_Q36 = ROOT / "참고자료" / "프롬프트" / "예시_판정입력_Q36_AIONA_v3.txt"   # 10-19 09:23 다른 PC 에서 만든 예시 (실행 표식 224fae)
-PROMPT_DOC = ROOT / "참고자료" / "프롬프트" / "판정_프롬프트_v3.md"
-JEV_BUNDLE = ROOT / "참고자료" / "프롬프트" / "jev_questions_v1.json"
+PROMPT_V4 = ROOT / "참고자료" / "프롬프트" / "judge_prompt_v4.txt"
+JEV_V4 = ROOT / "참고자료" / "프롬프트" / "jev_questions_v4.json"
+TIMES = json.loads((ROOT / "참고자료" / "결과" / "시간_요약_ac6507c00276.json").read_text(encoding="utf-8"))
 
 
 def sha16(text_):
     return hashlib.sha256(text_.encode("utf-8")).hexdigest()[:16]
 
 
-def changed_lines(a, b):
-    return [ln for ln in difflib.unified_diff(a.splitlines(), b.splitlines(), lineterm="", n=0)
-            if ln[:1] in "+-" and ln[:3] not in ("+++", "---")]
+def prompt_parts(prompt):
+    """프롬프트를 '# ' 제목으로 나눠 (제목, 글자 수)."""
+    parts, title, buf = [], "머리말 — 할 일 세 가지", []
+    for line in prompt.splitlines(keepends=True):
+        if line.startswith("# "):
+            parts.append((title, len("".join(buf))))
+            title, buf = line[2:].strip(), []
+        buf.append(line)
+    parts.append((title, len("".join(buf))))
+    return parts
 
 
-def prompt_demo(qid=36, mark="224fae", other_mark="7c19e2", flag="J2-3.a"):
-    prompt = ji.PROMPT.read_text(encoding="utf-8")
-    situ_path = ji.DEFAULT_SET / ji.SITUATIONS
-    table_ = {r["case_id"]: r for r in json.loads(situ_path.read_text(encoding="utf-8"))["rows"]}
+def prompt_demo_v4(qid=143):
+    from tools.judge_v4 import question_json
+    prompt = PROMPT_V4.read_text(encoding="utf-8")
     rows = sorted((r for r in flatten(json.loads((ji.DEFAULT_SET / "questions.json").read_text(encoding="utf-8")))
                    if ji._question(r["case_id"]) == qid), key=ji._turn)
-    if len(rows) != 1:
-        raise SystemExit(f"Q{qid} 는 단일 턴 질문이어야 합니다 (턴 {len(rows)}개)")
-    cid = rows[0]["case_id"]
     run = json.loads(RESULT_1019.read_text(encoding="utf-8"))
 
     def answers(provider):
-        return {t["case_id"]: t["answer"] for t in run["providers"][provider]["turns"] if t["question"] == qid}
+        return {t["case_id"]: t["answer"] for t in run["providers"][provider]["turns"] if int(t["question"]) == qid}
 
-    situations = {cid: table_[cid]["case_situations"]}
-    first = ji.question_input(mark, rows, situations, answers("aiona"))
-    second = ji.question_input(mark, rows, situations, answers("aiona"))
-    if other_mark in first:
-        raise SystemExit(f"다른 표식 {other_mark} 이 입력 안에 있습니다 — 다른 표식으로 바꾸세요")
-    other = ji.question_input(other_mark, rows, situations, answers("aiona"))
-    gpt_in = ji.question_input(mark, rows, situations, answers("gpt"))
-    a_lines, g_lines = first.splitlines(), gpt_in.splitlines()
-    same_head = next((i for i, (x, y_) in enumerate(zip(a_lines, g_lines)) if x != y_), min(len(a_lines), len(g_lines)))
-    answer_at = a_lines.index("[답변]") + 1
-    plan = js.split(table_[cid]["items"])
-    flag = flag if flag in plan["jev"] else plan["jev"][0]
+    def text_for(provider):
+        return json.dumps(question_json(qid, rows, answers(provider), {}), ensure_ascii=False, indent=1)
 
-    def codex_text(extra):   # judge_run.run_gpt 와 같은 모양 — 고정 프롬프트 + "[입력]" + 그 심판이 맡은 항목만 남긴 입력
-        situ = {cid: ji.situations_for(table_[cid], plan["gpt"] + extra)}
-        return prompt + "\n[입력]\n" + ji.question_input(mark, rows, situ, answers("aiona"))
-
-    c0, c0b, c1 = codex_text([]), codex_text([]), codex_text([flag])
-    doc = re.search(r"sha256 `([0-9a-f]{16})`", PROMPT_DOC.read_text(encoding="utf-8"))
-    example = EXAMPLE_Q36.read_text(encoding="utf-8")
-    return {
-        "qid": qid, "mark": mark, "flag": flag,
-        "prompt_sha": sha16(prompt), "prompt_chars": len(prompt), "doc_sha": doc.group(1) if doc else None,
-        "first_sha": sha16(first), "second_sha": sha16(second), "input_chars": len(first),
-        "example_same": example.rstrip("\n") == first,
-        "mark_changed": len(changed_lines(first, other)) // 2,
-        "mark_only": all(mark in ln or other_mark in ln for ln in changed_lines(first, other)),
-        "same_head": same_head, "answer_at": answer_at,
-        "no_model_names": not any(n in first or n in gpt_in for n in ("AIONA", "aiona", "GPT-6", "Claude", "Gemini")),
-        "codex_sha": sha16(c0), "codex_sha2": sha16(c0b), "codex_chars": len(c0),
-        "flag_changed": len(changed_lines(c0, c1)),
-        "excerpt": "\n".join(a_lines[:answer_at] + ["(… 답변 원문 …)"] + a_lines[-2:]),
-    }
+    a1, a2, g = text_for("aiona"), text_for("aiona"), text_for("gpt")
+    da, dg = json.loads(a1), json.loads(g)
+    changed = sorted({k for ta, tg in zip(da["턴"], dg["턴"]) for k in ta if ta[k] != tg.get(k)})
+    return {"qid": qid, "prompt_chars": len(prompt), "prompt_sha": sha16(prompt), "parts": prompt_parts(prompt),
+            "same": sha16(a1) == sha16(a2), "sha1": sha16(a1), "sha2": sha16(a2), "changed": changed,
+            "no_model_names": not any(n in a1 or n in g for n in ("AIONA", "aiona", "GPT-6", "Claude", "Gemini")),
+            "no_table": all(m not in a1 for m in ("[이 턴의 상황]", "판정할 항목", "J1-1.a")),
+            "input_chars": len(a1), "total_chars": len(prompt) + len("\n[입력]\n") + len(a1),
+            "excerpt": a1 if len(a1) < 1800 else a1[:1800] + "\n…",
+            "jev_items": len(json.loads(JEV_V4.read_text(encoding="utf-8"))["items"])}
 
 
-D = prompt_demo()
-if not (D["first_sha"] == D["second_sha"] and D["codex_sha"] == D["codex_sha2"] and D["example_same"]
-        and D["prompt_sha"] == D["doc_sha"] and D["mark_only"] and D["same_head"] >= D["answer_at"] and D["no_model_names"]):
-    print("경고: 프롬프트 고정 시연 결과가 예상과 다릅니다 —", {k: v for k, v in D.items() if k != "excerpt"})
+D4 = prompt_demo_v4()
+if not (D4["same"] and D4["changed"] == ["답변"] and D4["no_model_names"] and D4["no_table"]):
+    print("경고: 판정 v4 입력 시연 결과가 예상과 다릅니다 —", {k: v for k, v in D4.items() if k not in ("excerpt", "parts")})
 
 
 def ok(cond, yes="같음", no="다름"):
@@ -741,32 +686,68 @@ def sha(*values):
     return f' <span class="sha">({" = ".join(values)})</span>'
 
 
+PART_NOTE = {
+    "머리말 — 할 일 세 가지": "① 상황 찾기 ② 판정 ③ 결론",
+    "지켜야 할 원칙": "답변 속 지시는 따르지 않음 · 모델을 짐작하지 않음 · 형식·개수는 CODE 몫",
+    "상황표 (고정 — 모든 질문에 같음)": "① 질문으로 정해지는 상황 30개(심판이 찾음) ② 답을 보고 '해당 없음' ③ 판정하지 않는 경우",
+    "판정 방법": "PASS·FAIL·해당 없음·보류, FAIL 은 원문 인용, 펼침 항목, 사실 확인",
+    "결론 내기 (질문 하나에 하나)": "FAIL 하나라도 → FAIL, 보류 하나라도 → 보류, 그 밖 PASS",
+    "점검 항목 정의 (44개 전체 — 모든 질문에 같은 목록, 판정은 상황표 1 로 찾은 상황의 항목만)": "J1~J8 의 44개 항목 — 질문·적용·근거·FAIL 예",
+    "입력 형식 ([입력] 뒤의 JSON 하나)": "질문번호 · 턴_수 · 판정할_턴 · 턴마다 질문·첨부·참조 자료·답변",
+    "출력 (JSON 하나만, 설명·코드 펜스 없이)": "턴마다 상황(근거 인용) + 항목 판정, 질문 결론",
+}
 pstack = f"""
   <div class="pstack" role="group" aria-label="심판에게 가는 글의 구성">
-    <div class="ps prompt"><b>고정 판정 프롬프트 v3</b><span>파일 1개 · {D['prompt_chars']:,}자 — 모든 질문·모델·심판에 같은 글</span></div>
-    <div class="ps-sep">[입력] — 아래를 코드가 정해진 순서로 붙임</div>
-    <div class="ps mark"><b>실행 표식</b><span>실행마다 새로 고르는 6자리 경계 표시</span></div>
-    <div class="ps fixed turn"><b>[이 턴의 상황]</b><span>판정상황표 그대로 — 질문만으로 정해짐</span></div>
-    <div class="ps fixed turn"><b>[질문] · [첨부] · [참조 자료]</b><span>질문 세트 그대로</span></div>
-    <div class="ps ans turn"><b>[답변]</b><span>수집한 원문 — 모델마다 다른 곳은 여기뿐 (모델 이름은 숨김)</span></div>
+    <div class="ps prompt"><b>고정 판정 프롬프트 v4</b><span>파일 1개 · {D4['prompt_chars']:,}자 — 모든 질문·모델에 같은 글. 이런 상황엔 이걸 본다는 규칙이 다 들어 있음</span></div>
+    <div class="ps-sep">[입력] — 수집한 JSON 그대로 (질문 하나)</div>
+    <div class="ps fixed turn"><b>질문번호 · 턴_수 · 판정할_턴</b><span>보통 모든 턴 — 출력이 잘리면 빠진 턴만 다시 물음</span></div>
+    <div class="ps fixed turn"><b>턴마다: 질문 · 첨부파일 · 참조자료 · 입력_추정토큰</b><span>질문 세트 그대로 (긴 문서 판단용 토큰 수만 코드가 셈)</span></div>
+    <div class="ps ans turn"><b>턴마다: 답변</b><span>수집한 원문 — 모델마다 다른 곳은 여기뿐 (모델 이름은 넣지 않음)</span></div>
+    <div class="ps-sep">판정할 항목 목록(판정상황표)은 넣지 않음 — 결과 비교에만 씀</div>
   </div>"""
 
-test_table = table(f"Q{D['qid']} 로 직접 만들어 본 결과 — AI 호출 없음", ["확인한 것", "결과"], [
-    ["프롬프트 파일이 10-19 이후 바뀌었나", ok(D["prompt_sha"] == D["doc_sha"], "안 바뀜", "바뀜") + " — 10-19 문서에 적은 지문(sha256)과 같음"
-     + sha(D["prompt_sha"])],
-    ["같은 질문·같은 답으로 두 번 만들면", ok(D["first_sha"] == D["second_sha"]) + sha(D["first_sha"], D["second_sha"])],
-    ["10-19 다른 PC 에서 만든 예시와 비교하면", ok(D["example_same"], "글자까지 같음")],
-    ["답만 바꾸면 (AIONA → GPT)", f"[답변] 앞 {D['same_head']}줄은 그대로 · 모델 이름 " + ok(D["no_model_names"], "없음", "있음")],
-    ["표식만 바꾸면", f"표식이 든 {D['mark_changed']}줄만 바뀜" + ("" if D["mark_only"] else " — " + ok(False, no="표식 밖도 바뀜"))],
-    ["Codex 가 받는 전체 글을 두 번", ok(D["codex_sha"] == D["codex_sha2"]) + f" — {D['codex_chars']:,}자" + sha(D["codex_sha"], D["codex_sha2"])],
-    [f"Jev 가 항목 하나({D['flag']})를 넘기면", f"[이 턴의 상황] {D['flag_changed']}줄만 바뀜"],
+parts_table = table("프롬프트 안에 든 것", ["부분", "무엇", "글자 수"], [
+    [E(t.split(" (")[0]), E(PART_NOTE.get(t, "")), f'<span class="rnum">{n:,}</span>'] for t, n in D4["parts"]
+], [30, 56, 14])
+
+v3v4_table = table("v3 → v4 무엇이 바뀌었나", ["무엇", "v3 (10-19~10-20 오전)", "v4 (지금 시험)"], [
+    ["판정할 항목 정하기", "코드가 질문 글로 미리 정해 [이 턴의 상황]으로 줌", "<b>심판이 질문을 읽고 상황표로 찾음</b> — 근거 문장을 인용"],
+    ["입력 모양", "구분 줄(실행 표식)로 나눈 글", "질문·답변 JSON"],
+    ["출력", "항목 판정", "상황 + 항목 판정 + 질문 결론(PASS·FAIL·보류)"],
+    ["Jev", "Jev 먼저 → FAIL·애매한 항목만 Codex", f"같은 JSON 을 함께 봄 — J1~J4 {D4['jev_items']}문항, 턴마다 한 번"],
+    ["갈릴 때", "Jev FAIL + Codex PASS → 보류", "Jev FAIL + Codex FAIL 아님 → 보류"],
+], [22, 39, 39])
+
+check_table = table(f"Q{D4['qid']} 로 직접 만들어 본 입력 — AI 호출 없음", ["확인한 것", "결과"], [
+    ["같은 질문·같은 답으로 두 번 만들면", ok(D4["same"]) + sha(D4["sha1"], D4["sha2"])],
+    ["답만 바꾸면 (AIONA → GPT)", "바뀌는 칸: " + ", ".join(D4["changed"]) + " · 모델 이름 " + ok(D4["no_model_names"], "없음", "있음")],
+    ["입력에 판정할 항목 목록이 있나", ok(D4["no_table"], "없음", "있음")],
+    ["Codex 가 받는 전체 글", f"{D4['total_chars']:,}자 = 프롬프트 {D4['prompt_chars']:,} + 입력 {D4['input_chars']:,}" + sha(D4["prompt_sha"])],
 ], [42, 58])
 
-vary_table = table("바뀔 수 있는 것은 이것뿐", ["무엇", "언제", "정하는 쪽"], [
-    ["실행 표식", "실행마다", "코드 — 질문·답에 없는 6자리, 기록에 남김"],
-    ["Codex 가 맡는 J1~J4 항목", "Jev 가 FAIL·애매로 넘길 때", "코드 — Jev 결과에 따라"],
-    ["프롬프트 자체", "고쳐야 할 때만", "사람 — v3 를 덮어쓰지 않고 v4 새 파일"],
-], [30, 30, 40])
+MODEL_NAMES_SHORT = {"gpt": "GPT", "aiona": "AIONA", "claude": "Claude", "gemini": "Gemini"}
+V4ROWS = (TIMES.get("judge_v4") or {}).get("rows") or []
+VERDICT_HTML = {"PASS": PASS, "FAIL": FAIL, "HOLD": HOLD}
+
+
+def trial_name(r):
+    turns = f" {r['turns']}턴" if r["turns"] > 1 else ""
+    return f"Q{r['question']} · {E(MODEL_NAMES_SHORT.get(r['provider'], r['provider']))} · {E(r['kind'])}{turns}"
+
+
+trial_table = table(f"판정 v4 시험 — {len(V4ROWS)}건 (10-20, 간단 78 실행의 답)", ["질문", "결과", "Codex 결론", "걸린 시간", "Jev·Codex 같은 판정"], [
+    [trial_name(r),
+     VERDICT_HTML.get(r["verdict"], E(r["verdict"])), VERDICT_HTML.get(r["codex_verdict"], E(str(r["codex_verdict"]))),
+     f"Codex {r['codex_seconds']:.0f}초({r['codex_calls']}번) · Jev {r['jev_seconds']:.1f}초({r['jev_calls']}번)",
+     f'<span class="rnum">{r["agree"][0]}/{r["agree"][1]}</span>' if r.get("agree") else "-"] for r in V4ROWS
+], [26, 10, 14, 30, 20]) if V4ROWS else ""
+
+trial_points = table("시험에서 알게 된 것", ["무엇", "어떻게 했나 · 남은 것"], [
+    ["Codex(추론 low)가 10턴 질문을 한 번에 다 답하지 않음", "빠진 턴만 '판정할_턴' 으로 다시 물음 — Q17 은 3번 만에 10턴"],
+    ["Jev 에 10턴 × 27문항을 한 번에 보내면 거절", "Jev 서버의 한도(max_tokens_exceeded, 요청 17.9만 자) — 턴마다 나눠 보냄"],
+    ["심판이 상황을 잘못 고른 예", "첨부 없는 질문에 첨부 기준(J8) · 요약 요청 없는 질문에 요약 기준(J4-4) — 첨부·길이·턴 번호로 정해지는 조건은 프롬프트에 적고 코드가 다시 확인"],
+    ["Jev 가 정상 답에도 '거절' FAIL", "대화 3턴부터 (사유 없음) — 심판 갈림 보류가 늘어남. 다음에 정할 것"],
+], [36, 64])
 
 # ---------- 04 질문 수별 통과 비율 (체크리스트 n5) ----------
 # 숫자는 tools/subset_pass_rates.py 가 저장소의 326 결과 JSON 으로 다시 센 것(참고자료/최소평가/통과비율_목록별_8c61f117e661.json) — 여기서는 읽기만.
@@ -922,107 +903,550 @@ order_points = table("", ["무엇", "결과"], [
 ], [18, 82])
 
 
-# ---------- 06 k 9·12 FAIL 급증 원인 (체크리스트 n6) ----------
-# 숫자는 tools/k_jump_analysis.py 가 조건 수 변형 실험(e4ce7a342251)과 지운 실험 세트(git 기록)로 센 것 — 여기서는 읽기만.
-KJ = json.loads((ROOT / "참고자료" / "최소평가" / "k급증_원인_e4ce7a342251.json").read_text(encoding="utf-8"))
-PK = {x["k"]: x for x in KJ["per_k"]}
-JP = {j["k"]: j for j in KJ["jumps"]}
-S326 = {x["k"]: x for x in KJ["set326"]}
-KIND_LABEL = {"existing": "원래 있던 조건이 새로 깨짐", "added": "새로 붙은 조건에서", "j5": "J5 — 확인 못 한 사실을 FAIL 로 셈(엄격 규칙)"}
+# ---------- 06 평가 횟수 k 와 질문 수 (사용자 10-20 미팅 준비) ----------
+# 숫자는 tools/k_reach_curves.py 가 질문 세트로 센 것(참고자료/최소평가/평가횟수k_곡선_326.json) — 여기서는 읽기만.
+from code_eval import semantic_items as si  # noqa: E402
+
+KR = json.loads((ROOT / "참고자료" / "최소평가" / "평가횟수k_곡선_326.json").read_text(encoding="utf-8"))
+K_ORDERS = ["number", "kdesc", "level"]
+K_LINE = {"number": "number", "kdesc": "kdesc", "level": "greedy"}
+K_NAMES = {k: KR["orders"][k]["label"] for k in KR["orders"]}
+ITEM_NAME = {it.id: si.SUBS_BY_ID[it.sub].name for it in si.ITEMS}
+ITEM_NAME["2-1.explicit_empty"] = "빈 출력 요구 (CODE)"
+K_YMAX = 22
 
 
-def k_chart_frame(kind, aria):
-    width, height, left, right, top, bottom = 520, 290, 46, 506, 14, 246
-    ks = sorted(PK)
-    x = lambda k: left + (k - ks[0] + 0.5) / len(ks) * (right - left)
-    y = lambda v: bottom - v * (bottom - top)
-    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{E(aria)}">',
-           f'<rect class="kband" x="{x(6) - (right - left) / len(ks) / 2:.1f}" y="{top}" width="{(right - left) / len(ks) * 5:.1f}" height="{bottom - top}"/>',
-           f'<text class="axt" x="{x(8):.1f}" y="{top + 13}" text-anchor="middle">지금 k 6~10</text>']
-    for f in (0, 0.25, 0.5, 0.75, 1):
-        out.append(f'<line class="grid" x1="{left}" y1="{y(f):.1f}" x2="{right}" y2="{y(f):.1f}"/>'
-                   f'<text class="tick" x="{left - 6}" y="{y(f) + 4:.1f}" text-anchor="end">{int(f * 100)}%</text>')
-    for k in ks:
-        out.append(f'<text class="tick" x="{x(k):.1f}" y="{bottom + 16}" text-anchor="middle">{k}</text>')
-    out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">질문당 조건 수 k</text>')
-    if kind == "fail":
-        for key, cls in (("fail_rate", "ink"), ("rate_without_j5_only", "blue")):
-            pts = " ".join(f"{x(k):.1f},{y(PK[k][key]):.1f}" for k in ks)
-            out.append(f'<polyline class="ln ln-{cls}" points="{pts}"/>')
-            for k in ks:
-                out.append(f'<circle class="pt-{cls}" cx="{x(k):.1f}" cy="{y(PK[k][key]):.1f}" r="3.5"><title>k {k} — '
-                           f'{"기록된 FAIL" if cls == "ink" else "J5 하나로만 FAIL 뺀 것"} {PK[k][key] * 100:.0f}% (판정 {PK[k]["n"]}개)</title></circle>')
-        for k in (9, 12):   # 급증 지점 — 기록된 FAIL 값
-            out.append(f'<text class="val" x="{x(k):.1f}" y="{y(PK[k]["fail_rate"]) - 9:.1f}" text-anchor="middle">{k - 1}→{k}</text>')
-    else:
-        w = (right - left) / len(ks) * 0.62
-        for k in ks:
-            v = PK[k]["format3_share"]
-            out.append(f'<rect class="bar" x="{x(k) - w / 2:.1f}" y="{y(v):.1f}" width="{w:.1f}" height="{bottom - y(v):.1f}" rx="2">'
-                       f'<title>실험 k {k} — 형식 요구 3개↑ {v * 100:.0f}% (변형 {PK[k]["variants"]}개)</title></rect>')
-            if k in S326 and S326[k]["questions"] >= 5:
-                out.append(f'<rect class="dia" x="{x(k) - 4:.1f}" y="{y(S326[k]["format3_share"]) - 4:.1f}" width="8" height="8" transform="rotate(45 {x(k):.1f} {y(S326[k]["format3_share"]):.1f})">'
-                           f'<title>지금 326 세트 k {k} — 형식 요구 3개↑ {S326[k]["format3_share"] * 100:.0f}% (질문 {S326[k]["questions"]}개)</title></rect>')
+def k_chart(kind, targets, aria):
+    """가로 = 던진 질문 수, 세로 = k(모든 기준이 최소 k번). 세 순서를 계단 선으로, k=10·20 에 닿는 지점에 점과 질문 수."""
+    width, height, left, right, top, bottom = 520, 300, 46, 506, 18, 252
+    n_all = KR["questions"]
+    x = lambda n: left + n / n_all * (right - left)
+    y = lambda v: bottom - min(v, K_YMAX) / K_YMAX * (bottom - top)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{E(aria)}">']
+    for v in (0, 5, 10, 15, 20):
+        out.append(f'<line class="grid" x1="{left}" y1="{y(v):.1f}" x2="{right}" y2="{y(v):.1f}"/>'
+                   f'<text class="tick" x="{left - 6}" y="{y(v) + 4:.1f}" text-anchor="end">{v}</text>')
+    for n in [t for t in (0, 50, 100, 150, 200, 250, 300) if n_all - t >= 40] + [n_all]:
+        out.append(f'<text class="tick" x="{x(n):.1f}" y="{bottom + 16}" text-anchor="middle">{n}</text>')
+    out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">던진 질문 수</text>'
+               f'<text class="axt" x="{left - 6}" y="{top - 6}" text-anchor="end">k</text>')
+    for t in (10, 20):
+        unreach = kind == "raw" and t > KR["ceiling_raw"]
+        out.append(f'<line class="guide" x1="{left}" y1="{y(t):.1f}" x2="{right}" y2="{y(t):.1f}"/>'
+                   f'<text class="reflab" x="{left + 6}" y="{y(t) - 5:.1f}">k={t}{" — 326개를 다 던져도 닿지 않음" if unreach else ""}</text>')
+    for k in K_ORDERS:
+        pts, prev = [f"{left:.1f},{bottom:.1f}"], 0
+        for i, v in enumerate(KR["curves"][k][kind]):
+            if v != prev:
+                pts.append(f"{x(i + 1):.1f},{y(prev):.1f}")
+            pts.append(f"{x(i + 1):.1f},{y(v):.1f}")
+            prev = v
+        out.append(f'<polyline class="ln ln-{K_LINE[k]}" points="{" ".join(pts)}"/>')
+    for t in targets:
+        for j, k in enumerate(K_ORDERS):
+            n = KR["reach"][k][kind][str(t)]
+            if n is None:
+                continue
+            near_end = n > n_all - 40
+            out.append(f'<circle class="pt-{K_LINE[k]}" cx="{x(n):.1f}" cy="{y(t):.1f}" r="5"/>'
+                       f'<text class="val" x="{x(n) + (-7 if near_end else 7):.1f}" y="{y(t) + 17 + j * 13:.1f}" '
+                       f'text-anchor="{"end" if near_end else "start"}">{n}개</text>')
+    step = 2
+    for n in range(step, n_all + 1, step):
+        vals = " · ".join(f"{K_NAMES[k]} k={KR['curves'][k][kind][n - 1]}" for k in K_ORDERS)
+        out.append(f'<rect class="hit" x="{x(n - step):.1f}" y="{top}" width="{x(n) - x(n - step):.2f}" height="{bottom - top}"><title>{n}개 — {E(vals)}</title></rect>')
     out.append("</svg>")
     return "".join(out)
 
 
-def pct0(v):
-    return f"{v * 100:.0f}%"
+def reach_cell(k, kind, t):
+    n = KR["reach"][k][kind][str(t)]
+    best = min((KR["reach"][o][kind][str(t)] for o in K_ORDERS if KR["reach"][o][kind][str(t)]), default=None)
+    if n is None:
+        return '<span class="muted">닿지 않음</span>'
+    return f'<b class="rnum">{n}개</b>' if n == best and k in K_ORDERS else f'<span class="rnum">{n}개</span>'
 
 
-j9, j12 = JP[9], JP[12]
-jump_table = table("k 가 하나 늘 때 새로 생긴 FAIL — 어디서 나왔나", ["갈래", "8 → 9", "11 → 12"], [
-    *[[KIND_LABEL[k], f'<span class="rnum">{j9["kinds"].get(k, 0)}건</span>', f'<span class="rnum">{j12["kinds"].get(k, 0)}건</span>'] for k in ("existing", "added", "j5")],
-    ["합계 (PASS → FAIL 로 바뀐 판정)", f'<span class="rnum">{j9["new_fails"]}건 ({j9["pass_to_fail"]})</span>', f'<span class="rnum">{j12["new_fails"]}건 ({j12["pass_to_fail"]})</span>'],
-], [50, 25, 25])
-per_k_table = table("k 별 값 — 실험 판정(뼈대 18개 × 3모델) · 형식 요구 = 표·목록·제목·JSON 구조·코드블록",
-                    ["k", "FAIL 비율", "J5 하나로만 FAIL 뺀 비율", "CODE 위반 있는 비율", "형식 요구 3개↑ (실험)", "형식 요구 3개↑ (지금 326)"],
-                    [[f'<span class="rnum">{k}</span>', *[f'<span class="rnum">{pct0(PK[k][f])}</span>' for f in ("fail_rate", "rate_without_j5_only", "code_fail_rate", "format3_share")],
-                      f'<span class="rnum">{pct0(S326[k]["format3_share"])} ({S326[k]["questions"]}개)</span>' if k in S326 else "—"] for k in sorted(PK)],
-                    [8, 15, 19, 18, 18, 22])
-combo = j12["json_plus_format"]
-k_points = table("", ["무엇", "결과"], [
-    ["급증 재현", f"FAIL 비율 k8 {pct0(PK[8]['fail_rate'])} → k9 {pct0(PK[9]['fail_rate'])}, k11 {pct0(PK[11]['fail_rate'])} → k12 <b>{pct0(PK[12]['fail_rate'])}</b>"],
-    ["8 → 9", f"<b>평가 규칙 영향</b> — 실험은 '확인 못 한 J5 = FAIL'로 셈. J5 하나로만 FAIL 인 것을 빼면 {pct0(PK[8]['rate_without_j5_only'])} → {pct0(PK[9]['rate_without_j5_only'])} 로 "
-              f"급증이 사라짐. 지금 규칙(확인 못 하면 보류)이면 생기지 않는 급증"],
-    ["11 → 12", f"<b>실제 위반</b> — J5 를 빼도 {pct0(PK[11]['rate_without_j5_only'])} → {pct0(PK[12]['rate_without_j5_only'])}. 새 FAIL {j12['new_fails']}건 중 "
-                f"{j12['kinds'].get('existing', 0)}건이 원래 있던 조건(목록·제목·표·문구·개수)이 깨진 것. 형식 요구 3개↑ 변형이 {pct0(PK[11]['format3_share'])} → {pct0(PK[12]['format3_share'])}"],
-    ["충돌인가 누적인가", f"JSON 과 표·목록·제목을 함께 요구한 변형만 보면 FAIL {combo['with']['fail']}/{combo['with']['n']} — 나머지({combo['without']['fail']}/{combo['without']['n']})보다 높지 않음. "
-                       "정면 충돌보다 <b>형식 요구가 한 답에 몰린 것</b>"],
-    ["지금 326 세트", f"k 9~10 질문 {S326[9]['questions'] + S326[10]['questions']}개 중 형식 요구 3개↑ <b>{sum(round(S326[k]['format3_share'] * S326[k]['questions']) for k in (9, 10))}개</b> — 실험의 k12 같은 몰림이 없음"],
-    ["결정 자료", "k 를 8 이하로 줄일 근거였던 8→9 급증은 평가 규칙 영향. k 를 10 넘게 쓸 때는 질문당 형식 요구 수를 함께 제한해야 함. "
-                 "남은 확인: CODE 위반이 실제인지 답 원문(평가 PC 실행 e4ce7a342251)으로"],
+K_COLS = K_ORDERS + ["greedy10", "greedy20"]
+k_reach_table = table("k 에 닿는 질문 수 — 적을수록 빠름", ["k", *[K_NAMES[k] for k in K_ORDERS], "참고: 간단 78 순서", "참고: 155 목록 순서"], [
+    *[[f"모든 기준 {t}번 이상", *[reach_cell(k, "raw", t) for k in K_COLS]] for t in (1, 3, 5, 10, 20)],
+    *[[f"기준마다 {t}번 (있는 만큼)", *[reach_cell(k, "cap", t) for k in K_COLS]] for t in (10, 20)],
+], [22, 15, 15, 16, 16, 16])
+
+rare_groups = {}
+for r in KR["rare_criteria"]:
+    rare_groups.setdefault(r["questions"], []).append(r["id"])
+k_rare_table = table("326 안에 질문이 20개보다 적은 기준 — 천장을 정함", ["326 안 질문 수", "기준"], [
+    [f'<span class="rnum">{n}개</span>', " · ".join(f"{E(i)} {E(ITEM_NAME.get(i, ''))}" for i in ids)] for n, ids in sorted(rare_groups.items())
 ], [18, 82])
+
+KRR = KR["reach"]
+k_points = table("", ["무엇", "결과"], [
+    ["세로축 k", f"질문을 n개 던졌을 때 가장 적게 평가된 기준의 평가 횟수 — '모든 기준({KR['criteria']}개)이 최소 k번 평가됨'"],
+    ["세 선이 만나나", f"<b>만납니다 — 질문을 다 던진 {KR['questions']}개에서</b>. 같은 질문을 순서만 바꾼 것이라 끝에서는 모든 기준의 평가 횟수가 같아집니다. 그보다 앞에서 세 선이 같은 값이 되는 곳은 없습니다"],
+    ["만나는 높이", f"그대로 세면 <b>k = {KR['ceiling_raw']}</b> 이 천장 — 긴 문서 기준(J7-1·J7-2)과 빈 출력 요구가 326 안에 {KR['ceiling_raw']}개씩뿐이라 어떤 순서로도 그 위로 못 감"],
+    ["k = 10", f"모자란 기준부터 <b>{KRR['level']['raw']['10']}개</b>에서 닿고 그 뒤로는 평평(천장) · 번호순 {KRR['number']['raw']['10']}개 · 기준 많은 순 {KRR['kdesc']['raw']['10']}개 "
+               f"(기준 많은 순은 {KRR['kdesc']['raw']['1']}개째까지 k=0 — 기준이 적은 질문에만 있는 기준이 맨 뒤로 밀려서)"],
+    ["k = 20", f"<b>모든 기준으로는 불가능</b> — 대화형 기준(J6) 16개, 계획 실행 가능성(J3-5.a) 19개. 326 안에 20개보다 적은 기준은 있는 질문을 다 쓰면 채운 것으로 세면(198·155 목록 방식) "
+               f"모자란 기준부터 <b>{KRR['level']['cap']['20']}개</b> · 번호순 {KRR['number']['cap']['20']}개 · 기준 많은 순 {KRR['kdesc']['cap']['20']}개"],
+    ["그래서", f"지금 세트로 '모든 기준 k번'은 10번이 최대이고 {KRR['level']['raw']['10']}~78개면 닿음(간단 78). 모든 기준을 20번 보려면 긴 문서·빈 출력 요구 질문을 각 10개 이상, 대화형을 4개 이상 더 넣어야 함"],
+], [18, 82])
+
+# ---------- 07 걸린 시간 — 답변 수집 · CODE · 의미 평가 ----------
+# 숫자는 tools/time_summary.py 가 기록으로 센 것(참고자료/결과/시간_요약_ac6507c00276.json) — 여기서는 읽기만.
+P_ORDER = ["gpt", "claude", "gemini", "aiona"]
+KINDS = ("단일", "대화", "긴 문서")
+
+
+def dur(sec):
+    if sec is None:
+        return "-"
+    sec = float(sec)
+    if sec < 90:
+        return f"{sec:.0f}초"
+    if sec < 3600:
+        return f"{sec / 60:.1f}분"
+    h = int(sec // 3600)
+    m = round((sec - h * 3600) / 60)
+    if m == 60:
+        h, m = h + 1, 0
+    return f"{h}시간 {m}분"
+
+
+def collect_table(caption, block, n_total):
+    models = block["models"]
+    top = max(m["total_seconds"] for m in models.values()) or 1
+    rows = []
+    for p in P_ORDER:
+        m = models[p]
+        rows.append([E(MODEL_NAMES[p]) + f'<span class="rsub">{E(m.get("label") or "")}</span>',
+                     f'<span class="rnum">{m["questions_done"]}/{n_total}</span>',
+                     *[f'<span class="rnum">{dur(m["mean"].get(k))}</span>' for k in KINDS],
+                     (f'Q{m["max"]["question"]} {E(m["max"]["kind"])}<br><span class="rnum">{dur(m["max"]["seconds"])}</span>' if m.get("max") else "-"),
+                     f'<span class="tbar"><span class="rnum">{dur(m["total_seconds"])}</span><i style="width:{m["total_seconds"] / top * 100:.0f}%"></i></span>',
+                     f'<span class="rnum">{m["chars_per_turn"]:,}자</span><span class="rsub">초당 {m["chars_per_second"]}자</span>'])
+    return table(caption, ["모델", "모든 턴 받은 질문", "단일 평균", "대화 평균", "긴 문서 평균", "가장 오래 걸린 질문", "합계", "턴당 답 길이"],
+                 rows, [17, 10, 9, 9, 9, 14, 16, 16])
+
+
+C20, C19, EST = TIMES["collect_1020"]["models"], TIMES["collect_1019"]["models"], TIMES["estimate_78"]
+SLOW = max(P_ORDER, key=lambda p: C20[p]["total_seconds"])
+CODE_T = TIMES.get("code") or {}
+code_lo = min((v["seconds"] for v in CODE_T.values()), default=0)
+code_hi = max((v["seconds"] for v in CODE_T.values()), default=0)
+per = EST["per_question"]
+kind326 = {k: C19["gpt"]["count"].get(k, 0) for k in KINDS}
+one326 = sum(per[k]["seconds"] * kind326[k] for k in per)
+FAST = min(P_ORDER, key=lambda p: C20[p]["total_seconds"])
+time_kpis = f"""
+  <div class="kpis3">
+    <div><span class="k">답변 수집 — 간단 78 (네 모델 동시)</span><b>{dur(C20[SLOW]['total_seconds'])}</b>
+      <span>가장 오래 걸린 {E(MODEL_NAMES[SLOW])} · 답을 기다린 시간 합계 (가장 빠른 {E(MODEL_NAMES[FAST])} {dur(C20[FAST]['total_seconds'])})</span></div>
+    <div><span class="k">CODE 평가 — 코드</span><b>{int(code_lo)}~{int(code_hi) + 1}초</b><span>모델 하나의 78개 답 — 수집 직후 바로</span></div>
+    <div class="bad"><span class="k">의미 평가 — 78개 (추정)</span><b>{dur(EST['seconds_one_model'])}</b>
+      <span>모델 하나 기준 · 네 모델을 동시에 돌리면 비슷 (Codex 사용량 한도에 걸리면 더)</span></div>
+  </div>"""
+V3J = TIMES.get("judge_v3") or {}
+v3b = V3J.get("by_kind") or {}
+judge_table = table("의미 평가 — 잰 시간과 어림", ["무엇", "시간"], [
+    ["CODE 평가", f"모델 하나의 78개 답 {code_lo:.1f}~{code_hi:.1f}초 — AI 없음"],
+    [f"10-20 오전 시험 (v3 흐름, {V3J.get('judgments', 0)}건)",
+     " · ".join(f"{k} Codex 평균 {v3b[k]['codex']['mean']}초 (최대 {v3b[k]['codex']['max']}초) · Jev {v3b[k]['jev']['mean']}초" for k in KINDS if k in v3b) or "-"],
+    [f"판정 v4 시험 ({len(V4ROWS)}건)", "<br>".join(f"{trial_name(r)} — Codex {r['codex_seconds']:.0f}초({r['codex_calls']}번) · Jev {r['jev_seconds']:.1f}초" for r in V4ROWS) or "-"],
+    ["78개 어림 (모델 하나)", f"<b>{dur(EST['seconds_one_model'])}</b> = " + " + ".join(f"{k} {EST['counts_78'][k]}개 × {per[k]['seconds']}초" for k in per)
+     + "<br><span class=\"rsub\">" + " · ".join(f"{k}: {E(per[k]['basis'])}" for k in per) + "</span>"],
+    ["326개 어림 (모델 하나)", f"{dur(one326)} = " + " + ".join(f"{k} {kind326[k]}개 × {per[k]['seconds']}초" for k in per)],
+    ["주의", "10턴 대화는 Codex(추론 low)가 한 번에 다 판정하지 못해 턴을 나눠 다시 물어야 함 — 대화형은 어림보다 더 걸릴 수 있음"],
+], [26, 74])
+time_points = table("", ["무엇", "결과"], [
+    ["가장 느린 모델", f"{E(MODEL_NAMES[SLOW])} — 턴당 답이 길고({C20[SLOW]['chars_per_turn']:,}자) 글을 내는 속도가 가장 느림(초당 {C20[SLOW]['chars_per_second']}자). "
+                  f"10턴 대화 하나에 평균 {dur(C20[SLOW]['mean'].get('대화'))}"],
+    ["10-19 (API) 와 비교", "10-19 는 GPT·Claude·Gemini 를 API 로 받아 질문 하나가 훨씬 빨랐음(단일 5~11초). 지금은 사람이 쓰는 앱·웹 화면이라 생각·화면 표시 시간이 더해짐"],
+    ["동시 수집", "네 모델을 동시에 받으므로 실제 걸린 시간은 가장 느린 모델 쪽에 가까움"],
+], [18, 82])
+
+# ---------- 08 보류 함께 보기 — 10-19 정밀 326 의 보류 300건 ----------
+# 데이터는 tools/build_held_view.py 가 만든 참고자료/발표/보류_8c61f117e661.js (window.HELD_DATA) — 이 HTML 옆에 두고 <script src> 로 읽는다.
+HELD_JS_FILE = "보류_8c61f117e661.js"
+held_section = """
+  <div class="hv" id="hv">
+    <div class="hv-sum" id="hv-sum"></div>
+    <div class="hv-filters" id="hv-filters" role="group" aria-label="걸러 보기"></div>
+    <div class="hv-main">
+      <div class="hv-listwrap">
+        <div class="hv-count" id="hv-count"></div>
+        <ol class="hv-list" id="hv-list" role="listbox" aria-label="보류 질문 목록" tabindex="0"></ol>
+      </div>
+      <article class="hv-detail" id="hv-detail" aria-live="polite"></article>
+    </div>
+  </div>
+  <p class="basis">출처: 10-19 정밀 326 실행 8c61f117e661 — 질문 단위 보류는 04장과 같은 규칙, 보류 이유는 참고자료/보류목록/8c61f117e661-held.csv, 질문은 10-19 에 던진 v2.0 글, 답변은 참고자료/결과/8c61f117e661_정밀326_2026-10-19.json 원문 (tools/build_held_view.py).
+  목록에서 ↑·↓ 로 옮겨 다닐 수 있습니다.</p>"""
+
+EXTRA_CSS2 = """<style>
+/* 02 바뀐 점 — 기존 → 현재 한 줄씩 */
+.chg-head, .chg-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 26px minmax(0, 1.25fr) 64px; gap: 10px; align-items: center; }
+.chg-head { font-size: 0.8rem; color: var(--muted); font-weight: 600; padding: 0 14px; }
+.chg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.chg-row { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 0.95rem; }
+.chg-row.first { border: 2px solid var(--accent); background: var(--accent-soft); }
+.chg-name { font-weight: 700; }
+.chg-old { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); text-decoration-thickness: 1px; }
+.chg-arrow { color: var(--accent); font-weight: 700; text-align: center; }
+.chg-new { font-weight: 600; }
+.chg-row .ch-tag { justify-self: end; }
+@media (max-width: 760px) {
+  .chg-head { display: none; }
+  .chg-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .chg-name { grid-column: 1; } .chg-row .ch-tag { grid-column: 2; grid-row: 1; }
+  .chg-old, .chg-new { grid-column: 1 / -1; } .chg-arrow { display: none; }
+  .chg-new::before { content: "→ "; color: var(--accent); }
+}
+/* 07 합계 막대 */
+.tbar { display: grid; gap: 4px; }
+.tbar i { display: block; height: 6px; border-radius: 3px; background: var(--warn); min-width: 2px; }
+/* 08 보류 함께 보기 — 왼쪽 목록 · 가운데 질문·답변 원문 · 오른쪽 사유 (사용자 요구: 원문 + 오른쪽 사유, 비유 없이 구체적으로) */
+.hv { display: grid; gap: 12px; width: min(1360px, calc(100vw - 48px)); position: relative; left: 50%; transform: translateX(-50%); min-width: 0; }
+.hv-sum { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
+.hv-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
+.hv-panel h4 { margin: 0 0 8px; font-size: 0.95rem; }
+.hv-panel h4 small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.hv-mbar { display: grid; grid-template-columns: 140px minmax(0, 1fr) 82px; gap: 8px; align-items: center; font-size: 0.88rem; margin: 5px 0; }
+.hv-mbar .track { background: var(--bg); border-radius: 5px; height: 10px; overflow: hidden; }
+.hv-mbar .track i { display: block; height: 10px; background: var(--warn); border-radius: 5px; }
+.hv-mbar .num { font-family: var(--font-num); text-align: right; color: var(--muted); }
+.hv-why-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hv-why-list li { display: grid; grid-template-columns: 112px 54px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 0.86rem; }
+.hv-why-list .num { font-family: var(--font-num); color: var(--muted); }
+.hv-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.hv-fl { font-size: 0.8rem; color: var(--muted); font-weight: 600; margin-right: 4px; }
+.hv-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.hv-seg button { border: 0; border-right: 1px solid var(--line); background: transparent; padding: 5px 10px; font: inherit; font-size: 0.84rem; color: var(--ink); cursor: pointer; }
+.hv-seg button:last-child { border-right: 0; }
+.hv-seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.hv-search { font: inherit; font-size: 0.86rem; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); width: 120px; }
+.hv-main { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; align-items: start; }
+.hv-listwrap { position: sticky; top: 64px; display: grid; gap: 6px; min-width: 0; }
+.hv-count { font-size: 0.82rem; color: var(--muted); padding-left: 4px; }
+.hv-list { list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; max-height: calc(100vh - 120px); overflow-y: auto; outline: none; }
+.hv-list:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.hv-item { width: 100%; text-align: left; display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 1px 8px; padding: 7px 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+.hv-item:hover { background: var(--bg); }
+.hv-item[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.hv-item .n { font-family: var(--font-num); font-weight: 700; color: var(--accent); grid-row: span 2; font-size: 1rem; padding-top: 1px; }
+.hv-item .m { font-weight: 600; font-size: 0.86rem; }
+.hv-item .t { font-size: 0.76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hv-detail { min-width: 0; display: grid; gap: 10px; }
+.hv-dh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.hv-dh h3 { margin: 0; font-size: 1.35rem; }
+.hv-dh h3 span { font-size: 0.95rem; color: var(--muted); font-weight: 500; margin-left: 8px; }
+.hv-badge { border-radius: 999px; padding: 2px 12px; font-weight: 700; font-size: 0.86rem; color: var(--warn); background: var(--warn-soft); }
+.hv-why { border-left: 4px solid var(--warn); background: var(--warn-soft); border-radius: 0 10px 10px 0; padding: 12px 16px; }
+.hv-why b { display: block; font-size: 0.8rem; color: var(--warn); margin-bottom: 4px; }
+.hv-why p { margin: 0; font-size: 1rem; line-height: 1.6; }
+.hv-turns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hv-turns .hv-fl { margin-right: 2px; }
+.hv-turns button { font: inherit; font-size: 0.84rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 4px 10px; cursor: pointer; position: relative; }
+.hv-turns button.held { border-color: var(--warn); }
+.hv-turns button.held::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+.hv-turns button[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.hv-cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+.hv-qa { display: grid; gap: 10px; min-width: 0; }
+.hv-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.hv-box > h5 { margin: 0; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hv-box > h5 small { color: var(--muted); font-weight: 400; }
+.hv-text { padding: 12px 16px; font-size: 0.95rem; line-height: 1.7; overflow-wrap: anywhere; }
+.hv-text.plain { white-space: pre-wrap; }
+.hv-qbox .hv-text { background: var(--bg); border-radius: 0 0 10px 10px; max-height: 46vh; overflow-y: auto; }
+.hv-abox .hv-text { max-height: 72vh; overflow-y: auto; }
+.hv-empty { color: var(--muted); font-style: italic; }
+.hv-extra { margin: 0 16px 12px; border: 1px dashed var(--line); border-radius: 8px; font-size: 0.86rem; }
+.hv-extra summary { cursor: pointer; padding: 6px 10px; font-weight: 600; }
+.hv-extra pre { margin: 0; padding: 8px 10px; white-space: pre-wrap; max-height: 260px; overflow-y: auto; border-top: 1px dashed var(--line); font-size: 0.84rem; }
+.hv-raw { font: inherit; font-size: 0.78rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.md h3, .md h4, .md h5, .md h6 { margin: 14px 0 6px; font-size: 1rem; }
+.md h3 { font-size: 1.08rem; }
+.md p { margin: 0 0 10px; }
+.md ul, .md ol { margin: 0 0 10px; padding-left: 22px; }
+.md li { margin: 2px 0; }
+.md li.sub { margin-left: 18px; list-style-type: circle; }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.md-table { overflow-x: auto; margin: 0 0 10px; }
+.md table { border-collapse: collapse; font-size: 0.88rem; }
+.md th, .md td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.md th { background: var(--bg); }
+.md pre { background: var(--bg); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.84rem; white-space: pre; }
+.md code { font-family: var(--font-num); font-size: 0.88em; }
+.md blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+.hv-side { position: sticky; top: 64px; display: grid; gap: 10px; max-height: calc(100vh - 80px); overflow-y: auto; min-width: 0; }
+.hv-grp { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+.hv-grp-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hv-grp-h b { font-size: 0.95rem; }
+.hv-cause { border-radius: 999px; padding: 1px 10px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.c-held { color: var(--warn); background: var(--warn-soft); }
+.c-source_unavailable { color: var(--accent); background: var(--accent-soft); }
+.c-judge_disagreement { color: var(--risk); background: var(--risk-soft); }
+.c-unverified, .c-incomplete, .c-pending { color: var(--todo); background: var(--todo-soft); }
+.c-empty_output_hold { color: var(--ok); background: var(--ok-soft); }
+.hv-plain { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+.hv-it { border-top: 1px dashed var(--line); padding-top: 8px; display: grid; gap: 6px; font-size: 0.88rem; min-width: 0; }
+.hv-it-h b { font-size: 0.92rem; }
+.hv-it-h span { display: block; color: var(--muted); font-size: 0.8rem; }
+.hv-jr span { display: block; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+.hv-jr p { margin: 2px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.hv-claims summary { cursor: pointer; font-size: 0.82rem; color: var(--accent); font-weight: 600; }
+.hv-claims ul, .hv-src ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
+.hv-claims li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 6px; font-size: 0.84rem; overflow-wrap: anywhere; }
+.tg { font-size: 0.72rem; font-weight: 700; border-radius: 4px; padding: 1px 4px; text-align: center; height: fit-content; }
+.tg.ok { color: var(--ok); background: var(--ok-soft); }
+.tg.bad { color: var(--risk); background: var(--risk-soft); }
+.tg.unk { color: var(--warn); background: var(--warn-soft); }
+.hv-src li { font-size: 0.82rem; overflow-wrap: anywhere; }
+.hv-src em { font-style: normal; font-weight: 600; color: var(--risk); margin-right: 4px; }
+.hv-none { color: var(--muted); font-size: 0.88rem; margin: 0; }
+.hv-missing { padding: 16px; border: 1px dashed var(--warn); border-radius: 10px; color: var(--warn); }
+@media (max-width: 1100px) { .hv-cols { grid-template-columns: minmax(0, 1fr); } .hv-side { position: static; max-height: none; } }
+@media (max-width: 860px) {
+  .hv { width: auto; left: 0; transform: none; }
+  .hv-main, .hv-sum { grid-template-columns: minmax(0, 1fr); }
+  .hv-listwrap { position: static; }
+  .hv-list { max-height: 260px; }
+  .hv-mbar { grid-template-columns: 110px minmax(0, 1fr) 70px; }
+  .hv-why-list li { grid-template-columns: 100px 48px minmax(0, 1fr); }
+}
+</style>"""
+
+HV_JS = r"""<script>
+(function () {
+  var root = document.getElementById('hv');
+  if (!root) return;
+  var D = window.HELD_DATA;
+  if (!D) { root.innerHTML = '<p class="hv-missing">보류 데이터 파일(__FILE__)이 이 HTML 과 같은 폴더에 있어야 보입니다.</p>'; return; }
+  var ORDER = ['gpt', 'aiona', 'claude', 'gemini'];
+  var CAUSES = ['held', 'source_unavailable', 'judge_disagreement', 'unverified', 'incomplete', 'empty_output_hold', 'pending'];
+  var TAG = { PASS: ['맞음', 'ok'], TRUE: ['맞음', 'ok'], FAIL: ['틀림', 'bad'], FALSE: ['틀림', 'bad'], UNVERIFIED: ['확인 못 함', 'unk'] };
+  var CHOICE = { PASS: '통과', FAIL: '실패', UNVERIFIED: '확인 못 함', NOT_APPLICABLE: '해당 없음' };
+  var items = D.items.slice().sort(function (a, b) { return a.q - b.q || ORDER.indexOf(a.model) - ORDER.indexOf(b.model); });
+  var st = { model: 'all', cause: 'all', kind: 'all', q: '', sel: null, turn: null, raw: false };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function causeLabel(c) { return (D.causes[c] || {}).label || c; }
+
+  /* 답변 마크다운 — 제목·굵게·목록·표·코드·인용만. 글은 먼저 이스케이프한다 */
+  function inline(s) {
+    s = s.replace(/\\([\\`*_{}\[\]()#+\-.!|>~])/g, function (m, c) { return '&#' + c.charCodeAt(0) + ';'; });
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, '$1<em>$2</em>');
+    s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return s;
+  }
+  function cells(l) {
+    l = l.trim();
+    if (l.charAt(0) === '|') l = l.slice(1);
+    if (l.charAt(l.length - 1) === '|') l = l.slice(0, -1);
+    return l.split('|').map(function (c) { return inline(esc(c.trim())); });
+  }
+  var LI = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+  function md(text) {
+    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n'), out = [], i = 0;
+    var sep = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+    while (i < lines.length) {
+      var l = lines[i], m;
+      if (/^\s*```/.test(l)) {
+        var code = []; i++;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) { code.push(lines[i]); i++; }
+        i++; out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>'); continue;
+      }
+      if (/^\s*$/.test(l)) { i++; continue; }
+      if ((m = /^(#{1,6})\s+(.*)$/.exec(l))) { var lv = Math.min(6, m[1].length + 2); out.push('<h' + lv + '>' + inline(esc(m[2])) + '</h' + lv + '>'); i++; continue; }
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { out.push('<hr>'); i++; continue; }
+      if (/^\s*\|/.test(l) && i + 1 < lines.length && sep.test(lines[i + 1])) {
+        var head = cells(l), body = []; i += 2;
+        while (i < lines.length && /^\s*\|/.test(lines[i])) { body.push(cells(lines[i])); i++; }
+        out.push('<div class="md-table"><table><thead><tr>' + head.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>'
+          + body.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>');
+        continue;
+      }
+      if (/^\s*>/.test(l)) {
+        var q = [];
+        while (i < lines.length && /^\s*>/.test(lines[i])) { q.push(lines[i].replace(/^\s*>\s?/, '')); i++; }
+        out.push('<blockquote>' + md(q.join('\n')) + '</blockquote>'); continue;
+      }
+      if ((m = LI.exec(l))) {
+        var ordered = /\d/.test(m[2]), lis = [], start = ordered ? parseInt(m[2], 10) : 1;
+        while (i < lines.length) {
+          var mm = LI.exec(lines[i]);
+          if (!mm) {
+            if (/^\s{2,}\S/.test(lines[i]) && lis.length) { lis[lis.length - 1].html += '<br>' + inline(esc(lines[i].trim())); i++; continue; }
+            break;
+          }
+          if (/\d/.test(mm[2]) !== ordered && mm[1].length < 2) break;
+          lis.push({ sub: mm[1].length >= 2, html: inline(esc(mm[3])) }); i++;
+        }
+        var tag = ordered ? 'ol' : 'ul';
+        out.push('<' + tag + (ordered && start !== 1 ? ' start="' + start + '"' : '') + '>' + lis.map(function (x) { return '<li' + (x.sub ? ' class="sub"' : '') + '>' + x.html + '</li>'; }).join('') + '</' + tag + '>');
+        continue;
+      }
+      var p = [];
+      while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^\s*(```|#{1,6}\s|>)/.test(lines[i]) && !LI.test(lines[i])
+             && !(/^\s*\|/.test(lines[i]) && i + 1 < lines.length && sep.test(lines[i + 1]))) { p.push(inline(esc(lines[i]))); i++; }
+      if (p.length) out.push('<p>' + p.join('<br>') + '</p>'); else { out.push('<p>' + inline(esc(l)) + '</p>'); i++; }
+    }
+    return out.join('');
+  }
+
+  function filtered() {
+    return items.filter(function (it) {
+      return (st.model === 'all' || it.model === st.model) && (st.cause === 'all' || it.causes[st.cause])
+        && (st.kind === 'all' || it.kind === st.kind) && (!st.q || String(it.q).indexOf(st.q) === 0);
+    });
+  }
+
+  function summary() {
+    var byModel = {}, byCause = {};
+    items.forEach(function (it) { byModel[it.model] = (byModel[it.model] || 0) + 1; Object.keys(it.causes).forEach(function (c) { byCause[c] = (byCause[c] || 0) + 1; }); });
+    var mx = Math.max.apply(null, ORDER.map(function (p) { return byModel[p] || 0; }));
+    var left = '<div class="hv-panel"><h4>모델별 보류 <small>질문 ' + D.total_questions + '개 중 · 모두 ' + items.length + '건</small></h4>'
+      + ORDER.map(function (p) {
+        var n = byModel[p] || 0;
+        return '<div class="hv-mbar"><span>' + esc(D.models[p]) + '</span><span class="track"><i style="width:' + (n / mx * 100).toFixed(0) + '%"></i></span><span class="num">' + n + ' / ' + D.total_questions + '</span></div>';
+      }).join('') + '</div>';
+    var right = '<div class="hv-panel"><h4>보류 사유 <small>그 사유가 하나라도 있는 질문 수 — 한 질문에 사유가 여럿일 수 있음</small></h4><ul class="hv-why-list">'
+      + CAUSES.filter(function (c) { return byCause[c]; }).map(function (c) {
+        return '<li><span class="hv-cause c-' + c + '">' + esc(causeLabel(c)) + '</span><span class="num">' + byCause[c] + '건</span><span>' + esc((D.causes[c] || {}).plain || '') + '</span></li>';
+      }).join('') + '</ul></div>';
+    document.getElementById('hv-sum').innerHTML = left + right;
+  }
+
+  function seg(name, label, opts) {
+    return '<span><span class="hv-fl">' + label + '</span><span class="hv-seg">' + opts.map(function (o) {
+      return '<button type="button" data-f="' + name + '" data-v="' + esc(o[0]) + '" aria-pressed="' + (st[name] === o[0]) + '">' + esc(o[1]) + '</button>';
+    }).join('') + '</span></span>';
+  }
+  function filters() {
+    var causes = CAUSES.filter(function (c) { return items.some(function (it) { return it.causes[c]; }); });
+    document.getElementById('hv-filters').innerHTML =
+      seg('model', '모델', [['all', '전체']].concat(ORDER.map(function (p) { return [p, D.models[p]]; })))
+      + seg('cause', '사유', [['all', '전체']].concat(causes.map(function (c) { return [c, causeLabel(c)]; })))
+      + seg('kind', '종류', [['all', '전체'], ['단일', '단일'], ['대화', '대화'], ['긴 문서', '긴 문서']])
+      + '<label><span class="hv-fl">질문 번호</span><input class="hv-search" id="hv-q" inputmode="numeric" placeholder="예: 12" value="' + esc(st.q) + '"></label>';
+  }
+
+  function list() {
+    var f = filtered();
+    if (!f.some(function (it) { return it.id === st.sel; })) { st.sel = f.length ? f[0].id : null; st.turn = null; }
+    document.getElementById('hv-count').textContent = '보류 ' + items.length + '건 중 ' + f.length + '건';
+    document.getElementById('hv-list').innerHTML = f.map(function (it) {
+      var why = Object.keys(it.causes).map(causeLabel).join(' · ');
+      return '<li><button type="button" class="hv-item" role="option" data-id="' + it.id + '" aria-selected="' + (it.id === st.sel) + '">'
+        + '<span class="n">Q' + it.q + '</span><span class="m">' + esc(D.models[it.model]) + '</span>'
+        + '<span class="t">' + esc(it.kind) + (it.turns_total > 1 ? ' ' + it.turns_total + '턴' : '') + ' · ' + esc(why) + '</span></button></li>';
+    }).join('') || '<li class="hv-none" style="padding:8px">조건에 맞는 보류가 없습니다.</li>';
+    detail();
+  }
+
+  function holdCards(holds) {
+    if (!holds.length) return '';
+    var groups = {};
+    holds.forEach(function (h) { (groups[h.cause] = groups[h.cause] || []).push(h); });
+    return CAUSES.filter(function (c) { return groups[c]; }).map(function (c) {
+      return '<section class="hv-grp"><div class="hv-grp-h"><b>' + groups[c].length + '개 항목</b><span class="hv-cause c-' + c + '">' + esc(causeLabel(c)) + '</span></div>'
+        + '<p class="hv-plain">' + esc((D.causes[c] || {}).plain || '') + '</p>'
+        + groups[c].map(function (h) {
+          var claims = h.claims || [], unk = claims.filter(function (x) { return x.tag !== 'PASS' && x.tag !== 'TRUE'; }).length;
+          return '<div class="hv-it"><div class="hv-it-h"><b>' + esc(h.criterion ? h.criterion + ' ' : '') + esc(h.criterion_name) + '</b>'
+            + (h.criterion_q ? '<span>' + esc(h.criterion_q) + '</span>' : '') + '</div>'
+            + (h.reason ? '<div class="hv-jr"><span>심판이 남긴 글</span><p>' + esc(h.reason) + '</p></div>' : '')
+            + (h.original_reason ? '<div class="hv-jr"><span>심판의 처음 판단' + (h.original_choice ? ' — ' + esc(CHOICE[h.original_choice] || h.original_choice) : '') + '</span><p>' + esc(h.original_reason) + '</p></div>' : '')
+            + (claims.length ? '<details class="hv-claims"' + (claims.length <= 6 ? ' open' : '') + '><summary>심판이 확인한 문장 ' + claims.length + '개 · 확인 못 함 ' + unk + '개</summary><ul>'
+              + claims.map(function (x) { var t = TAG[x.tag] || [x.tag, 'unk']; return '<li><span class="tg ' + t[1] + '">' + esc(t[0]) + '</span><span>' + inline(esc(x.text)) + '</span></li>'; }).join('')
+              + '</ul></details>' : '')
+            + ((h.failed_sources || []).length ? '<div class="hv-src"><span class="hv-fl">확인하지 못한 출처</span><ul>' + h.failed_sources.map(function (s) {
+              return '<li><em>' + esc(s.status) + '</em>' + (/^https?:/.test(s.url) ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.url) + '</a>' : esc(s.url)) + '</li>';
+            }).join('') + '</ul></div>' : '')
+            + '</div>';
+        }).join('') + '</section>';
+    }).join('');
+  }
+
+  function detail() {
+    var box = document.getElementById('hv-detail');
+    var it = items.filter(function (x) { return x.id === st.sel; })[0];
+    if (!it) { box.innerHTML = '<p class="hv-none">왼쪽에서 질문을 고르세요.</p>'; return; }
+    if (st.turn == null || st.turn > it.turns_total) st.turn = it.held_turns.length ? it.held_turns[0] : 1;
+    var t = it.turns[st.turn - 1];
+    var tabs = it.turns_total > 1 ? '<div class="hv-turns"><span class="hv-fl">턴</span>' + it.turns.map(function (x) {
+      return '<button type="button" data-turn="' + x.n + '" class="' + (x.holds.length ? 'held' : '') + '" aria-pressed="' + (x.n === st.turn) + '"'
+        + (x.holds.length ? ' title="보류 항목 ' + x.holds.length + '개"' : '') + '>' + x.n + '턴</button>';
+    }).join('') + '<span class="hv-fl">· 점 = 보류 항목이 있는 턴</span></div>' : '';
+    var att = (t.attachments || []).map(function (a) {
+      return '<details class="hv-extra"><summary>첨부파일 — ' + esc(a.name) + ' · ' + esc(a.type) + '</summary><pre>' + esc(a.content || '(내용 없음)') + '</pre></details>';
+    }).join('');
+    var ref = t.ref_chars ? '<details class="hv-extra"><summary>참조 자료(긴 문서) ' + t.ref_chars.toLocaleString() + '자 — 앞부분만</summary><pre>' + esc(t.ref_head) + '\n…</pre></details>' : '';
+    var ans = t.answer ? (st.raw ? '<div class="hv-text plain">' + esc(t.answer) + '</div>' : '<div class="hv-text md">' + md(t.answer) + '</div>')
+      : '<div class="hv-text"><span class="hv-empty">답변 없음 (0자)' + (t.collected && t.collected !== 'SUCCESS' ? ' — 수집 상태 ' + esc(t.collected) : '') + '</span></div>';
+    var side = t.holds.length ? holdCards(t.holds)
+      : '<section class="hv-grp"><p class="hv-none">이 턴에는 보류 항목이 없습니다. 보류 항목이 있는 턴: ' + it.held_turns.map(function (n) { return n + '턴'; }).join(' · ') + '</p></section>';
+    box.innerHTML = '<div class="hv-dh"><h3>Q' + it.q + ' · ' + esc(D.models[it.model]) + '<span>' + esc(it.kind) + (it.turns_total > 1 ? ' · ' + it.turns_total + '턴' : '') + '</span></h3><span class="hv-badge">질문 판정: 보류</span></div>'
+      + '<div class="hv-why"><b>왜 보류인가</b><p>' + esc(it.headline) + '</p></div>' + tabs
+      + '<div class="hv-cols"><div class="hv-qa">'
+      + '<section class="hv-box hv-qbox"><h5>질문 원문 <small>' + (it.turns_total > 1 ? st.turn + '턴 · ' : '') + (t.question || '').length.toLocaleString() + '자</small></h5><div class="hv-text plain">' + esc(t.question) + '</div>' + att + ref + '</section>'
+      + '<section class="hv-box hv-abox"><h5>답변 원문 <small>' + (t.answer || '').length.toLocaleString() + '자</small><button type="button" class="hv-raw" data-raw="1">' + (st.raw ? '읽기 좋게 보기' : '원문 글자 그대로 보기') + '</button></h5>' + ans + '</section>'
+      + '</div><aside class="hv-side" aria-label="보류 사유"><h4 style="margin:0;font-size:.95rem">보류 사유 <small style="color:var(--muted);font-weight:400">' + (it.turns_total > 1 ? st.turn + '턴 · ' : '') + t.holds.length + '개 항목</small></h4>' + side + '</aside></div>';
+  }
+
+  root.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b || !root.contains(b)) return;
+    if (b.dataset.f) { st[b.dataset.f] = b.dataset.v; filters(); list(); return; }
+    if (b.dataset.id) { st.sel = b.dataset.id; st.turn = null; list(); return; }
+    if (b.dataset.turn) { st.turn = parseInt(b.dataset.turn, 10); detail(); return; }
+    if (b.dataset.raw) { st.raw = !st.raw; detail(); }
+  });
+  root.addEventListener('input', function (e) {
+    if (e.target.id === 'hv-q') { st.q = e.target.value.replace(/\D/g, ''); list(); }
+  });
+  document.getElementById('hv-list').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    var f = filtered(), i = f.map(function (x) { return x.id; }).indexOf(st.sel);
+    var j = Math.max(0, Math.min(f.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+    if (f[j]) { st.sel = f[j].id; st.turn = null; list(); var el = document.querySelector('.hv-item[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'nearest' }); }
+    e.preventDefault(); e.stopPropagation();
+  });
+  summary(); filters(); list();
+})();
+</script>""".replace("__FILE__", HELD_JS_FILE)
 
 
 # ---------- 장 ----------
 SECTIONS = [
-    ("s1", "전체 흐름도", "질문에서 결과까지 A~H", "전체 흐름도 — 질문에서 결과까지 A~H",
-     "질문 326개를 네 모델에 묻고, 답을 코드와 심판 AI 로 채점해 질문마다 PASS·FAIL·보류를 냅니다.",
+    ("s1", "전체 흐름도", "질문 → 답변 수집 → JSON → 평가", "전체 흐름도",
+     "질문 세트를 네 모델에 던져 답을 받고, 질문·답변을 JSON 으로 저장한 뒤 코드(CODE 평가)와 심판 AI 둘(의미 평가)이 채점해 질문마다 PASS·FAIL·보류를 냅니다.",
      f"""
   <figure class="fig poster">
-    <span class="poster-sub">2026-10-20 저장소 기준</span>
+    <span class="poster-sub">2026-10-20 저장소 기준 · E 의미 평가는 판정 v4 (시험 중)</span>
     <div class="poster-grid">{flow}<aside class="pside" aria-label="흐름도 요약">{side_cards}</aside></div>
   </figure>
   {steps_table}
 """),
-    ("s2", "바뀐 점", "10-19 → 지금, 단계마다", "10-19 → 지금 — 무엇이 바뀌었나",
-     "10-19 실행 기록과 지금 코드를 단계별로 비교했습니다.",
-     f"""{shift_strip}
-  {glance_table}
-  <p class="callout">참고 — 10-19 발표 01장에는 '답변 수집 — 모두 웹브라우저'로 적었지만, 실제로는 GPT·Claude·Gemini 답을 API 로 받았습니다(487턴 모두).</p>
-  {shift_table}
-  <p class="basis">출처: 10-19 실행 기록(참고자료/결과/8c61f117e661_정밀326_2026-10-19.json) · 2026-10-20 코드</p>
+    ("s2", "바뀐 점", "답변 수집 방법 · 기존 → 현재", "바뀐 점 — 기존 → 현재",
+     "10-19 실행(정밀 326)과 지금(10-20)을 비교했습니다. 답변 수집 방법이 바뀌었습니다 — API 대신 사람이 쓰는 앱·웹 화면에서 받습니다.",
+     f"""{change_list}
+  <p class="callout">참고 — 10-19 발표에는 '답변 수집 — 모두 웹브라우저'로 적었지만, 실제로는 GPT·Claude·Gemini 답을 API 로 받았습니다(487턴 모두). 지금은 네 모델 모두 화면에서 받습니다.</p>
+  <p class="basis">출처: 10-19 실행 기록(참고자료/결과/8c61f117e661_정밀326_2026-10-19.json) · 2026-10-20 코드와 간단 78 실행 ac6507c00276</p>
 """),
-    ("s3", "프롬프트 고정", "같은 질문·답변이면 같은 글", "판정 프롬프트는 고정 — 같은 질문·답변이면 같은 글",
-     "심판에게 보내는 글은 '고정 파일 + 코드가 붙인 입력'입니다. LLM 이 프롬프트를 만들지 않습니다.",
+    ("s3", "평가 프롬프트", "고정 프롬프트 v4 + 질문·답변 JSON", "평가 프롬프트 — 고정 프롬프트 v4 + 질문·답변 JSON",
+     "심판에게는 모든 질문에 같은 프롬프트와, 수집한 질문·답변 JSON 만 보냅니다. 어떤 항목을 볼지는 프롬프트의 상황표를 보고 심판이 정하고, 결론까지 냅니다.",
      f"""
   <div class="block"><h3>심판에게 가는 글</h3>{pstack}</div>
-  {test_table}
-  {vary_table}
-  {details(f"Q{D['qid']} 입력 앞부분 보기", D['excerpt'], "[답변] 줄까지")}
-  <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드로 다시 계산합니다.</p>
+  {parts_table}
+  {v3v4_table}
+  {check_table}
+  {trial_table}
+  {trial_points}
+  {details(f"Q{D4['qid']} 입력 JSON 보기 (10-19 AIONA 답)", D4['excerpt'], "심판이 받는 [입력] 그대로")}
+  <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드(tools/judge_v4.question_json)로 다시 계산합니다 — AI 호출 없음. 프롬프트: 참고자료/프롬프트/judge_prompt_v4.txt (tools/build_judge_prompt_v4.py 가 v3 에서 만듦).</p>
 """),
     ("s4", "질문 수별 비율", f"{R198['n']}·{R155['n']}개 목록 vs 정밀 326", f"질문 수별 통과 비율 — {R198['n']}·{R155['n']}개 목록은 326 과 같은가",
      "기준마다 20번 평가되게 고른 두 목록이 정밀 326 과 같은 결과를 내는지, 10-19 실행 판정을 그대로 다시 세어 비교했습니다.",
@@ -1053,22 +1477,34 @@ SECTIONS = [
   {cover_table}
   <p class="basis">출처: 참고자료/최소평가/던지는순서_세가지_8c61f117e661.json (tools/order_curves.py — FAIL 종류 {OT['pairs']}개·사건 {OT['events']}건이 10-19 기록과 같음). 그래프에 마우스를 올리면 그 질문 수의 값이 보입니다.</p>
 """),
-    ("s6", "k 급증 원인", "8→9 · 11→12 에서 FAIL 이 뛰는 이유", "k 9·12 에서 FAIL 이 급증하는 이유",
-     "조건 수만 바꾼 실험(뼈대 18개 × k 1~16 × GPT·Claude·Gemini)을 다시 뜯어, 급증이 평가 규칙 탓인지 실제 위반인지 나눴습니다.",
+    ("s6", "평가 횟수 k", "k 10·20 과 질문 수 · 세 선은 어디서 만나나", "평가 횟수 k 와 질문 수 — 세 선은 어디서 만나나",
+     "모든 기준이 최소 k번 평가되려면 질문을 몇 개 던져야 하는지, 번호순·기준 많은 순·모자란 기준부터 세 순서로 비교했습니다. 미팅에서 나온 '세 선이 어느 지점에서 만나지 않을까'를 확인했습니다.",
      f"""
   <figure class="fig rate-chart">
-    <ul class="rate-key"><li><i class="kink"></i>기록된 FAIL</li><li><i class="kkd"></i>J5 하나로만 FAIL 인 것을 뺀 것</li>
-      <li><i class="kbar"></i>형식 요구 3개↑ (실험)</li><li><i class="kdia"></i>지금 326 세트</li><li><i class="kband2"></i>지금 k 범위</li></ul>
+    <ul class="rate-key"><li><i class="knum"></i>번호순</li><li><i class="kkd"></i>기준 많은 순</li><li><i class="kgr"></i>모자란 기준부터</li>
+      <li>● 점 = k 에 닿는 질문 수</li></ul>
     <div class="order-charts">
-      <div><h3>k 별 FAIL 비율</h3>{k_chart_frame("fail", "질문당 조건 수 k 별 FAIL 비율 — 기록된 것과 J5 하나로만 FAIL 인 것을 뺀 것")}</div>
-      <div><h3>형식 요구가 3개 이상인 질문 비율</h3>{k_chart_frame("format", "k 별 형식 요구 3개 이상 질문 비율 — 실험과 지금 326 세트")}</div>
+      <div><h3>모든 기준 {KR['criteria']}개가 최소 k번</h3>{k_chart("raw", (10,), "던진 질문 수별 모든 기준의 최소 평가 횟수 — 세 순서")}</div>
+      <div><h3>기준마다 k번 — 326 에 k개보다 적은 기준은 있는 만큼</h3>{k_chart("cap", (10, 20), "던진 질문 수별 기준마다 k번(있는 만큼) — 세 순서")}</div>
     </div>
   </figure>
   {k_points}
-  {jump_table}
-  {per_k_table}
-  <p class="basis">출처: 참고자료/최소평가/k급증_원인_e4ce7a342251.json (tools/k_jump_analysis.py — 판정 k_experiment_grid.json, 질문은 git 기록의 질문세트_실험300, 조건은 지금 적용 규칙). J5 는 FAIL 사유를 나눠 기록하지 않아 'J5 하나로만 FAIL' 을 뺀 값은 규칙 영향의 최대치입니다.</p>
+  {k_reach_table}
+  {k_rare_table}
+  <p class="basis">출처: 참고자료/최소평가/평가횟수k_곡선_326.json (tools/k_reach_curves.py — 질문 세트만 읽음, 기준은 05장과 같은 '질문으로 셀 수 있는 기준 {KR['criteria']}개'). 모자란 기준부터 = 그때까지 가장 적게 평가된 기준을 채우는 질문부터. 그래프에 마우스를 올리면 그 질문 수의 k 가 보입니다.</p>
 """),
+    ("s7", "걸린 시간", "답변 수집 · CODE · 의미 평가", "걸린 시간 — 답변 수집과 평가",
+     "간단 78 을 네 모델에서 받는 데 걸린 시간(10-20)과, CODE·의미 평가에 걸린 시간을 기록으로 셌습니다. 질문 하나 = 그 질문의 모든 턴을 합친 시간입니다.",
+     f"""{time_kpis}
+  {collect_table(f"답변 수집 — 간단 78 (10-20, 앱·웹) · 단일 {TIMES['kinds_78']['단일']} · 대화 {TIMES['kinds_78']['대화']} · 긴 문서 {TIMES['kinds_78']['긴 문서']}개", TIMES['collect_1020'], 78)}
+  {time_points}
+  {judge_table}
+  {collect_table("비교 — 정밀 326 (10-19, GPT·Claude·Gemini 는 API · AIONA 는 웹)", TIMES['collect_1019'], 326)}
+  <p class="basis">출처: 참고자료/결과/시간_요약_ac6507c00276.json (tools/time_summary.py — 수집은 실행 기록의 턴마다 걸린 시간, CODE 는 78개 답으로 직접 잼, 의미 평가는 판정 기록). 답을 기다린 시간만 셈 — 새 채팅 열기·모델 설정·첨부 붙여넣기 시간은 빠짐.</p>
+"""),
+    ("s8", "보류 함께 보기", "10-19 정밀 326 에서 보류된 300건", "보류 함께 보기 — 왜 보류로 두었나",
+     "10-19 정밀 326 실행에서 질문 전체가 보류로 끝난 300건(네 모델)입니다. 질문·답변 원문과 함께, 왜 보류인지 쉬운 말로 붙였습니다. 보류 = 실패로 확정된 항목은 없지만 확인이 끝나지 않은 항목이 남아 사람이 정할 것.",
+     held_section),
 ]
 
 total = len(SECTIONS)
@@ -1082,10 +1518,10 @@ glossary = table("", ["말", "뜻"], [
     ["질문 세트", "모델에 똑같이 던지는 고정 질문 326개 (간단평가는 그중 78개). 대화형 질문은 턴이 여러 개여도 1개로 셈"],
     ["CODE 평가", "프로그램이 형식·글자 수·계산 같은 28가지를 검사"],
     ["의미 평가", "심판 AI 가 내용을 44개 항목으로 판정 — J1~J8 묶음"],
-    ["J1~J8", "의도 충족 · 내용 적절성 · 논리 · 충분성 · 사실(DATA) · 대화 맥락 · 긴 문서 활용 · 첨부 활용"],
-    ["심판", "Jev(외부 API) — J1~J4 를 먼저 · Codex CLI(ChatGPT 구독) — 나머지를 확정"],
-    ["PASS · FAIL · 보류", f"{PASS} 통과 · {FAIL} 실패 · {HOLD} 근거가 부족해 사람이 정함"],
-    ["판정상황표", "질문마다 채점할 항목과 근거 문장을 코드가 미리 적어 둔 표"],
+    ["J1~J8", "요청 충실 · 지시 준수 · 일관성·논리 · 완결성 · DATA 신뢰도 · 대화 맥락 유지 · 긴 문서 활용 · 첨부 활용"],
+    ["심판", "Codex CLI(ChatGPT 구독) — 상황을 찾아 J1~J8 판정과 결론 · Jev(외부 API) — J1~J4 를 함께 판정"],
+    ["PASS · FAIL · 보류", f"{PASS} 통과 · {FAIL} 실패 · {HOLD} 실패로 확정된 것은 없지만 확인이 끝나지 않아 사람이 정함"],
+    ["k", "06장 — 모든 기준이 최소 몇 번 평가되었나"],
 ], [22, 78])
 
 s0 = f"""
@@ -1095,7 +1531,7 @@ s0 = f"""
     <h1>ModelGrade 보고</h1>
     <p>AI 모델 4개(AIONA · GPT · Claude · Gemini)에 같은 질문을 던지고, 답을 자동으로 채점해 비교하는 도구입니다.</p>
   </div>
-  <span class="kicker">오늘 이야기할 것</span>
+  <span class="kicker">목차</span>
   <ol class="agenda">
     {"".join(f'<li><a href="#{sid}"><span class="n">{i:02d}</span><strong>{E(short)}</strong><span class="d">{E(desc)}</span></a></li>' for i, (sid, short, desc, *_rest) in enumerate(SECTIONS, 1))}
   </ol>
@@ -1129,12 +1565,13 @@ page = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ModelGrade 보고 10-20</title>
-<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정 · 질문 수별 통과 비율 · 던지는 순서 · k 급증 원인">
+<meta name="description" content="2026-10-20 — 전체 흐름도 · 바뀐 점(답변 수집 방법) · 평가 프롬프트 v4 · 질문 수별 통과 비율 · 던지는 순서 · 평가 횟수 k · 걸린 시간 · 보류 함께 보기">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 {css}
 {extra_css}
+{EXTRA_CSS2}
 </head>
 <body>
 {nav}
@@ -1143,6 +1580,8 @@ page = f"""<!doctype html>
 {sections}
 </main>
 {script}
+<script src="{HELD_JS_FILE}"></script>
+{HV_JS}
 </body>
 </html>
 """

@@ -48,6 +48,9 @@ JEV_TRIM_CHARS = 35_000   # Jev 입력 예산 — 넘으면 긴 자료(첨부·�
 _SAY_LOCK = threading.Lock()
 
 
+SHOW_THINKING = True   # Codex 생각 요약 줄 — 여러 모델을 동시에 판정할 때는 끈다 (judge_v4 --show-thinking)
+
+
 def say(text: str) -> None:
     """판정 진행 한 줄 — 질문 2개가 동시에 돌아도 줄이 섞이지 않게 잠금 아래 바로 찍는다."""
     with _SAY_LOCK:
@@ -100,7 +103,7 @@ class CodexJudge:
                 continue
             kind = event.get("type")
             item = event.get("item") or {}
-            if kind == "item.completed" and item.get("type") == "reasoning":
+            if kind == "item.completed" and item.get("type") == "reasoning" and SHOW_THINKING:
                 say(f"      💭 {tag} Codex 생각: {(item.get('text') or '').strip().replace(chr(10), ' ')[:110]}")
             elif kind == "item.completed" and item.get("type") == "agent_message":
                 say(f"      💬 {tag} Codex 답 도착 ({len(item.get('text') or ''):,}자, {now - started:.0f}초)")
@@ -111,7 +114,7 @@ class CodexJudge:
                 say(f"      ✅ {tag} Codex 완료 — 입력 {usage.get('input_tokens', '?')} · 출력 {usage.get('output_tokens', '?')} 토큰, {now - started:.0f}초")
             elif kind in ("error", "turn.failed"):
                 say(f"      ⚠ {tag} Codex: {str(event.get('message') or event.get('error') or event)[:120]}")
-            elif now - last_seen > 20:
+            elif now - last_seen > 20 and SHOW_THINKING:
                 say(f"      … {tag} Codex 작업 중 ({now - started:.0f}초)")
             last_seen = now
         try:

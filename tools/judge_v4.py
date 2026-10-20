@@ -33,7 +33,7 @@ from tools.judge_run import judges_from_env, say  # noqa: E402
 from webapp.question_generation import flatten  # noqa: E402
 from webapp.run_summary import question_outcome  # noqa: E402
 
-VERSION = "judge-v4-trial-1"
+VERSION = "judge-v4-1"   # trial-1: 3건 시험 · v4-1: 78 전체(빈 출력·못 받은 답 처리, Jev 판정할_턴·긴 자료 줄이기)
 SET_DIR = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 SUB_ITEMS: Dict[str, List[str]] = {sub.id: [it.id for it in si.ITEMS if it.sub == sub.id] for sub in si.SUBS}
 SUB_ORDER = list(SUB_ITEMS)
@@ -154,17 +154,59 @@ def check_codex(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str
     return info
 
 
-def combine(codex_v: Optional[Dict[str, Any]], jev_v: Optional[Dict[str, Any]]) -> Tuple[Optional[str], str]:
-    """J1~J4 한 항목 — (최종 판정, 어떻게 정했는지). None = 두 심판 모두 상황 없음으로 봄."""
+def combine(codex_v: Optional[Dict[str, Any]], jev_v: Optional[Dict[str, Any]], jev_trimmed: bool = False) -> Tuple[Optional[str], str]:
+    """J1~J4 한 항목 — (최종 판정, 어떻게 정했는지). None = 두 심판 모두 상황 없음으로 봄.
+    jev_trimmed: Jev 가 그 턴을 줄인 자료로 봤으면 Jev FAIL 로 보류하지 않고 원문 전체를 본 Codex 판정을 따른다 (흐름 v2 와 같은 원칙, 10-19)."""
     c = (codex_v or {}).get("decision")
     j = (jev_v or {}).get("decision")
     if c == "FAIL":
         return "FAIL", "Codex FAIL" + (" · Jev 도 FAIL" if j == "FAIL" else f" · Jev {KO.get(j, j)}")
-    if j == "FAIL":
+    if j == "FAIL" and not jev_trimmed:
         return "UNVERIFIED", f"심판 갈림 — Jev FAIL · Codex {KO.get(c, c) if c else '상황 없음'}"
+    note = " (Jev 는 줄인 자료로 봐서 참고만)" if jev_trimmed else ""
     if c is None:
-        return None, f"Codex 상황 없음 · Jev {KO.get(j, j)}"
-    return c, f"Codex {KO.get(c, c)} · Jev {KO.get(j, j)}"
+        return None, f"Codex 상황 없음 · Jev {KO.get(j, j)}{note}"
+    return c, f"Codex {KO.get(c, c)} · Jev {KO.get(j, j)}{note}"
+
+
+JEV_TRIM_CHARS = 35_000   # Jev 입력 예산(글자) — 약 5만 자부터 Jev 가 max_tokens_exceeded (10-19·10-20)
+TRIM_MARK = "…[중략: {n:,}자 생략 — 전문은 Codex 가 본다]…"
+
+
+def _cut(holder: Dict[str, Any], key: str, keep: int) -> int:
+    text = holder[key]
+    if len(text) <= keep:
+        return 0
+    head, tail = int(keep * 0.6), keep - int(keep * 0.6)
+    cut = len(text) - head - tail
+    holder[key] = text[:head] + TRIM_MARK.format(n=cut) + text[-tail:]
+    return cut
+
+
+def trim_jev_state(state: Dict[str, Any], budget: int = JEV_TRIM_CHARS) -> int:
+    """Jev 에 보낼 state 가 예산을 넘으면 ① 첨부 내용·참조 자료 ② 판정할 턴보다 앞 턴의 답변 순으로 앞 60%·뒤 40% 만 남긴다.
+    판정할 턴의 질문·답변은 줄이지 않는다. 돌려주는 값은 줄인 글자 수(0 = 그대로)."""
+    if not budget or js.state_chars(state) <= budget:
+        return 0
+    now = max(state.get("판정할_턴") or [0])
+    trimmed = 0
+    for pool in ("material", "history"):
+        slots = []
+        for t in state.get("턴") or []:
+            if pool == "material":
+                slots += [(a, "내용") for a in t.get("첨부파일") or [] if isinstance(a.get("내용"), str)]
+                if isinstance(t.get("참조자료"), str):
+                    slots.append((t, "참조자료"))
+            elif t.get("턴") != now and isinstance(t.get("답변"), str):
+                slots.append((t, "답변"))
+        over = js.state_chars(state) - budget
+        size = sum(len(h[k]) for h, k in slots)
+        if over <= 0 or not size:
+            continue
+        for h, k in slots:   # 길이에 비례해 줄인다 — 조각마다 최소 400자는 남긴다
+            keep = max(400, len(h[k]) - int(over * len(h[k]) / size) - 80)
+            trimmed += _cut(h, k, keep)
+    return trimmed
 
 
 def verdict_of(items: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
@@ -229,9 +271,15 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         t0 = time.monotonic()
         merged: Dict[str, Any] = {}
         errors: List[str] = []
+        trimmed: Dict[str, int] = {}
         for row in turns:
             n = ji._turn(row)
-            part = {"guide": fixed["guide"], "질문번호": q, "턴": [t for t in doc["턴"] if t["턴"] <= n]}
+            # 판정할_턴 을 적어 준다 — 앞 턴(1·2턴 거절)에 끌려 3턴 이후 정상 답을 '거절' FAIL 로 본 일(Q17 Gemini, 10-20)
+            part = json.loads(json.dumps({"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]},
+                                         ensure_ascii=False))
+            cut = trim_jev_state(part)
+            if cut:
+                trimmed[str(n)] = cut
             status, body, error = jev.judge(part, {f"T{n}:{i}": fixed["items"][i] for i in jev_items}) if jev else ("ERROR", None, "Jev 없음")
             if status == "OK":
                 merged.update((body or {}).get("answers") or {})
@@ -239,8 +287,9 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
                 errors.append(f"T{n} {status} {str(error)[:80]}")
         status = "OK" if not errors else ("PARTIAL" if merged else "ERROR")
         calls["jev"] = {"status": status, "error": "; ".join(errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns),
-                        "body": {"answers": merged}}
-        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" — {'; '.join(errors)[:160]}" if errors else ""))
+                        "trimmed": trimmed, "body": {"answers": merged}}
+        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" · 줄인 턴 {list(trimmed)}" if trimmed else "")
+            + (f" — {'; '.join(errors)[:160]}" if errors else ""))
 
     started = time.monotonic()
     threads = [threading.Thread(target=run_codex), threading.Thread(target=run_jev)]
@@ -263,7 +312,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         for item in dict.fromkeys(list(c_items) + [i for i in jev_items if i in j_items]):
             cv, jv = c_items.get(item), j_items.get(item)
             if item in jev_items:
-                dec, how = combine(cv, jv)
+                dec, how = combine(cv, jv, str(n) in (calls["jev"].get("trimmed") or {}))
                 if jv and (cv or {}).get("decision") is not None:
                     total += 1
                     agree += (jv.get("decision") == cv.get("decision"))
@@ -331,48 +380,189 @@ def report_md(lines: List[Dict[str, Any]]) -> str:
     return "\n".join(md) + "\n"
 
 
+PROVIDERS = ("gpt", "claude", "gemini", "aiona")
+LABEL = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini", "aiona": "AIONA"}
+IDS78 = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
+_LOG: Dict[str, Any] = {"path": None}
+_LOG_LOCK = threading.Lock()
+
+
+def log_say(text: str) -> None:
+    """터미널에 찍고 로그 파일에도 남긴다 — Codex 실행기(judge_run)의 진행 글도 이 함수로 모인다."""
+    print(text, flush=True)
+    if _LOG["path"]:
+        with _LOG_LOCK, Path(_LOG["path"]).open("a", encoding="utf-8") as f:
+            f.write(text + "\n")
+
+
+class Board:
+    """모델마다 '지금 몇 번째 질문을 평가 중인지 / 전체' — 시작·끝날 때마다 다시 찍는다 (사용자 10-20)."""
+
+    def __init__(self, totals: Dict[str, int], done: Dict[str, int]) -> None:
+        self.totals, self.done = totals, dict(done)
+        self.now: Dict[str, Optional[int]] = {p: None for p in totals}
+        self.lock = threading.Lock()
+
+    def show(self) -> None:
+        lines = [f"── 평가 현황 {datetime.now():%H:%M:%S} ──"]
+        for p, total in self.totals.items():
+            if self.now[p] is not None:
+                state = f"{min(self.done[p] + 1, total)}/{total}  (Q{self.now[p]} 평가 중)"
+            else:
+                state = f"{self.done[p]}/{total}  ({'끝' if self.done[p] >= total else '대기'})"
+            lines.append(f"  {LABEL.get(p, p):<7}: {state}")
+        log_say("\n".join(lines))
+
+    def start(self, p: str, q: int) -> None:
+        with self.lock:
+            self.now[p] = q
+            self.show()
+
+    def finish(self, p: str) -> None:
+        with self.lock:
+            self.now[p] = None
+            self.done[p] += 1
+            self.show()
+
+
+def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """심판에게 보내지 않고 정하는 경우 — 판정 v3 와 같은 규칙(tools/judge_inputs.empty_output_entry, 사용자 규칙 10-20).
+    빈 출력 요구: 복사할 답이 없으면 보류 · 글을 쓰면 FAIL / 복사 실패·빈 답: 보류 / 답을 못 받은 턴: FAIL."""
+    from webapp.run_summary import asks_empty_output
+    note = "; ".join(f"{t['case_id']}: {ji.collection_note(data.get(t['case_id']))}" for t in turns)
+    if any(asks_empty_output(None, t.get("question")) for t in turns):
+        return ji.empty_output_entry(turns, {t["case_id"]: data.get(t["case_id"]) for t in turns}, answers)
+    statuses = [((data.get(t["case_id"]) or {}).get("collection") or {}).get("status") for t in turns]
+    if "COPY_FAILED" in statuses:
+        return {"status": "held_copy_failed", "reason": "답을 복사해 오지 못함 — 보류", "collection_note": note}
+    if not all(ji.collected(data.get(t["case_id"])) for t in turns):
+        return {"status": "no_answer", "reason": "답을 받지 못한 턴이 있음 — FAIL 로 셈", "collection_note": note}
+    if any(not (answers.get(t["case_id"]) or "").strip() for t in turns):
+        return {"status": "held_copy_failed", "reason": "받은 답이 비어 있음 — 보류", "collection_note": note}
+    return None
+
+
+PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS"}
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run", required=True)
-    ap.add_argument("--pick", required=True, help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona,17:gemini")
-    ap.add_argument("--workers", type=int, default=3)
-    ap.add_argument("--reuse-codex", action="store_true", help="v4/codex/ 에 저장된 Codex 출력이 있으면 다시 부르지 않고 쓴다 (Jev 만 다시)")
+    ap.add_argument("--pick", help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona (없으면 --questions)")
+    ap.add_argument("--questions", default="78", help="'78' = 간단 78 전체, 또는 질문 번호 쉼표 목록")
+    ap.add_argument("--providers", default=",".join(PROVIDERS))
+    ap.add_argument("--out", default="v4-78", help="결과 폴더 이름 (data/judge_runs/<실행>/<이름>)")
+    ap.add_argument("--reuse-codex", action="store_true", help="저장된 Codex 출력이 있으면 다시 부르지 않고 쓴다 (Jev 만 다시)")
+    ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
+    ap.add_argument("--dry", action="store_true", help="심판을 부르지 않고 질문마다 어떻게 처리할지만 보기")
     args = ap.parse_args(argv)
-    picks = [(int(p.split(":")[0]), p.split(":")[1]) for p in args.pick.split(",") if p.strip()]
+
+    import tools.judge_run as jr
+    jr.say = log_say   # Codex 실행기의 진행 글도 같은 곳으로
+    jr.SHOW_THINKING = args.show_thinking
+    global say
+    say = log_say
+
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     rows = flatten(json.loads((SET_DIR / "questions.json").read_text(encoding="utf-8")))
     table = {r["case_id"]: r for r in json.loads((SET_DIR / ji.SITUATIONS).read_text(encoding="utf-8"))["rows"]}
     prompt = PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))
-    gpt, jev, notes = judges_from_env()
-    for n in notes:
-        say(f"⚠ {n}")
-    out = ROOT / "data" / "judge_runs" / args.run / "v4"
+    out = ROOT / "data" / "judge_runs" / args.run / args.out
     for sub in ("inputs", "codex", "jev"):
         (out / sub).mkdir(parents=True, exist_ok=True)
-    tasks = []
-    for q, provider in picks:
-        turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
+    _LOG["path"] = str(out / "run.log")
+
+    if args.pick:
+        plan = [(int(x.split(":")[0]), x.split(":")[1]) for x in args.pick.split(",") if x.strip()]
+    else:
+        qs = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if args.questions == "78" else [int(x) for x in args.questions.split(",") if x.strip()]
+        plan = [(q, p) for p in args.providers.split(",") for q in qs]
+    results_path = out / "results.jsonl"
+    done = set()
+    if results_path.exists():
+        for x in results_path.read_text(encoding="utf-8").splitlines():
+            if x.strip():
+                l = json.loads(x)
+                if l.get("version") == VERSION:
+                    done.add((l["provider"], int(l["question"])))
+    queues: Dict[str, List[int]] = {}
+    for q, p in plan:
+        queues.setdefault(p, []).append(q)
+    totals = {p: len(v) for p, v in queues.items()}
+    board = Board(totals, {p: sum(1 for q in v if (p, q) in done) for p, v in queues.items()})
+    gpt = jev = None
+    if not args.dry:
+        gpt, jev, notes = judges_from_env()
+        for n in notes:
+            say(f"⚠ {n}")
+    write_lock = threading.Lock()
+
+    def save(line: Dict[str, Any]) -> None:
+        with write_lock, results_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({**line, "at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False) + "\n")
+
+    def work(provider: str) -> None:
         data = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(provider) or [] if isinstance(r, dict)}
-        if not all(ji.collected(data.get(t["case_id"])) and (data[t["case_id"]].get("answer") or "").strip() for t in turns):
-            say(f"⚠ Q{q} {provider}: 답을 다 받지 못한 턴이 있어 건너뜀")
-            continue
-        answers = {t["case_id"]: data[t["case_id"]]["answer"] for t in turns}
-        deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
         cases = {c.get("case_id"): c for c in ((run.get("evaluations") or {}).get(provider) or {}).get("cases") or [] if isinstance(c, dict)}
-        code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
-        tasks.append((q, provider, turns, answers, deliveries, code_fails))
-    say(f"판정 v4 시험 — {len(tasks)}건 · Codex CLI {getattr(gpt, 'model', '-')}·{getattr(gpt, 'reasoning', '-')} + Jev · 프롬프트 {PROMPT_V4.name}")
+        for q in queues[provider]:
+            if (provider, q) in done:
+                continue
+            turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
+            answers = {t["case_id"]: (data.get(t["case_id"]) or {}).get("answer") or "" for t in turns}
+            pre = pre_status(turns, data, answers)
+            board.start(provider, q)
+            if pre is not None:
+                line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": pre["status"],
+                        "verdict": PRE_VERDICT.get(pre["status"], "HOLD"), "reason": pre.get("reason"), "collection_note": pre.get("collection_note")}
+                say(f"■ Q{q} {provider}: {KO.get('UNVERIFIED') if line['verdict'] == 'HOLD' else line['verdict']} (심판 없이) — {pre.get('reason')}")
+            elif args.dry:
+                line = None
+                say(f"· Q{q} {provider}: 심판에게 보냄 ({len(turns)}턴)")
+            else:
+                deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
+                code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
+                try:
+                    line = {**judge_one(q, provider, turns, answers, deliveries, table, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex),
+                            "status": "judged"}
+                except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
+                    line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
+                            "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
+                    say(f"⚠ Q{q} {provider}: {line['reason']}")
+            if line is not None and not args.dry:
+                save(line)
+            board.finish(provider)
+
+    say(f"판정 v4 — {sum(totals.values())}건(질문 × 모델, 이미 한 {sum(board.done.values())}건 건너뜀) · 모델마다 한 줄로 동시에 · "
+        + (f"Codex CLI {getattr(gpt, 'model', '-')}·{getattr(gpt, 'reasoning', '-')} + Jev" if not args.dry else "점검만(심판 안 부름)")
+        + f" · 로그 {out / 'run.log'}")
+    board.show()
     wall0 = time.monotonic()
-    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
-        lines = list(pool.map(lambda t: judge_one(*t[:5], table, t[5], prompt, fixed, gpt, jev, out, args.reuse_codex), tasks))
-    with (out / "results.jsonl").open("a", encoding="utf-8") as f:
-        for l in lines:
-            f.write(json.dumps({**l, "at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False) + "\n")
-    md = report_md(lines)
-    (out / "report.md").write_text(md, encoding="utf-8")
-    say(f"\n판정 v4 시험 끝 — 벽시계 {time.monotonic() - wall0:.0f}초 · 보고 {out / 'report.md'}")
-    print(md)
+    threads = [threading.Thread(target=work, args=(p,), name=f"judge-{p}") for p in queues]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    wall = round(time.monotonic() - wall0, 1)
+    if args.dry:
+        return 0
+    lines = [json.loads(x) for x in results_path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    lines = [l for l in lines if l.get("version") == VERSION]
+    with (out / "timing.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"kind": "judge-v4", "at": datetime.now(timezone.utc).isoformat(), "seconds": wall,
+                            "judgments": sum(totals.values()) - sum(1 for k in done if k[1] in set(sum(queues.values(), [])))},
+                           ensure_ascii=False) + "\n")
+    summary = {"version": VERSION, "run_id": args.run, "prompt": PROMPT_V4.name, "jev_questions": fixed.get("version"),
+               "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": wall, "models": {}}
+    say("\n결과 — 질문 단위 (보류는 사람이 정함)")
+    for p in queues:
+        mine = [l for l in lines if l["provider"] == p and int(l["question"]) in set(queues[p])]
+        c = {v: sum(1 for l in mine if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}
+        summary["models"][p] = {**c, "n": len(queues[p])}
+        say(f"  {LABEL.get(p, p):<7}: PASS {c['PASS']} · FAIL {c['FAIL']} · 보류 {c['HOLD']}  / {len(queues[p])}")
+    (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out / "report.md").write_text(report_md([l for l in lines if l.get("status") == "judged"]), encoding="utf-8")
+    say(f"\n판정 v4 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")
     return 0
 
 

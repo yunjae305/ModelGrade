@@ -106,7 +106,9 @@ OUTPUT_V4_HEAD = """# 출력 (JSON 하나만, 설명·코드 펜스 없이)
 JEV_GUIDE_OLD = "- state.turns 에 질문 하나가 턴 순서대로 있습니다(단일 질문은 1턴). 턴마다 situations(프로그램이 질문 글로 정한 상황·근거 — 다시 정하지 않음)·question·attachments·reference·answer 가 있습니다."
 JEV_GUIDE_NEW = ("- state 는 판정할 질문 하나의 JSON 입니다. state[\"턴\"] 에 턴 순서대로 질문·첨부파일·참조자료·답변이 있습니다(단일 질문은 1턴). "
                  "판정할 항목(상황)은 미리 정해 주지 않습니다 — 질문마다 먼저 그 턴의 질문 글(앞 턴 포함)에 그 항목의 '적용' 조건이 실제로 있는지 보고, "
-                 "없으면 NOT_APPLICABLE 을 고릅니다. 적용 조건이 있으면 PASS / FAIL 로 판정합니다.")
+                 "없으면 NOT_APPLICABLE 을 고릅니다. 적용 조건이 있으면 PASS / FAIL 로 판정합니다. "
+                 "state[\"판정할_턴\"] 이 이번에 판정할 턴입니다 — 그 턴의 답변만 판정하고, 앞 턴의 답변(거절·오류 포함)은 맥락으로만 봅니다. "
+                 "'…[중략: …]…' 표시는 긴 자료를 줄인 자리입니다.")
 
 
 def build_prompt() -> str:

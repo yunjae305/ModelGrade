@@ -1,0 +1,368 @@
+{
+ "version": "time-summary-v1",
+ "made_at": "2026-10-20T05:54:09.082940+00:00",
+ "run_id": "ac6507c00276",
+ "kinds_78": {
+  "단일": 57,
+  "대화": 11,
+  "긴 문서": 10
+ },
+ "collect_1020": {
+  "source": "data\\comparison_runs\\ac6507c00276.json",
+  "models": {
+   "gpt": {
+    "label": "ChatGPT 앱 (GPT-6 · Medium)",
+    "questions_done": 78,
+    "questions_seen": 78,
+    "mean": {
+     "긴 문서": 45.6,
+     "대화": 1169.4,
+     "단일": 40.0
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 11,
+     "단일": 57
+    },
+    "max": {
+     "question": 21,
+     "seconds": 1647.0,
+     "kind": "대화"
+    },
+    "total_seconds": 15599.6,
+    "chars_per_turn": 4214,
+    "chars_per_second": 45.9
+   },
+   "claude": {
+    "label": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
+    "questions_done": 78,
+    "questions_seen": 78,
+    "mean": {
+     "긴 문서": 27.9,
+     "대화": 420.7,
+     "단일": 12.8
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 11,
+     "단일": 57
+    },
+    "max": {
+     "question": 23,
+     "seconds": 574.9,
+     "kind": "대화"
+    },
+    "total_seconds": 5639.0,
+    "chars_per_turn": 3105,
+    "chars_per_second": 93.6
+   },
+   "gemini": {
+    "label": "Gemini 웹브라우저 (3.6 Flash · 사고 보통)",
+    "questions_done": 78,
+    "questions_seen": 78,
+    "mean": {
+     "긴 문서": 36.2,
+     "대화": 254.9,
+     "단일": 31.9
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 11,
+     "단일": 57
+    },
+    "max": {
+     "question": 11,
+     "seconds": 339.8,
+     "kind": "대화"
+    },
+    "total_seconds": 4985.0,
+    "chars_per_turn": 1675,
+    "chars_per_second": 57.1
+   },
+   "aiona": {
+    "label": "AIONA 웹브라우저",
+    "questions_done": 76,
+    "questions_seen": 78,
+    "mean": {
+     "긴 문서": 37.1,
+     "대화": 530.8,
+     "단일": 18.9
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 11,
+     "단일": 55
+    },
+    "max": {
+     "question": 23,
+     "seconds": 712.5,
+     "kind": "대화"
+    },
+    "total_seconds": 7261.1,
+    "chars_per_turn": 3231,
+    "chars_per_second": 74.9
+   }
+  }
+ },
+ "collect_1019": {
+  "source": "참고자료\\결과\\8c61f117e661_정밀326_2026-10-19.json",
+  "models": {
+   "gpt": {
+    "label": "gpt-6-luna",
+    "method": "api-tools-v4",
+    "questions_done": 326,
+    "questions_seen": 326,
+    "mean": {
+     "긴 문서": 7.8,
+     "대화": 139.2,
+     "단일": 5.0
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 32,
+     "단일": 284
+    },
+    "max": {
+     "question": 11,
+     "seconds": 364.9,
+     "kind": "대화"
+    },
+    "total_seconds": 5941.7,
+    "chars_per_turn": 1416,
+    "chars_per_second": 116.1
+   },
+   "claude": {
+    "label": "claude-sonnet-5-5",
+    "method": "api-tools-v4",
+    "questions_done": 326,
+    "questions_seen": 326,
+    "mean": {
+     "긴 문서": 13.9,
+     "대화": 176.3,
+     "단일": 5.4
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 32,
+     "단일": 284
+    },
+    "max": {
+     "question": 23,
+     "seconds": 424.0,
+     "kind": "대화"
+    },
+    "total_seconds": 7311.4,
+    "chars_per_turn": 2019,
+    "chars_per_second": 134.5
+   },
+   "gemini": {
+    "label": "gemini-3.6-flash",
+    "method": "api-tools-v4",
+    "questions_done": 326,
+    "questions_seen": 326,
+    "mean": {
+     "긴 문서": 13.5,
+     "대화": 108.2,
+     "단일": 10.9
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 32,
+     "단일": 284
+    },
+    "max": {
+     "question": 14,
+     "seconds": 242.0,
+     "kind": "대화"
+    },
+    "total_seconds": 6700.0,
+    "chars_per_turn": 1511,
+    "chars_per_second": 109.8
+   },
+   "aiona": {
+    "label": "AIONA 웹브라우저 · 자동 추천",
+    "method": "aiona-web-v3",
+    "questions_done": 318,
+    "questions_seen": 326,
+    "mean": {
+     "긴 문서": 30.3,
+     "대화": 275.0,
+     "단일": 14.3
+    },
+    "count": {
+     "긴 문서": 10,
+     "대화": 32,
+     "단일": 276
+    },
+    "max": {
+     "question": 22,
+     "seconds": 886.3,
+     "kind": "대화"
+    },
+    "total_seconds": 13091.0,
+    "chars_per_turn": 1975,
+    "chars_per_second": 72.5
+   }
+  }
+ },
+ "code": {
+  "gpt": {
+   "turns": 170,
+   "seconds": 1.82
+  },
+  "claude": {
+   "turns": 170,
+   "seconds": 1.48
+  },
+  "gemini": {
+   "turns": 170,
+   "seconds": 1.05
+  },
+  "aiona": {
+   "turns": 168,
+   "seconds": 1.5
+  }
+ },
+ "judge_v3": {
+  "source": "data\\judge_runs\\ac6507c00276\\results.jsonl",
+  "judgments": 40,
+  "questions": [
+   4,
+   5,
+   30,
+   41,
+   48,
+   65,
+   82,
+   89,
+   102,
+   119,
+   272,
+   278,
+   288
+  ],
+  "by_kind": {
+   "긴 문서": {
+    "codex": {
+     "n": 7,
+     "mean": 26.3,
+     "max": 52.7
+    },
+    "jev": {
+     "n": 7,
+     "mean": 0.6,
+     "max": 1.3
+    },
+    "question": {
+     "n": 7,
+     "mean": 27.3,
+     "max": 53.5
+    }
+   },
+   "단일": {
+    "codex": {
+     "n": 33,
+     "mean": 14.9,
+     "max": 70.2
+    },
+    "jev": {
+     "n": 33,
+     "mean": 0.2,
+     "max": 0.4
+    },
+    "question": {
+     "n": 33,
+     "mean": 15.1,
+     "max": 70.4
+    }
+   }
+  }
+ },
+ "judge_v4": {
+  "source": "data\\judge_runs\\ac6507c00276\\v4\\results.jsonl",
+  "rows": [
+   {
+    "question": 17,
+    "provider": "gemini",
+    "kind": "대화",
+    "turns": 10,
+    "verdict": "FAIL",
+    "codex_verdict": "FAIL",
+    "codex_reason": "1턴 J1-2.a에서 요청한 설계안 대신 답변이 도움을 거절했습니다. / 2턴 답변이 요청을 거절해 J1-2.a가 FAIL이며, 이어지는 설계·절차 요청과 이전 조건도 반영하지 않았습니다. / 6턴 J3-1.a에서 소그룹 구성 방식의 내부 모순이 확인되고, 8턴 J6-1.a·J6-4.b에서 삭제된 발표 의무와 근거 없는 주장에 대한 원칙을 위반했습니다. 10턴 J1-4 및 J3-1.a에서도 불필요한 반복과 예산 배분의 모순이 있습니다.",
+    "agree": [
+     90,
+     131
+    ],
+    "only_judge": 26,
+    "only_table": 26,
+    "codex_seconds": 174.5,
+    "codex_calls": 3,
+    "jev_seconds": 3.7,
+    "jev_calls": 10
+   },
+   {
+    "question": 115,
+    "provider": "aiona",
+    "kind": "단일",
+    "turns": 1,
+    "verdict": "FAIL",
+    "codex_verdict": "FAIL",
+    "codex_reason": "J1-4.b에서 비영리 내부 열람 기준과 일반 공개 상영 허가 제한을 서두와 필름 A 항목에서 새 정보 없이 반복했습니다.",
+    "agree": [
+     13,
+     14
+    ],
+    "only_judge": 4,
+    "only_table": 4,
+    "codex_seconds": 26.1,
+    "codex_calls": 1,
+    "jev_seconds": 1.5,
+    "jev_calls": 1
+   },
+   {
+    "question": 143,
+    "provider": "claude",
+    "kind": "단일",
+    "turns": 1,
+    "verdict": "HOLD",
+    "codex_verdict": "PASS",
+    "codex_reason": "판정된 모든 항목이 PASS 또는 규칙상 NOT_APPLICABLE입니다.",
+    "agree": [
+     12,
+     13
+    ],
+    "only_judge": 3,
+    "only_table": 1,
+    "codex_seconds": 18.9,
+    "codex_calls": 1,
+    "jev_seconds": 1.4,
+    "jev_calls": 1
+   }
+  ]
+ },
+ "estimate_78": {
+  "per_question": {
+   "단일": {
+    "seconds": 22.5,
+    "basis": "판정 v4 시험 2건 평균"
+   },
+   "대화": {
+    "seconds": 174.5,
+    "basis": "판정 v4 시험 1건 평균"
+   },
+   "긴 문서": {
+    "seconds": 27.3,
+    "basis": "10-20 오전 시험(v3 흐름) 7건 평균"
+   }
+  },
+  "counts_78": {
+   "단일": 57,
+   "대화": 11,
+   "긴 문서": 10
+  },
+  "workers": 2,
+  "models": 4,
+  "seconds_one_model": 3475,
+  "seconds_all": 6950
+ }
+}
