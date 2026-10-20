@@ -3,12 +3,16 @@
 - pdf → pypdfium2 로 쪽마다 PNG (Decisions 가 쓰던 것과 같은 배율 1.5, 최대 20쪽)
 - docx → Word(COM, 창 없이)로 pdf 로 바꾼 뒤 위와 같이. Word 가 없으면 빈 목록(글로만 간다)
 - png·jpg 등 이미지 → 그 파일 하나
-결과는 <files_dir>/_pages/<파일이름>.p<n>.png 에 두고 원본보다 새로우면 다시 그리지 않는다. 변환은 한 번에 한 스레드만(Word COM).
+그린 이미지는 저장하지 않는다 — 프로세스마다 임시 폴더에 두고 끝나면 지운다(사용자 10-21: 변환은 평가할 때만, 변환물은 남기지 않기).
+Codex CLI 는 -i 에 파일 경로가 필요해서 호출 동안만 임시 파일로 있다. 같은 프로세스 안에서는 한 번 그린 것을 다시 쓴다. 변환은 한 번에 한 스레드만(Word COM).
 """
 from __future__ import annotations
 
+import atexit
 import os
 import re
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -26,8 +30,23 @@ def enabled() -> bool:
     return os.environ.get("CODEX_ATTACH_PAGES", "1").strip() not in ("0", "false", "no")
 
 
+_TMP: Dict[str, Path] = {}
+
+
 def cache_dir(files_dir: Path) -> Path:
-    return Path(files_dir) / "_pages"
+    """이 프로세스의 임시 폴더(세트 폴더마다 하나) — 끝나면 통째로 지운다."""
+    key = str(Path(files_dir).resolve())
+    if key not in _TMP:
+        _TMP[key] = Path(tempfile.mkdtemp(prefix="mg-pages-"))
+    return _TMP[key]
+
+
+def _cleanup() -> None:
+    for d in _TMP.values():
+        shutil.rmtree(d, ignore_errors=True)
+
+
+atexit.register(_cleanup)
 
 
 def _fresh(targets: List[Path], source: Path) -> bool:

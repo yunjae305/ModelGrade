@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""첨부 쪽 이미지(code_eval.attachment_pages) — 이미지는 그대로, 글 파일은 없음, 저장된 쪽 이미지는 다시 그리지 않음, 끄기 스위치. Word·pdf 그리기는 부르지 않는다."""
+"""첨부 쪽 이미지(code_eval.attachment_pages) — 이미지는 그대로, 글 파일은 없음, 같은 프로세스에서 한 번 그린 쪽은 다시 그리지 않음(임시 폴더, 세트 폴더에 남기지 않음), 끄기 스위치. Word·pdf 그리기는 부르지 않는다."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,7 +22,7 @@ def test_cached_pages_are_reused_without_rendering(tmp_path: Path, monkeypatch):
     pdf = tmp_path / "안내.pdf"
     pdf.write_bytes(b"%PDF")
     cache = ap.cache_dir(tmp_path)
-    cache.mkdir()
+    assert not str(cache).startswith(str(tmp_path))   # 세트 폴더가 아니라 임시 폴더
     for n in (2, 1):
         (cache / f"안내.pdf.p{n}.png").write_bytes(b"png")
     monkeypatch.setattr(ap, "_render_pdf", lambda *a, **k: (_ for _ in ()).throw(AssertionError("다시 그리면 안 됨")))
@@ -36,8 +36,8 @@ def test_attachment_images_collects_pages_and_respects_switch(tmp_path: Path, mo
     (files / "사진.png").write_bytes(b"x")
     (files / "안내.pdf").write_bytes(b"%PDF")
     cache = ap.cache_dir(files)
-    cache.mkdir()
     (cache / "안내.pdf.p1.png").write_bytes(b"png")
+    assert not (files / "_pages").exists()
     turns = [{"case_id": "Q1_T1", "turn": 1, "attachments": [{"name": "사진.png", "path": "사진.png"}, {"name": "안내.pdf", "path": "안내.pdf"}, {"name": "없음.docx", "path": "없음.docx"}]}]
     monkeypatch.setenv("CODEX_ATTACH_PAGES", "1")
     assert [p.name for p in jv.attachment_images(turns, files)] == ["사진.png", "안내.pdf.p1.png"]
