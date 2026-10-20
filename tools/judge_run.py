@@ -59,7 +59,7 @@ def say(text: str) -> None:
 
 class CodexJudge:
     """``codex exec`` 로 고정 프롬프트 v3 + 입력을 보내고 JSON 결과를 받는다. 실패하면 한 번 다시.
-    429(구독 사용량 한도)는 실패로 적지 않고 풀릴 때까지 기다렸다 다시 보낸다 — 60·120·300초, 그 뒤 600초마다, 횟수 제한 없음(사용자 결정 10-19)."""
+    429(서버 거절 — 동시 요청이 많을 때의 속도 제한 또는 구독 사용량 한도)는 실패로 적지 않고 풀릴 때까지 기다렸다 다시 보낸다 — 60·120·300초, 그 뒤 600초마다, 횟수 제한 없음(사용자 결정 10-19)."""
 
     RATE_LIMIT_WAITS = (60, 120, 300)
     RATE_LIMIT_WAIT_MAX = 600
@@ -163,7 +163,7 @@ class CodexJudge:
                     if self.is_rate_limited(last):
                         pause = self.RATE_LIMIT_WAITS[waits] if waits < len(self.RATE_LIMIT_WAITS) else self.RATE_LIMIT_WAIT_MAX
                         waits += 1
-                        say(f"   ⏳ Codex 사용량 한도(429) — {pause}초 기다렸다 다시 ({waits}번째)")
+                        say(f"   ⏳ Codex 429(요청이 몰려 서버가 잠시 거절) — {pause}초 기다렸다 다시 ({waits}번째)")
                         time.sleep(pause)
                         attempt -= 1   # 한도 대기는 시도 횟수에 세지 않는다
                     continue
