@@ -242,21 +242,32 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         got: Dict[int, Any] = {}
         conclusions: List[Any] = []
         status, error, rounds = "ERROR", "Codex 없음", 0
-        while gpt and rounds < 3:   # 출력이 잘려 턴이 빠지면(Q17 10턴 중 2턴만, 2026-10-20) 빠진 턴만 '판정할_턴' 으로 다시 묻는다
+        # 긴 대화는 Codex 가 "출력 공간이 부족하다"며 turns 를 비우고 보류 결론만 내거나(Q12 10턴, 2026-10-20), 앞 몇 턴만 답하고 만다(Q17).
+        # → 한 번에 묻는 턴 수를 줄여 가며(전체 → 절반 → 1턴씩) 빠진 턴만 '판정할_턴' 으로 다시 묻는다. 호출은 턴 수 + 2 번까지.
+        chunk = len(all_turns)
+        while gpt and rounds < len(all_turns) + 2:
             pending = [n for n in all_turns if n not in got]
             if not pending:
                 break
+            ask = pending[:chunk]
             rounds += 1
-            body = text if rounds == 1 else json.dumps(question_json(q, turns, answers, deliveries, pending), ensure_ascii=False, indent=1)
-            say(f"   🖥 {tag} Codex CLI{'' if rounds == 1 else f' 다시({rounds}번째) — 빠진 턴 {pending}'} — 고정 프롬프트 v4 {len(prompt):,}자 + 입력 JSON {len(body):,}자"
+            body = text if (rounds == 1 and chunk == len(all_turns)) else json.dumps(question_json(q, turns, answers, deliveries, ask), ensure_ascii=False, indent=1)
+            say(f"   🖥 {tag} Codex CLI{'' if rounds == 1 else f' 다시({rounds}번째) — 턴 {ask}'} — 고정 프롬프트 v4 {len(prompt):,}자 + 입력 JSON {len(body):,}자"
                 f" · 웹 검색 {'켬' if search else '끔'} …")
             status, output, error = gpt.judge(prompt, body, search, tag, output_schema=output_schema())
             if status != "OK":
                 break
+            new = 0
             for t in (output or {}).get("turns") or []:
-                if isinstance(t, dict) and t.get("turn") in pending and t["turn"] not in got:
+                if isinstance(t, dict) and t.get("turn") in ask and t["turn"] not in got and (t.get("items") or t.get("situations")):
                     got[t["turn"]] = t
-            conclusions.append((output or {}).get("conclusion"))
+                    new += 1
+            if new:
+                conclusions.append((output or {}).get("conclusion"))
+            if new < len(ask):   # 다 못 답했으면 다음엔 더 적게 묻는다
+                chunk = max(1, min(len(ask) // 2, new or len(ask) // 2))
+                if new == 0:
+                    say(f"   ↪ {tag} Codex 가 턴 {ask} 를 답하지 않음 — {((output or {}).get('conclusion') or {}).get('reason', '')[:90]} → {chunk}턴씩 다시")
         missing = [n for n in all_turns if n not in got]
         output = {"turns": [got[n] for n in all_turns if n in got], "conclusion": conclusions[0] if conclusions else None,
                   "conclusions": conclusions} if got else None

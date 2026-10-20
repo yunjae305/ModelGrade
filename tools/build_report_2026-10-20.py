@@ -540,9 +540,18 @@ def files(*names):
     return "<br>".join("<code>" + E(n).replace("/", "/<wbr>") + "</code>" for n in names)
 
 
-def details(title, body, note=""):
-    return (f'<details class="src"><summary><span>{E(title)}{f" <span class=muted>— {E(note)}</span>" if note else ""}</span>'
+def details(title, body, note="", tall=False):
+    return (f'<details class="src{" tall" if tall else ""}"><summary><span>{E(title)}{f" <span class=muted>— {E(note)}</span>" if note else ""}</span>'
             f'<span class="muted">{len(body):,}자</span></summary><pre>{E(body)}</pre></details>')
+
+
+def jev_bundle_text():
+    """Jev 질문 묶음을 사람이 읽는 글로 — 안내문 + 문항마다 지시문·선택지."""
+    d = json.loads(JEV_V4.read_text(encoding="utf-8"))
+    out = [f"[버전] {d['version']}", "", "[안내문 — 모든 요청에 같음]", d["guide"], "", f"[문항 정의 {len(d['items'])}개 — 턴마다 모두 보냄]"]
+    for item_id, q in d["items"].items():
+        out += ["", f"## {item_id}", q["instructions"]] + [f"  · {k}: {v}" for k, v in q["criteria"].items()]
+    return chr(10).join(out)
 
 
 def legend_item(shape, label):
@@ -1102,6 +1111,7 @@ EXTRA_CSS2 = """<style>
   .chg-old, .chg-new { grid-column: 1 / -1; } .chg-arrow { display: none; }
   .chg-new::before { content: "→ "; color: var(--accent); }
 }
+details.src.tall pre { max-height: 80vh; }
 /* 07 합계 막대 */
 .tbar { display: grid; gap: 4px; }
 .tbar i { display: block; height: 6px; border-radius: 3px; background: var(--warn); min-width: 2px; }
@@ -1445,7 +1455,11 @@ SECTIONS = [
   {check_table}
   {trial_table}
   {trial_points}
+  <div class="block"><h3>원문</h3>
+  {details("판정 프롬프트 v4 원문 — Codex 에 보내는 고정 글 전체", PROMPT_V4.read_text(encoding="utf-8"), "참고자료/프롬프트/judge_prompt_v4.txt · 모든 질문에 같음", tall=True)}
+  {details("Jev 에 보내는 안내문 + 문항 정의 27개", jev_bundle_text(), "참고자료/프롬프트/jev_questions_v4.json · 턴마다 같은 묶음", tall=True)}
   {details(f"Q{D4['qid']} 입력 JSON 보기 (10-19 AIONA 답)", D4['excerpt'], "심판이 받는 [입력] 그대로")}
+  </div>
   <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드(tools/judge_v4.question_json)로 다시 계산합니다 — AI 호출 없음. 프롬프트: 참고자료/프롬프트/judge_prompt_v4.txt (tools/build_judge_prompt_v4.py 가 v3 에서 만듦).</p>
 """),
     ("s4", "질문 수별 비율", f"{R198['n']}·{R155['n']}개 목록 vs 정밀 326", f"질문 수별 통과 비율 — {R198['n']}·{R155['n']}개 목록은 326 과 같은가",
