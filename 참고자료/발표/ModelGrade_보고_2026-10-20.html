@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ModelGrade 보고 10-20</title>
+<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+
+/* 고정 목차 */
+.topnav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--nav-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.topnav-in { max-width: 1100px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 18px; }
+.brand { font-weight: 700; font-size: 0.92rem; white-space: nowrap; }
+.toc-links { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.toc-links::-webkit-scrollbar { display: none; }
+.toc-links a { flex: none; font-size: 0.84rem; color: var(--muted); text-decoration: none; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.toc-links a .n { font-family: var(--font-num); font-size: 0.76rem; margin-right: 5px; }
+.toc-links a:hover { color: var(--ink); background: var(--accent-soft); }
+.toc-links a[aria-current="true"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.pager { display: flex; gap: 4px; flex: none; }
+.pager button { font: inherit; font-size: 0.85rem; width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.pager button:hover { border-color: var(--accent); color: var(--accent); }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+
+/* 표지 */
+.cover { padding-block: 56px 64px; }
+.cover-top { display: flex; flex-direction: column; gap: 12px; max-width: 760px; }
+.cover-top .date { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); }
+.cover h1 { font-size: 2.9rem; font-weight: 700; letter-spacing: -0.02em; }
+.cover-top p { font-size: 1.12rem; color: var(--muted); }
+.kicker { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
+.keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.key { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.key .lab { font-size: 0.84rem; font-weight: 600; color: var(--muted); }
+.key .big { font-family: var(--font-num); font-size: 2.1rem; font-weight: 500; line-height: 1.1; color: var(--accent); letter-spacing: -0.02em; }
+.key .big small { font-family: var(--font-body); font-size: 1rem; color: var(--ink); font-weight: 600; margin-left: 4px; letter-spacing: 0; }
+.key p { font-size: 0.92rem; color: var(--muted); }
+.key p b { color: var(--ink); }
+.key .big.word { font-family: var(--font-body); font-weight: 700; font-size: 1.9rem; letter-spacing: -0.01em; }
+.key.next { background: var(--accent-soft); border-color: transparent; }
+.key.next .big { font-family: var(--font-body); font-weight: 700; font-size: 1.9rem; }
+.toc { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 28px; border-top: 1px solid var(--line); padding-top: 20px; margin: 0; list-style: none; padding-left: 0; }
+.toc li { min-width: 0; }
+.toc a { display: grid; grid-template-columns: 34px 1fr; gap: 2px 8px; padding: 10px 0; text-decoration: none; color: var(--ink); border-bottom: 1px dashed var(--line); }
+.toc a:hover strong { color: var(--accent); }
+.toc .n { font-family: var(--font-num); color: var(--accent); font-weight: 600; grid-row: span 2; padding-top: 1px; }
+.toc span.d { font-size: 0.86rem; color: var(--muted); }
+
+/* 칩 */
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip.ok { color: var(--ok); background: var(--ok-soft); }
+.chip.warn { color: var(--warn); background: var(--warn-soft); }
+.chip.todo { color: var(--todo); background: var(--todo-soft); }
+.chip.risk { color: var(--risk); background: var(--risk-soft); }
+
+/* 1. 진행 상황 */
+.reqs { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.req { display: grid; grid-template-columns: 34px minmax(0, 220px) 132px minmax(0, 1fr); gap: 14px; align-items: baseline; padding: 15px 20px; border-top: 1px solid var(--line); }
+.req:first-child { border-top: 0; }
+.req .n { font-family: var(--font-num); color: var(--muted); font-size: 0.9rem; }
+.req .name { font-weight: 600; }
+.req .what { font-size: 0.95rem; color: var(--muted); min-width: 0; }
+.req .what b { color: var(--ink); }
+.req .chip { justify-self: start; }
+
+/* 2. 채점 결과 */
+.score-wrap { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.bars { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px 18px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.bars .cap { font-size: 0.9rem; color: var(--muted); }
+.bars .cap b { color: var(--ink); }
+.bar-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 128px; gap: 12px; align-items: center; }
+.bar-row .who { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.bar-row .who i { width: 10px; height: 10px; border-radius: 2px; }
+.track { position: relative; height: 26px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.track .fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.bar-row .val { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.bar-row .val b { font-size: 1.15rem; font-weight: 600; }
+.bar-row .val span { font-size: 0.8rem; color: var(--muted); margin-left: 4px; }
+.bar-row.na .track { background: repeating-linear-gradient(135deg, var(--bg) 0 8px, var(--todo-soft) 8px 16px); }
+.bar-row.na .val { font-family: var(--font-body); font-size: 0.85rem; color: var(--risk); font-weight: 600; }
+.scale { display: grid; grid-template-columns: 76px minmax(0, 1fr) 128px; gap: 12px; }
+.scale div { display: flex; justify-content: space-between; font-family: var(--font-num); font-size: 0.74rem; color: var(--muted); }
+.side-notes { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 0.93rem; display: flex; flex-direction: column; gap: 6px; }
+.note h3 { font-size: 0.95rem; }
+.note.warnnote { background: var(--warn-soft); border-color: transparent; }
+.note p { color: var(--muted); }
+.note p b { color: var(--ink); }
+.fails { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; }
+.fails li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; font-size: 0.9rem; }
+.fails li span { font-family: var(--font-num); font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+/* 3. 질문 수 */
+.method { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.method div { padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line); min-width: 0; }
+.method div:first-child { border-left: 0; }
+.method .k { font-family: var(--font-num); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+.method b { font-size: 1rem; }
+.method span { font-size: 0.88rem; color: var(--muted); }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.ladder li { position: relative; border: 1px solid var(--line); border-radius: 10px; padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); min-width: 0; }
+.ladder li + li::before { content: "→"; position: absolute; left: -11px; top: 50%; transform: translate(-50%, -50%); color: var(--muted); }
+.ladder .n { font-family: var(--font-num); font-size: 2rem; font-weight: 500; line-height: 1; }
+.ladder .n small { font-family: var(--font-body); font-size: 0.9rem; color: var(--muted); margin-left: 3px; }
+.ladder .v { font-size: 0.88rem; color: var(--muted); }
+.ladder .v b { color: var(--ink); }
+.ladder .verdict { align-self: flex-start; margin-top: auto; font-size: 0.8rem; font-weight: 700; padding: 3px 12px; border-radius: 999px; background: var(--todo-soft); color: var(--todo); }
+.ladder li.pick { border-color: var(--accent); }
+.ladder li.pick .n { color: var(--accent); }
+.ladder li.pick .verdict { background: var(--accent); color: var(--surface); }
+.ladder li.key { box-shadow: inset 0 0 0 1px var(--accent); }
+figure.fig { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 22px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fig-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 20px; }
+.fig-head h3 { font-size: 1.25rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend i.dash { height: 0; border-top: 2px dashed var(--muted); }
+.chart-scroll { overflow-x: auto; }
+svg.chart { display: block; width: 100%; min-width: 640px; height: auto; font-family: var(--font-body); }
+svg .zr { fill: var(--zone-r); } svg .zy { fill: var(--zone-y); } svg .zg { fill: var(--zone-g); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .grid.strong { stroke: var(--muted); stroke-dasharray: 5 4; opacity: 0.7; }
+svg .axis { stroke: var(--muted); stroke-width: 1.2; }
+svg .guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.55; }
+svg .tick { fill: var(--muted); font-family: var(--font-num); font-size: 13px; }
+svg .tick.muted { opacity: 0.7; }
+svg .atitle { fill: var(--ink); font-size: 15px; font-weight: 600; }
+svg .asub { fill: var(--muted); font-size: 13px; }
+svg .zlab { font-size: 13px; font-weight: 600; }
+svg .zlab.r { fill: var(--risk); } svg .zlab.y { fill: var(--warn); } svg .zlab.g { fill: var(--ok); }
+svg .ln { fill: none; stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+svg .ln.aiona { stroke: var(--m-aiona); } svg .ln.gpt { stroke: var(--m-gpt); } svg .ln.gemini { stroke: var(--m-gemini); }
+svg .pt { stroke: var(--surface); stroke-width: 1.5; }
+svg .pt.aiona { fill: var(--m-aiona); } svg .pt.gpt { fill: var(--m-gpt); } svg .pt.gemini { fill: var(--m-gemini); }
+svg .ln.cv1 { stroke: var(--k1); } svg .ln.cv2 { stroke: var(--k2); } svg .ln.cv10 { stroke: var(--k10); } svg .ln.cv20 { stroke: var(--k20); }
+svg .pt.cv1 { fill: var(--k1); } svg .pt.cv2 { fill: var(--k2); } svg .pt.cv10 { fill: var(--k10); } svg .pt.cv20 { fill: var(--k20); }
+svg .jump { stroke: var(--warn); stroke-width: 10; opacity: 0.3; stroke-linecap: round; }
+svg .endlab { fill: var(--k20); font-family: var(--font-num); font-size: 12px; font-weight: 600; }
+svg .note { fill: var(--muted); font-size: 12.5px; }
+svg .beyond { fill: var(--bg); opacity: 0.85; }
+svg .beyondlab { fill: var(--muted); font-size: 13px; font-weight: 600; }
+svg .inl { fill: var(--ink); font-size: 13px; }
+svg .inl.bad { fill: var(--risk); font-size: 14px; font-weight: 700; }
+svg .c1.warn { fill: var(--warn); }
+svg .full { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 6 5; }
+svg .fulllab { fill: var(--muted); font-size: 13px; font-weight: 600; }
+svg .anchor { fill: none; stroke: var(--ink); stroke-width: 2; }
+svg .anchor.ok { stroke: var(--ok); }
+svg .lead { stroke: var(--ink); stroke-width: 1.2; opacity: 0.6; }
+svg .cbox { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+svg .c1 { fill: var(--accent); font-size: 15px; font-weight: 700; }
+svg .c1.bad { fill: var(--risk); } svg .c1.good { fill: var(--ok); }
+svg .c2 { fill: var(--ink); font-size: 13px; }
+svg .c3 { fill: var(--muted); font-size: 12.5px; }
+svg .gap { stroke-width: 3; }
+svg .gap.g0 { stroke: var(--risk); } svg .gap.g1 { stroke: var(--warn); }
+svg .dot0 { fill: var(--risk); } svg .dot1 { fill: var(--warn); }
+.setbadge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; vertical-align: middle; margin-right: 8px; white-space: nowrap; }
+.setbadge.s326 { color: var(--accent); background: var(--accent-soft); }
+.setbadge.s205 { color: var(--ok); background: var(--ok-soft); }
+.pending { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px dashed var(--line); border-radius: 10px; padding: 14px 18px; font-size: 0.93rem; color: var(--muted); }
+.pending b { color: var(--ink); }
+.subhead { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.subhead h3 { font-size: 1.4rem; }
+.subhead p { color: var(--muted); font-size: 0.98rem; max-width: 70ch; }
+.finds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.find { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.find .lab { font-size: 0.86rem; color: var(--muted); font-weight: 600; }
+.find .ba { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 1.05rem; color: var(--muted); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.find .ba b { font-size: 2rem; font-weight: 500; color: var(--ok); line-height: 1; }
+.find .ba s { text-decoration: none; }
+.find p { font-size: 0.88rem; color: var(--muted); }
+.cmpt { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+.cmpt table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 520px; }
+.cmpt caption { text-align: left; padding: 14px 18px 4px; font-weight: 600; caption-side: top; }
+.cmpt caption span { display: block; font-size: 0.84rem; color: var(--muted); font-weight: 400; }
+.cmpt th, .cmpt td { padding: 11px 18px; border-top: 1px solid var(--line); text-align: left; }
+.cmpt thead th { font-size: 0.82rem; color: var(--muted); font-weight: 600; background: var(--bg); }
+.cmpt td { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.cmpt td b { color: var(--ok); font-weight: 600; }
+.cmpt td .s326 { color: var(--ink); }
+.legend i.fillkey { width: 16px; height: 10px; background: var(--ok-soft); border: 1px solid var(--ok); border-radius: 2px; }
+.pairs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pairbox { border: 1px solid var(--line); border-radius: 8px; padding: 12px 12px 4px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pairbox > b { font-size: 0.98rem; }
+.pairbox > span { font-size: 0.82rem; color: var(--muted); }
+svg.chart.pair { min-width: 0; margin-top: 4px; }
+svg .ln.old { stroke: var(--accent); } svg .ln.new { stroke: var(--ok); }
+svg .pt.old { fill: var(--accent); } svg .pt.new { fill: var(--ok); }
+svg .gapfill { fill: var(--ok-soft); opacity: 0.9; }
+svg .pvh { fill: var(--muted); font-size: 12px; }
+svg .pvv { font-family: var(--font-num); font-size: 14px; font-weight: 600; fill: var(--muted); }
+svg .pvv .old { fill: var(--accent); } svg .pvv .new { fill: var(--ok); }
+svg .mk { fill: var(--accent); font-size: 12px; font-weight: 600; }
+.quality { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.qtable { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; min-width: 0; }
+.qtable table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 460px; }
+.qtable caption { text-align: left; padding: 16px 18px 10px; font-weight: 600; font-size: 1.02rem; }
+.qtable caption span { display: block; font-size: 0.82rem; color: var(--muted); font-weight: 400; }
+.qtable th, .qtable td { padding: 9px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.qtable thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; background: var(--bg); }
+.qtable tbody th[scope="row"] { font-weight: 500; }
+.qtable td { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qtable td .muted { font-family: var(--font-body); }
+.qtable td.win { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.qtable tr.grp th { background: var(--bg); font-size: 0.8rem; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; padding-block: 6px; }
+.qtable .small, .hitfig .small { font-size: 0.8rem; }
+.qnote { padding: 12px 18px 16px; font-size: 0.86rem; color: var(--muted); border-top: 1px solid var(--line); }
+.hitfig { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.qhead { padding: 16px 18px 10px; display: flex; flex-direction: column; gap: 2px; }
+.qhead b { font-size: 1.02rem; font-weight: 600; }
+.qhead span { font-size: 0.82rem; color: var(--muted); }
+.hitgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 12px 18px 16px; border-top: 1px solid var(--line); }
+.hit-row { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hk { font-size: 0.86rem; font-weight: 600; } .hk small { font-weight: 400; color: var(--muted); }
+.hbars { display: flex; flex-direction: column; gap: 4px; }
+.hb { position: relative; height: 24px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.hb i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; opacity: 0.85; }
+.hb.old i { background: var(--accent); } .hb.new i { background: var(--ok); } .hb.new.bad i { background: var(--risk); }
+.hb em { position: relative; font-style: normal; font-size: 0.8rem; font-weight: 600; padding-left: 8px; line-height: 24px; color: var(--surface); white-space: nowrap; }
+.hb.none em { color: var(--muted); font-weight: 400; }
+.concl { background: var(--surface); border: 2px solid var(--ok); border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+.concl-tag { align-self: flex-start; font-size: 0.8rem; font-weight: 600; color: var(--ok); background: var(--ok-soft); border-radius: 999px; padding: 2px 12px; }
+.concl h3 { font-size: 1.45rem; }
+.concl-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.concl-cols > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.concl-cols b { font-size: 0.95rem; }
+.concl-cols b.keep { color: var(--ok); } .concl-cols b.fix { color: var(--warn); } .concl-cols b.wait { color: var(--accent); }
+.concl-cols ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 3px; font-size: 0.93rem; }
+.concl-cols p { font-size: 0.84rem; color: var(--muted); }
+.key.alert { background: var(--warn-soft); border-color: transparent; }
+.key.alert .big { color: var(--warn); }
+.key.alert .big small { color: var(--warn); }
+.block { display: flex; flex-direction: column; gap: 14px; }
+.block > h3 { font-size: 1.3rem; }
+.block > p.lead { color: var(--muted); font-size: 0.96rem; max-width: 72ch; }
+.kpis3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.kpis3 > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kpis3 .k { font-size: 0.84rem; font-weight: 600; color: var(--muted); }
+.kpis3 b { font-family: var(--font-num); font-size: 1.9rem; font-weight: 500; line-height: 1.15; }
+.kpis3 b small { font-size: 1rem; }
+.kpis3 > div > span:last-child { font-size: 0.86rem; color: var(--muted); }
+.kpis3 > div.bad { background: var(--warn-soft); border-color: transparent; }
+.kpis3 > div.bad b { color: var(--warn); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
+.card-head { padding: 16px 18px 10px; display: flex; flex-direction: column; gap: 2px; }
+.card-head b { font-size: 1.02rem; font-weight: 600; }
+.card-head span { font-size: 0.82rem; color: var(--muted); }
+.card-body { padding: 14px 18px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.card-foot { padding: 12px 18px 14px; border-top: 1px solid var(--line); font-size: 0.86rem; color: var(--muted); }
+.card-foot b { color: var(--ink); }
+.fs-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 150px; gap: 12px; align-items: center; }
+.fs-row .who { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.fs-row .who i { width: 10px; height: 10px; border-radius: 2px; }
+.fs-track { display: flex; height: 26px; border-radius: 4px; overflow: hidden; background: var(--bg); }
+.fs-track .t { background: var(--muted); opacity: 0.55; }
+.fs-track .f { background: repeating-linear-gradient(135deg, var(--warn) 0 6px, var(--warn-soft) 6px 10px); }
+.fs-row .val { font-family: var(--font-num); font-size: 0.88rem; color: var(--muted); white-space: nowrap; }
+.fs-row .val b { color: var(--warn); }
+.fs-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.84rem; color: var(--muted); }
+.fs-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.fs-legend i { width: 16px; height: 10px; border-radius: 2px; display: inline-block; }
+.ttable { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 620px; }
+.ttable th, .ttable td { padding: 10px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.ttable thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; background: var(--bg); border-top: 0; }
+.ttable tbody th { font-weight: 600; white-space: nowrap; }
+.ttable td.exq { color: var(--muted); }
+.ttable td.exq q { color: var(--ink); quotes: "“" "”"; }
+.ttable td.n { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--warn); font-weight: 600; }
+.scroll { overflow-x: auto; }
+.flow2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.flow2 .top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 0.92rem; }
+.flow2 .top .pill { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 12px; }
+.flow2 .top .arrow { color: var(--muted); }
+.lane { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lane.jev { border-top: 4px solid var(--accent); }
+.lane.cl { border-top: 4px solid var(--ok); }
+.lane h4 { font-size: 1rem; }
+.lane h4 small { font-weight: 400; color: var(--muted); font-size: 0.82rem; margin-left: 6px; }
+.lane p { font-size: 0.88rem; color: var(--muted); }
+.lane .rule { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 0.9rem; }
+.lane .rule .chip { justify-self: start; }
+.gbars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.gb h4 { font-size: 0.95rem; margin-bottom: 6px; }
+.gb h4 small { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.gb-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 52px; gap: 8px; align-items: center; font-size: 0.84rem; margin-top: 5px; }
+.gb-row .lab { color: var(--muted); }
+.gb-track { height: 18px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.gb-track i { display: block; height: 100%; border-radius: 3px; }
+.gb-track i.m1 { background: var(--ok); } .gb-track i.m2 { background: var(--accent); } .gb-track i.m3 { background: var(--todo); }
+.gb-row .v { font-family: var(--font-num); text-align: right; }
+.findings { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 6px; font-size: 0.93rem; }
+.findings b { font-weight: 600; }
+.fixcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.fixcols > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fixcols h4 { font-size: 1rem; }
+.fixcols ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 5px; font-size: 0.9rem; }
+.fixcols ol span { color: var(--muted); }
+.scope { font-size: 0.92rem; color: var(--muted); border-left: 3px solid var(--warn); padding: 4px 0 4px 14px; }
+.scope b { color: var(--ink); }
+
+/* 4. 프롬프트 개선 */
+.pcols { display: grid; grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr); gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pcols > div { padding: 16px 18px; border-top: 1px solid var(--line); min-width: 0; }
+.pcols .ph { border-top: 0; background: var(--bg); display: flex; flex-direction: column; gap: 2px; }
+.pcols .ph b { font-size: 1rem; }
+.pcols .ph span { font-size: 0.82rem; color: var(--muted); }
+.pcols .ph.new { background: var(--ok-soft); }
+.pcols .ph.new b { color: var(--ok); }
+.pcols .what { display: flex; flex-direction: column; gap: 6px; border-right: 1px solid var(--line); }
+.pcols .what b { font-size: 0.98rem; }
+.pcols .what .why { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+.pcols .old { border-right: 1px solid var(--line); }
+.quote { font-size: 0.9rem; line-height: 1.7; color: var(--ink); }
+.quote .tag { display: inline-block; font-size: 0.74rem; font-weight: 600; color: var(--muted); background: var(--bg); border-radius: 4px; padding: 0 6px; margin-bottom: 4px; }
+.quote q { quotes: "“" "”"; }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+.same { font-size: 0.88rem; color: var(--muted); }
+.same b { color: var(--ink); }
+.example { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.ex { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ex.new { border-color: var(--ok); }
+.ex-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ex-head b { font-size: 0.95rem; }
+.ex-head .cnt { font-family: var(--font-num); font-size: 0.9rem; color: var(--muted); }
+.ex-head .cnt b { font-size: 1.4rem; color: var(--ink); }
+.ex.new .ex-head .cnt b { color: var(--ok); }
+.ex blockquote { margin: 0; font-size: 1rem; line-height: 1.75; padding: 12px 14px; background: var(--bg); border-radius: 8px; }
+.ex mark { background: var(--accent-soft); color: var(--ink); border-bottom: 2px solid var(--accent); padding: 0 2px; border-radius: 2px; }
+.ex.new mark { background: var(--ok-soft); border-bottom-color: var(--ok); }
+.conds { display: flex; flex-wrap: wrap; gap: 6px; }
+.conds span { font-size: 0.8rem; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.effect { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+.effect table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 560px; }
+.effect th, .effect td { padding: 12px 18px; text-align: left; border-top: 1px solid var(--line); vertical-align: middle; }
+.effect thead th { border-top: 0; font-size: 0.82rem; color: var(--muted); font-weight: 600; background: var(--bg); }
+.effect td.v { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.effect td.v.after { color: var(--ok); font-weight: 600; }
+.effect td.arr { color: var(--muted); width: 24px; padding-left: 0; padding-right: 0; }
+.effect td.c { font-size: 0.84rem; color: var(--muted); }
+.check { background: var(--warn-soft); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.check h3 { font-size: 0.98rem; color: var(--warn); }
+.check ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; font-size: 0.93rem; }
+
+/* 5. 질문 세트 */
+.sets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.set { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.set.s326 { border-top-color: var(--accent); } .set.s205 { border-top-color: var(--ok); } .set.s300 { border-top-color: var(--warn); }
+.set .who { font-size: 0.8rem; font-weight: 600; color: var(--muted); letter-spacing: 0.03em; }
+.set h3 { font-family: var(--font-num); font-weight: 500; font-size: 1.7rem; line-height: 1.1; }
+.set h3 small { font-family: var(--font-body); font-size: 0.85rem; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.set p { font-size: 0.92rem; color: var(--muted); }
+.set p b { color: var(--ink); }
+.set dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: 0.88rem; border-top: 1px dashed var(--line); padding-top: 10px; }
+.set dt { color: var(--muted); }
+.set dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; }
+.set .chip { align-self: flex-start; margin-top: auto; }
+.after-note { font-size: 0.95rem; }
+
+/* 6. 다음 단계 */
+.path { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.path li { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.path li + li::before { content: "→"; position: absolute; left: -11px; top: 50%; transform: translate(-50%, -50%); color: var(--muted); }
+.path li.done { background: var(--ok-soft); border-color: transparent; }
+.path .k { font-family: var(--font-num); font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+.path li.done .k { color: var(--ok); }
+.path li.now { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.path b { font-size: 1.05rem; }
+.path span { font-size: 0.9rem; color: var(--muted); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel h3 { font-size: 1.05rem; }
+.panel ul { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem; }
+.panel li span { color: var(--muted); }
+.panel.ask { border-color: var(--accent); }
+
+
+@media (max-width: 900px) {
+  .keys, .sets, .path, .finds, .pairs, .quality, .concl-cols, .hitgrid, .kpis3, .flow2, .gbars, .fixcols { grid-template-columns: 1fr; }
+  .path li + li::before { display: none; }
+  .toc { grid-template-columns: 1fr 1fr; }
+  .fs-row { grid-template-columns: 60px minmax(0, 1fr); } .fs-row .val { grid-column: 2; }
+  .score-wrap, .two, .example { grid-template-columns: 1fr; }
+  .ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ladder li + li::before { display: none; }
+  .req { grid-template-columns: 30px minmax(0, 1fr) auto; }
+  .req .what { grid-column: 2 / -1; }
+  .pcols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pcols .what { grid-column: 1 / -1; border-right: 0; background: var(--bg); }
+  .pcols .ph.blank { display: none; }
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .cover h1 { font-size: 2.1rem; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+  .brand { display: none; }
+  .toc { grid-template-columns: 1fr; }
+  .method { grid-template-columns: 1fr; }
+  .method div { border-left: 0; border-top: 1px solid var(--line); }
+  .method div:first-child { border-top: 0; }
+  .pcols { grid-template-columns: 1fr; }
+  .pcols .ph { display: none; }
+  .pcols .old::before { content: "기존 (326개)"; display: block; font-size: 0.76rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .pcols .new::before { content: "개선 (205개)"; display: block; font-size: 0.76rem; font-weight: 600; color: var(--ok); margin-bottom: 4px; }
+  .pcols .old { border-right: 0; }
+  .bar-row, .scale { grid-template-columns: 64px minmax(0, 1fr) 96px; gap: 8px; }
+  .bar-row .val span { display: block; margin-left: 0; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+svg .ln.claude { stroke: var(--m-claude); } svg .pt.claude { fill: var(--m-claude); }
+.rtab td.exq ul.cl { margin: 0; padding-left: 1.1em; } .rtab td.exq ul.cl li { margin: 3px 0; line-height: 1.5; }
+.tpl .slot { background: var(--accent-soft); color: var(--accent); font-weight: 700; border-radius: 4px; padding: 1px 6px; }
+.psum th[scope="row"] { white-space: nowrap; width: 1%; padding-right: 18px; }
+.ctr th, .ctr td { text-align: center; vertical-align: middle; word-break: keep-all; } .ctr th[scope="row"] { text-align: center; }
+.s-head h2 { font-size: 1.75rem; }
+.gist { margin: 0; padding: 14px 18px 14px 36px; background: var(--accent-soft); border-radius: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 0.98rem; }
+.gist li::marker { color: var(--accent); } .gist b { color: var(--ink); }
+.flow { display: block; width: 100%; height: auto; font-family: var(--font-body); }
+.flow .fb { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; }
+.flow .fb.code { stroke: var(--accent); stroke-width: 2; } .flow .fb.sem { stroke: var(--ok); stroke-width: 2; }
+.flow .fn { fill: var(--accent); font-family: var(--font-num); font-weight: 700; font-size: 15px; }
+.flow .ft { fill: var(--ink); font-weight: 700; font-size: 16px; } .flow .fl { fill: var(--muted); font-size: 13px; }
+.flow .fa { stroke: var(--muted); stroke-width: 1.6; fill: none; } .flow .fah { fill: var(--muted); }
+details.src { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 0; }
+details.src summary { cursor: pointer; padding: 12px 16px; font-weight: 600; font-size: 0.95rem; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+details.src summary::after { content: "펼치기"; font-size: 0.8rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
+details.src[open] summary::after { content: "접기"; }
+details.src > div { border-top: 1px solid var(--line); }
+details.src pre { margin: 0; border-top: 1px solid var(--line); padding: 14px 16px; max-height: 560px; overflow: auto; font-family: var(--font-num); font-size: 0.78rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; color: var(--ink); background: var(--bg); border-radius: 0 0 10px 10px; }
+pre.show { margin: 0; padding: 14px 16px; font-family: var(--font-num); font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; color: var(--ink); }
+.steps4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.steps4 > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.steps4 .k { font-family: var(--font-num); font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+.steps4 b { font-size: 0.98rem; } .steps4 span { font-size: 0.86rem; color: var(--muted); }
+svg .kb.pass { fill: var(--ok); opacity: 0.55; } svg .kb.disc { fill: var(--accent); } svg .kb.fail { fill: var(--risk); opacity: 0.6; }
+svg .kv { fill: #fff; font-family: var(--font-num); font-size: 12px; font-weight: 700; }
+svg .cb.p { fill: var(--ok); } svg .cb.f2 { fill: var(--risk); opacity: 0.75; } svg .cb.h { fill: var(--warn); opacity: 0.55; }
+.ktab table { min-width: 480px; } .ktab tr.pick td, .ktab tr.pick th { background: var(--ok-soft); } .ktab td.d { font-weight: 700; color: var(--accent); }
+.ctab table { min-width: 720px; font-size: 0.86rem; } .ctab td.ex { font-family: var(--font-body); color: var(--muted); white-space: normal; } .ctab td { white-space: normal; font-family: var(--font-body); }
+.ctab th[scope="row"] { white-space: nowrap; } .ctab code { font-family: var(--font-num); font-size: 0.8rem; }
+.ctag { font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.ctag.q { color: var(--accent); background: var(--accent-soft); } .ctag.always { color: var(--ok); background: var(--ok-soft); } .ctag.ans { color: var(--warn); background: var(--warn-soft); }
+.fs-track .p { background: var(--ok); } .fs-track .f2 { background: var(--risk); opacity: 0.75; } .fs-track .h { background: repeating-linear-gradient(135deg, var(--warn) 0 6px, var(--warn-soft) 6px 10px); }
+.fs-row .val b { color: var(--ok); }
+.rtab table { min-width: 640px; } .rtab td.exq { white-space: normal; font-family: var(--font-body); } .rtab td.num { color: var(--ink); }
+.rtab tr.tot th, .rtab tr.tot td { background: var(--accent-soft); font-weight: 700; } .rtab tr.pick th, .rtab tr.pick td { background: var(--ok-soft); }
+.rtab code { font-family: var(--font-num); font-size: 0.8rem; }
+/* v3 가독성: 표는 본문체, 숫자만 고정폭 · 칩 · 용어 줄 · 예시 블록 */
+.cmpt table, .ktab table, .rtab table { font-size: 0.95rem; }
+.cmpt td, .rtab td, .ktab td { font-family: var(--font-body); white-space: normal; color: var(--ink); line-height: 1.5; }
+.cmpt td.num, .rtab td.num, .ktab td, .ktab td.d, .cmpt td .n { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmpt th, .cmpt td, .rtab th, .rtab td { padding: 12px 16px; vertical-align: top; }
+.cmpt thead th { font-size: 0.84rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips span { font-size: 0.82rem; padding: 2px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); white-space: nowrap; }
+.chips span b { font-family: var(--font-num); color: var(--risk); margin-left: 4px; }
+.terms { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.9rem; color: var(--muted); padding: 12px 16px; border: 1px dashed var(--line); border-radius: 10px; }
+.terms span b { color: var(--ink); margin-right: 4px; }
+.gist { font-size: 1rem; line-height: 1.6; }
+.agenda { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+.agenda li { min-width: 0; }
+.agenda a { display: grid; grid-template-columns: 40px 1fr; gap: 2px 10px; padding: 12px 14px; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.agenda a:hover { border-color: var(--accent); }
+.agenda .n { font-family: var(--font-num); color: var(--accent); font-weight: 700; grid-row: span 2; font-size: 1.1rem; padding-top: 2px; }
+.agenda strong { font-size: 1.05rem; }
+.agenda .d { font-size: 0.88rem; color: var(--muted); line-height: 1.5; }
+@media (max-width: 900px) { .agenda { grid-template-columns: 1fr; } }
+.concl-cols ul { font-size: 0.95rem; gap: 6px; } .concl-cols li { line-height: 1.55; }
+.exq-block { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 0.95rem; }
+.exq-block .lab { font-size: 0.8rem; font-weight: 700; color: var(--accent); padding-top: 3px; }
+.exq-block .q { line-height: 1.7; }
+.exq-block ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 5px; }
+.exq-block li code { font-family: var(--font-num); font-size: 0.82rem; color: var(--accent); }
+.exq-block .ans { color: var(--muted); font-style: normal; }
+.card-body p { font-size: 0.95rem; line-height: 1.6; }
+.note p, .defbox p { line-height: 1.6; }
+@media (max-width: 640px) { .exq-block { grid-template-columns: 1fr; } }
+/* 가로 스크롤 없이 다 보이게 (사용자 요청 10-19) — 최소 너비 제거, 표 칸은 줄바꿈, 차트는 폭에 맞춰 축소 */
+.cmpt, .rtab, .ktab, .chart-scroll, .qtable, .effect { overflow-x: visible; }
+.cmpt table, .ktab table, .rtab table, .ctab table, .ttable, .qtable table, .effect table { min-width: 0; width: 100%; table-layout: auto; }
+svg.chart { min-width: 0; }
+.cmpt th, .cmpt td { white-space: normal; }
+.cmpt td.num, .ktab td { white-space: nowrap; }
+.ctab th[scope="row"] { white-space: normal; }
+.ctab table { font-size: 0.84rem; } .ctab th, .ctab td { padding: 8px 10px; }
+.ktab th, .ktab td { padding: 8px 10px; }
+.fs-row { grid-template-columns: 150px minmax(0, 1fr) 230px; } .fs-row .val { white-space: normal; }
+.gradwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; justify-content: center; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.defbox { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+.defbox h3 { font-size: 1.05rem; } .defbox p { font-size: 0.95rem; color: var(--muted); } .defbox p b { color: var(--ink); }
+.defbox.warn { border-left-color: var(--warn); }
+table.mini { border-collapse: collapse; font-size: 0.86rem; width: 100%; } table.mini th, table.mini td { padding: 5px 10px; border-top: 1px solid var(--line); text-align: left; font-family: var(--font-num); }
+table.mini thead th { font-family: var(--font-body); color: var(--muted); font-size: 0.78rem; border-top: 0; } table.mini td.d { color: var(--accent); font-weight: 700; }
+@media (max-width: 900px) { .steps4, .three { grid-template-columns: 1fr; } }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+/* 01 흐름도: 가운데 세로 흐름(단계 A~H·분기) · 왼쪽 파일 · 오른쪽 AI 호출, 그 옆에 요약 표. 좁은 화면에서는 요약 표가 그림 아래로 */
+.poster { gap: 14px; }
+.poster-sub { align-self: center; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 14px; font-size: 0.9rem; color: var(--muted); text-align: center; }
+.poster-grid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; align-items: start; }
+.pflow-svg { width: 100%; height: auto; display: block; }
+.pside { display: grid; gap: 12px; min-width: 0; }
+.pcard { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 12px 14px; font-size: 0.88rem; line-height: 1.5; min-width: 0; }
+.pcard h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.pcard ul.p-legend { list-style: none; margin: 0; padding-left: 0; display: grid; gap: 3px; }
+.p-legend li { display: flex; align-items: center; gap: 8px; }
+.p-legend svg { flex: none; }
+.ptab { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.ptab th, .ptab td { text-align: left; padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+.ptab thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+.r-pass { color: var(--ok); font-weight: 700; }
+.r-fail { color: var(--risk); font-weight: 700; }
+.r-hold { color: var(--warn); font-weight: 700; }
+@media (max-width: 1000px) {
+  .poster-grid { grid-template-columns: minmax(0, 1fr); }
+  .pside { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+.pflow text { font-family: var(--font-body); }
+.pflow .pp { fill: var(--ink); }
+.pflow .ppt { fill: var(--surface); font-weight: 600; font-size: 15px; }
+.pflow .pm { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; }
+.pflow .pm.code { stroke: var(--accent); stroke-width: 1.8; }
+.pflow .pm.ai { stroke: var(--ok); stroke-width: 1.8; }
+.pflow .pm.set { stroke: var(--todo); stroke-width: 1.8; }
+.pflow .pml { fill: var(--accent); font-family: var(--font-num); font-weight: 700; font-size: 16px; }
+.pflow .pml.ai { fill: var(--ok); }
+.pflow .pml.set { fill: var(--todo); }
+.pflow .pmt { fill: var(--ink); font-weight: 700; font-size: 16px; }
+.pflow .pb { fill: var(--bg); stroke: var(--line); }
+.pflow .pbl { fill: var(--accent); font-weight: 600; font-size: 13px; }
+.pflow .pbt { fill: var(--ink); font-size: 14px; }
+.pflow .pd { fill: var(--surface); stroke: var(--muted); stroke-width: 1.4; }
+.pflow .pdt { fill: var(--ink); font-weight: 600; font-size: 13.5px; }
+.pflow .px { fill: var(--surface); stroke: var(--line); }
+.pflow .pxt { fill: var(--ink); font-size: 13px; }
+.pflow .pr { fill: var(--accent-soft); stroke: var(--accent-weak); }
+.pflow .prt { fill: var(--ink); font-weight: 600; font-size: 14px; }
+.pflow .pai { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.4; stroke-dasharray: 6 4; }
+.pflow .pait { fill: var(--warn); font-weight: 700; font-size: 14px; }
+.pflow .paiT { fill: var(--ink); font-size: 13px; }
+.pflow .pf { fill: var(--file-soft); stroke: var(--file); stroke-width: 1.3; }
+.pflow .pft { fill: var(--file); font-weight: 700; font-size: 13.5px; }
+.pflow .pfl { fill: var(--ink); font-size: 12px; }
+.pflow .pc { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+.pflow .pc.ai { stroke: var(--warn); stroke-dasharray: 5 4; stroke-width: 1.4; }
+.pflow .pc.file { stroke: var(--file); stroke-dasharray: 4 4; stroke-width: 1.3; }
+.pflow .pah { fill: var(--muted); }
+.pflow .pahw { fill: var(--warn); }
+.pflow .pahf { fill: var(--file); }
+.pflow .plab { fill: var(--muted); font-size: 12.5px; font-weight: 600; }
+/* 표: 넓은 화면은 칸 너비 고정, 좁은 화면은 가로 스크롤 없이(10-19 발표와 같은 방침) 줄마다 세로로 쌓고 칸 이름을 위에 붙인다 */
+.cmpt.steps { min-width: 0; max-width: 100%; }
+.steps table { table-layout: fixed; }
+.steps td, .steps th { vertical-align: top; }
+.steps th .l { font-family: var(--font-num); color: var(--accent); margin-right: 6px; }
+.steps code { font-size: 0.86em; overflow-wrap: break-word; }
+@media (max-width: 640px) {
+  .steps thead, .steps colgroup { display: none; }
+  .steps table, .steps caption, .steps tbody, .steps tr, .steps th, .steps td { display: block; width: auto; }
+  .steps tbody tr { border-top: 1px solid var(--line); padding: 10px 0; }
+  .steps tbody th, .steps tbody td { border: 0; padding-block: 2px; }
+  .steps td[data-label]::before { content: attr(data-label); display: block; font-size: 0.76rem; font-weight: 600; color: var(--muted); }
+}
+.basis { color: var(--muted); font-size: 0.88rem; margin: 0; }
+/* 02 단계 띠 두 줄(10-19 / 지금) — 색은 누가 하는지(API · 앱·웹·구독 · 코드 · 안 함) */
+.shift { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.shift-row { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; }
+.shift-k { font-family: var(--font-num); font-weight: 600; font-size: 0.9rem; color: var(--muted); }
+.sh-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+.sh-chip { border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 0.82rem; line-height: 1.35; background: var(--bg); min-width: 0; overflow-wrap: anywhere; }
+.sh-chip b { display: block; font-size: 0.86rem; }
+.sh-chip small { display: block; color: var(--muted); font-size: 0.76rem; }
+.sh-chip.api { border-color: var(--warn); background: var(--warn-soft); }
+.sh-chip.part { border-color: var(--warn); border-style: dashed; }
+.sh-chip.sub { border-color: var(--ok); background: var(--ok-soft); }
+.sh-chip.code { border-color: var(--accent-weak); }
+.sh-chip.none { border-style: dashed; color: var(--muted); background: transparent; }
+.shift-key { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--muted); }
+.shift-key i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1.5px solid var(--line); }
+.shift-key .api { border-color: var(--warn); background: var(--warn-soft); }
+.shift-key .part { border-color: var(--warn); border-style: dashed; }
+.shift-key .sub { border-color: var(--ok); background: var(--ok-soft); }
+.shift-key .code { border-color: var(--accent-weak); }
+.shift-key .none { border-style: dashed; }
+.ch-tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--line); }
+.ch-tag.t-same { color: var(--todo); background: var(--todo-soft); border-color: transparent; }
+.ch-tag.t-sub { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.ch-tag.t-chg { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+.ch-tag.t-none { color: var(--muted); border-style: dashed; }
+.callout { margin: 0; border-left: 3px solid var(--warn); background: var(--warn-soft); border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 0.95rem; }
+/* 03 심판에게 가는 글을 위에서 아래로 쌓은 모양 — 파랑 = 고정 파일, 초록 = 모델마다 다른 곳(답변), 점선 = 실행 표식 */
+.pstack { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.ps { border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 2px; background: var(--bg); min-width: 0; overflow-wrap: anywhere; }
+.ps b { font-size: 0.95rem; }
+.ps span { color: var(--muted); font-size: 0.86rem; }
+.ps.prompt { border-color: var(--accent); background: var(--accent-soft); }
+.ps.fixed { border-color: var(--accent-weak); }
+.ps.mark { border-style: dashed; }
+.ps.ans { border-color: var(--ok); background: var(--ok-soft); }
+.ps.turn { margin-left: 18px; }
+.ps-sep { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); padding-left: 4px; }
+.sha { font-family: var(--font-num); font-size: 0.86em; color: var(--muted); }
+@media (max-width: 900px) { .sh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .shift-row { grid-template-columns: minmax(0, 1fr); } .sh-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+
+<nav class="topnav" aria-label="목차">
+  <div class="topnav-in">
+    <span class="brand">ModelGrade 보고 10-20</span>
+    <div class="toc-links" id="toc-links">
+      <a href="#s0"><span class="n">00</span>목차</a><a href="#s1"><span class="n">01</span>전체 흐름도</a><a href="#s2"><span class="n">02</span>바뀐 점</a><a href="#s3"><span class="n">03</span>프롬프트 고정</a>
+    </div>
+    <div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<section class="slide cover" id="s0">
+  <div class="cover-top">
+    <span class="date">2026-10-20 · 10-19 오후 미팅 후속 보고</span>
+    <h1>ModelGrade 보고</h1>
+    <p>AI 모델 4개(AIONA · GPT · Claude · Gemini)에 같은 질문을 던지고, 답을 자동으로 채점해 비교하는 도구입니다.</p>
+  </div>
+  <span class="kicker">오늘 이야기할 것</span>
+  <ol class="agenda">
+    <li><a href="#s1"><span class="n">01</span><strong>전체 흐름도</strong><span class="d">질문에서 결과까지 A~H</span></a></li><li><a href="#s2"><span class="n">02</span><strong>바뀐 점</strong><span class="d">10-19 → 지금, 단계마다</span></a></li><li><a href="#s3"><span class="n">03</span><strong>프롬프트 고정</strong><span class="d">같은 질문·답변이면 같은 글</span></a></li>
+  </ol>
+  <span class="kicker">먼저 알아 둘 말</span>
+  <div class="cmpt steps"><table><colgroup><col style="width:22%"><col style="width:78%"></colgroup><thead><tr><th>말</th><th>뜻</th></tr></thead><tbody><tr><th scope="row">질문 세트</th><td data-label="뜻">모델에 똑같이 던지는 고정 질문 326개 (간단평가는 그중 78개). 대화형 질문은 턴이 여러 개여도 1개로 셈</td></tr><tr><th scope="row">CODE 평가</th><td data-label="뜻">프로그램이 형식·글자 수·계산 같은 28가지를 검사</td></tr><tr><th scope="row">의미 평가</th><td data-label="뜻">심판 AI 가 내용을 44개 항목으로 판정 — J1~J8 묶음</td></tr><tr><th scope="row">J1~J8</th><td data-label="뜻">의도 충족 · 내용 적절성 · 논리 · 충분성 · 사실(DATA) · 대화 맥락 · 긴 문서 활용 · 첨부 활용</td></tr><tr><th scope="row">심판</th><td data-label="뜻">Jev(외부 API) — J1~J4 를 먼저 · Codex CLI(ChatGPT 구독) — 나머지를 확정</td></tr><tr><th scope="row">PASS · FAIL · 보류</th><td data-label="뜻"><span class="r-pass">PASS</span> 통과 · <span class="r-fail">FAIL</span> 실패 · <span class="r-hold">보류</span> 근거가 부족해 사람이 정함</td></tr><tr><th scope="row">판정상황표</th><td data-label="뜻">질문마다 채점할 항목과 근거 문장을 코드가 미리 적어 둔 표</td></tr></tbody></table></div>
+</section>
+
+
+<section class="slide" id="s1">
+  <div class="s-head"><span class="s-no">01 / 03</span><h2>전체 흐름도 — 질문에서 결과까지 A~H</h2><p>질문 326개를 네 모델에 묻고, 답을 코드와 심판 AI 로 채점해 질문마다 PASS·FAIL·보류를 냅니다.</p></div>
+
+  <figure class="fig poster">
+    <span class="poster-sub">2026-10-20 저장소 기준</span>
+    <div class="poster-grid"><svg class="pflow pflow-svg" viewBox="0 0 914 1944" role="img" aria-label="평가 흐름도 — 질문 세트에서 결과까지 A부터 H, 분기·AI 호출·파일 표시"><defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pah"/></marker><marker id="paw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahw"/></marker><marker id="paf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahf"/></marker></defs>
+<rect class="pp" x="274" y="8" width="340" height="42" rx="21"/>
+<text class="ppt" x="444" y="34" text-anchor="middle">시작 · python tools/modelgrade.py</text>
+<path class="pc " d="M444,50 L444,74" marker-end="url(#pa)"/>
+<rect class="pm set" x="228" y="76" width="432" height="118" rx="10"/>
+<text class="pml set" x="244" y="102">A</text>
+<text class="pmt" x="270" y="102">질문 세트 — 고정</text>
+<rect class="pb" x="240" y="116" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="136">질문</text>
+<text class="pbt" x="332" y="136">정밀 326개 · 간단 78개(그중 골라냄)</text>
+<rect class="pb" x="240" y="153" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="173">원칙</text>
+<text class="pbt" x="332" y="173">새로 만들지 않음 · 고칠 땐 버전을 올림</text>
+<path class="pc " d="M444,194 L444,218" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="220" width="432" height="137" rx="10"/>
+<text class="pml code" x="244" y="246">B</text>
+<text class="pmt" x="270" y="246">질문 해석 — 코드, AI 없음</text>
+<rect class="pb" x="240" y="260" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="280">기준 찾기</text>
+<text class="pbt" x="332" y="280">턴마다 채점할 항목과 근거 문장</text>
+<text class="pbt" x="332" y="299">글자 수·형식 같은 CODE 조건</text>
+<rect class="pb" x="240" y="316" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="336">결과</text>
+<text class="pbt" x="332" y="336">판정상황표 — 답과 무관, 미리 고정</text>
+<path class="pf" d="M24,100 H186 L200,114 V166 H24 Z"/>
+<path class="pf" d="M186,100 V114 H200"/>
+<text class="pft" x="34" y="121">질문 세트 파일</text>
+<text class="pfl" x="34" y="139">질문 326 · 간단 78</text>
+<text class="pfl" x="34" y="156">판정상황표</text>
+<path class="pc file" d="M200,122 H212 V122 H226" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,250 H212 V152 H202" marker-end="url(#paf)"/>
+<path class="pc " d="M444,357 L444,381" marker-end="url(#pa)"/>
+<rect class="pm ai" x="228" y="383" width="432" height="174" rx="10"/>
+<text class="pml ai" x="244" y="409">C</text>
+<text class="pmt" x="270" y="409">답변 수집 — 네 모델 동시</text>
+<rect class="pb" x="240" y="423" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="443">앱</text>
+<text class="pbt" x="332" y="443">ChatGPT · Claude 데스크톱 앱</text>
+<rect class="pb" x="240" y="460" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="480">웹</text>
+<text class="pbt" x="332" y="480">Gemini · AIONA(개발 서버)</text>
+<rect class="pb" x="240" y="497" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="517">방법</text>
+<text class="pbt" x="332" y="517">화면을 자동 조작해 질문 → 복사 버튼 원문</text>
+<text class="pbt" x="332" y="536">질문마다 저장 · 받은 질문은 건너뜀</text>
+<rect class="pai" x="702" y="383" width="212" height="124" rx="10"/>
+<text class="pait" x="714" y="405">AI · 답하는 모델 4개</text>
+<text class="paiT" x="714" y="425">GPT-6 · Medium</text>
+<text class="paiT" x="714" y="443">Claude Sonnet 5.5 · 중간</text>
+<text class="paiT" x="714" y="461">Gemini 3.6 Flash · 보통</text>
+<text class="paiT" x="714" y="479">AIONA</text>
+<text class="paiT" x="714" y="497">로그인은 사람이 미리</text>
+<path class="pc ai" d="M662,438.5 L700,438.5" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<path class="pc " d="M364,557 L364,579" marker-end="url(#pa)"/>
+<polygon class="pd" points="364,579 459,609 364,639 269,609"/>
+<text class="pdt" x="364" y="614" text-anchor="middle">답을 받았나?</text>
+<rect class="px" x="502" y="585" width="158" height="48" rx="8"/>
+<text class="pxt" x="514" y="604">복사 실패 → 보류</text>
+<text class="pxt" x="514" y="622">답 없음 → FAIL</text>
+<path class="pc " d="M459,609 L500,609" marker-end="url(#pa)"/>
+<text class="plab" x="464" y="602">아니오</text>
+<path class="pc " d="M364,639 L364,663" marker-end="url(#pa)"/>
+<text class="plab" x="371" y="655">예</text>
+<rect class="pm code" x="228" y="665" width="432" height="118" rx="10"/>
+<text class="pml code" x="244" y="691">D</text>
+<text class="pmt" x="270" y="691">CODE 평가 — 28가지 검사, 코드</text>
+<rect class="pb" x="240" y="705" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="725">검사</text>
+<text class="pbt" x="332" y="725">형식·글자 수·계산 등 — 수집 직후 바로</text>
+<rect class="pb" x="240" y="742" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="762">결과</text>
+<text class="pbt" x="332" y="762">검사마다 PASS·FAIL 과 이유</text>
+<path class="pf" d="M24,453 H186 L200,467 V519 H24 Z"/>
+<path class="pf" d="M186,453 V467 H200"/>
+<text class="pft" x="34" y="474">실행 기록</text>
+<text class="pfl" x="34" y="492">답변 원문</text>
+<text class="pfl" x="34" y="509">CODE 결과</text>
+<path class="pc file" d="M228,475 H212 V475 H202" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,695 H212 V505 H202" marker-end="url(#paf)"/>
+<path class="pc " d="M444,783 L444,807" marker-end="url(#pa)"/>
+<rect class="pr" x="274" y="809" width="340" height="40" rx="8"/>
+<text class="prt" x="444" y="834" text-anchor="middle">판정은 20개씩 묶어서</text>
+<path class="pc " d="M364,849 L364,871" marker-end="url(#pa)"/>
+<polygon class="pd" points="364,871 469,903 364,935 259,903"/>
+<text class="pdt" x="364" y="899" text-anchor="middle">빈 답을 요구하는</text>
+<text class="pdt" x="364" y="917" text-anchor="middle">질문인가?</text>
+<rect class="px" x="502" y="870" width="158" height="66" rx="8"/>
+<text class="pxt" x="514" y="889">심판 없이 정함</text>
+<text class="pxt" x="514" y="907">빈 답 → 보류</text>
+<text class="pxt" x="514" y="925">글을 씀 → FAIL</text>
+<path class="pc " d="M469,903 L500,903" marker-end="url(#pa)"/>
+<text class="plab" x="476" y="896">예</text>
+<path class="pc " d="M364,935 L364,959" marker-end="url(#pa)"/>
+<text class="plab" x="371" y="951">아니오</text>
+<rect class="pm ai" x="228" y="961" width="432" height="296" rx="10"/>
+<text class="pml ai" x="244" y="987">E</text>
+<text class="pmt" x="270" y="987">의미 평가 — 심판 둘</text>
+<rect class="pb" x="240" y="1001" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1021">입력</text>
+<text class="pbt" x="332" y="1021">고정 프롬프트 + 질문·첨부·답변</text>
+<text class="pbt" x="332" y="1040">어느 모델 답인지는 숨김</text>
+<rect class="pb" x="240" y="1057" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1077">Jev</text>
+<text class="pbt" x="332" y="1077">J1~J4 를 먼저 판정 (0.5~2초)</text>
+<text class="pbt" x="332" y="1096">FAIL·애매한 항목만 Codex 로</text>
+<path class="pc " d="M444,1107 L444,1121" marker-end="url(#pa)"/>
+<polygon class="pd" points="444,1121 534,1151 444,1181 354,1151"/>
+<text class="pdt" x="444" y="1147" text-anchor="middle">Jev 가 FAIL</text>
+<text class="pdt" x="444" y="1165" text-anchor="middle">또는 애매?</text>
+<text class="plab" x="248" y="1147">예: 그 항목도</text>
+<text class="plab" x="248" y="1164">Codex 로</text>
+<text class="plab" x="540" y="1147">아니오: Codex 는</text>
+<text class="plab" x="540" y="1164">J5~J8 만</text>
+<path class="pc " d="M444,1181 L444,1195" marker-end="url(#pa)"/>
+<rect class="pb" x="240" y="1197" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1217">Codex</text>
+<text class="pbt" x="332" y="1217">J5~J8 + 넘겨받은 항목을 확정</text>
+<text class="pbt" x="332" y="1236">이유·인용 첨부 · 사실은 웹검색</text>
+<rect class="pai" x="702" y="1053" width="212" height="70" rx="10"/>
+<text class="pait" x="714" y="1075">AI · 심판 1 — Jev</text>
+<text class="paiT" x="714" y="1095">외부 API (TypeSafe)</text>
+<text class="paiT" x="714" y="1113">J1~J4 만</text>
+<rect class="pai" x="702" y="1193" width="212" height="70" rx="10"/>
+<text class="pait" x="714" y="1215">AI · 심판 2 — Codex CLI</text>
+<text class="paiT" x="714" y="1235">GPT-6 Luna · 추론 low</text>
+<text class="paiT" x="714" y="1253">ChatGPT Pro 구독</text>
+<path class="pc ai" d="M662,1082 L700,1082" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<path class="pc ai" d="M662,1222 L700,1222" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<path class="pf" d="M24,971 H186 L200,985 V1037 H24 Z"/>
+<path class="pf" d="M186,971 V985 H200"/>
+<text class="pft" x="34" y="992">고정 프롬프트</text>
+<text class="pfl" x="34" y="1010">판정 프롬프트 v3</text>
+<text class="pfl" x="34" y="1027">Jev 질문 묶음</text>
+<path class="pc file" d="M200,1001 H212 V1001 H226" marker-end="url(#paf)"/>
+<path class="pf" d="M24,1049 H186 L200,1063 V1098 H24 Z"/>
+<path class="pf" d="M186,1049 V1063 H200"/>
+<text class="pft" x="34" y="1070">판정 입력</text>
+<text class="pfl" x="34" y="1088">질문마다 한 줄</text>
+<path class="pc file" d="M228,1079 H212 V1079 H202" marker-end="url(#paf)"/>
+<path class="pc " d="M444,1257 L444,1281" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1283" width="432" height="156" rx="10"/>
+<text class="pml code" x="244" y="1309">F</text>
+<text class="pmt" x="270" y="1309">재판정·보류 — 규칙, 코드</text>
+<rect class="pb" x="240" y="1323" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1343">확정</text>
+<text class="pbt" x="332" y="1343">Codex FAIL → FAIL</text>
+<text class="pbt" x="332" y="1362">Jev 애매 + Codex PASS → PASS</text>
+<rect class="pb" x="240" y="1379" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1399">보류</text>
+<text class="pbt" x="332" y="1399">Jev FAIL + Codex PASS (심판 갈림)</text>
+<text class="pbt" x="332" y="1418">확인 못 함 · 인용이 원문에 없음</text>
+<path class="pc " d="M444,1439 L444,1463" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1465" width="432" height="156" rx="10"/>
+<text class="pml code" x="244" y="1491">G</text>
+<text class="pmt" x="270" y="1491">질문 단위 판정 — 코드</text>
+<rect class="pb" x="240" y="1505" width="408" height="69" rx="6"/>
+<text class="pbl" x="252" y="1525">판정</text>
+<text class="pbt" x="332" y="1525">FAIL 하나라도 → FAIL</text>
+<text class="pbt" x="332" y="1544">아니면 보류 하나라도 → 보류</text>
+<text class="pbt" x="332" y="1563">나머지 → PASS</text>
+<rect class="pb" x="240" y="1580" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="1600">단위</text>
+<text class="pbt" x="332" y="1600">대화는 턴 전체를 묶어 질문 1개</text>
+<path class="pc " d="M660,609 L681,609 L681,1489 L662,1489" marker-end="url(#pa)"/>
+<path class="pc " d="M660,903 L681,903"/>
+<text class="plab" x="687" y="1493">바로 G 로</text>
+<path class="pc " d="M444,1621 L444,1645" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1647" width="432" height="137" rx="10"/>
+<text class="pml code" x="244" y="1673">H</text>
+<text class="pmt" x="270" y="1673">결과·보류 추출 — 명령 하나</text>
+<rect class="pb" x="240" y="1687" width="408" height="31" rx="6"/>
+<text class="pbl" x="252" y="1707">명령</text>
+<text class="pbt" x="332" y="1707">python tools/modelgrade.py report</text>
+<rect class="pb" x="240" y="1724" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1744">결과</text>
+<text class="pbt" x="332" y="1744">모델별 PASS·FAIL·보류 / 326</text>
+<text class="pbt" x="332" y="1763">질문별 이유 · 보류 목록</text>
+<path class="pf" d="M24,1475 H186 L200,1489 V1541 H24 Z"/>
+<path class="pf" d="M186,1475 V1489 H200"/>
+<text class="pft" x="34" y="1496">판정 결과</text>
+<text class="pfl" x="34" y="1514">질문별 판정 · 시간</text>
+<text class="pfl" x="34" y="1531">report.html</text>
+<path class="pc file" d="M228,1323 H212 V1491 H202" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,1515 H212 V1515 H202" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,1673 H212 V1529 H202" marker-end="url(#paf)"/>
+<path class="pf" d="M24,1717 H186 L200,1731 V1783 H24 Z"/>
+<path class="pf" d="M186,1717 V1731 H200"/>
+<text class="pft" x="34" y="1738">결과 JSON</text>
+<text class="pfl" x="34" y="1756">저장소에 보관</text>
+<text class="pfl" x="34" y="1773">다른 PC 에서도 봄</text>
+<path class="pc file" d="M228,1747 H212 V1747 H202" marker-end="url(#paf)"/>
+<path class="pc " d="M444,1784 L444,1806" marker-end="url(#pa)"/>
+<polygon class="pd" points="444,1806 544,1836 444,1866 344,1836"/>
+<text class="pdt" x="444" y="1841" text-anchor="middle">남은 질문이 있나?</text>
+<path class="pc " d="M344,1836 L8,1836 L8,829 L272,829" marker-end="url(#pa)"/>
+<text class="plab" x="338" y="1829" text-anchor="end">예 — 다음 20개</text>
+<path class="pc " d="M444,1866 L444,1890" marker-end="url(#pa)"/>
+<text class="plab" x="451" y="1882">아니오</text>
+<rect class="pp" x="274" y="1892" width="340" height="42" rx="21"/>
+<text class="ppt" x="444" y="1918" text-anchor="middle">끝 · 보류는 사람이 정함</text>
+</svg><aside class="pside" aria-label="흐름도 요약"><div class="pcard ai"><h4>누가 하나</h4><table class="ptab"><thead><tr><th>단계</th><th>누가</th></tr></thead><tbody><tr><td>A·B·D·F·G·H</td><td>코드 (정해진 규칙)</td></tr><tr><td>C 답변 수집</td><td>답하는 모델 4개 — 앱·웹 자동 조작</td></tr><tr><td>E 의미 평가</td><td>심판 2개 — Jev(API) · Codex(구독)</td></tr><tr><td>보류 정리</td><td>사람</td></tr></tbody></table></div><div class="pcard "><h4>판정 규칙</h4><table class="ptab"><thead><tr><th>상황</th><th>결과</th></tr></thead><tbody><tr><td>답을 못 받음</td><td><span class="r-fail">FAIL</span></td></tr><tr><td>답 복사 실패</td><td><span class="r-hold">보류</span></td></tr><tr><td>빈 답 요구 질문</td><td>빈 답 <span class="r-hold">보류</span> · 글 <span class="r-fail">FAIL</span></td></tr><tr><td>Codex FAIL</td><td><span class="r-fail">FAIL</span></td></tr><tr><td>Jev FAIL + Codex PASS</td><td><span class="r-hold">보류</span></td></tr><tr><td>확인 못 함 · 인용 불일치</td><td><span class="r-hold">보류</span></td></tr></tbody></table></div><div class="pcard"><h4>도형</h4><ul class="p-legend"><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pp" x="2" y="5" width="36" height="12" rx="6"/></svg>시작·끝</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pm code" x="2" y="3" width="36" height="16" rx="3"/></svg>코드가 하는 단계</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pm ai" x="2" y="3" width="36" height="16" rx="3"/></svg>AI 가 끼는 단계</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><polygon class="pd" points="20,2 38,11 20,20 2,11"/></svg>갈림길</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pai" x="2" y="3" width="36" height="16" rx="3"/></svg>AI 호출</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><path class="pf" d="M4,2 H28 L36,10 V20 H4 Z"/></svg>파일</li></ul></div></aside></div>
+  </figure>
+  <div class="cmpt steps"><table><caption>단계별 요약</caption><colgroup><col style="width:13%"><col style="width:45%"><col style="width:18%"><col style="width:24%"></colgroup><thead><tr><th>단계</th><th>하는 일</th><th>누가</th><th>파일</th></tr></thead><tbody><tr><th scope="row"><span class="l">A</span>질문 세트</th><td data-label="하는 일">고정된 질문 326개와 그중 78개. 고칠 때만 버전을 올림.</td><td data-label="누가">고정 파일</td><td data-label="파일"><code>questions.json</code><br><code>질문세트_최소78/<wbr>ids.json</code></td></tr><tr><th scope="row"><span class="l">B</span>질문 해석</th><td data-label="하는 일">질문 글에서 채점할 항목·근거를 찾아 표로 고정.</td><td data-label="누가">코드</td><td data-label="파일"><code>build_judge_situations.py</code><br><code>판정상황표_v2.json</code></td></tr><tr><th scope="row"><span class="l">C</span>답변 수집</th><td data-label="하는 일">네 모델에 동시에 묻고 복사 버튼으로 원문을 받음. 질문마다 저장.</td><td data-label="누가">앱·웹 자동 조작</td><td data-label="파일"><code>modelgrade.py collect</code><br><code>uia_chat_app.py</code><br><code>cdp_chat_web.py</code></td></tr><tr><th scope="row"><span class="l">D</span>CODE 평가</th><td data-label="하는 일">형식·글자 수·계산 등 28가지를 프로그램이 검사.</td><td data-label="누가">코드</td><td data-label="파일"><code>code_eval/<wbr>engine.py</code></td></tr><tr><th scope="row"><span class="l">E</span>의미 평가</th><td data-label="하는 일">Jev 가 J1~J4 를 먼저 보고, Codex 가 J5~J8 과 넘겨받은 항목을 이유·인용과 함께 확정.</td><td data-label="누가">Jev(API) · Codex(구독)</td><td data-label="파일"><code>judge_run.py</code><br><code>judge_prompt_v3.txt</code></td></tr><tr><th scope="row"><span class="l">F</span>재판정·보류</th><td data-label="하는 일">다시 묻지 않고 규칙으로 확정하거나 보류.</td><td data-label="누가">코드</td><td data-label="파일"><code>judge_split.py</code></td></tr><tr><th scope="row"><span class="l">G</span>질문 단위 판정</th><td data-label="하는 일"><span class="r-fail">FAIL</span> 하나라도 → <span class="r-fail">FAIL</span>, 아니면 보류 하나라도 → <span class="r-hold">보류</span>, 나머지 <span class="r-pass">PASS</span>.</td><td data-label="누가">코드</td><td data-label="파일"><code>judge_run.py</code></td></tr><tr><th scope="row"><span class="l">H</span>결과·보류 추출</th><td data-label="하는 일">모델별 결과 · 질문별 이유 · 보류 목록을 명령 하나로.</td><td data-label="누가">코드</td><td data-label="파일"><code>modelgrade.py report</code><br><code>export_results_json.py</code></td></tr></tbody></table></div>
+</section>
+
+<section class="slide" id="s2">
+  <div class="s-head"><span class="s-no">02 / 03</span><h2>10-19 → 지금 — 무엇이 바뀌었나</h2><p>10-19 실행 기록과 지금 코드를 단계별로 비교했습니다.</p></div>
+
+  <div class="shift" role="group" aria-label="단계별 10-19 방식과 지금 방식">
+    <div class="shift-row"><span class="shift-k">10-19</span><ol class="sh-steps"><li class="sh-chip api"><b>0 질문 생성</b><small>GPT-6 Luna API</small></li><li class="sh-chip code"><b>A 질문 세트</b><small>326 v2.0</small></li><li class="sh-chip code"><b>B 질문 해석</b><small>평가 때 계산</small></li><li class="sh-chip api"><b>C 답변 수집</b><small>API 3 · 웹 1</small></li><li class="sh-chip code"><b>D CODE 평가</b><small>28가지</small></li><li class="sh-chip api"><b>E 의미 평가</b><small>Luna·Jev API</small></li><li class="sh-chip api"><b>F 재판정·보류</b><small>Luna 재호출</small></li><li class="sh-chip code"><b>G 질문 단위 판정</b><small>턴 → 질문</small></li><li class="sh-chip code"><b>H 결과·보류 추출</b><small>화면·스크립트</small></li></ol></div>
+    <div class="shift-row"><span class="shift-k">지금</span><ol class="sh-steps"><li class="sh-chip none"><b>0 질문 생성</b><small>안 함</small></li><li class="sh-chip code"><b>A 질문 세트</b><small>326 v2.2</small></li><li class="sh-chip code"><b>B 질문 해석</b><small>미리 고정</small></li><li class="sh-chip sub"><b>C 답변 수집</b><small>앱 2 · 웹 2</small></li><li class="sh-chip code"><b>D CODE 평가</b><small>28가지</small></li><li class="sh-chip part"><b>E 의미 평가</b><small>Jev API · Codex 구독</small></li><li class="sh-chip code"><b>F 재판정·보류</b><small>규칙만</small></li><li class="sh-chip code"><b>G 질문 단위 판정</b><small>질문 단위</small></li><li class="sh-chip code"><b>H 결과·보류 추출</b><small>명령 하나</small></li></ol></div>
+    <ul class="shift-key"><li><i class="api"></i>API 호출</li><li><i class="part"></i>일부 API</li><li><i class="sub"></i>앱·웹·구독 (사람 계정)</li>
+      <li><i class="code"></i>코드</li><li><i class="none"></i>안 함</li></ul>
+  </div>
+  <div class="cmpt steps"><table><caption>한눈에</caption><colgroup><col style="width:22%"><col style="width:39%"><col style="width:39%"></colgroup><thead><tr><th>항목</th><th>10-19</th><th>지금</th></tr></thead><tbody><tr><th scope="row">API 를 쓰는 곳</th><td data-label="10-19">질문 생성 · 답변 수집(3모델) · 심판 2개</td><td data-label="지금"><b>Jev 1개</b> (대체는 다음 과제)</td></tr><tr><th scope="row">답변 수집</th><td data-label="10-19">API 3 · 웹 1</td><td data-label="지금">앱 2 · 웹 2</td></tr><tr><th scope="row">판정 단위</th><td data-label="10-19">턴마다 (모델당 487번)</td><td data-label="지금">질문마다 (모델당 326번)</td></tr><tr><th scope="row">판정 프롬프트</th><td data-label="10-19">질문마다 코드가 조립</td><td data-label="지금">고정 파일 1개 (03장)</td></tr><tr><th scope="row">실행</th><td data-label="10-19">웹 화면(서버)</td><td data-label="지금">파이썬 명령 하나</td></tr></tbody></table></div>
+  <p class="callout">참고 — 10-19 발표 01장에는 '답변 수집 — 모두 웹브라우저'로 적었지만, 실제로는 GPT·Claude·Gemini 답을 API 로 받았습니다(487턴 모두).</p>
+  <div class="cmpt steps"><table><caption>단계별</caption><colgroup><col style="width:16%"><col style="width:34%"><col style="width:34%"><col style="width:16%"></colgroup><thead><tr><th>단계</th><th>10-19</th><th>지금</th><th>바뀐 점</th></tr></thead><tbody><tr><th scope="row"><span class="l">0</span>질문 생성</th><td data-label="10-19">GPT-6 Luna(API)로 생성 · k 맞춤</td><td data-label="지금">안 함 — 세트 고정</td><td data-label="바뀐 점"><span class="ch-tag t-none">안 함</span></td></tr><tr><th scope="row"><span class="l">A</span>질문 세트</th><td data-label="10-19">326개(v2.0) · 간단 78</td><td data-label="지금">같음 · 문서형 53개만 '본문 글로' 문구 추가(v2.2)</td><td data-label="바뀐 점"><span class="ch-tag t-same">거의 그대로</span></td></tr><tr><th scope="row"><span class="l">B</span>질문 해석</th><td data-label="10-19">평가할 때마다 코드가 계산</td><td data-label="지금">판정상황표로 미리 고정</td><td data-label="바뀐 점"><span class="ch-tag t-chg">고정 파일로</span></td></tr><tr><th scope="row"><span class="l">C</span>답변 수집</th><td data-label="10-19">GPT·Claude·Gemini: API<br>AIONA: 웹(운영 서버)</td><td data-label="지금">ChatGPT·Claude: 데스크톱 앱<br>Gemini·AIONA: 웹(개발 서버)</td><td data-label="바뀐 점"><span class="ch-tag t-sub">API → 앱·웹</span></td></tr><tr><th scope="row"><span class="l">D</span>CODE 평가</th><td data-label="10-19">28가지 검사</td><td data-label="지금">같음</td><td data-label="바뀐 점"><span class="ch-tag t-same">그대로</span></td></tr><tr><th scope="row"><span class="l">E</span>의미 평가</th><td data-label="10-19">Luna(API) J1~J8 + Jev(API) J1~J4 함께<br>턴마다 판정</td><td data-label="지금">Jev(API) J1~J4 먼저 → Codex(구독) 확정<br>질문마다 판정</td><td data-label="바뀐 점"><span class="ch-tag t-sub">API → 구독</span></td></tr><tr><th scope="row"><span class="l">F</span>재판정·보류</th><td data-label="10-19">갈리면 Luna 다시 호출 → 또 갈리면 보류</td><td data-label="지금">다시 부르지 않고 규칙으로</td><td data-label="바뀐 점"><span class="ch-tag t-chg">재호출 없음</span></td></tr><tr><th scope="row"><span class="l">G</span>질문 단위 판정</th><td data-label="10-19">턴 판정을 모아 질문 1개로</td><td data-label="지금">처음부터 질문 단위 (셈은 같음)</td><td data-label="바뀐 점"><span class="ch-tag t-same">셈은 그대로</span></td></tr><tr><th scope="row"><span class="l">H</span>결과·보류 추출</th><td data-label="10-19">웹 화면 + 스크립트 따로</td><td data-label="지금">report 명령 하나</td><td data-label="바뀐 점"><span class="ch-tag t-chg">명령 하나로</span></td></tr><tr><th scope="row"><span class="l">·</span>실행 방식</th><td data-label="10-19">웹 화면(서버)</td><td data-label="지금">파이썬 명령 · 20개씩 · 멈춰도 이어서</td><td data-label="바뀐 점"><span class="ch-tag t-chg">화면 → 명령</span></td></tr></tbody></table></div>
+  <p class="basis">출처: 10-19 실행 기록(참고자료/결과/8c61f117e661_정밀326_2026-10-19.json) · 2026-10-20 코드</p>
+</section>
+
+<section class="slide" id="s3">
+  <div class="s-head"><span class="s-no">03 / 03</span><h2>판정 프롬프트는 고정 — 같은 질문·답변이면 같은 글</h2><p>심판에게 보내는 글은 &#x27;고정 파일 + 코드가 붙인 입력&#x27;입니다. LLM 이 프롬프트를 만들지 않습니다.</p></div>
+
+  <div class="block"><h3>심판에게 가는 글</h3>
+  <div class="pstack" role="group" aria-label="심판에게 가는 글의 구성">
+    <div class="ps prompt"><b>고정 판정 프롬프트 v3</b><span>파일 1개 · 20,405자 — 모든 질문·모델·심판에 같은 글</span></div>
+    <div class="ps-sep">[입력] — 아래를 코드가 정해진 순서로 붙임</div>
+    <div class="ps mark"><b>실행 표식</b><span>실행마다 새로 고르는 6자리 경계 표시</span></div>
+    <div class="ps fixed turn"><b>[이 턴의 상황]</b><span>판정상황표 그대로 — 질문만으로 정해짐</span></div>
+    <div class="ps fixed turn"><b>[질문] · [첨부] · [참조 자료]</b><span>질문 세트 그대로</span></div>
+    <div class="ps ans turn"><b>[답변]</b><span>수집한 원문 — 모델마다 다른 곳은 여기뿐 (모델 이름은 숨김)</span></div>
+  </div></div>
+  <div class="cmpt steps"><table><caption>Q36 로 직접 만들어 본 결과 — AI 호출 없음</caption><colgroup><col style="width:42%"><col style="width:58%"></colgroup><thead><tr><th>확인한 것</th><th>결과</th></tr></thead><tbody><tr><th scope="row">프롬프트 파일이 10-19 이후 바뀌었나</th><td data-label="결과"><span class="r-pass">안 바뀜</span> — 10-19 문서에 적은 지문(sha256)과 같음 <span class="sha">(7a811b172ec92dc0)</span></td></tr><tr><th scope="row">같은 질문·같은 답으로 두 번 만들면</th><td data-label="결과"><span class="r-pass">같음</span> <span class="sha">(6e8fccc4fd11f66e = 6e8fccc4fd11f66e)</span></td></tr><tr><th scope="row">10-19 다른 PC 에서 만든 예시와 비교하면</th><td data-label="결과"><span class="r-pass">글자까지 같음</span></td></tr><tr><th scope="row">답만 바꾸면 (AIONA → GPT)</th><td data-label="결과">[답변] 앞 22줄은 그대로 · 모델 이름 <span class="r-pass">없음</span></td></tr><tr><th scope="row">표식만 바꾸면</th><td data-label="결과">표식이 든 5줄만 바뀜</td></tr><tr><th scope="row">Codex 가 받는 전체 글을 두 번</th><td data-label="결과"><span class="r-pass">같음</span> — 22,158자 <span class="sha">(ab6eb82f5a5bf26f = ab6eb82f5a5bf26f)</span></td></tr><tr><th scope="row">Jev 가 항목 하나(J2-3.a)를 넘기면</th><td data-label="결과">[이 턴의 상황] 3줄만 바뀜</td></tr></tbody></table></div>
+  <div class="cmpt steps"><table><caption>바뀔 수 있는 것은 이것뿐</caption><colgroup><col style="width:30%"><col style="width:30%"><col style="width:40%"></colgroup><thead><tr><th>무엇</th><th>언제</th><th>정하는 쪽</th></tr></thead><tbody><tr><th scope="row">실행 표식</th><td data-label="언제">실행마다</td><td data-label="정하는 쪽">코드 — 질문·답에 없는 6자리, 기록에 남김</td></tr><tr><th scope="row">Codex 가 맡는 J1~J4 항목</th><td data-label="언제">Jev 가 FAIL·애매로 넘길 때</td><td data-label="정하는 쪽">코드 — Jev 결과에 따라</td></tr><tr><th scope="row">프롬프트 자체</th><td data-label="언제">고쳐야 할 때만</td><td data-label="정하는 쪽">사람 — v3 를 덮어쓰지 않고 v4 새 파일</td></tr></tbody></table></div>
+  <details class="src"><summary><span>Q36 입력 앞부분 보기 <span class=muted>— [답변] 줄까지</span></span><span class="muted">1,336자</span></summary><pre>실행 표식: 224fae
+&lt;&lt;224fae 질문 시작&gt;&gt;
+&lt;&lt;224fae 1턴 시작&gt;&gt;
+[이 턴의 상황]
+판정할 항목 (18개): J1-1.a J1-2.a J1-3.a J1-3.b J1-4.a J1-4.b J2-1.a J2-1.b J2-2.a J2-3.a J2-4.a J2-4.b J3-1.a J4-1.a J4-1.b J4-2.a J5-1.a J5-3.a
+상황 (프로그램이 질문 글로 정함 — 상황표 1):
+- J1-1 요청 작업 수행 → J1-1.a · 모든 질문
+- J1-2 거절·회피 없음 → J1-2.a · 모든 질문
+- J1-3 수행 불가 요청 처리 → J1-3.a J1-3.b · 적용 여부는 상황표 2
+- J1-4 불필요한 내용 없음 → J1-4.a J1-4.b · 모든 질문
+- J2-1 대상 수준 → J2-1.a J2-1.b · 근거: &quot;초등학생도 이해할 수 있는 쉬운 말로 설명해줘.&quot; (찾은 말: 초등학생도)
+- J2-2 말투·어조 → J2-2.a · 근거: &quot;존댓말로 답해줘.&quot; (찾은 말: 존댓말)
+- J2-3 조건·제약 준수 → J2-3.a · 근거: &quot;실제로 확인하지 않은 자료를 조회했다고 말하지 마.&quot; (찾은 말: 하지 마)
+- J2-4 설명 방식 → J2-4.a J2-4.b · 근거: &quot;초등학생도 이해할 수 있는 쉬운 말로 설명해줘.&quot; (찾은 말: 말로 설명해줘)
+- J3-1 내부 모순 없음 → J3-1.a · 모든 답변
+- J4-1 비교 완결 → J4-1.a J4-1.b · 근거: &quot;…끓는점을 수치와 단위 변환 관계를 기준으로 비교해줘.&quot; (찾은 말: 비교, 기준으로)
+- J4-2 함께 요구한 항목 → J4-2.a · 근거: &quot;…형식으로 각주를 달고 답변 끝에 해당 각주 정의도 써줘.&quot; (찾은 말: 정의도 써)
+- J5-1 사실 정확성 → J5-1.a · 근거: &quot;해수면 기준 순수한 물의 끓는점이 몇 도인지 사실을 확인해줘.&quot; (찾은 말: 사실을 확인해)
+- J5-3 확인 과정 꾸밈 없음 → J5-3.a · 답변을 보고 정함(상황표 2)
+[질문]
+해수면 기준 순수한 물의 끓는점이 몇 도인지 사실을 확인해줘. 정확히 2개의 소제목으로 나누고, 사실 주장에는 [1] 형식의 출처 번호를 달아 끝에 [1] 출처 줄을 적어줘. 핵심 설명에는 [^boiling] 형식으로 각주를 달고 답변 끝에 해당 각주 정의도 써줘. 실제로 확인하지 않은 자료를 조회했다고 말하지 마. 초등학생도 이해할 수 있는 쉬운 말로 설명해줘. 존댓말로 답해줘. 물이 끓는 현상은 일상적인 비유를 들어 설명해줘. 섭씨와 화씨로 나타낸 끓는점을 수치와 단위 변환 관계를 기준으로 비교해줘.
+[답변]
+(… 답변 원문 …)
+&lt;&lt;224fae 1턴 끝&gt;&gt;
+&lt;&lt;224fae 질문 끝&gt;&gt;</pre></details>
+  <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드로 다시 계산합니다.</p>
+</section>
+
+</main>
+<script>
+(function () {
+  var ids = ['s0', 's1', 's2', 's3'];
+  var secs = ids.map(function (id) { return document.getElementById(id); });
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc-links a'));
+  function current() {
+    var y = window.scrollY + window.innerHeight * 0.3, idx = 0;
+    secs.forEach(function (s, i) { if (s.offsetTop <= y) idx = i; });
+    return idx;
+  }
+  function mark() {
+    var i = current();
+    links.forEach(function (a, j) {
+      if (i === j) { a.setAttribute('aria-current', 'true'); } else { a.removeAttribute('aria-current'); }
+    });
+    var a = links[i];
+    if (a && a.parentNode) {
+      var box = a.parentNode;
+      var left = a.offsetLeft - box.offsetLeft;
+      if (left < box.scrollLeft || left + a.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = left - 8;
+    }
+  }
+  function go(step) {
+    var i = Math.max(0, Math.min(secs.length - 1, current() + step));
+    secs[i].scrollIntoView({ block: 'start' });
+  }
+  document.getElementById('prev').addEventListener('click', function () { go(-1); });
+  document.getElementById('next').addEventListener('click', function () { go(1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target && e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); go(-1); }
+  });
+  var raf = 0;
+  window.addEventListener('scroll', function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; mark(); }); }, { passive: true });
+  mark();
+})();
+</script>
+</body>
+</html>
