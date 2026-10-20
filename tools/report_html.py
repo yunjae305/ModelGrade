@@ -39,11 +39,17 @@ def collection_time_rows(run: Dict[str, Any], providers: Optional[List[str]] = N
     out = []
     for p in providers:
         rows = [r for r in (run.get("datasets") or {}).get(p) or [] if isinstance(r, dict)]
-        ok = [r for r in rows if (r.get("collection") or {}).get("status") == "SUCCESS"]
-        qs = {int(r["case_id"].split("_T")[0][1:]) for r in ok}
+        by_q: Dict[int, List[str]] = {}
+        for r in rows:
+            by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append((r.get("collection") or {}).get("status") or "")
+        # 질문 단위: 모든 턴 받음 / 복사 실패로 보류(COPY_FAILED) / 오류·답 없음 — 보류·오류도 결과이므로 따로 센다 (사용자 10-20 밤)
+        received = sum(1 for st in by_q.values() if all(x == "SUCCESS" for x in st))
+        held = sum(1 for st in by_q.values() if any(x == "COPY_FAILED" for x in st) and all(x in ("SUCCESS", "COPY_FAILED") for x in st))
+        error = len(by_q) - received - held
         answer_s = sum((r.get("collection") or {}).get("latency_ms") or 0 for r in rows) / 1000
         wall = sum(e.get("seconds") or 0 for e in run.get("imports") or [] if e.get("provider") == p and e.get("method") == "collect-app-v1")
-        out.append({"provider": p, "questions": len(qs), "answer_seconds": answer_s, "per_question": answer_s / len(qs) if qs else 0, "wall_seconds": wall,
+        out.append({"provider": p, "questions": received, "held": held, "errors": error, "total": len(by_q),
+                    "answer_seconds": answer_s, "per_question": answer_s / received if received else 0, "wall_seconds": wall,
                     "label": (run.get("models") or {}).get(p) or p})
     return out
 
@@ -107,9 +113,9 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None) -> Path:
     parts.append("<h2>2. 걸린 시간</h2>")
     crow = collection_time_rows(run, providers) if run else []
     if crow:
-        parts.append("<table><tr><th>모델</th><th class='num'>받은 질문</th><th>답변 시간 합</th><th class='num'>질문당 평균</th><th>수집 묶음 벽시계 합</th></tr>")
+        parts.append("<table><tr><th>모델</th><th class='num'>받음</th><th class='num'>복사 실패(보류)</th><th class='num'>오류·답 없음</th><th class='num'>합계</th><th>답변 시간 합</th><th class='num'>질문당 평균</th><th>수집 묶음 벽시계 합</th></tr>")
         for c in crow:
-            parts.append(f"<tr><td>{_e(c['label'])}</td><td class='num'>{c['questions']}</td><td>{_hms(c['answer_seconds'])}</td><td class='num'>{c['per_question']:.0f}초</td><td>{_hms(c['wall_seconds'])}</td></tr>")
+            parts.append(f"<tr><td>{_e(c['label'])}</td><td class='num'>{c['questions']}</td><td class='num'>{c['held']}</td><td class='num'>{c['errors']}</td><td class='num'>{c['total']}</td><td>{_hms(c['answer_seconds'])}</td><td class='num'>{c['per_question']:.0f}초</td><td>{_hms(c['wall_seconds'])}</td></tr>")
         parts.append("</table>")
     jt = judge_time_info(out_dir)
     if jt:
