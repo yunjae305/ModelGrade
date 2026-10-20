@@ -857,7 +857,7 @@ def order_chart(metric, total, as_pct, reach_key, aria):
     for n in [t for t in (0, 50, 100, 150, 200, 250, 300) if n_all - t >= 40] + [n_all]:   # 끝 눈금과 붙는 눈금은 뺀다
         out.append(f'<text class="tick" x="{x(n):.1f}" y="{bottom + 16}" text-anchor="middle">{n}</text>')
     out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">던진 질문 수</text>')
-    if reach_key == "pairs_80":
+    if reach_key in ("pairs_80", "kinds_80"):
         out.append(f'<line class="guide" x1="{left}" y1="{y(0.8 * total):.1f}" x2="{right}" y2="{y(0.8 * total):.1f}"/>'
                    f'<text class="reflab" x="{right}" y="{y(0.8 * total) - 5:.1f}" text-anchor="end">80%</text>')
     for k in ORD_KEYS:
@@ -893,23 +893,24 @@ def best_cells(row, key, as_pct, total):
 reach_table = table("어디서 도달하나 — 질문 수 (적을수록 빠름)", ["도달", *ORD_NAMES.values()], [
     [name, *[f'<b class="rnum">{ORD["reach"][k][key]}개</b>' if ORD["reach"][k][key] == min(ORD["reach"][kk][key] for kk in ORD_KEYS)
              else f'<span class="rnum">{ORD["reach"][k][key]}개</span>' for k in ORD_KEYS]]
-    for key, name in (("criteria_all", f"기준 {OT['criteria']}개 모두 10번 이상"), ("pairs_80", f"FAIL 종류 80% ({round(0.8 * OT['pairs'])}/{OT['pairs']})"),
-                      ("pairs_all", f"FAIL 종류 전부 ({OT['pairs']})"), ("events_50", f"FAIL 사건 절반 ({OT['events'] // 2}/{OT['events']})"))
+    for key, name in (("criteria_all", f"기준 {OT['criteria']}개 모두 10번 이상"), ("kinds_80", f"FAIL 종류 80% ({round(0.8 * OT['kinds'])}/{OT['kinds']})"),
+                      ("kinds_all", f"FAIL 종류 전부 ({OT['kinds']})"), ("events_50", f"FAIL 사건 절반 ({OT['events'] // 2}/{OT['events']})"))
 ], [34, 22, 22, 22])
-cover_table = table(f"질문 수별 값 — 기준 10번↑ (/{OT['criteria']}) · FAIL 종류 (/{OT['pairs']}) · FAIL 사건 (/{OT['events']})",
+cover_table = table(f"질문 수별 값 — 기준 10번↑ (/{OT['criteria']}) · FAIL 종류 (/{OT['kinds']}) · FAIL 사건 (/{OT['events']})",
                     ["질문 수", *ORD_NAMES.values()],
                     [[f'<span class="rnum">{m["n"]}</span>',
-                      *[f'<span class="rnum">{m[k]["covered10"]} · {m[k]["fail_pairs"]} · {m[k]["fail_events"]}</span>' for k in ORD_KEYS]]
+                      *[f'<span class="rnum">{m[k]["covered10"]} · {m[k]["fail_kinds"]} · {m[k]["fail_events"]}</span>' for k in ORD_KEYS]]
                      for m in ORD["marks"]], [16, 28, 28, 28])
 RCH = ORD["reach"]
 m155 = next(m for m in ORD["marks"] if m["n"] == 155)
 order_points = table("", ["무엇", "결과"], [
     ["기준을 고르게", f"기준 {OT['criteria']}개를 모두 10번 이상 평가하려면 모자란 기준부터 <b>{RCH['greedy']['criteria_all']}개</b> · 번호순 {RCH['number']['criteria_all']}개 · "
                    f"기준 많은 순 {RCH['kdesc']['criteria_all']}개(기준이 적은 질문에만 있는 기준이 맨 뒤로 밀려서)"],
-    ["FAIL 종류", f"80%가 보이는 지점 — 모자란 기준부터 <b>{RCH['greedy']['pairs_80']}개</b> · 번호순 {RCH['number']['pairs_80']}개 · 기준 많은 순 {RCH['kdesc']['pairs_80']}개"],
+    ["FAIL 종류", f"FAIL 이 난 기준 {OT['kinds']}종류(이 실행의 의미 판정은 대분류 J1~J8 단위라 상한 {OT['kinds_universe']} = CODE 28 + J 8) 중 80%가 보이는 지점 — "
+                  f"모자란 기준부터 <b>{RCH['greedy']['kinds_80']}개</b> · 번호순 {RCH['number']['kinds_80']}개 · 기준 많은 순 {RCH['kdesc']['kinds_80']}개"],
     ["FAIL 개수", f"기준 많은 순이 중간 구간에서 가장 많이 잡음(155개에서 {m155['kdesc']['fail_events']}건 vs {m155['greedy']['fail_events']}·{m155['number']['fail_events']}건) — "
                   "어려운 질문을 먼저 던져서. 04장에서 통과율이 낮게 나온 것과 같은 이유"],
-    ["326 에서", f"세 선이 같은 점(기준 {OT['criteria']}개 · FAIL 종류 {OT['pairs']}개 · 사건 {OT['events']}건) — 같은 326개를 순서만 바꾼 것"],
+    ["326 에서", f"세 선이 같은 점(기준 {OT['criteria']}개 · FAIL 종류 {OT['kinds']}개 · 사건 {OT['events']}건) — 같은 326개를 순서만 바꾼 것"],
     ["그래서", "적은 질문으로 기준과 FAIL 종류를 넓게 보려면 <b>모자란 기준부터</b>(지금 간단 78 이 이 방식)"],
 ], [18, 82])
 
@@ -1059,7 +1060,7 @@ why78_steps = table("어떻게 78 이 나왔나 — 시험 순서", ["단계", "
     ["③ 던지는 순서 비교", "같은 326개를 번호순·기준 많은 순·모자란 기준부터 세 순서로 하나씩 더하며 '모든 기준 10번' 에 닿는 질문 수를 비교(05·06장).",
      f"번호순 {KR['reach']['number']['raw']['10']}개 · 기준 많은 순 {KR['reach']['kdesc']['raw']['10']}개 · <b>모자란 기준부터 78개</b> — 가장 적음"],
     ["④ 78 이 326 을 대신하나", "10-19 정밀 326 판정을 78개만 다시 세어 순위·FAIL 포착을 비교(04장).",
-     f"모델 순위 326 과 같음({' > '.join(MODEL_NAMES[p] for p in RANK)}) · 326 에서 나온 (모델, 기준) FAIL 종류 {OT['pairs']}개 중 {ORD['curves']['greedy']['fail_pairs'][77]}개({ORD['curves']['greedy']['fail_pairs'][77] / OT['pairs'] * 100:.0f}%)가 78 안에서 보임"],
+     f"모델 순위 326 과 같음({' > '.join(MODEL_NAMES[p] for p in RANK)}) · 326 에서 FAIL 이 난 기준 {OT['kinds']}종류 중 {ORD['curves']['greedy']['fail_kinds'][77]}종류({ORD['curves']['greedy']['fail_kinds'][77] / OT['kinds'] * 100:.0f}%)가 78 안에서 보임"],
     ["⑤ 결정", "10-20 미팅 — 326 은 하지 않고 78개만 쓴다. 통과율 숫자는 어려운 질문 위주라 326 보다 낮게 나오므로, 모델 간 순위와 FAIL 목록으로 본다.",
      "질문 세트 v2.3 (10-20: 생성 때 섞인 외국 문자 2곳만 고침, 기준·k 불변)"],
 ], [18, 50, 32])
@@ -1624,13 +1625,13 @@ SECTIONS = [
       <li>● 점 = 도달 지점 (질문 수)</li></ul>
     <div class="order-charts">
       <div><h3>10번 이상 평가된 기준 수 (/{OT['criteria']})</h3>{order_chart("covered10", OT["criteria"], False, "criteria_all", "던진 질문 수별 10번 이상 평가된 기준 수 — 세 순서")}</div>
-      <div><h3>보인 FAIL 종류 (모델 × 기준, /{OT['pairs']})</h3>{order_chart("fail_pairs", OT["pairs"], True, "pairs_80", "던진 질문 수별 보인 FAIL 종류 비율 — 세 순서")}</div>
+      <div><h3>보인 FAIL 종류 (기준 단위, /{OT['kinds']})</h3>{order_chart("fail_kinds", OT["kinds"], True, "kinds_80", "던진 질문 수별 보인 FAIL 종류 비율 — 세 순서")}</div>
     </div>
   </figure>
   {order_points}
   {reach_table}
   {cover_table}
-  <p class="basis">출처: 참고자료/최소평가/던지는순서_세가지_8c61f117e661.json (tools/order_curves.py — FAIL 종류 {OT['pairs']}개·사건 {OT['events']}건이 10-19 기록과 같음). 그래프에 마우스를 올리면 그 질문 수의 값이 보입니다.</p>
+  <p class="basis">출처: 참고자료/최소평가/던지는순서_세가지_8c61f117e661.json (tools/order_curves.py — FAIL 종류는 기준 단위 {OT['kinds']}개(모델별로 나누면 {OT['pairs']}개)·사건 {OT['events']}건). 그래프에 마우스를 올리면 그 질문 수의 값이 보입니다.</p>
 """),
     ("s6", "평가 횟수 k", "k 10·20 과 질문 수 · 세 선은 어디서 만나나", "평가 횟수 k 와 질문 수 — 세 선은 어디서 만나나",
      "모든 기준이 최소 k번 평가되려면 질문을 몇 개 던져야 하는지, 번호순·기준 많은 순·모자란 기준부터 세 순서로 비교했습니다. 미팅에서 나온 '세 선이 어느 지점에서 만나지 않을까'를 확인했습니다.",

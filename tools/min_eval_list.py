@@ -108,7 +108,12 @@ def fail_capture(run: Dict[str, Any], picked: set) -> Dict[str, Any]:
     events = sum(len(v) for v in fails.values())
     seen = sum(1 for v in fails.values() if v & picked)
     captured = sum(len(v & picked) for v in fails.values())
-    return {"pairs": len(fails), "pairs_seen": seen, "events": events, "events_captured": captured,
+    kinds: Dict[str, set] = defaultdict(set)   # 기준 단위 FAIL 종류 — 모델을 합쳐 센다 (사용자 10-20: 기준이 72개면 FAIL 종류도 기준 수여야 한다)
+    for (_, cid), qs in fails.items():
+        kinds[cid].update(qs)
+    kinds_seen = sum(1 for v in kinds.values() if v & picked)
+    return {"kinds": len(kinds), "kinds_seen": kinds_seen, "kinds_rate": round(kinds_seen / len(kinds), 4) if kinds else None,
+            "pairs": len(fails), "pairs_seen": seen, "events": events, "events_captured": captured,
             "pairs_rate": round(seen / len(fails), 4) if fails else None, "events_rate": round(captured / events, 4) if events else None}
 
 
@@ -177,14 +182,15 @@ def main(argv: Optional[List[str]] = None) -> int:
                       f"{'같음' if cmp['same_ranking'] else '다름'}", ""]
         fc = cmp.get("fail_capture") or {}
         if fc:
-            lines += [f"**FAIL 포착** (FAIL 을 보는 것이 목적): 전체에서 나온 (모델, 기준) FAIL 조합 {fc['pairs']}개 중 이 목록에서 한 번이라도 보이는 것 "
-                      f"**{fc['pairs_seen']}개 ({fc['pairs_rate']:.0%})** · FAIL 사건 {fc['events']}건 중 {fc['events_captured']}건 ({fc['events_rate']:.0%}).", ""]
+            lines += [f"**FAIL 포착** (FAIL 을 보는 것이 목적): 전체에서 FAIL 이 난 기준 {fc['kinds']}종류 중 이 목록에서 한 번이라도 보이는 것 "
+                      f"**{fc['kinds_seen']}종류 ({fc['kinds_rate']:.0%})** · FAIL 사건 {fc['events']}건 중 {fc['events_captured']}건 ({fc['events_rate']:.0%}) · "
+                      f"참고: (모델, 기준) 조합 {fc['pairs']}개 중 {fc['pairs_seen']}개 ({fc['pairs_rate']:.0%}).", ""]
     lines += ["## 고른 질문 (고른 순서)", "", "| 순서 | 질문 | 종류 | 기준 수 | 새로 덮은 기준 |", "|---|---|---|---|---|"]
     for n, c in enumerate(result["chosen"], 1):
         lines.append(f"| {n} | Q{c['id']} | {c['kind']} | {c['k']} | {', '.join(c['new'])} |")
     (OUT / f"{stem}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"최소 평가 {len(ids)}개 / 정밀 {len(groups)}개 | 구성 {dict(kinds)} | 목표별 {sizes} | 못 채움 {len(result['short'])}"
-          + (f" | 세트 {new_set}" if new_set else "") + (f" | 순위 같음 {cmp['same_ranking']} | FAIL 조합 포착 {cmp['fail_capture']['pairs_rate']:.0%}" if cmp else ""))
+          + (f" | 세트 {new_set}" if new_set else "") + (f" | 순위 같음 {cmp['same_ranking']} | FAIL 종류(기준) 포착 {cmp['fail_capture']['kinds_rate']:.0%}" if cmp else ""))
     print("저장:", OUT / f"{stem}.md")
     return 0
 
