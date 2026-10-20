@@ -38,13 +38,20 @@ def collection_time_rows(run: Dict[str, Any], providers: Optional[List[str]] = N
     providers = providers or list(run.get("providers") or [])
     out = []
     for p in providers:
+        from webapp.run_summary import asks_empty_output
         rows = [r for r in (run.get("datasets") or {}).get(p) or [] if isinstance(r, dict)]
         by_q: Dict[int, List[str]] = {}
+        empty_q: set = set()
         for r in rows:
-            by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append((r.get("collection") or {}).get("status") or "")
-        # 질문 단위: 모든 턴 받음 / 복사 실패로 보류(COPY_FAILED) / 오류·답 없음 — 보류·오류도 결과이므로 따로 센다 (사용자 10-20 밤)
+            q = int(r["case_id"].split("_T")[0][1:])
+            by_q.setdefault(q, []).append((r.get("collection") or {}).get("status") or "")
+            if asks_empty_output(None, r.get("question")):
+                empty_q.add(q)
+        # 질문 단위: 모든 턴 받음 / 보류 / 오류·답 없음 — 보류·오류도 결과이므로 따로 센다 (사용자 10-20 밤).
+        # 빈 출력 요구 질문은 복사 실패든 모델 오류('처리 중 오류가 생겨 멈췄습니다')든 판정이 보류이므로 수집 표에서도 보류로 센다.
         received = sum(1 for st in by_q.values() if all(x == "SUCCESS" for x in st))
-        held = sum(1 for st in by_q.values() if any(x == "COPY_FAILED" for x in st) and all(x in ("SUCCESS", "COPY_FAILED") for x in st))
+        held = sum(1 for q, st in by_q.items() if not all(x == "SUCCESS" for x in st)
+                   and (q in empty_q or all(x in ("SUCCESS", "COPY_FAILED") for x in st)))
         error = len(by_q) - received - held
         answer_s = sum((r.get("collection") or {}).get("latency_ms") or 0 for r in rows) / 1000
         wall = sum(e.get("seconds") or 0 for e in run.get("imports") or [] if e.get("provider") == p and e.get("method") == "collect-app-v1")
