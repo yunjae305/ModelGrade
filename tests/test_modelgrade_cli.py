@@ -37,6 +37,7 @@ def _csv(tmp_path: Path) -> Path:
 
 def test_collect_import_builds_run_with_collection_status_and_code_eval(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     assert mg.main(["collect", "import", "--provider", "claude", "--csv", str(_csv(tmp_path)), "--set", str(_set(tmp_path)), "--new", "시험"]) == 0
     out = capsys.readouterr().out
     run = json.loads(_runs(tmp_path)[0].read_text(encoding="utf-8"))
@@ -55,6 +56,7 @@ def test_collect_import_builds_run_with_collection_status_and_code_eval(tmp_path
 
 def test_collect_import_into_existing_run_keeps_other_providers(tmp_path, monkeypatch):
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     (tmp_path / "runs").mkdir()
     (tmp_path / "runs" / "abc.json").write_text(json.dumps({"run_id": "abc", "providers": ["aiona"], "models": {"aiona": "AIONA"},
                                                              "datasets": {"aiona": [{"case_id": "Q1_T1", "answer": "x"}]}, "evaluations": {}}), encoding="utf-8")
@@ -85,6 +87,7 @@ def test_next_questions_skips_judged_ones_and_caps_batch(tmp_path):
 def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_path, monkeypatch, capsys):
     """데스크톱 앱 수집 — 대화는 새 채팅 하나에서 턴 순서대로, 이미 받은 질문은 건너뜀, 받은 행은 CODE 평가."""
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     calls = []
 
     class FakeChat:
@@ -119,6 +122,7 @@ def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collec
     import argparse
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     seen = []
     places = []
 
@@ -158,6 +162,7 @@ def test_merge_provider_into_run_keeps_other_providers_written_meanwhile(tmp_pat
     """동시 수집: 두 자식이 같은 실행 파일에 쓴다 — 잠금 아래 다시 읽어 자기 모델 자리만 바꾸므로 먼저 쓴 쪽이 안 지워진다."""
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     set_dir = _set(tmp_path)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     run = mg.new_run("동시", set_dir, groups)
@@ -179,6 +184,7 @@ def test_start_menu_collects_chosen_set_for_all_four_then_judges_in_batches_and_
     import argparse
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
     ids = tmp_path / "ids.json"
     ids.write_text(json.dumps({"ids": [2, 1, 99]}), encoding="utf-8")
@@ -216,6 +222,7 @@ def test_start_menu_collects_chosen_set_for_all_four_then_judges_in_batches_and_
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     asked = []
 
     class FakeChat:
@@ -248,6 +255,7 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
     import tools.modelgrade as mg
     from tools.report_html import write_report
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     set_dir = _set(tmp_path)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     run = mg.new_run("보고서", set_dir, groups)
@@ -277,6 +285,7 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
     """빈 출력 요구 질문(Q3)의 빈 답은 SUCCESS, 보통 질문(Q1)의 빈 답은 ERROR(복사 실패로 보고 다시 받음). 질문마다 실행 파일에 중간 저장된다."""
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     saves = []
 
     class FakeChat:

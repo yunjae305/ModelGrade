@@ -44,7 +44,8 @@ APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Son
               "gemini": "Gemini 웹브라우저 (3.6 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 둘 + 웹 둘)
 ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
 PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
-SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
+SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
+RESULTS_JSON_DIR = ROOT / "참고자료" / "결과"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
 EVAL_KINDS = {"1": ("simple78", "간단평가 (78개 질문)"), "2": ("full326", "정밀평가 (326개 질문)")}
 
 
@@ -727,6 +728,12 @@ def cmd_report(args: argparse.Namespace) -> int:
         run = None
     html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장
     print(f"HTML 보고서: {html_path}")
+    if run is not None and (RUNS / f"{d.name}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
+        from tools.export_results_json import IDS78, export
+        kind = run.get("eval_kind")
+        label = {"simple78": "간단78", "full326": "정밀326"}.get(kind, "결과") + "_판정결과"
+        only = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if kind == "simple78" else None
+        print(f"JSON 결과: {export(d.name, label, only, out_dir=RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
     return 0
 
 
