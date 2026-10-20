@@ -186,7 +186,15 @@ class _CdpChat:
                 continue
 
     def _check_blocked(self) -> None:
-        text = self._eval("() => document.body.innerText.slice(0, 4000)") or ""
+        """한도·봇 확인 문구가 화면에 있는가 — 채팅 말풍선(질문·답) 글은 빼고 본다. 대화 내용에 '한도에 도달' 같은 말이 나오면 오탐(Gemini Q18, 2026-10-20)."""
+        sel = ", ".join(x for x in (self.ANSWER_SELECTOR, self.USER_SELECTOR) if x)
+        js = """(sel) => { let t = document.body.innerText;
+            if (sel) { for (const e of document.querySelectorAll(sel)) { const x = (e.innerText || '').trim(); if (x) t = t.split(x).join(' '); } }
+            return t.slice(0, 6000); }"""
+        try:
+            text = self.page.evaluate(js, sel) or ""
+        except Exception:
+            text = self._eval("() => document.body.innerText.slice(0, 4000)") or ""
         hit = next((p for p in _BLOCKED if p.lower() in text.lower()), None)
         if hit:
             self._snapshot("blocked")
