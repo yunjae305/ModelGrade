@@ -243,8 +243,18 @@ class _CdpChat:
                     btns = scope.get_by_role("button", name=name, exact=True)
                     if not btns.count():
                         continue
-                    btns.last.scroll_into_view_if_needed(timeout=2000)
-                    btns.last.click(timeout=3000)
+                    try:
+                        btns.last.scroll_into_view_if_needed(timeout=2000)
+                    except Exception:
+                        pass
+                    try:
+                        scope.hover(timeout=1500) if scope is not self.page else None   # 말풍선에 마우스를 올려야 툴바가 그려지는 화면
+                    except Exception:
+                        pass
+                    try:
+                        btns.last.click(timeout=3000)
+                    except Exception:
+                        btns.last.dispatch_event("click")   # 다른 요소가 포인터를 가로채면 DOM 에 바로 클릭 (Gemini Q15 복사 실패, 2026-10-20)
                     self.page.wait_for_timeout(600)
                     copied = self._eval("() => window.__mgCopied || []")
                     if len(copied) > before and isinstance(copied[-1], str) and copied[-1].strip():
