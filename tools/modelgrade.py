@@ -710,38 +710,76 @@ def print_judge_times(out_dir: Path) -> None:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
+    from tools.report_html import load_results, resolve_run_id
     d = Path(args.dir)
     results = d / "results.jsonl"
     if not results.exists():
         raise SystemExit(f"결과가 없습니다: {results}")
-    rows = [json.loads(l) for l in results.read_text(encoding="utf-8").splitlines() if l.strip()]
+    run_id = getattr(args, "run", None) or resolve_run_id(d)   # --dir 가 <실행>/v4 면 부모가 실행 ID (Codex 지적 10-20)
+    rows = load_results(d)   # 같은 (모델, 질문) 은 마지막 줄만
     by = {}
     for r in rows:
         b = by.setdefault(r["provider"], Counter())
         b[r.get("verdict")] += 1
         b["_sec"] += r.get("seconds") or 0
-    print(f"{d} — 질문 {len({(r['provider'], r['question']) for r in rows})}건")
+    print(f"{d} — 실행 {run_id} · 질문 {len(rows)}건")
     print("| 모델 | PASS | FAIL | 보류 | 질문당 평균(초) |\n|---|---|---|---|---|")
     for p, b in by.items():
         n = b["PASS"] + b["FAIL"] + b["HOLD"]
         print(f"| {p} | {b['PASS']} | {b['FAIL']} | {b['HOLD']} | {b['_sec'] / max(1, n):.0f} |")
     if (d / "summary.md").exists():
         print((d / "summary.md").read_text(encoding="utf-8"))
-    print_collection_times(d.name)
+    print_collection_times(run_id)
     print_judge_times(d)
     from tools.report_html import write_report
     try:
-        run = load_run(d.name)
+        run = load_run(run_id)
     except SystemExit:
         run = None
-    html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장
+    html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장 (v2: 보류 원문·사람 판정 버튼, 10-20 밤)
     print(f"HTML 보고서: {html_path}")
-    if run is not None and (RUNS / f"{d.name}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
+    if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
         label = {"simple78": "간단78", "full326": "정밀326"}.get(kind, "결과") + "_판정결과"
         only = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if kind == "simple78" else None
-        print(f"JSON 결과: {export(d.name, label, only, out_dir=RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
+        try:
+            print(f"JSON 결과: {export(run_id, label, only, out_dir=RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
+        except Exception as exc:   # JSON 내보내기가 막혀도 HTML 은 이미 썼다 — 자동 보고서가 여기서 죽지 않게
+            print(f"JSON 결과 내보내기 실패: {exc}")
+    return 0
+
+
+def cmd_held_apply(args: argparse.Namespace) -> int:
+    """사람 판정(report.html 의 '판단 내보내기' JSON) 반영 — <폴더>/human_decisions.json 에 쌓고(원본 results.jsonl 은 그대로) 보고서를 다시 만든다.
+    같은 (모델, 질문, 턴, 항목) 은 나중 것이 이긴다. 다른 실행의 파일은 거부."""
+    from tools.report_html import load_results, normalize_items, resolve_run_id, write_report
+    d = Path(args.dir)
+    run_id = resolve_run_id(d)
+    doc = json.loads(Path(args.file).read_text(encoding="utf-8-sig"))
+    if doc.get("run_id") and doc["run_id"] != run_id:
+        raise SystemExit(f"다른 실행의 판단 파일입니다: 파일 {doc['run_id']} ≠ 폴더 {run_id}")
+    known = {(r["provider"], int(r["question"])): {(it["turn"], it["item"]) for it in normalize_items(r)} for r in load_results(d)}
+    target = d / "human_decisions.json"
+    cur = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {"run_id": run_id, "decisions": []}
+    merged = {(x["provider"], int(x["question"]), int(x.get("turn") or 1), x["item"]): x for x in cur.get("decisions") or []}
+    added = rejected = 0
+    for x in doc.get("decisions") or []:
+        key = (x.get("provider"), int(x.get("question") or 0), int(x.get("turn") or 1), x.get("item"))
+        ok = key[:2] in known and (key[3] == "__question__" or (key[2], key[3]) in known[key[:2]]) and x.get("new") in ("PASS", "FAIL", "NOT_APPLICABLE", "UNVERIFIED")
+        if not ok:
+            rejected += 1
+            continue
+        merged[key] = {**x, "reviewer": x.get("reviewer") or doc.get("reviewer") or "", "at": x.get("at") or doc.get("exported_at") or _now()}
+        added += 1
+    cur = {"run_id": run_id, "policy": doc.get("policy") or cur.get("policy"), "updated_at": _now(), "decisions": list(merged.values())}
+    target.write_text(json.dumps(cur, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"사람 판정 반영: {added}건 (거부 {rejected}건 — 없는 항목이거나 값이 이상함) → {target} (모두 {len(merged)}건)")
+    try:
+        run = load_run(run_id)
+    except SystemExit:
+        run = None
+    print(f"HTML 보고서 다시 만듦: {write_report(d, run)}")
     return 0
 
 
@@ -797,9 +835,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     rn.add_argument("--import-provider", choices=["aiona", "gpt", "claude", "gemini"])
     rn.add_argument("--label")
     rn.set_defaults(func=cmd_run)
-    rp = sub.add_parser("report", help="판정 결과 요약")
+    rp = sub.add_parser("report", help="판정 결과 요약 + HTML 보고서")
     rp.add_argument("--dir", required=True)
+    rp.add_argument("--run", help="실행 ID (생략하면 --dir 의 폴더 이름이나 부모 이름에서 찾음)")
     rp.set_defaults(func=cmd_report)
+    ha = sub.add_parser("held-apply", help="report.html 에서 내보낸 사람 판정 JSON 을 반영하고 보고서를 다시 만든다")
+    ha.add_argument("--dir", required=True)
+    ha.add_argument("--file", required=True, help="held_decisions_<실행>.json")
+    ha.set_defaults(func=cmd_held_apply)
     hd = sub.add_parser("held", help="판정 결과의 보류·오류를 CSV 하나로 (<폴더>/held.csv — gold 열에 사람이 PASS/FAIL)")
     hd.add_argument("--dir", required=True)
     hd.add_argument("--run", help="실행 번호 — 답을 찾을 때 씀 (기본: 폴더 이름)")

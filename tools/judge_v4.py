@@ -234,6 +234,52 @@ SCREEN_SUFFIX = """
 - 결론(conclusion)은 이번에 본 항목만으로 냅니다."""
 
 
+def missing_codex_items(output: Any, flagged: Dict[int, List[str]]) -> Dict[int, List[str]]:
+    """요청한 (턴, 항목) 가운데 Codex 출력에 없는 것 — {턴: [항목]} (턴 단위가 아니라 항목 단위)."""
+    have: Dict[int, set] = {}
+    for t in ((output or {}).get("turns") or []) if isinstance(output, dict) else []:
+        if isinstance(t, dict) and isinstance(t.get("turn"), int):
+            have.setdefault(t["turn"], set()).update(js._base(e.get("id")) for e in t.get("items") or [] if isinstance(e, dict))
+    out: Dict[int, List[str]] = {}
+    for n in sorted(flagged):
+        miss = [i for i in flagged[n] if i not in have.get(n, set())]
+        if miss:
+            out[n] = miss
+    return out
+
+
+def bad_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> Dict[Tuple[int, str], List[str]]:
+    """인용이 원문에 없는 (턴, 항목) → 문제 목록. 판정 없음은 missing_codex_items 가 맡는다."""
+    out: Dict[Tuple[int, str], List[str]] = {}
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        for i, v in items.items():
+            quote_probs = [p for p in (v.get("problems") or []) + (v.get("notes") or []) if "원문에 없음" in p]
+            if quote_probs:
+                out[(n, i)] = quote_probs
+    return out
+
+
+def merge_codex_output(base: Any, extra: Any, replace: Optional[set] = None) -> Dict[str, Any]:
+    """다시 물은 출력을 앞 출력에 합친다 — 같은 턴에는 항목을 더하고(replace 에 든 (턴, 항목)은 새 답으로 바꿈), 없던 턴은 붙인다."""
+    base = dict(base) if isinstance(base, dict) else {"turns": [], "conclusion": None}
+    replace = replace or set()
+    turns: Dict[int, Dict[str, Any]] = {t["turn"]: dict(t) for t in base.get("turns") or [] if isinstance(t, dict) and isinstance(t.get("turn"), int)}
+    for t in ((extra or {}).get("turns") or []) if isinstance(extra, dict) else []:
+        if not (isinstance(t, dict) and isinstance(t.get("turn"), int)):
+            continue
+        n = t["turn"]
+        cur = turns.setdefault(n, {"turn": n, "situations": [], "items": []})
+        kept = [e for e in cur.get("items") or [] if isinstance(e, dict) and (n, js._base(e.get("id"))) not in replace]
+        have = {js._base(e.get("id")) for e in kept}
+        cur["items"] = kept + [e for e in t.get("items") or [] if isinstance(e, dict) and (js._base(e.get("id")) not in have or (n, js._base(e.get("id"))) in replace)]
+        sids = {s.get("id") for s in cur.get("situations") or [] if isinstance(s, dict)}
+        cur["situations"] = list(cur.get("situations") or []) + [s for s in t.get("situations") or [] if isinstance(s, dict) and s.get("id") not in sids]
+    base["turns"] = [turns[n] for n in sorted(turns)]
+    if base.get("conclusion") is None:
+        base["conclusion"] = (extra or {}).get("conclusion") if isinstance(extra, dict) else None
+    return base
+
+
 def all_item_questions(fixed: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Decisions 에 보낼 항목 44개의 choice 질문 — J1~J4 는 Jev 묶음(fixed["items"]) 그대로, J5~J8 은 semantic_items 정의로 같은 모양을 만든다."""
     out: Dict[str, Dict[str, Any]] = dict(fixed["items"])
@@ -299,7 +345,7 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
 
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
-               codex_all: bool = False, reuse_codex: bool = False) -> Dict[str, Any]:
+               codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False) -> Dict[str, Any]:
     """선별 판정 한 질문: ① Decisions 가 턴마다 적용 가능한 항목 전부(최대 44)를 원문·첨부 원본으로 판정 ② 걸린 항목만 Codex 가 사유·인용과 함께 다시 봄
     (codex_all=True 면 교정용으로 모든 항목을 Codex 에도) ③ 합치기(0.7 규칙) → 판정 v4 와 같은 결과 줄."""
     started = time.monotonic()
@@ -314,8 +360,18 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     dec_errors: List[str] = []
     usage_tokens = 0
     t0 = time.monotonic()
+    reused_dec = False
+    saved_dec = out / "decisions" / name
+    if reuse_decisions and saved_dec.exists():   # --repair: 저장된 Decisions 답으로 (API 안 부름)
+        try:
+            dec_items = {int(k): v for k, v in json.loads(saved_dec.read_text(encoding="utf-8")).items() if isinstance(v, dict)}
+            reused_dec = bool(dec_items)
+        except (OSError, ValueError):
+            dec_items = {}
     for row in turns:
         n = ji._turn(row)
+        if reused_dec and n in dec_items:
+            continue
         ids = turn_item_ids(row, n, list(allq))
         part = {"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
         qd = {f"T{n}:{i}": allq[i] for i in ids}
@@ -328,7 +384,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             dec_items[n] = {i: None for i in ids}
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
-                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns), "input_tokens": usage_tokens}
+                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns), "input_tokens": usage_tokens,
+                          "reused": reused_dec}
     (out / "decisions" / name).write_text(json.dumps({str(n): v for n, v in dec_items.items()}, ensure_ascii=False, indent=1), encoding="utf-8")
     # ② 걸린 항목 → Codex
     flagged: Dict[int, List[str]] = {}
@@ -345,32 +402,56 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         + (f" — {'; '.join(dec_errors)[:160]}" if dec_errors else ""))
     codex_items: Dict[int, Dict[str, Any]] = {}
     codex_sits: Dict[int, Dict[str, Any]] = {}
-    if flagged and gpt is not None:
+    saved = out / "codex" / name
+    if flagged and (gpt is not None or (reuse_codex and saved.exists())):   # --repair 는 Codex CLI 없이도 저장된 출력으로 합친다
         search = not any((t.get("reference") or "").strip() for t in turns)
-        saved = out / "codex" / name
         output: Any = None
+        t1 = time.monotonic()
+        body_doc = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
+        tokens = {"input_tokens": 0, "output_tokens": 0}
+
+        def ask_codex(ask_doc: Dict[str, Any]) -> Tuple[str, Any, str]:
+            st, outp, err = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps(ask_doc, ensure_ascii=False, indent=1), search, tag, output_schema=output_schema())
+            u = getattr(gpt, "last_usage", None) or {}
+            for k in tokens:
+                tokens[k] += int(u.get(k) or 0)
+            return st, outp, err
+
+        rounds, reused, error = 0, False, ""
         if reuse_codex and saved.exists() and json.loads(saved.read_text(encoding="utf-8") or "null"):
-            output = json.loads(saved.read_text(encoding="utf-8"))
-            calls["codex"] = {"status": "OK", "error": "", "seconds": None, "search": search, "reused": True, "items": n_flagged}
+            output, status, reused = json.loads(saved.read_text(encoding="utf-8")), "OK", True
+            say(f"   🖥 {tag} Codex — 저장된 출력 다시 씀 ({saved.name}); 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
         else:
-            t1 = time.monotonic()
-            body_doc = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
             say(f"   🖥 {tag} Codex CLI — 걸린 항목 {n_flagged}개(턴 {sorted(flagged)}) · 웹 검색 {'켬' if search else '끔'} …")
-            status, output, error = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps(body_doc, ensure_ascii=False, indent=1), search, tag, output_schema=output_schema())
-            missing = [n for n in sorted(flagged) if not any(isinstance(t, dict) and t.get("turn") == n and t.get("items") for t in ((output or {}).get("turns") or []))] if status == "OK" else []
+            status, output, error = ask_codex(body_doc)
             rounds = 1
-            while status == "OK" and missing and rounds < len(flagged) + 2:   # 긴 대화에서 빠진 턴만 다시 (판정 v4 와 같은 방식)
-                rounds += 1
-                ask = missing[:max(1, len(missing) // 2)]
-                st2, out2, err2 = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps({**body_doc, "판정할_턴": ask, "판정할_항목": {str(n): flagged[n] for n in ask}}, ensure_ascii=False, indent=1),
-                                            search, tag, output_schema=output_schema())
-                if st2 != "OK":
-                    break
-                output["turns"] = [t for t in output.get("turns") or [] if not (isinstance(t, dict) and t.get("turn") in ask)] + [t for t in (out2 or {}).get("turns") or [] if isinstance(t, dict)]
-                missing = [n for n in missing if n not in {t.get("turn") for t in (out2 or {}).get("turns") or [] if isinstance(t, dict) and t.get("items")}]
-            calls["codex"] = {"status": status, "error": error if status != "OK" else "", "seconds": round(time.monotonic() - t1, 1), "search": search,
-                              "items": n_flagged, "rounds": rounds, "missing_turns": missing}
-            say(f"   🖥 {tag} Codex {status} {calls['codex']['seconds']}초" + (f" — {str(error)[:160]}" if status != "OK" else ""))
+        # 답하지 않은 (턴, 항목)과 인용이 원문에 없는 (턴, 항목)만 다시 묻는다 — 턴에 항목 하나만 있어도 완료로 보던 것(보류의 64%)과
+        # 인용 불일치(27%)를 줄인다 (Codex 지적 10-20). 인용 불일치는 항목마다 한 번만 다시.
+        reasked: set = set()
+        while status == "OK" and gpt is not None and rounds < len(flagged) + 3:
+            missing = missing_codex_items(output, flagged)
+            bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
+            targets: Dict[int, List[str]] = {}
+            for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
+                targets.setdefault(n, [])
+                targets[n] += [i for i in items if i not in targets[n]]
+            if not targets:
+                break
+            rounds += 1
+            ask_turns = sorted(targets)[:max(1, len(targets) // 2)]
+            say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
+            st2, out2, err2 = ask_codex({**body_doc, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns}})
+            if st2 != "OK":
+                error = err2
+                break
+            replace = {(n, i) for n in ask_turns for i in targets[n]}
+            reasked |= {k for k in bad if k in replace}
+            output = merge_codex_output(output, out2, replace)
+        missing = missing_codex_items(output, flagged) if status == "OK" else {}
+        calls["codex"] = {"status": status, "error": error if status != "OK" else (f"끝내 답하지 않은 항목 {sum(len(v) for v in missing.values())}개" if missing else ""),
+                          "seconds": round(time.monotonic() - t1, 1), "search": search, "items": n_flagged, "rounds": rounds, "reused": reused,
+                          "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()}, **tokens}
+        say(f"   🖥 {tag} Codex {status} {calls['codex']['seconds']}초 · 호출 {rounds}번" + (f" — {str(calls['codex']['error'])[:160]}" if calls['codex']['error'] else ""))
         (out / "codex" / name).write_text(json.dumps(output, ensure_ascii=False, indent=1), encoding="utf-8")
         if calls["codex"]["status"] == "OK":
             codex_items = js.check_gpt(output, turns, answers, flagged)
@@ -403,19 +484,23 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             items[i] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (entry or {}).get("choice") if isinstance(entry, dict) else None,
                         "second_judge": "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
                         "decisions_confidence": (entry or {}).get("confidence") if isinstance(entry, dict) else None,
-                        "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [],
+                        "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [], "notes": (cv or {}).get("notes") or [],
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
         js.apply_overrides(items)
         final[n] = items
         turn_out[str(n)] = {"situations_judge": (codex_sits.get(n) or {}).get("situations") or [], "evidence": (codex_sits.get(n) or {}).get("evidence") or {},
                             "problems": [], "items": items}
+    judge_error = ""
     if calls["decisions"]["status"] == "ERROR" and calls["codex"]["status"] != "OK":
-        semantic = "HOLD"
+        semantic, judge_error = "HOLD", "Decisions·Codex 모두 실패 — 다시 판정 필요"
+    elif flagged and calls["codex"]["status"] not in ("OK", "SKIPPED"):   # 걸린 항목을 Codex 가 못 봤으면 Decisions 만으로 PASS 를 내지 않는다 (Codex 지적 10-20)
+        semantic, judge_error = "HOLD", f"Codex 판정 실행 오류 — 다시 판정 필요: {str(calls['codex'].get('error') or '')[:120]}"
     else:
         semantic = verdict_of(final)
     verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
     line = {"version": SCREEN_VERSION, "mode": "screen", "provider": provider, "question": q, "turns": len(turns), "verdict": verdict, "semantic": semantic,
+            "judge_error": judge_error or None, "reason": judge_error or None,
             "code_fails": code_fails, "codex_conclusion": None, "jev_codex_agree": [agree, total], "seconds": round(time.monotonic() - started, 1),
             "screen": {"items": n_items, "flagged": n_flagged, "fail_prob_min": SCREEN_FAIL_PROB, "confident": SCREEN_CONFIDENT,
                        "second_judge_confident": SECOND_JUDGE_CONFIDENT, "codex_all": codex_all},
@@ -770,6 +855,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
     ap.add_argument("--dry", action="store_true", help="심판을 부르지 않고 질문마다 어떻게 처리할지만 보기")
     ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
+    ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
 
     import tools.judge_run as jr
@@ -802,7 +888,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         for x in results_path.read_text(encoding="utf-8").splitlines():
             if x.strip():
                 l = json.loads(x)
-                if l.get("version") == VERSION:
+                if l.get("version") in (VERSION, SCREEN_VERSION) and not l.get("judge_error"):   # 선별(v5) 줄도 이미 한 건 (Codex 지적 10-20) · 판정 실행 오류는 다시
+                    if args.repair and l.get("status") == "judged":
+                        continue   # --repair: 판정한 줄은 저장된 심판 출력으로 다시 합친다
                     done.add((l["provider"], int(l["question"])))
     queues: Dict[str, List[int]] = {}
     for q, p in plan:
@@ -847,7 +935,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 try:
-                    line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all, args.reuse_codex),
+                    line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
+                                        args.reuse_codex or args.repair, reuse_decisions=args.repair),
                             "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
@@ -869,8 +958,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     wall = round(time.monotonic() - wall0, 1)
     if args.dry:
         return 0
-    lines = [json.loads(x) for x in results_path.read_text(encoding="utf-8").splitlines() if x.strip()]
-    lines = [l for l in lines if l.get("version") == VERSION]
+    latest: Dict[Tuple[str, int], Dict[str, Any]] = {}
+    for x in results_path.read_text(encoding="utf-8").splitlines():
+        if x.strip():
+            l = json.loads(x)
+            if l.get("version") in (VERSION, SCREEN_VERSION):
+                latest[(l["provider"], int(l["question"]))] = l   # 같은 (모델, 질문) 은 마지막 줄 (다시 판정한 것)
+    lines = list(latest.values())
     with (out / "timing.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps({"kind": "judge-v4", "at": datetime.now(timezone.utc).isoformat(), "seconds": wall,
                             "judgments": sum(totals.values()) - sum(1 for k in done if k[1] in set(sum(queues.values(), [])))},

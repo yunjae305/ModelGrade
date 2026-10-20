@@ -94,6 +94,12 @@ class CodexJudge:
             pass
         lines: List[str] = []
         started = last_seen = time.monotonic()
+        killed: List[bool] = []
+        timer = None
+        if self.timeout:   # stdout 을 끝까지 읽은 뒤에야 wait(timeout) 에 닿아 멈춘 Codex 를 못 끊던 것 (Codex 지적 10-20) — 시간이 다 되면 죽인다
+            timer = threading.Timer(self.timeout, lambda: (killed.append(True), proc.kill()))
+            timer.daemon = True
+            timer.start()
         for line in proc.stdout:
             lines.append(line)
             now = time.monotonic()
@@ -111,12 +117,18 @@ class CodexJudge:
                 say(f"      🌐 {tag} Codex 웹 검색 …")
             elif kind == "turn.completed":
                 usage = event.get("usage") or {}
+                self.last_usage = dict(usage)   # 판정 줄에 토큰을 남기려고 (보고서의 토큰 표)
                 say(f"      ✅ {tag} Codex 완료 — 입력 {usage.get('input_tokens', '?')} · 출력 {usage.get('output_tokens', '?')} 토큰, {now - started:.0f}초")
             elif kind in ("error", "turn.failed"):
                 say(f"      ⚠ {tag} Codex: {str(event.get('message') or event.get('error') or event)[:120]}")
             elif now - last_seen > 20 and SHOW_THINKING:
                 say(f"      … {tag} Codex 작업 중 ({now - started:.0f}초)")
             last_seen = now
+        if timer is not None:
+            timer.cancel()
+        if killed:
+            reader.join(timeout=5)
+            raise subprocess.TimeoutExpired(cmd, self.timeout)
         try:
             proc.wait(timeout=self.timeout or None)
         except subprocess.TimeoutExpired:
@@ -129,6 +141,7 @@ class CodexJudge:
               output_schema: Optional[Dict[str, Any]] = None) -> Tuple[str, Any, str]:   # output_schema: 판정 v4 처럼 출력 모양이 다를 때
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
+        self.last_usage = {}
         last = ""
         waits = 0
         attempt = 0

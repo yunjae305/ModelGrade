@@ -223,22 +223,27 @@ def check_gpt(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str],
         out[n] = {}
         for item in items:
             entries = [e for e in by_turn.get(n, []) if _base(e.get("id")) == item]
-            problems = []
+            problems: List[str] = []
+            notes: List[str] = []
             if not entries:
                 problems.append("판정 없음")
             for e in entries:
                 if e.get("decision") not in DECISIONS:
                     problems.append(f"{e.get('id')}: 판정 값 {e.get('decision')!r}")
                 aq, qq = e.get("answer_quote") or "", e.get("question_quote") or ""
+                bad: List[str] = []
                 if aq and not quoted_in(aq, [answer]):
-                    problems.append(f"{e.get('id')}: answer_quote 가 답변 원문에 없음")
+                    bad.append(f"{e.get('id')}: answer_quote 가 답변 원문에 없음")
                 if qq:
                     quoted = rows.get(e.get("quote_turn")) if isinstance(e.get("quote_turn"), int) else None
                     pool = sources + ([quoted.get("question") or "", answers.get(quoted["case_id"], "")] if quoted else [])
                     if not quoted_in(qq, pool):
-                        problems.append(f"{e.get('id')}: question_quote 가 질문 원문에 없음")
+                        bad.append(f"{e.get('id')}: question_quote 가 질문 원문에 없음")
+                # FAIL 의 근거 인용은 원문에 있어야 한다(없으면 보류). PASS·해당 없음의 인용 불일치는 판정을 뒤집을 근거가 아니라 표시만 —
+                # 보류의 27% 가 이것이었고 다시 물어도 같은 인용을 내는 일이 있다 (Codex 검토 반영 2026-10-20 밤)
+                (problems if e.get("decision") == "FAIL" else notes).extend(bad)
             decision = "UNVERIFIED" if problems else fold(entries)
-            out[n][item] = {"decision": decision, "judge": "gpt", "entries": entries, "problems": problems}
+            out[n][item] = {"decision": decision, "judge": "gpt", "entries": entries, "problems": problems, "notes": notes}
     return out
 
 
