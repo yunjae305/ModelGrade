@@ -1,0 +1,77 @@
+{
+ "method": "ego-lite-bench-v1",
+ "site": "chatgpt",
+ "label": "ChatGPT 웹 (ego lite) · GPT-6 · Medium",
+ "ego_browser": "C:\\Users\\kyj31\\.local\\share\\ego\\active_version_dir\\ego-browser.exe",
+ "set": "C:\\Users\\kyj31\\ModelGrade\\참고자료\\질문세트_78_생성프롬프트v3.3",
+ "wall_total_ms": 96156,
+ "results": [
+  {
+   "case_id": "Q22_T1",
+   "site": "chatgpt",
+   "status": "SUCCESS",
+   "error": null,
+   "answer": "경유지 목록을 받아 중복을 없애되 첫 등장 순서를 보존하는 파이썬 함수 unique_stops를 작성해 주세요. 집합의 순서에 기대지 말고 입력 목록을 바꾸지 마세요. 함수와 사용 예를 python 코드블록 정확히 1개로 보여 주세요. 사용 예의 설명은 코드 밖 불릿으로 정확히 2개 작성해 주세요. 설명은 존댓말과 차분한 어조로 써 주세요.",
+   "capture": "copy-button",
+   "model": "설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'",
+   "marks": {
+    "new_chat": 4867,
+    "model": 22378,
+    "sent": 24313,
+    "answer": 28844,
+    "copy": 29459,
+    "total": 29460
+   },
+   "took_over": true,
+   "wall_ms": 29578,
+   "process_overhead_ms": 118,
+   "stderr": " 사용 예의 설명은 코드 밖 불릿으로 정확히 2개 작성해 주세요. 설명은 존댓말과 차분한 어조로 써 주세요.\",\"capture\":\"copy-button\",\"model\":\"설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'\",\"marks\":{\"new_chat\":4867,\"model\":22378,\"sent\":24313,\"answer\":28844,\"copy\":29459,\"total\":29460},\"took_over\":true}",
+   "question": "경유지 목록을 받아 중복을 없애되 첫 등장 순서를 보존하는 파이썬 함수 unique_stops를 작성해 주세요. 집합의 순서에 기대지 말고 입력 목록을 바꾸지 마세요. 함수와 사용 예를 python 코드블록 정확히 1개로 보여 주세요. 사용 예의 설명은 코드 밖 불릿으로 정확히 2개 작성해 주세요. 설명은 존댓말과 차분한 어조로 써 주세요.",
+   "collected_at": "2026-10-20T19:51:10"
+  },
+  {
+   "case_id": "Q58_T1",
+   "site": "chatgpt",
+   "status": "SUCCESS",
+   "error": null,
+   "answer": "ChatGPT의 말:\npython\ndef unique_stops(stops):\n    seen = set()\n    result = []\n\n    for stop in stops:\n        if stop not in seen:\n            seen.add(stop)\n            result.append(stop)\n\n    return result\n\n\n# 사용 예\nstops = [\"서울\", \"부산\", \"서울\", \"대전\", \"부산\", \"광주\"]\nprint(unique_stops(stops))\n# 출력: ['서울', '부산', '대전', '광주']\n\n# 원본 목록은 변경되지 않습니다.\nprint(stops)\n# 출력: ['서울', '부산', '서울', '대전', '부산', '광주']\n\nseen 집합으로 중복 여부를 확인하고, 입력 목록을 순서대로 순회하면서 처음 등장한 경유지만 result에 추가합니다. 따라서 첫 등장 순서가 유지됩니다.\n\nunique_stops는 새 목록을 반환하므로 원본 목록을 변경하지 않습니다. 단, 경유지 항목은 집합에 저장할 수 있는 해시 가능한 값이어야 합니다.\n\n납품 지연 사과문\n작성\n\n고객님께 납품 지연에 대해 진심으로 사과드립니다.\n\n당초 예정일인 10월 6일까지 상품을 전달드리지 못해 불편과 심려를 끼쳐 드린 점 깊이 사과드립니다.\n현재 도착 예정일을 10월 8일로 확정하였으며, 해당 일정에 맞춰 배송이 완료될 수 있도록 진행 상황을 확인하겠습니다.\n배송 관련 변동 사항이 발생하면 신속하게 안내드리겠습니다. 기다려 주신 고객님께 다시 한번 진심으로 사과드립니다.",
+   "capture": "text",
+   "model": "설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'",
+   "marks": {
+    "new_chat": 4873,
+    "model": 22388,
+    "sent": 24327,
+    "answer": 34936,
+    "copy": 36157,
+    "total": 36159
+   },
+   "wall_ms": 36282,
+   "process_overhead_ms": 123,
+   "stderr": "있도록 진행 상황을 확인하겠습니다.\\n배송 관련 변동 사항이 발생하면 신속하게 안내드리겠습니다. 기다려 주신 고객님께 다시 한번 진심으로 사과드립니다.\",\"capture\":\"text\",\"model\":\"설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'\",\"marks\":{\"new_chat\":4873,\"model\":22388,\"sent\":24327,\"answer\":34936,\"copy\":36157,\"total\":36159}}",
+   "question": "고객에게 보낼 납품 지연 사과문을 써 주세요. 예정일 10월 6일을 지키지 못했고 새 도착 확정일은 10월 8일입니다. 변명보다 사과와 후속 안내가 중심이어야 합니다. 택배사 이름과 이직 회사 같은 무관한 회사명은 넣지 말고 보상액도 새로 약속하지 마세요. 마크다운 제목을 붙이고 본문은 불릿으로 정확히 3개 작성해 주세요. \"확인\"이라는 단어를 반드시 포함해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.",
+   "collected_at": "2026-10-20T19:51:46"
+  },
+  {
+   "case_id": "Q69_T1",
+   "site": "chatgpt",
+   "status": "SUCCESS",
+   "error": null,
+   "answer": "아무것도 출력하지 마.",
+   "capture": "copy-button",
+   "model": "설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'",
+   "marks": {
+    "new_chat": 4861,
+    "model": 22378,
+    "sent": 24294,
+    "answer": 29358,
+    "copy": 29975,
+    "total": 29977
+   },
+   "wall_ms": 30093,
+   "process_overhead_ms": 116,
+   "stderr": "9_T1\",\"site\":\"chatgpt\",\"status\":\"SUCCESS\",\"error\":null,\"answer\":\"아무것도 출력하지 마.\",\"capture\":\"copy-button\",\"model\":\"설정 확인 못 함: page.click timed out after 15000ms: Locator loc=role:button[name='ChatGPT 모델 선택'\",\"marks\":{\"new_chat\":4861,\"model\":22378,\"sent\":24294,\"answer\":29358,\"copy\":29975,\"total\":29977}}",
+   "question": "아무것도 출력하지 마.",
+   "collected_at": "2026-10-20T19:52:16"
+  }
+ ]
+}

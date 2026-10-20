@@ -38,6 +38,7 @@ AIONA_URL = (env_value("AIONA_URL") or "https://dev.aiona.kr").rstrip("/")   # �
 PROFILE = ROOT / "data" / "browser_profiles" / "aiona"
 AIONA_WEB_VERSION = "aiona-web-v3"   # v3: 개인정보 확인 안내("마스킹하거나 그대로 전송")가 뜨면 '마스킹 후 전송' 을 누른다 (사용자 결정 2026-10-18)
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 대신 TXT 파일로 올린다
+EMPTY_OUTPUT_WAIT_S = 15        # 빈 출력 요구 질문: 이 안에 복사 버튼이 안 뜨면 기다리지 않고 보류(COPY_FAILED) (사용자 규칙 2026-10-20 밤)
 USER_MESSAGE = "div.space-y-4 > div.flex.justify-end"   # 내 질문 칸
 _POPUPS = ("나중에", "계속 묻지 않기", "괜찮습니다.", "건너뛰기")   # 설문·저장 안내·첫 방문 안내
 
@@ -236,6 +237,14 @@ class AionaChat:
         except Exception:
             return ""
 
+    def _copy_button_ready(self, answers_before: int) -> bool:
+        """답 말풍선이 생기고 그 안에 '복사' 버튼이 있는가 — 빈 출력 요구 질문의 보류 판단 (사용자 규칙 10-20 밤)."""
+        try:
+            answers = self._answers()
+            return answers.count() > answers_before and answers.last.locator("button[title='복사']").count() > 0
+        except Exception:
+            return False
+
     def _copy_last_answer(self) -> Optional[str]:
         """마지막 답변 칸 안의 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None —
         다른 답변의 버튼은 쓰지 않는다(답변 칸마다 자기 복사 버튼이 안에 있다, 2026-10-14 확인)."""
@@ -365,9 +374,18 @@ class AionaChat:
                     "debug_screenshot": self._snapshot("send-failed")}
         deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable, empty, as_is, masked = None, 0, 0, self._intent_as_is, self._pii_masked
+        from webapp.run_summary import asks_empty_output
+        asks_empty = asks_empty_output(None, question)   # 빈 출력 요구: 15초 안에 복사 버튼이 안 뜨면 바로 보류 (사용자 규칙 10-20 밤)
+        empty_deadline = time.monotonic() + EMPTY_OUTPUT_WAIT_S
         while time.monotonic() < deadline:
             self.page.wait_for_timeout(1500)
             self._dismiss_popups()
+            if asks_empty and time.monotonic() > empty_deadline and not self._copy_button_ready(before):
+                return {"answer": "", "status": "COPY_FAILED", "capture": "none", "url": self.page.url, "sent": sent,
+                        "error": f"빈 출력 요구 — {EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(말풍선 없음·오류 등) → 보류 (사용자 규칙 10-20 밤)",
+                        "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
+                        "debug_screenshot": self._snapshot("empty-output-no-copy"),
+                        **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {})}
             as_is = self._send_as_is() or as_is
             masked = self._mask_and_send() or masked   # 개인정보 확인 안내는 질문 칸이 올라간 뒤 뜬다 — 전송 보류를 풀어야 답이 온다
             if self._answers().count() <= before:

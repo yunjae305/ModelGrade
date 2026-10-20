@@ -416,6 +416,27 @@ class ClaudeAppChat:
     def _bars(self) -> List[Any]:
         return [e for e in self._all("ToolBar") if re.match(self.ACTION_BAR, e.element_info.name or "")]
 
+    # --- 빈 출력 요구 질문 (사용자 규칙 2026-10-20 밤) ---------------------------------------------------------------
+    EMPTY_OUTPUT_WAIT_S = 15   # 이 안에 답변 툴바(복사 버튼)가 안 뜨면 기다리지 않고 보류(COPY_FAILED)
+
+    @staticmethod
+    def _asks_empty(question: str) -> bool:
+        from webapp.run_summary import asks_empty_output
+        return asks_empty_output(None, question)
+
+    def _hold_if_no_copy_button(self, bars_before: int, started: float, base: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        deadline = time.monotonic() + self.EMPTY_OUTPUT_WAIT_S
+        while time.monotonic() < deadline:
+            time.sleep(0.5)
+            try:
+                if len(self._answer_bars()) > bars_before:
+                    return None
+            except Exception:
+                pass
+        return {**base, "answer": "", "status": "COPY_FAILED", "capture": "none",
+                "error": f"빈 출력 요구 — {self.EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(응답 중지·말풍선 없음 등) → 보류 (사용자 규칙 10-20 밤)",
+                "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("empty-output-no-copy")}
+
     def _answer_bars(self) -> List[Any]:
         """답변 말풍선의 '메시지 작업' 툴바 — 복사 버튼이 있고 '편집'(내 질문 쪽) 버튼이 없는 것."""
         out = []
@@ -656,6 +677,10 @@ class ClaudeAppChat:
             return {**base, "answer": "", "status": "ERROR",
                     "error": (str(exc)[:300] if isinstance(exc, UiaChatError) else f"질문을 보내지 못했습니다: {type(exc).__name__}: {str(exc)[:120]}"),
                     "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("send-failed")}
+        if self._asks_empty(question):   # 빈 출력 요구: 15초 안에 답변 툴바(복사 버튼)가 안 뜨면 바로 보류 (사용자 규칙 10-20 밤)
+            held = self._hold_if_no_copy_button(before, started, base)
+            if held is not None:
+                return held
         deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable = None, 0
         while time.monotonic() < deadline:

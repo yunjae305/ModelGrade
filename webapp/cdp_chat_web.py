@@ -293,6 +293,44 @@ class _CdpChat:
         except Exception:
             return False
 
+    # --- 빈 출력 요구 질문 (사용자 규칙 2026-10-20 밤) ---------------------------------------------------------------
+    EMPTY_OUTPUT_WAIT_S = 15   # 빈 출력을 요구한 질문은 이 안에 복사 버튼이 안 뜨면('출력 없음'·응답 중지·말풍선 없음) 기다리지 않고 보류(COPY_FAILED)
+
+    @staticmethod
+    def _asks_empty(question: str) -> bool:
+        from .run_summary import asks_empty_output
+        return asks_empty_output(None, question)
+
+    def _copy_button_count(self, scope: Any = None) -> int:
+        n = 0
+        for name in self.COPY_NAMES:
+            try:
+                n += (scope if scope is not None else self.page).get_by_role("button", name=name, exact=True).count()
+            except Exception:
+                pass
+        return n
+
+    def _copy_button_ready(self, answers_before: int, copy_before: int) -> bool:
+        """답 말풍선이 생기고 복사 버튼이 새로 떴는가 — 말풍선 안에 있거나, 화면 전체의 복사 버튼 수가 보내기 전보다 늘었거나."""
+        try:
+            answers = self._answers()
+            if answers.count() <= answers_before:
+                return False
+            return self._copy_button_count(answers.last) > 0 or self._copy_button_count() > copy_before
+        except Exception:
+            return False
+
+    def _hold_if_no_copy_button(self, answers_before: int, copy_before: int, started: float, base: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """빈 출력 요구 질문: EMPTY_OUTPUT_WAIT_S 초 동안 복사 버튼을 기다려 뜨면 None(평소대로 받음), 안 뜨면 보류 결과."""
+        deadline = time.monotonic() + self.EMPTY_OUTPUT_WAIT_S
+        while time.monotonic() < deadline:
+            self.page.wait_for_timeout(500)
+            if self._copy_button_ready(answers_before, copy_before):
+                return None
+        return {**base, "answer": "", "status": "COPY_FAILED", "capture": "none", "url": self.page.url,
+                "error": f"빈 출력 요구 — {self.EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
+                "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("empty-output-no-copy")}
+
     def _box_text(self, box: Any) -> str:
         try:
             return (box.inner_text(timeout=2000) or "").strip()
@@ -393,6 +431,7 @@ class _CdpChat:
         before = self._answers().count()
         asked_before = self._asked()
         text_before = self._last_answer_text()   # 긴 대화는 화면이 지난 턴을 치워(가상화) 말풍선 수가 안 늘 수 있다 — 글이 바뀌었는지도 본다
+        copy_before = self._copy_button_count()   # 빈 출력 요구 질문의 복사 버튼 감지 기준
         try:
             with _CHROME_LOCK:
                 if self.cancelled():
@@ -434,6 +473,10 @@ class _CdpChat:
             return {**base, "answer": "", "status": "ERROR", "url": self.page.url,
                     "error": (str(exc)[:300] if isinstance(exc, CdpWebError) else f"질문을 보내지 못했습니다: {type(exc).__name__}"),
                     "latency_ms": round((time.monotonic() - started) * 1000), "debug_screenshot": self._snapshot("send-failed")}
+        if self._asks_empty(question):   # 빈 출력 요구: 15초 안에 복사 버튼이 안 뜨면 바로 보류 (사용자 규칙 10-20 밤 — GPT 앱 '출력 없음' 109초 대기)
+            held = self._hold_if_no_copy_button(before, copy_before, started, base)
+            if held is not None:
+                return held
         deadline = time.monotonic() + (self.answer_timeout_s or 10 ** 9)   # 0 = 제한 없음 — 답이 끝날 때까지 기다린다 (사용자 지시 10-20)
         last, stable = None, 0
         while time.monotonic() < deadline:
