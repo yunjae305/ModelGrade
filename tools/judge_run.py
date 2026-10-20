@@ -199,6 +199,35 @@ class JevJudge:
         return "OK", call.body, ""
 
 
+class DecisionsJudge:
+    """OpenAI Decisions API — Jev 와 같은 고정 질문 묶음 + state 를 원문 그대로(자르지 않음). Jev 가 한도를 넘거나 실패한 턴의 J1~J4 를 대신 (decisions-v1, 2026-10-20)."""
+
+    name = "decisions"
+
+    def __init__(self, client: Any) -> None:
+        self.client = client
+
+    def manifest(self) -> Dict[str, Any]:
+        config = getattr(self.client, "config", None)
+        return {"engine": "openai_decisions", "model": getattr(config, "model", None), "role": "Jev 대체(한도 초과·실패 턴)"}
+
+    def judge(self, state: Dict[str, Any], questions: Dict[str, Any]) -> Tuple[str, Any, str]:
+        try:
+            call = self.client.decide(state, questions)
+        except Exception as exc:
+            return "ERROR", None, redact(f"{type(exc).__name__}: {exc}")
+        if getattr(call, "status", None) != "OK":
+            return "ERROR", None, f"{getattr(call, 'status', '?')}: {getattr(call, 'error', '')}"
+        return "OK", call.body, ""
+
+
+def decisions_from_env() -> Tuple[Optional[DecisionsJudge], Optional[str]]:
+    """OPENAI_API_KEY(또는 DECISIONS_API_KEY)가 있으면 Decisions 대체 심판을 만든다 — 없으면 (None, 이유)."""
+    from code_eval.decisions_client import resolve_decisions_client
+    client, _, reason = resolve_decisions_client()
+    return (DecisionsJudge(client) if client else None), reason
+
+
 # --- 질문 하나 ------------------------------------------------------------------------------------------------------
 
 def judge_question(entry: Dict[str, Any], turns: List[Dict[str, Any]], table: Dict[str, Dict[str, Any]], answers: Dict[str, str],

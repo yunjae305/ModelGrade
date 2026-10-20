@@ -154,19 +154,22 @@ def check_codex(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str
     return info
 
 
-def combine(codex_v: Optional[Dict[str, Any]], jev_v: Optional[Dict[str, Any]], jev_trimmed: bool = False) -> Tuple[Optional[str], str]:
+def combine(codex_v: Optional[Dict[str, Any]], jev_v: Optional[Dict[str, Any]], jev_trimmed: bool = False, label: str = "Jev") -> Tuple[Optional[str], str]:
     """J1~J4 한 항목 — (최종 판정, 어떻게 정했는지). None = 두 심판 모두 상황 없음으로 봄.
     jev_trimmed: Jev 가 그 턴을 줄인 자료로 봤으면 Jev FAIL 로 보류하지 않고 원문 전체를 본 Codex 판정을 따른다 (흐름 v2 와 같은 원칙, 10-19)."""
     c = (codex_v or {}).get("decision")
     j = (jev_v or {}).get("decision")
     if c == "FAIL":
-        return "FAIL", "Codex FAIL" + (" · Jev 도 FAIL" if j == "FAIL" else f" · Jev {KO.get(j, j)}")
+        return "FAIL", "Codex FAIL" + (f" · {label} 도 FAIL" if j == "FAIL" else f" · {label} {KO.get(j, j)}")
     if j == "FAIL" and not jev_trimmed:
-        return "UNVERIFIED", f"심판 갈림 — Jev FAIL · Codex {KO.get(c, c) if c else '상황 없음'}"
-    note = " (Jev 는 줄인 자료로 봐서 참고만)" if jev_trimmed else ""
+        return "UNVERIFIED", f"심판 갈림 — {label} FAIL · Codex {KO.get(c, c) if c else '상황 없음'}"
+    note = f" ({label} 는 줄인 자료로 봐서 참고만)" if jev_trimmed else ""
     if c is None:
-        return None, f"Codex 상황 없음 · Jev {KO.get(j, j)}{note}"
-    return c, f"Codex {KO.get(c, c)} · Jev {KO.get(j, j)}{note}"
+        return None, f"Codex 상황 없음 · {label} {KO.get(j, j)}{note}"
+    return c, f"Codex {KO.get(c, c)} · {label} {KO.get(j, j)}{note}"
+
+
+SECOND_LABEL = {"jev": "Jev", "decisions": "Decisions(OpenAI)", "jev-trimmed": "Jev"}
 
 
 JEV_TRIM_CHARS = 35_000   # Jev 입력 예산(글자) — 약 5만 자부터 Jev 가 max_tokens_exceeded (10-19·10-20)
@@ -181,6 +184,36 @@ def _cut(holder: Dict[str, Any], key: str, keep: int) -> int:
     cut = len(text) - head - tail
     holder[key] = text[:head] + TRIM_MARK.format(n=cut) + text[-tail:]
     return cut
+
+
+def second_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decisions: Any,
+                 budget: int = JEV_TRIM_CHARS) -> Tuple[str, Any, str, Optional[str], int]:
+    """J1~J4 둘째 심판 고르기 (사용자 결정 2026-10-20): ① 예산 안이면 Jev 원문 ② Jev 가 한도를 넘거나 실패하면 Decisions(OpenAI) 원문
+    ③ Decisions 가 없거나 실패하면 Jev 에 줄인 자료(참고만) ④ 그것도 안 되면 둘째 심판 없음 — Codex 판정만.
+    돌려주는 값: (status, body, error, 쓴 심판 'jev'·'decisions'·'jev-trimmed'·None, 줄인 글자 수)."""
+    chars = js.state_chars(part)
+    errors: List[str] = []
+    if jev is not None and chars <= budget:
+        status, body, error = jev.judge(part, questions)
+        if status == "OK":
+            return status, body, "", "jev", 0
+        errors.append(f"Jev {status} {error}")
+    elif jev is None:
+        errors.append("Jev 없음")
+    else:
+        errors.append(f"Jev 예산 초과 {chars:,}자 > {budget:,}자")
+    if decisions is not None:
+        status, body, error = decisions.judge(part, questions)
+        if status == "OK":
+            return status, body, "", "decisions", 0
+        errors.append(f"Decisions {status} {error}")
+    if jev is not None and chars > budget:
+        cut = trim_jev_state(part, budget)
+        status, body, error = jev.judge(part, questions)
+        if status == "OK":
+            return status, body, "", "jev-trimmed", cut
+        errors.append(f"Jev(줄임) {status} {error}")
+    return "ERROR", None, " / ".join(errors), None, 0
 
 
 def trim_jev_state(state: Dict[str, Any], budget: int = JEV_TRIM_CHARS) -> int:
@@ -218,7 +251,7 @@ def verdict_of(items: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
 
 def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
               code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, jev: Any,
-              out: Path, reuse_codex: bool = False) -> Dict[str, Any]:
+              out: Path, reuse_codex: bool = False, decisions: Any = None) -> Dict[str, Any]:
     tag = f"Q{q} {provider}"
     doc = question_json(q, turns, answers, deliveries)
     text = json.dumps(doc, ensure_ascii=False, indent=1)
@@ -283,24 +316,27 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         merged: Dict[str, Any] = {}
         errors: List[str] = []
         trimmed: Dict[str, int] = {}
+        second: Dict[str, str] = {}   # 턴 → 둘째 심판(jev · decisions · jev-trimmed)
         for row in turns:
             n = ji._turn(row)
             # 판정할_턴 을 적어 준다 — 앞 턴(1·2턴 거절)에 끌려 3턴 이후 정상 답을 '거절' FAIL 로 본 일(Q17 Gemini, 10-20)
             part = json.loads(json.dumps({"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]},
                                          ensure_ascii=False))
-            cut = trim_jev_state(part)
+            qd = {f"T{n}:{i}": fixed["items"][i] for i in jev_items}
+            status, body, error, used, cut = second_judge(part, qd, jev, decisions)
             if cut:
                 trimmed[str(n)] = cut
-            status, body, error = jev.judge(part, {f"T{n}:{i}": fixed["items"][i] for i in jev_items}) if jev else ("ERROR", None, "Jev 없음")
             if status == "OK":
                 merged.update((body or {}).get("answers") or {})
+                second[str(n)] = used or ""
             else:
-                errors.append(f"T{n} {status} {str(error)[:80]}")
+                errors.append(f"T{n} {status} {str(error)[:120]}")
         status = "OK" if not errors else ("PARTIAL" if merged else "ERROR")
         calls["jev"] = {"status": status, "error": "; ".join(errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns),
-                        "trimmed": trimmed, "body": {"answers": merged}}
-        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" · 줄인 턴 {list(trimmed)}" if trimmed else "")
-            + (f" — {'; '.join(errors)[:160]}" if errors else ""))
+                        "trimmed": trimmed, "second": second, "body": {"answers": merged}}
+        by_dec = [k for k, v in second.items() if v == "decisions"]
+        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" · Decisions 로 본 턴 {by_dec}" if by_dec else "")
+            + (f" · 줄인 턴 {list(trimmed)}" if trimmed else "") + (f" — {'; '.join(errors)[:160]}" if errors else ""))
 
     started = time.monotonic()
     threads = [threading.Thread(target=run_codex), threading.Thread(target=run_jev)]
@@ -323,7 +359,10 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         for item in dict.fromkeys(list(c_items) + [i for i in jev_items if i in j_items]):
             cv, jv = c_items.get(item), j_items.get(item)
             if item in jev_items:
-                dec, how = combine(cv, jv, str(n) in (calls["jev"].get("trimmed") or {}))
+                used = (calls["jev"].get("second") or {}).get(str(n)) or "jev"
+                if jv is not None:
+                    jv["judge"] = used
+                dec, how = combine(cv, jv, str(n) in (calls["jev"].get("trimmed") or {}), SECOND_LABEL.get(used, "Jev"))
                 if jv and (cv or {}).get("decision") is not None:
                     total += 1
                     agree += (jv.get("decision") == cv.get("decision"))
@@ -334,7 +373,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
             e = ((cv or {}).get("entries") or [{}])
             fail_e = next((x for x in e if x.get("decision") == "FAIL"), e[0])
             items[item] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (jv or {}).get("decision"),
-                           "jev_reason": (jv or {}).get("reason"), "problems": (cv or {}).get("problems") or [],
+                           "second_judge": (jv or {}).get("judge"), "jev_reason": (jv or {}).get("reason"), "problems": (cv or {}).get("problems") or [],
                            "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                            "entries": (cv or {}).get("entries") or []}
         js.apply_overrides(items)
@@ -500,11 +539,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         queues.setdefault(p, []).append(q)
     totals = {p: len(v) for p, v in queues.items()}
     board = Board(totals, {p: sum(1 for q in v if (p, q) in done) for p, v in queues.items()})
-    gpt = jev = None
+    gpt = jev = decisions = None
     if not args.dry:
         gpt, jev, notes = judges_from_env()
         for n in notes:
             say(f"⚠ {n}")
+        from tools.judge_run import decisions_from_env
+        decisions, d_reason = decisions_from_env()
+        say(f"Decisions(OpenAI) 대체 심판: {getattr(getattr(decisions, 'client', None), 'config', None) and decisions.client.config.model}"
+            if decisions else f"⚠ Decisions 대체 심판 없음 — {d_reason}")
     write_lock = threading.Lock()
 
     def save(line: Dict[str, Any]) -> None:
@@ -532,7 +575,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 try:
-                    line = {**judge_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex),
+                    line = {**judge_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex, decisions),
                             "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
@@ -543,7 +586,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             board.finish(provider)
 
     say(f"판정 v4 — {sum(totals.values())}건(질문 × 모델, 이미 한 {sum(board.done.values())}건 건너뜀) · 모델마다 한 줄로 동시에 · "
-        + (f"Codex CLI {getattr(gpt, 'model', '-')}·{getattr(gpt, 'reasoning', '-')} + Jev" if not args.dry else "점검만(심판 안 부름)")
+        + (f"Codex CLI {getattr(gpt, 'model', '-')}·{getattr(gpt, 'reasoning', '-')} + Jev" + (" → 한도 넘으면 Decisions(OpenAI)" if decisions else "")
+           if not args.dry else "점검만(심판 안 부름)")
         + f" · 로그 {out / 'run.log'}")
     board.show()
     wall0 = time.monotonic()
