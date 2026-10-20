@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import difflib
+from collections import Counter
 import hashlib
 import html
 import json
@@ -350,12 +351,12 @@ y += 26
 
 A_y = y
 parts, A_h, _ = module(y, "A", "질문 세트 — 고정", [
-    ("질문", ["정밀 326개 · 간단 78개(그중 골라냄)"]),
+    ("질문", ["78개 확정 — 326개에서 골라냄 (00장)"]),
     ("원칙", ["새로 만들지 않음 · 고칠 땐 버전을 올림"]),
 ], "set")
 P += parts
 f1_y = A_y + 10
-parts, f1_h = filenode(f1_y, "질문 세트 파일", ["질문 326 · 간단 78", "지금 v2.2"])
+parts, f1_h = filenode(f1_y, "질문 세트 파일", ["질문 78 (ids.json)", "원문 v2.3"])
 P += parts
 P.append(file_read(A_y + 30, f1_y + 26))
 y += A_h
@@ -465,7 +466,7 @@ y += 26
 G_y = y
 parts, G_h, _ = module(y, "G", "질문 단위 판정 — 코드", [
     ("판정", ["FAIL 하나라도 → FAIL", "아니면 보류 하나라도 → 보류", "나머지 → PASS"]),
-    ("단위", ["대화는 턴 전체를 묶어 질문 1개"]),
+    ("단위", ["대화는 턴 전체를 묶어 질문 1개 — 숫자는 /78"]),
 ], "code")
 P += parts
 # 분기 결과 칸 두 개는 오른쪽 통로로 모여 G 로 바로 간다
@@ -478,7 +479,7 @@ y += 26
 H_y = y
 parts, H_h, _ = module(y, "H", "결과·보류 추출 — 명령 하나", [
     ("명령", ["python tools/modelgrade.py report"]),
-    ("결과", ["모델별 PASS·FAIL·보류 / 326", "질문별 이유 · 보류 목록"]),
+    ("결과", ["모델별 PASS·FAIL·보류 / 78", "질문별 이유 · 보류 목록"]),
 ], "code")
 P += parts
 y += H_h
@@ -585,7 +586,7 @@ side_cards = (
     + legend)
 
 steps_table = table("단계별 요약", ["단계", "하는 일", "누가", "파일"], [
-    [step("A", "질문 세트"), "고정된 질문 326개와 그중 78개. 고칠 때만 버전을 올림.", "고정 파일",
+    [step("A", "질문 세트"), "확정된 질문 78개(326개에서 고름). 고칠 때만 버전을 올림.", "고정 파일",
      files("questions.json", "질문세트_최소78/ids.json")],
     [step("B", "답변 수집"), "네 모델에 동시에 묻고 복사 버튼으로 원문을 받음. 첨부는 붙여넣기.", "앱·웹 자동 조작",
      files("modelgrade.py collect", "uia_chat_app.py", "cdp_chat_web.py")],
@@ -606,14 +607,15 @@ steps_table = table("단계별 요약", ["단계", "하는 일", "누가", "파�
 CHANGES = [
     ("답변 수집 방법", "chg", "API 3 (GPT·Claude·Gemini) · 웹 1 (AIONA)", "앱 2 (ChatGPT·Claude 데스크톱) · 웹 2 (Gemini·AIONA)"),
     ("답을 받는 법", "chg", "API 응답 글 그대로", "화면의 복사 버튼으로 원문 — 화면 글은 읽지 않음"),
-    ("질문 세트", "small", "326개 v2.0", "326개 v2.2 — 문서형 53개에 '채팅 본문 글로' 한 문장 (기준·78개 그대로)"),
+    ("질문 수", "chg", "정밀 326개 (+ 간단 78개)", "<b>78개로 확정</b> — 326 은 쓰지 않음 (00장)"),
+    ("질문 원문", "small", "v2.0", "v2.3 — 문서형 53개에 '채팅 본문 글로' 한 문장(v2.2) · 외국 문자 오타 2곳(v2.3), 기준·k 그대로"),
     ("질문 생성", "none", "GPT-6 Luna API 로 생성", "안 함 — 세트 고정"),
     ("심판에게 주는 것", "chg", "질문마다 코드가 조립 (판정할 항목 목록 포함)", "고정 프롬프트 v4 + 질문·답변 JSON — 심판이 상황을 찾음 (03장)"),
     ("심판", "chg", "GPT-6 Luna API + Jev API", "Codex CLI (ChatGPT 구독) + Jev API"),
-    ("판정 단위", "chg", "턴마다 (모델당 487번)", "질문마다 (모델당 326번)"),
+    ("판정 단위", "chg", "턴마다 (모델당 487번)", "질문마다 (모델당 78번)"),
     ("심판이 갈릴 때", "chg", "Luna 를 다시 불러 재판정 → 또 갈리면 보류", "다시 부르지 않고 보류"),
     ("빈 출력 요구 질문", "small", "답과 상관없이 보류", "복사할 답이 없으면 보류 · 글을 쓰면 FAIL"),
-    ("실행", "chg", "웹 화면(서버)", "명령 하나 — 메뉴 1 간단 78 · 2 정밀 326"),
+    ("실행", "chg", "웹 화면(서버)", "명령 하나 — 78개를 네 모델 동시에"),
     ("CODE 평가", "same", "28가지 검사", "28가지 검사"),
 ]
 CHANGE_TAG = {"chg": ("t-chg", "바뀜"), "small": ("t-sub", "조금"), "same": ("t-same", "그대로"), "none": ("t-none", "안 함")}
@@ -1001,6 +1003,76 @@ k_points = table("", ["무엇", "결과"], [
     ["그래서", f"지금 세트로 '모든 기준 k번'은 10번이 최대이고 {KRR['level']['raw']['10']}~78개면 닿음(간단 78). 모든 기준을 20번 보려면 긴 문서·빈 출력 요구 질문을 각 10개 이상, 대화형을 4개 이상 더 넣어야 함"],
 ], [18, 82])
 
+# ---------- 00 왜 78개인가 (사용자 10-20 미팅 피드백: 질문 수 78 확정, 선정 이유·시험 내용을 맨 위에) ----------
+# 숫자는 모두 저장소 기록에서 읽는다 — 질문 세트(k 범위), tools/k_reach_curves.py(세 순서의 k 도달), min_eval_m10.md(선정 규칙·새로 덮은 기준),
+# tools/subset_pass_rates.py(78 vs 326 순위·FAIL 포착). AI 호출 없음.
+K_BY = json.loads((ROOT / "참고자료" / "질문세트_326_생성프롬프트v2" / "set.json").read_text(encoding="utf-8")).get("k_repair", {}).get("before", {}).get("by_k", {})
+MIN10 = json.loads((ROOT / "참고자료" / "최소평가" / "min_eval_m10.json").read_text(encoding="utf-8"))
+COMP = Counter(c.get("kind") for c in MIN10.get("chosen") or [])
+GREEDY10_CURVE = KR["curves"]["greedy10"]["raw"]
+
+
+def why78_chart():
+    """세로 = 모든 기준이 최소 k번, 가로 = 던진 질문 수. 06장 그래프의 축소판 — '모자란 기준부터' 가 78(간단 78 순서)에서 k=10 에 닿는 것을 크게."""
+    width, height, left, right, top, bottom = 900, 260, 50, 880, 16, 214
+    n_all = KR["questions"]
+    x = lambda n: left + n / n_all * (right - left)
+    y = lambda v: bottom - min(v, 12) / 12 * (bottom - top)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="던진 질문 수별 모든 기준의 최소 평가 횟수 — 세 순서, 78에서 10번에 닿음">']
+    for v in (0, 5, 10):
+        out.append(f'<line class="grid" x1="{left}" y1="{y(v):.1f}" x2="{right}" y2="{y(v):.1f}"/><text class="tick" x="{left - 6}" y="{y(v) + 4:.1f}" text-anchor="end">{v}</text>')
+    for n in (0, 50, 78, 100, 150, 200, 250, 326):
+        out.append(f'<text class="tick" x="{x(n):.1f}" y="{bottom + 16}" text-anchor="middle"{" font-weight=\"700\"" if n == 78 else ""}>{n}</text>')
+    out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">던진 질문 수</text><text class="axt" x="{left - 6}" y="{top - 4}" text-anchor="end">k</text>')
+    out.append(f'<line class="guide" x1="{left}" y1="{y(10):.1f}" x2="{right}" y2="{y(10):.1f}"/><text class="reflab" x="{left + 6}" y="{y(10) - 5:.1f}">목표 k = 10 — 모든 기준이 서로 다른 질문 10개 이상에서 평가됨</text>')
+    for k in ("number", "kdesc", "greedy10"):
+        pts, prev = [f"{left:.1f},{bottom:.1f}"], 0
+        for i, v in enumerate(KR["curves"][k]["raw"]):
+            if v != prev:
+                pts.append(f"{x(i + 1):.1f},{y(prev):.1f}")
+            pts.append(f"{x(i + 1):.1f},{y(v):.1f}")
+            prev = v
+        cls = {"number": "number", "kdesc": "kdesc", "greedy10": "greedy"}[k]
+        out.append(f'<polyline class="ln ln-{cls}" points="{" ".join(pts)}"/>')
+    for k, cls, n in (("number", "number", KR["reach"]["number"]["raw"]["10"]), ("kdesc", "kdesc", KR["reach"]["kdesc"]["raw"]["10"]), ("greedy10", "greedy", 78)):
+        if n:
+            near = n > n_all - 40
+            out.append(f'<circle class="pt-{cls}" cx="{x(n):.1f}" cy="{y(10):.1f}" r="{7 if k == "greedy10" else 5}"/>'
+                       f'<text class="val" x="{x(n) + (-9 if near else 9):.1f}" y="{y(10) + (22 if k == "greedy10" else 18):.1f}" text-anchor="{"end" if near else "start"}"'
+                       f'{" font-weight=\"700\"" if k == "greedy10" else ""}>{n}개</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+why78_kpis = f"""
+  <div class="kpis3">
+    <div><span class="k">확정 질문 수</span><b>78<small>개</small></b><span>단일 {COMP.get('단일', 57)} · 대화 {COMP.get('대화', 11)} · 긴 문서 {COMP.get('긴 문서', 10)} — 정밀 326 에서 골라냄, 326 은 쓰지 않음</span></div>
+    <div><span class="k">선정 기준</span><b>기준마다 10번<small>↑</small></b><span>질문으로 셀 수 있는 기준 {KR['criteria']}개 모두가 서로 다른 질문 10개 이상에서 평가되는 가장 적은 수</span></div>
+    <div><span class="k">던지는 순서</span><b>모자란 기준부터</b><span>번호순은 {KR['reach']['number']['raw']['10']}개, 기준 많은 순은 {KR['reach']['kdesc']['raw']['10']}개가 필요 — 같은 목표를 78개로</span></div>
+  </div>"""
+
+why78_steps = table("어떻게 78 이 나왔나 — 시험 순서", ["단계", "무엇을 했나", "결과"], [
+    ["① 질문 생성 때 k 범위", "질문생성 프롬프트에 '질문당 적용 기준 수(k) 6~10개' 범위를 정하고, 범위 밖 질문은 고쳐서 326개를 만듦(빈 출력 요구만 예외).",
+     "326개 중 k 6~10 안 " + E(str(sum(int(v) for kk, v in K_BY.items() if 6 <= int(kk) <= 10))) + "개" + (f" (k=6 {K_BY.get('6')} · 7 {K_BY.get('7')} · 8 {K_BY.get('8')} · 9 {K_BY.get('9')} · 10 {K_BY.get('10')})" if K_BY else "")],
+    ["② 기준 목표 횟수", "기준 72개 중 질문으로 셀 수 있는 64개가 저마다 몇 번 평가돼야 FAIL 을 믿을 수 있는지 — 1·3·5·10·20번 목표로 질문 수를 셈.",
+     f"1번↑ 7개 · 3번↑ 21개 · 5번↑ 37개 · <b>10번↑ 78개</b> · 20번↑ 은 326 전체로도 불가능(긴 문서·빈 출력 요구 기준이 10개씩뿐)"],
+    ["③ 던지는 순서 비교", "같은 326개를 번호순·기준 많은 순·모자란 기준부터 세 순서로 하나씩 더하며 '모든 기준 10번' 에 닿는 질문 수를 비교(05·06장).",
+     f"번호순 {KR['reach']['number']['raw']['10']}개 · 기준 많은 순 {KR['reach']['kdesc']['raw']['10']}개 · <b>모자란 기준부터 78개</b> — 가장 적음"],
+    ["④ 78 이 326 을 대신하나", "10-19 정밀 326 판정을 78개만 다시 세어 순위·FAIL 포착을 비교(04장).",
+     f"모델 순위 326 과 같음({' > '.join(MODEL_NAMES[p] for p in RANK)}) · 326 에서 나온 (모델, 기준) FAIL 종류 {OT['pairs']}개 중 {ORD['curves']['greedy']['fail_pairs'][77]}개({ORD['curves']['greedy']['fail_pairs'][77] / OT['pairs'] * 100:.0f}%)가 78 안에서 보임"],
+    ["⑤ 결정", "10-20 미팅 — 326 은 하지 않고 78개만 쓴다. 통과율 숫자는 어려운 질문 위주라 326 보다 낮게 나오므로, 모델 간 순위와 FAIL 목록으로 본다.",
+     "질문 세트 v2.3 (10-20: 생성 때 섞인 외국 문자 2곳만 고침, 기준·k 불변)"],
+], [18, 50, 32])
+
+why78_section = f"""{why78_kpis}
+  <figure class="fig rate-chart">
+    <ul class="rate-key"><li><i class="knum"></i>번호순</li><li><i class="kkd"></i>기준 많은 순</li><li><i class="kgr"></i>모자란 기준부터 (간단 78 순서)</li><li>● 점 = 모든 기준이 10번에 닿는 질문 수</li></ul>
+    {why78_chart()}
+  </figure>
+  {why78_steps}
+  <p class="basis">출처: 참고자료/최소평가/min_eval_m10.md (선정 규칙·고른 순서·새로 덮은 기준, tools/min_eval_list.py v2 — 집합 덮기 표준 탐욕법, 팀원 검산 반영) · 평가횟수k_곡선_326.json (세 순서의 k 도달) · 통과비율_목록별_8c61f117e661.json (78 vs 326 순위) · 질문세트_326_생성프롬프트v2/set.json (k 범위 6~10). 질문 78개 원문과 첨부는 참고자료/질문세트_최소78/.</p>
+"""
+
 # ---------- 07 걸린 시간 — 답변 수집 · CODE · 의미 평가 ----------
 # 숫자는 tools/time_summary.py 가 기록으로 센 것(참고자료/결과/시간_요약_ac6507c00276.json) — 여기서는 읽기만.
 P_ORDER = ["gpt", "claude", "gemini", "aiona"]
@@ -1064,7 +1136,6 @@ judge_table = table("의미 평가 — 잰 시간과 어림", ["무엇", "시간
     [f"판정 v4 시험 ({len(V4ROWS)}건)", "<br>".join(f"{trial_name(r)} — Codex {r['codex_seconds']:.0f}초({r['codex_calls']}번) · Jev {r['jev_seconds']:.1f}초" for r in V4ROWS) or "-"],
     ["78개 어림 (모델 하나)", f"<b>{dur(EST['seconds_one_model'])}</b> = " + " + ".join(f"{k} {EST['counts_78'][k]}개 × {per[k]['seconds']}초" for k in per)
      + "<br><span class=\"rsub\">" + " · ".join(f"{k}: {E(per[k]['basis'])}" for k in per) + "</span>"],
-    ["326개 어림 (모델 하나)", f"{dur(one326)} = " + " + ".join(f"{k} {kind326[k]}개 × {per[k]['seconds']}초" for k in per)],
     ["주의", "10턴 대화는 Codex(추론 low)가 한 번에 다 판정하지 못해 턴을 나눠 다시 물어야 함 — 대화형은 어림보다 더 걸릴 수 있음"],
 ], [26, 74])
 time_points = table("", ["무엇", "결과"], [
@@ -1498,11 +1569,14 @@ HV_JS = r"""<script>
 
 # ---------- 장 ----------
 SECTIONS = [
+    ("s_why", "왜 78개인가", "질문 수 78 확정 — 선정 이유와 시험", "왜 78개인가 — 질문 수를 78로 확정한 이유",
+     "질문 생성 때 질문당 기준 수를 6~10개로 맞춘 326개에서, 기준 64개가 모두 서로 다른 질문 10개 이상에서 평가되도록 모자란 기준부터 고르면 78개에서 목표에 닿습니다. 10-20 미팅에서 326 은 쓰지 않고 78개로 확정했습니다.",
+     why78_section),
     ("s1", "전체 흐름도", "질문 → 답변 수집 → JSON → 평가", "전체 흐름도",
-     "질문 세트를 네 모델에 던져 답을 받고, 질문·답변을 JSON 으로 저장한 뒤 코드(CODE 평가)와 심판 AI 둘(의미 평가)이 채점해 질문마다 PASS·FAIL·보류를 냅니다.",
+     "질문 78개를 네 모델에 던져 답을 받고, 질문·답변을 JSON 으로 저장한 뒤 코드(CODE 평가)와 심판 AI 둘(의미 평가)이 채점해 질문마다 PASS·FAIL·보류를 냅니다.",
      f"""
   <figure class="fig poster">
-    <span class="poster-sub">2026-10-20 저장소 기준 · E 의미 평가는 판정 v4 (시험 중)</span>
+    <span class="poster-sub">2026-10-20 저장소 기준 · 질문 78개 · E 의미 평가는 판정 v4 (시험 중)</span>
     <div class="poster-grid">{flow}<aside class="pside" aria-label="흐름도 요약">{side_cards}</aside></div>
   </figure>
   {steps_table}
@@ -1596,7 +1670,7 @@ def head(no, title, lead):
 
 
 glossary = table("", ["말", "뜻"], [
-    ["질문 세트", "모델에 똑같이 던지는 고정 질문 326개 (간단평가는 그중 78개). 대화형 질문은 턴이 여러 개여도 1개로 셈"],
+    ["질문 세트", "모델에 똑같이 던지는 고정 질문 78개 (326개에서 고름 — 00장). 대화형 질문은 턴이 여러 개여도 1개로 셈"],
     ["CODE 평가", "프로그램이 형식·글자 수·계산 같은 28가지를 검사"],
     ["의미 평가", "심판 AI 가 내용을 44개 항목으로 판정 — J1~J8 묶음"],
     ["J1~J8", "요청 충실 · 지시 준수 · 일관성·논리 · 완결성 · DATA 신뢰도 · 대화 맥락 유지 · 긴 문서 활용 · 첨부 활용"],
@@ -1646,7 +1720,7 @@ page = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ModelGrade 보고 10-20</title>
-<meta name="description" content="2026-10-20 — 전체 흐름도 · 바뀐 점(답변 수집 방법) · 평가 프롬프트 v4 · 질문 수별 통과 비율 · 던지는 순서 · 평가 횟수 k · 걸린 시간 · 보류 함께 보기">
+<meta name="description" content="2026-10-20 — 왜 78개인가 · 전체 흐름도 · 바뀐 점(답변 수집 방법) · 평가 프롬프트 v4 · 질문 수별 통과 비율 · 던지는 순서 · 평가 횟수 k · 걸린 시간 · 보류 함께 보기">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">

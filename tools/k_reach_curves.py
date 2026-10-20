@@ -92,7 +92,7 @@ def build(set_dir: Path = SET_DIR) -> Dict[str, Any]:
             "rare_criteria": [{"id": t, "questions": c} for t, c in rare],
             "orders": {k: {"label": label, "first": orders[k][:20]} for k, label in ORDERS + REFS},
             "reach": reach, "same_from_raw": same_from,
-            "curves": {k: cv[k] for k, _ in ORDERS}}
+            "curves": {k: cv[k] for k, _ in ORDERS + REFS}}   # 참고 순서(간단 78·155 목록)의 곡선도 저장 — 보고 00장 그래프
 
 
 def markdown(r: Dict[str, Any]) -> str:
