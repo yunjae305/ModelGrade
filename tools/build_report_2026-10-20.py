@@ -148,6 +148,30 @@ extra_css = """<style>
 .ps.turn { margin-left: 18px; }
 .ps-sep { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); padding-left: 4px; }
 .sha { font-family: var(--font-num); font-size: 0.86em; color: var(--muted); }
+/* 04 통과 비율 점 그래프 — 파랑 198 · 주황 155 · 진한 눈금 326 · 회색 띠 = 같은 수 무작위 95% 범위 */
+.rate-chart { --s198: #2a78d6; --s155: #eb6834; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rate-chart { --s198: #3987e5; --s155: #d95926; } }
+:root[data-theme="dark"] .rate-chart { --s198: #3987e5; --s155: #d95926; }
+.rate-chart svg { width: 100%; height: auto; display: block; }
+.rate-chart text { font-family: var(--font-body); }
+.rate-chart .grid { stroke: var(--line); stroke-width: 1; }
+.rate-chart .tick { fill: var(--muted); font-size: 12px; font-family: var(--font-num); }
+.rate-chart .mname { fill: var(--ink); font-size: 14px; font-weight: 600; }
+.rate-chart .ref { stroke: var(--ink); stroke-width: 2.5; }
+.rate-chart .reflab { fill: var(--muted); font-size: 11.5px; font-family: var(--font-num); }
+.rate-chart .band { fill: var(--line); }
+.rate-chart .d198 { fill: var(--s198); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .d155 { fill: var(--s155); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .val { fill: var(--ink); font-size: 12px; font-family: var(--font-num); stroke: var(--surface); stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.rate-chart .reflab { stroke: var(--surface); stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.rate-key { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.86rem; color: var(--muted); }
+.rate-key i { display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.rate-key .k198 { width: 11px; height: 11px; border-radius: 50%; background: var(--s198); }
+.rate-key .k155 { width: 11px; height: 11px; border-radius: 50%; background: var(--s155); }
+.rate-key .kref { width: 3px; height: 13px; background: var(--ink); }
+.rate-key .kband { width: 22px; height: 9px; border-radius: 5px; background: var(--line); }
+.rnum { font-family: var(--font-num); }
+.rsub { display: block; color: var(--muted); font-size: 0.8rem; }
 @media (max-width: 900px) { .sh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .shift-row { grid-template-columns: minmax(0, 1fr); } .sh-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>"""
@@ -713,6 +737,81 @@ vary_table = table("바뀔 수 있는 것은 이것뿐", ["무엇", "언제", "�
     ["프롬프트 자체", "고쳐야 할 때만", "사람 — v3 를 덮어쓰지 않고 v4 새 파일"],
 ], [30, 30, 40])
 
+# ---------- 04 질문 수별 통과 비율 (체크리스트 n5) ----------
+# 숫자는 tools/subset_pass_rates.py 가 저장소의 326 결과 JSON 으로 다시 센 것(참고자료/최소평가/통과비율_목록별_8c61f117e661.json) — 여기서는 읽기만.
+RATES = json.loads((ROOT / "참고자료" / "최소평가" / "통과비율_목록별_8c61f117e661.json").read_text(encoding="utf-8"))
+R = {e["key"]: e for e in RATES["lists"]}
+R326, R198, R155, R78 = R["all"], R["kdesc20"], R["greedy20"], R["greedy10"]
+RANK = RATES["reference_ranking"]
+MODEL_NAMES = {"gpt": "GPT-6 Luna", "aiona": "AIONA", "claude": "Claude Sonnet 5.5", "gemini": "Gemini 3.6 Flash"}
+
+
+def pct(v):
+    return f"{v * 100:.1f}%"
+
+
+def rate_chart():
+    """모델마다 한 줄 — 326 은 진한 눈금, 198·155 는 점, 뒤 회색 띠는 같은 수를 무작위로 뽑았을 때의 95% 범위."""
+    left, right, top, row = 168, 880, 26, 76
+    lo, hi = 0.25, 0.70
+    x = lambda v: left + (v - lo) / (hi - lo) * (right - left)
+    height = top + row * len(RANK) + 30
+    out = [f'<svg viewBox="0 0 900 {height}" role="img" aria-label="모델별 통과율 — 정밀 326 과 198개·155개 목록 비교">']
+    for t in (0.3, 0.4, 0.5, 0.6, 0.7):
+        out.append(f'<line class="grid" x1="{x(t):.1f}" y1="{top - 8}" x2="{x(t):.1f}" y2="{height - 26}"/>'
+                   f'<text class="tick" x="{x(t):.1f}" y="{height - 8}" text-anchor="middle">{int(t * 100)}%</text>')
+    for i, p in enumerate(RANK):
+        y0 = top + i * row
+        out.append(f'<text class="mname" x="0" y="{y0 + 38}">{E(MODEL_NAMES.get(p, p))}</text>')
+        for j, (entry, cls) in enumerate(((R198, "d198"), (R155, "d155"))):
+            y = y0 + 22 + j * 22
+            band = entry["random"]["rate_band"][p]
+            v = entry["models"][p]["rate"]
+            out.append(f'<rect class="band" x="{x(band["low"]):.1f}" y="{y - 5}" width="{x(band["high"]) - x(band["low"]):.1f}" height="10" rx="5">'
+                       f'<title>{entry["n"]}개를 무작위로 뽑으면 95%가 {pct(band["low"])} ~ {pct(band["high"])}</title></rect>')
+            out.append(f'<circle class="{cls}" cx="{x(v):.1f}" cy="{y}" r="6.5"><title>{E(MODEL_NAMES.get(p, p))} · {entry["n"]}개 — {pct(v)} '
+                       f'(326 대비 {entry["diff_pp"][p]:+.1f}pp)</title></circle>')
+            out.append(f'<text class="val" x="{x(v) - 12:.1f}" y="{y + 4}" text-anchor="end">{pct(v)}</text>')
+        ref = R326["models"][p]["rate"]
+        out.append(f'<line class="ref" x1="{x(ref):.1f}" y1="{y0 + 10}" x2="{x(ref):.1f}" y2="{y0 + 56}"><title>정밀 326 — {pct(ref)}</title></line>'
+                   f'<text class="reflab" x="{x(ref) + 6:.1f}" y="{y0 + 10}">326 {pct(ref)}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def rate_cell(entry, p, base=True):
+    r = entry["models"][p]
+    diff = "" if not base else f' <span class="rsub">326 대비 {entry["diff_pp"][p]:+.1f}pp · 무작위 {pct(entry["random"]["rate_band"][p]["low"])}~{pct(entry["random"]["rate_band"][p]["high"])}</span>'
+    return f'<b class="rnum">{pct(r["rate"])}</b>{diff}'
+
+
+def counts_cell(entry, p):
+    r = entry["models"][p]
+    return f'<span class="rnum">{r["pass"]} · {r["fail"]} · {r["hold"]}</span>'
+
+
+gap = {k: round((e["models"][RANK[0]]["rate"] - e["models"][RANK[-1]]["rate"]) * 100, 1) for k, e in (("326", R326), ("198", R198), ("155", R155))}
+below = {k: [MODEL_NAMES[p] for p in RANK if not e["inside_random"][p] and e["diff_pp"][p] < 0] for k, e in (("198", R198), ("155", R155))}
+diff_range = {k: (min(e["diff_pp"].values()), max(e["diff_pp"].values())) for k, e in (("198", R198), ("155", R155), ("78", R78))}
+
+rate_table = table("통과율 — PASS / 질문 수 (보류는 분모에 둠)", ["모델", f"정밀 {R326['n']}", f"{R198['n']} · 기준 많은 순", f"{R155['n']} · 모자란 기준부터"],
+                   [[E(MODEL_NAMES[p]), rate_cell(R326, p, False), rate_cell(R198, p), rate_cell(R155, p)] for p in RANK]
+                   + [["순위", "기준", "같음" if R198["same_ranking"] else "<b>다름</b>", "같음" if R155["same_ranking"] else "<b>다름</b>"]],
+                   [22, 18, 30, 30])
+count_table = table("개수 — PASS · FAIL · 보류", ["모델", f"정밀 {R326['n']}", f"{R198['n']}", f"{R155['n']}"],
+                    [[E(MODEL_NAMES[p]), counts_cell(R326, p), counts_cell(R198, p), counts_cell(R155, p)] for p in RANK], [22, 26, 26, 26])
+rate_points = table("", ["무엇", "결과"], [
+    ["순위", f"198·155 모두 326 과 <b>같음</b> ({' > '.join(MODEL_NAMES[p] for p in RANK)}). 같은 수를 무작위로 뽑아도 "
+             f"순위가 같은 비율 {R198['random']['same_ranking_share']:.0%} · {R155['random']['same_ranking_share']:.0%}"],
+    ["통과율", f"모두 326 보다 <b>낮음</b> — 198 은 {-diff_range['198'][1]:.1f}~{-diff_range['198'][0]:.1f}pp, "
+              f"155 는 {-diff_range['155'][1]:.1f}~{-diff_range['155'][0]:.1f}pp 낮음. 기준이 많은(어려운) 질문을 먼저 골라서. "
+              f"무작위 범위보다도 낮은 것(우연이 아님): 198 — {'·'.join(below['198']) or '없음'} / 155 — {'·'.join(below['155']) or '없음'}"],
+    ["모델 간 차이", f"1위와 4위 차이 326 {gap['326']:.1f}pp → 198 {gap['198']:.1f}pp → 155 {gap['155']:.1f}pp 로 줄어듦"],
+    ["그래서", "고른 목록으로는 <b>순위 비교는 되지만, 통과율 숫자를 326 과 그대로 비교하면 안 됨</b>. "
+              f"지금 쓰는 간단 78 도 같은 경향(326 보다 {-diff_range['78'][1]:.1f}~{-diff_range['78'][0]:.1f}pp 낮음, 순위는 같음)"],
+], [18, 82])
+
+
 # ---------- 장 ----------
 SECTIONS = [
     ("s1", "전체 흐름도", "질문에서 결과까지 A~H", "전체 흐름도 — 질문에서 결과까지 A~H",
@@ -740,6 +839,19 @@ SECTIONS = [
   {vary_table}
   {details(f"Q{D['qid']} 입력 앞부분 보기", D['excerpt'], "[답변] 줄까지")}
   <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드로 다시 계산합니다.</p>
+"""),
+    ("s4", "질문 수별 비율", f"{R198['n']}·{R155['n']}개 목록 vs 정밀 326", f"질문 수별 통과 비율 — {R198['n']}·{R155['n']}개 목록은 326 과 같은가",
+     "기준마다 20번 평가되게 고른 두 목록이 정밀 326 과 같은 결과를 내는지, 10-19 실행 판정을 그대로 다시 세어 비교했습니다.",
+     f"""
+  <figure class="fig rate-chart">
+    <ul class="rate-key"><li><i class="kref"></i>정밀 326</li><li><i class="k198"></i>{R198['n']}개 · 기준 많은 순</li>
+      <li><i class="k155"></i>{R155['n']}개 · 모자란 기준부터</li><li><i class="kband"></i>같은 수를 무작위로 뽑았을 때 95% 범위</li></ul>
+    {rate_chart()}
+  </figure>
+  {rate_points}
+  {rate_table}
+  {count_table}
+  <p class="basis">출처: 참고자료/최소평가/통과비율_목록별_8c61f117e661.json (tools/subset_pass_rates.py — 326 판정·목록 크기를 10-19 기록과 맞춰 봄, 무작위 {R198['random']['draws']:,}번).</p>
 """),
 ]
 
@@ -801,7 +913,7 @@ page = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ModelGrade 보고 10-20</title>
-<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정">
+<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정 · 질문 수별 통과 비율">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">

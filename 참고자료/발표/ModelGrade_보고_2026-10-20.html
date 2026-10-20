@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ModelGrade 보고 10-20</title>
-<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정">
+<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정 · 질문 수별 통과 비율">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
@@ -680,6 +680,30 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 .ps.turn { margin-left: 18px; }
 .ps-sep { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); padding-left: 4px; }
 .sha { font-family: var(--font-num); font-size: 0.86em; color: var(--muted); }
+/* 04 통과 비율 점 그래프 — 파랑 198 · 주황 155 · 진한 눈금 326 · 회색 띠 = 같은 수 무작위 95% 범위 */
+.rate-chart { --s198: #2a78d6; --s155: #eb6834; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rate-chart { --s198: #3987e5; --s155: #d95926; } }
+:root[data-theme="dark"] .rate-chart { --s198: #3987e5; --s155: #d95926; }
+.rate-chart svg { width: 100%; height: auto; display: block; }
+.rate-chart text { font-family: var(--font-body); }
+.rate-chart .grid { stroke: var(--line); stroke-width: 1; }
+.rate-chart .tick { fill: var(--muted); font-size: 12px; font-family: var(--font-num); }
+.rate-chart .mname { fill: var(--ink); font-size: 14px; font-weight: 600; }
+.rate-chart .ref { stroke: var(--ink); stroke-width: 2.5; }
+.rate-chart .reflab { fill: var(--muted); font-size: 11.5px; font-family: var(--font-num); }
+.rate-chart .band { fill: var(--line); }
+.rate-chart .d198 { fill: var(--s198); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .d155 { fill: var(--s155); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .val { fill: var(--ink); font-size: 12px; font-family: var(--font-num); stroke: var(--surface); stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.rate-chart .reflab { stroke: var(--surface); stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.rate-key { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.86rem; color: var(--muted); }
+.rate-key i { display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.rate-key .k198 { width: 11px; height: 11px; border-radius: 50%; background: var(--s198); }
+.rate-key .k155 { width: 11px; height: 11px; border-radius: 50%; background: var(--s155); }
+.rate-key .kref { width: 3px; height: 13px; background: var(--ink); }
+.rate-key .kband { width: 22px; height: 9px; border-radius: 5px; background: var(--line); }
+.rnum { font-family: var(--font-num); }
+.rsub { display: block; color: var(--muted); font-size: 0.8rem; }
 @media (max-width: 900px) { .sh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .shift-row { grid-template-columns: minmax(0, 1fr); } .sh-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
@@ -690,7 +714,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
   <div class="topnav-in">
     <span class="brand">ModelGrade 보고 10-20</span>
     <div class="toc-links" id="toc-links">
-      <a href="#s0"><span class="n">00</span>목차</a><a href="#s1"><span class="n">01</span>전체 흐름도</a><a href="#s2"><span class="n">02</span>바뀐 점</a><a href="#s3"><span class="n">03</span>프롬프트 고정</a>
+      <a href="#s0"><span class="n">00</span>목차</a><a href="#s1"><span class="n">01</span>전체 흐름도</a><a href="#s2"><span class="n">02</span>바뀐 점</a><a href="#s3"><span class="n">03</span>프롬프트 고정</a><a href="#s4"><span class="n">04</span>질문 수별 비율</a>
     </div>
     <div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div>
   </div>
@@ -706,7 +730,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
   </div>
   <span class="kicker">오늘 이야기할 것</span>
   <ol class="agenda">
-    <li><a href="#s1"><span class="n">01</span><strong>전체 흐름도</strong><span class="d">질문에서 결과까지 A~H</span></a></li><li><a href="#s2"><span class="n">02</span><strong>바뀐 점</strong><span class="d">10-19 → 지금, 단계마다</span></a></li><li><a href="#s3"><span class="n">03</span><strong>프롬프트 고정</strong><span class="d">같은 질문·답변이면 같은 글</span></a></li>
+    <li><a href="#s1"><span class="n">01</span><strong>전체 흐름도</strong><span class="d">질문에서 결과까지 A~H</span></a></li><li><a href="#s2"><span class="n">02</span><strong>바뀐 점</strong><span class="d">10-19 → 지금, 단계마다</span></a></li><li><a href="#s3"><span class="n">03</span><strong>프롬프트 고정</strong><span class="d">같은 질문·답변이면 같은 글</span></a></li><li><a href="#s4"><span class="n">04</span><strong>질문 수별 비율</strong><span class="d">198·155개 목록 vs 정밀 326</span></a></li>
   </ol>
   <span class="kicker">먼저 알아 둘 말</span>
   <div class="cmpt steps"><table><colgroup><col style="width:22%"><col style="width:78%"></colgroup><thead><tr><th>말</th><th>뜻</th></tr></thead><tbody><tr><th scope="row">질문 세트</th><td data-label="뜻">모델에 똑같이 던지는 고정 질문 326개 (간단평가는 그중 78개). 대화형 질문은 턴이 여러 개여도 1개로 셈</td></tr><tr><th scope="row">CODE 평가</th><td data-label="뜻">프로그램이 형식·글자 수·계산 같은 28가지를 검사</td></tr><tr><th scope="row">의미 평가</th><td data-label="뜻">심판 AI 가 내용을 44개 항목으로 판정 — J1~J8 묶음</td></tr><tr><th scope="row">J1~J8</th><td data-label="뜻">의도 충족 · 내용 적절성 · 논리 · 충분성 · 사실(DATA) · 대화 맥락 · 긴 문서 활용 · 첨부 활용</td></tr><tr><th scope="row">심판</th><td data-label="뜻">Jev(외부 API) — J1~J4 를 먼저 · Codex CLI(ChatGPT 구독) — 나머지를 확정</td></tr><tr><th scope="row">PASS · FAIL · 보류</th><td data-label="뜻"><span class="r-pass">PASS</span> 통과 · <span class="r-fail">FAIL</span> 실패 · <span class="r-hold">보류</span> 근거가 부족해 사람이 정함</td></tr><tr><th scope="row">판정상황표</th><td data-label="뜻">질문마다 채점할 항목과 근거 문장을 코드가 미리 적어 둔 표</td></tr></tbody></table></div>
@@ -714,7 +738,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 
 
 <section class="slide" id="s1">
-  <div class="s-head"><span class="s-no">01 / 03</span><h2>전체 흐름도 — 질문에서 결과까지 A~H</h2><p>질문 326개를 네 모델에 묻고, 답을 코드와 심판 AI 로 채점해 질문마다 PASS·FAIL·보류를 냅니다.</p></div>
+  <div class="s-head"><span class="s-no">01 / 04</span><h2>전체 흐름도 — 질문에서 결과까지 A~H</h2><p>질문 326개를 네 모델에 묻고, 답을 코드와 심판 AI 로 채점해 질문마다 PASS·FAIL·보류를 냅니다.</p></div>
 
   <figure class="fig poster">
     <span class="poster-sub">2026-10-20 저장소 기준</span>
@@ -924,7 +948,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 </section>
 
 <section class="slide" id="s2">
-  <div class="s-head"><span class="s-no">02 / 03</span><h2>10-19 → 지금 — 무엇이 바뀌었나</h2><p>10-19 실행 기록과 지금 코드를 단계별로 비교했습니다.</p></div>
+  <div class="s-head"><span class="s-no">02 / 04</span><h2>10-19 → 지금 — 무엇이 바뀌었나</h2><p>10-19 실행 기록과 지금 코드를 단계별로 비교했습니다.</p></div>
 
   <div class="shift" role="group" aria-label="단계별 10-19 방식과 지금 방식">
     <div class="shift-row"><span class="shift-k">10-19</span><ol class="sh-steps"><li class="sh-chip api"><b>0 질문 생성</b><small>GPT-6 Luna API</small></li><li class="sh-chip code"><b>A 질문 세트</b><small>326 v2.0</small></li><li class="sh-chip code"><b>B 질문 해석</b><small>평가 때 계산</small></li><li class="sh-chip api"><b>C 답변 수집</b><small>API 3 · 웹 1</small></li><li class="sh-chip code"><b>D CODE 평가</b><small>28가지</small></li><li class="sh-chip api"><b>E 의미 평가</b><small>Luna·Jev API</small></li><li class="sh-chip api"><b>F 재판정·보류</b><small>Luna 재호출</small></li><li class="sh-chip code"><b>G 질문 단위 판정</b><small>턴 → 질문</small></li><li class="sh-chip code"><b>H 결과·보류 추출</b><small>화면·스크립트</small></li></ol></div>
@@ -939,7 +963,7 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
 </section>
 
 <section class="slide" id="s3">
-  <div class="s-head"><span class="s-no">03 / 03</span><h2>판정 프롬프트는 고정 — 같은 질문·답변이면 같은 글</h2><p>심판에게 보내는 글은 &#x27;고정 파일 + 코드가 붙인 입력&#x27;입니다. LLM 이 프롬프트를 만들지 않습니다.</p></div>
+  <div class="s-head"><span class="s-no">03 / 04</span><h2>판정 프롬프트는 고정 — 같은 질문·답변이면 같은 글</h2><p>심판에게 보내는 글은 &#x27;고정 파일 + 코드가 붙인 입력&#x27;입니다. LLM 이 프롬프트를 만들지 않습니다.</p></div>
 
   <div class="block"><h3>심판에게 가는 글</h3>
   <div class="pstack" role="group" aria-label="심판에게 가는 글의 구성">
@@ -980,10 +1004,24 @@ table.mini thead th { font-family: var(--font-body); color: var(--muted); font-s
   <p class="basis">이 장의 숫자는 보고서를 만들 때마다 판정과 같은 코드로 다시 계산합니다.</p>
 </section>
 
+<section class="slide" id="s4">
+  <div class="s-head"><span class="s-no">04 / 04</span><h2>질문 수별 통과 비율 — 198·155개 목록은 326 과 같은가</h2><p>기준마다 20번 평가되게 고른 두 목록이 정밀 326 과 같은 결과를 내는지, 10-19 실행 판정을 그대로 다시 세어 비교했습니다.</p></div>
+
+  <figure class="fig rate-chart">
+    <ul class="rate-key"><li><i class="kref"></i>정밀 326</li><li><i class="k198"></i>198개 · 기준 많은 순</li>
+      <li><i class="k155"></i>155개 · 모자란 기준부터</li><li><i class="kband"></i>같은 수를 무작위로 뽑았을 때 95% 범위</li></ul>
+    <svg viewBox="0 0 900 360" role="img" aria-label="모델별 통과율 — 정밀 326 과 198개·155개 목록 비교"><line class="grid" x1="247.1" y1="18" x2="247.1" y2="334"/><text class="tick" x="247.1" y="352" text-anchor="middle">30%</text><line class="grid" x1="405.3" y1="18" x2="405.3" y2="334"/><text class="tick" x="405.3" y="352" text-anchor="middle">40%</text><line class="grid" x1="563.6" y1="18" x2="563.6" y2="334"/><text class="tick" x="563.6" y="352" text-anchor="middle">50%</text><line class="grid" x1="721.8" y1="18" x2="721.8" y2="334"/><text class="tick" x="721.8" y="352" text-anchor="middle">60%</text><line class="grid" x1="880.0" y1="18" x2="880.0" y2="334"/><text class="tick" x="880.0" y="352" text-anchor="middle">70%</text><text class="mname" x="0" y="64">GPT-6 Luna</text><rect class="band" x="627.5" y="43" width="135.9" height="10" rx="5"><title>198개를 무작위로 뽑으면 95%가 54.0% ~ 62.6%</title></rect><circle class="d198" cx="571.6" cy="48" r="6.5"><title>GPT-6 Luna · 198개 — 50.5% (326 대비 -7.8pp)</title></circle><text class="val" x="559.6" y="52" text-anchor="end">50.5%</text><rect class="band" x="609.4" y="65" width="173.6" height="10" rx="5"><title>155개를 무작위로 뽑으면 95%가 52.9% ~ 63.9%</title></rect><circle class="d155" cx="568.6" cy="70" r="6.5"><title>GPT-6 Luna · 155개 — 50.3% (326 대비 -8.0pp)</title></circle><text class="val" x="556.6" y="74" text-anchor="end">50.3%</text><line class="ref" x1="694.6" y1="36" x2="694.6" y2="82"><title>정밀 326 — 58.3%</title></line><text class="reflab" x="700.6" y="36">326 58.3%</text><text class="mname" x="0" y="140">AIONA</text><rect class="band" x="507.5" y="119" width="144.0" height="10" rx="5"><title>198개를 무작위로 뽑으면 95%가 46.5% ~ 55.6%</title></rect><circle class="d198" cx="539.5" cy="124" r="6.5"><title>AIONA · 198개 — 48.5% (326 대비 -2.4pp)</title></circle><text class="val" x="527.5" y="128" text-anchor="end">48.5%</text><rect class="band" x="487.0" y="141" width="183.7" height="10" rx="5"><title>155개를 무작위로 뽑으면 95%가 45.2% ~ 56.8%</title></rect><circle class="d155" cx="466.6" cy="146" r="6.5"><title>AIONA · 155개 — 43.9% (326 대비 -7.1pp)</title></circle><text class="val" x="454.6" y="150" text-anchor="end">43.9%</text><line class="ref" x1="578.1" y1="112" x2="578.1" y2="158"><title>정밀 326 — 50.9%</title></line><text class="reflab" x="584.1" y="112">326 50.9%</text><text class="mname" x="0" y="216">Claude Sonnet 5.5</text><rect class="band" x="339.8" y="195" width="135.8" height="10" rx="5"><title>198개를 무작위로 뽑으면 95%가 35.9% ~ 44.4%</title></rect><circle class="d198" cx="339.8" cy="200" r="6.5"><title>Claude Sonnet 5.5 · 198개 — 35.9% (326 대비 -4.3pp)</title></circle><text class="val" x="327.8" y="204" text-anchor="end">35.9%</text><rect class="band" x="323.7" y="217" width="173.6" height="10" rx="5"><title>155개를 무작위로 뽑으면 95%가 34.8% ~ 45.8%</title></rect><circle class="d155" cx="354.2" cy="222" r="6.5"><title>Claude Sonnet 5.5 · 155개 — 36.8% (326 대비 -3.4pp)</title></circle><text class="val" x="342.2" y="226" text-anchor="end">36.8%</text><line class="ref" x1="408.2" y1="188" x2="408.2" y2="234"><title>정밀 326 — 40.2%</title></line><text class="reflab" x="414.2" y="188">326 40.2%</text><text class="mname" x="0" y="292">Gemini 3.6 Flash</text><rect class="band" x="291.9" y="271" width="135.8" height="10" rx="5"><title>198개를 무작위로 뽑으면 95%가 32.8% ~ 41.4%</title></rect><circle class="d198" cx="323.8" cy="276" r="6.5"><title>Gemini 3.6 Flash · 198개 — 34.8% (326 대비 -2.0pp)</title></circle><text class="val" x="311.8" y="280" text-anchor="end">34.8%</text><rect class="band" x="272.6" y="293" width="173.6" height="10" rx="5"><title>155개를 무작위로 뽑으면 95%가 31.6% ~ 42.6%</title></rect><circle class="d155" cx="344.1" cy="298" r="6.5"><title>Gemini 3.6 Flash · 155개 — 36.1% (326 대비 -0.7pp)</title></circle><text class="val" x="332.1" y="302" text-anchor="end">36.1%</text><line class="ref" x1="354.9" y1="264" x2="354.9" y2="310"><title>정밀 326 — 36.8%</title></line><text class="reflab" x="360.9" y="264">326 36.8%</text></svg>
+  </figure>
+  <div class="cmpt steps"><table><colgroup><col style="width:18%"><col style="width:82%"></colgroup><thead><tr><th>무엇</th><th>결과</th></tr></thead><tbody><tr><th scope="row">순위</th><td data-label="결과">198·155 모두 326 과 <b>같음</b> (GPT-6 Luna > AIONA > Claude Sonnet 5.5 > Gemini 3.6 Flash). 같은 수를 무작위로 뽑아도 순위가 같은 비율 93% · 89%</td></tr><tr><th scope="row">통과율</th><td data-label="결과">모두 326 보다 <b>낮음</b> — 198 은 2.0~7.8pp, 155 는 0.7~8.0pp 낮음. 기준이 많은(어려운) 질문을 먼저 골라서. 무작위 범위보다도 낮은 것(우연이 아님): 198 — GPT-6 Luna / 155 — GPT-6 Luna·AIONA</td></tr><tr><th scope="row">모델 간 차이</th><td data-label="결과">1위와 4위 차이 326 21.5pp → 198 15.7pp → 155 14.2pp 로 줄어듦</td></tr><tr><th scope="row">그래서</th><td data-label="결과">고른 목록으로는 <b>순위 비교는 되지만, 통과율 숫자를 326 과 그대로 비교하면 안 됨</b>. 지금 쓰는 간단 78 도 같은 경향(326 보다 3.0~14.7pp 낮음, 순위는 같음)</td></tr></tbody></table></div>
+  <div class="cmpt steps"><table><caption>통과율 — PASS / 질문 수 (보류는 분모에 둠)</caption><colgroup><col style="width:22%"><col style="width:18%"><col style="width:30%"><col style="width:30%"></colgroup><thead><tr><th>모델</th><th>정밀 326</th><th>198 · 기준 많은 순</th><th>155 · 모자란 기준부터</th></tr></thead><tbody><tr><th scope="row">GPT-6 Luna</th><td data-label="정밀 326"><b class="rnum">58.3%</b></td><td data-label="198 · 기준 많은 순"><b class="rnum">50.5%</b> <span class="rsub">326 대비 -7.8pp · 무작위 54.0%~62.6%</span></td><td data-label="155 · 모자란 기준부터"><b class="rnum">50.3%</b> <span class="rsub">326 대비 -8.0pp · 무작위 52.9%~63.9%</span></td></tr><tr><th scope="row">AIONA</th><td data-label="정밀 326"><b class="rnum">50.9%</b></td><td data-label="198 · 기준 많은 순"><b class="rnum">48.5%</b> <span class="rsub">326 대비 -2.4pp · 무작위 46.5%~55.6%</span></td><td data-label="155 · 모자란 기준부터"><b class="rnum">43.9%</b> <span class="rsub">326 대비 -7.1pp · 무작위 45.2%~56.8%</span></td></tr><tr><th scope="row">Claude Sonnet 5.5</th><td data-label="정밀 326"><b class="rnum">40.2%</b></td><td data-label="198 · 기준 많은 순"><b class="rnum">35.9%</b> <span class="rsub">326 대비 -4.3pp · 무작위 35.9%~44.4%</span></td><td data-label="155 · 모자란 기준부터"><b class="rnum">36.8%</b> <span class="rsub">326 대비 -3.4pp · 무작위 34.8%~45.8%</span></td></tr><tr><th scope="row">Gemini 3.6 Flash</th><td data-label="정밀 326"><b class="rnum">36.8%</b></td><td data-label="198 · 기준 많은 순"><b class="rnum">34.8%</b> <span class="rsub">326 대비 -2.0pp · 무작위 32.8%~41.4%</span></td><td data-label="155 · 모자란 기준부터"><b class="rnum">36.1%</b> <span class="rsub">326 대비 -0.7pp · 무작위 31.6%~42.6%</span></td></tr><tr><th scope="row">순위</th><td data-label="정밀 326">기준</td><td data-label="198 · 기준 많은 순">같음</td><td data-label="155 · 모자란 기준부터">같음</td></tr></tbody></table></div>
+  <div class="cmpt steps"><table><caption>개수 — PASS · FAIL · 보류</caption><colgroup><col style="width:22%"><col style="width:26%"><col style="width:26%"><col style="width:26%"></colgroup><thead><tr><th>모델</th><th>정밀 326</th><th>198</th><th>155</th></tr></thead><tbody><tr><th scope="row">GPT-6 Luna</th><td data-label="정밀 326"><span class="rnum">190 · 77 · 59</span></td><td data-label="198"><span class="rnum">100 · 54 · 44</span></td><td data-label="155"><span class="rnum">78 · 46 · 31</span></td></tr><tr><th scope="row">AIONA</th><td data-label="정밀 326"><span class="rnum">166 · 84 · 76</span></td><td data-label="198"><span class="rnum">96 · 55 · 47</span></td><td data-label="155"><span class="rnum">68 · 47 · 40</span></td></tr><tr><th scope="row">Claude Sonnet 5.5</th><td data-label="정밀 326"><span class="rnum">131 · 112 · 83</span></td><td data-label="198"><span class="rnum">71 · 74 · 53</span></td><td data-label="155"><span class="rnum">57 · 59 · 39</span></td></tr><tr><th scope="row">Gemini 3.6 Flash</th><td data-label="정밀 326"><span class="rnum">120 · 124 · 82</span></td><td data-label="198"><span class="rnum">69 · 75 · 54</span></td><td data-label="155"><span class="rnum">56 · 58 · 41</span></td></tr></tbody></table></div>
+  <p class="basis">출처: 참고자료/최소평가/통과비율_목록별_8c61f117e661.json (tools/subset_pass_rates.py — 326 판정·목록 크기를 10-19 기록과 맞춰 봄, 무작위 2,000번).</p>
+</section>
+
 </main>
 <script>
 (function () {
-  var ids = ['s0', 's1', 's2', 's3'];
+  var ids = ['s0', 's1', 's2', 's3', 's4'];
   var secs = ids.map(function (id) { return document.getElementById(id); });
   var links = Array.prototype.slice.call(document.querySelectorAll('#toc-links a'));
   function current() {

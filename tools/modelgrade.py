@@ -13,6 +13,8 @@
         올리기(선택) → 다음 묶음(20개) 판정 → 결과. 부를 때마다 한 묶음씩 — 다시 부르면 이어서.
     python -X utf8 tools/modelgrade.py report --dir data/judge_runs/pilot10b
         판정 결과 폴더의 모델별 PASS·FAIL·보류와 시간.
+    python -X utf8 tools/modelgrade.py held --dir data/judge_runs/pilot10b
+        보류 항목·오류를 <폴더>/held.csv 하나로 (사유별 집계를 함께 찍음, gold 열에 사람이 PASS/FAIL) — tools/export_held.py.
 
 규칙: 답 못 받은 질문은 FAIL(분모 유지), 빈 출력 요구 질문은 보류. 비밀번호·키는 다루지 않는다.
 """
@@ -737,6 +739,12 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_held(args: argparse.Namespace) -> int:
+    from tools.export_held import export, print_summary
+    print_summary(*export(Path(args.dir), args.run, args.text))
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="modelgrade", description=__doc__.splitlines()[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -786,6 +794,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     rp = sub.add_parser("report", help="판정 결과 요약")
     rp.add_argument("--dir", required=True)
     rp.set_defaults(func=cmd_report)
+    hd = sub.add_parser("held", help="판정 결과의 보류·오류를 CSV 하나로 (<폴더>/held.csv — gold 열에 사람이 PASS/FAIL)")
+    hd.add_argument("--dir", required=True)
+    hd.add_argument("--run", help="실행 번호 — 답을 찾을 때 씀 (기본: 폴더 이름)")
+    hd.add_argument("--text", choices=("excerpt", "none", "full"), default="excerpt", help="질문·답 원문 범위 (기본 앞부분)")
+    hd.set_defaults(func=cmd_held)
     st = sub.add_parser("start", help="메뉴: 1 간단평가(78) / 2 정밀평가(326) → 네 모델 동시 수집 → 판정 20개씩 → 결과 (인자 없이 부르면 이것)")
     st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
     st.add_argument("--providers", default=",".join(ALL_PROVIDERS))
