@@ -664,7 +664,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
 # --- 보고 -------------------------------------------------------------------------------------------------------------
 
 def report_md(lines: List[Dict[str, Any]]) -> str:
-    md = [f"# 판정 v4 시험 ({datetime.now().strftime('%Y-%m-%d %H:%M')})", "",
+    md = [f"# 평가 결과 ({datetime.now().strftime('%Y-%m-%d %H:%M')})", "",
           "심판이 받은 것: 고정 프롬프트 v4 + 질문·첨부·참조 자료·답변 JSON (판정할 항목 목록 없음).", "",
           "| 질문 | 모델 | 턴 | 최종 | Codex 결론 | CODE FAIL | 둘째 심판·Codex 같은 판정 | Codex 초 | 둘째 심판 초 | 선별(항목→Codex) |", "|---|---|---|---|---|---|---|---|---|---|"]
     for l in lines:
@@ -768,9 +768,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--reuse-codex", action="store_true", help="저장된 Codex 출력이 있으면 다시 부르지 않고 쓴다 (Jev 만 다시)")
     ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
     ap.add_argument("--dry", action="store_true", help="심판을 부르지 않고 질문마다 어떻게 처리할지만 보기")
-    ap.add_argument("--mode", choices=["screen", "dual"], default=None,
-                    help="screen(기본, B · 2026-10-20): Decisions 가 항목 44개 전수 판정 → 걸린 항목만 Codex · dual: Codex 전수 + Jev/Decisions 가 J1~J4 (.env JUDGE_MODE)")
-    ap.add_argument("--codex-all", action="store_true", help="screen 모드 교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
+    ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
     args = ap.parse_args(argv)
 
     import tools.judge_run as jr
@@ -786,8 +784,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     prompt = PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))
     out = ROOT / "data" / "judge_runs" / args.run / args.out
-    from code_eval.llm_client import env_value as _env
-    mode = args.mode or (_env("JUDGE_MODE") or "screen").strip().lower()
+    # 판정 방식은 하나(선별: Decisions 가 항목 전부 판정 → 걸린 항목만 Codex 확인) — 모드 선택 없음 (사용자 결정 2026-10-20 밤)
     for sub in ("inputs", "codex", "jev", "decisions"):
         (out / sub).mkdir(parents=True, exist_ok=True)
     _LOG["path"] = str(out / "run.log")
@@ -820,8 +817,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         decisions, d_reason = decisions_from_env()
         if decisions is not None:
             decisions.client.files_dir = set_dir / "files"   # 이미지 첨부 원본을 input_image 로
-        say(f"Decisions(OpenAI) 심판: {decisions.client.config.model} — 첨부 턴은 먼저, 그 밖은 Jev 가 한도를 넘을 때"
-            if decisions else f"⚠ Decisions 심판 없음 — {d_reason}")
+        if decisions is None:
+            say(f"⚠ Decisions 심판 없음 — {d_reason}")
     write_lock = threading.Lock()
 
     def save(line: Dict[str, Any]) -> None:
@@ -849,12 +846,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 try:
-                    if mode == "screen":
-                        line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all, args.reuse_codex),
-                                "status": "judged"}
-                    else:
-                        line = {**judge_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex, decisions),
-                                "status": "judged"}
+                    line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all, args.reuse_codex),
+                            "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                             "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
@@ -863,12 +856,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 save(line)
             board.finish(provider)
 
-    say(f"판정 v4 — {sum(totals.values())}건(질문 × 모델, 이미 한 {sum(board.done.values())}건 건너뜀) · 모델마다 한 줄로 동시에 · "
-        + ((f"선별(B): Decisions {getattr(getattr(getattr(decisions, 'client', None), 'config', None), 'model', '-')} 전수 → 걸린 항목만 Codex CLI {getattr(gpt, 'model', '-')}"
-            f"{' (교정용 전수)' if args.codex_all else ''} · 문턱 FAIL≥{SCREEN_FAIL_PROB} 확신<{SCREEN_CONFIDENT} 갈림≥{SECOND_JUDGE_CONFIDENT}" if mode == "screen" else
-            f"Codex CLI {getattr(gpt, 'model', '-')}·{getattr(gpt, 'reasoning', '-')} + Jev" + (" → 한도 넘으면 Decisions(OpenAI)" if decisions else ""))
-           if not args.dry else "점검만(심판 안 부름)")
-        + f" · 로그 {out / 'run.log'}")
+    say(f"평가 진행합니다 — {sum(totals.values())}건(질문 × 모델, 이미 한 {sum(board.done.values())}건 건너뜀) · 모델마다 한 줄로 동시에"
+        + (" · 점검만(심판 안 부름)" if args.dry else "") + f" · 로그 {out / 'run.log'}")
     board.show()
     wall0 = time.monotonic()
     threads = [threading.Thread(target=work, args=(p,), name=f"judge-{p}") for p in queues]
@@ -895,7 +884,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         say(f"  {LABEL.get(p, p):<7}: PASS {c['PASS']} · FAIL {c['FAIL']} · 보류 {c['HOLD']}  / {len(queues[p])}")
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     (out / "report.md").write_text(report_md([l for l in lines if l.get("status") == "judged"]), encoding="utf-8")
-    say(f"\n판정 v4 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")
+    say(f"\n평가 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")
     return 0
 
 
