@@ -400,7 +400,7 @@ def build_turns(s: dict) -> list:
 def main() -> int:
     path = SET_DIR / "questions.json"
     qs = json.loads(path.read_text(encoding="utf-8"))
-    by_id = {q["id"]: q for q in qs}
+    by_id = {q.get("origin_id", q["id"]): q for q in qs}   # 시나리오 번호 = 원래 번호(ChatGPT 생성 때). 던지는 순서로 재배치하면 id 는 달라진다
     for s in S:
         q = by_id[s["id"]]
         assert q["type"] == "10턴 멀티턴 대화", q["type"]

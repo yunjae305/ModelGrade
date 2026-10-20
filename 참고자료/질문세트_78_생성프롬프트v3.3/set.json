@@ -88,5 +88,13 @@
    "min_applicable_ok": true,
    "k_range_ok": true
   }
+ },
+ "throw_order": {
+  "rule": "모자란 기준부터 — tools/min_eval_list.select v2 (need=10), 목표에 닿은 뒤 남는 질문은 원래 번호순으로 뒤에",
+  "file": "던지는순서.json",
+  "date": "2026-10-20",
+  "chosen": 68,
+  "rest": 10,
+  "note": "id 1~78 = 던지는 순서. 원래 번호는 origin_id. multiturn_k_exact 의 키는 원래 번호(대화 11 = 새 Q69)"
  }
 }

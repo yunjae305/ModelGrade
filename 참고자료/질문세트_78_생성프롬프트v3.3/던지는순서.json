@@ -1,0 +1,1420 @@
+{
+ "rule": "모자란 기준부터 — tools/min_eval_list.select v2 (need=10), 목표에 닿은 뒤 남는 질문은 원래 번호순으로 뒤에",
+ "need": 10,
+ "universe": 64,
+ "short": {},
+ "chosen": 68,
+ "rest": 10,
+ "order": [
+  {
+   "id": 1,
+   "origin_id": 1,
+   "prev_id": 1,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 2,
+   "origin_id": 2,
+   "prev_id": 2,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 3,
+   "origin_id": 3,
+   "prev_id": 3,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 4,
+   "origin_id": 4,
+   "prev_id": 4,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 5,
+   "origin_id": 5,
+   "prev_id": 5,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 6,
+   "origin_id": 6,
+   "prev_id": 6,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 7,
+   "origin_id": 7,
+   "prev_id": 7,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 8,
+   "origin_id": 8,
+   "prev_id": 8,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 9,
+   "origin_id": 9,
+   "prev_id": 9,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 10,
+   "origin_id": 10,
+   "prev_id": 10,
+   "kind": "대화",
+   "k": 48,
+   "new_criteria": [
+    "1-1.character_rules",
+    "1-1.foreign_script",
+    "1-1.response_nonempty",
+    "1-2.code_block",
+    "1-2.code_fence_min",
+    "2-1.charset",
+    "2-1.count",
+    "2-1.literal",
+    "2-2.list",
+    "2-2.table",
+    "3-1.question_calculation",
+    "3-3.aggregate",
+    "J1-1.a",
+    "J1-2.a",
+    "J1-3.a",
+    "J1-3.b",
+    "J1-4.a",
+    "J1-4.b",
+    "J2-2.a",
+    "J2-3.a",
+    "J2-4.a",
+    "J2-4.b",
+    "J2-5.a",
+    "J2-5.b",
+    "J3-1.a",
+    "J3-2.a",
+    "J3-2.b",
+    "J3-3.a",
+    "J3-3.b",
+    "J3-4.a",
+    "J3-5.a",
+    "J3-5.b",
+    "J4-1.a",
+    "J4-1.b",
+    "J4-2.a",
+    "J4-3.a",
+    "J4-4.a",
+    "J5-1.a",
+    "J5-2.a",
+    "J5-2.b",
+    "J6-1.a",
+    "J6-2.a",
+    "J6-2.b",
+    "J6-2.c",
+    "J6-3.a",
+    "J6-3.b",
+    "J6-4.a",
+    "J6-4.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 11,
+   "origin_id": 24,
+   "prev_id": 24,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 12,
+   "origin_id": 25,
+   "prev_id": 25,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 13,
+   "origin_id": 63,
+   "prev_id": 63,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 14,
+   "origin_id": 64,
+   "prev_id": 64,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 15,
+   "origin_id": 53,
+   "prev_id": 53,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 16,
+   "origin_id": 54,
+   "prev_id": 54,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 17,
+   "origin_id": 26,
+   "prev_id": 26,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "2-2.heading",
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 18,
+   "origin_id": 35,
+   "prev_id": 35,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "2-2.heading",
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 19,
+   "origin_id": 36,
+   "prev_id": 36,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "2-2.heading",
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 20,
+   "origin_id": 43,
+   "prev_id": 43,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 21,
+   "origin_id": 44,
+   "prev_id": 44,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 22,
+   "origin_id": 62,
+   "prev_id": 62,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 23,
+   "origin_id": 27,
+   "prev_id": 27,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "2-2.heading",
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 24,
+   "origin_id": 31,
+   "prev_id": 31,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 25,
+   "origin_id": 32,
+   "prev_id": 32,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 26,
+   "origin_id": 33,
+   "prev_id": 33,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 27,
+   "origin_id": 34,
+   "prev_id": 34,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.json_syntax",
+    "2-2.json_structure",
+    "3-3.transform",
+    "3-3.unique_values"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 28,
+   "origin_id": 41,
+   "prev_id": 41,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.code_language_label",
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 29,
+   "origin_id": 13,
+   "prev_id": 13,
+   "kind": "긴 문서",
+   "k": 18,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 30,
+   "origin_id": 15,
+   "prev_id": 15,
+   "kind": "긴 문서",
+   "k": 18,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 31,
+   "origin_id": 37,
+   "prev_id": 37,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 32,
+   "origin_id": 16,
+   "prev_id": 16,
+   "kind": "긴 문서",
+   "k": 17,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 33,
+   "origin_id": 17,
+   "prev_id": 17,
+   "kind": "긴 문서",
+   "k": 17,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 34,
+   "origin_id": 21,
+   "prev_id": 21,
+   "kind": "긴 문서",
+   "k": 17,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 35,
+   "origin_id": 42,
+   "prev_id": 42,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 36,
+   "origin_id": 47,
+   "prev_id": 47,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 37,
+   "origin_id": 51,
+   "prev_id": 51,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.python_syntax",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 38,
+   "origin_id": 58,
+   "prev_id": 58,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "2-2.heading",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 39,
+   "origin_id": 66,
+   "prev_id": 66,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 40,
+   "origin_id": 12,
+   "prev_id": 12,
+   "kind": "긴 문서",
+   "k": 16,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 41,
+   "origin_id": 14,
+   "prev_id": 14,
+   "kind": "긴 문서",
+   "k": 16,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 42,
+   "origin_id": 18,
+   "prev_id": 18,
+   "kind": "긴 문서",
+   "k": 16,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 43,
+   "origin_id": 19,
+   "prev_id": 19,
+   "kind": "긴 문서",
+   "k": 16,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 44,
+   "origin_id": 20,
+   "prev_id": 20,
+   "kind": "긴 문서",
+   "k": 16,
+   "new_criteria": [
+    "2-1.char_count",
+    "J7-1.a",
+    "J7-2.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 45,
+   "origin_id": 29,
+   "prev_id": 29,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "2-2.heading",
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 46,
+   "origin_id": 45,
+   "prev_id": 45,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 47,
+   "origin_id": 46,
+   "prev_id": 46,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 48,
+   "origin_id": 55,
+   "prev_id": 55,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "J8-1.a",
+    "J8-2.a",
+    "J8-3.a"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 49,
+   "origin_id": 38,
+   "prev_id": 38,
+   "kind": "단일",
+   "k": 20,
+   "new_criteria": [
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 50,
+   "origin_id": 48,
+   "prev_id": 48,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "J2-1.a",
+    "J2-1.b"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 51,
+   "origin_id": 49,
+   "prev_id": 49,
+   "kind": "단일",
+   "k": 19,
+   "new_criteria": [
+    "2-2.heading"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 52,
+   "origin_id": 52,
+   "prev_id": 52,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "1-2.python_syntax"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 53,
+   "origin_id": 59,
+   "prev_id": 59,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "2-2.heading"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 54,
+   "origin_id": 60,
+   "prev_id": 60,
+   "kind": "단일",
+   "k": 18,
+   "new_criteria": [
+    "2-2.heading"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 55,
+   "origin_id": 23,
+   "prev_id": 23,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "1-2.python_syntax"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 56,
+   "origin_id": 39,
+   "prev_id": 39,
+   "kind": "단일",
+   "k": 17,
+   "new_criteria": [
+    "2-2.heading"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 57,
+   "origin_id": 22,
+   "prev_id": 22,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "1-2.python_syntax"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 58,
+   "origin_id": 61,
+   "prev_id": 61,
+   "kind": "단일",
+   "k": 16,
+   "new_criteria": [
+    "1-2.python_syntax"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 59,
+   "origin_id": 69,
+   "prev_id": 69,
+   "kind": "단일",
+   "k": 12,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 60,
+   "origin_id": 70,
+   "prev_id": 70,
+   "kind": "단일",
+   "k": 12,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 61,
+   "origin_id": 71,
+   "prev_id": 71,
+   "kind": "단일",
+   "k": 12,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 62,
+   "origin_id": 73,
+   "prev_id": 73,
+   "kind": "단일",
+   "k": 12,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 63,
+   "origin_id": 77,
+   "prev_id": 77,
+   "kind": "단일",
+   "k": 12,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 64,
+   "origin_id": 72,
+   "prev_id": 72,
+   "kind": "단일",
+   "k": 11,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 65,
+   "origin_id": 74,
+   "prev_id": 74,
+   "kind": "단일",
+   "k": 11,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 66,
+   "origin_id": 75,
+   "prev_id": 75,
+   "kind": "단일",
+   "k": 11,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 67,
+   "origin_id": 76,
+   "prev_id": 76,
+   "kind": "단일",
+   "k": 11,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 68,
+   "origin_id": 78,
+   "prev_id": 78,
+   "kind": "단일",
+   "k": 11,
+   "new_criteria": [
+    "2-1.explicit_empty"
+   ],
+   "fills_target": true
+  },
+  {
+   "id": 69,
+   "origin_id": 11,
+   "prev_id": 11,
+   "kind": "",
+   "k": 48,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 70,
+   "origin_id": 28,
+   "prev_id": 28,
+   "kind": "",
+   "k": 19,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 71,
+   "origin_id": 30,
+   "prev_id": 30,
+   "kind": "",
+   "k": 19,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 72,
+   "origin_id": 40,
+   "prev_id": 40,
+   "kind": "",
+   "k": 18,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 73,
+   "origin_id": 50,
+   "prev_id": 50,
+   "kind": "",
+   "k": 17,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 74,
+   "origin_id": 56,
+   "prev_id": 56,
+   "kind": "",
+   "k": 16,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 75,
+   "origin_id": 57,
+   "prev_id": 57,
+   "kind": "",
+   "k": 19,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 76,
+   "origin_id": 65,
+   "prev_id": 65,
+   "kind": "",
+   "k": 16,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 77,
+   "origin_id": 67,
+   "prev_id": 67,
+   "kind": "",
+   "k": 19,
+   "new_criteria": [],
+   "fills_target": false
+  },
+  {
+   "id": 78,
+   "origin_id": 68,
+   "prev_id": 68,
+   "kind": "",
+   "k": 17,
+   "new_criteria": [],
+   "fills_target": false
+  }
+ ]
+}
