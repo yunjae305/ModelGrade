@@ -136,17 +136,13 @@ def attachment_parts(a: Dict[str, Any], files_dir: Path) -> Tuple[List[Dict[str,
             if not mime or path.stat().st_size > MAX_IMAGE_BYTES:
                 return [], f"{name}: 이미지 형식·크기 지원 안 함"
             return [{"type": "input_image", "image_url": _data_url(mime, path.read_bytes())}], f"{name}: 이미지 원본 1장"
-        if ext == ".pdf" or kind == "pdf":
-            import io
-            import pypdfium2
-            pdf = pypdfium2.PdfDocument(str(path))
-            parts: List[Dict[str, Any]] = []
-            for i in range(min(len(pdf), PDF_MAX_PAGES)):
-                buf = io.BytesIO()
-                pdf[i].render(scale=PDF_RENDER_SCALE).to_pil().save(buf, format="PNG")
-                parts.append({"type": "input_image", "image_url": _data_url("image/png", buf.getvalue())})
-            more = f"(뒤 {len(pdf) - PDF_MAX_PAGES}쪽은 생략)" if len(pdf) > PDF_MAX_PAGES else ""
-            return parts, f"{name}: PDF {len(parts)}쪽을 이미지로{more}"
+        if ext in (".pdf", ".docx") or kind in ("pdf", "docx"):   # pdf·docx → 쪽 이미지 (code_eval.attachment_pages, Codex 와 같은 그림) — docx 는 Word 가 있을 때
+            from . import attachment_pages as ap
+            pages, note = ap.page_images(path, Path(files_dir))
+            if pages:
+                return [{"type": "input_image", "image_url": _data_url("image/png", pg.read_bytes())} for pg in pages[:PDF_MAX_PAGES]], note
+            if ext == ".pdf":
+                return [], note
         if ext == ".docx" or kind == "docx":
             import docx
             d = docx.Document(str(path))

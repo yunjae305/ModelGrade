@@ -29,3 +29,4 @@ venv/
 # Project-local Codex runtime (version is pinned in package-lock.json)
 .runtime/codex/node_modules/
 node_modules/
+참고자료/질문세트_*/files/_pages/

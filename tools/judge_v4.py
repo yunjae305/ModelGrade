@@ -236,7 +236,7 @@ SCREEN_SUFFIX = """
 - situations 에는 그 항목이 속한 상황만 적습니다(언제나 적는 상황이라도 목록에 그 항목이 없으면 적지 않습니다).
 - items 에는 목록의 항목을 하나도 빼지 않고 답하고, 목록에 없는 항목은 답하지 않습니다. 사유와 인용은 평소처럼 원문 그대로 적습니다.
 - 결론(conclusion)은 이번에 본 항목만으로 냅니다.
-- 이미지 첨부가 있는 질문은 원본 이미지를 함께 붙였습니다([첨부파일] 블록의 글은 그 이미지를 옮겨 적은 것). 이미지의 판독·내용 반영 여부는 이미지로 확인합니다."""
+- 첨부가 있는 질문은 원본을 이미지로 함께 붙였습니다 — 이미지 파일은 그대로, pdf·docx 는 쪽마다 한 장([첨부파일] 블록의 글은 그 내용을 옮겨 적은 것). 판독·모양·내용 반영 여부는 이미지로 확인합니다."""
 
 
 def missing_codex_items(output: Any, flagged: Dict[int, List[str]]) -> Dict[int, List[str]]:
@@ -268,16 +268,21 @@ IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
 
 def attachment_images(turns: List[Dict[str, Any]], files_dir: Optional[Path]) -> List[Path]:
-    """질문의 이미지 첨부 원본 경로 — Codex 에 -i 로 붙인다 (Decisions 는 이미 input_image 로 받는다)."""
+    """질문 첨부의 원본 이미지 — 이미지 파일은 그대로, pdf·docx 는 쪽 이미지(code_eval.attachment_pages) — Codex 에 -i 로 붙인다 (사용자 10-21).
+    CODEX_ATTACH_PAGES=0 이면 이미지 파일만."""
     if not files_dir:
         return []
+    from code_eval import attachment_pages as ap
     out: List[Path] = []
     for row in turns:
         for a in row.get("attachments") or []:
-            if isinstance(a, dict) and str(a.get("path") or a.get("name") or "").lower().endswith(IMAGE_EXT):
-                p = Path(files_dir) / str(a.get("path") or a.get("name"))
-                if p.is_file() and p not in out:
-                    out.append(p)
+            if not isinstance(a, dict):
+                continue
+            p = Path(files_dir) / str(a.get("path") or a.get("name") or "")
+            if not p.is_file():
+                continue
+            pages = [p] if p.suffix.lower() in IMAGE_EXT else (ap.page_images(p, Path(files_dir))[0] if ap.enabled() else [])
+            out += [x for x in pages if x not in out]
     return out
 
 
@@ -941,7 +946,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not args.dry:
         gpt, jev, notes = judges_from_env()
         if gpt is not None:
-            gpt.files_dir = set_dir / "files"   # 이미지 첨부 원본을 -i 로
+            gpt.files_dir = set_dir / "files"   # 첨부 원본(이미지·pdf·docx 쪽 이미지)을 -i 로
+        from code_eval import attachment_pages as ap
+        if gpt is not None or decisions is not None:
+            for name, note in ap.prerender(set_dir / "files").items():   # 스레드 전에 한 번 그려 둔다 (Word 는 한 번에 하나)
+                say(f"   📎 첨부 쪽 이미지 — {note}")
         for n in notes:
             say(f"⚠ {n}")
         from tools.judge_run import decisions_from_env
