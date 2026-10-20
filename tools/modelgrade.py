@@ -465,6 +465,11 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
                 elif res.get("status") == "SUCCESS" and res.get("capture") == "text":
                     res = retry_text_capture(chat, r, res)   # 복사 버튼이 안 눌려 화면 글만 받음 → 복사 다시 → 안 되면 보류(마크다운이 빠진 글로 판정하지 않는다)
+                elif res.get("status") == "ERROR" and asks_empty_output(None, r.get("question") or ""):
+                    # 빈 출력 요구 질문에 모델이 오류('생각을 중단했습니다 · 처리 중 오류')를 냄 — 판정은 보류이고 다시 던져도 같으므로 보류(COPY_FAILED)로 적어
+                    # 다음 실행에서 또 묻지 않는다 (10-20 밤: AIONA 가 같은 5개를 매번 다시 받음)
+                    res = {**res, "status": COPY_FAILED, "capture": "none",
+                           "error": f"빈 출력 요구 — 모델 오류로 답 없음 → 보류 (사용자 규칙 10-20) · {res.get('error') or ''}"[:300]}
                 col = {k: v for k, v in res.items() if k != "answer"}
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
