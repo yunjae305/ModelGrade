@@ -294,9 +294,17 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
             cmd += ["--label", args.label]
         procs.append((provider, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT))))
 
+    log_dir = ROOT / "data" / "judge_runs" / run_id
+    log_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
     def pump(provider: str, proc: Any) -> None:
-        for line in proc.stdout:
-            print(f"[{provider}] {line.rstrip()}", flush=True)
+        # 터미널에 보이는 그대로 파일에도 남긴다 — 한 모델이 조용히 끝나도 나중에 원인을 볼 수 있게 (10-20 밤: AIONA 가 왜 빠졌는지 로그가 없었다)
+        with (log_dir / f"collect-{stamp}-{provider}.log").open("a", encoding="utf-8") as f:
+            for line in proc.stdout:
+                print(f"[{provider}] {line.rstrip()}", flush=True)
+                f.write(line)
+            f.write(f"[종료 코드 {proc.wait()}]" + chr(10))
 
     threads = [threading.Thread(target=pump, args=(p, proc), daemon=True) for p, proc in procs]
     for t in threads:
@@ -466,12 +474,12 @@ def collect_app_one(args: argparse.Namespace) -> int:
                         row[key] = r[key]
                 new_rows[r["case_id"]] = row
                 print(f"  {r['case_id']}: {res.get('status')} {len(res.get('answer') or '')}자 {res.get('latency_ms', 0) // 1000}초 ({res.get('capture')})" + (f" — {res.get('error')}" if res.get("error") else ""), flush=True)
+                checkpoint()   # 턴마다 저장 — 10턴 대화 중간에 멈춰도 받은 턴이 남는다 (10-20 밤: AIONA 가 Q1 10턴을 받고도 저장 전에 끝나 모두 잃음)
                 if res.get("status") != "SUCCESS" and len(turns) > 1:
                     print(f"  Q{q}: 턴이 실패해 이 대화의 나머지 턴은 보내지 않음", flush=True)
                     break
             if all(new_rows.get(t["case_id"], {}).get("collection", {}).get("status") == "SUCCESS" for t in turns):
                 got += 1
-            checkpoint()
     merged = merged_rows()
     print("CODE 평가 중 …", flush=True)
     evaluation = code_evaluate(merged, args.provider)
