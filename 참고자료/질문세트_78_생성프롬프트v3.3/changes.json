@@ -1,0 +1,19 @@
+{
+  "user_update": "2턴 대화 삭제, 빈 출력 단일턴 10개",
+  "total_questions": 78,
+  "single": 57,
+  "multi_turn_10": 11,
+  "long_context": 10,
+  "empty_output_single": 10,
+  "removed_normal_titles": [
+    "냉장한 빵이 굳는 원리",
+    "자동문 센서의 감지 지연"
+  ],
+  "v3.2": "실제 ModelGrade 기준·k·입력 전달·토큰 수 검증 및 78개 근거 갱신",
+  "official_precheck_passed": true,
+  "original_selection": 78,
+  "fixed_question_count": 78,
+  "k_explanation": "k6~10은변동기준수.공통10개포함기본평가대상16~20개",
+  "answer_dependent_induction": "8개각각모든11개대화에유도질문.실제답변유효노출별도집계.",
+  "v3.3": "11개멀티턴의반올림전평균k9.9~10.0으로수정.누락기준단일턴에재배치.기준별10회하한과8개유도유지."
+}

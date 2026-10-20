@@ -1,0 +1,454 @@
+{
+  "question_count_fixed": 78,
+  "k_exclusion_unchanged": true,
+  "minimum_independent_conversations_per_item": 10,
+  "planned_independent_conversations_per_item": 11,
+  "conversation_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "requirements": {
+    "1-2.fence_imbalance": {
+      "turns": [
+        6
+      ],
+      "requirement": "복사할 실제 운영 메모를 코드블록 정확히1개로 제시하고 앞뒤 코드 구획 표시를 닫음"
+    },
+    "1-2.orphan_closing_tag": {
+      "turns": [
+        6
+      ],
+      "requirement": "문의 부분을 코드블록 밖의 짝맞는 details/summary HTML 태그로 작성"
+    },
+    "1-3.footnote_link": {
+      "turns": [
+        6
+      ],
+      "requirement": "본문 각주표시 [^운영]과 비어있지 않은 대응 정의를 함께 작성"
+    },
+    "1-3.citation_link": {
+      "turns": [
+        2,
+        3,
+        6
+      ],
+      "requirement": "자료에 실제 주어진 [1]·[2]를 본문에 인용하고 대응 출처 목록 작성"
+    },
+    "1-3.internal_link": {
+      "turns": [
+        6
+      ],
+      "requirement": "접수·문의 목차링크와 실제 대응 마크다운 제목 작성"
+    },
+    "3-1.answer_equation": {
+      "turns": [
+        3,
+        4
+      ],
+      "requirement": "실제 단가×수량과 원본 합계의 값을 등식으로 명시"
+    },
+    "3-2.declared_count": {
+      "turns": [
+        5
+      ],
+      "requirement": "다음3가지라는 선언 뒤 불릿3개 작성"
+    },
+    "J5-3.a": {
+      "turns": [
+        2,
+        3,
+        6
+      ],
+      "requirement": "제공된 메모만을 실제 출처로 명시하고 외부조회/실행 여부를 사실대로 구별"
+    }
+  },
+  "structural_fixture_verification": {
+    "kind": "수동 작성한 구조 검증용 예시답변. 실제 모델 답변이나 의미 평가 결과가 아님",
+    "all_eight_nonempty_triggered": true,
+    "recognized": {
+      "3-1.answer_equation": [
+        {
+          "case_id": "fixture_calc",
+          "check_id": "3-1.answer_equation:1",
+          "verdict": "PASS"
+        },
+        {
+          "case_id": "fixture_calc",
+          "check_id": "3-1.answer_equation:2",
+          "verdict": "PASS"
+        }
+      ],
+      "3-2.declared_count": [
+        {
+          "case_id": "fixture_count",
+          "check_id": "3-2.declared_count:1",
+          "verdict": "PASS"
+        }
+      ],
+      "1-2.fence_imbalance": [
+        {
+          "case_id": "fixture_notice",
+          "check_id": "1-2.fence_imbalance",
+          "verdict": "PASS"
+        }
+      ],
+      "1-2.orphan_closing_tag": [
+        {
+          "case_id": "fixture_notice",
+          "check_id": "1-2.orphan_closing_tag",
+          "verdict": "PASS"
+        }
+      ],
+      "1-3.footnote_link": [
+        {
+          "case_id": "fixture_notice",
+          "check_id": "1-3.footnote_link",
+          "verdict": "PASS"
+        }
+      ],
+      "1-3.citation_link": [
+        {
+          "case_id": "fixture_notice",
+          "check_id": "1-3.citation_link",
+          "verdict": "PASS"
+        }
+      ],
+      "1-3.internal_link": [
+        {
+          "case_id": "fixture_notice",
+          "check_id": "1-3.internal_link",
+          "verdict": "PASS"
+        }
+      ],
+      "J5-3.a": [
+        {
+          "case_id": "fixture_notice",
+          "matches": [
+            "[1]"
+          ]
+        }
+      ]
+    }
+  },
+  "actual_model_responses_collected": false,
+  "post_collection_rule": "실제 구조가 없는 :none PASS를 유효 노출로 세지 않음. 각8개 기준의 실제 관측 대화 수를 모델별로 확인하고10회 미만은 부족으로 표시. 구조 누락은 해당 요구의 불이행으로 별도 기록.",
+  "by_conversation": {
+    "1": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "2": {
+      "3-1.answer_equation": [
+        3
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        3,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        3,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "3": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "4": {
+      "3-1.answer_equation": [
+        3
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        3,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        3,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "5": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "6": {
+      "3-1.answer_equation": [
+        3
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        3,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        3,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "7": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "8": {
+      "3-1.answer_equation": [
+        3
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        3,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        3,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "9": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "10": {
+      "3-1.answer_equation": [
+        3
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        3,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        3,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    },
+    "11": {
+      "3-1.answer_equation": [
+        2
+      ],
+      "1-2.orphan_closing_tag": [
+        6
+      ],
+      "1-2.fence_imbalance": [
+        6
+      ],
+      "J5-3.a": [
+        2,
+        6
+      ],
+      "1-3.footnote_link": [
+        6
+      ],
+      "1-3.citation_link": [
+        2,
+        6
+      ],
+      "1-3.internal_link": [
+        6
+      ],
+      "3-2.declared_count": [
+        5
+      ]
+    }
+  }
+}

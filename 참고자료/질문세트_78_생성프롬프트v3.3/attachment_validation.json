@@ -1,0 +1,116 @@
+[
+  {
+    "name": "전시_운영회의록_0924.docx",
+    "type": "docx",
+    "bytes": 39475,
+    "content_chars": 1546,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "실습실_인수인계서_v3.docx",
+    "type": "docx",
+    "bytes": 39497,
+    "content_chars": 1591,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "공용실_운영규정_개정안.docx",
+    "type": "docx",
+    "bytes": 39527,
+    "content_chars": 1602,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "2026-09_조명_견적서_v2.pdf",
+    "type": "pdf",
+    "bytes": 26113,
+    "content_chars": 1571,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "탐방_접수안내_정정.pdf",
+    "type": "pdf",
+    "bytes": 27722,
+    "content_chars": 1603,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "생활강좌_신청안내_2026.pdf",
+    "type": "pdf",
+    "bytes": 27415,
+    "content_chars": 1606,
+    "content_match": true,
+    "pages": 2,
+    "verification": "최종 렌더링 PDF의 쪽별 시각 순서 텍스트 대조. 공백·표 경계·쪽 구분 표지만 정규화"
+  },
+  {
+    "name": "2026-09_장비인계_메모.txt",
+    "type": "txt",
+    "bytes": 1254,
+    "content_chars": 592,
+    "content_match": true,
+    "verification": "UTF-8 재열기 완전 일치"
+  },
+  {
+    "name": "현장_수거기록_정리.txt",
+    "type": "txt",
+    "bytes": 1225,
+    "content_chars": 561,
+    "content_match": true,
+    "verification": "UTF-8 재열기 완전 일치"
+  },
+  {
+    "name": "행사_정산_메일본문.txt",
+    "type": "txt",
+    "bytes": 1085,
+    "content_chars": 493,
+    "content_match": true,
+    "verification": "UTF-8 재열기 완전 일치"
+  },
+  {
+    "name": "대여관리_완료화면_캡처.png",
+    "type": "image",
+    "bytes": 70407,
+    "content_chars": 143,
+    "content_match": true,
+    "resolution": [
+      1500,
+      2000
+    ],
+    "verification": "PNG 재열기·실제 렌더링된 3개 화면의 전체 글자 육안 대조. OCR 자동 대조는 수행하지 않음"
+  },
+  {
+    "name": "예약앱_변경내역_캡처.png",
+    "type": "image",
+    "bytes": 76984,
+    "content_chars": 114,
+    "content_match": true,
+    "resolution": [
+      1500,
+      2000
+    ],
+    "verification": "PNG 재열기·실제 렌더링된 3개 화면의 전체 글자 육안 대조. OCR 자동 대조는 수행하지 않음"
+  },
+  {
+    "name": "공방_게시판_사진.png",
+    "type": "image",
+    "bytes": 124090,
+    "content_chars": 136,
+    "content_match": true,
+    "resolution": [
+      1500,
+      2000
+    ],
+    "verification": "PNG 재열기·실제 렌더링된 3개 화면의 전체 글자 육안 대조. OCR 자동 대조는 수행하지 않음"
+  }
+]

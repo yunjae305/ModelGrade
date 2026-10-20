@@ -1,0 +1,321 @@
+{
+  "version": "v3.3-multiturn-k",
+  "total_questions": 78,
+  "total_user_turns": 177,
+  "counts": {
+    "single": 57,
+    "multi_turn": 11,
+    "long_context": 10,
+    "attachment": 12,
+    "empty_output": 10
+  },
+  "two_turn_conversations": 0,
+  "empty_output_ids": [
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78
+  ],
+  "official_precheck": {
+    "pipeline": "items",
+    "minimum": 10,
+    "errors": [],
+    "duplicates": [],
+    "undetermined": {},
+    "criteria": 64,
+    "minimum_count": 10,
+    "short": {}
+  },
+  "k": {
+    "range": [
+      6,
+      10
+    ],
+    "singles": 67,
+    "in_range": 57,
+    "out_of_range": 0,
+    "out_of_range_ids": [],
+    "exempt": 10,
+    "exempt_ids": [
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78
+    ],
+    "by_k": {
+      "1": 5,
+      "2": 5,
+      "6": 13,
+      "7": 18,
+      "8": 15,
+      "9": 10,
+      "10": 1
+    },
+    "conversations": {
+      "1": 10,
+      "2": 10,
+      "3": 10,
+      "4": 10,
+      "5": 10,
+      "6": 10,
+      "7": 10,
+      "8": 10,
+      "9": 10,
+      "10": 10,
+      "11": 10
+    }
+  },
+  "reference": {
+    "policy": "long-context-v3.1-272k",
+    "tokenizer": "tiktoken o200k_base",
+    "tokens": 301651,
+    "long": true,
+    "min_tokens": 272000
+  },
+  "attachment_count": 12,
+  "collector_byte_match": true,
+  "answer_dependent_excluded": [
+    "1-2.fence_imbalance",
+    "1-2.orphan_closing_tag",
+    "1-3.citation_link",
+    "1-3.footnote_link",
+    "1-3.internal_link",
+    "3-1.answer_equation",
+    "3-2.declared_count",
+    "J5-3.a"
+  ],
+  "post_collection_checks_pending": [
+    "8개 답변 의존 기준 실제 관측 수",
+    "모델별 대화 전체 질문+답변 10000토큰 이상",
+    "의미 평가 모델의 실제 해당 여부와 PASS/FAIL"
+  ],
+  "question_count_policy": {
+    "fixed": 78,
+    "fulfilled": true
+  },
+  "base_evaluation_targets_for_in_range_question": [
+    16,
+    20
+  ],
+  "answer_dependent_induction": {
+    "all_eight": true,
+    "independent_conversations_per_item": 11,
+    "minimum_required": 10,
+    "actual_response_evaluation_pending": true,
+    "nonempty_fixture_triggers_all_eight": true,
+    "empty_answer_control_counted": 0
+  },
+  "multiturn_k": {
+    "1": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        13,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "2": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "3": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "4": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "5": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "6": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "7": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "8": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "9": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "10": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "11": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    }
+  },
+  "multiturn_out_of_range": []
+}

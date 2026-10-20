@@ -1,0 +1,429 @@
+{
+  "before": {
+    "1": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        15,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 122,
+      "turn_count": 10,
+      "exact_average": 12.2,
+      "in_range": false
+    },
+    "2": {
+      "turn_k": [
+        11,
+        12,
+        13,
+        18,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "3": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        14,
+        15,
+        10,
+        7,
+        9,
+        14
+      ],
+      "sum": 123,
+      "turn_count": 10,
+      "exact_average": 12.3,
+      "in_range": false
+    },
+    "4": {
+      "turn_k": [
+        11,
+        12,
+        13,
+        18,
+        14,
+        15,
+        10,
+        7,
+        11,
+        14
+      ],
+      "sum": 125,
+      "turn_count": 10,
+      "exact_average": 12.5,
+      "in_range": false
+    },
+    "5": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "6": {
+      "turn_k": [
+        11,
+        12,
+        13,
+        18,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "7": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "8": {
+      "turn_k": [
+        11,
+        12,
+        13,
+        18,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "9": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "10": {
+      "turn_k": [
+        11,
+        12,
+        13,
+        18,
+        14,
+        15,
+        10,
+        7,
+        7,
+        14
+      ],
+      "sum": 121,
+      "turn_count": 10,
+      "exact_average": 12.1,
+      "in_range": false
+    },
+    "11": {
+      "turn_k": [
+        11,
+        13,
+        18,
+        12,
+        14,
+        15,
+        10,
+        7,
+        8,
+        14
+      ],
+      "sum": 122,
+      "turn_count": 10,
+      "exact_average": 12.2,
+      "in_range": false
+    }
+  },
+  "after": {
+    "1": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        13,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "2": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "3": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "4": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "5": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "6": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "7": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "8": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "9": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "10": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "11": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    }
+  },
+  "range": [
+    6,
+    10
+  ],
+  "rounding_used_for_acceptance": false,
+  "reallocated_units": {
+    "3-3.unique_values": [
+      43,
+      44,
+      63,
+      64
+    ],
+    "2-2.heading": [
+      26,
+      27,
+      35,
+      36
+    ]
+  },
+  "preserved": {
+    "total_questions": 78,
+    "conversation_count": 11,
+    "turns_each": 10,
+    "empty_output_singles": 10,
+    "two_turn_conversations": 0,
+    "answer_dependent_opportunities_each": 11
+  }
+}

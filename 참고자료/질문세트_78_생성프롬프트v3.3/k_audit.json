@@ -1,0 +1,1498 @@
+{
+  "method": "actual ModelGrade k_var_units/by_group/summary + exact unrounded conversation average",
+  "summary": {
+    "range": [
+      6,
+      10
+    ],
+    "singles": 67,
+    "in_range": 57,
+    "out_of_range": 0,
+    "out_of_range_ids": [],
+    "exempt": 10,
+    "exempt_ids": [
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78
+    ],
+    "by_k": {
+      "1": 5,
+      "2": 5,
+      "6": 13,
+      "7": 18,
+      "8": 15,
+      "9": 10,
+      "10": 1
+    },
+    "conversations": {
+      "1": 10,
+      "2": 10,
+      "3": 10,
+      "4": 10,
+      "5": 10,
+      "6": 10,
+      "7": 10,
+      "8": 10,
+      "9": 10,
+      "10": 10,
+      "11": 10
+    }
+  },
+  "multiturn_exact": {
+    "1": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        13,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "2": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "3": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "4": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    },
+    "5": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "6": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "7": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "8": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "9": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "10": {
+      "turn_k": [
+        8,
+        12,
+        11,
+        12,
+        12,
+        9,
+        10,
+        7,
+        7,
+        11
+      ],
+      "sum": 99,
+      "turn_count": 10,
+      "exact_average": 9.9,
+      "in_range": true
+    },
+    "11": {
+      "turn_k": [
+        8,
+        11,
+        12,
+        12,
+        12,
+        9,
+        10,
+        7,
+        8,
+        11
+      ],
+      "sum": 100,
+      "turn_count": 10,
+      "exact_average": 10.0,
+      "in_range": true
+    }
+  },
+  "multiturn_out_of_range": [],
+  "questions": {
+    "1": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "2": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "3": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "4": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "5": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "6": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "7": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "8": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "9": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "10": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "11": {
+      "k": 10,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "2-1.charset",
+        "2-1.count",
+        "2-1.literal",
+        "2-2.list",
+        "2-2.table",
+        "3-1.question_calculation",
+        "3-3.aggregate",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J2-5.a",
+        "J2-5.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J6-1.a",
+        "J6-2.a",
+        "J6-2.b",
+        "J6-2.c",
+        "J6-3.a",
+        "J6-3.b",
+        "J6-4.a",
+        "J6-4.b"
+      ]
+    },
+    "12": {
+      "k": 6,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "13": {
+      "k": 8,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J4-2.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "14": {
+      "k": 6,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "15": {
+      "k": 8,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J3-5.b",
+        "J4-1.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "16": {
+      "k": 7,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J4-1.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "17": {
+      "k": 7,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J4-2.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "18": {
+      "k": 6,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "19": {
+      "k": 6,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "20": {
+      "k": 6,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "21": {
+      "k": 7,
+      "units": [
+        "2-1.char_count",
+        "2-2.table",
+        "J3-4.a",
+        "J4-2.a",
+        "J5-2.a",
+        "J7-1.a",
+        "J7-2.a"
+      ]
+    },
+    "22": {
+      "k": 6,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "2-1.count",
+        "J2-2.a"
+      ]
+    },
+    "23": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "2-1.count",
+        "J2-2.a",
+        "J5-2.a"
+      ]
+    },
+    "24": {
+      "k": 9,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "25": {
+      "k": 9,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "26": {
+      "k": 9,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J2-3.a",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "27": {
+      "k": 7,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "28": {
+      "k": 9,
+      "units": [
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J5-1.a"
+      ]
+    },
+    "29": {
+      "k": 6,
+      "units": [
+        "2-1.count",
+        "2-2.heading",
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a",
+        "J5-2.a"
+      ]
+    },
+    "30": {
+      "k": 9,
+      "units": [
+        "2-2.table",
+        "J2-3.a",
+        "J2-5.a",
+        "J3-2.a",
+        "J3-2.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J4-2.a",
+        "J5-2.a"
+      ]
+    },
+    "31": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J5-2.a"
+      ]
+    },
+    "32": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J5-2.a"
+      ]
+    },
+    "33": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J5-2.a"
+      ]
+    },
+    "34": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J5-2.a"
+      ]
+    },
+    "35": {
+      "k": 8,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J4-3.a",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "36": {
+      "k": 8,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J3-5.b",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "37": {
+      "k": 8,
+      "units": [
+        "2-2.table",
+        "J4-4.a",
+        "J5-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "38": {
+      "k": 10,
+      "units": [
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J4-1.a",
+        "J4-2.a",
+        "J5-1.a"
+      ]
+    },
+    "39": {
+      "k": 7,
+      "units": [
+        "2-1.count",
+        "2-1.literal",
+        "2-2.heading",
+        "J2-5.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J5-2.a"
+      ]
+    },
+    "40": {
+      "k": 8,
+      "units": [
+        "2-2.table",
+        "J2-3.a",
+        "J2-5.a",
+        "J3-2.a",
+        "J3-2.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J5-2.a"
+      ]
+    },
+    "41": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a"
+      ]
+    },
+    "42": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a"
+      ]
+    },
+    "43": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "44": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "45": {
+      "k": 6,
+      "units": [
+        "2-2.table",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "46": {
+      "k": 6,
+      "units": [
+        "2-2.table",
+        "J4-4.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "47": {
+      "k": 7,
+      "units": [
+        "2-2.table",
+        "J4-4.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "48": {
+      "k": 8,
+      "units": [
+        "J2-1.a",
+        "J2-1.b",
+        "J2-4.a",
+        "J2-4.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J4-2.a",
+        "J5-1.a"
+      ]
+    },
+    "49": {
+      "k": 9,
+      "units": [
+        "2-1.count",
+        "2-1.literal",
+        "2-2.heading",
+        "J2-2.a",
+        "J2-3.a",
+        "J2-5.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J5-2.a"
+      ]
+    },
+    "50": {
+      "k": 7,
+      "units": [
+        "J2-3.a",
+        "J2-5.a",
+        "J3-2.a",
+        "J3-2.b",
+        "J4-1.a",
+        "J4-1.b",
+        "J5-2.a"
+      ]
+    },
+    "51": {
+      "k": 7,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a"
+      ]
+    },
+    "52": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "2-2.list",
+        "J2-3.a",
+        "J4-2.a",
+        "J5-2.a"
+      ]
+    },
+    "53": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J5-2.a"
+      ]
+    },
+    "54": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J5-2.a"
+      ]
+    },
+    "55": {
+      "k": 6,
+      "units": [
+        "2-2.table",
+        "J5-2.a",
+        "J5-2.b",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "56": {
+      "k": 6,
+      "units": [
+        "2-2.table",
+        "J4-2.a",
+        "J5-2.a",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "57": {
+      "k": 9,
+      "units": [
+        "J2-2.a",
+        "J2-3.a",
+        "J2-4.a",
+        "J2-4.b",
+        "J3-2.a",
+        "J3-2.b",
+        "J3-3.a",
+        "J3-3.b",
+        "J5-1.a"
+      ]
+    },
+    "58": {
+      "k": 7,
+      "units": [
+        "2-1.count",
+        "2-1.literal",
+        "2-2.heading",
+        "J2-1.a",
+        "J2-1.b",
+        "J4-2.a",
+        "J5-2.a"
+      ]
+    },
+    "59": {
+      "k": 8,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J2-2.a",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-3.a",
+        "J5-2.a"
+      ]
+    },
+    "60": {
+      "k": 8,
+      "units": [
+        "2-2.heading",
+        "2-2.table",
+        "J2-2.a",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-3.a",
+        "J5-2.a"
+      ]
+    },
+    "61": {
+      "k": 6,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "62": {
+      "k": 8,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.python_syntax",
+        "J2-1.a",
+        "J2-1.b",
+        "J2-2.a",
+        "J3-5.b"
+      ]
+    },
+    "63": {
+      "k": 9,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "64": {
+      "k": 9,
+      "units": [
+        "1-2.code_block",
+        "1-2.code_fence_min",
+        "1-2.code_language_label",
+        "1-2.json_syntax",
+        "2-2.json_structure",
+        "3-3.transform",
+        "3-3.unique_values",
+        "J2-3.a",
+        "J5-2.a"
+      ]
+    },
+    "65": {
+      "k": 6,
+      "units": [
+        "2-2.table",
+        "J5-2.a",
+        "J5-2.b",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "66": {
+      "k": 7,
+      "units": [
+        "2-2.table",
+        "J4-1.a",
+        "J5-2.a",
+        "J5-2.b",
+        "J8-1.a",
+        "J8-2.a",
+        "J8-3.a"
+      ]
+    },
+    "67": {
+      "k": 9,
+      "units": [
+        "2-2.table",
+        "J2-2.a",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-2.a",
+        "J4-3.a",
+        "J5-2.a",
+        "J5-2.b"
+      ]
+    },
+    "68": {
+      "k": 7,
+      "units": [
+        "2-2.table",
+        "J2-2.a",
+        "J3-4.a",
+        "J3-5.a",
+        "J3-5.b",
+        "J4-3.a",
+        "J5-2.a"
+      ]
+    },
+    "69": {
+      "k": 2,
+      "units": [
+        "2-1.explicit_empty",
+        "J2-3.a"
+      ]
+    },
+    "70": {
+      "k": 2,
+      "units": [
+        "2-1.explicit_empty",
+        "J2-3.a"
+      ]
+    },
+    "71": {
+      "k": 2,
+      "units": [
+        "2-1.explicit_empty",
+        "J2-3.a"
+      ]
+    },
+    "72": {
+      "k": 1,
+      "units": [
+        "2-1.explicit_empty"
+      ]
+    },
+    "73": {
+      "k": 2,
+      "units": [
+        "2-1.explicit_empty",
+        "J2-3.a"
+      ]
+    },
+    "74": {
+      "k": 1,
+      "units": [
+        "2-1.explicit_empty"
+      ]
+    },
+    "75": {
+      "k": 1,
+      "units": [
+        "2-1.explicit_empty"
+      ]
+    },
+    "76": {
+      "k": 1,
+      "units": [
+        "2-1.explicit_empty"
+      ]
+    },
+    "77": {
+      "k": 2,
+      "units": [
+        "2-1.explicit_empty",
+        "J2-3.a"
+      ]
+    },
+    "78": {
+      "k": 1,
+      "units": [
+        "2-1.explicit_empty"
+      ]
+    }
+  }
+}

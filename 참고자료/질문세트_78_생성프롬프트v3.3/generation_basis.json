@@ -1,0 +1,26 @@
+{
+  "question_count": 78,
+  "question_count_policy": "프로젝트에서 확정한 최적 운영 규모로 고정",
+  "original_basis": "기존326개에서 부족기준부터 채우는 선정으로78개를 얻음",
+  "question_countable_criteria": 64,
+  "variable_criteria": 54,
+  "always_sent": 10,
+  "answer_dependent_excluded": 8,
+  "per_criterion_min_questions": 10,
+  "single_question_k": [
+    6,
+    10
+  ],
+  "base_evaluation_targets_for_in_range_question": [
+    16,
+    20
+  ],
+  "empty_output_exempt": 10,
+  "optimization_scope": "78개 내의 기준 배치·질문 품질·주제 다양성",
+  "answer_dependent_policy": "k에서제외하되모든11개대화에8개구조유도.답변수집후각각10회이상확인",
+  "multiturn_k_range": [
+    6,
+    10
+  ],
+  "multiturn_k_measure": "각턴변동기준수의산술평균.반올림전실수로범위검사"
+}

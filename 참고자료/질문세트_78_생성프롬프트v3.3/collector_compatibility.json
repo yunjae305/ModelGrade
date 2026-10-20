@@ -1,0 +1,103 @@
+{
+  "reference_inline": true,
+  "set_id_key_present": true,
+  "attachment_paths_relative_to_files": true,
+  "attachment_materialization": [
+    {
+      "id": 26,
+      "name": "생활강좌_신청안내_2026.pdf",
+      "type": "pdf",
+      "path": "생활강좌_신청안내_2026.pdf",
+      "sha256": "47a29fcd60a16186f6567254fe8cbb271e714e1e2ea3a8c251c0aaa3f109c785",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 27,
+      "name": "대여관리_완료화면_캡처.png",
+      "type": "image",
+      "path": "대여관리_완료화면_캡처.png",
+      "sha256": "8816c80b36d8ea510e2d52d9167a3a26369a0f65b8474940424f9c91e00c6487",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 35,
+      "name": "공방_게시판_사진.png",
+      "type": "image",
+      "path": "공방_게시판_사진.png",
+      "sha256": "b5204377f5ab488bf4256614151e910ec49182d2e92f7a96aec1318ab3e1083f",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 36,
+      "name": "행사_정산_메일본문.txt",
+      "type": "txt",
+      "path": "행사_정산_메일본문.txt",
+      "sha256": "0b139802da198f667ba1c9a3a650b28599c1bc6ea0658badcb8f1f8226e2ab48",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 37,
+      "name": "공용실_운영규정_개정안.docx",
+      "type": "docx",
+      "path": "공용실_운영규정_개정안.docx",
+      "sha256": "473e0a46abe8fe0480393561ca4c260d2d58f0dd5e671bfc6edd9f509120d6b0",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 45,
+      "name": "현장_수거기록_정리.txt",
+      "type": "txt",
+      "path": "현장_수거기록_정리.txt",
+      "sha256": "01bb1d2745d93bfb257ef5bc064b734eb0c7c9303b71cd4550c7d0ec158d7ecf",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 46,
+      "name": "실습실_인수인계서_v3.docx",
+      "type": "docx",
+      "path": "실습실_인수인계서_v3.docx",
+      "sha256": "6be768d170b594f39d4de89bb5db7ad522500507565a2f14ac20e0ed2e0a639e",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 47,
+      "name": "탐방_접수안내_정정.pdf",
+      "type": "pdf",
+      "path": "탐방_접수안내_정정.pdf",
+      "sha256": "1091af81a96bbe0b77b8371e0d23aa9b875b5be72f3d2cefa5c4251c4d66cede",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 55,
+      "name": "2026-09_조명_견적서_v2.pdf",
+      "type": "pdf",
+      "path": "2026-09_조명_견적서_v2.pdf",
+      "sha256": "c92895eb6114be14ed15a4633aa7b7a19b28b8fb957ed0163850fba1444fe9e6",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 56,
+      "name": "예약앱_변경내역_캡처.png",
+      "type": "image",
+      "path": "예약앱_변경내역_캡처.png",
+      "sha256": "652bdc08630c2348fdd1dd055a9a19af304e7f8977f5de762755e519666ec624",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 65,
+      "name": "2026-09_장비인계_메모.txt",
+      "type": "txt",
+      "path": "2026-09_장비인계_메모.txt",
+      "sha256": "39031e912e96eef414634bc0d13e571924244bf4a9a4fde104b7d3f0971f82cb",
+      "collector_bytes_match": true
+    },
+    {
+      "id": 66,
+      "name": "전시_운영회의록_0924.docx",
+      "type": "docx",
+      "path": "전시_운영회의록_0924.docx",
+      "sha256": "13f50baa8c2e31070100400dc650cf538764e83b23bee88286079da3da8d4bea",
+      "collector_bytes_match": true
+    }
+  ]
+}
