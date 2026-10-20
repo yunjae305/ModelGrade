@@ -771,11 +771,41 @@ class ChatGptAppChat(ChatGptChat):
             self._check_blocked()
             self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first.wait_for(state="visible", timeout=20_000)
             self.page.wait_for_timeout(800)
-            try:
-                self.model_seen = self._apply_model()
-            except Exception as exc:
-                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__}: {str(exc)[:80]})"
+            last = None
+            for _ in range(3):   # 모델·추론 수준을 맞추지 못하면 이 채팅에 질문을 보내지 않는다 (잘못된 수준의 답이 섞이지 않게, 사용자 10-20)
+                try:
+                    self.model_seen = self._apply_model()
+                    break
+                except Exception as exc:
+                    last = exc
+                    self.page.keyboard.press("Escape")
+                    self.page.wait_for_timeout(800)
+            else:
                 self._snapshot("model-settings-failed")
+                raise CdpWebError(f"ChatGPT 앱 모델·추론 수준을 GPT-6 · Medium 으로 맞추지 못함 — 이 질문은 보내지 않음 ({str(last)[:120]})")
+
+    POWER_ORDER = ("Instant", "Medium", "High", "Extra High", "Pro")   # 파워 슬라이더 단계(왼쪽 → 오른쪽, 2026-10-20 확인)
+    POWER_TARGET = "Medium"
+    POWER_STATUS_JS = """() => { const s=[...document.querySelectorAll('[role=menu] [role=status]')].find(e => e.getBoundingClientRect().width > 0);
+        return s ? s.innerText.trim() : null; }"""
+
+    def _set_power(self) -> str:
+        """열린 모델 메뉴의 '파워' 슬라이더를 화살표 키로 Medium 에 맞춘다 — 상태 글 'High, 5개 중 3번째.' 를 읽어 방향을 정한다."""
+        slider = self.page.locator("[role=menu] [role=slider]").first
+        slider.wait_for(state="visible", timeout=5000)
+        slider.focus()
+        self.page.wait_for_timeout(300)
+        target = self.POWER_ORDER.index(self.POWER_TARGET)
+        status = ""
+        for _ in range(8):
+            status = self.page.evaluate(self.POWER_STATUS_JS) or ""
+            name = status.split(",")[0].strip()
+            if name == self.POWER_TARGET:
+                return name
+            cur = self.POWER_ORDER.index(name) if name in self.POWER_ORDER else None
+            self.page.keyboard.press("ArrowLeft" if cur is None or cur > target else "ArrowRight")
+            self.page.wait_for_timeout(450)
+        raise CdpWebError(f"파워 슬라이더를 {self.POWER_TARGET} 로 맞추지 못함 (지금 '{status}')")
 
     def _apply_model(self) -> str:
         """앱의 모델 메뉴('ChatGPT 모델 선택')를 열면 모델 라디오(GPT-6 · GPT-5.6 Sol)와 '파워' 슬라이더가 바로 보인다.
@@ -804,14 +834,14 @@ class ChatGptAppChat(ChatGptChat):
                 found = self.page.evaluate(FIND, self.MODEL_NAME)
                 if not found["checked"]:
                     raise CdpWebError(f"{self.NAME} 모델을 {self.MODEL_NAME} 로 바꾸지 못했습니다")
-            text = self._eval("() => document.body.innerText")
-            power = next((lv for lv in ("Extra High", "Medium", "High", "Light", "Max", "Ultra", "최소한", "없음") if lv in text), "?")
+            power = self._set_power()   # 파워 슬라이더를 실제로 움직여 맞춘다 (예전: 화면 글에서 낱말만 찾음 → Pro 인데도 통과)
         finally:
             self.page.keyboard.press("Escape")
-            self.page.wait_for_timeout(300)
-        if power != "Medium":
-            raise CdpWebError(f"ChatGPT 추론 수준이 Medium 이 아닙니다({power}) — 앱 입력칸 옆에서 Medium 으로 맞추세요")
-        return f"{self.MODEL_NAME} · {power} (앱)"
+            self.page.wait_for_timeout(500)
+        label = " ".join((opener.inner_text(timeout=5000) or "").split())   # 메뉴를 닫은 뒤 모델 버튼에 보이는 추론 수준
+        if label != self.POWER_TARGET:
+            raise CdpWebError(f"ChatGPT 모델 버튼의 추론 수준이 {self.POWER_TARGET} 이 아닙니다(지금 '{label}')")
+        return f"{self.MODEL_NAME} · {label} (앱)"
 
     IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 
