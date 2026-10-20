@@ -28,7 +28,7 @@ from .jev_client import JevCall, JevStatus
 from .llm_client import env_value, redact
 
 __all__ = ["DecisionsClientConfig", "HttpDecisionsClient", "resolve_decisions_client", "to_decisions_questions", "from_decisions_answers",
-           "state_to_input"]
+           "state_to_input", "build_input", "attachment_parts"]
 
 DEFAULT_API_BASE = "https://api.openai.com/v1"
 DEFAULT_MODEL = "gpt-6-luna"
@@ -106,13 +106,103 @@ def state_to_input(state: Any) -> str:
             + json.dumps(ordered, ensure_ascii=False, indent=1))
 
 
-class HttpDecisionsClient:
-    """공식 REST 호출. 자격 증명이 있을 때만 만들어진다. ``decide(state, questions)`` 는 Jev 의 ``system_one`` 과 같은 JevCall 을 돌려준다."""
+IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
-    def __init__(self, config: DecisionsClientConfig, api_key: str, transport: Any = None, sleep: Callable[[float], None] = time.sleep) -> None:
+
+PDF_MAX_PAGES = 20          # PDF 첨부는 쪽마다 이미지 하나 — 요청당 이미지 128장 한도(공식) 안에서
+PDF_RENDER_SCALE = 1.5      # 72dpi × 1.5 ≈ 108dpi — 표·주석 글자가 읽히는 최소 수준
+
+
+def _data_url(mime: str, data: bytes) -> str:
+    import base64
+    return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def attachment_parts(a: Dict[str, Any], files_dir: Path) -> Tuple[List[Dict[str, Any]], str]:
+    """첨부 하나의 **원본 파일**을 Decisions 입력 조각으로 (사용자 2026-10-20: 글로 옮긴 내용이 아니라 파일 자체를 보내라).
+    Decisions 는 input_text·input_image 만 받고 파일(file_id)·오디오는 받지 않으므로(공식 명세):
+    image → 그 파일을 input_image · pdf → 쪽마다 이미지로 그려(pypdfium2) input_image · docx → 실제 파일의 문단·표 글(python-docx) input_text ·
+    txt 등 글 파일 → 실제 파일 글 input_text. 돌려주는 값: (조각 목록, 어떻게 보냈는지 한 줄). 파일이 없거나 못 열면 빈 목록."""
+    path = Path(files_dir) / str(a.get("경로") or "")
+    name = str(a.get("이름") or path.name)
+    if not path.is_file():
+        return [], f"{name}: 파일 없음"
+    ext = path.suffix.lower()
+    kind = str(a.get("종류") or "").lower()
+    try:
+        if ext in IMAGE_TYPES or kind == "image":
+            mime = IMAGE_TYPES.get(ext)
+            if not mime or path.stat().st_size > MAX_IMAGE_BYTES:
+                return [], f"{name}: 이미지 형식·크기 지원 안 함"
+            return [{"type": "input_image", "image_url": _data_url(mime, path.read_bytes())}], f"{name}: 이미지 원본 1장"
+        if ext == ".pdf" or kind == "pdf":
+            import io
+            import pypdfium2
+            pdf = pypdfium2.PdfDocument(str(path))
+            parts: List[Dict[str, Any]] = []
+            for i in range(min(len(pdf), PDF_MAX_PAGES)):
+                buf = io.BytesIO()
+                pdf[i].render(scale=PDF_RENDER_SCALE).to_pil().save(buf, format="PNG")
+                parts.append({"type": "input_image", "image_url": _data_url("image/png", buf.getvalue())})
+            more = f"(뒤 {len(pdf) - PDF_MAX_PAGES}쪽은 생략)" if len(pdf) > PDF_MAX_PAGES else ""
+            return parts, f"{name}: PDF {len(parts)}쪽을 이미지로{more}"
+        if ext == ".docx" or kind == "docx":
+            import docx
+            d = docx.Document(str(path))
+            lines = [p.text for p in d.paragraphs if p.text.strip()]
+            for ti, table in enumerate(d.tables, 1):
+                lines.append(f"[표 {ti}]")
+                lines += ["| " + " | ".join(c.text.strip().replace("\n", " ") for c in row.cells) + " |" for row in table.rows]
+            text = "\n".join(lines)
+            return [{"type": "input_text", "text": f"[첨부 원본 파일 {name} (DOCX 에서 읽은 문단·표)]\n{text}"}], f"{name}: DOCX 원본의 문단 {len(d.paragraphs)}·표 {len(d.tables)} 글"
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return [{"type": "input_text", "text": f"[첨부 원본 파일 {name}]\n{text}"}], f"{name}: 글 파일 원본 {len(text)}자"
+    except Exception as exc:   # 그릴 수 없는 파일은 글로 옮긴 '내용' 만으로 — 어떻게 됐는지 남긴다
+        return [], f"{name}: 원본을 못 붙임 ({type(exc).__name__})"
+
+
+def build_input(state: Any, files_dir: Optional[Path] = None) -> Tuple[Any, Dict[str, Any]]:
+    """Decisions ``input`` — 글(state JSON, 글로 옮긴 첨부 '내용' 포함)에, ``files_dir`` 가 있으면 첨부의 **원본 파일**을 조각으로 함께 붙인다
+    (이미지·PDF 쪽은 input_image, DOCX·TXT 는 실제 파일의 글). 돌려주는 값: (input, {"images": n, "files": [어떻게 보냈는지]})."""
+    text = state_to_input(state)
+    parts: List[Dict[str, Any]] = []
+    notes: List[str] = []
+    if files_dir and isinstance(state, dict):
+        for t in state.get("턴") or []:
+            for a in (t.get("첨부파일") or []) if isinstance(t, dict) else []:
+                if isinstance(a, dict) and a.get("경로"):
+                    ps, note = attachment_parts(a, Path(files_dir))
+                    parts += ps
+                    notes.append(note)
+    images = sum(1 for p in parts if p.get("type") == "input_image")
+    if len([p for p in parts if p.get("type") == "input_image"]) > 128:   # 공식 한도: 요청당 이미지 128장
+        kept, n = [], 0
+        for p in parts:
+            if p.get("type") == "input_image":
+                n += 1
+                if n > 128:
+                    continue
+            kept.append(p)
+        parts, images = kept, 128
+        notes.append("이미지 128장 넘어 뒤는 생략")
+    info = {"images": images, "files": notes}
+    if not parts:
+        return text, info
+    note = f"\n\n(첨부 원본 파일 {len(notes)}개를 함께 붙였습니다 — 글로 옮긴 '내용' 과 함께 보세요: {'; '.join(notes)})"
+    return [{"role": "user", "content": [{"type": "input_text", "text": text + note}, *parts]}], info
+
+
+class HttpDecisionsClient:
+    """공식 REST 호출. 자격 증명이 있을 때만 만들어진다. ``decide(state, questions)`` 는 Jev 의 ``system_one`` 과 같은 JevCall 을 돌려준다.
+    ``files_dir`` 를 두면 이미지 첨부의 원본 파일을 input_image 로 함께 보낸다."""
+
+    def __init__(self, config: DecisionsClientConfig, api_key: str, transport: Any = None, sleep: Callable[[float], None] = time.sleep,
+                 files_dir: Optional[Path] = None) -> None:
         if not api_key:
             raise ValueError("OPENAI_API_KEY(또는 DECISIONS_API_KEY) 가 없습니다")
         self.config = config
+        self.files_dir = files_dir
         self._api_key = api_key
         self._transport = transport
         self._sleep = sleep
@@ -139,7 +229,8 @@ class HttpDecisionsClient:
         qs, names = to_decisions_questions(questions)
         if not qs:
             return JevCall(JevStatus.INVALID_RESPONSE, error="보낼 질문이 없음")
-        payload = {"model": self.config.model, "input": state_to_input(state), "questions": qs}
+        inp, attached = build_input(state, self.files_dir)
+        payload = {"model": self.config.model, "input": inp, "questions": qs}
         started = time.monotonic()
         status, error, http_status = JevStatus.API_ERROR, None, None
         attempt = 0
@@ -174,8 +265,8 @@ class HttpDecisionsClient:
             if not isinstance(body, dict) or not isinstance(body.get("answers"), list):
                 return JevCall(JevStatus.INVALID_RESPONSE, attempts=attempt, latency_ms=elapsed, http_status=http_status,
                                error="응답에 answers 배열이 없음")
-            return JevCall("OK", body=from_decisions_answers(body, names), attempts=attempt, latency_ms=elapsed, http_status=http_status,
-                           usage=body.get("usage") if isinstance(body.get("usage"), dict) else None)
+            return JevCall("OK", body={**from_decisions_answers(body, names), "attached": attached}, attempts=attempt, latency_ms=elapsed,
+                           http_status=http_status, usage=body.get("usage") if isinstance(body.get("usage"), dict) else None)
         return JevCall(status, attempts=attempt, latency_ms=int((time.monotonic() - started) * 1000), http_status=http_status, error=redact(error))
 
 

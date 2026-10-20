@@ -62,7 +62,8 @@ def question_json(q: int, turns: List[Dict[str, Any]], answers: Dict[str, str], 
         t: Dict[str, Any] = {"턴": ji._turn(row), "질문": row.get("question") or ""}
         files = [a for a in row.get("attachments") or [] if isinstance(a, dict)]
         if files:
-            t["첨부파일"] = [{"이름": a.get("name"), "종류": a.get("type"), "내용": a.get("content") or "(내용 없음)"} for a in files]
+            t["첨부파일"] = [{"이름": a.get("name"), "종류": a.get("type"), "내용": a.get("content") or "(내용 없음)",
+                           **({"경로": a.get("path")} if a.get("path") else {})} for a in files]   # 경로: Decisions 가 이미지 원본을 붙일 때 씀
         if isinstance(row.get("reference"), str) and row["reference"].strip():
             t["참조자료"] = row["reference"]
         if deliveries.get(row["case_id"]):
@@ -186,13 +187,23 @@ def _cut(holder: Dict[str, Any], key: str, keep: int) -> int:
     return cut
 
 
+def turn_has_files(part: Dict[str, Any], n: int) -> bool:
+    return any(t.get("첨부파일") for t in part.get("턴") or [] if t.get("턴") == n)
+
+
 def second_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decisions: Any,
-                 budget: int = JEV_TRIM_CHARS) -> Tuple[str, Any, str, Optional[str], int]:
-    """J1~J4 둘째 심판 고르기 (사용자 결정 2026-10-20): ① 예산 안이면 Jev 원문 ② Jev 가 한도를 넘거나 실패하면 Decisions(OpenAI) 원문
-    ③ Decisions 가 없거나 실패하면 Jev 에 줄인 자료(참고만) ④ 그것도 안 되면 둘째 심판 없음 — Codex 판정만.
-    돌려주는 값: (status, body, error, 쓴 심판 'jev'·'decisions'·'jev-trimmed'·None, 줄인 글자 수)."""
+                 budget: int = JEV_TRIM_CHARS, prefer_decisions: bool = False) -> Tuple[str, Any, str, Optional[str], int]:
+    """J1~J4 둘째 심판 고르기 (사용자 결정 2026-10-20): ⓪ 첨부가 있는 턴(prefer_decisions)은 Decisions(OpenAI) 먼저 — 글로 옮긴 내용에 더해 이미지 원본도 봄
+    ① 예산 안이면 Jev 원문 ② Jev 가 한도를 넘거나 실패하면 Decisions 원문 ③ Decisions 가 없거나 실패하면 Jev 에 줄인 자료(참고만)
+    ④ 그것도 안 되면 둘째 심판 없음 — Codex 판정만. 돌려주는 값: (status, body, error, 쓴 심판 'jev'·'decisions'·'jev-trimmed'·None, 줄인 글자 수)."""
     chars = js.state_chars(part)
     errors: List[str] = []
+    if prefer_decisions and decisions is not None:
+        status, body, error = decisions.judge(part, questions)
+        if status == "OK":
+            return status, body, "", "decisions", 0
+        errors.append(f"Decisions(첨부 우선) {status} {error}")
+        decisions = None   # 아래서 또 부르지 않는다
     if jev is not None and chars <= budget:
         status, body, error = jev.judge(part, questions)
         if status == "OK":
@@ -323,7 +334,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
             part = json.loads(json.dumps({"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]},
                                          ensure_ascii=False))
             qd = {f"T{n}:{i}": fixed["items"][i] for i in jev_items}
-            status, body, error, used, cut = second_judge(part, qd, jev, decisions)
+            status, body, error, used, cut = second_judge(part, qd, jev, decisions, prefer_decisions=turn_has_files(part, n))
             if cut:
                 trimmed[str(n)] = cut
             if status == "OK":
@@ -546,8 +557,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             say(f"⚠ {n}")
         from tools.judge_run import decisions_from_env
         decisions, d_reason = decisions_from_env()
-        say(f"Decisions(OpenAI) 대체 심판: {getattr(getattr(decisions, 'client', None), 'config', None) and decisions.client.config.model}"
-            if decisions else f"⚠ Decisions 대체 심판 없음 — {d_reason}")
+        if decisions is not None:
+            decisions.client.files_dir = set_dir / "files"   # 이미지 첨부 원본을 input_image 로
+        say(f"Decisions(OpenAI) 심판: {decisions.client.config.model} — 첨부 턴은 먼저, 그 밖은 Jev 가 한도를 넘을 때"
+            if decisions else f"⚠ Decisions 심판 없음 — {d_reason}")
     write_lock = threading.Lock()
 
     def save(line: Dict[str, Any]) -> None:

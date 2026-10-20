@@ -57,6 +57,60 @@ def test_http_client_posts_decisions_and_parses(tmp_path: Path):
     assert call.usage == {"input_tokens": 100}
 
 
+def _set_with_files(tmp_path: Path) -> Path:
+    """실제 파일 네 가지 — PNG(Pillow)·PDF(fpdf2 없으면 건너뜀)·DOCX(python-docx)·TXT."""
+    from PIL import Image
+    files = tmp_path / "files"
+    files.mkdir()
+    Image.new("RGB", (40, 30), "white").save(files / "사진.png")
+    (files / "메모.txt").write_text("첫 줄\n둘째 줄 금액 1,200원", encoding="utf-8")
+    import docx
+    d = docx.Document()
+    d.add_paragraph("규정 개정안")
+    t = d.add_table(rows=1, cols=2)
+    t.rows[0].cells[0].text, t.rows[0].cells[1].text = "항목", "값"
+    d.save(files / "규정.docx")
+    return files
+
+
+def test_attachment_parts_send_original_files(tmp_path: Path):
+    from code_eval.decisions_client import attachment_parts, build_input
+    files = _set_with_files(tmp_path)
+    parts, note = attachment_parts({"이름": "사진.png", "종류": "image", "경로": "사진.png"}, files)
+    assert len(parts) == 1 and parts[0]["type"] == "input_image" and parts[0]["image_url"].startswith("data:image/png;base64,") and "원본 1장" in note
+    parts, note = attachment_parts({"이름": "메모.txt", "종류": "txt", "경로": "메모.txt"}, files)
+    assert parts[0]["type"] == "input_text" and "둘째 줄 금액 1,200원" in parts[0]["text"] and "글 파일 원본" in note
+    parts, note = attachment_parts({"이름": "규정.docx", "종류": "docx", "경로": "규정.docx"}, files)
+    assert parts[0]["type"] == "input_text" and "규정 개정안" in parts[0]["text"] and "| 항목 | 값 |" in parts[0]["text"] and "DOCX 원본" in note
+    parts, note = attachment_parts({"이름": "없음.pdf", "종류": "pdf", "경로": "없음.pdf"}, files)
+    assert parts == [] and "파일 없음" in note
+    # build_input: 경로가 있는 첨부는 원본 조각을 붙여 메시지 모양으로, 없으면 글 그대로
+    state = {"guide": "g", "질문번호": 1, "판정할_턴": [1], "턴": [{"턴": 1, "질문": "q", "답변": "a",
+             "첨부파일": [{"이름": "사진.png", "종류": "image", "내용": "글로 옮긴 내용", "경로": "사진.png"}, {"이름": "메모.txt", "종류": "txt", "내용": "x", "경로": "메모.txt"}]}]}
+    inp, info = build_input(state, files)
+    assert isinstance(inp, list) and inp[0]["role"] == "user" and info["images"] == 1 and len(info["files"]) == 2
+    kinds = [c["type"] for c in inp[0]["content"]]
+    assert kinds == ["input_text", "input_image", "input_text"] and "글로 옮긴 내용" in inp[0]["content"][0]["text"]
+    text_only, info2 = build_input(state, None)
+    assert isinstance(text_only, str) and info2 == {"images": 0, "files": []}
+
+
+def test_pdf_pages_become_images(tmp_path: Path):
+    pytest.importorskip("pypdfium2")
+    fpdf = pytest.importorskip("fpdf")
+    from code_eval.decisions_client import attachment_parts
+    files = tmp_path / "files"
+    files.mkdir()
+    pdf = fpdf.FPDF()
+    for _ in range(3):
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
+        pdf.cell(0, 10, "page")
+    pdf.output(str(files / "안내.pdf"))
+    parts, note = attachment_parts({"이름": "안내.pdf", "종류": "pdf", "경로": "안내.pdf"}, files)
+    assert len(parts) == 3 and all(p["type"] == "input_image" for p in parts) and "PDF 3쪽" in note
+
+
 def test_http_errors_are_results_not_exceptions():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json={"error": {"message": "input too long"}})

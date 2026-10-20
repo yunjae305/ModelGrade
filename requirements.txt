@@ -8,6 +8,7 @@ tiktoken>=0.8,<1
 python-docx>=1.1,<2
 fpdf2>=2.7,<3
 Pillow>=10
+pypdfium2>=4.30   # 판정: PDF 첨부를 쪽 이미지로 그려 Decisions API 에 원본처럼 보냄 (2026-10-20)
 # AIONA 답변 수집·로그인 창(tools/web_chat_login.py) — 브라우저 자동화. 설치된 Google Chrome 을 channel="chrome" 으로 쓰므로
 # 브라우저를 따로 내려받지 않는다 (Chrome 이 없으면 AIONA 수집은 오류로 남고 다른 모델 수집은 계속된다)
 playwright>=1.45,<2
