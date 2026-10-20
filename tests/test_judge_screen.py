@@ -21,7 +21,7 @@ def test_combine_weighted_applies_0_7_rule():
     weak = {"decision": "FAIL", "probabilities": {"FAIL": 0.55}}
     assert jv.combine_weighted({"decision": "FAIL"}, weak, "Decisions", 0.7)[0] == "FAIL"           # Codex FAIL 은 확정
     dec, how = jv.combine_weighted(codex_pass, strong, "Decisions", 0.7)
-    assert dec == "UNVERIFIED" and "심판 갈림" in how and "0.85" in how                        # 강한 FAIL → 보류
+    assert dec == "PASS" and "강한 FAIL 0.85" in how and "갈림, Codex 따름" in how                 # 갈려도 Codex 확정 (사용자 10-21), 갈림은 기록
     dec, how = jv.combine_weighted(codex_pass, weak, "Decisions", 0.7)
     assert dec == "PASS" and "약한 FAIL 0.55" in how                                             # 약한 FAIL → Codex 따름
     assert jv.combine_weighted(codex_pass, strong, "Jev", 0.7, jev_trimmed=True)[0] == "PASS"    # 줄인 자료로 본 둘째 심판은 참고만
@@ -32,7 +32,10 @@ def test_screen_flag_rules():
     assert jv.screen_flag("J2-2.a", {"choice": "PASS", "probabilities": {"PASS": 0.95, "FAIL": 0.05}, "confidence": 0.95}) == (False, "")
     assert jv.screen_flag("J2-2.a", {"choice": "FAIL", "probabilities": {"FAIL": 0.6}, "confidence": 0.6})[0]
     assert jv.screen_flag("J2-2.a", {"choice": "PASS", "probabilities": {"PASS": 0.65, "FAIL": 0.35}, "confidence": 0.65})[0]   # FAIL 0.35 ≥ 0.3
-    assert jv.screen_flag("J2-2.a", {"choice": "NOT_APPLICABLE", "probabilities": {"NOT_APPLICABLE": 0.6, "PASS": 0.3, "FAIL": 0.1}, "confidence": 0.6})[0]   # 확신 < 0.7
+    assert not jv.screen_flag("J2-2.a", {"choice": "NOT_APPLICABLE", "probabilities": {"NOT_APPLICABLE": 0.6, "PASS": 0.3, "FAIL": 0.1}, "confidence": 0.6})[0]   # 해당 없음 저확신은 안 보냄 (10-21)
+    assert jv.screen_flag("J2-2.a", {"choice": "PASS", "probabilities": {"PASS": 0.6, "NOT_APPLICABLE": 0.3, "FAIL": 0.1}, "confidence": 0.6})[0]   # PASS 저확신은 보냄
+    assert jv.combine_screen({"decision": "UNVERIFIED", "problems": []}, {"choice": "NOT_APPLICABLE", "probabilities": {"NOT_APPLICABLE": 0.6}}, True, item="J5-1.a")[0] == "NOT_APPLICABLE"
+    assert jv.combine_screen({"decision": "UNVERIFIED", "problems": []}, {"choice": "PASS", "probabilities": {"PASS": 0.6}}, True, item="J5-1.a")[0] == "UNVERIFIED"
     assert jv.screen_flag("J5-1.a", {"choice": "PASS", "probabilities": {"PASS": 0.99}, "confidence": 0.99}) == (True, "사실 확인은 Codex(웹 검색)가 봄")
     assert jv.screen_flag("J2-2.a", None) == (True, "Decisions 답 없음")
 
@@ -73,7 +76,7 @@ class FakeCodex:
     def __init__(self, verdicts=None):
         self.verdicts, self.inputs = verdicts or {}, []
 
-    def judge(self, prompt, input_text, search, tag="", output_schema=None):
+    def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
         doc = json.loads(input_text)
         self.inputs.append(doc)
         assert "판정할_항목" in doc and "선별 판정 (v5)" in prompt
@@ -110,11 +113,11 @@ def test_screen_one_sends_only_flagged_items_to_codex(tmp_path: Path):
     assert (tmp_path / "decisions" / "Q1_gpt.json").exists()
 
 
-def test_screen_one_holds_when_codex_passes_but_decisions_strong_fail(tmp_path: Path):
+def test_screen_one_follows_codex_when_decisions_strong_fail(tmp_path: Path):
     dec = FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9}, "confidence": 0.9}})
     line = _run(tmp_path, dec, FakeCodex({"J2-2.a": "PASS"}))
     item = line["turn_results"]["1"]["items"]["J2-2.a"]
-    assert item["decision"] == "UNVERIFIED" and "심판 갈림" in item["how"] and line["verdict"] == "HOLD"
+    assert item["decision"] == "PASS" and "갈림, Codex 따름" in item["how"] and line["verdict"] == "PASS"   # 사용자 결정 10-21
 
 
 def test_screen_one_skips_codex_when_nothing_flagged(tmp_path: Path):

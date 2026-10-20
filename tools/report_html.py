@@ -515,11 +515,22 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                     inside_fail[p] += 1
     P.append(f"<h2>5. 보류 — 사람이 정하는 것</h2><p class='lead'>심판이 확정하지 못한 질문 {len(hold_lines)}건입니다. 질문 원문과 답변 원문, 보류 사유를 보고 항목마다 PASS/FAIL 을 눌러 주세요. "
              "판단은 이 브라우저에 저장되고, '판단 내보내기'로 JSON 을 받아 <code>python tools/modelgrade.py held-apply --dir &lt;결과 폴더&gt; --file &lt;받은 JSON&gt;</code> 로 반영하면 보고서가 다시 만들어집니다.</p>")
-    P.append("<table><tr><th>모델</th><th class='num'>보류 질문</th>" + "".join(f"<th class='num'>{k}</th>" for k in HOLD_KINDS[:4]) + "<th class='num'>FAIL 질문 안의 보류 항목</th></tr>")
+    disagree: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for (p, q), L in lines.items():
+        for it in L["items"]:
+            if "갈림, Codex 따름" in it["how"]:
+                disagree[p].append({**it, "question": q})
+    P.append("<table><tr><th>모델</th><th class='num'>보류 질문</th>" + "".join(f"<th class='num'>{k}</th>" for k in HOLD_KINDS[:4]) + "<th class='num'>FAIL 질문 안의 보류 항목</th><th class='num'>심판 갈림(Codex 따름)</th></tr>")
     for p in providers:
-        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{tally(p)['HOLD']}</td>" + "".join(f"<td class='num'>{kind_counter[p][k]}</td>" for k in HOLD_KINDS[:4]) + f"<td class='num'>{inside_fail[p]}</td></tr>")
+        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{tally(p)['HOLD']}</td>" + "".join(f"<td class='num'>{kind_counter[p][k]}</td>" for k in HOLD_KINDS[:4]) + f"<td class='num'>{inside_fail[p]}</td><td class='num'>{len(disagree[p])}</td></tr>")
     P.append("</table><p class='note'>보류 종류 — <b>심판 출력 누락</b>: Codex 가 그 항목의 답을 안 냄(우리 쪽 문제, 다시 물으면 됨) · <b>인용 불일치</b>: 심판이 든 근거 문장이 원문에 없음 · "
              "<b>확인 못함</b>: 심판이 사실을 확인하지 못했다고 함 · <b>심판 갈림</b>: 두 심판이 확신을 갖고 반대로 판정. FAIL 질문 안의 보류 항목은 그 질문이 어차피 FAIL 이라 숫자를 바꾸지 않습니다.</p>")
+    if any(disagree.values()):
+        P.append("<details><summary>심판 갈림 — Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목 (숫자에는 보류로 들어가지 않음 · 확인용)</summary><table><tr><th>질문</th><th>모델</th><th>턴</th><th>항목</th><th>Codex 사유</th><th>심판</th></tr>")
+        for p in providers:
+            for it in sorted(disagree[p], key=lambda x: (x["question"], x["turn"])):
+                P.append(f"<tr><td>Q{it['question']}</td><td>{_e(model_label[p])}</td><td>{it['turn']}</td><td>{_e(it['item'])}</td><td class='qtxt'>{_e(it['reason'][:160])}</td><td class='small'>{_e(it['how'])}</td></tr>")
+        P.append("</table></details>")
     if hold_lines:
         P.append("<div class='toolbar'>검토자 <input id='reviewer' placeholder='이름'> <span class='small'>판단한 항목 <b id='decided'>0</b>개</span> <button id='export'>판단 내보내기(JSON)</button> "
                  "<button id='clear' style='background:#fff;color:#333;border-color:#bbb'>저장된 판단 지우기</button></div>")

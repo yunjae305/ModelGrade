@@ -138,7 +138,8 @@ class CodexJudge:
         return subprocess.CompletedProcess(cmd, proc.returncode, "".join(lines), "".join(err_buf))
 
     def judge(self, prompt: str, input_text: str, search: bool, tag: str = "",
-              output_schema: Optional[Dict[str, Any]] = None) -> Tuple[str, Any, str]:   # output_schema: 판정 v4 처럼 출력 모양이 다를 때
+              output_schema: Optional[Dict[str, Any]] = None, images: Optional[List[Any]] = None) -> Tuple[str, Any, str]:
+        # output_schema: 판정 v4 처럼 출력 모양이 다를 때 · images: 이미지 첨부 원본 경로 — 전사 글만으로는 "이미지 자체를 확인할 수 없다"고 보류하던 것 (사용자 10-21)
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
         self.last_usage = {}
@@ -158,6 +159,9 @@ class CodexJudge:
                     cmd += ["--disable", feature]
                 for feature in SEARCH_HOST_FEATURES:
                     cmd += ["--enable" if live else "--disable", feature]
+                for img in images or []:
+                    if Path(img).is_file():
+                        cmd += ["-i", str(Path(img).resolve())]   # 절대 경로 — Codex 는 임시 폴더에서 돌아 상대 경로를 못 찾는다(조용히 무시)
                 cmd.append("-")
                 try:   # 고정 프롬프트 뒤에 [입력] — 프롬프트 '입력 형식' 그대로
                     if self._run is subprocess.run:   # 실제 실행: 이벤트를 흘리며 받는다. 시험의 대역 실행기는 그대로 부른다

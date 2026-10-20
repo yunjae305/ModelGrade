@@ -186,6 +186,9 @@ SECOND_JUDGE_CONFIDENT = _env_float("SECOND_JUDGE_CONFIDENT", 0.7)
 #: 선별 판정(B, 2026-10-20): Decisions 전수 판정 뒤 Codex 에 넘기는 조건 — FAIL 확률 이 값 이상 또는 확신(confidence) 이 값 미만
 SCREEN_FAIL_PROB = _env_float("SCREEN_FAIL_PROB", 0.3)
 SCREEN_CONFIDENT = _env_float("SCREEN_CONFIDENT", 0.7)
+#: Decisions 가 '해당 없음'이라 하고 FAIL 확률 < SCREEN_FAIL_PROB 이면 확신이 낮아도 Codex 에 안 보낸다 — 실행 a1642702fccc 전체(걸린 12,967개)에서
+#: 이 묶음 4,954개 중 Codex FAIL 은 55개(1%)였고 그것을 빼도 질문 판정은 하나도 안 바뀌었다. .env SCREEN_SKIP_NA_LOWCONF=0 이면 옛 규칙.
+SCREEN_SKIP_NA_LOWCONF = _env_float("SCREEN_SKIP_NA_LOWCONF", 1) != 0
 #: 사실 확인 항목은 Decisions 가 적용된다고 보면(PASS/FAIL) 웹 검색이 있는 Codex 가 확인한다
 SCREEN_ALWAYS_CODEX = ("J5-1.a",)
 
@@ -213,10 +216,11 @@ def combine_weighted(codex_v: Optional[Dict[str, Any]], second_v: Optional[Dict[
     p = fail_prob(second_v) if j == "FAIL" else 0.0
     if c == "FAIL":
         return "FAIL", "Codex FAIL" + (f" · {label} 도 FAIL {p:.2f}" if j == "FAIL" else f" · {label} {KO.get(j, j)}")
-    if j == "FAIL" and not jev_trimmed and p >= confident:
-        return "UNVERIFIED", f"심판 갈림 — {label} FAIL {p:.2f} · Codex {KO.get(c, c) if c else '상황 없음'}"
-    note = (f" ({label} 약한 FAIL {p:.2f} — Codex 따름)" if j == "FAIL" and not jev_trimmed else
+    # 둘이 갈려도 보류하지 않고 Codex 를 따른다 — 사용자 결정 10-21 ("Decisions FAIL → Codex 가 확인해 PASS 면 PASS"). 갈림은 기록만(보고서 '심판 갈림' 수).
+    note = (f" ({label} {'강한' if p >= confident else '약한'} FAIL {p:.2f} — 갈림, Codex 따름)" if j == "FAIL" and not jev_trimmed else
             f" ({label} 는 줄인 자료로 봐서 참고만)" if jev_trimmed else "")
+    if c is None and j == "FAIL" and not jev_trimmed:
+        return "UNVERIFIED", f"Codex 상황 없음 · {label} FAIL {p:.2f} → 보류"   # Codex 가 보지 않은 항목의 FAIL 은 사람이 본다
     if c is None:
         return None, f"Codex 상황 없음 · {label} {KO.get(j, j)}{note}"
     return c, f"Codex {KO.get(c, c)} · {label} {KO.get(j, j)}{note}"
@@ -231,7 +235,8 @@ SCREEN_SUFFIX = """
 [입력] 에 "판정할_항목" 이 있으면 — 먼저 다른 심판이 전수 판정한 뒤 걸린 항목입니다 — 턴마다 그 목록의 항목만 판정합니다.
 - situations 에는 그 항목이 속한 상황만 적습니다(언제나 적는 상황이라도 목록에 그 항목이 없으면 적지 않습니다).
 - items 에는 목록의 항목을 하나도 빼지 않고 답하고, 목록에 없는 항목은 답하지 않습니다. 사유와 인용은 평소처럼 원문 그대로 적습니다.
-- 결론(conclusion)은 이번에 본 항목만으로 냅니다."""
+- 결론(conclusion)은 이번에 본 항목만으로 냅니다.
+- 이미지 첨부가 있는 질문은 원본 이미지를 함께 붙였습니다([첨부파일] 블록의 글은 그 이미지를 옮겨 적은 것). 이미지의 판독·내용 반영 여부는 이미지로 확인합니다."""
 
 
 def missing_codex_items(output: Any, flagged: Dict[int, List[str]]) -> Dict[int, List[str]]:
@@ -256,6 +261,33 @@ def bad_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str,
             quote_probs = [p for p in (v.get("problems") or []) + (v.get("notes") or []) if "원문에 없음" in p]
             if quote_probs:
                 out[(n, i)] = quote_probs
+    return out
+
+
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+
+def attachment_images(turns: List[Dict[str, Any]], files_dir: Optional[Path]) -> List[Path]:
+    """질문의 이미지 첨부 원본 경로 — Codex 에 -i 로 붙인다 (Decisions 는 이미 input_image 로 받는다)."""
+    if not files_dir:
+        return []
+    out: List[Path] = []
+    for row in turns:
+        for a in row.get("attachments") or []:
+            if isinstance(a, dict) and str(a.get("path") or a.get("name") or "").lower().endswith(IMAGE_EXT):
+                p = Path(files_dir) / str(a.get("path") or a.get("name"))
+                if p.is_file() and p not in out:
+                    out.append(p)
+    return out
+
+
+def unverified_fact_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
+    """Codex 가 '확인 못함'(UNVERIFIED)이라 한 J5-1.a — 형식 문제 없이 그렇게 답한 것만."""
+    out: List[Tuple[int, str]] = []
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        v = items.get("J5-1.a")
+        if v and v.get("decision") == "UNVERIFIED" and not v.get("problems"):
+            out.append((n, "J5-1.a"))
     return out
 
 
@@ -322,6 +354,8 @@ def screen_flag(item: str, entry: Optional[Dict[str, Any]], fail_prob_min: float
     if p >= fail_prob_min:
         return True, f"FAIL 확률 {p:.2f} ≥ {fail_prob_min}"
     if isinstance(conf, (int, float)) and conf < confident:
+        if choice == "NOT_APPLICABLE" and SCREEN_SKIP_NA_LOWCONF:
+            return False, ""
         return True, f"확신 {conf:.2f} < {confident}"
     if item in SCREEN_ALWAYS_CODEX and choice == "PASS":
         return True, "사실 확인은 Codex(웹 검색)가 봄"
@@ -329,7 +363,7 @@ def screen_flag(item: str, entry: Optional[Dict[str, Any]], fail_prob_min: float
 
 
 def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, Any]], flagged: bool,
-                   confident: float = SECOND_JUDGE_CONFIDENT) -> Tuple[Optional[str], str]:
+                   confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None) -> Tuple[Optional[str], str]:
     """선별 판정의 항목 하나 — 안 걸린 항목은 Decisions 대로, 걸린 항목은 0.7 규칙으로 Codex 와 합친다. Codex 가 못 본 걸린 항목: Decisions FAIL 이면 보류."""
     d = (dec_v or {}).get("choice")
     p = fail_prob({"decision": "FAIL", "probabilities": (dec_v or {}).get("probabilities")}) if d == "FAIL" else 0.0
@@ -339,6 +373,9 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
         if d == "FAIL":
             return "UNVERIFIED", f"Codex 판정 없음 · Decisions FAIL {p:.2f} → 보류"
         return d, f"Decisions {KO.get(d, d)} (Codex 판정 없음)"
+    if codex_v.get("decision") == "UNVERIFIED" and item == "J5-1.a" and d == "NOT_APPLICABLE" and not codex_v.get("problems"):
+        # 사실 확인 항목에서 Codex 가 "확인 못함"이라 했는데 Decisions 는 적용 조건이 없다고 봄 — 코드·입력 자료 질문에 외부 사실이 없는 경우 (사용자 10-21)
+        return "NOT_APPLICABLE", "Codex 확인 못함 · Decisions 해당 없음 → 외부 사실 주장 없음으로 봄"
     second = {"decision": d, "probabilities": (dec_v or {}).get("probabilities")}
     return combine_weighted(codex_v, second, "Decisions", confident)
 
@@ -409,9 +446,10 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         t1 = time.monotonic()
         body_doc = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
         tokens = {"input_tokens": 0, "output_tokens": 0}
+        images = attachment_images(turns, getattr(gpt, "files_dir", None))
 
         def ask_codex(ask_doc: Dict[str, Any]) -> Tuple[str, Any, str]:
-            st, outp, err = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps(ask_doc, ensure_ascii=False, indent=1), search, tag, output_schema=output_schema())
+            st, outp, err = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps(ask_doc, ensure_ascii=False, indent=1), search, tag, output_schema=output_schema(), images=images)
             u = getattr(gpt, "last_usage", None) or {}
             for k in tokens:
                 tokens[k] += int(u.get(k) or 0)
@@ -431,6 +469,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         while status == "OK" and gpt is not None and rounds < len(flagged) + 3:
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
+            if reused:   # 복구: 옛 프롬프트로 "확인 못함"이 된 J5-1.a 는 새 프롬프트로 한 번 다시 묻는다 (사용자 10-21)
+                bad.update({k: ["J5-1.a 확인 못함 — 다시"] for k in unverified_fact_items(output, turns, answers, flagged) if k not in reasked})
             targets: Dict[int, List[str]] = {}
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
@@ -473,7 +513,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         for i, entry in (dec_items.get(n) or {}).items():
             is_flagged = i in (flagged.get(n) or [])
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
-            dec, how = combine_screen(cv, entry, is_flagged)
+            dec, how = combine_screen(cv, entry, is_flagged, item=i)
             if dec is None:
                 continue
             if is_flagged and cv and cv.get("decision") is not None and isinstance(entry, dict):
@@ -900,6 +940,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     gpt = jev = decisions = None
     if not args.dry:
         gpt, jev, notes = judges_from_env()
+        if gpt is not None:
+            gpt.files_dir = set_dir / "files"   # 이미지 첨부 원본을 -i 로
         for n in notes:
             say(f"⚠ {n}")
         from tools.judge_run import decisions_from_env

@@ -27,8 +27,8 @@ def test_missing_items_are_per_item_and_merge_replaces_only_asked():
 class PartialCodex(FakeCodex):
     """첫 호출은 요청한 항목의 절반만 답하고, 다시 물으면 다 답한다."""
 
-    def judge(self, prompt, input_text, search, tag="", output_schema=None):
-        st, out, err = super().judge(prompt, input_text, search, tag, output_schema)
+    def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+        st, out, err = super().judge(prompt, input_text, search, tag, output_schema, images)
         if len(self.inputs) == 1:
             for t in out["turns"]:
                 t["items"] = t["items"][: max(1, len(t["items"]) // 2)]
@@ -49,7 +49,7 @@ def test_screen_one_reasks_only_missing_items(tmp_path: Path):
 
 
 class BrokenCodex(FakeCodex):
-    def judge(self, prompt, input_text, search, tag="", output_schema=None):
+    def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
         self.inputs.append(json.loads(input_text))
         return "ERROR", None, "codex exec 실패"
 
