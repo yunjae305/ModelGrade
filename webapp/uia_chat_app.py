@@ -460,7 +460,7 @@ class ClaudeAppChat:
                     pass
         return "\n".join(parts)
 
-    ARTIFACT_MARKS = ("Claude Docs", "아티팩트 사용", "artifact", "열기")
+    ARTIFACT_MARKS = ("Claude Docs", "아티팩트 사용", "User-generated artifact")   # '열기'·'artifact' 는 본문 글에도 나와 오탐(10-20: 본문을 다 받은 14턴에 표시됨)
 
     def _made_file(self, group: Any) -> bool:
         """이 답이 문서·아티팩트(Claude Docs 카드, '열기' 버튼, 아티팩트 패널)로 만들어졌는가 — 복사 아이콘은 그 내용을 주지 않는다(Q25 9턴, 2026-10-20)."""
