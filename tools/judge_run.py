@@ -122,7 +122,8 @@ class CodexJudge:
         reader.join(timeout=5)
         return subprocess.CompletedProcess(cmd, proc.returncode, "".join(lines), "".join(err_buf))
 
-    def judge(self, prompt: str, input_text: str, search: bool, tag: str = "") -> Tuple[str, Any, str]:
+    def judge(self, prompt: str, input_text: str, search: bool, tag: str = "",
+              output_schema: Optional[Dict[str, Any]] = None) -> Tuple[str, Any, str]:   # output_schema: 판정 v4 처럼 출력 모양이 다를 때
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
         last = ""
@@ -132,7 +133,7 @@ class CodexJudge:
             attempt += 1
             with tempfile.TemporaryDirectory(prefix="judge-run-") as folder:
                 schema, output = Path(folder) / "schema.json", Path(folder) / "answer.json"
-                schema.write_text(json.dumps(js.gpt_output_schema(), ensure_ascii=False), encoding="utf-8")
+                schema.write_text(json.dumps(output_schema or js.gpt_output_schema(), ensure_ascii=False), encoding="utf-8")
                 cmd = [self.executable, "exec", "--ignore-user-config", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only",
                        "--color", "never", "--json", "--model", self.model, "-c", f"model_reasoning_effort={json.dumps(self.reasoning)}",
                        "-c", 'approval_policy="never"', "-c", f"web_search={json.dumps('live' if live else 'disabled')}",
