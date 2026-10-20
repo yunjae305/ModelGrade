@@ -82,6 +82,34 @@ def legacy_semantic(record: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def compact_judgment(line: Dict[str, Any]) -> Dict[str, Any]:
+    """판정 줄 하나를 보기용으로 줄인다 — 선별 결과(turn_results)는 항목마다 판정·사유·인용만 남기고 심판 원자료(entries·확률 전체)는 뺀다.
+    (전체를 넣으면 78×4 에 76MB — 저장소에 넣을 수 없어서, 2026-10-21.) 원자료는 data/judge_runs/<실행>/<out>/ 에 있다."""
+    keep = {k: line.get(k) for k in ("version", "mode", "provider", "question", "turns", "status", "verdict", "semantic", "code_fails", "seconds",
+                                     "screen", "judge_error", "reason", "collection_note", "at") if line.get(k) not in (None, "", [])}
+    calls = line.get("calls") or {}
+    if isinstance(calls, dict):
+        keep["calls"] = {k: {kk: vv for kk, vv in v.items() if kk != "output"} if isinstance(v, dict) else v for k, v in calls.items()}
+    src = line.get("turn_results") or line.get("results") or {}
+    out_turns: Dict[str, Any] = {}
+    for turn, block in src.items():
+        items = block.get("items") if isinstance(block, dict) and "items" in block else block
+        compact: Dict[str, Any] = {}
+        for item, v in (items or {}).items():
+            if not isinstance(v, dict):
+                continue
+            entries = v.get("entries") or []
+            e = next((x for x in entries if x.get("decision") == v.get("decision")), entries[0] if entries else {})
+            c = {"decision": v.get("decision"), "how": v.get("how"), "reason": _clip(v.get("reason") or e.get("reason"), 400),
+                 "answer_quote": _clip(v.get("answer_quote") or e.get("answer_quote"), 300), "question_quote": _clip(v.get("question_quote") or e.get("question_quote"), 200),
+                 "codex": v.get("codex"), "decisions": v.get("jev"), "decisions_fail_prob": (v.get("decisions_prob") or {}).get("FAIL") if isinstance(v.get("decisions_prob"), dict) else None,
+                 "decisions_confidence": v.get("decisions_confidence"), "flagged": v.get("flagged"), "problems": v.get("problems"), "notes": v.get("notes")}
+            compact[item] = {k: x for k, x in c.items() if x not in (None, "", [])}
+        out_turns[str(turn)] = {"situations": (block.get("situations_judge") if isinstance(block, dict) else None) or [], "items": compact}
+    keep["turn_results"] = out_turns
+    return keep
+
+
 def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: Path = OUT_DIR,
            runs_dir: Path = RUNS, judge_dir: Optional[Path] = None) -> Path:
     run = json.loads((runs_dir / f"{run_id}.json").read_text(encoding="utf-8"))
@@ -116,10 +144,13 @@ def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: P
         doc["providers"][p] = {"label": (run.get("models") or {}).get(p) or p, "turns": turns, "summary": summary}
     jd = judge_dir or (JUDGE / run_id)
     if (jd / "results.jsonl").exists():
-        lines = [json.loads(l) for l in (jd / "results.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
-        if scope:
-            lines = [l for l in lines if int(l.get("question") or 0) in scope]
-        doc["judgment"] = {"pipeline": "judge-split v2 (Jev 거르기 → Codex CLI 확정)", "results": lines,
+        latest: Dict[str, Dict[str, Any]] = {}
+        for l in (jd / "results.jsonl").read_text(encoding="utf-8").splitlines():
+            if l.strip():
+                x = json.loads(l)
+                latest[f"{x.get('provider')}:{x.get('question')}"] = x   # 같은 (모델, 질문)은 마지막 줄
+        lines = [compact_judgment(l) for l in latest.values() if not scope or int(l.get("question") or 0) in scope]
+        doc["judgment"] = {"pipeline": "judge-v5-screen (Decisions 전수 → 걸린 항목만 Codex, Codex 확정)", "results": lines,
                            "summary": json.loads((jd / "summary.json").read_text(encoding="utf-8")) if (jd / "summary.json").exists() else None,
                            "timing": [json.loads(l) for l in (jd / "timing.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
                            if (jd / "timing.jsonl").exists() else []}
