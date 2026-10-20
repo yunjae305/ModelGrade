@@ -1,0 +1,34 @@
+{
+ "version": "judge-v4-1",
+ "run_id": "a1642702fccc",
+ "prompt": "judge_prompt_v4.txt",
+ "jev_questions": "jev-questions-v4",
+ "finished_at": "2026-10-20T22:52:29.292145+00:00",
+ "wall_seconds": 1410.0,
+ "models": {
+  "gemini": {
+   "PASS": 27,
+   "FAIL": 41,
+   "HOLD": 10,
+   "n": 78
+  },
+  "claude": {
+   "PASS": 40,
+   "FAIL": 27,
+   "HOLD": 11,
+   "n": 78
+  },
+  "gpt": {
+   "PASS": 23,
+   "FAIL": 45,
+   "HOLD": 10,
+   "n": 78
+  },
+  "aiona": {
+   "PASS": 46,
+   "FAIL": 22,
+   "HOLD": 10,
+   "n": 78
+  }
+ }
+}
