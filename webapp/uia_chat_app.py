@@ -460,6 +460,17 @@ class ClaudeAppChat:
                     pass
         return "\n".join(parts)
 
+    ARTIFACT_MARKS = ("Claude Docs", "아티팩트 사용", "artifact", "열기")
+
+    def _made_file(self, group: Any) -> bool:
+        """이 답이 문서·아티팩트(Claude Docs 카드, '열기' 버튼, 아티팩트 패널)로 만들어졌는가 — 복사 아이콘은 그 내용을 주지 않는다(Q25 9턴, 2026-10-20)."""
+        try:
+            names = [(d.element_info.name or "") for d in group.descendants()] if group is not None else []
+            names += [(d.element_info.name or "") for d in self._all("Document")]
+            return any(any(m.lower() in n.lower() for m in self.ARTIFACT_MARKS) for n in names if n)
+        except Exception:
+            return False
+
     def _draft_blocks(self, group: Any) -> List[str]:
         """답 안의 편집 블록(초안·문서 카드, Edit) 값들 — 복사 아이콘 글에는 이 블록이 안 들어간다(Q56, 2026-10-19). 수만 기록한다."""
         out = []
@@ -530,6 +541,9 @@ class ClaudeAppChat:
             last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
             time.sleep(3)
         self._dump_copy_failure(last_error)
+        group = self._last_message_group()
+        if self._made_file(group):
+            raise CopyFailed("답이 문서/아티팩트(Claude Docs 등)로 생성됨 — 복사 아이콘으로는 그 내용을 받을 수 없어 보류(사용자 규칙 10-20)")
         raise CopyFailed(f"복사 실패({last_error}) — 6번 다시 시도함, 보류(사용자 규칙 10-20)")
 
     def _close_artifact_panel(self) -> bool:
@@ -668,6 +682,7 @@ class ClaudeAppChat:
             self._front()
             group = self._last_message_group()
             drafts = len(self._draft_blocks(group)) if group is not None else 0   # 기록만 — 답은 복사 아이콘 글 그대로(사용자 결정 10-19)
+            made_file = self._made_file(group)   # 문서/아티팩트로 답한 경우 — 결과에 남긴다(복사 글에는 그 내용이 없다)
             try:
                 copied = self._copy_last_answer()
             except CopyFailed as exc:
@@ -681,6 +696,7 @@ class ClaudeAppChat:
             else:
                 answer, capture = "", "empty"   # 답 말풍선은 생겼는데 복사할 글이 없다 — 빈 답
         return {**base, "answer": answer if done else "", "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture, "draft_blocks": drafts,
+                **({"artifact": True} if done and made_file else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.",
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 "latency_ms": round((time.monotonic() - started) * 1000)}
