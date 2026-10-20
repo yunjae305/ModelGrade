@@ -170,6 +170,37 @@ extra_css = """<style>
 .rate-key .k155 { width: 11px; height: 11px; border-radius: 50%; background: var(--s155); }
 .rate-key .kref { width: 3px; height: 13px; background: var(--ink); }
 .rate-key .kband { width: 22px; height: 9px; border-radius: 5px; background: var(--line); }
+/* 05 던지는 순서 선 그래프 — 파랑 기준 많은 순 · 주황 모자란 기준부터 · 회색 점선 번호순 (04장과 같은 색) */
+.order-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.order-charts > div { min-width: 0; }
+.order-charts h3 { font-size: 1rem; margin: 0 0 6px; }
+@media (max-width: 900px) { .order-charts { grid-template-columns: minmax(0, 1fr); } }
+.rate-chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.rate-chart .ln-kdesc { stroke: var(--s198); }
+.rate-chart .ln-greedy { stroke: var(--s155); }
+.rate-chart .ln-number { stroke: var(--muted); stroke-dasharray: 5 4; }
+.rate-chart .guide { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.rate-chart .pt-kdesc { fill: var(--s198); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .pt-greedy { fill: var(--s155); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .pt-number { fill: var(--muted); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .axt { fill: var(--muted); font-size: 12px; }
+.rate-chart .hit { fill: transparent; }
+.rate-chart .hit:hover { fill: var(--line); fill-opacity: 0.5; }
+.rate-key .knum { width: 18px; height: 0; border-top: 2px dashed var(--muted); vertical-align: 3px; }
+.rate-key .kkd { width: 18px; height: 0; border-top: 2px solid var(--s198); vertical-align: 3px; }
+.rate-key .kgr { width: 18px; height: 0; border-top: 2px solid var(--s155); vertical-align: 3px; }
+/* 06 k 급증 — 진한 선 = 기록된 FAIL, 파랑 = J5 하나로만 FAIL 뺀 것, 주황 막대 = 형식 요구 3개↑ (실험), 진한 마름모 = 지금 326 세트 */
+.rate-chart .ln-ink { stroke: var(--ink); }
+.rate-chart .ln-blue { stroke: var(--s198); }
+.rate-chart .pt-ink { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .pt-blue { fill: var(--s198); stroke: var(--surface); stroke-width: 2; }
+.rate-chart .kband { fill: var(--accent-soft); }
+.rate-chart .bar { fill: var(--s155); }
+.rate-chart .dia { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
+.rate-key .kink { width: 18px; height: 0; border-top: 2px solid var(--ink); vertical-align: 3px; }
+.rate-key .kbar { width: 11px; height: 11px; border-radius: 2px; background: var(--s155); }
+.rate-key .kdia { width: 9px; height: 9px; background: var(--ink); transform: rotate(45deg); }
+.rate-key .kband2 { width: 18px; height: 11px; background: var(--accent-soft); border-radius: 2px; }
 .rnum { font-family: var(--font-num); }
 .rsub { display: block; color: var(--muted); font-size: 0.8rem; }
 @media (max-width: 900px) { .sh-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -812,6 +843,159 @@ rate_points = table("", ["무엇", "결과"], [
 ], [18, 82])
 
 
+# ---------- 05 던지는 순서 세 가지 (체크리스트 n4) ----------
+# 숫자는 tools/order_curves.py 가 저장소의 326 결과 JSON 으로 센 것(참고자료/최소평가/던지는순서_세가지_8c61f117e661.json) — 여기서는 읽기만.
+ORD = json.loads((ROOT / "참고자료" / "최소평가" / "던지는순서_세가지_8c61f117e661.json").read_text(encoding="utf-8"))
+ORD_KEYS = ["number", "kdesc", "greedy"]
+ORD_NAMES = {k: ORD["orders"][k]["label"] for k in ORD_KEYS}
+OT = ORD["totals"]
+
+
+def order_chart(metric, total, as_pct, reach_key, aria):
+    """가로 = 던진 질문 수, 세로 = metric. 세 순서를 선으로, 도달 지점(reach_key)에 점과 숫자."""
+    width, height, left, right, top, bottom = 520, 290, 46, 506, 14, 246
+    n_all = len(ORD["curves"]["number"][metric])
+    x = lambda n: left + n / n_all * (right - left)
+    y = lambda v: bottom - v / total * (bottom - top)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{E(aria)}">']
+    for f in (0, 0.25, 0.5, 0.75, 1):
+        label = f"{int(f * 100)}%" if as_pct else f"{round(f * total)}"
+        out.append(f'<line class="grid" x1="{left}" y1="{y(f * total):.1f}" x2="{right}" y2="{y(f * total):.1f}"/>'
+                   f'<text class="tick" x="{left - 6}" y="{y(f * total) + 4:.1f}" text-anchor="end">{label}</text>')
+    for n in [t for t in (0, 50, 100, 150, 200, 250, 300) if n_all - t >= 40] + [n_all]:   # 끝 눈금과 붙는 눈금은 뺀다
+        out.append(f'<text class="tick" x="{x(n):.1f}" y="{bottom + 16}" text-anchor="middle">{n}</text>')
+    out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">던진 질문 수</text>')
+    if reach_key == "pairs_80":
+        out.append(f'<line class="guide" x1="{left}" y1="{y(0.8 * total):.1f}" x2="{right}" y2="{y(0.8 * total):.1f}"/>'
+                   f'<text class="reflab" x="{right}" y="{y(0.8 * total) - 5:.1f}" text-anchor="end">80%</text>')
+    for k in ORD_KEYS:
+        values = ORD["curves"][k][metric]
+        pts = " ".join(f"{x(i + 1):.1f},{y(v):.1f}" for i, v in enumerate(values))
+        out.append(f'<polyline class="ln ln-{k}" points="{left:.1f},{bottom:.1f} {pts}"/>')
+    for j, k in enumerate(ORD_KEYS):   # 도달 지점 — 점 + 질문 수(겹치지 않게 위아래로 엇갈림)
+        n = ORD["reach"][k][reach_key]
+        if n is None:
+            continue
+        v = ORD["curves"][k][metric][n - 1]
+        out.append(f'<line class="guide" x1="{x(n):.1f}" y1="{y(v):.1f}" x2="{x(n):.1f}" y2="{bottom}"/>'
+                   f'<circle class="pt-{k}" cx="{x(n):.1f}" cy="{y(v):.1f}" r="5"/>'
+                   f'<text class="val" x="{x(n) + (6 if n < n_all - 20 else -6):.1f}" y="{y(v) + 18 + j * 14:.1f}" '
+                   f'text-anchor="{"start" if n < n_all - 20 else "end"}">{n}개</text>')
+    step = 2
+    for n in range(step, n_all + 1, step):   # 마우스를 올리면 그 질문 수의 세 값
+        vals = " · ".join(f"{ORD_NAMES[k]} {ORD['curves'][k][metric][n - 1] / total * 100:.0f}%" if as_pct else
+                          f"{ORD_NAMES[k]} {ORD['curves'][k][metric][n - 1]}" for k in ORD_KEYS)
+        out.append(f'<rect class="hit" x="{x(n - step):.1f}" y="{top}" width="{x(n) - x(n - step):.2f}" height="{bottom - top}"><title>{n}개 — {E(vals)}</title></rect>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def best_cells(row, key, as_pct, total):
+    vals = {k: row[k][key] for k in ORD_KEYS}
+    top_v = max(vals.values())
+    fmt = (lambda v: f"{v / total * 100:.0f}%") if as_pct else (lambda v: f"{v}")
+    return [f'<b class="rnum">{fmt(v)}</b>' if v == top_v and list(vals.values()).count(top_v) < 3 else f'<span class="rnum">{fmt(v)}</span>'
+            for v in vals.values()]
+
+
+reach_table = table("어디서 도달하나 — 질문 수 (적을수록 빠름)", ["도달", *ORD_NAMES.values()], [
+    [name, *[f'<b class="rnum">{ORD["reach"][k][key]}개</b>' if ORD["reach"][k][key] == min(ORD["reach"][kk][key] for kk in ORD_KEYS)
+             else f'<span class="rnum">{ORD["reach"][k][key]}개</span>' for k in ORD_KEYS]]
+    for key, name in (("criteria_all", f"기준 {OT['criteria']}개 모두 10번 이상"), ("pairs_80", f"FAIL 종류 80% ({round(0.8 * OT['pairs'])}/{OT['pairs']})"),
+                      ("pairs_all", f"FAIL 종류 전부 ({OT['pairs']})"), ("events_50", f"FAIL 사건 절반 ({OT['events'] // 2}/{OT['events']})"))
+], [34, 22, 22, 22])
+cover_table = table(f"질문 수별 값 — 기준 10번↑ (/{OT['criteria']}) · FAIL 종류 (/{OT['pairs']}) · FAIL 사건 (/{OT['events']})",
+                    ["질문 수", *ORD_NAMES.values()],
+                    [[f'<span class="rnum">{m["n"]}</span>',
+                      *[f'<span class="rnum">{m[k]["covered10"]} · {m[k]["fail_pairs"]} · {m[k]["fail_events"]}</span>' for k in ORD_KEYS]]
+                     for m in ORD["marks"]], [16, 28, 28, 28])
+RCH = ORD["reach"]
+m155 = next(m for m in ORD["marks"] if m["n"] == 155)
+order_points = table("", ["무엇", "결과"], [
+    ["기준을 고르게", f"기준 {OT['criteria']}개를 모두 10번 이상 평가하려면 모자란 기준부터 <b>{RCH['greedy']['criteria_all']}개</b> · 번호순 {RCH['number']['criteria_all']}개 · "
+                   f"기준 많은 순 {RCH['kdesc']['criteria_all']}개(기준이 적은 질문에만 있는 기준이 맨 뒤로 밀려서)"],
+    ["FAIL 종류", f"80%가 보이는 지점 — 모자란 기준부터 <b>{RCH['greedy']['pairs_80']}개</b> · 번호순 {RCH['number']['pairs_80']}개 · 기준 많은 순 {RCH['kdesc']['pairs_80']}개"],
+    ["FAIL 개수", f"기준 많은 순이 중간 구간에서 가장 많이 잡음(155개에서 {m155['kdesc']['fail_events']}건 vs {m155['greedy']['fail_events']}·{m155['number']['fail_events']}건) — "
+                  "어려운 질문을 먼저 던져서. 04장에서 통과율이 낮게 나온 것과 같은 이유"],
+    ["326 에서", f"세 선이 같은 점(기준 {OT['criteria']}개 · FAIL 종류 {OT['pairs']}개 · 사건 {OT['events']}건) — 같은 326개를 순서만 바꾼 것"],
+    ["그래서", "적은 질문으로 기준과 FAIL 종류를 넓게 보려면 <b>모자란 기준부터</b>(지금 간단 78 이 이 방식)"],
+], [18, 82])
+
+
+# ---------- 06 k 9·12 FAIL 급증 원인 (체크리스트 n6) ----------
+# 숫자는 tools/k_jump_analysis.py 가 조건 수 변형 실험(e4ce7a342251)과 지운 실험 세트(git 기록)로 센 것 — 여기서는 읽기만.
+KJ = json.loads((ROOT / "참고자료" / "최소평가" / "k급증_원인_e4ce7a342251.json").read_text(encoding="utf-8"))
+PK = {x["k"]: x for x in KJ["per_k"]}
+JP = {j["k"]: j for j in KJ["jumps"]}
+S326 = {x["k"]: x for x in KJ["set326"]}
+KIND_LABEL = {"existing": "원래 있던 조건이 새로 깨짐", "added": "새로 붙은 조건에서", "j5": "J5 — 확인 못 한 사실을 FAIL 로 셈(엄격 규칙)"}
+
+
+def k_chart_frame(kind, aria):
+    width, height, left, right, top, bottom = 520, 290, 46, 506, 14, 246
+    ks = sorted(PK)
+    x = lambda k: left + (k - ks[0] + 0.5) / len(ks) * (right - left)
+    y = lambda v: bottom - v * (bottom - top)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{E(aria)}">',
+           f'<rect class="kband" x="{x(6) - (right - left) / len(ks) / 2:.1f}" y="{top}" width="{(right - left) / len(ks) * 5:.1f}" height="{bottom - top}"/>',
+           f'<text class="axt" x="{x(8):.1f}" y="{top + 13}" text-anchor="middle">지금 k 6~10</text>']
+    for f in (0, 0.25, 0.5, 0.75, 1):
+        out.append(f'<line class="grid" x1="{left}" y1="{y(f):.1f}" x2="{right}" y2="{y(f):.1f}"/>'
+                   f'<text class="tick" x="{left - 6}" y="{y(f) + 4:.1f}" text-anchor="end">{int(f * 100)}%</text>')
+    for k in ks:
+        out.append(f'<text class="tick" x="{x(k):.1f}" y="{bottom + 16}" text-anchor="middle">{k}</text>')
+    out.append(f'<text class="axt" x="{right}" y="{height - 4}" text-anchor="end">질문당 조건 수 k</text>')
+    if kind == "fail":
+        for key, cls in (("fail_rate", "ink"), ("rate_without_j5_only", "blue")):
+            pts = " ".join(f"{x(k):.1f},{y(PK[k][key]):.1f}" for k in ks)
+            out.append(f'<polyline class="ln ln-{cls}" points="{pts}"/>')
+            for k in ks:
+                out.append(f'<circle class="pt-{cls}" cx="{x(k):.1f}" cy="{y(PK[k][key]):.1f}" r="3.5"><title>k {k} — '
+                           f'{"기록된 FAIL" if cls == "ink" else "J5 하나로만 FAIL 뺀 것"} {PK[k][key] * 100:.0f}% (판정 {PK[k]["n"]}개)</title></circle>')
+        for k in (9, 12):   # 급증 지점 — 기록된 FAIL 값
+            out.append(f'<text class="val" x="{x(k):.1f}" y="{y(PK[k]["fail_rate"]) - 9:.1f}" text-anchor="middle">{k - 1}→{k}</text>')
+    else:
+        w = (right - left) / len(ks) * 0.62
+        for k in ks:
+            v = PK[k]["format3_share"]
+            out.append(f'<rect class="bar" x="{x(k) - w / 2:.1f}" y="{y(v):.1f}" width="{w:.1f}" height="{bottom - y(v):.1f}" rx="2">'
+                       f'<title>실험 k {k} — 형식 요구 3개↑ {v * 100:.0f}% (변형 {PK[k]["variants"]}개)</title></rect>')
+            if k in S326 and S326[k]["questions"] >= 5:
+                out.append(f'<rect class="dia" x="{x(k) - 4:.1f}" y="{y(S326[k]["format3_share"]) - 4:.1f}" width="8" height="8" transform="rotate(45 {x(k):.1f} {y(S326[k]["format3_share"]):.1f})">'
+                           f'<title>지금 326 세트 k {k} — 형식 요구 3개↑ {S326[k]["format3_share"] * 100:.0f}% (질문 {S326[k]["questions"]}개)</title></rect>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def pct0(v):
+    return f"{v * 100:.0f}%"
+
+
+j9, j12 = JP[9], JP[12]
+jump_table = table("k 가 하나 늘 때 새로 생긴 FAIL — 어디서 나왔나", ["갈래", "8 → 9", "11 → 12"], [
+    *[[KIND_LABEL[k], f'<span class="rnum">{j9["kinds"].get(k, 0)}건</span>', f'<span class="rnum">{j12["kinds"].get(k, 0)}건</span>'] for k in ("existing", "added", "j5")],
+    ["합계 (PASS → FAIL 로 바뀐 판정)", f'<span class="rnum">{j9["new_fails"]}건 ({j9["pass_to_fail"]})</span>', f'<span class="rnum">{j12["new_fails"]}건 ({j12["pass_to_fail"]})</span>'],
+], [50, 25, 25])
+per_k_table = table("k 별 값 — 실험 판정(뼈대 18개 × 3모델) · 형식 요구 = 표·목록·제목·JSON 구조·코드블록",
+                    ["k", "FAIL 비율", "J5 하나로만 FAIL 뺀 비율", "CODE 위반 있는 비율", "형식 요구 3개↑ (실험)", "형식 요구 3개↑ (지금 326)"],
+                    [[f'<span class="rnum">{k}</span>', *[f'<span class="rnum">{pct0(PK[k][f])}</span>' for f in ("fail_rate", "rate_without_j5_only", "code_fail_rate", "format3_share")],
+                      f'<span class="rnum">{pct0(S326[k]["format3_share"])} ({S326[k]["questions"]}개)</span>' if k in S326 else "—"] for k in sorted(PK)],
+                    [8, 15, 19, 18, 18, 22])
+combo = j12["json_plus_format"]
+k_points = table("", ["무엇", "결과"], [
+    ["급증 재현", f"FAIL 비율 k8 {pct0(PK[8]['fail_rate'])} → k9 {pct0(PK[9]['fail_rate'])}, k11 {pct0(PK[11]['fail_rate'])} → k12 <b>{pct0(PK[12]['fail_rate'])}</b>"],
+    ["8 → 9", f"<b>평가 규칙 영향</b> — 실험은 '확인 못 한 J5 = FAIL'로 셈. J5 하나로만 FAIL 인 것을 빼면 {pct0(PK[8]['rate_without_j5_only'])} → {pct0(PK[9]['rate_without_j5_only'])} 로 "
+              f"급증이 사라짐. 지금 규칙(확인 못 하면 보류)이면 생기지 않는 급증"],
+    ["11 → 12", f"<b>실제 위반</b> — J5 를 빼도 {pct0(PK[11]['rate_without_j5_only'])} → {pct0(PK[12]['rate_without_j5_only'])}. 새 FAIL {j12['new_fails']}건 중 "
+                f"{j12['kinds'].get('existing', 0)}건이 원래 있던 조건(목록·제목·표·문구·개수)이 깨진 것. 형식 요구 3개↑ 변형이 {pct0(PK[11]['format3_share'])} → {pct0(PK[12]['format3_share'])}"],
+    ["충돌인가 누적인가", f"JSON 과 표·목록·제목을 함께 요구한 변형만 보면 FAIL {combo['with']['fail']}/{combo['with']['n']} — 나머지({combo['without']['fail']}/{combo['without']['n']})보다 높지 않음. "
+                       "정면 충돌보다 <b>형식 요구가 한 답에 몰린 것</b>"],
+    ["지금 326 세트", f"k 9~10 질문 {S326[9]['questions'] + S326[10]['questions']}개 중 형식 요구 3개↑ <b>{sum(round(S326[k]['format3_share'] * S326[k]['questions']) for k in (9, 10))}개</b> — 실험의 k12 같은 몰림이 없음"],
+    ["결정 자료", "k 를 8 이하로 줄일 근거였던 8→9 급증은 평가 규칙 영향. k 를 10 넘게 쓸 때는 질문당 형식 요구 수를 함께 제한해야 함. "
+                 "남은 확인: CODE 위반이 실제인지 답 원문(평가 PC 실행 e4ce7a342251)으로"],
+], [18, 82])
+
+
 # ---------- 장 ----------
 SECTIONS = [
     ("s1", "전체 흐름도", "질문에서 결과까지 A~H", "전체 흐름도 — 질문에서 결과까지 A~H",
@@ -852,6 +1036,38 @@ SECTIONS = [
   {rate_table}
   {count_table}
   <p class="basis">출처: 참고자료/최소평가/통과비율_목록별_8c61f117e661.json (tools/subset_pass_rates.py — 326 판정·목록 크기를 10-19 기록과 맞춰 봄, 무작위 {R198['random']['draws']:,}번).</p>
+"""),
+    ("s5", "던지는 순서", "번호순 · 기준 많은 순 · 모자란 기준부터", "던지는 순서 세 가지 — 한 그래프로",
+     "같은 326개 질문을 세 가지 순서로 하나씩 더해 갈 때, 기준과 FAIL 이 얼마나 빨리 채워지는지 비교했습니다.",
+     f"""
+  <figure class="fig rate-chart">
+    <ul class="rate-key"><li><i class="knum"></i>번호순</li><li><i class="kkd"></i>기준 많은 순</li><li><i class="kgr"></i>모자란 기준부터</li>
+      <li>● 점 = 도달 지점 (질문 수)</li></ul>
+    <div class="order-charts">
+      <div><h3>10번 이상 평가된 기준 수 (/{OT['criteria']})</h3>{order_chart("covered10", OT["criteria"], False, "criteria_all", "던진 질문 수별 10번 이상 평가된 기준 수 — 세 순서")}</div>
+      <div><h3>보인 FAIL 종류 (모델 × 기준, /{OT['pairs']})</h3>{order_chart("fail_pairs", OT["pairs"], True, "pairs_80", "던진 질문 수별 보인 FAIL 종류 비율 — 세 순서")}</div>
+    </div>
+  </figure>
+  {order_points}
+  {reach_table}
+  {cover_table}
+  <p class="basis">출처: 참고자료/최소평가/던지는순서_세가지_8c61f117e661.json (tools/order_curves.py — FAIL 종류 {OT['pairs']}개·사건 {OT['events']}건이 10-19 기록과 같음). 그래프에 마우스를 올리면 그 질문 수의 값이 보입니다.</p>
+"""),
+    ("s6", "k 급증 원인", "8→9 · 11→12 에서 FAIL 이 뛰는 이유", "k 9·12 에서 FAIL 이 급증하는 이유",
+     "조건 수만 바꾼 실험(뼈대 18개 × k 1~16 × GPT·Claude·Gemini)을 다시 뜯어, 급증이 평가 규칙 탓인지 실제 위반인지 나눴습니다.",
+     f"""
+  <figure class="fig rate-chart">
+    <ul class="rate-key"><li><i class="kink"></i>기록된 FAIL</li><li><i class="kkd"></i>J5 하나로만 FAIL 인 것을 뺀 것</li>
+      <li><i class="kbar"></i>형식 요구 3개↑ (실험)</li><li><i class="kdia"></i>지금 326 세트</li><li><i class="kband2"></i>지금 k 범위</li></ul>
+    <div class="order-charts">
+      <div><h3>k 별 FAIL 비율</h3>{k_chart_frame("fail", "질문당 조건 수 k 별 FAIL 비율 — 기록된 것과 J5 하나로만 FAIL 인 것을 뺀 것")}</div>
+      <div><h3>형식 요구가 3개 이상인 질문 비율</h3>{k_chart_frame("format", "k 별 형식 요구 3개 이상 질문 비율 — 실험과 지금 326 세트")}</div>
+    </div>
+  </figure>
+  {k_points}
+  {jump_table}
+  {per_k_table}
+  <p class="basis">출처: 참고자료/최소평가/k급증_원인_e4ce7a342251.json (tools/k_jump_analysis.py — 판정 k_experiment_grid.json, 질문은 git 기록의 질문세트_실험300, 조건은 지금 적용 규칙). J5 는 FAIL 사유를 나눠 기록하지 않아 'J5 하나로만 FAIL' 을 뺀 값은 규칙 영향의 최대치입니다.</p>
 """),
 ]
 
@@ -913,7 +1129,7 @@ page = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ModelGrade 보고 10-20</title>
-<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정 · 질문 수별 통과 비율">
+<meta name="description" content="2026-10-20 — 10-19 오후 미팅 후속: 전체 흐름도 · 10-19 에서 바뀐 점 · 판정 프롬프트 고정 · 질문 수별 통과 비율 · 던지는 순서 · k 급증 원인">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
