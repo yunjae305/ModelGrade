@@ -355,7 +355,7 @@ def run(run_data: Dict[str, Any], set_dir: Path, out: Path, gpt: Optional[CodexJ
             verdict = {"empty_output_pass": "PASS", "empty_output_fail": "FAIL"}.get(entry["status"], "HOLD")
             line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": entry["status"], "verdict": verdict,
                     "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}
-            say(f"■ Q{entry['question']} {entry['provider']}: {verdict} (빈 출력 요구, 심판 없이) — {entry.get('collection_note')}")
+            say(f"■ Q{entry['question']} {entry['provider']}: {'보류' if verdict == 'HOLD' else verdict} (빈 출력 요구, 심판 없이) — {entry.get('collection_note')}")
         elif entry["status"] == "held_copy_failed":
             line = {**{k: entry[k] for k in ("provider", "question", "turns")}, "status": "held_copy_failed", "verdict": "HOLD",
                     "reason": entry.get("reason"), "collection_note": entry.get("collection_note")}

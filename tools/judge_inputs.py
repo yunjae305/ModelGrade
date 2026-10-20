@@ -68,8 +68,8 @@ def collection_note(row: Optional[Dict[str, Any]]) -> str:
 
 
 def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, Any]], answers: Dict[str, str]) -> Dict[str, Any]:
-    """빈 출력 요구 질문의 판정 상태(empty-output-pass-v3, 사용자 규칙 2026-10-19):
-    - 수집을 시도했고 받은 글이 모두 공백뿐이거나(복사할 답이 없어·모델 오류로) 못 받았으면 PASS — 수집 상태·오류를 note 에 명시
+    """빈 출력 요구 질문의 판정 상태(empty-output-hold-v4, 사용자 규칙 2026-10-20 — 10-19 의 'PASS' 를 바꿈):
+    - 수집을 시도했고 받은 글이 모두 비었으면(복사 아이콘이 없거나 '응답이 중지되었습니다'·모델 오류로 복사하지 못함) 우선 보류 — 수집 상태·오류를 note 에 명시
     - 수집을 시도했는데 글을 냈으면 FAIL(2-1 명시 빈 출력 위반) — 심판은 부르지 않는다
     - 아직 수집을 시도하지 않은 턴이 있으면 답 없음(no_answer, FAIL)"""
     turn_rows = [rows.get(t["case_id"]) for t in turns]
@@ -80,7 +80,8 @@ def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, An
         return {"status": "no_answer", "reason": f"빈 출력 요구 질문인데 아직 받지 않은 턴 {', '.join(pending)} — FAIL 로 셈, 보내지 않음", "collection_note": note}
     texts = [(answers.get(t["case_id"]) or (r or {}).get("answer") or "") for t, r in zip(turns, turn_rows)]
     if all(not x.strip() for x in texts):
-        return {"status": "empty_output_pass", "reason": "빈 출력 요구 — 답이 비었거나 받을 답이 없음 → PASS (empty-output-pass-v3, 사용자 규칙 10-19), 보내지 않음",
+        return {"status": "held_empty_output",
+                "reason": "빈 출력 요구 — 복사 아이콘이 없거나 응답이 중지되어 복사할 답이 없음 → 우선 보류 (empty-output-hold-v4, 사용자 규칙 10-20), 보내지 않음",
                 "collection_note": note}
     longest = max(len(x.strip()) for x in texts)
     return {"status": "empty_output_fail", "reason": f"빈 출력 요구인데 글을 냄({longest}자) → FAIL (2-1 명시 빈 출력 위반), 보내지 않음", "collection_note": note}
