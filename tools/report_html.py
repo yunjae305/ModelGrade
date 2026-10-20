@@ -120,7 +120,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None) -> Path:
     parts.append("<h2>2. 걸린 시간</h2>")
     crow = collection_time_rows(run, providers) if run else []
     if crow:
-        parts.append("<table><tr><th>모델</th><th class='num'>받음</th><th class='num'>복사 실패(보류)</th><th class='num'>오류·답 없음</th><th class='num'>합계</th><th>답변 시간 합</th><th class='num'>질문당 평균</th><th>수집 묶음 벽시계 합</th></tr>")
+        parts.append("<table><tr><th>모델</th><th class='num'>받음</th><th class='num'>보류</th><th class='num'>오류·답 없음</th><th class='num'>합계</th><th>답변 시간 합</th><th class='num'>질문당 평균</th><th>수집 묶음 벽시계 합</th></tr>")
         for c in crow:
             parts.append(f"<tr><td>{_e(c['label'])}</td><td class='num'>{c['questions']}</td><td class='num'>{c['held']}</td><td class='num'>{c['errors']}</td><td class='num'>{c['total']}</td><td>{_hms(c['answer_seconds'])}</td><td class='num'>{c['per_question']:.0f}초</td><td>{_hms(c['wall_seconds'])}</td></tr>")
         parts.append("</table>")

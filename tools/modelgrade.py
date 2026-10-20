@@ -691,10 +691,10 @@ def print_collection_times(run_id: str, providers: Optional[List[str]] = None) -
         run = load_run(run_id)
     except SystemExit:
         return
-    print("| 모델 | 받음 | 복사 실패(보류) | 오류·답 없음 | 합계 | 답변 시간 합 | 질문당 평균 | 수집 묶음 벽시계 합 |\n|---|---|---|---|---|---|---|---|")
+    print("| 모델 | 받음 | 보류 | 오류·답 없음 | 합계 | 답변 시간 합 | 질문당 평균 | 수집 묶음 벽시계 합 |\n|---|---|---|---|---|---|---|---|")
     for c in collection_time_rows(run, providers):
         print(f"| {c['provider']} | {c['questions']} | {c['held']} | {c['errors']} | {c['total']} | {_hms(c['answer_seconds'])} | {c['per_question']:.0f}초 | {_hms(c['wall_seconds'])} |")
-    print("(복사 실패 = 답을 복사해 오지 못해 보류로 적힌 질문 — 빈 출력 요구 질문은 복사할 답이 없으면 여기에 듦 · 오류 = 모델이 답하지 못함)")
+    print("(보류 = 답을 복사해 오지 못했거나, 빈 출력 요구 질문에서 복사 버튼 없음·응답 중지·모델 오류 — 판정은 사람이 정함 · 오류 = 그 밖의 질문에서 모델이 답하지 못함)")
 
 
 def print_judge_times(out_dir: Path) -> None:
