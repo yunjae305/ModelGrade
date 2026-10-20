@@ -179,16 +179,13 @@ def test_merge_provider_into_run_keeps_other_providers_written_meanwhile(tmp_pat
         mg.merge_provider_into_run(run["run_id"], "gpt", "GPT 앱", row("gpt"), {"cases": []}, {"provider": "gpt"})
 
 
-def test_start_menu_collects_chosen_set_for_all_four_then_judges_in_batches_and_reuses_run(tmp_path, monkeypatch, capsys):
-    """start: 1(간단) 이면 ids.json 번호를 그 순서로, 네 모델 동시 수집(이미 받은 질문 건너뜀) → 판정 20개씩 끝까지 → 결과. 다시 부르면 같은 실행."""
-    import argparse
+def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses_run(tmp_path, monkeypatch, capsys):
+    """start: 세트의 모든 질문을 세트 순서 그대로(질문을 다시 검사·선별하지 않음), 네 모델 동시 수집(이미 받은 질문 건너뜀) → 판정 v4 → 결과.
+    다시 부르면 같은 실행. (10-20: 질문 78개 고정, 판정상황표 없음)"""
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
-    ids = tmp_path / "ids.json"
-    ids.write_text(json.dumps({"ids": [2, 1, 99]}), encoding="utf-8")
-    monkeypatch.setattr(mg, "SIMPLE_IDS_FILE", ids)
     monkeypatch.setattr("builtins.input", lambda prompt="": "1")
     calls = {"collect": [], "judge": []}
 
@@ -196,27 +193,24 @@ def test_start_menu_collects_chosen_set_for_all_four_then_judges_in_batches_and_
         calls["collect"].append((providers, args.only, args.skip_done, args.allow_large, run_id))
         return 0
 
-    def fake_judge(ns):
-        calls["judge"].append(ns.only)
-        out = Path(ns.out); out.mkdir(parents=True, exist_ok=True)
-        with (out / "results.jsonl").open("a", encoding="utf-8") as f:
-            for q in ns.only.split(","):
-                for p in ns.providers.split(","):
-                    f.write(json.dumps({"provider": p, "question": int(q), "verdict": "PASS", "seconds": 1}) + "\n")
+    def fake_judge_main(argv):
+        calls["judge"].append(argv)
         return 0
     monkeypatch.setattr(mg, "run_collectors_parallel", fake_parallel)
-    monkeypatch.setattr(mg, "cmd_judge", fake_judge)
+    import tools.judge_v4 as jv
+    monkeypatch.setattr(jv, "main", fake_judge_main)
     set_dir = _set(tmp_path)
     assert mg.main(["start", "--set", str(set_dir), "--judge", "y"]) == 0
-    assert calls["collect"] == [(mg.ALL_PROVIDERS, "2,1", True, True, calls["collect"][0][4])]   # 99 는 세트에 없어 빠짐
-    assert calls["judge"] == ["2,1"]
-    run = mg.load_run(calls["collect"][0][4])
-    assert run["eval_kind"] == "simple78" and run["name"].startswith("간단평가")
+    run_id = calls["collect"][0][4]
+    assert calls["collect"] == [(mg.ALL_PROVIDERS, "1,2,3", True, True, run_id)]   # 세트의 질문 전부, 세트 순서
+    assert len(calls["judge"]) == 1 and "--questions" in calls["judge"][0] and calls["judge"][0][calls["judge"][0].index("--questions") + 1] == "1,2,3"
+    assert "--set" in calls["judge"][0] and calls["judge"][0][calls["judge"][0].index("--set") + 1] == str(set_dir)
+    run = mg.load_run(run_id)
+    assert run["eval_kind"] == "set78" and "78" in run["name"]
     out = capsys.readouterr().out
-    assert "어떤 평가를 진행할까요?" in out and "간단평가 (78개 질문) — 질문 2개" in out
-    # 다시 부르면 같은 실행을 이어 쓰고, 판정할 게 없으면 바로 결과
-    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0
-    assert calls["collect"][1][4] == calls["collect"][0][4] and calls["judge"] == ["2,1"]
+    assert "어떤 평가를 진행할까요?" in out and "질문 3개" in out
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0   # 다시 부르면 같은 실행
+    assert calls["collect"][1][4] == run_id
 
 
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):

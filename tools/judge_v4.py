@@ -1,6 +1,6 @@
 """판정 v4 시험 — 고정 프롬프트 v4(상황 규칙 전부) + 수집 JSON(질문·첨부·참조 자료·답변)만 Codex CLI 와 Jev 에 던진다.
 심판이 턴마다 상황을 직접 찾고(상황표 1), 항목을 판정하고, 질문 하나의 결론까지 낸다 (사용자 2026-10-20).
-코드가 미리 정한 '판정할 항목 목록'(판정상황표)은 심판에게 주지 않는다 — 결과를 비교하는 데에만 쓴다.
+질문은 세트의 questions.json 을 그대로 쓴다 — 질문을 다시 검사하거나 해석하는 단계는 없다 (사용자 10-20: 이미 확인해 만든 질문).
 
     python -X utf8 tools/judge_v4.py --run ac6507c00276 --pick 143:claude,115:aiona,17:gemini
 
@@ -217,7 +217,7 @@ def verdict_of(items: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
 # --- 질문 하나 ---------------------------------------------------------------------------------------------------------
 
 def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
-              table: Dict[str, Dict[str, Any]], code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, jev: Any,
+              code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, jev: Any,
               out: Path, reuse_codex: bool = False) -> Dict[str, Any]:
     tag = f"Q{q} {provider}"
     doc = question_json(q, turns, answers, deliveries)
@@ -339,10 +339,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
                            "entries": (cv or {}).get("entries") or []}
         js.apply_overrides(items)
         final[n] = items
-        table_subs = [s["sub"] for s in table[row["case_id"]]["situations"]]
-        turn_out[str(n)] = {"situations_judge": codex[n]["situations"], "situations_table": table_subs,
-                            "only_judge": [s for s in codex[n]["situations"] if s not in table_subs],
-                            "only_table": [s for s in table_subs if s not in codex[n]["situations"]],
+        turn_out[str(n)] = {"situations_judge": codex[n]["situations"],
                             "evidence": codex[n]["evidence"], "problems": codex[n]["problems"], "items": items}
     semantic = verdict_of(final) if calls["codex"]["status"] == "OK" else "HOLD"
     verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
@@ -375,11 +372,9 @@ def report_md(lines: List[Dict[str, Any]]) -> str:
         md += ["", f"## Q{l['question']} {l['provider']} — {l['verdict']}", f"Codex 결론 이유: {(l['codex_conclusion'] or {}).get('reason', '-')}"]
         for n, t in l["turn_results"].items():
             md.append(f"- {n}턴 심판이 찾은 상황: {' '.join(t['situations_judge'])}")
-            if t["only_judge"] or t["only_table"]:
-                md.append(f"  - 판정상황표와 차이 — 심판만: {' '.join(t['only_judge']) or '없음'} · 표만: {' '.join(t['only_table']) or '없음'}")
-            for sid in t["only_judge"]:
-                if t["evidence"].get(sid):
-                    md.append(f"  - {sid} 근거: 「{t['evidence'][sid][:120]}」")
+            for sid, ev in (t.get("evidence") or {}).items():
+                if ev:
+                    md.append(f"  - {sid} 근거: 「{ev[:120]}」")
             for p in t["problems"]:
                 md.append(f"  - 출력 문제: {p}")
             for item, v in t["items"].items():
@@ -460,7 +455,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run", required=True)
     ap.add_argument("--pick", help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona (없으면 --questions)")
-    ap.add_argument("--questions", default="78", help="'78' = 간단 78 전체, 또는 질문 번호 쉼표 목록")
+    ap.add_argument("--set", default=str(SET_DIR), help="질문 세트 폴더 (questions.json) — 기본은 326 세트")
+    ap.add_argument("--questions", default="all", help="'all' = 세트의 모든 질문, '78' = 질문세트_최소78/ids.json, 또는 질문 번호 쉼표 목록")
     ap.add_argument("--providers", default=",".join(PROVIDERS))
     ap.add_argument("--out", default="v4-78", help="결과 폴더 이름 (data/judge_runs/<실행>/<이름>)")
     ap.add_argument("--reuse-codex", action="store_true", help="저장된 Codex 출력이 있으면 다시 부르지 않고 쓴다 (Jev 만 다시)")
@@ -475,8 +471,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     say = log_say
 
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
-    rows = flatten(json.loads((SET_DIR / "questions.json").read_text(encoding="utf-8")))
-    table = {r["case_id"]: r for r in json.loads((SET_DIR / ji.SITUATIONS).read_text(encoding="utf-8"))["rows"]}
+    set_dir = Path(args.set)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    rows = flatten(groups)
     prompt = PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))
     out = ROOT / "data" / "judge_runs" / args.run / args.out
@@ -487,7 +484,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.pick:
         plan = [(int(x.split(":")[0]), x.split(":")[1]) for x in args.pick.split(",") if x.strip()]
     else:
-        qs = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if args.questions == "78" else [int(x) for x in args.questions.split(",") if x.strip()]
+        qs = ([int(g["id"]) for g in groups] if args.questions == "all" else
+              json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if args.questions == "78" else [int(x) for x in args.questions.split(",") if x.strip()])
         plan = [(q, p) for p in args.providers.split(",") for q in qs]
     results_path = out / "results.jsonl"
     done = set()
@@ -534,7 +532,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 try:
-                    line = {**judge_one(q, provider, turns, answers, deliveries, table, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex),
+                    line = {**judge_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, jev, out, args.reuse_codex),
                             "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",

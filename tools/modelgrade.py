@@ -39,7 +39,7 @@ if str(ROOT) not in sys.path:
 VERSION = "modelgrade-cli-v1"
 IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
 APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
@@ -48,7 +48,7 @@ ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
 PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
 SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
 RESULTS_JSON_DIR = ROOT / "참고자료" / "결과"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
-EVAL_KINDS = {"1": ("simple78", "간단평가 (78개 질문)"), "2": ("full326", "정밀평가 (326개 질문)")}
+EVAL_KINDS = {"1": ("set78", "평가 (질문 78개 — 세트의 모든 질문, 던지는 순서 = 세트 순서)")}
 
 
 def _now() -> str:
@@ -583,14 +583,13 @@ def set_id_of(set_dir: Path) -> str:
 
 
 def question_numbers(kind: str, groups: List[Dict[str, Any]]) -> List[int]:
-    """평가 종류의 질문 번호 — 간단평가는 최소78 ids.json 의 번호를 그 순서(던지는 순서 = 고른 순서)로, 정밀평가는 세트 전체를 번호순으로."""
-    from webapp.question_generation import flatten
-    nums = sorted({int(r["case_id"].split("_T")[0][1:]) for r in flatten(groups)})
+    """평가할 질문 번호 — 세트의 모든 질문을 세트에 적힌 순서대로(질문을 다시 검사·선별하지 않는다, 사용자 10-20).
+    옛 326 세트에 'simple78' 을 주면 최소78 ids.json 의 번호만."""
     if kind == "simple78":
         ids = json.loads(SIMPLE_IDS_FILE.read_text(encoding="utf-8"))["ids"]
-        have = set(nums)
+        have = {int(g["id"]) for g in groups}
         return [int(q) for q in ids if int(q) in have]
-    return nums
+    return [int(g["id"]) for g in groups]
 
 
 def find_run_for(set_dir: Path, kind: str) -> Optional[str]:
@@ -621,7 +620,7 @@ def ask_choice() -> str:
             raise SystemExit("입력이 없어 그만둡니다.")
         if choice in EVAL_KINDS:
             return choice
-        print("1 또는 2 를 입력하세요.")
+        print(f"{' 또는 '.join(EVAL_KINDS)} 를 입력하세요.")
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -659,23 +658,16 @@ def cmd_start(args: argparse.Namespace) -> int:
         except EOFError:
             go = "n"
     if go != "y":
-        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --choice {choice} --judge y  (수집은 건너뛰고 판정만 이어서)", flush=True)
+        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --choice {choice} --judge y  (받은 질문은 건너뛰고 판정만 이어서)", flush=True)
         return 0
     t_judge = time.monotonic()
-    while True:
-        judged = judged_questions(out_dir, providers)
-        pending = [q for q in qs if any(q not in judged.get(p, set()) for p in providers)]
-        if not pending:
-            break
-        batch = pending[:JUDGE_BATCH_MAX]
-        print(f"판정 {len(batch)}개 {batch} (남은 질문 {len(pending)}개)", flush=True)
-        code = cmd_judge(argparse.Namespace(run=run_id, only=",".join(str(q) for q in batch), next=None, providers=",".join(providers),
-                                            out=str(out_dir), set=str(set_dir), workers=2, allow_large=False))   # 질문 2개씩 동시에 (Codex 429 는 알아서 기다림)
-        if code:
-            return code
+    # 판정 v4: 고정 프롬프트 + 질문·답변 JSON 을 Codex CLI·Jev 에, 모델마다 한 줄로 동시에, 질문마다 저장(멈춰도 같은 명령으로 이어서)
+    from tools import judge_v4
+    code = judge_v4.main(["--run", run_id, "--set", str(set_dir), "--questions", ",".join(str(q) for q in qs), "--providers", ",".join(providers),
+                          "--out", "v4"])
+    if code:
+        return code
     print(f"판정 단계 끝 — 벽시계 {_hms(time.monotonic() - t_judge)}", flush=True)
-    if (out_dir / "results.jsonl").exists():
-        cmd_report(argparse.Namespace(dir=str(out_dir)))
     return 0
 
 
@@ -799,7 +791,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     hd.add_argument("--run", help="실행 번호 — 답을 찾을 때 씀 (기본: 폴더 이름)")
     hd.add_argument("--text", choices=("excerpt", "none", "full"), default="excerpt", help="질문·답 원문 범위 (기본 앞부분)")
     hd.set_defaults(func=cmd_held)
-    st = sub.add_parser("start", help="메뉴: 1 간단평가(78) / 2 정밀평가(326) → 네 모델 동시 수집 → 판정 20개씩 → 결과 (인자 없이 부르면 이것)")
+    st = sub.add_parser("start", help="질문 78개 → 네 모델 동시 수집 → 판정 v4(Codex CLI + Jev) → 결과 (인자 없이 부르면 이것)")
     st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
     st.add_argument("--providers", default=",".join(ALL_PROVIDERS))
     st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
