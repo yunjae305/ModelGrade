@@ -715,20 +715,21 @@ class Board:
         self.now: Dict[str, Optional[int]] = {p: None for p in totals}
         self.lock = threading.Lock()
 
+    def _state(self, p: str) -> str:
+        total = self.totals[p]
+        if self.now[p] is not None:
+            return f"{min(self.done[p] + 1, total)}/{total}  (Q{self.now[p]} 평가 중)"
+        return f"{self.done[p]}/{total}  ({'끝' if self.done[p] >= total else '대기'})"
+
     def show(self) -> None:
-        lines = [f"── 평가 현황 {datetime.now():%H:%M:%S} ──"]
-        for p, total in self.totals.items():
-            if self.now[p] is not None:
-                state = f"{min(self.done[p] + 1, total)}/{total}  (Q{self.now[p]} 평가 중)"
-            else:
-                state = f"{self.done[p]}/{total}  ({'끝' if self.done[p] >= total else '대기'})"
-            lines.append(f"  {LABEL.get(p, p):<7}: {state}")
+        lines = [f"── 평가 현황 {datetime.now():%H:%M:%S} ──"] + [f"  {LABEL.get(p, p):<7}: {self._state(p)}" for p in self.totals]
         log_say("\n".join(lines))
 
     def start(self, p: str, q: int) -> None:
+        # 시작은 그 모델 한 줄만 — 네 모델이 같은 초에 시작하면 같은 판이 다섯 번 쌓였다 (사용자 10-20 밤). 전체 판은 질문이 끝날 때마다.
         with self.lock:
             self.now[p] = q
-            self.show()
+            log_say(f"▶ {LABEL.get(p, p):<7}: {self._state(p)}")
 
     def finish(self, p: str) -> None:
         with self.lock:
