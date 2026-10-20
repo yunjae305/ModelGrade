@@ -761,7 +761,7 @@ details.src.tall pre { max-height: 80vh; }
 /* 07 합계 막대 */
 .tbar { display: grid; gap: 4px; }
 .tbar i { display: block; height: 6px; border-radius: 3px; background: var(--warn); min-width: 2px; }
-/* 08 보류 함께 보기 — 왼쪽 목록 · 가운데 질문·답변 원문 · 오른쪽 사유 (사용자 요구: 원문 + 오른쪽 사유, 비유 없이 구체적으로) */
+/* 08 보류 함께 보기 — 위: 모델별 칸 격자(칸 = 질문, 아래 띠 = 보류 사유) · 아래: ① 보류 사유 → ② 질문 원본 → ③ 보류 원본 */
 .hv { display: grid; gap: 12px; width: min(1360px, calc(100vw - 48px)); position: relative; left: 50%; transform: translateX(-50%); min-width: 0; }
 .hv-sum { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; }
 .hv-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; }
@@ -781,24 +781,35 @@ details.src.tall pre { max-height: 80vh; }
 .hv-seg button:last-child { border-right: 0; }
 .hv-seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 .hv-search { font: inherit; font-size: 0.86rem; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); width: 120px; }
-.hv-main { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; align-items: start; }
-.hv-listwrap { position: sticky; top: 64px; display: grid; gap: 6px; min-width: 0; }
-.hv-count { font-size: 0.82rem; color: var(--muted); padding-left: 4px; }
-.hv-list { list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; max-height: calc(100vh - 120px); overflow-y: auto; outline: none; }
-.hv-list:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-.hv-item { width: 100%; text-align: left; display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 1px 8px; padding: 7px 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
-.hv-item:hover { background: var(--bg); }
-.hv-item[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.hv-item .n { font-family: var(--font-num); font-weight: 700; color: var(--accent); grid-row: span 2; font-size: 1rem; padding-top: 1px; }
-.hv-item .m { font-weight: 600; font-size: 0.86rem; }
-.hv-item .t { font-size: 0.76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hv-detail { min-width: 0; display: grid; gap: 10px; }
+.hv-gridwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.hv-count { font-size: 0.84rem; color: var(--muted); display: grid; gap: 6px; }
+.hv-count b { color: var(--ink); }
+.hv-key { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.hv-key i { display: inline-block; width: 18px; height: 6px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.hv-grid { display: grid; gap: 8px; outline: none; }
+.hv-grid:focus-visible { box-shadow: 0 0 0 2px var(--accent); border-radius: 6px; }
+.hv-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: start; }
+.hv-rowh { font-weight: 700; font-size: 0.9rem; padding-top: 6px; }
+.hv-rowh small { color: var(--muted); font-weight: 400; margin-left: 6px; font-family: var(--font-num); }
+.hv-tiles { display: flex; flex-wrap: wrap; gap: 4px; }
+.hv-tile { position: relative; min-width: 44px; height: 34px; padding: 0 6px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-family: var(--font-num); font-size: 0.82rem; cursor: pointer; overflow: hidden; }
+.hv-tile:hover { border-color: var(--ink); }
+.hv-tile[aria-selected="true"] { border: 2px solid var(--ink); background: var(--surface); font-weight: 700; }
+.hv-strip { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; display: flex; }
+.hv-strip i { flex: 1; }
+.hvs-held { background: var(--warn); }
+.hvs-source_unavailable { background: var(--accent); }
+.hvs-judge_disagreement { background: var(--risk); }
+.hvs-unverified, .hvs-incomplete, .hvs-pending { background: var(--todo); }
+.hvs-empty_output_hold { background: var(--ok); }
+.hv-detail { min-width: 0; display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; scroll-margin-top: 72px; }
 .hv-dh { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
 .hv-dh h3 { margin: 0; font-size: 1.35rem; }
 .hv-dh h3 span { font-size: 0.95rem; color: var(--muted); font-weight: 500; margin-left: 8px; }
+.hv-dh-r { display: inline-flex; gap: 8px; align-items: center; }
 .hv-badge { border-radius: 999px; padding: 2px 12px; font-weight: 700; font-size: 0.86rem; color: var(--warn); background: var(--warn-soft); }
-.hv-why { border-left: 4px solid var(--warn); background: var(--warn-soft); border-radius: 0 10px 10px 0; padding: 12px 16px; }
-.hv-why b { display: block; font-size: 0.8rem; color: var(--warn); margin-bottom: 4px; }
+.hv-why { border: 1px solid var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 10px 16px; }
+.hv-why b { display: block; font-size: 0.8rem; color: var(--warn); margin-bottom: 2px; }
 .hv-why p { margin: 0; font-size: 1rem; line-height: 1.6; }
 .hv-turns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .hv-turns .hv-fl { margin-right: 2px; }
@@ -806,20 +817,37 @@ details.src.tall pre { max-height: 80vh; }
 .hv-turns button.held { border-color: var(--warn); }
 .hv-turns button.held::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
 .hv-turns button[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
-.hv-cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
-.hv-qa { display: grid; gap: 10px; min-width: 0; }
+.hv-step { display: grid; gap: 8px; min-width: 0; align-content: start; }
+.hv-step > h4 { margin: 0; font-size: 1.08rem; display: flex; align-items: center; gap: 8px; }
+.hv-step > h4 small { color: var(--muted); font-weight: 400; font-size: 0.82rem; }
+.hv-stepno { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--surface); font-size: 0.82rem; font-family: var(--font-num); flex: none; }
+.hv-pair { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 16px; align-items: start; }
+.hv-rcs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.hv-rc { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; background: var(--bg); min-width: 0; align-content: start; }
+.hv-rc-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hv-rc-h b { font-size: 0.98rem; }
+.hv-cq { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.hv-cause { border-radius: 999px; padding: 1px 10px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.c-held { color: var(--warn); background: var(--warn-soft); }
+.c-source_unavailable { color: var(--accent); background: var(--accent-soft); }
+.c-judge_disagreement { color: var(--risk); background: var(--risk-soft); }
+.c-unverified, .c-incomplete, .c-pending { color: var(--todo); background: var(--todo-soft); }
+.c-empty_output_hold { color: var(--ok); background: var(--ok-soft); }
+.hv-plain { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+.hv-jr span { display: block; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+.hv-jr p { margin: 2px 0 0; line-height: 1.55; overflow-wrap: anywhere; }
+.hv-qtext { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; max-height: 60vh; overflow-y: auto; }
 .hv-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .hv-box > h5 { margin: 0; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .hv-box > h5 small { color: var(--muted); font-weight: 400; }
 .hv-text { padding: 12px 16px; font-size: 0.95rem; line-height: 1.7; overflow-wrap: anywhere; }
 .hv-text.plain { white-space: pre-wrap; }
-.hv-qbox .hv-text { background: var(--bg); border-radius: 0 0 10px 10px; max-height: 46vh; overflow-y: auto; }
-.hv-abox .hv-text { max-height: 72vh; overflow-y: auto; }
+.hv-abox .hv-text { max-height: 70vh; overflow-y: auto; }
 .hv-empty { color: var(--muted); font-style: italic; }
-.hv-extra { margin: 0 16px 12px; border: 1px dashed var(--line); border-radius: 8px; font-size: 0.86rem; }
+.hv-extra { border: 1px dashed var(--line); border-radius: 8px; font-size: 0.86rem; }
 .hv-extra summary { cursor: pointer; padding: 6px 10px; font-weight: 600; }
 .hv-extra pre { margin: 0; padding: 8px 10px; white-space: pre-wrap; max-height: 260px; overflow-y: auto; border-top: 1px dashed var(--line); font-size: 0.84rem; }
-.hv-raw { font: inherit; font-size: 0.78rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.hv-raw { font: inherit; font-size: 0.78rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
 .md h3, .md h4, .md h5, .md h6 { margin: 14px 0 6px; font-size: 1rem; }
 .md h3 { font-size: 1.08rem; }
 .md p { margin: 0 0 10px; }
@@ -834,26 +862,14 @@ details.src.tall pre { max-height: 80vh; }
 .md pre { background: var(--bg); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.84rem; white-space: pre; }
 .md code { font-family: var(--font-num); font-size: 0.88em; }
 .md blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
-.hv-side { position: sticky; top: 64px; display: grid; gap: 10px; max-height: calc(100vh - 80px); overflow-y: auto; min-width: 0; }
-.hv-grp { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
-.hv-grp-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.hv-grp-h b { font-size: 0.95rem; }
-.hv-cause { border-radius: 999px; padding: 1px 10px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
-.c-held { color: var(--warn); background: var(--warn-soft); }
-.c-source_unavailable { color: var(--accent); background: var(--accent-soft); }
-.c-judge_disagreement { color: var(--risk); background: var(--risk-soft); }
-.c-unverified, .c-incomplete, .c-pending { color: var(--todo); background: var(--todo-soft); }
-.c-empty_output_hold { color: var(--ok); background: var(--ok-soft); }
-.hv-plain { margin: 0; font-size: 0.9rem; line-height: 1.55; }
-.hv-it { border-top: 1px dashed var(--line); padding-top: 8px; display: grid; gap: 6px; font-size: 0.88rem; min-width: 0; }
-.hv-it-h b { font-size: 0.92rem; }
-.hv-it-h span { display: block; color: var(--muted); font-size: 0.8rem; }
-.hv-jr span { display: block; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
-.hv-jr p { margin: 2px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.hv-oc { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 6px; font-size: 0.9rem; min-width: 0; }
+.hv-oc h5 { margin: 0; font-size: 0.92rem; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hv-oc p { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.hv-oc .hv-note { font-size: 0.84rem; color: var(--muted); }
 .hv-claims summary { cursor: pointer; font-size: 0.82rem; color: var(--accent); font-weight: 600; }
 .hv-claims ul, .hv-src ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
 .hv-claims li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 6px; font-size: 0.84rem; overflow-wrap: anywhere; }
-.tg { font-size: 0.72rem; font-weight: 700; border-radius: 4px; padding: 1px 4px; text-align: center; height: fit-content; }
+.tg { font-size: 0.72rem; font-weight: 700; border-radius: 4px; padding: 1px 6px; text-align: center; height: fit-content; }
 .tg.ok { color: var(--ok); background: var(--ok-soft); }
 .tg.bad { color: var(--risk); background: var(--risk-soft); }
 .tg.unk { color: var(--warn); background: var(--warn-soft); }
@@ -861,12 +877,14 @@ details.src.tall pre { max-height: 80vh; }
 .hv-src em { font-style: normal; font-weight: 600; color: var(--risk); margin-right: 4px; }
 .hv-none { color: var(--muted); font-size: 0.88rem; margin: 0; }
 .hv-missing { padding: 16px; border: 1px dashed var(--warn); border-radius: 10px; color: var(--warn); }
-@media (max-width: 1100px) { .hv-cols { grid-template-columns: minmax(0, 1fr); } .hv-side { position: static; max-height: none; } }
+@media (max-width: 1100px) { .hv-pair { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 860px) {
   .hv { width: auto; left: 0; transform: none; }
-  .hv-main, .hv-sum { grid-template-columns: minmax(0, 1fr); }
-  .hv-listwrap { position: static; }
-  .hv-list { max-height: 260px; }
+  .hv-sum { grid-template-columns: minmax(0, 1fr); }
+  .hv-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .hv-rowh { padding-top: 0; }
+  .hv-detail { padding: 12px; }
+  .hv-rcs { grid-template-columns: minmax(0, 1fr); }
   .hv-mbar { grid-template-columns: 110px minmax(0, 1fr) 70px; }
   .hv-why-list li { grid-template-columns: 100px 48px minmax(0, 1fr); }
 }
@@ -1768,21 +1786,19 @@ details.src.tall pre { max-height: 80vh; }
 </section>
 
 <section class="slide" id="s8">
-  <div class="s-head"><span class="s-no">08 / 08</span><h2>보류 함께 보기 — 왜 보류로 두었나</h2><p>10-19 정밀 326 실행에서 질문 전체가 보류로 끝난 300건(네 모델)입니다. 질문·답변 원문과 함께, 왜 보류인지 쉬운 말로 붙였습니다. 보류 = 실패로 확정된 항목은 없지만 확인이 끝나지 않은 항목이 남아 사람이 정할 것.</p></div>
+  <div class="s-head"><span class="s-no">08 / 08</span><h2>보류 함께 보기 — 왜 보류로 두었나</h2><p>10-19 정밀 326 실행에서 질문 전체가 보류로 끝난 300건(네 모델)입니다. 칸 하나가 질문 하나이고, 칸을 누르면 ① 보류 사유 → ② 질문 원본 → ③ 보류 원본(모델 답변과 심판의 처음 판단) 순서로 보입니다. 보류 = 실패로 확정된 항목은 없지만 확인이 끝나지 않은 항목이 남아 사람이 정할 것.</p></div>
 
   <div class="hv" id="hv">
     <div class="hv-sum" id="hv-sum"></div>
     <div class="hv-filters" id="hv-filters" role="group" aria-label="걸러 보기"></div>
-    <div class="hv-main">
-      <div class="hv-listwrap">
-        <div class="hv-count" id="hv-count"></div>
-        <ol class="hv-list" id="hv-list" role="listbox" aria-label="보류 질문 목록" tabindex="0"></ol>
-      </div>
-      <article class="hv-detail" id="hv-detail" aria-live="polite"></article>
+    <div class="hv-gridwrap">
+      <div class="hv-count" id="hv-count"></div>
+      <div class="hv-grid" id="hv-grid" role="listbox" aria-label="보류 질문 — 칸 하나가 질문 하나" tabindex="0"></div>
     </div>
+    <article class="hv-detail" id="hv-detail" aria-live="polite"></article>
   </div>
   <p class="basis">출처: 10-19 정밀 326 실행 8c61f117e661 — 질문 단위 보류는 04장과 같은 규칙, 보류 이유는 참고자료/보류목록/8c61f117e661-held.csv, 질문은 10-19 에 던진 v2.0 글, 답변은 참고자료/결과/8c61f117e661_정밀326_2026-10-19.json 원문 (tools/build_held_view.py).
-  목록에서 ↑·↓ 로 옮겨 다닐 수 있습니다.</p></section>
+  칸을 누르면 아래에 자세히 나오고, 칸 목록에서 ←·→ 로 옮겨 다닐 수 있습니다.</p></section>
 
 </main>
 <script>
@@ -1943,49 +1959,89 @@ details.src.tall pre { max-height: 80vh; }
       + '<label><span class="hv-fl">질문 번호</span><input class="hv-search" id="hv-q" inputmode="numeric" placeholder="예: 12" value="' + esc(st.q) + '"></label>';
   }
 
-  function list() {
+  function causesOf(it) { return CAUSES.filter(function (c) { return it.causes[c]; }); }
+  function ordered() {
     var f = filtered();
+    return ORDER.reduce(function (a, p) { return a.concat(f.filter(function (it) { return it.model === p; })); }, []);
+  }
+
+  /* 칸 격자 — 모델마다 한 줄, 칸 = 질문(숫자 = 질문 번호), 칸 아래 띠 = 보류 사유(여럿이면 여러 색) */
+  function grid() {
+    var f = ordered();
     if (!f.some(function (it) { return it.id === st.sel; })) { st.sel = f.length ? f[0].id : null; st.turn = null; }
-    document.getElementById('hv-count').textContent = '보류 ' + items.length + '건 중 ' + f.length + '건';
-    document.getElementById('hv-list').innerHTML = f.map(function (it) {
-      var why = Object.keys(it.causes).map(causeLabel).join(' · ');
-      return '<li><button type="button" class="hv-item" role="option" data-id="' + it.id + '" aria-selected="' + (it.id === st.sel) + '">'
-        + '<span class="n">Q' + it.q + '</span><span class="m">' + esc(D.models[it.model]) + '</span>'
-        + '<span class="t">' + esc(it.kind) + (it.turns_total > 1 ? ' ' + it.turns_total + '턴' : '') + ' · ' + esc(why) + '</span></button></li>';
-    }).join('') || '<li class="hv-none" style="padding:8px">조건에 맞는 보류가 없습니다.</li>';
+    var used = CAUSES.filter(function (c) { return f.some(function (it) { return it.causes[c]; }); });
+    document.getElementById('hv-count').innerHTML = '<span><b>보류 ' + items.length + '건 중 ' + f.length + '건</b> · 칸 하나 = 질문 하나(숫자 = 질문 번호) · 칸 아래 색 띠 = 보류 사유, 사유가 여럿이면 띠도 여러 색</span>'
+      + '<span class="hv-key">' + used.map(function (c) { return '<span><i class="hvs-' + c + '"></i>' + esc(causeLabel(c)) + '</span>'; }).join('') + '</span>';
+    document.getElementById('hv-grid').innerHTML = ORDER.map(function (p) {
+      var v = f.filter(function (it) { return it.model === p; });
+      if (!v.length) return '';
+      return '<div class="hv-row"><div class="hv-rowh">' + esc(D.models[p]) + '<small>' + v.length + '</small></div><div class="hv-tiles">' + v.map(function (it) {
+        var cs = causesOf(it);
+        return '<button type="button" class="hv-tile" role="option" data-id="' + it.id + '" aria-selected="' + (it.id === st.sel) + '"'
+          + ' title="Q' + it.q + ' · ' + esc(D.models[it.model]) + ' · ' + esc(it.kind) + ' · ' + esc(cs.map(causeLabel).join(', ')) + '">'
+          + it.q + '<span class="hv-strip">' + cs.map(function (c) { return '<i class="hvs-' + c + '"></i>'; }).join('') + '</span></button>';
+      }).join('') + '</div></div>';
+    }).join('') || '<p class="hv-none">조건에 맞는 보류가 없습니다.</p>';
     detail();
   }
 
-  function holdCards(holds) {
-    if (!holds.length) return '';
-    var groups = {};
-    holds.forEach(function (h) { (groups[h.cause] = groups[h.cause] || []).push(h); });
-    return CAUSES.filter(function (c) { return groups[c]; }).map(function (c) {
-      return '<section class="hv-grp"><div class="hv-grp-h"><b>' + groups[c].length + '개 항목</b><span class="hv-cause c-' + c + '">' + esc(causeLabel(c)) + '</span></div>'
-        + '<p class="hv-plain">' + esc((D.causes[c] || {}).plain || '') + '</p>'
-        + groups[c].map(function (h) {
-          var claims = h.claims || [], unk = claims.filter(function (x) { return x.tag !== 'PASS' && x.tag !== 'TRUE'; }).length;
-          return '<div class="hv-it"><div class="hv-it-h"><b>' + esc(h.criterion ? h.criterion + ' ' : '') + esc(h.criterion_name) + '</b>'
-            + (h.criterion_q ? '<span>' + esc(h.criterion_q) + '</span>' : '') + '</div>'
-            + (h.reason ? '<div class="hv-jr"><span>심판이 남긴 글</span><p>' + esc(h.reason) + '</p></div>' : '')
-            + (h.original_reason ? '<div class="hv-jr"><span>심판의 처음 판단' + (h.original_choice ? ' — ' + esc(CHOICE[h.original_choice] || h.original_choice) : '') + '</span><p>' + esc(h.original_reason) + '</p></div>' : '')
-            + (claims.length ? '<details class="hv-claims"' + (claims.length <= 6 ? ' open' : '') + '><summary>심판이 확인한 문장 ' + claims.length + '개 · 확인 못 함 ' + unk + '개</summary><ul>'
-              + claims.map(function (x) { var t = TAG[x.tag] || [x.tag, 'unk']; return '<li><span class="tg ' + t[1] + '">' + esc(t[0]) + '</span><span>' + inline(esc(x.text)) + '</span></li>'; }).join('')
-              + '</ul></details>' : '')
-            + ((h.failed_sources || []).length ? '<div class="hv-src"><span class="hv-fl">확인하지 못한 출처</span><ul>' + h.failed_sources.map(function (s) {
-              return '<li><em>' + esc(s.status) + '</em>' + (/^https?:/.test(s.url) ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.url) + '</a>' : esc(s.url)) + '</li>';
-            }).join('') + '</ul></div>' : '')
-            + '</div>';
-        }).join('') + '</section>';
-    }).join('');
+  function select(id, toDetail) {
+    st.sel = id; st.turn = null;
+    Array.prototype.forEach.call(document.querySelectorAll('#hv-grid .hv-tile'), function (b) { b.setAttribute('aria-selected', String(b.dataset.id === id)); });
+    detail();
+    var box = document.getElementById('hv-detail');
+    if (toDetail && box.getBoundingClientRect().top > window.innerHeight * 0.55) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* 심판 갈림 사유 = '심판 갈림 — …. Jev PASS · GPT-6 Luna FAIL · 재판정 PASS. 처음 사유: …' → [판정 기록, 처음 사유] */
+  function split(h) {
+    var r = String(h.reason || '').replace(/^심판 갈림 — 사람이 확인해 PASS\/FAIL 을 정합니다\.\s*/, '');
+    var i = r.indexOf('처음 사유:');
+    return i < 0 ? [r, ''] : [r.slice(0, i).replace(/[.\s]+$/, ''), r.slice(i + 6).trim()];
+  }
+  function critName(h) { return (h.criterion ? h.criterion + ' ' : '') + (h.criterion_name || ''); }
+  function sources(h) {
+    return (h.failed_sources || []).length ? '<div class="hv-src"><span class="hv-fl">확인하지 못한 출처</span><ul>' + h.failed_sources.map(function (s) {
+      return '<li><em>' + esc(s.status) + '</em>' + (/^https?:/.test(s.url) ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.url) + '</a>' : esc(s.url)) + '</li>';
+    }).join('') + '</ul></div>' : '';
+  }
+
+  /* ① 보류 사유 — 항목마다: 사유 · 기준 · 쉬운 설명 · 심판 기록 */
+  function reasonCard(h) {
+    var dis = h.cause === 'judge_disagreement', rec = dis ? split(h)[0] : (h.reason || '');
+    var recLabel = dis ? '심판 판정 기록' : h.cause === 'empty_output_hold' ? '기록' : '심판이 남긴 글';
+    return '<div class="hv-rc"><div class="hv-rc-h"><span class="hv-cause c-' + h.cause + '">' + esc(causeLabel(h.cause)) + '</span><b>' + esc(critName(h)) + '</b></div>'
+      + (h.criterion_q ? '<p class="hv-cq">' + esc(h.criterion_q) + '</p>' : '')
+      + '<p class="hv-plain">' + esc((D.causes[h.cause] || {}).plain || '') + '</p>'
+      + (rec ? '<div class="hv-jr"><span>' + recLabel + '</span><p>' + esc(rec) + '</p></div>' : '')
+      + sources(h) + '</div>';
+  }
+
+  /* ③ 보류 원본 중 심판 쪽 — 처음 판단 · 이유 · 확인한 답변 문장 (심판 갈림이면 실패로 본 심판의 처음 사유) */
+  function origCard(h) {
+    if (h.cause === 'judge_disagreement') {
+      var first = split(h)[1];
+      return first ? '<div class="hv-oc"><h5>' + esc(critName(h)) + ' — 실패로 본 심판의 처음 사유</h5><p>' + esc(first) + '</p></div>' : '';
+    }
+    var claims = h.claims || [], ch = h.original_choice;
+    if (!h.original_reason && !claims.length) return '';
+    var unk = claims.filter(function (x) { return x.tag !== 'PASS' && x.tag !== 'TRUE'; }).length;
+    var cls = ch === 'PASS' ? 'ok' : ch === 'FAIL' ? 'bad' : 'unk';
+    return '<div class="hv-oc"><h5>' + esc(critName(h)) + ' — 심판의 처음 판단' + (ch ? ' <span class="tg ' + cls + '">' + esc(CHOICE[ch] || ch) + '</span>' : '') + '</h5>'
+      + (ch === 'PASS' || ch === 'FAIL' ? '<p class="hv-note">처음 판단은 ' + CHOICE[ch] + '였지만, ① 의 사유로 그대로 확정하지 않고 보류로 남겼습니다.</p>' : '')
+      + (h.original_reason ? '<p>' + esc(h.original_reason) + '</p>' : '')
+      + (claims.length ? '<details class="hv-claims"' + (claims.length <= 6 ? ' open' : '') + '><summary>심판이 확인한 답변 문장 ' + claims.length + '개 · 확인 못 함 ' + unk + '개</summary><ul>'
+        + claims.map(function (x) { var t = TAG[x.tag] || [x.tag, 'unk']; return '<li><span class="tg ' + t[1] + '">' + esc(t[0]) + '</span><span>' + inline(esc(x.text)) + '</span></li>'; }).join('')
+        + '</ul></details>' : '')
+      + '</div>';
   }
 
   function detail() {
     var box = document.getElementById('hv-detail');
     var it = items.filter(function (x) { return x.id === st.sel; })[0];
-    if (!it) { box.innerHTML = '<p class="hv-none">왼쪽에서 질문을 고르세요.</p>'; return; }
+    if (!it) { box.innerHTML = '<p class="hv-none">위 칸에서 질문을 고르세요.</p>'; return; }
     if (st.turn == null || st.turn > it.turns_total) st.turn = it.held_turns.length ? it.held_turns[0] : 1;
-    var t = it.turns[st.turn - 1];
+    var t = it.turns[st.turn - 1], tl = it.turns_total > 1 ? st.turn + '턴 · ' : '';
     var tabs = it.turns_total > 1 ? '<div class="hv-turns"><span class="hv-fl">턴</span>' + it.turns.map(function (x) {
       return '<button type="button" data-turn="' + x.n + '" class="' + (x.holds.length ? 'held' : '') + '" aria-pressed="' + (x.n === st.turn) + '"'
         + (x.holds.length ? ' title="보류 항목 ' + x.holds.length + '개"' : '') + '>' + x.n + '턴</button>';
@@ -1996,35 +2052,46 @@ details.src.tall pre { max-height: 80vh; }
     var ref = t.ref_chars ? '<details class="hv-extra"><summary>참조 자료(긴 문서) ' + t.ref_chars.toLocaleString() + '자 — 앞부분만</summary><pre>' + esc(t.ref_head) + '\n…</pre></details>' : '';
     var ans = t.answer ? (st.raw ? '<div class="hv-text plain">' + esc(t.answer) + '</div>' : '<div class="hv-text md">' + md(t.answer) + '</div>')
       : '<div class="hv-text"><span class="hv-empty">답변 없음 (0자)' + (t.collected && t.collected !== 'SUCCESS' ? ' — 수집 상태 ' + esc(t.collected) : '') + '</span></div>';
-    var side = t.holds.length ? holdCards(t.holds)
-      : '<section class="hv-grp"><p class="hv-none">이 턴에는 보류 항목이 없습니다. 보류 항목이 있는 턴: ' + it.held_turns.map(function (n) { return n + '턴'; }).join(' · ') + '</p></section>';
-    box.innerHTML = '<div class="hv-dh"><h3>Q' + it.q + ' · ' + esc(D.models[it.model]) + '<span>' + esc(it.kind) + (it.turns_total > 1 ? ' · ' + it.turns_total + '턴' : '') + '</span></h3><span class="hv-badge">질문 판정: 보류</span></div>'
-      + '<div class="hv-why"><b>왜 보류인가</b><p>' + esc(it.headline) + '</p></div>' + tabs
-      + '<div class="hv-cols"><div class="hv-qa">'
-      + '<section class="hv-box hv-qbox"><h5>질문 원문 <small>' + (it.turns_total > 1 ? st.turn + '턴 · ' : '') + (t.question || '').length.toLocaleString() + '자</small></h5><div class="hv-text plain">' + esc(t.question) + '</div>' + att + ref + '</section>'
-      + '<section class="hv-box hv-abox"><h5>답변 원문 <small>' + (t.answer || '').length.toLocaleString() + '자</small><button type="button" class="hv-raw" data-raw="1">' + (st.raw ? '읽기 좋게 보기' : '원문 글자 그대로 보기') + '</button></h5>' + ans + '</section>'
-      + '</div><aside class="hv-side" aria-label="보류 사유"><h4 style="margin:0;font-size:.95rem">보류 사유 <small style="color:var(--muted);font-weight:400">' + (it.turns_total > 1 ? st.turn + '턴 · ' : '') + t.holds.length + '개 항목</small></h4>' + side + '</aside></div>';
+    var reasons = t.holds.length ? '<div class="hv-rcs">' + t.holds.map(reasonCard).join('') + '</div>'
+      : '<p class="hv-none">이 턴에는 보류 항목이 없습니다. 보류 항목이 있는 턴: ' + it.held_turns.map(function (n) { return n + '턴'; }).join(' · ') + '</p>';
+    function step(n, title, sub) { return '<h4><span class="hv-stepno">' + n + '</span>' + title + '<small>' + sub + '</small></h4>'; }
+    box.innerHTML = '<div class="hv-dh"><h3>Q' + it.q + ' · ' + esc(D.models[it.model]) + '<span>' + esc(it.kind) + (it.turns_total > 1 ? ' · ' + it.turns_total + '턴' : '') + '</span></h3>'
+      + '<span class="hv-dh-r"><span class="hv-badge">질문 판정: 보류</span><button type="button" class="hv-raw" data-top="1">칸 목록으로 ↑</button></span></div>'
+      + '<div class="hv-why"><b>한 줄 요약</b><p>' + esc(it.headline) + '</p></div>' + tabs
+      + '<section class="hv-step">' + step(1, '보류 사유', tl + '보류 항목 ' + t.holds.length + '개') + reasons + '</section>'
+      + '<div class="hv-pair">'
+      + '<section class="hv-step">' + step(2, '질문 원본', tl + (t.question || '').length.toLocaleString() + '자') + '<div class="hv-text plain hv-qtext">' + esc(t.question) + '</div>' + att + ref + '</section>'
+      + '<section class="hv-step">' + step(3, '보류 원본', '모델 답변 · 심판의 처음 판단')
+      + '<div class="hv-box hv-abox"><h5><span>모델 답변 <small>' + (t.answer || '').length.toLocaleString() + '자</small></span>' + (t.answer ? '<button type="button" class="hv-raw" data-raw="1">' + (st.raw ? '읽기 좋게 보기' : '원문 글자 그대로 보기') + '</button>' : '') + '</h5>' + ans + '</div>'
+      + t.holds.map(origCard).join('') + '</section>'
+      + '</div>';
   }
 
   root.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b || !root.contains(b)) return;
-    if (b.dataset.f) { st[b.dataset.f] = b.dataset.v; filters(); list(); return; }
-    if (b.dataset.id) { st.sel = b.dataset.id; st.turn = null; list(); return; }
+    if (b.dataset.f) { st[b.dataset.f] = b.dataset.v; filters(); grid(); return; }
+    if (b.dataset.id) { select(b.dataset.id, true); return; }
     if (b.dataset.turn) { st.turn = parseInt(b.dataset.turn, 10); detail(); return; }
-    if (b.dataset.raw) { st.raw = !st.raw; detail(); }
+    if (b.dataset.raw) { st.raw = !st.raw; detail(); return; }
+    if (b.dataset.top) document.getElementById('hv-grid').scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
   root.addEventListener('input', function (e) {
-    if (e.target.id === 'hv-q') { st.q = e.target.value.replace(/\D/g, ''); list(); }
+    if (e.target.id === 'hv-q') { st.q = e.target.value.replace(/\D/g, ''); grid(); }
   });
-  document.getElementById('hv-list').addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    var f = filtered(), i = f.map(function (x) { return x.id; }).indexOf(st.sel);
-    var j = Math.max(0, Math.min(f.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
-    if (f[j]) { st.sel = f[j].id; st.turn = null; list(); var el = document.querySelector('.hv-item[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'nearest' }); }
+  document.getElementById('hv-grid').addEventListener('keydown', function (e) {
+    var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!step) return;
+    var f = ordered(), i = f.map(function (x) { return x.id; }).indexOf(st.sel);
+    var j = Math.max(0, Math.min(f.length - 1, i + step));
+    if (f[j]) {
+      select(f[j].id, false);
+      var el = document.querySelector('#hv-grid .hv-tile[aria-selected="true"]');
+      if (el) { el.focus(); el.scrollIntoView({ block: 'nearest' }); }
+    }
     e.preventDefault(); e.stopPropagation();
   });
-  summary(); filters(); list();
+  summary(); filters(); grid();
 })();
 </script>
 </body>
