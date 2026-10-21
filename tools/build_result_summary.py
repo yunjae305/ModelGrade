@@ -1274,7 +1274,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
   .pager { padding: 0 10px; }
   html { scroll-padding-top: 16px; }
 }
-.ar-s0 { padding-top: 36px; }
+.ar-s0 { padding-top: 36px; padding-bottom: 8px; }
 .ar-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 36px; align-items: start; }
 .ar-kick { font-size: 0.76rem; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .ar-h1 { font-size: 2.8rem; line-height: 1.18; margin: 8px 0 14px; }
@@ -1436,14 +1436,14 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     def head(no: str, title: str, lead: str) -> str:
         return f'<div class="s-head"><span class="s-no">{no} / {total:02d}</span><h2>{title}</h2>{f"<p>{lead}</p>" if lead else ""}</div>'
 
-    s0 = f'<section class="slide ar-s0" id="s0">{ar_overview(D)}</section>'
+    s0 = f'<header class="ar-s0">{ar_overview(D)}</header>'   # 사용자 10-21: 제목 줄은 맨 위에 두고 메뉴의 개요는 뺌
     body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(f"{i:02d}", E(title), E(lead))}\n{content}</section>\n'
                    for i, (sid, _s, _d, title, lead, content) in enumerate(scenes, 1))
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">ModelGrade</span>'
-           '<div class="toc-links" id="toc-links"><a href="#s0"><span class="n">00</span>개요</a>'
+           '<div class="toc-links" id="toc-links">'
            + "".join(f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>' for i, (sid, short, *_r) in enumerate(scenes, 1))
            + '</div><div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div></div></nav>')
-    ids = ", ".join(f"'{s}'" for s in ["s0", *[x[0] for x in scenes]])
+    ids = ", ".join(f"'{s}'" for s in [x[0] for x in scenes])
     script = re.sub(r"var ids = \[[^\]]*\];", f"var ids = [{ids}];", nav_script, count=1)
     logos = logo_style()
 
