@@ -302,12 +302,12 @@ def combine_jev_gpt(jev_v: Dict[str, Any], gpt_v: Dict[str, Any]) -> Dict[str, A
 
 
 def semantic_verdict(turn_results: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
-    """질문의 의미 평가 판정 — 항목 하나라도 FAIL 이면 FAIL, 아니면 확인 못 함(UNVERIFIED)이 있으면 HOLD, 그 밖은 PASS."""
+    """질문의 의미 평가 판정 — 확인 못 함(UNVERIFIED)이 하나라도 있으면 HOLD, 아니면 FAIL 이 있으면 FAIL, 그 밖은 PASS (사용자 10-21: 보류 우선)."""
     decisions = [e["decision"] for items in turn_results.values() for e in items.values()]
-    if "FAIL" in decisions:
-        return "FAIL"
     if "UNVERIFIED" in decisions:
         return "HOLD"
+    if "FAIL" in decisions:
+        return "FAIL"
     return "PASS"
 
 

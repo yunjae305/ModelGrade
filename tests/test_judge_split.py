@@ -88,7 +88,7 @@ def _run(tmp_path, jev_max=jr.JEV_MAX_STATE_CHARS):
 def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     summary, lines, codex, jev, empty = _run(tmp_path)
     q36 = lines[("aiona", 36)]
-    assert q36["status"] == "judged" and q36["verdict"] == "FAIL"   # Jev J2-1.a FAIL · GPT J5-3.a FAIL
+    assert q36["status"] == "judged" and q36["verdict"] == "HOLD"   # J2-1.a 보류(심판 갈림) · J5-3.a FAIL — 보류가 하나라도 있으면 보류 (사용자 10-21)
     items = q36["results"]["1"]
     # 흐름 v2: Jev 가 FAIL 이라 한 J2-1.a 는 Codex 가 다시 보고(가짜 Codex 는 PASS) → 심판 갈림 → 보류, Jev 1차 결정은 함께 남는다
     assert items["J2-1.a"]["decision"] == "UNVERIFIED" and items["J2-1.a"]["judge"] == "jev+gpt" and items["J2-1.a"]["jev"]["decision"] == "FAIL"
@@ -109,7 +109,7 @@ def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     assert empty_line["verdict"] == "HOLD" and empty_line["status"] == "held_empty_output" and empty_line["collection_note"]   # 빈 출력 요구에 빈 답(복사 못 함) → 우선 보류, 수집 상태 명시 (사용자 규칙 10-20)
     assert lines[("gpt", 36)]["status"] == "no_answer" and lines[("gpt", 36)]["verdict"] == "FAIL"
     assert lines[("gpt", 11)]["status"] == "held_copy_failed" and lines[("gpt", 11)]["verdict"] == "HOLD" and "COPY_FAILED" in lines[("gpt", 11)]["collection_note"]   # 복사 실패 → 보류
-    assert summary["models"]["aiona"]["FAIL"] == 1 and summary["models"]["aiona"]["HOLD"] == 1 + (1 if expected == "HOLD" else 0)
+    assert summary["models"]["aiona"]["FAIL"] == 0 and summary["models"]["aiona"]["HOLD"] == 2 + (1 if expected == "HOLD" else 0)   # Q36 은 보류 우선으로 HOLD (10-21)
     assert summary["wall_seconds"] >= 0 and (tmp_path / "timing.jsonl").exists()
     calls = len(codex.inputs)
     jr.run(json.loads(json.dumps({"run_id": "t", "providers": ["aiona"], "datasets": {"aiona": []}})), SET, tmp_path,

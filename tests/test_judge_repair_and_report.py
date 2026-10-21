@@ -92,7 +92,9 @@ def test_report_normalize_hold_kinds_and_human_decisions(tmp_path: Path):
     verdict, after, changed = rh.effective(_line(items), list(norm.values()), human)
     assert verdict == "PASS" and changed == 3                                             # 보류 셋을 사람이 정하면 통과
     verdict2, _, _ = rh.effective(_line(items), list(norm.values()), {("gpt", 1, 1, "J2-2.a"): {"new": "FAIL"}})
-    assert verdict2 == "FAIL"
+    assert verdict2 == "HOLD"                                                             # 보류가 남으면 FAIL 이 있어도 보류 (사용자 10-21)
+    verdict2b, _, _ = rh.effective(_line(items), list(norm.values()), {**human, ("gpt", 1, 1, "J2-2.a"): {"new": "FAIL"}})
+    assert verdict2b == "FAIL"                                                            # 보류를 모두 정한 뒤 FAIL 이 남으면 FAIL
     verdict3, _, _ = rh.effective(_line(items, code_fails=["1-2.code_block"]), list(norm.values()), human)
     assert verdict3 == "FAIL"                                                             # CODE FAIL 은 사람 판정으로 안 바뀜
 

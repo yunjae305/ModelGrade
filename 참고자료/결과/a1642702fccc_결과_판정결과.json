@@ -1,6 +1,6 @@
 {
  "format": "modelgrade-results-v1",
- "exported_at": "2026-10-21T04:46:12.309330+00:00",
+ "exported_at": "2026-10-21T05:39:38.512447+00:00",
  "run_id": "a1642702fccc",
  "label": "결과_판정결과",
  "name": "평가 (질문 78개 — 세트의 모든 질문, 던지는 순서 = 세트 순서)",
@@ -68228,8 +68228,8 @@
     "question": 1,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 156.3,
     "screen": {
      "items": 382,
@@ -78783,8 +78783,8 @@
     "question": 2,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count",
      "2-1.literal:required_literal",
@@ -82331,8 +82331,8 @@
     "question": 2,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 228.4,
     "screen": {
      "items": 382,
@@ -89520,8 +89520,8 @@
     "question": 2,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 335.8,
     "screen": {
      "items": 382,
@@ -93096,8 +93096,8 @@
     "question": 2,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 308.2,
     "screen": {
      "items": 382,
@@ -103755,8 +103755,8 @@
     "question": 4,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-2.code_block:count",
      "2-2.list:required"
@@ -107269,8 +107269,8 @@
     "question": 4,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-1.foreign_script",
      "1-3.citation_link",
@@ -110745,8 +110745,8 @@
     "question": 3,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 305.4,
     "screen": {
      "items": 382,
@@ -114200,8 +114200,8 @@
     "question": 4,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "3-1.question_calculation"
     ],
@@ -117681,8 +117681,8 @@
     "question": 5,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-2.code_block:count"
     ],
@@ -124767,8 +124767,8 @@
     "question": 5,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 144.6,
     "screen": {
      "items": 382,
@@ -128337,8 +128337,8 @@
     "question": 5,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "3-3.aggregate"
     ],
@@ -135391,8 +135391,8 @@
     "question": 6,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-3.internal_link"
     ],
@@ -138909,8 +138909,8 @@
     "question": 5,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count"
     ],
@@ -142482,8 +142482,8 @@
     "question": 6,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.charset",
      "2-1.count:bullet_count"
@@ -146103,8 +146103,8 @@
     "question": 7,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count",
      "2-1.literal:required_literal",
@@ -153165,8 +153165,8 @@
     "question": 6,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 220.6,
     "screen": {
      "items": 382,
@@ -156769,8 +156769,8 @@
     "question": 8,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count",
      "2-1.literal:required_literal",
@@ -160331,8 +160331,8 @@
     "question": 7,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 228.7,
     "screen": {
      "items": 382,
@@ -163860,8 +163860,8 @@
     "question": 8,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 225.6,
     "screen": {
      "items": 382,
@@ -167443,8 +167443,8 @@
     "question": 9,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 172.5,
     "screen": {
      "items": 382,
@@ -170971,8 +170971,8 @@
     "question": 7,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count"
     ],
@@ -174483,8 +174483,8 @@
     "question": 8,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-3.citation_link"
     ],
@@ -181528,8 +181528,8 @@
     "question": 10,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count",
      "3-1.question_calculation"
@@ -186294,8 +186294,8 @@
     "question": 10,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 202.2,
     "screen": {
      "items": 382,
@@ -189863,8 +189863,8 @@
     "question": 8,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count"
     ],
@@ -194579,8 +194579,8 @@
     "question": 9,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "3-3.aggregate"
     ],
@@ -203540,8 +203540,8 @@
     "question": 9,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-1.count:bullet_count"
     ],
@@ -207957,8 +207957,8 @@
     "question": 10,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 306.8,
     "screen": {
      "items": 382,
@@ -215853,8 +215853,8 @@
     "question": 10,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 257.3,
     "screen": {
      "items": 382,
@@ -254890,8 +254890,8 @@
     "question": 69,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "2-2.list:required"
     ],
@@ -267511,8 +267511,8 @@
     "question": 69,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 189.0,
     "screen": {
      "items": 382,
@@ -271106,8 +271106,8 @@
     "question": 70,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 7.7,
     "screen": {
      "items": 31,
@@ -275339,8 +275339,8 @@
     "question": 75,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 23.9,
     "screen": {
      "items": 31,
@@ -278506,8 +278506,8 @@
     "question": 69,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "3-1.answer_equation:1",
      "3-3.aggregate"
@@ -283506,8 +283506,8 @@
     "question": 75,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "seconds": 11.8,
     "screen": {
      "items": 31,
@@ -284734,8 +284734,8 @@
     "question": 69,
     "turns": 10,
     "status": "judged",
-    "verdict": "FAIL",
-    "semantic": "FAIL",
+    "verdict": "HOLD",
+    "semantic": "HOLD",
     "code_fails": [
      "1-3.citation_link",
      "2-1.count:bullet_count"
@@ -291063,26 +291063,26 @@
    "models": {
     "aiona": {
      "PASS": 47,
-     "FAIL": 20,
-     "HOLD": 11,
+     "FAIL": 10,
+     "HOLD": 21,
      "n": 78
     },
     "claude": {
      "PASS": 37,
-     "FAIL": 29,
-     "HOLD": 12,
+     "FAIL": 19,
+     "HOLD": 22,
      "n": 78
     },
     "gemini": {
      "PASS": 23,
-     "FAIL": 44,
-     "HOLD": 11,
+     "FAIL": 36,
+     "HOLD": 19,
      "n": 78
     },
     "gpt": {
      "PASS": 36,
-     "FAIL": 32,
-     "HOLD": 10,
+     "FAIL": 23,
+     "HOLD": 19,
      "n": 78
     }
    }

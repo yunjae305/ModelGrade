@@ -543,7 +543,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         semantic, judge_error = "HOLD", f"Codex 판정 실행 오류 — 다시 판정 필요: {str(calls['codex'].get('error') or '')[:120]}"
     else:
         semantic = verdict_of(final)
-    verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
+    verdict = question_verdict(code_fails, semantic)
     line = {"version": SCREEN_VERSION, "mode": "screen", "provider": provider, "question": q, "turns": len(turns), "verdict": verdict, "semantic": semantic,
             "judge_error": judge_error or None, "reason": judge_error or None,
             "code_fails": code_fails, "codex_conclusion": None, "jev_codex_agree": [agree, total], "seconds": round(time.monotonic() - started, 1),
@@ -638,8 +638,17 @@ def trim_jev_state(state: Dict[str, Any], budget: int = JEV_TRIM_CHARS) -> int:
 
 
 def verdict_of(items: Dict[int, Dict[str, Dict[str, Any]]]) -> str:
+    """의미 평가 판정 — 확인 못 한(UNVERIFIED) 항목이 하나라도 있으면 HOLD, 아니면 FAIL 이 있으면 FAIL, 그 밖 PASS (사용자 10-21: 보류 우선)."""
     decs = [v.get("decision") for part in items.values() for v in part.values()]
-    return "FAIL" if "FAIL" in decs else ("HOLD" if "UNVERIFIED" in decs else "PASS")
+    return "HOLD" if "UNVERIFIED" in decs else ("FAIL" if "FAIL" in decs else "PASS")
+
+
+def question_verdict(code_fails: List[str], semantic: Optional[str]) -> str:
+    """질문 판정 (사용자 10-21: 보류가 하나라도 있으면 최종 판정은 보류) — 의미 평가에 보류(확인 못 함 · 판정 실행 오류)가 있으면 HOLD,
+    아니면 CODE · 의미 FAIL 이 하나라도 있으면 FAIL, 그 밖 PASS. 보류를 사람이 모두 정한 뒤에 FAIL 이 남으면 FAIL."""
+    if semantic == "HOLD":
+        return "HOLD"
+    return "FAIL" if code_fails or semantic == "FAIL" else (semantic or "PASS")
 
 
 # --- 질문 하나 ---------------------------------------------------------------------------------------------------------
@@ -776,7 +785,7 @@ def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[
         turn_out[str(n)] = {"situations_judge": codex[n]["situations"],
                             "evidence": codex[n]["evidence"], "problems": codex[n]["problems"], "items": items}
     semantic = verdict_of(final) if calls["codex"]["status"] == "OK" else "HOLD"
-    verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
+    verdict = question_verdict(code_fails, semantic)
     cs = [c for c in ((calls["codex"].get("output") or {}).get("conclusions") or [(calls["codex"].get("output") or {}).get("conclusion")]) if isinstance(c, dict)]         if isinstance(calls["codex"].get("output"), dict) else []
     concl = None if not cs else {"verdict": "FAIL" if any(c.get("verdict") == "FAIL" for c in cs) else ("HOLD" if any(c.get("verdict") == "HOLD" for c in cs) else "PASS"),
                                  "reason": " / ".join(c.get("reason") or "" for c in cs)}   # 턴을 나눠 물었으면 결론도 합친다
@@ -889,8 +898,8 @@ PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_o
 
 
 def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, providers: set, questions: set) -> int:
-    """--recode: 심판을 다시 부르지 않고, 실행 파일의 지금 CODE 평가로 판정 줄의 code_fails·verdict 만 다시 계산해 바뀐 줄을 덧붙인다
-    (CODE 기준을 바꾼 뒤 — 2026-10-21 코드블록 언어 표지). 의미 판정(semantic)은 그대로 쓴다."""
+    """--recode: 심판을 다시 부르지 않고, 실행 파일의 지금 CODE 평가와 저장된 항목 판정으로 code_fails · semantic · verdict 를 지금 규칙으로
+    다시 계산해 바뀐 줄을 덧붙인다 (CODE 기준을 바꾼 뒤 — 10-21 코드블록 언어 표지, 질문 판정 규칙을 바꾼 뒤 — 10-21 보류 우선)."""
     latest: Dict[Tuple[str, int], Dict[str, Any]] = {}
     for x in results_path.read_text(encoding="utf-8").splitlines():
         if x.strip():
@@ -906,15 +915,31 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
             turns = [r for r in rows if ji._question(r["case_id"]) == q]
             code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
             semantic = l.get("semantic") or ("FAIL" if l.get("verdict") == "FAIL" and not l.get("code_fails") else l.get("verdict"))
-            verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
-            if code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict"):
+            tr = l.get("turn_results") or {}
+            if tr and not l.get("judge_error"):   # 의미 판정도 지금 규칙으로 다시 계산 (10-21: 보류 우선)
+                semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
+            verdict = question_verdict(code_fails, semantic)
+            if code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
                 continue
-            new = {**l, "code_fails": code_fails, "verdict": verdict, "recoded": {"at": datetime.now(timezone.utc).isoformat(),
-                                                                                 "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict")}}
+            new = {**l, "code_fails": code_fails, "semantic": semantic, "verdict": verdict,
+                   "recoded": {"at": datetime.now(timezone.utc).isoformat(), "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict"),
+                               "semantic_before": l.get("semantic")}}
             f.write(json.dumps(new, ensure_ascii=False) + "\n")
             changed += 1
             say(f"↻ Q{q} {p}: CODE FAIL {l.get('code_fails') or '-'} → {code_fails or '-'} · 판정 {l.get('verdict')} → {verdict}")
-    say(f"CODE 다시 반영 끝 — 바뀐 줄 {changed}개 (심판 호출 없음)")
+    say(f"다시 계산 끝 — 바뀐 줄 {changed}개 (심판 호출 없음)")
+    sp = results_path.parent / "summary.json"
+    if changed and sp.exists():   # summary.json 의 모델별 숫자도 지금 판정으로
+        final: Dict[Tuple[str, int], Dict[str, Any]] = {}
+        for x in results_path.read_text(encoding="utf-8").splitlines():
+            if x.strip():
+                l = json.loads(x)
+                if l.get("version") in (VERSION, SCREEN_VERSION):
+                    final[(l["provider"], int(l["question"]))] = l
+        sm = json.loads(sp.read_text(encoding="utf-8"))
+        sm["models"] = {p: {**{v: sum(1 for (pp, _q), l in final.items() if pp == p and l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")},
+                            "n": sum(1 for (pp, _q) in final if pp == p)} for p in sorted({k[0] for k in final})}
+        sp.write_text(json.dumps(sm, ensure_ascii=False, indent=1), encoding="utf-8")
     return 0
 
 

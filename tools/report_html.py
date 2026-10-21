@@ -227,7 +227,8 @@ def normalize_items(line: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def effective(line: Dict[str, Any], items: List[Dict[str, Any]], human: Dict[Tuple[str, int, int, str], Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]], int]:
-    """사람 판정을 반영한 질문 판정 — (판정, 반영된 항목들, 바뀐 항목 수). 규칙은 심판과 같다: CODE FAIL 또는 항목 FAIL → FAIL, 보류 남으면 HOLD."""
+    """사람 판정을 반영한 질문 판정 — (판정, 반영된 항목들, 바뀐 항목 수). 규칙은 심판과 같다(사용자 10-21: 보류 우선):
+    보류(확인 못 함 · 판정 실행 오류)가 하나라도 남으면 HOLD, 아니면 CODE FAIL 또는 항목 FAIL → FAIL, 그 밖 PASS."""
     whole = human.get((line["provider"], int(line["question"]), 1, "__question__"))
     if line.get("status") not in (None, "judged"):
         if whole and whole.get("new") in ("PASS", "FAIL"):
@@ -242,7 +243,7 @@ def effective(line: Dict[str, Any], items: List[Dict[str, Any]], human: Dict[Tup
             changed += 1
         new_items.append(it)
     decs = {it["decision"] for it in new_items}
-    verdict = "FAIL" if (line.get("code_fails") or "FAIL" in decs) else ("HOLD" if "UNVERIFIED" in decs else "PASS")
+    verdict = "HOLD" if (line.get("judge_error") or "UNVERIFIED" in decs) else ("FAIL" if (line.get("code_fails") or "FAIL" in decs) else "PASS")
     return verdict, new_items, changed
 
 
@@ -476,7 +477,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             b, a = tally(p, before=True), tally(p)
             P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{b['PASS']}</td><td class='num'>{a['PASS']}</td><td class='num'>{b['HOLD']}</td><td class='num'>{a['HOLD']}</td>"
                      f"<td class='num'>{sum(L['changed'] for k, L in lines.items() if k[0] == p)}</td></tr>")
-        P.append("</table><p class='note'>사람 판정(human_decisions.json)을 반영한 뒤의 숫자입니다. 규칙은 심판과 같아서 보류 하나를 PASS 로 바꿔도 다른 FAIL 이 남으면 그 질문은 FAIL 입니다.</p>")
+        P.append("</table><p class='note'>사람 판정(human_decisions.json)을 반영한 뒤의 숫자입니다. 규칙은 심판과 같아서 보류가 하나라도 남으면 보류이고, 보류를 모두 정한 뒤 FAIL 이 하나라도 있으면 FAIL 입니다.</p>")
 
     # 기준별 어긴 질문 수 (여러 곳에서 씀)
     crit_fail: Dict[str, Counter] = defaultdict(Counter)
@@ -710,7 +711,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
              "<li><b>질문 78개</b>: 단일 질문 35 · 10턴 대화 11 · 첨부 자료 12 · 롱컨텍스트(27만 토큰 이상) 10 · 빈 출력 요구 10. 네 모델에 같은 질문을 같은 순서로 던지고 답을 복사해 저장했습니다.</li>"
              "<li><b>기준 72개</b>: 형식·개수·글자 수 같은 CODE 기준 28개는 프로그램이 검사하고, 요청 충실·지시 준수·논리·완결성·사실·멀티턴·롱컨텍스트·첨부 활용의 의미 기준 44개는 AI 심판이 턴마다 검사합니다.</li>"
              "<li><b>심판 둘</b>: Decisions API 가 항목 전부를 판정하고, FAIL 이거나 확신이 낮은 항목만 Codex 가 원문 인용과 함께 다시 봅니다. 다시 본 항목은 Codex 판정을 우선하되 두 심판이 확신을 갖고 갈리면 보류로 둡니다. 심판은 어느 모델의 답인지 모릅니다.</li>"
-             "<li><b>완전 통과</b>: CODE·의미 기준 중 하나라도 FAIL 이면 그 질문은 FAIL. FAIL 은 없고 보류만 있으면 보류(사람이 정함). 빈 출력 요구 질문은 빈 답·오류 모두 보류.</li>"
+             "<li><b>완전 통과</b>: 확인 못 한 항목(보류)이 하나라도 있으면 그 질문은 보류(사람이 정함). 보류가 없고 CODE·의미 기준 중 하나라도 FAIL 이면 FAIL. 빈 출력 요구 질문은 빈 답·오류 모두 보류.</li>"
              "<li><b>답 수집</b>: 답은 각 앱·웹의 답변 아래 '복사' 버튼이 주는 글 그대로입니다(사용자가 복사해 붙여넣을 때 얻는 글). "
              "ChatGPT 앱의 복사는 코드블록 첫 줄의 언어 표기(```json → ```)를 지우므로, 질문이 'json·python 코드블록'을 지정한 문항에서 GPT 는 "
              "CODE 기준 '코드블록 언어 표시'(1-2)가 FAIL 로 나옵니다(앱 화면·앱 내부 원문에는 표기가 있음, 2026-10-21 확인).</li>"

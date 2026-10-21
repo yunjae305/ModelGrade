@@ -12,26 +12,26 @@
  "models": {
   "aiona": {
    "PASS": 47,
-   "FAIL": 20,
-   "HOLD": 11,
+   "FAIL": 10,
+   "HOLD": 21,
    "n": 78
   },
   "claude": {
    "PASS": 37,
-   "FAIL": 29,
-   "HOLD": 12,
+   "FAIL": 19,
+   "HOLD": 22,
    "n": 78
   },
   "gemini": {
    "PASS": 23,
-   "FAIL": 44,
-   "HOLD": 11,
+   "FAIL": 36,
+   "HOLD": 19,
    "n": 78
   },
   "gpt": {
    "PASS": 36,
-   "FAIL": 32,
-   "HOLD": 10,
+   "FAIL": 23,
+   "HOLD": 19,
    "n": 78
   }
  }
