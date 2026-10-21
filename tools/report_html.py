@@ -21,7 +21,12 @@ DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"
 LABEL = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 ORDER = ["aiona", "gpt", "claude", "gemini"]
 KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}
-TYPE_ORDER = ["단일 질문", "10턴 멀티턴 대화", "첨부자료 확인·요약", "롱컨텍스트", "명시적 빈 출력"]
+TYPE_ORDER = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨부자료 확인·요약"]   # 10-21 오후 미팅: 싱글턴 · 멀티턴 · 롱컨텍스트 · 첨부
+
+
+def display_type(t: str) -> str:
+    """보고서에 묶어 보여 줄 유형 — 빈 출력 요구는 단일 질문에 합친다 (10-21 오후 미팅). 보류 규칙은 원래 유형으로."""
+    return "단일 질문" if t == "명시적 빈 출력" else t
 HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "질문 전체 보류", "기타")
 POLICY = "judge-v5-screen-1"
 
@@ -493,7 +498,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
         wins: List[str] = []
         others = [p for p in providers if p != "aiona"]
         for ty in TYPE_ORDER:
-            qs = [q for q in all_q if qtypes.get(q) == ty]
+            qs = [q for q in all_q if display_type(qtypes.get(q) or "") == ty]
             if not qs or not all((p, q) in lines for p in providers for q in qs):
                 continue
             a = tally("aiona", qs)["PASS"]
@@ -514,8 +519,8 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
 
     # 2. 유형별
     P.append("<h2>2. 질문 유형별 완전 통과</h2><table><tr><th>유형</th><th class='num'>질문 수</th>" + "".join(f"<th class='num'>{_e(model_label[p])}</th>" for p in providers) + "</tr>")
-    for ty in TYPE_ORDER + sorted({t for t in qtypes.values() if t not in TYPE_ORDER}):
-        qs = [q for q in all_q if qtypes.get(q) == ty]
+    for ty in TYPE_ORDER + sorted({display_type(t) for t in qtypes.values() if display_type(t) not in TYPE_ORDER}):
+        qs = [q for q in all_q if display_type(qtypes.get(q) or "") == ty]
         if not qs:
             continue
         best = max(tally(p, qs)["PASS"] for p in providers)
@@ -525,7 +530,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             extra = (f" <span class='small'>(보류 {t['HOLD']})</span>" if t["HOLD"] else "") + (f" <span class='small'>(미평가 {t['미평가']})</span>" if t["미평가"] else "")
             cells.append(f"<td class='num{' best' if t['PASS'] == best and best > 0 else ''}'>{t['PASS']} / {len(qs)}{extra}</td>")
         P.append(f"<tr><td>{_e(ty)}</td><td class='num'>{len(qs)}</td>{''.join(cells)}</tr>")
-    P.append("</table><p class='note'>'명시적 빈 출력'은 답을 내지 말라는 질문입니다. 모델이 아무것도 안 내거나 오류를 내면 규칙상 보류로 두고 사람이 봅니다.</p>")
+    P.append("</table><p class='note'>'단일 질문'에는 답을 내지 말라는 '명시적 빈 출력' 질문이 함께 들어 있습니다. 모델이 아무것도 안 내거나 복사할 답이 없으면 규칙상 보류로 두고 사람이 봅니다.</p>")
 
     # 3. 기준별
     P.append("<h2>3. 기준 72개별 — 어긴 질문 수</h2><p class='note'>질문 하나에서 같은 기준을 여러 턴에서 어겨도 1로 셉니다. 괄호는 보류 질문 수. 숫자가 작을수록 좋습니다.</p>")
