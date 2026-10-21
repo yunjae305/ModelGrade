@@ -441,8 +441,8 @@ TYPE_SHORT = {"단일 질문": "싱글턴 (S)", "10턴 멀티턴 대화": "멀�
               "명시적 빈 출력": "빈 출력 요구"}
 
 
-def collect_tokens(D: Dict[str, Any]) -> Optional[Dict[Tuple[str, str], Tuple[float, float]]]:
-    """답변 수집 토큰 — (모델, 유형) → 질문(대화) 하나당 평균 (입력, 출력). 앱·웹으로 받아 실제 사용량 기록이 없어
+def collect_tokens(D: Dict[str, Any]) -> Optional[Dict[Tuple[str, str], Tuple[float, float, float, float]]]:
+    """답변 수집 토큰 — (모델, 유형) → 질문(대화) 하나당 평균 (입력 토큰, 출력 토큰, 입력 글자 수, 출력 글자 수). 앱·웹으로 받아 실제 사용량 기록이 없어
     질문·답 글을 o200k_base 로 센 추정. 입력 = 턴마다 그때까지의 대화(앞 질문·답 · 참조 문서 · 첨부 글) + 이번 질문, 출력 = 답.
     시스템 프롬프트 · 이미지 · 모델 내부 추론은 모름(뺌). tiktoken 이 없으면 None."""
     try:
@@ -459,24 +459,30 @@ def collect_tokens(D: Dict[str, Any]) -> Optional[Dict[Tuple[str, str], Tuple[fl
             cache[text] = len(enc.encode(text, disallowed_special=()))
         return cache[text]
 
-    acc: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0, 0])
+    acc: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0, 0.0, 0.0, 0])
     for p in D["order"]:
         for q, ty in D["qtypes"].items():
             if ty == "명시적 빈 출력":
                 continue
             hist = tin = tout = 0
+            hist_c = cin = cout = 0   # 같은 셈을 글자 수로 (사용자 10-21: 몇 글자인지도)
             for tn, turn in enumerate(D["qset"][q]["turns"], 1):
-                extra = n(turn.get("reference") or "") + sum(n(a.get("content") or "") for a in turn.get("attachments") or [] if isinstance(a, dict))
-                ctx = hist + extra + n(turn.get("question") or "")
-                ans = n((D["turns"].get((p, q, tn)) or {}).get("answer") or "")
-                tin += ctx
-                tout += ans
-                hist = ctx + ans   # 다음 턴은 앞 대화 전체를 다시 읽는다
+                docs = [turn.get("reference") or ""] + [a.get("content") or "" for a in turn.get("attachments") or [] if isinstance(a, dict)]
+                question = turn.get("question") or ""
+                answer = (D["turns"].get((p, q, tn)) or {}).get("answer") or ""
+                ctx = hist + sum(n(x) for x in docs) + n(question)
+                ctx_c = hist_c + sum(len(x) for x in docs) + len(question)
+                ans, ans_c = n(answer), len(answer)
+                tin, cin = tin + ctx, cin + ctx_c
+                tout, cout = tout + ans, cout + ans_c
+                hist, hist_c = ctx + ans, ctx_c + ans_c   # 다음 턴은 앞 대화 전체를 다시 읽는다
             a = acc[(p, ty)]
             a[0] += tin
             a[1] += tout
-            a[2] += 1
-    return {k: (v[0] / v[2], v[1] / v[2]) for k, v in acc.items()}
+            a[2] += cin
+            a[3] += cout
+            a[4] += 1
+    return {k: (v[0] / v[4], v[1] / v[4], v[2] / v[4], v[3] / v[4]) for k, v in acc.items()}
 
 
 def ktok(x: float) -> str:
@@ -488,12 +494,14 @@ def collect_token_table(D: Dict[str, Any]) -> str:
     tok = collect_tokens(D)
     if not tok:
         return ""
-    rows = [[mname(p), *[(f'입력 <b>{ktok(tok[(p, ty)][0])}</b> · 출력 <b>{ktok(tok[(p, ty)][1])}</b>' if (p, ty) in tok else "—") for ty in TIME_COLS]]
-            for p in D["order"]]
+    def cell(v: Tuple[float, float, float, float]) -> str:
+        return (f'입력 <b>{ktok(v[0])}</b> <span class="muted">({v[2]:,.0f}자)</span> · '
+                f'출력 <b>{ktok(v[1])}</b> <span class="muted">({v[3]:,.0f}자)</span>')
+    rows = [[mname(p), *[(cell(tok[(p, ty)]) if (p, ty) in tok else "—") for ty in TIME_COLS]] for p in D["order"]]
     return (table("유형별 — 질문(대화) 하나당 평균 토큰 (답변 수집 · 추정)", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS]], rows, [12, 22, 22, 22, 22])
             + '<p class="rs-basis">앱·웹 화면으로 받아 모델이 실제로 쓴 토큰은 기록되지 않습니다. 그래서 질문·답 글을 o200k_base 토크나이저(GPT 계열)로 센 추정입니다. '
               '입력 = 턴마다 그때까지의 대화(앞 질문·답 · 참조 문서 · 첨부 글) + 이번 질문 — 멀티턴은 10턴을 더한 값. 출력 = 답. '
-              '시스템 프롬프트 · 이미지 · 모델 내부 추론은 빠져 있어 실제보다 적고, 모델마다 토크나이저가 달라 실제 수와 다릅니다. 빈 출력 요구 질문은 뺐습니다.</p>')
+              '괄호는 같은 글의 글자 수(공백 포함). 시스템 프롬프트 · 이미지 · 모델 내부 추론은 빠져 있어 실제보다 적고, 모델마다 토크나이저가 달라 실제 수와 다릅니다. 빈 출력 요구 질문은 뺐습니다.</p>')
 
 
 def scene_time(D: Dict[str, Any]) -> str:
@@ -905,10 +913,14 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
             head = badge(v)
         else:
             ents, _na = kept_criteria(D, p, q)
-            n_sem = sum(1 for e in ents if e["kind"] == "의미")
+            # 사용자 10-21: 이 화면에서 바로 어떤 기준을 지켰는지 — 의미 기준 이름, CODE 는 기준(검사를 기준으로 묶음) 이름
+            sem = list(dict.fromkeys(crit_name(D["names"], e["item"]) or e["item"] for e in ents if e["kind"] == "의미"))
+            code = list(dict.fromkeys(crit_name(D["names"], e["item"].split(":")[0]) or e["item"] for e in ents if e["kind"] == "CODE"))
             pid = f"p-{p}-{q}"
-            body = (f'<p class="rs-why">해당하는 기준을 모두 지킴 — 의미 {n_sem}개 · CODE 검사 {len(ents) - n_sem}개</p>'
-                    + (f'<a class="rs-go" href="{E(part_of[pid])}#{pid}">질문·답변 원문 · 지킨 기준 →</a>' if pid in part_of else ""))
+            body = ('<p class="rs-qa">해당하는 기준을 모두 지킴</p>'
+                    f'<p class="rs-kept"><b>의미 {len(sem)}</b>{E(" · ".join(sem))}</p>'
+                    f'<p class="rs-kept"><b>CODE {len(code)}</b>{E(" · ".join(code))}</p>'
+                    + (f'<a class="rs-go" href="{E(part_of[pid])}#{pid}">질문·답변 원문 · 기준별 근거 →</a>' if pid in part_of else ""))
             head = badge(v)
         rows.append(f'<div class="rs-qm"><div class="rs-qmh"><b>{mname(p)}</b>{head}</div>{body}</div>')
     return (f'<article class="rs-qd" id="q-{q}"><div class="rs-qdh"><span><b>Q{q}</b> {E(TYPE_NAME.get(D["qtypes"][q], ""))}{E(tn)}{E(extra)}</span>'
@@ -1432,6 +1444,7 @@ mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px so
 mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
   background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
 .rs-hlno.rs-hlno-off { background: var(--muted); }
+.rs-kept { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; } .rs-kept b { color: var(--ok); margin-right: 6px; }
 .rs-okno { color: var(--ok); font-weight: 700; } .rs-oktxt { color: var(--ok); font-weight: 700; } .rs-h4gap { margin-top: 14px !important; }
 @media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
 /* 10-21 사용자: '확인할 것'에서 바로 간 자리 강조 · 카드의 질문 번호 · 좌우 여백 줄여 한 줄에 */
@@ -1464,6 +1477,17 @@ OPEN_JS = """<script>
   if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
 })();
 </script>"""
+
+
+def prune_css(css: str, body: str) -> str:
+    """그 파일 본문에 없는 클래스만 쓰는 CSS 규칙을 뺀다 (본문 크기 줄이기, 10-21). 클래스 없는 규칙 · @ 규칙 머리는 그대로."""
+    used = {c for v in re.findall(r'class="([^"]*)"', body) for c in v.split()}
+
+    def keep(m: "re.Match[str]") -> str:
+        cls = re.findall(r"\.([A-Za-z_][\w-]*)", m.group(1))
+        return m.group(0) if not cls or m.group(1).lstrip().startswith("@") or any(c in used for c in cls) else ""
+    # <style> 태그 안쪽만 — 태그 글자가 규칙 앞부분으로 잡혀 함께 지워지지 않게
+    return re.sub(r"(<style[^>]*>)(.*?)(</style>)", lambda b: b.group(1) + re.sub(r"([^{}]+)\{[^{}]*\}", keep, b.group(2)) + b.group(3), css, flags=re.S)
 
 
 def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
@@ -1516,7 +1540,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
                 f'<title>{E(title)}</title>\n<meta name="description" content="{E(desc)}">\n'
                 '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
                 '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">\n'
-                f'{css}\n{EXTRA_CSS}\n{logos}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
+                f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + logos, inner)}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
 
     main_name = f"ModelGrade_결과요약_{run_id}.html"
     out = OUT_DIR / main_name
