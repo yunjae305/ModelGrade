@@ -1484,8 +1484,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     scenes = [   # 사용자 10-21: 평가 방법을 개요 바로 다음에 · 걸린 시간은 순위표 다음에 — 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다
-        ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
-         "어제 설명한 흐름 그대로이고, 의미 평가 심판만 Decisions API 로 바뀌었습니다.", scene_flow(D)),
+        ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)),   # 사용자 10-21: 제목만, 한 줄 설명 뺌
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
          "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
