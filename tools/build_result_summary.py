@@ -617,9 +617,8 @@ def tab_css(prefix: str, n: int, label_box: str, panel_box: str, panel_cls: str,
     return f"<style>{sel_l} {{ {active} }} {sel_p} {{ display: block; }} {focus} {{ outline: 2px solid var(--accent); outline-offset: 2px; }}</style>"
 
 
-def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
-    """개요 (사용자 10-21: 줄이기) — 큰 제목 한 줄 · '전체' 순위 카드 · 확인할 것. 분야 탭과 '모델마다 #1 인 분야'는 02 순위표와 겹쳐 뺐다."""
-    order = D["order"]
+def ar_overview(D: Dict[str, Any]) -> str:
+    """개요 (사용자 10-21: 줄이기) — 제목 · 질문 수 · 소요 시간만. '확인할 것'은 빼고(내용은 FAIL 원인 · 보류 장면), '전체' 순위 카드는 순위표 장면 맨 위로."""
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     # 제목 하나 · 질문 수 · 소요 시간만 (사용자 10-21: 불필요한 글 지우기). 수집은 네 모델을 동시에 돌려 가장 오래 걸린 모델의 벽시계
     def secs(txt: str) -> int:
@@ -632,34 +631,14 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
             '<h1 class="ar-h1"><em>AIONA</em> 채팅 품질 평가</h1>'   # 사용자 10-21: 깔끔한 제목
             f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')
+    return hero
+
+
+def rank_card(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
+    """'전체' 순위 카드 — 순위표 장면 맨 위 (사용자 10-21: 개요에서 옮김)."""
     total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
-    rank_card = (f'<div class="ar-card"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
-                 f'<div class="ar-rows">{rank_rows(total_cat)}</div>'
-                 '<a class="ar-btn" href="#s1">분야별 순위표 보기</a></div>')
-    # 확인할 것 (Arena 'Live sessions' 자리)
-    checks = []
-    hold_n = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
-    hold_q = sorted({q for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD"})
-    if hold_n:
-        n_other = sum(1 for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] != EMPTY_REQ)
-        sub_ = [x for x in (f"빈 출력 요구 {hold_n - n_other}칸" if hold_n - n_other else "", f"확인 못 함 {n_other}칸 (사유 있음)" if n_other else "") if x]
-        checks.append(("hold", f"보류 {hold_n}칸 — 사람이 정함", " · ".join(sub_), "#s4"))
-    cf = crit_fail(D)
-    for c, cnt in sorted(cf.items(), key=lambda kv: -max(kv[1].values())):
-        for p in order:
-            others = max(cnt[o] for o in order if o != p)
-            if cnt[p] >= 8 and cnt[p] >= 4 * max(others, 1) and len(checks) < 4:
-                checks.append(("fail", f"{SHORT[p]} — {crit_name(D['names'], c)} {cnt[p]}문항", f"다른 모델은 많아야 {others} · 원문 확인 권장", f"#{card_id(p, c)}", p))
-    py = sum(1 for q in D["qtypes"] if "gpt" in order and D["lines"][("gpt", q)]["verdict"] == "FAIL"
-             and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or []))
-    if py:
-        checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 복사 기능이 줄바꿈을 지움(확인) · 복사 결과 그대로 FAIL", "#k-gpt-python", "gpt"))
-    checks.append(("wait", f"심판 흔들림 — 표본 {WOBBLE['n']}건 중 {WOBBLE['changed']}건", "몇 문항 차이는 오차일 수 있음" + (" · medium 전체 판정 중" if report_extras(D)["medium_running"] else ""), "#wobble"))
-    lst = "".join(f'<a class="ar-ck ar-ck-{k}" href="{h}"><i></i><span><b>{logo(m[0]) + " " if m else ""}{E(t)}</b><small>{E(s)}</small></span></a>' for k, t, s, h, *m in checks)
-    grid = (f'<div class="ar-grid">{rank_card}'
-            f'<div class="ar-card"><div class="ar-ch"><h3>확인할 것</h3><span class="ar-chip">이번 실행</span></div><div class="ar-cks">{lst}</div>'
-            '<a class="ar-btn" href="#s6">질문별 결과 보기</a></div></div>')
-    return hero + f'<div class="ar-ov">{grid}</div>'
+    return (f'<div class="ar-card ar-top"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
+            f'<div class="ar-rows">{rank_rows(total_cat)}</div></div>')
 
 
 def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
@@ -1332,12 +1311,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .ar-note { margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
 .ar-btn { text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px; text-decoration: none; color: var(--ink); font-size: 0.92rem; background: var(--surface); }
 .ar-btn:hover { border-color: var(--ink); }
-.ar-cks { display: grid; }
-.ar-ck { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
-.ar-ck:hover { background: var(--bg); }
-.ar-ck > i { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--muted); }
-.ar-ck-hold > i { background: var(--warn); } .ar-ck-fail > i { background: var(--risk); } .ar-ck-wait > i { background: var(--accent); }
-.ar-ck b { display: block; font-size: 0.93rem; font-weight: 600; } .ar-ck small { color: var(--muted); font-size: 0.8rem; }
+.ar-top { margin-bottom: 20px; }
 .ar-board { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
 .ar-cats { position: sticky; top: 64px; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
 .ar-cg { display: grid; gap: 2px; align-content: start; } .ar-cg > span { font-size: 0.74rem; color: var(--muted); font-weight: 600; padding: 2px 10px; }
@@ -1447,7 +1421,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
          "어제 설명한 흐름 그대로이고, 의미 평가 심판만 Decisions API 로 바뀌었습니다.", scene_flow(D)),
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
-         "위 점수표로 한눈에 보고, 아래에서 분야를 고르면 순위표가 바뀝니다.", helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats) + wobble_note()),
+         "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats) + wobble_note()),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
          f"답변 수집은 모델마다 {hm(min(coll.values()))}~{hm(max(coll.values()))}, 판정은 네 모델 동시에 {hm(judge_s)}.", scene_time(D)),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
@@ -1462,7 +1436,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     def head(no: str, title: str, lead: str) -> str:
         return f'<div class="s-head"><span class="s-no">{no} / {total:02d}</span><h2>{title}</h2>{f"<p>{lead}</p>" if lead else ""}</div>'
 
-    s0 = f'<section class="slide ar-s0" id="s0">{ar_overview(D, cats)}</section>'
+    s0 = f'<section class="slide ar-s0" id="s0">{ar_overview(D)}</section>'
     body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(f"{i:02d}", E(title), E(lead))}\n{content}</section>\n'
                    for i, (sid, _s, _d, title, lead, content) in enumerate(scenes, 1))
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">ModelGrade</span>'
