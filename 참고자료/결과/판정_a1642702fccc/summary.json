@@ -7,13 +7,13 @@
   "model": "gpt-6-luna",
   "reasoning": "low"
  },
- "finished_at": "2026-10-21T04:09:34.188312+00:00",
+ "finished_at": "2026-10-21T07:23:49.575450+00:00",
  "wall_seconds": 4757.0,
  "models": {
   "aiona": {
-   "PASS": 47,
-   "FAIL": 10,
-   "HOLD": 21,
+   "PASS": 49,
+   "FAIL": 9,
+   "HOLD": 20,
    "n": 78
   },
   "claude": {

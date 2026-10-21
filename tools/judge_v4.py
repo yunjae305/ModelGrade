@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import threading
 import time
@@ -317,17 +318,50 @@ def merge_codex_output(base: Any, extra: Any, replace: Optional[set] = None) -> 
     return base
 
 
+_PROMPT_ITEM_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def prompt_item_lines(item_id: str) -> Dict[str, Any]:
+    """판정 프롬프트(judge_prompt_v4.txt, Codex 가 읽는 글)의 그 항목 블록 — {'적용': 글 또는 None, 'notes': ['초보자: …', …]}.
+    Decisions · Jev 가 Codex 와 같은 기준 문구를 보게 한다 (10-21: 초보자 · 외부 사실만 · 존댓말 설명이 Codex 에만 들어가 있었음)."""
+    if not _PROMPT_ITEM_CACHE:
+        cur = None
+        for line in PROMPT_V4.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"- \*\*(J\d-\d+\.[a-z])\*\* · ", line)
+            if m:
+                cur = _PROMPT_ITEM_CACHE.setdefault(m.group(1), {"적용": None, "notes": []})
+                continue
+            if cur is None or not line.startswith("  · "):
+                cur = None if not line.startswith("  · ") else cur
+                continue
+            key, _, val = line[4:].partition(":")
+            key = key.strip()
+            if key == "적용":
+                cur["적용"] = val.strip()
+            elif key in ("근거", "표시") or key.endswith(" 예") or key.startswith(("PASS", "FAIL")):
+                continue
+            else:
+                cur["notes"].append(f"{key}: {val.strip()}")
+    return _PROMPT_ITEM_CACHE.get(item_id) or {"적용": None, "notes": []}
+
+
 def all_item_questions(fixed: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """Decisions 에 보낼 항목 44개의 choice 질문 — J1~J4 는 Jev 묶음(fixed["items"]) 그대로, J5~J8 은 semantic_items 정의로 같은 모양을 만든다."""
-    out: Dict[str, Dict[str, Any]] = dict(fixed["items"])
+    """Decisions 에 보낼 항목 44개의 choice 질문 — J1~J4 는 Jev 묶음(fixed["items"]), J5~J8 은 semantic_items 정의로 같은 모양을 만들고,
+    판정 프롬프트의 적용 조건(J5~J8) · 덧붙인 설명(전체)을 붙여 Codex 와 같은 기준 문구로 맞춘다 (10-21)."""
+    out: Dict[str, Dict[str, Any]] = {k: dict(v) for k, v in fixed["items"].items()}
     for it in si.ITEMS:
         if it.id in out:
             continue
         sub = si.SUBS_BY_ID[it.sub]
+        applies = prompt_item_lines(it.id)["적용"] or it.applies
         out[it.id] = {"type": "choice",
-                      "instructions": f"[{it.id}] {sub.name} — {it.question} / 적용: {it.applies} / 근거: {it.evidence}",
+                      "instructions": f"[{it.id}] {sub.name} — {it.question} / 적용: {applies} / 근거: {it.evidence}",
                       "criteria": {"PASS": f"예 — {it.question}", "FAIL": f"아니오 — {it.question}에 어긋남",
-                                   "NOT_APPLICABLE": f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {it.applies})"}}
+                                   "NOT_APPLICABLE": f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {applies})"}}
+    for k, q in out.items():
+        notes = prompt_item_lines(k)["notes"]
+        if notes:
+            q["instructions"] = str(q.get("instructions") or k) + " / " + " / ".join(notes)
     return out
 
 

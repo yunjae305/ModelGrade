@@ -321,19 +321,23 @@ def _question_calculation(ctx: Ctx) -> List:
         expected = Fraction(req.value["expected"])
         # Operand membership links the equation; its signs/operators are independently recomputed.
         q_numbers = {abs(_num(x)) for x in req.value["operands"]}
-        claims = _claimed_by_label(ctx, req.value["labels"])
-        link = "label"
-        if not claims:
-            link = "equation"
-            linked = []
-            for ch in _find_chains(ctx):
-                if ch.skip_reason or ch.final_literal is None:
-                    continue
-                operands = {_num(x) for x in re.findall(NUMBER, ch.segments[0])}
-                if len(operands) >= 2 and operands <= q_numbers | {Fraction(0), Fraction(1)}:
-                    lit = ch.final_literal
-                    linked.append((lit, ch.end - len(lit), ch.end, ch.segments[0]))
-            claims = linked
+        labels = list(req.value["labels"])
+        if req.value.get("template") == "unit_price_x_quantity" and re.search(r"합계(?!\s*금액)", ctx.question or ""):
+            # 질문이 따로 '합계'(수량 합계 등)를 요구하면 '합계'·'총'은 다른 계산의 값을 가리킨다 — 총액을 찾는 단어에서 뺀다 (10-21)
+            labels = [x for x in labels if x not in ("합계", "총")]
+        # ① 등식 연결 먼저 — 답에 질문의 피연산자로만 된 등식이 있으면 그 결과가 답의 주장값 (10-21: 단어 연결이 다른 계산 값을 집던 오판 4건)
+        link = "equation"
+        claims = []
+        for ch in _find_chains(ctx):
+            if ch.skip_reason or ch.final_literal is None:
+                continue
+            operands = {_num(x) for x in re.findall(NUMBER, ch.segments[0])}
+            if len(operands) >= 2 and operands <= q_numbers | {Fraction(0), Fraction(1)}:
+                lit = ch.final_literal
+                claims.append((lit, ch.end - len(lit), ch.end, ch.segments[0]))
+        if not claims:   # ② 라벨 연결
+            claims = _claimed_by_label(ctx, labels)
+            link = "label"
         if not claims:
             whole = re.fullmatch(rf"\s*(?:약\s*)?([+−-]?(?:{NUMBER}))\s*(?:원|개|명|점)?\s*[.。]?\s*", ctx.aa.inline_masked)
             if whole:
