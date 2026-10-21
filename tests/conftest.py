@@ -51,6 +51,7 @@ def _multi_turn_length_rule_off(request, monkeypatch):
         return
     from code_eval import multi_turn
     monkeypatch.setattr(multi_turn, "MIN_TURNS", 0)
+    monkeypatch.setattr(multi_turn, "MIN_TURN_TOKENS", 0)
     monkeypatch.setattr(multi_turn, "MIN_TOTAL_TOKENS", 0)
 
 
@@ -72,7 +73,7 @@ def _usable(path: Path) -> bool:
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "multi_turn_rule: 멀티턴 길이 조건(10턴 이상 · 대화 전체 10K 토큰)을 실제 값으로 둔다")
+    config.addinivalue_line("markers", "multi_turn_rule: 멀티턴 길이 조건(한 턴 10K 토큰 이상인 턴 10개 이상 · 대화 전체 100K 토큰)을 실제 값으로 둔다")
     if config.option.basetemp:
         return
     try:

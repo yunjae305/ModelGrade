@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from code_eval import long_context  # noqa: E402
+from code_eval import long_context, multi_turn  # noqa: E402
 from code_eval import semantic_items as si  # noqa: E402
 from tools import judge_inputs as ji  # noqa: E402
 from tools import judge_split as js  # noqa: E402
@@ -329,6 +329,10 @@ def undecided_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str,
     return out
 
 
+WEB_SEARCH_ITEMS = frozenset({"J5-1.a", "J5-3.a"})   # Codex 웹 검색을 켜는 항목 (10-21 밤)
+FACT_NOTE = ("J5-1.a 를 다시 묻습니다: 주장에 실제 세상의 고유한 대상(기관 · 인물 · 제품 · 법령 · 통계 · 날짜 · 가격 · 지명)이나 정확한 수치가 쟁점이 아니면 "
+             "교과서 · 사전 수준의 일반 지식으로 PASS(반박 출처가 있으면 FAIL)로 정하세요. UNVERIFIED 를 유지하려면 쟁점인 고유 대상 · 수치를 reason 에 적으세요. "
+             "질문의 자료 · 첨부는 평가용 가상 자료라 검색하지 않습니다.")   # 10-21 밤: 프롬프트를 고쳐도 강화·처벌 정의를 보류한 일
 UNDECIDED_NOTE = "UNVERIFIED 는 J5-1.a(사실 확인)에서만 씁니다. 다시 묻는 항목은 정의의 점검 질문으로 PASS · FAIL · NOT_APPLICABLE 중 하나로 정하세요 — 사유가 '아니오'면 FAIL, '예'면 PASS."
 
 
@@ -400,8 +404,16 @@ def all_item_questions(fixed: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def turn_item_ids(row: Dict[str, Any], n: int, all_ids: List[str]) -> List[str]:
-    """입력으로 정해지는 조건(프롬프트 상황표 1): J8 은 첨부가 있는 턴만, J7 은 입력 272K 토큰 이상만, J6 은 2턴부터."""
+def conversation_is_multi_turn(turns: List[Dict[str, Any]], answers: Dict[str, str]) -> Optional[bool]:
+    """그 모델이 실제로 주고받은 대화가 멀티턴인가 — 한 턴(질문 + 답변) 10K 토큰 이상인 턴 10개 이상 + 대화 전체 100K 토큰 이상 (code_eval.multi_turn,
+    10-21 밤). 모르면(토크나이저 없음) None — 그때는 J6 를 빼지 않는다."""
+    m = multi_turn.measure_conversation([(ji._turn(r), r.get("question") or "", answers.get(r.get("case_id")) or "") for r in turns])
+    return m.get("multi_turn")
+
+
+def turn_item_ids(row: Dict[str, Any], n: int, all_ids: List[str], multi: Optional[bool] = True) -> List[str]:
+    """입력으로 정해지는 조건(프롬프트 상황표 1): J8 은 첨부가 있는 턴만, J7 은 입력 272K 토큰 이상만, J6 은 멀티턴 대화(한 턴 10K 토큰
+    이상인 턴 10개 이상 · 대화 전체 100K 토큰 이상)의 2턴부터 — 멀티턴이 아니면(multi=False) J6 를 판정하지 않는다."""
     has_files = bool(row.get("attachments"))
     long_input = (input_tokens(row) or 0) >= long_context.MIN_TOKENS
     out = []
@@ -410,7 +422,7 @@ def turn_item_ids(row: Dict[str, Any], n: int, all_ids: List[str]) -> List[str]:
             continue
         if i.startswith("J7") and not long_input:
             continue
-        if i.startswith("J6") and n < 2:
+        if i.startswith("J6") and (n < 2 or multi is False):
             continue
         out.append(i)
     return out
@@ -438,7 +450,7 @@ def screen_flag(item: str, entry: Optional[Dict[str, Any]], fail_prob_min: float
 
 _NOT_EXTERNAL = re.compile(r"외부\s*사실(?:\s*확인)?\s*(?:항목|주장)?[이은]\s*아[니닙]|J5-2[.a-z]*\s*에서\s*(?:판단|본다|다룬)"
                            r"|자료\s*내\s*사실|입력값\s*기반|J5-1\s*적용\s*대상이\s*아니|외부\s*출처로\s*확인할\s*사실\s*주장이\s*아[니닙]|붙여\s*넣은\s*자료를\s*그대로"
-                           r"|자료\s*사실이지만|제공된\s*기록의\s*운영\s*세부와\s*부합|회의록의\s*입력값|입력\s*수치로\s*산출")   # 10-21 밤: 보류 사례의 실제 사유 문구
+                           r"|자료\s*사실이지만|제공된\s*기록의\s*운영\s*세부와\s*부합|회의록의\s*입력값|입력\s*수치로\s*산출|외부\s*사실\s*주장(?:은|이)?\s*(?:없|발견되지\s*않)")   # 10-21 밤: 보류 사례의 실제 사유 문구
 
 
 def material_text(doc: Dict[str, Any], upto: int) -> str:
@@ -493,6 +505,57 @@ def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
             it["how"] = (it.get("how") or "") + " → 사유는 '문제 없음'인데 판정은 FAIL(사유 모순) → 확인 못 함"
 
 
+_FACT_SAYS_TRUE = re.compile(r"(?:맞습니다|부합합니다|정확합니다|타당합니다|올바릅니다|일치합니다)")
+_FACT_SAYS_UNSURE = re.compile(r"확인하지\s*못|검증하지\s*못|확인할\s*수\s*없|검증할\s*수\s*없|확정하기\s*어렵|확정하지\s*않|출처[를가]?\s*(?:확보|찾)지\s*못|불확실")
+
+
+def fact_true_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """사실 확인(J5-1.a)이 '확인 못 함'인데 사유가 '맞습니다 · 부합합니다'처럼 참이라고만 말하고 확인 못 했다는 말이 없으면 PASS (사유 모순)
+    (10-21 밤: Q7 claude T2 '통상적인 과학 지식에 맞습니다', Q3 gpt T2 '설명은 타당합니다' 인데 보류)."""
+    it = items.get("J5-1.a")
+    if not it or it.get("decision") != "UNVERIFIED":
+        return
+    reason = str(it.get("reason") or "")
+    if _FACT_SAYS_TRUE.search(reason) and not _FACT_SAYS_UNSURE.search(reason):
+        it["decision"] = "PASS"
+        it["how"] = (it.get("how") or "") + " → 사유가 '맞다'고만 함(사유 모순) → PASS"
+
+
+_TOOL_CLAIM = re.compile(r"조회|확인한\s*것처럼|실행한\s*것처럼|접근\s*상태|작업\s*(?:폴더|공간)|파일이\s*(?:없|하나도)")
+_SOURCE_WORD = re.compile(r"출처|문헌|조문|제품|인용")
+
+
+def tool_claim_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """J5-3.a FAIL 이 '조회했다 · 파일이 없었다' 같은 답변 모델 자신의 조회 · 실행 서술 때문이면 해당 없음 — 도구 사용 기록을 주지 않으므로
+    판정하지 않는다(상황표 2). 존재하지 않는 출처 · 문헌 · 조문 · 제품을 든 FAIL 은 그대로 (10-21 밤: Q5 · Q7 claude '작업 폴더에서 파일이 발견되지 않았다')."""
+    it = items.get("J5-3.a")
+    if not it or it.get("decision") != "FAIL":
+        return
+    text = str(it.get("reason") or "") + " " + str(it.get("answer_quote") or "")
+    if _TOOL_CLAIM.search(text) and not _SOURCE_WORD.search(str(it.get("reason") or "")):
+        it["decision"] = "NOT_APPLICABLE"
+        it["how"] = (it.get("how") or "") + " → 답변 모델의 조회 · 실행 서술은 판정하지 않음(상황표 2) → 해당 없음"
+
+
+_HONORIFIC_MIX = re.compile(r"해요체.{0,40}(?:합니다|하십시오|습니다|격식)체|(?:합니다|하십시오|습니다|격식)체.{0,40}해요체|높임\s*등급.{0,20}섞")
+_LOW_SPEECH = re.compile(r"반말|해체|해라체|하게체|낮춤")
+_GRADE_ASKED = re.compile(r"격식체|하십시오체|합쇼체|습니다체|합니다체|해요체로|하오체")
+
+
+def honorific_mix_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
+    """J2-2.a FAIL 이 '해요체와 합니다체를 섞었다'는 것뿐인데 질문은 '존댓말'만 지정했으면 PASS — 기준 문구: 존댓말만 지정하면
+    높임 세 등급이 모두 존댓말이고 섞어 써도 지킨 것 (10-21 밤: AIONA Q22 '…반환해요' FAIL)."""
+    it = items.get("J2-2.a")
+    if not it or it.get("decision") != "FAIL":
+        return
+    reason = str(it.get("reason") or "")
+    asked = material_text(doc, n)
+    if (_HONORIFIC_MIX.search(reason) and not _LOW_SPEECH.search(reason)
+            and "존댓말" in asked and not _GRADE_ASKED.search(asked)):
+        it["decision"] = "PASS"
+        it["how"] = (it.get("how") or "") + " → 존댓말만 지정한 질문에서 높임 등급(해요체·합니다체)을 섞은 것은 지킨 것(기준 문구) → PASS"
+
+
 def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, Any]], flagged: bool,
                    confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None) -> Tuple[Optional[str], str]:
     """선별 판정의 항목 하나 — 안 걸린 항목은 Decisions 대로, 걸린 항목은 0.7 규칙으로 Codex 와 합친다. Codex 가 못 본 걸린 항목: Decisions FAIL 이면 보류."""
@@ -529,6 +592,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     (out / "inputs" / name).write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
     allq = all_item_questions(fixed)
     calls: Dict[str, Any] = {}
+    multi_ok = conversation_is_multi_turn(turns, answers) if len(turns) > 1 else True   # 멀티턴(턴당 10K · 10턴 · 전체 100K) 아니면 J6 빼기 (10-21 밤)
     # ① Decisions 전수 — 턴마다 한 요청(그 턴까지의 대화 + 그 턴의 항목), 자르지 않음
     dec_items: Dict[int, Dict[str, Any]] = {}
     dec_errors: List[str] = []
@@ -546,7 +610,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         n = ji._turn(row)
         if reused_dec and n in dec_items:
             continue
-        ids = turn_item_ids(row, n, list(allq))
+        ids = turn_item_ids(row, n, list(allq), multi_ok)
         targets = QUESTION_TARGETS.get(q) if JUDGE_TARGET_ONLY else None
         if targets:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목
             ids = [i for i in ids if i in targets]
@@ -569,6 +633,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     why: Dict[str, str] = {}
     for n, items in dec_items.items():
         for i, entry in items.items():
+            if multi_ok is False and i.startswith("J6"):
+                continue   # 멀티턴이 아닌 대화의 J6 는 Codex 에도 넘기지 않음 (10-21 밤)
             flag, reason = (True, "교정용 전수") if codex_all else screen_flag(i, entry)
             if (not flag and JUDGE_TARGET_ONLY and i in QUESTION_DETERMINED and isinstance(entry, dict)
                     and entry.get("choice") == "NOT_APPLICABLE" and i in (QUESTION_TARGETS.get(q) or set())):
@@ -584,7 +650,10 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     codex_sits: Dict[int, Dict[str, Any]] = {}
     saved = out / "codex" / name
     if flagged and (gpt is not None or (reuse_codex and saved.exists())):   # --repair 는 Codex CLI 없이도 저장된 출력으로 합친다
-        search = not any((t.get("reference") or "").strip() for t in turns)
+        # 웹 검색은 필요할 때만 — 질문의 자료 · 첨부는 이 평가를 위해 만든 가상 자료라 웹에 없다. 실제 세상의 사실(J5-1.a)이나
+        # 출처 존재(J5-3.a)를 Codex 에 넘길 때만 켠다 (사용자 2026-10-21 밤)
+        search = (not any((t.get("reference") or "").strip() for t in turns)
+                  and any(i in WEB_SEARCH_ITEMS for v in flagged.values() for i in v))
         output: Any = None
         t1 = time.monotonic()
         body_doc = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
@@ -612,8 +681,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         while status == "OK" and gpt is not None and rounds < len(flagged) + 3:
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
-            if reused:   # 복구: 옛 프롬프트로 "확인 못함"이 된 J5-1.a 는 새 프롬프트로 한 번 다시 묻는다 (사용자 10-21)
-                bad.update({k: ["J5-1.a 확인 못함 — 다시"] for k in unverified_fact_items(output, turns, answers, flagged) if k not in reasked})
+            # J5-1.a '확인 못함'은 일반 지식인지 한 번 다시 묻는다 — 복구(옛 프롬프트 출력)뿐 아니라 새 판정에도 (10-21 밤)
+            fact_unv = [k for k in unverified_fact_items(output, turns, answers, flagged) if k not in reasked]
+            bad.update({k: ["J5-1.a 확인 못함 — 일반 지식인지 다시"] for k in fact_unv})
             undecided = [k for k in undecided_items(output, turns, answers, flagged) if k not in reasked]
             bad.update({k: ["J5-1.a 가 아닌 항목의 UNVERIFIED — 다시"] for k in undecided})   # 10-21 밤
             targets: Dict[int, List[str]] = {}
@@ -626,7 +696,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             ask_turns = sorted(targets)[:max(1, len(targets) // 2)]
             say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
             st2, out2, err2 = ask_codex({**body_doc, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
-                                         **({"주의": UNDECIDED_NOTE} if any(k[0] in ask_turns for k in undecided) else {})})
+                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv)) if any(k[0] in ask_turns for k in ks))}
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv) else {})})
             if st2 != "OK":
                 error = err2
                 break
@@ -661,6 +732,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         n = ji._turn(row)
         items: Dict[str, Dict[str, Any]] = {}
         for i, entry in (dec_items.get(n) or {}).items():
+            if multi_ok is False and i.startswith("J6"):
+                continue   # 저장된 Decisions 답(--repair)에 J6 가 있어도 멀티턴이 아니면 판정하지 않음 (10-21 밤)
             is_flagged = i in (flagged.get(n) or [])
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
             dec, how = combine_screen(cv, entry, is_flagged, item=i)
@@ -681,6 +754,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         material_fact_guard(items, doc, n)   # 입력 자료 안의 사실은 J5-1 해당 없음 (10-21)
         fact_fail_guard(items)   # 사실 확인 FAIL 은 반박 출처가 있을 때만 (10-21)
         reason_decision_guard(items)   # 사유와 판정이 반대 (10-21)
+        fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤)
+        tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
+        honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
         final[n] = items
         turn_out[str(n)] = {"situations_judge": (codex_sits.get(n) or {}).get("situations") or [], "evidence": (codex_sits.get(n) or {}).get("evidence") or {},
                             "problems": [], "items": items}
