@@ -1,6 +1,7 @@
 """결과 요약의 '전체 흐름도' 장면 — 10-20 보고 01장 흐름도(tools/build_report_2026-10-20.py)를 지금 판정 방식에 맞게 고친 것 (사용자 10-21).
 
-바뀐 점: 의미 평가 → LLM Judge(Decisions API 전부 → 의심 항목만 Codex, Jev 없음) · 판정은 질문 하나씩 네 모델 동시(20개 묶음 없음) ·
+바뀐 점: 의미 평가 → LLM Judge 심판 셋(사용자 10-21 저녁: 입력 32K 토큰 이하는 Jev · 넘으면 Decisions API · Decisions FAIL 만 Codex) ·
+판정은 질문 하나씩 네 모델 동시(20개 묶음 없음) ·
 빈 출력 요구는 모두 보류 · 질문 판정은 보류 우선 · 이름은 CODE 검사 · LLM Judge.
 그림 조각(text · rect · module …)은 10-20 보고의 것을 그대로 옮겼다 — 10-20 보고는 그날 기록이라 손대지 않는다.
 
@@ -250,7 +251,7 @@ def flow_svg(n: int, set_ver: str) -> str:
         ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "첨부는 붙여넣기 · 받은 질문은 건너뜀"]),
     ], "ai")
     P += parts
-    parts, _ = aibox(B_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.6 Flash · 보통",
+    parts, _ = aibox(B_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.8 Flash · 보통",
                                                  "AIONA · 자동 추천", "로그인은 사람이 미리"])
     P += parts
     P.append(ai_link(spots[0][0] + spots[0][1] / 2))
@@ -309,21 +310,21 @@ def flow_svg(n: int, set_ver: str) -> str:
     P += [arrow(DX, y, DX, y + 24), lab(DX + 7, y + 16, "아니오")]
     y += 26
 
-    # E — LLM Judge: Decisions API 가 전부, 걸린 항목만 Codex
+    # E — LLM Judge 심판 셋 (사용자 10-21 저녁): 짧은 입력(32K 토큰 이하)은 Jev · 긴 입력은 Decisions API · Decisions FAIL 만 Codex
     E_y = y
-    parts, E_h, spots = module(y, "E", "LLM Judge — 44개, 심판 둘", [
+    parts, E_h, spots = module(y, "E", "LLM Judge — 44개, 심판 셋", [
         ("입력", ["고정 판정 프롬프트 v4 + 질문·답변 JSON", "모델 이름 숨김 (블라인드)"]),
-        ("심판 1", ["Decisions API 가 44개 항목 전부 판정", "항목마다 FAIL 확률 · 확신"]),
-        ("넘김", ["FAIL · FAIL 확률 0.3 이상 · 확신 0.7 미만", "사실 확인 항목 → Codex 로"]),
-        ("심판 2", ["Codex 가 넘어온 항목만 다시 판정", "원문 인용 · 사실은 웹 검색"]),
+        ("심판 1", ["입력 32K 토큰 이하 (짧은 것)", "Jev 가 판정"]),
+        ("심판 2", ["입력 32K 토큰 넘음 (긴 것)", "Decisions API 가 판정"]),
+        ("심판 3", ["Decisions 가 FAIL 로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),
     ], "ai")
     P += parts
-    parts, _ = aibox(spots[1][0] - 1, "AI · 심판 1 — Decisions", ["GPT-6 Luna · OpenAI API"])
-    P += parts
-    parts, _ = aibox(spots[3][0] - 1, "AI · 심판 2 — Codex CLI", ["GPT-6 Luna · low · 구독"])
-    P += parts
-    P += [ai_link(spots[1][0] + spots[1][1] / 2), ai_link(spots[3][0] + spots[3][1] / 2)]
-    parts, f3_h = filenode(E_y + 10, "고정 프롬프트", ["판정 프롬프트 v4", "두 심판 같은 기준 문구"])
+    for spot, title, lines in ((spots[1], "AI · 심판 1 — Jev", ["외부 API (TypeSafe)"]),
+                               (spots[2], "AI · 심판 2 — Decisions", ["GPT-6 Luna · OpenAI API"]),
+                               (spots[3], "AI · 심판 3 — Codex CLI", ["GPT-6 Luna · low · 구독"])):
+        parts, _ = aibox(spot[0] - 1, title, lines)
+        P += parts + [ai_link(spot[0] + spot[1] / 2)]
+    parts, f3_h = filenode(E_y + 10, "고정 프롬프트", ["판정 프롬프트 v4", "Jev 질문 묶음 v4"])
     P += parts
     P.append(file_read(E_y + 52, E_y + 36))
     f4_y = E_y + 22 + f3_h
@@ -336,7 +337,7 @@ def flow_svg(n: int, set_ver: str) -> str:
 
     F_y = y
     parts, F_h, _ = module(y, "F", "합치기·보류 — 규칙, 코드", [
-        ("확정", ["Codex 가 본 항목 → Codex 판정대로", "나머지 항목 → Decisions 판정대로"]),
+        ("확정", ["Codex 가 본 항목 → Codex 판정대로", "나머지 → Jev · Decisions 판정대로"]),
         ("보류", ["Codex 확인 못 함 · 인용이 원문에 없음", "Codex 판정 없음 + Decisions FAIL"]),
     ], "code")
     P += parts
@@ -438,7 +439,7 @@ def side_cards() -> str:
     return (mini("누가 하나", ["단계", "누가"], [
                 ["A·C·D·F·G·H", "코드 (정해진 규칙)"],
                 ["B 답변 수집", "답하는 모델 4개 — 앱·웹 자동 조작"],
-                ["E LLM Judge", "심판 2개 — Decisions(API) · Codex(구독)"],
+                ["E LLM Judge", "심판 3개 — Jev(API) · Decisions(API) · Codex(구독)"],
                 ["보류 정리", "사람"],
             ], "ai")
             + mini("판정 규칙", ["상황", "결과"], [
@@ -461,9 +462,10 @@ def steps_table(n: int, set_rel: str) -> str:
         [step("C", "JSON 저장"), "질문마다 질문·첨부·답변 원문과 수집 상태·시간을 바로 저장. 멈춰도 이어서.", "코드",
          files("data/comparison_runs/<실행>.json", "참고자료/결과/<실행>_*.json")],
         [step("D", "CODE 검사"), "형식·개수·글자 수·계산 등 28가지를 프로그램이 검사.", "코드", files("code_eval/engine.py")],
-        [step("E", "LLM Judge"), "Decisions API 가 44개 항목을 모두 판정하고, FAIL 이거나 애매한 항목·사실 확인 항목만 Codex 가 원문을 인용해 다시 판정. "
-         "모델 이름은 숨김.", "Decisions(API) · Codex(구독)", files("tools/judge_v4.py", "참고자료/프롬프트/judge_prompt_v4.txt")],
-        [step("F", "합치기·보류"), "Codex 가 본 항목은 Codex 판정대로, 나머지는 Decisions 대로. 확인 못 함·인용 불일치는 보류.", "코드",
+        [step("E", "LLM Judge"), "입력이 32K 토큰 이하인 짧은 것은 Jev, 넘는 것은 Decisions API 가 판정하고, Decisions 가 FAIL 로 본 항목만 "
+         "Codex 가 원문을 인용해 다시 판정. 모델 이름은 숨김.", "Jev(API) · Decisions(API) · Codex(구독)",
+         files("tools/judge_v4.py", "참고자료/프롬프트/judge_prompt_v4.txt")],
+        [step("F", "합치기·보류"), "Codex 가 본 항목은 Codex 판정대로, 나머지는 Jev · Decisions 대로. 확인 못 함·인용 불일치는 보류.", "코드",
          files("judge_v4.py · combine_screen")],
         [step("G", "질문 단위 판정"), f"보류 하나라도 → {HOLD}, 아니면 FAIL 하나라도 → {FAIL}, 나머지 {PASS}.", "코드",
          files("judge_v4.py · question_verdict")],
@@ -482,8 +484,7 @@ def flow_scene(D: Dict[str, Any]) -> str:
         set_rel = set_dir.resolve().relative_to(ROOT).as_posix()
     except ValueError:
         set_rel = set_dir.name
-    ver = (D["d"]["judgment"]["results"] or [{}])[0].get("version", "")
-    return (f'<figure class="poster"><span class="poster-sub">질문 {n}개 · 모델 {len(D["order"])}개 · 판정 {E(ver)} (Decisions → Codex)</span>'
+    return (f'<figure class="poster"><span class="poster-sub">질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI</span>'
             f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>'
             f'<details class="rs-d"><summary><b>단계별 요약</b><span class="muted"> — 하는 일 · 누가 · 파일, 누르면 펼침</span></summary>'
             f'{steps_table(n, set_rel)}</details>')

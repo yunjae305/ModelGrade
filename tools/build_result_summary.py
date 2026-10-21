@@ -268,6 +268,15 @@ def tint(r: float, var: str, cap: int = 42) -> str:
     return f"background: color-mix(in srgb, var({var}) {max(0.0, min(1.0, r)) * cap:.0f}%, var(--surface));"
 
 
+#: 페이지에 보이는 모델 이름 — 사용자 10-21: 모순을 고친 뒤 다시 돌릴 평가는 Gemini 3.8 Flash 라 표기를 미리 3.8 로.
+#: 결과 JSON 의 수집 기록(a1642702fccc 는 3.6 Flash)과 report.html 짝 맞추기(by_label)는 그대로 둔다.
+MODEL_SHOWN = {"gemini": "Gemini 웹브라우저 (3.8 Flash · 사고 보통)"}
+
+
+def model_label(D: Dict[str, Any], p: str) -> str:
+    return MODEL_SHOWN.get(p) or D["d"]["models"].get(p, "")
+
+
 def method_of(D: Dict[str, Any], p: str) -> str:
     lab = D["d"]["models"].get(p, "")
     return "데스크톱 앱" if "앱" in lab else "웹브라우저" if "웹" in lab else ""
@@ -302,10 +311,10 @@ def scene_flow(D: Dict[str, Any]) -> str:
         f'<div class="rs-st"><span class="rs-sn">1</span><h3>질문</h3><div class="rs-sbig">{D["n"]}<small>개</small></div><div class="rs-chips">{chips}</div></div>'
         f'<div class="rs-st"><span class="rs-sn">2</span><h3>답변 수집</h3><div class="rs-sbig">{len(D["order"])}<small>모델 · 늘릴 수 있음</small></div>'
         f'<ul class="rs-sl"><li><b>데스크톱 앱</b>{app}</li><li><b>웹브라우저</b>{web}</li><li class="muted">복사 버튼으로 받아 JSON 으로 저장</li>'
-        '<li class="rs-ext">+ 다른 모델도 앱·웹브라우저 자동화로 연결해 같은 질문으로 비교</li></ul></div>'
+        '<li class="rs-ext">+ 우수AI · 팩트챗 등 다른 AI 서비스도 앱·웹브라우저 자동화로 연결해 같은 질문으로 비교 가능</li></ul></div>'
         '<div class="rs-st"><span class="rs-sn">3</span><h3>채점 — 기준 72개</h3>'
         '<div class="rs-box"><b>CODE 검사 28</b><span>형식 · 개수 · 글자 수 · 계산</span><em>정해진 규칙으로 정확히 셈</em></div>'
-        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span><em>Decisions API 전부 → 의심 항목만 Codex · 블라인드</em></div></div>'
+        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span><em>짧은 입력(32K 이하) Jev · 긴 입력 Decisions → FAIL 만 Codex · 블라인드</em></div></div>'
         '<div class="rs-st"><span class="rs-sn">4</span><h3>질문 판정</h3><ul class="rs-rules">'
         '<li><i class="rs-dot rs-hold"></i><b>보류</b><span>확인 못 한 기준이 하나라도 남음</span></li>'
         '<li><i class="rs-dot rs-fail"></i><b>FAIL</b><span>보류 없이 기준을 하나라도 어김</span></li>'
@@ -317,30 +326,85 @@ def scene_flow(D: Dict[str, Any]) -> str:
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     arch = ('<div class="rs-arch"><span><b>modelgrade CLI</b>한 번 실행</span><i>→</i><span><b>질문 세트</b>{n}개</span><i>→</i>'
             '<span><b>답변 수집</b>{m}모델 동시 · 앱·웹 자동화</span><i>→</i><span><b>CODE 검사</b>프로그램</span><i>→</i>'
-            '<span><b>LLM Judge</b>Decisions → Codex</span><i>→</i><span><b>보고서</b>HTML · 결과 JSON</span></div>'
+            '<span><b>LLM Judge</b>Jev · Decisions → Codex</span><i>→</i><span><b>보고서</b>HTML · 결과 JSON</span></div>'
             '<p class="rs-basis">파이썬 CLI 한 번 실행으로 수집부터 보고서까지 이어집니다. 이번 실행은 답변 수집 {c} + 판정 {j}.</p>').format(
         n=D["n"], m=len(D["order"]), c=hm(collect_seconds(D)), j=hm(judge_s))
     return arch + flow + criteria_list(D)
 
 
+#: CODE 묶음 이름 — 10-19 발표 '평가 기준 72개' 장의 세 갈래(1 출력 무결성 · 2 형식·지시 준수 · 3 계산·자료 처리)를 묶음마다 풀어 씀
+CODE_TOP = {"1": "출력 무결성", "2": "형식 · 지시 준수", "3": "계산 · 자료 처리"}
+CODE_GROUP = {"1-1": "응답 · 문자", "1-2": "코드 · 구문", "1-3": "인용 · 링크", "2-1": "글자 수 · 개수 · 문자열",
+              "2-2": "제목 · 목록 · 표 · JSON 구조", "3-1": "계산", "3-2": "선언한 개수", "3-3": "집계 · 변환"}
+#: 언제 보나 — criteria_catalog.json 의 always_ids · answer_dependent_ids (나머지는 질문이 요구할 때)
+WHEN = {"always": ("항상", "cr-al"), "answer": ("답에 있으면", "cr-an"), "asked": ("요구 시", "cr-as")}
+
+
 def criteria_list(D: Dict[str, Any]) -> str:
-    """채점 기준 72개 목록 — 접어 둠 (10-21 오후 미팅 46:57: 처음 보는 사람이 기준을 궁금해함)."""
-    ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
-    groups: Dict[str, List[str]] = defaultdict(list)
-    for cid in ids:
-        groups[("CODE 검사 " + cid.split(".")[0]) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
-    n_code = sum(1 for c in ids if c[0].isdigit())
+    """채점 기준 72개 — 위에 늘 보이는 기준 지도(묶음 · 개수 · 언제 보나), 아래 접힌 전체 목록
+    (10-21 오후 미팅 46:57: 처음 보는 사람이 기준을 궁금해함 · 사용자 10-21 저녁: 더 읽기 쉽고 직관적으로)."""
+    f = Path(D["set_dir"]) / "criteria_catalog.json"
+    cat = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    codes = (cat.get("catalog") or {}).get("code") or []
+    items = (cat.get("catalog") or {}).get("items") or []
+    always, by_answer = set(cat.get("always_ids") or []), set(cat.get("answer_dependent_ids") or [])
+    when = lambda cid: "always" if cid in always else "answer" if cid in by_answer else "asked"
+    badge = lambda k: f'<i class="cr-w {WHEN[k][1]}">{WHEN[k][0]}</i>'
+    n_when = Counter(when(c["id"]) for c in codes + items)
+
+    def first_line(s: str, n: int = 70) -> str:
+        """예시 질문의 첫 문장만 — 붙어 있는 코드 구획(```) · 표(|) · 다음 줄은 뺀다."""
+        s = re.split(r"\n|```|\|", s)[0].strip()
+        return s[:n] + ("…" if len(s) > n else "")
+
+    def split_note(s: str) -> Tuple[str, str]:
+        """'…했는가 (보충)' → ('…했는가', '보충') — 괄호 속 보충 설명은 흐리게."""
+        m = re.match(r"^(.*?)\s*\((.*)\)\s*$", s.strip())
+        return (m.group(1), m.group(2)) if m and m.group(1) else (s.strip(), "")
+
+    # CODE — 세 갈래 · 여덟 묶음
+    cgroups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for c in sorted(codes, key=lambda c: c["id"]):
+        cgroups[c["id"].split(".")[0]].append(c)
+    # LLM Judge — J1~J8, 같은 이름(J1-4.a · b)은 하나로 묶어 a · b 를 그 아래에
+    jgroups: Dict[str, Dict[str, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+    for it in sorted(items, key=lambda i: i["id"]):
+        jgroups[it["id"].split("-")[0]][it.get("sub_id") or it["id"]].append(it)
+
+    # 기준 지도 — 늘 보임
+    top_rows = "".join(f'<div class="cr-top"><span class="cr-tn">{k} {E(v)}</span><span class="cr-chips">'
+                       + "".join(f'<span class="cr-chip">{g} {E(CODE_GROUP.get(g, ""))} <b>{len(cgroups[g])}</b></span>' for g in cgroups if g.startswith(k))
+                       + "</span></div>" for k, v in CODE_TOP.items())
+    j_chips = "".join(f'<span class="cr-chip">{g} {E(GROUP.get(g, ""))} <b>{sum(len(v) for v in subs.values())}</b></span>' for g, subs in jgroups.items())
+    overview = (f'<div class="cr-map">'
+                f'<div class="cr-half"><h4>CODE 검사 <b>{len(codes)}</b><span>프로그램이 정해진 규칙으로 셈</span></h4>{top_rows}</div>'
+                f'<div class="cr-half"><h4>LLM Judge <b>{len(items)}</b><span>AI 심판이 답을 읽고 판단</span></h4><div class="cr-chips">{j_chips}</div></div>'
+                f'<div class="cr-when"><span class="cr-wl">언제 보나</span>{badge("always")}<span>모든 질문 <b>{n_when["always"]}</b></span>'
+                f'{badge("asked")}<span>표·글자 수·말투처럼 질문에 그 요구가 있을 때 <b>{n_when["asked"]}</b></span>'
+                f'{badge("answer")}<span>답이 인용·링크·등식 등을 썼을 때 <b>{n_when["answer"]}</b></span></div></div>')
+
+    # 전체 목록 — 접힘, 두 단으로 흘림
     blocks = []
-    for g, cids in groups.items():
+    for g, cs in cgroups.items():
+        lis = "".join(f'<li><div class="cr-h">{badge(when(c["id"]))}<b>{E(c.get("name") or c["id"])}</b><span class="cr-id">{E(c["id"])}</span></div>'
+                      + (f'<p class="cr-ex">예: {E(first_line(c["example"]))}</p>' if c.get("example") else "") + "</li>"
+                      for c in cs)
+        blocks.append(f'<div class="cr-g"><h5><span class="cr-gk">{g}</span>{E(CODE_GROUP.get(g, ""))}<span class="cr-n">{len(cs)}개 · {E(CODE_TOP.get(g[0], ""))}</span></h5><ul>{lis}</ul></div>')
+    for g, subs in jgroups.items():
         lis = []
-        for c in cids:
-            full = (D["names"].get(c) or {}).get("name") or c
-            short, _, desc = full.partition(" — ")
-            lis.append(f'<li><b>{E(short)}</b>{f"<span>{E(desc)}</span>" if desc else ""}<span class="rs-id">{E(c)}</span></li>')
-        gname = g if g.startswith("CODE") else f'{g} {GROUP.get(g, "")}'
-        blocks.append(f'<div class="rs-cl"><h4>{E(gname)} <span class="muted">{len(cids)}개</span></h4><ul>{"".join(lis)}</ul></div>')
-    return (f'<details class="rs-d rs-crit"><summary><b>채점 기준 {len(ids)}개</b><span class="muted">CODE 검사 {n_code} · LLM Judge {len(ids) - n_code} — 누르면 펼침</span></summary>'
-            f'<div class="rs-cls">{"".join(blocks)}</div></details>')
+        for sub_id, its in subs.items():
+            checks = ""
+            for it in its:
+                main, note = split_note(it.get("question") or "")
+                ab = f'<span class="cr-ab">{E(it["id"].split(".")[-1])}</span>' if len(its) > 1 else ""
+                checks += (f'<div class="cr-chk">{ab}<span class="cr-q">{E(main)}{f"<small>{E(note)}</small>" if note else ""}</span>'
+                           f'<span class="cr-id">{E(it["id"])}</span></div>')
+            lis.append(f'<li><div class="cr-h">{badge(when(its[0]["id"]))}<b>{E(its[0].get("sub") or sub_id)}</b></div>{checks}</li>')
+        n = sum(len(v) for v in subs.values())
+        blocks.append(f'<div class="cr-g"><h5><span class="cr-gk">{g}</span>{E(GROUP.get(g, ""))}<span class="cr-n">{n}개 · LLM Judge</span></h5><ul>{"".join(lis)}</ul></div>')
+    return (overview
+            + f'<details class="rs-d rs-crit"><summary><b>채점 기준 {len(codes) + len(items)}개 전체</b><span class="muted">묶음마다 무엇을 보는지 · 언제 보는지 — 누르면 펼침</span></summary>'
+            f'<div class="cr-list">{"".join(blocks)}</div></details>')
 
 
 def scene_criteria(D: Dict[str, Any]) -> str:
@@ -375,6 +439,121 @@ def scene_criteria(D: Dict[str, Any]) -> str:
                          f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p>{q_chips(py_qs)}</div>'))
     cards.sort(key=lambda x: -x[0])
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
+
+
+def crit_results(D: Dict[str, Any]) -> Dict[str, Dict[str, Counter]]:
+    """기준 → 모델 → Counter(PASS · FAIL · HOLD) — 질문 하나에 한 번 (멀티턴은 한 턴이라도 FAIL 이면 FAIL, 아니면 보류가 있으면 보류).
+    LLM Judge 는 판정 항목(해당 없음 제외), CODE 는 실제로 돈 검사. 빈 출력 요구 문항은 보류라 뺀다."""
+    out: Dict[str, Dict[str, Counter]] = defaultdict(lambda: defaultdict(Counter))
+    qs = [q for q in D["qtypes"] if D["qtypes"][q] != "명시적 빈 출력"]
+    for p in D["order"]:
+        for q in qs:
+            seen: Dict[str, set] = defaultdict(set)
+            for it in D["lines"][(p, q)]["items"]:
+                seen[it["item"]].add(it["decision"])
+            for t in range(1, len(D["qset"][q]["turns"]) + 1):
+                for c in (D["turns"].get((p, q, t)) or {}).get("code") or []:
+                    if c.get("status") == "EXECUTED":
+                        seen[c["check_id"].split(":")[0]].add(c.get("verdict"))
+            for cid, ds in seen.items():
+                v = "FAIL" if "FAIL" in ds else "HOLD" if "UNVERIFIED" in ds else "PASS" if "PASS" in ds else None
+                if v:
+                    out[cid][p][v] += 1
+    return out
+
+
+def scene_by_crit(D: Dict[str, Any]) -> str:
+    """기준별 결과 — 질문 단위 '완전 통과'와 달리 기준 하나하나의 통과율 (사용자 10-21 저녁: 기준별로 나온 결과도 바로 보이게).
+    위: 모델마다 기준 통과율, 아래: 묶음 16개(CODE 8 · LLM Judge 8) — 묶음을 누르면 기준별로 펼침."""
+    order = D["order"]
+    cr = crit_results(D)
+    tot = {p: Counter() for p in order}
+    for cid in cr:
+        for p in order:
+            tot[p].update(cr[cid][p])
+    rate = {p: tot[p]["PASS"] / max(1, sum(tot[p].values())) for p in order}
+    by = sorted(order, key=lambda p: -rate[p])
+    cards = "".join(f'<div class="cb-card"><span class="cb-r">{i}위</span><span class="cb-m">{mname(p)}</span><b>{rate[p] * 100:.1f}%</b>'
+                    f'<small>기준 판정 {sum(tot[p].values()):,}건 · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small></div>' for i, p in enumerate(by, 1))
+
+    def cell(c: Counter) -> str:
+        n = sum(c.values())
+        if not n:
+            return '<div class="cb-c cb-na">—</div>'
+        return (f'<div class="cb-c" style="{tint(min(1.0, c["FAIL"] / n / 0.4), "--risk")}" title="통과 {c["PASS"]} · FAIL {c["FAIL"]} · 보류 {c["HOLD"]} · 평가 {n}">'
+                f'<b>{c["PASS"] / n * 100:.0f}%</b><small>FAIL {c["FAIL"]} / {n}</small></div>')
+
+    ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
+    groups: Dict[str, List[str]] = defaultdict(list)
+    for cid in ids:
+        groups[cid.split(".")[0] if cid[0].isdigit() else cid.split("-")[0]].append(cid)
+    head = '<div class="cb-row cb-head"><span>묶음 · 기준</span>' + "".join(f"<span>{mname(p)}</span>" for p in order) + "</div>"
+    rows = []
+    for g, cids in groups.items():
+        gsum = {p: sum((cr[c][p] for c in cids), Counter()) for p in order}
+        label = f'{g} {CODE_GROUP.get(g, "")}' if g[0].isdigit() else f'{g} {GROUP.get(g, "")}'
+        kind = "CODE 검사" if g[0].isdigit() else "LLM Judge"
+        sub = "".join(f'<div class="cb-row"><span class="cb-l"><b>{E(crit_name(D["names"], c))}</b><small>{E(c)}</small></span>'
+                      + "".join(cell(cr[c][p]) if c in cr else '<div class="cb-c cb-na">—</div>' for p in order) + "</div>" for c in cids)
+        rows.append(f'<details class="cb-g"><summary class="cb-row"><span class="cb-l"><b>{E(label)}</b><small>{kind} · 기준 {len(cids)}개</small></span>'
+                    + "".join(cell(gsum[p]) for p in order) + f'</summary><div class="cb-sub">{sub}</div></details>')
+    key = ('<p class="cb-key">칸 = 통과율(그 기준이 적용된 질문 중 통과한 비율) · 색이 진할수록 FAIL 이 많음 · 아래 숫자 = FAIL / 평가된 질문 · '
+           '묶음을 누르면 기준별로 펼쳐집니다 · 빈 출력 요구 10문항은 보류라 빼고, 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
+    return (f'<div class="cb-cards">{cards}</div>'
+            '<p class="cb-key">기준 통과율 = 기준이 적용된 (질문 × 기준) 판정 중 통과한 비율 — 해당 없음은 빼고, 보류는 통과로 세지 않음</p>'
+            f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>')
+
+
+def scene_code(D: Dict[str, Any]) -> str:
+    """CODE 검사 결과 — 프로그램이 센 것만 따로 (사용자 10-21 저녁: LLM Judge 결과와 따로, 78문항에서).
+    빈 출력 요구 문항은 CODE 대신 보류(사람이 정함)라 빼고, 질문 판정에 들어간 code_fails 로 센다."""
+    order = D["order"]
+    qs = sorted(q for q in D["qtypes"] if D["qtypes"][q] != "명시적 빈 출력")
+    n = len(qs)
+    st: Dict[str, Dict[str, Any]] = {}
+    per: Dict[str, Dict[str, set]] = defaultdict(lambda: defaultdict(set))   # 검사 → 모델 → 걸린 질문
+    for p in order:
+        fail, sem, ran, bad = set(), set(), 0, 0
+        for q in qs:
+            L = D["lines"][(p, q)]
+            for c in {x.split(":")[0] for x in L["line"].get("code_fails") or []}:
+                fail.add(q)
+                per[c][p].add(q)
+            if any(i["decision"] == "FAIL" for i in L["items"]):
+                sem.add(q)
+            for t in range(1, len(D["qset"][q]["turns"]) + 1):
+                for c in (D["turns"].get((p, q, t)) or {}).get("code") or []:
+                    if c.get("status") == "EXECUTED":
+                        ran += 1
+                        bad += c.get("verdict") == "FAIL"
+        st[p] = {"fail": fail, "sem": sem, "ran": ran, "bad": bad}
+    rank = sorted(order, key=lambda p: (len(st[p]["fail"]), order.index(p)))
+    rows = "".join(
+        f'<div class="cd-row"><span class="cd-m">{mname(p)}</span>'
+        f'<div class="cd-bar"><span class="cd-ok" style="width:{(n - len(st[p]["fail"])) / n * 100:.1f}%">{n - len(st[p]["fail"])}</span>'
+        + (f'<span class="cd-bad" style="width:{len(st[p]["fail"]) / n * 100:.1f}%">{len(st[p]["fail"])}</span>' if st[p]["fail"] else "")
+        + f'</div><span class="cd-v"><b>{n - len(st[p]["fail"])}</b> / {n} 통과'
+        f'<small>검사 {st[p]["ran"]:,}번 중 FAIL {st[p]["bad"]}번</small>'
+        f'<small>걸린 {len(st[p]["fail"])}문항 중 LLM Judge 도 FAIL {len(st[p]["fail"] & st[p]["sem"])}</small></span></div>'
+        for p in rank)
+    bars = (f'<div class="cd-bars">{rows}</div>'
+            f'<div class="cd-key"><span><i class="cd-ok"></i>CODE 검사 모두 통과</span><span><i class="cd-bad"></i>하나라도 걸림</span>'
+            f'<span class="muted">질문 수 · 빈 출력 요구 {len(D["qtypes"]) - n}문항은 보류라 뺌 · 같은 답이면 다시 돌려도 결과가 같음(프로그램)</span></div>')
+    checks = sorted(per, key=lambda c: (-sum(len(v) for v in per[c].values()), c))
+    n_code = sum(1 for c in D["names"] if c[0].isdigit())
+    mx = max([len(per[c][p]) for c in checks for p in order] or [1]) or 1
+    cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
+    cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order] + ['<div class="rs-hh muted">합</div>']
+    for c in checks:
+        worst = max(len(per[c][p]) for p in order)
+        cells.append(f'<div class="rs-hl"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></div>')
+        cells.extend(f'<div class="rs-hc rs-hc-s{" rs-worst-c" if len(per[c][p]) == worst and worst else ""}" style="{tint(len(per[c][p]) / mx, "--risk")}" '
+                     f'title="{E(" · ".join(f"Q{q}" for q in sorted(per[c][p])))}"><b>{len(per[c][p])}</b></div>' for p in order)
+        cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{sum(len(v) for v in per[c].values())}</b></div>')
+    grid = (f'<h3 class="rs-sh">어떤 검사에 걸렸나 — 걸린 검사 {len(checks)}개 ({n_code}개 중)</h3>'
+            f'<p class="rs-basis">숫자는 그 검사에 걸린 질문 수입니다. 칸에 마우스를 올리면 질문 번호가 보입니다. 나머지 {n_code - len(checks)}개 검사는 네 모델 모두 통과.</p>'
+            f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>")
+    return bars + grid
 
 
 def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
@@ -698,7 +877,7 @@ def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         rows = []
         for p in c["sorted"]:
             v = c["vals"][p]
-            rows.append(f'<tr><td class="ar-tr">{c["rank"][p]}</td><td><div class="ar-tm">{avatar(p)}<span><b>{SHORT[p]}</b><small>{E(D["d"]["models"].get(p, ""))}</small></span></div></td>'
+            rows.append(f'<tr><td class="ar-tr">{c["rank"][p]}</td><td><div class="ar-tm">{avatar(p)}<span><b>{SHORT[p]}</b><small>{E(model_label(D, p))}</small></span></div></td>'
                         f'<td class="ar-tv">{v}<small> / {c["of"]}</small></td>' + (f'<td class="ar-tp2">{v / c["of"] * 100:.0f}%</td>' if c["higher"] else "<td></td>")
                         + f'<td class="ar-tx">{E(c["extra"][p])}</td></tr>')
         panels.append(f'<div class="ar-pn ar-bd{i}"><div class="ar-bh"><div><h3>{E(c["label"])}</h3><span class="ar-chip">{E(c["group"])} · {E(c["chip"])}</span></div>'
@@ -732,7 +911,7 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         ts = [t for (pp, _q, _t), t in D["turns"].items() if pp == p]
         got = [t for t in ts if t.get("status") == "SUCCESS" and (t.get("answer") or "").strip()]
         ok = sum(1 for q in D["qtypes"] if all(D["turns"].get((p, q, n), {}).get("status") == "SUCCESS" for n in range(1, len(D["qset"][q]["turns"]) + 1)))
-        irows.append(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th><td class="hm-l">{E(D["d"]["models"].get(p, ""))}</td><td>{E(method_of(D, p))}</td>'
+        irows.append(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th><td class="hm-l">{E(model_label(D, p))}</td><td>{E(method_of(D, p))}</td>'
                      f'<td>{ok} / {D["n"]}</td><td>{sum(1 for t in ts if t.get("status") == "COPY_FAILED")}</td><td>{statistics.mean(len(t["answer"]) for t in got):,.0f}자</td></tr>')
     t4 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>버전 · 설정</th><th>수집</th><th>받은 질문</th><th>재시도할 턴</th><th>턴당 답변 길이</th></tr></thead>'
           f'<tbody>{"".join(irows)}</tbody></table>')
@@ -1550,6 +1729,60 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .rs-crit { margin-top: 16px; } .rs-crit > summary .muted { margin-left: 10px; } .rs-cls { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 10px; }
 .rs-cl h4 { margin: 0 0 6px; font-size: 0.92rem; } .rs-cl ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
 .rs-cl li { display: grid; gap: 1px; font-size: 0.84rem; border-top: 1px dashed var(--line); padding-top: 4px; } .rs-cl li span { color: var(--muted); font-size: 0.78rem; }
+/* 채점 기준 72개 (사용자 10-21 저녁: 더 읽기 쉽고 직관적으로) — 위 기준 지도(늘 보임) · 아래 접힌 전체 목록은 두 단으로 흘림 */
+.cr-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 18px; }
+.cr-half { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+.cr-half h4 { margin: 0; font-size: 0.98rem; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cr-half h4 b { font-family: var(--font-num); font-size: 1.15rem; } .cr-half h4 span { font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+.cr-top { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; align-items: start; }
+.cr-tn { font-size: 0.82rem; font-weight: 600; color: var(--accent); padding-top: 3px; }
+.cr-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.cr-chip { font-size: 0.8rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--bg); white-space: nowrap; } .cr-chip b { font-family: var(--font-num); margin-left: 2px; }
+.cr-when { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 0.82rem; color: var(--muted); }
+.cr-when b { color: var(--ink); font-family: var(--font-num); } .cr-wl { font-weight: 600; color: var(--ink); }
+.cr-w { font-style: normal; font-size: 0.72rem; font-weight: 600; border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex: none; }
+.cr-al { background: var(--accent-soft); color: var(--accent); } .cr-as { background: var(--bg); color: var(--muted); border: 1px solid var(--line); } .cr-an { background: var(--warn-soft); color: var(--warn); }
+.cr-list { columns: 2 380px; column-gap: 16px; margin-top: 12px; }
+.cr-g { break-inside: avoid; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin: 0 0 14px; }
+.cr-g h5 { margin: 0 0 6px; font-size: 0.95rem; display: flex; align-items: baseline; gap: 8px; }
+.cr-gk { font-family: var(--font-num); color: var(--accent); font-size: 0.85rem; } .cr-n { margin-left: auto; font-size: 0.76rem; color: var(--muted); font-weight: 400; }
+.cr-g ul { list-style: none; margin: 0; padding: 0; } .cr-g li { border-top: 1px solid var(--line); padding: 7px 0; display: grid; gap: 3px; }
+.cr-h { display: flex; align-items: baseline; gap: 6px; } .cr-h b { font-size: 0.88rem; }
+.cr-id { margin-left: auto; font-family: var(--font-num); font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+.cr-ex { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.cr-chk { display: flex; gap: 6px; align-items: baseline; font-size: 0.82rem; line-height: 1.5; }
+.cr-ab { font-family: var(--font-num); font-size: 0.72rem; color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 4px; padding: 0 4px; flex: none; }
+.cr-q { min-width: 0; word-break: keep-all; } .cr-q small { display: block; color: var(--muted); font-size: 0.76rem; }
+@media (max-width: 760px) { .cr-map, .cr-top { grid-template-columns: minmax(0, 1fr); } }
+/* CODE 검사 결과 (사용자 10-21 저녁) — 모델마다 통과 · 걸림 막대, 아래 걸린 검사 색 격자(FAIL 원인과 같은 모양) */
+.cd-bars { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.cd-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 260px; gap: 14px; align-items: center; }
+.cd-m { font-weight: 600; } .cd-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--line); }
+.cd-bar span { display: flex; align-items: center; justify-content: center; font-family: var(--font-num); font-size: 0.82rem; font-weight: 600; min-width: 1.6em; }
+.cd-ok { background: var(--ok-soft); color: var(--ok); } .cd-bad { background: var(--risk); color: var(--surface); }
+.cd-v { font-size: 0.92rem; } .cd-v b { font-family: var(--font-num); font-size: 1.1rem; } .cd-v small { display: block; color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
+.cd-key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; margin: 8px 0 0; align-items: center; }
+.cd-key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+@media (max-width: 760px) { .cd-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+/* 기준별 결과 (사용자 10-21 저녁) — 위 모델별 기준 통과율 카드, 아래 묶음 16개 행(누르면 기준별로 펼침) */
+.cb-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.cb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 4px; }
+.cb-r { font-size: 0.78rem; color: var(--muted); } .cb-m { font-weight: 600; }
+.cb-card b { font-family: var(--font-num); font-size: 1.7rem; line-height: 1.2; } .cb-card small { color: var(--muted); font-size: 0.78rem; }
+.cb-key { font-size: 0.82rem; color: var(--muted); margin: 10px 0 6px; }
+.cb-table { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 12px; }
+.cb-row { display: grid; grid-template-columns: minmax(200px, 1.7fr) repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 5px 0; }
+.cb-head { font-size: 0.8rem; color: var(--muted); border-bottom: 1px solid var(--line); text-align: center; } .cb-head span:first-child { text-align: left; }
+.cb-row > * { min-width: 0; } .cb-head span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cb-g { border-top: 1px solid var(--line); } .cb-head + .cb-g { border-top: 0; }
+.cb-g > summary { list-style: none; cursor: pointer; } .cb-g > summary::-webkit-details-marker { display: none; }
+.cb-g > summary:hover { background: var(--bg); } .cb-g > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cb-l { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: wrap; } .cb-l b { font-size: 0.9rem; } .cb-l small { color: var(--muted); font-size: 0.74rem; }
+.cb-g > summary .cb-l::before { content: "▸"; color: var(--muted); font-size: 0.8rem; } .cb-g[open] > summary .cb-l::before { content: "▾"; }
+.cb-c { border-radius: 8px; padding: 5px 6px; text-align: center; display: grid; } .cb-c b { font-family: var(--font-num); font-size: 0.95rem; } .cb-c small { font-size: 0.7rem; color: var(--muted); }
+.cb-sub { padding: 0 0 6px; } .cb-sub .cb-row { padding: 3px 0; border-top: 1px dashed var(--line); } .cb-sub .cb-l { padding-left: 18px; } .cb-sub .cb-l b { font-weight: 500; font-size: 0.84rem; } .cb-sub .cb-c b { font-size: 0.86rem; }
+.cb-na { color: var(--muted); }
+@media (max-width: 760px) { .cb-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cb-row { grid-template-columns: minmax(96px, 1.2fr) repeat(4, minmax(0, 1fr)); gap: 3px; } .cb-c small { display: none; } }
 .rs-next .rs-sub { color: var(--muted); font-size: 0.84rem; }
 details.rs-cell > summary { cursor: pointer; list-style: none; } details.rs-cell > summary::-webkit-details-marker { display: none; }
 details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell .rs-qchips { margin-top: 4px; }
@@ -1621,6 +1854,10 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)),   # 사용자 10-21: 제목만, 한 줄 설명 뺌
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
          "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
+        ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",   # 사용자 10-21 저녁: 질문 단위 말고 기준 단위로도
+         "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D)),
+        ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",   # 사용자 10-21 저녁: LLM Judge 와 따로
+         "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 걸린 질문입니다.", scene_code(D)),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D)),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
