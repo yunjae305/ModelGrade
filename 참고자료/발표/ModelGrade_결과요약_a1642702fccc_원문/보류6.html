@@ -118,7 +118,7 @@ ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); borde
 .rs-fd:target { display: block; border: 2px solid var(--accent); }
 .rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
 .rs-fdh { margin: 0 0 6px; font-size: 1rem; }
-.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; } .rs-holdtxt { color: var(--warn); font-weight: 700; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; } .rs-holdtxt { color: var(--hold-text); font-weight: 700; }
 @media (max-width: 1100px) {
 }
 @media (max-width: 760px) {
@@ -129,6 +129,12 @@ ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); borde
 :root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Serif KR", "Nanum Myeongjo", "Times New Roman", serif; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
 :root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
 .s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
 .ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
 .s-no { color: var(--muted); }
@@ -154,11 +160,13 @@ mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px so
 mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
   background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
 .rs-hlno.rs-hlno-off { background: var(--muted); }
-mark.rs-mk-hold { background: var(--warn-soft); border-bottom-color: var(--warn); }
-mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--warn); }
+mark.rs-mk-hold { background: var(--hold-soft); border-bottom-color: var(--hold); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
 .rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); }
 @media (max-width: 760px) { }
-@media (max-width: 760px) { }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
 @media (max-width: 760px) { } .rs-h4gap { margin-top: 14px !important; }
 @media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
 .wrap { max-width: 1480px; }
@@ -170,8 +178,6 @@ mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--warn); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
 :root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
 @media (max-width: 1000px) {
-}
-@media (max-width: 640px) {
 }
 </style>
 <style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }

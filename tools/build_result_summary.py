@@ -318,7 +318,7 @@ def scene_flow(D: Dict[str, Any]) -> str:
         '<div class="rs-st"><span class="rs-sn">4</span><h3>질문 판정</h3><ul class="rs-rules">'
         '<li><i class="rs-dot rs-hold"></i><b>보류</b><span>확인 못 한 기준이 하나라도 남음</span></li>'
         '<li><i class="rs-dot rs-fail"></i><b>FAIL</b><span>보류 없이 기준을 하나라도 어김</span></li>'
-        '<li><i class="rs-dot rs-pass"></i><b>완전 통과</b><span>그 밖</span></li></ul></div>'
+        '<li><i class="rs-dot rs-pass"></i><b>완전 통과</b><span>적용된 기준을 모두 통과 (FAIL · 보류 없음)</span></li></ul></div>'
         f'<div class="rs-st"><span class="rs-sn">5</span><h3>결과</h3><div class="rs-sbig rs-sbig-t">완전 통과<small>/ {D["n"]}</small></div>'
         '<ul class="rs-sl"><li>모델마다 질문 수로 비교</li><li>보류는 사람이 정함</li></ul></div>'
         '</div>')   # 사용자 10-21: 빈 출력 안내 줄 · '어제 설명에서 바뀐 점' 표 지움
@@ -439,6 +439,131 @@ def scene_criteria(D: Dict[str, Any]) -> str:
                          f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p>{q_chips(py_qs)}</div>'))
     cards.sort(key=lambda x: -x[0])
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
+
+
+def scene_intro(D: Dict[str, Any]) -> str:
+    """무엇을 만들었고, 왜 필요한가 — 흐름도 앞 (사용자 10-21 저녁). 숫자는 이번 실행에서 다시 셈.
+    근거: 10-19 · 10-20 발표 표지(같은 질문 → 자동 채점 → 비교), 참고자료/채팅품질 평가기준.md(AIONA ↔ 외부 시스템, 같은 질문 집합 ·
+    완결된 답끼리), 10-19 · 10-20 미팅(앱 · 웹 답 · 판정 프롬프트 고정), 10-21 체크리스트 A3 · A4(확장 · 보류 사례)."""
+    n, m = D["n"], len(D["order"])
+    types = Counter(TYPE_NAME.get(t, t).split(" · ")[0] for t in D["dtypes"].values())
+    n_code = sum(1 for c in D["names"] if c[0].isdigit())
+    n_judge = len(D["names"]) - n_code
+    cr = crit_results(D)
+    n_dec = sum(sum(cr[c][p].values()) for c in cr for p in D["order"])
+    n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
+    judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
+    mods = " · ".join(SHORT[p] for p in D["order"])
+    type_txt = " · ".join(f"{k} {types[k]}" for k in ("싱글턴", "멀티턴", "롱컨텍스트", "첨부 자료") if types.get(k))
+    built = [
+        ("고정 질문 세트", f"{n}문항", f"326개에서 기준마다 10번 이상 평가되게 골라 고정 — {type_txt}"),
+        ("답변 자동 수집", f"{m}모델 동시", f"{mods} — 앱 · 웹 화면을 자동 조작해 복사 버튼 원문 그대로"),
+        ("채점 기준", f"{n_code + n_judge}개", f"CODE 검사 {n_code}(프로그램이 셈) + LLM Judge {n_judge}(AI 심판, 어느 모델 답인지 모름)"),
+        ("판정 · 보류", "질문마다", "완전 통과 · FAIL · 보류 — 확인 못 한 것은 억지로 정하지 않고 사람이 정함"),
+        ("결과 보고", "명령 하나", f"수집부터 보고서 · 결과 JSON · 이 결과 요약까지 — 이번 실행 수집 {hm(collect_seconds(D))} + 판정 {hm(judge_s)}"),
+    ]
+    why = [
+        ("같은 조건이어야 비교가 된다", "네 모델에 같은 질문을 같은 순서로 던지고, 같은 기준 · 고정된 판정 프롬프트로, 모델 이름을 가린 채 채점합니다."),
+        ("사용자가 받는 답 그대로", "API 가 아니라 사용자가 쓰는 앱 · 웹 화면에서 받은 완성된 답을 채점합니다 — 실제 채팅 품질을 봅니다."),
+        ("사람이 다 볼 수 없는 양", f"이번에만 기준 판정 {n_dec:,}건. 프로그램과 AI 심판이 채점하고, 사람은 보류 {n_hold}칸만 정합니다."),
+        ("반복할수록 정확 · 넓게", "사람이 정한 보류는 사례로 쌓여 다음 판정의 근거가 되고, 우수AI · 팩트챗 같은 다른 서비스도 같은 질문으로 붙일 수 있습니다."),
+    ]
+    flow = "".join(f'<span>{E(s)}</span>' + ("<i>→</i>" if i < 3 else "") for i, s in enumerate(
+        [f"질문 {n}", f"{m}모델 답변", f"기준 {n_code + n_judge}개로 채점", "완전 통과 · FAIL · 보류"]))
+    return (f'<div class="in-hero"><p class="in-def"><b>ModelGrade</b>는 AIONA 와 다른 AI 에 같은 질문을 던지고, 사용자가 실제로 받는 답을 '
+            f'같은 기준으로 자동 채점해 비교하는 평가기입니다.</p><div class="in-flow">{flow}</div></div>'
+            '<div class="in-cols"><div class="in-col"><h3 class="rs-sh">무엇을 만들었나</h3><ol class="in-built">'
+            + "".join(f'<li><span class="in-n">{i}</span><div><b>{E(t)}</b><em>{E(k)}</em><p>{E(d)}</p></div></li>' for i, (t, k, d) in enumerate(built, 1))
+            + '</ol></div><div class="in-col"><h3 class="rs-sh">왜 필요한가</h3><div class="in-why">'
+            + "".join(f'<div><b>{E(t)}</b><p>{E(d)}</p></div>' for t, d in why)
+            + "</div></div></div>")
+
+
+#: 심판 흔들림 A/B — 같은 답 40건(10질문 × 4모델)을 Codex low · medium 으로 (참고자료/변경내역/2026-10-20-변경내역.md '10-21 오전' A/B)
+WOBBLE_AB = {"n": 40, "same": 34, "changed": 6, "how": "통과→FAIL 2 · FAIL→통과 3 · 보류→FAIL 1"}
+#: 실제 사례 — (모델, 질문, 기준, 꼬리표, 꼬리표 색, 덧붙일 말). 판정 내용은 결과 JSON 에서 읽는다 (사용자 10-21 저녁: 검증 장면)
+VERIFY_CASES = [
+    ("gemini", 24, "J1-2.a", "두 심판 모두 FAIL", "ok", "요청한 함수 대신 정형 거절 — 두 심판이 같은 판단을 냈습니다."),
+    ("claude", 49, "J5-1.a", "확인 못 해 보류 — 사람이 정함", "hold", "검색으로도 확인하지 못한 사실 주장은 억지로 정하지 않고 사람에게 넘깁니다."),
+    ("gemini", 11, "J1-2.a", "심판이 틀린 예", "bad", "같은 정형 거절인데 Codex 가 통과로 뒤집었습니다. 질문 결과는 다른 기준 FAIL 로 그대로 FAIL 이지만, "
+     "이런 오판을 세려면 사람 판정과의 대조가 필요합니다."),
+]
+
+
+def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
+    """검증 — 무엇을 확인했고, 무엇이 남았나 (사용자 10-21 저녁 · 받은 의견 ④ 'AI 가 AI 를 평가한 판정을 어떻게 믿나'):
+    확인한 것(근거 있는 것만) · 아직 남은 것 · 실제 사례 3개(질문 · 답 · 판정 근거). 숫자는 이번 실행에서 다시 셈."""
+    order = D["order"]
+    # 질문 세트 사전검사 — 질문만으로 셀 수 있는 기준이 각각 몇 문항에 걸리나 (78개를 고른 근거)
+    planned: Dict[str, int] = {}
+    try:
+        from webapp import question_generation as qg
+        groups = json.loads((Path(D["set_dir"]) / "questions.json").read_text(encoding="utf-8"))
+        planned = {k: v for k, v in qg.target_counts(qg.check(groups)).items() if v is not None}
+    except Exception:   # 사전검사를 못 돌리면 그 카드의 숫자만 뺀다
+        planned = {}
+    cr = crit_results(D)
+    mins = {c: min(sum(cr[c][p].values()) for p in order) for c in cr}
+    low = sorted((c for c in mins if mins[c] < 10), key=lambda c: (mins[c], c))
+    pair: Counter = Counter()
+    for r in D["d"]["judgment"]["results"]:
+        for t in (r.get("turn_results") or {}).values():
+            for v in t["items"].values():
+                if "codex" in v:
+                    pair[(v.get("decisions"), v.get("codex"))] += 1
+    scr = [r.get("screen") or {} for r in D["d"]["judgment"]["results"]]
+    n_items, n_flag = sum(s.get("items", 0) for s in scr), sum(s.get("flagged", 0) for s in scr)
+    dec_fail = sum(v for (d, _c), v in pair.items() if d == "FAIL")
+    both_fail = pair[("FAIL", "FAIL")]
+    caught = pair[("PASS", "FAIL")]
+    kinds = Counter(it.get("kind") or "" for L in D["lines"].values() for it in L["items"] if it["decision"] == "UNVERIFIED")
+    n_hold_q = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
+
+    done = [
+        ("질문 78개를 고른 근거", (f"질문만으로 셀 수 있는 기준 {len(planned)}개가 모두 서로 다른 질문 {min(planned.values())}개 이상에 걸리도록 326개에서 골랐습니다."
+                               if planned else "기준마다 서로 다른 질문 10개 이상에 걸리도록 326개에서 골랐습니다."), "질문 세트 사전검사"),
+        ("기준이 실제로 평가된 횟수", f"기준 {len(cr)}개 중 {len(cr) - len(low)}개가 네 모델 모두에서 10문항 이상 평가됐습니다.", "04 기준별 결과"),
+        ("두 단계 심판", f"Decisions 가 항목 {n_items:,}개를 모두 보고, 그중 {n_flag:,}개({n_flag / max(1, n_items):.0%})는 Codex 가 원문을 다시 읽고 판정했습니다. "
+                       f"Decisions FAIL {dec_fail:,}개 중 Codex 도 FAIL 은 {both_fail}개 — 나머지는 통과 · 해당 없음으로 바로잡았고, "
+                       f"Decisions 통과였던 {caught}개는 Codex 가 FAIL 로 잡았습니다.", "결과 JSON"),
+        ("근거를 원문과 대조", f"FAIL 근거로 든 답 문장이 원문에 실제로 있는지 프로그램이 대조합니다. 없으면 다시 묻고, 끝내 맞지 않으면 보류 "
+                            f"(이번 인용 불일치 {kinds.get('인용 불일치', 0)}개). 사실을 확인하지 못한 {kinds.get('확인 못함', 0)}개도 억지로 정하지 않고 보류했습니다.", "판정 규칙"),
+        ("심판 흔들림을 숫자로", f"같은 답 {WOBBLE_AB['n']}건을 Codex 추론 low · medium 으로 두 번 판정 — {WOBBLE_AB['same']}건 같음, {WOBBLE_AB['changed']}건 바뀜"
+                              f"({WOBBLE_AB['how']}, 한쪽으로 쏠리지 않음). 그래서 몇 문항 차이는 단정하지 않습니다.", "10-21 오전 A/B"),
+        ("사람이 찾아 고친 오판", "해요체를 반말로 본 말투 판정(AIONA Q22) · CODE '질문이 요구한 계산값' 오판 4건을 고쳤고, ChatGPT 앱 복사가 Python 줄바꿈을 지우는 것을 화면과 대조해 확인했습니다.",
+         "10-21 체크리스트 B10 · B11"),
+        ("같은 조건 · 블라인드", "CODE 검사는 같은 답이면 몇 번을 돌려도 결과가 같고, LLM Judge 는 어느 모델의 답인지 모른 채 고정된 판정 프롬프트로 채점합니다.", "평가 방법"),
+    ]
+    left = [
+        ("사람 판정과의 일치율", "사람이 직접 정한 정답 표본과 자동 판정을 대조해 일치율을 재야 합니다. 대조 도구(tools/review_kit.py)는 있지만 정답 표본이 아직 없어 재지 못했습니다.", "가장 먼저"),
+        ("기준별 판정 정확도", "기준 정의 · 겹침 감사(10-12)는 했지만, 기준마다 판정이 몇 % 맞는지는 아직입니다.", "다음"),
+        ("적게 평가된 기준", f"{len(low)}개 기준은 한 모델 이상에서 10문항 미만 — 예: " + " · ".join(E(crit_name(D["names"], c)) for c in low[:4]) + ". 답에 따라 적용되는 기준이 많습니다.", "다음"),
+        ("보류를 사람이 정하기", f"보류 {n_hold_q}칸을 사람이 통과 · FAIL 로 정하고, 그 판단을 사례로 쌓아 다음 판정의 근거로 씁니다.", "진행 중"),
+    ]
+    done_html = "".join(f'<div class="vf-i"><b>{E(t)}</b><p>{E(d)}</p><small>근거 · {E(s)}</small></div>' for t, d, s in done)
+    left_html = "".join(f'<div class="vf-i"><b>{E(t)}<span class="vf-st">{E(st)}</span></b><p>{d if "<" in d else E(d)}</p></div>' for t, d, st in left)
+
+    def verdict_ko(v: Optional[str]) -> str:
+        return {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}.get(v or "", v or "—")
+    cases = []
+    for p, q, c, tag, tone, note in VERIFY_CASES:
+        L = D["lines"].get((p, q))
+        it = next((i for i in (L or {}).get("items", []) if i["item"] == c), None)
+        if not L or not it:
+            continue
+        qtext = it.get("question_quote") or (D["qset"][q]["turns"][0].get("question") or "")
+        aid = f'{"f" if L["verdict"] == "FAIL" else "b" if L["verdict"] == "HOLD" else "p"}-{p}-{q}'
+        link = f'<a class="vf-link" href="{E(part_of[aid])}#{aid}">질문 · 답 원문 보기 →</a>' if part_of and aid in part_of else ""
+        cases.append(f'<div class="vf-case vf-{tone}"><span class="vf-tag">{E(tag)}</span>'
+                     f'<b class="vf-ct">{mname(p)} · Q{q} · {E(crit_name(D["names"], c))} <span class="rs-id">{E(c)}</span></b>'
+                     f'<dl><dt>질문</dt><dd>{E(qtext[:110])}{"…" if len(qtext) > 110 else ""}</dd>'
+                     f'<dt>답의 해당 문장</dt><dd class="vf-q">“{E((it.get("answer_quote") or "")[:140])}”</dd>'
+                     f'<dt>판정</dt><dd><b>{verdict_ko(it["decision"])}</b> · {E(it.get("how") or "")}</dd>'
+                     f'<dt>심판이 든 근거</dt><dd>{E((it.get("reason") or "")[:200])}</dd></dl>'
+                     f'<p class="vf-note">{E(note)} (질문 결과: {verdict_ko("UNVERIFIED" if L["verdict"] == "HOLD" else L["verdict"])})</p>{link}</div>')
+    return (f'<div class="vf-cols"><div class="vf-col vf-done"><h3 class="rs-sh">확인한 것 <small>{len(done)}</small></h3>{done_html}</div>'
+            f'<div class="vf-col vf-left"><h3 class="rs-sh">아직 남은 것 <small>{len(left)}</small></h3>{left_html}</div></div>'
+            f'<h3 class="rs-sh">실제 사례 — 질문 · 답 · 판정 근거</h3><div class="vf-cases">{"".join(cases)}</div>')
 
 
 def crit_results(D: Dict[str, Any]) -> Dict[str, Dict[str, Counter]]:
@@ -701,6 +826,8 @@ def collect_token_table(D: Dict[str, Any]) -> str:
 def scene_next(D: Dict[str, Any]) -> str:
     """발전 방향 — 확장성 중심 (10-21 오후 미팅). 카드: 무엇을 · 왜 · 지금 상태."""
     cards = [
+        ("사람 판정과 맞춰 보기", "정답 표본으로 일치율 재기", "사람이 직접 판정한 정답 표본을 만들어 자동 판정과 대조하고, 기준마다 일치율을 냅니다 — "
+         "'검증' 장면의 '아직 남은 것' 첫째. 대조 도구(tools/review_kit.py)는 있습니다.", "다음 할 일"),   # 사용자 10-21 저녁: 검증 장면과 이어서
         ("모델 확장", "다른 모델도 같은 질문으로", "답변 수집은 앱 · 웹브라우저 자동화라, 연결만 하면 다른 모델도 같은 78문항으로 받아 같은 기준으로 비교합니다.", "구조 준비됨"),
         ("보류 사례집", "사람의 판단을 데이터로", "보류를 사람이 통과 · FAIL 로 정하면 사례로 쌓고, 다음 판정에서 비슷한 경우의 근거로 씁니다. 반복되는 판단은 채점 기준 · 프롬프트로 올립니다.", "만드는 중"),
         ("하네스 증류", "공개된 평가 하네스를 녹여 넣기", "Google Harness² 처럼 모델은 그대로 두고 프롬프트 · 규칙 · 메모리 · 스킬 같은 '하네스'를 고쳐 성능을 올리는 오픈소스를 참고해, "
@@ -900,7 +1027,8 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         rows = "".join(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th>'
                        + "".join(f'<td class="{"hm-best" if c["vals"][p] == best[id(c)] else ""}"><label for="bd{idx[id(c)]}">{fmt(c, p)}</label></td>' for c in cs) + "</tr>"
                        for p in order)
-        return f'<table class="hm-tab"><thead>{head}</thead><tbody>{rows}</tbody></table>'
+        cols = '<colgroup><col class="hm-mc">' + "<col>" * len(cs) + "</colgroup>"   # 숫자 칸은 같은 너비 (사용자 10-21 저녁: 멀티턴 · 롱컨텍스트 사이가 너무 벌어짐)
+        return f'<table class="hm-tab hm-score">{cols}<thead>{head}</thead><tbody>{rows}</tbody></table>'
 
     res = [c for c in cats if c["group"] in ("결과", "유형")]
     t1 = score_tab(res, lambda c, p: f'{c["vals"][p] / c["of"]:.2f}')
@@ -1377,7 +1505,7 @@ EXTRA_CSS = """<style>
 .rs-tile.rs-key { border: 2px solid var(--accent); }
 .rs-terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0; }
 .rs-terms div { border-top: 3px solid var(--line); padding-top: 8px; }
-.rs-terms div.t-pass { border-color: var(--ok); } .rs-terms div.t-fail { border-color: var(--risk); } .rs-terms div.t-hold { border-color: var(--warn); }
+.rs-terms div.t-pass { border-color: var(--ok); } .rs-terms div.t-fail { border-color: var(--risk); } .rs-terms div.t-hold { border-color: var(--hold); }
 .rs-terms dt { font-weight: 700; font-size: 0.95rem; } .rs-terms dd { margin: 3px 0 0; font-size: 0.86rem; color: var(--muted); line-height: 1.45; }
 /* 01 흐름도 — 단계 카드 다섯 개, 사이에 화살표 */
 .rs-flow { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1.15fr) minmax(0, 0.95fr); gap: 30px; align-items: stretch; }
@@ -1435,7 +1563,7 @@ EXTRA_CSS = """<style>
 .rs-track { display: flex; gap: 2px; height: 30px; }
 .rs-track i { display: flex; align-items: center; justify-content: center; font-style: normal; font-family: var(--font-num); font-size: 0.85rem; font-weight: 600; color: var(--surface); min-width: 2px; }
 .rs-track i:first-child { border-radius: 5px 0 0 5px; } .rs-track i:last-child { border-radius: 0 5px 5px 0; }
-i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail { background: var(--risk); } i.rs-hold, .rs-sw.rs-hold { background: var(--warn); }
+i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail { background: var(--risk); } i.rs-hold, .rs-sw.rs-hold { background: var(--hold-fill); border-color: var(--hold-2); }
 .rs-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 /* 03·04·05 색 칸 */
 .rs-heat { display: grid; gap: 6px; align-items: stretch; }
@@ -1458,8 +1586,8 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-card p { margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.45; }
 /* 05 보류 */
 .rs-hold-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 12px; }
-.rs-hbig { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 14px; padding: 18px 20px; display: grid; gap: 6px; align-content: center; }
-.rs-hbig b { font-family: var(--font-num); font-size: 2.8rem; line-height: 1; color: var(--warn); } .rs-hbig b small { font-size: 1.1rem; margin-left: 4px; }
+.rs-hbig { background: var(--hold-soft); border: 1px solid var(--hold); border-radius: 14px; padding: 18px 20px; display: grid; gap: 6px; align-content: center; }
+.rs-hbig b { font-family: var(--font-num); font-size: 2.8rem; line-height: 1; color: var(--hold-text); } .rs-hbig b small { font-size: 1.1rem; margin-left: 4px; }
 .rs-hbig span { font-size: 0.95rem; }
 .rs-facts { display: grid; gap: 8px; align-content: center; }
 .rs-fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; line-height: 1.45; }
@@ -1468,10 +1596,8 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-mq { display: grid; align-content: center; font-size: 0.85rem; padding: 2px; min-width: 0; }
 .rs-mq b { font-family: var(--font-num); } .rs-mq span { color: var(--muted); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rs-mc { border-radius: 8px; padding: 8px 6px; text-align: center; font-size: 0.84rem; border: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: stretch; display: grid; place-items: center; }
-.rs-mc-empty { background: var(--surface); }
-.rs-mc-copy { background: var(--todo-soft); color: var(--todo); }
-.rs-mc-text { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
-.rs-mc-fact { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.rs-mc-empty, .rs-mc-copy, .rs-mc-text, .rs-mc-fact { background: var(--hold-fill-soft); color: var(--hold-text); border-color: var(--hold); }
+.rs-sw.rs-mc-empty, .rs-sw.rs-mc-copy, .rs-sw.rs-mc-text, .rs-sw.rs-mc-fact { background: var(--hold-fill); border-color: var(--hold-2); }   /* 보류 칸은 사유와 상관없이 같은 노랑 빗금 — 사유는 칸 글자로 (사용자 10-21 저녁) */
 /* 06 시간 */
 .rs-tbars { display: grid; gap: 10px; }
 .rs-tb { display: grid; grid-template-columns: 70px minmax(0, 1fr) 300px; gap: 14px; align-items: center; }
@@ -1521,7 +1647,7 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-qn:hover { color: var(--accent); }
 .rs-mn { font-size: 0.8rem; font-weight: 600; align-self: center; }
 .rs-t { height: 24px; border-radius: 4px; display: grid; place-items: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 600; text-decoration: none; color: var(--surface); }
-.rs-t-pass { background: var(--ok); } .rs-t-fail { background: var(--risk); } .rs-t-hold { background: var(--warn); }
+.rs-t-pass { background: var(--ok); } .rs-t-fail { background: var(--risk); } .rs-t-hold { background: var(--hold-fill); color: var(--hold-ink); }
 .rs-t:hover, .rs-t:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 /* 펼쳐지는 질문 — #q-n 일 때만 보임 */
 .rs-qds { display: grid; gap: 10px; margin-top: 4px; }
@@ -1567,8 +1693,8 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
 .rs-worst { color: var(--risk); font-weight: 700; } .rs-strong { color: var(--ink); font-weight: 700; }
 .rs-b { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 0.78rem; font-weight: 700; }
-.rs-b.rs-pass { color: var(--ok); background: var(--ok-soft); } .rs-b.rs-fail { color: var(--risk); background: var(--risk-soft); } .rs-b.rs-hold { color: var(--warn); background: var(--warn-soft); }
-.rs-failtxt { color: var(--risk); font-weight: 700; } .rs-holdtxt { color: var(--warn); font-weight: 700; }
+.rs-b.rs-pass { color: var(--ok); background: var(--ok-soft); } .rs-b.rs-fail { color: var(--risk); background: var(--risk-soft); } .rs-b.rs-hold { color: var(--hold-text); background: var(--hold-soft); }
+.rs-failtxt { color: var(--risk); font-weight: 700; } .rs-holdtxt { color: var(--hold-text); font-weight: 700; }
 tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .rs-etab { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
 .rs-etab th, .rs-etab td { border-top: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
@@ -1609,6 +1735,12 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 :root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Serif KR", "Nanum Myeongjo", "Times New Roman", serif; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
 :root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
 .s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
 .ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
 .s-no { color: var(--muted); }
@@ -1705,6 +1837,8 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .hm-tab td label { cursor: pointer; display: inline-block; padding: 2px 6px; border-radius: 6px; } .hm-tab td label:hover { background: var(--accent-soft); color: var(--accent); }
 .hm-tab td.hm-best { font-weight: 700; }
 .hm-tab td.hm-l { font-family: var(--font-body); white-space: normal; min-width: 220px; }
+.hm-score { table-layout: fixed; min-width: 600px; } .hm-score col.hm-mc { width: 20%; }
+.hm-score thead th:not(:first-child), .hm-score td { text-align: center; } .hm-score thead th { white-space: normal; }
 /* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
 .rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
 .rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
@@ -1717,8 +1851,8 @@ mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px so
 mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
   background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
 .rs-hlno.rs-hlno-off { background: var(--muted); }
-mark.rs-mk-hold { background: var(--warn-soft); border-bottom-color: var(--warn); }
-mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--warn); }
+mark.rs-mk-hold { background: var(--hold-soft); border-bottom-color: var(--hold); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
 .rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); }
 a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hover { text-decoration: underline; }
 .rs-arch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 6px; }
@@ -1763,6 +1897,37 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .cd-key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; margin: 8px 0 0; align-items: center; }
 .cd-key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
 @media (max-width: 760px) { .cd-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+/* 검증 — 확인한 것 · 남은 것 · 실제 사례 (사용자 10-21 저녁) */
+.vf-cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.vf-col { display: grid; gap: 8px; } .vf-col h3 small { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); margin-left: 4px; }
+.vf-i { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 10px 16px; position: relative; }
+.vf-done .vf-i { border-left: 4px solid var(--ok); border-radius: 0 12px 12px 0; } .vf-left .vf-i { border-left: 4px solid var(--hold); border-radius: 0 12px 12px 0; }
+.vf-i b { font-size: 0.95rem; display: flex; align-items: baseline; gap: 8px; } .vf-i p { margin: 3px 0 0; font-size: 0.86rem; line-height: 1.55; word-break: keep-all; }
+.vf-i small { display: block; margin-top: 4px; font-size: 0.74rem; color: var(--muted); }
+.vf-st { margin-left: auto; font-size: 0.72rem; font-weight: 600; color: var(--hold-text); background: var(--hold-soft); border-radius: 4px; padding: 1px 7px; white-space: nowrap; }
+.vf-cases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.vf-case { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: 0 0 12px 12px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.vf-ok { border-top-color: var(--ok); } .vf-hold { border-top-color: var(--hold); } .vf-bad { border-top-color: var(--risk); }
+.vf-tag { font-size: 0.74rem; font-weight: 700; } .vf-ok .vf-tag { color: var(--ok); } .vf-hold .vf-tag { color: var(--hold-text); } .vf-bad .vf-tag { color: var(--risk); }
+.vf-ct { font-size: 0.92rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; } .vf-ct .rs-id { font-weight: 400; }
+.vf-case dl { margin: 0; display: grid; gap: 2px; font-size: 0.84rem; } .vf-case dt { color: var(--muted); font-size: 0.74rem; margin-top: 4px; } .vf-case dd { margin: 0; line-height: 1.5; word-break: keep-all; }
+.vf-q { background: var(--bg); border-radius: 6px; padding: 4px 8px; }
+.vf-note { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; word-break: keep-all; } .vf-link { font-size: 0.82rem; }
+@media (max-width: 1000px) { .vf-cols, .vf-cases { grid-template-columns: minmax(0, 1fr); } }
+/* 무엇을 만들었고, 왜 필요한가 (사용자 10-21 저녁) — 위 한 줄 정의 + 흐름, 아래 두 단(만든 것 5 · 이유 4) */
+.in-hero { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; display: grid; gap: 12px; }
+.in-def { margin: 0; font-size: 1.12rem; line-height: 1.6; word-break: keep-all; } .in-def b { font-family: var(--font-serif); font-size: 1.2rem; color: var(--accent); }
+.in-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.in-flow span { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 4px 12px; font-size: 0.88rem; font-weight: 600; } .in-flow i { color: var(--muted); font-style: normal; }
+.in-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 6px; }
+.in-built { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.in-built li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.in-n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--surface); display: grid; place-items: center; font-family: var(--font-num); font-size: 0.85rem; font-weight: 700; }
+.in-built b { font-size: 0.98rem; } .in-built em { font-style: normal; margin-left: 8px; color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+.in-built p, .in-why p { margin: 3px 0 0; font-size: 0.88rem; color: var(--muted); line-height: 1.55; word-break: keep-all; }
+.in-why { display: grid; gap: 10px; } .in-why > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+.in-why b { font-size: 0.98rem; }
+@media (max-width: 860px) { .in-cols { grid-template-columns: minmax(0, 1fr); } }
 /* 기준별 결과 (사용자 10-21 저녁) — 위 모델별 기준 통과율 카드, 아래 묶음 16개 행(누르면 기준별로 펼침) */
 .cb-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .cb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 4px; }
@@ -1848,9 +2013,12 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     scenes = [   # 사용자 10-21: 평가 방법을 개요 바로 다음에 · 걸린 시간은 순위표 다음에 — 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다
+        ("s_intro", "무엇 · 왜", "만든 것 · 필요한 이유", "무엇을 만들었고, 왜 필요한가", "", scene_intro(D)),   # 사용자 10-21 저녁: 흐름도 앞에
         ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",   # 사용자 10-21: 10-20 보고의 흐름도를 지금 판정 방식으로 고쳐 평가 방법 위에
          f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D)),
         ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)),   # 사용자 10-21: 제목만, 한 줄 설명 뺌
+        ("s_verify", "검증", "확인한 것 · 남은 것", "검증 — 무엇을 확인했고, 무엇이 남았나",   # 사용자 10-21 저녁: 평가 흐름과 순위표 사이
+         "AI 가 AI 를 평가한 판정을 얼마나 믿을 수 있는지 — 확인한 것과 아직 확인하지 못한 것을 나누고, 실제 판정 사례로 보여 드립니다.", scene_verify(D, part_of)),
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
          "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",   # 사용자 10-21 저녁: 질문 단위 말고 기준 단위로도

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 E = html.escape
-ROOT = Path(__file__).resolve().parents[1]
+
 WARN: List[str] = []   # 칸보다 긴 글 — 빌더가 끝에 찍는다
 
 FLOW_CSS = """<style>
@@ -38,7 +38,7 @@ FLOW_CSS = """<style>
 .ptab thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 0.78rem; }
 .r-pass { color: var(--ok); font-weight: 700; }
 .r-fail { color: var(--risk); font-weight: 700; }
-.r-hold { color: var(--warn); font-weight: 700; }
+.r-hold { color: var(--hold-text, var(--warn)); font-weight: 700; }
 @media (max-width: 1000px) {
   .poster-grid { grid-template-columns: minmax(0, 1fr); }
   .pside { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
@@ -76,19 +76,6 @@ FLOW_CSS = """<style>
 .pflow .pahw { fill: var(--warn); }
 .pflow .pahf { fill: var(--file); }
 .pflow .plab { fill: var(--muted); font-size: 12.5px; font-weight: 600; }
-/* 단계별 요약 표: 넓은 화면은 칸 너비 고정, 좁은 화면은 줄마다 세로로 쌓고 칸 이름을 위에 붙인다 */
-.cmpt.steps { min-width: 0; max-width: 100%; }
-.steps table { table-layout: fixed; }
-.steps td, .steps th { vertical-align: top; }
-.steps th .l { font-family: var(--font-num); color: var(--accent); margin-right: 6px; }
-.steps code { font-size: 0.86em; overflow-wrap: break-word; }
-@media (max-width: 640px) {
-  .steps thead, .steps colgroup { display: none; }
-  .steps table, .steps caption, .steps tbody, .steps tr, .steps th, .steps td { display: block; width: auto; }
-  .steps tbody tr { border-top: 1px solid var(--line); padding: 10px 0; }
-  .steps tbody th, .steps tbody td { border: 0; padding-block: 2px; }
-  .steps td[data-label]::before { content: attr(data-label); display: block; font-size: 0.76rem; font-weight: 600; color: var(--muted); }
-}
 </style>"""
 
 
@@ -347,7 +334,7 @@ def flow_svg(n: int, set_ver: str) -> str:
 
     G_y = y
     parts, G_h, _ = module(y, "G", "질문 단위 판정 — 코드", [
-        ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "나머지 → 완전 통과"]),
+        ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "모든 기준 통과 → 완전 통과"]),
         ("단위", [f"대화는 턴 전체를 묶어 질문 1개 — 숫자는 /{n}"]),
     ], "code")
     P += parts
@@ -394,33 +381,14 @@ def flow_svg(n: int, set_ver: str) -> str:
             f'분기·AI 호출·파일 표시"><defs>{markers}</defs>\n' + "\n".join(P) + "\n</svg>")
 
 
-# ---------- 옆 표 · 단계별 요약 ----------
-PASS, FAIL, HOLD = '<span class="r-pass">완전 통과</span>', '<span class="r-fail">FAIL</span>', '<span class="r-hold">보류</span>'
-
-
-def table(caption, head, rows, widths):
-    """칸은 HTML 그대로. 좁은 화면에서 줄이 세로로 쌓여도 칸 이름(data-label)이 보인다."""
-    cols = "<colgroup>" + "".join(f'<col style="width:{w}%">' for w in widths) + "</colgroup>"
-    thead = "<thead><tr>" + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead>"
-    body = "".join("<tr>" + f'<th scope="row">{r[0]}</th>' + "".join(f'<td data-label="{E(h)}">{c}</td>' for h, c in zip(head[1:], r[1:]))
-                   + "</tr>" for r in rows)
-    cap = f"<caption>{caption}</caption>" if caption else ""
-    return f'<div class="cmpt steps"><table>{cap}{cols}{thead}<tbody>{body}</tbody></table></div>'
+# ---------- 옆 표 (단계별 요약 표는 뺌 — 흐름도 · 누가 하나와 겹치고 파일 경로는 개발용, 사용자 10-21 저녁) ----------
+FAIL, HOLD = '<span class="r-fail">FAIL</span>', '<span class="r-hold">보류</span>'
 
 
 def mini(title, head, rows, cls=""):
     thead = "<thead><tr>" + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead>"
     body = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
     return f'<div class="pcard {cls}"><h4>{title}</h4><table class="ptab">{thead}<tbody>{body}</tbody></table></div>'
-
-
-def step(letter, name):
-    return f'<span class="l">{letter}</span>{name}'
-
-
-def files(*names):
-    """파일 이름은 '/' 뒤에서만 줄을 바꾼다 — 글자 단위로 끊기지 않게."""
-    return "<br>".join("<code>" + E(n).replace("/", "/<wbr>") + "</code>" for n in names)
 
 
 def legend_item(shape, label):
@@ -454,37 +422,11 @@ def side_cards() -> str:
             + legend)
 
 
-def steps_table(n: int, set_rel: str) -> str:
-    return table("단계별 요약", ["단계", "하는 일", "누가", "파일"], [
-        [step("A", "질문 세트"), f"확정된 질문 {n}개(326개에서 고름). 고칠 때만 버전을 올림.", "고정 파일", files(f"{set_rel}/questions.json")],
-        [step("B", "답변 수집"), "네 모델에 동시에 묻고 복사 버튼으로 원문을 받음. 첨부는 붙여넣기.", "앱·웹 자동 조작",
-         files("modelgrade.py collect", "webapp/uia_chat_app.py", "webapp/cdp_chat_web.py")],
-        [step("C", "JSON 저장"), "질문마다 질문·첨부·답변 원문과 수집 상태·시간을 바로 저장. 멈춰도 이어서.", "코드",
-         files("data/comparison_runs/<실행>.json", "참고자료/결과/<실행>_*.json")],
-        [step("D", "CODE 검사"), "형식·개수·글자 수·계산 등 28가지를 프로그램이 검사.", "코드", files("code_eval/engine.py")],
-        [step("E", "LLM Judge"), "입력이 32K 토큰 이하인 짧은 것은 Jev, 넘는 것은 Decisions API 가 판정하고, Decisions 가 FAIL 로 본 항목만 "
-         "Codex 가 원문을 인용해 다시 판정. 모델 이름은 숨김.", "Jev(API) · Decisions(API) · Codex(구독)",
-         files("tools/judge_v4.py", "참고자료/프롬프트/judge_prompt_v4.txt")],
-        [step("F", "합치기·보류"), "Codex 가 본 항목은 Codex 판정대로, 나머지는 Jev · Decisions 대로. 확인 못 함·인용 불일치는 보류.", "코드",
-         files("judge_v4.py · combine_screen")],
-        [step("G", "질문 단위 판정"), f"보류 하나라도 → {HOLD}, 아니면 FAIL 하나라도 → {FAIL}, 나머지 {PASS}.", "코드",
-         files("judge_v4.py · question_verdict")],
-        [step("H", "결과·보류 추출"), "모델별 결과 · 질문별 이유 · 보류 목록을 명령 하나로. 이 결과 요약도.", "코드",
-         files("modelgrade.py report", "export_results_json.py", "build_result_summary.py")],
-    ], [13, 45, 18, 24])
-
-
 def flow_scene(D: Dict[str, Any]) -> str:
-    """장면 내용 — 흐름도 + 옆 표, 단계별 요약 표는 접어 둠."""
+    """장면 내용 — 흐름도 + 옆 표(누가 하나 · 판정 규칙 · 도형)."""
     n = D["n"]
     set_dir = Path(D["set_dir"])
     m = re.search(r"v[\d.]+$", set_dir.name)
     set_ver = m.group(0) if m else set_dir.name
-    try:
-        set_rel = set_dir.resolve().relative_to(ROOT).as_posix()
-    except ValueError:
-        set_rel = set_dir.name
     return (f'<figure class="poster"><span class="poster-sub">질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI</span>'
-            f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>'
-            f'<details class="rs-d"><summary><b>단계별 요약</b><span class="muted"> — 하는 일 · 누가 · 파일, 누르면 펼침</span></summary>'
-            f'{steps_table(n, set_rel)}</details>')
+            f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
