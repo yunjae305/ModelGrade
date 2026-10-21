@@ -538,10 +538,17 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     """개요 (사용자 10-21: 줄이기) — 큰 제목 한 줄 · '전체' 순위 카드 · 확인할 것. 분야 탭과 '모델마다 #1 인 분야'는 02 순위표와 겹쳐 뺐다."""
     order = D["order"]
     judge_s = sum(t.get("seconds") or 0 for t in D["d"]["judgment"].get("timing") or [])
-    hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl"><span class="ar-kick">2026-10-21 · 실행 {E(D["run_id"])}</span>'
+    # 제목 하나 · 질문 수 · 소요 시간만 (사용자 10-21: 불필요한 글 지우기). 수집은 네 모델을 동시에 돌려 가장 오래 걸린 모델의 벽시계
+    def secs(txt: str) -> int:
+        h, m, s_ = (re.search(r"(\d+)시간", txt), re.search(r"(\d+)분", txt), re.search(r"(\d+)초", txt))
+        return (int(h.group(1)) * 3600 if h else 0) + (int(m.group(1)) * 60 if m else 0) + (int(s_.group(1)) if s_ else 0)
+    walls = [secs(w) for w in report_extras(D)["wall"].values()]
+    collect_s = max(walls) if walls else 0
+    took = (f'<b>{hm(collect_s + judge_s)}</b><span>소요 · 답변 수집 {hm(collect_s)} + 판정 {hm(judge_s)}</span>' if collect_s
+            else f'<b>{hm(judge_s)}</b><span>판정 소요</span>')
+    hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
             '<h1 class="ar-h1">같은 질문으로 <em>AIONA</em> 를<br>네 모델과 비교했습니다</h1>'
-            f'<p>질문 {D["n"]}개를 AIONA · ChatGPT · Claude · Gemini 에 똑같이 던지고, 기준 {len(D["names"])}개(CODE 28 + 의미 44)로 채점했습니다.</p>'
-            f'<div class="ar-stat"><i class="ar-live"></i><b>{len(order)} × {D["n"]} × {len(D["names"])}</b><span>모델 × 질문 × 기준 · 판정 {hm(judge_s)}</span></div></div></div>')
+            f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')
     total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
     rank_card = (f'<div class="ar-card"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
                  f'<div class="ar-rows">{rank_rows(total_cat)}</div><p class="ar-note">{E(total_cat["desc"])}</p>'
