@@ -535,29 +535,17 @@ def tab_css(prefix: str, n: int, label_box: str, panel_box: str, panel_cls: str,
 
 
 def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
+    """개요 (사용자 10-21: 줄이기) — 큰 제목 한 줄 · '전체' 순위 카드 · 확인할 것. 분야 탭과 '모델마다 #1 인 분야'는 02 순위표와 겹쳐 뺐다."""
     order = D["order"]
     judge_s = sum(t.get("seconds") or 0 for t in D["d"]["judgment"].get("timing") or [])
-    # 오른쪽 — 모델마다 #1 인 분야 (Arena 'New release rankings' 자리)
-    side = []
-    for p in order:
-        tops = [c["label"] for c in cats if c["rank"][p] == 1]
-        if tops:
-            txt = f'#1 · {" · ".join(tops[:3])}{f" 외 {len(tops) - 3}개" if len(tops) > 3 else ""}'
-        else:
-            best = min(cats, key=lambda c: c["rank"][p])
-            txt = f'최고 #{best["rank"][p]} · {best["label"]}'
-        side.append(f'<a class="ar-sl" href="#s1">{avatar(p)}<span><b>{SHORT[p]}</b><small>{E(txt)}</small></span><em aria-hidden="true">›</em></a>')
-    hero = (f'<div class="ar-hero"><div class="ar-hl"><span class="ar-kick">2026-10-21 · 실행 {E(D["run_id"])}</span>'
+    hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl"><span class="ar-kick">2026-10-21 · 실행 {E(D["run_id"])}</span>'
             '<h1 class="ar-h1">같은 질문으로 <em>AIONA</em> 를<br>네 모델과 비교했습니다</h1>'
             f'<p>질문 {D["n"]}개를 AIONA · ChatGPT · Claude · Gemini 에 똑같이 던지고, 기준 {len(D["names"])}개(CODE 28 + 의미 44)로 채점했습니다.</p>'
-            f'<div class="ar-stat"><i class="ar-live"></i><b>{len(order)} × {D["n"]} × {len(D["names"])}</b><span>모델 × 질문 × 기준 · 판정 {hm(judge_s)}</span></div></div>'
-            f'<div class="ar-side"><span class="ar-kick">모델마다 #1 인 분야</span>{"".join(side)}</div></div>')
-    # 분야 알약 탭 + 순위 카드 (결과·유형 분야만)
-    top = [c for c in cats if c["group"] in ("결과", "유형")]
-    radios = "".join(f'<input type="radio" name="ov" id="ov{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(top)))
-    pills = '<div class="ar-pills">' + "".join(f'<label for="ov{i}">{E(c["label"])}</label>' for i, c in enumerate(top)) + "</div>"
-    panels = "".join(f'<div class="ar-pn ar-ov{i}"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(c["label"])} · {E(c["chip"])}</span></div>'
-                     f'<div class="ar-rows">{rank_rows(c)}</div><p class="ar-note">{E(c["desc"])}</p></div>' for i, c in enumerate(top))
+            f'<div class="ar-stat"><i class="ar-live"></i><b>{len(order)} × {D["n"]} × {len(D["names"])}</b><span>모델 × 질문 × 기준 · 판정 {hm(judge_s)}</span></div></div></div>')
+    total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
+    rank_card = (f'<div class="ar-card"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
+                 f'<div class="ar-rows">{rank_rows(total_cat)}</div><p class="ar-note">{E(total_cat["desc"])}</p>'
+                 '<a class="ar-btn" href="#s1">분야별 순위표 보기</a></div>')
     # 확인할 것 (Arena 'Live sessions' 자리)
     checks = []
     hold_n = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
@@ -576,10 +564,10 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 복사 기능이 줄바꿈을 지움(확인) · 복사 결과 그대로 FAIL", "#s3", "gpt"))
     checks.append(("wait", f"심판 흔들림 — 표본 {WOBBLE['n']}건 중 {WOBBLE['changed']}건", "몇 문항 차이는 오차일 수 있음" + (" · medium 전체 판정 중" if report_extras(D)["medium_running"] else ""), "#s1"))
     lst = "".join(f'<a class="ar-ck ar-ck-{k}" href="{h}"><i></i><span><b>{logo(m[0]) + " " if m else ""}{E(t)}</b><small>{E(s)}</small></span></a>' for k, t, s, h, *m in checks)
-    grid = (f'<div class="ar-grid"><div class="ar-card">{"".join([panels])}<a class="ar-btn" href="#s1">분야별 순위표 전체 보기</a></div>'
+    grid = (f'<div class="ar-grid">{rank_card}'
             f'<div class="ar-card"><div class="ar-ch"><h3>확인할 것</h3><span class="ar-chip">이번 실행</span></div><div class="ar-cks">{lst}</div>'
             '<a class="ar-btn" href="#s6">질문별 결과 보기</a></div></div>')
-    return hero + f'<div class="ar-ov">{radios}{pills}{grid}</div>' + tab_css("ov", len(top), ".ar-pills", ".ar-grid", "ar-ov", "background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: 0 1px 2px rgba(0,0,0,.08);")
+    return hero + f'<div class="ar-ov">{grid}</div>'
 
 
 def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
