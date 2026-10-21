@@ -888,6 +888,36 @@ def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[
 PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS"}
 
 
+def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, providers: set, questions: set) -> int:
+    """--recode: 심판을 다시 부르지 않고, 실행 파일의 지금 CODE 평가로 판정 줄의 code_fails·verdict 만 다시 계산해 바뀐 줄을 덧붙인다
+    (CODE 기준을 바꾼 뒤 — 2026-10-21 코드블록 언어 표지). 의미 판정(semantic)은 그대로 쓴다."""
+    latest: Dict[Tuple[str, int], Dict[str, Any]] = {}
+    for x in results_path.read_text(encoding="utf-8").splitlines():
+        if x.strip():
+            l = json.loads(x)
+            if l.get("version") in (VERSION, SCREEN_VERSION):
+                latest[(l["provider"], int(l["question"]))] = l
+    changed = 0
+    with results_path.open("a", encoding="utf-8") as f:
+        for (p, q), l in sorted(latest.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+            if p not in providers or q not in questions or l.get("status") != "judged":
+                continue
+            cases = {c.get("case_id"): c for c in ((run.get("evaluations") or {}).get(p) or {}).get("cases") or [] if isinstance(c, dict)}
+            turns = [r for r in rows if ji._question(r["case_id"]) == q]
+            code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
+            semantic = l.get("semantic") or ("FAIL" if l.get("verdict") == "FAIL" and not l.get("code_fails") else l.get("verdict"))
+            verdict = "FAIL" if code_fails or semantic == "FAIL" else semantic
+            if code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict"):
+                continue
+            new = {**l, "code_fails": code_fails, "verdict": verdict, "recoded": {"at": datetime.now(timezone.utc).isoformat(),
+                                                                                 "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict")}}
+            f.write(json.dumps(new, ensure_ascii=False) + "\n")
+            changed += 1
+            say(f"↻ Q{q} {p}: CODE FAIL {l.get('code_fails') or '-'} → {code_fails or '-'} · 판정 {l.get('verdict')} → {verdict}")
+    say(f"CODE 다시 반영 끝 — 바뀐 줄 {changed}개 (심판 호출 없음)")
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run", required=True)
@@ -900,6 +930,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
     ap.add_argument("--dry", action="store_true", help="심판을 부르지 않고 질문마다 어떻게 처리할지만 보기")
     ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
+    ap.add_argument("--recode", action="store_true", help="심판을 부르지 않고, 지금 실행 파일의 CODE 평가 결과로 판정 줄의 CODE FAIL·질문 판정만 다시 계산해 덧붙인다(CODE 기준을 바꾼 뒤)")
     ap.add_argument("--redo", action="store_true", help="--questions 로 고른 질문은 이미 판정했어도 처음부터 다시 판정한다(새 줄을 덧붙임, 보고서는 마지막 줄을 씀)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
@@ -929,6 +960,8 @@ def main(argv: Optional[List[str]] = None) -> int:
               json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if args.questions == "78" else [int(x) for x in args.questions.split(",") if x.strip()])
         plan = [(q, p) for p in args.providers.split(",") for q in qs]
     results_path = out / "results.jsonl"
+    if args.recode:
+        return recode(run, rows, results_path, {p for _, p in plan}, {q for q, _ in plan})
     done = set()
     if results_path.exists():
         for x in results_path.read_text(encoding="utf-8").splitlines():
@@ -1022,6 +1055,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                             "judgments": sum(totals.values()) - sum(1 for k in done if k[1] in set(sum(queues.values(), [])))},
                            ensure_ascii=False) + "\n")
     summary = {"version": VERSION, "run_id": args.run, "prompt": PROMPT_V4.name, "jev_questions": fixed.get("version"),
+               "codex": {"model": getattr(gpt, "model", None), "reasoning": getattr(gpt, "reasoning", None)} if gpt is not None else None,
                "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": wall, "models": {}}
     say("\n결과 — 질문 단위 (보류는 사람이 정함)")
     for p in queues:

@@ -31,7 +31,7 @@ CHECKED = {
     "1-1.character_rules": "답변에 깨진 글자(�, Ã¬ 같은 기호)나 눈에 보이지 않는 제어 문자가 섞였는지",
     "1-1.foreign_script": "한자·일본 문자 같은 외국 문자가 질문 주제나 설명·괄호 병기 없이 갑자기 나왔는지",
     "1-2.code_block": "질문이 요구한 코드블록(``` 로 감싼 코드)이 요구대로 있는지",
-    "1-2.code_language_label": "코드블록 첫 줄(```python 등)의 언어 표시가 요구와 같은지",
+    "1-2.code_language_label": "코드가 코드블록으로 구분돼 있고, 첫 줄에 언어를 적었다면 그 표시가 요구와 같은지 (표시가 없어도 통과)",
     "1-2.code_fence_min": "코드블록을 여닫는 ``` 표시가 2개(여는 것 + 닫는 것) 이상인지",
     "1-2.fence_imbalance": "``` (코드)와 $$ (수식)의 여는 표시·닫는 표시가 각각 짝이 맞는지",
     "1-2.json_syntax": "JSON 이 문법에 맞아 프로그램이 읽을 수 있는지",
@@ -404,7 +404,7 @@ def _x_lang(r, ctx):
     if r["verdict"] == FAIL:
         want = "/".join(r["required"]["language_label"])
         labels = r["measured"]["language_labels"]
-        bad = [i for i, l in enumerate(labels) if l not in r["required"]["language_label"]]
+        bad = [i for i, l in enumerate(labels) if l and l not in r["required"]["language_label"]]
         blocks = ctx.aa.fenced_blocks
         locs = [snippet(ctx.answer, blocks[i]["start"], blocks[i]["start"] + len(blocks[i]["opening"]),
                         label=f"코드블록 {i + 1} 첫 줄", tag="언어 표시") for i in bad if i < len(blocks)]
@@ -412,6 +412,8 @@ def _x_lang(r, ctx):
                   f"질문은 {want} 코드블록을 요구했는데, 코드블록 " + ", ".join(f"{i + 1}(표시: {labels[i]})" for i in bad) +
                   " 의 첫 줄 언어 표시가 다릅니다.", f"```{want.split('/')[0]}", ", ".join(labels), locs,
                   f"코드블록 첫 줄을 ```{want.split('/')[0]} 로 쓰세요. (코드 내용이 그 언어인지는 이 검사에서 보지 않습니다)")
+    if any(not l for l in (r.get("measured") or {}).get("language_labels") or []):
+        return _e("코드블록으로 구분됨", "코드블록 첫 줄에 언어 표시는 없지만 코드가 코드블록으로 구분돼 있어 통과입니다(언어 표시는 없어도 됨).")
     return _e("언어 표시 맞음", "코드블록의 언어 표시가 요구와 같습니다.")
 
 

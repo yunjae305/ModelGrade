@@ -241,6 +241,11 @@ def test_dependent_rows_are_not_created_after_leading_fail():
     only_label = engine.evaluate_case({"question": "언어 표지는 python 으로 해줘.", "answer": "없음"})
     assert _ids(only_label, "1-2") == [("1-2.code_language_label", "FAIL")]
     assert "코드블록이 없음" in next(r for r in only_label["results"] if r["check_id"] == "1-2.code_language_label")["reason"]
+    # 언어 표지가 없어도 코드블록으로 구분돼 있으면 통과, 다른 언어를 적으면 FAIL (사용자 결정 10-21)
+    bare = engine.evaluate_case({"question": "결과는 json 코드블록 정확히 1개로 보여 주세요.", "answer": "```\n[1, 2]\n```"})
+    assert ("1-2.code_language_label", "PASS") in _ids(bare, "1-2")
+    wrong = engine.evaluate_case({"question": "결과는 json 코드블록 정확히 1개로 보여 주세요.", "answer": "```python\n[1, 2]\n```"})
+    assert ("1-2.code_language_label", "FAIL") in _ids(wrong, "1-2")
     table = engine.evaluate_case({"question": "표로 정리해줘. 열은 '이름', '나이'야.", "answer": "없음"})
     assert _ids(table, "2-2") == [("2-2.table:required", "FAIL")]
     assert _skipped(table, "2-2.table:table_columns")

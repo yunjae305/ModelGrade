@@ -339,6 +339,32 @@ def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: 
             f"<span class='{_e(it['decision'])}'>{_e(KO.get(it['decision'], it['decision']))}</span>{kind}{hum}<div class='why'>{_e(why)}</div>{q}{qq}{how}{btn}</div>")
 
 
+def codex_reasoning(out_dir: Path) -> str:
+    """이 결과의 Codex 추론 수준 — summary.json 의 codex.reasoning, 없으면 폴더 이름(…-medium 이면 medium), 그 밖은 low (10-21 전 결과)."""
+    try:
+        s = json.loads((Path(out_dir) / "summary.json").read_text(encoding="utf-8"))
+        r = (s.get("codex") or {}).get("reasoning")
+        if r:
+            return str(r)
+    except (OSError, ValueError):
+        pass
+    name = Path(out_dir).name
+    for level in ("xhigh", "high", "medium"):
+        if level in name:
+            return level
+    return "low"
+
+
+def sibling_results(out_dir: Path) -> List[Tuple[str, Path]]:
+    """같은 실행의 다른 판정 결과 폴더(추론 수준이 다른 것) — 전체 판정만(표본 폴더 제외)."""
+    out_dir = Path(out_dir)
+    sibs = []
+    for d in sorted(out_dir.parent.iterdir()):
+        if d.is_dir() and d != out_dir and d.name.startswith("v4") and "sample" not in d.name and (d / "results.jsonl").exists():
+            sibs.append((codex_reasoning(d), d))
+    return sibs
+
+
 def _link(anchor: str, inner: str) -> str:
     return f"<a href='{anchor}' style='text-decoration:none'>{inner}</a>"
 
@@ -386,7 +412,8 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     complete = all(judged_n[p] == len(all_q) for p in providers)
     cta = os.environ.get("AIONA_SIGNUP_URL") or "https://aiona.kr"
     gen = datetime.now().strftime("%Y-%m-%d %H:%M")
-    judge_txt = "Decisions API(OpenAI gpt-6-luna) 전수 판정 + Codex CLI(gpt-6-luna, low, 웹 검색) 재확인 — 심판은 모델 이름을 모릅니다(블라인드)"
+    level = codex_reasoning(out_dir)
+    judge_txt = f"Decisions API(OpenAI gpt-6-luna) 전수 판정 + Codex CLI(gpt-6-luna, 추론 {level}, 웹 검색) 재확인 — 심판은 모델 이름을 모릅니다(블라인드)"
 
     P: List[str] = [f"<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                     f"<title>AIONA 채팅 품질 평가 결과</title><style>{CSS}</style></head><body data-run='{_e(run_id)}' data-policy='{POLICY}'><div class='wrap'>"]
@@ -587,12 +614,40 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
         P.append(f"<tr><td>Q{q}</td><td class='small'>{_e(qtypes.get(q, ''))}</td><td class='qtxt small'>{_e(qt[:80])}</td>{''.join(cells)}</tr>")
     P.append("</table>")
 
+    # 7-1. 추론 수준 비교 — 같은 답을 Codex 추론 수준만 바꿔 판정한 결과가 옆 폴더에 있으면
+    sibs = sibling_results(out_dir)
+    if sibs:
+        P.append(f"<h2>추론 수준 비교 — 같은 답, 심판(Codex) 추론 수준만 다르게</h2><p class='note'>이 보고서는 추론 <b>{_e(level)}</b> 결과입니다. "
+                 "아래는 같은 수집 답을 다른 추론 수준으로 판정한 결과와 나란히 둔 것입니다(완전 통과 / FAIL / 보류, 질문 수 / 78).</p>")
+        head = "<tr><th>모델</th><th>" + _e(level) + "</th>" + "".join(f"<th>{_e(lv)}</th>" for lv, _ in sibs) + "<th class='num'>판정이 다른 질문</th></tr>"
+        P.append("<table>" + head)
+        others = []
+        for lv, d in sibs:
+            o = {}
+            for r in load_results(d):
+                v, _, _ = effective(r, normalize_items(r), load_human(d))
+                o[(r["provider"], int(r["question"]))] = v
+            others.append(o)
+        for p in providers:
+            mine = tally(p)
+            cells = [f"<td>{mine['PASS']} / {mine['FAIL']} / {mine['HOLD']}" + (f" (미평가 {mine['미평가']})" if mine["미평가"] else "") + "</td>"]
+            diff = 0
+            for o in others:
+                c = Counter(o.get((p, q), "미평가") for q in all_q)
+                cells.append(f"<td>{c['PASS']} / {c['FAIL']} / {c['HOLD']}" + (f" (미평가 {c['미평가']})" if c["미평가"] else "") + "</td>")
+                diff = max(diff, sum(1 for q in all_q if (p, q) in lines and (p, q) in o and lines[(p, q)]["verdict"] != o[(p, q)]))
+            P.append(f"<tr><td>{_e(model_label[p])}</td>{''.join(cells)}<td class='num'>{diff}</td></tr>")
+        P.append("</table>")
+
     # 8. 방법
     P.append("<h2>8. 어떻게 평가했나</h2><ul>"
              "<li><b>질문 78개</b>: 단일 질문 35 · 10턴 대화 11 · 첨부 자료 12 · 롱컨텍스트(27만 토큰 이상) 10 · 빈 출력 요구 10. 네 모델에 같은 질문을 같은 순서로 던지고 답을 복사해 저장했습니다.</li>"
              "<li><b>기준 72개</b>: 형식·개수·글자 수 같은 CODE 기준 28개는 프로그램이 검사하고, 요청 충실·지시 준수·논리·완결성·사실·멀티턴·롱컨텍스트·첨부 활용의 의미 기준 44개는 AI 심판이 턴마다 검사합니다.</li>"
              "<li><b>심판 둘</b>: Decisions API 가 항목 전부를 판정하고, FAIL 이거나 확신이 낮은 항목만 Codex 가 원문 인용과 함께 다시 봅니다. 다시 본 항목은 Codex 판정을 우선하되 두 심판이 확신을 갖고 갈리면 보류로 둡니다. 심판은 어느 모델의 답인지 모릅니다.</li>"
              "<li><b>완전 통과</b>: CODE·의미 기준 중 하나라도 FAIL 이면 그 질문은 FAIL. FAIL 은 없고 보류만 있으면 보류(사람이 정함). 빈 출력 요구 질문은 빈 답·오류 모두 보류.</li>"
+             "<li><b>답 수집</b>: 답은 각 앱·웹의 답변 아래 '복사' 버튼이 주는 글 그대로입니다(사용자가 복사해 붙여넣을 때 얻는 글). "
+             "ChatGPT 앱의 복사는 코드블록 첫 줄의 언어 표기(```json → ```)를 지우므로, 질문이 'json·python 코드블록'을 지정한 문항에서 GPT 는 "
+             "CODE 기준 '코드블록 언어 표시'(1-2)가 FAIL 로 나옵니다(앱 화면·앱 내부 원문에는 표기가 있음, 2026-10-21 확인).</li>"
              "<li><b>첨부 파일</b>: 두 심판 모두 원본을 이미지로 봅니다 — 사진은 그대로, pdf·docx 는 쪽마다 한 장(평가할 때만 그리고 남기지 않음), txt 는 글 그대로.</li>"
              "<li><b>심판의 흔들림</b>: 같은 답을 다시 판정하면 결과가 조금 달라질 수 있습니다. 표본 40건(질문 10개 × 4모델)을 추론 수준만 바꿔 다시 판정했을 때 "
              "질문 판정은 34건이 같고 6건이 바뀌었습니다(방향은 섞임). 모델 사이 차이가 몇 문항 이내면 이 흔들림 범위 안일 수 있습니다.</li>"

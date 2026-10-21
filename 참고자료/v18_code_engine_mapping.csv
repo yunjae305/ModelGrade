@@ -3,7 +3,7 @@ category,subcategory,check_id,detail,implementation_status,code_location,input,o
 출력 무결성,1-1,1-1.character_rules,깨진 문자·제어 문자 (질문 주제·주변 설명·예시면 제외),구현됨,code_eval/checks_integrity.py:check_1_1,question+answer,PASS/FAIL,일치,실제 출력 결과로 제시하거나 설명 없이 섞인 깨짐만 FAIL,포함,
 출력 무결성,1-1,1-1.foreign_script,외국 문자 (설명 없는 출현),구현됨,code_eval/checks_integrity.py:_foreign_script_check,question+answer,PASS/FAIL,일치,허용 문자 조건이 있으면 2-1에 맡김; 영문·그리스 문자 제외,포함,
 출력 무결성,1-2,1-2.code_block,코드블록 존재·개수·금지,구현됨,code_eval/checks_integrity.py:_code_checks,question+answer,PASS/FAIL 또는 UNSUPPORTED,일치,질문에서 지원 표현으로 조건을 추출한 경우만 판정,포함,
-출력 무결성,1-2,1-2.code_language_label,코드블록 언어 표지,부분 구현,code_eval/checks_integrity.py:_code_checks,question+answer,PASS/FAIL 또는 DEPENDENCY_FAILED,일치,info string 표지 비교이며 코드 언어 자체의 인증은 아님,포함,
+출력 무결성,1-2,1-2.code_language_label,코드블록 언어 표지,부분 구현,code_eval/checks_integrity.py:_code_checks,question+answer,PASS/FAIL 또는 DEPENDENCY_FAILED,일치,info string 표지 비교이며 코드 언어 자체의 인증은 아님; 빈 표지는 코드블록 구분만으로 통과(2026-10-21),포함,
 출력 무결성,1-2,1-2.code_fence_min,코드 구획 표시 수,구현됨,code_eval/checks_integrity.py:_code_checks,명시 코드블록 요구+answer,PASS/FAIL,일치,코드블록 요청 시에만 MD 165행 규칙 적용,포함,
 출력 무결성,1-2,1-2.fence_imbalance,코드·수식 구획 불균형,구현됨,code_eval/checks_integrity.py:_code_checks,answer,PASS/FAIL,일치,코드 표시와 수식 표시 홀짝을 각각 검사,포함,
 출력 무결성,1-2,1-2.json_syntax,JSON 구문,부분 구현,code_eval/checks_integrity.py:_json_syntax,question+answer,PASS/FAIL 또는 UNSUPPORTED/LIMIT_EXCEEDED,일치,대상 JSON 식별 가능 시 엄격 파싱; 다른 형식 구문까지 확대하지 않음,포함,

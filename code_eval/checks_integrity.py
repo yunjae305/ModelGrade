@@ -464,13 +464,17 @@ def _code_checks(ctx: Ctx) -> List:
                               reason="언어 표지를 요구했으나 코드블록이 없음",
                               evidence=[q_evidence(ctx, label_req)]))
         else:
-            bad = [i + 1 for i, b in enumerate(blocks) if b["language_label"] not in aliases]
+            # 언어 표지가 비어 있어도 코드가 코드블록으로 구분돼 있으면 통과 — 다른 언어를 적은 블록만 FAIL (사용자 결정 2026-10-21:
+            # "언어표시는 안되어도 된다, 코드블록이 줄글과 구분되어 수집되면 OK". ChatGPT 앱 복사가 ```json 의 json 을 지우는 일도 이 경우)
+            bad = [i + 1 for i, b in enumerate(blocks) if b["language_label"] and b["language_label"] not in aliases]
+            unlabeled = [i + 1 for i, b in enumerate(blocks) if not b["language_label"]]
             out.append(result("1-2.code_language_label", SUB12, "코드블록 언어 표지", "question", Status.EXECUTED,
-                              verdict_of(not bad), required={"language_label": sorted(aliases)},
+                              verdict_of(not bad), required={"language_label": sorted(aliases), "empty_label_ok": True},
                               measured={"language_labels": labels},
-                              comparison=f"모든 코드블록 info ∈ {sorted(aliases)}",
-                              reason=("모든 코드블록의 언어 표지가 요구와 일치 (표지 확인이며 실제 언어 인증 아님)"
-                                      if not bad else f"코드블록 {bad}의 언어 표지가 요구({lang})와 다름"),
+                              comparison=f"코드블록 info ∈ {sorted(aliases)} 또는 빈 표지",
+                              reason=(f"코드블록 {bad}의 언어 표지가 요구({lang})와 다름" if bad else
+                                      (f"코드블록 {unlabeled}은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과" if unlabeled else
+                                       "모든 코드블록의 언어 표지가 요구와 일치 (표지 확인이며 실제 언어 인증 아님)")),
                               evidence=[q_evidence(ctx, label_req)] + block_ev))
 
     # MD 165행: 코드 구획 표시가 2개 미만 — 코드블록을 요구한 질문에만 적용 (블록 수가 아닌 표시 수)

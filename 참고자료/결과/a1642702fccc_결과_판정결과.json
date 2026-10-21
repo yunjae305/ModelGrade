@@ -1,6 +1,6 @@
 {
  "format": "modelgrade-results-v1",
- "exported_at": "2026-10-21T00:57:55.484600+00:00",
+ "exported_at": "2026-10-21T01:26:53.822703+00:00",
  "run_id": "a1642702fccc",
  "label": "결과_판정결과",
  "name": "평가 (질문 78개 — 세트의 모든 질문, 던지는 순서 = 세트 순서)",
@@ -41575,9 +41575,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -41696,9 +41696,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -41823,9 +41823,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -41944,9 +41944,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -42065,9 +42065,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -42186,9 +42186,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(json)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -42834,9 +42834,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -43034,9 +43034,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -43137,9 +43137,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -43470,9 +43470,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -44191,9 +44191,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -44385,9 +44385,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -45846,9 +45846,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -46179,9 +46179,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -46391,9 +46391,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -46500,9 +46500,9 @@
       },
       {
        "check_id": "1-2.code_language_label",
-       "verdict": "FAIL",
+       "verdict": "PASS",
        "status": "EXECUTED",
-       "reason": "코드블록 [1]의 언어 표지가 요구(python)와 다름"
+       "reason": "코드블록 [1]은 언어 표지가 없지만 코드블록으로 구분돼 있어 통과"
       },
       {
        "check_id": "1-2.code_fence_min",
@@ -192568,11 +192568,8 @@
     "question": 11,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -192853,11 +192850,8 @@
     "question": 12,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -193138,11 +193132,8 @@
     "question": 13,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -193420,11 +193411,8 @@
     "question": 14,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -193705,11 +193693,8 @@
     "question": 15,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -193968,11 +193953,8 @@
     "question": 16,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -199615,11 +199597,8 @@
     "question": 22,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -208470,7 +208449,6 @@
     "verdict": "FAIL",
     "semantic": "PASS",
     "code_fails": [
-     "1-2.code_language_label",
      "1-2.python_syntax:block1"
     ],
     "seconds": 0.0,
@@ -209368,7 +209346,6 @@
     "verdict": "FAIL",
     "semantic": "PASS",
     "code_fails": [
-     "1-2.code_language_label",
      "1-2.python_syntax:block1"
     ],
     "seconds": 0.0,
@@ -212293,11 +212270,8 @@
     "question": 28,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -225643,11 +225617,8 @@
     "question": 35,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -228618,11 +228589,8 @@
     "question": 37,
     "turns": 1,
     "status": "judged",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "semantic": "PASS",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -246429,9 +246397,6 @@
     "status": "judged",
     "verdict": "FAIL",
     "semantic": "FAIL",
-    "code_fails": [
-     "1-2.code_language_label"
-    ],
     "seconds": 0.0,
     "screen": {
      "items": 31,
@@ -250017,7 +249982,6 @@
     "verdict": "FAIL",
     "semantic": "PASS",
     "code_fails": [
-     "1-2.code_language_label",
      "1-2.python_syntax:block1"
     ],
     "seconds": 0.0,
@@ -251594,7 +251558,6 @@
     "verdict": "FAIL",
     "semantic": "PASS",
     "code_fails": [
-     "1-2.code_language_label",
      "1-2.python_syntax:block1"
     ],
     "seconds": 0.0,
@@ -252215,7 +252178,6 @@
     "verdict": "FAIL",
     "semantic": "PASS",
     "code_fails": [
-     "1-2.code_language_label",
      "1-2.python_syntax:block1"
     ],
     "seconds": 0.0,

@@ -27,7 +27,7 @@ CHECK_VERSIONS: Dict[str, str] = {
     "1-1.character_rules": "v16-1.2 (깨짐 서명 + C0 제어 문자, 질문 주제·주변 설명·예시 맥락 구분)",
     "1-1.foreign_script": "v16-1.1 (질문 주제·주변 설명·괄호 병기가 없는 외국 문자, 허용 문자 조건 시 행 없음)",
     "1-2.code_block": "v16-1.2 (질문 요구, CommonMark 펜스 파서, 목록 항목 안 펜스, 근사 개수·지원 밖 요구는 행 없음)",
-    "1-2.code_language_label": "v16-1.1 (info string 첫 낱말, 코드블록 요구 FAIL 뒤 행 없음, 요구 없이 블록 0개면 FAIL)",
+    "1-2.code_language_label": "v16-1.2 (info string 첫 낱말, 빈 표지는 통과·다른 언어만 FAIL(10-21), 코드블록 요구 FAIL 뒤 행 없음, 요구 없이 블록 0개면 FAIL)",
     "1-2.code_fence_min": "v16-1.1 (MD 165행, 코드블록 존재·개수 FAIL 뒤 행 없음)",
     "1-2.fence_imbalance": "v16-1.0 (MD 170행, 코드 홀수 OR 수식 홀수)",
     "1-2.json_syntax": "v16-1.1 (RFC 8259 엄격 파싱, NaN/Infinity 거부, 오류 예시·jsonc·부분 JSON 은 행 없음, 한도 초과는 실행 오류)",

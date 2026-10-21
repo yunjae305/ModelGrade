@@ -74,17 +74,20 @@ def main(argv=None) -> int:
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--only", default="", help="쉼표로 나눈 case_id 만")
     ap.add_argument("--show", action="store_true", help="브라우저 창을 보이게")
+    ap.add_argument("--html", action="store_true", help="복사 버튼 대신 화면 HTML 로 받은 행(capture=html)을 복사 원문으로 바꾼다 — 더 길 필요 없이 기존 내용을 담고 있으면 교체 (2026-10-21)")
+    ap.add_argument("--recode", action="store_true", help="평가가 있는 실행에도 --apply 를 허용하고, 바꾼 뒤 AIONA CODE 평가를 다시 한다(의미 판정은 judge_v4 --recode 로)")
     args = ap.parse_args(argv)
     path = RUNS / f"{args.run_id}.json"
     run = json.loads(path.read_text(encoding="utf-8"))
-    if args.apply and (run.get("evaluations") or run.get("status") in ("EVALUATING", "COMPLETED")):
+    if args.apply and not args.recode and (run.get("evaluations") or run.get("status") in ("EVALUATING", "COMPLETED")):
         # 답을 바꾸면 그 답의 이전 판정이 남는다 — 평가 전 실행에만 쓴다(평가 뒤라면 바꾼 행만 tools/reeval_failed.py 로 다시 평가) (Codex 검토)
         raise SystemExit("이 실행은 이미 평가가 있습니다 — 답을 바꾸면 이전 판정과 어긋나 --apply 를 하지 않습니다. 평가 전 실행에 쓰세요.")
     rows = run["datasets"].get("aiona") or []
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     targets = [(i, r) for i, r in enumerate(rows)
-               if r and r.get("collection", {}).get("status") == "SUCCESS" and r["collection"].get("capture") in ("copy-button", "copy-button-recopied")
-               and r["collection"].get("url") and (not only or r["case_id"] in only)]
+               if r and r.get("collection", {}).get("status") == "SUCCESS"
+               and r["collection"].get("capture") in (("html", "html-partial-copy") if args.html else ("copy-button", "copy-button-recopied"))
+               and (r.get("answer") or "").strip() and r["collection"].get("url") and (not only or r["case_id"] in only)]
     by_url = defaultdict(list)
     for i, r in targets:
         by_url[r["collection"]["url"]].append((i, r))
@@ -109,9 +112,10 @@ def main(argv=None) -> int:
                     failed.append((r["case_id"], "복사 실패")); continue
                 if _compact(new) == _compact(old):
                     same.append(r["case_id"]); continue
-                if len(_compact(new)) > len(_compact(old)) and _contains(new, old):
+                if (args.html or len(_compact(new)) > len(_compact(old))) and _contains(new, old):
                     changed.append((r["case_id"], len(old), len(new)))
                     if args.apply:
+                        r.setdefault("answer_html", old) if args.html else None
                         r["answer"] = new
                         r["collection"]["capture"] = "copy-button-recopied"
                         r["collection"]["recopied_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -132,8 +136,13 @@ def main(argv=None) -> int:
         backup = backup_dir / f"{args.run_id}.before-recopy.json"
         if not backup.exists():
             backup.write_bytes(path.read_bytes())
-        path.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
-        print("저장:", path, "| 원본:", backup.name)
+        if args.recode:   # 실행 파일 잠금 아래 AIONA 자리만 바꾸고 CODE 평가를 다시 (다른 모델 자리는 그대로)
+            from tools.modelgrade import code_evaluate, merge_provider_into_run
+            merge_provider_into_run(args.run_id, "aiona", (run.get("models") or {}).get("aiona") or "aiona", rows, code_evaluate(rows, "aiona"), None, backup=True)
+            print("저장(AIONA 자리만, CODE 평가 다시):", path, "| 원본:", backup.name)
+        else:
+            path.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
+            print("저장:", path, "| 원본:", backup.name)
     return 0
 
 
