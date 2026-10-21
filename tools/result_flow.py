@@ -290,12 +290,14 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 22
     cy2 = y + 32
     P += diamond(DX, cy2, 210, 64, ["빈 답을 요구하는", "질문인가?"])
-    parts, _ = side(cy2 - 33, ["심판 없이 정함", "빈 답·글·오류", "모두 → 보류"])
+    # empty-output-v6 (10-21 저녁 · tools/judge_inputs.empty_output_entry): 글을 내면 FAIL · 빈 답 통과 · 복사 버튼 안 뜸은 보류 → 다시 수집
+    parts, s2_h = side(cy2 - 33, ["심판 없이 정함", "글을 냄 → FAIL", "빈 답 → 통과", "복사 버튼 안 뜸", "→ 보류 · 다시 수집"])
     P += parts
     P += [path(f"M{DX + 105},{cy2:g} L{SX - 2},{cy2:g}"), lab(DX + 112, cy2 - 7, "예")]
     y = cy2 + 32
-    P += [arrow(DX, y, DX, y + 24), lab(DX + 7, y + 16, "아니오")]
-    y += 26
+    e_top = max(y + 26, cy2 - 33 + s2_h + 10)   # 결과 칸이 길면 E 단계를 그만큼 아래로
+    P += [arrow(DX, y, DX, e_top - 2), lab(DX + 7, y + 16, "아니오")]
+    y = e_top
 
     # E — LLM Judge 심판 셋 (사용자 10-21 저녁): 짧은 입력(32K 토큰 이하)은 Jev · 긴 입력은 Decisions API · Decisions FAIL 만 Codex
     E_y = y
@@ -382,7 +384,7 @@ def flow_svg(n: int, set_ver: str) -> str:
 
 
 # ---------- 옆 표 (단계별 요약 표는 뺌 — 흐름도 · 누가 하나와 겹치고 파일 경로는 개발용, 사용자 10-21 저녁) ----------
-FAIL, HOLD = '<span class="r-fail">FAIL</span>', '<span class="r-hold">보류</span>'
+PASS, FAIL, HOLD = '<span class="r-pass">통과</span>', '<span class="r-fail">FAIL</span>', '<span class="r-hold">보류</span>'
 
 
 def mini(title, head, rows, cls=""):
@@ -413,7 +415,9 @@ def side_cards() -> str:
             + mini("판정 규칙", ["상황", "결과"], [
                 ["답을 못 받음", FAIL],
                 ["재시도 대상 · 빈 답", HOLD],
-                ["빈 출력 요구 질문", f"모두 {HOLD}"],
+                ["빈 출력 요구 — 글을 냄", FAIL],
+                ["빈 출력 요구 — 빈 답", PASS],
+                ["빈 출력 요구 — 복사 버튼 안 뜸", f"{HOLD} · 다시 수집"],
                 ["Codex FAIL", FAIL],
                 ["Decisions FAIL + Codex 통과", "Codex 대로"],
                 ["확인 못 함 · 인용 불일치", HOLD],
