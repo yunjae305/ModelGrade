@@ -1052,17 +1052,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     lines = list(latest.values())
     with (out / "timing.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps({"kind": "judge-v4", "at": datetime.now(timezone.utc).isoformat(), "seconds": wall,
-                            "judgments": sum(totals.values()) - sum(1 for k in done if k[1] in set(sum(queues.values(), [])))},
+                            "judgments": sum(totals.values()) - sum(1 for k in done if k[1] in set(sum(queues.values(), []))),
+                            **({"redo": True} if args.redo else {})},   # 다시 판정 — 보고서 판정 시간·실행 기록에서 뺀다 (사용자 10-21)
                            ensure_ascii=False) + "\n")
+    judge_s = sum(r.get("seconds") or 0 for r in (json.loads(x) for x in (out / "timing.jsonl").read_text(encoding="utf-8").splitlines() if x.strip())
+                  if str(r.get("kind") or "").startswith("judge") and not r.get("redo"))
     summary = {"version": VERSION, "run_id": args.run, "prompt": PROMPT_V4.name, "jev_questions": fixed.get("version"),
                "codex": {"model": getattr(gpt, "model", None), "reasoning": getattr(gpt, "reasoning", None)} if gpt is not None else None,
-               "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": wall, "models": {}}
+               "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": round(judge_s, 1), "models": {}}   # 폴더 전체 판정 시간(다시 판정 뺌)
     say("\n결과 — 질문 단위 (보류는 사람이 정함)")
     for p in queues:
         mine = [l for l in lines if l["provider"] == p and int(l["question"]) in set(queues[p])]
         c = {v: sum(1 for l in mine if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}
-        summary["models"][p] = {**c, "n": len(queues[p])}
         say(f"  {LABEL.get(p, p):<7}: PASS {c['PASS']} · FAIL {c['FAIL']} · 보류 {c['HOLD']}  / {len(queues[p])}")
+    for p in sorted({l["provider"] for l in lines}):   # summary 는 이 폴더 전체 — 몇 질문만 다시 판정해도 전체 숫자가 남는다 (10-21)
+        allp = [l for l in lines if l["provider"] == p]
+        summary["models"][p] = {**{v: sum(1 for l in allp if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}, "n": len(allp)}
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     (out / "report.md").write_text(report_md([l for l in lines if l.get("status") == "judged"]), encoding="utf-8")
     say(f"\n평가 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")

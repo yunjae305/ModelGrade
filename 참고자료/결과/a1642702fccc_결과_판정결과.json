@@ -1,6 +1,6 @@
 {
  "format": "modelgrade-results-v1",
- "exported_at": "2026-10-21T04:11:17.138354+00:00",
+ "exported_at": "2026-10-21T04:46:12.309330+00:00",
  "run_id": "a1642702fccc",
  "label": "결과_판정결과",
  "name": "평가 (질문 78개 — 세트의 모든 질문, 던지는 순서 = 세트 순서)",
@@ -291059,13 +291059,31 @@
     "reasoning": "low"
    },
    "finished_at": "2026-10-21T04:09:34.188312+00:00",
-   "wall_seconds": 333.6,
+   "wall_seconds": 4757.0,
    "models": {
     "aiona": {
-     "PASS": 0,
-     "FAIL": 2,
-     "HOLD": 0,
-     "n": 2
+     "PASS": 47,
+     "FAIL": 20,
+     "HOLD": 11,
+     "n": 78
+    },
+    "claude": {
+     "PASS": 37,
+     "FAIL": 29,
+     "HOLD": 12,
+     "n": 78
+    },
+    "gemini": {
+     "PASS": 23,
+     "FAIL": 44,
+     "HOLD": 11,
+     "n": 78
+    },
+    "gpt": {
+     "PASS": 36,
+     "FAIL": 32,
+     "HOLD": 10,
+     "n": 78
     }
    }
   },
@@ -291080,7 +291098,10 @@
     "kind": "judge-v4",
     "at": "2026-10-21T04:09:34.188079+00:00",
     "seconds": 333.6,
-    "judgments": 2
+    "judgments": 2,
+    "redo": true,
+    "label": "AIONA Q5·Q69 다시 판정",
+    "why": "수집 확인에서 두 턴(Q5_T6·Q69_T9) 답을 답 아래 복사 아이콘 글로 바꿔 다시 판정 — 결과 보고에서는 처음부터 제대로 받은 것으로 보고 이 실행은 뺌 (사용자 10-21)"
    }
   ]
  }

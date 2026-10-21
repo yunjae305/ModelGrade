@@ -293,12 +293,20 @@ def collection_time_rows(run: Dict[str, Any], providers: Optional[List[str]] = N
     return out
 
 
+def judge_runs(out_dir: Path) -> List[Dict[str, Any]]:
+    """timing.jsonl 의 판정 실행 기록 — 실행 순서대로 (다시 판정 표시 redo 포함)."""
+    f = Path(out_dir) / "timing.jsonl"
+    if not f.exists():
+        return []
+    recs = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return [r for r in recs if str(r.get("kind") or "").startswith("judge")]
+
+
 def judge_time_info(out_dir: Path) -> Dict[str, Any]:
     f = out_dir / "timing.jsonl"
     if not f.exists():
         return {}
-    recs = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]
-    judge = [r for r in recs if str(r.get("kind") or "").startswith("judge")]
+    judge = [r for r in judge_runs(out_dir) if not r.get("redo")]   # 다시 판정(--redo)은 뺀다 — 처음부터 제대로 받았다면 없었을 실행 (사용자 10-21)
     total = sum(r.get("seconds") or 0 for r in judge)
     n = sum(r.get("judgments") or 0 for r in judge)
     return {"seconds": total, "judgments": n, "per_judgment": total / n if n else 0, "batches": len(judge)}
@@ -344,7 +352,17 @@ def judge_process_info(out_dir: Path) -> Dict[str, Any]:
     out: Dict[str, Any] = {"codex_calls": 0, "reasks": 0, "waits": 0, "wait_seconds": 0, "judge_errors": 0, "wall_seconds": None}
     log = Path(out_dir) / "run.log"
     if log.exists():
+        # 실행마다 '평가 끝' 줄로 끝난다 — 다시 판정(redo) 실행의 줄은 세지 않는다 (사용자 10-21). 실행 수가 기록과 안 맞으면 모두 센다.
+        runs = judge_runs(Path(out_dir))
+        segs: List[List[str]] = [[]]
         for l in log.read_text(encoding="utf-8", errors="ignore").splitlines():
+            segs[-1].append(l)
+            if l.startswith("평가 끝"):
+                segs.append([])
+        done = [s for s in segs if s and s[-1].startswith("평가 끝")]
+        skip = {i for i, r in enumerate(runs) if r.get("redo")} if len(done) == len(runs) else set()
+        keep = [l for i, s in enumerate(segs) if i not in skip for l in s]
+        for l in keep:
             if "Codex 완료 — 입력" in l:
                 out["codex_calls"] += 1
             elif "Codex 다시 묻기" in l:
@@ -654,7 +672,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             P.append(f"<p class='note'>{_e(cc['not_checked'])}</p>")
     jp = judge_process_info(out_dir)
     P.append("<h3>판정 실행</h3><table><tr><th>항목</th><th class='num'>값</th><th>설명</th></tr>"
-             f"<tr><td>판정 벽시계</td><td class='num'>{_hms(jp['wall_seconds']) if jp['wall_seconds'] else '미측정'}</td><td class='small'>질문 78 × 모델 4 = 312건, 네 모델을 동시에 판정 · 판정 실행 {jp.get('runs') or '-'}번을 더한 시간</td></tr>"
+             f"<tr><td>판정 벽시계</td><td class='num'>{_hms(jp['wall_seconds']) if jp['wall_seconds'] else '미측정'}</td><td class='small'>질문 78 × 모델 4 = 312건, 네 모델을 동시에 판정{' · 판정 실행 ' + str(jp['runs']) + '번을 더한 시간' if (jp.get('runs') or 0) > 1 else ''}</td></tr>"
              f"<tr><td>Codex 호출</td><td class='num'>{jp['codex_calls']:,}</td><td class='small'>Decisions 가 FAIL·애매로 걸러 낸 항목만 Codex 에 보낸 횟수(다시 묻기 포함)</td></tr>"
              f"<tr><td>다시 묻기</td><td class='num'>{jp['reasks']:,}</td><td class='small'>Codex 가 일부 항목에 답을 안 냈거나, 근거로 든 인용이 원문에 없거나, 사실 확인을 못 했을 때 그 항목만 다시 물음</td></tr>"
              f"<tr><td>429 대기</td><td class='num'>{jp['waits']:,}번 · {_hms(jp['wait_seconds'])}</td><td class='small'>(기다린 시간은 네 모델이 동시에 기다린 것을 모두 더한 값 — 벽시계보다 길 수 있음) 429 = Codex 서버가 '짧은 시간(약 1분)에 요청이 너무 많다'며 잠시 거절한 것. "

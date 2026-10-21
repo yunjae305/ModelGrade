@@ -157,6 +157,11 @@ def hold_label(why: List[Dict[str, Any]]) -> str:
     return "사실 확인 못 함" if why and all(w["item"].startswith("J5-1") for w in why) else "확인 못 함"
 
 
+def judge_timing(D: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """판정 실행 — 다시 판정(redo)은 뺀다 (사용자 10-21: 처음부터 제대로 복사된 것으로 보고)."""
+    return [t for t in D["d"]["judgment"].get("timing") or [] if not t.get("redo")]
+
+
 def crit_qs(D: Dict[str, Any], p: str, c: str) -> List[int]:
     """그 모델이 그 기준을 어긴 질문 번호 (crit_fail 과 같은 셈)."""
     return sorted(q for (pp, q), L in D["lines"].items() if pp == p
@@ -430,6 +435,67 @@ def scene_hold(D: Dict[str, Any]) -> str:
     return top + legend + grid + why_tab + decide
 
 
+# 걸린 시간 표의 유형 — 사용자 10-21: 싱글턴 (S) · 멀티턴 (M) · 롱컨텍스트 (L), 이 순서로
+TIME_COLS = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨부자료 확인·요약"]
+TYPE_SHORT = {"단일 질문": "싱글턴 (S)", "10턴 멀티턴 대화": "멀티턴 (M)", "롱컨텍스트": "롱컨텍스트 (L)", "첨부자료 확인·요약": "첨부 자료",
+              "명시적 빈 출력": "빈 출력 요구"}
+
+
+def collect_tokens(D: Dict[str, Any]) -> Optional[Dict[Tuple[str, str], Tuple[float, float]]]:
+    """답변 수집 토큰 — (모델, 유형) → 질문(대화) 하나당 평균 (입력, 출력). 앱·웹으로 받아 실제 사용량 기록이 없어
+    질문·답 글을 o200k_base 로 센 추정. 입력 = 턴마다 그때까지의 대화(앞 질문·답 · 참조 문서 · 첨부 글) + 이번 질문, 출력 = 답.
+    시스템 프롬프트 · 이미지 · 모델 내부 추론은 모름(뺌). tiktoken 이 없으면 None."""
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("o200k_base")
+    except Exception:   # 설치 안 됨 · 인코딩 파일을 못 받음 — 표를 그리지 않는다
+        return None
+    cache: Dict[str, int] = {}
+
+    def n(text: str) -> int:
+        if not text:
+            return 0
+        if text not in cache:
+            cache[text] = len(enc.encode(text, disallowed_special=()))
+        return cache[text]
+
+    acc: Dict[Tuple[str, str], List[float]] = defaultdict(lambda: [0.0, 0.0, 0])
+    for p in D["order"]:
+        for q, ty in D["qtypes"].items():
+            if ty == "명시적 빈 출력":
+                continue
+            hist = tin = tout = 0
+            for tn, turn in enumerate(D["qset"][q]["turns"], 1):
+                extra = n(turn.get("reference") or "") + sum(n(a.get("content") or "") for a in turn.get("attachments") or [] if isinstance(a, dict))
+                ctx = hist + extra + n(turn.get("question") or "")
+                ans = n((D["turns"].get((p, q, tn)) or {}).get("answer") or "")
+                tin += ctx
+                tout += ans
+                hist = ctx + ans   # 다음 턴은 앞 대화 전체를 다시 읽는다
+            a = acc[(p, ty)]
+            a[0] += tin
+            a[1] += tout
+            a[2] += 1
+    return {k: (v[0] / v[2], v[1] / v[2]) for k, v in acc.items()}
+
+
+def ktok(x: float) -> str:
+    return f"{x / 1e6:.2f}M" if x >= 1e6 else f"{x / 1e3:.0f}K" if x >= 1e4 else f"{x / 1e3:.1f}K" if x >= 1e3 else f"{x:.0f}"
+
+
+def collect_token_table(D: Dict[str, Any]) -> str:
+    """유형별 — 질문(대화) 하나당 평균 토큰 (답변 수집 · 추정) — 걸린 시간 표 바로 아래 (사용자 10-21)."""
+    tok = collect_tokens(D)
+    if not tok:
+        return ""
+    rows = [[mname(p), *[(f'입력 <b>{ktok(tok[(p, ty)][0])}</b> · 출력 <b>{ktok(tok[(p, ty)][1])}</b>' if (p, ty) in tok else "—") for ty in TIME_COLS]]
+            for p in D["order"]]
+    return (table("유형별 — 질문(대화) 하나당 평균 토큰 (답변 수집 · 추정)", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS]], rows, [12, 22, 22, 22, 22])
+            + '<p class="rs-basis">앱·웹 화면으로 받아 모델이 실제로 쓴 토큰은 기록되지 않습니다. 그래서 질문·답 글을 o200k_base 토크나이저(GPT 계열)로 센 추정입니다. '
+              '입력 = 턴마다 그때까지의 대화(앞 질문·답 · 참조 문서 · 첨부 글) + 이번 질문 — 멀티턴은 10턴을 더한 값. 출력 = 답. '
+              '시스템 프롬프트 · 이미지 · 모델 내부 추론은 빠져 있어 실제보다 적고, 모델마다 토크나이저가 달라 실제 수와 다릅니다. 빈 출력 요구 질문은 뺐습니다.</p>')
+
+
 def scene_time(D: Dict[str, Any]) -> str:
     order = D["order"]
     st = {}
@@ -451,12 +517,13 @@ def scene_time(D: Dict[str, Any]) -> str:
     bars = "".join(f'<div class="rs-tb"><span class="rs-bl">{mname(p)}</span><span class="rs-tbar"><i style="width:{st[p]["sum"] / mx * 100:.1f}%"></i></span>'
                    f'<span class="rs-tv"><b>{hm(st[p]["sum"])}</b><small>{f"벽시계 {wall[p]} · " if p in wall else ""}질문당 {st[p]["sum"] / st[p]["ok"]:.0f}초 · 턴당 {st[p]["chars"]:,.0f}자</small></span></div>'
                    for p in order if st[p]["ok"])
-    trows = [[mname(p), *[f"{statistics.mean(st[p]['by'][ty]):.0f}초" if st[p]["by"][ty] else "—" for ty in ROW_ORDER[:4]],
-              f"Q{st[p]['max'][0]} {TYPE_NAME.get(D['qtypes'][st[p]['max'][0]], '')} · {R._hms(st[p]['max'][1])}"] for p in order]
-    t2 = table("유형별 — 질문(대화) 하나당 평균 답변 시간", ["모델", *[TYPE_NAME[ty] for ty in ROW_ORDER[:4]], "가장 오래 걸린 질문"], trows, [12, 12, 13, 13, 17, 33])
-    tm = D["d"]["judgment"].get("timing") or []
+    trows = [[mname(p), *[f"{statistics.mean(st[p]['by'][ty]):.0f}초" if st[p]["by"][ty] else "—" for ty in TIME_COLS],
+              f"Q{st[p]['max'][0]} {TYPE_SHORT.get(D['qtypes'][st[p]['max'][0]], '')} · {R._hms(st[p]['max'][1])}"] for p in order]
+    t2 = table("유형별 — 질문(대화) 하나당 평균 답변 시간", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS], "가장 오래 걸린 질문"], trows, [12, 12, 13, 15, 13, 35])
+    t2 += collect_token_table(D)
+    tm = judge_timing(D)
     total = sum(t.get("seconds") or 0 for t in tm) or 1
-    label = [(t.get("label") or ("첫 판정" if i == 0 else f"다시 판정 {t.get('judgments', 0)}건")) for i, t in enumerate(tm)]   # 단계 이름은 기록에서 (10-21)
+    label = ["판정"] if len(tm) == 1 else [(t.get("label") or ("첫 판정" if i == 0 else f"다시 판정 {t.get('judgments', 0)}건")) for i, t in enumerate(tm)]
     segs = "".join(f'<i class="k{i + 1}" style="width:{(t.get("seconds") or 0) / total * 100:.2f}%" title="{E(label[i] if i < len(label) else "")} {hm(t.get("seconds") or 0)}">'
                    f'{hm(t.get("seconds") or 0) if (t.get("seconds") or 0) / total >= 0.15 else ""}</i>' for i, t in enumerate(tm[:4]))
     tleg = "".join(f'<span><i class="rs-sw k{i + 1}"></i>{E(label[i])} <b>{hm(t.get("seconds") or 0)}</b> <span class="muted">{t.get("judgments", 0)}건</span></span>' for i, t in enumerate(tm[:4]))
@@ -464,7 +531,8 @@ def scene_time(D: Dict[str, Any]) -> str:
     eq = " + ".join(f"{E(label[i] if i < len(label) else '판정')} {hm(t.get('seconds') or 0)}" for i, t in enumerate(tm[:4]))
     judge = (f'<div class="rs-judge"><div class="rs-jt"><b>{hm(total)}</b><span>판정 전체에 실제로 걸린 시간<br>판정 {sum(t.get("judgments", 0) for t in tm)}건 (질문 × 모델)</span></div>'
              f'<div class="rs-jb"><div class="rs-tl">{segs}</div><div class="rs-legend">{tleg}</div>'
-             f'<p class="rs-jeq">= {eq} — {len(tm)}단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>')
+             + (f'<p class="rs-jeq">네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>' if len(tm) == 1 else
+                f'<p class="rs-jeq">= {eq} — {len(tm)}단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>'))
     jt = ""
     if ex["judge"]:   # report.html 4장 판정 표 — 모델마다 시간 · 토큰 (Codex 토큰은 run.log 에서 모은 값)
         J = ex["judge"]
@@ -552,7 +620,7 @@ def tab_css(prefix: str, n: int, label_box: str, panel_box: str, panel_cls: str,
 def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     """개요 (사용자 10-21: 줄이기) — 큰 제목 한 줄 · '전체' 순위 카드 · 확인할 것. 분야 탭과 '모델마다 #1 인 분야'는 02 순위표와 겹쳐 뺐다."""
     order = D["order"]
-    judge_s = sum(t.get("seconds") or 0 for t in D["d"]["judgment"].get("timing") or [])
+    judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     # 제목 하나 · 질문 수 · 소요 시간만 (사용자 10-21: 불필요한 글 지우기). 수집은 네 모델을 동시에 돌려 가장 오래 걸린 모델의 벽시계
     def secs(txt: str) -> int:
         h, m, s_ = (re.search(r"(\d+)시간", txt), re.search(r"(\d+)분", txt), re.search(r"(\d+)초", txt))
@@ -1374,7 +1442,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     n_disagree, e_table = disagree_table(D)
     cats = board_categories(D)
     n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
-    judge_s = sum(t.get("seconds") or 0 for t in D["d"]["judgment"].get("timing") or [])
+    judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
     coll = {p: sum((t.get("latency_ms") or 0) for (pp, _q, _t), t in D["turns"].items() if pp == p) / 1000 for p in D["order"]}
     scenes = [   # 사용자 10-21: 평가 방법을 개요 바로 다음에 · 걸린 시간은 순위표 다음에 — 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다
         ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
