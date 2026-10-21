@@ -106,10 +106,10 @@ def test_split_run_sends_j1_to_j4_to_jev_and_the_rest_to_gpt(tmp_path):
     expected = "HOLD" if "J2-1.a" in q11["results"]["1"] else "PASS"   # 대역 Jev 는 T1:J2-1.a 만 FAIL → Codex PASS 와 갈려 보류
     assert q11["verdict"] == expected and len([i for i in codex.inputs if "답10" in i]) == 1
     empty_line = lines[("aiona", int(empty["case_id"].split("_T")[0][1:]))]
-    assert empty_line["verdict"] == "HOLD" and empty_line["status"] == "held_empty_output" and empty_line["collection_note"]   # 빈 출력 요구에 빈 답(복사 못 함) → 우선 보류, 수집 상태 명시 (사용자 규칙 10-20)
+    assert empty_line["verdict"] == "PASS" and empty_line["status"] == "empty_output_pass" and empty_line["collection_note"]   # 빈 출력 요구에 정상 수집된 빈 답 → 통과, 수집 상태 명시 (empty-output-v6, 10-21)
     assert lines[("gpt", 36)]["status"] == "no_answer" and lines[("gpt", 36)]["verdict"] == "FAIL"
     assert lines[("gpt", 11)]["status"] == "held_copy_failed" and lines[("gpt", 11)]["verdict"] == "HOLD" and "COPY_FAILED" in lines[("gpt", 11)]["collection_note"]   # 복사 실패 → 보류
-    assert summary["models"]["aiona"]["FAIL"] == 0 and summary["models"]["aiona"]["HOLD"] == 2 + (1 if expected == "HOLD" else 0)   # Q36 은 보류 우선으로 HOLD (10-21)
+    assert summary["models"]["aiona"]["FAIL"] == 0 and summary["models"]["aiona"]["HOLD"] == 1 + (1 if expected == "HOLD" else 0)   # Q36 은 보류 우선으로 HOLD · 빈 출력 요구 빈 답은 통과 (10-21)
     assert summary["wall_seconds"] >= 0 and (tmp_path / "timing.jsonl").exists()
     calls = len(codex.inputs)
     jr.run(json.loads(json.dumps({"run_id": "t", "providers": ["aiona"], "datasets": {"aiona": []}})), SET, tmp_path,

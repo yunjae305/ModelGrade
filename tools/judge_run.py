@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -70,10 +72,34 @@ class CodexJudge:
                  runner: Callable[..., Any] = subprocess.run) -> None:
         self.executable, self.model, self.reasoning, self.timeout, self.web_search = executable, model, reasoning, timeout, web_search
         self._run = runner
+        self.io_dir: Optional[Path] = None   # 판정 폴더 codex_io/ — 입력 · 결과 파일을 남긴다 (judge_v4 가 정함, 10-21)
+
+    #: 파일 방식에서 표준 입력으로 보내는 짧은 지시 (10-21 저녁 — 지시문 · 입력은 작업 폴더의 파일)
+    FILE_INSTRUCTION = ("이 작업 폴더의 `판정_지시문.txt` 가 판정 지시문이고 `판정_입력.json` 이 판정할 [입력] 입니다. "
+                        "두 파일을 처음부터 끝까지 모두 읽으세요 — 긴 파일은 나눠서 끝까지 읽고, 참조 자료에서 필요한 부분은 찾아 읽습니다. "
+                        "그다음 지시문대로 [입력]을 판정하고, 지시문의 출력 형식(JSON)으로만 답하세요. 파일을 고치거나 새 파일을 만들지 마세요.")
+
+    def _file_mode(self) -> bool:
+        # 기본은 표준 입력으로 통째로(문서 전체가 한 번에 판정 맥락에) — 파일 방식은 Codex 판정 실행에서 도구가 막혀 파일을 못 읽었다(10-21 시험).
+        # 입력 · 결과 파일은 어느 방식이든 codex_io/ 에 남긴다. CODEX_INPUT_MODE=file 이면 파일 방식.
+        return os.environ.get("CODEX_INPUT_MODE", "stdin").strip().lower() == "file" and self._run is subprocess.run
 
     def manifest(self) -> Dict[str, Any]:
         return {"engine": "codex_cli", "model": self.model, "reasoning": self.reasoning, "web_search": self.web_search,
                 "rate_limit_wait": "60·120·300s then 600s, unlimited"}
+
+    def _keep(self, tag: str, kind: str, text: str, prompt: Optional[str] = None) -> None:
+        """codex_io/ 에 입력 · 결과 파일을 남긴다 — 같은 질문 · 모델을 다시 물으면 덮어쓴다. 지시문은 모든 질문에 같아 한 번만."""
+        if not self.io_dir:
+            return
+        try:
+            self.io_dir.mkdir(parents=True, exist_ok=True)
+            safe = re.sub(r"[^0-9A-Za-z가-힣_-]+", "_", tag or "codex").strip("_") or "codex"
+            (self.io_dir / f"{safe}_{kind}").write_text(text, encoding="utf-8")
+            if prompt is not None and not (self.io_dir / "판정_지시문.txt").exists():
+                (self.io_dir / "판정_지시문.txt").write_text(prompt, encoding="utf-8")
+        except OSError:
+            pass
 
     @staticmethod
     def is_rate_limited(error: str) -> bool:
@@ -155,7 +181,10 @@ class CodexJudge:
                        "--color", "never", "--json", "--model", self.model, "-c", f"model_reasoning_effort={json.dumps(self.reasoning)}",
                        "-c", 'approval_policy="never"', "-c", f"web_search={json.dumps('live' if live else 'disabled')}",
                        "-c", "project_doc_max_bytes=0", "-c", "mcp_servers={}", "--output-schema", str(schema), "--output-last-message", str(output)]
+                file_mode = self._file_mode()
                 for feature in DISABLED_FEATURES:
+                    if file_mode and feature in ("shell_tool", "unified_exec"):
+                        continue   # 파일 방식: 작업 폴더의 지시문 · 입력 파일을 읽으려면 셸이 필요 — 읽기 전용 모드라 고치거나 만들 수는 없다 (10-21)
                     cmd += ["--disable", feature]
                 for feature in SEARCH_HOST_FEATURES:
                     cmd += ["--enable" if live else "--disable", feature]
@@ -163,9 +192,17 @@ class CodexJudge:
                     if Path(img).is_file():
                         cmd += ["-i", str(Path(img).resolve())]   # 절대 경로 — Codex 는 임시 폴더에서 돌아 상대 경로를 못 찾는다(조용히 무시)
                 cmd.append("-")
+                text = prompt + "\n[입력]\n" + input_text
+                if not file_mode:
+                    self._keep(tag, "입력.json", input_text, prompt)   # 통째로 넘기는 방식도 넘긴 입력을 파일로 남긴다 (10-21)
+                if file_mode:   # 파일 방식 (10-21 저녁) — 지시문 · 입력을 작업 폴더 파일로, 표준 입력은 짧은 지시만
+                    (Path(folder) / "판정_지시문.txt").write_text(prompt, encoding="utf-8")
+                    (Path(folder) / "판정_입력.json").write_text(input_text, encoding="utf-8")
+                    text = self.FILE_INSTRUCTION
+                    self._keep(tag, "입력.json", input_text, prompt)
                 try:   # 고정 프롬프트 뒤에 [입력] — 프롬프트 '입력 형식' 그대로
                     if self._run is subprocess.run:   # 실제 실행: 이벤트를 흘리며 받는다. 시험의 대역 실행기는 그대로 부른다
-                        proc = self._stream(cmd, prompt + "\n[입력]\n" + input_text, folder, tag)
+                        proc = self._stream(cmd, text, folder, tag)
                     else:
                         proc = self._run(cmd, input=prompt + "\n[입력]\n" + input_text, capture_output=True, text=True, encoding="utf-8",
                                          timeout=self.timeout or None, cwd=folder, shell=False)
@@ -185,7 +222,9 @@ class CodexJudge:
                         attempt -= 1   # 한도 대기는 시도 횟수에 세지 않는다
                     continue
                 try:
-                    return "OK", json.loads(output.read_text(encoding="utf-8-sig")), ""
+                    result = json.loads(output.read_text(encoding="utf-8-sig"))
+                    self._keep(tag, "결과.json", json.dumps(result, ensure_ascii=False, indent=1))
+                    return "OK", result, ""
                 except (OSError, ValueError):
                     last = "Codex CLI 결과 파일이 없거나 JSON 이 아님"
         return "ERROR", None, last

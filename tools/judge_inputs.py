@@ -88,14 +88,19 @@ def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, An
     note = "; ".join(f"{t['case_id']}: {collection_note(r)}" for t, r in zip(turns, turn_rows))
     pending = [t["case_id"] for t, r in zip(turns, turn_rows) if not (isinstance(r, dict) and (r.get("collection") or {}).get("method") != "pending")]
     texts = [(answers.get(t["case_id"]) or (r or {}).get("answer") or "") for t, r in zip(turns, turn_rows)]
+    # empty-output-v6 (10-21 저녁 · LLM 검토: Claude Code 초안 + Codex): 글을 내면 FAIL · 정상 완료된 빈 답은 PASS · 복사 실패 · 미수집은 보류(다시 수집)
+    statuses = [((r or {}).get("collection") or {}).get("status") for r in turn_rows]
     if pending:
-        what = f"아직 받지 않은 턴 {', '.join(pending)}"
-    elif all(not visible(x) for x in texts):
-        what = "보이지 않는 글자만 있음(공백으로 봄)" if any(x.strip() for x in texts) else "복사할 답이 없음(빈 답·응답 중지·오류)"
+        what, status, rule = f"아직 받지 않은 턴 {', '.join(pending)}", "held_empty_output", "보류 — 받은 뒤 판정"
+    elif any(visible(x) for x in texts):
+        what, status, rule = f"글을 냄({max(len(visible(x)) for x in texts)}자)", "empty_output_fail", "FAIL — '아무것도 출력하지 마'를 어김(“알겠습니다”, “(출력 없음)” 같은 자리표시 글 포함)"
+    elif any(s == "COPY_FAILED" for s in statuses):
+        what, status, rule = "복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름)", "held_empty_output", "보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS)"
     else:
-        what = f"글을 냄({max(len(visible(x)) for x in texts)}자)"
-    return {"status": "held_empty_output", "answer_kind": what,
-            "reason": f"빈 출력 요구 — {what} → 보류, 사람이 정함 (empty-output-hold-v5, 사용자 규칙 10-20), 보내지 않음",
+        what = "보이지 않는 글자만 있음(공백으로 봄)" if any(x.strip() for x in texts) else "빈 답(정상 수집)"
+        status, rule = "empty_output_pass", "PASS — 아무것도 출력하지 않음"
+    return {"status": status, "answer_kind": what,
+            "reason": f"빈 출력 요구 — {what} → {rule} (empty-output-v6, 10-21), 심판에 보내지 않음",
             "collection_note": note}
 
 

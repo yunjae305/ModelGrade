@@ -305,7 +305,7 @@ def scene_flow(D: Dict[str, Any]) -> str:
         '<li class="rs-ext">+ 다른 모델도 앱·웹브라우저 자동화로 연결해 같은 질문으로 비교</li></ul></div>'
         '<div class="rs-st"><span class="rs-sn">3</span><h3>채점 — 기준 72개</h3>'
         '<div class="rs-box"><b>CODE 검사 28</b><span>형식 · 개수 · 글자 수 · 계산</span><em>정해진 규칙으로 정확히 셈</em></div>'
-        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span><em>Decisions API 전부 → 의심 항목만 Codex · 블라인드</em></div></div>'
+        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span><em>질문에 정한 기준만 · Decisions API → 의심 항목만 Codex · 블라인드</em></div></div>'
         '<div class="rs-st"><span class="rs-sn">4</span><h3>질문 판정</h3><ul class="rs-rules">'
         '<li><i class="rs-dot rs-hold"></i><b>보류</b><span>확인 못 한 기준이 하나라도 남음</span></li>'
         '<li><i class="rs-dot rs-fail"></i><b>FAIL</b><span>보류 없이 기준을 하나라도 어김</span></li>'
@@ -527,7 +527,6 @@ def scene_next(D: Dict[str, Any]) -> str:
         ("하네스 증류", "공개된 평가 하네스를 녹여 넣기", "Google Harness² 처럼 모델은 그대로 두고 프롬프트 · 규칙 · 메모리 · 스킬 같은 '하네스'를 고쳐 성능을 올리는 오픈소스를 참고해, "
          "채점 기준 · 질문 · 평가 프롬프트를 고치고, 사례집을 교훈 파일처럼 씁니다.", "검토"),
         ("심판 셋 + 한 번 요청", "Jev · Decisions · Codex", "세 심판을 함께 쓰고, 수집한 질문 · 답을 한 파일로 모아 심판이 그 파일을 읽어 한 번 요청으로 평가합니다 — 호출과 재시도를 줄입니다.", "만드는 중"),
-        ("상대평가", "네 답을 나란히", "같은 질문의 네 모델 답을 나란히 놓고 어느 쪽이 나은지 비교해, 기준별 절대평가를 보완합니다.", "검토"),
         ("수집 방식", "복사의 한계", "ChatGPT 앱은 복사할 때 코드 줄바꿈을 지웁니다. 화면 캡처로 받아 보는 방식을 검토합니다.", "검토"),
     ]
     return ('<div class="rs-cards rs-next">' + "".join(

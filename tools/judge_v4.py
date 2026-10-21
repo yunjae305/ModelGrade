@@ -190,6 +190,28 @@ SCREEN_CONFIDENT = _env_float("SCREEN_CONFIDENT", 0.7)
 #: Decisions 가 '해당 없음'이라 하고 FAIL 확률 < SCREEN_FAIL_PROB 이면 확신이 낮아도 Codex 에 안 보낸다 — 실행 a1642702fccc 전체(걸린 12,967개)에서
 #: 이 묶음 4,954개 중 Codex FAIL 은 55개(1%)였고 그것을 빼도 질문 판정은 하나도 안 바뀌었다. .env SCREEN_SKIP_NA_LOWCONF=0 이면 옛 규칙.
 SCREEN_SKIP_NA_LOWCONF = _env_float("SCREEN_SKIP_NA_LOWCONF", 1) != 0
+#: 질문별 목표 기준만 판정 (사용자 10-21 저녁) — 질문 세트 target_items 의 의미 기준. 0 이면 예전처럼 44개 전부를 심판이 골라 판정
+JUDGE_TARGET_ONLY = _env_float("JUDGE_TARGET_ONLY", 1) != 0
+#: 질문으로 적용 조건이 정해지는 항목 — 목표 기준인데 Decisions 가 해당 없음이라 하면 확신과 상관없이 Codex 가 다시 본다 (Codex 검토 10-21의 26개)
+QUESTION_DETERMINED = frozenset({"J2-1.a", "J2-1.b", "J2-2.a", "J2-3.a", "J2-4.a", "J2-5.a", "J2-5.b",
+                                 "J3-3.a", "J3-3.b", "J3-4.a", "J3-5.a", "J3-5.b", "J5-2.b", "J6-1.a", "J6-2.b", "J6-2.c", "J6-3.a",
+                                 "J6-3.b", "J6-4.a", "J6-4.b", "J7-1.a", "J7-2.a", "J8-3.a"})
+#: 질문 번호 → 목표 의미 기준(J…) — main 이 질문 세트를 읽을 때 채운다
+QUESTION_TARGETS: Dict[int, set] = {}
+TARGET_GUIDE = ("\n[판정할 항목] 아래 항목은 이 질문을 만들 때 이 질문에 적용하도록 정한 기준입니다 — 같은 질문이면 어느 답변이든 같은 항목을 판정합니다. "
+                "적용 조건이 질문에 있는 항목(질문의 요청 · 대상 · 지시)은 답변이 요청을 빠뜨렸다는 이유로 해당 없음을 고르지 말고 항목 정의대로 예 · 아니오로 판정합니다. "
+                "적용 조건이 답변 내용에 따라 생기는 항목(적용 글에 '답변'이 들어간 항목 — 예: 출처를 언급한 답변, 질문의 값을 쓰는 답변)과 항목 정의의 예외(예: J1-1.a 가 아니오면 J4 해당 없음), "
+                "그리고 항목 정의가 정한 적용 조건이 이 질문에 실제로 없는 경우(예: J1-3 은 질문에 모순 · 빠진 자료가 실제로 있을 때만)만 해당 없음을 고릅니다.")
+
+
+def question_targets(groups: List[Dict[str, Any]]) -> Dict[int, set]:
+    """질문 세트의 target_items 에서 의미 기준(J…)만 — {질문 번호: {항목}}. 목표가 없는 질문은 넣지 않는다(그 질문은 44개 전부)."""
+    out: Dict[int, set] = {}
+    for g in groups:
+        items = {str(t).split(":")[0] for t in g.get("target_items") or [] if str(t).startswith("J")}
+        if items:
+            out[int(g["id"])] = items
+    return out
 #: 사실 확인 항목은 Decisions 가 적용된다고 보면(PASS/FAIL) 웹 검색이 있는 Codex 가 확인한다
 SCREEN_ALWAYS_CODEX = ("J5-1.a",)
 
@@ -297,6 +319,19 @@ def unverified_fact_items(output: Any, turns: List[Dict[str, Any]], answers: Dic
     return out
 
 
+def undecided_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
+    """Codex 가 J5-1.a 가 아닌 항목에 UNVERIFIED('판단 못 함')를 쓴 (턴, 항목) — 그 항목은 PASS · FAIL · 해당 없음 중 하나여야 한다 (10-21 밤: 보류 9건)."""
+    out: List[Tuple[int, str]] = []
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        for i, v in items.items():
+            if i != "J5-1.a" and v and v.get("decision") == "UNVERIFIED" and not v.get("problems"):
+                out.append((n, i))
+    return out
+
+
+UNDECIDED_NOTE = "UNVERIFIED 는 J5-1.a(사실 확인)에서만 씁니다. 다시 묻는 항목은 정의의 점검 질문으로 PASS · FAIL · NOT_APPLICABLE 중 하나로 정하세요 — 사유가 '아니오'면 FAIL, '예'면 PASS."
+
+
 def merge_codex_output(base: Any, extra: Any, replace: Optional[set] = None) -> Dict[str, Any]:
     """다시 물은 출력을 앞 출력에 합친다 — 같은 턴에는 항목을 더하고(replace 에 든 (턴, 항목)은 새 답으로 바꿈), 없던 턴은 붙인다."""
     base = dict(base) if isinstance(base, dict) else {"turns": [], "conclusion": None}
@@ -401,6 +436,63 @@ def screen_flag(item: str, entry: Optional[Dict[str, Any]], fail_prob_min: float
     return False, ""
 
 
+_NOT_EXTERNAL = re.compile(r"외부\s*사실(?:\s*확인)?\s*(?:항목|주장)?[이은]\s*아[니닙]|J5-2[.a-z]*\s*에서\s*(?:판단|본다|다룬)"
+                           r"|자료\s*내\s*사실|입력값\s*기반|J5-1\s*적용\s*대상이\s*아니|외부\s*출처로\s*확인할\s*사실\s*주장이\s*아[니닙]|붙여\s*넣은\s*자료를\s*그대로"
+                           r"|자료\s*사실이지만|제공된\s*기록의\s*운영\s*세부와\s*부합|회의록의\s*입력값|입력\s*수치로\s*산출")   # 10-21 밤: 보류 사례의 실제 사유 문구
+
+
+def material_text(doc: Dict[str, Any], upto: int) -> str:
+    """그 턴까지 질문 쪽 자료 — 질문 · 첨부 내용 · 참조 자료(답변은 넣지 않음: 앞선 AI 답변은 사실 근거가 아님)."""
+    parts = []
+    for t in doc.get("턴") or []:
+        if int(t.get("턴") or 0) > upto:
+            continue
+        parts.append(str(t.get("질문") or ""))
+        parts += [str(a.get("내용") or "") for a in t.get("첨부파일") or [] if isinstance(a, dict)]
+        parts.append(str(t.get("참조자료") or ""))
+    return re.sub(r"\s+", " ", "\n".join(parts))
+
+
+def material_fact_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
+    """사실 확인(J5-1.a)이 '확인 못 함'인데 그 주장이 질문에 붙은 자료(질문 · 첨부 · 참조 자료 · 앞 턴 질문)에 그대로 있거나
+    심판 사유가 '외부 사실이 아님'이면 해당 없음으로 — 자료 대조는 J5-2 가 한다 (사용자 10-21: Q40 '푸른자료실')."""
+    it = items.get("J5-1.a")
+    if not it or it.get("decision") != "UNVERIFIED":
+        return
+    quote = re.sub(r"[*_`#>|]+", "", str(it.get("answer_quote") or ""))
+    quote = re.sub(r"(?m)^\s*[-•·]\s+", "", quote).strip()   # 목록 글머리는 빼고 대조 (10-21 밤)
+    quote = re.sub(r"\s+", " ", quote)
+    in_material = len(quote) >= 4 and quote in material_text(doc, n)
+    if in_material or _NOT_EXTERNAL.search(str(it.get("reason") or "")):
+        it["decision"] = "NOT_APPLICABLE"
+        it["how"] = (it.get("how") or "") + " → 입력 자료 안의 사실(J5-1 해당 없음, 자료 대조는 J5-2)"
+
+
+def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """사실 확인(J5-1.a) FAIL 은 반박 출처가 있을 때만 — 출처 없이 '거짓'으로 본 주장뿐이면 '확인 못 함'으로 (10-21: 일반 지식만으로 꼬투리를 잡은 FAIL)."""
+    it = items.get("J5-1.a")
+    if not it or it.get("decision") != "FAIL":
+        return
+    facts = [e.get("fact") for e in it.get("entries") or [] if isinstance(e, dict) and isinstance(e.get("fact"), dict)]
+    if any(f.get("verdict") == "FALSE" and f.get("sources") for f in facts):
+        return
+    it["decision"] = "UNVERIFIED"
+    it["kind"] = "확인 못함"
+    it["how"] = (it.get("how") or "") + " → 반박 출처 없음(거짓은 검색 출처로만) → 확인 못 함"
+
+
+_REASON_SAYS_OK = re.compile(r"FAIL\s*(?:항목)?\s*없음|문제(?:가|는)?\s*없습니다|어긋나지\s*않|모두\s*지켰|불필요한\s*(?:단락|내용)은\s*없|반복(?:은|이)?\s*없습니다")
+
+
+def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """사유와 판정이 반대인 항목 — FAIL 인데 사유가 '문제 없음 · FAIL 없음'이면 확인 못 함으로(사유 모순) (10-21: GPT Q1 4턴 J1-4.a '불필요한 단락은 없습니다 (FAIL 없음)' 인데 FAIL)."""
+    for it in items.values():
+        if isinstance(it, dict) and it.get("decision") == "FAIL" and _REASON_SAYS_OK.search(str(it.get("reason") or "")):
+            it["decision"] = "UNVERIFIED"
+            it["kind"] = "사유 모순"
+            it["how"] = (it.get("how") or "") + " → 사유는 '문제 없음'인데 판정은 FAIL(사유 모순) → 확인 못 함"
+
+
 def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, Any]], flagged: bool,
                    confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None) -> Tuple[Optional[str], str]:
     """선별 판정의 항목 하나 — 안 걸린 항목은 Decisions 대로, 걸린 항목은 0.7 규칙으로 Codex 와 합친다. Codex 가 못 본 걸린 항목: Decisions FAIL 이면 보류."""
@@ -412,6 +504,12 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
         if d == "FAIL":
             return "UNVERIFIED", f"Codex 판정 없음 · Decisions FAIL {p:.2f} → 보류"
         return d, f"Decisions {KO.get(d, d)} (Codex 판정 없음)"
+    if codex_v.get("decision") == "UNVERIFIED" and item != "J5-1.a" and not codex_v.get("problems"):
+        # J5-1.a 가 아닌 항목의 '판단 못 함' — 다시 물어도 그러면 Decisions 가 확신할 때 그 판정을 따르고, 아니면 보류로 남긴다 (10-21 밤: 보류 9건)
+        conf = float((dec_v or {}).get("confidence") or 0.0)
+        if d and conf >= confident:
+            return d, f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · Decisions {KO.get(d, d)} 확신 {conf:.2f} → Decisions 따름"
+        return "UNVERIFIED", f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · Decisions {KO.get(d, d)} 확신 {conf:.2f} < {confident} → 보류"
     if codex_v.get("decision") == "UNVERIFIED" and item == "J5-1.a" and d == "NOT_APPLICABLE" and not codex_v.get("problems"):
         # 사실 확인 항목에서 Codex 가 "확인 못함"이라 했는데 Decisions 는 적용 조건이 없다고 봄 — 코드·입력 자료 질문에 외부 사실이 없는 경우 (사용자 10-21)
         return "NOT_APPLICABLE", "Codex 확인 못함 · Decisions 해당 없음 → 외부 사실 주장 없음으로 봄"
@@ -449,7 +547,10 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         if reused_dec and n in dec_items:
             continue
         ids = turn_item_ids(row, n, list(allq))
-        part = {"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
+        targets = QUESTION_TARGETS.get(q) if JUDGE_TARGET_ONLY else None
+        if targets:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목
+            ids = [i for i in ids if i in targets]
+        part = {"guide": fixed["guide"] + (TARGET_GUIDE if targets else ""), "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
         qd = {f"T{n}:{i}": allq[i] for i in ids}
         status, body, error = decisions.judge(part, qd) if decisions else ("ERROR", None, "Decisions 없음")
         if status == "OK":
@@ -469,6 +570,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     for n, items in dec_items.items():
         for i, entry in items.items():
             flag, reason = (True, "교정용 전수") if codex_all else screen_flag(i, entry)
+            if (not flag and JUDGE_TARGET_ONLY and i in QUESTION_DETERMINED and isinstance(entry, dict)
+                    and entry.get("choice") == "NOT_APPLICABLE" and i in (QUESTION_TARGETS.get(q) or set())):
+                flag, reason = True, "목표 기준인데 해당 없음 — 질문으로 정해지는 항목"   # (10-21)
             if flag:
                 flagged.setdefault(n, []).append(i)
                 why[f"T{n}:{i}"] = reason
@@ -510,6 +614,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
             if reused:   # 복구: 옛 프롬프트로 "확인 못함"이 된 J5-1.a 는 새 프롬프트로 한 번 다시 묻는다 (사용자 10-21)
                 bad.update({k: ["J5-1.a 확인 못함 — 다시"] for k in unverified_fact_items(output, turns, answers, flagged) if k not in reasked})
+            undecided = [k for k in undecided_items(output, turns, answers, flagged) if k not in reasked]
+            bad.update({k: ["J5-1.a 가 아닌 항목의 UNVERIFIED — 다시"] for k in undecided})   # 10-21 밤
             targets: Dict[int, List[str]] = {}
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
@@ -519,7 +625,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             rounds += 1
             ask_turns = sorted(targets)[:max(1, len(targets) // 2)]
             say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
-            st2, out2, err2 = ask_codex({**body_doc, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns}})
+            st2, out2, err2 = ask_codex({**body_doc, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
+                                         **({"주의": UNDECIDED_NOTE} if any(k[0] in ask_turns for k in undecided) else {})})
             if st2 != "OK":
                 error = err2
                 break
@@ -527,6 +634,10 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             reasked |= {k for k in bad if k in replace}
             output = merge_codex_output(output, out2, replace)
         missing = missing_codex_items(output, flagged) if status == "OK" else {}
+        if status == "OK" and not any((t or {}).get("items") for t in ((output or {}).get("turns") or []) if isinstance(t, dict)):
+            # 결과를 통째로 비워 냄(판정을 아예 안 함) — '확인 못 함' 보류가 아니라 판정 실행 오류로 (10-21: 파일을 못 읽은 Codex 가 빈 결과를 낸 일)
+            status, missing = "ERROR", {}
+            error = "Codex 가 판정 결과를 비워 냄: " + str(((output or {}).get("conclusion") or {}).get("reason") or "")[:150]
         calls["codex"] = {"status": status, "error": error if status != "OK" else (f"끝내 답하지 않은 항목 {sum(len(v) for v in missing.values())}개" if missing else ""),
                           "seconds": round(time.monotonic() - t1, 1), "search": search, "items": n_flagged, "rounds": rounds, "reused": reused,
                           "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()}, **tokens}
@@ -567,6 +678,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
         js.apply_overrides(items)
+        material_fact_guard(items, doc, n)   # 입력 자료 안의 사실은 J5-1 해당 없음 (10-21)
+        fact_fail_guard(items)   # 사실 확인 FAIL 은 반박 출처가 있을 때만 (10-21)
+        reason_decision_guard(items)   # 사유와 판정이 반대 (10-21)
         final[n] = items
         turn_out[str(n)] = {"situations_judge": (codex_sits.get(n) or {}).get("situations") or [], "evidence": (codex_sits.get(n) or {}).get("evidence") or {},
                             "problems": [], "items": items}
@@ -1003,6 +1117,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    QUESTION_TARGETS.clear()
+    QUESTION_TARGETS.update(question_targets(groups))   # 질문별 목표 기준 (10-21 저녁)
     rows = flatten(groups)
     prompt = PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))
@@ -1040,6 +1156,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         gpt, jev, notes = judges_from_env()
         if gpt is not None:
             gpt.files_dir = set_dir / "files"   # 첨부 원본(이미지·pdf·docx 쪽 이미지)을 -i 로
+            gpt.io_dir = out / "codex_io"   # Codex 입력 · 결과 파일 (10-21 저녁: 파일로 읽고 파일로 결과)
         from code_eval import attachment_pages as ap
         if gpt is not None or decisions is not None:
             for name, note in ap.prerender(set_dir / "files").items():   # 스레드 전에 한 번 그려 둔다 (Word 는 한 번에 하나)
