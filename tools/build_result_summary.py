@@ -484,7 +484,7 @@ def scene_time(D: Dict[str, Any]) -> str:
         jr = [[mname(p), J[p]["per_q"], f'{J[p]["dec_in"]:,}', f'{J[p]["codex_calls"]:,}', f'{J[p]["codex_in"] / 1e6:.1f}M · {J[p]["codex_out"] / 1e6:.2f}M'] for p in order if p in J]
         jr.append(['<span class="rs-strong">합계</span>', "", f'{sum(v["dec_in"] for v in J.values()):,}', f'{sum(v["codex_calls"] for v in J.values()):,}',
                    f'{sum(v["codex_in"] for v in J.values()) / 1e6:.1f}M · {sum(v["codex_out"] for v in J.values()) / 1e6:.2f}M'])
-        jt = (table("판정에 들어간 양 — 모델마다", ["모델", "질문 하나 판정 평균", "Decisions 입력 토큰", "Codex 호출", "Codex 입력 · 출력 토큰"],
+        jt = (table("판정 시간 · 토큰 — 모델마다", ["모델", "질문 하나 판정 평균", "Decisions 입력 토큰", "Codex 호출", "Codex 입력 · 출력 토큰"],
                     jr, [14, 20, 22, 14, 30])
               + '<p class="rs-basis">질문 하나 판정 평균 = 그 질문의 마지막 판정 한 번에 걸린 시간의 평균(모델 사이 빠르기 비교용 — 더해도 위 전체 시간이 되지 않음). '
               + f'Decisions API 는 OpenAI API(토큰만큼 비용) · Codex CLI 는 ChatGPT 구독으로 실행{waits}.</p>')
@@ -512,7 +512,7 @@ def avatar(p: str) -> str:
 
 
 def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """분야마다 모델 값 — 결과·유형은 많을수록 좋음(통과), 기준 묶음은 적을수록 좋음(어긴 질문 수)."""
+    """분야마다 모델 값 — 결과·유형, 많을수록 좋음(통과). 기준 묶음은 뺌(사용자 10-21 — 기준별은 FAIL 원인 장면)."""
     order = D["order"]
     cats: List[Dict[str, Any]] = []
     tot = {p: D["tally"][p] for p in order}
@@ -537,21 +537,6 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
         cats.append({"group": "유형", "label": TYPE_NAME.get(ty, ty), "chip": f"{len(qs)}문항", "higher": True, "of": len(qs), "unit": "문항",
                      "desc": f"{TYPE_NAME.get(ty, ty)} {len(qs)}문항 가운데 완전 통과한 질문 수.",
                      "vals": {p: res[p]["PASS"] for p in order}, "extra": {p: f"FAIL {res[p]['FAIL']} · 보류 {res[p]['HOLD']}" for p in order}})
-    # 기준 묶음 — 그 묶음의 기준을 하나라도 어긴 질문 수(적을수록 좋음)
-    grp_of = lambda cid: ("CODE" if cid[0].isdigit() else cid.split("-")[0])
-    viol: Dict[str, Dict[str, set]] = defaultdict(lambda: defaultdict(set))
-    worst: Dict[str, Dict[str, Counter]] = defaultdict(lambda: defaultdict(Counter))
-    for (p, q), L in D["lines"].items():
-        for cid in {i["item"] for i in L["items"] if i["decision"] == "FAIL"} | set(L["line"].get("code_fails") or []):
-            viol[grp_of(cid)][p].add(q)
-            worst[grp_of(cid)][p][cid.split(":")[0]] += 1
-    for g in [*[f"J{i}" for i in range(1, 9)], "CODE"]:
-        n_crit = sum(1 for c in D["names"] if grp_of(c) == g)
-        name = GROUP.get(g, "형식·개수·계산 (프로그램 검사)")
-        cats.append({"group": "기준 묶음", "label": f"{g} {name}" if g != "CODE" else "CODE 형식·계산", "chip": f"기준 {n_crit}개", "higher": False, "of": D["n"], "unit": "문항",
-                     "desc": f"이 묶음의 기준 {n_crit}개 중 하나라도 어긴 질문 수 — 적을수록 좋습니다.",
-                     "vals": {p: len(viol[g][p]) for p in order},
-                     "extra": {p: (f"가장 많이: {crit_name(D['names'], worst[g][p].most_common(1)[0][0])} {worst[g][p].most_common(1)[0][1]}" if worst[g][p] else "어긴 질문 없음") for p in order}})
     for c in cats:   # 순위 — 같은 값은 같은 순위
         vals = c["vals"]
         c["rank"] = {p: 1 + sum(1 for o in order if (vals[o] > vals[p] if c["higher"] else vals[o] < vals[p])) for p in order}
@@ -652,7 +637,8 @@ def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
 
 
 def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
-    """HELM 형 (사용자 10-21: 'C 도 섞으면 좋겠다') — 모델 × 분야 점수표 한 장, 탭 넷(통과율 · 기준 묶음 · 시간·토큰 · 기본 정보).
+    """HELM 형 (사용자 10-21: 'C 도 섞으면 좋겠다') — 모델 × 분야 점수표 한 장, 탭 둘(통과율 · 기본 정보).
+    기준 묶음 · 시간·토큰 탭은 뺐다(사용자 10-21 — 시간·토큰은 '걸린 시간' 장면에 같은 숫자가 있음).
     숫자는 아래 분야별 순위표의 그 분야 라벨이라 누르면 순위표가 그 분야로 바뀐다(JS 없이)."""
     order = D["order"]
     ex = report_extras(D)
@@ -667,21 +653,7 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         return f'<table class="hm-tab"><thead>{head}</thead><tbody>{rows}</tbody></table>'
 
     res = [c for c in cats if c["group"] in ("결과", "유형")]
-    grp = [c for c in cats if c["group"] == "기준 묶음"]
     t1 = score_tab(res, lambda c, p: f'{c["vals"][p] / c["of"]:.2f}')
-    t2 = score_tab(grp, lambda c, p: str(c["vals"][p]))
-    # 시간·토큰
-    J = ex["judge"]
-    trows = []
-    for p in order:
-        ts = [t for (pp, _q, _t), t in D["turns"].items() if pp == p]
-        s = sum((t.get("latency_ms") or 0) for t in ts) / 1000
-        ok = sum(1 for q in D["qtypes"] if all(D["turns"].get((p, q, n), {}).get("status") == "SUCCESS" for n in range(1, len(D["qset"][q]["turns"]) + 1)))
-        j = J.get(p) or {}
-        trows.append(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th><td>{hm(s)}</td><td>{s / ok:.0f}초</td><td>{E(re.sub(r"(시간 \d+분) \d+초$", r"\1", ex["wall"].get(p, "—")))}</td>'
-                     f'<td>{E(j.get("per_q", "—"))}</td><td>{j.get("dec_in", 0):,}</td><td>{j.get("codex_calls", 0):,}</td></tr>')
-    t3 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>답변 시간 합</th><th>답변 · 질문당</th><th>수집 벽시계</th><th>판정 · 질문당</th><th>Decisions 입력 토큰</th><th>Codex 호출</th></tr></thead>'
-          f'<tbody>{"".join(trows)}</tbody></table>')
     # 기본 정보
     irows = []
     for p in order:
@@ -693,33 +665,16 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     t4 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>버전 · 설정</th><th>수집</th><th>받은 질문</th><th>복사 실패 턴</th><th>턴당 답변 길이</th></tr></thead>'
           f'<tbody>{"".join(irows)}</tbody></table>')
     tabs = [("통과율", "높을수록 좋음 · 완전 통과 ÷ 질문 수 (멀티턴은 FAIL 없는 턴 ÷ 110턴)", t1),
-            ("기준 묶음", "적을수록 좋음 · 그 묶음의 기준을 하나라도 어긴 질문 수", t2),
-            ("시간 · 토큰", "답변 시간 = 질문을 보내고 답을 받기까지 · 판정 · 질문당 = 질문 하나 판정 평균(전체 판정 시간은 '걸린 시간' 장면) · 토큰 = 판정에 들어간 양", t3),
             ("기본 정보", "모델 버전과 수집 방법", t4)]
     radios = "".join(f'<input type="radio" name="hm" id="hm{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
     labels = '<div class="hm-tabs">' + "".join(f'<label for="hm{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
-    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn hm-p{i}"><p class="hm-d">{E(d)}{" · 숫자를 누르면 아래 순위표가 그 분야로 바뀝니다" if i < 2 else ""}</p>'
+    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn hm-p{i}"><p class="hm-d">{E(d)}{" · 숫자를 누르면 아래 순위표가 그 분야로 바뀝니다" if i == 0 else ""}</p>'
                                              f'<div class="hm-scroll">{x}</div></div>' for i, (_t, d, x) in enumerate(tabs)) + "</div>"
     return (f'<div class="hm">{radios}{labels}{panels}</div>'
             + tab_css("hm", len(tabs), ".hm-tabs", ".hm-ps", "hm-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
 
 
 # ------------------------------------------------------------------ 부록 ------------------------------------------------------------------
-def orig_html(D: Dict[str, Any], p: str, q: int, only: set) -> str:
-    out = []
-    for tn, turn in enumerate(D["qset"][q]["turns"], 1):
-        if only and tn not in only:
-            continue
-        t = D["turns"].get((p, q, tn)) or {}
-        att = [a.get("name") if isinstance(a, dict) else str(a) for a in turn.get("attachments") or []]
-        extra = (f' <span class="muted">첨부: {E(", ".join(x for x in att if x))}</span>' if att else "") + \
-                (f' <span class="muted">참조 문서 {len(turn.get("reference") or ""):,}자(생략)</span>' if turn.get("reference") else "")
-        st = "" if t.get("status") == "SUCCESS" else f' <span class="rs-failtxt">수집 상태 {E(t.get("status") or "없음")}</span>'
-        out.append(f'<div class="rs-two"><div><b>턴 {tn} 질문</b>{extra}<pre class="rs-pre">{E(turn.get("question") or "")}</pre></div>'
-                   f'<div><b>턴 {tn} 답변</b>{st}<pre class="rs-pre">{E(t.get("answer") or "") or "<i>(빈 답)</i>"}</pre></div></div>')
-    return "".join(out)
-
-
 def find_span(text: str, quote: str) -> Optional[Tuple[int, int]]:
     """심판이 인용한 답 문장의 위치 — 그대로 → 공백·마크다운 기호 무시 → '…'로 끊긴 인용은 앞 조각."""
     qt = (quote or "").strip().strip('“”"\'')
