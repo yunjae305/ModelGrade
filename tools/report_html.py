@@ -354,10 +354,9 @@ def judge_process_info(out_dir: Path) -> Dict[str, Any]:
                 m = re.search(r"(\d+)초 기다렸다", l)
                 out["wait_seconds"] += int(m.group(1)) if m else 0
     out["judge_errors"] = sum(1 for r in load_results(Path(out_dir)) if r.get("judge_error"))
-    try:
-        out["wall_seconds"] = json.loads((Path(out_dir) / "summary.json").read_text(encoding="utf-8")).get("wall_seconds")
-    except (OSError, ValueError):
-        pass
+    jt = judge_time_info(Path(out_dir))   # 이 폴더의 판정을 모두 더한 실제 시간 — summary.json 은 마지막 실행(예: 몇 건 다시 판정)만 담는다
+    out["wall_seconds"] = jt.get("seconds") or None
+    out["runs"] = jt.get("batches")
     return out
 
 
@@ -655,10 +654,10 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             P.append(f"<p class='note'>{_e(cc['not_checked'])}</p>")
     jp = judge_process_info(out_dir)
     P.append("<h3>판정 실행</h3><table><tr><th>항목</th><th class='num'>값</th><th>설명</th></tr>"
-             f"<tr><td>판정 벽시계</td><td class='num'>{_hms(jp['wall_seconds']) if jp['wall_seconds'] else '미측정'}</td><td class='small'>질문 78 × 모델 4 = 312건, 네 모델을 동시에 판정</td></tr>"
+             f"<tr><td>판정 벽시계</td><td class='num'>{_hms(jp['wall_seconds']) if jp['wall_seconds'] else '미측정'}</td><td class='small'>질문 78 × 모델 4 = 312건, 네 모델을 동시에 판정 · 판정 실행 {jp.get('runs') or '-'}번을 더한 시간</td></tr>"
              f"<tr><td>Codex 호출</td><td class='num'>{jp['codex_calls']:,}</td><td class='small'>Decisions 가 FAIL·애매로 걸러 낸 항목만 Codex 에 보낸 횟수(다시 묻기 포함)</td></tr>"
              f"<tr><td>다시 묻기</td><td class='num'>{jp['reasks']:,}</td><td class='small'>Codex 가 일부 항목에 답을 안 냈거나, 근거로 든 인용이 원문에 없거나, 사실 확인을 못 했을 때 그 항목만 다시 물음</td></tr>"
-             f"<tr><td>429 대기</td><td class='num'>{jp['waits']:,}번 · {_hms(jp['wait_seconds'])}</td><td class='small'>429 = Codex 서버가 '짧은 시간(약 1분)에 요청이 너무 많다'며 잠시 거절한 것. "
+             f"<tr><td>429 대기</td><td class='num'>{jp['waits']:,}번 · {_hms(jp['wait_seconds'])}</td><td class='small'>(기다린 시간은 네 모델이 동시에 기다린 것을 모두 더한 값 — 벽시계보다 길 수 있음) 429 = Codex 서버가 '짧은 시간(약 1분)에 요청이 너무 많다'며 잠시 거절한 것. "
              "네 모델을 동시에 판정해 3~4만 토큰짜리 요청이 몰릴 때 생긴다. 바로 다시 보내면 또 거절되고, 포기하면 그 질문이 '판정 실행 오류'로 보류되므로 "
              "60초 → 120초 → 300초(그 뒤 600초마다) 기다렸다가 같은 요청을 다시 보내 끝까지 판정한다 — 잃는 것은 시간뿐.</td></tr>"
              f"<tr><td>판정 실행 오류</td><td class='num'>{jp['judge_errors']}</td><td class='small'>심판 호출이 끝내 실패해 보류로 둔 질문 수(0 이면 모든 질문이 정상 판정됨)</td></tr></table>")

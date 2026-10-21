@@ -165,6 +165,11 @@ def report_extras(D: Dict[str, Any]) -> Dict[str, Any]:
             out["judge"][by_label[c[0]]] = {"time": c[2], "per_q": c[3], "dec_in": num(c[4]), "codex_calls": num(c[5]), "codex_in": num(c[6]), "codex_out": num(c[7])}
     m = re.search(r"429 대기 (\d+)회", s)
     out["waits"] = int(m.group(1)) if m else None
+    out["process"] = {}   # report.html '수집·판정 과정 기록 — 판정 실행' 표 (10-21): 항목 → (값, 설명)
+    for r in re.findall(r"<tr>(.*?)</tr>", s, flags=re.S):
+        c = cell(r)
+        if len(c) == 3 and c[0] in ("판정 벽시계", "Codex 호출", "다시 묻기", "429 대기", "판정 실행 오류"):
+            out["process"][c[0]] = (c[1], c[2])
     i = s.find("추론 수준 비교")
     out["medium_running"] = i >= 0 and "미평가" in s[i:i + 4000]
     return out
@@ -213,7 +218,7 @@ CHANGES = [   # 10-20 미팅 때 설명 → 지금 (이름, 그때, 지금, 덧�
     ("Codex CLI", "나머지 기준을 판정", "의심 항목만 다시 판정 · 갈리면 Codex 를 따름", ""),
     ("첨부 파일", "입력 한도 때문에 잘라서 봄", "두 심판 모두 원본을 쪽 이미지로 봄", ""),
     # 10-21 사용자 결정 — ChatGPT 앱 복사 버튼이 언어 표지를 지움 (2026-10-20 변경내역 '10-21 오후', GPT 완전 통과 23 → 33)
-    ("코드블록 언어 표지", "요구와 다르면 FAIL", "비어 있어도 코드블록이면 통과", "ChatGPT 앱 복사가 표지를 지움 · GPT 23 → 33"),
+    ("코드블록 언어 표지", "요구와 다르면 FAIL", "비어 있어도 코드블록이면 통과", "ChatGPT 앱 복사가 표지를 지움 — 그것만으로 FAIL 이던 GPT 10문항이 빠짐"),
     ("질문 세트", "326개에서 고른 78개", "78개 확정 세트", ""),
 ]
 
@@ -314,9 +319,10 @@ def scene_criteria(D: Dict[str, Any]) -> str:
                                       f'<p>예) Q{q} — {E(why[:80])}</p></div>'))
     py = sum(1 for q in D["qtypes"] if D["lines"][("gpt", q)]["verdict"] == "FAIL"
              and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or [])) if "gpt" in order else 0
-    if py:   # 2026-10-20 변경내역 '10-21 오후' — GPT 는 앱 원문과 대조 예정
-        cards.append((0, f'<div class="rs-card rs-warn"><span class="rs-ct">{mname("gpt")} · 확인 중</span><b>Python 코드가 한 줄로 붙음</b>'
-                         f'<div class="rs-cn"><span>{py}</span><small>문항 FAIL</small></div><p>복사된 답에서 줄바꿈이 사라졌습니다. ChatGPT 앱 원문과 대조 중 — 복사 문제면 바뀝니다.</p></div>'))
+    if py:   # 10-21 확인: ChatGPT 앱의 답 아래 복사 아이콘이 파이썬 코드블록 줄바꿈을 지움(앱 화면은 여러 줄) — 사용자 결정: 복사 결과 그대로
+        cards.append((0, f'<div class="rs-card rs-warn"><span class="rs-ct">{mname("gpt")} · 복사 기능 특성</span><b>Python 코드가 한 줄로 붙음</b>'
+                         f'<div class="rs-cn"><span>{py}</span><small>문항 FAIL</small></div><p>ChatGPT 앱 화면에는 여러 줄인데, 답 아래 복사 아이콘으로 복사하면 '
+                         f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p></div>'))
     cards.sort(key=lambda x: -x[0])
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
 
@@ -395,7 +401,7 @@ def scene_time(D: Dict[str, Any]) -> str:
     t2 = table("유형별 — 질문(대화) 하나당 평균 답변 시간", ["모델", *[TYPE_NAME[ty] for ty in ROW_ORDER[:4]], "가장 오래 걸린 질문"], trows, [12, 12, 13, 13, 17, 33])
     tm = D["d"]["judgment"].get("timing") or []
     total = sum(t.get("seconds") or 0 for t in tm) or 1
-    label = ["첫 판정", "복구 — 빠진 항목 다시 묻기", "복구 2차", "첨부 질문 재판정"]
+    label = [(t.get("label") or ("첫 판정" if i == 0 else f"다시 판정 {t.get('judgments', 0)}건")) for i, t in enumerate(tm)]   # 단계 이름은 기록에서 (10-21)
     segs = "".join(f'<i class="k{i + 1}" style="width:{(t.get("seconds") or 0) / total * 100:.2f}%" title="{E(label[i] if i < len(label) else "")} {hm(t.get("seconds") or 0)}">'
                    f'{hm(t.get("seconds") or 0) if (t.get("seconds") or 0) / total >= 0.15 else ""}</i>' for i, t in enumerate(tm[:4]))
     tleg = "".join(f'<span><i class="rs-sw k{i + 1}"></i>{E(label[i])} <b>{hm(t.get("seconds") or 0)}</b> <span class="muted">{t.get("judgments", 0)}건</span></span>' for i, t in enumerate(tm[:4]))
@@ -403,7 +409,7 @@ def scene_time(D: Dict[str, Any]) -> str:
     eq = " + ".join(f"{E(label[i] if i < len(label) else '판정')} {hm(t.get('seconds') or 0)}" for i, t in enumerate(tm[:4]))
     judge = (f'<div class="rs-judge"><div class="rs-jt"><b>{hm(total)}</b><span>판정 전체에 실제로 걸린 시간<br>판정 {sum(t.get("judgments", 0) for t in tm)}건 (질문 × 모델)</span></div>'
              f'<div class="rs-jb"><div class="rs-tl">{segs}</div><div class="rs-legend">{tleg}</div>'
-             f'<p class="rs-jeq">= {eq} — 네 단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>')
+             f'<p class="rs-jeq">= {eq} — {len(tm)}단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>')
     jt = ""
     if ex["judge"]:   # report.html 4장 판정 표 — 모델마다 시간 · 토큰 (Codex 토큰은 run.log 에서 모은 값)
         J = ex["judge"]
@@ -421,7 +427,36 @@ def scene_time(D: Dict[str, Any]) -> str:
         if g:
             ref = f'<p class="rs-basis">참고: 10-20 보고 때(다른 78개 세트) GPT 답변 시간 합은 {hm(g.get("total_seconds") or 0)} — 질문이 달라 바로 비교하지는 않습니다.</p>'
     return ('<h3 class="rs-sh">답변 수집 — 답변 시간 합 (질문을 보내고 답을 받기까지)</h3><div class="rs-tbars">' + bars + "</div>" + t2
-            + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + ref)
+            + collection_check_block(D)
+            + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + ref + process_block(ex))
+
+
+def collection_check_block(D: Dict[str, Any]) -> str:
+    """답변 수집 확인 (10-21) — 답 아래 복사 아이콘으로 다시 받아 대조한 결과 · 바꾼 턴 · ChatGPT 앱 복사 특성. 참고자료/결과/판정_<실행>/collection-check.json"""
+    f = RESULTS / f"판정_{D['run_id']}" / "collection-check.json"
+    if not f.exists():
+        return ""
+    cc = json.loads(f.read_text(encoding="utf-8"))
+    rows = []
+    for p in D["order"]:
+        m = (cc.get("models") or {}).get(p) or {}
+        rep_ = ", ".join(m.get("replaced") or []) or "—"
+        why = f'<div class="rs-basis">{E(m.get("replaced_why"))}</div>' if m.get("replaced_why") else ""
+        rows.append([mname(p), f'{m.get("answers", "—")}', f'<b>{m.get("same", "—")}</b>', f"{E(rep_)}{why}"])
+    traits = "".join(f"<li>{E(t)}</li>" for t in cc.get("chatgpt_copy_traits") or [])
+    return ('<h3 class="rs-sh">답변 수집 확인 — 답 아래 복사 아이콘으로 다시 받아 대조</h3>'
+            + table("", ["모델", "답이 있는 턴", "다시 받아 같음", "답 아래 아이콘 글로 바꾼 턴"], rows, [16, 16, 16, 52])
+            + f'<p class="rs-basis">{E(cc.get("rule", ""))} 확인 방법: {E(cc.get("how", ""))}. {E(cc.get("not_checked", ""))}</p>'
+            + (note("ChatGPT 앱 복사 기능의 특성 — 복사 결과 그대로 평가", f"<ul>{traits}</ul>") if traits else ""))
+
+
+def process_block(ex: Dict[str, Any]) -> str:
+    """판정 실행 기록 (10-21) — Codex 호출 · 다시 묻기 · 429 대기와 그 이유 · 판정 실행 오류 (report.html 표에서)."""
+    pr = ex.get("process") or {}
+    if not pr:
+        return ""
+    rows = [[k, f"<b>{E(v)}</b>", E(d)] for k, (v, d) in pr.items()]
+    return '<h3 class="rs-sh">판정 실행 기록</h3>' + table("", ["항목", "값", "설명"], rows, [16, 16, 68])
 
 
 # ---- Arena 형 (v4, 사용자 10-21: "LM Arena 리더보드가 제일 괜찮다") — 개요(큰 제목 · 분야 알약 탭 · 순위 카드) + 분야별 순위표(왼쪽 분야 목록 → 오른쪽 표)
@@ -538,7 +573,7 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     py = sum(1 for q in D["qtypes"] if "gpt" in order and D["lines"][("gpt", q)]["verdict"] == "FAIL"
              and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or []))
     if py:
-        checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 원문과 대조 중 — 복사 문제면 바뀜", "#s3", "gpt"))
+        checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 복사 기능이 줄바꿈을 지움(확인) · 복사 결과 그대로 FAIL", "#s3", "gpt"))
     checks.append(("wait", f"심판 흔들림 — 표본 {WOBBLE['n']}건 중 {WOBBLE['changed']}건", "몇 문항 차이는 오차일 수 있음" + (" · medium 전체 판정 중" if report_extras(D)["medium_running"] else ""), "#s1"))
     lst = "".join(f'<a class="ar-ck ar-ck-{k}" href="{h}"><i></i><span><b>{logo(m[0]) + " " if m else ""}{E(t)}</b><small>{E(s)}</small></span></a>' for k, t, s, h, *m in checks)
     grid = (f'<div class="ar-grid"><div class="ar-card">{"".join([panels])}<a class="ar-btn" href="#s1">분야별 순위표 전체 보기</a></div>'

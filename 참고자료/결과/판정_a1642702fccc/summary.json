@@ -3,32 +3,18 @@
  "run_id": "a1642702fccc",
  "prompt": "judge_prompt_v4.txt",
  "jev_questions": "jev-questions-v4",
- "finished_at": "2026-10-21T00:57:36.617379+00:00",
- "wall_seconds": 453.4,
+ "codex": {
+  "model": "gpt-6-luna",
+  "reasoning": "low"
+ },
+ "finished_at": "2026-10-21T04:09:34.188312+00:00",
+ "wall_seconds": 333.6,
  "models": {
-  "gemini": {
-   "PASS": 6,
-   "FAIL": 6,
-   "HOLD": 0,
-   "n": 12
-  },
-  "claude": {
-   "PASS": 4,
-   "FAIL": 8,
-   "HOLD": 0,
-   "n": 12
-  },
-  "gpt": {
-   "PASS": 4,
-   "FAIL": 8,
-   "HOLD": 0,
-   "n": 12
-  },
   "aiona": {
-   "PASS": 10,
+   "PASS": 0,
    "FAIL": 2,
    "HOLD": 0,
-   "n": 12
+   "n": 2
   }
  }
 }
