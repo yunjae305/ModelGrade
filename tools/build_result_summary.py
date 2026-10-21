@@ -480,7 +480,7 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         res = {p: Counter(D["lines"][(p, q)]["verdict"] for q in qs) for p in order}
         if all(c["HOLD"] == len(qs) for c in res.values()):
-            continue   # 빈 출력 요구 — 모두 보류(05 보류)
+            continue   # 빈 출력 요구 — 모두 보류('보류' 장면)
         if ty == "10턴 멀티턴 대화" and all(c["PASS"] == 0 for c in res.values()):
             ok, n_t = turn_ok(D, qs)
             cats.append({"group": "유형", "label": "멀티턴 (턴 단위)", "chip": f"{len(qs)}문항 · {n_t}턴", "higher": True, "of": n_t, "unit": "턴",
@@ -650,7 +650,7 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
           f'<tbody>{"".join(irows)}</tbody></table>')
     tabs = [("통과율", "높을수록 좋음 · 완전 통과 ÷ 질문 수 (멀티턴은 FAIL 없는 턴 ÷ 110턴)", t1),
             ("기준 묶음", "적을수록 좋음 · 그 묶음의 기준을 하나라도 어긴 질문 수", t2),
-            ("시간 · 토큰", "답변 시간 = 질문을 보내고 답을 받기까지 · 판정 · 질문당 = 질문 하나 판정 평균(전체 판정 시간은 07 걸린 시간) · 토큰 = 판정에 들어간 양", t3),
+            ("시간 · 토큰", "답변 시간 = 질문을 보내고 답을 받기까지 · 판정 · 질문당 = 질문 하나 판정 평균(전체 판정 시간은 '걸린 시간' 장면) · 토큰 = 판정에 들어간 양", t3),
             ("기본 정보", "모델 버전과 수집 방법", t4)]
     radios = "".join(f'<input type="radio" name="hm" id="hm{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
     labels = '<div class="hm-tabs">' + "".join(f'<label for="hm{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
@@ -1276,11 +1276,11 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
     judge_s = sum(t.get("seconds") or 0 for t in D["d"]["judgment"].get("timing") or [])
     coll = {p: sum((t.get("latency_ms") or 0) for (pp, _q, _t), t in D["turns"].items() if pp == p) / 1000 for p in D["order"]}
-    scenes = [
-        ("s1", "순위표", "분야별 순위", "분야별 순위표",
-         "위 점수표로 한눈에 보고, 아래에서 분야를 고르면 순위표가 바뀝니다.", helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
+    scenes = [   # 사용자 10-21: 평가 방법을 개요 바로 다음에 — 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다
         ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
          "어제 설명한 흐름 그대로이고, 의미 평가 심판만 Decisions API 로 바뀌었습니다.", scene_flow(D)),
+        ("s1", "순위표", "분야별 순위", "분야별 순위표",
+         "위 점수표로 한눈에 보고, 아래에서 분야를 고르면 순위표가 바뀝니다.", helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D)),
         ("s4", "보류", f"사람이 정할 {n_hold}칸", f"보류 — 사람이 정할 {n_hold}칸",
