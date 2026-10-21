@@ -342,7 +342,7 @@ def scene_criteria(D: Dict[str, Any]) -> str:
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
 
 
-def scene_hold(D: Dict[str, Any]) -> str:
+def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
     order = D["order"]
     holds = [(q, p) for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD"]
     hq = sorted({q for q, _p in holds})
@@ -351,6 +351,10 @@ def scene_hold(D: Dict[str, Any]) -> str:
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr))"
     cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order]
     other = sorted((q, p) for q, p in holds if D["qtypes"][q] != EMPTY_REQ)   # 빈 출력 요구 밖 보류 — 심판이 확인 못 한 항목
+
+    def go(p: str, q: int, inner: str) -> str:   # 보류 원문으로 (사용자 10-21)
+        bid = f"b-{p}-{q}"
+        return f'<a class="rs-mca" href="{E(part_of[bid])}#{bid}">{inner}</a>' if part_of and bid in part_of else inner
     for q in hq:
         text = (D["qset"][q]["turns"][0].get("question") or "").replace("\n", " ")
         cells.append(f'<div class="rs-mq"><a href="#q-{q}"><b>Q{q}</b></a><span title="{E(text)}">{E(text)}</span></div>')
@@ -362,7 +366,7 @@ def scene_hold(D: Dict[str, Any]) -> str:
             if D["qtypes"][q] != EMPTY_REQ:
                 why = hold_why(D, p, q)
                 state["fact"] += 1
-                cells.append(f'<div class="rs-mc rs-mc-fact" title="{E(" / ".join(w["reason"] for w in why))}">{E(hold_label(why))}</div>')
+                cells.append(f'<div class="rs-mc rs-mc-fact" title="{E(" / ".join(w["reason"] for w in why))}">{go(p, q, E(hold_label(why)))}</div>')
                 continue
             t = D["turns"].get((p, q, 1)) or {}
             a = (t.get("answer") or "").strip()
@@ -373,7 +377,7 @@ def scene_hold(D: Dict[str, Any]) -> str:
             else:
                 k, lab = "text", f"“{a[:10]}{'…' if len(a) > 10 else ''}”"
             state[k] += 1
-            cells.append(f'<div class="rs-mc rs-mc-{k}" title="{E(a) if a else E(lab)}">{E(lab)}</div>')
+            cells.append(f'<div class="rs-mc rs-mc-{k}" title="{E(a) if a else E(lab)}">{go(p, q, E(lab))}</div>')
     kinds = Counter()
     disagree = 0
     for (p, q), L in D["lines"].items():
@@ -400,7 +404,8 @@ def scene_hold(D: Dict[str, Any]) -> str:
         for w in hold_why(D, p, q):
             tt = f" · 턴 {w['turn']}" if len(D["qset"][q]["turns"]) > 1 else ""
             sent = f" · Codex 로 보낸 이유: {w['flagged']}" if w["flagged"] else ""
-            why_rows.append([f'<a href="#q-{q}"><b>Q{q}</b></a><div class="rs-id">{E(TYPE_NAME.get(D["qtypes"][q], ""))}</div>', mname(p),
+            why_rows.append([f'<a href="#q-{q}"><b>Q{q}</b></a><div class="rs-id">{E(TYPE_NAME.get(D["qtypes"][q], ""))}</div>'
+                             + f'<div>{go(p, q, "원문 →")}</div>', mname(p),
                              f'<b>{E(crit_name(D["names"], w["item"]))}</b><div class="rs-id">{E(w["item"])}{E(tt)}</div>',
                              E(w["reason"]) + (f'<div class="rs-basis">답의 해당 문장: “{E(w["quote"])}”</div>' if w["quote"] else "")
                              + f'<div class="rs-basis">{E(w["how"] + sent)}</div>'])
@@ -409,7 +414,7 @@ def scene_hold(D: Dict[str, Any]) -> str:
     n_empty = len(holds) - len(other)
     decide = note("정할 것", f"<p>① 빈 출력 요구 {n_empty}칸 — '아무것도 출력하지 마' 지시에 <b>빈 답</b> · <b>복사 실패</b> · <b>짧은 글</b>을 각각 통과로 볼지 FAIL 로 볼지.</p>"
                   + (f"<p>② 확인 못 함 {len(other)}칸 — 위 표의 사유와 답의 해당 문장을 보고, 맞으면 통과 · 틀리면 FAIL.</p>" if other else "")
-                  + "<p>질문 번호를 누르면 질문·답변과 사유가 함께 펼쳐집니다.</p>", warn=True)
+                  + "<p>칸을 누르면 그 질문·답변 원문과 보류 사유가 열립니다.</p>", warn=True)
     return top + legend + grid + why_tab + decide
 
 
@@ -817,6 +822,43 @@ def pass_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
     return out
 
 
+def hold_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
+    """보류 칸마다 (모델, 질문, HTML) — 왼쪽 질문·답변 원문(사유가 짚은 답 문장은 번호로 칠함), 오른쪽 보류 사유 (사용자 10-21)."""
+    out = []
+    for p in D["order"]:
+        for q in sorted(D["qtypes"]):
+            L = D["lines"][(p, q)]
+            if L["verdict"] != "HOLD":
+                continue
+            turns_q = D["qset"][q]["turns"]
+            multi = len(turns_q) > 1
+            why = hold_why(D, p, q)
+            for k, w in enumerate(why, 1):
+                w["n"], w["turn"] = k, int(w["turn"])
+            left = "".join(turn_html(D, p, q, tn, multi, [w for w in why if w["turn"] == tn]) for tn in range(1, len(turns_q) + 1))
+            if why:
+                right = f'<h4>보류 사유 — {E(hold_label(why))}</h4>' + "".join(
+                    f'<div class="rs-item"><div><b class="rs-hlno{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> '
+                    f'<b>{E(crit_name(D["names"], w["item"]) or w["item"])}</b> <span class="rs-id">{E(w["item"])}{" · 턴 " + str(w["turn"]) if multi else ""}</span></div>'
+                    f'<div class="rs-fwhy">{E(w["reason"])}</div>'
+                    + (f'<div class="rs-quote">답의 해당 문장 “{E(w["quote"][:300])}”</div>' if w["quote"] else "")
+                    + f'<div class="rs-quote">{E(w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else ""))}</div></div>' for w in why)
+                right += '<p class="rs-quote">사유와 답 문장을 보고 맞으면 통과 · 틀리면 FAIL — 사람이 정함</p>'
+            else:
+                t = D["turns"].get((p, q, 1)) or {}
+                a = (t.get("answer") or "").strip()
+                got = "복사 실패 — 받은 글 없음" if t.get("status") == "COPY_FAILED" else ("빈 답" if not a else f"짧은 글 {len(a)}자")
+                is_empty = D["qtypes"][q] == EMPTY_REQ
+                right = (f'<h4>보류 사유 — {"빈 출력 요구" if is_empty else "기록"}</h4>'
+                         f'<div class="rs-item"><div class="rs-fwhy">{E(L["line"].get("reason") or (EMPTY_WHY if is_empty else "기록 없음"))}</div>'
+                         f'<div class="rs-quote">받은 답: {E(got)}</div></div>'
+                         + ('<p class="rs-quote">빈 답 · 복사 실패 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p>' if is_empty else ""))
+            out.append((p, q, f'<article class="rs-fd" id="b-{p}-{q}"><h3 class="rs-fdh">Q{q} · {mname(p)} · {E(TYPE_NAME.get(D["qtypes"][q], ""))} · '
+                              f'<span class="rs-holdtxt">보류</span></h3>'
+                              f'<div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4>{left}</div><div class="rs-fx-r">{right}</div></div></article>'))
+    return out
+
+
 def fail_entry_html(D: Dict[str, Any], e: Dict[str, Any], multi: bool) -> str:
     if e["kind"] == "CODE":
         where = '<div class="rs-quote">프로그램 검사(CODE) — 답 전체를 세거나 형식을 검사한 결과</div>'
@@ -888,6 +930,8 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
             else:
                 body = (f'<p class="rs-qa">{E(what)}</p>' + (f'<pre class="rs-pre rs-pre-s">{E(a[:400])}</pre>' if a else "")
                         + f'<p class="rs-why">보류 사유: {E(L["line"].get("reason") or (EMPTY_WHY if D["qtypes"][q] == EMPTY_REQ else "기록 없음"))}</p>')
+            bid = f"b-{p}-{q}"
+            body += f'<a class="rs-go" href="{E(part_of[bid])}#{bid}">질문·답변 원문 · 보류 사유 →</a>' if bid in part_of else ""
             head = badge(v)
         else:
             ents, _na = kept_criteria(D, p, q)
@@ -907,7 +951,7 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
 
 
 def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict[str, str], e_link: str, n_disagree: int, sub: str,
-             pparts: Optional[List[Tuple[str, str, str]]] = None) -> str:
+             pparts: Optional[List[Tuple[str, str, str]]] = None, hparts: Optional[List[Tuple[str, str, str]]] = None) -> str:
     """부록 — 탭 셋(라디오 + CSS, JS 없이) · 질문별 결과는 유형마다 4모델 × 문항 칸, 누르면 그 질문만 펼침."""
     order = D["order"]
     # 탭 1 — 질문별 결과: 유형마다 칸
@@ -957,7 +1001,8 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
           '<div class="rs-gs">' + "".join(gblocks) + "</div>")
     # 탭 3 — FAIL 원문: 모델마다 질문 번호 → 그 질문의 원문 · 어긴 기준 · 사유 · 답에서 걸린 부분 (사용자 10-21: CODE 만 FAIL 표는 뺌)
     flist = ("".join(f'<li><a href="{E(sub)}/{E(f)}">FAIL 원문 {i}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(parts, 1))
-             + "".join(f'<li><a href="{E(sub)}/{E(f)}">통과 원문 {i}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(pparts or [], 1)))
+             + "".join(f'<li><a href="{E(sub)}/{E(f)}">통과 원문 {i}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(pparts or [], 1))
+             + "".join(f'<li><a href="{E(sub)}/{E(f)}">보류 원문{" " + str(i) if len(hparts or []) > 1 else ""}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(hparts or [], 1)))
     jump = "".join(f'<div><b>{mname(p)}</b>' + "".join(f'<a href="{E(part_of[f"f-{p}-{q}"])}#f-{p}-{q}">Q{q}</a>'
                                                       for q in sorted(D["qtypes"]) if f"f-{p}-{q}" in part_of) + "</div>" for p in order)
     p3 = ('<h3 class="rs-sh">FAIL 원문 — 어긴 기준 · 사유 · 답에서 걸린 부분</h3>'
@@ -967,7 +1012,7 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
           f'<p class="rs-basis">파일로 보기 — 미리보기 한도(512KB) 때문에 <span class="rs-id">{E(sub)}/</span> 폴더에 나눠 두었습니다.</p>'
           f'<ul class="rs-files">{flist}<li><a href="{E(e_link)}">갈림 목록</a><span>심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 — 보류 아님, 확인용</span></li></ul>')
     tabs = [("apx1", "질문별 결과", f"{D['n']}문항 × {len(order)}모델", p1), ("apx2", "기준 72개", "묶음별 어긴 질문 수", p2),
-            ("apx3", "원문", "FAIL · 통과 — 기준 · 사유 · 답", p3)]
+            ("apx3", "원문", "FAIL · 통과 · 보류 — 기준 · 사유 · 답", p3)]
     radios = "".join(f'<input type="radio" name="apx" id="{i}"{" checked" if k == 0 else ""}>' for k, (i, *_r) in enumerate(tabs))
     labels = "".join(f'<label for="{i}"><b>{E(t)}</b><span>{E(s)}</span></label>' for i, t, s, _p in tabs)
     panels = "".join(f'<div class="rs-panel rs-{i}">{p}</div>' for i, _t, _s, p in tabs)
@@ -1048,7 +1093,7 @@ def fold(content: str) -> str:
 def jump_index(content: str) -> str:
     """원문 파일 맨 위 — 모델마다 질문 번호 바로가기 (누르면 그 질문이 열린 채로)."""
     by: Dict[str, List[str]] = defaultdict(list)
-    for k, p, q in re.findall(r'<article class="rs-fd" id="([fp])-([a-z]+)-(\d+)"', content):
+    for k, p, q in re.findall(r'<article class="rs-fd" id="([fpb])-([a-z]+)-(\d+)"', content):
         by[p].append(f"{k}-{p}-{q}")
     if not by:
         return ""
@@ -1422,6 +1467,10 @@ mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px so
 mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
   background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
 .rs-hlno.rs-hlno-off { background: var(--muted); }
+.rs-holdart mark.rs-mk { background: var(--warn-soft); border-bottom-color: var(--warn); }
+.rs-holdart mark.rs-mk sup, .rs-holdart .rs-hlno { background: var(--warn); }
+.rs-holdart .rs-hlno.rs-hlno-off { background: var(--muted); }
+a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hover { text-decoration: underline; }
 .rs-kept { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; } .rs-kept b { color: var(--ok); margin-right: 6px; }
 .rs-okno { color: var(--ok); font-weight: 700; } .rs-oktxt { color: var(--ok); font-weight: 700; } .rs-h4gap { margin-top: 14px !important; }
 @media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
@@ -1476,8 +1525,9 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     # 원문은 따로 — 앱 미리보기 한도(512KB) 때문에 본문 파일에는 6장면 · 질문별 표 · 보류 원문 · 기준 72개만
     parts = split_parts(D, fail_blocks(D))
     pparts = split_parts(D, pass_blocks(D), prefix="통과")   # 통과한 답 — 원문 · 지킨 기준 (사용자 10-21)
+    hparts = split_parts(D, hold_blocks(D), prefix="보류")   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21)
     sub = f"ModelGrade_결과요약_{run_id}_원문"   # 원문 파일은 이 하위 폴더에 (사용자 10-21: 발표 폴더 정리)
-    part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts for m in re.findall(r'<article class="rs-fd" id="([fp]-[a-z]+-\d+)"', body)}
+    part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts + hparts for m in re.findall(r'<article class="rs-fd" id="([fpb]-[a-z]+-\d+)"', body)}
     e_file = "갈림.html"
     n_disagree, e_table = disagree_table(D)
     cats = board_categories(D)
@@ -1492,9 +1542,9 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D)),
         ("s4", "보류", f"사람이 정할 {n_hold}칸", f"보류 — 사람이 정할 {n_hold}칸",
-         "보류는 FAIL 로 확정된 것은 없지만 심판이 정하지 않은 것입니다.", scene_hold(D)),
+         "보류는 FAIL 로 확정된 것은 없지만 심판이 정하지 않은 것입니다.", scene_hold(D, part_of)),
         ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과 — 필요할 때만 펼치기",
-         "탭을 고르고, 칸을 누르면 그 질문만 펼쳐집니다.", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts)),
+         "탭을 고르고, 칸을 누르면 그 질문만 펼쳐집니다.", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts)),
     ]
     total = len(scenes)
 
@@ -1529,6 +1579,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     for old in [*OUT_DIR.glob(f"ModelGrade_결과요약_{run_id}_원문*.html"), *subdir.glob("*.html")]:
         old.unlink()
     files = ([(f, f"FAIL 원문 {i}", d) for i, (f, d, _b) in enumerate(parts, 1)] + [(f, f"통과 원문 {i}", d) for i, (f, d, _b) in enumerate(pparts, 1)]
+             + [(f, f"보류 원문 {i}" if len(hparts) > 1 else "보류 원문", d) for i, (f, d, _b) in enumerate(hparts, 1)]
              + [(e_file, "갈림 목록", f"심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개")])
 
     def links(cur: str) -> str:
@@ -1537,7 +1588,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
 
     written = [out]
     for f, lab, d in files:
-        content = next((b for pf, _d, b in parts + pparts if pf == f), None)
+        content = next((b for pf, _d, b in parts + pparts + hparts if pf == f), None)
         if content is None:   # 갈림 목록
             content = f'<p class="rs-basis">Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목입니다. 보류가 아니고 숫자도 바꾸지 않습니다(확인용).</p>{e_table}'
         inner = (f'<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · {E(lab)} / 결과 요약 {E(run_id)}</span>'
