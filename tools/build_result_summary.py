@@ -33,7 +33,7 @@ TIME_1020 = RESULTS / "시간_요약_ac6507c00276.json"   # 10-20 보고 때(다
 E = html.escape
 SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 # 미팅(10.20)에서 정한 이름 — 싱글턴 · 멀티턴 · 롱컨텍스트
-TYPE_NAME = {"단일 질문": "싱글턴", "10턴 멀티턴 대화": "멀티턴 (10턴 대화)", "첨부자료 확인·요약": "첨부 자료",
+TYPE_NAME = {"단일 질문": "싱글턴", "10턴 멀티턴 대화": "멀티턴", "첨부자료 확인·요약": "첨부 자료",
              "롱컨텍스트": "롱컨텍스트", "명시적 빈 출력": "빈 출력 요구"}
 GROUP = {"J1": "요청 충실", "J2": "지시 준수", "J3": "일관성·논리", "J4": "완결성", "J5": "DATA 신뢰도",
          "J6": "대화 맥락 유지", "J7": "긴 문서 활용", "J8": "첨부 활용"}
@@ -135,6 +135,21 @@ def code_fail_rows(D: Dict[str, Any], p: str, q: int) -> List[Dict[str, Any]]:
                 if c.get("verdict") == "FAIL" and c.get("check_id") in want:
                     out.append({"turn": tn, "check_id": c["check_id"], "reason": c.get("reason") or ""})
     return out
+
+
+def crit_qs(D: Dict[str, Any], p: str, c: str) -> List[int]:
+    """그 모델이 그 기준을 어긴 질문 번호 (crit_fail 과 같은 셈)."""
+    return sorted(q for (pp, q), L in D["lines"].items() if pp == p
+                  and c in ({i["item"] for i in L["items"] if i["decision"] == "FAIL"} | set(L["line"].get("code_fails") or [])))
+
+
+def card_id(p: str, c: str) -> str:
+    """'확인할 것'에서 바로 가는 카드 id (사용자 10-21)."""
+    return f"k-{p}-" + re.sub(r"[^a-z0-9]+", "-", c.lower()).strip("-")
+
+
+def q_chips(qs: List[int]) -> str:
+    return '<div class="rs-qchips">' + "".join(f'<a href="#q-{q}">Q{q}</a>' for q in qs) + "</div>"
 
 
 def crit_fail(D: Dict[str, Any]) -> Dict[str, Counter]:
@@ -267,7 +282,7 @@ def uniform_types(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
 
 def scene_flow(D: Dict[str, Any]) -> str:
     types = Counter(D["qtypes"].values())
-    chip_name = {"10턴 멀티턴 대화": "멀티턴 10턴", "첨부자료 확인·요약": "첨부"}
+    chip_name = {"첨부자료 확인·요약": "첨부"}
     chips = "".join(f'<span class="rs-chip">{E(chip_name.get(t, TYPE_NAME.get(t, t)))} <b>{types[t]}</b></span>' for t in R.TYPE_ORDER if types[t])
     chips += '<span class="rs-chip-note">롱컨텍스트 = 27만 토큰 이상 문서</span>'
     app = " · ".join(mname(p) for p in D["order"] if method_of(D, p) == "데스크톱 앱")
@@ -314,17 +329,26 @@ def scene_criteria(D: Dict[str, Any]) -> str:
             others = max(cnt[o] for o in order if o != p)
             if cnt[p] >= 8 and cnt[p] >= 4 * max(others, 1):
                 q, why = first_reason(D, p, c)
-                cards.append((cnt[p], f'<div class="rs-card"><span class="rs-ct">{mname(p)}</span><b>{E(crit_name(D["names"], c))}</b>'
+                cards.append((cnt[p], f'<div class="rs-card" id="{card_id(p, c)}"><span class="rs-ct">{mname(p)}</span><b>{E(crit_name(D["names"], c))}</b>'
                                       f'<div class="rs-cn"><span>{cnt[p]}</span><small>문항 · 다른 모델은 많아야 {others}</small></div>'
-                                      f'<p>예) Q{q} — {E(why[:80])}</p></div>'))
-    py = sum(1 for q in D["qtypes"] if D["lines"][("gpt", q)]["verdict"] == "FAIL"
-             and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or [])) if "gpt" in order else 0
+                                      f'<p>예) Q{q} — {E(why[:80])}</p>{q_chips(crit_qs(D, p, c))}</div>'))
+    py_qs = sorted(q for q in D["qtypes"] if D["lines"][("gpt", q)]["verdict"] == "FAIL"
+                   and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or [])) if "gpt" in order else []
+    py = len(py_qs)
     if py:   # 10-21 확인: ChatGPT 앱의 답 아래 복사 아이콘이 파이썬 코드블록 줄바꿈을 지움(앱 화면은 여러 줄) — 사용자 결정: 복사 결과 그대로
-        cards.append((0, f'<div class="rs-card rs-warn"><span class="rs-ct">{mname("gpt")} · 복사 기능 특성</span><b>Python 코드가 한 줄로 붙음</b>'
+        cards.append((0, f'<div class="rs-card rs-warn" id="k-gpt-python"><span class="rs-ct">{mname("gpt")} · 복사 기능 특성</span><b>Python 코드가 한 줄로 붙음</b>'
                          f'<div class="rs-cn"><span>{py}</span><small>문항 FAIL</small></div><p>ChatGPT 앱 화면에는 여러 줄인데, 답 아래 복사 아이콘으로 복사하면 '
-                         f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p></div>'))
+                         f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p>{q_chips(py_qs)}</div>'))
     cards.sort(key=lambda x: -x[0])
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
+
+
+def wobble_note() -> str:
+    """심판 흔들림 — '확인할 것'에서 바로 오는 자리 (사용자 10-21). 값은 WOBBLE(10-21 오전 low/medium A/B)."""
+    return (f'<div id="wobble" class="rs-anchor">' + note("심판 흔들림 — 몇 문항 차이는 오차일 수 있음",
+            f"<p>같은 답을 Codex 추론 low 와 medium 으로 한 번씩 판정해 보니(표본 {WOBBLE['n']}건 = 10질문 × 4모델), "
+            f"<b>{WOBBLE['changed']}건</b>의 판정이 달랐습니다. 그래서 모델 사이 몇 문항 차이는 순위를 가르는 근거로 약합니다. "
+            "medium 은 1.8배 오래 걸려 최종 판정은 low 로 했습니다.</p>") + "</div>")
 
 
 def scene_hold(D: Dict[str, Any]) -> str:
@@ -547,7 +571,7 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     took = (f'<b>{hm(collect_s + judge_s)}</b><span>소요 · 답변 수집 {hm(collect_s)} + 판정 {hm(judge_s)}</span>' if collect_s
             else f'<b>{hm(judge_s)}</b><span>판정 소요</span>')
     hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
-            '<h1 class="ar-h1">같은 질문으로 <em>AIONA</em> 를<br>네 모델과 비교했습니다</h1>'
+            '<h1 class="ar-h1"><em>AIONA</em> 채팅 품질 평가</h1>'   # 사용자 10-21: 깔끔한 제목
             f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')
     total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
     rank_card = (f'<div class="ar-card"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
@@ -564,12 +588,12 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
         for p in order:
             others = max(cnt[o] for o in order if o != p)
             if cnt[p] >= 8 and cnt[p] >= 4 * max(others, 1) and len(checks) < 4:
-                checks.append(("fail", f"{SHORT[p]} — {crit_name(D['names'], c)} {cnt[p]}문항", f"다른 모델은 많아야 {others} · 원문 확인 권장", "#s3", p))
+                checks.append(("fail", f"{SHORT[p]} — {crit_name(D['names'], c)} {cnt[p]}문항", f"다른 모델은 많아야 {others} · 원문 확인 권장", f"#{card_id(p, c)}", p))
     py = sum(1 for q in D["qtypes"] if "gpt" in order and D["lines"][("gpt", q)]["verdict"] == "FAIL"
              and any(x.startswith("1-2.python_syntax") for x in D["lines"][("gpt", q)]["line"].get("code_fails") or []))
     if py:
-        checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 복사 기능이 줄바꿈을 지움(확인) · 복사 결과 그대로 FAIL", "#s3", "gpt"))
-    checks.append(("wait", f"심판 흔들림 — 표본 {WOBBLE['n']}건 중 {WOBBLE['changed']}건", "몇 문항 차이는 오차일 수 있음" + (" · medium 전체 판정 중" if report_extras(D)["medium_running"] else ""), "#s1"))
+        checks.append(("wait", f"GPT — Python 코드가 한 줄로 붙음 {py}문항", "ChatGPT 앱 복사 기능이 줄바꿈을 지움(확인) · 복사 결과 그대로 FAIL", "#k-gpt-python", "gpt"))
+    checks.append(("wait", f"심판 흔들림 — 표본 {WOBBLE['n']}건 중 {WOBBLE['changed']}건", "몇 문항 차이는 오차일 수 있음" + (" · medium 전체 판정 중" if report_extras(D)["medium_running"] else ""), "#wobble"))
     lst = "".join(f'<a class="ar-ck ar-ck-{k}" href="{h}"><i></i><span><b>{logo(m[0]) + " " if m else ""}{E(t)}</b><small>{E(s)}</small></span></a>' for k, t, s, h, *m in checks)
     grid = (f'<div class="ar-grid">{rank_card}'
             f'<div class="ar-card"><div class="ar-ch"><h3>확인할 것</h3><span class="ar-chip">이번 실행</span></div><div class="ar-cks">{lst}</div>'
@@ -700,7 +724,7 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
     """질문 하나 — 질문 글 · 모델마다 판정과 이유 · 원문 링크. 평소에는 숨어 있고 칸을 누르면(#q-n, CSS :target) 펼쳐진다 — JS 없이."""
     turns = D["qset"][q]["turns"]
     first = (turns[0].get("question") or "").strip()
-    tn = f" · {len(turns)}턴 대화 (첫 턴 질문)" if len(turns) > 1 else ""
+    tn = " · 첫 턴 질문" if len(turns) > 1 else ""
     att = turns[0].get("attachments") or []
     extra = (f" · 첨부 {len(att)}개" if att else "") + (f" · 참조 문서 {len(turns[0].get('reference') or ''):,}자" if turns[0].get("reference") else "")
     rows = []
@@ -1186,8 +1210,8 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .ar-cks { display: grid; }
 .ar-ck { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
 .ar-ck:hover { background: var(--bg); }
-.ar-ck i { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--muted); }
-.ar-ck-hold i { background: var(--warn); } .ar-ck-fail i { background: var(--risk); } .ar-ck-wait i { background: var(--accent); }
+.ar-ck > i { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--muted); }
+.ar-ck-hold > i { background: var(--warn); } .ar-ck-fail > i { background: var(--risk); } .ar-ck-wait > i { background: var(--accent); }
 .ar-ck b { display: block; font-size: 0.93rem; font-weight: 600; } .ar-ck small { color: var(--muted); font-size: 0.8rem; }
 .ar-board { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
 .ar-cats { position: sticky; top: 64px; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
@@ -1234,6 +1258,16 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .hm-tab td label { cursor: pointer; display: inline-block; padding: 2px 6px; border-radius: 6px; } .hm-tab td label:hover { background: var(--accent-soft); color: var(--accent); }
 .hm-tab td.hm-best { font-weight: 700; }
 .hm-tab td.hm-l { font-family: var(--font-body); white-space: normal; min-width: 220px; }
+/* 10-21 사용자: '확인할 것'에서 바로 간 자리 강조 · 카드의 질문 번호 · 좌우 여백 줄여 한 줄에 */
+.rs-card[id], .rs-anchor { scroll-margin-top: 76px; }
+.rs-card:target, .rs-anchor:target .note { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-anchor { margin-top: 18px; }
+.rs-qchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.rs-qchips a { font-family: var(--font-num); font-size: 0.76rem; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
+.rs-qchips a:hover { border-color: var(--accent); color: var(--accent); }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { .topnav-in { max-width: 1480px; } }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
 </style>"""
 
 
@@ -1275,7 +1309,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
          "어제 설명한 흐름 그대로이고, 의미 평가 심판만 Decisions API 로 바뀌었습니다.", scene_flow(D)),
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
-         "위 점수표로 한눈에 보고, 아래에서 분야를 고르면 순위표가 바뀝니다.", helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
+         "위 점수표로 한눈에 보고, 아래에서 분야를 고르면 순위표가 바뀝니다.", helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats) + wobble_note()),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D)),
         ("s4", "보류", f"사람이 정할 {n_hold}칸", f"보류 — 사람이 정할 {n_hold}칸",
@@ -1310,7 +1344,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
 
     main_name = f"ModelGrade_결과요약_{run_id}.html"
     out = OUT_DIR / main_name
-    out.write_text(doc("ModelGrade 평가 결과", f"78개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
+    out.write_text(doc("AIONA 채팅 품질 평가", f"78개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
                        f'{nav}\n<main class="wrap">\n{s0}\n{body}\n</main>\n{script}'), encoding="utf-8")
     subdir = OUT_DIR / sub
     subdir.mkdir(exist_ok=True)

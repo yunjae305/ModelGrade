@@ -869,8 +869,8 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .ar-cks { display: grid; }
 .ar-ck { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
 .ar-ck:hover { background: var(--bg); }
-.ar-ck i { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--muted); }
-.ar-ck-hold i { background: var(--warn); } .ar-ck-fail i { background: var(--risk); } .ar-ck-wait i { background: var(--accent); }
+.ar-ck > i { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--muted); }
+.ar-ck-hold > i { background: var(--warn); } .ar-ck-fail > i { background: var(--risk); } .ar-ck-wait > i { background: var(--accent); }
 .ar-ck b { display: block; font-size: 0.93rem; font-weight: 600; } .ar-ck small { color: var(--muted); font-size: 0.8rem; }
 .ar-board { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 18px; align-items: start; }
 .ar-cats { position: sticky; top: 64px; display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
@@ -917,6 +917,16 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .hm-tab td label { cursor: pointer; display: inline-block; padding: 2px 6px; border-radius: 6px; } .hm-tab td label:hover { background: var(--accent-soft); color: var(--accent); }
 .hm-tab td.hm-best { font-weight: 700; }
 .hm-tab td.hm-l { font-family: var(--font-body); white-space: normal; min-width: 220px; }
+/* 10-21 사용자: '확인할 것'에서 바로 간 자리 강조 · 카드의 질문 번호 · 좌우 여백 줄여 한 줄에 */
+.rs-card[id], .rs-anchor { scroll-margin-top: 76px; }
+.rs-card:target, .rs-anchor:target .note { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-anchor { margin-top: 18px; }
+.rs-qchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.rs-qchips a { font-family: var(--font-num); font-size: 0.76rem; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
+.rs-qchips a:hover { border-color: var(--accent); color: var(--accent); }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { .topnav-in { max-width: 1480px; } }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
 </style>
 <style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
 .mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
