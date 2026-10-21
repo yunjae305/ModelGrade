@@ -360,7 +360,7 @@ def sibling_results(out_dir: Path) -> List[Tuple[str, Path]]:
     out_dir = Path(out_dir)
     sibs = []
     for d in sorted(out_dir.parent.iterdir()):
-        if d.is_dir() and d != out_dir and d.name.startswith("v4") and "sample" not in d.name and (d / "results.jsonl").exists():
+        if d.is_dir() and d != out_dir and d.name.startswith("v4") and not any(w in d.name for w in ("sample", "prev", "stopped")) and (d / "results.jsonl").exists():
             sibs.append((codex_reasoning(d), d))
     return sibs
 

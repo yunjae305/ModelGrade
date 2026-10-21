@@ -557,9 +557,13 @@ class ChatGptChat(_CdpChat):
         best: Optional[str] = None
         try:
             buttons = last.get_by_role("button", name=re.compile(r"^(복사|Copy)$")).all()
+            # 답 아래 도구 줄의 복사 아이콘만 — 코드블록(질문·답 속) 안의 '복사'와 내 질문 쪽 버튼은 뺀다 (사용자 지시 2026-10-21:
+            # "코드블럭에도 복사버튼이 있고 아래에도 복사 아이콘이 있다, 아래에 있는 것을 눌러야 한다"). 예전에는 전부 눌러 가장 긴 글을 썼다.
+            buttons = [b for b in buttons if b.evaluate(
+                "(el) => !el.closest('[data-markdown-copy=\"code-block\"], pre') && !el.closest('[data-user-message-bubble]')")]
         except Exception:
             buttons = []
-        for btn in buttons:
+        for btn in buttons[-1:]:
             try:
                 before = self._eval("() => (window.__mgCopied || []).length")
                 try:

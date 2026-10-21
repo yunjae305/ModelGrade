@@ -60,7 +60,10 @@ def copy_answer(chat: AionaChat, index: int):
                 continue
             chat.page.evaluate("() => { window.__mgCopied = []; }")
             candidate.scroll_into_view_if_needed(timeout=3000)
-            candidate.click(timeout=5000)
+            try:
+                candidate.click(timeout=5000)
+            except Exception:
+                candidate.dispatch_event("click")   # 마지막 답의 도구 줄은 아래 입력창과 겹쳐 클릭이 가로막힌다(10턴 대화 T10, 2026-10-21) — 버튼에 바로 클릭
             chat.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
             return chat.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
         except Exception:

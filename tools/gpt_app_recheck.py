@@ -53,7 +53,13 @@ TURNS_JS = r"""() => {
     const ub = t.querySelector('[data-user-message-bubble], [data-message-role="user"], [data-message-author-role="user"]');
     const all = t.innerText || '';
     const at = all.indexOf('ChatGPT 답변:');
-    return {key: t.getAttribute('data-turn-key'), user: ub ? ub.innerText : '', answer: at >= 0 ? all.slice(at + 'ChatGPT 답변:'.length) : ''};
+    const codes = [];
+    for (const p of t.querySelectorAll('pre')) {
+      if (ub && ub.contains(p)) continue;
+      let f = p[Object.keys(p).find(k => k.startsWith('__reactFiber'))];
+      for (let i = 0; i < 12 && f; i++, f = f.return) { const pr = f.memoizedProps || {}; if (typeof pr.code === 'string') { codes.push(pr.code); break; } }
+    }
+    return {key: t.getAttribute('data-turn-key'), user: ub ? ub.innerText : '', answer: at >= 0 ? all.slice(at + 'ChatGPT 답변:'.length) : '', codes};
   });
 }"""
 SCROLL_CHAT_JS = r"""(dir) => {
@@ -71,6 +77,16 @@ HOOK_JS = r"""() => {
 }"""
 UNHOOK_JS = r"""() => { if (window.__chkHooked) { const c = navigator.clipboard; c.write = window.__chkOrig.w; c.writeText = window.__chkOrig.wt; window.__chkHooked = false; } }"""
 COPY_NAME = re.compile(r"^(복사|Copy)$")
+# 답 아래 도구 줄의 복사 아이콘만 — 이름이 '복사'인 버튼 가운데 코드블록(질문·답 속) 안도, 내 질문 말풍선 쪽도 아닌 것 (사용자 지시 10-21:
+# "코드블럭에도 복사버튼이 있고 아래에도 복사 아이콘이 있다, 아래에 있는 것을 눌러야 한다"). 턴마다 정확히 1개여야 누른다.
+BOTTOM_COPY_JS = r"""(key) => {
+  const t = document.querySelector(`[data-turn-key="${key}"]`); if (!t) return -1;
+  const ub = t.querySelector('[data-user-message-bubble]');
+  const b = [...t.querySelectorAll('button')].filter(x => /^(복사|Copy)$/.test((x.getAttribute('aria-label') || '').trim()))
+    .filter(x => !x.closest('[data-markdown-copy="code-block"], pre') && !(ub && ub.contains(x)));
+  if (!b.length) return 0;
+  b[b.length - 1].click(); return b.length;   // 답 속 '글쓰기' 카드 등도 자기 복사 버튼이 있다 — 화면 순서상 마지막이 답 아래 도구 줄
+}"""
 _MD = re.compile(r"[\s`*#|_>\-]+")
 
 
@@ -96,7 +112,7 @@ def _eol(text: str) -> str:
     return "\n".join(line.rstrip() for line in (text or "").replace("\r\n", "\n").split("\n")).strip()
 
 
-def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def collect(run: Dict[str, Any], limit: Optional[int] = None, start: int = 0, on_conversation: Any = None) -> List[Dict[str, Any]]:
     from playwright.sync_api import sync_playwright
     rows = [r for r in run["datasets"]["gpt"] if isinstance(r, dict)]
     times = [datetime.fromisoformat(r["collection"]["collected_at"]) for r in rows if (r.get("collection") or {}).get("collected_at")]
@@ -119,7 +135,9 @@ def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, 
         print(f"사이드바 대화 {len(threads)}개 · 이번 실행 GPT 수집 시간 안 {len(inside)}개", flush=True)
         try:
             for n, t in enumerate(sorted(inside, key=lambda x: x["created"])):
-                if limit and n >= limit:
+                if n < start:
+                    continue
+                if limit and n >= start + limit:
                     break
                 ok = page.evaluate(CLICK_JS, t["id"])
                 if not ok:   # 화면 밖이면 사이드바를 위로 감았다가 내려가며 찾는다
@@ -137,6 +155,8 @@ def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, 
                 seen: Dict[str, Dict[str, Any]] = {}
                 order: List[str] = []
                 copies: Dict[str, Optional[str]] = {}
+                bottom_count: Dict[str, int] = {}
+                attempts: Dict[str, int] = {}
 
                 def recopy(key: str) -> Optional[str]:
                     """수집기(_copy_last_answer_once)와 같게 — 그 턴의 '복사' 버튼을 모두 눌러 가장 긴 글."""
@@ -147,17 +167,16 @@ def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, 
                     except Exception:
                         pass
                     page.evaluate(HOOK_JS)
-                    for btn in turn.get_by_role("button", name=COPY_NAME).all():
-                        try:
-                            btn.click(timeout=3000)
-                        except Exception:
-                            try:
-                                btn.dispatch_event("click")
-                            except Exception:
-                                continue
-                        page.wait_for_timeout(400)
+                    n = page.evaluate(BOTTOM_COPY_JS, key)
+                    if n < 1:   # 도구 줄이 마우스를 올려야 그려질 수 있다 — 한 번 더
+                        page.wait_for_timeout(600)
+                        n = page.evaluate(BOTTOM_COPY_JS, key)
+                    bottom_count[key] = n
+                    if n < 1:
+                        return None
+                    page.wait_for_timeout(500)
                     got = [x for x in page.evaluate("() => window.__chk || []") if isinstance(x, str) and x.strip()]
-                    return max(got, key=len) if got else None
+                    return got[-1] if got else None
 
                 def grab() -> None:
                     for tr in page.evaluate(TURNS_JS):
@@ -167,7 +186,8 @@ def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, 
                             order.append(tr["key"])
                         if tr["key"] not in seen or len(tr["answer"]) > len(seen[tr["key"]]["answer"]):
                             seen[tr["key"]] = tr
-                        if copies.get(tr["key"]) is None and tr["answer"].strip():
+                        if copies.get(tr["key"]) is None and tr["answer"].strip() and attempts.get(tr["key"], 0) < 3:   # 같은 답을 굴릴 때마다 끝없이 다시 시도하지 않게
+                            attempts[tr["key"]] = attempts.get(tr["key"], 0) + 1
                             copies[tr["key"]] = recopy(tr["key"])
 
                 # 긴 대화는 화면 근처 턴만 그려진다 — 위로 끝까지 올라가며 모으고, 다시 내려오며 모은다
@@ -181,12 +201,14 @@ def collect(run: Dict[str, Any], limit: Optional[int] = None) -> List[Dict[str, 
                         if still >= 3:
                             break
                     grab()
-                turns = [{**seen[k], "copied": copies.get(k)} for k in order]
+                turns = [{**seen[k], "copied": copies.get(k), "bottom_buttons": bottom_count.get(k)} for k in order]
                 for tr in turns:
                     u = norm_q(tr["user"])
                     cands = [cid for cid, q in qnorm.items() if q and (q in u or (len(q) > 60 and q[:60] in u and q[-40:] in u))]
                     tr["case_id"] = max(cands, key=lambda c: len(qnorm[c])) if cands else None
                 found.append({"conversation": t["id"], "title": t["title"], "created": t["created"], "turns": turns})
+                if on_conversation:
+                    on_conversation(found[-1])
                 print(f"  {n + 1:>3}. {t['title'][:24]:<24} 턴 {len(turns)} · 다시 복사 {sum(1 for x in turns if x['copied'])} → "
                       f"{sorted({x['case_id'] for x in turns if x['case_id']})[:3]}", flush=True)
         finally:
@@ -212,9 +234,15 @@ def compare(run: Dict[str, Any], found: List[Dict[str, Any]]) -> Dict[str, Any]:
                 a, b = _eol(copied), _eol(stored)
                 i = next((k for k in range(min(len(a), len(b))) if a[k] != b[k]), min(len(a), len(b)))
                 first_diff = {"at": i, "copied": a[max(0, i - 30):i + 60], "stored": b[max(0, i - 30):i + 60]}
+            fences = re.findall(r"```[^\n]*\n(.*?)\n?```", copied if copied is not None else stored, flags=re.S)
+            raw_lines = [c.count("\n") + 1 for c in tr.get("codes") or []]
+            got_lines = [c.count("\n") + 1 for c in fences]
+            collapsed = [i + 1 for i, (a, b) in enumerate(zip(raw_lines, got_lines)) if a > 1 and b == 1]
             report["checked"].append({
+                "app_code_lines": raw_lines, "copied_code_lines": got_lines, "code_collapsed_blocks": collapsed,
                 "case_id": cid, "conversation": conv["conversation"], "status": (rows[cid].get("collection") or {}).get("status"),
                 "recopy": "같음" if same else ("복사 실패" if copied is None else "다름"), "similarity": ratio, "first_diff": first_diff,
+                "bottom_buttons": tr.get("bottom_buttons"),
                 "coverage": round(coverage(tr["answer"], stored), 4), "visible_chars": len(tr["answer"]), "stored_chars": len(stored),
                 "copied_chars": len(copied) if copied is not None else None})
     return report
@@ -224,10 +252,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run", required=True)
     ap.add_argument("--limit", type=int, default=None, help="시험용 — 대화 몇 개만")
+    ap.add_argument("--start", type=int, default=0, help="생성 순서로 몇 번째 대화부터(0부터) — 멈춘 뒤 이어서")
     args = ap.parse_args(argv)
     from tools.modelgrade import load_run
     run = load_run(args.run)
-    found = collect(run, args.limit)
+    live = ROOT / "data" / "judge_runs" / args.run / "gpt-recheck.jsonl"
+
+    def save_one(conv: Dict[str, Any]) -> None:   # 대화마다 바로 비교해 한 줄씩 저장 — 중간에 멈춰도 남는다
+        part = compare(run, [conv])
+        with live.open("a", encoding="utf-8") as f:
+            for c in part["checked"]:
+                f.write(json.dumps({**c, "title": conv["title"]}, ensure_ascii=False) + "\n")
+
+    found = collect(run, args.limit, args.start, save_one)
     report = compare(run, found)
     gpt_rows = [r for r in run["datasets"]["gpt"] if isinstance(r, dict)]
     matched = {c["case_id"] for c in report["checked"]}
@@ -235,12 +272,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         "conversations": len(found), "matched_turns": len(report["checked"]), "gpt_turns": len(gpt_rows),
         "recopy": dict(Counter(c["recopy"] for c in report["checked"])),
         "different": [(c["case_id"], c["similarity"]) for c in report["checked"] if c["recopy"] == "다름"],
+        "bottom_button_not_one": [(c["case_id"], c["bottom_buttons"]) for c in report["checked"] if c.get("bottom_buttons") not in (1, None)],
+        "code_collapsed": [c["case_id"] for c in report["checked"] if c.get("code_collapsed_blocks")],
         "not_found": sorted(r["case_id"] for r in gpt_rows if r["case_id"] not in matched and (r.get("collection") or {}).get("status") == "SUCCESS"),
         "low_coverage": [(c["case_id"], c["coverage"]) for c in report["checked"] if c["coverage"] < 0.97 and c["visible_chars"] > 20]}
     out = ROOT / "data" / "judge_runs" / args.run / "gpt-recheck.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     s = report["summary"]
     print(f"\n대화 {s['conversations']}개 · 맞춘 턴 {s['matched_turns']}/{s['gpt_turns']} · 다시 복사 {s['recopy']} · 다른 답 {s['different'][:10]}"
+          f" · 답 아래 아이콘이 1개가 아닌 턴 {s['bottom_button_not_one'][:6]} · 복사에서 코드 줄바꿈이 사라진 턴 {s['code_collapsed']}"
           f" · 화면 글이 덜 들어간 답 {len(s['low_coverage'])}개 {s['low_coverage'][:8]} · 못 찾은 턴 {len(s['not_found'])}개 {s['not_found'][:10]} → {out}")
     return 0
 

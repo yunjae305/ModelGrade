@@ -81,7 +81,10 @@ def test_attachment_parts_send_original_files(tmp_path: Path):
     parts, note = attachment_parts({"이름": "메모.txt", "종류": "txt", "경로": "메모.txt"}, files)
     assert parts[0]["type"] == "input_text" and "둘째 줄 금액 1,200원" in parts[0]["text"] and "글 파일 원본" in note
     parts, note = attachment_parts({"이름": "규정.docx", "종류": "docx", "경로": "규정.docx"}, files)
-    assert parts[0]["type"] == "input_text" and "규정 개정안" in parts[0]["text"] and "| 항목 | 값 |" in parts[0]["text"] and "DOCX 원본" in note
+    if parts and parts[0]["type"] == "input_image":   # Word 가 있으면 docx 도 쪽 이미지로 (2026-10-21 사용자 요청)
+        assert all(p["type"] == "input_image" for p in parts) and "DOCX" in note
+    else:                                              # Word 가 없으면 예전처럼 문단·표 글
+        assert parts[0]["type"] == "input_text" and "규정 개정안" in parts[0]["text"] and "| 항목 | 값 |" in parts[0]["text"] and "DOCX 원본" in note
     parts, note = attachment_parts({"이름": "없음.pdf", "종류": "pdf", "경로": "없음.pdf"}, files)
     assert parts == [] and "파일 없음" in note
     # build_input: 경로가 있는 첨부는 원본 조각을 붙여 메시지 모양으로, 없으면 글 그대로
