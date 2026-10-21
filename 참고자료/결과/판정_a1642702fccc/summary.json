@@ -3,32 +3,32 @@
  "run_id": "a1642702fccc",
  "prompt": "judge_prompt_v4.txt",
  "jev_questions": "jev-questions-v4",
- "finished_at": "2026-10-20T22:52:29.292145+00:00",
- "wall_seconds": 1410.0,
+ "finished_at": "2026-10-21T00:57:36.617379+00:00",
+ "wall_seconds": 453.4,
  "models": {
   "gemini": {
-   "PASS": 27,
-   "FAIL": 41,
-   "HOLD": 10,
-   "n": 78
+   "PASS": 6,
+   "FAIL": 6,
+   "HOLD": 0,
+   "n": 12
   },
   "claude": {
-   "PASS": 40,
-   "FAIL": 27,
-   "HOLD": 11,
-   "n": 78
+   "PASS": 4,
+   "FAIL": 8,
+   "HOLD": 0,
+   "n": 12
   },
   "gpt": {
-   "PASS": 23,
-   "FAIL": 45,
-   "HOLD": 10,
-   "n": 78
+   "PASS": 4,
+   "FAIL": 8,
+   "HOLD": 0,
+   "n": 12
   },
   "aiona": {
-   "PASS": 46,
-   "FAIL": 22,
-   "HOLD": 10,
-   "n": 78
+   "PASS": 10,
+   "FAIL": 2,
+   "HOLD": 0,
+   "n": 12
   }
  }
 }
