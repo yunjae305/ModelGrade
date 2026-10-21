@@ -392,8 +392,8 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                     f"<title>AIONA 채팅 품질 평가 결과</title><style>{CSS}</style></head><body data-run='{_e(run_id)}' data-policy='{POLICY}'><div class='wrap'>"]
     P.append(f"<h1>AIONA 채팅 품질 평가 결과</h1><div class='meta'>실행 {_e(run_id)} · 질문 {total_q}개 · 평가 기준 72개(CODE 28 + 의미 44) · 심판: {judge_txt} · 보고서 생성 {gen}"
              f"{'' if complete else ' · <b class=HOLD>평가 진행 중(일부 질문 미평가)</b>'}</div>")
-    P.append("<p class='lead'>같은 질문 78개를 네 모델에 똑같이 던지고, 답변마다 72개 기준으로 검사했습니다. <b>완전 통과</b>는 그 질문의 72개 기준을 하나도 어기지 않은 경우입니다. "
-             "10턴 대화는 열 번의 답 모두가 검사 대상이라 기준이 엄격합니다. 숫자는 모두 <b>질문 수 / 78</b> 입니다.</p>")
+    P.append("<p class='lead'>같은 질문 78개를 네 모델에 똑같이 던지고, 답변마다 72개 기준으로 검사했습니다. <b>완전 통과</b>는 그 질문에 적용되는 기준(첨부·멀티턴·형식 조건처럼 "
+             "그 질문에 없는 기준은 '해당 없음'으로 제외) 가운데 FAIL 도 보류도 하나 없는 경우입니다. 10턴 대화는 열 번의 답 모두가 검사 대상이라 기준이 엄격합니다. 숫자는 모두 <b>질문 수 / 78</b> 입니다.</p>")
 
     # 1. 한눈에
     P.append("<h2>1. 한눈에 보기 — 완전 통과 질문 수</h2><div class='cards'>")

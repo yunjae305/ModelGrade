@@ -900,6 +900,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
     ap.add_argument("--dry", action="store_true", help="심판을 부르지 않고 질문마다 어떻게 처리할지만 보기")
     ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
+    ap.add_argument("--redo", action="store_true", help="--questions 로 고른 질문은 이미 판정했어도 처음부터 다시 판정한다(새 줄을 덧붙임, 보고서는 마지막 줄을 씀)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
 
@@ -934,8 +935,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             if x.strip():
                 l = json.loads(x)
                 if l.get("version") in (VERSION, SCREEN_VERSION) and not l.get("judge_error"):   # 선별(v5) 줄도 이미 한 건 (Codex 지적 10-20) · 판정 실행 오류는 다시
-                    if args.repair and l.get("status") == "judged":
-                        continue   # --repair: 판정한 줄은 저장된 심판 출력으로 다시 합친다
+                    if (args.repair or args.redo) and l.get("status") == "judged":
+                        continue   # --repair: 판정한 줄은 저장된 심판 출력으로 다시 합친다 · --redo: 처음부터 다시
                     done.add((l["provider"], int(l["question"])))
     queues: Dict[str, List[int]] = {}
     for q, p in plan:
