@@ -432,5 +432,11 @@ def flow_scene(D: Dict[str, Any]) -> str:
     set_dir = Path(D["set_dir"])
     m = re.search(r"v[\d.]+$", set_dir.name)
     set_ver = m.group(0) if m else set_dir.name
-    return (f'<figure class="poster"><span class="poster-sub">질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI</span>'
+    # 받은 의견 E (10-21 밤): 이 그림은 다음 평가 구조(심판 셋) — 이번 결과가 다른 방식으로 판정됐으면 그 방식을 같이 적는다 (Gemini 표기는 페이지 전체 3.8, 사용자 10-21 밤)
+    pipe = D["d"]["judgment"].get("pipeline") or ""
+    now = re.search(r"\((.*)\)", pipe)
+    sub = (f'질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI' if "Jev" in pipe else
+           f'<b>다음 평가 구조</b> — 질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋(Jev · Decisions API · Codex CLI)<br>'
+           f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}')
+    return (f'<figure class="poster"><span class="poster-sub">{sub}</span>'
             f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')

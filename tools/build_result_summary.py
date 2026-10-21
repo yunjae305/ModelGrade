@@ -15,6 +15,7 @@ import re
 import statistics
 import sys
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -31,7 +32,6 @@ RESULTS = ROOT / "참고자료" / "결과"
 OUT_DIR = ROOT / "참고자료" / "발표"
 MAIN_NAME = "ModelGrade_결과요약_10-20 발표자료.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음)
 DECK = OUT_DIR / "ModelGrade_진행보고_2026-10-19.html"
-TIME_1020 = RESULTS / "시간_요약_ac6507c00276.json"   # 10-20 보고 때(다른 78개 세트) 수집 시간 — 참고 한 줄
 E = html.escape
 SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 # 미팅(10.20)에서 정한 이름 — 싱글턴 · 멀티턴 · 롱컨텍스트
@@ -268,7 +268,7 @@ def tint(r: float, var: str, cap: int = 42) -> str:
     return f"background: color-mix(in srgb, var({var}) {max(0.0, min(1.0, r)) * cap:.0f}%, var(--surface));"
 
 
-#: 페이지에 보이는 모델 이름 — 사용자 10-21: 모순을 고친 뒤 다시 돌릴 평가는 Gemini 3.8 Flash 라 표기를 미리 3.8 로.
+#: 페이지에 보이는 모델 이름 — 사용자 10-21: 모순을 고친 뒤 다시 돌릴 평가는 Gemini 3.8 Flash 라 표기를 미리 3.8 로 (10-21 밤 다시 확인: 3.8 로 둠).
 #: 결과 JSON 의 수집 기록(a1642702fccc 는 3.6 Flash)과 report.html 짝 맞추기(by_label)는 그대로 둔다.
 MODEL_SHOWN = {"gemini": "Gemini 웹브라우저 (3.8 Flash · 사고 보통)"}
 
@@ -282,19 +282,21 @@ def method_of(D: Dict[str, Any], p: str) -> str:
     return "데스크톱 앱" if "앱" in lab else "웹브라우저" if "웹" in lab else ""
 
 
-def turn_ok(D: Dict[str, Any], qs: List[int]) -> Tuple[Dict[str, int], int]:
-    """대화 질문들의 턴 가운데 FAIL(의미 항목 · CODE)이 없는 턴 수."""
-    ok, tot = {}, 0
+def turn_ok(D: Dict[str, Any], qs: List[int]) -> Tuple[Dict[str, int], int, Dict[str, int]]:
+    """대화 질문들의 턴 가운데 FAIL(의미 항목 · CODE)이 없는 턴 수 · 전체 턴 수 · 그중 보류 항목이 남은 턴 수(참고 지표라 보류 턴도 셈 — 받은 의견 C)."""
+    ok, tot, held = {}, 0, {}
     for p in D["order"]:
-        o = t = 0
+        o = t = h = 0
         for q in qs:
             L = D["lines"][(p, q)]
-            nturn = len(D["qset"][q]["turns"])
+            turns = set(range(1, len(D["qset"][q]["turns"]) + 1))
             bad = {i["turn"] for i in L["items"] if i["decision"] == "FAIL"} | {c["turn"] for c in code_fail_rows(D, p, q)}
-            o += nturn - len(bad & set(range(1, nturn + 1)))
-            t += nturn
-        ok[p], tot = o, t
-    return ok, tot
+            hold = {i["turn"] for i in L["items"] if i["decision"] == "UNVERIFIED"}
+            o += len(turns - bad)
+            h += len((turns - bad) & hold)
+            t += len(turns)
+        ok[p], tot, held[p] = o, t, h
+    return ok, tot, held
 
 
 def scene_flow(D: Dict[str, Any]) -> str:
@@ -314,7 +316,11 @@ def scene_flow(D: Dict[str, Any]) -> str:
         '<li class="rs-ext">+ 우수AI · 팩트챗 등 다른 AI 서비스도 앱·웹브라우저 자동화로 연결해 같은 질문으로 비교 가능</li></ul></div>'
         '<div class="rs-st"><span class="rs-sn">3</span><h3>채점 — 기준 72개</h3>'
         '<div class="rs-box"><b>CODE 검사 28</b><span>형식 · 개수 · 글자 수 · 계산</span><em>정해진 규칙으로 정확히 셈</em></div>'
-        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span><em>질문에 정한 기준만 · 짧은 입력(32K 이하) Jev · 긴 입력 Decisions → FAIL 만 Codex · 블라인드</em></div></div>'
+        '<div class="rs-box"><b>LLM Judge 44</b><span>요청 충실 · 지시 준수 · 논리 · 사실</span>'
+        + ('<em>질문에 정한 기준만 · 짧은 입력(32K 이하) Jev · 긴 입력 Decisions → FAIL 만 Codex · 블라인드</em>' if three_judges(D) else
+           '<em>질문에 정한 기준만 · 블라인드</em><em class="rs-jnow"><b>이번 결과</b> Decisions 가 전부 → 걸린 항목만 Codex</em>'
+           '<em class="rs-jnext"><b>다음 평가</b> 32K 이하 Jev · 넘으면 Decisions → FAIL 만 Codex</em>')   # 받은 의견 E: 이번 방식과 다음 구조를 나눔
+        + '</div></div>'
         '<div class="rs-st"><span class="rs-sn">4</span><h3>질문 판정</h3><ul class="rs-rules">'
         '<li><i class="rs-dot rs-hold"></i><b>보류</b><span>확인 못 한 기준이 하나라도 남음</span></li>'
         '<li><i class="rs-dot rs-fail"></i><b>FAIL</b><span>보류 없이 기준을 하나라도 어김</span></li>'
@@ -322,14 +328,8 @@ def scene_flow(D: Dict[str, Any]) -> str:
         f'<div class="rs-st"><span class="rs-sn">5</span><h3>결과</h3><div class="rs-sbig rs-sbig-t">완전 통과<small>/ {D["n"]}</small></div>'
         '<ul class="rs-sl"><li>모델마다 질문 수로 비교</li><li>보류는 사람이 정함</li></ul></div>'
         '</div>')   # 사용자 10-21: 빈 출력 안내 줄 · '어제 설명에서 바뀐 점' 표 지움
-    # 동작 구조 (10-21 오후 미팅 47:20 — 이렇게 동작한다 · CLI · 리포트 출력 · 걸린 시간)
-    judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
-    arch = ('<div class="rs-arch"><span><b>modelgrade CLI</b>한 번 실행</span><i>→</i><span><b>질문 세트</b>{n}개</span><i>→</i>'
-            '<span><b>답변 수집</b>{m}모델 동시 · 앱·웹 자동화</span><i>→</i><span><b>CODE 검사</b>프로그램</span><i>→</i>'
-            '<span><b>LLM Judge</b>Jev · Decisions → Codex</span><i>→</i><span><b>보고서</b>HTML · 결과 JSON</span></div>'
-            '<p class="rs-basis">파이썬 CLI 한 번 실행으로 수집부터 보고서까지 이어집니다. 이번 실행은 답변 수집 {c} + 판정 {j}.</p>').format(
-        n=D["n"], m=len(D["order"]), c=hm(collect_seconds(D)), j=hm(judge_s))
-    return arch + flow + criteria_list(D)
+    # 동작 구조 줄(CLI → … → 보고서)은 뺌 — 바로 뒤 전체 흐름도와 겹침, CLI 한 번 실행 · 걸린 시간은 01 '무엇 · 왜'와 걸린 시간 장면에 (사용자 10-21 밤)
+    return flow + criteria_list(D)
 
 
 #: CODE 묶음 이름 — 10-19 발표 '평가 기준 72개' 장의 세 갈래(1 출력 무결성 · 2 형식·지시 준수 · 3 계산·자료 처리)를 묶음마다 풀어 씀
@@ -466,7 +466,8 @@ def scene_intro(D: Dict[str, Any]) -> str:
         ("같은 조건이어야 비교가 된다", "네 모델에 같은 질문을 같은 순서로 던지고, 같은 기준 · 고정된 판정 프롬프트로, 모델 이름을 가린 채 채점합니다."),
         ("사용자가 받는 답 그대로", "API 가 아니라 사용자가 쓰는 앱 · 웹 화면에서 받은 완성된 답을 채점합니다 — 실제 채팅 품질을 봅니다."),
         ("사람이 다 볼 수 없는 양", f"이번에만 기준 판정 {n_dec:,}건. 프로그램과 AI 심판이 채점하고, 사람은 보류 {n_hold}칸만 정합니다."),
-        ("반복할수록 정확 · 넓게", "사람이 정한 보류는 사례로 쌓여 다음 판정의 근거가 되고, 우수AI · 팩트챗 같은 다른 서비스도 같은 질문으로 붙일 수 있습니다."),
+        ("반복할수록 정확 · 넓게", "사람이 정한 보류를 사례로 모아 다음 판정의 근거로 쓰는 구조를 만드는 중이고(이번 결과에는 아직 쓰이지 않음), "
+         "우수AI · 팩트챗 같은 다른 서비스도 같은 질문으로 붙일 수 있습니다."),   # 받은 의견 E: 사례 축적은 계획
     ]
     flow = "".join(f'<span>{E(s)}</span>' + ("<i>→</i>" if i < 3 else "") for i, s in enumerate(
         [f"질문 {n}", f"{m}모델 답변", f"기준 {n_code + n_judge}개로 채점", "완전 통과 · FAIL · 보류"]))
@@ -480,13 +481,14 @@ def scene_intro(D: Dict[str, Any]) -> str:
 
 
 #: 심판 흔들림 A/B — 같은 답 40건(10질문 × 4모델)을 Codex low · medium 으로 (참고자료/변경내역/2026-10-20-변경내역.md '10-21 오전' A/B)
-WOBBLE_AB = {"n": 40, "same": 34, "changed": 6, "how": "통과→FAIL 2 · FAIL→통과 3 · 보류→FAIL 1"}
-#: 실제 사례 — (모델, 질문, 기준, 꼬리표, 꼬리표 색, 덧붙일 말). 판정 내용은 결과 JSON 에서 읽는다 (사용자 10-21 저녁: 검증 장면)
+WOBBLE_AB = {"run": "a1642702fccc", "n": 40, "same": 34, "changed": 6, "how": "통과→FAIL 2 · FAIL→통과 3 · 보류→FAIL 1"}   # 받은 의견 E: 어느 실행에서 잰 것인지
+#: 실제 사례 — (모델, 질문, 기준, 꼬리표, 꼬리표 색, 덧붙일 말, 기대(질문 결과, 항목 판정, 판정 경로에 있어야 할 말)).
+#: 판정 내용은 결과 JSON 에서 읽고, 기대와 다르면(새 결과로 다시 만들 때) 그 사례는 빼고 경고 — 글이 판정과 어긋나지 않게 (받은 의견 E)
 VERIFY_CASES = [
-    ("gemini", 24, "J1-2.a", "두 심판 모두 FAIL", "ok", "요청한 함수 대신 정형 거절 — 두 심판이 같은 판단을 냈습니다."),
-    ("claude", 49, "J5-1.a", "확인 못 해 보류 — 사람이 정함", "hold", "검색으로도 확인하지 못한 사실 주장은 억지로 정하지 않고 사람에게 넘깁니다."),
+    ("gemini", 24, "J1-2.a", "두 심판 모두 FAIL", "ok", "요청한 함수 대신 정형 거절 — 두 심판이 같은 판단을 냈습니다.", ("FAIL", "FAIL", "Decisions 도 FAIL")),
+    ("claude", 49, "J5-1.a", "확인 못 해 보류 — 사람이 정함", "hold", "검색으로도 확인하지 못한 사실 주장은 억지로 정하지 않고 사람에게 넘깁니다.", ("HOLD", "UNVERIFIED", "")),
     ("gemini", 11, "J1-2.a", "심판이 틀린 예", "bad", "같은 정형 거절인데 Codex 가 통과로 뒤집었습니다. 질문 결과는 다른 기준 FAIL 로 그대로 FAIL 이지만, "
-     "이런 오판을 세려면 사람 판정과의 대조가 필요합니다."),
+     "이런 오판을 세려면 사람 판정과의 대조가 필요합니다.", ("FAIL", "PASS", "Decisions FAIL")),
 ]
 
 
@@ -522,14 +524,16 @@ def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) ->
     done = [
         ("질문 78개를 고른 근거", (f"질문만으로 셀 수 있는 기준 {len(planned)}개가 모두 서로 다른 질문 {min(planned.values())}개 이상에 걸리도록 326개에서 골랐습니다."
                                if planned else "기준마다 서로 다른 질문 10개 이상에 걸리도록 326개에서 골랐습니다."), "질문 세트 사전검사"),
-        ("기준이 실제로 평가된 횟수", f"기준 {len(cr)}개 중 {len(cr) - len(low)}개가 네 모델 모두에서 10문항 이상 평가됐습니다.", "04 기준별 결과"),
+        ("기준이 실제로 평가된 횟수", f"기준 {len(cr)}개 중 {len(cr) - len(low)}개가 네 모델 모두에서 10문항 이상 평가됐습니다.", "상세 분석 · 기준별 결과"),
         ("두 단계 심판", f"Decisions 가 항목 {n_items:,}개를 모두 보고, 그중 {n_flag:,}개({n_flag / max(1, n_items):.0%})는 Codex 가 원문을 다시 읽고 판정했습니다. "
                        f"Decisions FAIL {dec_fail:,}개 중 Codex 도 FAIL 은 {both_fail}개 — 나머지는 통과 · 해당 없음으로 바로잡았고, "
                        f"Decisions 통과였던 {caught}개는 Codex 가 FAIL 로 잡았습니다.", "결과 JSON"),
         ("근거를 원문과 대조", f"FAIL 근거로 든 답 문장이 원문에 실제로 있는지 프로그램이 대조합니다. 없으면 다시 묻고, 끝내 맞지 않으면 보류 "
                             f"(이번 인용 불일치 {kinds.get('인용 불일치', 0)}개). 사실을 확인하지 못한 {kinds.get('확인 못함', 0)}개도 억지로 정하지 않고 보류했습니다.", "판정 규칙"),
-        ("심판 흔들림을 숫자로", f"같은 답 {WOBBLE_AB['n']}건을 Codex 추론 low · medium 으로 두 번 판정 — {WOBBLE_AB['same']}건 같음, {WOBBLE_AB['changed']}건 바뀜"
-                              f"({WOBBLE_AB['how']}, 한쪽으로 쏠리지 않음). 그래서 몇 문항 차이는 단정하지 않습니다.", "10-21 오전 A/B"),
+        ("심판 흔들림을 숫자로", (f"같은 답 {WOBBLE_AB['n']}건을 Codex 추론 low · medium 으로 두 번 판정 — {WOBBLE_AB['same']}건 같음, {WOBBLE_AB['changed']}건 바뀜"
+                              f"({WOBBLE_AB['how']}, 한쪽으로 쏠리지 않음). 그래서 몇 문항 차이는 단정하지 않습니다."
+                              + ("" if D["run_id"] == WOBBLE_AB["run"] else f" (이전 실행 {WOBBLE_AB['run']} 에서 잰 값 — 이 결과의 심판 구조로는 다시 재야 합니다)")),
+         f"실행 {WOBBLE_AB['run']} 표본 A/B"),
         ("사람이 찾아 고친 오판", "해요체를 반말로 본 말투 판정(AIONA Q22) · CODE '질문이 요구한 계산값' 오판 4건을 고쳤고, ChatGPT 앱 복사가 Python 줄바꿈을 지우는 것을 화면과 대조해 확인했습니다.",
          "10-21 체크리스트 B10 · B11"),
         ("같은 조건 · 블라인드", "CODE 검사는 같은 답이면 몇 번을 돌려도 결과가 같고, LLM Judge 는 어느 모델의 답인지 모른 채 고정된 판정 프롬프트로 채점합니다.", "평가 방법"),
@@ -538,7 +542,7 @@ def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) ->
         ("사람 판정과의 일치율", "사람이 직접 정한 정답 표본과 자동 판정을 대조해 일치율을 재야 합니다. 대조 도구(tools/review_kit.py)는 있지만 정답 표본이 아직 없어 재지 못했습니다.", "가장 먼저"),
         ("기준별 판정 정확도", "기준 정의 · 겹침 감사(10-12)는 했지만, 기준마다 판정이 몇 % 맞는지는 아직입니다.", "다음"),
         ("적게 평가된 기준", f"{len(low)}개 기준은 한 모델 이상에서 10문항 미만 — 예: " + " · ".join(E(crit_name(D["names"], c)) for c in low[:4]) + ". 답에 따라 적용되는 기준이 많습니다.", "다음"),
-        ("보류를 사람이 정하기", f"보류 {n_hold_q}칸을 사람이 통과 · FAIL 로 정하고, 그 판단을 사례로 쌓아 다음 판정의 근거로 씁니다.", "진행 중"),
+        ("보류를 사람이 정하기", f"보류 {n_hold_q}칸은 아직 사람이 정하지 않았습니다. 정한 판단을 사례로 모아 다음 판정의 근거로 쓰는 구조는 만드는 중입니다.", "계획"),
     ]
     done_html = "".join(f'<div class="vf-i"><b>{E(t)}</b><p>{E(d)}</p><small>근거 · {E(s)}</small></div>' for t, d, s in done)
     left_html = "".join(f'<div class="vf-i"><b>{E(t)}<span class="vf-st">{E(st)}</span></b><p>{d if "<" in d else E(d)}</p></div>' for t, d, st in left)
@@ -546,10 +550,11 @@ def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) ->
     def verdict_ko(v: Optional[str]) -> str:
         return {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}.get(v or "", v or "—")
     cases = []
-    for p, q, c, tag, tone, note in VERIFY_CASES:
+    for p, q, c, tag, tone, note, (want_q, want_it, want_how) in VERIFY_CASES:
         L = D["lines"].get((p, q))
         it = next((i for i in (L or {}).get("items", []) if i["item"] == c), None)
-        if not L or not it:
+        if not L or not it or L["verdict"] != want_q or it["decision"] != want_it or want_how not in (it.get("how") or ""):
+            print(f"경고: 검증 사례 {p} Q{q} {c} — 이 결과의 판정이 사례 글과 달라 뺌", file=sys.stderr)
             continue
         qtext = it.get("question_quote") or (D["qset"][q]["turns"][0].get("question") or "")
         aid = f'{"f" if L["verdict"] == "FAIL" else "b" if L["verdict"] == "HOLD" else "p"}-{p}-{q}'
@@ -566,23 +571,27 @@ def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) ->
             f'<h3 class="rs-sh">실제 사례 — 질문 · 답 · 판정 근거</h3><div class="vf-cases">{"".join(cases)}</div>')
 
 
+def crit_verdicts(D: Dict[str, Any], p: str, q: int) -> Dict[str, str]:
+    """한 질문에 적용된 기준 → PASS · FAIL · HOLD (멀티턴은 한 턴이라도 FAIL 이면 FAIL, 아니면 보류가 있으면 보류).
+    LLM Judge 는 판정 항목(해당 없음 제외), CODE 는 실제로 돈 검사."""
+    seen: Dict[str, set] = defaultdict(set)
+    for it in D["lines"][(p, q)]["items"]:
+        seen[it["item"]].add(it["decision"])
+    for t in range(1, len(D["qset"][q]["turns"]) + 1):
+        for c in (D["turns"].get((p, q, t)) or {}).get("code") or []:
+            if c.get("status") == "EXECUTED":
+                seen[c["check_id"].split(":")[0]].add(c.get("verdict"))
+    out = {cid: "FAIL" if "FAIL" in ds else "HOLD" if "UNVERIFIED" in ds else "PASS" if "PASS" in ds else "" for cid, ds in seen.items()}
+    return {c: v for c, v in out.items() if v}
+
+
 def crit_results(D: Dict[str, Any]) -> Dict[str, Dict[str, Counter]]:
-    """기준 → 모델 → Counter(PASS · FAIL · HOLD) — 질문 하나에 한 번 (멀티턴은 한 턴이라도 FAIL 이면 FAIL, 아니면 보류가 있으면 보류).
-    LLM Judge 는 판정 항목(해당 없음 제외), CODE 는 실제로 돈 검사. 빈 출력 요구 문항은 보류라 뺀다."""
+    """기준 → 모델 → Counter(PASS · FAIL · HOLD) — 질문 하나에 한 번. 빈 출력 요구 문항은 보류라 뺀다."""
     out: Dict[str, Dict[str, Counter]] = defaultdict(lambda: defaultdict(Counter))
-    qs = [q for q in D["qtypes"] if D["qtypes"][q] != "명시적 빈 출력"]
     for p in D["order"]:
-        for q in qs:
-            seen: Dict[str, set] = defaultdict(set)
-            for it in D["lines"][(p, q)]["items"]:
-                seen[it["item"]].add(it["decision"])
-            for t in range(1, len(D["qset"][q]["turns"]) + 1):
-                for c in (D["turns"].get((p, q, t)) or {}).get("code") or []:
-                    if c.get("status") == "EXECUTED":
-                        seen[c["check_id"].split(":")[0]].add(c.get("verdict"))
-            for cid, ds in seen.items():
-                v = "FAIL" if "FAIL" in ds else "HOLD" if "UNVERIFIED" in ds else "PASS" if "PASS" in ds else None
-                if v:
+        for q in D["qtypes"]:
+            if D["qtypes"][q] != "명시적 빈 출력":
+                for cid, v in crit_verdicts(D, p, q).items():
                     out[cid][p][v] += 1
     return out
 
@@ -599,14 +608,15 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
     rate = {p: tot[p]["PASS"] / max(1, sum(tot[p].values())) for p in order}
     by = sorted(order, key=lambda p: -rate[p])
     cards = "".join(f'<div class="cb-card"><span class="cb-r">{i}위</span><span class="cb-m">{mname(p)}</span><b>{rate[p] * 100:.1f}%</b>'
-                    f'<small>기준 판정 {sum(tot[p].values()):,}건 · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small></div>' for i, p in enumerate(by, 1))
+                    f'<small>기준 판정 {sum(tot[p].values()):,}건 · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small>'
+                    f'<small class="cb-q">질문 단위 완전 통과 {D["tally"][p]["PASS"]} / {D["n"]} ({D["tally"][p]["PASS"] / D["n"] * 100:.0f}%)</small></div>' for i, p in enumerate(by, 1))
 
     def cell(c: Counter) -> str:
         n = sum(c.values())
         if not n:
             return '<div class="cb-c cb-na">—</div>'
         return (f'<div class="cb-c" style="{tint(min(1.0, c["FAIL"] / n / 0.4), "--risk")}" title="통과 {c["PASS"]} · FAIL {c["FAIL"]} · 보류 {c["HOLD"]} · 평가 {n}">'
-                f'<b>{c["PASS"] / n * 100:.0f}%</b><small>FAIL {c["FAIL"]} / {n}</small></div>')
+                f'<b>{c["PASS"] / n * 100:.0f}%</b><small>FAIL {c["FAIL"]} · 보류 {c["HOLD"]} / {n}</small></div>')   # 받은 의견 B: 보류 수도
 
     ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
     groups: Dict[str, List[str]] = defaultdict(list)
@@ -622,10 +632,12 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
                       + "".join(cell(cr[c][p]) if c in cr else '<div class="cb-c cb-na">—</div>' for p in order) + "</div>" for c in cids)
         rows.append(f'<details class="cb-g"><summary class="cb-row"><span class="cb-l"><b>{E(label)}</b><small>{kind} · 기준 {len(cids)}개</small></span>'
                     + "".join(cell(gsum[p]) for p in order) + f'</summary><div class="cb-sub">{sub}</div></details>')
-    key = ('<p class="cb-key">칸 = 통과율(그 기준이 적용된 질문 중 통과한 비율) · 색이 진할수록 FAIL 이 많음 · 아래 숫자 = FAIL / 평가된 질문 · '
-           '묶음을 누르면 기준별로 펼쳐집니다 · 빈 출력 요구 10문항은 보류라 빼고, 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
+    n_empty = sum(1 for t in D["qtypes"].values() if t == "명시적 빈 출력")
+    key = ('<p class="cb-key">칸 = 통과율(그 기준이 적용된 질문 중 통과한 비율) · 색이 진할수록 FAIL 이 많음 · 아래 숫자 = FAIL · 보류 / 평가된 질문 · '
+           f'묶음을 누르면 기준별로 펼쳐집니다 · 빈 출력 요구 {n_empty}문항은 보류라 빼고, 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
     return (f'<div class="cb-cards">{cards}</div>'
-            '<p class="cb-key">기준 통과율 = 기준이 적용된 (질문 × 기준) 판정 중 통과한 비율 — 해당 없음은 빼고, 보류는 통과로 세지 않음</p>'
+            '<p class="cb-key">기준 통과율 = 기준이 적용된 (질문 × 기준) 판정 중 통과한 비율 — 해당 없음은 빼고, 보류는 통과로 세지 않음. '
+            '질문 단위 완전 통과(결과 장면)는 질문 하나의 기준을 모두 통과해야 해서 이보다 훨씬 낮습니다.</p>'
             f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>')
 
 
@@ -752,10 +764,10 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
                   + (f"<p>② 확인 못 함 {len(other)}칸 — 아래 표의 사유와 답의 해당 문장을 보고, 맞으면 통과 · 틀리면 FAIL. "
                      f"그중 {with_fail}칸은 FAIL 항목도 있어 결과는 FAIL 이 됩니다.</p>" if other else "")
                   + "<p>칸을 누르면 그 질문·답변 원문과 보류 사유가 열립니다.</p>", warn=True)
-    meaning = note("보류 — 평가 로직을 키우는 장치",
-                   "<p>심판이 확정하지 못한 기준은 억지로 정하지 않고 보류로 남깁니다. 사람이 통과 · FAIL 을 정하면 그 판단이 <b>사례로 쌓여</b> 다음 판정 때 "
-                   "비슷한 경우의 근거가 되고, 같은 판단이 반복되면 <b>채점 기준과 평가 프롬프트로 올려</b> 평가가 점점 정확해집니다. "
-                   "사람의 기준이 데이터로 학습되는 이 구조가 이 평가기의 차별점입니다.</p>")
+    meaning = note("보류 — 평가 로직을 키우는 장치 (계획)",   # 받은 의견 E: 사례 축적은 아직 만드는 중 — 현재형으로 쓰지 않음
+                   "<p><b>지금</b> — 심판이 확정하지 못한 기준은 억지로 정하지 않고 보류로 남기고, 사람이 정합니다.</p>"
+                   "<p><b>계획 (만드는 중)</b> — 사람이 정한 통과 · FAIL 을 <b>사례로 모아</b> 다음 판정 때 비슷한 경우의 근거로 쓰고, "
+                   "같은 판단이 반복되면 <b>채점 기준과 평가 프롬프트로 올립니다</b>. 이번 결과에는 아직 쓰이지 않았습니다.</p>")
     return meaning + top + legend + grid + why_tab + decide
 
 
@@ -883,25 +895,28 @@ def scene_time(D: Dict[str, Any]) -> str:
         jr = [[mname(p), J[p]["per_q"], f'{J[p]["dec_in"]:,}', f'{J[p]["codex_calls"]:,}', f'{J[p]["codex_in"] / 1e6:.1f}M · {J[p]["codex_out"] / 1e6:.2f}M'] for p in order if p in J]
         jr.append(['<span class="rs-strong">합계</span>', "", f'{sum(v["dec_in"] for v in J.values()):,}', f'{sum(v["codex_calls"] for v in J.values()):,}',
                    f'{sum(v["codex_in"] for v in J.values()) / 1e6:.1f}M · {sum(v["codex_out"] for v in J.values()) / 1e6:.2f}M'])
-        jt = (table("판정 시간 · 토큰 — 모델마다", ["모델", "질문 하나 판정 평균", "Decisions 입력 토큰", "Codex 호출", "Codex 입력 · 출력 토큰"],
+        redo = any(t.get("redo") for t in D["d"]["judgment"].get("timing") or [])   # 모델별 표는 다시 판정까지 센 값 (받은 의견 D)
+        jt = (table("판정 시간 · 토큰 — 모델마다", ["모델", "질문 하나 판정 평균", "Decisions 입력 토큰", "Codex 호출" + (" (다시 판정 포함)" if redo else ""), "Codex 입력 · 출력 토큰"],
                     jr, [14, 20, 22, 14, 30])
               + '<p class="rs-basis">질문 하나 판정 평균 = 그 질문의 마지막 판정 한 번에 걸린 시간의 평균(모델 사이 빠르기 비교용 — 더해도 위 전체 시간이 되지 않음). '
               + f'Decisions API 는 OpenAI API(토큰만큼 비용) · Codex CLI 는 ChatGPT 구독으로 실행{waits}.</p>')
-    ref = ""
-    if TIME_1020.exists():
-        g = (json.loads(TIME_1020.read_text(encoding="utf-8")).get("collect_1020") or {}).get("models", {}).get("gpt") or {}
-        if g:
-            ref = f'<p class="rs-basis">참고: 10-20 보고 때(다른 78개 세트) GPT 답변 시간 합은 {hm(g.get("total_seconds") or 0)} — 질문이 달라 바로 비교하지는 않습니다.</p>'
+    # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
     return ('<h3 class="rs-sh">답변 수집 — 답변 시간 합 (질문을 보내고 답을 받기까지)</h3><div class="rs-tbars">' + bars + "</div>" + t2
-            + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + ref + process_block(ex))
+            + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + process_block(ex))
 
 
 def process_block(ex: Dict[str, Any]) -> str:
-    """판정 실행 기록 (10-21) — Codex 호출 · 다시 묻기 · 429 대기와 그 이유 · 판정 실행 오류 (report.html 표에서)."""
+    """판정 실행 기록 (10-21) — Codex 호출 · 다시 묻기 · 429 대기와 그 이유 · 판정 실행 오류 (report.html 표에서).
+    Codex 호출은 첫 판정만 센 값 — 위 모델별 표(다시 판정 포함)의 합과 다르면 그 차이를 적는다 (받은 의견 D)."""
     pr = ex.get("process") or {}
     if not pr:
         return ""
     rows = [[k, f"<b>{E(v)}</b>", E(d)] for k, (v, d) in pr.items()]
+    calls = sum(v["codex_calls"] for v in (ex.get("judge") or {}).values())
+    rec = int(re.sub(r"[^\d]", "", (pr.get("Codex 호출") or ("",))[0]) or 0)
+    if calls and rec and calls > rec:
+        i = list(pr).index("Codex 호출")
+        rows[i][2] = E(pr["Codex 호출"][1]) + f" — 첫 판정만 센 값. 위 모델별 표의 합 {calls:,} 와의 차이 {calls - rec:,}회는 다시 판정 때 호출"
     return '<h3 class="rs-sh">판정 실행 기록</h3>' + table("", ["항목", "값", "설명"], rows, [16, 16, 68])
 
 
@@ -914,6 +929,7 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
     """분야마다 모델 값 — 결과·유형, 많을수록 좋음(통과). 기준 묶음은 뺌(사용자 10-21 — 기준별은 FAIL 원인 장면)."""
     order = D["order"]
     cats: List[Dict[str, Any]] = []
+    ref: Dict[str, Any] = {}
     tot = {p: D["tally"][p] for p in order}
     cats.append({"group": "결과", "label": "전체", "chip": "완전 통과", "higher": True, "of": D["n"], "unit": "문항",
                  "vals": {p: tot[p]["PASS"] for p in order}, "extra": {p: f"FAIL {tot[p]['FAIL']} · 보류 {tot[p]['HOLD']}" for p in order}})
@@ -924,32 +940,19 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
         res = {p: Counter(D["lines"][(p, q)]["verdict"] for q in qs) for p in order}
         if all(c["HOLD"] == len(qs) for c in res.values()):
             continue   # 빈 출력 요구 — 모두 보류('보류' 장면)
-        if ty == "10턴 멀티턴 대화" and all(c["PASS"] == 0 for c in res.values()):
-            ok, n_t = turn_ok(D, qs)
-            cats.append({"group": "유형", "label": "멀티턴 (턴 단위)", "chip": f"{len(qs)}문항 · {n_t}턴", "higher": True, "of": n_t, "unit": "턴",
-                         "vals": ok, "extra": {p: f"FAIL 있는 턴 {n_t - ok[p]}" for p in order}})
-            continue
+        if ty == "10턴 멀티턴 대화":   # 받은 의견 C: 멀티턴도 대화(질문) 단위로 — 턴 단위는 아래 '참고'로 따로
+            ok, n_t, held = turn_ok(D, qs)
+            ref = {"group": "참고", "label": "멀티턴 턴 단위", "chip": f"{len(qs)}대화 · {n_t}턴 · 보류 턴 포함", "higher": True, "of": n_t, "unit": "턴",
+                   "vals": ok, "extra": {p: f"FAIL 있는 턴 {n_t - ok[p]} · 셈에 든 보류 턴 {held[p]}" for p in order}}
         cats.append({"group": "유형", "label": TYPE_NAME.get(ty, ty), "chip": f"{len(qs)}문항", "higher": True, "of": len(qs), "unit": "문항",
                      "vals": {p: res[p]["PASS"] for p in order}, "extra": {p: f"FAIL {res[p]['FAIL']} · 보류 {res[p]['HOLD']}" for p in order}})
+    if ref:
+        cats.append(ref)
     for c in cats:   # 순위 — 같은 값은 같은 순위
         vals = c["vals"]
         c["rank"] = {p: 1 + sum(1 for o in order if (vals[o] > vals[p] if c["higher"] else vals[o] < vals[p])) for p in order}
         c["sorted"] = sorted(order, key=lambda p: (c["rank"][p], order.index(p)))
     return cats
-
-
-def rank_rows(c: Dict[str, Any], limit: int = 10) -> str:
-    vals = c["vals"]
-    mx = max(vals.values()) or 1
-    out = []
-    for p in c["sorted"][:limit]:
-        v = vals[p]
-        w = (v / c["of"] * 100) if c["higher"] else ((mx - v) / mx * 100 if mx else 100)   # 적을수록 좋은 분야는 덜 어긴 만큼 길게
-        val = f'{v}<small> / {c["of"]}</small>' if c["higher"] else f'{v}<small> {c["unit"]}</small>'
-        pct = f'{v / c["of"] * 100:.0f}%' if c["higher"] else "어김"
-        out.append(f'<div class="ar-row" style="--w:{max(w, 2):.1f}%"><span class="ar-rank">{c["rank"][p]}</span>{avatar(p)}<span class="ar-name">{SHORT[p]}</span>'
-                   f'<b class="ar-val">{val}</b><span class="ar-pct">{pct}</span></div>')
-    return "".join(out)
 
 
 def tab_css(prefix: str, n: int, label_box: str, panel_box: str, panel_cls: str, active: str) -> str:
@@ -968,6 +971,27 @@ def collect_seconds(D: Dict[str, Any]) -> float:
     return max(per.values()) if per else 0
 
 
+def kst(iso: str | None, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """결과 JSON 의 시각(UTC) → 한국 시간."""
+    return datetime.fromisoformat(iso).astimezone(timezone(timedelta(hours=9))).strftime(fmt) if iso else ""
+
+
+def run_info(D: Dict[str, Any]) -> Dict[str, str]:
+    """실행 정보 — 결과 ID · 질문 세트 · 실행 시작 · 판정 끝 · 판정 방식 (받은 의견 E: 발표본에서 질문 세트 버전 · 실행 일시 · 결과 식별자를 고정).
+    모두 결과 JSON 에서 읽어, 새 결과로 다시 만들면 따라 바뀐다."""
+    d, j = D["d"], D["d"]["judgment"]
+    s = j.get("summary") or {}
+    cx = s.get("codex") or {}
+    return {"run": D["run_id"], "set": (d.get("question_set") or {}).get("set_id") or "", "rev": d.get("question_revision") or "",
+            "start": kst(d.get("created_at")), "judged": kst(s.get("finished_at") or d.get("exported_at")),
+            "pipe": j.get("pipeline") or s.get("version") or "", "codex": " ".join(x for x in (cx.get("model"), cx.get("reasoning")) if x)}
+
+
+def three_judges(D: Dict[str, Any]) -> bool:
+    """이 결과가 심판 셋(Jev · Decisions · Codex) 구조로 판정됐나 — 아니면 흐름도 · 평가 방법의 심판 셋은 '다음 평가 구조'로 표시."""
+    return "Jev" in (D["d"]["judgment"].get("pipeline") or "")
+
+
 def ar_overview(D: Dict[str, Any]) -> str:
     """개요 (사용자 10-21: 줄이기) — 제목 · 질문 수 · 소요 시간만. '확인할 것'은 빼고(내용은 FAIL 원인 · 보류 장면), '전체' 순위 카드는 순위표 장면 맨 위로."""
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
@@ -977,15 +1001,71 @@ def ar_overview(D: Dict[str, Any]) -> str:
             else f'<b>{hm(judge_s)}</b><span>판정 소요</span>')
     hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
             '<h1 class="ar-h1"><em>AIONA</em> 채팅 품질 평가</h1>'   # 사용자 10-21: 깔끔한 제목
-            f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')
+            f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div>'
+            f'{run_line(D)}</div></div>')
     return hero
 
 
-def rank_card(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
-    """'전체' 순위 카드 — 순위표 장면 맨 위 (사용자 10-21: 개요에서 옮김)."""
-    total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
-    return (f'<div class="ar-card ar-top"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
-            f'<div class="ar-rows">{rank_rows(total_cat)}</div></div>')
+def run_line(D: Dict[str, Any]) -> str:
+    """제목 아래 실행 정보 한 줄 (받은 의견 E) — 파일 이름(10-20 발표자료)과 결과 날짜가 달라도 어느 결과인지 고정."""
+    ri = run_info(D)
+    parts = [f'결과 ID <b>{E(ri["run"])}</b>',
+             f'질문 세트 <b>{E(ri["set"])}</b>' + (f' (rev {E(ri["rev"])} · {D["n"]}문항)' if ri["rev"] else f' ({D["n"]}문항)'),
+             f'실행 시작 {E(ri["start"])} · 판정 끝 {E(ri["judged"])} (한국 시간)',
+             f'판정 {E(ri["pipe"])}' + (f' · Codex {E(ri["codex"])}' if ri["codex"] else "")]
+    return f'<p class="ar-run">{" · ".join(parts[:2])}<br>{parts[2]}<br>{parts[3]}</p>'
+
+
+def dist_stats(D: Dict[str, Any]) -> Dict[str, Any]:
+    """결과 분포 숫자 — 순위(같은 값은 같은 순위) · 보류를 모두 통과로 볼 때 최대 · 1위를 넘볼 수 있는 모델 (받은 의견 A)."""
+    order, T = D["order"], D["tally"]
+    rank = {p: 1 + sum(1 for o in order if T[o]["PASS"] > T[p]["PASS"]) for p in order}
+    lead = min(order, key=lambda p: (rank[p], order.index(p)))
+    rivals = [p for p in order if rank[p] > 1 and T[p]["PASS"] + T[p]["HOLD"] >= T[lead]["PASS"]]   # 보류가 모두 통과면 1위와 같거나 넘음
+    return {"rank": rank, "lead": lead, "rivals": rivals, "hold": sum(T[p]["HOLD"] for p in order)}
+
+
+def dist_card(D: Dict[str, Any]) -> str:
+    """결과 분포 — 모델마다 완전 통과 · 보류 · FAIL 을 쌓은 막대 (받은 의견 A: 순위만 보이면 확정처럼 읽힘 → 분포와 '잠정').
+    초록 끝 = 지금 완전 통과, 노랑 빗금 끝 = 보류가 모두 통과일 때 최대, 점선 = 1위의 지금 완전 통과."""
+    order, n, T = D["order"], D["n"], D["tally"]
+    st = dist_stats(D)
+    lead, lp = st["lead"], T[st["lead"]]["PASS"]
+    rows = []
+    for p in order:
+        P, H, F = T[p]["PASS"], T[p]["HOLD"], T[p]["FAIL"]
+        seg = "".join(f'<i class="ds-{k}" style="width:{v / n * 100:.2f}%" title="{lab} {v}"></i>' for k, v, lab in (("p", P, "완전 통과"), ("h", H, "보류"), ("f", F, "FAIL")) if v)
+        rows.append(f'<div class="ds-row"><span class="ds-rk">{st["rank"][p]}</span>{avatar(p)}<span class="ds-nm">{SHORT[p]}</span>'
+                    f'<div class="ds-bar" role="img" aria-label="{SHORT[p]} 완전 통과 {P} · 보류 {H} · FAIL {F} / {n}">{seg}'
+                    f'<b class="ds-ln" style="left:{lp / n * 100:.2f}%" aria-hidden="true"></b></div>'
+                    f'<span class="ds-v"><b>{P}</b><small> / {n}</small></span>'
+                    f'<span class="ds-x">보류 {H} · FAIL {F} — 보류가 모두 통과면 최대 <b>{P + H}</b></span></div>')
+    if st["rivals"]:
+        change = (" · ".join(f"{SHORT[r]} 최대 {T[r]['PASS'] + T[r]['HOLD']}" for r in st["rivals"])
+                  + f" — 보류를 어떻게 정하느냐에 따라 {SHORT[lead]}({lp})와 순위가 바뀔 수 있습니다.")
+    else:
+        change = f"보류를 모두 통과로 정해도 {SHORT[lead]}({lp})를 넘는 모델은 없지만, 숫자와 아래 순위는 바뀔 수 있습니다."
+    legend = ('<div class="rs-legend ds-leg"><span><i class="rs-sw rs-pass"></i>완전 통과</span><span><i class="rs-sw rs-hold"></i>보류 (사람이 정할 칸)</span>'
+              f'<span><i class="rs-sw rs-fail"></i>FAIL</span><span class="muted">점선 = {SHORT[lead]}의 지금 완전 통과 {lp}</span></div>')
+    return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>결과 분포</h3><span class="ds-tag">잠정</span><span class="ar-chip">질문 단위 · 완전 통과 순</span></div>'
+            f'<p class="ds-note">이번 {n}개 질문과 이 실행 조건(결과 ID {E(D["run_id"])})에서 완전 통과가 가장 많은 모델은 <b>{SHORT[lead]}</b>입니다. '
+            f'보류 {st["hold"]}칸은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
+            f'{legend}<div class="ds-rows">{"".join(rows)}</div>{unit_note(D)}</div>')
+
+
+def unit_note(D: Dict[str, Any]) -> str:
+    """질문 단위 · 기준 단위 — 두 숫자가 왜 다른지 (받은 의견 B). 보류는 어느 쪽에서도 통과로 세지 않는다."""
+    order, n = D["order"], D["n"]
+    per = [len(crit_verdicts(D, p, q)) for p in order for q in D["qtypes"] if D["qtypes"][q] != "명시적 빈 출력"]
+    cr = crit_results(D)
+    tot = {p: sum((cr[c][p] for c in cr), Counter()) for p in order}
+    lead = dist_stats(D)["lead"]
+    rate = tot[lead]["PASS"] / max(1, sum(tot[lead].values()))
+    return (f'<div class="ds-unit"><div><b>질문 단위 — 이 장면</b><p>완전 통과 = 질문 하나에 적용된 기준(평균 {statistics.mean(per):.0f}개 — CODE 검사 · LLM Judge 합)을 <b>모두</b> 통과한 질문 수. '
+            f'하나만 어겨도 FAIL, 하나라도 확인 못 하면 보류.</p></div>'
+            f'<div><b>기준 단위 — 상세 분석 "기준별 결과"</b><p>기준 판정 하나하나 중 통과한 비율. 그래서 훨씬 높게 나옵니다 '
+            f'(예: {SHORT[lead]} 기준 통과율 {rate * 100:.1f}% · 완전 통과 {D["tally"][lead]["PASS"] / n * 100:.0f}%).</p></div>'
+            '<div><b>보류</b><p>두 숫자 모두 보류를 통과로 세지 않습니다 — 사람이 정하면 둘 다 바뀝니다.</p></div></div>')
 
 
 def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
@@ -1007,7 +1087,7 @@ def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
                         f'<td class="ar-tv">{v}<small> / {c["of"]}</small></td>' + (f'<td class="ar-tp2">{v / c["of"] * 100:.0f}%</td>' if c["higher"] else "<td></td>")
                         + f'<td class="ar-tx">{E(c["extra"][p])}</td></tr>')
         panels.append(f'<div class="ar-pn ar-bd{i}"><div class="ar-bh"><div><h3>{E(c["label"])}</h3><span class="ar-chip">{E(c["group"])} · {E(c["chip"])}</span></div>'
-                      f'<div class="ar-meta">2026-10-21 · 질문 {D["n"]}개 · 모델 {len(order)}개 · {"높을수록 좋음" if c["higher"] else "적을수록 좋음"}</div></div>'
+                      f'<div class="ar-meta">{E(run_info(D)["judged"][:10])} 판정 · 질문 {D["n"]}개 · 모델 {len(order)}개 · {"높을수록 좋음" if c["higher"] else "적을수록 좋음"}</div></div>'
                       f'<table class="ar-tab"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table></div>')
     return (f'<div class="ar-board">{radios}<aside class="ar-cats">{side}</aside><div class="ar-tables">{"".join(panels)}</div></div>'
             + tab_css("bd", len(cats), ".ar-cats", ".ar-tables", "ar-bd", "background: var(--accent-soft); color: var(--accent); font-weight: 600;"))
@@ -1042,11 +1122,21 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
                      f'<td>{ok} / {D["n"]}</td><td>{sum(1 for t in ts if t.get("status") == "COPY_FAILED")}</td><td>{statistics.mean(len(t["answer"]) for t in got):,.0f}자</td></tr>')
     t4 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>버전 · 설정</th><th>수집</th><th>받은 질문</th><th>재시도할 턴</th><th>턴당 답변 길이</th></tr></thead>'
           f'<tbody>{"".join(irows)}</tbody></table>')
-    tabs = [("통과율", "높을수록 좋음 · 완전 통과 ÷ 질문 수 (멀티턴은 FAIL 없는 턴 ÷ 110턴)", t1),
+    ref = next((c for c in cats if c["group"] == "참고"), None)
+    if ref:   # 받은 의견 C: 멀티턴 턴 단위는 표에 섞지 않고 참고 한 줄
+        mt = next((c for c in res if c["label"] == "멀티턴"), None)
+        mq = [q for q, t in D["dtypes"].items() if t == "10턴 멀티턴 대화"]
+        mv = Counter(D["lines"][(p, q)]["verdict"] for p in order for q in mq)
+        t1 += (f'<p class="hm-ref"><b>참고 · 멀티턴 턴 단위</b> — '
+               + (f'멀티턴 {len(mq)}문항은 네 모델 모두 완전 통과 0 (네 모델 합 보류 {mv["HOLD"]} · FAIL {mv["FAIL"]} — 대화 하나에 10턴이라 하나라도 남으면 보류 · FAIL). '
+                  if mt and not any(mt["vals"].values()) else "")
+               + "FAIL 없는 턴 " + " · ".join(f'{SHORT[p]} {ref["vals"][p]}' for p in ref["sorted"]) + f' / {ref["of"]}턴. '
+               + "보류가 남은 턴도 들어간 참고 숫자라 순위 · 통과율에는 쓰지 않습니다 (상세 분석 '분야별 순위표'의 참고).</p>")
+    tabs = [("통과율", "높을수록 좋음 · 완전 통과 ÷ 질문 수 — 멀티턴도 대화(질문) 단위 · 보류는 통과로 세지 않음", t1),
             ("기본 정보", "모델 버전과 수집 방법 · 재시도할 턴 = 복사 버튼이 뜨지 않아 다시 수집할 턴 (10-21 미팅: 이런 턴은 다시 수집)", t4)]
     radios = "".join(f'<input type="radio" name="hm" id="hm{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
     labels = '<div class="hm-tabs">' + "".join(f'<label for="hm{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
-    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn hm-p{i}"><p class="hm-d">{E(d)}{" · 숫자를 누르면 아래 순위표가 그 분야로 바뀝니다" if i == 0 else ""}</p>'
+    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn hm-p{i}"><p class="hm-d">{E(d)}{" · 분야별 자세한 순위는 상세 분석 '분야별 순위표'" if i == 0 else ""}</p>'
                                              f'<div class="hm-scroll">{x}</div></div>' for i, (_t, d, x) in enumerate(tabs)) + "</div>"
     return (f'<div class="hm">{radios}{labels}{panels}</div>'
             + tab_css("hm", len(tabs), ".hm-tabs", ".hm-ps", "hm-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
@@ -1743,7 +1833,35 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 :root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
 .s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
 .ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+.s-div { margin: 56px 0 8px; padding: 16px 20px; border: 1.5px dashed var(--line); border-radius: 14px; display: grid; gap: 4px; }
+.s-div b { font-family: var(--font-serif); font-size: 1.35rem; } .s-div span { color: var(--muted); font-size: 0.9rem; word-break: keep-all; }
+.toc-sep { flex: none; align-self: center; font-size: 0.72rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; padding: 2px 10px; white-space: nowrap; }
+@media (min-width: 1200px) { .toc-sep { padding: 14px 10px 4px; border-top: 1px solid var(--line); margin-top: 8px; } }
 .s-no { color: var(--muted); }
+/* 받은 의견 A~E (10-21 밤) — 실행 정보 줄 · 결과 분포(잠정) · 질문/기준 단위 · 이번/다음 심판 · 멀티턴 턴 참고 */
+.ar-hl p.ar-run { margin: 12px 0 0; max-width: none; font-size: 0.8rem; line-height: 1.6; color: var(--muted); word-break: keep-all; }
+.ar-run b { color: var(--ink); font-weight: 600; font-family: var(--font-num); }
+.rs-box em.rs-jnow, .rs-box em.rs-jnext { border-top: 1px dashed var(--line); padding-top: 3px; } .rs-box em b { font-size: 0.78rem; color: var(--ink); margin-right: 4px; }
+.poster-sub b { color: var(--ink); }
+.ds-tag { font-size: 0.78rem; font-weight: 700; color: var(--hold-text); background: var(--hold-soft); border: 1px solid var(--hold); border-radius: 999px; padding: 1px 10px; }
+.ds-note { margin: 0; font-size: 0.9rem; line-height: 1.6; word-break: keep-all; }
+.ds-rows { display: grid; gap: 12px; }
+.ds-row { display: grid; grid-template-columns: 20px 26px 64px minmax(0, 1fr) 70px; column-gap: 10px; row-gap: 3px; align-items: center; }
+.ds-rk { font-family: var(--font-num); font-weight: 700; color: var(--muted); text-align: center; } .ds-nm { font-weight: 600; }
+.ds-bar { position: relative; display: flex; gap: 2px; height: 24px; }
+.ds-bar i { display: block; height: 100%; min-width: 2px; } .ds-bar i:first-child { border-radius: 4px 0 0 4px; } .ds-bar i:last-of-type { border-radius: 0 4px 4px 0; }
+.ds-p { background: var(--ok); } .ds-h { background: var(--hold-fill); } .ds-f { background: var(--risk); }
+.ds-ln { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px dashed var(--ink); opacity: 0.55; }
+.ds-v { text-align: right; } .ds-v b { font-family: var(--font-num); font-size: 1.25rem; } .ds-v small { color: var(--muted); font-size: 0.8rem; }
+.ds-x { grid-column: 4 / -1; font-size: 0.78rem; color: var(--muted); } .ds-x b { color: var(--hold-text); font-family: var(--font-num); }
+.ds-unit { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.ds-unit b { font-size: 0.86rem; } .ds-unit p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; word-break: keep-all; }
+.cb-card small.cb-q { color: var(--ink); border-top: 1px dashed var(--line); padding-top: 4px; }
+.hm-ref { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.55; word-break: keep-all; } .hm-ref b { color: var(--ink); }
+@media (max-width: 760px) { .ds-row { grid-template-columns: 18px 24px minmax(0, 1fr) 64px; } .ds-bar { grid-column: 1 / -1; order: 5; } .ds-x { grid-column: 1 / -1; order: 6; }
+  .ds-unit { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 1200px) {
   body { padding-left: 232px; }
   .topnav { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; border-bottom: 0; border-right: 1px solid var(--line); background: var(--bg); backdrop-filter: none; }
@@ -2012,40 +2130,64 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     cats = board_categories(D)
     n_hold = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
     judge_s = sum(t.get("seconds") or 0 for t in judge_timing(D))
-    scenes = [   # 사용자 10-21: 평가 방법을 개요 바로 다음에 · 걸린 시간은 순위표 다음에 — 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다
-        ("s_intro", "무엇 · 왜", "만든 것 · 필요한 이유", "무엇을 만들었고, 왜 필요한가", "", scene_intro(D)),   # 사용자 10-21 저녁: 흐름도 앞에
-        ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",   # 사용자 10-21: 10-20 보고의 흐름도를 지금 판정 방식으로 고쳐 평가 방법 위에
-         f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D)),
-        ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)),   # 사용자 10-21: 제목만, 한 줄 설명 뺌
-        ("s_verify", "검증", "확인한 것 · 남은 것", "검증 — 무엇을 확인했고, 무엇이 남았나",   # 사용자 10-21 저녁: 평가 흐름과 순위표 사이
-         "AI 가 AI 를 평가한 판정을 얼마나 믿을 수 있는지 — 확인한 것과 아직 확인하지 못한 것을 나누고, 실제 판정 사례로 보여 드립니다.", scene_verify(D, part_of)),
-        ("s1", "순위표", "분야별 순위", "분야별 순위표",
-         "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
-        ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",   # 사용자 10-21 저녁: 질문 단위 말고 기준 단위로도
-         "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D)),
-        ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",   # 사용자 10-21 저녁: LLM Judge 와 따로
-         "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 걸린 질문입니다.", scene_code(D)),
-        ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
-         f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D)),
-        ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
-         "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D)),
+    # 사용자 10-21 밤(받은 의견 ③): 발표용 핵심 장면과 상세 분석을 한 파일 안에서 나눔 — 핵심은 평가 흐름 → 전체 흐름도 순서, 장면마다 한 줄 메시지.
+    # 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다. (id, 메뉴 이름, 부제, 제목, 설명, 내용, 한 줄 메시지)
+    n_code = sum(1 for c in D["names"] if c[0].isdigit())
+    ds = dist_stats(D)   # 받은 의견 A: 순위는 잠정 — 보류를 정하면 바뀔 수 있음을 한 줄 메시지에
+    res_key = (f"잠정 — 이번 {D['n']}개 질문 · 이 실행 조건에서 완전 통과 " + " · ".join(f"{SHORT[p]} {D['tally'][p]['PASS']}" for p in D["order"])
+               + f" (/ {D['n']}). 보류 {ds['hold']}칸을 아직 정하지 않아 " + ("순위가 바뀔 수 있습니다." if ds["rivals"] else "숫자가 바뀔 수 있습니다."))
+    n_hold_empty = sum(1 for (_p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] == "명시적 빈 출력")
+    core = [
+        ("s_intro", "무엇 · 왜", "만든 것 · 필요한 이유", "무엇을 만들었고, 왜 필요한가", "", scene_intro(D),
+         "같은 질문 · 같은 기준으로 네 AI 의 실제 답을 자동 채점하고, 사람은 보류만 정합니다."),
+        ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D),
+         f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
+        ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",
+         f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D),
+         "질문 세트부터 보고서까지 명령 하나로 돌고, AI 가 끼는 단계는 답변 수집(B)과 LLM Judge(E) 두 곳입니다."),
+        ("s_verify", "검증", "확인한 것 · 남은 것", "검증 — 무엇을 확인했고, 무엇이 남았나",
+         "AI 가 AI 를 평가한 판정을 얼마나 믿을 수 있는지 — 확인한 것과 아직 확인하지 못한 것을 나누고, 실제 판정 사례로 보여 드립니다.", scene_verify(D, part_of),
+         "두 단계 심판 · 근거 원문 대조 · 흔들림 측정은 확인했고, 사람 판정과의 일치율은 아직 재지 못했습니다."),
+        ("s1", "결과", "분포 · 유형별 통과율 (잠정)", "결과 — 분포와 유형별 통과율 (잠정)",
+         "맨 위는 모델마다 완전 통과 · 보류 · FAIL 분포, 그 아래는 유형별 통과율입니다. 모두 질문 단위이고, 보류를 사람이 정하기 전의 잠정 결과입니다.",
+         dist_card(D) + helm_table(D, cats), res_key),
         ("s4", "보류", f"사람이 정할 {n_hold}칸", f"보류 — 사람이 정할 {n_hold}칸",
-         "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. 사람이 정하면 사례로 쌓여 다음 판정의 근거가 됩니다.", scene_hold(D, part_of)),
-        ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D)),
-        ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과 — 필요할 때만 펼치기",
-         "탭을 고르고, 칸을 누르면 그 질문만 펼쳐집니다.", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts)),
+         "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. 지금은 사람이 정하고, 그 판단을 사례로 모아 다음 판정에 쓰는 것은 만드는 중입니다.", scene_hold(D, part_of),
+         f"사람이 정할 칸 {n_hold} = 빈 출력 요구 {n_hold_empty} + 확인 못 함 {n_hold - n_hold_empty} — 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
+        ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D),
+         "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · 심판 셋 구조로 다시 판정 · 다른 AI 서비스 연결로 넓힙니다."),
     ]
-    total = len(scenes)
+    detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
+        ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
+         "분야를 고르면 순위표가 바뀝니다. 결과 장면의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
+        ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
+         "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
+        ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
+         "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 걸린 질문입니다.", scene_code(D), ""),
+        ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
+         f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D), ""),
+        ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
+         "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
+        ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과 — 필요할 때만 펼치기",
+         "탭을 고르고, 칸을 누르면 그 질문만 펼쳐집니다.", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
+    ]
+    scenes = core + detail
+    total, n_core = len(scenes), len(core)
 
-    def head(no: str, title: str, lead: str) -> str:
-        return f'<div class="s-head"><span class="s-no">{no} / {total:02d}</span><h2>{title}</h2>{f"<p>{lead}</p>" if lead else ""}</div>'
+    def head(i: int, title: str, lead: str, key: str) -> str:
+        tag = f"{i:02d} / {total:02d}" + (" · 상세 분석" if i > n_core else "")
+        return (f'<div class="s-head"><span class="s-no">{tag}</span><h2>{title}</h2>'
+                + (f'<p class="s-key">{E(key)}</p>' if key else "") + (f"<p>{lead}</p>" if lead else "") + "</div>")
 
     s0 = f'<header class="ar-s0">{ar_overview(D)}</header>'   # 사용자 10-21: 제목 줄은 맨 위에 두고 메뉴의 개요는 뺌
-    body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(f"{i:02d}", E(title), E(lead))}\n{content}</section>\n'
-                   for i, (sid, _s, _d, title, lead, content) in enumerate(scenes, 1))
+    divider = ('<div class="s-div" id="detail-start"><b>상세 분석</b><span>발표 뒤 필요할 때 보는 화면 — '
+               + " · ".join(E(s[1]) for s in detail) + "</span></div>")
+    body = "".join((divider if i == n_core + 1 else "") + f'\n<section class="slide" id="{sid}">\n  {head(i, E(title), E(lead), key)}\n{content}</section>\n'
+                   for i, (sid, _s, _d, title, lead, content, key) in enumerate(scenes, 1))
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">ModelGrade</span>'
            '<div class="toc-links" id="toc-links">'
-           + "".join(f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>' for i, (sid, short, *_r) in enumerate(scenes, 1))
+           + "".join(('<span class="toc-sep">상세 분석</span>' if i == n_core + 1 else "") + f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>'
+                     for i, (sid, short, *_r) in enumerate(scenes, 1))
            + '</div><div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div></div></nav>')
     ids = ", ".join(f"'{s}'" for s in [x[0] for x in scenes])
     script = re.sub(r"var ids = \[[^\]]*\];", f"var ids = [{ids}];", nav_script, count=1)
