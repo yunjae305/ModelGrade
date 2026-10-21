@@ -4,7 +4,7 @@ AI 호출 없음. 내보낸 결과(참고자료/결과/<실행>_결과_판정결
 (숫자가 그 실행의 report.html 과 같아야 한다 — 끝에서 맞춰 본다). 디자인은 10-19 발표 덱 CSS 를 그대로 읽어 쓴다(10-20 보고와 같은 모양).
 
     python -X utf8 tools/build_result_summary.py [--run a1642702fccc]
-    → 참고자료/발표/ModelGrade_결과요약_<실행>.html
+    → 참고자료/발표/ModelGrade_결과요약_10-20 발표자료.html (원문은 ModelGrade_결과요약_<실행>_원문/)
 """
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ VERSION = "result-summary-v4"   # v2 (10-21 오후): 흐름도·장면을 그림
 RUN = "a1642702fccc"
 RESULTS = ROOT / "참고자료" / "결과"
 OUT_DIR = ROOT / "참고자료" / "발표"
+MAIN_NAME = "ModelGrade_결과요약_10-20 발표자료.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음)
 DECK = OUT_DIR / "ModelGrade_진행보고_2026-10-19.html"
 TIME_1020 = RESULTS / "시간_요약_ac6507c00276.json"   # 10-20 보고 때(다른 78개 세트) 수집 시간 — 참고 한 줄
 E = html.escape
@@ -1566,7 +1567,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
                 '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">\n'
                 f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + logos, inner)}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
 
-    main_name = f"ModelGrade_결과요약_{run_id}.html"
+    main_name = MAIN_NAME
     out = OUT_DIR / main_name
     out.write_text(doc("AIONA 채팅 품질 평가", f"78개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
                        f'{nav}\n<main class="wrap">\n{s0}\n{body}\n</main>\n{script}'), encoding="utf-8")
@@ -1580,7 +1581,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
              + [(e_file, "갈림 목록", f"심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개")])
 
     def links(cur: str) -> str:
-        return (f'<a href="../{E(main_name)}#apx">← 결과 요약(부록)으로</a> · ' + " · ".join(
+        return (f'<a href="../{E(main_name.replace(" ", "%20"))}#apx">← 결과 요약(부록)으로</a> · ' + " · ".join(
             f"<b>{E(lab)}</b>" if f == cur else f'<a href="{E(f)}">{E(lab)}</a>' for f, lab, _d in files))
 
     written = [out]
