@@ -339,6 +339,28 @@ def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: 
             f"<span class='{_e(it['decision'])}'>{_e(KO.get(it['decision'], it['decision']))}</span>{kind}{hum}<div class='why'>{_e(why)}</div>{q}{qq}{how}{btn}</div>")
 
 
+def judge_process_info(out_dir: Path) -> Dict[str, Any]:
+    """판정 실행 기록 — run.log 에서 Codex 호출·다시 묻기·429 대기(횟수·초)를, results 에서 판정 실행 오류를, summary 에서 벽시계를 센다."""
+    out: Dict[str, Any] = {"codex_calls": 0, "reasks": 0, "waits": 0, "wait_seconds": 0, "judge_errors": 0, "wall_seconds": None}
+    log = Path(out_dir) / "run.log"
+    if log.exists():
+        for l in log.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if "Codex 완료 — 입력" in l:
+                out["codex_calls"] += 1
+            elif "Codex 다시 묻기" in l:
+                out["reasks"] += 1
+            elif "429" in l and "기다렸다" in l:
+                out["waits"] += 1
+                m = re.search(r"(\d+)초 기다렸다", l)
+                out["wait_seconds"] += int(m.group(1)) if m else 0
+    out["judge_errors"] = sum(1 for r in load_results(Path(out_dir)) if r.get("judge_error"))
+    try:
+        out["wall_seconds"] = json.loads((Path(out_dir) / "summary.json").read_text(encoding="utf-8")).get("wall_seconds")
+    except (OSError, ValueError):
+        pass
+    return out
+
+
 def codex_reasoning(out_dir: Path) -> str:
     """이 결과의 Codex 추론 수준 — summary.json 의 codex.reasoning, 없으면 폴더 이름(…-medium 이면 medium), 그 밖은 low (10-21 전 결과)."""
     try:
@@ -613,6 +635,33 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             cells.append(f"<td>{_link(f'#fail-{p}-{q}', txt) if v == 'FAIL' else (_link(f'#hold-{p}-{q}', txt) if v == 'HOLD' else txt)}</td>")
         P.append(f"<tr><td>Q{q}</td><td class='small'>{_e(qtypes.get(q, ''))}</td><td class='qtxt small'>{_e(qt[:80])}</td>{''.join(cells)}</tr>")
     P.append("</table>")
+
+    # 7-2. 수집·판정 과정 기록 — 수집 확인(collection-check.json)과 판정 실행 기록(run.log)
+    P.append("<h2>수집·판정 과정 기록</h2>")
+    cc_path = out_dir.parent / "collection-check.json"
+    if cc_path.exists():
+        cc = json.loads(cc_path.read_text(encoding="utf-8"))
+        P.append(f"<h3>답변 수집 확인</h3><p class='note'>{_e(cc.get('rule'))} 확인 방법: {_e(cc.get('how'))}.</p>")
+        P.append("<table><tr><th>모델</th><th class='num'>답이 있는 턴</th><th class='num'>다시 복사해 같음</th><th>답 아래 아이콘 글로 바꾼 턴</th><th>확인 방법</th></tr>")
+        for p in providers:
+            m = (cc.get("models") or {}).get(p) or {}
+            rep = ", ".join(m.get("replaced") or []) or "-"
+            why = f"<div class='small'>{_e(m.get('replaced_why'))}</div>" if m.get("replaced_why") else ""
+            P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{m.get('answers', '-')}</td><td class='num'>{m.get('same', '-')}</td><td>{_e(rep)}{why}</td><td class='small'>{_e(m.get('tool'))}</td></tr>")
+        P.append("</table>")
+        if cc.get("chatgpt_copy_traits"):
+            P.append("<p class='note'><b>ChatGPT 앱 복사 기능의 특성</b>(답 아래 복사 아이콘이 주는 글 그대로 평가함):</p><ul>" + "".join(f"<li class='small'>{_e(t)}</li>" for t in cc["chatgpt_copy_traits"]) + "</ul>")
+        if cc.get("not_checked"):
+            P.append(f"<p class='note'>{_e(cc['not_checked'])}</p>")
+    jp = judge_process_info(out_dir)
+    P.append("<h3>판정 실행</h3><table><tr><th>항목</th><th class='num'>값</th><th>설명</th></tr>"
+             f"<tr><td>판정 벽시계</td><td class='num'>{_hms(jp['wall_seconds']) if jp['wall_seconds'] else '미측정'}</td><td class='small'>질문 78 × 모델 4 = 312건, 네 모델을 동시에 판정</td></tr>"
+             f"<tr><td>Codex 호출</td><td class='num'>{jp['codex_calls']:,}</td><td class='small'>Decisions 가 FAIL·애매로 걸러 낸 항목만 Codex 에 보낸 횟수(다시 묻기 포함)</td></tr>"
+             f"<tr><td>다시 묻기</td><td class='num'>{jp['reasks']:,}</td><td class='small'>Codex 가 일부 항목에 답을 안 냈거나, 근거로 든 인용이 원문에 없거나, 사실 확인을 못 했을 때 그 항목만 다시 물음</td></tr>"
+             f"<tr><td>429 대기</td><td class='num'>{jp['waits']:,}번 · {_hms(jp['wait_seconds'])}</td><td class='small'>429 = Codex 서버가 '짧은 시간(약 1분)에 요청이 너무 많다'며 잠시 거절한 것. "
+             "네 모델을 동시에 판정해 3~4만 토큰짜리 요청이 몰릴 때 생긴다. 바로 다시 보내면 또 거절되고, 포기하면 그 질문이 '판정 실행 오류'로 보류되므로 "
+             "60초 → 120초 → 300초(그 뒤 600초마다) 기다렸다가 같은 요청을 다시 보내 끝까지 판정한다 — 잃는 것은 시간뿐.</td></tr>"
+             f"<tr><td>판정 실행 오류</td><td class='num'>{jp['judge_errors']}</td><td class='small'>심판 호출이 끝내 실패해 보류로 둔 질문 수(0 이면 모든 질문이 정상 판정됨)</td></tr></table>")
 
     # 7-1. 추론 수준 비교 — 같은 답을 Codex 추론 수준만 바꿔 판정한 결과가 옆 폴더에 있으면
     sibs = sibling_results(out_dir)

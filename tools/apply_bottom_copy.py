@@ -92,7 +92,12 @@ def aiona_copies(run: dict, targets: List[str]) -> Dict[str, str]:
     with AionaChat(headless=True, allow_login=False, answer_timeout_s=60) as chat:
         for cid in targets:
             r = rows[cid]
-            chat.page.goto(r["collection"]["url"], wait_until="domcontentloaded")
+            url = (r.get("collection") or {}).get("url") or next((x["collection"]["url"] for x in rows.values()   # 재시도로 받은 행은 주소가 비어 있다 — 같은 대화 다른 턴의 주소
+                                                                   if x.get("conversation_id") == r.get("conversation_id") and (x.get("collection") or {}).get("url")), None)
+            if not url:
+                print(f"  {cid}: 채팅 주소 없음", flush=True)
+                continue
+            chat.page.goto(url, wait_until="domcontentloaded")
             chat.page.wait_for_timeout(2500)
             chat._dismiss_popups()
             chat._answers().first.wait_for(timeout=20_000)
