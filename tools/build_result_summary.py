@@ -39,8 +39,6 @@ GROUP = {"J1": "요청 충실", "J2": "지시 준수", "J3": "일관성·논리"
          "J6": "대화 맥락 유지", "J7": "긴 문서 활용", "J8": "첨부 활용"}
 SUFFIX = {"bullet_count": "불릿 수", "required": "필수", "count": "개수", "block1": "첫 코드블록", "required_literal": "필수 문구",
           "present": "있어야 함", "1": "첫 등식"}
-# 같은 답을 다시 판정할 때의 흔들림 — 10-21 오전 A/B(Codex low vs medium, 표본 10질문 × 4모델), 2026-10-20 변경내역
-WOBBLE = {"n": 40, "changed": 6}
 
 
 LOGO_FILES = {"aiona": "aiona-logo.png", "gpt": "gpt-logo.svg", "claude": "claude-logo.svg", "gemini": "gemini-logo.webp"}   # 팀 앱(frontend/assets)과 같은 로고
@@ -253,14 +251,6 @@ def note(title: str, body: str, warn: bool = False) -> str:
 # ------------------------------------------------------------------ 장면 ------------------------------------------------------------------
 # v2 (사용자 10-21 오후: 멘토 최종 발표 → 소장님 보고용으로 "흐름도부터 깔끔하고 가독성 있게") — 한 장면에 메시지 하나 · 그림 하나 · 짧은 글
 ROW_ORDER = ["단일 질문", "첨부자료 확인·요약", "롱컨텍스트", "10턴 멀티턴 대화", "명시적 빈 출력"]
-CHANGES = [   # 10-20 미팅 때 설명 → 지금 (이름, 그때, 지금, 덧붙임)
-    ("의미 평가 심판", "Jev — J1~J4 만", "Decisions API — 44개 항목 전부", "미팅 제안 반영"),
-    ("Codex CLI", "나머지 기준을 판정", "의심 항목만 다시 판정 · 갈리면 Codex 를 따름", ""),
-    ("첨부 파일", "입력 한도 때문에 잘라서 봄", "두 심판 모두 원본을 쪽 이미지로 봄", ""),
-    # 10-21 사용자 결정 — ChatGPT 앱 복사 버튼이 언어 표지를 지움 (2026-10-20 변경내역 '10-21 오후', GPT 완전 통과 23 → 33)
-    ("코드블록 언어 표지", "요구와 다르면 FAIL", "비어 있어도 코드블록이면 통과", "ChatGPT 앱 복사가 표지를 지움 — 그것만으로 FAIL 이던 GPT 10문항이 빠짐"),
-    ("질문 세트", "326개에서 고른 78개", "78개 확정 세트", ""),
-]
 
 
 def hm(seconds: float) -> str:
@@ -314,12 +304,8 @@ def scene_flow(D: Dict[str, Any]) -> str:
         '<li><i class="rs-dot rs-pass"></i><b>완전 통과</b><span>그 밖</span></li></ul></div>'
         f'<div class="rs-st"><span class="rs-sn">5</span><h3>결과</h3><div class="rs-sbig rs-sbig-t">완전 통과<small>/ {D["n"]}</small></div>'
         '<ul class="rs-sl"><li>모델마다 질문 수로 비교</li><li>보류는 사람이 정함</li></ul></div>'
-        '</div>'
-        f'<div class="rs-bypass"><i class="rs-dot rs-hold"></i><span><b>빈 출력 요구 {types.get("명시적 빈 출력", 0)}문항</b>은 채점하지 않고 바로 보류 — 빈 답 · 복사 실패 · 짧은 글 모두 (10-20 결정)</span></div>')
-    chg = ('<div class="rs-chg"><div class="rs-chg-h"><span>단계</span><span>10-20 미팅 때</span><span></span><span>지금</span></div>'
-           + "".join(f'<div class="rs-chg-r"><b>{E(a)}</b><span class="rs-old">{E(b)}</span><span class="rs-arr" aria-hidden="true">→</span>'
-                     f'<span class="rs-new">{E(c)}{f"<small>{E(d)}</small>" if d else ""}</span></div>' for a, b, c, d in CHANGES) + "</div>")
-    return flow + '<h3 class="rs-sh">어제 설명에서 바뀐 점</h3>' + chg
+        '</div>')   # 사용자 10-21: 빈 출력 안내 줄 · '어제 설명에서 바뀐 점' 표 지움
+    return flow
 
 
 def scene_criteria(D: Dict[str, Any]) -> str:
@@ -354,14 +340,6 @@ def scene_criteria(D: Dict[str, Any]) -> str:
                          f'줄바꿈이 사라집니다(확인 완료). 사용자가 복사해 받는 글 그대로 평가해 FAIL 로 둡니다.</p>{q_chips(py_qs)}</div>'))
     cards.sort(key=lambda x: -x[0])
     return grid + ('<h3 class="rs-sh">한 모델에만 몰린 것 — 원문으로 확인할 것</h3><div class="rs-cards">' + "".join(h for _k, h in cards) + "</div>" if cards else "")
-
-
-def wobble_note() -> str:
-    """심판 흔들림 — '확인할 것'에서 바로 오는 자리 (사용자 10-21). 값은 WOBBLE(10-21 오전 low/medium A/B)."""
-    return (f'<div id="wobble" class="rs-anchor">' + note("심판 흔들림 — 몇 문항 차이는 오차일 수 있음",
-            f"<p>같은 답을 Codex 추론 low 와 medium 으로 한 번씩 판정해 보니(표본 {WOBBLE['n']}건 = 10질문 × 4모델), "
-            f"<b>{WOBBLE['changed']}건</b>의 판정이 달랐습니다. 그래서 모델 사이 몇 문항 차이는 순위를 가르는 근거로 약합니다. "
-            "medium 은 1.8배 오래 걸려 최종 판정은 low 로 했습니다.</p>") + "</div>")
 
 
 def scene_hold(D: Dict[str, Any]) -> str:
@@ -1509,7 +1487,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s2", "평가 방법", "다섯 단계", "평가 흐름 — 다섯 단계",
          "어제 설명한 흐름 그대로이고, 의미 평가 심판만 Decisions API 로 바뀌었습니다.", scene_flow(D)),
         ("s1", "순위표", "분야별 순위", "분야별 순위표",
-         "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats) + wobble_note()),
+         "맨 위는 전체 순위, 그 아래 점수표에서 분야를 누르면 분야별 순위표가 바뀝니다.", rank_card(D, cats) + helm_table(D, cats) + '<h3 class="rs-sh">분야별 순위</h3>' + ar_board(D, cats)),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 수집과 판정",
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D)),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
