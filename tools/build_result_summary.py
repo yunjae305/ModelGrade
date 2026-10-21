@@ -481,10 +481,7 @@ def collect_token_table(D: Dict[str, Any]) -> str:
         return (f'입력 <b>{ktok(v[0])}</b> <span class="muted">({v[2]:,.0f}자)</span> · '
                 f'출력 <b>{ktok(v[1])}</b> <span class="muted">({v[3]:,.0f}자)</span>')
     rows = [[mname(p), *[(cell(tok[(p, ty)]) if (p, ty) in tok else "—") for ty in TIME_COLS]] for p in D["order"]]
-    return (table("유형별 — 질문(대화) 하나당 평균 토큰 (답변 수집 · 추정)", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS]], rows, [12, 22, 22, 22, 22])
-            + '<p class="rs-basis">앱·웹 화면으로 받아 모델이 실제로 쓴 토큰은 기록되지 않습니다. 그래서 질문·답 글을 o200k_base 토크나이저(GPT 계열)로 센 추정입니다. '
-              '입력 = 턴마다 그때까지의 대화(앞 질문·답 · 참조 문서 · 첨부 글) + 이번 질문 — 멀티턴은 10턴을 더한 값. 출력 = 답. '
-              '괄호는 같은 글의 글자 수(공백 포함). 시스템 프롬프트 · 이미지 · 모델 내부 추론은 빠져 있어 실제보다 적고, 모델마다 토크나이저가 달라 실제 수와 다릅니다. 빈 출력 요구 질문은 뺐습니다.</p>')
+    return table("유형별 — 질문(대화) 하나당 평균 토큰 (답변 수집 · 추정)", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS]], rows, [12, 22, 22, 22, 22])
 
 
 def scene_time(D: Dict[str, Any]) -> str:
@@ -521,8 +518,8 @@ def scene_time(D: Dict[str, Any]) -> str:
     eq = " + ".join(f"{E(label[i] if i < len(label) else '판정')} {hm(t.get('seconds') or 0)}" for i, t in enumerate(tm[:4]))
     judge = (f'<div class="rs-judge"><div class="rs-jt"><b>{hm(total)}</b><span>판정 전체에 실제로 걸린 시간<br>판정 {sum(t.get("judgments", 0) for t in tm)}건 (질문 × 모델)</span></div>'
              f'<div class="rs-jb"><div class="rs-tl">{segs}</div><div class="rs-legend">{tleg}</div>'
-             + (f'<p class="rs-jeq">네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>' if len(tm) == 1 else
-                f'<p class="rs-jeq">= {eq} — {len(tm)}단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다. 그래서 모델별로 나눈 시간은 따로 없습니다.</p></div></div>'))
+             + (f'<p class="rs-jeq">네 모델을 동시에 판정했습니다.</p></div></div>' if len(tm) == 1 else
+                f'<p class="rs-jeq">= {eq} — {len(tm)}단계를 차례로 돌렸고, 단계마다 네 모델을 동시에 판정했습니다.</p></div></div>'))
     jt = ""
     if ex["judge"]:   # report.html 4장 판정 표 — 모델마다 시간 · 토큰 (Codex 토큰은 run.log 에서 모은 값)
         J = ex["judge"]
