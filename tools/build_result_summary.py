@@ -288,18 +288,6 @@ def turn_ok(D: Dict[str, Any], qs: List[int]) -> Tuple[Dict[str, int], int]:
     return ok, tot
 
 
-def uniform_types(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
-    """네 모델 결과가 똑같은 유형 — (유형, 문항 수, '모두 FAIL'/'모두 보류')."""
-    out = []
-    for ty in R.TYPE_ORDER:
-        qs = [q for q, t in D["qtypes"].items() if t == ty]
-        res = [Counter(D["lines"][(p, q)]["verdict"] for q in qs) for p in D["order"]]
-        if qs and len({tuple(sorted(c.items())) for c in res}) == 1:
-            only = res[0]
-            out.append((ty, len(qs), "모두 FAIL" if only.get("FAIL") == len(qs) else "모두 보류" if only.get("HOLD") == len(qs) else "모두 같음"))
-    return out
-
-
 def scene_flow(D: Dict[str, Any]) -> str:
     types = Counter(D["qtypes"].values())
     chip_name = {"첨부자료 확인·요약": "첨부"}
@@ -516,10 +504,7 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
     order = D["order"]
     cats: List[Dict[str, Any]] = []
     tot = {p: D["tally"][p] for p in order}
-    same = uniform_types(D)
     cats.append({"group": "결과", "label": "전체", "chip": "완전 통과", "higher": True, "of": D["n"], "unit": "문항",
-                 "desc": "그 질문에 해당하는 기준을 하나도 어기지 않고 보류도 없는 질문 수. "
-                         + " · ".join(f"{TYPE_NAME.get(t, t)} {k}개는 {h}" for t, k, h in same) + (" — 네 모델이 같습니다." if same else ""),
                  "vals": {p: tot[p]["PASS"] for p in order}, "extra": {p: f"FAIL {tot[p]['FAIL']} · 보류 {tot[p]['HOLD']}" for p in order}})
     for ty in ROW_ORDER:
         qs = [q for q, t in D["qtypes"].items() if t == ty]
@@ -531,11 +516,9 @@ def board_categories(D: Dict[str, Any]) -> List[Dict[str, Any]]:
         if ty == "10턴 멀티턴 대화" and all(c["PASS"] == 0 for c in res.values()):
             ok, n_t = turn_ok(D, qs)
             cats.append({"group": "유형", "label": "멀티턴 (턴 단위)", "chip": f"{len(qs)}문항 · {n_t}턴", "higher": True, "of": n_t, "unit": "턴",
-                         "desc": f"열 번의 답이 모두 검사 대상이라 질문 단위로는 네 모델 모두 0 / {len(qs)} — 그래서 FAIL 이 없는 턴을 셉니다.",
                          "vals": ok, "extra": {p: f"FAIL 있는 턴 {n_t - ok[p]}" for p in order}})
             continue
         cats.append({"group": "유형", "label": TYPE_NAME.get(ty, ty), "chip": f"{len(qs)}문항", "higher": True, "of": len(qs), "unit": "문항",
-                     "desc": f"{TYPE_NAME.get(ty, ty)} {len(qs)}문항 가운데 완전 통과한 질문 수.",
                      "vals": {p: res[p]["PASS"] for p in order}, "extra": {p: f"FAIL {res[p]['FAIL']} · 보류 {res[p]['HOLD']}" for p in order}})
     for c in cats:   # 순위 — 같은 값은 같은 순위
         vals = c["vals"]
@@ -583,7 +566,7 @@ def ar_overview(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
             f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')
     total_cat = next(c for c in cats if c["group"] == "결과")   # '전체' 완전 통과
     rank_card = (f'<div class="ar-card"><div class="ar-ch"><h3>순위</h3><span class="ar-chip">{E(total_cat["label"])} · {E(total_cat["chip"])}</span></div>'
-                 f'<div class="ar-rows">{rank_rows(total_cat)}</div><p class="ar-note">{E(total_cat["desc"])}</p>'
+                 f'<div class="ar-rows">{rank_rows(total_cat)}</div>'
                  '<a class="ar-btn" href="#s1">분야별 순위표 보기</a></div>')
     # 확인할 것 (Arena 'Live sessions' 자리)
     checks = []
@@ -630,7 +613,7 @@ def ar_board(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
                         f'<td class="ar-tv">{v}<small> / {c["of"]}</small></td>' + (f'<td class="ar-tp2">{v / c["of"] * 100:.0f}%</td>' if c["higher"] else "<td></td>")
                         + f'<td class="ar-tx">{E(c["extra"][p])}</td></tr>')
         panels.append(f'<div class="ar-pn ar-bd{i}"><div class="ar-bh"><div><h3>{E(c["label"])}</h3><span class="ar-chip">{E(c["group"])} · {E(c["chip"])}</span></div>'
-                      f'<p>{E(c["desc"])}</p><div class="ar-meta">2026-10-21 · 질문 {D["n"]}개 · 모델 {len(order)}개 · {"높을수록 좋음" if c["higher"] else "적을수록 좋음"}</div></div>'
+                      f'<div class="ar-meta">2026-10-21 · 질문 {D["n"]}개 · 모델 {len(order)}개 · {"높을수록 좋음" if c["higher"] else "적을수록 좋음"}</div></div>'
                       f'<table class="ar-tab"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table></div>')
     return (f'<div class="ar-board">{radios}<aside class="ar-cats">{side}</aside><div class="ar-tables">{"".join(panels)}</div></div>'
             + tab_css("bd", len(cats), ".ar-cats", ".ar-tables", "ar-bd", "background: var(--accent-soft); color: var(--accent); font-weight: 600;"))
