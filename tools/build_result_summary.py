@@ -307,7 +307,7 @@ def scene_flow(D: Dict[str, Any]) -> str:
         f'<ul class="rs-sl"><li><b>데스크톱 앱</b>{app}</li><li><b>웹브라우저</b>{web}</li><li class="muted">복사 버튼으로 받아 JSON 으로 저장</li></ul></div>'
         '<div class="rs-st"><span class="rs-sn">3</span><h3>채점 — 기준 72개</h3>'
         '<div class="rs-box"><b>CODE 28</b><span>형식 · 개수 · 글자 수 · 계산</span><em>프로그램이 검사</em></div>'
-        '<div class="rs-box rs-box-ai"><b>의미 44</b><span>Decisions API 가 전부 판정 → 의심 항목만 Codex 가 다시 판정</span><em>AI 심판 둘 · 갈리면 Codex · 어느 모델 답인지 모름(블라인드)</em></div></div>'
+        '<div class="rs-box"><b>의미 44</b><span>Decisions API 가 전부 판정 → 의심 항목만 Codex 가 다시 판정</span><em>AI 심판 둘 · 갈리면 Codex · 어느 모델 답인지 모름(블라인드)</em></div></div>'
         '<div class="rs-st"><span class="rs-sn">4</span><h3>질문 판정</h3><ul class="rs-rules">'
         '<li><i class="rs-dot rs-fail"></i><b>FAIL</b><span>기준을 하나라도 어김</span></li>'
         '<li><i class="rs-dot rs-hold"></i><b>보류</b><span>FAIL 은 없고 확인 못 한 것이 남음</span></li>'
@@ -1085,7 +1085,6 @@ EXTRA_CSS = """<style>
 .rs-sl b { display: block; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
 .rs-box { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; display: grid; gap: 3px; font-size: 0.86rem; line-height: 1.45; }
 .rs-box b { font-size: 1rem; } .rs-box em { font-style: normal; font-size: 0.78rem; color: var(--muted); }
-.rs-box-ai { border-color: var(--accent); background: var(--accent-soft); }
 .rs-rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .rs-rules li { display: grid; grid-template-columns: 12px minmax(0, 1fr); column-gap: 8px; align-items: center; }
 .rs-rules li b { font-size: 0.95rem; } .rs-rules li span { grid-column: 2; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
