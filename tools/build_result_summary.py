@@ -944,6 +944,32 @@ def scene_hold_flow(D: Dict[str, Any]) -> str:
                    "확인하지 못한 것은 보류로 드러내고, 사람이 정한 만큼만 숫자에 넣습니다.</p>"))
 
 
+def scene_prompt(D: Dict[str, Any]) -> str:
+    """판정 프롬프트 원문 — 심판마다 실제로 보내는 글 그대로 (사용자 10-22). 글은 판정 코드(tools/judge_v4.py)가 읽는 파일 · 상수에서 읽는다:
+    Codex = judge_prompt_v4.txt + SCREEN_SUFFIX, 1차 심판(Jev · Decisions) = jev_questions_v4.json 의 guide + TARGET_GUIDE + 기준별 질문(all_item_questions)."""
+    from tools import judge_v4 as jv
+    codex = jv.PROMPT_V4.read_text(encoding="utf-8") + jv.SCREEN_SUFFIX
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    guide = fixed["guide"] + jv.TARGET_GUIDE
+    allq = jv.all_item_questions(fixed)
+
+    def item_text(i: str, q: Dict[str, Any]) -> str:
+        crit = q.get("criteria") or {}
+        return (q.get("instructions") or i) + "\n" + "\n".join(f"  · {k}: {v}" for k, v in crit.items())
+    items = "\n\n".join(item_text(i, q) for i, q in allq.items())
+
+    def block(title: str, what: str, text: str, open_: bool = False) -> str:
+        return (f'<details class="rs-d pr-d"{" open" if open_ else ""}><summary><b>{E(title)}</b><span class="muted">{E(what)} · {len(text):,}자</span></summary>'
+                f'<pre class="rs-pre pr-pre">{E(text)}</pre></details>')
+    return ('<p class="ds-lead">심판에게 실제로 보내는 글 그대로입니다. 이 글은 모든 질문에 같고, 질문마다 바뀌는 것은 [입력] JSON(질문 · 첨부 · 참조 자료 · 답변)과 '
+            '[판정할 항목] 목록(그 질문을 만들 때 정한 기준)뿐입니다. 어느 모델의 답인지는 넣지 않습니다.</p>'
+            + block("1차 심판(Jev · Decisions) — 안내문", "질문마다 [판정할 항목] 목록과 함께 보냄", guide, True)
+            + block(f"1차 심판(Jev · Decisions) — 기준별 질문 {len(allq)}개", "목록에 든 기준만 골라 보냄 · 예(PASS) · 아니오(FAIL) · 해당 없음 중 하나", items)
+            + block("Codex — 판정 프롬프트", "1차 심판이 FAIL · 애매로 본 항목만 이 글로 다시 판정 (판정 프롬프트 v4 + 선별 판정 덧붙임)", codex)
+            + '<p class="rs-basis">J5-1.a(사실 정확성)의 시점 문구는 이번 실행 판정 뒤(10-22) "답변 수집 날짜 기준" → "질문이 정한 시점(없으면 답변 수집 날짜) 기준"으로 고친 글입니다. '
+              '이번 실행에서 이 문구 때문에 달라지는 판정은 없습니다.</p>')
+
+
 # 걸린 시간 표의 유형 — 사용자 10-21: 싱글턴 (S) · 멀티턴 (M) · 롱컨텍스트 (L), 이 순서로
 TIME_COLS = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨부자료 확인·요약"]
 TYPE_SHORT = {"단일 질문": "싱글턴 (S)", "10턴 멀티턴 대화": "멀티턴 (M)", "롱컨텍스트": "롱컨텍스트 (L)", "첨부자료 확인·요약": "첨부 자료",
@@ -2233,6 +2259,9 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .cr-ab { font-family: var(--font-num); font-size: 0.72rem; color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 4px; padding: 0 4px; flex: none; }
 .cr-q { min-width: 0; word-break: keep-all; } .cr-q small { display: block; color: var(--muted); font-size: 0.76rem; }
 @media (max-width: 760px) { .cr-map, .cr-top { grid-template-columns: minmax(0, 1fr); } }
+/* 판정 프롬프트 원문 (사용자 10-22) */
+.pr-d { margin-top: 12px; } .pr-d > summary .muted { margin-left: 10px; } .pr-pre { max-height: 70vh; font-size: 0.8rem; line-height: 1.55; }
+.pr-link a { font-weight: 600; }
 /* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
 :root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
@@ -2401,7 +2430,8 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          "AIONA 가 업데이트될 때마다 같은 조건으로 다시 테스트해, 채팅 품질을 꾸준히 높이기 위해 만들었습니다."),
         ("s_design", "질문 설계", "왜 78개 · 왜 기준 6~10개", "질문 설계 — 왜 78개, 왜 질문마다 기준 6~10개", "", scene_design(D),
          "기준 6~10개는 모델 차이가 가장 잘 드러나는 난이도, 78개는 모든 기준을 질문 10개 이상에서 평가하는 가장 적은 수입니다."),
-        ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D),
+        ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)
+         + '<p class="rs-basis pr-link"><a href="#s_prompt">판정 프롬프트 원문 보기 → 상세 분석 \'판정 프롬프트\'</a></p>',   # 사용자 10-22
          f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
         ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",
          f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D),
@@ -2422,6 +2452,8 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          dist_card(D) + helm_table(D, cats), res_key),
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
          "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
+        ("s_prompt", "판정 프롬프트", "심판이 받는 글 원문", "판정 프롬프트 — 심판이 받는 글 원문",
+         "", scene_prompt(D), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
          "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
         ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
