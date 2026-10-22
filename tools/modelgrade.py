@@ -56,18 +56,18 @@ APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flas
 APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
 APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
 #: 고를 수 있는 모델 = 앱과 AIONA 에 이름이 똑같이 있는 것만 (사용자 10-22: "모델명이 모두 같아야해") — AIONA 이름은 메뉴 그대로
-#: (2026-10-22 화면 확인: 'Claude Opus 5.5' · 'Gemini 3.8 Flash' · 'GPT-5.6 Sol'). 앱 'GPT-6'(AIONA 는 GPT-6 Astra · Luna · Sol · 6.1 Sol)과
-#: '3.1 Pro'(AIONA 는 3.1 Pro Preview)는 이름이 달라 고를 수 없다. 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
+#: (2026-10-22 화면 확인: 'Claude Opus 5.5' · 'Gemini 3.8 Flash' · 'GPT-5.6 Sol'). ChatGPT 앱 'GPT-6' 은 AIONA 'GPT-6 Sol'(사용자 10-22).
+#: Gemini 앱 '3.1 Pro'(AIONA 는 3.1 Pro Preview)는 이름이 달라 고를 수 없다. 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
 AIONA_MODEL_FOR = {**{("claude", m): f"Claude {m}" for m in APP_MODELS["claude"]},
                    **{("gemini", m): f"Gemini {m}" for m in ("3.5 Flash-Lite", "3.8 Flash", "4 Argon")},
-                   ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol"}
+                   ("gpt", "GPT-6"): "GPT-6 Sol", ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol"}
 
 
 def aiona_model_for(provider: str, model: str) -> str:
     """고른 앱 모델과 이름이 똑같은 AIONA 모델."""
     name = AIONA_MODEL_FOR.get((provider, model))
     if not name:
-        raise SystemExit(f"AIONA 에는 '{model}' 과 이름이 똑같은 모델이 없어 고를 수 없습니다")
+        raise SystemExit(f"AIONA 에는 '{model}' 과 같은 모델이 없어 고를 수 없습니다")
     return name
 
 
@@ -110,7 +110,7 @@ def parse_model(text: str) -> Optional[Tuple[str, str]]:
 def ask_model() -> Optional[Tuple[str, str]]:
     """어느 모델로 평가할지 — 0(Enter) = 전체(네 모델 기본 설정), 번호 = 그 앱 모델 하나 + AIONA."""
     print("어느 모델로 평가할까요? 모델을 고르면 그 앱과 AIONA 를 같은 모델로 바꿔 받습니다 (다른 앱은 받지 않음).")
-    print("  (앱과 AIONA 에 이름이 똑같은 모델만 · 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
+    print("  (앱과 AIONA 에 같은 모델이 있는 것만 — ChatGPT GPT-6 ↔ AIONA GPT-6 Sol · 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
     print(f"  0. 전체 — 네 모델 기본 설정 ({' · '.join(app_label(p) for p in ('gpt', 'claude', 'gemini'))} · AIONA 자동 추천)")
     for provider in ("claude", "gpt", "gemini"):
         items = [f"{k}. {m}" for k, p, m in model_menu() if p == provider]
