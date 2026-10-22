@@ -645,6 +645,18 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
     return combine_weighted(codex_v, second, label, confident)
 
 
+def add_usage(total: Dict[str, Any], usage: Any, prefix: str = "") -> None:
+    """심판이 돌려준 사용량을 칸 그대로 더한다 — 입력 · 출력뿐 아니라 캐시 · 추론 등 숫자 칸 전부(안쪽 칸은 '바깥.안쪽'), 값 · 단가 칸은 뺌
+    (10-22 미팅 7번: 판정에 드는 전체 토큰을 알아야 함)."""
+    if not isinstance(usage, dict):
+        return
+    for k, v in usage.items():
+        if isinstance(v, dict):
+            add_usage(total, v, f"{prefix}{k}.")
+        elif isinstance(v, (int, float)) and not isinstance(v, bool) and not any(w in str(k).lower() for w in ("cost", "usd", "price", "billing")):
+            total[prefix + k] = total.get(prefix + k, 0) + v
+
+
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
                codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None) -> Dict[str, Any]:
@@ -665,6 +677,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     dec_items: Dict[int, Dict[str, Any]] = {}
     dec_errors: List[str] = []
     usage_tokens = 0
+    usage_by: Dict[str, Dict[str, Any]] = {}   # 1차 심판(jev · decisions)마다 돌려준 사용량 칸 전부 (10-22 미팅 7번)
     t0 = time.monotonic()
     reused_dec = False
     saved_dec = out / "decisions" / name
@@ -692,12 +705,13 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             ans = (body or {}).get("answers") or {}
             dec_items[n] = {i: ans.get(f"T{n}:{i}") for i in ids}
             usage_tokens += int(((body or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((body or {}).get("usage"), dict) else 0
+            add_usage(usage_by.setdefault(used or "?", {}), (body or {}).get("usage"))
         else:
             dec_items[n] = {i: None for i in ids}
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
                           "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns), "input_tokens": usage_tokens,
-                          "reused": reused_dec, "question_tokens": q_tokens, "first_judge": first_used}
+                          "reused": reused_dec, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
     (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used}, ensure_ascii=False, indent=1),
                                            encoding="utf-8")
     # ② 걸린 항목 → Codex
@@ -730,14 +744,12 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         output: Any = None
         t1 = time.monotonic()
         body_doc = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
-        tokens = {"input_tokens": 0, "output_tokens": 0}
+        tokens: Dict[str, Any] = {"input_tokens": 0, "output_tokens": 0}   # + Codex 가 주는 칸 전부(cached_input_tokens · reasoning_output_tokens …, 10-22 미팅 7번)
         images = attachment_images(turns, getattr(gpt, "files_dir", None))
 
         def ask_codex(ask_doc: Dict[str, Any]) -> Tuple[str, Any, str]:
             st, outp, err = gpt.judge(prompt + SCREEN_SUFFIX, json.dumps(ask_doc, ensure_ascii=False, indent=1), search, tag, output_schema=output_schema(), images=images)
-            u = getattr(gpt, "last_usage", None) or {}
-            for k in tokens:
-                tokens[k] += int(u.get(k) or 0)
+            add_usage(tokens, getattr(gpt, "last_usage", None))
             return st, outp, err
 
         rounds, reused, error = 0, False, ""

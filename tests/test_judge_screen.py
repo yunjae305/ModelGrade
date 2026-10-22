@@ -131,3 +131,22 @@ def test_screen_one_codex_all_for_calibration(tmp_path: Path):
     codex = FakeCodex()
     line = _run(tmp_path, FakeDecisions(), codex, codex_all=True)
     assert line["screen"]["codex_all"] and line["screen"]["flagged"] == line["screen"]["items"] and codex.inputs
+
+
+def test_add_usage_keeps_every_token_field_and_drops_cost(tmp_path, monkeypatch):
+    """판정 토큰 (10-22 미팅 7번): 심판이 준 사용량 칸을 전부 더하고(안쪽 칸은 '바깥.안쪽') 값 · 단가 칸은 뺀다 — 결과 보고서 표가 심판별로 읽는다."""
+    total = {"input_tokens": 0, "output_tokens": 0}
+    jv.add_usage(total, {"input_tokens": 100, "cached_input_tokens": 60, "output_tokens": 20, "reasoning_output_tokens": 15, "cost_usd": 0.4})
+    jv.add_usage(total, {"input_tokens": 50, "output_tokens": 5, "output_tokens_details": {"reasoning_tokens": 3}})
+    assert total == {"input_tokens": 150, "cached_input_tokens": 60, "output_tokens": 25, "reasoning_output_tokens": 15,
+                     "output_tokens_details.reasoning_tokens": 3}
+    from tools import build_result_summary as brs
+    lines = [{"provider": "gpt", "status": "judged", "calls": {
+        "decisions": {"first_judge": {"1": "jev"}, "usage": {"jev": {"input_tokens": 10, "output_tokens": 2}}},
+        "codex": {"rounds": 2, **total}}},
+        {"provider": "gpt", "status": "judged", "calls": {"decisions": {"first_judge": {"1": "decisions"}, "input_tokens": 7}}}]   # 옛 기록 — 1차 입력만
+    monkeypatch.setattr(brs, "judged_lines", lambda D: lines)
+    T = brs.judge_tokens({"order": ["gpt"]})
+    assert (T["Jev"]["in"], T["Jev"]["out"], T["Jev"]["calls"]) == (10, 2, 1)
+    assert (T["Codex"]["cached"], T["Codex"]["reason"], T["Codex"]["calls"]) == (60, 15, 2)
+    assert T[brs.FIRST_SUM]["in"] == 7 and T[brs.FIRST_SUM]["seen"] == {"in"}   # 출력 · 캐시는 '기록 안 됨'

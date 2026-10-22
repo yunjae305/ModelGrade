@@ -1023,22 +1023,29 @@ def scene_next(D: Dict[str, Any]) -> str:
         for t, sub, body, st in cards) + "</div>")
 
 
-def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
-    """모델마다 판정 작업량 — 판정 기록(results.jsonl)의 실제 판정 줄을 모두 더한다(다시 판정 · 복구 포함, 사용자 10-22 '총 걸린 시간으로 합쳐').
-    이름 되살림 · 다시 계산(recode) 줄은 앞 줄을 옮겨 적은 것이라 뺀다. seconds = 그 질문을 판정하는 데 실제로 걸린 시간(벽시계 아님)."""
+def judged_lines(D: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """판정 기록(results.jsonl)의 실제 판정 줄 — 다시 판정 · 복구 포함. 이름 되살림 · 다시 계산(recode) 줄은 앞 줄을 옮겨 적은 것이라 뺀다."""
     f = result_file(D["run_id"], "results.jsonl")
     if not f.exists():
         f = ROOT / "data" / "judge_runs" / D["run_id"] / "v4" / "results.jsonl"
-    per: Dict[str, Counter] = {p: Counter() for p in D["order"]}
     if not f.exists():
-        return per
+        return []
+    out = []
     for x in f.read_text(encoding="utf-8").splitlines():
         if not x.strip():
             continue
         l = json.loads(x)
+        if l.get("provider") in D["order"] and l.get("status") == "judged" and not l.get("first_judge_restored") and not l.get("recoded"):
+            out.append(l)
+    return out
+
+
+def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
+    """모델마다 판정 작업량 — 판정 기록의 실제 판정 줄을 모두 더한다(다시 판정 · 복구 포함, 사용자 10-22 '총 걸린 시간으로 합쳐').
+    seconds = 그 질문을 판정하는 데 실제로 걸린 시간(벽시계 아님)."""
+    per: Dict[str, Counter] = {p: Counter() for p in D["order"]}
+    for l in judged_lines(D):
         p = l.get("provider")
-        if p not in per or l.get("status") != "judged" or l.get("first_judge_restored") or l.get("recoded"):
-            continue
         c = l.get("calls") or {}
         dc, cx = c.get("decisions") or {}, c.get("codex") or {}
         w = per[p]
@@ -1056,6 +1063,44 @@ def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
         w["codex_out"] += int(cx.get("output_tokens") or 0)
         w["errors"] += 1 if l.get("judge_error") else 0
     return per
+
+
+#: 심판이 돌려준 사용량 칸 이름 → 표의 칸 (OpenAI · Codex 이름 둘 다; 안쪽 칸은 tools/judge_v4.add_usage 가 '바깥.안쪽'으로 펼침)
+USAGE_KEYS = {"in": ("input_tokens", "prompt_tokens"),
+              "cached": ("cached_input_tokens", "input_tokens_details.cached_tokens", "prompt_tokens_details.cached_tokens"),
+              "out": ("output_tokens", "completion_tokens"),
+              "reason": ("reasoning_output_tokens", "output_tokens_details.reasoning_tokens", "completion_tokens_details.reasoning_tokens")}
+FIRST_SUM = "1차 (Jev · Decisions 합)"
+JUDGE_ORDER = ("Jev", "Decisions", FIRST_SUM, "Codex")
+
+
+def judge_tokens(D: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """심판마다 판정 토큰 (10-22 미팅 7번) — 심판이 호출마다 돌려준 사용량을 그대로 더한다. 칸에 기록이 한 번도 없으면 seen 에 없음('기록 안 됨').
+    1차 사용량을 심판별로 남기기 전 실행은 1차(Jev · Decisions 합) 입력만 있다."""
+    T: Dict[str, Dict[str, Any]] = {}
+
+    def add(judge: str, usage: Dict[str, Any], calls: int) -> None:
+        t = T.setdefault(judge, {"in": 0, "cached": 0, "out": 0, "reason": 0, "calls": 0, "seen": set()})
+        t["calls"] += calls
+        for col, names in USAGE_KEYS.items():
+            hit = [k for k in names if isinstance(usage.get(k), (int, float))]
+            if hit:
+                t[col] += usage[hit[0]]
+                t["seen"].add(col)
+
+    for l in judged_lines(D):
+        c = l.get("calls") or {}
+        dc, cx = c.get("decisions") or {}, c.get("codex") or {}
+        if not dc.get("reused"):
+            fj = list((dc.get("first_judge") or {}).values())
+            if isinstance(dc.get("usage"), dict):
+                for name, u in dc["usage"].items():
+                    add({"jev": "Jev", "decisions": "Decisions"}.get(name, name), u if isinstance(u, dict) else {}, fj.count(name))
+            else:
+                add(FIRST_SUM, {"input_tokens": int(dc.get("input_tokens") or 0)}, len(fj) or int(dc.get("calls") or 0))
+        if cx.get("rounds"):
+            add("Codex", cx, int(cx.get("rounds") or 0))
+    return T
 
 
 def judge_seconds(D: Dict[str, Any]) -> float:
@@ -1223,17 +1268,46 @@ def scene_time(D: Dict[str, Any]) -> str:
                     f'<span class="rs-tv"><b>{hm(W[p]["seconds"])}</b><small>질문당 {W[p]["seconds"] / max(1, D["n"]):.0f}초</small></span></div>' for p in order)
     judge = (f'<div class="rs-judge"><div class="rs-jt"><b>{hm(jmx)}</b><span>판정에 실제로 걸린 시간<br>모델마다 질문 판정 시간의 합 중 가장 긴 것(네 모델 동시)</span></div>'
              f'<div class="rs-jb"><div class="rs-tbars">{jbars}</div></div></div>')
-    jr = [[mname(p), f'{W[p]["jev"]:,}', f'{W[p]["dec"]:,}', f'{W[p]["dec_in"] / 1e6:.1f}M', f'{W[p]["codex_calls"]:,}'] for p in order]
+    jr = [[mname(p), f'{W[p]["jev"]:,}', f'{W[p]["dec"]:,}', f'{W[p]["codex_calls"]:,}'] for p in order]
     jr.append(['<span class="rs-strong">합계</span>', f'{sum(W[p]["jev"] for p in order):,}', f'{sum(W[p]["dec"] for p in order):,}',
-               f'{sum(W[p]["dec_in"] for p in order) / 1e6:.1f}M', f'{sum(W[p]["codex_calls"] for p in order):,}'])
-    jt = (table("심판별 판정량 · 토큰 — 모델마다", ["모델", "Jev 판정(턴)", "Decisions 판정(턴)", "Decisions 입력 토큰", "Codex 호출"],
-                jr, [20, 20, 20, 20, 20])
+               f'{sum(W[p]["codex_calls"] for p in order):,}'])
+    jt = (table("심판별 판정량 — 모델마다", ["모델", "Jev 판정(턴)", "Decisions 판정(턴)", "Codex 호출"], jr, [28, 24, 24, 24])
           + '<p class="rs-basis">1차 심판 — 질문 전체가 3만 2천 토큰 이하이고 첨부가 없으면 Jev, 그 밖(롱컨텍스트 · 첨부 · 멀티턴)은 Decisions. '
             '1차가 FAIL · 애매로 본 항목만 Codex 가 다시 판정. 다시 판정 · 복구까지 모두 더한 값입니다. '
           + 'Jev · Decisions 는 외부 API · Codex CLI 는 ChatGPT 구독으로 실행.</p>')
     # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
     # 사용자 10-22 미팅 6번: 모델별 답변 시간 합 막대 · 유형별 평균 표 대신 질문 · 유형별 편차 (time_spread)
-    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt
+    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + token_table(D)
+
+
+def token_table(D: Dict[str, Any]) -> str:
+    """판정 토큰 — 심판별 (10-22 미팅 7번: 답을 받은 뒤 판정에 드는 토큰은 우리 내부 데이터라 알아야 함, 사용자 "판정쪽만 하자").
+    답변 수집 쪽은 앱 · 웹 화면이라 셀 수 없어 넣지 않음. 비용은 단가가 정해지면."""
+    T = judge_tokens(D)
+    if not T:
+        return ""
+    n_ans = max(1, D["n"] * len(D["order"]))
+
+    def tk(v: float) -> str:
+        return f"{v / 1e6:.1f}M" if v >= 1e6 else f"{v / 1e3:.0f}K" if v >= 1e3 else f"{v:,.0f}"
+
+    def cell(t: Dict[str, Any], col: str) -> str:
+        return tk(t[col]) if col in t["seen"] else '<span class="rs-na">기록 안 됨</span>'
+
+    rows = []
+    for name in sorted(T, key=lambda k: JUDGE_ORDER.index(k) if k in JUDGE_ORDER else len(JUDGE_ORDER)):
+        t = T[name]
+        per = (t["in"] + t["out"]) / n_ans
+        rows.append([E(name), f'{t["calls"]:,}' + ("번 호출" if name == "Codex" else "턴"), cell(t, "in"), cell(t, "cached"), cell(t, "out"),
+                     cell(t, "reason"), tk(per) + ("" if "out" in t["seen"] else " <small>(입력만)</small>")])
+    tot_in, tot_out = sum(t["in"] for t in T.values()), sum(t["out"] for t in T.values())
+    rows.append(['<span class="rs-strong">합계</span>', "", tk(tot_in), "", tk(tot_out), "", tk((tot_in + tot_out) / n_ans)])
+    missing = any(col not in t["seen"] for t in T.values() for col in USAGE_KEYS)
+    return (table("판정 토큰 — 심판별", ["심판", "판정", "입력", "그중 캐시", "출력", "그중 추론", "답 하나 판정당"], rows, [19, 12, 13, 13, 13, 13, 17])
+            + '<p class="rs-basis">심판이 호출마다 돌려준 사용량을 그대로 더한 값입니다 — 다시 묻기 · 복구 호출도 들어갑니다. '
+              'Codex 는 CLI 가 덧붙이는 시스템 프롬프트 · 도구 설명과 추론까지 셉니다. 캐시 = 앞 호출과 같은 앞부분이라 다시 읽은 입력(단가가 낮음). '
+              f'답 하나 판정당 = (입력 + 출력) ÷ ({D["n"]}문항 × {len(D["order"])}모델). 답변 수집(앱 · 웹 화면)은 토큰이 보이지 않아 판정만 셉니다.'
+            + (' 기록 안 됨 = 이 실행 때는 그 칸을 남기지 않았음(10-22 부터 남김).' if missing else "") + "</p>")
 
 
 def process_block(ex: Dict[str, Any]) -> str:
@@ -2131,6 +2205,7 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-b.rs-pass { color: var(--ok); background: var(--ok-soft); } .rs-b.rs-fail { color: var(--risk); background: var(--risk-soft); } .rs-b.rs-hold { color: var(--hold-text); background: var(--hold-soft); }
 .rs-failtxt { color: var(--risk); font-weight: 700; } .rs-holdtxt { color: var(--hold-text); font-weight: 700; }
 tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
+.rs-na { color: var(--muted); font-size: .92em; }
 .rs-etab { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
 .rs-etab th, .rs-etab td { border-top: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
 /* 표: 넓은 화면은 칸 너비 고정, 좁은 화면은 줄마다 세로로 쌓고 칸 이름을 위에 (10-20 보고와 같은 규칙) */
