@@ -4,10 +4,11 @@
 - 로그인: ``.env`` 의 AIONA_LOGIN_ID·AIONA_LOGIN_PASSWORD 는 사용자가 직접 넣고, 처음 로그인도 사용자가 실행한다
   (``python tools/web_chat_login.py aiona --auto``). '자동 로그인(30일 유지)'으로 로그인 상태를 ``data/browser_profiles/aiona`` 에
   남긴다. 로그인이 풀렸으면 ``allow_login`` 일 때만 같은 값으로 다시 로그인한다. 비밀번호는 로그·화면·결과 파일에 남기지 않는다.
+- 모델: 기본 '자동 추천', 시작할 때 모델을 고르면 그 짝(tools/modelgrade.AIONA_PAIRS)으로 — 새 채팅마다 모델 버튼 title 로 확인(10-22).
 - 화면 구조(2026-10-14 확인): 새 채팅 = ``/chat``, 입력칸 ``textarea[placeholder^=무엇이든]``, 전송 ``button[type=submit][title=전송]``
   (답하는 동안은 정지 버튼으로 바뀜), 내 질문 ``div.flex.justify-end``, 답변 ``div.flex.justify-start`` 안의 ``.prose``,
   파일 올리기 ``input[type=file]`` (이미지·PDF·DOCX·TXT 등, 이미지는 이름 글자 없이 ``img[alt=파일 이름]`` 미리보기만 보임),
-  입력 상한 100,000자. 모델은 기본값 '자동 추천' 그대로 둔다.
+  입력 상한 100,000자.
 - 긴 글을 보내면 의도 감지 안내('요약 뒤에 퀴즈까지 이어서 풀어볼까요?')가 떠서 고를 때까지 전송되지 않는다 — 질문을 바꾸지
   않는 '그냥 보내기'를 누르고 결과에 ``intent_prompt`` 로 남긴다 (2026-10-14 실제 수집에서 확인).
 - AIONA 가 답을 못 내면 답변 칸 없이 '생각을 중단했습니다 · 처리 중 오류가 생겨 멈췄습니다'(``span[role=status]``)가 뜬다 —
@@ -107,7 +108,8 @@ class AionaChat:
                  debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None, place: Optional[str] = None,
                  attach: bool = False, model: Optional[str] = None):
         self.headless, self.allow_login, self.answer_timeout_s, self.profile = headless, allow_login, answer_timeout_s, profile
-        self.model_name = model          # 시작할 때 고른 모델의 AIONA 이름(예 'Claude Sonnet 5.5', 10-22) — None 이면 지금 설정(자동 추천) 그대로
+        self.model_name = model or "자동 추천"   # 시작할 때 고른 모델의 AIONA 이름(예 'Claude Sonnet 5.5', 10-22) — 안 고르면 '자동 추천' 으로 맞춤
+        #                                 (앞 실행에서 고른 모델이 AIONA 에 남아 있어도 전체 평가는 자동 추천으로 받게 — 사용자 10-22)
         self.model_seen = "자동 추천"
         self.place = place   # 동시 수집 때 창 자리 (webapp.cdp_chat_web.PLACE_RECTS)
         self.attach = attach   # True 면 자기 프로필 대신 수집용 Chrome(tools/chrome_cdp.py, Gemini 와 같은 창 묶음)에 붙어 자기 창을 쓴다 (CLI 수집, 2026-10-19)
@@ -240,12 +242,7 @@ class AionaChat:
         return title.replace("모델:", "").strip()
 
     def _apply_model(self) -> str:
-        """시작할 때 고른 모델로 (10-22) — 모델 버튼을 눌러 메뉴에서 이름이 똑같은 항목을 고르고 버튼 title 로 확인(최대 3번). 안 고르면 지금 설정 그대로."""
-        if not self.model_name:
-            try:
-                return self.current_model() or "자동 추천"
-            except Exception:
-                return "자동 추천"
+        """시작할 때 고른 모델로 (10-22) — 모델 버튼을 눌러 메뉴에서 이름이 똑같은 항목을 고르고 버튼 title 로 확인(최대 3번). 안 고르면 '자동 추천'."""
         if self.current_model() == self.model_name:
             return self.model_name
         result = ""
