@@ -31,7 +31,7 @@ RUN = "a1642702fccc"
 RESULTS = ROOT / "참고자료" / "결과"
 OUT_DIR = ROOT / "참고자료" / "발표"
 MAIN_NAME = "ModelGrade_결과요약_10-20 발표자료.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음)
-DECK = OUT_DIR / "ModelGrade_진행보고_2026-10-19.html"
+DECK = ROOT / "tools" / "assets" / "result_summary_base.html"   # 디자인 바탕(10-19 덱의 CSS · 목차 스크립트, 원본 덱은 10-22 정리 때 지움)
 E = html.escape
 SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 # 미팅(10.20)에서 정한 이름 — 싱글턴 · 멀티턴 · 롱컨텍스트
