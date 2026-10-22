@@ -127,13 +127,15 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="chip"><b>5단계</b><span>기준 다듬기 루프 — 모으기 · 원인 · 고칠 안 · 시험 · 채택</span></div>
     <div class="chip"><b>J1-4.b</b><span>첫 시험 대상 — 같은 심판이 다시 돌려도 판정이 가장 많이 뒤집힘</span></div>
     <div class="chip"><b class="num">4</b><span>10-22 밤에 정한 것 — 보류 우선 유지 · Q10 모순 질문 등</span></div>
-    <div class="chip"><b class="num">19</b><span>지금까지 고친 것(10-21 ~ 10-22) — 18개 반영 · 1개 진행 중</span></div>
+    <div class="chip"><b class="num">21</b><span>지금까지 고친 것(10-21 ~ 10-22) — 20개 반영 · 1개 진행 중</span></div>
   </div>
   <nav class="toc" aria-label="차례">
     <a href="#loop">1 기준 다듬기 루프</a>
     <a href="#next">2 진행 중 · 다음 작업</a>
     <a href="#decide">3 정한 것</a>
     <a href="#done">4 지금까지 고친 것</a>
+    <a href="#gaps">5 찾은 빈틈</a>
+    <a href="#plan">6 마감 · 이후 운영 (초안)</a>
   </nav>
 </header>
 
@@ -243,7 +245,8 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
       <tr><td><span class="tag t-todo">다음</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>저장된 출력으로 78 × 4 복구 + 멀티턴 11 × 4 새 판정, 10~20개씩. 시작 전 범위 확인</td></tr>
       <tr><td><span class="tag t-todo">다음</span></td><td><b>기준 다듬기 루프 1차 — J1-4.b</b></td><td>위 1장의 5단계를 J1-4.b 하나로 시험</td></tr>
       <tr><td><span class="tag t-todo">다음</span></td><td><b>싱글턴 질문의 모순 · 빠진 자료 표시</b></td><td>지금은 J1-3 이 78문항 모두에 붙어 78로 셈 — 표시하면 10번 아래로 떨어질 수 있어 먼저 확인</td></tr>
-      <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>J4 '질문으로 정해지는 항목' 불일치 · 형식 위반 이중 집계(97건) · 측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS · AIONA 1칸 들여쓰기 확인 · J6-4 서로 배타</td></tr>
+      <tr><td><span class="tag t-todo">다음</span></td><td><b>판정 안전장치 3개 (③ 커밋 뒤)</b></td><td>AIONA '데이터 제공' 줄은 도구 사용 서술로(J5-3.a 해당 없음) · LLM FAIL 이 CODE 가 잰 형식 조건을 또 세면 한 번 다시 묻기 · J4 항목을 '질문으로 정해지는 항목'에 넣어 해당 없음을 Codex 가 다시 보게 — 5 찾은 빈틈 참고</td></tr>
+      <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS(Gemini 링크 사례) · 사람 판정 반영 경로 — 다시 판정 결과를 보고 정함. AIONA 1칸 들여쓰기(복사 두 방식 모두 같음 → 실제 오류, 그대로) · J6-4 서로 배타(턴별 기준으로 해결)는 끝</td></tr>
       <tr><td><span class="tag t-todo">따로</span></td><td>진행 현황 시험 5개 실패</td><td>참고자료 정리 때 없어진 326 세트 파일 때문 — 별도 세션 제안</td></tr>
     </table></div>
   </div>
@@ -284,6 +287,7 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="done"><div class="d">10-22</div><div><b>J1-4(불필요 · 반복) FAIL 은 정의를 짚어 한 번 더 묻기</b><div class="fx">표를 풀어 쓴 설명 · 결론 한 번은 반복이 아님</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>판정 프롬프트 v4 — 기준 사이 문제 8가지</b> (Codex ↔ Claude CLI 심판 비교 36칸을 직접 확인)<div class="fx">한 오류는 한 기준에서만 · 근거 위치 오기는 J5-2.a · J1-4.b 요구된 구성 · 두괄식 · 지어낸 오늘 날짜 · 초보자 설명 정도 등</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>거절이면 결과물 품질(J4)은 해당 없음</b> — J1-2.a(거절)와 J4 가 같은 거절을 두 번 세던 것, 프롬프트 상황표에도 적음</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>J2-1.a(용어 설명) — 괄호 원어는 설명한 것</b> — '사전식 정렬(Lexicographical Order): 사전에서 …'처럼 한국어 용어 뒤 괄호 원어 + 풀이를 '영어 용어를 설명 없이 씀'으로 FAIL 하던 것(심판 비교 Gemini Q35)</div></div>
   </div>
 
   <div class="card done-group">
@@ -304,7 +308,57 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="done"><div class="d">10-21</div><div><b>멀티턴 조건 v3</b> — 턴당 10K · 10턴 · 대화 100K 토큰 이상</div></div>
     <div class="done"><div class="d">10-22</div><div><b>멀티턴 턴별 확인 목록</b> — 110턴마다 상황 · 그 턴 시점의 사실 · 이어지는 조건<div class="fx">기준 조건 확인(정식 검사): 기준 64개 모두 10번 이상 · 대화 평균 k 10(범위 끝) → 7~8 · 판정 연결은 진행 중</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>보고서 보류 종류 바로잡음</b> — '확인 못함' 9칸이 '기타'로 세지던 것</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>걸린 시간 — 질문 · 유형별 편차</b>(미팅 ⑥) — 모델별 합 대신 질문마다 · 유형마다 가장 빠른/느린 모델과 편차가 큰 유형을 보여 개선점을 찾게 · 판정 토큰은 심판별로(미팅 ⑦, 비용 환산은 단가 뒤)</div></div>
     <div class="done"><div class="d">10-21~22</div><div><b>수집 글 보정</b> — Gemini 쪼개진 표 행 잇기 · 코드블록은 '코드 복사' 버튼 글로 · 앱 버튼 글 빼기</div></div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="gaps">
+  <div class="sec-h"><span class="no">5</span><h2>찾은 빈틈</h2><span class="muted">10-22 밤 — 실행 50ca3ccccace 판정 기록으로 확인, 고치는 것은 ③ 커밋 뒤</span></div>
+  <div class="card">
+    <div class="scroll"><table class="tbl">
+      <tr><th style="width:230px">빈틈</th><th>실제로 본 것</th><th style="width:230px">할 일</th></tr>
+      <tr><td><b>AIONA 답 끝의 '데이터 제공' 줄</b></td><td>AIONA 답 14/177개가 '데이터 제공: MET Norway (Weather data …)' · '한국천문연구원 특일 정보' 같은 줄로 끝남 — 날씨 · 공휴일 도구를 불렀다는 서비스 쪽 표시. 심판이 이를 '질문 자료에 없는 출처를 꾸밈'(J5-3.a)으로 <b>FAIL 7칸</b>. 규칙(도구 사용 서술은 판정하지 않음 · 실재하는 출처)과 어긋남</td><td>J5-3.a 해당 없음으로(안전장치). 줄이 요청과 무관한지는 J1-4.a 가 그대로 봄. <b>AIONA 제품 쪽에도 알릴 것</b> — 무관한 질문에 날씨 · 공휴일 도구를 부르고 그 출처를 붙임</td></tr>
+      <tr><td><b>Gemini 내부 링크 → google 검색 URL</b></td><td>'[신청](#신청)' 요구에 Gemini 는 '[신청](https://www.google.com/search?q=%23신청)' 로 냄(Gemini 렌더링 — 사용자가 눌러도 내부로 안 감). CODE 1-3.internal_link 는 내부 링크가 하나도 없어 '대상 없음 → PASS', LLM J2-3.a 가 FAIL(6칸)</td><td>복사 글 그대로 평가(정한 규칙). '요구 구조를 아예 빼면 CODE 가 PASS' 빈틈의 실제 예 — 다시 판정 뒤 CODE 가 요구된 구조의 부재를 FAIL 로 볼지 정함</td></tr>
+      <tr><td><b>LLM 이 CODE 가 잰 형식 조건을 또 셈</b></td><td>한글만 · 필수 문구 · 불릿 개수처럼 CODE 가 실제로 잰 조건을 J2-3.a 등이 다시 FAIL — 약 6칸(예: Q3 AIONA 3턴 한글만 위반을 CODE 2-1.charset 과 J2-3.a 둘 다 FAIL). 프롬프트에는 '형식 · 개수 · 글자 수는 프로그램이 판정' 규칙이 이미 있음</td><td>그 칸은 CODE 가 잰 조건과 결과를 적어 한 번 다시 묻기(한 오류는 한 기준)</td></tr>
+      <tr><td><b>J4 항목이 '질문으로 정해지는 항목'에 없음</b></td><td>목표 기준인데 1차 심판이 해당 없음이라 하면 Codex 가 다시 보는 목록(QUESTION_DETERMINED)에 J2 · J3 · J6 은 있고 J4-1 ~ J4-4 가 없음 — 질문이 요구한 비교 기준 · 추가 요청을 1차 심판이 해당 없음으로 두면 그대로 통과</td><td>J4 다섯 항목을 목록에 넣음</td></tr>
+      <tr><td><b>Q10 질문 자체의 시간 모순</b></td><td>도착 10:30 ~ 접수 10:50(변경 뒤 11:00) 안에 확인 8분 + 설치 30분을 끝낼 수 없음(질문 생성 때 들어간 값) — 11개 대화 중 Q10 만</td><td>정함: 모순 질문으로 판정(J1-3), 다시 수집 안 함</td></tr>
+      <tr><td><b>원리 설명 턴의 인식기 누락</b></td><td>'행사 당일 어떻게 대응할지도 밝혀 주세요'(추가 요청 → J4-2.a) · '창문 틀 결함이라고 단정하지 마세요'(명시 조건 → J2-3.a)를 인식기가 턴별 기준에 안 넣음 — 질문 목표에는 있어 판정은 빠지지 않음</td><td>턴별 목표는 질문 목표에서 확실한 J6 만 빼는 방식으로 바꿔 해결(③)</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="plan">
+  <div class="sec-h"><span class="no">6</span><h2>다음 주 마감 · 이후 운영</h2><span class="tag t-warn">초안 — 미팅 ⑧, 확인 뒤 확정</span></div>
+  <div class="grid3">
+    <div class="card">
+      <h3>마감까지 (다음 주)</h3>
+      <ul class="clean">
+        <li>새 규칙으로 다시 판정 → 결과 보고서 다시 만들기(전후 비교 포함)</li>
+        <li>보류 칸 사람 결정 → 최종 숫자</li>
+        <li>기준 다듬기 루프 1차(J1-4.b)로 '판정이 흔들리는 기준'을 수치로 보임</li>
+        <li>범위 고정: 78문항 · 4모델 · 기준 72개 · 수집 → 판정 → 보고서 자동</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>이후 상시 운영 (일부 리소스)</h3>
+      <ul class="clean">
+        <li>AIONA 가 업데이트될 때마다 같은 78문항으로 수집 → 판정 → 보고서, 지난 회차와 비교</li>
+        <li>판정이 쌓이면 기준 다듬기 루프 한 바퀴 — 원인 나누기 · 고칠 안 · 시험 · 채택</li>
+        <li>질문 세트는 분기마다 손봄(기준마다 10문항 이상 · 질문당 기준 6~10개 유지)</li>
+        <li>일정이 바뀌면 미리 알림</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>'이걸 써야 하는 이유' — 후보 셋 중 하나</h3>
+      <ul class="clean">
+        <li><b>사용자가 실제로 받는 답</b>으로 비교 — API 답이 아니라 앱 · 웹 화면의 답 그대로</li>
+        <li><b>질문마다 볼 기준을 미리 정함</b> — 같은 질문이면 네 모델이 같은 잣대, 기준 72개 모두 10문항 이상</li>
+        <li><b>틀린 채 굳지 않음</b> — 확신 없는 판정은 보류로 사람에게, 판정이 쌓일수록 기준이 다듬어짐</li>
+      </ul>
+    </div>
   </div>
 </section>
 
