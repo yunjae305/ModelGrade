@@ -1,7 +1,7 @@
 """결과 요약 발표 페이지 (result-summary-v1) — 78개 실행 하나를 발표 6장면 + 부록으로 (사용자 10-21: report.html 은 정보가 너무 많아
 발표하기 어려움 → 10.20 미팅 기준으로 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간, 원문은 부록).
 AI 호출 없음. 내보낸 결과(참고자료/결과/<실행>_결과_판정결과.json)와 질문 세트만 읽고, 판정 셈은 tools/report_html 과 같은 함수를 쓴다
-(숫자가 그 실행의 report.html 과 같아야 한다 — 끝에서 맞춰 본다). 디자인은 10-19 발표 덱 CSS 를 그대로 읽어 쓴다(10-20 보고와 같은 모양).
+(숫자가 그 실행의 판정 보고서와 같아야 한다 — 끝에서 맞춰 본다). 디자인은 10-19 발표 덱 CSS 를 그대로 읽어 쓴다(10-20 보고와 같은 모양).
 
     python -X utf8 tools/build_result_summary.py [--run a1642702fccc]
     → 참고자료/발표/ModelGrade_결과요약_10-20 발표자료.html (원문은 ModelGrade_결과요약_<실행>_원문/)
@@ -17,7 +17,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -59,6 +59,28 @@ def result_file(run_id: str, name: str, flat: bool = False) -> Path:
     return RESULTS / name if flat else RESULTS / f"판정_{run_id}" / name
 
 
+def results_json(run_id: str) -> Path:
+    """결과 JSON — 이름은 평가 종류에 따라 <실행>_결과_판정결과 · _간단78_판정결과 · _정밀326_판정결과 (tools/modelgrade report).
+    결과 폴더에 있으면 그것, 없으면 옛 자리(참고자료/결과/ 바로 아래)."""
+    from tools import result_dirs
+    rd = result_dirs.find(run_id, RESULTS)
+    for base in ([rd] if rd is not None else []) + [RESULTS]:
+        hits = sorted(base.glob(f"{run_id}_*판정결과.json"))
+        if hits:
+            return hits[0]
+    return RESULTS / f"{run_id}_결과_판정결과.json"
+
+
+def judge_report_file(run_id: str) -> Path:
+    """판정 보고서(tools/report_html) — 결과 폴더의 판정보고서.html, 없으면 옛 자리 참고자료/결과/판정_<실행>/report.html.
+    결과 폴더의 report.html 은 이 빌더가 만드는 결과 보고서라 판정 보고서가 아니다 (사용자 10-22)."""
+    from tools import result_dirs
+    rd = result_dirs.find(run_id, RESULTS)
+    if rd is not None and (rd / result_dirs.JUDGE_REPORT).exists():
+        return rd / result_dirs.JUDGE_REPORT
+    return RESULTS / f"판정_{run_id}" / "report.html"
+
+
 def logo_style() -> str:
     """모델 로고 CSS — 그림은 48px PNG(svg 는 그대로)로 줄여 data URI 로 한 번만 넣는다. 흰 칸 위에 두어 어두운 화면에서도 보이게."""
     import base64
@@ -95,7 +117,7 @@ def mname(p: str) -> str:
 
 # ------------------------------------------------------------------ 데이터 ------------------------------------------------------------------
 def load(run_id: str) -> Dict[str, Any]:
-    d = json.loads(result_file(run_id, f"{run_id}_결과_판정결과.json", flat=True).read_text(encoding="utf-8"))
+    d = json.loads(results_json(run_id).read_text(encoding="utf-8"))
     set_dir = R.set_dir_for(d)
     qtypes = R.question_types(set_dir)
     names = R.criteria_table(set_dir)
@@ -204,7 +226,7 @@ def crit_fail(D: Dict[str, Any]) -> Dict[str, Counter]:
 def report_extras(D: Dict[str, Any]) -> Dict[str, Any]:
     """그 실행의 report.html 에만 있는 값 — 수집 벽시계 · 판정 토큰(Codex 는 run.log 에서 모은 값이라 내보낸 JSON 에 없음) · 429 대기 ·
     추론 수준 비교(진행 중인지). 보고서가 없거나 모양이 다르면 빈 값(그 칸은 안 그림)."""
-    f = result_file(D["run_id"], "report.html")
+    f = judge_report_file(D["run_id"])
     out: Dict[str, Any] = {"wall": {}, "judge": {}, "waits": None, "medium_running": False}
     if not f.exists():
         return out
@@ -895,13 +917,13 @@ def verdict_rule() -> str:
 def scene_output(D: Dict[str, Any]) -> str:
     """결과 — 어떻게 제공하나 (사용자 10-22: 핵심 장면에는 실제 숫자 대신 제공 방식만, 이번 실행 숫자는 상세 분석 '이번 실행 결과'로)."""
     n, n_crit = D["n"], len(D["names"])
-    files = [
-        ("결과 JSON", "",
+    files = [   # 사용자 10-22: 평가를 시작할 때마다 시각 이름의 결과 폴더 하나에 — report.html 은 이 템플릿의 상세 분석 장면만
+        ("결과 보고서", "report.html",
+         "이 자료의 상세 분석 장면만 모은 것 — 이번 실행 결과 · 분야별 순위표 · 기준별 결과 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 목록 · 질문별 원문"),
+        ("결과 JSON", "…_판정결과.json",
          "질문 × 모델마다 판정, 기준마다 판정 · 사유 · 답의 해당 문장, 답 원문과 수집 정보(복사 방식 · 걸린 시간). 다른 프로그램이 읽는 원본"),
-        ("판정 보고서", "",
+        ("판정 보고서", "판정보고서.html",
          "모든 판정 기록 — 기준별로 어긴 질문, FAIL 상세(심판이 든 원문 인용), 질문별 판정표, 보류를 사람이 정하는 화면"),
-        ("결과 요약", "이 파일",
-         "발표용 핵심 장면 + 상세 분석(분포 · 분야별 순위표 · 기준별 결과 · FAIL 원인 · 보류 목록 · 질문별 원문)"),
     ]
     units = [
         ("질문 단위 — 순위", f"모델마다 완전 통과 · FAIL · 보류가 몇 개인지 (/ 질문 {n}개). 순위는 완전 통과 수로 매깁니다."),
@@ -928,7 +950,7 @@ def scene_output(D: Dict[str, Any]) -> str:
 
 def scene_hold_flow(D: Dict[str, Any]) -> str:
     """보류 — 어떻게 사람에게 넘기나 (사용자 10-22: 실제 보류 목록 대신 처리 방식, 목록은 상세 분석 '보류 목록'으로).
-    화면 · 반영은 report.html '보류' 장 · held-apply(human_decisions.json, 원본 results.jsonl 은 그대로), 사례 축적은 계획."""
+    화면 · 반영은 판정 보고서(판정보고서.html) '보류' 장 · held-apply(human_decisions.json, 원본 results.jsonl 은 그대로), 사례 축적은 계획."""
     steps = [
         ("언제 보류가 되나", "",
          "빈 출력 요구 질문(빈 답 · 복사 버튼이 안 뜸 · 짧은 글을 통과로 볼지), 두 번째 심판(Codex)도 근거를 확정하지 못한 기준, "
@@ -2555,7 +2577,9 @@ def prune_css(css: str, body: str) -> str:
     return re.sub(r"(<style[^>]*>)(.*?)(</style>)", lambda b: b.group(1) + re.sub(r"([^{}]+)\{[^{}]*\}", keep, b.group(2)) + b.group(3), css, flags=re.S)
 
 
-def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
+def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], Dict[str, Any]]:
+    """report_dir 없음 — 발표 템플릿(참고자료/발표/MAIN_NAME: 핵심 장면 + 상세 분석).
+    report_dir 있음 — 결과 보고서(<report_dir>/report.html: 상세 분석 장면만, 원문은 <report_dir>/원문/) (사용자 10-22)."""
     D = load(run_id)
     deck = DECK.read_text(encoding="utf-8")
     css = "\n".join(f"<style>{b}</style>" for b in re.findall(r"<style>(.*?)</style>", deck, re.S))
@@ -2564,7 +2588,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     parts = split_parts(D, fail_blocks(D))
     pparts = split_parts(D, pass_blocks(D), prefix="통과")   # 통과한 답 — 원문 · 지킨 기준 (사용자 10-21)
     hparts = split_parts(D, hold_blocks(D), prefix="보류")   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21)
-    sub = f"ModelGrade_결과요약_{run_id}_원문"   # 원문 파일은 이 하위 폴더에 (사용자 10-21: 발표 폴더 정리)
+    sub = "원문" if report_dir is not None else f"ModelGrade_결과요약_{run_id}_원문"   # 원문 파일은 이 하위 폴더에 (사용자 10-21: 발표 폴더 정리)
     part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts + hparts for m in re.findall(r'<article class="rs-fd" id="([fpb]-[a-z]+-\d+)"', body)}
     e_file = "갈림.html"
     n_disagree, e_table = disagree_table(D)
@@ -2578,7 +2602,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     res_key = (f"잠정 — 이번 {D['n']}개 질문 · 이 실행 조건에서 완전 통과 " + " · ".join(f"{SHORT[p]} {D['tally'][p]['PASS']}" for p in D["order"])
                + f" (/ {D['n']}). 보류 {ds['hold']}칸을 아직 정하지 않아 " + ("순위가 바뀔 수 있습니다." if ds["rivals"] else "숫자가 바뀔 수 있습니다."))
     n_hold_empty = sum(1 for (_p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] == "명시적 빈 출력")
-    core = [
+    core = [] if report_dir is not None else [   # 결과 보고서는 상세 분석 장면만 (사용자 10-22)
         ("s_intro", "왜 필요한가", "만든 이유", "왜 만들었나", "", scene_intro(D),
          "AIONA 가 업데이트될 때마다 같은 조건으로 다시 테스트해, 채팅 품질을 꾸준히 높이기 위해 만들었습니다."),
         # 사용자 10-22: 순서 — 왜 만들었나 → 전체 흐름도 → 질문 설계 → 평가 방법 (큰 그림을 먼저)
@@ -2592,7 +2616,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
         # 05 검증 장면은 뺌 (사용자 10-22: "이 검증파트는 빼도 될 것 같네") — scene_verify 는 남겨 둠
         ("s_out", "결과", "어떻게 제공하나", "결과 — 이렇게 제공합니다",
-         "실행이 끝나면 명령 하나로 결과 JSON · 판정 보고서 · 결과 요약이 나옵니다. 이번 실행의 숫자는 보류를 정하기 전이라 상세 분석에 따로 둡니다.",
+         "실행이 끝나면 명령 하나로 결과 폴더(평가를 시작한 시각 이름)에 결과 보고서 · 결과 JSON · 판정 보고서가 나옵니다. 이번 실행의 숫자는 보류를 정하기 전이라 상세 분석에 따로 둡니다.",
          scene_output(D), "질문마다 완전 통과 · FAIL · 보류와 기준별 사유 · 원문을 함께 제공합니다 — 이번 실행 숫자는 상세 분석 '이번 실행 결과'에."),
         ("s_hold", "보류", "어떻게 사람에게 넘기나", "보류 — 이렇게 사람에게 넘깁니다",
          "보류는 심판이 확정하지 못한 칸입니다. 원문과 사유를 붙여 사람에게 넘기고, 사람이 정한 값으로 다시 셉니다.",
@@ -2617,14 +2641,14 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s4", "보류 목록", f"사람이 정할 {n_hold}칸", f"보류 목록 — 사람이 정할 {n_hold}칸 (빈 출력 규칙 {n_hold_empty} · LLM Judge 확인 못 함 {n_hold - n_hold_empty})",
          "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. 지금은 사람이 정하고, 그 판단을 사례로 모아 다음 판정에 쓰는 것은 만드는 중입니다.", scene_hold(D, part_of),
          f"사람이 정할 칸 {n_hold} = 빈 출력 요구 {n_hold_empty} + 확인 못 함 {n_hold - n_hold_empty} — 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
-        ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
+        ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
          "", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
     ]
     scenes = core + detail
     total, n_core = len(scenes), len(core)
 
     def head(i: int, title: str, lead: str, key: str) -> str:
-        tag = f"{i:02d} / {total:02d}" + (" · 상세 분석" if i > n_core else "")
+        tag = f"{i:02d} / {total:02d}" + (" · 상세 분석" if n_core and i > n_core else "")
         return (f'<div class="s-head"><span class="s-no">{tag}</span><h2>{title}</h2>'
                 + (f'<p class="s-key">{E(key)}</p>' if key else "") + (f"<p>{lead}</p>" if lead else "") + "</div>")
 
@@ -2633,9 +2657,11 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     nav_sep: Dict[str, str] = {}   # 사용자 10-22: 목차의 'LLM Judge' 묶음 구분(글자 · 선) 뺌
     body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(i, E(title), E(lead), key)}\n{content}</section>\n'
                    for i, (sid, _s, _d, title, lead, content, key) in enumerate(scenes, 1))
+    if report_dir is not None:   # 결과 보고서는 통째로 상세 분석 — "상세 분석 '분야별 순위표'" 같은 안내는 장면 이름만
+        body = re.sub(r"상세 분석 (?=['‘\"]|&quot;|&#x27;)", "", body)
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">AIONA 채팅 품질 평가</span>'
            '<div class="toc-links" id="toc-links">'
-           + "".join(('<span class="toc-sep">상세 분석</span>' if i == n_core + 1 else "") + nav_sep.get(sid, "") + f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>'
+           + "".join(('<span class="toc-sep">상세 분석</span>' if n_core and i == n_core + 1 else "") + nav_sep.get(sid, "") + f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>'
                      for i, (sid, short, *_r) in enumerate(scenes, 1))
            + '</div><div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div></div></nav>')
     ids = ", ".join(f"'{s}'" for s in [x[0] for x in scenes])
@@ -2649,21 +2675,24 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
                 '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">\n'
                 f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + FLOW_CSS + chr(10) + logos, inner)}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
 
-    main_name = MAIN_NAME
-    out = OUT_DIR / main_name
-    out.write_text(bind_words(doc("AIONA 채팅 품질 평가", f"78개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
+    base = report_dir if report_dir is not None else OUT_DIR
+    main_name = "report.html" if report_dir is not None else MAIN_NAME
+    out = base / main_name
+    title = "AIONA 채팅 품질 평가 — 결과 보고서" if report_dir is not None else "AIONA 채팅 품질 평가"
+    doc_name = "결과 보고서" if report_dir is not None else "결과 요약"   # 원문 파일 머리 · 돌아가기 링크
+    out.write_text(bind_words(doc(title, f"{D['n']}개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
                                   f'{nav}\n<main class="wrap">\n{s0}\n{body}\n</main>\n{script}')), encoding="utf-8")
-    subdir = OUT_DIR / sub
+    subdir = base / sub
     subdir.mkdir(exist_ok=True)
     # 지난번에 만든 원문 파일 — 예전에는 발표 폴더에 바로 두었고(…_원문1.html), 나눈 수도 바뀔 수 있음
-    for old in [*OUT_DIR.glob(f"ModelGrade_결과요약_{run_id}_원문*.html"), *subdir.glob("*.html")]:
+    for old in [*(OUT_DIR.glob(f"ModelGrade_결과요약_{run_id}_원문*.html") if report_dir is None else []), *subdir.glob("*.html")]:
         old.unlink()
     files = ([(f, f"FAIL 원문 {i}", d) for i, (f, d, _b) in enumerate(parts, 1)] + [(f, f"통과 원문 {i}", d) for i, (f, d, _b) in enumerate(pparts, 1)]
              + [(f, f"보류 원문 {i}" if len(hparts) > 1 else "보류 원문", d) for i, (f, d, _b) in enumerate(hparts, 1)]
              + [(e_file, "갈림 목록", f"심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개")])
 
     def links(cur: str) -> str:
-        return (f'<a href="../{E(main_name.replace(" ", "%20"))}#apx">← 결과 요약(부록)으로</a> · ' + " · ".join(
+        return (f'<a href="../{E(main_name.replace(" ", "%20"))}#apx">← {E(doc_name)}(부록)으로</a> · ' + " · ".join(
             f"<b>{E(lab)}</b>" if f == cur else f'<a href="{E(f)}">{E(lab)}</a>' for f, lab, _d in files))
 
     written = [out]
@@ -2671,32 +2700,39 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         content = next((b for pf, _d, b in parts + pparts + hparts if pf == f), None)
         if content is None:   # 갈림 목록
             content = f'<p class="rs-basis">Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목입니다. 보류가 아니고 숫자도 바꾸지 않습니다(확인용).</p>{e_table}'
-        inner = (f'<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · {E(lab)} / 결과 요약 {E(run_id)}</span>'
+        inner = (f'<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · {E(lab)} / {E(doc_name)} {E(run_id)}</span>'
                  f'<h2>{E(lab)} — {E(d)}</h2><p>{links(f)}</p></div>{jump_index(content)}{fold(content)}</section></main>')
-        (subdir / f).write_text(doc(f"결과 요약 {lab}", f"78개 실행 {run_id} 부록 — {d}", inner), encoding="utf-8")
+        (subdir / f).write_text(doc(f"{doc_name} {lab}", f"{D['n']}개 실행 {run_id} 부록 — {d}", inner), encoding="utf-8")
         written.append(subdir / f)
     return written, D
 
 
 def check_against_report(D: Dict[str, Any]) -> List[str]:
-    """그 실행의 report.html 1장(완전 통과 · FAIL · 보류)과 맞춰 본다 — 다르면 줄마다 알림."""
-    f = result_file(D["run_id"], "report.html")
+    """그 실행의 판정 보고서 1장(완전 통과 · FAIL · 보류)과 맞춰 본다 — 다르면 줄마다 알림."""
+    f = judge_report_file(D["run_id"])
     if not f.exists():
         return [f"{f} 없음 — 맞춰 보지 못함"]
     txt = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", f.read_text(encoding="utf-8"))))
     found = re.findall(r"(\d+) / \d+ 완전 통과 [\d.]+% · FAIL (\d+) · 보류 (\d+)", txt)
     want = [(D["tally"][p]["PASS"], D["tally"][p]["FAIL"], D["tally"][p]["HOLD"]) for p in R.ORDER if p in D["tally"]]
     got = [tuple(int(x) for x in row) for row in found[:len(want)]]
-    return [] if got == want else [f"report.html 과 다름: 보고서 {got} · 이 페이지 {want}"]
+    return [] if got == want else [f"판정 보고서와 다름: 보고서 {got} · 이 페이지 {want}"]
 
 
 def main(argv: List[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--run", default=RUN, help="실행 id (참고자료/결과/<id>_결과_판정결과.json)")
+    ap.add_argument("--run", default=RUN, help="실행 id (참고자료/결과/<시작 시각>/<id>_결과_판정결과.json)")
+    ap.add_argument("--report", action="store_true", help="발표 템플릿 대신 그 실행의 결과 폴더에 결과 보고서(report.html, 상세 분석만)를 만듦")
     a = ap.parse_args(argv)
-    written, D = build(a.run)
+    report_dir = None
+    if a.report:
+        from tools import result_dirs
+        report_dir = result_dirs.find(a.run, RESULTS)
+        if report_dir is None:
+            raise SystemExit(f"실행 {a.run} 의 결과 폴더(참고자료/결과/<시작 시각>/run.json)가 없습니다")
+    written, D = build(a.run, report_dir)
     big = []
     for f in written:
         size = f.stat().st_size
@@ -2707,7 +2743,7 @@ def main(argv: List[str] | None = None) -> int:
     if FLOW_WARN:
         print("흐름도 — 칸보다 긴 글:", *FLOW_WARN, sep="\n  ")
     problems = check_against_report(D) + big
-    print("report.html 과 같음 · 파일마다 미리보기 한도 안" if not problems else "\n".join(problems))
+    print("판정 보고서와 같음 · 파일마다 미리보기 한도 안" if not problems else "\n".join(problems))
     return 1 if problems else 0
 
 

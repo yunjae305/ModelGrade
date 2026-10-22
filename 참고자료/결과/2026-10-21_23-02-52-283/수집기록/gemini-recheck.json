@@ -1,0 +1,445 @@
+{
+ "summary": {
+  "checked": 54,
+  "recopy": {
+   "같음": 54
+  },
+  "different": [],
+  "copy_failed": [],
+  "not_checked": []
+ },
+ "checked": [
+  {
+   "case_id": "Q10_T1",
+   "title": "다시장터 판매자 설명회 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3199,
+   "stored_chars": 3199
+  },
+  {
+   "case_id": "Q10_T2",
+   "title": "다시장터 판매자 설명회 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 235,
+   "stored_chars": 235
+  },
+  {
+   "case_id": "Q10_T3",
+   "title": "다시장터 판매자 설명회 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 795,
+   "stored_chars": 795
+  },
+  {
+   "case_id": "Q10_T4",
+   "title": "다시장터 판매자 설명회 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2567,
+   "stored_chars": 2567
+  },
+  {
+   "case_id": "Q10_T6",
+   "title": "다시장터 판매자 설명회 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2139,
+   "stored_chars": 2139
+  },
+  {
+   "case_id": "Q9_T1",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2957,
+   "stored_chars": 2957
+  },
+  {
+   "case_id": "Q9_T2",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 859,
+   "stored_chars": 859
+  },
+  {
+   "case_id": "Q9_T3",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2419,
+   "stored_chars": 2419
+  },
+  {
+   "case_id": "Q9_T4",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1189,
+   "stored_chars": 1189
+  },
+  {
+   "case_id": "Q9_T5",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 523,
+   "stored_chars": 523
+  },
+  {
+   "case_id": "Q9_T6",
+   "title": "반려견 교육 워크숍 준비 회의록 분석 및 추천안",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2025,
+   "stored_chars": 2025
+  },
+  {
+   "case_id": "Q8_T1",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3067,
+   "stored_chars": 3067
+  },
+  {
+   "case_id": "Q8_T3",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2531,
+   "stored_chars": 2531
+  },
+  {
+   "case_id": "Q8_T6",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 619,
+   "stored_chars": 619
+  },
+  {
+   "case_id": "Q8_T7",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 678,
+   "stored_chars": 678
+  },
+  {
+   "case_id": "Q8_T8",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1901,
+   "stored_chars": 1901
+  },
+  {
+   "case_id": "Q8_T4",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 662,
+   "stored_chars": 662
+  },
+  {
+   "case_id": "Q8_T5",
+   "title": "노을합창단 제1차 준비 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 450,
+   "stored_chars": 450
+  },
+  {
+   "case_id": "Q7_T1",
+   "title": "들녘농장 가족 수확 체험 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2742,
+   "stored_chars": 2742
+  },
+  {
+   "case_id": "Q7_T2",
+   "title": "들녘농장 가족 수확 체험 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 381,
+   "stored_chars": 381
+  },
+  {
+   "case_id": "Q7_T3",
+   "title": "들녘농장 가족 수확 체험 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 954,
+   "stored_chars": 954
+  },
+  {
+   "case_id": "Q7_T4",
+   "title": "들녘농장 가족 수확 체험 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2574,
+   "stored_chars": 2574
+  },
+  {
+   "case_id": "Q7_T8",
+   "title": "들녘농장 가족 수확 체험 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 45,
+   "stored_chars": 45
+  },
+  {
+   "case_id": "Q6_T1",
+   "title": "사내 해커톤 킥오프 운영 계획 비교",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1756,
+   "stored_chars": 1756
+  },
+  {
+   "case_id": "Q6_T2",
+   "title": "사내 해커톤 킥오프 운영 계획 비교",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 230,
+   "stored_chars": 230
+  },
+  {
+   "case_id": "Q6_T3",
+   "title": "사내 해커톤 킥오프 운영 계획 비교",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1878,
+   "stored_chars": 1878
+  },
+  {
+   "case_id": "Q6_T4",
+   "title": "사내 해커톤 킥오프 운영 계획 비교",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 701,
+   "stored_chars": 701
+  },
+  {
+   "case_id": "Q6_T6",
+   "title": "사내 해커톤 킥오프 운영 계획 비교",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1746,
+   "stored_chars": 1746
+  },
+  {
+   "case_id": "Q5_T1",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2535,
+   "stored_chars": 2535
+  },
+  {
+   "case_id": "Q5_T2",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 51,
+   "stored_chars": 51
+  },
+  {
+   "case_id": "Q5_T3",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 38,
+   "stored_chars": 38
+  },
+  {
+   "case_id": "Q5_T4",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 47,
+   "stored_chars": 47
+  },
+  {
+   "case_id": "Q5_T5",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2858,
+   "stored_chars": 2858
+  },
+  {
+   "case_id": "Q5_T6",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 51,
+   "stored_chars": 51
+  },
+  {
+   "case_id": "Q5_T7",
+   "title": "해솔아파트 분리배출 설명회 운반 방식 및 예산 검토",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 305,
+   "stored_chars": 305
+  },
+  {
+   "case_id": "Q4_T1",
+   "title": "푸른숲학원 설명회 1차 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3035,
+   "stored_chars": 3035
+  },
+  {
+   "case_id": "Q4_T2",
+   "title": "푸른숲학원 설명회 1차 회의록 정리",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 47,
+   "stored_chars": 47
+  },
+  {
+   "case_id": "Q3_T1",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3417,
+   "stored_chars": 3417
+  },
+  {
+   "case_id": "Q3_T2",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3426,
+   "stored_chars": 3426
+  },
+  {
+   "case_id": "Q3_T3",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 758,
+   "stored_chars": 758
+  },
+  {
+   "case_id": "Q3_T4",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 726,
+   "stored_chars": 726
+  },
+  {
+   "case_id": "Q3_T5",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 499,
+   "stored_chars": 499
+  },
+  {
+   "case_id": "Q3_T6",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1289,
+   "stored_chars": 1289
+  },
+  {
+   "case_id": "Q3_T7",
+   "title": "온기카페 가을 신메뉴 시음회 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2163,
+   "stored_chars": 2163
+  },
+  {
+   "case_id": "Q2_T1",
+   "title": "강변 새벽 라이딩 사전 모임 1차 준비 회의록",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2251,
+   "stored_chars": 2251
+  },
+  {
+   "case_id": "Q2_T2",
+   "title": "강변 새벽 라이딩 사전 모임 1차 준비 회의록",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2439,
+   "stored_chars": 2439
+  },
+  {
+   "case_id": "Q2_T3",
+   "title": "강변 새벽 라이딩 사전 모임 1차 준비 회의록",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 976,
+   "stored_chars": 976
+  },
+  {
+   "case_id": "Q2_T4",
+   "title": "강변 새벽 라이딩 사전 모임 1차 준비 회의록",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 36,
+   "stored_chars": 36
+  },
+  {
+   "case_id": "Q2_T5",
+   "title": "강변 새벽 라이딩 사전 모임 1차 준비 회의록",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 1043,
+   "stored_chars": 1043
+  },
+  {
+   "case_id": "Q1_T1",
+   "title": "샘물도서관 야간 개방 시범 운영 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 2811,
+   "stored_chars": 2811
+  },
+  {
+   "case_id": "Q1_T2",
+   "title": "샘물도서관 야간 개방 시범 운영 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 36,
+   "stored_chars": 36
+  },
+  {
+   "case_id": "Q1_T3",
+   "title": "샘물도서관 야간 개방 시범 운영 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 3216,
+   "stored_chars": 3216
+  },
+  {
+   "case_id": "Q1_T4",
+   "title": "샘물도서관 야간 개방 시범 운영 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 29,
+   "stored_chars": 29
+  },
+  {
+   "case_id": "Q1_T5",
+   "title": "샘물도서관 야간 개방 시범 운영 준비 회의",
+   "recopy": "같음",
+   "similarity": null,
+   "copied_chars": 40,
+   "stored_chars": 40
+  }
+ ]
+}

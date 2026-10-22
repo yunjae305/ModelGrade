@@ -18,6 +18,8 @@ Thumbs.db
 /results/
 /backups/
 *.log
+# 평가 결과 폴더의 답변 수집 로그는 git 에 올린다 (사용자 10-22)
+!/참고자료/결과/**/*.log
 *.sqlite3
 *.sqlite3-*
 

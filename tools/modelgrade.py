@@ -412,6 +412,10 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
     codes = {p: proc.wait() for p, proc in procs}
     for t in threads:
         t.join(timeout=5)
+    from tools import result_dirs
+    rd = result_dirs.find(run_id, RESULTS_JSON_DIR)   # 실행 JSON(수십 MB)을 다시 읽지 않고 run.json 으로 찾음
+    if rd is not None:   # 답변 수집 기록도 결과 폴더(git 에 올라감)에 (사용자 10-22)
+        result_dirs.publish_collection(log_dir, rd)
     bad = [p for p, c in codes.items() if c]
     if bad:
         print(f"실패한 앱: {', '.join(bad)} (종료 코드 {codes})", flush=True)
@@ -874,7 +878,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) 에 모은다 (사용자 10-22)
         rd = result_dirs.ensure(run, RESULTS_JSON_DIR)
         result_dirs.publish(d, rd)
-        print(f"결과 폴더: {rd} — report.html")
+        result_dirs.publish_collection(ROOT / "data" / "judge_runs" / run_id, rd)   # 답변 수집 기록 (사용자 10-22: git 에 계속 올림)
+        print(f"결과 폴더: {rd} — {result_dirs.JUDGE_REPORT} · {result_dirs.COLLECT_DIR}/")
     if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
@@ -884,6 +889,18 @@ def cmd_report(args: argparse.Namespace) -> int:
             print(f"JSON 결과: {export(run_id, label, only, out_dir=rd or RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
         except Exception as exc:   # JSON 내보내기가 막혀도 HTML 은 이미 썼다 — 자동 보고서가 여기서 죽지 않게
             print(f"JSON 결과 내보내기 실패: {exc}")
+            return 0
+        if rd is not None:   # 결과 보고서 report.html = 발표 템플릿의 상세 분석 장면만 (사용자 10-22)
+            from tools import build_result_summary as brs
+            keep = brs.RESULTS
+            brs.RESULTS = RESULTS_JSON_DIR
+            try:
+                brs.build(run_id, report_dir=rd)
+                print(f"결과 보고서: {rd / result_dirs.REPORT} (판정 기록은 {result_dirs.JUDGE_REPORT})")
+            except Exception as exc:   # 판정 보고서 · 결과 JSON 은 이미 썼다
+                print(f"결과 보고서 만들기 실패: {exc} — 판정 보고서는 {rd / result_dirs.JUDGE_REPORT}")
+            finally:
+                brs.RESULTS = keep
     return 0
 
 

@@ -333,3 +333,19 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
     assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["status"] == "COPY_FAILED" for r in saves[1]["datasets"]["gpt"])
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"], "--skip-done"]) == 0
     assert len(saves) == 2   # 복사 실패(보류)·빈 출력 성공은 자동으로 다시 받지 않는다
+
+
+def test_result_dir_keeps_judge_report_apart_and_collection_logs(tmp_path):
+    """결과 폴더: report.html 은 결과 보고서 자리라 판정 보고서는 판정보고서.html 로, 답변 수집 기록은 수집기록/ 으로 (빈 로그 뺌, 10-22)."""
+    from tools import result_dirs
+    judge, logs, dest = tmp_path / "v4", tmp_path / "logs", tmp_path / "결과"
+    judge.mkdir(); logs.mkdir()
+    (judge / "report.html").write_text("판정", encoding="utf-8")
+    (judge / "results.jsonl").write_text("{}", encoding="utf-8")
+    (logs / "collect-1-gpt.log").write_text("수집", encoding="utf-8")
+    (logs / "collect-1-aiona.log").write_text("", encoding="utf-8")
+    (logs / "gpt-recheck.jsonl").write_text("{}", encoding="utf-8")
+    assert sorted(result_dirs.publish(judge, dest)) == ["results.jsonl", "판정보고서.html"]
+    assert not (dest / "report.html").exists()
+    assert result_dirs.publish_collection(logs, dest) == ["collect-1-gpt.log", "gpt-recheck.jsonl"]
+    assert (dest / "수집기록" / "collect-1-gpt.log").read_text(encoding="utf-8") == "수집"

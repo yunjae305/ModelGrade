@@ -1,5 +1,7 @@
 """평가 결과 폴더 (result-dirs-v1, 사용자 10-22) — 평가를 시작할 때마다 `참고자료/결과/<처음 시작한 시각>/` 하나를 만들고
-그 안에 결과 파일을 모은다: report.html(판정 보고서) · <실행>_결과_판정결과.json · results.jsonl · summary.json · report.md · human_decisions.json.
+그 안에 결과 파일을 모은다: report.html(결과 보고서 — 결과 요약의 상세 분석 장면, 원문은 원문/) · 판정보고서.html(모든 판정 기록 ·
+보류를 사람이 정하는 화면) · <실행>_결과_판정결과.json · results.jsonl · summary.json · 판정보고서.md · human_decisions.json ·
+수집기록/(답변 수집 로그 · 다시 받기 기록). 결과 폴더는 통째로 git 에 올린다 (사용자 10-22 — 로그도 .gitignore 예외).
 
 - 폴더 이름: 이 PC 시각(한국) `YYYY-MM-DD_HH-MM-SS-mmm` (밀리초까지, 윈도우 폴더 이름에 쓸 수 없는 콜론 대신 '-').
 - 멈춘 평가를 같은 명령으로 이어 돌리면 처음 시작한 시각 폴더를 계속 쓴다 — 실행 JSON 의 `result_dir` 에 폴더 이름을 적어 둔다.
@@ -16,8 +18,15 @@ from typing import Any, Dict, Optional
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "참고자료" / "결과"
 VERSION = "result-dirs-v1"
-#: 판정 폴더(data/judge_runs/<실행>/<out>)에서 결과 폴더로 옮겨 두는 파일
-JUDGE_FILES = ("report.html", "report.md", "summary.json", "results.jsonl", "human_decisions.json")
+REPORT = "report.html"             # 결과 보고서 (tools/build_result_summary --report)
+JUDGE_REPORT = "판정보고서.html"     # 판정 보고서 (tools/report_html) — 판정 폴더에서는 report.html
+#: 판정 폴더(data/judge_runs/<실행>/<out>)에서 결과 폴더로 옮겨 두는 파일 — {판정 폴더 이름: 결과 폴더 이름}
+JUDGE_FILES = {"report.html": JUDGE_REPORT, "report.md": "판정보고서.md", "summary.json": "summary.json",
+               "results.jsonl": "results.jsonl", "human_decisions.json": "human_decisions.json"}
+
+
+COLLECT_DIR = "수집기록"   # 답변 수집 기록 (data/judge_runs/<실행>/ 에서 옮김 — data/ 는 git 에 안 올라감)
+COLLECT_PATTERNS = ("collect*.log", "*recheck*.json", "*recheck*.jsonl")   # 모델마다 터미널에 보인 그대로 · 다시 받기(재확인) 기록
 
 
 def stamp(now: Optional[datetime] = None) -> str:
@@ -54,12 +63,22 @@ def ensure(run: Dict[str, Any], base: Path = RESULTS, now: Optional[datetime] = 
     return d
 
 
+def publish_collection(log_dir: Path, dest: Path) -> list:
+    """답변 수집 기록을 결과 폴더 수집기록/ 으로 복사 — 빈 로그는 뺀다. 복사한 파일 이름 목록."""
+    files = sorted({f for pat in COLLECT_PATTERNS for f in log_dir.glob(pat) if f.is_file() and f.stat().st_size})
+    if files:
+        (dest / COLLECT_DIR).mkdir(parents=True, exist_ok=True)
+    for f in files:
+        shutil.copy2(f, dest / COLLECT_DIR / f.name)
+    return [f.name for f in files]
+
+
 def publish(judge_dir: Path, dest: Path) -> list:
     """판정 폴더의 보고서 · 판정 기록을 결과 폴더로 복사 — 복사한 파일 이름 목록."""
     dest.mkdir(parents=True, exist_ok=True)
     out = []
-    for name in JUDGE_FILES:
-        if (judge_dir / name).exists():
-            shutil.copy2(judge_dir / name, dest / name)
+    for src, name in JUDGE_FILES.items():
+        if (judge_dir / src).exists():
+            shutil.copy2(judge_dir / src, dest / name)
             out.append(name)
     return out
