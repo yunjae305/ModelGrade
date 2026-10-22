@@ -185,6 +185,9 @@ def _clean_cell(cell: str) -> str:
 class TextAnalysis:
     """하나의 텍스트(답변·질문·표시본)에 대한 구조 분석 캐시."""
 
+    #: 마크다운 이스케이프 · HTML 문자 참조를 화면 글자로 풀지 — 원문(답변·질문)은 풀고, 이미 화면 글인 표시본은 풀지 않는다
+    DECODE_MARKUP = True
+
     def __init__(self, text: str) -> None:
         self.text = text
 
@@ -253,7 +256,7 @@ class TextAnalysis:
     @cached_property
     def projection(self) -> Tuple[str, List[int]]:
         """코드 구획·인라인 코드 제외, 강조 마커 제거 (``scannable_text`` 투영)."""
-        return scannable_text(self.text)
+        return scannable_text(self.text, decode_markup=self.DECODE_MARKUP)
 
     @cached_property
     def body_without_code(self) -> str:
@@ -341,6 +344,12 @@ class TextAnalysis:
             "sentences": len(self.sentences),
             "paragraphs": len(self.paragraphs),
         }
+
+
+class DisplayedTextAnalysis(TextAnalysis):
+    """사용자 화면에 실제로 보인 표시본(displayed_text) — 이미 렌더링된 글이라 이스케이프 · 문자 참조를 다시 풀지 않는다 (Codex 검토 10-22)."""
+
+    DECODE_MARKUP = False
 
 
 class PastedTextAnalysis(TextAnalysis):

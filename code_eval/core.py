@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from .analysis import ANALYSIS_VERSION, TextAnalysis
+from .analysis import ANALYSIS_VERSION, DisplayedTextAnalysis, TextAnalysis
 from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
 from .model import ConditionResult, Evidence, FAIL, PASS
 from .scripts import SCRIPT_DATA_VERSION
@@ -146,7 +146,7 @@ class Ctx:
 
     @cached_property
     def da(self) -> Optional[TextAnalysis]:
-        return TextAnalysis(self.displayed_text) if isinstance(self.displayed_text, str) else None
+        return DisplayedTextAnalysis(self.displayed_text) if isinstance(self.displayed_text, str) else None
 
     @cached_property
     def conds(self) -> QuestionConditions:

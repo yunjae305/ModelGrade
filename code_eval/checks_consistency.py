@@ -87,8 +87,11 @@ _SENT_END = re.compile(r"[.!?。](?=\s|$)")   # 1.5 의 소수점은 문장 끝�
 # 좌변 바로 앞(같은 줄)의 화살표는 값의 변화 표시다: '20일 → 26일 = 26 ÷ 20 = 1.3배' 의 26 은 등식의 시작이 아니다.
 _ARROW_BEFORE = re.compile(r"(?:→|⇒|->|=>)[ \t\xa0]*$")
 #: 시각·시간 표기 — 좌변 바로 앞이 '13:' · '1시간' 이거나 결과 바로 뒤가 ':55' · '시간' 이면 숫자 등식이 아니다 (10-22)
-_TIME_BEFORE = re.compile(r"(?:\d[ \t\xa0]*[:：]|시간)[ \t\xa0]*$")
-_TIME_AFTER = re.compile(r"[ \t\xa0]*(?:[:：]\d|시간)")
+#: 붙어 쓴 시각('13:45' 의 45 앞 '13:')과 'N시간 M분' 의 분 앞 'N시간' 만 — '계산 1: 2 + 3' · '2시간 + 3시간 = 6시간' 은 등식으로 본다 (Codex 검토 10-22)
+_TIME_BEFORE = re.compile(r"(?<![\d:：])(?:[01]?\d|2[0-3])[:：]$")      # 좌변 첫 수가 두 자리 분이어야 함(아래 _TIME_MINUTE)
+_TIME_MINUTE = re.compile(r"[0-5]\d(?!\d)")
+_TIME_HOURS_BEFORE = re.compile(r"\d[ \t\xa0]*시간[ \t\xa0]*$")
+_TIME_AFTER = re.compile(r"[:：][0-5]\d(?!\d)|[ \t\xa0]*시간[ \t\xa0]*\d+[ \t\xa0]*분")
 #: 좌변 앞 같은 줄에 말로 쓴 식이 있다 — '상자 7개 × 상자마다 구슬 6개 = 7 × 6 = 42' 의 '7개 × 상자마다 구슬' (숫자·연산자 뒤에 단어가
 #: 이어지다 좌변 숫자가 나옴). 좌변은 그 식의 일부라 혼자 값으로 확정할 수 없다 (2026-10-14 실제 AIONA 답변에서 오판 4건)
 #: 말로 쓴 구간은 공백 아닌 글자로 시작해야 한다 — '2벌 × 3 + 1' 의 '2벌 × ' 는 단위에 끊긴 피연산자(보류)이지 말로 쓴 식이 아니다
@@ -208,7 +211,8 @@ def _find_chains(ctx: Ctx) -> List[Chain]:
             if len(ch.segments) < 2 or not ch.has_operation:
                 continue
             before = text[line_start:start]
-        if _TIME_BEFORE.search(before) or _TIME_AFTER.match(follows):
+        if ((_TIME_BEFORE.search(before) and _TIME_MINUTE.match(body)) or _TIME_HOURS_BEFORE.search(before)
+                or _TIME_AFTER.match(text, end)):
             # '13:45 + 10분 = 13:55' · '1시간 30분 + 20분 = 1시간 50분' 의 숫자는 시각·시간 표기의 일부다 (10-22 점검: GPT Q9 T8 거짓 FAIL)
             ch.skip_reason = "시각·시간 표기(13:45, 1시간 30분)의 일부라 숫자 등식으로 재계산하지 않음"
         elif _ARROW_BEFORE.search(before):
@@ -293,60 +297,132 @@ def _fmt(value: Fraction) -> Any:
 # 3-1 계산 결과 일치
 # =====================================================================================
 
-#: 라벨 앞 같은 문장에 이 말이 있으면 가정·대안 계산의 값이다 — 답의 주장값으로 잇지 않는다 (10-22 점검: Claude Q3 T5 '중복이라면 … 중복을 뺀 합계는 46')
-_HYPOTHETICAL = re.compile(r"라면|다면|만약|가정(?:하|할|한)|뺀|빼면|빼고|제외하면|제외한|제외하고")
+#: 조건부 대안 표현 — 이런 문장의 값은 본 계산의 답이 아니다(10-22 점검: Claude Q3 T5 '중복이라면 … 중복을 뺀 합계는 46',
+#: Codex 검토: '만약 컵을 빼면 합계는 36'). 조건의 '라면 · 다면' 은 앞말에 붙어 있을 때만('중복이라면') — 음식 '라면' 은 아니다
+_CONDITIONAL = re.compile(r"이라면(?=[\s,]|$)|(?<=\S)다면(?=[\s,]|$)|만약|가정(?:하|할|한)|빼면|제외하면")   # '컵라면' 은 아님(Codex 검토 10-22)
+#: 실제 제외 계산 표현('중복을 제외한 합계는 99') — 다른 값이 없을 때만 그 값을 쓴다
+_EXCLUSION = re.compile(r"뺀|빼고|제외한|제외하고")
+#: 라벨 바로 뒤 숫자 다음에 연산자가 오면('합계는 24 + 12 + 10 = 46') 그 숫자는 식의 첫 항이다 — 마지막 '=' 뒤 값을 쓴다
+#: 연산자 뒤 피연산자의 여는 강조 표시도 건너뛴다('24 + **12**', Codex 검토 10-22). '**' 는 강조라 곱셈 '*' 로 보지 않는다
+_OPERATOR_AFTER = re.compile(r"\s*[^\s\d+\-−×x*/÷=_~]{0,3}\s*(?:[+\-−×x/÷]|\*(?![*_~]))\s*[*_~]*[\d(]")
+
+
+def _operator_follows(text: str, at: int) -> bool:
+    """at 위치(값 바로 뒤)에서 닫는 강조 표시를 끝까지 걷은 뒤, 단위 · 띄어쓰기 다음에 연산자와 피연산자가 이어지는가 (Codex 검토 10-22)."""
+    while at < len(text) and text[at] in "*_~":
+        at += 1
+    return bool(_OPERATOR_AFTER.match(text, at))
 _EMPH = r"[*_~\s]*"   # 굵은 글씨·기울임 표시와 공백 — 라벨과 값 사이에 끼어도 건너뛴다 (10-22 점검: '합계는 **70**' 을 못 읽음)
+_CELL_UNITS = ("원", "개", "명", "점", "건", "권", "장", "대", "회", "번", "곳", "팀", "석", "매", "병", "잔", "벌", "켤레", "마리", "그루",
+               "세트", "박스", "상자", "봉", "팩", "부", "쪽", "줄", "행", "자", "단어", "문장", "일", "주", "개월", "년", "시간", "분", "초",
+               "kg", "g", "km", "m", "cm", "mm", "L", "l", "ml", "mL", "kcal", "W", "kW", "개입", "인분", "인")   # 칸 값 뒤에 붙는 단위 — 아는 것만 (Codex 검토 10-22: '46 아님')
+_CELL_UNIT_ALT = "|".join(sorted(map(re.escape, _CELL_UNITS), key=len, reverse=True))
+_CELL_VALUE = re.compile(rf"[*_~\s]*(?:약\s*)?[*_~]*([+−-]?(?:{NUMBER}))[*_~]*\s*((?:{_CELL_UNIT_ALT})?)[*_~\s]*")   # '46kg' · '**99개**'
 
 
-def _table_row_claim(scan: str, m: "re.Match", line_start: int, line_end: int) -> Optional[Tuple[str, int, int]]:
-    """라벨이 표의 행 안에 있으면(합계 행 '| 합계 | 22 |') 같은 행에서 숫자 칸이 하나뿐일 때 그 값 — 여러 개면 어느 열인지 몰라 잇지 않는다."""
+def _cell_value(cell: str) -> Optional[Tuple[str, int, int]]:
+    """표 칸이 값 하나면 (값, 칸 안 시작, 끝). 칸이 등식이면 마지막 '=' 뒤 값. %·배율(만 · 천 · 억)이 붙거나 글이 섞이면 None (Codex 검토 10-22)."""
+    base = cell.rfind("=") + 1
+    m = _CELL_VALUE.fullmatch(cell, base)
+    if not m or m.group(2).startswith(("%", "％", "만", "천", "억", "배")):
+        return None
+    return m.group(1), m.start(1), m.end(1)
+
+
+def _row_cells(row: str) -> List[Tuple[int, int]]:
+    """표 한 줄의 칸 (시작, 끝) — 줄 안 위치. 양끝 '|' 는 칸이 아니다. '\\|' 는 칸 안의 글자다 (Codex 검토 10-22)."""
+    bars = [i for i, ch in enumerate(row) if ch == "|" and (i == 0 or row[i - 1] != "\\")]
+    spans = [(bars[k] + 1, bars[k + 1]) for k in range(len(bars) - 1)]
+    if bars and row[bars[-1] + 1:].strip():
+        spans.append((bars[-1] + 1, len(row)))
+    return spans
+
+
+def _table_header(scan: str, line_start: int) -> Optional[List[str]]:
+    """이 표 행 위로 이어진 표 줄 가운데 구분선('|---|') 바로 위 줄의 칸 글 — 없으면 None."""
+    above, pos = [], line_start
+    while pos > 0:
+        prev_start = scan.rfind("\n", 0, pos - 1) + 1
+        prev = scan[prev_start:pos - 1]
+        if not prev.lstrip().startswith("|"):
+            break
+        above.append(prev)
+        pos = prev_start
+    for i, ln in enumerate(above):
+        if "-" in ln and re.fullmatch(r"[\s|:\-]+", ln) and i + 1 < len(above):
+            head = above[i + 1]
+            return [re.sub(r"[*_~]", "", head[a:b]).strip() for a, b in _row_cells(head)]
+    return None
+
+
+def _table_row_claim(scan: str, m: "re.Match", line_start: int, line_end: int, key: Optional[str]) -> Optional[Tuple[str, int, int]]:
+    """라벨이 표의 행 안에 있으면(합계 행 '| 합계 | 22 |') 그 행의 값.
+    ① 질문의 열 이름(key)이 표 머리에 있으면 그 열의 칸 ② 아니면 단위가 붙은 숫자까지 세어 숫자 칸이 하나뿐일 때만 — 여러 개면 어느 열인지 몰라 잇지 않는다.
+    위치는 칸을 돌며 바로 기록한다(값으로 다시 찾지 않음, Codex 검토 10-22)."""
+    row = scan[line_start:line_end]
     label = m.group(0).strip(" *_~:=은는이가\t")
-    nums = []
-    for c in scan[line_start:line_end].strip().strip("|").split("|"):
-        t = re.sub(r"[*_~]", "", c).strip()
+    spans = _row_cells(row)
+    head = _table_header(scan, line_start) if key else None
+    if head and key:
+        exact = [i for i, h in enumerate(head) if re.sub(r"\s", "", h) == re.sub(r"\s", "", key)]
+        partial = [i for i, h in enumerate(head) if key in h]
+        cols = exact or partial
+        if len(cols) == 1 and cols[0] < len(spans):   # 정확히 같은 열 먼저, 부분 일치가 여럿이면 고르지 않는다 (Codex 검토 10-22)
+            a, b = spans[cols[0]]
+            v = _cell_value(row[a:b])
+            return (v[0], line_start + a + v[1], line_start + a + v[2]) if v else None
+        if cols:
+            return None
+    found = []
+    for a, b in spans:
+        cell = row[a:b]
+        t = re.sub(r"[*_~]", "", cell).strip()
         if not t or label in t:
             continue
-        mm = re.fullmatch(rf"(?:약\s*)?([+−-]?(?:{NUMBER}))\s*(?:원|개|명|점|건|권|장|대|회)?", t)
-        if mm:
-            nums.append(mm.group(1))
-    if len(nums) != 1:
-        return None
-    s = scan.find(nums[0], m.end(), line_end)
-    return (nums[0], s, s + len(nums[0])) if s >= 0 else None
+        v = _cell_value(cell)
+        if v:
+            found.append((v[0], line_start + a + v[1], line_start + a + v[2]))
+    return found[0] if len(found) == 1 else None
 
 
-def _claimed_by_label(ctx: Ctx, labels: Sequence[str]) -> List[Tuple[str, int, int, str]]:
+def _claimed_by_label(ctx: Ctx, labels: Sequence[str], key: Optional[str] = None,
+                      allow_hypothetical: bool = True) -> List[Tuple[str, int, int, str]]:
+    """라벨(합계 · 총액 …) 바로 뒤의 값. 가정 · 대안 문장의 값은 다른 값이 없을 때만(allow_hypothetical) 돌려준다."""
     scan = ctx.aa.inline_masked
     alt = "|".join(sorted((re.escape(l) for l in labels), key=len, reverse=True))
-    found = []
+    found, hypothetical = [], []
     for m in re.finditer(rf"(?:{alt}){_EMPH}(?:은|는|이|가|:|=)?{_EMPH}", scan):
         if ctx.aa.in_fence(m.start()):
             continue
         clause_end = min([i for i in (scan.find(c, m.end()) for c in "\n") if i >= 0] + [len(scan)])
         line_start = scan.rfind("\n", 0, m.start()) + 1
         if scan[line_start:clause_end].lstrip().startswith("|"):   # 표의 행 — 합계 행 등 (10-22 점검: '| 합계 | 22 |' 를 못 읽음)
-            row = _table_row_claim(scan, m, line_start, clause_end)
+            row = _table_row_claim(scan, m, line_start, clause_end, key)
             if row:
                 found.append((row[0], row[1], row[2], m.group(0).strip()))
             continue
         sent_start = max([scan.rfind(c, line_start, m.start()) + 1 for c in ".!?。"] + [line_start])
-        if _HYPOTHETICAL.search(scan[sent_start:m.start()]):
+        lead = scan[sent_start:m.start()]
+        if _CONDITIONAL.search(lead):
             continue
+        bucket = hypothetical if _EXCLUSION.search(lead) else found
         sentence = re.split(r"(?<=[.!?。])\s", scan[m.end():clause_end])[0]
-        if "=" in sentence:
+        # 라벨 바로 뒤의 완결된 값('최종 합계는 99입니다(계산: … = 46)')을 먼저 — 뒤따르는 설명 등식에 가려지지 않게 (Codex 검토 10-22)
+        nm = re.match(rf"{_EMPH}(?:약\s*)?[*_~]*([+−-]?(?:{NUMBER}))", sentence)
+        base = m.end()
+        if (not nm or _operator_follows(sentence, nm.end())) and "=" in sentence:
             tail = sentence.rsplit("=", 1)[1]
             nm = re.search(rf"(?<![\w.,+−-])([+−-]?(?:{NUMBER}))", tail)
             base = m.end() + sentence.rfind("=") + 1
-        else:
-            nm = re.match(rf"{_EMPH}(?:약\s*)?[*_~]*([+−-]?(?:{NUMBER}))", sentence)
-            base = m.end()
         if nm:
             if re.match(r"[*_]*\s*\\?%", scan[base + nm.end():]):
                 continue  # 퍼센트는 질문의 계산 결과 숫자로 바꾸어 연결하지 않는다.
             raw = nm.group(1) if nm.groups() else nm.group(0)
             start = base + nm.start(nm.lastindex or 0)
-            found.append((raw, start, start + len(raw), m.group(0).strip()))
-    return found
+            bucket.append((raw, start, start + len(raw), m.group(0).strip()))
+    if found:
+        return found
+    return hypothetical if allow_hypothetical else []
 
 
 def _question_calculation(ctx: Ctx) -> List:
@@ -502,8 +578,11 @@ def _next_structure(ctx: Ctx, decl_line) -> Optional[Dict[str, Any]]:
     if table:
         # 표 끝의 합계 · 소계 행은 선언한 항목이 아니다 — '다음 4개 행' 뒤의 합계 행을 5번째로 세던 것 (10-22 점검: GPT Q10 T8 거짓 FAIL)
         data = list(table.rows)
-        while data and next((re.sub(r"[*_\s]", "", c) for c in data[-1] if re.sub(r"[*_\s]", "", c)), "") in _TOTAL_ROW_LABELS:
-            data.pop()
+        # 숫자 칸이 있는 합계 행만 빼고, 선언이 '합계 포함'이면 빼지 않는다 (Codex 검토 10-22: '3개 행(합계 포함)' · 용어 표의 '합' 행)
+        if not _INCLUDES_TOTAL.search(decl_line.text):
+            while (data and next((re.sub(r"[*_\s]", "", c) for c in data[-1] if re.sub(r"[*_\s]", "", c)), "") in _TOTAL_ROW_LABELS
+                   and any(_cell_value(c) for c in data[-1])):
+                data.pop()
         return {"kind": "table_data_rows", "count": len(data), "start": table.start, "end": table.end,
                 "header_rows": table.header_rows, "total_rows_excluded": len(table.rows) - len(data),
                 "items": [{"text": " | ".join(r), "start": None, "end": None} for r in data]}
@@ -534,7 +613,8 @@ def _next_structure(ctx: Ctx, decl_line) -> Optional[Dict[str, Any]]:
     return None
 
 
-_TOTAL_ROW_LABELS = {"합계", "총합", "총계", "소계", "계", "총액", "합", "Total", "total", "TOTAL", "Sum", "sum", "SUM"}
+_TOTAL_ROW_LABELS = {"합계", "총합", "총계", "소계", "계", "총액", "Total", "total", "TOTAL", "Sum", "sum", "SUM"}
+_INCLUDES_TOTAL = re.compile(r"(?:합계|총합|총계|소계|총액|계)\s*(?:행)?\s*(?:을|를|도)?\s*(?:포함|까지)(?!\s*(?:하지|되지|안|않|X|x))")
 
 
 def check_3_2(ctx: Ctx) -> List:
@@ -815,9 +895,11 @@ def check_3_3(ctx: Ctx) -> List:
         agg = req.value["agg"]
         expected = {"합계": sum(values), "총합": sum(values), "평균": sum(values) / len(values),
                     "최댓값": max(values), "최대값": max(values), "최솟값": min(values), "최소값": min(values)}[agg]
-        claims = []
-        if agg in ("합계", "총합"):
-            # ① 등식 연결 먼저 — 피연산자가 원본 값 전부(같은 수 · 같은 개수)인 덧셈 등식의 결과 (10-22 점검: '등식: 6 + 2 + 9 + 6 = **23**' 을 못 읽음)
+        labels_agg = [agg, "합계" if agg in ("합계", "총합") else agg]
+        # ① 명시한 최종 답('합계는 N', 표의 합계 행) — 가정 · 대안 문장의 값은 빼고 (Codex 검토 10-22: 맞는 등식이 틀린 최종 답을 가리면 안 됨)
+        claims = _claimed_by_label(ctx, labels_agg, key=req.value["key"], allow_hypothetical=False)
+        if not claims and agg in ("합계", "총합"):
+            # ② 피연산자가 원본 값 전부(같은 수 · 같은 개수)인 덧셈 등식의 결과 (10-22 점검: '등식: 6 + 2 + 9 + 6 = **23**' 을 못 읽음)
             want = sorted(values)
             for ch in _find_chains(ctx):
                 if ch.skip_reason or ch.final_literal is None or not re.fullmatch(rf"[\s+]*(?:(?:{NUMBER})[\s+]*)+", ch.segments[0]):
@@ -825,8 +907,8 @@ def check_3_3(ctx: Ctx) -> List:
                 if sorted(_num(x) for x in re.findall(NUMBER, ch.segments[0])) == want:
                     lit = ch.final_literal
                     claims.append((lit, ch.end - len(lit), ch.end, ch.segments[0]))
-        if not claims:   # ② 라벨 연결
-            claims = _claimed_by_label(ctx, [agg, "합계" if agg in ("합계", "총합") else agg])
+        if not claims:   # ③ 가정 · 대안 문장의 값만 있을 때
+            claims = _claimed_by_label(ctx, labels_agg, key=req.value["key"])
         vals = sorted({_num(c[0]) for c in claims})
         if len(vals) != 1:
             skip_condition(ctx, "3-3.aggregate", SUB33, f"답변에서 집계 라벨({agg})로 연결된 값이 없거나 여러 개 ({len(vals)}개)")

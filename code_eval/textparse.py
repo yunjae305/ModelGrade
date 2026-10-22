@@ -578,13 +578,59 @@ def _json_type_name(value: Any) -> str:
 #: 한글 바로 뒤의 ``[1]`` 과 연속 인용 ``[1][2]`` 는 인용으로 인정한다.
 _CITATION = re.compile(r"(?<![A-Za-z0-9_])\[(?P<number>\d{1,3})\]")
 
-#: 출처 목록 줄. 줄 시작에서 [n] 뒤에 내용이 오는 형태만 인정한다. [n] 바로 뒤에 조사가 붙은 줄('[2]는 예산 메모의 …')은
-#: 본문 문장이라 뺀다 (10-22 점검: Claude Q2 T8 등 거짓 '출처 누락').
-_SOURCE_LINE = re.compile(r"^[ \t]{0,3}\[(?P<number>\d{1,3})\](?![은는과와이가의을를도에로만])[ \t]*(?P<body>\S.*)$")
-#: 목록형 · 굵은 글씨형 출처 줄('- [1] 답사 메모', '1. [1] …', '**[1]** …') — 위 형식으로 정의되지 않은 번호에만 출처로 쓰고
-#: 중복으로 세지 않는다. 번호가 이어지는 설명 줄('- [1]·[2]는 …', '- [1], [2]는 …')은 뺀다 (10-22: Claude Q6 T3 · Q7 T5 · Q9 T3)
-_SOURCE_LINE_LISTED = re.compile(r"^[ \t]{0,3}(?:[-*+•][ \t]+|\d{1,2}[.)][ \t]+)?[*_]{0,2}\[(?P<number>\d{1,3})\][*_]{0,2}"
-                                 r"(?![은는과와이가의을를도에로만])(?![ \t]*[·,、/]?[ \t]*\[\d)[ \t]*(?P<body>\S.*)$")
+#: 출처 목록 줄 앞의 목록 기호('- ', '* ', '1. ', '1) ')
+_SOURCE_LIST_MARK = re.compile(r"[ \t]{0,3}(?:[-*+•][ \t]+|\d{1,2}[.)][ \t]+)?")
+_SOURCE_NUMBER = re.compile(r"\[(\d{1,3})\]")
+#: [n] 바로 뒤에 붙은 조사 — 뒤에 띄어쓰기 · 문장 부호가 와야 조사다('[2]는 예산 메모의 …'). '[1]과학기술정보통신부' 의 '과' 는 아니다
+_SOURCE_PARTICLE = re.compile(r"(?:은|는|과|와|이|가|의|을|를|도|에서는|에서|에는|에|으로|로|만)(?=[\s,.·:;!?)]|$)")
+#: 번호가 이어지는 설명 줄('- [1]·[2]는 …', '- [1], [2]는 …')
+_SOURCE_NEXT_REF = re.compile(r"[ \t]*[·,、/]?[ \t]*\[\d")
+_SOURCE_URLISH = re.compile(r"https?://|www\.|doi\.org", re.IGNORECASE)
+#: 서술문으로 끝나는 본문('… 문장은 뺐습니다.', '… 보지 못함') — 출처 이름이 아니라 설명이다
+_SOURCE_SENTENCE_END = re.compile(r"(?:니다|었다|았다|였다|했다|한다|된다|이다|있다|없다|겠다|않다|못함|않음|없음|했음|었음|았음|"
+                                  r"세요|어요|아요|해요|예요|에요)[.!]?$")   # '개요' · '모음' 은 아님 (Codex 검토 10-22)
+#: 출처 설명 줄의 머리말('- **[1] 설명**: …', '- **[2] 연결**: …')
+_SOURCE_NOTE_LABELS = {"설명", "연결", "참고", "비고", "주", "주석", "주의", "확인", "근거", "메모설명", "출처설명", "보충"}
+#: 출처 이름 꼴 — 앞 30자 안에서 이름 뒤에 구분 표시(: — ( , 「 『 《 ")가 온다
+_SOURCE_TITLE = re.compile(r"[^\n:：—–(（,「『《\"]{1,30}?\**[ \t]*[:：—–(（,「『《\"]")
+
+
+def _source_definition(text: str) -> Optional[Tuple[int, int]]:
+    """출처 정의 줄이면 (번호, '[' 의 줄 안 위치), 아니면 None.
+
+    줄 시작의 '[n] 내용' 이 기본형이다. 목록 기호(- * + • 1. 1))나 굵은 글씨 뒤의 [n] 도 출처로 보되, 강조 표시를 끝까지
+    걷어 낸 뒤에 판별한다(정규식 되짚기로 '- **[2]**는 …' 가 출처가 되던 것, 파이썬 3.10 에는 소유 수량자가 없음 — Codex 검토 10-22).
+    다음은 출처가 아니다: [n] 바로 뒤에 조사가 붙은 본문 문장, 번호가 이어지는 설명 줄, 빈 본문,
+    목록형 · 굵은 글씨형 가운데 URL · 문헌 주소 없이 다른 [n] 을 다시 부르거나 서술문으로 끝나는 설명 줄('- **[1] 설명**: …뺐습니다.').
+    """
+    mark = _SOURCE_LIST_MARK.match(text)
+    pos = mark.end()
+    styled = bool(mark.group(0).strip())
+    j = pos
+    while j < len(text) and text[j] in "*_":
+        j += 1
+    styled = styled or j > pos
+    number = _SOURCE_NUMBER.match(text, j)
+    if not number:
+        return None
+    k = number.end()
+    while k < len(text) and text[k] in "*_":
+        k += 1
+    rest = text[k:]
+    if _SOURCE_PARTICLE.match(rest) or _SOURCE_NEXT_REF.match(rest):
+        return None
+    body = rest.strip().strip("*_").strip()
+    if not body:
+        return None
+    title = _SOURCE_TITLE.match(body)
+    if title and re.sub(r"[*_\s]", "", title.group(0)[:-1]) in _SOURCE_NOTE_LABELS:
+        return None   # '[1] 설명: …' · '- **[1] 설명**: https://…의 표에서 …' — 형식 · URL 과 관계없이 설명 줄 (Codex 검토 10-22)
+    if styled and not title and not _SOURCE_URLISH.search(body) and (
+            _SOURCE_NUMBER.search(body) or _SOURCE_SENTENCE_END.search(body.rstrip("*_ \t"))):
+        # 앞부분이 '이름: …' · '이름 — …' · '이름(…)' 꼴이면 설명 문장이 붙어도 출처다('- [1] 공연장 점검 메모: … 담은 메모입니다.'
+        # Claude Q8 T3, '- [2] 입주자회 예산 메모 — … [1] …' GPT Q5 T6). 그 꼴이 아니면 서술문 · 다른 [n] 을 부르는 줄은 설명 줄이다
+        return None
+    return int(number.group(1)), number.start()
 
 
 def _parse_references(text: str) -> Tuple[List[Tuple[int, int]], Dict[int, int], List[int]]:
@@ -594,28 +640,21 @@ def _parse_references(text: str) -> Tuple[List[Tuple[int, int]], Dict[int, int],
     sources: Dict[int, int] = {}
     duplicated: List[int] = []
     source_marker_spans: List[Tuple[int, int]] = []
-    listed: List[Tuple[int, int, int]] = []   # (번호, 줄 번호, 표시 시작) — 원래 형식 뒤에 따로 본다
     for line in lines:
         if line.in_code:
             continue
-        match = _SOURCE_LINE.match(line.text)
-        if not match:
-            alt = _SOURCE_LINE_LISTED.match(line.text)
-            if alt:
-                listed.append((int(alt.group("number")), line.number, line.start + alt.start(0) + alt.group(0).index("[")))
+        found = _source_definition(line.text)
+        if not found:
             continue
-        number = int(match.group("number"))
-        start = line.start + match.start(0) + match.group(0).index("[")
-        source_marker_spans.append((start, start + len(match.group("number")) + 2))
+        number, bracket_at = found
+        start = line.start + bracket_at
+        source_marker_spans.append((start, start + len(str(number)) + 2))
+        # 같은 번호의 출처 정의가 또 나오면 형식(기본형 · 목록형)과 줄 간격에 관계없이 중복이다 (Codex 검토 10-22)
         if number in sources:
             if number not in duplicated:
                 duplicated.append(number)
         else:
             sources[number] = line.number
-    for number, line_number, start in listed:
-        if number not in sources:
-            sources[number] = line_number
-            source_marker_spans.append((start, start + len(str(number)) + 2))
 
     code_spans = [(line.start, line.end) for line in lines if line.in_code]
     definition_starts = {marker_start for marker_start, _ in source_marker_spans}
@@ -744,13 +783,13 @@ def link_targets(text: str) -> Tuple[Dict[str, int], List[str]]:
 
 #: 강조 표기로 보고 걷어낼 문자. 밑줄은 낱말 안에 있으면 남긴다.
 _EMPHASIS_CHARS = "*~"
-#: 마크다운이 역슬래시로 이스케이프하는 글자 — '\x' 는 화면에 'x' 한 글자로 보인다
-_MD_ESCAPABLE = set(r"\`*_{}[]()#+-.!~|<>")
+#: 마크다운이 역슬래시로 이스케이프하는 글자 — '\x' 는 화면에 'x' 한 글자로 보인다. '&' 도 넣어 '\&amp;' 를 문자 참조로 풀지 않는다
+_MD_ESCAPABLE = set(r"\`*_{}[]()#+-.!~|<>&")
 #: HTML 문자 참조 — 숫자형(&#x20; &#32;)과 자주 쓰는 이름형
 _HTML_ENTITY = re.compile(r"&(?:#[xX][0-9A-Fa-f]{1,6}|#\d{1,7}|nbsp|amp|lt|gt|quot|apos);")
 
 
-def scannable_text(text: str) -> Tuple[str, List[int]]:
+def scannable_text(text: str, decode_markup: bool = True) -> Tuple[str, List[int]]:
     """검사용 문자열과 원문 위치 대응표를 만든다.
 
     코드 블록·인라인 코드를 빼고 강조 마커를 걷어낸다. 대응표가 있어야
@@ -776,16 +815,18 @@ def scannable_text(text: str) -> Tuple[str, List[int]]:
                 continue
             # 화면에는 한 글자로 보이는 표기 — 마크다운 역슬래시 이스케이프('\~' → '~')와 HTML 문자 참조('&#x20;' → 공백).
             # 그대로 세면 'x20' 이 영문으로, '\' 가 기호로 잡힌다 (10-22 점검: GPT Q9 T2 '한글만' 거짓 FAIL)
-            if char == "\\" and index + 1 < len(raw) and raw[index + 1] in _MD_ESCAPABLE:
+            # 이미 화면 글인 표시본(displayed_text)은 다시 풀지 않는다(decode_markup=False, Codex 검토 10-22)
+            if decode_markup and char == "\\" and index + 1 < len(raw) and raw[index + 1] in _MD_ESCAPABLE:
                 chars.append(raw[index + 1])
                 offsets.append(line.start + index + 1)
                 index += 2
                 continue
-            if char == "&":
+            if decode_markup and char == "&":
                 entity = _HTML_ENTITY.match(raw, index)
                 if entity:
-                    chars.append(html.unescape(entity.group(0)))
-                    offsets.append(line.start + index)
+                    for decoded in html.unescape(entity.group(0)):   # 빈 글자로 풀리면 아무것도 넣지 않는다 — 대응표 길이를 글과 같게 (Codex 검토 10-22)
+                        chars.append(decoded)
+                        offsets.append(line.start + index)
                     index = entity.end()
                     continue
             if char in _EMPHASIS_CHARS:

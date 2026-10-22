@@ -1181,3 +1181,137 @@ def test_citation_explanatory_lines_are_not_duplicate_sources():
     ans = ("집결은 남문입니다[1]. 예산은 30만 원입니다[2].\n\n- [1] 집결지 답사 메모\n- [2] 예산 메모\n"
            "- [1]·[2]는 기록 안에서 참조된 문서 이름입니다.\n- **[1] 설명**: 목록의 [1]에서 예비 인력 문장은 뺐습니다.")
     assert one(run(CIT_Q, ans), "1-3.citation_link")["verdict"] == PASS
+
+
+# --- 10-22 Codex 검토 반례 ------------------------------------------------------------------------
+
+W_Q = AGG_Q.replace("수량", "무게")
+R_Q = AGG_Q.replace("| 잔 |", "| 라면 |")
+
+
+@pytest.mark.parametrize("question, answer, verdict, claimed", [
+    (AGG_Q, "24 + 12 + 10 = 46\n따라서 합계는 99입니다.", FAIL, "99"),                 # 맞는 등식이 틀린 최종 답을 가리지 않음
+    (W_Q, "| 구분 | 무게 | 수량 |\n|---|---|---|\n| 합계 | 46kg | 99개 |", PASS, "46"),    # 표 머리의 열로 칸을 고름
+    (W_Q, "| 구분 | 무게 | 수량 |\n|---|---|---|\n| 합계 | 99kg | 46개 |", FAIL, "99"),
+    (R_Q, "라면 수량의 합계는 99입니다.", FAIL, "99"),                               # 음식 '라면' 은 가정이 아님
+    (AGG_Q, "중복을 제외한 합계는 99입니다.", FAIL, "99"),                             # 가정 문장 값뿐이면 그 값을 씀
+    (AGG_Q, "| 구분 | 비고 | 수량 |\n|---|---|---|\n| 합계 | 146건 확인 | 46 |", PASS, "46"),
+])
+def test_aggregate_codex_counterexamples(question, answer, verdict, claimed):
+    r = one(run(question, answer), "3-3.aggregate")
+    assert (r["verdict"], r["measured"]["claimed"]) == (verdict, claimed)
+
+
+@pytest.mark.parametrize("answer", ["계산 1: 2 + 3 = 6", "2시간 + 3시간 = 6시간"])
+def test_numbered_labels_and_single_unit_hours_are_still_equations(answer):
+    assert any(r["verdict"] == FAIL for r in rows(run("계산해 주세요.", answer), "3-1.answer_equation"))
+
+
+@pytest.mark.parametrize("answer", [
+    "다음 3개 행(합계 포함)으로 정리했습니다.\n\n| 항목 | 값 |\n|---|---|\n| 가 | 1 |\n| 나 | 2 |\n| 합계 | 3 |",
+    "다음 3개 용어를 정리했습니다.\n\n| 용어 | 뜻 |\n|---|---|\n| 평균 | 값의 가운데 |\n| 중앙값 | 순서의 가운데 |\n| 합 | 모두 더한 값 |",
+])
+def test_declared_count_keeps_declared_total_and_term_rows(answer):
+    assert one(run("표로 정리해 주세요.", answer), "3-2.declared_count")["verdict"] == PASS
+
+
+@pytest.mark.parametrize("answer, verdict", [
+    ("주장입니다[1][2].\n\n[1] 실제 문헌\n- **[2]**는 추가 확인이 필요한 주장입니다.", FAIL),   # 강조 되짚기로 출처가 되지 않음
+    ("주장입니다[1][2].\n\n[1] 실제 문헌\n**[2]**", FAIL),                                     # 빈 본문
+    ("주장입니다[1].\n\n- [1] 문서 가\n- [1] 문서 나", FAIL),                                   # 목록형 진짜 중복
+    ("주장입니다[1][2].\n\n[1]과학기술정보통신부 보고서\n[2] 통계청 보고서", PASS),             # '과학' 의 '과' 는 조사가 아님
+])
+def test_citation_codex_counterexamples(answer, verdict):
+    assert one(run(CIT_Q, answer), "1-3.citation_link")["verdict"] == verdict
+
+
+def test_escaped_ampersand_and_displayed_text_are_not_decoded():
+    assert one(run("한글만 사용해 주세요. 숫자와 문장 부호는 허용합니다.", r"안내\&amp;입니다."), "2-1.charset")["verdict"] == FAIL
+    from code_eval.analysis import DisplayedTextAnalysis, TextAnalysis
+    assert DisplayedTextAnalysis("은하&#xD328;스999").projection[0].strip() == "은하&#xD328;스999"
+    assert TextAnalysis("은하&#xD328;스999").projection[0].strip() == "은하패스999"
+    from code_eval.textparse import scannable_text
+    text, offsets = scannable_text("&#1;가나다X")
+    assert len(text) == len(offsets) and offsets[text.index("X")] == 7
+
+
+# --- 10-22 Codex 2차 검토 반례 --------------------------------------------------------------------
+
+@pytest.mark.parametrize("answer, verdict, claimed", [
+    ("| 구분 | 잔여 수량 | 수량 |\n|---|---|---|\n| 합계 | 2 | 46 |", PASS, "46"),     # 머리가 정확히 같은 열 먼저
+    ("| 구분 | 잔여 수량 | 수량 |\n|---|---|---|\n| 합계 | 46 | 99 |", FAIL, "99"),
+    ("| 구분 | 수량 |\n|---|---|\n| 합계 | 24 + 12 + 10 = 46 |", PASS, "46"),          # 칸 안 등식은 마지막 '=' 뒤 값
+    (r"| 구분 | 비고 | 수량 |" + "\n|---|---|---|\n" + r"| 합계 | 1반\|2반 | 46 |", PASS, "46"),   # 이스케이프된 파이프
+    ("최종 합계는 99입니다(계산: 24 + 12 + 10 = 46).", FAIL, "99"),                  # 같은 문장의 설명 등식에 가려지지 않음
+    ("합계는 24 + 12 + 10 = 46입니다.", PASS, "46"),
+])
+def test_aggregate_codex_round2(answer, verdict, claimed):
+    r = one(run(AGG_Q, answer), "3-3.aggregate")
+    assert (r["verdict"], r["measured"]["claimed"]) == (verdict, claimed)
+
+
+@pytest.mark.parametrize("answer", ["| 구분 | 수량 |\n|---|---|\n| 합계 | 46% |", "총 수량은 46개입니다. 만약 컵을 빼면 합계는 36개입니다."])
+def test_aggregate_skips_percent_cell_and_conditional_alternative(answer):
+    assert not rows(run(AGG_Q, answer), "3-3.aggregate")
+
+
+@pytest.mark.parametrize("answer, verdict", [
+    ("주장입니다[1][2].\n- [1] 환경부 보고서: https://me.go.kr/report\n- **[2] 통계청**: https://kostat.go.kr/report", PASS),
+    ("주장입니다[1].\n\n[1] 문서 가\n- [1] 문서 나", FAIL),                # 형식이 섞인 중복
+    ("주장입니다[1].\n\n- [1] 문서 가\n\n\n- [1] 문서 나", FAIL),           # 떨어진 중복
+])
+def test_citation_codex_round2(answer, verdict):
+    assert one(run(CIT_Q, answer), "1-3.citation_link")["verdict"] == verdict
+
+
+@pytest.mark.parametrize("decl, label", [("2개 행(합계 포함하지 않음)", "합계"), ("3개 행(총계 포함)", "총계")])
+def test_declared_count_total_inclusion_wording(decl, label):
+    ans = f"다음 {decl}으로 정리했습니다.\n\n| 항목 | 값 |\n|---|---|\n| 가 | 1 |\n| 나 | 2 |\n| {label} | 3 |"
+    assert one(run("표로 정리해 주세요.", ans), "3-2.declared_count")["verdict"] == PASS
+
+
+def test_colon_numbering_is_not_a_clock_time():
+    assert any(r["verdict"] == FAIL for r in rows(run("계산해 주세요.", "계산 1:2 + 3 = 6"), "3-1.answer_equation"))
+
+
+def test_titled_source_with_descriptive_sentence_is_still_a_source():
+    ans = ("집결은 남문입니다[1].\n\n- [1] 공연장 점검 메모: 행사 조건 (신유나). 기록에서 이렇게 설명하며 조건을 담은 메모입니다.\n- [2] 예산 메모\n"
+           "- [1]과 [2]의 원본 메모는 보지 못했습니다.")
+    assert one(run(CIT_Q, ans), "1-3.citation_link")["verdict"] == PASS
+
+
+# --- 10-22 Codex 3차 검토 반례 --------------------------------------------------------------------
+
+@pytest.mark.parametrize("question, answer, verdict, claimed", [
+    (AGG_Q, "최종 합계는 **99**입니다(계산: 24 + 12 + 10 = 46).", FAIL, "99"),          # 닫는 '**' 는 곱셈이 아님
+    (AGG_Q, "합계는 **46**이며 평균 계산은 46 / 3 = 15.33입니다.", PASS, "46"),
+    (AGG_Q.replace("| 잔 |", "| 컵라면 |"), "컵라면 합계는 99입니다.", FAIL, "99"),     # '컵라면' 은 조건이 아님
+])
+def test_aggregate_codex_round3(question, answer, verdict, claimed):
+    r = one(run(question, answer), "3-3.aggregate")
+    assert (r["verdict"], r["measured"]["claimed"]) == (verdict, claimed)
+
+
+def test_aggregate_cell_with_negation_is_not_a_value():
+    assert not rows(run(AGG_Q, "| 구분 | 수량 |\n|---|---|\n| 합계 | 46 아님 |"), "3-3.aggregate")
+
+
+@pytest.mark.parametrize("answer", [
+    "주장입니다[1][2].\n- [1] 예산 메모\n- [2] 공연장 이용 안내 개요",                       # '개요' 는 서술문이 아님
+    "주장입니다[1][2].\n- [1] 예산 메모\n- [2] 집결지 안내 자료 모음",
+    "주장입니다[1].\n- [1] 통계청 자료: https://kostat.go.kr/report\n- **[1] 설명**: https://kostat.go.kr/report의 표에서 필요한 항목만 사용했습니다.",
+    "주장입니다[1].\n[1] 통계청 자료\n[1] 설명: 표에서 필요한 항목만 사용했습니다.",
+])
+def test_citation_codex_round3(answer):
+    assert one(run(CIT_Q, answer), "1-3.citation_link")["verdict"] == PASS
+
+
+def test_function_table_sum_row_is_not_a_total_row():
+    ans = "다음 2개 함수를 정리했습니다.\n\n| 함수 | 설명 |\n|---|---|\n| COUNT | 숫자가 있는 셀의 개수 |\n| SUM | 숫자 1과 2를 더하면 3입니다 |"
+    assert one(run("표로 정리해 주세요.", ans), "3-2.declared_count")["verdict"] == PASS
+
+
+@pytest.mark.parametrize("answer", ["합계는 **24** + **12** + **10** = **46**입니다.", "합계는 24 + **12** + 10 = 46입니다."])
+def test_aggregate_bold_operands_are_still_an_equation(answer):   # Codex 4차 검토
+    r = one(run(AGG_Q, answer), "3-3.aggregate")
+    assert (r["verdict"], r["measured"]["claimed"]) == (PASS, "46")
