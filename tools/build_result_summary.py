@@ -1001,19 +1001,8 @@ def ar_overview(D: Dict[str, Any]) -> str:
             else f'<b>{hm(judge_s)}</b><span>판정 소요</span>')
     hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
             '<h1 class="ar-h1"><em>AIONA</em> 채팅 품질 평가</h1>'   # 사용자 10-21: 깔끔한 제목
-            f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div>'
-            f'{run_line(D)}</div></div>')
+            f'<div class="ar-stat"><b>{D["n"]}</b><span>질문</span><b style="margin-left:18px">·</b>{took}</div></div></div>')   # 실행 정보 줄은 뺌 (사용자 10-22)
     return hero
-
-
-def run_line(D: Dict[str, Any]) -> str:
-    """제목 아래 실행 정보 한 줄 (받은 의견 E) — 파일 이름(10-20 발표자료)과 결과 날짜가 달라도 어느 결과인지 고정."""
-    ri = run_info(D)
-    parts = [f'결과 ID <b>{E(ri["run"])}</b>',
-             f'질문 세트 <b>{E(ri["set"])}</b>' + (f' (rev {E(ri["rev"])} · {D["n"]}문항)' if ri["rev"] else f' ({D["n"]}문항)'),
-             f'실행 시작 {E(ri["start"])} · 판정 끝 {E(ri["judged"])} (한국 시간)',
-             f'판정 {E(ri["pipe"])}' + (f' · Codex {E(ri["codex"])}' if ri["codex"] else "")]
-    return f'<p class="ar-run">{" · ".join(parts[:2])}<br>{parts[2]}<br>{parts[3]}</p>'
 
 
 def dist_stats(D: Dict[str, Any]) -> Dict[str, Any]:
@@ -1822,7 +1811,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
   .steps td[data-label]::before { content: attr(data-label); display: block; font-size: 0.76rem; font-weight: 600; color: var(--muted); }
 }
 /* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
-:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Serif KR", "Nanum Myeongjo", "Times New Roman", serif; }
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
 :root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
 /* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
@@ -1841,8 +1830,6 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 @media (min-width: 1200px) { .toc-sep { padding: 14px 10px 4px; border-top: 1px solid var(--line); margin-top: 8px; } }
 .s-no { color: var(--muted); }
 /* 받은 의견 A~E (10-21 밤) — 실행 정보 줄 · 결과 분포(잠정) · 질문/기준 단위 · 이번/다음 심판 · 멀티턴 턴 참고 */
-.ar-hl p.ar-run { margin: 12px 0 0; max-width: none; font-size: 0.8rem; line-height: 1.6; color: var(--muted); word-break: keep-all; }
-.ar-run b { color: var(--ink); font-weight: 600; font-family: var(--font-num); }
 .rs-box em.rs-jnow, .rs-box em.rs-jnext { border-top: 1px dashed var(--line); padding-top: 3px; } .rs-box em b { font-size: 0.78rem; color: var(--ink); margin-right: 4px; }
 .poster-sub b { color: var(--ink); }
 .ds-tag { font-size: 0.78rem; font-weight: 700; color: var(--hold-text); background: var(--hold-soft); border: 1px solid var(--hold); border-radius: 999px; padding: 1px 10px; }
@@ -1876,7 +1863,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .ar-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 36px; align-items: start; }
 .ar-kick { font-size: 0.76rem; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .ar-h1 { font-size: 2.8rem; line-height: 1.18; margin: 8px 0 14px; }
-.ar-h1 em { font-style: italic; color: var(--accent); }
+.ar-h1 em { font-style: normal; color: var(--accent); }
 .ar-hl p { color: var(--muted); font-size: 1.04rem; margin: 0 0 16px; max-width: 46ch; }
 .ar-stat { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ar-stat b { font-family: var(--font-num); font-size: 1.45rem; } .ar-stat span { color: var(--muted); font-size: 0.88rem; }
@@ -2066,6 +2053,9 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .cb-na { color: var(--muted); }
 @media (max-width: 760px) { .cb-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cb-row { grid-template-columns: minmax(96px, 1.2fr) repeat(4, minmax(0, 1fr)); gap: 3px; } .cb-c small { display: none; } }
 .rs-next .rs-sub { color: var(--muted); font-size: 0.84rem; }
+.rs-next { grid-template-columns: repeat(3, minmax(0, 1fr)); }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { .rs-next { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .rs-next { grid-template-columns: minmax(0, 1fr); } }
 details.rs-cell > summary { cursor: pointer; list-style: none; } details.rs-cell > summary::-webkit-details-marker { display: none; }
 details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell .rs-qchips { margin-top: 4px; }
 .rs-kept { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; } .rs-kept b { color: var(--ok); margin-right: 6px; }
@@ -2168,8 +2158,8 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D), ""),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
-        ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과 — 필요할 때만 펼치기",
-         "탭을 고르고, 칸을 누르면 그 질문만 펼쳐집니다.", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
+        ("s6", "질문별 결과", "78문항 × 4모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
+         "", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
     ]
     scenes = core + detail
     total, n_core = len(scenes), len(core)
@@ -2197,7 +2187,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         return (f'<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
                 f'<title>{E(title)}</title>\n<meta name="description" content="{E(desc)}">\n'
                 '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-                '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600;700&display=swap">\n'
+                '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">\n'
                 f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + FLOW_CSS + chr(10) + logos, inner)}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
 
     main_name = MAIN_NAME
