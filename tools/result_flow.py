@@ -212,7 +212,7 @@ def ai_link(y):
 def flow_svg(n: int, set_ver: str) -> str:
     P: list = []
     y = 8
-    P += pill(CC, y, 340, 42, "시작 · python tools/modelgrade.py")
+    P += pill(CC, y, 340, 42, "시작")   # 사용자 10-22: 명령어는 설명 안 함
     y += 42
     P.append(arrow(CC, y, CC, y + 24))
     y += 26
@@ -347,8 +347,7 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 26
 
     H_y = y
-    parts, H_h, _ = module(y, "H", "결과·보류 추출 — 명령 하나", [
-        ("명령", ["python tools/modelgrade.py report"]),
+    parts, H_h, _ = module(y, "H", "결과 추출", [   # 사용자 10-22: 이름 '결과 추출', 명령 줄 뺌
         ("결과", [f"모델별 완전 통과·FAIL·보류 / {n}", "보고서 · 결과 JSON · 이 결과 요약"]),
     ], "code")
     P += parts
