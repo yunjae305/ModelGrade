@@ -1260,81 +1260,111 @@ def time_spread(D: Dict[str, Any]) -> str:
             f'<h3 class="rs-sh">개선할 곳 — 답변 시간</h3><ul class="lt-finds">{"".join(finds)}</ul>')
 
 
-#: 심판 비교 — 이 실행에서 사람이 보고 적은 판단(누가 맞았나 · 대응 후보). 숫자는 판정 기록에서 다시 센다 (사용자 10-22 미팅 3번).
+#: 심판 비교 — 이 실행에서 갈린 항목의 최종 결론(정의로 다시 묻기 · 수집 오류 고침 · 답 원문으로 확인, 10-22 조사). 숫자는 판정 기록에서 다시 센다.
+#: 값 = (최종 결론과 같은 쪽, 이유) — '수집 오류'는 답을 고친 뒤의 결론이 Jev 1차 판정과 같은 것. 이유 칸(reason)은 Codex 가 다시 봤으면 Codex 의 글이다.
 JD_NOTES: Dict[str, Dict[Tuple[str, int, str], Tuple[str, str]]] = {
     "50ca3ccccace": {
-        ("aiona", 22, "J2-2.a"): ("Jev", "답이 해요체로 존댓말을 지켰습니다. Decisions · Codex 의 FAIL 은 해요체를 반말로 본 것으로, Codex 이유 문장도 '요청을 지켰다'고 씁니다(10-21 사람 점검에서도 오판)."),
-        ("aiona", 28, "J2-2.a"): ("Jev", "Codex 도 PASS — 끝까지 해요체로 존댓말."),
-        ("gpt", 37, "J2-2.a"): ("Jev", "Codex 도 PASS — 끝까지 존댓말."),
-        ("claude", 38, "J1-4.a"): ("Decisions", "Jev 는 이유에 '무관한 안내가 덧붙었다'고 적고도 PASS. 확신이 낮아 Codex 로 넘어가 FAIL 로 잡혔습니다."),
-        ("gpt", 38, "J1-4.a"): ("Decisions", "Jev 이유도 '무관한 문장을 덧붙였다'인데 PASS. 확신이 낮아 Codex 가 FAIL 로 잡았습니다(덧붙은 줄은 수집 때 앱의 제안 버튼 글이 섞인 것)."),
-        ("gpt", 38, "J1-4.b"): ("Jev", "Codex 도 PASS — Decisions 이유도 '반복으로 볼 수 없다'고 씁니다."),
-        ("gemini", 35, "J2-1.a"): ("Decisions", "둘 다 PASS 였지만 Decisions 는 확신이 낮아 Codex 로 넘어갔고, Codex 가 '영어 용어를 설명 없이 씀'으로 FAIL. Jev 는 확신이 높아 Codex 를 건너뛰고 PASS 로 끝났습니다."),
+        ("aiona", 22, "J2-2.a"): ("Jev", "끝까지 해요체로 존댓말. Decisions 는 반말로 봤고, Codex 도 FAIL 이지만 이유 문장은 '해요체라 존댓말이므로 요청을 지켰습니다' — 최종 통과."),
+        ("aiona", 28, "J2-2.a"): ("Jev", "Codex 도 통과 — 끝까지 해요체로 존댓말."),
+        ("gpt", 37, "J2-2.a"): ("Jev", "Codex 도 통과 — 끝까지 존댓말."),
+        ("claude", 38, "J1-4.a"): ("Jev", "덧붙은 날짜 안내를 Codex 가 처음엔 FAIL, 정의(사과문을 보완하는 안내는 불필요한 내용 아님)를 짚어 다시 묻자 통과 — 최종 통과. Jev 는 확신이 낮아(0.52) 규칙대로 Codex 로 넘김."),
+        ("gpt", 38, "J1-4.a"): ("수집 오류", "덧붙은 끝 줄은 ChatGPT 앱의 다음 요청 제안 버튼 글이 수집 때 섞인 것 — 빼고 다시 판정해 통과. Jev 는 확신이 낮아(0.06) Codex 로 넘김."),
+        ("gpt", 38, "J1-4.b"): ("Jev", "Codex 도 통과 — 같은 내용을 반복하지 않음."),
+        ("gemini", 35, "J2-1.a"): ("Jev", "답이 '사전식 정렬(Lexicographical Order): 사전에서 단어를 찾듯이 첫 글자부터…'로 풀어 썼는데 Codex 가 '영어 용어를 설명 없이 씀'으로 FAIL — 최종 통과."),
     },
 }
 #: 기준마다 카드 — (기준 id들, 맞은 쪽, 왜, 대응 후보). 갈린 칸 · 수는 판정 기록에서 다시 센다.
 JD_CARDS: Dict[str, List[Tuple[Tuple[str, ...], str, str, str]]] = {
     "50ca3ccccace": [
-        (("J2-2.a",), "Jev", "Decisions 가 해요체를 반말로 봤습니다.", "Jev 는 그대로 두고, Decisions · Codex 판정문에 '해요체 = 존댓말'을 밝힘"),
-        (("J1-4.a", "J1-4.b"), "Decisions 2 · Jev 1", "Jev 가 이유에 '무관한 문장이 덧붙었다'고 적고도 PASS 를 냈습니다.", "Jev 에 맡기지 않거나 늘 Codex 확인"),
-        (("J2-1.a",), "Decisions", "1차는 둘 다 PASS. Jev 는 확신이 높아 Codex 확인을 건너뛰어, 영어 용어를 설명 없이 쓴 FAIL 을 놓쳤습니다.", "늘 Codex 확인"),
+        (("J2-2.a",), "Jev", "Decisions 가 해요체를 반말로 봤습니다. 판정문에는 10-21 부터 '해요체도 존댓말'이 있는데도 그랬고, Codex 1건은 이유에 '요청을 지켰다'고 쓰고 FAIL.",
+         "이유가 '지켰다'인데 FAIL 인 판정을 잡는 검사(_REASON_SAYS_OK)에 '요청을 지켰' 추가"),
+        (("J1-4.a", "J1-4.b"), "Jev (1건은 수집 오류)", "Jev 는 확신이 낮아 규칙대로 Codex 로 넘겼습니다. Codex 의 FAIL 은 정의를 짚어 다시 묻자 통과, GPT Q38 은 앱 버튼 글이 섞인 수집 오류.",
+         "이미 적용 — J1-4 FAIL 은 정의를 짚어 한 번 더 묻기(10-22), 수집 때 버튼 글 빼기"),
+        (("J2-1.a",), "Jev", "한국어 용어 뒤 괄호에 원어를 적고 바로 풀어 썼는데, Codex 가 '영어 용어를 설명 없이 씀'으로 FAIL.",
+         "J2-1.a 정의에 '한국어 풀이 + 괄호 원어는 설명한 것' 경계를 더함"),
     ],
 }
+#: 예전 실험의 Jev 비교 — (실험, 심판 · 기준, 범위, 비교한 수, 일치, 상대가 FAIL 로 본 것 중 Jev 도 FAIL, 메모).
+#: 10-15 는 참고자료/변경내역/2026-10-15, 10-18 은 참고자료/분석/2026-10-18-질문당기준수/eval326 의 Jev · Luna 판정을 J1~J4 로 다시 셈 (10-22).
+JD_PRIOR: List[Tuple[str, str, str, str, str, str, str]] = [
+    ("10-15 관찰 시험", "Jev ↔ Opus 5.5 · 옛 J1~J4", "단일 10문항 × 4모델", "104", "92%", "—", "불일치 8건 모두 '계약서 없음' 한 질문 → 규칙 고침"),
+    ("10-18 326문항", "Jev ↔ Luna · 옛 J1~J4", "단일 질문", "1,505", "98.5%", "1/17", "갈림이 기준에 흩어짐"),
+    ("10-18 326문항", "Jev ↔ Luna · 옛 J1~J4", "대화 16개", "785", "92.2%", "5/62", "내용 적절성 갈림 18.9% — 지금 대화는 Decisions 가 맡음"),
+]
+#: 10-18 단일 질문에서 Jev 가 0.9 이상 확신으로 통과시켰지만 Luna 의 FAIL 이 맞아 보인 것 (답 원문을 읽고 셈, 10-22)
+JD_PRIOR_MISS = "10-18 실험의 단일 질문에서 Jev 가 0.9 이상 확신으로 통과시킨 것 중 약 6건은 Luna 의 FAIL 이 맞아 보였습니다 — 대부분 질문에 없는 기록 · 위치 · 원인을 지어낸 답."
 
 
-def judge_pairs(D: Dict[str, Any]) -> Tuple[Dict[Tuple[str, int, str, str], Tuple[Dict[str, Any], Dict[str, Any]]], List[Dict[str, Any]], int]:
+def judge_pairs(D: Dict[str, Any]) -> Tuple[Dict[Tuple[str, int, str, str], Tuple[Dict[str, Any], Dict[str, Any]]],
+                                            Dict[Tuple[str, int, str, str], Dict[str, Any]], int, Dict[Tuple[str, int], float]]:
     """(모델, 질문, 턴, 기준) → (Decisions 항목, Jev 항목) — 두 심판이 같은 항목을 각각 '직접' 1차 판정한 기록(질문 세트의 단일 질문은 처음에 Decisions,
     뒤에 Jev 로 다시 판정). 다시 쓴(reused) 줄은 뺀다 — 1차 심판 표시가 'decisions' 여도 앞 Jev 판정을 옮겨 적은 것이라 그대로 세면 100% 일치로 잘못 나온다.
-    함께 돌려줌: Jev 가 직접 판정한 항목 전체 · 다시 쓴 줄 수."""
+    함께 돌려줌: Jev 가 직접 판정한 항목 전체((모델, 질문, 턴, 기준) → 항목) · 다시 쓴 줄 수 · Jev 칸마다 처음 직접 판정 때 Codex 시간(초, Codex 를 안 불렀으면 0)."""
     f = result_file(D["run_id"], "results.jsonl")
     if not f.exists():
-        return {}, [], 0
+        return {}, {}, 0, {}
     rows = sorted((json.loads(x) for x in f.read_text(encoding="utf-8").splitlines() if x.strip()), key=lambda r: r.get("at") or "")
     first: Dict[Tuple[str, int, str, str, str], Dict[str, Any]] = {}
     n_reused = 0
+    codex_s: Dict[Tuple[str, int], float] = {}
     for r in rows:
-        if ((r.get("calls") or {}).get("decisions") or {}).get("reused"):
+        calls = r.get("calls") or {}
+        if (calls.get("decisions") or {}).get("reused"):
             n_reused += 1
             continue
+        fj = (calls.get("decisions") or {}).get("first_judge") or {}
+        if fj and all(v == "jev" for v in fj.values()):
+            cx = calls.get("codex") or {}
+            codex_s.setdefault((r["provider"], int(r["question"])), float(cx.get("seconds") or 0) if cx.get("items") else 0.0)
         for tn, t in (r.get("turn_results") or {}).items():
             for cid, it in (t.get("items") or {}).items():
                 j = it.get("second_judge")
                 if j in ("jev", "decisions") and it.get("jev"):
                     first.setdefault((r["provider"], int(r["question"]), tn, cid, j), it)
     pairs = {k[:4]: (first[k[:4] + ("decisions",)], it) for k, it in first.items() if k[4] == "jev" and k[:4] + ("decisions",) in first}
-    return pairs, [it for k, it in first.items() if k[4] == "jev"], n_reused
+    return pairs, {k[:4]: it for k, it in first.items() if k[4] == "jev"}, n_reused, codex_s
 
 
 def scene_judge_compare(D: Dict[str, Any]) -> Tuple[str, str]:
     """심판 비교 — Jev · Decisions 가 갈린 곳 (사용자 10-22 미팅 3번: '약 90%'와 '나머지 2%'가 섞여 수치가 불확실 — 수치의 함정에 빠지지 말고,
     갈림이 특정 기준에 몰려 있는지 확인. 당장 고치지 않고 확인만). 돌려줌: (장면 HTML, 한 줄 메시지) — 비교할 쌍이 없으면 ("", "")."""
-    pairs, jev_all, n_reused = judge_pairs(D)
+    pairs, jev_by, n_reused, codex_s = judge_pairs(D)
     if not pairs:
         return "", ""
+    jev_all = list(jev_by.values())
     n = len(pairs)
     cells = {(k[0], k[1]) for k in pairs}
     same = sum(1 for d, j in pairs.values() if d["jev"] == j["jev"])
     d_fail = [k for k, (d, j) in pairs.items() if d["jev"] == "FAIL"]
     both_fail = sum(1 for k in d_fail if pairs[k][1]["jev"] == "FAIL")
-    j_fail = [k for k, (d, j) in pairs.items() if j["jev"] == "FAIL"]
-    fin_same = sum(1 for d, j in pairs.values() if d.get("decision") == j.get("decision"))
-    qv = {}
-    for (p, q, _t, _c), (d, j) in pairs.items():
-        a, b = qv.get((p, q), (False, False))
-        qv[(p, q)] = (a or d.get("decision") == "FAIL", b or j.get("decision") == "FAIL")
-    q_same = sum(1 for a, b in qv.values() if a == b)
     sent = [it for it in jev_all if it.get("codex")]
     jev_fail_all = sum(1 for it in jev_all if it["jev"] == "FAIL")
     pct = lambda a, b: f"{a / b * 100:.1f}%" if b else "—"
     n_dis = n - same
     q_n = len({q for _p, q in cells})
-    # ① 숫자 3장 — 겉보기 → FAIL 만 → 최종
+    notes = JD_NOTES.get(D["run_id"], {})
+    # 갈린 사례 — FAIL 이 끼어 1차 판정이나 그 회차 결과가 달라진 항목, 최종 결론은 사람 메모(JD_NOTES)
+    case_keys = [k for k, (d, j) in sorted(pairs.items())
+                 if "FAIL" in (d["jev"], j["jev"], d.get("decision"), j.get("decision")) and not (d["jev"] == j["jev"] and d.get("decision") == j.get("decision"))]
+    judged = [k for k in case_keys if (k[0], k[1], k[3]) in notes]
+    jev_ok = [k for k in judged if notes[(k[0], k[1], k[3])][0] in ("Jev", "수집 오류")]
+    n_coll = sum(1 for k in judged if notes[(k[0], k[1], k[3])][0] == "수집 오류")
+    d_fail_ok = [k for k in d_fail if (k[0], k[1], k[3]) in notes and notes[(k[0], k[1], k[3])][0] in ("Jev", "수집 오류")]
+    jev_skip = [k for k, (d, j) in pairs.items() if not j.get("codex")]
+    audited = [k for k in jev_skip if pairs[k][0].get("codex")]   # Jev 가 넘기지 않았는데 Decisions 경로에서 Codex 가 본 것 — 둘 다 놓친 FAIL 을 볼 수 있는 범위
+    # ① 숫자 3장 — 겉보기 → FAIL 만 → 다시 확인한 결론
     nums = [
         ("겉보기", pct(same, n), "같은 항목의 1차 판정 일치", f"{same}/{n} · 통과 · 해당 없음이 대부분이라 높게 나옴", ""),
-        ("FAIL 만 보면", f"{both_fail}/{len(d_fail)}", "Decisions 가 FAIL 로 본 것 중 Jev 도 FAIL", f"Jev 가 혼자 FAIL 로 본 항목 {len(j_fail)}개", " jd-bad"),
-        ("최종 결과", f"{q_same}/{len(qv)}", "Codex 확인 뒤 질문 결과가 같은 칸", f"항목 단위 최종 판정 일치 {pct(fin_same, n)}", " jd-good"),
-    ]
+        ("FAIL 만 보면", f"{both_fail}/{len(d_fail)}", "Decisions 가 FAIL 로 본 것 중 Jev 도 FAIL",
+         (f"다시 보니 {len(d_fail_ok)}개는 FAIL 이 아니었음" + (f"(수집 오류 {n_coll} 포함)" if n_coll else "")) if notes else "누가 맞았는지는 아래", " jd-warn"),   # 사용자 10-22: 빨강이면 Jev 가 잘못한 것처럼 보임
+    ] + ([("다시 확인한 결론", f"{len(jev_ok)}/{len(case_keys)}", "갈린 항목의 최종 결론이 Jev 1차 판정과 같음",
+           f"사람 확정 아님 · Jev 가 넘기지 않은 {len(jev_skip)}항목 중 Codex 가 본 것 {len(audited)}개({pct(len(audited), len(jev_skip))})", " jd-good")] if len(judged) == len(case_keys) else [])
     num_html = "".join(f'<div class="jd-n{c}"><i>{E(st)}</i><b>{E(v)}</b><span>{E(t)}</span><small>{E(sub)}</small></div>' for st, v, t, sub, c in nums)
+    # 예전 실험과 비교 — '약 90%' 는 어디서
+    prior_rows = [[E(a), E(b), E(c), d, e, f, E(g)] for a, b, c, d, e, f, g in JD_PRIOR]
+    prior_rows.append(['<b>이번 실행</b>', "Jev ↔ Decisions · 44개 항목", f"단일 {q_n}문항 × {len(D['order'])}모델", f"{n:,}", pct(same, n),
+                       f"{both_fail}/{len(d_fail)}", "말투에 몰림 — 틀린 쪽은 Decisions" if notes else ""])
+    prior_tab = table("", ["실험", "심판 · 기준", "범위", "비교한 수", "일치", "상대 FAIL 중 Jev 도 FAIL", "메모"], prior_rows, [13, 19, 14, 9, 7, 13, 25], "jd-t")
     # ② 갈림 칸 — 기준마다 네모 하나 = 갈린 항목 하나 (빨강 = FAIL ↔ 통과, 회색 = 해당 없음 ↔ 적용)
     by: Dict[str, Counter] = defaultdict(Counter)
     for (_p, _q, _t, c), (d, j) in pairs.items():
@@ -1347,11 +1377,7 @@ def scene_judge_compare(D: Dict[str, Any]) -> Tuple[str, str]:
                    f'<span class="jd-bt">{sq(c)}</span>'
                    f'<span class="jd-bv"><b>{by[c]["fail"] + by[c]["na"]}</b><small> / {by[c]["n"]}항목 · {pct(by[c]["fail"] + by[c]["na"], by[c]["n"])}</small></span></div>' for c in dis)
     bars += f'<div class="jd-br jd-rest"><span class="jd-bl">나머지 {len(by) - len(dis)}개 기준</span><span class="jd-bt"></span><span class="jd-bv">갈림 0</span></div>'
-    top_fail = [c for c in dis if by[c]["fail"]]
-    top_names = list(dict.fromkeys(crit_name(D["names"], c) for c in top_fail))
-    # ③ 기준 카드 — 갈린 칸(FAIL 이 끼어 1차나 최종이 달라진 것)은 판정 기록에서, 누가 맞았나 · 왜 · 대응은 이 실행의 사람 메모
-    case_keys = [k for k, (d, j) in sorted(pairs.items())
-                 if "FAIL" in (d["jev"], j["jev"], d.get("decision"), j.get("decision")) and not (d["jev"] == j["jev"] and d.get("decision") == j.get("decision"))]
+    # ③ 기준 카드 — 갈린 칸은 판정 기록에서, 맞은 쪽 · 왜 · 대응은 이 실행의 사람 메모
     cards = ""
     for ids, who, why, act in JD_CARDS.get(D["run_id"], []):
         ks = [k for k in case_keys if k[3] in ids]
@@ -1360,14 +1386,48 @@ def scene_judge_compare(D: Dict[str, Any]) -> Tuple[str, str]:
                   f'<div class="jd-cn"><b>{len(ks)}칸</b> 갈림 {chips}</div>'
                   f'<dl class="jd-dl"><dt>맞은 쪽</dt><dd class="jd-who">{E(who)}</dd><dt>왜</dt><dd>{E(why)}</dd>'
                   f'<dt>대응 후보</dt><dd><b>{E(act)}</b></dd></dl></div>')
-    # ④ 믿을 만한가 — 두 상자
+    # ④ 믿을 만한가 — 두 상자 (비교 표본과 Jev 만 본 단일 질문의 최종 FAIL 칸 — 표본이 쉬운 쪽인지)
+    only_q = sorted({k[1] for k in jev_by} - {q for _p, q in cells})
+    fin_p = [L["verdict"] for (p_, q_), L in D["lines"].items() if q_ in {q for _p, q in cells}]
+    fin_o = [L["verdict"] for (p_, q_), L in D["lines"].items() if q_ in set(only_q)]
+    fp = lambda it: (it.get("decisions_prob") or {}).get("FAIL", 0)
+    sure_miss = sum(1 for it in sent if it.get("codex") == "FAIL" and (it.get("decisions_confidence") or 0) >= 0.9)
+    good_b = (f"갈린 곳에서 Jev 가 놓친 FAIL 은 없었습니다", f"갈린 {len(case_keys)}건 모두 최종 결론이 Jev 판정과 같고, 갈림이 많은 말투는 Decisions 쪽 오판입니다. "
+              "어느 기준도 Jev 에서 뺄 근거는 이번에 없습니다.") if notes and len(jev_ok) == len(case_keys) else \
+             ("최종 결과는 거의 같습니다", "갈린 FAIL 은 Codex 가 다시 봅니다.")
     verdict = ('<div class="jd-v">'
-               f'<div class="jd-vok"><i>믿을 만한 점</i><b>최종 결과는 거의 같습니다</b><p>갈린 FAIL 은 Codex 가 다시 봐서, 질문 결과는 {len(qv)}칸 중 {q_same}칸이 같습니다.</p></div>'
-               f'<div class="jd-vwarn"><i>주의할 점</i><b>Jev 혼자서는 FAIL 을 잡지 못했습니다</b><p>직접 판정 {len(jev_all):,}항목 중 FAIL {jev_fail_all}개 — FAIL 은 모두 확신이 낮아 '
-               f'Codex 로 넘어간 {pct(len(sent), len(jev_all))}에서 나왔습니다. Codex 확인을 줄이면 FAIL 을 놓칩니다.</p></div></div>'
-               f'<p class="rs-basis">참고 — 비교한 질문이 {q_n}개라 기준별 비율은 참고값이고, 누가 맞았는지는 Codex 판정과 심판이 쓴 이유 문장으로 본 것입니다(사람이 정한 정답은 아직 없음).</p>')
+               f'<div class="jd-vok"><i>믿을 만한 점</i><b>{E(good_b[0])}</b><p>{E(good_b[1])}</p></div>'
+               f'<div class="jd-vwarn"><i>주의할 점</i><b>Jev 는 혼자 FAIL 을 내지 않고, 확신이 높으면 다시 보지 않습니다</b>'
+               f'<p>직접 판정 {len(jev_all):,}항목 중 FAIL {jev_fail_all}개 — FAIL 은 모두 Codex 로 넘어간 {pct(len(sent), len(jev_all))}에서 나왔고, '
+               + (f"그중 {sure_miss}개(사실 확인 — 늘 Codex)는 Jev 가 0.9 이상 확신한 통과였습니다. " if sure_miss else "")
+               + f'{E(JD_PRIOR_MISS)}</p>'
+               + (f'<p>비교한 {q_n}문항은 최종 FAIL 이 {fin_p.count("FAIL")}/{len(fin_p)}칸으로 Jev 만 본 나머지 {len(only_q)}문항({fin_o.count("FAIL")}/{len(fin_o)}칸)보다 적어, '
+                  "진짜 FAIL 답에서 두 심판을 견준 경우가 거의 없고 둘 다 놓친 FAIL 은 이 자료로 보이지 않습니다.</p>" if fin_o else "")
+               + '</div></div>'
+               f'<p class="rs-basis">참고 — 이번 비교는 단일 질문 {q_n}개이고, 최종 결론은 Codex · 정의로 다시 묻기 · 답 원문으로 본 것입니다(사람이 정한 정답은 아직 없음).</p>')
+    # ⑤ 대응 후보 — 더 드는 Codex 시간은 이번 실행 기준(Codex 는 구독이라 돈은 들지 않음)
+    cx_on = [s_ for s_ in codex_s.values() if s_]
+    cx_med = statistics.median(cx_on) if cx_on else 0
+    no_cx = [c for c, s_ in codex_s.items() if not s_]
+    near = {k: it for k, it in jev_by.items() if not it.get("codex") and 0.15 <= fp(it) < 0.3}   # 넘기는 문턱 0.3 = tools/judge_v4.SCREEN_FAIL_PROB
+    near_new = {(k[0], k[1]) for k in near} & set(no_cx)
+    audit = max(1, round(len(no_cx) * 0.1))
+    # 확신도 = (선택지 수 × 1위 확률 − 1) / (선택지 수 − 1) (심판 API 값, 10-22 판정 기록으로 확인) — 확신 0.7 미만은 2지선다면 1위 확률 0.85 미만,
+    # 해당 없음까지 3지선다면 0.80 미만이라, 같은 통과 확률이라도 항목에 따라 Codex 로 가거나 안 감
+    gap = {k: it for k, it in jev_by.items() if not it.get("codex") and len(it.get("decisions_prob") or {}) == 3 and it["jev"] != "NOT_APPLICABLE"
+           and max((it.get("decisions_prob") or {}).values()) < 0.85}
+    gap_new = {(k[0], k[1]) for k in gap} & set(no_cx)
+    act_rows = [
+        ["확신 문턱을 선택지 수와 상관없이 같게 — 1위 확률 0.85 미만이면 Codex 로", "같은 통과 0.81 이 2지선다 항목은 넘어가고 3지선다 항목은 안 넘어감(Gemini Q35)",
+         f"+{len(gap)}항목 · Codex 새로 {len(gap_new)}칸(약 {fmt_s(len(gap_new) * cx_med)})"],
+        ["Codex 로 넘기는 FAIL 확률 문턱 0.3 → 0.15", "문턱 바로 아래 통과(Gemini Q35 는 0.17)", f"+{len(near)}항목 · Codex 새로 {len(near_new)}칸(약 {fmt_s(len(near_new) * cx_med)})"],
+        [f"Codex 를 안 부른 Jev 칸 {len(no_cx)}개 중 10%를 골라 Codex 로도", "확신 높은 통과의 놓침 비율을 실행마다 잼", f"+약 {audit}칸(약 {fmt_s(audit * cx_med)})"],
+        ["판정문 · 검사 보완 — 위 카드의 말투 · 용어 두 가지", "Decisions · Codex 의 말투 · 용어 오판", "시간 그대로"],
+        [f"사람 정답 — 갈린 {len(case_keys)}건 + 문턱 근처 {len(near)}항목", "Codex 를 정답처럼 쓰는 것", f"사람 검토 {len(case_keys) + len(near)}항목"],
+        ["(참고) Jev 칸 전부 Codex 로도 — 'J1-4 늘 Codex' 와 같은 효과", "이번엔 근거 없음", f"+{len(no_cx)}칸(Codex 시간 합 약 {fmt_s(len(no_cx) * cx_med)})"],
+    ]
+    act_tab = table("", ["후보", "무엇을 막나", "더 드는 것 (이번 실행 기준)"], act_rows, [44, 28, 28], "jd-t")
     # 자세히 (접힘) — 기준 표 · 갈린 사례 표 · 센 방법
-    notes = JD_NOTES.get(D["run_id"], {})
     lab = {"PASS": "통과", "FAIL": "FAIL", "NOT_APPLICABLE": "해당 없음", "UNVERIFIED": "보류"}
 
     def side(it: Dict[str, Any]) -> str:
@@ -1380,24 +1440,28 @@ def scene_judge_compare(D: Dict[str, Any]) -> Tuple[str, str]:
                  for c in sorted(by, key=lambda c: (-(by[c]["fail"] + by[c]["na"]), -by[c]["fail"], c))]
     crit_tab = table("", ["기준", "비교한 항목", "FAIL ↔ 통과", "해당 없음 ↔ 적용", "갈림 비율"], crit_rows, [44, 14, 14, 14, 14], "jd-t")
     case_rows = [[f'{mname(k[0])} · Q{k[1]}', f'{E(crit_name(D["names"], k[3]))} <span class="rs-id">{E(k[3])}</span>', side(pairs[k][0]), side(pairs[k][1]),
-                  (lambda w: f'<b>{E(w[0])} 쪽</b> — {E(w[1])}' if w[0] else '<span class="muted">사람 판단 없음</span>')(notes.get((k[0], k[1], k[3]), ("", "")))]
+                  (lambda w: f'<b>{E(w[0])}{" 쪽" if w[0] in ("Jev", "Decisions") else ""}</b> — {E(w[1])}' if w[0] else '<span class="muted">사람 판단 없음</span>')(notes.get((k[0], k[1], k[3]), ("", "")))]
                  for k in case_keys]
-    case_tab = table("", ["칸", "기준", "Decisions 1차 → 최종", "Jev 1차 → 최종", "누가 맞았나"], case_rows, [11, 17, 17, 17, 38], "jd-t") if case_rows else ""
+    case_tab = table("", ["칸", "기준", "Decisions 1차 → 그 회차 결과", "Jev 1차 → 그 회차 결과", "최종 결론과 같은 쪽"], case_rows, [11, 17, 17, 17, 38], "jd-t") if case_rows else ""
     more = (f'<details class="rs-d jd-more"><summary>자세히 — 기준 {len(by)}개 표 · 갈린 사례 {len(case_rows)}칸 · 센 방법</summary>'
             f'<h4>기준별 갈림</h4>{crit_tab}' + (f'<h4>갈린 사례 — FAIL 이 낀 것</h4>{case_tab}' if case_tab else "")
             + f'<h4>센 방법</h4><p class="rs-basis">단일 질문 {q_n}개 × {len(D["order"])}모델 = {len(cells)}칸은 처음에 Decisions 가 1차 판정했다가 Jev 로 다시 판정해, '
             f'같은 답 · 같은 기준을 두 심판이 따로 본 기록이 {n}항목 남아 있습니다. 판정 기록의 다시 쓴 줄 {n_reused}개는 1차 심판이 \'decisions\' 로 표시돼도 '
-            "앞 Jev 판정을 옮겨 적은 것이라 뺐습니다(그대로 세면 100% 일치로 잘못 나옴). 숫자 옆 작은 수는 심판의 확신도입니다.</p></details>")
+            "앞 Jev 판정을 옮겨 적은 것이라 뺐습니다(그대로 세면 100% 일치로 잘못 나옴). 숫자 옆 작은 수는 심판의 확신도, '그 회차 결과'는 그 판정 때 Codex 까지 본 결과입니다 — "
+            "뒤에 정의로 다시 묻기 · 수집 오류 고침으로 바뀐 것은 마지막 칸에 적었습니다. Codex 로 넘어간 항목의 이유 칸은 Codex 가 쓴 글이라, 1차 심판의 이유는 남지 않습니다.</p></details>")
     html_ = (f'<h3 class="rs-sh">일치율 — 무엇을 세느냐에 따라 다릅니다</h3><div class="jd-nums">{num_html}</div>'
-             f'<p class="rs-basis">"약 90%"는 기록의 어느 단위와도 맞지 않고, "2%"는 1차 판정이 갈린 비율({n_dis}개, {pct(n_dis, n)})입니다.</p>'
+             f'<h3 class="rs-sh">"약 90%"는 어디서 — 예전 실험과 비교</h3>{prior_tab}'
+             f'<p class="rs-basis">"약 90%"는 10-15(92%) · 10-18 턴 단위(93.7%) 같은 예전 실험 숫자로 보이고, "2%"는 이번 실행의 항목 갈림({n_dis}개, {pct(n_dis, n)})입니다 — '
+             '심판 · 기준판 · 세는 단위가 다른 숫자가 섞였습니다. 어느 실험이든 겉보기 일치는 높고, 상대가 FAIL 로 본 것을 Jev 가 같이 잡은 경우는 드뭅니다.</p>'
              f'<h3 class="rs-sh">갈림이 몰린 기준</h3>'
              '<div class="jd-key"><span><i class="jd-f"></i>FAIL ↔ 통과 — 결과에 영향</span><span><i class="jd-a"></i>해당 없음 ↔ 적용 — 영향 없음</span>'
              '<span>네모 하나 = 갈린 항목 하나</span></div>'
              f'<div class="jd-bars" style="--sq:{max((by[c]["fail"] + by[c]["na"] for c in dis), default=1)}">{bars}</div>'
-             + (f'<h3 class="rs-sh">기준마다 — 누가 맞았나 · 대응 후보 <small class="muted">지금은 바꾸지 않음</small></h3><div class="jd-cards">{cards}</div>' if cards else "")
-             + f'<h3 class="rs-sh">믿을 만한가</h3>{verdict}{more}')
-    key = (f"1차 판정은 {pct(same, n)} 같지만 FAIL 은 같이 잡지 못했습니다({both_fail}/{len(d_fail)}) — 갈림은 "
-           f"{' · '.join(top_names)} {'두' if len(top_names) == 2 else len(top_names)} 기준에 몰려 있습니다." if len(top_names) > 1 else
+             + (f'<h3 class="rs-sh">기준마다 — 누가 맞았나 <small class="muted">최종 결론으로 다시 확인</small></h3><div class="jd-cards">{cards}</div>' if cards else "")
+             + f'<h3 class="rs-sh">믿을 만한가</h3>{verdict}'
+             + f'<h3 class="rs-sh">대응 후보 <small class="muted">지금은 바꾸지 않음</small></h3>{act_tab}{more}')
+    key = (f"1차 판정은 {pct(same, n)} 같지만 FAIL 은 같이 잡지 못했습니다({both_fail}/{len(d_fail)}) — 다시 확인하니 갈린 {len(case_keys)}건 모두 "
+           "최종 결론이 Jev 판정과 같았습니다" + (f"(수집 오류 {n_coll}건 포함 · 사람이 정한 정답은 아직 없음)." if n_coll else "(사람이 정한 정답은 아직 없음).") if notes and len(jev_ok) == len(case_keys) else
            f"1차 판정은 {pct(same, n)} 같지만 FAIL 은 같이 잡지 못했습니다({both_fail}/{len(d_fail)}).")
     return html_, key
 
@@ -2680,7 +2744,7 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 .jd-n { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .jd-n i { font-style: normal; font-size: 0.74rem; font-weight: 700; color: var(--muted); }
 .jd-n b { font-family: var(--font-num); font-size: 1.9rem; line-height: 1.15; } .jd-n span { font-size: 0.9rem; font-weight: 600; } .jd-n small { font-size: 0.76rem; color: var(--muted); }
-.jd-n.jd-bad { border-color: var(--risk); } .jd-n.jd-bad b { color: var(--risk); } .jd-n.jd-good b { color: var(--ok); }
+.jd-n.jd-warn { border-color: var(--warn); } .jd-n.jd-warn b { color: var(--warn); } .jd-n.jd-good b { color: var(--ok); }
 .jd-key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.8rem; color: var(--muted); margin: 0 0 8px; } .jd-key span { display: inline-flex; align-items: center; gap: 6px; }
 .jd-f, .jd-a { display: inline-block; width: 16px; height: 16px; border-radius: 4px; } .jd-f { background: var(--risk); } .jd-a { background: color-mix(in srgb, var(--muted) 45%, var(--surface)); }
 .jd-bars { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 16px; display: grid; }
@@ -2892,7 +2956,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     jd_html, jd_key = scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
         detail.append(("s_jd", "심판 비교", "Jev · Decisions 갈림", "심판 비교 — Jev 와 Decisions 가 갈린 곳",
-                       "같은 답을 두 심판이 따로 판정한 기록으로, 갈림이 어느 기준에 몰렸고 누가 맞았는지 봤습니다. 확인만 하고 판정 방식은 바꾸지 않았습니다.",
+                       "같은 답을 두 심판이 따로 판정한 기록과 예전 실험으로, 갈림이 어느 기준에 몰렸고 최종 결론에서 누가 맞았는지 봤습니다. 확인만 하고 판정 방식은 바꾸지 않았습니다.",
                        jd_html, jd_key))
     scenes = core + detail
     total, n_core = len(scenes), len(core)
