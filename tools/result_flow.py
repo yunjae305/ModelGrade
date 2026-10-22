@@ -284,19 +284,9 @@ def flow_svg(n: int, set_ver: str) -> str:
     P += [rect(CC - 170, y, 340, 40, "pr", 8), text(CC, y + 25, "판정 — 질문 하나씩 · 네 모델 동시", "prt", 14, 316, "middle")]
     y += 40
 
-    # 분기 2 — 빈 답을 요구하는 질문인가?
-    P.append(arrow(DX, y, DX, y + 22))
-    y += 22
-    cy2 = y + 32
-    P += diamond(DX, cy2, 210, 64, ["빈 답을 요구하는", "질문인가?"])
-    # empty-output-v7 (사용자 10-22 "빈출력 질문은 다 보류" · tools/judge_inputs.empty_output_entry): 무엇이 보였는지만 적고 모두 보류
-    parts, s2_h = side(cy2 - 33, ["모두 보류", "심판 없이 사람이 정함", "참고로 답 모양 기록:", "글 · 빈 답 · 오류"])   # 사용자 10-22: 기록은 판정이 아님이 보이게
-    P += parts
-    P += [path(f"M{DX + 105},{cy2:g} L{SX - 2},{cy2:g}"), lab(DX + 112, cy2 - 7, "예")]
-    y = cy2 + 32
-    e_top = max(y + 26, cy2 - 33 + s2_h + 10)   # 결과 칸이 길면 E 단계를 그만큼 아래로
-    P += [arrow(DX, y, DX, e_top - 2), lab(DX + 7, y + 16, "아니오")]
-    y = e_top
+    # 빈 출력 요구 분기는 그리지 않음 (10-22 미팅: 여러 예외 처리 중 하나라 흐름도에서는 노이즈 — 판정 규칙 표에는 남김)
+    P.append(arrow(CC, y, CC, y + 24))
+    y += 26
 
     # E — LLM Judge 심판 셋 (사용자 10-21 저녁): 짧은 입력(32K 토큰 이하)은 Jev · 긴 입력은 Decisions API · Decisions FAIL 만 Codex
     E_y = y
@@ -338,9 +328,9 @@ def flow_svg(n: int, set_ver: str) -> str:
         ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "모든 기준 통과 → 완전 통과"]),
     ], "code")
     P += parts
-    # 분기 결과 칸 두 개는 오른쪽 통로로 모여 G 로 바로 간다
+    # 분기 결과 칸(답을 못 받음 등)은 오른쪽 통로로 G 로 바로 간다
     P += [path(f"M{CR},{cy1:g} L{LANE_R},{cy1:g} L{LANE_R},{G_y + 24} L{CR + 2},{G_y + 24}"),
-          path(f"M{CR},{cy2:g} L{LANE_R},{cy2:g}", marker=None), lab(LANE_R + 6, G_y + 28, "바로 G 로")]
+          lab(LANE_R + 6, G_y + 28, "바로 G 로")]
     y += G_h
     P.append(arrow(CC, y, CC, y + 24))
     y += 26

@@ -1307,7 +1307,7 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 
 <section class="slide" id="s_map">
   <div class="s-head"><span class="s-no">04 / 15</span><h2>전체 흐름도</h2><p class="s-key">질문 세트부터 보고서까지 명령 하나로 돌고, AI 가 끼는 단계는 답변 수집(B)⁠과 LLM Judge(E) 두 곳입니다.</p><p>질문 78개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.</p></div>
-<figure class="poster"><span class="poster-sub">질문 78개 · 모델 4개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI</span><div class="poster-grid"><svg class="pflow pflow-svg" viewBox="0 0 914 1789" role="img" aria-label="전체 흐름도 — 질문 세트에서 결과까지 A부터 H, 분기·AI 호출·파일 표시"><defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pah"/></marker><marker id="paw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahw"/></marker><marker id="paf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahf"/></marker></defs>
+<figure class="poster"><span class="poster-sub">질문 78개 · 모델 4개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI</span><div class="poster-grid"><svg class="pflow pflow-svg" viewBox="0 0 914 1700" role="img" aria-label="전체 흐름도 — 질문 세트에서 결과까지 A부터 H, 분기·AI 호출·파일 표시"><defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pah"/></marker><marker id="paw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahw"/></marker><marker id="paf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pahf"/></marker></defs>
 <rect class="pp" x="274" y="8" width="340" height="42" rx="21"/>
 <text class="ppt" x="444" y="34" text-anchor="middle">시작</text>
 <path class="pc " d="M444,50 L444,74" marker-end="url(#pa)"/>
@@ -1386,117 +1386,104 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 <path class="pc " d="M444,727 L444,751" marker-end="url(#pa)"/>
 <rect class="pr" x="274" y="753" width="340" height="40" rx="8"/>
 <text class="prt" x="444" y="778" text-anchor="middle">판정 — 질문 하나씩 · 네 모델 동시</text>
-<path class="pc " d="M364,793 L364,815" marker-end="url(#pa)"/>
-<polygon class="pd" points="364,815 469,847 364,879 259,847"/>
-<text class="pdt" x="364" y="843" text-anchor="middle">빈 답을 요구하는</text>
-<text class="pdt" x="364" y="861" text-anchor="middle">질문인가?</text>
-<rect class="px" x="502" y="814" width="158" height="84" rx="8"/>
-<text class="pxt" x="514" y="833">모두 보류</text>
-<text class="pxt" x="514" y="851">심판 없이 사람이 정함</text>
-<text class="pxt" x="514" y="869">참고로 답 모양 기록:</text>
-<text class="pxt" x="514" y="887">글 · 빈 답 · 오류</text>
-<path class="pc " d="M469,847 L500,847" marker-end="url(#pa)"/>
-<text class="plab" x="476" y="840">예</text>
-<path class="pc " d="M364,879 L364,906" marker-end="url(#pa)"/>
-<text class="plab" x="371" y="895">아니오</text>
-<rect class="pm ai" x="228" y="908" width="432" height="268" rx="10"/>
-<text class="pml ai" x="244" y="934">E</text>
-<text class="pmt" x="270" y="934">LLM Judge — 44개, 심판 셋</text>
-<rect class="pb" x="240" y="948" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="968">입력</text>
-<text class="pbt" x="332" y="968">판정 프롬프트 + 질문·답변 JSON</text>
-<text class="pbt" x="332" y="987">모델 이름 숨김 (블라인드)</text>
-<rect class="pb" x="240" y="1004" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1024">심판 1</text>
-<text class="pbt" x="332" y="1024">3만 2천 토큰 이하 · 첨부 없음</text>
-<text class="pbt" x="332" y="1043">Jev 가 판정</text>
-<rect class="pb" x="240" y="1060" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1080">심판 2</text>
-<text class="pbt" x="332" y="1080">그 밖(긴 것 · 첨부)</text>
-<text class="pbt" x="332" y="1099">Decisions API 가 판정</text>
-<rect class="pb" x="240" y="1116" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1136">심판 3</text>
-<text class="pbt" x="332" y="1136">1차가 FAIL · 애매로 본 항목만</text>
-<text class="pbt" x="332" y="1155">Codex 가 다시 판정 · 원문 인용</text>
-<rect class="pai" x="702" y="1003" width="212" height="52" rx="10"/>
-<text class="pait" x="714" y="1025">AI · 심판 1 — Jev</text>
-<text class="paiT" x="714" y="1045">외부 API (TypeSafe)</text>
-<path class="pc ai" d="M662,1029 L700,1029" marker-end="url(#paw)" marker-start="url(#paw)"/>
-<rect class="pai" x="702" y="1059" width="212" height="52" rx="10"/>
-<text class="pait" x="714" y="1081">AI · 심판 2 — Decisions</text>
-<text class="paiT" x="714" y="1101">GPT-6 Luna · OpenAI API</text>
-<path class="pc ai" d="M662,1085 L700,1085" marker-end="url(#paw)" marker-start="url(#paw)"/>
-<rect class="pai" x="702" y="1115" width="212" height="52" rx="10"/>
-<text class="pait" x="714" y="1137">AI · 심판 3 — Codex CLI</text>
-<text class="paiT" x="714" y="1157">GPT-6 Luna · low · 구독</text>
-<path class="pc ai" d="M662,1141 L700,1141" marker-end="url(#paw)" marker-start="url(#paw)"/>
-<path class="pf" d="M24,918 H186 L200,932 V984 H24 Z"/>
-<path class="pf" d="M186,918 V932 H200"/>
-<text class="pft" x="34" y="939">판정 프롬프트</text>
-<text class="pfl" x="34" y="957">모든 질문에 같은 기준 글</text>
-<text class="pfl" x="34" y="974">Jev 용은 질문 목록 꼴</text>
-<path class="pc file" d="M200,944 H212 V960 H226" marker-end="url(#paf)"/>
-<path class="pf" d="M24,996 H186 L200,1010 V1062 H24 Z"/>
-<path class="pf" d="M186,996 V1010 H200"/>
-<text class="pft" x="34" y="1017">질문·답변 JSON</text>
-<text class="pfl" x="34" y="1035">C 에서 확인한 질문 · 답</text>
-<text class="pfl" x="34" y="1052">질문 하나씩 심판에게</text>
-<path class="pc file" d="M200,1022 H212 V978 H226" marker-end="url(#paf)"/>
-<path class="pc " d="M444,1176 L444,1200" marker-end="url(#pa)"/>
-<rect class="pm code" x="228" y="1202" width="432" height="156" rx="10"/>
-<text class="pml code" x="244" y="1228">F</text>
-<text class="pmt" x="270" y="1228">합치기·보류 — 규칙, 코드</text>
-<rect class="pb" x="240" y="1242" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1262">확정</text>
-<text class="pbt" x="332" y="1262">Codex 가 본 항목 → Codex 판정대로</text>
-<text class="pbt" x="332" y="1281">나머지 → Jev · Decisions 판정대로</text>
-<rect class="pb" x="240" y="1298" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1318">보류</text>
-<text class="pbt" x="332" y="1318">Codex 확인 못 함 · 인용이 원문에 없음</text>
-<text class="pbt" x="332" y="1337">Codex 판정 없음 + 1차 FAIL</text>
-<path class="pc " d="M444,1358 L444,1382" marker-end="url(#pa)"/>
-<rect class="pm code" x="228" y="1384" width="432" height="119" rx="10"/>
-<text class="pml code" x="244" y="1410">G</text>
-<text class="pmt" x="270" y="1410">질문 단위 판정 — 코드</text>
-<rect class="pb" x="240" y="1424" width="408" height="69" rx="6"/>
-<text class="pbl" x="252" y="1444">판정</text>
-<text class="pbt" x="332" y="1444">보류 하나라도 → 보류 (보류 우선)</text>
-<text class="pbt" x="332" y="1463">아니면 FAIL 하나라도 → FAIL</text>
-<text class="pbt" x="332" y="1482">모든 기준 통과 → 완전 통과</text>
-<path class="pc " d="M660,409 L681,409 L681,1408 L662,1408" marker-end="url(#pa)"/>
-<path class="pc " d="M660,847 L681,847"/>
-<text class="plab" x="687" y="1412">바로 G 로</text>
-<path class="pc " d="M444,1503 L444,1527" marker-end="url(#pa)"/>
-<rect class="pm code" x="228" y="1529" width="432" height="100" rx="10"/>
-<text class="pml code" x="244" y="1555">H</text>
-<text class="pmt" x="270" y="1555">결과 추출</text>
-<rect class="pb" x="240" y="1569" width="408" height="50" rx="6"/>
-<text class="pbl" x="252" y="1589">결과</text>
-<text class="pbt" x="332" y="1589">모델별 완전 통과·FAIL·보류 / 78</text>
-<text class="pbt" x="332" y="1608">보고서 · 결과 JSON · 이 결과 요약</text>
-<path class="pf" d="M24,1394 H186 L200,1408 V1460 H24 Z"/>
-<path class="pf" d="M186,1394 V1408 H200"/>
-<text class="pft" x="34" y="1415">판정 결과</text>
-<text class="pfl" x="34" y="1433">질문별 판정 · 시간</text>
-<text class="pfl" x="34" y="1450">report.html</text>
-<path class="pc file" d="M228,1242 H212 V1410 H202" marker-end="url(#paf)"/>
-<path class="pc file" d="M228,1434 H212 V1434 H202" marker-end="url(#paf)"/>
-<path class="pc file" d="M228,1555 H212 V1448 H202" marker-end="url(#paf)"/>
-<path class="pf" d="M24,1599 H186 L200,1613 V1665 H24 Z"/>
-<path class="pf" d="M186,1599 V1613 H200"/>
-<text class="pft" x="34" y="1620">결과 JSON</text>
-<text class="pfl" x="34" y="1638">저장소에 보관</text>
-<text class="pfl" x="34" y="1655">다른 PC 에서도 봄</text>
-<path class="pc file" d="M228,1629 H212 V1629 H202" marker-end="url(#paf)"/>
-<path class="pc " d="M444,1629 L444,1651" marker-end="url(#pa)"/>
-<polygon class="pd" points="444,1651 544,1681 444,1711 344,1681"/>
-<text class="pdt" x="444" y="1686" text-anchor="middle">남은 질문이 있나?</text>
-<path class="pc " d="M344,1681 L8,1681 L8,773 L272,773" marker-end="url(#pa)"/>
-<text class="plab" x="338" y="1674" text-anchor="end">예 — 다음 질문</text>
-<path class="pc " d="M444,1711 L444,1735" marker-end="url(#pa)"/>
-<text class="plab" x="451" y="1727">아니오</text>
-<rect class="pp" x="274" y="1737" width="340" height="42" rx="21"/>
-<text class="ppt" x="444" y="1763" text-anchor="middle">끝 · 보류는 사람이 정함</text>
+<path class="pc " d="M444,793 L444,817" marker-end="url(#pa)"/>
+<rect class="pm ai" x="228" y="819" width="432" height="268" rx="10"/>
+<text class="pml ai" x="244" y="845">E</text>
+<text class="pmt" x="270" y="845">LLM Judge — 44개, 심판 셋</text>
+<rect class="pb" x="240" y="859" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="879">입력</text>
+<text class="pbt" x="332" y="879">판정 프롬프트 + 질문·답변 JSON</text>
+<text class="pbt" x="332" y="898">모델 이름 숨김 (블라인드)</text>
+<rect class="pb" x="240" y="915" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="935">심판 1</text>
+<text class="pbt" x="332" y="935">3만 2천 토큰 이하 · 첨부 없음</text>
+<text class="pbt" x="332" y="954">Jev 가 판정</text>
+<rect class="pb" x="240" y="971" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="991">심판 2</text>
+<text class="pbt" x="332" y="991">그 밖(긴 것 · 첨부)</text>
+<text class="pbt" x="332" y="1010">Decisions API 가 판정</text>
+<rect class="pb" x="240" y="1027" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1047">심판 3</text>
+<text class="pbt" x="332" y="1047">1차가 FAIL · 애매로 본 항목만</text>
+<text class="pbt" x="332" y="1066">Codex 가 다시 판정 · 원문 인용</text>
+<rect class="pai" x="702" y="914" width="212" height="52" rx="10"/>
+<text class="pait" x="714" y="936">AI · 심판 1 — Jev</text>
+<text class="paiT" x="714" y="956">외부 API (TypeSafe)</text>
+<path class="pc ai" d="M662,940 L700,940" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<rect class="pai" x="702" y="970" width="212" height="52" rx="10"/>
+<text class="pait" x="714" y="992">AI · 심판 2 — Decisions</text>
+<text class="paiT" x="714" y="1012">GPT-6 Luna · OpenAI API</text>
+<path class="pc ai" d="M662,996 L700,996" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<rect class="pai" x="702" y="1026" width="212" height="52" rx="10"/>
+<text class="pait" x="714" y="1048">AI · 심판 3 — Codex CLI</text>
+<text class="paiT" x="714" y="1068">GPT-6 Luna · low · 구독</text>
+<path class="pc ai" d="M662,1052 L700,1052" marker-end="url(#paw)" marker-start="url(#paw)"/>
+<path class="pf" d="M24,829 H186 L200,843 V895 H24 Z"/>
+<path class="pf" d="M186,829 V843 H200"/>
+<text class="pft" x="34" y="850">판정 프롬프트</text>
+<text class="pfl" x="34" y="868">모든 질문에 같은 기준 글</text>
+<text class="pfl" x="34" y="885">Jev 용은 질문 목록 꼴</text>
+<path class="pc file" d="M200,855 H212 V871 H226" marker-end="url(#paf)"/>
+<path class="pf" d="M24,907 H186 L200,921 V973 H24 Z"/>
+<path class="pf" d="M186,907 V921 H200"/>
+<text class="pft" x="34" y="928">질문·답변 JSON</text>
+<text class="pfl" x="34" y="946">C 에서 확인한 질문 · 답</text>
+<text class="pfl" x="34" y="963">질문 하나씩 심판에게</text>
+<path class="pc file" d="M200,933 H212 V889 H226" marker-end="url(#paf)"/>
+<path class="pc " d="M444,1087 L444,1111" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1113" width="432" height="156" rx="10"/>
+<text class="pml code" x="244" y="1139">F</text>
+<text class="pmt" x="270" y="1139">합치기·보류 — 규칙, 코드</text>
+<rect class="pb" x="240" y="1153" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1173">확정</text>
+<text class="pbt" x="332" y="1173">Codex 가 본 항목 → Codex 판정대로</text>
+<text class="pbt" x="332" y="1192">나머지 → Jev · Decisions 판정대로</text>
+<rect class="pb" x="240" y="1209" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1229">보류</text>
+<text class="pbt" x="332" y="1229">Codex 확인 못 함 · 인용이 원문에 없음</text>
+<text class="pbt" x="332" y="1248">Codex 판정 없음 + 1차 FAIL</text>
+<path class="pc " d="M444,1269 L444,1293" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1295" width="432" height="119" rx="10"/>
+<text class="pml code" x="244" y="1321">G</text>
+<text class="pmt" x="270" y="1321">질문 단위 판정 — 코드</text>
+<rect class="pb" x="240" y="1335" width="408" height="69" rx="6"/>
+<text class="pbl" x="252" y="1355">판정</text>
+<text class="pbt" x="332" y="1355">보류 하나라도 → 보류 (보류 우선)</text>
+<text class="pbt" x="332" y="1374">아니면 FAIL 하나라도 → FAIL</text>
+<text class="pbt" x="332" y="1393">모든 기준 통과 → 완전 통과</text>
+<path class="pc " d="M660,409 L681,409 L681,1319 L662,1319" marker-end="url(#pa)"/>
+<text class="plab" x="687" y="1323">바로 G 로</text>
+<path class="pc " d="M444,1414 L444,1438" marker-end="url(#pa)"/>
+<rect class="pm code" x="228" y="1440" width="432" height="100" rx="10"/>
+<text class="pml code" x="244" y="1466">H</text>
+<text class="pmt" x="270" y="1466">결과 추출</text>
+<rect class="pb" x="240" y="1480" width="408" height="50" rx="6"/>
+<text class="pbl" x="252" y="1500">결과</text>
+<text class="pbt" x="332" y="1500">모델별 완전 통과·FAIL·보류 / 78</text>
+<text class="pbt" x="332" y="1519">보고서 · 결과 JSON · 이 결과 요약</text>
+<path class="pf" d="M24,1305 H186 L200,1319 V1371 H24 Z"/>
+<path class="pf" d="M186,1305 V1319 H200"/>
+<text class="pft" x="34" y="1326">판정 결과</text>
+<text class="pfl" x="34" y="1344">질문별 판정 · 시간</text>
+<text class="pfl" x="34" y="1361">report.html</text>
+<path class="pc file" d="M228,1153 H212 V1321 H202" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,1345 H212 V1345 H202" marker-end="url(#paf)"/>
+<path class="pc file" d="M228,1466 H212 V1359 H202" marker-end="url(#paf)"/>
+<path class="pf" d="M24,1510 H186 L200,1524 V1576 H24 Z"/>
+<path class="pf" d="M186,1510 V1524 H200"/>
+<text class="pft" x="34" y="1531">결과 JSON</text>
+<text class="pfl" x="34" y="1549">저장소에 보관</text>
+<text class="pfl" x="34" y="1566">다른 PC 에서도 봄</text>
+<path class="pc file" d="M228,1540 H212 V1540 H202" marker-end="url(#paf)"/>
+<path class="pc " d="M444,1540 L444,1562" marker-end="url(#pa)"/>
+<polygon class="pd" points="444,1562 544,1592 444,1622 344,1592"/>
+<text class="pdt" x="444" y="1597" text-anchor="middle">남은 질문이 있나?</text>
+<path class="pc " d="M344,1592 L8,1592 L8,773 L272,773" marker-end="url(#pa)"/>
+<text class="plab" x="338" y="1585" text-anchor="end">예 — 다음 질문</text>
+<path class="pc " d="M444,1622 L444,1646" marker-end="url(#pa)"/>
+<text class="plab" x="451" y="1638">아니오</text>
+<rect class="pp" x="274" y="1648" width="340" height="42" rx="21"/>
+<text class="ppt" x="444" y="1674" text-anchor="middle">끝 · 보류는 사람이 정함</text>
 </svg><aside class="pside" aria-label="흐름도 요약"><div class="pcard ai"><h4>누가 하나</h4><table class="ptab"><thead><tr><th>단계</th><th>누가</th></tr></thead><tbody><tr><td>A·C·D·F·G·H</td><td>코드 (정해진 규칙)</td></tr><tr><td>B 답변 수집</td><td>답하는 모델 4개 — 앱·웹 자동 조작</td></tr><tr><td>E LLM Judge</td><td>심판 3개 — Jev(API) · Decisions(API) · Codex(구독)</td></tr><tr><td>보류 정리</td><td>사람</td></tr></tbody></table></div><div class="pcard "><h4>판정 규칙</h4><table class="ptab"><thead><tr><th>상황</th><th>결과</th></tr></thead><tbody><tr><td>CODE 검사 FAIL</td><td><span class="r-fail">FAIL</span></td></tr><tr><td>답을 못 받음 (모델 오류 · 끝나지 않음)</td><td><span class="r-fail">FAIL</span></td></tr><tr><td>재시도 대상(복사 실패) · 빈 답</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr><tr><td>빈 출력 요구(글 · 빈 답 · 오류 모두)</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr><tr><td>Codex FAIL</td><td><span class="r-fail">FAIL</span></td></tr><tr><td>1차 FAIL + Codex 통과</td><td>Codex 의 판정을 따름</td></tr><tr><td>Codex 판정 없음 + 1차 FAIL</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr><tr><td>Codex 확인 못 함 (사실 확인 · 그 밖은 1차 확신 낮을 때)</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr><tr><td>인용이 원문에 없음 (다시 물어도)</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr><tr><td>질문에 하나라도 보류라면</td><td><span class="r-hold">보류</span> · 사람이 판단</td></tr></tbody></table></div><div class="pcard"><h4>도형</h4><ul class="p-legend"><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pp" x="2" y="5" width="36" height="12" rx="6"/></svg>시작·끝</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pm code" x="2" y="3" width="36" height="16" rx="3"/></svg>코드가 하는 단계</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pm ai" x="2" y="3" width="36" height="16" rx="3"/></svg>AI 가 끼는 단계</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><polygon class="pd" points="20,2 38,11 20,20 2,11"/></svg>갈림길</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><rect class="pai" x="2" y="3" width="36" height="16" rx="3"/></svg>AI 호출</li><li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><path class="pf" d="M4,2 H28 L36,10 V20 H4 Z"/></svg>파일</li></ul></div></aside></div></figure></section>
 
 <section class="slide" id="s_out">
