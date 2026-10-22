@@ -27,7 +27,10 @@ TYPE_ORDER = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨
 def display_type(t: str) -> str:
     """보고서에 묶어 보여 줄 유형 — 빈 출력 요구는 단일 질문에 합친다 (10-21 오후 미팅). 보류 규칙은 원래 유형으로."""
     return "단일 질문" if t == "명시적 빈 출력" else t
-HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "질문 전체 보류", "기타")
+HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "사유 모순", "질문 전체 보류", "기타")
+#: 판정(judge_v4 의 안전장치)이 항목에 직접 붙이는 보류 종류 — 다시 짐작하지 않고 그대로 쓴다
+#: (10-22 기준 점검: 반박 출처 없는 사실 FAIL 을 '확인 못함'으로 돌린 9칸이 보고서에서 '기타'로 셌던 것)
+GUARD_KINDS = ("확인 못함", "사유 모순")
 POLICY = "judge-v5-screen-1"
 
 CSS = """
@@ -197,6 +200,8 @@ def code_detail(run: Dict[str, Any]) -> Dict[Tuple[str, int], List[Dict[str, Any
 
 def hold_kind(v: Dict[str, Any]) -> str:
     how, probs, entries = v.get("how") or "", v.get("problems") or [], v.get("entries") or []
+    if v.get("kind") in GUARD_KINDS:
+        return v["kind"]
     if "심판 갈림" in how:
         return "심판 갈림"
     if not entries or any("판정 없음" in p for p in probs):
@@ -592,11 +597,11 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
         for it in L["items"]:
             if "갈림, Codex 따름" in it["how"]:
                 disagree[p].append({**it, "question": q})
-    P.append("<table><tr><th>모델</th><th class='num'>보류 질문</th>" + "".join(f"<th class='num'>{k}</th>" for k in HOLD_KINDS[:4]) + "<th class='num'>FAIL 질문 안의 보류 항목</th><th class='num'>심판 갈림(Codex 따름)</th></tr>")
+    P.append("<table><tr><th>모델</th><th class='num'>보류 질문</th>" + "".join(f"<th class='num'>{k}</th>" for k in HOLD_KINDS[:5]) + "<th class='num'>FAIL 질문 안의 보류 항목</th><th class='num'>심판 갈림(Codex 따름)</th></tr>")
     for p in providers:
-        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{tally(p)['HOLD']}</td>" + "".join(f"<td class='num'>{kind_counter[p][k]}</td>" for k in HOLD_KINDS[:4]) + f"<td class='num'>{inside_fail[p]}</td><td class='num'>{len(disagree[p])}</td></tr>")
+        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{tally(p)['HOLD']}</td>" + "".join(f"<td class='num'>{kind_counter[p][k]}</td>" for k in HOLD_KINDS[:5]) + f"<td class='num'>{inside_fail[p]}</td><td class='num'>{len(disagree[p])}</td></tr>")
     P.append("</table><p class='note'>보류 종류 — <b>심판 출력 누락</b>: Codex 가 그 항목의 답을 안 냄(우리 쪽 문제, 다시 물으면 됨) · <b>인용 불일치</b>: 심판이 든 근거 문장이 원문에 없음 · "
-             "<b>확인 못함</b>: 심판이 사실을 확인하지 못했다고 함 · <b>심판 갈림</b>: 두 심판이 확신을 갖고 반대로 판정. FAIL 질문 안의 보류 항목은 그 질문이 어차피 FAIL 이라 숫자를 바꾸지 않습니다.</p>")
+             "<b>확인 못함</b>: 심판이 사실을 확인하지 못했다고 함 · <b>심판 갈림</b>: 두 심판이 확신을 갖고 반대로 판정 · <b>사유 모순</b>: 심판의 사유와 판정이 반대인 채 다시 물어도 남음(우리 쪽 문제). FAIL 질문 안의 보류 항목은 그 질문이 어차피 FAIL 이라 숫자를 바꾸지 않습니다.</p>")
     if any(disagree.values()):
         P.append("<details><summary>심판 갈림 — Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목 (숫자에는 보류로 들어가지 않음 · 확인용)</summary><table><tr><th>질문</th><th>모델</th><th>턴</th><th>항목</th><th>Codex 사유</th><th>심판</th></tr>")
         for p in providers:

@@ -103,7 +103,8 @@ def compact_judgment(line: Dict[str, Any]) -> Dict[str, Any]:
             c = {"decision": v.get("decision"), "how": v.get("how"), "reason": _clip(v.get("reason") or e.get("reason"), 400),
                  "answer_quote": _clip(v.get("answer_quote") or e.get("answer_quote"), 300), "question_quote": _clip(v.get("question_quote") or e.get("question_quote"), 200),
                  "codex": v.get("codex"), "decisions": v.get("jev"), "decisions_fail_prob": (v.get("decisions_prob") or {}).get("FAIL") if isinstance(v.get("decisions_prob"), dict) else None,
-                 "decisions_confidence": v.get("decisions_confidence"), "flagged": v.get("flagged"), "problems": v.get("problems"), "notes": v.get("notes")}
+                 "decisions_confidence": v.get("decisions_confidence"), "flagged": v.get("flagged"), "problems": v.get("problems"), "notes": v.get("notes"),
+                 "kind": v.get("kind")}   # 판정이 붙인 보류 종류(확인 못함 · 사유 모순) — 보고서가 '기타'로 세지 않게 (10-22)
             compact[item] = {k: x for k, x in c.items() if x not in (None, "", [])}
         out_turns[str(turn)] = {"situations": (block.get("situations_judge") if isinstance(block, dict) else None) or [], "items": compact}
     keep["turn_results"] = out_turns

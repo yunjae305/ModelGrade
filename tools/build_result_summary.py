@@ -143,6 +143,8 @@ def load(run_id: str) -> Dict[str, Any]:
 def hold_kind(it: Dict[str, Any]) -> str:
     """report_html.hold_kind 와 같은 규칙 — 내보낸 JSON 은 항목의 entries 를 빼서 '판정이 없음'은 problems 로만 본다."""
     how, probs = it.get("how") or "", it.get("problems") or []
+    if it.get("kind") in R.GUARD_KINDS:   # 판정이 붙인 종류(내보낸 JSON 의 kind) 그대로 (10-22)
+        return it["kind"]
     if "심판 갈림" in how:
         return "심판 갈림"
     if any("판정 없음" in x for x in probs):

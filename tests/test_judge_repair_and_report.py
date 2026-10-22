@@ -99,6 +99,21 @@ def test_report_normalize_hold_kinds_and_human_decisions(tmp_path: Path):
     assert verdict3 == "FAIL"                                                             # CODE FAIL 은 사람 판정으로 안 바뀜
 
 
+def test_report_keeps_hold_kind_set_by_judge():
+    """판정 안전장치가 붙인 보류 종류(반박 출처 없는 사실 FAIL → 확인 못함, 사유 모순)는 보고서·결과 요약이 다시 짐작하지 않는다 (10-22)."""
+    from tools import build_result_summary as brs
+    items = {
+        "J5-1.a": {"decision": "UNVERIFIED", "kind": "확인 못함", "how": "Codex FAIL → 반박 출처 없음 → 확인 못 함", "codex": "FAIL", "problems": [],
+                   "entries": [{"decision": "FAIL", "reason": "틀림"}]},
+        "J1-4.a": {"decision": "UNVERIFIED", "kind": "사유 모순", "how": "Codex FAIL → 사유 모순", "codex": "FAIL", "problems": [],
+                   "entries": [{"decision": "FAIL", "reason": "불필요한 단락은 없습니다"}]},
+    }
+    norm = {it["item"]: it for it in rh.normalize_items(_line(items))}
+    assert norm["J5-1.a"]["kind"] == "확인 못함" and norm["J1-4.a"]["kind"] == "사유 모순"
+    exported = {k: {kk: vv for kk, vv in v.items() if kk != "entries"} for k, v in items.items()}   # 내보낸 JSON 은 entries 가 없다
+    assert {brs.hold_kind(it) for it in rh.normalize_items(_line(exported))} == {"확인 못함", "사유 모순"}
+
+
 def test_held_apply_merges_decisions_and_regenerates_report(tmp_path: Path, monkeypatch):
     import tools.modelgrade as mg
     out = tmp_path / "judge" / "abc123" / "v4"
