@@ -127,7 +127,7 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="chip"><b>5단계</b><span>기준 다듬기 루프 — 모으기 · 원인 · 고칠 안 · 시험 · 채택</span></div>
     <div class="chip"><b>J1-4.b</b><span>첫 시험 대상 — 같은 심판이 다시 돌려도 판정이 가장 많이 뒤집힘</span></div>
     <div class="chip"><b class="num">4</b><span>10-22 밤에 정한 것 — 보류 우선 유지 · Q10 모순 질문 등</span></div>
-    <div class="chip"><b class="num">21</b><span>지금까지 고친 것(10-21 ~ 10-22) — 20개 반영 · 1개 진행 중</span></div>
+    <div class="chip"><b class="num">24</b><span>지금까지 고친 것(10-21 ~ 10-22) — 모두 반영 · 다시 판정 진행 중</span></div>
   </div>
   <nav class="toc" aria-label="차례">
     <a href="#loop">1 기준 다듬기 루프</a>
@@ -241,12 +241,10 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
   <div class="card">
     <div class="scroll"><table class="tbl">
       <tr><th style="width:110px">상태</th><th>작업</th><th>내용</th></tr>
-      <tr><td><span class="tag t-acc">진행 중</span></td><td><b>멀티턴 턴별 기준 · 확인 목록을 판정에 연결</b></td><td>턴마다 흐름상 해당 없음이 확실한 J6 만 빼고, 그 턴의 사실(바뀐 조건 · 빠진 자료 · 맞는 값)을 심판 입력에 넣음. 판정 코드는 Codex 검토 중</td></tr>
-      <tr><td><span class="tag t-todo">다음</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>저장된 출력으로 78 × 4 복구 + 멀티턴 11 × 4 새 판정, 10~20개씩. 시작 전 범위 확인</td></tr>
+      <tr><td><span class="tag t-acc">진행 중</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>10-22 23:02 시작 — 저장된 출력으로 78 × 4 복구(바뀐 항목 · 다시 물을 칸만 새로) + 멀티턴 11 × 4 는 확인 목록을 넣어 새로 판정, 20개씩 5묶음. 끝나면 새 결과 폴더로 내고 전후 숫자를 여기에</td></tr>
       <tr><td><span class="tag t-todo">다음</span></td><td><b>기준 다듬기 루프 1차 — J1-4.b</b></td><td>위 1장의 5단계를 J1-4.b 하나로 시험</td></tr>
       <tr><td><span class="tag t-todo">다음</span></td><td><b>싱글턴 질문의 모순 · 빠진 자료 표시</b></td><td>지금은 J1-3 이 78문항 모두에 붙어 78로 셈 — 표시하면 10번 아래로 떨어질 수 있어 먼저 확인</td></tr>
-      <tr><td><span class="tag t-todo">다음</span></td><td><b>판정 안전장치 3개 (③ 커밋 뒤)</b></td><td>AIONA '데이터 제공' 줄은 도구 사용 서술로(J5-3.a 해당 없음) · LLM FAIL 이 CODE 가 잰 형식 조건을 또 세면 한 번 다시 묻기 · J4 항목을 '질문으로 정해지는 항목'에 넣어 해당 없음을 Codex 가 다시 보게 — 5 찾은 빈틈 참고</td></tr>
-      <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS(Gemini 링크 사례) · 사람 판정 반영 경로 — 다시 판정 결과를 보고 정함. AIONA 1칸 들여쓰기(복사 두 방식 모두 같음 → 실제 오류, 그대로) · J6-4 서로 배타(턴별 기준으로 해결)는 끝</td></tr>
+            <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS(Gemini 링크 사례) · 사람 판정 반영 경로 — 다시 판정 결과를 보고 정함. AIONA 1칸 들여쓰기(복사 두 방식 모두 같음 → 실제 오류, 그대로) · J6-4 서로 배타(턴별 기준으로 해결)는 끝</td></tr>
       <tr><td><span class="tag t-todo">따로</span></td><td>진행 현황 시험 5개 실패</td><td>참고자료 정리 때 없어진 326 세트 파일 때문 — 별도 세션 제안</td></tr>
     </table></div>
   </div>
@@ -296,6 +294,9 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="done"><div class="d">10-22</div><div><b>꾸민 출처 · 조회(J5-3.a)는 목표 기준과 관계없이 늘 판정</b><div class="fx">싱글턴 · 첨부 · 롱컨텍스트 67문항에서 한 번도 판정하지 않던 것</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>사실 확인(J5-1.a) 보정을 주장마다</b> — 한 주장의 '자료 안의 사실' 사유가 다른 외부 사실 오류까지 지우지 않게</div></div>
     <div class="done"><div class="d">10-22</div><div><b>연결 규칙을 대상 아닌 항목에 쓴 해당 없음은 다시 묻기</b><div class="fx">거절 턴에서 'J1-1.a FAIL → J4 해당 없음'을 J1-4.b · J2-3.a 등에 씀 — 본 판정 19칸 · J1-4.b 재판정 5칸 · Codex 승인</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>AIONA '데이터 제공' 줄은 도구 사용 표시로</b> — 서비스 footer 형식과 정확히 같은 한 줄만 J5-3.a 해당 없음(모르는 제공처 · 다른 출처가 섞인 인용은 FAIL 그대로)<div class="fx">본 판정 7칸 중 6칸 · Codex 검토 5번 승인</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>CODE 가 잰 형식 조건을 LLM 이 또 FAIL 하면 한 번 다시 묻기</b> — 잰 조건과 결과('글자 수(300자 이내(공백 포함))' · '불릿 개수(3개 정확히)')를 적어서, 판정은 코드가 바꾸지 않음<div class="fx">저장 출력 기준 19칸 · 준수 인정 '개수는 맞지만'은 뺌 · 다시 물을 때마다 안내 유지</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>J4 다섯 항목을 '질문으로 정해지는 항목'에</b> — 목표 기준인데 1차 심판이 해당 없음이면 Codex 가 다시 봄 · 멀티턴 다시 묻기 상한 3N+8 · 정체 세기 고침</div></div>
   </div>
 
   <div class="card done-group">
@@ -304,9 +305,9 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
   </div>
 
   <div class="card done-group">
-    <h3>질문 · 멀티턴 · 보고서 <span class="tag t-acc">일부 진행 중</span></h3>
+    <h3>질문 · 멀티턴 · 보고서 <span class="tag t-ok">반영</span></h3>
     <div class="done"><div class="d">10-21</div><div><b>멀티턴 조건 v3</b> — 턴당 10K · 10턴 · 대화 100K 토큰 이상</div></div>
-    <div class="done"><div class="d">10-22</div><div><b>멀티턴 턴별 확인 목록</b> — 110턴마다 상황 · 그 턴 시점의 사실 · 이어지는 조건<div class="fx">기준 조건 확인(정식 검사): 기준 64개 모두 10번 이상 · 대화 평균 k 10(범위 끝) → 7~8 · 판정 연결은 진행 중</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>멀티턴 턴별 기준 · 확인 목록을 판정에 연결</b> — 턴마다 질문 목표에서 흐름상 해당 없음이 확실한 J6 만 빼고(1턴 8개, 다른 턴 1~3개), 그 턴의 사실(바뀐 조건 · 빠진 자료 · 기록값, 판정 지시 없음)을 심판 입력에 넣음 · 확인 목록은 질문 원문 지문으로 낡음 검사<div class="fx">기준 조건 확인(정식 검사): 기준 64개 모두 10번 이상 · 대화 평균 k 10(범위 끝) → 7~8 · Codex 검토 6번 · 사용자 결정(남은 예상 지출 · Q10) 반영</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>보고서 보류 종류 바로잡음</b> — '확인 못함' 9칸이 '기타'로 세지던 것</div></div>
     <div class="done"><div class="d">10-22</div><div><b>걸린 시간 — 질문 · 유형별 편차</b>(미팅 ⑥) — 모델별 합 대신 질문마다 · 유형마다 가장 빠른/느린 모델과 편차가 큰 유형을 보여 개선점을 찾게 · 판정 토큰은 심판별로(미팅 ⑦, 비용 환산은 단가 뒤)</div></div>
     <div class="done"><div class="d">10-21~22</div><div><b>수집 글 보정</b> — Gemini 쪼개진 표 행 잇기 · 코드블록은 '코드 복사' 버튼 글로 · 앱 버튼 글 빼기</div></div>
