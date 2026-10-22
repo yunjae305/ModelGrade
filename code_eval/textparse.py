@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -577,8 +578,13 @@ def _json_type_name(value: Any) -> str:
 #: 한글 바로 뒤의 ``[1]`` 과 연속 인용 ``[1][2]`` 는 인용으로 인정한다.
 _CITATION = re.compile(r"(?<![A-Za-z0-9_])\[(?P<number>\d{1,3})\]")
 
-#: 출처 목록 줄. 줄 시작에서 [n] 뒤에 내용이 오는 형태만 인정한다.
-_SOURCE_LINE = re.compile(r"^[ \t]{0,3}\[(?P<number>\d{1,3})\][ \t]*(?P<body>\S.*)$")
+#: 출처 목록 줄. 줄 시작에서 [n] 뒤에 내용이 오는 형태만 인정한다. [n] 바로 뒤에 조사가 붙은 줄('[2]는 예산 메모의 …')은
+#: 본문 문장이라 뺀다 (10-22 점검: Claude Q2 T8 등 거짓 '출처 누락').
+_SOURCE_LINE = re.compile(r"^[ \t]{0,3}\[(?P<number>\d{1,3})\](?![은는과와이가의을를도에로만])[ \t]*(?P<body>\S.*)$")
+#: 목록형 · 굵은 글씨형 출처 줄('- [1] 답사 메모', '1. [1] …', '**[1]** …') — 위 형식으로 정의되지 않은 번호에만 출처로 쓰고
+#: 중복으로 세지 않는다. 번호가 이어지는 설명 줄('- [1]·[2]는 …', '- [1], [2]는 …')은 뺀다 (10-22: Claude Q6 T3 · Q7 T5 · Q9 T3)
+_SOURCE_LINE_LISTED = re.compile(r"^[ \t]{0,3}(?:[-*+•][ \t]+|\d{1,2}[.)][ \t]+)?[*_]{0,2}\[(?P<number>\d{1,3})\][*_]{0,2}"
+                                 r"(?![은는과와이가의을를도에로만])(?![ \t]*[·,、/]?[ \t]*\[\d)[ \t]*(?P<body>\S.*)$")
 
 
 def _parse_references(text: str) -> Tuple[List[Tuple[int, int]], Dict[int, int], List[int]]:
@@ -588,11 +594,15 @@ def _parse_references(text: str) -> Tuple[List[Tuple[int, int]], Dict[int, int],
     sources: Dict[int, int] = {}
     duplicated: List[int] = []
     source_marker_spans: List[Tuple[int, int]] = []
+    listed: List[Tuple[int, int, int]] = []   # (번호, 줄 번호, 표시 시작) — 원래 형식 뒤에 따로 본다
     for line in lines:
         if line.in_code:
             continue
         match = _SOURCE_LINE.match(line.text)
         if not match:
+            alt = _SOURCE_LINE_LISTED.match(line.text)
+            if alt:
+                listed.append((int(alt.group("number")), line.number, line.start + alt.start(0) + alt.group(0).index("[")))
             continue
         number = int(match.group("number"))
         start = line.start + match.start(0) + match.group(0).index("[")
@@ -602,6 +612,10 @@ def _parse_references(text: str) -> Tuple[List[Tuple[int, int]], Dict[int, int],
                 duplicated.append(number)
         else:
             sources[number] = line.number
+    for number, line_number, start in listed:
+        if number not in sources:
+            sources[number] = line_number
+            source_marker_spans.append((start, start + len(str(number)) + 2))
 
     code_spans = [(line.start, line.end) for line in lines if line.in_code]
     definition_starts = {marker_start for marker_start, _ in source_marker_spans}
@@ -730,6 +744,10 @@ def link_targets(text: str) -> Tuple[Dict[str, int], List[str]]:
 
 #: 강조 표기로 보고 걷어낼 문자. 밑줄은 낱말 안에 있으면 남긴다.
 _EMPHASIS_CHARS = "*~"
+#: 마크다운이 역슬래시로 이스케이프하는 글자 — '\x' 는 화면에 'x' 한 글자로 보인다
+_MD_ESCAPABLE = set(r"\`*_{}[]()#+-.!~|<>")
+#: HTML 문자 참조 — 숫자형(&#x20; &#32;)과 자주 쓰는 이름형
+_HTML_ENTITY = re.compile(r"&(?:#[xX][0-9A-Fa-f]{1,6}|#\d{1,7}|nbsp|amp|lt|gt|quot|apos);")
 
 
 def scannable_text(text: str) -> Tuple[str, List[int]]:
@@ -756,6 +774,20 @@ def scannable_text(text: str) -> Tuple[str, List[int]]:
             if in_inline_code:
                 index += 1
                 continue
+            # 화면에는 한 글자로 보이는 표기 — 마크다운 역슬래시 이스케이프('\~' → '~')와 HTML 문자 참조('&#x20;' → 공백).
+            # 그대로 세면 'x20' 이 영문으로, '\' 가 기호로 잡힌다 (10-22 점검: GPT Q9 T2 '한글만' 거짓 FAIL)
+            if char == "\\" and index + 1 < len(raw) and raw[index + 1] in _MD_ESCAPABLE:
+                chars.append(raw[index + 1])
+                offsets.append(line.start + index + 1)
+                index += 2
+                continue
+            if char == "&":
+                entity = _HTML_ENTITY.match(raw, index)
+                if entity:
+                    chars.append(html.unescape(entity.group(0)))
+                    offsets.append(line.start + index)
+                    index = entity.end()
+                    continue
             if char in _EMPHASIS_CHARS:
                 index += 1
                 continue

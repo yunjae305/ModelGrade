@@ -1115,3 +1115,69 @@ def test_report_code_heading_uses_the_same_grouped_condition_counts_as_the_summa
     failed = summary["common"]["fail"] + summary["specialized"]["fail"]
     html = render_report(batch)
     assert f"CODE Evaluation <span class=\"box-count\">PASS {passed} · FAIL {failed}" in html   # 답변 등식 3개는 조건 1개
+
+
+# --- 10-22 기준 점검: 합계 · 계산값 연결 ----------------------------------------------------------
+
+AGG_Q = ("아래 원본입니다.\n\n| 품목 | 수량 |\n| --- | --- |\n| 잔 | 24 |\n| 접시 | 12 |\n| 컵 | 10 |\n\n"
+         "위 원본의 모든 행을 대상으로 '수량' 열의 합계를 알려 주세요.")
+
+
+@pytest.mark.parametrize("answer, verdict, claimed", [
+    ("수량 열의 합계는 **46**입니다.", PASS, "46"),                      # 굵은 글씨
+    ("**합계:** **46**", PASS, "46"),
+    ("| 품목 | 수량 |\n|---|---|\n| 잔 | 24 |\n| 합계 | 46 |", PASS, "46"),   # 표의 합계 행
+    ("등식: 24 + 12 + 10 = **46**", PASS, "46"),                       # 원본 값 전부를 더한 등식
+    ("합계는 46입니다. 중복이라면 중복을 뺀 합계는 22가 됩니다.", PASS, "46"),  # 가정 문장의 값은 잇지 않음
+    ("합계는 **99**입니다.", FAIL, "99"),
+])
+def test_aggregate_reads_bold_table_row_equation_and_skips_hypothetical(answer, verdict, claimed):
+    r = one(run(AGG_Q, answer), "3-3.aggregate")
+    assert (r["verdict"], r["measured"]["claimed"]) == (verdict, claimed)
+
+
+CIT_Q = "문장에 [1]·[2]를 인용하고 출처 목록을 함께 작성해 주세요."
+
+
+@pytest.mark.parametrize("answer, verdict", [
+    ("집결은 남문입니다[1]. 예산은 30만 원입니다[2].\n\n출처\n- [1] 집결지 답사 메모\n- [2] 예산 메모", PASS),   # 목록형 출처
+    ("집결은 남문입니다[1].\n\n**[1]** 집결지 답사 메모", PASS),                                         # 굵은 글씨 출처
+    ("집결은 남문입니다[1]. 예산은 30만 원입니다[2].\n\n[2]는 예산 메모의 내용입니다.\n\n[1] 집결지 답사 메모", FAIL),  # '[2]는 …' 은 출처 줄이 아님
+])
+def test_citation_source_lines_with_list_markers_and_particles(answer, verdict):
+    assert one(run(CIT_Q, answer), "1-3.citation_link")["verdict"] == verdict
+
+
+@pytest.mark.parametrize("answer, has_fail", [
+    ("13:45 + 10분 = 13:55에 출발합니다.", False),   # 시각 표기
+    ("09:15 + 15분 = 09:30", False),
+    ("1시간 30분 + 20분 = 1시간 50분", False),        # 시간 표기
+    ("2 + 3 = 6입니다.", True),                       # 진짜 틀린 등식은 그대로 FAIL
+])
+def test_time_notation_is_not_an_arithmetic_equation(answer, has_fail):
+    fails = [r for r in rows(run("일정을 알려 주세요.", answer), "3-1.answer_equation") if r["verdict"] == FAIL]
+    assert bool(fails) == has_fail
+
+
+@pytest.mark.parametrize("tail, verdict", [
+    ("| **합계** | 10 |", PASS),      # 표 끝 합계 행은 선언한 항목이 아님
+    ("|  | 합계 | 10 |", PASS),        # 첫 칸이 빈 합계 행
+    ("| 마 | 5 |", FAIL),               # 진짜 다섯째 행
+])
+def test_declared_count_excludes_trailing_total_row(tail, verdict):
+    ans = "다음 4개 행으로 정리했습니다.\n\n| 항목 | 금액 |\n|---|---|\n| 가 | 1 |\n| 나 | 2 |\n| 다 | 3 |\n| 라 | 4 |\n" + tail
+    assert one(run("표로 정리해 주세요.", ans), "3-2.declared_count")["verdict"] == verdict
+
+
+def test_escapes_and_html_entities_count_as_displayed_characters():
+    hangul_only = "한글만 사용해 주세요. 숫자와 문장 부호는 허용합니다."
+    assert one(run(hangul_only, "안내드립니다.&#x20;모임은 9시입니다."), "2-1.charset")["verdict"] == PASS
+    assert one(run(hangul_only, "안내드립니다. Hello"), "2-1.charset")["verdict"] == FAIL
+    lit = one(run("'09:30~12:00'이라는 문구를 반드시 포함해 주세요.", r"운영 시간은 09:30\~12:00입니다."), "2-1.literal")
+    assert lit["verdict"] == PASS
+
+
+def test_citation_explanatory_lines_are_not_duplicate_sources():
+    ans = ("집결은 남문입니다[1]. 예산은 30만 원입니다[2].\n\n- [1] 집결지 답사 메모\n- [2] 예산 메모\n"
+           "- [1]·[2]는 기록 안에서 참조된 문서 이름입니다.\n- **[1] 설명**: 목록의 [1]에서 예비 인력 문장은 뺐습니다.")
+    assert one(run(CIT_Q, ans), "1-3.citation_link")["verdict"] == PASS
