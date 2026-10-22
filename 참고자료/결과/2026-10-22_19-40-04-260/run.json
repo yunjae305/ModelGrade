@@ -1,0 +1,39 @@
+{
+ "version": "judge-item-rerun-v1",
+ "kind": "item-rerun",
+ "compare_of": "50ca3ccccace",
+ "item": "J1-4.b",
+ "started": "2026-10-22_19-40-04-260",
+ "name": "J1-4.b 다시 판정 — 고친 판정 프롬프트 효과 확인 (사용자 10-22: '반복 칸만 새 프롬프트로 다시 돌려봐')",
+ "judge2": {
+  "codex": "gpt-6-luna · low",
+  "claude": "claude-sonnet-5-5 · low"
+ },
+ "runs": {
+  "새프롬프트": {
+   "judge_out": "v4-j14b-rerun",
+   "prompt": [
+    ""
+   ],
+   "uncommitted": [
+    "M tools/judge_split.py",
+    "M tools/judge_v4.py"
+   ]
+  },
+  "옛프롬프트": {
+   "judge_out": "v4-j14b-rerun-oldprompt",
+   "prompt": [
+    "judge_prompt_v4.old.txt"
+   ],
+   "uncommitted": [
+    "M tools/judge_split.py",
+    "M tools/judge_v4.py"
+   ]
+  }
+ },
+ "prompts": {
+  "새프롬프트": "참고자료/프롬프트/judge_prompt_v4.txt @ ef10736",
+  "옛프롬프트": "git show ef10736~1:참고자료/프롬프트/judge_prompt_v4.txt"
+ },
+ "note": "기준 점검 1단계 미커밋 코드로 판정 — judge_v4.py · judge_split.py 의 커밋 안 된 변경(사유와 판정이 반대면 보류 등)이 든 채로 돌림 (옛 · 새 프롬프트 판정 모두)"
+}
