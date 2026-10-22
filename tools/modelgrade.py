@@ -58,7 +58,6 @@ APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보�
 #: AIONA 모델 ↔ 앱 모델 짝 (사용자 10-22) — 왼쪽은 AIONA 모델 메뉴에 보이는 이름 그대로, 오른쪽은 그 AIONA 모델과 일치하는 앱 모델(앱 메뉴 이름 그대로).
 #: 시작할 때는 이 표에 있는 앱 모델만 고를 수 있고, 고르면 앱은 오른쪽 모델로 · AIONA 는 왼쪽 모델로 바꿔 받는다.
 #: 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
-#: 표에 없는 앱 모델: Gemini 앱 '3.1 Pro' — AIONA 에는 'Gemini 3.1 Pro Preview' 만 있어 짝으로 보지 않음.
 AIONA_PAIRS = [
     # (AIONA 모델,              앱,        앱 모델)
     ("Claude Opus 5.5",         "claude", "Opus 5.5"),
@@ -77,6 +76,7 @@ AIONA_PAIRS = [
     ("GPT-5.6 Sol",             "gpt",    "GPT-5.6 Sol"),
     ("Gemini 3.5 Flash-Lite",   "gemini", "3.5 Flash-Lite"),
     ("Gemini 3.8 Flash",        "gemini", "3.8 Flash"),
+    ("Gemini 3.1 Pro Preview",  "gemini", "3.1 Pro"),       # Gemini 앱 '3.1 Pro' = AIONA 'Gemini 3.1 Pro Preview' (사용자 10-22)
     ("Gemini 4 Argon",          "gemini", "4 Argon"),
 ]
 AIONA_MODEL_FOR = {(app, model): aiona for aiona, app, model in AIONA_PAIRS}   # (앱, 앱 모델) → AIONA 모델

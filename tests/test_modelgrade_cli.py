@@ -226,9 +226,9 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0
     assert calls[1][:2] == (["claude", "aiona"], {"claude": "Opus 5.5", "aiona": "Claude Opus 5.5"})   # AIONA 도 같은 모델로
     picks = {(p, m) for _k, p, m in mg.model_menu()}   # 앱과 AIONA 에 이름이 똑같은 모델만 (10-22)
-    assert len(picks) == 17 and ("gemini", "3.1 Pro") not in picks
+    assert len(picks) == 18 and mg.aiona_model_for("gemini", "3.1 Pro") == "Gemini 3.1 Pro Preview"
     assert mg.aiona_model_for("gpt", "GPT-6") == "GPT-6 Sol" and mg.aiona_model_for("gpt", "GPT-5.6 Sol") == "GPT-5.6 Sol"   # 사용자 10-22
-    for bad in ("gemini:3.1 Pro", "3.1 Pro"):
+    for bad in ("gemini:3.6 Flash", "Sonnet 9"):
         with pytest.raises(SystemExit):
             mg.parse_model(bad)
     assert calls[1][2] != calls[0][2] and mg.load_run(calls[1][2])["model_choice"] == "claude:Opus 5.5"
