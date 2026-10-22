@@ -58,7 +58,7 @@
 
 ## 2. 답변을 보고 정하는 경우 — NOT_APPLICABLE 은 이 규칙에 맞을 때만
 - J1-3(모순·빠진 자료): 질문에 서로 모순되는 조건이나 빠진 자료가 실제로 있으면 J1-3.a·J1-3.b 를 판정하고 J1-1.a·J1-2.a 는 NOT_APPLICABLE. 없으면 J1-3.a·J1-3.b 가 NOT_APPLICABLE
-- J1-2.a 가 FAIL(거절·회피)이면 J1-1.a 는 NOT_APPLICABLE
+- J1-2.a 가 FAIL(거절·회피)이면 J1-1.a 와 J4 항목(J4-1.a·J4-1.b·J4-2.a·J4-3.a·J4-4.a)은 NOT_APPLICABLE — 결과물이 없으니 결과물 품질도 보지 않음 (2026-10-22)
 - J1-1.a 가 FAIL 이면 J4 항목(J4-1.a·J4-1.b·J4-2.a·J4-3.a·J4-4.a)은 NOT_APPLICABLE
 - J2-4.a 가 FAIL 이면 J2-4.b 는 NOT_APPLICABLE
 - 현재 턴에 출처·수치·새 사실 없는 반박이 있으면 J6-4.b 를 판정하고 J6-4.a 는 NOT_APPLICABLE. 그런 반박이 없으면 J6-4.b 가 NOT_APPLICABLE

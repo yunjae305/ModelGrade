@@ -1052,8 +1052,8 @@ def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
         dc, cx = c.get("decisions") or {}, c.get("codex") or {}
         w = per[p]
         w["seconds"] += float(l.get("seconds") or 0)
-        if not dc.get("reused"):
-            fj = dc.get("first_judge") or {}
+        if not dc.get("reused") or dc.get("fresh_judge"):   # --repair 는 이번에 새로 부른 1차 심판만 (10-22)
+            fj = dc.get("fresh_judge") or dc.get("first_judge") or {}
             if fj:
                 w["jev"] += sum(1 for v in fj.values() if v == "jev")
                 w["dec"] += sum(1 for v in fj.values() if v == "decisions")
@@ -1093,8 +1093,8 @@ def judge_tokens(D: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     for l in judged_lines(D):
         c = l.get("calls") or {}
         dc, cx = c.get("decisions") or {}, c.get("codex") or {}
-        if not dc.get("reused"):
-            fj = list((dc.get("first_judge") or {}).values())
+        if not dc.get("reused") or dc.get("fresh_judge"):   # --repair 는 이번에 새로 부른 1차 심판만 (10-22)
+            fj = list((dc.get("fresh_judge") or dc.get("first_judge") or {}).values())
             if isinstance(dc.get("usage"), dict):
                 for name, u in dc["usage"].items():
                     add({"jev": "Jev", "decisions": "Decisions"}.get(name, name), u if isinstance(u, dict) else {}, fj.count(name))
@@ -1279,7 +1279,7 @@ JD_NOTES: Dict[str, Dict[Tuple[str, int, str], Tuple[str, str]]] = {
 JD_CARDS: Dict[str, List[Tuple[Tuple[str, ...], str, str, str]]] = {
     "50ca3ccccace": [
         (("J2-2.a",), "Jev", "Decisions 가 해요체를 반말로 봤습니다. 판정문에는 10-21 부터 '해요체도 존댓말'이 있는데도 그랬고, Codex 1건은 이유에 '요청을 지켰다'고 쓰고 FAIL.",
-         "이유가 '지켰다'인데 FAIL 인 판정을 잡는 검사(_REASON_SAYS_OK)에 '요청을 지켰' 추가"),
+         "적용(10-22) — 이유가 '요청을 지켰다'인데 FAIL 이면 정의를 짚어 한 번 더 묻기(사유 · 판정 반대 검사)"),
         (("J1-4.a", "J1-4.b"), "Jev (1건은 수집 오류)", "Jev 는 확신이 낮아 규칙대로 Codex 로 넘겼습니다. Codex 의 FAIL 은 정의를 짚어 다시 묻자 통과, GPT Q38 은 앱 버튼 글이 섞인 수집 오류.",
          "이미 적용 — J1-4 FAIL 은 정의를 짚어 한 번 더 묻기(10-22), 수집 때 버튼 글 빼기"),
         (("J2-1.a",), "Jev", "한국어 용어 뒤 괄호에 원어를 적고 바로 풀어 썼는데, Codex 가 '영어 용어를 설명 없이 씀'으로 FAIL.",

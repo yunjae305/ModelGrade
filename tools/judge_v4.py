@@ -232,6 +232,8 @@ QUESTION_DETERMINED = frozenset({"J2-1.a", "J2-1.b", "J2-2.a", "J2-3.a", "J2-4.a
                                  "J6-3.b", "J6-4.a", "J6-4.b", "J7-1.a", "J7-2.a", "J8-3.a"})
 #: 질문 번호 → 목표 의미 기준(J…) — main 이 질문 세트를 읽을 때 채운다
 QUESTION_TARGETS: Dict[int, set] = {}
+#: 답에 있으면 보는 의미 기준 — criteria_catalog.json 의 answer_dependent_ids 가운데 J 항목
+ANSWER_DEPENDENT_ITEMS = frozenset({"J5-3.a"})
 TARGET_GUIDE = ("\n[판정할 항목] 아래 항목은 이 질문을 만들 때 이 질문에 적용하도록 정한 기준입니다 — 같은 질문이면 어느 답변이든 같은 항목을 판정합니다. "
                 "적용 조건이 질문에 있는 항목(질문의 요청 · 대상 · 지시)은 답변이 요청을 빠뜨렸다는 이유로 해당 없음을 고르지 말고 항목 정의대로 예 · 아니오로 판정합니다. "
                 "적용 조건이 답변 내용에 따라 생기는 항목(적용 글에 '답변'이 들어간 항목 — 예: 출처를 언급한 답변, 질문의 값을 쓰는 답변)과 항목 정의의 예외(예: J1-1.a 가 아니오면 J4 해당 없음), "
@@ -396,9 +398,19 @@ def merge_codex_output(base: Any, extra: Any, replace: Optional[set] = None) -> 
             continue
         n = t["turn"]
         cur = turns.setdefault(n, {"turn": n, "situations": [], "items": []})
-        kept = [e for e in cur.get("items") or [] if isinstance(e, dict) and (n, js._base(e.get("id"))) not in replace]
+        old_items = [e for e in cur.get("items") or [] if isinstance(e, dict)]
+        new_items = [e for e in t.get("items") or [] if isinstance(e, dict)]
+        new_ids = {str(e.get("id")) for e in new_items}
+        old_elem_ids: Dict[str, set] = {}
+        for e in old_items:
+            if "#" in str(e.get("id")):
+                old_elem_ids.setdefault(js._base(e.get("id")), set()).add(str(e.get("id")))
+        # 다시 물은 항목은 새 답으로 바꾸되, 앞 답이 펼친 요소(#번호)였으면 그 번호가 모두 돌아온 답만 받는다 — 일부 요소만 오거나 번호 없이
+        # 하나로 오면 어느 요소의 답인지 코드로 맞출 수 없어 앞 답을 그대로 둔다(번호가 바뀐 일부 답이 정상 FAIL 을 지워 PASS 가 되던 것, Codex 검토 10-22)
+        rep = {b for (m, b) in replace if m == n and old_elem_ids.get(b, set()) <= new_ids}
+        kept = [e for e in old_items if js._base(e.get("id")) not in rep]
         have = {js._base(e.get("id")) for e in kept}
-        cur["items"] = kept + [e for e in t.get("items") or [] if isinstance(e, dict) and (js._base(e.get("id")) not in have or (n, js._base(e.get("id"))) in replace)]
+        cur["items"] = kept + [e for e in new_items if js._base(e.get("id")) not in have or js._base(e.get("id")) in rep]
         sids = {s.get("id") for s in cur.get("situations") or [] if isinstance(s, dict)}
         cur["situations"] = list(cur.get("situations") or []) + [s for s in t.get("situations") or [] if isinstance(s, dict) and s.get("id") not in sids]
     base["turns"] = [turns[n] for n in sorted(turns)]
@@ -500,7 +512,25 @@ def screen_flag(item: str, entry: Optional[Dict[str, Any]], fail_prob_min: float
 
 _NOT_EXTERNAL = re.compile(r"외부\s*사실(?:\s*확인)?\s*(?:항목|주장)?[이은]\s*아[니닙]|J5-2[.a-z]*\s*에서\s*(?:판단|본다|다룬)"
                            r"|자료\s*내\s*사실|입력값\s*기반|J5-1\s*적용\s*대상이\s*아니|외부\s*출처로\s*확인할\s*사실\s*주장이\s*아[니닙]|붙여\s*넣은\s*자료를\s*그대로"
-                           r"|자료\s*사실이지만|제공된\s*기록의\s*운영\s*세부와\s*부합|회의록의\s*입력값|입력\s*수치로\s*산출|외부\s*사실\s*주장(?:은|이)?\s*(?:없|발견되지\s*않)")   # 10-21 밤: 보류 사례의 실제 사유 문구
+                           r"|자료\s*사실이지만|제공된\s*기록의\s*운영\s*세부와\s*부합|회의록의\s*입력값|입력\s*수치로\s*산출|외부\s*사실\s*주장(?:은|이)?\s*(?:없|발견되지\s*않)"   # 10-21 밤: 보류 사례의 실제 사유 문구
+                           r"|외부\s*사실(?:\s*주장)?(?:은|이|가)?\s*아니|입력\s*자료의\s*(?:수치|값)|자료에\s*제시된\s*(?:값|수치)")   # 10-22 — 아래에 한 번 더 정의돼 위 목록이 쓰이지 않던 것을 합침(기준 점검)
+
+#: _NOT_EXTERNAL 이 잡은 말 뒤의 판단 보류('… 아니라고 단정할 수 없') · 부정('자료 내 사실이 아니라 …') — 이런 사유로는 해당 없음을 정하지 않는다 (Codex 검토 10-22)
+_NOT_EXT_UNSURE = re.compile(r"^ ?(?:이|가|은|는|이라고|라고|로|으로)? ?(?:단정|확정|보기 ?어렵|볼 ?수 ?없|하기 ?어렵|할 ?수 ?없)")   # 외부 사실 여부 자체를 유보
+_NOT_EXT_NEGATED = re.compile(r"^ ?(?:이|가|은|는|로|으로)? ?(?:아[니닙님]|볼 ?수 ?없|보기 ?어렵)|^ ?(?:과|와)(?:는|도)? ?(?:별개|다른|다르|무관|달리|구별)")
+
+
+def not_external(reason: Any) -> bool:
+    """사유가 '그 주장은 외부 사실이 아니다(입력 자료의 값이다)'라고 결론 내렸는가 — 뒤에 부정 · 판단 보류가 붙은 말은 뺀다."""
+    r = re.sub(r"\s+", " ", str(reason or ""))
+    for m in _NOT_EXTERNAL.finditer(r):
+        tail = re.split(r"[.!?\n]", r[m.end():m.end() + 20], maxsplit=1)[0]
+        if _NOT_EXT_UNSURE.match(tail):
+            continue
+        if not re.search(r"(?:아[니닙]|없|않)$", m.group(0)) and _NOT_EXT_NEGATED.match(tail):
+            continue
+        return True
+    return False
 
 
 def material_text(doc: Dict[str, Any], upto: int) -> str:
@@ -515,33 +545,78 @@ def material_text(doc: Dict[str, Any], upto: int) -> str:
     return re.sub(r"\s+", " ", "\n".join(parts))
 
 
+def _quote_in(quote: Any, material: str) -> bool:
+    """인용이 질문 쪽 자료에 그대로 있는가 — 강조 · 표 표시와 목록 글머리는 빼고, 공백은 하나로."""
+    q = re.sub(r"[*_`#>|]+", "", str(quote or ""))
+    q = re.sub(r"(?m)^\s*[-•·]\s+", "", q).strip()   # 목록 글머리는 빼고 대조 (10-21 밤)
+    q = re.sub(r"\s+", " ", q)
+    return len(q) >= 4 and q in material
+
+
+def backed_fail(e: Dict[str, Any]) -> bool:
+    """반박 출처까지 든 FAIL 주장인가 — 심판이 외부 사실로 보고 검색해 틀렸다고 확인한 것."""
+    f = e.get("fact")
+    return e.get("decision") == "FAIL" and isinstance(f, dict) and f.get("verdict") == "FALSE" and bool(f.get("sources"))
+
+
+def drop_claims(it: Dict[str, Any], drop: Any, note: str) -> None:
+    """J5-1.a 의 주장(펼친 요소)마다 drop 이 참인 것만 해당 없음으로 빼고, 남은 주장으로 항목 판정을 다시 모은다 — 사유 하나가 '자료 안의
+    사실'이라고 해서 다른 외부 사실 주장의 FAIL 까지 지우지 않게 (Codex 검토 10-22). 펼친 요소가 없으면(대표 사유만) 예전처럼 항목 전체로."""
+    entries = [e for e in it.get("entries") or [] if isinstance(e, dict)]
+    if not entries:
+        if drop(it):
+            it["decision"] = "NOT_APPLICABLE"
+            it["how"] = (it.get("how") or "") + note
+        return
+    problems = list(it.get("problems") or [])
+    if it.get("decision") != ("UNVERIFIED" if problems else js.fold(entries)):
+        return   # 항목 판정이 요소에서 온 것이 아니면(합치기 규칙 등) 건드리지 않는다
+    gone = [e for e in entries if e.get("decision") != "NOT_APPLICABLE" and drop(e)]
+    if not gone:
+        return
+    ids = {str(e.get("id")) for e in gone}
+    for e in gone:
+        e["dropped_from"], e["decision"] = e.get("decision"), "NOT_APPLICABLE"
+    it["problems"] = [p for p in problems if str(p).split(":", 1)[0] not in ids]
+    it["decision"] = "UNVERIFIED" if it["problems"] else js.fold(entries)
+    live = [e for e in entries if not any(e is g for g in gone)]
+    named = {str(p).split(":", 1)[0] for p in it["problems"]}
+    # 대표 사유는 빼지 않은 주장에서 — 남은 문제를 낸 주장, 없으면 항목 판정과 같은 주장 (Codex 검토 10-22: 뺀 주장의 '일치합니다'로 보류가 풀리던 것)
+    rep = (next((e for e in live if str(e.get("id")) in named), None) or next((e for e in live if e.get("decision") == it["decision"]), None)
+           or (live or entries)[0])
+    it["reason"], it["answer_quote"], it["question_quote"] = rep.get("reason"), rep.get("answer_quote"), rep.get("question_quote")
+    it["how"] = (it.get("how") or "") + f"{note} — 주장 {len(gone)}/{len(entries)}개"
+
+
 def material_fact_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
     """사실 확인(J5-1.a)이 '확인 못 함'인데 그 주장이 질문에 붙은 자료(질문 · 첨부 · 참조 자료 · 앞 턴 질문)에 그대로 있거나
-    심판 사유가 '외부 사실이 아님'이면 해당 없음으로 — 자료 대조는 J5-2 가 한다 (사용자 10-21: Q40 '푸른자료실')."""
+    심판 사유가 '외부 사실이 아님'이면 해당 없음으로 — 자료 대조는 J5-2 가 한다 (사용자 10-21: Q40 '푸른자료실'). 주장마다 (10-22)."""
     it = items.get("J5-1.a")
     if not it or it.get("decision") != "UNVERIFIED":
         return
-    quote = re.sub(r"[*_`#>|]+", "", str(it.get("answer_quote") or ""))
-    quote = re.sub(r"(?m)^\s*[-•·]\s+", "", quote).strip()   # 목록 글머리는 빼고 대조 (10-21 밤)
-    quote = re.sub(r"\s+", " ", quote)
-    in_material = len(quote) >= 4 and quote in material_text(doc, n)
-    if in_material or _NOT_EXTERNAL.search(str(it.get("reason") or "")):
-        it["decision"] = "NOT_APPLICABLE"
-        it["how"] = (it.get("how") or "") + " → 입력 자료 안의 사실(J5-1 해당 없음, 자료 대조는 J5-2)"
-
-
-_NOT_EXTERNAL = re.compile(r"외부\s*사실(?:\s*주장)?(?:은|이|가)?\s*아니|입력\s*자료의\s*(?:수치|값)|자료에\s*제시된\s*(?:값|수치)")
+    material = material_text(doc, n)
+    drop_claims(it, lambda e: not backed_fail(e) and (_quote_in(e.get("answer_quote"), material) or not_external(e.get("reason"))),
+                " → 입력 자료 안의 사실(J5-1 해당 없음, 자료 대조는 J5-2)")
 
 
 def fact_reason_na_guard(items: Dict[str, Dict[str, Any]]) -> None:
-    """사실 확인(J5-1.a)의 FAIL · 보류인데 심판 사유가 스스로 '입력 자료의 값이라 외부 사실 주장이 아니다'라고 하면 해당 없음 (10-22 보류 점검: Gemini Q1 10턴)."""
+    """사실 확인(J5-1.a)의 FAIL · 보류인데 심판 사유가 스스로 '입력 자료의 값이라 외부 사실 주장이 아니다'라고 하면 그 주장은 해당 없음
+    (10-22 보류 점검: Gemini Q1 10턴). 주장마다 — 다른 외부 사실 주장의 FAIL 은 남긴다 (Codex 검토 10-22)."""
     it = items.get("J5-1.a")
     if not it or it.get("decision") not in ("FAIL", "UNVERIFIED"):
         return
-    reasons = " ".join(str(e.get("reason") or "") for e in it.get("entries") or [] if isinstance(e, dict)) + " " + str(it.get("reason") or "")
-    if _NOT_EXTERNAL.search(reasons):
-        it["decision"] = "NOT_APPLICABLE"
-        it["how"] = (it.get("how") or "") + " → 사유가 '입력 자료의 값 · 외부 사실 아님' → 해당 없음"
+    drop_claims(it, lambda e: not backed_fail(e) and not_external(e.get("reason")), " → 사유가 '입력 자료의 값 · 외부 사실 아님' → 해당 없음")
+    # 반박 출처까지 든 FAIL 인데 사유는 '외부 사실 아님' — 결론이 서로 반대라 그 주장은 근거에서 빼고 보류(사유 모순) (Codex 검토 10-22: 사유 문구만으로
+    # 검색으로 확인한 오류를 해당 없음으로 지우지 않게)
+    entries = [e for e in it.get("entries") or [] if isinstance(e, dict)]
+    odd = [e for e in entries if backed_fail(e) and not_external(e.get("reason"))]
+    if odd and it.get("decision") == ("UNVERIFIED" if it.get("problems") else js.fold(entries)):
+        for e in odd:
+            e["contradiction_from"], e["decision"] = "FAIL", "UNVERIFIED"
+        it["decision"] = "UNVERIFIED" if it.get("problems") else js.fold(entries)
+        if it["decision"] == "UNVERIFIED":
+            it["kind"] = "사유 모순"
+        it["how"] = (it.get("how") or "") + f" → 반박 출처가 있는데 사유는 '외부 사실 아님'(사유 모순) — 주장 {len(odd)}개 보류"
 
 
 def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
@@ -549,25 +624,111 @@ def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
     it = items.get("J5-1.a")
     if not it or it.get("decision") != "FAIL":
         return
-    facts = [e.get("fact") for e in it.get("entries") or [] if isinstance(e, dict) and isinstance(e.get("fact"), dict)]
-    if any(f.get("verdict") == "FALSE" and f.get("sources") for f in facts):
+    fails = [e for e in it.get("entries") or [] if isinstance(e, dict) and e.get("decision") == "FAIL"]
+    # 지금 FAIL 인 주장마다 그 주장의 반박 출처로 — 해당 없음으로 뺀 주장의 출처가 다른 주장의 FAIL 을 받치지 않게 (Codex 검토 10-22)
+    if any(isinstance(e.get("fact"), dict) and e["fact"].get("verdict") == "FALSE" and e["fact"].get("sources") for e in fails):
         return
+    if fails:   # 대표 사유는 출처 없는 FAIL 주장으로 (Codex 검토 10-22)
+        it["reason"], it["answer_quote"], it["question_quote"] = fails[0].get("reason"), fails[0].get("answer_quote"), fails[0].get("question_quote")
     it["decision"] = "UNVERIFIED"
     it["kind"] = "확인 못함"
     it["how"] = (it.get("how") or "") + " → 반박 출처 없음(거짓은 검색 출처로만) → 확인 못 함"
 
 
-_REASON_SAYS_OK = re.compile(r"FAIL\s*(?:항목)?\s*없음|문제(?:가|는)?\s*없습니다|어긋나지\s*않|모두\s*지켰|불필요한\s*(?:단락|내용)은\s*없|반복(?:은|이)?\s*없습니다"
-                             r"|반복\S*\s*(?:경우|것)(?:은|는|이|가)?\s*아닙니다|반복이\s*아닙니다")   # 10-22: AIONA Q73 '…반복한 경우는 아닙니다' 인데 FAIL
+#: 사유의 결론이 PASS 인 말. 강한 말(결론을 직접 말함)은 다시 물어도 남으면 보류, 약한 말(일부 사정만 말함)은 다시 묻기만 한다 — 자유 서술의
+#: 부분 문자열만으로 판정을 바꾸지 않게 (Codex 검토 10-22: '모순은 없지만 … 빠져 있습니다' 를 결론으로 읽어 보류하던 것)
+_OK_STRONG = re.compile(r"FAIL ?(?:항목)? ?없음|PASS ?(?:여야|이어야|입니다|가 ?맞|로 ?(?:정정|판정|처리|봅니다|본다|둡니다|봐야|보아야)|처리합니다)|판정은 ?PASS"
+                        r"|이 ?항목은 ?PASS|FAIL ?로 ?보지 ?않|FAIL이 ?아닙니다")   # 10-22 기준 점검: 'J3-1은 PASS여야 합니다' 등 15건
+#: 항목에 맞춘 강한 말 — 그 항목의 점검 질문에 '예'라고 답한 말 (다른 항목 사유에 나오면 결론이 아님)
+_OK_BY_ITEM = {"J1-4.a": re.compile(r"불필요한 ?(?:단락|내용)은 ?없"),   # 10-21: GPT Q1 4턴 '불필요한 단락은 없습니다 (FAIL 없음)'
+               "J1-4.b": re.compile(r"반복(?:은|이)? ?없습니다|반복\S* ?(?:경우|것)(?:은|는|이|가)? ?아닙니다|반복이 ?아닙니다"),   # 10-22: AIONA Q73
+               "J3-1.a": re.compile(r"모순(?:이|은) ?없"), "J6-4.a": re.compile(r"모순(?:이|은) ?없"),
+               "J5-3.a": re.compile(r"꾸며 ?낸 ?출처가 ?아닙")}
+#: 약한 말 — 다시 묻는 후보만 (10-22 심판 비교: J2-2.a Codex 가 사유에 '요청을 지켰다'고 쓰고 FAIL)
+_OK_WEAK = re.compile(r"문제(?:가|는)? ?없습니다|어긋나지 ?않|(?:모두|요청을) ?지켰")
+#: 사유의 결론이 FAIL 인 말 — 'FAIL 기준을 충족하지 않' 은 PASS 뜻이라 뺀다
+_FAIL_STRONG = re.compile(r"실제로는 ?FAIL|FAIL ?(?:이어야|여야|입니다|로 ?(?:판정해야|봐야|보아야|정정))|판정은 ?FAIL|이 ?항목은 ?FAIL"
+                          r"|(?<!FAIL )(?<!FAIL)기준을 ?충족하지 ?(?:않|못)")
+#: 결론처럼 보여도 결론이 아닌 자리 — 뒤에 부정 · 양보('PASS로 판정할 수 없습니다' · '모순은 없지만' · 'PASS가 아니라'), 앞에 조건('…했다면 FAIL입니다')
+_NEG_TAIL = re.compile(r"수 ?(?:는 ?)?없|하지 ?(?:는 ?)?(?:않|못)|하기 ?(?:는 ?)?어렵|이유(?:는|가)? ?없|아니|아닙|아님|^ ?(?:지만|으나|는데)|^ ?만(?![가-힣])")
+_COND_BEFORE = re.compile(r"면 ?$")
+#: 결론 바로 앞의 다른 항목 주어('J1-1.a는 PASS입니다') — 'J1-1.a와 달리 이 항목은 FAIL' 처럼 주어가 아니면 이 항목의 결론
+_REF_SUBJECT = re.compile(r"(J\d-\d(?:\.[a-z])?) ?(?:은|는|이|가|도|의 ?판정은|판정은)? ?$")
+PREV_NOTE = ("이전_판정에 적힌 항목은 그 요소 번호(id)를 그대로 써서 이전에 있던 요소를 모두 다시 답하세요 — 요소를 합치거나 번호를 바꾸지 않습니다. "
+             "이전 판정은 참고일 뿐이며, 각 요소는 정의의 점검 질문으로 다시 판정합니다.")
+CONTRADICTION_NOTE = ("사유와 판정이 반대인 항목을 다시 묻습니다: 사유를 끝까지 따져 본 결론으로 decision 을 정하세요 — 점검 질문에 '예'면 PASS, "
+                      "'아니오'면 FAIL. 사유에 'PASS여야' · 'FAIL이어야' 처럼 다른 결론을 쓰지 말고, 사유와 decision 이 같은 결론이어야 합니다.")
+
+
+def _says(pat: "re.Pattern[str]", text: str, item: Optional[str]) -> bool:
+    """text 에 pat 이 결론으로 나오는가 — 같은 마디 안 뒤에 부정 · 양보('PASS로 판정할 수 없습니다' · 'FAIL이 아닙니다' · '모순은 없지만'),
+    앞에 조건('…했다면 FAIL입니다'), 다른 항목이 주어인 말('J1-1.a는 PASS입니다')은 뺀다 (Codex 검토 10-22)."""
+    for m in pat.finditer(text):
+        before = text[max(0, m.start() - 16):m.start()]
+        tail = re.split(r"[.!?,(（\n]", text[m.end():m.end() + 12], maxsplit=1)[0]   # 괄호 속 근거('PASS입니다(반복 아님)')는 결론의 부정이 아님
+        if _COND_BEFORE.search(before) or _NEG_TAIL.search(tail):
+            continue
+        ref = _REF_SUBJECT.search(before)
+        if ref and item and not item.startswith(ref.group(1)):
+            continue
+        return True
+    return False
+
+
+def reason_contradicts(decision: Any, reason: Any, item: Optional[str] = None, strong: bool = True) -> bool:
+    """판정과 사유의 결론이 반대인가 — FAIL 인데 사유는 'PASS여야 · FAIL 없음', PASS 인데 사유는 '실제로는 FAIL · FAIL이어야'.
+    strong=False 면 약한 말('문제가 없습니다' · '요청을 지켰')도 — 다시 묻는 후보를 찾을 때만 쓴다."""
+    r = re.sub(r"\s+", " ", str(reason or ""))
+    base = (item or "").split("#", 1)[0] or None
+    if decision == "FAIL":
+        pats = [_OK_STRONG] + [p for k, p in _OK_BY_ITEM.items() if base == k] + ([] if strong else [_OK_WEAK])
+    elif decision == "PASS":
+        pats = [_FAIL_STRONG]
+    else:
+        return False
+    return any(_says(p, r, base) for p in pats)
+
+
+def contradiction_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
+    """Codex 출력에서 사유와 판정이 반대인 (턴, 항목) — 한 번 다시 묻는다. 펼친 요소마다 사유를 본다(check_gpt 결과의 사유는 entries 안,
+    Codex 검토 10-22: 항목 칸의 reason 을 읽어 한 번도 걸리지 않던 것)."""
+    return [(n, i) for n, items in js.check_gpt(output, turns, answers, flagged).items() for i, v in items.items()
+            if any(isinstance(e, dict) and reason_contradicts(e.get("decision"), e.get("reason"), i, strong=False) for e in (v or {}).get("entries") or [])]
 
 
 def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
-    """사유와 판정이 반대인 항목 — FAIL 인데 사유가 '문제 없음 · FAIL 없음'이면 확인 못 함으로(사유 모순) (10-21: GPT Q1 4턴 J1-4.a '불필요한 단락은 없습니다 (FAIL 없음)' 인데 FAIL)."""
-    for it in items.values():
-        if isinstance(it, dict) and it.get("decision") == "FAIL" and _REASON_SAYS_OK.search(str(it.get("reason") or "")):
-            it["decision"] = "UNVERIFIED"
-            it["kind"] = "사유 모순"
-            it["how"] = (it.get("how") or "") + " → 사유는 '문제 없음'인데 판정은 FAIL(사유 모순) → 확인 못 함"
+    """사유와 판정이 반대인 항목 — 다시 물어도 남으면 확인 못 함으로(사유 모순, 우리 쪽 원인이라 보류 + 사유). 결론을 직접 말한 강한 말만.
+    펼친 요소마다 본다 — 대표 사유 하나만 보면 뒤 요소의 모순을 놓친다(Codex 검토 10-22). 사유가 맞는 다른 FAIL 요소가 있으면 FAIL 그대로.
+    FAIL 인데 사유가 'PASS여야 · FAIL 없음'(10-21: GPT Q1 4턴 J1-4.a), PASS 인데 '실제로는 FAIL · FAIL이어야'(10-22: Gemini Q2 7턴 J1-3.a)."""
+    for iid, it in items.items():
+        if not isinstance(it, dict) or it.get("decision") not in ("FAIL", "PASS", "UNVERIFIED"):
+            continue
+        entries = [e for e in it.get("entries") or [] if isinstance(e, dict)]
+        bad = [e for e in entries if reason_contradicts(e.get("decision"), e.get("reason"), iid)]
+        if it["decision"] == "UNVERIFIED":
+            # 이미 보류인 항목도 사유가 반대인 요소는 표시한다 — 뒤의 fact_true_guard 가 다른 요소의 '맞다'로 항목을 PASS 로 풀지 않게
+            # (Codex 5차 검토 10-22: PASS 요소 '실제로는 FAIL입니다' + 보류 요소 '맞습니다' 가 PASS 로 되던 회귀)
+            for b in bad:
+                b["contradiction_from"], b["decision"] = b.get("decision"), "UNVERIFIED"
+            if bad and not it.get("kind"):
+                it["kind"] = "사유 모순"
+            continue
+        if (entries and not bad) or (not entries and not reason_contradicts(it.get("decision"), it.get("reason"), iid)):
+            continue
+        if it["decision"] == "FAIL" and any(e.get("decision") == "FAIL" and not any(e is b for b in bad) for e in entries):
+            # 사유가 맞는 다른 FAIL 요소가 있으면 항목은 FAIL — 사유가 반대인 요소는 근거에서 뺀다(요소를 보류로), 다음 출처 검사가 남은 요소만 보게
+            # (Codex 검토 10-22: 사유 검사와 출처 검사를 서로 다른 요소가 통과시키던 것)
+            for b in bad:
+                b["contradiction_from"], b["decision"] = b.get("decision"), "UNVERIFIED"
+            rep = next(e for e in entries if e.get("decision") == "FAIL")
+            it["reason"], it["answer_quote"], it["question_quote"] = rep.get("reason"), rep.get("answer_quote"), rep.get("question_quote")
+            continue
+        was = it["decision"]
+        if bad:
+            it["reason"] = bad[0].get("reason")
+        it["decision"] = "UNVERIFIED"
+        it["kind"] = "사유 모순"
+        it["how"] = (it.get("how") or "") + f" → 사유의 결론과 판정({was})이 반대(사유 모순) → 확인 못 함"
 
 
 _FACT_SAYS_TRUE = re.compile(r"(?:맞습니다|부합합니다|정확합니다|타당합니다|올바릅니다|일치합니다)")
@@ -578,7 +739,16 @@ def fact_true_guard(items: Dict[str, Dict[str, Any]]) -> None:
     """사실 확인(J5-1.a)이 '확인 못 함'인데 사유가 '맞습니다 · 부합합니다'처럼 참이라고만 말하고 확인 못 했다는 말이 없으면 PASS (사유 모순)
     (10-21 밤: Q7 claude T2 '통상적인 과학 지식에 맞습니다', Q3 gpt T2 '설명은 타당합니다' 인데 보류)."""
     it = items.get("J5-1.a")
-    if not it or it.get("decision") != "UNVERIFIED":
+    if not it or it.get("decision") != "UNVERIFIED" or it.get("kind") == "사유 모순" or it.get("problems"):
+        return   # 사유 모순 보류 · 인용 오류 등 남은 문제가 있는 보류는 풀지 않는다 (Codex 검토 10-22)
+    entries = [e for e in it.get("entries") or [] if isinstance(e, dict) and e.get("decision") not in ("PASS", "NOT_APPLICABLE")]
+    if entries:   # 주장마다 — PASS 가 아닌 주장이 모두 '맞다'고만 하고 모순 표시 · 반박 출처가 없을 때만 (Codex 검토 10-22: 요소의 사유 모순을 덮던 것)
+        if all(not e.get("contradiction_from") and not backed_fail(e) and _FACT_SAYS_TRUE.search(str(e.get("reason") or ""))
+               and not _FACT_SAYS_UNSURE.search(str(e.get("reason") or "")) for e in entries):
+            for e in entries:
+                e["promoted_from"], e["decision"] = e.get("decision"), "PASS"
+            it["decision"] = "PASS"
+            it["how"] = (it.get("how") or "") + " → 사유가 '맞다'고만 함(사유 모순) → PASS"
         return
     reason = str(it.get("reason") or "")
     if _FACT_SAYS_TRUE.search(reason) and not _FACT_SAYS_UNSURE.search(reason):
@@ -657,6 +827,19 @@ def add_usage(total: Dict[str, Any], usage: Any, prefix: str = "") -> None:
             total[prefix + k] = total.get(prefix + k, 0) + v
 
 
+def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
+    """한 턴의 항목들에 안전장치를 차례로, 연결 규칙(상황표 2)은 맨 끝에 — 조건 항목(J1-2.a 등)이 사유 모순으로 보류되면 대상 항목(J4)의
+    판정을 지우지 않게 (Codex 검토 10-22: 보류된 J1-2.a 가 J4 FAIL 을 이미 해당 없음으로 바꾼 뒤였던 순서)."""
+    material_fact_guard(items, doc, n)   # 입력 자료 안의 사실은 J5-1 해당 없음 (10-21) — 주장마다 (10-22)
+    fact_reason_na_guard(items)   # 사유가 '입력 자료의 값 · 외부 사실 아님'인 주장은 해당 없음 (10-22)
+    reason_decision_guard(items)   # 사유와 판정이 반대 (10-21) — 요소마다 · 양방향, 출처 보류보다 먼저(모순 FAIL 이 '확인 못함'을 거쳐 PASS 로 풀리지 않게) (10-22)
+    fact_fail_guard(items)   # 사실 확인 FAIL 은 반박 출처가 있을 때만 (10-21) — 주장마다 (10-22)
+    fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤) — 사유 모순 보류는 풀지 않음
+    tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
+    honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
+    js.apply_overrides(items)
+
+
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
                codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None) -> Dict[str, Any]:
@@ -680,6 +863,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     usage_by: Dict[str, Dict[str, Any]] = {}   # 1차 심판(jev · decisions)마다 돌려준 사용량 칸 전부 (10-22 미팅 7번)
     t0 = time.monotonic()
     reused_dec = False
+    fresh: Dict[str, str] = {}   # 이번에 실제로 부른 1차 심판(턴 → 심판) — --repair 의 저장된 답과 따로 (10-22)
     saved_dec = out / "decisions" / name
     if reuse_decisions and saved_dec.exists():   # --repair: 저장된 Decisions 답으로 (API 안 부름)
         try:
@@ -691,27 +875,37 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             dec_items = {}
     for row in turns:
         n = ji._turn(row)
-        if reused_dec and n in dec_items:
-            continue
         ids = turn_item_ids(row, n, list(allq), multi_ok)
         targets = QUESTION_TARGETS.get(q) if JUDGE_TARGET_ONLY else None
         if targets:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목
-            ids = [i for i in ids if i in targets]
+            # 답에 있으면 보는 기준(J5-3.a 지어낸 출처 · 조회 꾸밈)은 질문으로 정할 수 없어 목표와 관계없이 본다 — CODE 의 답 의존 검사와 같게
+            # (10-22 기준 점검: 싱글턴 · 첨부 · 롱컨텍스트 67문항에서 J5-3.a 를 한 번도 판정하지 않던 것)
+            ids = [i for i in ids if i in targets or i in ANSWER_DEPENDENT_ITEMS]
+        if reused_dec and n in dec_items:
+            # --repair: 저장된 답에 없는 항목(10-22 부터 늘 보는 J5-3.a 등)만 1차 심판에 묻는다 — 턴을 통째로 건너뛰면 새 항목이 빠진다 (Codex 검토 10-22)
+            ids = [i for i in ids if i not in dec_items[n]]
+            if not ids:
+                continue
         part = {"guide": fixed["guide"] + (TARGET_GUIDE if targets else ""), "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
         qd = {f"T{n}:{i}": allq[i] for i in ids}
         status, body, error, used = first_judge(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n))
-        first_used[str(n)] = used
+        fresh[str(n)] = used or "?"
+        cached_turn = n in dec_items
+        first_used[str(n)] = first_used.get(str(n)) or used
         if status == "OK":
             ans = (body or {}).get("answers") or {}
-            dec_items[n] = {i: ans.get(f"T{n}:{i}") for i in ids}
+            got = {i: ans.get(f"T{n}:{i}") for i in ids}
+            if cached_turn:   # 저장된 답에 더한 항목은 판정한 심판을 항목에 남긴다 — 턴의 심판(first_judge)은 저장된 답의 것 (Codex 검토 10-22)
+                got = {i: ({**v, "judge": used} if isinstance(v, dict) else v) for i, v in got.items()}
+            dec_items[n] = {**dec_items.get(n, {}), **got}
             usage_tokens += int(((body or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((body or {}).get("usage"), dict) else 0
             add_usage(usage_by.setdefault(used or "?", {}), (body or {}).get("usage"))
         else:
-            dec_items[n] = {i: None for i in ids}
+            dec_items[n] = {**dec_items.get(n, {}), **{i: None for i in ids}}
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
-                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns), "input_tokens": usage_tokens,
-                          "reused": reused_dec, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
+                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(fresh), "input_tokens": usage_tokens,
+                          "reused": reused_dec, "fresh_judge": fresh, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
     (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used}, ensure_ascii=False, indent=1),
                                            encoding="utf-8")
     # ② 걸린 항목 → Codex
@@ -779,6 +973,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             bad.update({k: ["J5-1.a 가 아닌 항목의 UNVERIFIED — 다시"] for k in undecided})   # 10-21 밤
             refail = [k for k in fail_items(output, turns, answers, flagged, REASK_FAIL_ITEMS) if k not in reasked]
             bad.update({k: ["정의의 예외를 짚어 FAIL 다시"] for k in refail})   # --reask-fail (10-22)
+            contra = [k for k in contradiction_items(output, turns, answers, flagged) if k not in reasked]
+            bad.update({k: ["사유와 판정이 반대 — 다시"] for k in contra})   # 10-22 기준 점검
             targets: Dict[int, List[str]] = {}
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
@@ -793,9 +989,18 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             ask_turns = [min(targets)] if multi_doc else sorted(targets)[:max(1, len(targets) // 2)]
             ask_base = {**body_doc, "턴": [t for t in doc["턴"] if t["턴"] <= max(ask_turns)]} if multi_doc else body_doc
             say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
+            prev: Dict[str, List[Dict[str, Any]]] = {}   # 다시 묻는 항목의 이전 요소 번호 · 판정 — 같은 번호로 모든 요소를 다시 답하게 (Codex 검토 10-22)
+            for t in (output or {}).get("turns") or []:
+                if isinstance(t, dict) and t.get("turn") in ask_turns:
+                    for e in t.get("items") or []:
+                        if isinstance(e, dict) and "#" in str(e.get("id")) and js._base(e.get("id")) in targets.get(t["turn"], []):
+                            prev.setdefault(f"T{t['turn']}:{js._base(e.get('id'))}", []).append(
+                                {"id": e.get("id"), "decision": e.get("decision"), "reason": e.get("reason")})
             st2, out2, err2 = ask_codex({**ask_base, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
-                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail)) if any(k[0] in ask_turns for k in ks))}
-                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail) else {})})
+                                         **({"이전_판정": prev, "이전_판정_안내": PREV_NOTE} if prev else {}),
+                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail), (CONTRADICTION_NOTE, contra))
+                                                             if any(k[0] in ask_turns for k in ks))}
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra) else {})})
             if st2 != "OK":
                 error = err2
                 break
@@ -843,7 +1048,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 continue   # 저장된 Decisions 답(--repair)에 J6 가 있어도 멀티턴이 아니면 판정하지 않음 (10-21 밤)
             is_flagged = i in (flagged.get(n) or [])
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
-            label = {"jev": "Jev"}.get(first_used.get(str(n)) or "", "Decisions")
+            judge = (entry.get("judge") if isinstance(entry, dict) else None) or first_used.get(str(n))   # 항목을 판정한 1차 심판(--repair 로 더한 항목은 따로, 10-22)
+            label = {"jev": "Jev"}.get(judge or "", "Decisions")
             dec, how = combine_screen(cv, entry, is_flagged, item=i, label=label)
             if dec is None:
                 continue
@@ -853,19 +1059,12 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             e = ((cv or {}).get("entries") or [{}])
             fail_e = next((x for x in e if x.get("decision") == "FAIL"), e[0])
             items[i] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (entry or {}).get("choice") if isinstance(entry, dict) else None,
-                        "second_judge": first_used.get(str(n)) or "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
+                        "second_judge": judge or "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
                         "decisions_confidence": (entry or {}).get("confidence") if isinstance(entry, dict) else None,
                         "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [], "notes": (cv or {}).get("notes") or [],
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
-        js.apply_overrides(items)
-        material_fact_guard(items, doc, n)   # 입력 자료 안의 사실은 J5-1 해당 없음 (10-21)
-        fact_reason_na_guard(items)   # 사유가 '입력 자료의 값 · 외부 사실 아님'이면 해당 없음 (10-22)
-        fact_fail_guard(items)   # 사실 확인 FAIL 은 반박 출처가 있을 때만 (10-21)
-        reason_decision_guard(items)   # 사유와 판정이 반대 (10-21)
-        fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤)
-        tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
-        honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
+        apply_guards(items, doc, n)
         final[n] = items
         turn_out[str(n)] = {"situations_judge": (codex_sits.get(n) or {}).get("situations") or [], "evidence": (codex_sits.get(n) or {}).get("evidence") or {},
                             "problems": [], "items": items}

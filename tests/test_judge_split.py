@@ -215,3 +215,13 @@ def test_combine_jev_gpt_follows_the_agreed_rule():
     assert held["decision"] == "UNVERIFIED" and "심판 갈림" in held["problems"][0] and held["jev"]["probabilities"]["FAIL"] == 0.6
     assert js.combine_jev_gpt(jev_unsure, gpt_pass)["decision"] == "PASS"
     assert js.combine_jev_gpt(jev_fail, {"problems": ["GPT CLI 실패"]})["decision"] == "UNVERIFIED"
+
+
+def test_refusal_turn_drops_result_quality_and_unspecified_explanation_style():
+    # 10-22 기준 점검: 거절(J1-2.a 아니오)이면 결과물 품질(J4)도 해당 없음, 설명 방식 지정이 없으면(J2-4.a 해당 없음) J2-4.b 도 해당 없음
+    turn = {"J1-2.a": {"decision": "FAIL"}, "J1-1.a": {"decision": "FAIL"}, "J4-2.a": {"decision": "FAIL"},
+            "J2-4.a": {"decision": "NOT_APPLICABLE"}, "J2-4.b": {"decision": "PASS"}}
+    js.apply_overrides(turn)
+    assert turn["J1-1.a"]["decision"] == "NOT_APPLICABLE"
+    assert turn["J4-2.a"]["decision"] == "NOT_APPLICABLE"
+    assert turn["J2-4.b"]["decision"] == "NOT_APPLICABLE"
