@@ -224,7 +224,7 @@ def flow_svg(n: int, set_ver: str) -> str:
     ], "set")
     P += parts
     f1_y = A_y + 10
-    parts, f1_h = filenode(f1_y, "질문 세트 파일", [f"질문 {n}개", f"questions.json · {set_ver}"])
+    parts, f1_h = filenode(f1_y, "질문 세트 파일", [f"질문 {n}개", "questions.json", set_ver])
     P += parts
     P.append(file_read(A_y + 30, f1_y + 26))
     y += A_h
@@ -233,8 +233,8 @@ def flow_svg(n: int, set_ver: str) -> str:
 
     B_y = y
     parts, B_h, spots = module(y, "B", "답변 수집 — 네 모델 동시", [
-        ("앱", ["ChatGPT · Claude 데스크톱 앱"]),
-        ("웹", ["Gemini · AIONA(개발 서버)"]),
+        ("앱", ["ChatGPT · Claude · Gemini 데스크톱 앱"]),
+        ("웹", ["AIONA(개발 서버)"]),
         ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "첨부는 붙여넣기 · 받은 질문은 건너뜀"]),
     ], "ai")
     P += parts
@@ -290,8 +290,8 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 22
     cy2 = y + 32
     P += diamond(DX, cy2, 210, 64, ["빈 답을 요구하는", "질문인가?"])
-    # empty-output-v6 (10-21 저녁 · tools/judge_inputs.empty_output_entry): 글을 내면 FAIL · 빈 답 통과 · 복사 버튼 안 뜸은 보류 → 다시 수집
-    parts, s2_h = side(cy2 - 33, ["심판 없이 정함", "글을 냄 → FAIL", "빈 답 → 통과", "복사 버튼 안 뜸", "→ 보류 · 다시 수집"])
+    # empty-output-v7 (사용자 10-22 "빈출력 질문은 다 보류" · tools/judge_inputs.empty_output_entry): 무엇이 보였는지만 적고 모두 보류
+    parts, s2_h = side(cy2 - 33, ["심판 없이 모두 보류", "사람이 정함", "보인 것을 적어 둠:", "글 · 빈 답 · 오류"])
     P += parts
     P += [path(f"M{DX + 105},{cy2:g} L{SX - 2},{cy2:g}"), lab(DX + 112, cy2 - 7, "예")]
     y = cy2 + 32
@@ -302,10 +302,10 @@ def flow_svg(n: int, set_ver: str) -> str:
     # E — LLM Judge 심판 셋 (사용자 10-21 저녁): 짧은 입력(32K 토큰 이하)은 Jev · 긴 입력은 Decisions API · Decisions FAIL 만 Codex
     E_y = y
     parts, E_h, spots = module(y, "E", "LLM Judge — 44개, 심판 셋", [
-        ("입력", ["고정 판정 프롬프트 v4 + 질문·답변 JSON", "모델 이름 숨김 (블라인드)"]),
-        ("심판 1", ["입력 32K 토큰 이하 (짧은 것)", "Jev 가 판정"]),
-        ("심판 2", ["입력 32K 토큰 넘음 (긴 것)", "Decisions API 가 판정"]),
-        ("심판 3", ["Decisions 가 FAIL 로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),
+        ("입력", ["판정 프롬프트 + 질문·답변 JSON", "모델 이름 숨김 (블라인드)"]),   # 사용자 10-22: 그냥 판정 프롬프트
+        ("심판 1", ["3만 2천 토큰 이하 · 첨부 없음", "Jev 가 판정"]),
+        ("심판 2", ["그 밖(긴 것 · 첨부)", "Decisions API 가 판정"]),
+        ("심판 3", ["1차가 FAIL · 애매로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),
     ], "ai")
     P += parts
     for spot, title, lines in ((spots[1], "AI · 심판 1 — Jev", ["외부 API (TypeSafe)"]),
@@ -313,11 +313,11 @@ def flow_svg(n: int, set_ver: str) -> str:
                                (spots[3], "AI · 심판 3 — Codex CLI", ["GPT-6 Luna · low · 구독"])):
         parts, _ = aibox(spot[0] - 1, title, lines)
         P += parts + [ai_link(spot[0] + spot[1] / 2)]
-    parts, f3_h = filenode(E_y + 10, "고정 프롬프트", ["판정 프롬프트 v4", "Jev 질문 묶음 v4"])
+    parts, f3_h = filenode(E_y + 10, "판정 프롬프트", ["모든 질문에 같은 기준 글", "Jev 용은 질문 목록 꼴"])   # 사용자 10-22
     P += parts
     P.append(file_read(E_y + 52, E_y + 36))
     f4_y = E_y + 22 + f3_h
-    parts, f4_h = filenode(f4_y, "질문·답변 JSON", ["C 에서 저장한 것", "질문 하나씩"])
+    parts, f4_h = filenode(f4_y, "질문·답변 JSON", ["C 에서 확인한 질문 · 답", "질문 하나씩 심판에게"])
     P += parts
     P.append(file_read(spots[0][0] + 30, f4_y + 26))
     y = E_y + E_h
@@ -327,7 +327,7 @@ def flow_svg(n: int, set_ver: str) -> str:
     F_y = y
     parts, F_h, _ = module(y, "F", "합치기·보류 — 규칙, 코드", [
         ("확정", ["Codex 가 본 항목 → Codex 판정대로", "나머지 → Jev · Decisions 판정대로"]),
-        ("보류", ["Codex 확인 못 함 · 인용이 원문에 없음", "Codex 판정 없음 + Decisions FAIL"]),
+        ("보류", ["Codex 확인 못 함 · 인용이 원문에 없음", "Codex 판정 없음 + 1차 FAIL"]),
     ], "code")
     P += parts
     y += F_h
@@ -337,7 +337,6 @@ def flow_svg(n: int, set_ver: str) -> str:
     G_y = y
     parts, G_h, _ = module(y, "G", "질문 단위 판정 — 코드", [
         ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "모든 기준 통과 → 완전 통과"]),
-        ("단위", [f"대화는 턴 전체를 묶어 질문 1개 — 숫자는 /{n}"]),
     ], "code")
     P += parts
     # 분기 결과 칸 두 개는 오른쪽 통로로 모여 G 로 바로 간다
@@ -415,11 +414,9 @@ def side_cards() -> str:
             + mini("판정 규칙", ["상황", "결과"], [
                 ["답을 못 받음", FAIL],
                 ["재시도 대상 · 빈 답", HOLD],
-                ["빈 출력 요구 — 글을 냄", FAIL],
-                ["빈 출력 요구 — 빈 답", PASS],
-                ["빈 출력 요구 — 복사 버튼 안 뜸", f"{HOLD} · 다시 수집"],
+                ["빈 출력 요구(글 · 빈 답 · 오류 모두)", f"{HOLD} · 사람이 정함"],
                 ["Codex FAIL", FAIL],
-                ["Decisions FAIL + Codex 통과", "Codex 대로"],
+                ["1차 FAIL + Codex 통과", "Codex 대로"],
                 ["확인 못 함 · 인용 불일치", HOLD],
                 ["질문에 보류가 하나라도", f"질문 {HOLD}"],
             ])
@@ -430,13 +427,16 @@ def flow_scene(D: Dict[str, Any]) -> str:
     """장면 내용 — 흐름도 + 옆 표(누가 하나 · 판정 규칙 · 도형)."""
     n = D["n"]
     set_dir = Path(D["set_dir"])
+    vers = re.findall(r"(생성프롬프트|멀티턴)(v[\d.]+)", set_dir.name)   # 질문세트_78_생성프롬프트v3.3_멀티턴v3 → v3.3 · 멀티턴 v3
     m = re.search(r"v[\d.]+$", set_dir.name)
-    set_ver = m.group(0) if m else set_dir.name
+    set_ver = (" · ".join(v if k == "생성프롬프트" else f"{k} {v}" for k, v in vers) if vers
+               else m.group(0) if m else set_dir.name)
     # 받은 의견 E (10-21 밤): 이 그림은 다음 평가 구조(심판 셋) — 이번 결과가 다른 방식으로 판정됐으면 그 방식을 같이 적는다 (Gemini 표기는 페이지 전체 3.8, 사용자 10-21 밤)
     pipe = D["d"]["judgment"].get("pipeline") or ""
     now = re.search(r"\((.*)\)", pipe)
     sub = (f'질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋 — Jev · Decisions API · Codex CLI' if "Jev" in pipe else
            f'<b>다음 평가 구조</b> — 질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋(Jev · Decisions API · Codex CLI)<br>'
-           f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}')
+           f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}'
+           + (' · Gemini 는 웹브라우저로 받음' if "웹" in D["d"]["models"].get("gemini", "") else ""))
     return (f'<figure class="poster"><span class="poster-sub">{sub}</span>'
             f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
