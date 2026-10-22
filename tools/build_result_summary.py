@@ -360,9 +360,18 @@ def criteria_list(D: Dict[str, Any]) -> str:
         return s[:n] + ("…" if len(s) > n else "")
 
     def split_note(s: str) -> Tuple[str, str]:
-        """'…했는가 (보충)' → ('…했는가', '보충') — 괄호 속 보충 설명은 흐리게."""
-        m = re.match(r"^(.*?)\s*\((.*)\)\s*$", s.strip())
-        return (m.group(1), m.group(2)) if m and m.group(1) else (s.strip(), "")
+        """'…했는가 (보충)' → ('…했는가', '보충') — 문장 끝에 붙은 괄호 하나만 보충 설명으로 흐리게.
+        문장 중간 괄호('결과물(비교 결과 …)을')는 본문에 둔다 (사용자 10-22: 첫 괄호에서 잘라 문장이 끊기던 것)."""
+        s = s.strip()
+        if not s.endswith(")"):
+            return s, ""
+        depth = 0
+        for i in range(len(s) - 1, -1, -1):
+            depth += {")": 1, "(": -1}.get(s[i], 0)
+            if depth == 0:
+                break
+        main = s[:i].rstrip()
+        return (main, s[i + 1:-1]) if depth == 0 and main else (s, "")
 
     # CODE — 세 갈래 · 여덟 묶음
     cgroups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -459,7 +468,7 @@ TERMS = [
     ("완전 통과", "그 질문에 적용된 기준을 모두 통과한 질문.", "t-pass"),
     ("FAIL", "기준을 하나라도 어긴 질문(보류가 없을 때).", "t-fail"),
     ("보류", "심판이 확인하지 못한 기준이 남은 질문 — 억지로 정하지 않고 사람이 정합니다.", "t-hold"),
-    ("질문당 기준 수(k)", "질문 하나에 걸리는 기준의 수. 6~10개로 맞췄습니다(근거는 02장).", ""),
+    ("질문당 기준 수(k)", "질문이 요구하는 조건(기준)의 수 — 6~10개로 맞췄습니다(근거는 '질문 설계'). 모든 답에 늘 보는 기준 · 답에 따라 보는 기준은 따로 셉니다.", ""),
 ]
 
 
@@ -701,9 +710,9 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
             tot[p].update(cr[cid][p])
     rate = {p: tot[p]["PASS"] / max(1, sum(tot[p].values())) for p in order}
     by = sorted(order, key=lambda p: -rate[p])
-    cards = "".join(f'<div class="cb-card"><span class="cb-r">{i}위</span><span class="cb-m">{mname(p)}</span><b>{rate[p] * 100:.1f}%</b>'
+    cards = "".join(f'<div class="cb-card"><span class="cb-m">{mname(p)}</span><b>{rate[p] * 100:.1f}%</b>'
                     f'<small>기준 판정 {sum(tot[p].values()):,}건 · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small>'
-                    f'<small class="cb-q">질문 단위 완전 통과 {D["tally"][p]["PASS"]} / {D["n"]} ({D["tally"][p]["PASS"] / D["n"] * 100:.0f}%)</small></div>' for i, p in enumerate(by, 1))
+                    f'<small class="cb-q">질문 단위 완전 통과 {D["tally"][p]["PASS"]} / {D["n"]} ({D["tally"][p]["PASS"] / D["n"] * 100:.0f}%)</small></div>' for p in by)
 
     def cell(c: Counter) -> str:
         n = sum(c.values())
@@ -732,7 +741,7 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
     return (f'<div class="cb-cards">{cards}</div>'
             '<p class="cb-key">기준 통과율 = 기준이 적용된 (질문 × 기준) 판정 중 통과한 비율. 같은 질문에는 네 모델 모두 같은 기준을 매겨 판정 건수가 같습니다 — '
             f'질문 {sum(1 for t in D["qtypes"].values() if t != "명시적 빈 출력")}개 × 그 질문에 적용된 기준(질문마다 늘 보는 기준 + 그 질문이 요구한 기준 6~10개, 멀티턴은 10턴 합). '
-            '답에 그 내용이 없어 해당 없음인 칸은 어긴 것이 없으니 통과로, 보류는 통과로 세지 않음. '
+            '답에 그 내용이 없어 해당 없음인 칸은 어긴 것이 없으니 통과로, 보류는 통과로 세지 않음 — 그래서 모델마다 90%대로 높게 나오니 모델 차이는 FAIL 수로 보세요. '
             '질문 단위 완전 통과(상세 분석 ‘이번 실행 결과’)는 질문 하나의 기준을 모두 통과해야 해서 이보다 훨씬 낮습니다.</p>'
             f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>')
 
@@ -970,7 +979,9 @@ def scene_next(D: Dict[str, Any]) -> str:
          "대조 도구(tools/review_kit.py)는 있습니다.", "다음 할 일"),
         ("모델 확장", "다른 모델도 같은 질문으로", "답변 수집은 앱 · 웹브라우저 자동화라, 연결만 하면 다른 모델도 같은 78문항으로 받아 같은 기준으로 비교합니다.", "구조 준비됨"),
         ("보류 사례집", "사람의 판단을 데이터로", "보류를 사람이 통과 · FAIL 로 정하면 사례로 쌓고, 다음 판정에서 비슷한 경우의 근거로 씁니다. 반복되는 판단은 채점 기준 · 프롬프트로 올립니다.", "만드는 중"),
-        ("심판 셋 + 한 번 요청", "Jev · Decisions · Codex", "세 심판을 함께 쓰고, 수집한 질문 · 답을 한 파일로 모아 심판이 그 파일을 읽어 한 번 요청으로 평가합니다 — 호출과 재시도를 줄입니다.", "만드는 중"),
+        (("한 번 요청 판정", "질문 · 답을 한 파일로", "이번 실행은 이미 심판 셋(Jev · Decisions · Codex)으로 판정했습니다. 다음은 수집한 질문 · 답을 한 파일로 모아 "
+          "심판이 그 파일을 읽어 한 번 요청으로 평가합니다 — 호출과 재시도를 줄입니다.", "만드는 중") if three_judges(D) else   # 사용자 10-22: 이미 쓰는 심판 셋을 '만드는 중'으로 적던 것
+         ("심판 셋 + 한 번 요청", "Jev · Decisions · Codex", "세 심판을 함께 쓰고, 수집한 질문 · 답을 한 파일로 모아 심판이 그 파일을 읽어 한 번 요청으로 평가합니다 — 호출과 재시도를 줄입니다.", "만드는 중")),
         ("수집 방식", "복사의 한계", "ChatGPT 앱은 복사할 때 코드 줄바꿈을 지웁니다. 화면 캡처로 받아 보는 방식을 검토합니다.", "검토"),
     ]
     return ('<div class="rs-cards rs-next">' + "".join(
@@ -1019,28 +1030,159 @@ def judge_seconds(D: Dict[str, Any]) -> float:
     return max((v["seconds"] for v in w.values()), default=0)
 
 
+def fmt_s(sec: float) -> str:
+    """초 → '15초' · '4분 05초' (질문 하나의 답변 시간)."""
+    sec = round(sec)
+    return f"{sec}초" if sec < 60 else f"{sec // 60}분 {sec % 60:02d}초"
+
+
+def answer_times(D: Dict[str, Any]) -> Tuple[Dict[int, Dict[str, float]], Dict[int, set]]:
+    """질문 → 모델 → 답변 시간 합(초 — 질문을 보내고 답을 받기까지, 멀티턴은 10턴 합) ·
+    질문 → 다시 수집할 턴이 있는 모델(그 칸의 시간은 실패까지 걸린 시간이라 편차에서 뺀다)."""
+    secs: Dict[int, Dict[str, float]] = defaultdict(dict)
+    redo: Dict[int, set] = defaultdict(set)
+    for (p, q, _t), t in D["turns"].items():
+        secs[q][p] = secs[q].get(p, 0.0) + (t.get("latency_ms") or 0) / 1000
+        if t.get("status") != "SUCCESS":
+            redo[q].add(p)
+    return secs, redo
+
+
+def time_spread(D: Dict[str, Any]) -> str:
+    """답변 시간 — 질문 · 유형별 편차 (사용자 10-22 미팅 6번: 모델별 합만으로는 의미가 적다 —
+    78개 질문을 펼쳐 유형마다 어느 모델이 빠르고 느린지, 무엇을 개선할지 보이게).
+    위: 질문 78개 하나하나(번호 순 · 펼친 채), 가운데: 유형 × 모델 보통 시간 표, 아래: 개선할 곳 (사용자 10-22: 몇 번 질문에서 얼마나 걸렸는지 바로)."""
+    order = D["order"]
+    secs, redo = answer_times(D)
+    ok = lambda q, p: p in secs[q] and p not in redo[q]
+    me = "aiona" if "aiona" in order else ""
+
+    def speed_order(qs: List[int]) -> List[str]:
+        """AIONA 맨 앞, 나머지는 그 질문들에서 실제로 빠른 순(중앙값) — 걸린 시간 장면만 (사용자 10-22)."""
+        md = {p: statistics.median(v) for p in order if (v := [secs[q][p] for q in qs if ok(q, p)])}
+        return ([me] if me else []) + sorted((p for p in order if p != me), key=lambda p: (p not in md, md.get(p, 0)))
+
+    common = [q for q in secs if all(ok(q, p) for p in order)]
+    tot = {p: sum(secs[q][p] for q in common) for p in order}
+    cols_all = ([me] if me else []) + sorted((p for p in order if p != me), key=tot.get)   # 요약 표 열 — 네 모델이 모두 답한 질문의 합이 짧은 순
+    panels, finds, redo_note, fasts = [], [], [], []
+    for ty in TIME_COLS:
+        qs = sorted(q for q, t in D["dtypes"].items() if t == ty)
+        vals = {p: [secs[q][p] for q in qs if ok(q, p)] for p in order}
+        if not qs or not any(vals.values()):
+            continue
+        med = {p: statistics.median(vals[p]) for p in order if vals[p]}
+        fast = min(med, key=med.get)
+        n_redo = sum(1 for q in qs for p in order if p in redo[q])
+        if n_redo:
+            redo_note.append(f"{TYPE_SHORT[ty]} {n_redo}칸")
+        fasts.append(fast)
+        cells = ""
+        for p in cols_all:
+            if p not in med:
+                cells += '<div class="lt-sc">—</div>'
+                continue
+            best = "<!--best-->" if p == fast else ""   # 모든 유형에서 같은 모델이 가장 빠르면 표 머리에, 아니면 이 칸 위에 (아래에서 바꿈)
+            if p == me or me not in med:
+                # AIONA 칸 — 그 유형에서 가장 빠른 모델 대비 1.5 · 2 · 2.5 · 3배 이상 → 1~4단계
+                r = med[p] / med[fast]
+                cls, note = f"lt-t{min(4, int((r - 1) / 0.5))}", ("<em>가장 빠름</em>" if p == fast else f"<em>{SHORT[fast]}보다 {r:.1f}배 느림</em>")
+            else:
+                # 다른 모델 — AIONA 기준 (사용자 10-22: AIONA 채팅 품질 평가라 AIONA 를 부각) · 1 · 1.5 · 2 · 2.5배 이상 → 1~4단계
+                v, a = med[p], med[me]
+                r = max(v, a) / min(v, a)
+                lv = min(4, 1 + int((r - 1) / 0.5))
+                cls, note = ((f"lt-s{lv}", f'<em class="lt-vs-s">AIONA보다 {r:.1f}배 느림</em>') if v > a else
+                             (f"lt-f{lv}", f'<em class="lt-vs-f">AIONA보다 {r:.1f}배 빠름</em>') if v < a else ("", "<em>AIONA와 같음</em>"))
+            cells += (f'<div class="lt-sc {cls}{" lt-mec" if p == me else ""}">{best}<b>{fmt_s(med[p])}</b>{note}'
+                      f'<small>질문마다 {fmt_s(min(vals[p]))} ~ {fmt_s(max(vals[p]))}</small></div>')
+        what = TYPE_SHORT[ty]
+        sub_ = f"{len(qs)}문항" + (" · 10턴 합" if ty == "10턴 멀티턴 대화" else "")
+        panels.append(f'<div class="lt-sr"><span class="lt-st"><b>{E(what)}</b><small>{sub_}</small></span>{cells}</div>')
+        slow = max(med, key=med.get)
+        wide = max(med, key=lambda p: max(vals[p]) / max(1e-9, min(vals[p])))
+        line = (f"<b>{E(TYPE_SHORT[ty])}</b> — 가장 빠름 {SHORT[fast]} {fmt_s(med[fast])} · 가장 느림 {SHORT[slow]} {fmt_s(med[slow])}"
+                f"({med[slow] / med[fast]:.1f}배)")
+        if me in med and me not in (fast, slow):
+            line += f" · {SHORT[me]} {fmt_s(med[me])}"
+        line += f" · 편차 가장 큼 {SHORT[wide]}({fmt_s(min(vals[wide]))} ~ {fmt_s(max(vals[wide]))})"
+        finds.append(f"<li>{line}</li>")
+    # AIONA 가 다른 모델보다 눈에 띄게 느린 질문 — 다음 업데이트에서 볼 곳
+    slow_q = []
+    if me:
+        for q in sorted(secs):
+            others = [secs[q][p] for p in order if p != me and ok(q, p)]
+            if ok(q, me) and others and secs[q][me] >= 1.5 * statistics.median(others):
+                slow_q.append((secs[q][me] / statistics.median(others), q, others))
+        slow_q.sort(reverse=True)
+    if slow_q:
+        items = " · ".join(f"Q{q} {TYPE_SHORT.get(D['dtypes'][q], '')} {fmt_s(secs[q][me])}(다른 모델 {fmt_s(min(o))} ~ {fmt_s(max(o))})" for _r, q, o in slow_q[:5])
+        finds.append(f"<li><b>{SHORT[me]} 가 다른 세 모델 중앙값보다 1.5배 이상 느린 질문 {len(slow_q)}개</b> — {E(items)}"
+                     + (" 외" if len(slow_q) > 5 else "") + "</li>")
+    # 질문별 — 유형 탭(고른 유형만), 열은 AIONA 다음 그 유형에서 빠른 순 · 칸 안 막대는 그 질문에서 가장 오래 걸린 모델을 끝(100%)으로,
+    # 초록 = 그 질문에서 가장 빠름 · 빨강 = 가장 느림 (사용자 10-22: 78문항을 한 표에 두니 난잡 — 유형끼리 묶어 보고 싶은 것만)
+    allq = sorted(secs)
+    groups = [("싱글턴", [q for q in allq if D["dtypes"][q] == "단일 질문" and D["qtypes"][q] != "명시적 빈 출력"]),
+              ("빈 출력 요구", [q for q in allq if D["qtypes"][q] == "명시적 빈 출력"])] + \
+        [(TYPE_SHORT[ty], [q for q in allq if D["dtypes"][q] == ty]) for ty in TIME_COLS if ty != "단일 질문"]
+    qtabs = []
+    for g, qs in [(g, qs) for g, qs in groups if qs]:
+        cols = speed_order(qs)
+        rows = ""
+        for q in qs:
+            okv = {p: secs[q][p] for p in cols if ok(q, p)}
+            lo, hi = (min(okv.values()), max(okv.values())) if okv else (0, 0)
+            cells = ""
+            for p in cols:
+                if p not in secs[q]:
+                    cell = '<span class="lq-c">—</span>'
+                elif p not in okv:
+                    cell = '<span class="lq-c lq-redo" title="복사 버튼이 뜨지 않아 다시 수집할 턴이 있음">다시 수집</span>'
+                else:
+                    v = okv[p]
+                    k = (" lq-fast" if v == lo else " lq-slow" if v == hi else "") if len(okv) > 1 else ""
+                    cell = (f'<span class="lq-c{k}" style="--w:{v / hi * 100:.0f}%" title="Q{q} · {SHORT[p]} {fmt_s(v)}'
+                            + (f" · 가장 빠른 모델의 {v / lo:.1f}배" if lo and v > lo else "") + f'">{fmt_s(v)}</span>')
+                cells += f'<span class="lq-col{" lq-me" if p == me else ""}">{cell}</span>'   # 모델마다 세로 상자 한 조각
+            lines_ = [x.strip() for x in (D["qset"][q]["turns"][0].get("question") or "").split("\n") if x.strip()] or [""]
+            qt = lines_[-1] if re.fullmatch(r"\[[^\]]{1,20}\]", lines_[0]) else lines_[0]   # '[붙여 넣은 자료]' 로 시작하면 요청이 있는 끝 줄
+            qt = qt[:120] + ("…" if len(qt) > 120 else "")
+            rows += (f'<div class="lq-r"><span class="lq-q"><span class="lq-n">Q{q}</span><span class="lq-t" title="{E(qt)}">{E(qt)}</span></span>'
+                     f'{cells}</div>')
+        qhead = ('<div class="lq-r lq-h"><span class="lq-q">질문</span>'
+                 + "".join(f'<span class="lq-col{" lq-me" if p == me else ""}"><span class="{"lt-meh" if p == me else ""}">{mname(p)}</span></span>' for p in cols)
+                 + "</div>")
+        qtabs.append((g, len(qs), f'<div class="lq-list">{qhead}{rows}</div>'))
+    radios = "".join(f'<input type="radio" name="lq" id="lq{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(qtabs)))
+    labels = ('<div class="hm-tabs lq-tabs">'
+              + "".join(f'<label for="lq{i}">{E(g)} <small>{n}</small></label>' for i, (g, n, _x) in enumerate(qtabs)) + "</div>")
+    panes = '<div class="lq-ps">' + "".join(f'<div class="ar-pn lq-p{i}">{x}</div>' for i, (_g, _n, x) in enumerate(qtabs)) + "</div>"
+    per_q = (f'<div class="lq">{radios}{labels}{panes}</div>'
+             + tab_css("lq", len(qtabs), ".lq-tabs", ".lq-ps", "lq-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
+    top_fast = fasts[0] if fasts and all(f == fasts[0] for f in fasts) else ""   # 모든 유형에서 가장 빠른 모델 — 표 머리 이름 위에 '가장 빠름'
+    panels = [x.replace("<!--best-->", "" if top_fast else '<i class="lt-bestc">이 유형 가장 빠름</i>') for x in panels]
+    head = ('<div class="lt-sr lt-sh"><span>유형</span>'
+            + "".join(f'<span class="{"lt-meh" if p == me else ""}">' + ('<i class="lt-bestc">가장 빠름</i>' if p == top_fast else "") + f"{mname(p)}</span>"
+                      for p in cols_all) + "</div>")
+    return (f'<h3 class="rs-sh">질문별 답변 시간 — {len(allq)}문항</h3>'
+            '<p class="rs-basis">유형을 고르면 그 유형의 질문만 보입니다. 질문마다 네 모델이 답하는 데 걸린 시간(질문을 보내고 답을 받기까지, 멀티턴은 10턴 합) · '
+            '칸 안 막대는 그 질문에서 가장 오래 걸린 모델을 끝으로 한 길이 · 열은 AIONA 다음 그 유형에서 빠른 모델 순입니다.</p>'
+            '<div class="lq-key"><span><i class="lq-sw lq-sw-f"></i>그 질문에서 가장 빠름</span><span><i class="lq-sw lq-sw-s"></i>가장 느림</span>'
+            '<span><i class="lq-sw lq-sw-r"></i>다시 수집 — 복사 버튼이 뜨지 않아 다시 받을 턴이 있는 칸(시간에서 뺌)</span></div>'
+            + per_q
+            + '<h3 class="rs-sh">답변 시간 — 질문 하나에 보통 걸린 시간</h3>'
+            '<p class="rs-basis">큰 숫자 = 그 유형의 질문 하나에 보통 걸린 시간(중앙값, 질문을 보내고 답을 받기까지) · '
+            + (f"가운데 = AIONA 칸은 그 유형에서 가장 빠른 모델보다 몇 배인지, 다른 모델 칸은 AIONA보다 몇 배 빠르고(초록) 느린지(빨강) · " if me else
+               "가운데 = 그 유형에서 가장 빠른 모델보다 몇 배 오래 걸렸는지 · ")
+            + '작은 숫자 = 질문마다 가장 짧은 ~ 가장 긴 시간 · 색이 진할수록 차이가 큼'
+            + f' · 열은 AIONA 다음, 네 모델이 모두 답한 {len(common)}문항의 답변 시간 합이 짧은 순'
+            + (f" · 다시 수집할 칸({', '.join(redo_note)})은 뺐습니다" if redo_note else "") + '.</p>'
+            f'<div class="lt-sum">{head}{"".join(panels)}</div>'
+            f'<h3 class="rs-sh">개선할 곳 — 답변 시간</h3><ul class="lt-finds">{"".join(finds)}</ul>')
+
+
 def scene_time(D: Dict[str, Any]) -> str:
     order = D["order"]
-    st = {}
-    for p in order:
-        ts = [t for (pp, _q, _t), t in D["turns"].items() if pp == p]
-        perq: Dict[int, float] = defaultdict(float)
-        for t in ts:
-            perq[int(t["question"])] += (t.get("latency_ms") or 0) / 1000
-        got = [t for t in ts if t.get("status") == "SUCCESS" and (t.get("answer") or "").strip()]
-        qs_ok = sum(1 for q in D["qtypes"] if all(D["turns"].get((p, q, n), {}).get("status") == "SUCCESS" for n in range(1, len(D["qset"][q]["turns"]) + 1)))
-        by = defaultdict(list)
-        for q, s in perq.items():
-            by[D["dtypes"][q]].append(s)
-        st[p] = {"sum": sum(perq.values()), "ok": qs_ok, "chars": statistics.mean(len(t["answer"]) for t in got) if got else 0,
-                 "by": by, "max": max(perq.items(), key=lambda kv: kv[1])}
-    mx = max(v["sum"] for v in st.values()) or 1
-    bars = "".join(f'<div class="rs-tb"><span class="rs-bl">{mname(p)}</span><span class="rs-tbar"><i style="width:{st[p]["sum"] / mx * 100:.1f}%"></i></span>'
-                   f'<span class="rs-tv"><b>{hm(st[p]["sum"])}</b><small>질문당 {st[p]["sum"] / st[p]["ok"]:.0f}초 · 턴당 {st[p]["chars"]:,.0f}자</small></span></div>'
-                   for p in order if st[p]["ok"])
-    trows = [[mname(p), *[f"{statistics.mean(st[p]['by'][ty]):.0f}초" if st[p]["by"][ty] else "—" for ty in TIME_COLS],
-              f"Q{st[p]['max'][0]} {TYPE_SHORT.get(D['dtypes'][st[p]['max'][0]], '')} · {R._hms(st[p]['max'][1])}"] for p in order]
-    t2 = table("유형별 — 질문(대화) 하나당 평균 답변 시간", ["모델", *[TYPE_SHORT[ty] for ty in TIME_COLS], "가장 오래 걸린 질문"], trows, [12, 12, 13, 15, 13, 35])
     W = judge_work(D)
     jmx = max((W[p]["seconds"] for p in order), default=0) or 1
     jbars = "".join(f'<div class="rs-tb"><span class="rs-bl">{mname(p)}</span><span class="rs-tbar"><i style="width:{W[p]["seconds"] / jmx * 100:.1f}%"></i></span>'
@@ -1056,8 +1198,8 @@ def scene_time(D: Dict[str, Any]) -> str:
             '1차가 FAIL · 애매로 본 항목만 Codex 가 다시 판정. 다시 판정 · 복구까지 모두 더한 값입니다. '
           + 'Jev · Decisions 는 외부 API · Codex CLI 는 ChatGPT 구독으로 실행.</p>')
     # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
-    return ('<h3 class="rs-sh">답변 수집 — 답변 시간 합 (질문을 보내고 답을 받기까지)</h3><div class="rs-tbars">' + bars + "</div>" + t2
-            + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt)
+    # 사용자 10-22 미팅 6번: 모델별 답변 시간 합 막대 · 유형별 평균 표 대신 질문 · 유형별 편차 (time_spread)
+    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt
 
 
 def process_block(ex: Dict[str, Any]) -> str:
@@ -1165,8 +1307,9 @@ def dist_stats(D: Dict[str, Any]) -> Dict[str, Any]:
     order, T = D["order"], D["tally"]
     rank = {p: 1 + sum(1 for o in order if T[o]["PASS"] > T[p]["PASS"]) for p in order}
     lead = min(order, key=lambda p: (rank[p], order.index(p)))
+    leads = [p for p in order if rank[p] == 1]   # 공동 1위 (사용자 10-22: GPT · Claude 55 동률인데 한 모델만 적던 것)
     rivals = [p for p in order if rank[p] > 1 and T[p]["PASS"] + T[p]["HOLD"] >= T[lead]["PASS"]]   # 보류가 모두 통과면 1위와 같거나 넘음
-    return {"rank": rank, "lead": lead, "rivals": rivals, "hold": sum(T[p]["HOLD"] for p in order)}
+    return {"rank": rank, "lead": lead, "leads": leads, "rivals": rivals, "hold": sum(T[p]["HOLD"] for p in order)}
 
 
 def dist_card(D: Dict[str, Any]) -> str:
@@ -1175,6 +1318,8 @@ def dist_card(D: Dict[str, Any]) -> str:
     order, n, T = D["order"], D["n"], D["tally"]
     st = dist_stats(D)
     lead, lp = st["lead"], T[st["lead"]]["PASS"]
+    top = " · ".join(SHORT[p] for p in st["leads"])
+    first = f"1위({lp})" if len(st["leads"]) > 1 else f"{top}({lp})"
     rows = []
     for p in order:
         P, H, F = T[p]["PASS"], T[p]["HOLD"], T[p]["FAIL"]
@@ -1186,13 +1331,13 @@ def dist_card(D: Dict[str, Any]) -> str:
                     f'<span class="ds-x">보류 {H} · FAIL {F} — 보류가 모두 통과면 최대 <b>{P + H}</b></span></div>')
     if st["rivals"]:
         change = (" · ".join(f"{SHORT[r]} 최대 {T[r]['PASS'] + T[r]['HOLD']}" for r in st["rivals"])
-                  + f" — 보류를 어떻게 정하느냐에 따라 {SHORT[lead]}({lp})와 순위가 바뀔 수 있습니다.")
+                  + f" — 보류를 어떻게 정하느냐에 따라 {first}와 순위가 바뀔 수 있습니다.")
     else:
-        change = f"보류를 모두 통과로 정해도 {SHORT[lead]}({lp})를 넘는 모델은 없지만, 숫자와 아래 순위는 바뀔 수 있습니다."
+        change = f"보류를 모두 통과로 정해도 {first}를 넘는 모델은 없지만, 숫자와 아래 순위는 바뀔 수 있습니다."
     legend = ('<div class="rs-legend ds-leg"><span><i class="rs-sw rs-pass"></i>완전 통과</span><span><i class="rs-sw rs-hold"></i>보류 (사람이 정할 칸)</span>'
-              f'<span><i class="rs-sw rs-fail"></i>FAIL</span><span class="muted">점선 = {SHORT[lead]}의 지금 완전 통과 {lp}</span></div>')
+              f'<span><i class="rs-sw rs-fail"></i>FAIL</span><span class="muted">점선 = 1위의 지금 완전 통과 {lp}</span></div>')
     return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>결과 분포</h3><span class="ds-tag">잠정</span><span class="ar-chip">질문 단위 · 완전 통과 순</span></div>'
-            f'<p class="ds-note">이번 {n}개 질문과 이 실행 조건에서 완전 통과가 가장 많은 모델은 <b>{SHORT[lead]}</b>입니다. '
+            f'<p class="ds-note">이번 {n}개 질문과 이 실행 조건에서 완전 통과가 가장 많은 모델은 <b>{top}</b>{f"(공동 {lp})" if len(st["leads"]) > 1 else ""}입니다. '
             f'보류 {st["hold"]}칸은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
             f'{legend}<div class="ds-rows">{"".join(rows)}</div>{unit_note(D)}</div>')
 
@@ -1205,9 +1350,9 @@ def unit_note(D: Dict[str, Any]) -> str:
     tot = {p: sum((cr[c][p] for c in cr), Counter()) for p in order}
     lead = dist_stats(D)["lead"]
     rate = tot[lead]["PASS"] / max(1, sum(tot[lead].values()))
-    return (f'<div class="ds-unit"><div><b>질문 단위 — 이 장면</b><p>완전 통과 = 질문 하나에 적용된 기준(평균 {statistics.mean(per):.0f}개 — CODE 검사 · LLM Judge 합)을 <b>모두</b> 통과한 질문 수. '
+    return (f'<div class="ds-unit"><div><b>질문 단위 — 이 장면</b><p>완전 통과 = 질문 하나에 적용된 기준(질문이 요구한 6~10개에 늘 보는 기준 · 답에 따라 보는 기준을 더해 평균 {statistics.mean(per):.0f}개)을 <b>모두</b> 통과한 질문 수. '
             f'하나만 어겨도 FAIL, 하나라도 확인 못 하면 보류.</p></div>'
-            f'<div><b>기준 단위 — 상세 분석 "기준별 결과"</b><p>기준 판정 하나하나 중 통과한 비율. 그래서 훨씬 높게 나옵니다 '
+            f'<div><b>기준 단위 — 상세 분석 "기준별 결과"</b><p>기준 판정 하나하나 중 통과한 비율(해당 없음도 통과로 셈). 그래서 훨씬 높게 나옵니다 '
             f'(예: {SHORT[lead]} 기준 통과율 {rate * 100:.1f}% · 완전 통과 {D["tally"][lead]["PASS"] / n * 100:.0f}%).</p></div>'
             '<div><b>보류</b><p>두 숫자 모두 보류를 통과로 세지 않습니다 — 사람이 정하면 둘 다 바뀝니다.</p></div></div>')
 
@@ -1617,7 +1762,7 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
           f'<div class="rs-jump">{jump}</div>'
           f'<p class="rs-basis">파일로 보기 — 미리보기 한도(512KB) 때문에 <span class="rs-id">{E(sub)}/</span> 폴더에 나눠 두었습니다.</p>'
           f'<ul class="rs-files">{flist}<li><a href="{E(e_link)}">갈림 목록</a><span>심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 — 보류 아님, 확인용</span></li></ul>')
-    tabs = [("apx1", "질문별 결과", f"{D['n']}문항 × {len(order)}모델", p1), ("apx2", "기준별 결과", "72개 · 어긴 질문 수 · 질문 번호", p2),
+    tabs = [("apx1", "질문별 결과", f"{D['n']}문항 × {len(order)}모델", p1), ("apx2", "기준별 어긴 질문", "72개 · 어긴 질문 수 · 질문 번호", p2),
             ("apx3", "원문", "FAIL · 통과 · 보류 — 기준 · 사유 · 답", p3)]
     radios = "".join(f'<input type="radio" name="apx" id="{i}"{" checked" if k == 0 else ""}>' for k, (i, *_r) in enumerate(tabs))
     labels = "".join(f'<label for="{i}"><b>{E(t)}</b><span>{E(s)}</span></label>' for i, t, s, _p in tabs)
@@ -2279,6 +2424,48 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 .wrap { max-width: 1480px; }
 @media (max-width: 1199px) { .topnav-in { max-width: 1480px; } }
 .slide { word-break: keep-all; overflow-wrap: break-word; }
+/* 걸린 시간 — 질문 · 유형별 편차 (사용자 10-22 미팅 6번) */
+.lt-sum { display: grid; gap: 6px; overflow-x: auto; }
+.lt-sr { display: grid; grid-template-columns: minmax(104px, 1fr) repeat(4, minmax(92px, 1fr)); gap: 6px; align-items: stretch; }
+.lt-sh span { font-size: 0.8rem; color: var(--muted); text-align: center; align-self: end; } .lt-sh span:first-child { text-align: left; }
+.lt-sh .lt-meh { color: var(--accent); font-weight: 700; }
+.lt-st { display: grid; align-content: center; gap: 1px; } .lt-st small { font-size: 0.74rem; color: var(--muted); }
+.lt-sc { display: grid; justify-items: center; align-content: center; gap: 1px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: center; }
+.lt-sc b { font-family: var(--font-num); font-size: 1.12rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lt-sc em { font-style: normal; font-size: 0.78rem; color: var(--ink); } .lt-sc em.lt-best { color: var(--ok); font-weight: 700; }
+.lt-sc small { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+.lt-sc.lt-mec { border: 2px solid var(--accent); }
+.lq-key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; }
+.lq-key span { display: inline-flex; align-items: center; gap: 6px; } .lq-sw { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
+.lq-sw-f { background: color-mix(in srgb, var(--ok) 40%, transparent); } .lq-sw-s { background: color-mix(in srgb, var(--risk) 40%, transparent); } .lq-sw-r { background: var(--hold-soft); }
+.lq-tabs label small { color: var(--muted); margin-left: 2px; } .lq-ps .lq-list { margin-bottom: 8px; }
+.lq-list { display: grid; min-width: 0; overflow-x: auto; }
+.lq-r { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(96px, 1fr)); column-gap: 10px; }   /* 사용자 10-22: 모델마다 세로 상자 · 질문도 따로 */
+.lq-q, .lq-col { background: var(--surface); border: 1px solid var(--line); border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent); padding: 4px 8px; min-width: 0; }
+.lq-q { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; align-items: center; }
+.lq-col { display: grid; align-items: center; }   /* 안의 막대 칸이 상자 폭을 꽉 채우게 */
+.lq-h .lq-q, .lq-h .lq-col { border-top: 1px solid var(--line); border-radius: 10px 10px 0 0; border-bottom: 2px solid var(--line); padding: 8px; font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+.lq-h .lq-q { display: block; } .lq-h .lq-col { text-align: center; } .lq-h .lt-meh { color: var(--accent); font-weight: 700; }   /* 모델 이름은 막대 칸 가운데 */
+.lq-r:last-child .lq-q, .lq-r:last-child .lq-col { border-bottom: 1px solid var(--line); border-radius: 0 0 10px 10px; padding-bottom: 6px; }
+.lq-col.lq-me { border-left-color: var(--accent); border-right-color: var(--accent); }
+.lq-h .lq-col.lq-me { border-top-color: var(--accent); } .lq-r:last-child .lq-col.lq-me { border-bottom-color: var(--accent); }
+.lq-n { font-family: var(--font-num); font-size: 0.82rem; font-weight: 600; } .lq-t { font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lq-c { --bar: color-mix(in srgb, var(--muted) 20%, transparent); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); text-align: right; white-space: nowrap;
+  font-family: var(--font-num); font-size: 0.8rem; font-variant-numeric: tabular-nums; background: linear-gradient(to right, var(--bar) var(--w, 0%), transparent var(--w, 0%)), var(--bg); }
+.lq-c.lq-fast { --bar: color-mix(in srgb, var(--ok) 34%, transparent); } .lq-c.lq-slow { --bar: color-mix(in srgb, var(--risk) 34%, transparent); font-weight: 700; }
+.lq-c.lq-redo { background: var(--hold-soft); border-color: var(--hold); color: var(--hold-text); font-family: inherit; font-size: 0.7rem; text-align: center; }
+.lt-finds { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 0.9rem; }
+.lt-sh .lt-bestc, .lt-sc .lt-bestc { display: block; font-style: normal; font-size: 0.72rem; font-weight: 700; color: var(--ok); }
+.lt-s1 { background: color-mix(in srgb, var(--risk) 9%, var(--surface)); } .lt-s2 { background: color-mix(in srgb, var(--risk) 16%, var(--surface)); }
+.lt-s3 { background: color-mix(in srgb, var(--risk) 24%, var(--surface)); } .lt-s4 { background: color-mix(in srgb, var(--risk) 34%, var(--surface)); }
+.lt-f1 { background: color-mix(in srgb, var(--ok) 10%, var(--surface)); } .lt-f2 { background: color-mix(in srgb, var(--ok) 17%, var(--surface)); }
+.lt-f3 { background: color-mix(in srgb, var(--ok) 25%, var(--surface)); } .lt-f4 { background: color-mix(in srgb, var(--ok) 34%, var(--surface)); }
+.lt-sc em.lt-vs-s { color: var(--risk); font-weight: 600; } .lt-sc em.lt-vs-f { color: var(--ok); font-weight: 600; }
+.lt-t1 { background: color-mix(in srgb, var(--risk) 10%, var(--surface)); } .lt-t2 { background: color-mix(in srgb, var(--risk) 18%, var(--surface)); }
+.lt-t3 { background: color-mix(in srgb, var(--risk) 28%, var(--surface)); } .lt-t4 { background: color-mix(in srgb, var(--risk) 40%, var(--surface)); }
+@media (max-width: 560px) { .lt-sr { grid-template-columns: 64px repeat(4, minmax(84px, 1fr)); } .lt-sc b { font-size: 0.9rem; white-space: normal; } .lt-sc small { white-space: normal; }
+  .lq-r { grid-template-columns: 48px repeat(4, minmax(66px, 1fr)); column-gap: 4px; } .lq-q { grid-template-columns: minmax(0, 1fr); } .lq-t { display: none; }
+  .lq-q, .lq-col { padding: 4px 4px; } }
 .toc-sep.toc-end { display: none; }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
 @media (min-width: 1200px) { .toc-sep.toc-end { display: block; padding: 0; } }
 /* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
@@ -2382,14 +2569,15 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
     core = [
         ("s_intro", "왜 필요한가", "만든 이유", "왜 만들었나", "", scene_intro(D),
          "AIONA 가 업데이트될 때마다 같은 조건으로 다시 테스트해, 채팅 품질을 꾸준히 높이기 위해 만들었습니다."),
+        # 사용자 10-22: 순서 — 왜 만들었나 → 전체 흐름도 → 질문 설계 → 평가 방법 (큰 그림을 먼저)
+        ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",
+         f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D),
+         "질문 세트부터 보고서까지 명령 하나로 돌고, AI 가 끼는 단계는 답변 수집(B)과 LLM Judge(E) 두 곳입니다."),
         ("s_design", "질문 설계", "왜 78개 · 왜 기준 6~10개", "질문 설계 — 왜 78개, 왜 질문마다 기준 6~10개", "", scene_design(D),
          "기준 6~10개는 모델 차이가 가장 잘 드러나는 난이도, 78개는 모든 기준을 질문 10개 이상에서 평가하는 가장 적은 수입니다."),
         ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)
          + '<h3 class="rs-sh pr-h" id="s_prompt">판정 프롬프트 — 심판이 받는 글 원문</h3>' + scene_prompt(D, open_first=False),   # 사용자 10-22: 평가 방법 쪽으로
          f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
-        ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",
-         f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D),
-         "질문 세트부터 보고서까지 명령 하나로 돌고, AI 가 끼는 단계는 답변 수집(B)과 LLM Judge(E) 두 곳입니다."),
         # 05 검증 장면은 뺌 (사용자 10-22: "이 검증파트는 빼도 될 것 같네") — scene_verify 는 남겨 둠
         ("s_out", "결과", "어떻게 제공하나", "결과 — 이렇게 제공합니다",
          "실행이 끝나면 명령 하나로 결과 JSON · 판정 보고서 · 결과 요약이 나옵니다. 이번 실행의 숫자는 보류를 정하기 전이라 상세 분석에 따로 둡니다.",
@@ -2398,7 +2586,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          "보류는 심판이 확정하지 못한 칸입니다. 원문과 사유를 붙여 사람에게 넘기고, 사람이 정한 값으로 다시 셉니다.",
          scene_hold_flow(D), "확인하지 못한 판정은 억지로 정하지 않고 원문 · 사유와 함께 사람에게 넘깁니다 — 이번 실행의 목록은 상세 분석 '보류 목록'에."),
         ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D),
-         "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · 심판 셋 구조로 다시 판정 · 다른 AI 서비스 연결로 넓힙니다."),
+         "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · " + ("한 번 요청 판정" if three_judges(D) else "심판 셋 구조로 다시 판정") + " · 다른 AI 서비스 연결로 넓힙니다."),
     ]
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
         ("s1", "이번 실행 결과", "분포 · 유형별 통과율 (잠정)", "이번 실행 결과 — 분포와 유형별 통과율 (잠정)",
@@ -2411,7 +2599,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
          "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 걸린 질문입니다.", scene_code(D), ""),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 답변 수집과 LLM Judge 판정",
-         f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 답변 수집은 모델마다 질문을 보내고 답을 받기까지 걸린 시간의 합(아래 막대) 중 가장 긴 것입니다.", scene_time(D), ""),
+         f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 모델별 합보다 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.", scene_time(D), ""),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
         ("s4", "보류 목록", f"사람이 정할 {n_hold}칸", f"보류 목록 — 사람이 정할 {n_hold}칸 (빈 출력 규칙 {n_hold_empty} · LLM Judge 확인 못 함 {n_hold - n_hold_empty})",
