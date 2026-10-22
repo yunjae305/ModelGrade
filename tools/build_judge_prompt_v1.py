@@ -19,6 +19,9 @@ if str(ROOT) not in sys.path:
 
 from code_eval import semantic_items as si  # noqa: E402
 
+#: 기록용 프롬프트는 그때 글 그대로 — 기준표에서 나중에 바뀐 항목 글은 여기서 옛 글로 고정 (10-22 J5-1.a 시점 기준 변경)
+FIXED_QUESTION = {"J5-1.a": "답변의 외부 사실 주장(수치·날짜·명칭·통계·개념 정의)이 사실과 맞는가. 시점이 있는 사실은 답변 수집 날짜 기준"}
+
 VERSION = "judge-prompt-v1"
 OUT_MD = ROOT / "참고자료" / "프롬프트" / "판정_프롬프트_v1.md"
 OUT_TXT = ROOT / "참고자료" / "프롬프트" / "judge_prompt_v1.txt"
@@ -53,7 +56,7 @@ def item_lines() -> list[str]:
         if it.fact_block:
             tags.append("fact 블록 필수(claim 마다)")
         fail = next((e for e in it.examples if e.kind == "FAIL"), None)
-        out.append(f"- **{it.id}** · {it.question}")
+        out.append(f"- **{it.id}** · {FIXED_QUESTION.get(it.id, it.question)}")
         out.append(f"  · 적용: {it.applies}")
         out.append(f"  · 근거: {it.evidence}")
         if tags:

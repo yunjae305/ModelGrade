@@ -171,6 +171,10 @@ mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: 
 mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
 .rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); } .rs-crit > summary .muted { margin-left: 10px; }
 @media (max-width: 760px) { }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
 @media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
 @media (max-width: 1000px) { }
 @media (max-width: 860px) { }
