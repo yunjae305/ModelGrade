@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개선 예정 작업</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  --bg: #f2f4f7; --surface: #ffffff; --ink: #111b26; --muted: #566272; --line: #d5dce5;
+  --accent: #1e5d96; --accent-soft: #e3ecf6; --accent-weak: #9dbbd8;
+  --ok: #1d7748; --ok-soft: #e1f1e7; --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0; --todo: #5c6675; --todo-soft: #e9edf2;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 16px 72px; }
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 1.3rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+h3 { font-size: 1.02rem; margin: 0 0 6px; }
+p { margin: 0 0 10px; }
+.lead { color: var(--muted); margin: 0 0 18px; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 28px; }
+nav.toc a { text-decoration: none; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 5px 12px; font-size: 0.9rem; font-weight: 600; }
+.chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 18px 0 0; }
+.chip { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.chip b { display: block; font-family: var(--font-num); font-size: 1.6rem; line-height: 1.1; }
+.chip span { color: var(--muted); font-size: 0.88rem; }
+section { margin: 0 0 40px; }
+.sec-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.sec-h .no { font-family: var(--font-num); color: var(--accent); font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 0 0 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+/* 루프 흐름 */
+.loop { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; position: relative; }
+.step { background: var(--accent-soft); border: 1px solid var(--accent-weak); border-radius: 12px; padding: 12px 12px 14px; position: relative; min-width: 0; }
+.step .sn { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--surface); font-family: var(--font-num); font-weight: 700; font-size: 0.9rem; }
+.step h3 { margin: 2px 0 6px; font-size: 1rem; }
+.step p { font-size: 0.86rem; margin: 0; color: var(--ink); }
+.step .who { display: inline-block; margin-top: 8px; font-size: 0.76rem; font-weight: 600; border-radius: 6px; padding: 1px 7px; }
+.who.llm { background: var(--surface); color: var(--accent); border: 1px solid var(--accent-weak); }
+.who.me { background: var(--warn-soft); color: var(--warn); }
+.step:not(:last-child)::after { content: "→"; position: absolute; right: -10px; top: 50%; transform: translate(50%, -50%); color: var(--accent); font-weight: 700; z-index: 1; }
+.back { margin-top: 10px; text-align: center; font-size: 0.88rem; color: var(--accent); font-weight: 600; border: 1px dashed var(--accent-weak); border-radius: 10px; padding: 6px; }
+@media (max-width: 820px) {
+  .loop { grid-template-columns: 1fr; }
+  .step:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -10px; transform: translate(50%, 50%); }
+}
+/* 표 */
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.tbl th, .tbl td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.tbl th { color: var(--muted); font-weight: 600; font-size: 0.82rem; background: var(--bg); }
+.tbl tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.scroll .tbl { min-width: 560px; }
+/* 표시 */
+.tag { display: inline-block; font-size: 0.76rem; font-weight: 700; border-radius: 6px; padding: 1px 8px; white-space: nowrap; }
+.t-ok { background: var(--ok-soft); color: var(--ok); }
+.t-warn { background: var(--warn-soft); color: var(--warn); }
+.t-risk { background: var(--risk-soft); color: var(--risk); }
+.t-todo { background: var(--todo-soft); color: var(--todo); }
+.t-acc { background: var(--accent-soft); color: var(--accent); }
+ul.clean { margin: 0; padding-left: 18px; }
+ul.clean li { margin: 3px 0; }
+.check li { list-style: none; position: relative; padding-left: 4px; }
+.check { padding-left: 20px; }
+.check li::before { content: "✓"; position: absolute; left: -18px; color: var(--ok); font-weight: 700; }
+.x li::before { content: "✕"; color: var(--risk); }
+.callout { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; padding: 12px 14px; margin: 0 0 14px; }
+.callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+.big { font-family: var(--font-num); font-weight: 600; }
+.arrow { color: var(--muted); padding: 0 3px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 0.92rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+/* 고친 것 타임라인 */
+.done-group { margin: 0 0 18px; }
+.done-group h3 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.done { display: grid; grid-template-columns: 74px 1fr; gap: 4px 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.done:last-child { border-bottom: 0; }
+.done .d { font-family: var(--font-num); color: var(--muted); font-size: 0.82rem; padding-top: 2px; }
+.done b { font-weight: 600; }
+.done .fx { color: var(--muted); font-size: 0.88rem; }
+@media (max-width: 520px) { .done { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr; } h1 { font-size: 1.6rem; } }
+@media (max-width: 640px) {
+  .scroll .tbl { min-width: 0; }
+  .scroll .tbl tr:first-child { display: none; }
+  .scroll .tbl tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .scroll .tbl tr:last-child { border-bottom: 0; }
+  .scroll .tbl td { display: block; border: 0; padding: 2px 0; }
+}
+footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="muted num" style="margin:0 0 4px">2026-10-22 · AIONA 채팅 품질 평가</p>
+  <h1>개선 예정 작업</h1>
+  <p class="lead">판정이 쌓일수록 평가 기준과 판정 프롬프트가 스스로 나아지게 만드는 계획과, 지금까지 기준 점검으로 고친 것을 한 장에 정리했습니다.</p>
+  <div class="chips">
+    <div class="chip"><b>5단계</b><span>기준 다듬기 루프 — 모으기 · 원인 · 고칠 안 · 시험 · 채택</span></div>
+    <div class="chip"><b>J1-4.b</b><span>첫 시험 대상 — 같은 심판이 다시 돌려도 판정이 가장 많이 뒤집힘</span></div>
+    <div class="chip"><b class="num">5</b><span>정해 주셔야 하는 것</span></div>
+    <div class="chip"><b class="num">19</b><span>지금까지 고친 것(10-21 ~ 10-22) — 18개 반영 · 1개 진행 중</span></div>
+  </div>
+  <nav class="toc" aria-label="차례">
+    <a href="#loop">1 기준 다듬기 루프</a>
+    <a href="#next">2 진행 중 · 다음 작업</a>
+    <a href="#decide">3 정해 주셔야 하는 것</a>
+    <a href="#done">4 지금까지 고친 것</a>
+  </nav>
+</header>
+
+<!-- 1 -->
+<section id="loop">
+  <div class="sec-h"><span class="no">1</span><h2>기준 다듬기 루프</h2><span class="tag t-acc">harness2 방식을 우리 판정에 맞게 증류</span></div>
+  <p class="lead">FAIL · 보류가 쌓이면 LLM 이 원인을 나누고 고칠 안을 내고, 같은 칸으로 시험해서 나아질 때만 받습니다. 받은 교훈은 파일로 쌓여 다음 판정에 쓰입니다.</p>
+
+  <div class="card">
+    <div class="loop">
+      <div class="step"><div class="sn">1</div><h3>모으기</h3><p>판정이 끝날 때마다 FAIL · 보류 칸과 <b>PASS 일부</b>(두 심판이 갈린 칸 · 확신 낮은 칸 · 무작위)를 모읍니다.</p><span class="who llm">스크립트</span></div>
+      <div class="step"><div class="sn">2</div><h3>원인 나누기</h3><p>칸마다 답이 틀림 · 프롬프트 · 기준 · 질문 · 수집 가운데 하나로 나눕니다.</p><span class="who llm">LLM</span> <span class="who me">처음엔 사람이 정답</span></div>
+      <div class="step"><div class="sn">3</div><h3>고칠 안</h3><p>같은 원인이 한 기준에 몰리면 그 기준의 판정 문구 · 예시를 고칠 안 2~3개를 냅니다.</p><span class="who llm">LLM</span></div>
+      <div class="step"><div class="sn">4</div><h3>시험</h3><p>그 기준만 고치기 전 · 고친 안으로 같은 칸을 다시 판정합니다. 두 심판 × 두 번.</p><span class="who llm">Codex CLI · Claude CLI</span></div>
+      <div class="step"><div class="sn">5</div><h3>채택 · 교훈</h3><p>아래 조건을 모두 넘으면 받고, 이유를 교훈 파일에 남깁니다. 기준 정의 변경은 사람이 승인.</p><span class="who me">정의 변경은 사람</span></div>
+    </div>
+    <div class="back">⑤ 다음 판정이 끝나면 다시 ① — 교훈은 계속 쌓임 (스스로 계속 도는 것은 아니고, 판정 때마다 한 바퀴)</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>② 원인 다섯 갈래</h3>
+      <table class="tbl">
+        <tr><th>원인</th><th>예 (실제로 찾은 것)</th><th>고칠 곳</th></tr>
+        <tr><td><span class="tag t-ok">답이 틀림</span></td><td>정원을 21명으로 적음</td><td>없음 — 판정이 맞음</td></tr>
+        <tr><td><span class="tag t-acc">프롬프트</span></td><td>연결 규칙을 대상 아닌 항목에 씀 · 사유와 판정이 반대</td><td>판정 프롬프트 · 안전장치</td></tr>
+        <tr><td><span class="tag t-warn">기준</span></td><td>J1-4.b 가 같은 심판에서도 뒤집힘 · 거절을 J1-2 와 J4 가 두 번 셈</td><td>기준 정의 — 사람 승인</td></tr>
+        <tr><td><span class="tag t-risk">질문</span></td><td>Q10 은 30분 안에 38분 걸리는 일을 해야 함</td><td>질문 세트</td></tr>
+        <tr><td><span class="tag t-todo">수집</span></td><td>앱의 다음 요청 버튼 글이 답에 섞임</td><td>수집기</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>⑤ 받는 조건 (모두 만족)</h3>
+      <ul class="clean check">
+        <li>사람이 정한 정답 칸에서 <b>정답률이 오름</b></li>
+        <li>같은 칸을 다시 돌렸을 때 <b>뒤집히는 칸이 줄어듦</b></li>
+        <li><b>다른 기준이 나빠지지 않음</b> — 한 오류를 두 기준이 세지 않음</li>
+      </ul>
+      <p class="muted" style="margin:10px 0 0;font-size:0.9rem">판정 프롬프트 문구는 수치로 자동 채택도 가능하지만, 처음에는 사람이 확인한 뒤 받습니다. 기준 72개의 정의는 항상 사람이 승인합니다.</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>누가 무엇을</h3>
+      <dl class="kv">
+        <dt>LLM</dt><dd>원인 나누기 · 고칠 안 · 시험 판정 — <b>Codex CLI · Claude CLI 로그인으로, API 키 없이</b> 가능</dd>
+        <dt>API 가 필요할 때</dt><dd>1차 선별 단계(FAIL 확률 0.3 이상 등 확률값을 씀)를 고치는 시험, 많이 빨리 돌릴 때</dd>
+        <dt>사람</dt><dd>처음 원인의 정답, 기준 정의 변경 승인</dd>
+        <dt>스크립트</dt><dd>모으기 · 시험 돌리기 · 지표 계산 · 보고서</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>harness2 에서 가져오는 것 · 안 가져오는 것</h3>
+      <ul class="clean check" style="margin-bottom:8px">
+        <li>안 여러 개 → 같은 과제로 시험 → 차이로 고르기 (Propose · Probe · Compose)</li>
+        <li>채택한 수정과 근거 있는 교훈을 파일로 쌓아 다음에 쓰기</li>
+      </ul>
+      <ul class="clean check x">
+        <li>코드 통째로 — 에이전트 실행기 · Vertex AI · 정해진 벤치마크 3개에 맞춰져 있음</li>
+        <li>"정답 없이 고치기" — 심판을 고칠 때는 사람이 정한 정답 칸이 꼭 있어야 함</li>
+        <li>기준 정의 자동 변경 — 팀이 정한 72개는 사람이 승인</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>첫 시험: J1-4.b (반복 없음)</h3>
+    <div class="grid3" style="margin-top:8px">
+      <div><p class="muted" style="margin:0">같은 칸을 다시 돌리면 뒤집힘</p><p class="big" style="font-size:1.25rem;margin:0">Claude 103 · Codex 68칸</p></div>
+      <div><p class="muted" style="margin:0">묻는 방식(항목 전부 → 하나만)에 따라 Codex FAIL</p><p class="big" style="font-size:1.25rem;margin:0">4 <span class="arrow">→</span> 64칸</p></div>
+      <div><p class="muted" style="margin:0">고친 프롬프트(같은 방식) 두 심판이 갈린 칸</p><p class="big" style="font-size:1.25rem;margin:0">138 <span class="arrow">→</span> 155칸</p></div>
+    </div>
+    <p style="margin:12px 0 0">379칸 × 두 심판 × 고치기 전 · 후 프롬프트 판정이 이미 있어 바로 시험 재료로 씁니다(결과 폴더 <span class="num">2026-10-22_19-40-04-260</span>). 한 번 다시 판정에 약 20분.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>이미 있는 것</h3>
+      <ul class="clean">
+        <li>보고서의 보류 종류(확인 못함 · 사유 모순 · 인용 불일치 …)</li>
+        <li>보류 목록의 사람 정답 칸, 심판 비교 36칸 검토</li>
+        <li>기준 하나만 다시 판정하는 도구 <span class="num">tools/judge_item_rerun.py</span></li>
+        <li>판정마다 남는 결과 폴더 · 변경내역</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>새로 만들 것</h3>
+      <ul class="clean">
+        <li>사람 확인 화면에서 <b>원인을 고르는 칸</b></li>
+        <li>기준별 · 원인별 <b>집계 표</b></li>
+        <li>고칠 안 → 시험 → 지표 → 채택을 잇는 <b>루프 도구</b></li>
+        <li><b>교훈 파일</b> — 받은 수정 · 근거 · 지표</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout warn"><b>주의</b> — FAIL · 보류만 보면 심판이 엄한 쪽만 고쳐집니다(너무 느슨한 거짓 PASS 는 안 보임). PASS 표본을 꼭 섞습니다. CLI 는 구독 사용량 한도가 있어 막히면 기다렸다 다시 합니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="next">
+  <div class="sec-h"><span class="no">2</span><h2>진행 중 · 다음 작업</h2></div>
+  <div class="card">
+    <div class="scroll"><table class="tbl">
+      <tr><th style="width:110px">상태</th><th>작업</th><th>내용</th></tr>
+      <tr><td><span class="tag t-acc">진행 중</span></td><td><b>멀티턴 턴별 기준 · 확인 목록을 판정에 연결</b></td><td>턴마다 흐름상 해당 없음이 확실한 J6 만 빼고, 그 턴의 사실(바뀐 조건 · 빠진 자료 · 맞는 값)을 심판 입력에 넣음. 판정 코드는 Codex 검토 중</td></tr>
+      <tr><td><span class="tag t-todo">다음</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>저장된 출력으로 78 × 4 복구 + 멀티턴 11 × 4 새 판정, 10~20개씩. 시작 전 범위 확인</td></tr>
+      <tr><td><span class="tag t-todo">다음</span></td><td><b>기준 다듬기 루프 1차 — J1-4.b</b></td><td>위 1장의 5단계를 J1-4.b 하나로 시험</td></tr>
+      <tr><td><span class="tag t-todo">다음</span></td><td><b>싱글턴 질문의 모순 · 빠진 자료 표시</b></td><td>지금은 J1-3 이 78문항 모두에 붙어 78로 셈 — 표시하면 10번 아래로 떨어질 수 있어 먼저 확인</td></tr>
+      <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>J4 '질문으로 정해지는 항목' 불일치 · 형식 위반 이중 집계(97건) · 측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS · AIONA 1칸 들여쓰기 확인 · J6-4 서로 배타</td></tr>
+      <tr><td><span class="tag t-todo">따로</span></td><td>진행 현황 시험 5개 실패</td><td>참고자료 정리 때 없어진 326 세트 파일 때문 — 별도 세션 제안</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="decide">
+  <div class="sec-h"><span class="no">3</span><h2>정해 주셔야 하는 것</h2></div>
+  <div class="grid2">
+    <div class="card"><h3>① 보류 우선 vs FAIL 우선</h3><p>FAIL 이 확인된 질문에 보류 항목이 하나 섞이면 지금은 질문 전체가 보류. FAIL 로 둘지?</p></div>
+    <div class="card"><h3>② 빈 출력 요구 질문</h3><p>지금은 모두 보류. 글을 쓰면 FAIL · 빈 답이면 PASS · 복사 실패만 보류로 할지?</p></div>
+    <div class="card"><h3>③ GPT 의 <span class="num">\-</span> 목록</h3><p>복사 글에서 앞에 역슬래시가 붙은 글머리를 목록으로 셀지?</p></div>
+    <div class="card"><h3>④ 자료 대조의 '남은 예상 지출'</h3><p>1턴에서 B안을 고른 대화라면 B안 비용을 더한 값을 맞다고 해도 틀렸다고 보기 어려움 — 기록값만 맞다고 볼지, 구별해 밝히면 맞다고 볼지?</p></div>
+    <div class="card"><h3>⑤ Q10 시간 모순</h3><p>도착 10:30 ~ 접수 10:50(변경 뒤 11:00) 안에 확인 8분 + 설치 30분을 끝낼 수 없음. 답은 이미 모았으니 <b>모순 있는 질문(J1-3)으로 판정</b>할지, 질문을 다시 만들고 다시 수집할지?</p></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="done">
+  <div class="sec-h"><span class="no">4</span><h2>지금까지 고친 것</h2><span class="muted">원칙: 원하는 순위에 맞추지 않고, 판정이 기준 정의와 어긋난 곳만 네 모델 모두 같은 방식으로</span></div>
+
+  <div class="card done-group">
+    <h3>판정 흐름 <span class="tag t-ok">반영</span></h3>
+    <div class="done"><div class="d">10-21</div><div><b>판정은 질문별 목표 기준만</b> — 질문을 만들 때 정한 기준만 심판에 보냄<div class="fx">같은 질문이면 네 모델이 같은 기준으로 판정</div></div></div>
+    <div class="done"><div class="d">10-21</div><div><b>보류 우선</b> — 확인 못 한 항목이 하나라도 있으면 질문은 보류(사람이 확인)</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>1차 심판을 크기로 나눔</b> — 3만 2천 토큰 이하 · 첨부 없음은 Jev, 그 밖은 Decisions → 걸린 항목만 Codex 가 확정</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>멀티턴 다시 묻기를 한 턴씩, 그 턴까지의 대화만</b><div class="fx">인용 불일치 보류 41건 중 38건이 뒤 턴 답을 근거로 든 것이었음 · 한 턴에 막혀 뒤 턴을 못 묻던 것(Q2 Gemini 7턴만 15번)도 건너뛰게</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>빈 출력 요구 질문은 모두 보류</b> — 보인 것(글 · 빈 답 · 오류)은 사유에 남김</div></div>
+  </div>
+
+  <div class="card done-group">
+    <h3>평가 기준 · 판정 프롬프트 <span class="tag t-ok">반영</span></h3>
+    <div class="done"><div class="d">10-21</div><div><b>존댓말 = 높임 세 등급</b> — 해요체 · 하십시오체 모두 존댓말, 반말이 섞일 때만 FAIL</div></div>
+    <div class="done"><div class="d">10-21</div><div><b>보류 69건 검토 → 기준 수정</b> — 원인 다섯 갈래로 나눠 정의를 다듬음</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>J1-4(불필요 · 반복) FAIL 은 정의를 짚어 한 번 더 묻기</b><div class="fx">표를 풀어 쓴 설명 · 결론 한 번은 반복이 아님</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>판정 프롬프트 v4 — 기준 사이 문제 8가지</b> (Codex ↔ Claude CLI 심판 비교 36칸을 직접 확인)<div class="fx">한 오류는 한 기준에서만 · 근거 위치 오기는 J5-2.a · J1-4.b 요구된 구성 · 두괄식 · 지어낸 오늘 날짜 · 초보자 설명 정도 등</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>거절이면 결과물 품질(J4)은 해당 없음</b> — J1-2.a(거절)와 J4 가 같은 거절을 두 번 세던 것, 프롬프트 상황표에도 적음</div></div>
+  </div>
+
+  <div class="card done-group">
+    <h3>판정 안전장치 <span class="tag t-ok">반영 · Codex 검토</span></h3>
+    <div class="done"><div class="d">10-22</div><div><b>사유와 판정이 반대면 다시 묻고, 남으면 보류</b> — 'PASS여야 합니다' 인데 FAIL, '실제로는 FAIL입니다' 인데 PASS<div class="fx">실제 판정 기록 1만여 개 사유에서 32건 그대로 잡고 1건 더 · 부정 · 조건 · 다른 항목 언급은 결론으로 안 읽음 · Codex 검토 5번</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>꾸민 출처 · 조회(J5-3.a)는 목표 기준과 관계없이 늘 판정</b><div class="fx">싱글턴 · 첨부 · 롱컨텍스트 67문항에서 한 번도 판정하지 않던 것</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>사실 확인(J5-1.a) 보정을 주장마다</b> — 한 주장의 '자료 안의 사실' 사유가 다른 외부 사실 오류까지 지우지 않게</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>연결 규칙을 대상 아닌 항목에 쓴 해당 없음은 다시 묻기</b><div class="fx">거절 턴에서 'J1-1.a FAIL → J4 해당 없음'을 J1-4.b · J2-3.a 등에 씀 — 본 판정 19칸 · J1-4.b 재판정 5칸 · Codex 승인</div></div></div>
+  </div>
+
+  <div class="card done-group">
+    <h3>CODE 검사 <span class="tag t-ok">반영 · Codex 승인</span></h3>
+    <div class="done"><div class="d">10-22</div><div><b>거짓 FAIL 고침</b> — 합계 · 계산값 읽기(굵은 글씨 · 표 합계 행 · 등식, 가정 문장 값 제외), 출처 줄 판별, 시각 표기, 표 끝 합계 행, 이스케이프 · HTML 문자<div class="fx">실행 50ca3ccccace CODE FAIL <span class="num">43 → 34</span> (거짓 FAIL 9개 제거, 새 FAIL 0) · Python 3.10 호환</div></div></div>
+  </div>
+
+  <div class="card done-group">
+    <h3>질문 · 멀티턴 · 보고서 <span class="tag t-acc">일부 진행 중</span></h3>
+    <div class="done"><div class="d">10-21</div><div><b>멀티턴 조건 v3</b> — 턴당 10K · 10턴 · 대화 100K 토큰 이상</div></div>
+    <div class="done"><div class="d">10-22</div><div><b>멀티턴 턴별 확인 목록</b> — 110턴마다 상황 · 그 턴 시점의 사실 · 이어지는 조건<div class="fx">기준 조건 확인(정식 검사): 기준 64개 모두 10번 이상 · 대화 평균 k 10(범위 끝) → 7~8 · 판정 연결은 진행 중</div></div></div>
+    <div class="done"><div class="d">10-22</div><div><b>보고서 보류 종류 바로잡음</b> — '확인 못함' 9칸이 '기타'로 세지던 것</div></div>
+    <div class="done"><div class="d">10-21~22</div><div><b>수집 글 보정</b> — Gemini 쪼개진 표 행 잇기 · 코드블록은 '코드 복사' 버튼 글로 · 앱 버튼 글 빼기</div></div>
+  </div>
+</section>
+
+<footer>
+  자세한 내역: <span class="num">참고자료/변경내역/2026-10-21-변경내역.md</span> · <span class="num">2026-10-22-변경내역.md</span> · harness2: github.com/google-research/harness2 (Apache 2.0 — 방법만 가져옴, 코드는 가져오지 않음)
+</footer>
+
+</div>
+</body>
+</html>
