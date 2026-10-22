@@ -308,12 +308,16 @@ def doc_fp(obj: Any) -> str:
 
 
 def targets_for(q: int, n: int) -> Optional[set]:
-    """그 턴의 목표 의미 기준 — 질문의 목표 기준에서, 턴별 확인 목록이 있으면 그 턴의 흐름상 해당 없음이 확실한 J6(not_applicable)만 뺀다.
-    질문 목표는 판정 때 질문 세트에서 바로 읽는다 — 목표가 바뀌어도 낡은 목록의 목표를 쓰지 않게 (Codex 검토 10-22)."""
+    """그 턴의 목표 의미 기준 — 턴별 확인 목록(질문 원문 지문으로 낡지 않은 것만 실림)이 그 턴의 target_items 를 주면 그것을 질문 목표 안에서만
+    쓴다(10-23, 사용자: 턴마다 보는 기준을 그 턴의 요청 · 함정 기준으로 — 턴당 34개 → 14~21개). 목록에 목표가 없으면 질문 목표에서 흐름상
+    해당 없음이 확실한 J6(not_applicable)만 뺀다. 질문 목표 밖의 항목은 쓰지 않는다 — 목표가 바뀌어도 낡은 목록의 목표를 쓰지 않게 (Codex 검토 10-22)."""
     base = QUESTION_TARGETS.get(q)
     t = TURN_PLAN.get((q, n))
     if base is None or t is None:
         return base
+    plan_j = {str(x).split(":")[0] for x in t.get("target_items") or [] if str(x).startswith("J")}
+    if plan_j:
+        return plan_j & base
     return base - set(t.get("not_applicable") or {})
 
 
