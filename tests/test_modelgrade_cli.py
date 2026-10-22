@@ -225,7 +225,11 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--providers", "gpt,claude,gemini,aiona", "--judge", "n"]) == 0
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0
     assert calls[1][:2] == (["claude", "aiona"], {"claude": "Opus 5.5", "aiona": "Claude Opus 5.5"})   # AIONA 도 같은 모델로
-    assert mg.aiona_model_for("gemini", "3.1 Pro") == "Gemini 3.1 Pro Preview" and mg.aiona_model_for("gpt", "GPT-6", "GPT-6 Sol") == "GPT-6 Sol"
+    picks = {(p, m) for _k, p, m in mg.model_menu()}   # 앱과 AIONA 에 이름이 똑같은 모델만 (10-22)
+    assert len(picks) == 16 and ("gpt", "GPT-6") not in picks and ("gemini", "3.1 Pro") not in picks
+    for bad in ("gpt:GPT-6", "3.1 Pro"):
+        with pytest.raises(SystemExit):
+            mg.parse_model(bad)
     assert calls[1][2] != calls[0][2] and mg.load_run(calls[1][2])["model_choice"] == "claude:Opus 5.5"
     assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
     from webapp.uia_chat_app import has_model

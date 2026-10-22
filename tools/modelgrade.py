@@ -55,27 +55,19 @@ APP_MODELS = {
 APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flash"}
 APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
 APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
-#: 고른 앱 모델에 맞춘 AIONA 모델 이름 — AIONA 모델 메뉴 그대로 (2026-10-22 화면 확인). AIONA 에 같은 이름이 없는 것은 None(시작할 때 물어봄):
-#: ChatGPT 앱 'GPT-6' ↔ AIONA 에는 GPT-6 Astra · Luna · Sol · 6.1 Sol 만 있음. Gemini 앱 '3.1 Pro' ↔ AIONA 'Gemini 3.1 Pro Preview'.
+#: 고를 수 있는 모델 = 앱과 AIONA 에 이름이 똑같이 있는 것만 (사용자 10-22: "모델명이 모두 같아야해") — AIONA 이름은 메뉴 그대로
+#: (2026-10-22 화면 확인: 'Claude Opus 5.5' · 'Gemini 3.8 Flash' · 'GPT-5.6 Sol'). 앱 'GPT-6'(AIONA 는 GPT-6 Astra · Luna · Sol · 6.1 Sol)과
+#: '3.1 Pro'(AIONA 는 3.1 Pro Preview)는 이름이 달라 고를 수 없다. 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
 AIONA_MODEL_FOR = {**{("claude", m): f"Claude {m}" for m in APP_MODELS["claude"]},
-                   **{("gemini", m): f"Gemini {m}" for m in APP_MODELS["gemini"]},
-                   ("gemini", "3.1 Pro"): "Gemini 3.1 Pro Preview", ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol", ("gpt", "GPT-6"): None}
+                   **{("gemini", m): f"Gemini {m}" for m in ("3.5 Flash-Lite", "3.8 Flash", "4 Argon")},
+                   ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol"}
 
 
-def aiona_model_for(provider: str, model: str, given: Optional[str] = None) -> str:
-    """AIONA 에서 고를 모델 — --aiona-model 로 주면 그것, 짝이 정해져 있으면 그것, 없으면 물어봄(입력 없으면 멈춤)."""
-    if given:
-        return given
+def aiona_model_for(provider: str, model: str) -> str:
+    """고른 앱 모델과 이름이 똑같은 AIONA 모델."""
     name = AIONA_MODEL_FOR.get((provider, model))
-    if name:
-        return name
-    print(f"AIONA 에는 '{model}' 과 같은 이름의 모델이 없습니다 (예: GPT-6 Astra · GPT-6 Luna · GPT-6 Sol · GPT-6.1 Sol).")
-    try:
-        name = input("AIONA 에서 쓸 모델 이름을 메뉴에 보이는 그대로 입력: ").strip()
-    except EOFError:
-        name = ""
     if not name:
-        raise SystemExit(f"AIONA 모델을 정하지 못했습니다 — --aiona-model '<AIONA 모델 이름>' 으로 주세요")
+        raise SystemExit(f"AIONA 에는 '{model}' 과 이름이 똑같은 모델이 없어 고를 수 없습니다")
     return name
 
 
@@ -91,8 +83,9 @@ def model_menu() -> List[Tuple[str, str, str]]:
     out, n = [], 1
     for provider in ("claude", "gpt", "gemini"):
         for model in APP_MODELS[provider]:
-            out.append((str(n), provider, model))
-            n += 1
+            if (provider, model) in AIONA_MODEL_FOR:   # AIONA 에 이름이 똑같은 모델만 (10-22)
+                out.append((str(n), provider, model))
+                n += 1
     return out
 
 
@@ -106,17 +99,18 @@ def parse_model(text: str) -> Optional[Tuple[str, str]]:
             return provider, model
     if ":" in t:
         provider, model = (x.strip() for x in t.split(":", 1))
-        if model in APP_MODELS.get(provider, []):
+        if (provider, model) in AIONA_MODEL_FOR:
             return provider, model
     hits = [(p, m) for _k, p, m in model_menu() if m.lower() == t.lower()]
     if len(hits) == 1:
         return hits[0]
-    raise SystemExit(f"모델을 알 수 없습니다: {text!r} — 메뉴 번호, '앱:모델'(예 claude:Opus 5.5) 또는 0(전체)")
+    raise SystemExit(f"고를 수 없는 모델입니다: {text!r} — 앱과 AIONA 에 이름이 똑같은 모델만, 메뉴 번호 · '앱:모델'(예 claude:Opus 5.5) 또는 0(전체)")
 
 
 def ask_model() -> Optional[Tuple[str, str]]:
     """어느 모델로 평가할지 — 0(Enter) = 전체(네 모델 기본 설정), 번호 = 그 앱 모델 하나 + AIONA."""
-    print("어느 모델로 평가할까요? 모델을 고르면 그 앱을 그 모델로 바꿔 받고, 비교 상대는 AIONA 하나입니다 (다른 앱은 받지 않음).")
+    print("어느 모델로 평가할까요? 모델을 고르면 그 앱과 AIONA 를 같은 모델로 바꿔 받습니다 (다른 앱은 받지 않음).")
+    print("  (앱과 AIONA 에 이름이 똑같은 모델만 · 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
     print(f"  0. 전체 — 네 모델 기본 설정 ({' · '.join(app_label(p) for p in ('gpt', 'claude', 'gemini'))} · AIONA 자동 추천)")
     for provider in ("claude", "gpt", "gemini"):
         items = [f"{k}. {m}" for k, p, m in model_menu() if p == provider]
@@ -739,7 +733,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     pick = parse_model(args.model) if args.model else (None if args.providers else ask_model())
     if pick:
         providers = [pick[0], "aiona"]   # 고른 앱과 AIONA 만 — 같은 모델끼리 비교, 다른 앱은 받지 않음
-        models = {pick[0]: pick[1], "aiona": aiona_model_for(pick[0], pick[1], args.aiona_model)}   # AIONA 도 같은 모델로 (10-22)
+        models = {pick[0]: pick[1], "aiona": aiona_model_for(*pick)}   # AIONA 도 이름이 똑같은 모델로 (10-22)
         model_choice = f"{pick[0]}:{pick[1]}"
         print(f"모델: {app_label(*pick)} ↔ {app_label('aiona', models['aiona'])} — 다른 앱은 받지 않습니다", flush=True)
     else:
@@ -960,7 +954,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
     st.add_argument("--providers", help="전체 설정에서 돌릴 모델 (기본: gpt,claude,gemini,aiona — 주면 모델을 묻지 않음)")
     st.add_argument("--model", help="평가할 모델 하나 — 메뉴 번호, '앱:모델'(예 claude:Opus 5.5) 또는 0(전체). 고르면 그 앱과 AIONA 만 받음")
-    st.add_argument("--aiona-model", help="AIONA 에서 쓸 모델 이름(메뉴에 보이는 그대로, 예 'GPT-6 Sol') — 없으면 고른 모델에 맞춘 이름")
     st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
     st.add_argument("--set", default=str(DEFAULT_SET))
     st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")
