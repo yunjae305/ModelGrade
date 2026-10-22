@@ -1,71 +1,105 @@
 {
  "what": "10-14 질문 생성 결과 — 질문 수를 정하지 않고 세부 기준마다 적용 질문이 10개가 될 때까지 모자란 기준을 노린 질문을 더함(question-gen-v1.4, per_target=10, gpt-6-luna)",
- "source": "git 2ea8a4a:참고자료/수집결과/2026-10-14-질문세트326-세부기준/기준별_적용수.txt (tools/min_question_count.py min-question-count-v3 결과 원문) · 같은 폴더 README.md",
  "questions": 326,
  "turns": 425,
- "criteria": 80,
- "unit": "세부 기준 80개(CODE 질문 조건 37 + 의미 점검 항목 43) — 당시 단위. 답변으로만 정해지는 8개는 뺌",
- "prefix_note": "질문 번호 순서대로 앞에서부터 N개를 셀 때",
+ "criteria": 72,
+ "unit": "기준 72개 = 질문으로 세는 64개 + 답에 따라 정해져 모든 답에서 검사하는 8개(1-2.fence_imbalance, 1-2.orphan_closing_tag, 1-3.footnote_link, 1-3.citation_link, 1-3.internal_link, 3-1.answer_equation, 3-2.declared_count, J5-3.a)",
+ "recount": "10-22 지금 검사기(tools/min_question_count.py min-question-count-v4)로 같은 326개(git 2ea8a4a 참고자료/수집결과/2026-10-14-질문세트326-세부기준/questions.json)를 다시 셈",
+ "prefix_note": "질문 번호 순서대로 앞에서부터 N개를 셀 때, 질문 10개 이상에 들어간 기준 수 — 모든 답에서 검사하는 8개는 늘 들어간 것으로 셈",
  "prefix": [
   {
    "n": 50,
-   "min": 0,
-   "median": 5,
-   "k1": 75,
-   "k5": 40,
-   "k10": 32,
-   "fewest": [
-    "2-1.count:paragraph_count=0",
-    "2-1.count:word_count=0",
-    "2-2.heading:heading_required=0"
-   ]
+   "k10_questions": 36,
+   "k10": 44,
+   "min": 1,
+   "median": 10
   },
   {
    "n": 100,
+   "k10_questions": 38,
+   "k10": 46,
    "min": 1,
-   "median": 6,
-   "k1": 80,
-   "k5": 46,
-   "k10": 32,
-   "fewest": [
-    "2-1.char_count:char_count=1",
-    "3-1.question_calculation:calculation=1",
-    "2-2.list:list_forbidden=2"
-   ]
+   "median": 10
   },
   {
    "n": 200,
-   "min": 1,
-   "median": 9,
-   "k1": 80,
-   "k5": 78,
-   "k10": 39,
-   "fewest": [
-    "2-1.char_count:char_count=1",
-    "3-1.question_calculation:calculation=3",
-    "2-1.count:word_count=5"
-   ]
+   "k10_questions": 47,
+   "k10": 55,
+   "min": 3,
+   "median": 12
   },
   {
    "n": 326,
-   "min": 7,
-   "median": 11,
-   "k1": 80,
-   "k5": 80,
-   "k10": 79,
-   "fewest": [
-    "2-1.char_count:char_count=7",
-    "1-2.code_block:code_block_count=10",
-    "1-2.code_block:code_block_forbidden=10"
-   ]
+   "k10_questions": 64,
+   "k10": 72,
+   "min": 10,
+   "median": 18
   }
  ],
- "short_at_end": "2-1.char_count:char_count 7번 — 생성 때 집계로는 80개 중 이것만 10번 미만",
- "after_fix": {
-  "criterion": "2-1.char_count",
-  "count": 45,
-  "k10": 80,
-  "why": "질문에는 글자 수 조건이 있었는데 그때 검사기가 '공백 포함 20자로' 같은 표현을 못 알아봐 7개로 셈. 같은 날 검사기를 고친 뒤(v16-1.3) 같은 326개에서 45개 — 80개 모두 10번 이상",
-  "source": "참고자료/변경내역/2026-10-14-변경내역.md #35 (2-1 글자 수 행)"
+ "at_the_time": {
+  "unit": "세부 기준 80개(CODE 질문 조건 37 + 의미 점검 항목 43) — 당시 단위. 답변으로만 정해지는 8개는 뺌",
+  "prefix": [
+   {
+    "n": 50,
+    "min": 0,
+    "median": 5,
+    "k1": 75,
+    "k5": 40,
+    "k10": 32,
+    "fewest": [
+     "2-1.count:paragraph_count=0",
+     "2-1.count:word_count=0",
+     "2-2.heading:heading_required=0"
+    ]
+   },
+   {
+    "n": 100,
+    "min": 1,
+    "median": 6,
+    "k1": 80,
+    "k5": 46,
+    "k10": 32,
+    "fewest": [
+     "2-1.char_count:char_count=1",
+     "3-1.question_calculation:calculation=1",
+     "2-2.list:list_forbidden=2"
+    ]
+   },
+   {
+    "n": 200,
+    "min": 1,
+    "median": 9,
+    "k1": 80,
+    "k5": 78,
+    "k10": 39,
+    "fewest": [
+     "2-1.char_count:char_count=1",
+     "3-1.question_calculation:calculation=3",
+     "2-1.count:word_count=5"
+    ]
+   },
+   {
+    "n": 326,
+    "min": 7,
+    "median": 11,
+    "k1": 80,
+    "k5": 80,
+    "k10": 79,
+    "fewest": [
+     "2-1.char_count:char_count=7",
+     "1-2.code_block:code_block_count=10",
+     "1-2.code_block:code_block_forbidden=10"
+    ]
+   }
+  ],
+  "short_at_end": "2-1.char_count:char_count 7번 — 생성 때 집계로는 80개 중 이것만 10번 미만",
+  "after_fix": {
+   "criterion": "2-1.char_count",
+   "count": 45,
+   "k10": 80,
+   "why": "질문에는 글자 수 조건이 있었는데 그때 검사기가 '공백 포함 20자로' 같은 표현을 못 알아봐 7개로 셈. 같은 날 검사기를 고친 뒤(v16-1.3) 같은 326개에서 45개 — 80개 모두 10번 이상",
+   "source": "참고자료/변경내역/2026-10-14-변경내역.md #35 (2-1 글자 수 행)"
+  },
+  "source": "git 2ea8a4a:참고자료/수집결과/2026-10-14-질문세트326-세부기준/기준별_적용수.txt (tools/min_question_count.py min-question-count-v3 결과 원문) · 같은 폴더 README.md"
  }
 }
