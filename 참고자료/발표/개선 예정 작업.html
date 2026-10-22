@@ -126,13 +126,13 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
   <div class="chips">
     <div class="chip"><b>5단계</b><span>기준 다듬기 루프 — 모으기 · 원인 · 고칠 안 · 시험 · 채택</span></div>
     <div class="chip"><b>J1-4.b</b><span>첫 시험 대상 — 같은 심판이 다시 돌려도 판정이 가장 많이 뒤집힘</span></div>
-    <div class="chip"><b class="num">5</b><span>정해 주셔야 하는 것</span></div>
+    <div class="chip"><b class="num">4</b><span>10-22 밤에 정한 것 — 보류 우선 유지 · Q10 모순 질문 등</span></div>
     <div class="chip"><b class="num">19</b><span>지금까지 고친 것(10-21 ~ 10-22) — 18개 반영 · 1개 진행 중</span></div>
   </div>
   <nav class="toc" aria-label="차례">
     <a href="#loop">1 기준 다듬기 루프</a>
     <a href="#next">2 진행 중 · 다음 작업</a>
-    <a href="#decide">3 정해 주셔야 하는 것</a>
+    <a href="#decide">3 정한 것</a>
     <a href="#done">4 지금까지 고친 것</a>
   </nav>
 </header>
@@ -251,13 +251,16 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
 
 <!-- 3 -->
 <section id="decide">
-  <div class="sec-h"><span class="no">3</span><h2>정해 주셔야 하는 것</h2></div>
-  <div class="grid2">
-    <div class="card"><h3>① 보류 우선 vs FAIL 우선</h3><p>FAIL 이 확인된 질문에 보류 항목이 하나 섞이면 지금은 질문 전체가 보류. FAIL 로 둘지?</p></div>
-    <div class="card"><h3>② 빈 출력 요구 질문</h3><p>지금은 모두 보류. 글을 쓰면 FAIL · 빈 답이면 PASS · 복사 실패만 보류로 할지?</p></div>
-    <div class="card"><h3>③ GPT 의 <span class="num">\-</span> 목록</h3><p>복사 글에서 앞에 역슬래시가 붙은 글머리를 목록으로 셀지?</p></div>
-    <div class="card"><h3>④ 자료 대조의 '남은 예상 지출'</h3><p>1턴에서 B안을 고른 대화라면 B안 비용을 더한 값을 맞다고 해도 틀렸다고 보기 어려움 — 기록값만 맞다고 볼지, 구별해 밝히면 맞다고 볼지?</p></div>
-    <div class="card"><h3>⑤ Q10 시간 모순</h3><p>도착 10:30 ~ 접수 10:50(변경 뒤 11:00) 안에 확인 8분 + 설치 30분을 끝낼 수 없음. 답은 이미 모았으니 <b>모순 있는 질문(J1-3)으로 판정</b>할지, 질문을 다시 만들고 다시 수집할지?</p></div>
+  <div class="sec-h"><span class="no">3</span><h2>정한 것</h2><span class="muted">2026-10-22 밤 결정</span></div>
+  <div class="card">
+    <div class="scroll"><table class="tbl">
+      <tr><th style="width:190px">무엇</th><th style="width:150px">정한 것</th><th>뜻</th></tr>
+      <tr><td><b>보류 우선 vs FAIL 우선</b></td><td><span class="tag t-acc">보류 우선 유지</span></td><td>확정 FAIL 이 있어도 보류 항목이 섞이면 질문은 보류 — 지금 9개 질문이 해당(Gemini 5 · Claude 2 · GPT 2)</td></tr>
+      <tr><td><b>자료 대조의 '남은 예상 지출'</b></td><td><span class="tag t-acc">구별해 밝히면 맞음</span></td><td>일람표의 45000원(= 기록 41000원 + B안 4000원)을 기록값과 구별해 설명하면 맞음, 구별 없이 그대로 두면 틀림</td></tr>
+      <tr><td><b>Q10 시간 모순</b></td><td><span class="tag t-acc">모순 질문으로 판정</span></td><td>다시 수집하지 않고, 답이 '시간이 모자란다'는 모순을 짚었는지(J1-3)도 판정</td></tr>
+      <tr><td><b>다시 판정 범위</b></td><td><span class="tag t-acc">복구 + 멀티턴 새 판정</span></td><td>저장된 출력으로 78 × 4 복구(바뀐 항목만 새로 물음) + 멀티턴 11 × 4 는 확인 목록을 넣어 새로 판정, 10~20개씩</td></tr>
+      <tr><td><b>GPT 의 <span class="num">\-</span> 목록 · 빈 출력 요구</b></td><td><span class="tag t-todo">앞서 정함</span></td><td>복사 글 그대로 평가 · 빈 출력 요구 질문은 모두 보류(사람이 정함)</td></tr>
+    </table></div>
   </div>
 </section>
 
