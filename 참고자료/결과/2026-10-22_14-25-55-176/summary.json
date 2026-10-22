@@ -1,0 +1,38 @@
+{
+ "version": "judge-v4-1",
+ "compare": "judge-claude-compare-v1",
+ "run_id": "50ca3ccccace",
+ "prompt": "judge_prompt_v4.txt",
+ "judge2": {
+  "engine": "claude_cli",
+  "model": "claude-sonnet-5-5",
+  "effort": "low"
+ },
+ "finished_at": "2026-10-22T07:42:48.577864+00:00",
+ "models": {
+  "aiona": {
+   "PASS": 47,
+   "FAIL": 21,
+   "HOLD": 10,
+   "n": 78
+  },
+  "claude": {
+   "PASS": 43,
+   "FAIL": 25,
+   "HOLD": 10,
+   "n": 78
+  },
+  "gemini": {
+   "PASS": 43,
+   "FAIL": 22,
+   "HOLD": 13,
+   "n": 78
+  },
+  "gpt": {
+   "PASS": 44,
+   "FAIL": 24,
+   "HOLD": 10,
+   "n": 78
+  }
+ }
+}

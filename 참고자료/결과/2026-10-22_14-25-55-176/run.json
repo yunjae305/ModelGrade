@@ -1,0 +1,22 @@
+{
+ "version": "judge-claude-compare-v1",
+ "kind": "judge-compare",
+ "compare_of": "50ca3ccccace",
+ "judge_out": "v4-claude-sonnet",
+ "base_out": "v4",
+ "started": "2026-10-22_14-25-55-176",
+ "name": "Codex ↔ Claude CLI 판정 비교 (10-22 미팅 4번)",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3"
+ },
+ "judge2": {
+  "engine": "claude_cli",
+  "model": "claude-sonnet-5-5",
+  "effort": "low"
+ },
+ "base_judge2": {
+  "engine": "codex_cli",
+  "model": "gpt-6-luna",
+  "effort": "low"
+ }
+}
