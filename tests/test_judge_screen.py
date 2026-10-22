@@ -392,3 +392,77 @@ def test_partial_renumbered_reask_does_not_erase_fail(tmp_path: Path):
     codex = RenumberCodex()
     item = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]["J4-2.a"]
     assert len(codex.inputs) == 2 and item["decision"] == "FAIL" and item["reason"] == "예시를 빠뜨렸습니다."
+
+
+def test_misapplied_link_rule_is_reasked(tmp_path: Path):
+    # 10-22 J1-4.b 재판정: 거절 턴에서 'J1-1.a FAIL → J4 해당 없음'을 J1-4.b 에 써서 해당 없음 — 규칙 대상을 짚어 한 번 다시 묻는다
+    why = "J1-1.a가 FAIL이므로 상황표 2에 따라 J4 항목은 NOT_APPLICABLE입니다."
+    assert jv.misapplied_rule("J1-4.b", why) and not jv.misapplied_rule("J4-2.a", why) and not jv.misapplied_rule("J1-4.b", "반복이 없습니다.")
+    assert not jv.misapplied_rule("J1-3.b", "질문에 모순되는 조건이나 빠진 자료가 없어 J1-3이 적용되지 않습니다.")   # 조건 항목 · '적용되지 않'
+    assert jv.misapplied_rule("J2-3.a", "J1-1.a가 FAIL이므로 J4 항목만 해당 없음 처리합니다.")
+    # Codex 검토: 실제 표현 · 규칙마다 따로 · 부정한 언급
+    assert jv.misapplied_rule("J2-3.a", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")
+    assert jv.misapplied_rule("J2-3.a", "J1-1.a는 FAIL이므로 해당 없음입니다.") and jv.misapplied_rule("J2-3.a", "J1-2.a가 아니오이므로 해당 없음입니다.")
+    assert jv.misapplied_rule("J4-2.a", "J1-1.a가 FAIL은 아닙니다. J2-4.a가 FAIL이므로 이 항목도 해당 없음입니다.")
+    assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 해당 없음입니다.") and not jv.misapplied_rule("J1-1.a", "J1-2.a가 FAIL이므로 해당 없음입니다.")
+    assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 J4 항목과 함께 이 항목도 해당 없음입니다.")   # Codex 2차: 'J4 항목' 언급이 가리지 않게
+    assert jv.misapplied_rule("J4-2.a", "J1-1.a가 FAIL은 아닙니다. J4 항목은 J2-4.a가 FAIL이므로 해당 없음입니다.")
+    assert not jv.misapplied_rule("J1-1.a", "J1-2.a가 FAIL이므로 J1-1.a와 J4 항목은 해당 없음입니다.")
+
+    class MisruleCodex(FakeCodex):
+        def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+            doc = json.loads(input_text)
+            self.inputs.append(doc)
+            first = len(self.inputs) == 1
+            turns = [{"turn": int(n), "situations": [], "items": [
+                {"id": i, "decision": "NOT_APPLICABLE" if first and i == "J1-4.b" else "PASS", "reason": why if first and i == "J1-4.b" else "r",
+                 "question_quote": "", "answer_quote": "", "quote_turn": None, "fact": None} for i in items]} for n, items in doc["판정할_항목"].items()]
+            return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+
+    dec = FakeDecisions({"J1-4.b": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    codex = MisruleCodex()
+    item = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]["J1-4.b"]
+    assert len(codex.inputs) == 2 and "연결 규칙" in codex.inputs[1]["주의"] and item["decision"] == "PASS"
+
+
+def test_misrule_after_other_reask_is_still_reasked(tmp_path: Path, monkeypatch):
+    # Codex 검토: 다른 이유(FAIL 다시 묻기)로 이미 다시 물은 항목이 새로 연결 규칙을 잘못 쓰면 규칙 안내와 함께 한 번 더 묻는다
+    monkeypatch.setattr(jv, "REASK_FAIL_ITEMS", {"J1-4.b"})
+    why = "J1-1.a가 FAIL이므로 상황표 2에 따라 J4 항목은 NOT_APPLICABLE입니다."
+
+    class ThreeCodex(FakeCodex):
+        def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+            doc = json.loads(input_text)
+            self.inputs.append(doc)
+            k = len(self.inputs)
+            dec, why_i = {1: ("FAIL", "같은 표를 반복했습니다."), 2: ("NOT_APPLICABLE", why)}.get(k, ("PASS", "반복이 없습니다."))
+            turns = [{"turn": int(n), "situations": [], "items": [
+                {"id": i, "decision": dec if i == "J1-4.b" else "PASS", "reason": why_i if i == "J1-4.b" else "r",
+                 "question_quote": "", "answer_quote": "", "quote_turn": None, "fact": None} for i in items]} for n, items in doc["판정할_항목"].items()]
+            return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+
+    dec = FakeDecisions({"J1-4.b": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    codex = ThreeCodex()
+    item = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]["J1-4.b"]
+    assert len(codex.inputs) == 3 and "연결 규칙" in codex.inputs[2]["주의"] and item["decision"] == "PASS"
+
+
+def test_misrule_reask_does_not_use_up_the_fail_reask(tmp_path: Path, monkeypatch):
+    # Codex 2차: 연결 규칙 오적용으로 다시 물은 뒤 FAIL 이 나오면 정의를 짚는 FAIL 다시 묻기도 한다(두 이력 분리)
+    monkeypatch.setattr(jv, "REASK_FAIL_ITEMS", {"J1-4.b"})
+    why = "J1-1.a가 FAIL이므로 상황표 2에 따라 J4 항목은 NOT_APPLICABLE입니다."
+
+    class ThreeCodex(FakeCodex):
+        def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+            doc = json.loads(input_text)
+            self.inputs.append(doc)
+            dec, why_i = {1: ("NOT_APPLICABLE", why), 2: ("FAIL", "표에 적힌 가격을 설명 문단에서 반복했습니다.")}.get(len(self.inputs), ("PASS", "반복이 없습니다."))
+            turns = [{"turn": int(n), "situations": [], "items": [
+                {"id": i, "decision": dec if i == "J1-4.b" else "PASS", "reason": why_i if i == "J1-4.b" else "r",
+                 "question_quote": "", "answer_quote": "", "quote_turn": None, "fact": None} for i in items]} for n, items in doc["판정할_항목"].items()]
+            return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+
+    dec = FakeDecisions({"J1-4.b": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    codex = ThreeCodex()
+    item = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]["J1-4.b"]
+    assert len(codex.inputs) == 3 and jv.MISRULE_NOTE in codex.inputs[1]["주의"] and jv.REASK_NOTE in codex.inputs[2]["주의"] and item["decision"] == "PASS"

@@ -654,6 +654,39 @@ _NEG_TAIL = re.compile(r"수 ?(?:는 ?)?없|하지 ?(?:는 ?)?(?:않|못)|하기
 _COND_BEFORE = re.compile(r"면 ?$")
 #: 결론 바로 앞의 다른 항목 주어('J1-1.a는 PASS입니다') — 'J1-1.a와 달리 이 항목은 FAIL' 처럼 주어가 아니면 이 항목의 결론
 _REF_SUBJECT = re.compile(r"(J\d-\d(?:\.[a-z])?) ?(?:은|는|이|가|도|의 ?판정은|판정은)? ?$")
+#: 연결 규칙(상황표 2)과 그 대상 항목 — 사유가 규칙을 들어 해당 없음인데 항목이 대상이 아니면 한 번 다시 묻는다
+#: (10-22: 거절 턴에서 Codex 가 'J1-1.a FAIL → J4 해당 없음'을 J1-4.b · J2-3.a · J2-5.b · J3-4.a 에 씀 — 본 판정 17건, J1-4.b 재판정 5건)
+J4_ITEMS = frozenset({"J4-1.a", "J4-1.b", "J4-2.a", "J4-3.a", "J4-4.a"})
+#: (규칙을 든 말, 대상 항목, 조건 항목) — 규칙마다 따로 본다. 조건 항목 자체의 해당 없음('J1-3이 적용되지 않습니다'의 J1-3.a)은 규칙을 쓴 것이 아니다.
+#: 실제 사유 표현: 'J1-2.a가 거절·회피 FAIL이므로' · 'J1-1.a는 FAIL이므로' · 'J1-2.a가 아니오이므로' (Codex 검토 10-22)
+_COND_FAIL = r" ?(?:가|이|는|은)? ?(?:거절 ?· ?회피(?:로)? ?)?(?:FAIL|아니오)"
+LINK_RULES = ((re.compile(r"J1-2\.a" + _COND_FAIL), J4_ITEMS | {"J1-1.a"}, frozenset({"J1-2.a"})),
+              (re.compile(r"J1-1\.a" + _COND_FAIL), J4_ITEMS, frozenset({"J1-1.a"})),
+              (re.compile(r"J4 ?항목"), J4_ITEMS, frozenset({"J1-1.a", "J1-2.a"})),
+              (re.compile(r"J2-4\.a ?(?:가|이|는|은)? ?(?:FAIL|아니오|해당 ?없음|NOT_APPLICABLE)"), frozenset({"J2-4.b"}), frozenset({"J2-4.a"})),
+              (re.compile(r"J1-3(?:\.[ab])?(?:이|가)? ?적용(?! ?(?:되지|하지|안|않))"), frozenset({"J1-1.a", "J1-2.a"}), frozenset({"J1-3.a", "J1-3.b"})))
+#: 규칙을 든 말 바로 뒤의 부정 — 'J1-1.a가 FAIL은 아닙니다'는 규칙을 쓴 것이 아니다
+_RULE_NEGATED = re.compile(r"^ ?(?:은|는|이|가)? ?(?:아니|아닙|아님|아닌)")
+MISRULE_NOTE = ("연결 규칙(상황표 2)은 적힌 대상 항목에만 씁니다 — 'J1-2.a FAIL → J1-1.a · J4 해당 없음', 'J1-1.a FAIL → J4 해당 없음'의 J4 는 "
+                "J4-1.a · J4-1.b · J4-2.a · J4-3.a · J4-4.a 뿐이고, J1-4.a · J1-4.b · J2 · J3 항목은 대상이 아닙니다. 이 항목은 거절 답이라도 "
+                "정의의 점검 질문과 '적용' 조건으로 다시 판정하세요(적용 조건이 실제로 없으면 그 이유로 NOT_APPLICABLE).")
+
+
+def misapplied_rule(item: str, reason: Any) -> bool:
+    """사유가 연결 규칙을 들어 해당 없음이라는데 그 규칙의 대상 항목이 아닌가."""
+    r = re.sub(r"\s+", " ", str(reason or ""))
+    hits = [targets | conds for pat, targets, conds in LINK_RULES
+            if any(not _RULE_NEGATED.match(r[m.end():m.end() + 8]) for m in pat.finditer(r))]
+    return bool(hits) and not all(item in t for t in hits)   # 쓴 규칙 가운데 하나라도 대상이 아니면 — 'J4 항목' 같은 다른 언급이 오적용을 가리지 않게 (Codex 검토 10-22)
+
+
+def misrule_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
+    """Codex 출력에서 연결 규칙을 대상이 아닌 항목에 써서 해당 없음인 (턴, 항목)."""
+    return [(n, i) for n, items in js.check_gpt(output, turns, answers, flagged).items() for i, v in items.items()
+            if any(isinstance(e, dict) and e.get("decision") == "NOT_APPLICABLE" and misapplied_rule(i, e.get("reason"))
+                   for e in (v or {}).get("entries") or [])]
+
+
 PREV_NOTE = ("이전_판정에 적힌 항목은 그 요소 번호(id)를 그대로 써서 이전에 있던 요소를 모두 다시 답하세요 — 요소를 합치거나 번호를 바꾸지 않습니다. "
              "이전 판정은 참고일 뿐이며, 각 요소는 정의의 점검 질문으로 다시 판정합니다.")
 CONTRADICTION_NOTE = ("사유와 판정이 반대인 항목을 다시 묻습니다: 사유를 끝까지 따져 본 결론으로 decision 을 정하세요 — 점검 질문에 '예'면 PASS, "
@@ -957,6 +990,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         # 답하지 않은 (턴, 항목)과 인용이 원문에 없는 (턴, 항목)만 다시 묻는다 — 턴에 항목 하나만 있어도 완료로 보던 것(보류의 64%)과
         # 인용 불일치(27%)를 줄인다 (Codex 지적 10-20). 인용 불일치는 항목마다 한 번만 다시.
         reasked: set = set()
+        misrule_asked: set = set()   # 연결 규칙 안내를 주고 다시 물은 (턴, 항목) — 다른 다시 묻기 이력과 따로
         multi_doc = len(turns) > 1
         # 멀티턴: 한 턴을 2번 다시 물어도 빈 항목이 줄지 않으면 그 턴은 건너뛰고 다음 빈 턴으로 — 한 턴만 상한까지 묻고 뒤 턴은 못 묻던 일
         # (10-22 Claude CLI 비교 Q2 gemini: 7턴만 15번 → 8~10턴 미질문, 109개 보류). 건너뛴 턴의 남은 항목은 다른 끝내 답하지 않은 항목처럼(판정 없음 → 보류).
@@ -975,6 +1009,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             bad.update({k: ["정의의 예외를 짚어 FAIL 다시"] for k in refail})   # --reask-fail (10-22)
             contra = [k for k in contradiction_items(output, turns, answers, flagged) if k not in reasked]
             bad.update({k: ["사유와 판정이 반대 — 다시"] for k in contra})   # 10-22 기준 점검
+            misrule = [k for k in misrule_items(output, turns, answers, flagged) if k not in misrule_asked]   # 다른 이유로 다시 물은 항목도 (Codex 검토 10-22)
+            general = set(bad)   # 연결 규칙 오적용 말고 다른 이유로 다시 묻는 (턴, 항목) — 두 다시 묻기 이력을 서로 쓰지 않게 (Codex 검토 10-22)
+            bad.update({k: ["연결 규칙을 대상이 아닌 항목에 씀 — 다시"] for k in misrule})   # 10-22 J1-4.b 재판정
             targets: Dict[int, List[str]] = {}
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
@@ -998,14 +1035,16 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                                 {"id": e.get("id"), "decision": e.get("decision"), "reason": e.get("reason")})
             st2, out2, err2 = ask_codex({**ask_base, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
                                          **({"이전_판정": prev, "이전_판정_안내": PREV_NOTE} if prev else {}),
-                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail), (CONTRADICTION_NOTE, contra))
+                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail), (CONTRADICTION_NOTE, contra),
+                                                                                 (MISRULE_NOTE, misrule))
                                                              if any(k[0] in ask_turns for k in ks))}
-                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra) else {})})
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule) else {})})
             if st2 != "OK":
                 error = err2
                 break
             replace = {(n, i) for n in ask_turns for i in targets[n]}
-            reasked |= {k for k in bad if k in replace}
+            reasked |= {k for k in general if k in replace}
+            misrule_asked |= {k for k in misrule if k in replace}
             output = merge_codex_output(output, out2, replace)
             if multi_doc:
                 n = ask_turns[0]
