@@ -87,7 +87,7 @@ def compare(before: Dict[Tuple[str, int], Dict[str, Any]], after: Dict[Tuple[str
                 turn_fail[p][side][1] += len(turns)
         cx = (a.get("calls") or {}).get("codex") or {}
         codex_calls["호출"] += int(cx.get("rounds") or 0)
-        codex_calls["다시 물은 칸"] += sum(len(v) for v in (cx.get("turn_asks") or {}).values()) if isinstance(cx.get("turn_asks"), dict) else 0
+        codex_calls["다시 물은 횟수"] += sum(int(v or 0) for v in (cx.get("turn_asks") or {}).values()) if isinstance(cx.get("turn_asks"), dict) else 0   # 턴마다 다시 물은 횟수(정수)
         if b and a.get("verdict") != b.get("verdict"):
             fa = sorted(f"T{tn}:{iid}" for (tn, iid), it in ca.items() if it.get("decision") == "FAIL") + list(a.get("code_fails") or [])
             fb = sorted(f"T{tn}:{iid}" for (tn, iid), it in cb.items() if it.get("decision") == "FAIL") + list(b.get("code_fails") or [])

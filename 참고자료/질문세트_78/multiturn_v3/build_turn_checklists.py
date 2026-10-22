@@ -94,13 +94,18 @@ def move_fact(s: Dict[str, Any]) -> str:
 
 
 def time_conflict(s: Dict[str, Any], reg_now: str, reg_word: str) -> List[str]:
-    """도착부터 접수 시작까지의 시간에 확인 · 설치를 끝낼 수 없으면 그 사실(기록: 도착 전 작업 없음 · 설치 전 접수 열지 않음) — Q10 (Codex 검토 10-22)."""
+    """질문의 조건끼리 맞지 않는 사실 — ① 도착부터 접수 시작까지의 시간에 확인 · 설치를 끝낼 수 없음(Q10, Codex 검토 10-22)
+    ② 접수 시작이 행사 시작보다 늦거나 같음(Q6 09:35 > 09:30 · Q10 11:00 = 11:00 — 변경 통지가 만든 것, 10-23 새벽 다시 판정에서 찾음)."""
+    out: List[str] = []
     window = _min(reg_now) - _min(s["arrive"])
     need = s["check"] + s["setup"]
-    if window >= need:
-        return []
-    return [f"시간이 모자람: {'진행자 접속' if s.get('online') else '현장 도착'} {s['arrive']} ~ {reg_word} {reg_now} 은 {window}분인데, B안도 확인 {s['check']}분 + "
-            f"{'접속 점검' if s.get('online') else '설치'} {s['setup']}분 = {need}분이 걸림(A안은 이동이 더 걸림) — 질문의 조건끼리 맞지 않음"]
+    if window < need:
+        out.append(f"시간이 모자람: {'진행자 접속' if s.get('online') else '현장 도착'} {s['arrive']} ~ {reg_word} {reg_now} 은 {window}분인데, B안도 확인 {s['check']}분 + "
+                   f"{'접속 점검' if s.get('online') else '설치'} {s['setup']}분 = {need}분이 걸림(A안은 이동이 더 걸림) — 질문의 조건끼리 맞지 않음")
+    if _min(reg_now) >= _min(s["start"]):
+        out.append(f"{reg_word} 시작 {reg_now} 이 행사 시작 {s['start']}보다 {'늦음' if _min(reg_now) > _min(s['start']) else '같음'} — 접수를 열기 전에 행사가 시작되는 셈, "
+                   "질문의 조건끼리 맞지 않음(변경 통지가 만든 것)")
+    return out
 
 
 def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -137,6 +142,8 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
                   f"바뀌지 않은 조건: {' · '.join(unchanged)} 등"]
         if ctx["i_fmt"] < ctx["i_chg"]:
             checks.append("요청: 앞 수정에서 맞춘 형식을 유지")
+        if chg["field"] == "reg":
+            checks += time_conflict(s, chg["after"], reg_word)   # 바뀐 접수 시각이 행사 시작과 맞지 않으면 그 사실도
         return f"{s['artifact']} {nth} 번째 수정 — 조건 변경 · 예외 취소", checks
     if mod == "fmt":
         checks = ["형식 요구는 이 턴의 요청 문장에 있음"]

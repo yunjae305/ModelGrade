@@ -8,7 +8,7 @@ from tools import judge_compare_runs as jcr
 
 def _line(provider, q, verdict, items, turns=1, code_fails=None):
     return {"provider": provider, "question": q, "turns": turns, "verdict": verdict, "code_fails": code_fails or [],
-            "calls": {"codex": {"rounds": 1}}, "turn_results": {"1": {"items": items}}}
+            "calls": {"codex": {"rounds": 1, "turn_asks": {"1": 2}}}, "turn_results": {"1": {"items": items}}}   # turn_asks 값은 횟수(정수)
 
 
 def _write(path: Path, lines):

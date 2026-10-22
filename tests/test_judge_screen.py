@@ -803,3 +803,7 @@ def test_j4_target_not_applicable_from_first_judge_goes_to_codex(tmp_path: Path,
     line = _run(tmp_path, dec, codex)
     assert dec.calls == [([1], 7)] and codex.inputs[0]["판정할_항목"]["1"] == ["J4-2.a"]   # 목표 6 + 늘 보는 J5-3.a · 목표 J4 의 해당 없음만 Codex 로
     assert line["turn_results"]["1"]["items"]["J4-2.a"]["decision"] == "FAIL" and "J3-1.a" not in line["turn_results"]["1"]["items"]
+
+
+def test_j14_fail_reask_is_default():
+    assert {"J1-4.a", "J1-4.b"} <= jv.REASK_FAIL_ITEMS   # 10-22 밤: 옵션을 빠뜨리면 J1-4 FAIL 이 부풀어 기본값으로

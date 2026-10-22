@@ -456,8 +456,9 @@ def undecided_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str,
     return out
 
 
-#: --reask-fail 로 고른 항목 — Codex 가 FAIL 로 본 것을 정의의 예외를 짚어 한 번 다시 묻는다 (사용자 10-22: J1-4 가 정의보다 엄하게 매겨짐)
-REASK_FAIL_ITEMS: set = set()
+#: Codex 가 FAIL 로 본 것을 정의의 예외를 짚어 한 번 다시 묻는 항목 — J1-4 는 기본(사용자 10-22: J1-4 가 정의보다 엄하게 매겨짐, '이미 적용'),
+#: --reask-fail 로 더할 수 있다. 10-22 밤 다시 판정(v4-r2) 때 옵션을 빠뜨려 J1-4.a FAIL 이 14 → 79 로 부풀어 기본값으로 올림
+REASK_FAIL_ITEMS: set = {"J1-4.a", "J1-4.b"}
 REASK_NOTE = ("J1-4 를 다시 묻습니다: J1-4.a 는 질문과 무관한 주제 · 활용법 · 일반론 단락만 FAIL 이고, 같은 내용의 반복은 J1-4.a 가 아니라 J1-4.b 에서만 봅니다. "
               "J1-4.b 에서 '표와 그 표를 풀어 쓴 설명', '결론 · 정리 한 번', '질문이 요구한 대상 · 구분에 맞춘 다시 정리' 는 반복이 아닙니다 — "
               "같은 문장 · 같은 목록을 새 관점 · 새 정보 없이 별도 항목 · 단락으로 두 번 쓴 경우만 FAIL 입니다. 이 예외에 해당하면 PASS 로 정하고, "
@@ -1829,7 +1830,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
     ap.add_argument("--recode", action="store_true", help="심판을 부르지 않고, 지금 실행 파일의 CODE 평가 결과로 판정 줄의 CODE FAIL·질문 판정만 다시 계산해 덧붙인다(CODE 기준을 바꾼 뒤)")
     ap.add_argument("--redo", action="store_true", help="--questions 로 고른 질문은 이미 판정했어도 처음부터 다시 판정한다(새 줄을 덧붙임, 보고서는 마지막 줄을 씀)")
-    ap.add_argument("--reask-fail", default="", help="쉼표로 나눈 항목(예 J1-4.a,J1-4.b) — Codex 가 FAIL 로 본 그 항목을 정의의 예외를 짚어 한 번 다시 묻는다(--repair 와 함께)")
+    ap.add_argument("--reask-fail", default="", help="쉼표로 나눈 항목 — Codex 가 FAIL 로 본 그 항목을 정의의 예외를 짚어 한 번 다시 묻는다(J1-4.a · J1-4.b 는 기본, 여기에 더함)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
     REASK_FAIL_ITEMS.update(x.strip() for x in (args.reask_fail or "").split(",") if x.strip())
