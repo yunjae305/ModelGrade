@@ -382,6 +382,7 @@ def flow_svg(n: int, set_ver: str) -> str:
 
 # ---------- 옆 표 (단계별 요약 표는 뺌 — 흐름도 · 누가 하나와 겹치고 파일 경로는 개발용, 사용자 10-21 저녁) ----------
 PASS, FAIL, HOLD = '<span class="r-pass">통과</span>', '<span class="r-fail">FAIL</span>', '<span class="r-hold">보류</span>'
+HOLD_P = f"{HOLD} · 사람이 판단"   # 사용자 10-22: 보류 옆에 '사람이 판단'
 
 
 def mini(title, head, rows, cls=""):
@@ -410,16 +411,16 @@ def side_cards() -> str:
                 ["보류 정리", "사람"],
             ], "ai")
             + mini("판정 규칙", ["상황", "결과"], [
-                ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤
+                ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤 · 보류는 모두 '사람이 판단'
                 ["답을 못 받음 (모델 오류 · 끝나지 않음)", FAIL],
-                ["재시도 대상(복사 실패) · 빈 답", HOLD],
-                ["빈 출력 요구(글 · 빈 답 · 오류 모두)", f"{HOLD} · 사람이 정함"],
+                ["재시도 대상(복사 실패) · 빈 답", HOLD_P],
+                ["빈 출력 요구(글 · 빈 답 · 오류 모두)", HOLD_P],
                 ["Codex FAIL", FAIL],
-                ["1차 FAIL + Codex 통과", "Codex 대로"],
-                ["Codex 판정 없음 + 1차 FAIL", HOLD],
-                ["Codex 확인 못 함 (사실 확인 · 그 밖은 1차 확신 낮을 때)", HOLD],
-                ["인용이 원문에 없음 (다시 물어도)", HOLD],
-                ["질문에 보류가 하나라도", f"질문 {HOLD}"],
+                ["1차 FAIL + Codex 통과", "Codex 의 판정을 따름"],
+                ["Codex 판정 없음 + 1차 FAIL", HOLD_P],
+                ["Codex 확인 못 함 (사실 확인 · 그 밖은 1차 확신 낮을 때)", HOLD_P],
+                ["인용이 원문에 없음 (다시 물어도)", HOLD_P],
+                ["질문에 하나라도 보류라면", HOLD_P],
             ])
             + legend)
 
