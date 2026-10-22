@@ -55,19 +55,38 @@ APP_MODELS = {
 APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flash"}
 APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
 APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
-#: 고를 수 있는 모델 = 앱과 AIONA 에 이름이 똑같이 있는 것만 (사용자 10-22: "모델명이 모두 같아야해") — AIONA 이름은 메뉴 그대로
-#: (2026-10-22 화면 확인: 'Claude Opus 5.5' · 'Gemini 3.8 Flash' · 'GPT-5.6 Sol'). ChatGPT 앱 'GPT-6' 은 AIONA 'GPT-6 Sol'(사용자 10-22).
-#: Gemini 앱 '3.1 Pro'(AIONA 는 3.1 Pro Preview)는 이름이 달라 고를 수 없다. 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
-AIONA_MODEL_FOR = {**{("claude", m): f"Claude {m}" for m in APP_MODELS["claude"]},
-                   **{("gemini", m): f"Gemini {m}" for m in ("3.5 Flash-Lite", "3.8 Flash", "4 Argon")},
-                   ("gpt", "GPT-6"): "GPT-6 Sol", ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol"}
+#: AIONA 모델 ↔ 앱 모델 짝 (사용자 10-22) — 왼쪽은 AIONA 모델 메뉴에 보이는 이름 그대로, 오른쪽은 그 AIONA 모델과 일치하는 앱 모델(앱 메뉴 이름 그대로).
+#: 시작할 때는 이 표에 있는 앱 모델만 고를 수 있고, 고르면 앱은 오른쪽 모델로 · AIONA 는 왼쪽 모델로 바꿔 받는다.
+#: 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 지금 설정(노력 중간 · Medium · 사고 보통).
+#: 표에 없는 앱 모델: Gemini 앱 '3.1 Pro' — AIONA 에는 'Gemini 3.1 Pro Preview' 만 있어 짝으로 보지 않음.
+AIONA_PAIRS = [
+    # (AIONA 모델,              앱,        앱 모델)
+    ("Claude Opus 5.5",         "claude", "Opus 5.5"),
+    ("Claude Fable 5.1",        "claude", "Fable 5.1"),
+    ("Claude Sonnet 5.5",       "claude", "Sonnet 5.5"),
+    ("Claude Haiku 5.5",        "claude", "Haiku 5.5"),
+    ("Claude Haiku 4.5",        "claude", "Haiku 4.5"),
+    ("Claude Sonnet 5",         "claude", "Sonnet 5"),
+    ("Claude Opus 5",           "claude", "Opus 5"),
+    ("Claude Fable 5",          "claude", "Fable 5"),
+    ("Claude Opus 4.8",         "claude", "Opus 4.8"),
+    ("Claude Opus 4.7",         "claude", "Opus 4.7"),
+    ("Claude Opus 4.6",         "claude", "Opus 4.6"),
+    ("Claude Sonnet 4.6",       "claude", "Sonnet 4.6"),
+    ("GPT-6 Sol",               "gpt",    "GPT-6"),         # ChatGPT 앱 'GPT-6' = AIONA 'GPT-6 Sol' (사용자 10-22)
+    ("GPT-5.6 Sol",             "gpt",    "GPT-5.6 Sol"),
+    ("Gemini 3.5 Flash-Lite",   "gemini", "3.5 Flash-Lite"),
+    ("Gemini 3.8 Flash",        "gemini", "3.8 Flash"),
+    ("Gemini 4 Argon",          "gemini", "4 Argon"),
+]
+AIONA_MODEL_FOR = {(app, model): aiona for aiona, app, model in AIONA_PAIRS}   # (앱, 앱 모델) → AIONA 모델
 
 
 def aiona_model_for(provider: str, model: str) -> str:
-    """고른 앱 모델과 이름이 똑같은 AIONA 모델."""
+    """고른 앱 모델과 짝인 AIONA 모델 (AIONA_PAIRS)."""
     name = AIONA_MODEL_FOR.get((provider, model))
     if not name:
-        raise SystemExit(f"AIONA 에는 '{model}' 과 같은 모델이 없어 고를 수 없습니다")
+        raise SystemExit(f"'{model}' 은 AIONA 모델 짝 표(AIONA_PAIRS)에 없어 고를 수 없습니다")
     return name
 
 
@@ -83,7 +102,7 @@ def model_menu() -> List[Tuple[str, str, str]]:
     out, n = [], 1
     for provider in ("claude", "gpt", "gemini"):
         for model in APP_MODELS[provider]:
-            if (provider, model) in AIONA_MODEL_FOR:   # AIONA 에 이름이 똑같은 모델만 (10-22)
+            if (provider, model) in AIONA_MODEL_FOR:   # AIONA 모델 짝 표에 있는 것만 (10-22)
                 out.append((str(n), provider, model))
                 n += 1
     return out
@@ -104,17 +123,16 @@ def parse_model(text: str) -> Optional[Tuple[str, str]]:
     hits = [(p, m) for _k, p, m in model_menu() if m.lower() == t.lower()]
     if len(hits) == 1:
         return hits[0]
-    raise SystemExit(f"고를 수 없는 모델입니다: {text!r} — 앱과 AIONA 에 이름이 똑같은 모델만, 메뉴 번호 · '앱:모델'(예 claude:Opus 5.5) 또는 0(전체)")
+    raise SystemExit(f"고를 수 없는 모델입니다: {text!r} — AIONA 모델 짝 표에 있는 앱 모델만, 메뉴 번호 · '앱:모델'(예 claude:Opus 5.5) 또는 0(전체)")
 
 
 def ask_model() -> Optional[Tuple[str, str]]:
     """어느 모델로 평가할지 — 0(Enter) = 전체(네 모델 기본 설정), 번호 = 그 앱 모델 하나 + AIONA."""
-    print("어느 모델로 평가할까요? 모델을 고르면 그 앱과 AIONA 를 같은 모델로 바꿔 받습니다 (다른 앱은 받지 않음).")
-    print("  (앱과 AIONA 에 같은 모델이 있는 것만 — ChatGPT GPT-6 ↔ AIONA GPT-6 Sol · 추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
+    print("어느 모델로 평가할까요? 고르면 앱은 그 모델로, AIONA 는 짝인 모델로 바꿔 받습니다 (다른 앱은 받지 않음).")
+    print("  (추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
     print(f"  0. 전체 — 네 모델 기본 설정 ({' · '.join(app_label(p) for p in ('gpt', 'claude', 'gemini'))} · AIONA 자동 추천)")
-    for provider in ("claude", "gpt", "gemini"):
-        items = [f"{k}. {m}" for k, p, m in model_menu() if p == provider]
-        print(f"  {APP_NAMES[provider]}: " + "  ".join(items))
+    for key, provider, model in model_menu():   # 번호마다 앱 모델 ↔ AIONA 모델 짝을 그대로 보여 준다
+        print(f"  {key:>2}. {APP_NAMES[provider]} {model:<15} ↔  AIONA {AIONA_MODEL_FOR[(provider, model)]}")
     while True:
         try:
             text = input("번호 입력 후 Enter (그냥 Enter = 0 전체): ").strip()
