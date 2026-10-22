@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import re
 import sys
 import threading
@@ -104,6 +105,10 @@ def question_json(q: int, turns: List[Dict[str, Any]], answers: Dict[str, str], 
         if deliveries.get(row["case_id"]):
             t["전달방식"] = deliveries[row["case_id"]]
         t["입력_추정토큰"] = input_tokens(row)
+        plan = TURN_PLAN.get((q, ji._turn(row)))
+        if plan:   # 질문을 만들 때 정한 그 턴의 확인 목록 (10-22)
+            t["확인_목록"] = {"상황": plan.get("situation"), "확인할_것": plan.get("checks") or [], "이어지는_조건": plan.get("keep") or [],
+                           **({"정한_판정": plan["decided"]} if plan.get("decided") else {})}   # 사용자가 정한 이 질문의 판정 기준 (10-22)
         t["답변"] = answers[row["case_id"]]
         out.append(t)
     return {"질문번호": q, "턴_수": len(out), "판정할_턴": judge_turns or [t["턴"] for t in out], "턴": out}
@@ -226,6 +231,13 @@ SCREEN_CONFIDENT = _env_float("SCREEN_CONFIDENT", 0.7)
 SCREEN_SKIP_NA_LOWCONF = _env_float("SCREEN_SKIP_NA_LOWCONF", 1) != 0
 #: 질문별 목표 기준만 판정 (사용자 10-21 저녁) — 질문 세트 target_items 의 의미 기준. 0 이면 예전처럼 44개 전부를 심판이 골라 판정
 JUDGE_TARGET_ONLY = _env_float("JUDGE_TARGET_ONLY", 1) != 0
+#: --repair 에서 입력 지문이 아예 없는 옛 저장(10-22 전)을 믿을지 — 1(기본)이면 지금까지처럼 빠진 항목만 묻고, 0 이면 그 턴을 다시 판정
+#: (옛 저장은 그 뒤 바뀐 항목 정의 · 프롬프트로 판정했는지 확인할 수 없다 — 비용과 정확도 사이 선택, Codex 검토 10-22)
+REPAIR_TRUST_OLD = _env_float("JUDGE_REPAIR_TRUST_OLD", 1) != 0
+#: 질문 세트의 첨부 원본 폴더 — main 이 정한다. 심판 입력 지문에 원본 파일 내용을 넣을 때 쓴다
+FILES_DIR: Optional[Path] = None
+#: 지문 없는 옛 저장을 믿고 쓴 항목의 표시 — 정의 지문 자리에 남겨 다음 복구에서도 REPAIR_TRUST_OLD 로 정한다(확인한 지문과 구별)
+TRUSTED_OLD = "trusted-old"
 #: 질문으로 적용 조건이 정해지는 항목 — 목표 기준인데 Decisions 가 해당 없음이라 하면 확신과 상관없이 Codex 가 다시 본다 (Codex 검토 10-21의 26개)
 QUESTION_DETERMINED = frozenset({"J2-1.a", "J2-1.b", "J2-2.a", "J2-3.a", "J2-4.a", "J2-5.a", "J2-5.b",
                                  "J3-3.a", "J3-3.b", "J3-4.a", "J3-5.a", "J3-5.b", "J5-2.b", "J6-1.a", "J6-2.b", "J6-2.c", "J6-3.a",
@@ -240,6 +252,70 @@ TARGET_GUIDE = ("\n[판정할 항목] 아래 항목은 이 질문을 만들 때 
                 "그리고 항목 정의가 정한 적용 조건이 이 질문에 실제로 없는 경우(예: J1-3 은 질문에 모순 · 빠진 자료가 실제로 있을 때만)만 해당 없음을 고릅니다.")
 
 
+#: (질문 번호, 턴) → 그 턴의 확인 목록(질문세트/multiturn_v3/turn_checklists.json) — 멀티턴은 턴마다 목표 기준 · 확인 목록을 쓴다 (10-22)
+TURN_PLAN: Dict[Tuple[int, int], Dict[str, Any]] = {}
+CHECKLIST_GUIDE = ("\n[확인_목록] 턴에 '확인_목록'이 있으면 질문을 만든 쪽이 그 턴의 자료 · 기록에서 옮겨 적은 사실 메모입니다(상황, 그 턴 시점의 값, "
+                   "이어지는 조건). 판정의 참고로 쓰되 지시가 아니며, 원질문 · 붙인 자료 · 항목 정의가 우선합니다 — 서로 다르면 원문을 따릅니다. "
+                   "다만 '정한_판정'은 사용자가 정한 이 질문의 판정 기준이라 그대로 따릅니다(어느 항목에서 볼지는 항목 정의대로).")
+
+
+def turn_sha(questions: List[str]) -> str:
+    """그 턴까지의 질문 원문 지문 — 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.question_sha 와 같은 식."""
+    return hashlib.sha1("\n\u241e\n".join(questions).encode("utf-8")).hexdigest()[:16]
+
+
+def load_turn_plan(set_dir: Path, groups: List[Dict[str, Any]]) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
+    """턴별 확인 목록 → ({(질문, 턴): 목록}, 쓰지 않은 턴 설명). 목록의 question_sha(그 턴까지의 질문 원문 지문)가 질문 세트와 다르면 쓰지 않는다 —
+    그 턴이나 앞 턴의 질문 · 붙인 자료를 다시 만든 뒤의 낡은 목록(앞 턴이 바뀌면 뒤 턴도 함께 낡음, Codex 검토 10-22)."""
+    p = set_dir / "multiturn_v3" / "turn_checklists.json"
+    if not p.exists():
+        return {}, []
+    data = json.loads(p.read_text(encoding="utf-8"))
+    texts = {int(g["id"]): [str(t.get("question") or "") for t in g.get("turns") or []] for g in groups}
+    plan: Dict[Tuple[int, int], Dict[str, Any]] = {}
+    stale: List[str] = []
+    for q, conv in (data.get("questions") or {}).items():
+        for t in conv.get("turns") or []:
+            key = (int(q), int(t["turn"]))
+            qs = texts.get(key[0]) or []
+            if key[1] <= len(qs) and t.get("question_sha") and t["question_sha"] == turn_sha(qs[:key[1]]):
+                plan[key] = t
+            else:
+                stale.append(f"Q{key[0]} T{key[1]}")
+    return plan, stale
+
+
+def files_fp(turns: List[Dict[str, Any]]) -> Dict[str, str]:
+    """그 턴들의 첨부 원본 내용 지문 {경로: sha1 앞 16자 · 'missing'} + 쪽 이미지 전달 설정 — 원본 파일이 바뀌거나 pdf · docx 쪽 이미지를
+    붙이는지가 바뀌면 저장된 판정을 쓰지 않게 (Codex 검토 10-22). 첨부가 없으면 빈 값."""
+    out: Dict[str, str] = {}
+    for row in turns:
+        for a in row.get("attachments") or []:
+            if isinstance(a, dict):
+                rel = str(a.get("path") or a.get("name") or "")
+                p = Path(FILES_DIR) / rel if FILES_DIR else None
+                out[rel] = hashlib.sha1(p.read_bytes()).hexdigest()[:16] if p is not None and p.is_file() else "missing"
+    if out:
+        from code_eval import attachment_pages as ap
+        out["<쪽 이미지>"] = "on" if ap.enabled() else "off"
+    return out
+
+
+def doc_fp(obj: Any) -> str:
+    """심판 입력 지문 — 저장된 판정을 다시 쓸지 정할 때 (Codex 검토 10-22)."""
+    return hashlib.sha1(json.dumps(obj, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def targets_for(q: int, n: int) -> Optional[set]:
+    """그 턴의 목표 의미 기준 — 질문의 목표 기준에서, 턴별 확인 목록이 있으면 그 턴의 흐름상 해당 없음이 확실한 J6(not_applicable)만 뺀다.
+    질문 목표는 판정 때 질문 세트에서 바로 읽는다 — 목표가 바뀌어도 낡은 목록의 목표를 쓰지 않게 (Codex 검토 10-22)."""
+    base = QUESTION_TARGETS.get(q)
+    t = TURN_PLAN.get((q, n))
+    if base is None or t is None:
+        return base
+    return base - set(t.get("not_applicable") or {})
+
+
 def question_targets(groups: List[Dict[str, Any]]) -> Dict[int, set]:
     """질문 세트의 target_items 에서 의미 기준(J…)만 — {질문 번호: {항목}}. 목표가 없는 질문은 넣지 않는다(그 질문은 44개 전부)."""
     out: Dict[int, set] = {}
@@ -248,6 +324,19 @@ def question_targets(groups: List[Dict[str, Any]]) -> Dict[int, set]:
         if items:
             out[int(g["id"])] = items
     return out
+def init_question_set(set_dir: Path, groups: List[Dict[str, Any]]) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
+    """질문 세트로 판정 준비 — 질문별 목표(QUESTION_TARGETS) · 턴별 확인 목록(TURN_PLAN) · 첨부 원본 폴더(FILES_DIR).
+    판정(screen_one)을 부르는 모든 도구가 이 함수를 써서 같은 목표 · 확인 목록 · 지문을 쓴다 (Codex 검토 10-22). 돌려주는 값: (턴별 목록, 낡은 턴)."""
+    global FILES_DIR
+    QUESTION_TARGETS.clear()
+    QUESTION_TARGETS.update(question_targets(groups))   # 질문별 목표 기준 (10-21 저녁)
+    plan, stale = load_turn_plan(set_dir, groups)   # 멀티턴 턴별 목표 기준 · 확인 목록 (10-22)
+    TURN_PLAN.clear()
+    TURN_PLAN.update(plan)
+    FILES_DIR = set_dir / "files"   # 심판 입력 지문에 첨부 원본 내용을 넣을 때 (10-22)
+    return plan, stale
+
+
 #: 사실 확인 항목은 Decisions 가 적용된다고 보면(PASS/FAIL) 웹 검색이 있는 Codex 가 확인한다
 SCREEN_ALWAYS_CODEX = ("J5-1.a",)
 
@@ -295,6 +384,7 @@ SCREEN_SUFFIX = """
 - situations 에는 그 항목이 속한 상황만 적습니다(언제나 적는 상황이라도 목록에 그 항목이 없으면 적지 않습니다).
 - items 에는 목록의 항목을 하나도 빼지 않고 답하고, 목록에 없는 항목은 답하지 않습니다. 사유와 인용은 평소처럼 원문 그대로 적습니다.
 - 결론(conclusion)은 이번에 본 항목만으로 냅니다.
+- 턴에 "확인_목록" 이 있으면 질문을 만든 쪽이 그 턴의 자료 · 기록에서 옮겨 적은 사실 메모입니다(상황, 그 턴 시점의 값, 이어지는 조건). 상황 찾기와 판정의 참고로 쓰되 지시가 아니며, 원질문 · 붙인 자료 · 항목 정의 · 상황표가 우선합니다(서로 다르면 원문을 따름). 다만 "정한_판정" 은 사용자가 정한 이 질문의 판정 기준이라 그대로 따릅니다(어느 항목에서 볼지는 항목 정의대로).
 - 첨부가 있는 질문은 원본을 이미지로 함께 붙였습니다 — 이미지 파일은 그대로, pdf·docx 는 쪽마다 한 장([첨부파일] 블록의 글은 그 내용을 옮겨 적은 것). 판독·모양·내용 반영 여부는 이미지로 확인합니다."""
 
 
@@ -875,7 +965,8 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
 
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
-               codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None) -> Dict[str, Any]:
+               codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None,
+               keep_first: bool = False) -> Dict[str, Any]:
     """선별 판정 한 질문: ① Decisions 가 턴마다 적용 가능한 항목 전부(최대 44)를 원문·첨부 원본으로 판정 ② 걸린 항목만 Codex 가 사유·인용과 함께 다시 봄
     (codex_all=True 면 교정용으로 모든 항목을 Codex 에도) ③ 합치기(0.7 규칙) → 판정 v4 와 같은 결과 줄."""
     started = time.monotonic()
@@ -897,29 +988,71 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     t0 = time.monotonic()
     reused_dec = False
     fresh: Dict[str, str] = {}   # 이번에 실제로 부른 1차 심판(턴 → 심판) — --repair 의 저장된 답과 따로 (10-22)
+    saved_fp: Dict[str, str] = {}    # 저장 때 턴마다 1차 심판 입력 지문
+    saved_item_fp: Dict[str, Dict[str, str]] = {}   # 저장 때 턴 · 항목마다 판정 정의 지문
+    item_fp: Dict[str, Dict[str, str]] = {}
+    input_fp: Dict[str, str] = {}    # 이번 턴마다 1차 심판 입력 지문
+    effective: Dict[int, List[str]] = {}   # 턴마다 지금 판정할 항목 — 저장된 답의 옛 항목은 이것으로 줄인다
     saved_dec = out / "decisions" / name
     if reuse_decisions and saved_dec.exists():   # --repair: 저장된 Decisions 답으로 (API 안 부름)
         try:
             saved_data = json.loads(saved_dec.read_text(encoding="utf-8"))
             dec_items = {int(k): v for k, v in saved_data.items() if str(k).isdigit() and isinstance(v, dict)}
             first_used.update(saved_data.get("_first_judge") or {})   # 그 턴을 어느 1차 심판이 봤는지(Jev · Decisions) — 복구해도 이름이 바뀌지 않게 (10-22)
+            saved_fp.update(saved_data.get("_input_fp") or {})
+            saved_item_fp.update(saved_data.get("_item_fp") or {})
             reused_dec = bool(dec_items)
         except (OSError, ValueError):
             dec_items = {}
     for row in turns:
         n = ji._turn(row)
         ids = turn_item_ids(row, n, list(allq), multi_ok)
-        targets = QUESTION_TARGETS.get(q) if JUDGE_TARGET_ONLY else None
-        if targets:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목
+        targets = targets_for(q, n) if JUDGE_TARGET_ONLY else None   # 멀티턴은 그 턴의 목표 기준 (10-22)
+        if targets is not None:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목. 빈 목표면 늘 보는 J5-3.a 만 (Codex 검토 10-22)
             # 답에 있으면 보는 기준(J5-3.a 지어낸 출처 · 조회 꾸밈)은 질문으로 정할 수 없어 목표와 관계없이 본다 — CODE 의 답 의존 검사와 같게
             # (10-22 기준 점검: 싱글턴 · 첨부 · 롱컨텍스트 67문항에서 J5-3.a 를 한 번도 판정하지 않던 것)
             ids = [i for i in ids if i in targets or i in ANSWER_DEPENDENT_ITEMS]
+        ctx_turns = [t for t in doc["턴"] if t["턴"] <= n]
+        has_list = any("확인_목록" in t for t in ctx_turns)   # 그 턴까지의 문맥에 확인 목록이 하나라도 있으면 (앞 턴에만 있어도)
+        part = {"guide": fixed["guide"] + (TARGET_GUIDE if targets is not None else "") + (CHECKLIST_GUIDE if has_list else ""), "질문번호": q, "판정할_턴": [n],
+                "턴": ctx_turns}
+        input_fp[str(n)] = doc_fp({"part": part, "files": files_fp([r for r in turns if ji._turn(r) <= n])})   # 첨부 원본 내용까지
+        cur_fp = {i: doc_fp(allq[i]) for i in ids}   # 항목마다 판정 정의 지문
+        effective[n] = list(ids)
+        if reused_dec and n in dec_items and keep_first:
+            # 저장된 1차 판정을 그대로 — 1차 심판을 부르지 않고 2차 심판만 바꿔 같은 1차 결과로 비교하는 도구(judge_item_rerun ·
+            # judge_claude_compare)는 지문 확인 · 빠진 항목 묻기를 하지 않는다(지우면 1차 판정이 '답 없음'이 됨, Codex 검토 10-22)
+            if str(n) in saved_fp:
+                input_fp[str(n)] = saved_fp[str(n)]
+            else:
+                input_fp.pop(str(n), None)
+            item_fp[str(n)] = dict(saved_item_fp.get(str(n)) or {})
+            continue
         if reused_dec and n in dec_items:
-            # --repair: 저장된 답에 없는 항목(10-22 부터 늘 보는 J5-3.a 등)만 1차 심판에 묻는다 — 턴을 통째로 건너뛰면 새 항목이 빠진다 (Codex 검토 10-22)
-            ids = [i for i in ids if i not in dec_items[n]]
-            if not ids:
-                continue
-        part = {"guide": fixed["guide"] + (TARGET_GUIDE if targets else ""), "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
+            old = saved_fp.get(str(n))
+            if (old and old != input_fp[str(n)]) or (not old and (has_list or not REPAIR_TRUST_OLD)):
+                # 1차 심판 입력이 저장 때와 다르면(질문 · 답 · 첨부 원본 · 확인 목록 · 안내가 바뀜) 그 턴은 저장된 답을 버리고 다시 묻는다 — 지문 없는 옛 저장은
+                # 문맥에 확인 목록이 붙는 턴, 또는 JUDGE_REPAIR_TRUST_OLD=0 일 때 (Codex 검토 10-22: 새 확인 목록을 받지 않은 판정을 다시 쓰던 것)
+                dec_items.pop(n)
+                first_used.pop(str(n), None)
+            else:
+                # --repair: 저장된 답에 없는 항목(10-22 부터 늘 보는 J5-3.a 등)과 판정 정의가 저장 때와 달라진 항목만 1차 심판에 묻는다 —
+                # 턴을 통째로 건너뛰면 새 항목이 빠진다. 새 방식 저장인데 정의 지문이 없으면 확인할 수 없어 모두 다시, 지문 없는 옛 저장은
+                # 믿되(REPAIR_TRUST_OLD) 그 항목에는 정의 지문을 붙이지 않는다 — 확인하지 않은 것을 확인한 것처럼 남기지 않게 (Codex 검토 10-22)
+                old_items = saved_item_fp.get(str(n))
+                saved_n = dec_items[n]
+                valid = {i for i in ids if isinstance(saved_n.get(i), dict) and saved_n[i].get("choice") is not None}   # 답이 유효한 저장 항목만
+                if old_items is not None:   # 새 방식 저장 — 정의 지문이 같으면 확인, 'trusted-old' 는 다시 REPAIR_TRUST_OLD 로
+                    verified = {i for i in valid if old_items.get(i) == cur_fp[i]}
+                    trusted = {i for i in valid if old_items.get(i) == TRUSTED_OLD and REPAIR_TRUST_OLD}
+                elif old:                   # 새 방식 저장인데 정의 지문이 없음 — 확인할 수 없어 모두 다시
+                    verified, trusted = set(), set()
+                else:                       # 지문 없는 옛 저장(REPAIR_TRUST_OLD 일 때만 여기 옴) — 믿고 쓰되 표시를 남긴다
+                    verified, trusted = set(), set(valid)
+                item_fp[str(n)] = {**{i: cur_fp[i] for i in verified}, **{i: TRUSTED_OLD for i in trusted}}
+                ids = [i for i in ids if i not in verified and i not in trusted]
+                if not ids:
+                    continue
         qd = {f"T{n}:{i}": allq[i] for i in ids}
         status, body, error, used = first_judge(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n))
         fresh[str(n)] = used or "?"
@@ -931,15 +1064,22 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             if cached_turn:   # 저장된 답에 더한 항목은 판정한 심판을 항목에 남긴다 — 턴의 심판(first_judge)은 저장된 답의 것 (Codex 검토 10-22)
                 got = {i: ({**v, "judge": used} if isinstance(v, dict) else v) for i, v in got.items()}
             dec_items[n] = {**dec_items.get(n, {}), **got}
+            item_fp.setdefault(str(n), {}).update({i: cur_fp[i] for i in ids if isinstance(got.get(i), dict) and got[i].get("choice") is not None})   # 유효한 답을 받은 항목만
             usage_tokens += int(((body or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((body or {}).get("usage"), dict) else 0
             add_usage(usage_by.setdefault(used or "?", {}), (body or {}).get("usage"))
         else:
             dec_items[n] = {**dec_items.get(n, {}), **{i: None for i in ids}}
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
+    for n in list(dec_items):   # 저장된 답에 지금 판정하지 않는 옛 항목 · 대화에서 없어진 턴이 있으면 뺀다 — 선별 · 합치기 모두 지금 것만 (Codex 검토 10-22)
+        if n not in effective:
+            dec_items.pop(n)
+            first_used.pop(str(n), None)
+        else:
+            dec_items[n] = {i: v for i, v in dec_items[n].items() if i in effective[n]}
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
                           "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(fresh), "input_tokens": usage_tokens,
                           "reused": reused_dec, "fresh_judge": fresh, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
-    (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used}, ensure_ascii=False, indent=1),
+    (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used, "_input_fp": input_fp, "_item_fp": item_fp}, ensure_ascii=False, indent=1),
                                            encoding="utf-8")
     # ② 걸린 항목 → Codex
     flagged: Dict[int, List[str]] = {}
@@ -950,7 +1090,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 continue   # 멀티턴이 아닌 대화의 J6 는 Codex 에도 넘기지 않음 (10-21 밤)
             flag, reason = (True, "교정용 전수") if codex_all else screen_flag(i, entry)
             if (not flag and JUDGE_TARGET_ONLY and i in QUESTION_DETERMINED and isinstance(entry, dict)
-                    and entry.get("choice") == "NOT_APPLICABLE" and i in (QUESTION_TARGETS.get(q) or set())):
+                    and entry.get("choice") == "NOT_APPLICABLE" and i in (targets_for(q, n) or set())):
                 flag, reason = True, "목표 기준인데 해당 없음 — 질문으로 정해지는 항목"   # (10-21)
             if flag:
                 flagged.setdefault(n, []).append(i)
@@ -980,9 +1120,17 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             return st, outp, err
 
         rounds, reused, error = 0, False, ""
-        if reuse_codex and saved.exists() and json.loads(saved.read_text(encoding="utf-8") or "null"):
+        saved_fp_file = out / "codex" / f"{name}.fp"
+        codex_fp = doc_fp({"doc": doc, "prompt": prompt + SCREEN_SUFFIX, "files": files_fp(turns)})   # 질문 · 답 · 첨부 원본 · 확인 목록 · 판정 프롬프트 (Codex 검토 10-22)
+        # 지문 없는 옛 저장은 확인 목록이 붙지 않는 질문이고 REPAIR_TRUST_OLD 일 때만 믿고 쓴다 — 믿고 쓴 출력에는 지문을 붙이지 않는다 (Codex 검토 10-22)
+        trusted_codex = not saved_fp_file.exists() and REPAIR_TRUST_OLD and not any("확인_목록" in t for t in doc["턴"])
+        same_input = trusted_codex or (saved_fp_file.exists() and saved_fp_file.read_text(encoding="utf-8").strip() == codex_fp)
+        if reuse_codex and saved.exists() and same_input and json.loads(saved.read_text(encoding="utf-8") or "null"):
             output, status, reused = json.loads(saved.read_text(encoding="utf-8")), "OK", True
             say(f"   🖥 {tag} Codex — 저장된 출력 다시 씀 ({saved.name}); 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
+        elif gpt is None:   # Codex 없이 복구하는데 저장 때와 입력이 다름 — 저장된 출력을 쓰지 않고 오류로 남긴다(저장 파일은 그대로)
+            status, output, error = "ERROR", None, "Codex 없음 — 저장된 출력은 질문 · 답 · 확인 목록 · 프롬프트가 달라 다시 쓸 수 없음"
+            say(f"   🖥 {tag} {error}")
         else:
             say(f"   🖥 {tag} Codex CLI — 걸린 항목 {n_flagged}개(턴 {sorted(flagged)}) · 웹 검색 {'켬' if search else '끔'} …")
             status, output, error = ask_codex(body_doc)
@@ -1064,7 +1212,10 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                           "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()},
                           "turn_asks": {str(n): c for n, c in turn_asks.items()}, "skipped_turns": sorted(skipped), **tokens}
         say(f"   🖥 {tag} Codex {status} {calls['codex']['seconds']}초 · 호출 {rounds}번" + (f" — {str(calls['codex']['error'])[:160]}" if calls['codex']['error'] else ""))
-        (out / "codex" / name).write_text(json.dumps(output, ensure_ascii=False, indent=1), encoding="utf-8")
+        if output is not None or not saved.exists():   # 저장된 출력을 빈 값으로 덮지 않는다
+            (out / "codex" / name).write_text(json.dumps(output, ensure_ascii=False, indent=1), encoding="utf-8")
+        if output is not None and not (reused and trusted_codex):
+            saved_fp_file.write_text(codex_fp, encoding="utf-8")   # 이 출력이 받은 질문 · 답 · 첨부 원본 · 확인 목록 · 프롬프트의 지문
         if calls["codex"]["status"] == "OK":
             codex_items = js.check_gpt(output, turns, answers, flagged)
             for t in (output or {}).get("turns") or []:
@@ -1542,8 +1693,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
-    QUESTION_TARGETS.clear()
-    QUESTION_TARGETS.update(question_targets(groups))   # 질문별 목표 기준 (10-21 저녁)
+    plan, stale = init_question_set(set_dir, groups)   # 질문별 목표 · 턴별 확인 목록 · 첨부 원본 폴더 (10-22)
+    if plan or stale:   # 모두 낡아도 알린다 (Codex 검토 10-22)
+        say(f"📋 턴별 확인 목록 {len(plan)}턴" + (f" — 질문과 맞지 않아 안 쓴 턴 {len(stale)}개: {', '.join(stale[:10])}" if stale else ""))
     rows = flatten(groups)
     prompt = PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))

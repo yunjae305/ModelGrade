@@ -466,3 +466,198 @@ def test_misrule_reask_does_not_use_up_the_fail_reask(tmp_path: Path, monkeypatc
     codex = ThreeCodex()
     item = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]["J1-4.b"]
     assert len(codex.inputs) == 3 and jv.MISRULE_NOTE in codex.inputs[1]["주의"] and jv.REASK_NOTE in codex.inputs[2]["주의"] and item["decision"] == "PASS"
+
+
+def test_turn_plan_gives_per_turn_targets_and_checklist(tmp_path: Path, monkeypatch):
+    # 10-22 ③: 멀티턴은 턴마다 목표 기준 · 확인 목록 — 목록의 질문 원문 지문이 질문 세트와 다르면 그 턴은 쓰지 않는다
+    set_dir = tmp_path / "set"
+    (set_dir / "multiturn_v3").mkdir(parents=True)
+    groups = [{"id": 1, "turns": [{"turn": 1, "question": "[붙여 넣은 자료]\n…\n[자료 끝]\n\n존댓말로 답해 주세요. 회의 시간을 알려 주세요."}]},
+              {"id": 2, "turns": [{"turn": 1, "question": "다른 질문"}]}]
+    plan = {"questions": {"1": {"turns": [{"turn": 1, "question_sha": jv.turn_sha([groups[0]["turns"][0]["question"]]), "situation": "1턴 조건 정리",
+                                            "checks": ["회의는 10시"], "keep": [], "decided": ["10시와 10시 정각을 구별하면 맞음"],
+                                            "not_applicable": {"J4-2.a": "흐름상 해당 없음(시험용)"}}]},
+                          "2": {"turns": [{"turn": 1, "question_sha": jv.turn_sha(["질문을 다시 만들기 전"]), "target_items": ["J1-1.a"]}]}}}
+    (set_dir / "multiturn_v3" / "turn_checklists.json").write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+    got, stale = jv.load_turn_plan(set_dir, groups)
+    assert list(got) == [(1, 1)] and stale == ["Q2 T1"]
+    monkeypatch.setattr(jv, "TURN_PLAN", got)
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-1.a", "J1-2.a", "J1-4.a", "J2-2.a", "J4-2.a"}})
+    assert jv.targets_for(1, 1) == {"J1-1.a", "J1-2.a", "J1-4.a", "J2-2.a"} and jv.targets_for(2, 1) is None   # 질문 목표 − 목록의 not_applicable
+    jv.QUESTION_TARGETS[1].add("J2-1.a")
+    assert "J2-1.a" in jv.targets_for(1, 1)   # 질문 목표가 바뀌면 판정 때 바로 반영 (Codex 검토 10-22)
+    jv.QUESTION_TARGETS[1].discard("J2-1.a")
+    doc = jv.question_json(1, [{"case_id": "Q1_T1", "question": groups[0]["turns"][0]["question"], "turn": 1}], {"Q1_T1": "네, 10시입니다."}, {})
+    assert doc["턴"][0]["확인_목록"] == {"상황": "1턴 조건 정리", "확인할_것": ["회의는 10시"], "이어지는_조건": [],
+                                     "정한_판정": ["10시와 10시 정각을 구별하면 맞음"]} and list(doc["턴"][0])[-1] == "답변"   # 사용자가 정한 판정 기준은 따로 (10-22)
+    dec = FakeDecisions()
+    _run(tmp_path, dec, FakeCodex())
+    assert dec.calls == [([1], 5)]   # 그 턴의 목표 4개 + 늘 보는 J5-3.a
+
+
+def test_repair_rejudges_turn_when_input_changed_and_drops_old_items(tmp_path: Path, monkeypatch):
+    # Codex 검토(③): --repair 는 1차 심판 입력 지문이 같으면 저장된 답을 쓰고(지금 목표 밖 옛 항목은 뺌), 확인 목록이 바뀌면 그 턴을 통째로 다시 묻는다
+    q1 = "존댓말로 답해 주세요. 회의 시간을 알려 주세요."
+    plan = {(1, 1): {"turn": 1, "question_sha": jv.turn_sha([q1]), "situation": "s", "checks": ["회의는 10시"], "keep": []}}
+    monkeypatch.setattr(jv, "TURN_PLAN", plan)
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-4.a", "J2-2.a"}})
+    _run(tmp_path, FakeDecisions(), FakeCodex())
+    saved = tmp_path / "decisions" / "Q1_gpt.json"
+    data = json.loads(saved.read_text(encoding="utf-8"))
+    data["1"]["J4-2.a"] = {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9}   # 지금 목표 밖의 옛 항목
+    data["2"] = {"J1-4.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9}}   # 대화에서 없어진 턴
+    saved.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    same = FakeDecisions()
+    line = _run(tmp_path, same, FakeCodex(), reuse_decisions=True)
+    assert same.calls == [] and "J4-2.a" not in line["turn_results"]["1"]["items"] and list(line["turn_results"]) == ["1"] and line["verdict"] == "PASS"
+    plan[(1, 1)]["checks"] = ["회의는 11시"]   # 확인 목록이 바뀜 → 그 턴은 저장된 답을 버리고 다시
+    changed = FakeDecisions()
+    _run(tmp_path, changed, FakeCodex(), reuse_decisions=True)
+    assert changed.calls == [([1], 3)]
+    import copy   # 항목 판정 정의만 바뀌면 그 항목만 다시 (Codex 검토 10-22)
+    fixed = copy.deepcopy(json.loads(jv.JEV_V4.read_text(encoding="utf-8")))
+    fixed["items"]["J2-2.a"]["instructions"] += " (정의 고침)"
+    redef = FakeDecisions()
+    jv.screen_one(1, "gpt", [{"case_id": "Q1_T1", "question": q1, "turn": 1}], {"Q1_T1": "네, 회의는 10시입니다."}, {}, [], "PROMPT", fixed,
+                  FakeCodex(), redef, tmp_path, reuse_decisions=True)
+    assert redef.calls == [([1], 1)]
+
+
+def test_saved_codex_output_is_reused_only_for_the_same_input(tmp_path: Path, monkeypatch):
+    # Codex 검토(③): 저장된 Codex 출력은 질문 · 답 · 확인 목록 지문이 같을 때만 다시 쓴다
+    for sub in ("inputs", "codex", "jev", "decisions"):
+        (tmp_path / sub).mkdir(exist_ok=True)
+    q1 = "존댓말로 답해 주세요. 회의 시간을 알려 주세요."
+    plan = {(1, 1): {"turn": 1, "question_sha": jv.turn_sha([q1]), "situation": "s", "checks": ["회의는 10시"], "keep": []}}
+    monkeypatch.setattr(jv, "TURN_PLAN", plan)
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-4.a", "J2-2.a"}})
+    jv.say = lambda *a, **k: None
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    turns = [{"case_id": "Q1_T1", "question": q1, "turn": 1}]
+    dec = lambda: FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    run = lambda codex, prompt="PROMPT": jv.screen_one(1, "gpt", turns, {"Q1_T1": "네, 10시입니다."}, {}, [], prompt, fixed, codex, dec(), tmp_path, reuse_codex=True)
+    first = FakeCodex({"J2-2.a": "FAIL"})
+    run(first)
+    assert len(first.inputs) == 1 and (tmp_path / "codex" / "Q1_gpt.json.fp").exists()
+    again = FakeCodex({"J2-2.a": "FAIL"})
+    run(again)
+    assert again.inputs == []   # 입력이 같으면 저장된 출력을 다시 씀
+    newp = FakeCodex({"J2-2.a": "FAIL"})
+    run(newp, "PROMPT v2")
+    assert len(newp.inputs) == 1   # 판정 프롬프트가 바뀌면 다시 묻는다 (Codex 검토 10-22)
+    saved_out = (tmp_path / "codex" / "Q1_gpt.json").read_text(encoding="utf-8")
+    line = run(None, "PROMPT v2")   # Codex 없이 복구 — 확인 목록은 같고 프롬프트도 같으면 저장된 출력을 쓴다
+    assert line["calls"]["codex"]["status"] == "OK"
+    plan[(1, 1)]["checks"] = ["회의는 11시"]
+    line = run(None, "PROMPT v2")   # 입력이 바뀌었는데 Codex 가 없으면 오류로 남기고 저장된 출력은 지우지 않는다
+    assert line["calls"]["codex"]["status"] == "ERROR" and (tmp_path / "codex" / "Q1_gpt.json").read_text(encoding="utf-8") == saved_out
+    changed = FakeCodex({"J2-2.a": "FAIL"})
+    run(changed, "PROMPT v2")
+    assert len(changed.inputs) == 1   # 확인 목록이 바뀌면 다시 묻는다
+
+
+def test_repair_fingerprints_definitions_attachments_and_empty_targets(tmp_path: Path, monkeypatch):
+    # Codex 검토(③ 3차): 정의 지문이 없는 새 방식 저장은 다시 · 옛 저장은 믿되 지문을 붙이지 않음 · 첨부 원본이 바뀌면 다시 · 빈 목표는 J5-3.a 만
+    q1 = "존댓말로 답해 주세요. 회의 시간을 알려 주세요."
+    monkeypatch.setattr(jv, "TURN_PLAN", {})
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-4.a", "J2-2.a"}})
+    _run(tmp_path, FakeDecisions(), FakeCodex())
+    saved = tmp_path / "decisions" / "Q1_gpt.json"
+    data = json.loads(saved.read_text(encoding="utf-8"))
+    no_item = {k: v for k, v in data.items() if k != "_item_fp"}
+    saved.write_text(json.dumps(no_item, ensure_ascii=False), encoding="utf-8")
+    d1 = FakeDecisions()
+    _run(tmp_path, d1, FakeCodex(), reuse_decisions=True)
+    assert d1.calls == [([1], 3)]   # 입력 지문은 있는데 정의 지문이 없음 → 모두 다시
+    old = {k: v for k, v in json.loads(saved.read_text(encoding="utf-8")).items() if k not in ("_item_fp", "_input_fp")}
+    saved.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+    d2 = FakeDecisions()
+    _run(tmp_path, d2, FakeCodex(), reuse_decisions=True)
+    assert d2.calls == [] and set(json.loads(saved.read_text(encoding="utf-8"))["_item_fp"]["1"].values()) == {jv.TRUSTED_OLD}   # 믿되 확인 지문은 안 붙임
+    d2b = FakeDecisions()
+    _run(tmp_path, d2b, FakeCodex(), reuse_decisions=True)
+    assert d2b.calls == []   # 다음 복구에서도 같은 정책(믿음) — 전부 다시 묻지 않는다 (Codex 검토 ③ 4차)
+    saved.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(jv, "REPAIR_TRUST_OLD", False)
+    d3 = FakeDecisions()
+    _run(tmp_path, d3, FakeCodex(), reuse_decisions=True)
+    assert d3.calls == [([1], 3)]   # JUDGE_REPAIR_TRUST_OLD=0 이면 옛 저장을 다시 판정
+    data = json.loads(saved.read_text(encoding="utf-8"))
+    data["1"]["J2-2.a"] = None   # 답이 빠진 항목
+    data["_item_fp"]["1"]["J2-2.a"] = jv.doc_fp(jv.all_item_questions(json.loads(jv.JEV_V4.read_text(encoding="utf-8")))["J2-2.a"])
+    saved.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    d4 = FakeDecisions()
+    _run(tmp_path, d4, FakeCodex(), reuse_decisions=True)
+    assert d4.calls == [([1], 1)]   # 정의 지문이 같아도 답이 유효하지 않으면 다시 (Codex 검토 ③ 4차)
+    files = tmp_path / "files"
+    files.mkdir()
+    (files / "a.txt").write_text("10", encoding="utf-8")
+    monkeypatch.setattr(jv, "FILES_DIR", files)
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    turns = [{"case_id": "Q1_T1", "question": q1, "turn": 1, "attachments": [{"name": "a.txt", "path": "a.txt", "type": "txt", "content": "10"}]}]
+    att = lambda dec: jv.screen_one(1, "gpt", turns, {"Q1_T1": "네, 10시입니다."}, {}, [], "PROMPT", fixed, FakeCodex(), dec, tmp_path, reuse_decisions=True)
+    att(FakeDecisions())
+    same = FakeDecisions()
+    att(same)
+    assert same.calls == []
+    (files / "a.txt").write_text("11", encoding="utf-8")   # 첨부 원본만 바뀜(옮겨 적은 내용은 그대로)
+    changed = FakeDecisions()
+    att(changed)
+    assert changed.calls == [([1], 3)]
+    monkeypatch.setattr(jv, "TURN_PLAN", {(1, 1): {"turn": 1, "not_applicable": {"J1-4.a": "x", "J2-2.a": "x"}}})
+    empty = FakeDecisions()
+    (tmp_path / "e").mkdir()
+    _run(tmp_path / "e", empty, FakeCodex())
+    assert empty.calls == [([1], 1)]   # 빈 목표 → 늘 보는 J5-3.a 만
+
+
+def test_codex_strict_mode_and_attach_pages_change_the_fingerprint(tmp_path: Path, monkeypatch):
+    # Codex 검토(③ 4차): JUDGE_REPAIR_TRUST_OLD=0 이면 지문 없는 Codex 옛 출력도 다시 묻고, 믿고 쓴 출력에는 지문을 붙이지 않음 · 쪽 이미지 설정이 지문에 듦
+    for sub in ("inputs", "codex", "jev", "decisions"):
+        (tmp_path / sub).mkdir(exist_ok=True)
+    q1 = "존댓말로 답해 주세요. 회의 시간을 알려 주세요."
+    monkeypatch.setattr(jv, "TURN_PLAN", {})
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-4.a", "J2-2.a"}})
+    jv.say = lambda *a, **k: None
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    turns = [{"case_id": "Q1_T1", "question": q1, "turn": 1}]
+    dec = lambda: FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    run = lambda codex: jv.screen_one(1, "gpt", turns, {"Q1_T1": "네, 10시입니다."}, {}, [], "PROMPT", fixed, codex, dec(), tmp_path, reuse_codex=True)
+    run(FakeCodex({"J2-2.a": "FAIL"}))
+    fp = tmp_path / "codex" / "Q1_gpt.json.fp"
+    fp.unlink()   # 지문 없는 옛 저장으로
+    trusted = FakeCodex({"J2-2.a": "FAIL"})
+    run(trusted)
+    assert trusted.inputs == [] and not fp.exists()   # 믿고 쓰되 지문은 붙이지 않음
+    monkeypatch.setattr(jv, "REPAIR_TRUST_OLD", False)
+    strict = FakeCodex({"J2-2.a": "FAIL"})
+    run(strict)
+    assert len(strict.inputs) == 1 and fp.exists()
+    files = tmp_path / "files"
+    files.mkdir()
+    (files / "a.pdf").write_bytes(b"%PDF-1.4")
+    monkeypatch.setattr(jv, "FILES_DIR", files)
+    att = [{"case_id": "Q1_T1", "question": q1, "turn": 1, "attachments": [{"name": "a.pdf", "path": "a.pdf", "type": "pdf", "content": "(내용)"}]}]
+    monkeypatch.setenv("CODEX_ATTACH_PAGES", "0")
+    off = jv.files_fp(att)
+    monkeypatch.setenv("CODEX_ATTACH_PAGES", "1")
+    assert off != jv.files_fp(att) and jv.files_fp(turns) == {}
+
+
+def test_keep_first_reuses_saved_first_judge_without_fingerprint(tmp_path: Path, monkeypatch):
+    # Codex 검토(③ 5차): 1차 심판 없이 2차만 바꿔 비교하는 도구는 저장된 1차 판정을 그대로 — 확인 목록이 붙은 문맥에서도 지우지 않는다
+    for sub in ("inputs", "codex", "jev", "decisions"):
+        (tmp_path / sub).mkdir(exist_ok=True)
+    q1 = "존댓말로 답해 주세요. 회의 시간을 알려 주세요."
+    monkeypatch.setattr(jv, "TURN_PLAN", {(1, 1): {"turn": 1, "situation": "s", "checks": ["회의는 10시"], "keep": []}})
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-4.a", "J2-2.a"}})
+    jv.say = lambda *a, **k: None
+    (tmp_path / "decisions" / "Q1_gpt.json").write_text(json.dumps(   # 지문 없는 옛 저장, 그 항목만 남긴 것 (judge_item_rerun 이 만드는 모양)
+        {"1": {"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9}}, "_first_judge": {"1": "decisions"}},
+        ensure_ascii=False), encoding="utf-8")
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    codex = FakeCodex({"J2-2.a": "FAIL"})
+    line = jv.screen_one(1, "gpt", [{"case_id": "Q1_T1", "question": q1, "turn": 1}], {"Q1_T1": "네, 10시입니다."}, {}, [], "PROMPT", fixed,
+                         codex, None, tmp_path, reuse_codex=True, reuse_decisions=True, keep_first=True)
+    item = line["turn_results"]["1"]["items"]["J2-2.a"]
+    assert codex.inputs[0]["판정할_항목"] == {"1": ["J2-2.a"]} and item["jev"] == "FAIL" and item["decisions_prob"]["FAIL"] == 0.9

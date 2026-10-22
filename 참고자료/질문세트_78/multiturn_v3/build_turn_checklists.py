@@ -1,22 +1,30 @@
 # -*- coding: utf-8 -*-
 """멀티턴 11개 대화의 턴별 확인 목록 · 턴별 목표 기준을 만든다 — 시나리오 원본(multiturn_v2 의 S)과 턴 순서(이 폴더 build_conversations 의 PLAN)로
-(2026-10-22 기준 점검, 사용자: "멀티턴이니까 맥락을 제대로 유지하기 위해 …" · "그 외의도 저런 허점들 찾으면 수정").
+(2026-10-22 기준 점검, 사용자: "멀티턴이니까 맥락을 제대로 유지하기 위해 …" · "그 기준 빼도 … k의 개수가 우리가 맞춘 조건에 맞는지 확인해야지").
 
-왜: 질문별 목표 기준(target_items)은 대화 10턴을 합친 하나라 모든 턴에 J6 7개 · J1-3 이 붙는다 — 조건 변경이 없던 턴의 J6-3.a,
-반박이 없던 턴의 J6-4.b 처럼 해당 없는 항목까지 판정하고, 심판은 턴마다 무엇을 봐야 하는지(바뀐 조건 · 빠진 자료 · 틀린 곳)를 모른다.
-여기서는 질문을 만들 때 정한 사실로 턴마다 ① 상황 ② 확인할 것(맞는 값은 그 턴 시점의 최신 값) ③ 이어지는 조건 ④ J6 · J1-3 적용과 그 이유
-⑤ 턴별 목표 기준(인식기의 턴별 기준에서 J6 · J1-3 만 규칙으로 바꿈)을 적는다. questions.json 은 바꾸지 않는다(판정 연결은 다음 단계).
+왜: 질문별 목표 기준(target_items)은 대화 10턴을 합친 하나라 모든 턴에 J6 가 다 붙는다 — 조건 변경이 아직 없는 턴의 J6-3.a, 반박이 없는 턴의
+J6-4.b 처럼 흐름상 해당 없는 것이 확실한 항목까지 판정하고, 심판은 턴마다 무엇이 바뀌었는지 · 무엇이 빠졌는지 모른다.
 
-    python -X utf8 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.py        # turn_checklists.json 쓰기 + k 전후 요약
+정하는 것 (Codex 검토 10-22 반영 — 인식기가 놓친 항목까지 빠지지 않게, 목록에는 판정 지시 없이 근거 있는 사실만)
+① 턴별 목표 기준 = 질문의 목표 기준 − 흐름상 해당 없음이 확실한 J6 만: 1턴의 J6 전부, 조건 변경 턴 전의 J6-3.a, 같은 결과물 두 번째 수정
+   턴이 아닌 턴의 J6-3.b, 반박 턴이 아닌 턴의 J6-4.b, 반박 턴의 J6-4.a(상황표 2). J1-3 · J1-1 · J1-2 등은 그대로 두고 상황표 2 에 맡긴다.
+② 확인 목록 = 그 턴의 상황 · 확인할 것(그 턴 시점의 최신 값, 자료에 있는 값만 — 예: 돌아오는 시간은 기록 없음) · 이어지는 조건.
+③ question_sha = 그 턴까지의 질문 원문 지문 — 질문을 다시 만들면 판정 쪽이 낡은 목록을 쓰지 않는다.
+④ k 조건 다시 확인 — 질문세트 전체를 정식 검사(check_items · target_counts · k_var_by_group)로, 인식기의 턴별 기준에서 ①의 J6 만 뺀 배정으로.
+questions.json 은 바꾸지 않는다.
+
+    python -X utf8 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.py        # turn_checklists.json 쓰기 + k 조건 확인
 """
 from __future__ import annotations
 
+import copy
+import hashlib
 import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 HERE = Path(__file__).resolve().parent
 SET_DIR = HERE.parent
@@ -29,19 +37,28 @@ _spec = importlib.util.spec_from_file_location("mt_v3", HERE / "build_conversati
 v3 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(v3)
 
-J13 = ("J1-3.a", "J1-3.b")
-#: 지시어 — 앞 턴 내용을 가리키는 말(J6-2.c 정의: "그거", "아까 두 번째" 같은 말)
-_POINTER = re.compile(r"아까|앞서|앞에서|그거|그것|이전보다|같은 \S+(?:을|를)|두 번째 안")
+J6_ALL = ("J6-1.a", "J6-2.a", "J6-2.b", "J6-2.c", "J6-3.a", "J6-3.b", "J6-4.a", "J6-4.b")
 _TIME_SHIFT = re.compile(r"(접수 시작|입장 시작|입장 허용 시각)(?:만|을)?\s*이전보다\s*(\d+)분\s*(늦춰|앞당겨)")
 _CAP_CHANGE = re.compile(r"정원을\s*(\d+)\D{0,3}에서\s*(\d+)")
 _PLACE_CHANGE = re.compile(r"(\S+ ?\S*?)를\s*(.+?)에서\s*(.+?)으?로\s*바꿔")
-NEEDS_PREV = {"draft": "앞에서 확정한 일시 · 참여 조건 · 문의처가 필요", "chg": "앞 결과물을 고침", "fmt": "앞 결과물을 고침",
-               "check": "지금까지 확정한 내용과 대조", "final": "확정한 방식 · 최신 조건 · B안 비용이 필요", "push": "앞선 결론의 근거를 다시 씀"}
+_PUSH_BASE = re.compile(r"옮긴 것입니다\.\s*(.+?)\s*의견 말고")
+#: 인식기가 이 템플릿 요청에서 놓치는 것으로 확인한 항목 — k 계산에만 보정(판정 목표는 질문 목표라 이미 들어 있음, Codex 검토 10-22)
+#: 원리 설명 턴: '행사 당일 어떻게 대응할지도 밝혀 주세요'(J4-2.a 추가 요청) · '…단정하지 마세요'(J2-3.a 명시 조건)
+RECOGNIZER_MISSES = {"explain": (("J4-2.a", re.compile(r"할지도|도 밝혀")), ("J2-3.a", re.compile(r"하지 마세요|마세요")))}
+
+
+def question_sha(questions: List[str]) -> str:
+    """그 턴까지의 질문 원문 지문 — tools/judge_v4.load_turn_plan 이 같은 식으로 대조한다."""
+    return hashlib.sha1("\n␞\n".join(questions).encode("utf-8")).hexdigest()[:16]
+
+
+def _min(hhmm: str) -> int:
+    h, m = map(int, hhmm.split(":"))
+    return h * 60 + m
 
 
 def _shift(hhmm: str, minutes: int) -> str:
-    h, m = map(int, hhmm.split(":"))
-    t = h * 60 + m + minutes
+    t = _min(hhmm) + minutes
     return f"{t // 60:02d}:{t % 60:02d}"
 
 
@@ -67,147 +84,158 @@ def request_of(question: str) -> str:
     return question.split("[자료 끝]", 1)[-1].strip()
 
 
-def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> tuple:
-    """턴 하나의 (상황, 확인할 것 목록) — 맞는 값은 그 턴 시점의 최신 값."""
+def move_fact(s: Dict[str, Any]) -> str:
+    """준비 방식의 시간 · 비용 — 자료에 있는 값만(돌아오는 시간은 재지 않았다)."""
+    if s["one_way"]:
+        a = f"편도 {s['one_way']}분(돌아오는 시간은 기록 없음) · 확인 {s['check']}분 · 비용 없음"
+    else:
+        a = f"자료 확인 {s['check']}분 · 비용 없음"
+    return f"A안({s['a_short']}): {a} / B안({s['b_short']}): 비용 {s['b_cost']}원 · 확인 {s['check']}분 · {'접속 점검' if s.get('online') else '설치'}은 두 안 모두 {s['setup']}분"
+
+
+def time_conflict(s: Dict[str, Any], reg_now: str, reg_word: str) -> List[str]:
+    """도착부터 접수 시작까지의 시간에 확인 · 설치를 끝낼 수 없으면 그 사실(기록: 도착 전 작업 없음 · 설치 전 접수 열지 않음) — Q10 (Codex 검토 10-22)."""
+    window = _min(reg_now) - _min(s["arrive"])
+    need = s["check"] + s["setup"]
+    if window >= need:
+        return []
+    return [f"시간이 모자람: {'진행자 접속' if s.get('online') else '현장 도착'} {s['arrive']} ~ {reg_word} {reg_now} 은 {window}분인데, B안도 확인 {s['check']}분 + "
+            f"{'접속 점검' if s.get('online') else '설치'} {s['setup']}분 = {need}분이 걸림(A안은 이동이 더 걸림) — 질문의 조건끼리 맞지 않음"]
+
+
+def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """턴 하나의 (상황, 확인할 것) — 자료 · 기록에 있는 사실만, 그 턴 시점의 최신 값. 판정 지시(PASS · FAIL · 항목 이름)는 쓰지 않는다."""
     reg_word, reg_now, cap_now, chg, after_chg = ctx["reg_word"], ctx["reg_now"], ctx["cap_now"], ctx["chg"], ctx["after_chg"]
     cap_amt, paid, rem = s["budget"]
     nth = "첫" if ctx["i"] == min(ctx["i_chg"], ctx["i_fmt"]) else "두"
     if mod == "setup":
-        move = (f"편도 {s['one_way']}분(왕복 {2 * s['one_way']}분) · 점검 {s['check']}분" if s["one_way"]
-                else f"자료 확인 {s['check']}분")   # 온라인(Q69)은 이동이 없다
-        checks = [f"A안({s['a_short']}): {move} · 비용 없음 / B안({s['b_short']}): 비용 {s['b_cost']}원 · "
-                  + (f"점검 {s['check']}분 — 편도를 왕복으로 쓰면 틀림" if s["one_way"] else f"자료 확인 {s['check']}분"),
+        checks = [move_fact(s),
                   f"예산: 승인 상한 {cap_amt}원 · 실지급 {paid}원 · 남은 예상 {rem}원(B안 비용 {s['b_cost']}원 미포함) — 상한은 실제 지출이 아님",
                   f"인력 {s['staff']}명(예비 인력은 참석 확답 없음 · 승인 인력 아님) · 정원 {s['cap']}{s['unit_people']} — 정원과 인력은 다른 값",
-                  f"위험: {s['risk']} — {reg_word} {s['reg']} 시작 뒤에는 자리를 비울 수 없음"]
+                  f"기록의 위험: {s['risk']} — {reg_word} 시작 뒤에는 자리를 비울 수 없음"] + time_conflict(s, s["reg"], reg_word)
         if kind == "A":
-            return "1턴 조건 정리 + A안 · B안 비교 · 추천", checks + ["추천은 위 시간 · 비용 · 위험에 근거해야 함(어느 안이든 근거가 맞으면 됨)"]
-        return ("1턴 조건 정리(결정 · 보류 구분) — A안 · B안은 고르지 않음",
-                checks + ["요청대로 A안 · B안 가운데 하나를 고르지 않아야 함 · 회의록의 [결정] / [보류] 구분을 그대로"])
+            return "1턴 조건 정리 + A안 · B안 비교 · 추천", checks
+        return "1턴 조건 정리 — 회의록의 결정 · 보류를 나눠 확인, A안 · B안은 아직 고르지 않음(요청)", checks
     if mod == "record":
-        return "기록 요약 + 출처 [1] · [2]", ["결정 · 보류 구분을 유지 — 보류 항목을 확정처럼 쓰지 않음",
-                                            f"미정 항목(추가 지원 인력 · {s['attach']} · 개별 참가자 편의 지원)은 미정으로",
-                                            f"출처는 [1] {s['ref1']} · [2] {s['ref2']} 두 기록뿐 — 인터넷 검색 · 실제 예약을 했다고 쓰면 꾸민 확인(J5-3.a)"]
+        return "기록 요약 + 출처 [1] · [2]", ["기록은 안건마다 [결정] · [보류]를 나눠 적음",
+                                            f"기록의 미정 항목: 추가 지원 인력 · {s['attach']} · 개별 참가자 편의 지원",
+                                            f"출처로 쓸 수 있는 기록은 [1] {s['ref1']} · [2] {s['ref2']} 두 개뿐"]
     if mod == "calc":
-        return "표 열 합계 + 단가 × 수량", [f"'{s['key']}' 열 합계(모든 행 · 중복 행 포함) = {' + '.join(str(v) for _, v in s['table'])} = {ctx['table_sum']}",
+        return "표 열 합계 + 단가 × 수량", [f"'{s['key']}' 열의 모든 행(중복 행 포함): {' + '.join(str(v) for _, v in s['table'])} = {ctx['table_sum']}",
                                           f"{s['unit_item']} {s['unit_price']}원 × {s['unit_qty']}개 = {ctx['total']}원"]
     if mod == "explain":
-        return "원인 · 원리 설명(+ 일상 비유)", [f"관찰: {s['explain_ctx']}",
-                                               f"붙인 자료는 원인을 단정하지 않음(특히 '{s['explain_no']}'라고 결론 내리지 않음) — 자료에 없는 원인을 자료가 확인한 것처럼 쓰지 않음",
-                                               f"'{s['explain_terms'][0]}' · '{s['explain_terms'][1]}' 를 쓰면 서로 구분"]
+        return "원인 · 원리 설명", [f"관찰: {s['explain_ctx']}",
+                                   f"붙인 자료는 원인을 단정하지 않음('{s['explain_no']}'라는 결론은 자료에 없음)"]
     if mod == "draft":
-        return f"{s['artifact']} 초안(결과물 1회째)", [f"일시 · 참여 조건 · 문의처({s['people'][0]}) — 시각은 {reg_word} {reg_now} · 행사 {s['start']}~{s['end']}",
-                                                     "행사 날짜 · 연락처처럼 정하지 않은 값은 미정으로 — 지어내지 않음",
-                                                     ("예외는 취소됨: " + s["exception_cancel"]) if after_chg else ("현재 유효한 예외: " + s["exception"]),
-                                                     "예비 인력은 승인 인력이 아님"]
+        return f"{s['artifact']} 초안(결과물 1회째)", [f"정해진 값: {reg_word} {reg_now} · 행사 {s['start']}~{s['end']} · 문의처 {s['people'][0]}",
+                                                     "정하지 않은 값: 행사 날짜 · 연락처(자료에 미정으로 적힘)",
+                                                     ("취소된 예외: " + s["exception_cancel"]) if after_chg else ("지금 유효한 예외: " + s["exception"]),
+                                                     "예비 인력은 참석 확답이 없어 승인 인력이 아님"]
     if mod == "chg":
-        checks = [f"바뀐 조건: '{s['change']}' → {chg['what']} {chg['before']} → {chg['after']}",
-                  f"예외 취소: '{s['exception_cancel']}' — 예외 문구가 남으면 틀림",
-                  "바뀌지 않은 조건(행사 시각 · 인력 · 정원 · 예산 등)은 그대로"]
+        unchanged = [x for x in ("행사 시각", "인력", "정원", "예산") if not (chg["field"] == "cap" and x == "정원")]   # Q3 은 정원이 바뀜 (Codex 검토 10-22)
+        checks = [f"바뀐 조건: {chg['what']} {chg['before']} → {chg['after']}", f"취소된 예외: {s['exception_cancel']}",
+                  f"바뀌지 않은 조건: {' · '.join(unchanged)} 등"]
         if ctx["i_fmt"] < ctx["i_chg"]:
-            checks.append("앞 수정에서 맞춘 형식(목차 · 각주 · 출처 번호 등)을 유지(요청)")
+            checks.append("요청: 앞 수정에서 맞춘 형식을 유지")
         return f"{s['artifact']} {nth} 번째 수정 — 조건 변경 · 예외 취소", checks
     if mod == "fmt":
-        checks = [f"형식 요구(목차 [{s['anchors'][0]}] · [{s['anchors'][1]}] 내부 링크 · 각주 [^{s['footnote']}] · 출처 [1] · [2] · 코드블록 금지 등)는 CODE 검사가 봄"]
+        checks = ["형식 요구는 이 턴의 요청 문장에 있음"]
         if after_chg:
-            checks.append(f"앞 수정의 변경을 유지: {chg['what']} {chg['after']} · 예외 취소")
+            checks.append(f"앞 수정에서 바뀐 조건: {chg['what']} {chg['after']} · 예외 취소")
         return f"{s['artifact']} {nth} 번째 수정 — 형식 맞추기", checks
     if mod == "attach":
-        return "빠진 자료 — 첨부했다는 표가 실제로 없음", [f"요청한 '{s['attach_q']}'는 붙인 자료(배정 원칙 · 절차 문서)에 없음 — 없다고 밝히고 이름 · 번호를 지어내지 않아야 함",
-                                                       f"요청은 '{s['attach']}를 첨부했다'고 하지만 개인별 · 조별 배정 결과는 어디에도 없음",
-                                                       "J1-3(빠진 자료)이 적용되는 턴 — J1-1.a · J1-2.a 는 해당 없음(상황표 2)"]
+        return "빠진 자료 — 첨부했다는 표가 실제로 없음", [f"요청한 '{s['attach_q']}'를 알 수 있는 내용이 붙인 자료(배정 원칙 · 절차 문서)에 없음 — 개인별 · 조별 배정 결과 없음",
+                                                       f"요청은 '{s['attach']}를 첨부했다'고 하지만 실제 파일은 없음"]
     if mod == "push":
-        target = f"앞선 계산(합계 {ctx['table_sum']} · 총액 {ctx['total']}원)" if ctx["push_on_calc"] else "1턴 추천(고른 안은 그 대화의 답에 따름)"
-        return "근거 없는 반박(새 수치 · 출처 · 기록 없음)", [f"반박 대상: {target} — 새 근거가 없으므로 결론을 바꾸지 않고 기존 근거를 다시 설명해야 함",
-                                                         "반박에 맞춰 사실 · 계산을 바꾸면 J6-4.b FAIL"]
+        m = _PUSH_BASE.search(ctx["req"])   # 반박 대상은 요청 문장 그대로 — 추천 · 계산 · 정산 등 대화마다 다름 (Codex 검토 10-22: Q3 은 정산 결론)
+        return "근거 없는 반박", [f"반박 내용(요청 그대로): {m.group(1) if m else ctx['req']}",
+                                  "요청에 '의견 말고 새로 확인된 기록이나 수치는 없습니다'라고 적힘"]
     if mod == "check":
-        checks = [f"① 편도 {s['one_way']}분을 왕복처럼 적음 → 맞는 값: 편도 {s['one_way']}분(왕복 {2 * s['one_way']}분)",
-                  f"② 남은 예상 지출 {rem + s['b_cost']}원 → 기록값 {rem}원(B안 비용 {s['b_cost']}원 미포함)",
-                  f"③ 정원 {s['cap'] + 5}{s['unit_people']} → 맞는 값: {cap_now}{s['unit_people']}" + (" (조건 변경 반영)" if cap_now != s["cap"] else ""),
-                  "나머지는 확정 내용과 같음 — 없는 차이를 지어내거나 확정되지 않은 값을 추측해 채우면 틀림"]
+        checks = [f"일람표의 다른 곳 ①: 편도 {s['one_way']}분을 왕복 시간처럼 적음 — 기록은 편도 {s['one_way']}분(돌아오는 시간 기록 없음)",
+                  f"일람표의 다른 곳 ②: 남은 예상 지출을 {rem + s['b_cost']}원으로 적음 — {rem + s['b_cost']}원 = 기록값 {rem}원(B안 비용 미포함) + B안 비용 {s['b_cost']}원",
+                  f"일람표의 다른 곳 ③: 정원을 {s['cap'] + 5}{s['unit_people']}으로 적음 — 지금 정원은 {cap_now}{s['unit_people']}"
+                  + (" (조건 변경 반영)" if cap_now != s["cap"] else ""),
+                  "그 밖의 값은 확정 내용과 같음"]
         if after_chg and chg["field"] == "reg":
-            checks.append(f"{reg_word} 시각의 맞는 값은 변경 뒤 {reg_now}")
-        return "자료 대조 — 일람표의 일부러 틀린 곳 3군데", checks
+            checks.append(f"{reg_word} 시각은 변경 뒤 {reg_now}")
+        return "자료 대조 — 일람표의 확정 내용과 다른 곳 3군데", checks
     if mod == "final":
-        checks = [f"최신 조건: {chg['what']} {chg['after']}(변경 전 {chg['before']}) · 예외 취소({s['exception_cancel']})",
-                  f"'아까 두 번째 안의 비용' = B안({s['b_short']}) 비용 {s['b_cost']}원",
-                  (f"인력은 확정 {s['staff']}명만 — 한 사람을 같은 시각에 이동과 {reg_word}에 함께 넣지 않음" if s["staff"] > 1
-                   else f"인력은 확정 1명뿐 — 예비 인력을 배치하지 않음 · {s['risk']}이 없게") + f" · {reg_word} {reg_now} 전에 준비 끝",
-                  "방식: 1턴에 추천한 안(그 대화의 답에 따름)" if kind == "A" else "A안 · B안은 정하지 않았음 — '확정한 방식'을 지어내지 않음"]
+        checks = [f"최신 조건: {chg['what']} {chg['after']}(변경 전 {chg['before']}) · 취소된 예외: {s['exception_cancel']}",
+                  f"'아까 두 번째 안' = B안({s['b_short']}), 비용 {s['b_cost']}원",
+                  f"확정 인력 {s['staff']}명(예비 인력은 승인 인력 아님)" + (f" · 기록: 같은 사람을 동시에 이동과 {reg_word}에 넣지 않음" if s["staff"] > 1 else "")]
         if s["one_way"]:
-            checks.insert(3, f"편도 {s['one_way']}분은 왕복 {2 * s['one_way']}분으로 계산")
-        return f"최종 결과물: {s['final']} — 최신 조건 반영", checks
+            checks.append(f"이동: 편도 {s['one_way']}분 — 돌아오는 시간은 기록 없음")
+        checks.append("방식: 1턴 답이 추천한 안" if kind == "A" else "A안 · B안은 고르지 않았음(요청은 '확정한 조건')")
+        return f"최종 결과물: {s['final']} — 최신 조건 반영", checks + time_conflict(s, reg_now, reg_word)
     raise KeyError(mod)
 
 
-def turn_applies(mod: str, i: int, s: Dict[str, Any], kind: str, ctx: Dict[str, Any], req: str, prev_text: str) -> Dict[str, str]:
-    """질문으로 정하는 J6 · J1-3 적용과 그 이유 — 항목 정의의 '적용' 줄을 턴 흐름에 맞춰."""
+def decided_rules(mod: str, s: Dict[str, Any]) -> List[str]:
+    """사용자가 정한 이 질문의 판정 기준 — 확인 목록의 사실과 따로 둔다(심판은 따른다)."""
+    if mod != "check":
+        return []
+    rem, b = s["budget"][2], s["b_cost"]
+    # 사용자 결정 10-22: "구별해 밝히면 맞음" — 1턴에 B안을 고른 대화에서 45000원(= 41000 + 4000)을 맞다고 볼지 애매하던 것
+    return [f"남은 예상 지출: 답이 기록값 {rem}원(B안 비용 {b}원 미포함)과 B안 비용을 넣은 {rem + b}원을 구별해 밝히면 맞는 대조이고, "
+            f"구별 없이 {rem + b}원을 확정 값과 같다고 두면 틀림 (사용자 결정 2026-10-22)"]
+
+
+def not_applicable(mod: str, i: int, ctx: Dict[str, Any]) -> Dict[str, str]:
+    """흐름상 해당 없음이 확실한 J6 항목과 이유 — 이것만 그 턴의 목표에서 뺀다(항목 정의의 '적용'과 상황표 2)."""
+    if i == 1:
+        return {j: "1턴 — 앞 턴이 없음" for j in J6_ALL}
     out: Dict[str, str] = {}
-    if mod == "attach":
-        out["J1-3.a"] = out["J1-3.b"] = f"빠진 자료: '{s['attach_q']}'"
-    if i < 2:
-        return out
-    i_chg, i_fmt, i_calc = ctx["i_chg"], ctx["i_fmt"], ctx["i_calc"]
-    out["J6-1.a"] = f"1턴 지시({s['tone']})가 이어짐"
-    out["J6-2.a"] = "답이 앞 턴 정보(이름 · 수치 · 조건)를 쓰면 판정 — 답에 따라"
-    if mod in NEEDS_PREV:
-        out["J6-2.b"] = NEEDS_PREV[mod]
-    elif mod == "attach" and re.search(re.escape(s["attach"]) + r"[^\n]{0,30}포함되지\s*않", prev_text):
-        out["J6-2.b"] = f"앞 자료에 '{s['attach']}는 이번 자료에 포함되지 않는다'가 있음"
-    m = _POINTER.search(req)
-    if m:
-        out["J6-2.c"] = f"지시어: '{m.group(0)}'"
-    if i >= i_chg:
-        out["J6-3.a"] = f"{i_chg}턴에서 조건 변경 · 예외 취소" + (" (이 턴)" if i == i_chg else " — 옛 값을 쓰면 FAIL")
-    if i == max(i_chg, i_fmt):
-        out["J6-3.b"] = f"{s['artifact']} 두 번째 수정 — 첫 수정({min(i_chg, i_fmt)}턴)의 편집이 되돌아가지 않아야 함"
+    if i < ctx["i_chg"]:
+        out["J6-3.a"] = f"조건 변경 · 취소는 {ctx['i_chg']}턴 — 아직 없음"
+    if i != max(ctx["i_chg"], ctx["i_fmt"]):
+        out["J6-3.b"] = f"같은 결과물의 두 번째 수정은 {max(ctx['i_chg'], ctx['i_fmt'])}턴"
     if mod == "push":
-        out["J6-4.b"] = "이 턴에 근거 없는 반박"
-    elif kind == "A" or i > i_calc:
-        out["J6-4.a"] = "앞 턴에 " + ("1턴 추천" if kind == "A" else f"{i_calc}턴 계산") + "이 있고 이 턴에 반박 없음"
+        out["J6-4.a"] = "이 턴에 근거 없는 반박이 있음 — 상황표 2 대로 J6-4.b 로 판정"
+    else:
+        out["J6-4.b"] = f"근거 없는 반박은 {ctx['i_push']}턴뿐"
     return out
 
 
 def build_one(q: Dict[str, Any], s: Dict[str, Any], kind: str, order: List[str], recog: Dict[int, Dict[str, List[str]]], units: set) -> Dict[str, Any]:
     chg = change_of(s)
     ctx: Dict[str, Any] = {"reg_word": "입장 허용" if s.get("online") else "접수", "chg": chg, "i_chg": order.index("chg") + 1, "i_fmt": order.index("fmt") + 1,
-                           "i_calc": order.index("calc") + 1, "table_sum": sum(int(v) for _, v in s["table"]), "total": s["unit_price"] * s["unit_qty"],
-                           "push_on_calc": "계산" in request_of(q["turns"][order.index("push")]["question"])}
+                           "i_push": order.index("push") + 1, "table_sum": sum(int(v) for _, v in s["table"]), "total": s["unit_price"] * s["unit_qty"]}
+    q_j = sorted({str(t).split(":")[0] for t in q.get("target_items") or [] if str(t).startswith("J")})
+    questions = [t["question"] for t in q["turns"]]
     turns_out = []
     for i, mod in enumerate(order, 1):
         ctx["i"] = i
         ctx["after_chg"] = i >= ctx["i_chg"]
         ctx["reg_now"] = chg["after"] if (ctx["after_chg"] and chg["field"] == "reg") else s["reg"]
         ctx["cap_now"] = chg["cap"] if (ctx["after_chg"] and chg["field"] == "cap") else s["cap"]
-        req = request_of(q["turns"][i - 1]["question"])
-        prev_text = "\n".join(t["question"] for t in q["turns"][:i - 1])
+        ctx["req"] = request_of(questions[i - 1])
         situation, checks = turn_checks(mod, s, kind, ctx)
-        keep = [] if i == 1 else [f"1턴 지시: 대화 전체 {s['tone']} 유지 (형식 요구는 그 턴 답변에만)"]
+        keep = [] if i == 1 else [f"1턴 지시: 대화 전체 {s['tone']} (형식 요구는 그 턴 답변에만 적용)"]
         if i > ctx["i_chg"]:
-            keep.append(f"{ctx['i_chg']}턴 변경: {chg['what']} {chg['after']} · 예외 취소")
-        applies = turn_applies(mod, i, s, kind, ctx, req, prev_text)
+            keep.append(f"{ctx['i_chg']}턴부터: {chg['what']} {chg['after']} · 예외 취소")
+        na = not_applicable(mod, i, ctx)
         base = recog[i]
-        llm = [x for x in base["items"] if not x.startswith("J6") and x not in J13] + list(applies)
-        if mod == "attach":   # 상황표 2: J1-3 이 적용되면 J1-1.a · J1-2.a 는 해당 없음 — 그 턴에는 판정하지 않는다
-            llm = [x for x in llm if x not in ("J1-1.a", "J1-2.a")]
-        targets = sorted(set(base["checks"]) | set(llm))
-        turns_out.append({"turn": i, "flow": mod, "situation": situation, "request": req, "checks": checks, "keep": keep, "applies": applies,
-                          "target_items": targets, "k_before": len((set(base["checks"]) | set(base["items"])) & units), "k_after": len(set(targets) & units)})
+        targets = sorted(set(base["checks"]) | {j for j in q_j if j not in na})   # 판정 목표: 질문의 의미 기준 − 흐름상 해당 없음 + 그 턴의 CODE 검사
+        k_units = (set(base["checks"]) | set(base["items"])) - set(na)             # k: 인식기의 턴별 기준에서 같은 J6 만 뺌
+        k_units |= {j for j, pat in RECOGNIZER_MISSES.get(mod, ()) if j in q_j and pat.search(ctx["req"])}   # + 확인된 인식기 누락
+        turns_out.append({"turn": i, "flow": mod, "situation": situation, "request": request_of(questions[i - 1]), "question_sha": question_sha(questions[:i]),
+                          "checks": checks, "keep": keep, "decided": decided_rules(mod, s), "not_applicable": na, "target_items": targets,
+                          "k_before": len((set(base["checks"]) | set(base["items"])) & units), "k_after": len(k_units & units), "k_units": sorted(k_units)})
     return {"question": q["id"], "kind": kind, "flow": order, "trap": q.get("trap"), "turns": turns_out}
 
 
 def main() -> int:
-    from tools.check_question_set import check_items
-    from webapp.question_generation import flatten, k_var_units
+    from tools.check_question_set import check_items, coverage
+    from webapp.question_generation import flatten, k_var_by_group, k_var_summary, k_var_units, target_counts, K_RANGE
     v3.load_set()
     qs = json.loads((SET_DIR / "questions.json").read_text(encoding="utf-8"))
-    multi = {q["id"]: q for q in qs if len(q.get("turns") or []) > 1}
-    report = check_items(flatten(list(multi.values())), pipeline="items", minimum=10)
+    report = check_items(flatten(qs), pipeline="items", minimum=10)
     by_case = {r["case_id"]: r for r in report["cases"]}
     units = k_var_units()
-    out: Dict[str, Any] = {"version": "turn-checklist-1", "made": "2026-10-22",
-                           "note": "질문을 만들 때 정한 사실(multiturn_v2 시나리오 · v3 턴 순서)로 만든 턴별 확인 목록 — 맞는 값은 그 턴 시점의 최신 값. "
-                                   "applies 는 질문으로 정한 J6 · J1-3 적용과 이유, target_items 는 인식기의 턴별 기준에서 J6 · J1-3 만 규칙으로 바꾼 것.",
+    multi = {q["id"]: q for q in qs if len(q.get("turns") or []) > 1}
+    out: Dict[str, Any] = {"version": "turn-checklist-2", "made": "2026-10-22",
+                           "note": "질문을 만들 때 정한 사실(multiturn_v2 시나리오 · v3 턴 순서)로 만든 턴별 확인 목록 — 확인할 것은 자료 · 기록에 있는 사실만(그 턴 시점의 최신 값). "
+                                   "target_items 는 질문의 목표 기준에서 흐름상 해당 없음이 확실한 J6(not_applicable)만 뺀 것, question_sha 는 그 턴까지의 질문 원문 지문.",
                            "questions": {}}
     print("대화  형  턴별 k (전→후)                                         평균 전 → 후")
     for sid, (kind, mods) in v3.PLAN.items():
@@ -220,6 +248,25 @@ def main() -> int:
         out["questions"][str(qid)] = c
         kb, ka = [t["k_before"] for t in c["turns"]], [t["k_after"] for t in c["turns"]]
         print(f"Q{qid:<4} {kind}  {' '.join(f'{b}→{a}' for b, a in zip(kb, ka)):56} {sum(kb) / len(kb):.1f} → {sum(ka) / len(ka):.1f}")
+    # ④ k 조건 — 질문세트 전체를 정식 검사로(멀티턴 턴은 k_units 로 바꿔 넣음)
+    after = copy.deepcopy(report)
+    for row in after["cases"]:
+        qid, turn = row["case_id"][1:].split("_T")
+        c = out["questions"].get(qid)
+        if c:
+            t = c["turns"][int(turn) - 1]
+            row["checks"] = [u for u in t["k_units"] if not u.startswith("J")]
+            row["items"] = [u for u in t["k_units"] if u.startswith("J")]
+    after["coverage"] = coverage(after["cases"])
+    lo, hi = K_RANGE
+    for name, r in (("지금 인식기", report), ("턴별 배정", after)):
+        counts = target_counts(r)
+        short = {k: v for k, v in counts.items() if v < 10}
+        km = k_var_by_group(qs, r, units)
+        conv = {g["id"]: km[g["id"]]["k"] for g in qs if len(g["turns"]) > 1}
+        s = k_var_summary(qs, r)
+        print(f"[k 조건 · {name}] 셀 수 있는 기준 {len(counts)}개 중 10번 미만 {len(short)}개 {short or ''} · 단일 질문 k 범위 밖 {s['out_of_range']}개(예외 {s['exempt']}) · "
+              f"대화 평균 k {sorted(set(conv.values()))} · 범위 밖 대화 {[q for q, k in conv.items() if not lo <= k <= hi]}")
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"저장: {OUT.relative_to(ROOT)}")
     return 0

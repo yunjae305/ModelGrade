@@ -59,8 +59,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     set_dir = jc.find_set_dir(run)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
-    jv.QUESTION_TARGETS.clear()
-    jv.QUESTION_TARGETS.update(jv.question_targets(groups))
+    jv.init_question_set(set_dir, groups)   # 질문별 목표 · 턴별 확인 목록 · 첨부 원본 폴더 — 본 판정과 같게 (10-22)
     rows = jv.flatten(groups)
     prompt_file = Path(args.prompt) if args.prompt else jv.PROMPT_V4   # 기본은 지금 판정 프롬프트, --prompt 로 다른 판(예: 고치기 전)
     prompt = prompt_file.read_text(encoding="utf-8")
@@ -101,14 +100,15 @@ def cmd_judge(args: argparse.Namespace) -> int:
             saved = json.loads((base / "decisions" / fname).read_text(encoding="utf-8"))
             only = {k: ({args.item: v.get(args.item)} if isinstance(v, dict) and args.item in v else {})
                     for k, v in saved.items() if str(k).isdigit()}   # 1차 결과에서 그 항목만 남김 → 2차로 그 항목만 넘어감
-            (d / "decisions" / fname).write_text(json.dumps({**only, "_first_judge": saved.get("_first_judge") or {}}, ensure_ascii=False, indent=1),
-                                                encoding="utf-8")
+            item_fp = {k: {args.item: v[args.item]} for k, v in (saved.get("_item_fp") or {}).items() if isinstance(v, dict) and args.item in v}
+            (d / "decisions" / fname).write_text(json.dumps({**only, "_first_judge": saved.get("_first_judge") or {}, "_input_fp": saved.get("_input_fp") or {},
+                                                             "_item_fp": item_fp}, ensure_ascii=False, indent=1), encoding="utf-8")   # 지문도 함께 (10-22)
             turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
             answers = {t["case_id"]: (data.get(t["case_id"]) or {}).get("answer") or "" for t in turns}
             deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
             try:
                 line = {**jv.screen_one(q, provider, turns, answers, deliveries, [], prompt, fixed, judges[(name, provider)], None, d,
-                                        reuse_codex=True, reuse_decisions=True), "status": "judged"}
+                                        reuse_codex=True, reuse_decisions=True, keep_first=True), "status": "judged"}   # 1차는 저장된 것 그대로 (10-22)
             except Exception as exc:
                 line = {"version": jv.VERSION, "provider": provider, "question": q, "status": "error", "verdict": "HOLD",
                         "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}

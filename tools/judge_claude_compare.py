@@ -177,8 +177,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     set_dir = find_set_dir(run)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
-    jv.QUESTION_TARGETS.clear()
-    jv.QUESTION_TARGETS.update(jv.question_targets(groups))
+    jv.init_question_set(set_dir, groups)   # 질문별 목표 · 턴별 확인 목록 · 첨부 원본 폴더 — 본 판정과 같게 (10-22)
     rows = jv.flatten(groups)
     prompt = jv.PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
@@ -220,7 +219,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
             code_fails = sorted({c for t in turns for c in jv.question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
             try:   # reuse_codex: 이어 돌릴 때 저장된 Claude 출력을 다시 씀(빠진 항목만 다시 묻기)
                 line = {**jv.screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, None, out,
-                                        reuse_codex=True, reuse_decisions=True), "status": "judged"}
+                                        reuse_codex=True, reuse_decisions=True, keep_first=True), "status": "judged"}   # 1차는 저장된 것 그대로 (10-22)
             except Exception as exc:
                 line = {"version": jv.VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                         "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
