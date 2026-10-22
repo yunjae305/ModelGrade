@@ -25,6 +25,8 @@ Thumbs.db
 
 # Local workspace and Python environments
 /.codex/
+# Claude 앱 설정 · 작업 폴더(worktrees) — 10-22
+/.claude/
 .venv/
 venv/
 
