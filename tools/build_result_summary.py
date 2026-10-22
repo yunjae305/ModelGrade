@@ -549,7 +549,7 @@ def scene_design(D: Dict[str, Any]) -> str:
     cmp_ = m10["compare"]
     full_n = cmp_["정밀"][cmp_["정밀"]["_ranking"][0]]["n"]
     gp, gc = gen["prefix"], gen["criteria"]
-    gbars = "".join(f'<div class="ds-hb{" ds-win" if r["n"] == gen["questions"] else ""}"><span>앞 {r["n"]}개</span><div><i style="width:{r["k10"] / gc * 80:.1f}%"></i>'   # 숫자 칸이 꺾이지 않게 80% 까지
+    gbars = "".join(f'<div class="ds-hb{" ds-win" if r["n"] == gen["questions"] else ""}"><span>{r["n"]}개</span><div><i style="width:{r["k10"] / gc * 80:.1f}%"></i>'   # 숫자 칸이 꺾이지 않게 80% 까지
                     f'<b>{r["k10"]}/{gc}</b></div></div>' for r in gp)
     part_n = (
         '<div class="ds-card"><h3 class="rs-sh">② 왜 78개인가</h3>'
@@ -929,7 +929,7 @@ def scene_hold_flow(D: Dict[str, Any]) -> str:
                    "확인하지 못한 것은 보류로 드러내고, 사람이 정한 만큼만 숫자에 넣습니다.</p>"))
 
 
-def scene_prompt(D: Dict[str, Any]) -> str:
+def scene_prompt(D: Dict[str, Any], open_first: bool = True) -> str:
     """판정 프롬프트 원문 — 심판마다 실제로 보내는 글 그대로 (사용자 10-22). 글은 판정 코드(tools/judge_v4.py)가 읽는 파일 · 상수에서 읽는다:
     Codex = judge_prompt_v4.txt + SCREEN_SUFFIX, 1차 심판(Jev · Decisions) = jev_questions_v4.json 의 guide + TARGET_GUIDE + 기준별 질문(all_item_questions)."""
     from tools import judge_v4 as jv
@@ -948,7 +948,7 @@ def scene_prompt(D: Dict[str, Any]) -> str:
                 f'<pre class="rs-pre pr-pre">{E(text)}</pre></details>')
     return ('<p class="ds-lead">심판에게 실제로 보내는 글 그대로입니다. 이 글은 모든 질문에 같고, 질문마다 바뀌는 것은 [입력] JSON(질문 · 첨부 · 참조 자료 · 답변)과 '
             '[판정할 항목] 목록(그 질문을 만들 때 정한 기준)뿐입니다. 어느 모델의 답인지는 넣지 않습니다.</p>'
-            + block("1차 심판(Jev · Decisions) — 안내문", "질문마다 [판정할 항목] 목록과 함께 보냄", guide, True)
+            + block("1차 심판(Jev · Decisions) — 안내문", "질문마다 [판정할 항목] 목록과 함께 보냄", guide, open_first)
             + block(f"1차 심판(Jev · Decisions) — 기준별 질문 {len(allq)}개", "목록에 든 기준만 골라 보냄 · 예(PASS) · 아니오(FAIL) · 해당 없음 중 하나", items)
             + block("Codex — 판정 프롬프트", "1차 심판이 FAIL · 애매로 본 항목만 이 글로 다시 판정 (판정 프롬프트 v4 + 선별 판정 덧붙임)", codex)
             + '<p class="rs-basis">J5-1.a(사실 정확성)의 시점 문구는 이번 실행 판정 뒤(10-22) "답변 수집 날짜 기준" → "질문이 정한 시점(없으면 답변 수집 날짜) 기준"으로 고친 글입니다. '
@@ -2169,7 +2169,7 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 @media (max-width: 760px) { .cr-map, .cr-top { grid-template-columns: minmax(0, 1fr); } }
 /* 판정 프롬프트 원문 (사용자 10-22) */
 .pr-d { margin-top: 12px; } .pr-d > summary .muted { margin-left: 10px; } .pr-pre { max-height: 70vh; font-size: 0.8rem; line-height: 1.55; }
-.pr-link a { font-weight: 600; }
+.pr-h { margin-top: 28px; scroll-margin-top: 16px; }
 /* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
 :root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
@@ -2383,7 +2383,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
         ("s_design", "질문 설계", "왜 78개 · 왜 기준 6~10개", "질문 설계 — 왜 78개, 왜 질문마다 기준 6~10개", "", scene_design(D),
          "기준 6~10개는 모델 차이가 가장 잘 드러나는 난이도, 78개는 모든 기준을 질문 10개 이상에서 평가하는 가장 적은 수입니다."),
         ("s2", "평가 방법", "다섯 단계", "평가 흐름", "", scene_flow(D)
-         + '<p class="rs-basis pr-link"><a href="#s_prompt">판정 프롬프트 원문 보기 → 상세 분석 \'판정 프롬프트\'</a></p>',   # 사용자 10-22
+         + '<h3 class="rs-sh pr-h" id="s_prompt">판정 프롬프트 — 심판이 받는 글 원문</h3>' + scene_prompt(D, open_first=False),   # 사용자 10-22: 평가 방법 쪽으로
          f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
         ("s_map", "전체 흐름도", "A~H 단계", "전체 흐름도",
          f"질문 {D['n']}개를 네 모델에 던져 답을 받고, CODE 검사와 LLM Judge 가 채점해 질문마다 완전 통과·FAIL·보류를 냅니다.", flow_scene(D),
@@ -2404,8 +2404,6 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
          dist_card(D) + helm_table(D, cats), res_key),
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
          "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
-        ("s_prompt", "판정 프롬프트", "심판이 받는 글 원문", "판정 프롬프트 — 심판이 받는 글 원문",
-         "", scene_prompt(D), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
          "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
         ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
@@ -2430,7 +2428,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
 
     s0 = f'<header class="ar-s0">{ar_overview(D)}</header>'   # 사용자 10-21: 제목 줄은 맨 위에 두고 메뉴의 개요는 뺌
     # 사용자 10-22: 본문의 '상세 분석' 구분 상자는 뺌 (목차 구분 · 장면 번호 옆 '· 상세 분석'은 그대로)
-    nav_sep = {"s5": '<span class="toc-sep">LLM Judge</span>', "s6": '<span class="toc-sep toc-end" aria-hidden="true"></span>'}   # 사용자 10-22: LLM Judge 묶음
+    nav_sep: Dict[str, str] = {}   # 사용자 10-22: 목차의 'LLM Judge' 묶음 구분(글자 · 선) 뺌
     body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(i, E(title), E(lead), key)}\n{content}</section>\n'
                    for i, (sid, _s, _d, title, lead, content, key) in enumerate(scenes, 1))
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">AIONA 채팅 품질 평가</span>'
