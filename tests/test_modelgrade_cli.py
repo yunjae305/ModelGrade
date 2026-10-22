@@ -186,7 +186,7 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
-    monkeypatch.setattr("builtins.input", lambda prompt="": "1")
+    monkeypatch.setattr("builtins.input", lambda prompt="": "" if "Enter = 0" in prompt else "1")   # 평가 종류 1 · 모델은 Enter(전체)
     calls = {"collect": [], "judge": []}
 
     def fake_parallel(providers, args, run_id):
@@ -211,6 +211,24 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     assert "어떤 평가를 진행할까요?" in out and "질문 3개" in out
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0   # 다시 부르면 같은 실행
     assert calls["collect"][1][4] == run_id
+
+
+def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tmp_path, monkeypatch):
+    """start --model: 고른 앱 모델 하나(그 앱을 그 모델로)와 AIONA 만 받고, 고른 모델은 실행에 적어 전체 실행과 섞지 않는다 (10-22)."""
+    import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
+    monkeypatch.setattr(mg, "ROOT", tmp_path)
+    calls = []
+    monkeypatch.setattr(mg, "run_collectors_parallel", lambda providers, args, run_id: calls.append((providers, args.models, run_id)) or 0)
+    set_dir = _set(tmp_path)
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--providers", "gpt,claude,gemini,aiona", "--judge", "n"]) == 0
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0
+    assert calls[1][:2] == (["claude", "aiona"], {"claude": "Opus 5.5"})
+    assert calls[1][2] != calls[0][2] and mg.load_run(calls[1][2])["model_choice"] == "claude:Opus 5.5"
+    assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
+    from webapp.uia_chat_app import has_model
+    assert not has_model("Sonnet 5.5 중간", "Sonnet 5") and has_model("Sonnet 5 중간", "Sonnet 5")
 
 
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):

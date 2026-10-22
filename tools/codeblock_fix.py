@@ -2,8 +2,8 @@
 
     python -X utf8 tools/codeblock_fix.py --run a1642702fccc --provider gpt|claude|aiona [--only Q22_T1,…] [--cached] [--apply]
 
-- 코드블록 밖 글은 답 아래 복사 글 그대로. ``` 뒤 언어가 비어 있으면 화면 코드블록 머리 글(Python · JSON …)을 LANGS 표로 바꿔 붙인다
-  (프로그램 규칙 — ChatGPT 앱의 답 아래 복사는 언어를 지운다. Claude · AIONA 는 복사 글에 언어가 이미 있다).
+- 코드블록 밖 글은 답 아래 복사 글 그대로. ``` 뒤 언어는 복사 글 그대로 둔다 — 비어 있어도 임의로 붙이지 않는다(사용자 10-21 밤:
+  ChatGPT 앱 복사는 언어를 지우지만 '임의로 추가는 하지마'. 전에는 화면 코드블록 머리 글을 LANGS 표로 바꿔 붙였다).
 - 안전장치: 받은 코드가 저장된 코드와 공백 · 줄바꿈을 빼고 같은 글자일 때만 바꾼다. 다르면 클립보드에 다른 글이 섞인 것으로 보고 그대로 둔다
   (10-21 GPT Q14: 동시에 돌린 Gemini 앱 복사 시험 글이 들어옴). 시스템 클립보드를 쓰는 GPT · Claude · Gemini 앱 작업은 동시에 돌리지 않는다.
 - 화면: GPT = ChatGPT 앱(디버깅 포트 9334) · Claude = Claude 앱(UIA — 채팅 탭으로 바꾸고 마우스 · 시스템 클립보드를 쓴다, 끝나면 Code 탭으로)
@@ -284,8 +284,8 @@ def _lines(text: str) -> List[str]:
     return [l.rstrip() for l in (text or "").replace("\r\n", "\n").rstrip("\n").split("\n")]
 
 
-def merge_codes(answer: str, codes: List[str], heads: List[str]) -> Tuple[Optional[str], str]:
-    """저장된 답의 n번째 ``` 안을 n번째 코드로 — (새 답 또는 None, 설명). 코드가 같으면 그 코드블록은 손대지 않고(언어만 붙일 수 있음),
+def merge_codes(answer: str, codes: List[str], heads: List[str], add_lang: bool = False) -> Tuple[Optional[str], str]:
+    """저장된 답의 n번째 ``` 안을 n번째 코드로 — (새 답 또는 None, 설명). 코드가 같으면 그 코드블록은 손대지 않고(add_lang 일 때만 언어를 붙임 — 기본은 안 붙임, 사용자 10-21 밤),
     공백 · 줄바꿈을 빼고 글자가 다른 코드블록이 하나라도 있으면 아무것도 바꾸지 않는다(안전장치)."""
     fences = list(FENCE.finditer(answer))
     if not fences:
@@ -299,7 +299,7 @@ def merge_codes(answer: str, codes: List[str], heads: List[str]) -> Tuple[Option
     parts, pos, n_code, n_lang = [], 0, 0, 0
     for m, code, head in zip(fences, codes, heads):
         lang0 = m.group(1).strip()
-        lang = lang0 or LANGS.get((head or "").strip().lower(), "")
+        lang = lang0 or (LANGS.get((head or "").strip().lower(), "") if add_lang else "")
         parts.append(answer[pos:m.start()])
         if _lines(m.group(2)) == _lines(code):
             block = m.group(0) if lang == lang0 else "```" + lang + m.group(0)[3 + len(m.group(1)):]

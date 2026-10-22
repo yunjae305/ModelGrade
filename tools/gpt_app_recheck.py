@@ -225,7 +225,8 @@ def compare(run: Dict[str, Any], found: List[Dict[str, Any]]) -> Dict[str, Any]:
             if not cid or cid not in rows:
                 report["unmatched_turns"] += 1
                 continue
-            stored = rows[cid].get("answer") or ""
+            # 수집 때 코드블록을 '코드 복사' 글로 바꾼 답은 바꾸기 전 답 복사 글(answer_bottom_copy)과 대조 — 다시 복사도 답 아래 복사 버튼이라 (10-22)
+            stored = (rows[cid].get("collection") or {}).get("answer_bottom_copy") or rows[cid].get("answer") or ""
             copied = tr.get("copied")
             same = copied is not None and _eol(copied) == _eol(stored)
             ratio = None if copied is None or same else round(difflib.SequenceMatcher(None, _eol(copied), _eol(stored), autojunk=False).ratio(), 4)
@@ -253,9 +254,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--run", required=True)
     ap.add_argument("--limit", type=int, default=None, help="시험용 — 대화 몇 개만")
     ap.add_argument("--start", type=int, default=0, help="생성 순서로 몇 번째 대화부터(0부터) — 멈춘 뒤 이어서")
+    ap.add_argument("--since", help="이 시각(UTC ISO, 예 2026-10-21T14:28) 뒤에 받은 행만 — 일부만 새로 받은 실행(10-22 멀티턴 다시 받기)")
     args = ap.parse_args(argv)
     from tools.modelgrade import load_run
     run = load_run(args.run)
+    if args.since:
+        keep = [r for r in run["datasets"]["gpt"] if isinstance(r, dict) and (r.get("collection") or {}).get("collected_at", "") >= args.since]
+        run = {**run, "datasets": {**run["datasets"], "gpt": keep}}
+        print(f"--since {args.since}: GPT 행 {len(keep)}개만 확인", flush=True)
     live = ROOT / "data" / "judge_runs" / args.run / "gpt-recheck.jsonl"
 
     def save_one(conv: Dict[str, Any]) -> None:   # 대화마다 바로 비교해 한 줄씩 저장 — 중간에 멈춰도 남는다

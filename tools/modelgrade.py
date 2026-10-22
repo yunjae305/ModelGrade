@@ -30,7 +30,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -43,8 +43,71 @@ DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"  
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
 APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
-              "gemini": "Gemini 웹브라우저 (3.6 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 둘 + 웹 둘)
+              "gemini": "Gemini 앱 (3.8 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 셋 + 웹 하나, Gemini 앱 10-21)
 ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
+#: 시작할 때 고르는 앱 모델 — 앱 화면의 모델 목록 그대로 (사용자 10-22). 하나를 고르면 그 앱을 그 모델로 바꿔 받고 비교 상대는 AIONA 하나
+#: (10-22 오전 미팅: 같은 모델끼리 비교 · 다른 앱은 받지 않음). 노력 · 사고 · 추론 수준은 지금 설정 그대로(노력 중간 · 사고 보통 · Medium).
+APP_MODELS = {
+    "claude": ["Opus 5.5", "Fable 5.1", "Sonnet 5.5", "Haiku 5.5", "Haiku 4.5", "Sonnet 5", "Opus 5", "Fable 5", "Opus 4.8", "Opus 4.7", "Opus 4.6", "Sonnet 4.6"],
+    "gpt": ["GPT-6", "GPT-5.6 Sol"],
+    "gemini": ["3.5 Flash-Lite", "3.8 Flash", "3.1 Pro", "4 Argon"],
+}
+APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flash"}
+APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
+APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
+
+
+def app_label(provider: str, model: Optional[str] = None) -> str:
+    """결과에 남길 모델 이름 — 'Claude 앱 (Opus 5.5 · 노력 중간)'. 모델을 안 고르면 지금 기본 설정(APP_LABELS 와 같은 글)."""
+    if provider not in APP_MODELS:
+        return APP_LABELS.get(provider, provider)
+    return f"{APP_NAMES[provider]} ({model or APP_DEFAULT_MODEL[provider]} · {APP_LEVEL[provider]})"
+
+
+def model_menu() -> List[Tuple[str, str, str]]:
+    """시작 메뉴의 모델 번호 — [(번호, 앱, 모델)]. 0 은 전체라 넣지 않는다. 순서: Claude · ChatGPT · Gemini 앱 화면 목록 순."""
+    out, n = [], 1
+    for provider in ("claude", "gpt", "gemini"):
+        for model in APP_MODELS[provider]:
+            out.append((str(n), provider, model))
+            n += 1
+    return out
+
+
+def parse_model(text: str) -> Optional[Tuple[str, str]]:
+    """'0' · '전체' · '' → None(전체), 메뉴 번호, 'claude:Opus 5.5', 'Opus 5.5'(앱이 하나로 정해질 때) → (앱, 모델). 모르는 값은 SystemExit."""
+    t = (text or "").strip()
+    if t in ("", "0", "전체", "all"):
+        return None
+    for key, provider, model in model_menu():
+        if t == key:
+            return provider, model
+    if ":" in t:
+        provider, model = (x.strip() for x in t.split(":", 1))
+        if model in APP_MODELS.get(provider, []):
+            return provider, model
+    hits = [(p, m) for _k, p, m in model_menu() if m.lower() == t.lower()]
+    if len(hits) == 1:
+        return hits[0]
+    raise SystemExit(f"모델을 알 수 없습니다: {text!r} — 메뉴 번호, '앱:모델'(예 claude:Opus 5.5) 또는 0(전체)")
+
+
+def ask_model() -> Optional[Tuple[str, str]]:
+    """어느 모델로 평가할지 — 0(Enter) = 전체(네 모델 기본 설정), 번호 = 그 앱 모델 하나 + AIONA."""
+    print("어느 모델로 평가할까요? 모델을 고르면 그 앱을 그 모델로 바꿔 받고, 비교 상대는 AIONA 하나입니다 (다른 앱은 받지 않음).")
+    print(f"  0. 전체 — 네 모델 기본 설정 ({' · '.join(app_label(p) for p in ('gpt', 'claude', 'gemini'))} · AIONA 자동 추천)")
+    for provider in ("claude", "gpt", "gemini"):
+        items = [f"{k}. {m}" for k, p, m in model_menu() if p == provider]
+        print(f"  {APP_NAMES[provider]}: " + "  ".join(items))
+    while True:
+        try:
+            text = input("번호 입력 후 Enter (그냥 Enter = 0 전체): ").strip()
+        except EOFError:
+            return None
+        try:
+            return parse_model(text)
+        except SystemExit as exc:
+            print(exc)
 PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
 SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
 RESULTS_JSON_DIR = ROOT / "참고자료" / "결과"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
@@ -126,7 +189,7 @@ def load_run(run_id: str) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-META_KEYS = ("run_id", "name", "created_at", "question_set", "eval_kind", "run_kind", "providers", "question_count")
+META_KEYS = ("run_id", "name", "created_at", "question_set", "eval_kind", "run_kind", "providers", "question_count", "model_choice")
 
 
 def run_meta(run: Dict[str, Any]) -> Dict[str, Any]:
@@ -205,7 +268,7 @@ def cmd_collect_import(args: argparse.Namespace) -> int:
 # --- collect app (데스크톱 앱에서 받기) -----------------------------------------------------------------------------
 
 def app_chat_class(provider: str):
-    """모델 → 데스크톱 앱 수집기: gpt = ChatGPT 앱(디버깅 포트, CDP), claude = Claude 앱(UIA 접근성 API, 2026-10-19). Gemini 는 앱이 없어 웹 CSV.
+    """모델 → 데스크톱 앱 수집기: gpt = ChatGPT 앱(디버깅 포트, CDP), claude = Claude 앱(UIA, 2026-10-19), gemini = Gemini 앱(UIA, 2026-10-21), aiona = 웹.
     시험에서는 monkeypatch 로 가짜를 넣는다."""
     if provider == "gpt":
         from webapp.cdp_chat_web import ChatGptAppChat
@@ -214,8 +277,8 @@ def app_chat_class(provider: str):
         from webapp.uia_chat_app import ClaudeAppChat
         return ClaudeAppChat
     if provider == "gemini":
-        from webapp.cdp_chat_web import GeminiChat   # 데스크톱 앱이 없어 수집용 Chrome(CDP)의 gemini.google.com
-        return GeminiChat
+        from webapp.gemini_app_chat import GeminiAppChat   # Gemini 데스크톱 앱(UIA, 2026-10-21) — 웹(CDP) 수집기는 webapp.cdp_chat_web.GeminiChat 에 남김
+        return GeminiAppChat
     if provider == "aiona":
         return aiona_collector
     raise SystemExit(f"{provider} 는 자동 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
@@ -292,6 +355,8 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
             cmd.append("--skip-done")
         if getattr(args, "label", None):
             cmd += ["--label", args.label]
+        if (getattr(args, "models", None) or {}).get(provider):   # 시작할 때 고른 앱 모델 (10-22)
+            cmd += ["--model", args.models[provider]]
         procs.append((provider, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT))))
 
     log_dir = ROOT / "data" / "judge_runs" / run_id
@@ -390,7 +455,10 @@ def collect_app_one(args: argparse.Namespace) -> int:
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     rows_all = flatten(groups)
-    label = args.label or APP_LABELS.get(args.provider, args.provider)
+    model = getattr(args, "model", None)
+    if model and model not in APP_MODELS.get(args.provider, []):
+        raise SystemExit(f"{args.provider} 에는 모델 {model!r} 을 고를 수 없습니다 ({', '.join(APP_MODELS.get(args.provider, [])) or '고를 모델 없음'})")
+    label = args.label or app_label(args.provider, model)
     run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
     existing = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(args.provider) or [] if isinstance(r, dict)}
     by_q: Dict[int, List[Dict[str, Any]]] = {}
@@ -442,7 +510,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
             print(f"  (중간 저장 실패: {exc})", flush=True)
     from code_eval.llm_client import env_value
     answer_timeout = int(env_value("COLLECT_ANSWER_TIMEOUT") or 0)   # 답변 대기 제한(초), 기본 0 = 제한 없음 (사용자 지시 10-20: 제한 시간 해제)
-    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout) as chat,             tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
+    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout,
+                  **({"model": model} if model else {})) as chat,             tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
         for i, q in enumerate(wanted, 1):
             turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))
@@ -463,7 +532,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
                     res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
-                elif res.get("status") == "SUCCESS" and res.get("capture") == "text":
+                elif res.get("status") == "SUCCESS" and res.get("capture") in ("text", "html"):   # html = AIONA 복사 버튼을 못 받아 화면 HTML 로 바꾼 글 (10-21 밤)
                     res = retry_text_capture(chat, r, res)   # 복사 버튼이 안 눌려 화면 글만 받음 → 복사 다시 → 안 되면 보류(마크다운이 빠진 글로 판정하지 않는다)
                 elif res.get("status") == "ERROR" and asks_empty_output(None, r.get("question") or ""):
                     # 빈 출력 요구 질문에 모델이 오류('생각을 중단했습니다 · 처리 중 오류')를 냄 — 판정은 보류이고 다시 던져도 같으므로 보류(COPY_FAILED)로 적어
@@ -605,10 +674,11 @@ def question_numbers(kind: str, groups: List[Dict[str, Any]]) -> List[int]:
     return [int(g["id"]) for g in groups]
 
 
-def find_run_for(set_dir: Path, kind: str) -> Optional[str]:
-    """같은 질문 세트·같은 평가 종류로 쓰던 실행(가장 최근). 정밀평가는 CLI 로 만든 실행(AIONA 웹 답을 올린 것)도 이어 쓴다."""
+def find_run_for(set_dir: Path, kind: str, model_choice: Optional[str] = None) -> Optional[str]:
+    """같은 질문 세트·같은 평가 종류·같은 모델 선택(model_choice — 예 'claude:Opus 5.5', 전체는 None)으로 쓰던 실행(가장 최근).
+    고른 모델이 다르면 다른 실행 — 다른 모델로 받은 답과 섞이지 않게 (10-22). 정밀평가는 CLI 로 만든 실행(AIONA 웹 답을 올린 것)도 이어 쓴다."""
     sid = set_id_of(set_dir)
-    cands = [m for m in run_metas() if (m.get("question_set") or {}).get("set_id") == sid]
+    cands = [m for m in run_metas() if (m.get("question_set") or {}).get("set_id") == sid and m.get("model_choice") == model_choice]
     tagged = [m for m in cands if m.get("eval_kind") == kind]
     if tagged:
         return max(tagged, key=lambda m: m.get("created_at") or "")["run_id"]
@@ -642,21 +712,34 @@ def cmd_start(args: argparse.Namespace) -> int:
     set_dir = Path(args.set)
     choice = args.choice or ask_choice()
     kind, title = EVAL_KINDS[choice]
+    # 모델 고르기 (사용자 10-22): --model 이 있으면 그것, --providers 를 직접 주면 묻지 않고 전체 설정, 아니면 물어봄
+    pick = parse_model(args.model) if args.model else (None if args.providers else ask_model())
+    if pick:
+        providers = [pick[0], "aiona"]   # 고른 앱과 AIONA 만 — 같은 모델끼리 비교, 다른 앱은 받지 않음
+        models = {pick[0]: pick[1]}
+        model_choice = f"{pick[0]}:{pick[1]}"
+        print(f"모델: {app_label(*pick)} ↔ AIONA — 다른 앱은 받지 않습니다 (AIONA 는 아직 '자동 추천' 그대로)", flush=True)
+    else:
+        providers = split_providers(args.providers or ",".join(ALL_PROVIDERS), APP_LABELS)
+        models, model_choice = {}, None
     print(f"{title} 준비 중 — 질문 세트 읽는 중 …", flush=True)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     qs = question_numbers(kind, groups)
-    providers = split_providers(args.providers, APP_LABELS)
     print("이어 쓸 실행 찾는 중 …", flush=True)
-    run_id = args.run or find_run_for(set_dir, kind)
+    run_id = args.run or find_run_for(set_dir, kind, model_choice)
+    if args.run and (load_run(args.run).get("model_choice") or None) != model_choice:
+        raise SystemExit(f"실행 {args.run} 은 다른 모델 선택으로 받은 실행입니다 — 같은 모델로 고르거나 --run 을 빼고 새로 시작하세요")
     if not run_id:
-        run = new_run(title, set_dir, groups)
+        run = new_run(title + (f" — {app_label(*pick)}" if pick else ""), set_dir, groups)
         run["eval_kind"] = kind
+        run["model_choice"] = model_choice
         run_id = save_run(run).stem
         print(f"새 실행 {run_id}", flush=True)
-    print(f"{title} — 질문 {len(qs)}개 · 모델 {', '.join(providers)} 동시 수집 · 실행 {run_id}", flush=True)
+    print(f"{title} — 질문 {len(qs)}개 · {' · '.join(app_label(p, models.get(p)) for p in providers)} 동시 수집 · 실행 {run_id}", flush=True)
     print("앱·수집용 Chrome 을 켜는 중 — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
-                            set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True)
+                            set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True,
+                            models=models, model=models.get(providers[0]) if len(providers) == 1 else None)
     t_collect = time.monotonic()
     code = cmd_collect_app(ns)
     if code:
@@ -671,7 +754,8 @@ def cmd_start(args: argparse.Namespace) -> int:
         except EOFError:
             go = "n"
     if go != "y":
-        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --choice {choice} --judge y  (받은 질문은 건너뛰고 판정만 이어서)", flush=True)
+        again = f" --model \"{model_choice}\"" if model_choice else ""
+        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --set \"{set_dir}\" --choice {choice}{again} --judge y  (받은 질문은 건너뛰고 판정만 이어서)", flush=True)
         return 0
     t_judge = time.monotonic()
     # 판정 v4: 고정 프롬프트 + 질문·답변 JSON 을 Codex CLI·Jev 에, 모델마다 한 줄로 동시에, 질문마다 저장(멈춰도 같은 명령으로 이어서)
@@ -801,7 +885,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     imp.add_argument("--set", default=str(DEFAULT_SET))
     imp.add_argument("--label", help="결과에 보일 모델 이름 (기본: '<모델> 웹브라우저')")
     imp.set_defaults(func=cmd_collect_import)
-    app = collect.add_parser("app", help="앱·웹을 켜서 질문 묶음의 답 받기 (+ CODE 평가): gpt=ChatGPT 앱, claude=Claude 앱, gemini=수집용 Chrome, aiona=AIONA 웹. 같은 명령을 다시 부르면 이어서")
+    app = collect.add_parser("app", help="앱·웹을 켜서 질문 묶음의 답 받기 (+ CODE 평가): gpt=ChatGPT 앱, claude=Claude 앱, gemini=Gemini 앱, aiona=AIONA 웹. 같은 명령을 다시 부르면 이어서")
     app.add_argument("--provider", required=True, help="gpt, claude, gemini, aiona — 쉼표로 여럿이면 동시에 (예: gpt,claude,gemini,aiona)")
     app.add_argument("--run", help="기존 실행 id (비우면 새 실행)")
     app.add_argument("--new", help="새 실행 이름")
@@ -812,6 +896,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     app.add_argument("--allow-large", action="store_true")
     app.add_argument("--place", choices=sorted(set(PLACE_BY_PROVIDER.values())), help="창 자리 (동시 수집 때 부모가 넣음)")
     app.add_argument("--skip-done", action="store_true", help="--only 목록에서 이미 받은 질문은 건너뛰기")
+    app.add_argument("--model", help="앱 모델 (claude · gpt · gemini 한 앱일 때, 예: 'Opus 5.5' · 'GPT-5.6 Sol' · '3.1 Pro') — 앱 화면에서 그 모델로 바꿔 받음")
     app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)
@@ -850,7 +935,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     hd.set_defaults(func=cmd_held)
     st = sub.add_parser("start", help="질문 78개 → 네 모델 동시 수집 → 판정 v4(Codex CLI + Jev) → 결과 (인자 없이 부르면 이것)")
     st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
-    st.add_argument("--providers", default=",".join(ALL_PROVIDERS))
+    st.add_argument("--providers", help="전체 설정에서 돌릴 모델 (기본: gpt,claude,gemini,aiona — 주면 모델을 묻지 않음)")
+    st.add_argument("--model", help="평가할 모델 하나 — 메뉴 번호, '앱:모델'(예 claude:Opus 5.5) 또는 0(전체). 고르면 그 앱과 AIONA 만 받음")
     st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
     st.add_argument("--set", default=str(DEFAULT_SET))
     st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")

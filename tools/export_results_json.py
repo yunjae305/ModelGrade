@@ -150,7 +150,10 @@ def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: P
                 x = json.loads(l)
                 latest[f"{x.get('provider')}:{x.get('question')}"] = x   # 같은 (모델, 질문)은 마지막 줄
         lines = [compact_judgment(l) for l in latest.values() if not scope or int(l.get("question") or 0) in scope]
-        doc["judgment"] = {"pipeline": "judge-v5-screen (Decisions 전수 → 걸린 항목만 Codex, Codex 확정)", "results": lines,
+        used_jev = any("jev" in ((((l.get("calls") or {}).get("decisions") or {}).get("first_judge")) or {}).values() for l in latest.values())
+        pipeline = ("judge-v5-screen (1차 Jev(3만 2천 토큰 이하 · 첨부 없음) · Decisions(그 밖) → FAIL · 애매만 Codex, Codex 확정)" if used_jev   # 10-22
+                    else "judge-v5-screen (Decisions 전수 → 걸린 항목만 Codex, Codex 확정)")
+        doc["judgment"] = {"pipeline": pipeline, "results": lines,
                            "summary": json.loads((jd / "summary.json").read_text(encoding="utf-8")) if (jd / "summary.json").exists() else None,
                            "timing": [json.loads(l) for l in (jd / "timing.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
                            if (jd / "timing.jsonl").exists() else []}

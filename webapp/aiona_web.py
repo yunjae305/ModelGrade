@@ -231,8 +231,11 @@ class AionaChat:
         return answers.last.evaluate("(el) => [...el.querySelectorAll('.prose')].map(p => p.innerHTML).join('<br>')")
 
     def recopy(self) -> str:
-        """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
+        """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20).
+        이 질문의 답 말풍선이 아직 없으면 앞 질문의 답을 다시 복사하게 되므로 복사하지 않는다(10-21 밤: Q2_T8 에 T7 답이 저장됨)."""
         try:
+            if self._answers().count() <= getattr(self, "_answers_before", -1):
+                return ""
             return self._copy_last_answer() or ""
         except Exception:
             return ""
@@ -248,24 +251,32 @@ class AionaChat:
     def _copy_last_answer(self) -> Optional[str]:
         """마지막 답변 칸 안의 '복사' 버튼을 눌러 클립보드에 들어간 원문을 받는다. 버튼이 없거나 못 받으면 None —
         다른 답변의 버튼은 쓰지 않는다(답변 칸마다 자기 복사 버튼이 안에 있다, 2026-10-14 확인)."""
-        try:
-            buttons = self._answers().last.locator("button[title='복사']")
-            # 코드블록마다 자기 '복사' 버튼이 있어 첫 번째를 누르면 코드만 복사된다(2026-10-18 사용자 지적) — 답변 맨 아래 도구 줄
-            # (🔄·📋·👍·👎····)의 📋 를 쓴다: 뒤에서부터 보되 코드블록(pre) 안에 있는 버튼은 건너뛴다 (tools/aiona_recopy.py 와 같은 규칙)
-            button = None
-            for index in range(buttons.count() - 1, -1, -1):
-                candidate = buttons.nth(index)
-                if not candidate.evaluate("(el) => !!el.closest('pre')"):
-                    button = candidate
-                    break
-            if button is None:
-                return None
-            self.page.evaluate("() => { window.__mgCopied = []; }")
-            button.click(timeout=5000)
-            self.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
-            return self.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
-        except Exception:
-            return None
+        for attempt in range(3):   # 한 번에 안 받히는 때가 있다(10-21 밤 동시 수집 시험 3차: 화면 HTML 로 대신 받음) — 세 번까지
+            if attempt:
+                self.page.wait_for_timeout(1500)
+            try:
+                buttons = self._answers().last.locator("button[title='복사']")
+                # 코드블록마다 자기 '복사' 버튼이 있어 첫 번째를 누르면 코드만 복사된다(2026-10-18 사용자 지적) — 답변 맨 아래 도구 줄
+                # (🔄·📋·👍·👎····)의 📋 를 쓴다: 뒤에서부터 보되 코드블록(pre) 안에 있는 버튼은 건너뛴다 (tools/aiona_recopy.py 와 같은 규칙)
+                button = None
+                for index in range(buttons.count() - 1, -1, -1):
+                    candidate = buttons.nth(index)
+                    if not candidate.evaluate("(el) => !!el.closest('pre')"):
+                        button = candidate
+                        break
+                if button is None:
+                    continue
+                self.page.evaluate("() => { window.__mgCopied = []; }")
+                try:
+                    button.scroll_into_view_if_needed(timeout=2000)
+                    button.click(timeout=5000)
+                except Exception:
+                    button.dispatch_event("click")   # 다른 요소가 포인터를 가로채면 DOM 에 바로
+                self.page.wait_for_function("() => (window.__mgCopied || []).length > 0", timeout=5000)
+                return self.page.evaluate("() => window.__mgCopied[window.__mgCopied.length - 1]")
+            except Exception:
+                continue
+        return None
 
     def _upload(self, files: List[Path]) -> None:
         for f in files:   # 하나씩 — 여러 개를 한 번에 넣으면 첫 파일만 붙었다 (2026-10-14 Q296)
@@ -340,6 +351,7 @@ class AionaChat:
             else:
                 text = f"[참조 자료]\n{reference_text}\n\n{question}"
         before = self._answers().count()
+        self._answers_before = before
         stopped_before = len(self._stopped())
         self._intent_as_is = False
         self._pii_masked = False
@@ -389,7 +401,10 @@ class AionaChat:
             as_is = self._send_as_is() or as_is
             masked = self._mask_and_send() or masked   # 개인정보 확인 안내는 질문 칸이 올라간 뒤 뜬다 — 전송 보류를 풀어야 답이 온다
             if self._answers().count() <= before:
-                empty += 1   # 말풍선조차 안 생긴 채 시간이 간다 — 90초(60틱)면 빈 답으로 끝낸다 (무한 대기 방지 2026-10-20)
+                # 말풍선조차 안 생긴 채 시간이 간다 — 90초(60틱)면 빈 답으로 끝낸다 (무한 대기 방지 2026-10-20). 단 정지 버튼이 떠 있으면(답을 만드는 중)
+                # 세지 않는다: 긴 입력은 말풍선이 90초 넘게 늦게 생긴다(10-21 밤 Q2_T8 — 빈 답으로 끝내 앞 답이 저장되고 다음 턴이 막힘)
+                busy = self.page.locator("button[type=submit][title='전송']").count() == 0
+                empty = 0 if busy else empty + 1
                 if empty >= 60:
                     break
                 stopped = self._stopped()

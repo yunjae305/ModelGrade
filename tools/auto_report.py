@@ -45,10 +45,11 @@ def stale_minutes(run_log: Path) -> float:
 
 
 def judge_running() -> bool:
-    """판정 프로세스가 살아 있나 — 명령줄에 judge_v4 또는 'modelgrade.py start' 가 든 python (Windows PowerShell 로 조회)."""
+    """판정 프로세스가 살아 있나 — 명령줄에 judge_v4 또는 'modelgrade.py start' 가 든 python (Windows PowerShell 로 조회).
+    python 만 본다 — 조회하는 powershell 자신의 명령줄에도 'judge_v4' 가 들어 있어 늘 '판정 중' 으로 보였다(10-22)."""
     try:
         proc = subprocess.run(["powershell", "-NoProfile", "-Command",
-                               "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*judge_v4*' -or $_.CommandLine -like '*modelgrade.py*start*' } | Select-Object -ExpandProperty ProcessId"],
+                               "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*judge_v4*' -or $_.CommandLine -like '*modelgrade.py*start*' } | Select-Object -ExpandProperty ProcessId"],
                               capture_output=True, text=True, timeout=60)
         return bool(proc.stdout.strip())
     except (OSError, subprocess.SubprocessError):

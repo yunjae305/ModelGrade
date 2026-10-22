@@ -128,19 +128,21 @@ REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료(J7)는 입력칸 �
 # 복사 버튼이 클립보드에 쓰는 글을 가로챈다 — 실제 클립보드는 쓰지 않아도 되고(헤드리스에서 거절돼도 됨), 이용자가 복사해 붙여
 # 넣을 때 얻는 원문 그대로를 답변으로 받는다 (사용자 결정 2026-10-14: 복사 버튼 원문으로 수집)
 COPY_CAPTURE_JS = r"""(() => {
-  if (window.__mgCopyHooked) return; window.__mgCopyHooked = true; window.__mgCopied = [];
+  // 판 2(10-21 밤): 이미 판 1 이 걸린 열린 페이지(ChatGPT 앱)에도 다시 씌운다 — 판 1 은 실제 클립보드에도 썼다
+  if (window.__mgCopyHooked === 2) return; window.__mgCopyHooked = 2; window.__mgCopied = window.__mgCopied || [];
   const keep = (t) => { if (typeof t === 'string') window.__mgCopied.push(t); };
   const clip = navigator.clipboard;
   if (clip) {
     const writeText = clip.writeText ? clip.writeText.bind(clip) : null;
-    clip.writeText = (t) => { keep(String(t)); return writeText ? writeText(t).catch(() => {}) : Promise.resolve(); };
+    clip.writeText = (t) => { keep(String(t)); return Promise.resolve(); };   // 실제 클립보드에는 안 씀 — 동시 수집 중 다른 앱 수집기의 붙여넣기를 덮었다(10-21 밤)
     const write = clip.write ? clip.write.bind(clip) : null;
     clip.write = async (items) => {
       try { for (const item of items) if (item.types.includes('text/plain')) keep(await (await item.getType('text/plain')).text()); } catch (e) {}
-      return write ? write(items).catch(() => {}) : undefined;
+      return undefined;   // 실제 클립보드에는 안 씀
     };
   }
-  const setData = DataTransfer.prototype.setData;
+  const setData = DataTransfer.prototype.__mgSetData || DataTransfer.prototype.setData;   // 판 1 이 감싼 것을 또 감싸지 않게 원래 것을 둔다
+  DataTransfer.prototype.__mgSetData = setData;
   DataTransfer.prototype.setData = function (type, value) { if (/text\/plain|^text$/i.test(type)) keep(String(value)); return setData.call(this, type, value); };
 })();"""
 

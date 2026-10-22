@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from webapp.cdp_chat_web import REFERENCE_FILE_CHARS
+from webapp.input_turn import input_turn
 
 
 class UiaChatError(RuntimeError):
@@ -34,9 +35,14 @@ def file_dialog_text(files: List[Path]) -> str:
     return paths[0] if len(paths) == 1 else " ".join(f'"{p}"' for p in paths)
 
 
-def model_ok(label: str) -> bool:
-    """모델 버튼 글이 사용자 결정(Sonnet 5.5 · 노력 중간, 2026-10-15)과 맞는가."""
-    return "Sonnet 5.5" in (label or "") and "중간" in (label or "")
+def has_model(label: str, model: str) -> bool:
+    """모델 버튼 글에 그 모델이 낱말 그대로 있는가 — 'Sonnet 5' 가 'Sonnet 5.5 중간' 에 걸리지 않게 (10-22: 시작할 때 모델 고르기)."""
+    return bool(re.search(r"(^|\s)" + re.escape(model) + r"(\s|$)", label or ""))
+
+
+def model_ok(label: str, model: str = "Sonnet 5.5") -> bool:
+    """모델 버튼 글이 수집 설정(고른 모델 · 노력 중간 — 기본 Sonnet 5.5, 사용자 결정 2026-10-15)과 맞는가."""
+    return has_model(label, model) and "중간" in (label or "")
 
 
 class ClaudeAppChat:
@@ -63,8 +69,10 @@ class ClaudeAppChat:
     DIALOG_TITLE = r"^(열기|Open)"
 
     def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
-                 answer_timeout_s: int = 600, place: Optional[str] = None) -> None:
+                 answer_timeout_s: int = 600, place: Optional[str] = None, model: Optional[str] = None) -> None:
         self.debug_dir, self.cancelled, self.answer_timeout_s, self.place = debug_dir, cancelled or (lambda: False), answer_timeout_s, place
+        self.model_name = model or "Sonnet 5.5"   # 시작할 때 고른 모델 (10-22) — 없으면 기본 Sonnet 5.5
+        self.MODEL_LABEL = f"Claude {self.model_name} · 노력 중간 (앱)"
         self.win: Any = None
         self._temp = tempfile.TemporaryDirectory(prefix="claude-app-ref-")
         self.model_seen: Optional[str] = None
@@ -139,6 +147,16 @@ class ClaudeAppChat:
         except Exception:
             return True
 
+    def _ensure_front(self) -> None:
+        """키 · 붙여넣기 · 클릭 바로 전 — 이 창이 맨 앞이 아니면 키를 보내지 않는다(다른 창, 특히 사용자 창에 들어간다, 10-21 밤)."""
+        for _ in range(5):
+            self._front()
+            time.sleep(0.2)
+            if self._is_foreground():
+                return
+            time.sleep(0.7)
+        raise UiaChatError(f"{self.NAME} 창을 맨 앞으로 가져오지 못해 키를 보내지 않았습니다(다른 창이 앞에 있음).")
+
     def _escape(self) -> None:
         """열린 메뉴 닫기 — 키 대신 메뉴 버튼 접기(다른 앱 창이 앞에 있어도 안전). 그래도 남아 있고 이 창이 앞이면 Esc."""
         if not self._all("Menu"):
@@ -151,12 +169,14 @@ class ClaudeAppChat:
                 except Exception:
                     pass
         time.sleep(0.4)
-        if self._all("Menu") and self._is_foreground():
+        if self._all("Menu"):
             from pywinauto.keyboard import send_keys
-            try:
-                send_keys("{ESC}")
-            except Exception:
-                pass
+            with input_turn():
+                if self._is_foreground():
+                    try:
+                        send_keys("{ESC}")
+                    except Exception:
+                        pass
             time.sleep(0.4)
 
     def _snapshot(self, tag: str) -> Optional[str]:
@@ -203,19 +223,19 @@ class ClaudeAppChat:
         return (btn.element_info.name or "").replace("모델: ", "").strip()
 
     def _apply_model(self) -> str:
-        """수집 설정(사용자 결정 10-15): Sonnet 5.5 · 노력 중간. 끝나도 되돌리지 않는다(사용자 10-19: "안 그래도 돼")."""
+        """수집 설정(사용자 결정 10-15 · 10-22 시작할 때 고른 모델): 고른 모델(기본 Sonnet 5.5) · 노력 중간. 끝나도 되돌리지 않는다(사용자 10-19: "안 그래도 돼")."""
         label = self._model_label()
-        if not model_ok(label):
-            label = self._pick_model("Sonnet 5.5", "중간")
-        if not model_ok(label):
-            raise UiaChatError(f"모델을 Sonnet 5.5 · 노력 중간으로 맞추지 못했습니다 (지금 {label}) — 앱에서 직접 맞추세요")
+        if not model_ok(label, self.model_name):
+            label = self._pick_model(self.model_name, "중간")
+        if not model_ok(label, self.model_name):
+            raise UiaChatError(f"모델을 {self.model_name} · 노력 중간으로 맞추지 못했습니다 (지금 {label}) — 앱에서 직접 맞추세요")
         return f"Claude {label} (앱)"
 
     def _pick_model(self, model: str, effort: str) -> str:
         """모델 메뉴에서 모델 라디오('Sonnet 5.5 …')와 노력 단계('중간')를 고른다 — 고른 뒤 버튼 글로 확인하고, 안 바뀌면 방법을 바꿔 다시(최대 3번).
         목록에 없는 모델은 '더 많은 모델' 에 마우스를 올려 펼친다(클릭은 노력 하위 메뉴를 건드린다). 라디오는 UIA 선택이 먼저(마우스가 움직이면 펼친 목록이 닫힌다), 그다음 마우스 클릭."""
         label = self._model_label()
-        if model and model not in label:
+        if model and not has_model(label, model):
             pat = "^" + re.escape(model) + r"(\s|$)"
             for attempt in range(3):
                 self._press(self._find("Button", self.MODEL_BTN))
@@ -233,9 +253,9 @@ class ClaudeAppChat:
                 time.sleep(1.0)
                 self._escape()
                 label = self._model_label()
-                if model in label:
+                if has_model(label, model):
                     break
-            if model not in label:
+            if not has_model(label, model):
                 raise UiaChatError(f"모델을 {model} 로 바꾸지 못했습니다 (지금 {label})")
         if effort and effort not in label:
             for attempt in range(3):
@@ -274,7 +294,8 @@ class ClaudeAppChat:
                     return
                 except Exception:
                     continue
-        elem.click_input()
+        with input_turn():
+            elem.click_input()
 
     # --- 입력칸 · 첨부 --------------------------------------------------------------------------------
     def _textbox(self) -> Any:
@@ -300,10 +321,14 @@ class ClaudeAppChat:
             pass
         if self._box_text()[:40] != text.strip()[:40]:
             from pywinauto.keyboard import send_keys
-            _clipboard_set(text)
-            box.set_focus()
-            send_keys("^a{DEL}^v", pause=0.05)
-            time.sleep(0.8)
+            with input_turn():   # 클립보드에 넣고 붙일 때까지 다른 수집기가 클립보드 · 창을 건드리지 못하게
+                _clipboard_set(text)
+                self._ensure_front()
+                box.set_focus()
+                if not self._is_foreground():
+                    raise UiaChatError("입력칸에 포커스를 주는 사이 다른 창이 앞으로 와서 붙여넣지 않았습니다.")
+                send_keys("^a{DEL}^v", pause=0.05)
+                time.sleep(0.8)
         if self._box_text()[:40] != text.strip()[:40]:
             raise UiaChatError("입력칸에 질문이 들어가지 않았습니다.")
 
@@ -338,14 +363,18 @@ class ClaudeAppChat:
         want = before + len(files)
         box = self._textbox()
         for _ in range(2):
-            _clipboard_set_files(files)
-            self._front()
-            box.set_focus()
-            time.sleep(0.4)
-            if not self._is_foreground():   # 다른 앱 창이 앞이면 Ctrl+V 가 그쪽에 들어간다 — 보내지 않고 다시
+            with input_turn():
+                _clipboard_set_files(files)
+                self._front()
+                box.set_focus()
+                time.sleep(0.4)
+                pasted = self._is_foreground()   # 다른 앱 창이 앞이면 Ctrl+V 가 그쪽에 들어간다 — 보내지 않고 다시
+                if pasted:
+                    send_keys("^v")
+                    time.sleep(1.0)   # 앱이 클립보드를 읽을 때까지 잠금을 쥔다
+            if not pasted:
                 time.sleep(1.0)
                 continue
-            send_keys("^v")
             if self._wait_attached(want, 20):
                 time.sleep(1.0)
                 return
@@ -383,7 +412,8 @@ class ClaudeAppChat:
         try:
             dlg.child_window(control_id=1, class_name="Button").click()
         except Exception:
-            dlg.type_keys("{ENTER}")
+            with input_turn():
+                dlg.type_keys("{ENTER}")
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline and dlg.exists():
             time.sleep(0.5)
@@ -549,14 +579,15 @@ class ClaudeAppChat:
                 last_error = "복사 버튼 없음"
                 time.sleep(3)
                 continue
-            _clipboard_set(self.COPY_SENTINEL)
-            self._press(btn)
             text = ""
-            for _ in range(10):
-                time.sleep(0.5)
-                text = _clipboard_get()
-                if text and text != self.COPY_SENTINEL:
-                    break
+            with input_turn():   # 표시 글 → 복사 버튼 → 읽기 사이에 다른 수집기가 클립보드를 덮지 못하게
+                _clipboard_set(self.COPY_SENTINEL)
+                self._press(btn)
+                for _ in range(10):
+                    time.sleep(0.5)
+                    text = _clipboard_get()
+                    if text and text != self.COPY_SENTINEL:
+                        break
             if text and text != self.COPY_SENTINEL and _matches_screen(text, screen):
                 return text
             last_error = "복사한 글이 화면의 답과 다름" if text and text != self.COPY_SENTINEL else "클립보드에 글이 안 들어옴"
@@ -660,15 +691,19 @@ class ClaudeAppChat:
                     b2 = self._send_button()
                     if b2 is not None:
                         try:
-                            self._front()
-                            b2.click_input()
+                            with input_turn():
+                                self._ensure_front()
+                                b2.click_input()
                         except Exception:
                             pass
-                elif tick == 30 and self._is_foreground():   # 20초 — 입력칸에서 Enter
+                elif tick == 30:   # 20초 — 입력칸에서 Enter
                     from pywinauto.keyboard import send_keys
                     try:
-                        self._textbox().set_focus()
-                        send_keys("{ENTER}")
+                        with input_turn():
+                            self._ensure_front()
+                            self._textbox().set_focus()
+                            if self._is_foreground():
+                                send_keys("{ENTER}")
                     except Exception:
                         pass
             if not sent_ok:
@@ -730,8 +765,10 @@ class ClaudeAppChat:
 # --- 창 배치 · 대조 -----------------------------------------------------------------------------------
 
 def _squash(text: str) -> str:
-    """대조용 — 공백·마크다운 표시·숫자·구두점 제거(목록 번호 '1.'·표 테두리가 화면 글에는 없다, 2026-10-20)."""
-    return re.sub(r"[\s#*_`>|\-\d.,:;()\[\]~·\"'“”‘’%+=/\\!?]+", "", text or "")
+    """대조용 — 공백·마크다운 표시·숫자·구두점 제거(목록 번호 '1.'·표 테두리가 화면 글에는 없다, 2026-10-20).
+    표 칸 안 줄바꿈 '<br>' 도 뺀다 — Gemini 복사 글의 표 칸에만 있고 화면에는 없다(10-22 Gemini Q8_T1 이 '화면의 답과 다름'으로 보류됨)."""
+    text = re.sub(r"<br\s*/?>", " ", text or "", flags=re.I)
+    return re.sub(r"[\s#*_`>|\-\d.,:;()\[\]~·\"'“”‘’%+=/\\!?]+", "", text)
 
 
 def _matches_screen(copied: str, screen: str) -> bool:

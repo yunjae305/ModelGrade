@@ -648,6 +648,8 @@ def _structure_target(text: str, req: Req, out_req: Optional["re.Match"]) -> Opt
     attached = re.search(rf"(?:{_FORMAT_NAME})\s*(?:의\s*)?$", text[max(0, req.start - 16):req.start], re.IGNORECASE)
     if attached:                                   # "파이썬 리스트로", "HTML 표로"
         return "data", attached.group(0).strip()
+    if out_req is not None and req.kind.startswith("list") and re.search(r"(?:^|\s)(?:이|그|위의?|주어진|해당|같은|입력)\s*$", text[max(0, req.start - 6):req.start]):
+        return "data", _format_label(out_req.group(0))   # "이 목록을 사용한 예도 보여 주세요" — 질문에 준 자료(리스트)를 가리킴, 목록 형식 요구 아님 (10-22 Q52)
     cs, ce = _clause(text, req.start, req.end)
     local = _OUTPUT_FORMAT_REQ.search(text[cs:ce])
     if local:                                      # "결과를 리스트로 반환하는 파이썬 함수를 작성해줘"

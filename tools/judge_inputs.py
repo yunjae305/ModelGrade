@@ -99,8 +99,9 @@ def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, An
     else:
         what = "보이지 않는 글자만 있음(공백으로 봄)" if any(x.strip() for x in texts) else "빈 답(정상 수집)"
         status, rule = "empty_output_pass", "PASS — 아무것도 출력하지 않음"
-    return {"status": status, "answer_kind": what,
-            "reason": f"빈 출력 요구 — {what} → {rule} (empty-output-v6, 10-21), 심판에 보내지 않음",
+    # empty-output-v7 (사용자 10-22: "빈출력 질문은 다 보류") — 무엇이 보였는지(글 · 빈 답 · 오류)와 v6 규칙의 뜻은 사유에 남기고, 결정은 사람이 한다
+    return {"status": "held_empty_output", "answer_kind": what, "rule_hint": status,
+            "reason": f"빈 출력 요구 — {what} → 보류(사람이 정함). 참고: v6 규칙이면 {rule} (empty-output-v7, 10-22), 심판에 보내지 않음",
             "collection_note": note}
 
 

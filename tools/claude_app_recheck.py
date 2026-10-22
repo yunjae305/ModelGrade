@@ -148,12 +148,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--start", type=int, default=0, help="목록(최신순)에서 몇 번째 채팅부터")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--max-chats", type=int, default=130, help="목록에서 이만큼까지만 본다")
+    ap.add_argument("--since", help="이 시각(UTC ISO) 뒤에 받은 행만 — 일부만 새로 받은 실행(10-22 멀티턴 다시 받기)")
     args = ap.parse_args(argv)
     from tools import claude_app
     from tools.modelgrade import load_run
     run = load_run(args.run)
-    rows = {r["case_id"]: r for r in run["datasets"]["claude"] if isinstance(r, dict)}
+    rows = {r["case_id"]: r for r in run["datasets"]["claude"] if isinstance(r, dict)
+            and (not args.since or (r.get("collection") or {}).get("collected_at", "") >= args.since)}
+    print(f"확인할 Claude 행 {len(rows)}개", flush=True)
     qnorm = {cid: norm_q(r.get("question") or "") for cid, r in rows.items()}
+    # 앱은 질문의 마크다운을 그려 보여 준다 — 목록 '-' · 제목 '#' 등 기호를 빼고 앞부분으로 맞출 때 쓴다(10-22 멀티턴)
+    md = lambda t: re.sub(r"[\s`*#|_>\-]+", "", (t or "").lower())  # noqa: E731
+    qmd = {cid: md(r.get("question") or "") for cid, r in rows.items()}
     need = {cid for cid, r in rows.items() if (r.get("collection") or {}).get("status") == "SUCCESS"}
     out_dir = ROOT / "data" / "judge_runs" / args.run
     live = out_dir / "claude-recheck.jsonl"
@@ -202,21 +208,40 @@ def main(argv: Optional[List[str]] = None) -> int:
                     rc.wheel(10 if idx < lo else -10)
                 return None
 
+            def walk() -> Any:
+                """맨 위로 올린 뒤 아래로 조금씩 내리며 말풍선을 번호 순서대로 내준다 — 말풍선이 아주 긴 대화(10-22 멀티턴 1만 7천 자 질문 ·
+                수천 자 답)는 번호로 찾아 굴리는 find_group 이 대부분 못 찾았다."""
+                for _ in range(300):
+                    if any(x[0] == 1 for x in rc.groups()):
+                        break
+                    rc.wheel(15)
+                nxt, still = 1, 0
+                while nxt <= total and still < 40:
+                    cur = {x[0]: x[2] for x in rc.groups()}
+                    if nxt in cur:
+                        still = 0
+                        yield cur[nxt]
+                        nxt += 1
+                        continue
+                    still += 1
+                    rc.wheel(-4 if min(cur, default=nxt) <= nxt else 4)
+
             results = []
             last_user = None
-            for idx in range(1, total + 1):
-                g = find_group(idx)
-                if g is None:
-                    continue
+            for g in walk():
                 role = rc.role(g)
                 if role == "user":
                     last_user = rc.group_text(g)
                     continue
                 if role != "assistant" or last_user is None:
                     continue
-                u = norm_q(last_user)
+                u, last_text = norm_q(last_user), last_user
                 last_user = None
                 cands = [cid for cid, q in qnorm.items() if q and (q in u or (len(q) > 60 and q[:60] in u and q[-40:] in u))]
+                if not cands:   # 긴 질문은 앱이 '더 보기'로 접어 끝부분이 화면에 없다(10-22 멀티턴 1만 6천 자) — 앞 80자로(턴마다 자료 제목이 달라 하나로 정해질 때만)
+                    um = md(last_text)
+                    pre = [cid for cid, q in qmd.items() if len(q) > 80 and q[:80] in um]
+                    cands = pre if len(pre) == 1 else []
                 cid = max(cands, key=lambda c: len(qnorm[c])) if cands else None
                 if not cid or cid in done_cids:
                     continue

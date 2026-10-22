@@ -1,0 +1,141 @@
+{
+ "set_id": "qs-2026-10-21-mt3",
+ "created_at": "2026-10-21T23:00:08+09:00",
+ "counts": {
+  "single": 57,
+  "multi_turn": 11,
+  "long_context": 10,
+  "attachment": 12,
+  "empty_output": 10
+ },
+ "generator": "question-gen-v3.3-modelgrade + multiturn-v3",
+ "two_turn_conversations": 0,
+ "id": "qs-2026-10-21-mt3",
+ "status": "COMPLETED",
+ "actual_answer_evaluation_completed": false,
+ "k_var": {
+  "range": [
+   6,
+   10
+  ],
+  "singles": 67,
+  "in_range": 57,
+  "out_of_range": 0,
+  "out_of_range_ids": [],
+  "exempt": 10,
+  "exempt_ids": [
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68
+  ],
+  "by_k": {
+   "1": 5,
+   "2": 5,
+   "6": 13,
+   "7": 18,
+   "8": 15,
+   "9": 10,
+   "10": 1
+  },
+  "conversations": {
+   "1": 10,
+   "2": 10,
+   "3": 10,
+   "4": 10,
+   "5": 10,
+   "6": 10,
+   "7": 10,
+   "8": 10,
+   "9": 10,
+   "10": 10,
+   "69": 10
+  }
+ },
+ "precheck_question_countable_criteria": 64,
+ "precheck_min_applicable": 10,
+ "generation_basis_file": "generation_basis.json",
+ "question_count_policy": "fixed_78",
+ "answer_dependent_plan": "answer_dependent_plan.json",
+ "multiturn_k_exact": {
+  "1": 10.0,
+  "2": 9.9,
+  "3": 10.2,
+  "4": 9.8,
+  "5": 10.2,
+  "6": 9.9,
+  "7": 10.2,
+  "8": 9.8,
+  "9": 9.9,
+  "10": 9.8,
+  "69": 9.8
+ },
+ "multiturn_revision": {
+  "version": "multiturn-v3",
+  "date": "2026-10-21",
+  "builder": "multiturn_v3/build_conversations.py",
+  "docs": "multiturn_v3/docs/Q<번호>_T<턴>.md (110개)",
+  "why": "질문생성 프롬프트 v3.4 · 멀티턴 기준 v3(턴당 10K · 10턴 · 대화 100K) — 답 길이와 상관없이 질문만으로 채우도록 모든 턴에 그 턴 과제의 다른 문서를 붙임, 대화마다 턴 흐름을 다르게(사용자 지시)",
+  "precheck": {
+   "errors": 0,
+   "duplicates": 0,
+   "short_criteria": [],
+   "countable": 64,
+   "multiturn_avg_k_allowed_max": 10.6,
+   "note": "턴마다 수치가 든 자료가 붙어 J5-2.a 가 모든 턴에 붙으며 대화 평균 k 가 10 을 조금 넘는 것은 허용(사용자 10-21 밤)"
+  }
+ },
+ "based_on": "qs-2026-10-21 (참고자료/질문세트_78_생성프롬프트v3.3) — 단일 67개 그대로, 10턴 대화 11개만 바꿈",
+ "multiturn_tokens": {
+  "1": {
+   "min_turn": 10282,
+   "total": 104047
+  },
+  "2": {
+   "min_turn": 10307,
+   "total": 104068
+  },
+  "3": {
+   "min_turn": 10260,
+   "total": 103583
+  },
+  "4": {
+   "min_turn": 10339,
+   "total": 103989
+  },
+  "5": {
+   "min_turn": 10308,
+   "total": 104076
+  },
+  "6": {
+   "min_turn": 10260,
+   "total": 103994
+  },
+  "7": {
+   "min_turn": 10292,
+   "total": 103695
+  },
+  "8": {
+   "min_turn": 10298,
+   "total": 103823
+  },
+  "9": {
+   "min_turn": 10260,
+   "total": 103691
+  },
+  "10": {
+   "min_turn": 10310,
+   "total": 104237
+  },
+  "69": {
+   "min_turn": 10268,
+   "total": 103766
+  }
+ }
+}

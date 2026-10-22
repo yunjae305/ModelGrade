@@ -55,6 +55,40 @@ def input_tokens(row: Dict[str, Any]) -> Optional[int]:
         return None
 
 
+#: 1차 심판 나누기 기준(사용자 10-21 넘겨받기 9번 · 10-22 확인) — 질문 전체 입력이 이 토큰 수 이하면 Jev, 넘으면 Decisions
+JEV_MAX_TOKENS = 32_000
+
+
+def question_tokens(turns: List[Dict[str, Any]], answers: Dict[str, str]) -> Optional[int]:
+    """질문 하나 전체(모든 턴의 질문 · 첨부 내용 · 참조 자료 + 답변)의 토큰 수 — 1차 심판(Jev · Decisions)을 고르는 데 쓴다."""
+    total = 0
+    for row in turns:
+        t = input_tokens(row)
+        if t is None:
+            return None
+        total += t
+        try:
+            total += long_context.measure(answers.get(row["case_id"]) or "", None)["tokens"]
+        except long_context.TokenizerUnavailable:
+            return None
+    return total
+
+
+def first_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decisions: Any, use_jev: bool) -> Tuple[str, Any, str, Optional[str]]:
+    """1차 심판 한 턴 — use_jev(질문이 3만 2천 토큰 이하 · 그 턴에 첨부 없음)면 Jev, Jev 가 실패하면(입력 한도 · 오류) Decisions.
+    첨부가 있는 턴은 Decisions(이미지 원본을 본다, 사용자 10-20). 돌려주는 값: (status, body, error, 쓴 심판 'jev' · 'decisions' · None)."""
+    errors: List[str] = []
+    if use_jev and jev is not None:
+        status, body, error = jev.judge(part, questions)
+        if status == "OK":
+            return status, body, "", "jev"
+        errors.append(f"Jev {status} {str(error)[:100]} → Decisions")
+    if decisions is not None:
+        status, body, error = decisions.judge(part, questions)
+        return status, body, "; ".join(errors + ([str(error)] if error else [])), "decisions"
+    return "ERROR", None, "; ".join(errors) or "1차 심판 없음", None
+
+
 def question_json(q: int, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                   judge_turns: Optional[List[int]] = None) -> Dict[str, Any]:
     """심판에게 주는 질문 하나 — 질문·첨부파일·참조 자료·답변만(모델 이름·판정할 항목 없음). judge_turns: 이번에 판정할 턴(기본 모든 턴)."""
@@ -329,6 +363,22 @@ def undecided_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str,
     return out
 
 
+#: --reask-fail 로 고른 항목 — Codex 가 FAIL 로 본 것을 정의의 예외를 짚어 한 번 다시 묻는다 (사용자 10-22: J1-4 가 정의보다 엄하게 매겨짐)
+REASK_FAIL_ITEMS: set = set()
+REASK_NOTE = ("J1-4 를 다시 묻습니다: J1-4.a 는 질문과 무관한 주제 · 활용법 · 일반론 단락만 FAIL 이고, 같은 내용의 반복은 J1-4.a 가 아니라 J1-4.b 에서만 봅니다. "
+              "J1-4.b 에서 '표와 그 표를 풀어 쓴 설명', '결론 · 정리 한 번', '질문이 요구한 대상 · 구분에 맞춘 다시 정리' 는 반복이 아닙니다 — "
+              "같은 문장 · 같은 목록을 새 관점 · 새 정보 없이 별도 항목 · 단락으로 두 번 쓴 경우만 FAIL 입니다. 이 예외에 해당하면 PASS 로 정하고, "
+              "FAIL 을 유지하면 반복된 두 구간(또는 무관한 단락)을 answer_quote 로 정확히 옮기세요.")
+
+
+def fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]], ids: set) -> List[Tuple[int, str]]:
+    """Codex 가 FAIL 로 본 (턴, 항목) 가운데 ids 에 든 것 — --reask-fail 다시 묻기 대상."""
+    if not ids:
+        return []
+    return [(n, i) for n, items in js.check_gpt(output, turns, answers, flagged).items() for i, v in items.items()
+            if i in ids and v and v.get("decision") == "FAIL"]
+
+
 WEB_SEARCH_ITEMS = frozenset({"J5-1.a", "J5-3.a"})   # Codex 웹 검색을 켜는 항목 (10-21 밤)
 FACT_NOTE = ("J5-1.a 를 다시 묻습니다: 주장에 실제 세상의 고유한 대상(기관 · 인물 · 제품 · 법령 · 통계 · 날짜 · 가격 · 지명)이나 정확한 수치가 쟁점이 아니면 "
              "교과서 · 사전 수준의 일반 지식으로 PASS(반박 출처가 있으면 FAIL)로 정하세요. UNVERIFIED 를 유지하려면 쟁점인 고유 대상 · 수치를 reason 에 적으세요. "
@@ -480,6 +530,20 @@ def material_fact_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n
         it["how"] = (it.get("how") or "") + " → 입력 자료 안의 사실(J5-1 해당 없음, 자료 대조는 J5-2)"
 
 
+_NOT_EXTERNAL = re.compile(r"외부\s*사실(?:\s*주장)?(?:은|이|가)?\s*아니|입력\s*자료의\s*(?:수치|값)|자료에\s*제시된\s*(?:값|수치)")
+
+
+def fact_reason_na_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """사실 확인(J5-1.a)의 FAIL · 보류인데 심판 사유가 스스로 '입력 자료의 값이라 외부 사실 주장이 아니다'라고 하면 해당 없음 (10-22 보류 점검: Gemini Q1 10턴)."""
+    it = items.get("J5-1.a")
+    if not it or it.get("decision") not in ("FAIL", "UNVERIFIED"):
+        return
+    reasons = " ".join(str(e.get("reason") or "") for e in it.get("entries") or [] if isinstance(e, dict)) + " " + str(it.get("reason") or "")
+    if _NOT_EXTERNAL.search(reasons):
+        it["decision"] = "NOT_APPLICABLE"
+        it["how"] = (it.get("how") or "") + " → 사유가 '입력 자료의 값 · 외부 사실 아님' → 해당 없음"
+
+
 def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
     """사실 확인(J5-1.a) FAIL 은 반박 출처가 있을 때만 — 출처 없이 '거짓'으로 본 주장뿐이면 '확인 못 함'으로 (10-21: 일반 지식만으로 꼬투리를 잡은 FAIL)."""
     it = items.get("J5-1.a")
@@ -493,7 +557,8 @@ def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
     it["how"] = (it.get("how") or "") + " → 반박 출처 없음(거짓은 검색 출처로만) → 확인 못 함"
 
 
-_REASON_SAYS_OK = re.compile(r"FAIL\s*(?:항목)?\s*없음|문제(?:가|는)?\s*없습니다|어긋나지\s*않|모두\s*지켰|불필요한\s*(?:단락|내용)은\s*없|반복(?:은|이)?\s*없습니다")
+_REASON_SAYS_OK = re.compile(r"FAIL\s*(?:항목)?\s*없음|문제(?:가|는)?\s*없습니다|어긋나지\s*않|모두\s*지켰|불필요한\s*(?:단락|내용)은\s*없|반복(?:은|이)?\s*없습니다"
+                             r"|반복\S*\s*(?:경우|것)(?:은|는|이|가)?\s*아닙니다|반복이\s*아닙니다")   # 10-22: AIONA Q73 '…반복한 경우는 아닙니다' 인데 FAIL
 
 
 def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
@@ -557,32 +622,32 @@ def honorific_mix_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n
 
 
 def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, Any]], flagged: bool,
-                   confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None) -> Tuple[Optional[str], str]:
+                   confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None, label: str = "Decisions") -> Tuple[Optional[str], str]:
     """선별 판정의 항목 하나 — 안 걸린 항목은 Decisions 대로, 걸린 항목은 0.7 규칙으로 Codex 와 합친다. Codex 가 못 본 걸린 항목: Decisions FAIL 이면 보류."""
     d = (dec_v or {}).get("choice")
     p = fail_prob({"decision": "FAIL", "probabilities": (dec_v or {}).get("probabilities")}) if d == "FAIL" else 0.0
     if not flagged:
-        return d, f"Decisions {KO.get(d, d)} {max((dec_v or {}).get('probabilities', {}).values(), default=0):.2f}" if isinstance((dec_v or {}).get("probabilities"), dict) else f"Decisions {KO.get(d, d)}"
+        return d, f"{label} {KO.get(d, d)} {max((dec_v or {}).get('probabilities', {}).values(), default=0):.2f}" if isinstance((dec_v or {}).get("probabilities"), dict) else f"{label} {KO.get(d, d)}"
     if codex_v is None or codex_v.get("decision") is None:
         if d == "FAIL":
-            return "UNVERIFIED", f"Codex 판정 없음 · Decisions FAIL {p:.2f} → 보류"
-        return d, f"Decisions {KO.get(d, d)} (Codex 판정 없음)"
+            return "UNVERIFIED", f"Codex 판정 없음 · {label} FAIL {p:.2f} → 보류"
+        return d, f"{label} {KO.get(d, d)} (Codex 판정 없음)"
     if codex_v.get("decision") == "UNVERIFIED" and item != "J5-1.a" and not codex_v.get("problems"):
-        # J5-1.a 가 아닌 항목의 '판단 못 함' — 다시 물어도 그러면 Decisions 가 확신할 때 그 판정을 따르고, 아니면 보류로 남긴다 (10-21 밤: 보류 9건)
+        # J5-1.a 가 아닌 항목의 '판단 못 함' — 다시 물어도 그러면 1차 심판(Decisions · Jev)이 확신할 때 그 판정을 따르고, 아니면 보류로 남긴다 (10-21 밤: 보류 9건)
         conf = float((dec_v or {}).get("confidence") or 0.0)
         if d and conf >= confident:
-            return d, f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · Decisions {KO.get(d, d)} 확신 {conf:.2f} → Decisions 따름"
-        return "UNVERIFIED", f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · Decisions {KO.get(d, d)} 확신 {conf:.2f} < {confident} → 보류"
+            return d, f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · {label} {KO.get(d, d)} 확신 {conf:.2f} → {label} 따름"
+        return "UNVERIFIED", f"Codex 판정 미정(UNVERIFIED 는 J5-1.a 만) · {label} {KO.get(d, d)} 확신 {conf:.2f} < {confident} → 보류"
     if codex_v.get("decision") == "UNVERIFIED" and item == "J5-1.a" and d == "NOT_APPLICABLE" and not codex_v.get("problems"):
-        # 사실 확인 항목에서 Codex 가 "확인 못함"이라 했는데 Decisions 는 적용 조건이 없다고 봄 — 코드·입력 자료 질문에 외부 사실이 없는 경우 (사용자 10-21)
-        return "NOT_APPLICABLE", "Codex 확인 못함 · Decisions 해당 없음 → 외부 사실 주장 없음으로 봄"
+        # 사실 확인 항목에서 Codex 가 "확인 못함"이라 했는데 1차 심판은 적용 조건이 없다고 봄 — 코드·입력 자료 질문에 외부 사실이 없는 경우 (사용자 10-21)
+        return "NOT_APPLICABLE", f"Codex 확인 못함 · {label} 해당 없음 → 외부 사실 주장 없음으로 봄"
     second = {"decision": d, "probabilities": (dec_v or {}).get("probabilities")}
-    return combine_weighted(codex_v, second, "Decisions", confident)
+    return combine_weighted(codex_v, second, label, confident)
 
 
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
-               codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False) -> Dict[str, Any]:
+               codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None) -> Dict[str, Any]:
     """선별 판정 한 질문: ① Decisions 가 턴마다 적용 가능한 항목 전부(최대 44)를 원문·첨부 원본으로 판정 ② 걸린 항목만 Codex 가 사유·인용과 함께 다시 봄
     (codex_all=True 면 교정용으로 모든 항목을 Codex 에도) ③ 합치기(0.7 규칙) → 판정 v4 와 같은 결과 줄."""
     started = time.monotonic()
@@ -593,6 +658,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     allq = all_item_questions(fixed)
     calls: Dict[str, Any] = {}
     multi_ok = conversation_is_multi_turn(turns, answers) if len(turns) > 1 else True   # 멀티턴(턴당 10K · 10턴 · 전체 100K) 아니면 J6 빼기 (10-21 밤)
+    q_tokens = question_tokens(turns, answers)
+    small = q_tokens is not None and q_tokens <= JEV_MAX_TOKENS   # 3만 2천 토큰 이하 질문 → Jev (사용자 10-22)
+    first_used: Dict[str, Optional[str]] = {}
     # ① Decisions 전수 — 턴마다 한 요청(그 턴까지의 대화 + 그 턴의 항목), 자르지 않음
     dec_items: Dict[int, Dict[str, Any]] = {}
     dec_errors: List[str] = []
@@ -602,7 +670,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     saved_dec = out / "decisions" / name
     if reuse_decisions and saved_dec.exists():   # --repair: 저장된 Decisions 답으로 (API 안 부름)
         try:
-            dec_items = {int(k): v for k, v in json.loads(saved_dec.read_text(encoding="utf-8")).items() if isinstance(v, dict)}
+            saved_data = json.loads(saved_dec.read_text(encoding="utf-8"))
+            dec_items = {int(k): v for k, v in saved_data.items() if str(k).isdigit() and isinstance(v, dict)}
+            first_used.update(saved_data.get("_first_judge") or {})   # 그 턴을 어느 1차 심판이 봤는지(Jev · Decisions) — 복구해도 이름이 바뀌지 않게 (10-22)
             reused_dec = bool(dec_items)
         except (OSError, ValueError):
             dec_items = {}
@@ -616,7 +686,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             ids = [i for i in ids if i in targets]
         part = {"guide": fixed["guide"] + (TARGET_GUIDE if targets else ""), "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]}
         qd = {f"T{n}:{i}": allq[i] for i in ids}
-        status, body, error = decisions.judge(part, qd) if decisions else ("ERROR", None, "Decisions 없음")
+        status, body, error, used = first_judge(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n))
+        first_used[str(n)] = used
         if status == "OK":
             ans = (body or {}).get("answers") or {}
             dec_items[n] = {i: ans.get(f"T{n}:{i}") for i in ids}
@@ -626,8 +697,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
                           "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns), "input_tokens": usage_tokens,
-                          "reused": reused_dec}
-    (out / "decisions" / name).write_text(json.dumps({str(n): v for n, v in dec_items.items()}, ensure_ascii=False, indent=1), encoding="utf-8")
+                          "reused": reused_dec, "question_tokens": q_tokens, "first_judge": first_used}
+    (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used}, ensure_ascii=False, indent=1),
+                                           encoding="utf-8")
     # ② 걸린 항목 → Codex
     flagged: Dict[int, List[str]] = {}
     why: Dict[str, str] = {}
@@ -644,7 +716,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 why[f"T{n}:{i}"] = reason
     n_items = sum(len(v) for v in dec_items.values())
     n_flagged = sum(len(v) for v in flagged.values())
-    say(f"   🔎 {tag} Decisions {calls['decisions']['status']} {calls['decisions']['seconds']}초 · 항목 {n_items}개 중 Codex 로 {n_flagged}개"
+    who = "·".join(sorted({u for u in first_used.values() if u})) or ("저장된 답" if reused_dec else "없음")
+    say(f"   🔎 {tag} 1차 {who} {calls['decisions']['status']} {calls['decisions']['seconds']}초 · 질문 {q_tokens or 0:,}토큰 · 항목 {n_items}개 중 Codex 로 {n_flagged}개"
         + (f" — {'; '.join(dec_errors)[:160]}" if dec_errors else ""))
     codex_items: Dict[int, Dict[str, Any]] = {}
     codex_sits: Dict[int, Dict[str, Any]] = {}
@@ -678,7 +751,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         # 답하지 않은 (턴, 항목)과 인용이 원문에 없는 (턴, 항목)만 다시 묻는다 — 턴에 항목 하나만 있어도 완료로 보던 것(보류의 64%)과
         # 인용 불일치(27%)를 줄인다 (Codex 지적 10-20). 인용 불일치는 항목마다 한 번만 다시.
         reasked: set = set()
-        while status == "OK" and gpt is not None and rounds < len(flagged) + 3:
+        multi_doc = len(turns) > 1
+        while status == "OK" and gpt is not None and rounds < (2 * len(flagged) + 6 if multi_doc else len(flagged) + 3):
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
             # J5-1.a '확인 못함'은 일반 지식인지 한 번 다시 묻는다 — 복구(옛 프롬프트 출력)뿐 아니라 새 판정에도 (10-21 밤)
@@ -686,6 +760,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             bad.update({k: ["J5-1.a 확인 못함 — 일반 지식인지 다시"] for k in fact_unv})
             undecided = [k for k in undecided_items(output, turns, answers, flagged) if k not in reasked]
             bad.update({k: ["J5-1.a 가 아닌 항목의 UNVERIFIED — 다시"] for k in undecided})   # 10-21 밤
+            refail = [k for k in fail_items(output, turns, answers, flagged, REASK_FAIL_ITEMS) if k not in reasked]
+            bad.update({k: ["정의의 예외를 짚어 FAIL 다시"] for k in refail})   # --reask-fail (10-22)
             targets: Dict[int, List[str]] = {}
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
@@ -693,11 +769,14 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             if not targets:
                 break
             rounds += 1
-            ask_turns = sorted(targets)[:max(1, len(targets) // 2)]
+            # 멀티턴은 한 번에 한 턴씩, 그 턴까지의 대화만 보낸다 — 대화 전체를 주면 Codex 가 판정할 턴을 헷갈려 뒤 턴의 답으로 판정했다
+            # (10-22 보류 점검: 인용 불일치 보류 41건 중 38건이 뒤 턴 답의 문장). 단일 질문은 예전처럼 반씩.
+            ask_turns = [min(targets)] if multi_doc else sorted(targets)[:max(1, len(targets) // 2)]
+            ask_base = {**body_doc, "턴": [t for t in doc["턴"] if t["턴"] <= max(ask_turns)]} if multi_doc else body_doc
             say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
-            st2, out2, err2 = ask_codex({**body_doc, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
-                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv)) if any(k[0] in ask_turns for k in ks))}
-                                            if any(k[0] in ask_turns for k in undecided + fact_unv) else {})})
+            st2, out2, err2 = ask_codex({**ask_base, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
+                                         **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail)) if any(k[0] in ask_turns for k in ks))}
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail) else {})})
             if st2 != "OK":
                 error = err2
                 break
@@ -736,7 +815,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 continue   # 저장된 Decisions 답(--repair)에 J6 가 있어도 멀티턴이 아니면 판정하지 않음 (10-21 밤)
             is_flagged = i in (flagged.get(n) or [])
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
-            dec, how = combine_screen(cv, entry, is_flagged, item=i)
+            label = {"jev": "Jev"}.get(first_used.get(str(n)) or "", "Decisions")
+            dec, how = combine_screen(cv, entry, is_flagged, item=i, label=label)
             if dec is None:
                 continue
             if is_flagged and cv and cv.get("decision") is not None and isinstance(entry, dict):
@@ -745,13 +825,14 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             e = ((cv or {}).get("entries") or [{}])
             fail_e = next((x for x in e if x.get("decision") == "FAIL"), e[0])
             items[i] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (entry or {}).get("choice") if isinstance(entry, dict) else None,
-                        "second_judge": "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
+                        "second_judge": first_used.get(str(n)) or "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
                         "decisions_confidence": (entry or {}).get("confidence") if isinstance(entry, dict) else None,
                         "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [], "notes": (cv or {}).get("notes") or [],
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
         js.apply_overrides(items)
         material_fact_guard(items, doc, n)   # 입력 자료 안의 사실은 J5-1 해당 없음 (10-21)
+        fact_reason_na_guard(items)   # 사유가 '입력 자료의 값 · 외부 사실 아님'이면 해당 없음 (10-22)
         fact_fail_guard(items)   # 사실 확인 FAIL 은 반박 출처가 있을 때만 (10-21)
         reason_decision_guard(items)   # 사유와 판정이 반대 (10-21)
         fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤)
@@ -1181,8 +1262,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--codex-all", action="store_true", help="교정용 — 걸린 항목만이 아니라 모든 항목을 Codex 에도 보내 일치율을 잰다")
     ap.add_argument("--recode", action="store_true", help="심판을 부르지 않고, 지금 실행 파일의 CODE 평가 결과로 판정 줄의 CODE FAIL·질문 판정만 다시 계산해 덧붙인다(CODE 기준을 바꾼 뒤)")
     ap.add_argument("--redo", action="store_true", help="--questions 로 고른 질문은 이미 판정했어도 처음부터 다시 판정한다(새 줄을 덧붙임, 보고서는 마지막 줄을 씀)")
+    ap.add_argument("--reask-fail", default="", help="쉼표로 나눈 항목(예 J1-4.a,J1-4.b) — Codex 가 FAIL 로 본 그 항목을 정의의 예외를 짚어 한 번 다시 묻는다(--repair 와 함께)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
+    REASK_FAIL_ITEMS.update(x.strip() for x in (args.reask_fail or "").split(",") if x.strip())
 
     import tools.judge_run as jr
     jr.say = log_say   # Codex 실행기의 진행 글도 같은 곳으로
@@ -1273,7 +1356,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 try:
                     line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                        args.reuse_codex or args.repair, reuse_decisions=args.repair),
+                                        args.reuse_codex or args.repair, reuse_decisions=args.repair, jev=jev),
                             "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",

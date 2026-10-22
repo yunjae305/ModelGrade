@@ -152,7 +152,7 @@ class _CdpChat:
     # --- 채팅 ---------------------------------------------------------------------------------------
     def new_chat(self) -> None:
         with _CHROME_LOCK:
-            self.page.bring_to_front()   # 뒤에 있는 탭은 메뉴가 그려지지 않아 설정이 실패한다 (동시 실행 시험 2026-10-15)
+            self._page_front()   # 뒤에 있는 탭은 메뉴가 그려지지 않아 설정이 실패한다 (동시 실행 시험 2026-10-15)
             from tools.chrome_cdp import goto_tolerant
             goto_tolerant(self.page, self.NEW_URL)   # Gemini 는 /app 이 바로 다른 주소로 바뀌어 ERR_ABORTED 가 난다 (2026-10-19)
             self.page.wait_for_timeout(3000)
@@ -271,11 +271,17 @@ class _CdpChat:
                     continue
         return None
 
+    def _page_front(self) -> None:
+        """탭(앱 창)을 앞으로 — 창이 OS 맨 앞으로 오므로, Claude · Gemini 앱 수집기가 붙여넣는 도중에 끼어들지 않게 입력 차례 잠금 안에서 (10-21 밤)."""
+        from .input_turn import input_turn
+        with input_turn():
+            self.page.bring_to_front()
+
     def recopy(self) -> str:
         """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
         try:
             with _CHROME_LOCK:
-                self.page.bring_to_front()
+                self._page_front()
                 return self._copy_last_answer() or ""
         except Exception:
             return ""
@@ -436,7 +442,7 @@ class _CdpChat:
             with _CHROME_LOCK:
                 if self.cancelled():
                     raise CdpWebError("중단 요청으로 질문을 보내지 않음")
-                self.page.bring_to_front()
+                self._page_front()
                 self._check_blocked()
                 box = self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first
                 self._clear_composer(box)
@@ -497,7 +503,7 @@ class _CdpChat:
         answer, capture = (last or ""), "text"
         if done:
             with _CHROME_LOCK:
-                self.page.bring_to_front()
+                self._page_front()
                 copied = self._copy_last_answer()
             if copied and copied.strip():
                 answer, capture = copied, "copy-button"
@@ -747,6 +753,12 @@ class ChatGptAppChat(ChatGptChat):
     MODE_ITEM_CHATGPT = "만들고, 배우고, 탐색하세요"
     METHOD = "chatgpt-app-v1"
 
+    def __init__(self, *, model: Optional[str] = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if model:   # 시작할 때 고른 모델 (10-22, 예 'GPT-5.6 Sol') — 없으면 GPT-6
+            self.MODEL_NAME = model
+            self.MODEL_LABEL = f"{model} · Medium (앱)"
+
     def __enter__(self) -> "ChatGptAppChat":
         from tools.chatgpt_app_cdp import cdp_url, launch, status
         if not status()["ok"]:
@@ -817,7 +829,7 @@ class ChatGptAppChat(ChatGptChat):
     # --- 새 채팅 · 모델 ---
     def new_chat(self) -> None:
         with _CHROME_LOCK:
-            self.page.bring_to_front()
+            self._page_front()
             self.ensure_chatgpt_mode()
             btn = self.page.get_by_role("button", name="새 채팅", exact=True)
             clicked = False
@@ -949,4 +961,64 @@ class ChatGptAppChat(ChatGptChat):
     def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
         out = super().ask(question, files, reference)
         out["method"] = self.METHOD
+        if out.get("status") == "SUCCESS" and out.get("capture") == "copy-button" and "```" in (out.get("answer") or ""):
+            out = self._fix_code_blocks(out)
         return out
+
+    # --- 코드블록: 답 복사 글은 코드 줄바꿈이 사라진다(10-21 확인) → 코드블록 안만 '코드 복사' 글로 (사용자 지시: 코드블록만) ---
+    CODE_BLOCKS_LAST_JS = r"""() => {
+      const turns = [...document.querySelectorAll('[data-turn-key]')]; const t = turns[turns.length - 1]; if (!t) return [];
+      const ub = t.querySelector('[data-user-message-bubble]');
+      const blocks = [...t.querySelectorAll('[data-markdown-copy="code-block"]')].filter(b => !(ub && ub.contains(b)));
+      document.querySelectorAll('[data-mg-cb]').forEach(x => x.removeAttribute('data-mg-cb'));
+      blocks.forEach((b, i) => b.setAttribute('data-mg-cb', String(i)));   // 마지막 묶음의 답 안 코드블록에만 번호 — 질문 말풍선 속 코드블록은 제외
+      return blocks.map(b => { const h = (b.innerText || '').split('\n').map(s => s.trim()).filter(Boolean); return h[0] || ''; });
+    }"""
+    CODE_MARK = "MG_CODECOPY_MARK"
+
+    def _code_copies(self) -> "tuple[List[str], List[str]]":
+        """마지막 답의 코드블록마다 마우스를 올려 '복사' 를 실제로 누른다 — 앱이 시스템 클립보드에 바로 쓰고 스크립트 클릭에는
+        반응하지 않는다(tools/codeblock_fix.capture_gpt 와 같은 길, 10-21). 클립보드를 쓰므로 입력 차례 잠금 안에서."""
+        from .input_turn import input_turn
+        from .uia_chat_app import _clipboard_get, _clipboard_set
+        heads = self._eval(self.CODE_BLOCKS_LAST_JS) or []
+        codes: List[str] = []
+        for i in range(len(heads)):
+            blk = self.page.locator(f'[data-mg-cb="{i}"]').first
+            got = ""
+            for _attempt in range(3):
+                text = ""
+                with input_turn():
+                    before = self._eval("() => (window.__mgCopied || []).length") or 0
+                    _clipboard_set(self.CODE_MARK)
+                    try:
+                        blk.scroll_into_view_if_needed(timeout=3000)
+                        blk.hover(timeout=3000)
+                        self.page.wait_for_timeout(300)
+                        blk.locator('button[aria-label="복사"]').first.click(force=True, timeout=5000)
+                        self.page.wait_for_timeout(700)
+                    except Exception:
+                        continue
+                    copied = self._eval("() => window.__mgCopied || []") or []
+                    text = copied[-1] if len(copied) > before else _clipboard_get()   # 페이지 복사면 가로챈 글, 앱 복사면 시스템 클립보드
+                text = (text or "").replace("\r\n", "\n")
+                if text.strip() and text.strip() != self.CODE_MARK:
+                    got = text
+                    break
+                self.page.wait_for_timeout(800)
+            codes.append(got)
+        return codes, heads
+
+    def _fix_code_blocks(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        from tools.codeblock_fix import merge_codes
+        try:
+            with _CHROME_LOCK:
+                codes, heads = self._code_copies()
+        except Exception as exc:
+            return {**out, "codeblock_fix": f"코드 복사 실패 — {type(exc).__name__}: {str(exc)[:120]}"}
+        if not codes:
+            return {**out, "codeblock_fix": "화면에서 답의 코드블록을 찾지 못함 — 답 복사 글 그대로"}
+        new, why = merge_codes(out["answer"], codes, heads)
+        if new is None:
+            return {**out, "code_blocks": len(codes), "codeblock_fix": why}
+        return {**out, "answer_bottom_copy": out["answer"], "answer": new, "code_blocks": len(codes), "codeblock_fix": why}
