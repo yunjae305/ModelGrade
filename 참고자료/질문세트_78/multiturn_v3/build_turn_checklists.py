@@ -38,6 +38,23 @@ v3 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(v3)
 
 J6_ALL = ("J6-1.a", "J6-2.a", "J6-2.b", "J6-2.c", "J6-3.a", "J6-3.b", "J6-4.a", "J6-4.b")
+#: 턴마다 늘 보는 항목(상황표 1 '언제나 적는 상황' + 답 의존 J5-3.a)
+ALWAYS_J = ("J1-1.a", "J1-2.a", "J1-3.a", "J1-3.b", "J1-4.a", "J1-4.b", "J3-1.a", "J5-3.a")
+#: 턴 종류별로 설계서(briefs)가 노리는 기준 — 인식기가 요청 문장에서 놓치는 것을 보충(사용자 10-23: 턴마다 보는 기준을 그 턴의 요청 · 함정 기준으로).
+#: 대화 전체의 목표(target_items)에 든 것만 쓴다(판정은 질문별 목표 기준만 — 10-21 저녁 결정)
+TURN_KIND_ITEMS = {
+    "setup": ("J2-2.a", "J2-5.a", "J3-2.a", "J3-2.b", "J3-5.a", "J3-5.b", "J4-1.a", "J4-1.b", "J4-4.a", "J5-2.a", "J5-2.b"),
+    "record": ("J2-3.a", "J4-4.a", "J5-2.a", "J5-2.b"),
+    "calc": ("J3-4.a", "J5-2.a"),
+    "explain": ("J2-1.a", "J2-1.b", "J2-3.a", "J2-4.a", "J2-4.b", "J3-3.a", "J3-3.b", "J4-2.a", "J5-1.a"),
+    "draft": ("J2-3.a", "J2-5.a", "J2-5.b", "J4-2.a", "J5-2.a"),
+    "fmt": ("J2-3.a", "J2-5.b", "J5-2.a"),
+    "chg": ("J2-3.a", "J2-5.b", "J4-3.a", "J5-2.a"),
+    "attach": ("J5-2.a",),
+    "push": ("J3-2.a", "J3-2.b", "J5-2.a"),
+    "check": ("J2-3.a", "J3-2.b", "J5-2.a"),
+    "final": ("J2-3.a", "J3-2.b", "J3-5.a", "J3-5.b", "J4-3.a", "J5-2.a"),
+}
 _TIME_SHIFT = re.compile(r"(접수 시작|입장 시작|입장 허용 시각)(?:만|을)?\s*이전보다\s*(\d+)분\s*(늦춰|앞당겨)")
 _CAP_CHANGE = re.compile(r"정원을\s*(\d+)\D{0,3}에서\s*(\d+)")
 _PLACE_CHANGE = re.compile(r"(\S+ ?\S*?)를\s*(.+?)에서\s*(.+?)으?로\s*바꿔")
@@ -222,7 +239,10 @@ def build_one(q: Dict[str, Any], s: Dict[str, Any], kind: str, order: List[str],
             keep.append(f"{ctx['i_chg']}턴부터: {chg['what']} {chg['after']} · 예외 취소")
         na = not_applicable(mod, i, ctx)
         base = recog[i]
-        targets = sorted(set(base["checks"]) | {j for j in q_j if j not in na})   # 판정 목표: 질문의 의미 기준 − 흐름상 해당 없음 + 그 턴의 CODE 검사
+        # 판정 목표(10-23, 사용자): 늘 보는 항목 + 인식기가 이 턴 요청에서 잡은 항목 + 턴 종류별 설계 항목(대화 목표 안의 것만) + 흐름상 해당하는 J6
+        # — 대화 전체 목표(약 34개)를 턴마다 다 보던 것을 그 턴의 요청 · 함정 기준(15~20개)으로. 싱글턴(질문당 8개쯤)과 잣대를 맞추고 Codex 호출도 줄임
+        turn_j = set(ALWAYS_J) | {x for x in base["items"] if not x.startswith("J6")} | {x for x in TURN_KIND_ITEMS.get(mod, ()) if x in q_j} | {j for j in J6_ALL if j not in na and i >= 2}
+        targets = sorted(set(base["checks"]) | turn_j)
         k_units = (set(base["checks"]) | set(base["items"])) - set(na)             # k: 인식기의 턴별 기준에서 같은 J6 만 뺌
         k_units |= {j for j, pat in RECOGNIZER_MISSES.get(mod, ()) if j in q_j and pat.search(ctx["req"])}   # + 확인된 인식기 누락
         turns_out.append({"turn": i, "flow": mod, "situation": situation, "request": request_of(questions[i - 1]), "question_sha": question_sha(questions[:i]),
@@ -240,9 +260,9 @@ def main() -> int:
     by_case = {r["case_id"]: r for r in report["cases"]}
     units = k_var_units()
     multi = {q["id"]: q for q in qs if len(q.get("turns") or []) > 1}
-    out: Dict[str, Any] = {"version": "turn-checklist-2", "made": "2026-10-22",
+    out: Dict[str, Any] = {"version": "turn-checklist-3", "made": "2026-10-22",
                            "note": "질문을 만들 때 정한 사실(multiturn_v2 시나리오 · v3 턴 순서)로 만든 턴별 확인 목록 — 확인할 것은 자료 · 기록에 있는 사실만(그 턴 시점의 최신 값). "
-                                   "target_items 는 질문의 목표 기준에서 흐름상 해당 없음이 확실한 J6(not_applicable)만 뺀 것, question_sha 는 그 턴까지의 질문 원문 지문.",
+                                   "target_items 는 늘 보는 항목 + 인식기가 그 턴 요청에서 잡은 항목 + 턴 종류별 설계 항목(대화 목표 안) + 흐름상 해당하는 J6(10-23, 그 턴의 요청 · 함정 기준만), question_sha 는 그 턴까지의 질문 원문 지문.",
                            "questions": {}}
     print("대화  형  턴별 k (전→후)                                         평균 전 → 후")
     for sid, (kind, mods) in v3.PLAN.items():
