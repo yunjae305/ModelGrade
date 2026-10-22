@@ -764,6 +764,11 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         # 인용 불일치(27%)를 줄인다 (Codex 지적 10-20). 인용 불일치는 항목마다 한 번만 다시.
         reasked: set = set()
         multi_doc = len(turns) > 1
+        # 멀티턴: 한 턴을 2번 다시 물어도 빈 항목이 줄지 않으면 그 턴은 건너뛰고 다음 빈 턴으로 — 한 턴만 상한까지 묻고 뒤 턴은 못 묻던 일
+        # (10-22 Claude CLI 비교 Q2 gemini: 7턴만 15번 → 8~10턴 미질문, 109개 보류). 건너뛴 턴의 남은 항목은 다른 끝내 답하지 않은 항목처럼(판정 없음 → 보류).
+        turn_asks: Dict[int, int] = {}   # 턴마다 다시 물은 횟수
+        stalls: Dict[int, int] = {}      # 턴마다 다시 물어도 빈 항목이 줄지 않은 횟수
+        skipped: set = set()
         while status == "OK" and gpt is not None and rounds < (2 * len(flagged) + 6 if multi_doc else len(flagged) + 3):
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
@@ -778,6 +783,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
                 targets[n] += [i for i in items if i not in targets[n]]
+            if multi_doc:
+                targets = {n: v for n, v in targets.items() if n not in skipped}
             if not targets:
                 break
             rounds += 1
@@ -795,6 +802,14 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             replace = {(n, i) for n in ask_turns for i in targets[n]}
             reasked |= {k for k in bad if k in replace}
             output = merge_codex_output(output, out2, replace)
+            if multi_doc:
+                n = ask_turns[0]
+                turn_asks[n] = turn_asks.get(n, 0) + 1
+                left = len(missing_codex_items(output, flagged).get(n, []))
+                stalls[n] = stalls.get(n, 0) + 1 if left >= len(missing.get(n, [])) else 0
+                if stalls[n] >= 2:
+                    skipped.add(n)
+                    say(f"   ↪ {tag} 턴 {n} 은 2번 물어도 답이 늘지 않아 건너뜀 — 빈 항목 {left}개 남김")
         missing = missing_codex_items(output, flagged) if status == "OK" else {}
         if status == "OK" and not any((t or {}).get("items") for t in ((output or {}).get("turns") or []) if isinstance(t, dict)):
             # 결과를 통째로 비워 냄(판정을 아예 안 함) — '확인 못 함' 보류가 아니라 판정 실행 오류로 (10-21: 파일을 못 읽은 Codex 가 빈 결과를 낸 일)
@@ -802,7 +817,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             error = "Codex 가 판정 결과를 비워 냄: " + str(((output or {}).get("conclusion") or {}).get("reason") or "")[:150]
         calls["codex"] = {"status": status, "error": error if status != "OK" else (f"끝내 답하지 않은 항목 {sum(len(v) for v in missing.values())}개" if missing else ""),
                           "seconds": round(time.monotonic() - t1, 1), "search": search, "items": n_flagged, "rounds": rounds, "reused": reused,
-                          "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()}, **tokens}
+                          "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()},
+                          "turn_asks": {str(n): c for n, c in turn_asks.items()}, "skipped_turns": sorted(skipped), **tokens}
         say(f"   🖥 {tag} Codex {status} {calls['codex']['seconds']}초 · 호출 {rounds}번" + (f" — {str(calls['codex']['error'])[:160]}" if calls['codex']['error'] else ""))
         (out / "codex" / name).write_text(json.dumps(output, ensure_ascii=False, indent=1), encoding="utf-8")
         if calls["codex"]["status"] == "OK":
