@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List
@@ -419,6 +420,10 @@ def flow_scene(D: Dict[str, Any]) -> str:
     n = D["n"]
     set_dir = Path(D["set_dir"])
     vers = re.findall(r"(생성프롬프트|멀티턴)(v[\d.]+)", set_dir.name)   # 질문세트_78_생성프롬프트v3.3_멀티턴v3 → v3.3 · 멀티턴 v3
+    if not vers and (set_dir / "set.json").exists():   # 10-22: 폴더 이름에서 판 번호를 뺌(질문세트_78) — set.json 의 generator 로 같은 표시
+        gen = str(json.loads((set_dir / "set.json").read_text(encoding="utf-8")).get("generator") or "")
+        vers = ([("생성프롬프트", f"v{v}") for v in re.findall(r"question-gen-v([\d.]+?)(?:-|$)", gen)]
+                + [("멀티턴", f"v{v}") for v in re.findall(r"multiturn-v(\d+)", gen)])
     m = re.search(r"v[\d.]+$", set_dir.name)
     set_ver = (" · ".join(v if k == "생성프롬프트" else f"{k} {v}" for k, v in vers) if vers
                else m.group(0) if m else set_dir.name)

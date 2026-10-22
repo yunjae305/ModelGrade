@@ -39,7 +39,7 @@ if str(ROOT) not in sys.path:
 VERSION = "modelgrade-cli-v1"
 IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
 APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",

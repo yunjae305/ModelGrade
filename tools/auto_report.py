@@ -1,6 +1,6 @@
 """평가가 끝나면 사용자 입력 없이 보고서까지 만든다 (사용자 요청 2026-10-20 밤).
 
-    python tools/auto_report.py --run a1642702fccc --out v4 --set 참고자료/질문세트_78_생성프롬프트v3.3 [--poll 30] [--stale 30] [--no-repair]
+    python tools/auto_report.py --run a1642702fccc --out v4 --set 참고자료/질문세트_78 [--poll 30] [--stale 30] [--no-repair]
 
 끝 신호: data/judge_runs/<실행>/<out>/run.log 에 "평가 끝" 이 감시 시작 뒤에 새로 뜸(앞선 실행의 글은 세지 않음). 신호 없이 run.log 가 --stale 분
 동안 안 바뀌고 판정 프로세스(judge_v4 / modelgrade start)도 없으면 있는 결과로 만든다.
@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DONE_MARK = "평가 끝"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"
 
 
 def log(path: Path, text: str) -> None:

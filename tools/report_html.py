@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / "data" / "comparison_runs"
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"
 LABEL = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 ORDER = ["aiona", "gpt", "claude", "gemini"]
 KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}

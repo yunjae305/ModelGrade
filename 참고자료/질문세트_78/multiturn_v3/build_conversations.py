@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """10턴 대화 11개(Q1~Q10 · Q69)를 질문생성 프롬프트 v3.4 의 멀티턴 규칙으로 다시 만든다 — multiturn-v3 (2026-10-21 밤, 사용자 지시).
 
-v3.3 세트(참고자료/질문세트_78_생성프롬프트v3.3)는 그대로 두고, 이 폴더의 questions.json 에 멀티턴 11개만 바꾼 세트를 쓴다.
+옛 v3.3 세트(지금 질문세트_78/생성기록_v3.3)의 단일 67 은 그대로 두고, 이 폴더의 questions.json 에 멀티턴 11개만 바꾼 세트를 쓴다.
 
 무엇이 바뀌나 (v2 → v3)
 - 모든 턴(110개)에 그 턴 과제에 실제로 쓰는 다른 문서를 '[붙여 넣은 자료] … [자료 끝]' 으로 붙여 질문만으로 턴마다 o200k_base 10,000토큰 이상
@@ -12,8 +12,8 @@ v3.3 세트(참고자료/질문세트_78_생성프롬프트v3.3)는 그대로 �
 - 인식기가 알아보는 요청 문구는 v2(검증됨) 그대로 쓰고, 자료 구간 안 글은 인식기가 지시로 읽지 않는다(code_eval.extract._instruction_text).
 - 표 열 합계 턴의 문서에는 표가 그 표 하나뿐이어야 한다(표가 여럿이면 원본을 못 정해 조건이 안 생김).
 
-    python -X utf8 참고자료/질문세트_78_생성프롬프트v3.3_멀티턴v3/multiturn_v3/build_conversations.py --check        # 문서 없이(가짜 자료) k · 적용 수만
-    python -X utf8 참고자료/질문세트_78_생성프롬프트v3.3_멀티턴v3/multiturn_v3/build_conversations.py --write        # 문서로 조립 · 검사 · questions.json 쓰기
+    python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --check        # 문서 없이(가짜 자료) k · 적용 수만
+    python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --write        # 문서로 조립 · 검사 · questions.json 쓰기
 """
 from __future__ import annotations
 
@@ -29,12 +29,12 @@ from typing import Dict, List, Optional
 HERE = Path(__file__).resolve().parent
 SET_DIR = HERE.parent
 ROOT = SET_DIR.parents[1]
-SRC_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"
+SRC_SET = SET_DIR / "생성기록_v3.3"   # 옛 v3.3 세트의 questions.json (단일 67 은 지금 세트와 같음, 10-22 옮김)
 DOCS = HERE / "docs"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-_spec = importlib.util.spec_from_file_location("mt_v2", SRC_SET / "multiturn_v2" / "build_conversations.py")
+_spec = importlib.util.spec_from_file_location("mt_v2", SET_DIR / "multiturn_v2" / "build_conversations.py")
 v2 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(v2)   # 시나리오(S) · 검증된 턴 문구(t_*) 재사용
 S = {s["id"]: s for s in v2.S}

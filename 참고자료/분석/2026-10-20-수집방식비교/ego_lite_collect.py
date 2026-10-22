@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-DEFAULT_SET = ROOT / "참고자료" / "질문세트_78_생성프롬프트v3.3"
+DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"
 SPACE = "modelgrade-bench"   # ego lite 작업 공간 이름 — 같은 이름이면 이어 쓴다
 
 # 사이트별 값 — webapp/cdp_chat_web.py 의 ChatGptChat·ClaudeChat 상수와 같다

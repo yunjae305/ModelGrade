@@ -7,8 +7,8 @@ J4-3·J4-4·J5-1·J5-2.b)을 대화 11개가 모두 걸어야 하므로, 인식�
 J6 여섯 요소(지시 유지·앞 턴 정보 재사용·조건 변경·같은 결과물 2회 수정·근거 없는 반박·일관성)와 답변 의존 8개(각주·출처·내부 링크·펜스·등식·개수
 선언·태그 짝·J5-3)의 유도도 대화마다 넣는다. 설명 턴은 그 대화의 현장에서 생긴 현상을 묻는다(맥락 유지).
 
-    python -X utf8 참고자료/질문세트_78_생성프롬프트v3.3/multiturn_v2/build_conversations.py          # questions.json 의 Q1~Q11 을 바꿔 씀
-    python -X utf8 tools/check_question_set.py 참고자료/질문세트_78_생성프롬프트v3.3/questions.json --pipeline items --min-applicable 10 --json
+    python -X utf8 참고자료/질문세트_78/multiturn_v2/build_conversations.py          # questions.json 의 Q1~Q11 을 바꿔 씀
+    python -X utf8 tools/check_question_set.py 참고자료/질문세트_78/생성기록_v3.3/questions.json --pipeline items --min-applicable 10 --json
 """
 from __future__ import annotations
 
@@ -398,6 +398,8 @@ def build_turns(s: dict) -> list:
 
 
 def main() -> int:
+    # 10-22: 이 파일은 multiturn_v3 이 시나리오 · 요청 문장을 읽어 가는 용도로만 남김 — 직접 돌리면 지금 세트(질문세트_78)의 10턴 대화를 v2 로 덮어쓴다
+    raise SystemExit("multiturn_v2 는 직접 돌리지 않습니다 — 질문세트_78/multiturn_v3/build_conversations.py 를 쓰세요")
     path = SET_DIR / "questions.json"
     qs = json.loads(path.read_text(encoding="utf-8"))
     by_id = {q.get("origin_id", q["id"]): q for q in qs}   # 시나리오 번호 = 원래 번호(ChatGPT 생성 때). 던지는 순서로 재배치하면 id 는 달라진다
