@@ -74,7 +74,8 @@ def make_report(out_dir: Path, run_id: str, logp: Path) -> Path | None:
 
 
 def copy_out(out_dir: Path, run_id: str, logp: Path) -> None:
-    dest = ROOT / "참고자료" / "결과" / f"판정_{run_id}"
+    from tools import result_dirs   # 결과 폴더(참고자료/결과/<시작 시각>/, 사용자 10-22) — 없는 옛 실행은 판정_<실행>/
+    dest = result_dirs.find(run_id) or ROOT / "참고자료" / "결과" / f"판정_{run_id}"
     dest.mkdir(parents=True, exist_ok=True)
     for name in ("report.html", "report.md", "summary.json", "results.jsonl", "human_decisions.json"):
         if (out_dir / name).exists():

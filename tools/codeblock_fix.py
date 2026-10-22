@@ -376,7 +376,8 @@ def main(argv: Optional[List[str]] = None) -> int:
               f"- 코드블록 있는 턴 {len(code_targets)} · **바꿈 {len(changed)}** · 그대로 {len(kept)}", "",
               "| 턴 | 결과 |", "|---|---|"]
     report += [f"| {c} | 바꿈 — {w} |" for c, w in changed] + [f"| {c} | 그대로 — {w} |" for c, w in kept] + [""]
-    out = ROOT / "참고자료" / "결과" / f"판정_{args.run}" / f"{name}_답_보정_확인.md"
+    from tools import result_dirs   # 결과 폴더(사용자 10-22) — 없는 옛 실행은 판정_<실행>/
+    out = (result_dirs.find(args.run) or ROOT / "참고자료" / "결과" / f"판정_{args.run}") / f"{name}_답_보정_확인.md"
     out.write_text("\n".join(report + body), encoding="utf-8")
     print(f"{name} 바뀌는 턴 {len(changed)}개 · 그대로 {len(kept)}개 — 확인 파일 {out}", flush=True)
     if args.apply and changed:

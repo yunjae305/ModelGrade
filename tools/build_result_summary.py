@@ -47,6 +47,18 @@ SUFFIX = {"bullet_count": "불릿 수", "required": "필수", "count": "개수",
 LOGO_FILES = {"aiona": "aiona-logo.png", "gpt": "gpt-logo.svg", "claude": "claude-logo.svg", "gemini": "gemini-logo.webp"}   # 팀 앱(frontend/assets)과 같은 로고
 
 
+
+
+def result_file(run_id: str, name: str, flat: bool = False) -> Path:
+    """실행의 결과 파일 — 결과 폴더(참고자료/결과/<시작 시각>/, tools/result_dirs, 사용자 10-22)에 있으면 그것,
+    없으면 옛 자리(결과 JSON 은 참고자료/결과/ 바로 아래, 판정 기록은 참고자료/결과/판정_<실행>/)."""
+    from tools import result_dirs
+    rd = result_dirs.find(run_id, RESULTS)
+    if rd is not None and (rd / name).exists():
+        return rd / name
+    return RESULTS / name if flat else RESULTS / f"판정_{run_id}" / name
+
+
 def logo_style() -> str:
     """모델 로고 CSS — 그림은 48px PNG(svg 는 그대로)로 줄여 data URI 로 한 번만 넣는다. 흰 칸 위에 두어 어두운 화면에서도 보이게."""
     import base64
@@ -83,7 +95,7 @@ def mname(p: str) -> str:
 
 # ------------------------------------------------------------------ 데이터 ------------------------------------------------------------------
 def load(run_id: str) -> Dict[str, Any]:
-    d = json.loads((RESULTS / f"{run_id}_결과_판정결과.json").read_text(encoding="utf-8"))
+    d = json.loads(result_file(run_id, f"{run_id}_결과_판정결과.json", flat=True).read_text(encoding="utf-8"))
     set_dir = R.set_dir_for(d)
     qtypes = R.question_types(set_dir)
     names = R.criteria_table(set_dir)
@@ -192,7 +204,7 @@ def crit_fail(D: Dict[str, Any]) -> Dict[str, Counter]:
 def report_extras(D: Dict[str, Any]) -> Dict[str, Any]:
     """그 실행의 report.html 에만 있는 값 — 수집 벽시계 · 판정 토큰(Codex 는 run.log 에서 모은 값이라 내보낸 JSON 에 없음) · 429 대기 ·
     추론 수준 비교(진행 중인지). 보고서가 없거나 모양이 다르면 빈 값(그 칸은 안 그림)."""
-    f = RESULTS / f"판정_{D['run_id']}" / "report.html"
+    f = result_file(D["run_id"], "report.html")
     out: Dict[str, Any] = {"wall": {}, "judge": {}, "waits": None, "medium_running": False}
     if not f.exists():
         return out
@@ -981,7 +993,7 @@ def scene_next(D: Dict[str, Any]) -> str:
 def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
     """모델마다 판정 작업량 — 판정 기록(results.jsonl)의 실제 판정 줄을 모두 더한다(다시 판정 · 복구 포함, 사용자 10-22 '총 걸린 시간으로 합쳐').
     이름 되살림 · 다시 계산(recode) 줄은 앞 줄을 옮겨 적은 것이라 뺀다. seconds = 그 질문을 판정하는 데 실제로 걸린 시간(벽시계 아님)."""
-    f = RESULTS / f"판정_{D['run_id']}" / "results.jsonl"
+    f = result_file(D["run_id"], "results.jsonl")
     if not f.exists():
         f = ROOT / "data" / "judge_runs" / D["run_id"] / "v4" / "results.jsonl"
     per: Dict[str, Counter] = {p: Counter() for p in D["order"]}
@@ -2480,7 +2492,7 @@ def build(run_id: str) -> Tuple[List[Path], Dict[str, Any]]:
 
 def check_against_report(D: Dict[str, Any]) -> List[str]:
     """그 실행의 report.html 1장(완전 통과 · FAIL · 보류)과 맞춰 본다 — 다르면 줄마다 알림."""
-    f = RESULTS / f"판정_{D['run_id']}" / "report.html"
+    f = result_file(D["run_id"], "report.html")
     if not f.exists():
         return [f"{f} 없음 — 맞춰 보지 못함"]
     txt = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", f.read_text(encoding="utf-8"))))

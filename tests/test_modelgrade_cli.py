@@ -232,6 +232,12 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
         with pytest.raises(SystemExit):
             mg.parse_model(bad)
     assert calls[1][2] != calls[0][2] and mg.load_run(calls[1][2])["model_choice"] == "claude:Opus 5.5"
+    import re, json
+    run = mg.load_run(calls[1][2])   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지>/ · run.json 으로 실행과 이음 (10-22)
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3}", run["result_dir"])
+    assert json.loads((tmp_path / "결과" / run["result_dir"] / "run.json").read_text(encoding="utf-8"))["run_id"] == calls[1][2]
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0   # 이어 돌리기
+    assert calls[2][2] == calls[1][2] and mg.load_run(calls[2][2])["result_dir"] == run["result_dir"]   # 처음 폴더 그대로
     assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
     from webapp.uia_chat_app import has_model
     assert not has_model("Sonnet 5.5 중간", "Sonnet 5") and has_model("Sonnet 5 중간", "Sonnet 5")

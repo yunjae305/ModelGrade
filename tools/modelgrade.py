@@ -764,12 +764,21 @@ def cmd_start(args: argparse.Namespace) -> int:
     run_id = args.run or find_run_for(set_dir, kind, model_choice)
     if args.run and (load_run(args.run).get("model_choice") or None) != model_choice:
         raise SystemExit(f"실행 {args.run} 은 다른 모델 선택으로 받은 실행입니다 — 같은 모델로 고르거나 --run 을 빼고 새로 시작하세요")
+    from tools import result_dirs
     if not run_id:
         run = new_run(title + (f" — {app_label(*pick)}" if pick else ""), set_dir, groups)
         run["eval_kind"] = kind
         run["model_choice"] = model_choice
+        result_dirs.ensure(run, RESULTS_JSON_DIR)   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지> (사용자 10-22)
         run_id = save_run(run).stem
         print(f"새 실행 {run_id}", flush=True)
+    else:
+        run = load_run(run_id)
+        had = run.get("result_dir")
+        result_dirs.ensure(run, RESULTS_JSON_DIR)   # 이어 돌리면 처음 시각 폴더 그대로 (사용자 10-22)
+        if not had:
+            save_run(run)
+    print(f"결과 폴더: {RESULTS_JSON_DIR / run['result_dir']} (판정이 끝나면 report.html)", flush=True)
     print(f"{title} — 질문 {len(qs)}개 · {' · '.join(app_label(p, models.get(p)) for p in providers)} 동시 수집 · 실행 {run_id}", flush=True)
     print("앱·수집용 Chrome 을 켜는 중 — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
@@ -800,6 +809,9 @@ def cmd_start(args: argparse.Namespace) -> int:
     if code:
         return code
     print(f"판정 단계 끝 — 벽시계 {_hms(time.monotonic() - t_judge)}", flush=True)
+    if (out_dir / "v4" / "results.jsonl").exists():   # 결과 폴더에 report.html · 결과 JSON (사용자 10-22)
+        return cmd_report(argparse.Namespace(dir=str(out_dir / "v4"), run=run_id))
+    print("판정 결과(results.jsonl)가 없어 보고서는 만들지 않았습니다", flush=True)
     return 0
 
 
@@ -857,13 +869,19 @@ def cmd_report(args: argparse.Namespace) -> int:
         run = None
     html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장 (v2: 보류 원문·사람 판정 버튼, 10-20 밤)
     print(f"HTML 보고서: {html_path}")
+    from tools import result_dirs
+    rd = None
+    if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) 에 모은다 (사용자 10-22)
+        rd = result_dirs.ensure(run, RESULTS_JSON_DIR)
+        result_dirs.publish(d, rd)
+        print(f"결과 폴더: {rd} — report.html")
     if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
         label = {"simple78": "간단78", "full326": "정밀326"}.get(kind, "결과") + "_판정결과"
         only = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if kind == "simple78" else None
         try:
-            print(f"JSON 결과: {export(run_id, label, only, out_dir=RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
+            print(f"JSON 결과: {export(run_id, label, only, out_dir=rd or RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
         except Exception as exc:   # JSON 내보내기가 막혀도 HTML 은 이미 썼다 — 자동 보고서가 여기서 죽지 않게
             print(f"JSON 결과 내보내기 실패: {exc}")
     return 0
