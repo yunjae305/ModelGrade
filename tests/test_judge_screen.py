@@ -87,14 +87,14 @@ class FakeCodex:
         return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
 
 
-def _run(tmp_path: Path, decisions, codex, codex_all=False, reuse_decisions=False):
+def _run(tmp_path: Path, decisions, codex, codex_all=False, reuse_decisions=False, code_measured=None):
     for sub in ("inputs", "codex", "jev", "decisions"):
         (tmp_path / sub).mkdir(exist_ok=True)
     fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
     turns = [{"case_id": "Q1_T1", "question": "존댓말로 답해 주세요. 회의 시간을 알려 주세요.", "turn": 1}]
     answers = {"Q1_T1": "네, 회의는 10시입니다."}
     jv.say = lambda *a, **k: None
-    return jv.screen_one(1, "gpt", turns, answers, {}, [], "PROMPT", fixed, codex, decisions, tmp_path, codex_all=codex_all, reuse_decisions=reuse_decisions)
+    return jv.screen_one(1, "gpt", turns, answers, {}, [], "PROMPT", fixed, codex, decisions, tmp_path, codex_all=codex_all, reuse_decisions=reuse_decisions, code_measured=code_measured)
 
 
 def test_screen_one_sends_only_flagged_items_to_codex(tmp_path: Path):
@@ -661,3 +661,145 @@ def test_keep_first_reuses_saved_first_judge_without_fingerprint(tmp_path: Path,
                          codex, None, tmp_path, reuse_codex=True, reuse_decisions=True, keep_first=True)
     item = line["turn_results"]["1"]["items"]["J2-2.a"]
     assert codex.inputs[0]["판정할_항목"] == {"1": ["J2-2.a"]} and item["jev"] == "FAIL" and item["decisions_prob"]["FAIL"] == 0.9
+
+
+def test_question_determined_includes_j4():
+    assert {"J4-1.a", "J4-1.b", "J4-2.a", "J4-3.a", "J4-4.a"} <= jv.QUESTION_DETERMINED   # 10-22 밤: 빠져 있던 J4
+
+
+def test_data_provider_footer_is_tool_attribution_not_fabricated_source():
+    # 10-22 밤: AIONA 답 끝 '데이터 제공: MET Norway …' 줄을 꾸민 출처로 FAIL 하던 것 — 그 주장만 해당 없음, 진짜 꾸민 출처는 그대로
+    only = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "질문 자료에 없는 외부 제공자를 출처로 덧붙였습니다.", "answer_quote": "데이터 제공: MET Norway (Weather data from MET Norway (CC BY 4.0))"}]}}
+    jv.apply_guards(only, {"턴": []}, 1)
+    assert only["J5-3.a"]["decision"] == "NOT_APPLICABLE"
+    mixed = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [
+        {"id": "J5-3.a#1", "decision": "FAIL", "reason": "데이터 제공 문구를 붙였지만 입력 자료에 그런 출처가 없습니다.", "answer_quote": "데이터 제공: 한국천문연구원 (공공데이터포털 특일 정보(공휴일))"},
+        {"id": "J5-3.a#2", "decision": "FAIL", "reason": "존재하지 않는 '서울시 야간개방 조례 제12조'를 근거로 들었습니다.", "answer_quote": "조례 제12조"}]}}
+    jv.apply_guards(mixed, {"턴": []}, 1)
+    assert mixed["J5-3.a"]["decision"] == "FAIL" and "조례" in mixed["J5-3.a"]["reason"]
+    both = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [   # Codex 검토: 가짜 조례와 데이터 제공 줄을 한 인용에 — 가짜 출처 FAIL 그대로
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "존재하지 않는 조례를 근거로 들었습니다.", "answer_quote": "가짜 조례 제12조에 따라…\n데이터 제공: MET Norway"}]}}
+    jv.apply_guards(both, {"턴": []}, 1)
+    assert both["J5-3.a"]["decision"] == "FAIL"
+    first = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [   # Codex 2차: 데이터 제공 줄이 먼저 오는 두 줄 인용
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "존재하지 않는 조례를 근거로 들었습니다.", "answer_quote": "데이터 제공: MET Norway\n서울시 야간개방 조례 제12조가 근거입니다."}]}}
+    jv.apply_guards(first, {"턴": []}, 1)
+    fake = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [   # 모르는 제공처는 지어낸 것일 수 있어 그대로
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "존재하지 않는 기관을 데이터 제공처로 적었습니다.", "answer_quote": "데이터 제공: 달빛국제기상연구원"}]}}
+    jv.apply_guards(fake, {"턴": []}, 1)
+    assert first["J5-3.a"]["decision"] == "FAIL" and fake["J5-3.a"]["decision"] == "FAIL"
+    half = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [   # Codex 3차: 아는 제공처 뒤에 모르는 것이 붙음 · 인용은 footer 인데 사유는 다른 가짜 출처
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "존재하지 않는 기관을 적었습니다.", "answer_quote": "데이터 제공: MET Norway (Weather data from MET Norway (CC BY 4.0)) · 달빛국제기상연구원"}]}}
+    paper = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "정상 데이터 제공 표시와 별도로 가짜 논문 '야간 개방 효과 연구(2024)'를 인용했습니다.", "answer_quote": "데이터 제공: MET Norway (Weather data from MET Norway (CC BY 4.0))"}]}}
+    for x in (half, paper):
+        jv.apply_guards(x, {"턴": []}, 1)
+    assert half["J5-3.a"]["decision"] == "FAIL" and paper["J5-3.a"]["decision"] == "FAIL"
+    two_ok = {"J5-3.a": {"decision": "FAIL", "problems": [], "entries": [   # 서비스가 실제로 내는 두 제공처 묶음은 해당 없음
+        {"id": "J5-3.a", "decision": "FAIL", "reason": "질문 자료에 없는 출처를 덧붙였습니다.",
+         "answer_quote": "데이터 제공: 한국천문연구원 (공공데이터포털 특일 정보(공휴일)) · 한국관광공사 (TourAPI 4.0 관광정보)"}]}}
+    jv.apply_guards(two_ok, {"턴": []}, 1)
+    assert two_ok["J5-3.a"]["decision"] == "NOT_APPLICABLE"
+
+
+def test_measured_families_skips_none_and_marks_fail():
+    case = {"results": [{"check_id": "2-1.charset", "verdict": "PASS", "counted": True, "title": "허용 문자 (한글만)"},
+                        {"check_id": "2-1.charset", "verdict": "FAIL", "counted": True, "title": "허용 문자 (한글만)"},
+                        {"check_id": "1-3.internal_link:none", "verdict": "PASS", "counted": True, "title": "내부 링크 · 검사 대상 없음"},
+                        {"check_id": "2-1.count:bullet_count", "verdict": "PASS", "counted": False, "title": "불릿 개수"}]}
+    assert jv.measured_families(case) == {"2-1.charset": ("FAIL", "허용 문자 (한글만)")}
+    two = {"results": [{"check_id": "2-1.literal:a", "verdict": "PASS", "counted": True, "title": "금지 문자열 ‘무료’"},
+                       {"check_id": "2-1.literal:b", "verdict": "FAIL", "counted": True, "title": "필수 문자열 ‘접수’"}]}
+    assert jv.measured_families(two) == {"2-1.literal": ("FAIL", "금지 문자열 ‘무료’ · 필수 문자열 ‘접수’")}   # 조건 제목은 모두 남긴다
+    from code_eval import engine
+    from code_eval.config import load_aiona_config
+    real = engine.evaluate_case({"question": "공백 포함 300자 이내로 답해 주세요. 제목은 10자 이내로 하세요.", "answer": "# 짧은 제목\n짧은 답입니다."}, load_aiona_config())
+    got = jv.measured_families(real)["2-1.char_count"]   # 실제 엔진의 required 는 객체 — 잰 요구값 · 범위가 보이게 (Codex 3차)
+    assert got[0] == "PASS" and "300자 이내(공백 포함)" in got[1] and "코드 펜스 밖" in got[1]
+    real2 = engine.evaluate_case({"question": "본문은 불릿으로 정확히 3개만 작성하고 '확인'이라는 단어를 꼭 넣어 주세요.", "answer": "- 하나" + chr(10) + "- 둘" + chr(10) + "- 셋" + chr(10) + "확인했습니다."}, load_aiona_config())
+    m2 = jv.measured_families(real2)   # Codex 4차: 개수 조건은 '개' 단위, 문구 조건은 제목에 이미 있어 중복 없이
+    assert "3개 정확히" in m2["2-1.count"][1] and "코드 밖 최상위 불릿" in m2["2-1.count"][1] and "자" not in m2["2-1.count"][1].split("(")[1].split("·")[0]
+    assert m2["2-1.literal"][1].startswith("필수 문자열 ‘확인’") and "{" not in m2["2-1.literal"][1]
+    assert jv._required_text(["담당 부서 이름", "예상 완료 날짜", "작업 진행 상태", "추가 확인 사항"], "표 열 이름", "2-2.table") == "담당 부서 이름, 예상 완료 날짜, 작업 진행 상태, 추가 확인 사항"
+    m = {"2-2.table": ("PASS", "표 존재"), "1-3.footnote_link": ("PASS", "각주 ↔ 정의 연결"), "1-2.code_block": ("PASS", "코드블록 개수"), "2-1.count": ("PASS", "불릿 개수")}
+    assert jv.format_fail_families("목표를 제시하지 않았고 비용 지표가 없습니다.", m) == []          # 목표 · 지표는 표가 아님
+    assert jv.format_fail_families("각주에 적힌 논문은 존재하지 않습니다.", m) == []                   # 출처 문제
+    assert jv.format_fail_families("코드 블록의 계산식이 잘못됐습니다.", m) == []                       # 코드 동작 문제
+    assert jv.format_fail_families("불릿 개수는 맞지만 B안이 빠졌습니다.", m) == []                     # 준수 인정
+    assert jv.format_fail_families("항목 개수는 맞지만 B안이 빠졌습니다.", m) == []
+    assert jv.format_fail_families("불릿 개수는 안 맞지만 내용은 충분합니다.", m) == ["2-1.count"]       # 부정은 인정이 아님 (Codex 2차)
+    assert jv.format_fail_families("불릿 개수가 맞지 않습니다.", m) == ["2-1.count"]
+    m2 = {**m, "2-1.char_count": ("PASS", "글자 수(300자 이내(공백 포함))")}
+    assert jv.format_fail_families("글자 수는 안 맞지만 어조는 지켰습니다.", m2) == ["2-1.char_count"]   # 다른 조건의 '지켰'은 인정이 아님 (Codex 3차)
+    assert jv.format_fail_families("불릿 개수를 맞추라는 요구를 어겼습니다.", m2) == ["2-1.count"]       # '맞추라는'은 지시
+    assert jv.format_fail_families("불릿 개수는 맞습니다. 다만 B안이 빠졌습니다.", m2) == []
+    assert jv.format_fail_families("표를 제시하지 않았고 각주 표시가 정의와 연결되지 않습니다.", m) == ["2-2.table", "1-3.footnote_link"]
+
+
+class FormatCodex(FakeCodex):
+    """첫 호출에서 J2-3.a 를 '한글만 조건 위반'으로 FAIL, 다시 물으면 PASS."""
+
+    def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+        doc = json.loads(input_text)
+        self.inputs.append(doc)
+        first = len(self.inputs) == 1
+        turns = [{"turn": int(n), "situations": [], "items": [
+            {"id": i, "decision": "FAIL" if first and i == "J2-3.a" else "PASS", "question_quote": "", "answer_quote": "", "quote_turn": None, "fact": None,
+             "reason": "질문은 한글만 허용했지만 답변에 영문 표기가 있습니다." if first and i == "J2-3.a" else "r"} for i in items]}
+            for n, items in doc["판정할_항목"].items()]
+        return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+
+
+def test_format_fail_is_reasked_only_when_code_measured_that_condition(tmp_path: Path):
+    # 10-22 밤: CODE 가 실제로 잰 형식 조건(한글만)을 LLM 이 또 FAIL 하면 CODE 결과를 적어 한 번 다시 묻고, CODE 가 재지 않았으면 그대로 둔다
+    dec = FakeDecisions({"J2-3.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    codex = FormatCodex()
+    measured = {"Q1_T1": {"2-1.charset": ("FAIL", "허용 문자 (한글만)")}}
+    item = _run(tmp_path, dec, codex, code_measured=measured)["turn_results"]["1"]["items"]["J2-3.a"]
+    assert len(codex.inputs) == 2 and jv.MEASURED_NOTE in codex.inputs[1]["주의"]
+    assert codex.inputs[1]["프로그램이_잰_조건"] == {"T1": {"2-1.charset": {"결과": "FAIL", "조건": "허용 문자 (한글만)"}}} and item["decision"] == "PASS"
+    sub = tmp_path / "b"
+    sub.mkdir()
+    codex2 = FormatCodex()
+    item2 = _run(sub, dec, codex2, code_measured={"Q1_T1": {}})["turn_results"]["1"]["items"]["J2-3.a"]
+    assert len(codex2.inputs) == 1 and item2["decision"] == "FAIL"
+
+
+class FormatThenQuoteCodex(FakeCodex):
+    """1회: J2-3.a 형식 FAIL(한글만). 2회(측정 안내): 인용이 원문에 없는 PASS. 3회: 안내가 또 오면 PASS, 안 오면 형식 FAIL 로 되돌아감."""
+
+    def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+        doc = json.loads(input_text)
+        self.inputs.append(doc)
+        k = len(self.inputs)
+        noted = jv.MEASURED_NOTE in str(doc.get("주의") or "")
+        if k == 1:
+            dec, reason, quote = "FAIL", "질문은 한글만 허용했지만 답변에 영문 표기가 있습니다.", ""
+        elif k == 2:
+            dec, reason, quote = "PASS", "조건을 지켰습니다.", "답변에 없는 문장"
+        else:
+            dec, reason, quote = ("PASS", "조건을 지켰습니다.", "") if noted else ("FAIL", "질문은 한글만 허용했지만 답변에 영문 표기가 있습니다.", "")
+        turns = [{"turn": int(n), "situations": [], "items": [
+            {"id": i, "decision": dec if i == "J2-3.a" else "PASS", "reason": reason if i == "J2-3.a" else "r", "question_quote": "",
+             "answer_quote": quote if i == "J2-3.a" else "", "quote_turn": None, "fact": None} for i in items]} for n, items in doc["판정할_항목"].items()]
+        return "OK", {"turns": turns, "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+
+
+def test_measured_note_is_kept_on_later_reasks(tmp_path: Path):
+    # Codex 검토 10-22: 측정 안내로 고친 뒤 인용 오류로 다시 물을 때 안내가 빠져 형식 FAIL 이 되살아나던 것
+    dec = FakeDecisions({"J2-3.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    codex = FormatThenQuoteCodex()
+    item = _run(tmp_path, dec, codex, code_measured={"Q1_T1": {"2-1.charset": ("FAIL", "허용 문자 (한글만)")}})["turn_results"]["1"]["items"]["J2-3.a"]
+    assert len(codex.inputs) == 3 and all(jv.MEASURED_NOTE in str(d.get("주의") or "") for d in codex.inputs[1:]) and item["decision"] == "PASS"
+
+
+def test_j4_target_not_applicable_from_first_judge_goes_to_codex(tmp_path: Path, monkeypatch):
+    # Codex 검토 10-22(제안): 목표 기준인 J4-2.a 를 1차 심판이 확신 있게 해당 없음이라 해도 Codex 가 다시 본다 · 목표 밖 항목은 묻지 않는다
+    monkeypatch.setattr(jv, "JUDGE_TARGET_ONLY", True)
+    monkeypatch.setattr(jv, "QUESTION_TARGETS", {1: {"J1-1.a", "J1-2.a", "J1-4.a", "J1-4.b", "J2-2.a", "J4-2.a"}})
+    dec = FakeDecisions({"J4-2.a": {"choice": "NOT_APPLICABLE", "probabilities": {"NOT_APPLICABLE": 0.97}, "confidence": 0.97}})
+    codex = FakeCodex({"J4-2.a": "FAIL"})
+    line = _run(tmp_path, dec, codex)
+    assert dec.calls == [([1], 7)] and codex.inputs[0]["판정할_항목"]["1"] == ["J4-2.a"]   # 목표 6 + 늘 보는 J5-3.a · 목표 J4 의 해당 없음만 Codex 로
+    assert line["turn_results"]["1"]["items"]["J4-2.a"]["decision"] == "FAIL" and "J3-1.a" not in line["turn_results"]["1"]["items"]

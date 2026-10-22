@@ -240,7 +240,8 @@ FILES_DIR: Optional[Path] = None
 TRUSTED_OLD = "trusted-old"
 #: 질문으로 적용 조건이 정해지는 항목 — 목표 기준인데 Decisions 가 해당 없음이라 하면 확신과 상관없이 Codex 가 다시 본다 (Codex 검토 10-21의 26개)
 QUESTION_DETERMINED = frozenset({"J2-1.a", "J2-1.b", "J2-2.a", "J2-3.a", "J2-4.a", "J2-5.a", "J2-5.b",
-                                 "J3-3.a", "J3-3.b", "J3-4.a", "J3-5.a", "J3-5.b", "J5-2.b", "J6-1.a", "J6-2.b", "J6-2.c", "J6-3.a",
+                                 "J3-3.a", "J3-3.b", "J3-4.a", "J3-5.a", "J3-5.b", "J4-1.a", "J4-1.b", "J4-2.a", "J4-3.a", "J4-4.a",   # J4 는 10-22 밤(빠져 있던 것)
+                                 "J5-2.b", "J6-1.a", "J6-2.b", "J6-2.c", "J6-3.a",
                                  "J6-3.b", "J6-4.a", "J6-4.b", "J7-1.a", "J7-2.a", "J8-3.a"})
 #: 질문 번호 → 목표 의미 기준(J…) — main 이 질문 세트를 읽을 때 채운다
 QUESTION_TARGETS: Dict[int, set] = {}
@@ -777,6 +778,118 @@ def misrule_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, s
                    for e in (v or {}).get("entries") or [])]
 
 
+#: LLM FAIL 사유에 든 형식 조건 → CODE 검사 가족 — 그 가족을 CODE 가 그 답에서 실제로 쟀으면(대상 없음 아님) 한 번 다시 묻는다 (10-22 밤)
+FORMAT_FAMILY_WORDS = {
+    "2-1.charset": re.compile(r"한글만|글자 ?종류|라틴 ?문자|로마자|영문 ?(?:표기|글자|자)|알파벳|영어 ?(?:알파벳|표기|단어|철자)"),
+    "2-1.count": re.compile(r"불릿 ?(?:개수|수)|개수(?=(?:[를가는만도])? ?(?:안 ?|못 ?)?(?:지키|어기|맞|틀|초과|부족|선언|다르|모자))|정확히 ?[0-9]+ ?개|[0-9]+ ?개(?=(?:의|로|를)? ?(?:불릿|항목|줄))"),
+    "2-1.literal": re.compile(r"요구한 ?(?:단어|문구|표현)|필수 ?(?:문구|단어|문자열|표현)|금지(?:한|된)? ?(?:단어|문구|표현|문자열)|쓰지 ?말라고 ?한 ?(?:단어|표현|말|문구)"),
+    "2-1.char_count": re.compile(r"글자 ?수|[0-9]+ ?자(?= ?(?:이내|이하|이상|안))|공백 ?포함"),
+    "2-2.table": re.compile(r"(?<![가-힣])표(?=(?:[로를가])? ?(?:작성|제시|정리|만들|없|빠))|(?<![가-힣])표 ?형식"),   # 목표 · 지표 는 표가 아님
+    "2-2.list": re.compile(r"번호 ?목록|불릿(?=(?:으로|을|이|만))|목록 ?형식|목록(?=(?:으로|을) ?(?:작성|제시|정리))"),
+    "2-2.heading": re.compile(r"제목(?=(?:[을이도])? ?(?:없|빠|넣|요구))"),
+    "1-2.code_block": re.compile(r"코드 ?블록(?=(?:[이을의은도])? ?(?:없|빠|개수|하나|두 개|닫|열|구획|표시|언어|펜스|안에 넣지)|으로 (?:쓰지|작성하지|제시하지))"),
+    "1-3.internal_link": re.compile(r"내부 ?링크|앵커"),
+    "1-3.footnote_link": re.compile(r"각주(?= ?(?:표시|정의|번호|연결|기호)|(?:[가를와의])? ?(?:정의|연결|대응|없|빠|달리지))"),   # '각주에 적힌 논문은 존재하지 않' 은 출처 문제
+    "1-3.citation_link": re.compile(r"출처 ?번호|인용 ?번호"),
+    "3-2.declared_count": re.compile(r"선언(?:한|된)? ?개수|개수 ?선언"),
+}
+MEASURED_NOTE = ("형식 · 개수 · 글자 수 · 필수 문구 · 링크 · 각주 같은 조건 가운데 '프로그램이_잰_조건'에 적힌 것은 프로그램(CODE 검사)이 이미 쟀습니다(조건 제목이 잰 범위). "
+                 "적힌 조건을 지켰는지 · 어겼는지는 이 항목의 FAIL 사유로 쓰지 않습니다(한 오류는 한 기준). 적히지 않은 조건(예: 제목 글자 수 · 태그 · 내부 링크의 부재)과 "
+                 "항목 정의의 점검 질문으로 다시 판정하세요.")
+#: 조건 말 바로 뒤에 붙은 준수 인정('개수는 맞지만' · '지켰습니다')만 — 다른 조건의 술어('어조는 지켰습니다') · 지시('맞추라는') · 부정('안 맞' · '맞지 않')은 아니다 (Codex 검토 10-22)
+_ACK_AFTER = re.compile(r"^ ?(?:[은는이가도] ?)?(?:안 ?|못 ?|않)?(?:맞(?!추|춰)|지켰|지켜졌|충족)")
+
+
+def _acknowledges(after: str) -> bool:
+    m = _ACK_AFTER.match(after)
+    if not m or re.search(r"안 ?|못 ?|않", m.group(0)[:-1]):
+        return False
+    return not re.match(r"[가-힣]{0,2}?지 ?(?:는 ?|도 ?)?(?:않|못)", after[m.end():m.end() + 8])
+
+
+def format_fail_families(reason: Any, measured: Dict[str, Tuple[str, str]]) -> List[str]:
+    """FAIL 사유가 어긴 것으로 든 형식 조건 가운데 CODE 가 그 답에서 실제로 잰 가족 — 준수를 인정하는 말('불릿 개수는 맞지만')은 뺀다."""
+    r = re.sub(r"\s+", " ", str(reason or ""))
+    out = []
+    for fam, pat in FORMAT_FAMILY_WORDS.items():
+        if fam not in measured:
+            continue
+        for m in pat.finditer(r):
+            if not _acknowledges(r[m.end():m.end() + 14]):
+                out.append(fam)
+                break
+    return out
+
+
+_OP_KO = {"<=": "이내", "<": "미만", ">=": "이상", ">": "초과", "==": "정확히", "=": "정확히"}
+
+
+_COUNT_FAMILIES = {"2-1.count", "3-2.declared_count", "2-2.table", "2-2.list", "2-2.heading", "1-2.code_block", "1-2.code_fence_min"}
+
+
+def _required_text(req: Any, title: str, fam: str = "") -> str:
+    """CODE 결과의 required 칸 → 사람이 읽는 요구값(검사 가족에 맞는 단위로, 길어도 버리지 않음 — Codex 검토 10-22 4차).
+    글자 수 {op,n,exclude_whitespace} → '300자 이내(공백 포함)', 개수 {op,n} → '3개 정확히', 문구 {literal} 는 제목에 이미 있어 생략, 그 밖은 JSON."""
+    if isinstance(req, str):
+        t = req.strip()
+        return t[:200] if t and t != title and not t.startswith("답변에 해당 구조가 있으면") else ""
+    if isinstance(req, (list, tuple)):
+        return ", ".join(str(x) for x in req)[:200]
+    if isinstance(req, dict):
+        if "literal" in req and str(req["literal"]) in title:
+            return "정확히 일치" if req.get("exact") else ""
+        if "n" in req and "op" in req:
+            op = _OP_KO.get(str(req["op"]), str(req["op"]))
+            if fam == "2-1.char_count":
+                return f"{req['n']}자 {op}({'공백 제외' if req.get('exclude_whitespace') else '공백 포함'})"
+            if fam in _COUNT_FAMILIES:
+                return f"{req['n']}개 {op}"
+            return f"{req['op']} {req['n']}"
+        return json.dumps(req, ensure_ascii=False)[:200]
+    return ""
+
+
+def measured_families(case: Any) -> Dict[str, Tuple[str, str]]:
+    """CODE 평가 결과(run JSON 의 case) → {검사 가족: (결과, 잰 조건 제목들)} — 세는 결과만, 대상 없음(:none)은 뺌. 가족 안에 FAIL 이 하나라도
+    있으면 FAIL. 제목은 조건마다 모두(예: '글자 수 (전체 300자 이내)') — 적히지 않은 조건은 잰 것이 아니다 (Codex 검토 10-22)."""
+    out: Dict[str, Tuple[str, str]] = {}
+    titles: Dict[str, List[str]] = {}
+    for r in (case or {}).get("results") or []:
+        cid = str(r.get("check_id") or "")
+        if r.get("counted") not in (True, "True") or cid.endswith(":none") or not cid:
+            continue
+        fam = cid.split(":")[0]
+        verdict = str(r.get("verdict") or "")
+        title = str(r.get("title") or "")
+        req = _required_text(r.get("required"), title, fam)
+        scope = str(r.get("scope") or "")
+        extra = " · ".join(x for x in (req, scope[:120] if scope and scope != "answer" else "") if x)
+        if extra:
+            title = f"{title}({extra})"   # 잰 요구값 · 범위('글자 수(300자 이내(공백 포함) · 코드 펜스 밖 본문, 줄바꿈 제외)') — 제목만으로는 모름 (Codex 검토 10-22)
+        if title and title not in titles.setdefault(fam, []):
+            titles[fam].append(title)
+        if fam not in out or (verdict == "FAIL" and out[fam][0] != "FAIL"):
+            out[fam] = (verdict, "")
+    return {fam: (v, " · ".join(titles.get(fam) or [])) for fam, (v, _t) in out.items()}
+
+
+def overlap_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]],
+                  measured: Dict[str, Dict[str, Tuple[str, str]]]) -> List[Tuple[int, str]]:
+    """Codex 출력에서 FAIL 사유가 CODE 가 그 답에서 실제로 잰 형식 조건을 든 (턴, 항목)."""
+    cases = {ji._turn(r): r.get("case_id") for r in turns}
+    out = []
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        fams = measured.get(cases.get(n) or "") or {}
+        if not fams:
+            continue
+        for i, v in items.items():
+            for e in (v or {}).get("entries") or []:
+                if isinstance(e, dict) and e.get("decision") == "FAIL" and format_fail_families(e.get("reason"), fams):
+                    out.append((n, i))
+                    break
+    return out
+
+
 PREV_NOTE = ("이전_판정에 적힌 항목은 그 요소 번호(id)를 그대로 써서 이전에 있던 요소를 모두 다시 답하세요 — 요소를 합치거나 번호를 바꾸지 않습니다. "
              "이전 판정은 참고일 뿐이며, 각 요소는 정의의 점검 질문으로 다시 판정합니다.")
 CONTRADICTION_NOTE = ("사유와 판정이 반대인 항목을 다시 묻습니다: 사유를 끝까지 따져 본 결론으로 decision 을 정하세요 — 점검 질문에 '예'면 PASS, "
@@ -881,6 +994,28 @@ def fact_true_guard(items: Dict[str, Dict[str, Any]]) -> None:
 
 _TOOL_CLAIM = re.compile(r"조회|확인한\s*것처럼|실행한\s*것처럼|접근\s*상태|작업\s*(?:폴더|공간)|파일이\s*(?:없|하나도)")
 _SOURCE_WORD = re.compile(r"출처|문헌|조문|제품|인용")
+#: 서비스가 답 끝에 붙이는 도구 · 데이터 제공 표시('데이터 제공: MET Norway (Weather data …)' · '한국천문연구원 (공공데이터포털 특일 정보)') — 답변 모델의
+#: 도구 사용 서술이라 J5-3.a 로 판정하지 않는다 (10-22 밤: AIONA 14/177 답, 심판이 '자료에 없는 출처를 꾸밈'으로 FAIL 7칸)
+_DATA_PROVIDER = re.compile(r"데이터 ?제공\s*[:：]")
+
+
+#: 서비스가 실제로 붙이는 footer 항목(50ca3ccccace AIONA 답 14개에서 본 것 전부) — 항목 전체가 이 가운데 하나여야 한다('MET Norway, 달빛…' 처럼
+#: 아는 제공처 뒤에 모르는 것이 붙거나 자료 제목이 다르면 답변 모델이 지어낸 것일 수 있어 그대로 판정, Codex 검토 10-22 3번)
+_SERVICE_FOOTER_ENTRY = (r"(?:MET Norway \(Weather data from MET Norway \(CC BY 4\.0\)\)"
+                         r"|한국천문연구원 \(공공데이터포털 특일 정보\(공휴일\)\)"
+                         r"|한국관광공사 \(TourAPI 4\.0 관광정보\))")
+_SERVICE_FOOTER = re.compile(r"^데이터 ?제공\s*[:：]\s*" + _SERVICE_FOOTER_ENTRY + r"(?:\s*·\s*" + _SERVICE_FOOTER_ENTRY + r")*\s*$")
+_OTHER_SOURCE_WORDS = re.compile(r"조례|조문|문헌|논문|법령|규정|제품|판례|보고서|통계|기사")
+
+
+def is_data_provider_claim(e: Dict[str, Any]) -> bool:
+    """주장이 서비스의 footer 줄('데이터 제공: MET Norway (…)') 하나를 문제 삼은 것인가 — 인용이 그 한 줄뿐이고 그 줄이 서비스 footer 형식과
+    정확히 같으며 사유가 다른 출처(조례 · 논문 …)를 들지 않을 때만. 인용이 없으면 판단하지 않는다(실제 6칸 모두 인용이 있음) (Codex 검토 10-22)."""
+    lines = [x for x in str(e.get("answer_quote") or "").splitlines() if x.strip()]
+    if len(lines) != 1:
+        return False
+    q = re.sub(r"\s+", " ", lines[0]).strip(" `\"'*")
+    return bool(_SERVICE_FOOTER.match(q)) and not _OTHER_SOURCE_WORDS.search(str(e.get("reason") or ""))
 
 
 def tool_claim_guard(items: Dict[str, Dict[str, Any]]) -> None:
@@ -888,6 +1023,9 @@ def tool_claim_guard(items: Dict[str, Dict[str, Any]]) -> None:
     판정하지 않는다(상황표 2). 존재하지 않는 출처 · 문헌 · 조문 · 제품을 든 FAIL 은 그대로 (10-21 밤: Q5 · Q7 claude '작업 폴더에서 파일이 발견되지 않았다')."""
     it = items.get("J5-3.a")
     if not it or it.get("decision") != "FAIL":
+        return
+    drop_claims(it, is_data_provider_claim, " → 서비스의 데이터 제공 표시(도구 사용 서술)는 판정하지 않음 → 해당 없음")
+    if it.get("decision") != "FAIL":
         return
     text = str(it.get("reason") or "") + " " + str(it.get("answer_quote") or "")
     if _TOOL_CLAIM.search(text) and not _SOURCE_WORD.search(str(it.get("reason") or "")):
@@ -966,7 +1104,7 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
                codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None,
-               keep_first: bool = False) -> Dict[str, Any]:
+               keep_first: bool = False, code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None) -> Dict[str, Any]:
     """선별 판정 한 질문: ① Decisions 가 턴마다 적용 가능한 항목 전부(최대 44)를 원문·첨부 원본으로 판정 ② 걸린 항목만 Codex 가 사유·인용과 함께 다시 봄
     (codex_all=True 면 교정용으로 모든 항목을 Codex 에도) ③ 합치기(0.7 규칙) → 판정 v4 와 같은 결과 줄."""
     started = time.monotonic()
@@ -1121,7 +1259,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
 
         rounds, reused, error = 0, False, ""
         saved_fp_file = out / "codex" / f"{name}.fp"
-        codex_fp = doc_fp({"doc": doc, "prompt": prompt + SCREEN_SUFFIX, "files": files_fp(turns)})   # 질문 · 답 · 첨부 원본 · 확인 목록 · 판정 프롬프트 (Codex 검토 10-22)
+        codex_fp = doc_fp({"doc": doc, "prompt": prompt + SCREEN_SUFFIX, "files": files_fp(turns),
+                           "measured": {k: sorted(v.items()) for k, v in sorted((code_measured or {}).items())}})   # 질문 · 답 · 첨부 원본 · 확인 목록 · 프롬프트 · 잰 조건 (Codex 검토 10-22)
         # 지문 없는 옛 저장은 확인 목록이 붙지 않는 질문이고 REPAIR_TRUST_OLD 일 때만 믿고 쓴다 — 믿고 쓴 출력에는 지문을 붙이지 않는다 (Codex 검토 10-22)
         trusted_codex = not saved_fp_file.exists() and REPAIR_TRUST_OLD and not any("확인_목록" in t for t in doc["턴"])
         same_input = trusted_codex or (saved_fp_file.exists() and saved_fp_file.read_text(encoding="utf-8").strip() == codex_fp)
@@ -1139,13 +1278,15 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         # 인용 불일치(27%)를 줄인다 (Codex 지적 10-20). 인용 불일치는 항목마다 한 번만 다시.
         reasked: set = set()
         misrule_asked: set = set()   # 연결 규칙 안내를 주고 다시 물은 (턴, 항목) — 다른 다시 묻기 이력과 따로
+        overlap_asked: set = set()   # CODE 가 잰 형식 조건을 든 FAIL 을 다시 물은 (턴, 항목) (10-22 밤)
         multi_doc = len(turns) > 1
         # 멀티턴: 한 턴을 2번 다시 물어도 빈 항목이 줄지 않으면 그 턴은 건너뛰고 다음 빈 턴으로 — 한 턴만 상한까지 묻고 뒤 턴은 못 묻던 일
         # (10-22 Claude CLI 비교 Q2 gemini: 7턴만 15번 → 8~10턴 미질문, 109개 보류). 건너뛴 턴의 남은 항목은 다른 끝내 답하지 않은 항목처럼(판정 없음 → 보류).
         turn_asks: Dict[int, int] = {}   # 턴마다 다시 물은 횟수
         stalls: Dict[int, int] = {}      # 턴마다 다시 물어도 빈 항목이 줄지 않은 횟수
         skipped: set = set()
-        while status == "OK" and gpt is not None and rounds < (2 * len(flagged) + 6 if multi_doc else len(flagged) + 3):
+        cap = 3 * len(flagged) + 8 if multi_doc else len(flagged) + 4   # 일반 · 규칙 · 형식 세 종류의 다시 묻기(Codex 검토 10-22: 2N+6 으로는 10턴에서 뒤 턴이 남음)
+        while status == "OK" and gpt is not None and rounds < cap:
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
             # J5-1.a '확인 못함'은 일반 지식인지 한 번 다시 묻는다 — 복구(옛 프롬프트 출력)뿐 아니라 새 판정에도 (10-21 밤)
@@ -1160,18 +1301,21 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             misrule = [k for k in misrule_items(output, turns, answers, flagged) if k not in misrule_asked]   # 다른 이유로 다시 물은 항목도 (Codex 검토 10-22)
             general = set(bad)   # 연결 규칙 오적용 말고 다른 이유로 다시 묻는 (턴, 항목) — 두 다시 묻기 이력을 서로 쓰지 않게 (Codex 검토 10-22)
             bad.update({k: ["연결 규칙을 대상이 아닌 항목에 씀 — 다시"] for k in misrule})   # 10-22 J1-4.b 재판정
+            overlap = [k for k in overlap_items(output, turns, answers, flagged, code_measured or {}) if k not in overlap_asked]
+            bad.update({k: ["CODE 가 잰 형식 조건을 FAIL 사유로 씀 — 다시"] for k in overlap})   # 10-22 밤
             targets: Dict[int, List[str]] = {}
-            for n, items in list(missing.items()) + [(n, [i]) for (n, i) in bad]:
+            # 건너뛴 턴(빈 항목이 두 번 물어도 줄지 않음)은 빈 항목만 더 묻지 않고, 이미 답한 항목의 다시 묻기(인용 · 규칙 · 형식)는 계속 (Codex 검토 10-22)
+            for n, items in [(n, v) for n, v in missing.items() if not (multi_doc and n in skipped)] + [(n, [i]) for (n, i) in bad]:
                 targets.setdefault(n, [])
                 targets[n] += [i for i in items if i not in targets[n]]
-            if multi_doc:
-                targets = {n: v for n, v in targets.items() if n not in skipped}
             if not targets:
                 break
             rounds += 1
             # 멀티턴은 한 번에 한 턴씩, 그 턴까지의 대화만 보낸다 — 대화 전체를 주면 Codex 가 판정할 턴을 헷갈려 뒤 턴의 답으로 판정했다
             # (10-22 보류 점검: 인용 불일치 보류 41건 중 38건이 뒤 턴 답의 문장). 단일 질문은 예전처럼 반씩.
             ask_turns = [min(targets)] if multi_doc else sorted(targets)[:max(1, len(targets) // 2)]
+            # 측정 안내를 한 번 준 항목은 다른 이유로 다시 물을 때도 계속 붙인다 — 안내가 빠지면 형식 FAIL 이 되살아나던 것 (Codex 검토 10-22)
+            measured_now = [k for k in set(overlap) | overlap_asked if k[0] in ask_turns and k[1] in targets.get(k[0], [])]
             ask_base = {**body_doc, "턴": [t for t in doc["턴"] if t["턴"] <= max(ask_turns)]} if multi_doc else body_doc
             say(f"   ↪ {tag} Codex 다시 묻기({rounds}번째) — 답 없음 {sum(len(v) for v in missing.values())}개 · 인용 불일치 {len(bad)}개 → 턴 {ask_turns}")
             prev: Dict[str, List[Dict[str, Any]]] = {}   # 다시 묻는 항목의 이전 요소 번호 · 판정 — 같은 번호로 모든 요소를 다시 답하게 (Codex 검토 10-22)
@@ -1184,21 +1328,26 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             st2, out2, err2 = ask_codex({**ask_base, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
                                          **({"이전_판정": prev, "이전_판정_안내": PREV_NOTE} if prev else {}),
                                          **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail), (CONTRADICTION_NOTE, contra),
-                                                                                 (MISRULE_NOTE, misrule))
+                                                                                 (MISRULE_NOTE, misrule), (MEASURED_NOTE, measured_now))
                                                              if any(k[0] in ask_turns for k in ks))}
-                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule) else {})})
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule + measured_now) else {}),
+                                         **({"프로그램이_잰_조건": {f"T{n}": {fam: {"결과": v, "조건": t} for fam, (v, t) in ((code_measured or {}).get(next((r.get("case_id") for r in turns if ji._turn(r) == n), "")) or {}).items()}
+                                                                for n in ask_turns}}
+                                            if measured_now else {})})
             if st2 != "OK":
                 error = err2
                 break
             replace = {(n, i) for n in ask_turns for i in targets[n]}
             reasked |= {k for k in general if k in replace}
             misrule_asked |= {k for k in misrule if k in replace}
+            overlap_asked |= {k for k in overlap if k in replace}
             output = merge_codex_output(output, out2, replace)
             if multi_doc:
                 n = ask_turns[0]
                 turn_asks[n] = turn_asks.get(n, 0) + 1
                 left = len(missing_codex_items(output, flagged).get(n, []))
-                stalls[n] = stalls.get(n, 0) + 1 if left >= len(missing.get(n, [])) else 0
+                # 정체는 빈 항목이 실제로 남아 있는데 줄지 않을 때만 — 인용 · 규칙 · 형식 다시 묻기만 두 번 해도 턴을 건너뛰던 것 (Codex 검토 10-22)
+                stalls[n] = (stalls.get(n, 0) + 1 if left >= len(missing[n]) else 0) if missing.get(n) else stalls.get(n, 0)
                 if stalls[n] >= 2:
                     skipped.add(n)
                     say(f"   ↪ {tag} 턴 {n} 은 2번 물어도 답이 늘지 않아 건너뜀 — 빈 항목 {left}개 남김")
@@ -1210,7 +1359,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         calls["codex"] = {"status": status, "error": error if status != "OK" else (f"끝내 답하지 않은 항목 {sum(len(v) for v in missing.values())}개" if missing else ""),
                           "seconds": round(time.monotonic() - t1, 1), "search": search, "items": n_flagged, "rounds": rounds, "reused": reused,
                           "missing_turns": sorted(missing), "missing_items": {str(n): v for n, v in missing.items()},
-                          "turn_asks": {str(n): c for n, c in turn_asks.items()}, "skipped_turns": sorted(skipped), **tokens}
+                          "turn_asks": {str(n): c for n, c in turn_asks.items()}, "skipped_turns": sorted(skipped),
+                          "rounds_cap": cap if gpt is not None else None, "cap_hit": bool(gpt is not None and status == "OK" and rounds >= cap), **tokens}
         say(f"   🖥 {tag} Codex {status} {calls['codex']['seconds']}초 · 호출 {rounds}번" + (f" — {str(calls['codex']['error'])[:160]}" if calls['codex']['error'] else ""))
         if output is not None or not saved.exists():   # 저장된 출력을 빈 값으로 덮지 않는다
             (out / "codex" / name).write_text(json.dumps(output, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -1772,9 +1922,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             else:
                 deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
+                code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}   # CODE 가 실제로 잰 형식 조건 (10-22 밤)
                 try:
                     line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                        args.reuse_codex or args.repair, reuse_decisions=args.repair, jev=jev),
+                                        args.reuse_codex or args.repair, reuse_decisions=args.repair, jev=jev, code_measured=code_measured),
                             "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
