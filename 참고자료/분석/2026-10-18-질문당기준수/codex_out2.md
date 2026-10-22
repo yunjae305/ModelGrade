@@ -6,7 +6,7 @@
 
 `k_var=54개 변동 기준`, 저장된 수집 실패 제외, 명시된 미완료 처리, `:none` 제외, Jev 확정 PASS 활용, J5 세 정책 비교는 반영됐습니다. 현재 자료에서 단일 질문 298개가 완전 비교 대상으로 남는 것도 재현됩니다.
 
-그러나 [boundary326_v2.py](C:/Users/winz/AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/boundary326_v2.py)에는 다음 문제가 있습니다.
+그러나 [boundary326_v2.py](../../../../../AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/boundary326_v2.py)에는 다음 문제가 있습니다.
 
 | 위치 | 확인한 문제 | 영향 |
 |---|---|---|

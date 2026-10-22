@@ -12,13 +12,13 @@ Set-Location ModelGrade
 py -3 -m pip install -r requirements.txt
 ```
 
-최초 설치에서는 `Copy-Item .env.example .env`로 설정 파일을 만든 뒤 사용할 API 키를 채웁니다. 기존 `.env`가 있으면 그대로 사용합니다. 모델 연결 설정은 [서비스 안내](참고자료/SERVICE_UI.md)를 참고하세요.
+최초 설치에서는 `Copy-Item .env.example .env`로 설정 파일을 만든 뒤 사용할 API 키를 채웁니다. 기존 `.env`가 있으면 그대로 사용합니다. 모델 연결 설정은 [서비스 안내](참고자료/문서/SERVICE_UI.md)를 참고하세요.
 
 저장소에는 실제 API 키, 로컬 입력 데이터, 평가 실행 결과, 버전 DB, 백업 및 화면 캡처를 포함하지 않습니다. `data/`와 결과 저장 폴더는 실행 시 생성됩니다. 이전 평가 이력이 없는 상태에서 시작하며, 새 비교에서 직접 질문·답변을 입력하거나 별도로 준비한 파일을 업로드할 수 있습니다. 기존 변경내역에 있는 로컬 결과·백업 링크는 해당 파일을 보유한 환경에서만 열립니다.
 
 입력 형식은 [공개 예제](examples/questions.sample.json)를 참고하세요. **예제 질문 불러오기**는 로컬 Q165 데이터가 있으면 해당 파일을, 없으면 이 공개 예제를 불러옵니다. 예제를 불러오는 동작 자체는 모델 API를 호출하지 않습니다.
 
-롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/LONGCTX_J6_DATASET.md)를 참고하세요. 기대 목록은 2턴 이상 대화에 J6 를 묻던 규칙 기준이며, 현재 J6 규칙(`multi-turn-v1`: 질문+답변 10K 토큰 이상 턴 10개 이상)에서는 이 세트의 J6 적용이 0입니다 — [J6·J7 적용 범위 정책 제안](참고자료/정책제안_J6J7_적용범위_2026-10-14.md).
+롱 컨텍스트(J6) 대화 세트 [examples/AIONA_winz_longctx_J6_v1.json](examples/AIONA_winz_longctx_J6_v1.json)(대화 24개·231턴, AIONA 답변은 수집 전이라 `answer`가 비어 있음)은 파일 업로드로 불러오며, 턴별 기대 적용 목록은 같은 이름의 `.expect.json`에 있고 수집·검증 절차는 [롱 컨텍스트 세트 안내](참고자료/문서/LONGCTX_J6_DATASET.md)를 참고하세요. 기대 목록은 2턴 이상 대화에 J6 를 묻던 규칙 기준이며, 현재 J6 규칙(`multi-turn-v1`: 질문+답변 10K 토큰 이상 턴 10개 이상)에서는 이 세트의 J6 적용이 0입니다 — [J6·J7 적용 범위 정책 제안](참고자료/문서/정책제안_J6J7_적용범위_2026-10-14.md).
 
 ## 서버 실행
 
@@ -33,7 +33,7 @@ py -3 -X utf8 run.py
 왼쪽 **참고 자료 → 업무 진행 현황**에서 멘토 요구사항 18개를 담당자별로 확인합니다(직접 주소 `http://localhost:8080/workspace.html#progress`). 요구사항을 펼치면 **핵심 성과 요약 → 주요 결과와 시각화 → 대표 실제 사례**가 먼저 나옵니다. 그 아래에서 **상세 산출물 전체 보기**와 **검증 근거 및 관리 정보**를 필요할 때 펼칠 수 있습니다. W01에는 v1.4 구현과 v1.2 실제 생성 결과를 구별해 표시하며, 목표 항목 적용 결과와 기준별 비율, J6 불일치 원인을 보여줍니다. W02는 최하위 기준 적용 분포와 기준별 독립 단위·턴 수를, W03은 질문 수별 커버리지와 저장 실행의 결과 안정성을 출처와 함께 표시합니다. 300개 질문 전체 표는 상세 영역에서 25개씩 이동하고 검색·필터·CSV 다운로드를 지원합니다. 프롬프트 원문 3종은 접힌 상태로 보관하며 복사·다운로드할 수 있습니다. 검증 단계는 '구현 완료 · 자동 테스트 확인 · 실제 모델 실행 · 판정 정확도 검증'을 한 줄로 표시하고, 상세 산출물에는 검증 수준과 출처를 유지합니다.
 
 - [requirements.json](frontend/data/requirements.json) — 요구사항·상태·검증 단계·결과 해석. 담당자가 실제 결과를 확인한 뒤 손으로 고칩니다(`as_of` 함께).
-- [artifacts.json](frontend/data/artifacts.json) — 실제 산출물. 직접 고치지 않고 `python tools/progress_artifacts.py` 로 실제 결과 파일(질문 세트 326·수집 답변, 코드의 프롬프트·기준 목록, 이 PC 의 저장 실행 — 질문 세트 구분은 [질문세트_목록](참고자료/질문세트_목록.md))에서 다시 계산합니다. `--check` 는 저장된 값과 다시 계산한 값이 같은지만 봅니다(모델 호출 없음).
+- [artifacts.json](frontend/data/artifacts.json) — 실제 산출물. 직접 고치지 않고 `python tools/progress_artifacts.py` 로 실제 결과 파일(질문 세트 326·수집 답변, 코드의 프롬프트·기준 목록, 이 PC 의 저장 실행 — 질문 세트 구분은 [질문세트_목록](참고자료/문서/질문세트_목록.md))에서 다시 계산합니다. `--check` 는 저장된 값과 다시 계산한 값이 같은지만 봅니다(모델 호출 없음).
 - 저장 실행 같은 비공개 원본(`data/`)은 개수·비율 같은 공개 요약만 artifacts.json 에 남고, 원본이 없는 PC 에서는 화면에 '자료 없음 — 공개 요약만 표시'로 나옵니다(`/api/progress/files` 는 파일이 있는지만 알려 주고 내용은 보내지 않음).
 
 현황 화면 검증: `python -m pytest tests/test_progress_artifacts.py` (표·그래프 수치 = 실제 결과 파일) · `python tests/workspace_progress_ui_smoke.py` (Playwright Chromium 필요, 캡처는 `results/progress-workspace/`).
@@ -63,7 +63,7 @@ py -3 -X utf8 -m code_eval.semantic_check
 
 ## 기타 응답 파일 가져오기 (고급)
 
-새 비교 화면 아래 **고급 · 기타 응답 파일 가져오기**에서 다른 AI 시스템의 답변을 같은 평가 기준으로 평가합니다. ChatGPT·Claude.ai 공식 내보내기, 저장한 HTML, API 응답 파일, 에이전트 실행 기록, 공통 수집 형식(`modelgrade-collection/v1`)과 기존 Q/A 파일을 읽습니다. 형식과 예제는 [4단계 문서](참고자료/4단계_외부수집통합_2026-10-13.md)와 [`examples/external/`](examples/external)를 참고하세요.
+새 비교 화면 아래 **고급 · 기타 응답 파일 가져오기**에서 다른 AI 시스템의 답변을 같은 평가 기준으로 평가합니다. ChatGPT·Claude.ai 공식 내보내기, 저장한 HTML, API 응답 파일, 에이전트 실행 기록, 공통 수집 형식(`modelgrade-collection/v1`)과 기존 Q/A 파일을 읽습니다. 형식과 예제는 [4단계 문서](참고자료/문서/4단계_외부수집통합_2026-10-13.md)와 [`examples/external/`](examples/external)를 참고하세요.
 
 - 파일을 고르면 변환 결과(시스템·수집 경로·웹검색·도구·수집 품질·실행 환경 차이)를 먼저 보여 줍니다. 미리 확인은 모델·평가자를 호출하지 않습니다.
 - 평가를 시작하면 평가자(의미 평가) 호출이 발생합니다. "같은 질문을 API로도 수집"을 고르면 표시된 횟수만큼 수집 모델 API 를 유료 호출합니다.
@@ -96,7 +96,7 @@ py -3 -X utf8 tools/context_sets.py j7 --out data/context_sets/j7-v1
 py -3 -X utf8 tools/context_sets.py check data/context_sets/j7-v1
 ```
 
-구조·현재 버전·남은 결정은 [인수인계 문서](참고자료/인수인계_2026-10-14.md)에 정리했습니다.
+구조·현재 버전·남은 결정은 [인수인계 문서](참고자료/문서/인수인계_2026-10-14.md)에 정리했습니다.
 
 ## 종료·재시작
 

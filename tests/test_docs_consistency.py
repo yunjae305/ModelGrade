@@ -19,7 +19,9 @@ DOCS = ROOT / '참고자료'
 
 
 def read(name):
-    return (DOCS / name).read_text(encoding='utf-8')
+    # 참고자료 최상위 문서는 기준/ · 문서/ 로 나눠 둠 (10-22 정리)
+    path = next((d / name for d in (DOCS, DOCS / '문서', DOCS / '기준') if (d / name).exists()), DOCS / name)
+    return path.read_text(encoding='utf-8')
 
 
 def env_values():
@@ -132,7 +134,8 @@ def test_progress_document_commit_references_exist_in_git():
 def test_latest_design_header_counts_match_the_criteria_registry():
     """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
     from code_eval.criteria_registry import evaluation_targets
-    designs = sorted(DOCS.glob('평가체계_설계안_v*.html'), key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
+    designs = sorted([*DOCS.glob('평가체계_설계안_v*.html'), *(DOCS / '기준').glob('평가체계_설계안_v*.html')],   # 10-22: 기준/ 으로 옮김
+                      key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
     text = designs[-1].read_text(encoding='utf-8')
     counts = evaluation_targets()['counts']
     total = re.search(r'평가 기준 <b>(\d+) = CODE (\d+) \+ LLM (\d+)</b>', text)   # 기준 단위는 하나 — 72 = 검사 28 + 항목 44 (10-15)

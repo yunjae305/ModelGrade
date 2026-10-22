@@ -1462,7 +1462,7 @@ def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # --- 3-1. 질문 직접 넣기 (사용자 결정 2026-10-14: 질문만 넣으면 AIONA 는 웹 자동화, 타 모델은 API 로 답을 받아 평가) ------
 QUESTION_INPUT_VERSION = "question-input-v1"
-FIXED_SETS = ROOT / "examples" / "fixed_sets"   # 공개 질문 원본(sources)만 쓴다 — 간단 50·정밀 300 고정 세트는 2026-10-19 폐기(참고자료/질문세트_목록.md)
+FIXED_SETS = ROOT / "examples" / "fixed_sets"   # 공개 질문 원본(sources)만 쓴다 — 간단 50·정밀 300 고정 세트는 2026-10-19 폐기(참고자료/문서/질문세트_목록.md)
 _QUESTION_KEYS = ("question", "질문", "Q", "q", "prompt")
 MAX_INPUT_TURNS_PER_CONVERSATION = 50   # 대화 하나의 턴 상한 — 점검이 앞 턴 이력을 턴마다 만들어 아주 긴 대화는 서버를 멈출 수 있다 (Codex 리뷰)
 MAX_INPUT_TURNS = 2_000                 # 한 번에 넣는 전체 턴 상한

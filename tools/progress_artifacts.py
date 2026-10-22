@@ -5,7 +5,7 @@
 
 - 공개 자료: 저장소 안 질문 세트 326·수집 결과(참고자료/수집결과/2026-10-14-질문세트326-세부기준), 질문 생성 프롬프트(webapp/question_generation.py),
   기준 목록(code_eval/criteria_registry.py), 적용 규칙(tools/check_question_set.py·min_question_count.py).
-  Jev 테스트 데이터 300(v1.2, 예전 '질문 세트 300')은 보관만 하고 여기서 쓰지 않는다 (10-15 사용자 결정 — 참고자료/질문세트_목록.md).
+  Jev 테스트 데이터 300(v1.2, 예전 '질문 세트 300')은 보관만 하고 여기서 쓰지 않는다 (10-15 사용자 결정 — 참고자료/문서/질문세트_목록.md).
 - 비공개 자료: 저장 실행 data/comparison_runs/e3c60d3efd18.json (저장소 밖). 개수·비율 같은 공개 요약만 남기고 질문·답변 원문은 넣지 않는다.
   이 파일이 없는 PC 에서 다시 만들면 저장된 artifacts.json 의 그 산출물을 그대로 둔다 (원본 없이 지어내지 않는다).
 - 우영 통합 요약(overview): 위 산출물에서 A 질문 생성 · B 답변 수집 · C 평가 연동 세 묶음의 수치·상태를 모은다.
@@ -40,7 +40,7 @@ SET_ARTIFACT = "W01-SET326"
 #: CODE 평가 기준 질문 수 (사용자 결정 2026-10-14) — 질문 세트 326 의 실제 답변을 CODE 로 채점하고 질문 수를 10~326개로 바꿔
 #: 오차 범위를 비교해 정했다. 근거 보고: 참고자료/modelgrade-progress.html. 의미 평가까지 합친 질문 수는 아직 정하지 않았다.
 CODE_QUESTION_COUNTS = (("최소", 50), ("표준", 200), ("상한", 300))
-CODE_COUNT_REPORT = "참고자료/modelgrade-progress.html"
+CODE_COUNT_REPORT = "참고자료/문서/modelgrade-progress.html"
 QUESTIONS = f"{SET_DIR}/questions.json"
 ANSWERS = f"{SET_DIR}/answers.json"
 SAVED_RUN_ID = "e3c60d3efd18"
@@ -1550,7 +1550,7 @@ def y03_policy(run: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         created_at=kst(run.get("finished_at")), code_revision=revision("tools/j6j7_rules.py", "code_eval/multi_turn.py"), level="measured",
         level_note="저장된 실제 대화로 규칙별 적용 수를 계산 (모델 호출 없음). J6 판정 자체는 새로 하지 않았음.",
         limitations=["대화 2개짜리 실행이라 규칙 차이를 보여 주는 예시일 뿐 일반화할 수 없다.", "새 장문 시험 세트(4차)는 아직 답변·판정이 없다."],
-        references=[saved_run_ref(), repo_ref("규칙 비교 도구", "tools/j6j7_rules.py"), repo_ref("정책 제안 문서", "참고자료/정책제안_J6J7_적용범위_2026-10-14.md")],
+        references=[saved_run_ref(), repo_ref("규칙 비교 도구", "tools/j6j7_rules.py"), repo_ref("정책 제안 문서", "참고자료/문서/정책제안_J6J7_적용범위_2026-10-14.md")],
         content={"question": "J6(멀티턴 맥락 유지)를 어떤 대화에 적용해야 모델 비교가 공정한가?",
                  "alternatives": [
                      {"name": "예전: 2턴 이상", "rule": "2턴 이상 대화의 2번째 턴부터", "measured": fmt(two),

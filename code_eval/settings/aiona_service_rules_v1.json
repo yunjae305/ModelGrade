@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "status": "draft",
-  "source": "참고자료/채팅품질 평가기준.md",
+  "source": "참고자료/기준/채팅품질 평가기준.md",
   "applies_to_models": ["aiona"],
 
   "u8_1": {

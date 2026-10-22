@@ -2,7 +2,7 @@
 
 세트 파일: examples/AIONA_winz_longctx_J6_v1.json (질문 행, AIONA 답변은 수집 전까지 빈 문자열)
 기대 적용: examples/AIONA_winz_longctx_J6_v1.expect.json (턴별 applies·anchors, 테스트와 사람 검토만 읽음)
-안내: 참고자료/LONGCTX_J6_DATASET.md
+안내: 참고자료/문서/LONGCTX_J6_DATASET.md
 """
 import json
 import re

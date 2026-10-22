@@ -58,7 +58,7 @@ J5의 영향은 특히 큽니다.
 
 Jev↔Luna의 높은 일치율도 신뢰성의 충분조건은 아닙니다. 전체 턴 J1~J4의 비교 가능한 2,290쌍에서는 PASS/PASS가 2,201쌍, FAIL/FAIL이 6쌍이고, 불일치가 83쌍입니다. 단순 일치는 96.4%지만 FAIL 양성 일치율은 12.6%입니다. 어느 평가자가 맞는지는 별도 정답 검토가 필요합니다. 이 수치는 전체 턴의 항목 단위 집계이며, 기존 k별 질문 평균 일치율과 분모가 다릅니다.
 
-**코드에서는 다음 오류를 확인했습니다.** 위치는 [boundary326.py](C:/Users/winz/AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/boundary326.py)와 [eval326.py](C:/Users/winz/AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/eval326.py) 기준입니다.
+**코드에서는 다음 오류를 확인했습니다.** 위치는 [boundary326.py](../../../../../AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/boundary326.py)와 [eval326.py](../../../../../AppData/Local/Temp/claude/C--Users-winz-Desktop-quality-test-integrated/eaec9d1b-058c-4842-aa38-68f808f4093f/scratchpad/eval326.py) 기준입니다.
 
 | 위치 | 확인한 문제와 영향 |
 |---|---|

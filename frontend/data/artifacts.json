@@ -8196,7 +8196,7 @@
    "code_revision": "8a060f4",
    "verification_status": {
     "level": "measured",
-    "note": "CODE 결론은 사용자 결정과 그 보고 자료(참고자료/modelgrade-progress.html)를 옮긴 것 — 이 도구가 CODE 채점을 다시 하지는 않았다. 적용 수는 실제 세트에서 계산."
+    "note": "CODE 결론은 사용자 결정과 그 보고 자료(참고자료/문서/modelgrade-progress.html)를 옮긴 것 — 이 도구가 CODE 채점을 다시 하지는 않았다. 적용 수는 실제 세트에서 계산."
    },
    "limitations": [
     "질문 수별 CODE 오차 비교는 보고 자료의 값이다 — 이 저장소의 산출물 도구가 다시 계산하지 않았다.",
@@ -8214,7 +8214,7 @@
     {
      "label": "질문 수 결론 보고 (CODE 채점·질문 수별 오차)",
      "kind": "repo_file",
-     "path": "참고자료/modelgrade-progress.html",
+     "path": "참고자료/문서/modelgrade-progress.html",
      "visibility": "public",
      "revision": "a97c6cf",
      "url": "https://github.com/yunjae305/ModelGrade/blob/a97c6cf/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/modelgrade-progress.html"
@@ -8230,7 +8230,7 @@
    "content": {
     "question": "간편 검사와 정밀 검사에 각각 질문이 몇 개 있어야 결과를 믿을 수 있는가?",
     "method": [
-     "질문 세트 326 의 실제 답변(AIONA·GPT·Gemini)을 CODE 로 채점하고 질문 수를 10~326개로 바꿔 오차 범위 비교 — 사용자 결정 10-14 (참고자료/modelgrade-progress.html)",
+     "질문 세트 326 의 실제 답변(AIONA·GPT·Gemini)을 CODE 로 채점하고 질문 수를 10~326개로 바꿔 오차 범위 비교 — 사용자 결정 10-14 (참고자료/문서/modelgrade-progress.html)",
      "질문 세트 326 에서 질문 수 N 에 따라 평가 기준마다 적용 질문이 몇 개 생기는지 계산 (W03-COVERAGE)",
      "평가가 끝난 저장 실행 e3c60d3efd18 에서 질문 n개를 다시 뽑아 통과율 폭·순서 유지 측정 (W03-STABILITY)",
      "통과율을 원하는 정밀도로 재는 데 필요한 적용 수를 정규 근사로 계산 (아래 이론 기준)"
@@ -9533,7 +9533,7 @@
     {
      "label": "정책 제안 문서",
      "kind": "repo_file",
-     "path": "참고자료/정책제안_J6J7_적용범위_2026-10-14.md",
+     "path": "참고자료/문서/정책제안_J6J7_적용범위_2026-10-14.md",
      "visibility": "public",
      "revision": "8975552",
      "url": "https://github.com/yunjae305/ModelGrade/blob/8975552/%EC%B0%B8%EA%B3%A0%EC%9E%90%EB%A3%8C/%EC%A0%95%EC%B1%85%EC%A0%9C%EC%95%88_J6J7_%EC%A0%81%EC%9A%A9%EB%B2%94%EC%9C%84_2026-10-14.md"
