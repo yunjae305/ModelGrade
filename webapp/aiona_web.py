@@ -105,8 +105,10 @@ class AionaChat:
 
     def __init__(self, *, headless: bool = True, allow_login: bool = True, answer_timeout_s: int = 600, profile: Path = PROFILE,
                  debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None, place: Optional[str] = None,
-                 attach: bool = False):
+                 attach: bool = False, model: Optional[str] = None):
         self.headless, self.allow_login, self.answer_timeout_s, self.profile = headless, allow_login, answer_timeout_s, profile
+        self.model_name = model          # 시작할 때 고른 모델의 AIONA 이름(예 'Claude Sonnet 5.5', 10-22) — None 이면 지금 설정(자동 추천) 그대로
+        self.model_seen = "자동 추천"
         self.place = place   # 동시 수집 때 창 자리 (webapp.cdp_chat_web.PLACE_RECTS)
         self.attach = attach   # True 면 자기 프로필 대신 수집용 Chrome(tools/chrome_cdp.py, Gemini 와 같은 창 묶음)에 붙어 자기 창을 쓴다 (CLI 수집, 2026-10-19)
         self._browser = None
@@ -220,6 +222,48 @@ class AionaChat:
         self.page.goto(f"{AIONA_URL}/chat", wait_until="domcontentloaded")
         self.page.locator("textarea[placeholder^='무엇이든']").first.wait_for(timeout=30_000)
         self._dismiss_popups()
+        self.model_seen = self._apply_model()   # 고른 모델로 못 바꾸면 오류 — 그 질문은 받지 않는다(다른 모델 답이 섞이지 않게)
+
+    MODEL_BTN = 'button[title^="모델:"]'   # 입력칸 아래 모델 버튼 — title '모델: 자동 추천' (2026-10-22 확인)
+    #: 모델 메뉴(검색칸 '모델·제공사 검색' · 자동 추천 · '또는 직접 선택' 아래 분야별 목록)에서 이름이 똑같은 항목을 누른다
+    _PICK_JS = r"""(name) => { const inp=[...document.querySelectorAll('input')].find(i => (i.placeholder||'').includes('모델'));
+        if (!inp) return 'no-menu';
+        let box = inp; while (box && !((box.innerText||'').includes('자동 추천') && (box.innerText||'').length > 300)) box = box.parentElement;
+        if (!box) return 'no-list';
+        const leaf = [...box.querySelectorAll('*')].find(e => e.children.length === 0 && (e.textContent||'').trim() === name);
+        if (!leaf) return 'not-found';
+        const target = leaf.closest('button,[role=button],[role=option],[role=menuitem],[role=radio],li,a') || leaf;
+        target.scrollIntoView({block: 'center'}); target.click(); return 'clicked'; }"""
+
+    def current_model(self) -> str:
+        title = self.page.locator(self.MODEL_BTN).first.get_attribute("title", timeout=10_000) or ""
+        return title.replace("모델:", "").strip()
+
+    def _apply_model(self) -> str:
+        """시작할 때 고른 모델로 (10-22) — 모델 버튼을 눌러 메뉴에서 이름이 똑같은 항목을 고르고 버튼 title 로 확인(최대 3번). 안 고르면 지금 설정 그대로."""
+        if not self.model_name:
+            try:
+                return self.current_model() or "자동 추천"
+            except Exception:
+                return "자동 추천"
+        if self.current_model() == self.model_name:
+            return self.model_name
+        result = ""
+        for _attempt in range(3):
+            self.page.locator(self.MODEL_BTN).first.click(timeout=10_000)
+            self.page.wait_for_timeout(1000)
+            result = self.page.evaluate(self._PICK_JS, self.model_name)
+            self.page.wait_for_timeout(1000)
+            if self.current_model() == self.model_name:
+                break
+            self.page.keyboard.press("Escape")
+            self.page.wait_for_timeout(400)
+        self.page.keyboard.press("Escape")   # 메뉴가 열린 채로 남지 않게 (이미 닫혔으면 아무 일 없음)
+        now = self.current_model()
+        if now != self.model_name:
+            self._snapshot("model-pick-failed")
+            raise AionaWebError(f"AIONA 모델을 '{self.model_name}' 로 바꾸지 못했습니다 (지금 '{now}', 메뉴: {result})")
+        return now
 
     def _answers(self) -> Any:
         return self.page.locator("div.space-y-4 > div.flex.justify-start")
@@ -395,7 +439,7 @@ class AionaChat:
             if asks_empty and time.monotonic() > empty_deadline and not self._copy_button_ready(before):
                 return {"answer": "", "status": "COPY_FAILED", "capture": "none", "url": self.page.url, "sent": sent,
                         "error": f"빈 출력 요구 — {EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(말풍선 없음·오류 등) → 보류 (사용자 규칙 10-20 밤)",
-                        "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
+                        "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen, "method": AIONA_WEB_VERSION,
                         "debug_screenshot": self._snapshot("empty-output-no-copy"),
                         **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {})}
             as_is = self._send_as_is() or as_is
@@ -410,7 +454,7 @@ class AionaChat:
                 stopped = self._stopped()
                 if len(stopped) > stopped_before:   # AIONA 가 이 질문에서 멈췄다 — 기다리지 않고 AIONA 오류로 남긴다
                     return {"answer": "", "status": "ERROR", "error": f"AIONA 가 답하지 못했습니다: {stopped[-1][:200]}", "url": self.page.url,
-                            "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천",
+                            "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen,
                             "method": AIONA_WEB_VERSION, "debug_screenshot": self._snapshot("stopped"),
                             **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {})}
                 continue
@@ -434,5 +478,5 @@ class AionaChat:
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {}),
                 "error": None if done else "답변이 제한 시간 안에 끝나지 않았습니다.", "url": self.page.url, "sent": sent,
-                "latency_ms": round((time.monotonic() - started) * 1000), "model": "자동 추천", "method": AIONA_WEB_VERSION,
+                "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen, "method": AIONA_WEB_VERSION,
                 "conversion": [q for q in converted.get("quality") or [] if q.get("severity") != "info"]}

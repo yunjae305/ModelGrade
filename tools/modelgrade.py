@@ -55,12 +55,34 @@ APP_MODELS = {
 APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flash"}
 APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
 APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
+#: 고른 앱 모델에 맞춘 AIONA 모델 이름 — AIONA 모델 메뉴 그대로 (2026-10-22 화면 확인). AIONA 에 같은 이름이 없는 것은 None(시작할 때 물어봄):
+#: ChatGPT 앱 'GPT-6' ↔ AIONA 에는 GPT-6 Astra · Luna · Sol · 6.1 Sol 만 있음. Gemini 앱 '3.1 Pro' ↔ AIONA 'Gemini 3.1 Pro Preview'.
+AIONA_MODEL_FOR = {**{("claude", m): f"Claude {m}" for m in APP_MODELS["claude"]},
+                   **{("gemini", m): f"Gemini {m}" for m in APP_MODELS["gemini"]},
+                   ("gemini", "3.1 Pro"): "Gemini 3.1 Pro Preview", ("gpt", "GPT-5.6 Sol"): "GPT-5.6 Sol", ("gpt", "GPT-6"): None}
+
+
+def aiona_model_for(provider: str, model: str, given: Optional[str] = None) -> str:
+    """AIONA 에서 고를 모델 — --aiona-model 로 주면 그것, 짝이 정해져 있으면 그것, 없으면 물어봄(입력 없으면 멈춤)."""
+    if given:
+        return given
+    name = AIONA_MODEL_FOR.get((provider, model))
+    if name:
+        return name
+    print(f"AIONA 에는 '{model}' 과 같은 이름의 모델이 없습니다 (예: GPT-6 Astra · GPT-6 Luna · GPT-6 Sol · GPT-6.1 Sol).")
+    try:
+        name = input("AIONA 에서 쓸 모델 이름을 메뉴에 보이는 그대로 입력: ").strip()
+    except EOFError:
+        name = ""
+    if not name:
+        raise SystemExit(f"AIONA 모델을 정하지 못했습니다 — --aiona-model '<AIONA 모델 이름>' 으로 주세요")
+    return name
 
 
 def app_label(provider: str, model: Optional[str] = None) -> str:
     """결과에 남길 모델 이름 — 'Claude 앱 (Opus 5.5 · 노력 중간)'. 모델을 안 고르면 지금 기본 설정(APP_LABELS 와 같은 글)."""
     if provider not in APP_MODELS:
-        return APP_LABELS.get(provider, provider)
+        return f"{APP_LABELS.get(provider, provider)} ({model})" if model else APP_LABELS.get(provider, provider)
     return f"{APP_NAMES[provider]} ({model or APP_DEFAULT_MODEL[provider]} · {APP_LEVEL[provider]})"
 
 
@@ -284,13 +306,14 @@ def app_chat_class(provider: str):
     raise SystemExit(f"{provider} 는 자동 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
 
 
-def aiona_collector(*, debug_dir: Optional[Path] = None, place: Optional[str] = None, cancelled: Any = None, answer_timeout_s: int = 600, **_: Any):
+def aiona_collector(*, debug_dir: Optional[Path] = None, place: Optional[str] = None, cancelled: Any = None, answer_timeout_s: int = 600,
+                    model: Optional[str] = None, **_: Any):
     """AIONA 웹브라우저 수집기(webapp.aiona_web.AionaChat, 별도 Chrome 프로필)를 앱 수집기와 같은 인자로 — 창 보이게.
     로그인은 .env 의 AIONA_LOGIN_ID·PASSWORD 로 수집기가 하되, AIONA_AUTO_LOGIN=0 이면 안 한다(로그인이 풀렸으면 오류로 알림)."""
     from code_eval.llm_client import env_value
     from webapp.aiona_web import AionaChat
     return AionaChat(headless=False, allow_login=(env_value("AIONA_AUTO_LOGIN") or "1") != "0", answer_timeout_s=answer_timeout_s,
-                     debug_dir=debug_dir, cancelled=cancelled, place=place, attach=True)
+                     debug_dir=debug_dir, cancelled=cancelled, place=place, attach=True, model=model)
 
 
 def split_providers(text: str, allowed: Dict[str, str]) -> List[str]:
@@ -456,7 +479,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     rows_all = flatten(groups)
     model = getattr(args, "model", None)
-    if model and model not in APP_MODELS.get(args.provider, []):
+    if model and args.provider != "aiona" and model not in APP_MODELS.get(args.provider, []):   # AIONA 는 메뉴 이름 그대로 받음
         raise SystemExit(f"{args.provider} 에는 모델 {model!r} 을 고를 수 없습니다 ({', '.join(APP_MODELS.get(args.provider, [])) or '고를 모델 없음'})")
     label = args.label or app_label(args.provider, model)
     run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
@@ -716,9 +739,9 @@ def cmd_start(args: argparse.Namespace) -> int:
     pick = parse_model(args.model) if args.model else (None if args.providers else ask_model())
     if pick:
         providers = [pick[0], "aiona"]   # 고른 앱과 AIONA 만 — 같은 모델끼리 비교, 다른 앱은 받지 않음
-        models = {pick[0]: pick[1]}
+        models = {pick[0]: pick[1], "aiona": aiona_model_for(pick[0], pick[1], args.aiona_model)}   # AIONA 도 같은 모델로 (10-22)
         model_choice = f"{pick[0]}:{pick[1]}"
-        print(f"모델: {app_label(*pick)} ↔ AIONA — 다른 앱은 받지 않습니다 (AIONA 는 아직 '자동 추천' 그대로)", flush=True)
+        print(f"모델: {app_label(*pick)} ↔ {app_label('aiona', models['aiona'])} — 다른 앱은 받지 않습니다", flush=True)
     else:
         providers = split_providers(args.providers or ",".join(ALL_PROVIDERS), APP_LABELS)
         models, model_choice = {}, None
@@ -937,6 +960,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     st.add_argument("--choice", choices=list(EVAL_KINDS), help="메뉴 번호를 미리 주기 (안 주면 물어봄)")
     st.add_argument("--providers", help="전체 설정에서 돌릴 모델 (기본: gpt,claude,gemini,aiona — 주면 모델을 묻지 않음)")
     st.add_argument("--model", help="평가할 모델 하나 — 메뉴 번호, '앱:모델'(예 claude:Opus 5.5) 또는 0(전체). 고르면 그 앱과 AIONA 만 받음")
+    st.add_argument("--aiona-model", help="AIONA 에서 쓸 모델 이름(메뉴에 보이는 그대로, 예 'GPT-6 Sol') — 없으면 고른 모델에 맞춘 이름")
     st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
     st.add_argument("--set", default=str(DEFAULT_SET))
     st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")
