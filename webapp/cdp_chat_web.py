@@ -859,7 +859,7 @@ class ChatGptAppChat(ChatGptChat):
                     self.page.wait_for_timeout(800)
             else:
                 self._snapshot("model-settings-failed")
-                raise CdpWebError(f"ChatGPT 앱 모델·추론 수준을 GPT-6 · Medium 으로 맞추지 못함 — 이 질문은 보내지 않음 ({str(last)[:120]})")
+                raise CdpWebError(f"ChatGPT 앱 모델·추론 수준을 {self.MODEL_NAME} · {self.POWER_TARGET} 으로 맞추지 못함 — 이 질문은 보내지 않음 ({str(last)[:120]})")
 
     POWER_ORDER = ("Instant", "Medium", "High", "Extra High", "Pro")   # 파워 슬라이더 단계(왼쪽 → 오른쪽, 2026-10-20 확인)
     POWER_TARGET = "Medium"
@@ -916,7 +916,8 @@ class ChatGptAppChat(ChatGptChat):
             self.page.keyboard.press("Escape")
             self.page.wait_for_timeout(500)
         label = " ".join((opener.inner_text(timeout=5000) or "").split())   # 메뉴를 닫은 뒤 모델 버튼에 보이는 추론 수준
-        if label != self.POWER_TARGET:
+        # 모델 버튼 글: GPT-6 은 'Medium', 다른 모델은 '5.6 Medium' 처럼 앞에 모델 줄임 이름이 붙는다 (10-22 GPT-5.6 Sol 확인)
+        if not (label == self.POWER_TARGET or label.endswith(" " + self.POWER_TARGET)):
             raise CdpWebError(f"ChatGPT 모델 버튼의 추론 수준이 {self.POWER_TARGET} 이 아닙니다(지금 '{label}')")
         return f"{self.MODEL_NAME} · {label} (앱)"
 
