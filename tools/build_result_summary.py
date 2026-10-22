@@ -9,7 +9,6 @@ AI 호출 없음. 내보낸 결과(참고자료/결과/<실행>_결과_판정결
 from __future__ import annotations
 
 import argparse
-import csv
 import html
 import json
 import re
@@ -491,7 +490,6 @@ def scene_intro(D: Dict[str, Any]) -> str:
 DESIGN_K_EXP = ROOT / "참고자료" / "분석" / "2026-10-18-질문당기준수" / "boundary_exp_3models.json"   # 통제 실험: 같은 질문에 조건만 늘려 k 1~16
 DESIGN_MIN = ROOT / "참고자료" / "최소평가"   # min_eval*.json(목표별 질문 수 · 78 vs 326 비교) · 평가횟수k_곡선_326.json(고르는 순서별)
 DESIGN_GEN326 = DESIGN_MIN / "생성_326_v1.4_기준채움_2026-10-14.json"   # 10-14 생성기(per_target=10) 결과 — 326 이 나온 과정 (사용자 10-22)
-DESIGN_326_COVER = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2" / "기준별_적용_질문수.csv"   # 326 세트 기준마다 적용 질문 수 (사용자 10-22: 326 이 왜 나왔는지)
 
 
 def scene_design(D: Dict[str, Any]) -> str:
@@ -501,7 +499,6 @@ def scene_design(D: Dict[str, Any]) -> str:
     m10 = json.loads((DESIGN_MIN / "min_eval_m10.json").read_text(encoding="utf-8"))
     gen = json.loads(DESIGN_GEN326.read_text(encoding="utf-8"))   # 10-14 생성 결과 — 앞에서부터 N개일 때 10번 이상 들어간 기준 수
     reach = json.loads((DESIGN_MIN / "평가횟수k_곡선_326.json").read_text(encoding="utf-8"))["reach"]
-    cov326 = sorted(int(r["적용 질문 수(326 중)"]) for r in csv.DictReader(DESIGN_326_COVER.open(encoding="utf-8-sig")))
     setj = Path(D["set_dir"]) / "set.json"
     kvar = json.loads(setj.read_text(encoding="utf-8")).get("k_var", {}) if setj.exists() else {}
     mt_k = json.loads(setj.read_text(encoding="utf-8")).get("multiturn_k_exact", {}) if setj.exists() else {}
@@ -554,7 +551,6 @@ def scene_design(D: Dict[str, Any]) -> str:
     gp, gc = gen["prefix"], gen["criteria"]
     gbars = "".join(f'<div class="ds-hb{" ds-win" if r["n"] == gen["questions"] else ""}"><span>앞 {r["n"]}개</span><div><i style="width:{r["k10"] / gc * 80:.1f}%"></i>'   # 숫자 칸이 꺾이지 않게 80% 까지
                     f'<b>{r["k10"]}/{gc}</b></div></div>' for r in gp)
-    before = gp[-2]   # 마지막 바로 앞 지점 — 여기까지도 다 못 채움
     part_n = (
         '<div class="ds-card"><h3 class="rs-sh">② 왜 78개인가</h3>'
         '<p class="ds-q">기준 하나가 믿을 만하게 평가되려면 한두 질문이 아니라 <b>서로 다른 질문 여러 개</b>에서 평가돼야 합니다. '
@@ -563,11 +559,7 @@ def scene_design(D: Dict[str, Any]) -> str:
         f'모자란 기준을 노린 질문을 계속 더하게 했습니다. 그렇게 나온 것이 {gen["questions"]}개입니다.</p>'
         f'<div class="ds-hbars">{gbars}</div>'
         f'<p class="ds-axis">10-14 생성 결과 — 질문을 번호 순서대로 앞에서부터 셀 때, 질문 10개 이상에 들어간 기준 수 (기준 {gc}개 중 — 답에 따라 정해져 모든 답에서 검사하는 8개는 늘 들어간 것으로 셈)</p>'
-        f'<p class="ds-how">자주 나오는 기준은 금방 찼지만 드문 기준이 10번에 닿지 않아, 앞 {before["n"]}개까지도 {gc}개 중 {before["k10"]}개만 채웠습니다. '
-        f'남은 드문 기준을 채우려 질문을 계속 더해 {gen["questions"]}개에서 {gc}개 기준이 모두 10번 이상이 됐습니다. '
-        f'10-18 에 같은 {full_n}개를 질문마다 기준 6~10개 규칙으로 다시 만들어 네 AI 로 실제 평가했습니다 '
-        f'(이 세트도 기준마다 들어간 질문 수가 가장 적은 기준 {cov326[0]}개 · 가운데값 {statistics.median(cov326):.0f}개).</p>'
-        '<p class="ds-how"><b>어떻게 줄였나</b> — 그 결과로 고르는 순서를 바꿔 가며 목표에 닿는 질문 수를 셌습니다. '
+        '<p class="ds-how"><b>어떻게 줄였나</b> — 326개 평가 결과로 고르는 순서를 바꿔 가며 목표에 닿는 질문 수를 셌습니다. '
         '아직 덜 채운(드문) 기준을 가장 많이 채우는 질문부터 고르면, 겹치는 질문을 건너뛰어 훨씬 적은 수로 목표에 닿습니다.</p>'
         f'<div class="ds-hbars">{bars}</div>'
         '<p class="ds-axis">모든 기준이 10번 이상 평가될 때까지 필요한 질문 수 — 순서만 바꿔도 4분의 1로 줄어듦</p>'
