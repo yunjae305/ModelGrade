@@ -174,7 +174,16 @@ ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); borde
 @media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
 .wrap { max-width: 1480px; }
 @media (max-width: 1199px) { }
-.slide { word-break: keep-all; overflow-wrap: break-word; }
+.slide { word-break: keep-all; overflow-wrap: break-word; }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
 </style>
 <style>
 :root { --file: #6a4bb0; --file-soft: #f0ebfa; }
