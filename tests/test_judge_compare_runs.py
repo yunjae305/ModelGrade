@@ -41,4 +41,4 @@ def test_compare_identity_has_no_changes(tmp_path: Path, monkeypatch):
     for name in ("a", "b"):
         _write(tmp_path / "data" / "judge_runs" / "r" / name / "results.jsonl", lines)
     c = jcr.compare(jcr.last_lines(tmp_path / "data/judge_runs/r/a/results.jsonl"), jcr.last_lines(tmp_path / "data/judge_runs/r/b/results.jsonl"))
-    assert c["changed"] == [] and c["turn_fail"]["claude"] == {"전": [0, 1], "후": [0, 1]}
+    assert c["changed"] == [] and c["turn_fail"]["claude"] == {"전": [0, 1], "후": [0, 1]} and c["turn_pass"]["claude"] == {"전": [1, 1], "후": [1, 1]}

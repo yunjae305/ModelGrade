@@ -59,6 +59,7 @@ def compare(before: Dict[Tuple[str, int], Dict[str, Any]], after: Dict[Tuple[str
     hold_by_kind = {"전": Counter(), "후": Counter()}
     code_fail = {"전": Counter(), "후": Counter()}
     turn_fail = {p: {"전": [0, 0], "후": [0, 0]} for p in providers}   # 멀티턴 턴: [FAIL 턴, 전체 턴]
+    turn_pass = {p: {"전": [0, 0], "후": [0, 0]} for p in providers}   # 멀티턴 턴: [FAIL · 보류 없는 턴, 전체 턴] (사용자 10-23: 턴 통과율 병기)
     codex_calls = Counter()
     for key in sorted(after, key=lambda k: (ORDER.index(k[0]) if k[0] in ORDER else 9, k[1])):
         p, q = key
@@ -83,8 +84,11 @@ def compare(before: Dict[Tuple[str, int], Dict[str, Any]], after: Dict[Tuple[str
                     continue
                 turns = {tn for tn, _ in cc}
                 bad = {tn for (tn, _), it in cc.items() if it.get("decision") == "FAIL"}
+                notok = {tn for (tn, _), it in cc.items() if it.get("decision") in ("FAIL", "UNVERIFIED")}
                 turn_fail[p][side][0] += len(bad)
                 turn_fail[p][side][1] += len(turns)
+                turn_pass[p][side][0] += len(turns - notok)
+                turn_pass[p][side][1] += len(turns)
         cx = (a.get("calls") or {}).get("codex") or {}
         codex_calls["호출"] += int(cx.get("rounds") or 0)
         codex_calls["다시 물은 횟수"] += sum(int(v or 0) for v in (cx.get("turn_asks") or {}).values()) if isinstance(cx.get("turn_asks"), dict) else 0   # 턴마다 다시 물은 횟수(정수)
@@ -97,7 +101,7 @@ def compare(before: Dict[Tuple[str, int], Dict[str, Any]], after: Dict[Tuple[str
                             "FAIL 사라짐": sorted(set(fb) - set(fa)), "FAIL 생김": sorted(set(fa) - set(fb)),
                             "보류 사라짐": sorted(set(hb) - set(ha)), "보류 생김": sorted(set(ha) - set(hb))})
     return {"providers": providers, "verdicts": verdicts, "changed": changed, "fail_by_item": fail_by_item, "hold_by_kind": hold_by_kind,
-            "code_fail": code_fail, "turn_fail": turn_fail, "codex": dict(codex_calls), "n_after": len(after), "n_before": len(before)}
+            "code_fail": code_fail, "turn_fail": turn_fail, "turn_pass": turn_pass, "codex": dict(codex_calls), "n_after": len(after), "n_before": len(before)}
 
 
 def to_md(c: Dict[str, Any], run: str, before: str, after: str) -> str:
@@ -123,10 +127,11 @@ def to_md(c: Dict[str, Any], run: str, before: str, after: str) -> str:
         L += ["", "## CODE FAIL (질문 단위, 가족별)", "", "| 검사 | 전 | 후 |", "|---|---|---|"] + [f"| {k} | {c['code_fail']['전'][k]} | {c['code_fail']['후'][k]} |" for k in codes]
     kinds = sorted(set(c["hold_by_kind"]["전"]) | set(c["hold_by_kind"]["후"]))
     L += ["", "## 보류 칸 (종류별)", "", "| 종류 | 전 | 후 |", "|---|---|---|"] + [f"| {k} | {c['hold_by_kind']['전'][k]} | {c['hold_by_kind']['후'][k]} |" for k in kinds]
-    L += ["", "## 멀티턴 — FAIL 항목이 있는 턴 / 판정한 턴 (미팅 ⑤)", "", "| 모델 | 전 | 후 |", "|---|---|---|"]
+    L += ["", "## 멀티턴 — 턴 통과율(FAIL · 보류 없는 턴 / 판정한 턴, 사용자 10-23) · FAIL 턴 (미팅 ⑤)", "", "| 모델 | 턴 통과 전 | 턴 통과 후 | FAIL 턴 전 | FAIL 턴 후 |", "|---|---|---|---|---|"]
     for p in c["providers"]:
-        t = c["turn_fail"][p]
-        L.append(f"| {p} | {t['전'][0]}/{t['전'][1]} | {t['후'][0]}/{t['후'][1]} |")
+        t, u = c["turn_fail"][p], c["turn_pass"][p]
+        pct = lambda a, b: f"{a}/{b} ({a / b * 100:.0f}%)" if b else "-"
+        L.append(f"| {p} | {pct(*u['전'])} | {pct(*u['후'])} | {t['전'][0]}/{t['전'][1]} | {t['후'][0]}/{t['후'][1]} |")
     return "\n".join(L) + "\n"
 
 
@@ -164,6 +169,8 @@ def publish(run_id: str, before: str, after: str, name: str, note: str = "") -> 
     (rd / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     write_report(judge_dir, run)                       # 판정 보고서(판정 폴더 report.html)
     result_dirs.publish(judge_dir, rd)                 # → 판정보고서.html · results.jsonl · summary.json
+    keep_last = last_lines(judge_dir / "results.jsonl")   # 결과 폴더에는 (모델, 질문) 마지막 줄만 — 복구를 거듭한 판정 폴더를 통째로 올리지 않게 (10-23)
+    (rd / "results.jsonl").write_text("".join(json.dumps(v, ensure_ascii=False) + chr(10) for _, v in sorted(keep_last.items())), encoding="utf-8")
     result_dirs.publish_collection(base, rd)
     js_path = export(run_id, "결과_판정결과", None, out_dir=rd, runs_dir=RUNS, judge_dir=judge_dir)
     md = write_compare(run_id, before, after)
