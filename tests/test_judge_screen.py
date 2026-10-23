@@ -401,8 +401,9 @@ def test_misapplied_link_rule_is_reasked(tmp_path: Path):
     assert not jv.misapplied_rule("J1-3.b", "질문에 모순되는 조건이나 빠진 자료가 없어 J1-3이 적용되지 않습니다.")   # 조건 항목 · '적용되지 않'
     assert jv.misapplied_rule("J2-3.a", "J1-1.a가 FAIL이므로 J4 항목만 해당 없음 처리합니다.")
     # Codex 검토: 실제 표현 · 규칙마다 따로 · 부정한 언급
-    assert jv.misapplied_rule("J2-3.a", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")
-    assert jv.misapplied_rule("J2-3.a", "J1-1.a는 FAIL이므로 해당 없음입니다.") and jv.misapplied_rule("J2-3.a", "J1-2.a가 아니오이므로 해당 없음입니다.")
+    assert jv.misapplied_rule("J1-4.b", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")   # 10-23: J2-3.a 는 이제 거절 규칙의 대상(REFUSAL_NA)
+    assert not jv.misapplied_rule("J2-3.a", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")
+    assert jv.misapplied_rule("J2-3.a", "J1-1.a는 FAIL이므로 해당 없음입니다.") and jv.misapplied_rule("J1-4.b", "J1-2.a가 아니오이므로 해당 없음입니다.")
     assert jv.misapplied_rule("J4-2.a", "J1-1.a가 FAIL은 아닙니다. J2-4.a가 FAIL이므로 이 항목도 해당 없음입니다.")
     assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 해당 없음입니다.") and not jv.misapplied_rule("J1-1.a", "J1-2.a가 FAIL이므로 해당 없음입니다.")
     assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 J4 항목과 함께 이 항목도 해당 없음입니다.")   # Codex 2차: 'J4 항목' 언급이 가리지 않게

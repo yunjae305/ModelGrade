@@ -104,7 +104,7 @@ def request_of(question: str) -> str:
 def move_fact(s: Dict[str, Any]) -> str:
     """준비 방식의 시간 · 비용 — 자료에 있는 값만(돌아오는 시간은 재지 않았다)."""
     if s["one_way"]:
-        a = f"편도 {s['one_way']}분(돌아오는 시간은 기록 없음) · 확인 {s['check']}분 · 비용 없음"
+        a = f"편도 {s['one_way']}분 · 왕복은 편도 두 번 = {2 * s['one_way']}분(자료 결정: 편도 시간을 왕복 시간으로 쓰지 않음) · 확인 {s['check']}분 · 비용 없음"   # 10-23: '돌아오는 시간은 기록 없음'이 함정(왕복 = 편도 × 2)과 부딪혀 거짓 FAIL 35칸
     else:
         a = f"자료 확인 {s['check']}분 · 비용 없음"
     return f"A안({s['a_short']}): {a} / B안({s['b_short']}): 비용 {s['b_cost']}원 · 확인 {s['check']}분 · {'접속 점검' if s.get('online') else '설치'}은 두 안 모두 {s['setup']}분"
@@ -196,12 +196,16 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
 
 def decided_rules(mod: str, s: Dict[str, Any]) -> List[str]:
     """사용자가 정한 이 질문의 판정 기준 — 확인 목록의 사실과 따로 둔다(심판은 따른다)."""
+    out: List[str] = []
+    if s.get("one_way"):   # 10-23 사용자 결정: 왕복 = 편도 × 2 는 자료 결정대로 맞는 계산 — 10-22 목록의 '돌아오는 시간은 기록 없음'을 이유로 FAIL 하던 것
+        out.append(f"이동 시간: {s['store']} 편도 {s['one_way']}분이고 왕복은 편도 두 번({2 * s['one_way']}분)으로 계산한 것이 맞음(자료 결정 '편도 시간을 왕복 시간으로 쓰지 않음'). "
+                   "편도 값을 왕복으로 쓴 것은 틀림. 돌아오는 시간이 따로 기록되지 않았다는 이유로 왕복 계산을 틀렸다고 보지 않음 (사용자 결정 2026-10-23)")
     if mod != "check":
-        return []
+        return out
     rem, b = s["budget"][2], s["b_cost"]
     # 사용자 결정 10-22: "구별해 밝히면 맞음" — 1턴에 B안을 고른 대화에서 45000원(= 41000 + 4000)을 맞다고 볼지 애매하던 것
-    return [f"남은 예상 지출: 답이 기록값 {rem}원(B안 비용 {b}원 미포함)과 B안 비용을 넣은 {rem + b}원을 구별해 밝히면 맞는 대조이고, "
-            f"구별 없이 {rem + b}원을 확정 값과 같다고 두면 틀림 (사용자 결정 2026-10-22)"]
+    return out + [f"남은 예상 지출: 답이 기록값 {rem}원(B안 비용 {b}원 미포함)과 B안 비용을 넣은 {rem + b}원을 구별해 밝히면 맞는 대조이고, "
+                  f"구별 없이 {rem + b}원을 확정 값과 같다고 두면 틀림 (사용자 결정 2026-10-22)"]
 
 
 def not_applicable(mod: str, i: int, ctx: Dict[str, Any]) -> Dict[str, str]:

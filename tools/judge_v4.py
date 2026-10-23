@@ -753,18 +753,20 @@ _REF_SUBJECT = re.compile(r"(J\d-\d(?:\.[a-z])?) ?(?:은|는|이|가|도|의 ?�
 #: 연결 규칙(상황표 2)과 그 대상 항목 — 사유가 규칙을 들어 해당 없음인데 항목이 대상이 아니면 한 번 다시 묻는다
 #: (10-22: 거절 턴에서 Codex 가 'J1-1.a FAIL → J4 해당 없음'을 J1-4.b · J2-3.a · J2-5.b · J3-4.a 에 씀 — 본 판정 17건, J1-4.b 재판정 5건)
 J4_ITEMS = frozenset({"J4-1.a", "J4-1.b", "J4-2.a", "J4-3.a", "J4-4.a"})
+#: 거절(J1-2.a FAIL)이면 결과물 품질 항목도 해당 없음 — 상황표 2 · judge_split.OVERRIDE_RULES 와 같은 목록 (사용자 결정 10-23)
+REFUSAL_NA = frozenset(('J2-3.a', 'J2-4.a', 'J2-4.b', 'J2-5.a', 'J2-5.b', 'J3-2.a', 'J3-2.b', 'J3-3.a', 'J3-3.b', 'J3-4.a', 'J3-5.a', 'J3-5.b', 'J5-2.a', 'J5-2.b', 'J6-2.a', 'J6-2.b', 'J6-2.c', 'J6-3.a', 'J6-3.b'))
 #: (규칙을 든 말, 대상 항목, 조건 항목) — 규칙마다 따로 본다. 조건 항목 자체의 해당 없음('J1-3이 적용되지 않습니다'의 J1-3.a)은 규칙을 쓴 것이 아니다.
 #: 실제 사유 표현: 'J1-2.a가 거절·회피 FAIL이므로' · 'J1-1.a는 FAIL이므로' · 'J1-2.a가 아니오이므로' (Codex 검토 10-22)
 _COND_FAIL = r" ?(?:가|이|는|은)? ?(?:거절 ?· ?회피(?:로)? ?)?(?:FAIL|아니오)"
-LINK_RULES = ((re.compile(r"J1-2\.a" + _COND_FAIL), J4_ITEMS | {"J1-1.a"}, frozenset({"J1-2.a"})),
+LINK_RULES = ((re.compile(r"J1-2\.a" + _COND_FAIL), J4_ITEMS | {"J1-1.a"} | REFUSAL_NA, frozenset({"J1-2.a"})),
               (re.compile(r"J1-1\.a" + _COND_FAIL), J4_ITEMS, frozenset({"J1-1.a"})),
               (re.compile(r"J4 ?항목"), J4_ITEMS, frozenset({"J1-1.a", "J1-2.a"})),
               (re.compile(r"J2-4\.a ?(?:가|이|는|은)? ?(?:FAIL|아니오|해당 ?없음|NOT_APPLICABLE)"), frozenset({"J2-4.b"}), frozenset({"J2-4.a"})),
               (re.compile(r"J1-3(?:\.[ab])?(?:이|가)? ?적용(?! ?(?:되지|하지|안|않))"), frozenset({"J1-1.a", "J1-2.a"}), frozenset({"J1-3.a", "J1-3.b"})))
 #: 규칙을 든 말 바로 뒤의 부정 — 'J1-1.a가 FAIL은 아닙니다'는 규칙을 쓴 것이 아니다
 _RULE_NEGATED = re.compile(r"^ ?(?:은|는|이|가)? ?(?:아니|아닙|아님|아닌)")
-MISRULE_NOTE = ("연결 규칙(상황표 2)은 적힌 대상 항목에만 씁니다 — 'J1-2.a FAIL → J1-1.a · J4 해당 없음', 'J1-1.a FAIL → J4 해당 없음'의 J4 는 "
-                "J4-1.a · J4-1.b · J4-2.a · J4-3.a · J4-4.a 뿐이고, J1-4.a · J1-4.b · J2 · J3 항목은 대상이 아닙니다. 이 항목은 거절 답이라도 "
+MISRULE_NOTE = ("연결 규칙(상황표 2)은 적힌 대상 항목에만 씁니다 — 'J1-2.a FAIL(거절) → J1-1.a · J4 · 결과물 품질 항목(J2-3 · J2-4 · J2-5 · J3-2~5 · J5-2 · J6-2 · J6-3) 해당 없음', "
+                "'J1-1.a FAIL → J4 다섯 항목만 해당 없음'. J1-4.a · J1-4.b · J2-2.a · J3-1.a · J5-3.a · J6-1.a · J6-4.b 는 어느 규칙의 대상도 아닙니다. 이 항목은 거절 답이라도 "
                 "정의의 점검 질문과 '적용' 조건으로 다시 판정하세요(적용 조건이 실제로 없으면 그 이유로 NOT_APPLICABLE).")
 
 
