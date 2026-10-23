@@ -1,0 +1,593 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>판정 토큰</title>
+<style>
+:root{--bg:#fbfbf9;--fg:#1c1c1a;--mute:#6b6b66;--line:#e2e1dc;--card:#fff;--th:#f1f0ea;--acc:#2f5fa8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--th:#262623;--acc:#8ab4f8}}
+:root[data-theme="dark"]{--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--th:#262623;--acc:#8ab4f8}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 "Pretendard","Noto Sans KR",system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:22px 16px 56px} h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:26px 0 8px} .mute{color:var(--mute)} .small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:13px} th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:right;white-space:nowrap} th{background:var(--th);position:sticky;top:0}
+th:first-child,td:first-child,th.l,td.l{text-align:left} .scroll{overflow-x:auto;max-height:70vh;overflow-y:auto}
+details summary{cursor:pointer;color:var(--acc);font-size:13px;margin:6px 0}
+</style></head><body><main>
+<h1>판정 토큰 — 2026-10-23_12-41-05-662</h1>
+<p class="mute small">심판이 호출마다 돌려준 실제 사용량(프롬프트 · 질문 · 자료 · 답변 · 확인 목록 · 다시 묻기 · 검색 결과 포함). 캐시 입력은 입력 안에 든 값. Decisions 는 선택형 API 라 출력 0. 답변 수집 토큰은 알 수 없어 없음 · 비용 없음(토큰만). 지금 답변 새 판정(질문당 토큰 기준선) — 저장 출력 없이 78×4 처음부터, 규칙은 09:52 다시 판정과 같음(c1f1283)</p>
+<h2>③ 판정 전체 합계</h2><div class="card"><div class="scroll"><table><tr><th class="l">심판</th><th>입력</th><th>캐시 입력</th><th>출력</th><th>추론 출력</th><th>호출</th></tr>
+<tr><td class='l'>Jev</td><td>1,475,653</td><td>0</td><td>73,996</td><td>0</td><td>140</td></tr>
+<tr><td class='l'>Decisions</td><td>47,276,541</td><td>0</td><td>0</td><td>0</td><td>528</td></tr>
+<tr><td class='l'>Codex</td><td>72,511,120</td><td>8,417,536</td><td>1,496,903</td><td>7,192</td><td>757</td></tr>
+<tr><td class='l'><b>합계</b></td><td><b>121,263,314</b></td><td><b>8,417,536</b></td><td><b>1,570,899</b></td><td><b>7,192</b></td><td><b>1,425</b></td></tr></table></div><p class='small mute'>질문 × 모델 312칸 · 토큰 없는 칸 40(held_empty_output 40 — 빈 출력 요구 · 답 없음은 심판을 부르지 않음)</p></div>
+<h2>② 질문마다 합계(네 모델)</h2><div class="card"><div class="scroll"><table><tr><th class="l">질문</th><th class="l">유형</th><th>Jev 입력</th><th>Decisions 입력</th><th>Codex 입력</th><th>입력 합</th><th>출력 합</th><th>호출</th></tr>
+<tr><td class='l'>Q1</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,036,710</td><td>4,775,569</td><td><b>7,812,279</b></td><td>119,889</td><td>94</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,091,700</td><td>5,858,755</td><td><b>8,950,455</b></td><td>130,182</td><td>102</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,147,812</td><td>4,775,058</td><td><b>7,922,870</b></td><td>114,719</td><td>85</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,064,772</td><td>4,651,899</td><td><b>7,716,671</b></td><td>124,979</td><td>88</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,082,432</td><td>4,995,411</td><td><b>8,077,843</b></td><td>132,541</td><td>92</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,056,103</td><td>5,463,153</td><td><b>8,519,256</b></td><td>170,565</td><td>94</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,123,885</td><td>6,283,827</td><td><b>9,407,712</b></td><td>188,303</td><td>108</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,158,758</td><td>4,901,989</td><td><b>8,060,747</b></td><td>97,894</td><td>96</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,093,132</td><td>3,678,683</td><td><b>6,771,815</b></td><td>86,046</td><td>80</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,114,295</td><td>3,939,292</td><td><b>7,053,587</b></td><td>103,711</td><td>77</td></tr>
+<tr><td class='l'>Q11</td><td class='l'>단일 질문</td><td>35,892</td><td>0</td><td>0</td><td><b>35,892</b></td><td>1,728</td><td>4</td></tr>
+<tr><td class='l'>Q12</td><td class='l'>단일 질문</td><td>35,795</td><td>0</td><td>0</td><td><b>35,795</b></td><td>1,728</td><td>4</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>단일 질문</td><td>35,848</td><td>0</td><td>113,475</td><td><b>149,323</b></td><td>2,866</td><td>8</td></tr>
+<tr><td class='l'>Q14</td><td class='l'>단일 질문</td><td>35,850</td><td>0</td><td>0</td><td><b>35,850</b></td><td>1,728</td><td>4</td></tr>
+<tr><td class='l'>Q15</td><td class='l'>단일 질문</td><td>33,682</td><td>0</td><td>0</td><td><b>33,682</b></td><td>1,548</td><td>4</td></tr>
+<tr><td class='l'>Q16</td><td class='l'>단일 질문</td><td>33,671</td><td>0</td><td>0</td><td><b>33,671</b></td><td>1,548</td><td>4</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>55,566</td><td>167,286</td><td><b>222,852</b></td><td>5,185</td><td>9</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>52,594</td><td>170,805</td><td><b>223,399</b></td><td>4,853</td><td>9</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>43,708</td><td>155,915</td><td><b>199,623</b></td><td>3,312</td><td>9</td></tr>
+<tr><td class='l'>Q20</td><td class='l'>단일 질문</td><td>35,694</td><td>0</td><td>0</td><td><b>35,694</b></td><td>1,728</td><td>4</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>단일 질문</td><td>26,417</td><td>0</td><td>56,762</td><td><b>83,179</b></td><td>2,516</td><td>6</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>단일 질문</td><td>40,683</td><td>0</td><td>114,601</td><td><b>155,284</b></td><td>5,522</td><td>8</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>47,174</td><td>136,743</td><td><b>183,917</b></td><td>2,933</td><td>9</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>단일 질문</td><td>37,064</td><td>0</td><td>114,601</td><td><b>151,665</b></td><td>4,346</td><td>8</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>단일 질문</td><td>37,374</td><td>0</td><td>114,829</td><td><b>152,203</b></td><td>4,305</td><td>9</td></tr>
+<tr><td class='l'>Q26</td><td class='l'>단일 질문</td><td>29,681</td><td>0</td><td>0</td><td><b>29,681</b></td><td>1,548</td><td>4</td></tr>
+<tr><td class='l'>Q27</td><td class='l'>단일 질문</td><td>29,556</td><td>0</td><td>0</td><td><b>29,556</b></td><td>1,548</td><td>4</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>단일 질문</td><td>39,237</td><td>0</td><td>114,952</td><td><b>154,189</b></td><td>4,373</td><td>8</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,276,079</td><td>1,676,564</td><td><b>2,952,643</b></td><td>6,657</td><td>9</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,265,073</td><td>1,677,348</td><td><b>2,942,421</b></td><td>8,858</td><td>9</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>63,812</td><td>173,245</td><td><b>237,057</b></td><td>7,768</td><td>9</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,262,672</td><td>1,005,387</td><td><b>2,268,059</b></td><td>5,115</td><td>8</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,262,630</td><td>1,340,420</td><td><b>2,603,050</b></td><td>6,856</td><td>8</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,262,880</td><td>1,676,201</td><td><b>2,939,081</b></td><td>6,814</td><td>10</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>단일 질문</td><td>39,155</td><td>0</td><td>114,562</td><td><b>153,717</b></td><td>3,837</td><td>8</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>49,714</td><td>104,743</td><td><b>154,457</b></td><td>3,332</td><td>8</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>단일 질문</td><td>39,339</td><td>0</td><td>85,946</td><td><b>125,285</b></td><td>3,651</td><td>8</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>단일 질문</td><td>38,327</td><td>0</td><td>123,882</td><td><b>162,209</b></td><td>3,656</td><td>9</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>48,863</td><td>509,035</td><td><b>557,898</b></td><td>5,868</td><td>10</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,261,471</td><td>1,705,196</td><td><b>2,966,667</b></td><td>5,377</td><td>10</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,259,374</td><td>1,676,993</td><td><b>2,936,367</b></td><td>6,387</td><td>9</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,265,510</td><td>1,676,043</td><td><b>2,941,553</b></td><td>4,379</td><td>9</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,265,421</td><td>1,005,223</td><td><b>2,270,644</b></td><td>2,136</td><td>8</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>롱컨텍스트</td><td>0</td><td>1,265,428</td><td>1,036,712</td><td><b>2,302,140</b></td><td>2,603</td><td>9</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>단일 질문</td><td>48,035</td><td>0</td><td>56,796</td><td><b>104,831</b></td><td>2,632</td><td>8</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>42,545</td><td>155,580</td><td><b>198,125</b></td><td>3,513</td><td>9</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>51,480</td><td>136,726</td><td><b>188,206</b></td><td>2,757</td><td>8</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>51,366</td><td>404,794</td><td><b>456,160</b></td><td>2,947</td><td>7</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>단일 질문</td><td>77,065</td><td>0</td><td>94,062</td><td><b>171,127</b></td><td>5,521</td><td>8</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>단일 질문</td><td>66,703</td><td>0</td><td>62,589</td><td><b>129,292</b></td><td>4,377</td><td>8</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>단일 질문</td><td>47,489</td><td>0</td><td>93,088</td><td><b>140,577</b></td><td>4,080</td><td>7</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>단일 질문</td><td>37,878</td><td>0</td><td>28,418</td><td><b>66,296</b></td><td>2,244</td><td>5</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>단일 질문</td><td>51,079</td><td>0</td><td>147,488</td><td><b>198,567</b></td><td>6,675</td><td>9</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>단일 질문</td><td>50,781</td><td>0</td><td>115,842</td><td><b>166,623</b></td><td>5,827</td><td>8</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>단일 질문</td><td>40,681</td><td>0</td><td>85,414</td><td><b>126,095</b></td><td>3,242</td><td>7</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>단일 질문</td><td>39,231</td><td>0</td><td>92,702</td><td><b>131,933</b></td><td>2,763</td><td>8</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>단일 질문</td><td>36,862</td><td>0</td><td>28,402</td><td><b>65,264</b></td><td>1,712</td><td>5</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>단일 질문</td><td>36,414</td><td>0</td><td>28,489</td><td><b>64,903</b></td><td>2,217</td><td>5</td></tr>
+<tr><td class='l'>Q59</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q60</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q61</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q62</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q63</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q64</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q65</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q66</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q67</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q68</td><td class='l'>명시적 빈 출력</td><td>0</td><td>0</td><td>0</td><td><b>0</b></td><td>0</td><td>0</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>10턴 멀티턴 대화</td><td>0</td><td>3,068,762</td><td>3,958,228</td><td><b>7,026,990</b></td><td>81,821</td><td>83</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>단일 질문</td><td>61,253</td><td>0</td><td>126,223</td><td><b>187,476</b></td><td>5,824</td><td>8</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>단일 질문</td><td>42,209</td><td>0</td><td>57,571</td><td><b>99,780</b></td><td>3,361</td><td>6</td></tr>
+<tr><td class='l'>Q72</td><td class='l'>단일 질문</td><td>40,115</td><td>0</td><td>0</td><td><b>40,115</b></td><td>2,628</td><td>4</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>단일 질문</td><td>41,591</td><td>0</td><td>57,573</td><td><b>99,164</b></td><td>3,340</td><td>8</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>46,928</td><td>131,791</td><td><b>178,719</b></td><td>2,001</td><td>9</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>단일 질문</td><td>60,293</td><td>0</td><td>125,496</td><td><b>185,789</b></td><td>6,450</td><td>8</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>첨부자료 확인·요약</td><td>0</td><td>37,892</td><td>120,663</td><td><b>158,555</b></td><td>2,241</td><td>9</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>단일 질문</td><td>48,896</td><td>0</td><td>115,910</td><td><b>164,806</b></td><td>8,225</td><td>8</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>단일 질문</td><td>45,813</td><td>0</td><td>116,170</td><td><b>161,983</b></td><td>6,255</td><td>8</td></tr>
+</table></div></div>
+<h2>① 질문 × 답변 모델 × 심판</h2><div class="card"><p class="small mute">심판은 어느 모델의 답인지 모르고 판정했고(블라인드), 이 표는 우리가 아는 모델 이름으로 다시 붙인 것. 같은 표를 <code>판정토큰.csv</code> 로도 둠.</p><div class="scroll"><table><tr><th class="l">질문</th><th class="l">모델</th><th class="l">심판</th><th>입력</th><th>캐시 입력</th><th>출력</th><th>추론 출력</th><th>호출</th><th class='l'>판정</th><th>초</th></tr>
+<tr><td class='l'>Q1</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>779,654</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>305</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>713,348</td><td>75,264</td><td>26,779</td><td>0</td><td>7</td><td class='l'>FAIL</td><td>305</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>750,276</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>241</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,158,661</td><td>87,808</td><td>23,656</td><td>0</td><td>14</td><td class='l'>FAIL</td><td>241</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>770,445</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>294</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,494,716</td><td>100,352</td><td>25,454</td><td>0</td><td>17</td><td class='l'>FAIL</td><td>294</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>736,335</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>397</td></tr>
+<tr><td class='l'>Q1</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,408,844</td><td>75,264</td><td>44,000</td><td>0</td><td>16</td><td class='l'>HOLD</td><td>397</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>785,656</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>343</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,585,267</td><td>150,528</td><td>32,303</td><td>0</td><td>17</td><td class='l'>HOLD</td><td>343</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>780,459</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>454</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,623,807</td><td>163,072</td><td>55,092</td><td>0</td><td>17</td><td class='l'>FAIL</td><td>454</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>768,487</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>295</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,532,580</td><td>271,872</td><td>23,185</td><td>0</td><td>17</td><td class='l'>HOLD</td><td>295</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>757,098</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>189</td></tr>
+<tr><td class='l'>Q2</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,117,101</td><td>137,984</td><td>19,602</td><td>0</td><td>11</td><td class='l'>FAIL</td><td>189</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>793,232</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>170</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>888,871</td><td>372,096</td><td>18,970</td><td>73</td><td>6</td><td class='l'>FAIL</td><td>170</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>785,379</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>274</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,149,174</td><td>125,440</td><td>26,671</td><td>1,034</td><td>10</td><td class='l'>FAIL</td><td>274</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>785,056</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>264</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>Claude</td><td class='l'>Codex</td><td>993,091</td><td>125,440</td><td>23,936</td><td>1,166</td><td>11</td><td class='l'>FAIL</td><td>264</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>784,145</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>396</td></tr>
+<tr><td class='l'>Q3</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,743,922</td><td>213,248</td><td>42,869</td><td>0</td><td>18</td><td class='l'>HOLD</td><td>396</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>768,091</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>264</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>687,947</td><td>50,176</td><td>30,028</td><td>0</td><td>8</td><td class='l'>FAIL</td><td>264</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>785,988</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>406</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,621,191</td><td>188,160</td><td>47,616</td><td>0</td><td>17</td><td class='l'>FAIL</td><td>406</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>774,169</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>153</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>Claude</td><td class='l'>Codex</td><td>752,347</td><td>75,264</td><td>14,438</td><td>0</td><td>7</td><td class='l'>FAIL</td><td>153</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>736,524</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>288</td></tr>
+<tr><td class='l'>Q4</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,590,414</td><td>200,704</td><td>32,897</td><td>0</td><td>16</td><td class='l'>HOLD</td><td>288</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>784,194</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>373</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,696,631</td><td>213,248</td><td>42,094</td><td>0</td><td>18</td><td class='l'>FAIL</td><td>373</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>780,141</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>211</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>GPT</td><td class='l'>Codex</td><td>871,810</td><td>87,808</td><td>23,695</td><td>0</td><td>8</td><td class='l'>FAIL</td><td>211</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>772,039</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>293</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>Claude</td><td class='l'>Codex</td><td>818,879</td><td>87,808</td><td>34,648</td><td>0</td><td>7</td><td class='l'>FAIL</td><td>293</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>746,058</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>339</td></tr>
+<tr><td class='l'>Q5</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,608,091</td><td>310,656</td><td>32,104</td><td>0</td><td>19</td><td class='l'>HOLD</td><td>339</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>764,080</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>305</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,526,216</td><td>188,160</td><td>39,843</td><td>0</td><td>16</td><td class='l'>FAIL</td><td>305</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>773,184</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>265</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,015,249</td><td>87,808</td><td>33,638</td><td>0</td><td>9</td><td class='l'>HOLD</td><td>265</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>762,036</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>597</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,895,403</td><td>225,792</td><td>54,248</td><td>3,233</td><td>19</td><td class='l'>FAIL</td><td>597</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>756,803</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>346</td></tr>
+<tr><td class='l'>Q6</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,026,285</td><td>100,352</td><td>39,603</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>346</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>788,244</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>382</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,554,783</td><td>188,160</td><td>43,150</td><td>0</td><td>16</td><td class='l'>FAIL</td><td>382</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>783,298</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>444</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,173,502</td><td>150,528</td><td>54,287</td><td>0</td><td>15</td><td class='l'>FAIL</td><td>444</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>778,676</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>406</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,828,027</td><td>225,792</td><td>42,891</td><td>0</td><td>19</td><td class='l'>FAIL</td><td>406</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>773,667</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>414</td></tr>
+<tr><td class='l'>Q7</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,727,515</td><td>213,248</td><td>47,920</td><td>55</td><td>18</td><td class='l'>HOLD</td><td>414</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>795,560</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>249</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,458,949</td><td>163,072</td><td>20,728</td><td>0</td><td>16</td><td class='l'>FAIL</td><td>249</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>796,203</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>249</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>GPT</td><td class='l'>Codex</td><td>950,907</td><td>125,440</td><td>21,114</td><td>464</td><td>11</td><td class='l'>FAIL</td><td>249</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>780,886</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>209</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>Claude</td><td class='l'>Codex</td><td>851,768</td><td>100,352</td><td>18,448</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>209</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>786,109</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>361</td></tr>
+<tr><td class='l'>Q8</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>1,640,365</td><td>175,616</td><td>37,140</td><td>0</td><td>19</td><td class='l'>HOLD</td><td>361</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>784,802</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>251</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>699,290</td><td>87,808</td><td>12,820</td><td>0</td><td>8</td><td class='l'>FAIL</td><td>251</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>778,589</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>190</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>GPT</td><td class='l'>Codex</td><td>844,087</td><td>100,352</td><td>18,741</td><td>0</td><td>8</td><td class='l'>FAIL</td><td>190</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>765,230</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>366</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,574,965</td><td>163,072</td><td>36,665</td><td>160</td><td>17</td><td class='l'>FAIL</td><td>366</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>764,511</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>175</td></tr>
+<tr><td class='l'>Q9</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>560,341</td><td>62,720</td><td>17,610</td><td>50</td><td>7</td><td class='l'>FAIL</td><td>175</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>786,449</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>274</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>1,165,155</td><td>278,912</td><td>29,607</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>274</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>787,394</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>242</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>GPT</td><td class='l'>Codex</td><td>897,050</td><td>87,808</td><td>13,576</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>242</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>766,635</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>231</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>Claude</td><td class='l'>Codex</td><td>1,058,354</td><td>100,352</td><td>26,189</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>231</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>773,817</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>289</td></tr>
+<tr><td class='l'>Q10</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>818,733</td><td>75,264</td><td>34,339</td><td>0</td><td>7</td><td class='l'>FAIL</td><td>289</td></tr>
+<tr><td class='l'>Q11</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,968</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q11</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,967</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q11</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,973</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q11</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,984</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q12</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,943</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q12</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,945</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q12</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,950</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q12</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,957</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,957</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,364</td><td>10,112</td><td>242</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,956</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,362</td><td>10,112</td><td>328</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,962</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,368</td><td>10,112</td><td>240</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,973</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q13</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,381</td><td>10,112</td><td>328</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q14</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,959</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q14</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,958</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q14</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,963</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q14</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,970</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q15</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,418</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q15</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,417</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q15</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,416</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q15</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,431</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q16</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,416</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q16</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,412</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q16</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,414</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q16</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,429</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>13,815</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,818</td><td>12,544</td><td>1,262</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>13,987</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>GPT</td><td class='l'>Codex</td><td>32,526</td><td>10,112</td><td>804</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>13,908</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>Claude</td><td class='l'>Codex</td><td>65,077</td><td>20,224</td><td>2,154</td><td>0</td><td>2</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>13,856</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>11</td></tr>
+<tr><td class='l'>Q17</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,865</td><td>12,544</td><td>965</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>11</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>13,217</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,176</td><td>12,544</td><td>579</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>13,112</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>GPT</td><td class='l'>Codex</td><td>34,081</td><td>12,544</td><td>888</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>13,197</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>22</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>Claude</td><td class='l'>Codex</td><td>68,509</td><td>25,088</td><td>2,199</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>22</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>13,068</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q18</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,039</td><td>12,544</td><td>1,187</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>10,804</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,463</td><td>12,544</td><td>566</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>11,189</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>GPT</td><td class='l'>Codex</td><td>63,875</td><td>25,088</td><td>763</td><td>0</td><td>2</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>11,053</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,720</td><td>12,544</td><td>1,410</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>10,662</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q19</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,857</td><td>10,112</td><td>573</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q20</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,920</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q20</td><td class='l'>GPT</td><td class='l'>Jev</td><td>8,919</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q20</td><td class='l'>Claude</td><td class='l'>Jev</td><td>8,924</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q20</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>8,931</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>7,900</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>1</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>GPT</td><td class='l'>Jev</td><td>5,795</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>1</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>Claude</td><td class='l'>Jev</td><td>5,858</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,381</td><td>10,112</td><td>394</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>6,864</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q21</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,381</td><td>10,112</td><td>394</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,968</td><td>0</td><td>526</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,459</td><td>10,112</td><td>759</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>GPT</td><td class='l'>Jev</td><td>10,015</td><td>0</td><td>526</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,504</td><td>10,112</td><td>805</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,256</td><td>0</td><td>526</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,718</td><td>10,112</td><td>991</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>10,444</td><td>0</td><td>526</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q22</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,920</td><td>10,112</td><td>863</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>11,861</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>11,826</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>17</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>GPT</td><td class='l'>Codex</td><td>68,515</td><td>25,088</td><td>1,076</td><td>0</td><td>2</td><td class='l'>PASS</td><td>17</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>11,790</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>Claude</td><td class='l'>Codex</td><td>34,201</td><td>12,544</td><td>1,509</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>11,697</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q23</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,027</td><td>12,544</td><td>348</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,079</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,441</td><td>10,112</td><td>344</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,230</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,568</td><td>10,112</td><td>686</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,484</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,796</td><td>10,112</td><td>704</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,271</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q24</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,796</td><td>10,112</td><td>704</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,167</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>8</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,549</td><td>10,112</td><td>722</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>8</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,306</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,678</td><td>10,112</td><td>727</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,426</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,790</td><td>0</td><td>445</td><td>0</td><td>2</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,475</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q25</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,812</td><td>10,112</td><td>503</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q26</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>7,392</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q26</td><td class='l'>GPT</td><td class='l'>Jev</td><td>7,391</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q26</td><td class='l'>Claude</td><td class='l'>Jev</td><td>7,495</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q26</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>7,403</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q27</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>7,387</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q27</td><td class='l'>GPT</td><td class='l'>Jev</td><td>7,364</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q27</td><td class='l'>Claude</td><td class='l'>Jev</td><td>7,427</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q27</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>7,378</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,610</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,790</td><td>0</td><td>445</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,630</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,504</td><td>10,112</td><td>462</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,056</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,883</td><td>10,112</td><td>487</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,941</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q28</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,775</td><td>10,112</td><td>1,071</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>318,720</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>334,909</td><td>0</td><td>1,046</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>319,005</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,286</td><td>0</td><td>1,077</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>319,117</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,286</td><td>0</td><td>1,077</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>319,237</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>39</td></tr>
+<tr><td class='l'>Q29</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>671,083</td><td>10,112</td><td>3,457</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>39</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>315,955</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>15</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>335,056</td><td>10,112</td><td>1,079</td><td>0</td><td>1</td><td class='l'>PASS</td><td>15</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>316,242</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>19</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,335</td><td>10,112</td><td>1,723</td><td>0</td><td>1</td><td class='l'>PASS</td><td>19</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>316,343</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,482</td><td>10,112</td><td>2,490</td><td>0</td><td>1</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>316,533</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>39</td></tr>
+<tr><td class='l'>Q30</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>671,475</td><td>20,224</td><td>3,566</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>39</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>15,878</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>16</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>35,024</td><td>12,544</td><td>1,773</td><td>0</td><td>1</td><td class='l'>PASS</td><td>16</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>15,901</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>GPT</td><td class='l'>Codex</td><td>32,569</td><td>10,112</td><td>1,157</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>16,199</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>25</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>Claude</td><td class='l'>Codex</td><td>70,666</td><td>25,088</td><td>2,501</td><td>0</td><td>2</td><td class='l'>PASS</td><td>25</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>15,834</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>18</td></tr>
+<tr><td class='l'>Q31</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,986</td><td>12,544</td><td>2,337</td><td>0</td><td>1</td><td class='l'>PASS</td><td>18</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>315,461</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>18</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>334,961</td><td>10,112</td><td>1,595</td><td>0</td><td>1</td><td class='l'>PASS</td><td>18</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>315,666</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>315,700</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,041</td><td>10,112</td><td>1,749</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>315,845</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>20</td></tr>
+<tr><td class='l'>Q32</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>335,385</td><td>10,112</td><td>1,771</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>20</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>315,408</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>334,845</td><td>10,112</td><td>880</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>315,598</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,041</td><td>10,112</td><td>1,749</td><td>0</td><td>1</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>315,796</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,233</td><td>10,112</td><td>1,876</td><td>0</td><td>1</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>315,828</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q33</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>335,301</td><td>0</td><td>2,351</td><td>0</td><td>1</td><td class='l'>PASS</td><td>23</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>315,541</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>19</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>335,008</td><td>0</td><td>1,615</td><td>0</td><td>1</td><td class='l'>PASS</td><td>19</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>315,690</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>39</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,119</td><td>10,112</td><td>1,300</td><td>0</td><td>2</td><td class='l'>PASS</td><td>39</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>315,772</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>17</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,207</td><td>10,112</td><td>1,194</td><td>0</td><td>1</td><td class='l'>PASS</td><td>17</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>315,877</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>33</td></tr>
+<tr><td class='l'>Q34</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>670,867</td><td>20,224</td><td>2,705</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>33</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,619</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,498</td><td>10,112</td><td>636</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,694</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,569</td><td>10,112</td><td>739</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,870</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,715</td><td>10,112</td><td>213</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,972</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q35</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,780</td><td>10,112</td><td>341</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>12,373</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,756</td><td>12,544</td><td>998</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>12,561</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>12,512</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>23</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>Claude</td><td class='l'>Codex</td><td>69,987</td><td>25,088</td><td>2,334</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>23</td></tr>
+<tr><td class='l'>Q36</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>12,268</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,609</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,472</td><td>10,112</td><td>578</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,883</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,712</td><td>10,112</td><td>480</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,932</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,762</td><td>10,112</td><td>685</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,915</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q37</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,496</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>30,876</td><td>12,544</td><td>233</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,587</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,664</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>Claude</td><td class='l'>Codex</td><td>62,044</td><td>25,088</td><td>726</td><td>0</td><td>2</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,580</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q38</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>30,962</td><td>12,544</td><td>609</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>12,104</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,610</td><td>12,544</td><td>532</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>12,266</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>GPT</td><td class='l'>Codex</td><td>69,733</td><td>25,088</td><td>1,780</td><td>0</td><td>2</td><td class='l'>PASS</td><td>21</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>12,438</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>25</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>Claude</td><td class='l'>Codex</td><td>370,131</td><td>12,544</td><td>2,950</td><td>0</td><td>2</td><td class='l'>PASS</td><td>25</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>12,055</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q39</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,561</td><td>12,544</td><td>606</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>315,110</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>30</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>363,669</td><td>20,224</td><td>870</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>30</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>315,282</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>14</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,165</td><td>0</td><td>978</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>14</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>315,395</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,242</td><td>10,112</td><td>648</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>315,684</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>35</td></tr>
+<tr><td class='l'>Q40</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>671,120</td><td>20,224</td><td>2,881</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>35</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>316,207</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>20</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>335,188</td><td>10,112</td><td>1,164</td><td>327</td><td>1</td><td class='l'>PASS</td><td>20</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>314,213</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>20</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,188</td><td>10,112</td><td>1,164</td><td>327</td><td>1</td><td class='l'>PASS</td><td>20</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>313,307</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>15</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,376</td><td>10,112</td><td>903</td><td>0</td><td>1</td><td class='l'>PASS</td><td>15</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>315,647</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>37</td></tr>
+<tr><td class='l'>Q41</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>671,241</td><td>20,224</td><td>2,502</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>37</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>316,142</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>15</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>335,053</td><td>10,112</td><td>929</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>15</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>316,292</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,053</td><td>10,112</td><td>929</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>316,498</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,247</td><td>10,112</td><td>658</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>316,578</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>28</td></tr>
+<tr><td class='l'>Q42</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>670,690</td><td>20,224</td><td>1,863</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>28</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>316,121</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>334,866</td><td>10,112</td><td>709</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>316,343</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>13</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>GPT</td><td class='l'>Codex</td><td>335,112</td><td>10,112</td><td>750</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>13</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>316,498</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,245</td><td>0</td><td>677</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>316,459</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q43</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>316,199</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>334,946</td><td>10,112</td><td>410</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>316,344</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>316,406</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,151</td><td>10,112</td><td>682</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>316,479</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>32</td></tr>
+<tr><td class='l'>Q44</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>366,615</td><td>12,544</td><td>1,511</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>32</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>11,934</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,361</td><td>10,112</td><td>222</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>GPT</td><td class='l'>Jev</td><td>12,032</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>6</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,435</td><td>10,112</td><td>322</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>6</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>Claude</td><td class='l'>Jev</td><td>12,056</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>Claude</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>12,013</td><td>0</td><td>522</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q45</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>10,542</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>63,084</td><td>25,088</td><td>1,155</td><td>0</td><td>2</td><td class='l'>PASS</td><td>14</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>10,745</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>GPT</td><td class='l'>Codex</td><td>31,749</td><td>12,544</td><td>757</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>10,796</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,800</td><td>12,544</td><td>525</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>10,462</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q46</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,947</td><td>10,112</td><td>1,076</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>12,877</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,801</td><td>12,544</td><td>723</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>12,982</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>GPT</td><td class='l'>Codex</td><td>32,454</td><td>10,112</td><td>1,044</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>12,835</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>Claude</td><td class='l'>Codex</td><td>34,761</td><td>12,544</td><td>178</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>12,786</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q47</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>34,710</td><td>12,544</td><td>677</td><td>135</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>12,756</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>34,658</td><td>12,544</td><td>285</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>12,984</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>GPT</td><td class='l'>Codex</td><td>34,912</td><td>12,544</td><td>1,153</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>12,986</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>Claude</td><td class='l'>Codex</td><td>335,224</td><td>10,112</td><td>1,509</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q48</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>12,640</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>18,608</td><td>0</td><td>792</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,268</td><td>12,544</td><td>1,034</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>GPT</td><td class='l'>Jev</td><td>19,274</td><td>0</td><td>792</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>Claude</td><td class='l'>Jev</td><td>19,414</td><td>0</td><td>792</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,977</td><td>12,544</td><td>1,180</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>19,769</td><td>0</td><td>792</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q49</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>30,817</td><td>12,544</td><td>139</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>16,381</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,015</td><td>12,544</td><td>1,110</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>GPT</td><td class='l'>Jev</td><td>16,700</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>GPT</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>Claude</td><td class='l'>Jev</td><td>16,592</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>Claude</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>17,030</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q50</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>31,574</td><td>12,544</td><td>459</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>11,817</td><td>0</td><td>608</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,282</td><td>12,544</td><td>1,379</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>GPT</td><td class='l'>Jev</td><td>11,898</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>0</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>Claude</td><td class='l'>Jev</td><td>11,875</td><td>0</td><td>608</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>Claude</td><td class='l'>Codex</td><td>30,894</td><td>12,544</td><td>116</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>11,899</td><td>0</td><td>608</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q51</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>30,912</td><td>12,544</td><td>149</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,430</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,479</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,418</td><td>10,112</td><td>336</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,498</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q52</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,471</td><td>0</td><td>477</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>12,499</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,753</td><td>10,112</td><td>703</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>GPT</td><td class='l'>Jev</td><td>12,893</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>16</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>GPT</td><td class='l'>Codex</td><td>58,257</td><td>20,224</td><td>1,661</td><td>0</td><td>2</td><td class='l'>PASS</td><td>16</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>Claude</td><td class='l'>Jev</td><td>12,676</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,282</td><td>12,544</td><td>1,379</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>13,011</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q53</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>29,196</td><td>10,112</td><td>484</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>12,627</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>29,043</td><td>10,112</td><td>1,265</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>GPT</td><td class='l'>Jev</td><td>12,741</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,942</td><td>10,112</td><td>720</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>Claude</td><td class='l'>Jev</td><td>12,702</td><td>0</td><td>604</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,947</td><td>10,112</td><td>1,076</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>12,711</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q54</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,910</td><td>10,112</td><td>326</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>10,134</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,449</td><td>10,112</td><td>639</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>GPT</td><td class='l'>Jev</td><td>10,151</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,461</td><td>10,112</td><td>585</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,195</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,504</td><td>10,112</td><td>290</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q55</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>10,201</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,736</td><td>0</td><td>518</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,831</td><td>0</td><td>518</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>GPT</td><td class='l'>Codex</td><td>30,900</td><td>12,544</td><td>394</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,868</td><td>0</td><td>518</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>Claude</td><td class='l'>Codex</td><td>30,931</td><td>12,544</td><td>140</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,796</td><td>0</td><td>518</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q56</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>30,871</td><td>12,544</td><td>157</td><td>0</td><td>1</td><td class='l'>PASS</td><td>5</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,137</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>5</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,402</td><td>10,112</td><td>164</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>5</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,237</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,291</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q57</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,197</td><td>0</td><td>387</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>8,966</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>GPT</td><td class='l'>Jev</td><td>9,094</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,489</td><td>10,112</td><td>489</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>Claude</td><td class='l'>Jev</td><td>9,172</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q58</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,182</td><td>0</td><td>432</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>798,254</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>185</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>936,298</td><td>244,352</td><td>18,703</td><td>0</td><td>8</td><td class='l'>FAIL</td><td>185</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>773,145</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>374</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>GPT</td><td class='l'>Codex</td><td>1,606,926</td><td>163,072</td><td>21,694</td><td>0</td><td>18</td><td class='l'>HOLD</td><td>374</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>755,745</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>FAIL</td><td>151</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>Claude</td><td class='l'>Codex</td><td>529,898</td><td>62,720</td><td>15,958</td><td>168</td><td>6</td><td class='l'>FAIL</td><td>151</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>741,618</td><td>0</td><td>0</td><td>0</td><td>10</td><td class='l'>HOLD</td><td>273</td></tr>
+<tr><td class='l'>Q69</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>885,106</td><td>87,808</td><td>25,298</td><td>0</td><td>11</td><td class='l'>HOLD</td><td>273</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>15,082</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,377</td><td>12,544</td><td>667</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>GPT</td><td class='l'>Jev</td><td>15,370</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>GPT</td><td class='l'>Codex</td><td>31,543</td><td>12,544</td><td>443</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>Claude</td><td class='l'>Jev</td><td>15,447</td><td>0</td><td>747</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,715</td><td>12,544</td><td>808</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>15,354</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q70</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>31,588</td><td>12,544</td><td>906</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>10,375</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>GPT</td><td class='l'>Jev</td><td>10,667</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,626</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>Claude</td><td class='l'>Codex</td><td>57,571</td><td>20,224</td><td>553</td><td>0</td><td>2</td><td class='l'>PASS</td><td>12</td></tr>
+<tr><td class='l'>Q71</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>10,541</td><td>0</td><td>702</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q72</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>9,948</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q72</td><td class='l'>GPT</td><td class='l'>Jev</td><td>10,163</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q72</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,064</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q72</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>9,940</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>0</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>10,597</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>GPT</td><td class='l'>Jev</td><td>10,263</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,732</td><td>10,112</td><td>319</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>Claude</td><td class='l'>Jev</td><td>10,348</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>Claude</td><td class='l'>Codex</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>10,383</td><td>0</td><td>657</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>8</td></tr>
+<tr><td class='l'>Q73</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,841</td><td>10,112</td><td>393</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>8</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>11,810</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,751</td><td>10,112</td><td>332</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>11,717</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>GPT</td><td class='l'>Codex</td><td>34,122</td><td>12,544</td><td>935</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>11,785</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>20</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>Claude</td><td class='l'>Codex</td><td>34,361</td><td>12,544</td><td>337</td><td>0</td><td>2</td><td class='l'>FAIL</td><td>20</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>11,616</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q74</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>31,557</td><td>10,112</td><td>397</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>14,857</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,189</td><td>12,544</td><td>1,285</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>GPT</td><td class='l'>Jev</td><td>15,170</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>GPT</td><td class='l'>Codex</td><td>31,435</td><td>12,544</td><td>549</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>Claude</td><td class='l'>Jev</td><td>15,153</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,442</td><td>12,544</td><td>1,042</td><td>0</td><td>1</td><td class='l'>PASS</td><td>10</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>15,113</td><td>0</td><td>751</td><td>0</td><td>1</td><td class='l'>HOLD</td><td>9</td></tr>
+<tr><td class='l'>Q75</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>31,430</td><td>12,544</td><td>570</td><td>0</td><td>1</td><td class='l'>HOLD</td><td>9</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>AIONA</td><td class='l'>Decisions</td><td>9,403</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>31,317</td><td>12,544</td><td>481</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>GPT</td><td class='l'>Decisions</td><td>9,614</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>GPT</td><td class='l'>Codex</td><td>29,091</td><td>10,112</td><td>922</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>Claude</td><td class='l'>Decisions</td><td>9,549</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>Claude</td><td class='l'>Codex</td><td>31,479</td><td>12,544</td><td>541</td><td>0</td><td>2</td><td class='l'>PASS</td><td>13</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>Gemini</td><td class='l'>Decisions</td><td>9,326</td><td>0</td><td>0</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q76</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>28,776</td><td>10,112</td><td>297</td><td>0</td><td>1</td><td class='l'>PASS</td><td>6</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>12,061</td><td>0</td><td>706</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>28,839</td><td>10,112</td><td>2,545</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>18</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>GPT</td><td class='l'>Jev</td><td>12,244</td><td>0</td><td>706</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>GPT</td><td class='l'>Codex</td><td>28,978</td><td>10,112</td><td>893</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>Claude</td><td class='l'>Jev</td><td>12,174</td><td>0</td><td>706</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,934</td><td>10,112</td><td>853</td><td>0</td><td>1</td><td class='l'>PASS</td><td>9</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>12,417</td><td>0</td><td>706</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q77</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>29,159</td><td>10,112</td><td>1,110</td><td>0</td><td>1</td><td class='l'>PASS</td><td>11</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>AIONA</td><td class='l'>Jev</td><td>11,552</td><td>0</td><td>604</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>AIONA</td><td class='l'>Codex</td><td>29,166</td><td>10,112</td><td>635</td><td>0</td><td>1</td><td class='l'>PASS</td><td>7</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>GPT</td><td class='l'>Jev</td><td>11,526</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>GPT</td><td class='l'>Codex</td><td>29,096</td><td>10,112</td><td>156</td><td>0</td><td>1</td><td class='l'>PASS</td><td>4</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>Claude</td><td class='l'>Jev</td><td>11,299</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>Claude</td><td class='l'>Codex</td><td>28,839</td><td>10,112</td><td>2,545</td><td>0</td><td>1</td><td class='l'>PASS</td><td>8</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>Gemini</td><td class='l'>Jev</td><td>11,436</td><td>0</td><td>612</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>7</td></tr>
+<tr><td class='l'>Q78</td><td class='l'>Gemini</td><td class='l'>Codex</td><td>29,069</td><td>10,112</td><td>479</td><td>0</td><td>1</td><td class='l'>FAIL</td><td>7</td></tr>
+</table></div></div>
+<p class='small mute'>만든 도구: tools/build_token_report.py · 자료: 2026-10-23_12-41-05-662/results.jsonl</p></main></body></html>
