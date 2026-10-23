@@ -17,6 +17,7 @@ table{border-collapse:collapse;width:100%;font-size:13.5px} th,td{border-bottom:
 .t{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap;font-weight:600}
 .t.ok{color:var(--ok);background:var(--ok-bg)} .t.warn{color:var(--warn);background:var(--warn-bg)} .t.todo{color:var(--todo);background:var(--todo-bg)}
 a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-width:260px}
+.flow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px} .step{flex:1 1 170px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--th)} .step b{display:block;font-size:13.5px;margin-bottom:2px} .two{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media (max-width:720px){.two{grid-template-columns:1fr}}
 </style>
 </head>
 <body><main>
@@ -112,12 +113,42 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <tr><td><b>AIONA 제품 문제</b></td><td>일정 질문(Q8)에 자살 예방 안내로 답함 · 답 끝에 '데이터 제공' 줄 · 코드 들여쓰기</td><td>AIONA 제품</td><td><span class="t warn">알림</span> 제품 팀에 알림</td></tr>
 </table></div></div>
 
-<h2>5. 앞으로</h2>
+<h2>5. harness2 는 어떻게 쓰나 — 코드는 안 가져오고 방식만</h2>
+<div class="card">
+<p class="small mute"><a href="https://github.com/google-research/harness2">harness2</a>(Google Research · 10-18 공개 · Apache-2.0) = 모델은 그대로 두고 모델에 주는 글(프롬프트 · 스킬 · 안내)만 AI 가 고치는 루프: 고칠 안 내기 → 같은 과제로 다시 돌려 비교 → 이긴 안 합치기 → 교훈 쌓기. 우리 심판도 '모델 + 주는 글(판정 프롬프트 · 기준 문서 · 확인 목록)'이라 같은 루프를 쓸 수 있음.</p>
+<div class="flow">
+<div class="step"><b>① 모으기</b>FAIL · 보류 + 통과 표본 + 사람 표시(<a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a>)</div>
+<div class="step"><b>② 원인 나누기</b>답이 틀림 / 프롬프트 / 기준 / 질문 / 수집 — 4장 표가 이 단계의 결과</div>
+<div class="step"><b>③ 고칠 안</b>Codex · Claude CLI 가 2~3개 제안(어디를 고칠지 포함)</div>
+<div class="step"><b>④ 시험</b>같은 칸을 고치기 전 · 후로 다시 판정 → 사람 표시 대비 정답률 · 뒤집힘</div>
+<div class="step"><b>⑤ 채택</b>정답률↑ · 뒤집힘↓ · 다른 기준 안 나빠질 때만. 기준 정의 변경은 사람 승인 · 교훈은 기준 문서에</div>
+</div>
+<div class="two">
+<div class="scroll"><table>
+<tr><th>harness2</th><th>우리</th></tr>
+<tr><td>일하는 모델(에이전트)</td><td>심판 Jev · Decisions · Codex</td></tr>
+<tr><td>고치는 대상(시스템 프롬프트 · 스킬 · 도구 안내)</td><td>판정 프롬프트 · 기준 v2 문서 · 턴별 확인 목록 · 질문 세트</td></tr>
+<tr><td>과제(정해진 벤치마크 3개)</td><td>78 질문 × 4 모델 판정 결과</td></tr>
+<tr><td>점수 없이 행동 차이만 비교</td><td>사람 표시(정답) 대비 정답률 · 뒤집힘 — 정답 없이 고치면 심판이 틀린 쪽으로 굳음</td></tr>
+<tr><td>교훈 파일</td><td>기준 v2 문서 · 변경내역</td></tr>
+</table></div>
+<div class="scroll"><table>
+<tr><th></th><th>내용</th></tr>
+<tr><td><span class="t ok">가져옴</span></td><td>루프 구조(제안 → 시험 → 채택) · 교훈 쌓는 방식 · 제안 · 합치기 프롬프트 문구(출처 표기)</td></tr>
+<tr><td><span class="t todo">안 가져옴</span></td><td>코드째 — 에이전트 실행기 · Vertex AI · 벤치마크 3개에 맞춰져 우리 구성(CLI 로그인 · API 안 씀)과 안 맞음</td></tr>
+<tr><td><span class="t todo">안 함</span></td><td>기준 정의 자동 변경(팀 결정) · 정답 없이 고치기</td></tr>
+<tr><td><b>첫 대상</b></td><td>'반복'(J1-4.b) — 1차 FAIL 129칸 중 Codex 동의 0 · 같은 심판도 다시 돌리면 뒤집힘</td></tr>
+<tr><td><b>있는 것 / 만들 것</b></td><td>있음: 표시용 표 100칸 · 기준 하나만 재판정하는 도구 · 결과 폴더 / 만들 것: 사람 표시 화면의 원인 칸 · 기준별 원인 집계 · ③→④→⑤ 잇는 도구</td></tr>
+</table></div>
+</div>
+</div>
+
+<h2>6. 앞으로</h2>
 <div class="card"><ol>
 <li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
 <li>기록 요약 턴 '인용' 해석 — ③ 세션에서 사용자와 재정의 중(확정되면 확인 목록에 반영 · 해당 턴만 재판정)</li>
 <li>멀티턴 11×4 재판정(왕복 · 거절 · 최종 턴 준비 방식 · J1-4.b 문구) → 숫자 갱신</li>
-<li>기준 다듬기 루프(문서 먼저 → 프롬프트 · 1차 심판 설명 → 같은 칸 전 · 후 재판정 → 채택): 첫 대상 J1-4.b</li>
+<li>기준 다듬기 루프(5장 · harness2 방식) 1차 시험 — 첫 대상 '반복'(J1-4.b)</li>
 <li>AIONA 출처 번호 복사 확인 → 필요하면 11문항 재수집 · 싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
 </ol></div>
 
