@@ -8,7 +8,7 @@ J6-4.b 처럼 흐름상 해당 없는 것이 확실한 항목까지 판정하고
 정하는 것 (Codex 검토 10-22 반영 — 인식기가 놓친 항목까지 빠지지 않게, 목록에는 판정 지시 없이 근거 있는 사실만)
 ① 턴별 목표 기준 = 질문의 목표 기준 − 흐름상 해당 없음이 확실한 J6 만: 1턴의 J6 전부, 조건 변경 턴 전의 J6-3.a, 같은 결과물 두 번째 수정
    턴이 아닌 턴의 J6-3.b, 반박 턴이 아닌 턴의 J6-4.b, 반박 턴의 J6-4.a(상황표 2). J1-3 · J1-1 · J1-2 등은 그대로 두고 상황표 2 에 맡긴다.
-② 확인 목록 = 그 턴의 상황 · 확인할 것(그 턴 시점의 최신 값, 자료에 있는 값만 — 예: 돌아오는 시간은 기록 없음) · 이어지는 조건.
+② 확인 목록 = 그 턴의 상황 · 확인할 것(그 턴 시점의 최신 값, 자료에 있는 값만 — 예: 편도 N분 · 왕복은 편도 두 번) · 이어지는 조건.
 ③ question_sha = 그 턴까지의 질문 원문 지문 — 질문을 다시 만들면 판정 쪽이 낡은 목록을 쓰지 않는다.
 ④ k 조건 다시 확인 — 질문세트 전체를 정식 검사(check_items · target_counts · k_var_by_group)로, 인식기의 턴별 기준에서 ①의 J6 만 뺀 배정으로.
 questions.json 은 바꾸지 않는다.
@@ -102,7 +102,7 @@ def request_of(question: str) -> str:
 
 
 def move_fact(s: Dict[str, Any]) -> str:
-    """준비 방식의 시간 · 비용 — 자료에 있는 값만(돌아오는 시간은 재지 않았다)."""
+    """준비 방식의 시간 · 비용 — 자료에 있는 값만(왕복은 편도 두 번, 자료 결정)."""
     if s["one_way"]:
         a = f"편도 {s['one_way']}분 · 왕복은 편도 두 번 = {2 * s['one_way']}분(자료 결정: 편도 시간을 왕복 시간으로 쓰지 않음) · 확인 {s['check']}분 · 비용 없음"   # 10-23: '돌아오는 시간은 기록 없음'이 함정(왕복 = 편도 × 2)과 부딪혀 거짓 FAIL 35칸
     else:
@@ -175,7 +175,7 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
         return "근거 없는 반박", [f"반박 내용(요청 그대로): {m.group(1) if m else ctx['req']}",
                                   "요청에 '의견 말고 새로 확인된 기록이나 수치는 없습니다'라고 적힘"]
     if mod == "check":
-        checks = [f"일람표의 다른 곳 ①: 편도 {s['one_way']}분을 왕복 시간처럼 적음 — 기록은 편도 {s['one_way']}분(돌아오는 시간 기록 없음)",
+        checks = [f"일람표의 다른 곳 ①: 편도 {s['one_way']}분을 왕복 시간처럼 적음 — 기록은 편도 {s['one_way']}분(왕복은 편도 두 번 = {2 * s['one_way']}분)",   # 10-23: 1턴만 고치고 남았던 옛 문구
                   f"일람표의 다른 곳 ②: 남은 예상 지출을 {rem + s['b_cost']}원으로 적음 — {rem + s['b_cost']}원 = 기록값 {rem}원(B안 비용 미포함) + B안 비용 {s['b_cost']}원",
                   f"일람표의 다른 곳 ③: 정원을 {s['cap'] + 5}{s['unit_people']}으로 적음 — 지금 정원은 {cap_now}{s['unit_people']}"
                   + (" (조건 변경 반영)" if cap_now != s["cap"] else ""),
@@ -188,18 +188,27 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
                   f"'아까 두 번째 안' = B안({s['b_short']}), 비용 {s['b_cost']}원",
                   f"확정 인력 {s['staff']}명(예비 인력은 승인 인력 아님)" + (f" · 기록: 같은 사람을 동시에 이동과 {reg_word}에 넣지 않음" if s["staff"] > 1 else "")]
         if s["one_way"]:
-            checks.append(f"이동: 편도 {s['one_way']}분 — 돌아오는 시간은 기록 없음")
+            checks.append(f"이동: 편도 {s['one_way']}분 · 왕복은 편도 두 번 = {2 * s['one_way']}분")
         checks.append("방식: 1턴 답이 추천한 안" if kind == "A" else "A안 · B안은 고르지 않았음(요청은 '확정한 조건')")
         return f"최종 결과물: {s['final']} — 최신 조건 반영", checks + time_conflict(s, reg_now, reg_word)
     raise KeyError(mod)
 
 
-def decided_rules(mod: str, s: Dict[str, Any]) -> List[str]:
+def decided_rules(mod: str, s: Dict[str, Any], kind: str = "A", conflicts: Tuple[str, ...] = ()) -> List[str]:
     """사용자가 정한 이 질문의 판정 기준 — 확인 목록의 사실과 따로 둔다(심판은 따른다)."""
     out: List[str] = []
     if s.get("one_way"):   # 10-23 사용자 결정: 왕복 = 편도 × 2 는 자료 결정대로 맞는 계산 — 10-22 목록의 '돌아오는 시간은 기록 없음'을 이유로 FAIL 하던 것
         out.append(f"이동 시간: {s['store']} 편도 {s['one_way']}분이고 왕복은 편도 두 번({2 * s['one_way']}분)으로 계산한 것이 맞음(자료 결정 '편도 시간을 왕복 시간으로 쓰지 않음'). "
                    "편도 값을 왕복으로 쓴 것은 틀림. 돌아오는 시간이 따로 기록되지 않았다는 이유로 왕복 계산을 틀렸다고 보지 않음 (사용자 결정 2026-10-23)")
+    if conflicts:   # 10-23 사용자 결정(Q6 · Q10 모순 질문): 정한 판정이 없어 모순을 짚은 답도 J3-1.a · J3-5.a FAIL 이던 것(표본 검토 Q6 7 · 10턴, Q10 10턴)
+        out.append("조건끼리 맞지 않는 곳(확인할 것의 '질문의 조건끼리 맞지 않음' 줄): 그 모순을 짚고 확인을 구하거나 가정을 밝힌 답이 맞음 — 모순을 짚어 일정에 두 값이 함께 나오거나 "
+                   "시간표를 확정하지 않았다는 이유로 틀렸다고 보지 않음. 모순을 짚지 않고 그대로 실행 가능한 것처럼 쓴 것은 틀림 (사용자 결정 2026-10-23)")
+    if mod == "final":   # 10-23 사용자 결정(표본 19 · 39 등 마지막 턴): 잰 적 없는 시간 · 정하지 않은 방식을 밝힌 일정까지 J3-5.a · J1-1.a FAIL 이던 것
+        out.append("잰 적 없는 소요 시간(자료에 값이 없는 꺼내기 · 싣기 · 이동 등): '미측정 · 미정'이라고 밝히고 여유나 기한을 둔 일정이 맞음 — 그런 구간이 있다는 이유만으로 "
+                   "일정이 성립하지 않는다거나 결과물이 없다고 보지 않음. 짐작한 값을 잰 값처럼 적은 것은 틀림 (사용자 결정 2026-10-23)")
+        out.append("방식: 이 턴은 1턴 답이 추천한 안(B안)을 전제로 짠 일정이 맞음 — 기록에 A · B 선택이 보류로 남았다는 이유로 B안 일정을 틀렸다고 보지 않고, "
+                   "B안의 전날 작업(넣기 · 이용료 등)을 마친 것으로 두어도 맞음 (사용자 결정 2026-10-23)" if kind == "A" else
+                   "방식: A안 · B안을 고르지 않은 대화 — 두 갈래를 나란히 두거나 방식을 미정으로 둔 일정이 맞고, 한 안을 확정된 것처럼 쓴 것은 틀림 (사용자 결정 2026-10-23)")
     if mod != "check":
         return out
     rem, b = s["budget"][2], s["b_cost"]
@@ -250,7 +259,8 @@ def build_one(q: Dict[str, Any], s: Dict[str, Any], kind: str, order: List[str],
         k_units = (set(base["checks"]) | set(base["items"])) - set(na)             # k: 인식기의 턴별 기준에서 같은 J6 만 뺌
         k_units |= {j for j, pat in RECOGNIZER_MISSES.get(mod, ()) if j in q_j and pat.search(ctx["req"])}   # + 확인된 인식기 누락
         turns_out.append({"turn": i, "flow": mod, "situation": situation, "request": request_of(questions[i - 1]), "question_sha": question_sha(questions[:i]),
-                          "checks": checks, "keep": keep, "decided": decided_rules(mod, s), "not_applicable": na, "target_items": targets,
+                          "checks": checks, "keep": keep, "decided": decided_rules(mod, s, kind, tuple(c for c in checks if "조건끼리 맞지 않음" in c)),
+                          "not_applicable": na, "target_items": targets,
                           "k_before": len((set(base["checks"]) | set(base["items"])) & units), "k_after": len(k_units & units), "k_units": sorted(k_units)})
     return {"question": q["id"], "kind": kind, "flow": order, "trap": q.get("trap"), "turns": turns_out}
 
