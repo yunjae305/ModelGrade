@@ -1,0 +1,4996 @@
+{
+ "summary": {
+  "single": {
+   "n": 67,
+   "nonempty": 57,
+   "pass_dist": {
+    "2": 1,
+    "3": 17,
+    "4": 39
+   },
+   "no_fail": 40,
+   "by_type": {
+    "단일 질문": {
+     "3": 8,
+     "4": 27
+    },
+    "롱컨텍스트": {
+     "2": 1,
+     "3": 7,
+     "4": 2
+    },
+    "첨부자료 확인·요약": {
+     "3": 2,
+     "4": 10
+    }
+   },
+   "by_difficulty": {
+    "보통": "9/47",
+    "어려움": "8/10"
+   }
+  },
+  "multi": {
+   "n": 11,
+   "pass_dist": {
+    "0": 11
+   },
+   "kind_fail": {
+    "final": "42/44",
+    "check": "22/28",
+    "record": "20/28",
+    "fmt": "29/44",
+    "setup": "27/44",
+    "explain": "14/32",
+    "chg": "15/44",
+    "draft": "11/44",
+    "push": "11/44",
+    "calc": "4/44",
+    "attach": "3/44"
+   },
+   "designed_fail": 346,
+   "other_fail": 74
+  },
+  "never_applied_by_item": {
+   "J1-3.b": 51,
+   "J1-3.a": 49,
+   "J4-4.a": 4,
+   "J2-5.a": 2,
+   "J4-1.b": 2,
+   "J5-1.a": 2,
+   "J3-4.a": 2,
+   "J3-2.a": 2,
+   "J5-2.b": 1
+  },
+  "suspects": 27,
+  "artifact": {
+   "by_item": {
+    "J3-5.a": [
+     13,
+     58
+    ],
+    "J3-1.a": [
+     9,
+     41
+    ],
+    "J5-2.a": [
+     7,
+     35
+    ],
+    "J6-2.b": [
+     7,
+     26
+    ],
+    "J2-3.a": [
+     6,
+     64
+    ],
+    "J5-2.b": [
+     6,
+     26
+    ],
+    "J3-2.b": [
+     5,
+     25
+    ],
+    "J4-4.a": [
+     3,
+     10
+    ],
+    "J1-1.a": [
+     2,
+     8
+    ],
+    "J6-3.a": [
+     2,
+     9
+    ],
+    "J5-3.a": [
+     1,
+     9
+    ],
+    "J6-2.a": [
+     1,
+     7
+    ],
+    "J4-2.a": [
+     1,
+     1
+    ],
+    "J1-3.b": [
+     1,
+     6
+    ]
+   },
+   "by_kind": {
+    "final": 33,
+    "fmt": 5,
+    "check": 9,
+    "setup": 5,
+    "record": 9,
+    "draft": 2,
+    "explain": 1
+   },
+   "total": [
+    64,
+    420
+   ],
+   "examples": {
+    "J3-5.a": [
+     "Q1 AIONA T10(최종 일정): 일정상 쪽문을 18:50에 열고 2층 접수 책상으로 이동한 뒤 같은 시각에 접수를 시작한다고 제시하지만, 그 이동 시간은 미측정이라고 밝혀 시간표가 성립하는지 확인되지 않습니다. 질문은 최종 실행 일정을 요구했고 자료도 이 이동 시간을 재기 전에는 시각을 확정하지 말라",
+     "Q2 AIONA T10(최종 일정): 이동 소요 시간이 미확정인데 6분과 06:29 복귀를 임의로 일정에 넣었고, 계획에서 점검 및 접수 준비 시간까지 남겨 실행 가능하다고 볼 근거가 없습니다. 질문은 실제 실행할 순서와 시각을 요청했습니다."
+    ],
+    "J2-3.a": [
+     "Q5 AIONA T6(형식 수정): 질문은 확정되지 않은 운반 방식이 수정본에 드러나지 않게 앞선 자료에서 정하고 있습니다. 운영 메모의 “남은 봉투는 경비실에 인계”는 운반 방식과 별개의 행사 후 처리지만, 현재 문안에는 확정된 전날 보관 방식을 밝히는 문장이 없습니다. 다만 “행사 당일 09:20부터",
+     "Q69 AIONA T6(형식 수정): 첫 번째 수정에서는 내용 값을 바꾸지 말라는 맥락의 지시가 유효합니다. 그런데 답변은 문의 부분에 참가비와 비용 청구 여부를 새로 넣어 원문 자료에 없던 안내 내용을 추가했습니다. 특히 현재 자료에도 참가비 여부는 안내문에 넣을지 미정이라고 적혀 있습니다."
+    ],
+    "J3-1.a": [
+     "Q5 AIONA T10(최종 일정): 첫 문장에서는 운반 방식이 확정되지 않았다고 하면서 마지막에는 '어느 안을 선택하든'이라는 양안 전제 아래 A안 일정도 실행 가능하다고 제시해, 하나의 최신 선택을 반영해야 하는 요청과 답변의 적용 방식이 일관되지 않습니다.",
+     "Q7 Claude T3(안내문 초안): 안내문은 접수 시각과 체험 시각을 혼동 없이 구분하지만, 같은 안내문에서 문의처를 \"체험 담당 조은비 한 분\"으로 확정하면서 연락처는 \"미정\"이라고 하여 확정된 문의처를 이용할 방법이 없어 서로 맞지 않습니다."
+    ],
+    "J5-2.a": [
+     "Q6 AIONA T9(자료 대조): 일람표의 왕복 8분이 틀렸다고 지적한 것은 맞지만, 이를 확정 기록의 왕복 16분이라고 제시해 돌아오는 시간도 8분이라는 미제공 값을 확정값처럼 덧붙였습니다.",
+     "Q7 Claude T1(조건·추천): 주어진 9분은 편도 시간인데, 왕복이 필요한지 여부를 드러내지 않고 28분을 전체 준비 시간으로 더했습니다. 답변도 별도 문장에서 왕복 시간이 기록되지 않았다고 인정하므로 입력의 시간을 다른 의미로 적용했습니다."
+    ],
+    "J5-3.a": [
+     "Q10 AIONA T1(조건·추천): 질문은 웹 검색을 요청하지 않았고 회의록도 회의 중 인터넷을 찾아보지 않았다고 기록하지만, 답변은 회의록 밖의 검색 결과를 언급해 확인 과정을 꾸몄습니다."
+    ],
+    "J5-2.b": [
+     "Q10 AIONA T4(기록 요약): 원문에는 참가자가 신청 때 경계 품목을 적으면 운영 담당자가 확인할 수 있다고 되어 있는데, 답변은 “경계에 있는 품목의 세부 기준은 정해지지 않았습니다”라고만 해 그 확인 경로를 생략했습니다. 요약 내용의 의미를 불완전하게 바꾸었습니다.",
+     "Q2 Claude T2(기록 요약): 판본 2는 주차 안내를 확정·미정 항목으로 제시하지 않습니다. 1차 회의록의 문의 응답과 이번 요약의 추정을 덧붙여 판본 2 내용처럼 적었습니다."
+    ],
+    "J6-2.a": [
+     "Q2 Claude T9(자료 대조): 이전 확정 정보를 정확히 대조하지 않았습니다. 일람표의 A안 '이동 | 대여점 왕복 11분'은 기록의 '정비 대여점은 현장에서 걸어서 편도 11분'과 다르고 돌아오는 시간은 기록되지 않았는데, 답변은 이를 다른 항목으로 짚지 않은 채 '준비 방식 값은 ... 일치'한다"
+    ],
+    "J4-2.a": [
+     "Q7 Claude T3(안내문 초안): 문의처라는 추가 요구 중 담당자 이름은 있지만, 연락처가 미정이라 참가 가족이 실제로 문의할 수 있는 경로가 안내되지 않았습니다."
+    ],
+    "J3-2.b": [
+     "Q7 Claude T10(최종 일정): B안의 이점으로 당일 창고 이동을 없애는 점은 타당하지만, 준비 완료 시각 계산은 기록되지 않은 보관함에서 꺼내는 시간과 현장 기록 시간을 일정에 사실상 0분으로 둔 계산입니다. 따라서 이 값으로 09:09 완료와 41분 여유를 결론 내릴 수 없습니다.",
+     "Q5 Gemini T1(조건·추천): 비용과 현장 부재를 판단하는 근거로 자료에 없는 왕복 5분을 가정했습니다. 답변은 A안이 27분이라 실행 불가하다고 보지만, 돌아오는 시간은 자료에 없어 그 결론을 뒷받침하지 않습니다."
+    ],
+    "J1-1.a": [
+     "Q8 Claude T10(최종 일정): 요청한 리허설 일정을 실제 시각으로 제시하지 않았습니다. 질문의 “리허설·공연 당일 일정” 요청에 답하면서 리허설 시각을 미정으로 남겼습니다.",
+     "Q69 GPT T9(최종 일정): 요청은 발표의 시각과 소요 시간까지 요구하지만 답변은 팀별 발표 시작·종료 시각을 제시하지 않고 미정으로 남겼습니다. 일정 전체를 완성하지 못한 누락입니다."
+    ],
+    "J6-2.b": [
+     "Q8 Claude T10(최종 일정): 요청은 리허설·공연 당일 일정을 요구했고, 자료에는 리허설 시각은 설치 뒤로 하되 정확한 시각은 미정이라고 있습니다. 답변은 리허설을 일정에 반영하지 않았습니다.",
+     "Q9 Claude T8(자료 대조): 현재 질문은 이전에 확정한 값과 대조하라고 했지만, 답변은 앞선 대화에서 확정된 접수 시작 13:55를 반영하지 않고 미정으로 취급했습니다. 4턴의 변경 통지는 13:45보다 10분 늦추고 수업 시작 14:00은 유지한다고 밝혔습니다."
+    ],
+    "J6-3.a": [
+     "Q9 Claude T8(자료 대조): 질문은 이미 앞서 확정된 접수 시작 13:55와 가족 동반 예외 취소를 반영하라고 했습니다. 답변은 변경 통지의 '이전보다 10분 늦게'를 다시 계산해 14:05라 오인하고, 확정된 13:55를 미정으로 되돌려 변경 사항을 잘못 반영했습니다.",
+     "Q3 Gemini T9(최종 일정): 앞 턴에서는 B안을 추천했지만 확정하지 않았고, 최신 일정 자료도 준비 방식을 아직 정하지 않았다고 합니다. 답변은 B안 확정으로 처리해 미정 상태를 반영하지 않았습니다."
+    ],
+    "J1-3.b": [
+     "Q69 Claude T9(최종 일정): 정확한 접속 점검 및 자료 확인 시각을 달라는 요구와 분 단위 구간 배치 자료의 미확정 상태가 함께 있어 확인이 필요했지만, 답변은 '18:40 이후'로만 두고 질문하지 않았습니다."
+    ],
+    "J4-4.a": [
+     "Q6 Gemini T3(기록 요약): 자료는 “자리 배치표는 이번 자료에 포함되지 않는다”, “참가자는 … 모니터 규칙(팀당 1대, 추가 대여는 창고 재고에 따름)을 말로 알린다”, “추가 대여는 장비 창고 재고에 따른다”, “참가자가 멀티탭을 다른 자리로 옮기거나 서로 이어 붙이지 않는다”고 적습니다. ",
+     "Q8 GPT T3(기록 요약): 핵심 행동 요약에서 좌석 배치표 부재와 개별 편의 지원 미정은 담았지만, 원문이 참가자 행동에 필요한 핵심으로 적은 단원 대기 장소 확인 여부와 공연장 측 답변 대기 등의 안내가 일부 빠졌습니다. 질문은 핵심 정보를 빠짐없이 요약하라고 했습니다."
+    ]
+   }
+  },
+  "refusal_turns": [
+   {
+    "q": 4,
+    "p": "aiona",
+    "turn": 6,
+    "kind": "push",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-1.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "aiona",
+    "turn": 6,
+    "kind": "fmt",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J2-3.a"
+    ]
+   },
+   {
+    "q": 6,
+    "p": "aiona",
+    "turn": 10,
+    "kind": "final",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J3-1.a",
+     "J3-5.a"
+    ]
+   },
+   {
+    "q": 8,
+    "p": "aiona",
+    "turn": 10,
+    "kind": "final",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J1-4.a",
+     "J3-5.a"
+    ]
+   },
+   {
+    "q": 8,
+    "p": "claude",
+    "turn": 10,
+    "kind": "final",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J3-5.a",
+     "J3-5.b",
+     "J6-2.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 1,
+    "p": "gemini",
+    "turn": 2,
+    "kind": "calc",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 1,
+    "p": "gemini",
+    "turn": 4,
+    "kind": "draft",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J2-5.b",
+     "J6-1.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 1,
+    "p": "gemini",
+    "turn": 5,
+    "kind": "check",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J5-2.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 1,
+    "p": "gemini",
+    "turn": 7,
+    "kind": "chg",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J6-3.b"
+    ]
+   },
+   {
+    "q": 1,
+    "p": "gemini",
+    "turn": 9,
+    "kind": "push",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-4.b"
+    ]
+   },
+   {
+    "q": 2,
+    "p": "gemini",
+    "turn": 8,
+    "kind": "fmt",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J2-5.b"
+    ]
+   },
+   {
+    "q": 4,
+    "p": "gemini",
+    "turn": 2,
+    "kind": "record",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-1.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 4,
+    "p": "gemini",
+    "turn": 5,
+    "kind": "explain",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-4.a",
+     "J3-3.b"
+    ]
+   },
+   {
+    "q": 4,
+    "p": "gemini",
+    "turn": 7,
+    "kind": "fmt",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a"
+    ]
+   },
+   {
+    "q": 4,
+    "p": "gemini",
+    "turn": 9,
+    "kind": "chg",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a"
+    ]
+   },
+   {
+    "q": 4,
+    "p": "gemini",
+    "turn": 10,
+    "kind": "final",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J3-5.a"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 2,
+    "kind": "draft",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J2-5.b",
+     "J6-1.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 3,
+    "kind": "calc",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 4,
+    "kind": "push",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-2.b",
+     "J6-2.c"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 6,
+    "kind": "fmt",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J2-5.b",
+     "J6-1.a",
+     "J6-2.b"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 9,
+    "kind": "chg",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a",
+     "J2-5.b",
+     "J6-1.a",
+     "J6-2.c",
+     "J6-3.a",
+     "J6-3.b"
+    ]
+   },
+   {
+    "q": 5,
+    "p": "gemini",
+    "turn": 10,
+    "kind": "final",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J2-3.a",
+     "J3-2.b",
+     "J3-5.a",
+     "J3-5.b"
+    ]
+   },
+   {
+    "q": 7,
+    "p": "gemini",
+    "turn": 8,
+    "kind": "push",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J6-4.b"
+    ]
+   },
+   {
+    "q": 9,
+    "p": "gemini",
+    "turn": 8,
+    "kind": "check",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-3.a"
+    ]
+   },
+   {
+    "q": 69,
+    "p": "gemini",
+    "turn": 6,
+    "kind": "fmt",
+    "j11": "NOT_APPLICABLE",
+    "j12": "FAIL",
+    "others": [
+     "J2-5.b"
+    ]
+   },
+   {
+    "q": 10,
+    "p": "gpt",
+    "turn": 7,
+    "kind": "chg",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J1-3.a"
+    ]
+   },
+   {
+    "q": 69,
+    "p": "gpt",
+    "turn": 9,
+    "kind": "final",
+    "j11": "FAIL",
+    "j12": "PASS",
+    "others": [
+     "J3-5.a"
+    ]
+   }
+  ],
+  "split_rank": [
+   [
+    "J1-4.b",
+    129,
+    33,
+    {
+     "Decisions FAIL → Codex PASS": 129
+    },
+    668,
+    0,
+    0
+   ],
+   [
+    "J6-2.a",
+    110,
+    39,
+    {
+     "Decisions FAIL → Codex PASS": 98,
+     "Decisions FAIL → Codex 해당 없음": 12
+    },
+    250,
+    4,
+    3
+   ],
+   [
+    "J5-2.a",
+    101,
+    34,
+    {
+     "Decisions FAIL → Codex PASS": 84,
+     "Decisions FAIL → Codex 해당 없음": 16,
+     "Decisions FAIL → Codex 보류": 1
+    },
+    555,
+    23,
+    16
+   ],
+   [
+    "J2-3.a",
+    68,
+    12,
+    {
+     "Decisions FAIL → Codex PASS": 67,
+     "Decisions FAIL → Codex 해당 없음": 1
+    },
+    317,
+    33,
+    31
+   ],
+   [
+    "J6-2.b",
+    67,
+    40,
+    {
+     "Decisions FAIL → Codex PASS": 60,
+     "Decisions FAIL → Codex 해당 없음": 7
+    },
+    305,
+    17,
+    9
+   ],
+   [
+    "J1-4.a",
+    55,
+    17,
+    {
+     "Decisions FAIL → Codex PASS": 54,
+     "Decisions FAIL → Codex 해당 없음": 1
+    },
+    666,
+    3,
+    2
+   ],
+   [
+    "J3-2.b",
+    46,
+    16,
+    {
+     "Decisions FAIL → Codex PASS": 35,
+     "Decisions FAIL → Codex 해당 없음": 11
+    },
+    147,
+    18,
+    7
+   ],
+   [
+    "J6-1.a",
+    46,
+    17,
+    {
+     "Decisions FAIL → Codex PASS": 46
+    },
+    396,
+    4,
+    6
+   ],
+   [
+    "J6-4.a",
+    46,
+    15,
+    {
+     "Decisions FAIL → Codex 해당 없음": 12,
+     "Decisions FAIL → Codex PASS": 34
+    },
+    175,
+    2,
+    1
+   ],
+   [
+    "J3-1.a",
+    41,
+    24,
+    {
+     "Decisions FAIL → Codex PASS": 41
+    },
+    667,
+    29,
+    15
+   ],
+   [
+    "J5-3.a",
+    28,
+    2,
+    {
+     "Decisions FAIL → Codex 해당 없음": 11,
+     "Decisions FAIL → Codex PASS": 17
+    },
+    283,
+    15,
+    12
+   ],
+   [
+    "J1-3.b",
+    26,
+    0,
+    {
+     "Decisions FAIL → Codex PASS": 8,
+     "Decisions FAIL → Codex 해당 없음": 18
+    },
+    73,
+    3,
+    4
+   ],
+   [
+    "J1-3.a",
+    25,
+    5,
+    {
+     "Decisions FAIL → Codex 해당 없음": 18,
+     "Decisions FAIL → Codex PASS": 7
+    },
+    90,
+    6,
+    4
+   ],
+   [
+    "J5-2.b",
+    22,
+    11,
+    {
+     "Decisions FAIL → Codex PASS": 11,
+     "Decisions FAIL → Codex 해당 없음": 11
+    },
+    73,
+    20,
+    6
+   ]
+  ],
+  "criteria": {
+   "J1-1.a": {
+    "target": 668,
+    "judged": 598,
+    "na": 70,
+    "fail": 12,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 0,
+    "both_fail": 11,
+    "codex_only_fail": 13,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 2
+    }
+   },
+   "J1-2.a": {
+    "target": 668,
+    "judged": 629,
+    "na": 39,
+    "fail": 24,
+    "hold": 0,
+    "split": 1,
+    "split_strong": 0,
+    "both_fail": 20,
+    "codex_only_fail": 4,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 1
+    }
+   },
+   "J1-3.a": {
+    "target": 668,
+    "judged": 90,
+    "na": 578,
+    "fail": 10,
+    "hold": 0,
+    "split": 25,
+    "split_strong": 5,
+    "both_fail": 6,
+    "codex_only_fail": 4,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 18,
+     "Decisions FAIL → Codex PASS": 7
+    }
+   },
+   "J1-3.b": {
+    "target": 668,
+    "judged": 73,
+    "na": 595,
+    "fail": 7,
+    "hold": 0,
+    "split": 26,
+    "split_strong": 0,
+    "both_fail": 3,
+    "codex_only_fail": 4,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 8,
+     "Decisions FAIL → Codex 해당 없음": 18
+    }
+   },
+   "J1-4.a": {
+    "target": 668,
+    "judged": 666,
+    "na": 2,
+    "fail": 5,
+    "hold": 1,
+    "split": 55,
+    "split_strong": 17,
+    "both_fail": 3,
+    "codex_only_fail": 2,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 54,
+     "Decisions FAIL → Codex 해당 없음": 1
+    }
+   },
+   "J1-4.b": {
+    "target": 668,
+    "judged": 668,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 129,
+    "split_strong": 33,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 129
+    }
+   },
+   "J2-2.a": {
+    "target": 104,
+    "judged": 104,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J2-5.a": {
+    "target": 100,
+    "judged": 51,
+    "na": 49,
+    "fail": 0,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 2
+    }
+   },
+   "J3-1.a": {
+    "target": 668,
+    "judged": 667,
+    "na": 1,
+    "fail": 44,
+    "hold": 0,
+    "split": 41,
+    "split_strong": 24,
+    "both_fail": 29,
+    "codex_only_fail": 15,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 41
+    }
+   },
+   "J3-2.a": {
+    "target": 108,
+    "judged": 77,
+    "na": 31,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J3-2.b": {
+    "target": 180,
+    "judged": 147,
+    "na": 33,
+    "fail": 25,
+    "hold": 0,
+    "split": 46,
+    "split_strong": 16,
+    "both_fail": 18,
+    "codex_only_fail": 7,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 35,
+     "Decisions FAIL → Codex 해당 없음": 11
+    }
+   },
+   "J3-5.a": {
+    "target": 104,
+    "judged": 98,
+    "na": 6,
+    "fail": 58,
+    "hold": 0,
+    "split": 11,
+    "split_strong": 9,
+    "both_fail": 51,
+    "codex_only_fail": 7,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 9,
+     "Decisions FAIL → Codex 해당 없음": 2
+    }
+   },
+   "J3-5.b": {
+    "target": 116,
+    "judged": 105,
+    "na": 11,
+    "fail": 9,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 9,
+    "split_dir": {}
+   },
+   "J4-1.a": {
+    "target": 72,
+    "judged": 63,
+    "na": 9,
+    "fail": 0,
+    "hold": 0,
+    "split": 1,
+    "split_strong": 1,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 1
+    }
+   },
+   "J4-1.b": {
+    "target": 56,
+    "judged": 42,
+    "na": 14,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J4-4.a": {
+    "target": 104,
+    "judged": 63,
+    "na": 41,
+    "fail": 10,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 0,
+    "both_fail": 3,
+    "codex_only_fail": 7,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 1,
+     "Decisions FAIL → Codex PASS": 1
+    }
+   },
+   "J5-2.a": {
+    "target": 632,
+    "judged": 555,
+    "na": 77,
+    "fail": 39,
+    "hold": 1,
+    "split": 101,
+    "split_strong": 34,
+    "both_fail": 23,
+    "codex_only_fail": 16,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 84,
+     "Decisions FAIL → Codex 해당 없음": 16,
+     "Decisions FAIL → Codex 보류": 1
+    }
+   },
+   "J5-2.b": {
+    "target": 96,
+    "judged": 73,
+    "na": 23,
+    "fail": 26,
+    "hold": 0,
+    "split": 22,
+    "split_strong": 11,
+    "both_fail": 20,
+    "codex_only_fail": 6,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 11,
+     "Decisions FAIL → Codex 해당 없음": 11
+    }
+   },
+   "J5-3.a": {
+    "target": 668,
+    "judged": 283,
+    "na": 385,
+    "fail": 14,
+    "hold": 0,
+    "split": 28,
+    "split_strong": 2,
+    "both_fail": 15,
+    "codex_only_fail": 12,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 11,
+     "Decisions FAIL → Codex PASS": 17
+    }
+   },
+   "J3-4.a": {
+    "target": 104,
+    "judged": 69,
+    "na": 35,
+    "fail": 0,
+    "hold": 0,
+    "split": 1,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 1
+    }
+   },
+   "J6-1.a": {
+    "target": 396,
+    "judged": 396,
+    "na": 0,
+    "fail": 10,
+    "hold": 0,
+    "split": 46,
+    "split_strong": 17,
+    "both_fail": 4,
+    "codex_only_fail": 6,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 46
+    }
+   },
+   "J6-2.a": {
+    "target": 396,
+    "judged": 250,
+    "na": 146,
+    "fail": 7,
+    "hold": 0,
+    "split": 110,
+    "split_strong": 39,
+    "both_fail": 4,
+    "codex_only_fail": 3,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 98,
+     "Decisions FAIL → Codex 해당 없음": 12
+    }
+   },
+   "J6-2.b": {
+    "target": 396,
+    "judged": 305,
+    "na": 91,
+    "fail": 26,
+    "hold": 0,
+    "split": 67,
+    "split_strong": 40,
+    "both_fail": 17,
+    "codex_only_fail": 9,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 60,
+     "Decisions FAIL → Codex 해당 없음": 7
+    }
+   },
+   "J6-2.c": {
+    "target": 396,
+    "judged": 127,
+    "na": 269,
+    "fail": 4,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 4,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 2
+    }
+   },
+   "J6-4.a": {
+    "target": 352,
+    "judged": 175,
+    "na": 177,
+    "fail": 3,
+    "hold": 0,
+    "split": 46,
+    "split_strong": 15,
+    "both_fail": 2,
+    "codex_only_fail": 1,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 12,
+     "Decisions FAIL → Codex PASS": 34
+    }
+   },
+   "J2-3.a": {
+    "target": 324,
+    "judged": 317,
+    "na": 7,
+    "fail": 64,
+    "hold": 0,
+    "split": 68,
+    "split_strong": 12,
+    "both_fail": 33,
+    "codex_only_fail": 31,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 67,
+     "Decisions FAIL → Codex 해당 없음": 1
+    }
+   },
+   "J2-4.a": {
+    "target": 48,
+    "judged": 48,
+    "na": 0,
+    "fail": 1,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 1,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J2-4.b": {
+    "target": 48,
+    "judged": 47,
+    "na": 1,
+    "fail": 1,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 1,
+    "split_dir": {}
+   },
+   "J3-3.a": {
+    "target": 48,
+    "judged": 46,
+    "na": 2,
+    "fail": 2,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 2,
+    "both_fail": 2,
+    "codex_only_fail": 0,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 2
+    }
+   },
+   "J3-3.b": {
+    "target": 48,
+    "judged": 48,
+    "na": 0,
+    "fail": 6,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 5,
+    "codex_only_fail": 1,
+    "split_dir": {}
+   },
+   "J4-2.a": {
+    "target": 124,
+    "judged": 115,
+    "na": 9,
+    "fail": 2,
+    "hold": 0,
+    "split": 5,
+    "split_strong": 0,
+    "both_fail": 1,
+    "codex_only_fail": 3,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 3,
+     "Decisions FAIL → Codex 해당 없음": 2
+    }
+   },
+   "J5-1.a": {
+    "target": 56,
+    "judged": 46,
+    "na": 10,
+    "fail": 4,
+    "hold": 11,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 1,
+    "codex_only_fail": 14,
+    "split_dir": {}
+   },
+   "J2-5.b": {
+    "target": 140,
+    "judged": 133,
+    "na": 7,
+    "fail": 7,
+    "hold": 0,
+    "split": 2,
+    "split_strong": 1,
+    "both_fail": 3,
+    "codex_only_fail": 4,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 1,
+     "Decisions FAIL → Codex 해당 없음": 1
+    }
+   },
+   "J4-3.a": {
+    "target": 120,
+    "judged": 104,
+    "na": 16,
+    "fail": 3,
+    "hold": 0,
+    "split": 10,
+    "split_strong": 1,
+    "both_fail": 1,
+    "codex_only_fail": 2,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 4,
+     "Decisions FAIL → Codex PASS": 6
+    }
+   },
+   "J6-3.a": {
+    "target": 192,
+    "judged": 138,
+    "na": 54,
+    "fail": 9,
+    "hold": 0,
+    "split": 15,
+    "split_strong": 5,
+    "both_fail": 3,
+    "codex_only_fail": 6,
+    "split_dir": {
+     "Decisions FAIL → Codex 해당 없음": 2,
+     "Decisions FAIL → Codex PASS": 13
+    }
+   },
+   "J6-3.b": {
+    "target": 44,
+    "judged": 39,
+    "na": 5,
+    "fail": 7,
+    "hold": 0,
+    "split": 1,
+    "split_strong": 0,
+    "both_fail": 1,
+    "codex_only_fail": 6,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 1
+    }
+   },
+   "J6-4.b": {
+    "target": 44,
+    "judged": 42,
+    "na": 2,
+    "fail": 4,
+    "hold": 0,
+    "split": 1,
+    "split_strong": 0,
+    "both_fail": 3,
+    "codex_only_fail": 1,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 1
+    }
+   },
+   "J8-1.a": {
+    "target": 48,
+    "judged": 48,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J8-2.a": {
+    "target": 48,
+    "judged": 48,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J8-3.a": {
+    "target": 48,
+    "judged": 48,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J2-1.a": {
+    "target": 40,
+    "judged": 40,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J2-1.b": {
+    "target": 40,
+    "judged": 40,
+    "na": 0,
+    "fail": 0,
+    "hold": 0,
+    "split": 0,
+    "split_strong": 0,
+    "both_fail": 0,
+    "codex_only_fail": 0,
+    "split_dir": {}
+   },
+   "J7-1.a": {
+    "target": 40,
+    "judged": 40,
+    "na": 0,
+    "fail": 8,
+    "hold": 0,
+    "split": 3,
+    "split_strong": 0,
+    "both_fail": 7,
+    "codex_only_fail": 1,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 3
+    }
+   },
+   "J7-2.a": {
+    "target": 40,
+    "judged": 40,
+    "na": 0,
+    "fail": 7,
+    "hold": 0,
+    "split": 4,
+    "split_strong": 1,
+    "both_fail": 6,
+    "codex_only_fail": 1,
+    "split_dir": {
+     "Decisions FAIL → Codex PASS": 4
+    }
+   }
+  }
+ },
+ "questions": {
+  "1": {
+   "q": 1,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "현장 등록 예외를 취소한 뒤에도 안내문에 남기거나, 편도 7분을 왕복으로 쓰지 않고 일정을 짜면 FAIL",
+   "flow": [
+    "setup",
+    "calc",
+    "explain",
+    "draft",
+    "check",
+    "fmt",
+    "chg",
+    "attach",
+    "push",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "HOLD",
+    "claude": "FAIL",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 2,
+   "n_hold": 2,
+   "fails": {
+    "gpt": [
+     "T1:J5-2.a",
+     "T1:J5-2.b",
+     "CODE 1-1.foreign_script",
+     "CODE 2-1.count",
+     "T3:J5-3.a",
+     "T5:J2-3.a",
+     "T5:J5-2.a",
+     "T10:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ],
+    "claude": [
+     "T1:J3-1.a",
+     "T1:J3-5.a",
+     "CODE 2-1.literal",
+     "T5:J2-3.a",
+     "T10:J3-5.a",
+     "T10:J6-4.a"
+    ],
+    "gemini": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T1:J5-2.b",
+     "CODE 2-1.count",
+     "CODE 2-1.literal",
+     "T2:J1-2.a",
+     "T2:J6-2.b",
+     "T4:J1-2.a",
+     "T4:J2-3.a",
+     "T4:J2-5.b",
+     "T4:J6-1.a",
+     "T4:J6-2.b",
+     "T5:J1-2.a",
+     "T5:J5-2.a",
+     "T5:J6-2.b",
+     "T6:J2-3.a",
+     "T6:J3-1.a",
+     "T6:J6-2.b",
+     "T7:J1-2.a",
+     "T7:J2-3.a",
+     "T7:J6-3.b",
+     "T9:J1-2.a",
+     "T9:J6-4.b",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ],
+    "aiona": [
+     "T6:J2-3.a",
+     "T10:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    3,
+    1,
+    1,
+    1,
+    3,
+    2,
+    1,
+    0,
+    1,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 일정상 쪽문을 18:50에 열고 2층 접수 책상으로 이동한 뒤 같은 시각에 접수를 시작한다고 제시하지만, 그 이동 시간은 미측정이라고 밝혀 시간표가 성립하는지 확인되지 않습니다. 질문은 최종 실행 일정을 요구했고 자료도 이 이동 시간을 재기 전에는 시각을 확정하지 말라고 합니다.",
+      "GPT: 답변은 담당자 한 명에게 1층 쪽문 개방과 2층 접수 시작을 같은 시각에 배정하지만, 쪽문과 접수 책상 사이 이동 시간이 미측정이라고 합니다. 순서·시간의 양립 여부를 해결하지 못해 실행 가능한 일정이 아닙니다."
+     ]
+    }
+   ],
+   "never_applied": [
+    "J4-4.a"
+   ],
+   "designed_fail": 30,
+   "other_fail": 8,
+   "turn_pass_rate": [
+    22,
+    40
+   ]
+  },
+  "2": {
+   "q": 2,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "집결 장소 변경 뒤에도 북문을 안내하거나, 인력 2명을 같은 시각에 이동과 접수에 함께 넣으면 FAIL",
+   "flow": [
+    "setup",
+    "record",
+    "draft",
+    "calc",
+    "chg",
+    "push",
+    "attach",
+    "fmt",
+    "check",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 4,
+   "n_hold": 0,
+   "fails": {
+    "gpt": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T4:J6-2.c",
+     "T9:J2-3.a",
+     "T10:J3-5.a",
+     "T10:J6-1.a"
+    ],
+    "claude": [
+     "T1:J3-5.a",
+     "CODE 1-3.citation_link",
+     "CODE 3-3.aggregate",
+     "T2:J5-2.b",
+     "T8:J2-3.a",
+     "T9:J6-2.a",
+     "T10:J3-5.a"
+    ],
+    "gemini": [
+     "T1:J3-2.b",
+     "T1:J5-2.a",
+     "CODE 1-2.code_block",
+     "T2:J4-4.a",
+     "T2:J5-2.b",
+     "T4:J1-2.a",
+     "T7:J1-3.b",
+     "T8:J1-2.a",
+     "T8:J2-3.a",
+     "T8:J2-5.b",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J6-2.a"
+    ],
+    "aiona": [
+     "T2:J2-3.a",
+     "T3:J2-3.a",
+     "T8:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    3,
+    3,
+    1,
+    2,
+    0,
+    0,
+    1,
+    3,
+    2,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 8,
+     "item": "J2-3.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 질문은 본문에 [1]·[2] 번호를 붙이고 목록과 맞추라고 했지만, 답변은 실제 본문 출처 번호와 목록 번호를 표시하지 않았습니다.",
+      "Claude: 1차 수정본 내용 그대로 두라는 조건과 달리 간식 안내를 추가했습니다. 예산 메모의 예상 지출 항목은 참가자에게 간식을 제공한다는 안내가 아닙니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 이동 소요 시간이 미확정인데 6분과 06:29 복귀를 임의로 일정에 넣었고, 계획에서 점검 및 접수 준비 시간까지 남겨 실행 가능하다고 볼 근거가 없습니다. 질문은 실제 실행할 순서와 시각을 요청했습니다.",
+      "GPT: 두 작업을 병행한다고 배정했지만, 실행 순서는 물품을 꺼내 점검한 뒤 설치하도록 적었습니다. 답변도 보관함 개방·반출 시간을 별도로 확인해야 한다고 밝혀 이 배정만으로 06:45 전 준비 완료를 보장하지 않습니다. 지정 시간대 안에서 순서와 소요 시간이 성립하지 않습니다."
+     ]
+    }
+   ],
+   "never_applied": [],
+   "designed_fail": 25,
+   "other_fail": 4,
+   "turn_pass_rate": [
+    21,
+    40
+   ]
+  },
+  "3": {
+   "q": 3,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "정원을 10명으로 줄인 뒤 12명 기준 물품을 그대로 쓰거나, 현장 신청 예외를 안내문에 남기면 FAIL",
+   "flow": [
+    "setup",
+    "explain",
+    "draft",
+    "chg",
+    "calc",
+    "check",
+    "push",
+    "fmt",
+    "final",
+    "attach"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "aiona": [
+     "CODE 2-1.charset",
+     "T3:J1-4.a",
+     "T6:J3-1.a",
+     "T8:J2-3.a",
+     "T8:J5-2.a"
+    ],
+    "claude": [
+     "T1:J3-5.a",
+     "T1:J5-2.b",
+     "CODE 2-1.count",
+     "CODE 2-1.literal",
+     "CODE 3-3.aggregate",
+     "T3:J6-2.b",
+     "T9:J3-5.a"
+    ],
+    "gemini": [
+     "T1:J3-1.a",
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T1:J3-5.b",
+     "T1:J5-2.a",
+     "T1:J5-2.b",
+     "T2:J2-3.a",
+     "T2:J3-1.a",
+     "T2:J3-3.b",
+     "T6:J5-2.a",
+     "T8:J2-3.a",
+     "T9:J3-1.a",
+     "T9:J3-5.a",
+     "T9:J5-2.a",
+     "T9:J6-3.a"
+    ],
+    "gpt": [
+     "T6:J3-2.b",
+     "T8:J6-2.b",
+     "T9:J6-2.b"
+    ]
+   },
+   "turn_fail_models": [
+    2,
+    1,
+    2,
+    0,
+    0,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "turn_hold_models": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J4-4.a"
+   ],
+   "designed_fail": 22,
+   "other_fail": 4,
+   "turn_pass_rate": [
+    26,
+    40
+   ]
+  },
+  "4": {
+   "q": 4,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "접수를 15분 앞당긴 뒤에도 19:15 를 안내하거나, 형제 동반 예외를 취소한 뒤 안내 메일에 남기면 FAIL",
+   "flow": [
+    "setup",
+    "record",
+    "calc",
+    "draft",
+    "explain",
+    "push",
+    "fmt",
+    "attach",
+    "chg",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "gpt": [
+     "T1:J3-5.a",
+     "T2:J5-2.b",
+     "T9:J3-1.a",
+     "T9:J6-3.b",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J3-5.b",
+     "T10:J6-2.a",
+     "T10:J6-2.b"
+    ],
+    "gemini": [
+     "T1:J5-2.b",
+     "CODE 1-2.code_block",
+     "CODE 2-1.count",
+     "CODE 2-1.literal",
+     "CODE 2-2.list",
+     "T2:J1-2.a",
+     "T2:J6-1.a",
+     "T2:J6-2.b",
+     "T4:J1-2.a",
+     "T5:J1-2.a",
+     "T5:J2-4.a",
+     "T5:J3-3.b",
+     "T6:J1-2.a",
+     "T7:J1-2.a",
+     "T7:J2-3.a",
+     "T8:J1-3.b",
+     "T8:J6-2.b",
+     "T9:J1-2.a",
+     "T9:J2-3.a",
+     "T10:J1-2.a",
+     "T10:J2-3.a",
+     "T10:J3-5.a"
+    ],
+    "aiona": [
+     "T2:J5-2.b",
+     "T6:J1-2.a",
+     "T6:J6-1.a",
+     "T6:J6-2.b",
+     "T8:J1-3.a",
+     "T8:J1-3.b",
+     "T8:J6-1.a",
+     "T9:J6-3.b",
+     "T10:J3-5.a",
+     "T10:J3-5.b"
+    ],
+    "claude": [
+     "T2:J5-2.b",
+     "T10:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    2,
+    4,
+    0,
+    1,
+    1,
+    2,
+    1,
+    2,
+    3,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 2,
+     "item": "J5-2.b",
+     "n": 3,
+     "reasons": [
+      "AIONA: 원문에 없는 ‘참가자 안내에 넣지 않을 내용’이라는 판단을 요약에 더했습니다. 자료는 이 정보들을 참가자 행동과 별개로 둡니다.",
+      "GPT: 제공 기록에는 9월 22일 변경 통지로 형제 가정 예외가 취소된 사실이 없는데, 답변은 원장 판단으로 취소될 수 있다는 문장을 덧붙였습니다. 입력 기록에 없는 9월 22일 변경은 해당 시점 자료에 없으며, 요약에 새 사실을 추가했습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: A안에서는 18:20에 도착하자마자 교무실로 떠나야 이동 시작 시각이 성립하므로, 같은 사람이 그 시점에 강당 뒷문에 쪽지를 붙일 수 없습니다. 또 18:24부터 2분 안에 적재가 끝난다고 정한 근거도 없는데 확정 시각처럼 배치했습니다.",
+      "GPT: 현장 도착 18:20부터 접수 19:00까지 40분이며 A안에 알려진 작업만 38분입니다. 답변은 적재 시간을 미측정이라고 하면서도 적재 및 귀환 작업의 구체 시작 시각을 배정해 19:00 접수 전 완료 가능성이 불명확한 계획을 시각화했습니다. 이는 답변 내부 작업 시간·순서의 일관성 "
+     ]
+    }
+   ],
+   "never_applied": [
+    "J2-5.a",
+    "J4-1.b"
+   ],
+   "designed_fail": 29,
+   "other_fail": 10,
+   "turn_pass_rate": [
+    20,
+    40
+   ]
+  },
+  "5": {
+   "q": 5,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "지각 입장 예외를 취소한 뒤 안내문에 남기거나, 안내판 수량을 표의 중복 행 때문에 8개로 세면 FAIL",
+   "flow": [
+    "setup",
+    "draft",
+    "calc",
+    "push",
+    "explain",
+    "fmt",
+    "attach",
+    "check",
+    "chg",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "gpt": [
+     "CODE 2-1.count",
+     "T2:J2-3.a",
+     "T6:J2-3.a",
+     "T10:J2-3.a",
+     "T10:J3-5.a"
+    ],
+    "claude": [
+     "T1:J3-1.a",
+     "T1:J3-5.a",
+     "CODE 2-1.count",
+     "CODE 3-3.aggregate",
+     "T2:J2-5.b",
+     "T4:J3-2.b",
+     "T5:J5-1.a",
+     "T6:J2-3.a",
+     "T8:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J6-4.a"
+    ],
+    "gemini": [
+     "T1:J3-1.a",
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T1:J5-2.a",
+     "CODE 1-2.code_block",
+     "CODE 2-1.count",
+     "CODE 2-1.literal",
+     "T2:J1-2.a",
+     "T2:J2-3.a",
+     "T2:J2-5.b",
+     "T2:J6-1.a",
+     "T2:J6-2.b",
+     "T3:J1-2.a",
+     "T3:J6-2.b",
+     "T4:J1-2.a",
+     "T4:J6-2.b",
+     "T4:J6-2.c",
+     "T5:J3-3.b",
+     "T6:J1-2.a",
+     "T6:J2-3.a",
+     "T6:J2-5.b",
+     "T6:J6-1.a",
+     "T6:J6-2.b",
+     "T8:J2-3.a",
+     "T8:J3-2.b",
+     "T8:J5-2.a",
+     "T9:J1-2.a",
+     "T9:J2-3.a",
+     "T9:J2-5.b",
+     "T9:J6-1.a",
+     "T9:J6-2.c",
+     "T9:J6-3.a",
+     "T9:J6-3.b",
+     "T10:J1-1.a",
+     "T10:J2-3.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J3-5.b"
+    ],
+    "aiona": [
+     "T6:J1-1.a",
+     "T6:J2-3.a",
+     "T8:J5-2.a",
+     "T8:J6-2.b",
+     "T10:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    2,
+    3,
+    1,
+    2,
+    2,
+    4,
+    0,
+    3,
+    1,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 6,
+     "item": "J2-3.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 질문은 확정되지 않은 운반 방식이 수정본에 드러나지 않게 앞선 자료에서 정하고 있습니다. 운영 메모의 “남은 봉투는 경비실에 인계”는 운반 방식과 별개의 행사 후 처리지만, 현재 문안에는 확정된 전날 보관 방식을 밝히는 문장이 없습니다. 다만 “행사 당일 09:20부터 준비”는 주어진 ",
+      "GPT: 질문은 두 내부 링크를 요구했지만 답변에는 링크 문법 없이 ‘접수 문의’만 있습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J2-3.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 요청이 가리키는 두 번째 안은 앞 대화에서 추천된 B안이며 B안의 2,000원 비용을 떠올리라고 했지만, 답변은 확정 방식이 없다고 하며 A안까지 함께 일정화했습니다. 앞선 1턴의 B안 추천을 사용자가 말한 '아까 두 번째 안'으로 받아들이지 않았습니다.",
+      "GPT: ‘아까 두 번째 안’은 전날 경비실 보관으로서 아직 결정되지 않았고, 답변은 조건부라고 알렸으므로 이 조건 위반은 아닙니다. FAIL 근거로 쓸 만한 위반 문장은 없습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 답변이 A안(당일 창고 운반) 일정도 실행 가능하다고 제시했는데, 한 명이 이동하는 동안 현장에는 접수대 담당자가 없어 두 장소의 준비·운영을 함께 담보할 수 없습니다. 질문은 최신 선택을 반영한 운영 일정과 정해진 인력만 사용하도록 요청했습니다.",
+      "GPT: B안 당일 수령·확인 5분과 설치 12분은 17분이지만 답변은 09:20~09:37로 연속 배정했습니다. 다만 접수는 09:55이므로 준비 작업 자체는 접수 전에 끝나며, 이 구간은 17분과도 일치합니다."
+     ]
+    }
+   ],
+   "never_applied": [
+    "J4-4.a",
+    "J5-2.b"
+   ],
+   "designed_fail": 44,
+   "other_fail": 13,
+   "turn_pass_rate": [
+    18,
+    40
+   ]
+  },
+  "6": {
+   "q": 6,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "접수를 20분 늦춘 뒤에도 09:15 를 안내하거나, 개인 참가 예외를 취소한 뒤 안내문에 남기면 FAIL",
+   "flow": [
+    "setup",
+    "calc",
+    "record",
+    "draft",
+    "fmt",
+    "push",
+    "chg",
+    "attach",
+    "check",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 4,
+   "n_hold": 0,
+   "fails": {
+    "aiona": [
+     "CODE 1-2.code_block",
+     "T3:J1-4.a",
+     "T3:J4-4.a",
+     "T3:J5-2.b",
+     "T5:J1-1.a",
+     "T7:J1-3.a",
+     "T7:J6-2.b",
+     "T9:J5-2.a",
+     "T10:J1-1.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ],
+    "gpt": [
+     "T1:J3-5.a",
+     "T1:J5-2.a",
+     "CODE 1-3.footnote_link",
+     "T3:J4-4.a",
+     "T7:J1-3.a",
+     "T7:J2-3.a",
+     "T7:J3-1.a",
+     "T7:J4-3.a",
+     "T7:J6-3.a",
+     "T7:J6-3.b",
+     "T9:J5-2.a",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J5-2.a"
+    ],
+    "claude": [
+     "T1:J3-5.a",
+     "T3:J4-4.a",
+     "T6:J3-1.a",
+     "T7:J3-1.a",
+     "T7:J4-3.a",
+     "T9:J5-2.a",
+     "T9:J5-3.a",
+     "T9:J6-2.a",
+     "T9:J6-2.b",
+     "T10:J1-3.b",
+     "T10:J3-5.a",
+     "T10:J6-2.b"
+    ],
+    "gemini": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T3:J2-3.a",
+     "T3:J4-4.a",
+     "T3:J5-2.a",
+     "T3:J5-2.b",
+     "T5:J2-3.a",
+     "T5:J6-1.a",
+     "T7:J2-3.a",
+     "T7:J3-1.a",
+     "T7:J6-3.a",
+     "T9:J5-2.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    3,
+    0,
+    4,
+    0,
+    2,
+    1,
+    4,
+    0,
+    4,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 1,
+     "item": "J3-5.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 질문은 설치에 18분이 든다고 했지만 답변은 08:37부터 08:55까지를 '장비 및 접수 데스크 설치' 시간으로 배정하면서 접수 데스크 설치를 추가 작업으로 묶었습니다. 본문에서 설치는 장비를 놓고 접수 데스크를 갖추는 작업을 뜻하므로, 해당 시간 안에 별도 접수 데스크 설치까지 할 ",
+      "Claude: B안의 추천 시각표에서 08:30 도착 후 확인 7분은 08:37까지로 잡았으나, 설치 18분은 08:55까지로 제시되어 확인 종료부터 설치 종료까지 18분만 배정했습니다. 확인과 설치를 순서대로 하는 계획이라면 25분이 필요하므로 시간 배정이 맞지 않습니다."
+     ]
+    },
+    {
+     "turn": 3,
+     "item": "J4-4.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 요약에 복도 벤치 대기와 조기 입장 불가는 있지만, 운영 담당이 준비 중이라 복도에서 질문을 받지 않는다는 참가자 행동 안내가 빠졌습니다. 질문은 확정된 참가자 행동 사항을 빠짐없이 요약하도록 요구합니다.",
+      "GPT: 질문은 참가자 행동에 필요한 핵심 정보를 빠뜨리지 말라고 했지만, 답변 전체에 접수 시작 전 운영 담당은 준비 중이라 복도에서 질문을 받지 않는다는 안내가 없습니다. 원문은 “운영 담당은 이때 준비 중이므로 복도에서 질문을 받지 않는다는 점도 안내 종이에 함께 적는다”라고 합니다."
+     ]
+    },
+    {
+     "turn": 7,
+     "item": "J3-1.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 답변은 접수를 09:35로 두고 행사를 09:30부터 시작한다고 적어, 접수 전에 행사가 시작되는 일정 모순을 만들었습니다.",
+      "Claude: 안내문은 접수가 09:35, 행사가 09:30 시작이라고 함께 적으면서, 끝에서는 접수가 행사 시작보다 5분 늦다고 모순을 확인했습니다. 질문은 종료 시각을 유지하라고 했지만 접수와 행사 시작의 순서를 해결할 조건은 주지 않아 그 부분은 J1-3에서 밝혔으며, 답변 자체의 모순은 남아 "
+     ]
+    },
+    {
+     "turn": 9,
+     "item": "J5-2.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 일람표의 왕복 8분이 틀렸다고 지적한 것은 맞지만, 이를 확정 기록의 왕복 16분이라고 제시해 돌아오는 시간도 8분이라는 미제공 값을 확정값처럼 덧붙였습니다.",
+      "GPT: 표의 대조는 잘못 적힌 원자료 값을 정확히 식별했습니다. 다만 답변은 이동 기준을 '편도 8분, 왕복 16분'으로 기록했는데 실제 대화 자료는 편도 8분만 확정하고 왕복 소요 시간은 제시하지 않았습니다. 그 값을 확정값처럼 추가했습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-1.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 답변은 접수 시작을 09:35로, 행사는 09:30부터라고 제시해 접수 시작 전에 행사가 시작되는 시간 순서의 모순을 남겼습니다.",
+      "GPT: 표에서는 접수가 09:35에 시작한다고 했지만 행사 진행은 09:30에 시작한다고 적었습니다. 이를 별도 주의사항에서 충돌이라고 인정했어도 답변의 일정 자체에 두 시각이 겹치는 내부 모순이 남았습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 표에 접수 시작을 킥오프 시작보다 5분 뒤로 배치해 진행 흐름을 실행할 수 없습니다.",
+      "GPT: 행사 시작이 접수 시작보다 먼저여서, 한 명의 운영자가 접수와 진행을 동시에 맡게 됩니다. 일정은 이 겹침을 실행 가능한 방식으로 해결하지 않고 별도 확정 사항으로 남겼습니다."
+     ]
+    }
+   ],
+   "never_applied": [],
+   "designed_fail": 42,
+   "other_fail": 8,
+   "turn_pass_rate": [
+    18,
+    40
+   ]
+  },
+  "7": {
+   "q": 7,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "현장 접수 예외를 취소한 뒤 안내문에 남기거나, 바구니를 중복 행 때문에 36개로 세면 FAIL",
+   "flow": [
+    "setup",
+    "attach",
+    "draft",
+    "explain",
+    "fmt",
+    "calc",
+    "chg",
+    "push",
+    "check",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "HOLD",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "aiona": [
+     "T1:J3-5.a",
+     "T9:J1-1.a"
+    ],
+    "gpt": [
+     "T1:J3-5.a",
+     "T1:J5-2.a",
+     "CODE 2-1.count",
+     "CODE 3-2.declared_count",
+     "T10:J3-5.a"
+    ],
+    "claude": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T1:J5-2.a",
+     "T1:J5-2.b",
+     "T3:J3-1.a",
+     "T3:J4-2.a",
+     "T5:J2-3.a",
+     "T8:J6-2.c",
+     "T9:J3-2.b",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J3-5.b",
+     "T10:J5-2.a"
+    ],
+    "gemini": [
+     "T1:J3-1.a",
+     "T1:J5-2.a",
+     "T1:J5-2.b",
+     "T4:J2-3.a",
+     "T4:J5-1.a",
+     "T4:J5-3.a",
+     "T5:J2-3.a",
+     "T5:J5-2.a",
+     "T7:J2-3.a",
+     "T8:J1-2.a",
+     "T8:J6-4.b",
+     "T9:J3-2.b",
+     "T9:J5-2.a",
+     "T10:J2-3.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J4-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    4,
+    0,
+    1,
+    1,
+    2,
+    0,
+    1,
+    2,
+    3,
+    3
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 1,
+     "item": "J3-5.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 답변은 당일 확인과 설치에 19분이 든다고 적었지만, 08:50 도착부터 09:40 접수까지 50분 안에 이를 배치하지 않아 접수 전 설치·확인이 이뤄지는 실행 순서가 성립하는지 제시하지 않았습니다. 질문은 실행 가능한 안의 준비 순서를 요구했습니다.",
+      "GPT: 질문 자료에 따르면 B안은 물품 확인을 당일 해야 하지만, 답변은 보관함에서 물품을 확인하고 설치까지 마치는 일정만 제시하고 창고에서 보관함까지 물품을 운반하는 작업은 준비 순서에서 빠졌습니다. 자료상 전날 보관함에 넣는 방식이므로 그 운반은 전날 일이어야 합니다."
+     ]
+    },
+    {
+     "turn": 1,
+     "item": "J5-2.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 원문은 A안·B안 선택을 보류했다고 적었는데, 답변은 이를 '최종 추천'으로 바꿔 회의에서 선택이 확정된 듯 서술했습니다.",
+      "Claude: 주어진 9분은 편도 시간인데, 왕복이 필요한지 여부를 드러내지 않고 28분을 전체 준비 시간으로 더했습니다. 답변도 별도 문장에서 왕복 시간이 기록되지 않았다고 인정하므로 입력의 시간을 다른 의미로 적용했습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 일정표는 08:50부터 확인 5분을 시작한 것으로 잡지만, 보관함에서 꺼내는 작업의 시간은 자료에서 측정되지 않았고 확인 작업 전에 필요합니다. 답변도 “실제 보관함 개방·반출 시간이 추가로 필요할 수 있습니다”라고 밝혀, 제시한 완료 시각 09:09은 그 미측정 작업을 포함하지 않아 ",
+      "Claude: 도착 직후 기록과 보관함에서 꺼내는 데 걸리는 시간을 재지 않았다고 하면서 두 작업 뒤 확인 5분과 설치 14분을 배치하고 08:55·09:09 완료를 산출해, 시간이 필요한 작업을 0분인 듯 처리했습니다. 그 결과 요청된 시간표가 실행 가능한 시각을 보장하지 못합니다."
+     ]
+    }
+   ],
+   "never_applied": [
+    "J4-4.a"
+   ],
+   "designed_fail": 34,
+   "other_fail": 2,
+   "turn_pass_rate": [
+    22,
+    40
+   ]
+  },
+  "8": {
+   "q": 8,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "입장 시작을 늦춘 뒤에도 16:40 을 안내하거나, 현장 입장 예외를 취소한 뒤 안내문에 남기면 FAIL",
+   "flow": [
+    "setup",
+    "explain",
+    "record",
+    "draft",
+    "calc",
+    "chg",
+    "attach",
+    "push",
+    "fmt",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 1,
+   "n_hold": 3,
+   "fails": {
+    "aiona": [
+     "CODE 2-1.charset",
+     "CODE 2-2.list",
+     "T2:J2-3.a",
+     "T4:J2-3.a",
+     "T10:J1-2.a",
+     "T10:J1-4.a",
+     "T10:J3-5.a"
+    ],
+    "gpt": [
+     "T1:J5-2.b",
+     "T2:J5-2.a",
+     "T3:J2-3.a",
+     "T3:J4-4.a",
+     "T3:J5-2.b",
+     "T9:J2-3.a",
+     "T9:J6-3.b",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J6-2.b"
+    ],
+    "claude": [
+     "CODE 1-3.citation_link",
+     "T3:J5-2.b",
+     "T10:J1-1.a",
+     "T10:J3-5.a",
+     "T10:J3-5.b",
+     "T10:J6-2.a",
+     "T10:J6-2.b"
+    ],
+    "gemini": [
+     "T2:J2-4.b",
+     "T2:J3-1.a",
+     "T2:J3-3.b",
+     "T3:J5-2.b",
+     "T3:J5-3.a",
+     "T8:J5-3.a",
+     "T9:J2-3.a",
+     "T10:J1-3.a",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J5-3.a",
+     "T10:J6-2.b",
+     "T10:J6-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    1,
+    3,
+    3,
+    1,
+    0,
+    0,
+    0,
+    1,
+    2,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0
+   ],
+   "common": [
+    {
+     "turn": 3,
+     "item": "J5-2.b",
+     "n": 3,
+     "reasons": [
+      "GPT: 자료 요약에 원문에 없는 내용이나 의미를 바꾸는 내용이 포함됩니다. 원문은 접수 종료 뒤 번호표를 로비 출구 쪽 회수 상자에 넣으라고 했지만 답변은 퇴장하면서 넣는 것으로 좁혀 말했습니다.",
+      "Claude: 원자료는 판본 2의 참고 기록 절에서 [1]을 ‘신유나가 9월 11~12일에 적은 메모’, [2]를 ‘임재혁이 9월 14일 기준으로 적은 메모’라고 설명할 뿐 작성자 이름을 ‘공연 운영 담당’, ‘단 회계 담당’으로 적지 않았습니다. 답변의 ‘(공연 운영 담당 신유나, 9월 11~12일"
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 실행 가능한 일정의 시각·담당자·소요 시간 및 작업 순서가 없어 일정 요청을 충족하지 않았습니다. 결과물 자체가 없어 인용할 구절이 없습니다.",
+      "GPT: B안은 9월 30일 작업본에 따라 운반 방식이 여전히 보류이고, 질문도 확정 조건을 반영하라고 했는데 B안 일정은 확정처럼 시각을 배정했습니다. 특히 접수 전 관리실 확인·설치 완료 시간과 단원 리허설의 배치가 확인되지 않아 그 일정이 실행 가능하다고 볼 수 없습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J6-2.b",
+     "n": 3,
+     "reasons": [
+      "GPT: 이전 턴에서 제공된 두 번째 안은 9월 19일 연습실 비교 기록으로, B안의 3,000원 비용이 아니라 무반주 곡 「고요한 물」의 측정 기록입니다. 답변은 그 지시어를 현재 자료의 운반 방식 B안으로 잘못 해석했고, 이를 비용 3,000원과 연결했습니다.",
+      "Claude: 요청은 리허설·공연 당일 일정을 요구했고, 자료에는 리허설 시각은 설치 뒤로 하되 정확한 시각은 미정이라고 있습니다. 답변은 리허설을 일정에 반영하지 않았습니다."
+     ]
+    }
+   ],
+   "never_applied": [
+    "J4-1.b"
+   ],
+   "designed_fail": 28,
+   "other_fail": 7,
+   "turn_pass_rate": [
+    24,
+    40
+   ]
+  },
+  "9": {
+   "q": 9,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "추가 동반 예외를 취소한 뒤 안내문에 남기거나, 매트를 중복 행 때문에 20개로 세면 FAIL",
+   "flow": [
+    "setup",
+    "draft",
+    "record",
+    "chg",
+    "calc",
+    "push",
+    "fmt",
+    "check",
+    "attach",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 4,
+   "n_hold": 0,
+   "fails": {
+    "aiona": [
+     "T1:J5-2.b",
+     "T7:J2-3.a",
+     "T7:J5-2.a",
+     "T8:J6-2.b",
+     "T10:J3-1.a",
+     "T10:J3-5.a"
+    ],
+    "gpt": [
+     "T1:J3-5.a",
+     "CODE 2-1.charset",
+     "CODE 2-1.count",
+     "CODE 3-1.answer_equation",
+     "T3:J5-2.b",
+     "T6:J6-4.b",
+     "T8:J2-3.a",
+     "T8:J5-2.a",
+     "T10:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J5-2.a"
+    ],
+    "claude": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "CODE 2-1.count",
+     "T7:J5-2.a",
+     "T8:J2-3.a",
+     "T8:J3-1.a",
+     "T8:J5-2.a",
+     "T8:J6-2.b",
+     "T8:J6-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J3-5.b"
+    ],
+    "gemini": [
+     "T1:J3-2.b",
+     "T1:J3-5.a",
+     "T3:J3-1.a",
+     "T3:J5-2.b",
+     "T6:J3-1.a",
+     "T6:J3-2.b",
+     "T6:J6-4.b",
+     "T7:J2-3.a",
+     "T8:J1-2.a",
+     "T8:J2-3.a",
+     "T10:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-2.b",
+     "T10:J3-5.a",
+     "T10:J6-3.a",
+     "T10:J6-4.a"
+    ]
+   },
+   "turn_fail_models": [
+    4,
+    0,
+    2,
+    0,
+    0,
+    2,
+    3,
+    4,
+    0,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 1,
+     "item": "J3-5.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 답변은 도착 후 확인과 설치가 가능하다고 하지만, A안의 운반은 현장 도착 전에 해야 합니다. 질문은 현장 도착을 13:00으로 정했는데 답변은 12:55에 사무실에서 출발해 13:00 도착하는 일정으로 계획해, 도착 전 현장 준비를 마치는 것으로 제시했습니다.",
+      "Claude: 인력은 1명이고 접수가 시작된 뒤 접수대를 비울 수 없는데, 13:30~13:40 사무실 왕복을 제안하면서 현장에 남아 접수 준비도 해야 하는 일정으로 구성했습니다. 해당 조건은 질문의 “인력 1명”과 자료의 “접수 시작 뒤에는 자리를 비울 수 없다”입니다."
+     ]
+    },
+    {
+     "turn": 8,
+     "item": "J2-3.a",
+     "n": 3,
+     "reasons": [
+      "GPT: 서로 다른 항목만 짚으라는 조건과 달리 일치하는 항목까지 별도 표로 나열했습니다. 질문의 “서로 다른 항목만 근거와 함께 짚고”에 어긋납니다.",
+      "Claude: 질문은 이 턴에서 붙여 준 일람표를 대조해 서로 다른 곳만 짚으라고 했지만, 답변은 일람표와 별개의 앞선 수정본을 대상으로 삼았습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-1.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 같은 담당자를 13:00에 현장 도착시킨 뒤 13:00~13:05에 사무실에서 출발·이동시켜 시간상 양립하지 않습니다. 자료상 사무실에서 현장까지 편도 이동만 5분입니다.",
+      "GPT: B안을 일정에 적용했다고 하면서 동시에 공식 선택은 보류라고 적어, 현재 방식의 상태에 대해 서로 다른 취급을 합니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 현장 도착을 13:00으로 두면서 같은 담당자에게 13:00부터 사무실 적재와 현장 이동을 배정해 실행 순서가 성립하지 않습니다. 답변 뒤에서 시간표가 맞지 않는다고 지적했지만 제시한 일정표의 충돌은 해소하지 않았습니다.",
+      "GPT: 질문 자료는 다목적실을 13:00부터 사용할 수 있고 관리실 알림과 현장 확인을 도착 직후 하도록 요구하지만, 그 소요 시간을 알 수 없다고 답변도 인정합니다. 그럼에도 곧바로 13:00부터 확인·설치가 가능한 것으로 시간표를 확정해 접수 전 준비 시간을 보장하지 못합니다."
+     ]
+    }
+   ],
+   "never_applied": [],
+   "designed_fail": 35,
+   "other_fail": 7,
+   "turn_pass_rate": [
+    21,
+    40
+   ]
+  },
+  "10": {
+   "q": 10,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "당일 자리 배정 예외를 취소한 뒤 안내문에 남기거나, 테이블을 중복 행 때문에 30개로 세면 FAIL",
+   "flow": [
+    "setup",
+    "calc",
+    "draft",
+    "record",
+    "fmt",
+    "explain",
+    "chg",
+    "push",
+    "attach",
+    "final"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "HOLD",
+    "gemini": "FAIL"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "aiona": [
+     "T1:J1-3.a",
+     "T1:J5-3.a",
+     "T4:J4-4.a",
+     "T4:J5-2.b",
+     "T5:J2-3.a",
+     "T6:J5-2.a",
+     "T7:J1-3.a",
+     "T7:J2-3.a",
+     "T7:J3-1.a",
+     "T7:J6-2.a",
+     "T10:J3-5.a",
+     "T10:J5-2.a",
+     "T10:J6-2.b"
+    ],
+    "gpt": [
+     "T1:J5-2.b",
+     "CODE 2-1.count",
+     "CODE 3-2.declared_count",
+     "T3:J2-3.a",
+     "T4:J4-4.a",
+     "T5:J2-3.a",
+     "T6:J5-1.a",
+     "T6:J5-2.a",
+     "T6:J5-3.a",
+     "T7:J1-1.a",
+     "T7:J1-3.a",
+     "T10:J3-5.a",
+     "T10:J3-5.b"
+    ],
+    "claude": [
+     "CODE 1-3.citation_link",
+     "T10:J2-3.a",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J6-2.b",
+     "T10:J6-3.a"
+    ],
+    "gemini": [
+     "T5:J2-3.a",
+     "T5:J5-2.a",
+     "T6:J2-3.a",
+     "T6:J3-3.a",
+     "T6:J3-3.b",
+     "T7:J3-1.a",
+     "T7:J6-3.a",
+     "T10:J1-3.a",
+     "T10:J1-3.b",
+     "T10:J3-1.a",
+     "T10:J3-5.a",
+     "T10:J3-5.b"
+    ]
+   },
+   "turn_fail_models": [
+    2,
+    0,
+    1,
+    2,
+    3,
+    3,
+    3,
+    0,
+    0,
+    4
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 5,
+     "item": "J2-3.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 질문은 [1]·[2] 번호를 붙인 출처 목록을 요구하지만, 목록에는 번호가 없습니다.",
+      "GPT: 태그를 백슬래시로 이스케이프해 실제 details·summary 태그가 아니라 문자로 표시했습니다. 질문은 짝이 맞는 태그 안에 문의 부분을 쓰도록 했습니다."
+     ]
+    },
+    {
+     "turn": 10,
+     "item": "J3-5.a",
+     "n": 4,
+     "reasons": [
+      "AIONA: 답변은 10:30 도착 뒤 11:00 접수까지 30분뿐이며 확인 8분과 설치 30분만으로도 38분임을 스스로 계산했는데도, 5번에서 설치 완료 뒤 11:00 접수를 시작한다고 일정 순서를 제시합니다. 이는 답변 안의 시간·순서가 맞지 않아 실행 가능한 계획이 아닙니다.",
+      "GPT: 30분 뒤인 11:00에 접수를 시작해야 하는데, 제시한 B안 예시는 설치가 11:08에 끝납니다. 또 11:00 접수와 11:00 설명회 시작이 겹쳐 단독 담당자가 접수와 행사를 동시에 맡도록 합니다."
+     ]
+    }
+   ],
+   "never_applied": [],
+   "designed_fail": 34,
+   "other_fail": 7,
+   "turn_pass_rate": [
+    21,
+    40
+   ]
+  },
+  "11": {
+   "q": 11,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "동점 순서를 바꾸거나 JSON에 주석을 넣으면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "12": {
+   "q": 12,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "새 키를 추가하면서 기존 키를 삭제하지 않으면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "13": {
+   "q": 13,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "숫자로 된 기한을 문자열 순서로 정렬하면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "14": {
+   "q": 14,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "임계값과 같은 행을 빼거나 이름이 비슷한 행을 합치면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "15": {
+   "q": 15,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "뒤에 나온 중복 경유지를 기준으로 순서를 정하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "16": {
+   "q": 16,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "대소문자만 다른 태그를 임의로 합치면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "17": {
+   "q": 17,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "다른 행의 부서에 서류를 연결하면 FAIL",
+   "flow": [],
+   "k": 14,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "18": {
+   "q": 18,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "지워진 연락처를 복원한 것처럼 쓰면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "FAIL",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "claude": [
+     "J1-4.a",
+     "J5-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "19": {
+   "q": 19,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "예상 환불을 실제 입금으로 바꾸면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "20": {
+   "q": 20,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "이름을 바꾸라는 필드 외의 값까지 바꾸면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "21": {
+   "q": 21,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "동점 표본의 순서를 뒤집거나 소수점을 반올림하면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "22": {
+   "q": 22,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "경계값에서 허용·차단을 뒤집으면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "23": {
+   "q": 23,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "같은 색 버튼의 대여·반납 값을 뒤집으면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "24": {
+   "q": 24,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "경계값 포함 조건을 반대로 구현하면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "25": {
+   "q": 25,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "마지막 기록만 남기거나 원래 순서를 바꾸면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "aiona": [
+     "CODE 1-2.python_syntax"
+    ]
+   },
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "26": {
+   "q": 26,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "중복 제거와 필터의 대상 키를 혼동하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "27": {
+   "q": 27,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "문자열 코드를 숫자로 바꾸면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "28": {
+   "q": 28,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "숫자 영을 결측으로 삭제하면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "29": {
+   "q": 29,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "시도·중복 포함·보류 수치를 완료 건수에 더하면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J1-1.a",
+     "J7-1.a",
+     "J7-2.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J5-1.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "30": {
+   "q": 30,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "청구액을 지출로 쓰거나 예상 환불을 확정 환불로 쓰면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J1-1.a",
+     "J7-1.a",
+     "J7-2.a",
+     "J5-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "31": {
+   "q": 31,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "개정 제안을 확정 규칙으로 안내하면 FAIL",
+   "flow": [],
+   "k": 14,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b",
+    "J5-1.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "32": {
+   "q": 32,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "임시 동문 사용을 정비 기간 전체로 확대하면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J5-2.a",
+     "J7-1.a",
+     "J7-2.a",
+     "J5-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.b",
+    "J3-4.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "33": {
+   "q": 33,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "예정 14회를 실행 12회에 더하거나 취소 2회를 한 번 더 빼면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "34": {
+   "q": 34,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "출석 42명이나 심화 수업 인원을 합쳐 수료 인원을 계산하면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 2,
+   "n_fail": 2,
+   "n_hold": 0,
+   "fails": {
+    "aiona": [
+     "J1-3.a",
+     "J4-2.a",
+     "J7-1.a"
+    ],
+    "gemini": [
+     "J1-1.a",
+     "J5-2.a",
+     "J7-1.a",
+     "J7-2.a",
+     "J5-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    2
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "35": {
+   "q": 35,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "번호를 정수로 바꿔 앞자리 영을 잃으면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "36": {
+   "q": 36,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "정정 전 마감과 정정 후 집결 장소를 섞으면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "37": {
+   "q": 37,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "종료 시각과 다음 시작 시각이 같은 예약을 충돌로 보면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "38": {
+   "q": 38,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "책임 설명만 하고 사과나 후속 행동을 빠뜨리면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J5-3.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "39": {
+   "q": 39,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "검토 표의 담당과 확정 표의 담당을 섞으면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "40": {
+   "q": 40,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "제안 명칭을 최종 명칭으로 쓰거나 임시 담당 부서를 최종 담당 부서로 쓰면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J3-1.a",
+     "J5-2.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "41": {
+   "q": 41,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "B-17과 B-71을 섞거나 폐기 보정 계수를 답하면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J3-1.a",
+     "J5-2.a",
+     "J7-1.a",
+     "J7-2.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "42": {
+   "q": 42,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "A구역과 B구역의 기록지 수를 섞거나 임시 조사조를 책임 부서로 쓰면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J7-1.a",
+     "J7-2.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "43": {
+   "q": 43,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "대여료 미기재를 무료로 바꾸거나 다른 조명 보증금을 가져오면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "44": {
+   "q": 44,
+   "type": "롱컨텍스트",
+   "difficulty": "어려움",
+   "trap": "이관 전 상자를 최종 상자로 쓰거나 운송 담당자 이름을 추측하면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J1-1.a",
+     "J1-3.a",
+     "J1-3.b",
+     "J7-1.a",
+     "J7-2.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "45": {
+   "q": 45,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "보호자 신청과 어린이 참여 조건을 뒤집으면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "FAIL",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gpt": [
+     "CODE 2-1.count"
+    ]
+   },
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "46": {
+   "q": 46,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "보류를 회수 완료로 바꿔 요약하면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "47": {
+   "q": 47,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "점검 중 상태를 사용 가능으로 바꾸면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "48": {
+   "q": 48,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "단가를 합계로 읽거나 배송비 미기재를 무료로 단정하면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "49": {
+   "q": 49,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "모든 기포를 수소·산소 발생으로 설명하면 FAIL",
+   "flow": [],
+   "k": 17,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J5-1.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "50": {
+   "q": 50,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "공기 온도와 창문 표면 온도를 같다고 전제하면 FAIL",
+   "flow": [],
+   "k": 15,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "51": {
+   "q": 51,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "이용 제한을 예약 취소로 바꾸면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "FAIL",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gpt": [
+     "CODE 2-1.count"
+    ]
+   },
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "52": {
+   "q": 52,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "원본을 제자리 정렬하거나 금액을 문자열로 더하면 FAIL",
+   "flow": [],
+   "k": 10,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "53": {
+   "q": 53,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "이동 왕복을 편도로 줄여 쓰면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "54": {
+   "q": 54,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "회수와 접수를 같은 사람에게 동시에 배정하면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "55": {
+   "q": 55,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "키가 있는데 값이 None인 경우를 키 없음으로 처리하면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "56": {
+   "q": 56,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "장소와 시간은 맞지만 예외 품목을 허용으로 바꾸면 FAIL",
+   "flow": [],
+   "k": 11,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "57": {
+   "q": 57,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "집합을 바로 반환해 원래 순서를 잃으면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "aiona": [
+     "CODE 1-2.python_syntax"
+    ]
+   },
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "58": {
+   "q": 58,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "상태 미상을 미반납으로 합치면 FAIL",
+   "flow": [],
+   "k": 9,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "59": {
+   "q": 59,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "60": {
+   "q": 60,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "61": {
+   "q": 61,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "62": {
+   "q": 62,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "63": {
+   "q": 63,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 8,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "64": {
+   "q": 64,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 7,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "65": {
+   "q": 65,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 7,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "66": {
+   "q": 66,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 7,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "67": {
+   "q": 67,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 7,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "68": {
+   "q": 68,
+   "type": "명시적 빈 출력",
+   "difficulty": "쉬움",
+   "trap": "공백 이외의 문자·확인 문구·코드블록을 출력하면 FAIL",
+   "flow": [],
+   "k": 7,
+   "verdicts": {
+    "aiona": "HOLD",
+    "gpt": "HOLD",
+    "claude": "HOLD",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 0,
+   "n_hold": 4,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "69": {
+   "q": 69,
+   "type": "10턴 멀티턴 대화",
+   "difficulty": "어려움",
+   "trap": "입장 허용 시각을 늦춘 뒤에도 19:15 를 안내하거나, 당일 제출 예외를 취소한 뒤 안내문에 남기면 FAIL",
+   "flow": [
+    "setup",
+    "record",
+    "explain",
+    "draft",
+    "calc",
+    "fmt",
+    "push",
+    "chg",
+    "final",
+    "attach"
+   ],
+   "k": 37,
+   "verdicts": {
+    "aiona": "FAIL",
+    "gpt": "FAIL",
+    "claude": "FAIL",
+    "gemini": "HOLD"
+   },
+   "n_pass": 0,
+   "n_fail": 3,
+   "n_hold": 1,
+   "fails": {
+    "gpt": [
+     "T1:J5-2.b",
+     "CODE 1-3.footnote_link",
+     "T3:J5-3.a",
+     "T6:J6-2.a",
+     "T9:J1-1.a",
+     "T9:J3-5.a"
+    ],
+    "claude": [
+     "CODE 1-3.internal_link",
+     "T6:J2-3.a",
+     "T9:J1-3.b"
+    ],
+    "gemini": [
+     "CODE 1-2.code_block",
+     "T2:J4-4.a",
+     "T2:J5-2.b",
+     "T3:J2-3.a",
+     "T3:J3-1.a",
+     "T3:J3-3.a",
+     "T3:J3-3.b",
+     "T3:J5-2.a",
+     "T6:J1-2.a",
+     "T6:J2-5.b",
+     "T8:J2-3.a",
+     "T9:J3-2.b",
+     "T9:J3-5.a"
+    ],
+    "aiona": [
+     "T2:J4-4.a",
+     "T2:J5-2.b",
+     "T6:J2-3.a",
+     "T6:J6-1.a",
+     "T8:J6-3.b",
+     "T9:J2-3.a",
+     "T9:J3-2.b",
+     "T9:J3-5.a"
+    ]
+   },
+   "turn_fail_models": [
+    1,
+    2,
+    2,
+    0,
+    0,
+    4,
+    0,
+    2,
+    4,
+    0
+   ],
+   "turn_hold_models": [
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "common": [
+    {
+     "turn": 9,
+     "item": "J3-5.a",
+     "n": 3,
+     "reasons": [
+      "AIONA: 접속 점검에 문제가 생기면 해결한 뒤 자료 확인으로 넘어가야 하므로 고정된 18:52 자료 확인 시작은 문제 해결과 양립하지 않을 수 있습니다. 답변은 그 변동 구간을 고려하지 않고 시간표를 확정했습니다.",
+      "GPT: 발표 팀당 12분이므로 신청 5팀이 모두 발표하면 60분이 들고 여기에 팀 전환·여는 말·마무리 시간이 필요하다고 자료가 밝힙니다. 답변은 미정 시간들을 합산·배치하지 않아 행사 90분 안에 실행 가능한 일정인지 확정할 수 없습니다."
+     ]
+    }
+   ],
+   "never_applied": [
+    "J2-5.a"
+   ],
+   "designed_fail": 23,
+   "other_fail": 4,
+   "turn_pass_rate": [
+    25,
+    40
+   ]
+  },
+  "70": {
+   "q": 70,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "저장 실패와 캐시 미갱신을 동일 원인이라고 단정하면 FAIL",
+   "flow": [],
+   "k": 16,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b",
+    "J3-2.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "71": {
+   "q": 71,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "확정 출석과 희망 인원을 바꿔 추천하면 FAIL",
+   "flow": [],
+   "k": 15,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "72": {
+   "q": 72,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "보증금을 이용료에 합치거나 대기 기준을 빠뜨리면 FAIL",
+   "flow": [],
+   "k": 14,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "73": {
+   "q": 73,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "예산 상한을 실제 결제액으로 취급하면 FAIL",
+   "flow": [],
+   "k": 14,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "FAIL"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "gemini": [
+     "J3-1.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "74": {
+   "q": 74,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "흐린 이전 예약을 확정으로 단정하면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "FAIL",
+    "gemini": "PASS"
+   },
+   "n_pass": 3,
+   "n_fail": 1,
+   "n_hold": 0,
+   "fails": {
+    "claude": [
+     "J1-4.a"
+    ]
+   },
+   "turn_fail_models": [
+    1
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "75": {
+   "q": 75,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "자극의 물리량과 지각을 같은 값이라고 단정하면 FAIL",
+   "flow": [],
+   "k": 16,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "HOLD"
+   },
+   "n_pass": 3,
+   "n_fail": 0,
+   "n_hold": 1,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    1
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b",
+    "J3-2.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "76": {
+   "q": 76,
+   "type": "첨부자료 확인·요약",
+   "difficulty": "보통",
+   "trap": "취소된 이전 줄의 값을 최종 상태로 쓰면 FAIL",
+   "flow": [],
+   "k": 12,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "77": {
+   "q": 77,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "접수 중에 진행자를 자료실로 보내면 FAIL",
+   "flow": [],
+   "k": 15,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  },
+  "78": {
+   "q": 78,
+   "type": "단일 질문",
+   "difficulty": "보통",
+   "trap": "예정된 준비 인력을 확정 인력으로 계산하면 FAIL",
+   "flow": [],
+   "k": 13,
+   "verdicts": {
+    "aiona": "PASS",
+    "gpt": "PASS",
+    "claude": "PASS",
+    "gemini": "PASS"
+   },
+   "n_pass": 4,
+   "n_fail": 0,
+   "n_hold": 0,
+   "fails": {},
+   "turn_fail_models": [
+    0
+   ],
+   "turn_hold_models": [
+    0
+   ],
+   "common": [],
+   "never_applied": [
+    "J1-3.a",
+    "J1-3.b",
+    "J3-4.a"
+   ],
+   "designed_fail": 0,
+   "other_fail": 0,
+   "turn_pass_rate": null
+  }
+ }
+}
