@@ -102,13 +102,13 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <div class="card"><div class="scroll"><table>
 <tr><th>어디</th><th>무엇</th><th>상태</th></tr>
 <tr><td>질문(싱글)</td><td>57개 중 39개 네 모델 모두 통과 — 한 줄 함정은 안 걸림</td><td><span class="t todo">예정</span> 자료 속 혼동형으로 재설계</td></tr>
-<tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음"이 함정과 충돌 → 거짓 FAIL 35칸</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
+<tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음"이 함정과 충돌 → 거짓 FAIL 35칸. 같은 문구가 자료 대조 · 최종 턴 17턴에도 남아 있었고, 최종 턴 · 모순 턴(Q6 · Q10)에는 판정 기준 줄이 없었음</td><td><span class="t ok">고침</span> 17턴 문구 · 최종 턴(잰 적 없는 시간 · 준비 방식) · 모순 턴 판정 줄까지. 재판정 대기</td></tr>
 <tr><td>기준(상황표 2)</td><td>거절 턴에서 결과물 품질 항목까지 FAIL — 27턴</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
 <tr><td>AIONA 출처 번호</td><td>출처 번호 [1]·[2] 를 요구한 18턴 중 AIONA 답에 [1] 이 남은 턴 1개(GPT · Claude 18) — AIONA 화면에도 번호 없음(사용자 확인) → 수집 손실 아니라 AIONA 가 안 쓴 것. '인용'을 번호 표시로 볼지는 재정의 중</td><td><span class="t todo">기준 재정의 중</span> ③ 세션</td></tr>
 <tr><td>수집(ChatGPT)</td><td>복사 글의 마크다운 이스케이프(\~ 80턴 · \* 22 · &amp;#x20; 16 · \- 10) — CODE 는 풀어서 재고, 판정은 복사 글 그대로(결정)</td><td><span class="t ok">정함</span></td></tr>
 <tr><td>심판(Codex)</td><td>같은 규칙 두 번 판정에 26칸 다름. 새로 넘어간 3칸 중 2칸은 문장 · 시간 오독(거짓 FAIL), 1칸은 사유 틀림</td><td><span class="t todo">예정</span> 표시용 표로 비율 측정 → 기준 문구</td></tr>
 <tr><td>심판 입력(뒤 턴 섞임?)</td><td>멀티턴 판정 요소 8,722개에서 자기 턴보다 뒤 턴을 인용 · 언급한 것 0 — 입력 구조는 지금대로</td><td><span class="t ok">근거 없음</span></td></tr>
-<tr><td>1차 심판</td><td>J1-4.b 거짓 FAIL 129칸(확정 0)</td><td><span class="t todo">예정</span> 예외 문구</td></tr>
+<tr><td>1차 심판</td><td>J1-4.b 거짓 FAIL 129칸(확정 0) — 1차 심판도 Codex 와 같은 예외 문구를 받고 있었음. 빠진 것은 '질문이 함께 요구한 다른 형식(시간표 ↔ 작업 순서 · 안내문 ↔ 문의 칸)' 경계</td><td><span class="t ok">고침</span> 경계 한 줄 추가. 재판정 대기</td></tr>
 <tr><td>제품(AIONA)</td><td>Q8 일정 질문에 자살 예방 안내 · 데이터 제공 줄 · 코드 들여쓰기</td><td><span class="t warn">알림</span></td></tr>
 </table></div></div>
 
