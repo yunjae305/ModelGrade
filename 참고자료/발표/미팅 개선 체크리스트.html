@@ -97,7 +97,7 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <tr><td>질문(싱글)</td><td>57개 중 39개 네 모델 모두 통과 — 한 줄 함정은 안 걸림</td><td><span class="t todo">예정</span> 자료 속 혼동형으로 재설계</td></tr>
 <tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음"이 함정과 충돌 → 거짓 FAIL 35칸</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
 <tr><td>기준(상황표 2)</td><td>거절 턴에서 결과물 품질 항목까지 FAIL — 27턴</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
-<tr><td>수집(AIONA)</td><td>출처 번호 [1]·[2] 를 요구한 18턴 중 AIONA 답에 [1] 이 남은 턴 1개(GPT · Claude 18) — 복사 때 번호가 빠지는 듯 → 출처 조건에서 억울한 FAIL</td><td><span class="t warn">확인 필요</span> AIONA 화면 · 복사 루틴</td></tr>
+<tr><td>AIONA 출처 번호</td><td>출처 번호 [1]·[2] 를 요구한 18턴 중 AIONA 답에 [1] 이 남은 턴 1개(GPT · Claude 18) — AIONA 화면에도 번호 없음(사용자 확인) → 수집 손실 아니라 AIONA 가 안 쓴 것. '인용'을 번호 표시로 볼지는 재정의 중</td><td><span class="t todo">기준 재정의 중</span> ③ 세션</td></tr>
 <tr><td>수집(ChatGPT)</td><td>복사 글의 마크다운 이스케이프(\~ 80턴 · \* 22 · &amp;#x20; 16 · \- 10) — CODE 는 풀어서 재고, 판정은 복사 글 그대로(결정)</td><td><span class="t ok">정함</span></td></tr>
 <tr><td>심판(Codex)</td><td>같은 규칙 두 번 판정에 26칸 다름. 새로 넘어간 3칸 중 2칸은 문장 · 시간 오독(거짓 FAIL), 1칸은 사유 틀림</td><td><span class="t todo">예정</span> 표시용 표로 비율 측정 → 기준 문구</td></tr>
 <tr><td>심판 입력(뒤 턴 섞임?)</td><td>멀티턴 판정 요소 8,722개에서 자기 턴보다 뒤 턴을 인용 · 언급한 것 0 — 입력 구조는 지금대로</td><td><span class="t ok">근거 없음</span></td></tr>
@@ -108,7 +108,7 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <h2>4. 앞으로</h2>
 <div class="card"><ol>
 <li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
-<li>기록 요약 턴 '인용' 해석(본문 번호 표시 필수 아님 — ③ 세션 전달)을 확인 목록에 넣을지 확정</li>
+<li>기록 요약 턴 '인용' 해석 — ③ 세션에서 사용자와 재정의 중(확정되면 확인 목록에 반영 · 해당 턴만 재판정)</li>
 <li>멀티턴 11×4 재판정(왕복 · 거절 · 최종 턴 준비 방식 · J1-4.b 문구) → 숫자 갱신</li>
 <li>기준 다듬기 루프(문서 먼저 → 프롬프트 · 1차 심판 설명 → 같은 칸 전 · 후 재판정 → 채택): 첫 대상 J1-4.b</li>
 <li>AIONA 출처 번호 복사 확인 → 필요하면 11문항 재수집 · 싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
