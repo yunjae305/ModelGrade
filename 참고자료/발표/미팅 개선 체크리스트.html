@@ -32,12 +32,12 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <tr><td>4</td><td>Codex 선택 근거</td><td class="now"><span class="t ok">반영</span> 상세 분석 17 '심판 선택'(동료 10-23) + J1-4.b 다수결(해석 차이)</td><td>—</td></tr>
 <tr><td>5</td><td>질문 설계</td><td class="now"><span class="t ok">반영</span></td><td>싱글 57개 중 39개 네 모델 모두 통과 → 함정 재설계</td></tr>
 <tr><td>6</td><td>CODE 숫자 뜻</td><td class="now"><span class="t ok">확인 끝</span></td><td>—</td></tr>
-<tr><td>7</td><td>멀티턴 0 · 싱글 느슨?</td><td class="now"><span class="t warn">점검 끝</span> 턴별 기준 34 → 17.6, 턴 통과율, 78개 점검(싱글은 질문이 쉬움 · 멀티턴 거짓 FAIL 2종 고침)</td><td>표시용 표 사람 표시 · A형 최종 턴 정답 결정 · 멀티턴 재판정 · AIONA Python 2건 들여쓰기 확인 · 발표자료 장면</td></tr>
+<tr><td>7</td><td>멀티턴 0 · 싱글 느슨?</td><td class="now"><span class="t warn">점검 끝</span> 턴별 기준 34 → 17.6, 턴 통과율, 78개 점검(싱글은 질문이 쉬움 · 멀티턴 거짓 FAIL 2종 고침), 최종 턴 준비 방식 · J1-4.b 문구 정함(동료 10-23)</td><td>멀티턴 11×4 재판정 · 표시용 표 사람 표시 · AIONA Python 2건 들여쓰기 확인</td></tr>
 <tr><td>8</td><td>걸린 시간 편차</td><td class="now"><span class="t ok">반영</span> 결과 보고서 13 · 판정 시간도 질문 × 모델마다 기록(판정토큰)</td><td>편차 큰 질문 재확인</td></tr>
 <tr><td>9</td><td>토큰 · 비용</td><td class="now"><span class="t ok">반영</span> v4-r3 새 판정으로 질문 × 모델 × 심판 토큰 전부 기록('기록 안 됨' 없음)</td><td>단가 → 비용 환산</td></tr>
 <tr><td>10</td><td>발전 방향</td><td class="now"><span class="t ok">반영</span>(07)</td><td>—</td></tr>
-<tr><td>11</td><td>마감 범위 · 상시 운영</td><td class="now"><span class="t todo">초안</span> 범위 = 보류 결정 · 기준 다듬기 1차 · 재판정 · 결과 보고서 확정 / 상시 = 질문 추가 · 재판정 · 루프</td><td><b>확정 필요</b></td></tr>
-<tr><td>12</td><td>차별점 하나</td><td class="now"><span class="t todo">후보 1</span> "질문마다 미리 정한 함정 기준과 턴별 사실 목록으로 판정하고, 확신 없는 칸은 보류로 사람에게 넘기는 — 숫자의 근거를 칸마다 보여 주는 채점"</td><td><b>확정 필요</b></td></tr>
+<tr><td>11</td><td>마감 범위 · 상시 운영</td><td class="now"><span class="t ok">반영</span> 발표자료 08 '마감 · 상시 운영' 장면 — 다음 주(10-26~30) 범위 · 요일별 일정 · 상시 운영 한 바퀴 비용, 10-23 확정(동료)</td><td>—</td></tr>
+<tr><td>12</td><td>차별점</td><td class="now"><span class="t ok">반영</span> 발표자료 01 '왜 필요한가' — 공개 순위표 · 벤치마크 · 개발용 평가 도구와 비교해 꼭 이 평가기를 써야 하는 이유(동료 10-23)</td><td>—</td></tr>
 </table></div></div>
 
 <h2>2. 기준마다 Jev · Decisions · Codex 가 어떻게 판정했나</h2>
@@ -108,8 +108,8 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <h2>4. 앞으로</h2>
 <div class="card"><ol>
 <li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
-<li>결정 3개: A형 최종 턴 정답(B안으로 짠 답 = 맞음?) · 마감 범위 · 차별점 문구</li>
-<li>멀티턴 11×4 재판정(고친 규칙) → 숫자 갱신</li>
+<li>기록 요약 턴 '인용' 해석(본문 번호 표시 필수 아님 — ③ 세션 전달)을 확인 목록에 넣을지 확정</li>
+<li>멀티턴 11×4 재판정(왕복 · 거절 · 최종 턴 준비 방식 · J1-4.b 문구) → 숫자 갱신</li>
 <li>기준 다듬기 루프(문서 먼저 → 프롬프트 · 1차 심판 설명 → 같은 칸 전 · 후 재판정 → 채택): 첫 대상 J1-4.b</li>
 <li>AIONA 출처 번호 복사 확인 → 필요하면 11문항 재수집 · 싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
 </ol></div>
