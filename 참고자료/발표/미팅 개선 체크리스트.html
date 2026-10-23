@@ -103,7 +103,6 @@ a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-
 <div class="card"><div class="scroll"><table>
 <tr><th>무엇이 문제인가</th><th>내용</th><th>원인은 어디</th><th>조치</th></tr>
 <tr><td><b>싱글 질문이 너무 쉬움</b></td><td>57개 중 39개는 네 모델이 모두 통과 — 한 줄짜리 함정은 요즘 모델이 다 피해서 모델 차이를 못 가름</td><td>질문 생성</td><td><span class="t todo">예정</span> 자료 속에 비슷한 값 · 떨어진 근거를 섞는 함정으로 다시 만들 예정</td></tr>
-<tr><td><b>심판에게 준 메모가 함정과 반대</b></td><td>자료는 '편도 시간을 왕복으로 쓰지 말라'(왕복 = 편도 두 번)인데, 우리가 적어 준 메모는 '돌아오는 시간 기록 없음' → 왕복으로 맞게 계산한 답 35칸을 FAIL 로 봄. 같은 문구가 자료 대조 · 최종 턴 17턴에도 있었고, 최종 턴 · 모순 턴(Q6 · Q10)에는 판정 기준 줄이 없었음(동료 확인)</td><td>우리 메모</td><td><span class="t ok">고침</span> 17턴 문구 · 최종 턴(잰 적 없는 시간 · 준비 방식) · 모순 턴 판정 줄까지 고침 · 재판정 중</td></tr>
 <tr><td><b>거절한 답 하나에 FAIL 여러 개</b></td><td>모델이 거절하면 '거절' 기준 하나만 FAIL 이어야 하는데 조건 준수 · 실행 가능성 등까지 같이 FAIL(27턴)</td><td>기준 연결 규칙</td><td><span class="t ok">고침</span> 거절이면 결과물 품질 기준은 보지 않게 고침 · 재판정 중</td></tr>
 <tr><td><b>AIONA 답에 출처 번호가 없음</b></td><td>번호 [1]·[2] 를 요구한 18턴 중 AIONA 는 1턴만 번호를 씀(GPT · Claude 는 18턴 모두). AIONA 화면에도 없어 복사 문제가 아니라 AIONA 가 안 쓴 것</td><td>AIONA 답</td><td><span class="t todo">예정</span> '인용'을 꼭 번호로 볼지 ③ 세션에서 다시 정하는 중</td></tr>
 <tr><td><b>ChatGPT 복사 글의 이스케이프</b></td><td>복사 아이콘이 마크다운 기호를 \~ \* 처럼 바꿔 넣음(80턴)</td><td>수집</td><td><span class="t ok">고침</span> CODE 검사는 풀어서 재고, 판정은 복사 글 그대로 보기로 정함 — 바꿀 것 없음</td></tr>
