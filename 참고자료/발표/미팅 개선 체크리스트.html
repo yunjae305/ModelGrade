@@ -5,119 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>미팅 개선 체크리스트</title>
 <style>
-:root{--bg:#fbfbf9;--fg:#1c1c1a;--mute:#6b6b66;--line:#e2e1dc;--card:#fff;--ok:#1d7a46;--ok-bg:#e6f4ea;--warn:#8a5a00;--warn-bg:#fdf3dc;--todo:#5c6675;--todo-bg:#eceef1;--bad:#b3261e;--acc:#2f5fa8;--th:#f1f0ea}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--bad:#f28b82;--acc:#8ab4f8;--th:#262623}}
-:root[data-theme="dark"]{--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--bad:#f28b82;--acc:#8ab4f8;--th:#262623}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 "Pretendard","Noto Sans KR",system-ui,sans-serif}
-main{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
-h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:30px 0 8px} .mute{color:var(--mute)} .small{font-size:12.5px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+:root{--bg:#fbfbf9;--fg:#1c1c1a;--mute:#6b6b66;--line:#e2e1dc;--card:#fff;--ok:#1d7a46;--ok-bg:#e6f4ea;--warn:#8a5a00;--warn-bg:#fdf3dc;--todo:#5c6675;--todo-bg:#eceef1;--acc:#2f5fa8;--th:#f1f0ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--acc:#8ab4f8;--th:#262623}}
+:root[data-theme="dark"]{--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--acc:#8ab4f8;--th:#262623}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 "Pretendard","Noto Sans KR",system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:28px 0 8px} .mute{color:var(--mute)} .small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
 table{border-collapse:collapse;width:100%;font-size:13.5px} th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top} th{background:var(--th)}
 .scroll{overflow-x:auto} .num{font-variant-numeric:tabular-nums}
 .t{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap;font-weight:600}
 .t.ok{color:var(--ok);background:var(--ok-bg)} .t.warn{color:var(--warn);background:var(--warn-bg)} .t.todo{color:var(--todo);background:var(--todo-bg)}
-.chk{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
-.chk div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);font-size:13px}
-.chk b{display:block;font-size:14px}
-a{color:var(--acc)} ul{margin:4px 0 0 18px;padding:0} li{margin:2px 0}
-td.what{min-width:170px} td.how{min-width:260px} td.why{min-width:220px} td.next{min-width:180px}
+.chk{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:12px 0}
+.chk div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);font-size:13px} .chk b{display:block;font-size:18px}
+a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0}
 </style>
 </head>
 <body><main>
-<h1>10-22 오전 미팅 — 개선 항목 체크리스트</h1>
-<p class="mute">2026-10-23 · 항목마다 한 것 · 어떻게 · 근거 · 앞으로. 숫자는 최종 다시 판정(10-23 09:52, 결과 폴더 2026-10-23_09-52-39-662)과 78개 질문 점검에서 다시 셈. 보류 칸은 아직 사람이 정하기 전이라 잠정값.</p>
+<h1>10-22 미팅 — 개선 항목 체크리스트</h1>
+<p class="mute">2026-10-23 · 숫자는 최종 다시 판정(10-23 09:52) 기준, 보류 결정 전 잠정값</p>
 
 <div class="chk">
-  <div><b>8</b>미팅에서 나온 항목</div>
-  <div><b>6</b>끝 <span class="small mute">(1 · 2 · 3 · 4 · 6 · 7)</span></div>
-  <div><b>1</b>끝 + 고칠 것 남음 <span class="small mute">(5 멀티턴 · 싱글 점검)</span></div>
-  <div><b>1</b>초안 — 확정 필요 <span class="small mute">(8 마감 · 차별점)</span></div>
+  <div><b>8</b>항목</div>
+  <div><b>6</b>끝</div>
+  <div><b>1</b>끝 · 고칠 것 남음</div>
+  <div><b>1</b>초안</div>
 </div>
 
 <h2>1. 체크리스트</h2>
 <div class="card"><div class="scroll"><table>
-<tr><th>#</th><th>미팅에서 나온 것</th><th>상태</th><th>한 것 · 어떻게</th><th>근거</th><th>앞으로</th></tr>
-
-<tr><td class="num">1</td><td class="what">AIONA 를 자동 추천으로만 보지 말고 모델을 골라 <b>같은 모델끼리</b> 비교</td><td><span class="t ok">끝 10-22</span></td>
-<td class="how"><code>modelgrade start</code> 모델 메뉴 — 0 전체 / 1~18 짝(왼쪽 AIONA 모델 ↔ 오른쪽 앱 모델). 고르면 그 앱 + AIONA 둘만 받음. 발표자료 흐름도 · 답변 수집 칸 · 발전 방향 카드에 반영</td>
-<td class="why">사용자 규칙 10-23: 고르지 않으면 AIONA 자동 추천 + 앱 3개, 고르면 같은 모델의 앱과 둘만(같은 모델이라도 앱과 AIONA 안에서 답이 다르므로)</td>
-<td class="next">같은 모델로 실제 수집 · 판정한 결과는 아직 없음 — 다음 실행 때</td></tr>
-
-<tr><td class="num">2</td><td class="what">빈 출력 요구 분기는 여러 예외 중 하나 — 큰 흐름도에서는 노이즈</td><td><span class="t ok">끝 10-22</span></td>
-<td class="how">흐름도 '답을 받았나?' 갈래에서 '빈 답 → 보류' 줄을 빼고 판정 규칙 표 문구 정리. 판정 규칙 자체(빈 출력 요구 10문항은 보류, 사람이 정함)는 그대로</td>
-<td class="why">예외가 78문항 중 10개 · 보류 장면과 상세 숫자에는 남겨 둠</td>
-<td class="next">없음</td></tr>
-
-<tr><td class="num">3</td><td class="what">Jev ↔ Decisions 일치 90%대는 '수치의 함정' — <b>갈림이 특정 기준에 몰리는지</b></td><td><span class="t ok">끝 10-23</span></td>
-<td class="how">최종 판정 7,202칸에서 1차 심판(Jev · Decisions)이 FAIL 이라 한 칸을 Codex 가 어떻게 봤는지 기준별로 셈 → 1차 FAIL 1,171칸 중 Codex 가 FAIL 로 확정한 것 <b>296칸(25%)</b>. 몰림: <b>J1-4.b(반복) 129칸 중 0칸 확정</b>, J6-2.a 110 중 4, J5-2.a 101 중 23, J2-3.a 68 중 33 (아래 2장)</td>
-<td class="why"><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문_점검.html</a> 1장 · <span class="small">분석/2026-10-23-질문점검/갈림_기준별.json</span>. 지금 규칙(1차는 거르기만, FAIL 확정은 Codex)이 이 숫자 때문에 맞음 — 1차 FAIL 을 그대로 쓰면 거짓 FAIL 이 875칸</td>
-<td class="next">갈림 1~3위 기준의 1차 심판 항목 설명에 예외 문구를 넣어 거짓 FAIL 을 줄임(기준 다듬기 1순위) → Codex 호출도 줄어듦. 갈림 큰 기준은 1차 판정을 보고서에 쓰지 않음</td></tr>
-
-<tr><td class="num">4</td><td class="what">판정 모델(Codex · GPT-6 Luna low) 선택 근거는 시간이 아니라 <b>심판 비교 → 결과 같음 → 싸고 빠른 것</b></td><td><span class="t ok">끝 10-23</span></td>
-<td class="how">상세 분석 끝에 '17 심판 선택' 장면 — ① Codex ↔ Claude CLI(Sonnet 5.5 · low) 2차 심판만 바꿔 비교 ② 통과 여부가 다른 39칸 중 24칸이 J1-4 하나 ③ 36칸을 다시 보니 Codex 맞음 14 · Claude 맞음 12 · 애매 10 — 어느 쪽도 더 맞지 않음 ④ 그래서 운영 조건으로: Codex 206번 호출 · 모델당 약 1시간 6분 vs Claude CLI 687번 · 약 2시간 5분, 둘 다 구독 ⑤ 다음은 기준 다듬기</td>
-<td class="why">비교 폴더 2026-10-22_14-25-55-176(비교.json · 검토_36칸.md). "78개 중 3개만 달랐다" · "시간 때문에"라고 말하지 않기로</td>
-<td class="next">J1-4.b 문구를 다듬은 뒤 같은 비교를 다시(문구만 고쳐도 Codex FAIL 64 → 40 · Claude 109 → 125, 379칸 시험)</td></tr>
-
-<tr><td class="num">5</td><td class="what">멀티턴 통과 0 — 멀티턴만 완화가 아니라 <b>싱글과 같은 난이도 · 같은 엄격함인지</b> 점검</td><td><span class="t warn">끝 · 고칠 것 남음</span></td>
-<td class="how">① 멀티턴 턴마다 보던 기준 34개 → 그 턴의 요청 · 함정 기준 14~21개(싱글 8~12개와 같은 잣대) ② 질문 판정은 그대로, 멀티턴은 턴 통과율 병기(AIONA 63 · GPT 58 · Claude 60 · Gemini 35%) ③ <b>78개 질문 전부 점검</b> — 싱글: 57개 중 39개를 네 모델 모두 통과, 함정 답을 직접 읽으니 심판 통과가 맞음 → 기준이 헐렁한 게 아니라 <b>질문이 쉬움</b> / 멀티턴: FAIL 420칸 중 설계 함정 346, <b>우리가 만든 거짓 FAIL 64칸</b>(확인 목록 '돌아오는 시간은 기록 없음'이 함정 '왕복 = 편도 × 2'와 충돌) + 거절 턴에서 결과물 품질 항목까지 FAIL 27턴(연결 규칙 빈틈)</td>
-<td class="why"><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문_점검.html</a>(결론 · 2-1 · 2-2) · <a href="../결과/2026-10-23_09-52-39-662/비교.md">비교.md</a>. 미팅의 "AIONA Python 문법 FAIL 2건은 복사 들여쓰기 탓인지"는 <b>아직 미확인</b></td>
-<td class="next">① 확인 목록 사실 줄 고침(왕복 = 편도 × 2 명시, 준비 방식 확정 턴 추가) ② 상황표 2 에 '거절 · 결과물 없음 → 결과물 품질 항목 해당 없음' ③ 싱글 함정 강화(질문 생성 프롬프트) → 다시 판정 ④ Python 2건 원인 확인</td></tr>
-
-<tr><td class="num">6</td><td class="what">걸린 시간은 합계보다 <b>질문별 · 유형별 편차</b>로</td><td><span class="t ok">끝 10-22</span></td>
-<td class="how">결과 보고서 05 '걸린 시간' 장면에 질문별 · 유형별 편차 표(합계 4시간 42분 = 수집 3시간 8분 + 판정 1시간 34분)</td>
-<td class="why"><a href="../결과/2026-10-23_09-52-39-662/report.html">결과 보고서</a> 05</td>
-<td class="next">없음 — 수집 시간은 앱 응답 시간이라 우리 개선 밖, 판정 시간은 3번(Codex 호출 ↓)으로 줄어듦</td></tr>
-
-<tr><td class="num">7</td><td class="what">비용 · 토큰 감 — 적어도 <b>판정에 드는 토큰</b>은 알아야</td><td><span class="t ok">끝 10-22</span></td>
-<td class="how">심판이 돌려준 사용량 칸 전부(1차 심판별 · Codex 캐시 · 추론)를 결과 보고서 '판정 토큰' 표로. 답변 수집(앱 · 웹)은 토큰을 알 수 없어 뺌(사용자 "판정쪽만 하자")</td>
-<td class="why">결과 보고서 판정 토큰 표 — 1차(Jev · Decisions) 737턴 입력 51.8M, Codex 893번 호출 입력 101.0M(다시 판정 · 복구 포함). 비용 환산은 단가가 정해지면</td>
-<td class="next">단가 확정 뒤 환산. 1차 거짓 FAIL 을 줄이면 Codex 호출 · 토큰이 같이 줆</td></tr>
-
-<tr><td class="num">8</td><td class="what">다음 주 마감 → 이후 상시 운영 계획, <b>'이걸 써야 하는 이유' 차별점 하나</b></td><td><span class="t todo">초안</span></td>
-<td class="how">마감 범위(초안): 보류 칸 사람 결정 · 기준 다듬기 1차(J1-4.b) · 확인 목록 · 연결 규칙 고친 뒤 다시 판정 · 결과 보고서 확정. 이후 상시: 질문 추가 · 재판정 · 기준 다듬기 루프(3장)</td>
-<td class="why">개선 예정 작업 6장 초안. 차별점 후보: "질문마다 미리 정한 함정 기준과 턴별 사실 목록으로 판정하고, 확신 없는 칸은 보류로 사람에게 넘기는 — 숫자의 근거를 칸마다 보여 주는 채점"</td>
-<td class="next">사용자가 범위 · 차별점 문구 확정</td></tr>
+<tr><th>#</th><th>미팅 항목</th><th>상태</th><th>한 것</th><th>근거</th><th>앞으로</th></tr>
+<tr><td>1</td><td>같은 모델끼리 비교</td><td><span class="t ok">끝</span></td><td><code>modelgrade start</code> 모델 메뉴(짝 18) — 고르면 그 앱 + AIONA 만</td><td>사용자 규칙 10-23</td><td>같은 모델 실제 결과는 다음 실행</td></tr>
+<tr><td>2</td><td>빈 출력 분기는 노이즈</td><td><span class="t ok">끝</span></td><td>흐름도에서 뺌. 규칙은 그대로(10문항 보류)</td><td>예외 10/78</td><td>없음</td></tr>
+<tr><td>3</td><td>갈림이 특정 기준에 몰리나</td><td><span class="t ok">끝</span></td><td>1차 FAIL 1,171칸 중 Codex 확정 296(25%). J1-4.b 129칸 중 0</td><td><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> 1장</td><td>갈림 큰 기준의 1차 심판 설명에 예외 문구 → 거짓 FAIL · Codex 호출 ↓</td></tr>
+<tr><td>4</td><td>판정 모델 선택 근거</td><td><span class="t ok">끝</span></td><td>상세 분석 17장 — Codex ↔ Claude CLI 36칸: 14 · 12 · 애매 10 → 운영 조건(206회 1h06m vs 687회 2h05m)</td><td>비교 폴더 10-22_14-25</td><td>J1-4.b 다듬은 뒤 재비교</td></tr>
+<tr><td>5</td><td>멀티턴 0 통과 — 싱글과 같은 엄격함인지</td><td><span class="t warn">끝 · 남음</span></td><td>턴별 기준 34 → 17.6 · 턴 통과율 병기 · 78개 점검: 싱글은 질문이 쉬움(39/57 모두 통과), 멀티턴 거짓 FAIL 64칸 + 거절 턴 27턴</td><td><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a></td><td>확인 목록 · 연결 규칙 고쳐 재판정 · 싱글 함정 재설계 · Python 2건 원인 확인</td></tr>
+<tr><td>6</td><td>시간 편차</td><td><span class="t ok">끝</span></td><td>결과 보고서 05 — 질문별 · 유형별 표</td><td><a href="../결과/2026-10-23_09-52-39-662/report.html">결과 보고서</a></td><td>없음</td></tr>
+<tr><td>7</td><td>판정 토큰</td><td><span class="t ok">끝</span></td><td>심판별 토큰 표(1차 51.8M · Codex 101.0M 입력)</td><td>결과 보고서</td><td>단가 정해지면 비용 환산</td></tr>
+<tr><td>8</td><td>마감 · 상시 운영 · 차별점</td><td><span class="t todo">초안</span></td><td>범위 · 상시 운영 초안, 차별점 후보 1</td><td><a href="개선 예정 작업.html">개선 예정 작업</a> 6장</td><td>확정 필요</td></tr>
 </table></div></div>
 
 <h2>2. 판정이 가장 많이 갈린 기준</h2>
-<div class="card">
-<p class="small mute">갈림 = 1차 심판(Jev · Decisions)이 FAIL 인데 Codex 는 PASS · 해당 없음(규칙: Codex 따름). 강한 갈림 = 1차 FAIL 확률 0.7 이상. 적중 = 1차 FAIL 을 Codex 도 FAIL 로 본 비율.</p>
+<div class="card"><p class="small mute">갈림 = 1차 심판 FAIL 인데 Codex 는 아님(Codex 따름) · 강한 = 1차 확률 0.7↑ · 적중 = 1차 FAIL 을 Codex 도 FAIL</p>
 <div class="scroll"><table>
-<tr><th>기준</th><th class="num">판정 칸</th><th class="num">갈림</th><th class="num">강한 갈림</th><th class="num">둘 다 FAIL</th><th class="num">1차 FAIL 적중</th><th>읽기</th></tr>
-<tr><td><b>J1-4.b</b> 반복 없음</td><td class="num">668</td><td class="num">129</td><td class="num">33</td><td class="num">0</td><td class="num">0%</td><td>1차 심판이 '표를 풀어 쓴 설명 · 결론 한 번'을 반복으로 봄 — Codex 는 한 번도 동의 안 함. 1차 항목 설명에 예외 문구가 없음</td></tr>
-<tr><td><b>J6-2.a</b> 이전 정보 정확</td><td class="num">250</td><td class="num">110</td><td class="num">39</td><td class="num">4</td><td class="num">3.5%</td><td>멀티턴 10턴 자료에서 1차가 값 불일치를 자주 봄 — Codex 가 원문 대조로 거의 다 뒤집음</td></tr>
-<tr><td><b>J5-2.a</b> 입력 값 충실</td><td class="num">555</td><td class="num">101</td><td class="num">34</td><td class="num">23</td><td class="num">19%</td><td>값 옮김은 Codex 가 23칸 확정 — 1차 FAIL 의 1/5 만 맞음</td></tr>
-<tr><td><b>J2-3.a</b> 조건 준수</td><td class="num">317</td><td class="num">68</td><td class="num">12</td><td class="num">33</td><td class="num">33%</td><td>형식 조건을 CODE 가 이미 쟀는데 1차가 또 FAIL 하던 것 포함(안전장치로 다시 물음)</td></tr>
-<tr><td><b>J6-2.b</b> 이전 정보 누락</td><td class="num">305</td><td class="num">67</td><td class="num">40</td><td class="num">17</td><td class="num">20%</td><td>강한 갈림 1위 — 1차가 확신 0.7 이상으로 FAIL 이라 했는데 Codex 가 PASS 40칸</td></tr>
-<tr><td><b>J1-4.a</b> 불필요 없음</td><td class="num">666</td><td class="num">55</td><td class="num">17</td><td class="num">3</td><td class="num">5%</td><td>J1-4.b 와 같은 원인(예외 문구)</td></tr>
-<tr><td><b>J3-1.a</b> 내부 모순</td><td class="num">667</td><td class="num">41</td><td class="num">24</td><td class="num">29</td><td class="num">41%</td><td>적중이 높은 편 — 모순은 1차도 비교적 잘 봄</td></tr>
-<tr><td><b>J3-5.a</b> 실행 가능성</td><td class="num">98</td><td class="num">11</td><td class="num">9</td><td class="num">51</td><td class="num">82%</td><td>갈림이 적고 적중 높음 — 두 심판이 같이 보는 기준</td></tr>
-<tr><td colspan="7" class="small">전체: 1차 FAIL 1,171칸 중 Codex 확정 296(25%). Codex ↔ Claude CLI(2차 심판끼리) 비교에서도 갈림 36칸 중 J1-4 가 24칸 — <b>'반복 · 불필요'(J1-4)가 어느 심판 조합에서도 가장 많이 갈리는 기준</b>. 기준 다듬기 루프 첫 대상</td></tr>
+<tr><th>기준</th><th class="num">판정</th><th class="num">갈림</th><th class="num">강한</th><th class="num">둘 다 FAIL</th><th class="num">적중</th><th>뜻</th></tr>
+<tr><td><b>J1-4.b</b> 반복</td><td class="num">668</td><td class="num">129</td><td class="num">33</td><td class="num">0</td><td class="num">0%</td><td>1차가 '표 + 풀이 · 결론 한 번'을 반복으로 봄</td></tr>
+<tr><td><b>J6-2.a</b> 이전 정보</td><td class="num">250</td><td class="num">110</td><td class="num">39</td><td class="num">4</td><td class="num">4%</td><td>원문 대조로 거의 다 뒤집힘</td></tr>
+<tr><td><b>J5-2.a</b> 입력 값</td><td class="num">555</td><td class="num">101</td><td class="num">34</td><td class="num">23</td><td class="num">19%</td><td>1차 FAIL 의 1/5 만 맞음</td></tr>
+<tr><td><b>J2-3.a</b> 조건</td><td class="num">317</td><td class="num">68</td><td class="num">12</td><td class="num">33</td><td class="num">33%</td><td>CODE 가 잰 형식까지 FAIL 하던 것 포함</td></tr>
+<tr><td><b>J6-2.b</b> 정보 누락</td><td class="num">305</td><td class="num">67</td><td class="num">40</td><td class="num">17</td><td class="num">20%</td><td>강한 갈림 1위</td></tr>
+<tr><td><b>J1-4.a</b> 불필요</td><td class="num">666</td><td class="num">55</td><td class="num">17</td><td class="num">3</td><td class="num">5%</td><td>J1-4.b 와 같은 원인</td></tr>
+<tr><td><b>J3-5.a</b> 실행 가능</td><td class="num">98</td><td class="num">11</td><td class="num">9</td><td class="num">51</td><td class="num">82%</td><td>두 심판이 같이 봄</td></tr>
+<tr><td colspan="7" class="small">Codex ↔ Claude CLI 36칸도 J1-4 가 24칸 — <b>J1-4 가 어느 조합에서도 1위</b> → 기준 다듬기 첫 대상</td></tr>
 </table></div></div>
 
-<h2>3. 이번 주 점검에서 찾은 잘못 — 어느 쪽 잘못인지</h2>
+<h2>3. 찾은 잘못 — 어느 쪽</h2>
 <div class="card"><div class="scroll"><table>
-<tr><th>어디</th><th>찾은 것</th><th>상태</th></tr>
-<tr><td><b>질문(생성)</b></td><td>싱글 57개 중 39개가 네 모델 모두 통과 — 생성 프롬프트의 "모든 모델이 PASS 하는 질문은 쓸모없다" 규칙을 스스로 어김. 한 줄 함정(왕복 · 동시 배정 · 미기재)은 지금 모델들이 다 피함. 변별은 롱컨텍스트 · 비슷한 값 섞기에서만</td><td><span class="t todo">예정</span> 함정을 자료 속 혼동(비슷한 값 · 떨어진 근거 · 변경 전후)으로 다시 설계</td></tr>
-<tr><td><b>질문(멀티턴 확인 목록)</b></td><td>"편도 N분 — 돌아오는 시간은 기록 없음" · "준비 방식 미정"이 함정(왕복 = 편도 × 2 · B안 확정 반영)과 부딪혀 거짓 FAIL 64칸. Q6 · Q10 은 접수 시작 ≥ 행사 시작(이미 J1-3 으로)</td><td><span class="t todo">예정</span> 사실 줄 고치고 다시 판정</td></tr>
-<tr><td><b>기준(상황표 2)</b></td><td>거절 · 결과물 없음 턴에서 J4 만 해당 없음이라 J2-3 · J3-5 · J5-2 · J6 가 같이 FAIL(27턴, 한 오류가 여러 기준에)</td><td><span class="t todo">예정</span> 연결 규칙 확장(v2 문서 먼저)</td></tr>
-<tr><td><b>기준(J5-3.a)</b></td><td>AIONA 가 답 끝에 붙이는 '데이터 제공: MET Norway …' 줄을 꾸민 출처로 FAIL(7칸)</td><td><span class="t ok">고침</span> 서비스 표시 줄은 판정 안 함</td></tr>
-<tr><td><b>판정 프롬프트</b></td><td>J1-4 예외(표 + 풀이 · 두괄식) · J5-1 일반 지식 · 존댓말 3등급 · 괄호 원어 · 한 오류 한 항목 — 36칸 검토 · 보류 69건에서</td><td><span class="t ok">고침</span> <a href="기준·프롬프트 변경 원문.html">변경 원문</a></td></tr>
-<tr><td><b>1차 심판</b></td><td>J1-4.b 거짓 FAIL 129칸(확정 0) — 1차 심판의 항목 설명에 프롬프트 예외가 안 들어감</td><td><span class="t todo">예정</span> 기준 다듬기 1순위</td></tr>
-<tr><td><b>CODE 검사</b></td><td>합계 · 출처 · 시각 · 합계 행 · 이스케이프 거짓 FAIL 9건. 요구 구조를 아예 안 만들면 '대상 없음' 통과(Gemini 링크)</td><td><span class="t ok">고침</span> / <span class="t todo">결정</span> 부재를 FAIL 로 볼지</td></tr>
-<tr><td><b>제품(AIONA)</b></td><td>Q8 최종 턴에 합창단 일정 질문을 자살 예방 안내로 답함(안전 분류 오작동) · 데이터 제공 줄 · Python 코드 1칸 들여쓰기</td><td><span class="t warn">알림</span> 제품 쪽에 전달</td></tr>
+<tr><th>어디</th><th>무엇</th><th>상태</th></tr>
+<tr><td>질문(싱글)</td><td>57개 중 39개 네 모델 모두 통과 — 한 줄 함정은 안 걸림</td><td><span class="t todo">예정</span> 자료 속 혼동형으로 재설계</td></tr>
+<tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음" · "방식 미정"이 함정과 충돌 → 거짓 FAIL 64칸</td><td><span class="t todo">예정</span> 사실 줄 고쳐 재판정</td></tr>
+<tr><td>기준(상황표 2)</td><td>거절 턴에서 결과물 품질 항목까지 FAIL — 27턴</td><td><span class="t todo">예정</span> 연결 규칙 확장</td></tr>
+<tr><td>기준(J5-3.a)</td><td>AIONA '데이터 제공' 줄을 꾸민 출처로 FAIL 7칸</td><td><span class="t ok">고침</span></td></tr>
+<tr><td>판정 프롬프트</td><td>J1-4 예외 · J5-1 일반 지식 · 존댓말 3등급 · 한 오류 한 항목</td><td><span class="t ok">고침</span> <a href="기준·프롬프트 변경 원문.html">원문</a></td></tr>
+<tr><td>1차 심판</td><td>J1-4.b 거짓 FAIL 129칸</td><td><span class="t todo">예정</span> 예외 문구</td></tr>
+<tr><td>CODE</td><td>거짓 FAIL 9건 / 요구 구조 생략은 통과</td><td><span class="t ok">고침</span> / <span class="t todo">결정</span></td></tr>
+<tr><td>제품(AIONA)</td><td>Q8 일정 질문에 자살 예방 안내 · 데이터 제공 줄 · 코드 들여쓰기</td><td><span class="t warn">알림</span></td></tr>
 </table></div></div>
 
-<h2>4. 앞으로 — 흐름은 고정, 결과로 기준 · 프롬프트 · 질문을 고치는 루프</h2>
-<div class="card">
-<ol style="margin:0 0 0 18px;padding:0">
-<li><b>사람 표시</b> — <a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸(FAIL 60 · 통과 40)에 맞음 · 틀림 · 애매 + 원인 → 기준마다 거짓 FAIL · 거짓 통과 비율</li>
-<li><b>고칠 안</b> — 비율이 높은 기준부터, 기준 문서(<a href="../기준/채팅품질%20평가기준_v2.md">채팅품질 평가기준_v2.md</a>) 줄을 먼저 고치고(사용자 승인) 프롬프트 · 1차 심판 설명 · 확인 목록 · 질문이 따라감. 첫 셋: J1-4.b 예외 문구(1차 심판) · 확인 목록 '돌아오는 시간' · 거절 턴 연결 규칙</li>
-<li><b>시험</b> — 같은 칸을 고치기 전 · 후로 두 심판 × 두 번 다시 판정, 사람 표시 대비 정답률 ↑ · 뒤집힘 ↓ · 다른 기준 그대로일 때만 채택, 교훈은 변경내역에</li>
-<li><b>질문 보강</b> — 싱글 함정을 자료 속 혼동형으로 다시 만들고 k 6~10 · 기준별 10문항 확인 뒤 수집 · 판정</li>
-<li><b>보류 결정</b> — 멀티턴 설명 턴 J5-1.a 10칸(상식은 통과로 둘지) · 보류 칸 사람 결정 → 숫자 확정</li>
-</ol>
-</div>
+<h2>4. 앞으로</h2>
+<div class="card"><ol>
+<li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
+<li>기준 문서(<a href="../기준/채팅품질%20평가기준_v2.md">v2</a>) 먼저 고침 → 프롬프트 · 확인 목록 · 질문. 첫 셋: J1-4.b 예외 · 돌아오는 시간 · 거절 턴 규칙</li>
+<li>같은 칸 전 · 후 재판정 — 정답률 ↑ · 뒤집힘 ↓ 일 때만 채택</li>
+<li>싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
+<li>보류 결정(설명 턴 J5-1.a 10칸 등) → 숫자 확정</li>
+</ol></div>
 
-<p class="small mute">자세한 것: <a href="개선 예정 작업.html">개선 예정 작업</a>(루프 설계 · 고친 것 30개 · 빈틈) · <a href="기준·프롬프트 변경 원문.html">기준 · 프롬프트 변경 원문</a> · <a href="../결과/2026-10-23_09-52-39-662/report.html">결과 보고서</a> · <a href="../결과/2026-10-23_09-52-39-662/판정보고서.html">판정보고서</a></p>
+<p class="small mute">자세히: <a href="개선 예정 작업.html">개선 예정 작업</a> · <a href="기준·프롬프트 변경 원문.html">변경 원문</a> · <a href="../결과/2026-10-23_09-52-39-662/판정보고서.html">판정보고서</a></p>
 </main></body></html>
