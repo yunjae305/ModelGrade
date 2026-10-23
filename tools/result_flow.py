@@ -236,10 +236,11 @@ def flow_svg(n: int, set_ver: str) -> str:
         ("앱", ["ChatGPT · Claude · Gemini 데스크톱 앱"]),
         ("웹", ["AIONA(개발 서버)"]),
         ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "첨부는 붙여넣기 · 받은 질문은 건너뜀"]),
+        ("모델", ["고르지 않으면 AIONA 자동 추천 + 앱 3개", "AIONA 모델을 고르면 같은 모델 앱과 둘만"]),   # 사용자 10-23: 예) AIONA Sonnet 5.5 ↔ Claude 앱 Sonnet 5.5, GPT · Gemini 빠짐
     ], "ai")
     P += parts
     parts, _ = aibox(B_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.8 Flash · 보통",
-                                                 "AIONA · 자동 추천", "로그인은 사람이 미리"])
+                                                 "AIONA · 자동 추천", "(고르면 같은 모델 둘만)", "로그인은 사람이 미리"])   # 10-22 미팅 1번
     P += parts
     P.append(ai_link(spots[0][0] + spots[0][1] / 2))
     y += B_h
@@ -249,7 +250,7 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 22
     cy1 = y + 30
     P += diamond(DX, cy1, 190, 60, ["답을 받았나?"])
-    parts, _ = side(cy1 - 24, ["재시도 대상 → 보류", "빈 답 → 보류", "못 받음 → FAIL"])
+    parts, _ = side(cy1 - 24, ["재시도 대상 → 보류", "못 받음 → FAIL"])   # 빈 답 갈래는 뺌 — 여러 예외 중 하나라 큰 흐름에서는 노이즈(10-22 미팅 2번)
     P += parts
     P += [path(f"M{DX + 95},{cy1:g} L{SX - 2},{cy1:g}"), lab(DX + 100, cy1 - 7, "아니오")]
     y = cy1 + 30
@@ -404,7 +405,7 @@ def side_cards() -> str:
             + mini("판정 규칙", ["상황", "결과"], [
                 ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤 · 보류는 모두 '사람이 판단' · 빈 출력 요구 줄은 뺌(10-22 미팅 2번)
                 ["답을 못 받음 (모델 오류 · 끝나지 않음)", FAIL],
-                ["재시도 대상(복사 실패) · 빈 답", HOLD_P],
+                ["재시도 대상(복사 실패)", HOLD_P],
                 ["Codex FAIL", FAIL],
                 ["1차 FAIL + Codex 통과", "Codex 의 판정을 따름"],
                 ["Codex 판정 없음 + 1차 FAIL", HOLD_P],
