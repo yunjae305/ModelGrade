@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>미팅 개선 체크리스트</title>
+<title>미팅 개선 현황</title>
 <style>
 :root{--bg:#fbfbf9;--fg:#1c1c1a;--mute:#6b6b66;--line:#e2e1dc;--card:#fff;--ok:#1d7a46;--ok-bg:#e6f4ea;--warn:#8a5a00;--warn-bg:#fdf3dc;--todo:#5c6675;--todo-bg:#eceef1;--acc:#2f5fa8;--th:#f1f0ea}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--acc:#8ab4f8;--th:#262623}}
@@ -16,70 +16,103 @@ table{border-collapse:collapse;width:100%;font-size:13.5px} th,td{border-bottom:
 .scroll{overflow-x:auto} .num{font-variant-numeric:tabular-nums}
 .t{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap;font-weight:600}
 .t.ok{color:var(--ok);background:var(--ok-bg)} .t.warn{color:var(--warn);background:var(--warn-bg)} .t.todo{color:var(--todo);background:var(--todo-bg)}
-.chk{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:12px 0}
-.chk div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);font-size:13px} .chk b{display:block;font-size:18px}
-a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0}
+a{color:var(--acc)} ol{margin:0 0 0 18px;padding:0} li{margin:3px 0} td.now{min-width:260px}
 </style>
 </head>
 <body><main>
-<h1>10-22 미팅 — 개선 항목 체크리스트</h1>
-<p class="mute">2026-10-23 · 숫자는 최종 다시 판정(10-23 09:52) 기준, 보류 결정 전 잠정값</p>
+<h1>10-22 미팅 — 개선 현황</h1>
+<p class="mute">2026-10-23 · 미팅에서 나온 12항목을 '이제 · 남은 것'으로. 숫자는 10-23 판정(09:52 · 12:40) 기준, 보류 결정 전 잠정값</p>
 
-<div class="chk">
-  <div><b>8</b>항목</div>
-  <div><b>6</b>끝</div>
-  <div><b>1</b>끝 · 고칠 것 남음</div>
-  <div><b>1</b>초안</div>
-</div>
-
-<h2>1. 체크리스트</h2>
+<h2>1. 12항목</h2>
 <div class="card"><div class="scroll"><table>
-<tr><th>#</th><th>미팅 항목</th><th>상태</th><th>한 것</th><th>근거</th><th>앞으로</th></tr>
-<tr><td>1</td><td>같은 모델끼리 비교</td><td><span class="t ok">끝</span></td><td><code>modelgrade start</code> 모델 메뉴(짝 18) — 고르면 그 앱 + AIONA 만</td><td>사용자 규칙 10-23</td><td>같은 모델 실제 결과는 다음 실행</td></tr>
-<tr><td>2</td><td>빈 출력 분기는 노이즈</td><td><span class="t ok">끝</span></td><td>흐름도에서 뺌. 규칙은 그대로(10문항 보류)</td><td>예외 10/78</td><td>없음</td></tr>
-<tr><td>3</td><td>갈림이 특정 기준에 몰리나</td><td><span class="t ok">끝</span></td><td>1차 FAIL 1,171칸 중 Codex 확정 296(25%). J1-4.b 129칸 중 0</td><td><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> 1장</td><td>갈림 큰 기준의 1차 심판 설명에 예외 문구 → 거짓 FAIL · Codex 호출 ↓</td></tr>
-<tr><td>4</td><td>판정 모델 선택 근거</td><td><span class="t ok">끝</span></td><td>상세 분석 17장 — Codex ↔ Claude CLI 36칸: 14 · 12 · 애매 10 → 운영 조건(206회 1h06m vs 687회 2h05m)</td><td>비교 폴더 10-22_14-25</td><td>J1-4.b 다듬은 뒤 재비교</td></tr>
-<tr><td>5</td><td>멀티턴 0 통과 — 싱글과 같은 엄격함인지</td><td><span class="t warn">끝 · 남음</span></td><td>턴별 기준 34 → 17.6 · 턴 통과율 병기 · 78개 점검: 싱글은 질문이 쉬움(39/57 모두 통과), 멀티턴 거짓 FAIL 64칸 + 거절 턴 27턴</td><td><a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a></td><td>확인 목록 · 연결 규칙 고쳐 재판정 · 싱글 함정 재설계 · Python 2건 원인 확인</td></tr>
-<tr><td>6</td><td>시간 편차</td><td><span class="t ok">끝</span></td><td>결과 보고서 05 — 질문별 · 유형별 표</td><td><a href="../결과/2026-10-23_09-52-39-662/report.html">결과 보고서</a></td><td>없음</td></tr>
-<tr><td>7</td><td>판정 토큰</td><td><span class="t ok">끝</span></td><td>새 판정(v4-r3, 재사용 없음)으로 질문 × 모델 × 심판 토큰 기록 — 전체 입력 121.3M · 출력 1.57M · 호출 1,425(멀티턴 72%)</td><td><a href="../결과/2026-10-23_12-41-05-662/판정토큰.html">판정토큰</a> · <a href="../결과/2026-10-23_12-41-05-662/토큰기록.md">토큰기록</a></td><td>단가 정해지면 비용 환산</td></tr>
-<tr><td>8</td><td>마감 · 상시 운영 · 차별점</td><td><span class="t todo">초안</span></td><td>범위 · 상시 운영 초안, 차별점 후보 1</td><td><a href="개선 예정 작업.html">개선 예정 작업</a> 6장</td><td>확정 필요</td></tr>
+<tr><th>#</th><th>항목</th><th>이제</th><th>남은 것</th></tr>
+<tr><td>1</td><td>같은 모델 선택 비교</td><td class="now"><span class="t ok">반영</span> 기능(10-22) + 발표자료 흐름도 · 수집 칸 · 발전 방향 카드(동료 10-23)</td><td>같은 모델로 실제 수집 · 판정한 결과</td></tr>
+<tr><td>2</td><td>빈 출력 분기 노이즈</td><td class="now"><span class="t ok">반영</span> 흐름도 '빈 답 → 보류' 갈래도 뺌(동료 10-23)</td><td>—</td></tr>
+<tr><td>3</td><td>Jev↔Decisions 갈림</td><td class="now"><span class="t ok">반영 + 추가</span> 기준별 갈림 표(1차 FAIL 적중 25%, J1-4.b 129칸 중 0) — 2장 표</td><td>갈림 큰 기준의 1차 심판 설명 다듬기</td></tr>
+<tr><td>4</td><td>Codex 선택 근거</td><td class="now"><span class="t ok">반영</span> 상세 분석 17 '심판 선택'(동료 10-23) + J1-4.b 다수결(해석 차이)</td><td>—</td></tr>
+<tr><td>5</td><td>질문 설계</td><td class="now"><span class="t ok">반영</span></td><td>싱글 57개 중 39개 네 모델 모두 통과 → 함정 재설계</td></tr>
+<tr><td>6</td><td>CODE 숫자 뜻</td><td class="now"><span class="t ok">확인 끝</span></td><td>—</td></tr>
+<tr><td>7</td><td>멀티턴 0 · 싱글 느슨?</td><td class="now"><span class="t warn">점검 끝</span> 턴별 기준 34 → 17.6, 턴 통과율, 78개 점검(싱글은 질문이 쉬움 · 멀티턴 거짓 FAIL 2종 고침)</td><td>표시용 표 사람 표시 · A형 최종 턴 정답 결정 · 멀티턴 재판정 · AIONA Python 2건 들여쓰기 확인 · 발표자료 장면</td></tr>
+<tr><td>8</td><td>걸린 시간 편차</td><td class="now"><span class="t ok">반영</span> 결과 보고서 13 · 판정 시간도 질문 × 모델마다 기록(판정토큰)</td><td>편차 큰 질문 재확인</td></tr>
+<tr><td>9</td><td>토큰 · 비용</td><td class="now"><span class="t ok">반영</span> v4-r3 새 판정으로 질문 × 모델 × 심판 토큰 전부 기록('기록 안 됨' 없음)</td><td>단가 → 비용 환산</td></tr>
+<tr><td>10</td><td>발전 방향</td><td class="now"><span class="t ok">반영</span>(07)</td><td>—</td></tr>
+<tr><td>11</td><td>마감 범위 · 상시 운영</td><td class="now"><span class="t todo">초안</span> 범위 = 보류 결정 · 기준 다듬기 1차 · 재판정 · 결과 보고서 확정 / 상시 = 질문 추가 · 재판정 · 루프</td><td><b>확정 필요</b></td></tr>
+<tr><td>12</td><td>차별점 하나</td><td class="now"><span class="t todo">후보 1</span> "질문마다 미리 정한 함정 기준과 턴별 사실 목록으로 판정하고, 확신 없는 칸은 보류로 사람에게 넘기는 — 숫자의 근거를 칸마다 보여 주는 채점"</td><td><b>확정 필요</b></td></tr>
 </table></div></div>
 
-<h2>2. 판정이 가장 많이 갈린 기준</h2>
-<div class="card"><p class="small mute">갈림 = 1차 심판 FAIL 인데 Codex 는 아님(Codex 따름) · 강한 = 1차 확률 0.7↑ · 적중 = 1차 FAIL 을 Codex 도 FAIL</p>
+<h2>2. 기준마다 Jev · Decisions · Codex 가 어떻게 판정했나</h2>
+<div class="card"><p class="small mute">10-23 12:40 판정(v4-r3, 78 × 4). Jev = 32K 이하 · 첨부 없는 질문의 1차 심판, Decisions = 그 밖의 1차 심판(멀티턴 · 롱컨텍스트 · 첨부). Codex 는 1차가 FAIL · 보류 · 확신 낮음으로 본 항목과 J5~J8 만 봄(최종은 Codex 따름). 갈림 = 1차 FAIL 인데 Codex 는 PASS · 해당 없음 — 1차 FAIL 1,180칸 중 Codex 도 FAIL 368칸(31%). 같은 규칙으로 두 번 판정(09:52 · 12:40)해도 질문 판정 26/312칸이 다름(심판 흔들림 ≈ 8%).</p>
 <div class="scroll"><table>
-<tr><th>기준</th><th class="num">판정</th><th class="num">갈림</th><th class="num">강한</th><th class="num">둘 다 FAIL</th><th class="num">적중</th><th>뜻</th></tr>
-<tr><td><b>J1-4.b</b> 반복</td><td class="num">668</td><td class="num">129</td><td class="num">33</td><td class="num">0</td><td class="num">0%</td><td>1차가 '표 + 풀이 · 결론 한 번'을 반복으로 봄</td></tr>
-<tr><td><b>J6-2.a</b> 이전 정보</td><td class="num">250</td><td class="num">110</td><td class="num">39</td><td class="num">4</td><td class="num">4%</td><td>원문 대조로 거의 다 뒤집힘</td></tr>
-<tr><td><b>J5-2.a</b> 입력 값</td><td class="num">555</td><td class="num">101</td><td class="num">34</td><td class="num">23</td><td class="num">19%</td><td>1차 FAIL 의 1/5 만 맞음</td></tr>
-<tr><td><b>J2-3.a</b> 조건</td><td class="num">317</td><td class="num">68</td><td class="num">12</td><td class="num">33</td><td class="num">33%</td><td>CODE 가 잰 형식까지 FAIL 하던 것 포함</td></tr>
-<tr><td><b>J6-2.b</b> 정보 누락</td><td class="num">305</td><td class="num">67</td><td class="num">40</td><td class="num">17</td><td class="num">20%</td><td>강한 갈림 1위</td></tr>
-<tr><td><b>J1-4.a</b> 불필요</td><td class="num">666</td><td class="num">55</td><td class="num">17</td><td class="num">3</td><td class="num">5%</td><td>J1-4.b 와 같은 원인</td></tr>
-<tr><td><b>J3-5.a</b> 실행 가능</td><td class="num">98</td><td class="num">11</td><td class="num">9</td><td class="num">51</td><td class="num">82%</td><td>두 심판이 같이 봄</td></tr>
-<tr><td colspan="7" class="small">Codex ↔ Claude CLI 36칸도 J1-4 가 24칸 — <b>J1-4 가 어느 조합에서도 1위</b>. 같은 칸 3번 다수결(379칸): Codex FAIL 1 · Claude 34, Codex 3번 일치 363 → 흔들림이 아니라 <b>해석 차이</b>(<a href="../결과/2026-10-23_10-42-26-900/비교.md">10-23 10:42</a>) → 기준 다듬기 첫 대상</td></tr>
+<tr><th>기준</th><th class='num'>Jev 판정</th><th class='num'>Jev FAIL</th><th class='num'>Decisions 판정</th><th class='num'>Decisions FAIL</th><th class='num'>Codex 봄</th><th class='num'>Codex FAIL</th><th class='num'>갈림</th><th class='num'>최종 FAIL</th><th class='num'>최종 보류</th></tr>
+<tr><td>J1-1.a</td><td class='num'>140</td><td class='num'>0</td><td class='num'>528</td><td class='num'>16</td><td class='num'>169</td><td class='num'>22</td><td class='num'>5</td><td class='num'>6</td><td class='num'>0</td></tr>
+<tr><td>J1-2.a</td><td class='num'>140</td><td class='num'>0</td><td class='num'>528</td><td class='num'>21</td><td class='num'>88</td><td class='num'>24</td><td class='num'>4</td><td class='num'>24</td><td class='num'>0</td></tr>
+<tr><td>J1-3.a</td><td class='num'>140</td><td class='num'>0</td><td class='num'>528</td><td class='num'>31</td><td class='num'>161</td><td class='num'>10</td><td class='num'>26</td><td class='num'>10</td><td class='num'>1</td></tr>
+<tr><td>J1-3.b</td><td class='num'>140</td><td class='num'>0</td><td class='num'>528</td><td class='num'>29</td><td class='num'>157</td><td class='num'>9</td><td class='num'>24</td><td class='num'>9</td><td class='num'>0</td></tr>
+<tr><td>J1-4.a</td><td class='num'>140</td><td class='num'>2</td><td class='num'>528</td><td class='num'>65</td><td class='num'>276</td><td class='num'>32</td><td class='num'>47</td><td class='num'>32</td><td class='num'>0</td></tr>
+<tr><td>J1-4.b</td><td class='num'>140</td><td class='num'>1</td><td class='num'>527</td><td class='num'>124</td><td class='num'>373</td><td class='num'>4</td><td class='num'>123</td><td class='num'>4</td><td class='num'>0</td></tr>
+<tr><td>J2-1.a</td><td class='num'>40</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>20</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J2-1.b</td><td class='num'>40</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>31</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J2-2.a</td><td class='num'>60</td><td class='num'>0</td><td class='num'>44</td><td class='num'>0</td><td class='num'>4</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J2-3.a</td><td class='num'>56</td><td class='num'>0</td><td class='num'>268</td><td class='num'>101</td><td class='num'>265</td><td class='num'>70</td><td class='num'>71</td><td class='num'>70</td><td class='num'>1</td></tr>
+<tr><td>J2-4.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>32</td><td class='num'>1</td><td class='num'>1</td><td class='num'>1</td><td class='num'>0</td><td class='num'>1</td><td class='num'>0</td></tr>
+<tr><td>J2-4.b</td><td class='num'>16</td><td class='num'>0</td><td class='num'>32</td><td class='num'>0</td><td class='num'>1</td><td class='num'>1</td><td class='num'>0</td><td class='num'>1</td><td class='num'>0</td></tr>
+<tr><td>J2-5.a</td><td class='num'>12</td><td class='num'>0</td><td class='num'>88</td><td class='num'>2</td><td class='num'>62</td><td class='num'>4</td><td class='num'>0</td><td class='num'>4</td><td class='num'>0</td></tr>
+<tr><td>J2-5.b</td><td class='num'>8</td><td class='num'>0</td><td class='num'>132</td><td class='num'>5</td><td class='num'>28</td><td class='num'>11</td><td class='num'>2</td><td class='num'>11</td><td class='num'>0</td></tr>
+<tr><td>J3-1.a</td><td class='num'>140</td><td class='num'>0</td><td class='num'>528</td><td class='num'>70</td><td class='num'>205</td><td class='num'>55</td><td class='num'>35</td><td class='num'>55</td><td class='num'>1</td></tr>
+<tr><td>J3-2.a</td><td class='num'>20</td><td class='num'>0</td><td class='num'>88</td><td class='num'>0</td><td class='num'>21</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J3-2.b</td><td class='num'>20</td><td class='num'>0</td><td class='num'>160</td><td class='num'>64</td><td class='num'>128</td><td class='num'>41</td><td class='num'>39</td><td class='num'>41</td><td class='num'>0</td></tr>
+<tr><td>J3-3.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>32</td><td class='num'>4</td><td class='num'>6</td><td class='num'>3</td><td class='num'>1</td><td class='num'>3</td><td class='num'>0</td></tr>
+<tr><td>J3-3.b</td><td class='num'>16</td><td class='num'>0</td><td class='num'>32</td><td class='num'>5</td><td class='num'>10</td><td class='num'>7</td><td class='num'>0</td><td class='num'>7</td><td class='num'>0</td></tr>
+<tr><td>J3-4.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>88</td><td class='num'>2</td><td class='num'>50</td><td class='num'>1</td><td class='num'>2</td><td class='num'>1</td><td class='num'>0</td></tr>
+<tr><td>J3-5.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>88</td><td class='num'>62</td><td class='num'>80</td><td class='num'>58</td><td class='num'>11</td><td class='num'>58</td><td class='num'>0</td></tr>
+<tr><td>J3-5.b</td><td class='num'>20</td><td class='num'>0</td><td class='num'>96</td><td class='num'>0</td><td class='num'>39</td><td class='num'>4</td><td class='num'>0</td><td class='num'>4</td><td class='num'>0</td></tr>
+<tr><td>J4-1.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>56</td><td class='num'>1</td><td class='num'>22</td><td class='num'>1</td><td class='num'>0</td><td class='num'>1</td><td class='num'>0</td></tr>
+<tr><td>J4-1.b</td><td class='num'>12</td><td class='num'>0</td><td class='num'>44</td><td class='num'>0</td><td class='num'>17</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J4-2.a</td><td class='num'>32</td><td class='num'>0</td><td class='num'>92</td><td class='num'>6</td><td class='num'>82</td><td class='num'>6</td><td class='num'>4</td><td class='num'>3</td><td class='num'>0</td></tr>
+<tr><td>J4-3.a</td><td class='num'>24</td><td class='num'>0</td><td class='num'>96</td><td class='num'>11</td><td class='num'>88</td><td class='num'>8</td><td class='num'>9</td><td class='num'>6</td><td class='num'>0</td></tr>
+<tr><td>J4-4.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>104</td><td class='num'>5</td><td class='num'>76</td><td class='num'>9</td><td class='num'>2</td><td class='num'>9</td><td class='num'>0</td></tr>
+<tr><td>J5-1.a</td><td class='num'>16</td><td class='num'>0</td><td class='num'>40</td><td class='num'>1</td><td class='num'>47</td><td class='num'>10</td><td class='num'>0</td><td class='num'>1</td><td class='num'>9</td></tr>
+<tr><td>J5-2.a</td><td class='num'>104</td><td class='num'>2</td><td class='num'>528</td><td class='num'>127</td><td class='num'>405</td><td class='num'>55</td><td class='num'>99</td><td class='num'>54</td><td class='num'>4</td></tr>
+<tr><td>J5-2.b</td><td class='num'>4</td><td class='num'>0</td><td class='num'>92</td><td class='num'>42</td><td class='num'>76</td><td class='num'>28</td><td class='num'>18</td><td class='num'>28</td><td class='num'>0</td></tr>
+<tr><td>J5-3.a</td><td class='num'>140</td><td class='num'>1</td><td class='num'>528</td><td class='num'>42</td><td class='num'>412</td><td class='num'>35</td><td class='num'>23</td><td class='num'>21</td><td class='num'>0</td></tr>
+<tr><td>J6-1.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>396</td><td class='num'>50</td><td class='num'>232</td><td class='num'>10</td><td class='num'>43</td><td class='num'>10</td><td class='num'>3</td></tr>
+<tr><td>J6-2.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>396</td><td class='num'>114</td><td class='num'>326</td><td class='num'>9</td><td class='num'>104</td><td class='num'>9</td><td class='num'>1</td></tr>
+<tr><td>J6-2.b</td><td class='num'>0</td><td class='num'>0</td><td class='num'>396</td><td class='num'>84</td><td class='num'>313</td><td class='num'>38</td><td class='num'>59</td><td class='num'>38</td><td class='num'>1</td></tr>
+<tr><td>J6-2.c</td><td class='num'>0</td><td class='num'>0</td><td class='num'>396</td><td class='num'>2</td><td class='num'>368</td><td class='num'>3</td><td class='num'>1</td><td class='num'>3</td><td class='num'>0</td></tr>
+<tr><td>J6-3.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>192</td><td class='num'>18</td><td class='num'>102</td><td class='num'>8</td><td class='num'>13</td><td class='num'>8</td><td class='num'>0</td></tr>
+<tr><td>J6-3.b</td><td class='num'>0</td><td class='num'>0</td><td class='num'>44</td><td class='num'>2</td><td class='num'>44</td><td class='num'>12</td><td class='num'>1</td><td class='num'>12</td><td class='num'>0</td></tr>
+<tr><td>J6-4.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>352</td><td class='num'>48</td><td class='num'>301</td><td class='num'>6</td><td class='num'>41</td><td class='num'>6</td><td class='num'>1</td></tr>
+<tr><td>J6-4.b</td><td class='num'>0</td><td class='num'>0</td><td class='num'>44</td><td class='num'>4</td><td class='num'>20</td><td class='num'>5</td><td class='num'>2</td><td class='num'>5</td><td class='num'>0</td></tr>
+<tr><td>J7-1.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>40</td><td class='num'>7</td><td class='num'>21</td><td class='num'>7</td><td class='num'>2</td><td class='num'>7</td><td class='num'>0</td></tr>
+<tr><td>J7-2.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>40</td><td class='num'>8</td><td class='num'>26</td><td class='num'>11</td><td class='num'>1</td><td class='num'>11</td><td class='num'>0</td></tr>
+<tr><td>J8-1.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>48</td><td class='num'>0</td><td class='num'>1</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J8-2.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>48</td><td class='num'>0</td><td class='num'>2</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td>J8-3.a</td><td class='num'>0</td><td class='num'>0</td><td class='num'>48</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
+<tr><td><b>합계</b></td><td class='num'><b>1,700</b></td><td class='num'><b>6</b></td><td class='num'><b>8,895</b></td><td class='num'><b>1,174</b></td><td class='num'><b>5,156</b></td><td class='num'><b>618</b></td><td class='num'><b>812</b></td><td class='num'><b>573</b></td><td class='num'><b>22</b></td></tr>
 </table></div></div>
 
 <h2>3. 찾은 잘못 — 어느 쪽</h2>
 <div class="card"><div class="scroll"><table>
 <tr><th>어디</th><th>무엇</th><th>상태</th></tr>
 <tr><td>질문(싱글)</td><td>57개 중 39개 네 모델 모두 통과 — 한 줄 함정은 안 걸림</td><td><span class="t todo">예정</span> 자료 속 혼동형으로 재설계</td></tr>
-<tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음" · "방식 미정"이 함정과 충돌 → 거짓 FAIL 64칸</td><td><span class="t todo">예정</span> 사실 줄 고쳐 재판정</td></tr>
-<tr><td>기준(상황표 2)</td><td>거절 턴에서 결과물 품질 항목까지 FAIL — 27턴</td><td><span class="t todo">예정</span> 연결 규칙 확장</td></tr>
-<tr><td>기준(J5-3.a)</td><td>AIONA '데이터 제공' 줄을 꾸민 출처로 FAIL 7칸</td><td><span class="t ok">고침</span></td></tr>
-<tr><td>판정 프롬프트</td><td>J1-4 예외 · J5-1 일반 지식 · 존댓말 3등급 · 한 오류 한 항목</td><td><span class="t ok">고침</span> <a href="기준·프롬프트 변경 원문.html">원문</a></td></tr>
-<tr><td>1차 심판</td><td>J1-4.b 거짓 FAIL 129칸</td><td><span class="t todo">예정</span> 예외 문구</td></tr>
-<tr><td>CODE</td><td>거짓 FAIL 9건 / 요구 구조 생략은 통과</td><td><span class="t ok">고침</span> / <span class="t todo">결정</span></td></tr>
+<tr><td>질문(멀티턴 확인 목록)</td><td>"돌아오는 시간은 기록 없음"이 함정과 충돌 → 거짓 FAIL 35칸</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
+<tr><td>기준(상황표 2)</td><td>거절 턴에서 결과물 품질 항목까지 FAIL — 27턴</td><td><span class="t ok">고침</span> 재판정 대기</td></tr>
+<tr><td>수집(AIONA)</td><td>출처 번호 [1]·[2] 를 요구한 18턴 중 AIONA 답에 [1] 이 남은 턴 1개(GPT · Claude 18) — 복사 때 번호가 빠지는 듯 → 출처 조건에서 억울한 FAIL</td><td><span class="t warn">확인 필요</span> AIONA 화면 · 복사 루틴</td></tr>
+<tr><td>수집(ChatGPT)</td><td>복사 글의 마크다운 이스케이프(\~ 80턴 · \* 22 · &amp;#x20; 16 · \- 10) — CODE 는 풀어서 재고, 판정은 복사 글 그대로(결정)</td><td><span class="t ok">정함</span></td></tr>
+<tr><td>심판(Codex)</td><td>같은 규칙 두 번 판정에 26칸 다름. 새로 넘어간 3칸 중 2칸은 문장 · 시간 오독(거짓 FAIL), 1칸은 사유 틀림</td><td><span class="t todo">예정</span> 표시용 표로 비율 측정 → 기준 문구</td></tr>
+<tr><td>심판 입력(뒤 턴 섞임?)</td><td>멀티턴 판정 요소 8,722개에서 자기 턴보다 뒤 턴을 인용 · 언급한 것 0 — 입력 구조는 지금대로</td><td><span class="t ok">근거 없음</span></td></tr>
+<tr><td>1차 심판</td><td>J1-4.b 거짓 FAIL 129칸(확정 0)</td><td><span class="t todo">예정</span> 예외 문구</td></tr>
 <tr><td>제품(AIONA)</td><td>Q8 일정 질문에 자살 예방 안내 · 데이터 제공 줄 · 코드 들여쓰기</td><td><span class="t warn">알림</span></td></tr>
 </table></div></div>
 
 <h2>4. 앞으로</h2>
 <div class="card"><ol>
 <li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
-<li>기준 문서(<a href="../기준/채팅품질%20평가기준_v2.md">v2</a>) 먼저 고침 → 프롬프트 · 확인 목록 · 질문. 첫 셋: J1-4.b 예외 · 돌아오는 시간 · 거절 턴 규칙</li>
-<li>같은 칸 전 · 후 재판정 — 정답률 ↑ · 뒤집힘 ↓ 일 때만 채택</li>
-<li>싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
-<li>보류 결정(설명 턴 J5-1.a 10칸 등) → 숫자 확정</li>
+<li>결정 3개: A형 최종 턴 정답(B안으로 짠 답 = 맞음?) · 마감 범위 · 차별점 문구</li>
+<li>멀티턴 11×4 재판정(고친 규칙) → 숫자 갱신</li>
+<li>기준 다듬기 루프(문서 먼저 → 프롬프트 · 1차 심판 설명 → 같은 칸 전 · 후 재판정 → 채택): 첫 대상 J1-4.b</li>
+<li>AIONA 출처 번호 복사 확인 → 필요하면 11문항 재수집 · 싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
 </ol></div>
 
-<p class="small mute">자세히: <a href="개선 예정 작업.html">개선 예정 작업</a> · <a href="기준·프롬프트 변경 원문.html">변경 원문</a> · <a href="../결과/2026-10-23_09-52-39-662/판정보고서.html">판정보고서</a></p>
+<p class="small mute">자세히: <a href="기준·프롬프트 변경 원문.html">기준 · 프롬프트 변경 원문</a> · <a href="../결과/2026-10-23_12-41-05-662/report.html">결과 보고서</a> · <a href="../결과/2026-10-23_12-41-05-662/판정토큰.html">판정 토큰</a> · <a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> · <a href="../변경내역/2026-10-23-변경내역.md">변경내역</a></p>
 </main></body></html>

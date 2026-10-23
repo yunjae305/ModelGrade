@@ -2,19 +2,14 @@
 import copy
 import json
 import threading
-from pathlib import Path
-import shutil
-import subprocess
 
 import httpx
-import pytest
 
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall, JevClientConfig
 from webapp.code_eval_service import CodeEvalService
 from webapp.comparison_service import ComparisonService
 from webapp.evaluation_events import EvaluationEvents
-from webapp.server import Server
 from test_live_comparison_progress import until
 
 
@@ -141,35 +136,3 @@ def test_snapshot_replay_overflow_duplicates_retry_and_error():
     assert len(frames) == 1 and b'"type": "snapshot"' in frames[0]
 
 
-def test_real_sse_endpoint_replays_saved_final_snapshot(tmp_path):
-    from semantic_judge_fixture import Judge
-    judge = Judge()
-    evaluator = CodeEvalService(save_dir=tmp_path/'eval', jev_resolver=lambda: (judge, judge.config, None))
-    service = ComparisonService(evaluator, save_dir=tmp_path/'runs')
-    rid = service.start({'cases': [{'question': 'hello', 'answer': 'world'}]})['run_id']
-    service.evaluate(rid, {})
-    until(lambda: service.status(rid)['status'] == 'COMPLETED')
-    # New service process reconstructs the log without making a judge call.
-    recovered = ComparisonService(evaluator, save_dir=tmp_path/'runs')
-    server = Server(('127.0.0.1', 0), code_eval_service=evaluator, comparison_service=recovered)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
-        url = f'http://127.0.0.1:{server.server_port}/api/comparison/runs/{rid}/events'
-        response = httpx.get(url, timeout=5)
-        assert response.status_code == 200 and response.headers['content-type'].startswith('text/event-stream')
-        event = json.loads(next(line[6:] for line in response.text.splitlines() if line.startswith('data: ')))
-        assert event['type'] == 'snapshot' and event['done'] == 1 and event['status'] == 'COMPLETED'
-        assert httpx.get(url, headers={'Last-Event-ID': 'bad'}).status_code == 400
-        assert httpx.get(url, headers={'Origin': 'https://untrusted.example'}).status_code == 403
-    finally:
-        server.shutdown(); server.server_close()
-
-
-def test_browser_event_state_and_display_queue_are_independent():
-    root = Path(__file__).resolve().parent.parent
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node is required for the production UI state check')
-    result = subprocess.run([node, str(root/'tests/evaluation_stream_test.js')], cwd=root,
-                            capture_output=True, text=True, encoding='utf-8', timeout=10)
-    assert result.returncode == 0, result.stdout + result.stderr

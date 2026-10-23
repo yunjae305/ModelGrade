@@ -110,7 +110,6 @@ class IncompleteResponse(GenerationError):
         self.text = text
 
 
-
 class Cancelled(GenerationError):
     pass
 
@@ -1423,31 +1422,6 @@ def flatten(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """id/turns 묶음 → 업로드 화면과 같은 행 목록 (dataset_import.id_turn_rows)."""
     from .dataset_import import id_turn_rows
     return id_turn_rows([{"id": g["id"], "turns": [dict(t, answer=t.get("answer", "")) for t in g["turns"]]} for g in groups])
-
-
-PUBLIC_POOL_FILES = (("ifeval_ko.json", "IFEval-Ko"), ("komt_question_ko.jsonl", "KoMT-Bench"))   # examples/fixed_sets/sources
-
-
-def public_pool_groups() -> List[Dict[str, Any]]:
-    """공개 세트(IFEval-Ko·KoMT-Bench) 질문을 생성기 질문 묶음 모양으로 — 생성 목표에서 이미 덮인 기준을 빼는 데 쓴다 (10-15 사용자 결정)."""
-    groups: List[Dict[str, Any]] = []
-    sources = FIXED_SETS / "sources"
-    for name, label in PUBLIC_POOL_FILES:
-        path = sources / name
-        if not path.is_file():
-            raise FileNotFoundError(f"공개 질문 파일이 없습니다: {path}")
-        text = path.read_text(encoding="utf-8")
-        rows = [json.loads(line) for line in text.splitlines() if line.strip()] if name.endswith(".jsonl") else json.loads(text)
-        for row in rows:
-            turns = row["turns"] if isinstance(row.get("turns"), list) else [row["prompt"]]
-            groups.append({"id": len(groups) + 1, "type": label, "topic": label, "difficulty": "", "trap": "", "target_items": [],
-                           "turns": [{"turn": i, "question": q} for i, q in enumerate(turns, 1)], "source": label})
-    return groups
-
-
-def public_pool_counts() -> Dict[str, int]:
-    """공개 세트 질문이 기준(72 단위 중 질문으로 셀 수 있는 64)마다 몇 개나 적용되는지 — 평가와 같은 코드 규칙, 모델 호출 없음."""
-    return target_counts(check(public_pool_groups()))
 
 
 def check(groups: List[Dict[str, Any]]) -> Dict[str, Any]:

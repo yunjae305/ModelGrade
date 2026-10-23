@@ -91,14 +91,3 @@ def test_evaluation_targets_are_pinned():
     assert reg.registry()["targets"] == targets
 
 
-def test_generator_and_check_tools_use_the_registry_targets():
-    from tools import check_question_set as cqs
-    from webapp import question_generation as qg
-    from tools import min_question_count as mq
-    targets = reg.evaluation_targets()
-    catalog = qg.criteria_catalog()
-    assert [c["id"] for c in catalog["code"]] == targets["code"]["checks"]
-    names = mq.all_targets(cqs.check_items([], pipeline="items"))
-    skip = set(targets["code"]["answer_checks"]) | set(cqs.ANSWER_DEPENDENT_ITEMS)
-    assert names == [t for t in targets["code"]["checks"] + targets["semantic"]["items"] if t not in skip] and len(names) == 64
-    assert [i["id"] for i in catalog["items"]] == reg.evaluation_targets()["semantic"]["items"]

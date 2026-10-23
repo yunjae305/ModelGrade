@@ -1,9 +1,6 @@
 """사람 정답 검수용 추출 — 원인 유형·원문 공유 범위·PASS 대조군·검수 파일을 정답으로 다시 읽기 (API 호출 없음)."""
-import csv
-import json
 
-from tools.export_review import export_rows, main
-from tools.sample_size_study import load_gold
+from tools.export_review import export_rows
 
 LONG = "가" * 300
 
@@ -37,18 +34,3 @@ def test_fail_rows_keep_cause_and_text_scope_is_limited():
     assert export_rows(_run(), text="full")[0]["answer"] == "답변 " + LONG
 
 
-def test_filled_review_csv_is_read_back_as_gold(tmp_path, capsys):
-    run = tmp_path / "run.json"
-    run.write_text(json.dumps(_run(), ensure_ascii=False), encoding="utf-8")
-    assert main([str(run), "--include-pass", "1", "--out-dir", str(tmp_path)]) == 0
-    meta = json.loads(capsys.readouterr().out)
-    assert meta["rows"] == 2 and meta["causes"] == {"source_unavailable:access_failed": 1, "pass": 1} and meta["judge_model"] == "judge"
-    path = tmp_path / "r1-J5.csv"
-    with open(path, encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.DictReader(handle))
-    rows[0]["gold"] = "UNVERIFIABLE"                      # 검수자가 첫 행만 채움 — 둘째 행은 아직 검수 전
-    with open(path, "w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
-    assert load_gold(path) == {("gpt", "Q1", "J5"): "UNVERIFIABLE"}

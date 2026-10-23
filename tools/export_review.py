@@ -6,7 +6,7 @@
     python tools/export_review.py <run>.json --held                                     # 보류(확인 필요) 판정 전부 → <run>-held.csv·.jsonl (사람이 gold 에 PASS/FAIL)
 
 - 원문 공유 범위: 기본 excerpt(질문 120자·답변 200자·주장 원문), none(지문만), full(전체 — 명시할 때만). 결과는 gitignore 된 results/ 아래.
-- gold 열(PASS·FAIL·UNVERIFIABLE)과 reviewer_note 열은 비워 둔다. 채운 파일은 tools/sample_size_study.py --gold 로 그대로 읽는다.
+- gold 열(PASS·FAIL·UNVERIFIABLE)과 reviewer_note 열은 비워 둔다. 채운 파일은 사람 정답 표본으로 쓴다(10-23: 대조 도구는 tools/build_calibration_sheet.py 표시용 표).
 - 저장된 판정·사유는 바꾸지 않고 그대로 옮긴다. 원인 유형(cause)은 저장된 j5_outcome 의 code·세부 구분이다.
 """
 from __future__ import annotations

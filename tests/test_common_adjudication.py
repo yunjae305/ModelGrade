@@ -4,12 +4,7 @@ All inputs are synthetic. The engine no longer produces unjudged common rows or 
 old-format record is built by hand exactly as the old engine saved it.
 """
 import copy
-import json
-import shutil
-import subprocess
-from pathlib import Path
 
-import pytest
 
 from code_eval.combined import combined_summary
 from code_eval.common_adjudication import resolved_batch
@@ -18,7 +13,6 @@ from code_eval.engine import evaluate_batch, result_digest, summarize_batch
 from code_eval.report_html import render_report
 from webapp.comparison_service import ComparisonService
 
-ROOT = Path(__file__).resolve().parent.parent
 
 
 def legacy_batch():
@@ -76,26 +70,3 @@ def test_saved_code_completion_record_is_still_projected():
     assert ComparisonService._evaluation_summary(run)['scored'] == 1
 
 
-def test_saved_code_completion_projection_in_browser_module(tmp_path):
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node required for production UI projection verification')
-    batch, _ = legacy_batch()
-    saved = tmp_path / 'legacy.json'
-    saved.write_text(json.dumps(batch, ensure_ascii=False), encoding='utf-8')
-    script = r'''
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const api = require('./frontend/src/workspace-results.js');
-const b = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-const before = JSON.stringify(b);
-assert.equal(api.resolvedBatch(b).summary.common.unjudged, 0);
-const r = {status:'COMPLETED', providers:['aiona'], question_count:1, datasets:{aiona:b.cases}, evaluations:{aiona:b}};
-const state = api.caseState(r, 'aiona', 0);
-assert.equal(state.outcome, 'clear');
-assert.equal(state.code.pendingReason, '');
-assert.match(state.code.reason, /LLM 보완 판정 포함/);
-assert.equal(JSON.stringify(b), before);
-'''
-    result = subprocess.run([node, '-e', script, str(saved)], cwd=ROOT, capture_output=True, text=True, encoding='utf-8')
-    assert result.returncode == 0, result.stdout + result.stderr

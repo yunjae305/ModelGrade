@@ -1,4 +1,4 @@
-"""판정 결과 HTML 보고서 (v2, 2026-10-20 밤) — `modelgrade report --dir data/judge_runs/<실행>/<out>` 와 자동 보고서(tools/auto_report.py)가 쓴다.
+"""판정 결과 HTML 보고서 (v2, 2026-10-20 밤) — `modelgrade report --dir data/judge_runs/<실행>/<out>` 가 쓴다.
 
 일반인이 봐도 바로 읽히게: 한눈에 보기(완전 통과 질문 수 / 78) → 유형별 → 기준 72개별 → 걸린 시간·토큰 → 보류(사람이 정함: 질문 원문·답변 원문·
 보류 사유 + PASS/FAIL 버튼·내보내기) → FAIL 상세(원문 + 사유) → 질문별 표 → 평가 방법. 숫자 단위는 '질문 수 / 전체 질문 수'(모델 합산 없음).

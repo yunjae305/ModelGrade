@@ -191,28 +191,3 @@ def test_anthropic_judge_puts_labelled_images_between_shared_rules_and_case_data
     assert not any(block.get("type") == "image" for block in plain["messages"][0]["content"])   # 그림이 없으면 그림 블록도 없다
 
 
-def test_items_pipeline_drops_j8_items_when_the_picture_cannot_be_judged(tmp_path):
-    """items 방식도 같다 — 그림을 못 보내면 J8 점검 항목을 보내지 않고 J8 을 판정 미완료로, 보내면 J8 항목을 묻는다."""
-    from tools.items_e2e_demo import MockJudge
-
-    class SeeingJudge(MockJudge):
-        supports_images = True
-
-        def system_one(self, state, questions, *, cancel_event=None, images=None):
-            self.images = images
-            return super().system_one(state, questions, cancel_event=cancel_event)
-    (tmp_path / "car.png").write_bytes(PNG)
-    case = {"case_id": "Q1", "question": QUESTION, "answer": ANSWER, "case_status": "EVALUATED",
-            "attachments": [_entry("car.png", PNG)]}
-    for judge, asked in ((MockJudge({}, {}), False), (SeeingJudge({}, {}), True)):
-        batch = evaluate_jev_batch({"cases": [dict(case)]}, judge, None, None, pipeline="items",
-                                   context={"attachment_roots": [str(tmp_path)]})
-        record = batch["records"][0]
-        sent_items = {item_id for call in judge.calls for item_id in call["questions"]}
-        assert any(item_id.startswith("J8") for item_id in sent_items) is asked
-        if asked:
-            assert judge.images[0]["name"] == "car.png" and record["decisions"]["J8"]["decision"] in ("PASS", "FAIL")
-        else:
-            assert record["decisions"]["J8"]["status"] == "INCOMPLETE"
-            assert record["decisions"]["J8"]["attachment_issues"][0]["code"] == "JUDGE_IMAGES_UNSUPPORTED"
-            assert record["decisions"]["J1"]["decision"] in ("PASS", "FAIL")

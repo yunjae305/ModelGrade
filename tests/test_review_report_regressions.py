@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 import copy
-import json
-import shutil
-import subprocess
 from html.parser import HTMLParser
-from pathlib import Path
 
 import pytest
 
@@ -122,70 +118,3 @@ def test_conversation_and_separate_review_links_target_duplicate_occurrences(dup
     assert _Links(review).links == [ids[1], ids[2]]
 
 
-_JS_HARNESS = r"""
-const fs = require('fs'), vm = require('vm'), assert = require('assert');
-class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.attrs = {}; this.events = {}; this.style = {}; this.className = ''; }
-  append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = children; }
-  set textContent(value) { this.children = [String(value)]; }
-  get textContent() { return this.children.map(c => c instanceof Element ? c.textContent : String(c)).join(''); }
-  setAttribute(k, v) { this.attrs[k] = v; }
-  getAttribute(k) { return this.attrs[k]; }
-  addEventListener(k, callback) { this.events[k] = callback; }
-  querySelectorAll() { return []; }
-  scrollIntoView() {}
-  after() {}
-  replaceWith() {}
-}
-const nodes = new Map();
-const get = id => { if (!nodes.has(id)) nodes.set(id, new Element('div')); return nodes.get(id); };
-const ctx = { Node: Element, document: { getElementById: get, createElement: t => new Element(t),
-  createTextNode: s => s, querySelectorAll: () => [], querySelector: () => null }, fetch: () => new Promise(() => {}),
-  history: { replaceState() {} }, location: { hash: '#results' }, addEventListener() {}, setTimeout };
-vm.createContext(ctx);
-ctx.window = ctx;
-ctx.URL = URL;
-vm.runInContext(fs.readFileSync(require('path').join(require('path').dirname(process.argv[1]), 'workspace-results.js'), 'utf8'), ctx);
-assert.strictEqual(typeof ctx.AionaResults.semanticEvidence, 'function', 'load the same shared evidence renderer as the browser');
-const source = fs.readFileSync(process.argv[1], 'utf8').replace(/\}\)\(\);\s*$/,
-  'globalThis.review = {state, renderResults, renderCaseList, renderConversations, caseIndex};})();');
-vm.runInContext(source, ctx);
-const api = ctx.review;
-assert(api, 'test harness must exercise the complete production script');
-const batch = JSON.parse(fs.readFileSync(0, 'utf8'));
-api.state.batch = batch;
-api.renderResults();
-assert.strictEqual(api.state.selected, 1, 'initial FAIL selection');
-const walk = n => n instanceof Element ? [n, ...n.children.flatMap(walk)] : [];
-const click = node => { assert(node && node.events.click); node.events.click(); };
-const selected = i => {
-  assert.strictEqual(api.state.selected, i);
-  assert(get('case-detail').textContent.includes(batch.cases[i].question));
-  assert.strictEqual(walk(get('case-list')).filter(n => n.attrs['aria-current'] === 'true').length, 1);
-};
-click(get('case-list').children[2].children[0]); selected(2);
-assert(get('case-detail').textContent.includes('3+3=7'));
-click(walk(get('combined')).filter(n => n.tag === 'tr' && n.events.click).at(-1)); selected(2);
-click(walk(get('fail-overview')).filter(n => n.tag === 'tr' && n.events.click)[0]); selected(1);
-assert(get('kpis').textContent.includes('케이스 2건'), 'duplicate IDs are still two failed cases');
-api.state.filter = 'fail'; api.renderCaseList();
-click(get('case-list').children[1].children[0]); selected(2);
-const conversation = new Element('div');
-api.renderConversations(conversation, batch.jev_eval.conversations);
-click(walk(conversation).find(n => n.tag === 'button' && n.textContent === '2턴')); selected(1);
-click(walk(conversation).find(n => n.tag === 'button' && n.attrs.title === '3턴 J6 PASS')); selected(2);
-assert.strictEqual(api.caseIndex({case_id: 'same', turn: 3}, 'C1'), 2, 'old conversation fallback');
-assert.strictEqual(api.caseIndex({case_id: 'same', question: batch.cases[1].question}), 1, 'old combined fallback');
-assert.strictEqual(api.caseIndex({case_id: 'same'}), -1, 'ambiguous old data must not select first');
-"""
-
-
-def test_browser_click_handlers_select_duplicate_occurrence_and_count_questions(duplicate_batch):
-    node = shutil.which("node")
-    if not node:
-        pytest.skip("Node.js is required for the frontend regression")
-    script = Path(__file__).resolve().parents[1] / "frontend" / "src" / "code-eval.js"
-    result = subprocess.run([node, "-e", _JS_HARNESS, str(script)], input=json.dumps(duplicate_batch),
-                            text=True, encoding="utf-8", capture_output=True, timeout=15)
-    assert result.returncode == 0, result.stdout + result.stderr

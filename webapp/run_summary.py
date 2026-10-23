@@ -306,7 +306,7 @@ REVIEW_DIR = Path(__file__).resolve().parents[1] / "results" / "review"
 
 
 def _review_compare(run_id: Optional[str], criterion: str, review_dir: Path) -> Optional[Dict[str, Any]]:
-    """사람 검수 대조 결과(tools/review_kit.py compare → <실행>-<기준>-kit/compare.json) — 없으면 None. 사람 정답만 센다."""
+    """사람 검수 대조 결과(옛 review_kit compare 가 남긴 <실행>-<기준>-kit/compare.json, 10-23 도구 삭제) — 없으면 None. 사람 정답만 센다."""
     if not run_id:
         return None
     path = review_dir / f"{run_id}-{criterion}-kit" / "compare.json"

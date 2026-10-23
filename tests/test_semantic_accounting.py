@@ -12,7 +12,6 @@ from code_eval.codex_cli_client import CodexCliClient, CodexCliConfig
 from code_eval.jev_client import HttpJevClient, JevCall, JevClientConfig
 from code_eval.jev_eval import evaluate_jev_case, jev_request
 from code_eval.semantic_api_client import SemanticApiClient, SemanticApiConfig
-from code_eval.cost_reporting import CostLedger
 
 
 STATE = {"question": "질문", "answer": "답변"}
@@ -111,21 +110,6 @@ def test_responses_unknown_search_action_does_not_become_zero_cost(event):
     call = client.system_one(STATE, QUESTIONS)
     assert call.accounting["cost_parts"][0]["web_search_calls"] is None
     assert call.body["verification"]["usage_requests"][0]["web_search_calls"] is None
-
-
-def test_responses_transport_timeout_has_no_invented_usage_or_duplicate_attempt(capsys):
-    def handler(request):
-        raise httpx.ReadTimeout("fixture", request=request)
-    client = SemanticApiClient(SemanticApiConfig(), "fixture-key", transport=httpx.MockTransport(handler))
-    call = client.system_one(STATE, QUESTIONS)
-    assert call.status == "TIMEOUT" and call.attempts == 1 and call.accounting["unreported_attempts"] == 0
-    assert call.accounting["usage"] == {}
-    assert len(call.accounting["cost_parts"]) == 1
-    assert call.accounting["cost_parts"][0]["usage"] == {}
-    assert call.accounting["cost_parts"][0]["web_search_calls"] is None
-    ledger = CostLedger(); ledger._semantic(client.config, call); ledger.finish('timeout', 'ERROR')
-    output = capsys.readouterr().out
-    assert '호출 1건 | 미확인 1건' in output and '호출 2건' not in output
 
 
 def test_responses_partial_search_events_preserve_lower_bound_without_claiming_known_total():

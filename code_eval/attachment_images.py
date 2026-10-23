@@ -31,7 +31,7 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024   # 제공자 이미지 한도보다 작게 �
 
 ROOT = Path(__file__).resolve().parents[1]
 #: 첨부 파일을 찾는 허용 폴더 — 업로드 첨부·질문 세트 생성 파일·예제
-DEFAULT_ROOTS = (ROOT / "data" / "attachments", ROOT / "data" / "question_sets", ROOT / "examples")
+DEFAULT_ROOTS = (ROOT / "data" / "attachments", ROOT / "data" / "question_sets")   # 10-23: examples/ 삭제
 
 _SIGNATURES = ((b"\x89PNG\r\n\x1a\n", "image/png"), (b"\xff\xd8\xff", "image/jpeg"), (b"GIF87a", "image/gif"), (b"GIF89a", "image/gif"))
 

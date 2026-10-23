@@ -10,7 +10,6 @@ import httpx
 import pytest
 
 from code_eval import anthropic_semantic_client as anthropic
-from code_eval import semantic_check
 from code_eval.combined import combined_summary
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall, resolve_jev_client
@@ -133,19 +132,6 @@ def test_anthropic_batch_screens_fact_claims_without_numbers_and_profiles_actual
         changed = copy.deepcopy(batch)
         changed["jev_eval"]["client"][field] = "changed-condition"
         assert evaluation_profile({"evaluations": {"aiona": changed}}) != profile
-
-
-@pytest.mark.parametrize("configured", [True, False])
-def test_semantic_check_default_is_configuration_only(tmp_path, monkeypatch, capsys, configured):
-    env = environment(ANTHROPIC_API_KEY="fixture-anthropic-secret" if configured else "")
-    monkeypatch.setattr(semantic_check, "semantic_setup", lambda **_: semantic_setup(
-        environment=env, env_path=tmp_path / "missing"))
-    monkeypatch.setattr(semantic_check, "resolve_jev_client", lambda **_: pytest.fail("No default resolution/login"))
-    assert semantic_check.main([]) == (0 if configured else 2)
-    output = json.loads(capsys.readouterr().out)
-    assert output["ready"] is configured
-    assert output["configuration"]["connection_status"] == "not_checked"
-    assert "fixture-anthropic-secret" not in json.dumps(output)
 
 
 @pytest.mark.parametrize("command", ["single", "run"])

@@ -1,937 +1,937 @@
-﻿질문,유형,답변 모델,심판,입력,캐시_입력,출력,추론_출력,호출,판정,판정 초
-1,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,305
-1,10턴 멀티턴 대화,AIONA,Decisions,779654,0,0,0,10,FAIL,305
-1,10턴 멀티턴 대화,AIONA,Codex,713348,75264,26779,0,7,FAIL,305
-1,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,241
-1,10턴 멀티턴 대화,GPT,Decisions,750276,0,0,0,10,FAIL,241
-1,10턴 멀티턴 대화,GPT,Codex,1158661,87808,23656,0,14,FAIL,241
-1,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,294
-1,10턴 멀티턴 대화,Claude,Decisions,770445,0,0,0,10,FAIL,294
-1,10턴 멀티턴 대화,Claude,Codex,1494716,100352,25454,0,17,FAIL,294
-1,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,397
-1,10턴 멀티턴 대화,Gemini,Decisions,736335,0,0,0,10,HOLD,397
-1,10턴 멀티턴 대화,Gemini,Codex,1408844,75264,44000,0,16,HOLD,397
-2,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,HOLD,343
-2,10턴 멀티턴 대화,AIONA,Decisions,785656,0,0,0,10,HOLD,343
-2,10턴 멀티턴 대화,AIONA,Codex,1585267,150528,32303,0,17,HOLD,343
-2,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,454
-2,10턴 멀티턴 대화,GPT,Decisions,780459,0,0,0,10,FAIL,454
-2,10턴 멀티턴 대화,GPT,Codex,1623807,163072,55092,0,17,FAIL,454
-2,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,295
-2,10턴 멀티턴 대화,Claude,Decisions,768487,0,0,0,10,HOLD,295
-2,10턴 멀티턴 대화,Claude,Codex,1532580,271872,23185,0,17,HOLD,295
-2,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,189
-2,10턴 멀티턴 대화,Gemini,Decisions,757098,0,0,0,10,FAIL,189
-2,10턴 멀티턴 대화,Gemini,Codex,1117101,137984,19602,0,11,FAIL,189
-3,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,170
-3,10턴 멀티턴 대화,AIONA,Decisions,793232,0,0,0,10,FAIL,170
-3,10턴 멀티턴 대화,AIONA,Codex,888871,372096,18970,73,6,FAIL,170
-3,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,274
-3,10턴 멀티턴 대화,GPT,Decisions,785379,0,0,0,10,FAIL,274
-3,10턴 멀티턴 대화,GPT,Codex,1149174,125440,26671,1034,10,FAIL,274
-3,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,264
-3,10턴 멀티턴 대화,Claude,Decisions,785056,0,0,0,10,FAIL,264
-3,10턴 멀티턴 대화,Claude,Codex,993091,125440,23936,1166,11,FAIL,264
-3,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,396
-3,10턴 멀티턴 대화,Gemini,Decisions,784145,0,0,0,10,HOLD,396
-3,10턴 멀티턴 대화,Gemini,Codex,1743922,213248,42869,0,18,HOLD,396
-4,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,264
-4,10턴 멀티턴 대화,AIONA,Decisions,768091,0,0,0,10,FAIL,264
-4,10턴 멀티턴 대화,AIONA,Codex,687947,50176,30028,0,8,FAIL,264
-4,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,406
-4,10턴 멀티턴 대화,GPT,Decisions,785988,0,0,0,10,FAIL,406
-4,10턴 멀티턴 대화,GPT,Codex,1621191,188160,47616,0,17,FAIL,406
-4,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,153
-4,10턴 멀티턴 대화,Claude,Decisions,774169,0,0,0,10,FAIL,153
-4,10턴 멀티턴 대화,Claude,Codex,752347,75264,14438,0,7,FAIL,153
-4,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,288
-4,10턴 멀티턴 대화,Gemini,Decisions,736524,0,0,0,10,HOLD,288
-4,10턴 멀티턴 대화,Gemini,Codex,1590414,200704,32897,0,16,HOLD,288
-5,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,373
-5,10턴 멀티턴 대화,AIONA,Decisions,784194,0,0,0,10,FAIL,373
-5,10턴 멀티턴 대화,AIONA,Codex,1696631,213248,42094,0,18,FAIL,373
-5,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,211
-5,10턴 멀티턴 대화,GPT,Decisions,780141,0,0,0,10,FAIL,211
-5,10턴 멀티턴 대화,GPT,Codex,871810,87808,23695,0,8,FAIL,211
-5,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,293
-5,10턴 멀티턴 대화,Claude,Decisions,772039,0,0,0,10,FAIL,293
-5,10턴 멀티턴 대화,Claude,Codex,818879,87808,34648,0,7,FAIL,293
-5,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,339
-5,10턴 멀티턴 대화,Gemini,Decisions,746058,0,0,0,10,HOLD,339
-5,10턴 멀티턴 대화,Gemini,Codex,1608091,310656,32104,0,19,HOLD,339
-6,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,305
-6,10턴 멀티턴 대화,AIONA,Decisions,764080,0,0,0,10,FAIL,305
-6,10턴 멀티턴 대화,AIONA,Codex,1526216,188160,39843,0,16,FAIL,305
-6,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,265
-6,10턴 멀티턴 대화,GPT,Decisions,773184,0,0,0,10,HOLD,265
-6,10턴 멀티턴 대화,GPT,Codex,1015249,87808,33638,0,9,HOLD,265
-6,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,597
-6,10턴 멀티턴 대화,Claude,Decisions,762036,0,0,0,10,FAIL,597
-6,10턴 멀티턴 대화,Claude,Codex,1895403,225792,54248,3233,19,FAIL,597
-6,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,346
-6,10턴 멀티턴 대화,Gemini,Decisions,756803,0,0,0,10,HOLD,346
-6,10턴 멀티턴 대화,Gemini,Codex,1026285,100352,39603,0,10,HOLD,346
-7,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,382
-7,10턴 멀티턴 대화,AIONA,Decisions,788244,0,0,0,10,FAIL,382
-7,10턴 멀티턴 대화,AIONA,Codex,1554783,188160,43150,0,16,FAIL,382
-7,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,444
-7,10턴 멀티턴 대화,GPT,Decisions,783298,0,0,0,10,FAIL,444
-7,10턴 멀티턴 대화,GPT,Codex,1173502,150528,54287,0,15,FAIL,444
-7,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,406
-7,10턴 멀티턴 대화,Claude,Decisions,778676,0,0,0,10,FAIL,406
-7,10턴 멀티턴 대화,Claude,Codex,1828027,225792,42891,0,19,FAIL,406
-7,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,414
-7,10턴 멀티턴 대화,Gemini,Decisions,773667,0,0,0,10,HOLD,414
-7,10턴 멀티턴 대화,Gemini,Codex,1727515,213248,47920,55,18,HOLD,414
-8,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,249
-8,10턴 멀티턴 대화,AIONA,Decisions,795560,0,0,0,10,FAIL,249
-8,10턴 멀티턴 대화,AIONA,Codex,1458949,163072,20728,0,16,FAIL,249
-8,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,249
-8,10턴 멀티턴 대화,GPT,Decisions,796203,0,0,0,10,FAIL,249
-8,10턴 멀티턴 대화,GPT,Codex,950907,125440,21114,464,11,FAIL,249
-8,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,209
-8,10턴 멀티턴 대화,Claude,Decisions,780886,0,0,0,10,HOLD,209
-8,10턴 멀티턴 대화,Claude,Codex,851768,100352,18448,0,10,HOLD,209
-8,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,361
-8,10턴 멀티턴 대화,Gemini,Decisions,786109,0,0,0,10,HOLD,361
-8,10턴 멀티턴 대화,Gemini,Codex,1640365,175616,37140,0,19,HOLD,361
-9,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,251
-9,10턴 멀티턴 대화,AIONA,Decisions,784802,0,0,0,10,FAIL,251
-9,10턴 멀티턴 대화,AIONA,Codex,699290,87808,12820,0,8,FAIL,251
-9,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,190
-9,10턴 멀티턴 대화,GPT,Decisions,778589,0,0,0,10,FAIL,190
-9,10턴 멀티턴 대화,GPT,Codex,844087,100352,18741,0,8,FAIL,190
-9,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,366
-9,10턴 멀티턴 대화,Claude,Decisions,765230,0,0,0,10,FAIL,366
-9,10턴 멀티턴 대화,Claude,Codex,1574965,163072,36665,160,17,FAIL,366
-9,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,175
-9,10턴 멀티턴 대화,Gemini,Decisions,764511,0,0,0,10,FAIL,175
-9,10턴 멀티턴 대화,Gemini,Codex,560341,62720,17610,50,7,FAIL,175
-10,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,HOLD,274
-10,10턴 멀티턴 대화,AIONA,Decisions,786449,0,0,0,10,HOLD,274
-10,10턴 멀티턴 대화,AIONA,Codex,1165155,278912,29607,0,10,HOLD,274
-10,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,242
-10,10턴 멀티턴 대화,GPT,Decisions,787394,0,0,0,10,HOLD,242
-10,10턴 멀티턴 대화,GPT,Codex,897050,87808,13576,0,10,HOLD,242
-10,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,231
-10,10턴 멀티턴 대화,Claude,Decisions,766635,0,0,0,10,HOLD,231
-10,10턴 멀티턴 대화,Claude,Codex,1058354,100352,26189,0,10,HOLD,231
-10,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,289
-10,10턴 멀티턴 대화,Gemini,Decisions,773817,0,0,0,10,FAIL,289
-10,10턴 멀티턴 대화,Gemini,Codex,818733,75264,34339,0,7,FAIL,289
-11,단일 질문,AIONA,Jev,8968,0,432,0,1,PASS,0
-11,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-11,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-11,단일 질문,GPT,Jev,8967,0,432,0,1,PASS,0
-11,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-11,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-11,단일 질문,Claude,Jev,8973,0,432,0,1,PASS,0
-11,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-11,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-11,단일 질문,Gemini,Jev,8984,0,432,0,1,PASS,0
-11,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-11,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-12,단일 질문,AIONA,Jev,8943,0,432,0,1,PASS,0
-12,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-12,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-12,단일 질문,GPT,Jev,8945,0,432,0,1,PASS,0
-12,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-12,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-12,단일 질문,Claude,Jev,8950,0,432,0,1,PASS,0
-12,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-12,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-12,단일 질문,Gemini,Jev,8957,0,432,0,1,PASS,0
-12,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-12,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-13,단일 질문,AIONA,Jev,8957,0,432,0,1,PASS,5
-13,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5
-13,단일 질문,AIONA,Codex,28364,10112,242,0,1,PASS,5
-13,단일 질문,GPT,Jev,8956,0,432,0,1,PASS,5
-13,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,5
-13,단일 질문,GPT,Codex,28362,10112,328,0,1,PASS,5
-13,단일 질문,Claude,Jev,8962,0,432,0,1,PASS,6
-13,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6
-13,단일 질문,Claude,Codex,28368,10112,240,0,1,PASS,6
-13,단일 질문,Gemini,Jev,8973,0,432,0,1,PASS,7
-13,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-13,단일 질문,Gemini,Codex,28381,10112,328,0,1,PASS,7
-14,단일 질문,AIONA,Jev,8959,0,432,0,1,PASS,0
-14,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-14,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-14,단일 질문,GPT,Jev,8958,0,432,0,1,PASS,0
-14,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-14,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-14,단일 질문,Claude,Jev,8963,0,432,0,1,PASS,0
-14,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-14,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-14,단일 질문,Gemini,Jev,8970,0,432,0,1,PASS,0
-14,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-14,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-15,단일 질문,AIONA,Jev,8418,0,387,0,1,PASS,0
-15,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-15,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-15,단일 질문,GPT,Jev,8417,0,387,0,1,PASS,0
-15,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-15,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-15,단일 질문,Claude,Jev,8416,0,387,0,1,PASS,0
-15,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-15,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-15,단일 질문,Gemini,Jev,8431,0,387,0,1,PASS,0
-15,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-15,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-16,단일 질문,AIONA,Jev,8416,0,387,0,1,PASS,0
-16,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-16,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-16,단일 질문,GPT,Jev,8412,0,387,0,1,PASS,0
-16,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-16,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-16,단일 질문,Claude,Jev,8414,0,387,0,1,PASS,0
-16,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-16,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-16,단일 질문,Gemini,Jev,8429,0,387,0,1,PASS,0
-16,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-16,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-17,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,13
-17,첨부자료 확인·요약,AIONA,Decisions,13815,0,0,0,1,PASS,13
-17,첨부자료 확인·요약,AIONA,Codex,34818,12544,1262,0,1,PASS,13
-17,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10
-17,첨부자료 확인·요약,GPT,Decisions,13987,0,0,0,1,PASS,10
-17,첨부자료 확인·요약,GPT,Codex,32526,10112,804,0,1,PASS,10
-17,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,23
-17,첨부자료 확인·요약,Claude,Decisions,13908,0,0,0,1,PASS,23
-17,첨부자료 확인·요약,Claude,Codex,65077,20224,2154,0,2,PASS,23
-17,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,FAIL,11
-17,첨부자료 확인·요약,Gemini,Decisions,13856,0,0,0,1,FAIL,11
-17,첨부자료 확인·요약,Gemini,Codex,34865,12544,965,0,1,FAIL,11
-18,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,9
-18,첨부자료 확인·요약,AIONA,Decisions,13217,0,0,0,1,PASS,9
-18,첨부자료 확인·요약,AIONA,Codex,34176,12544,579,0,1,PASS,9
-18,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10
-18,첨부자료 확인·요약,GPT,Decisions,13112,0,0,0,1,PASS,10
-18,첨부자료 확인·요약,GPT,Codex,34081,12544,888,0,1,PASS,10
-18,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,22
-18,첨부자료 확인·요약,Claude,Decisions,13197,0,0,0,1,FAIL,22
-18,첨부자료 확인·요약,Claude,Codex,68509,25088,2199,0,2,FAIL,22
-18,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,12
-18,첨부자료 확인·요약,Gemini,Decisions,13068,0,0,0,1,PASS,12
-18,첨부자료 확인·요약,Gemini,Codex,34039,12544,1187,0,1,PASS,12
-19,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,8
-19,첨부자료 확인·요약,AIONA,Decisions,10804,0,0,0,1,PASS,8
-19,첨부자료 확인·요약,AIONA,Codex,31463,12544,566,0,1,PASS,8
-19,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,13
-19,첨부자료 확인·요약,GPT,Decisions,11189,0,0,0,1,PASS,13
-19,첨부자료 확인·요약,GPT,Codex,63875,25088,763,0,2,PASS,13
-19,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,14
-19,첨부자료 확인·요약,Claude,Decisions,11053,0,0,0,1,PASS,14
-19,첨부자료 확인·요약,Claude,Codex,31720,12544,1410,0,1,PASS,14
-19,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7
-19,첨부자료 확인·요약,Gemini,Decisions,10662,0,0,0,1,PASS,7
-19,첨부자료 확인·요약,Gemini,Codex,28857,10112,573,0,1,PASS,7
-20,단일 질문,AIONA,Jev,8920,0,432,0,1,PASS,0
-20,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-20,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-20,단일 질문,GPT,Jev,8919,0,432,0,1,PASS,0
-20,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-20,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-20,단일 질문,Claude,Jev,8924,0,432,0,1,PASS,0
-20,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-20,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-20,단일 질문,Gemini,Jev,8931,0,432,0,1,PASS,0
-20,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-20,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-21,단일 질문,AIONA,Jev,7900,0,432,0,1,PASS,1
-21,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,1
-21,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,1
-21,단일 질문,GPT,Jev,5795,0,432,0,1,PASS,1
-21,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,1
-21,단일 질문,GPT,Codex,0,0,0,0,0,PASS,1
-21,단일 질문,Claude,Jev,5858,0,432,0,1,PASS,7
-21,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7
-21,단일 질문,Claude,Codex,28381,10112,394,0,1,PASS,7
-21,단일 질문,Gemini,Jev,6864,0,432,0,1,PASS,7
-21,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-21,단일 질문,Gemini,Codex,28381,10112,394,0,1,PASS,7
-22,단일 질문,AIONA,Jev,9968,0,526,0,1,PASS,9
-22,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,9
-22,단일 질문,AIONA,Codex,28459,10112,759,0,1,PASS,9
-22,단일 질문,GPT,Jev,10015,0,526,0,1,PASS,8
-22,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-22,단일 질문,GPT,Codex,28504,10112,805,0,1,PASS,8
-22,단일 질문,Claude,Jev,10256,0,526,0,1,PASS,9
-22,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9
-22,단일 질문,Claude,Codex,28718,10112,991,0,1,PASS,9
-22,단일 질문,Gemini,Jev,10444,0,526,0,1,PASS,9
-22,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9
-22,단일 질문,Gemini,Codex,28920,10112,863,0,1,PASS,9
-23,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,14
-23,첨부자료 확인·요약,AIONA,Decisions,11861,0,0,0,1,PASS,14
-23,첨부자료 확인·요약,AIONA,Codex,0,0,0,0,1,PASS,14
-23,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,17
-23,첨부자료 확인·요약,GPT,Decisions,11826,0,0,0,1,PASS,17
-23,첨부자료 확인·요약,GPT,Codex,68515,25088,1076,0,2,PASS,17
-23,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,7
-23,첨부자료 확인·요약,Claude,Decisions,11790,0,0,0,1,PASS,7
-23,첨부자료 확인·요약,Claude,Codex,34201,12544,1509,0,1,PASS,7
-23,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,6
-23,첨부자료 확인·요약,Gemini,Decisions,11697,0,0,0,1,PASS,6
-23,첨부자료 확인·요약,Gemini,Codex,34027,12544,348,0,1,PASS,6
-24,단일 질문,AIONA,Jev,9079,0,477,0,1,PASS,6
-24,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,6
-24,단일 질문,AIONA,Codex,28441,10112,344,0,1,PASS,6
-24,단일 질문,GPT,Jev,9230,0,477,0,1,PASS,9
-24,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,9
-24,단일 질문,GPT,Codex,28568,10112,686,0,1,PASS,9
-24,단일 질문,Claude,Jev,9484,0,477,0,1,PASS,8
-24,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8
-24,단일 질문,Claude,Codex,28796,10112,704,0,1,PASS,8
-24,단일 질문,Gemini,Jev,9271,0,477,0,1,PASS,9
-24,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9
-24,단일 질문,Gemini,Codex,28796,10112,704,0,1,PASS,9
-25,단일 질문,AIONA,Jev,9167,0,477,0,1,FAIL,8
-25,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,8
-25,단일 질문,AIONA,Codex,28549,10112,722,0,1,FAIL,8
-25,단일 질문,GPT,Jev,9306,0,477,0,1,PASS,8
-25,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-25,단일 질문,GPT,Codex,28678,10112,727,0,1,PASS,8
-25,단일 질문,Claude,Jev,9426,0,477,0,1,PASS,14
-25,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,14
-25,단일 질문,Claude,Codex,28790,0,445,0,2,PASS,14
-25,단일 질문,Gemini,Jev,9475,0,477,0,1,PASS,6
-25,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6
-25,단일 질문,Gemini,Codex,28812,10112,503,0,1,PASS,6
-26,단일 질문,AIONA,Jev,7392,0,387,0,1,PASS,0
-26,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-26,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-26,단일 질문,GPT,Jev,7391,0,387,0,1,PASS,0
-26,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-26,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-26,단일 질문,Claude,Jev,7495,0,387,0,1,PASS,0
-26,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-26,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-26,단일 질문,Gemini,Jev,7403,0,387,0,1,PASS,0
-26,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-26,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-27,단일 질문,AIONA,Jev,7387,0,387,0,1,PASS,0
-27,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-27,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-27,단일 질문,GPT,Jev,7364,0,387,0,1,PASS,0
-27,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-27,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-27,단일 질문,Claude,Jev,7427,0,387,0,1,PASS,0
-27,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-27,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-27,단일 질문,Gemini,Jev,7378,0,387,0,1,PASS,0
-27,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-27,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-28,단일 질문,AIONA,Jev,9610,0,477,0,1,PASS,7
-28,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7
-28,단일 질문,AIONA,Codex,28790,0,445,0,1,PASS,7
-28,단일 질문,GPT,Jev,9630,0,477,0,1,PASS,6
-28,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6
-28,단일 질문,GPT,Codex,28504,10112,462,0,1,PASS,6
-28,단일 질문,Claude,Jev,10056,0,477,0,1,PASS,7
-28,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7
-28,단일 질문,Claude,Codex,28883,10112,487,0,1,PASS,7
-28,단일 질문,Gemini,Jev,9941,0,477,0,1,PASS,10
-28,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,10
-28,단일 질문,Gemini,Codex,28775,10112,1071,0,1,PASS,10
-29,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14
-29,롱컨텍스트,AIONA,Decisions,318720,0,0,0,1,PASS,14
-29,롱컨텍스트,AIONA,Codex,334909,0,1046,0,1,PASS,14
-29,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,18
-29,롱컨텍스트,GPT,Decisions,319005,0,0,0,1,FAIL,18
-29,롱컨텍스트,GPT,Codex,335286,0,1077,0,1,FAIL,18
-29,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,14
-29,롱컨텍스트,Claude,Decisions,319117,0,0,0,1,PASS,14
-29,롱컨텍스트,Claude,Codex,335286,0,1077,0,1,PASS,14
-29,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,39
-29,롱컨텍스트,Gemini,Decisions,319237,0,0,0,1,FAIL,39
-29,롱컨텍스트,Gemini,Codex,671083,10112,3457,0,2,FAIL,39
-30,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,15
-30,롱컨텍스트,AIONA,Decisions,315955,0,0,0,1,PASS,15
-30,롱컨텍스트,AIONA,Codex,335056,10112,1079,0,1,PASS,15
-30,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,19
-30,롱컨텍스트,GPT,Decisions,316242,0,0,0,1,PASS,19
-30,롱컨텍스트,GPT,Codex,335335,10112,1723,0,1,PASS,19
-30,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,23
-30,롱컨텍스트,Claude,Decisions,316343,0,0,0,1,PASS,23
-30,롱컨텍스트,Claude,Codex,335482,10112,2490,0,1,PASS,23
-30,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,39
-30,롱컨텍스트,Gemini,Decisions,316533,0,0,0,1,FAIL,39
-30,롱컨텍스트,Gemini,Codex,671475,20224,3566,0,2,FAIL,39
-31,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,16
-31,첨부자료 확인·요약,AIONA,Decisions,15878,0,0,0,1,PASS,16
-31,첨부자료 확인·요약,AIONA,Codex,35024,12544,1773,0,1,PASS,16
-31,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,12
-31,첨부자료 확인·요약,GPT,Decisions,15901,0,0,0,1,PASS,12
-31,첨부자료 확인·요약,GPT,Codex,32569,10112,1157,0,1,PASS,12
-31,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,25
-31,첨부자료 확인·요약,Claude,Decisions,16199,0,0,0,1,PASS,25
-31,첨부자료 확인·요약,Claude,Codex,70666,25088,2501,0,2,PASS,25
-31,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,18
-31,첨부자료 확인·요약,Gemini,Decisions,15834,0,0,0,1,PASS,18
-31,첨부자료 확인·요약,Gemini,Codex,34986,12544,2337,0,1,PASS,18
-32,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,18
-32,롱컨텍스트,AIONA,Decisions,315461,0,0,0,1,PASS,18
-32,롱컨텍스트,AIONA,Codex,334961,10112,1595,0,1,PASS,18
-32,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,13
-32,롱컨텍스트,GPT,Decisions,315666,0,0,0,1,PASS,13
-32,롱컨텍스트,GPT,Codex,0,0,0,0,1,PASS,13
-32,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,14
-32,롱컨텍스트,Claude,Decisions,315700,0,0,0,1,PASS,14
-32,롱컨텍스트,Claude,Codex,335041,10112,1749,0,1,PASS,14
-32,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,20
-32,롱컨텍스트,Gemini,Decisions,315845,0,0,0,1,FAIL,20
-32,롱컨텍스트,Gemini,Codex,335385,10112,1771,0,1,FAIL,20
-33,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14
-33,롱컨텍스트,AIONA,Decisions,315408,0,0,0,1,PASS,14
-33,롱컨텍스트,AIONA,Codex,334845,10112,880,0,1,PASS,14
-33,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,21
-33,롱컨텍스트,GPT,Decisions,315598,0,0,0,1,PASS,21
-33,롱컨텍스트,GPT,Codex,335041,10112,1749,0,1,PASS,21
-33,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,21
-33,롱컨텍스트,Claude,Decisions,315796,0,0,0,1,PASS,21
-33,롱컨텍스트,Claude,Codex,335233,10112,1876,0,1,PASS,21
-33,롱컨텍스트,Gemini,Jev,0,0,0,0,0,PASS,23
-33,롱컨텍스트,Gemini,Decisions,315828,0,0,0,1,PASS,23
-33,롱컨텍스트,Gemini,Codex,335301,0,2351,0,1,PASS,23
-34,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,19
-34,롱컨텍스트,AIONA,Decisions,315541,0,0,0,1,PASS,19
-34,롱컨텍스트,AIONA,Codex,335008,0,1615,0,1,PASS,19
-34,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,39
-34,롱컨텍스트,GPT,Decisions,315690,0,0,0,1,PASS,39
-34,롱컨텍스트,GPT,Codex,335119,10112,1300,0,2,PASS,39
-34,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,17
-34,롱컨텍스트,Claude,Decisions,315772,0,0,0,1,PASS,17
-34,롱컨텍스트,Claude,Codex,335207,10112,1194,0,1,PASS,17
-34,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,33
-34,롱컨텍스트,Gemini,Decisions,315877,0,0,0,1,FAIL,33
-34,롱컨텍스트,Gemini,Codex,670867,20224,2705,0,2,FAIL,33
-35,단일 질문,AIONA,Jev,9619,0,477,0,1,PASS,7
-35,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7
-35,단일 질문,AIONA,Codex,28498,10112,636,0,1,PASS,7
-35,단일 질문,GPT,Jev,9694,0,477,0,1,PASS,8
-35,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-35,단일 질문,GPT,Codex,28569,10112,739,0,1,PASS,8
-35,단일 질문,Claude,Jev,9870,0,477,0,1,PASS,6
-35,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6
-35,단일 질문,Claude,Codex,28715,10112,213,0,1,PASS,6
-35,단일 질문,Gemini,Jev,9972,0,477,0,1,PASS,6
-35,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6
-35,단일 질문,Gemini,Codex,28780,10112,341,0,1,PASS,6
-36,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,10
-36,첨부자료 확인·요약,AIONA,Decisions,12373,0,0,0,1,PASS,10
-36,첨부자료 확인·요약,AIONA,Codex,34756,12544,998,0,1,PASS,10
-36,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,14
-36,첨부자료 확인·요약,GPT,Decisions,12561,0,0,0,1,PASS,14
-36,첨부자료 확인·요약,GPT,Codex,0,0,0,0,1,PASS,14
-36,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,23
-36,첨부자료 확인·요약,Claude,Decisions,12512,0,0,0,1,FAIL,23
-36,첨부자료 확인·요약,Claude,Codex,69987,25088,2334,0,2,FAIL,23
-36,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,0
-36,첨부자료 확인·요약,Gemini,Decisions,12268,0,0,0,1,PASS,0
-36,첨부자료 확인·요약,Gemini,Codex,0,0,0,0,0,PASS,0
-37,단일 질문,AIONA,Jev,9609,0,477,0,1,PASS,7
-37,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7
-37,단일 질문,AIONA,Codex,28472,10112,578,0,1,PASS,7
-37,단일 질문,GPT,Jev,9883,0,477,0,1,PASS,7
-37,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7
-37,단일 질문,GPT,Codex,28712,10112,480,0,1,PASS,7
-37,단일 질문,Claude,Jev,9932,0,477,0,1,PASS,8
-37,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8
-37,단일 질문,Claude,Codex,28762,10112,685,0,1,PASS,8
-37,단일 질문,Gemini,Jev,9915,0,477,0,1,PASS,7
-37,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-37,단일 질문,Gemini,Codex,0,0,0,0,1,PASS,7
-38,단일 질문,AIONA,Jev,9496,0,522,0,1,PASS,5
-38,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5
-38,단일 질문,AIONA,Codex,30876,12544,233,0,1,PASS,5
-38,단일 질문,GPT,Jev,9587,0,522,0,1,PASS,10
-38,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,10
-38,단일 질문,GPT,Codex,0,0,0,0,1,PASS,10
-38,단일 질문,Claude,Jev,9664,0,522,0,1,PASS,13
-38,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,13
-38,단일 질문,Claude,Codex,62044,25088,726,0,2,PASS,13
-38,단일 질문,Gemini,Jev,9580,0,522,0,1,PASS,8
-38,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,8
-38,단일 질문,Gemini,Codex,30962,12544,609,0,1,PASS,8
-39,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,7
-39,첨부자료 확인·요약,AIONA,Decisions,12104,0,0,0,1,PASS,7
-39,첨부자료 확인·요약,AIONA,Codex,34610,12544,532,0,1,PASS,7
-39,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,21
-39,첨부자료 확인·요약,GPT,Decisions,12266,0,0,0,1,PASS,21
-39,첨부자료 확인·요약,GPT,Codex,69733,25088,1780,0,2,PASS,21
-39,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,25
-39,첨부자료 확인·요약,Claude,Decisions,12438,0,0,0,1,PASS,25
-39,첨부자료 확인·요약,Claude,Codex,370131,12544,2950,0,2,PASS,25
-39,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7
-39,첨부자료 확인·요약,Gemini,Decisions,12055,0,0,0,1,PASS,7
-39,첨부자료 확인·요약,Gemini,Codex,34561,12544,606,0,1,PASS,7
-40,롱컨텍스트,AIONA,Jev,0,0,0,0,0,FAIL,30
-40,롱컨텍스트,AIONA,Decisions,315110,0,0,0,1,FAIL,30
-40,롱컨텍스트,AIONA,Codex,363669,20224,870,0,2,FAIL,30
-40,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,14
-40,롱컨텍스트,GPT,Decisions,315282,0,0,0,1,FAIL,14
-40,롱컨텍스트,GPT,Codex,335165,0,978,0,1,FAIL,14
-40,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,11
-40,롱컨텍스트,Claude,Decisions,315395,0,0,0,1,PASS,11
-40,롱컨텍스트,Claude,Codex,335242,10112,648,0,1,PASS,11
-40,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,35
-40,롱컨텍스트,Gemini,Decisions,315684,0,0,0,1,FAIL,35
-40,롱컨텍스트,Gemini,Codex,671120,20224,2881,0,2,FAIL,35
-41,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,20
-41,롱컨텍스트,AIONA,Decisions,316207,0,0,0,1,PASS,20
-41,롱컨텍스트,AIONA,Codex,335188,10112,1164,327,1,PASS,20
-41,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,20
-41,롱컨텍스트,GPT,Decisions,314213,0,0,0,1,PASS,20
-41,롱컨텍스트,GPT,Codex,335188,10112,1164,327,1,PASS,20
-41,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,15
-41,롱컨텍스트,Claude,Decisions,313307,0,0,0,1,PASS,15
-41,롱컨텍스트,Claude,Codex,335376,10112,903,0,1,PASS,15
-41,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,37
-41,롱컨텍스트,Gemini,Decisions,315647,0,0,0,1,FAIL,37
-41,롱컨텍스트,Gemini,Codex,671241,20224,2502,0,2,FAIL,37
-42,롱컨텍스트,AIONA,Jev,0,0,0,0,0,FAIL,15
-42,롱컨텍스트,AIONA,Decisions,316142,0,0,0,1,FAIL,15
-42,롱컨텍스트,AIONA,Codex,335053,10112,929,0,1,FAIL,15
-42,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,14
-42,롱컨텍스트,GPT,Decisions,316292,0,0,0,1,PASS,14
-42,롱컨텍스트,GPT,Codex,335053,10112,929,0,1,PASS,14
-42,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,12
-42,롱컨텍스트,Claude,Decisions,316498,0,0,0,1,PASS,12
-42,롱컨텍스트,Claude,Codex,335247,10112,658,0,1,PASS,12
-42,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,28
-42,롱컨텍스트,Gemini,Decisions,316578,0,0,0,1,FAIL,28
-42,롱컨텍스트,Gemini,Codex,670690,20224,1863,0,2,FAIL,28
-43,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14
-43,롱컨텍스트,AIONA,Decisions,316121,0,0,0,1,PASS,14
-43,롱컨텍스트,AIONA,Codex,334866,10112,709,0,1,PASS,14
-43,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,13
-43,롱컨텍스트,GPT,Decisions,316343,0,0,0,1,FAIL,13
-43,롱컨텍스트,GPT,Codex,335112,10112,750,0,1,FAIL,13
-43,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,13
-43,롱컨텍스트,Claude,Decisions,316498,0,0,0,1,PASS,13
-43,롱컨텍스트,Claude,Codex,335245,0,677,0,1,PASS,13
-43,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,18
-43,롱컨텍스트,Gemini,Decisions,316459,0,0,0,1,FAIL,18
-43,롱컨텍스트,Gemini,Codex,0,0,0,0,1,FAIL,18
-44,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,10
-44,롱컨텍스트,AIONA,Decisions,316199,0,0,0,1,PASS,10
-44,롱컨텍스트,AIONA,Codex,334946,10112,410,0,1,PASS,10
-44,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,12
-44,롱컨텍스트,GPT,Decisions,316344,0,0,0,1,PASS,12
-44,롱컨텍스트,GPT,Codex,0,0,0,0,1,PASS,12
-44,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,12
-44,롱컨텍스트,Claude,Decisions,316406,0,0,0,1,PASS,12
-44,롱컨텍스트,Claude,Codex,335151,10112,682,0,1,PASS,12
-44,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,32
-44,롱컨텍스트,Gemini,Decisions,316479,0,0,0,1,FAIL,32
-44,롱컨텍스트,Gemini,Codex,366615,12544,1511,0,2,FAIL,32
-45,단일 질문,AIONA,Jev,11934,0,522,0,1,PASS,5
-45,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5
-45,단일 질문,AIONA,Codex,28361,10112,222,0,1,PASS,5
-45,단일 질문,GPT,Jev,12032,0,522,0,1,FAIL,6
-45,단일 질문,GPT,Decisions,0,0,0,0,0,FAIL,6
-45,단일 질문,GPT,Codex,28435,10112,322,0,1,FAIL,6
-45,단일 질문,Claude,Jev,12056,0,522,0,1,PASS,7
-45,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7
-45,단일 질문,Claude,Codex,0,0,0,0,1,PASS,7
-45,단일 질문,Gemini,Jev,12013,0,522,0,1,PASS,7
-45,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-45,단일 질문,Gemini,Codex,0,0,0,0,1,PASS,7
-46,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,14
-46,첨부자료 확인·요약,AIONA,Decisions,10542,0,0,0,1,PASS,14
-46,첨부자료 확인·요약,AIONA,Codex,63084,25088,1155,0,2,PASS,14
-46,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,9
-46,첨부자료 확인·요약,GPT,Decisions,10745,0,0,0,1,PASS,9
-46,첨부자료 확인·요약,GPT,Codex,31749,12544,757,0,1,PASS,9
-46,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,7
-46,첨부자료 확인·요약,Claude,Decisions,10796,0,0,0,1,PASS,7
-46,첨부자료 확인·요약,Claude,Codex,31800,12544,525,0,1,PASS,7
-46,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,9
-46,첨부자료 확인·요약,Gemini,Decisions,10462,0,0,0,1,PASS,9
-46,첨부자료 확인·요약,Gemini,Codex,28947,10112,1076,0,1,PASS,9
-47,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,9
-47,첨부자료 확인·요약,AIONA,Decisions,12877,0,0,0,1,PASS,9
-47,첨부자료 확인·요약,AIONA,Codex,34801,12544,723,0,1,PASS,9
-47,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,11
-47,첨부자료 확인·요약,GPT,Decisions,12982,0,0,0,1,PASS,11
-47,첨부자료 확인·요약,GPT,Codex,32454,10112,1044,0,1,PASS,11
-47,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,5
-47,첨부자료 확인·요약,Claude,Decisions,12835,0,0,0,1,PASS,5
-47,첨부자료 확인·요약,Claude,Codex,34761,12544,178,0,1,PASS,5
-47,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,9
-47,첨부자료 확인·요약,Gemini,Decisions,12786,0,0,0,1,PASS,9
-47,첨부자료 확인·요약,Gemini,Codex,34710,12544,677,135,1,PASS,9
-48,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,6
-48,첨부자료 확인·요약,AIONA,Decisions,12756,0,0,0,1,PASS,6
-48,첨부자료 확인·요약,AIONA,Codex,34658,12544,285,0,1,PASS,6
-48,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,12
-48,첨부자료 확인·요약,GPT,Decisions,12984,0,0,0,1,PASS,12
-48,첨부자료 확인·요약,GPT,Codex,34912,12544,1153,0,1,PASS,12
-48,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,8
-48,첨부자료 확인·요약,Claude,Decisions,12986,0,0,0,1,PASS,8
-48,첨부자료 확인·요약,Claude,Codex,335224,10112,1509,0,1,PASS,8
-48,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,0
-48,첨부자료 확인·요약,Gemini,Decisions,12640,0,0,0,1,PASS,0
-48,첨부자료 확인·요약,Gemini,Codex,0,0,0,0,0,PASS,0
-49,단일 질문,AIONA,Jev,18608,0,792,0,1,PASS,10
-49,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,10
-49,단일 질문,AIONA,Codex,31268,12544,1034,0,1,PASS,10
-49,단일 질문,GPT,Jev,19274,0,792,0,1,PASS,8
-49,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-49,단일 질문,GPT,Codex,0,0,0,0,1,PASS,8
-49,단일 질문,Claude,Jev,19414,0,792,0,1,PASS,12
-49,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,12
-49,단일 질문,Claude,Codex,31977,12544,1180,0,1,PASS,12
-49,단일 질문,Gemini,Jev,19769,0,792,0,1,PASS,9
-49,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9
-49,단일 질문,Gemini,Codex,30817,12544,139,0,1,PASS,9
-50,단일 질문,AIONA,Jev,16381,0,702,0,1,PASS,10
-50,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,10
-50,단일 질문,AIONA,Codex,31015,12544,1110,0,1,PASS,10
-50,단일 질문,GPT,Jev,16700,0,702,0,1,PASS,13
-50,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,13
-50,단일 질문,GPT,Codex,0,0,0,0,1,PASS,13
-50,단일 질문,Claude,Jev,16592,0,702,0,1,PASS,9
-50,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9
-50,단일 질문,Claude,Codex,0,0,0,0,1,PASS,9
-50,단일 질문,Gemini,Jev,17030,0,702,0,1,PASS,7
-50,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-50,단일 질문,Gemini,Codex,31574,12544,459,0,1,PASS,7
-51,단일 질문,AIONA,Jev,11817,0,608,0,1,PASS,4
-51,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,4
-51,단일 질문,AIONA,Codex,31282,12544,1379,0,1,PASS,4
-51,단일 질문,GPT,Jev,11898,0,612,0,1,FAIL,0
-51,단일 질문,GPT,Decisions,0,0,0,0,0,FAIL,0
-51,단일 질문,GPT,Codex,0,0,0,0,0,FAIL,0
-51,단일 질문,Claude,Jev,11875,0,608,0,1,PASS,4
-51,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,4
-51,단일 질문,Claude,Codex,30894,12544,116,0,1,PASS,4
-51,단일 질문,Gemini,Jev,11899,0,608,0,1,PASS,5
-51,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,5
-51,단일 질문,Gemini,Codex,30912,12544,149,0,1,PASS,5
-52,단일 질문,AIONA,Jev,9430,0,477,0,1,PASS,0
-52,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-52,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-52,단일 질문,GPT,Jev,9479,0,477,0,1,PASS,6
-52,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6
-52,단일 질문,GPT,Codex,28418,10112,336,0,1,PASS,6
-52,단일 질문,Claude,Jev,9498,0,477,0,1,PASS,0
-52,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-52,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-52,단일 질문,Gemini,Jev,9471,0,477,0,1,PASS,0
-52,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-52,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-53,단일 질문,AIONA,Jev,12499,0,612,0,1,PASS,8
-53,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8
-53,단일 질문,AIONA,Codex,28753,10112,703,0,1,PASS,8
-53,단일 질문,GPT,Jev,12893,0,612,0,1,PASS,16
-53,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,16
-53,단일 질문,GPT,Codex,58257,20224,1661,0,2,PASS,16
-53,단일 질문,Claude,Jev,12676,0,612,0,1,PASS,13
-53,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,13
-53,단일 질문,Claude,Codex,31282,12544,1379,0,1,PASS,13
-53,단일 질문,Gemini,Jev,13011,0,612,0,1,PASS,7
-53,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7
-53,단일 질문,Gemini,Codex,29196,10112,484,0,1,PASS,7
-54,단일 질문,AIONA,Jev,12627,0,612,0,1,PASS,8
-54,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8
-54,단일 질문,AIONA,Codex,29043,10112,1265,0,1,PASS,8
-54,단일 질문,GPT,Jev,12741,0,612,0,1,PASS,8
-54,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-54,단일 질문,GPT,Codex,28942,10112,720,0,1,PASS,8
-54,단일 질문,Claude,Jev,12702,0,604,0,1,PASS,10
-54,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10
-54,단일 질문,Claude,Codex,28947,10112,1076,0,1,PASS,10
-54,단일 질문,Gemini,Jev,12711,0,612,0,1,PASS,6
-54,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6
-54,단일 질문,Gemini,Codex,28910,10112,326,0,1,PASS,6
-55,단일 질문,AIONA,Jev,10134,0,432,0,1,PASS,8
-55,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8
-55,단일 질문,AIONA,Codex,28449,10112,639,0,1,PASS,8
-55,단일 질문,GPT,Jev,10151,0,432,0,1,PASS,8
-55,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8
-55,단일 질문,GPT,Codex,28461,10112,585,0,1,PASS,8
-55,단일 질문,Claude,Jev,10195,0,432,0,1,PASS,6
-55,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6
-55,단일 질문,Claude,Codex,28504,10112,290,0,1,PASS,6
-55,단일 질문,Gemini,Jev,10201,0,432,0,1,PASS,0
-55,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-55,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-56,단일 질문,AIONA,Jev,9736,0,518,0,1,PASS,4
-56,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,4
-56,단일 질문,AIONA,Codex,0,0,0,0,1,PASS,4
-56,단일 질문,GPT,Jev,9831,0,518,0,1,PASS,6
-56,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6
-56,단일 질문,GPT,Codex,30900,12544,394,0,1,PASS,6
-56,단일 질문,Claude,Jev,9868,0,518,0,1,PASS,5
-56,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,5
-56,단일 질문,Claude,Codex,30931,12544,140,0,1,PASS,5
-56,단일 질문,Gemini,Jev,9796,0,518,0,1,PASS,5
-56,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,5
-56,단일 질문,Gemini,Codex,30871,12544,157,0,1,PASS,5
-57,단일 질문,AIONA,Jev,9137,0,387,0,1,FAIL,5
-57,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,5
-57,단일 질문,AIONA,Codex,28402,10112,164,0,1,FAIL,5
-57,단일 질문,GPT,Jev,9237,0,387,0,1,PASS,0
-57,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-57,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-57,단일 질문,Claude,Jev,9291,0,387,0,1,PASS,0
-57,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-57,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-57,단일 질문,Gemini,Jev,9197,0,387,0,1,PASS,0
-57,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-57,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-58,단일 질문,AIONA,Jev,8966,0,432,0,1,PASS,0
-58,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-58,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-58,단일 질문,GPT,Jev,9094,0,432,0,1,PASS,6
-58,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6
-58,단일 질문,GPT,Codex,28489,10112,489,0,1,PASS,6
-58,단일 질문,Claude,Jev,9172,0,432,0,1,PASS,0
-58,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-58,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-58,단일 질문,Gemini,Jev,9182,0,432,0,1,PASS,0
-58,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-58,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-59,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-59,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-60,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-61,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-62,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-63,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-64,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-65,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-66,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-67,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0
-68,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0
-69,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,185
-69,10턴 멀티턴 대화,AIONA,Decisions,798254,0,0,0,10,FAIL,185
-69,10턴 멀티턴 대화,AIONA,Codex,936298,244352,18703,0,8,FAIL,185
-69,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,374
-69,10턴 멀티턴 대화,GPT,Decisions,773145,0,0,0,10,HOLD,374
-69,10턴 멀티턴 대화,GPT,Codex,1606926,163072,21694,0,18,HOLD,374
-69,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,151
-69,10턴 멀티턴 대화,Claude,Decisions,755745,0,0,0,10,FAIL,151
-69,10턴 멀티턴 대화,Claude,Codex,529898,62720,15958,168,6,FAIL,151
-69,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,273
-69,10턴 멀티턴 대화,Gemini,Decisions,741618,0,0,0,10,HOLD,273
-69,10턴 멀티턴 대화,Gemini,Codex,885106,87808,25298,0,11,HOLD,273
-70,단일 질문,AIONA,Jev,15082,0,751,0,1,PASS,9
-70,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,9
-70,단일 질문,AIONA,Codex,31377,12544,667,0,1,PASS,9
-70,단일 질문,GPT,Jev,15370,0,751,0,1,PASS,7
-70,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7
-70,단일 질문,GPT,Codex,31543,12544,443,0,1,PASS,7
-70,단일 질문,Claude,Jev,15447,0,747,0,1,PASS,11
-70,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,11
-70,단일 질문,Claude,Codex,31715,12544,808,0,1,PASS,11
-70,단일 질문,Gemini,Jev,15354,0,751,0,1,PASS,9
-70,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9
-70,단일 질문,Gemini,Codex,31588,12544,906,0,1,PASS,9
-71,단일 질문,AIONA,Jev,10375,0,702,0,1,PASS,0
-71,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-71,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-71,단일 질문,GPT,Jev,10667,0,702,0,1,PASS,0
-71,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-71,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-71,단일 질문,Claude,Jev,10626,0,702,0,1,PASS,12
-71,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,12
-71,단일 질문,Claude,Codex,57571,20224,553,0,2,PASS,12
-71,단일 질문,Gemini,Jev,10541,0,702,0,1,PASS,0
-71,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-71,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-72,단일 질문,AIONA,Jev,9948,0,657,0,1,PASS,0
-72,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0
-72,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0
-72,단일 질문,GPT,Jev,10163,0,657,0,1,PASS,0
-72,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0
-72,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0
-72,단일 질문,Claude,Jev,10064,0,657,0,1,PASS,0
-72,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0
-72,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0
-72,단일 질문,Gemini,Jev,9940,0,657,0,1,PASS,0
-72,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0
-72,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0
-73,단일 질문,AIONA,Jev,10597,0,657,0,1,PASS,6
-73,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,6
-73,단일 질문,AIONA,Codex,0,0,0,0,1,PASS,6
-73,단일 질문,GPT,Jev,10263,0,657,0,1,PASS,6
-73,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6
-73,단일 질문,GPT,Codex,28732,10112,319,0,1,PASS,6
-73,단일 질문,Claude,Jev,10348,0,657,0,1,PASS,10
-73,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10
-73,단일 질문,Claude,Codex,0,0,0,0,1,PASS,10
-73,단일 질문,Gemini,Jev,10383,0,657,0,1,FAIL,8
-73,단일 질문,Gemini,Decisions,0,0,0,0,0,FAIL,8
-73,단일 질문,Gemini,Codex,28841,10112,393,0,1,FAIL,8
-74,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,8
-74,첨부자료 확인·요약,AIONA,Decisions,11810,0,0,0,1,PASS,8
-74,첨부자료 확인·요약,AIONA,Codex,31751,10112,332,0,1,PASS,8
-74,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10
-74,첨부자료 확인·요약,GPT,Decisions,11717,0,0,0,1,PASS,10
-74,첨부자료 확인·요약,GPT,Codex,34122,12544,935,0,1,PASS,10
-74,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,20
-74,첨부자료 확인·요약,Claude,Decisions,11785,0,0,0,1,FAIL,20
-74,첨부자료 확인·요약,Claude,Codex,34361,12544,337,0,2,FAIL,20
-74,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7
-74,첨부자료 확인·요약,Gemini,Decisions,11616,0,0,0,1,PASS,7
-74,첨부자료 확인·요약,Gemini,Codex,31557,10112,397,0,1,PASS,7
-75,단일 질문,AIONA,Jev,14857,0,751,0,1,PASS,13
-75,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,13
-75,단일 질문,AIONA,Codex,31189,12544,1285,0,1,PASS,13
-75,단일 질문,GPT,Jev,15170,0,751,0,1,PASS,7
-75,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7
-75,단일 질문,GPT,Codex,31435,12544,549,0,1,PASS,7
-75,단일 질문,Claude,Jev,15153,0,751,0,1,PASS,10
-75,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10
-75,단일 질문,Claude,Codex,31442,12544,1042,0,1,PASS,10
-75,단일 질문,Gemini,Jev,15113,0,751,0,1,HOLD,9
-75,단일 질문,Gemini,Decisions,0,0,0,0,0,HOLD,9
-75,단일 질문,Gemini,Codex,31430,12544,570,0,1,HOLD,9
-76,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,6
-76,첨부자료 확인·요약,AIONA,Decisions,9403,0,0,0,1,PASS,6
-76,첨부자료 확인·요약,AIONA,Codex,31317,12544,481,0,1,PASS,6
-76,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,11
-76,첨부자료 확인·요약,GPT,Decisions,9614,0,0,0,1,PASS,11
-76,첨부자료 확인·요약,GPT,Codex,29091,10112,922,0,1,PASS,11
-76,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,13
-76,첨부자료 확인·요약,Claude,Decisions,9549,0,0,0,1,PASS,13
-76,첨부자료 확인·요약,Claude,Codex,31479,12544,541,0,2,PASS,13
-76,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,6
-76,첨부자료 확인·요약,Gemini,Decisions,9326,0,0,0,1,PASS,6
-76,첨부자료 확인·요약,Gemini,Codex,28776,10112,297,0,1,PASS,6
-77,단일 질문,AIONA,Jev,12061,0,706,0,1,FAIL,18
-77,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,18
-77,단일 질문,AIONA,Codex,28839,10112,2545,0,1,FAIL,18
-77,단일 질문,GPT,Jev,12244,0,706,0,1,PASS,9
-77,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,9
-77,단일 질문,GPT,Codex,28978,10112,893,0,1,PASS,9
-77,단일 질문,Claude,Jev,12174,0,706,0,1,PASS,9
-77,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9
-77,단일 질문,Claude,Codex,28934,10112,853,0,1,PASS,9
-77,단일 질문,Gemini,Jev,12417,0,706,0,1,PASS,11
-77,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,11
-77,단일 질문,Gemini,Codex,29159,10112,1110,0,1,PASS,11
-78,단일 질문,AIONA,Jev,11552,0,604,0,1,PASS,7
-78,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7
-78,단일 질문,AIONA,Codex,29166,10112,635,0,1,PASS,7
-78,단일 질문,GPT,Jev,11526,0,612,0,1,PASS,4
-78,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,4
-78,단일 질문,GPT,Codex,29096,10112,156,0,1,PASS,4
-78,단일 질문,Claude,Jev,11299,0,612,0,1,PASS,8
-78,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8
-78,단일 질문,Claude,Codex,28839,10112,2545,0,1,PASS,8
-78,단일 질문,Gemini,Jev,11436,0,612,0,1,FAIL,7
-78,단일 질문,Gemini,Decisions,0,0,0,0,0,FAIL,7
-78,단일 질문,Gemini,Codex,29069,10112,479,0,1,FAIL,7
+﻿질문,유형,답변 모델,심판,입력,캐시_입력,출력,추론_출력,호출,판정,질문 판정 초(심판별 아님),저장 출력 다시 씀
+1,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,241,
+1,10턴 멀티턴 대화,GPT,Decisions,750276,0,0,0,10,FAIL,241,
+1,10턴 멀티턴 대화,GPT,Codex,1158661,87808,23656,0,14,FAIL,241,
+1,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,294,
+1,10턴 멀티턴 대화,Claude,Decisions,770445,0,0,0,10,FAIL,294,
+1,10턴 멀티턴 대화,Claude,Codex,1494716,100352,25454,0,17,FAIL,294,
+1,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,397,
+1,10턴 멀티턴 대화,Gemini,Decisions,736335,0,0,0,10,HOLD,397,
+1,10턴 멀티턴 대화,Gemini,Codex,1408844,75264,44000,0,16,HOLD,397,
+1,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,305,
+1,10턴 멀티턴 대화,AIONA,Decisions,779654,0,0,0,10,FAIL,305,
+1,10턴 멀티턴 대화,AIONA,Codex,713348,75264,26779,0,7,FAIL,305,
+2,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,454,
+2,10턴 멀티턴 대화,GPT,Decisions,780459,0,0,0,10,FAIL,454,
+2,10턴 멀티턴 대화,GPT,Codex,1623807,163072,55092,0,17,FAIL,454,
+2,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,295,
+2,10턴 멀티턴 대화,Claude,Decisions,768487,0,0,0,10,HOLD,295,
+2,10턴 멀티턴 대화,Claude,Codex,1532580,271872,23185,0,17,HOLD,295,
+2,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,189,
+2,10턴 멀티턴 대화,Gemini,Decisions,757098,0,0,0,10,FAIL,189,
+2,10턴 멀티턴 대화,Gemini,Codex,1117101,137984,19602,0,11,FAIL,189,
+2,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,HOLD,343,
+2,10턴 멀티턴 대화,AIONA,Decisions,785656,0,0,0,10,HOLD,343,
+2,10턴 멀티턴 대화,AIONA,Codex,1585267,150528,32303,0,17,HOLD,343,
+3,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,274,
+3,10턴 멀티턴 대화,GPT,Decisions,785379,0,0,0,10,FAIL,274,
+3,10턴 멀티턴 대화,GPT,Codex,1149174,125440,26671,1034,10,FAIL,274,
+3,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,264,
+3,10턴 멀티턴 대화,Claude,Decisions,785056,0,0,0,10,FAIL,264,
+3,10턴 멀티턴 대화,Claude,Codex,993091,125440,23936,1166,11,FAIL,264,
+3,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,396,
+3,10턴 멀티턴 대화,Gemini,Decisions,784145,0,0,0,10,HOLD,396,
+3,10턴 멀티턴 대화,Gemini,Codex,1743922,213248,42869,0,18,HOLD,396,
+3,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,170,
+3,10턴 멀티턴 대화,AIONA,Decisions,793232,0,0,0,10,FAIL,170,
+3,10턴 멀티턴 대화,AIONA,Codex,888871,372096,18970,73,6,FAIL,170,
+4,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,406,
+4,10턴 멀티턴 대화,GPT,Decisions,785988,0,0,0,10,FAIL,406,
+4,10턴 멀티턴 대화,GPT,Codex,1621191,188160,47616,0,17,FAIL,406,
+4,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,153,
+4,10턴 멀티턴 대화,Claude,Decisions,774169,0,0,0,10,FAIL,153,
+4,10턴 멀티턴 대화,Claude,Codex,752347,75264,14438,0,7,FAIL,153,
+4,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,288,
+4,10턴 멀티턴 대화,Gemini,Decisions,736524,0,0,0,10,HOLD,288,
+4,10턴 멀티턴 대화,Gemini,Codex,1590414,200704,32897,0,16,HOLD,288,
+4,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,264,
+4,10턴 멀티턴 대화,AIONA,Decisions,768091,0,0,0,10,FAIL,264,
+4,10턴 멀티턴 대화,AIONA,Codex,687947,50176,30028,0,8,FAIL,264,
+5,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,211,
+5,10턴 멀티턴 대화,GPT,Decisions,780141,0,0,0,10,FAIL,211,
+5,10턴 멀티턴 대화,GPT,Codex,871810,87808,23695,0,8,FAIL,211,
+5,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,293,
+5,10턴 멀티턴 대화,Claude,Decisions,772039,0,0,0,10,FAIL,293,
+5,10턴 멀티턴 대화,Claude,Codex,818879,87808,34648,0,7,FAIL,293,
+5,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,339,
+5,10턴 멀티턴 대화,Gemini,Decisions,746058,0,0,0,10,HOLD,339,
+5,10턴 멀티턴 대화,Gemini,Codex,1608091,310656,32104,0,19,HOLD,339,
+5,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,373,
+5,10턴 멀티턴 대화,AIONA,Decisions,784194,0,0,0,10,FAIL,373,
+5,10턴 멀티턴 대화,AIONA,Codex,1696631,213248,42094,0,18,FAIL,373,
+6,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,265,
+6,10턴 멀티턴 대화,GPT,Decisions,773184,0,0,0,10,HOLD,265,
+6,10턴 멀티턴 대화,GPT,Codex,1015249,87808,33638,0,9,HOLD,265,
+6,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,597,
+6,10턴 멀티턴 대화,Claude,Decisions,762036,0,0,0,10,FAIL,597,
+6,10턴 멀티턴 대화,Claude,Codex,1895403,225792,54248,3233,19,FAIL,597,
+6,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,346,
+6,10턴 멀티턴 대화,Gemini,Decisions,756803,0,0,0,10,HOLD,346,
+6,10턴 멀티턴 대화,Gemini,Codex,1026285,100352,39603,0,10,HOLD,346,
+6,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,305,
+6,10턴 멀티턴 대화,AIONA,Decisions,764080,0,0,0,10,FAIL,305,
+6,10턴 멀티턴 대화,AIONA,Codex,1526216,188160,39843,0,16,FAIL,305,
+7,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,444,
+7,10턴 멀티턴 대화,GPT,Decisions,783298,0,0,0,10,FAIL,444,
+7,10턴 멀티턴 대화,GPT,Codex,1173502,150528,54287,0,15,FAIL,444,
+7,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,406,
+7,10턴 멀티턴 대화,Claude,Decisions,778676,0,0,0,10,FAIL,406,
+7,10턴 멀티턴 대화,Claude,Codex,1828027,225792,42891,0,19,FAIL,406,
+7,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,414,
+7,10턴 멀티턴 대화,Gemini,Decisions,773667,0,0,0,10,HOLD,414,
+7,10턴 멀티턴 대화,Gemini,Codex,1727515,213248,47920,55,18,HOLD,414,
+7,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,382,
+7,10턴 멀티턴 대화,AIONA,Decisions,788244,0,0,0,10,FAIL,382,
+7,10턴 멀티턴 대화,AIONA,Codex,1554783,188160,43150,0,16,FAIL,382,
+8,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,249,
+8,10턴 멀티턴 대화,GPT,Decisions,796203,0,0,0,10,FAIL,249,
+8,10턴 멀티턴 대화,GPT,Codex,950907,125440,21114,464,11,FAIL,249,
+8,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,209,
+8,10턴 멀티턴 대화,Claude,Decisions,780886,0,0,0,10,HOLD,209,
+8,10턴 멀티턴 대화,Claude,Codex,851768,100352,18448,0,10,HOLD,209,
+8,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,361,
+8,10턴 멀티턴 대화,Gemini,Decisions,786109,0,0,0,10,HOLD,361,
+8,10턴 멀티턴 대화,Gemini,Codex,1640365,175616,37140,0,19,HOLD,361,
+8,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,249,
+8,10턴 멀티턴 대화,AIONA,Decisions,795560,0,0,0,10,FAIL,249,
+8,10턴 멀티턴 대화,AIONA,Codex,1458949,163072,20728,0,16,FAIL,249,
+9,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,FAIL,190,
+9,10턴 멀티턴 대화,GPT,Decisions,778589,0,0,0,10,FAIL,190,
+9,10턴 멀티턴 대화,GPT,Codex,844087,100352,18741,0,8,FAIL,190,
+9,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,366,
+9,10턴 멀티턴 대화,Claude,Decisions,765230,0,0,0,10,FAIL,366,
+9,10턴 멀티턴 대화,Claude,Codex,1574965,163072,36665,160,17,FAIL,366,
+9,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,175,
+9,10턴 멀티턴 대화,Gemini,Decisions,764511,0,0,0,10,FAIL,175,
+9,10턴 멀티턴 대화,Gemini,Codex,560341,62720,17610,50,7,FAIL,175,
+9,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,251,
+9,10턴 멀티턴 대화,AIONA,Decisions,784802,0,0,0,10,FAIL,251,
+9,10턴 멀티턴 대화,AIONA,Codex,699290,87808,12820,0,8,FAIL,251,
+10,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,242,
+10,10턴 멀티턴 대화,GPT,Decisions,787394,0,0,0,10,HOLD,242,
+10,10턴 멀티턴 대화,GPT,Codex,897050,87808,13576,0,10,HOLD,242,
+10,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,HOLD,231,
+10,10턴 멀티턴 대화,Claude,Decisions,766635,0,0,0,10,HOLD,231,
+10,10턴 멀티턴 대화,Claude,Codex,1058354,100352,26189,0,10,HOLD,231,
+10,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,FAIL,289,
+10,10턴 멀티턴 대화,Gemini,Decisions,773817,0,0,0,10,FAIL,289,
+10,10턴 멀티턴 대화,Gemini,Codex,818733,75264,34339,0,7,FAIL,289,
+10,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,HOLD,274,
+10,10턴 멀티턴 대화,AIONA,Decisions,786449,0,0,0,10,HOLD,274,
+10,10턴 멀티턴 대화,AIONA,Codex,1165155,278912,29607,0,10,HOLD,274,
+11,단일 질문,GPT,Jev,8967,0,432,0,1,PASS,0,
+11,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+11,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+11,단일 질문,Claude,Jev,8973,0,432,0,1,PASS,0,
+11,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+11,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+11,단일 질문,Gemini,Jev,8984,0,432,0,1,PASS,0,
+11,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+11,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+11,단일 질문,AIONA,Jev,8968,0,432,0,1,PASS,0,
+11,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+11,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+12,단일 질문,GPT,Jev,8945,0,432,0,1,PASS,0,
+12,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+12,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+12,단일 질문,Claude,Jev,8950,0,432,0,1,PASS,0,
+12,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+12,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+12,단일 질문,Gemini,Jev,8957,0,432,0,1,PASS,0,
+12,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+12,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+12,단일 질문,AIONA,Jev,8943,0,432,0,1,PASS,0,
+12,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+12,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+13,단일 질문,GPT,Jev,8956,0,432,0,1,PASS,5,
+13,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,5,
+13,단일 질문,GPT,Codex,28362,10112,328,0,1,PASS,5,
+13,단일 질문,Claude,Jev,8962,0,432,0,1,PASS,6,
+13,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6,
+13,단일 질문,Claude,Codex,28368,10112,240,0,1,PASS,6,
+13,단일 질문,Gemini,Jev,8973,0,432,0,1,PASS,7,
+13,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+13,단일 질문,Gemini,Codex,28381,10112,328,0,1,PASS,7,
+13,단일 질문,AIONA,Jev,8957,0,432,0,1,PASS,5,
+13,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5,
+13,단일 질문,AIONA,Codex,28364,10112,242,0,1,PASS,5,
+14,단일 질문,GPT,Jev,8958,0,432,0,1,PASS,0,
+14,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+14,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+14,단일 질문,Claude,Jev,8963,0,432,0,1,PASS,0,
+14,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+14,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+14,단일 질문,Gemini,Jev,8970,0,432,0,1,PASS,0,
+14,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+14,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+14,단일 질문,AIONA,Jev,8959,0,432,0,1,PASS,0,
+14,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+14,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+15,단일 질문,GPT,Jev,8417,0,387,0,1,PASS,0,
+15,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+15,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+15,단일 질문,Claude,Jev,8416,0,387,0,1,PASS,0,
+15,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+15,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+15,단일 질문,Gemini,Jev,8431,0,387,0,1,PASS,0,
+15,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+15,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+15,단일 질문,AIONA,Jev,8418,0,387,0,1,PASS,0,
+15,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+15,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+16,단일 질문,GPT,Jev,8412,0,387,0,1,PASS,0,
+16,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+16,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+16,단일 질문,Claude,Jev,8414,0,387,0,1,PASS,0,
+16,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+16,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+16,단일 질문,Gemini,Jev,8429,0,387,0,1,PASS,0,
+16,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+16,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+16,단일 질문,AIONA,Jev,8416,0,387,0,1,PASS,0,
+16,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+16,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+17,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10,
+17,첨부자료 확인·요약,GPT,Decisions,13987,0,0,0,1,PASS,10,
+17,첨부자료 확인·요약,GPT,Codex,32526,10112,804,0,1,PASS,10,
+17,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,23,
+17,첨부자료 확인·요약,Claude,Decisions,13908,0,0,0,1,PASS,23,
+17,첨부자료 확인·요약,Claude,Codex,65077,20224,2154,0,2,PASS,23,
+17,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,FAIL,11,
+17,첨부자료 확인·요약,Gemini,Decisions,13856,0,0,0,1,FAIL,11,
+17,첨부자료 확인·요약,Gemini,Codex,34865,12544,965,0,1,FAIL,11,
+17,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,13,
+17,첨부자료 확인·요약,AIONA,Decisions,13815,0,0,0,1,PASS,13,
+17,첨부자료 확인·요약,AIONA,Codex,34818,12544,1262,0,1,PASS,13,
+18,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10,
+18,첨부자료 확인·요약,GPT,Decisions,13112,0,0,0,1,PASS,10,
+18,첨부자료 확인·요약,GPT,Codex,34081,12544,888,0,1,PASS,10,
+18,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,22,
+18,첨부자료 확인·요약,Claude,Decisions,13197,0,0,0,1,FAIL,22,
+18,첨부자료 확인·요약,Claude,Codex,68509,25088,2199,0,2,FAIL,22,
+18,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,12,
+18,첨부자료 확인·요약,Gemini,Decisions,13068,0,0,0,1,PASS,12,
+18,첨부자료 확인·요약,Gemini,Codex,34039,12544,1187,0,1,PASS,12,
+18,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,9,
+18,첨부자료 확인·요약,AIONA,Decisions,13217,0,0,0,1,PASS,9,
+18,첨부자료 확인·요약,AIONA,Codex,34176,12544,579,0,1,PASS,9,
+19,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,13,
+19,첨부자료 확인·요약,GPT,Decisions,11189,0,0,0,1,PASS,13,
+19,첨부자료 확인·요약,GPT,Codex,63875,25088,763,0,2,PASS,13,
+19,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,14,
+19,첨부자료 확인·요약,Claude,Decisions,11053,0,0,0,1,PASS,14,
+19,첨부자료 확인·요약,Claude,Codex,31720,12544,1410,0,1,PASS,14,
+19,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7,
+19,첨부자료 확인·요약,Gemini,Decisions,10662,0,0,0,1,PASS,7,
+19,첨부자료 확인·요약,Gemini,Codex,28857,10112,573,0,1,PASS,7,
+19,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,8,
+19,첨부자료 확인·요약,AIONA,Decisions,10804,0,0,0,1,PASS,8,
+19,첨부자료 확인·요약,AIONA,Codex,31463,12544,566,0,1,PASS,8,
+20,단일 질문,GPT,Jev,8919,0,432,0,1,PASS,0,
+20,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+20,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+20,단일 질문,Claude,Jev,8924,0,432,0,1,PASS,0,
+20,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+20,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+20,단일 질문,Gemini,Jev,8931,0,432,0,1,PASS,0,
+20,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+20,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+20,단일 질문,AIONA,Jev,8920,0,432,0,1,PASS,0,
+20,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+20,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+21,단일 질문,GPT,Jev,5795,0,432,0,1,PASS,1,
+21,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,1,
+21,단일 질문,GPT,Codex,0,0,0,0,0,PASS,1,
+21,단일 질문,Claude,Jev,5858,0,432,0,1,PASS,7,
+21,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7,
+21,단일 질문,Claude,Codex,28381,10112,394,0,1,PASS,7,
+21,단일 질문,Gemini,Jev,6864,0,432,0,1,PASS,7,
+21,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+21,단일 질문,Gemini,Codex,28381,10112,394,0,1,PASS,7,
+21,단일 질문,AIONA,Jev,7900,0,432,0,1,PASS,1,
+21,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,1,
+21,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,1,
+22,단일 질문,GPT,Jev,10015,0,526,0,1,PASS,8,
+22,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+22,단일 질문,GPT,Codex,28504,10112,805,0,1,PASS,8,
+22,단일 질문,Claude,Jev,10256,0,526,0,1,PASS,9,
+22,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9,
+22,단일 질문,Claude,Codex,28718,10112,991,0,1,PASS,9,
+22,단일 질문,Gemini,Jev,10444,0,526,0,1,PASS,9,
+22,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9,
+22,단일 질문,Gemini,Codex,28920,10112,863,0,1,PASS,9,
+22,단일 질문,AIONA,Jev,9968,0,526,0,1,PASS,9,
+22,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,9,
+22,단일 질문,AIONA,Codex,28459,10112,759,0,1,PASS,9,
+23,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,17,
+23,첨부자료 확인·요약,GPT,Decisions,11826,0,0,0,1,PASS,17,
+23,첨부자료 확인·요약,GPT,Codex,68515,25088,1076,0,2,PASS,17,
+23,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,7,
+23,첨부자료 확인·요약,Claude,Decisions,11790,0,0,0,1,PASS,7,
+23,첨부자료 확인·요약,Claude,Codex,34201,12544,1509,0,1,PASS,7,
+23,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,6,
+23,첨부자료 확인·요약,Gemini,Decisions,11697,0,0,0,1,PASS,6,
+23,첨부자료 확인·요약,Gemini,Codex,34027,12544,348,0,1,PASS,6,
+23,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,14,
+23,첨부자료 확인·요약,AIONA,Decisions,11861,0,0,0,1,PASS,14,
+23,첨부자료 확인·요약,AIONA,Codex,0,0,0,0,1,PASS,14,
+24,단일 질문,GPT,Jev,9230,0,477,0,1,PASS,9,
+24,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,9,
+24,단일 질문,GPT,Codex,28568,10112,686,0,1,PASS,9,
+24,단일 질문,Claude,Jev,9484,0,477,0,1,PASS,8,
+24,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8,
+24,단일 질문,Claude,Codex,28796,10112,704,0,1,PASS,8,
+24,단일 질문,Gemini,Jev,9271,0,477,0,1,PASS,9,
+24,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9,
+24,단일 질문,Gemini,Codex,28796,10112,704,0,1,PASS,9,
+24,단일 질문,AIONA,Jev,9079,0,477,0,1,PASS,6,
+24,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,6,
+24,단일 질문,AIONA,Codex,28441,10112,344,0,1,PASS,6,
+25,단일 질문,GPT,Jev,9306,0,477,0,1,PASS,8,
+25,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+25,단일 질문,GPT,Codex,28678,10112,727,0,1,PASS,8,
+25,단일 질문,Claude,Jev,9426,0,477,0,1,PASS,14,
+25,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,14,
+25,단일 질문,Claude,Codex,28790,0,445,0,2,PASS,14,
+25,단일 질문,Gemini,Jev,9475,0,477,0,1,PASS,6,
+25,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6,
+25,단일 질문,Gemini,Codex,28812,10112,503,0,1,PASS,6,
+25,단일 질문,AIONA,Jev,9167,0,477,0,1,FAIL,8,
+25,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,8,
+25,단일 질문,AIONA,Codex,28549,10112,722,0,1,FAIL,8,
+26,단일 질문,GPT,Jev,7391,0,387,0,1,PASS,0,
+26,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+26,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+26,단일 질문,Claude,Jev,7495,0,387,0,1,PASS,0,
+26,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+26,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+26,단일 질문,Gemini,Jev,7403,0,387,0,1,PASS,0,
+26,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+26,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+26,단일 질문,AIONA,Jev,7392,0,387,0,1,PASS,0,
+26,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+26,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+27,단일 질문,GPT,Jev,7364,0,387,0,1,PASS,0,
+27,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+27,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+27,단일 질문,Claude,Jev,7427,0,387,0,1,PASS,0,
+27,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+27,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+27,단일 질문,Gemini,Jev,7378,0,387,0,1,PASS,0,
+27,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+27,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+27,단일 질문,AIONA,Jev,7387,0,387,0,1,PASS,0,
+27,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+27,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+28,단일 질문,GPT,Jev,9630,0,477,0,1,PASS,6,
+28,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6,
+28,단일 질문,GPT,Codex,28504,10112,462,0,1,PASS,6,
+28,단일 질문,Claude,Jev,10056,0,477,0,1,PASS,7,
+28,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7,
+28,단일 질문,Claude,Codex,28883,10112,487,0,1,PASS,7,
+28,단일 질문,Gemini,Jev,9941,0,477,0,1,PASS,10,
+28,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,10,
+28,단일 질문,Gemini,Codex,28775,10112,1071,0,1,PASS,10,
+28,단일 질문,AIONA,Jev,9610,0,477,0,1,PASS,7,
+28,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7,
+28,단일 질문,AIONA,Codex,28790,0,445,0,1,PASS,7,
+29,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,18,
+29,롱컨텍스트,GPT,Decisions,319005,0,0,0,1,FAIL,18,
+29,롱컨텍스트,GPT,Codex,335286,0,1077,0,1,FAIL,18,
+29,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,14,
+29,롱컨텍스트,Claude,Decisions,319117,0,0,0,1,PASS,14,
+29,롱컨텍스트,Claude,Codex,335286,0,1077,0,1,PASS,14,
+29,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,39,
+29,롱컨텍스트,Gemini,Decisions,319237,0,0,0,1,FAIL,39,
+29,롱컨텍스트,Gemini,Codex,671083,10112,3457,0,2,FAIL,39,
+29,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14,
+29,롱컨텍스트,AIONA,Decisions,318720,0,0,0,1,PASS,14,
+29,롱컨텍스트,AIONA,Codex,334909,0,1046,0,1,PASS,14,
+30,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,19,
+30,롱컨텍스트,GPT,Decisions,316242,0,0,0,1,PASS,19,
+30,롱컨텍스트,GPT,Codex,335335,10112,1723,0,1,PASS,19,
+30,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,23,
+30,롱컨텍스트,Claude,Decisions,316343,0,0,0,1,PASS,23,
+30,롱컨텍스트,Claude,Codex,335482,10112,2490,0,1,PASS,23,
+30,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,39,
+30,롱컨텍스트,Gemini,Decisions,316533,0,0,0,1,FAIL,39,
+30,롱컨텍스트,Gemini,Codex,671475,20224,3566,0,2,FAIL,39,
+30,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,15,
+30,롱컨텍스트,AIONA,Decisions,315955,0,0,0,1,PASS,15,
+30,롱컨텍스트,AIONA,Codex,335056,10112,1079,0,1,PASS,15,
+31,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,12,
+31,첨부자료 확인·요약,GPT,Decisions,15901,0,0,0,1,PASS,12,
+31,첨부자료 확인·요약,GPT,Codex,32569,10112,1157,0,1,PASS,12,
+31,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,25,
+31,첨부자료 확인·요약,Claude,Decisions,16199,0,0,0,1,PASS,25,
+31,첨부자료 확인·요약,Claude,Codex,70666,25088,2501,0,2,PASS,25,
+31,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,18,
+31,첨부자료 확인·요약,Gemini,Decisions,15834,0,0,0,1,PASS,18,
+31,첨부자료 확인·요약,Gemini,Codex,34986,12544,2337,0,1,PASS,18,
+31,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,16,
+31,첨부자료 확인·요약,AIONA,Decisions,15878,0,0,0,1,PASS,16,
+31,첨부자료 확인·요약,AIONA,Codex,35024,12544,1773,0,1,PASS,16,
+32,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,13,
+32,롱컨텍스트,GPT,Decisions,315666,0,0,0,1,PASS,13,
+32,롱컨텍스트,GPT,Codex,0,0,0,0,1,PASS,13,
+32,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,14,
+32,롱컨텍스트,Claude,Decisions,315700,0,0,0,1,PASS,14,
+32,롱컨텍스트,Claude,Codex,335041,10112,1749,0,1,PASS,14,
+32,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,20,
+32,롱컨텍스트,Gemini,Decisions,315845,0,0,0,1,FAIL,20,
+32,롱컨텍스트,Gemini,Codex,335385,10112,1771,0,1,FAIL,20,
+32,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,18,
+32,롱컨텍스트,AIONA,Decisions,315461,0,0,0,1,PASS,18,
+32,롱컨텍스트,AIONA,Codex,334961,10112,1595,0,1,PASS,18,
+33,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,21,
+33,롱컨텍스트,GPT,Decisions,315598,0,0,0,1,PASS,21,
+33,롱컨텍스트,GPT,Codex,335041,10112,1749,0,1,PASS,21,
+33,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,21,
+33,롱컨텍스트,Claude,Decisions,315796,0,0,0,1,PASS,21,
+33,롱컨텍스트,Claude,Codex,335233,10112,1876,0,1,PASS,21,
+33,롱컨텍스트,Gemini,Jev,0,0,0,0,0,PASS,23,
+33,롱컨텍스트,Gemini,Decisions,315828,0,0,0,1,PASS,23,
+33,롱컨텍스트,Gemini,Codex,335301,0,2351,0,1,PASS,23,
+33,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14,
+33,롱컨텍스트,AIONA,Decisions,315408,0,0,0,1,PASS,14,
+33,롱컨텍스트,AIONA,Codex,334845,10112,880,0,1,PASS,14,
+34,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,39,
+34,롱컨텍스트,GPT,Decisions,315690,0,0,0,1,PASS,39,
+34,롱컨텍스트,GPT,Codex,335119,10112,1300,0,2,PASS,39,
+34,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,17,
+34,롱컨텍스트,Claude,Decisions,315772,0,0,0,1,PASS,17,
+34,롱컨텍스트,Claude,Codex,335207,10112,1194,0,1,PASS,17,
+34,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,33,
+34,롱컨텍스트,Gemini,Decisions,315877,0,0,0,1,FAIL,33,
+34,롱컨텍스트,Gemini,Codex,670867,20224,2705,0,2,FAIL,33,
+34,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,19,
+34,롱컨텍스트,AIONA,Decisions,315541,0,0,0,1,PASS,19,
+34,롱컨텍스트,AIONA,Codex,335008,0,1615,0,1,PASS,19,
+35,단일 질문,GPT,Jev,9694,0,477,0,1,PASS,8,
+35,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+35,단일 질문,GPT,Codex,28569,10112,739,0,1,PASS,8,
+35,단일 질문,Claude,Jev,9870,0,477,0,1,PASS,6,
+35,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6,
+35,단일 질문,Claude,Codex,28715,10112,213,0,1,PASS,6,
+35,단일 질문,Gemini,Jev,9972,0,477,0,1,PASS,6,
+35,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6,
+35,단일 질문,Gemini,Codex,28780,10112,341,0,1,PASS,6,
+35,단일 질문,AIONA,Jev,9619,0,477,0,1,PASS,7,
+35,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7,
+35,단일 질문,AIONA,Codex,28498,10112,636,0,1,PASS,7,
+36,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,14,
+36,첨부자료 확인·요약,GPT,Decisions,12561,0,0,0,1,PASS,14,
+36,첨부자료 확인·요약,GPT,Codex,0,0,0,0,1,PASS,14,
+36,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,23,
+36,첨부자료 확인·요약,Claude,Decisions,12512,0,0,0,1,FAIL,23,
+36,첨부자료 확인·요약,Claude,Codex,69987,25088,2334,0,2,FAIL,23,
+36,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,0,
+36,첨부자료 확인·요약,Gemini,Decisions,12268,0,0,0,1,PASS,0,
+36,첨부자료 확인·요약,Gemini,Codex,0,0,0,0,0,PASS,0,
+36,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,10,
+36,첨부자료 확인·요약,AIONA,Decisions,12373,0,0,0,1,PASS,10,
+36,첨부자료 확인·요약,AIONA,Codex,34756,12544,998,0,1,PASS,10,
+37,단일 질문,GPT,Jev,9883,0,477,0,1,PASS,7,
+37,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7,
+37,단일 질문,GPT,Codex,28712,10112,480,0,1,PASS,7,
+37,단일 질문,Claude,Jev,9932,0,477,0,1,PASS,8,
+37,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8,
+37,단일 질문,Claude,Codex,28762,10112,685,0,1,PASS,8,
+37,단일 질문,Gemini,Jev,9915,0,477,0,1,PASS,7,
+37,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+37,단일 질문,Gemini,Codex,0,0,0,0,1,PASS,7,
+37,단일 질문,AIONA,Jev,9609,0,477,0,1,PASS,7,
+37,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7,
+37,단일 질문,AIONA,Codex,28472,10112,578,0,1,PASS,7,
+38,단일 질문,GPT,Jev,9587,0,522,0,1,PASS,10,
+38,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,10,
+38,단일 질문,GPT,Codex,0,0,0,0,1,PASS,10,
+38,단일 질문,Claude,Jev,9664,0,522,0,1,PASS,13,
+38,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,13,
+38,단일 질문,Claude,Codex,62044,25088,726,0,2,PASS,13,
+38,단일 질문,Gemini,Jev,9580,0,522,0,1,PASS,8,
+38,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,8,
+38,단일 질문,Gemini,Codex,30962,12544,609,0,1,PASS,8,
+38,단일 질문,AIONA,Jev,9496,0,522,0,1,PASS,5,
+38,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5,
+38,단일 질문,AIONA,Codex,30876,12544,233,0,1,PASS,5,
+39,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,21,
+39,첨부자료 확인·요약,GPT,Decisions,12266,0,0,0,1,PASS,21,
+39,첨부자료 확인·요약,GPT,Codex,69733,25088,1780,0,2,PASS,21,
+39,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,25,
+39,첨부자료 확인·요약,Claude,Decisions,12438,0,0,0,1,PASS,25,
+39,첨부자료 확인·요약,Claude,Codex,370131,12544,2950,0,2,PASS,25,
+39,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7,
+39,첨부자료 확인·요약,Gemini,Decisions,12055,0,0,0,1,PASS,7,
+39,첨부자료 확인·요약,Gemini,Codex,34561,12544,606,0,1,PASS,7,
+39,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,7,
+39,첨부자료 확인·요약,AIONA,Decisions,12104,0,0,0,1,PASS,7,
+39,첨부자료 확인·요약,AIONA,Codex,34610,12544,532,0,1,PASS,7,
+40,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,14,
+40,롱컨텍스트,GPT,Decisions,315282,0,0,0,1,FAIL,14,
+40,롱컨텍스트,GPT,Codex,335165,0,978,0,1,FAIL,14,
+40,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,11,
+40,롱컨텍스트,Claude,Decisions,315395,0,0,0,1,PASS,11,
+40,롱컨텍스트,Claude,Codex,335242,10112,648,0,1,PASS,11,
+40,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,35,
+40,롱컨텍스트,Gemini,Decisions,315684,0,0,0,1,FAIL,35,
+40,롱컨텍스트,Gemini,Codex,671120,20224,2881,0,2,FAIL,35,
+40,롱컨텍스트,AIONA,Jev,0,0,0,0,0,FAIL,30,
+40,롱컨텍스트,AIONA,Decisions,315110,0,0,0,1,FAIL,30,
+40,롱컨텍스트,AIONA,Codex,363669,20224,870,0,2,FAIL,30,
+41,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,20,
+41,롱컨텍스트,GPT,Decisions,314213,0,0,0,1,PASS,20,
+41,롱컨텍스트,GPT,Codex,335188,10112,1164,327,1,PASS,20,
+41,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,15,
+41,롱컨텍스트,Claude,Decisions,313307,0,0,0,1,PASS,15,
+41,롱컨텍스트,Claude,Codex,335376,10112,903,0,1,PASS,15,
+41,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,37,
+41,롱컨텍스트,Gemini,Decisions,315647,0,0,0,1,FAIL,37,
+41,롱컨텍스트,Gemini,Codex,671241,20224,2502,0,2,FAIL,37,
+41,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,20,
+41,롱컨텍스트,AIONA,Decisions,316207,0,0,0,1,PASS,20,
+41,롱컨텍스트,AIONA,Codex,335188,10112,1164,327,1,PASS,20,
+42,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,14,
+42,롱컨텍스트,GPT,Decisions,316292,0,0,0,1,PASS,14,
+42,롱컨텍스트,GPT,Codex,335053,10112,929,0,1,PASS,14,
+42,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,12,
+42,롱컨텍스트,Claude,Decisions,316498,0,0,0,1,PASS,12,
+42,롱컨텍스트,Claude,Codex,335247,10112,658,0,1,PASS,12,
+42,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,28,
+42,롱컨텍스트,Gemini,Decisions,316578,0,0,0,1,FAIL,28,
+42,롱컨텍스트,Gemini,Codex,670690,20224,1863,0,2,FAIL,28,
+42,롱컨텍스트,AIONA,Jev,0,0,0,0,0,FAIL,15,
+42,롱컨텍스트,AIONA,Decisions,316142,0,0,0,1,FAIL,15,
+42,롱컨텍스트,AIONA,Codex,335053,10112,929,0,1,FAIL,15,
+43,롱컨텍스트,GPT,Jev,0,0,0,0,0,FAIL,13,
+43,롱컨텍스트,GPT,Decisions,316343,0,0,0,1,FAIL,13,
+43,롱컨텍스트,GPT,Codex,335112,10112,750,0,1,FAIL,13,
+43,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,13,
+43,롱컨텍스트,Claude,Decisions,316498,0,0,0,1,PASS,13,
+43,롱컨텍스트,Claude,Codex,335245,0,677,0,1,PASS,13,
+43,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,18,
+43,롱컨텍스트,Gemini,Decisions,316459,0,0,0,1,FAIL,18,
+43,롱컨텍스트,Gemini,Codex,0,0,0,0,1,FAIL,18,
+43,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,14,
+43,롱컨텍스트,AIONA,Decisions,316121,0,0,0,1,PASS,14,
+43,롱컨텍스트,AIONA,Codex,334866,10112,709,0,1,PASS,14,
+44,롱컨텍스트,GPT,Jev,0,0,0,0,0,PASS,12,
+44,롱컨텍스트,GPT,Decisions,316344,0,0,0,1,PASS,12,
+44,롱컨텍스트,GPT,Codex,0,0,0,0,1,PASS,12,
+44,롱컨텍스트,Claude,Jev,0,0,0,0,0,PASS,12,
+44,롱컨텍스트,Claude,Decisions,316406,0,0,0,1,PASS,12,
+44,롱컨텍스트,Claude,Codex,335151,10112,682,0,1,PASS,12,
+44,롱컨텍스트,Gemini,Jev,0,0,0,0,0,FAIL,32,
+44,롱컨텍스트,Gemini,Decisions,316479,0,0,0,1,FAIL,32,
+44,롱컨텍스트,Gemini,Codex,366615,12544,1511,0,2,FAIL,32,
+44,롱컨텍스트,AIONA,Jev,0,0,0,0,0,PASS,10,
+44,롱컨텍스트,AIONA,Decisions,316199,0,0,0,1,PASS,10,
+44,롱컨텍스트,AIONA,Codex,334946,10112,410,0,1,PASS,10,
+45,단일 질문,GPT,Jev,12032,0,522,0,1,FAIL,6,
+45,단일 질문,GPT,Decisions,0,0,0,0,0,FAIL,6,
+45,단일 질문,GPT,Codex,28435,10112,322,0,1,FAIL,6,
+45,단일 질문,Claude,Jev,12056,0,522,0,1,PASS,7,
+45,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,7,
+45,단일 질문,Claude,Codex,0,0,0,0,1,PASS,7,
+45,단일 질문,Gemini,Jev,12013,0,522,0,1,PASS,7,
+45,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+45,단일 질문,Gemini,Codex,0,0,0,0,1,PASS,7,
+45,단일 질문,AIONA,Jev,11934,0,522,0,1,PASS,5,
+45,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,5,
+45,단일 질문,AIONA,Codex,28361,10112,222,0,1,PASS,5,
+46,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,9,
+46,첨부자료 확인·요약,GPT,Decisions,10745,0,0,0,1,PASS,9,
+46,첨부자료 확인·요약,GPT,Codex,31749,12544,757,0,1,PASS,9,
+46,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,7,
+46,첨부자료 확인·요약,Claude,Decisions,10796,0,0,0,1,PASS,7,
+46,첨부자료 확인·요약,Claude,Codex,31800,12544,525,0,1,PASS,7,
+46,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,9,
+46,첨부자료 확인·요약,Gemini,Decisions,10462,0,0,0,1,PASS,9,
+46,첨부자료 확인·요약,Gemini,Codex,28947,10112,1076,0,1,PASS,9,
+46,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,14,
+46,첨부자료 확인·요약,AIONA,Decisions,10542,0,0,0,1,PASS,14,
+46,첨부자료 확인·요약,AIONA,Codex,63084,25088,1155,0,2,PASS,14,
+47,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,11,
+47,첨부자료 확인·요약,GPT,Decisions,12982,0,0,0,1,PASS,11,
+47,첨부자료 확인·요약,GPT,Codex,32454,10112,1044,0,1,PASS,11,
+47,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,5,
+47,첨부자료 확인·요약,Claude,Decisions,12835,0,0,0,1,PASS,5,
+47,첨부자료 확인·요약,Claude,Codex,34761,12544,178,0,1,PASS,5,
+47,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,9,
+47,첨부자료 확인·요약,Gemini,Decisions,12786,0,0,0,1,PASS,9,
+47,첨부자료 확인·요약,Gemini,Codex,34710,12544,677,135,1,PASS,9,
+47,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,9,
+47,첨부자료 확인·요약,AIONA,Decisions,12877,0,0,0,1,PASS,9,
+47,첨부자료 확인·요약,AIONA,Codex,34801,12544,723,0,1,PASS,9,
+48,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,12,
+48,첨부자료 확인·요약,GPT,Decisions,12984,0,0,0,1,PASS,12,
+48,첨부자료 확인·요약,GPT,Codex,34912,12544,1153,0,1,PASS,12,
+48,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,8,
+48,첨부자료 확인·요약,Claude,Decisions,12986,0,0,0,1,PASS,8,
+48,첨부자료 확인·요약,Claude,Codex,335224,10112,1509,0,1,PASS,8,
+48,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,0,
+48,첨부자료 확인·요약,Gemini,Decisions,12640,0,0,0,1,PASS,0,
+48,첨부자료 확인·요약,Gemini,Codex,0,0,0,0,0,PASS,0,
+48,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,6,
+48,첨부자료 확인·요약,AIONA,Decisions,12756,0,0,0,1,PASS,6,
+48,첨부자료 확인·요약,AIONA,Codex,34658,12544,285,0,1,PASS,6,
+49,단일 질문,GPT,Jev,19274,0,792,0,1,PASS,8,
+49,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+49,단일 질문,GPT,Codex,0,0,0,0,1,PASS,8,
+49,단일 질문,Claude,Jev,19414,0,792,0,1,PASS,12,
+49,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,12,
+49,단일 질문,Claude,Codex,31977,12544,1180,0,1,PASS,12,
+49,단일 질문,Gemini,Jev,19769,0,792,0,1,PASS,9,
+49,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9,
+49,단일 질문,Gemini,Codex,30817,12544,139,0,1,PASS,9,
+49,단일 질문,AIONA,Jev,18608,0,792,0,1,PASS,10,
+49,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,10,
+49,단일 질문,AIONA,Codex,31268,12544,1034,0,1,PASS,10,
+50,단일 질문,GPT,Jev,16700,0,702,0,1,PASS,13,
+50,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,13,
+50,단일 질문,GPT,Codex,0,0,0,0,1,PASS,13,
+50,단일 질문,Claude,Jev,16592,0,702,0,1,PASS,9,
+50,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9,
+50,단일 질문,Claude,Codex,0,0,0,0,1,PASS,9,
+50,단일 질문,Gemini,Jev,17030,0,702,0,1,PASS,7,
+50,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+50,단일 질문,Gemini,Codex,31574,12544,459,0,1,PASS,7,
+50,단일 질문,AIONA,Jev,16381,0,702,0,1,PASS,10,
+50,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,10,
+50,단일 질문,AIONA,Codex,31015,12544,1110,0,1,PASS,10,
+51,단일 질문,GPT,Jev,11898,0,612,0,1,FAIL,0,
+51,단일 질문,GPT,Decisions,0,0,0,0,0,FAIL,0,
+51,단일 질문,GPT,Codex,0,0,0,0,0,FAIL,0,
+51,단일 질문,Claude,Jev,11875,0,608,0,1,PASS,4,
+51,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,4,
+51,단일 질문,Claude,Codex,30894,12544,116,0,1,PASS,4,
+51,단일 질문,Gemini,Jev,11899,0,608,0,1,PASS,5,
+51,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,5,
+51,단일 질문,Gemini,Codex,30912,12544,149,0,1,PASS,5,
+51,단일 질문,AIONA,Jev,11817,0,608,0,1,PASS,4,
+51,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,4,
+51,단일 질문,AIONA,Codex,31282,12544,1379,0,1,PASS,4,
+52,단일 질문,GPT,Jev,9479,0,477,0,1,PASS,6,
+52,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6,
+52,단일 질문,GPT,Codex,28418,10112,336,0,1,PASS,6,
+52,단일 질문,Claude,Jev,9498,0,477,0,1,PASS,0,
+52,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+52,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+52,단일 질문,Gemini,Jev,9471,0,477,0,1,PASS,0,
+52,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+52,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+52,단일 질문,AIONA,Jev,9430,0,477,0,1,PASS,0,
+52,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+52,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+53,단일 질문,GPT,Jev,12893,0,612,0,1,PASS,16,
+53,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,16,
+53,단일 질문,GPT,Codex,58257,20224,1661,0,2,PASS,16,
+53,단일 질문,Claude,Jev,12676,0,612,0,1,PASS,13,
+53,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,13,
+53,단일 질문,Claude,Codex,31282,12544,1379,0,1,PASS,13,
+53,단일 질문,Gemini,Jev,13011,0,612,0,1,PASS,7,
+53,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,7,
+53,단일 질문,Gemini,Codex,29196,10112,484,0,1,PASS,7,
+53,단일 질문,AIONA,Jev,12499,0,612,0,1,PASS,8,
+53,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8,
+53,단일 질문,AIONA,Codex,28753,10112,703,0,1,PASS,8,
+54,단일 질문,GPT,Jev,12741,0,612,0,1,PASS,8,
+54,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+54,단일 질문,GPT,Codex,28942,10112,720,0,1,PASS,8,
+54,단일 질문,Claude,Jev,12702,0,604,0,1,PASS,10,
+54,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10,
+54,단일 질문,Claude,Codex,28947,10112,1076,0,1,PASS,10,
+54,단일 질문,Gemini,Jev,12711,0,612,0,1,PASS,6,
+54,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,6,
+54,단일 질문,Gemini,Codex,28910,10112,326,0,1,PASS,6,
+54,단일 질문,AIONA,Jev,12627,0,612,0,1,PASS,8,
+54,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8,
+54,단일 질문,AIONA,Codex,29043,10112,1265,0,1,PASS,8,
+55,단일 질문,GPT,Jev,10151,0,432,0,1,PASS,8,
+55,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,8,
+55,단일 질문,GPT,Codex,28461,10112,585,0,1,PASS,8,
+55,단일 질문,Claude,Jev,10195,0,432,0,1,PASS,6,
+55,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,6,
+55,단일 질문,Claude,Codex,28504,10112,290,0,1,PASS,6,
+55,단일 질문,Gemini,Jev,10201,0,432,0,1,PASS,0,
+55,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+55,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+55,단일 질문,AIONA,Jev,10134,0,432,0,1,PASS,8,
+55,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,8,
+55,단일 질문,AIONA,Codex,28449,10112,639,0,1,PASS,8,
+56,단일 질문,GPT,Jev,9831,0,518,0,1,PASS,6,
+56,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6,
+56,단일 질문,GPT,Codex,30900,12544,394,0,1,PASS,6,
+56,단일 질문,Claude,Jev,9868,0,518,0,1,PASS,5,
+56,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,5,
+56,단일 질문,Claude,Codex,30931,12544,140,0,1,PASS,5,
+56,단일 질문,Gemini,Jev,9796,0,518,0,1,PASS,5,
+56,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,5,
+56,단일 질문,Gemini,Codex,30871,12544,157,0,1,PASS,5,
+56,단일 질문,AIONA,Jev,9736,0,518,0,1,PASS,4,
+56,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,4,
+56,단일 질문,AIONA,Codex,0,0,0,0,1,PASS,4,
+57,단일 질문,GPT,Jev,9237,0,387,0,1,PASS,0,
+57,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+57,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+57,단일 질문,Claude,Jev,9291,0,387,0,1,PASS,0,
+57,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+57,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+57,단일 질문,Gemini,Jev,9197,0,387,0,1,PASS,0,
+57,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+57,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+57,단일 질문,AIONA,Jev,9137,0,387,0,1,FAIL,5,
+57,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,5,
+57,단일 질문,AIONA,Codex,28402,10112,164,0,1,FAIL,5,
+58,단일 질문,GPT,Jev,9094,0,432,0,1,PASS,6,
+58,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6,
+58,단일 질문,GPT,Codex,28489,10112,489,0,1,PASS,6,
+58,단일 질문,Claude,Jev,9172,0,432,0,1,PASS,0,
+58,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+58,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+58,단일 질문,Gemini,Jev,9182,0,432,0,1,PASS,0,
+58,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+58,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+58,단일 질문,AIONA,Jev,8966,0,432,0,1,PASS,0,
+58,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+58,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+59,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+59,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+60,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+61,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+62,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+63,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+64,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+65,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+66,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+67,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,GPT,Jev,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,GPT,Decisions,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,GPT,Codex,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Claude,Jev,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Claude,Decisions,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Claude,Codex,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Gemini,Jev,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Gemini,Decisions,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,Gemini,Codex,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,AIONA,Jev,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,AIONA,Decisions,0,0,0,0,0,HOLD,0,
+68,명시적 빈 출력,AIONA,Codex,0,0,0,0,0,HOLD,0,
+69,10턴 멀티턴 대화,GPT,Jev,0,0,0,0,0,HOLD,374,
+69,10턴 멀티턴 대화,GPT,Decisions,773145,0,0,0,10,HOLD,374,
+69,10턴 멀티턴 대화,GPT,Codex,1606926,163072,21694,0,18,HOLD,374,
+69,10턴 멀티턴 대화,Claude,Jev,0,0,0,0,0,FAIL,151,
+69,10턴 멀티턴 대화,Claude,Decisions,755745,0,0,0,10,FAIL,151,
+69,10턴 멀티턴 대화,Claude,Codex,529898,62720,15958,168,6,FAIL,151,
+69,10턴 멀티턴 대화,Gemini,Jev,0,0,0,0,0,HOLD,273,
+69,10턴 멀티턴 대화,Gemini,Decisions,741618,0,0,0,10,HOLD,273,
+69,10턴 멀티턴 대화,Gemini,Codex,885106,87808,25298,0,11,HOLD,273,
+69,10턴 멀티턴 대화,AIONA,Jev,0,0,0,0,0,FAIL,185,
+69,10턴 멀티턴 대화,AIONA,Decisions,798254,0,0,0,10,FAIL,185,
+69,10턴 멀티턴 대화,AIONA,Codex,936298,244352,18703,0,8,FAIL,185,
+70,단일 질문,GPT,Jev,15370,0,751,0,1,PASS,7,
+70,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7,
+70,단일 질문,GPT,Codex,31543,12544,443,0,1,PASS,7,
+70,단일 질문,Claude,Jev,15447,0,747,0,1,PASS,11,
+70,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,11,
+70,단일 질문,Claude,Codex,31715,12544,808,0,1,PASS,11,
+70,단일 질문,Gemini,Jev,15354,0,751,0,1,PASS,9,
+70,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,9,
+70,단일 질문,Gemini,Codex,31588,12544,906,0,1,PASS,9,
+70,단일 질문,AIONA,Jev,15082,0,751,0,1,PASS,9,
+70,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,9,
+70,단일 질문,AIONA,Codex,31377,12544,667,0,1,PASS,9,
+71,단일 질문,GPT,Jev,10667,0,702,0,1,PASS,0,
+71,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+71,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+71,단일 질문,Claude,Jev,10626,0,702,0,1,PASS,12,
+71,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,12,
+71,단일 질문,Claude,Codex,57571,20224,553,0,2,PASS,12,
+71,단일 질문,Gemini,Jev,10541,0,702,0,1,PASS,0,
+71,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+71,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+71,단일 질문,AIONA,Jev,10375,0,702,0,1,PASS,0,
+71,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+71,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+72,단일 질문,GPT,Jev,10163,0,657,0,1,PASS,0,
+72,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,0,
+72,단일 질문,GPT,Codex,0,0,0,0,0,PASS,0,
+72,단일 질문,Claude,Jev,10064,0,657,0,1,PASS,0,
+72,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,0,
+72,단일 질문,Claude,Codex,0,0,0,0,0,PASS,0,
+72,단일 질문,Gemini,Jev,9940,0,657,0,1,PASS,0,
+72,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,0,
+72,단일 질문,Gemini,Codex,0,0,0,0,0,PASS,0,
+72,단일 질문,AIONA,Jev,9948,0,657,0,1,PASS,0,
+72,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,0,
+72,단일 질문,AIONA,Codex,0,0,0,0,0,PASS,0,
+73,단일 질문,GPT,Jev,10263,0,657,0,1,PASS,6,
+73,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,6,
+73,단일 질문,GPT,Codex,28732,10112,319,0,1,PASS,6,
+73,단일 질문,Claude,Jev,10348,0,657,0,1,PASS,10,
+73,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10,
+73,단일 질문,Claude,Codex,0,0,0,0,1,PASS,10,
+73,단일 질문,Gemini,Jev,10383,0,657,0,1,FAIL,8,
+73,단일 질문,Gemini,Decisions,0,0,0,0,0,FAIL,8,
+73,단일 질문,Gemini,Codex,28841,10112,393,0,1,FAIL,8,
+73,단일 질문,AIONA,Jev,10597,0,657,0,1,PASS,6,
+73,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,6,
+73,단일 질문,AIONA,Codex,0,0,0,0,1,PASS,6,
+74,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,10,
+74,첨부자료 확인·요약,GPT,Decisions,11717,0,0,0,1,PASS,10,
+74,첨부자료 확인·요약,GPT,Codex,34122,12544,935,0,1,PASS,10,
+74,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,FAIL,20,
+74,첨부자료 확인·요약,Claude,Decisions,11785,0,0,0,1,FAIL,20,
+74,첨부자료 확인·요약,Claude,Codex,34361,12544,337,0,2,FAIL,20,
+74,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,7,
+74,첨부자료 확인·요약,Gemini,Decisions,11616,0,0,0,1,PASS,7,
+74,첨부자료 확인·요약,Gemini,Codex,31557,10112,397,0,1,PASS,7,
+74,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,8,
+74,첨부자료 확인·요약,AIONA,Decisions,11810,0,0,0,1,PASS,8,
+74,첨부자료 확인·요약,AIONA,Codex,31751,10112,332,0,1,PASS,8,
+75,단일 질문,GPT,Jev,15170,0,751,0,1,PASS,7,
+75,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,7,
+75,단일 질문,GPT,Codex,31435,12544,549,0,1,PASS,7,
+75,단일 질문,Claude,Jev,15153,0,751,0,1,PASS,10,
+75,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,10,
+75,단일 질문,Claude,Codex,31442,12544,1042,0,1,PASS,10,
+75,단일 질문,Gemini,Jev,15113,0,751,0,1,HOLD,9,
+75,단일 질문,Gemini,Decisions,0,0,0,0,0,HOLD,9,
+75,단일 질문,Gemini,Codex,31430,12544,570,0,1,HOLD,9,
+75,단일 질문,AIONA,Jev,14857,0,751,0,1,PASS,13,
+75,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,13,
+75,단일 질문,AIONA,Codex,31189,12544,1285,0,1,PASS,13,
+76,첨부자료 확인·요약,GPT,Jev,0,0,0,0,0,PASS,11,
+76,첨부자료 확인·요약,GPT,Decisions,9614,0,0,0,1,PASS,11,
+76,첨부자료 확인·요약,GPT,Codex,29091,10112,922,0,1,PASS,11,
+76,첨부자료 확인·요약,Claude,Jev,0,0,0,0,0,PASS,13,
+76,첨부자료 확인·요약,Claude,Decisions,9549,0,0,0,1,PASS,13,
+76,첨부자료 확인·요약,Claude,Codex,31479,12544,541,0,2,PASS,13,
+76,첨부자료 확인·요약,Gemini,Jev,0,0,0,0,0,PASS,6,
+76,첨부자료 확인·요약,Gemini,Decisions,9326,0,0,0,1,PASS,6,
+76,첨부자료 확인·요약,Gemini,Codex,28776,10112,297,0,1,PASS,6,
+76,첨부자료 확인·요약,AIONA,Jev,0,0,0,0,0,PASS,6,
+76,첨부자료 확인·요약,AIONA,Decisions,9403,0,0,0,1,PASS,6,
+76,첨부자료 확인·요약,AIONA,Codex,31317,12544,481,0,1,PASS,6,
+77,단일 질문,GPT,Jev,12244,0,706,0,1,PASS,9,
+77,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,9,
+77,단일 질문,GPT,Codex,28978,10112,893,0,1,PASS,9,
+77,단일 질문,Claude,Jev,12174,0,706,0,1,PASS,9,
+77,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,9,
+77,단일 질문,Claude,Codex,28934,10112,853,0,1,PASS,9,
+77,단일 질문,Gemini,Jev,12417,0,706,0,1,PASS,11,
+77,단일 질문,Gemini,Decisions,0,0,0,0,0,PASS,11,
+77,단일 질문,Gemini,Codex,29159,10112,1110,0,1,PASS,11,
+77,단일 질문,AIONA,Jev,12061,0,706,0,1,FAIL,18,
+77,단일 질문,AIONA,Decisions,0,0,0,0,0,FAIL,18,
+77,단일 질문,AIONA,Codex,28839,10112,2545,0,1,FAIL,18,
+78,단일 질문,GPT,Jev,11526,0,612,0,1,PASS,4,
+78,단일 질문,GPT,Decisions,0,0,0,0,0,PASS,4,
+78,단일 질문,GPT,Codex,29096,10112,156,0,1,PASS,4,
+78,단일 질문,Claude,Jev,11299,0,612,0,1,PASS,8,
+78,단일 질문,Claude,Decisions,0,0,0,0,0,PASS,8,
+78,단일 질문,Claude,Codex,28839,10112,2545,0,1,PASS,8,
+78,단일 질문,Gemini,Jev,11436,0,612,0,1,FAIL,7,
+78,단일 질문,Gemini,Decisions,0,0,0,0,0,FAIL,7,
+78,단일 질문,Gemini,Codex,29069,10112,479,0,1,FAIL,7,
+78,단일 질문,AIONA,Jev,11552,0,604,0,1,PASS,7,
+78,단일 질문,AIONA,Decisions,0,0,0,0,0,PASS,7,
+78,단일 질문,AIONA,Codex,29166,10112,635,0,1,PASS,7,

@@ -76,25 +76,6 @@ def test_service_guide_documents_current_settings_and_env_keys():
     assert '/api/comparison/version-comparison' in text and '/api/comparison/aiona-history' in text and 'criteria_changed' in text
 
 
-def test_implementation_map_paths_exist():
-    text = read('IMPLEMENTATION_MAP.md')
-    tokens = set()
-    for line in text.splitlines():
-        for cell in line.split('|'):   # 표의 칸 단위로 — '삭제'·'파일 없음' 을 설명하는 칸의 파일만 건너뛴다
-            if any(word in cell for word in ('삭제', '미존재', '파일 없음')):
-                continue
-            tokens.update(t for t in re.findall(r'`([A-Za-z0-9_./-]+\.(?:py|js|json|html|css))`', cell)
-                          if not t.startswith(('/', 'data/')))   # URL 경로·저장소에 없는 로컬 데이터는 제외
-    by_name = {}
-    for folder in ('code_eval', 'webapp', 'frontend/src', 'frontend', 'tests', 'examples'):   # 구현 지도가 가리키는 폴더만
-        for path in (ROOT / folder).glob('*'):
-            if path.is_file():
-                by_name.setdefault(path.name, []).append(path)
-    missing = sorted(t for t in tokens if not ((ROOT / t).exists() or ('/' not in t and t in by_name)))
-    assert not missing, missing
-    assert '## 10.' in text and '## 11.' in text and '## 12.' in text
-
-
 def test_criteria_changelog_matches_registry_and_docs():
     registry_entries = [entry for entry in CHANGELOG if entry['scope'] == 'registry']
     assert registry_entries and registry_entries[-1]['version'] == REGISTRY_VERSION

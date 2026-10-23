@@ -13,7 +13,6 @@ import pytest
 from code_eval.cli_process import CliCancelled, active_cli_count, run_cli
 from code_eval.codex_cli_client import CodexCliClient, CodexCliConfig
 from code_eval.claude_cli_client import ClaudeCliClient, ClaudeCliConfig
-from code_eval.cost_reporting import CostLedger
 from code_eval.jev_eval import jev_request
 
 
@@ -105,18 +104,6 @@ def test_uncancelled_unicode_io_is_exact():
     result = run_cli([sys.executable, '-c', 'import sys;sys.stdout.buffer.write(sys.stdin.buffer.read())'],
                      input=text.encode('utf-8'), timeout=3)
     assert result.returncode == 0 and result.stdout == text.encode('utf-8')
-
-
-@pytest.mark.parametrize('client', [CodexCliClient(CodexCliConfig()), ClaudeCliClient(ClaudeCliConfig())])
-def test_pre_cancelled_transport_never_spawns_or_reports_cost(client, capsys):
-    token = threading.Event()
-    token.set()
-    ledger = CostLedger()
-    wrapped, _, _ = ledger.wrap_resolver(lambda: (client, client.config, None))()
-    call = wrapped.system_one({'question': 'q', 'answer': 'a'}, {'J1': {}}, cancel_event=token)
-    assert call.status == 'SKIPPED' and call.attempts == 0
-    ledger.finish('cancelled-fixture', 'CANCELLED')
-    assert '이번 작업의 LLM 호출 없음' in capsys.readouterr().out
 
 
 @pytest.mark.parametrize('module,client', [

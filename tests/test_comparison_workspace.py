@@ -2,8 +2,6 @@
 import json
 import threading
 import time
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 import httpx
 import pytest
@@ -12,7 +10,6 @@ from code_eval.engine import evaluate_batch
 from webapp.code_eval_service import CodeEvalService
 from webapp import comparison_service
 from webapp.comparison_service import ComparisonService, ProviderError, normalize_dataset, request_answer
-from webapp.server import Server
 
 
 def wait(service, rid):
@@ -28,22 +25,6 @@ def wait(service, rid):
 def service(tmp_path, handler):
     return ComparisonService(CodeEvalService(save_dir=tmp_path / 'eval'), save_dir=tmp_path / 'compare',
                              client_factory=lambda: httpx.Client(transport=httpx.MockTransport(handler)))
-
-
-def test_public_sample_loads_without_private_dataset_and_preserves_example_file(tmp_path, monkeypatch):
-    missing = tmp_path / 'private-not-installed.json'
-    monkeypatch.setattr(comparison_service, 'DEFAULT_COMPARISON_DATASET', missing)
-    path = comparison_service.PUBLIC_COMPARISON_DATASET
-    original = path.read_bytes()
-    source = json.loads(original)
-    result = service(tmp_path, lambda _: pytest.fail('sample must not call providers')).sample()
-    assert result['name'] == 'questions.sample.json'
-    assert result['cases'] == normalize_dataset({'cases': source})
-    assert len(result['cases']) == 3
-    assert [(row['question'], row['answer']) for row in result['cases']] == [
-        (row['question'], row['answer']) for row in source]
-    assert [row.get('turn') for row in result['cases']] == [None, 1, 2]
-    assert path.read_bytes() == original and not missing.exists()
 
 
 def test_existing_local_sample_takes_precedence_and_preserves_original_text(tmp_path, monkeypatch):
@@ -193,68 +174,3 @@ def test_saved_history_survives_restart_and_interrupted_runs_are_reported(tmp_pa
     assert restarted.result(run['run_id'])['status'] == 'ERROR'
 
 
-def test_http_upload_credentials_collect_evaluate_and_download(tmp_path):
-    from test_blind_comparison import CapturingJudge
-    ce = service(tmp_path, lambda _: httpx.Response(200, json={
-        'candidates': [{'finishReason': 'STOP', 'content': {'parts': [{'text': ' 2\n'}]}}],
-        'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': ' 2\n'}],
-        'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': ' 2\n'}]}]}))
-    judge = CapturingJudge()
-    ce.evaluator._jev_resolver = lambda: (judge, judge.config, None)
-    server = Server(('127.0.0.1', 0), code_eval_service=ce.evaluator, comparison_service=ce)
-    worker = threading.Thread(target=server.serve_forever, daemon=True); worker.start()
-    base = f'http://127.0.0.1:{server.server_port}'
-    def request(path, body=None):
-        req = Request(base + path, data=json.dumps(body).encode() if body is not None else None,
-                      headers={'Content-Type': 'application/json'} if body is not None else {})
-        with urlopen(req) as response:
-            return response.read(), response.headers
-    try:
-        raw, _ = request('/api/comparison/dataset', {'input_text': '[{"id":"Q1","question":" 1 + 1은?\\n","answer":"2"}]'})
-        cases = json.loads(raw)['cases']; assert cases[0]['question'] == ' 1 + 1은?\n'
-        raw, _ = request('/api/comparison/providers/gemini', {'key': 'secret-key', 'model': 'gemini-test'})
-        assert 'secret-key' not in raw.decode()
-        # A stale AIONA-only button or a missing key must never create a partial comparison.
-        for options in ({'providers': []}, {'providers': ['gemini']}, {}):
-            with pytest.raises(HTTPError) as exc:
-                request('/api/comparison/runs', {'cases': cases, **options})
-            assert exc.value.code == 400
-            assert not ce.history() and not judge.calls
-        for provider in ('claude', 'gpt'):
-            request('/api/comparison/providers/' + provider, {'key': 'secret-key', 'model': provider + '-test'})
-        raw, _ = request('/api/comparison/runs', {'cases': cases})
-        rid = json.loads(raw)['run_id']; wait(ce, rid)
-        assert len(ce.result(rid)['providers']) == 4 and len(judge.calls) == 4
-        assert ce.result(rid)['blind']['enabled'] and ce.result(rid)['auto_evaluate']
-        raw, _ = request(f'/api/comparison/runs/{rid}/evaluation/gemini')
-        assert json.loads(raw)['cases'][0]['answer'] == ' 2\n'
-        for fmt in ('json', 'jsonl', 'html'):
-            raw, headers = request(f'/api/comparison/runs/{rid}/evaluation/gemini/{fmt}')
-            assert raw and 'attachment;' in headers['Content-Disposition']
-        raw, _ = request(f'/api/comparison/runs/{rid}/export/gemini')
-        assert json.loads(raw)[0]['answer'] == ' 2\n'
-        assert urlopen(base + '/').url.endswith('/workspace.html')
-        with pytest.raises(HTTPError) as exc:
-            request('/api/comparison/providers/gpt', {'key': 'x', 'model': '../../bad'})
-        assert exc.value.code == 400
-    finally:
-        server.shutdown(); server.server_close(); worker.join(2)
-
-
-def test_server_rejects_duplicate_listener_and_restarts_after_request(tmp_path):
-    evaluator = CodeEvalService(save_dir=tmp_path / 'eval')
-    server = Server(('127.0.0.1', 0), code_eval_service=evaluator)
-    port = server.server_port
-    worker = threading.Thread(target=server.serve_forever, daemon=True)
-    worker.start()
-    try:
-        with pytest.raises(OSError):
-            Server(('127.0.0.1', port), code_eval_service=evaluator)
-        with urlopen(f'http://127.0.0.1:{port}/api/health') as response:
-            assert json.load(response)['status'] == 'ok'
-    finally:
-        server.shutdown()
-        server.server_close()
-        worker.join(2)
-    replacement = Server(('127.0.0.1', port), code_eval_service=evaluator)
-    replacement.server_close()

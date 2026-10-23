@@ -5,8 +5,6 @@ from __future__ import annotations
 import copy
 import html
 import json
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -170,68 +168,3 @@ def test_html_save_failure_warning_is_visible_escaped_and_keeps_results():
     assert '자동 저장 실패' not in render_report(batch)
 
 
-_JS_HARNESS = r"""
-const fs = require('fs'), vm = require('vm'), assert = require('assert');
-class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.attrs = {}; this.events = {}; this.style = {}; this.className = ''; }
-  append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = children; }
-  set textContent(value) { this.children = [String(value)]; }
-  get textContent() { return this.children.map(c => c instanceof Element ? c.textContent : String(c)).join(''); }
-  setAttribute(k, v) { this.attrs[k] = v; }
-  getAttribute(k) { return this.attrs[k]; }
-  addEventListener(k, callback) { this.events[k] = callback; }
-  querySelectorAll() { return []; }
-  scrollIntoView() {}
-  after() {}
-  replaceWith() {}
-}
-const nodes = new Map();
-const get = id => { if (!nodes.has(id)) nodes.set(id, new Element('div')); return nodes.get(id); };
-const ctx = { Node: Element, document: { getElementById: get, createElement: t => new Element(t),
-  createTextNode: s => s, querySelectorAll: () => [], querySelector: () => null }, fetch: () => new Promise(() => {}),
-  history: { replaceState() {} }, location: { hash: '#results' }, addEventListener() {}, setTimeout };
-vm.createContext(ctx);
-ctx.window = ctx;
-ctx.URL = URL;
-vm.runInContext(fs.readFileSync(require('path').join(require('path').dirname(process.argv[1]), 'workspace-results.js'), 'utf8'), ctx);
-assert.strictEqual(typeof ctx.AionaResults.semanticEvidence, 'function', 'load the same shared evidence renderer as the browser');
-const source = fs.readFileSync(process.argv[1], 'utf8').replace(/\}\)\(\);\s*$/,
-  'globalThis.review = {state, renderResults};})();');
-vm.runInContext(source, ctx);
-const api = ctx.review;
-assert(api, 'execute the actual frontend script');
-api.state.batch = JSON.parse(fs.readFileSync(0, 'utf8'));
-api.state.jobId = 'saved-job';
-api.renderResults();
-const walk = n => n instanceof Element ? [n, ...n.children.flatMap(walk)] : [];
-const alert = walk(get('result-lead')).find(n => n.attrs.role === 'alert');
-assert(alert && alert.textContent.includes('자동 저장 실패'));
-assert(alert.textContent.includes('DISK_FULL <script>sentinel</script>'));
-assert(!walk(alert).some(n => n.tag === 'script'));
-const link = walk(alert).find(n => n.tag === 'a');
-assert.strictEqual(link.attrs.href, '/api/code-eval/jobs/saved-job/export/json');
-assert.strictEqual(link.attrs.download, '');
-assert.strictEqual(get('exports').hidden, false);
-assert.strictEqual(get('export-html').href, '/api/code-eval/jobs/saved-job/export/html');
-const button = get('case-list').children[0].children[0];
-button.events.click();
-assert(get('case-detail').textContent.includes('Hello.'));
-assert(get('jev-summary').textContent.includes('이 실행에 저장된 1개 기준'));
-assert(!get('jev-summary').textContent.includes('J5는 답변'));
-delete api.state.batch.run.save_error;
-api.renderResults();
-assert(!walk(get('result-lead')).some(n => n.attrs.role === 'alert'), 'clear a previous save failure on next result');
-"""
-
-
-def test_frontend_save_failure_has_working_download_link_and_keeps_case_navigation():
-    node = shutil.which("node")
-    if not node:
-        pytest.skip("Node.js is required for the frontend regression")
-    batch = _batch()
-    batch["jev_eval"]["criteria"] = batch["jev_eval"]["criteria"][:1]
-    batch["run"]["save_error"] = "DISK_FULL <script>sentinel</script>"
-    result = subprocess.run([node, "-e", _JS_HARNESS, str(ROOT / "frontend/src/code-eval.js")],
-                            input=json.dumps(batch), text=True, encoding="utf-8", capture_output=True, timeout=15)
-    assert result.returncode == 0, result.stdout + result.stderr

@@ -7,9 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from tools import build_judge_prompt_v1 as v1
-from tools import build_judge_prompt_v2 as v2
-from tools import build_judge_prompt_v3 as v3
 from tools import build_judge_situations as bs
 from tools import judge_inputs as ji
 
@@ -17,27 +14,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "참고자료"
 SET = DOCS / "질문세트_326_생성프롬프트v2"
 EXAMPLE = DOCS / "프롬프트" / "예시_판정프롬프트_Q36_AIONA_v1.txt"
-
-
-def test_fixed_prompt_files_match_their_builders():
-    """v1 은 그대로(고정), v2 는 저장된 본문과 도구가 같은 글을 만든다 — 손으로 고친 흔적이 없다."""
-    assert v1.prompt_text() == (DOCS / "프롬프트" / "judge_prompt_v1.txt").read_text(encoding="utf-8")
-    body = v2.prompt_text()
-    assert body == (DOCS / "프롬프트" / "judge_prompt_v2.txt").read_text(encoding="utf-8")
-    assert sorted(set(re.findall(r"\{\{[A-Z_]+\}\}", body))) == sorted(v2.SLOTS)
-    final = v3.prompt_text()
-    assert final == (DOCS / "프롬프트" / "judge_prompt_v3.txt").read_text(encoding="utf-8")
-    assert not re.findall(r"\{\{[A-Z_]+\}\}", final)   # v3 는 빈칸 없이 완전히 고정 — 질문은 [입력]으로 따로 붙는다
-    assert "AIONA" not in final and "## 1. 질문으로 정해지는 상황" in final and '"turns": [' in final
-
-
-def test_v2_fixes_the_always_label_and_names_no_model():
-    body = v2.prompt_text()
-    labelled = re.findall(r"- \*\*(J\d-\d\.[a-z])\*\*[^\n]*\n(?:  ·[^\n]*\n)*?  · 표시: 항상 적용", body)
-    assert labelled == ["J1-4.a", "J1-4.b", "J3-1.a"]   # v1 은 조건부인 J1-1.a·J1-2.a·J1-3.a·J1-3.b 에도 붙였다
-    assert "AIONA" not in body   # 심판은 어느 모델 답변인지 모른다 — 조건에 모델 이름을 쓰지 않는다
-    assert "## 1. 질문으로 정해지는 상황" in body and "## 2. 답변을 보고 정하는 경우" in body and "## 3. 판정하지 않는 경우" in body
-    assert body.count("\n- J") >= 30   # 상황표 1 의 세부 기준 30개
 
 
 @pytest.mark.multi_turn_rule   # 실제 멀티턴 길이 조건(10턴·10K 토큰)으로 — conftest 는 기본으로 끈다

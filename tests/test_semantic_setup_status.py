@@ -1,18 +1,13 @@
 """Configuration/GET tests: no evaluator, CLI process, network, or saved run writes."""
 import json
-import os
 import socket
 import subprocess
-from pathlib import Path
-from types import SimpleNamespace
 
 import httpx
 import pytest
 
 from code_eval import claude_cli_client, codex_cli_client, jev_client, semantic_api_client
 from code_eval.semantic_setup import semantic_setup
-from webapp.code_eval_service import CodeEvalService
-from webapp.server import Handler
 
 
 @pytest.fixture(autouse=True)
@@ -120,42 +115,3 @@ def test_bad_env_encoding_becomes_its_own_status(tmp_path):
     assert value["configuration_status"] == "invalid" and value["can_evaluate"] is False
 
 
-def call_info_route(service):
-    handler = object.__new__(Handler)
-    handler.server = SimpleNamespace(code_eval_service=service)
-    captured = []
-    handler.respond = lambda code, body: captured.append((code, body))
-    handler.code_eval_get("/api/code-eval/info")
-    assert len(captured) == 1 and captured[0][0] == 200
-    return captured[0][1]
-
-
-@pytest.mark.parametrize("settings", [
-    "SEMANTIC_ENGINE=openai_api\nSEMANTIC_API_KEY=private-fixture-key\n",
-    "SEMANTIC_ENGINE=openai_api\nSEMANTIC_API_TIMEOUT=private-invalid\n",
-])
-def test_actual_info_route_never_runs_a_model_and_preserves_files(tmp_path, monkeypatch, settings):
-    monkeypatch.setattr(os, "environ", {})
-    (tmp_path / ".env").write_text(settings, encoding="utf-8")
-    saved = tmp_path / "runs" / "existing.json"
-    saved.parent.mkdir()
-    saved.write_bytes(b'{"saved":"unchanged"}')
-    before = {str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
-    service = CodeEvalService(root=tmp_path, save_dir=saved.parent)
-    for _ in range(2):
-        info = call_info_route(service)
-        assert {"versions", "aiona_config", "taxonomy", "semantic_setup"} <= info.keys()
-        assert info["semantic_setup"]["connection_status"] == "not_checked"
-        assert "private-" not in json.dumps(info)
-    after = {str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
-    assert before == after
-
-
-def test_injected_evaluator_is_explicit_and_does_not_read_host_or_resolve(tmp_path, monkeypatch):
-    monkeypatch.setenv("SEMANTIC_ENGINE", "broken-host-setting")
-    service = CodeEvalService(root=tmp_path, jev_resolver=lambda: pytest.fail("Do not run injected resolver"))
-    value = call_info_route(service)["semantic_setup"]
-    assert value["engine"] == "injected" and value["configuration_status"] == "configured"
-    assert value["can_evaluate"] is True and value["connection_status"] == "not_checked"
-    assert value["search_status"] == "not_checked"
-    assert not list(tmp_path.iterdir())

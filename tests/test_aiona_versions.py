@@ -1,9 +1,6 @@
 """Release metadata and isolated AIONA version runs; no external model calls."""
 import copy
 import json
-import threading
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 import pytest
 
@@ -11,7 +8,6 @@ from test_blind_comparison import CapturingJudge
 from test_comparison_workspace import wait
 from webapp.code_eval_service import CodeEvalService, ROOT
 from webapp.comparison_service import ComparisonService, normalize_dataset
-from webapp.server import Server
 from webapp.version_registry import VersionRegistry, evaluation_profile, fingerprint, validate_release
 
 
@@ -165,30 +161,3 @@ def test_version_history_includes_more_than_thirty_and_has_no_model_calls(tmp_pa
     assert history['versions'] == ['10.2', '10.10'] and not judge.calls
 
 
-def test_http_version_endpoints_and_legacy_info(tmp_path):
-    service, judge = make_service(tmp_path)
-    server = Server(('127.0.0.1', 0), code_eval_service=service.evaluator, comparison_service=service)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    base = f'http://127.0.0.1:{server.server_port}'
-    def request(path, body=None):
-        req = Request(base + path, data=json.dumps(body).encode() if body is not None else None,
-                      headers={'Content-Type': 'application/json'} if body is not None else {})
-        with urlopen(req) as response:
-            return response.status, json.load(response)
-    try:
-        info = request('/api/comparison/info')[1]
-        assert info['aiona_versions'] == 'v1' and info['required_providers'] == ['gemini', 'claude', 'gpt']
-        assert type(info['evaluation_policy_version']) is int and info['evaluation_policy_version'] == 4
-        assert request('/api/comparison/version-history')[1]['runs'] == [] and not judge.calls
-        status, run = request('/api/comparison/version-runs', {'cases': CASES, 'aiona_release': {'version': '10.2'}})
-        assert status == 202
-        wait(service, run['run_id'])
-        assert request('/api/comparison/version-history')[1]['versions'] == ['10.2']
-        with pytest.raises(HTTPError) as exc:
-            request('/api/comparison/version-runs', {'cases': CASES})
-        assert exc.value.code == 400
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(2)

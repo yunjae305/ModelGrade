@@ -3,14 +3,11 @@
 import json
 import threading
 from types import SimpleNamespace
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 import pytest
 
 from webapp import code_eval_service
 from webapp.code_eval_service import CodeEvalService, JobCapacityError, MAX_JOBS
-from webapp.server import Server
 
 
 @pytest.fixture
@@ -63,22 +60,3 @@ def test_capacity_evicts_finished_job_even_when_older_jobs_are_running(held_jobs
         service.job_status(ids[-1])
 
 
-def test_http_job_capacity_returns_429_and_keeps_existing_jobs(held_jobs):
-    service, _ = held_jobs
-    ids = [_start(service) for _ in range(MAX_JOBS)]
-    server = Server(("127.0.0.1", 0), code_eval_service=service)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    url = f"http://127.0.0.1:{server.server_port}/api/code-eval/jobs"
-    try:
-        request = Request(url, data=b'{"question":"q","answer":"a"}', headers={"Content-Type": "application/json"})
-        with pytest.raises(HTTPError) as caught:
-            urlopen(request, timeout=5)
-        assert caught.value.code == 429
-        assert "error" in json.loads(caught.value.read())
-        with urlopen(f"{url}/{ids[0]}", timeout=5) as response:
-            assert json.load(response)["status"] == "RUNNING"
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)

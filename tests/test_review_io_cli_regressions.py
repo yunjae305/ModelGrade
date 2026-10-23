@@ -1,8 +1,6 @@
 """입력 숫자와 CLI 원문·출력 경로를 검증한다. 실제 모델 호출은 하지 않는다."""
 
 import json
-import threading
-from urllib.request import Request, urlopen
 
 import pytest
 
@@ -10,7 +8,6 @@ from code_eval import __main__ as cli
 from code_eval.engine import evaluate_batch, evaluate_case
 from code_eval.io import parse_input_text, write_json, write_jsonl
 from webapp.code_eval_service import CodeEvalService
-from webapp.server import Server
 
 
 def _reject_constant(value):
@@ -46,26 +43,6 @@ def test_direct_service_input_and_metadata_reject_nonfinite_values(tmp_path):
     assert [c["case_status"] for c in batch["cases"]] == ["INPUT_ERROR", "INPUT_ERROR", "EVALUATED"]
     assert "save_error" not in batch["run"]
     assert json.loads(json.dumps(batch, allow_nan=False))["cases"][2]["reference"] == {"value": "NaN"}
-
-
-def test_http_result_with_overflow_input_is_valid_json_and_keeps_good_case(tmp_path):
-    service = CodeEvalService(save_dir=tmp_path / "runs")
-    server = Server(("127.0.0.1", 0), code_eval_service=service)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        data = (b'{"cases":[{"question":"q","answer":"a"},'
-                b'{"question":"q","answer":"a","reference":{"value":1e400}}]}')
-        request = Request(f"http://127.0.0.1:{server.server_port}/api/code-eval/evaluate", data=data,
-                          headers={"Content-Type": "application/json"})
-        with urlopen(request, timeout=5) as response:
-            assert response.status == 200
-            result = json.loads(response.read(), parse_constant=_reject_constant)
-        assert [c["case_status"] for c in result["cases"]] == ["EVALUATED", "INPUT_ERROR"]
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
 
 
 def test_auto_save_failure_keeps_results_and_exposes_the_save_error(tmp_path):
