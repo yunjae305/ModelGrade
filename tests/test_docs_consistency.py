@@ -134,7 +134,8 @@ def test_progress_document_commit_references_exist_in_git():
 def test_latest_design_header_counts_match_the_criteria_registry():
     """가장 최근 설계안 머리말의 기준 수가 코드의 기준 목록(evaluation_targets)과 같다 — 기준을 바꾸면 새 판 설계안도 맞춘다."""
     from code_eval.criteria_registry import evaluation_targets
-    designs = sorted([*DOCS.glob('평가체계_설계안_v*.html'), *(DOCS / '기준').glob('평가체계_설계안_v*.html')],   # 10-22: 기준/ 으로 옮김
+    designs = sorted([*DOCS.glob('평가체계_설계안_v*.html'), *(DOCS / '기준').glob('평가체계_설계안_v*.html'),
+                      *(DOCS / '문서').glob('평가체계_설계안_v*.html')],   # 10-22: 기준/ 으로 · 10-23: 설계 기록이라 문서/ 로 옮김(기준 원본은 기준/채팅품질 평가기준_v2.md)
                       key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
     text = designs[-1].read_text(encoding='utf-8')
     counts = evaluation_targets()['counts']

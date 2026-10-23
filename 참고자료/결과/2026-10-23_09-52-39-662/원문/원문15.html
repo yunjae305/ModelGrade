@@ -1,0 +1,3528 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결과 보고서 FAIL 원문 15</title>
+<meta name="description" content="78개 실행 50ca3ccccace 부록 — AIONA Q6~Q7 (2건)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+
+
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+.s-head h2 { font-size: 1.75rem; }
+@media (max-width: 900px) { }
+@media (max-width: 640px) { }
+@media (max-width: 900px) { }
+</style>
+<style>
+/* 결과 보고 (result-summary-v2) — 덱 CSS 위에 rs- 로 시작하는 것만 더함. 색은 덱 변수만(밝게·어둡게 자동) */
+.slide { gap: 22px; }
+@media (max-width: 640px) { }
+.rs-lrc li .rs-id { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 0.76rem; }
+.rs-item { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 0.9rem; display: grid; gap: 3px; }
+.rs-quote { color: var(--muted); font-size: 0.84rem; overflow-wrap: anywhere; }
+.rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
+.rs-qhint { margin: 0; font-size: 0.86rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+.rs-qds:has(.rs-qd:target) .rs-qhint { display: none; }
+.rs-ql li .rs-id { color: var(--muted); font-size: 0.74rem; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
+/* 원문 파일 맨 위 바로가기 */
+.rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
+.rs-jump a { font-family: var(--font-num); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; text-decoration: none; }
+.rs-fall { position: absolute; opacity: 0; pointer-events: none; }
+.rs-fall-l { justify-self: start; cursor: pointer; font-size: 0.86rem; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; background: var(--surface); }
+.rs-fall:checked + .rs-fall-l { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.rs-fall:focus-visible + .rs-fall-l { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-fds { display: grid; gap: 10px; }
+.rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
+.rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
+.rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
+.rs-fdh { margin: 0 0 6px; font-size: 1rem; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+}
+@media (max-width: 760px) {
+}
+@media (max-width: 640px) {
+}
+/* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
+:root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
+.s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+.ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+@media (min-width: 1200px) { }
+.s-no { color: var(--muted); }
+@media (max-width: 760px) { }
+@media (min-width: 1200px) {
+  body { padding-left: 232px; }
+  html { scroll-padding-top: 16px; }
+}
+.ar-av.lg { width: 28px; height: 28px; border-radius: 8px; background-size: 72%; vertical-align: middle; }
+@media (min-width: 1200px) { }
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+}
+/* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
+.rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
+.rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.rs-fx-r { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rs-turn { display: grid; gap: 2px; margin-bottom: 12px; }
+.rs-fx .rs-pre.rs-q { max-height: 200px; }
+.rs-fx .rs-pre.rs-ans { max-height: none; }
+.rs-fwhy { font-size: 0.9rem; line-height: 1.5; }
+mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px solid var(--risk); border-radius: 3px; padding: 0 1px; }
+mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
+  background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
+.rs-hlno.rs-hlno-off { background: var(--muted); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
+.rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); }
+@media (max-width: 760px) { }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
+@media (max-width: 860px) { }
+@media (max-width: 760px) { }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { }
+@media (max-width: 560px) { }
+@media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
+@media (max-width: 1000px) { }
+@media (max-width: 560px) { }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+@media (max-width: 1000px) {
+}
+</style>
+<style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
+.mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
+.lg-aiona { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAGEUlEQVR42tWaXYxUZxnHf8/7ntlhdmZXdnaXHRcM7ZbSpkXtBUmjFtaA7NKFtqxNCi1QbK1NGpAi2sQYiMaq8d4YY4xBRL2irba0KRI1aA20pEKNNybdCyOrbPeLndlddvac8z5ezIczm6Xp7pyF4U3OZOZ85f9/nv/zdc5A/S8LeNfZj9QpaFPcgop90tLZucpCwobh4NDQ0BQg9URAiqABwtLOdMfK+8XITnH0gnYh0iDIfx3uxdErgz+VerT28kxmtSexfpRdCPeLCKiiqgWm/7d7r9QL6Pb29hS2oUdFdqvSY4xJVYAOiudLcQtExKpzZ6QuJCKyS5R+MWY1gKqrBG3muZcCosqw1JlEwoprPgq2UG6CRJ5Qpfc6EjGLcWs9SuSGElhKiSwZgRsmkSgJ3BSJREHgpkpksQSk2CwttNAYuPH9x3xdXt1IZCEESt81lcm0LxP7BGoej0Ii1hhC55aUgBTLM22ZTxwGfUGMyURSaESYnJyksbGxsgmLdFgQgHQ63dzY3PqyteaAQgrVYE72kcWAD4KAz3dvZHhkGN/3IydRsOo998QklnjVWtPnnPOLZvdq0bcxhunpae6++y5efeUk2/r6yOVyWGsjJxC2jk4ctdbrds7NArEoUqAxhpmZGR7t3wHAo/07IgcPIB/r6LjNk9g/BBIV/XbNS1UxxnD+rbN0dd3OtWvX+NzGTbw/MEAikcBFFNQmJrEnjUiy1GNHEljWMjk5SffGDXR13Y7v+yQSCfp3PMz09DTGmEgltDVK8JUeeHLP7vL0AfD4rsdoaWkhCIIICShrVTUy6ZSCd926e+nZshlVJeZ5OOdYc8cdbPnCZrLZ6ILZICyPcjYoEdi3dw/xeJwwDBGR8kD+7Fe+jLWmwi81BnFbZpVGlhFE8P2AdHo5F869RUtLS9VTBOcUEeh5cDt/PXeeplSq5mCOtI+x1pLLZdm3dw/pdBrnXJX1VQu/D+x/jsAPMEbqxwOlqptKpbhw7i+sWLECBcycyuucwzll05at/O3iRZLJZE1eMFFafyKb5Zmnn6KjowPnXBn86NhYGaSq4nmWbxx+nlnfr9kLJirrz8zMcNvq1ex/7llUFRFTls6PfvwTJrLZcpA759i+rY/uDQ8wMVFbRjJRWT+by3Ho4AFaW1uL2i8Qy+Vy/OL4CQbeHyh7oFSlj3zrm2iN2chEkTYnp6a479Of4pmnnypIp2hlVeXc+bf518A/+dPZP5djwFpLGIZ0b9zAF3c8zPj4OJ5nbw4BESGfz/Odo0dIJJYV5SPlYy+9/FuMbeDU628QhmFZLqXs9O2jR2hqaiIIwkWVopoIeNYyfvUqj2zfxkPb+8oAVRVrLR8MD/Pm78+wvK2ddy9e4u13LhQeaYRh2Utr71zD81/dz9jYOLFFeMHUVLSCgOamJr7/ve9WWT4MC5PnyZdeYXBwkMSyZczm8xw/8euqgaZE4vChg3xy3b1MTk0tuNEztQTu2Pg4L3z9a6y9c03ZqqUAnfV9jv/yVyQSCQLfp7m5mddeO8W/L18uAxcRnFOSySQ//MGL5PP5BU9sZtE5fyLLA5/9DIcPHSzmdq9qDjj1+htcvPQeyWSS0DlisRgfDI/ws58fqwLpeRbnHFt7e/jSvr2MjIyW77Wkldg55dTvTrJ+/XrCIChrXxV8f5a+h/qrKm2pUjc3NXH2j2fo7Px4VcYqFbxNWx5kaGiIWCxWriORE1BV4vE4K1d2Fgb1YvZQtNjQ+QwO/gfP86pAlOKmva2NVDJZOL/iWs96jI6NcfXqBJ5nl45AicT1NCsixOPxeQGUCBYCXSraakG1ILW5xD80E9aShRobE/Pmbq14ITffsVgsRkNDw3Wk6T4y+BKBsPTSeDFxsJjB5MMILnCFRpWxihdnt8rS4seoEeE9EVHA3UIEnIiowN+NCsfmRNOt4gFR4ZgAti2z6rQxdrNz4dwXyvUGWgFnjPWcC/8wcuVyrwFc3ridzrnTIsYTEUN9/glERMSIGM85dzpv3E7ASaV8WjMr94iY3ap6n0Br8TlpPSxfYVRELqm634xeGTxRIvU/hAMC6+DPQdsAAAAASUVORK5CYII="); }</style>
+</head>
+<body>
+<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · FAIL 원문 15 / 결과 보고서 50ca3ccccace</span><h2>FAIL 원문 15 — AIONA Q6~Q7 (2건)</h2><p><a href="../report.html#apx">← 결과 보고서(부록)으로</a> · <a href="원문1.html">FAIL 원문 1</a> · <a href="원문2.html">FAIL 원문 2</a> · <a href="원문3.html">FAIL 원문 3</a> · <a href="원문4.html">FAIL 원문 4</a> · <a href="원문5.html">FAIL 원문 5</a> · <a href="원문6.html">FAIL 원문 6</a> · <a href="원문7.html">FAIL 원문 7</a> · <a href="원문8.html">FAIL 원문 8</a> · <a href="원문9.html">FAIL 원문 9</a> · <a href="원문10.html">FAIL 원문 10</a> · <a href="원문11.html">FAIL 원문 11</a> · <a href="원문12.html">FAIL 원문 12</a> · <a href="원문13.html">FAIL 원문 13</a> · <a href="원문14.html">FAIL 원문 14</a> · <b>FAIL 원문 15</b> · <a href="원문16.html">FAIL 원문 16</a> · <a href="원문17.html">FAIL 원문 17</a> · <a href="원문18.html">FAIL 원문 18</a> · <a href="원문19.html">FAIL 원문 19</a> · <a href="원문20.html">FAIL 원문 20</a> · <a href="원문21.html">FAIL 원문 21</a> · <a href="원문22.html">FAIL 원문 22</a> · <a href="원문23.html">FAIL 원문 23</a> · <a href="원문24.html">FAIL 원문 24</a> · <a href="통과1.html">통과 원문 1</a> · <a href="통과2.html">통과 원문 2</a> · <a href="통과3.html">통과 원문 3</a> · <a href="통과4.html">통과 원문 4</a> · <a href="통과5.html">통과 원문 5</a> · <a href="통과6.html">통과 원문 6</a> · <a href="보류1.html">보류 원문 1</a> · <a href="보류2.html">보류 원문 2</a> · <a href="보류3.html">보류 원문 3</a> · <a href="보류4.html">보류 원문 4</a> · <a href="보류5.html">보류 원문 5</a> · <a href="보류6.html">보류 원문 6</a> · <a href="보류7.html">보류 원문 7</a> · <a href="보류8.html">보류 원문 8</a> · <a href="보류9.html">보류 원문 9</a> · <a href="보류10.html">보류 원문 10</a> · <a href="보류11.html">보류 원문 11</a> · <a href="보류12.html">보류 원문 12</a> · <a href="보류13.html">보류 원문 13</a> · <a href="보류14.html">보류 원문 14</a> · <a href="보류15.html">보류 원문 15</a> · <a href="보류16.html">보류 원문 16</a> · <a href="갈림.html">갈림 목록</a></p></div><div class="rs-jump"><div><b><span class="mn"><i class="lg lg-aiona"></i>AIONA</span></b><a href="#f-aiona-6">Q6</a><a href="#f-aiona-7">Q7</a></div></div><input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label><div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p><article class="rs-fd" id="f-aiona-6"><h3 class="rs-fdh">Q6 · <span class="mn"><i class="lg lg-aiona"></i>AIONA</span> · 멀티턴 · 어긴 기준 10개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 3 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 모닥 사내 해커톤 킥오프 운영 확인 기록 (판본 2)
+
+- 갱신일: 2026년 9월 15일(화)
+- 담당: 운영 담당 오지훈(개발문화팀) / 회계: 재무 담당 한예린(재무팀)
+- 이전 판: 판본 1(9월 9일). 판본 1은 1차 준비 회의(9월 3일) 내용만 담았고, 이번 판본 2에는 2차 준비 회의(9월 8일), 장비 창고 시험 반출(9월 9일), 재무팀 · 총무팀 회신(9월 9일~11일), 관리사무소 문의 결과(9월 14일)를 더함
+- 읽는 법: 항목마다 &#x27;배경 · 논의 · 세부 조건 · 담당 · 상태&#x27;를 적는다. 상태는 &#x27;결정&#x27;, &#x27;보류&#x27;, &#x27;미정&#x27; 셋 가운데 하나로 적는다. &#x27;미정&#x27;이라고 적은 값은 안내문에 쓰지 않는다.
+- 이 기록은 현재 확정된 내용을 모은 것이다. 회의 중 어림으로 말한 숫자, 확인하지 않은 소문, 아직 승인받지 않은 구매는 확정 내용으로 옮기지 않았다.
+
+## 판본 1과 달라진 점
+
+- 장비 준비 방식(A안 · B안)은 2차 회의에서도 정하지 못해 여전히 보류다. 판본 1에 &#x27;2차 회의에서 결정 예정&#x27;이라고 적었던 문장을 &#x27;보류 유지&#x27;로 바꿈.
+- 보관함 크기 확인 결과(9월 9일 시험 반출)를 더함. B안으로 장비가 실제로 들어간다는 점은 확인됨.
+- 간식 세트 견적(개당 900원, 22개 검토 중)을 &#x27;구매 미승인&#x27;으로 더함. 이름표는 창고 명찰 케이스를 쓰기로 해 구매하지 않음.
+- 이상 물품(멀티탭 한 개, 모니터 한 대, 명찰 케이스 두 개)을 &#x27;배부하지 않음&#x27;으로 더함.
+- 예비 인력 구민재의 상태를 &#x27;미확답&#x27;으로 다시 확인함(9월 14일까지 답 없음).
+- 담당자 인계와 안내문 검토 항목을 새로 둠.
+
+## 1. 행사 범위
+
+### 배경
+사내 해커톤은 킥오프 하루와 그 뒤 팀별 작업 기간으로 나뉜다. 이 기록이 다루는 범위는 킥오프 당일 운영이다. 팀별 작업 기간의 운영(작업 공간, 중간 점검 등)은 이 기록에 넣지 않는다.
+
+### 확정 내용
+- 행사는 09:30부터 12:00까지다.
+- 접수는 09:15에 연다.
+- 담당자는 08:30에 현장(본관 7층 대회의실)에 도착한다.
+- 행사 시간에는 참가자 응대와 진행을 맡고, 그 전에 준비와 확인을 끝내야 한다.
+- 도착 전의 작업을 당일 현장에서 한 것으로 적지 않는다. 행사 전날 한 일은 전날 날짜로 적는다.
+
+### 논의
+2차 회의에서 한예린이 &quot;08:30 이전에 미리 와서 준비를 시작해도 되지 않느냐&quot;고 물음. 오지훈은 대회의실 예약이 08:30부터로 잡힐 예정이고 그 전에는 다른 층 보안 순찰이 지나가는 시간이라 들어가기 어렵다고 답함. 도착 시각은 08:30으로 둠. 행사 날짜는 미정이며, 대회의실 예약도 날짜가 정해진 뒤에 걸 수 있으므로 아직 예약하지 않았다.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정(시각), 미정(행사 날짜)
+
+## 2. 현재 자원
+
+### 배경
+지난 회차에는 운영 인력이 2명이었다. 이번에는 개발문화팀 인력 사정으로 1명만 확정되었다.
+
+### 확정 내용
+- 확정 진행 인력은 1명(오지훈)이다.
+- 참여 정원은 20명이다.
+- 도움을 요청한 예비 인력(개발문화팀 구민재)은 참석을 확답하지 않았고 승인 인력에 넣지 않았다.
+- 정원과 배치 인력은 서로 다른 값이다. 정원 20명은 참가자 수이고 인력 1명은 운영하는 사람 수다. 두 값을 한 칸에 더해 적지 않는다.
+- 참가자에게 접수를 대신 맡기는 안은 채택하지 않았다.
+
+### 논의
+구민재는 9월 3일 메신저로 &quot;장애 대응 당번표가 나오면 다시 말하겠다&quot;고 답한 뒤 9월 14일까지 추가 답이 없다. 오지훈이 9월 11일에 한 번 더 물었으나 &quot;아직 당번표가 안 나왔다&quot;는 답만 받음. 팀장에게 인력 추가 승인을 요청한 적도 없다. 따라서 모든 계획은 1명 기준이다.
+
+참가자에게 접수를 맡기는 안은 1차 회의에서 한예린이 냈고, 오지훈이 받아들이지 않았다. 이유는 세 가지로 기록한다. 무선 인터넷 비밀번호를 담은 명찰을 참가자 손에 맡길 수 없다는 점, 참가 확인과 예외 판단은 운영 담당의 책임이라는 점, 접수를 맡은 참가자가 킥오프 첫 순서를 놓친다는 점이다. 2차 회의에서 다시 꺼낸 사람은 없었다.
+
+### 담당 · 상태
+- 담당: 오지훈(인력), 한예린(정원과 비용 관계 검토)
+- 상태: 결정(확정 인력 1명, 정원 20명, 참가자 접수 대행 불채택), 미확답(예비 인력)
+
+## 3. 준비 동선
+
+### 배경
+킥오프에 쓰는 멀티탭과 모니터는 별관 지하 1층 장비 창고에 있다. 대회의실은 본관 7층이다. 9월 2일 오지훈이 직접 오가며 잰 값이 [1] 회의실 장비 점검 메모에 있다.
+
+### 확정 내용
+- 장비 창고는 현장에서 걸어서 편도 8분이다. 출근 시간대 엘리베이터 대기까지 넣은 값이다.
+- 물품 확인에는 7분이 든다.
+- 현장 설치는 18분이다.
+- 물품은 한 번에 가져올 수 있다(총무팀 대차 1대).
+- 편도 시간을 왕복 시간으로 쓰지 않는다.
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+
+### 논의
+9월 9일 시험 반출 때 대차에 싣는 순서를 정함(모니터 상자를 세워서 먼저, 멀티탭 상자는 앞쪽, 명찰 상자는 맨 위). 이렇게 하면 두 번 나누어 옮길 일이 없다. 시험 반출 때 걸린 시간은 조건이 달라 기록에 쓰지 않고, 시간 값은 [1]의 값만 쓴다.
+
+별관 연결 통로 문턱에서 대차 앞바퀴가 걸리는 문제는 9월 2일과 9월 9일 두 번 모두 있었다. 넘어가는 데 문제는 없었다. 총무팀이 대차 바퀴에 기름칠을 해 두기로 함.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정(편도 8분, 확인 7분, 설치 18분, 한 번에 운반)
+
+## 4. 선택할 수 있는 방식
+
+### 배경
+장비를 대회의실까지 가져오는 방식으로 두 안을 비교 중이다.
+
+### 확정 내용(두 안의 조건)
+- A안(당일 창고 운반)은 당일 장비 창고에서 멀티탭과 모니터를 직접 옮기는 방식(편도 8분, 장비 확인 7분)이고 비용은 없습니다.
+- B안(전날 회의실 보관)은 전날 회의실 잠금 보관함에 장비를 넣어 두는 방식이며 보관함 이용료 1000원, 당일 장비 확인 7분입니다.
+- 설치는 두 안 모두 18분이다.
+- 두 방식 모두 내용을 확인하는 단계는 필요하다. B안이라고 당일 확인을 건너뛰지 않는다.
+
+### 논의
+2차 회의(9월 8일)에서 두 안을 다시 비교했으나 결정하지 못함. 오지훈은 당일 아침 대회의실을 떠나 있는 시간이 밀릴 가능성을 걱정했고, 한예린은 B안 비용을 예상 지출에 넣는 &#x27;예상 지출 변경 요청&#x27; 절차와 결제 방법이 아직 정해지지 않았다는 점을 들어 결정을 미루자고 함.
+
+9월 9일 시험 반출에서 보관함에 장비가 들어간다는 것은 확인함(모니터 상자는 세워서, 멀티탭 상자는 그 앞, 명찰 상자는 위 칸). 이때는 문만 열어 보았고 장비를 넣어 잠그지 않았으므로 이용료는 내지 않았다.
+
+9월 14일 관리사무소에 다시 물으니, 전날 넣고 다음 날 아침에 꺼내는 것은 한 번 이용으로 본다는 답을 말로 받음. 서면 확인은 아직 없다. 관리사무소 직원의 아침 출근 시각은 08:00 전후라고 들었으나 날마다 다를 수 있다고 해 확정 값으로 쓰지 않는다.
+
+### 담당 · 상태
+- 담당: 오지훈(동선), 한예린(비용 절차)
+- 상태: 보류. 비용과 접수 데스크를 비울 위험 두 기준으로 비교해 정할 예정
+
+## 5. 예산 역할
+
+### 배경
+지난 회차 정산 때 상한과 지출이 섞여 보고서를 두 번 고친 일이 있어, 이번에는 숫자마다 역할을 밝혀 적는다.
+
+### 확정 내용
+- 승인 예산 상한은 300000원이다.
+- 실제 지급액은 140000원이다.
+- 남은 운영 예상 지출은 110000원이다.
+- 상한은 실제 지출이 아니며, 남은 예상은 이미 지급한 돈이 아니다.
+- B안 비용 1000원은 예상 지출에 아직 들어 있지 않다.
+- 환불이나 지원금의 추가 입금은 확인하지 않았다.
+
+### 논의
+한예린은 9월 9일 메일에서 간식 세트 견적을 받은 뒤에도 남은 예상 110000원을 바꾸지 않았다고 밝힘. 남은 예상 숫자는 9월 2일 [2] 재무팀 예산 메모 때 그대로다. B안으로 정하면 &#x27;예상 지출 변경 요청&#x27;을 올려 1000원을 더하는 절차를 밟는다. 결제 방법(법인카드 또는 관리사무소 현장 결제)은 한예린이 확인 중이다.
+
+오지훈은 실지급 140000원의 세부 항목을 이 기록에 다시 나누어 적지 않기로 함. 세부는 재무 시스템 전표가 기준이다.
+
+### 담당 · 상태
+- 담당: 한예린
+- 상태: 결정(세 숫자와 역할), 확인 중(B안 결제 방법)
+
+## 6. 참가자 행동
+
+### 배경
+지난 회차 설문에서 접수 줄, 조기 입장, 안내를 못 들은 참가자 문제가 반복해서 나왔다. 이번 기록은 참가자가 무엇을 해야 하는지를 운영 쪽에서 분명히 해 두기 위한 것이다.
+
+### 확정 내용
+- 사전 등록을 기본으로 한다.
+- 팀을 꾸리지 못한 개인도 당일 참가를 허용하는 예외가 있다. 현재 허용된 상태다.
+- 문의처는 운영 담당 오지훈이다. 연락처(내선 · 메일)는 미정이다.
+- 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다. 대회의실 앞 복도 벤치에서 기다린다.
+- 번호표나 명찰을 받았다는 사실이 안내를 들었다는 뜻은 아니다. 명찰을 건넬 때 제출 마감과 모니터 규칙을 말로 한 번씩 알린다.
+
+### 논의
+개인 참가 예외는 지난 회차에 팀을 꾸리지 못해 등록을 포기한 사람이 있었다는 설문 결과에서 나왔다. 한예린은 예외가 정원 관리와 부딪힐 수 있다고 짚었고, 개인 참가자도 정원 20명 안에서만 받는다는 데 합의함. 이 예외는 운영 사정에 따라 나중에 취소될 수 있으며, 취소 통지가 오면 그 뒤로는 이전 예외를 쓰지 않는다.
+
+2차 회의에서 오지훈은 문의처 연락처를 개발문화팀 공용 메신저 채널로 할지 자기 내선으로 할지 팀장과 이야기했으나 아직 정하지 못했다고 보고함. 연락처는 미정으로 둔다.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정(사전 등록 기본, 조기 입장 불가, 명찰 배부 때 구두 안내), 현재 허용(개인 참가 예외), 미정(문의처 연락처)
+
+## 7. 물품과 장비
+
+### 배경
+9월 9일 시험 반출로 창고 물품 상태를 미리 보았다. 지난 회차에는 당일 아침에야 고장 난 멀티탭을 발견했다.
+
+### 확정 내용
+- 물품은 현장 대조 뒤 배부한다.
+- 예비 물품을 정원에 더하지 않으며, 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않는다.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인한다.
+- 새 물품 구매는 아직 승인하지 않았으므로 일정이나 예산에 실제 구매로 넣지 않는다.
+
+### 세부
+- 이상 물품: 멀티탭 한 개(스위치 헐거움, 총무팀이 폐기 대상으로 돌림), 모니터 한 대(모서리 멍, 수리 업체 점검 중), 명찰 케이스 두 개(고리 갈라짐, 총무팀이 끈을 바꿔 둠 — 당일 대조 때 보고 쓸지 정함). 앞의 두 가지는 행사에 쓰지 않는다.
+- 예비 멀티탭 두 개는 대장 예비분 면에 따로 적었다. 행사 면 수량에 넣지 않는다.
+- 간식 세트: 본관 1층 카페 위탁 업체 견적 개당 900원(부가세 포함, 배달비 없음), 22개 주문 검토 중. 구매 승인 전이다. 22개는 정원과 별도로 여분을 둔 수량이며 정원을 바꾸는 값이 아니다.
+- 이름표: 인쇄업체 견적을 받았으나 구매하지 않는다. 창고 명찰 케이스를 쓴다.
+- 명찰 속지: 사무실 출력기로 뽑는다. 해커톤 예산에서 나가는 돈은 없다.
+
+### 담당 · 상태
+- 담당: 오지훈(물품), 문가영(총무팀, 이상 물품 처리), 한예린(구매 승인 여부)
+- 상태: 결정(배부 원칙, 이상 물품 제외), 미승인(간식 세트 구매)
+
+## 8. 운영 세부
+
+### 확정 내용
+- 제출 마감은 다음 날 18:00이며 마감 뒤 제출은 심사하지 않는다.
+- 모니터는 팀당 1대이며 추가 대여는 장비 창고 재고에 따른다.
+- 회의실 무선 인터넷 비밀번호는 접수 때 명찰 뒷면으로 전달한다.
+
+### 논의와 세부
+제출 마감: &#x27;다음 날&#x27;은 행사 당일의 다음 날이다. 지난 회차에 마감 10분 뒤 들어온 결과물을 두고 다툼이 있었으므로 예외를 두지 않는다. 안내문과 킥오프 진행 중에 두 번 이상 알린다.
+
+모니터: 총무팀은 팀당 1대는 해커톤 몫으로 먼저 잡아 두겠다고 했으나 추가분은 약속하지 않았다. 창고 재고는 매주 월요일 오후에 세며, 그 뒤 다른 부서가 빌려 가면 줄어든다. 9월 둘째 주에도 영업팀이 교육용으로 몇 대를 빌려 갔다. 안내문에는 &#x27;추가 대여는 창고 재고에 따름&#x27;으로만 적고 가능하다고 약속하지 않는다. 행사 중 추가 대여 요청이 들어오면 운영 담당이 창고에 다녀와야 하는데 접수 시작 뒤에는 자리를 비울 수 없으므로, 처리 방법은 아직 정하지 않았다.
+
+무선 인터넷: 비밀번호는 명찰 뒷면 속지로만 전달하고 회의록 · 안내문 · 게시판 · 메신저에 적지 않는다. 뒷면 속지는 접수 직전에 넣는다. 남은 속지는 행사 뒤 파쇄한다.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정(세 가지 모두), 미정(행사 중 추가 대여 요청 처리 방법)
+
+## 9. 확정하지 않은 항목
+
+### 미정 목록
+- 추가 지원 인력: 정하지 않았다. 예비 인력은 미확답이다.
+- 팀별 자리 배치표: 정하지 않았다. 팀별 자리 배치표는 이번 자료에 포함되지 않는다.
+- 개별 참가자의 편의 지원: 정하지 않았다(예: 간식 알레르기 대체 품목, 이동이 불편한 참가자의 자리 등).
+- 행사 날짜: 미정.
+- 문의처 연락처: 미정.
+
+### 원칙
+필요한 값이 없으면 &#x27;미정&#x27; 또는 &#x27;미기재&#x27;로 구별해 안내하고, 예상만으로 이름이나 연락처를 만들지 않는다. 오지훈은 2차 회의에서 &quot;자리 배치표가 없다고 해서 임시로 팀 번호와 자리를 짝지어 적지 말자&quot;고 당부함. 한예린도 같은 생각이었다.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 미정
+
+## 10. 담당자 인계
+
+### 확정 내용
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오도록 한다.
+- 접수 시작 후에는 자리를 비워 둘 수 없다.
+- 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다.
+
+### 논의
+운영 인력이 1명이므로 &#x27;인계&#x27;는 다른 사람에게 일을 넘기는 것이 아니라, 운영 담당이 자리를 떠날 일이 생겼을 때 지킬 규칙이다. 2차 회의에서 자리를 떠날 수 있는 일로 다음을 꼽음: 창고 운반(A안이면 당일 아침), 행사 중 추가 모니터 대여, 보관함 열쇠 문제로 관리사무소에 가는 일(B안이면 생길 수 있음), 참가자를 다른 층으로 안내하는 일. 파손 의심 장비는 바꾸러 가지 않고 배부하지 않은 채 따로 둔다.
+
+계획 변경 원칙은 한예린이 강조함. 지난 회차에는 접수 시각 하나를 바꾸면서 같은 문서의 다른 시각까지 모두 다시 쓰는 바람에 확정된 값이 몇 개 사라졌다. 이번에는 바뀐 조건만 고치고 나머지는 그대로 둔다.
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정
+
+## 11. 안내문 검토
+
+### 확정 내용
+- 참가 안내문에는 일시, 접수, 참여 조건과 문의처가 필요하다.
+- 아직 정하지 않은 추가 날짜나 비용 면제를 약속하지 않는다.
+- 팀을 꾸리지 못한 개인도 당일 참가를 허용하는 예외는 현재 허용된 상태지만, 나중에 취소 통지가 오면 이전 예외를 계속 쓰지 않아야 한다.
+- 홍보 문구보다 참가자가 해야 할 행동을 읽기 쉽게 적는다.
+
+### 논의
+지난 회차 안내문은 첫 문단이 행사 소개와 상품 이야기로 채워져 있어 접수 시각과 준비물이 아래로 밀렸다는 의견이 많았다. 이번에는 참가자가 할 일(언제 오는지, 무엇을 가져오는지, 언제까지 내는지, 누구에게 묻는지)을 먼저 적는다. 안내문 초안은 아직 쓰지 않았다. 행사 날짜와 연락처가 미정이므로, 초안에는 그 두 값을 &#x27;미정&#x27;으로 둔다.
+
+### 담당 · 상태
+- 담당: 오지훈(작성), 사내소통팀 게시 담당(게시판 형식 확인)
+- 상태: 결정(포함 항목과 원칙), 초안 미작성
+
+## 12. 마감과 회수
+
+### 확정 내용
+- 12:00 이후에는 물품을 회수하고 참가 기록을 마무리한다.
+- 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다.
+- 당일 끝내지 못한 후속 확인은 담당과 다음 확인 대상을 남긴다.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+
+### 세부
+- 회수 대상: 모니터, 멀티탭, 명찰(뒷면 속지는 빼서 파쇄).
+- 회수한 물품은 현장에서 한 번 대조하고 창고 반납 확인 면에 실제 반납 시각과 함께 적는다.
+- 참가 기록: 접수 명단, 개인 참가자 표시, 명찰 배부 수를 맞춘다. 같은 참가자가 접수 명단과 개인 참가 명단 두 곳에 적혀 있어도 한 사람으로 센다.
+- 후속 확인 예시: 수리 점검 중인 모니터 결과(담당 문가영 → 오지훈), B안을 썼다면 보관함 열쇠 반납 확인(담당 오지훈 → 관리사무소).
+
+### 담당 · 상태
+- 담당: 오지훈
+- 상태: 결정
+
+## 13. 2차 준비 회의(9월 8일) 기록 발췌
+
+2차 회의는 9월 8일 10:00~11:10, 본관 5층 소회의실 2에서 오지훈과 한예린 두 사람이 했다. 이 판본에 반영한 논의를 순서대로 옮긴다.
+
+- 10:05 오지훈이 1차 회의 뒤 바뀐 점을 보고함. 총무팀 반출 절차 확인, 대회의실 예약은 날짜 미정이라 걸지 못함, 구민재 답 없음.
+- 10:15 A안 · B안 비교 다시 시작. 한예린이 B안 비용의 결제 방법이 정해지지 않았다고 알림. 오지훈은 관리사무소에 &#x27;한 번 이용&#x27;의 범위를 묻겠다고 함.
+- 10:35 결정을 미루기로 함. 두 사람 모두 비용과 접수 데스크를 비울 위험 두 기준으로 비교한다는 틀은 유지하기로 함.
+- 10:40 간식 · 명찰 견적 이야기. 간식 세트는 견적만 받고 구매 승인 전, 명찰은 창고 것을 먼저 확인.
+- 10:55 행사 중 추가 모니터 대여 요청 처리 방법 논의. 접수 시작 뒤 자리를 비울 수 없다는 원칙과 부딪혀 결론 없이 다음으로 넘김.
+- 11:05 안내문 초안은 장비 방식이 정해진 뒤 쓰기로 함.
+
+## 14. 참가자가 당일 하게 될 일의 순서(운영 쪽에서 본 것)
+
+이 장은 안내문 문장이 아니라, 6장 · 8장의 확정 내용을 참가자가 움직이는 순서대로 다시 놓아 본 운영 메모다. 시각은 1장의 확정 시각만 쓴다.
+
+1. 도착: 접수 시작(09:15) 전에 온 참가자는 대회의실 앞 복도 벤치에서 기다린다. 문에는 &#x27;준비 중 — 접수 시작 전 입장 불가&#x27; 안내를 붙인다. 운영 담당은 이때 준비 중이므로 복도에서 질문을 받지 않는다는 점도 안내 종이에 함께 적는다.
+2. 접수: 앞문 안쪽 오른편 접수 데스크에서 이름을 확인한다. 사전 등록자는 명단에서 이름을 찾고, 팀을 꾸리지 못해 당일 온 개인은 개인 참가로 표시한다(현재 허용된 예외, 정원 20명 안에서만).
+3. 명찰 받기: 앞면에는 이름과 팀 이름, 뒷면에는 무선 인터넷 비밀번호 속지가 들어 있다. 명찰을 건넬 때 운영 담당이 제출 마감(다음 날 18:00, 마감 뒤 제출은 심사하지 않음)과 모니터 규칙(팀당 1대, 추가 대여는 창고 재고에 따름)을 말로 알린다.
+4. 자리 잡기: 팀별 자리 배치표는 정하지 않았으므로, 이 단계의 방법은 아직 비어 있다(9장 미정 항목).
+5. 장비 받기: 현장 대조를 마친 모니터와 멀티탭을 쓴다. 이상이 보이면 쓰지 말고 운영 담당에게 알린다.
+6. 킥오프 참여: 09:30~12:00.
+7. 회수: 12:00 이후 모니터 · 멀티탭 · 명찰을 회수한다. 참가자는 명찰을 접수 데스크에 돌려준다.
+
+한예린은 이 순서를 보고 &quot;3번에서 말로 알리는 것이 빠지면 지난 회차와 같은 일이 생긴다&quot;고 짚음. 오지훈은 명찰 하나를 건넬 때마다 같은 두 문장을 말하는 것을 접수의 일부로 보고, 이 시간을 접수 시간 안에 넣겠다고 함.
+
+## 15. 확인 경과 시각 기록(9월 2일~9월 14일)
+
+판본 1과 판본 2 사이에 무엇을 언제 확인했는지 시각 순서로 적는다. 행사 당일 시각이 아니라 준비 기간의 기록이다.
+
+- 9월 2일 08:40 무렵: 오지훈, 본관 7층 대회의실에서 별관 지하 1층 장비 창고까지 걸어서 편도 시간을 잼. 물품 확인 시간과 설치 시간도 함께 잼. [1]에 기록.
+- 9월 2일 오후: 한예린, [2] 재무팀 예산 메모 작성. 승인 상한 · 실지급 · 남은 예상과 방식별 비용을 적음.
+- 9월 2일 17:12: 총무팀 문가영, 창고 반출 절차와 재고 확인 주기를 메일로 알림.
+- 9월 3일 10:48: 구민재, 당일 도움 요청에 &quot;당번표 나오면 답하겠다&quot;고 메신저 답.
+- 9월 3일 14:00~15:40: 1차 준비 회의.
+- 9월 7일~8일: 이름표 · 간식 세트 견적 문의와 회신.
+- 9월 8일 10:00~11:10: 2차 준비 회의.
+- 9월 9일 오후: 장비 창고 시험 반출, 대회의실에서 상태와 보관함 크기 확인, 같은 날 반납.
+- 9월 9일 14:18: 한예린, 간식 세트는 구매 승인 전이며 남은 예상 110000원을 바꾸지 않았다고 회신.
+- 9월 10일 11:02: 문가영, 반납 확인과 모니터 재고 안내.
+- 9월 11일 오전: 문가영, 이상 물품 처리 결과 회신. 구민재에게 다시 물었으나 답 없음.
+- 9월 11일 15:30 무렵: 오지훈 · 한예린 통화. 간식 세트는 검토 중 상태로만 두기로 다시 맞춤.
+- 9월 14일 오후: 오지훈, 관리사무소에 보관함 &#x27;한 번 이용&#x27;의 범위를 물어 말로 답을 받음.
+- 9월 15일 오전: 이 판본 2 작성.
+
+## 16. 항목마다 근거로 삼은 기록
+
+이 판본의 확정 내용이 어느 기록에서 왔는지 항목별로 밝힌다. 출처 번호는 문서 끝 참고 기록의 두 기록을 가리킨다.
+
+- 행사 시각, 접수 시각, 도착 시각: [1] 회의실 장비 점검 메모에 적힌 행사 · 접수 시각. 1차 회의에서 그대로 확인.
+- 확정 인력 1명, 예비 인력 미확답: [1] 회의실 장비 점검 메모의 인력 칸. 구민재 답 상태는 메신저 기록으로 확인.
+- 정원 20명: 1차 회의 결정. [1]의 인력 칸 아래에 함께 적혀 있음.
+- 편도 8분, 장비 확인 7분, 설치 18분, 한 번에 운반: [1] 회의실 장비 점검 메모의 준비 조건.
+- A안 비용 없음, B안 보관함 이용료 1000원: [2] 재무팀 예산 메모의 방식별 비용.
+- 승인 상한 300000원, 실지급 140000원, 남은 예상 110000원: [2] 재무팀 예산 메모.
+- B안 비용이 남은 예상에 들어 있지 않다는 점: [2] 재무팀 예산 메모와 9월 9일 한예린 회신.
+- 개인 참가 예외, 문의처, 조기 입장 불가: 1차 회의 결정.
+- 제출 마감, 모니터 팀당 1대, 무선 인터넷 비밀번호 전달 방식: 1차 회의 결정.
+- 이상 물품, 예비분, 간식 세트 견적: 9월 9일 시험 반출 기록과 9월 9일~11일 메일 회신.
+
+## 17. 판본 2를 쓰며 오간 질문
+
+판본 2 초안을 한예린에게 미리 보였을 때 받은 질문과 오지훈의 답을 옮긴다.
+
+- 한예린: 4장에서 B안 보관함 크기를 &#x27;확인됨&#x27;이라고 했는데, 장비를 넣고 잠가 본 건 아니지요?
+  - 오지훈: 네, 문만 열어 넣어 보았고 잠그지 않았습니다. &#x27;들어간다는 것은 확인함, 잠가 보지는 않음&#x27;으로 고쳐 적었습니다.
+- 한예린: 관리사무소 직원 출근 시각 08:00 전후는 기록에 남겨도 되나요?
+  - 오지훈: 들은 말로만 적고 확정 값으로는 쓰지 않는다고 밝혀 두었습니다. 일정표에는 넣지 않겠습니다.
+- 한예린: 간식 세트 22개를 7장에 적으면 정원이 22명으로 읽히지 않을까요?
+  - 오지훈: 22개는 정원과 별도로 여분을 둔 주문 검토 수량이라고 같은 줄에 적었습니다. 정원은 20명 그대로입니다.
+- 한예린: 12장에 &#x27;중복 합산하지 않는다&#x27;고 적었는데 비용에도 해당하나요?
+  - 오지훈: 네. 같은 비용이 예산 메모와 정산 표에 함께 적혀 있어도 한 번만 셉니다. 참가 기록도 마찬가지입니다.
+- 한예린: 9장 미정 항목에 행사 날짜와 연락처도 넣는 게 맞나요? 판본 1 목록에는 없었는데요.
+  - 오지훈: 원래 목록의 세 가지(추가 지원 인력, 팀별 자리 배치표, 개별 참가자의 편의 지원)는 그대로 두고, 안내문에 &#x27;미정&#x27;으로 남을 두 값을 함께 적어 두었습니다.
+- 한예린: 개인 참가 예외가 &#x27;현재 허용&#x27;이라는 표현은 안내문에도 그대로 쓰나요?
+  - 오지훈: 안내문에는 허용 내용만 쓰고 &#x27;현재&#x27;라는 말은 붙이지 않을 생각입니다. 다만 취소 통지가 오면 바로 빼야 하므로 이 기록에는 &#x27;현재 허용&#x27;으로 적어 둡니다.
+
+## 18. 다음 판본까지 할 일
+
+- 오지훈: A안 · B안 결정(비용과 접수 데스크를 비울 위험 두 기준). 결정되면 4장 상태를 &#x27;결정&#x27;으로 바꾸고 총무팀 반출 신청서의 반출 방식 칸을 채운다.
+- 오지훈: 문의처 연락처를 팀장과 정한다. 정하기 전까지 &#x27;미정&#x27;.
+- 오지훈: 구민재 답을 한 번 더 묻는다. 답이 없으면 &#x27;미확답&#x27;으로 둔다.
+- 오지훈: 관리사무소에 &#x27;한 번 이용&#x27; 범위를 서면으로 받을 수 있는지 묻는다.
+- 한예린: B안 결제 방법 확인. B안으로 정해지면 &#x27;예상 지출 변경 요청&#x27;으로 1000원을 반영한다.
+- 한예린: 간식 세트 구매 여부를 검토한다. 승인 전까지 구매로 적지 않는다.
+- 문가영(총무팀): 수리 점검 중인 모니터 결과를 알려 준다. 행사 주 월요일 재고를 알려 준다.
+- 사내소통팀 게시 담당: 안내문 초안이 나오면 게시판 형식을 확인한다.
+
+## 19. 위험 항목과 대응 상태
+
+1차 · 2차 회의에서 꼽은 위험을 항목마다 무엇이 정해졌고 무엇이 남았는지로 나누어 적는다.
+
+### 19-1. 접수 데스크를 비울 위험
+- 내용: 운영 인력이 1명이라 운영 담당이 대회의실을 떠나면 접수 데스크에 아무도 없다. 접수 시작 뒤에는 자리를 비울 수 없다.
+- 정해진 것: 자리를 비울 일이 있으면 접수 시작 전에 돌아온다. 참가자에게 접수를 맡기지 않는다. 파손 의심 장비는 바꾸러 가지 않고 따로 둔다.
+- 남은 것: A안이면 당일 아침 창고에 다녀오는 시간이 생기고, 그 시간이 밀릴 때의 대응. 행사 중 추가 모니터 대여 요청이 들어올 때의 처리 방법. 두 가지 모두 결정 전.
+
+### 19-2. 장비 재고 위험
+- 내용: 창고 모니터 재고는 매주 월요일 오후에 세고, 그 뒤 다른 부서가 빌려 가면 줄어든다.
+- 정해진 것: 팀당 1대는 총무팀이 해커톤 몫으로 먼저 잡아 두기로 함. 추가 대여는 약속하지 않음.
+- 남은 것: 행사 주 월요일 재고 확인(총무팀 회신 대기).
+
+### 19-3. 보관함 열쇠 위험(B안을 고를 경우)
+- 내용: 관리사무소에서 받은 열쇠를 운영 담당이 하룻밤 갖고 있어야 한다. 잃어버리면 관리사무소 직원 출근 전에는 열 수 없다.
+- 정해진 것: 없음. B안 자체가 보류.
+- 남은 것: 관리사무소의 &#x27;한 번 이용&#x27; 서면 확인, 직원 출근 시각(들은 말만 있고 확정 아님).
+
+### 19-4. 비밀번호 노출 위험
+- 내용: 지난 회차에 화이트보드에 적은 비밀번호를 외부 방문객까지 보았다.
+- 정해진 것: 명찰 뒷면 속지로만 전달. 문서 · 게시판 · 메신저에 적지 않음. 뒷면 속지는 접수 직전에 넣고, 남은 속지는 파쇄.
+- 남은 것: 없음.
+
+### 19-5. 조기 도착과 미확인 입장 위험
+- 내용: 지난 회차에 일찍 온 참가자가 대조 전 모니터를 먼저 가져갔다.
+- 정해진 것: 접수 시작 전 입장 불가, 복도 대기.
+- 남은 것: 없음.
+
+### 19-6. 정원 초과 위험
+- 내용: 개인 참가 예외로 당일 참가자가 몰릴 수 있다.
+- 정해진 것: 개인 참가자도 정원 20명 안에서만 받는다. 정원이 차면 당일 참가를 받지 않는다.
+- 남은 것: 예외가 취소될 경우의 안내 방법(취소 통지가 오면 그때 정함).
+
+## 20. 대회의실과 장비 창고 상태(9월 14일 기준)
+
+- 대회의실 블라인드: 창가 쪽이 반쯤 내려온 채 멈춤. 관리사무소가 9월 14일에 &quot;부품 주문 중&quot;이라고 답함. 수리 완료 날짜는 모름.
+- 대회의실 콘센트: 창가 벽 세 곳, 앞쪽 벽 두 곳(화면 오른쪽 콘센트는 한 구만 비어 있음). 뒷줄은 멀티탭을 이어야 함. 바닥을 가로지르는 선은 바닥 테이프로 누름.
+- 보관함: 대회의실 안쪽 벽. 앞에 책상이 붙어 있어 열려면 책상을 조금 밀어야 함.
+- 접수 데스크: 앞문 안쪽 오른편, 1인용 책상 하나. 명단 확인용 노트북을 쓰려면 멀티탭 하나가 필요함.
+- 복도 대기 공간: 앞문 밖 4인용 벤치 두 개.
+- 장비 창고: 사원증으로 출입. 입구 반출 대장에 이름 · 품목 · 수량을 적음. 대차는 한 대뿐이며 총무팀이 바퀴를 손봄.
+- 이상 물품 칸: 창고 오른편 첫 번째 선반 맨 아래. 빨간 꼬리표가 달린 물품은 꺼내지 않음.
+
+## 21. 이 기록에서 쓰는 말의 뜻
+
+같은 말을 문서마다 다르게 읽지 않도록 뜻을 밝혀 둔다.
+
+- 편도: 대회의실에서 장비 창고까지 한쪽 방향으로 가는 시간. 다녀오는 시간이 아니다.
+- 장비 확인: 멀티탭과 모니터의 수량 · 전원 · 케이블을 보는 일. A안은 창고에서, B안은 보관함 앞에서 한다.
+- 설치: 대회의실에서 멀티탭을 깔고 모니터를 놓고 접수 데스크를 갖추는 일.
+- 접수: 참가자 이름 확인, 개인 참가 표시, 명찰 배부, 구두 안내까지.
+- 승인 예산 상한: 쓸 수 있는 한도. 쓴 돈이 아니다.
+- 실지급: 이미 결제가 끝난 돈.
+- 남은 예상: 아직 지급하지 않았지만 나갈 것으로 보는 돈.
+- 확정 인력: 참석이 정해지고 승인된 운영 인력. 예비 인력은 들어가지 않는다.
+- 개인 참가: 팀을 꾸리지 못하고 당일 혼자 오는 참가. 현재 예외로 허용.
+- 회수 완료 시각: 회수가 실제로 끝난 시각. 행사 종료 시각과 다르다.
+- 미정: 아직 정하지 않은 값. 안내문에 쓰지 않는다.
+- 미기재: 정해졌을 수 있으나 이 자료에 적혀 있지 않은 값.
+
+## 22. 사전 등록 준비 상태
+
+### 배경
+사전 등록을 기본으로 하므로, 안내문을 게시하면서 등록을 함께 받아야 한다. 9월 15일 현재 사전 등록은 아직 열지 않았다. 안내문 초안도 쓰지 않았으므로 등록 시작 날짜도 정하지 않았다.
+
+### 등록 양식에 넣기로 한 칸(사내 설문 도구 양식, 초안)
+- 이름, 소속 팀
+- 해커톤 팀 이름과 팀원 이름(팀으로 등록하는 경우)
+- 팀을 꾸리지 못한 경우 표시 칸: 현재 개인 참가 예외가 허용되어 있어 둔 칸이다. 예외가 취소되면 이 칸을 뺀다.
+- 노트북 연결 방식(모니터 연결선이 맞는지 미리 보기 위한 칸)
+- 편의 지원 요청 칸: 칸은 두되, 개별 참가자의 편의 지원은 정하지 않았으므로 &#x27;요청을 받으면 운영 담당이 따로 연락함&#x27;이라고만 적는다. 무엇을 해 주겠다고 약속하지 않는다.
+
+### 논의
+한예린이 등록 양식에 간식 알레르기 칸을 둘지 물음. 오지훈은 간식 세트가 구매 승인 전이라 칸을 두면 간식을 준다고 약속하는 것처럼 읽힐 수 있다고 답함. 그래서 알레르기 칸은 따로 두지 않고 편의 지원 요청 칸 하나로 받기로 함.
+
+등록 마감을 정원 20명이 차는 때로 할지, 날짜로 할지는 정하지 않았다. 행사 날짜가 미정이라 날짜로 정할 수 없고, 정원이 찬 뒤 개인 참가 예외와 어떻게 맞출지도 함께 보아야 한다.
+
+### 담당 · 상태
+- 담당: 오지훈(양식), 사내소통팀 게시 담당(게시)
+- 상태: 미개시(사전 등록), 초안(양식), 미정(등록 마감)
+
+## 23. 판본 1에서 고친 문장
+
+판본 1을 읽은 사람이 헷갈리지 않도록, 문장을 바꾼 곳을 이전 문장과 바뀐 문장으로 남긴다.
+
+- 2장 예비 인력: 이전 &quot;구민재 확답 대기&quot; → 바뀜 &quot;구민재는 참석을 확답하지 않았고 승인 인력에 넣지 않았다&quot;. 확답을 기다린다는 말이 곧 올 것처럼 읽힌다는 한예린 의견을 반영함.
+- 3장 창고 시간: 이전 &quot;창고까지 8분&quot; → 바뀜 &quot;장비 창고는 현장에서 걸어서 편도 8분&quot;. 편도라는 말을 빠뜨리지 않기로 한 1차 회의 결정을 반영함.
+- 4장 방식 결정: 이전 &quot;2차 회의에서 결정 예정&quot; → 바뀜 &quot;보류&quot;. 2차 회의에서 정하지 못했으므로.
+- 5장 B안 비용: 이전 &quot;B안 1000원 별도&quot; → 바뀜 &quot;B안 비용 1000원은 예상 지출에 아직 들어 있지 않다&quot;. &#x27;별도&#x27;가 이미 따로 잡아 둔 돈처럼 읽힐 수 있어서.
+- 7장 간식: 판본 1에는 없음 → 판본 2에 &quot;견적 개당 900원, 22개 주문 검토 중, 구매 승인 전&quot;을 더함.
+- 12장 회수: 이전 &quot;12:00 회수&quot; → 바뀜 &quot;12:00 이후에는 물품을 회수하고 참가 기록을 마무리한다. 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다&quot;.
+- 6장 문의처: 이전 &quot;문의: 오지훈(내선)&quot; → 바뀜 &quot;문의처는 운영 담당 오지훈이다. 연락처(내선 · 메일)는 미정이다&quot;. 내선 번호를 정하지 않았는데 &#x27;내선&#x27;이라고만 적어 두면 정해진 것처럼 읽힌다는 의견을 반영함.
+- 8장 모니터: 이전 &quot;추가 대여 가능&quot; → 바뀜 &quot;추가 대여는 장비 창고 재고에 따른다&quot;. 총무팀이 추가분을 약속하지 않았으므로.
+
+## 24. 확인한 범위
+
+이 판본에 적은 내용은 다음 자료와 직접 확인한 것에서 왔다.
+
+- 9월 2일 오지훈의 대회의실 · 장비 창고 현장 확인([1])
+- 9월 2일 한예린의 재무팀 예산 메모([2])
+- 9월 3일 1차 준비 회의, 9월 8일 2차 준비 회의
+- 9월 9일 장비 창고 시험 반출과 대회의실 보관함 크기 확인
+- 9월 9일~11일 재무팀 · 총무팀 메일 회신, 간식 업체 · 인쇄업체 견적 회신
+- 9월 14일 관리사무소 직원과의 대화(말로 받은 답, 서면 없음)
+
+이 판본을 쓰면서 인터넷으로 다른 회사 해커톤 사례를 찾아보거나 외부 시설을 알아본 일은 없다. 대회의실 · 보관함 · 간식 세트 가운데 실제로 예약하거나 주문한 것은 없다. 관리사무소 · 총무팀 · 간식 업체 · 인쇄업체에 물은 것은 모두 사내 메일, 메신저, 대면 대화로 했고, 받은 답 가운데 서면으로 남지 않은 것(관리사무소의 &#x27;한 번 이용&#x27; 범위, 직원 출근 시각)은 이 기록에서도 들은 말로만 적었다. 이 판본은 9월 15일 오전까지 받은 답만 반영했으며, 그 뒤에 온 회신은 다음 판본에서 더한다.
+
+## 참고 기록
+
+[1] 회의실 장비 점검 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 재무팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝에는 실제로 확인한 범위와 외부 조회·예약 실행 여부를 사실대로 구별해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 3 답변</b><pre class="rs-pre rs-ans"># 참가자 행동 요약
+
+이 요약은 **2026년 9월 15일 판본 2**에서 참가자가 실제로 해야 할 일과 안내 전에 확인해야 할 미정 사항을 구분합니다. 행사 날짜·연락처·자리 배치와 일부 운영 방식은 아직 확정되지 않았으므로 임의로 채우지 않았습니다.
+
+## 참가자가 해야 할 일
+
+### 도착과 접수
+- **사전 등록이 기본**입니다. 사전 등록은 아직 열리지 않았고, 등록 시작일과 등록 마감 기준도 미정입니다.
+- 접수는 **09:15**에 시작합니다. 그 전에 도착하면 대회의실에 들어가지 말고 앞문 밖 복도 벤치에서 기다려야 합니다. 운영 담당은 준비 중이므로 복도에서 질문을 받지 않는다는 안내도 붙일 예정입니다.
+- <mark class="rs-mk"><sup>2</sup>접수는 본관 7층 대회의실 앞문 안쪽 오른편 데스크에서 진행합니다. 사전 등록자는 명단에서 이름을 확인하고, 현재 허용된 개인 참가 예외로 온 참가자는 개인 참가로 표시합니다. 접수와 개인 참가 여부 확인은 운영 담당이 맡으며, 참가자가 접수를 대신할 수 없습니다.</mark>
+- 명찰을 받을 때 **제출 마감과 모니터 규칙을 구두로 안내**받습니다. 명찰을 받았다는 것만으로 해당 안내를 들은 것으로 간주하지 않습니다.
+- 현재는 팀을 꾸리지 못한 개인도 당일 참가할 수 있습니다. 다만 **정원 20명 안에서만** 허용되고 정원이 차면 당일 참가를 받지 않습니다. 이 예외는 취소될 수 있으므로 안내 시점의 최신 조건을 확인해야 합니다.
+- 참가 안내문에 쓸 문의처는 오지훈 운영 담당이지만, **연락처는 미정**입니다. 안내문이나 등록 안내에 임의의 내선·메일을 넣지 않습니다.
+
+### 준비물과 장비 사용
+- **노트북 충전기와 키보드·마우스는 참가자가 직접 챙겨야 합니다.** 이번 반출 품목에 키보드·마우스는 포함되지 않았습니다.
+- 모니터는 **팀당 1대**입니다. 추가 대여는 창고 재고에 따르며, 추가분이 있다고 약속할 수 없습니다. 모니터 연결선이 노트북과 맞지 않을 수 있으므로, 변환 젠더가 필요한 참가자는 갖고 있다면 직접 챙기는 편이 안전하다고 안내된 바 있습니다. 창고 젠더 보유 여부는 아직 확인되지 않았습니다.
+- 멀티탭은 운영 담당이 자리에 설치합니다. 참가자는 멀티탭을 다른 자리로 옮기거나 서로 이어 붙이면 안 됩니다. 받은 장비에 이상이 보이면 사용하지 말고 운영 담당에게 알려야 합니다.
+- 장비는 현장 대조 뒤 배부됩니다. 빨간 꼬리표가 달린 이상 물품은 꺼내지 않으며, 멀티탭 한 개와 모니터 한 대는 행사에 사용하지 않습니다. 고리가 갈라졌던 명찰 케이스 두 개는 끈을 교체했으며, 당일 상태를 대조한 뒤 사용할지 정합니다.
+- 명찰은 접수 때 받으며, 킥오프가 끝난 뒤 접수 데스크에 돌려줘야 합니다. 뒷면의 무선 인터넷 비밀번호 속지는 접수 직전에 넣어 전달하고, 참가자는 문서·게시판·메신저 등을 통해 비밀번호를 미리 받지 않습니다.
+
+### 행사 참여와 제출
+- 킥오프는 **09:30~12:00**입니다. 행사 날짜는 아직 정해지지 않았습니다.
+- 결과물 제출 마감은 행사 당일의 **다음 날 18:00**이며, 마감 뒤 제출은 심사하지 않습니다. 예외는 두지 않습니다.
+- 팀별 자리 배치표는 아직 없습니다. 따라서 어느 팀이 어느 자리에 앉을지 현재 기록만으로 안내할 수 없습니다.
+- 참가자 편의 지원도 구체적으로 확정되지 않았습니다. 등록 양식에는 요청 칸을 두되, 요청을 받으면 운영 담당이 따로 연락한다고만 안내하며 지원 내용을 미리 약속하지 않습니다.
+- 간식 세트는 개당 900원, 22개로 견적을 받았지만 **구매 승인 전**입니다. 제공을 확정한 것으로 안내해서는 안 됩니다. 알레르기 대체 품목은 업체가 견과류 없는 쌀과자, 우유 없는 비스킷, 무가당 차 음료를 같은 가격으로 제안했지만, 주문 여부와 개별 수량은 미정입니다.
+- 12:00 이후 모니터·멀티탭·명찰을 회수합니다. 참가자는 명찰을 반납하고 장비를 운영 담당에게 돌려줘야 합니다. 실제 회수 완료 시각은 12:00으로 미리 단정하지 않습니다.
+
+## 확정 사항과 미정 사항
+
+### 참가자에게 적용할 확정 조건
+| 항목 | 확정 내용 |
+|---|---|
+| 도착·접수·행사 | 담당자 현장 도착 08:30, 접수 09:15, 킥오프 09:30~12:00. 행사 날짜는 미정입니다. |
+| 정원·등록 | 정원 20명, 사전 등록 기본. 개인 참가 예외는 현재 허용되며 정원 안에서만 받습니다. |
+| 조기 도착 | 접수 전 대회의실 입장 불가, 복도 벤치에서 대기합니다. |
+| 모니터 | 팀당 1대. 추가 대여는 창고 재고에 따르며 보장되지 않습니다. |
+| 인터넷 비밀번호 | 접수 때 명찰 뒷면으로 전달합니다. 문서·게시판·메신저에 적지 않습니다. |
+| 제출 | 행사 다음 날 18:00 마감, 마감 뒤 제출은 심사하지 않습니다. |
+| 장비·명찰 | 이상 장비는 사용하지 않고 알립니다. 12:00 이후 회수하며 명찰도 반납합니다. |
+
+### 아직 미정이거나 조건부인 사항
+- **행사 날짜와 대회의실 예약**: 날짜가 정해지지 않아 예약하지 않았습니다.
+- **문의처 연락처**: 운영 담당 오지훈에게 문의하는 것으로 정했지만 내선·메일은 미정입니다.
+- **개인 참가 예외 유지 여부**: 현재 허용 상태이나 취소 통지가 오면 이후 안내에서 제외해야 합니다.
+- **팀별 자리 배치와 편의 지원**: 배치표는 없고 개별 요청에 어떤 지원을 할지도 정하지 않았습니다.
+- **사전 등록**: 아직 열리지 않았고 등록 시작일과 마감 기준도 미정입니다.
+- **장비 반출 방식 A안·B안**: 결정되지 않았습니다. A안은 행사 당일 창고에서 운반하고 비용이 없으며, B안은 전날 보관함에 넣고 1,000원의 이용료가 듭니다. 두 방식 모두 당일 장비 확인이 필요합니다.
+- **B안의 세부 조건**: 장비가 보관함 안에 들어가는 것은 확인했지만 실제로 넣고 잠가 보지는 않았습니다. 관리사무소의 ‘한 번 이용’ 설명은 구두 답변이며 서면 확인이 없습니다. 결제 방법과 예상 지출 변경 절차도 확인 중입니다.
+- **행사 중 추가 모니터 요청 처리**: 접수 시작 뒤 담당자가 자리를 비울 수 없으므로 처리 방법이 미정입니다.
+- **변환 젠더와 간식 주문**: 창고 젠더 보유 여부, 간식 구매 승인·수량·대체 품목 선택이 정해지지 않았습니다.
+- **예비 인력**: 구민재는 참석을 확답하지 않았고 승인 인력에 포함되지 않습니다. 확정 운영 인력은 오지훈 1명입니다.
+
+## 운영상 유의점과 선택지
+
+### 확정된 운영 원칙
+📌 운영 인력이 1명이므로 **접수 시작 뒤 접수 데스크를 비우지 않습니다.** 자리를 비워야 할 일이 생기면 접수 시작 전에 돌아오도록 계획합니다. 참가자에게 접수를 맡기지 않고, 파손이 의심되는 장비는 창고에 교체하러 가지 않은 채 배부하지 않고 따로 둡니다.
+
+<mark class="rs-mk"><sup>1</sup>장비 창고는 본관 7층 대회의실에서 편도 8분이고, 물품 확인은 7분, 설치는 18분입니다. 편도 시간을 왕복 시간으로 잘못 쓰지 않아야 합니다. 이 수치는 에 기록된 값이며, 9월 9일 시험 반출에 걸린 시간은 조건이 달라 일정 계산에 사용하지 않습니다.</mark>
+
+### A안·B안 선택의 영향
+- **A안**은 추가 이용료가 없고 당일 장비를 직접 확인해 가져옵니다. 대신 왕복 이동과 창고 확인 중 담당자가 대회의실을 비우며, 재고 탐색이나 이동 지연이 생기면 접수 전 준비가 밀릴 수 있습니다.
+- **B안**은 전날 보관함에 장비를 넣어 두므로 당일 창고 왕복을 줄일 수 있습니다. 대신 이용료 1,000원과 전날 작업이 생기고, 열쇠 관리·관리사무소 확인·결제 절차가 필요합니다. 책상이 보관함 앞에 있어 당일 열 때 책상을 조금 밀어야 합니다.
+- 두 방식 가운데 어느 쪽도 아직 선택되지 않았습니다. 참가 안내에는 특정 방식을 확정한 듯 쓰지 말고, 결정 뒤 반출 방식과 필요한 안내를 반영해야 합니다.
+
+### 예산 숫자의 뜻
+- **승인 예산 상한 300,000원**은 사용할 수 있는 한도이지 실제 지출이 아닙니다.
+- **실제 지급액 140,000원**은 이미 결제가 끝난 금액입니다.
+- **남은 운영 예상 지출 110,000원**은 아직 지급하지 않았지만 앞으로 나갈 것으로 보는 금액입니다.
+- B안 이용료 1,000원은 현재 남은 예상 지출에 포함되지 않았습니다. 간식 견적도 구매 승인 전이며 남은 예상액을 변경하지 않았습니다.
+- B안을 선택하거나 간식을 주문하기로 하면 **예상 지출 변경 요청** 절차를 먼저 진행해야 합니다. 같은 비용이 여러 문서에 나타나더라도 중복해서 합산하지 않습니다.
+
+## 참가 안내문 작성 기준
+
+안내문은 홍보 문구보다 참가자가 할 행동을 먼저 보여 주고, 최소한 **일시·접수·참여 조건·문의처**를 포함해야 합니다. 행사 날짜와 연락처가 정해지기 전에는 그 값을 임의로 채우지 않습니다. 미정인 추가 날짜나 비용 면제, 승인되지 않은 간식 제공이나 추가 모니터를 약속하지 않습니다.
+
+개인 참가 예외는 안내문 작성·게시 시점에도 유지되는지 확인해야 합니다. 예외가 취소되면 등록 양식의 개인 참가 표시 칸과 안내문에서 해당 내용을 함께 반영해야 합니다. 안내문 초안은 아직 작성되지 않았으며, 장비 방식과 주요 미정 사항이 정리된 뒤 게시판 형식 검토를 받을 예정입니다.
+
+## 근거와 출처
+
+이 요약의 인용 표시는 판본 2의 참고 기록 번호를 따릅니다.
+
+- <mark class="rs-mk"><sup>3</sup>** 「회의실 장비 점검 메모」** — 행사·접수 시각, 현장 도착 및 인력 정보, 창고 편도 8분·장비 확인 7분·설치 18분 등 준비 조건의 근거입니다.</mark>
+- ** 「재무팀 예산 메모」** — 승인 예산 상한 300,000원, 실제 지급액 140,000원, 남은 예상 지출 110,000원과 방식별 비용의 근거입니다.
+
+참가 조건, 제출 마감, 비밀번호 전달, 개인 참가 예외 등은 판본 2에 함께 반영된 준비 회의 기록에서 확인했습니다. 장비 상태·보관함 크기·견적과 재무·총무팀 회신은 판본 2가 명시한 내부 시험 반출 기록과 사내 회신에 따른 내용이며 · 그 자체와 혼동하지 않았습니다.
+
+## 확인 범위와 외부 조회 여부
+
+📌 판본 2는 **2026년 9월 15일 오전까지** 현장 확인, 1·2차 준비 회의, 시험 반출, 사내 메일·메신저·대면 문의에서 확인한 내용을 담고 있습니다. 관리사무소의 보관함 이용 횟수 답변은 말로만 받았고 서면 확인은 없습니다. 관리사무소 직원 출근 시각도 ‘08:00 전후’라는 구두 정보일 뿐 확정값이 아닙니다.
+
+기록에 따르면 인터넷으로 다른 회사 사례나 외부 시설을 조회하지 않았고, 대회의실·보관함·간식 세트는 예약하거나 주문하지 않았습니다. 따라서 이 답변은 제공된 기록을 요약한 것이며, 기록 이후의 변경 사항이나 실제 예약·주문 완료 여부는 확인한 사실로 제시하지 않았습니다.</pre></div><div class="rs-turn"><b>턴 5 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 참가 안내문 게시 관련 메일 묶음 — 사내소통팀 게시 담당 · 개발문화팀
+
+- 묶은 사람: 오지훈(개발문화팀, 사내 해커톤 킥오프 운영 담당)
+- 묶은 날: 2026년 9월 18일(금)
+- 메일 기간: 9월 16일(수) ~ 9월 18일(금)
+- 주고받은 사람: 윤채원(사내소통팀, 게시판 게시 담당), 강태오(사내소통팀, 게시판 운영 선임), 오지훈, 한예린(재무팀, 참조로 받음)
+- 묶은 이유: 참가 안내문 초안을 게시판 형식에 맞게 고치기 전에, 게시 담당이 알려 준 형식 관행과 지난 게시 사고 이야기를 한곳에 모아 둔다. 이 묶음에는 안내문 수정본을 넣지 않았다. 수정본은 따로 쓴다.
+- 메일 본문은 받은 그대로 옮겼고, 인사말과 서명 줄만 줄였다.
+
+## 메일 1. 윤채원 → 오지훈 (9월 16일 17:05)
+
+제목: 해커톤 안내문 — 게시판 형식 관행 보내 드립니다
+
+지훈 님, 아까 말씀드린 게시판 형식 관행 보내 드립니다. 사내 게시판 &#x27;행사 · 모임&#x27; 게시판에 올라가는 안내문은 아래 형식을 지켜 주셔야 게시 승인이 바로 납니다. 지난달부터 게시판 편집기가 바뀌면서 규칙이 몇 가지 늘었습니다.
+
+1. 목차: 글이 두 화면을 넘으면 맨 위에 목차를 둡니다. 목차 항목은 같은 글 안의 제목으로 이동하는 내부 링크로 만듭니다. 링크가 가리키는 이름은 실제 제목 글자와 정확히 같아야 합니다. 제목이 &#x27;접수&#x27;면 링크도 &#x27;접수&#x27;를 가리켜야 하고, 제목을 &#x27;접수 안내&#x27;로 바꾸면 링크도 같이 바꿔야 합니다. 목차에는 실제로 있는 제목만 넣습니다.
+2. 각주: 본문 문장에 덧붙일 설명이 길면 각주로 뺍니다. 각주 표시는 숫자 대신 짧은 한글 이름을 씁니다(장비, 마감 같은 식). 각주 표시를 넣었으면 글 아래쪽에 같은 이름으로 각주 정의를 꼭 넣어야 합니다. 정의가 없으면 게시판에 각주 표시 글자만 그대로 남습니다.
+3. 출처 번호: 내부 자료를 근거로 적을 때는 문장 끝에 대괄호 번호를 붙이고, 글 끝에 같은 번호로 출처 목록을 둡니다. 번호는 글 안에 실제로 있는 출처만 가리켜야 합니다.
+4. 문의 칸: 자주 묻는 질문은 본문에 늘어놓지 않고 접기 상자 안에 넣습니다. 접기 상자는 게시판 편집기에서 HTML의 details 태그로 만들어지고, 접힌 상태에서 보이는 제목은 summary 태그 안에 들어갑니다. 여는 태그와 닫는 태그의 짝이 맞아야 합니다.
+5. 운영 메모: 담당자가 당일 복사해서 쓰는 문장(인계 메모, 메신저 상태 문구 등)은 글 맨 끝에 회색 고정폭 상자 하나로 둡니다. 편집기에서는 &#x27;코드 상자&#x27; 버튼으로 만드는 그 상자입니다. 상자는 하나만 두고, 상자를 여는 표시와 닫는 표시를 모두 넣어야 합니다.
+6. 각주 · 출처 목록 · 내부 링크 · 접기 상자는 회색 상자 밖에 둡니다. 회색 상자 안에 넣으면 링크와 접기 기능이 작동하지 않고 글자로만 보입니다.
+
+자세한 사고 사례는 강태오 선임님이 따로 보내 주실 겁니다. 초안 주시면 형식만 봐 드리겠습니다.
+
+## 메일 2. 오지훈 → 윤채원 (9월 16일 18:20)
+
+제목: 회신 — 해커톤 안내문 게시판 형식 관행
+
+채원 님, 자세히 보내 주셔서 감사합니다. 몇 가지 여쭙겠습니다.
+
+첫째, 목차에 &#x27;접수&#x27;와 &#x27;문의&#x27; 두 항목은 꼭 넣으려고 합니다. 접수는 참가자가 가장 많이 묻는 부분이고, 문의는 접기 상자로 만들 부분이라 목차에서 바로 갈 수 있으면 좋겠습니다. 제목 이름을 &#x27;접수&#x27;, &#x27;문의&#x27;처럼 한 낱말로 해도 되나요?
+
+둘째, 각주는 장비 설명에 쓰려고 합니다. 모니터는 팀당 1대이고 추가 대여는 장비 창고 재고에 따른다는 설명이 본문에 들어가면 문장이 길어져서요. 각주 이름을 &#x27;장비&#x27;로 해도 되나요?
+
+셋째, 출처 번호는 내부 자료 두 건을 가리키게 하려고 합니다. 회의실 장비 점검 메모와 재무팀 예산 메모입니다. 참가자 안내문에 출처 번호가 붙는 게 어색하지 않을까요?
+
+넷째, 운영 메모 상자에는 제가 당일 아침에 복사해서 쓸 문장을 넣으려고 합니다. 혼자 운영하니 다른 사람에게 인계할 일은 없지만, 메신저 상태 문구와 자리 비움 안내문을 미리 만들어 두면 편할 것 같습니다.
+
+## 메일 3. 윤채원 → 오지훈 (9월 17일 09:12)
+
+제목: 회신 — 질문 네 가지
+
+지훈 님, 하나씩 답드립니다.
+
+첫째, 제목을 한 낱말로 하셔도 됩니다. 오히려 짧은 쪽이 링크 이름을 맞추기 쉽습니다. 다만 같은 글 안에 &#x27;접수&#x27;라는 제목이 두 번 나오면 링크가 첫 번째로만 갑니다. 본문 다른 곳에 &#x27;접수 시각&#x27;처럼 비슷한 제목을 또 두지 마세요.
+
+둘째, 각주 이름 &#x27;장비&#x27; 좋습니다. 본문에는 각주 표시만 두고, 글 아래쪽에 &#x27;장비&#x27; 정의를 넣어 주세요. 정의 안에 &#x27;팀당 1대, 추가 대여는 재고에 따름&#x27;을 적으시면 됩니다. 각주 정의를 접기 상자 안에 넣지는 마세요. 접힌 상태에서는 각주 이동이 안 됩니다.
+
+셋째, 출처 번호는 사내 안내문에서 종종 씁니다. 특히 숫자가 들어간 문장(시각, 비용 등)에 근거를 밝혀 두면 나중에 &#x27;이 숫자 어디서 나왔냐&#x27;는 문의가 줄어듭니다. 글 끝 출처 목록에는 자료의 원래 제목을 그대로 적어 주세요. 제목을 줄이거나 바꾸면 나중에 찾기 어렵습니다.
+
+넷째, 운영 메모 상자는 좋은 생각입니다. 다만 상자 안 문장은 &#x27;복사해서 그대로 붙여도 말이 되는 문장&#x27;이어야 합니다. 표나 목록보다 완성된 문장 몇 줄이 낫습니다. 그리고 상자에 비밀번호 같은 것은 절대 넣지 마세요. 게시판 글은 전사 공개입니다.
+
+## 메일 4. 강태오 → 오지훈, 윤채원 (9월 17일 11:30)
+
+제목: 지난 게시 사고 사례 — 안내문 형식 관련
+
+지훈 님, 채원 님이 말씀드린 사고 사례 보내 드립니다. 올해 &#x27;행사 · 모임&#x27; 게시판에서 형식 때문에 다시 올린 글들입니다. 부서 이름은 빼고 적겠습니다.
+
+사례 1 — 접기 상자 닫는 태그 빠짐. 어느 부서 워크숍 안내문에서 문의 접기 상자의 닫는 태그를 빠뜨렸습니다. 게시판은 닫는 태그가 없으면 글 끝까지를 접기 상자 안으로 봅니다. 그래서 문의 아래에 있던 장소 안내와 출처 목록까지 모두 접혀 버렸고, 접힌 제목만 보인 채 한나절이 지났습니다. 그동안 장소를 묻는 댓글이 계속 달렸습니다.
+
+사례 2 — 접기 상자 제목 태그 짝 안 맞음. 접힌 상태에서 보이는 제목 태그를 여는 것만 넣고 닫지 않아, 상자 안 내용 전체가 제목처럼 굵은 글씨로 한 줄에 붙어 나왔습니다. 휴대전화 화면에서는 아예 상자가 열리지 않았습니다.
+
+사례 3 — 코드 상자 닫는 표시 빠짐. 어느 교육 안내문 맨 끝에 담당자용 운영 메모를 회색 상자로 넣었는데, 상자를 닫는 표시를 빠뜨렸습니다. 그 뒤에 붙인 각주 정의와 출처 목록이 모두 회색 상자 안 글자로 들어가 버려 각주를 눌러도 이동하지 않았습니다. 상자를 여는 표시와 닫는 표시는 한 쌍이어야 합니다.
+
+사례 4 — 회색 상자 두 개. 운영 메모를 시간대별로 나눈다고 회색 상자를 세 개 넣은 글이 있었습니다. 담당자가 복사할 때 어느 상자를 복사해야 하는지 헷갈렸고, 하나를 빼먹었습니다. 그 뒤로 게시판 규칙에 &#x27;운영 메모 상자는 하나&#x27;를 넣었습니다.
+
+사례 5 — 목차 링크와 제목 불일치. 목차에는 &#x27;접수&#x27;라고 적고 실제 제목은 &#x27;접수 방법&#x27;으로 바꾼 글이 있었습니다. 목차를 눌러도 이동하지 않았습니다. 고친 사람은 제목만 바꾸고 목차를 그대로 두었습니다. 반대로 목차에 &#x27;문의&#x27;를 넣었는데 실제 제목이 없던 글도 있었습니다. 문의 접기 상자의 접힌 제목만 &#x27;문의&#x27;였고 그 위에 제목 줄이 없었던 경우입니다. 접기 상자 제목은 내부 링크가 가리킬 수 있는 제목이 아닙니다. 목차에서 가려면 접기 상자 위에 진짜 제목 줄을 두어야 합니다.
+
+사례 6 — 각주 정의 없음. 본문에 각주 표시를 세 개 넣고 정의는 두 개만 넣은 글이 있었습니다. 정의가 없는 각주 표시는 대괄호 글자 그대로 본문에 남았습니다. 읽는 사람은 오타로 알았습니다.
+
+사례 7 — 출처 번호와 목록 불일치. 본문에 대괄호 번호 1, 2, 3을 붙였는데 글 끝 목록에는 1, 2만 있었습니다. 3번이 무엇인지 묻는 댓글에 작성자도 답하지 못했습니다. 번호는 목록에 있는 자료만 가리켜야 합니다.
+
+사례 8 — 회색 상자 안에 링크. 운영 메모 상자 안에 다른 게시판 글로 가는 링크를 넣은 글이 있었습니다. 회색 상자 안에서는 링크가 글자로만 보여 누를 수 없었습니다.
+
+이 여덟 가지만 피하시면 게시 승인에서 막히는 일은 거의 없습니다. 초안 나오면 채원 님이 먼저 보고, 제가 마지막으로 한 번 더 보겠습니다.
+
+## 메일 5. 오지훈 → 강태오, 윤채원 (9월 17일 13:15)
+
+제목: 회신 — 사고 사례 감사합니다 / 접수 · 문의 절 질문
+
+선임님, 사례 감사합니다. 사례 5는 제가 딱 하려던 실수입니다. 문의를 접기 상자로만 만들고 제목 줄을 따로 두지 않으려 했습니다. 접기 상자 위에 &#x27;문의&#x27; 제목 줄을 두겠습니다.
+
+&#x27;접수&#x27;와 &#x27;문의&#x27; 절에 무엇을 넣을지 여쭙니다.
+
+접수 절에는 접수 시각(지금은 09:15), 접수 위치(본관 7층 대회의실 앞문 안쪽), 명찰 받기, 무선 인터넷 비밀번호는 접수 때 명찰 뒷면으로 전달된다는 점, 접수 시작 전에는 준비 중이라 들어올 수 없다는 점을 넣으려고 합니다. 행사 시각(09:30~12:00)은 접수 절이 아니라 일시 쪽에 두려고 하는데 괜찮을까요?
+
+문의 절에는 문의처(운영 담당 오지훈)와, 연락처가 아직 미정이라는 점, 자주 묻는 질문 몇 개를 접기 상자 안에 넣으려고 합니다. 연락처가 미정일 때 &#x27;미정&#x27;이라고 그대로 써도 되는지, 아니면 연락처 줄을 빼는 게 나은지 궁금합니다.
+
+그리고 접기 상자 안의 질문에 내부 링크(예: 접수 절로 가는 링크)를 넣어도 되나요?
+
+## 메일 6. 강태오 → 오지훈, 윤채원 (9월 17일 14:40)
+
+제목: 회신 — 접수 · 문의 절
+
+지훈 님, 순서대로 답드립니다.
+
+행사 시각을 일시 쪽에 두고 접수 절에는 접수 시각만 두는 구성 좋습니다. 다만 접수 절 첫 줄에 접수 시각을 두고, 행사 시작 시각과 헷갈리지 않게 &#x27;접수&#x27;와 &#x27;행사 시작&#x27;이라는 말을 각각 붙여 주세요. 지난 회차 해커톤 안내문 때 접수 시각이 없어서 댓글이 많이 달렸던 걸로 기억합니다.
+
+연락처가 미정이면 &#x27;미정&#x27;이라고 그대로 쓰시는 쪽을 권합니다. 줄을 빼 버리면 읽는 사람은 연락처를 깜빡 빠뜨렸다고 생각하고 댓글로 묻습니다. &#x27;추후 안내&#x27;라고만 쓰는 것도 피해 주세요. 언제 안내할지 정해 두지 않았다면 &#x27;미정&#x27;이 정직합니다. 연락처를 짐작해서 넣는 일은 절대 없어야 합니다. 예전에 어떤 부서가 담당자 내선을 짐작으로 적었다가 다른 사람 자리로 전화가 몰린 적이 있습니다.
+
+접기 상자 안에 내부 링크를 넣는 것은 됩니다. 접기 상자는 회색 상자와 달리 안의 링크가 살아 있습니다. 다만 상자가 접혀 있을 때는 안의 링크를 누를 수 없으니, 꼭 가야 하는 곳은 목차에도 넣어 주세요.
+
+접기 상자 안 질문은 &#x27;질문 한 줄, 답 한두 줄&#x27;로 짝을 맞추는 것이 게시판 관행입니다. 질문을 굵게, 답은 보통 글씨로 쓰면 접혔다 펼쳤을 때 읽기 좋습니다. 접기 상자 안에 또 접기 상자를 넣는 것은 피해 주세요. 휴대전화 화면에서 안쪽 상자가 열리지 않는 일이 있습니다.
+
+그리고 접기 상자의 접힌 제목 글자는 &#x27;문의&#x27;처럼 짧게 해 주세요. 지난번에 접힌 제목을 문장으로 길게 쓴 글이 있었는데, 휴대전화에서 두 줄로 꺾여 상자 화살표가 글자에 가려졌습니다.
+
+## 메일 7. 한예린 → 오지훈 (참조: 윤채원, 9월 17일 15:05)
+
+제목: 참조 회신 — 출처 번호와 운영 메모에 숫자 넣을 때
+
+지훈 님, 참조로 받아 보다가 재무 쪽에서 볼 것만 말씀드립니다.
+
+출처 번호 [2]가 재무팀 예산 메모를 가리키게 되면, 출처 목록에 적는 제목은 &#x27;재무팀 예산 메모&#x27; 그대로 해 주세요. 재무팀 안에서 같은 이름으로 찾습니다. 그 메모에 들어 있는 항목은 승인 상한, 실지급, 남은 예상, 방식별 비용입니다.
+
+참가 안내문 본문에 예산 숫자가 들어갈 일은 없을 것 같지만, 혹시 운영 메모 상자에 비용 이야기를 넣으신다면 승인 상한(300000원)과 실지급(140000원), 남은 예상(110000원)을 서로 바꿔 쓰지 말아 주세요. 상한은 쓴 돈이 아니고 남은 예상은 이미 낸 돈이 아닙니다. B안 보관함 이용료 1000원은 아직 남은 예상에 들어 있지 않습니다. 장비 방식이 정해지기 전에는 운영 메모에 비용을 쓰지 않으시는 편이 안전합니다.
+
+참가자에게 비용이 들지 않는다는 문장은 아직 재무팀이 확인하지 않았습니다. 안내문에 비용 면제를 약속하는 문장은 넣지 말아 주세요.
+
+## 메일 8. 윤채원 → 오지훈 (9월 17일 16:30)
+
+제목: 운영 메모 상자 관행 — 다른 행사 예
+
+지훈 님, 운영 메모 상자는 게시판에서 요즘 많이 쓰는 방식이라 다른 행사에서 어떻게 썼는지 예를 몇 개 말씀드립니다. 다른 행사 글이라 그 행사의 시각과 이름은 빼고 모양만 설명드리겠습니다.
+
+사내 체육대회 안내문: 회색 상자 하나에 진행 담당이 당일 아침 단체 메신저방에 올릴 문장 세 줄을 넣었습니다. 첫 줄은 &#x27;지금 집결 장소에서 접수 중입니다&#x27; 같은 현재 상태, 둘째 줄은 비가 올 때 바뀌는 장소, 셋째 줄은 문의할 사람 이름이었습니다. 담당자는 그 세 줄을 그대로 복사해 올렸고, 따로 문장을 만들 필요가 없었다고 합니다.
+
+보안 교육 안내문: 회색 상자에 강사 인계 문장을 넣었습니다. &#x27;출석 확인은 교육 시작 전에 끝내고, 시작 후 들어온 사람은 따로 적는다&#x27; 같은 운영 규칙을 문장으로 적어 두고, 강사가 바뀌어도 그 상자만 넘기면 되게 했습니다.
+
+신입 온보딩 세미나 안내문: 회색 상자를 넣지 않았다가, 당일 담당자가 자리를 비우면서 메신저 상태 문구를 즉석에서 쓰느라 &#x27;잠깐 자리 비움&#x27;이라고만 올려 참가자가 언제 돌아오는지 몰랐던 일이 있었습니다. 그 뒤 다음 회차부터 &#x27;자리를 비울 때 쓰는 문장&#x27;을 회색 상자에 미리 넣었습니다.
+
+이 예들에서 공통으로 지킨 것은 다음과 같습니다.
+- 상자는 하나. 글 맨 끝.
+- 상자 안은 복사해서 바로 붙여도 되는 완성 문장.
+- 비밀번호, 개인 휴대전화 번호, 아직 정하지 않은 값은 넣지 않음.
+- 상자 안에 링크 · 각주 · 접기 상자를 넣지 않음.
+- 상자 위에 &#x27;운영 메모(담당자용)&#x27;처럼 누구를 위한 상자인지 한 줄을 둠.
+
+지훈 님 행사는 혼자 운영하신다고 들었습니다. 그렇다면 &#x27;자리를 비울 때 쓰는 문장&#x27;은 조심해서 써 주세요. 접수가 시작된 뒤에는 자리를 비우지 않는다고 하셨으니, 그 문장이 접수 시작 뒤에 자리를 비워도 되는 것처럼 읽히면 안 됩니다.
+
+## 메일 9. 오지훈 → 윤채원 (9월 17일 18:02)
+
+제목: 회신 — 운영 메모 상자
+
+채원 님, 예를 들어 주셔서 감사합니다. 말씀하신 점이 바로 제가 고민하던 부분입니다. 저희 운영 원칙은 &#x27;자리를 비워야 하면 접수가 시작되기 전에 돌아온다, 접수 시작 후에는 자리를 비울 수 없다&#x27;입니다. 그래서 운영 메모 상자에는 자리를 비울 때 쓰는 문장 대신, 접수 전 준비 중일 때 쓰는 문장과 문의를 받는 방법을 알리는 문장을 넣는 쪽으로 생각해 보겠습니다.
+
+몇 가지 더 여쭙니다.
+- 출처 번호는 문장 끝 마침표 앞에 붙이나요, 뒤에 붙이나요?
+- 각주 정의는 출처 목록 위에 두나요, 아래에 두나요?
+- 목차는 제목 바로 아래인가요, 첫 문단 다음인가요?
+
+## 메일 10. 윤채원 → 오지훈 (9월 18일 09:20)
+
+제목: 회신 — 위치 질문 세 가지
+
+지훈 님, 답드립니다.
+
+출처 번호는 마침표 앞에 붙여 주세요. 문장 끝 글자 바로 뒤, 마침표 앞입니다. 마침표 뒤에 붙이면 다음 문장 첫머리에 붙은 것처럼 보입니다. 한 문장이 두 자료에 기대면 번호 두 개를 나란히 붙이시면 됩니다.
+
+각주 정의와 출처 목록의 순서는 정해진 규칙이 없지만, 게시판 관행은 &#x27;각주 정의 → 출처 목록 → 운영 메모 상자&#x27; 순서입니다. 운영 메모 상자는 맨 끝이어야 담당자가 찾기 쉽습니다. 각주 정의는 게시판이 자동으로 글 아래쪽에 모아 보여 주기도 하는데, 편집기 미리보기와 실제 게시 화면이 다를 수 있어 직접 아래쪽에 적어 두시는 편이 안전합니다.
+
+목차는 제목 바로 아래, 첫 문단보다 위에 둡니다. 다만 글 첫머리에 &#x27;언제 · 어디서&#x27;를 한 줄로 먼저 보여 주고 싶으시면 그 한 줄을 목차 위에 두셔도 됩니다. 게시판 첫 화면에 일시 · 접수 · 참여 조건 · 문의처가 들어가는지가 더 중요합니다.
+
+그리고 하나 더. 목차에 넣은 제목은 본문에서 &#x27;##&#x27;처럼 같은 단계의 제목으로 맞춰 주세요. 어떤 건 큰 제목, 어떤 건 작은 제목이면 목차 들여쓰기가 들쭉날쭉해집니다.
+
+## 메일 11. 강태오 → 오지훈, 윤채원 (9월 18일 10:05)
+
+제목: 편집기 미리보기 주의
+
+두 분 메일 보다가 하나 덧붙입니다. 지난달 바뀐 편집기는 미리보기에서 접기 상자가 늘 펼쳐진 상태로 보입니다. 그래서 미리보기만 보고는 닫는 태그가 빠진 걸 모릅니다. 게시 전에는 꼭 &#x27;임시 게시&#x27; 버튼으로 실제 화면을 한 번 띄워서 접기 상자를 열고 닫아 보세요. 회색 상자도 미리보기에서는 닫는 표시가 없어도 멀쩡해 보이다가 실제 화면에서 아래 글을 다 삼키는 경우가 있습니다.
+
+또 휴대전화 화면에서 한 번 보시길 권합니다. 직원 절반 이상이 게시판을 휴대전화로 봅니다. 목차 링크가 휴대전화에서 잘 이동하는지, 각주를 누르면 아래로 내려갔다가 돌아오는지 확인해 주세요.
+
+## 메일 12. 오지훈 → 윤채원, 강태오 (9월 18일 11:10)
+
+제목: 회신 — 게시 전 확인 순서 여쭙니다
+
+채원 님, 선임님, 감사합니다. 말씀해 주신 것을 바탕으로 게시 전에 제가 확인할 순서를 적어 보았습니다. 빠진 게 있으면 알려 주세요.
+
+1. 목차의 &#x27;접수&#x27;, &#x27;문의&#x27; 링크를 눌러 각각 실제 &#x27;접수&#x27;, &#x27;문의&#x27; 제목으로 이동하는지 본다.
+2. 각주 &#x27;장비&#x27; 표시를 눌러 아래쪽 정의로 가는지, 정의에 모니터 팀당 1대 · 추가 대여는 창고 재고에 따름이 들어 있는지 본다.
+3. 본문의 출처 번호가 [1] · [2] 두 개뿐인지, 글 끝 출처 목록에 두 자료가 원래 제목 그대로 있는지 본다.
+4. 문의 접기 상자를 열고 닫아 본다. 여는 태그 · 닫는 태그, 접힌 제목 태그의 짝을 본다.
+5. 맨 끝 운영 메모 회색 상자가 하나뿐인지, 여는 표시와 닫는 표시가 모두 있는지, 상자 밖에 각주 · 출처 · 링크 · 접기 상자가 있는지 본다.
+6. 휴대전화로 한 번 더 본다.
+7. 비밀번호, 짐작한 연락처, 정하지 않은 날짜가 어디에도 없는지 본다.
+
+## 메일 13. 윤채원 → 오지훈 (9월 18일 13:00)
+
+제목: 회신 — 확인 순서 좋습니다 / 몇 가지 덧붙임
+
+지훈 님, 적어 주신 일곱 단계 좋습니다. 세 가지만 덧붙입니다.
+
+첫째, 3번에서 출처 목록의 제목은 &#x27;회의실 장비 점검 메모&#x27;, &#x27;재무팀 예산 메모&#x27;처럼 자료 원래 제목 그대로인지 봐 주세요. 목록에 &#x27;장비 메모&#x27;, &#x27;예산표&#x27;처럼 줄여 쓰면 같은 자료인지 다른 자료인지 헷갈립니다. 그리고 출처 번호는 이 두 자료만 가리켜야 합니다. 인터넷 자료나 외부 문서를 근거처럼 붙이지 마세요. 사내 게시판 규칙상 외부 자료를 출처로 쓰려면 별도 확인 절차가 있습니다.
+
+둘째, 게시 뒤에 안내문을 고치게 되면, 고친 내용을 본문 위에 &#x27;바뀐 점&#x27; 목록으로 따로 붙이지 않으셔도 됩니다. 게시판이 수정 이력을 자동으로 남기고 &#x27;수정됨&#x27; 표시도 붙여 줍니다. 본문에 바뀐 점 목록을 따로 두면 다음에 또 고칠 때 그 목록까지 고쳐야 해서 오히려 틀리기 쉽습니다. 본문 자체를 바뀐 조건에 맞게 다시 쓰시는 쪽을 권합니다.
+
+셋째, 고칠 때도 목차 · 각주 · 문의 접기 상자 형식은 처음 형식 그대로 두세요. 고치면서 형식이 바뀌면 지난번 사례 5처럼 목차 링크가 끊기는 일이 많습니다.
+
+## 메일 14. 오지훈 → 강태오 (9월 18일 13:40)
+
+제목: 지난 회차 해커톤 안내문 게시 기록 여쭙니다
+
+선임님, 지난 회차 해커톤 안내문의 게시 기록이 남아 있으면 볼 수 있을까요? 첫 화면에 무엇이 보였는지, 몇 번 고쳤는지 알고 싶습니다. 지난 회차 설문에 &#x27;안내문이 바뀐 줄 몰랐다&#x27;는 응답이 있었습니다.
+
+## 메일 15. 강태오 → 오지훈 (9월 18일 14:25)
+
+제목: 회신 — 지난 회차 게시 기록
+
+지훈 님, 찾아보니 지난 회차 글은 게시 뒤 두 번 고쳐졌습니다. 한 번은 장소 줄에 회의실 이름을 고친 것이고, 한 번은 맨 아래 홍보 문구를 바꾼 것입니다. 그때는 예전 편집기라 &#x27;수정됨&#x27; 표시가 작게만 나와서 바뀐 줄 모른 분이 많았을 겁니다. 지금 편집기는 수정 표시가 제목 옆에 크게 붙고, 글을 즐겨찾기한 사람에게는 수정 알림도 갑니다.
+
+첫 화면은 그때 기준으로 행사 소개 두 문단까지 보였습니다. 일시와 장소는 첫 화면 밖이었습니다. 지금 게시판은 첫 화면이 조금 더 길어 제목, 목차, 첫 절 두세 줄 정도가 보입니다. 목차를 두시면 목차가 첫 화면의 대부분을 차지하니, 목차 위에 일시 한 줄을 두는 것도 방법입니다.
+
+그리고 메일과 게시판을 따로 쓰셨던 것도 기록에 남아 있네요. 이번에는 게시판 글 하나를 원본으로 두고, 전체 메일에는 게시판 글 위치만 알리시길 권합니다.
+
+## 메일 16. 한예린 → 오지훈 (참조: 윤채원, 9월 18일 15:10)
+
+제목: 참고 기록 원제목 확인
+
+지훈 님, 출처 목록 제목 확인했습니다. 재무팀 쪽 자료 원제목은 &#x27;재무팀 예산 메모&#x27;가 맞습니다. 그 메모에 적힌 것은 승인 상한, 실지급, 남은 예상, 방식별 비용 네 가지입니다. 회의실 쪽 자료는 지훈 님이 쓰신 것이니 원제목 확인 부탁드립니다. 제가 알기로는 &#x27;회의실 장비 점검 메모&#x27;이고 행사 · 접수 시각, 인력, 준비 조건이 적혀 있었습니다.
+
+두 자료 모두 사내 자료라 출처 목록에 링크를 걸 필요는 없습니다. 제목만 적어 주세요.
+
+## 메일 17. 윤채원 → 오지훈 (9월 18일 16:00)
+
+제목: 접수 · 문의 절에 넣으면 좋은 것 — 게시판 댓글 경험
+
+지훈 님, 게시판 댓글을 오래 봐 온 입장에서 접수 · 문의 절에 들어가면 댓글이 줄어드는 내용을 말씀드립니다. 지훈 님 행사에 맞는 값은 지훈 님이 넣으시고, 저는 어떤 종류의 정보인지만 적겠습니다.
+
+접수 절:
+- 접수가 시작되는 시각과, 그 시각이 행사 시작과 다르다는 점
+- 접수하는 곳(층, 회의실 이름, 문)
+- 접수 시작 전에 왔을 때 어디서 기다리는지
+- 접수 때 받는 것(명찰 등)과 그때 함께 전달되는 것
+- 개인 참가가 있다면 접수 때 무엇을 하는지
+
+문의 절:
+- 누구에게 묻는지(사람 이름)
+- 어떻게 묻는지(연락처, 정하지 않았으면 미정)
+- 자주 묻는 질문 몇 개: 지난 회차 댓글 기준으로는 시각, 혼자 참가, 제출 마감, 장비, 무선 인터넷 순서로 많았습니다.
+
+문의 절의 자주 묻는 질문은 접기 상자 안에 넣고, 접기 상자 위에는 &#x27;문의&#x27; 제목 줄을 두세요. 지난번 말씀드린 대로입니다.
+
+## 오지훈 메모 (9월 18일 17:30)
+
+이 메일 묶음에서 확인한 형식 규칙은 수정본을 쓸 때 그대로 따른다. 수정본은 이 묶음과 따로 쓰고, 이 묶음에는 수정본 문장을 옮기지 않는다.
+
+- 목차: 제목 아래. &#x27;접수&#x27;, &#x27;문의&#x27; 내부 링크는 실제 같은 이름의 제목을 가리킨다. 문의는 접기 상자 위에 제목 줄을 따로 둔다.
+- 각주: 이름은 &#x27;장비&#x27;. 정의는 글 아래쪽, 출처 목록 위. 접기 상자 안에 넣지 않는다.
+- 출처: 번호 [1] · [2]만 쓴다. 글 끝 출처 목록에 원래 제목(&#x27;회의실 장비 점검 메모&#x27;, &#x27;재무팀 예산 메모&#x27;)을 적는다.
+- 문의 접기 상자: details · summary 태그 짝을 맞춘다. 접힌 제목은 &#x27;문의&#x27;. 질문 한 줄, 답 한두 줄.
+- 운영 메모: 글 맨 끝 회색 상자 하나. 여는 표시와 닫는 표시를 모두 넣는다. 복사해서 바로 쓰는 완성 문장만. 비밀번호 · 짐작한 연락처 · 정하지 않은 값은 넣지 않는다. 접수 시작 뒤 자리를 비워도 되는 것처럼 읽히는 문장을 넣지 않는다.
+- 각주 · 출처 목록 · 내부 링크 · 접기 상자는 모두 회색 상자 밖에 둔다.
+- 게시 전 임시 게시로 실제 화면 확인, 휴대전화 화면 확인.
+- 고칠 때는 형식을 그대로 두고 본문을 바뀐 조건에 맞게 다시 쓴다. 바뀐 점 목록은 따로 붙이지 않는다.
+
+현재 안내문에 들어갈 운영 조건은 9월 15일 운영 확인 기록(판본 2) 그대로다. 접수 09:15, 행사 09:30~12:00, 정원 20명, 사전 등록 기본과 개인 참가 예외(현재 허용), 문의처 운영 담당 오지훈(연락처 미정), 제출 마감 다음 날 18:00(마감 뒤 제출은 심사하지 않음), 모니터 팀당 1대(추가 대여는 장비 창고 재고에 따름), 무선 인터넷 비밀번호는 접수 때 명찰 뒷면으로 전달. 행사 날짜는 미정이다.
+
+## 메일 18. 강태오 → 오지훈 (9월 18일 17:45)
+
+제목: 게시판 읽기 편의 관행 몇 가지
+
+지훈 님, 형식 이야기 나온 김에 게시판 읽기 편의 관행도 몇 가지 적어 둡니다. 승인에서 막히는 규칙은 아니지만 댓글 수를 줄이는 데 도움이 됩니다.
+
+- 굵은 글씨는 한 절에 한두 곳만 쓰세요. 다 굵으면 아무것도 눈에 띄지 않습니다.
+- 그림 문자나 이모티콘은 쓰지 않습니다. 화면 낭독 프로그램이 이상하게 읽습니다.
+- 휴대전화에서는 넓은 표가 옆으로 잘립니다. 안내문 본문에는 표보다 목록을 권합니다.
+- 숫자와 단위 사이를 띄우지 않는 쪽이 사내 표기 기준입니다(20명, 18:00).
+- 시각은 24시간 표기를 씁니다. 오전 · 오후를 섞지 않습니다.
+- 한 목록에 항목이 많으면 읽다가 놓칩니다. 꼭 알아야 할 것만 남기고 나머지는 문의 접기 상자로 보내세요.
+- 영어 약어는 풀어 쓰거나 우리말로 바꿉니다. 게시판 검색이 약어를 잘 찾지 못합니다.
+
+## 메일 19. 오지훈 → 윤채원 (9월 18일 18:05)
+
+제목: 각주 개수와 출처 번호 붙일 문장
+
+채원 님, 오늘 마지막으로 두 가지만 여쭙고 퇴근하겠습니다. 각주를 &#x27;장비&#x27; 하나만 두는 게 너무 적은 건 아닐까요? 그리고 출처 번호를 어느 문장에 붙일지 기준이 있을까요? 시각 문장에 [1], 비용 문장에 [2]를 붙이려는데 참가자 안내문에는 비용 문장이 거의 없을 것 같습니다.
+
+## 메일 20. 윤채원 → 오지훈 (9월 18일 18:30)
+
+제목: 회신 — 각주 · 출처 번호
+
+지훈 님, 짧게 답드립니다.
+
+각주는 하나여도 괜찮습니다. 많을수록 좋은 게 아니고, 본문 문장을 길게 만드는 설명만 빼면 됩니다. 장비 설명 하나면 충분해 보입니다.
+
+출처 번호는 숫자가 나오는 문장 가운데 나중에 &#x27;이 숫자 맞냐&#x27;는 문의가 올 만한 문장에 붙이시면 됩니다. 시각 · 인원 · 준비 조건은 회의실 장비 점검 메모, 비용과 관련된 문장이 있으면 재무팀 예산 메모를 가리키게 하시면 될 것 같습니다. 참가자 안내문에 비용 문장이 없다면 [2]는 운영 메모나 장비 각주 쪽에서 쓰일 수도 있겠네요. 어디에 붙이든 글 끝 출처 목록에는 두 자료가 모두 있어야 하고, 본문에 번호가 붙지 않은 자료를 목록에만 올려 두는 것은 피해 주세요.
+
+## 메일 21. 오지훈 → 강태오 (9월 18일 18:40)
+
+제목: 게시 승인 신청 칸 여쭙니다
+
+선임님, 게시 승인 신청서에 &#x27;게시 기간&#x27;, &#x27;댓글 허용&#x27;, &#x27;알림 범위&#x27; 칸이 있던데 해커톤 안내문은 어떻게 적으면 될까요? 행사 날짜가 미정이라 게시 기간 끝을 정하기 어렵습니다.
+
+## 메일 22. 강태오 → 오지훈 (9월 18일 19:02)
+
+제목: 회신 — 게시 승인 신청 칸
+
+지훈 님, 게시 기간 끝은 &#x27;행사 종료 뒤 내림&#x27;으로 적으시면 됩니다. 날짜가 정해지면 그때 고치시면 되고, 날짜를 짐작해서 넣지 마세요. 댓글은 허용을 권합니다. 문의가 댓글로 모이면 같은 질문에 한 번만 답하면 됩니다. 다만 댓글 답이 규칙이 되면 본문에도 반영해 주세요. 알림 범위는 &#x27;전사&#x27;와 &#x27;구독자만&#x27; 가운데 고르는데, 사전 등록을 받는 글이면 &#x27;전사&#x27;가 맞습니다. 고칠 때마다 알림이 다시 나가는 설정은 &#x27;주요 수정만&#x27;으로 두시면 오타 고칠 때까지 알림이 가지는 않습니다.
+
+## 메일 23. 윤채원 → 오지훈 (9월 18일 19:20)
+
+제목: 접수 · 문의 절에서 자주 보는 실수
+
+지훈 님, 퇴근 전에 하나만 더요. 다른 부서 안내문의 &#x27;접수&#x27;, &#x27;문의&#x27; 절에서 게시 뒤 댓글이 몰렸던 실수들입니다.
+
+- 접수 절에 행사 시작 시각만 적고 접수 시각을 빠뜨림. 사람들은 행사 시작 시각에 맞춰 와서 접수 줄에 섭니다.
+- 현장 참가를 받는 행사에서 &#x27;현장 접수 가능&#x27;이라고만 적음. 사전 등록 없이 와도 되는 행사로 읽혀, 정원보다 많은 사람이 왔습니다. 현장 참가를 받는다면 누가(어떤 조건의 사람이) 받을 수 있는지와 정원 안에서만 받는다는 점을 같은 줄에 적어야 합니다.
+- 접수 절에 &#x27;접수 시 안내 예정&#x27;이라고만 적음. 무엇을 안내하는지 몰라 미리 묻는 댓글이 달렸습니다.
+- 문의 절에 &#x27;담당 부서로 문의&#x27;라고만 적음. 사람 이름이 없으면 문의가 흩어집니다.
+- 문의 접기 상자에 질문만 있고 답이 없음. 작성자가 답을 나중에 채우려다 그대로 게시했습니다.
+- 문의 절의 연락처를 다른 행사 안내문에서 복사해 와서 다른 사람 연락처가 그대로 남음.
+
+## 메일 24. 오지훈 → 윤채원 (9월 18일 19:45)
+
+제목: 회신 — 개인 참가 표기
+
+채원 님, 두 번째 실수가 저희 행사에 꼭 해당됩니다. 저희는 사전 등록이 기본이고, 팀을 꾸리지 못한 개인도 당일 참가를 허용하는 예외가 지금 있습니다. 개인 참가자도 정원 20명 안에서만 받습니다. 이 세 가지를 같은 곳에 적겠습니다. &#x27;현장 접수 가능&#x27; 같은 말은 쓰지 않겠습니다.
+
+다만 이 예외는 운영 사정에 따라 나중에 취소될 수 있습니다. 취소되면 수정본을 내야 하는데, 그때도 형식은 그대로 두고 본문만 바뀐 조건으로 다시 쓰겠습니다. 접수 절과 문의 접기 상자 양쪽에 개인 참가 이야기가 들어가면 취소할 때 두 곳을 다 고쳐야 하니, 이 점도 기억해 두겠습니다.
+
+## 메일 25. 한예린 → 오지훈 (참조: 윤채원, 9월 18일 20:02)
+
+제목: 참조 회신 — 운영 메모 상자에 인력 표현
+
+지훈 님, 메일 묶음 보다가 하나만요. 운영 메모 상자에 &#x27;도움 인력&#x27;, &#x27;보조 담당&#x27; 같은 말이 들어가지 않게 해 주세요. 구민재 님은 아직 참석을 확답하지 않았고 승인 인력도 아닙니다. 상자 문장은 복사해서 그대로 쓰는 문장이라, 거기에 들어가면 그대로 퍼집니다. 혼자 운영한다는 전제로만 써 주시면 됩니다.
+
+## 메일 26. 오지훈 → 한예린 (9월 18일 20:15)
+
+제목: 회신 — 알겠습니다
+
+예린 님, 맞습니다. 운영 메모 상자는 확정 인력 1명 기준 문장만 넣겠습니다. 예비 인력 이야기는 안내문 어디에도 넣지 않겠습니다.
+
+## 메일 27. 강태오 → 오지훈 (9월 18일 20:40)
+
+제목: 접기 상자 · 회색 상자 앞뒤 빈 줄
+
+지훈 님, 늦게 죄송합니다. 편집기 쪽 자잘한 규칙이 하나 더 있어 적어 둡니다.
+
+접기 상자를 여는 태그 앞과 닫는 태그 뒤에는 빈 줄을 하나씩 두세요. 빈 줄이 없으면 바로 위 문단 끝에 접기 상자가 붙어 버려, 문단 마지막 글자 옆에 화살표가 생깁니다. 접기 상자 안에서 목록을 쓰실 때도 접힌 제목 태그를 닫은 다음 줄을 비워 두셔야 목록 기호가 제대로 나옵니다. 빈 줄 없이 바로 목록을 쓰면 목록 기호가 글자로 남습니다.
+
+회색 상자도 여는 표시 앞, 닫는 표시 뒤에 빈 줄을 두시는 편이 안전합니다. 여는 표시 옆에 언어 이름을 적는 칸이 있는데, 운영 메모는 문장이라 비워 두시면 됩니다. 언어 이름을 넣으면 편집기가 문장을 프로그램 글처럼 색칠합니다.
+
+## 메일 28. 윤채원 → 오지훈 (9월 18일 20:55)
+
+제목: 게시 시간대
+
+지훈 님, 게시 시간대도 말씀드리면 월요일 오전과 금요일 오후는 피하시는 게 좋습니다. 월요일 오전은 주간 회의 공지가 몰려 묻히고, 금요일 오후는 열람이 크게 줄어듭니다. 화요일이나 수요일 점심 직후가 열람이 가장 많습니다.
+
+행사 날짜가 미정인 상태로 먼저 올리신다면, 첫 화면 일시 줄에 &#x27;행사 날짜 미정&#x27;을 분명히 적어 주세요. 날짜 줄이 비어 있으면 게시 승인 단계에서 &#x27;날짜 누락&#x27;으로 되돌아옵니다. &#x27;미정&#x27;이라고 적혀 있으면 승인은 그대로 납니다.
+
+## 메일 29. 오지훈 → 윤채원, 강태오 (9월 18일 21:10)
+
+제목: 수정본 작성 계획
+
+두 분 오늘 정말 감사합니다. 받은 관행대로 초안을 한 번 고쳐 다음 주 월요일(9월 21일) 오전에 보내 드리겠습니다. 고칠 때 순서는 이렇게 하려 합니다. 먼저 목차와 &#x27;접수&#x27; · &#x27;문의&#x27; 제목 줄을 맞추고, 장비 설명을 &#x27;장비&#x27; 각주로 빼고, 숫자 문장에 [1] · [2]를 붙이고, 자주 묻는 질문을 문의 접기 상자에 옮기고, 마지막에 운영 메모 회색 상자를 하나 붙이겠습니다. 운영 메모 상자 문장은 확정 인력 1명 기준으로, 접수 시작 뒤 자리를 비우지 않는다는 원칙에 맞게 쓰겠습니다.
+
+수정본을 보내 드릴 때 바뀐 점 목록은 따로 붙이지 않고, 수정본 전체만 보내 드리겠습니다.
+
+## 메일 30. 윤채원 → 오지훈 (9월 18일 21:25)
+
+제목: 회신 — 좋습니다
+
+지훈 님, 순서 좋습니다. 수정본 받으면 형식만 보고 바로 회신드리겠습니다. 하나만 덧붙이면, 게시 뒤 댓글로 답한 내용이 규칙이 되는 경우(예: 혼자 참가 가능 여부처럼)는 댓글에만 두지 마시고 본문에도 반영해 주세요. 본문을 고치면 &#x27;수정됨&#x27; 표시가 붙으니 따로 공지하지 않으셔도 됩니다. 지난 회차 해커톤 글은 댓글에만 규칙이 네 개 남아 있었습니다.
+
+## 메일 31. 강태오 → 오지훈 (9월 18일 21:40)
+
+제목: 출처 목록 한 줄 형식
+
+지훈 님, 마지막으로 출처 목록 형식만요. 게시판 관행은 번호 순서대로 한 줄에 하나씩, &#x27;번호, 자료 원래 제목, 쌍점, 그 자료에 무엇이 적혀 있는지 한 구절&#x27; 순서입니다. 아래 참고 기록 모양 그대로 쓰시면 됩니다. 번호를 건너뛰거나 순서를 바꾸지 마시고, 본문에서 처음 나온 번호가 목록에서도 먼저 오게 해 주세요. 목록 위에 &#x27;출처&#x27;라는 제목 줄을 하나 두시면 목차에서도 갈 수 있지만, 목차에 꼭 넣을 필요는 없습니다. 각주 정의와 출처 목록 사이에는 빈 줄을 하나 두세요. 붙어 있으면 마지막 각주 정의 뒤에 출처 목록이 이어 붙어 한 문단처럼 보입니다.
+
+## 메일 32. 윤채원 → 오지훈 (9월 18일 21:50)
+
+제목: 접기 상자 안 질문 수
+
+지훈 님, 선임님 말씀에 하나 보태면 문의 접기 상자 안 질문은 세 개에서 다섯 개 사이가 읽기 좋습니다. 그보다 많으면 펼쳤을 때 화면이 길어져 원하는 질문을 찾기 어렵고, 그보다 적으면 굳이 접을 필요가 없습니다. 질문 순서는 댓글이 많았던 순서로 두시면 됩니다. 지난 회차 해커톤 글 기준이면 시각, 혼자 참가, 제출 마감, 장비, 무선 인터넷 순서였고, 이번 회차 메신저 문의도 비슷한 순서였다고 들었습니다. 답에 정하지 않은 값이 들어가야 하면 그 값은 &#x27;미정&#x27;으로 두시고, 다른 질문의 답과 서로 어긋나지 않는지 한 번 맞춰 봐 주세요.
+
+## 참고 기록
+
+안내문의 출처 번호가 가리키는 두 자료다. 출처 목록에는 아래 제목을 그대로 쓴다.
+
+[1] 회의실 장비 점검 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 재무팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+모닥의 참가 안내문을 첫 번째로 수정해 주세요. 아래 형식에 맞는 수정본 전체를 제시해 주세요. 목차에는 [접수](#접수), [문의](#문의) 내부 링크와 실제 대응 제목을 넣으세요. 각주 [^장비]과 그 정의, 자료의 [1]·[2] 출처 번호와 목록도 맞춰 주세요. 문의 부분은 코드블록 밖의 짝이 맞는 &lt;details&gt;&lt;summary&gt;문의&lt;/summary&gt;...&lt;/details&gt; 안에 적어 주세요. 마지막에는 담당자가 복사할 문장 형태의 운영 메모를 코드블록 정확히 1개로 제시하고, 앞뒤 코드 구획 표시를 모두 닫아 주세요. 각주·출처 목록·내부 링크·문의 태그는 코드블록 밖에 작성해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 5 답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>4</sup>응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.</mark></pre></div><div class="rs-turn"><b>턴 7 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 사내 해커톤 킥오프 운영 조건 변경 통지와 수정 회의록
+
+이 문서에는 두 가지가 들어 있다. 첫째는 9월 22일 개발문화팀이 관계 부서에 보낸 변경 통지 공문, 둘째는 같은 날 열린 수정 회의의 회의록이다. 끝에 통지 뒤 받은 회신과 후속 작업 기록을 붙였다.
+
+## 제1부. 변경 통지 공문
+
+- 문서 번호: 개발문화-행사-제14호
+- 보낸 곳: 개발문화팀(운영 담당 오지훈)
+- 받는 곳: 재무팀(재무 담당 한예린), 사내소통팀(게시 담당 윤채원, 게시판 운영 선임 강태오), 총무팀(장비 창고 관리 문가영)
+- 날짜: 2026년 9월 22일(화)
+- 제목: 사내 해커톤 킥오프 운영 조건 변경 통지
+
+### 1. 통지 배경
+
+9월 21일(월) 개발문화팀 주관 팀장 회의에서 사내 해커톤 킥오프 운영 조건 두 가지를 바꾸기로 결정하였기에 알립니다. 이 통지는 9월 15일 운영 확인 기록(판본 2), 9월 17일 참가 안내문 초안, 9월 21일 오전 첫 번째 수정본 이후의 첫 조건 변경입니다.
+
+### 2. 바뀐 조건
+
+가. 접수 시작 시각
+- 접수 시작을 이전 계획보다 20분 늦춥니다.
+- 종료 시각은 유지합니다. 킥오프 종료는 이전과 같이 12:00입니다.
+- 이전 계획의 접수 시작은 09:15였습니다. 새 접수 시작 시각은 이 기준에서 20분 늦춘 시각으로 적용합니다.
+
+나. 개인 참가 예외 취소
+- 팀을 꾸리지 못한 개인도 당일 참가를 허용하던 예외를 취소합니다.
+- 앞으로는 사전에 팀을 등록한 사람만 참가할 수 있습니다.
+- 이 통지 이후의 문서와 안내문에는 이전 예외를 쓰지 않습니다.
+
+### 3. 바뀌지 않은 조건
+
+아래 조건은 이번 통지로 바뀌지 않으며 그대로 유지합니다.
+
+- 운영 담당 현장 도착: 08:30
+- 행사 시간: 09:30~12:00 (종료 시각 12:00 유지)
+- 확정 진행 인력: 1명(운영 담당 오지훈). 예비 인력은 참석 확답이 없어 승인 인력에 넣지 않은 상태 그대로입니다.
+- 참여 정원: 20명
+- 준비 동선: 장비 창고 편도 8분, 장비 확인 7분, 설치 18분, 물품은 한 번에 운반
+- 장비 준비 방식의 조건: A안(당일 창고 운반)은 당일 장비 창고에서 멀티탭과 모니터를 직접 옮기는 방식(편도 8분, 장비 확인 7분)이고 비용은 없습니다. B안(전날 회의실 보관)은 전날 회의실 잠금 보관함에 장비를 넣어 두는 방식이며 보관함 이용료 1000원, 당일 장비 확인 7분입니다. 설치는 두 안 모두 18분입니다. 이번 통지는 두 안의 시간과 비용을 바꾸지 않습니다.
+- 예산: 승인 상한 300000원, 실지급 140000원, 남은 예상 110000원. B안 비용 1000원은 남은 예상에 아직 들어 있지 않습니다.
+- 사전 등록 기본 원칙
+- 문의처: 운영 담당 오지훈(연락처 미정)
+- 제출 마감: 다음 날 18:00. 마감 뒤 제출은 심사하지 않습니다.
+- 모니터: 팀당 1대. 추가 대여는 장비 창고 재고에 따릅니다.
+- 회의실 무선 인터넷 비밀번호: 접수 때 명찰 뒷면으로 전달합니다.
+- 접수 전 입장: 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없습니다.
+- 담당자 인계 원칙: 자리를 비워야 하면 접수가 시작되기 전에 돌아오며, 접수 시작 후에는 자리를 비워 둘 수 없습니다. 이 원칙은 바뀐 접수 시작 시각을 기준으로 그대로 적용합니다.
+- 마감과 회수: 12:00 이후 물품을 회수하고 참가 기록을 마무리합니다. 종료 시각을 회수 완료 시각으로 자동 기록하지 않습니다.
+- 행사 날짜: 여전히 미정입니다.
+
+### 4. 변경 이유
+
+가. 접수 시작 시각: 팀장 회의에서 여러 부서가 같은 요일 오전에 주간 회의를 열고 있어, 참가 예정자 상당수가 주간 회의를 마친 뒤 이동하면 이전 접수 시작 시각에 맞추기 어렵다는 의견이 나왔습니다. 접수 시작을 늦추되 종료 시각은 그대로 두는 것으로 결정하였습니다.
+
+나. 개인 참가 예외: 확정 진행 인력이 1명인 상태에서 당일 개인 참가자의 확인과 팀 편성을 접수 데스크에서 함께 처리하기 어렵다는 점, 모니터가 팀 단위로 배부되어 개인 참가자 몫을 미리 맞추기 어렵다는 점, 정원 관리가 당일까지 확정되지 않는다는 점을 들어 예외를 취소하기로 결정하였습니다.
+
+### 5. 관계 부서에 요청하는 일
+
+- 사내소통팀: 9월 21일 첫 번째 수정본의 게시 준비를 바뀐 조건에 맞추어 다시 봐 주시기 바랍니다. 수정본은 개발문화팀이 보내 드립니다.
+- 재무팀: 이번 변경으로 예산 숫자는 바뀌지 않습니다. 확인만 부탁드립니다.
+- 총무팀: 장비 반출 신청서의 내용은 바뀌지 않습니다. 접수 시각 변경은 장비 반출과 관계가 없으나 참고로 알려 드립니다.
+
+### 6. 붙임
+
+- 9월 22일 수정 회의록(제2부)
+
+개발문화팀 운영 담당 오지훈
+
+## 제2부. 수정 회의록
+
+- 회의 일시: 2026년 9월 22일(화) 10:00~11:20
+- 장소: 본관 5층 소회의실 2
+- 참석: 오지훈(개발문화팀, 운영 담당), 한예린(재무팀, 재무 담당)
+- 배석: 윤채원(사내소통팀, 게시 담당) — 10:40부터 안건 4에만 참석
+- 작성: 오지훈 / 검토: 한예린
+- 회의 목적: 9월 21일 팀장 회의에서 정한 조건 변경 두 가지를 확인하고, 바뀐 조건과 바뀌지 않은 조건을 나누어 기록한 뒤, 안내문과 운영 기록을 어떻게 고칠지 정한다.
+
+### 안건 1. 팀장 회의 결정 내용 확인
+
+오지훈이 9월 21일 팀장 회의 결과를 전달함. 팀장 회의에는 개발문화팀장과 참가 예정자가 많은 부서의 팀장들이 참석했고, 오지훈은 운영 담당으로 배석해 질문에 답했다.
+
+팀장 회의에서 나온 결정은 두 가지다.
+- 접수 시작을 이전 계획보다 20분 늦춘다. 종료 시각은 유지한다.
+- 팀을 꾸리지 못한 개인도 당일 참가를 허용하던 예외를 취소하고, 사전에 팀을 등록한 사람만 참가하게 한다.
+
+한예린이 결정의 범위를 확인함. &quot;접수 시작만 늦추는 것이고, 운영 담당 도착이나 행사 시간은 그대로인가요?&quot; 오지훈은 팀장 회의에서 바꾸기로 한 것은 접수 시작 하나뿐이며, 종료 시각은 유지한다고 분명히 말했다고 답함. 운영 담당 도착 08:30과 행사 시간 09:30~12:00은 팀장 회의에서 다루지 않았고 바꾸라는 말도 없었으므로 그대로 둔다. 한예린은 &quot;바뀐 것만 바꾸고 나머지는 그대로 둔다는 원칙대로 가자&quot;고 함.
+
+### 안건 2. 접수 시작을 늦추는 것이 운영에 주는 영향
+
+#### 2-1. 준비 시간
+
+오지훈은 도착 시각이 그대로이므로 도착부터 접수 시작까지의 준비 시간이 이전보다 늘어난다고 설명함. 장비 창고 편도 8분, 장비 확인 7분, 설치 18분은 그대로이며, 준비 동선 자체가 바뀌는 것은 아니다. 한예린이 &quot;준비 시간이 늘어나면 장비 방식 비교가 달라지느냐&quot;고 물음. 오지훈은 두 안의 시간과 비용은 그대로이고, 접수 데스크를 비울 위험을 따질 때 기준이 되는 시각이 새 접수 시작 시각으로 바뀐다는 점만 달라진다고 답함. 장비 방식에 대한 판단을 이번 회의에서 다시 하지는 않기로 함.
+
+#### 2-2. 접수 데스크 원칙
+
+담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오고, 접수 시작 후에는 자리를 비워 둘 수 없다는 원칙은 그대로다. 다만 이 원칙의 기준 시각이 새 접수 시작 시각이 된다. 오지훈은 운영 일정표를 고칠 때 &#x27;접수 시작&#x27;이라고 적힌 곳을 모두 새 시각으로 바꾸고, 도착 · 이동 · 확인 · 설치에 붙은 값은 손대지 않겠다고 함.
+
+#### 2-3. 일찍 온 참가자
+
+접수가 늦어지면 일찍 온 참가자가 복도에서 기다리는 시간이 길어질 수 있다. 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다는 원칙은 그대로다. 오지훈은 대회의실 문에 붙일 &#x27;준비 중 — 접수 시작 전 입장 불가&#x27; 안내 종이에 새 접수 시작 시각을 적겠다고 함. 한예린은 복도 벤치가 두 개뿐이라는 점을 짚었으나, 벤치를 더 놓는 일은 새 물품이나 다른 부서 협조가 필요해 이번에는 정하지 않음.
+
+#### 2-4. 명찰 뒷면 속지
+
+무선 인터넷 비밀번호 속지는 접수 직전에 명찰 뒷면에 넣는다는 원칙은 그대로다. 접수 시작이 늦어지므로 속지를 넣는 시각도 함께 늦어진다. 미리 넣어 두지 않는다는 원칙은 바뀌지 않는다.
+
+#### 2-5. 행사 진행
+
+오지훈은 킥오프 진행 순서를 이번 회의에서 다시 짜지 않겠다고 함. 종료 시각 12:00은 그대로이고, 진행 순서는 운영 일정표 개정 때 바뀐 접수 시작 시각을 반영해 다시 본다.
+
+### 안건 3. 개인 참가 예외 취소의 영향
+
+#### 3-1. 참가 조건
+
+앞으로는 사전에 팀을 등록한 사람만 참가할 수 있다. 사전 등록을 기본으로 한다는 원칙은 그대로이고, 그 기본에서 벗어나던 예외 하나가 없어진 것이다. 정원은 20명 그대로다. 한예린은 &quot;예외가 없어졌다고 정원이 줄거나 느는 건 아니지요?&quot;라고 확인함. 오지훈은 정원 20명은 그대로이며, 사전에 팀으로 등록한 사람만으로 정원을 채운다고 답함.
+
+#### 3-2. 이미 개인 참가를 문의한 사람
+
+9월 8일 이후 메신저로 &#x27;혼자 당일에 가도 되느냐&#x27;고 물었던 사람들이 있다. 오지훈은 당시 &quot;지금은 허용하지만 바뀔 수 있다&quot;고 답해 두었다. 예외가 취소되었으므로 이 사람들에게 개별로 알린다. 알리는 내용은 &#x27;개인 참가 예외가 취소되어 사전에 팀을 등록해야 참가할 수 있다&#x27;는 것 하나이며, 팀을 대신 찾아 주겠다거나 다른 팀에 넣어 주겠다는 약속은 하지 않는다. 한예린은 지난 회차처럼 &#x27;알아보겠다&#x27;고 해 놓고 답이 가지 않는 일이 없도록 개별 알림을 보낸 기록을 남겨 달라고 함.
+
+#### 3-3. 당일에 혼자 온 사람
+
+예외가 취소된 뒤에도 안내문을 못 보고 당일에 혼자 오는 사람이 있을 수 있다. 오지훈은 접수 데스크에서 사전 등록 명단에 팀으로 등록되어 있지 않으면 참가를 받지 않고, 정중하게 사정을 설명한다고 함. 이 설명 때문에 접수 줄이 길어지지 않도록, 안내문의 참여 조건을 분명하게 고치는 것이 먼저라는 데 두 사람이 같은 생각이었음.
+
+#### 3-4. 등록 양식
+
+사전 등록 양식 초안에 있던 &#x27;팀을 꾸리지 못한 경우 표시 칸&#x27;을 뺀다. 이 칸은 예외가 허용되어 있을 때 둔 것이다. 나머지 칸(이름, 소속 팀, 해커톤 팀 이름과 팀원, 노트북 연결 방식, 편의 지원 요청)은 그대로 둔다.
+
+#### 3-5. 게시판 의견과의 관계
+
+9월 18일 무렵 &#x27;해커톤 이야기&#x27; 게시판에 개인 참가를 반기는 의견이 몇 개 올라왔다. 오지훈은 이번 취소가 그 의견을 무시한 것이 아니라 확정 진행 인력 1명이라는 운영 조건 때문이라는 점을 안내문 문의 칸이나 게시판 답글로 짧게 설명할지 고민 중이라고 함. 설명 문구는 정하지 않음.
+
+### 안건 4. 참가 안내문을 고치는 방법 (윤채원 배석)
+
+10:40에 윤채원이 들어와 안내문 수정 방법을 함께 봄.
+
+윤채원은 9월 18일 메일에서 말한 대로, 고칠 때도 목차 · 각주 · 문의 접기 상자의 형식은 처음 형식 그대로 두자고 함. 목차의 &#x27;접수&#x27;, &#x27;문의&#x27; 내부 링크와 실제 제목, &#x27;장비&#x27; 각주와 그 정의, [1] · [2] 출처 번호와 글 끝 출처 목록, 문의 접기 상자의 태그 짝, 맨 끝 운영 메모 회색 상자 하나는 첫 번째 수정 때 맞춘 그대로 유지한다.
+
+본문은 바뀐 조건에 맞게 다시 쓴다. 윤채원은 &quot;바뀐 점을 본문 위에 목록으로 따로 붙이지 말고, 안내문 전체를 바뀐 조건대로 다시 쓰는 편이 낫다&quot;고 다시 강조함. 게시판이 수정 이력과 &#x27;수정됨&#x27; 표시를 자동으로 남긴다.
+
+오지훈이 고칠 곳을 짚음.
+- 일시 쪽: 접수 시작 시각을 새 시각으로. 행사 시간과 종료 시각은 그대로.
+- 접수 절: 접수 시작 시각, 문에 붙일 안내 시각을 새 시각으로. 개인 참가자 접수 이야기를 뺀다.
+- 참여 조건: 개인 참가 예외 문장을 빼고, 사전에 팀을 등록한 사람만 참가할 수 있다는 문장으로 바꾼다. 정원 20명은 그대로.
+- 문의 접기 상자: &#x27;혼자 가도 되나요&#x27; 질문의 답을 바뀐 조건에 맞게 고친다. 이전 예외를 그대로 둔 답이 남지 않게 한다.
+- 운영 메모 회색 상자: 접수 시작 시각이 들어간 문장이 있으면 새 시각으로. 확정 인력 1명 기준 문장은 그대로.
+- 각주 &#x27;장비&#x27;, 출처 목록: 바뀔 내용 없음.
+
+윤채원은 개인 참가 내용이 접수 절과 문의 접기 상자 두 곳에 들어 있었으므로 두 곳을 모두 고쳤는지 마지막에 한 번 더 보자고 함. 9월 18일 메일에서 오지훈 스스로 걱정했던 부분이다.
+
+한예린은 안내문에 &#x27;취소되었다&#x27;는 말을 넣을지 물음. 윤채원은 처음 안내문을 본 사람에게는 무엇이 취소되었는지가 오히려 헷갈릴 수 있으니, 지금 조건(사전에 팀을 등록한 사람만 참가)만 적는 쪽을 권함. 이미 개인 참가를 문의했던 사람에게는 개별 알림으로 따로 알린다. 오지훈도 이 방식에 동의함.
+
+### 안건 5. 운영 기록을 고치는 방법
+
+운영 확인 기록은 판본 3으로 고친다. 바뀐 조건 두 가지(접수 시작, 개인 참가 예외)만 고치고 나머지 확정 사항은 그대로 보존한다. 한예린은 지난 회차에 접수 시각 하나를 바꾸면서 문서의 다른 시각까지 다시 쓰다가 확정 값 몇 개가 사라진 일을 다시 꺼냄. 이번에는 판본 2에서 고칠 줄을 먼저 표시하고, 그 줄만 고친다.
+
+고칠 줄:
+- 1장 행사 범위의 &#x27;접수는 09:15에 연다&#x27; → 새 접수 시작 시각으로
+- 6장 참가자 행동의 개인 참가 예외 줄 → 취소, 사전에 팀을 등록한 사람만 참가
+- 11장 안내문 검토의 예외 관련 줄 → 취소 통지가 왔으므로 이전 예외를 쓰지 않음
+- 14장 참가자가 당일 하게 될 일의 순서 가운데 접수 단계의 개인 참가 표시 → 삭제
+- 19장 위험 항목 가운데 정원 초과 위험(개인 참가자 몰림) → 예외 취소로 상황이 달라졌음을 적음
+- 22장 사전 등록 준비 상태의 &#x27;팀을 꾸리지 못한 경우 표시 칸&#x27; → 삭제
+
+그대로 둘 줄: 도착 08:30, 행사 09:30~12:00, 인력 1명과 예비 인력 미확답, 정원 20명, 준비 동선 값, A안 · B안의 조건, 예산 세 숫자와 B안 비용 미포함, 제출 마감, 모니터, 무선 인터넷, 담당자 인계 원칙, 마감과 회수, 미정 항목. 
+
+### 안건 6. 다른 문서에 남아 있는 예외 문구
+
+오지훈은 개인 참가 예외가 들어 있던 문서를 모두 찾아 목록을 만들었다. 각 문서의 처리 방법을 함께 정함.
+- 9월 3일 1차 준비 회의록: 당시 결정을 기록한 것이므로 고치지 않는다. 문서 머리에 &#x27;9월 22일 변경 통지로 개인 참가 예외 취소&#x27;라는 한 줄만 덧붙인다.
+- 9월 10일 비품 대장 옮김본의 메신저 문의 답: 당시 답이므로 고치지 않는다.
+- 9월 15일 운영 확인 기록 판본 2: 판본 3으로 고친다(안건 5).
+- 9월 16일 지난 회차 피드백 모음: 고치지 않는다. 6장 현재 상태 표기는 9월 16일 기준이라고 이미 적혀 있다.
+- 9월 17일 참가 안내문 초안과 9월 21일 첫 번째 수정본: 두 번째 수정본을 새로 쓴다(안건 4).
+- 사전 등록 양식 초안: 표시 칸을 뺀다(안건 3).
+- 게시 승인 신청서: 내용에 예외 이야기는 없음. 고칠 것 없음.
+
+### 결정한 사항
+
+- 접수 시작을 이전 계획(09:15)보다 20분 늦춘다. 종료 시각 12:00은 유지한다.
+- 팀을 꾸리지 못한 개인도 당일 참가를 허용하던 예외를 취소한다. 사전에 팀을 등록한 사람만 참가할 수 있다.
+- 공문 3항의 바뀌지 않은 조건은 그대로 유지한다.
+- 참가 안내문은 형식(목차 · 각주 · 문의 접기 상자 · 출처 · 운영 메모 상자)을 유지한 채 전체를 바뀐 조건으로 다시 쓴다. 바뀐 점 목록은 따로 붙이지 않는다.
+- 운영 확인 기록은 판본 3으로, 바뀐 줄만 고친다.
+- 이미 개인 참가를 문의한 사람에게 개별로 알린다.
+
+### 보류한 사항
+
+- 개인 참가 예외 취소의 이유를 게시판이나 안내문 문의 칸에 설명할지, 설명한다면 어떤 문구로 할지.
+- 복도 대기 공간(벤치)을 늘릴지.
+- 장비 준비 방식에 대한 판단은 이번 회의 안건이 아니었으므로 다시 다루지 않음.
+
+### 다음 할 일
+
+- 오지훈: 참가 안내문 두 번째 수정본 작성, 윤채원에게 형식 확인 요청.
+- 오지훈: 운영 확인 기록 판본 3 작성.
+- 오지훈: 개인 참가를 문의했던 사람들에게 개별 알림, 보낸 기록 남김.
+- 오지훈: 사전 등록 양식에서 표시 칸 삭제.
+- 오지훈: 운영 일정표의 &#x27;접수 시작&#x27;이 들어간 곳을 새 시각으로 고칠 준비.
+- 한예린: 예산 숫자가 바뀌지 않았음을 재무팀 기록에 남김.
+- 윤채원: 두 번째 수정본 형식 확인, 개인 참가 내용이 두 곳 모두에서 고쳐졌는지 확인.
+
+### 회의 중 오간 질문과 답
+
+- 한예린: 접수 시작이 늦어지면 접수 데스크를 지켜야 하는 시간도 짧아지는 건가요?
+  - 오지훈: 접수 데스크는 접수 시작부터 지켜야 하므로 시작점이 늦어지는 건 맞습니다. 다만 행사 중에도 접수 데스크 자리를 떠날 수 없다는 원칙은 그대로라서, 실제로 자리를 비울 수 있는 시간이 늘어나는 건 접수 시작 전뿐입니다.
+- 한예린: 개인 참가자가 없어지면 명찰 수량이 바뀌나요?
+  - 오지훈: 명찰은 참가자에게 하나씩 주는 것이라 정원 20명 기준 그대로입니다. 예비 명찰 케이스를 정원에 더하지 않는다는 원칙도 그대로입니다.
+- 한예린: 모니터 배부는요? 개인 참가자 몫을 걱정했었잖아요.
+  - 오지훈: 모니터는 팀당 1대이고 추가 대여는 창고 재고에 따른다는 규칙이 그대로입니다. 이제 팀 단위로만 참가하므로 개인 참가자 몫을 따로 생각할 일이 없어졌습니다.
+- 윤채원: 안내문 제목에 &#x27;수정&#x27;이라는 말을 붙일까요?
+  - 오지훈: 제목은 그대로 두고 싶습니다. 게시판의 &#x27;수정됨&#x27; 표시로 충분하다고 하셨으니까요.
+- 윤채원: 새 접수 시각이 문의 접기 상자 답에도 들어가 있나요?
+  - 오지훈: &#x27;접수는 몇 시부터인가요&#x27; 질문 답에 들어 있습니다. 그것도 고치겠습니다. 접수 절 시각과 문의 칸 답의 시각이 서로 다르게 남지 않게 하겠습니다.
+- 한예린: 예비 인력 쪽은 소식이 있나요?
+  - 오지훈: 구민재 님은 여전히 확답이 없습니다. 이번 통지에서도 확정 인력은 1명 그대로입니다.
+- 한예린: 이번 변경으로 B안 비용 이야기가 달라지나요?
+  - 오지훈: 아닙니다. B안 보관함 이용료 1000원은 남은 예상 110000원에 아직 들어 있지 않다는 상태 그대로입니다. 장비 방식은 이번 회의 안건이 아니었습니다.
+- 윤채원: 운영 메모 상자에 &#x27;개인 참가자 응대&#x27; 문장이 있었던가요?
+  - 오지훈: 첫 번째 수정본에는 &#x27;혼자 오신 분은 접수 때 개인 참가로 표시합니다&#x27;라는 문장이 있었습니다. 그 문장을 빼겠습니다.
+
+## 제3부. 통지 뒤 받은 회신과 후속 기록
+
+### 회신 1. 한예린 → 오지훈 (9월 22일 13:05)
+
+제목: 변경 통지 확인 — 재무 쪽
+
+지훈 님, 통지 확인했습니다. 재무 쪽 숫자는 바뀌지 않았음을 재무팀 기록에 남겼습니다. 승인 상한 300000원, 실지급 140000원, 남은 예상 110000원, B안 비용 1000원 미포함 그대로입니다. 개인 참가 예외 취소로 비용이 생기거나 줄어드는 것은 없습니다. 간식 세트도 여전히 구매 승인 전입니다.
+
+### 회신 2. 강태오 → 오지훈 (9월 22일 13:40)
+
+제목: 변경 통지 확인 — 게시 쪽
+
+지훈 님, 통지 받았습니다. 아직 게시 전이라 다행입니다. 두 번째 수정본은 첫 번째 수정본의 형식을 그대로 두고 내용만 바꿔 주세요. 목차 링크와 제목, 각주, 접기 상자 짝, 회색 상자 하나는 제가 마지막에 다시 보겠습니다. 바뀐 점 목록은 붙이지 않으셔도 됩니다. 게시 승인 신청서는 바꿀 칸이 없습니다.
+
+### 회신 3. 문가영 → 오지훈 (9월 22일 14:10)
+
+제목: 변경 통지 확인 — 총무 쪽
+
+지훈 님, 확인했습니다. 장비 반출 신청서는 바꿀 것이 없습니다. 접수가 늦어진다고 창고 출입 시간이 달라지는 건 아니니 그대로 쓰시면 됩니다. 행사 주 월요일 모니터 재고는 날짜가 정해지면 알려 드리겠습니다. 수리 점검 보낸 모니터는 아직 결과가 오지 않았습니다.
+
+### 회신 4. 윤채원 → 오지훈 (9월 22일 15:00)
+
+제목: 두 번째 수정본 형식 확인 기준
+
+지훈 님, 오전 회의 때 말씀드린 것 다시 적어 드립니다. 두 번째 수정본 받으면 이 순서로 보겠습니다. 목차의 &#x27;접수&#x27; · &#x27;문의&#x27; 링크가 실제 제목으로 가는지, &#x27;장비&#x27; 각주 정의가 있는지, [1] · [2] 번호와 출처 목록이 맞는지, 문의 접기 상자를 열고 닫을 수 있는지, 맨 끝 회색 상자가 하나이고 닫혀 있는지, 그리고 개인 참가 이야기가 접수 절과 문의 접기 상자 어디에도 이전 예외대로 남아 있지 않은지입니다.
+
+### 개별 알림 기록
+
+9월 22일 오후, 9월 8일 이후 메신저로 개인 참가를 문의했던 사람들에게 개별 알림을 보냈다. 보낸 문장은 모두 같다: &quot;문의하셨던 개인 참가 예외가 9월 22일 변경으로 취소되었습니다. 사전에 팀을 등록하신 분만 참가하실 수 있습니다. 팀 등록 방법은 참가 안내문이 게시되면 그 글에서 확인해 주세요.&quot; 받은 답을 부서만 적어 옮긴다.
+
+- 데이터팀 문의자(9월 9일 문의): &quot;아쉽지만 알겠습니다. 팀을 구해 보겠습니다.&quot;
+- 영업지원팀 문의자(9월 9일 개발자가 아닌데 참가해도 되느냐고 물었던 분): &quot;혼자는 안 되는 거군요. 같은 팀 동료와 함께 등록할 수 있는지 알아보겠습니다.&quot;
+- 인사팀 문의자(게시판에 개인 참가 의견을 남겼던 분): &quot;팀 등록은 언제부터 받나요?&quot; — 답: &quot;사전 등록 시작 날짜는 아직 정하지 않았습니다. 안내문 게시 때 함께 알리겠습니다.&quot;
+- 마케팅팀 문의자(게시판에 동료 이야기를 남겼던 분): &quot;동료분께도 전하겠습니다. 팀 찾는 게시판 같은 건 없나요?&quot; — 답: &quot;따로 마련하지 않았습니다. 팀은 각자 꾸려 등록해 주셔야 합니다.&quot;
+
+오지훈 메모: 알림을 보낸 네 사람 모두에게서 답을 받았다. 네 사람 모두 예외 취소 자체에는 이의를 달지 않았고, 질문은 팀 등록 방법과 시작 날짜에 모였다. 팀을 대신 찾아 주거나 다른 팀에 넣어 주겠다는 약속은 하지 않았다. 사전 등록 시작 날짜는 미정이라 미정이라고 답했다.
+
+## 제4부. 9월 21일 팀장 회의 배석 메모(오지훈)
+
+변경 통지의 근거가 된 팀장 회의에서 해커톤 킥오프와 관련된 부분만 오지훈이 배석해 적은 메모다. 팀장 이름은 적지 않고 부서만 적었다.
+
+- 플랫폼팀장: 우리 팀은 같은 요일 오전에 주간 회의가 있어 끝나고 바로 내려가도 이전 접수 시각에 맞추기 빠듯하다. 접수를 조금 늦춰 줄 수 있느냐.
+- 데이터팀장: 우리도 비슷하다. 다만 끝나는 시각까지 늦어지면 오후 일정이 꼬인다. 끝나는 시각은 그대로 두었으면 한다.
+- 개발문화팀장: 접수 시작을 늦추되 종료 시각은 유지하는 쪽으로 하자. 운영 담당 의견은?
+- 오지훈: 운영 담당 도착과 준비 동선은 그대로 두고 접수 시작만 늦추는 것이면 준비에는 문제가 없다. 접수 시작 뒤 자리를 비우지 않는다는 원칙만 새 시각 기준으로 지키겠다.
+- 개발문화팀장: 그럼 접수 시작을 이전보다 20분 늦추고 종료 시각은 유지하는 것으로 정한다. 행사 시간 자체를 고치자는 이야기는 아니다.
+
+- 모바일팀장: 개인 참가 예외는 좋은 취지인데, 운영자가 한 명이면 당일 혼자 온 사람들 팀 짜 주는 걸 누가 하나.
+- 오지훈: 접수 데스크에서 함께 처리해야 한다. 접수 시작 뒤에는 자리를 비울 수 없고, 혼자 온 사람과 이야기하는 동안 뒤에 줄이 선다. 지난 회차에도 그 장면이 있었다.
+- 인사팀장: 예외를 두면 정원도 당일까지 모르는 것 아닌가.
+- 오지훈: 개인 참가자도 정원 안에서만 받기로 했지만, 당일 몇 명이 올지는 미리 알 수 없다.
+- 마케팅팀장: 우리 팀에도 혼자라도 가고 싶다는 사람이 있다. 아쉽다.
+- 개발문화팀장: 아쉬운 건 알지만 이번 회차는 운영 인력이 한 명이다. 개인 참가 예외는 취소하고 사전에 팀을 등록한 사람만 참가하게 하자. 다음 회차에 인력이 늘면 다시 생각해 보자.
+- 오지훈: 이미 개인 참가를 문의한 사람에게는 개별로 알리겠다.
+
+- 개발문화팀장: 다른 조건은 바꾸지 않는다. 인력, 정원, 예산, 장비, 제출 마감 모두 그대로 둔다. 바꾼 두 가지만 통지로 내보내라.
+- 오지훈: 알겠다. 내일 오전 재무 담당과 수정 회의를 하고 통지를 보내겠다.
+
+오지훈 메모: 예비 인력 이야기는 팀장 회의에서 나오지 않았다. 확정 인력은 1명 그대로이며, 팀장 회의에서 인력을 늘리는 결정은 없었다.
+
+## 제5부. 운영 확인 기록 판본 3 작성 확인(9월 22일 17:00)
+
+안건 5에서 정한 대로 판본 2의 고칠 줄만 고쳐 판본 3을 만들었다. 한예린이 17:00에 판본 2와 판본 3을 나란히 놓고 대조했다.
+
+- 고친 줄 여섯 곳: 모두 안건 5 목록과 같다. 접수 시작 줄은 &#x27;이전 계획보다 20분 늦춘 시각&#x27;으로 고쳤고, 개인 참가 예외 관련 줄 다섯 곳은 &#x27;취소, 사전에 팀을 등록한 사람만 참가&#x27;에 맞추어 고치거나 지웠다.
+- 고치지 않은 줄: 도착 08:30, 행사 09:30~12:00, 확정 인력 1명, 예비 인력 미확답, 정원 20명, 편도 8분 · 확인 7분 · 설치 18분, A안 · B안 조건, 승인 상한 300000원 · 실지급 140000원 · 남은 예상 110000원 · B안 비용 1000원 미포함, 제출 마감, 모니터, 무선 인터넷, 담당자 인계 원칙, 마감과 회수, 미정 항목. 한예린이 하나씩 짚어 판본 2와 같음을 확인했다.
+- 판본 3 머리에 &#x27;9월 22일 변경 통지(개발문화-행사-제14호) 반영&#x27;이라고 적었다.
+- 참고 기록 [1] · [2]의 제목과 내용 설명은 그대로 두었다.
+
+## 제6부. 운영 일정표에서 고칠 곳 표시(9월 22일 17:30)
+
+운영 일정표 개정은 따로 하지만, 이번 변경으로 손대야 할 곳과 손대지 말아야 할 곳을 미리 표시해 둔다. 새 일정표 자체는 이 문서에 쓰지 않는다.
+
+손댈 곳(접수 시작과 이어진 칸):
+- 접수 시작 칸
+- 대회의실 문 안내 종이에 적을 접수 시작 시각
+- 명찰 뒷면 속지를 넣는 시각(접수 직전)
+- &#x27;이 시각 이후 자리 비움 금지&#x27; 표시가 붙은 칸
+- 개인 참가자 접수 처리 칸(삭제)
+
+손대지 말 곳:
+- 현장 도착 08:30
+- 장비 창고 편도 8분, 장비 확인 7분, 설치 18분
+- 행사 09:30~12:00, 종료 12:00
+- 12:00 이후 회수와 참가 기록 마무리 칸(회수 완료 시각은 당일 실제 시각으로 적는 칸)
+- 담당자 칸(오지훈 1명)
+
+오지훈 메모: 장비 방식 칸(A안 · B안)은 이번 변경과 관계가 없으므로 이 표시에서 다루지 않았다. 일정표를 다시 짤 때 그 칸의 값도 그대로 가져간다.
+
+## 제7부. 사전 등록 양식과 문 안내 종이 수정 기록
+
+### 사전 등록 양식(9월 22일 16:20 수정)
+
+- 뺀 칸: &#x27;팀을 꾸리지 못한 경우 표시 칸&#x27;. 예외 취소에 따라 삭제.
+- 바꾼 문장: 양식 맨 위 설명의 &#x27;팀으로 등록하거나, 팀이 없으면 개인으로 표시해 주세요&#x27; → &#x27;사전에 팀으로 등록해 주세요. 팀으로 등록한 분만 참가할 수 있습니다.&#x27;
+- 그대로 둔 칸: 이름, 소속 팀, 해커톤 팀 이름과 팀원 이름, 노트북 연결 방식, 편의 지원 요청(요청을 받으면 운영 담당이 따로 연락함 — 무엇을 해 주겠다는 약속은 없음).
+- 양식은 아직 열지 않았다. 사전 등록 시작 날짜와 마감은 여전히 미정이다.
+
+### 대회의실 문 안내 종이(초안 문구 수정)
+
+- 이전 문구: &#x27;준비 중 — 접수 시작(09:15) 전 입장 불가. 복도 벤치에서 기다려 주세요.&#x27;
+- 수정 방향: 괄호 안 시각을 새 접수 시작 시각으로 바꾼다. 나머지 문장은 그대로 둔다.
+- 종이는 행사 전날 출력한다. 출력 전에 운영 일정표의 접수 시작 칸과 같은 시각인지 맞추어 본다.
+
+## 제8부. 변경 통지 뒤 들어온 문의
+
+9월 22일 오후부터 9월 23일 오전까지 메신저와 게시판에 들어온 문의 가운데 변경과 관련된 것을 옮긴다.
+
+- 문의(플랫폼팀): 접수가 늦춰졌다고 들었는데, 킥오프 끝나는 시간도 바뀌나요?
+  - 답: 종료 시각은 12:00 그대로입니다.
+- 문의(고객지원팀): 혼자 가는 건 이제 안 되는 거죠? 이유가 궁금합니다.
+  - 답: 네, 사전에 팀을 등록하신 분만 참가하실 수 있습니다. 이번 회차는 운영 담당이 한 명이라 당일 혼자 오신 분의 확인과 팀 편성을 접수 때 함께 처리하기 어려워 팀장 회의에서 정했습니다.
+- 문의(디자인팀): 팀 등록은 몇 명부터 되나요?
+  - 답: 팀 인원 기준은 아직 정하지 않았습니다. 정해지면 안내문에 적겠습니다.
+- 문의(보안팀): 무선 인터넷 비밀번호 받는 방법도 바뀌나요?
+  - 답: 바뀌지 않았습니다. 접수 때 명찰 뒷면으로 전달합니다.
+- 문의(인사팀): 정원이 줄었나요?
+  - 답: 정원은 20명 그대로입니다.
+- 문의(모바일팀): 제출 마감도 바뀌었나요?
+  - 답: 바뀌지 않았습니다. 다음 날 18:00이 마감이고, 마감 뒤 제출은 심사하지 않습니다.
+
+- 문의(경영지원팀): 운영 인력이 늘어서 바뀐 건가요?
+  - 답: 아닙니다. 운영 담당은 지금도 한 명입니다. 개인 참가 예외를 취소한 것도 오히려 한 명이 운영하는 사정 때문에 팀장 회의에서 정한 것입니다.
+
+오지훈 메모: 변경 통지 뒤 문의는 대부분 &#x27;무엇이 바뀌었고 무엇이 그대로인지&#x27;를 묻는 것이었다. 두 번째 수정본에서 바뀐 조건이 본문에 분명히 드러나고, 바뀌지 않은 조건도 그대로 적혀 있으면 이런 문의가 줄 것으로 본다. 다만 수정본에 바뀐 점 목록을 따로 붙이지는 않는다.
+
+## 제9부. 9월 23일 오전 확인
+
+- 구민재: 9월 23일 09:40 메신저로 다시 물었으나 &quot;당번표가 아직이다&quot;라는 답만 받음. 예비 인력은 여전히 참석 미확답이며 승인 인력이 아니다.
+- 관리사무소: 보관함 &#x27;한 번 이용&#x27; 범위 서면 확인은 아직 받지 못함. 이번 변경과는 관계없음.
+- 안내문 두 번째 수정본: 오지훈 작성 중. 윤채원 · 강태오 형식 확인 뒤 게시 준비.
+- 이 문서의 배포: 제1부 공문은 9월 22일 받는 곳 네 부서에 보냄. 제2부~제9부는 개발문화팀 공유 폴더에 두고 한예린 · 윤채원에게 위치만 알림.
+
+## 제10부. 지난 회차의 조건 변경 때 생긴 일과 이번에 다르게 한 점
+
+지난 회차에도 행사 열흘쯤 전에 조건이 한 번 바뀌었다. 그때는 장소가 다른 층 회의실로 바뀌었는데, 다음과 같은 일이 있었다.
+
+- 변경을 알리는 공문 없이 전체 메일 한 통으로만 알렸다. 메일 제목이 &#x27;해커톤 안내&#x27;로 처음 메일과 같아 많은 사람이 열어 보지 않았다.
+- 게시판 글은 장소 줄만 고치고, 문의 칸 답에 남아 있던 이전 장소는 고치지 않았다. 두 장소가 한 글 안에 함께 남았다.
+- 운영 계획서를 고치면서 장소와 관계없는 접수 줄까지 새로 썼다가, 원래 있던 문장 몇 개가 빠졌다.
+- 이미 문의한 사람에게 따로 알리지 않았다. 당일에 이전 장소로 간 사람이 있었다.
+
+이번에는 이렇게 했다.
+- 관계 부서에 문서 번호가 붙은 공문으로 알렸고, 바뀐 조건과 바뀌지 않은 조건을 나누어 적었다.
+- 안내문은 형식을 그대로 두고 본문 전체를 바뀐 조건으로 다시 쓰기로 했다. 접수 절과 문의 접기 상자 두 곳을 모두 고치는지 게시 담당이 따로 확인한다.
+- 운영 기록은 고칠 줄을 먼저 표시하고 그 줄만 고쳤다. 고치지 않은 줄은 재무 담당이 하나씩 대조했다.
+- 개인 참가를 문의했던 사람에게 개별로 알리고 답을 받았다.
+
+## 제11부. 개인 참가 예외의 경과
+
+- 9월 3일: 1차 준비 회의에서 &#x27;팀을 꾸리지 못한 개인도 당일 참가를 허용하는 예외&#x27;를 두기로 함. 개인 참가자도 정원 20명 안에서만 받음. 나중에 취소될 수 있다는 점을 회의록에 함께 적음.
+- 9월 8일~15일: 메신저 문의에 &#x27;지금은 허용하지만 바뀔 수 있다&#x27;고 답함.
+- 9월 15일: 운영 확인 기록 판본 2에 &#x27;현재 허용&#x27;으로 기록.
+- 9월 17일 · 21일: 참가 안내문 초안과 첫 번째 수정본에 예외 내용이 들어감(접수 절, 문의 접기 상자, 운영 메모 상자 한 문장).
+- 9월 21일: 팀장 회의에서 예외 취소 결정. 사전에 팀을 등록한 사람만 참가.
+- 9월 22일: 변경 통지 공문 발송, 수정 회의, 판본 3 작성, 사전 등록 양식 수정, 개별 알림.
+- 9월 22일 이후: 모든 새 문서와 안내문에서 이전 예외를 쓰지 않음.
+
+## 제12부. 접수 시작 시각의 경과
+
+- 9월 2일: [1] 회의실 장비 점검 메모에 접수 09:15, 행사 09:30~12:00, 도착 08:30이 적힘.
+- 9월 3일: 1차 준비 회의에서 접수를 앞당기자는 의견이 있었으나, 도착부터 접수 전까지가 준비 시간이고 설치를 끝내기 전에 접수를 열어도 된다는 승인이 없다는 이유로 09:15를 유지함.
+- 9월 9일: 메신저 문의에 &#x27;접수 09:15, 행사 09:30&#x27;이라고 답함.
+- 9월 15일: 운영 확인 기록 판본 2에 &#x27;접수는 09:15에 연다&#x27;로 기록.
+- 9월 17일 · 21일: 참가 안내문 초안과 첫 번째 수정본에 접수 09:15가 들어감(일시 쪽, 접수 절, 문의 접기 상자 답, 운영 메모 상자).
+- 9월 21일: 팀장 회의에서 여러 부서의 오전 주간 회의를 이유로 접수 시작을 이전보다 20분 늦추고 종료 시각은 유지하기로 결정. 이번에는 앞당기는 것이 아니라 늦추는 변경이라 준비 시간이 줄어드는 문제는 없음.
+- 9월 22일: 변경 통지 공문 발송. 판본 3에서 접수 시작 줄을 고침. 안내문 두 번째 수정본과 운영 일정표, 문 안내 종이에서 접수 시작 시각이 들어간 곳을 모두 새 시각으로 고치기로 함.
+
+오지훈 메모: 접수 시작 시각은 안내문 한 편 안에서도 여러 곳(일시 쪽, 접수 절, 문의 접기 상자 답, 운영 메모 상자)에 들어가 있다. 한 곳이라도 이전 시각이 남으면 참가자는 어느 쪽이 맞는지 묻게 된다. 두 번째 수정본을 보낼 때 이 네 곳을 모두 새 시각으로 고쳤는지 직접 다시 읽어 본다.
+
+## 제13부. 재무팀 기록에 남긴 메모(한예린, 9월 22일 13:00)
+
+- 건: 사내 해커톤 킥오프 운영 조건 변경 통지(개발문화-행사-제14호) 검토
+- 바뀐 조건: 접수 시작 시각(이전보다 20분 늦춤, 종료 시각 유지), 개인 참가 예외 취소(사전에 팀을 등록한 사람만 참가)
+- 재무 영향: 없음. 두 변경 모두 비용을 새로 만들거나 줄이지 않음.
+- 예산 숫자: 승인 상한 300000원(한도이며 지출 아님), 실지급 140000원(이미 결제 끝남), 남은 예상 110000원(아직 지급 전, 예상). B안 보관함 이용료 1000원은 남은 예상에 아직 들어 있지 않음. 장비 방식에 따라 &#x27;예상 지출 변경 요청&#x27;이 필요할 수 있음.
+- 환불 · 지원금 추가 입금: 확인한 바 없음. 계산에 넣지 않음.
+- 간식 세트(개당 900원, 22개 검토): 여전히 구매 승인 전. 이번 변경과 관계없음.
+- 비고: 개인 참가자가 없어져도 정원은 20명 그대로이므로 정원 기준으로 잡은 물품(명찰 등)의 수량 판단도 바뀌지 않음. 같은 비용을 여러 문서에 적었다고 두 번 세지 않는다는 원칙을 정산 때도 지킴.
+- 다음 확인: 장비 방식이 정해지면 그 방식의 비용을 다시 확인하고, B안이면 예상 지출 변경 요청 결재가 끝난 뒤에만 남은 예상 숫자를 고친다. 결재 전에는 110000원을 그대로 둔다.
+- 검토자 확인: 오지훈과 함께 공문 3항 &#x27;바뀌지 않은 조건&#x27;의 예산 줄을 재무팀 원장과 대조함. 다른 곳 없음.
+
+이 문서는 9월 23일 오전까지의 기록이다. 두 번째 수정본 안내문과 개정 운영 일정표는 이 문서에 넣지 않았고, 각각 따로 작성한다.
+[자료 끝]
+
+모닥의 같은 참가 안내문을 두 번째로 수정해 주세요. 종료 시각은 유지하되 접수 시작을 이전보다 20분 늦춰 주세요. 개인 참가 예외는 취소하고 사전에 팀을 등록한 사람만 참가할 수 있게 참가 안내문 전체를 다시 써 주세요. 앞서 고친 목차·각주·문의 형식도 유지하고, 수정 목록을 따로 붙이지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 7 답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>6·7</sup>응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.</mark></pre></div><div class="rs-turn"><b>턴 9 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 경영지원팀 사내 행사 지원 일람표 — 사내 해커톤 킥오프
+
+- 작성: 송하준(경영지원팀, 사내 행사 지원 담당)
+- 작성일: 2026년 9월 28일(월)
+- 용도: 경영지원팀 분기 행사 지원 현황 보고에 넣을 행사별 일람표. 개발문화팀이 운영하는 사내 해커톤 킥오프의 일정 · 인원 · 비용 · 시설 · 물품 · 담당을 경영지원팀 양식으로 옮겨 적었다.
+- 작성 근거: 개발문화팀 공유 폴더의 자료(운영 확인 기록, 변경 통지 개발문화-행사-제14호, 비품 반출입 대장 옮김본, 자리 · 팀 배치 운영 기준)와 9월 23일 개발문화팀과의 통화
+- 배포: 경영지원팀 내부, 개발문화팀(참고용)
+- 경영지원팀 양식 안내: 이 일람표는 경영지원팀이 분기마다 사내 행사를 같은 칸으로 비교하려고 쓰는 양식이다. 칸 이름은 경영지원팀 양식 그대로이며, 개발문화팀 문서의 용어와 조금 다를 수 있다.
+
+## 1. 행사 기본 정보
+
+| 칸 | 내용 |
+| --- | --- |
+| 행사 이름 | 사내 해커톤 킥오프 |
+| 주관 부서 | 개발문화팀 |
+| 운영 담당 | 오지훈(개발문화팀) |
+| 재무 담당 | 한예린(재무팀) |
+| 행사 날짜 | 미정 |
+| 장소 | 본관 7층 대회의실(날짜가 정해진 뒤 예약) |
+| 행사 형태 | 대면, 사전 등록 |
+| 참가 대상 | 사내 직원, 사전에 팀을 등록한 사람 |
+| 문의처 | 운영 담당 오지훈(연락처 미정) |
+| 경영지원팀 지원 범위 | 분기 보고용 현황 관리. 운영 지원 인력은 보내지 않음 |
+
+## 2. 일정 일람
+
+| 항목 | 시각 · 소요 | 비고 |
+| --- | --- | --- |
+| 운영 담당 현장 도착 | 08:30 | 행사 당일 |
+| 장비 창고 이동(A안일 때) | 왕복 8분 | 별관 지하 1층 장비 창고 ↔ 본관 7층 대회의실 |
+| 장비 확인 | 7분 | A안 · B안 모두 |
+| 현장 설치 | 18분 | A안 · B안 모두 |
+| 접수 시작 | 이전 계획 09:15에서 20분 늦춤 | 9월 22일 변경 통지 반영 |
+| 행사 시간 | 09:30~12:00 | 이번 변경으로 바뀌지 않음 |
+| 행사 종료 | 12:00 | 종료 시각 유지 |
+| 물품 회수 · 참가 기록 마무리 | 12:00 이후 | 회수 완료 시각은 당일 실제 시각으로 기록 |
+| 결과물 제출 마감 | 다음 날 18:00 | 마감 뒤 제출은 심사하지 않음 |
+| B안 보관 작업 | 행사 전날 | B안일 때만. 전날 작업은 전날 날짜로 기록 |
+
+## 3. 인원 일람
+
+| 항목 | 값 | 비고 |
+| --- | --- | --- |
+| 확정 진행 인력 | 1명 | 운영 담당 오지훈 |
+| 예비 인력 | 승인 인력 아님 | 개발문화팀 구민재, 참석 확답 없음 |
+| 참여 정원 | 25명 | 참가자 수. 진행 인력과 별개 |
+| 참가 조건 | 사전에 팀을 등록한 사람 | 팀을 꾸리지 못한 개인의 당일 참가 예외는 9월 22일 취소 |
+| 참가자 접수 대행 | 없음 | 참가자에게 접수를 맡기는 안은 채택하지 않음 |
+| 경영지원팀 파견 인력 | 없음 | 요청받지 않음 |
+
+## 4. 비용 일람
+
+| 항목 | 금액 | 비고 |
+| --- | --- | --- |
+| 승인 예산 상한 | 300000원 | 쓸 수 있는 한도. 지출 아님 |
+| 실제 지급액 | 140000원 | 이미 결제가 끝난 금액 |
+| 남은 운영 예상 지출 | 111000원 | 아직 지급 전, 예상 |
+| A안(당일 창고 운반) 비용 | 없음 | |
+| B안(전날 회의실 보관) 비용 | 보관함 이용료 1000원 | 본관 관리사무소 보관함 |
+| 간식 세트 | 견적 개당 900원, 22개 주문 검토 | 구매 승인 전 |
+| 목걸이형 이름표 | 구매하지 않음 | 장비 창고 명찰 케이스 사용 |
+| 명찰 속지 출력 | 해커톤 예산 지출 없음 | 사무실 출력기 사용 |
+| 환불 · 지원금 추가 입금 | 확인된 것 없음 | 계산에 넣지 않음 |
+
+## 5. 장비 준비 방식 일람
+
+개발문화팀은 장비 준비 방식으로 두 가지를 비교해 왔다. 경영지원팀 양식의 &#x27;준비 방식&#x27; 칸에 맞추어 옮긴다.
+
+| 칸 | A안(당일 창고 운반) | B안(전날 회의실 보관) |
+| --- | --- | --- |
+| 방식 | 당일 장비 창고에서 멀티탭과 모니터를 직접 옮김 | 전날 회의실 잠금 보관함에 장비를 넣어 둠 |
+| 이동 | 장비 창고 왕복 8분 | 당일 이동 없음 |
+| 당일 장비 확인 | 7분 | 7분 |
+| 설치 | 18분 | 18분 |
+| 비용 | 없음 | 보관함 이용료 1000원 |
+| 전날 작업 | 없음 | 장비를 보관함에 넣는 작업(전날 날짜로 기록) |
+| 운반 | 대차 1대로 한 번에 | 전날 대차 1대로 한 번에 |
+| 당일 회의실을 비우는 일 | 창고 다녀오는 동안 생김 | 없음 |
+| 확인 단계 | 필요 | 필요 |
+| 관련 시설 | 별관 지하 1층 장비 창고(사원증 출입) | 대회의실 안쪽 벽 잠금 보관함(관리사무소 관리) |
+
+## 6. 시설 일람
+
+| 시설 | 위치 | 사용 조건 · 상태 |
+| --- | --- | --- |
+| 대회의실 | 본관 7층 | 행사 날짜가 정해진 뒤 예약. 참가자는 앞문으로만 출입, 뒷문은 비상문 |
+| 접수 데스크 | 대회의실 앞문 안쪽 오른편 | 1인용 책상. 접수 시작 뒤 운영 담당이 자리를 비우지 않음 |
+| 복도 대기 공간 | 대회의실 앞문 밖 | 4인용 벤치 두 개. 접수 시작 전 도착한 참가자 대기 |
+| 장비 창고 | 별관 지하 1층 | 사원증 출입, 입구 반출 대장 기록, 대차 한 대 |
+| 잠금 보관함 | 대회의실 안쪽 벽 | 본관 관리사무소 관리, 이용 전 신청 |
+| 대형 화면 | 대회의실 앞쪽 벽 | 노트북 연결선은 화면 아래 서랍 |
+| 콘센트 | 대회의실 창가 벽 · 앞쪽 벽 | 뒤쪽 벽과 가운데 기둥에는 없음. 뒷줄은 멀티탭 연결 |
+| 블라인드 | 대회의실 창가 | 반쯤 내려온 채 멈춤. 관리사무소 부품 주문 중 |
+| 무선 인터넷 | 대회의실 전용 | 비밀번호는 접수 때 명찰 뒷면으로 전달 |
+
+## 7. 장비 · 물품 일람
+
+| 물품 | 기준 | 비고 |
+| --- | --- | --- |
+| 모니터 | 팀당 1대 | 추가 대여는 장비 창고 재고에 따름. 창고 재고는 매주 월요일 오후 확인 |
+| 멀티탭 | 자리마다, 접수 데스크에 하나 | 뒷줄은 5미터짜리 사용. 참가자가 옮기거나 이어 붙이지 않음 |
+| 예비 멀티탭 | 대장 예비분 면에 따로 기록 | 행사 면 수량에 넣지 않음 |
+| 명찰 케이스 | 장비 창고 보유분 사용 | 앞면 이름 · 팀 이름, 뒷면 무선 인터넷 비밀번호 속지 |
+| 이상 물품 | 배부하지 않음 | 멀티탭 한 개(폐기 대상), 모니터 한 대(수리 점검 중), 명찰 케이스 두 개(끈 교체, 당일 대조 뒤 사용 판단) |
+| 자리 번호표 | 사무실 출력기로 출력 | 숫자만, 팀 이름 없음 |
+| 배치표 | 사전 등록 마감 뒤 추첨으로 작성 | 아직 없음. 당일 앞문 안쪽 벽에 게시 |
+| 문 안내 종이 | 행사 전날 출력 | 접수 시작 전 입장 불가, 새 접수 시작 시각, 배치표 위치 |
+| 바닥 테이프 | 개발문화팀 사무용품 | 통로를 가로지르는 멀티탭 선 고정 |
+| 간식 세트 | 구매 승인 전 | 견적만 받음 |
+
+## 8. 담당 일람
+
+| 담당 | 이름 · 부서 | 맡은 일 |
+| --- | --- | --- |
+| 운영 담당 | 오지훈(개발문화팀) | 당일 진행 전체, 접수, 장비 준비 · 설치 · 회수, 문의 응대, 안내문 작성 |
+| 재무 담당 | 한예린(재무팀) | 예산 관리, 구매 승인 검토, 배치표 대조(팀 이름 · 팀 수) |
+| 게시 담당 | 윤채원(사내소통팀) | 참가 안내문 게시판 형식 확인 |
+| 게시판 운영 선임 | 강태오(사내소통팀) | 게시 승인 최종 확인 |
+| 장비 창고 관리 | 문가영(총무팀) | 반출 승인, 재고 안내, 이상 물품 처리 |
+| 예비 인력 | 구민재(개발문화팀) | 참석 확답 없음, 승인 인력 아님. 맡은 일 없음 |
+| 경영지원팀 | 송하준 | 분기 보고용 현황 관리 |
+
+## 9. 결정 · 미정 상태 일람
+
+| 항목 | 상태 | 비고 |
+| --- | --- | --- |
+| 행사 날짜 | 미정 | 대회의실 예약과 팀장 회의 일정 뒤 결정 |
+| 문의처 연락처 | 미정 | 안내문에 &#x27;미정&#x27;으로 표기 |
+| 접수 시작 | 결정(9월 22일 변경) | 이전 계획보다 20분 늦춤, 종료 시각 유지 |
+| 개인 참가 예외 | 취소(9월 22일) | 사전에 팀을 등록한 사람만 참가 |
+| 장비 준비 방식 | 개발문화팀 문서 기준 비교 중 | 9월 22일 수정 회의 안건 아님 |
+| 사전 등록 시작 · 마감 | 미정 | 등록 양식 초안만 있음 |
+| 팀 인원 기준 | 미정 | 팀장 회의 안건 예정 |
+| 팀별 자리 배치표 | 미작성 | 사전 등록 마감 뒤 추첨으로 작성 |
+| 추가 지원 인력 | 미정 | 예비 인력 미확답 |
+| 개별 참가자 편의 지원 | 미정 | 요청 칸만 있음, 지원 내용 약속 없음 |
+| 간식 세트 구매 | 승인 전 | 견적만 받음 |
+| 보관함 &#x27;한 번 이용&#x27; 범위 | 말로만 확인 | 관리사무소 서면 확인 없음 |
+| 변환 젠더 | 확인 중 | 창고 재고 확인 필요 |
+| 블라인드 수리 | 미정 | 부품 주문 중 |
+
+## 10. 변경 이력 일람
+
+| 날짜 | 문서 · 회의 | 바뀐 것 |
+| --- | --- | --- |
+| 9월 2일 | 회의실 장비 점검 메모, 재무팀 예산 메모 | 기준 시각, 준비 조건, 예산 숫자 첫 기록 |
+| 9월 3일 | 1차 준비 회의 | 기준 시각 확인, 인력 1명 기준, 개인 참가 예외 허용 |
+| 9월 8일 | 2차 준비 회의 | 장비 방식 결정 보류 유지 |
+| 9월 9일 | 장비 창고 시험 반출 | 이상 물품 확인, 보관함 크기 확인 |
+| 9월 15일 | 운영 확인 기록 판본 2 | 판본 1 이후 확인 내용 반영 |
+| 9월 17일 | 참가 안내문 초안 | 일시 · 참여 조건 · 문의처 |
+| 9월 21일 | 참가 안내문 첫 번째 수정본 | 게시판 형식 반영 |
+| 9월 21일 | 팀장 회의 | 접수 시작 변경, 개인 참가 예외 취소 결정 |
+| 9월 22일 | 변경 통지 제14호, 수정 회의, 판본 3 | 위 두 가지 반영, 나머지 조건 유지 |
+| 9월 23일 | 자리 · 팀 배치 운영 기준 | 배치 원칙과 절차(배치표는 미작성) |
+
+## 11. 위험 관리 일람
+
+| 위험 | 내용 | 대응 |
+| --- | --- | --- |
+| 접수 데스크를 비울 위험 | 운영 인력 1명. 운영 담당이 대회의실을 떠나면 접수 데스크가 빔 | 자리를 비울 일은 접수 시작 전에 마치고 돌아옴. 접수 시작 뒤 자리 비움 없음 |
+| 장비 재고 위험 | 창고 모니터 재고가 주마다 바뀜 | 팀당 1대는 총무팀이 먼저 확보. 추가분은 약속하지 않음 |
+| 보관함 열쇠 위험 | B안일 때 열쇠를 하룻밤 보관 | 장비 방식 결정 뒤 대응 |
+| 비밀번호 노출 위험 | 지난 회차 화이트보드 노출 | 명찰 뒷면으로만 전달 |
+| 조기 도착 | 지난 회차 대조 전 장비를 먼저 가져감 | 접수 시작 전 입장 불가, 복도 대기 |
+| 파손 장비 | 지난 회차 화면 줄 간 모니터 배부 | 파손 의심 물품 배부하지 않고 따로 확인 |
+| 자리 다툼 | 지난 회차 자유 착석으로 다툼 | 사전 추첨, 자리 번호표, 당일 자리 교환 없음 |
+| 마감 다툼 | 지난 회차 마감 뒤 제출 다툼 | 마감 뒤 제출은 심사하지 않음 |
+
+## 12. 운영 원칙 일람
+
+경영지원팀 양식의 &#x27;운영 원칙&#x27; 칸에는 행사마다 지키기로 한 규칙을 적는다. 개발문화팀 문서에서 옮긴 것이다.
+
+- 도착 전의 작업을 당일 현장에서 한 것으로 적지 않는다. 행사 전날 한 일은 전날 날짜로 적는다.
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+- 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다.
+- 번호표나 명찰을 받았다는 사실이 안내를 들었다는 뜻은 아니다. 명찰을 건넬 때 제출 마감과 모니터 규칙을 말로 알린다.
+- 물품은 현장 대조 뒤 배부한다. 예비 물품을 정원에 더하지 않으며 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않는다.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인한다.
+- 새 물품 구매는 승인 전이므로 일정이나 예산에 실제 구매로 넣지 않는다.
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아온다. 접수 시작 후에는 자리를 비워 둘 수 없다.
+- 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다.
+- 12:00 이후에는 물품을 회수하고 참가 기록을 마무리한다. 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+- 정하지 않은 값은 미정 또는 미기재로 구별하고, 예상만으로 이름이나 연락처를 만들지 않는다.
+
+## 13. 9월 23일 개발문화팀 통화 기록
+
+일람표를 채우기 전에 9월 23일(수) 16:30 무렵 운영 담당 오지훈과 통화했다. 경영지원팀 양식 칸을 채우며 물어본 것과 답을 옮긴다. 통화는 경영지원팀 송하준이 걸었다.
+
+- 송하준: 행사 날짜가 아직 안 정해졌나요? 분기 보고에는 날짜 칸이 있어서요.
+  - 오지훈: 아직 미정입니다. 미정으로 적어 주세요.
+- 송하준: 운영 인력은 몇 명으로 적으면 되나요? 지난 회차 보고에는 두 명이었는데요.
+  - 오지훈: 확정 진행 인력은 저 한 명입니다. 도움을 부탁한 동료가 있지만 확답이 없어서 승인 인력에 넣지 않았습니다.
+- 송하준: 경영지원팀에서 당일 사람을 보내 드릴 수도 있는데요.
+  - 오지훈: 마음은 감사하지만 지금 계획은 확정 인력 한 명 기준입니다. 인력을 늘리려면 팀장 회의 승인이 필요해서, 지금 일람표에는 파견 없음으로 두는 게 맞습니다.
+- 송하준: 접수 시작이 바뀌었다고 들었습니다.
+  - 오지훈: 네, 이전 계획보다 20분 늦췄습니다. 종료 시각은 그대로입니다. 9월 22일 변경 통지에 있습니다.
+- 송하준: 혼자 오는 사람도 받는다고 들었는데요.
+  - 오지훈: 그 예외는 9월 22일에 취소했습니다. 지금은 사전에 팀을 등록한 사람만 참가합니다.
+- 송하준: 예산은 어떻게 적을까요? 상한, 쓴 돈, 남은 돈?
+  - 오지훈: 재무팀 예산 메모 기준으로 승인 상한, 실지급, 남은 예상 세 가지로 나누어 적어 주세요. 상한은 쓴 돈이 아니고, 남은 예상은 아직 낸 돈이 아닙니다.
+- 송하준: 장비 준비 방식은 정해졌나요?
+  - 오지훈: 두 방식의 조건은 공유 폴더 문서대로입니다. 일람표에는 두 방식을 나란히 적어 주시면 됩니다.
+- 송하준: 간식은 나오나요? 분기 보고에 다과 칸이 있어서요.
+  - 오지훈: 견적만 받았고 구매 승인 전입니다. &#x27;승인 전&#x27;으로 적어 주세요.
+
+- 송하준: 결과물 제출은 언제까지인가요? 분기 보고에 &#x27;행사 종료&#x27; 칸이 하나뿐이라서요.
+  - 오지훈: 킥오프는 12:00에 끝나고, 결과물 제출 마감은 다음 날 18:00입니다. 마감 뒤 제출은 심사하지 않습니다. 행사 종료 칸에는 킥오프 종료를 적고, 제출 마감은 따로 적어 주세요.
+- 송하준: 무선 인터넷 비밀번호를 일람표 시설 칸에 적어 둘까요?
+  - 오지훈: 적지 말아 주세요. 접수 때 명찰 뒷면으로만 전달하고, 어떤 문서에도 적지 않습니다.
+- 송하준: 자리 배치표가 있으면 같이 받고 싶습니다.
+  - 오지훈: 아직 없습니다. 사전 등록이 끝난 뒤 추첨으로 만듭니다.
+
+통화 뒤 송하준은 개발문화팀 공유 폴더의 문서를 다시 열어 칸을 채웠다. 채운 값은 위 1장~11장이다.
+
+## 14. 분기 보고에 넣을 설명 문단
+
+경영지원팀 분기 행사 지원 현황 보고의 &#x27;행사별 설명&#x27; 칸에 넣을 문단 초안이다.
+
+사내 해커톤 킥오프는 개발문화팀이 주관하는 사내 해커톤의 첫날 오전 행사다. 행사 날짜는 미정이며, 장소는 본관 7층 대회의실로 계획되어 있다. 운영은 개발문화팀 운영 담당 한 명이 맡고, 예비 인력은 참석 확답이 없어 승인 인력에 들어 있지 않다. 참가는 사전에 팀을 등록한 사람만 할 수 있으며, 팀을 꾸리지 못한 개인의 당일 참가를 허용하던 예외는 9월 22일에 취소되었다. 같은 날 접수 시작이 이전 계획보다 20분 늦춰졌고 종료 시각은 그대로다. 장비는 별관 지하 장비 창고의 멀티탭과 모니터를 쓰며, 당일 운반과 전날 보관 두 방식의 조건이 개발문화팀 문서에 나와 있다. 경영지원팀은 이 행사에 운영 인력을 보내지 않으며, 분기 보고용 현황만 관리한다.
+
+## 15. 경영지원팀 파트장 검토 메모(노은비, 9월 28일 14:20)
+
+송하준이 만든 일람표 초안을 경영지원팀 행사 지원 파트장 노은비가 양식 쪽에서 검토했다. 양식과 표기에 대한 의견만 남겼다.
+
+- 1장 &#x27;경영지원팀 지원 범위&#x27; 칸: 다른 행사 일람표와 같은 말투로 &#x27;분기 보고용 현황 관리&#x27;라고 쓴 것 좋음. 파견하지 않는다는 점을 같은 칸에 함께 적어 둔 것도 좋음.
+- 2장 일정 일람: 행사 날짜가 미정인 행사는 &#x27;행사 당일&#x27;, &#x27;행사 전날&#x27;처럼 상대 표현을 쓰는 것이 분기 보고 규칙과 맞음. 날짜를 짐작해 넣지 않은 점 확인함.
+- 3장 인원 일람: 정원과 진행 인력을 다른 줄에 나눠 적은 것 좋음. 지난 분기 다른 행사 일람표에서 두 값을 한 칸에 더해 적었다가 고친 일이 있었음.
+- 4장 비용 일람: 상한 · 실지급 · 남은 예상을 각각 다른 줄에 둔 것 좋음. 금액 칸 표기는 다른 행사 일람표와 같이 쉼표 없이 &#x27;원&#x27;을 붙이는 방식으로 통일함.
+- 5장 장비 준비 방식: 두 방식을 나란히 둔 표가 보기 좋음. 분기 보고에는 표를 그대로 넣지 않고 &#x27;준비 방식 두 가지 비교 중&#x27;이라고만 쓸 예정.
+- 7장 장비 · 물품: 이상 물품을 적어 둔 것은 분기 보고에는 필요 없지만, 총무팀과 함께 보는 자료로 남겨 두면 좋겠음.
+- 11장 위험 관리: 분기 보고 양식에는 위험 칸이 따로 없음. 일람표에만 남기고 보고에는 넣지 않음.
+- 전체: 개발문화팀 문서를 옮긴 것이므로, 숫자와 시각은 개발문화팀 문서와 한 번 더 맞춰 본 뒤 보고에 넣을 것. 맞춰 보는 일은 송하준이 9월 29일 오전에 함.
+
+## 16. 지난 회차 일람표와 다른 점
+
+경영지원팀은 지난 회차 해커톤 때도 같은 양식으로 일람표를 만들었다. 이번 일람표와 칸별로 달라진 점을 적는다. 지난 회차의 시각과 금액은 지난 회차 값이므로 옮기지 않았다.
+
+- 운영 인력: 지난 회차 2명 → 이번 확정 1명. 예비 인력 칸이 새로 생김(승인 인력 아님).
+- 참가 조건: 지난 회차 &#x27;팀 단위 신청&#x27;만 있었음 → 이번에는 한때 개인 참가 예외가 있었다가 9월 22일 취소되어 &#x27;사전에 팀을 등록한 사람&#x27;.
+- 접수: 지난 회차 일람표에는 접수 시각 칸이 비어 있었음 → 이번에는 칸을 채움.
+- 장비 준비: 지난 회차에는 당일 운반 하나 → 이번에는 두 방식 비교.
+- 무선 인터넷: 지난 회차 화이트보드 → 이번 명찰 뒷면.
+- 제출 마감: 지난 회차 &#x27;다음 날 저녁&#x27; → 이번 &#x27;다음 날 18:00, 마감 뒤 제출은 심사하지 않음&#x27;.
+- 다과: 지난 회차 &#x27;제공&#x27;이라고 적었다가 실제로는 없었음 → 이번에는 &#x27;구매 승인 전&#x27;.
+- 자리: 지난 회차 &#x27;자유 착석&#x27; → 이번 &#x27;사전 추첨, 배치표는 사전 등록 마감 뒤 작성&#x27;.
+
+## 17. 다른 행사와 같은 칸으로 볼 때 참고할 점
+
+분기 보고에는 이 행사 말고도 경영지원팀이 지원하는 사내 행사 몇 건이 같은 양식으로 들어간다. 다른 행사의 값은 여기 옮기지 않고, 이 행사를 같은 칸에 넣을 때 다르게 읽힐 수 있는 점만 적는다.
+
+- 다른 행사들은 &#x27;행사 시간&#x27;과 &#x27;접수 시간&#x27;이 대개 같은 시각에 시작한다. 이 행사는 접수 칸과 행사 시간 칸을 따로 보아야 한다.
+- 다른 행사들은 운영 인력이 둘 이상인 경우가 많다. 이 행사는 확정 1명이라 &#x27;접수 데스크를 비울 위험&#x27;이 위험 칸에 들어간다.
+- 다른 행사들의 비용 칸은 대개 &#x27;실지급&#x27; 하나만 적혀 있다. 이 행사는 상한 · 실지급 · 남은 예상 세 줄이므로, 보고에서 한 줄로 합치지 않는다.
+- 다른 행사들은 날짜가 정해진 경우가 대부분이다. 이 행사는 날짜 미정이라 분기 보고의 날짜 순 정렬에서 맨 아래에 둔다.
+
+## 18. 행사 당일 흐름 일람(경영지원팀 양식 &#x27;당일 흐름&#x27; 칸)
+
+경영지원팀 양식에는 행사 당일의 흐름을 단계 이름과 소요로 적는 칸이 있다. 각 단계의 시작 · 끝 시각은 장비 준비 방식이 정해지지 않아 계산해 넣지 않았다.
+
+| 단계 | 담당 | 소요 · 기준 시각 | 비고 |
+| --- | --- | --- | --- |
+| 현장 도착 | 오지훈 | 08:30 | |
+| 장비 창고 이동(A안) | 오지훈 | 왕복 8분 | B안이면 없음 |
+| 장비 확인 | 오지훈 | 7분 | A안은 창고, B안은 보관함 앞 |
+| 설치 | 오지훈 | 18분 | 멀티탭 · 모니터 · 접수 데스크 · 자리 번호표 · 배치표 |
+| 명찰 뒷면 속지 넣기 | 오지훈 | 접수 직전 | 미리 넣어 두지 않음 |
+| 접수 | 오지훈 | 이전 계획 09:15에서 20분 늦춘 시각부터 | 접수 시작 뒤 자리 비움 없음 |
+| 행사 | 오지훈 | 09:30~12:00 | 진행 · 응대 |
+| 회수 · 기록 마무리 | 오지훈 | 12:00 이후 | 완료 시각은 실제 시각 |
+
+## 19. 시험 반출 · 물품 이동 일람
+
+| 날짜 | 내용 | 비고 |
+| --- | --- | --- |
+| 9월 9일 | 장비 창고 시험 반출(멀티탭 · 모니터 · 명찰 케이스) | 상태 확인과 보관함 크기 확인용. 수량은 장비 창고 대장 원본 기준 |
+| 9월 9일 | 같은 날 반납 | 반납 확인 면 기록 |
+| 9월 9일 | 이상 물품 분리 | 빨간 꼬리표, 선반 맨 아래 칸 |
+| 9월 11일 | 이상 물품 처리 회신 | 멀티탭 폐기 대상, 모니터 수리 점검, 명찰 케이스 끈 교체 |
+| 행사 전날 | B안일 때 보관함에 장비 넣기 | 전날 날짜로 기록 |
+| 행사 당일 | A안일 때 창고에서 반출 | 반출 대장 기록 |
+| 행사 당일 12:00 이후 | 회수와 반납 | 실제 반납 시각 기록 |
+
+## 20. 개발문화팀에 보낼 확인 요청
+
+분기 보고에 넣기 전에 개발문화팀에 확인을 요청할 항목이다. 9월 29일 오전 메일로 보낼 예정이다.
+
+- 행사 날짜가 정해지면 알려 달라. 분기 보고 마감 전에 정해지지 않으면 &#x27;미정&#x27;으로 보고한다.
+- 문의처 연락처가 정해지면 알려 달라. 정해지지 않으면 &#x27;미정&#x27;으로 둔다.
+- 사전 등록 시작 · 마감이 정해지면 알려 달라.
+- 장비 준비 방식이 정해지면 어느 쪽인지 알려 달라. 정해지기 전에는 두 방식을 나란히 적어 둔다.
+- 간식 세트 구매 승인 여부가 나오면 알려 달라.
+- 배치표가 만들어지면 만들어졌다는 사실만 알려 달라. 배치표 자체는 일람표에 넣지 않는다.
+- 일람표에서 숫자가 들어간 칸을 한 번 봐 달라. 경영지원팀 양식으로 옮기면서 칸 이름이 바뀐 곳이 있다.
+
+## 21. 경영지원팀 내부 회의 메모(9월 28일 16:00)
+
+- 참석: 노은비(파트장), 송하준
+- 분기 보고 마감은 10월 첫 주. 그 전에 개발문화팀 확인을 받는다.
+- 해커톤 킥오프는 날짜 미정이라 분기 보고의 &#x27;진행 예정 행사&#x27; 칸에 넣는다. 날짜가 정해지면 &#x27;확정 행사&#x27; 칸으로 옮긴다.
+- 경영지원팀이 당일 사람을 보내지 않는다는 점을 보고에 분명히 적는다. 지난 분기에는 &#x27;지원&#x27;이라는 말 때문에 경영지원팀이 현장에 가는 것으로 읽힌 행사가 있었다.
+- 노은비: 개발문화팀 문서와 칸 이름이 다를 수 있으니, 숫자 칸만이라도 개발문화팀이 직접 확인하게 하자.
+- 송하준: 20장 마지막 항목으로 넣어 두었다.
+- 노은비: 비용 칸의 간식 세트는 &#x27;승인 전&#x27;으로만 두고 금액 합계는 내지 말 것. 승인 전 금액을 합계에 넣으면 보고에서 지출처럼 보인다.
+- 송하준: 간식 세트 줄은 견적 단가와 검토 수량만 적고 합계 칸은 비워 두었다.
+
+## 22. 문의 응대 일람
+
+경영지원팀 양식의 &#x27;문의 응대&#x27; 칸에는 어떤 문의를 누가 받는지를 적는다.
+
+| 문의 종류 | 받는 사람 | 비고 |
+| --- | --- | --- |
+| 참가 조건, 사전 등록, 팀 등록 | 오지훈 | 사전에 팀을 등록한 사람만 참가 |
+| 일시, 접수, 장소 | 오지훈 | 행사 날짜 미정 |
+| 장비, 모니터 추가 대여 | 오지훈 | 추가 대여는 창고 재고에 따름 |
+| 제출 마감 | 오지훈 | 다음 날 18:00, 마감 뒤 제출은 심사하지 않음 |
+| 자리 배치 | 오지훈 | 배치표는 사전 등록 마감 뒤 추첨 |
+| 무선 인터넷 | 오지훈 | 비밀번호는 접수 때 명찰 뒷면으로만 전달 |
+| 비용, 구매 | 한예린 | 참가자 비용 문구는 재무팀 확인 전 |
+| 게시판 글 형식 | 윤채원 | 안내문 게시 관련 |
+| 장비 창고 재고 | 문가영 | 매주 월요일 오후 재고 확인 |
+| 분기 보고 | 송하준 | 경영지원팀 내부 |
+
+경영지원팀으로 참가 문의가 들어오면 직접 답하지 않고 운영 담당 오지훈에게 넘긴다. 지난 분기 다른 행사에서 경영지원팀이 참가 조건을 잘못 답했다가 바로잡은 일이 있었다.
+
+## 23. 시설 예약 현황
+
+- 대회의실(본관 7층): 행사 날짜가 정해지지 않아 예약 시스템에서 가예약을 걸 수 없음. 날짜가 정해지면 개발문화팀이 행사 당일 오전을 예약하고, B안일 때는 행사 전날 오후도 함께 확인한다.
+- 잠금 보관함: 관리사무소 신청 방식. B안일 때만 신청. 신청 시점은 장비 방식이 정해진 뒤.
+- 장비 창고: 예약 없이 사원증으로 출입. 대차는 한 대뿐이라 쓰는 날 전날까지 총무팀에 알리면 다른 부서 예약을 막아 둔다.
+- 복도 벤치: 예약 대상 아님. 늘리려면 다른 부서 협조가 필요하며 지금은 늘리지 않음.
+
+## 24. 지난 분기 보고에서 생긴 오해 사례
+
+경영지원팀이 지난 분기 행사 일람표를 보고에 옮길 때 생긴 오해들이다. 이번 일람표를 만들 때 같은 일이 없도록 참고했다. 해당 행사의 이름과 값은 적지 않는다.
+
+- 예산 상한을 &#x27;예산&#x27;이라고만 적어, 보고를 본 사람이 그만큼 썼다고 읽었다. 이번에는 상한 · 실지급 · 남은 예상을 칸 이름부터 나누었다.
+- 정원과 운영 인력을 한 칸 &#x27;인원&#x27;에 더해 적어, 명찰을 그 수만큼 준비하는 일이 생겼다. 이번에는 정원과 진행 인력을 다른 줄에 두었다.
+- &#x27;접수&#x27;와 &#x27;행사 시작&#x27;을 같은 칸에 적어, 참가자들이 행사 시작에 맞춰 와 접수 줄이 길어졌다. 이번에는 접수 칸과 행사 시간 칸을 따로 두었다.
+- 견적만 받은 다과를 &#x27;제공&#x27;으로 적었다가 실제로는 승인되지 않았다. 이번에는 &#x27;구매 승인 전&#x27;으로 적었다.
+- 미정인 행사 날짜를 &#x27;예정일&#x27;이라는 이름으로 짐작해 적었다가 다른 날로 정해져 보고를 고쳤다. 이번에는 &#x27;미정&#x27;으로 두었다.
+- 예비로 부탁한 인력을 운영 인력에 넣었다가 그 사람이 오지 않았다. 이번에는 예비 인력을 승인 인력에 넣지 않았다.
+
+## 25. 경영지원팀 양식의 칸 이름과 개발문화팀 문서 용어
+
+경영지원팀 양식으로 옮기면서 칸 이름이 개발문화팀 문서의 용어와 다른 곳이 있다. 같은 뜻으로 옮긴 칸을 적어 둔다.
+
+- 경영지원팀 &#x27;확정 진행 인력&#x27; = 개발문화팀 &#x27;확정 인력&#x27;, &#x27;승인 인력&#x27;
+- 경영지원팀 &#x27;참여 정원&#x27; = 개발문화팀 &#x27;정원&#x27;
+- 경영지원팀 &#x27;실제 지급액&#x27; = 개발문화팀 &#x27;실지급&#x27;
+- 경영지원팀 &#x27;남은 운영 예상 지출&#x27; = 개발문화팀 &#x27;남은 예상&#x27;
+- 경영지원팀 &#x27;물품 회수 · 참가 기록 마무리&#x27; = 개발문화팀 &#x27;마감과 회수&#x27;
+- 경영지원팀 &#x27;당일 흐름&#x27; = 개발문화팀 &#x27;운영 일정표&#x27;의 단계
+- 경영지원팀 &#x27;파견 인력&#x27; = 개발문화팀 문서에는 없는 칸. 경영지원팀이 사람을 보내는지 적는 칸이며, 이 행사는 &#x27;없음&#x27;.
+- 경영지원팀 &#x27;다과&#x27; = 개발문화팀 &#x27;간식 세트&#x27;
+
+칸 이름만 바꾸었고, 칸 안의 값은 개발문화팀 문서에서 옮긴 그대로라는 것이 작성자의 설명이다. 개발문화팀 확인은 9월 29일 오전에 받는다.
+
+## 26. 분기 보고에 넣지 않는 것
+
+- 무선 인터넷 비밀번호: 어떤 문서에도 적지 않는다는 개발문화팀 원칙에 따라 일람표에도 적지 않았다. 일람표에는 전달 방법만 적었다.
+- 개인 연락처: 문의처 연락처는 미정이며, 담당자 개인 휴대전화 번호는 적지 않는다.
+- 팀별 자리 배치표: 아직 없고, 만들어져도 일람표에 넣지 않는다.
+- 참가자 개인 이름: 사전 등록이 시작되지 않았고, 시작되어도 분기 보고에는 참가자 수만 넣는다.
+- 이상 물품의 처리 결과: 총무팀 자료로 남기고 보고에는 넣지 않는다.
+- 위험 관리 일람(11장): 보고 양식에 칸이 없어 일람표에만 둔다.
+- 게시판 &#x27;해커톤 이야기&#x27;의 의견 글: 의견일 뿐 확인된 기록이 아니므로 보고에도 일람표 값에도 넣지 않는다. 의견이 많았다는 사실만 필요하면 설명 문단에서 말로 다룬다.
+- 지난 회차 값: 비교용으로만 16장에서 말로 다루고, 시각이나 금액은 옮기지 않는다.
+
+## 27. 작성자 메모(송하준) — 옮기며 헷갈렸던 점
+
+- 개발문화팀 문서에는 &#x27;접수&#x27;가 운영 담당이 참가자 이름을 확인하고 명찰을 건네며 제출 마감과 모니터 규칙을 말로 알리는 데까지를 뜻한다. 경영지원팀 양식의 &#x27;접수&#x27;는 보통 이름 확인만 뜻해서, 2장 비고에 따로 적지는 않았지만 보고 설명 문단(14장)에서는 개발문화팀 뜻으로 썼다.
+- 개인 참가 예외는 9월 15일 문서까지 &#x27;현재 허용&#x27;으로 되어 있어 처음에 허용으로 적었다가, 9월 22일 변경 통지를 보고 &#x27;취소&#x27;로 고쳤다.
+- 접수 시작 시각은 변경 통지에 &#x27;이전 계획보다 20분 늦춘다&#x27;로만 적혀 있어, 일람표에도 같은 표현으로 옮겼다. 새 시각을 경영지원팀이 계산해 따로 적지는 않았다.
+- 장비 준비 방식은 어느 문서에도 &#x27;결정&#x27;으로 적힌 것을 찾지 못해, 두 방식을 나란히 적었다.
+- 예비 인력은 이름이 문서에 나와 있어 담당 일람에 넣었지만, &#x27;맡은 일 없음&#x27;으로 적었다. 운영 인력 수에는 넣지 않았다.
+- 간식 세트는 견적 단가와 검토 수량만 적고 합계는 내지 않았다(21장 노은비 의견).
+
+## 28. 경영지원팀이 이 행사에서 맡지 않는 일
+
+- 당일 운영 인력 파견: 하지 않음. 개발문화팀 계획은 확정 인력 1명 기준이며, 인력을 늘리려면 팀장 회의 승인이 필요하다.
+- 참가 문의 답변: 하지 않음. 들어오면 운영 담당에게 넘긴다.
+- 구매 처리: 하지 않음. 재무팀과 개발문화팀이 정한다.
+- 시설 예약: 하지 않음. 개발문화팀이 직접 한다.
+- 배치표 작성: 하지 않음. 개발문화팀이 사전 등록 마감 뒤 추첨으로 만든다.
+- 안내문 작성 · 게시: 하지 않음. 개발문화팀과 사내소통팀이 한다.
+
+## 29. 다음 분기 보고 때 다시 볼 것
+
+- 행사 날짜가 정해졌는지, 행사가 끝났는지.
+- 행사가 끝났다면 실제 회수 완료 시각, 실제 참가 인원, 실제 지급액 변화(개발문화팀 · 재무팀 자료 기준).
+- 장비 준비 방식이 무엇으로 정해졌는지, 그에 따른 비용 변화가 재무팀 기록에 어떻게 남았는지.
+- 다음 회차 운영 인력 계획(예비 인력 확답 여부와 승인 여부).
+- 지난 분기 오해 사례(24장)가 이번에는 생기지 않았는지.
+- 개발문화팀이 9월 29일 확인 요청(20장)에 회신한 내용과, 회신에 따라 고친 칸이 있다면 그 칸과 고친 날짜.
+- 사전 등록이 열렸다면 등록을 마친 팀 수와 사람 수(사람 수와 팀 수를 섞지 않고 각각).
+- 배치표가 만들어졌는지(배치표 자체는 일람표에 넣지 않음).
+
+## 30. 이 일람표가 기댄 개발문화팀 문서 목록
+
+| 문서 | 작성 | 이 일람표에서 쓴 곳 |
+| --- | --- | --- |
+| 회의실 장비 점검 메모 | 오지훈, 9월 2일 | 일정 · 준비 방식 · 시설 |
+| 재무팀 예산 메모 | 한예린, 9월 2일 | 비용 |
+| 1차 준비 회의록 | 9월 3일 | 인원 · 운영 원칙 · 위험 |
+| 장비 창고 비품 반출입 대장 옮김본과 견적 메일 묶음 | 9월 10일~11일 | 물품 · 시험 반출 · 간식 견적 |
+| 운영 확인 기록 판본 2 | 9월 15일 | 전체 |
+| 참가 안내문 게시 관련 메일 묶음 | 9월 18일 | 담당(게시) |
+| 변경 통지 개발문화-행사-제14호와 수정 회의록 | 9월 22일 | 접수 · 참가 조건 · 변경 이력 |
+| 운영 확인 기록 판본 3 | 9월 22일 | 전체 |
+| 자리 · 팀 배치 운영 기준 | 9월 23일 | 물품(자리 번호표 · 배치표) · 결정 상태 |
+
+이 목록 밖의 자료(인터넷 자료, 다른 회사 사례 등)는 쓰지 않았다. 게시판 &#x27;해커톤 이야기&#x27;의 의견 글은 의견이라 일람표 값으로 옮기지 않았다.
+
+## 31. 경영지원팀 분기 보고 양식의 구성
+
+분기 보고는 행사마다 한 쪽씩이며, 칸 순서는 다음과 같다. 이 일람표의 장 번호와 보고 칸의 짝도 함께 적는다.
+
+- 행사 이름 · 주관 · 담당 → 1장, 8장
+- 날짜 · 장소 → 1장, 23장
+- 당일 흐름 → 2장, 18장
+- 인원(정원 · 진행 인력 · 파견 인력) → 3장
+- 비용(상한 · 실지급 · 남은 예상 · 방식별 비용) → 4장, 5장
+- 다과 → 4장(구매 승인 전)
+- 결정 상태 → 9장
+- 변경 이력 → 10장
+- 행사별 설명 → 14장
+
+위험 관리, 운영 원칙, 문의 응대, 통화 기록, 검토 메모는 보고에 넣지 않고 이 일람표에만 남긴다.
+
+## 32. 이 행사의 특징(보고 설명 보조 메모)
+
+분기 보고를 읽는 사람이 다른 행사와 비교해 이 행사를 이해하는 데 도움이 될 특징을 적는다. 보고 본문에는 14장 문단만 넣고, 이 메모는 질문이 오면 답할 때 쓴다.
+
+- 운영 담당 혼자 준비부터 회수까지 맡는다. 그래서 개발문화팀 문서 곳곳에 &#x27;접수 시작 뒤 자리를 비우지 않는다&#x27;는 원칙이 반복된다.
+- 장비가 다른 건물(별관 지하 창고)에 있어 준비 방식 비교가 행사 준비의 큰 부분을 차지했다.
+- 예산 숫자를 상한 · 실지급 · 남은 예상으로 나누어 관리한다. 지난 회차 정산 때 상한을 지출처럼 적어 보고서를 두 번 고친 일이 계기였다고 한다.
+- 행사 중 조건이 한 번 바뀌었다(9월 22일). 바뀐 두 가지 외의 조건은 그대로 두었다는 것이 개발문화팀 문서의 일관된 설명이다.
+- 자리를 당일에 정하지 않고 사전 추첨으로 정한다. 운영 담당이 당일 자리를 안내하러 접수 데스크를 떠나지 않기 위해서다.
+- 결과물 제출 마감 뒤 제출은 심사하지 않는다. 지난 회차 마감 다툼이 계기였다.
+
+## 33. 작성 이력
+
+- 9월 23일(수) 16:30: 개발문화팀 오지훈과 통화(13장).
+- 9월 24일(목) ~ 9월 27일(일): 연휴와 주말로 작성 중단.
+- 9월 28일(월) 10:00~13:30: 송하준이 개발문화팀 공유 폴더 문서를 보며 1장~12장 작성.
+- 9월 28일(월) 14:20: 노은비 양식 검토(15장), 금액 칸 표기 통일.
+- 9월 28일(월) 15:00~16:00: 14장, 16장~20장, 22장~24장 작성.
+- 9월 28일(월) 16:30~17:30: 25장~32장 작성.
+- 9월 28일(월) 16:00: 경영지원팀 내부 회의(21장).
+- 9월 29일(화) 오전 예정: 개발문화팀에 확인 요청 메일 발송(20장), 숫자 칸 대조.
+- 9월 29일(화) 오후 예정: 개발문화팀 회신을 반영해 고칠 칸이 있으면 고치고, 고친 칸과 날짜를 이 작성 이력 아래에 덧붙인다. 위쪽 장의 내용은 고친 칸 말고는 그대로 둔다.
+[자료 끝]
+
+붙여 넣은 일람표의 시각 · 인원 · 금액이 지금까지 이 대화에서 확정한 내용과 맞는지 대조해 주세요. 서로 다른 항목만 근거와 함께 짚고, 확정되지 않은 값은 추측해서 채우지 마세요.</pre><b>턴 9 답변</b><pre class="rs-pre rs-ans">일람표에서 기존 확정 기록과 **다른 값은 3곳**입니다.
+
+### 시각
+- 2장과 5장의 A안 이동 시간이 **왕복 8분**으로 적혀 있습니다. 확정 기록은 편도 8분이므로 <mark class="rs-mk"><sup>8</sup>왕복은 **8분 + 8분 = 16분**입니다.</mark>
+
+### 인원
+- 3장의 참여 정원이 **25명**으로 적혀 있지만, 확정 정원은 **20명**입니다.
+
+### 금액
+- 4장의 남은 운영 예상 지출이 **111,000원**으로 적혀 있지만, 확정 금액은 **110,000원**입니다. B안 보관함 이용료 **1,000원**은 아직 남은 예상 지출에 포함되지 않았고, B안도 확정되지 않았으므로 현재 금액에 더하면 안 됩니다.
+
+행사 시각·종료 시각, 확정 진행 인력 1명, 승인 예산 상한 300,000원, 실제 지급액 140,000원은 제공된 확정 기록과 일치합니다.
+
+데이터 제공: 한국천문연구원 (공공데이터포털 특일 정보(공휴일))</pre></div><div class="rs-turn"><b>턴 10 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 사내 해커톤 킥오프 당일 운영 일정표 개정 자료 · 근무표 · 시설 사용 시간 · 마감과 회수 절차
+
+- 작성: 오지훈(개발문화팀, 사내 해커톤 킥오프 운영 담당)
+- 검토: 한예린(재무팀, 재무 담당)
+- 작성일: 2026년 9월 29일(화)
+- 문서 상태: 운영 일정표 개정판(2판)을 만들기 위한 자료 묶음. 2판에 들어갈 고정 시각, 소요 시간, 단계, 근무, 시설 사용 조건, 마감과 회수 절차를 모았다. 시각을 이어 붙여 계산한 완성 일정표는 이 묶음에 넣지 않았고, 2판 일정표는 이 자료로 따로 만든다.
+- 반영한 조건: 9월 22일 변경 통지(개발문화-행사-제14호) — 접수 시작을 이전 계획보다 20분 늦춤(종료 시각 유지), 개인 참가 예외 취소(사전에 팀을 등록한 사람만 참가). 그 밖의 확정 사항은 9월 22일 운영 확인 기록 판본 3 그대로.
+
+## 1. 개정 원칙
+
+- 바뀐 조건만 고친다. 9월 22일 수정 회의에서 표시한 &#x27;손댈 곳&#x27;만 고치고, &#x27;손대지 말 곳&#x27;의 값은 그대로 가져온다.
+- 도착 전의 작업을 당일 현장에서 한 것으로 적지 않는다. 행사 전날 한 일은 전날 칸에 적는다.
+- 확정 인력 1명 외의 사람은 근무표와 일정표의 어느 칸에도 넣지 않는다. 예비 인력(구민재)은 참석 확답이 없고 승인 인력이 아니다.
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+- 접수 시작 뒤에는 운영 담당이 자리를 비우지 않는다. 자리를 비워야 하는 일은 접수 시작 전에 마치고 돌아온다.
+- 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다.
+- 편도 시간을 왕복 시간으로 바꾸어 적지 않는다.
+
+## 2. 일정표에 들어갈 고정 값
+
+### 2-1. 시각
+
+- 운영 담당 현장 도착: 08:30 (바뀌지 않음)
+- 접수 시작: 이전 계획 09:15에서 20분 늦춘 시각 (9월 22일 변경)
+- 행사 시간: 09:30~12:00 (바뀌지 않음)
+- 행사 종료: 12:00 (종료 시각 유지)
+- 물품 회수 · 참가 기록 마무리: 12:00 이후. 완료 시각은 당일 실제 시각
+- 결과물 제출 마감: 다음 날 18:00. 마감 뒤 제출은 심사하지 않음
+- 행사 날짜: 미정
+
+### 2-2. 소요 시간
+
+- 장비 창고까지: 걸어서 편도 8분(본관 7층 대회의실 ↔ 별관 지하 1층 장비 창고, 출근 시간대 엘리베이터 대기 포함)
+- 장비 확인: 7분(멀티탭 · 모니터 수량, 전원, 케이블). A안은 창고에서, B안은 보관함 앞에서
+- 현장 설치: 18분(멀티탭 깔기, 모니터 놓기, 접수 데스크 갖추기, 자리 번호표 붙이기, 배치표 붙이기)
+- 운반: 대차 1대로 한 번에
+
+### 2-3. 인원
+
+- 확정 진행 인력: 1명(오지훈)
+- 참여 정원: 20명
+- 참가 조건: 사전에 팀을 등록한 사람만
+
+## 3. 장비 준비 방식별 단계
+
+두 방식에 들어가는 단계를 적는다. 단계의 순서와 각 단계의 시작 · 끝 시각은 2판 일정표를 만들 때 확정하며, 이 자료에서 계산하지 않았다.
+
+### 3-1. A안(당일 창고 운반)
+
+당일 장비 창고에서 멀티탭과 모니터를 직접 옮기는 방식(편도 8분, 장비 확인 7분)이고 비용은 없다.
+
+- 08:30 대회의실 도착. 문에 &#x27;준비 중 — 접수 시작 전 입장 불가&#x27; 안내 종이 붙이기
+- 대회의실 → 장비 창고 이동(편도)
+- 창고에서 장비 확인(7분), 입구 반출 대장 기록, 대차에 싣기
+- 장비 창고 → 대회의실 이동(편도, 같은 길)
+- 설치(18분)
+- 명찰 뒷면 속지 넣기(접수 직전)
+- 접수 시작(새 접수 시작 시각)
+- 행사 09:30~12:00
+- 12:00 이후 회수와 기록 마무리, 창고 반납
+
+A안에서는 창고로 가는 이동, 창고에서의 장비 확인, 대회의실로 돌아오는 이동 동안 대회의실을 떠나 있게 된다. 이 구간은 모두 접수 시작 전에 끝나야 한다.
+
+### 3-2. B안(전날 회의실 보관)
+
+전날 회의실 잠금 보관함에 장비를 넣어 두는 방식이며 보관함 이용료 1000원, 당일 장비 확인 7분이다.
+
+전날:
+- 관리사무소에 보관함 이용 신청, 열쇠 수령
+- 장비 창고에서 장비 반출(반출 대장 기록), 대회의실로 운반
+- 보관함에 넣고 잠금. 넣은 시각을 전날 기록에 적음
+- 출력물(문 안내 종이, 배치표, 자리 번호표) 출력
+
+당일:
+- 08:30 대회의실 도착. 문 안내 종이 붙이기
+- 보관함 열기(앞 책상을 조금 밀어야 함), 장비 확인(7분)
+- 설치(18분)
+- 명찰 뒷면 속지 넣기(접수 직전)
+- 접수 시작(새 접수 시작 시각)
+- 행사 09:30~12:00
+- 12:00 이후 회수와 기록 마무리, 창고 반납, 보관함 열쇠 반납
+
+B안에서는 당일 대회의실을 떠나는 구간이 없다. 다만 전날 작업이 하나 늘고, 그 작업은 전날 칸에 적는다.
+
+## 4. 근무표
+
+### 4-1. 근무 인원
+
+- 근무자: 오지훈 1명. 전날과 당일 모두.
+- 예비 인력 구민재: 9월 28일에 다시 물었으나 장애 대응 당번표가 아직 나오지 않아 답이 없음. 참석 확답이 없고 승인 인력이 아니므로 근무표에 넣지 않는다. 확답과 팀장 승인이 모두 생기면 그때 근무표를 따로 고친다.
+- 다른 부서 사람: 총무팀 문가영(창고 관리), 관리사무소 직원(보관함), 사내소통팀(게시)은 근무표의 근무자가 아니다. 당일 운영의 어떤 단계도 이 사람들에게 맡기지 않는다.
+- 참가자: 접수나 설치를 참가자에게 맡기지 않는다.
+
+### 4-2. 전날 근무(B안일 때만 생김)
+
+- 관리사무소 보관함 이용 신청과 열쇠 수령
+- 장비 창고 반출과 운반, 보관함에 넣기
+- 출력물 출력(A안이어도 전날 함)
+- 블라인드 수리 여부 확인(A안이어도 전날 함)
+- 근무 시각: 전날 대회의실 다른 부서 예약을 보고 비어 있는 시각에. 전날 근무 시각은 전날 기록에 적고 당일 일정표에는 넣지 않는다.
+
+### 4-3. 당일 근무
+
+- 08:30 도착부터 회수 완료까지 오지훈 1명.
+- 도착 ~ 접수 시작 전: 준비(방식별 단계), 설치, 명찰 뒷면 속지 넣기. 대회의실을 떠나야 하는 일은 이 구간에서만 한다.
+- 접수 시작 ~ 12:00: 접수 데스크 고정. 접수, 진행, 문의 응대. 자리를 비우지 않는다. 행사 중 추가 모니터 대여 요청이 와도 창고에 다녀오지 않는다(접수 시작 뒤 자리 비움 금지). 요청은 기록해 두고 회수 뒤 총무팀에 알린다.
+- 12:00 이후: 회수, 현장 대조, 창고 반납, 참가 기록 마무리, 후속 확인 목록 작성.
+- 휴식: 접수 시작부터 12:00까지는 휴식 칸을 두지 않는다. 회수와 기록이 끝난 뒤 쉰다.
+
+### 4-4. 근무표에 적지 않는 것
+
+- 예비 인력의 근무 칸(미확답)
+- 경영지원팀 파견(없음)
+- &#x27;도움 인력&#x27;, &#x27;보조 담당&#x27; 같은 칸
+- 회수 완료 예정 시각(실제 시각으로만 적음)
+
+## 5. 시설 사용 시간
+
+### 5-1. 대회의실(본관 7층)
+
+- 예약: 행사 날짜가 정해지지 않아 아직 걸지 못함. 날짜가 정해지면 당일 08:30부터 회수가 끝날 때까지 쓸 수 있게 예약한다. 예약 끝 시각은 그날 오후 다른 부서 예약을 보고 정한다(미정).
+- B안일 때: 전날 오후에 보관함에 장비를 넣으러 들어갈 시간도 확인한다. 전날 다른 부서 회의가 있으면 그 회의 앞이나 뒤의 빈 시각에 들어간다.
+- 참가자 입장: 접수 시작부터. 그 전에는 앞문 밖 복도에서 기다린다.
+- 뒷문: 비상문. 참가자 출입에 쓰지 않는다.
+
+### 5-2. 장비 창고(별관 지하 1층)
+
+- 출입: 사원증. 반출 · 반납 때 입구 대장에 이름 · 품목 · 수량을 적는다.
+- 대차: 한 대뿐. 쓰는 날 전날까지 총무팀에 알려 다른 부서 예약을 막아 둔다.
+- 재고: 매주 월요일 오후 총무팀 확인. 행사 주 월요일 재고를 총무팀이 알려 주기로 함.
+
+### 5-3. 잠금 보관함(대회의실 안쪽 벽, B안일 때)
+
+- 관리: 본관 관리사무소. 이용 전 신청.
+- 이용료: 1회 1000원. 전날 넣고 다음 날 아침 꺼내는 것을 한 번으로 본다는 답을 말로만 받음(서면 없음).
+- 열쇠: 전날 받아 당일 회수 뒤 반납. 하룻밤 운영 담당이 보관.
+- 관리사무소 직원 아침 출근 시각: 들은 말만 있고 확정 값이 아니어서 일정표에 넣지 않는다.
+
+### 5-4. 그 밖의 시설
+
+- 복도 벤치: 앞문 밖 두 개. 조기 도착 참가자 대기. 접수 시작이 늦춰져 기다리는 시간이 길어질 수 있으나, 벤치를 늘리는 일은 이번에 정하지 않았다.
+- 사무실 출력기: 본관 5층. 출력물은 전날 뽑는다. 당일 아침에 출력기 앞에 가지 않는다.
+- 무선 인터넷: 대회의실 전용. 비밀번호는 접수 때 명찰 뒷면으로 전달.
+- 화면 장치: 대회의실 앞쪽 벽. 노트북 연결선은 화면 아래 서랍에 있고, 쓴 뒤 서랍에 돌려놓는다. 화면 오른쪽 콘센트는 화면 장치가 쓰고 있어 한 구만 비어 있다.
+
+## 6. 접수 운영 세부(새 조건 반영)
+
+- 시작: 이전 계획 09:15에서 20분 늦춘 시각. 문 안내 종이, 일정표, 안내문, 운영 메모의 접수 시작 시각을 모두 같은 값으로 맞춘다.
+- 시작 조건: 설치를 끝낸 뒤 연다. 설치가 끝나지 않았다고 접수 시작 시각을 앞당기거나, 설치 도중에 접수를 여는 일은 없다.
+- 참가 확인: 등록 명단에서 이름과 팀을 찾는다. 사전에 팀으로 등록되어 있지 않은 사람은 참가를 받지 않는다. 개인 참가 예외는 9월 22일에 취소되었으므로, 혼자 온 사람에게 &#x27;개인 참가&#x27;로 표시해 받는 일은 없다. 사정을 정중하게 설명하고, 이 설명 때문에 접수 데스크를 떠나지 않는다.
+- 명찰: 앞면은 이름과 팀 이름, 뒷면은 무선 인터넷 비밀번호 속지. 명찰을 건넬 때 제출 마감(다음 날 18:00, 마감 뒤 제출은 심사하지 않음)과 모니터 규칙(팀당 1대, 추가 대여는 창고 재고에 따름)을 말로 한 번씩 알린다. 명찰을 받았다는 것만으로 안내를 들었다고 보지 않는다.
+- 자리: 팀 자리 번호를 말로 알려 주고, 배치표는 앞문 안쪽 벽에 있다고 알린다. 자리까지 데려가지 않는다.
+- 늦게 온 참가자: 12:00 전이면 접수한다. 놓친 안내는 명찰을 건넬 때 같은 두 문장으로 알린다.
+- 정원: 20명. 등록 명단 밖의 사람으로 정원을 채우지 않는다.
+
+## 7. 마감과 회수 절차
+
+### 7-1. 순서
+
+12:00 킥오프가 끝난 뒤의 순서다. 각 단계의 시각은 당일 실제 시각으로 적는다.
+
+- 참가자에게 회수 안내: 명찰은 접수 데스크에 돌려주고, 모니터와 멀티탭은 자리에 그대로 두고 나가도록 안내한다.
+- 명찰 회수: 접수 데스크에서 받는다. 뒷면 속지는 바로 빼서 따로 모은다.
+- 모니터 회수: 자리 번호표 순서대로 돈다. 상자에 넣기 전에 화면과 케이블 상태를 본다.
+- 멀티탭 회수: 바닥 테이프를 떼고 선을 감는다. 스위치와 선 상태를 본다.
+- 현장 대조: 회수한 수와 아침에 배부한 수를 맞춰 본다. 배부하지 않고 따로 둔 이상 물품은 따로 센다. 남은 물품 수를 참가자 수와 같은 값으로 맞추어 적지 않는다.
+- 이상 물품 표시: 행사 중 문제가 생긴 장비에 빨간 꼬리표를 단다.
+- 반납: 장비 창고로 운반, 반납 확인 면에 실제 반납 시각과 수량 기록. B안이었다면 보관함 열쇠를 관리사무소에 반납.
+- 출력물 처리: 자리 번호표, 배치표, 문 안내 종이를 떼어 낸다. 배치표와 명찰 뒷면 속지는 파쇄한다. 회의실 휴지통에 버리지 않는다.
+- 참가 기록 마무리: 접수 명단, 명찰 배부 수, 늦게 온 참가자를 맞춘다. 같은 참가자가 두 곳에 적혀 있어도 한 사람으로 센다.
+- 대회의실 원상 복구: 책상과 의자를 처음 자리로, 화면 연결선은 서랍에.
+- 회수 완료 시각 기록: 실제로 모든 단계가 끝난 시각. 12:00을 그대로 적지 않는다.
+
+### 7-2. 당일 끝내지 못한 후속 확인
+
+당일 끝내지 못한 일은 담당과 다음 확인 대상을 남긴다. 예상되는 항목은 다음과 같다.
+
+- 행사 중 들어온 추가 모니터 대여 요청: 담당 오지훈 → 다음 확인 대상 총무팀 문가영
+- 행사 중 문제가 생긴 장비: 담당 오지훈 → 총무팀 문가영(수리 여부 판단)
+- 수리 점검 중이던 모니터 결과: 담당 문가영 → 오지훈
+- B안이었다면 보관함 이용료 정산: 담당 오지훈 → 재무팀 한예린
+- 결과물 제출 확인(다음 날 18:00 마감): 담당 오지훈 → 심사 담당(심사 담당은 이 자료 범위 밖이며 미기재)
+
+### 7-3. 회수 때 지킬 것
+
+- 회수는 12:00 이후에만 한다. 행사 중에 미리 걷지 않는다.
+- 회수 중에도 대회의실에 참가자가 남아 있으면 접수 데스크 쪽 물품(명찰 속지)을 먼저 치운다.
+- 반납하러 창고에 가는 동안 대회의실에 장비가 남지 않도록, 대차 한 번에 싣는다.
+
+## 8. 비용 관련 메모(일정표의 &#x27;비용&#x27; 칸용)
+
+- A안: 비용 없음.
+- B안: 보관함 이용료 1000원. 남은 운영 예상 지출 110000원에는 아직 들어 있지 않다. B안으로 진행하면 재무팀에 &#x27;예상 지출 변경 요청&#x27;을 올리고, 결재가 끝난 뒤에 남은 예상 숫자를 고친다. 결제 방법(법인카드 또는 관리사무소 현장 결제)은 한예린이 확인 중이며 9월 29일 현재 답이 나오지 않았다.
+- 예산 숫자: 승인 상한 300000원(한도, 지출 아님), 실지급 140000원(이미 결제 끝남), 남은 예상 110000원(아직 지급 전). 일정표 비용 칸에는 세 숫자를 따로 적고 합치거나 서로 바꾸어 쓰지 않는다.
+- 간식 세트: 견적 개당 900원, 22개 주문 검토 중. 구매 승인 전이므로 일정표에 &#x27;간식 배부&#x27; 단계를 넣지 않는다.
+- 출력물 · 바닥 테이프: 개발문화팀 사무용품. 해커톤 예산에서 나가는 돈 없음.
+- 환불 · 지원금 추가 입금: 확인한 것 없음. 계산에 넣지 않는다.
+- 같은 비용을 일정표 비용 칸과 재무팀 메모 두 곳에 적어도 한 번만 센다.
+
+## 9. 일정표 1판과 달라지는 칸
+
+일정표 1판(9월 16일 작성, 단계와 소요만 적은 판)과 비교해 2판에서 달라지는 칸이다.
+
+- 접수 시작 칸: 09:15 → 이전 계획에서 20분 늦춘 시각.
+- 문 안내 종이 칸: 괄호 안 접수 시각을 새 시각으로.
+- 명찰 뒷면 속지 넣는 칸: &#x27;접수 직전&#x27;이라는 표현은 같고, 기준이 되는 접수 시각이 바뀜.
+- &#x27;이 시각 이후 자리 비움 금지&#x27; 칸: 새 접수 시작 시각부터.
+- 개인 참가자 접수 처리 칸: 삭제(예외 취소).
+- 접수 설명 칸: &#x27;사전 등록 명단에 팀으로 등록된 사람만 접수&#x27;로 바꿈.
+
+그대로 두는 칸:
+- 도착 08:30, 장비 창고 편도 8분, 장비 확인 7분, 설치 18분, 행사 09:30~12:00, 종료 12:00
+- A안 · B안 단계와 비용
+- 회수 · 기록 마무리 칸(완료 시각은 실제 시각)
+- 근무자 칸(오지훈 1명)
+- 제출 마감 칸(다음 날 18:00)
+
+1판에는 장비 방식 두 가지를 모두 적어 두었다. 이 자료도 두 방식의 단계를 모두 적어 두었고, 2판 일정표에는 확정한 방식의 단계만 옮긴다. 이번 변경은 방식 칸의 시간과 비용과는 관계가 없다.
+
+## 10. 당일 준비물 · 출력물 확인 목록
+
+### 10-1. 전날까지 준비해 둘 것
+
+- 문 안내 종이: &#x27;준비 중 — 접수 시작(새 시각) 전 입장 불가. 복도 벤치에서 기다려 주세요. 배치표는 앞문 안쪽 벽.&#x27;
+- 배치표 최종판(사전 등록 마감 뒤 추첨으로 만든 것)
+- 자리 번호표(숫자만)
+- 명찰 앞면 속지(이름 · 팀 이름)
+- 명찰 뒷면 속지(무선 인터넷 비밀번호) — 출력은 전날, 케이스에 넣는 것은 당일 접수 직전
+- 등록 명단 출력본(접수용)
+- 바닥 테이프
+- B안이면 보관함 열쇠
+
+### 10-2. 당일 장비
+
+- 멀티탭: 자리마다 하나, 접수 데스크 하나. 뒷줄은 5미터짜리.
+- 모니터: 팀당 1대.
+- 명찰 케이스: 참가자 수만큼. 끈을 바꾼 두 개는 현장 대조 때 보고 판단.
+- 이상 물품: 꺼내지 않음(빨간 꼬리표).
+- 예비 멀티탭: 예비분 면에 따로 기록. 행사 수량에 넣지 않음.
+
+### 10-3. 접수 데스크
+
+- 1인용 책상, 의자 하나
+- 명단 확인용 노트북(멀티탭 연결)
+- 명찰 상자, 속지 상자
+- 기록용 종이: 늦게 온 참가자, 추가 대여 요청, 장비 문제, 문의 내용
+
+## 11. 위험과 대응(일정표 &#x27;주의&#x27; 칸용)
+
+### 11-1. 접수 데스크를 비울 위험
+
+- 무엇: 운영 인력이 1명이라 운영 담당이 대회의실을 떠나면 접수 데스크가 빈다.
+- 언제 생길 수 있나: A안의 창고 이동 구간, 행사 중 추가 대여 요청, 파손 장비 교체 시도, 보관함 열쇠 문제(B안), 참가자를 다른 층으로 안내하는 일.
+- 대응: 대회의실을 떠나는 일은 접수 시작 전에만 한다. 접수 시작 뒤에는 추가 대여 요청이나 파손 장비가 생겨도 창고에 가지 않고 기록한다. 참가자를 다른 층으로 데려가지 않고 말로 길을 알린다.
+- 접수 시작이 늦어져 접수 시작 전 준비 구간은 이전 계획보다 길어졌다. 다만 일정표를 짤 때 이 여유를 다른 일로 채우지 않고, 창고 이동이나 보관함 확인이 늦어질 때를 위한 여유로 둔다.
+
+### 11-2. 엘리베이터 혼잡
+
+- 편도 8분은 출근 시간대 대기까지 넣어 잰 값이다. 그날 더 붐빌 수 있으나, 일정표에는 잰 값만 쓰고 짐작한 값을 더해 적지 않는다.
+
+### 11-3. 창고 재고
+
+- 행사 주 월요일 재고를 총무팀이 알려 준다. 팀당 1대는 먼저 확보하기로 했고, 추가분은 약속하지 않는다.
+
+### 11-4. 보관함(B안)
+
+- 열쇠 분실: 하룻밤 운영 담당이 보관. 사원증 지갑에 함께 둔다.
+- 보관함이 열리지 않을 때: 관리사무소에 연락해야 한다. 관리사무소 직원 출근 시각은 확정 값이 아니라서 이 경우의 대응 시각은 정하지 않았다. 이 위험은 B안을 고를 때 함께 따진다.
+
+### 11-5. 블라인드
+
+- 수리되지 않으면 창가 자리 화면에 햇빛이 비칠 수 있다. 전날 관리사무소에 다시 확인한다. 당일 자리는 바꾸지 않는다.
+
+### 11-6. 혼자 온 참가자
+
+- 개인 참가 예외가 취소되었는데도 안내문을 못 보고 오는 사람이 있을 수 있다. 접수 데스크에서 정중하게 설명하고 참가를 받지 않는다. 설명이 길어져 접수 줄이 밀리지 않도록 안내문과 개별 알림으로 미리 알렸다.
+
+## 12. 재무 담당 검토 의견(한예린, 9월 29일 15:00)
+
+- 1장 개정 원칙: &#x27;확정 인력 1명 외의 사람은 어느 칸에도 넣지 않는다&#x27;는 문장 좋음. 지난 회차 일정표에는 &#x27;보조&#x27; 칸이 비어 있어 누가 채워야 하는지 혼란이 있었음.
+- 2장 시각: 접수 시작을 &#x27;이전 계획 09:15에서 20분 늦춘 시각&#x27;으로 적은 것은 변경 통지 문장과 같음. 2판 일정표에서는 실제 시각으로 적게 될 텐데, 그때 문 안내 종이와 같은 값인지 다시 맞춰 볼 것.
+- 3장 B안: 보관함 이용료 1000원이 남은 예상에 아직 들어 있지 않다는 점, 예상 지출 변경 요청 결재 뒤에만 숫자를 고친다는 점 확인함. 결제 방법은 이번 주 안에 알려 주겠음.
+- 4장 근무표: 휴식 칸을 접수 시작부터 12:00까지 두지 않은 것 확인. 운영 담당 혼자라는 점을 생각하면 회수 뒤에는 꼭 쉬시길.
+- 7장 회수: 회수 완료 시각을 실제 시각으로 적는다는 점 확인. 정산 때 이 시각을 보고 회의실 사용 시간을 맞춰 본다.
+- 8장 비용: 간식 세트를 일정표에 넣지 않은 것 확인. 구매 승인 전이다.
+
+## 13. 정하지 않은 것
+
+- 행사 날짜(미정)
+- 대회의실 예약 끝 시각(날짜가 정해진 뒤 다른 부서 예약을 보고 정함)
+- B안 보관함 이용료 결제 방법(재무팀 확인 중)
+- 사전 등록 시작 · 마감, 배치표 작성 날짜
+- 관리사무소 직원 아침 출근 시각(들은 말만 있음)
+- 블라인드 수리 날짜
+- 심사 담당(이 자료 범위 밖)
+- 문의처 연락처
+
+## 14. 일정표 2판 양식
+
+2판 일정표는 한 장짜리 종이로, 접수 데스크 위에 놓고 본다. 칸은 다음과 같다.
+
+- 시각: 그 단계를 시작하는 계획 시각. 고정 시각(도착 08:30, 접수 시작, 행사 09:30~12:00, 종료 12:00)과 소요 시간으로 계산해 적는다.
+- 단계: 3장의 단계 이름 그대로.
+- 담당: 모든 칸 오지훈. 다른 이름을 적지 않는다.
+- 소요: 2장의 소요 시간(편도 8분, 확인 7분, 설치 18분). 이동은 편도 단위로 칸을 나누어 적는다.
+- 장소: 대회의실, 이동 중, 장비 창고, 보관함 앞 가운데 하나.
+- 실제 시각: 당일 운영 담당이 손으로 적는 칸. 계획 시각과 다르면 그대로 다르게 적는다.
+- 비고: 자리 비움 금지 시작 표시, 접수 시작 전 끝내야 하는 단계 표시, 비용이 생기는 단계 표시(B안 보관함).
+
+양식 맨 아래에는 &#x27;회수 완료 시각&#x27; 칸을 따로 두고, 계획 시각 칸은 비워 둔다. 회수가 끝나면 실제 시각만 적는다.
+
+## 15. 실제 시각을 적는 방법
+
+- 손목시계가 아니라 접수 데스크 노트북 화면 시계를 기준으로 적는다. 지난 회차에는 운영자 두 사람 시계가 몇 분씩 달라 기록이 엇갈렸다.
+- 단계를 시작할 때가 아니라 끝냈을 때 적는다. 끝낸 시각이 다음 단계의 시작이다.
+- 이동 단계는 출발과 도착을 각각 적는다.
+- 접수 시작 뒤에는 실제 시각 칸을 접수 사이사이에 적는다. 적느라 접수를 멈추지 않는다.
+- 회수 완료 시각은 대회의실 원상 복구까지 마친 뒤 적는다.
+- 당일 적은 일정표 원본은 공유 폴더에 사진으로 남기지 않고, 종이를 재무팀에 넘긴다(정산 때 회의실 사용 시간 확인용).
+
+## 16. 9월 28일~29일 확인 기록
+
+- 9월 28일(월) 10:20: 구민재에게 다시 물음. &quot;당번표가 아직 안 나왔다&quot;는 답. 미확답 그대로.
+- 9월 28일(월) 14:00: 총무팀 문가영에게 행사 주 재고 회신을 다시 부탁. 날짜가 정해지면 그 주 월요일 오후에 알려 주기로 함. 수리 점검 모니터 결과는 아직 없음.
+- 9월 28일(월) 16:10: 경영지원팀 송하준이 분기 보고용 일람표를 만들었다고 알려 옴. 9월 29일 오전에 확인 요청 메일이 올 예정.
+- 9월 29일(화) 09:30: 관리사무소에 블라인드 수리 날짜를 다시 물음. 부품이 아직 오지 않았다는 답.
+- 9월 29일(화) 10:00: 윤채원에게 안내문 두 번째 수정본 형식 확인 결과를 받음. 접수 절과 문의 접기 상자 모두에서 개인 참가 내용이 빠졌고, 접수 시작 시각이 네 곳(일시 쪽, 접수 절, 문의 접기 상자 답, 운영 메모 상자)에서 같은 값인지 확인했다고 함.
+- 9월 29일(화) 10:40: 재무팀 한예린에게 B안 보관함 이용료 결제 방법을 다시 물음. 이번 주 안에 알려 주겠다는 답. 예상 지출 변경 요청은 장비 방식을 확정한 뒤 올리기로 함.
+- 9월 29일(화) 11:00: 이 자료 작성 시작.
+- 9월 29일(화) 15:00: 한예린 검토(12장).
+
+## 17. 접수 시작 전 준비 구간에 할 일
+
+준비 구간(도착부터 접수 시작 전까지)에 하는 일을 빠짐없이 적는다. 설치 18분 안에 들어가는 일과 그 밖의 일을 나누었다. 새로운 소요 시간은 만들지 않았다.
+
+설치 18분 안에 들어가는 일:
+- 자리마다 멀티탭 깔기, 뒷줄 선 바닥 테이프로 고정
+- 자리마다 모니터 놓기, 받침대 펴기, 보호 비닐 떼기
+- 접수 데스크 갖추기(책상 · 의자 · 노트북 · 명단 · 명찰 상자)
+- 자리 번호표 붙이기
+- 배치표 앞문 안쪽 벽에 붙이기
+
+설치와 따로 하는 짧은 일:
+- 도착하자마자 문 안내 종이 붙이기
+- 명찰 뒷면 속지 넣기(접수 직전)
+- 대형 화면 켜서 노트북 연결 확인
+
+A안이면 이 밖에 창고 이동(편도씩 두 번)과 창고에서의 장비 확인이 있고, B안이면 보관함 앞 장비 확인이 있다.
+
+## 18. 지난 회차 당일 아침과 다르게 하는 점
+
+지난 회차 당일 운영 일지와 비교해, 이번 2판 일정표에서 다르게 하는 점이다. 지난 회차는 다른 층 회의실에서 운영 인력 2명으로 했으므로 시각은 비교하지 않는다.
+
+- 지난 회차: 창고 안에서 다른 부서 예약 상자를 골라내느라 시간이 걸림 → 이번: 시험 반출 때 선반 위치와 예약 표시를 확인해 두었고, 이상 물품은 맨 아래 칸에 따로 있음.
+- 지난 회차: 설치가 덜 끝난 채 접수를 시작 → 이번: 설치를 끝낸 뒤 접수를 연다. 승인 없이 접수를 앞당기지 않는다.
+- 지난 회차: 파손 모니터를 바꾸러 창고에 다시 감 → 이번: 파손 의심 장비는 배부하지 않고 따로 두며, 접수 시작 뒤에는 창고에 가지 않는다.
+- 지난 회차: 무선 인터넷 비밀번호를 화이트보드에 적음 → 이번: 명찰 뒷면 속지로만.
+- 지난 회차: 자유 착석으로 자리 다툼 → 이번: 사전 추첨 배치표, 자리 번호표.
+- 지난 회차: 혼자 온 사람을 즉석에서 다른 팀에 넣음 → 이번: 사전에 팀을 등록한 사람만 참가.
+- 지난 회차: 종료 시각을 회수 완료로 적음 → 이번: 회수 완료는 실제 시각.
+- 지난 회차: 운영자 두 사람의 시계가 달라 기록이 엇갈림 → 이번: 접수 데스크 노트북 시계 하나를 기준으로.
+
+## 19. 2판 일정표를 만들 때 지킬 계산 원칙
+
+- 각 단계의 계획 시각은 앞 단계가 끝나는 시각으로 잡는다. 단계 사이에 짐작한 여유 시간을 끼워 넣지 않는다. 여유는 마지막 준비 단계와 접수 시작 사이에 남는 시간으로만 보이게 한다.
+- 이동은 편도 단위로 칸을 나눈다. 편도 8분을 왕복 8분으로 적지 않는다.
+- 소요 시간은 2장의 값만 쓴다. 지난 회차 값이나 시험 반출 때 걸린 시간을 쓰지 않는다.
+- 접수 시작은 변경 통지대로 이전 계획에서 20분 늦춘 시각이다. 행사 시간과 종료 시각은 바꾸지 않는다.
+- 접수 시작 전에 끝나야 하는 단계(대회의실을 떠나는 일, 설치)가 모두 접수 시작 전에 끝나는지 일정표를 만든 뒤 한 번 더 본다.
+- 전날 작업(B안)은 당일 시각 칸에 넣지 않고 전날 칸에 따로 적는다.
+- 담당 칸에는 오지훈만 적는다.
+
+## 20. 당일 문의 응대 원칙(접수 데스크)
+
+- 문의는 접수 데스크에서 받는다. 질문한 사람을 따라가지 않는다.
+- 일시 · 제출 마감 · 모니터 · 무선 인터넷 같은 질문은 안내문 내용대로 답한다.
+- 혼자 온 사람의 참가 문의: 개인 참가 예외 취소를 설명한다.
+- 장비 문제: 쓰지 말고 그대로 두도록 하고, 기록한다. 바꾸러 가지 않는다.
+- 추가 대여 요청: 기록하고, 창고 재고에 따른다는 점과 회수 뒤 총무팀에 알린다는 점을 말한다.
+- 길 안내: 말로 한다. 다른 층까지 데려가지 않는다.
+- 답할 수 없는 질문(심사 기준 등 이 자료 범위 밖): 답하지 않고 기록해 두었다가 행사 뒤 담당에게 넘긴다.
+
+## 21. 전날 할 일 세부
+
+A안 · B안 공통:
+- 문 안내 종이, 배치표, 자리 번호표, 명찰 속지 출력
+- 등록 명단 출력본 준비
+- 대차 사용을 총무팀에 알려 두기(A안이면 당일, B안이면 전날 사용)
+- 관리사무소에 블라인드 수리 여부 확인
+- 대회의실 당일 예약 확인
+
+B안일 때 더하는 일:
+- 관리사무소에 보관함 이용 신청, 열쇠 수령
+- 장비 창고에서 반출(반출 대장에 전날 날짜로 기록), 대회의실로 운반
+- 보관함에 넣고 잠금, 넣은 시각을 전날 기록에 적음
+- 보관함 이용료 1000원 결제: 예상 지출 변경 요청 결재가 끝난 뒤, 재무팀이 알려 줄 방법으로. 영수증 보관
+
+전날 작업은 모두 전날 칸에 적는다. 당일 08:30 이후에 한 것처럼 적지 않는다.
+
+## 22. 시설 사용 시간과 회수의 관계
+
+대회의실 예약 끝 시각은 행사 날짜가 정해진 뒤 그날 오후 다른 부서 예약을 보고 정한다. 예약 끝 시각이 회수를 끝내기에 넉넉하지 않을 수 있으므로, 회수 순서는 &#x27;대회의실 안에서 해야 하는 일&#x27;을 먼저 하도록 짰다.
+
+- 대회의실 안에서 먼저: 명찰 회수, 모니터 · 멀티탭 회수, 현장 대조, 출력물 떼기, 원상 복구
+- 대회의실을 나간 뒤: 창고 반납과 반납 대장 기록, 보관함 열쇠 반납(B안), 참가 기록 마무리, 후속 확인 목록 작성
+
+참가 기록 마무리는 대회의실이 아니라 본관 5층 개발문화팀 자리에서 해도 된다. 회수 완료 시각은 대회의실 원상 복구와 창고 반납까지 마친 시각으로 적는다.
+
+## 23. 당일 기록용 종이 칸
+
+접수 데스크에 둘 기록용 종이의 칸이다. 하나의 종이에 시각 순서로 적는다.
+
+- 시각(접수 데스크 노트북 시계 기준)
+- 종류: 늦게 온 참가자 / 혼자 온 사람 안내 / 추가 대여 요청 / 장비 문제 / 문의 / 안전 조치
+- 내용: 누가(팀 이름), 무엇을
+- 처리: 그 자리에서 답함 / 기록만 함 / 행사 뒤 넘김
+- 넘길 곳: 총무팀, 재무팀, 심사 담당(미기재) 등
+
+안전 조치(선에 걸려 넘어질 위험 등)로 접수 데스크를 잠깐 떠났다면 떠난 시각과 돌아온 시각을 함께 적는다. 자리 배치 운영 기준에 적은 대로 안전 조치만 예외이며, 그 밖의 일로는 떠나지 않는다.
+
+## 24. 2판 일정표 확인 순서
+
+- 오지훈: 이 자료로 2판 일정표를 만든 뒤, 9장 &#x27;그대로 두는 칸&#x27;의 값이 1판과 같은지 하나씩 대조한다.
+- 오지훈: 접수 시작 시각이 일정표, 문 안내 종이, 안내문, 운영 메모에서 같은 값인지 본다.
+- 한예린: 비용 칸(A안 없음, B안 보관함 이용료 1000원, 남은 예상 110000원에 B안 비용 미포함)과 근무자 칸(1명)을 본다.
+- 윤채원: 안내문과 일정표의 접수 시작 시각이 같은지만 본다(일정표 자체는 게시하지 않음).
+
+## 25. 행사 시간 안의 진행 순서 메모
+
+행사 시간(09:30~12:00) 안의 진행 순서는 2판 일정표에서 &#x27;행사&#x27; 한 칸으로 묶고, 순서만 아래처럼 비고에 적는다. 순서마다 시각은 정하지 않았다. 진행은 모두 오지훈이 접수 데스크 자리 근처에서 한다.
+
+- 여는 말과 하루 일정 안내
+- 규칙 안내: 결과물 제출 마감(다음 날 18:00, 마감 뒤 제출은 심사하지 않음)을 이 순서에서 한 번 더 말한다. 접수 때 들은 사람도 다시 듣게 한다.
+- 장비 안내: 모니터 팀당 1대, 추가 대여는 창고 재고에 따름, 멀티탭은 옮기거나 이어 붙이지 않음, 장비 문제는 쓰지 말고 알릴 것
+- 팀별 아이디어 소개
+- 질의응답
+- 마치는 말과 회수 안내: 명찰은 접수 데스크에, 장비는 자리에 그대로
+
+지난 회차에는 규칙 안내를 첫 순서에 한 번만 했는데, 접수 줄 때문에 늦게 들어온 사람이 듣지 못했다. 이번에는 접수 때 한 번, 규칙 안내 순서에 한 번, 모두 두 번 이상 알린다.
+
+## 26. 안내문 운영 메모 상자와 일정표의 관계
+
+참가 안내문 맨 끝 운영 메모 회색 상자에는 운영 담당이 당일 복사해 쓰는 문장이 들어 있다. 일정표 2판과 같은 값을 쓰도록 맞춘다.
+
+- 접수 시작 시각: 일정표의 접수 시작 칸과 같은 값.
+- 자리 비움 원칙: &#x27;접수 시작 뒤에는 접수 데스크를 비우지 않는다&#x27;는 뜻의 문장만 둔다. 자리를 비워도 되는 것처럼 읽히는 문장은 두지 않는다.
+- 인력: 확정 인력 1명 기준 문장만. 예비 인력이나 도움 인력 이야기는 넣지 않는다.
+- 비밀번호, 연락처(미정), 정하지 않은 값은 넣지 않는다.
+
+일정표를 고치면 운영 메모 상자도 같은 날 고친다. 둘 중 하나만 고치면 당일 아침 복사한 문장과 일정표가 어긋난다.
+
+## 27. 당일 아침 스스로 확인할 질문
+
+혼자 운영하므로 확인해 줄 사람이 없다. 운영 담당이 단계마다 스스로 묻고 &#x27;예&#x27;일 때만 다음으로 넘어간다.
+
+도착 전(집에서 나설 때):
+- 사원증을 챙겼는가(창고 출입)?
+- B안이면 보관함 열쇠를 챙겼는가?
+- 전날 출력한 문 안내 종이, 배치표, 자리 번호표, 명찰 속지, 등록 명단이 가방에 있는가?
+- 접수용 노트북을 충전했는가?
+
+도착 직후:
+- 문 안내 종이에 적힌 접수 시작 시각이 일정표 2판과 같은가?
+- 대회의실 안에 전날 다른 부서가 두고 간 물건이 있으면 건드리지 않고 한쪽에 두었는가?
+
+장비 확인 뒤:
+- 이상 물품을 꺼내지 않았는가? 파손이 의심되는 물품을 따로 두었는가?
+- 꺼낸 수를 반출 대장에 적었는가?
+
+설치 뒤, 접수 시작 전:
+- 대회의실을 떠나야 하는 일이 남아 있지 않은가?
+- 명찰 뒷면 속지를 넣었는가? 남은 속지는 상자에 넣어 접수 데스크 아래에 두었는가?
+- 기록용 종이와 펜이 접수 데스크에 있는가?
+
+설치가 끝나지 않았다면 접수를 열지 않는다. 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다. 그 밖의 질문이 &#x27;아니오&#x27;이고 접수 시작 전에 고칠 수 없으면, 고치지 못한 사정을 기록용 종이에 적고 접수 데스크를 지킨다. 고치려고 접수 시작 뒤에 자리를 비우지 않는다.
+
+## 28. 이 자료에서 다루지 않은 것
+
+- 팀별 작업 기간(킥오프 다음부터 제출 마감까지)의 운영: 이 자료 범위 밖이다.
+- 심사 일정과 심사 담당: 미기재.
+- 참가 안내문 본문: 안내문 두 번째 수정본으로 따로 있다.
+- 팀별 자리 배치표: 사전 등록 마감 뒤 추첨으로 만든다. 이 자료에는 없다.
+- 계산을 마친 2판 일정표: 이 자료로 따로 만든다.
+- 다른 부서 인력의 근무: 없다. 근무자는 오지훈 1명이다.
+
+## 29. 다음 할 일
+
+- 오지훈: 2판 일정표 작성(이 자료 바탕). 확정한 장비 방식의 단계만 옮긴다.
+- 오지훈: 행사 날짜가 정해지면 대회의실 당일 예약, B안이면 전날 확인.
+- 오지훈: 구민재 답 계속 확인. 확답과 팀장 승인 전에는 근무표에 넣지 않음.
+- 한예린: B안 보관함 이용료 결제 방법 회신, 예상 지출 변경 요청 처리(필요할 때).
+- 문가영(총무팀): 행사 주 월요일 재고 회신, 수리 점검 모니터 결과 회신.
+- 경영지원팀 송하준: 분기 보고용 일람표 확인 요청(9월 29일 오전 예정) — 오지훈이 회신.
+- 오지훈: 2판 일정표를 만들면 접수 데스크용 한 장과 공유 폴더용 파일로 두고, 고칠 때는 둘을 같은 날 함께 고친다. 이전 판은 지우지 않고 &#x27;이전 판&#x27; 칸에 남긴다.
+- 오지훈: 행사 전날 저녁, 27장의 &#x27;도착 전&#x27; 질문을 한 번 미리 해 본다. 빠진 출력물이 있으면 전날 안에 다시 뽑는다.
+- 한예린: 행사 뒤 정산 때 일정표 원본의 실제 시각 칸과 회수 완료 시각을 받아 회의실 사용 시간과 맞춰 본다. 같은 비용을 여러 표에 적었어도 한 번만 센다.
+[자료 끝]
+
+모닥의 킥오프 진행 일정을 만들어 주세요. 아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 방식과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요. 운영자가 실행할 작업 순서는 번호 목록으로 작성해 주세요. 정해진 인력 외의 사람은 사용하지 마세요.</pre><b>턴 10 답변</b><pre class="rs-pre rs-ans">## 권고안: B안(전날 보관함 이용)
+
+앞서 조건부로 추천한 **B안**을 반영해 일정안을 구성했습니다. 당일 창고 왕복을 없애 한 명뿐인 운영 담당자가 접수 전에 회의실을 비우지 않는 방식입니다. 다만 운영 기록에는 장비 방식이 여전히 보류로 남아 있으므로, 아래 일정은 **B안 선택을 전제로 한 실행안**이지 이미 확정된 일정은 아닙니다.
+
+<mark class="rs-mk"><sup>10</sup>접수는 이전 계획 09:15보다 20분 늦춘 **09:35**이고, 행사는 **09:30~12:00**으로 유지됩니다. 따라서 접수가 행사 시작보다 5분 늦습니다.</mark> 제공된 자료에는 이 순서 변경에 따른 행사 진행 방식이 정해져 있지 않으므로, 접수 중에도 행사를 시작할지 여부는 확정된 것으로 쓰지 않았습니다.
+
+<mark class="rs-mk"><sup>9</sup>## 당일 계획 일정</mark>
+
+| 시각 | 단계·장소 | 담당 | 소요 |
+|---|---|---|---:|
+| 08:30 | 현장 도착, 대회의실 문 안내 종이 부착 | 오지훈 | 시각 고정 |
+| 08:30~08:37 | 보관함 열기, 장비 확인 — 보관함 앞 | 오지훈 | 7분 |
+| 08:37~08:55 | 설치 — 대회의실 | 오지훈 | 18분 |
+| 08:55~09:35 | 접수 전 준비 여유 — 대회의실 | 오지훈 | 40분 |
+<mark class="rs-mk"><sup>11</sup>| 09:35 | 접수 시작 — 앞문 안쪽 접수 데스크 | 오지훈 | 시작 시각 고정 |
+| 09:30~12:00 | 킥오프 — 대회의실 | 오지훈 | 2시간 30분 |</mark>
+| 12:00 이후 | 회수·현장 대조·창고 반납·기록 마무리 | 오지훈 | 실제 소요·완료 시각 기록 |
+
+B안 당일에는 창고 이동이 없습니다. 설치 18분에는 자리별 멀티탭·모니터 설치, 접수 데스크 준비, 자리 번호표와 배치표 부착이 포함됩니다. 설치 외에 문 안내 종이 부착, 대형 화면 연결 확인, 명찰 뒷면 속지 넣기도 필요하며, 각각의 소요 시간은 자료에 정해져 있지 않습니다. 접수 전 여유 40분은 이 준비와 지연 대응에 쓰되, 미확정 작업 시간을 임의로 배분하지 않았습니다. 명찰 뒷면 속지는 **접수 직전**에 넣습니다.
+
+## 작업 순서
+
+### 전날 — B안일 때만
+1. 대회의실 사용 가능 시간을 확인하고 관리사무소에 보관함 이용을 신청해 열쇠를 받습니다.
+2. 장비 창고에서 멀티탭과 모니터를 반출해 대회의실로 한 번에 운반합니다. 반출 대장에는 실제 날짜·품목·수량을 기록합니다.
+3. 장비를 보관함에 넣어 잠그고 넣은 시각을 전날 기록에 적습니다. 보관함 이용료는 **1,000원**이며, 예상 지출 변경 요청 결재가 끝난 뒤 재무팀이 안내한 방식으로 처리하고 영수증을 보관합니다.
+4. 문 안내 종이, 배치표, 자리 번호표, 명찰 속지와 등록 명단을 출력합니다. 블라인드 수리 여부도 확인합니다.
+5. 전날 수행한 작업은 전날 날짜로 기록합니다. 당일 일정에 끼워 넣지 않습니다.
+
+### 당일 — 오지훈 1명
+1. **08:30** 대회의실에 도착해 문 안내 종이를 붙이고, 적힌 접수 시각이 일정표와 같은지 확인합니다.
+2. 보관함 앞 책상을 조금 밀고 보관함을 엽니다. 수량·전원·케이블을 확인하는 데 7분을 잡고, 이상 물품은 꺼내지 않으며 실제 반출 수량을 기록합니다.
+3. 설치에 18분을 사용해 자리별 장비와 접수 데스크를 갖춥니다. 자리 번호표와 배치표를 붙이고 대형 화면 연결을 확인합니다.
+4. 접수 시작 전 남은 준비를 마칩니다. 명찰 앞면·뒷면 속지를 준비하고, 뒷면 속지는 접수 직전에 넣습니다. 이 구간에 대회의실을 떠나야 할 일을 모두 끝냅니다.
+5. **09:35** 접수를 시작합니다. 등록 명단에서 이름과 팀을 확인하고 명찰을 건네며 제출 마감과 모니터 규칙을 말로 안내합니다. 팀 자리 번호를 알려 주고 배치표 위치도 말합니다. 접수 시작 후에는 자리를 비우지 않습니다.
+6. **09:30~12:00** 킥오프를 진행합니다. 진행 중에도 접수 데스크를 지키며, 추가 모니터 요청은 기록하고 회수 뒤 총무팀에 알립니다. 장비 이상은 사용하지 않도록 안내하고 기록합니다.
+7. **12:00 이후** 회수 안내를 한 뒤 명찰, 모니터, 멀티탭을 회수하고 현장 대조를 합니다. 장비를 창고에 반납하고 반납 확인 면에 실제 시각과 수량을 적습니다. B안이면 보관함 열쇠도 관리사무소에 반납합니다.
+8. 출력물을 회수하고 배치표와 뒷면 속지는 파쇄합니다. 대회의실을 원상 복구하고 참가 기록과 후속 확인 항목을 정리합니다. **회수 완료 시각은 모든 회수·반납과 대회의실 원상 복구가 끝난 실제 시각**으로 기록합니다.
+
+## 비용과 미확정 사항
+
+B안 이용료는 **1,000원**이며 남은 운영 예상 지출 **110,000원에는 미포함**입니다. 승인 상한은 300,000원, 실지급액은 140,000원으로 각각 한도와 이미 지급한 금액을 뜻합니다. B안 비용을 반영할 때는 예상 지출 변경 요청 결재 뒤에만 남은 예상액을 고칩니다. 결제 방법은 제공된 자료에서 아직 확인 중입니다.
+
+접수 시작 09:35는 09:30에 시작하는 행사보다 5분 늦습니다. 제공된 기록만으로는 09:30~09:35의 참가자 응대와 행사 진행 방식을 확정할 수 없어, 이 부분은 일정표 확정 전에 운영 결정이 필요합니다. 또한 행사 날짜, 등록 마감, 대회의실 예약 종료 시각도 미정이므로 실제 날짜나 회수 완료 시각은 정하지 않았습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 10개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>불필요한 내용 없음</b> <span class="rs-id">J1-4.a · 턴 3 · LLM Judge</span></div><div class="rs-fwhy">참가자 행동 요약과 무관한 운영 시간 계산 안내가 별도 단락으로 들어갔습니다. 특히 “이 수치는 에 기록된 값이며”는 출처명이 빠져 문장도 불완전합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “장비 창고는 본관 7층 대회의실에서 편도 8분이고, 물품 확인은 7분, 설치는 18분입니다. 편도 시간을 왕복 시간으로 잘못 쓰지 않아야 합니다. 이 수치는 에 기록된 값이며, 9월 9일 시험 반출에 걸린 시간은 조건이 달라 일정 계산에 사용하지 않습니다.”</div><div class="rs-quote">질문의 요구: “이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.61</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>요약 핵심</b> <span class="rs-id">J4-4.a · 턴 3 · LLM Judge</span></div><div class="rs-fwhy">요약에 복도 벤치 대기와 조기 입장 불가는 있지만, 운영 담당이 준비 중이라 복도에서 질문을 받지 않는다는 참가자 행동 안내가 빠졌습니다. 질문은 확정된 참가자 행동 사항을 빠짐없이 요약하도록 요구합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “접수는 본관 7층 대회의실 앞문 안쪽 오른편 데스크에서 진행합니다. 사전 등록자는 명단에서 이름을 확인하고, 현재 허용된 개인 참가 예외로 온 참가자는 개인 참가로 표시합니다. 접수와 개인 참가 여부 확인은 운영 담당이 맡으며, 참가자가 접수를 대신할 수 없습니다.”</div><div class="rs-quote">질문의 요구: “참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다. 대회의실 앞 복도 벤치에서 기다린다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.b · 턴 3 · LLM Judge</span></div><div class="rs-fwhy">제공된 문서의 참고 기록은 [1]의 내용 설명에 &#x27;행사·접수 시각, 인력, 준비 조건&#x27;이라고 되어 있습니다. 답변은 ‘현장 도착’까지 출처가 뒷받침하는 것처럼 덧붙였습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “** 「회의실 장비 점검 메모」** — 행사·접수 시각, 현장 도착 및 인력 정보, 창고 편도 8분·장비 확인 7분·설치 18분 등 준비 조건의 근거입니다.”</div><div class="rs-quote">질문의 요구: “이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.85</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>요청 작업 수행</b> <span class="rs-id">J1-1.a · 턴 5 · LLM Judge</span></div><div class="rs-fwhy">요청한 수정본 결과물이 제시되지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.”</div><div class="rs-quote">질문의 요구: “모닥의 참가 안내문을 첫 번째로 수정해 주세요. 아래 형식에 맞는 수정본 전체를 제시해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.58</div></div><div class="rs-item"><div><b class="rs-hlno rs-hlno-off">5</b> <b>코드블록 존재·개수·금지 (개수)</b> <span class="rs-id">1-2.code_block:count · 턴 5 · CODE 검사</span></div><div class="rs-fwhy">요구 코드블록 == 1, 실제 0개</div><div class="rs-quote">CODE 검사 — 프로그램이 답 전체를 세거나 형식을 검사한 결과</div></div><div class="rs-item"><div><b class="rs-hlno">6</b> <b>수행 불가 요청 처리</b> <span class="rs-id">J1-3.a · 턴 7 · LLM Judge</span></div><div class="rs-fwhy">자료에 적힌 조건대로 계산하면 접수는 09:35가 되어 행사 시작 09:30보다 늦습니다. 답변은 이 충돌을 밝히지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">6</b> “응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.”</div><div class="rs-quote">질문의 요구: “접수 시작을 이전 계획보다 20분 늦춥니다. 종료 시각은 유지합니다. 킥오프 종료는 이전과 같이 12:00입니다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.58</div></div><div class="rs-item"><div><b class="rs-hlno">7</b> <b>정보 기억</b> <span class="rs-id">J6-2.b · 턴 7 · LLM Judge</span></div><div class="rs-fwhy">질문은 이전에 작성한 같은 안내문을 수정하고 변경 조건을 반영하라고 요청했지만, 답변은 &#x27;응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.&#x27;라고 하여 필요한 이전 내용을 전혀 반영하지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">7</b> “응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.”</div><div class="rs-quote">질문의 요구: “모닥의 같은 참가 안내문을 두 번째로 수정해 주세요. 종료 시각은 유지하되 접수 시작을 이전보다 20분 늦춰 주세요. 개인 참가 예외는 취소하고 사전에 팀을 등록한 사람만 참가할 수 있게 참가 안내문 전체를 다시 써 주세요. 앞서 고친 목차·각주·문의 형식도 유지하고, 수정 목록을 따로 붙이지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">8</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · 턴 9 · LLM Judge</span></div><div class="rs-fwhy">일람표의 왕복 8분이 틀렸다고 지적한 것은 맞지만, 이를 확정 기록의 왕복 16분이라고 제시해 돌아오는 시간도 8분이라는 미제공 값을 확정값처럼 덧붙였습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">8</b> “왕복은 **8분 + 8분 = 16분**입니다.”</div><div class="rs-quote">질문의 요구: “장비 창고 편도 8분”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.50</div></div><div class="rs-item"><div><b class="rs-hlno">9</b> <b>요청 작업 수행</b> <span class="rs-id">J1-1.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">요청은 실제 킥오프 일정 결과물이지만, 접수 시작이 행사 시작 뒤인 모순을 해결하지 않은 채 실행안으로 제시했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">9</b> “## 당일 계획 일정”</div><div class="rs-quote">질문의 요구: “모닥의 킥오프 진행 일정을 만들어 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">10</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">답변은 접수 시작을 09:35로, 행사는 09:30부터라고 제시해 접수 시작 전에 행사가 시작되는 시간 순서의 모순을 남겼습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">10</b> “접수는 이전 계획 09:15보다 20분 늦춘 **09:35**이고, 행사는 **09:30~12:00**으로 유지됩니다. 따라서 접수가 행사 시작보다 5분 늦습니다.”</div><div class="rs-quote">질문의 요구: “접수 시작을 이전보다 20분 늦춰 주세요. 종료 시각은 유지하되”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.93</div></div><div class="rs-item"><div><b class="rs-hlno">11</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">표에 접수 시작을 킥오프 시작보다 5분 뒤로 배치해 진행 흐름을 실행할 수 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">11</b> “| 09:35 | 접수 시작 — 앞문 안쪽 접수 데스크 | 오지훈 | 시작 시각 고정 |
+| 09:30~12:00 | 킥오프 — 대회의실 | 오지훈 | 2시간 30분 |”</div><div class="rs-quote">질문의 요구: “접수 시작: 이전 계획 09:15에서 20분 늦춘 시각
+행사 시간: 09:30~12:00 (바뀌지 않음)”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.99</div></div></div></div></article><article class="rs-fd" id="f-aiona-7"><h3 class="rs-fdh">Q7 · <span class="mn"><i class="lg lg-aiona"></i>AIONA</span> · 멀티턴 · 어긴 기준 2개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 1 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 들녘농장 가족 수확 체험 1차 준비 회의록
+
+- 회의 일시: 2026년 9월 10일(목) 14:00~15:50
+- 장소: 농장 본채 사무실(창고 쪽 출입문 옆 작은 방)
+- 참석: 하태석 대표(14:00~14:35 참석 뒤 공판장 출하 건으로 자리를 뜸), 조은비(체험 담당 · 이번 행사의 당일 현장 진행 인력), 배준호(농장 회계 담당), 우경민(재배 담당 · 14:40부터 참석, 밭 상태 설명)
+- 기록: 조은비 / 기록 검토: 배준호
+- 배포: 참석자 전원, 사무실 서류함 &#x27;체험 행사&#x27; 칸(열람용)
+- 문서 상태: 1차 회의 기록. 결정한 사항, 보류한 사항, 확인이 필요한 사항을 나누어 적음. 물품 준비 방식(A안 · B안)은 이번 회의에서 정하지 못하고 보류함.
+
+## 0. 안건
+
+1. 이번 회차를 여는 배경
+2. 행사 범위와 당일 시각
+3. 진행 인력과 참여 정원
+4. 준비 동선(농장 창고와 체험장 사이)
+5. 물품 준비 방식 A안 · B안
+6. 예산 현황과 각 숫자의 역할
+7. 참가 조건, 현장 접수 예외, 문의처
+8. 운영 세부(수확물 · 장화 · 비 올 때)
+9. 위험 요인 논의
+10. 결정 · 보류 · 확인 필요 항목과 다음 할 일
+
+## 1. 이번 회차를 여는 배경
+
+대표가 회의를 열며 배경을 설명함. 들녘농장의 가족 수확 체험은 이번이 세 번째임. 첫 회는 작년 10월 고구마 캐기였고, 두 번째는 올해 6월 감자 캐기였음. 두 번 모두 참가 가족의 반응은 좋았지만 운영 쪽에서는 아쉬운 점이 많았다는 것이 대표의 평가임. 특히 두 번째 회차 때 접수가 시작된 뒤 장갑이 모자라 담당자가 창고까지 다녀오는 동안 접수 자리가 비었고, 그 사이에 도착한 가족들이 어디로 가야 할지 몰라 밭 안쪽까지 걸어 들어온 일이 있었음. 대표는 &quot;그때 아무 일도 없었던 것은 운이 좋았던 것&quot;이라며 이번에는 준비를 접수 전에 끝내는 데 가장 신경을 쓰자고 함.
+
+대표는 이번 회차의 목적을 두 가지로 밝힘. 첫째, 가족들이 수확을 직접 해 보고 농장 일을 조금이라도 알게 하는 것. 둘째, 진행 인력 한 명으로도 무리 없이 돌아가는 운영 방식을 찾아 다음 회차부터 그대로 쓸 수 있게 기록을 남기는 것. 대표는 &quot;참가 가족을 많이 받는 것보다 당일에 허둥대지 않는 것이 먼저&quot;라고 덧붙임.
+
+행사 날짜는 아직 정하지 않았음. 고구마 밭의 수확 적기를 우경민이 이달 말까지 보고 판단하기로 했고, 마을 행사 일정과 겹치지 않는지도 확인해야 함. 이 회의록에서는 날짜 대신 &#x27;행사 당일&#x27;, &#x27;행사 전날&#x27;로 적음.
+
+## 2. 안건 2 — 행사 범위와 당일 시각
+
+### 2-1. 확인한 시각
+
+- 조은비 현장 도착: 08:50
+- 접수 시작: 09:40
+- 행사 시간: 10:00~12:00
+- 12:00 이후: 물품 회수, 참가 기록 마무리(회수를 끝낸 시각은 당일 실제 시각으로 따로 적음)
+
+### 2-2. 논의 경과
+
+대표가 처음에 &quot;아침 공기가 좋을 때 시작하면 어떻겠느냐, 9시부터 하면 안 되느냐&quot;고 물음. 조은비는 두 가지 이유로 지금 시각을 유지하자고 함. 하나는 현장 도착이 08:50이라 그 전에는 체험장에서 아무 준비도 할 수 없다는 점, 다른 하나는 답사 날 아침 밭 상태를 보니 이른 시각에는 잎과 이랑이 젖어 있어 아이들이 미끄러질 수 있다는 점임. 우경민도 늦게 참석한 뒤 밭 상태 설명에서 같은 이야기를 함. 대표는 시각을 그대로 두는 데 동의함.
+
+배준호가 &quot;도착을 더 당기면 준비가 편하지 않으냐&quot;고 물었으나, 조은비는 행사 당일 아침 농장 출하 차량이 08:30 무렵까지 진입로를 쓰고 있어 그 전에 체험장 쪽에 자리를 펴기 어렵다고 설명함. 도착 시각 08:50은 바꾸지 않기로 함.
+
+조은비가 기록 방식에 대해 한 가지를 짚음. 행사 전날 하는 일이 있으면 그것은 전날 일로 적고, 08:50 도착 전의 일을 당일 현장에서 한 것처럼 일정표에 섞어 넣지 않기로 함. 지난 회차 일정표에는 전날 저녁에 해 둔 안내판 출력이 당일 08:00 작업처럼 적혀 있어서 나중에 소요 시간을 따져 볼 때 혼란이 있었음.
+
+### 2-3. 행사 시간 안의 역할
+
+조은비는 10:00~12:00 동안 참가 가족 응대와 체험 진행을 맡음. 행사 시간 안에 준비 작업을 이어서 할 여유는 없다고 봄. 따라서 물품 운반 · 확인 · 설치는 모두 접수 시작 전에 끝나 있어야 한다는 데 참석자 모두 동의함. 대표는 &quot;행사 중에 담당자가 손수레 끌고 다니는 모습은 다시 보고 싶지 않다&quot;고 함.
+
+## 3. 안건 3 — 진행 인력과 참여 정원
+
+### 3-1. 확정 진행 인력
+
+- 확정된 진행 인력은 1명(조은비)임.
+- 대표는 행사 당일 오전 공판장 출하 일정이 있어 농장에 없음.
+- 우경민은 같은 날 오전 비닐하우스 구역 작업과 다른 밭 관리가 있어 행사 인력으로 넣지 않음. 우경민 본인도 &quot;밭에서 부르면 잠깐 대답은 할 수 있지만 행사 진행을 맡을 수는 없다&quot;고 함.
+- 배준호는 사무실 근무이며 행사 인력이 아님. 당일 정산 서류만 받기로 함.
+
+### 3-2. 예비 인력
+
+조은비가 지난주에 마을 청년회 회원 석태민 씨에게 행사 당일 오전에 도와줄 수 있는지 문자로 물어보았음. 석태민 씨는 &quot;그날 일정 보고 알려 주겠다&quot;고 답한 뒤 아직 확답이 없음. 회의에서는 석태민 씨를 승인 인력에 넣지 않기로 함. 배준호가 &quot;확답이 오면 그때 다시 정하자, 지금 일정표에는 넣지 말자&quot;고 했고 모두 동의함. 대표도 확답 없는 사람을 믿고 일정을 짜면 당일에 무너진다고 말함.
+
+### 3-3. 참여 정원
+
+참여 정원은 18명임. 대표가 지난 회차 신청이 빨리 찬 것을 들어 정원을 늘릴 수 있는지 물었으나, 조은비는 진행 인력 1명이 한꺼번에 살필 수 있는 인원과 체험 이랑 길이를 생각하면 지금 정원이 맞다고 함. 정원 18명과 진행 인력 1명은 서로 다른 값이며, 물품 수량을 정할 때도 정원과 물품 개수를 같은 값으로 맞추지 않기로 함(예비 물품은 따로 둠).
+
+### 3-4. 참가자에게 접수를 맡기는 안
+
+대표가 &quot;먼저 온 가족 중 한 분께 명단 확인을 잠깐 부탁하면 어떻겠느냐&quot;고 제안함. 조은비와 배준호가 반대함. 참가자에게 다른 가족의 이름과 연락처가 적힌 명단을 맡기는 것이 맞지 않고, 참가자가 접수를 하다 문제가 생기면 책임을 나누기 어렵다는 이유임. 대표도 의견을 거두었고, 이 안은 채택하지 않기로 함.
+
+## 4. 안건 4 — 준비 동선
+
+### 4-1. 답사에서 잰 값(9월 8일 답사, 기록 [1] 체험장 답사 메모)
+
+- 농장 창고 → 체험장(접수 천막 자리): 걸어서 편도 9분. 손수레에 물품을 싣고 마을 안길과 둑길을 지나는 길로 잼.
+- 물품 확인: 5분. 장갑 짝 맞추기, 바구니 깨진 곳 보기, 물티슈 개수 보기를 포함.
+- 현장 설치: 14분. 접수 천막 펴기, 접수 탁자와 의자 놓기, 안내판 세우기, 손 씻는 곳 물통 놓기, 바구니 줄 세우기를 포함.
+- 물품은 손수레 한 대로 한 번에 가져올 수 있음.
+
+### 4-2. 논의 경과
+
+배준호가 편도 9분이 &quot;갔다 오는 시간&quot;인지 물었고, 조은비가 창고에서 체험장까지 가는 한 방향 시간이라고 다시 확인함. 회의에서는 편도 시간을 왕복 시간으로 바꿔 쓰지 않기로 하고, 일정표에 적을 때는 &#x27;편도&#x27;라는 말을 꼭 붙이기로 함.
+
+대표가 &quot;설치가 조금 덜 끝나도 접수부터 열면 되지 않느냐&quot;고 물었으나, 조은비는 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다고 답함. 지난 회차에 안내판을 세우기 전에 접수를 열었다가 가족들이 체험 이랑 쪽으로 먼저 걸어간 일이 있었기 때문임. 이 원칙은 이번에도 유지하기로 함.
+
+우경민이 둑길 상태를 설명함. 지난주 비로 둑길 가운데가 조금 패였지만 손수레가 지나가는 데는 문제가 없고, 행사 전에 흙을 한 번 메워 두겠다고 함. 비가 많이 온 뒤에는 둑길 대신 마을 안길로만 돌아가야 하는데, 그 경우 시간이 달라지는지는 답사 때 재지 않았으므로 이번 회의에서 새 값을 만들지 않기로 함.
+
+## 5. 안건 5 — 물품 준비 방식 A안 · B안
+
+### 5-1. 두 방식의 내용
+
+- A안(당일 창고 운반): 행사 당일 농장 창고에서 장갑과 바구니를 직접 옮기는 방식. 편도 9분, 물품 확인 5분. 비용은 없음.
+- B안(전날 체험장 보관): 행사 전날 체험장 보관함에 물품을 넣어 두는 방식. 보관함 이용료 2500원, 당일 물품 확인 5분.
+- 설치는 두 방식 모두 14분.
+- 두 방식 모두 내용을 확인하는 단계는 빠질 수 없음. B안이라도 보관함에서 꺼낸 뒤 장갑 짝과 바구니 상태를 다시 봐야 함.
+
+### 5-2. 체험장 보관함에 관하여
+
+체험장 보관함은 마을 작목반이 체험장 입구 쪽에 둔 철제 보관함이며, 들녘농장 소유가 아님. 작목반에 쓰겠다고 미리 알리고 이용료 2500원을 내면 하루 동안 자물쇠 칸 하나를 쓸 수 있음. 배준호가 작목반 총무에게 전화로 확인한 내용이며, 영수증은 현금 납부 때 작목반이 손으로 써 준다고 함. 보관함 열쇠는 이용하는 쪽이 받아 두었다가 다음 날 돌려줌.
+
+### 5-3. 참석자 의견
+
+- 조은비: A안은 돈이 들지 않는 것이 장점. 다만 당일 아침 창고에서 물품을 챙기다 빠뜨린 것이 있으면 다시 다녀와야 하는데, 접수가 시작된 뒤에는 천막을 비울 수 없음. B안은 전날 넣어 두는 일이 하나 더 생기지만, 당일에는 창고까지 오갈 일이 줄어듦.
+- 배준호: B안의 2500원은 큰돈은 아니지만 아직 남은 예상 지출에 들어 있지 않으므로, B안을 고르면 예산 검토를 다시 해야 함. 금액이 작다고 그냥 넘기면 정산 때 항목이 하나 빠짐.
+- 대표: 비용만 보면 A안이고, 당일 운영만 보면 B안이 편해 보인다고 함. 다만 지난 회차 같은 일이 다시 생기는 것이 더 큰 손해라고 말함.
+- 우경민: 보관함이 밭 가장자리에 있어 밤사이 습기가 찰 수 있다고 함. 작년 가을에 작목반 보관함에 넣어 둔 종이 상자가 아침에 눅눅해진 적이 있음. 바구니는 플라스틱이라 괜찮지만 장갑은 비닐봉지에 싸서 넣는 것이 좋겠다는 의견.
+
+### 5-4. 비교 기준
+
+대표가 자리를 뜨기 전에 두 방식을 비교할 기준을 두 가지로 정해 달라고 함.
+
+1. 비용
+2. 접수 천막을 비울 위험(접수 시작 뒤에는 담당자가 자리를 비울 수 없음)
+
+조은비는 이 두 기준으로 두 방식을 나란히 놓고 따져 본 뒤, 실행할 수 있는 방식과 준비 순서를 다음 회의 전까지 내기로 함. 회의에서 시간을 더 써 봤지만, 보관함 습기 문제와 전날 작업 시간 문제를 어떻게 볼지에 의견이 갈려 결론은 내지 않음.
+
+### 5-5. 결론
+
+두 방식 중 무엇을 고를지는 보류함. 이번 회의록은 어느 쪽으로 정했다고 적지 않음.
+
+## 6. 안건 6 — 예산 현황과 각 숫자의 역할
+
+### 6-1. 현황(기록 [2] 농장 회계 메모, 배준호 설명)
+
+- 승인 예산 상한: 110000원
+- 실제 지급액: 52000원
+  - 체험 참가자 단체 보험 가입: 24000원(정원 기준 일괄 가입)
+  - 현수막 · 안내판 출력: 28000원
+- 남은 운영 예상 지출: 44000원
+  - 참가 가족 마실 물 · 간식: 30000원
+  - 손 씻기 비누 · 소독제: 6000원
+  - 수확물 담아 갈 종이 봉투: 8000원
+- B안 보관함 이용료 2500원은 위 남은 예상 지출 44000원에 아직 들어 있지 않음.
+
+### 6-2. 숫자의 역할에 대한 설명
+
+배준호가 세 숫자를 섞어 쓰지 말자고 거듭 말함.
+
+- 승인 상한은 쓸 수 있는 한도이지 실제로 나간 돈이 아님. 상한이 있다고 그만큼 써야 하는 것은 아님.
+- 실제 지급액은 이미 통장에서 나간 돈이며 영수증이 있음.
+- 남은 예상 지출은 앞으로 나갈 것으로 보는 돈이고 아직 지급하지 않은 돈임. 이미 쓴 돈처럼 적으면 안 됨.
+
+대표가 &quot;그러면 지금 얼마가 남은 것이냐&quot;고 물었으나, 배준호는 B안 여부가 정해지지 않았고 환불이나 지원금 추가 입금도 아직 확인하지 않았기 때문에 오늘 회의록에는 남은 금액을 적지 않겠다고 함. 방식이 정해지면 그 방식의 비용을 넣어 다시 검토하기로 함.
+
+### 6-3. 확인하지 않은 돈
+
+- 지난 회차 취소 가족 참가비 환불: 환불 요청이 있었는지 배준호가 통장 기록을 다시 보기로 함. 현재 확인하지 않음.
+- 군 농업기술센터 체험 지원금 추가 입금: 신청은 했으나 입금 여부를 확인하지 않음. 확인 전에는 예산에 넣지 않음.
+- 새 물품 구매: 장갑을 새로 살지 이야기가 나왔으나 승인하지 않았음. 일정이나 예산에 실제 구매로 넣지 않음.
+
+## 7. 안건 7 — 참가 조건, 현장 접수 예외, 문의처
+
+### 7-1. 참가 조건
+
+- 사전 등록을 기본으로 함. 신청은 농장 체험 회원 게시판과 마을 게시판 안내를 통해 받기로 함. 신청 방법의 세부(신청서 양식, 마감 시각)는 게시 담당과 따로 맞추기로 함.
+- 참가자는 접수 시간 전에 도착해도 준비 중인 공간(접수 천막 안쪽과 체험 이랑)에 들어갈 수 없음. 일찍 온 가족은 체험장 입구 그늘 쪽에서 기다리도록 안내판에 적기로 함.
+- 번호표나 명찰을 받았다고 해서 안내를 들은 것은 아님. 접수 때 번호표를 주는 것과 체험 전 안전 안내를 하는 것은 따로 챙기기로 함.
+
+### 7-2. 현장 접수 예외
+
+대표가 이웃 마을에서 소식을 늦게 듣고 오는 가족을 생각해 당일 농장 입구에서 현장 접수를 받는 예외를 두자고 함. 조은비는 정원 안에서만 받을 수 있다는 조건으로 동의함. 현재 이 예외는 허용된 상태임.
+
+다만 배준호가 보험 가입 쪽을 짚음. 단체 보험이 정원 기준으로 일괄 가입되어 있는데, 당일 현장에서 받은 사람이 보험 명단에 어떻게 들어가는지는 보험 대리점에 확인하지 않았음. 배준호가 대리점에 물어보고, 결과에 따라 예외를 다시 볼 수 있다고 함. 대표도 &quot;나중에 취소하게 되면 그때는 이전 예외를 계속 쓰지 말고 바뀐 내용으로 다시 알리자&quot;고 함.
+
+### 7-3. 문의처
+
+참가 가족 문의처는 체험 담당 조은비임. 연락처(전화 · 메일)는 아직 정하지 않았음. 농장 대표 번호를 쓸지, 체험 전용 번호를 새로 둘지 대표가 정하기로 함. 안내문에는 정해질 때까지 미정으로 남김.
+
+## 8. 안건 8 — 운영 세부
+
+### 8-1. 수확물
+
+수확물은 가족당 바구니 하나 분량까지 가져가고, 초과분은 농장이 회수함. 우경민이 고구마는 캐다 보면 욕심이 나서 한 바구니를 넘기기 쉽다고 함. 넘친 분량은 체험이 끝난 뒤 농장이 거둬 직판장 쪽으로 돌림. 바구니 자체는 농장 물품이라 가져가지 않으며, 집으로 가져갈 때는 종이 봉투에 옮겨 담음.
+
+### 8-2. 장화
+
+장화는 농장이 빌려주지 않으므로 각자 준비함. 지난 회차에는 장화를 빌려주는 줄 알고 운동화로 온 가족이 몇 있었음. 조은비는 이 내용을 안내문 앞쪽에 두겠다고 함. 배준호가 장화를 몇 켤레 사 두자고 했으나 새 물품 구매는 승인하지 않았으므로 넣지 않음.
+
+### 8-3. 비가 올 때
+
+비가 오면 체험은 비닐하우스 구역으로 옮기고 시간은 그대로 둠. 우경민이 비닐하우스 구역은 체험장 동쪽 끝에 붙어 있는 하우스 세 동이며, 그중 가운데 동에 하우스 고구마 두 이랑이 있다고 설명함. 비가 올 때 하우스 안에서 무엇을 수확할지는 그날 작물 상태를 보고 우경민이 알려 주기로 함(현재 미정). 비가 와도 접수 시각과 행사 시각은 바꾸지 않음.
+
+## 9. 안건 9 — 위험 요인 논의
+
+### 9-1. 접수 천막을 비울 위험
+
+참석자 모두 이번 회차에서 가장 조심할 위험으로 꼽음. 진행 인력이 1명뿐이라 접수가 시작된 뒤에는 천막을 비울 수 없음. 조은비가 자리를 비워야 하는 일이 생기면 접수가 시작되기 전에 돌아와 있어야 함. 지난 회차처럼 접수 중에 물품이 모자라 창고에 다녀오는 상황이 가장 나쁜 경우로 꼽혔음.
+
+### 9-2. 물품 파손과 부족
+
+- 지난 회차 뒤 반납된 장갑 가운데 손가락 끝이 터진 것이 섞여 있었음. 파손이 의심되는 물품은 배부하지 않고 따로 빼서 확인하기로 함.
+- 바구니는 손잡이 이음매가 갈라진 것이 있는지 확인이 필요함.
+- 예비 물품은 정원에 더해 세지 않음. 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않음.
+
+### 9-3. 아이 안전
+
+- 호미 날이 날카로운 것이 섞여 있음. 우경민이 날을 한 번씩 보고, 너무 날이 선 것은 빼 두기로 함.
+- 이랑 사이 고랑이 깊은 곳이 있어 어린아이가 넘어질 수 있음. 체험 이랑을 고를 때 고랑이 얕은 쪽으로 정하기로 함.
+- 밭 가장자리 풀숲에 벌집이 있는지 행사 며칠 전에 한 번 더 보기로 함.
+
+### 9-4. 날씨와 그늘
+
+- 오전이라도 햇볕이 강한 날이 있어 그늘 자리가 필요함. 접수 천막 옆을 쉬는 자리로 쓰기로 함.
+- 비 예보가 있을 때 비닐하우스 구역으로 옮길지 언제 판단할지는 아직 정하지 않음. 조은비가 다음 회의 때 안을 내기로 함.
+
+### 9-5. 진입로와 주차
+
+- 출하 차량이 진입로를 쓰는 시간과 참가 가족이 도착하는 시간이 겹치지 않는지 확인이 필요함.
+- 주차 장소는 마을회관 앞 공터를 쓸 수 있는지 이장님께 여쭤보기로 함. 현재 미정.
+
+### 9-6. 화장실
+
+체험장에는 화장실이 없고 농장 본채 쪽에 있음. 행사 중에 가족이 화장실에 가는 길을 안내판으로 표시하기로 함. 담당자가 따라가지 않아도 찾아갈 수 있게 표시를 크게 하자는 의견이 있었음.
+
+## 10. 결정 · 보류 · 확인 필요 항목
+
+| 구분 | 내용 | 담당 |
+| --- | --- | --- |
+| 결정 | 도착 08:50, 접수 09:40, 행사 10:00~12:00 유지 | 조은비 |
+| 결정 | 확정 진행 인력 1명(조은비), 정원 18명 | 조은비 |
+| 결정 | 예비 인력(석태민 씨)은 확답 전까지 승인 인력에 넣지 않음 | 조은비 |
+| 결정 | 참가자에게 접수를 맡기는 안은 채택하지 않음 | 조은비 |
+| 결정 | 편도 시간을 왕복으로 바꿔 쓰지 않음, 설치 전 접수 열지 않음 | 조은비 |
+| 결정 | 수확물 가족당 바구니 하나 분량, 초과분 농장 회수 | 우경민 |
+| 결정 | 장화는 각자 준비(농장 대여 없음) | 조은비 |
+| 결정 | 비가 오면 비닐하우스 구역으로 옮기고 시간은 그대로 | 우경민 |
+| 보류 | 물품 준비 방식 A안 · B안 선택 | 조은비 |
+| 보류 | 비 올 때 장소 이동을 판단하는 시점 | 조은비 |
+| 확인 필요 | 현장 접수자의 보험 명단 포함 여부 | 배준호 |
+| 확인 필요 | 지난 회차 환불 여부, 지원금 추가 입금 여부 | 배준호 |
+| 확인 필요 | 문의 연락처(전화 · 메일) | 하태석 |
+| 확인 필요 | 주차 장소(마을회관 앞 공터) | 조은비 |
+| 확인 필요 | 비 올 때 하우스 안 수확 작물 | 우경민 |
+
+## 11. 다음 할 일
+
+- 조은비: 비용과 접수 천막을 비울 위험, 두 기준으로 A안 · B안을 비교해 다음 회의 전에 공유. 각 방식의 준비 순서도 함께 적음.
+- 조은비: 참가 가족 안내문 초안 준비(행사 날짜와 연락처는 미정으로 둠).
+- 배준호: 예산 세 숫자(상한 · 실지급 · 남은 예상)를 역할별로 나눈 표를 회계 메모에 붙여 두기. B안 비용은 방식이 정해진 뒤 반영.
+- 배준호: 보험 대리점에 현장 접수자 처리 방법 문의.
+- 우경민: 둑길 패인 곳 메우기, 체험 이랑 후보 두 곳 고르기, 호미 날 점검.
+- 하태석: 문의 연락처 결정, 이장님께 주차 장소 협조 요청.
+- 조은비: 석태민 씨에게 한 번 더 확인. 확답이 오더라도 바로 일정표에 넣지 않고 회의에서 다시 정함.
+
+## 12. 회의 뒤 덧붙임
+
+### 12-1. 배준호 메모(9월 10일 16:20)
+
+회의 중에 대표님께서 &quot;남은 돈이 넉넉하니 B안 비용은 신경 쓸 것 없다&quot;고 하신 대목이 있었는데, 회의록에는 그 말을 결정처럼 적지 않았습니다. 넉넉한지 아닌지는 예상 지출과 B안 비용, 확인하지 않은 환불과 지원금까지 본 뒤에 판단할 일입니다. 다음 회의에서 숫자를 다시 보겠습니다. 그리고 보관함 이용료는 작목반에 현금으로 내야 해서, B안으로 가게 되면 전날 오후에 현금을 챙겨 두어야 합니다. 사무실 소액 현금함에서 꺼내 쓰고 영수증을 붙여 두는 방식으로 하겠습니다.
+
+### 12-2. 조은비 메모(9월 10일 17:05)
+
+회의에서 대표님이 하신 말씀 가운데 &quot;행사 중에는 담당자가 접수 천막을 떠나지 않는다&quot;는 원칙은 꼭 지키려고 합니다. 접수가 시작되면 천막을 지키면서 늦게 오는 가족을 맞이하고, 10:00부터는 체험장으로 옮겨 진행해야 하니 그 사이에 창고에 다녀올 틈은 없습니다. A안과 B안 가운데 무엇이 이 원칙을 지키기에 좋은지는 답사 메모의 시간 값으로 다시 따져 보겠습니다.
+
+지난 회차 기록을 다시 찾아보니, 접수 중에 창고에 다녀온 일은 장갑 상자 하나를 창고 선반에 두고 온 것이 원인이었습니다. 물품을 손수레에 실을 때 확인표를 하나씩 지우며 싣는 방법을 이번에 꼭 쓰려고 합니다. 확인표는 장갑 · 바구니 · 물티슈 · 호미 · 안내판 · 물통 · 번호표 순으로 만들어 두겠습니다.
+
+### 12-3. 우경민 메모(9월 11일 07:40)
+
+어제 회의 뒤에 둑길을 다시 걸어 보았습니다. 패인 곳은 두 군데이고 손수레 바퀴가 빠질 정도는 아닙니다. 이번 주말에 흙을 메우겠습니다. 체험 이랑 후보는 입구에서 가까운 세 번째 이랑 묶음과 둑길 옆 다섯 번째 이랑 묶음입니다. 세 번째 묶음은 고랑이 얕고 그늘이 가까워 아이들에게 낫고, 다섯 번째 묶음은 고구마 알이 굵어 수확하는 재미가 있습니다. 어느 쪽으로 할지는 조은비 씨와 다시 보겠습니다. 하우스 쪽 고구마 두 이랑은 노지보다 조금 늦게 심어서 행사 무렵에 알이 잘지 모르니, 비 오는 날을 대비해 하우스 안 작물은 그때 가서 정하는 것이 맞겠습니다.
+
+### 12-4. 하태석 대표 메모(9월 11일 저녁, 사무실 메모판에 붙임)
+
+어제 끝까지 있지 못해 미안합니다. 회의록을 읽어 보니 A안 · B안을 정하지 못한 것은 아쉽지만 서둘러 정하는 것보다 낫다고 봅니다. 두 기준으로 비교한 것을 보고 정합시다. 문의 연락처는 농장 대표 번호를 쓸지 아직 고민 중입니다. 대표 번호로 하면 출하 관련 전화와 섞여서 체험 문의를 놓칠 수 있어 걱정입니다. 이번 주 안에 정하겠습니다. 현장 접수 예외는 지금은 그대로 두지만, 배준호 씨가 보험 쪽을 확인해 보고 문제가 있으면 취소할 수도 있다는 점을 안내문 쪽에서도 염두에 두시기 바랍니다.
+
+## 13. 지난 회차와 비교해 본 점(조은비 작성, 회의 자료로 함께 배포)
+
+### 13-1. 첫 회(작년 10월 고구마 캐기)
+
+- 진행 인력이 두 명이었음(조은비와 당시 단기 근무자). 접수와 체험 진행을 나눠 맡을 수 있었음.
+- 물품은 행사 당일 아침 창고에서 트럭으로 옮겼음. 이번에는 트럭을 쓸 수 없음(출하 차량과 시간이 겹침).
+- 비 예보가 있었으나 비가 오지 않았음. 비 올 때 계획이 안내문에 없어 전날 문의 전화가 많았음.
+
+### 13-2. 두 번째 회(올해 6월 감자 캐기)
+
+- 진행 인력 한 명(조은비)으로 처음 운영함.
+- 물품은 당일 아침 손수레로 창고에서 옮겼음. 접수 시작 뒤 장갑 상자 하나가 빠진 것을 알고 창고에 다녀오는 동안 접수 자리가 비었음.
+- 수확물 양에 기준이 없어 몇 가족은 상자째 가져가려 했고, 다른 가족이 불만을 말함. 이번에 가족당 바구니 하나 분량으로 기준을 정한 이유임.
+- 장화를 빌려주는 줄 안 가족이 있었음.
+
+### 13-3. 이번 회차에서 달라지는 점
+
+- 진행 인력이 1명인 상태에서 물품 준비를 접수 전에 확실히 끝내는 방식을 고르는 것이 가장 큰 과제임.
+- 수확물 기준, 장화, 비 올 때 장소를 처음부터 안내문에 넣음.
+- 예산을 상한 · 실지급 · 남은 예상으로 나눠 보고, 방식별 비용을 따로 붙여 검토함.
+
+## 14. 물품 현황 메모(9월 9일 창고 확인, 우경민 · 조은비)
+
+- 장갑: 아동용 · 성인용이 섞여 있음. 지난 회차 반납분 가운데 손가락 끝이 터진 것이 있어 따로 상자에 빼 둠. 정확한 개수는 반출입 대장에 따로 적음.
+- 바구니: 플라스틱 손잡이 바구니. 지난 회차 뒤 씻어서 창고 2층 선반에 겹쳐 둠. 손잡이 이음매 갈라진 것이 한두 개 보여 다시 확인 필요.
+- 호미: 아동용 짧은 호미와 일반 호미가 섞여 있음. 날 점검 필요.
+- 물티슈: 지난 회차에 쓰고 남은 것과 새 묶음이 함께 있음.
+- 접수 천막: 접이식 천막 한 동. 다리 하나의 고정 핀이 헐거워 철사로 묶어 둔 상태. 펴고 접는 데는 문제없음.
+- 안내판: 지난 회차 안내판 두 개는 날짜와 시각이 박혀 있어 다시 쓸 수 없음. 새로 출력한 현수막 · 안내판이 실지급 항목에 들어 있음.
+- 손 씻는 곳 물통: 뚜껑 달린 물통 두 개. 꼭지 하나가 잘 잠기지 않아 테이프로 감아 둠. 새로 살지는 정하지 않음.
+- 손수레: 바퀴 공기압 확인 필요. 우경민이 행사 주간에 넣어 두기로 함.
+
+## 15. 회의 중 나온 질문과 답
+
+- 질문(대표): 접수를 09:40보다 앞당기면 늦게 오는 가족을 기다리는 시간이 넉넉해지지 않느냐.
+  - 답(조은비): 도착이 08:50이라 준비 시간을 줄여야 하고, 설치 전에 접수를 열 수 없으므로 앞당기기 어렵습니다.
+- 질문(배준호): B안으로 하면 전날 보관함에 넣는 시간은 누구 근무 시간으로 보느냐.
+  - 답(조은비): 전날 오후 제 근무 시간 안에서 하겠습니다. 당일 일정표에는 넣지 않고 전날 일로 따로 적습니다.
+- 질문(우경민): 보관함 자물쇠 칸이 다른 집에서 먼저 쓰고 있으면 어떻게 하느냐.
+  - 답(배준호): 작목반 총무가 미리 알리면 칸을 비워 두겠다고 했습니다. 다만 언제까지 알려야 하는지는 아직 묻지 않았습니다.
+- 질문(대표): 현장 접수로 온 가족이 정원을 넘으면 어떻게 하느냐.
+  - 답(조은비): 정원 18명 안에서만 받습니다. 정원이 차면 다음 회차 소식을 받을 수 있게 이름만 받아 두겠습니다(연락처 수집 여부는 미정).
+- 질문(배준호): 남은 예상 지출 44000원에 물 · 간식이 다 들어 있느냐.
+  - 답(조은비): 네, 물과 간식 30000원이 들어 있습니다. 간식 종류는 아직 정하지 않았습니다.
+- 질문(우경민): 행사 끝나고 바구니 회수는 누가 하느냐.
+  - 답(조은비): 12:00 이후 제가 회수합니다. 회수가 끝난 시각은 그날 실제 시각으로 적겠습니다.
+
+## 16. 체험 진행 흐름에 대한 첫 논의(14:40 이후, 우경민 참석 뒤)
+
+대표가 자리를 뜬 뒤 남은 세 사람이 10:00~12:00 안의 진행 흐름을 먼저 짚어 봄. 시간을 몇 분씩 나누는 것은 다음 회의로 미루고, 순서와 주의할 점만 이야기함.
+
+- 시작 인사와 안전 안내: 조은비가 접수 천막 앞에서 가족들을 모아 호미 쓰는 법, 고랑에서 뛰지 않기, 벌이 보이면 손을 휘두르지 말고 천막 쪽으로 오기를 알림. 우경민은 고구마 줄기를 잡아당기기 전에 흙을 먼저 파 주어야 알이 부러지지 않는다는 말을 꼭 넣어 달라고 함.
+- 이랑 나누기: 가족마다 이랑 한 구간씩 맡김. 이랑 사이 간격이 좁아 옆 가족과 호미가 부딪칠 수 있으니 한 이랑 건너 한 가족씩 앉히자는 의견이 나옴. 이랑을 어떻게 나눌지는 체험 이랑을 고른 뒤 다시 보기로 함.
+- 수확: 아이가 직접 캐도록 하고 어른은 옆에서 흙을 털어 주는 역할을 권함. 우경민은 작년 첫 회 때 어른들이 너무 열심히 캐서 아이들이 구경만 하다 돌아간 가족이 있었다고 함.
+- 바구니 분량 확인: 체험을 마칠 때 가족마다 바구니 하나 분량인지 조은비가 눈으로 확인함. 넘친 고구마는 접수 천막 옆 회수 상자로 모음. 무게를 다는 방식도 이야기가 나왔으나 저울을 따로 준비해야 해서 하지 않기로 함.
+- 손 씻기와 봉투 옮겨 담기: 손 씻는 곳 물통 옆에서 바구니의 고구마를 종이 봉투로 옮겨 담고 바구니는 반납함.
+- 마무리 인사: 다음 회차 소식을 알리고 설문 쪽지를 나눠 줌.
+
+배준호는 설문 쪽지를 지난 회차처럼 종이로 받으면 회수율이 낮았다며, 접수 때 번호표 뒷면에 짧게 적을 수 있게 하자고 제안함. 조은비는 좋은 생각이지만 번호표를 받는 것과 안내를 듣는 것은 다른 일이니, 번호표에 설문을 붙이더라도 안전 안내는 따로 해야 한다고 덧붙임.
+
+## 17. 안내문에 넣을 내용에 대한 첫 논의
+
+조은비가 지난 회차 안내문을 출력해 와서 무엇이 빠졌는지 함께 봄.
+
+- 지난 안내문은 맨 위에 &quot;즐거운 수확 체험!&quot; 같은 홍보 문구가 크게 들어가고, 정작 접수 시각은 아래쪽 작은 글씨로 들어가 있었음. 이번에는 참가 가족이 해야 할 행동(언제까지 도착, 무엇을 준비, 어디서 접수)을 먼저 적기로 함.
+- 접수 시각과 행사 시각을 따로 적기로 함. 지난번에는 &quot;10시 체험&quot;이라고만 적어서 10시에 맞춰 온 가족이 접수 줄에 서느라 안전 안내를 놓친 일이 있었음.
+- 장화 각자 준비, 수확물 바구니 하나 분량, 비 올 때 비닐하우스 구역 이동과 시간 유지는 모두 넣기로 함.
+- 현장 접수 예외는 지금 허용된 상태이므로 넣되, 보험 확인 결과에 따라 바뀔 수 있다는 점을 담당자들이 알고 있어야 함. 안내문 문구를 어떻게 쓸지는 초안에서 다시 보기로 함.
+- 아직 정하지 않은 날짜, 연락처, 주차 장소는 정해진 것처럼 쓰지 않고 미정으로 남김. 대표가 추가 회차를 열 수도 있다고 말한 적이 있지만 정한 것이 아니므로 안내문에 약속하지 않음. 참가비를 받지 않는 문제도 정한 바가 없어 안내문에 쓰지 않음.
+- 예비 인력 이야기는 안내문에 쓰지 않음. 확답이 없는 사람이 도와준다고 적으면 참가 가족이 담당자가 두 명인 줄 알 수 있음.
+
+## 18. 회의 전후에 들어온 사전 문의(조은비 메모)
+
+- 9월 7일, 마을회관 앞에서 만난 주민: &quot;올가을에도 고구마 캐기 하느냐, 손주들 데려가고 싶다.&quot; → 날짜가 정해지면 마을 게시판에 알린다고 답함. 신청은 사전 등록이 기본이라는 것도 말씀드림.
+- 9월 9일, 지난 회차 참가 가족(문자): &quot;지난번에 장화를 못 빌려서 애가 신발을 버렸어요. 이번에는 빌려주시나요?&quot; → 장화는 농장에서 빌려드리지 않아 각자 준비하셔야 한다고 답함. 이 문의가 장화 문구를 안내문 앞쪽에 두기로 한 이유 가운데 하나임.
+- 9월 10일 오전, 이웃 마을 주민(전화로 대표가 받음): &quot;신청을 못 하면 당일 가서 해도 되느냐.&quot; → 대표가 정원 안이면 농장 입구에서 받을 수 있다고 답함. 이것이 현장 접수 예외 논의의 계기가 됨.
+- 9월 10일 회의 직후, 마을 청년회 석태민 씨 문자: &quot;그날 오전에 다른 일이 생길 수도 있어서 아직 확실히는 모르겠어요.&quot; → 확답이 아니므로 승인 인력에 넣지 않은 회의 결과를 그대로 유지함.
+
+## 19. 다음 회의
+
+- 일시: 9월 17일(목) 14:00 예정(대표 출하 일정에 따라 바뀔 수 있음)
+- 안건: A안 · B안 비교 결과 검토와 방식 선택, 예산 다시 보기(방식별 비용 반영), 안내문 초안 검토, 보험 확인 결과, 비 올 때 판단 시점
+- 준비물: 기록 [1] 체험장 답사 메모, 기록 [2] 농장 회계 메모, 지난 회차 안내문, 창고 물품 확인표
+
+## 20. 참고: 작목반 보관함 이용 절차(배준호가 9월 9일 작목반 총무와 통화한 내용)
+
+- 쓰려는 날을 미리 알려 주면 자물쇠 칸 하나를 비워 둠. 며칠 전까지 알려야 하는지는 묻지 못함.
+- 이용료는 하루 2500원이며 현금으로 받음. 계좌 이체는 받지 않는다고 함.
+- 열쇠는 작목반 총무 집에서 받아 가고, 다음 날 돌려줌. 열쇠를 잃어버리면 자물쇠 값을 물어야 함(금액은 묻지 않음).
+- 보관함 안에는 농약이나 비료를 넣지 말아 달라고 함. 다른 칸에 작목반 공동 농기구가 들어 있음.
+- 보관함 문이 체험장 입구 쪽을 보고 있어서, 아침에 꺼낼 때 접수 천막 자리와 가까움. 총무는 비가 들이치는 일은 없지만 바닥이 흙이라 습기는 찬다고 함.
+- 작목반 회원 가운데 새벽에 보관함 옆 칸을 여닫는 사람이 있을 수 있다고 함. 우리 칸은 자물쇠로 따로 잠기므로 섞일 일은 없다고 함.
+
+## 21. 회의록 검토 의견(배준호, 9월 11일 오전)
+
+- 6-1의 금액은 회계 메모와 같게 적혀 있음을 확인함. 실지급 두 항목과 남은 예상 세 항목의 금액이 회계 메모와 맞음.
+- 6-2에서 대표님의 &quot;얼마가 남았느냐&quot;는 질문에 회의록이 숫자를 적지 않은 것은 맞는 처리라고 봄. 방식이 정해지지 않은 상태에서 남은 금액을 적으면 그 숫자가 다른 문서로 옮겨 다니며 확정된 값처럼 쓰일 수 있음.
+- 5-3의 제 의견 가운데 &quot;정산 때 항목이 하나 빠짐&quot;이라는 말은, B안 비용을 따로 적지 않으면 나중에 영수증과 장부가 맞지 않게 된다는 뜻으로 고쳐 읽어 주기 바람.
+- 7-2의 보험 확인은 이번 주 금요일까지 대리점에 묻고 결과를 사무실 메모판에 붙이겠음. 확인 전에는 현장 접수 예외를 그대로 둔다는 회의 내용에 동의함.
+- 10장의 결정 표에서 &#x27;보류&#x27; 두 건은 다음 회의에서 반드시 결론을 낼 수 있도록 안건 맨 앞에 두면 좋겠음.
+
+## 22. 체험 이랑 후보 두 곳(우경민 설명을 받아 적음)
+
+- 입구 쪽 세 번째 이랑 묶음: 접수 천막 자리에서 가장 가까워 담당자 한 명이 천막과 이랑을 한눈에 볼 수 있음. 고랑이 얕아 어린아이가 걷기 쉬움. 대신 고구마 알이 고르지 않고 잔 것이 섞여 있어, 바구니 하나를 채우려면 오래 캐야 함. 오전 햇볕이 일찍 드는 쪽이라 아침 물기가 빨리 마르는 편.
+- 둑길 옆 다섯 번째 이랑 묶음: 알이 굵고 흙이 부드러워 캐는 맛이 있음. 다만 둑길 쪽 비탈이 있어 아이들이 둑으로 올라가지 않게 지켜봐야 하고, 접수 천막에서 보면 이랑 끝이 조금 가려짐. 아침 그늘이 늦게까지 남는 쪽이라 물기도 늦게 마름.
+- 조은비 의견: 진행 인력이 1명이라 천막에서 이랑 전체가 보이는 쪽이 낫다고 봄. 다만 수확하는 재미도 중요하다는 우경민 의견이 있어 행사 열흘 전쯤 두 곳의 알 상태를 다시 캐 보고 정하기로 함.
+- 어느 쪽을 고르든 비가 오면 비닐하우스 구역으로 옮기고 시간은 바꾸지 않는다는 원칙은 같음.
+
+## 23. 배포 기록
+
+- 9월 11일 09:10: 사무실 서류함 &#x27;체험 행사&#x27; 칸에 출력본 한 부를 넣음.
+- 9월 11일 09:15: 대표, 배준호, 우경민에게 같은 출력본을 한 부씩 전달함. 대표 몫은 출하 일정 때문에 책상 위에 두었음.
+- 9월 11일 오후: 배준호의 검토 의견(21장)을 받아 덧붙임. 회의에서 정한 결정 · 보류 내용은 바꾸지 않았음.
+- 석태민 씨에게는 회의록을 보내지 않음. 승인 인력이 아니고, 확답이 오면 그때 필요한 부분만 따로 알리기로 함.
+[자료 끝]
+
+들녘농장의 가족 수확 체험 운영을 도와주세요. 이 대화 전체에서는 존댓말과 밝은 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 08:50, 행사 10:00~12:00, 접수 09:40, 인력 1명, 정원 18명입니다. A안은 당일 농장 창고에서 장갑과 바구니를 직접 옮기는 방식(편도 9분, 물품 확인 5분)이고 비용은 없습니다. B안은 전날 체험장 보관함에 물품을 넣어 두는 방식이며 보관함 이용료 2500원, 당일 물품 확인 5분입니다. 설치는 둘 다 14분입니다. 승인 상한 110000원, 실지급 52000원, 남은 예상 44000원에 B안 비용은 아직 미포함입니다. 비용과 접수 천막을 비울 위험 두 기준으로 두 안을 표 하나로 비교하고 실행 가능한 안을 추천해 주세요. 그 안의 준비 순서와 선택 근거를 함께 적어 주세요. 승인 상한·실제 지출·예상 지출의 역할을 구별해 예산을 검토해 주세요.</pre><b>턴 1 답변</b><pre class="rs-pre rs-ans">## 실행 판단
+
+**B안을 추천합니다.** 보관함 이용료 2,500원을 추가하면 행사 당일 창고 왕복을 없앨 수 있어, 접수 시작 전 준비를 마치고 접수 천막을 비우지 않는 원칙에 더 잘 맞습니다. 다만 전날 보관함 사용을 확보하고 장갑을 습기로부터 보호하는 준비가 필요합니다.
+
+아래 시각화를 참고하세요.
+
+## 비용과 접수 천막 비울 위험 비교
+
+| 기준 | A안: 행사 당일 창고 운반 | B안: 전날 보관함 보관 |
+|---|---|---|
+| 방식별 비용 | 0원 | 2,500원 추가 |
+| 준비 작업 | 당일 물품 확인 5분, 창고→체험장 편도 9분, 설치 14분 | 전날 물품을 보관함에 넣고 열쇠 수령·보관, 당일 물품 확인 5분, 설치 14분 |
+| 확인된 당일 준비 시간 | 확인 5분 + 설치 14분 + 창고 이동 왕복 18분 = **37분** | 확인 5분 + 설치 14분 = **19분** |
+| 접수 천막을 비울 위험 | 준비가 늦어지거나 물품을 빠뜨리면 창고에 다시 다녀와야 할 수 있음. 접수 시작 후에는 담당자가 천막을 비울 수 없음 | 창고 왕복은 없지만 보관 물품 누락·파손을 확인하는 절차는 필요함. 전날 보관을 끝내도 당일 점검과 설치는 접수 전에 마쳐야 함 |
+| 주요 유의점 | 손수레 적재 때 확인표를 사용하고, 출발 전에 물품을 전부 대조해야 함 | 이용료 2,500원, 현금 납부와 영수증, 보관함 칸 예약, 열쇠 수령·반납, 장갑 방습 포장이 필요함 |
+
+## B안 권고 근거
+
+📌 **1인 운영에서 중요한 차이는 18분의 창고 왕복**입니다. 답사 기록의 편도 9분을 왕복으로 계산하면 이동에 18분이 걸립니다. 물품 확인과 설치까지 포함한 당일 준비는 A안 37분, B안 19분으로, B안이 당일 창고 이동 시간을 줄입니다. 이 계산에는 별도로 측정하지 않은 추가 작업이나 지연 시간은 포함하지 않았습니다.
+
+A안도 정해진 순서대로 준비하면 실행할 수 있지만, 물품을 빠뜨렸을 때 다시 창고에 다녀오는 부담이 큽니다. 지난 회차에는 장갑 상자를 빠뜨려 접수 중 담당자가 자리를 비운 일이 있었고, 이번에는 진행 인력이 조은비 씨 한 명뿐입니다. 반면 B안은 전날 보관 작업과 비용이 추가되지만, **접수 시작 후 천막을 비워야 하는 상황을 줄이는 방향**입니다.
+
+B안도 위험을 없애지는 않습니다. 보관함 칸을 확보하지 못하거나 열쇠를 제때 받지 못하면 계획대로 준비하기 어렵고, 물품 확인 단계도 생략할 수 없습니다. 따라서 이용 가능 여부와 열쇠 전달 시점을 먼저 확인한 뒤 실행하는 것이 조건입니다.
+
+## B안 준비 순서
+
+### 행사 전날
+
+1. 작목반 총무에게 사용 날짜를 알리고 자물쇠 칸과 열쇠 수령 시점을 확인합니다. 며칠 전까지 알려야 하는지는 자료에 정해져 있지 않으므로 미리 문의해야 합니다.
+2. 창고에서 장갑·바구니·물티슈·호미·안내판·물통·번호표를 확인표 순서대로 점검합니다. 파손 의심 장갑과 갈라진 바구니는 분리하고, 호미 날은 우경민 씨가 점검하기로 한 절차를 반영합니다.
+3. 장갑은 비닐봉지에 싸서 습기를 막고, 물품을 확인표와 대조하며 보관함에 넣습니다. 보관함 안에는 농약이나 비료를 넣지 않습니다.
+4. 작목반에 **현금 2,500원**을 내고 영수증을 받아 둡니다. 사무실 소액 현금함에서 꺼내는 방식은 회의 뒤 배준호 씨가 제시한 처리 계획입니다.
+5. 보관함 열쇠를 보관하고, 다음 날 반납할 수 있도록 담당자와 반환 시점을 기록합니다. 실제 전날 작업 시간은 행사 당일 일정과 구분해 전날 작업으로 기록합니다.
+
+### 행사 당일
+
+<mark class="rs-mk"><sup>1</sup>- **08:50 도착 후** 보관함에서 물품을 꺼내고 장갑 짝, 바구니 상태, 물티슈 개수 등 물품 확인을 마칩니다.
+- 접수 탁자·의자와 천막을 펴고 안내판, 손 씻는 곳 물통, 바구니를 설치합니다. 천막 고정 핀과 물통 꼭지처럼 상태가 확인되지 않은 부분도 현장에서 점검합니다.
+- 설치와 물품 확인을 끝낸 뒤 접수 준비가 완료됐는지 확인하고, **09:40에 접수**를 시작합니다.</mark> 설치 전 접수를 열지 않는다는 회의 원칙을 지킵니다.
+- 확인표에 점검 결과를 표시하고, 빠진 물품이나 사용할 수 없는 물품이 있으면 접수 전에 조치합니다. 접수 시작 뒤에는 창고에 다녀오지 않는 운영을 목표로 하되, 불가피한 상황에 대한 대체 인력은 현재 확정되지 않았습니다.
+
+## 예산 역할과 B안 반영
+
+| 예산 항목 | 현재 금액 | 역할과 처리 |
+|---|---:|---|
+| 승인 예산 상한 | 110,000원 | 쓸 수 있는 한도이며, 실제 지출이나 사용해야 할 금액이 아닙니다. |
+| 실제 지급액 | 52,000원 | 이미 지급한 금액입니다: 보험 24,000원 + 현수막·안내판 출력 28,000원. |
+| 남은 운영 예상 지출 | 44,000원 | 앞으로 지출할 것으로 예상한 금액입니다: 물·간식 30,000원 + 비누·소독제 6,000원 + 종이 봉투 8,000원. |
+| B안 보관함 이용료 | 2,500원 | 아직 44,000원에 포함되지 않았습니다. B안 선택 시 예상 지출에 추가해야 합니다. |
+
+B안을 반영하면 **예상 지출 합계는 46,500원**입니다. 이미 지급한 52,000원과 합치면 현재 자료에 잡힌 지급액·예상액은 **98,500원**으로, 승인 상한 110,000원보다 11,500원 낮습니다. 이는 계획된 지출을 단순 합산한 값이지, 회계상 확정된 잔액이나 실제 남은 현금은 아닙니다. 환불 요청 여부와 지원금 추가 입금 여부가 확인되지 않았고, 예상 지출도 아직 지급되지 않았기 때문입니다.
+
+따라서 회계 메모에는 상한·실지급·예상 지출을 각각 별도 항목으로 유지하고, B안을 채택하면 보관함 이용료 2,500원을 **예상 지출**에 추가해 검토하는 것이 맞습니다. 실제 지급 처리 뒤에는 영수증을 붙여 **실제 지급액**으로 옮겨 적어야 합니다. 확인되지 않은 환불이나 지원금은 입금 사실을 확인하기 전까지 계산에 넣지 않습니다.
+
+&lt;thinking&gt;We need need citations since browsed empty? system says if call web, all internet-supportable claims citation. Search returned empty; response uses only provided data and arithmetic. No citations possible. Need follow-up JSON. Need maintain VIZ before detail done. Could be under visual marker, yes. Need include maybe no sources. Ensure special followup. Also &quot;output only Korean&quot;, followup tag. Good. But tabular visualization will generate and we have another table body; duplicate maybe okay? We include compact table and visualization marker likely widget based prior text. User asked one table comparison and explicit visualization includes table; widget separately rendered. We have table. Great. Need maybe mention no realtime lookup? Search results empty; no need since user gave data. Could note not needed. No mention web. Final only.</pre></div><div class="rs-turn"><b>턴 9 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 들녘농장 가족 수확 체험 일정 · 인원 · 비용 일람표(마을 협의회 보고용)
+
+- 작성: 탁수현(사무 · 홍보 담당)
+- 작성일: 2026년 9월 24일(목)
+- 보고처: 마을 협의회(총무 앞)
+- 참고로 받는 사람: 하태석 대표, 조은비(체험 담당), 배준호(농장 회계 담당)
+- 문서 성격: 마을 협의회가 마을 공터 사용, 마을 방송, 이장님 안내를 도와줄 때 참고하도록 행사 개요를 한 장으로 모은 일람표. 사무실 일정표와 체험 담당 · 회계 담당 자료를 보고 사무 · 홍보 담당이 따로 만듦. 참가 가족에게 나가는 글이 아니며 게시판에 올리지 않음.
+- 판: 9월 21일 변경 통지 공문(접수 시작 변경, 현장 접수 예외 취소)을 반영한 판
+
+---
+
+## 1. 행사 개요
+
+| 구분 | 내용 |
+| --- | --- |
+| 행사 이름 | 들녘농장 가족 수확 체험(고구마 캐기) |
+| 회차 | 세 번째(첫 회 작년 10월 고구마 캐기, 두 번째 올해 6월 감자 캐기) |
+| 행사 날짜 | 미정(재배 담당이 고구마 수확 적기를 보고 정함) |
+| 장소 | 들녘농장 가족 체험장(농장 입구 쪽 체험 밭) |
+| 비 올 때 장소 | 체험장 동쪽 끝 비닐하우스 구역(시간은 그대로) |
+| 주관 | 들녘농장 |
+| 진행 | 체험 담당 조은비 |
+| 문의처 | 체험 담당 조은비(연락처 미정) |
+
+## 2. 당일 시각
+
+| 항목 | 시각 | 비고 |
+| --- | --- | --- |
+| 진행 담당 현장 도착 | 08:50 | 그 전에는 체험장에서 준비하지 않음 |
+| 접수 시작 | 09:50 | 9월 21일 공문으로 종전보다 10분 늦춤 |
+| 체험(행사) 시작 | 10:00 | 바뀌지 않음 |
+| 체험(행사) 종료 | 12:00 | 바뀌지 않음 |
+| 마감 · 물품 회수 | 12:00 이후 | 회수를 끝낸 시각은 당일 실제 시각으로 기록 |
+
+- 접수 시작 전에 도착한 가족은 준비 중인 공간에 들어갈 수 없음. 체험장 입구 그늘에서 기다림.
+- 설치를 끝내기 전에는 접수를 열지 않음.
+- 접수 시작 뒤에는 진행 담당이 접수 천막을 비우지 않음.
+
+## 3. 인원
+
+| 항목 | 내용 | 비고 |
+| --- | --- | --- |
+| 확정 진행 인력 | 1명(체험 담당 조은비) | 접수와 체험 진행을 한 사람이 맡음 |
+| 예비 인력 | 마을 청년회 회원 1명에게 요청함 | 참석 확답 없음. 승인 인력에 넣지 않음 |
+| 참여 정원 | 23명 | 사람 수 기준 |
+| 참여 조건 | 사전 신청 가족만 | 9월 21일 공문으로 당일 현장 접수 예외 취소 |
+| 보호자 | 아이는 보호자와 함께 참여 | 가족 대표가 체험 중 아이를 책임짐 |
+
+- 대표, 재배 담당, 회계 담당은 행사 당일 행사 인력이 아님(대표는 공판장 출하, 재배 담당은 하우스 구역 · 다른 밭 작업, 회계 담당은 사무실 근무).
+- 참가자에게 접수를 맡기지 않음.
+- 조별 명단은 신청 마감 뒤 체험 담당이 조 편성 기준에 따라 만들며, 이 일람표에는 넣지 않음.
+- 업혀 오는 아기는 명단에 이름을 함께 적되 정원에 셀지는 아직 정하지 않음.
+
+## 4. 물품 준비 방식
+
+체험 담당 쪽에서 두 가지 방식을 놓고 검토해 왔음. 일람표에는 두 방식의 시간과 비용만 옮기고, 어느 방식으로 하는지는 체험 담당 쪽 결정에 따름.
+
+| 구분 | A안 당일 창고 운반 | B안 전날 체험장 보관 |
+| --- | --- | --- |
+| 방식 | 행사 당일 농장 창고에서 장갑과 바구니를 직접 옮김 | 행사 전날 체험장 보관함(작목반 보관함)에 물품을 넣어 둠 |
+| 이동 | 창고 ↔ 체험장 왕복 9분 | 당일 이동 없음 |
+| 물품 확인 | 5분 | 당일 5분 |
+| 설치 | 14분 | 14분 |
+| 비용 | 없음 | 보관함 이용료 2500원 |
+| 운반 수단 | 손수레 한 대(한 번에 옮김) | 전날 손수레로 보관함까지 |
+
+- 설치에는 접수 천막 펴기, 접수 탁자와 의자 놓기, 안내판 세우기, 손 씻는 곳 물통 놓기, 바구니 줄 세우기가 들어감.
+- 두 방식 모두 물품 확인 단계는 빠지지 않음.
+
+## 5. 비용
+
+| 항목 | 금액 | 비고 |
+| --- | --- | --- |
+| 승인 예산 상한 | 110000원 | 쓸 수 있는 한도 |
+| 실제 지급액 | 52000원 | 이미 지급함 |
+| 남은 운영 예상 지출 | 46500원 | 앞으로 나갈 것으로 보는 돈 |
+
+### 5-1. 실제 지급 내역
+
+- 체험 참가자 단체 보험 가입: 24000원(정원 기준 일괄 가입)
+- 현수막 · 안내판 출력: 28000원
+
+### 5-2. 승인 전 검토 항목(예산에 넣지 않음)
+
+- 바구니 손잡이 끈: 읍내 포장재 가게 견적 개당 700원, 18개 주문 검토 중. 승인 전.
+- 목걸이 이름표: 읍내 인쇄소 견적 금액 미회신. 창고 명찰 끈을 고쳐 쓰는 쪽으로 검토 중.
+- 환불 · 지원금 추가 입금: 확인하지 않음.
+
+## 6. 운영 세부
+
+| 항목 | 내용 |
+| --- | --- |
+| 수확물 | 가족당 바구니 하나 분량까지 가져감. 초과분은 농장이 회수 |
+| 바구니 | 농장 물품. 반납하고 수확물은 종이 봉투에 옮겨 담아 감 |
+| 장화 | 농장이 빌려주지 않음. 각자 준비 |
+| 비 올 때 | 비닐하우스 구역으로 옮김. 시간은 그대로 |
+| 화장실 | 체험장에 없음. 농장 본채 쪽(안내 표지 설치) |
+| 주차 | 마을회관 앞 공터 사용 협의 중(미정) |
+| 마실 물 · 간식 | 농장이 준비. 간식 종류는 미정 |
+| 손 씻기 | 접수 천막 옆 손 씻는 곳 물통, 비누 · 물티슈는 농장이 준비 |
+| 일찍 온 가족 | 체험장 입구 그늘에서 기다림 |
+
+## 7. 시설 사용
+
+| 시설 | 쓰는 때 | 관리 | 비고 |
+| --- | --- | --- | --- |
+| 가족 체험장(체험 밭) | 행사 당일 도착부터 회수까지 | 들녘농장 | 체험 이랑 묶음은 행사 열흘 전쯤 정함 |
+| 접수 천막 자리 | 행사 당일 도착부터 회수까지 | 들녘농장 | 체험장 입구 풀밭 |
+| 농장 창고 | 물품 반출 · 반납 때 | 들녘농장 | 체험 비품은 2층 선반 |
+| 작목반 보관함 | B안으로 할 경우 행사 전날부터 당일 아침까지 | 마을 작목반 | 이용료 2500원, 현금, 열쇠는 작목반 총무 |
+| 비닐하우스 구역 | 비 올 때 | 들녘농장 | 하우스 세 동, 동 배정은 그날 정함 |
+| 마을회관 앞 공터 | 행사 당일(주차) | 마을 협의회 | 사용 여부 미정 |
+
+## 8. 마을 협의회에 요청하는 것
+
+- 마을회관 앞 공터를 행사 당일 오전 참가 가족 주차에 쓸 수 있는지 마을 회의에서 정해 주시기 바람.
+- 행사 며칠 전 마을 방송으로 사전 신청 안내를 한 번 해 주실 수 있는지 여쭘(방송 문안은 농장이 드림).
+- 이장님께서 마을 어르신들께 사전 신청이 꼭 필요하다는 점을 다시 알려 주시기 바람(현장 접수 취소).
+- 종이 신청서를 마을회관 게시판 옆에 둘 수 있게 해 주시기 바람.
+
+## 9. 지난 회차 보고 때와 달라진 점
+
+- 진행 인력: 첫 회는 두 명이었고, 두 번째 회와 이번 회는 한 명임.
+- 참여 조건: 두 번째 회는 접수 기준이 따로 없었고, 이번 회는 사전 신청 가족만 참여함.
+- 수확물: 두 번째 회는 기준이 없었고, 이번 회는 가족당 바구니 하나 분량까지임.
+- 장화: 두 번째 회는 그날 비 때문에 몇 켤레 빌려준 일이 있었고, 이번 회는 빌려주지 않음.
+- 비 올 때: 두 번째 회는 &#x27;별도 안내&#x27;였고, 이번 회는 비닐하우스 구역으로 옮기고 시간은 그대로임.
+- 예산 일람: 이번 회부터 승인 상한 · 실제 지급 · 남은 예상을 나누어 적음.
+
+## 10. 작성 메모(탁수현)
+
+### 10-1. 어디서 옮겼는지
+
+- 시각: 사무실 일정표(9월 21일 공문 반영 판)에서 옮김.
+- 인원: 사무실 일정표와 1차 준비 회의록에서 옮김. 예비 인력은 이름을 적지 않음.
+- 물품 준비 방식의 시간과 비용: 체험 담당이 회의 때 나누어 준 자료와 사무실 일정표 메모에서 옮김.
+- 비용: 회계 담당이 사무실 메모판에 붙여 둔 메모와 사무실 일정표에서 옮김.
+- 운영 세부와 시설: 1차 준비 회의록, 운영 확인 기록, 조 편성 기준 문서에서 옮김.
+
+### 10-2. 일부러 넣지 않은 것
+
+- 행사 날짜: 미정이라 비워 두지 않고 &#x27;미정&#x27;으로 적음.
+- 문의 연락처: 미정.
+- 예비 인력의 이름: 승인 인력이 아니므로 적지 않음.
+- 조별 명단: 신청 마감 뒤 체험 담당이 만들며, 협의회 보고에는 넣지 않음.
+- 참가 가족 개인정보: 넣지 않음.
+
+### 10-3. 서식
+
+- 지난 두 회차 보고 때는 일정 · 인원 · 비용을 줄글로 적어 보냈는데, 협의회 총무가 한눈에 보기 어렵다고 하여 이번에는 표로 바꿈.
+- 금액은 회계 메모 표기대로 쉼표 없이 적음.
+- 시각은 24시간 표기로 적음.
+
+## 11. 협의회 총무와 주고받은 질문(9월 23일 전화, 탁수현 메모)
+
+- 총무: 이번에도 접수는 체험장 입구에서 하느냐?
+  - 탁수현: 네, 체험장 입구 풀밭에 접수 천막을 칩니다.
+- 총무: 당일 와서 신청하는 사람은 받느냐? 지난번에 이장님이 받는다고 하셨다던데.
+  - 탁수현: 처음에는 받기로 했다가 보험 문제로 취소했습니다. 이번에는 미리 신청한 가족만 참여합니다. 이장님께도 체험 담당이 말씀드렸습니다.
+- 총무: 공터는 몇 시부터 쓰느냐?
+  - 탁수현: 접수 시작 전후로 가족들이 도착할 것 같습니다. 정확한 사용 시각은 날짜가 정해지면 다시 말씀드리겠습니다.
+- 총무: 마을 방송은 언제쯤 하면 되느냐?
+  - 탁수현: 행사 날짜와 신청 마감이 정해지면 그에 맞춰 부탁드리겠습니다. 지금은 둘 다 미정입니다.
+- 총무: 비 오면 취소냐?
+  - 탁수현: 아닙니다. 비닐하우스 구역으로 옮기고 시간은 그대로입니다.
+- 총무: 도와줄 사람이 필요하면 청년회에 다시 말해 볼까?
+  - 탁수현: 지금 한 분께 여쭤본 상태인데 아직 확답이 없습니다. 확답이 오기 전에는 인력에 넣지 않기로 했습니다. 따로 더 부탁하실 필요는 없습니다.
+
+## 12. 보고 일정
+
+- 9월 24일: 이 일람표를 대표, 체험 담당, 회계 담당에게 참고로 보냄.
+- 9월 28일 무렵: 협의회 총무에게 출력본 전달(다음 주 마을 회의 전).
+- 행사 날짜가 정해지면: 날짜, 신청 마감, 공터 사용 시각을 넣어 다시 보냄.
+- 행사 뒤: 참가 인원과 실제 지출을 넣은 결과 일람을 보냄(결과 일람은 회계 담당 확인 뒤).
+
+## 13. 협의회가 지난 회차에 도와준 일(참고)
+
+- 첫 회(작년 10월): 마을 방송으로 행사 소식을 알림. 마을회관 게시판에 종이 안내문을 붙임.
+- 두 번째 회(올해 6월): 마을회관 게시판 종이 안내문, 종이 신청서 비치. 주차는 마을 길가를 썼고, 협의회에서 길가 주차 때문에 경운기가 지나가기 어려웠다는 말이 나옴. 이번에 공터 사용을 부탁드리는 이유임.
+- 협의회는 체험 행사에 돈을 내지 않으며, 일람표의 비용은 모두 들녘농장 예산임.
+
+## 14. 이 일람표를 받는 분께
+
+- 이 표의 값은 9월 24일 기준임. 행사 날짜, 연락처, 주차처럼 미정인 값은 정해지는 대로 고쳐서 다시 보냄.
+- 참가 가족 안내문은 체험 담당이 따로 쓰며, 이 일람표의 문장을 그대로 쓰지 않음.
+- 표 안의 값 가운데 확인이 필요한 것은 사무 · 홍보 담당에게 알려 주시면 해당 담당과 맞춰 고침.
+
+## 15. 당일 흐름 한눈에 보기
+
+준비 방식에 따라 도착 뒤 준비 순서가 달라지므로, 이 표에는 준비 구간을 하나로 묶어 적음. 준비 구간의 자세한 순서와 시각은 체험 담당이 당일 운영 일정표에 따로 적음.
+
+| 순서 | 때 | 하는 일 | 맡는 사람 |
+| --- | --- | --- | --- |
+| 1 | 08:50 | 진행 담당 현장 도착 | 조은비 |
+| 2 | 도착 뒤 ~ 접수 시작 전 | 물품 준비(방식에 따라 창고 운반 또는 보관함 꺼내기), 물품 확인, 설치 | 조은비 |
+| 3 | 09:50 | 접수 시작(사전 신청 가족 이름 확인, 번호표 · 명찰 배부) | 조은비 |
+| 4 | 10:00 | 체험 시작(안전 안내 뒤 이랑으로) | 조은비 |
+| 5 | 10:00~12:00 | 수확 체험 진행, 바구니 분량 확인 | 조은비 |
+| 6 | 12:00 | 체험 종료 | 조은비 |
+| 7 | 12:00 이후 | 물품 회수, 초과 수확물 회수, 참가 기록 마무리 | 조은비 |
+
+- 비가 오면 4~6을 비닐하우스 구역에서 하며 시각은 같음.
+- 1~7 모두 진행 담당 한 사람이 맡음. 예비 인력은 넣지 않음.
+
+## 16. 담당별 역할
+
+| 담당 | 이름 | 행사 전 | 행사 당일 |
+| --- | --- | --- | --- |
+| 대표 | 하태석 | 문의 연락처 결정, 이장님 · 협의회 협조 요청, 승인 결정 | 공판장 출하(행사 인력 아님) |
+| 체험 담당 | 조은비 | 안내문, 조 편성, 물품 확인, 준비 방식 결정 | 진행 담당(확정 인력 1명) |
+| 회계 담당 | 배준호 | 예산 메모, 보험 명단 제출, 견적 승인 검토 | 사무실 근무(행사 인력 아님) |
+| 재배 담당 | 우경민 | 수확 적기 판단, 체험 이랑 묶음, 둑길 손보기, 호미 날 점검 | 하우스 구역 · 다른 밭 작업(행사 인력 아님) |
+| 게시 담당 | 문가람 | 회원 게시판 안내문 게시, 종이 안내문 | 없음 |
+| 사무 · 홍보 담당 | 탁수현 | 사무실 일정표, 협의회 보고 | 없음 |
+
+## 17. 참가 가족이 챙길 것과 농장이 준비하는 것
+
+### 17-1. 참가 가족이 챙길 것
+
+- 장화(농장이 빌려주지 않음)
+- 흙이 묻어도 되는 옷
+- 있으면 좋은 것: 모자, 갈아입을 옷, 아이 장갑(집에 있으면)
+
+### 17-2. 농장이 준비하는 것
+
+- 바구니(반납), 장갑, 호미(아동용 짧은 호미 포함), 물티슈
+- 손 씻는 곳 물통, 손 씻기 비누
+- 수확물을 담아 갈 종이 봉투
+- 참가 가족 마실 물 · 간식(종류 미정)
+- 접수 천막, 탁자, 의자, 안내판
+
+## 18. 안전 · 위험 관리
+
+| 위험 | 대응 | 비고 |
+| --- | --- | --- |
+| 접수 천막을 비우는 일 | 접수 시작 전에 준비를 모두 끝냄. 접수 시작 뒤에는 천막을 비우지 않음 | 두 번째 회에 접수 중 창고에 다녀온 일이 있었음 |
+| 설치 전 접수 | 설치를 끝내기 전에는 접수를 열지 않음 | 승인된 예외 없음 |
+| 일찍 온 가족이 준비 공간에 들어옴 | 체험장 입구 그늘에서 기다리게 함 | 안내판 설치 |
+| 파손 물품 | 금 간 바구니, 손가락 끝이 터진 장갑은 배부하지 않음 | 창고 &#x27;파손 · 수리 대기&#x27; 상자 |
+| 날이 선 호미 | 재배 담당이 행사 주간에 점검 | 아동용 짧은 호미 우선 |
+| 깊은 고랑 | 고랑이 얕은 이랑 묶음을 고르는 쪽으로 검토 | 체험 이랑 묶음은 행사 열흘 전쯤 정함 |
+| 벌 | 행사 며칠 전 밭 가장자리 풀숲 확인 | 벌이 보이면 천막 쪽으로 오도록 안내 |
+| 햇볕 | 접수 천막 옆을 쉬는 자리로 씀 | 그늘 자리 |
+| 아침 물기 | 장갑 상자 바닥 · 탁자 · 명단이 젖지 않게 함 | 답사 때 이른 시각 밭과 풀밭이 젖어 있었음 |
+| 진입로 출하 차량 | 출하 차량이 진입로를 쓰는 시간과 겹치지 않게 함 | 답사 날 출하 차량은 08:30 무렵 지나감 |
+| 화장실 길 | 농장 본채 쪽 화장실까지 안내 표지 | 담당자가 따라가지 않음 |
+
+## 19. 아직 정하지 않은 것 · 확인이 필요한 것
+
+| 항목 | 상태 | 정할 사람 |
+| --- | --- | --- |
+| 행사 날짜 | 미정 | 대표(재배 담당 의견을 받아) |
+| 문의 연락처(전화 · 메일) | 미정 | 대표 |
+| 신청 마감 시각 | 미정 | 체험 담당 · 게시 담당 |
+| 보험 명단 제출일 | 미정(행사 날짜에 따라) | 회계 담당 |
+| 물품 준비 방식(A안 · B안) | 체험 담당 쪽 결정에 따름 | 체험 담당 |
+| 체험 이랑 묶음 | 미정 | 재배 담당 · 체험 담당 |
+| 비 올 때 하우스 안 수확 작물 · 동 배정 | 그날 정함 | 재배 담당 |
+| 주차(마을회관 앞 공터) | 협의 중 | 마을 협의회 |
+| 마을 방송 여부 | 협의 중 | 마을 협의회 |
+| 간식 종류 | 미정 | 체험 담당 |
+| 업혀 오는 아기의 정원 포함 여부 | 미정(명단에는 이름을 함께 적음) | 체험 담당 · 회계 담당 |
+| 바구니 끈 구매 | 승인 전 | 대표 |
+| 이름표 새로 맞추기 | 견적 미회신, 창고 것 고쳐 쓰는 쪽 검토 | 대표 · 체험 담당 |
+| 예비 인력 | 참석 확답 없음 | 확답이 와도 회의에서 다시 정함 |
+
+## 20. 이 일람표를 만들 때 본 문서
+
+| 문서 | 날짜 | 쓴 사람 |
+| --- | --- | --- |
+| 체험장 답사 현장 점검 일지 | 9월 8일(덧붙임 9월 15일까지) | 조은비 · 우경민 |
+| 체험장 답사 메모 | 9월 8일 | 조은비 |
+| 농장 회계 메모 | 9월 9일 | 배준호 |
+| 1차 준비 회의록 | 9월 10일 | 조은비 |
+| 운영 확인 기록 판본 2 | 9월 12일 | 운영 담당 |
+| 조 편성 · 자리 운영 기준 판본 1 | 9월 14일 | 조은비 |
+| 지난 회차 안내문 피드백 · 설문 · 문의 모음 | 9월 15일~16일 | 조은비 |
+| 비품 반출입 대장과 견적 메일 | 9월 17일 | 조은비 |
+| 게시 담당 메일 묶음 | 9월 17일~20일 | 문가람 |
+| 변경 통지 공문 | 9월 21일 | 하태석 |
+| 수정 회의록 | 9월 22일 | 조은비 |
+| 사무실 일정표 | 9월 23일 고친 판 | 탁수현 |
+
+- 이 일람표는 위 문서를 보고 사무 · 홍보 담당이 따로 만든 것이며, 위 문서를 대신하지 않음.
+
+## 21. 협의회 총무께 드리는 전달 글
+
+총무님, 들녘농장 사무 · 홍보 담당 탁수현입니다. 올가을 가족 수확 체험의 일정 · 인원 · 비용을 한 장으로 모아 보내 드립니다. 지난 두 번은 줄글로 보내 드려 보시기 불편하셨다고 하셔서 이번에는 표로 바꾸었습니다.
+
+이번에 달라진 점은 두 가지입니다. 하나는 접수 시작이 조금 늦어진 것이고, 다른 하나는 당일 현장 접수를 받지 않고 미리 신청한 가족만 참여하게 된 것입니다. 현장 접수는 처음에 받기로 했다가 보험 문제로 취소되었습니다. 이장님께서 마을 어르신들께 미리 신청하셔야 한다고 한 번 더 알려 주시면 큰 도움이 되겠습니다.
+
+부탁드리는 것은 마을회관 앞 공터 주차, 마을 방송, 종이 신청서 비치 세 가지입니다. 행사 날짜가 아직 정해지지 않아 공터 사용 시각과 방송 날짜는 날짜가 나오는 대로 다시 말씀드리겠습니다. 표의 비용은 모두 농장 예산이며 협의회에서 따로 내실 돈은 없습니다.
+
+## 22. 마을 방송에 넣을 항목(방송 문안은 날짜가 정해진 뒤 씀)
+
+- 행사 이름과 장소(들녘농장 가족 체험장)
+- 행사 날짜(정해지면)
+- 접수 시작 시각과 체험 시작 시각을 나누어 말함
+- 미리 신청한 가족만 참여할 수 있다는 점(당일 현장 접수 없음)
+- 신청 방법(회원 게시판, 마을회관 게시판 옆 종이 신청서)과 신청 마감(정해지면)
+- 장화는 각자 준비
+- 문의처: 들녘농장 체험 담당(연락처는 정해지면)
+- 방송은 짧게 한 번, 어르신들이 알아듣기 쉬운 말로 함
+
+## 23. 공터 사용 요청 세부
+
+- 쓰려는 곳: 마을회관 앞 공터
+- 쓰려는 때: 행사 당일 오전, 참가 가족이 도착하는 때부터 체험을 마치고 돌아갈 때까지(정확한 시각은 날짜가 정해지면 다시 알림)
+- 바라는 점: 경운기와 농기계가 지나갈 길은 비워 둠. 두 번째 회 때 마을 길가 주차로 경운기가 지나가기 어려웠다는 협의회 의견을 반영함.
+- 안내: 공터 입구에 들녘농장이 안내 표지를 세움. 표지는 이미 출력한 현수막 · 안내판 가운데 남는 것을 쓸 수 있는지 먼저 봄.
+- 공터에서 체험장까지: 마을 안길을 따라 걸어옴. 걸리는 시간은 재지 않았음.
+- 공터 뒷마무리: 행사 뒤 쓰레기가 남지 않게 들녘농장이 확인함. 다만 행사 당일에는 진행 담당 한 사람뿐이라 공터를 따로 지키지는 못함.
+
+## 24. 종이 신청서 비치 요청 세부
+
+- 비치할 곳: 마을회관 게시판 옆
+- 신청서 항목: 대표자 이름, 함께 오는 사람 수(어른 · 아이 · 업혀 오는 아기), 함께 참여할 가족, 배려가 필요한 점, 개인정보 이용 동의
+- 회수: 신청서 넣는 상자를 함께 둠. 들녘농장 사무실에서 정해진 날마다 걷으러 감(걷는 날은 신청 기간이 정해지면 알림).
+- 정원이 차면: 상자 위에 &#x27;정원이 찼습니다, 대기 신청만 받습니다&#x27;라는 종이를 붙임.
+- 어르신 대신 쓰기: 이장님께서 어르신 대신 신청서를 써 주실 수 있는지 체험 담당이 여쭤보는 중(정한 것 아님).
+
+## 25. 지난 두 회차 협의회 보고 내용(사무실 보관본에서 옮김)
+
+### 25-1. 첫 회(작년 10월)
+
+- 줄글 한 장. 행사 이름, 날짜, 시각(체험 시각만), 장소, 진행 인력 두 명, 마을 방송 부탁이 적혀 있었음.
+- 접수 시각은 적혀 있지 않았음. 비용은 &#x27;농장 부담&#x27;이라고만 적혀 있었음.
+- 행사 뒤 결과 보고는 하지 않았음.
+
+### 25-2. 두 번째 회(올해 6월)
+
+- 줄글 한 장 반. 행사 이름, 날짜, 체험 시각, 장소, 진행 인력 한 명, 종이 안내문 · 신청서 비치 부탁이 적혀 있었음.
+- 접수 기준(현장 접수 여부)은 적혀 있지 않았음. 그 때문에 이장님이 당일 와도 된다고 안내하신 일이 있었음.
+- 행사 뒤 협의회 총무가 주차 문제를 말씀하셨음. 이번에 공터 사용을 부탁드리게 된 계기임.
+
+### 25-3. 이번에 바꾼 점
+
+- 표로 바꿈.
+- 접수 시각과 체험 시각을 나누어 적음.
+- 참여 조건(사전 신청 가족만)을 적음.
+- 예산을 승인 상한 · 실제 지급 · 남은 예상으로 나누어 적음.
+- 미정 항목을 따로 모음.
+- 행사 뒤 결과 일람을 보내기로 함.
+
+## 26. 행사 뒤 결과 일람(빈 양식, 행사 뒤 채움)
+
+| 항목 | 값 | 확인한 사람 |
+| --- | --- | --- |
+| 행사 날짜 | (행사 뒤 적음) | 탁수현 |
+| 실제 참가 가족 수 | (행사 뒤 적음) | 조은비 |
+| 실제 참가 인원 | (행사 뒤 적음) | 조은비 |
+| 비가 왔는지 | (행사 뒤 적음) | 조은비 |
+| 회수를 끝낸 시각 | (당일 실제 시각) | 조은비 |
+| 실제 지출 합계 | (회계 담당 확인 뒤 적음) | 배준호 |
+| 공터 사용 중 생긴 일 | (행사 뒤 적음) | 탁수현 |
+| 협의회 건의 사항 | (행사 뒤 적음) | 탁수현 |
+
+- 결과 일람의 지출은 회계 담당이 영수증과 대조한 뒤에만 적음. 예상 지출을 실제 지출처럼 옮기지 않음.
+
+## 27. 일람표 판 기록
+
+- 9월 23일 오전: 첫 판을 만들기 시작함. 사무실 일정표(9월 21일 공문 반영 판)를 기준으로 함.
+- 9월 23일 오후: 협의회 총무와 통화(11장). 주차와 방송 부탁 항목을 넣음.
+- 9월 24일 오전: 담당별 역할, 위험 관리, 미정 항목, 본 문서 목록을 더함.
+- 9월 24일 오후: 이 판을 대표 · 체험 담당 · 회계 담당에게 참고로 보냄.
+
+## 28. 사무실 안에서 받은 의견(9월 24일 오후)
+
+- 하태석 대표: &quot;표로 보니 훨씬 낫다. 협의회에는 부탁하는 것이 무엇인지가 먼저 보이게 해 달라.&quot; → 8장을 앞쪽으로 옮길지 검토함. 이번 판에서는 그대로 둠.
+- 조은비: 오후 내내 창고에서 바구니를 말리고 있어 아직 자세히 보지 못했다고 함. 저녁에 보겠다고 함.
+- 배준호: 오후 외근 중이라 아직 보지 못함. 돌아와서 비용 부분을 보겠다고 문자로 답함.
+- 문가람: 일람표 문장을 게시판 안내문에 쓰지 말아 달라는 당부(14장에 이미 적음).
+
+## 29. 협의회 총무 문자(9월 24일 저녁)와 답
+
+- 총무: 표 잘 받았어요. 공터는 다음 주 마을 회의에서 이야기해 볼게요. 그런데 당일 오시는 가족이 몇 집쯤 되나요? 차가 몇 대 올지 알아야 해서요.
+  - 탁수현: 신청을 아직 받지 않아 가족 수는 모릅니다. 정원은 표에 적은 대로이고, 신청 마감 뒤 가족 수가 나오면 바로 알려 드리겠습니다.
+- 총무: 작목반 보관함을 쓰신다는 건 작목반하고 이야기가 된 건가요?
+  - 탁수현: 보관함은 준비 방식 가운데 하나로 검토하는 중이고, 쓰게 되면 회계 담당이 작목반 총무께 미리 알리고 이용료를 냅니다. 아직 쓰기로 정한 것은 아닙니다.
+- 총무: 방송은 행사 며칠 전이 좋을까요?
+  - 탁수현: 신청 마감 전에 한 번 해 주시면 좋겠습니다. 날짜가 정해지면 다시 부탁드리겠습니다.
+
+## 30. 체험장 가는 길(협의회 · 이장님 안내용)
+
+- 마을회관에서: 마을회관 앞 공터에서 나와 마을 안길을 따라 들녘농장 쪽으로 걸어옴. 농장 본채로 들어가는 진입로를 지나쳐 조금 더 가면 체험장 입구 풀밭과 접수 천막이 보임. 농장 본채 마당으로 들어오지 않도록 갈림길에 안내 표지를 세움.
+- 마을 앞 버스 정류장에서: 정류장에서 마을 안길로 들어와 같은 길로 걸어옴. 정류장에서 체험장까지 걸리는 시간은 아직 재지 않았음. 체험 담당이 행사 전에 한 번 걸어 보기로 함.
+- 차로 오는 경우: 농장 진입로에는 출하 차량이 다니므로 들어오지 않음. 주차는 공터 사용이 정해지면 안내함.
+- 체험장 동쪽 끝 비닐하우스 구역: 체험장 입구에서 보면 오른쪽 끝. 비가 오면 이곳에서 함.
+
+## 31. 행사 당일 마을 쪽에 생길 수 있는 일
+
+- 오전에 마을 안길로 걷는 가족이 늘어남. 아이들이 많으니 경운기 · 화물차는 천천히 지나가 주시기를 이장님께 부탁드림.
+- 농장 진입로는 출하 차량이 쓰므로 참가 가족 차량은 들어오지 않게 안내함.
+- 체험장 쪽에서 아이들 소리가 날 수 있음. 행사는 12:00에 끝남.
+- 행사 뒤 마을 안길에 흙이 떨어질 수 있음. 들녘농장이 확인함.
+
+## 32. 사진과 소식
+
+- 행사 중 사진을 찍을지, 찍는다면 어디에 쓸지는 정하지 않았음(미정).
+- 협의회 소식지에 체험 소식을 실을지는 협의회가 정할 일이며, 실을 경우 들녘농장은 사진 없이 글로만 소식을 드림(사진 촬영 여부가 정해지기 전까지).
+- 참가 가족 이름이나 얼굴이 나오는 자료는 협의회에 드리지 않음.
+
+## 33. 숫자 표기 원칙(이 일람표)
+
+- 금액은 회계 메모 표기대로 쉼표 없이 적음.
+- 시각은 24시간 표기로 적음. &#x27;오전 10시&#x27;처럼 쓰지 않음.
+- 걸리는 시간은 분 단위로 적음. 체험 담당 자료의 값을 옮김.
+- 미정인 값은 비워 두지 않고 &#x27;미정&#x27;으로 적음.
+- 사람 수는 &#x27;명&#x27;, 가족 수는 &#x27;가족&#x27;으로 구별해 적음.
+
+## 34. 사무실 일정표에서 옮긴 이번 주 · 다음 주 준비 일정(행사 날짜 미정 상태)
+
+- 9월 24일(목): 체험 담당 바구니 세척 · 건조. 사무 · 홍보 담당 일람표 배포.
+- 9월 28일(월): 체험 담당 참가 가족 안내문 고친 판 게시 전 점검(게시 담당과 함께). 대표 문의 연락처 결정 예정.
+- 9월 29일(화): 재배 담당 고구마 알 상태 확인, 체험 이랑 묶음 결정 예정. 행사 날짜 판단 자료.
+- 9월 30일(수): 다음 준비 회의 후보일(바구니 끈 승인, 이름표, 준비 방식 순서 확인).
+- 그 뒤: 행사 날짜가 정해지면 신청 안내 게시, 마을 방송 부탁, 보험 명단 제출일 확인, 공터 사용 시각 확정.
+
+## 35. 들녘농장과 마을 작목반 · 협의회의 관계(참고)
+
+- 들녘농장은 마을 작목반 회원 농가임. 작목반 공동 보관함은 회원 농가가 미리 알리고 이용료를 내면 하루 동안 칸 하나를 쓸 수 있음.
+- 마을 협의회는 마을 공터, 마을회관 게시판, 마을 방송을 관리함. 농장 체험 행사가 있을 때 이 세 가지를 도와 왔음.
+- 협의회와 작목반 모두 체험 행사 비용을 내지 않으며, 들녘농장이 행사를 주관하고 비용을 부담함.
+
+## 36. 일람표 낱말 풀이(협의회 총무 요청)
+
+- 승인 예산 상한: 들녘농장이 이번 행사에 쓰기로 승인한 돈의 한도. 실제로 쓴 돈이 아님. 상한이 있다고 그만큼 다 쓰는 것도 아님.
+- 실제 지급액: 이미 통장에서 나가 영수증이 있는 돈.
+- 남은 운영 예상 지출: 앞으로 나갈 것으로 보는 돈. 아직 지급하지 않았음.
+- 확정 진행 인력: 행사 당일 진행을 맡기로 정해진 사람.
+- 예비 인력: 도움을 요청했으나 아직 참석을 확답하지 않은 사람. 확정 인력에 넣지 않음.
+- 참여 정원: 참여할 수 있는 사람 수의 상한.
+- 체험 시작 · 행사 시작: 같은 시각(10:00)을 가리킴.
+
+## 37. 문의가 오면 누구에게(협의회 · 마을 쪽 문의 길)
+
+| 문의 내용 | 받는 사람 | 비고 |
+| --- | --- | --- |
+| 일람표 내용, 공터 · 방송 · 신청서 비치 | 탁수현(사무 · 홍보) | 협의회 총무와 연락 |
+| 참가 신청, 행사 진행, 준비물 | 조은비(체험 담당) | 참가 가족 문의처 |
+| 비용, 보험, 보관함 이용료 | 배준호(회계 담당) | 작목반 총무와 연락 |
+| 밭 상태, 수확 적기, 비 올 때 하우스 | 우경민(재배 담당) | 행사 인력 아님 |
+| 승인이 필요한 일 | 하태석(대표) | |
+
+- 참가 가족 문의 연락처(전화 · 메일)는 대표가 정하는 중이며 아직 미정임. 협의회 쪽 문의는 지금처럼 사무 · 홍보 담당이 직접 받음.
+
+## 38. 배포 범위
+
+- 협의회 총무: 출력본 한 부. 협의회 회의 때 위원들에게 보여 줄 수 있음.
+- 이장님: 총무를 통해 보시도록 함. 따로 드리지 않음.
+- 작목반 총무: 보관함 이야기가 있는 4장 · 7장만 회계 담당이 필요할 때 말로 전함. 일람표 전체는 드리지 않음.
+- 농장 안: 대표, 체험 담당, 회계 담당에게 참고로 보냄. 재배 담당과 게시 담당에게는 필요한 부분만 말로 전함.
+- 참가 가족: 드리지 않음. 참가 가족은 게시판 안내문을 봄.
+
+## 39. 체험 담당에게 남긴 메모(9월 24일 오후)
+
+은비 씨, 협의회 보고용 일람표를 만들었습니다. 시각, 인원, 준비 방식의 시간과 비용, 예산은 사무실 일정표와 회의 때 받은 자료, 메모판 메모를 보고 옮겼습니다. 협의회에 보내기 전에 한 번 보시고, 체험 쪽 자료와 다른 데가 있으면 알려 주세요. 준호 씨에게도 비용 부분을 봐 달라고 했습니다. 다음 주 초 마을 회의 전에 총무께 드릴 생각이라, 그 전까지만 알려 주시면 됩니다.
+
+## 40. 협의회 보고 뒤 할 일
+
+- 협의회 마을 회의 결과(공터 사용, 방송)를 받아 사무실 일정표에 넣음.
+- 행사 날짜가 정해지면 일람표 1장 · 2장 · 8장을 고쳐 다시 보냄.
+- 신청 마감 뒤 가족 수가 나오면 협의회 총무에게 알림(공터 차량 대수 가늠용).
+- 행사 뒤 26장 결과 일람을 채워 보냄.
+
+## 41. 협의회 위원들이 물을 만한 것과 답(마을 회의 대비)
+
+- 마을 사람도 신청할 수 있나요? → 네. 회원 게시판이나 마을회관 게시판 옆 종이 신청서로 미리 신청하시면 됩니다. 당일 현장 접수는 없습니다.
+- 할머니 · 할아버지도 같이 가도 되나요? → 신청서에 함께 오는 분으로 적어 주시면 됩니다. 걷기 불편하신 분이 계시면 신청서의 &#x27;배려가 필요한 점&#x27; 칸에 적어 주세요. 천막 가까운 자리로 배치합니다.
+- 비용을 내야 하나요? → 참가비는 아직 정해진 것이 없습니다. 정해지면 안내문으로 알립니다.
+- 캔 고구마는 가져가나요? → 가족당 바구니 하나 분량까지 가져가실 수 있고, 넘친 것은 농장이 회수합니다.
+- 장화를 빌려주나요? → 농장에서 빌려드리지 않습니다. 각자 준비해 주세요.
+- 비가 오면요? → 비닐하우스 구역으로 옮겨 같은 시간에 합니다.
+- 일찍 가면 먼저 들어가나요? → 접수 시작 전에는 준비 중인 공간에 들어갈 수 없습니다. 체험장 입구 그늘에서 기다리시면 됩니다.
+- 담당자가 한 명이면 너무 힘들지 않나요? → 진행은 체험 담당 한 사람이 맡습니다. 청년회에 한 분께 도움을 여쭤봤지만 아직 확답이 없어 인력에 넣지 않았습니다.
+
+## 42. 안내 표지를 세울 곳
+
+| 곳 | 표지 내용 | 세우는 때 |
+| --- | --- | --- |
+| 마을회관 앞 공터 입구 | 체험 참가 가족 주차(공터 사용이 정해질 때만) | 행사 당일 도착 뒤 |
+| 마을 안길 갈림길 | 체험장 가는 쪽 화살표, 농장 본채 쪽 진입 금지 | 행사 당일 도착 뒤 |
+| 체험장 입구 그늘 | 접수 시작 전 기다리는 곳 | 설치 때 |
+| 접수 천막 옆 | 손 씻는 곳, 쉬는 자리 | 설치 때 |
+| 체험장에서 본채 쪽 길 | 화장실 가는 길 | 설치 때 |
+| 비닐하우스 구역 입구 | 비 올 때 체험 장소 | 비 올 때만 |
+
+- 표지는 이미 출력한 현수막 · 안내판(실제 지급 28000원 항목)을 먼저 쓰고, 모자라면 사무실에서 종이로 출력함. 새로 출력 업체에 맡기는 것은 정하지 않음.
+- 표지를 세우는 일도 진행 담당 한 사람이 하므로, 공터와 갈림길 표지는 도착 뒤 체험장으로 가는 길에 세울 수 있는지 체험 담당이 다시 봄.
+
+
+## 43. 마을 회의 안건으로 올려 주십사 부탁드린 것(협의회 총무께 9월 23일 전화로)
+
+1. 마을회관 앞 공터를 들녘농장 가족 수확 체험 날 오전 참가 가족 주차에 쓰는 것
+2. 행사 전 마을 방송 한 번(사전 신청 안내)
+3. 마을회관 게시판 옆 종이 신청서 · 신청서 상자 비치
+4. 이장님께서 어르신들께 현장 접수가 없다는 점을 알려 주시는 것
+
+총무는 1과 3은 지난번에도 해 오던 일이라 어렵지 않을 것이고, 2는 방송 날짜만 미리 알려 주면 된다고 함. 4는 이장님께 직접 말씀드리겠다고 함. 마을 회의 날짜는 총무가 정해서 알려 주기로 함.
+
+## 44. 사무 · 홍보 담당 메모(일람표를 만들며 느낀 점)
+
+- 체험 담당, 회계 담당, 재배 담당 자료가 각각 다른 문서에 흩어져 있어 한 장으로 모으는 데 시간이 걸렸음. 다음 회차부터는 사무실 일정표에 확정된 값을 한곳에 적어 두면 좋겠음.
+- 값을 옮길 때 문서마다 표현이 조금씩 달랐음(예: &#x27;체험 시작&#x27;과 &#x27;행사 시작&#x27;, &#x27;실지급&#x27;과 &#x27;실제 지급액&#x27;). 이 일람표에서는 36장의 낱말 풀이에 맞추어 적었음.
+- 9월 21일 공문 뒤로 바뀐 값이 있어, 공문 전에 만든 사무실 메모와 공문 뒤 고친 일정표를 함께 보며 옮겼음.
+- 협의회는 숫자보다 부탁하는 일이 무엇인지를 먼저 보는 편이라, 다음 판에서는 8장을 앞으로 옮기는 것을 생각해 봄(대표 의견, 28장).
+- 금액은 표 안에 쉼표 없이 적었는데, 협의회 위원 가운데 쉼표 없는 숫자를 읽기 어려워하시는 분이 계실 수 있음. 회계 담당이 표기를 맞춰 달라고 했으므로 이번 판은 그대로 두고, 협의회에서 말이 나오면 다음 판에서 다시 생각함.
+- 협의회 보고용이라 참가 가족 개인정보와 조별 명단은 넣지 않았고, 앞으로도 넣지 않음.
+[자료 끝]
+
+붙여 넣은 일람표의 시각 · 인원 · 금액이 지금까지 이 대화에서 확정한 내용과 맞는지 대조해 주세요. 서로 다른 항목만 근거와 함께 짚고, 확정되지 않은 값은 추측해서 채우지 마세요.</pre><b>턴 9 답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>2</sup>응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.</mark></pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 2개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">답변은 당일 확인과 설치에 19분이 든다고 적었지만, 08:50 도착부터 09:40 접수까지 50분 안에 이를 배치하지 않아 접수 전 설치·확인이 이뤄지는 실행 순서가 성립하는지 제시하지 않았습니다. 질문은 실행 가능한 안의 준비 순서를 요구했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “- **08:50 도착 후** 보관함에서 물품을 꺼내고 장갑 짝, 바구니 상태, 물티슈 개수 등 물품 확인을 마칩니다.
+- 접수 탁자·의자와 천막을 펴고 안내판, 손 씻는 곳 물통, 바구니를 설치합니다. 천막 고정 핀과 물통 꼭지처럼 상태가 확인되지 않은 부분도 현장에서 점검합니다.
+- 설치와 물품 확인을 끝낸 뒤 접수 준비가 완료됐는지 확인하고, **09:40에 접수**를 시작합니다.”</div><div class="rs-quote">질문의 요구: “그 안의 준비 순서와 선택 근거를 함께 적어 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>요청 작업 수행</b> <span class="rs-id">J1-1.a · 턴 9 · LLM Judge</span></div><div class="rs-fwhy">요청한 시각·인원·금액 대조 결과를 제시하지 않고 오류 문구만 반환했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.”</div><div class="rs-quote">질문의 요구: “붙여 넣은 일람표의 시각 · 인원 · 금액이 지금까지 이 대화에서 확정한 내용과 맞는지 대조해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article></div></section></main>
+<script>
+(function () {
+  function openTo(id) {
+    var el = document.getElementById(id);
+    if (!el || el.tagName !== 'DETAILS') return false;
+    for (var d = el; d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#f-"], a[href^="#h-"]');
+    if (a && openTo(a.getAttribute('href').slice(1))) { e.preventDefault(); history.replaceState(null, '', a.getAttribute('href')); }
+  });
+  if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>

@@ -126,8 +126,8 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
   <div class="chips">
     <div class="chip"><b>5단계</b><span>기준 다듬기 루프 — 모으기 · 원인 · 고칠 안 · 시험 · 채택</span></div>
     <div class="chip"><b>J1-4.b</b><span>첫 시험 대상 — 같은 심판이 다시 돌려도 판정이 가장 많이 뒤집힘</span></div>
-    <div class="chip"><b class="num">4</b><span>10-22 밤에 정한 것 — 보류 우선 유지 · Q10 모순 질문 등</span></div>
-    <div class="chip"><b class="num">25</b><span>지금까지 고친 것(10-21 ~ 10-23) — 모두 반영 · 새 규칙 다시 판정 끝</span></div>
+    <div class="chip"><b class="num">6</b><span>정한 것 — 기준 원본은 v2 문서(10-23) · 보류 우선 유지 · Q10 모순 질문 등</span></div>
+    <div class="chip"><b class="num">30</b><span>지금까지 고친 것(10-21 ~ 10-23) — 모두 반영 · 최종 다시 판정 09:52 · 기준 원본은 v2 문서</span></div>
   </div>
   <nav class="toc" aria-label="차례">
     <a href="#loop">1 기준 다듬기 루프</a>
@@ -136,6 +136,9 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <a href="#done">4 지금까지 고친 것</a>
     <a href="#gaps">5 찾은 빈틈</a>
     <a href="#plan">6 마감 · 이후 운영 (초안)</a>
+    <a href="../기준/채팅품질%20평가기준_v2.md">↗ 기준 지식베이스 v2 (원본)</a>
+    <a href="기준·프롬프트 변경 원문.html">↗ 기준 · 프롬프트 변경 원문</a>
+    <a href="../분석/2026-10-23-엄격함점검/표시용_표.html">↗ 심판 표시용 표</a>
   </nav>
 </header>
 
@@ -241,9 +244,12 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
   <div class="card">
     <div class="scroll"><table class="tbl">
       <tr><th style="width:110px">상태</th><th>작업</th><th>내용</th></tr>
-      <tr><td><span class="tag t-ok">끝</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>10-22 23:02 ~ 10-23 00:46(1차 71분 + 2차 28분). 결과 폴더 <span class="num">참고자료/결과/2026-10-23_00-47-10-011/</span>(결과 보고서 · 판정보고서 · 비교.md). 숫자는 4장 '다시 판정 전후'</td></tr>
+      <tr><td><span class="tag t-ok">끝</span></td><td><b>기준 지식베이스 v2 — 72개 기준을 한 장으로</b></td><td><a href="../기준/채팅품질%20평가기준_v2.md">참고자료/기준/채팅품질 평가기준_v2.md</a> — 옛 <span class="num">채팅품질 평가기준.md</span> 의 틀(항목 | 판정 조건 | 오탐 방지 | 해석 금지)로 CODE 28 · LLM 44 · 판정 체계 · 결론 규칙 · 안전장치 · 이번 주 변경 30줄(전 → 후 · 방향). <b>이제 기준의 원본은 이 문서</b> — 기준을 바꿀 때는 문서를 먼저 고치고 프롬프트 · 코드가 따라감. 기준 폴더는 v2 · 옛 md · MEASUREMENT 세 개만 남김(설계안은 문서/, 나머지 7개 삭제 — 10-23 확인)</td></tr>
+      <tr><td><span class="tag t-ok">끝</span></td><td><b>새 규칙으로 다시 판정 · 전후 비교</b></td><td>10-22 23:02 ~ 10-23 09:52, 네 번(1차 → J1-4 다시 묻기 · Q6/Q10 모순 사실 → 턴별 기준 축소). 최종 결과 폴더 <span class="num">참고자료/결과/2026-10-23_09-52-39-662/</span>(결과 보고서 · 판정보고서 · 비교.md), 중간 결과는 <span class="num">2026-10-23_00-47-10-011/</span>. 숫자는 4장 '다시 판정 전후'</td></tr>
+      <tr><td><span class="tag t-ok">끝</span></td><td><b>멀티턴 턴별 기준을 그 턴의 요청 · 함정 기준으로</b></td><td>턴당 평균 34개 → 17.6개(14~21). 질문 판정 규칙은 그대로(모든 턴 통과), 멀티턴 11개는 턴 통과율을 함께 보여 줌(비교.md · 4장 표)</td></tr>
+      <tr><td><span class="tag t-warn">사용자 차례</span></td><td><b>심판 표시용 표 100칸</b></td><td><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용_표.html</a> — FAIL 60 · 통과 40칸에 맞음 · 틀림 · 애매와 원인을 표시하고 '표시 내보내기' JSON 을 <span class="num">참고자료/분석/2026-10-23-엄격함점검/</span> 에 넣어 주면 기준마다 거짓 FAIL · <b>거짓 통과</b> 비율을 냄 — 이번 주 수정의 재료가 FAIL · 보류 칸뿐이었으므로(v2 문서 9 · 11절) 다음 기준 수정은 이 결과를 본 뒤에</td></tr>
       <tr><td><span class="tag t-todo">다음</span></td><td><b>기준 다듬기 루프 1차 — J1-4.b, 2차 — J2-3.a</b></td><td>위 1장의 5단계를 J1-4.b 로 시험(재료 있음). 다시 판정에서 J2-3.a(명시 조건)가 FAIL 79칸으로 가장 많고 새로 51 · 사라짐 32 로 흔들려 2순위</td></tr>
-      <tr><td><span class="tag t-warn">결정 필요</span></td><td><b>멀티턴 설명 턴의 사실 확인(J5-1.a) 보류 12칸</b></td><td>원인 · 원리 설명 턴(복사 냉각 · 공기압 등 과학 상식)을 Codex 가 웹에서 확인하지 못해 보류 — 멀티턴 보류 19칸의 대부분. 사람이 정하거나, 설명 턴의 상식은 '확인 못 함 → 통과'로 둘지 정해 주세요</td></tr>
+      <tr><td><span class="tag t-warn">결정 필요</span></td><td><b>멀티턴 설명 턴의 사실 확인(J5-1.a) 보류 10칸</b></td><td>원인 · 원리 설명 턴(복사 냉각 · 공기압 등 과학 상식)을 Codex 가 웹에서 확인하지 못해 보류 — 멀티턴 보류 11칸의 대부분. 사람이 정하거나, 설명 턴의 상식은 '확인 못 함 → 통과'로 둘지 정해 주세요</td></tr>
       <tr><td><span class="tag t-warn">결정 필요</span></td><td><b>싱글턴 질문의 모순 · 빠진 자료 표시(J1-3)</b></td><td>싱글 67문항의 함정 설명에 모순 · 빠진 자료를 설계한 것이 없음 — 설계된 곳(멀티턴 11)에만 두면 기준 횟수 11로 10을 겨우 넘김. 권장은 지금처럼 모든 질문에 두고 심판이 해당 없음으로 두는 것</td></tr>
             <tr><td><span class="tag t-todo">남은 점검</span></td><td>기준 점검 목록의 나머지</td><td>측정 못 한 CODE 조건 → 보류 · 요구 구조 생략 → PASS(Gemini 링크 사례) · 사람 판정 반영 경로 — 다시 판정 결과를 보고 정함. AIONA 1칸 들여쓰기(복사 두 방식 모두 같음 → 실제 오류, 그대로) · J6-4 서로 배타(턴별 기준으로 해결)는 끝</td></tr>
       <tr><td><span class="tag t-todo">따로</span></td><td>진행 현황 시험 5개 실패</td><td>참고자료 정리 때 없어진 326 세트 파일 때문 — 별도 세션 제안</td></tr>
@@ -253,10 +259,12 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
 
 <!-- 3 -->
 <section id="decide">
-  <div class="sec-h"><span class="no">3</span><h2>정한 것</h2><span class="muted">2026-10-22 밤 결정</span></div>
+  <div class="sec-h"><span class="no">3</span><h2>정한 것</h2><span class="muted">2026-10-22 밤 · 10-23 결정</span></div>
   <div class="card">
     <div class="scroll"><table class="tbl">
       <tr><th style="width:190px">무엇</th><th style="width:150px">정한 것</th><th>뜻</th></tr>
+      <tr><td><b>기준의 원본 (10-23)</b></td><td><span class="tag t-acc">v2 문서 → 코드</span></td><td><span class="num">참고자료/기준/채팅품질 평가기준_v2.md</span> 가 72개 기준의 원본. 기준 · 예외 · 안전장치 규칙은 이 문서의 줄을 먼저 고친 뒤(사용자 승인) 프롬프트 · 코드가 따라감. 기준 폴더는 v2 · 옛 md · MEASUREMENT 만</td></tr>
+      <tr><td><b>멀티턴 턴별 기준 (10-23)</b></td><td><span class="tag t-acc">그 턴의 요청 · 함정만</span></td><td>턴마다 대화 전체 목표(34개)가 아니라 늘 보는 8개 + 그 턴 요청 · 턴 종류 설계 항목 + 흐름상 J6(14~21개). 질문 판정은 모든 턴 통과 그대로, 멀티턴은 턴 통과율 병기. 엄격함 · 헐렁함은 표시용 표로 잼</td></tr>
       <tr><td><b>보류 우선 vs FAIL 우선</b></td><td><span class="tag t-acc">보류 우선 유지</span></td><td>확정 FAIL 이 있어도 보류 항목이 섞이면 질문은 보류 — 지금 9개 질문이 해당(Gemini 5 · Claude 2 · GPT 2)</td></tr>
       <tr><td><b>자료 대조의 '남은 예상 지출'</b></td><td><span class="tag t-acc">구별해 밝히면 맞음</span></td><td>일람표의 45000원(= 기록 41000원 + B안 4000원)을 기록값과 구별해 설명하면 맞음, 구별 없이 그대로 두면 틀림</td></tr>
       <tr><td><b>Q10 시간 모순</b></td><td><span class="tag t-acc">모순 질문으로 판정</span></td><td>다시 수집하지 않고, 답이 '시간이 모자란다'는 모순을 짚었는지(J1-3)도 판정</td></tr>
@@ -299,19 +307,24 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
     <div class="done"><div class="d">10-22</div><div><b>CODE 가 잰 형식 조건을 LLM 이 또 FAIL 하면 한 번 다시 묻기</b> — 잰 조건과 결과('글자 수(300자 이내(공백 포함))' · '불릿 개수(3개 정확히)')를 적어서, 판정은 코드가 바꾸지 않음<div class="fx">저장 출력 기준 19칸 · 준수 인정 '개수는 맞지만'은 뺌 · 다시 물을 때마다 안내 유지</div></div></div>
     <div class="done"><div class="d">10-22</div><div><b>J4 다섯 항목을 '질문으로 정해지는 항목'에</b> — 목표 기준인데 1차 심판이 해당 없음이면 Codex 가 다시 봄 · 멀티턴 다시 묻기 상한 3N+8 · 정체 세기 고침</div></div>
     <div class="done"><div class="d">10-23</div><div><b>J1-4(불필요 · 반복) FAIL 다시 묻기를 기본값으로</b> — 명령 옵션이라 다시 판정 1차에서 빠져 J1-4.a FAIL 이 14 → 79 로 부풀었던 것(2차에서 17)</div></div>
+    <div class="done"><div class="d">10-23</div><div><b>멀티턴 턴별 기준을 그 턴의 요청 · 함정 기준으로</b> — 늘 보는 8개 + 인식기가 그 턴 요청에서 잡은 항목 + 턴 종류별 설계 항목 + 흐름상 해당하는 J6(턴당 34 → 17.6개) · 턴 통과율 병기<div class="fx">③의 targets_for 가 턴별 목표를 쓰지 않던 것도 고침</div></div></div>
+    <div class="done"><div class="d">10-23</div><div><b>기준 · 프롬프트 변경 원문 페이지</b> — <a href="기준·프롬프트 변경 원문.html">기준·프롬프트 변경 원문.html</a>: 본 판정 시점과 지금의 판정 프롬프트 차이를 줄 단위로(덩어리 13개 이름표), CODE 검사 · 안전장치 · 질문 세트 변경은 말로</div></div>
+    <div class="done"><div class="d">10-23</div><div><b>심판 표시용 표</b> — FAIL 60 · 통과 40칸을 유형 · 기준별로 뽑아 맞음 · 틀림 · 애매 + 원인을 표시하고 JSON 으로 내보내는 페이지(<span class="num">참고자료/분석/2026-10-23-엄격함점검/</span>)</div></div>
+    <div class="done"><div class="d">10-23</div><div><b>기준 지식베이스 v2</b> — <a href="../기준/채팅품질%20평가기준_v2.md">참고자료/기준/채팅품질 평가기준_v2.md</a>: 72개 기준의 원본 한 장(CODE 28 · LLM 44 표, 판정 체계 · 결론 · 적용 범위 · 안전장치 13 · 해석 금지 · 바꾸는 절차 · 이번 주 변경 30줄을 규칙 문장으로). 기준 변경은 문서 먼저, 코드가 따라감<div class="fx">사용자 지적: 이번 주 수정이 FAIL · 보류를 PASS 로만 만드는 느낌 — 재료가 FAIL · 보류 칸뿐이었음을 문서 9 · 11절에 그대로 적음</div></div></div>
+    <div class="done"><div class="d">10-23</div><div><b>기준 폴더 정리</b> — <span class="num">참고자료/기준/</span> 에 v2 · 옛 평가기준 md(코드가 가리킴) · MEASUREMENT_v16(시험이 읽음) 세 개만. 설계안 v1.9 는 문서/ 로, v18 CODE 기준 HTML · V19 발표 HTML · v18 연결표 · 한국어문규정집(4MB)은 삭제(코드 · 시험 · 발표 어디서도 안 읽음, git 이력에 남음)</div></div>
   </div>
 
   <div class="card done-group">
-    <h3>다시 판정 전후 <span class="tag t-ok">10-23 00:46</span></h3>
+    <h3>다시 판정 전후 <span class="tag t-ok">최종 10-23 09:52</span></h3>
     <div class="scroll"><table class="tbl">
-      <tr><th>모델</th><th>통과 전 → 후</th><th>FAIL 전 → 후</th><th>보류 전 → 후</th></tr>
-      <tr><td>AIONA</td><td class="num">54 → 54</td><td class="num">14 → 11</td><td class="num">10 → 13</td></tr>
-      <tr><td>GPT</td><td class="num">55 → 55</td><td class="num">11 → 9</td><td class="num">12 → 14</td></tr>
-      <tr><td>Claude</td><td class="num">55 → 55</td><td class="num">11 → 9</td><td class="num">12 → 14</td></tr>
-      <tr><td>Gemini</td><td class="num">46 → 45</td><td class="num">16 → 14</td><td class="num">16 → 19</td></tr>
+      <tr><th>모델</th><th>통과 전 → 후</th><th>FAIL 전 → 후</th><th>보류 전 → 후</th><th>멀티턴 턴 통과율 전 → 후</th></tr>
+      <tr><td>AIONA</td><td class="num">54 → 54</td><td class="num">14 → 13</td><td class="num">10 → 11</td><td class="num">59/110 (54%) → 69/110 (63%)</td></tr>
+      <tr><td>GPT</td><td class="num">55 → 55</td><td class="num">11 → 11</td><td class="num">12 → 12</td><td class="num">64/110 (58%) → 64/110 (58%)</td></tr>
+      <tr><td>Claude</td><td class="num">55 → 55</td><td class="num">11 → 10</td><td class="num">12 → 13</td><td class="num">65/110 (59%) → 66/110 (60%)</td></tr>
+      <tr><td>Gemini</td><td class="num">46 → 45</td><td class="num">16 → 17</td><td class="num">16 → 16</td><td class="num">34/110 (31%) → 39/110 (35%)</td></tr>
     </table></div>
-    <p style="margin:10px 0 0">판정이 바뀐 질문 17개(멀티턴 16 + Q38 Gemini) — 멀티턴 FAIL 이 보류로 옮겨 간 것이 대부분(새로 늘 보는 J5-3.a · 설명 턴 사실 확인 보류). 기준별 FAIL 칸: J3-1.a 60 → 44 · J6-2.b 42 → 26 · J6-4.a 12 → 3 · J1-2.a 30 → 24(턴별 확인 목록 · 안전장치 효과), J2-3.a 60 → 79 · J3-5.a 62 → 69 · J1-3.a 3 → 10(Q6 · Q10 모순을 짚지 않은 답). 숫자는 보류 칸 사람 결정 전 잠정값.</p>
-    <p style="margin:8px 0 0"><b>미팅 ⑤ 멀티턴 통과 0 점검 결론:</b> 기준이 멀티턴에만 엄한 것이 아니라 FAIL 이 여러 기준에 퍼져 있음 — 칸마다 FAIL 턴 2~10개, 최종 일정 턴은 42/44 턴이 J3-5.a(실행 불가능한 일정). J1-4 · J2-3.a · J3-5.a 를 모두 빼도 통과 0. 다만 질문 결함(Q6 · Q10 접수 시각이 행사 시작 뒤)과 J2-3.a 흔들림은 고칠 거리.</p>
+    <p style="margin:10px 0 0">전 = 본 판정(10-21), 후 = 최종 다시 판정(턴별 확인 목록 · 안전장치 · J5-3.a 상시 · 프롬프트 보강 · 턴별 기준 축소 · J1-4 다시 묻기 · Q6 · Q10 모순 사실). 판정이 바뀐 질문 13개(멀티턴 + Q38 Gemini). 기준별 FAIL 칸(변화 큰 순): J4-2.a 20 → 2 · J6-2.b 42 → 26 · J3-1.a 60 → 44 · J2-4.a 14 → 1 · J4-3.a 15 → 3 · J5-2.b 37 → 26 · J3-2.b 36 → 25 · J2-5.a 10 → 0. 멀티턴 보류 11칸 중 J5-1.a 사실 확인 10칸. 숫자는 보류 칸 사람 결정 전 잠정값. 멀티턴 질문 통과는 0 그대로(FAIL 33 · 보류 11). 규칙이 어떻게 바뀌었는지는 <a href="../기준/채팅품질%20평가기준_v2.md">v2 문서 11절</a>(30줄: 완화 18 · 엄격 5 · 섞임 1 · 경계 5 · 유지 1)과 <a href="기준·프롬프트 변경 원문.html">변경 원문</a>.</p>
+    <p style="margin:8px 0 0"><b>미팅 ⑤ 멀티턴 통과 0 점검 결론:</b> 칸 하나하나의 FAIL 비율이 싱글 1.7% · 멀티턴 6.9%로 멀티턴이 높지만, 읽어 본 사유는 대체로 설계한 함정(편도 → 왕복, B안 비용 미포함, 예외 취소, 빠진 자료, 틀린 곳 3개)에 걸린 실제 오류. 턴마다 보는 기준을 34개 → 17.6개로 줄여도 턴 통과율은 조금만 올랐고(위 표) 질문 통과는 0 — FAIL 은 그 턴의 함정 기준(최종 일정 턴 42/44 가 J3-5.a 실행 불가능한 일정, 자료 대조 · 기록 요약의 J5-2)에서 남음. 질문 하나가 턴 10개 × 기준 14~21개 검사를 다 통과해야 하는 규칙이라 멀티턴 질문 통과는 구조적으로 어렵고, 비교는 턴 통과율로 보는 것이 맞음. 너무 엄격한지 · 헐렁한지는 표시용 표 100칸의 사람 표시로 잼(통과 40칸의 거짓 통과까지).</p>
   </div>
 
   <div class="card done-group">
@@ -343,6 +356,8 @@ footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--li
       <tr><td><b>Q6 도 질문 자체의 시간 모순</b></td><td>변경 통지가 접수 시작을 09:15 → 09:35 로 옮겨 행사 시작 09:30 보다 늦음(Q10 은 11:00 = 11:00) — 심판이 J3-5.a '행사 시작 뒤 접수'로 FAIL 하던 것</td><td>Q10 과 같게 확인 목록에 사실로 적어 J1-3(모순)으로 판정 — 10-23 2차 판정 반영</td></tr>
       <tr><td><b>J1-4 다시 묻기가 옵션</b></td><td>'J1-4 FAIL 은 정의를 짚어 한 번 더 묻기'가 명령 옵션(--reask-fail)이라 다시 판정 1차에서 빠짐 → J1-4.a FAIL 14 → 79</td><td>기본값으로 바꿈(2차 17)</td></tr>
       <tr><td><b>Q38 Gemini 의 J5-3.a FAIL</b></td><td>사과문 초안의 '모든 준비와 조치를 마쳤습니다'를 두 심판 모두 꾸민 확인으로 봄 — 편지 문구에 지어낸 사실이라 J5-3.a 보다 자료 신뢰도 쪽 문제로 보임</td><td>확인할 칸으로 표시</td></tr>
+      <tr><td><b>턴별 목표가 판정에 안 쓰임</b></td><td>③이 만든 targets_for 가 턴별 목록의 target_items 를 쓰지 않고 질문 목표에서 해당 없음 J6 만 빼고 있어, 턴별 기준 축소가 한 번(07:52 판정) 반영되지 않았음</td><td>목록의 target_items(질문 목표 안)를 쓰게 고치고 다시 판정(09:52)</td></tr>
+      <tr><td><b>기준이 다섯 군데에 흩어짐</b></td><td>LLM 44 는 프롬프트, CODE 28 은 MEASUREMENT · registry, 예외는 안전장치 코드, 멀티턴 규칙은 확인 목록, 기준표는 설계안 HTML — 한눈에 볼 문서가 없어 수정이 '코드 패치'로만 보임(사용자 지적 10-23)</td><td>기준 지식베이스 v2 한 장으로 모으고 원본으로 정함</td></tr>
       <tr><td><b>원리 설명 턴의 인식기 누락</b></td><td>'행사 당일 어떻게 대응할지도 밝혀 주세요'(추가 요청 → J4-2.a) · '창문 틀 결함이라고 단정하지 마세요'(명시 조건 → J2-3.a)를 인식기가 턴별 기준에 안 넣음 — 질문 목표에는 있어 판정은 빠지지 않음</td><td>턴별 목표는 질문 목표에서 확실한 J6 만 빼는 방식으로 바꿔 해결(③)</td></tr>
     </table></div>
   </div>
