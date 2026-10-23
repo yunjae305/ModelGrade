@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>미팅 개선 현황 2</title>
+<style>
+:root{--bg:#fbfbf9;--fg:#1c1c1a;--mute:#6b6b66;--line:#e2e1dc;--card:#fff;--ok:#1d7a46;--ok-bg:#e6f4ea;--warn:#8a5a00;--warn-bg:#fdf3dc;--todo:#5c6675;--todo-bg:#eceef1;--bad:#a8322d;--acc:#2f5fa8;--th:#f1f0ea}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--bad:#f28b82;--acc:#8ab4f8;--th:#262623}}
+:root[data-theme="dark"]{--bg:#161614;--fg:#ececea;--mute:#a4a49e;--line:#33332f;--card:#1f1f1c;--ok:#6fcf97;--ok-bg:#1e3326;--warn:#f2c14e;--warn-bg:#3a2f12;--todo:#a9b1bb;--todo-bg:#2a2d31;--bad:#f28b82;--acc:#8ab4f8;--th:#262623}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Pretendard","Noto Sans KR",system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:17px;margin:32px 0 8px} h3{font-size:15px;margin:16px 0 6px} .mute{color:var(--mute)} .small{font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px} th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top} th{background:var(--th)}
+.scroll{overflow-x:auto} .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.t{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;white-space:nowrap;font-weight:600}
+.t.ok{color:var(--ok);background:var(--ok-bg)} .t.warn{color:var(--warn);background:var(--warn-bg)} .t.todo{color:var(--todo);background:var(--todo-bg)}
+a{color:var(--acc)} ul,ol{margin:0 0 0 18px;padding:0} li{margin:3px 0}
+.it{scroll-margin-top:12px} .it h2{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap} .it h2 .no{color:var(--mute);font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:96px 1fr;gap:4px 12px;padding:6px 0;border-top:1px solid var(--line)} .row:first-child{border-top:0}
+.row>b{font-size:13px;color:var(--mute);font-weight:600;padding-top:1px}
+@media (max-width:640px){.row{grid-template-columns:1fr}}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0} @media (max-width:720px){.two{grid-template-columns:1fr}}
+.box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--th);font-size:13.5px} .box b{display:block;margin-bottom:2px}
+figure{margin:8px 0} figure img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px} figcaption{font-size:12.5px;color:var(--mute);margin-top:4px}
+details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
+.key{border-left:4px solid var(--acc);padding:6px 10px;background:var(--th);border-radius:0 8px 8px 0;margin:6px 0}
+.up{color:var(--bad);font-weight:600} .down{color:var(--ok);font-weight:600}
+.sum td:nth-child(3){min-width:104px} .sum td:nth-child(4){min-width:220px} @media (max-width:640px){.t{white-space:normal}}
+</style>
+</head>
+<body><main>
+<h1>10-22 미팅 — 개선 현황 2 · 무엇을 했나</h1>
+<p class="mute">2026-10-23 · 미팅에서 나온 12항목마다 한 일 · 발표자료에서 바뀐 곳 · 남은 것. 짧은 표와 기준별 FAIL 수는 <a href="미팅 개선 체크리스트.html">미팅 개선 현황</a>에. 발표자료 링크는 그 장면으로 바로 갑니다.</p>
+
+<h2>한눈에</h2>
+<div class="card"><div class="scroll"><table class="sum">
+<tr><th>#</th><th>미팅에서 나온 것</th><th>상태</th><th>한 줄</th></tr>
+<tr><td>1</td><td><a href="#i1">같은 모델끼리 비교</a></td><td><span class="t warn">구현 끝 · 실행만 남음</span></td><td>안 고르면 AIONA 자동 추천 + 앱 3개, 고르면 같은 모델 앱과 AIONA 둘만 — 짝 18개</td></tr>
+<tr><td>2</td><td><a href="#i2">빈 출력 분기는 노이즈</a></td><td><span class="t ok">반영</span></td><td>흐름도 · 판정 규칙 표에서 빈 답 예외를 지움(규칙 자체는 그대로)</td></tr>
+<tr><td>3</td><td><a href="#i3">Jev ↔ Decisions 갈림</a></td><td><span class="t ok">반영 + 고침</span></td><td>갈림 1위 '반복'(J1-4.b) 129칸의 원인을 찾아 기준 경계 한 줄 추가</td></tr>
+<tr><td>4</td><td><a href="#i4">Codex 를 고른 근거</a></td><td><span class="t ok">반영</span></td><td>두 심판을 같은 312칸에 돌려 비교 → 정확도 비슷 → 그다음에 시간</td></tr>
+<tr><td>5</td><td><a href="#i5">질문 설계</a></td><td><span class="t ok">반영</span></td><td>72개 기준 · 질문당 6~10개 · 78개 근거 + 질문 78개 전체 점검</td></tr>
+<tr><td>6</td><td><a href="#i6">CODE 숫자의 뜻</a></td><td><span class="t todo">확인만</span></td><td>숫자 = 그 검사에 걸린 질문 수 — 고칠 것 없음</td></tr>
+<tr><td>7</td><td><a href="#i7">멀티턴 통과 0 · 싱글이 느슨한가</a></td><td><span class="t warn">분석 끝 · 고침 · 재판정 대기</span></td><td>가설 맞음 — 원인은 대부분 심판에게 준 글 · 규칙. 사람 판단으로는 멀티 FAIL 턴 235 → 97</td></tr>
+<tr><td>8</td><td><a href="#i8">걸린 시간을 질문 · 유형별로</a></td><td><span class="t ok">반영</span></td><td>78문항 하나하나의 시간 + 유형 × 모델 표(AIONA 중심) + 개선할 곳</td></tr>
+<tr><td>9</td><td><a href="#i9">판정 토큰 · 비용</a></td><td><span class="t warn">토큰 끝 · 비용 남음</span></td><td>질문 × 모델 × 심판까지 기록 — 한 바퀴 입력 1억 2,126만 · 출력 157만</td></tr>
+<tr><td>10</td><td><a href="#i10">발전 방향</a></td><td><span class="t ok">반영</span></td><td>07 장면 카드 6개 + 기준 다듬기 루프</td></tr>
+<tr><td>11</td><td><a href="#i11">마감 범위 · 상시 운영</a></td><td><span class="t ok">반영 · 확정</span></td><td>새 장면 08 — 10-30 마감, 그 뒤 업데이트마다 한 바퀴</td></tr>
+<tr><td>12</td><td><a href="#i12">차별점</a></td><td><span class="t ok">반영</span></td><td>01 장면에 다른 평가와 비교 · 차별점 6 · 꼭 써야 하는 이유</td></tr>
+</table></div></div>
+
+<!-- 1 -->
+<section class="it" id="i1"><h2><span class="no">1</span>같은 모델끼리 비교 <span class="t warn">구현 끝 · 실행만 남음</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>AIONA 를 자동 추천으로만 보지 말고, AIONA 에서 모델을 골라 그 모델의 원래 앱과 비교하자 — 같은 모델인데 AIONA 쪽이 낫다면 그게 AIONA 가 더한 값.</div></div>
+<div class="row"><b>한 것</b><div>
+<p style="margin:0 0 6px">평가를 시작할 때 모델을 묻게 했습니다. 고르는 것에 따라 받는 답이 달라집니다.</p>
+<div class="two">
+<div class="box"><b>아무것도 안 고르면 (지금까지와 같음)</b>AIONA <b style="display:inline">자동 추천</b> + ChatGPT · Claude · Gemini 앱 = 네 모델 답을 모두 받음. 앞 실행에서 고른 모델이 AIONA 에 남지 않게 매번 '자동 추천'으로 맞춤.</div>
+<div class="box"><b>모델을 고르면 (예: Claude Sonnet 5.5)</b>Claude 앱 Sonnet 5.5 + AIONA 'Claude Sonnet 5.5' <b style="display:inline">둘만</b> 받음 — GPT · Gemini 는 빠짐. 같은 모델 · 같은 질문이라도 앱과 AIONA 안에서 답이 다르기 때문.</div>
+</div>
+<p style="margin:6px 0">고를 수 있는 짝 18개 — AIONA 모델 메뉴와 각 앱의 모델 이름을 맞춰 표로 정해 둠:</p>
+<div class="scroll"><table>
+<tr><th>앱</th><th>짝</th><th>이름이 다른 것</th></tr>
+<tr><td>Claude 앱</td><td class="num">12</td><td>없음(Opus 5.5 · Fable 5.1 · Sonnet 5.5 · Haiku 5.5 · Haiku 4.5 · Sonnet 5 · Opus 5 · Fable 5 · Opus 4.8 · 4.7 · 4.6 · Sonnet 4.6)</td></tr>
+<tr><td>ChatGPT 앱</td><td class="num">2</td><td>앱 'GPT-6' = AIONA 'GPT-6 Sol' · 'GPT-5.6 Sol' 은 같음</td></tr>
+<tr><td>Gemini 앱</td><td class="num">4</td><td>앱 '3.1 Pro' = AIONA 'Gemini 3.1 Pro Preview' · 3.5 Flash-Lite · 3.8 Flash · 4 Argon 은 같음</td></tr>
+</table></div>
+<p style="margin:6px 0 0">실제 전환 확인: AIONA 버튼이 'Claude Sonnet 5.5' · 'Gemini 3.1 Pro Preview' · 'GPT-6 Sol' · 'GPT-5.6 Sol' 로, Gemini 앱이 '3.1 Pro' 로 바뀌는 것을 보고 되돌림(질문은 보내지 않음).</p>
+</div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_map">02 전체 흐름도</a> B 단계 '모델' 줄과 AI 상자 '(고르면 같은 모델 둘만)' · <a href="ModelGrade_결과요약_10-20 발표자료.html#s2">04 평가 방법</a> 답변 수집 칸 · <a href="ModelGrade_결과요약_10-20 발표자료.html#s7">07 발전 방향</a> '같은 모델 비교' 카드
+<figure><img loading="lazy" src="미팅 개선 현황 2_화면/01_흐름도_수집.jpg" alt="전체 흐름도 B 답변 수집 단계"><figcaption>02 전체 흐름도 — B 단계 '모델' 줄 · AI 상자 '(고르면 같은 모델 둘만)'</figcaption></figure></div></div>
+<div class="row"><b>남은 것</b><div>같은 모델로 실제 수집 · 판정을 한 번 돌려 결과를 내는 것(아직 결과 없음) — 08 일정상 마감 뒤 첫 실행.</div></div>
+</div></section>
+
+<!-- 2 -->
+<section class="it" id="i2"><h2><span class="no">2</span>빈 출력 분기는 노이즈 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>'빈 답을 요구하는 질문' 처리는 여러 예외 중 하나라, 큰 흐름도에 있으면 흐름을 읽는 데 방해가 된다.</div></div>
+<div class="row"><b>한 것</b><div><ul>
+<li>흐름도에서 '빈 답을 요구하는 질문인가?' 갈림길과 그 결과 칸을 지움 — '판정' 에서 E 로 바로 이어짐.</li>
+<li>'답을 받았나?' 갈림에서 '빈 답 → 보류' 줄을 지움 — 이제 '재시도 대상 → 보류 · 못 받음 → FAIL' 두 갈래만.</li>
+<li>옆 '판정 규칙' 표에서 '빈 출력 요구 → 보류' 줄을 지우고, '재시도 대상(복사 실패) · 빈 답'을 '재시도 대상(복사 실패)'로.</li>
+<li>흐름도에서만 뺀 것 — 판정 규칙 자체(빈 출력 요구 10문항 × 4 = 40칸은 보류)와 보류 · 질문 설계 장면의 설명 · 숫자는 그대로.</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_map">02 전체 흐름도</a> — 위 1번 그림의 '답을 받았나?' 갈림과 오른쪽 판정 규칙 표</div></div>
+<div class="row"><b>남은 것</b><div>보류 40칸을 어떻게 정할지 — 10-27(보류 사람 결정). 점검해 보니 40칸 중 12칸은 '네, 알겠습니다' 같은 자리표시 글이라 FAIL 이 맞아 보임 → 기준 안(자리표시 · 확인 문구는 FAIL, 화면에 아무것도 없으면 통과, 복사 실패 · 서비스 오류는 다시 수집).</div></div>
+</div></section>
+
+<!-- 3 -->
+<section class="it" id="i3"><h2><span class="no">3</span>Jev ↔ Decisions 갈림 <span class="t ok">반영 + 고침</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>1차 심판 둘(Jev · Decisions)이 어디서 갈리는지 기준별로 보자. 특정 기준에 몰려 있으면 그 기준만 다르게 다루면 된다.</div></div>
+<div class="row"><b>한 것</b><div><ul>
+<li>상세 분석 17 '심판 비교' — 판정 기록으로 갈림이 어느 기준에 몰렸고 최종 결론에서 누가 맞았는지.</li>
+<li>78문항 전체로 다시 셈: 1차 심판이 FAIL 로 본 1,171칸 중 Codex 가 FAIL 로 확정한 것 296칸(25%). 갈림 1위는 <b>'반복 없음'(J1-4.b) 129칸 — Codex 동의 0칸</b>.</li>
+<li>원인 확인: 처음엔 1차 심판이 Codex 와 다른 설명을 받는 줄 알았으나, 코드를 보니 같은 설명 줄을 받고 있었음. 기준은 맞고, '질문이 함께 요구한 다른 형식(시간표 ↔ 작업 순서, 안내문 ↔ 문의 칸)에 같은 값이 다시 나오는 것'이 반복인지 경계가 없어 심판마다 갈린 것.</li>
+<li>고침: 판정 프롬프트와 기준 문서 v2 에 경계 한 줄 — '요구된 다른 형식에 다시 나온 것은 반복 아님, 같은 문장을 글자 그대로 두 번 · 각주에 본문 문장 그대로 · 요구 안 한 단락의 되풀이만 반복'.</li>
+<li>기준마다 Jev · Decisions · Codex 의 FAIL 수 전체 표는 <a href="미팅 개선 체크리스트.html">미팅 개선 현황</a> 3장.</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_jd">17 심판 비교</a></div></div>
+<div class="row"><b>남은 것</b><div>새 문구로 다시 판정해 효과 확인(10-26) · Jev / Decisions 가중치 검토 · 기준 다듬기 첫 대상(10-28)</div></div>
+</div></section>
+
+<!-- 4 -->
+<section class="it" id="i4"><h2><span class="no">4</span>Codex 를 고른 근거 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>'시간이 빨라서'가 1순위 이유면 안 된다. 여러 심판을 비교했더니 결과가 비슷했고, 그중 싸고 빠른 것을 골랐다 — 이 고민을 압축해 보여 주자.</div></div>
+<div class="row"><b>한 것</b><div>
+<p style="margin:0 0 4px">2차 심판만 Codex ↔ Claude CLI(Sonnet 5.5)로 바꿔 같은 78문항 × 4모델을 실제로 판정해 비교. 말하는 순서 다섯 단계로 장면을 짬:</p>
+<ol>
+<li>여러 심판으로 같은 칸을 판정</li>
+<li>통과 여부가 다른 39칸 중 24칸이 '불필요 · 반복'(J1-4) 하나에 몰림</li>
+<li>갈린 36칸을 다시 보니 Codex 맞음 14 · Claude 맞음 12 · 애매 10 — 어느 쪽도 더 맞지 않고 약점이 다름</li>
+<li>정확도가 비슷하니 운영 조건으로 — Codex 호출 206번 · 모델마다 약 1시간 6분 vs Claude CLI 687번 · 약 2시간 5분</li>
+<li>다음은 심판 교체가 아니라 기준 다듬기</li>
+</ol>
+<p style="margin:6px 0 0">덧붙여 '반복' 379칸을 두 심판으로 세 번씩 판정해 다수결: 세 번 모두 같은 판정 Codex 363 · Claude 323 → 갈림은 흔들림이 아니라 반복을 읽는 방식의 차이(3번의 경계 한 줄로 이어짐).</p>
+</div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_jc">18 심판 선택</a> — '이렇게 말함 / 말하지 않음("78개 중 3개만 달랐다" · "시간 때문에")'까지</div></div>
+<div class="row"><b>남은 것</b><div>—</div></div>
+</div></section>
+
+<!-- 5 -->
+<section class="it" id="i5"><h2><span class="no">5</span>질문 설계 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>왜 78개인지, 왜 질문마다 기준 6~10개인지 설명이 필요하다.</div></div>
+<div class="row"><b>한 것</b><div><ul>
+<li>03 '질문 설계'에 기준 72개 · 질문당 6~10개(통제 실험) · 후보 326개 → 78개를 고른 순서가 모두 있음을 확인. 미팅에서 말한 숫자 순서는 슬라이드대로 '질문 번호 순서 310 · 기준 많은 질문부터 326'이 맞음.</li>
+<li>질문 78개를 전부 다시 점검: 싱글 57개(빈 출력 제외) 중 39개는 네 모델이 모두 통과 — 함정 질문 5개의 답을 직접 읽어 보니 거의 다 함정을 피했고 심판도 맞음(Q53 Claude 하나는 7번 점검에서 놓친 FAIL 후보) →기준이 헐렁한 게 아니라 <b>질문이 요즘 모델에게 쉬움</b>(7번과 이어짐).</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_design">03 질문 설계</a> · 점검 자료 <a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a></div></div>
+<div class="row"><b>남은 것</b><div>싱글 함정 다시 설계(한 줄 함정 → 자료 속에 섞인 함정) — 마감 뒤 패치</div></div>
+</div></section>
+
+<!-- 6 -->
+<section class="it" id="i6"><h2><span class="no">6</span>CODE 숫자의 뜻 <span class="t todo">확인만</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>CODE 결과의 숫자(예: 'GPT 7개')가 무엇을 센 것인지.</div></div>
+<div class="row"><b>한 것</b><div>장면에 '숫자는 그 검사에 걸린 질문 수'가 이미 적혀 있음 — 'GPT 7개'는 개수 검사에 걸린 GPT 질문 수. 이번 실행에서 걸린 검사는 28개 중 13개. 고칠 것 없음.</div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_code">12 CODE 검사</a></div></div>
+<div class="row"><b>남은 것</b><div>7번 점검에서 찾은 CODE 빈틈 넷(가정 문장의 숫자를 답으로 읽음 · 시각 덧셈 · 구조가 아예 없으면 통과 · 지금 엔진으로 재현 안 되는 FAIL) — 마감 뒤 패치</div></div>
+</div></section>
+
+<!-- 7 -->
+<section class="it" id="i7"><h2><span class="no">7</span>멀티턴 통과 0 — 싱글이 느슨하고 멀티가 엄격한가 <span class="t warn">분석 끝 · 고침 · 재판정 대기</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>멀티턴 대화는 한 개도 통과하지 못했다. 싱글턴 기준이 느슨하고 멀티턴 기준이 엄격한 것 아닌가? AIONA Python 2건은 왜 FAIL 인가?</div></div>
+<div class="row"><b>어떻게 봤나</b><div>표본 177개(멀티턴 110턴 전부 + 싱글 67문항) × 4모델 = <b>708칸</b>을 사람이 답 원문과 자료에 대조. 멀티 턴 하나와 같은 종류의 싱글 질문을 짝지어 같은 기준이 양쪽에서 어떻게 판정됐는지 견줌.</div></div>
+<div class="row"><b>결론</b><div><div class="key"><b>가설은 맞음.</b> 다만 원인은 '기준이 엄격 · 느슨'보다 <b>판정을 둘러싼 우리 쪽 장치</b>(심판에게 준 확인 목록 · 판정 규칙 · 심판 사유 오류 · 수집)에 있었습니다. 싱글이 덜 걸린 것은 대부분 질문이 쉬워서입니다.</div></div></div>
+
+<h3>멀티턴이 엄격했던 곳 — 턴 종류별</h3>
+<p class="small mute">원래 FAIL(보류 포함) 턴 → 사람 판단 뒤 FAIL 턴. 오판 = 사람이 보기에 틀린 FAIL 항목 수.</p>
+<div class="scroll"><table>
+<tr><th>턴 종류</th><th class="num">원래 → 판단 뒤</th><th class="num">오판</th><th>주된 원인</th></tr>
+<tr><td>최종 일정</td><td class="num">42 → 8</td><td class="num">102</td><td>잰 적 없는 시간이 있다는 것만으로 FAIL · 모순 질문(Q6 · Q10)에 정한 판정이 심판에게 안 닿음 · 1턴에 추천한 B안을 전제로 짠 일정을 '확정 안 됨'으로 FAIL</td></tr>
+<tr><td>1턴 조건 · 추천</td><td class="num">29 → 7</td><td class="num">56</td><td>확인 목록의 '편도 N분(돌아오는 시간은 기록 없음)' 때문에 맞게 계산한 왕복을 '자료에 없는 값'으로 FAIL · 조건 준수(J2-3.a)를 요청 해석에까지 넓게 씀</td></tr>
+<tr><td>원리 설명</td><td class="num">20 → 5</td><td class="num">38</td><td>사실 정확성(J5-1.a)에서 교과서식 정의에 용어 트집</td></tr>
+<tr><td>기록 요약 · 출처</td><td class="num">23 → 4</td><td class="num">33</td><td>요약에 덧붙인 맞는 계산을 FAIL · 출처 번호 칸 — AIONA 는 화면에도 번호가 없어 '인용' 재정의 뒤 다시 셈(이 줄 숫자는 잠정)</td></tr>
+<tr><td>자료 대조</td><td class="num">23 → 6</td><td class="num">31</td><td>같은 왕복 문구 · 같은 누락을 대화 · 모델마다 다르게 판정</td></tr>
+<tr><td>조건 변경 · 형식 수정</td><td class="num">53 → 42</td><td class="num">—</td><td><b>맞게 엄격했던 곳</b> — 답에 실제 문제가 많음. 형식 수정 턴은 오히려 놓친 칸 8(목차 링크가 아예 없으면 CODE 가 '검사 대상 없음 → 통과')</td></tr>
+</table></div>
+
+<h3>싱글이 느슨했던 곳</h3>
+<ul>
+<li><b>롱컨텍스트</b>(FAIL 9 → 16, 놓침 10): 근거 위치(부 · 장 · 절)를 틀려도 값만 맞으면 통과 · 1차 심판이 맞게 낸 FAIL 을 Codex 가 통과로 뒤집음 · 앱이 52만 자 문서를 끝까지 받지 못해 '문서에 없다'고 한 답도 통과.</li>
+<li><b>1차 심판 확신 문턱</b>(0.80): 확신이 문턱 바로 위면 Codex 가 다시 보지 않아, 함정을 밟은 답(Q53 Claude)과 함정 경계의 답(Q72)이 그대로 통과.</li>
+<li><b>빈 출력 10문항</b>: 40칸을 모두 보류로 뺌 — 12칸은 FAIL 이 맞아 보임(2번).</li>
+<li>단일(8 → 4) · 첨부(2 → 1)는 판정 자체가 대체로 맞음 — 덜 걸린 이유는 질문이 단순해서(5번).</li>
+</ul>
+
+<h3>오판이 난 곳 — 원인 네 갈래</h3>
+<div class="scroll"><table>
+<tr><th>원인</th><th>예</th></tr>
+<tr><td><b>심판에게 준 글 · 규칙</b></td><td>확인 목록의 왕복 문구가 자료와 반대 · 최종 턴 · 모순 턴에 정한 판정 없음 · 거절 턴 하나를 기준 3~6개에서 FAIL 로 셈</td></tr>
+<tr><td><b>Codex 사유 오류</b></td><td>답에 있는 내용을 '없다'고 함 · 사유는 '통과'라 쓰고 판정은 FAIL · 같은 실수를 모델마다 다르게 판정</td></tr>
+<tr><td><b>수집 · 앱</b></td><td>AIONA 앱 오류 문구('응답 생성 중 오류')를 답으로 받음 · 롱컨텍스트 입력 잘림. GPT 답의 역슬래시(\~ \*)는 앱 화면에도 그대로라 복사 문제가 아니라 GPT 답 자체(10-23 화면 확인)</td></tr>
+<tr><td><b>CODE 빈틈</b></td><td>가정 문장의 숫자를 답으로 읽음 · '13:45 + 10분'을 '45 + 10 = 13'으로 읽음 · 구조가 아예 없으면 통과</td></tr>
+</table></div>
+
+<h3>어떻게 고쳤나</h3>
+<p class="small mute">순서: 기준 문서 v2 를 먼저 고치고 → 판정 프롬프트 · 확인 목록 · 판정 규칙이 따라감. 시험 통과.</p>
+<div class="scroll"><table>
+<tr><th>무엇이 틀렸나</th><th>고친 내용</th><th>고친 곳</th></tr>
+<tr><td>왕복 계산을 '없는 값'으로 FAIL</td><td>'편도 N분 · 왕복은 편도 두 번 = 2N분'으로 — 1턴(동료) + 자료 대조 · 최종 17턴</td><td>확인 목록</td></tr>
+<tr><td>거절 답 하나에 FAIL 여러 개</td><td>모델이 거절하면 결과물 품질 항목 19개는 해당 없음(동료) · 말투 항목은 거절 문장 자체의 말투만 봄</td><td>판정 규칙 · 프롬프트</td></tr>
+<tr><td>최종 일정 턴 기준 없음</td><td>잰 적 없는 시간은 '미측정 · 미정'을 밝히고 여유 · 기한을 두면 맞음 · A형은 1턴 추천 B안 전제 일정이 맞음(10-23 결정) · B형은 두 갈래 · 미정이 맞음</td><td>확인 목록(정한 판정)</td></tr>
+<tr><td>모순 질문(Q6 · Q10) 결정이 안 닿음</td><td>질문의 조건끼리 맞지 않는 곳을 짚은 답이 맞음</td><td>확인 목록(정한 판정)</td></tr>
+<tr><td>'반복' 경계 없음</td><td>요구된 다른 형식에 같은 값이 다시 나온 것은 반복 아님(3번)</td><td>프롬프트 · 기준 v2</td></tr>
+</table></div>
+<p class="small mute" style="margin-top:6px">못 고친 것(08 '마감 뒤로'): Codex 사유 오류 · 용어 트집(J5-1.a) · 수집 흔적 다시 받기 · CODE 빈틈 넷 · 싱글 쪽(확신 문턱 · 근거 위치 기준 · 빈 출력 기준).</p>
+
+<h3>결과가 어떻게 바뀌나 — 사람 판단 기준</h3>
+<div class="two">
+<div class="scroll"><table>
+<tr><th>멀티턴 110턴</th><th class="num">원래 FAIL 턴</th><th class="num">판단 뒤</th><th class="num">10턴 통과 대화</th></tr>
+<tr><td>AIONA</td><td class="num">48</td><td class="num"><span class="down">11</span> (애매 10)</td><td class="num">0 → 1 (Q2)*</td></tr>
+<tr><td>GPT</td><td class="num">56</td><td class="num"><span class="down">26</span> (애매 6)</td><td class="num">0</td></tr>
+<tr><td>Claude</td><td class="num">56</td><td class="num"><span class="down">8</span> (애매 12)</td><td class="num">0 → 2 (Q4 · Q8)</td></tr>
+<tr><td>Gemini</td><td class="num">75</td><td class="num"><span class="down">52</span> (애매 11)</td><td class="num">0</td></tr>
+</table></div>
+<div class="scroll"><table>
+<tr><th>싱글 (빈 출력 제외)</th><th class="num">원래 FAIL</th><th class="num">판단 뒤</th></tr>
+<tr><td>단일 35</td><td class="num">8</td><td class="num"><span class="down">4</span></td></tr>
+<tr><td>롱컨텍스트 10</td><td class="num">9</td><td class="num"><span class="up">16</span> (놓침이 드러남)</td></tr>
+<tr><td>첨부 12</td><td class="num">2</td><td class="num"><span class="down">1</span></td></tr>
+<tr><td><b>합</b></td><td class="num"><b>19</b></td><td class="num"><b>21</b></td></tr>
+</table></div>
+</div>
+<p class="small mute">* AIONA 숫자는 출처 번호 칸을 아직 FAIL 로 세지 않은 값 — '인용'을 번호 필수로 정하면 AIONA FAIL 턴이 늘고 Q2 통과도 사라짐. 위 숫자는 사람 판단이고, 고친 규칙으로 실제 다시 판정(10-26)하면 못 고친 원인 때문에 여기까지 다 내려오지는 않을 것으로 봄.</p>
+
+<div class="row" style="margin-top:8px"><b>AIONA Python 2건</b><div>Q25 · Q57 의 AIONA 코드가 함수 · for · if 몸통 들여쓰기가 모두 한 칸으로 뭉개져 문법 검사 FAIL. 복사 두 방식(화면 · 복사 버튼)에서 같음 → 수집 문제가 아니라 AIONA 답 자체 → 제품 팀에 알림. 같은 실행에서 일정 질문에 위기 상담 안내만 낸 답(3턴) · 답 끝 '데이터 제공' 줄도 함께 알림.</div></div>
+<div class="row"><b>근거</b><div><a href="../분석/2026-10-23-멀티턴싱글턴점검/점검기록.md">점검기록</a>(표본 177개 · 원인 가설 35 · 1차 조치) · <a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> · <a href="기준·프롬프트 변경 원문.html">기준 · 프롬프트 변경 원문</a></div></div>
+<div class="row"><b>남은 것</b><div>10-26 멀티턴 11 × 4 다시 판정 → 발표자료 숫자 갱신 · '인용' 재정의 뒤 AIONA 출처 칸 다시 셈</div></div>
+</div></section>
+
+<!-- 8 -->
+<section class="it" id="i8"><h2><span class="no">8</span>걸린 시간을 질문 · 유형별로 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>모델별 합만으로는 의미가 적다. 78개 질문을 펼쳐 유형마다 어느 모델이 빠르고 느린지, 무엇을 개선할지 보이게 하자.</div></div>
+<div class="row"><b>한 것</b><div>
+<p style="margin:0 0 4px">13 '걸린 시간' 장면 위쪽을 바꿈.</p>
+<ul>
+<li><b>뺀 것</b>: 모델별 답변 시간 합 막대 · 유형별 평균 표.</li>
+<li><b>① 질문별 답변 시간 — 78문항</b>: 유형 탭(싱글턴 35 · 빈 출력 요구 10 · 멀티턴 11 · 롱컨텍스트 10 · 첨부 12)을 누르면 질문마다 질문 글과 네 모델 시간이 한 줄씩. 칸 안 막대 = 그 질문에서 가장 오래 걸린 모델 대비 길이, 초록 = 가장 빠름 · 빨강 = 가장 느림, 노랑 = 복사 버튼이 안 떠 다시 수집할 칸(시간에서 뺌). AIONA 를 맨 앞에, 그다음은 그 유형에서 빠른 모델부터.</li>
+<li><b>② 질문 하나에 보통 걸린 시간 — 유형 × 모델 표</b>(AIONA 중심): AIONA 칸은 그 유형에서 가장 빠른 모델보다 몇 배, 다른 모델 칸은 'AIONA보다 1.3배 느림' 처럼. 이번: AIONA 는 싱글턴 · 롱컨텍스트 · 첨부에서 2번째, 멀티턴은 Claude 의 2.2배로 3번째.</li>
+<li><b>③ 개선할 곳</b>: 유형마다 가장 빠른 · 느린 모델과 배수, AIONA 가 다른 세 모델의 중앙값보다 1.5배 이상 느린 질문 8개(Q78 · Q53 · Q5 · Q77 · Q4 …).</li>
+<li>판정 시간도 질문 × 모델마다 남겨, 수집 + 판정 편차가 큰 질문 top 5 는 <a href="미팅 개선 체크리스트.html">미팅 개선 현황</a> 2장.</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s5">13 걸린 시간</a>
+<figure><img loading="lazy" src="미팅 개선 현황 2_화면/03_걸린시간_질문별.jpg" alt="질문별 답변 시간 78문항 표"><figcaption>① 질문별 답변 시간 — 유형 탭(이 그림은 싱글턴 탭), 질문 하나하나의 네 모델 시간</figcaption></figure>
+<figure><img loading="lazy" src="미팅 개선 현황 2_화면/04_걸린시간_유형.jpg" alt="유형 × 모델 답변 시간 표와 개선할 곳"><figcaption>② 유형 × 모델 표(AIONA 중심) · ③ 개선할 곳</figcaption></figure></div></div>
+<div class="row"><b>남은 것</b><div>—</div></div>
+</div></section>
+
+<!-- 9 -->
+<section class="it" id="i9"><h2><span class="no">9</span>판정 토큰 · 비용 <span class="t warn">토큰 끝 · 비용 남음</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>판정에 토큰 · 비용이 얼마나 드는지 — 입력 · 출력 글자 수가 아니라 심판이 실제로 쓴 전체.</div></div>
+<div class="row"><b>한 것</b><div><ul>
+<li>판정 기록마다 심판별(Jev · Decisions · Codex)로 입력 · 캐시 입력 · 출력 · 추론 출력 · 호출 수를 남기게 함(전에는 1차는 입력만, Codex 는 입력 · 출력만).</li>
+<li>지금 답변을 저장된 결과 없이 처음부터 다시 판정(10-23, 71분)해 질문 × 모델 × 심판 → 질문마다 합 → 전체 세 단계 보고서로.</li>
+<li>한 바퀴(78 × 4): 입력 <b>1억 2,126만</b>(그중 캐시 842만) · 출력 <b>157만</b> · 호출 <b>1,425번</b>. Jev 140번 148만 · Decisions 528번 4,728만(고르기형 API 라 출력 없음) · Codex 757번 입력 7,251만 · 출력 150만.</li>
+<li>질문 × 모델당 평균 입력: 멀티턴 198만 · 롱컨텍스트 68만 · 첨부 6만 · 단일 2.8만 → <b>멀티턴 11개가 전체 입력의 72%</b>.</li>
+<li>이 숫자를 08 '마감 · 상시 운영'의 '한 바퀴에 드는 것'에 씀.</li>
+</ul></div></div>
+<div class="row"><b>보고서</b><div><a href="../결과/2026-10-23_12-41-05-662/판정토큰.html">판정 토큰</a> · <a href="../결과/2026-10-23_12-41-05-662/토큰기록.md">토큰 기록</a></div></div>
+<div class="row"><b>남은 것</b><div>원 단위 비용 — 단가가 정해지면(Codex 는 구독). 발표자료 13 의 토큰 표는 기록을 남기기 전 실행이라 '기록 안 됨' 칸이 있음 → 10-26 다시 판정 결과로 다시 만들면 채워짐.</div></div>
+</div></section>
+
+<!-- 10 -->
+<section class="it" id="i10"><h2><span class="no">10</span>발전 방향 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>한 것</b><div>07 '발전 방향' 카드 6개 — 사람 판정과 맞춰 보기(다음 할 일) · 모델 확장(구조 준비됨) · 같은 모델 비교(기능 준비됨) · 보류 사례집 · 한 번 요청 판정(만드는 중) · 수집 방식(검토). 기준을 결과로 다듬는 루프(모으기 → 원인 나누기 → 고칠 안 → 시험 → 채택)는 <a href="미팅 개선 체크리스트.html">미팅 개선 현황</a> 5장 · 08 장면 '패치 관리'로.</div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s7">07 발전 방향</a>
+<details><summary>화면 보기</summary><figure><img loading="lazy" src="미팅 개선 현황 2_화면/02_발전방향.jpg" alt="발전 방향 카드 6개"></figure></details></div></div>
+</div></section>
+
+<!-- 11 -->
+<section class="it" id="i11"><h2><span class="no">11</span>다음 주 마감 범위 · 그 뒤 상시 운영 <span class="t ok">반영 · 확정</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>다음 주에 어디까지 닫을지, 그 뒤엔 일부 리소스로 어떻게 운영 · 패치할지.</div></div>
+<div class="row"><b>한 것</b><div>새 장면 08 '마감 · 상시 운영'(발전 방향 다음 — 상세 분석 번호가 하나씩 밀림).
+<ul>
+<li>마감 범위: 마감 안 6(범위 고정 · 새 규칙으로 다시 판정 · 보류 결정 · 심판 표시용 표 100칸 · 기준 다듬기 한 바퀴 · 차별점) / 마감 뒤 패치로 6(싱글 함정 다시 설계 · Codex 입력 · CODE 빈틈 · 수집 흔적 · 싱글 확신 문턱 · 같은 모델 첫 실행 등).</li>
+<li>일정(10-23 확정): 10-26 다시 판정 · 10-27 보류 결정 · 표시용 표 · 10-28 기준 다듬기(J1-4.b) · 10-29 발표 자료 최종 · 10-30 마감 보고.</li>
+<li>상시 운영: AIONA 업데이트마다 한 바퀴(수집 3시간 8분 · 판정 71분 · 토큰은 9번) · 질문 세트는 분기마다 손봄.</li>
+<li>패치 관리 5단계: 모으기 → 원인 나누기 → 기준 v2 먼저 고치기 → 같은 칸 전 · 후 시험 → 기록 · 알림. 이번 주 7번 작업이 그 한 바퀴의 예.</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_close">08 마감 · 상시 운영</a>
+<details><summary>화면 보기</summary><figure><img loading="lazy" src="미팅 개선 현황 2_화면/05_마감.jpg" alt="마감 범위와 일정"></figure></details></div></div>
+</div></section>
+
+<!-- 12 -->
+<section class="it" id="i12"><h2><span class="no">12</span>차별점 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>미팅</b><div>다른 평가와 다른 점을 하나는 보여 주자(마지막에 하기로 함).</div></div>
+<div class="row"><b>한 것</b><div>01 '왜 필요한가'에 세 덩어리를 넣음(10-29 예정이던 것을 10-23 에 끝냄).
+<ul>
+<li><b>다른 평가와 무엇이 다른가</b> — 우리 평가기 · 공개 순위표(LMArena 등) · 공개 벤치마크(HELM · MT-Bench · 한국어 리더보드) · 개발용 평가 도구(promptfoo · DeepEval · LangSmith 등)를 평가하는 답 · 비교 단위 · 판정 기준 · 결과 · 확신이 없을 때 · 질문 여섯 줄로.</li>
+<li><b>차별점 6</b> — 사용자가 받는 답 그대로 · 같은 모델끼리(AIONA 가 더한 값만) · 점수가 아니라 고칠 곳까지 · 우리 업무형 한국어 · 확신 없으면 사람에게 · 업데이트마다 같은 잣대.</li>
+<li><b>꼭 이 평가기를 써야 하는 이유</b> — 다른 평가는 '어느 모델이 대체로 나은가', 우리는 'AIONA 가 우리 사용자의 일에서 같은 모델의 원래 앱보다 나은가, 아니면 무엇을 고칠까'에 답함 + 근거 넷(공개 순위표에 AIONA 없음 · 모델 점수로는 서비스 품질을 모름 · 기준별로 나빠진 곳 · 내부 관리와 외부 제안에 같은 근거).</li>
+</ul></div></div>
+<div class="row"><b>발표자료</b><div><a href="ModelGrade_결과요약_10-20 발표자료.html#s_intro">01 왜 필요한가</a>
+<details><summary>화면 보기</summary><figure><img loading="lazy" src="미팅 개선 현황 2_화면/06_차별점.jpg" alt="다른 평가와 비교 · 차별점 · 써야 하는 이유"></figure></details></div></div>
+</div></section>
+
+<p class="small mute" style="margin-top:28px">자세히: <a href="ModelGrade_결과요약_10-20 발표자료.html">발표자료</a> · <a href="미팅 개선 체크리스트.html">미팅 개선 현황</a> · <a href="../분석/2026-10-23-멀티턴싱글턴점검/점검기록.md">멀티턴 · 싱글턴 점검기록</a> · <a href="../변경내역/2026-10-23-변경내역.md">변경내역 10-23</a> · <a href="../변경내역/2026-10-22-변경내역.md">10-22</a></p>
+</main></body></html>
