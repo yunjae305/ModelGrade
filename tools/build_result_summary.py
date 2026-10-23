@@ -1029,6 +1029,59 @@ def scene_next(D: Dict[str, Any]) -> str:
         for t, sub, body, st in cards) + "</div>")
 
 
+#: 10-23 v4-r3 판정(저장 출력 재사용 없이 처음부터, 결과 폴더 2026-10-23_12-41-05-662 · 토큰기록.md) — 한 바퀴 판정에 드는 것
+FULL_JUDGE = {"minutes": 71, "input": "1억 2,126만", "output": "157만", "calls": "1,425"}
+
+
+def scene_close(D: Dict[str, Any]) -> str:
+    """마감 · 상시 운영 (10-22 미팅 11번: 다음 주까지 닫을 범위와 일정, 그 뒤 일부 리소스로 상시 운영하며 패치를 어떻게 관리할지 — 일정이 바뀌면 미리 알림).
+    팀원 초안(개선 예정 작업 6장) + 10-23 판정 종합 1차에서 남긴 일. 일정 · 범위는 사용자 확정(10-23)."""
+    def ul(xs: List[str]) -> str:
+        return "<ul>" + "".join(f"<li>{E(x)}</li>" for x in xs) + "</ul>"
+    inside = ["범위 고정 — 78문항 · 4모델 · 기준 72개, 수집 → 판정 → 보고서 명령 하나",
+              "새 규칙으로 다시 판정(멀티턴 11 × 4) → 결과 보고서 · 발표 숫자 갱신",
+              "보류 사람 결정 — 빈 출력 10문항 기준 · 설명 턴 사실 확인 10칸 → 최종 숫자",
+              "심판 표시용 표 100칸 — 기준마다 거짓 FAIL · 거짓 통과 비율",
+              "기준 다듬기 한 바퀴(J1-4.b) — 같은 칸 고치기 전 · 후 비교",
+              "차별점 하나 (미팅 12번)"]
+    after = ["싱글 함정 다시 설계 — 한 줄 함정 → 자료 속에 섞인 함정",
+             "Codex 입력 — 대화 10턴을 한 번에 → 판정할 턴까지만",
+             "CODE 빈틈 넷 — 가정 문장의 합계 · 시각 덧셈 · 구조가 아예 없으면 통과 · 겹침 다시 묻기 낱말",
+             "수집 흔적 — AIONA 출처 번호 지움 · ChatGPT 이스케이프 · 앱 오류 문구는 다시 받기",
+             "싱글 1차 확신 문턱 · 롱컨텍스트 근거 위치 기준",
+             "같은 모델 비교 첫 실행 · 원 단위 비용(단가가 정해지면) · 기준 다듬기 도구"]
+    scope = ('<div class="rs-cards rs-close">'
+             f'<div class="rs-card"><span class="rs-ct">마감 안에</span><b>다음 주에 끝내는 것</b>{ul(inside)}</div>'
+             f'<div class="rs-card"><span class="rs-ct">마감 뒤로</span><b>상시 운영 때 패치로 넘기는 것</b>{ul(after)}</div></div>')
+    sched = table("", ["날짜", "할 일", "끝나면 나오는 것"], [
+        ["10-26 (월)", "새 규칙으로 다시 판정 — 멀티턴 11 × 4", "결과 보고서 · 고치기 전 · 후 비교"],
+        ["10-27 (화)", "보류 사람 결정 · 심판 표시용 표 100칸", "최종 숫자 · 기준별 거짓 FAIL · 거짓 통과 비율"],
+        ["10-28 (수)", "기준 다듬기 한 바퀴 — J1-4.b", "흔들리는 기준을 숫자로 · 받을지 결정"],
+        ["10-29 (목)", "발표 자료 숫자 · 장면 최종 반영 · 차별점 하나", "보고 자료 확정"],
+        ["10-30 (금)", "마감 보고 — 범위 · 결과 · 상시 운영 계획", "마감"],
+    ], [16, 46, 38])
+    run = (f"수집 {hm(collect_seconds(D))} · 판정 {FULL_JUDGE['minutes']}분, 판정 입력 {FULL_JUDGE['input']} · 출력 {FULL_JUDGE['output']} 토큰 · "
+           f"호출 {FULL_JUDGE['calls']}번(10-23 처음부터 판정한 기준). 사람은 보류 칸 결정 · 기준 정의 승인만.")
+    ops = [("언제", "AIONA 업데이트마다 한 바퀴", "같은 78문항으로 수집 → 판정 → 보고서를 돌리고, 지난 회차와 같은 잣대로 비교합니다."),
+           ("한 바퀴에 드는 것", "일부 리소스로 충분", run),
+           ("질문 세트", "분기마다 손봄", "기준마다 10문항 이상 · 질문당 기준 6~10개를 지키며 고칩니다 — 싱글 함정 다시 설계부터.")]
+    cards = ('<div class="rs-cards rs-next">' + "".join(
+        f'<div class="rs-card"><span class="rs-ct">{E(st)}</span><b>{E(t)}</b><p>{E(body)}</p></div>' for st, t, body in ops) + "</div>")
+    steps = [("모으기", "판정이 끝날 때마다 FAIL · 보류 칸과 통과 표본(두 심판이 갈린 칸 · 확신 낮은 칸 · 무작위)을 모읍니다."),
+             ("원인 나누기", "답이 틀림 · 프롬프트 · 기준 · 질문 · 수집 가운데 하나로 나눕니다."),
+             ("고치기", "기준 v2 문서를 먼저 고치고(기준 정의는 사람이 승인) 프롬프트 · 확인 목록 · 코드가 따라갑니다."),
+             ("시험", "같은 칸을 고치기 전 · 후로 다시 판정해, 정답률이 오르고 뒤집힘이 줄고 다른 기준이 나빠지지 않을 때만 받습니다."),
+             ("기록 · 알림", "변경내역 · 기준 v2 '바뀐 규칙' 표 · 변경 원문 페이지에 남기고 다음 보고서에 함께 냅니다. 일정이나 규칙이 바뀌면 미리 알립니다.")]
+    step_html = '<ol class="jc-steps">' + "".join(f"<li><b>{E(t)}</b><span>{E(b)}</span></li>" for t, b in steps) + "</ol>"
+    example = note("이번 주 한 바퀴 (10-23)", "<p>멀티턴 · 싱글 표본 177개(708칸)를 원문과 대조해 원인을 나눴습니다 → 기준 v2 를 먼저 고치고 확인 목록(왕복 = 편도 두 번 · 최종 턴 · 모순 턴 판정) · "
+                   "판정 프롬프트(J1-4.b 경계 · 거절 답 말투) · 거절 턴 규칙을 고쳤습니다 → 효과는 다시 판정(10-26)으로 확인합니다.</p>")
+    return ('<h3 class="rs-sh">마감 범위 — 다음 주 (10-26 ~ 10-30)</h3>' + scope
+            + '<h3 class="rs-sh">일정 (10-23 확정 — 바뀌면 그날 바로 알림)</h3>' + sched
+            + '<h3 class="rs-sh">이후 상시 운영 — 일부 리소스로</h3>' + cards
+            + '<h3 class="rs-sh">패치는 이렇게 관리합니다</h3>' + step_html + example
+            + '<p class="rs-close-end">만든 것을 AIONA 품질 관리에 상시로 쓰고, 외부에 제안할 때도 씁니다.</p>')
+
+
 def judged_lines(D: Dict[str, Any]) -> List[Dict[str, Any]]:
     """판정 기록(results.jsonl)의 실제 판정 줄 — 다시 판정 · 복구 포함. 이름 되살림 · 다시 계산(recode) 줄은 앞 줄을 옮겨 적은 것이라 뺀다."""
     f = result_file(D["run_id"], "results.jsonl")
@@ -2835,7 +2888,10 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .rs-next .rs-sub { color: var(--muted); font-size: 0.84rem; }
 .rs-next { grid-template-columns: repeat(3, minmax(0, 1fr)); }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
 @media (max-width: 900px) { .rs-next { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .rs-next { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .rs-next { grid-template-columns: minmax(0, 1fr); } .rs-close.rs-cards { grid-template-columns: minmax(0, 1fr); } }
+.rs-close { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rs-close ul { margin: 0; padding-left: 1.1em; font-size: 0.86rem; line-height: 1.55; }
+.rs-close-end { margin: 14px 0 0; font-weight: 700; }
 details.rs-cell > summary { cursor: pointer; list-style: none; } details.rs-cell > summary::-webkit-details-marker { display: none; }
 details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell .rs-qchips { margin-top: 4px; }
 .rs-kept { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; } .rs-kept b { color: var(--ok); margin-right: 6px; }
@@ -3048,6 +3104,10 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          scene_hold_flow(D), "확인하지 못한 판정은 억지로 정하지 않고 원문 · 사유와 함께 사람에게 넘깁니다 — 이번 실행의 목록은 상세 분석 '보류 목록'에."),
         ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D),
          "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · " + ("한 번 요청 판정" if three_judges(D) else "심판 셋 구조로 다시 판정") + " · 다른 AI 서비스 연결로 넓힙니다."),
+        # 10-22 미팅 11번 (사용자 10-23: "11번 진행") — 발전 방향 다음, 보고 이야기의 끝
+        ("s_close", "마감 · 운영", "다음 주 마감 · 상시 운영", "마감 · 상시 운영 — 다음 주에 닫고, 그 뒤엔 업데이트마다 한 바퀴",
+         "다음 주(10-26 ~ 10-30) 안에 범위를 닫고, 그 뒤에는 일부 리소스로 상시 운영하며 패치합니다. 일정 · 범위는 10-23 에 정했고, 바뀌면 미리 알립니다.",
+         scene_close(D), "다음 주 금요일(10-30)에 범위를 닫고, 그 뒤엔 AIONA 업데이트마다 한 바퀴 — 패치는 기준 문서 → 프롬프트 · 코드 순서로, 같은 칸 전후 비교를 넘을 때만 받습니다."),
     ]
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
         ("s1", "이번 실행 결과", "분포 · 유형별 통과율 (잠정)", "이번 실행 결과 — 분포와 유형별 통과율 (잠정)",
