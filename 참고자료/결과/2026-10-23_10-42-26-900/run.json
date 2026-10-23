@@ -1,0 +1,31 @@
+{
+ "version": "judge-item-rerun-v1",
+ "kind": "item-vote",
+ "compare_of": "50ca3ccccace",
+ "item": "J1-4.b",
+ "started": "2026-10-23_10-42-26-900",
+ "votes": 3,
+ "name": "J1-4.b 다수결 — 같은 칸을 3번 물어 과반으로 (사용자 10-23: 'J1-4.b 같은 칸 여러 번 물어서 다수결로 해봐')",
+ "judge2": {
+  "codex": "gpt-6-luna · low",
+  "claude": "claude-sonnet-5-5 · low"
+ },
+ "outs": [
+  "v4-j14b-vote1",
+  "v4-j14b-vote2",
+  "v4-j14b-vote3"
+ ],
+ "heads": {
+  "v4-j14b-vote1": [
+   "0d717b9",
+   "a9aa76b"
+  ],
+  "v4-j14b-vote2": [
+   "0d717b9"
+  ],
+  "v4-j14b-vote3": [
+   "f429081"
+  ]
+ },
+ "note": "세 번 모두 같은 판정 로직(a9aa76b). f429081 은 결과 줄 토큰 기록 칸만 더함(판정 영향 없음)"
+}

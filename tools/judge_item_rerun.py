@@ -124,6 +124,10 @@ def cmd_judge(args: argparse.Namespace) -> int:
         dirty = [x.strip() for x in dirty if x.strip()]
     except OSError:
         dirty = []
+    try:   # 판정에 쓴 커밋 — 다수결은 같은 코드 · 프롬프트로 돈 판정끼리만 모은다
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    except OSError:
+        head = ""
     t0 = time.monotonic()
     jv.say(f"{args.item} 다시 판정 — 질문 {len(qs)}개 · 심판 Codex({codex.model} · {codex.reasoning}) · Claude CLI({jc.MODEL} · {jc.EFFORT}) · 로그 {root / 'run.log'}")
     threads = [threading.Thread(target=work, args=(name, p), name=f"{name}-{p}") for name, p in judges]
@@ -132,7 +136,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
     for t in threads:
         t.join()
     with (root / "timing.jsonl").open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"kind": "item-rerun", "item": args.item, "questions": qs, "seconds": round(time.monotonic() - t0, 1), "uncommitted": dirty, "prompt": str(prompt_file),
+        f.write(json.dumps({"kind": "item-rerun", "item": args.item, "questions": qs, "seconds": round(time.monotonic() - t0, 1), "uncommitted": dirty, "prompt": str(prompt_file), "head": head,
                             "at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False) + "\n")
     jv.say(f"묶음 끝 — 벽시계 {(time.monotonic() - t0) / 60:.0f}분")
     return 0
@@ -313,6 +317,143 @@ thead th { background:color-mix(in srgb, var(--acc) 8%, var(--card)); }
     return 0
 
 
+
+# ------------------------------------------------------------------ 다수결 ------------------------------------------------------------------
+def majority(votes: List[Optional[str]]) -> Tuple[Optional[str], int]:
+    """표 가운데 과반인 판정과 그 표 수 — 과반이 없으면 (None, 가장 많은 표 수)."""
+    c = Counter(v for v in votes if v)
+    if not c:
+        return None, 0
+    top, n = c.most_common(1)[0]
+    return (top if n * 2 > len(votes) else None), n
+
+
+def cmd_vote(args: argparse.Namespace) -> int:
+    """같은 코드 · 프롬프트로 여러 번 돌린 다시 판정(--outs)을 칸마다 다수결로 — 심판별 다수결 판정 · 표 갈림 · 두 심판 다수결이 갈린 칸."""
+    run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
+    groups = json.loads((jc.find_set_dir(run) / "questions.json").read_text(encoding="utf-8"))
+    jr_ = ROOT / "data" / "judge_runs" / args.run
+    outs = [x.strip() for x in args.outs.split(",") if x.strip()]
+    walls = {o: [json.loads(x) for x in (jr_ / o / "timing.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()] for o in outs}
+    heads = {o: sorted({w.get("head") or "?" for w in ws}) for o, ws in walls.items()}
+    prompts = {o: sorted({Path(w.get("prompt") or "").name for w in ws}) for o, ws in walls.items()}
+    runs = {o: {name: latest(jr_ / o / name / "results.jsonl") for name in BEFORE} for o in outs}
+    single = {name: latest(jr_ / BEFORE[name] / "results.jsonl") for name in BEFORE}
+    cells = flagged_cells(args.run, args.item)
+    rows = []
+    for (p, q), ns in sorted(cells.items(), key=lambda kv: (kv[0][1], list(LABEL).index(kv[0][0]))):
+        if not all((p, q) in runs[o][name] for o in outs for name in BEFORE):
+            continue
+        for n in ns:
+            r: Dict[str, Any] = {"provider": p, "question": q, "turn": n, "kind": cell_kind(run, groups, q, n, jr_ / BEFORE["codex"] / "inputs")}
+            for name in BEFORE:
+                votes = [item_of(runs[o][name][(p, q)], n, args.item).get("decision") for o in outs]
+                r[f"{name}_votes"] = votes
+                r[f"{name}_major"], r[f"{name}_n"] = majority(votes)
+                r[f"{name}_reasons"] = [(item_of(runs[o][name][(p, q)], n, args.item).get("reason") or "").replace("\n", " ") for o in outs]
+                r[f"{name}_main"] = item_of(single[name].get((p, q)) or {}, n, args.item).get("decision")
+            rows.append(r)
+    k = len(outs)
+    kinds = ["멀티턴 형식 수정 턴", "멀티턴 다른 턴", "롱컨텍스트", "단일"]
+
+    def tally(rs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        t: Dict[str, Any] = {"칸": len(rs)}
+        for name in BEFORE:
+            t[f"{name}_다수결_FAIL"] = sum(1 for r in rs if r[f"{name}_major"] == "FAIL")
+            t[f"{name}_만장일치"] = sum(1 for r in rs if r[f"{name}_n"] == k)
+            t[f"{name}_과반없음"] = sum(1 for r in rs if r[f"{name}_major"] is None)
+            t[f"{name}_한번이라도FAIL"] = sum(1 for r in rs if "FAIL" in r[f"{name}_votes"])
+        t["다수결_갈림"] = sum(1 for r in rs if r["codex_major"] != r["claude_major"])
+        t["한번씩_갈림_평균"] = round(sum(sum(1 for r in rs if r["codex_votes"][i] != r["claude_votes"][i]) for i in range(k)) / k, 1)
+        return t
+
+    tot = tally(rows)
+    per = {kd: tally([r for r in rows if r["kind"] == kd]) for kd in kinds}
+    split = [r for r in rows if r["codex_major"] != r["claude_major"]]
+    res = {"version": VERSION, "run": args.run, "item": args.item, "outs": outs, "heads": heads, "prompts": prompts, "votes": k,
+           "cells": len(rows), "total": tot, "per_kind": per, "split": split}
+    dest = jr_ / outs[0]
+    (dest / "다수결.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    KO = {"PASS": "PASS", "FAIL": "FAIL", "NOT_APPLICABLE": "해당 없음", "UNVERIFIED": "보류", None: "-"}
+    L = [f"# {args.item} 다수결 — 같은 칸을 {k}번 물어 과반으로 · 실행 {args.run}", "",
+         f"- 대상: 본 판정에서 1차 심판이 2차로 넘긴 {args.item} 칸 {len(rows)}개 — 1차 결과는 저장된 것 그대로, 2차 심판(Codex gpt-6-luna · low / Claude CLI {jc.MODEL} · {jc.EFFORT})만 {args.item} 하나를 물음",
+         f"- 판정 {k}번: {', '.join(outs)} — 커밋 {', '.join(sorted({h for v in heads.values() for h in v}))} · 프롬프트 {', '.join(sorted({x for v in prompts.values() for x in v}))}",
+         "- 다수결: 표 가운데 과반인 판정. 과반이 없으면(예: PASS · FAIL · 보류) '과반 없음'.", "",
+         "| 칸 종류 | 칸 | Codex 다수결 FAIL | Claude 다수결 FAIL | Codex 만장일치 | Claude 만장일치 | Codex 과반 없음 | Claude 과반 없음 | 두 심판 다수결이 갈린 칸 | 한 번씩 비교할 때 갈린 칸(평균) |",
+         "|---|---|---|---|---|---|---|---|---|---|"]
+    for kd, t in [*per.items(), ("합계", tot)]:
+        L.append(f"| {kd} | {t['칸']} | {t['codex_다수결_FAIL']} | {t['claude_다수결_FAIL']} | {t['codex_만장일치']} | {t['claude_만장일치']} | "
+                 f"{t['codex_과반없음']} | {t['claude_과반없음']} | {t['다수결_갈림']} | {t['한번씩_갈림_평균']} |")
+    L += ["", f"- 한 번이라도 FAIL 이 나온 칸: Codex {tot['codex_한번이라도FAIL']} · Claude {tot['claude_한번이라도FAIL']} (다수결 FAIL 은 Codex {tot['codex_다수결_FAIL']} · Claude {tot['claude_다수결_FAIL']})",
+          "", "## 두 심판 다수결이 갈린 칸", "", "| 칸 | 종류 | Codex 표 | Claude 표 | Codex 사유(다수 쪽 하나) | Claude 사유(다수 쪽 하나) |", "|---|---|---|---|---|---|"]
+
+    def pick(r: Dict[str, Any], name: str) -> str:
+        m = r[f"{name}_major"]
+        for v, why in zip(r[f"{name}_votes"], r[f"{name}_reasons"]):
+            if v == m:
+                return why[:150]
+        return (r[f"{name}_reasons"][0] or "")[:150]
+
+    for r in split:
+        L.append(f"| Q{r['question']} {LABEL[r['provider']]} T{r['turn']} | {r['kind']} | {' · '.join(KO.get(v, v) for v in r['codex_votes'])} | "
+                 f"{' · '.join(KO.get(v, v) for v in r['claude_votes'])} | {pick(r, 'codex')} | {pick(r, 'claude')} |")
+    cost: Dict[str, Counter] = {name: Counter() for name in BEFORE}
+    for o in outs:
+        for name in BEFORE:
+            for l in runs[o][name].values():
+                cx = (l.get("calls") or {}).get("codex") or {}
+                cost[name]["호출"] += cx.get("rounds") or 0
+                cost[name]["판정초"] += cx.get("seconds") or 0
+                for kk, v in cx.items():
+                    if isinstance(v, (int, float)) and not isinstance(v, bool) and "token" in kk:
+                        cost[name][kk] += v
+    wall = sum(w.get("seconds") or 0 for ws in walls.values() for w in ws)
+    L += ["", f"## 걸린 시간 · 토큰 (2차 심판, {k}번 합)", "", f"- 벽시계 {wall / 60:.0f}분 (판정 {k}번 · 두 심판 · 네 모델 동시)"]
+    for name, c in cost.items():
+        L.append(f"- {name}: 호출 {c['호출']}번 · 판정 시간 합 {c['판정초'] / 60:.0f}분 · "
+                 + " · ".join(f"{kk} {v:,}" for kk, v in sorted(c.items()) if "token" in kk))
+    if args.note:
+        L.insert(4, f"- 메모: {args.note}")
+    res["cost"] = {n: dict(c) for n, c in cost.items()}
+    res["wall_seconds"] = round(wall, 1)
+    (dest / "다수결.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
+    (dest / "다수결.md").write_text("\n".join(L) + "\n", encoding="utf-8")
+    if args.publish:   # 결과 폴더 = 참고자료/결과/<첫 투표를 시작한 시각>/ (사용자 10-22 양식), run.json 은 compare_of
+        import shutil
+        from tools import result_dirs
+        name = result_dirs.stamp(datetime.fromtimestamp(dest.stat().st_ctime))
+        rd = result_dirs.RESULTS / name
+        rd.mkdir(parents=True, exist_ok=True)
+        meta = {"version": VERSION, "kind": "item-vote", "compare_of": args.run, "item": args.item, "started": name, "votes": k,
+                "name": f"{args.item} 다수결 — 같은 칸을 {k}번 물어 과반으로 (사용자 10-23: 'J1-4.b 같은 칸 여러 번 물어서 다수결로 해봐')",
+                "judge2": {"codex": "gpt-6-luna · low", "claude": f"{jc.MODEL} · {jc.EFFORT}"}, "outs": outs, "heads": heads, "note": args.note}
+        (rd / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+        for i, o in enumerate(outs, 1):
+            for name2 in BEFORE:
+                shutil.copy2(jr_ / o / name2 / "results.jsonl", rd / f"투표{i}_{name2}_results.jsonl")
+        shutil.copy2(dest / "다수결.md", rd / "다수결.md")
+        shutil.copy2(dest / "다수결.json", rd / "다수결.json")
+        body = ""
+        if args.summary:
+            body += f'<section class="sum"><h1>요약</h1>{md_to_html(Path(args.summary).read_text(encoding="utf-8"))}</section>'
+        body += f'<section>{md_to_html(chr(10).join(L))}</section>'
+        css = (''':root{--bg:#fbfaf7;--fg:#1d1d1b;--mut:#6b6a66;--line:#e3e0d8;--card:#fff;--acc:#2f5bd3}
+@media (prefers-color-scheme: dark){:root{--bg:#17171a;--fg:#ecebe6;--mut:#a3a19b;--line:#34343a;--card:#202024;--acc:#8fb0ff}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Noto Sans KR",system-ui,sans-serif}
+main{max-width:1150px;margin:0 auto;padding:28px 16px 60px} h1{font-size:21px;margin:6px 0 8px} h2{font-size:17px;margin:24px 0 8px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:18px 0} section.sum{border-color:var(--acc)}
+p{margin:4px 0} p.li{padding-left:14px;text-indent:-10px} p.li::before{content:"· ";color:var(--mut)}
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;margin:8px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top;font-size:13.5px}
+thead th{background:color-mix(in srgb,var(--acc) 8%,var(--card))}''')
+        (rd / result_dirs.REPORT).write_text('<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n'
+                                             f"<title>{args.item} 다수결</title>\n<style>{css}</style></head><body><main>\n{body}\n</main></body></html>\n", encoding="utf-8")
+        print(f"결과 폴더: {rd}")
+    print("\n".join(L[:20]))
+    print(f"… 갈린 칸 {len(split)}개 → {dest / '다수결.md'}")
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -321,6 +462,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     j = sub.add_parser("judge")
     c = sub.add_parser("compare")
     pb = sub.add_parser("publish", help="결과 폴더(참고자료/결과/<처음 시작 시각>/)에 모으기")
+    vt = sub.add_parser("vote", help="여러 번 돌린 다시 판정을 칸마다 다수결로")
+    vt.add_argument("--run", default=RUN)
+    vt.add_argument("--item", default=ITEM)
+    vt.add_argument("--outs", required=True, help="같은 코드 · 프롬프트로 돌린 다시 판정 폴더 이름들, 쉼표로")
+    vt.add_argument("--note", default="")
+    vt.add_argument("--summary", default="", help="report.html 맨 위에 넣을 요약 마크다운 파일 (--publish 와 함께)")
+    vt.add_argument("--publish", action="store_true", help="결과 폴더(참고자료/결과/<첫 투표 시작 시각>/)에 모으기")
     pb.add_argument("--before-out", default="", help="같이 넣을 옛 프롬프트 다시 판정 폴더 이름")
     pb.add_argument("--note", default="")
     pb.add_argument("--summary", default="", help="report.html 맨 위에 넣을 요약 마크다운 파일")
@@ -338,6 +486,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         if n > 20:
             raise SystemExit(f"한 번에 20문항까지 ({n}개)")
         return cmd_judge(a)
+    if a.cmd == "vote":
+        return cmd_vote(a)
     if a.cmd == "publish":
         return cmd_publish(a)
     return cmd_compare(a)
