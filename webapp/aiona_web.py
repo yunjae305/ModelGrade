@@ -150,7 +150,7 @@ class AionaChat:
         return self
 
     def _enter_attached(self) -> "AionaChat":
-        """수집용 Chrome 에 붙어 AIONA 창을 쓴다 — 로그인 상태는 그 프로필(chrome-cdp)에 남는다."""
+        """수집용 Chrome 에 붙어 AIONA 창을 쓴다 — 로그인 상태는 그 프로필(data/browser_profiles/web-chat)에 남는다."""
         from tools.chrome_cdp import attach, find_or_open
         from playwright.sync_api import sync_playwright
         self._playwright = sync_playwright().start()

@@ -3,8 +3,8 @@
     python -X utf8 tools/modelgrade.py collect import --provider claude --csv 참고자료/질문세트_326_생성프롬프트v2/수집용/answers_claude.csv --run 8c61f117e661
         사람이 웹브라우저에서 받아 적은 답변 CSV(case_id · answer · chat_url · note)를 실행 JSON 의 그 모델 자리에 올리고 CODE 평가(28개)까지 끝낸다.
         --run 을 비우면 새 실행을 만든다(--new 이름). --label 은 결과 화면에 보일 모델 이름.
-    python -X utf8 tools/modelgrade.py collect app --provider gpt --run 889e429f6d07 --only 36,30
-        ChatGPT 데스크톱 앱(tools/chatgpt_app_cdp.py 로 포트 열어 띄움, 로그인은 사람이)에서 질문 묶음의 답을 받아 올리고 CODE 평가. 다시 부르면 이어서(--next 20).
+    python -X utf8 tools/modelgrade.py collect web --provider gpt --run 889e429f6d07 --only 36,30
+        수집용 Chrome(tools/chrome_cdp.py — 평소 Chrome + 디버깅 포트, 로그인은 사람이 한 번)의 사이트 창에서 질문 묶음의 답을 받아 올리고 CODE 평가. 다시 부르면 이어서(--next 20).
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --only 36,30,46 --providers aiona,gpt [--out DIR]
         고정 프롬프트 v3 로 나눠서 판정(J1~J4 Jev · J5~J8 Codex CLI). 한 번에 질문 20개까지(사용자 규칙) — 넘기려면 --allow-large.
     python -X utf8 tools/modelgrade.py judge --run 8c61f117e661 --next 20 --providers aiona,gpt
@@ -42,8 +42,8 @@ RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
 LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
-APP_LABELS = {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
-              "gemini": "Gemini 앱 (3.8 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 셋 + 웹 하나, Gemini 앱 10-21)
+APP_LABELS = {"gpt": "ChatGPT 웹 (GPT-6 · Medium)", "claude": "Claude 웹 (Sonnet 5.5 · 노력 중간)",
+              "gemini": "Gemini 웹 (3.8 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 셋 + 웹 하나, Gemini 앱 10-21)
 ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
 #: 시작할 때 고르는 앱 모델 — 앱 화면의 모델 목록 그대로 (사용자 10-22). 하나를 고르면 그 앱을 그 모델로 바꿔 받고 비교 상대는 AIONA 하나
 #: (10-22 오전 미팅: 같은 모델끼리 비교 · 다른 앱은 받지 않음). 노력 · 사고 · 추론 수준은 지금 설정 그대로(노력 중간 · 사고 보통 · Medium).
@@ -53,7 +53,7 @@ APP_MODELS = {
     "gemini": ["3.5 Flash-Lite", "3.8 Flash", "3.1 Pro", "4 Argon"],
 }
 APP_DEFAULT_MODEL = {"claude": "Sonnet 5.5", "gpt": "GPT-6", "gemini": "3.8 Flash"}
-APP_NAMES = {"claude": "Claude 앱", "gpt": "ChatGPT 앱", "gemini": "Gemini 앱"}
+APP_NAMES = {"claude": "Claude 웹", "gpt": "ChatGPT 웹", "gemini": "Gemini 웹"}   # 10-23: 네 모델 모두 웹(수집용 Chrome)
 APP_LEVEL = {"claude": "노력 중간", "gpt": "Medium", "gemini": "사고 보통"}
 #: AIONA 모델 ↔ 앱 모델 짝 (사용자 10-22) — 왼쪽은 AIONA 모델 메뉴에 보이는 이름 그대로, 오른쪽은 그 AIONA 모델과 일치하는 앱 모델(앱 메뉴 이름 그대로).
 #: 시작할 때는 이 표에 있는 앱 모델만 고를 수 있고, 고르면 앱은 오른쪽 모델로 · AIONA 는 왼쪽 모델로 바꿔 받는다.
@@ -91,7 +91,7 @@ def aiona_model_for(provider: str, model: str) -> str:
 
 
 def app_label(provider: str, model: Optional[str] = None) -> str:
-    """결과에 남길 모델 이름 — 'Claude 앱 (Opus 5.5 · 노력 중간)'. 모델을 안 고르면 지금 기본 설정(APP_LABELS 와 같은 글)."""
+    """결과에 남길 모델 이름 — 'Claude 웹 (Opus 5.5 · 노력 중간)'. 모델을 안 고르면 지금 기본 설정(APP_LABELS 와 같은 글)."""
     if provider not in APP_MODELS:
         return f"{APP_LABELS.get(provider, provider)} ({model})" if model else APP_LABELS.get(provider, provider)
     return f"{APP_NAMES[provider]} ({model or APP_DEFAULT_MODEL[provider]} · {APP_LEVEL[provider]})"
@@ -128,8 +128,8 @@ def parse_model(text: str) -> Optional[Tuple[str, str]]:
 
 def ask_model() -> Optional[Tuple[str, str]]:
     """어느 모델로 평가할지 — 0(Enter) = 전체(네 모델 기본 설정), 번호 = 그 앱 모델 하나 + AIONA."""
-    print("어느 모델로 평가할까요? 고르면 앱은 그 모델로, AIONA 는 짝인 모델로 바꿔 받습니다 (다른 앱은 받지 않음).")
-    print("  (추론 수준은 AIONA 에서 바꿀 수 없어 앱만 노력 중간 · Medium · 사고 보통)")
+    print("어느 모델로 평가할까요? 고르면 그 사이트는 그 모델로, AIONA 는 짝인 모델로 바꿔 받습니다 (다른 모델은 받지 않음).")
+    print("  (추론 수준은 AIONA 에서 바꿀 수 없어 사이트 쪽만 노력 중간 · Medium · 사고 보통)")
     print(f"  0. 전체 — 네 모델 기본 설정 ({' · '.join(app_label(p) for p in ('gpt', 'claude', 'gemini'))} · AIONA 자동 추천)")
     for key, provider, model in model_menu():   # 번호마다 앱 모델 ↔ AIONA 모델 짝을 그대로 보여 준다
         print(f"  {key:>2}. {APP_NAMES[provider]} {model:<15} ↔  AIONA {AIONA_MODEL_FOR[(provider, model)]}")
@@ -299,20 +299,20 @@ def cmd_collect_import(args: argparse.Namespace) -> int:
     return 0
 
 
-# --- collect app (데스크톱 앱에서 받기) -----------------------------------------------------------------------------
+# --- collect web (수집용 Chrome 의 사이트 창에서 받기) --------------------------------------------------------------
 
-def app_chat_class(provider: str):
-    """모델 → 데스크톱 앱 수집기: gpt = ChatGPT 앱(디버깅 포트, CDP), claude = Claude 앱(UIA, 2026-10-19), gemini = Gemini 앱(UIA, 2026-10-21), aiona = 웹.
-    시험에서는 monkeypatch 로 가짜를 넣는다."""
+def web_chat_class(provider: str):
+    """모델 → 웹 수집기(모두 tools/chrome_cdp.py 의 수집용 Chrome 에 붙는다, 10-23 확정): gpt = chatgpt.com · claude = claude.ai · gemini = gemini.google.com
+    (webapp.cdp_chat_web) · aiona = AIONA 웹(webapp.aiona_web, 같은 Chrome 에 붙음). 시험에서는 monkeypatch 로 가짜를 넣는다."""
     if provider == "gpt":
-        from webapp.cdp_chat_web import ChatGptAppChat
-        return ChatGptAppChat
+        from webapp.cdp_chat_web import ChatGptChat
+        return ChatGptChat
     if provider == "claude":
-        from webapp.uia_chat_app import ClaudeAppChat
-        return ClaudeAppChat
+        from webapp.cdp_chat_web import ClaudeChat
+        return ClaudeChat
     if provider == "gemini":
-        from webapp.gemini_app_chat import GeminiAppChat   # Gemini 데스크톱 앱(UIA, 2026-10-21) — 웹(CDP) 수집기는 webapp.cdp_chat_web.GeminiChat 에 남김
-        return GeminiAppChat
+        from webapp.cdp_chat_web import GeminiChat
+        return GeminiChat
     if provider == "aiona":
         return aiona_collector
     raise SystemExit(f"{provider} 는 자동 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
@@ -320,7 +320,7 @@ def app_chat_class(provider: str):
 
 def aiona_collector(*, debug_dir: Optional[Path] = None, place: Optional[str] = None, cancelled: Any = None, answer_timeout_s: int = 600,
                     model: Optional[str] = None, **_: Any):
-    """AIONA 웹브라우저 수집기(webapp.aiona_web.AionaChat, 별도 Chrome 프로필)를 앱 수집기와 같은 인자로 — 창 보이게.
+    """AIONA 웹브라우저 수집기(webapp.aiona_web.AionaChat)를 다른 웹 수집기와 같은 인자로 — 수집용 Chrome 에 붙어(attach) 자기 창을 쓴다.
     로그인은 .env 의 AIONA_LOGIN_ID·PASSWORD 로 수집기가 하되, AIONA_AUTO_LOGIN=0 이면 안 한다(로그인이 풀렸으면 오류로 알림)."""
     from code_eval.llm_client import env_value
     from webapp.aiona_web import AionaChat
@@ -355,8 +355,8 @@ def materialize_attachments(turn: Dict[str, Any], set_dir: Path, tmp: Path) -> L
 
 
 def cmd_collect_app(args: argparse.Namespace) -> int:
-    """데스크톱 앱에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. --provider gpt,claude 처럼 여러 앱이면 **동시에**(사용자 지시 10-19:
-    앱마다 별도 프로세스, 창은 좌/우 반씩). 대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅. 이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다."""
+    """수집용 Chrome 의 사이트 창에서 질문 묶음의 답을 받아 실행 JSON 에 올리고 CODE 평가까지. --provider 를 쉼표로 여럿 주면 동시에(모델마다 자식 프로세스,
+    창은 자리 고정). 대화는 채팅 하나에서 1턴부터 차례로, 단일·긴 문서는 새 채팅. 이미 답을 받은 질문(모든 턴 SUCCESS)은 건너뛴다."""
     providers = split_providers(args.provider, APP_LABELS)
     if len(providers) == 1:
         return collect_app_one(argparse.Namespace(**{**vars(args), "provider": providers[0]}))
@@ -364,7 +364,7 @@ def cmd_collect_app(args: argparse.Namespace) -> int:
     if not run_id:   # 자식들이 같은 실행에 쓰도록 먼저 만든다
         set_dir = Path(args.set)
         groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
-        run_id = save_run(new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)).stem
+        run_id = save_run(new_run(args.new or f"웹 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)).stem
         print(f"새 실행 {run_id}", flush=True)
     return run_collectors_parallel(providers, args, run_id)
 
@@ -373,12 +373,12 @@ PLACES = ("left", "right")
 
 
 def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_id: str) -> int:
-    """앱마다 자식 프로세스(이 CLI 의 collect app --provider 하나)를 띄워 같이 돌리고 출력을 [모델] 머리말로 섞어 보여 준다."""
+    """모델마다 자식 프로세스(이 CLI 의 collect web --provider 하나)를 띄워 같이 돌리고 출력을 [모델] 머리말로 섞어 보여 준다 — 모두 같은 수집용 Chrome 에 붙는다."""
     import subprocess
     import threading
     procs = []
     for i, provider in enumerate(providers):
-        cmd = [sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "collect", "app", "--provider", provider, "--run", run_id,
+        cmd = [sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "collect", "web", "--provider", provider, "--run", run_id,
                "--set", str(args.set), "--place", PLACE_BY_PROVIDER.get(provider, PLACES[i % len(PLACES)])]
         if args.only:
             cmd += ["--only", args.only]
@@ -418,7 +418,7 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
         result_dirs.publish_collection(log_dir, rd)
     bad = [p for p, c in codes.items() if c]
     if bad:
-        print(f"실패한 앱: {', '.join(bad)} (종료 코드 {codes})", flush=True)
+        print(f"실패한 수집기: {', '.join(bad)} (종료 코드 {codes})", flush=True)
         return 1
     print(f"동시 수집 끝 — 실행 {run_id} | 다음: judge --run {run_id} --next 20", flush=True)
     return 0
@@ -460,7 +460,7 @@ def merge_provider_into_run(run_id: str, provider: str, label: str, merged: List
 
 LIMIT_WAIT_S = 15 * 60        # 사용량 한도 오류 — 이만큼 기다렸다 같은 턴을 다시 (ChatGPT '한도에 도달' 로 34개 못 받음, 2026-10-20)
 LIMIT_WAIT_MAX_S = 6 * 3600   # 이보다 오래 막혀 있으면 포기(ERROR 로 남겨 다음 실행에서 다시)
-LIMIT_WORDS = ("한도", "limit")
+LIMIT_WORDS = ("사용량 한도로 막혀", "usage limit")   # 10-23: 수집기가 "사용량 한도로 막혀 있습니다" 라고 할 때만 기다린다(봇 확인 · 대화 글의 '한도' 는 아님)
 COPY_FAILED = "COPY_FAILED"   # 답은 있었는데 복사해 오지 못함(재시도 뒤) — 판정은 보류 (사용자 규칙 2026-10-20)
 
 
@@ -498,7 +498,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     if model and args.provider != "aiona" and model not in APP_MODELS.get(args.provider, []):   # AIONA 는 메뉴 이름 그대로 받음
         raise SystemExit(f"{args.provider} 에는 모델 {model!r} 을 고를 수 없습니다 ({', '.join(APP_MODELS.get(args.provider, [])) or '고를 모델 없음'})")
     label = args.label or app_label(args.provider, model)
-    run = load_run(args.run) if args.run else new_run(args.new or f"앱 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
+    run = load_run(args.run) if args.run else new_run(args.new or f"웹 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
     existing = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(args.provider) or [] if isinstance(r, dict)}
     by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in rows_all:
@@ -517,7 +517,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
         print("받을 질문이 없습니다 — 모두 답을 받았습니다."); return 0
     total = len(by_q)
     print(f"{args.provider} · {label}: 이번 묶음 질문 {len(wanted)}개 {wanted} · 전체 {total}개 중 이미 받은 질문 {len(done)}개", flush=True)
-    chat_cls = app_chat_class(args.provider)
+    chat_cls = web_chat_class(args.provider)
     new_rows: Dict[str, Dict[str, Any]] = {}
     started_wall = time.monotonic()
     from webapp.run_summary import asks_empty_output
@@ -549,7 +549,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
             print(f"  (중간 저장 실패: {exc})", flush=True)
     from code_eval.llm_client import env_value
     answer_timeout = int(env_value("COLLECT_ANSWER_TIMEOUT") or 0)   # 답변 대기 제한(초), 기본 0 = 제한 없음 (사용자 지시 10-20: 제한 시간 해제)
-    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "app-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout,
+    with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "collect-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout,
                   **({"model": model} if model else {})) as chat,             tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
         for i, q in enumerate(wanted, 1):
@@ -674,7 +674,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    """앱 수집(선택, --collect gpt,claude: 앱을 켜서 다음 묶음 받기) → 올리기(선택) → 다음 묶음 판정 → 결과.
+    """웹 수집(선택, --collect gpt,claude: 수집용 Chrome 에서 다음 묶음 받기) → 올리기(선택) → 다음 묶음 판정 → 결과.
     한 번 부를 때마다 한 묶음(기본 20개)만 — 다시 부르면 이어서."""
     if args.collect:
         code = cmd_collect_app(argparse.Namespace(provider=args.collect, run=args.run, new=None, only=None, next=args.next, set=args.set,
@@ -745,8 +745,17 @@ def ask_choice() -> str:
         print(f"{' 또는 '.join(EVAL_KINDS)} 를 입력하세요.")
 
 
+def ensure_collection_chrome() -> None:
+    """수집용 Chrome(tools/chrome_cdp.py)을 띄우고 네 사이트 창을 연다 — 떠 있으면 그대로. 못 띄우면 안내와 함께 끝낸다."""
+    from tools import chrome_cdp
+    try:
+        chrome_cdp.launch(open_sites=True)
+    except Exception as exc:
+        raise SystemExit(f"수집용 Chrome 을 띄우지 못했습니다: {exc} — python tools/chrome_cdp.py 로 확인하세요")
+
+
 def cmd_start(args: argparse.Namespace) -> int:
-    """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT 앱·Claude 앱·Gemini 웹·AIONA 웹)이 동시에 그 세트의 답을 받고, 원하면 판정을 20개씩 끝까지 돌린 뒤 결과를 보인다.
+    """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT · Claude · Gemini · AIONA 모두 웹, 수집용 Chrome 하나)이 동시에 그 세트의 답을 받고, 원하면 판정을 20개씩 끝까지 돌린 뒤 결과를 보인다.
     이미 받은 질문·판정한 질문은 건너뛰므로 같은 명령을 다시 부르면 이어서."""
     set_dir = Path(args.set)
     choice = args.choice or ask_choice()
@@ -754,10 +763,10 @@ def cmd_start(args: argparse.Namespace) -> int:
     # 모델 고르기 (사용자 10-22): --model 이 있으면 그것, --providers 를 직접 주면 묻지 않고 전체 설정, 아니면 물어봄
     pick = parse_model(args.model) if args.model else (None if args.providers else ask_model())
     if pick:
-        providers = [pick[0], "aiona"]   # 고른 앱과 AIONA 만 — 같은 모델끼리 비교, 다른 앱은 받지 않음
+        providers = [pick[0], "aiona"]   # 고른 모델과 AIONA 만 — 같은 모델끼리 비교, 다른 모델은 받지 않음
         models = {pick[0]: pick[1], "aiona": aiona_model_for(*pick)}   # AIONA 도 이름이 똑같은 모델로 (10-22)
         model_choice = f"{pick[0]}:{pick[1]}"
-        print(f"모델: {app_label(*pick)} ↔ {app_label('aiona', models['aiona'])} — 다른 앱은 받지 않습니다", flush=True)
+        print(f"모델: {app_label(*pick)} ↔ {app_label('aiona', models['aiona'])} — 다른 모델은 받지 않습니다", flush=True)
     else:
         providers = split_providers(args.providers or ",".join(ALL_PROVIDERS), APP_LABELS)
         models, model_choice = {}, None
@@ -784,7 +793,8 @@ def cmd_start(args: argparse.Namespace) -> int:
             save_run(run)
     print(f"결과 폴더: {RESULTS_JSON_DIR / run['result_dir']} (판정이 끝나면 report.html)", flush=True)
     print(f"{title} — 질문 {len(qs)}개 · {' · '.join(app_label(p, models.get(p)) for p in providers)} 동시 수집 · 실행 {run_id}", flush=True)
-    print("앱·수집용 Chrome 을 켜는 중 — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
+    print("수집용 Chrome 을 켜는 중(네 사이트 창) — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
+    ensure_collection_chrome()   # 자식 프로세스들이 같은 Chrome 에 붙도록 먼저 한 번 띄운다(떠 있으면 그대로) — 시험에서는 monkeypatch
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
                             set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True,
                             models=models, model=models.get(providers[0]) if len(providers) == 1 else None)
@@ -955,18 +965,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     imp.add_argument("--set", default=str(DEFAULT_SET))
     imp.add_argument("--label", help="결과에 보일 모델 이름 (기본: '<모델> 웹브라우저')")
     imp.set_defaults(func=cmd_collect_import)
-    app = collect.add_parser("app", help="앱·웹을 켜서 질문 묶음의 답 받기 (+ CODE 평가): gpt=ChatGPT 앱, claude=Claude 앱, gemini=Gemini 앱, aiona=AIONA 웹. 같은 명령을 다시 부르면 이어서")
+    app = collect.add_parser("web", aliases=["app"], help="수집용 Chrome 의 사이트 창에서 질문 묶음의 답 받기 (+ CODE 평가): gpt=ChatGPT 웹 · claude=Claude 웹 · gemini=Gemini 웹 · aiona=AIONA 웹 — 쉼표로 여럿이면 동시에")
     app.add_argument("--provider", required=True, help="gpt, claude, gemini, aiona — 쉼표로 여럿이면 동시에 (예: gpt,claude,gemini,aiona)")
     app.add_argument("--run", help="기존 실행 id (비우면 새 실행)")
     app.add_argument("--new", help="새 실행 이름")
     app.add_argument("--only", help="질문 번호, 쉼표로")
     app.add_argument("--next", type=int, default=JUDGE_BATCH_MAX, help="아직 안 받은 질문 중 다음 N개 (기본 20)")
     app.add_argument("--set", default=str(DEFAULT_SET))
-    app.add_argument("--label", help="결과에 보일 모델 이름 (기본: 'ChatGPT 앱 (GPT-6 · Medium)' · 'Claude 앱 (Sonnet 5.5 · 노력 중간)')")
+    app.add_argument("--label", help="결과에 보일 모델 이름 (기본: 'ChatGPT 웹 (GPT-6 · Medium)' · 'Claude 앱 (Sonnet 5.5 · 노력 중간)')")
     app.add_argument("--allow-large", action="store_true")
     app.add_argument("--place", choices=sorted(set(PLACE_BY_PROVIDER.values())), help="창 자리 (동시 수집 때 부모가 넣음)")
     app.add_argument("--skip-done", action="store_true", help="--only 목록에서 이미 받은 질문은 건너뛰기")
-    app.add_argument("--model", help="앱 모델 (claude · gpt · gemini 한 앱일 때, 예: 'Opus 5.5' · 'GPT-5.6 Sol' · '3.1 Pro') — 앱 화면에서 그 모델로 바꿔 받음")
+    app.add_argument("--model", help="모델 (claude · gpt · gemini 한 모델일 때, 예: 'Opus 5.5' · 'GPT-5.6 Sol' · '3.1 Pro') — 사이트의 모델 메뉴 이름 그대로")
     app.set_defaults(func=cmd_collect_app)
     jd = sub.add_parser("judge", help="고정 프롬프트 v3 나눠서 판정 (한 번에 20개까지)")
     jd.add_argument("--run", required=True)
@@ -978,9 +988,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     jd.add_argument("--workers", type=int, default=1)
     jd.add_argument("--allow-large", action="store_true")
     jd.set_defaults(func=cmd_judge)
-    rn = sub.add_parser("run", help="앱 수집(선택) → 올리기(선택) → 다음 묶음 판정 → 결과. 부를 때마다 한 묶음, 다시 부르면 이어서")
+    rn = sub.add_parser("run", help="웹 수집(선택) → 올리기(선택) → 다음 묶음 판정 → 결과. 부를 때마다 한 묶음, 다시 부르면 이어서")
     rn.add_argument("--run", required=True)
-    rn.add_argument("--collect", help="먼저 데스크톱 앱을 켜서 다음 묶음의 답을 받을 모델: gpt, claude (쉼표로 여럿)")
+    rn.add_argument("--collect", help="먼저 수집용 Chrome 에서 다음 묶음의 답을 받을 모델: gpt, claude (쉼표로 여럿)")
     rn.add_argument("--providers")
     rn.add_argument("--next", type=int, default=JUDGE_BATCH_MAX)
     rn.add_argument("--out")

@@ -16,10 +16,10 @@ Copy-Item .env.example .env   # 심판 API 키 · 수집 로그인 정보 — �
 ## 흐름
 
 ```powershell
-py -3 -X utf8 tools/modelgrade.py start          # 1 간단 78 — 네 모델 동시 수집(앱 · 웹) → 판정 → 결과 폴더
+py -3 -X utf8 tools/modelgrade.py start          # 1 간단 78 — 네 모델 동시 수집(웹) → 판정 → 결과 폴더
 ```
 
-- 수집: ChatGPT 앱(CDP) · Claude 앱(UIA) · Gemini 앱(UIA) · AIONA 웹(dev.aiona.kr). 답은 복사 아이콘 원문만 받고, 첨부는 Ctrl+V. 로그인이 풀리면 `py -3 -X utf8 tools/web_chat_login.py aiona --auto`.
+- 수집: 네 모델 모두 웹(chatgpt.com · claude.ai · gemini.google.com · dev.aiona.kr) — 평소 Chrome 을 전용 프로필 + 디버깅 포트로 띄우고(`tools/chrome_cdp.py`) 프로그램은 포트로만 붙는다. 답은 복사 아이콘 원문만(페이지 안에서 가로채기, 클립보드 · 포커스 안 씀 → 수집 중에도 컴퓨터 사용 가능, Windows · macOS). 로그인은 사람이 그 Chrome 창에서 한 번(`py -3 -X utf8 tools/chrome_cdp.py --login`), AIONA 는 `.env`.
 - 판정: CODE 28(프로그램) → 1차 심판(Jev · Decisions) → Codex CLI 확정 → 안전장치 → 결론(보류 우선). `tools/judge_v4.py`.
 - 결과 폴더: `report.html`(결과 보고서) · `판정보고서.html`(보류 칸은 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`. 판정 토큰 표(`판정토큰.html` · `토큰기록.md`)는 아래 명령으로 따로 만듭니다.
 

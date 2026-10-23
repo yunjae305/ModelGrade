@@ -1,4 +1,5 @@
-"""웹 채팅 자동화용 로그인 창 — AIONA(winz.aiona.kr) 또는 chatgpt.com·claude.ai·gemini.google.com 을 별도 Chrome 프로필로 열어
+"""웹 채팅 자동화용 로그인 창 — AIONA · FactChat · 우수AI. (ChatGPT · Claude · Gemini 로그인은 수집용 Chrome 에서: python tools/chrome_cdp.py --login, 10-23)
+별도 Chrome 프로필로 열어
 사용자가 직접 로그인한다.
 
 수집 방식 비교 테스트(2026-10-14 사용자 요청: API 와 웹 브라우저 답변의 차이)에서 쓴다. 비밀번호는 프로그램이 다루지 않고,
@@ -11,7 +12,6 @@ AIONA 는 '자동 로그인(30일간 로그인 유지)'을 켜 두면 수집이 
     python tools/web_chat_login.py factchat --auto --inspect   # FactChat(aichat.kku.ac.kr, .env 의 FACTCHAT_LOGIN_ID·PASSWORD)
                                                                # 로그인 후 채팅 화면 구조를 data/browser_profiles/factchat-inspect.json 에 남김
     python tools/web_chat_login.py oosoo --auto --inspect      # 우수AI(app.oosoo.kr, .env 의 OOSOO_LOGIN_ID·PASSWORD) — 같은 방식
-    python tools/web_chat_login.py web-chat   # ChatGPT·Claude·Gemini
 """
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = ROOT / "data" / "browser_profiles"
-SITES = {"aiona": (None,),   # AIONA 는 webapp.aiona_web.AIONA_URL + /login (.env AIONA_URL, 기본 dev.aiona.kr) "factchat": ("https://aichat.kku.ac.kr/auth",), "oosoo": ("https://oosoo.kr/login/",),
-         "web-chat": ("https://chatgpt.com/", "https://claude.ai/", "https://gemini.google.com/app")}
+SITES = {"aiona": (None,),   # AIONA 는 webapp.aiona_web.AIONA_URL + /login (.env AIONA_URL, 기본 dev.aiona.kr)
+         "factchat": ("https://aichat.kku.ac.kr/auth",), "oosoo": ("https://oosoo.kr/login/",)}
 
 
 def main(argv=None) -> int:
@@ -57,7 +57,7 @@ def main(argv=None) -> int:
             finally:
                 browser.close()
     if name not in SITES:
-        raise SystemExit("사용: python tools/web_chat_login.py aiona|factchat|oosoo|web-chat [--auto] [--inspect]")
+        raise SystemExit("사용: python tools/web_chat_login.py aiona|factchat|oosoo [--auto] [--inspect]")
     profile = PROFILES / name
     profile.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:

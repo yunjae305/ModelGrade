@@ -85,7 +85,7 @@ def test_next_questions_skips_judged_ones_and_caps_batch(tmp_path):
 
 
 def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_path, monkeypatch, capsys):
-    """데스크톱 앱 수집 — 대화는 새 채팅 하나에서 턴 순서대로, 이미 받은 질문은 건너뜀, 받은 행은 CODE 평가."""
+    """웹 수집 — 대화는 새 채팅 하나에서 턴 순서대로, 이미 받은 질문은 건너뜀, 받은 행은 CODE 평가."""
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     calls = []
@@ -98,7 +98,7 @@ def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_p
         def ask(self, question, files=None, reference=None):
             calls.append(("ask", question[:10], [f.name for f in files or []]))
             return {"answer": "답입니다. 두 문장입니다.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 1200, "model": "GPT-6 · Medium (앱)", "method": "chatgpt-app-v1", "error": None, "url": None, "sent": []}
-    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    monkeypatch.setattr(mg, "web_chat_class", lambda provider: FakeChat)
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "2,1", "--new", "앱 시험"]) == 0
     assert calls == ["new", ("ask", "가게 이름을 하나 정해줘."[:10], []), ("ask", "아까 정한 이름으로 간판 문구를 써줘."[:10], []), "new", ("ask", "정확히 2개의 문장으로 인사말을 써줘. 존댓말로 답해줘."[:10], [])]
@@ -118,9 +118,10 @@ def test_collect_app_collects_turns_in_order_skips_done_and_code_evaluates(tmp_p
 
 def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collector(tmp_path, monkeypatch):
     """--provider gpt,claude: 실행을 먼저 만들고 앱마다 자식 프로세스로 동시에(시험에서는 같은 프로세스에서 차례로) — 둘 다 같은 실행에 자기 자리만 쓴다.
-    claude 는 UIA 앱 수집기(ClaudeAppChat)."""
+    claude 는 웹 수집기(ClaudeChat)."""
     import argparse
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     seen = []
@@ -143,24 +144,25 @@ def test_collect_app_runs_apps_together_on_one_run_and_claude_maps_to_uia_collec
                 seen.append(provider)
                 return {"answer": f"{provider} 답입니다.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 10, "model": provider, "method": "x", "error": None, "url": None, "sent": []}
         return FakeChat
-    monkeypatch.setattr(mg, "app_chat_class", fake_cls)
+    monkeypatch.setattr(mg, "web_chat_class", fake_cls)
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt,claude", "--set", str(set_dir), "--only", "1", "--new", "두 앱"]) == 0
     runs = list(_runs(tmp_path))
     assert len(runs) == 1 and seen == ["gpt", "claude"] and places == ["left", "right"]
     run = json.loads(runs[0].read_text(encoding="utf-8"))
     assert run["datasets"]["gpt"][0]["answer"] == "gpt 답입니다." and run["datasets"]["claude"][0]["answer"] == "claude 답입니다."
-    assert run["models"] == {"gpt": "ChatGPT 앱 (GPT-6 · Medium)", "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)"}
+    assert run["models"] == {"gpt": "ChatGPT 웹 (GPT-6 · Medium)", "claude": "Claude 웹 (Sonnet 5.5 · 노력 중간)"}
     assert not list((tmp_path / "runs").glob("*.lock"))
     with pytest.raises(SystemExit):
         mg.main(["collect", "app", "--provider", "factchat", "--set", str(set_dir), "--only", "1"])
     monkeypatch.undo()
-    assert mg.app_chat_class("claude").__name__ == "ClaudeAppChat"
+    assert mg.web_chat_class("claude").__name__ == "ClaudeChat"
 
 
 def test_merge_provider_into_run_keeps_other_providers_written_meanwhile(tmp_path, monkeypatch):
     """동시 수집: 두 자식이 같은 실행 파일에 쓴다 — 잠금 아래 다시 읽어 자기 모델 자리만 바꾸므로 먼저 쓴 쪽이 안 지워진다."""
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     set_dir = _set(tmp_path)
@@ -183,6 +185,7 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     """start: 세트의 모든 질문을 세트 순서 그대로(질문을 다시 검사·선별하지 않음), 네 모델 동시 수집(이미 받은 질문 건너뜀) → 판정 v4 → 결과.
     다시 부르면 같은 실행. (10-20: 질문 78개 고정, 판정상황표 없음)"""
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
@@ -216,6 +219,7 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
 def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tmp_path, monkeypatch):
     """start --model: 고른 앱 모델 하나(그 앱을 그 모델로)와 AIONA 만 받고, 고른 모델은 실행에 적어 전체 실행과 섞지 않는다 (10-22)."""
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
@@ -239,12 +243,11 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0   # 이어 돌리기
     assert calls[2][2] == calls[1][2] and mg.load_run(calls[2][2])["result_dir"] == run["result_dir"]   # 처음 폴더 그대로
     assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
-    from webapp.uia_chat_app import has_model
-    assert not has_model("Sonnet 5.5 중간", "Sonnet 5") and has_model("Sonnet 5 중간", "Sonnet 5")
 
 
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     asked = []
@@ -257,7 +260,7 @@ def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path,
         def ask(self, question, files=None, reference=None):
             asked.append(question[:6])
             return {"answer": "답.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 1, "model": "m", "method": "x", "error": None, "url": None, "sent": []}
-    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    monkeypatch.setattr(mg, "web_chat_class", lambda provider: FakeChat)
     set_dir = _set(tmp_path)
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1", "--new", "x"]) == 0
     run_id = _runs(tmp_path)[0].stem
@@ -277,6 +280,7 @@ def test_place_rect_puts_apps_left_right_and_web_windows_in_right_column():
 def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path, monkeypatch, capsys):
     """report: 결과 폴더의 results.jsonl·summary.json·timing.jsonl 과 실행 JSON 으로 report.html 을 만든다(모델 요약·시간·질문별 FAIL 사유·빈 출력 비고)."""
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     from tools.report_html import write_report
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
@@ -308,6 +312,7 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
 def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_and_progress_is_saved_per_question(tmp_path, monkeypatch):
     """빈 출력 요구 질문(Q3)의 빈 답은 SUCCESS, 보통 질문(Q1)의 빈 답은 ERROR(복사 실패로 보고 다시 받음). 질문마다 실행 파일에 중간 저장된다."""
     import tools.modelgrade as mg
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     saves = []
@@ -320,7 +325,7 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
         def ask(self, question, files=None, reference=None):
             saves.append(len(list(_runs(tmp_path))) and json.loads(_runs(tmp_path)[0].read_text(encoding="utf-8")))
             return {"answer": "", "status": "SUCCESS", "capture": "empty", "latency_ms": 1, "model": "m", "method": "x", "error": None, "url": None, "sent": []}
-    monkeypatch.setattr(mg, "app_chat_class", lambda provider: FakeChat)
+    monkeypatch.setattr(mg, "web_chat_class", lambda provider: FakeChat)
     set_dir = _set(tmp_path)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     run = mg.new_run("빈답", set_dir, groups); mg.save_run(run)

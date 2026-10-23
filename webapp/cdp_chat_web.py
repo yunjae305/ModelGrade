@@ -1,12 +1,13 @@
-"""ChatGPT·Gemini·Claude 웹 수집 — 수집용 Chrome(tools/chrome_cdp.py, 디버깅 포트 9222)에 붙어 각 사이트 탭에서 질문을 보내고 답을 받는다.
+"""ChatGPT · Gemini · Claude 웹 수집 — 수집용 Chrome(tools/chrome_cdp.py: 평소 Chrome + 전용 프로필 + 디버깅 포트)에 붙어 사이트마다 자기 창에서
+질문을 보내고 답을 받는다. AIONA 는 webapp.aiona_web(attach=True)으로 같은 Chrome 에 붙는다 — 10-23 확정: 네 모델 모두 이 방식, 데스크톱 앱 수집기는 없앰.
 
-사용자 결정 2026-10-15: 세 모델 모두 로그인 상태의 웹 화면으로 수집(답변 수집은 API 대신 웹브라우저). 로그인·봇 확인은 사용자가 그 Chrome 창에서
-직접 하고, 프로그램은 자격 증명을 다루지 않으며 봇 확인을 우회하지 않는다(막히면 고정 문구로 오류를 남긴다).
-새 채팅마다 모델 설정을 맞춘다 — ChatGPT: Chat 모드·GPT-6 Luna·파워 Medium / Gemini: 3.6 Flash·사고 수준 보통(Plus 계정, 10-18) / Claude: Sonnet 5.5·노력 중간.
-
-- 채팅 하나로 멀티턴(대화는 new_chat 뒤 같은 탭에서 턴 순서대로), 첨부는 파일 입력에 그대로, 긴 참조 자료(J7)는 TXT 파일로 올린다(AIONA 와 같음).
-- 답변은 사이트의 복사 버튼 원문(클립보드 가로채기)으로 받고, 복사가 안 되면 답변 영역의 글을 쓴다(capture 에 표시).
-- 화면 구조(2026-10-15 수집용 Chrome 에서 확인): 아래 각 클래스 상수. 바뀌면 상수만 고친다.
+- 로그인 · 봇 확인은 사용자가 그 Chrome 창에서 직접 한 번(프로필에 남음). 프로그램은 자격 증명을 다루지 않고 봇 확인을 우회하지 않는다(막히면 고정 문구로 오류).
+- 입력은 포트(CDP)로 넣고 답은 복사 아이콘을 눌러 페이지 안에서 가로챈다(COPY_CAPTURE_JS) — 시스템 클립보드 · 포커스를 쓰지 않고 창을 앞으로 끌어오지
+  않으므로 수집 중에도 사용자가 컴퓨터를 쓸 수 있다. 복사가 안 되면 답변 영역의 글을 쓴다(capture 에 표시).
+- 새 채팅마다 모델 설정을 맞춘다 — ChatGPT: Chat 모드 · GPT-6 · 추론 Medium / Gemini: 3.8 Flash · 사고 수준 보통 / Claude: Sonnet 5.5 · 노력 중간
+  (시작할 때 고른 모델이 있으면 그 모델, tools/modelgrade.APP_MODELS).
+- 채팅 하나로 멀티턴(대화는 new_chat 뒤 같은 창에서 턴 순서대로), 첨부는 파일 입력에 그대로, 긴 참조 자료(J7)는 TXT 파일로 올린다(AIONA 와 같음).
+- 화면 구조는 각 클래스 상수 — 바뀌면 상수만 고친다.
 """
 from __future__ import annotations
 
@@ -23,13 +24,14 @@ from .factchat_web import COPY_CAPTURE_JS
 
 __all__ = ["CDP_WEB_VERSION", "CdpWebError", "cdp_login_status", "ChatGptChat", "GeminiChat", "ClaudeChat", "CDP_CHATS", "CDP_PROVIDERS"]
 
-CDP_WEB_VERSION = "cdp-web-v3"
+CDP_WEB_VERSION = "cdp-web-v4"   # v4(10-23): 평소 Chrome + 포트, 창 앞으로 끌어오지 않음, 네 모델 모두 이 방식
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료는 입력칸 대신 TXT 파일로 올린다 (AIONA 와 같음)
 #: 세 사이트가 같은 Chrome 을 쓰므로 메뉴 조작·전송은 한 번에 하나씩 — 탭 간 포커스 경쟁을 막는다
 _CHROME_LOCK = threading.Lock()
 #: 한도·봇 확인 문구 — 보이면 기다리지 않고 오류로 남긴다 (우회하지 않음)
-_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지 확인", "Just a moment", "너무 많은 요청", "Too many requests",
-            "사용량 한도", "usage limit", "한도에 도달", "메시지 한도", "limit reached")   # 'Cloudflare' 낱말은 채팅 제목에도 나와 쓰지 않는다
+_BOT_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지 확인", "Just a moment")   # 'Cloudflare' 낱말은 채팅 제목에도 나와 쓰지 않는다
+_LIMIT_BLOCKED = ("너무 많은 요청", "Too many requests", "사용량 한도", "usage limit", "한도에 도달했", "메시지 한도", "limit reached", "plan limit")
+_BLOCKED = _BOT_BLOCKED + _LIMIT_BLOCKED   # 10-23: '한도에 도달'(대화 글에 흔함) 대신 '한도에 도달했' — 말풍선 글은 _check_blocked 가 뺀다
 
 
 # --- 창 배치 (동시 수집: 네 창이 서로 덮지 않게) -------------------------------------------------------------
@@ -78,6 +80,8 @@ class _CdpChat:
     HOST = ""
     NEW_URL = ""
     MODEL_LABEL = ""          # 결과에 남길 모델 이름
+    MODEL_NAME = ""           # 모델 메뉴에서 고르는 이름(시작할 때 바꿀 수 있음)
+    LEVEL = ""                # 노력 · 추론 · 사고 수준 표기(결과 이름용)
     TEXTBOX_NAME = ""         # 입력칸 textbox 의 접근성 이름(앞부분)
     ANSWER_SELECTOR = ""      # 답변 말풍선
     USER_SELECTOR = ""        # 내 질문 말풍선 — 전송 확인용
@@ -88,8 +92,11 @@ class _CdpChat:
     REMOVE_FILE = None        # 입력칸에 남은 첨부를 지우는 버튼 이름 패턴 (지난 질문이 실패해 남은 파일)
 
     def __init__(self, *, headless: bool = False, debug_dir: Optional[Path] = None, cancelled: Optional[Callable[[], bool]] = None,
-                 answer_timeout_s: int = 600, place: Optional[str] = None) -> None:
+                 answer_timeout_s: int = 600, place: Optional[str] = None, model: Optional[str] = None) -> None:
         self.debug_dir, self.cancelled, self.answer_timeout_s, self.place = debug_dir, cancelled or (lambda: False), answer_timeout_s, place
+        if model:   # 시작할 때 고른 모델 (10-22, 예 'Opus 5.5' · 'GPT-5.6 Sol' · '3.1 Pro') — 없으면 클래스 기본값
+            self.MODEL_NAME = model
+            self.MODEL_LABEL = f"{model} · {self.LEVEL} (웹)"
         self.page: Any = None
         self._playwright = self._browser = None
         self._temp = tempfile.TemporaryDirectory(prefix=f"{self.NAME}-ref-")
@@ -188,17 +195,24 @@ class _CdpChat:
     def _check_blocked(self) -> None:
         """한도·봇 확인 문구가 화면에 있는가 — 채팅 말풍선(질문·답) 글은 빼고 본다. 대화 내용에 '한도에 도달' 같은 말이 나오면 오탐(Gemini Q18, 2026-10-20)."""
         sel = ", ".join(x for x in (self.ANSWER_SELECTOR, self.USER_SELECTOR) if x)
-        js = """(sel) => { let t = document.body.innerText;
-            if (sel) { for (const e of document.querySelectorAll(sel)) { const x = (e.innerText || '').trim(); if (x) t = t.split(x).join(' '); } }
-            return t.slice(0, 6000); }"""
+        # 말풍선(질문 · 답) 안의 글자 노드는 건너뛰고 나머지 화면 글만 모은다 — innerText 를 split 으로 빼던 방식은 공백 차이로 못 뺐다(10-23 GPT Q22)
+        js = """(sel) => { const skip = sel ? Array.from(document.querySelectorAll(sel)) : [];
+            const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let t = ''; let n;
+            while ((n = w.nextNode())) { if (skip.some(e => e.contains(n))) continue; const v = (n.nodeValue || '').trim(); if (v) t += v + ' '; if (t.length > 8000) break; }
+            return t; }"""
         try:
             text = self.page.evaluate(js, sel) or ""
         except Exception:
             text = self._eval("() => document.body.innerText.slice(0, 4000)") or ""
-        hit = next((p for p in _BLOCKED if p.lower() in text.lower()), None)
+        low = text.lower()
+        hit = next((p for p in _LIMIT_BLOCKED if p.lower() in low), None)
         if hit:
             self._snapshot("blocked")
-            raise CdpWebError(f"{self.NAME} 화면이 막혀 있습니다(한도 또는 봇 확인: '{hit}') — Chrome 창에서 직접 확인하세요.")
+            raise CdpWebError(f"{self.NAME} 사용량 한도로 막혀 있습니다('{hit}') — 풀릴 때까지 기다립니다.")
+        hit = next((p for p in _BOT_BLOCKED if p.lower() in low), None)
+        if hit:
+            self._snapshot("blocked")
+            raise CdpWebError(f"{self.NAME} 봇 확인 화면입니다('{hit}') — Chrome 창에서 직접 확인을 마쳐 주세요(프로그램은 우회하지 않음).")
 
     def _answers(self) -> Any:
         return self.page.locator(self.ANSWER_SELECTOR)
@@ -272,10 +286,9 @@ class _CdpChat:
         return None
 
     def _page_front(self) -> None:
-        """탭(앱 창)을 앞으로 — 창이 OS 맨 앞으로 오므로, Claude · Gemini 앱 수집기가 붙여넣는 도중에 끼어들지 않게 입력 차례 잠금 안에서 (10-21 밤)."""
-        from .input_turn import input_turn
-        with input_turn():
-            self.page.bring_to_front()
+        """아무것도 하지 않는다 — 전에는 창을 OS 맨 앞으로 가져왔지만(앱 수집기 때문), 10-23 부터 수집 중에도 사용자가 컴퓨터를 쓸 수 있게
+        창을 건드리지 않는다. 가려진 · 뒤에 있는 창도 그리도록 Chrome 을 띄우므로(tools/chrome_cdp.RENDER_FLAGS) 메뉴 · 복사가 그대로 된다."""
+        return None
 
     def recopy(self) -> str:
         """마지막 답의 복사 버튼을 한 번 더 — 빈 답이 왔을 때 재시도 (사용자 규칙 10-20)."""
@@ -529,6 +542,7 @@ class ChatGptChat(_CdpChat):
     NEW_URL = "https://chatgpt.com/"
     MODEL_LABEL = "GPT-6 · Medium (웹)"
     MODEL_NAME = "GPT-6"
+    LEVEL = "Medium"
     TEXTBOX_NAME = "ChatGPT"
     # 로그인 화면(2026-10-15): 답변 묶음 data-content-search-unit-key="…:assistant", 내 질문 data-user-message-bubble — 비로그인 화면 표식도 함께 둔다
     # 답 하나가 여러 덩어리(본문·'글쓰기' 카드 등)로 그려진다 — 덩어리가 아니라 턴 전체(data-turn-key: 내 질문 + 'ChatGPT 답변:' 제목 + 답)를 잡고
@@ -590,7 +604,56 @@ class ChatGptChat(_CdpChat):
         visible = self._last_answer_text()
         if best and visible and len(best) < 0.6 * len(visible.strip()):   # 복사 원문이 화면 글보다 훨씬 짧으면 일부만 복사된 것
             return None
+        if best:
+            best = self._fix_code_blocks(best)
         return best or super()._copy_last_answer()
+
+    CODE_WIDGET = "[data-code-block='true'], [data-markdown-copy='code-block']"
+    CODE_COPY_NAMES = ("코드 복사", "Copy code")
+
+    def _fix_code_blocks(self, text: str) -> str:
+        """답 아래 복사 글(text)의 ``` 코드블록 안을, 같은 순서의 코드 위젯 '코드 복사' 글로 바꾼다 — chatgpt.com 의 답 복사는 코드 줄바꿈을 없앤다(10-23).
+        위젯 수와 코드블록 수가 다르면 그대로 둔다. ``` 뒤 언어 표기는 복사 글 그대로(비어 있어도 안 붙임, 사용자 10-21)."""
+        blocks = list(re.finditer(r"```([^\n]*)\n(.*?)```", text, flags=re.S))
+        if not blocks:
+            return text
+        try:
+            widgets = self._answers().last.locator(self.CODE_WIDGET)
+            n = widgets.count()
+        except Exception:
+            return text
+        if n != len(blocks):
+            return text
+        codes: List[str] = []
+        for i in range(n):
+            btn = widgets.nth(i).get_by_role("button", name=re.compile("|".join(re.escape(x) for x in self.CODE_COPY_NAMES))).first
+            if not btn.count():
+                return text
+            try:
+                before = self._eval("() => (window.__mgCopied || []).length")
+                try:
+                    btn.scroll_into_view_if_needed(timeout=2000)
+                except Exception:
+                    pass
+                try:
+                    btn.click(timeout=3000)
+                except Exception:
+                    btn.dispatch_event("click")
+                self.page.wait_for_timeout(400)
+                copied = self._eval("() => window.__mgCopied || []")
+                if len(copied) <= before or not isinstance(copied[-1], str):
+                    return text
+                codes.append(copied[-1])
+            except Exception:
+                return text
+        out, pos = [], 0
+        for m, code in zip(blocks, codes):
+            lang = m.group(1)
+            out.append(text[pos:m.start()])
+            out.append(f"```{lang}\n{code.rstrip(chr(10))}\n```")
+            pos = m.end()
+        out.append(text[pos:])
+        return "".join(out)
     FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
     STOP_NAMES = ("중지", "Stop")
     SEND_NAMES = ("보내기", "프롬프트 보내기")   # 입력칸 오른쪽 파란 버튼 — 큰 파일 처리 중에는 꺼져 있다
@@ -605,25 +668,143 @@ class ChatGptChat(_CdpChat):
                 self.page.wait_for_timeout(500)
             except Exception:
                 pass
+        self._pick_model_radio()
+        power = self._pick_power(self.LEVEL)
+        if power != self.LEVEL:
+            raise CdpWebError(f"ChatGPT 추론 수준이 {self.LEVEL} 이 아닙니다({power}) — Chrome 창에서 {self.LEVEL} 으로 맞추세요")
+        return f"{self.MODEL_NAME} · {power} (웹)"
+
+    LEVELS = ("Instant", "Medium", "High", "Extra High", "Pro")   # 슬라이더 값 0~4 순서 (2026-10-23 chatgpt.com 확인)
+
+    def _open_model_menu(self) -> None:
+        self.page.keyboard.press("Escape")
+        self.page.wait_for_timeout(200)
+        self.page.get_by_role("button", name=self.MODEL_MENU).first.click(timeout=5000)
+        self.page.wait_for_timeout(900)
+
+    def _close_menu(self) -> None:
+        self.page.keyboard.press("Escape")
+        self.page.wait_for_timeout(300)
+        self.page.keyboard.press("Escape")
+        self.page.wait_for_timeout(400)
+
+    def _pick_model_radio(self) -> None:
+        """모델 메뉴(10-23 화면): 1단계에 추론 수준 항목(지금 값, 예 'High')과 모델 라디오(GPT-6 · GPT-5.6 Sol)가 함께 있다. 옛 화면('모델 선택' 하위 메뉴)도 본다."""
+        self._open_model_menu()
+        radio = self.page.locator("[role=menu] [role=menuitemradio]").filter(has_text=re.compile(rf"^{re.escape(self.MODEL_NAME)}$"))
+        if radio.count():
+            if radio.first.get_attribute("aria-checked") != "true":
+                radio.first.click(timeout=3000)
+                self.page.wait_for_timeout(600)
+            self._close_menu()
+            return
+        self._close_menu()
         self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
-        # 추론 수준(파워)은 슬라이더 — 표시 값만 읽어 확인한다 (기본 Medium, 사용자 결정)
-        power = "?"
+
+    def _shown_level(self) -> str:
         try:
-            self.page.get_by_role("button", name=self.MODEL_MENU).first.click(timeout=5000)
-            self.page.wait_for_timeout(700)
-            self.page.get_by_role("menuitem", name="파워").first.click(timeout=5000)
-            self.page.wait_for_timeout(900)
-            text = self._eval("() => document.body.innerText")
-            power = next((lv for lv in ("Medium", "High", "Light", "Max", "Ultra", "Extra High", "최소한", "없음") if lv in text), "?")
+            shown = " ".join(self.page.get_by_role("button", name=self.MODEL_MENU).first.inner_text(timeout=3000).split())
+        except Exception:
+            shown = ""
+        return next((lv for lv in sorted(self.LEVELS, key=len, reverse=True) if lv in shown), "?")
+
+    def _pick_power(self, want: str) -> str:
+        """추론 수준 슬라이더: 메뉴를 열고 첫 항목(지금 수준)에 마우스를 올리면 role=slider 가 보인다 → 맨 왼쪽까지 내린 뒤 want 자리만큼 오른쪽으로.
+        돌려주는 값은 메뉴를 닫은 뒤 버튼에 보이는 수준(열려 있을 때는 '추론 수준'이라고만 보인다)."""
+        if self._shown_level() == want:
+            return want
+        idx = self.LEVELS.index(want) if want in self.LEVELS else 1
+        for _attempt in range(2):
+            try:
+                self._open_model_menu()
+                items = self.page.locator("[role=menu] [role=menuitem]")
+                if items.count():
+                    items.first.hover(timeout=3000)
+                    self.page.wait_for_timeout(700)
+                slider = self.page.locator("[role=slider]").first
+                if not slider.count():
+                    self._close_menu()
+                    continue
+                slider.focus()
+                self.page.wait_for_timeout(200)
+                for _ in range(len(self.LEVELS) + 1):
+                    self.page.keyboard.press("ArrowLeft")
+                    self.page.wait_for_timeout(120)
+                for _ in range(idx):
+                    self.page.keyboard.press("ArrowRight")
+                    self.page.wait_for_timeout(150)
+            except Exception:
+                pass
+            finally:
+                self._close_menu()
+            if self._shown_level() == want:
+                break
+        return self._shown_level()
+
+    FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
+    STOP_NAMES = ("중지", "Stop")
+    SEND_NAMES = ("보내기", "프롬프트 보내기")   # 입력칸 오른쪽 파란 버튼 — 큰 파일 처리 중에는 꺼져 있다
+    REMOVE_FILE = re.compile(r"\.\w+ 제거$")      # 첨부 미리보기의 'OOO.txt 제거' 버튼
+    MODEL_MENU = "ChatGPT 모델 선택"
+
+    def _apply_model(self) -> str:
+        chat = self.page.get_by_role("button", name="Chat", exact=True)
+        if chat.count():
+            try:
+                chat.first.click(timeout=2000)
+                self.page.wait_for_timeout(500)
+            except Exception:
+                pass
+        self._pick_model_radio()
+        power = self._pick_power(self.LEVEL)
+        if power != self.LEVEL:
+            raise CdpWebError(f"ChatGPT 추론 수준이 {self.LEVEL} 이 아닙니다({power}) — Chrome 창에서 {self.LEVEL} 으로 맞추세요")
+        return f"{self.MODEL_NAME} · {power} (웹)"
+
+    LEVELS = ("Light", "Medium", "High", "Extra High", "Max", "Ultra", "최소한", "없음")
+
+    def _open_model_menu(self) -> None:
+        self.page.keyboard.press("Escape")
+        self.page.get_by_role("button", name=self.MODEL_MENU).first.click(timeout=5000)
+        self.page.wait_for_timeout(700)
+
+    def _pick_model_radio(self) -> None:
+        """모델 메뉴(10-23 화면): 1단계에 추론 수준 항목(High 등)과 모델 라디오(GPT-6 · GPT-5.6 Sol)가 함께 있다. 옛 화면('모델 선택' 하위 메뉴)도 본다."""
+        self._open_model_menu()
+        radio = self.page.locator("[role=menu] [role=menuitemradio]").filter(has_text=re.compile(rf"^{re.escape(self.MODEL_NAME)}$"))
+        if radio.count():
+            if radio.first.get_attribute("aria-checked") != "true":
+                radio.first.click(timeout=3000)
+                self.page.wait_for_timeout(600)
+            else:
+                self.page.keyboard.press("Escape")
+            return
+        self.page.keyboard.press("Escape")
+        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
+
+    def _pick_power(self, want: str) -> str:
+        """추론 수준: 메뉴 1단계의 수준 항목(지금 값, 예 'High')을 누르면 하위 메뉴에 수준 목록 → want 를 고른다. 돌려주는 값은 메뉴 버튼에 보이는 수준."""
+        try:
+            self._open_model_menu()
+            level_item = self.page.locator("[role=menu] [role=menuitem]").filter(has_text=re.compile("|".join(re.escape(x) for x in self.LEVELS) + "|파워|추론")).first
+            if level_item.count():
+                level_item.click(timeout=3000)
+                self.page.wait_for_timeout(800)
+                target = self.page.locator("[role=menu] [role=menuitemradio], [role=menu] [role=menuitem], [role=listbox] [role=option]").filter(has_text=re.compile(rf"^{re.escape(want)}$"))
+                if target.count():
+                    target.first.click(timeout=3000)
+                    self.page.wait_for_timeout(700)
         except Exception:
             pass
         finally:
             self.page.keyboard.press("Escape")
             self.page.wait_for_timeout(300)
             self.page.keyboard.press("Escape")
-        if power != "Medium":
-            raise CdpWebError(f"ChatGPT 추론 수준이 Medium 이 아닙니다({power}) — Chrome 창에서 Medium 으로 맞추세요")
-        return f"{self.MODEL_NAME} · {power} (웹)"
+        try:
+            shown = " ".join(self.page.get_by_role("button", name=self.MODEL_MENU).first.inner_text(timeout=3000).split())
+        except Exception:
+            shown = ""
+        return next((lv for lv in sorted(self.LEVELS, key=len, reverse=True) if lv in shown), "?")
 
 
 class GeminiChat(_CdpChat):
@@ -633,8 +814,9 @@ class GeminiChat(_CdpChat):
     NAME = "Gemini"
     HOST = "gemini.google.com"
     NEW_URL = "https://gemini.google.com/app"
-    MODEL_LABEL = "Gemini 3.6 Flash · 사고 수준 보통 (웹)"
-    MODEL_NAME = "3.6 Flash"   # 'Flash' 만 쓰면 '3.5 Flash-Lite' 가 먼저 걸린다
+    MODEL_LABEL = "Gemini 3.8 Flash · 사고 수준 보통 (웹)"
+    MODEL_NAME = "3.8 Flash"   # 'Flash' 만 쓰면 '3.5 Flash-Lite' 가 먼저 걸린다 (메뉴 이름은 tools/modelgrade.APP_MODELS 와 같게, 10-23)
+    LEVEL = "사고 보통"
     TEXTBOX_NAME = "Gemini 프롬프트 입력"
     ANSWER_SELECTOR = "model-response"
     USER_SELECTOR = "user-query"
@@ -656,8 +838,10 @@ class GeminiChat(_CdpChat):
         for f in files:
             with self.page.expect_file_chooser(timeout=10_000) as chooser:
                 self.page.get_by_role("button", name="업로드 및 도구").first.click(timeout=5000)
-                self.page.wait_for_timeout(600)
+                self.page.wait_for_timeout(800)
                 item = self.page.get_by_role("menuitem", name=re.compile("파일|업로드"))
+                if not item.count():   # 10-23 화면: '파일 · Drive · Google 포토' 둥근 버튼 — menuitem 이 아니라 글로 찾는다
+                    item = self.page.locator("button, [role=button], [role=menuitem], [role=option]").filter(has_text=re.compile(r"^\s*파일\s*$|파일 업로드"))
                 item.first.click(timeout=5000)
             chooser.value.set_files(str(f))
             self.page.wait_for_timeout(1500)
@@ -708,6 +892,8 @@ class ClaudeChat(_CdpChat):
     HOST = "claude.ai"
     NEW_URL = "https://claude.ai/new"
     MODEL_LABEL = "Claude Sonnet 5.5 · 노력 중간 (웹)"
+    MODEL_NAME = "Sonnet 5.5"
+    LEVEL = "노력 중간"
     TEXTBOX_NAME = "Claude에게 프롬프트"
     ANSWER_SELECTOR = "[data-testid='assistant-message']"
     USER_SELECTOR = "[data-testid='user-message']"
@@ -718,13 +904,13 @@ class ClaudeChat(_CdpChat):
     def _apply_model(self) -> str:
         opener = re.compile(r"^모델: ")
         current = " ".join(self.page.get_by_role("button", name=opener).first.inner_text(timeout=5000).split())
-        if "Sonnet 5.5" in current and "중간" in current:
+        if self.MODEL_NAME in current and "중간" in current:
             return f"{current} (웹)"
-        if "Sonnet 5.5" not in current:
-            self._menu_pick("button", opener, ["Sonnet 5.5"])
+        if self.MODEL_NAME not in current:
+            self._menu_pick("button", opener, [self.MODEL_NAME])
         self._menu_pick("button", opener, ["노력", "중간"])
         label = self.page.get_by_role("button", name=opener).first.inner_text(timeout=2000).strip().replace("\n", " ")
-        return f"{label or 'Sonnet 5.5 중간'} (웹)"
+        return f"{label or self.MODEL_NAME + ' 중간'} (웹)"
 
     def _streaming(self) -> bool:
         if super()._streaming():
@@ -739,287 +925,3 @@ class ClaudeChat(_CdpChat):
 CDP_CHATS = {"chatgpt_web": ChatGptChat, "gemini_web": GeminiChat, "claude_web": ClaudeChat}
 CDP_PROVIDERS = tuple(CDP_CHATS)
 
-
-class ChatGptAppChat(ChatGptChat):
-    """ChatGPT 데스크톱 앱(OpenAI.Codex 패키지, Electron) — tools/chatgpt_app_cdp.py 로 포트를 열어 띄운 앱의 메인 페이지(app://-/index.html)에 붙는다.
-    ChatGPT 모드 화면은 chatgpt.com 웹과 같은 구조라(2026-10-19 확인) 웹 수집기를 그대로 쓰고, 다른 점만 바꾼다:
-    붙는 포트·페이지, 새 채팅은 주소 이동 대신 '새 채팅' 버튼, 모드가 Codex 면 ChatGPT 로 바꿈(보이는 '모드 전환' 버튼 → '만들고, 배우고, 탐색하세요'),
-    모델 메뉴는 하위 메뉴 없이 'GPT-6' 바로, 추론 수준은 입력칸 옆 표시(Medium)로 확인. 사용자 결정 10-19: 모델 GPT-6 · 추론 Medium 유지."""
-    NAME = "ChatGPT앱"
-    HOST = "app://-/index.html"
-    NEW_URL = ""
-    MODEL_LABEL = "GPT-6 · Medium (앱)"
-    TEXTBOX_NAME = "ChatGPT에게 물어보세요"
-    MODE_ITEM_CHATGPT = "만들고, 배우고, 탐색하세요"
-    METHOD = "chatgpt-app-v1"
-
-    def __init__(self, *, model: Optional[str] = None, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if model:   # 시작할 때 고른 모델 (10-22, 예 'GPT-5.6 Sol') — 없으면 GPT-6
-            self.MODEL_NAME = model
-            self.MODEL_LABEL = f"{model} · Medium (앱)"
-
-    def __enter__(self) -> "ChatGptAppChat":
-        from tools.chatgpt_app_cdp import cdp_url, launch, status
-        if not status()["ok"]:
-            try:
-                launch(restart=True)   # 포트 없이 떠 있으면 닫고 포트를 열어 다시 켠다, 안 떠 있으면 켠다 (로그인은 앱에 남아 있다)
-            except Exception as exc:
-                raise CdpWebError(f"ChatGPT 앱을 켜지 못했습니다: {str(exc)[:120]}")
-        if not status()["ok"]:
-            raise CdpWebError("ChatGPT 앱이 디버깅 포트로 떠 있지 않습니다 — python tools/chatgpt_app_cdp.py --restart 로 띄우고 앱에서 로그인하세요.")
-        from tools.chatgpt_app_cdp import show_window
-        show_window()   # 트레이에만 떠 있으면 창을 보이게 (사용자가 수집 과정을 본다)
-        from playwright.sync_api import sync_playwright
-        self._playwright = sync_playwright().start()
-        try:
-            self._browser = self._playwright.chromium.connect_over_cdp(cdp_url())
-            context = self._browser.contexts[0]
-            self.page = next((pg for pg in context.pages if pg.url == self.HOST and not pg.is_closed()), None)
-            if self.page is None:
-                raise CdpWebError("ChatGPT 앱 메인 페이지(app://-/index.html)를 찾지 못했습니다.")
-            self.page.add_init_script(COPY_CAPTURE_JS)
-            self.page.set_default_timeout(60_000)
-            if self.place:
-                self._place_window()
-        except BaseException:
-            self._close()
-            raise
-        return self
-
-    def _place_window(self) -> None:
-        """동시 수집: 앱 창을 화면 반쪽에 놓고, 그동안은 창을 앞으로 가져오지 않는다(Claude 앱 창의 키 입력을 뺏지 않게). 페이지는 하나라 탭 전환이 필요 없다."""
-        try:
-            from tools.chatgpt_app_cdp import show_window
-            from webapp.uia_chat_app import place_window
-            hwnd = show_window()
-            if hwnd:
-                place_window(hwnd, self.place)
-            self.page.bring_to_front = lambda: None
-        except Exception as exc:
-            self._snapshot(f"place-failed-{type(exc).__name__}")
-
-    # --- 모드 ---
-    def _mode_button(self) -> Optional[Dict[str, Any]]:
-        """보이는 '모드 전환' 버튼(같은 이름의 숨은 버튼이 하나 더 있다) — {x, y, mode}."""
-        return self.page.evaluate("""() => { const bs=[...document.querySelectorAll('button')].filter(b => (b.getAttribute('aria-label')||'').startsWith('모드 전환'))
-            .map(b => ({r: b.getBoundingClientRect(), aria: b.getAttribute('aria-label')})).filter(o => o.r.width > 0);
-            return bs.length ? {x: bs[0].r.x + bs[0].r.width - 8, y: bs[0].r.y + bs[0].r.height / 2, mode: bs[0].aria.replace('모드 전환, 현재 모드: ', '')} : null; }""")
-
-    def ensure_chatgpt_mode(self) -> str:
-        btn = self._mode_button()
-        if btn is None:
-            raise CdpWebError("ChatGPT 앱의 모드 전환 버튼을 찾지 못했습니다 — 앱 창이 너무 작거나 화면이 다릅니다.")
-        if btn["mode"] == "ChatGPT":
-            return "ChatGPT"
-        self.page.mouse.click(btn["x"], btn["y"])
-        self.page.wait_for_timeout(800)
-        item = self.page.evaluate("""(h) => { const e=[...document.querySelectorAll('*')].find(e => e.children.length===0 && (e.textContent||'').includes(h));
-            if (!e) return null; const r=e.getBoundingClientRect(); return {x: r.x + r.width / 2, y: r.y + r.height / 2}; }""", self.MODE_ITEM_CHATGPT)
-        if item is None:
-            self.page.keyboard.press("Escape")
-            raise CdpWebError("모드 메뉴에서 'ChatGPT' 항목을 찾지 못했습니다.")
-        self.page.mouse.click(item["x"], item["y"])
-        self.page.wait_for_timeout(2500)
-        btn = self._mode_button()
-        if not btn or btn["mode"] != "ChatGPT":
-            raise CdpWebError("ChatGPT 모드로 바꾸지 못했습니다 — 앱 왼쪽 위에서 직접 ChatGPT 로 바꾸세요.")
-        return "ChatGPT"
-
-    # --- 새 채팅 · 모델 ---
-    def new_chat(self) -> None:
-        with _CHROME_LOCK:
-            self._page_front()
-            self.ensure_chatgpt_mode()
-            btn = self.page.get_by_role("button", name="새 채팅", exact=True)
-            clicked = False
-            for i in range(btn.count()):
-                try:
-                    if btn.nth(i).is_visible():
-                        btn.nth(i).click(timeout=5000)
-                        clicked = True
-                        break
-                except Exception:
-                    continue
-            if not clicked:
-                raise CdpWebError("ChatGPT 앱에서 '새 채팅' 버튼을 찾지 못했습니다.")
-            self.page.wait_for_timeout(2000)
-            self.page.evaluate(COPY_CAPTURE_JS)
-            self._check_blocked()
-            self.page.get_by_role("textbox", name=re.compile(re.escape(self.TEXTBOX_NAME))).first.wait_for(state="visible", timeout=20_000)
-            self.page.wait_for_timeout(800)
-            last = None
-            for _ in range(3):   # 모델·추론 수준을 맞추지 못하면 이 채팅에 질문을 보내지 않는다 (잘못된 수준의 답이 섞이지 않게, 사용자 10-20)
-                try:
-                    self.model_seen = self._apply_model()
-                    break
-                except Exception as exc:
-                    last = exc
-                    self.page.keyboard.press("Escape")
-                    self.page.wait_for_timeout(800)
-            else:
-                self._snapshot("model-settings-failed")
-                raise CdpWebError(f"ChatGPT 앱 모델·추론 수준을 {self.MODEL_NAME} · {self.POWER_TARGET} 으로 맞추지 못함 — 이 질문은 보내지 않음 ({str(last)[:120]})")
-
-    POWER_ORDER = ("Instant", "Medium", "High", "Extra High", "Pro")   # 파워 슬라이더 단계(왼쪽 → 오른쪽, 2026-10-20 확인)
-    POWER_TARGET = "Medium"
-    POWER_STATUS_JS = """() => { const s=[...document.querySelectorAll('[role=menu] [role=status]')].find(e => e.getBoundingClientRect().width > 0);
-        return s ? s.innerText.trim() : null; }"""
-
-    def _set_power(self) -> str:
-        """열린 모델 메뉴의 '파워' 슬라이더를 화살표 키로 Medium 에 맞춘다 — 상태 글 'High, 5개 중 3번째.' 를 읽어 방향을 정한다."""
-        slider = self.page.locator("[role=menu] [role=slider]").first
-        slider.wait_for(state="visible", timeout=5000)
-        slider.focus()
-        self.page.wait_for_timeout(300)
-        target = self.POWER_ORDER.index(self.POWER_TARGET)
-        status = ""
-        for _ in range(8):
-            status = self.page.evaluate(self.POWER_STATUS_JS) or ""
-            name = status.split(",")[0].strip()
-            if name == self.POWER_TARGET:
-                return name
-            cur = self.POWER_ORDER.index(name) if name in self.POWER_ORDER else None
-            self.page.keyboard.press("ArrowLeft" if cur is None or cur > target else "ArrowRight")
-            self.page.wait_for_timeout(450)
-        raise CdpWebError(f"파워 슬라이더를 {self.POWER_TARGET} 로 맞추지 못함 (지금 '{status}')")
-
-    def _apply_model(self) -> str:
-        """앱의 모델 메뉴('ChatGPT 모델 선택')를 열면 모델 라디오(GPT-6 · GPT-5.6 Sol)와 '파워' 슬라이더가 바로 보인다.
-        Playwright 역할 검색이 이 메뉴를 못 보므로 DOM 을 직접 읽는다(2026-10-19). GPT-6 가 선택돼 있으면 두고, 아니면 누른다.
-        추론 수준은 메뉴 글의 단계 표시(Medium)로 확인 — 사용자 결정 10-19: GPT-6 · Medium 유지."""
-        FIND = """(name) => { const rs=[...document.querySelectorAll('[role=menuitemradio]')].filter(e => e.getBoundingClientRect().width > 0)
-            .map(e => ({t: (e.innerText||'').trim().split('\\n')[0], checked: (e.getAttribute('aria-checked')||'') === 'true'}));
-            const hit = rs.findIndex(r => r.t === name || r.t.startsWith(name + ' '));
-            return {all: rs.map(r => r.t), hit, checked: hit >= 0 ? rs[hit].checked : null}; }"""
-        CLICK = """(name) => { const e=[...document.querySelectorAll('[role=menuitemradio]')].filter(e => e.getBoundingClientRect().width > 0)
-            .find(e => { const t=(e.innerText||'').trim().split('\\n')[0]; return t === name || t.startsWith(name + ' '); }); if (!e) return false; e.click(); return true; }"""
-        opener = self.page.get_by_role("button", name=self.MODEL_MENU).first
-        opener.wait_for(state="visible", timeout=15_000)
-        power = "?"
-        try:
-            opener.click(timeout=5000)
-            self.page.wait_for_timeout(900)
-            found = self.page.evaluate(FIND, self.MODEL_NAME)
-            if found["hit"] < 0:
-                raise CdpWebError(f"{self.NAME} 모델 메뉴에 '{self.MODEL_NAME}' 이 없습니다 (항목: {found['all']})")
-            if not found["checked"]:
-                self.page.evaluate(CLICK, self.MODEL_NAME)
-                self.page.wait_for_timeout(800)
-                opener.click(timeout=5000)
-                self.page.wait_for_timeout(900)
-                found = self.page.evaluate(FIND, self.MODEL_NAME)
-                if not found["checked"]:
-                    raise CdpWebError(f"{self.NAME} 모델을 {self.MODEL_NAME} 로 바꾸지 못했습니다")
-            power = self._set_power()   # 파워 슬라이더를 실제로 움직여 맞춘다 (예전: 화면 글에서 낱말만 찾음 → Pro 인데도 통과)
-        finally:
-            self.page.keyboard.press("Escape")
-            self.page.wait_for_timeout(500)
-        label = " ".join((opener.inner_text(timeout=5000) or "").split())   # 메뉴를 닫은 뒤 모델 버튼에 보이는 추론 수준
-        # 모델 버튼 글: GPT-6 은 'Medium', 다른 모델은 '5.6 Medium' 처럼 앞에 모델 줄임 이름이 붙는다 (10-22 GPT-5.6 Sol 확인)
-        if not (label == self.POWER_TARGET or label.endswith(" " + self.POWER_TARGET)):
-            raise CdpWebError(f"ChatGPT 모델 버튼의 추론 수준이 {self.POWER_TARGET} 이 아닙니다(지금 '{label}')")
-        return f"{self.MODEL_NAME} · {label} (앱)"
-
-    IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
-
-    def _attached_count(self) -> int:
-        """입력칸에 붙은 첨부 수 — 'OOO.ext 제거' 버튼 수(이미지는 이름이 글로 안 보여 이 버튼으로 센다)."""
-        return self._eval("""() => [...document.querySelectorAll('button')].filter(b => /\\.\\w+ 제거$/.test((b.getAttribute('aria-label')||b.innerText||'').trim())).length""")
-
-    def _upload(self, files: List[Path]) -> None:
-        """앱 화면에는 지난 채팅의 첨부 input 이 여러 개 남아 있고 입력칸에 연결된 것은 마지막 것(2026-10-19 확인: 15개 중 마지막만 붙음).
-        이미지는 '사진 첨부'(image/*) input, 그 밖은 '파일 첨부' input — 마지막 것부터 거꾸로 넣어 보고 '제거' 버튼이 늘면 성공."""
-        images = [f for f in files if f.suffix.lower() in self.IMAGE_EXT]
-        others = [f for f in files if f.suffix.lower() not in self.IMAGE_EXT]
-        before = self._attached_count()
-        want = before
-        for batch, labels in ((others, ("파일 첨부",)), (images, ("사진 첨부", "사진 또는 동영상 첨부", "파일 첨부"))):
-            if not batch:
-                continue
-            want += len(batch)
-            done = False
-            for label in labels:
-                inputs = self.page.locator(f"input[type=file][aria-label='{label}']")
-                for i in range(inputs.count() - 1, -1, -1):
-                    try:
-                        inputs.nth(i).set_input_files([str(f) for f in batch])
-                    except Exception:
-                        continue
-                    for _ in range(12):   # 미리보기가 붙을 때까지 (큰 파일은 더)
-                        self.page.wait_for_timeout(1000)
-                        if self._attached_count() >= want:
-                            break
-                    if self._attached_count() >= want:
-                        done = True
-                        break
-                if done:
-                    break
-            if not done:
-                raise CdpWebError(f"{self.NAME} 첨부를 입력칸에 붙이지 못했습니다 ({', '.join(f.name for f in batch)})")
-        self.page.wait_for_timeout(1500)
-
-    def ask(self, question: str, files: Optional[List[Path]] = None, reference: Any = None) -> Dict[str, Any]:
-        out = super().ask(question, files, reference)
-        out["method"] = self.METHOD
-        if out.get("status") == "SUCCESS" and out.get("capture") == "copy-button" and "```" in (out.get("answer") or ""):
-            out = self._fix_code_blocks(out)
-        return out
-
-    # --- 코드블록: 답 복사 글은 코드 줄바꿈이 사라진다(10-21 확인) → 코드블록 안만 '코드 복사' 글로 (사용자 지시: 코드블록만) ---
-    CODE_BLOCKS_LAST_JS = r"""() => {
-      const turns = [...document.querySelectorAll('[data-turn-key]')]; const t = turns[turns.length - 1]; if (!t) return [];
-      const ub = t.querySelector('[data-user-message-bubble]');
-      const blocks = [...t.querySelectorAll('[data-markdown-copy="code-block"]')].filter(b => !(ub && ub.contains(b)));
-      document.querySelectorAll('[data-mg-cb]').forEach(x => x.removeAttribute('data-mg-cb'));
-      blocks.forEach((b, i) => b.setAttribute('data-mg-cb', String(i)));   // 마지막 묶음의 답 안 코드블록에만 번호 — 질문 말풍선 속 코드블록은 제외
-      return blocks.map(b => { const h = (b.innerText || '').split('\n').map(s => s.trim()).filter(Boolean); return h[0] || ''; });
-    }"""
-    CODE_MARK = "MG_CODECOPY_MARK"
-
-    def _code_copies(self) -> "tuple[List[str], List[str]]":
-        """마지막 답의 코드블록마다 마우스를 올려 '복사' 를 실제로 누른다 — 앱이 시스템 클립보드에 바로 쓰고 스크립트 클릭에는
-        반응하지 않는다(tools/codeblock_fix.capture_gpt 와 같은 길, 10-21). 클립보드를 쓰므로 입력 차례 잠금 안에서."""
-        from .input_turn import input_turn
-        from .uia_chat_app import _clipboard_get, _clipboard_set
-        heads = self._eval(self.CODE_BLOCKS_LAST_JS) or []
-        codes: List[str] = []
-        for i in range(len(heads)):
-            blk = self.page.locator(f'[data-mg-cb="{i}"]').first
-            got = ""
-            for _attempt in range(3):
-                text = ""
-                with input_turn():
-                    before = self._eval("() => (window.__mgCopied || []).length") or 0
-                    _clipboard_set(self.CODE_MARK)
-                    try:
-                        blk.scroll_into_view_if_needed(timeout=3000)
-                        blk.hover(timeout=3000)
-                        self.page.wait_for_timeout(300)
-                        blk.locator('button[aria-label="복사"]').first.click(force=True, timeout=5000)
-                        self.page.wait_for_timeout(700)
-                    except Exception:
-                        continue
-                    copied = self._eval("() => window.__mgCopied || []") or []
-                    text = copied[-1] if len(copied) > before else _clipboard_get()   # 페이지 복사면 가로챈 글, 앱 복사면 시스템 클립보드
-                text = (text or "").replace("\r\n", "\n")
-                if text.strip() and text.strip() != self.CODE_MARK:
-                    got = text
-                    break
-                self.page.wait_for_timeout(800)
-            codes.append(got)
-        return codes, heads
-
-    def _fix_code_blocks(self, out: Dict[str, Any]) -> Dict[str, Any]:
-        from tools.codeblock_fix import merge_codes
-        try:
-            with _CHROME_LOCK:
-                codes, heads = self._code_copies()
-        except Exception as exc:
-            return {**out, "codeblock_fix": f"코드 복사 실패 — {type(exc).__name__}: {str(exc)[:120]}"}
-        if not codes:
-            return {**out, "codeblock_fix": "화면에서 답의 코드블록을 찾지 못함 — 답 복사 글 그대로"}
-        new, why = merge_codes(out["answer"], codes, heads)
-        if new is None:
-            return {**out, "code_blocks": len(codes), "codeblock_fix": why}
-        return {**out, "answer_bottom_copy": out["answer"], "answer": new, "code_blocks": len(codes), "codeblock_fix": why}
