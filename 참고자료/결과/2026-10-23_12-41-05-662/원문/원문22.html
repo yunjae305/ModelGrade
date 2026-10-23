@@ -1,0 +1,3340 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결과 보고서 FAIL 원문 22</title>
+<meta name="description" content="78개 실행 50ca3ccccace 부록 — Gemini Q10~Q78 (13건)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.muted { color: var(--muted); }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+svg .tick.muted { opacity: 0.7; }
+.qtable td .muted { font-family: var(--font-body); }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+
+
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+.s-head h2 { font-size: 1.75rem; }
+@media (max-width: 900px) { }
+@media (max-width: 640px) { }
+@media (max-width: 900px) { }
+</style>
+<style>
+/* 결과 보고 (result-summary-v2) — 덱 CSS 위에 rs- 로 시작하는 것만 더함. 색은 덱 변수만(밝게·어둡게 자동) */
+.slide { gap: 22px; }
+@media (max-width: 640px) { }
+.rs-lrc li .rs-id { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 0.76rem; }
+.rs-item { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 0.9rem; display: grid; gap: 3px; }
+.rs-quote { color: var(--muted); font-size: 0.84rem; overflow-wrap: anywhere; }
+.rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
+.rs-qhint { margin: 0; font-size: 0.86rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+.rs-qds:has(.rs-qd:target) .rs-qhint { display: none; }
+.rs-ql li .rs-id { color: var(--muted); font-size: 0.74rem; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
+/* 원문 파일 맨 위 바로가기 */
+.rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
+.rs-jump a { font-family: var(--font-num); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; text-decoration: none; }
+.rs-fall { position: absolute; opacity: 0; pointer-events: none; }
+.rs-fall-l { justify-self: start; cursor: pointer; font-size: 0.86rem; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; background: var(--surface); }
+.rs-fall:checked + .rs-fall-l { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.rs-fall:focus-visible + .rs-fall-l { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-fds { display: grid; gap: 10px; }
+.rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
+.rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
+.rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
+.rs-fdh { margin: 0 0 6px; font-size: 1rem; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+}
+@media (max-width: 760px) {
+}
+@media (max-width: 640px) {
+}
+/* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
+:root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
+.s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+.ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+@media (min-width: 1200px) { }
+.s-no { color: var(--muted); }
+@media (max-width: 760px) { }
+@media (min-width: 1200px) {
+  body { padding-left: 232px; }
+  html { scroll-padding-top: 16px; }
+}
+.ar-av.lg { width: 28px; height: 28px; border-radius: 8px; background-size: 72%; vertical-align: middle; }
+@media (min-width: 1200px) { }
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+}
+/* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
+.rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
+.rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.rs-fx-r { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rs-turn { display: grid; gap: 2px; margin-bottom: 12px; }
+.rs-fx .rs-pre.rs-q { max-height: 200px; }
+.rs-fx .rs-pre.rs-ans { max-height: none; }
+.rs-fwhy { font-size: 0.9rem; line-height: 1.5; }
+mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px solid var(--risk); border-radius: 3px; padding: 0 1px; }
+mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
+  background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
+.rs-hlno.rs-hlno-off { background: var(--muted); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
+.rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); } .rs-crit > summary .muted { margin-left: 10px; }
+@media (max-width: 760px) { } .pr-d > summary .muted { margin-left: 10px; }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
+@media (max-width: 860px) { }
+@media (max-width: 760px) { }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { }
+@media (max-width: 560px) { }
+@media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
+@media (max-width: 1000px) { }
+@media (max-width: 560px) { }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+@media (max-width: 1000px) {
+}
+</style>
+<style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
+.mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
+.lg-gemini { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAKxklEQVR42u2aa6hl51nHf897Wft29jlnn8mkxCJIm4LR1DTMFIo1nUaDIdMiZuo+IPkgiD0TEy+lSWlGU46DxS8aiR+sziRQUYqwNyT9lJAYO5kkWrFzcoFcRKN4wUqTYc7Z13V73/fxwz4TIyZt52aO4ILFgr3WXu//ef//530u74L/P9790M1No5ub5kqOIVcEOAiHDtnK+1NJkWaoP8np01FAL/dY5krMuoBWWXZ9Zu1PNBv+47NO53oBvRJsXH56n37aAEjiNowkrEtJ7G1vv7e3DTh9OipIFPpRxFQ4U5pmX0E4fTruaQO037cA9U/d+jHn3Y0zbJpik22v3PjPP7/xMUHfembPMiCglUmfc75BtK0UXDNps8vU9T4HsnedWDc3DcNhKg4fvs5m2e07alLlvC1dy70Zs1S1e0ee+dU/+BEZDtLgMrJw+Rh49VUR0FLly42s5UvT0Nq1JW90mWRtDe397pz0fhtE6ff3FgPa71sZDuPOp37mlnajdeQsPoZG2xa+w7TRZZb17BtqYrn8A0e+8punbllfX4+DwcDuiUCmIPT75tt5r9F1517EZ9fukGnlV8y40WXSXGPse4x8N+WdH5Rt0/zHFf2XG556tSgHg34SuTS/uGQGtjYOOBkOYys7+2C73fnQ2DRS3eyaSWuVabPHNOsxzpYZZ6vmbDKpXLr62r/3Nzw4HK7Ho0e33HvKgG4c8HJyq35j/ed+abXZfuhssCH3y26SdZn6VcbZCiO/yo7rMXJdJm6ZqW+H2LrGbReTz37t2L6HD5xQv3VU6v91A86D/84dn/npZpY9VtBkYpbM1K/IJFtl7JYZux47fpWxXWFslxj7NjktLVwrBZtRzMPhr39p6ckDG+q3Tl6cEXIp4L/9i0c+0XH+scJ02iPazLOuTO0aI7/K2PUYmR47tsvYdpnYFjPbopAGuYqqaVJbM59XevjUseyZi2XCXKjD6uYhJye36u/c/albOx37WNnKOqNGU2dLXRm3eoxaq4wbq4z8CttZh5FfYuTajG1GToMcRyWZzGPSKpmOePPYTV+ub906KvWhTXWoyhVhQAd9K+vDCLB9782fFbP0lVzabkQ3zX3PjM0aE7PGWHqMzCojs8JYlphIh6k0KcjI8VRYKixRHQlNWGvUEEId7/7mMXcSoD9QO1yXeFkM0E0MP4rIOvG1L/x495qO/b2WbW28GVo6skvkZp9MZB8Tu8aINUayykhWmdBjQpMZLebaoCQjV6HGoWqIWFSUmBZzbhtGQpVONnNzz+njMu0P1A5fQTku6aIM0AEWQNaJAKPf/fBtFv9AI2tf9+9FM85N18zsPhnLPsZyFWPZx0h7jFhjwgrT1GWqLfLUJNcGFUKtlqCWlEARVCAhJFVVTHJtbCx5TZV7ztwnj7/FxhAYvjMj8t8CkiI8jZGbCed/L7/6oY+kwDGb/HpOg+3QCLnpurGsMpb9jHSNie5nZK5mlHpM0yqztMo8tpinNnnyFCmjRkjJEdUQFJDFcAkFFRBISnAelwRiZOATv/O3x+Sl81gObao7DYnjC3f8LgwI1aM/dJPU4c4Q7HrTefdGLimnTUnbjGWFMWuMuIpzusYo7WesVzFOVzGPq+RhhXlsUoQWlWbU0VGrEJNFVYgisMsACqoKCLtaSQq4JiZW1EYYpsSJF47JM++IVEHO16rVN645QBlv1Si3O3EHjRcmM0OpLlbq7VzbTOmwIyuM0hrbaR/b6Sp20vsYpTXmYY15WKWIyxR1hyo2CNFRx4yUhKiGJAJq0N2JT6rvqGhVogjWNkEDaOIMyqN4nnj+XtnafUpEFeHxa7PCb/9lsykfBwPBMC1Fo9iUcKZWL1M889RmTIPt1ONc6rGd1jgXr2Yc9zMO+8jDGkW1QhVWqEKbEDNC7QnJk7CkZFEMSf+ruldNu8DfUQyqShIwxiPnF/1U8dykwy2v/xrVW7mIWKtkBoyQgiEaQ8QQsJQYSjXkahdnFPIozJOQh8SMQKGJQiOli8SUiCYRQyIZQRVS3HVcdHHdpV5kwcbFBmCHgPB6Cdw0+5sPHlANt6qV292yO9hoWntuLBTJxRpvKzVU0VEaoTRCFRK1RkKK1FoTYkWgJJiaRCSZtJhhUdQopETCspC+LtZPWRiyK5v/ISHXwmoAjZwhLiT0wm/sSujXVd7Viccv/fBNuZg7K1xfWg3/H2PSLDYYa9Nsxw7bYYlzYZlzdY9Jtcqs6pHXPYq6h9Y9Qr1Eqtuk0CClBil6NDoigqjsan8hnbejUBYLk21iYk0ABgJ//PwX5dnvmkooiCpGT+FAWb7htWff92Ov3FHL0kcnwQ78ctM0ut5EK0EciAdxEeNqcCW4CnEl4krUFogpERvABpCImISYiCEBCRGDyAK86uJMSjAOYzKM1gyS8NEXvih3nAd/aFMdm2oW7v89AtlggO33QWQRyL75dz95W8I/UDWb1/3rtsZR6JpRaMq5eolJ2WNaLZNXPcpqlapaIVZdUr1CCk1iaKGpAdHtxgK7i0HOy0WBtwJZqrnnxfsvMJC9a0RWDPRFZBhPvdxfqmz5QN5qbLwxMnoub7KTlmRSdRhXy+Rlj7xeoSx6hGqFWC2joUWKHWJsQvSQPClZogpg0KQqxmAbSAycKKbc++oFpBLfsyISIcEQ1b4VGU6Bo4OXf3ar3Wn/YW3UlbMiVc6bRqqoY46NGdY2id6j6khqUHWImgVghAV0CzEmvDMYQiy56/n75KELTea+73RaZBhVkVOnDrn1679+Mub66SzT2VJHTNNUqeFLMlfgXIHxM7BzjC0wtlr4iK0QWyO2xpiAlZh8wxpn00zy8Onn75OHzqfT3y/4C64HRNCbbz4dTpzZ8L/w4T9/oizkcMMz63SSOCnVuwLv5libI3aO2BnJTRFbYly9uNqAmEpdJiIuzmKMh791v3/iwAn1p49L4AKL/Isq6o8ePFmfOLPhf+WGP32mmuZHnKtTsxmSs5VaV2JciXE5ameoLYhmTjIz1JRgC7UNk5yPibo88q0vXHw1dkldifNGfP7g156c5/HOzpJYa6uILcDmiMlJNie5OdHNiXZOcgXqQvRdZ5Nu3/nXn1968lKL+ktqqxw9eLLeOLPhjx/8k4fn4+Kh1qpxSaqIKUhmAT7ZhSHR5UQziW7Fuzr/t4efvev9Dx84ceaSwF+expYi68O+6X2g1zBRXprS/eDO2Ou07piiXqKsu6TQgdhJ3u8TU/rX41w+8oHeP5XDfj/xXje2RFD6cPLgyfmsMr+cTC3BBq1tSbAF0c4Idk6wM41uJpU5e9fW0YPz3T/rnuiNDmUY+zqwf3bTHz01mpePaNfYoHWsJae2OZWdxbQstqjfeOTFO257qj8Y2OH6etxb3enhEBQZSfmlWTEPla2kloJArsEVUoazdfA794PKsP+K7rn2+nB9GPvDvnnuE199dVqUj4QlMYXUoTRVTN1oYhw9+g9H7n6NwdAgx9Oe3KEZLtJaKeDBoq6opTbBFCaEObXNH7zQptV7s0+si3e+/y82tpL3N8aUoQUvvHn49w9cLse9wtusmxZBK9FhcJKS1xRNNUREefq3LHt+m/WTi+5IlfzjVYqm1tpEo4+//d7eNkCOJxQZZftfDnn5Vykvnhtl+19e5NHHL7sBXOGvPQx6ZT/2+D9//CdG7uscfk2gzwAAAABJRU5ErkJggg=="); }</style>
+</head>
+<body>
+<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · FAIL 원문 22 / 결과 보고서 50ca3ccccace</span><h2>FAIL 원문 22 — Gemini Q10~Q78 (13건)</h2><p><a href="../report.html#apx">← 결과 보고서(부록)으로</a> · <a href="원문1.html">FAIL 원문 1</a> · <a href="원문2.html">FAIL 원문 2</a> · <a href="원문3.html">FAIL 원문 3</a> · <a href="원문4.html">FAIL 원문 4</a> · <a href="원문5.html">FAIL 원문 5</a> · <a href="원문6.html">FAIL 원문 6</a> · <a href="원문7.html">FAIL 원문 7</a> · <a href="원문8.html">FAIL 원문 8</a> · <a href="원문9.html">FAIL 원문 9</a> · <a href="원문10.html">FAIL 원문 10</a> · <a href="원문11.html">FAIL 원문 11</a> · <a href="원문12.html">FAIL 원문 12</a> · <a href="원문13.html">FAIL 원문 13</a> · <a href="원문14.html">FAIL 원문 14</a> · <a href="원문15.html">FAIL 원문 15</a> · <a href="원문16.html">FAIL 원문 16</a> · <a href="원문17.html">FAIL 원문 17</a> · <a href="원문18.html">FAIL 원문 18</a> · <a href="원문19.html">FAIL 원문 19</a> · <a href="원문20.html">FAIL 원문 20</a> · <a href="원문21.html">FAIL 원문 21</a> · <b>FAIL 원문 22</b> · <a href="통과1.html">통과 원문 1</a> · <a href="통과2.html">통과 원문 2</a> · <a href="통과3.html">통과 원문 3</a> · <a href="통과4.html">통과 원문 4</a> · <a href="통과5.html">통과 원문 5</a> · <a href="통과6.html">통과 원문 6</a> · <a href="보류1.html">보류 원문 1</a> · <a href="보류2.html">보류 원문 2</a> · <a href="보류3.html">보류 원문 3</a> · <a href="보류4.html">보류 원문 4</a> · <a href="보류5.html">보류 원문 5</a> · <a href="보류6.html">보류 원문 6</a> · <a href="보류7.html">보류 원문 7</a> · <a href="보류8.html">보류 원문 8</a> · <a href="보류9.html">보류 원문 9</a> · <a href="보류10.html">보류 원문 10</a> · <a href="보류11.html">보류 원문 11</a> · <a href="보류12.html">보류 원문 12</a> · <a href="보류13.html">보류 원문 13</a> · <a href="보류14.html">보류 원문 14</a> · <a href="보류15.html">보류 원문 15</a> · <a href="보류16.html">보류 원문 16</a> · <a href="보류17.html">보류 원문 17</a> · <a href="보류18.html">보류 원문 18</a> · <a href="보류19.html">보류 원문 19</a> · <a href="보류20.html">보류 원문 20</a> · <a href="보류21.html">보류 원문 21</a> · <a href="갈림.html">갈림 목록</a></p></div><div class="rs-jump"><div><b><span class="mn"><i class="lg lg-gemini"></i>Gemini</span></b><a href="#f-gemini-10">Q10</a><a href="#f-gemini-17">Q17</a><a href="#f-gemini-29">Q29</a><a href="#f-gemini-30">Q30</a><a href="#f-gemini-32">Q32</a><a href="#f-gemini-34">Q34</a><a href="#f-gemini-40">Q40</a><a href="#f-gemini-41">Q41</a><a href="#f-gemini-42">Q42</a><a href="#f-gemini-43">Q43</a><a href="#f-gemini-44">Q44</a><a href="#f-gemini-73">Q73</a><a href="#f-gemini-78">Q78</a></div></div><input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label><div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p><article class="rs-fd" id="f-gemini-10"><h3 class="rs-fdh">Q10 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 멀티턴 · 어긴 기준 10개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 1 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 다시장터 운영팀 주민 중고 장터 판매자 설명회 1차 준비 회의록
+
+- 회의 일시: 2026년 9월 3일(목) 19:00~20:55
+- 장소: 마을회관 2층 작은 회의실
+- 참석: 하도현(장터 운영 담당), 송가온(회계 담당)
+- 서면 의견: 기은솔 운영팀장(개인 일정으로 불참, 9월 2일 메모로 예산 승인 내용과 검토 의견을 보냄)
+- 기록: 하도현 / 기록 검토: 송가온
+- 배포: 운영팀 공용 폴더, 운영팀장
+- 문서 상태: 1차 회의 기록. 안건마다 [결정] 과 [보류] 를 따로 표시함. [결정] 은 이번 회의에서 확정해 이후 안내문과 일정표에 그대로 쓰는 값이고, [보류] 는 아직 정하지 않았거나 추가 확인이 필요한 사항임. 물품 준비 방식(A안 · B안)은 이번 회의에서 고르지 않음.
+
+## 0. 안건
+
+1. 설명회의 범위와 당일 시각
+2. 진행 인력과 참여 정원
+3. 준비 동선(공동 창고와 은행나무 광장 사이)
+4. 천막 · 테이블 준비 방식 A안 · B안
+5. 예산 현황과 숫자마다의 역할
+6. 참가 조건, 당일 자리 배정 예외, 문의처
+7. 장터 운영 세부(판매 품목 · 운영비 · 영수증 · 천막과 테이블)
+8. 물품 배부와 장비 상태
+9. 위험 요인 논의
+10. 미정 항목과 다음 할 일
+
+## 1. 회의를 연 배경
+
+하도현이 회의를 열며 배경을 설명함. 지난 5월 봄 회차 장터가 끝난 뒤 판매자 설문과 운영팀 게시판에 &quot;처음 참여하는 사람은 무엇을 가져와야 하는지 몰랐다&quot;, &quot;천막을 누구와 같이 쓰는지 당일에야 알았다&quot;, &quot;운영비를 언제 얼마나 내는지 헷갈렸다&quot;는 의견이 여러 건 올라왔음. 운영팀장은 가을 회차를 열기 전에 판매자를 모아 규칙을 직접 설명하는 자리를 만들자고 제안했고, 이번 회의는 그 판매자 설명회를 준비하는 첫 회의임.
+
+이번 설명회는 실내 강의 방식이 아니라 실제 장터 자리인 은행나무 광장에 천막과 테이블을 펴 놓고, 판매자가 자기 테이블 앞에서 진열과 판매 방식을 직접 해 보는 현장 설명회로 열기로 운영팀장 메모에서 이미 방향이 잡혀 있었음. 설명회 시간 동안 광장에 들른 주민은 진열된 물건을 살 수 있음. 운영팀 안에서는 이 날을 편하게 &#x27;장터 당일&#x27; 이라고도 부름. 이 회의록에서는 두 말을 같은 날로 씀.
+
+행사 날짜는 아직 정하지 않았음. 광장 사용 신청 회신과 마을 행사 달력을 확인한 뒤 운영팀장이 정하기로 했으므로, 이 회의록에서는 날짜 대신 &#x27;행사 당일&#x27;, &#x27;행사 전날&#x27; 로 적음.
+
+송가온은 회의 시작 전에 &quot;지난 회차에는 회의에서 나온 말이 안내문에 그대로 확정처럼 들어가서 나중에 고치느라 고생했다. 이번에는 정한 것과 안 정한 것을 꼭 나눠 적자&quot;고 요청했고, 하도현이 동의해 안건마다 [결정] · [보류] 표시를 붙이기로 함.
+
+## 2. 안건 1 — 설명회의 범위와 당일 시각
+
+### 2-1. 확인한 시각
+
+- 운영 담당 현장 도착: 10:30
+- 접수 시작: 10:50
+- 설명회(행사) 시간: 11:00~12:00
+- 12:00 이후: 물품 회수와 참가 기록 마무리(끝난 시각은 당일 실제 시각으로 적음)
+
+### 2-2. 논의 경과
+
+송가온이 &quot;판매자들이 물건을 펴 보려면 시간이 빠듯하지 않으냐, 행사를 30분쯤 더 늘릴 수는 없느냐&quot;고 물음. 하도현은 광장 사용 신청을 이미 설명회 한 시간에 앞뒤 준비 · 회수 시간을 붙여 넣었으므로 설명회를 늘리면 회수할 시간이 줄어들고, 운영팀장 메모에도 &#x27;설명회는 한 시간 안에서 끝낸다&#x27; 고 되어 있어 이번 회차에서는 늘리지 않는 쪽이 맞다고 답함. 송가온도 동의함.
+
+접수 시각을 두고도 이야기가 나옴. 하도현은 판매자 팀이 번호판을 받고 자기 테이블을 찾아가는 데 시간이 걸리므로 행사 시작 10분 전에 접수를 여는 지금 안이 적당하다고 설명함. 송가온은 접수를 더 일찍 열면 줄이 덜 생기지 않겠느냐고 물었으나, 하도현은 10:30 에 도착해서 그 전까지 준비와 확인을 끝내야 하는데 접수를 앞당기면 준비 시간이 줄어든다고 답함. 접수를 앞당기는 안은 채택하지 않음.
+
+하도현은 기록 원칙도 함께 밝힘. 현장에 도착하기 전에 한 일(예: 집에서 챙긴 서류, 전날 연락)을 당일 현장에서 한 일처럼 일정표에 적지 않음. 당일 일정은 10:30 도착부터 시작함.
+
+행사 시간에는 하도현이 참가자 응대와 진행을 맡음. 그 전까지 물품 준비와 확인, 설치가 끝나 있어야 한다는 점을 두 사람이 다시 확인함.
+
+### 2-3. 표시
+
+- [결정] 운영 담당 현장 도착 10:30, 접수 시작 10:50, 설명회 11:00~12:00.
+- [결정] 12:00 이후 물품 회수와 참가 기록 마무리. 종료 시각(12:00)을 회수 완료 시각으로 자동 기록하지 않고 실제 끝난 시각을 적음.
+- [결정] 현장 도착 전의 작업은 당일 현장 작업으로 적지 않음.
+- [보류] 행사 날짜. 광장 사용 신청 회신 뒤 운영팀장이 정함.
+- [보류] 설명회 한 시간 안의 세부 진행 순서(규칙 설명 · 진열 실습 · 시범 판매를 어떤 순서로 둘지). 다음 회의에서 다룸.
+
+## 3. 안건 2 — 진행 인력과 참여 정원
+
+### 3-1. 현재 상태
+
+- 확정 진행 인력: 1명(장터 운영 담당 하도현)
+- 참여 정원: 30팀
+- 예비 인력: 지난 봄 회차에 접수를 도와준 주민 봉사자 한 분께 도움을 요청했으나 아직 참석 확답이 없음. 본인 동의 전이라 이름은 회의록에 적지 않음.
+
+### 3-2. 논의 경과
+
+송가온은 회계 담당이라 행사 당일 현장 근무는 하지 않고, 행사 뒤 운영비와 영수증 사본을 받아 정산을 맡는다고 다시 확인함. 송가온이 &quot;혹시 당일 시간이 되면 잠깐 들를 수는 있지만 근무로 잡으면 안 된다&quot;고 말했고, 하도현도 근무표에 넣지 않기로 함.
+
+예비 인력을 두고 송가온이 &quot;봉사자분이 지난번에 오셨으니 이번에도 오실 거라 보고 접수 쪽을 맡기면 안 되느냐&quot;고 물음. 하도현은 확답을 받지 않은 사람을 일정에 넣으면 당일 오지 않았을 때 계획 전체가 무너진다며 반대함. 운영팀장 서면 의견도 &#x27;확답 없는 인력은 승인 인력에 넣지 않는다&#x27; 로 같음. 예비 인력은 승인 인력에 넣지 않기로 함.
+
+정원과 인력이 다른 값이라는 점도 확인함. 정원 30팀은 받을 수 있는 판매자 팀의 수이고, 진행 인력 1명은 운영팀이 현장에 두는 사람의 수임. 지난 회차 기록에서 두 값을 한 칸에 적었다가 헷갈렸던 일이 있어 이번에는 칸을 나눠 적기로 함.
+
+송가온이 &quot;판매자 중 한 팀에게 접수를 대신 맡기면 어떠냐&quot;는 의견을 냄. 하도현은 접수에서 등록 여부를 확인하고 번호판을 나누는 일은 운영팀이 책임지는 일이라 참가자에게 맡기기 어렵다고 함. 참가자에게 접수를 대신 맡기는 안은 채택하지 않음.
+
+### 3-3. 표시
+
+- [결정] 확정 진행 인력 1명(하도현). 정원 30팀.
+- [결정] 예비 인력은 참석 확답이 없으므로 승인 인력에 넣지 않음. 일정표 · 근무표에도 넣지 않음.
+- [결정] 참가자에게 접수를 대신 맡기는 안은 채택하지 않음.
+- [결정] 송가온은 당일 현장 근무 없음, 행사 뒤 정산 담당.
+- [보류] 추가 지원 인력. 운영팀장이 다른 단체에 문의해 보겠다고 했으나 아직 정한 것 없음.
+
+## 4. 안건 3 — 준비 동선
+
+### 4-1. 답사에서 확인한 값
+
+하도현이 9월 1일 오전 답사 기록([1] 광장 답사 메모)을 읽어 줌.
+
+- 공동 창고(마을회관 뒤편)에서 은행나무 광장까지 걸어서 편도 12분.
+- 창고에서 꺼낸 천막 · 테이블 물품 확인에 8분.
+- 광장 현장 설치에 30분.
+- 물품은 창고의 바퀴 넷 달린 큰 손수레에 접어 실으면 한 번에 가져올 수 있음. 답사 때 실제로 실어 봄.
+
+### 4-2. 논의 경과
+
+송가온이 12분이 왕복인지 물음. 하도현은 창고에서 광장까지 한쪽으로 가는 시간만 잰 값이며, 편도 시간을 왕복 시간으로 쓰면 안 된다고 답함. 되돌아오는 길은 빈 손수레라 조금 빠를 수 있지만 답사 때 재지 않았으므로 따로 적지 않기로 함.
+
+창고에서 광장으로 가는 길에 마을회관 앞 횡단보도와 상가 앞 경사로가 있다는 점도 나옴. 하도현은 답사 때 신호 대기 시간이 12분 안에 들어 있다고 설명함. 비가 오면 손수레에 덮개를 씌워야 하므로 시간이 더 걸릴 수 있다는 걱정이 나왔으나, 날짜가 정해지지 않아 날씨는 미정으로 둠.
+
+설치와 접수의 관계를 두고 두 사람이 길게 이야기함. 송가온은 &quot;설치가 조금 덜 끝났어도 접수부터 열고 판매자에게 기다리라고 하면 되지 않느냐&quot;고 함. 하도현은 설치 도중 판매자를 받으면 천막 다리를 세우는 중에 사람이 지나가 위험하고, 설치를 끝내기 전에 접수를 열어도 된다는 승인은 운영팀장에게서 받은 적이 없다고 답함. 운영팀장 서면 의견에도 이 부분에 대한 승인은 없음. 설치를 끝내기 전에 접수를 여는 방식은 쓰지 않는 것으로 확인함.
+
+### 4-3. 표시
+
+- [결정] 창고~광장 편도 12분, 물품 확인 8분, 설치 30분을 이후 계획의 기준값으로 씀. 편도 값을 왕복 값으로 쓰지 않음.
+- [결정] 물품은 손수레로 한 번에 운반함.
+- [결정] 설치를 끝내기 전에 접수를 여는 것은 승인되지 않은 방식이므로 쓰지 않음.
+- [보류] 비 오는 날의 운반 대비. 날짜가 정해진 뒤 다룸.
+
+## 5. 안건 4 — 천막 · 테이블 준비 방식 A안 · B안
+
+### 5-1. 두 안의 내용
+
+- A안(당일 창고 운반): 당일 창고에서 천막과 테이블을 직접 옮기는 방식(편도 12분, 물품 확인 8분)이고 비용은 없습니다.
+- B안(전날 관리실 보관): 전날 광장 관리실에 물품을 맡겨 두는 방식이며 보관료 5000원, 당일 물품 확인 8분입니다.
+- 설치는 두 안 모두 30분.
+- 두 안 모두 물품 내용을 확인하는 단계는 빠지지 않음.
+
+### 5-2. 논의 경과
+
+하도현은 A안의 장점으로 돈이 들지 않는다는 점과, 창고 열쇠를 운영팀이 직접 갖고 있어 다른 기관과 시간을 맞출 필요가 없다는 점을 들었음. 단점은 당일 아침에 창고를 오가는 시간이 들고, 그동안 광장에 아무도 없다는 점이라고 함.
+
+송가온은 B안의 장점으로 당일 이동이 줄어든다는 점을 들었음. 다만 보관료 5000원이 남은 예상 지출에 아직 들어 있지 않고, 전날 물품을 관리실까지 옮기는 시간과 사람이 따로 필요하다는 점을 짚었음. 관리실이 전날 몇 시까지 물품을 받는지, 당일 몇 시에 문을 여는지도 아직 확인하지 않았음.
+
+하도현은 관리실 주간 근무자에게 구두로 물어본 적이 있는데 &quot;전날 맡기는 것 자체는 가능하다&quot;는 답만 들었고, 보관 장소의 크기와 받는 시간은 문서로 받지 못했다고 함. 송가온은 문서로 확인하기 전에는 B안을 고를 수 없다고 했고, 하도현은 A안도 당일 시간 계산을 다시 해 봐야 고를 수 있다고 함.
+
+운영팀장 서면 의견: &quot;두 안 중 무엇을 고를지는 시간 계산과 관리실 회신을 보고 정한다. 1차 회의에서 서둘러 정하지 말 것.&quot;
+
+결국 두 사람 모두 지금 자료만으로는 어느 쪽이 낫다고 말하기 어렵다고 보았고, 고르지 않기로 함.
+
+### 5-3. 표시
+
+- [결정] A안 · B안의 내용과 비용, 소요 시간은 위 5-1 의 값으로 확인함.
+- [보류] A안과 B안 가운데 어느 것을 쓸지. 관리실 회신과 당일 시간 검토 뒤 다시 다룸. 이 회의에서는 어느 쪽으로도 기울여 적지 않음.
+- [보류] B안을 고를 경우의 전날 운반 시각과 운반 인력.
+- [보류] 관리실 보관 장소의 크기와 물품 수령 · 반환 시간(문서 회신 대기).
+
+## 6. 안건 5 — 예산 현황과 숫자마다의 역할
+
+### 6-1. 송가온이 설명한 값([2] 운영팀 예산 메모)
+
+- 승인 예산 상한: 160000원(운영팀장 8월 28일 승인)
+- 실제 지급액: 64000원(현수막 1개 제작 35000원, 안내 전단 인쇄 29000원)
+- 남은 운영 예상 지출: 71000원
+- B안 비용 5000원(관리실 보관료)은 남은 예상 지출에 아직 들어 있지 않음
+
+### 6-2. 논의 경과
+
+송가온은 세 숫자의 역할이 다르다고 여러 번 강조함. 상한은 쓸 수 있는 최대치일 뿐 실제로 쓴 돈이 아니고, 남은 예상은 앞으로 쓸 것으로 보는 돈이지 이미 지급한 돈이 아님. 지난 회차 결산 때 상한을 지출처럼 적은 표가 돌아다녀 다시 맞추느라 하루를 썼다는 이야기도 함.
+
+남은 예상 71000원의 항목별 금액은 [2] 예산 메모 원본에 있고, 회의에서는 합계 값만 확인함. 송가온은 영수증철, 운영비 보관 봉투, 현장 소모품, 설명회 자료 복사 같은 항목이 들어 있다고 설명함. 새 물품 구매는 들어 있지 않음.
+
+하도현이 &quot;B안을 고르면 5000원을 남은 예상에 넣으면 되느냐&quot;고 묻자, 송가온은 B안이 정해지면 그때 넣고, 정해지기 전에는 넣지 않는다고 답함. 지금 문서에서는 &#x27;미포함&#x27; 으로 둠.
+
+환불이나 지원금 추가 입금 이야기도 나왔음. 구청 주민활동 지원금의 추가 입금이 있을 수 있다는 말을 들었으나 확인한 것이 없음. 송가온은 확인되지 않은 입금은 예산에 넣지 않는다고 함.
+
+같은 비용을 여러 장부에 적는 일에 대한 주의도 나옴. 현수막 비용이 운영팀 지출 장부와 행사 준비표 두 곳에 적혀 있는데, 같은 지급 한 건이므로 합칠 때 두 번 더하지 않기로 함.
+
+### 6-3. 표시
+
+- [결정] 승인 상한 160000원, 실지급 64000원, 남은 예상 71000원으로 확인. 상한은 실제 지출이 아니고, 남은 예상은 지급액이 아님.
+- [결정] B안 비용 5000원은 B안이 정해지기 전까지 남은 예상에 넣지 않음(현재 미포함).
+- [결정] 같은 지급 건을 여러 장부에 적었어도 합칠 때 한 번만 셈.
+- [보류] 지원금 추가 입금 여부. 확인 전에는 예산에 넣지 않음.
+
+## 7. 안건 6 — 참가 조건, 당일 자리 배정 예외, 문의처
+
+### 7-1. 참가 조건
+
+- 사전 등록을 기본으로 함. 등록은 운영팀 게시판 신청 글로 받음.
+- 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없음.
+- 번호판이나 명찰을 받았다고 해서 안내를 들었다는 뜻은 아님. 설명회 규칙 안내는 따로 들어야 함.
+
+### 7-2. 당일 자리 배정 예외
+
+미등록 판매자에게 당일 남은 자리를 배정하는 예외가 있음. 사전 등록 팀 가운데 오지 않은 팀이 있어 자리가 남으면, 당일 현장에 온 미등록 판매자에게 그 자리를 줄 수 있다는 내용임.
+
+송가온은 이 예외 때문에 접수가 길어질까 걱정함. 미등록 판매자는 품목 확인부터 다시 해야 하고, 남은 자리가 몇 개인지는 접수가 어느 정도 진행된 뒤에야 알 수 있기 때문임. 하도현은 지난 회차에도 당일 판매자가 두세 팀 있었고 대부분 이웃 소개로 온 분이라 바로 돌려보내기 어려웠다고 설명함.
+
+운영팀장 서면 의견: &quot;당일 남은 자리 배정 예외는 지금은 허용한다. 다만 인력 상황과 관리실 의견에 따라 취소할 수 있다. 취소를 통지하면 그 뒤로는 이전 예외를 쓰지 말 것.&quot;
+
+### 7-3. 문의처
+
+- 문의처는 장터 운영 담당 하도현.
+- 문의 전화번호와 메일은 아직 정하지 않음. 운영팀 공용 연락처를 새로 만들지, 기존 게시판 쪽지로 받을지 다음 회의에서 다룸.
+
+### 7-4. 표시
+
+- [결정] 사전 등록 기본. 접수 시간 전 도착자도 준비 중인 공간에는 들어갈 수 없음.
+- [결정] 미등록 판매자에게 당일 남은 자리를 배정하는 예외는 현재 허용함. 취소 통지가 오면 그 뒤로는 쓰지 않음.
+- [결정] 문의처는 하도현.
+- [결정] 번호판 · 명찰 수령을 안내 이수로 보지 않음.
+- [보류] 문의 연락처(전화 · 메일 형식). 미정.
+- [보류] 등록 마감 시점. 날짜가 정해진 뒤 정함.
+
+## 8. 안건 7 — 장터 운영 세부
+
+### 8-1. 판매 품목
+
+판매 품목은 생활용품과 도서로 한정하고 식품과 전자제품은 받지 않음. 지난 회차에 직접 만든 잼과 쿠키를 판 판매자가 있었는데, 광장 관리실에서 식품 판매 허가 문제를 지적해 중간에 거둬들인 일이 있었음. 또 중고 전기 주전자를 판 판매자에게 구매자가 &quot;집에 가서 켜 보니 작동하지 않는다&quot;고 연락해 운영팀이 사이에서 곤란했던 일이 있었음. 두 일을 계기로 이번 회차부터 품목을 좁힘.
+
+송가온이 &quot;건전지가 들어가는 장난감은 전자제품이냐&quot;고 물음. 하도현은 애매한 품목이 계속 나올 것이라 보고, 신청 글에 품목을 적게 해서 운영 담당이 미리 확인하는 방식을 제안함. 애매한 품목의 세부 목록은 다음 회의로 넘김.
+
+### 8-2. 운영비와 영수증
+
+판매 수익의 10% 는 운영비로 모으고 영수증을 발행함. 송가온은 영수증을 판매자 팀마다 한 장씩, 운영비를 받는 자리에서 바로 써 주는 방식을 설명함. 영수증 사본은 운영팀이 보관하고 행사 뒤 송가온이 받아 장부에 옮김.
+
+하도현이 &quot;현장에 나 혼자인데 운영비를 받는 시점이 언제냐&quot;고 물음. 송가온은 설명회 끝 무렵 판매자 팀이 자기 판매 금액을 적어 오면 그 자리에서 받는 방식을 제안함. 정확한 받는 시점은 설명회 진행 순서와 함께 다음 회의에서 다룸.
+
+### 8-3. 천막과 테이블
+
+천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나임. 지난 회차에는 천막을 팀마다 따로 쓰려다 물품이 모자랐고, 테이블을 두 개씩 가져간 팀이 있어 늦게 온 팀이 테이블 없이 바닥에 물건을 편 일이 있었음. 이번에는 처음부터 이 원칙을 안내문에 넣기로 함.
+
+같은 천막을 쓸 짝을 누가 정하느냐는 질문이 나왔음. 신청 글에 &#x27;함께 쓰고 싶은 팀&#x27; 칸을 두는 안이 나왔으나, 부스 배치표 자체를 아직 정하지 않았으므로 이 부분은 보류함.
+
+### 8-4. 표시
+
+- [결정] 판매 품목은 생활용품과 도서로 한정, 식품과 전자제품은 받지 않음.
+- [결정] 판매 수익의 10% 는 운영비로 모으고 영수증을 발행함.
+- [결정] 천막은 두 팀이 한 동을 나눠 씀. 테이블은 팀당 하나.
+- [보류] 애매한 품목(건전지 장난감, 조명 소품 등)의 세부 기준.
+- [보류] 운영비를 받는 정확한 시점.
+- [보류] 부스 배치표와 천막 짝 정하는 방식. 이번 자료에는 배치표가 없음.
+
+## 9. 안건 8 — 물품 배부와 장비 상태
+
+### 9-1. 원칙
+
+- 물품은 현장에서 대조한 뒤 배부함.
+- 예비 물품을 정원에 더하지 않음. 남은 물품 수와 참가자 수를 같은 값으로 맞춰 적지 않음.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인함.
+- 새 물품 구매는 아직 승인하지 않았으므로 일정이나 예산에 실제 구매로 넣지 않음.
+
+### 9-2. 답사 때 본 장비 상태
+
+- 천막: 접이식 천막 가운데 한 동은 다리 높이 조절 핀 하나가 뻑뻑했음. 사용은 가능함.
+- 테이블: 접이식 테이블 몇 개에 상판 모서리 까짐이 있었음. 다리 고정 걸쇠가 헐거운 것이 한 개 있어 노란 끈으로 표시해 둠.
+- 번호판: 지난 회차에 쓴 번호판 가운데 숫자가 바랜 것이 몇 장 있어 새로 주문할지 견적을 받아 보기로 함. 주문은 아직 승인하지 않음.
+- 모래주머니: 천막 다리 고정용 모래주머니는 창고에 몇 개 있으나 일부 천이 터져 있음.
+
+### 9-3. 논의 경과
+
+송가온은 예비 테이블이 있으면 정원을 조금 늘릴 수 있지 않느냐고 물었으나, 하도현은 물품이 남는다고 정원이 늘어나는 것은 아니며, 정원은 운영팀장이 승인한 값이라고 답함. 송가온도 동의함.
+
+파손 의심 물품을 두고, 걸쇠가 헐거운 테이블을 &quot;조심해서 쓰면 된다&quot;며 내주었다가 다치는 일이 생기면 운영팀 책임이라는 데 두 사람이 같은 생각임. 노란 끈을 단 물품은 배부하지 않고 따로 둠.
+
+### 9-4. 표시
+
+- [결정] 현장 대조 뒤 배부, 예비 물품은 정원에 더하지 않음, 파손 의심 물품은 배부하지 않고 따로 확인.
+- [결정] 새 물품 구매는 일정 · 예산에 실제 구매로 넣지 않음.
+- [보류] 번호판 새 주문 여부. 견적을 받은 뒤 운영팀장에게 올림.
+- [보류] 터진 모래주머니 보수 방법.
+
+## 10. 안건 9 — 위험 요인 논의
+
+### 10-1. 접수 자리를 비울 위험
+
+이번 회의에서 가장 길게 다룬 위험임. 현장 인력이 하도현 한 명뿐이라, 접수가 시작된 뒤 하도현이 접수 자리를 떠나면 그동안 접수 자리에 아무도 없게 됨. 하도현은 지난 회차에 접수 도중 창고에 두고 온 테이블 걸쇠를 가지러 갔다가, 그 사이 도착한 판매자 팀들이 번호판 상자를 직접 뒤져 번호가 뒤섞였던 일을 들려줌.
+
+두 사람은 아래 원칙을 확인함.
+
+- 접수가 시작된 뒤에는 접수 자리를 비워 둘 수 없음.
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오도록 함.
+- 창고에 물건을 가지러 가는 일, 관리실에 들르는 일은 접수 전에 끝냄.
+
+송가온은 화장실이나 갑작스러운 전화처럼 피하기 어려운 경우를 물었음. 하도현은 그런 경우에도 접수 자리를 비우는 동안 무슨 일이 생길지 대비가 없으므로, 접수 시작 전에 할 일을 모두 끝내는 계획을 세우는 것이 먼저라고 함. 대비 방법은 더 이야기하기로 함.
+
+### 10-2. 설치가 늦어질 위험
+
+인력 1명이 천막과 테이블을 모두 펴야 하므로, 설치가 늦어지면 접수가 밀릴 수 있음. 설치를 끝내기 전에 접수를 여는 것은 승인되지 않았으므로, 늦어졌을 때 어떻게 할지는 일정 검토 때 다시 봄.
+
+### 10-3. 천막 한쪽이 들린 일
+
+답사 날 광장 동쪽 통로 근처에 천막 한 동을 시범으로 세워 보았는데, 바람이 세지 않았는데도 한쪽이 자꾸 들렸음. 하도현은 그날 시각별로 본 것을 점검 일지에 따로 남겨 두었고, 원인은 아직 확인하지 못했다고 함. 송가온은 &quot;천막이 오래돼서 그런 것 아니냐&quot;고 했으나, 하도현은 같은 날 그 천막을 광장 가운데로 옮겨 다시 세웠을 때는 한쪽이 들리지 않았으므로 지금은 단정할 수 없다고 답함. 원인과 대응은 점검 일지를 다시 보고 정하기로 함.
+
+### 10-4. 그 밖의 위험
+
+- 일찍 온 판매자가 준비 중인 공간에 들어오는 위험: 광장 입구에 &#x27;접수 전 출입 안 됨&#x27; 안내판을 세우는 안이 나옴. 안내판 문구는 안내문 작업 때 함께 봄.
+- 식품 · 전자제품 반입 위험: 신청 글에서 품목을 미리 받고, 접수 때 한 번 더 확인함.
+- 운영비 현금 관리 위험: 현장에서 받은 운영비를 보관할 잠금 봉투가 필요함. 남은 예상 지출의 소모품 항목에 들어 있음.
+- 영수증 발행 누락 위험: 영수증철에 판매자 팀 번호를 먼저 적어 두는 방식이 나왔으나 확정하지 않음.
+
+### 10-5. 표시
+
+- [결정] 접수 시작 뒤에는 접수 자리를 비울 수 없음. 자리를 비워야 하면 접수 시작 전에 돌아옴.
+- [결정] 창고 · 관리실에 가는 일은 접수 전에 끝냄.
+- [보류] 피하기 어려운 이석이 생겼을 때의 대비.
+- [보류] 천막 한쪽이 들린 일의 원인과 대응. 점검 일지 검토 뒤 다룸.
+- [보류] 영수증철 번호 기재 방식.
+
+## 11. 안건 10 — 미정 항목과 다음 할 일
+
+### 11-1. 아직 정하지 않은 것
+
+- 행사 날짜
+- 문의 연락처(전화 · 메일)
+- 추가 지원 인력
+- 부스 배치표(이번 자료에 포함되지 않음)
+- 개별 참가자의 편의 지원(예: 무거운 짐을 든 어르신 판매자 운반 도움, 아이와 함께 오는 판매자 대기 공간)
+- A안 · B안 선택
+- 설명회 한 시간 안의 진행 순서
+
+### 11-2. 안내문 작업 원칙
+
+판매자 안내문에는 일시, 접수, 참여 조건, 문의처가 들어가야 함. 아직 정하지 않은 추가 날짜(예: 비 오면 미루는 날)나 비용 면제를 약속하지 않음. 홍보 문구보다 참가자가 해야 할 행동을 읽기 쉽게 적음. 필요한 값이 없으면 &#x27;미정&#x27; 또는 &#x27;미기재&#x27; 로 구별해 적고, 예상만으로 이름이나 연락처를 만들지 않음.
+
+송가온이 &quot;참가비 없다고 크게 적으면 사람이 더 오지 않겠느냐&quot;고 했는데, 하도현은 운영비 10% 가 있으므로 참가자가 오해할 수 있는 표현은 피하자고 함. 비용 관련 문구는 운영비와 영수증 안내만 사실대로 적기로 함.
+
+### 11-3. 다음 할 일
+
+- 하도현: 관리실에 B안 보관 조건(보관 장소, 받는 시간, 당일 여는 시간)을 문서로 요청함.
+- 하도현: 답사 점검 일지를 다시 보고 천막 들림 관찰 내용을 다음 회의에 가져옴.
+- 하도현: 창고 비품 반출입 대장을 대조하고, 번호판 견적을 받음.
+- 송가온: 남은 예상 지출 항목별 금액을 [2] 예산 메모에 최신으로 맞춰 둠. 지원금 추가 입금 여부를 구청 담당에게 확인함.
+- 송가온: 지난 회차 판매자 설문과 문의 기록을 모아 안내문 작업 자료로 넘김.
+- 두 사람: 다음 회의에서 A안 · B안 검토와 설명회 진행 순서를 다룸.
+
+### 11-4. 다음 회의
+
+- 일시: 미정(관리실 회신을 받은 뒤 잡음)
+- 안건 후보: 준비 방식 검토, 설명회 진행 순서, 안내문 초안 검토, 천막 점검 결과
+
+## 12. 참고한 기록
+
+- [1] 광장 답사 메모(9월 1일, 하도현): 행사 · 접수 시각, 인력, 준비 조건
+- [2] 운영팀 예산 메모(송가온): 승인 상한, 실지급, 남은 예상, 방식별 비용
+
+회의 중 인터넷을 찾아보거나 관리실 보관을 실제로 예약한 일은 없음. 관리실과는 구두 문의 한 번만 있었고, 문서 회신은 아직 받지 못함.
+
+## 13. 회의 뒤 덧붙인 메모
+
+### 13-1. 송가온 메모(9월 4일 오전)
+
+회의록 검토함. 예산 숫자 세 개의 역할을 나눠 적은 부분이 정확함. 6-1 의 실지급 내역(현수막 35000원, 전단 29000원)은 지출 장부와 맞춰 봄. B안 비용이 &#x27;미포함&#x27; 으로 적힌 것도 확인함. 지난 회차에는 &#x27;보관료 포함 예상&#x27; 이라는 말이 먼저 퍼져 판매자 몇 분이 &quot;보관료를 판매자도 나눠 내느냐&quot;고 물어 왔었음. 이번에는 판매자 안내문에 보관료 이야기를 넣지 않는 것이 맞다고 봄.
+
+### 13-2. 하도현 메모(9월 4일 저녁)
+
+운영팀장에게 회의록을 보내며 두 가지를 따로 적어 보냄. 첫째, A안 · B안은 이번 회의에서 고르지 않았다는 점. 둘째, 당일 자리 배정 예외는 현재 허용된 상태로 적었으나 취소 가능성이 있다는 운영팀장 의견도 같이 적었다는 점. 운영팀장은 &quot;회의록대로 두되, 바뀌면 바로 통지하겠다&quot;고 답함.
+
+관리실 주간 근무자에게 B안 보관 조건을 문서로 요청하는 쪽지를 관리실 우편함에 넣음. 회신 기한은 따로 정하지 않음.
+
+### 13-3. 지난 회차 판매자 한 분과의 통화 메모(9월 4일, 하도현)
+
+지난 봄 회차에 도서를 팔았던 판매자 한 분이 가을 회차 소식을 듣고 전화를 줌. &quot;처음 나오는 이웃을 데려가도 같이 팔 수 있느냐&quot;, &quot;같은 천막을 쓰는 팀과 미리 인사할 수 있느냐&quot; 두 가지를 물음. 하도현은 설명회 참석 조건과 천막 짝 방식은 아직 정하지 않았고, 안내문이 나오면 게시판에 올린다고 답함. 날짜와 연락처도 미정이라고 알림. 개인 연락처는 회의록에 남기지 않음.
+
+### 13-4. 운영팀장 서면 의견 원문 가운데 회의 안건과 관련된 부분(9월 2일)
+
+- 설명회는 한 시간 안에서 끝낸다.
+- 확답 없는 인력은 승인 인력에 넣지 않는다.
+- 두 안 중 무엇을 고를지는 시간 계산과 관리실 회신을 보고 정한다. 1차 회의에서 서둘러 정하지 말 것.
+- 당일 남은 자리 배정 예외는 지금은 허용한다. 다만 인력 상황과 관리실 의견에 따라 취소할 수 있다.
+- 예산 상한 160000원 승인. 상한을 넘는 지출이 예상되면 먼저 알릴 것.
+- 판매 품목 제한과 운영비 10% 는 봄 회차 평가 회의에서 정한 대로 유지한다.
+
+## 14. 지난 봄 회차와 비교해 본 점
+
+하도현이 봄 회차 운영 기록 공책을 가져와 회의 중 몇 군데를 읽어 줌. 이번 회차 계획과 다른 점을 두 사람이 하나씩 짚어 봄.
+
+- 사전 설명: 봄 회차는 판매자 설명 없이 장터를 바로 열었음. 판매자들이 운영비 규칙을 장터가 끝날 무렵에야 처음 듣고 놀란 일이 있었음. 이번에는 설명회 안에서 규칙을 먼저 듣게 하는 것이 목적임.
+- 접수 줄: 봄 회차 기록에는 &#x27;접수 줄이 상가 앞 경사로까지 늘어섬&#x27; 이라고 적혀 있음. 당시에는 번호판을 나눠 주면서 품목 확인과 자리 안내를 한 사람이 한꺼번에 했음. 이번에도 사람은 한 명이므로, 품목 확인을 신청 글 단계로 미리 옮기는 것이 줄을 줄이는 방법이라는 데 두 사람이 같은 생각임.
+- 현장 인력: 봄 회차에는 봉사자 한 분이 당일 접수를 함께 맡아 주었음. 이번에는 그분의 확답이 없으므로 봄 회차와 같은 분담을 전제로 계획하지 않음.
+- 물품 준비: 봄 회차에는 운영팀장이 전날 개인 차로 천막과 테이블을 광장 옆에 옮겨 두었음. 이번에는 그런 도움을 전제로 하지 않고, A안 · B안 가운데서 고르기로 함(보류).
+- 운영비: 봄 회차에는 장터가 끝난 뒤 한꺼번에 운영비를 걷었고, 영수증을 그 자리에서 다 쓰지 못해 몇 팀은 며칠 뒤 게시판 쪽지로 영수증 사진을 받았음. 송가온은 이번에는 받는 자리에서 영수증을 바로 써 주는 원칙을 지키자고 함.
+- 문의: 봄 회차에는 하도현의 개인 휴대전화로 문의를 받았는데, 밤늦게까지 연락이 와서 힘들었음. 이번에는 공용 연락처를 쓰는 쪽을 검토하지만 아직 정하지 않음(미정).
+
+## 15. 회의 중 오간 질문과 답
+
+회의 중 송가온이 던진 질문과 하도현의 답을 기록용으로 남김. 답이 정해지지 않은 질문은 보류 항목과 같이 다룸.
+
+- 질문(송가온): 정원 30팀이 모두 오면 창고 천막과 테이블이 모자라지 않느냐.
+  답(하도현): 창고 물품 수는 반출입 대장을 대조한 뒤 따로 확인함. 이번 회의에서는 물품 수를 정원에 맞춰 적지 않음. 대조 결과는 다음 회의에 가져옴.
+- 질문(송가온): 시범 판매 때 가격표는 운영팀이 만들어 주느냐.
+  답(하도현): 가격은 판매자 각자 정하고 가격표도 각자 준비함. 운영팀은 가격에 관여하지 않음. 안내문에 적을지 여부는 안내문 작업 때 봄.
+- 질문(송가온): 영수증 양식은 무엇으로 하느냐.
+  답(송가온 스스로): 운영팀 도장을 찍는 간이 영수증을 생각하고 있으나, 양식은 다음 회의에서 확정함. 영수증철은 남은 예상 지출의 소모품 항목에 들어 있음.
+- 질문(송가온): 판매자가 차를 가져오면 어디에 세우느냐.
+  답(하도현): 광장 안에는 차를 세울 곳이 없음. 상가 주차장을 쓸 수 있는지는 확인하지 않았음. 안내문에는 확인되지 않은 주차 안내를 넣지 않음.
+- 질문(송가온): 반려동물과 함께 오는 판매자는 어떻게 하느냐.
+  답(하도현): 관리실 규정을 확인하지 않아 미정임.
+- 질문(하도현): 운영비를 현금으로만 받느냐, 계좌로도 받느냐.
+  답(송가온): 계좌로 받으면 영수증 발행 시점이 늦어지므로 현장 현금을 기본으로 생각함. 계좌 이체를 허용할지는 운영팀장과 상의 뒤 정함(보류).
+- 질문(하도현): 설명회 중에 판매자가 아닌 주민이 천막 안으로 들어와 질문하면 누가 응대하느냐.
+  답(송가온): 현장에는 하도현 한 명뿐이니 행사 시간 중 응대는 하도현이 맡게 됨. 응대가 몰릴 때의 방법은 진행 순서와 함께 다음 회의에서 다룸.
+
+## 16. 설명회 진행 순서 후보(정하지 않고 기록만 함)
+
+설명회 한 시간 안을 어떻게 나눌지 두 가지 생각이 나왔음. 둘 다 장단점이 있어 이번 회의에서 고르지 않음.
+
+- 하도현의 생각: 처음에 판매자 팀을 광장 가운데 모아 품목 제한, 운영비 10%, 영수증, 천막과 테이블 쓰는 법을 한꺼번에 설명한 뒤, 각자 테이블로 가서 진열하고 시범 판매를 함. 장점은 모든 팀이 같은 설명을 한 번에 듣는다는 점. 단점은 설명이 길어지면 진열과 판매 시간이 줄어든다는 점.
+- 송가온의 생각: 판매자 팀이 먼저 자기 테이블에 물건을 펴고, 하도현이 천막을 차례로 돌며 규칙을 설명함. 장점은 판매자가 물건을 펴 둔 상태에서 바로 질문할 수 있다는 점. 단점은 한 사람이 천막을 차례로 도는 동안 앞쪽 천막과 뒤쪽 천막이 들은 설명이 달라질 수 있고, 설명이 늦게 닿는 팀이 생긴다는 점.
+- 두 사람 모두 &#x27;번호판을 받은 것만으로 안내를 들은 것으로 보지 않는다&#x27; 는 원칙은 어느 순서를 고르든 지켜야 한다고 봄. 설명을 들었는지 확인하는 방법(예: 설명을 들은 팀의 번호를 접수 명단에 표시)은 다음 회의에서 같이 다룸.
+
+## 17. 기록 검토 뒤 고친 곳
+
+- 9월 4일, 송가온 검토 의견에 따라 6-1 의 실지급 내역 금액을 지출 장부와 맞게 고침(현수막 금액을 처음에 잘못 받아 적었음).
+- 9월 4일, 3-1 의 예비 인력 설명에서 봉사자 이름을 지움. 본인 동의를 받지 않은 이름을 운영팀 공용 폴더에 올리지 않기로 함.
+- 9월 4일, 18장 광장 현장 조건을 덧붙임(회의 중 구두로만 이야기한 내용이라 기록으로 남김).
+- 9월 4일, 5-3 의 [보류] 문장에서 &#x27;당일 이동이 적은 B안 쪽으로 검토&#x27; 라는 처음 표현을 지움. 회의에서 어느 쪽으로도 기울이지 않기로 했으므로 회의록도 그에 맞춤.
+
+## 18. 광장 현장 조건(답사 메모 가운데 회의에서 함께 본 부분)
+
+- 바닥: 광장 전체가 보도블록임. 가운데는 평평하지만 동쪽 통로 쪽은 배수구 방향으로 조금 기울어 있음. 블록 몇 장이 들떠 있어 테이블 다리가 흔들릴 수 있음.
+- 나무: 광장 이름이 된 은행나무 세 그루가 서쪽에 있음. 가을에는 열매가 떨어져 바닥이 미끄럽고 냄새가 남. 관리실이 아침에 쓸어 주는지는 확인하지 않음.
+- 관리동: 광장 북쪽에 관리실과 공용 화장실이 있는 관리동이 있음. B안을 고르면 물품을 맡길 곳이 이 관리실임.
+- 전기: 광장에 판매자가 쓸 수 있는 콘센트는 없음. 전자제품을 받지 않으므로 판매에는 문제가 없으나, 운영팀도 현장에서 전기를 쓸 수 없다는 점을 기억해 둠.
+- 바람길: 동쪽 통로는 관리동과 상가 건물 사이의 좁은 길로 이어짐. 답사 날 천막 한쪽이 들린 곳이 이 통로 근처였음. 원인을 확인하기 전이므로 &#x27;바람길 때문&#x27; 이라고 적지 않고 위치만 기록함.
+- 쓰레기: 판매자가 남긴 포장재와 상자를 어디에 버릴지 관리실 규정을 아직 확인하지 않음. 회수 단계의 할 일로 남김.
+- 출입구: 광장으로 들어오는 길은 남쪽 큰길 쪽 입구와 동쪽 통로 두 곳임. 접수 자리를 어디에 둘지는 부스 배치표와 함께 정하기로 하고 이번 회의에서는 보류함.
+
+## 19. 회의 진행 시각 기록
+
+- 19:00 개회, 하도현이 배경과 운영팀장 서면 의견을 읽음
+- 19:10 안건 1 · 2(시각, 인력과 정원). 예비 인력 문제로 이야기가 길어짐
+- 19:30 안건 3(준비 동선). 편도 · 왕복 표현을 두고 확인
+- 19:45 안건 4(A안 · B안). 이번 회의에서 가장 오래 이야기했으나 고르지 않음
+- 20:10 안건 5(예산). 송가온이 지출 장부를 화면에 띄워 함께 봄
+- 20:25 안건 6 · 7(참가 조건, 예외, 운영 세부)
+- 20:40 안건 8 · 9(물품, 위험). 접수 자리를 비울 위험을 다시 한 번 짚음
+- 20:50 다음 할 일 확인
+- 20:55 폐회
+
+회의가 예정보다 25분 길어졌음. 다음 회의는 안건을 줄이고, 관리실 회신과 반출입 대장 대조 결과처럼 확인된 자료를 먼저 돌려 본 뒤 모이기로 함.
+[자료 끝]
+
+다시장터 운영팀의 주민 중고 장터 판매자 설명회 운영을 도와주세요. 이 대화 전체에서는 존댓말과 간결한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 10:30, 행사 11:00~12:00, 접수 10:50, 인력 1명, 정원 30팀입니다. A안은 당일 창고에서 천막과 테이블을 직접 옮기는 방식(편도 12분, 물품 확인 8분)이고 비용은 없습니다. B안은 전날 광장 관리실에 물품을 맡겨 두는 방식이며 보관료 5000원, 당일 물품 확인 8분입니다. 설치는 둘 다 30분입니다. 승인 상한 160000원, 실지급 64000원, 남은 예상 71000원에 B안 비용은 아직 미포함입니다. 먼저 붙여 넣은 회의록에서 이미 결정된 사항과 아직 보류인 사항을 나눠 확인해 주세요. A안과 B안 가운데 무엇을 고를지는 아직 정하지 마세요.</pre><b>턴 1 답변</b><pre class="rs-pre rs-ans">회의록에 기록된 결정 사항과 보류·미정 사항을 정리한 내용은 다음과 같습니다.
+
+---
+
+### 결정 사항
+
+**1. 시각 및 일정**
+
+* **당일 시각 확정:** 운영 담당 현장 도착 10:30, 접수 시작 10:50, 설명회 진행 11:00~12:00입니다.
+* **마무리 기록 원칙:** 12:00 종료 시각을 물품 회수 완료 시각으로 자동 간주하지 않으며, 실제 회수 및 기록 마무리가 끝난 시각을 기재합니다.
+* **작업 기록 원칙:** 현장 도착(10:30) 이전의 사전 작업은 당일 현장 작업 일정에 포함하지 않습니다.
+
+**2. 인력 및 정원**
+
+* **진행 인력 및 정원:** 확정 현장 인력은 1명(하도현), 참여 정원은 30팀입니다. (기록 시 인력과 정원 칸 분리)
+* **예비 인력 제외:** 참석 확답이 없는 봉사자는 승인 인력 및 근무표에서 제외합니다.
+* **접수 대행 불가:** 참가자에게 접수 업무를 위임하지 않습니다.
+* **회계 담당 역할:** 송가온은 당일 현장 근무를 하지 않으며, 행사 종료 후 정산 및 장부 정리를 전담합니다.
+
+**3. 준비 동선 및 설치 기준값**
+
+<mark class="rs-mk"><sup>1</sup>* **이동 및 설치 기준:** 창고~광장 편도 이동 12분, 물품 확인 8분, 설치 30분을 계획의 기준값으로 삼습니다. 편도 시간을 왕복으로 치환하지 않습니다.</mark>
+* **운반 방식:** 창고 손수레를 이용해 1회에 전량 운반합니다.
+* **설치 전 접수 불가:** 천막·테이블 설치 완료 전에는 접수를 개시할 수 없습니다.
+
+**4. 준비 방식(A안·B안) 기본 조건**
+
+* **A안 조건:** 당일 창고 직접 운반, 편도 12분, 물품 확인 8분, 설치 30분, 비용 0원.
+* **B안 조건:** 전날 광장 관리실 보관, 보관료 5,000원, 당일 물품 확인 8분, 설치 30분.
+
+**5. 예산 관리**
+
+* **예산 현황:** 승인 상한 160,000원, 실제 지급 64,000원(현수막 35,000원, 안내 전단 29,000원), 남은 예상 지출 71,000원입니다.
+* **B안 비용 처리:** 관리실 보관료 5,000원은 B안이 최종 확정되기 전까지 남은 예상 지출에 포함하지 않습니다.
+* **중복 계상 방지:** 동일 지급 건이 여러 장부에 기재되어 있어도 예산 합산 시 1회만 계산합니다.
+
+**6. 참가 조건 및 운영 세부**
+
+* **접수 및 입장 제한:** 사전 등록제를 원칙으로 하며, 접수 시작(10:50) 전에는 판매자가 준비 공간에 입장할 수 없습니다.
+* **당일 잔여석 배정 예외:** 불참으로 인한 잔여석 발생 시 미등록 판매자 배정을 현재는 허용하되, 운영팀장의 취소 통지가 있을 경우 즉시 중단합니다.
+* **안내 이수 기준:** 번호판·명찰 수령을 규칙 안내 이수로 보지 않으며, 설명회 안내를 별도로 이수해야 합니다.
+* **판매 품목 제한:** 생활용품과 도서로 한정하며, 식품 및 전자제품은 일절 받지 않습니다.
+* **운영비 및 영수증:** 판매 수익의 10%를 운영비로 징수하고, 수납 현장에서 영수증을 즉시 발행합니다.
+* **집기 배분:** 천막은 2팀당 1동, 테이블은 팀당 1개를 배정합니다.
+* **문의 책임자:** 문의 접수 창구 담당자는 하도현으로 지정합니다.
+
+**7. 물품 배부 및 현장 위험 관리**
+
+* **물품 검수 및 배부:** 현장 대조 후 배부하며, 예비 물품 수량을 정원에 합산하지 않습니다. 파손 의심 물품(헐거운 걸쇠 표시 등)은 배부에서 제외하고 격리합니다.
+* **임의 구매 금지:** 사전 승인 없는 신규 물품 구매는 예산이나 일정에 반영하지 않습니다.
+* **접수석 상시 유지:** 접수 시작(10:50) 이후에는 접수석을 비울 수 없으며, 창고나 관리실 이동 등 모든 이석 작업은 접수 시작 전에 완료합니다.
+
+---
+
+### 보류 및 미정 사항
+
+**1. 일정 및 진행 방식**
+
+* **행사 날짜:** 광장 사용 신청 승인 회신 및 마을 행사 달력 확인 후 운영팀장이 확정 예정입니다.
+* **설명회 세부 순서:** 11:00~12:00 1시간 동안의 세부 순서(일괄 집합 설명 후 판매 vs 부스 순회 개별 설명) 및 안내 이수 확인 방식은 미정입니다.
+* **등록 마감 시점:** 행사 날짜 확정 후 결정합니다.
+
+**2. 물품 준비 방식(A안 vs B안) 및 연계 사항**
+
+* **준비 방식 최종 선택:** 관리실 공식 문서 회신 및 당일 시간 계산 검토 후 차기 회의에서 결정합니다.
+* **B안 선택 시 세부 사항:** 전날 운반 시각, 운반 인력, 관리실 보관 장소의 크기, 당일 수령 및 반환 가능 시간 확인이 필요합니다.
+
+**3. 추가 인력 및 예산**
+
+* **추가 지원 인력:** 타 단체 지원 요청 결과 및 추가 인력 확보 여부는 미정입니다.
+* **지원금 추가 입금:** 구청 주민활동 지원금 추가 지원 여부 확인 전까지는 예산에 반영하지 않습니다.
+
+**4. 장터 운영 세부 기준**
+
+* **문의 연락처:** 공용 전화번호/이메일 개설 여부 또는 기존 게시판 쪽지 활용 여부 미정입니다.
+* **경계 품목 기준:** 건전지 작동 장난감, 조명 소품 등 애매한 품목에 대한 세부 판정 기준 정립이 필요합니다.
+* **운영비 징수 세부:** 운영비 수납의 정확한 시점과 계좌 이체 허용 여부(현재는 현장 현금 수납 검토 중)는 팀장 상의 후 결정합니다.
+* **배치 및 매칭:** 광장 내 부스 배치표 작성, 출입구별 접수대 위치, 천막을 함께 쓸 짝 지정 방식은 미정입니다.
+* **영수증 발급 관리:** 영수증철에 판매자 번호를 사전 기재할지 여부는 미정입니다.
+
+**5. 장비 보수 및 현장 시설 대응**
+
+* **장비 조치:** 번호판 신규 주문 견적 승인 여부, 터진 모래주머니 보수 방안 검토가 필요합니다.
+* **바람 및 바닥 위험:** 답사 시 발생한 동쪽 통로 천막 들림 현상의 원인 분석(점검 일지 검토) 및 대응책 마련이 필요합니다.
+* **현장 돌발 대비:** 1인 근무 상황에서 접수 중 긴급 상황(생리현상, 급한 전화 등) 발생 시 대응책이 필요합니다.
+* **우천 대책:** 우천 시 손수레 운반 및 행사 진행 대비책은 날짜 확정 후 논의합니다.
+* **광장 편의·환경 규정:** 광장 인근 주차 가능 여부, 반려동물 동반 판매자 허용 여부, 발생 포장재 및 상자 쓰레기 처리 규정은 관리실 확인이 필요합니다.
+* **개별 참가자 편의 지원:** 거동이 불편한 어르신 판매자 짐 운반, 아동 동반 판매자 대기 공간 등 편의 제공 여부는 미정입니다.</pre></div><div class="rs-turn"><b>턴 4 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 다시장터 운영팀 주민 중고 장터 판매자 설명회 운영 확인 기록
+
+- 작성: 운영 담당 하도현 / 작성일: 2026-09-12 / 판본: 2
+- 확인: 송가온(회계 담당, 5장 · 12장 대조) / 열람: 기은솔 운영팀장
+- 앞 판본: 판본 1(2026-09-05). 판본 1 이후 바뀐 곳은 이 기록 끝의 &#x27;판본 이력&#x27; 에 적음.
+
+이 기록은 실행에 필요한 사항과 아직 승인하지 않은 제안을 구분해 인계하기 위한 문서다. 같은 표에 있어도 상태가 다르면 최종 안내에 쓰는 범위가 다르다. 각 장은 배경, 세부 조건, 논의 경과, 담당, 상태 순서로 적는다. 상태는 [확정] 과 [미정 · 보류] 로 나눈다. [확정] 은 안내문과 일정표에 그대로 쓰는 값이고, [미정 · 보류] 는 안내에 확정처럼 쓰지 않는 값이다.
+
+## 1. 행사 범위
+
+### 배경
+
+가을 회차 주민 중고 장터는 판매자 설명회로 연다. 봄 회차에 판매자들이 규칙을 모른 채 장터에 나와 운영비 · 품목 · 천막 문제로 혼란이 있었고, 운영팀장이 평가 회의에서 &#x27;판매자를 미리 모아 설명하는 자리&#x27; 를 제안한 것이 출발점이다. 설명회는 은행나무 광장에 천막과 테이블을 펴 놓고, 판매자가 자기 테이블 앞에서 진열과 판매를 직접 해 보는 현장 설명회다. 설명회 시간 동안 광장에 들른 주민은 진열된 물건을 살 수 있다. 운영팀 안에서는 이 날을 &#x27;장터 당일&#x27; 이라고도 부른다.
+
+### 세부 조건
+
+- 행사는 11:00부터 12:00까지다.
+- 접수는 10:50에 연다.
+- 담당자는 10:30에 현장에 도착한다.
+- 행사 시간에는 담당자가 참가자 응대와 진행을 맡는다. 그 전에 준비와 확인을 끝내야 한다.
+- 도착 전의 작업을 당일 현장에서 한 것으로 적지 않는다. 당일 일정은 10:30 도착에서 시작한다.
+- 행사 날짜는 미정이다. 광장 사용 신청 회신 뒤 운영팀장이 정한다.
+
+### 논의 경과
+
+1차 준비 회의(9월 3일)에서 송가온이 행사를 30분 늘리자고 했으나, 광장 사용 신청이 설명회 한 시간에 앞뒤 준비 · 회수 시간을 붙여 들어가 있고 운영팀장 의견도 &#x27;한 시간 안에서 끝낸다&#x27; 여서 늘리지 않았다. 접수를 앞당기자는 의견도 있었으나, 10:30 도착 뒤 준비 시간이 줄어들어 채택하지 않았다. 설명회 한 시간 안의 진행 순서(규칙 설명 · 진열 · 시범 판매)는 두 가지 생각이 나왔고 아직 고르지 않았다.
+
+### 담당
+
+- 당일 현장: 하도현
+- 날짜 결정: 기은솔 운영팀장
+
+### 상태
+
+- [확정] 도착 10:30, 접수 10:50, 행사 11:00~12:00.
+- [확정] 도착 전 작업은 당일 현장 작업으로 적지 않음.
+- [미정 · 보류] 행사 날짜.
+- [미정 · 보류] 설명회 한 시간 안의 진행 순서.
+
+## 2. 현재 자원
+
+### 배경
+
+봄 회차에는 주민 봉사자 한 분이 당일 접수를 함께 맡았다. 이번 회차에도 같은 분께 도움을 요청했으나 9월 12일 현재까지 참석 확답을 받지 못했다. 회계 담당 송가온은 행사 뒤 정산을 맡고 당일 현장 근무는 하지 않는다.
+
+### 세부 조건
+
+- 확정 진행 인력은 1명이며 참여 정원은 30팀이다.
+- 도움을 요청한 예비 인력은 참석을 확답하지 않았고 승인 인력에 넣지 않았다. 본인 동의 전이라 이름을 기록하지 않는다.
+- 정원과 배치 인력은 서로 다른 값이다. 정원은 받을 수 있는 판매자 팀 수이고, 인력은 운영팀이 현장에 두는 사람 수다.
+- 참가자에게 접수를 대신 맡기는 안은 채택하지 않았다.
+- 송가온은 근무표에 넣지 않는다. 당일 들를 수는 있다고 했으나 근무로 잡지 않는다.
+
+### 논의 경과
+
+송가온이 &quot;봉사자가 지난번에 오셨으니 이번에도 오실 것&quot; 이라며 접수를 맡기자고 했으나, 확답 없는 인력을 일정에 넣으면 오지 않았을 때 계획이 무너진다는 이유로 받아들이지 않았다. 운영팀장 서면 의견도 &#x27;확답 없는 인력은 승인 인력에 넣지 않는다&#x27; 로 같다. 판매자 한 팀에게 접수를 맡기는 안도 나왔으나 등록 확인과 번호판 배부는 운영팀 책임이라 채택하지 않았다. 9월 10일 봉사자께 다시 연락했으나 답이 없었다.
+
+### 담당
+
+- 예비 인력 연락: 하도현
+- 추가 지원 인력 문의: 기은솔 운영팀장(다른 주민 모임에 문의하겠다고 함, 결과 없음)
+
+### 상태
+
+- [확정] 확정 진행 인력 1명(하도현), 정원 30팀.
+- [확정] 예비 인력은 승인 인력에 넣지 않음. 일정표 · 근무표 · 안내문에 확정처럼 쓰지 않음.
+- [확정] 참가자에게 접수를 맡기지 않음.
+- [미정 · 보류] 추가 지원 인력.
+
+## 3. 준비 동선
+
+### 배경
+
+물품은 마을회관 뒤 공동 창고에 있다. 9월 1일 오전 답사 때 하도현이 창고에서 광장까지 손수레로 물품을 옮겨 보고 시간을 쟀다([1] 광장 답사 메모).
+
+### 세부 조건
+
+- 창고는 현장에서 걸어서 편도 12분이고 물품 확인에는 8분이 든다.
+- 현장 설치는 30분이다.
+- 물품은 한 번에 가져올 수 있다. 창고의 바퀴 넷 달린 큰 손수레에 접어 실어 봤다.
+- 편도 시간을 왕복 시간으로 쓰지 않는다. 돌아오는 길의 시간은 재지 않았다.
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+- 편도 12분에는 마을회관 앞 횡단보도 신호 한 번을 기다린 시간이 들어 있다. 상가 앞 경사로 내리막에서는 속도를 줄여야 한다.
+
+### 논의 경과
+
+송가온이 &quot;설치가 조금 덜 끝나도 접수부터 열면 되지 않느냐&quot;고 물었으나, 설치 도중 판매자가 들어오면 천막 다리를 세우는 곁을 사람이 지나가 위험하고 운영팀장 승인도 없다는 이유로 쓰지 않기로 했다. 비 오는 날 손수레 덮개(창고에 방수포 한 장)를 쓰면 시간이 더 걸릴 수 있으나 날짜가 정해지지 않아 다루지 않았다.
+
+### 담당
+
+- 동선 확인: 하도현
+
+### 상태
+
+- [확정] 편도 12분, 물품 확인 8분, 설치 30분. 편도를 왕복으로 쓰지 않음.
+- [확정] 물품 한 번에 운반.
+- [확정] 설치 전 접수 열기 승인 없음 — 쓰지 않음.
+- [미정 · 보류] 비 오는 날 운반 대비.
+
+## 4. 선택할 수 있는 방식
+
+### 배경
+
+천막과 테이블을 당일 광장에 갖다 두는 방법으로 두 안이 있다. 1차 준비 회의에서 두 안을 모두 검토했으나 고르지 않았고, 이 판본에서도 고르지 않는다.
+
+### 세부 조건
+
+- A안은 당일 창고에서 천막과 테이블을 직접 옮기는 방식(편도 12분, 물품 확인 8분)이고 비용은 없습니다.
+- B안은 전날 광장 관리실에 물품을 맡겨 두는 방식이며 보관료 5000원, 당일 물품 확인 8분입니다.
+- 두 방식 모두 내용을 확인하는 단계는 필요하다.
+- 설치는 두 방식 모두 30분이다.
+
+### 논의 경과
+
+- A안 쪽에서 나온 말: 돈이 들지 않고 창고 열쇠를 운영팀이 갖고 있어 다른 기관과 시간을 맞출 필요가 없다. 대신 당일 아침 창고를 오가는 동안 광장에 아무도 없다.
+- B안 쪽에서 나온 말: 당일 이동이 줄어든다. 대신 보관료 5000원이 남은 예상에 들어 있지 않고, 전날 관리실까지 옮기는 시간과 사람이 따로 필요하다.
+- 관리실 확인: 9월 4일 관리실 우편함에 보관 조건(보관 장소 크기, 전날 받는 시간, 당일 여는 시간)을 문서로 알려 달라는 쪽지를 넣었다. 9월 11일 관리실 주간 근무자가 &quot;서면 회신은 관리소장 확인 뒤에 드리겠다&quot;고 구두로 전했다. 서면 회신은 아직 없다. 관리실 보관을 예약하거나 신청한 일은 없다.
+- 운영팀장 의견: 두 안 가운데 무엇을 고를지는 시간 계산과 관리실 회신을 보고 정한다.
+
+### 담당
+
+- 관리실 회신 받기: 하도현
+- B안 비용 반영: 송가온(B안이 정해질 때)
+
+### 상태
+
+- [확정] A안 · B안의 내용, 비용, 소요 시간은 위 값.
+- [미정 · 보류] A안 · B안 선택.
+- [미정 · 보류] B안을 고를 경우의 전날 운반 시각과 운반 인력.
+- [미정 · 보류] 관리실 보관 조건(서면 회신 대기).
+
+## 5. 예산 역할
+
+### 배경
+
+운영팀장이 8월 28일 이번 설명회 예산 상한을 승인했다. 송가온이 [2] 운영팀 예산 메모에 숫자마다의 역할을 적어 두었다.
+
+### 세부 조건
+
+- 승인 예산 상한은 160000원, 실제 지급액은 64000원, 남은 운영 예상 지출은 71000원이다.
+- 실지급 64000원은 현수막 1개 제작 35000원과 안내 전단 인쇄 29000원이다.
+- 남은 예상 71000원의 항목(영수증철, 운영비 보관용 잠금 봉투, 현장 소모품, 설명회 자료 복사 등)과 항목별 금액은 [2] 예산 메모에 있다. 새 물품 구매는 들어 있지 않다.
+- 상한은 실제 지출이 아니며 남은 예상은 이미 지급한 돈이 아니다.
+- B안 비용 5000원은 예상 지출에 아직 들어 있지 않다.
+- 환불이나 지원금의 추가 입금은 확인하지 않았다.
+- 같은 지급 건이 운영팀 지출 장부와 행사 준비표에 함께 적혀 있어도 합칠 때 한 번만 센다.
+
+### 논의 경과
+
+번호판 새 주문 견적(개당 600원, 32개 검토)을 9월 9일 서면으로 받았으나 운영팀장 승인 전이라 남은 예상에 넣지 않았다. 송가온은 승인이 나면 승인 요청서에 총액을 적고 그때 남은 예상을 다시 맞춘다고 했다. 구청 주민활동 지원금의 추가 입금 가능성을 들었으나 확인한 것이 없어 예산에 넣지 않았다.
+
+### 담당
+
+- 예산 대조: 송가온
+
+### 상태
+
+- [확정] 상한 160000원, 실지급 64000원, 남은 예상 71000원.
+- [확정] B안 비용 5000원은 남은 예상에 미포함.
+- [미정 · 보류] 번호판 주문 승인과 그 금액 반영.
+- [미정 · 보류] 지원금 추가 입금 여부.
+
+## 6. 참가자 행동
+
+### 배경
+
+봄 회차 설문에서 판매자 17팀 가운데 9팀이 &#x27;언제까지 와야 하는지&#x27; 를 가장 헷갈렸다고 답했고, 8팀이 운영비를 헷갈렸다고 답했다. 일찍 온 판매자가 준비 중인 광장에 들어와 위험했던 일, 번호판을 받고 바로 자리로 가 운영비 설명을 듣지 못한 일도 있었다. 이 장은 판매자가 실제로 해야 하는 행동과 그 조건을 모은다.
+
+### 세부 조건
+
+- 사전 등록을 기본으로 한다.
+- 미등록 판매자에게 당일 남은 자리를 배정하는 예외가 있다. 사전 등록 팀 가운데 오지 않은 팀이 있어 자리가 남으면, 당일 현장에 온 미등록 판매자에게 그 자리를 줄 수 있다는 내용이다. 이 예외는 현재 허용된 상태다.
+- 문의처는 장터 운영 담당 하도현이다. 문의 연락처(전화 · 메일)는 미정이다.
+- 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다.
+- 번호표나 명찰을 받았다는 사실이 안내를 들었다는 뜻은 아니다.
+- 판매자가 끝난 뒤 할 일(번호판 반납, 자기 쓰레기 가져가기)은 회수 단계에서 안내한다. 쓰레기 처리 방식은 관리실 규정을 확인하지 않아 미정이다.
+
+### 논의 경과
+
+당일 자리 배정 예외를 두고, 송가온은 미등록 판매자의 품목 확인 때문에 접수가 길어질 수 있다고 걱정했다. 하도현은 봄 회차에 이웃 소개로 온 미등록 팀을 돌려보내기 어려웠다고 설명했다. 봄 회차에는 미등록 팀이 입구 가까운 좋은 자리를 받아 사전 등록 팀이 불만을 말한 일도 있었다. 운영팀장은 지금은 예외를 허용하되 인력 상황과 관리실 의견에 따라 취소할 수 있다고 했다.
+
+사전 등록 확인 방법(판매자가 자기 등록 여부를 미리 알 수 있는 방법)은 봄 회차에 없었고, 이번에도 아직 정하지 않았다. 등록 마감 시점도 날짜가 정해진 뒤 정한다. 접수 전 대기 자리도 정하지 않았다.
+
+### 담당
+
+- 문의 응대: 하도현
+- 예외 유지 여부 판단: 기은솔 운영팀장
+
+### 상태
+
+- [확정] 사전 등록 기본.
+- [확정] 미등록 판매자에게 당일 남은 자리를 배정하는 예외 — 현재 허용.
+- [확정] 문의처 하도현.
+- [확정] 접수 시간 전 도착자도 준비 중인 공간에 들어갈 수 없음.
+- [확정] 번호판 · 명찰 수령은 안내 이수가 아님.
+- [미정 · 보류] 문의 연락처, 등록 마감, 사전 등록 확인 방법, 접수 전 대기 자리, 쓰레기 처리 방식.
+
+## 7. 물품과 장비
+
+### 배경
+
+9월 7일 창고 청소 때 물품 상태를 확인했다. 개수를 세어 반출입 대장과 맞추는 대조는 운영팀장과 함께 따로 할 예정이며 아직 끝나지 않았다.
+
+### 세부 조건
+
+- 물품은 현장 대조 뒤 배부한다.
+- 예비 물품을 정원에 더하지 않으며 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않는다.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인한다. 걸쇠가 헐거운 테이블(노란 끈), 지붕천에 구멍이 있는 천막(빨간 끈)이 여기에 든다. 모서리가 까진 테이블(노란 스티커)은 쓸 수 있으나 판매자에게 미리 알린다.
+- 새 물품 구매는 아직 승인하지 않았으므로 일정이나 예산에 실제 구매로 넣지 않는다. 번호판 새 주문, 모래주머니, 습기 제거제가 여기에 든다.
+- 모래주머니는 성한 것만 쓴다. 터진 것은 따로 담아 두었다.
+
+### 논의 경과
+
+예비 테이블이 있으면 정원을 늘릴 수 있지 않느냐는 질문이 나왔으나, 물품이 남는다고 정원이 늘어나지 않으며 정원은 운영팀장이 승인한 값이라고 확인했다. 운영팀장은 9월 9일 메모에서 걸쇠가 헐거운 테이블과 구멍 난 천막은 이번 설명회에 쓰지 않는 쪽으로 생각한다고 했고, 최종 판단은 대조 작업 때 실물을 보고 한다.
+
+### 담당
+
+- 창고 대조: 하도현, 기은솔 운영팀장
+- 번호판 주문 승인: 기은솔 운영팀장
+
+### 상태
+
+- [확정] 현장 대조 뒤 배부, 예비 물품은 정원에 더하지 않음, 파손 의심 물품은 배부하지 않음.
+- [확정] 새 물품 구매는 일정 · 예산에 실제 구매로 넣지 않음.
+- [미정 · 보류] 창고 개수 대조 결과, 번호판 주문 승인, 구멍 난 천막 처리, 모래주머니 대안.
+
+## 8. 운영 세부
+
+### 배경
+
+봄 회차 평가 회의에서 품목 제한과 운영비 비율을 정했다. 봄 회차에 직접 만든 잼과 쿠키가 관리실 지적으로 중간에 거둬진 일, 중고 전기 주전자가 작동하지 않는다는 구매자 연락이 온 일, 천막을 팀마다 쓰려다 물품이 모자랐던 일이 계기다.
+
+### 세부 조건
+
+- 판매 품목은 생활용품과 도서로 한정하고 식품과 전자제품은 받지 않는다.
+- 판매 수익의 10% 는 운영비로 모으고 영수증을 발행한다. 영수증은 운영비를 받는 자리에서 판매자 팀마다 바로 써 준다. 사본은 운영팀이 보관하고 행사 뒤 송가온이 장부에 옮긴다.
+- 천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나다.
+- 가격은 판매자 각자 정하고 가격표도 각자 준비한다.
+
+### 논의 경과
+
+건전지 장난감, 조명 소품, 화분처럼 경계에 있는 품목의 세부 기준은 정하지 않았다. 신청 때 품목을 적게 해서 운영 담당이 미리 확인하는 방식이 나왔다. 운영비를 받는 정확한 때는 설명회 진행 순서와 함께 정한다. 계좌 이체로 운영비를 받을지는 운영팀장과 상의 뒤 정한다. 영수증에 번호판 번호를 같이 적자는 송가온 의견이 있다.
+
+### 담당
+
+- 품목 사전 확인: 하도현
+- 영수증 · 운영비 정산: 송가온(행사 뒤)
+
+### 상태
+
+- [확정] 품목 한정(생활용품 · 도서), 식품 · 전자제품 제외.
+- [확정] 판매 수익 10% 운영비, 영수증 발행.
+- [확정] 천막 두 팀 한 동, 테이블 팀당 하나.
+- [미정 · 보류] 경계 품목 기준, 운영비 받는 때, 계좌 이체 허용 여부, 영수증 번호 기재 방식.
+
+## 9. 확정하지 않은 항목
+
+### 세부 조건
+
+- 추가 지원 인력, 부스 배치표, 개별 참가자의 편의 지원은 정하지 않았다.
+- 부스 배치표는 이번 자료에 포함되지 않는다. 천막 짝을 정하는 방식도 정하지 않았다.
+- 필요한 값이 없으면 미정 또는 미기재로 구별해 안내하고, 예상만으로 이름이나 연락처를 만들지 않는다.
+- 미정 항목 목록(9월 12일 기준): 행사 날짜, 문의 연락처, 등록 마감, 사전 등록 확인 방법, 접수 전 대기 자리, A안 · B안 선택, 설명회 진행 순서, 운영비 받는 때, 경계 품목 기준, 주차(광장 안에는 세울 곳이 없고 상가 주차장 사용 여부는 확인하지 않음), 반려동물 동반, 비 오는 날 대응, 쓰레기 처리, 편의 지원(어르신 짐 운반, 아이와 오는 판매자 대기 공간).
+
+### 논의 경과
+
+게시판 문의 가운데 &#x27;다리가 불편해 짐을 옮겨 줄 사람이 필요하다&#x27; 는 요청이 있었다(9월 9일). 현장 인력이 1명뿐이라 약속할 수 없어 &#x27;정해지면 따로 연락드린다&#x27; 고만 답했다. 판매자가 &#x27;같이 쓸 천막 팀을 고를 수 있느냐&#x27; 고 물은 일(9월 7일)도 배치표가 정해지지 않아 답하지 못했다.
+
+### 상태
+
+- [미정 · 보류] 위 목록 전부.
+
+## 10. 담당자 인계
+
+### 세부 조건
+
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오도록 한다.
+- 접수 시작 후에는 자리를 비워 둘 수 없다.
+- 창고나 관리실에 가는 일은 접수 전에 끝낸다.
+- 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다.
+
+### 논의 경과
+
+봄 회차에는 접수 도중 하도현이 천막 끈을 다시 묶으러 자리를 떠났으나 봉사자가 있어 접수가 멈추지 않았다. 그 전 해에는 접수 도중 창고에 두고 온 걸쇠를 가지러 간 사이 판매자들이 번호판 상자를 직접 뒤져 번호가 섞인 일이 있었다. 이번에는 접수 자리에 하도현 한 명뿐이므로 접수 시작 뒤에는 자리를 비울 수 없다. 화장실이나 갑작스러운 전화처럼 피하기 어려운 이석에 대한 대비는 아직 정하지 않았다.
+
+### 상태
+
+- [확정] 접수 시작 뒤 자리 비움 불가, 자리를 비워야 하면 접수 전에 복귀.
+- [확정] 계획 변경 때는 바뀐 조건만 적용하고 나머지 확정 사항은 보존.
+- [미정 · 보류] 피하기 어려운 이석 대비.
+
+## 11. 안내문 검토
+
+### 세부 조건
+
+- 판매자 안내문에는 일시, 접수, 참여 조건과 문의처가 필요하다.
+- 아직 정하지 않은 추가 날짜나 비용 면제를 약속하지 않는다.
+- 미등록 판매자에게 당일 남은 자리를 배정하는 예외는 현재 허용된 상태지만 나중에 취소 통지가 오면 이전 예외를 계속 쓰지 않아야 한다.
+- 홍보 문구보다 참가자가 해야 할 행동을 읽기 쉽게 적는다.
+
+### 논의 경과
+
+봄 회차 안내문의 &#x27;참가비 무료&#x27; 문구가 운영비 10% 와 충돌해 가장 큰 오해를 만들었다(송가온 9월 10일 자료). 영어 표기(Booth, QR)를 읽지 못한 어르신 판매자가 있었고, 게시판 글과 전단의 시각이 서로 달라 문의가 이어졌다. 이번 안내문은 하도현이 쓰고 송가온이 대조한다. 게시판 형식(목차, 각주, 문의 칸)은 게시 담당과 상의한다. 봉사자가 접수를 돕는다는 봄 회차 문장은 이번에 쓸 수 없다.
+
+### 담당
+
+- 안내문 작성: 하도현 / 대조: 송가온 / 게시: 게시 담당 문해담
+
+### 상태
+
+- [확정] 안내문 필수 항목(일시, 접수, 참여 조건, 문의처).
+- [확정] 미정 값은 미정으로 표시, 추가 날짜 · 비용 면제 약속 없음.
+- [미정 · 보류] 게시판 형식 세부.
+
+## 12. 마감과 회수
+
+### 세부 조건
+
+- 12:00 이후에는 물품을 회수하고 참가 기록을 마무리한다.
+- 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다. 회수가 실제로 끝난 시각을 적는다.
+- 당일 끝내지 못한 후속 확인은 담당과 다음 확인 대상을 남긴다.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+- 번호판은 회수 때 함께 걷는다. 돌아오지 않은 장이 있으면 회수 기록에 적는다.
+- 운영비 현금과 영수증 사본은 잠금 봉투에 넣어 송가온에게 넘긴다. 넘긴 시각과 받은 사람을 적는다.
+
+### 논의 경과
+
+봄 회차에는 판매자 몇 팀이 번호판을 돌려주지 않고 떠나 다음 날 관리실을 거쳐 돌아왔다. 운영비를 장터 끝에 한꺼번에 걷다가 영수증을 다 쓰지 못한 일도 있었다. 회수 방법은 A안 · B안 선택에 따라 달라진다(창고로 바로 돌려놓을지, 관리실을 거칠지). 선택이 보류이므로 회수 경로도 정하지 않았다.
+
+### 담당
+
+- 회수: 하도현 / 정산: 송가온
+
+### 상태
+
+- [확정] 12:00 이후 회수, 종료 시각을 회수 완료 시각으로 쓰지 않음, 중복 합산 금지.
+- [미정 · 보류] 회수 경로(준비 방식 선택 뒤), 쓰레기 처리.
+
+## 부록 가. 판본 1 이후 확인 일지(9월 5일~12일)
+
+- 9월 5일(토) 저녁: 판본 1 을 운영팀 공용 폴더에 올림. 운영팀장에게 A안 · B안은 고르지 않았다는 점을 따로 알림.
+- 9월 5일(토): 판촉물 가게에 번호판 견적을 물음. 같은 날 오후 개당 600원(부가세 포함), 매장 방문 수령, 제작 사흘이라는 답장을 받음.
+- 9월 6일(일): 옆 동 주민센터 게시판의 다른 모임 나눔 장터 안내문을 보고 참고 메모를 남김. 그 모임의 이름과 연락처는 옮기지 않음.
+- 9월 7일(월) 14:00~16:30: 창고 청소와 물품 상태 확인. 파손 의심 물품에 표시를 붙이고 따로 세움. 개수 대조는 하지 않음.
+- 9월 8일(화): 송가온이 대장 검토 쪽지를 남김(단위 표기, 줄마다 날짜 적기). 운영팀장이 번호판은 서면 견적서를 받은 뒤 승인 여부를 보겠다고 답함.
+- 9월 9일(수): 판촉물 가게 서면 견적서 받음(합계 칸은 수량 확정 뒤 기재). 반출입 대장 사본과 견적 메일 묶음을 송가온 · 운영팀장에게 넘김.
+- 9월 10일(목): 송가온이 봄 회차 안내문 피드백 · 설문 · 문의 기록 모음을 넘김. 하도현이 봉사자께 다시 연락했으나 답을 받지 못함.
+- 9월 11일(금) 오전: 관리실에 들러 B안 보관 조건 회신을 물음. 주간 근무자가 서면 회신은 관리소장 확인 뒤에 준다고 전함. 보관 신청서를 내거나 날짜를 잡지는 않음.
+- 9월 11일(금) 저녁: 운영팀장과 통화. 당일 자리 배정 예외는 &#x27;아직 유지&#x27; 라는 답을 들음. 바뀌면 통지문으로 알리겠다고 함.
+- 9월 12일(토): 판본 2 작성. 송가온이 5장 예산 숫자와 12장 정산 절차를 대조함.
+
+## 부록 나. 판매자가 물어볼 만한 것과 지금 답할 수 있는 범위
+
+봄 회차 문의 기록과 9월 게시판 문의를 바탕으로, 판매자가 물어볼 만한 것을 모아 지금 어디까지 답할 수 있는지 적음. &#x27;답할 수 있음&#x27; 은 확정된 값으로 답할 수 있다는 뜻이고, &#x27;답할 수 없음&#x27; 은 미정이라는 뜻임.
+
+- 언제 열리나요: 시각은 답할 수 있음(행사 11:00~12:00, 접수 10:50). 날짜는 답할 수 없음(미정).
+- 어디서 하나요: 답할 수 있음(은행나무 광장).
+- 몇 시에 가면 되나요: 접수가 10:50 에 열린다는 것까지 답할 수 있음. 접수 전에 와도 준비 중인 광장 안에는 들어올 수 없음. 접수 전 기다리는 자리는 답할 수 없음(미정).
+- 신청해야 하나요: 사전 등록이 기본이라고 답할 수 있음. 등록 마감은 답할 수 없음(미정).
+- 신청 안 하고 당일 가도 되나요: 당일 남은 자리가 있으면 미등록 판매자에게 배정하는 예외가 현재 있다고 답할 수 있음. 다만 취소될 수 있다는 점을 함께 말해야 함.
+- 무엇을 팔 수 있나요: 생활용품과 도서. 식품과 전자제품은 받지 않음. 경계에 있는 품목은 신청 때 적어 주면 운영 담당이 확인한다고 답함. 세부 기준은 미정.
+- 돈이 드나요: 판매 수익의 10% 를 운영비로 모으고 영수증을 발행한다고 답할 수 있음. 운영비를 내는 정확한 때는 답할 수 없음(미정).
+- 천막과 테이블은요: 천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나라고 답할 수 있음. 같이 쓸 팀과 자리는 답할 수 없음(부스 배치표 미정).
+- 번호판을 받으면 끝인가요: 번호판을 받은 것이 안내를 들은 것은 아니라고 답할 수 있음. 설명회 규칙 설명을 들어야 함.
+- 누구에게 물어보나요: 장터 운영 담당 하도현이라고 답할 수 있음. 연락처는 답할 수 없음(미정).
+- 도와주는 사람이 있나요: 현장 진행 인력은 1명이라고 답할 수 있음. 다른 지원 인력은 정해지지 않음. 봉사자가 온다고 말하지 않음.
+- 짐을 옮겨 줄 수 있나요: 답할 수 없음(편의 지원 미정).
+- 차를 어디에 세우나요: 광장 안에는 세울 곳이 없다고 답할 수 있음. 상가 주차장은 확인하지 않음.
+- 비가 오면요: 답할 수 없음(미정). 미루는 날을 약속하지 않음.
+- 끝나고 무엇을 하나요: 번호판을 돌려주는 것은 답할 수 있음. 쓰레기 처리 방식은 미정.
+
+## 부록 다. 상태가 헷갈리기 쉬운 값
+
+판본 1 을 돌려 보면서 운영팀 안에서도 몇 번 헷갈린 값들을 짝으로 적어 둠.
+
+- 정원 30팀과 진행 인력 1명: 하나는 받을 수 있는 판매자 팀 수, 하나는 운영팀이 현장에 두는 사람 수. 같은 칸에 적지 않음.
+- 승인 상한 160000원 · 실지급 64000원 · 남은 예상 71000원: 상한은 쓸 수 있는 최대치, 실지급은 이미 낸 돈, 남은 예상은 앞으로 쓸 것으로 보는 돈. 셋을 같은 성격의 돈으로 다루지 않음.
+- B안 보관료 5000원: B안의 비용이지만 남은 예상에는 아직 들어 있지 않음. 넣은 것처럼 적지 않음.
+- 번호판 견적: 단가와 검토 수량만 있는 견적임. 승인 전이므로 지출도, 예상 지출도 아님.
+- 편도 12분: 창고에서 광장까지 한쪽으로 가는 시간. 왕복 시간이 아님.
+- 물품 확인 8분: A안 · B안 모두 들어가는 단계.
+- 설치 30분: A안 · B안 모두 같음.
+- 번호판 수령과 안내 이수: 번호판을 받았다고 안내를 들은 것이 아님.
+- 예비 물품과 정원: 예비 물품이 있어도 정원은 그대로.
+- 행사 종료 12:00 과 회수 완료: 12:00 은 행사가 끝나는 시각이고, 회수가 끝난 시각은 당일 실제로 적음.
+- 당일 자리 배정 예외: 지금은 허용, 취소 통지가 오면 그 뒤로 쓰지 않음. &#x27;허용&#x27; 과 &#x27;앞으로도 계속 허용&#x27; 은 다른 말임.
+- 예비 인력: 요청은 했으나 확답이 없음. &#x27;요청함&#x27; 과 &#x27;참석함&#x27; 은 다른 말임.
+
+## 부록 라. [1] 광장 답사 메모에서 옮긴 현장 관찰(9월 1일)
+
+- 광장 바닥은 보도블록이다. 가운데는 평평하고, 동쪽 통로 쪽은 배수구 방향으로 조금 기울어 있다. 들뜬 블록이 몇 장 있다.
+- 서쪽에 은행나무 세 그루가 있다. 가을에는 열매가 떨어져 바닥이 미끄럽다.
+- 북쪽 관리동에 관리실과 공용 화장실이 있다.
+- 판매자가 쓸 수 있는 콘센트는 없다.
+- 출입구는 남쪽 큰길 쪽 입구와 동쪽 통로 두 곳이다. 접수 자리 위치는 정하지 않았다.
+- 동쪽 통로 근처에 시범으로 세운 천막 한 동이, 바람이 세지 않은데도 한쪽이 자꾸 들렸다. 같은 날 그 천막을 광장 가운데로 옮겨 다시 세웠을 때는 들리지 않았다. 원인은 확인하지 않았고, 시각별 관찰은 점검 일지에 따로 있다.
+- 창고에서 광장까지 손수레로 편도 12분, 물품 확인 8분, 시범 설치 30분이었다.
+
+## 부록 마. 운영팀장 통화 메모(9월 11일 19:40, 하도현)
+
+- 당일 자리 배정 예외: 운영팀장은 &quot;아직 유지한다&quot; 고 함. 봄 회차에 미등록 팀이 좋은 자리를 받아 생긴 불만(송가온 자료)을 읽었다며, 인력이 한 명이라 접수가 길어질 수 있다는 점이 마음에 걸린다고 덧붙임. 바꾸게 되면 통지문을 따로 보내겠다고 함.
+- 행사 날짜: 광장 사용 신청 회신을 아직 받지 못해 날짜 이야기는 하지 않음.
+- 추가 지원 인력: 다른 주민 모임 두 곳에 물어보았으나 아직 답이 없다고 함. 답이 와도 확답 전에는 일정에 넣지 말라는 말을 다시 함.
+- 번호판: 서면 견적서를 봤다고 함. 기존 번호판 가운데 쓸 만한 장 수를 대조 작업 때 알려 달라는 요청은 그대로임.
+- A안 · B안: 관리실 서면 회신과 당일 시간 검토를 보고 정하겠다고 함. 통화에서 어느 쪽이 낫다는 말은 하지 않음.
+
+## 부록 바. 송가온 대조 메모(9월 12일, 5장 · 12장)
+
+- 실지급 64000원: 운영팀 지출 장부의 현수막 제작 35000원, 안내 전단 인쇄 29000원 두 건과 맞음. 현수막 비용은 행사 준비표에도 적혀 있으나 같은 지급 한 건이므로 한 번만 셈.
+- 남은 예상 71000원: [2] 예산 메모의 항목 목록과 맞음. 항목은 영수증철, 운영비 보관용 잠금 봉투, 현장 소모품(끈 · 집게 · 수선 테이프 · 쓰레기봉투), 설명회 자료 복사, 사후 정산 때 드는 이체 수수료임. 새 물품 구매(번호판 · 모래주머니 · 습기 제거제)는 들어 있지 않음.
+- B안 보관료 5000원: 남은 예상에 들어 있지 않음을 다시 확인함.
+- 상한 160000원: 운영팀장 승인 메모(8월 28일)와 맞음. 상한을 넘는 지출이 예상되면 먼저 알리는 조건이 붙어 있음.
+- 정산 절차(12장): 현장에서 받은 운영비 현금과 영수증 사본은 잠금 봉투 하나에 넣음. 봉투에 판매자 팀 수가 아니라 영수증 장 수를 적음. 하도현이 봉투를 넘긴 시각과 송가온이 받은 시각을 둘 다 적음. 장부에는 영수증 사본 기준으로 옮김.
+- 송가온 덧붙임: 같은 판매자 팀의 운영비를 영수증철과 참가 기록 두 곳에 적게 되는데, 합칠 때는 영수증 기준으로 한 번만 셈.
+
+## 부록 사. 이 기록을 받는 사람에게
+
+하도현이 사정이 생겨 준비를 이어 가지 못할 때 운영팀장이 이 기록을 받는다. 받는 사람이 먼저 보면 좋은 곳을 적어 둔다.
+
+- 공용 폴더: &#x27;설명회&#x27; 칸에 회의록, 운영 확인 기록 판본 1 · 2, 송가온의 안내문 피드백 자료가 있다. &#x27;창고&#x27; 칸에 반출입 대장 원본 사진과 견적 메일 묶음이 있다.
+- 창고 열쇠: 하도현이 한 벌, 마을회관 사무실 열쇠함에 한 벌. 사무실 열쇠는 평일 낮에만 꺼낼 수 있고 열쇠 대장에 이름을 적어야 한다.
+- 관리실: B안 보관 조건 서면 회신을 기다리는 중이다. 회신이 오면 4장에 붙인다. 보관을 신청하거나 날짜를 잡은 일은 없다.
+- 판촉물 가게: 번호판 서면 견적서를 받은 상태다. 주문하지 않았다.
+- 봉사자: 두 번 연락했고 확답이 없다. 이름은 기록에 남기지 않았으므로 운영팀장이 직접 하도현에게 물어본다.
+- 점검 일지: 답사 날 천막 한쪽이 들린 일의 시각별 관찰이 따로 있다. 원인은 확인하지 않았다.
+- 안내문: 아직 문안을 쓰지 않았다. 11장의 원칙과 송가온 자료를 보고 쓴다.
+
+## 부록 아. 확인을 미룬 질문과 다음 확인 대상
+
+- 관리실 보관 조건(보관 장소 크기, 전날 받는 시간, 당일 여는 시간): 확인 대상 관리실 관리소장. 담당 하도현. 서면 회신을 받으면 4장에 붙임.
+- 광장 사용 신청 회신과 행사 날짜: 확인 대상 운영팀장. 날짜가 정해지면 1장 · 6장의 미정 항목(등록 마감 등)도 함께 다시 봄.
+- 공용 문의 연락처: 확인 대상 운영팀 모임. 담당 하도현. 정해지기 전에는 안내문에 연락처를 적지 않고 &#x27;미정&#x27; 으로 둠.
+- 쓰레기 처리 방식과 반려동물 동반: 확인 대상 관리실. 담당 하도현.
+- 상가 주차장 사용 여부: 확인 대상 상가 관리 쪽. 아직 누구에게 물을지도 정하지 않음.
+- 추가 지원 인력: 확인 대상 운영팀장이 문의한 주민 모임 두 곳. 확답 전에는 일정에 넣지 않음.
+- 창고 개수 대조와 쓸 만한 번호판 장 수: 담당 하도현 · 운영팀장. 대조 날짜는 운영팀장 일정을 받아 잡음.
+- 천막 한쪽이 들린 일: 담당 하도현. 점검 일지를 다시 보고, 같은 자리에서 한 번 더 세워 볼지 정함.
+
+## 부록 자. 접수 자리에서 할 일의 순서 후보(정하지 않음)
+
+접수에서 무엇을 어떤 순서로 할지는 아직 정하지 않았다. 봄 회차 경험에서 나온 후보만 적는다.
+
+- 하도현 후보: 등록 확인 → 품목 한 번 더 확인 → 번호판 배부 → 테이블 위치 안내. 운영비와 영수증 설명은 접수에서 하지 않고 설명회 시간에 한꺼번에 함. 봄 회차처럼 번호판 받는 줄에서 설명까지 하다가 둘 다 놓치는 일을 피하려는 것임.
+- 송가온 후보: 등록 확인과 번호판 배부만 하고, 품목 확인은 신청 단계에서 끝냄. 접수를 짧게 해서 접수 자리를 비울 일이 생기지 않게 하려는 것임.
+- 미등록 판매자: 예외가 유지되는 동안에는, 사전 등록 팀의 접수가 어느 정도 끝나 남은 자리를 알 수 있을 때 받게 됨. 남은 자리를 언제 세는지는 정하지 않음.
+- 공통: 접수가 시작된 뒤에는 접수 자리를 떠나지 않음. 접수에 필요한 물건(명단, 번호판 상자, 펜, 영수증철)은 접수 시작 전에 접수 자리에 모아 둠.
+
+## 부록 차. 게시판 문의에 답할 때의 원칙(9월 게시판 문의를 받으며 하도현이 지켜 온 것)
+
+- 확정된 값은 이 기록의 [확정] 표시와 같은 말로 답한다. 숫자나 시각을 바꿔 말하지 않는다.
+- 미정인 값은 &#x27;아직 정하지 않았다, 정해지면 안내한다&#x27; 고 답한다. 예상이나 짐작으로 날짜 · 연락처 · 이름을 말하지 않는다.
+- 당일 자리 배정 예외는 &#x27;지금은 있으나 바뀔 수 있다&#x27; 고 함께 말한다. 취소 통지가 오면 그날부터 예외 이야기를 하지 않는다.
+- 봉사자나 다른 도움 인력이 온다고 말하지 않는다. 현장 진행은 한 명이라고 답한다.
+- 개인 사정이 담긴 문의(몸이 불편함, 아이 동반 등)는 게시판 답글이 아니라 쪽지로 답하고, 쪽지 내용은 이 기록에 이름 없이 옮긴다.
+- 답한 내용과 날짜는 업무 공책에 적어 두고, 같은 질문이 여러 번 오면 안내문에 넣을 후보로 표시한다.
+
+## 판본 이력
+
+- 판본 1(9월 5일): 1차 준비 회의 결과를 옮김.
+- 판본 2(9월 12일): 아래를 고치거나 더함.
+  - 3장: 편도 12분에 신호 대기 시간이 들어 있다는 점, 경사로 주의를 더함.
+  - 4장: 관리실 쪽지(9월 4일)와 구두 전달(9월 11일) 내용을 더함. 서면 회신은 아직 없음. 예약 · 신청은 하지 않았음을 적음.
+  - 5장: 실지급 내역을 지출 장부와 맞춤. 번호판 견적을 받았으나 남은 예상에 넣지 않았다는 점을 더함.
+  - 6장: 봄 회차 설문 결과(송가온 9월 10일 자료)를 배경에 더함. 미정 항목에 사전 등록 확인 방법과 대기 자리를 더함.
+  - 7장: 9월 7일 창고 청소 때 본 파손 표시(노란 스티커 · 노란 끈 · 빨간 끈)를 더함.
+  - 9장: 게시판 문의 두 건을 더함.
+  - 11장: 담당(작성 · 대조 · 게시)을 더함.
+  - 판본 1의 &#x27;당일 이동이 적은 쪽을 우선 검토&#x27; 라는 4장 문장은 지움. 두 안 가운데 어느 쪽으로도 기울이지 않는다.
+  - 부록 가~차를 새로 붙임. 확인 일지, 판매자가 물어볼 만한 것, 헷갈리기 쉬운 값, 답사 관찰, 운영팀장 통화, 송가온 대조, 받는 사람 안내, 미룬 질문, 접수 순서 후보, 문의 응답 원칙.
+  - 판본 1 에 있던 &#x27;봉사자 협조 예정&#x27; 이라는 2장 표현을 &#x27;참석 확답 없음&#x27; 으로 고침. 요청한 사실과 참석이 정해진 사실을 섞지 않기 위함.
+- 다음 판본: 관리실 서면 회신이 오거나, 운영팀장이 예외 · 시각 등 조건을 바꾸는 통지를 보내면 판본 3 을 만든다. 바뀐 조건만 고치고 나머지 확정 사항은 그대로 둔다.
+
+## 13. 참고 기록
+
+[1] 광장 답사 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 운영팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝에는 실제로 확인한 범위와 외부 조회·예약 실행 여부를 사실대로 구별해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 4 답변</b><pre class="rs-pre rs-ans">제공해주신 자료를 바탕으로 참가자 행동과 관련된 확정 사항 및 미정 사항, 출처 목록, 실제 확인 범위와 외부 조회·예약 실행 여부를 사실대로 정리한 내용은 다음과 같습니다.
+
+---
+
+### 1. 참가자 행동 관련 확정 사항
+
+* **참여 방식 및 정원:** 사전 등록을 기본으로 하며, 참여 정원은 30팀으로 제한됩니다.
+* **접수 및 행사 시각:** 당일 접수는 10:50에 시작하며, 설명회(행사)는 11:00부터 12:00까지 진행됩니다. [1]
+* **입장 제한:** 참가자는 접수 시작 시각(10:50) 이전에 도착하더라도 준비 중 안전을 위해 광장 공간 안으로 들어갈 수 없습니다. [1]
+* **당일 잔여석 배정 예외(현재 허용):** 사전 등록 팀의 불참으로 빈자리가 생길 경우 당일 현장에 온 미등록 판매자에게 배정하는 예외를 현재는 허용합니다. (단, 운영팀장의 취소 통지가 있을 시 즉시 제외됨)
+* **안내 이수 기준:** 접수처에서 번호판이나 명찰을 받았다고 해서 운영 규칙 안내를 이수한 것으로 보지 않으며, 현장 설명회 안내를 끝까지 직접 들어야 합니다.
+* **판매 품목 제한:** 판매 가능 품목은 생활용품과 도서로 한정되며, 식품 및 전자제품은 일절 반입하거나 판매할 수 없습니다.
+<mark class="rs-mk"><sup>2</sup>* **운영비 납부 및 영수증:** 판매 수익의 10%를 운영비로 납부해야 하며, 납부 현장에서 즉시 운영비 영수증을 발급받습니다. [2]</mark>
+* **천막 및 테이블 사용:** 천막은 두 팀이 1동을 함께 나누어 쓰며, 테이블은 팀당 1개만 사용합니다.
+* **가격 책정 및 준비:** 판매 물품의 가격은 판매자가 각자 정하며, 가격표도 판매자가 직접 준비해야 합니다.
+* **행사 종료 후 행동:** 12:00 설명회 종료 후 사용한 번호판은 운영팀에 반납해야 합니다.
+* **문의 책임자:** 문의 창구의 담당자는 장터 운영 담당 하도현입니다.
+
+---
+
+### 2. 참가자 행동 관련 미정·보류 사항
+
+* **행사 날짜 및 등록 마감:** 행사 개최 날짜가 미정이며, 이에 따라 사전 등록 마감 시점도 미정입니다. [1]
+* **사전 등록 확인 방법:** 판매자가 본인의 사전 등록 완료 여부를 사전에 직접 확인할 수 있는 구체적인 방식은 아직 마련되지 않았습니다.
+* **접수 전 대기 공간:** 10:50 접수 시작 전 일찍 도착한 판매자가 대기할 광장 밖 구체적인 대기 장소는 정해지지 않았습니다.
+* **부스 배치 및 천막 파트너:** 광장 내 구체적인 부스 배치표가 없으며, 어느 팀과 같은 천막을 쓰게 될지(천막 짝 지정 방식)는 정해지지 않았습니다.
+* **경계 품목 세부 기준:** 건전지 작동 완구, 조명 소품, 화분 등 분류가 모호한 품목에 대한 세부 판정 기준은 미정입니다. (현재는 신청 시 사전 기재 후 담당자 확인 방식 검토 중)
+* **운영비 납부 세부 사항:** 운영비를 납부하는 정확한 시점(설명회 진행 순서 미정)과 현금 외 계좌 이체 납부 허용 여부는 미정입니다.
+* **행사 종료 후 쓰레기 처리:** 판매자가 가져온 포장재 및 상자 등 쓰레기 처리 방식에 대한 관리실 규정 확인이 완료되지 않아 미정입니다.
+* **문의 연락처 세부:** 담당자(하도현) 외에 문의할 공용 전화번호나 전자우편 등 구체적인 연락 방법은 미정입니다.
+<mark class="rs-mk"><sup>4</sup>* **교통 및 환경 조건:** 광장 내부 주차는 불가하며 인근 상가 주차장 이용 가능 여부는 미확인 상태입니다. 또한 반려동물 동반 가능 여부와 우천 시 일정 연기 등 대책도 미정입니다.</mark>
+* **개별 편의 지원:** 무거운 짐 운반 지원(어르신 등)이나 아이 동반 판매자를 위한 별도 대기 공간 지원 여부는 미정입니다.
+
+---
+
+### 출처 목록
+
+* **[1] 광장 답사 메모:** 행사·접수 시각, 인력, 준비 조건
+* **[2] 운영팀 예산 메모:** 승인 상한, 실지급, 남은 예상, 방식별 비용
+
+---
+
+### 실제로 확인한 범위와 외부 조회·예약 실행 여부 구별
+
+* **실제로 확인한 범위:**
+* 9월 1일 현장 답사를 통해 확인한 이동 시간(편도 12분), 물품 확인 시간(8분), 설치 시간(30분), 손수레 1회 운반 가능 여부 및 현장 물리적 조건(보도블록, 콘센트 없음, 출입구 위치 등) [1].
+* 8월 28일 운영팀장이 승인한 예산 상한(160,000원)과 실제 지급 내역(현수막 35,000원, 안내 전단 29,000원), 남은 예상 지출(71,000원) [2].
+* 9월 7일 창고 청소를 통한 집기 상태 점검 결과(테이블 까짐 3개, 걸쇠 헐거움 1개, 천막 구멍 1동, 번호판 노후 등).
+* 9월 9일 판촉물 가게로부터 수령한 A4 코팅 번호판 서면 견적(단가 600원, 제작 3일 소요).
+* 9월 11일 관리실 주간 근무자로부터 들은 &quot;서면 회신은 관리소장 확인 뒤 전달하겠다&quot;는 구두 답변.
+
+
+* **외부 조회 및 예약 실행 여부:**
+* 인터넷 정보 검색이나 추가적인 외부 조회를 진행한 사실은 전혀 없습니다.
+* 관리실에 물품 보관을 실제로 예약하거나 공식 보관 신청서를 제출한 사실은 전혀 없습니다. (서면 회신 대기 상태 유지 중)
+* 판촉물 가게에 번호판 제작을 실제로 주문하거나 결제를 진행한 사실도 없습니다. (서면 견적서 검토 단계)</pre></div><div class="rs-turn"><b>턴 5 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 판매자 안내문 게시 준비 메일 묶음
+
+- 모은 사람: 문해담(운영팀 게시판 게시 담당)
+- 기간: 2026년 9월 13일(일)~9월 18일(금) 아침
+- 주고받은 사람: 하도현(장터 운영 담당), 송가온(회계 담당), 기은솔 운영팀장, 문해담
+- 묶음 안내: 주민 중고 장터 판매자 설명회의 판매자 안내문을 운영팀 게시판에 올리기 전에, 게시판 형식(목차와 내부 링크, 각주, 출처 번호, 문의 접기 칸, 담당자 복사용 운영 메모)을 두고 주고받은 메일을 받은 순서대로 모음. 안내문 문안 자체는 이 묶음에 넣지 않음. 메일 주소와 연락처는 옮기지 않음.
+
+## 1. 운영팀 게시판 글쓰기 규정(게시 담당 보관본에서 해당 부분만 옮김)
+
+운영팀 게시판은 마크다운 문법으로 글을 쓰는 방식이다. 아래는 공지 · 안내 글에 적용하는 규정이다.
+
+- 규정 1. 안내 글이 길면 맨 위에 목차를 둔다. 목차의 항목은 글 안의 절 제목으로 바로 가는 내부 링크로 만든다.
+- 규정 2. 내부 링크의 이름과 주소는 실제 절 제목과 맞아야 한다. 게시판은 절 제목의 글자를 그대로 주소로 쓰므로, 제목을 고치면 링크도 같이 고친다.
+- 규정 3. 본문에서 따로 설명이 필요한 낱말에는 각주를 단다. 각주 표시는 본문에 대괄호와 꺾쇠 기호를 붙인 이름으로 넣고, 같은 이름의 정의를 글 맨 아래에 둔다.
+- 규정 4. 내부 기록을 근거로 적은 문장에는 출처 번호를 대괄호 숫자로 붙이고, 글 끝에 출처 목록을 둔다. 출처 목록의 이름은 원 기록의 제목을 그대로 쓴다.
+- 규정 5. 문의 안내처럼 모든 사람이 다 읽지 않아도 되는 부분은 접기 칸(details 태그와 summary 태그)에 넣을 수 있다. 접기 칸의 여는 태그와 닫는 태그는 짝이 맞아야 한다.
+- 규정 6. 담당자끼리 복사해 쓰는 운영 메모는 게시판의 복사 칸에 넣는다. 복사 칸은 한 글에 하나만 둔다. 복사 칸을 여는 표시와 닫는 표시를 반드시 둘 다 적는다.
+- 규정 7. 목차 · 각주 · 출처 목록 · 내부 링크 · 접기 칸은 복사 칸 안에 넣지 않는다. 복사 칸 안에서는 게시판이 이것들을 글자 그대로 보여 주기 때문에 작동하지 않는다.
+- 규정 8. 참가자에게 보이는 본문과 담당자 운영 메모를 섞지 않는다. 내부 사정은 운영 메모에만 적는다.
+- 규정 9. 정해지지 않은 값은 &#x27;미정&#x27; 이라고 적는다. 정해지지 않은 연락처나 날짜를 넣지 않는다.
+- 규정 10. 올린 글을 고칠 때는 새 글을 올리지 않고 같은 글을 고친다. 글 끝에 고친 날을 적는다.
+
+## 2. 메일
+
+### 메일 1. 하도현 → 문해담(9월 13일 20:10)
+
+제목: 판매자 안내문 게시 상의
+
+해담 님, 안녕하세요. 장터 운영 담당 하도현입니다.
+가을 판매자 설명회 판매자 안내문 초안을 이번 주 안에 손봐서 게시판에 올리려고 합니다. 초안은 불릿 몇 줄로 된 짧은 글인데, 운영팀장님이 게시판 규정에 맞게 목차와 문의 칸을 갖춘 형태로 고쳐서 올리자고 하셨습니다.
+제가 게시판 형식을 잘 몰라서 여쭙니다.
+- 목차는 어떻게 만드는지
+- 문의 부분을 접어 두는 방법
+- 각주와 출처 번호를 어떻게 다는지
+- 담당자끼리 쓰는 운영 메모는 어디에 두는지
+봄 회차 공지 때 링크가 안 눌렸다는 말을 들은 적이 있어서, 이번에는 처음부터 규정대로 하고 싶습니다.
+
+### 메일 2. 문해담 → 하도현(9월 14일 09:30)
+
+제목: 답장: 판매자 안내문 게시 상의
+
+도현 님, 반갑습니다. 게시 담당 문해담입니다. 하나씩 말씀드릴게요.
+
+목차와 내부 링크: 글 맨 위에 목차를 두고, 항목마다 대괄호 안에 보이는 이름, 이어서 괄호 안에 샵 기호와 절 제목을 적으면 그 절로 바로 가는 링크가 됩니다. 중요한 것은 괄호 안의 주소가 실제 절 제목과 같아야 한다는 점입니다. 예를 들어 &#x27;접수&#x27; 라는 절로 가는 링크라면 실제 글 안에도 &#x27;접수&#x27; 라는 제목이 있어야 합니다. 링크만 있고 그 제목이 없으면 눌러도 움직이지 않습니다.
+
+문의 접기 칸: details 태그로 열고, 바로 안에 summary 태그로 접힌 상태에서 보일 이름을 적은 뒤, 그 아래에 내용, 마지막에 details 닫는 태그를 둡니다. 접힌 이름은 보통 &#x27;문의&#x27; 라고 둡니다.
+
+각주와 출처: 각주는 본문 낱말 뒤에 대괄호와 꺾쇠 기호를 붙인 이름을 넣고, 글 맨 아래에 같은 이름에 쌍점을 붙여 설명을 적습니다. 출처 번호는 문장 끝에 대괄호 숫자를 붙이고 글 끝에 같은 번호의 목록을 둡니다.
+
+운영 메모: 담당자가 당일 대화방에 그대로 붙여 넣을 문장은 복사 칸 하나에 넣습니다. 게시판이 복사 칸 오른쪽 위에 복사 단추를 만들어 줍니다.
+
+자세한 것은 규정집 해당 부분을 붙여 드릴게요. 봄 회차 링크 문제는 제가 그때 봤는데, 제목을 바꾸고 링크를 안 고쳐서 생긴 일이었습니다.
+
+### 메일 3. 송가온 → 하도현, 문해담(9월 14일 12:05)
+
+제목: 답장: 판매자 안내문 게시 상의
+
+두 분, 회계 담당 송가온입니다. 출처 번호 이야기가 나와서 여쭙니다.
+도현 님 안내문에 [1] 광장 답사 메모와 [2] 운영팀 예산 메모를 출처로 달면, 판매자들이 그 메모 내용을 볼 수 있게 되는 건가요? 예산 메모에는 승인 상한, 실지급, 남은 예상 같은 운영팀 내부 숫자가 들어 있어서요.
+그리고 안내문에 예산 숫자는 넣지 않는 것이 맞다고 생각합니다. 판매자가 알아야 할 돈 이야기는 운영비 10% 와 영수증뿐입니다.
+
+### 메일 4. 문해담 → 송가온, 하도현(9월 14일 15:40)
+
+제목: 답장: 판매자 안내문 게시 상의
+
+가온 님, 좋은 질문입니다.
+출처 목록은 &#x27;이 문장은 어느 기록을 근거로 적었다&#x27; 를 밝히는 것이지, 기록 자체를 공개하는 것이 아닙니다. 목록에는 기록의 원래 제목과 그 기록이 다루는 범위만 한 줄로 적고, 메모 파일을 붙이지 않습니다.
+규정 4 에 따라 목록의 이름은 원 기록 제목을 그대로 씁니다. &#x27;광장 답사 메모&#x27; 를 &#x27;답사 결과&#x27; 처럼 바꿔 쓰면 나중에 어느 기록인지 찾기 어렵습니다. 번호는 본문에 처음 나오는 순서대로 붙이는 것이 보통인데, 이번에는 운영팀 기록에 이미 [1] · [2] 로 번호가 붙어 있으니 그 번호를 그대로 쓰시면 됩니다.
+예산 숫자를 안내문에 넣지 않는다는 데 저도 같은 생각입니다. 시각이나 준비 조건처럼 판매자 행동과 관련된 문장에 [1] 을 붙이고, 운영비처럼 돈과 관련된 문장에 [2] 를 붙일지는 도현 님이 판단하시면 됩니다.
+출처 번호가 가리킬 곳은 운영팀 공용 폴더에 있는 두 기록뿐입니다. 출처를 단다고 해서 인터넷에서 찾아본 자료처럼 보이게 쓰지 않도록 주의해 주세요.
+
+### 메일 5. 하도현 → 문해담(9월 14일 21:00)
+
+제목: 각주 질문
+
+해담 님, 각주 하나 여쭙니다.
+안내문에 &#x27;부스&#x27; 라는 말을 쓰려고 합니다. 봄 회차에 &#x27;Booth&#x27; 라고 영어로 썼다가 어르신들이 못 알아보셔서, 이번에는 우리말로 쓰고 뜻을 각주로 달려고 해요. 각주 이름을 &#x27;부스&#x27; 처럼 한글로 지어도 되나요?
+각주 설명에는 &#x27;천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나, 부스 배치표는 아직 정하지 않음&#x27; 정도를 적으려고 합니다. 부스 배치표가 미정이라는 걸 본문에 쓰면 글이 길어질 것 같아서요.
+
+### 메일 6. 문해담 → 하도현(9월 15일 08:45)
+
+제목: 답장: 각주 질문
+
+도현 님, 각주 이름은 한글로 지어도 됩니다. 본문에는 낱말 뒤에 대괄호, 꺾쇠, 부스, 닫는 대괄호를 붙이고, 글 맨 아래에 같은 표시 뒤에 쌍점을 찍고 설명을 적으시면 됩니다.
+주의할 점이 세 가지 있습니다.
+- 본문의 각주 이름과 맨 아래 정의의 이름이 한 글자도 달라서는 안 됩니다. 봄 회차 공지에서 본문에는 &#x27;천막&#x27; 으로, 정의에는 &#x27;천막안내&#x27; 로 적어서 각주가 연결되지 않고 본문에 대괄호 글자가 그대로 보인 일이 있었습니다.
+- 정의를 빠뜨리면 각주 표시가 글자로 남습니다. 각주를 달았으면 정의도 꼭 함께 둡니다.
+- 한 각주에는 한 가지 설명만 둡니다. &#x27;부스&#x27; 각주에 운영비 이야기까지 넣으면 판매자가 찾기 어렵습니다.
+설명 문장은 말씀하신 내용이 좋겠습니다. 배치표가 미정이라는 사실은 각주에 두면 본문이 짧아지고 오해도 줄어듭니다.
+
+### 메일 7. 기은솔 운영팀장 → 하도현, 송가온, 문해담(9월 15일 10:20)
+
+제목: 운영 메모는 이렇게 씁시다
+
+모두 수고 많습니다. 운영 메모 관행을 한 번 짚어 둡니다.
+- 운영 메모는 담당자가 당일 아침 운영팀 대화방에 그대로 붙여 넣는 문장입니다. 문장 형태로 씁니다. 표나 목록 기호를 섞으면 대화방에서 줄이 깨집니다.
+- 운영 메모는 복사 칸 하나에만 둡니다. 복사 칸을 두 개 만들면 담당자가 어느 쪽을 붙여야 할지 헷갈립니다.
+- 참가자 본문과 섞지 마세요. 봄 회차 공지에서는 &#x27;봉사자 확답 대기 중, 안 오면 운영팀장이 접수 지원&#x27; 같은 내부 메모가 본문 끝에 그대로 노출되어 판매자들이 &quot;운영팀장님이 오시는 거냐&quot;고 물어 왔습니다.
+- 운영 메모에도 정해지지 않은 것을 정해진 것처럼 쓰지 않습니다. 예비 인력은 지금 참석 확답이 없으니, 운영 메모에서도 &#x27;예비 인력 미확답, 승인 인력 아님&#x27; 으로만 씁니다.
+- 당일 자리 배정 예외는 아직 유지 중입니다. 바뀌면 따로 통지하겠습니다. 통지가 나가면 본문과 운영 메모를 같이 고쳐 주세요.
+
+### 메일 8. 문해담 → 하도현, 송가온, 기은솔 운영팀장(9월 15일 14:10)
+
+제목: 문의 접기 칸 주의
+
+접기 칸 이야기를 조금 더 드립니다. 여름에 마을 청소 공지를 올릴 때 있었던 일입니다.
+- 그 공지는 &#x27;준비물&#x27; 부분을 접기 칸에 넣었는데, 닫는 details 태그를 빠뜨렸습니다. 그 결과 준비물 아래에 있던 &#x27;모이는 곳&#x27;, &#x27;문의&#x27;, &#x27;고친 날&#x27; 까지 모두 접힌 칸 안으로 들어가 버렸습니다. 사람들이 접힌 칸을 열지 않아 모이는 곳을 못 보고 다른 데로 갔습니다.
+- 접기 칸을 복사 칸 안에 넣었을 때는 태그가 글자 그대로 보였습니다. 접기 칸은 복사 칸 밖에 두어야 작동합니다.
+- 접기 칸 안에 목록을 넣을 때는 summary 줄과 목록 사이에 빈 줄을 하나 두어야 목록 모양이 살아납니다.
+- 접힌 이름은 짧게 &#x27;문의&#x27; 로 두는 것이 좋습니다. 봄에는 &#x27;궁금하신 점은 여기를 눌러 주세요!&#x27; 처럼 길게 썼더니 휴대전화에서 두 줄로 깨졌습니다.
+문의 칸 안에는 문의처(장터 운영 담당 하도현)와 연락 방법, 문의 받는 때가 들어가면 되는데, 연락처가 미정이라고 들었습니다. 미정이면 미정이라고 적어 주세요. 규정 9 입니다.
+
+### 메일 9. 하도현 → 문해담(9월 15일 19:30)
+
+제목: 절 제목 질문
+
+해담 님, 절 제목을 여쭙니다.
+지금 초안에는 &#x27;접수 안내(꼭 읽어 주세요)&#x27; 와 &#x27;문의처&#x27; 라는 제목을 쓰고 있었는데, 목차 링크를 접수 · 문의 두 개로 만들려면 제목도 그에 맞춰야 할 것 같습니다. 괄호나 띄어쓰기가 들어가면 링크 주소가 어떻게 되는지 궁금합니다.
+그리고 문의 부분을 접기 칸에 넣으면, 목차의 문의 링크는 접기 칸으로 가야 하나요, 문의라는 절 제목으로 가야 하나요?
+
+### 메일 10. 문해담 → 하도현(9월 16일 09:10)
+
+제목: 답장: 절 제목 질문
+
+도현 님, 게시판은 절 제목 글자를 그대로 주소로 씁니다. 띄어쓰기는 붙임표로 바뀌고, 괄호와 느낌표 같은 문장 부호는 빠집니다. 그래서 &#x27;접수 안내(꼭 읽어 주세요)&#x27; 같은 제목은 주소가 길고 헷갈리게 됩니다. 봄 회차 링크 문제도 이 때문이었습니다.
+가장 안전한 방법은 절 제목을 낱말 하나로 두는 것입니다. 접수 절은 제목을 &#x27;접수&#x27; 로, 문의 절은 제목을 &#x27;문의&#x27; 로 두면 목차 링크 주소도 샵 기호에 그 낱말 하나가 됩니다. 목차에 보이는 이름도 같은 낱말로 맞추면 됩니다.
+문의 부분은 &#x27;문의&#x27; 라는 절 제목을 먼저 두고, 그 제목 아래에 접기 칸을 넣는 방식을 권합니다. 목차 링크는 절 제목으로 가고, 사람들은 그 아래 접기 칸을 열어 보게 됩니다. 접기 칸의 summary 이름도 &#x27;문의&#x27; 로 맞추면 보기에 자연스럽습니다.
+
+### 메일 11. 송가온 → 하도현, 문해담, 기은솔 운영팀장(9월 16일 11:00)
+
+제목: 게시 전 대조할 것
+
+봄처럼 게시판 글과 전단이 어긋나지 않게, 올리기 전에 제가 대조할 항목을 적어 둡니다. 빠진 것이 있으면 알려 주세요.
+- 목차의 링크를 하나씩 눌러 실제 절로 가는지 봅니다(접수, 문의).
+- 각주 표시와 맨 아래 정의의 이름이 같은지, 정의가 빠지지 않았는지 봅니다(부스).
+- 출처 번호 [1] · [2] 가 본문에 쓰였고, 글 끝 목록의 이름이 원 기록 제목과 같은지 봅니다.
+- 문의 접기 칸이 열리고 닫히는지, 접기 칸 아래 내용이 접혀 들어가지 않았는지 봅니다.
+- 복사 칸이 하나뿐이고 닫는 표시가 있는지, 복사 칸 안에 각주 · 링크 · 접기 칸이 들어가지 않았는지 봅니다.
+- 시각(도착은 운영 메모에만, 접수 10:50, 행사 11:00~12:00), 정원 30팀, 품목 제한, 운영비 10% · 영수증, 천막 두 팀 한 동 · 테이블 팀당 하나가 확정 기록과 같은지 봅니다.
+- &#x27;무료&#x27; 라는 낱말이 없는지 봅니다. 봄 회차 오해의 원인이었습니다.
+- 날짜와 연락처가 &#x27;미정&#x27; 으로 적혔는지 봅니다.
+- 예비 인력이 확정된 것처럼 적히지 않았는지 봅니다.
+
+### 메일 12. 하도현 → 송가온(9월 16일 11:40)
+
+제목: 답장: 게시 전 대조할 것
+
+가온 님, 대조 항목 고맙습니다. 하나만 덧붙이면, 현장 도착 10:30 은 담당자 시각이라 판매자 본문에는 넣지 않고 운영 메모에만 두려고 합니다. 판매자가 10:30 에 와도 되는 줄 알면 준비 중인 광장에 들어오게 될 수 있어서요. 접수 전에는 준비 중인 공간에 들어올 수 없다는 문장은 본문에 넣겠습니다.
+
+### 메일 13. 문해담 → 모두(9월 16일 16:30)
+
+제목: 게시 순서
+
+올리는 순서를 정해 둡니다.
+- 도현 님이 수정본을 공용 폴더에 올리면, 제가 게시판 미리보기 화면에서 목차 링크, 각주, 접기 칸, 복사 칸이 작동하는지 먼저 봅니다.
+- 가온 님이 메일 11 항목으로 내용을 대조합니다.
+- 운영팀장님 승인 뒤 게시합니다.
+- 게시한 뒤에 조건이 바뀌면 새 글을 올리지 않고 같은 글을 고칩니다. 이때 목차 · 각주 · 문의 칸 형식은 그대로 두고 바뀐 값만 고칩니다. 글 끝에 고친 날을 적습니다.
+- 봄 회차 글은 지우지 않고 제목 앞에 &#x27;지난 회차&#x27; 표시를 붙여 두겠습니다.
+
+### 메일 14. 문해담 → 하도현(9월 16일 18:05)
+
+제목: 시험 글로 링크를 눌러 봤습니다
+
+도현 님, 게시판에 보이지 않는 시험 글을 하나 만들어 목차 링크를 눌러 봤습니다. 결과를 알려 드립니다.
+- 절 제목을 &#x27;접수&#x27; 와 &#x27;문의&#x27; 낱말 하나로 두니, 목차의 두 링크가 모두 제 절로 움직였습니다. 한글 주소도 문제없이 작동합니다.
+- 같은 글 안에 &#x27;접수&#x27; 라는 제목이 두 번 있으면, 게시판이 두 번째 제목의 주소 끝에 숫자를 붙입니다. 그러면 목차 링크는 첫 번째 &#x27;접수&#x27; 로만 갑니다. 운영 메모 쪽에 &#x27;접수&#x27; 라는 소제목을 따로 두지 않는 편이 좋겠습니다.
+- 제목 앞에 숫자를 붙여 &#x27;1. 접수&#x27; 처럼 쓰면 주소가 &#x27;1-접수&#x27; 비슷하게 바뀌어 목차 링크와 어긋났습니다. 번호를 붙이고 싶으시면 목차 쪽 이름에만 붙이고 절 제목은 낱말만 두세요.
+- 문의 절 제목 바로 아래에 접기 칸을 두니, 목차의 문의 링크를 눌렀을 때 화면이 제목에 멈추고 바로 아래 접힌 &#x27;문의&#x27; 가 보였습니다. 이 모양이 가장 자연스럽습니다.
+
+### 메일 15. 송가온 → 문해담(9월 16일 20:00)
+
+제목: 각주 정의와 출처 목록의 순서
+
+해담 님, 하나 더 여쭙니다. 글 맨 아래에 각주 정의도 있고 출처 목록도 있게 되는데, 둘 중 무엇을 먼저 둬야 하나요? 섞이면 판매자가 [1] 과 각주를 같은 것으로 볼까 걱정입니다.
+
+### 메일 16. 문해담 → 송가온(9월 16일 21:15)
+
+제목: 답장: 각주 정의와 출처 목록의 순서
+
+가온 님, 게시판은 각주 정의를 글 어디에 적든 화면 맨 끝으로 모아 따로 보여 줍니다. 각주 정의 앞에는 가는 줄이 하나 그어지고 번호가 자동으로 붙습니다. 그래서 출처 목록은 &#x27;참고 기록&#x27; 같은 이름의 절로 따로 두시면, 화면에서는 출처 목록이 먼저, 각주가 그 아래에 보이게 됩니다.
+출처 번호는 대괄호 안에 숫자만 들어가고, 각주 표시는 대괄호 안에 꺾쇠 기호와 이름이 들어가서 게시판이 둘을 다르게 처리합니다. 출처 번호는 글자 그대로 보이고, 각주 표시는 작은 위첨자 번호로 바뀝니다. 판매자 눈에도 다르게 보일 겁니다.
+
+### 메일 17. 송가온 → 하도현(9월 17일 08:30)
+
+제목: [2] 를 어디에 붙일지
+
+도현 님, 출처 번호 이야기를 하다가 생각난 것이 있어 적습니다.
+[2] 운영팀 예산 메모는 승인 상한, 실지급, 남은 예상, 방식별 비용을 다루는 기록입니다. 판매 수익 10% 운영비와 영수증은 그 메모의 범위가 아니라 봄 회차 평가 회의와 1차 준비 회의에서 정한 운영 규칙입니다. 그러니 운영비 문장에 [2] 를 붙이면 출처가 맞지 않게 됩니다.
+[1] 광장 답사 메모는 행사 · 접수 시각, 인력, 준비 조건을 다루니 시각과 접수 문장에는 [1] 이 맞습니다. [2] 는 안내문 본문보다는, 준비 방식별 비용처럼 운영 메모 밖 설명에서 쓸 일이 있을 때 붙이시는 게 맞을 것 같습니다. 판단은 도현 님께 맡깁니다.
+
+### 메일 18. 하도현 → 기은솔 운영팀장(9월 17일 09:15)
+
+제목: 운영 메모에 준비 방식을 어떻게 적을지
+
+팀장님, 운영 메모에 넣을 내용을 여쭙니다.
+천막과 테이블 준비 방식은 A안 · B안 가운데 아직 고르지 않았는데, 운영 메모에 &#x27;창고에서 가져옴&#x27; 이나 &#x27;관리실에서 찾음&#x27; 처럼 한 가지를 적어 두면 담당자가 그대로 따를 것 같아 걱정입니다. 어떻게 적을까요?
+그리고 운영 메모에 예비 인력 이야기를 넣을지도 여쭙니다.
+
+### 메일 19. 기은솔 운영팀장 → 하도현(9월 17일 12:40)
+
+제목: 답장: 운영 메모에 준비 방식을 어떻게 적을지
+
+도현 님, 준비 방식은 &#x27;준비 방식 미정(A안 · B안 검토 중)&#x27; 으로만 적으세요. 하나를 고른 것처럼 쓰지 않습니다. 고르게 되면 그때 운영 메모를 고칩니다.
+예비 인력은 운영 메모에 &#x27;예비 인력 참석 미확답, 승인 인력 아님&#x27; 으로 넣으세요. 운영 메모를 받는 사람이 혹시 도움이 오는 줄 알고 일을 미루지 않게요.
+그 밖에 운영 메모에 꼭 들어갔으면 하는 것은 두 가지입니다. 현장 도착 시각, 그리고 접수가 시작된 뒤에는 접수 자리를 비울 수 없다는 점입니다.
+
+### 메일 20. 문해담 → 하도현, 송가온(9월 17일 15:20)
+
+제목: 접기 칸 안의 출처 번호
+
+두 분, 문의 접기 칸 안에도 출처 번호를 써도 되는지 물어보셔서 시험 글로 확인했습니다.
+접기 칸은 복사 칸이 아니라서, 안에 쓴 출처 번호와 각주 표시가 모두 제대로 작동합니다. 다만 접기 칸 안의 각주는 접힌 상태에서는 보이지 않으니, 꼭 봐야 하는 각주는 본문에 두시는 게 좋겠습니다.
+복사 칸 안에서는 다시 말씀드리지만 출처 번호 · 각주 · 링크 · 접기 칸이 모두 글자로만 보입니다. 운영 메모 안에는 넣지 마세요.
+
+### 메일 21. 하도현 → 문해담(9월 17일 19:00)
+
+제목: 첫 손질 진행 상황
+
+해담 님, 여러 번 답 주셔서 고맙습니다. 지금까지 손본 것을 알려 드립니다. 문안은 공용 폴더에 올리면서 따로 보내겠습니다.
+- 맨 위에 목차를 넣을 자리를 만들었습니다. 링크는 접수와 문의 두 개로 하려 합니다.
+- 초안의 &#x27;접수 안내(꼭 읽어 주세요)&#x27; 와 &#x27;문의처&#x27; 제목은 낱말 하나로 바꿀 생각입니다.
+- &#x27;부스&#x27; 라는 낱말에 각주를 달고, 정의에는 천막 · 테이블 원칙과 배치표 미정 이야기를 넣으려 합니다.
+- 시각과 접수 문장에 [1] 을 붙이고, 가온 님 말씀대로 운영비 문장에는 [2] 를 붙이지 않으려 합니다.
+- 문의는 절 제목 아래 접기 칸으로 넣고, 연락처는 미정이라고 적겠습니다.
+- 운영 메모는 담당자가 복사할 문장 서너 줄로, 복사 칸 하나에 넣겠습니다. 도착 시각, 준비 방식 미정, 예비 인력 미확답, 접수 시작 뒤 자리 비움 불가를 넣으려 합니다.
+한 가지 걱정은 복사 칸 표시를 제가 빠뜨리지 않을까 하는 것입니다. 미리보기에서 꼭 봐 주세요.
+
+### 메일 22. 문해담 → 하도현(9월 17일 21:30)
+
+제목: 답장: 첫 손질 진행 상황
+
+도현 님, 순서가 좋습니다. 몇 가지만 덧붙입니다.
+- 목차 위에 글 제목을 한 줄 두세요. 게시판 목록에서 보이는 제목과 같게 맞추면 됩니다.
+- 출처 목록 절은 글 맨 끝, 고친 날 줄은 그 바로 위에 두면 찾기 쉽습니다.
+- 시각과 장소는 굵게 해 주세요. 봄 회차 설문에서 나온 요청입니다.
+- 복사 칸은 제가 미리보기에서 여는 표시와 닫는 표시를 둘 다 확인하겠습니다. 복사 칸 아래에 아무것도 없으면 닫는 표시가 빠졌을 때 알아채기 어려우니, 복사 칸 뒤에 출처 목록이나 고친 날 같은 줄이 이어지게 두면 잘못됐을 때 바로 보입니다.
+- &#x27;무료&#x27; 는 넣지 않으시는 것으로 알고 있겠습니다.
+
+### 메일 23. 송가온 → 문해담, 하도현(9월 17일 22:10)
+
+제목: 전단은 어떻게 하나요
+
+두 분, 봄 회차에 게시판 글과 마을회관 전단이 서로 달랐던 일 때문에 여쭙니다.
+게시판 글에는 목차 링크, 각주, 접기 칸이 들어가는데, 종이 전단에서는 링크를 누를 수도 없고 접기 칸도 없습니다. 전단은 따로 만들어야 하나요? 따로 만들면 또 어긋날까 걱정입니다.
+제 생각에는 게시판 글을 먼저 확정하고, 전단은 그 본문 내용을 그대로 옮기되 형식만 종이에 맞게 바꾸는 게 좋겠습니다. 문의는 접지 않고 맨 아래에 펼쳐 두고, 각주 설명은 낱말 바로 옆 괄호에 넣는 식으로요. 운영 메모는 전단에 넣지 않습니다.
+
+### 메일 24. 문해담 → 송가온, 하도현(9월 18일 07:50)
+
+제목: 답장: 전단은 어떻게 하나요
+
+가온 님 말씀대로 하는 것이 좋겠습니다. 게시판 글이 원본이고 전단은 옮겨 적은 것으로 둡니다.
+전단을 만들 때는 게시판 글의 고친 날을 전단 아래 작은 글씨로 함께 적어 두면, 나중에 게시판 글만 고쳐지고 전단이 그대로 남았을 때 알아보기 쉽습니다. 봄에는 이 표시가 없어 어느 쪽이 먼저인지 알 수 없었습니다.
+전단 인쇄는 실지급에 이미 들어 있는 안내 전단 인쇄 건과 같은 건인지 가온 님이 확인해 주세요. 같은 건이면 다시 인쇄할 때 비용이 따로 생기는지도 봐야 할 것 같습니다.
+
+### 메일 25. 하도현 → 문해담, 송가온(9월 18일 08:20)
+
+제목: 답장: 전단은 어떻게 하나요
+
+두 분 말씀대로 게시판 글을 원본으로 두고, 전단은 확정된 뒤 옮기겠습니다. 전단 인쇄 건은 가온 님 확인을 기다리겠습니다.
+첫 수정본은 오늘 안에 공용 폴더에 올리겠습니다. 해담 님 미리보기와 가온 님 대조를 거친 뒤 팀장님께 승인을 여쭙겠습니다. 운영 메모는 팀장님 메일 19 에 적힌 대로 넣겠습니다.
+
+## 3. 지난 게시 사례 메모(문해담)
+
+### 3-1. 봄 장터 판매자 모집 글(4월)
+
+- 목차가 있었으나 절 제목을 나중에 바꾸면서 링크를 고치지 않아, 목차 세 항목 가운데 두 개가 눌러도 움직이지 않았음.
+- 각주 이름이 본문과 정의에서 달라 대괄호 글자가 본문에 그대로 보였음.
+- QR 그림을 크게 넣어 휴대전화에서 글이 느리게 열렸음.
+- 내부 운영 메모가 본문 끝에 섞여 참가자에게 보였음.
+
+### 3-2. 여름 마을 청소 공지(7월)
+
+- 접기 칸 닫는 태그가 빠져 아래 내용이 모두 접혔음(메일 8).
+- 고친 날을 적지 않아, 모이는 곳을 고친 뒤에도 사람들이 고치기 전 내용을 본 것인지 알 수 없었음.
+- 그 공지는 청소 도구를 &#x27;운영팀이 준비&#x27; 라고 적었다가, 실제로는 각자 가져와야 하는 것으로 바뀌었는데 본문만 고치고 아래쪽 운영 메모는 고치지 않았음. 당일 담당자가 운영 메모대로 도구를 챙기지 않아 현장에서 장갑이 모자랐음. 본문과 운영 메모를 함께 고쳐야 한다는 원칙(7장)이 이 일에서 나왔음.
+- 공지를 올린 뒤 댓글로 &#x27;모이는 곳이 바뀌었나요&#x27; 라는 질문이 세 번 들어왔고, 그때마다 게시 담당이 같은 답을 달았음.
+
+### 3-3. 작은도서관 공동 책 나눔 공지(8월)
+
+- 이 공지는 규정대로 잘 올라간 사례로 남겨 둠. 목차는 &#x27;일시&#x27;, &#x27;장소&#x27;, &#x27;문의&#x27; 세 항목이었고 절 제목도 같은 낱말 하나씩이었음.
+- 문의 절 제목 아래에 접기 칸을 두고 summary 이름을 &#x27;문의&#x27; 로 맞춤. 접기 칸 안에는 담당 이름과 &#x27;연락처는 도서관 게시판 쪽지로&#x27; 라는 한 줄만 있었음.
+- 운영 메모는 복사 칸 하나에 문장 세 줄로 넣었음. 당일 담당자가 대화방에 붙여 넣고 그대로 썼다는 말을 들음.
+- 각주는 하나뿐이었고, 정의가 맨 아래에 있었음.
+
+## 4. 해담 메모: 안내문과 운영 메모를 나눠 쓰는 기준
+
+- 판매자가 해야 할 행동(언제 접수하나, 무엇을 가져오나, 무엇을 못 가져오나, 운영비와 영수증, 천막과 테이블, 문의)은 본문.
+- 담당자가 해야 할 일(현장 도착 시각, 준비 방식 검토 상태, 예비 인력 상태, 접수 시작 뒤 자리를 비울 수 없다는 점, 회수 뒤 기록)은 운영 메모.
+- 정해지지 않은 값은 본문에도 운영 메모에도 &#x27;미정&#x27;. 연락처를 짐작으로 적지 않음.
+- 같은 값(접수 시각, 정원 등)이 본문과 운영 메모에 함께 나오면 두 곳의 숫자와 낱말을 똑같이 적음. 한쪽만 &#x27;10시 50분&#x27;, 다른 쪽은 &#x27;10:50&#x27; 처럼 섞어 쓰면 대조할 때 놓치기 쉬움.
+- 당일 자리 배정 예외처럼 바뀔 수 있다고 들은 조건은, 지금 상태대로 적되 운영 메모에 &#x27;바뀔 수 있음, 통지 오면 고침&#x27; 을 함께 남김. 본문에는 &#x27;바뀔 수 있음&#x27; 을 길게 쓰지 않음.
+- 판매자에게 보이는 본문에는 운영팀 내부 이름(게시 담당, 회계 담당)을 문의처로 적지 않음. 문의처는 장터 운영 담당 하도현 한 사람임.
+- 출처 번호가 붙은 문장은 본문이든 운영 메모 밖 설명이든 글 끝 출처 목록과 짝이 맞아야 함. 복사 칸 안 문장에는 출처 번호를 붙이지 않음(복사해 쓰는 사람이 번호의 뜻을 모름).
+
+## 5. 화면별로 본 모습(9월 17일, 문해담 · 하도현)
+
+시험 글을 여러 화면에서 열어 보고 적은 메모임.
+
+- 문해담 휴대전화: 목차 링크 두 개가 손가락으로 누르기 좋은 크기로 보임. 접기 칸 &#x27;문의&#x27; 를 누르면 펼쳐지고 다시 누르면 접힘. 복사 칸은 옆으로 밀어야 끝까지 보여, 운영 메모 문장을 짧게 끊어 쓰는 편이 좋겠음.
+- 하도현 휴대전화(글씨를 크게 해 둔 설정): 목차가 두 줄로 내려가지만 링크는 작동함. 각주 위첨자 번호가 작아 누르기 어려움. 각주에 꼭 필요한 설명만 두자는 메일 6 의 말이 맞음.
+- 운영팀장 태블릿: 가장 보기 편했음. 출처 목록과 각주 정의가 맨 아래에 따로 보임.
+- 마을회관 공용 컴퓨터: 게시판이 오래된 화면으로 열려 접기 칸이 처음부터 펼쳐진 상태로 보였음. 내용은 다 보이니 문제는 없으나, 접기 칸 안에 중요한 내용을 숨겨 둔다고 생각하지 않는 것이 좋겠음.
+- 공통: 게시판은 글씨 크기를 바꿀 수 없고 굵게만 할 수 있음. 봄 회차 설문에서 &#x27;시각과 장소를 크게&#x27; 라는 요청이 있었으니, 시각과 장소를 굵게 하는 것으로 대신함.
+
+## 6. 해담의 게시판 문법 메모(도현 님 요청으로 말로 풀어 적음)
+
+규정집의 예시는 복사 칸으로 되어 있어 그대로 옮기면 이 메일 묶음에서도 복사 칸이 생기므로, 말로 풀어 적음.
+
+- 목차 한 줄: 목록 기호, 대괄호 안에 보이는 이름, 바로 이어 괄호 안에 샵 기호와 절 제목 낱말. 이름과 낱말 사이에 띄어쓰기를 넣지 않음.
+- 절 제목: 샵 기호 두 개와 한 칸 띄우고 낱말 하나. 접수 절과 문의 절을 이렇게 둠.
+- 각주 표시: 본문 낱말 바로 뒤에 대괄호를 열고 꺾쇠 기호, 이름, 대괄호를 닫음. 낱말과 표시 사이에 띄어쓰기를 넣지 않음.
+- 각주 정의: 줄 맨 앞에 같은 표시, 바로 뒤에 쌍점, 한 칸 띄우고 설명.
+- 출처 번호: 문장 끝 마침표 앞이나 뒤에 대괄호 숫자. 한 글 안에서 위치를 한 가지로 맞춤.
+- 출처 목록: &#x27;참고 기록&#x27; 같은 절 제목 아래에 대괄호 숫자, 원 기록 제목, 쌍점, 다루는 범위.
+- 접기 칸: details 여는 태그, summary 여는 태그와 접힌 이름과 summary 닫는 태그, 빈 줄, 내용, 빈 줄, details 닫는 태그. 여는 태그와 닫는 태그의 수가 같아야 함.
+- 복사 칸: 여는 표시 한 줄, 운영 메모 문장, 닫는 표시 한 줄. 여는 표시만 있고 닫는 표시가 없으면 그 아래 글 전체가 복사 칸이 되어 버림. 봄 회차 운영팀 내부 공지에서 실제로 이 일이 있어, 아래쪽 출처 목록과 고친 날까지 회색 칸 안에 들어갔음.
+
+## 7. 조건이 바뀔 때의 고쳐 쓰기 원칙(운영팀장 메일 7 · 해담 메일 13 을 함께 본 것)
+
+- 바뀐 조건이 통지되면 같은 글을 고침. 새 글을 올리지 않음.
+- 목차 · 각주 · 출처 목록 · 문의 접기 칸 · 운영 메모 복사 칸의 형식은 그대로 둠. 바뀐 값만 고침.
+- 본문과 운영 메모에 같은 값이 들어 있으면 두 곳을 함께 고침. 한 곳만 고치면 봄 회차처럼 두 내용이 어긋남.
+- 고친 날은 글 끝에 적음. 무엇을 고쳤는지 목록을 따로 붙일지는 운영팀장 판단에 따름. 봄 회차에는 고친 목록이 본문보다 길어져 판매자가 어느 것이 최신인지 헷갈렸다는 말이 있었음.
+- 취소된 예외나 바뀐 시각을 &#x27;예전에는 ~였음&#x27; 처럼 본문에 남겨 두지 않음. 판매자는 지금 따라야 할 것만 보면 됨.
+
+## 8. 봄 회차 운영팀 내부 공지에서 복사 칸이 닫히지 않았던 날(문해담 기록)
+
+- 4월 말 저녁, 봄 장터 당일 담당자용 내부 공지를 올림. 공지 끝에 담당자가 대화방에 붙일 운영 메모를 복사 칸에 넣었음.
+- 올린 지 10분쯤 뒤, 당시 운영 담당이 &quot;출처 목록이 회색 칸 안에 들어가 있다&quot;고 알려 옴. 확인해 보니 복사 칸 닫는 표시를 빠뜨려, 운영 메모 아래의 출처 목록과 고친 날 줄이 모두 복사 칸 안에 들어가 있었음.
+- 그 상태에서 담당자 한 명이 복사 단추를 눌러 대화방에 붙여 넣었고, 출처 목록 글자까지 대화방에 그대로 올라감.
+- 닫는 표시를 넣어 고친 뒤 같은 글을 다시 저장함. 고친 날 줄에 &#x27;복사 칸 닫는 표시 보완&#x27; 이라고 적음.
+- 그 뒤로 게시 담당은 미리보기에서 복사 칸 아래에 다른 줄이 회색 칸 밖으로 나와 있는지를 먼저 봄. 메일 22 의 덧붙임이 이 경험에서 나온 것임.
+
+## 9. 봄 회차 판매자 모집 글에 달린 댓글에서 본 것(문해담)
+
+- &quot;문의는 어디 있어요?&quot; 같은 댓글이 여럿 있었음. 문의처가 본문 중간 문단에 섞여 있어 찾지 못한 것임. 이번에 문의를 따로 절로 두고 목차에서 바로 가게 하려는 이유임.
+- &quot;접수가 몇 시예요?&quot; 라는 댓글에 다른 판매자가 &quot;9시 반&quot; 이라고 답하고, 또 다른 판매자가 &quot;전단에는 9시 40분&quot; 이라고 다시 답한 일이 있었음. 같은 값을 여러 곳에 쓸 때 어긋나지 않게 해야 함.
+- &quot;Booth 가 뭐예요?&quot; 라는 댓글이 있었음. 이번 &#x27;부스&#x27; 각주가 이 문제를 줄일 것으로 봄.
+- &quot;링크가 안 눌려요&quot; 라는 댓글이 두 개 있었음. 메일 2 에서 말한 목차 링크 문제임.
+- 댓글에서 판매자끼리 서로 답해 준 내용 가운데 틀린 것도 있었음. 운영팀이 확정한 값은 본문에 분명히 두어 댓글로 묻고 답할 일이 줄게 해야 함.
+
+## 10. 게시 담당이 판매자 안내문에서 피하려는 표현(문해담)
+
+- &#x27;무료&#x27;, &#x27;누구나&#x27; 처럼 조건이 없는 것처럼 읽히는 말.
+- &#x27;몇 시까지 오세요&#x27; 처럼 접수 시각인지 도착 시각인지 알 수 없는 말.
+- &#x27;Booth&#x27;, &#x27;QR&#x27;, &#x27;Open Market&#x27; 같은 영어 표기.
+- &#x27;봉사자가 도와드립니다&#x27; 처럼 정해지지 않은 사람을 약속하는 말.
+- &#x27;비가 와도 걱정 마세요&#x27; 처럼 정해지지 않은 대응을 약속하는 말.
+- &#x27;자세한 것은 현장에서&#x27; 처럼 판매자가 미리 알아야 할 것을 뒤로 미루는 말.
+- 느낌표를 여러 개 붙인 홍보 문구. 휴대전화에서 줄이 깨지고, 해야 할 일보다 먼저 눈에 들어옴.
+
+## 11. 게시판 공지 고정 칸 사정(문해담)
+
+- 운영팀 게시판 맨 위 공지 고정 칸은 두 자리뿐임. 지금은 작은도서관 공동 책 나눔 공지와 경로당 가을 모임 공지가 차지하고 있음.
+- 경로당 공지는 모임이 끝나면 내리기로 되어 있어, 판매자 안내문은 그 자리에 올릴 수 있음. 모임 날짜는 경로당 쪽에서 알려 주기로 함.
+- 고정 칸에 올리지 못하더라도 글은 게시판에서 찾을 수 있음. 다만 봄 회차에는 고정 칸에 올리기 전 사흘 동안 글이 아래로 밀려 판매자들이 찾지 못했다는 말이 있었으니, 운영팀장 승인 시점과 고정 칸이 비는 시점을 맞추는 것이 좋겠음.
+- 고정 칸 순서를 바꾸는 것은 게시 담당이 할 수 있으나, 다른 모임 공지를 내리는 것은 그 모임과 상의해야 함.
+
+## 12. 고친 날 표기 관행(지난 글에서 본 모양을 말로 적음)
+
+- 글 맨 끝, 출처 목록 위에 &#x27;고친 날&#x27; 이라는 낱말과 날짜를 한 줄로 적음. 여러 번 고쳤으면 가장 최근 날짜만 남김.
+- 고친 내용을 길게 적지 않음. 판매자는 지금 글만 보면 되도록 함.
+- 내부 기록(운영 확인 기록 판본 이력)에는 무엇을 고쳤는지 자세히 남김. 게시판 글과 내부 기록의 역할을 나눔.
+- 작은도서관 공동 공지에서는 &#x27;고친 날&#x27; 줄 옆에 고친 사람의 이름을 적지 않았는데, 문의가 왔을 때 누가 고쳤는지 알 수 없어 불편했다는 말이 있었음. 이번에는 내부 기록에 고친 사람을 적고 게시판 글에는 적지 않는 쪽으로 생각함.
+
+## 13. 목차에 둘 항목 수(문해담)
+
+- 봄 회차 모집 글은 목차가 일곱 항목이었음. 운영팀 소개, 지난 축제, 사진 같은 항목까지 목차에 들어가 판매자가 찾는 곳이 오히려 묻혔음.
+- 작은도서관 공동 공지는 세 항목이었고 가장 반응이 좋았음.
+- 판매자 안내문은 판매자가 가장 자주 찾는 곳만 목차에 두는 것이 좋겠음. 봄 회차 댓글과 문의를 보면 접수와 문의를 가장 많이 찾았음.
+- 목차에 넣지 않은 절도 글 안에 있으면 됨. 목차는 바로 가는 길이고, 글의 모든 절을 늘어놓는 차례표가 아님.
+
+## 14. 참고 기록
+
+[1] 광장 답사 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 운영팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+다시장터 운영팀의 판매자 안내문을 첫 번째로 수정해 주세요. 아래 형식에 맞는 수정본 전체를 제시해 주세요. 목차에는 [접수](#접수), [문의](#문의) 내부 링크와 실제 대응 제목을 넣으세요. 각주 [^부스]과 그 정의, 자료의 [1]·[2] 출처 번호와 목록도 맞춰 주세요. 문의 부분은 코드블록 밖의 짝이 맞는 &lt;details&gt;&lt;summary&gt;문의&lt;/summary&gt;...&lt;/details&gt; 안에 적어 주세요. 마지막에는 담당자가 복사할 문장 형태의 운영 메모를 코드블록 정확히 1개로 제시하고, 앞뒤 코드 구획 표시를 모두 닫아 주세요. 각주·출처 목록·내부 링크·문의 태그는 코드블록 밖에 작성해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 5 답변</b><pre class="rs-pre rs-ans"># 다시장터 주민 중고 장터 판매자 설명회 안내문
+
+다시장터 가을 회차에 앞서 판매자 설명회를 개최합니다. 실제 장터가 열리는 광장에서 판매자분들이 부스를 직접 구성해 보고 운영 규칙을 익히는 자리입니다. 아래 목차를 통해 주요 안내 사항을 확인해 주시기 바랍니다.
+
+## 목차
+
+* [접수](https://www.google.com/search?q=%23%EC%A0%91%EC%88%98)
+* [문의](https://www.google.com/search?q=%23%EB%AC%B8%EC%9D%98)
+
+---
+
+## 접수
+
+* **일시 및 장소:** 행사 날짜는 **미정**(광장 사용 승인 후 공지)이며, 설명회 진행 시간은 **11:00~12:00**입니다. 등록 확인과 번호판을 배부하는 접수는 **10:50**에 시작합니다 [1]. 안전한 준비를 위해 접수 시작 시각 전에는 준비 중인 광장 안으로 들어올 수 없습니다 [1]. 행사가 열리는 장소는 **은행나무 광장**입니다.
+* **참여 정원 및 조건:** 사전 등록 판매자 30팀을 기준으로 운영합니다. 당일 불참으로 남는 자리가 생길 경우 현장 미등록 판매자에게 배정하는 예외를 현재 허용하고 있으나, 현장 상황에 따라 취소될 수 있습니다.
+* **판매 품목:** 생활용품과 도서에 한해 판매할 수 있습니다. 안전과 위생을 위해 식품 및 전자제품은 일절 반입하거나 판매할 수 없습니다.
+* **부스 사용 및 운영비:** 천막과 테이블을 포함한 부스[^부스]를 배정받아 사용합니다. 판매 수익의 10%는 장터 운영비로 모으며 납부 현장에서 즉시 영수증을 발행합니다. 접수처에서 번호판을 수령한 것만으로 안내를 이수한 것으로 보지 않으므로, 설명회 규칙 안내를 끝까지 들어 주셔야 합니다. 행사 준비 및 소모품 관련 예산은 승인 기준에 맞추어 관리됩니다 [2].
+* **현장 인력:** 설명회 당일 현장 진행 인력은 장터 운영 담당 1명이며, 추가 지원 인력은 정해지지 않았습니다.
+
+---
+
+<mark class="rs-mk"><sup>5</sup>## 문의
+
+* **문의처:** 장터 운영 담당 하도현
+* **연락 방법:** 미정 (공용 연락처 확정 시 게시판에 안내 예정)
+
+---</mark>
+
+고친 날: 2026년 9월 18일
+
+## 참고 기록
+
+[1] 광장 답사 메모: 행사·접수 시각, 인력, 준비 조건.
+
+[2] 운영팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+[^부스]: 천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나를 사용하며, 부스 배치표는 아직 정하지 않았습니다.
+
+---
+
+## 운영 메모
+
+```text
+운영 담당자는 10:30에 현장에 도착하여 준비를 시작합니다. 천막과 테이블 준비 방식은 미정이며 현재 A안과 B안을 검토 중입니다. 예비 인력은 참석 미확답 상태이므로 승인 인력이 아니며 당일 현장 진행은 운영 담당 1명이 전담합니다. 참가자 등록 확인과 번호판 배부가 이루어지는 10:50 접수 시작 뒤에는 접수 자리를 비울 수 없으며 이석이 필요한 용무는 접수 전에 마칩니다. 미등록 판매자 대상 당일 잔여석 배정 예외는 현재 유지 중이나 운영팀장의 취소 통지가 오면 즉시 중단합니다.
+
+```</pre></div><div class="rs-turn"><b>턴 6 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 은행나무 광장 현장 점검 일지 · 측정 기록(천막 시범 설치)
+
+- 기록: 하도현(장터 운영 담당)
+- 점검일: 2026년 9월 1일(화) 답사 날, 덧붙인 점검 9월 14일(월) 아침
+- 사본을 만든 날: 9월 17일(목). 손으로 쓴 점검 공책을 옮겼고, 옮기면서 내용을 바꾸지 않음. 옮긴 사람의 덧붙임은 [옮긴이 메모] 로 따로 표시함.
+- 쓰임: 답사 날 시범으로 세운 천막 한쪽이 바람이 세지 않은데도 자꾸 들린 일을 본 대로 남김. 이 일지는 관찰과 측정만 적고, 원인은 적지 않음. 원인을 짐작한 말은 &#x27;담당자 메모&#x27; 와 &#x27;의견&#x27; 에만 두고, 짐작이라는 점을 함께 적음.
+
+## 0. 점검에 쓴 도구와 물품
+
+- 천막: 초록 접이식 천막 한 동(봄 회차부터 쓴 것). 다리 넷, 지붕천 하나, 옆막 한 장(남쪽 면에 다는 것), 귀퉁이 끈 네 줄 가운데 세 줄이 가방에 있었음.
+- 테이블: 회색 접이식 테이블 두 개.
+- 모래주머니: 성한 것 두 개. 하나에 대략 들 수 있을 만큼의 무게. 저울로 달지 않음.
+- 번호판: 봄 회차 코팅 번호판 두 장(숫자가 선명한 장, 바랜 장).
+- 휴대용 풍속계: 운영팀장이 빌려줌. 손에 들고 바람 쪽으로 향하면 초당 미터 단위로 숫자가 나오는 작은 기계. 값이 계속 움직여서, 30초 동안 본 가장 낮은 값과 가장 높은 값을 적음. 가장 높은 순간 값은 &#x27;순간&#x27; 으로 따로 적음.
+- 온도계: 풍속계에 붙어 있는 온도 표시를 씀.
+- 줄자, 휴대전화 시계, 리본 끈(빨간 비닐 끈 30cm 쯤).
+- 9월 14일에는 목공용 수평계를 더 씀(마을회관 사무실에서 빌림).
+
+## 1. 자리 설명
+
+- 자리 가: 광장 동쪽 통로 입구에서 광장 안쪽으로 걸어서 다섯 걸음쯤 들어온 곳. 동쪽 통로는 관리동과 상가 건물 사이의 좁은 길로, 폭은 줄자로 재어 3m 남짓. 자리 가의 바닥은 보도블록이고 배수구 쪽(동쪽)으로 조금 기울어 있음. 블록 한 장이 들떠 있음.
+- 자리 나: 광장 가운데, 서쪽 은행나무에서 동쪽으로 열 걸음쯤 떨어진 곳. 바닥은 보도블록이고 눈으로 보기에 평평함. 둘레에 건물이 가깝지 않음.
+- 두 자리 사이: 걸어서 1분이 안 걸림. 관리동은 두 자리의 북쪽에 있음.
+
+## 2. 9월 1일 시각별 관찰
+
+### 2-1. 창고에서 광장까지(앞 일)
+
+- 08:40 공동 창고 문을 엶. 창고 안 온습도계 기온 22도, 습도 71%. 위 0장의 물품을 손수레에 실음.
+- 08:52 창고 출발. 바람은 거의 느껴지지 않았음. 마을회관 앞 횡단보도에서 신호 한 번 기다림.
+- 09:04 광장 남쪽 입구 도착. 편도 12분(창고~광장 시간 측정은 [1] 광장 답사 메모에도 적음).
+- 09:04 물품 확인 시작. 천막 다리 넷과 지붕천, 옆막, 끈, 테이블 걸쇠를 하나씩 봄. 끈 네 줄 가운데 한 줄이 가방에 없다는 것을 이때 알게 됨.
+- 09:12 물품 확인 끝. 8분.
+- 09:12 물품을 자리 가로 끌어다 놓고, 바닥과 통로 쪽을 살피며 천막 방향을 정함.
+- 09:18 설치 시작. 설치 시간 측정은 [1] 광장 답사 메모에 적음.
+
+### 2-2. 자리 가에 천막을 세운 뒤의 상태(관찰 시작 전)
+
+설치 과정의 시간 측정은 [1] 광장 답사 메모에 따로 적었으므로 여기서는 설치가 끝난 뒤의 상태만 적음.
+
+- 09:48 설치를 마치고 상태를 봄.
+- 천막 방향: 네 면 가운데 한 면이 동쪽 통로를 바라보게 세움. 통로 쪽 면을 &#x27;동쪽 면&#x27;, 그 반대를 &#x27;서쪽 면&#x27; 이라 부름. 옆막은 원래 다는 자리인 남쪽 면에 닮. 동쪽 · 서쪽 · 북쪽 세 면은 열려 있음.
+- 다리 이름: 통로 쪽 두 다리를 &#x27;동북 다리&#x27;, &#x27;동남 다리&#x27;, 반대쪽 두 다리를 &#x27;서북 다리&#x27;, &#x27;서남 다리&#x27; 라 부름.
+- 모래주머니: 두 개뿐이라 서북 다리와 서남 다리에 하나씩 올림. 동쪽 두 다리에는 모래주머니가 없음.
+- 귀퉁이 끈: 끈 세 줄로 서북 · 서남 · 동남 귀퉁이를 바닥 쪽 고리에 묶음. 동북 귀퉁이는 끈이 없어 묶지 않음.
+- 다리 높이: 다리 넷 모두 가장 높은 칸에 핀을 끼우려 했으나, 동북 다리의 높이 조절 핀이 뻑뻑해서 한 칸 낮은 자리에 걸림. 줄자로 재어 보니 동북 귀퉁이 지붕 끝이 다른 귀퉁이보다 6cm쯤 낮음.
+- 바닥: 동쪽 두 다리는 배수구 쪽으로 기운 블록 위에 섬. 동남 다리는 들뜬 블록 바로 옆에 섬.
+- 지붕천: 가운데가 조금 처져 있었음. 손으로 밀어 올리면 팽팽해졌다가 다시 처짐.
+- 테이블: 천막 아래 남쪽 옆막 가까이에 두 개를 나란히 폄. 테이블 위에 번호판 두 장을 세움.
+
+### 2-3. 자리 가 관찰(09:50~10:28, 처음 조건 그대로)
+
+- 09:50 풍속 측정. 자리 가 천막 옆(통로 쪽으로 한 걸음 나간 곳) 초당 2.4~3.2m, 순간 3.8m. 같은 시각 자리 나에서 잰 값은 초당 1.1~1.7m. 기온 23도.
+- 09:51 리본 끈을 천막 동북 다리에 묶음. 리본은 대체로 통로 쪽에서 광장 안쪽으로 날림. 가끔 방향이 바뀌어 위로 솟았다 내려옴.
+- 09:55 사람 걸음으로 느끼기에 바람은 약함. 얼굴에 시원한 정도. 은행나무 잎은 거의 흔들리지 않음.
+- 10:02 처음 들림. 동북 다리와 동남 다리 아래쪽이 바닥에서 떴다가 다시 내려앉음. 떠 있던 시간은 2초쯤. 뜬 높이는 눈대중으로 2~3cm. 서쪽 두 다리는 움직이지 않음.
+- 10:02 들릴 때 지붕천 가운데가 위로 불룩해짐. 들림이 끝나면 다시 처짐. 남쪽 옆막은 바깥쪽(남쪽)으로 불룩해졌다가 돌아옴.
+- 10:05~10:10 5분 동안 동쪽 다리가 들린 횟수: 4번. 매번 동쪽 두 다리가 함께 들림.
+- 10:08 들릴 때 풍속계를 보니 초당 3.4m. 들리지 않을 때는 2.6m 안팎.
+- 10:10~10:15 들린 횟수: 6번. 그 가운데 한 번은 동북 다리만 들리고 동남 다리는 붙어 있었음.
+- 10:12 테이블 위 번호판 한 장(바랜 장)이 앞으로 넘어감. 바람이 지나갈 때였음.
+- 10:15~10:20 들린 횟수: 3번.
+- 10:18 관리동 그늘이 자리 가에서 물러나기 시작함. 지붕천 동쪽 절반에 햇빛이 듦. 기온 24도.
+- 10:20~10:25 들린 횟수: 4번.
+- 10:22 동북 다리를 손으로 가볍게 잡아 봄. 들릴 때 다리가 위로 당겨지는 힘이 손에 느껴짐. 옆으로 미는 힘도 함께 있었음.
+- 10:25 서쪽 두 다리 위의 모래주머니는 움직이지 않음. 서남 다리의 귀퉁이 끈은 팽팽했다 느슨했다를 되풀이함.
+- 10:28 같은 조건으로 관찰을 마침.
+
+### 2-4. 자리 가에서 조건을 하나씩 바꿔 본 관찰(10:30~11:00)
+
+조건을 바꿀 때마다 한 가지씩만 바꾸고, 바꾼 순서대로 적음.
+
+- 10:30 첫째 바꿈: 서남 다리의 모래주머니를 빼서 동북 다리에 올림. 이제 모래주머니는 서북 다리와 동북 다리에 하나씩. 나머지는 그대로.
+- 10:31~10:39 관찰. 들린 횟수 2번. 두 번 모두 동남 다리만 들림. 동북 다리는 들리지 않음. 모래주머니를 뺀 서남 다리는 들리지 않음.
+- 10:35 풍속 초당 2.5~3.3m, 순간 3.6m. 처음 관찰 때와 비슷함.
+- 10:40 둘째 바꿈: 남쪽 옆막을 떼어 냄. 모래주머니는 첫째 바꿈 그대로(서북 · 동북). 이제 네 면이 모두 열림.
+- 10:41~10:50 관찰. 들린 횟수 1번. 동남 다리가 조금 들렸다 내려옴. 지붕천 가운데가 불룩해지는 정도가 앞보다 작아 보였음.
+- 10:45 풍속 초당 2.2~3.0m, 순간 3.5m. 기온 24.5도. 자리 가 지붕천 전체에 햇빛이 듦.
+- 10:51 셋째 바꿈: 동북 다리 핀을 다시 힘을 주어 빼서 가장 높은 칸에 끼움. 네 다리 높이가 같아짐. 줄자로 재어 귀퉁이 지붕 끝 높이 차이가 1cm 안쪽.
+- 10:52~11:00 관찰. 들린 횟수 0번. 이 8분 동안 풍속은 초당 1.8~2.7m, 순간 3.1m 로 앞보다 조금 낮았음.
+- [옮긴이 메모] 셋째 바꿈 뒤에 들림이 없었던 시간은 바람이 조금 약했던 시간과 겹침. 바꾼 조건 때문인지 바람이 약해서인지는 이 기록으로 나눌 수 없음.
+
+### 2-5. 자리 나로 옮긴 뒤의 관찰(11:05~11:50)
+
+- 11:02 천막을 접지 않고 다리를 들어 자리 나로 옮김. 혼자 옮기느라 다리 하나씩 끌듯이 옮김. 옮기는 데 3분쯤.
+- 11:06 자리 나에서 처음 조건과 같게 맞춤: 남쪽 옆막을 다시 닮, 모래주머니를 서북 · 서남 다리에 올림, 동북 귀퉁이는 끈 없이 둠. 동북 다리 핀은 10:51 에 맞춘 가장 높은 칸 그대로 둠(다시 낮은 칸으로 내리지 않음).
+- 11:10 풍속 초당 1.0~1.6m, 순간 2.2m. 기온 25도. 자리 나 지붕천 전체에 햇빛.
+- 11:10~11:20 들린 횟수 0번. 리본은 대체로 동쪽에서 서쪽으로 날리지만 힘없이 처지는 때가 많음.
+- 11:20~11:30 들린 횟수 0번. 지붕천 가운데 불룩해짐 없음.
+- 11:25 테이블 위 번호판 두 장 모두 넘어가지 않음.
+- 11:30 같은 시각 자리 가에 풍속계만 들고 가서 잼. 초당 2.3~3.1m, 순간 3.7m. 자리 나보다 높음.
+- 11:30~11:50 자리 나 들린 횟수 0번. 기온 26도.
+- [옮긴이 메모] 자리 나로 옮길 때 동북 다리 높이를 낮은 칸으로 되돌리지 않았으므로, 자리 나는 처음 자리 가와 &#x27;자리&#x27; 와 &#x27;다리 높이&#x27; 두 가지가 다른 상태였음.
+
+### 2-6. 자리 가 다시 확인(12:05~12:20, 천막 없이)
+
+- 12:05 천막은 자리 나에 둔 채, 테이블 하나와 번호판만 자리 가로 가져가 세움.
+- 12:05~12:20 풍속 초당 2.6~3.6m, 순간 4.1m. 이날 잰 값 가운데 가장 높음. 기온 26.5도.
+- 12:12 번호판이 앞으로 두 번 넘어감. 집게로 테이블 모서리에 물리니 넘어가지 않음.
+- 12:20 점심을 먹으러 광장을 떠남. 천막은 자리 나에 세워 두고, 관리실 주간 근무자에게 잠깐 봐 달라고 부탁함.
+
+### 2-7. 오후
+
+- 13:05 광장에 돌아옴. 관리실 근무자 말로는 그사이 천막이 들썩이는 것은 못 봤다고 함. 자리 나 풍속 초당 1.2~1.9m.
+- 13:10 관리실에 들러 전날 물품을 맡길 수 있는지 구두로 물어봄. &quot;맡기는 것 자체는 된다&quot; 는 답만 들음. 보관 장소 크기와 받는 시간은 알려 주지 않음.
+- 13:15 관리실 근무자가 동쪽 통로 이야기를 해 줌(4장 &#x27;비슷한 지난 사례&#x27; 에 적음).
+- 14:20 천막 해체 시작.
+- 14:45 해체 끝. 동북 다리 핀은 뺄 때도 뻑뻑했음. 다리 마디 안쪽에 모래가 끼어 있었음.
+- 14:50 광장 출발.
+- 15:02 창고 도착. 15:10 반출입 대장 반납 칸에 &#x27;다리 높이 조절 핀 하나 뻑뻑, 지붕천 이상 없음&#x27; 이라고 적음. 창고 기온 26도, 습도 64%.
+
+## 3. 9월 14일 아침 덧붙인 점검(천막 없이 바람과 바닥만)
+
+천막은 창고 대조가 끝나지 않아 꺼내지 않음. 풍속계와 수평계, 리본 끈만 가지고 감.
+
+- 07:50 광장 도착. 하늘 맑음. 기온 19도.
+- 07:55~08:05 자리 가 풍속 초당 1.8~2.6m, 순간 3.2m. 같은 시각 자리 나 초당 0.6~1.2m.
+- 08:05 동쪽 통로 안쪽(통로 한가운데, 관리동과 상가 사이)에서도 잼. 초당 2.5~3.5m, 순간 4.0m.
+- 08:10 남쪽 큰길 쪽 입구 앞에서 잼. 초당 0.9~1.5m.
+- 08:15 리본 끈을 들고 자리 가에 섬. 리본이 통로 쪽에서 광장 쪽으로 날리다가 가끔 위로 솟음. 자리 나에서는 리본이 거의 처져 있음.
+- 08:20 수평계로 바닥 기울기를 봄. 자리 가는 수평계 기포가 동쪽(배수구 쪽)으로 확실히 치우침. 1m 자를 대고 재어 보니 동쪽 끝이 1.5cm쯤 낮음. 자리 나는 기포가 가운데 가까움.
+- 08:30 자리 가의 들뜬 블록을 발로 눌러 보니 한쪽 끝이 1cm쯤 내려갔다 올라옴.
+- 08:35 관리실 앞 게시판에 붙은 광장 안내도를 봄. 동쪽 통로에 &#x27;비상 통로, 물건 쌓지 마시오&#x27; 라는 표시가 있음. 통로 안에 물건을 두는 것은 안 되지만, 통로 입구 앞 광장 쪽 자리에 대한 표시는 없음.
+- 08:40 광장을 떠남.
+
+## 4. 비슷한 지난 사례
+
+- 봄 회차 장터 오후: 바람이 불자 판매자들이 천막 다리를 손으로 잡고 있었다는 기록이 운영 공책에 있음. 어느 자리 천막이었는지는 공책에 적혀 있지 않음. 9월 13일 봄 회차에 그릇을 팔았던 판매자에게 전화로 물었더니 &quot;동쪽 끝 쪽이었던 것 같다&quot; 고 했으나 확실하지 않다고 덧붙임. 그날 모래주머니는 쓰지 않았음.
+- 작년 마을 축제: 주민자치 모임이 같은 광장에서 파란 천막 여러 동을 세웠음. 그 모임 담당자에게 9월 12일 물어보니 &quot;동쪽 통로 앞은 사람 다니는 길이라 비워 뒀다&quot; 고 함. 바람 때문에 비운 것은 아니라고 함. 그날 천막이 들렸다는 기억은 없다고 함.
+- 관리실 근무자 이야기(9월 1일 13:15): 동쪽 통로로 바람이 잘 들어온다고 함. 겨울에는 낙엽과 비닐봉투가 그 통로를 따라 광장 안으로 날려 들어와 동쪽 구석에 쌓인다고 함. 다른 단체의 파라솔이 그쪽에서 뒤집힌 일을 본 적이 있다고 했으나, 언제였는지는 기억하지 못함.
+- 9월 1일 답사의 번호판: 자리 가에서는 넘어갔고(10:12, 12:12), 자리 나에서는 넘어가지 않았음(11:25). 번호판 쪽 기록은 비품 반출입 대장 묶음에도 적어 둠.
+- 다른 동 주민 장터: 하도현이 9월 6일 본 옆 동 나눔 장터 안내문에는 &#x27;천막마다 물통 두 개를 다리에 묶습니다&#x27; 라는 문장이 있었음. 그 장터에서 무슨 일이 있었는지는 알지 못함.
+
+## 5. 측정값 모음(시각 순서 그대로)
+
+### 5-1. 9월 1일 풍속(초당 미터, 30초 동안 낮은 값~높은 값, 순간 값)
+
+- 09:50 자리 가 2.4~3.2, 순간 3.8 / 자리 나 1.1~1.7
+- 10:08 자리 가(들릴 때) 3.4, (들리지 않을 때) 2.6 안팎
+- 10:35 자리 가 2.5~3.3, 순간 3.6
+- 10:45 자리 가 2.2~3.0, 순간 3.5
+- 10:52~11:00 자리 가 1.8~2.7, 순간 3.1
+- 11:10 자리 나 1.0~1.6, 순간 2.2
+- 11:30 자리 가 2.3~3.1, 순간 3.7
+- 12:05~12:20 자리 가 2.6~3.6, 순간 4.1
+- 13:05 자리 나 1.2~1.9
+
+### 5-2. 9월 1일 기온(풍속계 온도 표시)
+
+- 09:50 23도 / 10:18 24도 / 10:45 24.5도 / 11:10 25도 / 11:30 26도 / 12:05 26.5도
+- 창고 안: 08:40 22도(습도 71%), 15:10 26도(습도 64%)
+
+### 5-3. 9월 1일 들린 횟수(자리 가)
+
+- 09:50~10:28(처음 조건): 10:05~10:10 4번, 10:10~10:15 6번, 10:15~10:20 3번, 10:20~10:25 4번. 10:02 의 첫 들림 1번은 이 5분 단위 셈 앞에 있음.
+- 10:31~10:39(모래주머니 옮김): 2번, 모두 동남 다리만
+- 10:41~10:50(옆막 뗌): 1번, 동남 다리
+- 10:52~11:00(동북 다리 높이 맞춤): 0번
+
+### 5-4. 9월 1일 들린 횟수(자리 나)
+
+- 11:10~11:50: 0번
+- 12:20~13:05(자리 비움): 관리실 근무자가 보지 못했다고 함. 센 사람 없음.
+
+### 5-5. 9월 14일
+
+- 풍속: 자리 가 1.8~2.6(순간 3.2), 자리 나 0.6~1.2, 통로 안 2.5~3.5(순간 4.0), 남쪽 입구 0.9~1.5
+- 기온 19도
+- 바닥: 자리 가 동쪽 끝이 1m 에 1.5cm쯤 낮음, 자리 나 거의 평평. 들뜬 블록 1cm쯤 움직임.
+
+## 6. 담당자 메모(하도현, 짐작이 섞인 부분)
+
+아래는 기록을 보며 떠올린 생각이고 확인한 사실이 아님. 대응을 정할 때 참고로만 씀.
+
+- 자리 가와 자리 나는 풍속계 숫자부터 달랐음. 같은 시각에 자리 가가 늘 높았음. 다만 풍속계를 손에 들고 쟀기 때문에 값이 정확하다고 말하기 어려움.
+- 처음 조건에서 들린 쪽은 늘 모래주머니가 없던 동쪽 두 다리였음. 모래주머니를 옮긴 뒤에는 모래주머니가 없는 다리 가운데 동남 다리만 들렸고, 모래주머니를 뺀 서남 다리는 들리지 않았음. 통로 쪽 다리라는 점과 모래주머니가 없다는 점이 겹쳐 있어 어느 쪽이 더 관계있는지 이 기록으로는 나눌 수 없음.
+- 옆막을 뗀 뒤와 동북 다리 높이를 맞춘 뒤 들림이 줄었으나, 그 시간에 바람도 조금 약했음(2-4 옮긴이 메모).
+- 자리 나로 옮길 때 다리 높이를 되돌리지 않았으므로, 자리 나에서 들리지 않은 것이 자리 때문인지 높이를 맞춘 때문인지, 둘 다인지도 이 기록으로는 알 수 없음.
+- 동북 다리 핀이 뻑뻑했던 것은 사실이나, 같은 천막이 자리 나에서는 들리지 않았음. 천막 자체가 잘못된 것인지는 이 기록만으로 판단할 수 없음.
+- 지붕천이 들릴 때마다 위로 불룩해졌던 모습이 기억에 남음. 왜 그런지는 모름.
+- 들림은 풍속계 숫자가 높을 때 많았던 것 같지만, 풍속계를 본 순간과 들린 순간이 늘 같지는 않았음. 10:08 한 번만 들릴 때 숫자를 함께 봄. 바람 세기와 들림 횟수를 짝지어 말할 만큼 기록이 많지 않음.
+- 사람 몸으로는 바람이 약하다고 느꼈는데 천막은 들렸음. 9월 14일에도 자리 가와 통로 안의 숫자가 자리 나보다 높았음. 숫자가 높았다는 것과 천막이 들린 까닭이 같은 이야기인지는 모름.
+
+## 7. 의견(다른 사람이 한 말)
+
+- 송가온(9월 3일 1차 준비 회의): &quot;천막이 오래돼서 그런 것 아니냐.&quot; — 하도현 답: 같은 천막을 광장 가운데로 옮겼을 때는 들리지 않아 지금은 단정할 수 없음.
+- 기은솔 운영팀장(9월 2일 서면 의견을 보낸 뒤 9월 4일 통화): &quot;천막을 새로 사야 하는 문제인지부터 확인하자. 새로 사는 건 승인 전이다.&quot;
+- 관리실 근무자(9월 1일): &quot;그 통로가 원래 바람길이에요.&quot; — 하도현 메모: 근무자 개인의 경험담으로 적어 둠.
+- 봄 회차 그릇 판매자(9월 13일 통화): &quot;그때도 동쪽 끝 천막이 들썩였던 것 같다.&quot; — 확실하지 않다고 본인이 말함.
+
+## 8. 행사 당일과 관련해 남은 확인 사항
+
+원인을 정하지 않았으므로 대응도 정하지 않았음. 아래는 확인이 필요한 일만 적음.
+
+- 같은 천막을 자리 가에 다시 세우되, 다리 높이를 맞춘 상태와 맞추지 않은 상태를 따로 볼지. 그렇게 하려면 천막을 다시 꺼내야 하는데 창고 대조 일정과 맞춰야 함.
+- 모래주머니가 모자라는 문제. 성한 것은 몇 개 없고 새로 사는 것은 승인 전임. 빈 물통에 물을 채워 쓰는 방법은 물통 뚜껑 상태를 보지 않아 정하지 않음.
+- 귀퉁이 끈이 한 줄 없던 문제. 끈 묶음으로 채울 수 있는지 창고 선반 가운데 칸을 다시 봄.
+- 부스 배치표를 만들 때 자리 가 근처에 천막을 둘지. 배치표는 정해지지 않았고 이 기록에도 들어 있지 않음.
+- 번호판은 집게로 물리면 넘어가지 않았으므로 집게 수를 확인함.
+- 동북 귀퉁이 찍찍이가 반쯤 떨어져 있던 것(11장)을 창고 대조 때 다시 봄. 다른 천막의 찍찍이 상태도 같이 봄.
+- 동북 다리 핀이 뻑뻑한 것을 고칠 수 있는지(마디 안 모래를 털고 기름을 치는 정도) 운영팀장과 상의함. 부품을 새로 사는 것은 승인 전이라 계획에 넣지 않음.
+- 관리실에 &#x27;무게추로 고정한다&#x27; 는 안내문 줄의 뜻(몇 개, 어느 정도 무게)을 물어봄.
+- 끈이 없던 동북 귀퉁이를 9월 1일에는 끝까지 묶지 못했음. 다음에 천막을 세울 때는 귀퉁이 넷을 모두 묶은 상태에서 시작할 수 있게 끈을 미리 챙김.
+- 행사 당일 현장 인력이 한 명이라, 접수가 시작된 뒤 천막 다리를 잡으러 접수 자리를 떠날 수 없음. 천막 쪽 확인은 접수 전에 끝내야 한다는 점을 함께 적어 둠.
+
+## 9. 9월 1일 날씨와 주변 상황(같은 시각에 함께 적은 것)
+
+천막과 직접 관계가 있는지 알 수 없지만, 그날 광장 둘레에서 있었던 일을 시각과 함께 적어 둠.
+
+- 08:52 창고를 나설 때 하늘에 엷은 구름. 해는 구름 사이로 보였다 숨었다 함.
+- 09:04 광장 도착. 광장 서쪽 은행나무 아래 벤치에 산책 나온 어르신 두 분.
+- 09:30 관리실 근무자가 광장 남쪽 화단에 물을 줌. 남쪽 보도블록 일부가 젖음. 자리 가와 자리 나는 젖지 않음.
+- 09:48 자리 가는 관리동 그늘 안. 자리 나는 햇빛.
+- 10:00 동쪽 통로 끝 상가 1층 가게 두 곳이 셔터를 올림. 셔터 소리가 광장까지 들림.
+- 10:02 첫 들림(2-3).
+- 10:10 배달 오토바이 한 대가 동쪽 통로를 지나 광장 북쪽 길로 빠져나감. 그때 천막이 들렸는지는 보지 못함(풍속계를 보고 있었음).
+- 10:18 관리동 그늘이 자리 가에서 물러나기 시작(2-3).
+- 10:40 구름이 걷히고 햇빛이 강해짐.
+- 11:00 은행나무 아래에서 유모차를 민 주민 한 분이 천막을 보고 &quot;장터 열리느냐&quot; 고 물음. 가을에 설명회가 있다고만 답함. 날짜는 미정이라고 함.
+- 11:40 광장 남쪽 큰길에서 버스가 지날 때 먼지가 조금 일었으나 자리 나까지 오지는 않음.
+- 12:05 하늘 맑음. 자리 가 지붕천이 없는 상태였으므로 그늘 여부는 적지 않음.
+- 13:05 구름이 조금 다시 낌.
+
+## 10. 사진 기록(휴대전화로 찍은 것, 공용 폴더 &#x27;설명회&#x27; 칸)
+
+- 09:48 자리 가 천막 전체. 동쪽 통로가 뒤로 보이게 찍음.
+- 09:49 동북 다리 높이 조절 핀이 한 칸 낮게 걸린 모습. 줄자를 대고 찍음.
+- 09:49 동남 다리 옆의 들뜬 블록.
+- 09:51 동북 다리에 묶은 리본 끈.
+- 10:02 첫 들림 직후의 동쪽 다리 아래(들린 순간은 찍지 못함).
+- 10:13 앞으로 넘어간 번호판.
+- 10:22 손으로 잡은 동북 다리.
+- 10:30 모래주머니를 동북 다리로 옮긴 모습.
+- 10:40 옆막을 뗀 천막.
+- 10:51 핀을 가장 높은 칸에 다시 끼운 동북 다리.
+- 11:06 자리 나 천막 전체. 은행나무가 뒤로 보이게 찍음.
+- 12:12 자리 가에서 집게로 물린 번호판.
+- 14:45 해체 뒤 동북 다리 마디 안쪽에 낀 모래.
+- 9월 14일 08:20 자리 가 바닥에 올린 수평계.
+- 9월 14일 08:35 관리실 앞 광장 안내도의 &#x27;비상 통로&#x27; 표시.
+- 들린 순간을 찍은 사진은 없음. 들림이 2초쯤이라 휴대전화를 꺼내는 사이 끝났음. 다음에는 동영상으로 찍어 보기로 함.
+
+## 11. 해체 때 본 천막 부품 상태(9월 1일 14:20~14:45)
+
+- 다리 마디: 동북 다리 안쪽에 모래가 끼어 있었음. 다른 세 다리는 깨끗함. 모래를 털어 내니 핀이 조금 덜 뻑뻑해졌으나 여전히 다른 다리보다 힘이 듦.
+- 높이 조절 핀: 동북 다리 핀의 스프링이 다른 핀보다 덜 튀어나옴. 손톱으로 눌러야 들어감.
+- 지붕천과 뼈대의 고정: 지붕천 귀퉁이를 뼈대에 붙이는 찍찍이 네 곳 가운데 동북 귀퉁이 찍찍이가 반쯤 떨어져 있었음. 설치 때 떨어진 것인지 그 전부터 떨어져 있었는지는 모름. 설치 때는 보지 못했음.
+- 옆막: 지퍼 이상 없음. 옆막 위쪽 고리 다섯 개 가운데 하나가 헐거움.
+- 귀퉁이 끈 고리: 네 귀퉁이 고리 모두 이상 없음. 끈 한 줄이 가방에 없었던 것은 고리 문제가 아님.
+- 지붕천: 구멍이나 찢어진 곳 없음. 가운데 처짐은 해체 전 마지막까지 그대로였음.
+- 가방: 지퍼 이상 없음. 다리 묶음 끈 하나가 닳아 있음.
+- [옮긴이 메모] 동북 귀퉁이 찍찍이가 반쯤 떨어져 있었던 것은 해체 때 처음 본 것임. 오전 관찰 때 이 상태였는지는 기록이 없어 알 수 없음. 관찰 순서상 해체 때 본 것으로만 둠.
+
+## 12. 원본 공책 쪽별 내용
+
+- 1쪽: 0장의 도구와 물품, 창고 출발 전 온습도.
+- 2쪽: 자리 가 설치 뒤 상태(2-2). 천막 그림을 그리고 다리 이름을 적어 둠.
+- 3쪽~4쪽: 자리 가 시각별 관찰(2-3). 5분 단위로 들린 횟수를 바를 정 자 모양으로 셈.
+- 5쪽: 조건을 바꾼 관찰(2-4). 바꾼 것마다 동그라미 번호를 붙임.
+- 6쪽: 자리 나 관찰(2-5)과 자리 가 다시 확인(2-6).
+- 7쪽: 오후 일(2-7), 관리실 근무자 이야기.
+- 8쪽: 9월 14일 덧붙인 점검(3장).
+- 9쪽: 지난 사례 전화 메모(4장), 9월 12일 · 13일.
+- 뒤표지 안쪽: 풍속계 쓰는 법(운영팀장이 적어 줌). &#x27;바람 쪽으로 향하고 30초 동안 숫자를 본다. 가장 낮은 값과 높은 값을 적는다.&#x27;
+
+## 13. 점검 일지를 쓰는 방식(운영팀 관행)
+
+- 본 것과 생각한 것을 나눠 적는다. 본 것은 시각과 함께, 생각한 것은 &#x27;담당자 메모&#x27; 에 따로 둔다.
+- 조건을 바꿀 때는 한 번에 하나만 바꾸고, 바꾼 순서대로 적는다. 나중에 순서를 바꿔 적지 않는다.
+- 나중에 알게 된 것은 날짜를 붙여 덧붙인다. 그날 본 것처럼 끼워 넣지 않는다.
+- 숫자는 잰 도구와 함께 적는다. 눈대중은 눈대중이라고 쓴다.
+- 다른 사람의 말은 누가 언제 했는지 함께 적는다. 그 말이 맞는지는 따로 확인한다.
+
+## 14. 같은 날 테이블과 그 밖의 물품 관찰
+
+- 자리 가 테이블: 동남 다리 옆 들뜬 블록 가까이에 둔 테이블이 손으로 짚을 때 덜컹거림. 들뜬 블록을 피해 한 뼘 옮기니 덜컹거림이 없어짐(09:48 직후).
+- 자리 가 테이블 위: 빈 종이 상자 하나를 올려 두었는데 10:15 쯤 바람에 테이블 끝까지 밀려감. 떨어지지는 않음. 번호판처럼 넘어가지는 않고 미끄러짐.
+- 자리 나 테이블: 덜컹거림 없음. 빈 상자도 움직이지 않음.
+- 옆막을 뗀 뒤(10:40) 테이블 위 번호판은 넘어가지 않음. 다만 그 사이 바람도 조금 약했음.
+- 손수레: 광장 남쪽 입구 벽 쪽에 세워 둠. 바람에 움직이지 않음.
+- 모래주머니: 들어 옮길 때마다 천이 조금씩 해지는 소리가 남. 두 개 모두 그날은 터지지 않음.
+
+## 15. 관리실 앞 광장 이용 안내문에서 천막과 관련된 줄(9월 14일 08:35 옮겨 적음)
+
+- 보도블록에 못이나 말뚝을 박지 않는다.
+- 천막과 파라솔은 무게추로 고정한다.
+- 비상 통로 안에 물건을 두지 않는다.
+- 행사가 끝나면 설치물을 모두 치우고 바닥을 원래대로 둔다.
+- 관리실 허락 없이 전기를 끌어 쓰지 않는다.
+- [옮긴이 메모] &#x27;무게추로 고정한다&#x27; 는 줄은 있으나 무게추의 수나 무게는 적혀 있지 않음. 관리실에 물어보지 않았음.
+
+## 16. 혼자 점검하며 적어 둔 것(하도현)
+
+- 천막을 혼자 펼 때 다리 하나씩 차례로 펴야 해서, 한쪽 다리만 펴진 사이 천막이 기울어짐. 그때 바람이 불면 펴 놓은 쪽이 흔들림. 9월 1일에는 설치 도중에 들림은 없었음.
+- 들림을 세려면 천막에서 눈을 떼면 안 되는데, 풍속계를 볼 때마다 천막을 놓침. 5분 단위 횟수는 풍속계를 본 순간을 빼고 센 것이라 실제보다 적을 수 있음.
+- 조건을 바꾸는 일(모래주머니 옮기기, 옆막 떼기, 핀 바꾸기)을 혼자 하면서 기록까지 하느라, 바꾼 직후 1분쯤은 관찰을 하지 못함. 2-4 의 관찰 시간이 바꾼 시각 다음 1분부터 시작하는 이유임.
+- 행사 당일에도 현장 인력은 한 명뿐임. 그날처럼 천막 하나를 붙잡고 볼 수 있는 시간은 접수 전까지뿐이라는 점을 적어 둠.
+
+## 17. 다음 점검을 한다면(정하지 않은 생각)
+
+- 날짜: 창고 대조 일정과 맞춰야 해서 정하지 않음.
+- 생각 1: 자리 가에 같은 천막을 세우고, 동북 다리 핀을 처음처럼 한 칸 낮게 둔 상태와 높이를 맞춘 상태를 같은 바람 세기일 때 번갈아 봄. 9월 1일에는 높이를 맞춘 시간에 바람이 약해 둘을 나누지 못했음.
+- 생각 2: 자리 나에 천막을 세우고 동북 다리 핀만 한 칸 낮춰 봄. 9월 1일에는 자리 나에서 다리 높이를 되돌려 보지 않았음.
+- 생각 3: 들리는 순간을 동영상으로 찍음.
+- 생각 4: 모래주머니를 네 다리 모두에 올렸을 때를 봄. 성한 모래주머니가 모자라 9월 1일에는 해 보지 못했음.
+- 위 생각은 운영팀장과 상의 전이며, 결과로 원인이 정해진다고 보지 않음.
+
+## 18. 지난 사례 전화 메모 원문(9월 12일 · 13일, 공책 9쪽)
+
+- 9월 12일 19:20, 주민자치 모임 작년 축제 담당자와 통화. &quot;작년 축제 때 파란 천막을 광장에 여러 동 세웠다. 동쪽 통로 앞은 사람이 드나드는 길이라 비웠다. 바람 때문은 아니었다. 그날 오후에 바람이 좀 불었는데 천막이 들렸다는 이야기는 듣지 못했다. 천막마다 물을 채운 통을 다리에 묶었다. 통은 모임 것이었고 지금은 없다.&quot; 통화 4분쯤.
+- 9월 13일 10:40, 봄 회차 그릇 판매자와 통화. &quot;장터 끝나 갈 무렵, 점심 지나서 바람이 불었다. 우리 천막은 가운데쯤이라 괜찮았는데 동쪽 끝 쪽 천막 다리를 옆 판매자분들이 잡고 있었던 것 같다. 몇 동이었는지는 모르겠다. 흰 천막이었던 것 같기도 하고 아닌 것 같기도 하다. 확실하지 않다.&quot; 통화 6분쯤.
+- 봄 회차 운영 공책 해당 쪽: &#x27;오후, 바람, 천막 다리 잡음&#x27; 한 줄뿐. 시각 · 자리 · 천막 종류는 적혀 있지 않음.
+- [옮긴이 메모] 두 통화 모두 기억에 기댄 이야기임. 봄 회차와 작년 축제는 날짜와 날씨가 9월 1일과 달라, 같은 일이라고 볼 수 없음.
+
+## 19. 풍속계를 빌려주며 운영팀장이 한 말(8월 31일 저녁, 공책 뒤표지 메모와 함께)
+
+- 손에 들고 재는 작은 기계라 값이 정확하지는 않다. 같은 자리 두 곳을 같은 방법으로 재서 견주는 데 쓰면 된다.
+- 몸이 바람을 막지 않게 팔을 뻗어 바람 쪽으로 든다.
+- 숫자가 계속 움직이니 한 번 본 값을 적지 말고 30초 동안 본 가장 낮은 값과 가장 높은 값을 적는다.
+- 배터리가 약하면 숫자가 늦게 바뀐다. 9월 1일에는 배터리 표시가 가득이었음(하도현 덧붙임).
+- 빌린 풍속계는 9월 14일 점검 뒤 운영팀장에게 돌려줌.
+
+## 20. 들린 순간 몇 번의 모습(공책 3쪽~5쪽 여백 메모)
+
+모든 들림을 자세히 본 것은 아니고, 눈을 떼지 않고 끝까지 본 몇 번만 적음. 시각 순서대로임.
+
+- 10:02(첫 번째): 리본 끈이 위로 솟는 것과 거의 같은 때에 동쪽 두 다리가 떴음. 지붕천 가운데가 먼저 불룩해졌는지 다리가 먼저 떴는지는 눈으로 가리지 못함.
+- 10:07: 들릴 때 &#x27;펄럭&#x27; 하는 소리가 지붕천에서 남. 남쪽 옆막도 같이 바깥으로 부풂. 내려앉을 때 동남 다리가 들뜬 블록 끝을 딛고 &#x27;딱&#x27; 소리가 남.
+- 10:11: 동북 다리만 뜸. 동남 다리는 바닥에 붙어 있었고, 천막이 동북 귀퉁이 쪽으로 비스듬히 들린 모양이었음. 이때 리본은 통로 쪽에서 비스듬히 북쪽으로 날림.
+- 10:17: 들리는 동안 서남 귀퉁이 끈이 팽팽해짐. 서쪽 다리는 끝까지 움직이지 않음.
+- 10:23: 지붕천 가운데 불룩해진 높이를 손바닥으로 대 보니 한 뼘이 조금 안 됨. 들림이 끝나자 다시 처짐.
+- 10:36(모래주머니를 옮긴 뒤): 동남 다리만 뜸. 모래주머니를 올린 동북 다리는 그대로.
+- 10:46(옆막을 뗀 뒤): 동남 다리가 1cm 남짓 떴다 내려앉음. 지붕천 불룩함은 앞보다 작았고 소리도 작았음.
+
+## 21. 사본을 만들며 덧붙인 말(9월 17일, 하도현)
+
+공책 원본에는 시각과 숫자가 연필로 적혀 있고, 몇 군데는 바람 때문에 글씨가 흔들려 있습니다. 숫자가 둘로 읽히는 곳은 없었습니다. 원본은 운영팀 공용 폴더 &#x27;설명회&#x27; 칸에 사진으로 올렸습니다. 이 일지에는 본 순서대로 적었고, 나중에 알게 된 것(4장의 전화 답변 등)은 날짜를 붙여 따로 두었습니다. 원인이나 대응을 정한 문장은 넣지 않았습니다.
+[자료 끝]
+
+답사 날 설치해 본 천막이 바람이 세지도 않은데 한쪽이 자꾸 들렸습니다. 왜 그런지 원인을 결과와 연결해서 설명해 주세요. 코딩이나 과학에 익숙하지 않은 운영자에게 맞는 일상 비유를 하나 들고, 행사 당일 어떻게 대응할지도 밝혀 주세요. 양력과 항력의 정의도 정확히 구별해 주세요. 관찰 순서를 뒤집지 말고 기록만으로 천막 제품 결함이라고 단정하지 마세요.</pre><b>턴 6 답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>7·8</sup>천막 한쪽이 들린 현상은 좁은 통로에서 유입된 바람이 비대칭 구조와 밀폐된 옆막을 만나 순간적인 상승력(양력)과 밀어내는 힘(항력)을 동시에 만들었기 때문에 발생했습니다.</mark>
+
+---
+
+### 1. 양력과 항력의 정의 및 구별
+
+* **양력(Lift):** 공기의 흐름에 의해 물체가 **바람이 부는 방향의 수직(위쪽)으로 떠오르는 힘**입니다. 천막 지붕천 위아래의 압력 차이나 지붕 아래로 파고든 공기 때문에 천막 전체가 위로 들썩이는 힘을 말합니다.
+* **항력(Drag):** 바람이 물체에 부딪히며 **바람이 부는 방향과 나란하게 뒤쪽으로 밀어붙이는 저항력**입니다. 바람이 옆막을 돛처럼 밀쳐내 천막 뼈대를 옆으로 밀어내는 힘을 말합니다.
+
+### 2. 일상 비유로 이해하기
+
+바람 부는 날 좁은 골목길 모퉁이에서 **우산을 살짝 비스듬히 쥔 채 걸어가는 상황**과 같습니다.
+바람이 우산 안쪽으로 파고들면 손잡이가 위로 쑥 들려 올라가려는 힘(양력)이 생기고, 우산 천이 바람을 정면으로 받아 손이 뒤로 밀리는 힘(항력)이 함께 작용합니다. 이때 손잡이를 느슨하게 쥐고 있거나 한쪽 살이 기울어져 있으면 우산이 한쪽으로 쉽게 뒤집히거나 솟구치게 됩니다.
+
+---
+
+### 3. 관찰 순서에 따른 원인과 결과 연결
+
+일지에 기록된 순서대로 살펴보면 구조적 요인, 고정 상태, 주변 지형이 단계적으로 들림 현상에 영향을 주었음을 확인할 수 있습니다.
+
+1. <mark class="rs-mk"><sup>6</sup>**초기 조건 관찰 (09:50~10:28)**
+* **원인:** 동쪽 통로(폭 3m 좁은 길)에서 광장 안쪽으로 부는 바람이 자리 가로 집중되었습니다. 여기에 동북 다리가 6cm 낮아 지붕이 동쪽으로 기울어져 있었고, 남쪽 면에만 옆막이 달려 있어 유입된 바람이 빠져나가지 못하고 갇혔습니다. 또한 동쪽 두 다리에는 모래주머니가 전혀 없었고 귀퉁이 끈도 동북쪽은 묶이지 않았습니다.</mark>
+<mark class="rs-mk"><sup>9</sup>* **결과:** 바람이 들어올 때마다 리본이 솟구치고 지붕천 가운데가 위로 불룩해졌으며, 무게추가 없던 동북·동남 다리가 2~3cm씩 공중으로 떴습니다(5분당 최대 6회).</mark>
+
+
+2. **조건 변경 관찰 (10:30~11:00)**
+* **모래주머니 1개를 동북 다리로 이동 (10:30):** 무게추가 얹힌 동북 다리는 바닥에 고정되었으나, 여전히 무게추가 없던 동남 다리만 2회 들렸습니다.
+* **남쪽 옆막 제거 (10:40):** 4면이 모두 열려 바람이 갇히지 않고 빠져나가자 항력과 내부 압력이 줄어들었고, 들림 횟수가 1회로 감소하며 지붕천의 불룩해짐도 작아졌습니다.
+* **동북 다리 핀 높이 정상화 (10:51):** 네 다리의 수평이 맞추어지며 공기 흐름의 비대칭이 해소되었고, 들림 횟수는 0회로 떨어졌습니다.
+
+
+3. **자리 나(광장 중앙) 이동 관찰 (11:05~11:50)**
+* **원인:** 주변 건물에 의한 바람길 영향이 없는 넓은 중앙 평지로 이동하였고, 다리 높이가 균일한 상태를 유지했습니다.
+* **결과:** 풍속 자체가 초당 1.0~1.6m로 낮게 유지되며 40분간 들림 현상이 0회를 기록했습니다.
+
+
+
+이처럼 같은 천막이 자리 나에서는 전혀 들리지 않았고, 자리 가에서도 고정과 수평, 통풍 조건을 조정함에 따라 들림이 사라졌으므로 **기록만으로 천막 제품 자체의 결함이나 파손이라고 단정할 수 없습니다.**
+
+---
+
+### 4. 행사 당일 현장 대응 방안
+
+행사 당일에는 현장 인력이 1명뿐이므로, 접수 시작(10:50) 전에 천막 안전 조치를 완전히 끝내야 합니다.
+
+* **부스 위치 선정:** 바람이 모여 들어오는 동쪽 통로 입구 근처(자리 가)를 피하고, 공기 흐름이 완만하고 바닥이 평평한 광장 안쪽 구역을 우선 활용합니다.
+* **네 다리 수평 확인:** 설치 시 다리 조절 핀의 결합 상태를 점검하여 네 모서리의 높이를 동일하게 맞춥니다.
+* **4개 다리 무게추 전량 체결:** 바람을 받는 쪽뿐만 아니라 네 다리 모두에 성한 모래주머니나 물통 등 무게추를 빠짐없이 결속하고, 귀퉁이 고정 끈을 바닥 고리에 팽팽하게 고정합니다.
+* **통풍 확보 (옆막 미설치):** 바람이 불더라도 천막 아래 갇혀 위로 솟구치지 않도록 사방을 개방하여 공기가 자연스럽게 통과하도록 설치합니다.
+* **사전 점검 완료:** 접수 개시 후에는 자리를 비울 수 없으므로 10:30 도착 직후 설치와 흔들림 점검을 모두 마무리합니다.</pre></div><div class="rs-turn"><b>턴 7 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 판매자 설명회 운영 조건 변경 통지와 수정 회의록
+
+이 묶음에는 세 가지가 들어 있음. 1. 운영팀장 변경 통지 공문(9월 18일) / 2. 변경의 계기가 된 광장 관리실 서면 회신(9월 17일) / 3. 같은 날 저녁 수정 회의록. 끝에 운영 확인 기록 판본 3 에 반영할 곳과 이미 답한 문의의 후속 처리를 붙임.
+
+## 1. 변경 통지 공문
+
+- 문서 번호: 다시장터 운영팀 가을-통지-03
+- 날짜: 2026년 9월 18일(금)
+- 보낸 사람: 기은솔 운영팀장
+- 받는 사람: 하도현(장터 운영 담당), 송가온(회계 담당), 문해담(게시 담당)
+- 제목: 주민 중고 장터 판매자 설명회 접수 시작 시각 변경과 당일 자리 배정 예외 취소 통지
+
+### 1-1. 통지 내용
+
+주민 중고 장터 판매자 설명회 운영 조건 가운데 아래 두 가지를 바꿉니다. 이 통지를 받은 때부터 안내문, 운영 메모, 일정표, 게시판 답변에 바뀐 조건을 적용합니다.
+
+가. 설명회 시작 시각은 지금과 같이 유지합니다. 접수 시작 시각만 지금보다 10분 늦춥니다.
+
+나. 미등록 판매자에게 당일 남은 자리를 배정하는 예외를 취소합니다. 앞으로는 사전 등록한 판매자만 설명회에 참여할 수 있습니다. 당일 현장에 온 미등록 판매자에게는 남은 자리가 있더라도 자리를 배정하지 않습니다.
+
+### 1-2. 바꾸지 않는 조건
+
+아래 조건은 이번 통지로 바뀌지 않으며 지금까지 확정한 그대로 유지합니다.
+
+- 담당자 현장 도착 10:30
+- 설명회(행사) 시간 11:00~12:00
+- 확정 진행 인력 1명(장터 운영 담당 하도현). 예비 인력은 참석 확답이 없으므로 계속 승인 인력에 넣지 않음.
+- 참여 정원 30팀
+- 준비 동선: 창고~광장 편도 12분, 물품 확인 8분, 설치 30분. 설치를 끝내기 전에 접수를 여는 것은 여전히 승인하지 않음.
+- 준비 방식 A안(당일 창고 운반, 비용 없음) · B안(전날 관리실 보관, 보관료 5000원, 당일 물품 확인 8분)의 내용. 두 안 가운데 어느 것을 쓸지는 이번 통지에서 정하지 않으며 계속 보류함.
+- 예산: 승인 상한 160000원, 실지급 64000원, 남은 예상 71000원. B안 비용 5000원은 남은 예상에 계속 미포함.
+- 판매 품목은 생활용품과 도서로 한정하고 식품과 전자제품은 받지 않음.
+- 판매 수익의 10% 는 운영비로 모으고 영수증을 발행함.
+- 천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나.
+- 문의처는 장터 운영 담당 하도현. 연락처는 계속 미정.
+- 접수 시간 전에 도착해도 준비 중인 공간에는 들어갈 수 없음. 번호판 · 명찰 수령은 안내 이수가 아님.
+- 접수 시작 뒤에는 담당자가 접수 자리를 비울 수 없음. 자리를 비워야 하면 접수 시작 전에 돌아옴.
+- 12:00 이후 물품 회수와 참가 기록 마무리. 종료 시각을 회수 완료 시각으로 쓰지 않음.
+- 행사 날짜는 계속 미정.
+
+### 1-3. 바꾸는 까닭
+
+- 접수 시작: 현장 인력이 한 명이라 도착 뒤 물품 확인과 설치를 마치고 접수를 열기까지의 여유가 빠듯하다는 검토 의견이 여러 번 나왔습니다. 설치를 끝내기 전에 접수를 여는 방식은 승인하지 않았으므로, 설명회 시작은 그대로 두고 접수 시작만 늦춰 준비 쪽에 시간을 더 두기로 했습니다.
+- 당일 자리 배정 예외: 광장 관리실이 9월 17일 서면 회신에서 광장 사용 신청을 사전 등록 명단 기준으로 받겠다고 알려 왔습니다. 또 담당자 한 명이 접수 자리에서 미등록 판매자의 품목을 확인하고 남은 자리를 세는 일까지 맡으면 접수가 길어지고, 접수 자리를 비우거나 설명회 시작이 늦어질 위험이 큽니다. 봄 회차에 미등록 팀이 좋은 자리를 받아 사전 등록 팀이 불만을 말한 일도 있었습니다. 1차 준비 회의 때 이 예외는 취소할 수 있다고 말씀드린 바 있어, 이번에 취소합니다.
+
+### 1-4. 적용 방법
+
+- 판매자 안내문은 새 글을 올리지 않고 같은 글을 고칩니다. 지금까지 맞춘 목차 · 각주 · 출처 번호 · 문의 접기 칸 · 운영 메모 형식은 그대로 유지하고, 바뀐 조건만 고칩니다.
+- 고친 글에 바뀐 내용을 늘어놓은 목록을 따로 붙이지 않습니다. 판매자는 지금 따라야 할 조건만 보면 됩니다. 무엇을 고쳤는지는 운영팀 내부 기록(운영 확인 기록)에 남깁니다.
+- 취소된 예외는 안내문 · 운영 메모 어디에도 남기지 않습니다. &#x27;예전에는 당일 참여가 가능했으나&#x27; 같은 문장도 쓰지 않습니다.
+- 이미 게시판이나 전화로 &#x27;당일 남은 자리가 있으면 참여할 수 있다&#x27; 는 답을 받은 분께는 개별 쪽지로 취소를 알립니다.
+- 이 통지 이전에 작성한 문서(1차 준비 회의록, 운영 확인 기록 판본 2, 게시 준비 메일)는 고치지 않고 그대로 둡니다. 그 문서의 접수 시각과 예외 내용은 이 통지로 바뀐 것으로 봅니다.
+
+### 1-5. 통지문을 내기까지의 경과(운영팀장 메모)
+
+- 9월 11일 저녁: 하도현과 통화. 당일 자리 배정 예외는 &#x27;아직 유지&#x27; 라고 답함. 다만 인력이 한 명이라 접수가 길어질 수 있다는 점이 마음에 걸린다고 말함.
+- 9월 12일: 운영 확인 기록 판본 2 를 읽음. 3장 준비 동선과 10장 담당자 인계를 다시 보며, 도착 뒤 준비와 접수 사이가 빠듯하다는 점을 메모해 둠.
+- 9월 15일: 게시 담당 메일 묶음에서 운영 메모에 &#x27;바뀔 수 있음, 통지 오면 고침&#x27; 을 남기자는 이야기를 봄. 바꾸게 되면 통지문 한 장으로 분명히 알리기로 마음먹음.
+- 9월 17일 17:40: 하도현이 관리실 서면 회신을 받아 사진으로 보내 줌. 광장 사용이 사전 등록 명단 기준이라는 줄을 보고 예외 취소를 결정함.
+- 9월 17일 저녁: 접수 시작을 늦출지 따로 생각함. 설명회 시작은 판매자에게 이미 알렸고 광장 사용 신청도 설명회 시간에 맞춰 짜여 있어 건드리지 않기로 함. 준비 쪽에 시간을 더 두는 방법으로 접수 시작만 10분 늦추기로 함.
+- 9월 18일 08:30: 하도현 · 송가온과 짧게 통화해 두 가지 변경을 미리 알림. 두 사람 모두 이견 없음.
+- 9월 18일 10:00: 통지 공문을 공용 폴더에 올리고 세 사람에게 알림. 저녁 회의를 잡음.
+
+## 2. 광장 관리실 서면 회신(9월 17일 접수, 관리소장 명의)
+
+운영팀이 9월 4일 관리실 우편함에 넣은 문의 쪽지에 대한 회신임. 관리실 직인이 찍힌 한 장짜리 문서를 옮김.
+
+- 물품 보관: 관리동 1층 관리실 옆 창고 칸에 천막과 테이블을 보관할 수 있음. 보관 장소의 넓이는 접은 테이블을 벽에 세우고 천막 가방을 바닥에 눕히면 들어가는 정도임.
+- 보관료: 하루 5000원. 행사 전날 맡기고 행사 당일 찾아가는 경우 하루로 봄.
+- 전날 받는 시간: 16:00~18:00. 이 시간 밖에는 관리실 근무자가 없어 받지 않음.
+- 당일 찾는 시간: 관리실은 행사 당일 09:00 에 문을 엶. 그 뒤로는 언제든 찾을 수 있음.
+- 광장 사용 신청: 판매자 설명회의 광장 사용은 사전 등록 명단 기준으로 받음. 행사 사흘 전까지 명단(팀 수와 대표자 이름)을 관리실에 내야 함. 명단에 없는 판매자가 당일 광장에서 판매하는 것은 관리실이 허락하지 않음.
+- 그 밖에: 광장 바닥에 못이나 말뚝을 박지 않음. 천막은 무게추로 고정함. 행사 뒤 쓰레기는 각자 가져감(관리실은 받지 않음).
+- 회신을 받은 사람: 하도현(9월 17일 17:40, 관리실 앞에서 직접 받음). 보관 신청이나 날짜 예약은 하지 않았음.
+
+[하도현 메모] 쓰레기는 각자 가져간다는 회신으로 &#x27;쓰레기 처리 미정&#x27; 항목 하나가 풀림. 보관 조건은 B안을 고를 때 쓰는 정보이며, 이 회신만으로 B안을 고른 것은 아님.
+
+## 3. 수정 회의록
+
+- 일시: 2026년 9월 18일(금) 19:00~20:25
+- 장소: 마을회관 2층 작은 회의실
+- 참석: 기은솔 운영팀장, 하도현, 송가온. 문해담은 19:50~20:10 게시 관련 안건에만 참석.
+- 기록: 송가온 / 기록 검토: 하도현
+- 안건: 1. 변경 통지 확인 / 2. 바뀌지 않는 조건 확인 / 3. 판매자 안내문 고쳐 쓰기 / 4. 운영 메모 고쳐 쓰기 / 5. 이미 답한 문의의 후속 처리 / 6. 관리실 회신의 반영 / 7. 계속 보류하는 항목
+
+### 3-1. 안건 1 — 변경 통지 확인
+
+운영팀장이 통지 공문을 읽고 두 가지 변경을 설명함.
+
+접수 시작: 하도현은 지난 회의들에서 10:30 에 도착해 준비를 마치고 접수를 열기까지가 빠듯하다고 여러 번 말했고, 운영팀장도 그 점을 고려했다고 함. 송가온이 &quot;설명회 시작도 같이 늦추면 안 되느냐&quot;고 물었으나, 운영팀장은 광장 사용 신청이 설명회 시간에 맞춰 앞뒤 준비 · 회수 시간까지 넣어 들어가 있고, 판매자들에게 이미 11:00~12:00 으로 알려 왔으므로 설명회 시작은 바꾸지 않는다고 답함. 송가온은 접수와 설명회 시작 사이가 짧아져 판매자가 바쁠 수 있다고 걱정했고, 하도현은 접수에서 할 일을 등록 확인과 번호판 배부로 줄이고 품목 확인은 신청 단계에서 끝내면 된다고 답함.
+
+당일 자리 배정 예외: 운영팀장은 관리실 회신(광장 사용은 사전 등록 명단 기준)이 결정적이었다고 함. 하도현은 봄 회차에 미등록 팀을 돌려보내기 어려웠던 경험을 다시 말하면서도, 관리실 허락이 없는 판매를 운영팀이 허용할 수는 없다는 데 동의함. 송가온은 예외가 사라지면 접수가 단순해져 접수 자리를 비울 위험도 줄어든다고 함.
+
+- [결정] 설명회 시작 시각은 유지하고, 접수 시작만 기존보다 10분 늦춤.
+- [결정] 미등록 판매자에게 당일 남은 자리를 배정하는 예외를 취소함. 사전 등록 판매자만 참여함.
+- [결정] 이 결정은 9월 18일 통지 시점부터 모든 문서와 답변에 적용함.
+
+### 3-2. 안건 2 — 바뀌지 않는 조건 확인
+
+통지 공문 1-2 의 목록을 한 줄씩 읽으며 확인함. 송가온이 예산 숫자를, 하도현이 시각과 인력, 동선을 읽음.
+
+송가온은 &quot;접수가 늦어졌으니 담당자 도착도 늦춰도 되느냐&quot;고 물음. 운영팀장은 도착 10:30 은 그대로라고 답함. 도착 시각은 바뀌지 않았고, 늦춘 것은 접수 시작뿐임.
+
+하도현은 예비 인력에 대해 9월 17일에 세 번째로 연락했으나 여전히 답이 없다고 보고함. 운영팀장은 계속 승인 인력에 넣지 않는다고 함. 운영팀장이 다른 주민 모임 두 곳에 물어본 추가 지원 인력도 답이 없음.
+
+준비 방식을 두고 송가온이 &quot;관리실 회신이 왔으니 이제 B안으로 정해도 되지 않느냐&quot;고 물음. 운영팀장은 회신이 온 것은 B안을 검토할 정보가 생긴 것일 뿐, 전날 16:00~18:00 에 물품을 옮길 사람과 시간을 아직 보지 않았고, A안의 당일 시간 검토도 끝나지 않았다며 오늘은 정하지 않는다고 함. 하도현도 같은 생각임.
+
+- [결정] 도착 10:30, 행사 11:00~12:00, 인력 1명, 정원 30팀, 동선 값, 예산 숫자, 품목, 운영비, 천막 · 테이블 원칙, 문의처는 그대로 유지.
+- [결정] 예비 인력은 계속 승인 인력에 넣지 않음.
+- [보류] A안 · B안 선택. 관리실 회신은 받았으나 이번 회의에서 고르지 않음.
+- [보류] 추가 지원 인력.
+
+### 3-3. 안건 3 — 판매자 안내문 고쳐 쓰기(문해담 참석)
+
+문해담이 게시판 형식 원칙을 다시 설명함. 지금 글을 고치되 목차의 접수 · 문의 링크, &#x27;부스&#x27; 각주와 그 정의, [1] · [2] 출처 번호와 참고 기록 목록, 문의 접기 칸, 운영 메모 복사 칸 하나를 모두 그대로 둠. 바뀐 값만 고침.
+
+운영팀장은 고친 글에 &#x27;바뀐 점&#x27; 목록을 붙이지 말라고 다시 말함. 봄 회차에 고친 목록이 본문보다 길어져 판매자들이 무엇이 최신인지 헷갈렸던 일 때문임. 송가온은 고친 날만 글 끝에 적자고 했고 모두 동의함.
+
+하도현이 &quot;예외가 없어졌다는 말을 안내문에 써야 하느냐&quot;고 물음. 운영팀장은 &#x27;사전 등록한 판매자만 참여할 수 있다&#x27; 는 지금 조건만 쓰고, 예전 예외 이야기는 쓰지 않는다고 함. 문해담은 접수 절에 이 조건을 넣으면 목차 링크로 바로 찾을 수 있다고 덧붙임.
+
+접수 시각이 바뀌므로 &#x27;접수&#x27; 절과 운영 메모 두 곳의 시각을 함께 고쳐야 한다는 점을 문해담이 짚음. 여름 청소 공지 때 본문만 고치고 운영 메모를 고치지 않은 일이 있었음.
+
+- [결정] 판매자 안내문은 같은 글을 고치고, 목차 · 각주 · 출처 · 문의 접기 칸 · 운영 메모 형식을 유지함.
+- [결정] 고친 글에 수정 목록을 붙이지 않음. 고친 날만 적음.
+- [결정] 취소된 예외는 안내문에 남기지 않음. 참여 조건은 &#x27;사전 등록 판매자만 참여&#x27; 로 적음.
+- [결정] 접수 시각은 본문과 운영 메모를 함께 고침.
+
+### 3-4. 안건 4 — 운영 메모 고쳐 쓰기
+
+운영 메모는 담당자가 당일 대화방에 붙여 넣는 문장임. 운영팀장이 넣을 것을 다시 확인함.
+
+- 현장 도착 시각(바뀌지 않음)
+- 바뀐 접수 시작 시각
+- 준비 방식 미정(A안 · B안 검토 중)
+- 예비 인력 참석 미확답, 승인 인력 아님
+- 접수 시작 뒤 접수 자리를 비울 수 없음
+- 사전 등록 명단에 없는 판매자는 받지 않음
+
+하도현은 마지막 줄을 운영 메모에 넣으면, 당일 미등록 판매자가 왔을 때 담당자가 망설이지 않게 된다고 함. 송가온은 돌려보낼 때 어떻게 말할지 문장을 미리 정해 두자고 했으나, 운영 메모가 길어지므로 운영 확인 기록에 따로 적기로 함.
+
+- [결정] 운영 메모에 위 여섯 가지를 문장으로 넣음. 복사 칸은 하나.
+- [결정] 미등록 판매자에게 할 안내 문장은 운영 확인 기록에 따로 둠.
+
+### 3-5. 안건 5 — 이미 답한 문의의 후속 처리
+
+하도현이 업무 공책과 게시판 쪽지를 찾아, 예외가 있다고 답했던 문의를 확인함.
+
+- 9월 4일 게시판 쪽지 &quot;신청 안 하고 당일 가도 되나요?&quot; — 그때 &#x27;당일 남은 자리가 있으면 배정하는 예외가 지금은 있다, 바뀔 수 있다&#x27; 고 답함.
+- 9월 11일 전화 &quot;이웃이 신청을 못 했는데 당일 같이 가도 되느냐&quot; — 같은 답을 함.
+- 9월 15일 게시판 쪽지 &quot;설명회 날 친구가 구경 왔다가 팔고 싶어 하면 되나요?&quot; — 같은 답을 함.
+
+운영팀장은 세 분께 개별 쪽지로 예외가 취소되었고 사전 등록한 판매자만 참여할 수 있다는 점을 알리라고 함. 사전 등록 마감은 아직 미정이므로, 등록을 원하면 등록 글이 열릴 때 신청해 달라고 함께 적기로 함. 쪽지에는 다른 확정 사항(시각, 품목 등)을 길게 적지 않고 안내문을 보도록 함.
+
+- [결정] 예외가 있다고 답한 세 분께 개별 쪽지로 취소를 알림(하도현, 9월 19일까지).
+- [보류] 사전 등록 마감. 날짜가 정해진 뒤 정함.
+
+### 3-6. 안건 6 — 관리실 회신의 반영
+
+송가온이 관리실 회신을 읽음. 보관료 하루 5000원은 지금까지 알고 있던 B안 비용과 같음. 회신에 적힌 &#x27;사흘 전까지 명단 제출&#x27; 은 날짜가 정해지면 일정에 넣어야 하는 할 일임.
+
+쓰레기는 각자 가져간다는 회신에 따라 판매자 안내문에도 쓰레기를 가져가 달라는 문장을 넣을지 이야기함. 하도현은 기존 항목 안에 한 줄 넣으면 된다고 했으나, 운영팀장은 이번 수정은 통지한 두 조건만 고치기로 했으니 쓰레기 문장은 이번에 넣지 않고 다음에 따로 다루자고 함. 판매자에게는 설명회 끝에 말로 알리는 방법도 있다고 덧붙임. 송가온도 이번에는 바뀐 조건만 고치는 쪽이 대조하기 쉽다고 함.
+
+관리실 당일 09:00 개방은 B안을 고를 경우 당일 물품을 찾는 시각에 영향을 주는 정보임. 도착 10:30 보다 이르므로 B안을 고르더라도 관리실 개방 시각 때문에 막히는 일은 없다는 점만 확인함. 어느 안이 나은지는 이야기하지 않음.
+
+- [결정] 쓰레기는 판매자가 각자 가져감(관리실 회신). 운영 확인 기록에 반영함.
+- [보류] 판매자 안내문에 쓰레기 문장을 넣는 시점. 이번 수정에서는 넣지 않음.
+- [결정] 관리실 명단 제출(행사 사흘 전까지)을 할 일로 올림. 날짜는 행사 날짜가 정해진 뒤 정함.
+- [보류] B안을 고를 경우의 전날 운반 시각과 운반 인력.
+
+### 3-7. 안건 7 — 계속 보류하는 항목
+
+- 행사 날짜
+- 문의 연락처
+- 사전 등록 마감과 사전 등록 확인 방법
+- 접수 전 대기 자리
+- A안 · B안 선택
+- 설명회 한 시간 안의 진행 순서
+- 운영비 받는 정확한 때
+- 경계 품목 기준
+- 부스 배치표와 천막 짝 정하는 방식
+- 편의 지원
+- 추가 지원 인력
+- 천막 한쪽이 들린 일의 원인과 대응(점검 일지 검토 중)
+- 번호판 주문 승인
+- 판매자 안내문에 쓰레기 문장을 넣는 시점
+- 등록 팀이 대신 보내는 사람의 인정 기준, 등록 팀이 남의 물건을 함께 파는 경우(3-8)
+
+운영팀장은 다음 주 안에 A안 · B안과 부스 배치 기준을 따로 다루겠다고 함.
+
+### 3-8. 회의 끝에 나온 질문
+
+- 송가온: 사전 등록한 팀이 당일 오지 못하면 그 자리는 어떻게 하느냐. — 운영팀장: 비워 둔다. 미등록 판매자에게 주지 않는다. 같은 천막을 쓰기로 한 다른 팀은 그 천막을 혼자 쓰게 되지만 테이블은 팀당 하나 그대로다.
+- 하도현: 등록한 팀 대표가 못 오고 가족이 대신 오면 받느냐. — 운영팀장: 같은 팀이라면 받는 것이 맞아 보이나, 무엇으로 같은 팀인지 확인할지는 정하지 않았다. 보류.
+- 송가온: 등록한 팀이 이웃의 물건을 맡아 함께 팔면 어떻게 하느냐. — 운영팀장: 미등록 판매자를 우회해 받는 일이 될 수 있어 조심해야 한다. 기준은 보류. 품목 제한은 어느 경우든 같다.
+- 하도현: 미등록 판매자가 구매자로 광장에 오는 것은 괜찮으냐. — 운영팀장: 구매자로 오는 것은 막지 않는다. 판매만 안 된다.
+
+## 4. 운영 확인 기록 판본 3 에 반영할 곳(내부용, 송가온 작성)
+
+- 1장 행사 범위: 접수 시작을 9월 18일 통지대로 고침. 행사 시간과 도착 시각은 그대로.
+- 4장 선택할 수 있는 방식: 관리실 서면 회신(보관 장소, 보관료 하루 5000원, 전날 16:00~18:00 접수, 당일 09:00 개방)을 붙임. 선택은 계속 보류.
+- 6장 참가자 행동: 당일 자리 배정 예외 줄을 지우고 &#x27;사전 등록 판매자만 참여, 9월 18일 통지로 예외 취소&#x27; 로 고침. 미등록 판매자에게 할 안내 문장을 덧붙임. 쓰레기 처리 미정을 &#x27;각자 가져감&#x27; 으로 고침.
+- 9장 확정하지 않은 항목: 쓰레기 처리를 목록에서 뺌.
+- 11장 안내문 검토: 예외 관련 문장을 &#x27;취소 통지(9월 18일)에 따라 이전 예외를 쓰지 않음&#x27; 으로 고침.
+- 나머지 장은 바꾸지 않음.
+- 판본 이력에 &#x27;판본 3(9월 18일): 접수 시작 변경, 당일 자리 배정 예외 취소, 관리실 회신 반영&#x27; 을 적음.
+
+## 5. 미등록 판매자에게 할 안내 문장(운영 확인 기록에 넣을 것)
+
+- 당일 현장에 미등록 판매자가 오면 하도현은 아래 뜻으로 말함. &quot;이번 설명회는 사전 등록하신 판매자만 참여하실 수 있습니다. 광장 사용도 사전 등록 명단으로 신청되어 있어 오늘 자리를 드릴 수 없습니다. 다음 회차 소식은 운영팀 게시판에 올리겠습니다.&quot;
+- 이 안내는 접수 자리를 떠나지 않고 함. 미등록 판매자를 광장 밖으로 안내하러 접수 자리를 비우지 않음.
+- 이웃 판매자의 테이블을 나눠 쓰게 하는 방식으로 우회하지 않음. 관리실이 명단에 없는 판매를 허락하지 않았음.
+
+## 6. 쪽지 발송 기록(9월 19일, 하도현)
+
+- 9월 4일 게시판 문의자: 9월 19일 10:20 게시판 쪽지 보냄. 같은 날 14:05 &quot;알겠습니다, 등록 글 열리면 신청할게요&quot; 라는 답장 옴.
+- 9월 11일 전화 문의자: 전화번호가 남아 있지 않아 같은 분이 게시판에 남긴 쪽지 기록을 찾아 9월 19일 10:35 쪽지 보냄. 답장 없음.
+- 9월 15일 게시판 문의자: 9월 19일 10:40 쪽지 보냄. 같은 날 18:30 &quot;친구에게 미리 신청하라고 전하겠다&quot; 는 답장 옴.
+- 쪽지 내용은 세 분 모두 같음: 당일 자리 배정 예외가 9월 18일 취소되었고 사전 등록한 판매자만 참여할 수 있다는 점, 사전 등록 마감은 정해지면 게시판에 알린다는 점.
+- 답장이 없는 9월 11일 문의자에게는 9월 22일에 한 번 더 쪽지를 보내기로 하고 업무 공책에 적어 둠.
+
+## 7. 회의 뒤 운영팀장 덧붙임(9월 18일 21:00, 운영팀 대화방)
+
+오늘 바꾼 것은 두 가지뿐입니다. 접수 시작을 10분 늦춘 것, 그리고 당일 자리 배정 예외를 없앤 것입니다. 설명회 시작, 도착, 인력, 정원, 예산, 품목, 운영비, 천막과 테이블, 문의처는 그대로입니다. 안내문과 운영 메모를 고칠 때 이 두 가지 말고 다른 것을 함께 바꾸지 마세요. 준비 방식은 아직 정하지 않았습니다.
+
+## 8. 통지 뒤 들어온 문의와 답(9월 19일~20일, 하도현)
+
+- 9월 19일, 게시판 쪽지: &quot;접수 시각이 바뀌었다고 들었는데 맞나요?&quot; — 답: 맞다. 고친 안내문을 곧 게시판에 다시 올린다. 설명회 시작 시각은 바뀌지 않았다.
+- 9월 19일, 게시판 쪽지: &quot;설명회 시작도 늦어지는 건가요?&quot; — 답: 설명회 시간은 그대로 11:00~12:00 이다. 바뀐 것은 접수 시작뿐이다.
+- 9월 19일, 전화(업무 전화): &quot;신청을 아직 안 했는데 당일 가서 남은 자리에 들어가면 안 되나요?&quot; — 답: 9월 18일부터 사전 등록한 판매자만 참여할 수 있다. 당일 자리 배정은 하지 않는다. 등록 글이 열리면 신청해 달라.
+- 9월 20일, 게시판 쪽지: &quot;등록 마감이 언제예요?&quot; — 답: 아직 정하지 않았다. 행사 날짜가 정해진 뒤 게시판에 알린다.
+- 9월 20일, 게시판 쪽지: &quot;접수가 늦어지면 일찍 가서 기다려도 되나요?&quot; — 답: 접수 전에는 준비 중인 광장 안에 들어올 수 없다. 기다리는 자리는 아직 정하지 않았다.
+- 9월 20일, 게시판 쪽지: &quot;운영비 10% 는 그대로인가요?&quot; — 답: 그대로다. 판매 수익의 10% 를 운영비로 모으고 영수증을 발행한다.
+- 9월 20일, 게시판 쪽지: &quot;천막을 같이 쓸 팀은 정해졌나요?&quot; — 답: 부스 배치표는 아직 정하지 않았다.
+
+## 9. 예외 취소 뒤 접수 자리에서 달라지는 일(하도현 메모)
+
+일정표가 아니라, 접수에서 하는 일이 어떻게 바뀌는지만 적음.
+
+- 이전: 사전 등록 팀의 등록 확인과 번호판 배부를 하면서, 남은 자리를 세고 미등록 판매자의 품목을 확인해 자리를 배정하는 일까지 해야 했음. 남은 자리를 알려면 사전 등록 팀이 어느 정도 온 뒤까지 기다려야 했음.
+- 이후: 사전 등록 명단과 대조해 등록을 확인하고 번호판을 주는 일만 함. 남은 자리를 세지 않음. 미등록 판매자에게는 5장의 문장으로 안내하고 자리를 주지 않음.
+- 접수 자리를 비울 위험: 남은 자리를 확인하러 광장 안을 돌아볼 일이 없어져 이전보다 줄어듦. 그래도 접수 시작 뒤에는 자리를 비울 수 없다는 원칙은 그대로임.
+- 접수에 필요한 물건: 사전 등록 명단, 번호판 상자, 펜, 영수증철. 미등록 판매자용 품목 확인표는 이제 필요 없음.
+- 명단: 관리실에 낸 명단과 접수 명단이 같아야 함. 두 명단에 같은 팀이 한 번씩 들어가므로, 참가 기록을 낼 때 두 명단을 더해 세지 않음.
+
+## 10. 관리실과의 후속 연락(9월 19일, 하도현)
+
+- 09:10 관리실에 들러 광장 사용 명단 양식을 받음. 칸은 팀 번호, 대표자 이름, 판매 품목 세 칸뿐임. 연락처 칸은 없음.
+- 관리실 근무자가 명단은 행사 사흘 전까지 내면 된다고 다시 말함. 행사 날짜가 정해지지 않았다고 하니 &quot;날짜가 정해지면 알려 달라&quot; 고 함.
+- 보관 신청은 하지 않음. B안을 고르게 되면 그때 신청한다고만 말함.
+- 쓰레기는 각자 가져가는 것이 맞는지 다시 물었고, 맞다는 답을 들음. 큰 상자는 접어서 가져가 달라고 판매자에게 안내해 달라는 부탁을 받음.
+
+## 11. 게시 담당이 고칠 때 볼 곳(문해담 메모, 9월 18일 회의 뒤)
+
+- 본문 접수 절: 접수 시작 시각을 통지대로 고침. 접수 절 제목은 &#x27;접수&#x27; 그대로 둠(목차 링크가 이 제목을 가리킴).
+- 본문 참여 조건 문장: &#x27;사전 등록한 판매자만 참여할 수 있음&#x27; 으로 고침. 당일 남은 자리 이야기는 지움.
+- 운영 메모 복사 칸: 접수 시각을 본문과 같은 값으로 고침. 회의 3-4 의 여섯 가지가 들어갔는지 봄. 복사 칸은 하나, 닫는 표시가 있는지 봄.
+- 문의 접기 칸: 바꿀 것 없음. 연락처는 계속 미정.
+- &#x27;부스&#x27; 각주와 정의: 바꿀 것 없음.
+- 출처 번호 [1] · [2] 와 참고 기록 목록: 바꿀 것 없음. 접수 시각 문장에 붙은 [1] 은 그대로 둠. 다만 통지 이후의 접수 시각은 [1] 답사 메모가 아니라 이번 통지에서 나온 값이라는 점을 내부 기록에 남김.
+- 고친 날: 글 끝에 고친 날만 적음. 바뀐 점 목록은 붙이지 않음.
+- 쓰레기: 이번 수정에서는 넣지 않음(회의 3-6). 다음에 따로 다룸.
+- 전단: 게시판 글이 승인되면 같은 내용으로 다시 옮김. 이미 붙어 있는 전단이 있으면 떼어 냄(아직 붙인 전단은 없음).
+
+## 12. 이번 변경이 다른 준비 자료에 닿는 곳(하도현 메모)
+
+- 당일 운영 일정표: 1차 판의 접수 시작 줄을 고쳐야 함. 도착 · 행사 · 회수 줄은 그대로. 준비 방식 칸은 계속 &#x27;방식 결정 뒤 기입&#x27;.
+- 근무표: 바뀔 것 없음. 현장 근무는 하도현 한 명. 예비 인력은 넣지 않음.
+- 관리실 명단: 예외 취소로 명단에 없는 판매자가 생기지 않으므로, 명단과 접수 명단이 같아야 함.
+- 번호판: 주문 검토 수량은 처음부터 정원 30팀 분에 젖거나 찢어질 때의 여분을 더한 것이었음. 미등록 판매자 몫을 따로 셈한 적은 없으므로 이번 변경으로 다시 셀 일은 없음. 주문 승인은 계속 대기.
+- 부스 배치 기준: 당일 남은 자리를 어떻게 줄지 적어 두었던 생각(입구 쪽 자리를 비워 두는 안)은 쓸 일이 없어짐. 배치 기준 문서를 만들 때 이 부분은 빼고 시작함.
+- 회수: 미등록 판매자가 없으므로 회수 때 번호판을 걷을 팀이 모두 명단에 있음. 돌아오지 않은 번호판은 명단 기준으로 찾을 수 있음.
+- 게시판 답변 원칙: &#x27;지금은 예외가 있으나 바뀔 수 있다&#x27; 는 답은 9월 18일부터 쓰지 않음. 사전 등록만 참여할 수 있다고 답함.
+- 점검 일지: 바뀔 것 없음. 천막 한쪽이 들린 일은 이번 변경과 관계없이 계속 원인 미확인으로 둠.
+- 설문: 설명회 끝에 설문을 받을지는 여전히 정하지 않음. 받게 되면 문항에 &#x27;접수 시각 안내가 분명했는지&#x27; 를 넣자는 송가온 의견이 있음.
+- 등록 글: 사전 등록 글을 언제 열지는 날짜가 정해진 뒤 정함. 등록 글에도 &#x27;사전 등록한 판매자만 참여&#x27; 문장을 넣음.
+
+## 13. 송가온의 예산 쪽 확인(9월 18일 회의 뒤)
+
+- 이번 변경으로 승인 상한 160000원, 실지급 64000원, 남은 예상 71000원은 바뀌지 않음.
+- B안 보관료 5000원은 관리실 회신으로 금액이 확인되었으나, B안을 고르지 않았으므로 남은 예상에 계속 넣지 않음.
+- 예외 취소로 당일 판매자가 줄면 운영비로 모이는 돈도 줄 수 있으나, 예산 메모에는 처음부터 운영비 수입 예상을 넣지 않았으므로 고칠 숫자가 없음.
+- 관리실 회신에 따라 쓰레기를 각자 가져가게 되었지만, 남은 예상의 현장 소모품 항목에 있던 쓰레기봉투는 운영팀이 쓸 몫이라 그대로 둠.
+- 변경 통지 공문 인쇄나 쪽지 발송에 드는 돈은 없음.
+
+## 14. 봄 회차 미등록 판매자 사례 다시 보기(회의 자료로 하도현이 가져온 공책 쪽)
+
+- 봄 회차 당일 9:50 쯤 미등록 판매자 두 팀이 왔음. 한 팀은 이웃 소개로, 한 팀은 지나가다 전단을 보고 옴.
+- 남은 자리를 알려면 사전 등록 팀이 다 왔는지 봐야 했는데, 접수 줄이 길어 그 확인이 늦어짐. 두 팀은 접수 줄 맨 앞에서 기다렸고 그동안 뒤에 선 등록 팀들이 기다림.
+- 남은 자리가 입구 가까운 곳이었고, 그 자리를 미등록 팀이 받자 사전 등록 팀 한 곳이 &quot;미리 신청한 우리는 안쪽인데&quot; 하고 불만을 말함.
+- 미등록 팀 한 곳은 건전지 장난감을 가져왔는데, 품목을 미리 확인하지 못해 진열한 뒤에야 알게 됨. 그때는 품목 제한이 없던 때라 그대로 팔았으나, 지금 기준이라면 받지 않는 물건임.
+- 그날 봉사자가 있어 하도현이 남은 자리를 보러 광장을 돌 수 있었음. 이번 회차에는 그런 일을 할 사람이 없음.
+
+## 15. 세 분께 보낸 쪽지 원문(9월 19일)
+
+안녕하세요, 다시장터 운영팀 장터 운영 담당 하도현입니다. 지난번 문의에 &#x27;당일 남은 자리가 있으면 참여할 수 있다&#x27; 고 답드렸는데, 9월 18일 운영팀 결정으로 그 예외가 취소되었습니다. 이번 판매자 설명회에는 사전 등록하신 판매자만 참여하실 수 있습니다. 사전 등록 마감은 아직 정하지 않았고, 정해지면 운영팀 게시판에 알리겠습니다. 설명회 시간과 다른 내용은 게시판의 판매자 안내문을 봐 주세요. 혼란을 드려 죄송합니다.
+
+## 16. 수정 회의 진행 시각(송가온 기록)
+
+- 19:00 개회. 운영팀장이 통지 공문을 읽음.
+- 19:10 안건 1. 접수 시작 변경과 예외 취소의 까닭을 이야기함.
+- 19:30 안건 2. 바뀌지 않는 조건을 한 줄씩 읽음. 준비 방식은 정하지 않기로 함.
+- 19:50 문해담 들어옴. 안건 3 판매자 안내문 고쳐 쓰기.
+- 20:05 안건 4 운영 메모.
+- 20:10 문해담 나감. 안건 5 이미 답한 문의.
+- 20:15 안건 6 관리실 회신, 안건 7 계속 보류하는 항목.
+- 20:25 폐회.
+
+## 17. 첫 수정본 게시 상태(9월 18일 기준, 문해담)
+
+- 판매자 안내문 첫 수정본은 9월 18일 오전 하도현이 공용 폴더에 올렸음. 목차(접수 · 문의), &#x27;부스&#x27; 각주, [1] · [2] 출처와 참고 기록, 문의 접기 칸, 운영 메모 복사 칸 하나를 갖춘 글이었음.
+- 문해담이 미리보기에서 링크와 접기 칸을 보던 중 10:00 에 변경 통지가 올라와 게시를 멈춤. 첫 수정본은 게시판에 올라가지 않았음.
+- 운영팀장은 첫 수정본을 바탕으로 두 번째 수정본을 만들어 그것을 처음으로 게시하자고 함. 판매자가 보는 글은 처음부터 바뀐 조건으로 보게 됨.
+- 두 번째 수정본도 같은 순서(하도현 작성 → 문해담 미리보기 → 송가온 대조 → 운영팀장 승인)를 거침.
+- 고친 날 줄에는 게시하는 날만 적음. 첫 수정본이 게시되지 않았으므로 &#x27;고친 날&#x27; 이 여러 번 쌓일 일은 없음.
+
+## 18. 운영팀 대화방 답글(9월 18일 21:00 이후)
+
+- 하도현(21:05): 확인했습니다. 내일 오전에 문의하셨던 세 분께 쪽지 보내고, 두 번째 수정본은 내일 저녁까지 올리겠습니다. 바뀐 두 가지 말고는 손대지 않겠습니다.
+- 송가온(21:12): 예산 쪽은 바뀌는 숫자가 없습니다. 운영 확인 기록 판본 3 반영할 곳은 공용 폴더에 올려 두었습니다.
+- 문해담(21:20): 미리보기 때 접수 절 시각과 운영 메모 시각을 나란히 놓고 보겠습니다. 수정 목록은 붙이지 않겠습니다.
+- 운영팀장(21:31): 고맙습니다. 준비 방식은 다음 주에 따로 보겠습니다. 그 전까지 일정표의 준비 칸은 비워 두세요.
+
+## 19. 9월 19일 하도현 업무 기록
+
+- 09:10 관리실에서 광장 사용 명단 양식 받음(10장).
+- 10:20~10:40 예외가 있다고 답했던 세 분께 쪽지 보냄(6장).
+- 11:30 통지 뒤 들어온 게시판 문의 두 건에 답함(8장).
+- 14:05 9월 4일 문의자 답장 확인.
+- 15:00 운영 확인 기록 판본 3 작성 시작. 송가온이 올린 반영할 곳 목록(4장)대로 고침.
+- 17:20 판매자 안내문 두 번째 수정본 작성. 바뀐 두 가지(접수 시작, 사전 등록만 참여)만 고침.
+- 18:30 9월 15일 문의자 답장 확인.
+- 19:10 두 번째 수정본을 공용 폴더에 올리고 문해담에게 알림.
+
+## 20. 게시판 답변 문장이 바뀐 곳(하도현 업무 공책에 적어 둔 것)
+
+- 당일 참여 문의: 9월 17일까지는 &#x27;당일 남은 자리가 있으면 미등록 판매자에게 배정하는 예외가 지금은 있다, 바뀔 수 있다&#x27; 고 답함. 9월 18일부터는 &#x27;사전 등록한 판매자만 참여할 수 있다, 당일 자리 배정은 하지 않는다&#x27; 고 답함.
+- 접수 시각 문의: 9월 18일부터 고친 안내문이 게시되기 전까지는 &#x27;접수 시작이 10분 늦춰졌다, 설명회 시작은 그대로다, 고친 안내문을 곧 올린다&#x27; 고 답함. 고친 안내문이 올라간 뒤에는 안내문의 접수 절을 보도록 안내함.
+- 준비 중 출입 문의: 바뀌지 않음. &#x27;접수 전에는 준비 중인 광장 안에 들어올 수 없다&#x27;.
+- 쓰레기 문의: 9월 17일 관리실 회신 뒤로 &#x27;쓰레기와 상자는 각자 가져가 달라&#x27; 고 답함. 안내문에 넣는 것은 보류.
+- 문의처 연락처 문의: 바뀌지 않음. &#x27;연락처는 정해지면 안내문에 적는다&#x27;.
+
+## 21. 회의록 검토 메모(하도현, 9월 19일)
+
+- 3-2 의 송가온 질문 &#x27;담당자 도착도 늦춰도 되느냐&#x27; 와 운영팀장 답 &#x27;도착 10:30 그대로&#x27; 를 그대로 둠. 도착과 접수를 헷갈리지 않게 하는 데 쓸모 있는 문답이라 지우지 않음.
+- 3-6 은 처음에 &#x27;쓰레기 문장을 안내문에 넣음&#x27; 으로 적혀 있었으나, 회의 끝 무렵 운영팀장이 이번 수정은 두 조건만 고친다고 다시 말했으므로 보류로 고침.
+- 3-8 의 질문 네 개는 회의록 초안에 없던 것을 송가온이 녹음 메모를 듣고 더함.
+- 회의록 어디에도 A안 · B안 가운데 하나를 고른 문장은 없음을 확인함.
+
+## 22. 운영 확인 기록 판본 3 작성 결과(9월 19일 16:40, 하도현)
+
+- 4장 목록대로 1장 · 4장 · 6장 · 9장 · 11장을 고침. 다른 장은 판본 2 그대로 둠.
+- 6장의 예외 줄은 지우고, 그 자리에 &#x27;사전 등록 판매자만 참여(9월 18일 통지)&#x27; 와 5장의 안내 문장을 넣음.
+- 4장에 관리실 서면 회신을 붙이면서 &#x27;회신을 받았으나 A안 · B안 선택은 보류&#x27; 라는 문장을 그대로 둠.
+- 부록 &#x27;판매자가 물어볼 만한 것&#x27; 가운데 &#x27;신청 안 하고 당일 가도 되나요&#x27; 의 답을 &#x27;사전 등록한 판매자만 참여, 당일 자리 배정 없음&#x27; 으로 고침. &#x27;도와주는 사람이 있나요&#x27; 의 답은 바꾸지 않음.
+- 부록 &#x27;헷갈리기 쉬운 값&#x27; 의 당일 자리 배정 예외 줄을 &#x27;9월 18일 취소, 그 뒤로 쓰지 않음&#x27; 으로 고침.
+- 판본 이력에 판본 3 을 적음. 송가온이 5장 예산 숫자가 그대로인지 다시 대조함(바뀐 숫자 없음).
+- 판본 3 은 공용 폴더에 올렸고, 판본 2 는 지우지 않고 &#x27;지난 판본&#x27; 으로 옮겨 둠.
+[자료 끝]
+
+다시장터 운영팀의 같은 판매자 안내문을 두 번째로 수정해 주세요. 설명회 시작은 유지하되 접수 시작만 이전보다 10분 늦춰 주세요. 당일 자리 배정 예외는 취소하고 사전 등록 판매자만 참여할 수 있게 판매자 안내문 전체를 다시 써 주세요. 앞서 고친 목차·각주·문의 형식도 유지하고, 수정 목록을 따로 붙이지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 7 답변</b><pre class="rs-pre rs-ans"># 다시장터 주민 중고 장터 판매자 설명회 안내문
+
+다시장터 가을 회차에 앞서 판매자 설명회를 개최합니다. 실제 장터가 열리는 광장에서 판매자분들이 부스를 직접 구성해 보고 운영 규칙을 익히는 자리입니다. 아래 목차를 통해 주요 안내 사항을 확인해 주시기 바랍니다.
+
+## 목차
+
+* [접수](https://www.google.com/search?q=%23%EC%A0%91%EC%88%98)
+* [문의](https://www.google.com/search?q=%23%EB%AC%B8%EC%9D%98)
+
+---
+
+## 접수
+
+<mark class="rs-mk"><sup>10·11</sup>* **일시 및 장소:** 행사 날짜는 **미정**(광장 사용 승인 후 공지)이며, 설명회 진행 시간은 **11:00~12:00**입니다. 등록 확인과 번호판을 배부하는 접수는 **11:00**에 시작합니다 [1].</mark> 안전한 준비를 위해 접수 시작 시각 전에는 준비 중인 광장 안으로 들어올 수 없습니다 [1]. 행사가 열리는 장소는 **은행나무 광장**입니다.
+* **참여 정원 및 조건:** 사전 등록 판매자 30팀을 기준으로 운영합니다. 이번 설명회는 사전에 등록을 완료한 판매자만 참여할 수 있으며, 당일 현장 접수나 미등록 판매자 대상 자리 배정은 진행하지 않습니다.
+* **판매 품목:** 생활용품과 도서에 한해 판매할 수 있습니다. 안전과 위생을 위해 식품 및 전자제품은 일절 반입하거나 판매할 수 없습니다.
+* **부스 사용 및 운영비:** 천막과 테이블을 포함한 부스[^부스]를 배정받아 사용합니다. 판매 수익의 10%는 장터 운영비로 모으며 납부 현장에서 즉시 영수증을 발행합니다. 접수처에서 번호판을 수령한 것만으로 안내를 이수한 것으로 보지 않으므로, 설명회 규칙 안내를 끝까지 들어 주셔야 합니다. 행사 준비 및 소모품 관련 예산은 승인 기준에 맞추어 관리됩니다 [2].
+* **현장 인력:** 설명회 당일 현장 진행 인력은 장터 운영 담당 1명이며, 추가 지원 인력은 정해지지 않았습니다.
+
+---
+
+## 문의
+
+* **문의처:** 장터 운영 담당 하도현
+* **연락 방법:** 미정 (공용 연락처 확정 시 게시판에 안내 예정)
+
+---
+
+고친 날: 2026년 9월 19일
+
+## 참고 기록
+
+[1] 광장 답사 메모: 행사·접수 시각, 인력, 준비 조건.
+
+[2] 운영팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+[^부스]: 천막은 두 팀이 한 동을 나눠 쓰고 테이블은 팀당 하나를 사용하며, 부스 배치표는 아직 정하지 않았습니다.
+
+---
+
+## 운영 메모
+
+```text
+운영 담당자는 10:30에 현장에 도착하여 준비를 시작합니다. 참가자 등록 확인과 번호판 배부가 이루어지는 접수 시작 시각은 11:00입니다. 천막과 테이블 준비 방식은 미정이며 현재 A안과 B안을 검토 중입니다. 예비 인력은 참석 미확답 상태이므로 승인 인력이 아니며 당일 현장 진행은 운영 담당 1명이 전담합니다. 11:00 접수 시작 뒤에는 접수 자리를 비울 수 없으며 이석이 필요한 용무는 접수 전에 마칩니다. 사전 등록 명단에 없는 판매자는 받지 않으며 당일 현장 배정은 하지 않습니다.
+
+```</pre></div><div class="rs-turn"><b>턴 10 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 장터 당일 운영 일정표 개정 자료 · 근무표 · 시설 사용 시간
+
+- 작성: 하도현(장터 운영 담당)
+- 작성일: 2026년 9월 24일(목)
+- 검토: 송가온(회계 담당), 기은솔 운영팀장
+- 문서 상태: 장터 당일(판매자 설명회 날) 운영 일정표를 3차로 고치기 위해 모은 자료임. 1차 판 · 2차 판 일정표의 내용, 9월 18일 변경 통지 뒤의 최신 조건, 근무표, 시설 사용 시간, 소요 시간 기준값, 마감 · 회수 절차를 담음. 3차 판 일정표 자체는 아직 만들지 않았음. 준비 방식(A안 · B안)이 정해지지 않아 이동 · 확인 칸에 시각을 넣을 수 없기 때문임.
+
+## 1. 일정표 개정 이력
+
+### 1-1. 1차 판(9월 4일, 1차 준비 회의 다음 날)
+
+1차 판에 적혀 있던 줄을 그대로 옮김. 오른쪽 괄호는 이번에 덧붙인 상태 표시임.
+
+- 10:30 운영 담당 현장 도착 (그대로)
+- 시각 미기입: 물품 이동 · 확인 — &#x27;준비 방식 결정 뒤 기입&#x27; (지금도 미기입)
+- 시각 미기입: 천막 · 테이블 설치 — &#x27;설치 30분&#x27; 만 적혀 있음 (지금도 미기입)
+- 10:50 접수 시작 (9월 18일 통지로 바뀜. 이 줄은 3차 판에 그대로 쓰지 않음)
+- 접수 시작 뒤: 미등록 판매자 당일 남은 자리 배정 (9월 18일 통지로 예외 취소. 3차 판에서 지움)
+- 11:00~12:00 판매자 설명회 (그대로)
+- 12:00 이후 물품 회수 · 참가 기록 마무리, 끝난 시각은 당일 실제로 적음 (그대로)
+
+### 1-2. 2차 판(9월 12일, 운영 확인 기록 판본 2 반영)
+
+1차 판에 아래를 더했음.
+
+- 소요 시간 기준값 칸: 창고~광장 편도 12분, 물품 확인 8분, 설치 30분. &#x27;편도를 왕복으로 쓰지 않음&#x27; 메모.
+- 원칙 칸: &#x27;설치를 끝내기 전에 접수를 열지 않음(승인 없음)&#x27;, &#x27;접수 시작 뒤 접수 자리를 비울 수 없음, 자리를 비워야 하면 접수 시작 전에 돌아옴&#x27;.
+- 근무 칸: &#x27;현장 근무 하도현 1명. 예비 인력 미확답, 넣지 않음&#x27;.
+- 2차 판에도 준비 방식이 정해지지 않아 이동 · 확인 · 설치 줄의 시각은 비어 있었음.
+
+### 1-3. 3차 개정 준비(이 문서, 9월 24일)
+
+- 9월 18일 변경 통지 반영: 설명회 시작은 유지하고 접수 시작만 기존보다 10분 늦춤. 미등록 판매자에게 당일 남은 자리를 배정하는 예외는 취소, 사전 등록 판매자만 참여.
+- 9월 17일 관리실 서면 회신 반영: 관리실 여는 시각, 전날 물품을 받는 시간, 보관료, 쓰레기는 각자 가져감.
+- 9월 22일 부스 배치 기준 반영: 번호판 번호를 부스 번호와 같게 함, 번호판 상자를 접수 전에 부스 번호 순서로 늘어놓음.
+- 준비 방식은 여전히 정하지 않음. 3차 판을 만들 때 A안 · B안 가운데 정해진 쪽으로 이동 · 확인 칸을 채우거나, 정해지지 않았으면 두 안을 나란히 적어 운영팀장에게 올림.
+
+## 2. 최신 조건(9월 18일 통지 기준)
+
+### 2-1. 바뀐 것
+
+- 접수 시작: 설명회 시작은 그대로 두고, 접수 시작만 1차 · 2차 판의 시각보다 10분 늦춤.
+- 당일 자리 배정 예외: 취소. 사전 등록 명단에 있는 판매자만 참여. 명단에 없는 판매자에게는 남은 자리가 있어도 배정하지 않음.
+
+### 2-2. 바뀌지 않은 것
+
+- 운영 담당 현장 도착 10:30
+- 설명회(행사) 11:00~12:00
+- 확정 진행 인력 1명(하도현). 예비 인력은 참석 확답이 없어 승인 인력이 아님.
+- 정원 30팀
+- 창고~광장 편도 12분, 물품 확인 8분, 설치 30분
+- A안(당일 창고 운반, 비용 없음) · B안(전날 관리실 보관, 보관료 5000원, 당일 물품 확인 8분)의 내용. 선택은 보류.
+- 예산: 승인 상한 160000원, 실지급 64000원, 남은 예상 71000원. B안 비용 5000원은 남은 예상에 미포함.
+- 판매 품목 생활용품 · 도서 한정, 식품 · 전자제품 제외. 판매 수익 10% 운영비, 영수증 발행. 천막 두 팀 한 동, 테이블 팀당 하나.
+- 문의처 하도현, 연락처 미정. 행사 날짜 미정.
+
+## 3. 근무표(장터 당일)
+
+### 3-1. 현장 근무
+
+- 하도현(장터 운영 담당): 현장 도착부터 회수가 끝날 때까지 현장 근무. 물품 이동 · 확인 · 설치, 접수, 설명회 진행과 참가자 응대, 운영비 수령과 영수증 발행, 회수와 참가 기록을 모두 맡음.
+- 현장 근무자는 하도현 한 명뿐임.
+
+### 3-2. 현장 근무가 없는 사람
+
+- 송가온(회계 담당): 당일 현장 근무 없음. 회수가 끝난 뒤 하도현에게서 운영비 잠금 봉투와 영수증 사본을 받아 정산함. 받는 장소는 마을회관 사무실로 생각하고 있으나, 행사 날짜가 정해지지 않아 그날 사무실이 열리는지 모름(미정). 당일 들를 수 있다고 했으나 근무로 잡지 않음.
+- 기은솔 운영팀장: 당일 현장 근무 없음. 하도현이 판단하기 어려운 일이 생기면 전화로 연락함(운영팀 내부 연락, 번호는 이 자료에 적지 않음).
+- 문해담(게시 담당): 당일 현장 근무 없음. 게시판에 당일 문의가 올라오면 확인해 운영 담당에게 넘김.
+
+### 3-3. 근무표에 넣지 않는 사람
+
+- 예비 인력(봄 회차에 접수를 도운 주민 봉사자): 9월 10일 · 17일 등 여러 번 연락했으나 참석 확답이 없음. 승인 인력이 아니므로 근무표에 넣지 않음.
+- 추가 지원 인력: 운영팀장이 다른 주민 모임에 물었으나 답이 없음. 정해진 사람이 없음.
+- 게시판 자유 의견 칸에 &#x27;도울 수 있을지 모르겠다&#x27; 고 쓴 회원: 약속이 아니므로 넣지 않음.
+- 판매자: 참가자에게 접수를 대신 맡기는 안은 채택하지 않았음. 판매자를 근무자로 쓰지 않음.
+
+## 4. 시설 사용 시간
+
+### 4-1. 은행나무 광장
+
+- 광장 사용 신청: 운영팀이 관리실에 낸 사용 시간은 10:00~13:00(한 시간 단위 세 칸). 설명회 시간과 그 앞뒤 준비 · 회수 시간을 함께 넣은 것임. 사용 시간 안이라도 운영 담당의 현장 일은 도착 시각부터 시작함.
+- 광장 사용은 사전 등록 명단 기준. 행사 사흘 전까지 관리실에 명단(팀 번호, 대표자 이름, 판매 품목)을 냄. 날짜가 정해지지 않아 명단 제출일도 미정.
+- 광장 바닥에 못 · 말뚝 · 분필 표시를 하지 않음. 천막은 무게추로 고정. 행사 뒤 바닥을 원래대로 둠.
+- 비상 통로(동쪽 통로) 안에는 물건을 두지 않음.
+
+### 4-2. 광장 관리실(관리동 1층)
+
+- 행사 당일 여는 시각: 09:00.
+- 물품 보관(B안을 고를 경우): 전날 16:00~18:00 에만 물품을 받음. 당일 09:00 뒤로 언제든 찾을 수 있음. 보관료 하루 5000원. 보관 신청은 하지 않았음.
+- 쓰레기: 관리실은 받지 않음. 판매자가 각자 가져감.
+- 공용 화장실: 관리동 안. 관리실이 여는 시각부터 쓸 수 있음.
+
+### 4-3. 마을회관 뒤 공동 창고
+
+- 열쇠: 하도현이 한 벌, 마을회관 사무실 열쇠함에 한 벌. 사무실 열쇠는 평일 낮에만 꺼낼 수 있음.
+- 창고는 운영팀 열쇠로 여는 곳이라 따로 정해진 이용 시간이 없음.
+- 반출 · 반납 때 대장에 항목 · 수량 · 반납 상태를 적음.
+- 손수레는 창고 오른쪽 구석에 둠. 운반 때 창고 손수레 한 대에 한 번에 실을 수 있음.
+
+### 4-4. 마을회관 사무실
+
+- 송가온 정산 장소 후보. 행사 날짜가 정해지지 않아 그날 열리는지 미정. 사무실이 닫혀 있으면 운영비 봉투를 어디서 넘길지 다시 정해야 함(미정).
+
+## 5. 소요 시간 기준값과 두 준비 방식
+
+### 5-1. 기준값
+
+- 창고~광장 걸어서 편도 12분(손수레에 실은 상태, 횡단보도 신호 한 번 포함).
+- 물품 확인 8분.
+- 설치 30분(두 안 모두).
+- 돌아오는 길의 시간은 재지 않았음. 편도 값을 왕복으로 쓰지 않음.
+- 회수(해체 · 접기 · 실기)에 걸리는 시간은 재지 않았음. 봄 회차 기록은 6장에 있음.
+
+### 5-2. A안 — 당일 창고 운반
+
+- 당일 창고에서 천막과 테이블을 직접 옮기는 방식(편도 12분, 물품 확인 8분)이고 비용은 없음.
+- 일정표에 넣을 때 필요한 것: 창고를 오가는 이동, 물품 확인, 설치. 회수 때 창고로 돌려놓는 이동.
+- 따질 점: 창고를 오가는 동안 광장에 아무도 없음. 현장 도착 10:30 전의 일은 당일 현장 일로 적지 않음.
+
+### 5-3. B안 — 전날 관리실 보관
+
+- 전날 광장 관리실에 물품을 맡겨 두는 방식이며 보관료 5000원, 당일 물품 확인 8분.
+- 일정표에 넣을 때 필요한 것: 당일 관리실에서 물품 찾기와 확인, 설치. 전날 맡기는 일은 당일 일정이 아니므로 전날 칸에 따로 적음(관리실이 받는 시간 16:00~18:00). 회수 뒤 물품을 어디로 돌려놓을지(관리실에 다시 맡길지, 창고로 옮길지)는 정하지 않았음.
+- 따질 점: 보관료 5000원은 남은 예상 71000원에 아직 들어 있지 않음. 전날 운반을 누가 언제 할지 정하지 않았음.
+
+### 5-4. 선택 상태
+
+- 9월 24일 현재 A안 · B안 가운데 어느 것도 고르지 않았음. 9월 18일 수정 회의에서도 &#x27;관리실 회신은 받았으나 이번 회의에서 고르지 않음&#x27; 으로 보류함. 운영팀장은 두 안으로 각각 당일 시각을 넣어 본 뒤 고르겠다고 함.
+
+## 6. 봄 회차 당일 실제 시각 기록(참고, 하도현 공책)
+
+봄 회차의 시각은 이번 회차와 다르므로 이번 일정표에 그대로 쓰지 않음. 종료 시각과 회수 완료 시각이 다르다는 예로 남김.
+
+- 장터 시간은 10:00~13:00 이었음.
+- 13:00 장터 종료를 알림. 판매자들이 짐을 싸기 시작함.
+- 13:10 운영비를 한꺼번에 걷기 시작함. 영수증을 다 쓰지 못함.
+- 13:35 번호판 회수. 몇 팀은 이미 떠나 번호판을 받지 못함.
+- 13:50 천막 해체 시작. 봉사자와 둘이 함.
+- 14:25 손수레에 다 실음. 창고로 출발.
+- 14:40 창고 도착, 대장 반납 칸 기록.
+- 그날 일정표에는 &#x27;13:00 회수 완료&#x27; 라고 적혀 있었으나 실제로 창고 반납까지 끝난 것은 그보다 한참 뒤였음. 이번 회차부터 종료 시각을 회수 완료 시각으로 적지 않기로 한 계기임.
+
+## 7. 일정을 짤 때 지키는 원칙(운영 확인 기록과 통지에서 모음)
+
+- 현장 도착 전의 작업을 당일 현장에서 한 것으로 적지 않음.
+- 설치를 끝내기 전에 접수를 열지 않음.
+- 접수가 시작된 뒤에는 접수 자리를 비울 수 없음. 창고 · 관리실 · 화장실처럼 자리를 비울 일은 접수 시작 전에 끝내고 돌아옴.
+- 행사 시간에는 운영 담당이 참가자 응대와 진행을 맡음. 준비와 확인은 그 전에 끝냄.
+- 12:00 은 행사가 끝나는 시각임. 회수가 끝난 시각은 당일 실제로 적음.
+- 정해진 인력(하도현 1명) 밖의 사람을 일정에 넣지 않음.
+- 계획을 바꿀 때는 바뀐 조건(접수 시작, 예외 취소)만 고치고 다른 확정 사항은 그대로 둠.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 두 번 더하지 않음.
+
+## 8. 접수 단계에서 할 일(예외 취소 뒤)
+
+- 사전 등록 명단과 대조해 등록을 확인함.
+- 그 팀의 부스 번호와 같은 번호판을 줌. 번호판을 받은 것이 안내를 들은 것은 아님.
+- 명단에 없는 판매자가 오면 접수 자리를 떠나지 않고 아래 뜻으로 안내함. &quot;이번 설명회는 사전 등록하신 판매자만 참여하실 수 있습니다. 광장 사용도 사전 등록 명단으로 신청되어 있어 오늘 자리를 드릴 수 없습니다.&quot;
+- 남은 자리를 세지 않음. 미등록 판매자용 품목 확인표는 쓰지 않음.
+- 오지 않은 팀의 부스는 비워 둠. 번호판은 상자에 그대로 둠.
+- 판매자가 자기 부스를 찾지 못하면 접수 자리에서 약도를 보여 주며 말로 안내함.
+
+## 9. 접수 시작 전에 끝내 두어야 할 일(목록, 시각 없음)
+
+일정표의 시각을 정하기 전에, 접수 시작 전까지 끝나 있어야 하는 일을 빠짐없이 적어 둠. 순서와 시각은 준비 방식이 정해진 뒤 정함.
+
+- 물품을 광장에 가져오기(A안이면 창고에서, B안이면 관리실에서).
+- 물품 확인(천막 다리 묶음 · 지붕천 · 끈, 테이블 걸쇠, 파손 의심 물품 따로 두기).
+- 천막과 테이블 설치. 무게추(성한 모래주머니) 올리기. 귀퉁이 끈 묶기.
+- 번호판 상자를 부스 번호 순서로 늘어놓기.
+- 접수 자리에 사전 등록 명단, 펜, 영수증철, 운영비 잠금 봉투, 광장 약도 두기.
+- 광장 입구에 &#x27;접수 전 출입 안 됨&#x27; 안내판 세우기.
+- 관리실에 들를 일 끝내기.
+- 화장실 다녀오기.
+- 빈 손수레를 치워 두기(치울 곳은 미정).
+
+## 10. 마감 · 회수 절차(12:00 이후)
+
+- 설명회 끝을 알림. 판매자에게 쓰레기와 상자는 각자 가져가 달라고 말함(관리실 회신).
+- 운영비 수령과 영수증 발행: 판매 수익의 10% 를 받고 그 자리에서 영수증을 씀. 받는 정확한 때가 설명회 끝 무렵인지 마감 단계인지는 아직 정하지 않았음. 영수증에 부스 번호(번호판 번호)를 함께 적음.
+- 번호판 회수: 부스 번호 순서대로 걷음. 돌아오지 않은 번호판은 회수 기록에 부스 번호를 적고, 나중에 그 팀에 쪽지로 부탁함.
+- 테이블 접기 · 천막 해체.
+- 물품 대조: 가져온 물품과 돌려놓을 물품을 맞춰 봄. 파손이 생긴 물품은 표시를 붙여 따로 둠.
+- 물품 반납: A안이면 창고로 옮겨 대장 반납 칸에 적음. B안이면 회수 뒤 물품을 어디로 돌려놓을지 정해야 함(미정).
+- 광장 바닥 확인: 쓰레기, 테이프 자국이 남지 않았는지 봄.
+- 운영비 잠금 봉투와 영수증 사본을 송가온에게 넘김. 넘긴 시각과 받은 사람을 적음. 봉투에는 영수증 장 수를 적음.
+- 참가 기록 마무리: 사전 등록 명단 기준으로 온 팀, 오지 않은 팀을 적음. 관리실 명단과 접수 명단에 같은 팀이 있어도 한 번만 셈.
+- 끝난 시각: 회수가 실제로 끝난 시각을 적음. 12:00 을 회수 완료로 적지 않음.
+- 후속 확인: 당일 끝내지 못한 일(돌아오지 않은 번호판, 파손 물품 확인 등)은 담당과 다음 확인 대상을 남김.
+
+## 11. 일정표 양식(3차 판에 쓸 칸)
+
+- 시각: 시작 시각과 끝나는 시각. 정해지지 않은 칸은 &#x27;미기입&#x27; 으로 둠.
+- 할 일: 도착, 이동, 확인, 설치, 접수, 설명회, 마감, 회수처럼 한 줄에 한 가지.
+- 담당: 이번 회차는 모든 줄이 하도현. 다른 이름을 넣지 않음.
+- 소요 시간: 5장의 기준값을 씀. 재지 않은 것은 &#x27;재지 않음&#x27;.
+- 장소: 창고, 관리실, 광장, 접수 자리처럼 적음.
+- 비고: 원칙(7장)과 관계있는 줄에 메모. 예를 들어 &#x27;접수 시작 뒤 자리 비움 불가&#x27;.
+- 일정표 아래: 준비 방식 상태, 예비 인력 상태, 고친 날.
+
+## 12. 검토 의견
+
+### 12-1. 송가온(9월 24일 오후)
+
+- 1-1 의 1차 판 접수 줄과 당일 자리 배정 줄에 &#x27;바뀜 · 지움&#x27; 표시가 분명해서 헷갈리지 않음. 3차 판에는 지운 줄을 남기지 말 것.
+- B안 보관료 5000원이 남은 예상에 미포함이라는 줄이 5-3 에 있어 좋음. B안을 고르게 되면 그때 남은 예상에 넣겠음.
+- 10장 운영비 잠금 봉투 인계 장소가 미정인 것은 날짜가 정해지면 바로 정해야 함.
+- 근무표에 내 이름이 &#x27;현장 근무 없음&#x27; 으로 들어간 것이 맞음. 당일 들르더라도 근무로 세지 말 것.
+
+### 12-2. 기은솔 운영팀장(9월 24일 저녁)
+
+- 준비 방식은 아직 정하지 않았음. 3차 판을 만들 때 A안 · B안 각각으로 시각을 넣어 보고, 두 안 모두 접수 시작 전에 설치까지 끝나는지 따져서 올릴 것. 설치를 끝내기 전에 접수를 여는 방식은 여전히 승인하지 않음.
+- 근무표는 하도현 한 명으로 두는 것이 맞음. 예비 인력은 확답 전까지 넣지 말 것.
+- 9월 18일 통지 말고 다른 조건을 바꾸지 말 것. 설명회 시작, 도착, 정원, 예산은 그대로임.
+
+## 13. 당일 연락 체계
+
+- 판매자 문의: 문의처는 하도현. 판매자에게 알릴 연락처는 미정.
+- 운영팀 안 연락: 하도현 → 운영팀장(판단이 필요한 일), 하도현 → 송가온(회수 뒤 인계). 내부 연락 번호는 이 자료에 적지 않음.
+- 관리실: 현장에서 직접 찾아감. 다만 접수 시작 뒤에는 관리실에 가지 않음.
+- 게시판: 문해담이 확인해 하도현에게 넘김. 행사 시간 중에는 하도현이 게시판을 보지 못함.
+- 급한 일이 생겨 운영팀장에게 전화할 때도 접수 자리를 떠나지 않고 그 자리에서 함. 통화가 길어질 일은 접수 시작 전이나 회수 뒤로 미룸.
+- 판매자끼리의 다툼이나 다친 사람이 생겼을 때의 절차는 따로 정하지 않았음(미정). 접수 시작 뒤 자리를 비울 수 없다는 원칙과 어떻게 맞출지 다음 모임에서 다루기로 함.
+
+## 14. 아직 정하지 않은 것(일정표와 관계있는 것만)
+
+- 행사 날짜(그날 요일과 사무실 운영 여부가 이것에 달림)
+- 준비 방식 A안 · B안
+- B안을 고를 경우 전날 운반 시각과 회수 뒤 물품을 둘 곳
+- 운영비를 받는 정확한 때
+- 접수 자리 위치
+- 빈 손수레를 치울 곳
+- 운영비 봉투 인계 장소
+- 비 오는 날 대응
+- 설명회 한 시간 안의 진행 순서(규칙 설명 · 진열 · 시범 판매)
+- 규칙 설명을 들은 팀을 확인하는 방법
+- 행사 뒤 정산 보고 날짜
+
+## 15. 혼자 설치할 때의 순서 메모(답사와 봄 회차 경험, 시각 없음)
+
+- 천막은 가방에서 꺼내 접힌 채로 자리에 세운 뒤, 네 귀퉁이 다리를 하나씩 바깥으로 당겨 폄. 혼자 펼 때는 한쪽 다리만 펴진 사이 천막이 기울어지므로 마주 보는 다리를 번갈아 폄.
+- 다리 높이 조절 핀은 네 다리를 같은 칸에 맞춤. 9월 1일 답사 때 동북 다리 핀이 뻑뻑해 한 칸 낮게 걸린 일이 있었음. 핀이 뻑뻑한 다리는 마디 안 모래를 털고 끼움.
+- 지붕천 귀퉁이 찍찍이가 붙어 있는지 봄. 답사 날 해체 때 한 귀퉁이가 반쯤 떨어져 있었음.
+- 성한 모래주머니를 다리에 올리고 귀퉁이 끈을 바닥 쪽 고리에 묶음. 끈이 모자라면 선반 가운데 칸의 끈 묶음에서 채워 감.
+- 옆막은 원래 다는 면에 닮.
+- 테이블은 부스마다 하나씩 폄. 들뜬 보도블록 위에 다리가 걸리지 않게 둠. 모서리 까진 테이블은 판매자에게 미리 알릴 수 있게 비고에 적음.
+- 번호판은 접수 때 주므로 설치 때 테이블에 올려 두지 않음. 상자째 접수 자리에 둠.
+- 설치 30분은 답사 때의 기준값이며, 실제 설치 때 걸린 시간은 당일 기록에 따로 적음.
+
+## 16. 당일 가져갈 물품(종류만 적음, 수는 창고 대조 결과로 정함)
+
+- 천막(쓸 수 있는 것만. 지붕천 구멍 난 천막은 빼고), 천막 다리 묶음, 옆막
+- 테이블(걸쇠 헐거운 것은 빼고)
+- 번호판 상자, 번호판을 테이블 모서리에 물릴 집게
+- 귀퉁이 끈 묶음, 수선 테이프
+- 성한 모래주머니(터진 것은 빼고)
+- 손수레, 방수포(비 대비, 날짜가 정해지면 날씨를 보고 챙김)
+- &#x27;접수 전 출입 안 됨&#x27; 안내판
+- 접수 자리 물품: 사전 등록 명단, 펜, 영수증철, 운영비 잠금 봉투, 광장 약도, 부스 배치표 사본
+- 운영팀용 쓰레기봉투, 장갑
+- 새로 사야 하는 물품은 승인 전이므로 이 목록에 넣지 않음(번호판 새 주문, 모래주머니, 습기 제거제).
+
+## 17. 1차 · 2차 판을 두고 나왔던 의견(9월 4일~12일)
+
+- 송가온(9월 5일): 1차 판은 이동 · 확인 · 설치 줄에 시각이 없어서 접수 시작 전에 끝나는지 따져 볼 수가 없다. 방식이 정해지면 다시 보자.
+- 운영팀장(9월 5일): 도착 10:30 앞의 일을 당일 일정표에 적지 말 것. 전날 일은 전날 칸에 따로.
+- 하도현(9월 8일, 손수레 시험을 다시 떠올리며): 편도 12분은 짐을 실은 상태로 잰 것이다. 빈 손수레로 돌아오는 길은 재지 않았다. 일정표에 왕복으로 적지 말자.
+- 송가온(9월 12일): 2차 판 근무 칸에 &#x27;예비 인력 미확답&#x27; 을 적어 둔 것이 좋다. 누가 봐도 한 명이라는 것이 보인다.
+- 운영팀장(9월 12일): 설치를 끝내기 전에 접수를 열지 않는다는 원칙을 일정표 비고에 꼭 남길 것.
+
+## 18. 일정표 비고 칸에 넣을 위험 메모 후보
+
+시각을 바꾸는 값이 아니라, 일정표를 읽는 사람이 알아 두어야 할 점들임.
+
+- 창고에서 오는 길: 마을회관 앞 횡단보도 신호가 짧은 편. 편도 12분에 신호 한 번이 들어 있음. 상가 앞 경사로 내리막에서 짐이 쏠림.
+- 혼자 설치: 천막을 혼자 펴는 동안 바람이 불면 펴 놓은 쪽이 흔들림.
+- 천막 한쪽 들림: 동쪽 통로 가까운 자리에서 답사 날 한쪽이 자꾸 들렸음. 원인은 확인하지 않았음. 그 자리를 쓸지는 배치표를 만들 때 정함.
+- 일찍 온 판매자: 접수 전에는 준비 중인 광장에 들어올 수 없음. 안내판을 세움.
+- 미등록 판매자: 접수 자리를 떠나지 않고 말로 안내함. 안내가 길어지지 않게 8장의 문장을 씀.
+- 접수 시작 뒤 이석: 할 수 없음. 화장실 · 관리실 · 창고 일은 접수 시작 전에 끝냄.
+- 행사 시간 중 응대: 운영 담당 한 명이 진행과 응대를 함께 맡음. 응대가 몰릴 때의 방법은 정하지 않았음.
+- 회수: 회수 시간은 재지 않았음. 봄 회차에는 종료 뒤 창고 반납까지 한참 걸렸음(6장).
+
+## 19. 9월 18일 통지 뒤 일정표와 관계된 판매자 문의(9월 19일~23일)
+
+- &quot;접수가 늦어지면 설명회도 늦게 끝나나요?&quot; — 설명회 시간은 그대로라고 답함.
+- &quot;접수 시작 전에 와서 광장 밖에서 기다려도 되나요?&quot; — 광장 밖에서 기다리는 것은 막지 않으나, 준비 중인 광장 안에는 들어올 수 없다고 답함. 기다리는 자리는 정하지 않았다고 함.
+- &quot;끝나고 짐 챙기는 데 얼마나 걸려요? 다음 일정이 있어서요.&quot; — 판매자는 자기 물건과 쓰레기를 챙기고 번호판을 돌려주면 된다고 답함. 운영팀 회수 시간과는 다르다고 덧붙임.
+- &quot;운영비는 끝나고 내나요?&quot; — 받는 정확한 때는 정해지면 알린다고 답함.
+
+## 20. 3차 판을 만드는 순서(작업 계획)
+
+- 운영팀장이 준비 방식을 정하면, 그 방식으로 이동 · 확인 · 설치 줄에 시각을 넣음. 정하지 않으면 A안 줄과 B안 줄을 나란히 넣어 올림.
+- 접수 시작 줄은 9월 18일 통지대로 고침. 설명회 줄과 도착 줄은 그대로 둠.
+- 당일 자리 배정 줄은 지움. 3차 판에는 남기지 않음.
+- 근무 칸은 하도현 한 명. 담당 칸에 다른 이름을 넣지 않음.
+- 마감 · 회수 줄은 10장 절차대로 적고, 끝난 시각 칸은 비워 두었다가 당일 적음.
+- 송가온이 예산 · 정산 줄을, 운영팀장이 전체를 확인함.
+- 3차 판을 만들면 1차 · 2차 판 사본을 가진 사람에게 폐기를 부탁함(23장).
+
+## 21. 회수 기록 양식(당일 채움)
+
+- 회수가 끝난 시각(실제)
+- 돌아오지 않은 번호판의 부스 번호
+- 파손이 생긴 물품과 표시 여부
+- 쓰레기가 남아 있던 부스 번호
+- 물품 반납 장소와 반납 칸 기록 여부
+- 운영비 잠금 봉투를 넘긴 시각, 받은 사람, 봉투에 적은 영수증 장 수
+- 온 팀 · 오지 않은 팀(사전 등록 명단 기준)
+- 후속 확인: 담당, 다음 확인 대상, 확인할 날
+- 적은 사람: 하도현
+
+## 22. 비 오는 날
+
+- 비 오는 날의 대응과 미루는 날은 정하지 않았음. 일정표에도 비 오는 날 일정을 따로 만들지 않음.
+- 비가 오면 창고에서 오는 길에 방수포를 덮어야 해서 시간이 더 걸릴 수 있으나, 잰 값이 없으므로 일정표에 숫자로 넣지 않음.
+
+## 23. 지난 판 일정표 사본을 가진 사람
+
+- 1차 판: 송가온, 운영팀장, 공용 폴더. 9월 4일 배포.
+- 2차 판: 송가온, 운영팀장, 문해담, 공용 폴더. 9월 12일 배포.
+- 3차 판을 만들면 위 사람들에게 1차 · 2차 판 사본을 버리거나 &#x27;지난 판&#x27; 표시를 해 달라고 부탁함. 봄 회차에 지난 판 일정표가 섞여 돌아다녀 접수 시각을 잘못 안 사람이 있었음.
+- 판매자에게는 일정표를 배포하지 않음. 판매자는 판매자 안내문만 봄.
+
+## 24. 일정표 줄마다의 근거
+
+3차 판의 각 줄이 어느 기록에서 나온 값인지 적어 둠. 근거가 없는 값은 일정표에 넣지 않음.
+
+- 현장 도착 10:30: [1] 광장 답사 메모, 1차 준비 회의 결정.
+- 설명회 11:00~12:00: [1] 광장 답사 메모, 1차 준비 회의 결정. 9월 18일 통지에서 유지.
+- 접수 시작: 1차 준비 회의에서 정한 시각을 9월 18일 통지로 10분 늦춤.
+- 인력 1명: [1] 광장 답사 메모, 1차 준비 회의 결정, 9월 18일 통지에서 유지.
+- 편도 12분 · 물품 확인 8분 · 설치 30분: [1] 광장 답사 메모(9월 1일 측정).
+- A안 비용 없음, B안 보관료 5000원: [2] 운영팀 예산 메모, 관리실 서면 회신(9월 17일).
+- 관리실 여는 시각 · 전날 받는 시간: 관리실 서면 회신(9월 17일).
+- 광장 사용 시간: 운영팀이 관리실에 낸 사용 신청.
+- 회수 원칙(종료 시각을 회수 완료로 쓰지 않음): 운영 확인 기록 12장.
+- 위 [1] · [2] 는 운영팀 공용 폴더에 있는 두 기록을 가리킴. 이 자료를 만들며 바깥 자료를 찾아보거나 관리실 보관을 예약한 일은 없음.
+
+## 25. 전날 밤 확인할 것(당일 일정에 넣지 않는 일)
+
+- 행사 당일 날씨. 날짜가 정해진 뒤에야 볼 수 있음.
+- 사전 등록 명단과 부스 배치표 사본을 챙겼는지.
+- 창고 열쇠를 챙겼는지(하도현이 가진 한 벌).
+- 영수증철, 운영비 잠금 봉투, 펜, 광장 약도.
+- 손수레 바퀴(A안일 때 당일 쓰므로 전날 한 번 굴려 봄).
+- B안일 경우 전날 16:00~18:00 사이에 관리실에 물품을 맡겼는지. 맡겼다면 관리실에서 받은 보관 확인 쪽지.
+- 이 일들은 전날 일이므로 당일 일정표에 적지 않음. 전날 칸에 따로 적음.
+
+## 26. 운영비 받는 방법 후보(정하지 않음)
+
+- 후보 가: 설명회 끝 무렵 판매자 팀이 자기 판매 금액을 적어 접수 자리로 와서 운영비를 내고, 운영 담당이 그 자리에서 영수증을 씀. 1차 준비 회의 때 송가온이 낸 생각임. 운영 담당이 잠금 봉투를 들고 광장을 돌아다니지 않아도 됨.
+- 후보 나: 운영 담당이 부스를 차례로 돌며 받음. 판매자가 자리를 비우지 않아도 되지만, 현금 봉투를 든 채 광장을 돌아야 하고, 그동안 접수 자리가 빔.
+- 송가온 의견: 현금은 한곳에서 받는 쪽이 안전함. 후보 가 쪽에 마음이 가지만 정하지는 않음.
+- 받는 정확한 때와 방법은 설명회 진행 순서와 함께 정함. 일정표 마감 줄에는 &#x27;운영비 수령 · 영수증 발행(방법 미정)&#x27; 으로만 적음.
+
+## 27. 시각 표기 원칙
+
+- 24시간 표기, 시와 분 사이에 쌍점. 예를 들어 오전 열 시 반은 10:30 으로 씀.
+- 판매자 안내문, 운영 메모, 일정표의 같은 시각은 똑같은 모양으로 적음. 한 곳은 숫자, 다른 곳은 &#x27;열 시 반&#x27; 처럼 섞어 쓰지 않음.
+- 걸리는 시간은 &#x27;분&#x27; 을 붙여 씀. 편도 12분처럼 어느 길의 시간인지 함께 적음.
+- 정해지지 않은 시각은 &#x27;미기입&#x27; 으로 둠. 짐작한 시각을 넣지 않음.
+
+## 28. 운영 담당의 당일 동선(걸음으로 잰 것과 재지 않은 것)
+
+- 창고 ↔ 광장: 손수레에 실은 상태로 편도 12분(잰 값). 돌아오는 길은 재지 않음.
+- 광장 가운데 ↔ 관리실: 걸어서 1분이 안 걸림(9월 1일 답사 때 느낀 것, 시계로 재지는 않음).
+- 광장 ↔ 마을회관 사무실: 재지 않음. 창고가 마을회관 뒤편이므로 창고 가는 길과 거의 같다고 보지만 확인하지 않았음.
+- 접수 자리 ↔ 부스: 접수 자리 위치가 정해지지 않아 재지 않음.
+
+## 29. 게시 담당 확인 의견(문해담, 9월 24일)
+
+- 판매자 안내문의 접수 시각과 일정표 3차 판의 접수 시각이 같은 값인지 게시 전에 맞춰 보겠음.
+- 일정표는 판매자에게 보이지 않는 내부 문서이므로 게시판에 올리지 않음. 판매자 안내문 운영 메모에 들어가는 도착 시각과 접수 시각은 일정표와 같아야 함.
+- 3차 판에서 지운 당일 자리 배정 줄이 운영 메모에도 남아 있지 않은지 함께 보겠음.
+
+## 30. 행사 시간(11:00~12:00) 안에서 운영 담당이 하는 일
+
+설명회 한 시간 안의 진행 순서는 아직 정하지 않았음. 어느 순서로 하든 운영 담당이 맡는 일만 적어 둠.
+
+- 운영 규칙 설명: 판매 품목(생활용품 · 도서, 식품 · 전자제품 제외), 운영비 10% 와 영수증, 천막 두 팀 한 동 · 테이블 팀당 하나, 끝난 뒤 번호판 반납과 쓰레기 가져가기.
+- 진열 안내: 판매자가 자기 부스 테이블에 물건을 펴는 동안 질문을 받음.
+- 시범 판매 중 응대: 광장에 들른 주민의 질문, 판매자끼리의 자리 문제.
+- 규칙 설명을 들은 팀 확인: 번호판을 받은 것만으로 안내를 들은 것으로 보지 않으므로, 설명을 들은 팀을 명단에 표시하는 방법을 생각하고 있음(정하지 않음).
+- 운영비 수령 · 영수증 발행: 받는 때와 방법은 미정(26장).
+- 이 시간에는 준비와 확인을 하지 않음. 준비는 접수 전에 끝나 있어야 함.
+
+## 31. 행사 뒤 정산 일정(송가온, 현장 근무 아님)
+
+- 회수가 끝난 뒤 하도현에게서 운영비 잠금 봉투와 영수증 사본을 받음. 받는 장소와 시각은 날짜가 정해진 뒤 정함.
+- 받은 날 봉투를 열어 영수증 장 수와 현금을 맞춰 봄. 봉투에 적힌 영수증 장 수와 같은지 봄.
+- 다음 날 운영팀 지출 장부와 운영비 장부에 옮김. 같은 판매자 팀의 운영비가 영수증철과 참가 기록 두 곳에 있어도 영수증 기준으로 한 번만 셈.
+- B안을 골랐다면 보관료 5000원을 지출 장부에 적고 남은 예상을 다시 맞춤. A안이면 보관료 줄은 없음.
+- 정산 결과를 운영팀장에게 보고함. 보고 날짜는 미정.
+
+## 32. 관리실 확인 기록(9월 23일 오전, 하도현)
+
+- 관리실에 들러 운영팀이 낸 광장 사용 신청 시간이 10:00~13:00 으로 접수되어 있는지 물어봄. 그렇게 되어 있다는 답을 들음.
+- 행사 당일 관리실에는 주간 근무자 한 명이 있다고 함. 관리실 근무자는 운영팀 일을 돕는 사람이 아니므로 근무표에 넣지 않음.
+- 9월 18일 통지로 접수 시작이 바뀐 것은 광장 사용 시간 안의 일이라 관리실에 따로 알릴 것은 없다는 답을 들음.
+- 보관 신청은 이번에도 하지 않음. B안을 고르면 그때 신청함.
+
+## 33. 봄 회차 근무표와 견줘 본 점
+
+- 봄 회차 근무표에는 운영 담당과 봉사자 두 사람이 있었음. 접수는 봉사자가, 천막과 자리 문제는 운영 담당이 맡았음.
+- 이번 회차는 하도현 한 사람이 접수와 설치, 진행, 회수를 모두 맡음. 봄 회차처럼 접수를 다른 사람에게 맡기고 자리를 뜨는 일은 할 수 없음.
+- 봄 회차 근무표에는 운영팀장이 &#x27;오후 잠깐&#x27; 이라고 적혀 있었는데, 실제로는 오지 못했음. 이번 근무표에는 오지 않을 수 있는 사람을 &#x27;잠깐&#x27; 으로도 적지 않음.
+- 봄 회차에는 운영비를 끝에 한꺼번에 걷느라 회수가 늦어졌음. 이번에는 운영비 받는 방법을 미리 정하려 함(26장).
+
+## 34. 접수 시작 변경이 일정표에 닿는 곳(하도현 메모)
+
+- 도착 시각은 그대로이고 접수 시작만 늦어졌으므로, 도착부터 접수 시작까지 준비에 쓸 수 있는 시간이 1차 · 2차 판보다 늘어남. 이번 변경의 까닭이 이것임(9월 18일 통지 1-3).
+- 설명회 시작은 그대로이므로, 접수 시작부터 설명회 시작까지의 틈은 1차 · 2차 판보다 줄어듦. 접수에서 하는 일을 등록 확인과 번호판 배부로 줄이고, 미등록 판매자 자리 배정이 없어진 것이 이 틈을 메우는 데 도움이 됨.
+- 준비에 늘어난 시간 안에 이동 · 확인 · 설치가 모두 들어가는지는 준비 방식에 따라 다름. 3차 판을 만들 때 두 안 각각으로 따져 봄(12-2 운영팀장 의견).
+- 접수 시작 뒤에는 자리를 비울 수 없다는 원칙은 그대로이므로, 접수 시작 시각이 바뀌면 &#x27;자리를 비울 일을 끝내야 하는 시각&#x27; 도 함께 바뀜.
+
+## 35. 운영팀장 통화 메모(9월 24일 20:10)
+
+- 준비 방식은 다음 운영팀 모임에서 정하겠다고 함. 모임 날짜는 아직 잡지 않았음.
+- 그 전까지 3차 판은 만들지 말고 이 자료로 두 안을 비교할 재료만 모아 두라고 함.
+- 근무표는 지금대로 하도현 한 명. &#x27;도울 수 있을지 모르겠다&#x27; 는 게시판 글을 보고 도움을 부탁하지 말라고 함. 확답 없는 도움을 기대하고 일정을 짜면 안 된다는 이유임.
+- 설명회 진행 순서와 운영비 받는 방법도 같은 모임에서 다루겠다고 함.
+
+## 36. 3차 판을 만들었을 때의 확인 목록
+
+- 도착 10:30, 설명회 11:00~12:00 이 그대로인지.
+- 접수 시작이 9월 18일 통지대로 고쳐졌는지. 1차 · 2차 판의 접수 시각이 남아 있지 않은지.
+- 당일 자리 배정 줄이 없는지.
+- 이동 · 확인 · 설치 줄의 소요 시간이 기준값(편도 12분, 확인 8분, 설치 30분)과 같은지. 편도를 왕복으로 쓰지 않았는지.
+- 설치가 접수 시작 전에 끝나는지. 끝나지 않으면 접수를 먼저 여는 식으로 맞추지 않고 운영팀장에게 올리는지.
+- 담당 칸이 모두 하도현인지. 다른 이름이 없는지.
+- 도착 전의 일이 당일 줄에 들어가지 않았는지. 전날 일은 전날 칸에 있는지.
+- 12:00 을 회수 완료로 적지 않았는지. 끝난 시각 칸이 비어 있는지.
+- B안이면 보관료 5000원이 남은 예상에 아직 들어 있지 않다는 메모가 있는지.
+
+## 37. 이 자료를 넘기며(하도현)
+
+팀장님, 가온 님. 3차 판 일정표를 만들 재료를 한곳에 모았습니다. 바뀐 조건은 접수 시작과 당일 자리 배정 취소 두 가지뿐이고, 나머지는 1차 · 2차 판과 같습니다. 준비 방식이 정해지지 않아 이동 · 확인 칸은 아직 비워 두었습니다. 근무표는 저 한 사람으로 두었고, 예비 인력과 게시판에서 도움을 말한 분은 넣지 않았습니다. 다음 모임에서 준비 방식이 정해지면 그 방식으로 시각을 채워 3차 판을 올리겠습니다.
+[자료 끝]
+
+다시장터 운영팀의 장터 당일 운영 일정을 만들어 주세요. 아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요. 운영자가 실행할 작업 순서는 번호 목록으로 작성해 주세요. 정해진 인력 외의 사람은 사용하지 마세요.</pre><b>턴 10 답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>15</sup>두 번째 방식(B안: 전날 관리실 보관, 보관료 5,000원)의 제반 조건과 9월 18일 통지된 최신 운영 기준(접수 시작 11:00, 사전 등록자 한정, 현장 인력 하도현 1명 단독 진행)을 반영한 장터 당일 운영 일정표와 작업 순서입니다.</mark>
+
+---
+
+### 장터 당일 운영 일정표 (B안 기준)
+
+<mark class="rs-mk"><sup>17</sup>* **비용 반영:** 광장 관리실 보관료 **5,000원** (전날 16:00~18:00 입고, 당일 09:00 이후 출고. 현재 남은 운영 예상 지출 71,000원에는 아직 미포함)</mark>
+* <mark class="rs-mk"><sup>13</sup>**현장 인력:** 장터 운영 담당 **하도현 1명** (정해진 인력 외 봉사자·판매자 등 추가 인력 없음 / 송가온 회계 담당은 당일 현장 근무 없음)</mark>
+
+| 구분 (할 일) | 시각 | 담당자 | 소요 시간 | 장소 및 비고 |
+| --- | --- | --- | --- | --- |
+| **현장 도착** | **10:30** | 하도현 | - | 은행나무 광장 도착 (10:30 이전 작업은 당일 일정에 미포함) |
+| **물품 이동** | **10:30 ~ 10:32** | 하도현 | 약 2분 (도보 1분 미만) | 관리동 1층 관리실에서 보관 물품(천막·테이블) 인출 및 광장 이동 |
+<mark class="rs-mk"><sup>16·14</sup>| **물품 확인** | **10:32 ~ 10:40** | 하도현 | 8분 (기준값) | 천막 부속·지붕천·고정끈, 테이블 걸쇠 상태 점검 (파손 의심품 제외) |
+| **물품 설치** | **10:40 ~ 11:00** | 하도현 | 약 20~30분 | 천막(2팀 1동) 및 테이블(팀당 1개) 설치, 모래주머니 체결, 부스 정돈&lt;br&gt;
+
+&lt;br&gt;*(※ 설치 완료 전 접수 개시 불가 원칙 준수)* |</mark>
+<mark class="rs-mk"><sup>12</sup>| **접수 개시** | **11:00 ~ 11:15** | 하도현 | 10~15분 내외 | 사전 등록 명단(30팀) 대조 및 부스 번호판 배부&lt;br&gt;
+
+&lt;br&gt;*(※ 접수 시작 후 이석 불가 / 당일 미등록자 현장 배정 불가)* |</mark>
+| **설명회 진행** | **11:00 ~ 12:00** | 하도현 | 60분 (1시간) | 현장 설명회 진행, 운영 규칙(품목·운영비) 안내, 진열 실습 및 주민 응대 |
+| **행사 종료** | **12:00** | 하도현 | - | 설명회 공식 종료 선언 및 쓰레기 각자 회수 안내 |
+| **마감 및 회수** | **12:00 이후** | 하도현 | 실제 소요 시간 기록 | 운영비(수익 10%) 수납 및 즉시 영수증 발행, 번호판 회수, 천막·테이블 철거&lt;br&gt;
+
+&lt;br&gt;*(※ 12:00 종료 시각을 회수 완료 시각으로 자동 간주하지 않음)* |
+
+---
+
+### 운영자 실행 작업 순서
+
+1. **10:30 현장 도착:** 은행나무 광장에 정시 도착하여 광장 바닥 상태를 살피고 현장 작업을 개시합니다.
+2. **관리실 물품 수령 및 이동:** 관리동 1층 관리실(09:00 개방)을 방문하여 전날 보관해 둔 천막과 테이블을 찾아 광장 설치 구역으로 이동합니다.
+3. **물품 검수 (8분):** 천막 프레임, 지붕천, 고정 끈, 테이블 걸쇠 등을 점검하고, 파손 의심 물품(헐거운 걸쇠 등)은 배부 대상에서 즉시 제외합니다.
+4. **천막 및 테이블 설치 (30분 기준):**
+* 천막은 공기 순환을 위해 사방을 개방(옆막 미설치)한 채 대칭으로 펼치고, 네 다리 조절 핀 높이를 동일하게 맞춥니다.
+* 성한 모래주머니를 네 모서리 다리에 빠짐없이 올리고 고정 끈을 체결합니다.
+* 천막 1동당 부스 2개(테이블 팀당 1개)를 배치하되 보도블록 들뜸 자리를 피합니다.
+
+
+5. **접수대 준비 및 사전 용무 완료:** 광장 입구에 &#x27;접수 전 출입 금지&#x27; 안내판을 세우고, 접수석에 사전 등록 명단, 펜, 번호판 상자, 영수증철, 잠금 봉투를 정돈합니다. 화장실 등 개인 용무는 접수 시작 전에 모두 마칩니다.
+6. **11:00 접수 진행:**
+* 사전 등록을 마친 판매자(정원 30팀)를 대상으로 본인 확인 후 해당 부스 번호판을 배부합니다.
+* 미등록 판매자가 방문할 경우 자리를 비우지 않고 사전 등록자 전용 행사임을 정중히 안내하여 돌려보냅니다.
+* 접수 개시 이후에는 창고·관리실 이동을 포함해 접수석을 일절 비우지 않습니다.
+
+
+7. **11:00~12:00 설명회 진행 및 현장 관리:** 판매 품목 제한(생활용품·도서 한정, 식품·전자제품 불가), 운영비 10% 납부 규칙을 안내하고 판매자의 진열 및 일반 주민 응대를 단독으로 진행합니다.
+8. **12:00 행사 종료 및 뒷정리 안내:** 12:00 정각에 설명회 종료를 알리고, 각 판매자에게 발생한 포장재와 상자 등 쓰레기를 전량 되가져가도록 안내합니다.
+9. **운영비 수납 및 즉시 영수증 교부:** 판매자별 판매 수익의 10%를 현금으로 수납하고, 수납 현장에서 영수증을 즉시 작성해 발급한 뒤 현금과 사본을 잠금 봉투에 보관합니다.
+10. **번호판 및 집기 회수:** 부스 번호 순서대로 번호판을 회수하고, 테이블을 접고 천막을 안전하게 해체하여 지정된 보관 장소로 운반합니다.
+11. **기록 마감 및 정산 인계:** 실제 회수 및 현장 정리가 완료된 시각을 기록표에 적고, 운영비 잠금 봉투와 영수증 사본을 송가온 회계 담당자에게 전달(전달 시각 및 영수증 매수 기재)하여 최종 일정을 마칩니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 10개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>수행 불가 요청 처리</b> <span class="rs-id">J1-3.a · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">질문은 도착 10:30부터 접수 10:50까지 20분만 주지만, 최소 확인 8분과 설치 30분이 필요해 조건이 맞지 않습니다. 답변은 이 모순을 밝히지 않고 확정 일정처럼 정리했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “* **이동 및 설치 기준:** 창고~광장 편도 이동 12분, 물품 확인 8분, 설치 30분을 계획의 기준값으로 삼습니다. 편도 시간을 왕복으로 치환하지 않습니다.”</div><div class="rs-quote">질문의 요구: “현장 도착 10:30, 행사 11:00~12:00, 접수 10:50”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.70</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 4 · LLM Judge</span></div><div class="rs-fwhy">자료는 [2]를 운영팀 예산 메모로 한정하고, 운영비 10% 규칙은 다른 회의 기록에서 정했다고 밝힙니다. 운영비 문장에 [2]를 붙여 출처 대응을 틀렸습니다. 질문 근거: &quot;[2] 운영팀 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용&quot;.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “* **운영비 납부 및 영수증:** 판매 수익의 10%를 운영비로 납부해야 하며, 납부 현장에서 즉시 운영비 영수증을 발급받습니다. [2]”</div><div class="rs-quote">질문의 요구: “문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno rs-hlno-off">3</b> <b>요약 핵심</b> <span class="rs-id">J4-4.a · 턴 4 · LLM Judge</span></div><div class="rs-fwhy">현재 자료에는 미등록 예외의 현재 허용, 취소 통지 시 적용 중단이 참가자 행동에 필요한 조건으로 있으나 요약에서 빠졌습니다. 질문 근거: &quot;당일 자리 배정 예외는 현재 허용된 상태지만 나중에 취소 통지가 오면 이전 예외를 계속 쓰지 않아야 한다.&quot;</div><div class="rs-quote">답의 특정 문장을 짚지 않음 — 빠진 내용이나 답 전체에 대한 판정</div><div class="rs-quote">질문의 요구: “이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.b · 턴 4 · LLM Judge</span></div><div class="rs-fwhy">대상 자료는 광장 안 주차 불가 및 상가 주차장 미확인, 반려동물·우천 대책 미정이라고 합니다. 그러나 현재 질문에 앞서 붙은 1차 준비 회의 자료에서는 여기에 각기 다른 자료 상태가 있어 J5-2.b 판정 대상은 현 자료의 의미 바꿈 여부이며, 답변은 원문 취지를 유지합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “* **교통 및 환경 조건:** 광장 내부 주차는 불가하며 인근 상가 주차장 이용 가능 여부는 미확인 상태입니다. 또한 반려동물 동반 가능 여부와 우천 시 일정 연기 등 대책도 미정입니다.”</div><div class="rs-quote">질문의 요구: “[자료 끝]
+
+이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.70</div></div><div class="rs-item"><div><b class="rs-hlno">5</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 5 · LLM Judge</span></div><div class="rs-fwhy">질문은 문의 내용을 짝이 맞는 details 태그 안에 두라고 했지만, 답변은 일반 제목과 목록으로 적었습니다. 인용한 구간에 요구된 태그가 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">5</b> “## 문의
+
+* **문의처:** 장터 운영 담당 하도현
+* **연락 방법:** 미정 (공용 연락처 확정 시 게시판에 안내 예정)
+
+---”</div><div class="rs-quote">질문의 요구: “문의 부분은 코드블록 밖의 짝이 맞는 &lt;details&gt;&lt;summary&gt;문의&lt;/summary&gt;...&lt;/details&gt; 안에 적어 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.49</div></div><div class="rs-item"><div><b class="rs-hlno">6</b> <b>불필요한 내용 없음</b> <span class="rs-id">J1-4.b · 턴 6 · LLM Judge</span></div><div class="rs-fwhy">초기 조건의 원인 설명을 앞에서 한 뒤, 뒤에서 다시 원인과 관찰을 연결해 반복합니다. 특히 위 구절과 별도로 &quot;처음 조건에서 들린 쪽은 늘 모래주머니가 없던 동쪽 두 다리였음&quot; 및 자리 가의 바람길 설명을 새 정보 없이 다시 정리합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">6</b> “**초기 조건 관찰 (09:50~10:28)**
+* **원인:** 동쪽 통로(폭 3m 좁은 길)에서 광장 안쪽으로 부는 바람이 자리 가로 집중되었습니다. 여기에 동북 다리가 6cm 낮아 지붕이 동쪽으로 기울어져 있었고, 남쪽 면에만 옆막이 달려 있어 유입된 바람이 빠져나가지 못하고 갇혔습니다. 또한 동쪽 두 다리에는 모래주머니가 전혀 없었고 귀퉁이 끈도 동북쪽은 묶이지 않았습니다.”</div><div class="rs-quote">질문의 요구: “왜 그런지 원인을 결과와 연결해서 설명해 주세요. 관찰 순서를 뒤집지 말고 기록만으로 천막 제품 결함이라고 단정하지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">7</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 6 · LLM Judge</span></div><div class="rs-fwhy">질문은 원인을 단정하지 말라고 했고 자료도 원인을 확정하지 않습니다. 답변은 특정 원인 조합이 현상을 발생시켰다고 단정했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">7</b> “천막 한쪽이 들린 현상은 좁은 통로에서 유입된 바람이 비대칭 구조와 밀폐된 옆막을 만나 순간적인 상승력(양력)과 밀어내는 힘(항력)을 동시에 만들었기 때문에 발생했습니다.”</div><div class="rs-quote">질문의 요구: “기록만으로 천막 제품 결함이라고 단정하지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">8</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · 턴 6 · LLM Judge</span></div><div class="rs-fwhy">첫 문장은 현상의 원인을 확정적으로 단언하지만, 뒤에서는 &quot;이 기록으로 나눌 수 없음&quot;, &quot;기록만으로 ... 단정할 수 없습니다&quot;라고 해 확정하지 않는 태도를 취해 답변 안에서 판단 수준이 충돌합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">8</b> “천막 한쪽이 들린 현상은 좁은 통로에서 유입된 바람이 비대칭 구조와 밀폐된 옆막을 만나 순간적인 상승력(양력)과 밀어내는 힘(항력)을 동시에 만들었기 때문에 발생했습니다.”</div><div class="rs-quote">질문의 요구: “기록만으로 천막 제품 결함이라고 단정하지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">9</b> <b>인과·원리</b> <span class="rs-id">J3-3.b · 턴 6 · LLM Judge</span></div><div class="rs-fwhy">자료는 가능한 요인을 관찰했지만 원인 관계를 확정하지 않았습니다. 답변은 통로 바람·옆막·높이 차이가 양력·항력을 만들었다고 사실로 단정하고, 관찰의 공존을 인과로 연결해 현상이 왜 생겼는지 자료 범위에서 입증하지 못했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">9</b> “* **결과:** 바람이 들어올 때마다 리본이 솟구치고 지붕천 가운데가 위로 불룩해졌으며, 무게추가 없던 동북·동남 다리가 2~3cm씩 공중으로 떴습니다(5분당 최대 6회).”</div><div class="rs-quote">질문의 요구: “왜 그런지 원인을 결과와 연결해서 설명해 주세요. ... 관찰 순서를 뒤집지 말고 기록만으로 천막 제품 결함이라고 단정하지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.87</div></div><div class="rs-item"><div><b class="rs-hlno">10</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 7 · LLM Judge</span></div><div class="rs-fwhy">자료에는 행사 11:00 시작을 유지하면서 접수만 10분 늦추라고 적혀 있는데, 접수를 11:00으로 맞추면 접수와 설명회가 동시에 시작됩니다. 질문의 그 조건쌍을 조정하거나 모순으로 밝히지 않고 그대로 안내했습니다. 문제 구절: &quot;접수는 **11:00**에 시작합니다&quot;.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">10</b> “* **일시 및 장소:** 행사 날짜는 **미정**(광장 사용 승인 후 공지)이며, 설명회 진행 시간은 **11:00~12:00**입니다. 등록 확인과 번호판을 배부하는 접수는 **11:00**에 시작합니다 [1].”</div><div class="rs-quote">질문의 요구: “설명회 시작은 유지하되 접수 시작만 이전보다 10분 늦춰 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.57</div></div><div class="rs-item"><div><b class="rs-hlno">11</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · 턴 7 · LLM Judge</span></div><div class="rs-fwhy">설명회와 접수 시작을 모두 11:00으로 적어, 행사를 시작할 때 접수도 동시에 열린다는 모순이 답변 안에 생겼습니다. 기존 설치 완료 후 접수 원칙과도 맞지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">11</b> “* **일시 및 장소:** 행사 날짜는 **미정**(광장 사용 승인 후 공지)이며, 설명회 진행 시간은 **11:00~12:00**입니다. 등록 확인과 번호판을 배부하는 접수는 **11:00**에 시작합니다 [1].”</div><div class="rs-quote">질문의 요구: “설명회 시작은 유지하되 접수 시작만 이전보다 10분 늦춰 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.94</div></div><div class="rs-item"><div><b class="rs-hlno">12</b> <b>수행 불가 요청 처리</b> <span class="rs-id">J1-3.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">도착은 10:30이고 11:00 접수 전에는 준비를 끝내야 하지만, B안만으로도 확인 8분과 설치 30분이 필요해 총 38분입니다. 답변은 이를 알리지 않고 현장 도착 뒤 10:32부터 일정을 짜 접수 11:00에 맞췄습니다. 또한 접수와 행사 시작이 모두 11:00인 점도 조건상 모순입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">12</b> “| **접수 개시** | **11:00 ~ 11:15** | 하도현 | 10~15분 내외 | 사전 등록 명단(30팀) 대조 및 부스 번호판 배부&lt;br&gt;
+
+&lt;br&gt;*(※ 접수 시작 후 이석 불가 / 당일 미등록자 현장 배정 불가)* |”</div><div class="rs-quote">질문의 요구: “아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.53</div></div><div class="rs-item"><div><b class="rs-hlno">13</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">질문은 확정 인력 외 사람을 쓰지 말라고 했으나, 답변은 판매자들에게 운영비 현금을 걷고 현장에서 영수증을 발급하는 작업까지 하도현에게 배정했습니다. 이는 인원 추가는 아니지만 지정되지 않은 절차를 확정한 것입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">13</b> “**현장 인력:** 장터 운영 담당 **하도현 1명** (정해진 인력 외 봉사자·판매자 등 추가 인력 없음 / 송가온 회계 담당은 당일 현장 근무 없음)”</div><div class="rs-quote">질문의 요구: “지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">14</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">표는 설치를 11:00에 끝낸다고 한 뒤 접수와 행사를 둘 다 11:00에 시작하도록 해, 설치가 끝나기 전에 접수가 열리지 않는다는 조건과 실제 실행 시점이 서로 양립하지 않습니다. 더불어 설치 기준은 30분인데 표는 20~30분으로 적었습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">14</b> “| **물품 설치** | **10:40 ~ 11:00** | 하도현 | 약 20~30분 | 천막(2팀 1동) 및 테이블(팀당 1개) 설치, 모래주머니 체결, 부스 정돈&lt;br&gt;
+
+&lt;br&gt;*(※ 설치 완료 전 접수 개시 불가 원칙 준수)* |”</div><div class="rs-quote">질문의 요구: “아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.93</div></div><div class="rs-item"><div><b class="rs-hlno">15</b> <b>근거와 결론</b> <span class="rs-id">J3-2.b · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">&#x27;B안 기준&#x27; 일정이라 하지만 이동 및 설치 시간이 접수 전에 들어가지 않아 일정이 성립하지 않습니다. 확인 8분과 설치 30분은 도착 후 최소 38분으로 접수 11:00 전에 끝날 수 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">15</b> “두 번째 방식(B안: 전날 관리실 보관, 보관료 5,000원)의 제반 조건과 9월 18일 통지된 최신 운영 기준(접수 시작 11:00, 사전 등록자 한정, 현장 인력 하도현 1명 단독 진행)을 반영한 장터 당일 운영 일정표와 작업 순서입니다.”</div><div class="rs-quote">질문의 요구: “아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.69</div></div><div class="rs-item"><div><b class="rs-hlno">16</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">필요한 확인 8분과 설치 30분을 접수 11:00 전에 배치하지 못했고, 설치 소요 시간도 20~30분으로 기준값 30분과 맞지 않아 실행 일정이 성립하지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">16</b> “| **물품 확인** | **10:32 ~ 10:40** | 하도현 | 8분 (기준값) | 천막 부속·지붕천·고정끈, 테이블 걸쇠 상태 점검 (파손 의심품 제외) |
+| **물품 설치** | **10:40 ~ 11:00** | 하도현 | 약 20~30분 | 천막(2팀 1동) 및 테이블(팀당 1개) 설치, 모래주머니 체결, 부스 정돈&lt;br&gt;”</div><div class="rs-quote">질문의 요구: “아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 1.00</div></div><div class="rs-item"><div><b class="rs-hlno">17</b> <b>실행 가능성</b> <span class="rs-id">J3-5.b · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">질문은 비용을 떠올리라고 했지만 B안을 확정하라고 하지는 않았고 현재도 준비 방식은 보류입니다. 답변은 비용과 B안 기준 일정을 확정한 것처럼 잡았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">17</b> “* **비용 반영:** 광장 관리실 보관료 **5,000원** (전날 16:00~18:00 입고, 당일 09:00 이후 출고. 현재 남은 운영 예상 지출 71,000원에는 아직 미포함)”</div><div class="rs-quote">질문의 요구: “아까 두 번째 안의 비용을 떠올리되”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-17"><h3 class="rs-fdh">Q17 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 첨부 자료 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">첨부: 생활강좌_신청안내_2026.pdf</span><pre class="rs-pre rs-q">처음 신청하는 성인이 읽을 수 있게 첨부 안내의 두 쪽을 연결하여 필요한 서류와 각 제출 부서·방법을 표로 요약해 주세요. 대상에 따라 필요 없는 서류를 모두에게 요구하지 말고, 수강료가 없으면 미기재라고 적어 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요. 마크다운 제목을 붙여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans"># 성인 생활강좌 신청 서류 및 제출 안내
+
+처음 신청하는 성인 학습자를 위해 안내 문서(1쪽 검토 자료 및 2쪽 확정·정정 내용)를 바탕으로 대상별 제출 서류와 제출 부서·방법을 정리한 내용입니다.
+
+* 성인 신청자 중 **감면 대상자가 아닌 일반 성인은 &#x27;수강 신청서&#x27;만 제출**하시면 되며, 참여 동의서(미성년자 대상)나 주민 확인서는 제출하실 필요가 없습니다.
+
+
+
+| 서류명 | 신청 대상 | 제출 부서 | 접수 방법 | 비고 및 수강료 |
+| --- | --- | --- | --- | --- |
+| **수강 신청서** | 모든 신청자
+
+ | 접수창구
+
+ | 현장 또는 온라인
+
+ | 서명 필수, 중복 제출 불필요
+
+&lt;br&gt;
+
+&lt;br&gt;(수강료: 미기재)
+
+ |
+| **주민 확인서** | 감면 신청자
+
+ | 교육지원실
+
+ | 현장 원본 확인
+
+ | 주소 확인용, 원본 확인 뒤 즉시 반환
+
+ |
+| **참여 동의서** | 미성년 신청자
+
+&lt;br&gt;
+
+&lt;br&gt;(※ 성인 제출 불필요)
+
+ | 학습지원실
+
+ | 현장 제출
+
+ | <mark class="rs-mk"><sup>1</sup>보호자 서명 필수</mark>
+
+ |
+
+* 안내문에 강좌 수강료는 &#x27;별도 공지&#x27;로 명시되어 있어 금액이 확정 기재되지 않았습니다. 감면 혜택을 받으실 계획이라면 방문 시 주민 확인서 원본을 지참하여 교육지원실에서 확인받으시기 바랍니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">첨부 1쪽은 참여 동의서 비고를 ‘보호자 서명’으로 적었지만, 답변은 ‘보호자 서명 필수’라고 필수 조건을 덧붙여 값을 바꾸었습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “보호자 서명 필수”</div><div class="rs-quote">질문의 요구: “첨부 안내의 두 쪽”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-29"><h3 class="rs-fdh">Q29 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 4개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 동관의 2023·2024·2025년 접수 완료 건수를 각각 찾고 세 연도 합계를 구해 주세요. 시도·중복 제외 전·보류 수를 완료 수에 합치지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">참조 문서에 기록된 동관의 접수 완료 건수를 정리한 결과입니다. 문서에 기재되지 않은 2024년과 2025년 수치는 &#x27;문서 밖 수치 생성 금지&#x27; 원칙에 따라 임의 산출하지 않고 &#x27;기록 없음&#x27;으로 처리했습니다.
+
+### 동관 연도별 접수 완료 건수 및 합계
+
+| 연도 | 접수 완료 건수 | 근거 (부·장·절) | 비고 |
+| --- | --- | --- | --- |
+| **2023년** | 126건 | 제1부 제4장 제4절 | 시도 129건 중 중복(1), 철회(1), 반려(1) 제외 |
+<mark class="rs-mk"><sup>2·3</sup>| **2024년** | 기록 없음 | 해당 기록 없음 | 문서 내 접수 완료 수치 부재 |</mark>
+| **2025년** | 기록 없음 | 해당 기록 없음 | 문서 내 접수 완료 수치 부재 |
+<mark class="rs-mk"><sup>1</sup>| **세 연도 합계** | **산출 불가**&lt;br&gt;
+
+&lt;br&gt;(확인분: 126건)
+
+ | 제1부 제4장 제4절
+
+ | 2024·2025년 미수록으로 전 연도 합계 확정 불가 |</mark>
+
+---
+
+### 확정 기록 연결 및 계산 풀이
+
+1. 2023년 동관 접수 완료 건수 (126건)
+
+* **근거 위치**: 제1부(설립과 자료 관리) 제4장(접수 이력) 제4절(연간 수치표와 해석 주석)
+
+
+* **기록 연결**: 본문 제4절에서 &quot;2023년 동관 접수 완료 건수는 126건이다. 접수 시도는 129건이다.&quot;라고 명시하며, 시도 중 완료되지 않은 3건(중복 제출 1건, 제출 철회 1건, 첨부 부족 반려 1건)을 완료 수에 합치지 않고 구분 마감했습니다.
+
+
+* **계산 및 등식**:
+* 총 시도 건수에서 비완료 건수를 차감한 등식:
+
+<mark class="rs-mk"><sup>4</sup>$$129 - (1 + 1 + 1) = 126\text{건}$$</mark>
+
+
+* 월별(3월~12월) 접수 완료 건수의 합산 등식:
+
+
+
+$$10 + 11 + 11 + 13 + 13 + 12 + 15 + 13 + 13 + 15 = 126\text{건}$$
+
+
+
+
+
+**2. 2024년 및 2025년 접수 완료 건수**
+
+* **확인 결과**: 제공된 본문에는 2023년 3월~12월의 창구 접수 이력만 수록되어 있으며, 2024년과 2025년의 동관 접수 완료 실적은 기재되어 있지 않습니다.
+* **합계 처리**: 문서 밖의 수치를 임의로 추정하거나 추가할 수 없으므로, 세 연도 합계는 산출이 불가능하며 문서상 확인된 접수 완료 건수는 2023년의 126건입니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 4개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>요청 작업 수행</b> <span class="rs-id">J1-1.a · LLM Judge</span></div><div class="rs-fwhy">질문은 세 연도 합계를 요구했지만 답변은 합계를 제시하지 않고 산출 불가로 처리했습니다. 참조 자료 제4부 제6장 제4절에는 2024년 동관 완료 143건, 제1부 제4장 제4절에는 2023년 126건이 있어 합계는 아직 2025년 수치 확인이 필요합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “| **세 연도 합계** | **산출 불가**&lt;br&gt;
+
+&lt;br&gt;(확인분: 126건)
+
+ | 제1부 제4장 제4절
+
+ | 2024·2025년 미수록으로 전 연도 합계 확정 불가 |”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 동관의 2023·2024·2025년 접수 완료 건수를 각각 찾고 세 연도 합계를 구해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">참조자료 제4부 관측과 조사 제6장 조사 검토 제4절은 &#x27;2024년 동관 접수 완료 건수는 143건이다.&#x27;라고 적고 있습니다. 답변의 &#x27;기록 없음&#x27;은 입력 자료의 수치를 누락·부정한 것입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “| **2024년** | 기록 없음 | 해당 기록 없음 | 문서 내 접수 완료 수치 부재 |”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 동관의 2023·2024·2025년 접수 완료 건수를 각각 찾고 세 연도 합계를 구해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">긴 입력의 제4부 제6장 제4절에 있는 2024년 동관 완료 143건을 찾지 못했습니다. 자료에 없는 내용을 만든 게 아니라 정확한 위치에 있는 답을 놓쳤습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “| **2024년** | 기록 없음 | 해당 기록 없음 | 문서 내 접수 완료 수치 부재 |”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 동관의 2023·2024·2025년 접수 완료 건수를 각각 찾고 세 연도 합계를 구해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">2023년 기록의 계산은 연결했지만, 다른 부에 흩어진 2024년 확정 기록을 연결하지 못했고 2025년 기록 부재도 종합해 세 연도 합계를 처리하지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “$$129 - (1 + 1 + 1) = 126\text{건}$$”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.47</div></div></div></div></article><article class="rs-fd" id="f-gemini-30"><h3 class="rs-fdh">Q30 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 3개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 물품 교환 사업의 승인 예산 상한·실제 지출·미처리 확정 환불을 찾아 주세요. 현재 지출 차감 후 잔액과 그 환불이 실제 입금된 뒤의 잔액을 구분해 계산해 주세요. 청구액과 예상 환불을 실지출·입금으로 바꾸지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">참조 문서에서 확인되는 물품 교환 사업의 예산 내역과 잔액 계산 결과는 다음과 같습니다.
+
+### 물품 교환 사업 예산 및 잔액 정리표
+
+| 구분 항목 | 금액(수치) | 근거 (부·장·절) | 확정 기록 연결 및 비고 |
+| --- | --- | --- | --- |
+| 승인 예산 상한 | 240,000원 | 제3부 제3장 제4절 | 수치 대조와 확정 기록 본문 명시 |
+| 실제 지출 | 기록 없음 (미기재) | 제3부 제3장 제1절 | &#x27;확정 지출과 남은 예상을 별도 집계&#x27;하도록 규정했으나 구체적 실지출 금액은 없음 |
+<mark class="rs-mk"><sup>1·2</sup>| 미처리 확정 환불 | 기록 없음 (미기재) | 제3부 제3장 제1절·제4절 | 문서 내 환불에 관한 확정 금액 수치 기록 없음 |</mark>
+| 현재 지출 차감 후 잔액 | $240,000\text{원} - \text{실제 지출}$ | 제3부 제3장 제1절·제4절 연결 | 실제 지출 미기재로 단일 수치 산출 불가 |
+| 환불 실제 입금 뒤 잔액 | $240,000\text{원} - \text{실제 지출} + \text{확정 환불}$ | 제3부 제3장 제1절·제4절 연결 | 실제 지출 및 확정 환불 미기재로 단일 수치 산출 불가 |
+
+---
+
+### 확정 기록 연결 및 계산 풀이
+
+**1. 기록의 연결 및 원칙**
+
+* 제3부 제3장 제4절에서 &quot;물품 교환 사업의 승인 예산 상한은 240000원이다&quot;라는 확정 수치가 명시되어 있습니다.
+
+
+<mark class="rs-mk"><sup>3</sup>* 제3부 제3장 제1절에서는 &quot;확정 지출과 남은 예상을 별도 집계&quot;하도록 정하고 있으며, 제1절~제3절 점검 내용에 &#x27;청구와 지급 혼재 확인&#x27;, &#x27;예상 비용 누락 확인&#x27; 등의 항목이 등장합니다. 그러나 청구액이나 예상치를 실제 지출 및 확정 입금으로 대체할 수 없습니다.</mark>
+
+
+* 제1부 제1장 제6절의 &quot;근거가 없는 값을 채우지는 않았다&quot;는 원칙과 제2부 제4장 제1절의 &quot;기재되지 않은 비용을 무료로 단정하지 않음&quot;이라는 기록 기준에 따라, 문서에 적히지 않은 실제 지출과 미처리 확정 환불을 임의의 수치나 0원으로 추정하여 생성할 수 없습니다.
+
+
+
+**2. 계산 풀이 및 등식**
+문서 밖의 수치를 임의 작성하지 않고 문서에 확정된 승인 예산 상한(240,000원)을 바탕으로 잔액 등식을 도출하면 다음과 같습니다.
+
+* **현재 지출 차감 후 잔액:**
+
+$$\text{현재 잔액} = \text{승인 예산 상한} - \text{실제 지출} = 240,000\text{원} - \text{실제 지출}$$
+
+
+* **환불 실제 입금 뒤의 잔액:**
+
+$$\text{입금 뒤 잔액} = \text{현재 잔액} + \text{미처리 확정 환불} = 240,000\text{원} - \text{실제 지출} + \text{미처리 확정 환불}$$
+
+
+
+실제 지출액과 미처리 확정 환불액에 대한 명시적 숫자가 문서에 존재하지 않으므로 최종 잔액은 확정된 승인 상한액 기준의 산식으로 구분 정리됩니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 3개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">제3부 제6장 제4절에 미처리 확정 환불 12,000원이 명시되어 있는데도 환불액을 미기재로 처리했습니다. 문서의 떨어진 확정 기록을 연결하지 못해 입력 자료의 값을 빠뜨렸습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “| 미처리 확정 환불 | 기록 없음 (미기재) | 제3부 제3장 제1절·제4절 | 문서 내 환불에 관한 확정 금액 수치 기록 없음 |”</div><div class="rs-quote">질문의 요구: “청구액과 예상 환불을 실지출·입금으로 바꾸지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">긴 입력의 뒤쪽 제6부 제5장 제4절에 &#x27;물품 교환 사업의 미처리 확정 환불은 12000원이다&#x27;라고 적혀 있으나 답변은 이를 찾지 못했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “| 미처리 확정 환불 | 기록 없음 (미기재) | 제3부 제3장 제1절·제4절 | 문서 내 환불에 관한 확정 금액 수치 기록 없음 |”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 물품 교환 사업의 승인 예산 상한·실제 지출·미처리 확정 환불을 찾아 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.55</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">예산 상한 및 실제 지출 기록만 연결하고, 뒤쪽 제6부 제5장 제4절의 확정 환불 12,000원 기록을 연결하지 못했습니다. 필요한 흩어진 근거의 일부를 빠뜨렸습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “* 제3부 제3장 제1절에서는 &quot;확정 지출과 남은 예상을 별도 집계&quot;하도록 정하고 있으며, 제1절~제3절 점검 내용에 &#x27;청구와 지급 혼재 확인&#x27;, &#x27;예상 비용 누락 확인&#x27; 등의 항목이 등장합니다. 그러나 청구액이나 예상치를 실제 지출 및 확정 입금으로 대체할 수 없습니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.50</div></div></div></div></article><article class="rs-fd" id="f-gemini-32"><h3 class="rs-fdh">Q32 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 3개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 동관 정비 때의 대체 출입구, 연계 행사 운영일 출입구, 행사 종료 다음 날 출입구를 시기별로 비교해 주세요. 특별 운영일의 조건을 전체 기간으로 확대하지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">제공된 참조 문서의 확정 기록을 바탕으로 동관 정비 시기와 행사 관련 시기의 출입구를 비교한 결과는 다음과 같습니다.
+
+| 구분(시기) | 출입구 | 근거(부·장·절) | 확인 내용 및 적용 조건 |
+| --- | --- | --- | --- |
+| 동관 정비 기간 | **북문**&lt;br&gt; | 제2부 시설과 장비 &gt; 제5장 비상 동선 &gt; 제4절 수치 대조와 확정 기록 | 확정 기록에 &quot;동관 정비 기간의 대체 출입구는 북문이었다&quot;로 명시됨. 정비 기간 우회 경로에 한정 적용됨. |
+<mark class="rs-mk"><sup>1·2</sup>| 연계 행사 운영일 | **기록 없음** (확인 불가) | 제3부 생활권 사업 &gt; 제3장 교환 부스 등 전편 |</mark> 문서 내에 &#x27;연계 행사 운영일&#x27; 명칭 및 해당일의 출입구 지정 기록이 존재하지 않음. |
+| 행사 종료 다음 날 | **기록 없음** (확인 불가) | 제3부 생활권 사업 &gt; 제6장 사업 종료 등 전편 | 문서 내에 &#x27;행사 종료 다음 날&#x27;의 출입구 운영에 관한 기록이 존재하지 않음. |
+
+### 확정 기록 연결 및 분석 내용
+
+1. **출입구 확정 기록 및 적용 범위 제한**
+제2부 제5장 제4절의 확정 기록에 따라 동관 정비 기간의 대체 출입구는 **북문**으로 확인됩니다. 제2부 제5장 제1절의 &quot;변경 기간과 적용 구역을 함께 표시&quot; 지침 및 제1부 제1장 제6절의 &quot;기록의 적용 범위를 기관 전체나 다른 기간으로 확대하지 않는다&quot;는 운영 원칙에 따라, 정비 기간의 북문 대체 출입구 조건을 연계 행사일 등 다른 시기로 임의 확대 적용할 수 없습니다.
+
+
+2. **연계 행사 및 익일 출입구 기록 부재**
+<mark class="rs-mk"><sup>3</sup>제3부(생활권 사업) 제3장(교환 부스) 및 제6장(사업 종료)을 포함한 문서 전반에 &#x27;연계 행사 운영일 출입구&#x27;와 &#x27;행사 종료 다음 날 출입구&#x27;에 대한 지정 기록은 나타나지 않습니다.</mark> &quot;문서 밖의 수치나 이름을 만들지 않는다&quot;는 원칙에 따라 확인되지 않은 출입구 명칭을 임의로 추정하거나 생성하지 않고 &#x27;기록 없음&#x27;으로 유지합니다.
+
+
+3. **계산 및 등식 여부**
+참조 문서 내 출입구 지정 및 동선 운영과 관련하여 기재된 산술적 수치나 연산 항목은 존재하지 않으므로, 별도의 계산 풀이 및 등식은 도출되지 않습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 3개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>비교 완결</b> <span class="rs-id">J4-1.a · LLM Judge</span></div><div class="rs-fwhy">질문은 참조자료에서 이 시기의 출입구를 비교하도록 했습니다. 제5부 제5장 제4절에는 &quot;연계 행사 운영일에는 북문 통행을 중단하고 동문을 임시 출입구로 사용했다&quot;고 명시되어 있어 답변의 기록 없음은 해당 대상을 누락했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “| 연계 행사 운영일 | **기록 없음** (확인 불가) | 제3부 생활권 사업 &gt; 제3장 교환 부스 등 전편 |”</div><div class="rs-quote">질문의 요구: “연계 행사 운영일 출입구”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.87</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">272K 이상 입력에서 요구한 출입구 정보를 문서의 맞는 위치에서 찾지 못했습니다. 행사 운영일 기록은 제5부 제5장 제4절, 종료 다음 날 기록은 제8부 제3장 제4절에 있습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “제3부 생활권 사업 &gt; 제3장 교환 부스 등 전편”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 동관 정비 때의 대체 출입구, 연계 행사 운영일 출입구, 행사 종료 다음 날 출입구를 시기별로 비교해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.68</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">서로 떨어진 확정 기록을 연결해야 했지만 제5부 제5장 제4절의 행사 당일 기록과 제8부 제3장 제4절의 다음 날 기록을 찾지 못하고, 관련 없는 제3부를 근거로 삼았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “제3부(생활권 사업) 제3장(교환 부스) 및 제6장(사업 종료)을 포함한 문서 전반에 &#x27;연계 행사 운영일 출입구&#x27;와 &#x27;행사 종료 다음 날 출입구&#x27;에 대한 지정 기록은 나타나지 않습니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.60</div></div></div></div></article><article class="rs-fd" id="f-gemini-34"><h3 class="rs-fdh">Q34 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 5개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 기초 수업의 처음 수료 확정 인원과 별도 추가 승인 인원을 합친 수료 인원, 최종 기록 담당 부서를 찾아 주세요. 출석 등록 인원과 심화 수업을 섞지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>3</sup>제공된 참조 문서(「온새생활기록원 2023~2025 운영 기록」)에는 **‘기초 수업’**, **‘심화 수업’**, **‘수료 확정 인원’**, **‘별도 추가 승인 인원’**, ‘출석 등록 인원’에 관한 기록이나 수치가 전혀 존재하지 않습니다.</mark> &quot;문서 밖의 수치나 이름은 만들지 마세요&quot;라는 조건에 따라 본문 외의 가상 수치나 명칭을 생성하지 않고, 문서에 명시된 사실만을 바탕으로 정리한 결과는 다음과 같습니다.
+
+| 항목 | 확인 내용 및 수치 | 계산 풀이 및 등식 | 담당 부서 | 근거 (부·장·절) |
+| --- | --- | --- | --- | --- |
+<mark class="rs-mk"><sup>2·4</sup>| 기초 수업 처음 수료 확정 인원 | 문서 내 관련 기록 없음 (확인 불가) | 해당 없음 (수치 부재) | 해당 없음 | 문서 내 부·장·절 없음 |</mark>
+| 별도 추가 승인 인원 | 문서 내 관련 기록 없음 (확인 불가) | 해당 없음 (수치 부재) | 해당 없음 | 문서 내 부·장·절 없음 |
+<mark class="rs-mk"><sup>5</sup>| 합친 수료 인원 | 산출 불가 | 계산 불가 (기초 데이터 없음) | 해당 없음 | 문서 내 부·장·절 없음 |</mark>
+| 출석 등록 인원 및 심화 수업 | 문서 내 관련 기록 없음 (구분 대상 부재) | 해당 없음 | 해당 없음 | 문서 내 부·장·절 없음 |
+| 운영 기록의 최종 편집 및 관리 총괄 | 온새생활기록원 연보 종합 편집 책임 | 해당 없음 | **기록조정실**&lt;br&gt; | 전문(머리글), 제1부 제2장 제1절, 제1부 제4장 제6절 |
+
+<mark class="rs-mk"><sup>1</sup>* **수업 및 수료 내역 부재**: 참조 문서는 온새생활기록원의 설립 인계, 문서 번호 체계, 수장고 개편, 창구 접수 이력, 시설·장비 정비, 생활권 사업(읽기 거점, 찾아가는 기록, 교환 부스, 공유 작업 등)을 다루고 있으며, 교육·수업 운영이나 수료 인원 집계는 수록되어 있지 않습니다.</mark>
+
+
+* **최종 기록 담당 부서**: 문서 전체의 편집 책임은 전문 머리글에 명시된 ‘기록조정실’이며, 기록의 정체 관리 및 부서 간 인용 기준 조정 역시 제1부 제2장 제1절과 제4장 제6절에 따라 기록조정실이 총괄 담당하고 있습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 5개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>불필요한 내용 없음</b> <span class="rs-id">J1-4.a · LLM Judge</span></div><div class="rs-fwhy">질문은 기초 수업의 수료 인원을 참조 문서에서 찾도록 했습니다. 답변은 자료에 수료 기록이 없다고 단정했지만, 실제로는 제5부 제1장 제4절에 최초 확정 인원 37명, 제7부 제4장 제4절에 별도 추가 승인 3명, 제8부 제1장 제4절에 최종 기록 담당 부서 기록이 있습니다. 이와 무관한 문서 주제 요약 단락을 덧붙였습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “* **수업 및 수료 내역 부재**: 참조 문서는 온새생활기록원의 설립 인계, 문서 번호 체계, 수장고 개편, 창구 접수 이력, 시설·장비 정비, 생활권 사업(읽기 거점, 찾아가는 기록, 교환 부스, 공유 작업 등)을 다루고 있으며, 교육·수업 운영이나 수료 인원 집계는 수록되어 있지 않습니다.”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 기초 수업의 처음 수료 확정 인원과 별도 추가 승인 인원을 합친 수료 인원, 최종 기록 담당 부서를 찾아 주세요. 출석 등록 인원과 심화 수업을 섞지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.58</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>함께 요구한 항목</b> <span class="rs-id">J4-2.a · LLM Judge</span></div><div class="rs-fwhy">처음 확정 수료 인원과 추가 승인 인원을 구분해 제시하고 합계 및 담당 부서를 찾는 요구를 충족하지 못했습니다. 가장 가까운 답변은 “| 별도 추가 승인 인원 | 문서 내 관련 기록 없음 (확인 불가) | 해당 없음 (수치 부재) | 해당 없음 | 문서 내 부·장·절 없음 |”입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “| 기초 수업 처음 수료 확정 인원 | 문서 내 관련 기록 없음 (확인 불가) | 해당 없음 (수치 부재) | 해당 없음 | 문서 내 부·장·절 없음 |”</div><div class="rs-quote">질문의 요구: “기초 수업의 처음 수료 확정 인원과 별도 추가 승인 인원을 합친 수료 인원, 최종 기록 담당 부서를 찾아 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.45</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">참조자료 제5부 제1장 제4절에는 기초 수업 수료 확정 37명과 출석 등록 42명이, 제5부 제4장 제4절에는 별도 추가 수료 승인 3명이 기록되어 있습니다. 답변은 자료에 있는 기록과 수치를 없다고 잘못 서술했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “제공된 참조 문서(「온새생활기록원 2023~2025 운영 기록」)에는 **‘기초 수업’**, **‘심화 수업’**, **‘수료 확정 인원’**, **‘별도 추가 승인 인원’**, ‘출석 등록 인원’에 관한 기록이나 수치가 전혀 존재하지 않습니다.”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 기초 수업의 처음 수료 확정 인원과 별도 추가 승인 인원을 합친 수료 인원, 최종 기록 담당 부서를 찾아 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">요청한 기초 수업 수료 기록은 참조자료 뒷부분 제5부 제1장 제4절에 있고, 별도 추가 승인 기록은 제7부 제6장 제4절에 있습니다. 답변은 둘 다 찾지 못하고 관련 기록이 없다고 했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “문서 내 관련 기록 없음 (확인 불가)”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 기초 수업의 처음 수료 확정 인원과 별도 추가 승인 인원을 합친 수료 인원, 최종 기록 담당 부서를 찾아 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.54</div></div><div class="rs-item"><div><b class="rs-hlno">5</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">제5부 제1장 제4절의 처음 수료 확정 37명과 제7부 제6장 제4절의 추가 승인 3명을 연결해 37+3=40명으로 집계해야 하지만 답변은 흩어진 근거를 찾지 못해 합산을 포기했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">5</b> “| 합친 수료 인원 | 산출 불가 | 계산 불가 (기초 데이터 없음) | 해당 없음 | 문서 내 부·장·절 없음 |”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.63</div></div></div></div></article><article class="rs-fd" id="f-gemini-40"><h3 class="rs-fdh">Q40 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 2개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 기록 열람실의 최초 명칭에서 최종 승인 명칭으로 이어지는 변경을 추적하고, 최종 인계에서 담당 부서까지 찾아 주세요. 폐기 제안을 최종 명칭으로 쓰지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">| 구분 | 단계 및 명칭/항목 | 세부 내용 및 연결 기록 | 근거 (부·장·절) |
+| --- | --- | --- | --- |
+| **최초 명칭** | **푸른자료실** | 설립 준비 시 승인한 공간 명칭표의 열람실 행에 수록된 공식 최초 명칭 | 제1부 제2장 제2절 |
+| **비승인·혼동 표기 검토** | **푸른서고** | 자료 보관 구역의 별도 공간 명칭이며 열람실의 표기가 아님 | 제1부 제2장 제2절 |
+| **비승인·혼동 표기 검토** | **열람 공간** | 내부 배치도상 사용 목적을 설명한 용도명일 뿐 별도의 명칭 변경 승인이 아님 | 제1부 제2장 제2절 |
+| **비승인·혼동 표기 검토** | **제작 작업표 약칭** | 안내판 제작 검토용 축약어로 승인 명칭이 아니며, 정식 명칭 열에서 제외하고 검색 보조어로만 보존 | 제1부 제2장 제2절 |
+<mark class="rs-mk"><sup>2</sup>| **최종 승인 명칭** | **푸른자료실** | 배치도의 용도명 및 약칭은 정식 승인이 아니며, 별도 변경 승인 기록이 없어 최초 승인 명칭이 정식 명칭으로 최종 유지됨 | 제1부 제2장 제2절 |</mark>
+| **최종 인계: 설비·공간** | **공간지원실** | 위치가 확인된 설비를 자산 현황에 연결하고 서가·통로 유지 관리 담당 | 제1부 제1장 제6절, 제3장 제6절 |
+| **최종 인계: 기록 자료** | **기록정리반** | 내용 분류가 완료되지 않은 문서 묶음을 후속 목록에 반영하여 보존 및 관리 담당 | 제1부 제1장 제6절, 제3장 제6절 |
+| **최종 인계: 식별 체계** | **기록조정실** | 번호 발급 장부와 문서 번호 체계를 관리하며 공간·문서 번호 이력을 연결 관리 | 제1부 제2장 제1절, 제6절 |
+| **인계 수치 계산 1** | <mark class="rs-mk"><sup>1</sup>**정상 서가 수량** | 동관 임시 사무실 서가 6대 중 선반 고정 불량 2대를 분리 제외하여 실제 정상 서가 산출: &lt;br&gt;$$6 - 2 = 4\text{ (대)}$$</mark>
+
+&lt;br&gt; | 제1부 제1장 제2절
+
+ |
+| **인계 수치 계산 2** | **실제 자료 보관 상자** | 첫 운반 도착 상자 18개 중 빈 포장 상자 1개를 제외하여 실물 자료 상자 산출: &lt;br&gt;$$18 - 1 = 17\text{ (개)}$$
+
+&lt;br&gt; | 제1부 제1장 제2절
+
+ |
+
+---
+
+**기록 추적 및 연결 요약**
+기록 열람실의 최초 승인 명칭은 **푸른자료실**이며, 도면상의 &#x27;열람 공간&#x27;은 단순 용도 설명, 표지 작업표의 약칭은 검토용 축약어에 불과하여 정식 승인 명칭으로 인정되지 않았습니다. 이에 따라 변경 승인 없이 **푸른자료실**이 확정 승인 명칭으로 유지되었습니다. 설립 인계 시 설비 및 공간 관리는 **공간지원실**, 자료 분류 및 보존 관리는 **기록정리반**, 식별 체계 정비는 **기록조정실**로 분리 인계되었습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 2개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>풀이 연결</b> <span class="rs-id">J3-4.a · LLM Judge</span></div><div class="rs-fwhy">서가 수 계산 단계는 이어지지만, 두 번째 계산은 입력 자료의 운반 상자 총수 18개에서 빈 포장 상자 1개를 빼는 산술을 제시했을 뿐입니다. 그런데 계산 과정 자체가 끊겼다고 볼 만한 단계 누락은 없습니다. 이 항목은 풀이 연결에 적용하며, 값의 충실성은 J5-2에서 봅니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “**정상 서가 수량** | 동관 임시 사무실 서가 6대 중 선반 고정 불량 2대를 분리 제외하여 실제 정상 서가 산출: &lt;br&gt;$$6 - 2 = 4\text{ (대)}$$”</div><div class="rs-quote">질문의 요구: “계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">명칭 결론은 제7부 제2장 제4절의 확정 대조 기록(온새자료실, 폐기 제안 온새열람실)을 반영하지 않고 제1부 제2장 제2절만 연결했습니다. 최종 인계 부서도 관련 내용이 있는 제7부 제2장 제6절의 확정 자료와 대조하지 않아 흩어진 근거를 빠짐없이 연결하지 못했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “| **최종 승인 명칭** | **푸른자료실** | 배치도의 용도명 및 약칭은 정식 승인이 아니며, 별도 변경 승인 기록이 없어 최초 승인 명칭이 정식 명칭으로 최종 유지됨 | 제1부 제2장 제2절 |”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-41"><h3 class="rs-fdh">Q41 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 4개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 백로 센서 B-17의 설치 당시 계수와 최종 승인 계수를 구별하고 최종 확인일까지 찾아 주세요. 번호가 비슷한 다른 장비와 폐기안을 섞지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">백로 센서 B-17의 설치 당시 보정 계수는 **1.08**이며, 최종 승인 계수와 최종 확인일은 참조 문서 내에 명시되어 있지 않습니다.
+
+### 백로 센서 B-17 확정 기록 및 현황 정리
+
+| 구분 | 내용 및 수치 | 근거 (부·장·절) | 관련 규정 및 세부 기록 연결 |
+| --- | --- | --- | --- |
+| **설치 당시 계수** | 보정 계수 **1.08**&lt;br&gt; | 제2부 제3장 제4절 | &quot;백로 센서 B-17은 설치 당시 보정 계수 1.08을 사용했다.&quot;로 명시 확정됨. |
+| **최종 승인 계수** | **기록 없음** (미기재/미확정) | 제2부 제3장 제1절, 제6절 | &quot;보정 이전 기록을 소급 변경하지 않음&quot; 및 &quot;이후 업무의 승인까지 대신하지 않는다. 확인할 수 없는 내용은 미확인으로 남김&quot; 규정에 따라 임의 승인값을 생성하지 않음. |
+| **최종 확인일** | **기록 없음** (개별 일자 미기재) | 제2부 제3장 제4절, 제6절 | 장비별 수치 대조 문장 및 제6절 후속 인계 목록에 B-17의 개별 확인 일자가 존재하지 않음. |
+
+---
+
+### 확정 기록 연결 및 계산 유무 검토
+
+1. **서로 떨어진 원칙과 확정 기록의 연결**
+<mark class="rs-mk"><sup>4</sup>* **제2부 제3장 제4절**: 백로 센서 B-17의 설치 당시 보정 계수를 1.08로 확정 기록했습니다.</mark>
+
+
+* **제2부 제3장 제1절**: &quot;설치 직후 측정값과 보정 후 측정값을 다른 열에 남겼다&quot; 및 &quot;보정 이전 기록을 소급 변경하지 않음&quot;이라는 원칙을 명시하여 초기 계수가 소급 수정되지 않음을 규정합니다.
+
+
+* **제2부 제3장 제6절**: &quot;설치 직후 측정값과 보정 후 측정값을 다른 열에 남겼다는 이번 업무의 판단 근거이며 이후 업무의 승인까지 대신하지 않는다&quot;라 명시하고, &quot;확인할 수 없는 내용은 미확인으로 남기고, 담당자가 실제로 살피지 않은 파일이나 현장까지 확인한 것으로 표현하지 않았다&quot;고 선을 긋습니다.
+
+
+* **제1부 제1장 제6절**: 미결정 항목에는 근거 없는 값을 채우지 않도록 규정하고 있습니다.
+
+
+
+
+2. **계산 풀이 및 등식 부재**
+* 문서 내에는 백로 센서 B-17의 보정 후 변동 수치, 승인 공식, 또는 계산을 도출할 수 있는 추가 데이터가 일절 제시되지 않았습니다.
+* 따라서 적용할 등식 및 풀이 과정이 존재하지 않으며, &quot;문서 밖의 수치나 이름을 만들지 말라&quot;는 원칙에 따라 최종 승인 계수와 확인일을 임의로 계산·추정하지 않고 &#x27;기록 없음(미확인)&#x27;으로 종결합니다.
+
+
+
+
+3. **장비 혼동 및 폐기안 검토**
+<mark class="rs-mk"><sup>2·1·3</sup>* 참조 문서 전체에서 &#x27;백로 센서 B-17&#x27; 외의 유사 센서 번호나 관련 폐기안은 존재하지 않아 배제 및 분리 대조를 완료했습니다.</mark></pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 4개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · LLM Judge</span></div><div class="rs-fwhy">자료에는 유사 장비 B-71과 폐기안 1.13이 있으므로, 해당 장비나 폐기안이 없다는 답변은 입력 자료와 모순됩니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “참조 문서 전체에서 &#x27;백로 센서 B-17&#x27; 외의 유사 센서 번호나 관련 폐기안은 존재하지 않아 배제 및 분리 대조를 완료했습니다.”</div><div class="rs-quote">질문의 요구: “번호가 비슷한 다른 장비와 폐기안을 섞지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">자료에 제시된 유사 장비 B-71과 폐기안 1.13을 없는 것으로 바꾸어 기술했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “* 참조 문서 전체에서 &#x27;백로 센서 B-17&#x27; 외의 유사 센서 번호나 관련 폐기안은 존재하지 않아 배제 및 분리 대조를 완료했습니다.”</div><div class="rs-quote">질문의 요구: “번호가 비슷한 다른 장비와 폐기안을 섞지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>확인 과정 꾸밈 없음</b> <span class="rs-id">J5-3.a · LLM Judge</span></div><div class="rs-fwhy">문서 전체에서 대조를 완료했다고 표현했지만, 참조자료에는 B-71 및 폐기안 1.13이 있습니다. 자료를 인용한 이 답변의 출처 표현이 자료와 맞지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “참조 문서 전체에서 &#x27;백로 센서 B-17&#x27; 외의 유사 센서 번호나 관련 폐기안은 존재하지 않아 배제 및 분리 대조를 완료했습니다.”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 백로 센서 B-17의 설치 당시 계수와 최종 승인 계수를 구별하고 최종 확인일까지 찾아 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">제2부 제3장 제4절의 설치 당시 값은 찾았지만, 제7부 제4장 제4절의 B-17 개정 승인값 1.03 및 승인일 2025-06-18을 연결하지 못해 최종값과 확인일을 누락했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “* **제2부 제3장 제4절**: 백로 센서 B-17의 설치 당시 보정 계수를 1.08로 확정 기록했습니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.58</div></div></div></div></article><article class="rs-fd" id="f-gemini-42"><h3 class="rs-fdh">Q42 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 2개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 하천 A구역의 조사 시간·사용 기록지 수·최종 보관 책임 부서를 찾아 연결해 주세요. 다른 구역의 예비 기록지나 임시 조사조를 섞지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans"><mark class="rs-mk"><sup>1</sup>제공된 참조 문서(온새생활기록원 2023~2025 운영 기록) 전체를 검토한 결과, **&#x27;하천 A구역&#x27;** 및 해당 구역의 **조사 시간**, **사용 기록지 수**, **최종 보관 책임 부서**에 관한 기록은 본문에 존재하지 않습니다.</mark>
+
+&quot;문서 밖의 수치나 이름은 만들지 마세요&quot;라는 지침에 따라 확인되지 않은 가상의 정보나 계산식을 임의로 생성하지 않고, 문서 내 기재 여부 및 관련 근거를 아래 표 하나로 정리합니다.
+
+| 확인 항목 | 문서 내 기재 여부 및 대조 내용 | 관련 근거 (부·장·절) |
+| --- | --- | --- |
+| **조사 대상 (하천 A구역)** | **미기재**: 문서 전체에 &#x27;하천&#x27; 및 &#x27;A구역&#x27;에 대한 명칭이나 조사 대상 지정 기록이 없음 | 문서 전반 (해당 없음) |
+| **조사 시간** | **미기재**: 하천 A구역 관련 조사 일정, 시작·종료 시각, 소요 시간 및 산출 등식 없음 | 문서 전반 (해당 없음) |
+| **사용 기록지 수** | **미기재**: 대형 기록지 접수 사례(봉투 2개 분량)는 존재하나 일반 창구 접수 이력일 뿐 특정 하천 조사 기록지가 아님 | 제1부 제4장 제3절 |
+| **최종 보관 책임 부서** | **미기재**: 작성 부서와 현 보관 책임 부서를 분리하고 후속 기록으로 확인한다는 운영 원칙만 기술됨 | 제1부 제1장 제3절, 제1부 제4장 제6절 |
+
+<mark class="rs-mk"><sup>2</sup>**문서 내 관련 기록 대조 상세**
+
+1. **기록지 관련**: 제1부 제4장(접수 이력) 제3절에 &quot;6월 23일 대형 기록지를 현장에서 받은 건은 봉투가 두 개였지만 하나의 조사 묶음이었다&quot;는 내용이 나오나, 이는 동관 접수 창구의 일반 기록물 처리 사례이며 하천 A구역의 사용 수량이 아닙니다.</mark>
+2. **보관 책임 부서 관련**: 제1부 제1장 제3절 및 제4장 제6절에서 &quot;접수 당시 담당 부서를 최종 보관 책임으로 단정할 수 없다&quot;, &quot;작성 부서와 현 보관 책임 부서를 분리해 입력했다&quot;는 원칙만 명시되어 있으며, 하천 조사와 연결된 최종 부서명은 나타나지 않습니다.
+3. **계산 및 등식**: 해당 대상에 대한 산술적 수치가 문서 내에 없으므로 풀이할 등식이 성립하지 않습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 2개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">입력은 272K 토큰 이상이고 특정 정보를 묻습니다. 답변은 관련 기록이 없다고 했지만, 제4부 제1장 제4절에는 A구역 조사 시간이 09:20~09:50이라고 명시되어 있습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “제공된 참조 문서(온새생활기록원 2023~2025 운영 기록) 전체를 검토한 결과, **&#x27;하천 A구역&#x27;** 및 해당 구역의 **조사 시간**, **사용 기록지 수**, **최종 보관 책임 부서**에 관한 기록은 본문에 존재하지 않습니다.”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 하천 A구역의 조사 시간·사용 기록지 수·최종 보관 책임 부서를 찾아 연결해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">흩어진 확정 기록을 연결해야 하는 질문에서 제4부 제1장 제4절의 조사 시간과 제5절·제6절의 관측·인계 기록, 제8부 제6장 제4절의 최종 책임 정보를 연결하지 못하고 다른 장의 일반 접수 사례를 제시했습니다. 이 누락은 요청 항목 누락(J4-2)이 아니라 근거 연결 실패입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “**문서 내 관련 기록 대조 상세**
+
+1. **기록지 관련**: 제1부 제4장(접수 이력) 제3절에 &quot;6월 23일 대형 기록지를 현장에서 받은 건은 봉투가 두 개였지만 하나의 조사 묶음이었다&quot;는 내용이 나오나, 이는 동관 접수 창구의 일반 기록물 처리 사례이며 하천 A구역의 사용 수량이 아닙니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-43"><h3 class="rs-fdh">Q43 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 2개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 접이식 조명의 보증금이 변경되었는지 앞뒤 기록으로 확인하고 최종 금액을 알려 주세요. 대여료도 찾아 없으면 미기재라고 써 주세요. 미기재를 무료로 바꾸지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">참조 문서를 바탕으로 접이식 조명의 보증금 변경 이력, 최종 금액, 대여료를 확인하여 정리한 결과입니다.
+
+### 접이식 조명 정비 및 대여 내역 정리
+
+| 대상 | 보증금 (최종 금액) | 보증금 변경 여부 | 대여료 | 근거 (부·장·절) |
+| --- | --- | --- | --- | --- |
+| 접이식 조명 | 18000원 | 변경 없음 (기록 유지) | 미기재 | <mark class="rs-mk"><sup>1</sup>제2부 제4장 제1절, 제4절, 제5절</mark> |
+
+---
+
+### 확정 기록 연결 및 확인 내용
+
+1. **보증금 확인 및 변경 여부**
+* **근거 기록**: 제2부 제4장 제4절에 &quot;접이식 조명 대여료와 보증금은 분리 항목이며 보증금은 18000원이다.&quot;라고 명시되어 있습니다.
+
+
+* **앞뒤 기록 대조**: 제2부 제4장의 이전 절(제1절~제3절) 및 이후 절(제5절~제6절)을 포함해 문서 전체에서 접이식 조명의 보증금이 변경되거나 소급·정정된 추가 기록은 없습니다.
+
+
+* **계산 풀이 및 등식**: 보증금 액수의 증감이나 조정 내역이 없으므로 별도의 연산 과정은 발생하지 않으며, 최초 확정된 금액인 **18000원**이 그대로 최종 금액이 됩니다.
+
+
+
+
+2. **대여료 확인 및 원칙 연결**
+* **근거 기록**: 제2부 제4장 제4절에 &quot;대여료는 기록하지 않았다.&quot;라고 명시되어 있습니다.
+
+
+* **서로 떨어진 기록과의 연결**: <mark class="rs-mk"><sup>2</sup>제2부 제4장 제1절과 제5절의 운영 기준에 &quot;기재되지 않은 비용을 무료로 단정하지 않음.&quot;이라는 규정이 확정되어 있습니다.</mark>
+
+
+* **결과 도출**: 대여료가 적혀 있지 않다고 해서 무료로 처리할 수 없으므로 지침에 따라 **미기재**로 기재합니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 2개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · LLM Judge</span></div><div class="rs-fwhy">근거 위치를 제시했지만 제2부 제4장 제1절과 제5절에는 접이식 조명의 특정 보증금 변경 이력이 없고, 관련 확정 기록은 제2부 제4장 제4절에 있습니다. 질문은 앞뒤 기록으로 변경 여부를 확인하라고 했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “제2부 제4장 제1절, 제4절, 제5절”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 접이식 조명의 보증금이 변경되었는지 앞뒤 기록으로 확인하고 최종 금액을 알려 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">질문은 접이식 조명의 변경 여부를 앞뒤 기록으로 확인하도록 했습니다. 해당 장의 기록을 대조해 변경 여부를 뒷받침할 연결 근거를 찾지 않고, 일반 운영 기준을 근거로 변경 이력이 없다고 결론 냈습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “제2부 제4장 제1절과 제5절의 운영 기준에 &quot;기재되지 않은 비용을 무료로 단정하지 않음.&quot;이라는 규정이 확정되어 있습니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-44"><h3 class="rs-fdh">Q44 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 롱컨텍스트 · 어긴 기준 3개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">참조 문서 527,857자(생략)</span><pre class="rs-pre rs-q">참조 문서를 읽고 수목 S-12 표본의 이관 전후 상자를 추적하고 최종 상자를 알려 주세요. 운송 담당자 이름도 찾아 기록에 없으면 미기재라고 써 주세요. 다른 표본의 번호와 섞지 마세요. 결과를 표 하나로 정리하고 근거의 부·장·절을 표시해 주세요. 서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요. 문서 밖의 수치나 이름은 만들지 마세요. 답변 전체는 공백 포함 1500자 이내로 작성해 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">제공된 참조 문서(온새생활기록원 2023~2025 운영 기록) 전편을 확인한 결과, **&#x27;수목 S-12&#x27;** 표본 및 이와 관련된 상자 번호, 이관 이력, 수치 계산식, 운송 담당자에 대한 기록은 문서 내에 일체 존재하지 않습니다.
+
+&quot;문서 밖의 수치나 이름은 만들지 말라&quot;는 원칙과 &quot;기록에 없으면 미기재라고 쓰라&quot;는 지침에 따라 확인된 사항을 표로 정리합니다.
+
+| 구분 항목 | 추적 및 확인 결과 | 근거 (부·장·절) | 비고 |
+| --- | --- | --- | --- |
+| 대상 표본 | 수목 S-12 | 기록 없음 | <mark class="rs-mk"><sup>2</sup>문서 내 &#x27;수목&#x27; 및 &#x27;S-12&#x27; 표본 명칭 부재</mark> |
+| <mark class="rs-mk"><sup>1</sup>이관 전 상자 | 미기재 | 기록 없음 |</mark> 해당 표본에 대한 보관·이관 상자 기록 없음 |
+<mark class="rs-mk"><sup>1</sup>| 이관 후 상자 | 미기재 | 기록 없음 |</mark> 해당 표본의 이동 및 수장고 배치 내역 없음 |
+<mark class="rs-mk"><sup>1</sup>| 최종 상자 | 미기재 | 기록 없음</mark> | 최종 확정 상자 번호 부재 |
+| 운송 담당자 | 미기재 | 기록 없음 | 운송 담당자 성명 미수록 |
+
+**세부 확인 사항**
+
+* **표본 및 상자 추적:** <mark class="rs-mk"><sup>3</sup>본문에는 설립 인계 당시의 일반 기록 상자(제1부 제1장), 수장고 개편에 따른 보관 상자 이동(제1부 제3장), 센서(제2부 제3장의 B-17 센서 등) 및 사업별 비품 관리 내역만 수록되어 있으며, 식물/수목 표본인 &#x27;S-12&#x27;와 관련된 상자 추적 데이터는 포함되어 있지 않습니다.</mark>
+
+
+* **계산 및 등식:** 문서 내에 수목 S-12 표본 상자 배정 또는 이동과 관련된 산술 연산 근거가 없으므로 별도의 계산식은 작성하지 않았습니다.
+
+
+* **운송 담당자:** 문서 내에 운반·이동 기록은 존재하나 특정 운송 담당자의 이름은 명시되어 있지 않아 지침에 따라 &#x27;미기재&#x27;로 처리했습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 3개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>요청 작업 수행</b> <span class="rs-id">J1-1.a · LLM Judge</span></div><div class="rs-fwhy">문서 제4부 제5장 제4절에는 S-12의 보관 상자가 라-06이라고 확정되어 있는데, 답변은 상자 추적 결과를 제시하지 않고 모두 미기재로 처리했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “이관 전 상자 | 미기재 | 기록 없음 |
+| 이관 후 상자 | 미기재 | 기록 없음 |
+| 최종 상자 | 미기재 | 기록 없음”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 수목 S-12 표본의 이관 전후 상자를 추적하고 최종 상자를 알려 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>위치와 관계없는 정보 찾기</b> <span class="rs-id">J7-1.a · LLM Judge</span></div><div class="rs-fwhy">자료 제4부 제5장 제4절에 “수목 S-12의 보관 상자는 라-06이다.”라고 적혀 있는데도 답변은 해당 위치의 정보를 찾지 못했다고 했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “문서 내 &#x27;수목&#x27; 및 &#x27;S-12&#x27; 표본 명칭 부재”</div><div class="rs-quote">질문의 요구: “참조 문서를 읽고 수목 S-12 표본의 이관 전후 상자를 추적하고 최종 상자를 알려 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.51</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>흩어진 근거 연결</b> <span class="rs-id">J7-2.a · LLM Judge</span></div><div class="rs-fwhy">관련 정보를 연결하지 못했습니다. 제4부 제5장 제4절은 “수목 S-12의 보관 상자는 라-06이다.”라고 하고, 제7부 제3장 제4절은 “수목 S-12의 보관 상자를 마-14로 이관했다.”라고 기록합니다. 이후 상자 상태를 갱신하거나 그보다 뒤의 위치를 확정하는 기록은 찾을 수 없어, 확인 가능한 최종 상자는 마-14입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “본문에는 설립 인계 당시의 일반 기록 상자(제1부 제1장), 수장고 개편에 따른 보관 상자 이동(제1부 제3장), 센서(제2부 제3장의 B-17 센서 등) 및 사업별 비품 관리 내역만 수록되어 있으며, 식물/수목 표본인 &#x27;S-12&#x27;와 관련된 상자 추적 데이터는 포함되어 있지 않습니다.”</div><div class="rs-quote">질문의 요구: “서로 떨어진 확정 기록을 연결하고, 계산이 있으면 풀이와 등식도 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.74</div></div></div></div></article><article class="rs-fd" id="f-gemini-73"><h3 class="rs-fdh">Q73 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 싱글턴 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">작은 모임의 정액제와 사용량제를 비용과 이용 횟수 변화에 대한 대응 두 기준으로 비교하고 하나를 추천해 주세요. 당장 다음 달 모임 횟수가 확정되지 않아 부담을 줄이고 싶습니다. 예산 상한은 30000원이고 이번 달 실제 결제액은 정액제 20000원, 사용량제 14000원입니다. 다음 달 예상액은 정액제 20000원, 사용량제 26000원입니다. 실제와 예상을 바꾸지 말고 추천의 근거를 같은 표에 적어 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">다음 달 모임 횟수가 유동적이고 예상 지출이 증가하는 상황에서는 비용 상한을 20,000원으로 고정해 변동 위험을 차단하는 **정액제**를 추천합니다.
+
+| 비교 기준 | 정액제 (추천) | 사용량제 |
+| --- | --- | --- |
+| **이번 달 실제 결제액** | 20,000원 | 14,000원 |
+| **다음 달 예상액** | 20,000원 | 26,000원 |
+| **비용 기준 비교** | 비용이 20,000원으로 고정되며, 다음 달 예상액 기준으로 사용량제보다 6,000원 저렴합니다. 예산 상한(30,000원) 대비 10,000원의 여유가 있습니다. | 이용량에 비례해 청구되며, 이번 달은 14,000원으로 저렴했으나 다음 달에는 26,000원으로 늘어납니다. 예산 상한(30,000원)은 넘지 않지만 여유 폭이 4,000원에 불과합니다. |
+| **이용 횟수 변화 대응** | 횟수가 늘어나도 추가 비용이 없어 지출 불안을 없앨 수 있습니다. 반면 횟수가 급감할 경우 고정비 낭비가 발생할 수 있습니다. | 횟수가 줄어들거나 취소되면 비용이 즉각 절감되어 낭비가 없습니다. 반면 횟수가 늘어나면 비용이 계속 증가해 예산 압박이 커집니다. |
+| **추천 근거** | **1. 확정된 비용 절감:** 다음 달 예상액 기준 사용량제보다 6,000원 저렴합니다.&lt;br&gt;
+
+&lt;br&gt;**2. 변동성 차단:** 횟수가 미확정일 때 모임이 예상보다 1~2회만 더 늘어도 사용량제는 예산 상한(30,000원)을 초과할 수 있지만, 정액제는 20,000원으로 비용이 완전히 묶여 금전적 부담이 없습니다. | <mark class="rs-mk"><sup>1</sup>모임이 대폭 축소될 경우에만 유리하며, 다음 달 예상치 기준으로는 비용 부담과 예산 초과 위험이 정액제보다 큽니다.</mark> |
+
+모임이 거의 열리지 않을 정도로 급감하는 경우가 아니라면, 다음 달에는 예상 모임 규모가 커져 있으므로 정액제를 선택하는 것이 총비용을 낮추고 추가 지출 걱정을 덜어내는 데 가장 유리합니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · LLM Judge</span></div><div class="rs-fwhy">질문에서 정한 사용량제 다음 달 예상액은 26,000원으로 예산 상한 30,000원 이내인데, 답변은 같은 예상 조건에서 정액제보다 예산 초과 위험이 크다고 적었습니다. 예상액 26,000원은 상한을 넘지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “모임이 대폭 축소될 경우에만 유리하며, 다음 달 예상치 기준으로는 비용 부담과 예산 초과 위험이 정액제보다 큽니다.”</div><div class="rs-quote">질문의 요구: “예산 상한은 30000원이고 이번 달 실제 결제액은 정액제 20000원, 사용량제 14000원입니다. 다음 달 예상액은 정액제 20000원, 사용량제 26000원입니다. 실제와 예상을 바꾸지 말고 추천의 근거를 같은 표에 적어 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Jev PASS</div></div></div></div></article><article class="rs-fd" id="f-gemini-78"><h3 class="rs-fdh">Q78 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 싱글턴 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">입문 운동 교실을 진행자 한 명이 운영합니다. 8시 30분 도착, 교실 9시 30분~11시, 접수 9시 15분 시작입니다. 장비실 편도 7분, 장비 확인 8분, 설치 12분이 필요합니다. 예산 상한 70000원, 실지출 24000원, 남은 예상 18000원입니다. 혼자 실행할 일정을 만들어 주세요. 예비 지원자는 아직 승인되지 않았으므로 투입하지 말고 설치 전에 체험을 시작하지 마세요. 결과는 표 하나로 정리해 주세요. 예산 상한과 실제 지출·예상 지출을 구별해 남은 예산도 계산해 주세요. 새 인력은 사용하지 마세요. 작업 순서도 같은 표에서 확인할 수 있게 작성해 주세요. 설명은 존댓말로 써 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">진행자 한 분이 외부 인력 없이 단독으로 수행할 수 있는 작업 순서별 운영 일정과 예산 정산 내역입니다.
+
+| 구분 | 순서 | 시간 / 항목 | 세부 작업 내용 | 예산 및 비고 |
+| --- | --- | --- | --- | --- |
+| **운영 일정** | 1 | 08:30 ~ 08:37 | 현장 도착 후 장비실 이동 (편도 7분) | 단독 수행 |
+| **운영 일정** | 2 | 08:37 ~ 08:45 | 장비 이상 유무 확인 및 수령 (8분) | 단독 수행 |
+| **운영 일정** | 3 | 08:45 ~ 08:52 | 장비 운반 및 강의실 복귀 (편도 7분) | 단독 수행 |
+| **운영 일정** | 4 | 08:52 ~ 09:04 | 운동 장비 및 공간 설치 (12분) | 09:04 설치 완료 (체험 전 완료) |
+| **운영 일정** | 5 | 09:04 ~ 09:15 | 실내 환경 점검 및 접수 준비 | 준비 완료 후 여유 시간 확보 |
+| **운영 일정** | 6 | 09:15 ~ 09:30 | 참가자 현장 접수 및 출석 확인 | 09:15 접수 개시 |
+| **운영 일정** | 7 | 09:30 ~ 11:00 | 입문 운동 교실 본 프로그램 진행 | 90분 수업 진행 |
+| **운영 일정** | 8 | 11:00 ~ | 참가자 퇴장 안내 및 장비 정리 | 미승인 지원자 없이 단독 마무리 |
+| **예산 내역** | - | 예산 상한 | 총 배정된 지원 한도 금액 | 70,000원 |
+| **예산 내역** | - | 실제 지출액 | 현재까지 실제로 집행된 금액 | 24,000원 |
+| **예산 내역** | - | 남은 예상 지출액 | 향후 추가 집행 예정인 금액 | 18,000원 |
+| **예산 내역** | - | 총 지출(실제+예상) | 24,000원 + 18,000원 | 42,000원 |
+| **예산 내역** | - | <mark class="rs-mk"><sup>1</sup>**최종 남은 예산** | **70,000원 - 42,000원** | **28,000원** (현재 잔여: 46,000원)</mark> |
+
+승인되지 않은 예비 지원자나 신규 인력 투입 없이 1인 진행에 맞추어 동선을 구성하였으며, 장비 설치(09:04 완료)가 끝난 뒤 접수와 수업이 진행되도록 배치했습니다. 예산은 상한 70,000원에서 실제 지출 24,000원을 제외한 현재 잔여액은 46,000원이며, 향후 예상 지출 18,000원까지 모두 집행했을 때 최종적으로 남는 예산은 28,000원입니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · LLM Judge</span></div><div class="rs-fwhy">표는 남은 예산을 28,000원으로 제시하지만 답변 끝에서는 현재 잔여액 46,000원을 ‘최종적으로 남는 예산’이라고도 표현해 최종 잔액을 서로 다르게 말합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “**최종 남은 예산** | **70,000원 - 42,000원** | **28,000원** (현재 잔여: 46,000원)”</div><div class="rs-quote">질문의 요구: “예산 상한 70000원, 실지출 24000원, 남은 예상 18000원입니다.”</div><div class="rs-quote">심판: Codex FAIL · Jev PASS</div></div></div></div></article></div></section></main>
+<script>
+(function () {
+  function openTo(id) {
+    var el = document.getElementById(id);
+    if (!el || el.tagName !== 'DETAILS') return false;
+    for (var d = el; d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#f-"], a[href^="#h-"]');
+    if (a && openTo(a.getAttribute('href').slice(1))) { e.preventDefault(); history.replaceState(null, '', a.getAttribute('href')); }
+  });
+  if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>
