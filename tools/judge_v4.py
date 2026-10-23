@@ -1093,6 +1093,31 @@ def add_usage(total: Dict[str, Any], usage: Any, prefix: str = "") -> None:
             total[prefix + k] = total.get(prefix + k, 0) + v
 
 
+#: 질문당 판정 토큰 칸 — 심판이 돌려준 사용량 이름(OpenAI · Codex 둘 다) → 기록 칸 (build_result_summary.USAGE_KEYS 와 같은 묶음)
+TOKEN_FIELDS = {"입력": ("input_tokens", "prompt_tokens"),
+                "캐시_입력": ("cached_input_tokens", "input_tokens_details.cached_tokens", "prompt_tokens_details.cached_tokens"),
+                "출력": ("output_tokens", "completion_tokens"),
+                "추론_출력": ("reasoning_output_tokens", "output_tokens_details.reasoning_tokens", "completion_tokens_details.reasoning_tokens")}
+
+
+def question_tokens_used(calls: Dict[str, Any]) -> Dict[str, Any]:
+    """판정 줄의 calls → 질문당 판정 토큰 {심판: {입력, 캐시_입력, 출력, 추론_출력, 호출}, 합계, 다시_씀} (사용자 10-23: "질문당 평가된 토큰 수도
+    기록되게"). 판정 토큰만(수집 제외) · 심판이 돌려준 값 그대로 · 비용 없음. 저장된 출력을 다시 쓴 호출은 이번 판정의 토큰이 아니라 0 이고 다시_씀 으로 표시."""
+    def pick(u: Dict[str, Any], names: Tuple[str, ...]) -> int:
+        return next((int(u[k]) for k in names if isinstance(u.get(k), (int, float))), 0)
+    out: Dict[str, Dict[str, int]] = {}
+    dc = calls.get("decisions") or {}
+    fresh = list((dc.get("fresh_judge") or dc.get("first_judge") or {}).values()) if not dc.get("reused") or dc.get("fresh_judge") else []
+    for name, u in (dc.get("usage") or {}).items():
+        if isinstance(u, dict):
+            out[{"jev": "Jev", "decisions": "Decisions"}.get(name, name)] = {**{f: pick(u, ks) for f, ks in TOKEN_FIELDS.items()}, "호출": fresh.count(name)}
+    cx = calls.get("codex") or {}
+    if cx.get("rounds"):
+        out["Codex"] = {**{f: pick(cx, ks) for f, ks in TOKEN_FIELDS.items()}, "호출": int(cx.get("rounds") or 0)}
+    total = {f: sum(v[f] for v in out.values()) for f in (*TOKEN_FIELDS, "호출")}
+    return {**out, "합계": total, "다시_씀": bool(dc.get("reused") or cx.get("reused"))}
+
+
 def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
     """한 턴의 항목들에 안전장치를 차례로, 연결 규칙(상황표 2)은 맨 끝에 — 조건 항목(J1-2.a 등)이 사유 모순으로 보류되면 대상 항목(J4)의
     판정을 지우지 않게 (Codex 검토 10-22: 보류된 J1-2.a 가 J4 FAIL 을 이미 해당 없음으로 바꾼 뒤였던 순서)."""
@@ -1426,7 +1451,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             "code_fails": code_fails, "codex_conclusion": None, "jev_codex_agree": [agree, total], "seconds": round(time.monotonic() - started, 1),
             "screen": {"items": n_items, "flagged": n_flagged, "fail_prob_min": SCREEN_FAIL_PROB, "confident": SCREEN_CONFIDENT,
                        "second_judge_confident": SECOND_JUDGE_CONFIDENT, "codex_all": codex_all},
-            "calls": calls, "turn_results": turn_out}
+            "calls": calls, "tokens": question_tokens_used(calls), "turn_results": turn_out}   # 질문당 판정 토큰 (10-23)
     fails = [f"T{n}:{i}" for n, p in final.items() for i, v in p.items() if v["decision"] == "FAIL"]
     holds = [f"T{n}:{i}" for n, p in final.items() for i, v in p.items() if v["decision"] == "UNVERIFIED"]
     say(f"■ {tag}: {verdict} · {line['seconds']:.0f}초 · 항목 {n_items} → Codex {n_flagged}"

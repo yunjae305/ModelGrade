@@ -807,3 +807,13 @@ def test_j4_target_not_applicable_from_first_judge_goes_to_codex(tmp_path: Path,
 
 def test_j14_fail_reask_is_default():
     assert {"J1-4.a", "J1-4.b"} <= jv.REASK_FAIL_ITEMS   # 10-22 밤: 옵션을 빠뜨리면 J1-4 FAIL 이 부풀어 기본값으로
+
+
+def test_line_records_tokens_per_question(tmp_path: Path):
+    # 사용자 10-23: 질문당 평가된 토큰 수 — 판정 줄마다 심판별 입력 · 출력 · 호출과 합계
+    dec = FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.8, "PASS": 0.2}, "confidence": 0.8}})
+    line = _run(tmp_path, dec, FakeCodex({"J2-2.a": "FAIL"}))
+    tok = line["tokens"]
+    assert tok["Decisions"]["입력"] == 1000 and tok["Decisions"]["호출"] == 1 and tok["합계"]["입력"] >= 1000 and tok["다시_씀"] is False
+    calls = {"decisions": {"reused": True, "first_judge": {"1": "jev"}, "usage": {}}, "codex": {"reused": True, "rounds": 0}}
+    assert jv.question_tokens_used(calls)["합계"]["입력"] == 0 and jv.question_tokens_used(calls)["다시_씀"] is True
