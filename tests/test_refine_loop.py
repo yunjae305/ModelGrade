@@ -1,0 +1,121 @@
+# -*- coding: utf-8 -*-
+"""기준 다듬기 루프(tools/refine_loop.py)의 모델 호출 없는 부분 — 표본 고르기 · 안 적용(임시 파일) · 점수 · 채택 판단 · 사람 표시 · 교훈 기록."""
+import json
+from pathlib import Path
+
+import pytest
+
+from tools import refine_loop as rl
+
+
+def _cell(q, p, decision, item="J1-4.b", turn=1, kind="싱글", first=None):
+    return {"type": kind, "question": q, "provider": p, "turn": turn, "item": item, "decision": decision, "first": first or decision,
+            "codex": None, "reason": "", "answer": "답", "request": "요청", "facts": [], "flagged": ""}
+
+
+def test_select_cases_balances_fail_and_pass_and_spreads_models():
+    cells = [_cell(q, p, "FAIL") for q in range(1, 7) for p in ("aiona", "gpt")] + [_cell(q, p, "PASS") for q in range(1, 7) for p in ("claude", "gemini")]
+    cells += [_cell(9, "aiona", "UNVERIFIED")]
+    got = rl.select_cases(cells, n_fail=4, n_pass=4, seed=3)
+    assert len(got) == 8 and sum(1 for c in got if c["decision"] == "PASS") == 4
+    assert len({(c["provider"], c["question"]) for c in got}) == 8          # 같은 (모델, 질문)을 두 번 뽑지 않음
+    assert [c["no"] for c in got] == list(range(1, 9))
+    only_multi = rl.select_cases(cells, 2, 2, types=["멀티턴"])
+    assert only_multi == []
+
+
+def test_truth_from_marks_and_human_decisions(tmp_path: Path):
+    f = tmp_path / "표시결과.json"
+    f.write_text(json.dumps({"rows": [{"provider": "gpt", "question": 3, "turn": 1, "item": "J1-4.b", "decision": "FAIL", "mark": "틀림"},
+                                       {"provider": "gpt", "question": 4, "turn": 1, "item": "J1-4.b", "decision": "PASS", "mark": "맞음"},
+                                       {"provider": "gpt", "question": 5, "turn": 1, "item": "J1-4.b", "decision": "PASS", "mark": "애매"}],
+                             "decisions": [{"provider": "aiona", "question": 1, "turn": 1, "item": "J1-4.b", "decision": "FAIL"}]}, ensure_ascii=False), encoding="utf-8")
+    marks = rl.load_marks(f)
+    assert rl.truth_of(_cell(3, "gpt", "FAIL"), marks[("gpt", 3, 1, "J1-4.b")]) == "PASS"      # 틀림 → 반대
+    assert rl.truth_of(_cell(4, "gpt", "PASS"), marks[("gpt", 4, 1, "J1-4.b")]) == "PASS"      # 맞음 → 그대로
+    assert rl.truth_of(_cell(5, "gpt", "PASS"), marks[("gpt", 5, 1, "J1-4.b")]) is None        # 애매 → 정답 없음
+    assert rl.truth_of(_cell(1, "aiona", "PASS"), marks[("aiona", 1, 1, "J1-4.b")]) == "FAIL"  # 사람 판정 파일
+
+
+def test_apply_proposal_prompt_jev_and_checklist(tmp_path: Path):
+    prompt = tmp_path / "p.txt"
+    prompt.write_text("# 원칙\n- **J1-4.b** · 본문에서 같은 내용이 두 번\n  · 적용: 모든 질문\n", encoding="utf-8")
+    jev = tmp_path / "j.json"
+    jev.write_text(json.dumps({"items": {"J1-4.b": {"instructions": "[J1-4.b] 반복 없음 — 같은 내용이 두 번", "criteria": {"FAIL": "아니오 — 같은 내용이 두 번"}}}}), encoding="utf-8")
+    chk = tmp_path / "c.json"
+    chk.write_text(json.dumps({"questions": {"2": {"turns": [{"turn": 2, "checks": ["사실 하나"], "decided": []}]}}}), encoding="utf-8")
+    out = rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "같은 내용이 두 번", "new": "같은 내용이 새 정보 없이 두 번"}]}, tmp_path / "w1", prompt, jev, chk)
+    assert "새 정보 없이" in Path(out["prompt"]).read_text(encoding="utf-8") and out["jev_questions"] == jev
+    out = rl.apply_proposal({"target": "1차 항목 정의", "edits": [{"item": "J1-4.b", "append": "반복 아님: 표와 그 풀이"}]}, tmp_path / "w2", prompt, jev, chk)
+    got = json.loads(Path(out["jev_questions"]).read_text(encoding="utf-8"))["items"]["J1-4.b"]
+    assert got["instructions"].endswith("/ 반복 아님: 표와 그 풀이")
+    out = rl.apply_proposal({"target": "1차 항목 정의", "edits": [{"item": "J1-4.b", "old": "같은 내용이 두 번", "new": "같은 내용이 새 정보 없이 두 번"}]}, tmp_path / "w3", prompt, jev, chk)
+    got = json.loads(Path(out["jev_questions"]).read_text(encoding="utf-8"))["items"]["J1-4.b"]
+    assert "새 정보 없이" in got["instructions"] and "새 정보 없이" in got["criteria"]["FAIL"]   # 기준 글도 함께
+    out = rl.apply_proposal({"target": "확인 목록", "edits": [{"question": 2, "turn": 2, "add_decided": "번호가 없어도 인용"}]}, tmp_path / "w4", prompt, jev, chk)
+    t = json.loads(Path(out["turn_checklists"]).read_text(encoding="utf-8"))["questions"]["2"]["turns"][0]
+    assert t["decided"] == ["번호가 없어도 인용"] and t["checks"] == ["사실 하나"]
+    with pytest.raises(rl.EditError):   # 확인할 것에는 판정 지시를 못 쓴다
+        rl.apply_proposal({"target": "확인 목록", "edits": [{"question": 2, "turn": 2, "add_check": "번호 없으면 FAIL"}]}, tmp_path / "w5", prompt, jev, chk)
+    with pytest.raises(rl.EditError):   # old 가 없거나 여러 번이면 거부
+        rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "없는 글", "new": "x"}]}, tmp_path / "w6", prompt, jev, chk)
+    with pytest.raises(rl.EditError):
+        rl.apply_proposal({"target": "기준 문서", "edits": []}, tmp_path / "w7", prompt, jev, chk)
+
+
+def _probe(decisions, firsts=None, calls=1, secs=10.0):
+    out = {}
+    for (p, q, t, i), d in decisions.items():
+        out[(p, q, t, i)] = {"decision": d, "first": (firsts or {}).get((p, q, t, i), d), "codex": None, "reason": f"{i} 사유", "flagged": ""}
+        out[(p, q, 0, "_line")] = {"verdict": "PASS", "codex_calls": calls, "codex_seconds": secs, "seconds": secs, "codex_in": 1000}
+    return out
+
+
+def test_score_and_adoption_with_truth_and_without():
+    cases = [{**_cell(1, "gpt", "FAIL"), "truth": "PASS"}, {**_cell(2, "gpt", "FAIL"), "truth": "FAIL"}, {**_cell(3, "gpt", "PASS"), "truth": "PASS"}, _cell(4, "gpt", "PASS")]
+    K = lambda q: ("gpt", q, 1, "J1-4.b")
+    base1 = _probe({K(1): "FAIL", K(2): "FAIL", K(3): "PASS", K(4): "PASS", ("gpt", 1, 1, "J2-3.a"): "PASS"})
+    base2 = _probe({K(1): "PASS", K(2): "FAIL", K(3): "PASS", K(4): "PASS", ("gpt", 1, 1, "J2-3.a"): "PASS"})   # 1번 칸이 회차마다 뒤집힘
+    base = rl.score_label(cases, [base1, base2], None)
+    assert base["accuracy"] == pytest.approx(2 / 3) and base["truth_n"] == 3 and base["flips"] == 1 and base["n"] == 4
+    better1 = _probe({K(1): "PASS", K(2): "FAIL", K(3): "PASS", K(4): "PASS", ("gpt", 1, 1, "J2-3.a"): "PASS"})
+    better = rl.score_label(cases, [better1, better1], base1)
+    assert better["accuracy"] == 1.0 and better["flips"] == 0 and len(better["changed_vs_base"]) == 1 and better["side_effect"] == 0.0
+    assert rl.adoption(base, better)[0] == "채택"
+    harm1 = _probe({K(1): "PASS", K(2): "FAIL", K(3): "PASS", K(4): "PASS", ("gpt", 1, 1, "J2-3.a"): "FAIL"})   # 다른 항목이 바뀜
+    harm = rl.score_label(cases, [harm1], base1)
+    assert harm["side_effect"] == 1.0 and rl.adoption(base, harm)[0] == "기각"
+    # 사람 표시 없음 → 1차 ↔ 최종 갈림이 줄면 '사람 확인 필요'
+    cases2 = [_cell(1, "gpt", "FAIL"), _cell(2, "gpt", "PASS")]
+    b = rl.score_label(cases2, [_probe({K(1): "FAIL", K(2): "PASS"}, firsts={K(1): "PASS"})], None)
+    n = rl.score_label(cases2, [_probe({K(1): "PASS", K(2): "PASS"})], _probe({K(1): "FAIL", K(2): "PASS"}, firsts={K(1): "PASS"}))
+    assert b["first_final_split"] == 1 and n["first_final_split"] == 0 and rl.adoption(b, n)[0] == "사람 확인 필요"
+    assert rl.adoption(b, {"error": "적용 불가"})[0] == "기각"
+
+
+def test_append_lesson_creates_section_once(tmp_path: Path):
+    doc = tmp_path / "v2.md"
+    doc.write_text("# 기준\n\n## 11. 바뀐 규칙\n\n| a |\n", encoding="utf-8")
+    lesson = {"at": "2026-10-25T12:00:00+00:00", "item": "J1-4.b", "adoption": {"P1": {"판단": "채택", "이유": "정답률 ↑"}},
+              "cue": "표 뒤 요약", "lesson": "요구된 구성은 반복 아님", "evidence": "#3 · #5", "confidence": "높음"}
+    rl.append_lesson(lesson, doc)
+    rl.append_lesson({**lesson, "item": "J2-3.a", "adoption": {}}, doc)
+    text = doc.read_text(encoding="utf-8")
+    assert text.count(rl.LESSON_HEADING) == 1 and text.count("| 2026-10-25 |") == 2 and "P1 채택" in text and "안 없음" in text
+
+
+def test_prompt_block_and_doc_row_read_real_files():
+    block = rl.prompt_block("J1-4.b")
+    assert block.startswith("- **J1-4.b**") and "적용" in block
+    assert rl.doc_row("J1-4.b").startswith("| **J1-4.b**")
+    assert "[J1-4.b]" in rl.first_judge_definition("J1-4.b")
+    assert "지켜야 할 원칙" in rl.principles()
+
+
+def test_proposal_schema_is_strict_and_lists_targets():
+    s = rl.proposal_schema()
+    assert s["additionalProperties"] is False and set(s["required"]) == {"keep_base", "notes", "proposals"}
+    prop = s["properties"]["proposals"]["items"]
+    assert set(prop["required"]) == set(prop["properties"]) and set(prop["properties"]["target"]["enum"]) == set(rl.TARGETS)
+    edit = prop["properties"]["edits"]["items"]
+    assert set(edit["required"]) == set(edit["properties"])

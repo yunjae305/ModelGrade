@@ -181,8 +181,10 @@ def cmd_judge(args: argparse.Namespace) -> int:
     rows = jv.flatten(groups)
     prompt = jv.PROMPT_V4.read_text(encoding="utf-8")
     fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
-    base = ROOT / "data" / "judge_runs" / args.run / BASE_OUT
-    out = ROOT / "data" / "judge_runs" / args.run / OUT
+    base = ROOT / "data" / "judge_runs" / args.run / args.base
+    out = ROOT / "data" / "judge_runs" / args.run / args.out
+    if not (base / "results.jsonl").exists():
+        raise SystemExit(f"기준 판정 폴더에 results.jsonl 이 없습니다: {base}")
     for sub in ("inputs", "codex", "jev", "decisions", "codex_io"):
         (out / sub).mkdir(parents=True, exist_ok=True)
     for f in (base / "decisions").glob("*.json"):   # 1차 심판 결과는 Codex 판정 때 것 그대로 (API 다시 안 부름)
@@ -190,7 +192,8 @@ def cmd_judge(args: argparse.Namespace) -> int:
             shutil.copy2(f, out / "decisions" / f.name)
     jv._LOG["path"] = str(out / "run.log")
     jv.say = jv.log_say
-    gpt = ClaudeJudge(find_claude(), calls_log=out / "claude_calls.jsonl")
+    gpt = ClaudeJudge(find_claude(), model=args.model, effort=args.effort, calls_log=out / "claude_calls.jsonl")
+    (out / "compare_base.json").write_text(json.dumps({"base": args.base, "model": args.model, "effort": args.effort}, ensure_ascii=False), encoding="utf-8")   # compare · publish 가 같은 기준 폴더를 쓰게
     gpt.files_dir, gpt.io_dir = set_dir / "files", out / "codex_io"
     base_lines = latest_lines(base / "results.jsonl")
     done = {k for k, l in latest_lines(out / "results.jsonl").items() if not l.get("judge_error") and l.get("status") != "error"}
@@ -237,8 +240,12 @@ def cmd_judge(args: argparse.Namespace) -> int:
         f.write(json.dumps({"kind": "judge-claude", "questions": qs, "seconds": round(time.monotonic() - t0, 1),
                             "at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False) + "\n")
     jv.say(f"묶음 끝 — 벽시계 {(time.monotonic() - t0) / 60:.0f}분")
+    if args.no_publish:   # 비교표만 판정 폴더에 (결과 폴더는 안 만듦 — 실험 · 부분 비교)
+        compare_core(args.run, args.base, args.out)
+        jv.say(f"비교표: {out / '비교.md'}")
+        return 0
     try:   # 묶음이 끝날 때마다 결과 폴더(참고자료/결과/<처음 시작 시각>/) 갱신 — 판정은 이미 저장됐으니 여기서 막혀도 다음 묶음은 그대로
-        jv.say(f"결과 폴더 갱신: {publish(args.run, run)}")
+        jv.say(f"결과 폴더 갱신: {publish(args.run, run, args.base, args.out)}")
     except Exception as exc:
         jv.say(f"⚠ 결과 폴더 갱신 실패: {type(exc).__name__}: {str(exc)[:200]}")
     return 0
@@ -248,7 +255,8 @@ def cmd_judge(args: argparse.Namespace) -> int:
 POINTER = "result_dir.json"   # 판정 폴더에 적어 두는 결과 폴더 이름 — 이어 돌려도 처음 시각 폴더 그대로
 
 
-def ensure_result_dir(out: Path, run_id: str, base: Optional[Path] = None, started: Optional[datetime] = None) -> Path:
+def ensure_result_dir(out: Path, run_id: str, base: Optional[Path] = None, started: Optional[datetime] = None,
+                      base_out: str = BASE_OUT, out_name: str = OUT) -> Path:
     """이 비교의 결과 폴더 = 참고자료/결과/<처음 시작 시각, ms 까지>/ (사용자 10-22 결과 폴더 양식).
     시각은 판정 폴더를 처음 만든 때(첫 판정 명령을 시작한 때). run.json 에는 run_id 대신 compare_of 를 적는다 —
     result_dirs.find(run_id) 가 본 결과 폴더 대신 이 비교 폴더를 잡지 않게(결과 요약 빌더 · modelgrade report 가 실행 ID 로 찾음)."""
@@ -262,19 +270,19 @@ def ensure_result_dir(out: Path, run_id: str, base: Optional[Path] = None, start
         ptr.write_text(json.dumps({"name": name}, ensure_ascii=False), encoding="utf-8")
     d = base / name
     d.mkdir(parents=True, exist_ok=True)
-    meta = {"version": VERSION, "kind": "judge-compare", "compare_of": run_id, "judge_out": OUT, "base_out": BASE_OUT, "started": name,
+    meta = {"version": VERSION, "kind": "judge-compare", "compare_of": run_id, "judge_out": out_name, "base_out": base_out, "started": name,
             "name": "Codex ↔ Claude CLI 판정 비교 (10-22 미팅 4번)", "question_set": {"set_id": SET_ID},
             "judge2": {"engine": "claude_cli", "model": MODEL, "effort": EFFORT}, "base_judge2": {"engine": "codex_cli", "model": "gpt-6-luna", "effort": "low"}}
     (d / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     return d
 
 
-def publish(run_id: str, run: Optional[Dict[str, Any]] = None) -> Path:
+def publish(run_id: str, run: Optional[Dict[str, Any]] = None, base_out: str = BASE_OUT, out_name: str = OUT) -> Path:
     """결과 폴더에 모은다: run.json · results.jsonl · summary.json · 판정보고서.html/.md(tools/report_html — Codex 자리가 Claude CLI) ·
     비교.md/비교.json · report.html(비교 결과 화면)."""
     from tools import report_html, result_dirs
-    out = ROOT / "data" / "judge_runs" / run_id / OUT
-    rd = ensure_result_dir(out, run_id)
+    out = ROOT / "data" / "judge_runs" / run_id / out_name
+    rd = ensure_result_dir(out, run_id, base_out=base_out, out_name=out_name)
     lines = list(latest_lines(out / "results.jsonl").values())
     summary = {"version": jv.VERSION, "compare": VERSION, "run_id": run_id, "prompt": jv.PROMPT_V4.name,
                "judge2": {"engine": "claude_cli", "model": MODEL, "effort": EFFORT}, "finished_at": datetime.now(timezone.utc).isoformat(),
@@ -286,7 +294,7 @@ def publish(run_id: str, run: Optional[Dict[str, Any]] = None) -> Path:
         run = json.loads((ROOT / "data" / "comparison_runs" / f"{run_id}.json").read_text(encoding="utf-8"))
     report_html.write_report(out, run, find_set_dir(run))   # 판정 보고서 — 결과 폴더에서는 판정보고서.html
     result_dirs.publish(out, rd)
-    res, _md = compare_core(run_id)
+    res, _md = compare_core(run_id, base_out, out_name)
     for f in ("비교.md", "비교.json"):
         shutil.copy2(out / f, rd / f)
     (rd / result_dirs.REPORT).write_text(render_html(res, rd.name), encoding="utf-8")
@@ -316,10 +324,12 @@ def first_codex_stats(path: Path) -> Dict[Tuple[str, int], Dict[str, Any]]:
     return got
 
 
-def compare_core(run_id: str) -> Tuple[Dict[str, Any], List[str]]:
-    """Codex 판정(v4)과 Claude CLI 판정의 최신 줄을 맞춰 본다 — 비교.json · 비교.md 를 판정 폴더에 쓰고 (결과, 마크다운 줄)을 돌려준다."""
-    base_dir = ROOT / "data" / "judge_runs" / run_id / BASE_OUT
-    out = ROOT / "data" / "judge_runs" / run_id / OUT
+def compare_core(run_id: str, base_out: str = BASE_OUT, out_name: str = OUT) -> Tuple[Dict[str, Any], List[str]]:
+    """Codex 판정(base_out)과 Claude CLI 판정(out_name)의 최신 줄을 맞춰 본다 — 비교.json · 비교.md 를 판정 폴더에 쓰고 (결과, 마크다운 줄)을 돌려준다."""
+    base_dir = ROOT / "data" / "judge_runs" / run_id / base_out
+    out = ROOT / "data" / "judge_runs" / run_id / out_name
+    cfg = json.loads((out / "compare_base.json").read_text(encoding="utf-8")) if (out / "compare_base.json").exists() else {}
+    model, effort = cfg.get("model") or MODEL, cfg.get("effort") or EFFORT
     A, B = latest_lines(base_dir / "results.jsonl"), latest_lines(out / "results.jsonl")
     keys = sorted(set(A) & set(B), key=lambda k: (list(LABEL).index(k[0]), k[1]))
     providers = [p for p in LABEL if any(k[0] == p for k in keys)]
@@ -371,7 +381,7 @@ def compare_core(run_id: str) -> Tuple[Dict[str, Any], List[str]]:
             ctok[p]["output_tokens"] += c.get("output_tokens") or 0
     cl_secs = {p: sum(((B[(p, q)].get("calls") or {}).get("codex") or {}).get("seconds") or 0 for q in qs if (p, q) in B) for p in providers}
     flips = [d for d in diffs if "PASS" in (d["codex"], d["claude"])]   # 통과 여부가 다른 칸 (보류 ↔ FAIL 은 둘 다 통과 아님)
-    res = {"version": VERSION, "run": run_id, "model": MODEL, "effort": EFFORT, "questions": len(qs), "providers": providers,
+    res = {"version": VERSION, "run": run_id, "model": model, "effort": effort, "base": base_out, "out": out_name, "questions": len(qs), "providers": providers,
            "diff_per_model": per, "n_per_model": n_of, "cells": len(keys), "diff_cells": len(diffs),
            "pass_flip_per_model": {p: sum(1 for d in flips if d["provider"] == p) for p in providers}, "pass_flip_cells": len(flips),
            "pass_flip_questions_any_model": sorted({d["question"] for d in flips}), "diff_questions_any_model": any_q, "diffs": diffs,
@@ -382,9 +392,9 @@ def compare_core(run_id: str) -> Tuple[Dict[str, Any], List[str]]:
            "codex_first_calls": {p: dict(c) for p, c in ctok.items()}}
     (out / "비교.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     n = len(qs)
-    L = [f"# Codex vs Claude CLI 판정 비교 — 실행 {run_id}",
+    L = [f"# Codex vs Claude CLI 판정 비교 — 실행 {run_id} · 기준 `{base_out}` ↔ `{out_name}`",
          "",
-         f"- 2차 심판: Codex gpt-6-luna · low ↔ Claude CLI {MODEL} · effort {EFFORT} (1차 결과 · 걸린 항목 · 프롬프트 같음)",
+         f"- 2차 심판: Codex gpt-6-luna · low ↔ Claude CLI {model} · effort {effort} (1차 결과 · 걸린 항목 · 프롬프트 같음)",
          f"- 질문 {n}개 × 모델 {len(providers)}개 = {len(keys)}칸",
          "",
          "## 질문 판정이 다른 수",
@@ -422,8 +432,12 @@ def compare_core(run_id: str) -> Tuple[Dict[str, Any], List[str]]:
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
-    rd = publish(args.run)
-    print((ROOT / "data" / "judge_runs" / args.run / OUT / "비교.md").read_text(encoding="utf-8"))
+    if args.no_publish:
+        _res, md = compare_core(args.run, args.base, args.out)
+        print(chr(10).join(md))
+        return 0
+    rd = publish(args.run, None, args.base, args.out)
+    print((ROOT / "data" / "judge_runs" / args.run / args.out / "비교.md").read_text(encoding="utf-8"))
     print(f"결과 폴더: {rd}")
     return 0
 
@@ -510,8 +524,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     j.add_argument("--run", default=RUN)
     j.add_argument("--questions", required=True, help="질문 번호 쉼표 목록 — 한 번에 10~20개")
     j.add_argument("--providers", default="gpt,claude,gemini,aiona")
-    c = sub.add_parser("compare", help="Codex 판정(v4)과 비교")
+    j.add_argument("--model", default=MODEL)
+    j.add_argument("--effort", default=EFFORT)
+    c = sub.add_parser("compare", help="Codex 판정(기준 폴더)과 비교")
     c.add_argument("--run", default=RUN)
+    for sp in (j, c):
+        sp.add_argument("--base", default=BASE_OUT, help="비교 기준이 되는 Codex 판정 폴더 이름 (1차 심판 결과 · 걸린 항목을 여기서 가져옴)")
+        sp.add_argument("--out", default=OUT, help="Claude CLI 판정을 쓸 폴더 이름")
+        sp.add_argument("--no-publish", action="store_true", help="참고자료/결과 에 결과 폴더를 만들지 않고 비교표만 판정 폴더에")
     a = ap.parse_args(argv)
     if a.cmd == "judge":
         n = len([x for x in a.questions.split(",") if x.strip()])

@@ -34,6 +34,8 @@ py -3 -X utf8 tools/modelgrade.py start          # 1 간단 78 — 네 모델 �
 | 전후 비교 · 새 결과 폴더 발행 | `py -3 -X utf8 tools/judge_compare_runs.py publish --run <실행> --before <전> --after <후> --name "…"` |
 | 판정 토큰(질문 × 모델 × 심판 · 질문 합계 · 전체) | `py -3 -X utf8 tools/judge_token_report.py --results <results.jsonl> --set 참고자료/질문세트_78 --out 토큰기록.md --html-dir <결과 폴더>` |
 | 기준 하나 다시 판정 · 다수결(Codex · Claude CLI) | `tools/judge_item_rerun.py` · `tools/judge_claude_compare.py` |
+| 2차 심판 비교(Codex ↔ Claude CLI, 같은 1차 결과) | `py -3 -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더> [--no-publish]` → `compare` |
+| 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `py -3 -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--types 싱글 --marks 표시결과.json --apply]` |
 | 심판 표시용 표(FAIL 60 · 통과 40 사람 표시) | `py -3 -X utf8 tools/build_calibration_sheet.py --run <실행> --out <판정 폴더>` |
 | 판정 프롬프트 변경 원문 페이지 | `py -3 -X utf8 tools/build_prompt_diff_page.py` |
 

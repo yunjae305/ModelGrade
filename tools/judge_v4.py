@@ -324,10 +324,10 @@ def turn_sha(questions: List[str]) -> str:
     return hashlib.sha1("\n\u241e\n".join(questions).encode("utf-8")).hexdigest()[:16]
 
 
-def load_turn_plan(set_dir: Path, groups: List[Dict[str, Any]]) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
+def load_turn_plan(set_dir: Path, groups: List[Dict[str, Any]], path: Optional[Path] = None) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
     """턴별 확인 목록 → ({(질문, 턴): 목록}, 쓰지 않은 턴 설명). 목록의 question_sha(그 턴까지의 질문 원문 지문)가 질문 세트와 다르면 쓰지 않는다 —
     그 턴이나 앞 턴의 질문 · 붙인 자료를 다시 만든 뒤의 낡은 목록(앞 턴이 바뀌면 뒤 턴도 함께 낡음, Codex 검토 10-22)."""
-    p = set_dir / "multiturn_v3" / "turn_checklists.json"
+    p = Path(path) if path else set_dir / "multiturn_v3" / "turn_checklists.json"
     if not p.exists():
         return {}, []
     data = json.loads(p.read_text(encoding="utf-8"))
@@ -388,13 +388,31 @@ def question_targets(groups: List[Dict[str, Any]]) -> Dict[int, set]:
         if items:
             out[int(g["id"])] = items
     return out
-def init_question_set(set_dir: Path, groups: List[Dict[str, Any]]) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
+def judge_input_files(prompt: Optional[str], jev_questions: Optional[str], turn_checklists: Optional[str], set_dir: Path) -> Dict[str, Path]:
+    """판정이 읽는 세 입력 파일 — 기본값 또는 기준 다듬기 루프가 준 임시 파일(--prompt · --jev-questions · --turn-checklists). 없는 파일은 바로 알린다."""
+    files = {"prompt": Path(prompt) if prompt else PROMPT_V4, "jev_questions": Path(jev_questions) if jev_questions else JEV_V4,
+             "turn_checklists": Path(turn_checklists) if turn_checklists else set_dir / "multiturn_v3" / "turn_checklists.json"}
+    for k in ("prompt", "jev_questions"):
+        if not files[k].is_file():
+            raise SystemExit(f"판정 입력 파일이 없습니다 ({k}): {files[k]}")
+    return files
+
+
+def input_fingerprints(files: Dict[str, Path]) -> Dict[str, Any]:
+    """summary.json 에 남기는 입력 파일 경로 · 내용 지문 — 어느 프롬프트 · 항목 정의 · 확인 목록으로 판정했는지 뒤에 알 수 있게 (10-25 밤)."""
+    out: Dict[str, Any] = {}
+    for k, p in files.items():
+        out[k] = {"file": str(p), "sha": hashlib.sha1(p.read_bytes()).hexdigest()[:12] if p.is_file() else None}
+    return out
+
+
+def init_question_set(set_dir: Path, groups: List[Dict[str, Any]], turn_checklists: Optional[Path] = None) -> Tuple[Dict[Tuple[int, int], Dict[str, Any]], List[str]]:
     """질문 세트로 판정 준비 — 질문별 목표(QUESTION_TARGETS) · 턴별 확인 목록(TURN_PLAN) · 첨부 원본 폴더(FILES_DIR).
     판정(screen_one)을 부르는 모든 도구가 이 함수를 써서 같은 목표 · 확인 목록 · 지문을 쓴다 (Codex 검토 10-22). 돌려주는 값: (턴별 목록, 낡은 턴)."""
     global FILES_DIR
     QUESTION_TARGETS.clear()
     QUESTION_TARGETS.update(question_targets(groups))   # 질문별 목표 기준 (10-21 저녁)
-    plan, stale = load_turn_plan(set_dir, groups)   # 멀티턴 턴별 목표 기준 · 확인 목록 (10-22)
+    plan, stale = load_turn_plan(set_dir, groups, turn_checklists)   # 멀티턴 턴별 목표 기준 · 확인 목록 (10-22)
     TURN_PLAN.clear()
     TURN_PLAN.update(plan)
     FILES_DIR = set_dir / "files"   # 심판 입력 지문에 첨부 원본 내용을 넣을 때 (10-22)
@@ -2091,6 +2109,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--redo", action="store_true", help="--questions 로 고른 질문은 이미 판정했어도 처음부터 다시 판정한다(새 줄을 덧붙임, 보고서는 마지막 줄을 씀)")
     ap.add_argument("--reask-fail", default="", help="쉼표로 나눈 항목 — Codex 가 FAIL 로 본 그 항목을 정의의 예외를 짚어 한 번 다시 묻는다(J1-4.a · J1-4.b 는 기본, 여기에 더함)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
+    # 기준 다듬기 루프(tools/refine_loop.py)의 시험용 — 고칠 안을 적용한 임시 파일로 같은 칸을 다시 판정한다 (10-25 밤, harness2 의 제안 → 시험 흐름)
+    ap.add_argument("--prompt", help="판정 프롬프트 파일 — 기본 참고자료/프롬프트/judge_prompt_v4.txt")
+    ap.add_argument("--jev-questions", help="1차 심판 항목 정의(J1~J4) JSON — 기본 참고자료/프롬프트/jev_questions_v4.json")
+    ap.add_argument("--turn-checklists", help="멀티턴 턴별 확인 목록 JSON — 기본 <세트>/multiturn_v3/turn_checklists.json")
     args = ap.parse_args(argv)
     if args.votes:
         global FIRST_JUDGE_VOTES
@@ -2109,12 +2131,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
-    plan, stale = init_question_set(set_dir, groups)   # 질문별 목표 · 턴별 확인 목록 · 첨부 원본 폴더 (10-22)
+    inputs = judge_input_files(args.prompt, args.jev_questions, args.turn_checklists, set_dir)
+    plan, stale = init_question_set(set_dir, groups, inputs["turn_checklists"])   # 질문별 목표 · 턴별 확인 목록 · 첨부 원본 폴더 (10-22)
     if plan or stale:   # 모두 낡아도 알린다 (Codex 검토 10-22)
         say(f"📋 턴별 확인 목록 {len(plan)}턴" + (f" — 질문과 맞지 않아 안 쓴 턴 {len(stale)}개: {', '.join(stale[:10])}" if stale else ""))
+    if any((args.prompt, args.jev_questions, args.turn_checklists)):
+        say("🧪 시험용 입력 파일 — " + " · ".join(f"{k} {v.name}" for k, v in inputs.items()))
     rows = flatten(groups)
-    prompt = PROMPT_V4.read_text(encoding="utf-8")
-    fixed = json.loads(JEV_V4.read_text(encoding="utf-8"))
+    prompt = inputs["prompt"].read_text(encoding="utf-8")
+    fixed = json.loads(inputs["jev_questions"].read_text(encoding="utf-8"))
     out = ROOT / "data" / "judge_runs" / args.run / args.out
     # 판정 방식은 하나(선별: Decisions 가 항목 전부 판정 → 걸린 항목만 Codex 확인) — 모드 선택 없음 (사용자 결정 2026-10-20 밤)
     for sub in ("inputs", "codex", "jev", "decisions"):
@@ -2281,7 +2306,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                   if str(r.get("kind") or "").startswith("judge") and not r.get("redo"))
     summary = {"version": VERSION, "run_id": args.run, "prompt": PROMPT_V4.name, "jev_questions": fixed.get("version"),
                "codex": {"model": getattr(gpt, "model", None), "reasoning": getattr(gpt, "reasoning", None)} if gpt is not None else None,
-               "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": round(judge_s, 1), "models": {}}   # 폴더 전체 판정 시간(다시 판정 뺌)
+               "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": round(judge_s, 1), "inputs": input_fingerprints(inputs), "models": {}}   # 폴더 전체 판정 시간(다시 판정 뺌)
     say("\n결과 — 질문 단위 (보류는 사람이 정함)")
     for p in queues:
         mine = [l for l in lines if l["provider"] == p and int(l["question"]) in set(queues[p])]
