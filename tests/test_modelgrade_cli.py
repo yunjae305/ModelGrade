@@ -354,3 +354,27 @@ def test_result_dir_keeps_judge_report_apart_and_collection_logs(tmp_path):
     assert not (dest / "report.html").exists()
     assert result_dirs.publish_collection(logs, dest) == ["collect-1-gpt.log", "gpt-recheck.jsonl"]
     assert (dest / "수집기록" / "collect-1-gpt.log").read_text(encoding="utf-8") == "수집"
+
+
+def test_code_eval_recomputes_with_current_engine_and_keeps_backup(tmp_path, monkeypatch, capsys):
+    """modelgrade code-eval: 실행 JSON 의 CODE 평가를 지금 엔진으로 다시 계산(심판 호출 없음), 이전 파일은 .bak 으로 (10-25 밤)."""
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
+    assert mg.main(["collect", "import", "--provider", "claude", "--csv", str(_csv(tmp_path)), "--set", str(_set(tmp_path)), "--new", "시험"]) == 0
+    run_path = _runs(tmp_path)[0]
+    run = json.loads(run_path.read_text(encoding="utf-8"))
+    run["evaluations"]["claude"]["versions"]["engine"] = "aiona-code-eval-v0.0.0"   # 옛 엔진의 결과인 것처럼
+    for c in run["evaluations"]["claude"]["cases"]:
+        for r in c["results"]:
+            if r["check_id"] == "1-1.response_nonempty":
+                r["verdict"] = "FAIL"
+    run_path.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
+    capsys.readouterr()
+    assert mg.main(["code-eval", "--run", run["run_id"]]) == 0
+    out = capsys.readouterr().out
+    new = json.loads(run_path.read_text(encoding="utf-8"))
+    assert new["evaluations"]["claude"]["versions"]["engine"] != "aiona-code-eval-v0.0.0"
+    assert new["code_reevals"][0]["providers"]["claude"]["engine_before"] == "aiona-code-eval-v0.0.0"
+    assert new["code_reevals"][0]["providers"]["claude"]["changed"] >= 1 and "바뀐 검사 결과" in out and "--recode" in out
+    assert list((tmp_path / "runs").glob("*.json.bak-*"))
+

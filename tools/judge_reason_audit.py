@@ -94,6 +94,11 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
     assumed: List[Dict[str, Any]] = []
     holds: Counter = Counter()
     hold_cells: List[Dict[str, Any]] = []
+    na_rule: List[Dict[str, Any]] = []   # ⑦ 해당 없음의 사유가 규칙 밖 — 대상 아닌 규칙 · 조건이 거짓인 규칙 · 제 판정을 PASS/FAIL 로 말함 (10-25 밤)
+    try:
+        from tools import judge_v4 as _jv
+    except Exception:   # pragma: no cover
+        _jv = None
     flip: Dict[str, Counter] = defaultdict(Counter)   # 항목 → {1차 FAIL→최종 PASS, 1차 PASS→최종 FAIL}
     by_turn: Dict[Tuple[int, int, str], Dict[str, str]] = defaultdict(dict)   # (질문, 턴, 항목) → {모델: 판정}
     n_cells = n_fail = 0
@@ -108,6 +113,8 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
         for tn, t in (x.get("turn_results") or {}).items():
             items = {i: it for i, it in (t.get("items") or {}).items() if isinstance(it, dict)}
             fails = []
+            decisions = {i: it.get("decision") for i, it in items.items()}
+            error_turn = "에러 케이스 턴" in str((items.get("J1-1.a") or {}).get("how") or "")   # 에러 케이스 턴은 프로그램이 전부 해당 없음으로 — NA 사유 점검 대상 아님
             for iid, it in items.items():
                 d = it.get("decision")
                 n_cells += 1
@@ -119,6 +126,13 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
                     k = hold_kind(it)
                     holds[k] += 1
                     hold_cells.append({"cell": f"Q{q} {p} T{tn} {iid}", "kind": k, "reason": str(it.get("reason") or "")[:140]})
+                if d == "NOT_APPLICABLE" and _jv is not None and not it.get("override") and not error_turn:
+                    reason = str(it.get("reason") or "")
+                    why = ("규칙의 대상 아님" if _jv.misapplied_rule(iid, reason) else
+                           "규칙의 조건이 이 턴에서 거짓" if _jv.false_premise(reason, decisions, iid) else
+                           "사유는 제 판정을 PASS/FAIL 로 말함" if _jv.reason_contradicts("NOT_APPLICABLE", reason, iid) else None)
+                    if why:
+                        na_rule.append({"cell": f"Q{q} {p} T{tn} {iid}", "why": why, "reason": reason[:150]})
                 if d != "FAIL":
                     continue
                 n_fail += 1
@@ -126,6 +140,8 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
                 fails.append((iid, it))
                 own = OWN.get(iid)
                 for cue, owner in MISROUTE.get(iid, []):
+                    if owner.startswith("인용 지시 해석") and re.search(r"번호", str(it.get("question_quote") or "")):
+                        continue   # 질문이 '출처 번호 · 목록을 맞춰' 달라고 직접 말했으면 번호 표시는 명시 조건 — 정한 판정(번호 필수 아님)의 대상이 아님 (v4-r8-fix AIONA Q8 9턴)
                     if re.search(cue, reason) and not (own and re.search(own, reason)):
                         misroute.append({"cell": f"Q{q} {p} T{tn} {iid}", "owner": owner, "cue": cue, "reason": reason[:170]})
                         break
@@ -150,7 +166,7 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
     mis_by_item = Counter(m["cell"].split()[-1] for m in misroute)
     mis_by_owner = Counter(m["owner"] for m in misroute)
     return {"version": VERSION, "cells": n_cells, "fail_cells": n_fail, "misroute": misroute, "mis_by_item": mis_by_item, "mis_by_owner": mis_by_owner,
-            "double": double, "assumed": assumed, "holds": holds, "hold_cells": hold_cells, "flip": {k: dict(v) for k, v in flip.items()},
+            "double": double, "assumed": assumed, "holds": holds, "hold_cells": hold_cells, "flip": {k: dict(v) for k, v in flip.items()}, "na_rule": na_rule,
             "split": split, "split_cells": split_cells, "top": top}
 
 
@@ -159,6 +175,7 @@ def to_md(res: Dict[str, Any], title: str) -> str:
     L = [f"# 판정 사유 점검 — {title} ({res['version']})", "",
          f"- 항목 칸 {res['cells']:,} · FAIL 칸 {res['fail_cells']} · 보류 칸 {sum(res['holds'].values())}",
          f"- ① 정의 밖 사유 의심 {len(res['misroute'])} · ② 같은 오류 두 번 {len(res['double'])} · ③ 가정에 기댄 FAIL {len(res['assumed'])} · ⑥ 모델 간 갈린 (질문, 턴, 항목) {sum(res['split'].values())}", ""]
+    L += [f"- ⑦ 규칙 밖 해당 없음(NA 사유) {len(res.get('na_rule') or [])}", ""]
     L += ["## ① 정의 밖 사유 — 항목별 · 맡은 항목별", "", "| 항목 | 의심 칸 | → 맡은 항목(단서) |", "|---|---|---|"]
     owners_by_item: Dict[str, Counter] = defaultdict(Counter)
     for m in res["misroute"]:
@@ -190,6 +207,11 @@ def to_md(res: Dict[str, Any], title: str) -> str:
     for iid, c in sorted(res["flip"].items(), key=lambda kv: -sum(kv[1].values()))[:20]:
         L.append(f"| {iid} | {c.get('1차 FAIL→최종 통과', 0)} | {c.get('1차 통과→최종 FAIL', 0)} |")
     L += ["", "## ⑥ 모델 간 갈린 (질문, 턴, 항목) — 항목별 수(정보)", "", "| 항목 | 갈린 수 |", "|---|---|"] + [f"| {k} | {v} |" for k, v in res["split"].most_common(15)]
+    L += ["", "## ⑦ 규칙 밖 해당 없음 — NA 사유 점검 (연결 규칙의 대상 아님 · 규칙의 조건이 그 턴에서 거짓 · 사유가 제 판정을 PASS/FAIL 로 말함)", ""]
+    for m in (res.get("na_rule") or [])[:top * 3]:
+        L.append(f"- {m['cell']} [{m['why']}] {m['reason'].replace(chr(10), ' ')}")
+    if not res.get("na_rule"):
+        L.append("- 없음")
     return "\n".join(L) + "\n"
 
 

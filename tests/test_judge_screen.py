@@ -857,3 +857,80 @@ def test_duplicate_quote_fails_are_reasked_once_with_item_list(tmp_path: Path):
     assert items["J2-2.a"]["decision"] == "FAIL" and items["J2-3.a"]["decision"] == "PASS"
     assert jv.duplicate_quote_items({"turns": [{"turn": 1, "items": [{"id": "J2-2.a", "decision": "FAIL", "answer_quote": quote}, {"id": "J2-3.a", "decision": "FAIL", "answer_quote": "회의는 10시입니다."}]}]},
                                     [{"case_id": "Q1_T1", "question": "q", "turn": 1}], {"Q1_T1": quote}, {1: ["J2-2.a", "J2-3.a"]}) == [(1, "J2-2.a"), (1, "J2-3.a")]
+
+
+def test_false_premise_and_misrule_guard_hold_na_with_wrong_rule():
+    """연결 규칙의 조건이 그 턴에서 거짓이거나(J1-1.a 가 FAIL 이 아닌데 'J1-1.a가 FAIL인 경우'), J1-3 규칙을 다른 항목에 쓴 해당 없음은
+    다시 묻고 남으면 보류(규칙 오적용) — 10-25 밤 AIONA Q6 7턴 9칸."""
+    import tools.judge_v4 as jv
+    decisions = {"J1-1.a": "NOT_APPLICABLE", "J1-3.a": "NOT_APPLICABLE", "J4-3.a": "NOT_APPLICABLE"}
+    why = "J1-1.a가 FAIL인 경우 J4 항목은 해당 없음입니다."
+    assert jv.false_premise(why, decisions)
+    assert not jv.false_premise(why, {**decisions, "J1-1.a": "FAIL"})
+    assert not jv.false_premise(why, {"J4-3.a": "NOT_APPLICABLE"})            # 조건 항목의 판정을 모르면 거짓으로 보지 않음
+    assert not jv.false_premise(why, {**decisions, "J1-1.a": "UNVERIFIED"})   # 조건 항목이 보류여도
+    for w in ("J1-3 모순이 적용되므로 다른 항목은 해당하지 않습니다.", "모순이 있는 질문에서 J1-3이 우선합니다.",
+              "J1-3 상황이므로 수정 유지 항목은 해당하지 않습니다.", "모순이 있는 질문이므로 다른 항목은 해당하지 않습니다."):
+        assert jv.misapplied_rule("J6-3.b", w), w
+        assert not jv.misapplied_rule("J1-1.a", w), w
+    assert jv.false_premise("J1-3이 적용되어 J1-2.a는 NOT_APPLICABLE입니다.", decisions)   # J1-3.a 가 해당 없음이면 J1-3 은 적용된 것이 아님
+    assert not jv.false_premise("J1-3이 적용되어 J1-2.a는 NOT_APPLICABLE입니다.", {**decisions, "J1-3.a": "PASS"})
+    # 조건 항목 자신의 해당 없음 · 규칙을 부정한 말은 규칙을 쓴 것이 아님 (v4-r8 점검: J1-3.b 5칸 · Gemini Q2 1턴 J4-4.a)
+    assert not jv.false_premise("질문에 모순 조건이나 빠진 자료가 없어 J1-3 상황은 적용되지 않습니다.", decisions, "J1-3.b")
+    assert not jv.false_premise("J1-3 상황의 모순·자료 누락이 없어 가능한 범위 결과는 해당하지 않습니다.", decisions, "J1-3.b")
+    assert not jv.false_premise("상황표 2: J1-1.a가 FAIL이면 J4 항목은 NOT_APPLICABLE입니다. 이번 선별 목록에는 J1-1.a가 없어서 이 예외를 적용할 수 없고, 요약 요구가 없습니다.",
+                                {**decisions, "J1-1.a": "PASS"}, "J4-4.a")
+    assert jv.false_premise("J1-2.a가 FAIL인 거절·회피 답변이므로 결과물 품질 항목은 판정하지 않습니다.", {"J1-2.a": "PASS"}, "J2-3.a")   # '판정하지 않습니다'는 규칙을 쓴 말
+    items = {"J1-1.a": {"decision": "NOT_APPLICABLE", "reason": ""}, "J1-3.a": {"decision": "NOT_APPLICABLE", "reason": ""},
+             "J4-3.a": {"decision": "NOT_APPLICABLE", "reason": why},
+             "J6-3.b": {"decision": "NOT_APPLICABLE", "reason": "J1-3 상황이므로 수정 유지 항목은 해당하지 않습니다."},
+             "J1-2.a": {"decision": "NOT_APPLICABLE", "reason": "J1-3이 적용되어 J1-2.a는 NOT_APPLICABLE입니다."},
+             "J2-4.b": {"decision": "NOT_APPLICABLE", "reason": "J2-4.a가 FAIL이므로 해당 없음", "override": "프로그램"},
+             "J6-1.a": {"decision": "PASS", "reason": "존댓말을 지켰습니다."}}
+    jv.misrule_guard(items)
+    assert items["J4-3.a"]["decision"] == "UNVERIFIED" and items["J4-3.a"]["kind"] == "규칙 오적용"
+    assert items["J6-3.b"]["decision"] == "UNVERIFIED" and items["J1-2.a"]["decision"] == "UNVERIFIED"
+    assert items["J2-4.b"]["decision"] == "NOT_APPLICABLE" and items["J6-1.a"]["decision"] == "PASS"   # 프로그램이 건 해당 없음 · 통과는 그대로
+    from tools import report_html as R
+    assert R.hold_kind(items["J4-3.a"]) == "규칙 오적용"
+
+
+def test_reason_contradicts_for_not_applicable_with_own_verdict():
+    """해당 없음인데 사유가 제 판정을 PASS/FAIL 로 말함('J1-3.a는 PASS') — 다른 항목의 판정을 든 말 · 조건 미충족 말은 아님 (10-25 밤)."""
+    import tools.judge_v4 as jv
+    assert jv.reason_contradicts("NOT_APPLICABLE", "답변이 이를 지적해 J1-3.a는 PASS입니다.", "J1-3.a")
+    assert jv.reason_contradicts("NOT_APPLICABLE", "질문의 모순을 밝혔으므로 J1-3.a는 PASS", "J1-3.a")
+    assert not jv.reason_contradicts("NOT_APPLICABLE", "J1-1.a가 FAIL인 경우 J4 항목은 해당 없음입니다.", "J4-3.a")
+    assert not jv.reason_contradicts("NOT_APPLICABLE", "적용 기준을 충족하지 않아 해당 없음입니다.", "J2-4.b")
+    assert not jv.reason_contradicts("NOT_APPLICABLE", "J1-3이 적용되어 J1-2.a는 NOT_APPLICABLE입니다.", "J1-2.a")
+    items = {"J1-3.a": {"decision": "NOT_APPLICABLE", "reason": "답변이 이를 지적해 J1-3.a는 PASS입니다."},
+             "J2-3.a": {"decision": "NOT_APPLICABLE", "reason": "J1-2.a가 FAIL이므로 해당 없음", "override": "거절"}}
+    jv.reason_decision_guard(items)
+    assert items["J1-3.a"]["decision"] == "UNVERIFIED" and items["J1-3.a"]["kind"] == "사유 모순"
+    assert items["J2-3.a"]["decision"] == "NOT_APPLICABLE"
+
+
+def test_recode_marks_error_case_turns_from_current_code_eval(tmp_path: Path):
+    """--recode: 지금 CODE 1-1 이 잡은 에러 케이스 턴(서비스 오류 문구)은 심판을 다시 부르지 않고 J1-1.a 만 FAIL · 나머지 해당 없음 (10-25 밤)."""
+    import json
+    import tools.judge_v4 as jv
+    rows = [{"case_id": "Q6_T1", "question": "q1", "answer": "a1", "conversation_id": "c6", "turn": 1},
+            {"case_id": "Q6_T2", "question": "q2", "answer": "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.", "conversation_id": "c6", "turn": 2}]
+
+    def case(cid, verdict):
+        return {"case_id": cid, "case_status": "EVALUATED", "summary": {"common": {"pass": 1 if verdict == "PASS" else 0, "fail": 1 if verdict == "FAIL" else 0, "unjudged": 0}},
+                "results": [{"check_id": "1-1.response_nonempty", "verdict": verdict, "counted": True, "area": "common", "title": "응답 존재"}]}
+    run = {"evaluations": {"aiona": {"cases": [case("Q6_T1", "PASS"), case("Q6_T2", "FAIL")]}}}
+    line = {"version": jv.VERSION, "provider": "aiona", "question": 6, "status": "judged", "verdict": "FAIL", "semantic": "FAIL", "code_fails": [],
+            "turn_results": {"1": {"items": {"J1-1.a": {"decision": "PASS"}, "J3-1.a": {"decision": "PASS"}}},
+                             "2": {"items": {"J1-1.a": {"decision": "NOT_APPLICABLE", "reason": ""}, "J1-3.a": {"decision": "NOT_APPLICABLE"},
+                                             "J2-3.a": {"decision": "FAIL", "reason": "x"}, "J6-1.a": {"decision": "PASS"}}}}}
+    rp = tmp_path / "results.jsonl"
+    rp.write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
+    assert jv.recode(run, rows, rp, {"aiona"}, {6}) == 0
+    last = json.loads(rp.read_text(encoding="utf-8").splitlines()[-1])
+    t2 = last["turn_results"]["2"]["items"]
+    assert last["recoded"]["error_case_turns"] == [2] and "1-1.response_nonempty" in last["code_fails"]
+    assert t2["J1-1.a"]["decision"] == "FAIL" and t2["J2-3.a"]["decision"] == "NOT_APPLICABLE" and t2["J6-1.a"]["decision"] == "NOT_APPLICABLE"
+    assert last["turn_results"]["1"]["items"]["J1-1.a"]["decision"] == "PASS"   # 다른 턴은 그대로
+

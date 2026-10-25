@@ -822,6 +822,8 @@ _OK_WEAK = re.compile(r"문제(?:가|는)? ?없습니다|어긋나지 ?않|(?:�
 #: 사유의 결론이 FAIL 인 말 — 'FAIL 기준을 충족하지 않' 은 PASS 뜻이라 뺀다
 _FAIL_STRONG = re.compile(r"실제로는 ?FAIL|FAIL ?(?:이어야|여야|입니다|로 ?(?:판정해야|봐야|보아야|정정))|판정은 ?FAIL|이 ?항목은 ?FAIL"
                           r"|(?<!FAIL )(?<!FAIL)기준을 ?충족하지 ?(?:않|못)")
+#: 해당 없음의 사유가 제 판정을 직접 말한 것 — 판정 낱말(PASS · FAIL)을 쓴 말만 ('적용 기준을 충족하지 않아 해당 없음' 같은 말은 아님)
+_NA_VERDICT = re.compile(r"(?:PASS|FAIL) ?(?:여야|이어야|입니다|이다|로 ?(?:판정|봅니다|본다|처리))|판정은 ?(?:PASS|FAIL)|이 ?항목은 ?(?:PASS|FAIL)|실제로는 ?FAIL|(?:PASS|FAIL)(?= ?(?:[.。!)]|$))")
 #: 결론처럼 보여도 결론이 아닌 자리 — 뒤에 부정 · 양보('PASS로 판정할 수 없습니다' · '모순은 없지만' · 'PASS가 아니라'), 앞에 조건('…했다면 FAIL입니다')
 _NEG_TAIL = re.compile(r"수 ?(?:는 ?)?없|하지 ?(?:는 ?)?(?:않|못)|하기 ?(?:는 ?)?어렵|이유(?:는|가)? ?없|아니|아닙|아님|^ ?(?:지만|으나|는데)|^ ?만(?![가-힣])")
 _COND_BEFORE = re.compile(r"면 ?$")
@@ -836,11 +838,20 @@ REFUSAL_NA = frozenset(it.id for it in si.ITEMS if it.id not in ("J1-2.a", "J2-2
 #: (규칙을 든 말, 대상 항목, 조건 항목) — 규칙마다 따로 본다. 조건 항목 자체의 해당 없음('J1-3이 적용되지 않습니다'의 J1-3.a)은 규칙을 쓴 것이 아니다.
 #: 실제 사유 표현: 'J1-2.a가 거절·회피 FAIL이므로' · 'J1-1.a는 FAIL이므로' · 'J1-2.a가 아니오이므로' (Codex 검토 10-22)
 _COND_FAIL = r" ?(?:가|이|는|은)? ?(?:거절 ?· ?회피(?:로)? ?)?(?:FAIL|아니오)"
-LINK_RULES = ((re.compile(r"J1-2\.a" + _COND_FAIL), J4_ITEMS | {"J1-1.a"} | REFUSAL_NA, frozenset({"J1-2.a"})),
-              (re.compile(r"J1-1\.a" + _COND_FAIL), J4_ITEMS, frozenset({"J1-1.a"})),
-              (re.compile(r"J4 ?항목"), J4_ITEMS, frozenset({"J1-1.a", "J1-2.a"})),
-              (re.compile(r"J2-4\.a ?(?:가|이|는|은)? ?(?:FAIL|아니오|해당 ?없음|NOT_APPLICABLE)"), frozenset({"J2-4.b"}), frozenset({"J2-4.a"})),
-              (re.compile(r"J1-3(?:\.[ab])?(?:이|가)? ?적용(?! ?(?:되지|하지|안|않))"), frozenset({"J1-1.a", "J1-2.a"}), frozenset({"J1-3.a", "J1-3.b"})))
+#: 규칙의 조건이 그 턴에서 실제로 성립해야 하는 (조건 항목, 판정) — 하나라도 맞으면 성립. 'J1-1.a가 FAIL이므로 J4 해당 없음'인데 J1-1.a 가 FAIL 이 아니면
+#: 오적용 (10-25 밤 AIONA Q6 7턴: J1-1.a 해당 없음인 턴에서 J4-3.a 를 'J1-1.a가 FAIL인 경우' 로 해당 없음, J1-3.a 해당 없음인데 'J1-3 모순이 적용되므로' 9칸)
+_J13_APPLIED = frozenset({("J1-3.a", "PASS"), ("J1-3.a", "FAIL"), ("J1-3.b", "PASS"), ("J1-3.b", "FAIL")})
+LINK_RULES = ((re.compile(r"J1-2\.a" + _COND_FAIL), J4_ITEMS | {"J1-1.a"} | REFUSAL_NA, frozenset({"J1-2.a"}), frozenset({("J1-2.a", "FAIL")})),
+              (re.compile(r"J1-1\.a" + _COND_FAIL), J4_ITEMS, frozenset({"J1-1.a"}), frozenset({("J1-1.a", "FAIL")})),
+              (re.compile(r"J4 ?항목"), J4_ITEMS, frozenset({"J1-1.a", "J1-2.a"}), frozenset({("J1-1.a", "FAIL"), ("J1-2.a", "FAIL")})),
+              (re.compile(r"J2-4\.a ?(?:가|이|는|은)? ?(?:FAIL|아니오|해당 ?없음|NOT_APPLICABLE)"), frozenset({"J2-4.b"}), frozenset({"J2-4.a"}),
+               frozenset({("J2-4.a", "FAIL"), ("J2-4.a", "NOT_APPLICABLE")})),
+              # J1-3(질문의 모순 · 빠진 자료) 규칙의 대상은 J1-1.a · J1-2.a 뿐 — 'J1-3 모순이 적용되므로' · 'J1-3이 우선' · 'J1-3 상황' · '모순이 있는 질문이므로 다른 항목은'
+              # 같은 말로 J1-4 · J2 · J3 · J5 · J6 을 해당 없음으로 돌린 것 (10-25 밤 AIONA Q6 7턴 9칸 — 상황표 2 는 J1-3.a · J1-3.b 와 나머지 항목을 그대로 판정하라고 함)
+              (re.compile(r"J1-3(?:\.[ab])?(?: ?모순)?(?:이|가|은|는)? ?(?:적용(?! ?(?:되지|하지|안|않))|우선|상황|규칙)"),
+               frozenset({"J1-1.a", "J1-2.a"}), frozenset({"J1-3.a", "J1-3.b"}), _J13_APPLIED),
+              (re.compile(r"(?:모순|빠진 ?자료)(?:이|가) ?있(?:는|어) ?(?:질문|요청)(?:이므로|이라서|이어서|에서는?|이니)"),
+               frozenset({"J1-1.a", "J1-2.a"}), frozenset({"J1-3.a", "J1-3.b"}), _J13_APPLIED))
 #: 규칙을 든 말 바로 뒤의 부정 — 'J1-1.a가 FAIL은 아닙니다'는 규칙을 쓴 것이 아니다
 _RULE_NEGATED = re.compile(r"^ ?(?:은|는|이|가)? ?(?:아니|아닙|아님|아닌)")
 MISRULE_NOTE = ("연결 규칙(상황표 2)은 적힌 대상 항목에만 씁니다 — 'J1-2.a FAIL(거절) → J1-1.a · J4 · 결과물 품질 항목(J2-3 · J2-4 · J2-5 · J3-2~5 · J5-2 · J6-2 · J6-3) 해당 없음', "
@@ -851,9 +862,52 @@ MISRULE_NOTE = ("연결 규칙(상황표 2)은 적힌 대상 항목에만 씁니
 def misapplied_rule(item: str, reason: Any) -> bool:
     """사유가 연결 규칙을 들어 해당 없음이라는데 그 규칙의 대상 항목이 아닌가."""
     r = re.sub(r"\s+", " ", str(reason or ""))
-    hits = [targets | conds for pat, targets, conds in LINK_RULES
+    hits = [targets | conds for pat, targets, conds, _premise in LINK_RULES
             if any(not _RULE_NEGATED.match(r[m.end():m.end() + 8]) for m in pat.finditer(r))]
     return bool(hits) and not all(item in t for t in hits)   # 쓴 규칙 가운데 하나라도 대상이 아니면 — 'J4 항목' 같은 다른 언급이 오적용을 가리지 않게 (Codex 검토 10-22)
+
+
+def _entry_decision(v: Any) -> Optional[str]:
+    """check_gpt 가 모은 한 항목의 판정 — 요소가 여럿이면 FAIL 이 하나라도 있으면 FAIL, 아니면 첫 요소의 판정."""
+    entries = [e for e in ((v or {}).get("entries") or []) if isinstance(e, dict)]
+    if not entries:
+        return None
+    return "FAIL" if any(e.get("decision") == "FAIL" for e in entries) else entries[0].get("decision")
+
+
+#: 규칙을 든 뒤 그 규칙이 성립하지 않는다고 말한 자리 — '모순 · 자료 누락이 없어' · '적용할 수 없' · '성립하지 않' (전제 검사에서 뺀다; '해당하지 않습니다'는 규칙을 쓴 말이라 아님)
+_RULE_DENIED = re.compile(r"적용(?:할 ?수|되지|하지|이|은|는)? ?(?:없|않|못)|성립(?:하지|되지) ?(?:않|못)|(?:모순|자료|누락|조건|상황)[^.。]{0,14}없(?:어|으므로|기 ?때문|습니다|다|고)")
+
+
+def false_premise(reason: Any, decisions: Dict[str, Optional[str]], item: Optional[str] = None) -> bool:
+    """사유가 든 연결 규칙의 조건 항목이 그 턴에서 실제로는 그 판정이 아닌가 — 'J1-1.a가 FAIL이므로 J4 해당 없음'인데 J1-1.a 가 FAIL 이 아님,
+    'J1-3이 적용되므로'인데 J1-3.a · J1-3.b 가 해당 없음 (10-25 밤 AIONA Q6 7턴). 조건 항목의 판정을 모르거나 보류면 거짓으로 보지 않고,
+    조건 항목 자신의 해당 없음('모순이 없어 J1-3 상황은 적용되지 않습니다'의 J1-3.b)과 규칙을 부정한 말은 규칙을 쓴 것이 아니다."""
+    r = re.sub(r"\s+", " ", str(reason or ""))
+    for pat, _targets, conds, premise in LINK_RULES:
+        if item in conds:
+            continue
+        used = [m for m in pat.finditer(r) if not _RULE_NEGATED.match(r[m.end():m.end() + 8]) and not _RULE_DENIED.search(r[m.end():m.end() + 80])]
+        if not used:
+            continue
+        known = [(i, d) for i, d in premise if decisions.get(i) not in (None, "UNVERIFIED")]
+        if known and not any(decisions.get(i) == d for i, d in known):
+            return True
+    return False
+
+
+def misrule_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """다시 물어도 남은 규칙 오적용 — 연결 규칙을 대상 아닌 항목에 쓰거나 규칙의 조건이 그 턴에서 거짓인 해당 없음은 보류(규칙 오적용, 심판 출력 원인).
+    FAIL 을 새로 만들지 않고 사람에게 넘긴다 (10-25 밤 AIONA Q6 7턴: 'J1-3 모순이 적용되므로' 로 9칸 해당 없음)."""
+    decisions = {i: it.get("decision") for i, it in items.items() if isinstance(it, dict)}
+    for iid, it in items.items():
+        if not isinstance(it, dict) or it.get("decision") != "NOT_APPLICABLE" or it.get("override"):
+            continue
+        reason = it.get("reason")
+        if misapplied_rule(iid, reason) or false_premise(reason, decisions, iid):
+            it["decision"] = "UNVERIFIED"
+            it["kind"] = "규칙 오적용"
+            it["how"] = (it.get("how") or "") + " → 연결 규칙을 대상 아닌 항목에 쓰거나 조건이 거짓(규칙 오적용) → 보류"
 
 
 def error_case_turns(turns: List[Dict[str, Any]], code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]]) -> set:
@@ -920,10 +974,15 @@ def duplicate_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dic
 
 
 def misrule_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
-    """Codex 출력에서 연결 규칙을 대상이 아닌 항목에 써서 해당 없음인 (턴, 항목)."""
-    return [(n, i) for n, items in js.check_gpt(output, turns, answers, flagged).items() for i, v in items.items()
-            if any(isinstance(e, dict) and e.get("decision") == "NOT_APPLICABLE" and misapplied_rule(i, e.get("reason"))
-                   for e in (v or {}).get("entries") or [])]
+    """Codex 출력에서 연결 규칙을 대상이 아닌 항목에 쓰거나, 규칙의 조건이 그 턴에서 거짓인데 써서 해당 없음인 (턴, 항목)."""
+    out: List[Tuple[int, str]] = []
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        decisions = {i: _entry_decision(v) for i, v in items.items()}
+        for i, v in items.items():
+            if any(isinstance(e, dict) and e.get("decision") == "NOT_APPLICABLE"
+                   and (misapplied_rule(i, e.get("reason")) or false_premise(e.get("reason"), decisions, i)) for e in (v or {}).get("entries") or []):
+                out.append((n, i))
+    return out
 
 
 #: LLM FAIL 사유에 든 형식 조건 → CODE 검사 가족 — 그 가족을 CODE 가 그 답에서 실제로 쟀으면(대상 없음 아님) 한 번 다시 묻는다 (10-22 밤)
@@ -1068,6 +1127,8 @@ def reason_contradicts(decision: Any, reason: Any, item: Optional[str] = None, s
         pats = [_OK_STRONG] + [p for k, p in _OK_BY_ITEM.items() if base == k] + ([] if strong else [_OK_WEAK])
     elif decision == "PASS":
         pats = [_FAIL_STRONG]
+    elif decision == "NOT_APPLICABLE":
+        pats = [_NA_VERDICT]   # 해당 없음인데 사유는 'J1-3.a는 PASS' (10-25 밤 AIONA Q6 7턴 — 판정 낱말을 직접 쓴 말만)
     else:
         return False
     return any(_says(p, r, base) for p in pats)
@@ -1085,7 +1146,7 @@ def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
     펼친 요소마다 본다 — 대표 사유 하나만 보면 뒤 요소의 모순을 놓친다(Codex 검토 10-22). 사유가 맞는 다른 FAIL 요소가 있으면 FAIL 그대로.
     FAIL 인데 사유가 'PASS여야 · FAIL 없음'(10-21: GPT Q1 4턴 J1-4.a), PASS 인데 '실제로는 FAIL · FAIL이어야'(10-22: Gemini Q2 7턴 J1-3.a)."""
     for iid, it in items.items():
-        if not isinstance(it, dict) or it.get("decision") not in ("FAIL", "PASS", "UNVERIFIED"):
+        if not isinstance(it, dict) or it.get("decision") not in ("FAIL", "PASS", "UNVERIFIED", "NOT_APPLICABLE") or it.get("override"):
             continue
         entries = [e for e in it.get("entries") or [] if isinstance(e, dict)]
         bad = [e for e in entries if reason_contradicts(e.get("decision"), e.get("reason"), iid)]
@@ -1273,6 +1334,7 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
     fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤) — 사유 모순 보류는 풀지 않음
     tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
     honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
+    misrule_guard(items)   # 연결 규칙을 대상 아닌 항목에 쓰거나 조건이 거짓인 해당 없음은 보류 (10-25 밤)
     js.apply_overrides(items)
 
 
@@ -2162,17 +2224,26 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
             code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
             semantic = l.get("semantic") or ("FAIL" if l.get("verdict") == "FAIL" and not l.get("code_fails") else l.get("verdict"))
             tr = l.get("turn_results") or {}
+            marked: List[int] = []
             if tr and not l.get("judge_error"):   # 의미 판정도 지금 규칙으로 다시 계산 (10-21: 보류 우선)
+                code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
+                for n in sorted(error_case_turns(turns, code_measured)):   # 지금 CODE 1-1 이 잡은 에러 케이스 턴(서비스 오류 문구 ④ 등)은 J1-1.a 만 FAIL (10-25 밤)
+                    its = (tr.get(str(n)) or {}).get("items") or {}
+                    before = {i: v.get("decision") for i, v in its.items() if isinstance(v, dict)}
+                    mark_error_case_turn(its)
+                    if any(v.get("decision") != before.get(i) for i, v in its.items() if isinstance(v, dict)):
+                        marked.append(n)
                 semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
             verdict = question_verdict(code_fails, semantic)
-            if code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
+            if not marked and code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
                 continue
-            new = {**l, "code_fails": code_fails, "semantic": semantic, "verdict": verdict,
+            new = {**l, "turn_results": tr, "code_fails": code_fails, "semantic": semantic, "verdict": verdict,
                    "recoded": {"at": datetime.now(timezone.utc).isoformat(), "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict"),
-                               "semantic_before": l.get("semantic")}}
+                               "semantic_before": l.get("semantic"), "error_case_turns": marked}}
             f.write(json.dumps(new, ensure_ascii=False) + "\n")
             changed += 1
-            say(f"↻ Q{q} {p}: CODE FAIL {l.get('code_fails') or '-'} → {code_fails or '-'} · 판정 {l.get('verdict')} → {verdict}")
+            say(f"↻ Q{q} {p}: CODE FAIL {l.get('code_fails') or '-'} → {code_fails or '-'} · 판정 {l.get('verdict')} → {verdict}"
+                + (f" · 에러 케이스 턴 {marked}" if marked else ""))
     say(f"다시 계산 끝 — 바뀐 줄 {changed}개 (심판 호출 없음)")
     sp = results_path.parent / "summary.json"
     if changed and sp.exists():   # summary.json 의 모델별 숫자도 지금 판정으로

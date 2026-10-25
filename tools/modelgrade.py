@@ -854,6 +854,50 @@ def print_judge_times(out_dir: Path) -> None:
         print(f"판정 시간: 총 {_hms(jt['seconds'])} · 판정 {jt['judgments']}건(질문×모델) · 건당 평균 {jt['per_judgment']:.0f}초")
 
 
+def _engine_of(evaluation: Dict[str, Any]) -> str:
+    return str(((evaluation or {}).get("versions") or {}).get("engine") or "?")
+
+
+def _check_verdicts(evaluation: Dict[str, Any]) -> Dict[Tuple[str, str], str]:
+    """{(case_id, check_id): 결과} — 세는(counted) 결과만."""
+    out: Dict[Tuple[str, str], str] = {}
+    for c in (evaluation or {}).get("cases") or []:
+        if not isinstance(c, dict):
+            continue
+        for r in c.get("results") or []:
+            if isinstance(r, dict) and r.get("counted") in (True, "True") and r.get("check_id"):
+                out[(str(c.get("case_id")), str(r["check_id"]))] = str(r.get("verdict") or "")
+    return out
+
+
+def cmd_code_eval(args: argparse.Namespace) -> int:
+    """실행 JSON 의 CODE 평가(28개 검사)를 지금 엔진으로 다시 계산한다 — 심판은 부르지 않는다. 엔진을 올린 뒤 옛 결과로 판정이 이어지지 않게
+    (10-25 밤: 실행에 v16.6.0 결과가 남아 있어 v16.7.1 의 서비스 오류 문구 ④ 턴 3개가 에러 케이스로 안 잡힘). 판정 결과에 반영하려면 judge_v4 --recode."""
+    run = load_run(args.run)
+    providers = [p for p in (args.providers.split(",") if args.providers else run.get("providers") or []) if p]
+    log: Dict[str, Any] = {"at": _now(), "providers": {}}
+    changed_total = 0
+    for p in providers:
+        rows = (run.get("datasets") or {}).get(p) or []
+        if not rows:
+            print(f"{p}: 답변이 없어 건너뜀")
+            continue
+        before = (run.get("evaluations") or {}).get(p) or {}
+        after = code_evaluate(rows, p)
+        bv, av = _check_verdicts(before), _check_verdicts(after)
+        diff = sorted((k, bv.get(k), av.get(k)) for k in set(bv) | set(av) if bv.get(k) != av.get(k))
+        run.setdefault("evaluations", {})[p] = after
+        log["providers"][p] = {"engine_before": _engine_of(before), "engine_after": _engine_of(after), "changed": len(diff)}
+        changed_total += len(diff)
+        print(f"{p}: 엔진 {_engine_of(before)} → {_engine_of(after)} · 바뀐 검사 결과 {len(diff)}개")
+        for (cid, chk), b, a in diff[:args.show]:
+            print(f"   {cid} {chk}: {b or '-'} → {a or '-'}")
+    run.setdefault("code_reevals", []).append(log)
+    path = save_run(run)   # 이전 파일은 .bak-<시각> 으로 남는다
+    print(f"저장: {path} · 바뀐 검사 결과 {changed_total}개 — 판정에 반영: python tools/judge_v4.py --run {args.run} --out <판정 폴더> --recode")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     from tools.report_html import load_results, resolve_run_id
     d = Path(args.dir)
@@ -1000,6 +1044,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     rn.add_argument("--import-provider", choices=["aiona", "gpt", "claude", "gemini"])
     rn.add_argument("--label")
     rn.set_defaults(func=cmd_run)
+    ce = sub.add_parser("code-eval", help="실행 JSON 의 CODE 평가(28개 검사)를 지금 엔진으로 다시 계산 — 심판 호출 없음 (판정 반영은 judge_v4 --recode)")
+    ce.add_argument("--run", required=True)
+    ce.add_argument("--providers", help="모델 쉼표 목록 (기본: 실행의 모든 모델)")
+    ce.add_argument("--show", type=int, default=20, help="바뀐 검사 결과를 몇 개까지 보여 줄지 (기본 20)")
+    ce.set_defaults(func=cmd_code_eval)
     rp = sub.add_parser("report", help="판정 결과 요약 + HTML 보고서")
     rp.add_argument("--dir", required=True)
     rp.add_argument("--run", help="실행 ID (생략하면 --dir 의 폴더 이름이나 부모 이름에서 찾음)")
