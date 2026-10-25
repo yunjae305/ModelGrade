@@ -821,13 +821,11 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
         rows.append(f'<details class="cb-g"><summary class="cb-row"><span class="cb-l"><b>{E(label)}</b><small>{kind} · 기준 {len(cids)}개</small></span>'
                     + "".join(cell(gsum[p]) for p in order) + f'</summary><div class="cb-sub">{sub}</div></details>')
     n_empty = sum(1 for t in D["qtypes"].values() if t == "명시적 빈 출력")
-    key = ('<p class="cb-key">칸 = 통과율(그 기준이 적용된 질문 중 통과한 비율) · 색이 진할수록 FAIL 이 많음 · 아래 숫자 = FAIL · 보류 / 평가된 질문 · '
-           f'묶음을 누르면 기준별로 펼쳐집니다 · 빈 출력 요구 {n_empty}문항은 보류라 빼고, 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
+    key = ('<p class="cb-key"><b>칸 색 = 그 묶음을 어긴 정도(빨갈수록 FAIL 많음)</b> · 큰 숫자 = 통과율 · 작은 숫자 = FAIL · 보류 / 평가된 질문</p>'   # 이사님 10-23: 빨간 표의 뜻을 먼저
+           f'<p class="cb-key">묶음을 누르면 기준별로 펼쳐짐 · 빈 출력 요구 {n_empty}문항은 보류라 뺌 · 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
     return (f'<div class="cb-cards">{cards}</div>'
-            '<p class="cb-key">기준 통과율 = 기준이 적용된 (질문 × 기준) 판정 중 통과한 비율. 같은 질문에는 네 모델 모두 같은 기준을 매겨 판정 건수가 같습니다 — '
-            f'질문 {sum(1 for t in D["qtypes"].values() if t != "명시적 빈 출력")}개 × 그 질문에 적용된 기준(질문마다 늘 보는 기준 + 그 질문이 요구한 기준 6~10개, 멀티턴은 10턴 합). '
-            '답에 그 내용이 없어 해당 없음인 칸은 어긴 것이 없으니 통과로, 보류는 통과로 세지 않음 — 그래서 모델마다 90%대로 높게 나오니 모델 차이는 FAIL 수로 보세요. '
-            '질문 단위 완전 통과(상세 분석 ‘이번 실행 결과’)는 질문 하나의 기준을 모두 통과해야 해서 이보다 훨씬 낮습니다.</p>'
+            '<p class="cb-key">기준 통과율 = 기준 판정 중 통과한 비율(해당 없음은 통과로, 보류는 통과로 세지 않음). 같은 질문에는 네 모델 모두 같은 기준을 매겨 판정 건수가 같습니다. '
+            '모델마다 90%대로 높으니 차이는 FAIL 수로 보세요 — 질문 하나의 기준을 모두 통과해야 하는 완전 통과보다 훨씬 높게 나옵니다.</p>'
             f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>')
 
 
@@ -1338,8 +1336,8 @@ def time_spread(D: Dict[str, Any]) -> str:
                 cells += f'<span class="lq-col{" lq-me" if p == me else ""}">{cell}</span>'   # 모델마다 세로 상자 한 조각
             lines_ = [x.strip() for x in (D["qset"][q]["turns"][0].get("question") or "").split("\n") if x.strip()] or [""]
             qt = lines_[-1] if re.fullmatch(r"\[[^\]]{1,20}\]", lines_[0]) else lines_[0]   # '[붙여 넣은 자료]' 로 시작하면 요청이 있는 끝 줄
-            qt = qt[:120] + ("…" if len(qt) > 120 else "")
-            rows += (f'<div class="lq-r"><span class="lq-q"><span class="lq-n">Q{q}</span><span class="lq-t" title="{E(qt)}">{E(qt)}</span></span>'
+            qt = qt[:120] + ("…" if len(qt) > 120 else "")   # 원문은 마우스를 올리면(title) — 칸에는 분류만 (이사님 10-23, 할일 11번)
+            rows += (f'<div class="lq-r"><span class="lq-q"><span class="lq-n">Q{q}</span><span class="lq-t" title="{E(qt)}">{q_class_label(D, q)}</span></span>'
                      f'{cells}</div>')
         qhead = ('<div class="lq-r lq-h"><span class="lq-q">질문</span>'
                  + "".join(f'<span class="lq-col{" lq-me" if p == me else ""}"><span class="{"lt-meh" if p == me else ""}">{mname(p)}</span></span>' for p in cols)
@@ -1873,6 +1871,57 @@ def dist_card(D: Dict[str, Any]) -> str:
             f'<p class="ds-note">이번 {n}개 질문과 이 실행 조건에서 완전 통과가 가장 많은 모델은 <b>{top}</b>{f"(공동 {lp})" if len(st["leads"]) > 1 else ""}입니다. '
             f'보류 {st["hold"]}칸은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
             f'{legend}<div class="ds-rows">{"".join(rows)}</div>{unit_note(D)}</div>')
+
+
+def q_class_label(D: Dict[str, Any], q: int) -> str:
+    """질문 하나의 분류 — 유형 · 난이도 · 그 질문이 요구하는 기준 묶음(늘 보는 기준 · 답에 따라 보는 기준은 뺌). 질문 원문 대신 (이사님 10-23, 할일 11번)."""
+    qd = D["qset"].get(q) or {}
+    if "_when" not in D:
+        f = Path(D["set_dir"]) / "criteria_catalog.json"
+        cat = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        D["_when"] = (set(cat.get("always_ids") or []), set(cat.get("answer_dependent_ids") or []))
+    always, by_answer = D["_when"]
+    short_code = {"1-1": "응답", "1-2": "코드", "1-3": "인용", "2-1": "글자 수", "2-2": "구조", "3-1": "계산", "3-2": "개수", "3-3": "집계"}
+    llm: List[str] = []
+    code: List[str] = []
+    for cid in qd.get("target_items") or []:
+        if cid in always or cid in by_answer:
+            continue
+        if cid.startswith("J"):
+            g = cid.split("-")[0]
+            lab = f"{g} {GROUP.get(g, '')}".strip()
+            if lab not in llm:
+                llm.append(lab)
+        else:
+            g = cid.split(".")[0]
+            lab = short_code.get(g, g)
+            if lab not in code:
+                code.append(lab)
+    groups = llm + code   # 의미 기준 묶음을 앞에, CODE 묶음은 짧은 이름으로 — 칸이 좁다
+    more = f" +{len(groups) - 3}" if len(groups) > 3 else ""
+    parts = [f"<b>{E(TYPE_NAME.get(qd.get('type') or '', qd.get('type') or ''))}</b>"] + ([E(qd["difficulty"])] if qd.get("difficulty") else []) + [E(" · ".join(groups[:3]) + more)]
+    return " · ".join(p for p in parts if p)
+
+
+def numbers_key(D: Dict[str, Any]) -> str:
+    """숫자 읽는 법 — 보고서에 나오는 숫자마다 뜻 한 줄 (이사님 10-23: 78 질문 · 72 기준 · 질문당 6~10 · 판정 건수 같은 숫자와 용어가 섞여 혼동, 할일 11번)."""
+    order, n = D["order"], D["n"]
+    n_crit = len(D["names"])
+    n_code = sum(1 for c in D["names"] if not str(c).startswith("J"))
+    n_empty = sum(1 for t in D["qtypes"].values() if t == "명시적 빈 출력")
+    per = [len(crit_verdicts(D, p, q)) for p in order for q in D["qtypes"] if D["qtypes"][q] != "명시적 빈 출력"]
+    cr = crit_results(D)
+    n_dec = sum(sum(cr[c][order[0]].values()) for c in cr) if order else 0
+    rows = [
+        (f"{n}", "질문", f"AI 에게 보낸 요청 수. 10턴 대화도 질문 1개로 셈. 네 모델에 같은 {n}개."),
+        (f"{n_crit}", "기준", f"답을 점검하는 항목 수 — CODE {n_code}개(프로그램) + LLM Judge {n_crit - n_code}개(AI 심판). 질문마다 해당하는 기준만 봄."),
+        ("6~10", "질문당 요구 기준", "질문 하나가 요구하는 기준 수." + (f" 늘 보는 기준 · 답에 따라 보는 기준을 더하면 한 질문에 평균 {statistics.mean(per):.0f}개를 판정." if per else "")),
+        (f"{n_dec:,}", "기준 판정 건수", f"질문 {n - n_empty}개 × 그 질문에 적용된 기준 — 모델마다 같은 수. 빈 출력 요구 {n_empty}문항은 보류라 뺌."),
+        ("통과 · FAIL · 보류", "질문 단위", "적용 기준을 모두 통과 / 하나라도 어김 / 심판이 확인 못 한 기준이 남음(사람이 정함)."),
+        ("%", "통과율", "완전 통과 ÷ 질문 수. '기준 통과율'(기준별 결과)은 기준 판정 중 통과한 비율이라 90%대로 더 높게 나옴."),
+    ]
+    return ('<div class="nk"><b class="nk-h">숫자 읽는 법</b>'
+            + "".join(f'<div class="nk-r"><b>{E(v)}</b><span>{E(k)}</span><p>{E(t)}</p></div>' for v, k, t in rows) + "</div>")
 
 
 def unit_note(D: Dict[str, Any]) -> str:
@@ -2701,10 +2750,13 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .ds-x { grid-column: 4 / -1; font-size: 0.78rem; color: var(--muted); } .ds-x b { color: var(--hold-text); font-family: var(--font-num); }
 .ds-unit { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .ds-unit b { font-size: 0.86rem; } .ds-unit p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; word-break: keep-all; }
+.nk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 14px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.nk-h { grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); } .nk-r b { font-family: var(--font-num); font-size: 1.02rem; } .nk-r span { margin-left: 6px; font-size: 0.82rem; font-weight: 600; }
+.nk-r p { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); line-height: 1.45; word-break: keep-all; }
 .cb-card small.cb-q { color: var(--ink); border-top: 1px dashed var(--line); padding-top: 4px; }
 .hm-ref { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.55; word-break: keep-all; } .hm-ref b { color: var(--ink); }
 @media (max-width: 760px) { .ds-row { grid-template-columns: 18px 24px minmax(0, 1fr) 64px; } .ds-bar { grid-column: 1 / -1; order: 5; } .ds-x { grid-column: 1 / -1; order: 6; }
-  .ds-unit { grid-template-columns: minmax(0, 1fr); } }
+  .ds-unit { grid-template-columns: minmax(0, 1fr); } .nk { grid-template-columns: minmax(0, 1fr); } }
 @media (min-width: 1200px) {
   body { padding-left: 232px; }
   .topnav { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; border-bottom: 0; border-right: 1px solid var(--line); background: var(--bg); backdrop-filter: none; }
@@ -3009,7 +3061,7 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 .lq-sw-f { background: color-mix(in srgb, var(--ok) 40%, transparent); } .lq-sw-s { background: color-mix(in srgb, var(--risk) 40%, transparent); } .lq-sw-r { background: var(--hold-soft); }
 .lq-tabs label small { color: var(--muted); margin-left: 2px; } .lq-ps .lq-list { margin-bottom: 8px; }
 .lq-list { display: grid; min-width: 0; overflow-x: auto; }
-.lq-r { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(96px, 1fr)); column-gap: 10px; }   /* 사용자 10-22: 모델마다 세로 상자 · 질문도 따로 */
+.lq-r { display: grid; grid-template-columns: minmax(0, 1.9fr) repeat(4, minmax(96px, 1fr)); column-gap: 10px; }   /* 사용자 10-22: 모델마다 세로 상자 · 질문도 따로. 질문 칸은 분류 라벨이 두 줄까지 (10-25) */
 .lq-q, .lq-col { background: var(--surface); border: 1px solid var(--line); border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent); padding: 4px 8px; min-width: 0; }
 .lq-q { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; align-items: center; }
 .lq-col { display: grid; align-items: center; }   /* 안의 막대 칸이 상자 폭을 꽉 채우게 */
@@ -3018,7 +3070,7 @@ details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell 
 .lq-r:last-child .lq-q, .lq-r:last-child .lq-col { border-bottom: 1px solid var(--line); border-radius: 0 0 10px 10px; padding-bottom: 6px; }
 .lq-col.lq-me { border-left-color: var(--accent); border-right-color: var(--accent); }
 .lq-h .lq-col.lq-me { border-top-color: var(--accent); } .lq-r:last-child .lq-col.lq-me { border-bottom-color: var(--accent); }
-.lq-n { font-family: var(--font-num); font-size: 0.82rem; font-weight: 600; } .lq-t { font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lq-n { font-family: var(--font-num); font-size: 0.82rem; font-weight: 600; } .lq-t { font-size: 0.7rem; color: var(--muted); line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: keep-all; } .lq-t b { color: var(--ink); }
 .lq-c { --bar: color-mix(in srgb, var(--muted) 20%, transparent); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); text-align: right; white-space: nowrap;
   font-family: var(--font-num); font-size: 0.8rem; font-variant-numeric: tabular-nums; background: linear-gradient(to right, var(--bar) var(--w, 0%), transparent var(--w, 0%)), var(--bg); }
 .lq-c.lq-fast { --bar: color-mix(in srgb, var(--ok) 34%, transparent); } .lq-c.lq-slow { --bar: color-mix(in srgb, var(--risk) 34%, transparent); font-weight: 700; }
@@ -3166,7 +3218,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
         ("s1", "이번 실행 결과", "분포 · 유형별 통과율 (잠정)", "이번 실행 결과 — 분포와 유형별 통과율 (잠정)",
          "맨 위는 모델마다 완전 통과 · 보류 · FAIL 분포, 그 아래는 유형별 통과율입니다. 모두 질문 단위이고, 보류를 사람이 정하기 전의 잠정 결과입니다.",
-         dist_card(D) + helm_table(D, cats), res_key),
+         numbers_key(D) + dist_card(D) + helm_table(D, cats), res_key),
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
          "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",

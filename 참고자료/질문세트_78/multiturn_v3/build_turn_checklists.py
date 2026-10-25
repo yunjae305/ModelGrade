@@ -141,7 +141,9 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
     if mod == "record":
         return "기록 요약 + 출처 [1] · [2]", ["기록은 안건마다 [결정] · [보류]를 나눠 적음",
                                             f"기록의 미정 항목: 추가 지원 인력 · {s['attach']} · 개별 참가자 편의 지원",
-                                            f"출처로 쓸 수 있는 기록은 [1] {s['ref1']} · [2] {s['ref2']} 두 개뿐"]
+                                            f"출처로 쓸 수 있는 기록은 [1] {s['ref1']} · [2] {s['ref2']} 두 개뿐",
+                                            "'[1]·[2]를 인용'의 뜻(미팅 10-23): 번호 표기가 없어도 그 기록의 제목 · 내용을 끌어다 쓰고 출처(원제목)를 밝혔으면 인용한 것. "
+                                            "번호를 붙인 내용이 그 기록에 없으면 인용이 아님"]
     if mod == "calc":
         return "표 열 합계 + 단가 × 수량", [f"'{s['key']}' 열의 모든 행(중복 행 포함): {' + '.join(str(v) for _, v in s['table'])} = {ctx['table_sum']}",
                                           f"{s['unit_item']} {s['unit_price']}원 × {s['unit_qty']}개 = {ctx['total']}원"]
