@@ -516,7 +516,8 @@ def cmd_probe(a: argparse.Namespace) -> Dict[str, Any]:
                 probes["runs"].append({"label": label, "error": str(exc)})
                 continue
             say(f"{label}: " + " · ".join(files["applied"]))
-        for rnd in range(1, a.rounds + 1):
+        n_rounds = max(a.rounds, int(getattr(a, "base_rounds", 2) or 1)) if label == "base" else a.rounds   # base 는 흔들림 바닥을 재게 2회 이상 (10-25 밤)
+        for rnd in range(1, n_rounds + 1):
             pd = probe_label_dir(d, label, rnd)
             pd.mkdir(parents=True, exist_ok=True)
             out_name = f"refine-{meta['item']}-{d.name}-{label}-r{rnd}".replace(" ", "")
@@ -802,6 +803,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     def common_probe(p: argparse.ArgumentParser) -> None:
         p.add_argument("--proposal", default="all", help="base · P1 · all (쉼표로 여러 개)")
         p.add_argument("--rounds", type=int, default=2, help="안마다 다시 판정하는 횟수 — 2 이상이면 회차 사이 뒤집힘을 잰다 (v2 10절 ④)")
+        p.add_argument("--base-rounds", type=int, default=2, help="base 를 다시 판정하는 횟수 — 안의 효과를 base 자신의 흔들림과 견주게 (기본 2, 10-25 밤)")
         p.add_argument("--votes", type=int, help="1차 심판 투표 수 (기본 judge_v4 와 같음)")
 
     p = sub.add_parser("collect", help="① 모으기 — FAIL · 보류 칸과 같은 수의 통과 칸")
