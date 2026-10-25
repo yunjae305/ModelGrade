@@ -113,7 +113,7 @@ pre.ex{margin:6px 0 0;padding:6px 8px;font-size:12px;line-height:1.4;background:
 <tr><td><b>AIONA 제품 문제</b></td><td>일정 질문(Q8)에 자살 예방 안내로 답함 · 답 끝에 '데이터 제공' 줄 · 코드 들여쓰기</td><td>AIONA 제품</td><td><span class="t warn">알림</span> 제품 팀에 알림</td></tr>
 </table></div></div>
 
-<h2>5. harness2 는 어떻게 쓰나 — 코드는 안 가져오고 방식만</h2>
+<h2>5. harness2 는 어떻게 쓰나 — 코드는 안 가져오고 방식만</h2><p class="note" style="margin:8px 0 12px;font-size:.92rem"><b>구현됨(10-25 밤)</b> — <code>tools/refine_loop.py</code>: 모으기(FAIL · 보류 + 같은 수의 통과 칸, 표시용 표) → 제안(Claude CLI, 많아야 3안, 질문 글은 못 바꿈) → 같은 칸 전후 재판정(안을 임시 프롬프트 · 항목 정의 · 확인 목록에 넣고 judge_v4) → 채택 판단(사람 표시 정답률 · 뒤집힘 · 다른 항목 변화 5% 상한) → 교훈(기준 v2 12절). 사람 표시가 없으면 채택하지 않고 "사람 확인 필요"까지만. 연기 시험: 통과 칸만 주면 제안자가 KEEP_BASE 를 냄.</p>
 <div class="card">
 <p class="small mute"><a href="https://github.com/google-research/harness2">harness2</a>(Google Research · 10-18 공개 · Apache-2.0) = 모델은 그대로 두고 모델에 주는 글(프롬프트 · 스킬 · 안내)만 AI 가 고치는 루프: 고칠 안 내기 → 같은 과제로 다시 돌려 비교 → 이긴 안 합치기 → 교훈 쌓기. 우리 심판도 '모델 + 주는 글(판정 프롬프트 · 기준 문서 · 확인 목록)'이라 같은 루프를 쓸 수 있음.</p>
 <div class="flow">
