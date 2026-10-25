@@ -101,3 +101,29 @@ def test_convert_lock_serializes_and_times_out(tmp_path: Path):
         assert (tmp_path / ".convert.lock").is_dir()
     assert not (tmp_path / ".convert.lock").exists()
 
+
+def test_pages_cache_survives_process_and_word_timeout_returns_none(tmp_path: Path, monkeypatch):
+    """쪽 이미지 캐시는 프로세스 사이에 남고(세트 폴더마다), Word 변환이 시간 제한을 넘으면 None — 그때 새로 뜬 Word 만 끝냄 (10-26 새벽)."""
+    import subprocess
+    from code_eval import attachment_pages as ap
+    monkeypatch.setattr(ap, "PAGES_CACHE", tmp_path / "cache")
+    monkeypatch.setattr(ap, "_TMP", {})
+    d1 = ap.cache_dir(tmp_path / "files")
+    assert d1.parent == tmp_path / "cache" and d1.is_dir() and ap.cache_dir(tmp_path / "files") == d1
+    if ap.os.name != "nt":
+        return
+    killed = []
+    pids = iter([{1}, {1, 2}])
+    monkeypatch.setattr(ap, "_word_pids", lambda: next(pids))
+    def fake_run(cmd, **kw):
+        if cmd[0] == "taskkill":
+            killed.append(cmd[-1]); return None
+        raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    docx = tmp_path / "a.docx"; docx.write_bytes(b"PK")
+    try:
+        import win32com.client  # noqa: F401
+    except ImportError:
+        return
+    assert ap._docx_to_pdf_word(docx, tmp_path / "a.pdf") is None and killed == ["2"]   # 원래 있던 Word(1)는 건드리지 않음
+

@@ -61,18 +61,28 @@ def enabled() -> bool:
 
 
 _TMP: Dict[str, Path] = {}
+#: 프로세스 사이에 남는 쪽 이미지 캐시 — 한 번 그린 첨부는 다시 변환하지 않는다(Word 자동화를 실행마다 다시 띄우지 않게, 10-26 새벽).
+#: 원본보다 오래된 이미지는 _fresh 가 버린다. .env · 환경 변수 MG_PAGES_CACHE 로 옮길 수 있고, 만들 수 없으면 예전처럼 프로세스 임시 폴더.
+PAGES_CACHE = Path(os.environ.get("MG_PAGES_CACHE") or (Path(__file__).resolve().parents[1] / "data" / "cache" / "attachment_pages"))
+WORD_TIMEOUT_S = float(os.environ.get("MG_WORD_TIMEOUT_S") or 120)   # Word 변환 한 번의 시간 제한 — 넘으면 그 Word 만 끝내고 글로만
 
 
 def cache_dir(files_dir: Path) -> Path:
-    """이 프로세스의 임시 폴더(세트 폴더마다 하나) — 끝나면 통째로 지운다."""
+    """세트 폴더마다의 쪽 이미지 캐시 — PAGES_CACHE/<세트 폴더 경로의 해시>. 만들 수 없으면 이 프로세스의 임시 폴더(끝나면 지움)."""
+    import hashlib
     key = str(Path(files_dir).resolve())
     if key not in _TMP:
-        _TMP[key] = Path(tempfile.mkdtemp(prefix="mg-pages-"))
+        target = PAGES_CACHE / hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+            _TMP[key] = target
+        except OSError:
+            _TMP[key] = Path(tempfile.mkdtemp(prefix="mg-pages-"))
     return _TMP[key]
 
 
 def _cleanup() -> None:
-    for d in _TMP.values():
+    for d in [d for d in _TMP.values() if PAGES_CACHE not in d.parents]:   # 남기는 캐시는 지우지 않는다
         shutil.rmtree(d, ignore_errors=True)
 
 
@@ -145,32 +155,68 @@ def _docx_to_pdf(docx: Path, out_dir: Path) -> Optional[Path]:
     return _docx_to_pdf_word(docx, target) or _docx_to_pdf_soffice(docx, out_dir, target)
 
 
-def _docx_to_pdf_word(docx: Path, target: Path) -> Optional[Path]:
-    """Word(COM) 로 docx → pdf — Windows + Word 가 있을 때만, 없으면 None."""
+_WORD_SCRIPT = r"""
+import sys
+import pythoncom
+import win32com.client
+src, dst = sys.argv[1], sys.argv[2]
+pythoncom.CoInitialize()
+word = win32com.client.DispatchEx("Word.Application")
+word.Visible = False
+word.DisplayAlerts = 0
+try:
+    doc = word.Documents.Open(src, ReadOnly=True, AddToRecentFiles=False, ConfirmConversions=False)
     try:
-        import pythoncom
-        import win32com.client
+        doc.SaveAs2(dst, FileFormat=17)   # 17 = wdFormatPDF
+    finally:
+        doc.Close(False)
+finally:
+    word.Quit()
+"""
+
+
+def _word_pids() -> set:
+    """지금 떠 있는 WINWORD.EXE 의 PID — 변환이 띄운 Word 만 골라 끝내려고."""
+    import subprocess
+    try:
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq WINWORD.EXE", "/FO", "CSV", "/NH"], capture_output=True, timeout=20).stdout.decode("ascii", "ignore")   # 콘솔 코드 페이지(cp949)와 무관하게
+    except (OSError, subprocess.TimeoutExpired):
+        return set()
+    return {int(row.split('","')[1]) for row in out.splitlines() if row.startswith('"WINWORD') and row.count('","') >= 1 and row.split('","')[1].isdigit()}
+
+
+def _docx_to_pdf_word(docx: Path, target: Path) -> Optional[Path]:
+    """Word(COM) 로 docx → pdf — Windows + pywin32 + Word 가 있을 때만. 하위 프로세스에서 WORD_TIMEOUT_S 안에 끝나지 않으면 그 프로세스와 그때 새로 뜬
+    Word 만 끝내고 None(글로만). 보이지 않는 Word 가 대화 상자(안전 모드 · 복구)에서 멈춰 판정이 끝나지 않던 것 (10-26 새벽 4시간 멈춤)."""
+    import subprocess
+    import sys
+    if os.name != "nt":
+        return None
+    try:
+        import win32com.client  # noqa: F401
     except ImportError:
         return None
-    pythoncom.CoInitialize()
-    try:
+    import uuid
+    before = _word_pids()
+    # 원본을 임시 폴더에 새 이름으로 복사해 연다 — Word 는 열다 멈춘(강제로 끝낸) 문서 경로를 기억해 다음에 보이지 않는 확인 창을 띄운다
+    # (10-26 새벽: 같은 docx 에서만 매번 멈춤). 결과 PDF 도 임시 폴더에 만들고 끝난 것만 캐시로 옮긴다.
+    with tempfile.TemporaryDirectory(prefix="mg-word-") as tmp:
+        src = Path(tmp) / f"{uuid.uuid4().hex}.docx"
+        out = Path(tmp) / f"{src.stem}.pdf"
         try:
-            word = win32com.client.DispatchEx("Word.Application")
-        except Exception:   # pywin32 는 있는데 Word 가 없음 — LibreOffice 로 넘긴다 (Codex 리뷰 10-25 밤)
+            shutil.copy2(docx, src)
+            proc = subprocess.run([sys.executable, "-c", _WORD_SCRIPT, str(src), str(out)],
+                                  capture_output=True, timeout=WORD_TIMEOUT_S)   # 출력은 바이트로(콘솔 코드 페이지 문제 없게)
+        except subprocess.TimeoutExpired:
+            for pid in _word_pids() - before:
+                subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
             return None
-        word.Visible = False
-        word.DisplayAlerts = 0
-        try:
-            doc = word.Documents.Open(str(docx.resolve()), ReadOnly=True, AddToRecentFiles=False)
-            try:
-                doc.SaveAs2(str(target.resolve()), FileFormat=17)   # 17 = wdFormatPDF
-            finally:
-                doc.Close(False)
-        finally:
-            word.Quit()
-    finally:
-        pythoncom.CoUninitialize()
-    return target if target.is_file() else None
+        except OSError:
+            return None
+        if proc.returncode != 0 or not out.is_file():
+            return None
+        shutil.move(str(out), str(target))
+    return target
 
 
 def page_images(path: Path, files_dir: Path) -> Tuple[List[Path], str]:
@@ -190,7 +236,7 @@ def page_images(path: Path, files_dir: Path) -> Tuple[List[Path], str]:
         if cached:
             return cached, f"{path.name}: 쪽 이미지 {len(cached)}장(저장된 것)"
         try:
-            with _convert_lock(out_dir):
+            with _convert_lock(PAGES_CACHE if PAGES_CACHE in out_dir.parents else out_dir):   # 실행 공통 잠금 — 캐시 뿌리 하나
                 cached = _existing_pages(path, out_dir)   # 기다리는 동안 다른 실행이 만들었으면 그것을 쓴다
                 if cached:
                     return cached, f"{path.name}: 쪽 이미지 {len(cached)}장(저장된 것)"
