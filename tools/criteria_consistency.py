@@ -28,6 +28,9 @@ if str(ROOT) not in sys.path:
 
 VERSION = "criteria-consistency-v1"
 DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.md"
+GEN_PROMPT = ROOT / "참고자료" / "프롬프트" / "질문생성_프롬프트.md"
+CATALOG = ROOT / "참고자료" / "질문세트_78" / "criteria_catalog.json"
+ID_RE = re.compile(r"J[1-8]-\d\.[a-z]|(?<![\w.])[123]-[1-3]\.[a-z_]+")   # 기준 id — J1-1.a · 2-2.table 꼴(날짜 10-25 와 구별)
 PROMPT = ROOT / "참고자료" / "프롬프트" / "judge_prompt_v4.txt"
 JEV = ROOT / "참고자료" / "프롬프트" / "jev_questions_v4.json"
 NOTE_SKIP = ("적용", "근거", "표시")   # 규칙이 아닌 줄(예시 줄은 ' 예' 로 끝남)
@@ -183,15 +186,34 @@ def audit(doc_text: Optional[str] = None, prompt_text: Optional[str] = None, jev
     for k in sorted(set(dc) & set(rc)):
         if sim(dc[k], rc[k]) < 0.3:
             soft.append({"kind": "CODE 묶음 이름", "item": k, "detail": f"겹침 {sim(dc[k], rc[k]):.2f}", "doc": dc[k], "code": rc[k]})
-    return {"version": VERSION, "items": len(ids), "hard": hard, "soft": soft,
+    gen = audit_generation_prompt() if GEN_PROMPT.exists() and CATALOG.exists() else None
+    if gen:
+        if gen["unknown"]:
+            hard.append({"kind": "질문생성 프롬프트의 없는 기준 id", "detail": ", ".join(gen["unknown"])})
+        if gen["missing_countable"]:
+            soft.append({"kind": "질문생성 프롬프트에 안 나오는 기준", "detail": f"질문으로 셀 수 있는 {gen['countable']}개 중 {len(gen['missing_countable'])}개", "doc": ", ".join(gen["missing_countable"])})
+    return {"version": VERSION, "items": len(ids), "hard": hard, "soft": soft, "generation_prompt": gen,
             "counts": {"doc": len(D), "prompt": len(P), "code": len(S), "jev": len(J), "code_doc": len(dc), "code_registry": len(rc)}}
+
+
+def audit_generation_prompt(text: Optional[str] = None, catalog: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """질문생성 프롬프트가 말하는 기준 id — 없는 id(오타 · 옛 이름)는 어긋남, 질문으로 셀 수 있는 기준(72 − 답에 따라 보는 8 = 64) 가운데 한 번도 안 나오는 것은 덜 적힘."""
+    text = text if text is not None else GEN_PROMPT.read_text(encoding="utf-8")
+    cat = catalog if catalog is not None else json.loads(CATALOG.read_text(encoding="utf-8"))
+    known = {e["id"] for e in (cat.get("catalog") or {}).get("code") or []} | {e["id"] for e in (cat.get("catalog") or {}).get("items") or []}
+    countable = known - set(cat.get("answer_dependent_ids") or [])
+    used = set(ID_RE.findall(text))
+    unknown = sorted(used - known)
+    missing = sorted(countable - used)
+    return {"used": len(used & known), "unknown": unknown, "missing_countable": missing, "countable": len(countable)}
 
 
 def to_md(res: Dict[str, Any]) -> str:
     c = res["counts"]
     L = [f"# 기준 재확인 — {res['version']}", "",
          f"- LLM 항목: 문서 {c['doc']} · 프롬프트 {c['prompt']} · 코드 {c['code']} · 1차 정의 {c['jev']}(J1~J4) / CODE 묶음: 문서 {c['code_doc']} · 코드 {c['code_registry']}",
-         f"- 어긋남(hard) {len(res['hard'])} · 덜 적힘(soft) {len(res['soft'])}", ""]
+         f"- 어긋남(hard) {len(res['hard'])} · 덜 적힘(soft) {len(res['soft'])}"
+         + (f" · 질문생성 프롬프트: 아는 기준 id {res['generation_prompt']['used']}개 언급, 없는 id {len(res['generation_prompt']['unknown'])}, 안 나오는 셀 수 있는 기준 {len(res['generation_prompt']['missing_countable'])}" if res.get("generation_prompt") else ""), ""]
     if res["hard"]:
         L += ["## 어긋남 — 같은 항목이 다른 뜻", "", "| 종류 | 항목 | 설명 | 한쪽 | 다른 쪽 |", "|---|---|---|---|---|"]
         for h in res["hard"]:

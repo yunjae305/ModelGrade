@@ -42,3 +42,15 @@ def test_audit_flags_question_drift_and_code_applies_drift():
     res = cc.audit(doc_text=doc, prompt_text=prompt, jev_doc={"items": {}}, sem=sem, code_names={"1-1": "응답"})
     kinds = [h["kind"] for h in res["hard"]]
     assert "점검 질문" in kinds and "적용 조건" in kinds
+
+
+def test_generation_prompt_ids_are_known_and_countable_criteria_mostly_mentioned():
+    g = cc.audit_generation_prompt()
+    assert g["unknown"] == [], g["unknown"]
+    assert len(g["missing_countable"]) <= 2, g["missing_countable"]   # 2026-10-25: 0 — 늘어나면 생성 프롬프트가 기준을 놓친 것
+
+
+def test_generation_prompt_audit_flags_unknown_and_missing_ids():
+    cat = {"catalog": {"code": [{"id": "2-1.count"}], "items": [{"id": "J1-1.a"}, {"id": "J2-3.a"}]}, "answer_dependent_ids": ["2-1.count"]}
+    g = cc.audit_generation_prompt("J1-1.a 와 J2-9.z 를 노린다 (10-25)", cat)
+    assert g["unknown"] == ["J2-9.z"] and g["missing_countable"] == ["J2-3.a"] and g["countable"] == 2
