@@ -99,3 +99,4 @@ def _single_first_judge_vote(monkeypatch):
     except Exception:
         return
     monkeypatch.setattr(jv, "FIRST_JUDGE_VOTES", 1)
+    monkeypatch.setattr(jv, "CODEX_BATCH", 1)   # 운영 기본(묶음 10, 10-25 밤)도 tests/test_judge_votes.py 가 따로 본다 — 다른 판정 시험은 질문마다 호출 전제

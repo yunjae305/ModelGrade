@@ -1611,7 +1611,28 @@ BATCH_NOTE = """
   빠지는 질문이 없어야 합니다. 각 원소의 turns · conclusion 은 위 '출력 형식' 그대로입니다.
 """
 #: 첫 Codex 호출 묶음 크기 — 단일 질문(첨부 이미지 없음)만 묶는다. 1 이면 질문마다(전과 같음). .env CODEX_BATCH 또는 --codex-batch (10-25)
-CODEX_BATCH = max(1, int(_env_float("CODEX_BATCH", 1)))
+CODEX_BATCH = max(1, int(_env_float("CODEX_BATCH", 10)))   # 기본 10 — Q11~Q30 × 4 비교(10-25 밤)에서 Codex 호출 53→35 · 입력 토큰 4.6M→3.4M · 항목 일치 97.6%
+#: 묶음 하나에 넣는 질문 문서(JSON) 글자 합의 상한 — 10-25 밤 Q21~Q30 묶음(Q29 · Q30 이 각 53만 자, 합 225만 자)을 Codex 가 "Input exceeds the maximum" 으로
+#: 거절해 질문마다 따로 묻는 길로 빠짐. 단독 호출은 53만 자(입력 33.5만 토큰)까지 됐으므로 40만 자(≈ 25만 토큰)에서 끊는다. 혼자서도 넘는 질문은 혼자 간다.
+CODEX_BATCH_CHARS = max(50_000, int(_env_float("CODEX_BATCH_CHARS", 400_000)))
+
+
+def batch_groups(plain: List[Dict[str, Any]], size: int, max_chars: int) -> List[List[Dict[str, Any]]]:
+    """묶을 질문들을 개수(size)와 글자 합(max_chars)으로 나눈다 — 순서는 그대로, 상한을 넘기는 질문부터 새 묶음."""
+    groups: List[List[Dict[str, Any]]] = []
+    cur: List[Dict[str, Any]] = []
+    cur_chars = 0
+    for st in plain:
+        n = len(json.dumps(st["codex_plan"]["doc"], ensure_ascii=False))
+        st["codex_plan"]["chars"] = n
+        if cur and (len(cur) >= max(1, size) or cur_chars + n > max_chars):
+            groups.append(cur)
+            cur, cur_chars = [], 0
+        cur.append(st)
+        cur_chars += n
+    if cur:
+        groups.append(cur)
+    return groups
 
 
 def batch_output_schema() -> Dict[str, Any]:
@@ -1632,8 +1653,7 @@ def codex_batch_round(states: List[Dict[str, Any]], gpt: Any, prompt: str, size:
         say(f"   🖥 {st['tag']} Codex CLI — 걸린 항목 {plan['n_flagged']}개(턴 {sorted(st['flagged'])}) · 웹 검색 {'켬' if plan['search'] else '끔'} …")
         first_call_alone(st)
     schema = batch_output_schema()
-    for i in range(0, len(plain), max(1, size)):
-        group = plain[i:i + max(1, size)]
+    for group in batch_groups(plain, size, CODEX_BATCH_CHARS):   # 개수와 글자 합(CODEX_BATCH_CHARS)으로 나눔 — 큰 질문(롱컨텍스트)은 혼자
         if len(group) == 1:
             st = group[0]
             plan = st["codex_plan"]
@@ -1644,7 +1664,7 @@ def codex_batch_round(states: List[Dict[str, Any]], gpt: Any, prompt: str, size:
         search = any(st["codex_plan"]["search"] for st in group)
         payload = {"질문_수": len(group), "질문들": [st["codex_plan"]["doc"] for st in group]}
         tag = f"묶음 {lead['provider']} Q{group[0]['q']}~Q{group[-1]['q']}"
-        say(f"   🖥 {tag} Codex CLI — 질문 {len(group)}개를 한 번에 · 걸린 항목 {sum(st['codex_plan']['n_flagged'] for st in group)}개 · 웹 검색 {'켬' if search else '끔'} …")
+        say(f"   🖥 {tag} Codex CLI — 질문 {len(group)}개를 한 번에({sum(st['codex_plan'].get('chars') or 0 for st in group):,}자) · 걸린 항목 {sum(st['codex_plan']['n_flagged'] for st in group)}개 · 웹 검색 {'켬' if search else '끔'} …")
         t_call = time.monotonic()
         try:
             status, body, error = gpt.judge(prompt + SCREEN_SUFFIX + BATCH_NOTE, json.dumps(payload, ensure_ascii=False, indent=1), search, tag, output_schema=schema)
@@ -1660,7 +1680,7 @@ def codex_batch_round(states: List[Dict[str, Any]], gpt: Any, prompt: str, size:
                 if isinstance(r, dict) and isinstance(r.get("질문번호"), int):
                     got[r["질문번호"]] = {"turns": r.get("turns") or [], "conclusion": r.get("conclusion")}
         for st in group:
-            st["batch"] = {"size": len(group), "lead": st is lead, "questions": [x["q"] for x in group]}
+            st["batch"] = {"size": len(group), "lead": st is lead, "questions": [x["q"] for x in group], "chars": sum(x["codex_plan"].get("chars") or 0 for x in group)}
             if st["q"] in got:
                 st["status"], st["output"], st["error"], st["rounds"] = "OK", got[st["q"]], "", 1
             else:
@@ -2056,7 +2076,7 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--votes", type=int, help="1차 심판 투표 수 — 같은 턴을 N 번 판정해 다수결 (기본 .env FIRST_JUDGE_VOTES 또는 3, 1 이면 한 번)")
-    ap.add_argument("--codex-batch", type=int, help="첫 Codex 호출 묶음 크기 — 첨부 없는 단일 질문 N개를 한 번에 (기본 .env CODEX_BATCH 또는 1 = 질문마다)")
+    ap.add_argument("--codex-batch", type=int, help="첫 Codex 호출 묶음 크기 — 첨부 없는 단일 질문 N개를 한 번에 (기본 .env CODEX_BATCH 또는 10, 1 = 질문마다)")
     ap.add_argument("--run", required=True)
     ap.add_argument("--pick", help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona (없으면 --questions)")
     ap.add_argument("--set", default=str(SET_DIR), help="질문 세트 폴더 (questions.json) — 기본은 326 세트")

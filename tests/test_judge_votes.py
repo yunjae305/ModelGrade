@@ -107,3 +107,15 @@ def test_codex_batch_round_survives_batch_exception_and_attributes_time_to_lead(
     jv.codex_batch_round(states, Boom(), "P", size=10)
     assert all(st["status"] == "OK" and st["output"]["conclusion"]["reason"] == "개별" for st in states)   # 묶음이 죽어도 질문마다 따로 받음
     assert states[0]["counter"]["calls"] == 2 and states[1]["counter"]["calls"] == 1   # 대표 질문: 묶음 1 + 개별 1
+
+
+def test_batch_groups_split_by_count_and_by_chars_and_big_question_goes_alone():
+    small = [_state(q) for q in (1, 2, 3)]
+    big = _state(4)
+    big["codex_plan"]["doc"] = {"질문번호": 4, "턴": [{"참조자료": "가" * 1000}]}   # 혼자서도 상한을 넘는 질문(롱컨텍스트)
+    tail = _state(5)
+    groups = jv.batch_groups(small + [big, tail], size=10, max_chars=500)
+    assert [[st["q"] for st in g] for g in groups] == [[1, 2, 3], [4], [5]]   # 큰 질문은 혼자, 뒤 질문은 새 묶음
+    assert all("chars" in st["codex_plan"] for st in small + [big, tail])
+    by_count = jv.batch_groups([_state(q) for q in range(1, 6)], size=2, max_chars=10**6)
+    assert [[st["q"] for st in g] for g in by_count] == [[1, 2], [3, 4], [5]]
