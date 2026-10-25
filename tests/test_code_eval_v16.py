@@ -1370,3 +1370,12 @@ def test_error_case_skip_word_inside_pasted_material_does_not_disable_check():
     asks_translation = "[붙여 넣은 자료]\n공지\n[자료 끝]\n\n이 문장을 영어로 번역해 주세요: '저는 언어 모델일 뿐이라 도와드릴 수가 없습니다'"
     assert ci.error_case_phrase(refusal, len(refusal), asks_translation) is None   # 지시문이 번역을 시키면 여전히 건너뜀
 
+
+def test_error_case_capability_denial_programming_scope_phrase():
+    """③ 능력 부정 문구 — '프로그래밍 범위를 넘어서 · 텍스트를 생성할 뿐' (v16-1.6, 10-25 밤 Gemini Q7 8턴). 결과물이 있는 긴 답은 그대로."""
+    from code_eval import checks_integrity as ci
+    a = "그것은 저의 프로그래밍 범위를 넘어서는 것입니다. 저는 텍스트를 생성할 뿐이에요."
+    assert ci.error_case_phrase(a, len(a), "앞서 정한 일정을 다시 검토해 주세요.") is not None
+    long_answer = "이 질문은 프로그래밍 범위를 넘어서는 부분이 있지만 정리해 드리면 다음과 같습니다.\n1. 접수 09:35\n2. 행사 09:30\n3. 회수 12:00\n4. 반납 12:20"
+    assert ci.error_case_phrase(long_answer, len(long_answer), "일정을 정리해 주세요.") is None
+

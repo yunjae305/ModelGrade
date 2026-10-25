@@ -406,6 +406,9 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "복사 실패(COPY_FAILED)는 우리 원인이라 행 없이 skipped 사유만(질문 보류). 사례 payload.collection(status·error)을 Ctx 로 받음",
                  "근거: 10-23 미팅 2·3번(빈 응답 기준 대신 에러 케이스 기준, 발견될 때마다 확장) · 10-25 웹 수집 시험에서 Gemini 3.8 Flash 가 같은 질문에 "
                  "'저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다' 로 답했다가 다시 보내면 정상 답(모델의 간헐 거절) — LLM 판정(J1-1.a·J1-2.a)은 그대로 두고 CODE 가 먼저 잡는다"]},
+    {"version": "engine v16.7.3", "date": "2026-10-25", "scope": "code",
+     "changes": ["1-1.response_nonempty v16-1.6 — 에러 케이스 ③ 능력 부정 정형 문구에 '(프로그래밍 · 능력 · 처리 · 기능) 범위를 넘어 · 벗어' · '텍스트를 생성할 뿐' 추가(거절 말에도)",
+                 "근거: 10-25 밤 v4-r9-chk — Gemini Q7 8턴 '그것은 저의 프로그래밍 범위를 넘어서는 것입니다. 저는 텍스트를 생성할 뿐이에요.'(45자)를 CODE 가 못 잡아 J1-2.a FAIL 로 셈 — 발견될 때마다 넓힌다(10-23 미팅 2번)"]},
     {"version": "engine v16.7.2", "date": "2026-10-25", "scope": "code",
      "changes": ["1-1.response_nonempty v16-1.5 — 에러 케이스 ③ 의 '질문이 번역 · 인용을 시켰으면 건너뜀'(ERROR_CASE_QUESTION_SKIP)을 질문 전체가 아니라 "
                  "붙여 넣은 자료([붙여 넣은 자료] … [자료 끝]) 밖의 지시문에만 적용(instruction_text)",

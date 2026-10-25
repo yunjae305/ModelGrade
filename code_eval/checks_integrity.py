@@ -198,8 +198,11 @@ ERROR_CASE_PHRASES = (
     re.compile(r"텍스트\s*기반\s*(AI|인공지능|모델)"),
     re.compile(r"(I'?m|I am)\s+(just\s+|only\s+)?(a|an)\s+(large\s+)?(language\s+model|text-based)", re.I),
     re.compile(r"as an AI( language)? model", re.I),
+    # 10-25 밤 v4-r9-chk Gemini Q7 8턴: "그것은 저의 프로그래밍 범위를 넘어서는 것입니다. 저는 텍스트를 생성할 뿐이에요."
+    re.compile(r"(프로그래밍|능력|처리|기능)\s*(의\s*)?범위를\s*(넘어|벗어)"),
+    re.compile(r"텍스트(만|를)\s*(생성|만들)할\s*뿐"),
 )
-ERROR_CASE_REFUSAL = re.compile(r"도와\s*드릴\s*수(가)?\s*없|할\s*수(가)?\s*없|이해하지\s*못|도움을\s*드릴\s*수\s*없|cannot|can'?t|unable", re.I)
+ERROR_CASE_REFUSAL = re.compile(r"도와\s*드릴\s*수(가)?\s*없|할\s*수(가)?\s*없|이해하지\s*못|도움을\s*드릴\s*수\s*없|범위를\s*(넘어|벗어)|생성할\s*뿐|cannot|can'?t|unable", re.I)
 ERROR_CASE_MAX_CHARS = 300   # 이보다 길면 결과물이 있는 것으로 보고 ③ 을 적용하지 않는다
 COLLECTION_OK = ("SUCCESS", "COPY_FAILED")   # SUCCESS 는 정상, COPY_FAILED 는 우리 원인(행 없이 보류)
 
@@ -253,7 +256,11 @@ def error_case_phrase(answer: str, content_chars: int, question: str = "") -> Op
         return None
     rest = head[len(first):].strip()
     if rest and not ERROR_CASE_COURTESY.fullmatch(rest):   # 첫 문장 뒤에 인사말 말고 다른 글(숫자 · 답)이 있으면 결과물이 있는 답 (Codex 검토 10-25)
-        return None
+        # 뒤 문장이 모두 인사말이거나 또 다른 능력 부정 문장('저는 텍스트를 생성할 뿐이에요')이면 거절 답 그대로 (10-25 밤 Gemini Q7 8턴)
+        sents = [x for x in re.split(r"(?<=[.!?。])\s+|\n", rest) if x.strip()]
+        if not all(ERROR_CASE_COURTESY.fullmatch(x + " ") or ERROR_CASE_COURTESY.fullmatch(x) or any(pt.search(x) for pt in ERROR_CASE_PHRASES)
+                   for x in sents):
+            return None
     return hit
 
 
