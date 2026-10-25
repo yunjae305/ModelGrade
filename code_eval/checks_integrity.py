@@ -209,6 +209,12 @@ ERROR_CASE_QUESTION_SKIP = re.compile(r"번역|옮겨|영어로|한국어로|따
 ERROR_CASE_HEAD_CHARS = 80   # 거절 문구는 답 머리에 온다 — 결과물 뒤에 붙은 안내문은 거절이 아니다
 ERROR_CASE_MAX_LINES = 3     # 줄이 더 많으면 결과물(목록 · 항목)이 있는 것으로 본다
 ERROR_CASE_CONTRAST = re.compile(r"하지만|그러나|다만|그래도|대신|\bbut\b|however|though|instead", re.I)   # 거절 뒤 결과물로 이어지는 표지
+#: 1-1 에러 케이스 ④ — 서비스 오류 정형 문구(모델이 아니라 서비스 · 전송 단계의 오류 메시지가 답 자리에 온 것). 전체가 오류 · 재시도 · 사과 문장뿐일 때만
+#: (10-25 밤: AIONA Q6 5 · 7턴 "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요."를 LLM 항목 3개가 각각 FAIL 로 세던 것 — 한 오류 한 항목, CODE 1-1 이 잡는다)
+SERVICE_ERROR_PHRASES = re.compile(r"오류가\s*발생|문제가\s*발생|응답을\s*생성(할\s*수\s*없|하지\s*못)|생성\s*중\s*오류|생성에\s*실패|요청을\s*처리(할\s*수\s*없|하지\s*못)|"
+                                   r"서버\s*오류|일시적인?\s*오류|처리\s*중\s*오류|error occurred|something went wrong|internal server error|service (is )?unavailable|"
+                                   r"failed to generate", re.I)
+SERVICE_RETRY = re.compile(r"다시\s*시도|잠시\s*후|나중에\s*다시|try again|please retry|later", re.I)
 #: 거절 문장 뒤에 와도 결과물이 아닌 인사 · 사과 · 안내만 (이 밖의 글이 있으면 거절 답이 아님)
 ERROR_CASE_COURTESY = re.compile(r"(?:\s*(?:죄송합니다|죄송해요|양해 부탁드립니다|이해해 주세요|다른 (?:질문|도움)이 (?:있으시면|필요하시면)[^.!?]*|"
                                  r"(?:I'?m )?sorry[^.!?]*|I apologi[sz]e[^.!?]*|let me know[^.!?]*|please ask[^.!?]*)[.!?]*)+\s*", re.I)
@@ -239,6 +245,29 @@ def error_case_phrase(answer: str, content_chars: int, question: str = "") -> Op
     return hit
 
 
+def service_error_phrase(answer: str, content_chars: int) -> Optional[str]:
+    """④ 에 해당하면 맞은 문구를, 아니면 None — 답 전체가 서비스 오류 메시지일 때만: 짧고(300자 · 3줄 이하), 코드블록 없고, 문장마다 오류 · 재시도 · 사과 · 인사뿐.
+    '오류가 발생했을 때는 로그를 확인하세요' 같은 설명 답은 다른 문장이 있어 걸리지 않는다."""
+    if content_chars > ERROR_CASE_MAX_CHARS or "```" in answer:
+        return None
+    lines = [l for l in answer.splitlines() if l.strip()]
+    if len(lines) > ERROR_CASE_MAX_LINES:
+        return None
+    hit = None
+    for sent in re.split(r"(?<=[.!?。])\s+|\n", answer.strip()):
+        sent = re.sub(r"^[\s⚠️❗❌!•·\-*]+", "", sent).strip()
+        if not sent:
+            continue
+        m = SERVICE_ERROR_PHRASES.search(sent)
+        if m:
+            hit = hit or m.group(0)
+            continue
+        if SERVICE_RETRY.search(sent) or ERROR_CASE_COURTESY.fullmatch(sent + " ") or ERROR_CASE_COURTESY.fullmatch(sent):
+            continue
+        return None   # 오류 · 재시도 · 사과가 아닌 문장이 있으면 결과물이 있는 답
+    return hit
+
+
 def check_1_1(ctx: Ctx) -> List:
     out = []
     empty_req = ctx.conds.first("explicit_empty")
@@ -258,9 +287,13 @@ def check_1_1(ctx: Ctx) -> List:
             hit = error_case_phrase(ctx.answer, len(content), ctx.question)
             if hit:
                 kind, reason = "능력 부정 문구", "능력 부정 정형 문구만 있고 결과물 없음: '{}'".format(hit)
+            else:
+                svc = service_error_phrase(ctx.answer, len(content))
+                if svc:
+                    kind, reason = "서비스 오류 문구", "서비스 오류 정형 문구만 있고 결과물 없음: '{}'".format(svc)
         ok = kind is None
         out.append(result("1-1.response_nonempty", SUB11, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
-                          verdict_of(ok), required="빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만이 아님",
+                          verdict_of(ok), required="빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만 · 서비스 오류 문구만이 아님",
                           measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind},
                           comparison=cmp_text(len(content), ">=", 1),
                           reason=reason, evidence=[Evidence("answer", 0, len(ctx.answer), ctx.answer[:60])]))

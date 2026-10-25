@@ -406,6 +406,9 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "복사 실패(COPY_FAILED)는 우리 원인이라 행 없이 skipped 사유만(질문 보류). 사례 payload.collection(status·error)을 Ctx 로 받음",
                  "근거: 10-23 미팅 2·3번(빈 응답 기준 대신 에러 케이스 기준, 발견될 때마다 확장) · 10-25 웹 수집 시험에서 Gemini 3.8 Flash 가 같은 질문에 "
                  "'저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다' 로 답했다가 다시 보내면 정상 답(모델의 간헐 거절) — LLM 판정(J1-1.a·J1-2.a)은 그대로 두고 CODE 가 먼저 잡는다"]},
+    {"version": "engine v16.7.1", "date": "2026-10-25", "scope": "code",
+     "changes": ["1-1.response_nonempty 에러 케이스 ④ 서비스 오류 정형 문구만(SERVICE_ERROR_PHRASES: '오류가 발생했습니다'·'응답을 생성할 수 없'·'error occurred' 류 + 재시도·사과 문장뿐, 300자·3줄 이하, 코드블록 없음) — measured.error_case = '서비스 오류 문구'. 규칙 v16-1.4",
+                 "근거: v4-r6 에서 AIONA Q6 5·7턴의 '응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.'를 J1-1.a·J2-3.a·J2-5.b·J6-3.a 가 각각 FAIL 로 셈(한 오류를 네 번) — CODE 1-1 이 잡고 판정 프롬프트 상황표 2 에 '에러 케이스 턴은 J1-1.a 만 아니오, 나머지 해당 없음'"]},
     {"version": "criteria-registry-v12", "date": "2026-10-25", "scope": "registry",
      "changes": ["1-1 '일반 응답 존재' 이름을 '에러 케이스 없음' 으로 (id 1-1.response_nonempty 그대로, 기준 수 72 그대로) — 빈 답만이 아니라 답 없음(수집 오류)·"
                  "능력 부정 정형 문구만도 FAIL. 질문 세트(78·빈 출력 10)는 수도 내용도 바꾸지 않음(사용자 10-25)"]},

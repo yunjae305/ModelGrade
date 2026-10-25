@@ -16,7 +16,7 @@ CONDITIONS = json.loads(DATA.read_text(encoding="utf-8"))
 
 def test_counts_and_ids_match_the_registry():
     checks = CONDITIONS["checks"]
-    assert len(checks) == 28 and sum(len(c["conditions"]) for c in checks) == 196
+    assert len(checks) == 28 and sum(len(c["conditions"]) for c in checks) == 197
     assert [c["id"] for c in checks] == [unit for unit, _, _, _ in CODE_UNITS if not unit.startswith("AIONA")]
     # 대분류·소분류 이름과 질문은 화면이 쓰는 taxonomy.CATEGORIES 와 같아야 한다 (검사 이름은 설계안 표기를 따로 둔다)
     assert [(k["id"], k["name"], k["question"]) for k in CONDITIONS["categories"]] == [(k["id"], k["name"], k["question"]) for k in CATEGORIES]

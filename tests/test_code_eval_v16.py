@@ -86,6 +86,13 @@ def test_error_case_phrase_and_collection_error_fail_1_1_but_copy_failure_is_hel
     assert one(calc2, "1-1.response_nonempty")["verdict"] == PASS   # 짧아도 뒤에 답이 있으면 거절 아님 (Codex 검토 10-25 3차)
     courtesy = run("회의 시간을 알려줘.", "저는 언어 모델일 뿐이라 그것은 도와드릴 수 없습니다. 죄송합니다.")
     assert one(courtesy, "1-1.response_nonempty")["verdict"] == FAIL   # 거절 + 사과만이면 에러 케이스
+    svc = run("안내문을 써 주세요.", "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
+    row = one(svc, "1-1.response_nonempty")
+    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "서비스 오류 문구"   # ④ 서비스 오류 메시지만 (10-25 밤, v16.7.1)
+    svc_en = run("Write a notice.", "⚠️ Something went wrong. Please try again later.")
+    assert one(svc_en, "1-1.response_nonempty")["measured"]["error_case"] == "서비스 오류 문구"
+    about_errors = run("오류가 나면 어떻게 하나요?", "오류가 발생했을 때는 로그 파일을 먼저 확인하세요. 로그는 /var/log 에 있습니다.")
+    assert one(about_errors, "1-1.response_nonempty")["verdict"] == PASS   # 오류를 설명하는 정상 답
     one_para = run("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다: 1) 지원 동기는? 2) 강점은? 3) 갈등을 푼 경험은?")
     assert one(one_para, "1-1.response_nonempty")["verdict"] == PASS   # 한 문단이어도 결과물이 있음
     copy_failed = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED"})
