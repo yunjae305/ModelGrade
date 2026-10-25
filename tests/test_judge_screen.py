@@ -1069,3 +1069,15 @@ def test_deferral_and_no_fail_basis_phrases_from_v4_r9_chk():
     assert jv.reason_contradicts("FAIL", "이 순서 자체는 타당하며, 같은 문제로 FAIL을 유지할 근거가 없습니다.", "J3-5.a")
     assert not jv.reason_contradicts("FAIL", "일정이 겹쳐 실행할 수 없습니다.", "J3-5.a")
 
+
+def test_j5_2a_fail_with_value_kept_or_addition_is_reasked():
+    """J5-2.a FAIL 인데 사유가 '값 자체는 맞지만' · '확정 사실처럼 추가' — 다시 묻기. 다른 값 쌍을 든 사유는 아님 (10-26 v4-r9-chk2)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q9_T7", "turn": 7, "question": "q"}]
+    def out(reason):
+        return {"turns": [{"turn": 7, "items": [{"id": "J5-2.a", "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    f = {7: ["J5-2.a"]}
+    assert jv.deferred_fail_items(out("값 자체는 맞지만 접수 시각에 [1] 출처 번호를 붙이지 않았습니다."), turns, {"Q9_T7": "a"}, f) == [(7, "J5-2.a")]
+    assert jv.deferred_fail_items(out("답변은 보관함 이용료를 확정 사실처럼 추가했습니다."), turns, {"Q9_T7": "a"}, f) == [(7, "J5-2.a")]
+    assert jv.deferred_fail_items(out("원문은 '편도 5분'인데 답변은 '왕복 5분'으로 적었습니다."), turns, {"Q9_T7": "a"}, f) == []
+
