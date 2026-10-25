@@ -33,3 +33,6 @@ venv/
 # Project-local Codex runtime (version is pinned in package-lock.json)
 .runtime/codex/node_modules/
 node_modules/
+
+# Codex 리뷰가 남기는 임시 폴더
+.tmp-review-*/

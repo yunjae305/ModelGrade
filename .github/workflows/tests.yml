@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    # 개발 환경은 Windows — Windows 결과가 기준이고, Linux 는 이식성 확인용(실패해도 PR 을 막지 않음)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            python: "3.12"
+            required: true
+          - os: ubuntu-latest
+            python: "3.12"
+            required: false
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ !matrix.required }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install
+        run: python -m pip install -r requirements.txt
+      - name: Test (모델 호출 없음 — 가짜 심판)
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q
+      - name: 기준 재확인 (문서 · 프롬프트 · 코드가 같은 말을 하는지)
+        env:
+          PYTHONUTF8: "1"
+        run: python -X utf8 tools/criteria_consistency.py

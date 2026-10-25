@@ -1,5 +1,7 @@
 # ModelGrade · AIONA 채팅 품질 평가
 
+> **English summary** — A reproducible quality benchmark for Korean chat assistants: the same 78 questions (single-turn, 10-turn conversations, attachments, long context, explicit-empty-output) are sent to four models, every answer is judged against 72 criteria (28 deterministic CODE checks + 44 LLM-judged items with per-question target criteria), and the result is the number of fully passing questions per model (/78). Judges: a first-pass API judge with 3-vote majority, then a CLI judge (Codex or Claude) that confirms flagged items with quoted evidence; unverifiable cells are held for a human instead of being guessed. A refine loop (`tools/refine_loop.py`, Harness²-style propose → probe → adopt → lesson) improves the judge prompt and criteria from results and human marks.
+
 같은 질문 78개를 AIONA · GPT · Claude · Gemini 에 보내고, 72개 기준(CODE 28 + LLM 44 — 기준 8 · 세부 기준 30·점검 항목 44)으로 답을 판정해 모델별 통과 질문 수(/78)를 냅니다. Windows · Python 3.10 이상. 터미널(PowerShell)에서 실행합니다.
 
 ## 설치
@@ -53,3 +55,9 @@ py -3 -X utf8 -m pytest -q
 ```
 
 표준 테스트는 모델 API 를 호출하지 않습니다. 비밀번호 · API 키는 파일 · 출력에 쓰지 않습니다(`.env` 는 git 제외).
+
+## 저장소 구조 · 기여 · 라이선스
+
+- 구조와 바꾸는 순서는 [CONTRIBUTING.md](CONTRIBUTING.md), 바깥 자료 · 의존성 라이선스는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- 기준 · 프롬프트 · 코드가 같은 말을 하는지: `py -3 -X utf8 tools/criteria_consistency.py` (CI 에서도 돌림, 어긋남이 있으면 실패).
+- 라이선스는 공개 전에 정합니다 — `참고자료/문서/공개_전_점검_2026-10-25.md` (라이선스 · 저장소 이름 · 수집 답변 공개 여부 · 내부 정보).

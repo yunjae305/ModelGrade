@@ -140,8 +140,17 @@ def build_jev() -> dict:
     return d
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    """v3 → v4 이행 도구(2026-10-20). 그 뒤 `judge_prompt_v4.txt` 는 직접 고치는 파일이 되어(10-21~10-25 의 규칙 추가) 다시 만들면 그 손질이 지워진다 —
+    지금 파일이 빌더 결과와 다르면 덮어쓰지 않고 멈춘다(`--force` 로만). jev_questions_v4.json 은 지금도 재현된다."""
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--force", action="store_true", help="직접 고친 judge_prompt_v4.txt 를 빌더 결과로 덮어쓴다(손질이 지워짐)")
+    a = ap.parse_args(argv)
     prompt = build_prompt()
+    if V4.exists() and V4.read_text(encoding="utf-8") != prompt and not a.force:
+        print(f"멈춤: {V4.name} 이 빌더 결과와 다릅니다(직접 고친 규칙이 있음). 덮어쓰려면 --force — 보통은 judge_prompt_v4.txt 를 직접 고치세요.")
+        return 2
     V4.write_text(prompt, encoding="utf-8")
     jev = build_jev()
     JEV_V4.write_text(json.dumps(jev, ensure_ascii=False, indent=1), encoding="utf-8")
