@@ -89,3 +89,13 @@ def pytest_configure(config):
         UserWarning(f"{root} 를 쓸 수 없어 basetemp 를 {fallback} 로 우회합니다 (환경 문제, 테스트 내용과 무관)."),
         stacklevel=2,
     )
+
+
+@pytest.fixture(autouse=True)
+def _single_first_judge_vote(monkeypatch):
+    """판정 시험은 1차 심판을 턴마다 한 번 부르는 전제로 쓴 것 — 운영 기본(3표 다수결, 10-25)은 tests/test_judge_votes.py 가 따로 본다."""
+    try:
+        import tools.judge_v4 as jv
+    except Exception:
+        return
+    monkeypatch.setattr(jv, "FIRST_JUDGE_VOTES", 1)

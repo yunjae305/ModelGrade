@@ -11,6 +11,7 @@ J5~J8 은 Codex 만. 질문 결론: FAIL 항목 하나라도 → FAIL, 보류 �
 from __future__ import annotations
 
 import argparse
+from collections import Counter, defaultdict
 import json
 import hashlib
 import re
@@ -88,6 +89,58 @@ def first_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decis
         status, body, error = decisions.judge(part, questions)
         return status, body, "; ".join(errors + ([str(error)] if error else [])), "decisions"
     return "ERROR", None, "; ".join(errors) or "1차 심판 없음", None
+
+
+def merge_votes(bodies: List[Dict[str, Any]], keys: List[str]) -> Dict[str, Any]:
+    """여러 번 판정한 1차 심판 답(bodies 의 answers)을 항목(key)마다 하나로 — 다수결 choice, 평균 확률 · 확신, votes · vote_split. 유효한 표가 없으면 None."""
+    merged: Dict[str, Any] = {}
+    for key in keys:
+        entries = [b.get("answers", {}).get(key) for b in bodies if isinstance(b, dict)]
+        entries = [e for e in entries if isinstance(e, dict) and e.get("choice") is not None]
+        if not entries:
+            merged[key] = None
+            continue
+        choices = [e["choice"] for e in entries]
+        top = Counter(choices).most_common()
+        avg: Dict[str, float] = defaultdict(float)
+        for e in entries:
+            for k, v in (e.get("probabilities") or {}).items():
+                if isinstance(v, (int, float)):
+                    avg[k] += float(v) / len(entries)
+        if len(top) > 1 and top[0][1] == top[1][1]:   # 동률(세 표가 다 다름) → 평균 확률이 가장 높은 값
+            tied = [c for c, n in top if n == top[0][1]]
+            choice = max(tied, key=lambda c: avg.get(c, 0.0))
+        else:
+            choice = top[0][0]
+        confs = [float(e["confidence"]) for e in entries if isinstance(e.get("confidence"), (int, float))]
+        pick = next((e for e in entries if e["choice"] == choice), entries[0])   # 사유 · 인용은 다수결 값을 낸 표의 것
+        merged[key] = {**pick, "choice": choice, "probabilities": ({k: round(v, 3) for k, v in avg.items()} or pick.get("probabilities")),
+                       "confidence": (round(sum(confs) / len(confs), 3) if confs else pick.get("confidence")),
+                       "votes": choices, "vote_split": len(set(choices)) > 1}
+    return merged
+
+
+def first_judge_votes(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decisions: Any, use_jev: bool,
+                      votes: int = 1) -> Tuple[str, Any, str, Optional[str], List[Dict[str, Any]]]:
+    """first_judge 를 votes 번 불러 다수결로 합친다. 돌려주는 값: (status, 합친 body, error, 쓴 심판, 성공한 답 목록 — 사용량 집계용).
+    votes 가 1 이면 first_judge 그대로. 일부만 성공하면 성공한 표로만 다수결, 모두 실패면 마지막 오류."""
+    if votes <= 1:
+        status, body, error, used = first_judge(part, questions, jev, decisions, use_jev)
+        return status, body, error, used, ([body] if status == "OK" and isinstance(body, dict) else [])
+    oks: List[Dict[str, Any]] = []
+    used_judge: Optional[str] = None
+    errors: List[str] = []
+    for _ in range(votes):
+        status, body, error, used = first_judge(part, questions, jev, decisions, use_jev)
+        if status == "OK" and isinstance(body, dict):
+            oks.append(body)
+            used_judge = used_judge or used
+        else:
+            errors.append(f"{status} {str(error)[:80]}")
+    if not oks:
+        return "ERROR", None, "; ".join(errors) or "1차 심판 모두 실패", used_judge, []
+    merged = {"answers": merge_votes(oks, list(questions.keys())), "votes": len(oks), "vote_errors": errors}
+    return "OK", merged, "; ".join(errors), used_judge, oks
 
 
 def question_json(q: int, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
@@ -226,6 +279,9 @@ SECOND_JUDGE_CONFIDENT = _env_float("SECOND_JUDGE_CONFIDENT", 0.7)
 #: 선별 판정(B, 2026-10-20): Decisions 전수 판정 뒤 Codex 에 넘기는 조건 — FAIL 확률 이 값 이상 또는 확신(confidence) 이 값 미만
 SCREEN_FAIL_PROB = _env_float("SCREEN_FAIL_PROB", 0.3)
 SCREEN_CONFIDENT = _env_float("SCREEN_CONFIDENT", 0.7)
+#: 1차 심판 투표 수 (사용자 10-25 "3번 돌려"): 같은 턴을 이 수만큼 판정해 항목마다 다수결(동률이면 평균 확률이 높은 값), 확률 · 확신은 평균,
+#: 표(votes)는 항목에 남긴다. 1 이면 전과 같음. .env FIRST_JUDGE_VOTES 또는 --votes. 근거: 같은 규칙 두 판정에서 Decisions 15% · Jev 0.8% 흔들림(10-25)
+FIRST_JUDGE_VOTES = max(1, int(_env_float("FIRST_JUDGE_VOTES", 3)))
 #: Decisions 가 '해당 없음'이라 하고 FAIL 확률 < SCREEN_FAIL_PROB 이면 확신이 낮아도 Codex 에 안 보낸다 — 실행 a1642702fccc 전체(걸린 12,967개)에서
 #: 이 묶음 4,954개 중 Codex FAIL 은 55개(1%)였고 그것을 빼도 질문 판정은 하나도 안 바뀌었다. .env SCREEN_SKIP_NA_LOWCONF=0 이면 옛 규칙.
 SCREEN_SKIP_NA_LOWCONF = _env_float("SCREEN_SKIP_NA_LOWCONF", 1) != 0
@@ -1158,6 +1214,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     t0 = time.monotonic()
     reused_dec = False
     fresh: Dict[str, str] = {}   # 이번에 실제로 부른 1차 심판(턴 → 심판) — --repair 의 저장된 답과 따로 (10-22)
+    n_calls = 0   # 실제 1차 심판 호출 수(턴 × 투표)
     saved_fp: Dict[str, str] = {}    # 저장 때 턴마다 1차 심판 입력 지문
     saved_item_fp: Dict[str, Dict[str, str]] = {}   # 저장 때 턴 · 항목마다 판정 정의 지문
     item_fp: Dict[str, Dict[str, str]] = {}
@@ -1224,8 +1281,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 if not ids:
                     continue
         qd = {f"T{n}:{i}": allq[i] for i in ids}
-        status, body, error, used = first_judge(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n))
+        status, body, error, used, bodies = first_judge_votes(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n), votes=FIRST_JUDGE_VOTES)
         fresh[str(n)] = used or "?"
+        n_calls += max(1, len(bodies))
         cached_turn = n in dec_items
         first_used[str(n)] = first_used.get(str(n)) or used
         if status == "OK":
@@ -1235,8 +1293,9 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
                 got = {i: ({**v, "judge": used} if isinstance(v, dict) else v) for i, v in got.items()}
             dec_items[n] = {**dec_items.get(n, {}), **got}
             item_fp.setdefault(str(n), {}).update({i: cur_fp[i] for i in ids if isinstance(got.get(i), dict) and got[i].get("choice") is not None})   # 유효한 답을 받은 항목만
-            usage_tokens += int(((body or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((body or {}).get("usage"), dict) else 0
-            add_usage(usage_by.setdefault(used or "?", {}), (body or {}).get("usage"))
+            for b in bodies:   # 투표마다 쓴 사용량을 모두 더한다
+                usage_tokens += int(((b or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((b or {}).get("usage"), dict) else 0
+                add_usage(usage_by.setdefault(used or "?", {}), (b or {}).get("usage"))
         else:
             dec_items[n] = {**dec_items.get(n, {}), **{i: None for i in ids}}
             dec_errors.append(f"T{n} {status} {str(error)[:120]}")
@@ -1247,7 +1306,7 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         else:
             dec_items[n] = {i: v for i, v in dec_items[n].items() if i in effective[n]}
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
-                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(fresh), "input_tokens": usage_tokens,
+                          "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": n_calls, "votes": FIRST_JUDGE_VOTES, "input_tokens": usage_tokens,
                           "reused": reused_dec, "fresh_judge": fresh, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
     (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used, "_input_fp": input_fp, "_item_fp": item_fp}, ensure_ascii=False, indent=1),
                                            encoding="utf-8")
@@ -1433,6 +1492,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
             items[i] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (entry or {}).get("choice") if isinstance(entry, dict) else None,
                         "second_judge": judge or "decisions", "decisions_prob": (entry or {}).get("probabilities") if isinstance(entry, dict) else None,
                         "decisions_confidence": (entry or {}).get("confidence") if isinstance(entry, dict) else None,
+                        "first_votes": (entry or {}).get("votes") if isinstance(entry, dict) else None,
+                        "first_vote_split": bool((entry or {}).get("vote_split")) if isinstance(entry, dict) else False,
                         "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [], "notes": (cv or {}).get("notes") or [],
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
@@ -1849,6 +1910,7 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
 
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--votes", type=int, help="1차 심판 투표 수 — 같은 턴을 N 번 판정해 다수결 (기본 .env FIRST_JUDGE_VOTES 또는 3, 1 이면 한 번)")
     ap.add_argument("--run", required=True)
     ap.add_argument("--pick", help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona (없으면 --questions)")
     ap.add_argument("--set", default=str(SET_DIR), help="질문 세트 폴더 (questions.json) — 기본은 326 세트")
@@ -1864,6 +1926,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--reask-fail", default="", help="쉼표로 나눈 항목 — Codex 가 FAIL 로 본 그 항목을 정의의 예외를 짚어 한 번 다시 묻는다(J1-4.a · J1-4.b 는 기본, 여기에 더함)")
     ap.add_argument("--repair", action="store_true", help="이미 판정한 줄을 저장된 Decisions·Codex 출력으로 다시 합치고, Codex 가 답하지 않았거나 인용이 틀린 항목만 다시 묻는다")
     args = ap.parse_args(argv)
+    if args.votes:
+        global FIRST_JUDGE_VOTES
+        FIRST_JUDGE_VOTES = max(1, int(args.votes))
     REASK_FAIL_ITEMS.update(x.strip() for x in (args.reask_fail or "").split(",") if x.strip())
 
     import tools.judge_run as jr
