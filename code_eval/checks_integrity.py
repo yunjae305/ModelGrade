@@ -220,12 +220,24 @@ ERROR_CASE_COURTESY = re.compile(r"(?:\s*(?:죄송합니다|죄송해요|양해 
                                  r"(?:I'?m )?sorry[^.!?]*|I apologi[sz]e[^.!?]*|let me know[^.!?]*|please ask[^.!?]*)[.!?]*)+\s*", re.I)
 
 
+def instruction_text(question: str) -> str:
+    """붙여 넣은 자료([붙여 넣은 자료] … [자료 끝]) 구간을 뺀 질문 — 번역 · 인용을 시켰는지는 지시문에서만 본다
+    (10-25 밤 보류 분석: 자료 속 '1500원을 남은 예상 쪽으로 옮겨야' 의 '옮겨' 로 검사가 꺼져 Gemini 의 정형 거절이 Codex 로 감 — 78 세트 90턴이 자료 속 낱말로 꺼지던 것)."""
+    from .analysis import pasted_ranges
+    out, cursor = [], 0
+    for a, b in pasted_ranges(question or ""):
+        out.append(question[cursor:a])
+        cursor = b
+    out.append((question or "")[cursor:])
+    return "".join(out)
+
+
 def error_case_phrase(answer: str, content_chars: int, question: str = "") -> Optional[str]:
     """③ 에 해당하면 맞은 문구를, 아니면 None — 답 전체가 거절일 때만: 짧고(300자 · 3줄 이하), 코드블록 없고, 문구가 답 머리(80자 안)에 있고,
     질문이 번역 · 인용을 시킨 것이 아님. 애매하면 None(LLM 판정 몫). 문구는 원문(answer)에서 찾는다 — 공백을 지운 글에서는 영어 문구가 안 잡힌다."""
     if content_chars > ERROR_CASE_MAX_CHARS or "```" in answer:
         return None
-    if question and ERROR_CASE_QUESTION_SKIP.search(question):
+    if question and ERROR_CASE_QUESTION_SKIP.search(instruction_text(question)):
         return None
     lines = [l for l in answer.splitlines() if l.strip()]
     if len(lines) > ERROR_CASE_MAX_LINES:

@@ -934,3 +934,50 @@ def test_recode_marks_error_case_turns_from_current_code_eval(tmp_path: Path):
     assert t2["J1-1.a"]["decision"] == "FAIL" and t2["J2-3.a"]["decision"] == "NOT_APPLICABLE" and t2["J6-1.a"]["decision"] == "NOT_APPLICABLE"
     assert last["turn_results"]["1"]["items"]["J1-1.a"]["decision"] == "PASS"   # 다른 턴은 그대로
 
+
+def test_hold_analysis_guards_resolve_only_with_two_pass_signals():
+    """10-25 밤 보류 분석 반영 — 출처 없는 J5-1.a FAIL · 사유 모순은 1차 심판이 확신한 PASS 일 때만 PASS, 아니면 보류. FAIL 은 새로 만들지 않음."""
+    import tools.judge_v4 as jv
+    fact = lambda first, conf, entries: {"J5-1.a": {"decision": "FAIL", "jev": first, "decisions_confidence": conf, "entries": entries}}
+    nosrc = {"decision": "FAIL", "reason": "전문 정의와 다름", "fact": {"verdict": "FALSE", "sources": []}}
+    items = fact("PASS", 0.86, [nosrc]); jv.fact_fail_guard(items)
+    assert items["J5-1.a"]["decision"] == "PASS" and "1차 심판 PASS" in items["J5-1.a"]["how"]
+    items = fact("PASS", 0.5, [nosrc]); jv.fact_fail_guard(items)
+    assert items["J5-1.a"]["decision"] == "UNVERIFIED" and items["J5-1.a"]["kind"] == "확인 못함"
+    true_fail = {"decision": "FAIL", "reason": "J5-3 에서 따로", "fact": {"verdict": "TRUE", "sources": []}}
+    items = fact("FAIL", 0.9, [true_fail]); jv.fact_fail_guard(items)
+    assert items["J5-1.a"]["decision"] == "UNVERIFIED" and items["J5-1.a"]["kind"] == "사유 모순" and true_fail["contradiction_from"] == "FAIL"
+    backed = {"decision": "FAIL", "reason": "반감기 거짓", "fact": {"verdict": "FALSE", "sources": [{"url": "u", "quote": "q"}]}}
+    items = fact("PASS", 0.95, [backed]); jv.fact_fail_guard(items)
+    assert items["J5-1.a"]["decision"] == "FAIL"   # 반박 출처가 있으면 1차 심판과 상관없이 FAIL
+    # 사유 모순: 결론 PASS + 1차 PASS 확신 → PASS / 1차 FAIL → 보류 / PASS 인데 사유 FAIL → 보류(FAIL 을 만들지 않음)
+    its = {"J1-4.a": {"decision": "FAIL", "reason": "인용한 줄은 요청한 순서라 판정은 PASS여야 합니다.", "jev": "PASS", "decisions_confidence": 0.8}}
+    jv.reason_decision_guard(its); assert its["J1-4.a"]["decision"] == "PASS"
+    its = {"J1-4.a": {"decision": "FAIL", "reason": "판정은 PASS여야 합니다.", "jev": "FAIL", "decisions_confidence": 0.8}}
+    jv.reason_decision_guard(its); assert its["J1-4.a"]["decision"] == "UNVERIFIED"
+    its = {"J3-1.a": {"decision": "PASS", "reason": "실제로는 FAIL 입니다.", "jev": "FAIL", "decisions_confidence": 0.9}}
+    jv.reason_decision_guard(its); assert its["J3-1.a"]["decision"] == "UNVERIFIED"
+
+
+def test_codex_never_answered_item_follows_confident_first_judge_and_quote_bullets():
+    """Codex 가 다시 물어도 답하지 않은 항목은 1차 심판이 확신한 PASS · 해당 없음이면 그 판정, FAIL 이면 보류 · 인용 대조는 줄머리 글머리 기호를 뗌 (10-25 밤)."""
+    import tools.judge_v4 as jv
+    from tools import judge_split as js
+    none = {"decision": "UNVERIFIED", "entries": [], "problems": ["판정 없음"]}
+    assert jv.combine_screen(none, {"choice": "NOT_APPLICABLE", "confidence": 0.82}, True, item="J2-5.a")[0] == "NOT_APPLICABLE"
+    assert jv.combine_screen(none, {"choice": "PASS", "confidence": 0.5}, True, item="J2-5.a")[0] == "UNVERIFIED"
+    assert jv.combine_screen(none, {"choice": "FAIL", "confidence": 0.9, "probabilities": {"FAIL": 0.9}}, True, item="J2-5.a")[0] == "UNVERIFIED"
+    assert js.quoted_in("- 오늘 날짜가 10월 21일이라 확인이 필요합니다", ["오늘 날짜가 10월 21일이라 확인이 필요합니다"])
+    assert not js.quoted_in("1. 오늘 날짜가 10월 22일", ["오늘 날짜가 10월 21일"])
+
+
+def test_quote_locations_tell_where_a_misquote_actually_is():
+    """인용 불일치로 다시 묻을 때 그 글이 실제로 있는 턴 · 쪽(질문 · 답변)을 알려 준다 (10-25 밤 보류 분석 인용 6칸)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q1_T1", "turn": 1, "question": "첫 질문입니다."}, {"case_id": "Q1_T2", "turn": 2, "question": "두 번째 질문입니다."}]
+    answers = {"Q1_T1": "A안 소요 시간은 총 38분입니다.", "Q1_T2": "B안으로 정리했습니다."}
+    out = {"turns": [{"turn": 2, "items": [{"id": "J3-2.b", "decision": "FAIL", "answer_quote": "A안 소요 시간은 총 38분입니다."}]}]}
+    locs = jv.quote_locations(out, turns, answers, [(2, "J3-2.b")])
+    assert "T1 답변" in locs["T2:J3-2.b"] and "T2 답변에서만" in locs["T2:J3-2.b"]
+    assert jv.quote_locations(out, turns, answers, [(2, "J1-1.a")]) == {}
+

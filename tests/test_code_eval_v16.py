@@ -1353,3 +1353,15 @@ def test_function_table_sum_row_is_not_a_total_row():
 def test_aggregate_bold_operands_are_still_an_equation(answer):   # Codex 4차 검토
     r = one(run(AGG_Q, answer), "3-3.aggregate")
     assert (r["verdict"], r["measured"]["claimed"]) == (PASS, "46")
+
+
+def test_error_case_skip_word_inside_pasted_material_does_not_disable_check():
+    """③ 의 번역 · 인용 예외는 붙여 넣은 자료 밖 지시문만 본다 — 자료 속 '옮겨' 로 검사가 꺼지지 않게 (v16-1.5, 10-25 밤 Gemini Q4 9턴)."""
+    from code_eval import checks_integrity as ci
+    refusal = "저는 언어 모델일 뿐이라 그것에 필요한 정보나 능력이 없어서 도와드릴 수가 없습니다."
+    pasted = "[붙여 넣은 자료]\n- 강민호: B안이면 1500원을 남은 예상 쪽으로 옮겨야 한다.\n[자료 끝]\n\n안내문을 두 번째로 수정해 주세요."
+    assert ci.instruction_text(pasted).strip() == "안내문을 두 번째로 수정해 주세요."
+    assert ci.error_case_phrase(refusal, len(refusal), pasted) is not None
+    asks_translation = "[붙여 넣은 자료]\n공지\n[자료 끝]\n\n이 문장을 영어로 번역해 주세요: '저는 언어 모델일 뿐이라 도와드릴 수가 없습니다'"
+    assert ci.error_case_phrase(refusal, len(refusal), asks_translation) is None   # 지시문이 번역을 시키면 여전히 건너뜀
+

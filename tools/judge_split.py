@@ -180,6 +180,7 @@ def fold(entries: List[Dict[str, Any]]) -> str:
 _ELLIPSIS = re.compile(r"^(?:…|\.\.\.|\s)+|(?:…|\.\.\.|\s)+$")
 _ENDING = re.compile(r"(?:습니다|입니다|니다|어요|아요|예요|에요|해요|세요|다|요)[.!?]?$")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+_BULLET = re.compile(r"(?m)^[ \t]*[-•·][ \t]+")
 
 
 def _norm(t: str) -> str:
@@ -208,6 +209,7 @@ def quoted_in(quote: str, sources: List[str]) -> bool:
     pool = [_norm(s) for s in sources if s]
     if not (quote or "").strip():
         return True
+    quote = _BULLET.sub("", quote)   # 줄머리 글머리 기호('- ' · '• ')는 떼고 대조 — judge_v4._quote_in 과 같게 (10-25 밤 보류 분석: Claude Q5 8턴). 번호('1. ')는 그대로
     if _piece_in(quote, pool):
         return True
     pieces = [x for x in _SENTENCE_SPLIT.split(quote) if x and x.strip(" ….")]   # '...' 만 있는 조각(떨어진 두 곳을 이은 표시)은 뺀다

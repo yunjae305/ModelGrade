@@ -495,6 +495,35 @@ def bad_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str,
     return out
 
 
+def quote_locations(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], keys: List[Tuple[int, str]]) -> Dict[str, str]:
+    """인용 불일치로 다시 묻는 (턴, 항목)의 인용이 실제로 어디(다른 턴의 질문 · 답변)에 있는지 — 다시 묻을 때 알려 준다
+    (10-25 밤 보류 분석: 인용 불일치 6칸이 뒤 턴 답 · 이 턴 답 · 다른 턴 질문에서 따온 것)."""
+    rows = sorted(turns, key=ji._turn)
+    out: Dict[str, str] = {}
+    want = set(keys)
+    for t in (output or {}).get("turns") or [] if isinstance(output, dict) else []:
+        if not isinstance(t, dict):
+            continue
+        n = t.get("turn")
+        for e in t.get("items") or []:
+            if not isinstance(e, dict) or (n, js._base(e.get("id"))) not in want:
+                continue
+            for field, own in (("answer_quote", "답변"), ("question_quote", "질문")):
+                q = str(e.get(field) or "").strip()
+                if not q:
+                    continue
+                hits = [f"T{ji._turn(r)} {kind}" for r in rows for kind, text in (("질문", r.get("question") or ""), ("답변", answers.get(r["case_id"], "")))
+                        if not (ji._turn(r) == n and kind == own) and js.quoted_in(q, [text])]
+                if hits and not (field == "answer_quote" and f"T{n} 답변" in hits):
+                    out[f"T{n}:{e.get('id')}"] = (f"{field} 의 글은 {' · '.join(hits[:3])}에 있습니다 — answer_quote 는 T{n} 답변에서만, "
+                                                  f"question_quote 는 T{n} 까지의 질문(앞 턴이면 quote_turn)에서만 글자 그대로 인용하세요")
+    return out
+
+
+QUOTE_SCOPE_NOTE = ("인용 범위: answer_quote 는 판정하는 그 턴의 답변에서만(앞 턴 · 뒤 턴 답변 금지), question_quote 는 그 턴까지의 질문 · 자료에서만"
+                    "(답변 문장 · 뒤 턴 질문 금지, 앞 턴이면 quote_turn) 글자 그대로 복사합니다. 바꿔 쓴 문장은 인용이 아닙니다 — '인용_위치' 에 그 글이 실제로 있는 곳을 적었습니다.")
+
+
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
 
@@ -518,11 +547,15 @@ def attachment_images(turns: List[Dict[str, Any]], files_dir: Optional[Path]) ->
 
 
 def unverified_fact_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
-    """Codex 가 '확인 못함'(UNVERIFIED)이라 한 J5-1.a — 형식 문제 없이 그렇게 답한 것만."""
+    """Codex 가 '확인 못함'(UNVERIFIED)이라 한 J5-1.a, 또는 반박 출처 없이 FAIL 한 J5-1.a — 형식 문제 없이 그렇게 답한 것만.
+    출처 없는 FAIL 은 안전장치가 어차피 보류로 돌리므로 일반 지식인지 한 번 다시 묻는다 (10-25 밤 보류 분석: 출처 없는 FAIL 6칸이 모두 교과서 정의)."""
     out: List[Tuple[int, str]] = []
     for n, items in js.check_gpt(output, turns, answers, flagged).items():
         v = items.get("J5-1.a")
-        if v and v.get("decision") == "UNVERIFIED" and not v.get("problems"):
+        if not v or v.get("problems"):
+            continue
+        fails = [e for e in v.get("entries") or [] if isinstance(e, dict) and e.get("decision") == "FAIL"]
+        if v.get("decision") == "UNVERIFIED" or (fails and not any(backed_fail(e) for e in fails)):
             out.append((n, "J5-1.a"))
     return out
 
@@ -557,7 +590,9 @@ def fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str]
 WEB_SEARCH_ITEMS = frozenset({"J5-1.a", "J5-3.a"})   # Codex 웹 검색을 켜는 항목 (10-21 밤)
 FACT_NOTE = ("J5-1.a 를 다시 묻습니다: 주장에 실제 세상의 고유한 대상(기관 · 인물 · 제품 · 법령 · 통계 · 날짜 · 가격 · 지명)이나 정확한 수치가 쟁점이 아니면 "
              "교과서 · 사전 수준의 일반 지식으로 PASS(반박 출처가 있으면 FAIL)로 정하세요. UNVERIFIED 를 유지하려면 쟁점인 고유 대상 · 수치를 reason 에 적으세요. "
-             "질문의 자료 · 첨부는 평가용 가상 자료라 검색하지 않습니다.")   # 10-21 밤: 프롬프트를 고쳐도 강화·처벌 정의를 보류한 일
+             "질문의 자료 · 첨부는 평가용 가상 자료라 검색하지 않습니다. FAIL 은 검색으로 찾은 반박 출처를 fact.sources 에 넣을 때만 씁니다 — "
+             "교과서 · 사전 수준의 통용 정의(발효/부패 · 양력/항력 · 음정/음량 · 이슬/서리)를 더 엄밀한 전문 정의가 있다는 이유로 FAIL 하지 않습니다. "
+             "fact.verdict 가 TRUE 인 주장은 FAIL 로 적지 않습니다.")   # 10-21 밤: 프롬프트를 고쳐도 강화·처벌 정의를 보류한 일
 UNDECIDED_NOTE = "UNVERIFIED 는 J5-1.a(사실 확인)에서만 씁니다. 다시 묻는 항목은 정의의 점검 질문으로 PASS · FAIL · NOT_APPLICABLE 중 하나로 정하세요 — 사유가 '아니오'면 FAIL, '예'면 PASS."
 
 
@@ -797,15 +832,31 @@ def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
     it = items.get("J5-1.a")
     if not it or it.get("decision") != "FAIL":
         return
-    fails = [e for e in it.get("entries") or [] if isinstance(e, dict) and e.get("decision") == "FAIL"]
+    entries = [e for e in it.get("entries") or [] if isinstance(e, dict)]
+    # 사실 판정(fact.verdict)이 TRUE 인 주장의 FAIL 은 사유와 판정이 반대 — FAIL 근거에서 뺀다 (10-25 밤 보류 분석: GPT Q7 4턴 #3)
+    contradicted = [e for e in entries if e.get("decision") == "FAIL" and isinstance(e.get("fact"), dict) and e["fact"].get("verdict") == "TRUE"]
+    for e in contradicted:
+        e["contradiction_from"], e["decision"] = "FAIL", "UNVERIFIED"
+    fails = [e for e in entries if e.get("decision") == "FAIL"]
     # 지금 FAIL 인 주장마다 그 주장의 반박 출처로 — 해당 없음으로 뺀 주장의 출처가 다른 주장의 FAIL 을 받치지 않게 (Codex 검토 10-22)
-    if any(isinstance(e.get("fact"), dict) and e["fact"].get("verdict") == "FALSE" and e["fact"].get("sources") for e in fails):
+    backed = [e for e in fails if isinstance(e.get("fact"), dict) and e["fact"].get("verdict") == "FALSE" and e["fact"].get("sources")]
+    if backed:
+        if contradicted:
+            it["reason"], it["answer_quote"], it["question_quote"] = backed[0].get("reason"), backed[0].get("answer_quote"), backed[0].get("question_quote")
         return
-    if fails:   # 대표 사유는 출처 없는 FAIL 주장으로 (Codex 검토 10-22)
-        it["reason"], it["answer_quote"], it["question_quote"] = fails[0].get("reason"), fails[0].get("answer_quote"), fails[0].get("question_quote")
+    conf = float(it.get("decisions_confidence") or 0.0)
+    if it.get("jev") == "PASS" and conf >= SECOND_JUDGE_CONFIDENT:
+        # 반박 출처 없는 FAIL + 1차 심판(3표)이 확신한 PASS — 거짓은 출처로만이므로 FAIL 이 성립하지 않고, 두 번째 신호가 PASS (10-25 밤)
+        it["decision"] = "PASS"
+        it["how"] = (it.get("how") or "") + f" → 반박 출처 없음 · 1차 심판 PASS 확신 {conf:.2f} → PASS"
+        return
+    rep = (fails or contradicted or [{}])[0]   # 대표 사유는 출처 없는 FAIL 주장으로 (Codex 검토 10-22)
+    if rep:
+        it["reason"], it["answer_quote"], it["question_quote"] = rep.get("reason"), rep.get("answer_quote"), rep.get("question_quote")
     it["decision"] = "UNVERIFIED"
-    it["kind"] = "확인 못함"
-    it["how"] = (it.get("how") or "") + " → 반박 출처 없음(거짓은 검색 출처로만) → 확인 못 함"
+    it["kind"] = "사유 모순" if contradicted and not fails else "확인 못함"
+    it["how"] = (it.get("how") or "") + (" → 사실 판정 TRUE 인 주장을 FAIL(사유 모순)" if contradicted and not fails else
+                                         " → 반박 출처 없음(거짓은 검색 출처로만) → 확인 못 함")
 
 
 #: 사유의 결론이 PASS 인 말. 강한 말(결론을 직접 말함)은 다시 물어도 남으면 보류, 약한 말(일부 사정만 말함)은 다시 묻기만 한다 — 자유 서술의
@@ -1171,6 +1222,13 @@ def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
         was = it["decision"]
         if bad:
             it["reason"] = bad[0].get("reason")
+        conf = float(it.get("decisions_confidence") or 0.0)
+        says_pass = reason_contradicts("FAIL", it.get("reason"), iid)   # 사유의 결론이 PASS('판정은 PASS여야' · 'FAIL이 아닙니다')
+        if was in ("FAIL", "NOT_APPLICABLE") and says_pass and it.get("jev") == "PASS" and conf >= SECOND_JUDGE_CONFIDENT:
+            # 사유의 결론과 1차 심판(3표)의 확신한 판정이 같으면 그 결론으로 — 두 신호가 PASS (10-25 밤 보류 분석: Gemini Q3 1턴 · Q9 7턴)
+            it["decision"] = "PASS"
+            it["how"] = (it.get("how") or "") + f" → 사유의 결론 PASS · 1차 심판 PASS 확신 {conf:.2f} → PASS(판정 {was} 은 사유와 반대)"
+            continue
         it["decision"] = "UNVERIFIED"
         it["kind"] = "사유 모순"
         it["how"] = (it.get("how") or "") + f" → 사유의 결론과 판정({was})이 반대(사유 모순) → 확인 못 함"
@@ -1272,6 +1330,12 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
         if d == "FAIL":
             return "UNVERIFIED", f"Codex 판정 없음 · {label} FAIL {p:.2f} → 보류"
         return d, f"{label} {KO.get(d, d)} (Codex 판정 없음)"
+    if (codex_v.get("problems") or []) == ["판정 없음"] and not codex_v.get("entries"):
+        # 다시 물어도 Codex 가 이 항목을 답하지 않음 — 1차 심판이 확신한 PASS · 해당 없음이면 그 판정, FAIL 이나 확신이 낮으면 보류 (10-25 밤 보류 분석: Gemini Q6 4턴)
+        conf = float((dec_v or {}).get("confidence") or 0.0)
+        if d in ("PASS", "NOT_APPLICABLE") and conf >= confident:
+            return d, f"Codex 판정 없음(다시 물어도) · {label} {KO.get(d, d)} 확신 {conf:.2f} → {label} 따름"
+        return "UNVERIFIED", f"Codex 판정 없음(다시 물어도) · {label} {KO.get(d, d)} 확신 {conf:.2f} → 보류"
     if codex_v.get("decision") == "UNVERIFIED" and item != "J5-1.a" and not codex_v.get("problems"):
         # J5-1.a 가 아닌 항목의 '판단 못 함' — 다시 물어도 그러면 1차 심판(Decisions · Jev)이 확신할 때 그 판정을 따르고, 아니면 보류로 남긴다 (10-21 밤: 보류 9건)
         conf = float((dec_v or {}).get("confidence") or 0.0)
@@ -1582,6 +1646,7 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
         while status == "OK" and gpt is not None and rounds < cap:
             missing = missing_codex_items(output, flagged)
             bad = {k: v for k, v in bad_quote_items(output, turns, answers, flagged).items() if k not in reasked}
+            quote_bad = list(bad)   # 인용 불일치로 다시 묻는 (턴, 항목) — 인용 위치 안내용 (10-25 밤)
             # J5-1.a '확인 못함'은 일반 지식인지 한 번 다시 묻는다 — 복구(옛 프롬프트 출력)뿐 아니라 새 판정에도 (10-21 밤)
             fact_unv = [k for k in unverified_fact_items(output, turns, answers, flagged) if k not in reasked]
             bad.update({k: ["J5-1.a 확인 못함 — 일반 지식인지 다시"] for k in fact_unv})
@@ -1628,6 +1693,8 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
                                             if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule + measured_now + dups) else {}),
                                          **({"같은_구절_항목": {f"T{n}": [i for (m, i) in dups if m == n] for n in ask_turns if any(m == n for (m, _i) in dups)}}
                                             if any(k[0] in ask_turns for k in dups) else {}),
+                                         **({"인용_위치": locs, "인용_안내": QUOTE_SCOPE_NOTE}
+                                            if (locs := quote_locations(output, turns, answers, [k for k in quote_bad if k[0] in ask_turns])) else {}),
                                          **({"프로그램이_잰_조건": {f"T{n}": {fam: {"결과": v, "조건": t} for fam, (v, t) in ((code_measured or {}).get(next((r.get("case_id") for r in turns if ji._turn(r) == n), "")) or {}).items()}
                                                                 for n in ask_turns}}
                                             if measured_now else {})})

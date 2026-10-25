@@ -194,6 +194,16 @@ def turn_checks(mod: str, s: Dict[str, Any], kind: str, ctx: Dict[str, Any]) -> 
     raise KeyError(mod)
 
 
+_REC_REQ = re.compile(r"추천해|추천을|권해 ?주|어느 (?:쪽|안)이 (?:나|좋)")
+
+
+def asks_recommendation(mod: str, kind: str, req: str) -> bool:
+    """그 턴 요청이 추천 · 제안을 시키는가 — 1턴은 종류 A(추천을 묻는 대화)만, 다른 턴은 요청 글에 추천 말이 있을 때만."""
+    if mod == "setup":
+        return kind == "A"
+    return bool(_REC_REQ.search(req or ""))
+
+
 def decided_rules(mod: str, s: Dict[str, Any], kind: str = "A", conflicts: Tuple[str, ...] = ()) -> List[str]:
     """사용자가 정한 이 질문의 판정 기준 — 확인 목록의 사실과 따로 둔다(심판은 따른다)."""
     out: List[str] = []
@@ -206,8 +216,9 @@ def decided_rules(mod: str, s: Dict[str, Any], kind: str = "A", conflicts: Tuple
     if mod == "final":   # 10-23 사용자 결정(표본 19 · 39 등 마지막 턴): 잰 적 없는 시간 · 정하지 않은 방식을 밝힌 일정까지 J3-5.a · J1-1.a FAIL 이던 것
         out.append("잰 적 없는 소요 시간(자료에 값이 없는 꺼내기 · 싣기 · 이동 등): '미측정 · 미정'이라고 밝히고 여유나 기한을 둔 일정이 맞음 — 그런 구간이 있다는 이유만으로 "
                    "일정이 성립하지 않는다거나 결과물이 없다고 보지 않음. 짐작한 값을 잰 값처럼 적은 것은 틀림 (사용자 결정 2026-10-23)")
-        out.append("방식: 이 턴은 1턴 답이 추천한 안(B안)을 전제로 짠 일정이 맞음 — 기록에 A · B 선택이 보류로 남았다는 이유로 B안 일정을 틀렸다고 보지 않고, "
-                   "B안의 전날 작업(넣기 · 이용료 등)을 마친 것으로 두어도 맞음 (사용자 결정 2026-10-23)" if kind == "A" else
+        out.append("방식: 이 턴은 그 대화의 1턴 답이 추천한 안(모델마다 A안일 수도 B안일 수도 있음)을 전제로 짠 일정이 맞음 — 기록에 A · B 선택이 보류로 남았다는 "
+                   "이유로 추천안 일정을 틀렸다고 보지 않고, 추천안이 B안이면 B안의 전날 작업(넣기 · 이용료 등)을 마친 것으로 두어도 맞음 (사용자 결정 2026-10-23 · "
+                   "10-25 밤: 1턴에 A안을 추천한 답도 있어 '(B안)' 을 뺌)" if kind == "A" else
                    "방식: A안 · B안을 고르지 않은 대화 — 두 갈래를 나란히 두거나 방식을 미정으로 둔 일정이 맞고, 한 안을 확정된 것처럼 쓴 것은 틀림 (사용자 결정 2026-10-23)")
     if mod == "record":   # 미팅 결정 10-23(10-25 반영): '[1]·[2]를 인용'의 뜻. 확인할 것의 사실 줄로 넣었을 때(v4-r6)는 심판이 따르지 않고 번호 없음을 계속 FAIL 로 봄 → 정한 판정으로
         out.append("인용 지시('문장에 [1]·[2]를 인용하여 … 출처 목록'): 번호 표기가 없어도 그 기록의 제목 · 내용을 끌어다 쓰고 출처(원제목)를 밝혔으면 인용한 것으로 봄 — "
@@ -262,6 +273,8 @@ def build_one(q: Dict[str, Any], s: Dict[str, Any], kind: str, order: List[str],
         # 판정 목표(10-23, 사용자): 늘 보는 항목 + 인식기가 이 턴 요청에서 잡은 항목 + 턴 종류별 설계 항목(대화 목표 안의 것만) + 흐름상 해당하는 J6
         # — 대화 전체 목표(약 34개)를 턴마다 다 보던 것을 그 턴의 요청 · 함정 기준(15~20개)으로. 싱글턴(질문당 8개쯤)과 잣대를 맞추고 Codex 호출도 줄임
         turn_j = set(ALWAYS_J) | {x for x in base["items"] if not x.startswith("J6")} | {x for x in TURN_KIND_ITEMS.get(mod, ()) if x in q_j} | {j for j in J6_ALL if j not in na and i >= 2}
+        if not asks_recommendation(mod, kind, ctx["req"]):   # J2-5.a(추천 적합)의 적용은 '추천 · 제안 요청' — 안내문 초안 · '고르지 마세요' 1턴은 목표가 아님 (10-25 밤 보류 분석)
+            turn_j.discard("J2-5.a")
         targets = sorted(set(base["checks"]) | turn_j)
         k_units = (set(base["checks"]) | set(base["items"])) - set(na)             # k: 인식기의 턴별 기준에서 같은 J6 만 뺌
         k_units |= {j for j, pat in RECOGNIZER_MISSES.get(mod, ()) if j in q_j and pat.search(ctx["req"])}   # + 확인된 인식기 누락

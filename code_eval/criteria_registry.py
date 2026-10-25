@@ -406,6 +406,11 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "복사 실패(COPY_FAILED)는 우리 원인이라 행 없이 skipped 사유만(질문 보류). 사례 payload.collection(status·error)을 Ctx 로 받음",
                  "근거: 10-23 미팅 2·3번(빈 응답 기준 대신 에러 케이스 기준, 발견될 때마다 확장) · 10-25 웹 수집 시험에서 Gemini 3.8 Flash 가 같은 질문에 "
                  "'저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다' 로 답했다가 다시 보내면 정상 답(모델의 간헐 거절) — LLM 판정(J1-1.a·J1-2.a)은 그대로 두고 CODE 가 먼저 잡는다"]},
+    {"version": "engine v16.7.2", "date": "2026-10-25", "scope": "code",
+     "changes": ["1-1.response_nonempty v16-1.5 — 에러 케이스 ③ 의 '질문이 번역 · 인용을 시켰으면 건너뜀'(ERROR_CASE_QUESTION_SKIP)을 질문 전체가 아니라 "
+                 "붙여 넣은 자료([붙여 넣은 자료] … [자료 끝]) 밖의 지시문에만 적용(instruction_text)",
+                 "근거: 10-25 밤 v4-r8 보류 분석 — Gemini Q4 9턴 '저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다' 가 자료 속 '옮겨' 한 낱말로 검사가 꺼져 Codex 로 가 보류. "
+                 "78 세트 177턴 중 90턴이 자료 속 낱말로 ③ 검사가 꺼져 있었음"]},
     {"version": "engine v16.7.1", "date": "2026-10-25", "scope": "code",
      "changes": ["1-1.response_nonempty 에러 케이스 ④ 서비스 오류 정형 문구만(SERVICE_ERROR_PHRASES: '오류가 발생했습니다'·'응답을 생성할 수 없'·'error occurred' 류 + 재시도·사과 문장뿐, 300자·3줄 이하, 코드블록 없음) — measured.error_case = '서비스 오류 문구'. 규칙 v16-1.4",
                  "근거: v4-r6 에서 AIONA Q6 5·7턴의 '응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.'를 J1-1.a·J2-3.a·J2-5.b·J6-3.a 가 각각 FAIL 로 셈(한 오류를 네 번) — CODE 1-1 이 잡고 판정 프롬프트 상황표 2 에 '에러 케이스 턴은 J1-1.a 만 아니오, 나머지 해당 없음'"]},

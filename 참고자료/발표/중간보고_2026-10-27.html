@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>채팅 품질 평가 중간 보고</title>
+<meta name="description" content="2026-10-27 중간 보고 초안 — 전체 흐름 · 간단 설명 · 시연 두 장면 · 결과 · 차별점 · 마감 · 운영. 숫자는 10-25 발행본 기준.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* 한 열 발표 문서 — 장마다 번호 · 제목 · 한두 줄 · 표 하나 · 링크. 위쪽 고정 목차와 ← → 키로 장 넘기기 (10-20 자료와 같은 톤) */
+:root {
+  --bg: #f2f4f7; --surface: #ffffff; --ink: #111b26; --muted: #566272; --line: #d5dce5;
+  --accent: #1e5d96; --accent-soft: #e3ecf6; --accent-weak: #9dbbd8;
+  --ok: #1d7748; --ok-soft: #e1f1e7; --warn: #965a00; --warn-soft: #faeed4; --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2; --nav-bg: rgba(242, 244, 247, 0.92); --term: #0f1720; --term-ink: #dfe7ef;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f; --risk: #f08a80; --risk-soft: #3a1c1a;
+    --todo: #a3adb9; --todo-soft: #222c37; --nav-bg: rgba(14, 20, 27, 0.92); --term: #0a1016; --term-ink: #dfe7ef;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f; --risk: #f08a80; --risk-soft: #3a1c1a;
+  --todo: #a3adb9; --todo-soft: #222c37; --nav-bg: rgba(14, 20, 27, 0.92); --term: #0a1016; --term-ink: #dfe7ef;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; word-break: keep-all; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code { font-family: var(--font-num); font-size: 0.9em; background: var(--todo-soft); border-radius: 4px; padding: 0 5px; }
+
+/* 고정 목차 */
+.topnav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--nav-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.topnav-in { max-width: 1100px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 18px; }
+.brand { font-weight: 700; font-size: 0.92rem; white-space: nowrap; }
+.toc-links { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.toc-links::-webkit-scrollbar { display: none; }
+.toc-links a { flex: none; font-size: 0.84rem; color: var(--muted); text-decoration: none; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.toc-links a .n { font-family: var(--font-num); font-size: 0.76rem; margin-right: 5px; }
+.toc-links a:hover { color: var(--ink); background: var(--accent-soft); }
+.toc-links a[aria-current="true"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.toc-links a.decide { color: var(--warn); }
+.pager { display: flex; gap: 4px; flex: none; }
+.pager button { font: inherit; font-size: 0.85rem; width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.pager button:hover { border-color: var(--accent); color: var(--accent); }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 머리 */
+.hero { padding: 36px 0 12px; display: grid; gap: 10px; }
+.hero h1 { font-size: 2.5rem; line-height: 1.18; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.stat { display: flex; align-items: baseline; gap: 8px 14px; flex-wrap: wrap; color: var(--muted); font-size: 0.95rem; }
+.stat b { font-family: var(--font-num); font-size: 1.35rem; color: var(--ink); font-weight: 500; }
+.hint { color: var(--muted); font-size: 0.88rem; }
+
+/* 장(slide) */
+.slide { padding-block: 56px 64px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 22px; }
+.s-head { display: flex; flex-direction: column; gap: 8px; max-width: 860px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-key { font-size: 1.05rem; }
+.s-sub { color: var(--muted); font-size: 0.95rem; max-width: 70ch; }
+.stamp { display: inline-block; align-self: flex-start; font-size: 0.78rem; font-weight: 600; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 2px 10px; }
+.sh { font-size: 1.05rem; margin-top: 2px; }
+
+/* 흐름 상자 */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; counter-reset: f; }
+.flow li { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; counter-increment: f; }
+.flow li::before { content: counter(f, upper-alpha); font-family: var(--font-num); font-size: 0.78rem; color: var(--accent); font-weight: 700; }
+.flow li b { font-size: 0.96rem; }
+.flow li span { font-size: 0.82rem; color: var(--muted); line-height: 1.45; }
+.flow li.ai { border-color: var(--accent-weak); background: var(--accent-soft); }
+.flow li.human { border-color: var(--warn); background: var(--warn-soft); }
+.flow li:not(:last-child)::after { content: "→"; position: absolute; right: -14px; top: 12px; color: var(--muted); font-size: 1rem; z-index: 1; }
+
+/* 카드 · 표 · 단계 · 타일 */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.ct { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.03em; }
+.card h3 { font-size: 1.02rem; }
+.card ul, .card ol { margin: 0; padding-left: 18px; font-size: 0.9rem; color: var(--muted); display: grid; gap: 5px; line-height: 1.5; }
+.card li b { color: var(--ink); }
+.card p { font-size: 0.9rem; color: var(--muted); }
+.card p b { color: var(--ink); }
+.tbl { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.tbl caption { text-align: left; padding: 12px 16px 4px; font-weight: 600; caption-side: top; }
+.tbl caption span { display: block; font-size: 0.82rem; color: var(--muted); font-weight: 400; }
+.tbl th, .tbl td { padding: 9px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.tbl thead th { font-size: 0.8rem; color: var(--muted); font-weight: 600; background: var(--bg); }
+.tbl tbody th { font-weight: 600; }
+.tbl th.num, .tbl td.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.tbl td.num b { color: var(--ok); font-weight: 600; }
+.tbl td.fail { color: var(--risk); }
+.tbl td.hold { color: var(--warn); }
+.tbl small { color: var(--muted); font-weight: 400; }
+.badge { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 0.76rem; font-weight: 700; vertical-align: middle; }
+.b-fail { color: var(--risk); background: var(--risk-soft); }
+.b-hold { color: var(--warn); background: var(--warn-soft); }
+.term { background: var(--term); color: var(--term-ink); border-radius: 10px; padding: 14px 18px; font-family: var(--font-num); font-size: 0.9rem; line-height: 1.7; overflow-x: auto; margin: 0; }
+.term .p { color: #7fb5e3; }
+.term .c { color: #98a4b3; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; counter-reset: st; }
+.steps li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; counter-increment: st; }
+.steps li::before { content: counter(st); width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--font-num); font-size: 0.8rem; font-weight: 700; }
+.steps li b { font-size: 0.95rem; }
+.steps li span { font-size: 0.83rem; color: var(--muted); line-height: 1.45; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; font-size: 0.84rem; line-height: 1.45; align-content: start; }
+.tile b { font-family: var(--font-num); font-size: 1.25rem; font-weight: 500; }
+.tile em { font-style: normal; font-weight: 600; }
+.tile span { color: var(--muted); }
+.files { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; font-family: var(--font-num); }
+.files li span { font-family: var(--font-body); color: var(--muted); margin-left: 8px; }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; font-size: 0.92rem; display: grid; gap: 6px; }
+.note.warn { background: var(--warn-soft); border-color: transparent; }
+.note h3 { font-size: 0.95rem; }
+.note p { color: var(--muted); }
+.note p b { color: var(--ink); }
+.quote { border-left: 3px solid var(--risk); padding: 10px 16px; background: var(--surface); border-radius: 0 10px 10px 0; font-size: 0.9rem; color: var(--muted); display: grid; gap: 4px; }
+.quote b { color: var(--ink); }
+.diff { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 0.95rem; }
+.diff li::marker { font-family: var(--font-num); color: var(--accent); font-weight: 700; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.86rem; }
+.links a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; text-decoration: none; background: var(--surface); }
+.links a:hover { border-color: var(--accent); }
+.split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.split > div { display: grid; gap: 14px; min-width: 0; }
+.aside { background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; position: sticky; top: 76px; scroll-margin-top: 76px; }
+.aside .ct { color: var(--warn); }
+.aside h3 { font-size: 1.05rem; }
+.aside ol { margin: 0; padding-left: 18px; font-size: 0.92rem; display: grid; gap: 8px; line-height: 1.5; }
+.aside p { font-size: 0.82rem; color: var(--muted); }
+footer { padding: 28px 0 60px; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); display: grid; gap: 6px; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } .aside { position: static; } }
+@media (max-width: 640px) { body { font-size: 16px; } .hero h1 { font-size: 1.8rem; } .s-head h2 { font-size: 1.4rem; } .slide { padding-block: 40px 48px; } .brand { display: none; } .flow li::after { display: none; } }
+</style>
+</head>
+<body>
+<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">AIONA 채팅 품질 평가 · 중간 보고</span><div class="toc-links" id="toc-links"><a href="#s1"><span class="n">01</span>전체 흐름</a><a href="#s2"><span class="n">02</span>간단 설명</a><a href="#s3"><span class="n">03</span>시연 ① 시작</a><a href="#s4"><span class="n">04</span>시연 ② 결과</a><a href="#s5"><span class="n">05</span>결과</a><a href="#s6"><span class="n">06</span>차별점</a><a href="#s7"><span class="n">07</span>마감 · 운영</a><a href="#decide" class="decide"><span class="n">★</span>정할 것</a></div><div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div></div></nav>
+<main class="wrap">
+<header class="hero">
+  <h1><em>AIONA</em> 채팅 품질 평가 — 중간 보고</h1>
+  <div class="stat"><span>2026-10-27</span><b>78</b><span>질문</span><b>4</b><span>모델 — ChatGPT · Claude · Gemini · AIONA</span><b>72</b><span>기준 — CODE 28 + LLM Judge 44</span></div>
+  <p class="hint">초안 · 7장면 — ← → 키나 위 목차로 장을 넘깁니다. 숫자는 모델별 질문 수 / 78, 10-25 발행본 기준이라 재판정 뒤 갱신합니다.</p>
+</header>
+
+<section class="slide" id="s1">
+  <div class="s-head"><span class="s-no">01 / 07</span><h2>전체 흐름</h2><p class="s-key">같은 질문 78개 → 네 모델 웹에서 답 수집 → 기준 72개로 자동 판정 → 보류는 사람이 정함.</p><p class="s-sub">AI 가 끼는 곳은 답변 수집과 LLM Judge 두 곳뿐이고, 나머지는 정해진 규칙(코드)이 합니다.</p></div>
+  <ol class="flow" aria-label="전체 흐름">
+    <li><b>질문 78개 · 고정</b><span>질문마다 노리는 기준 6~10개를 미리 정해 둠</span></li>
+    <li class="ai"><b>네 모델 웹에서 답 수집</b><span>ChatGPT · Claude · Gemini · AIONA — Chrome 네 탭 자동 조작, 답은 복사 아이콘으로</span></li>
+    <li><b>CODE 검사 28</b><span>형식 · 개수 · 계산을 프로그램이 셈 — 어기면 FAIL</span></li>
+    <li class="ai"><b>LLM Judge 44</b><span>1차 심판 3표 → FAIL · 애매한 칸만 Codex 가 확정</span></li>
+    <li><b>질문마다 판정</b><span>완전 통과 · FAIL · 보류 — 보고서 · 판정 보고서 · 결과 JSON</span></li>
+    <li class="human"><b>보류는 사람이 정함</b><span>원문 · 사유를 보고 PASS / FAIL — 정한 만큼만 숫자에</span></li>
+  </ol>
+  <div class="tbl"><table><caption>누가 하나<span>코드 · 모델 · 심판 · 사람의 몫</span></caption><thead><tr><th>단계</th><th>누가</th></tr></thead><tbody>
+    <tr><th scope="row">질문 세트 · CODE 검사 · 보고서</th><td>코드 — 정해진 규칙</td></tr>
+    <tr><th scope="row">답변 수집</th><td>답하는 모델 4개 — 웹브라우저 자동 조작, 사람은 로그인 한 번</td></tr>
+    <tr><th scope="row">LLM Judge</th><td>심판 — 1차 3표 + Codex 확정, 갈리면 보류</td></tr>
+    <tr><th scope="row">보류 정리</th><td>사람 — 판정 보고서의 보류 화면에서</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="slide" id="s2">
+  <div class="s-head"><span class="s-no">02 / 07</span><h2>간단 설명 — 질문 설계 · 평가 흐름</h2><p class="s-key">질문마다 노리는 기준을 미리 정해 두고, 심판 셋이 갈리면 보류.</p></div>
+  <div class="cards">
+    <div class="card"><span class="ct">질문 설계</span><h3>질문당 기준 6~10개 · 질문 78개</h3><ul>
+      <li><b>6~10개</b> — 기준 1~16개짜리 변형 254개 실험에서 모델 차이가 가장 잘 드러난 구간. 적으면 모두 통과, 많으면 모두 실패.</li>
+      <li><b>78개</b> — 기준 72개를 모두 질문 10개 이상에서 보는 가장 적은 수. 싱글턴 45 · 멀티턴 11 · 롱컨텍스트 10 · 첨부 자료 12.</li>
+      <li><b>같은 항목</b> — 어느 답이든 그 질문의 목표 기준을 봄. 답에 따라 항목이 사라지지 않음.</li>
+    </ul></div>
+    <div class="card"><span class="ct">평가 흐름</span><h3>CODE 28 → 1차 심판 3표 → Codex 확정</h3><ul>
+      <li><b>CODE 28</b> — 글자 수 · 개수 · 표 · 코드 · 계산을 프로그램이 셈. 어기면 바로 FAIL.</li>
+      <li><b>1차 심판 3표</b> — LLM Judge 44 를 심판 셋이 따로 판정, 다수결.</li>
+      <li><b>Codex 확정</b> — FAIL · 애매한 칸만 다시 봄. 인용 대조 · 사유 점검을 거쳐도 확인 못 하면 <span class="badge b-hold">보류</span>.</li>
+      <li><b>질문 판정</b> — 보류 하나라도 → 보류 / 보류 없이 FAIL 하나라도 → FAIL / 모두 통과 → 완전 통과.</li>
+    </ul></div>
+  </div>
+  <div class="links"><a href="../기준/채팅품질 평가기준_v2.md">기준 원본 — 채팅품질 평가기준 v2 (72개)</a><a href="발표흐름_2026-10-27.md">발표 흐름 초안</a></div>
+</section>
+
+<section class="slide" id="s3">
+  <div class="s-head"><span class="s-no">03 / 07</span><h2>시연 ① 시작 — 명령 하나로 수집이 시작됩니다</h2><p class="s-key">사람은 로그인 한 번만, 수집 중에도 컴퓨터를 쓸 수 있습니다.</p><p class="s-sub">터미널에서 아래 명령을 치고 메뉴 1(간단 78)을 고르면 Chrome 네 탭이 열리고 첫 질문이 들어갑니다 — 시연은 여기까지.</p></div>
+  <pre class="term"><span class="p">&gt;</span> py -3 -X utf8 tools/modelgrade.py start
+<span class="c">  메뉴  1 간단 78  → 1 선택</span>
+<span class="c">  Chrome 네 탭 열림 — ChatGPT · Claude · Gemini · AIONA … 첫 질문 입력</span></pre>
+  <ol class="steps" aria-label="시연 ① 순서">
+    <li><b>명령 입력 · 메뉴 1</b><span>간단 78 — 네 모델에 같은 질문 78개</span></li>
+    <li><b>Chrome 네 탭이 열림</b><span>평소 쓰는 Chrome 의 지속 프로필 — 로그인은 미리 한 번</span></li>
+    <li><b>첫 질문이 들어감</b><span>네 모델 동시에 · 멀티턴은 같은 채팅에서 1턴부터 쭉</span></li>
+    <li><b>끝나면</b><span>답은 복사 아이콘으로 받고, 판정까지 돌아 시각 이름의 결과 폴더가 생김</span></li>
+  </ol>
+  <div class="note warn"><h3>발표 전 메모</h3><p>이 장면을 실제로 돌릴지(네 사이트 로그인 상태 확인), 녹화 화면으로 갈지는 <a href="#decide">정할 것 ①</a>. 이 자료를 만들 때는 실행하지 않았습니다.</p></div>
+</section>
+
+<section class="slide" id="s4">
+  <div class="s-head"><span class="s-no">04 / 07</span><h2>시연 ② 결과 — 미리 돌린 결과 폴더</h2><p class="s-key">평가를 시작할 때마다 시각 이름의 폴더 하나 — 결과 보고서 · 판정 보고서 · 결과 JSON.</p><span class="stamp">10-25 발행본 기준 · 재판정 뒤 갱신</span></div>
+  <div class="cards">
+    <div class="card"><span class="ct">보여 줄 폴더</span><h3>참고자료/결과/2026-10-25_12-37-03-450/</h3><ul class="files">
+      <li><a href="../결과/2026-10-25_12-37-03-450/report.html">report.html</a><span>결과 보고서 — 숫자 읽는 법 · 분포 · 순위표 · 기준별 · FAIL 원인 · 보류</span></li>
+      <li><a href="../결과/2026-10-25_12-37-03-450/판정보고서.html">판정보고서.html</a><span>모든 판정 기록 · 보류를 사람이 정하는 화면</span></li>
+      <li>results.jsonl<span>결과 JSON — 질문 × 모델마다 판정 · 기준별 사유 · 답 원문</span></li>
+      <li>수집기록/<span>수집 방식 · 걸린 시간</span></li>
+      <li><a href="../결과/2026-10-25_12-37-03-450/비교.md">비교.md</a><span>재판정 전후 비교</span></li>
+    </ul></div>
+    <div class="card"><span class="ct">보는 순서</span><h3>맨 위 → 아래로 세 곳</h3><ol>
+      <li><b>숫자 읽는 법</b> — 보고서 맨 위 상자(아래 타일과 같음)</li>
+      <li><b>결과 분포</b> — 모델마다 완전 통과 · 보류 · FAIL (<a href="../결과/2026-10-25_12-37-03-450/report.html#s1">01 이번 실행 결과</a>)</li>
+      <li><b>분야별 순위표</b> — 싱글턴 · 멀티턴 · 롱컨텍스트 · 첨부 자료 (<a href="../결과/2026-10-25_12-37-03-450/report.html#s1b">02 분야별 순위표</a>)</li>
+    </ol></div>
+  </div>
+  <h3 class="sh">숫자 읽는 법 — 보고서 맨 위 상자</h3>
+  <div class="tiles">
+    <div class="tile"><b>78</b><em>질문</em><span>AI 에게 보낸 요청 수. 10턴 대화도 질문 1개. 네 모델에 같은 78개.</span></div>
+    <div class="tile"><b>72</b><em>기준</em><span>CODE 28(프로그램) + LLM Judge 44(AI 심판). 질문마다 해당 기준만 봄.</span></div>
+    <div class="tile"><b>6~10</b><em>질문당 요구 기준</em><span>늘 보는 기준을 더하면 한 질문에 평균 32개를 판정.</span></div>
+    <div class="tile"><b>2,162</b><em>기준 판정 건수</em><span>모델마다 같은 수. 빈 출력 요구 10문항은 보류라 뺌.</span></div>
+    <div class="tile"><b>통과 · FAIL · 보류</b><em>질문 단위</em><span>모두 통과 / 하나라도 어김 / 확인 못 한 기준이 남음(사람이 정함).</span></div>
+    <div class="tile"><b>%</b><em>통과율</em><span>완전 통과 ÷ 질문 수. '기준 통과율'은 기준 판정 중 통과 비율이라 더 높게 나옴.</span></div>
+  </div>
+</section>
+
+<section class="slide" id="s5">
+  <div class="s-head"><span class="s-no">05 / 07</span><h2>결과 — 모델 차이는 FAIL 수로</h2><p class="s-key">FAIL 마다 답의 해당 문장이 근거입니다. 보류는 통과로 세지 않습니다.</p><span class="stamp">10-25 발행본 기준 · 재판정 뒤 갱신</span></div>
+  <div class="tbl"><table><caption>질문 단위 결과 — 모델별 질문 수 / 78<span>완전 통과 순 · 보류 = 빈 출력 요구 10문항(네 모델 공통) + 심판이 확인 못 한 질문</span></caption>
+    <thead><tr><th>모델</th><th class="num">완전 통과</th><th class="num">FAIL</th><th class="num">보류</th><th>보류 가운데 확인 못 함</th></tr></thead><tbody>
+    <tr><th scope="row">Claude</th><td class="num"><b>55</b> / 78</td><td class="num fail">7</td><td class="num hold">16</td><td>6 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">AIONA</th><td class="num"><b>52</b> / 78</td><td class="num fail">14</td><td class="num hold">12</td><td>2 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">GPT</th><td class="num"><b>52</b> / 78</td><td class="num fail">12</td><td class="num hold">14</td><td>4 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">Gemini</th><td class="num"><b>44</b> / 78</td><td class="num fail">13</td><td class="num hold">21</td><td>11 <small>+ 빈 출력 10</small></td></tr>
+  </tbody></table></div>
+  <div class="tbl"><table><caption>많이 어긴 기준 — 기준마다 어긴 질문 수(모델별)<span>LLM Judge 44개 가운데 위 다섯 · 멀티턴은 한 턴이라도 어기면 그 질문은 FAIL</span></caption>
+    <thead><tr><th>기준</th><th class="num">Claude</th><th class="num">AIONA</th><th class="num">GPT</th><th class="num">Gemini</th></tr></thead><tbody>
+    <tr><th scope="row">조건 · 제약 준수 <small>J2-3.a</small></th><td class="num">7</td><td class="num">8</td><td class="num">10</td><td class="num">11</td></tr>
+    <tr><th scope="row">입력 자료 충실성 <small>J5-2.a</small></th><td class="num">7</td><td class="num">5</td><td class="num">9</td><td class="num">13</td></tr>
+    <tr><th scope="row">실행 가능성 <small>J3-5.a</small></th><td class="num">8</td><td class="num">7</td><td class="num">8</td><td class="num">10</td></tr>
+    <tr><th scope="row">내부 모순 없음 <small>J3-1.a</small></th><td class="num">6</td><td class="num">4</td><td class="num">7</td><td class="num">10</td></tr>
+    <tr><th scope="row">근거와 결론 <small>J3-2.b</small></th><td class="num">7</td><td class="num">4</td><td class="num">3</td><td class="num">8</td></tr>
+  </tbody></table></div>
+  <div class="note"><h3>한 모델에만 몰린 것 — 원문으로 확인할 것</h3><p><b>Gemini '흩어진 근거 연결' 9문항</b>(롱컨텍스트), 다른 모델은 많아야 1. 예) Q29 — 2023년 기록의 계산은 연결했지만, 다른 부에 흩어진 2024년 확정 기록을 연결하지 못함.</p></div>
+  <div class="quote"><b>FAIL 원문 예 — AIONA Q1 · 턴 5 · 조건 · 제약 준수(J2-3.a) <span class="badge b-fail">FAIL</span></b><span>심판 사유: “요청은 서로 다른 항목만 짚으라고 했지만, 답변은 일람표와 일치하는 시간·금액 등도 별도로 열거했습니다. 예를 들어 편도 7분, 자료 확인 6분, 설치 10분 …” — 답의 해당 문장은 보고서에서 빨간 번호로 표시.</span></div>
+  <div class="links"><a href="../결과/2026-10-25_12-37-03-450/report.html#s_crit">03 기준별 결과 — 빨간 표</a><a href="../결과/2026-10-25_12-37-03-450/report.html#s3">06 FAIL 원인 — 원문 인용</a><a href="../결과/2026-10-25_12-37-03-450/report.html#s4">07 보류 목록</a><a href="../결과/2026-10-25_12-37-03-450/report.html#s6">08 질문별 결과 — FAIL 원문</a><a href="../결과/2026-10-25_12-37-03-450/판정보고서.html">판정 보고서</a></div>
+</section>
+
+<section class="slide" id="s6">
+  <div class="s-head"><span class="s-no">06 / 07</span><h2>차별점 — 기준별 판정과 고치는 루프</h2><p class="s-key">기준별(블록별) 판정이라 어디가 틀렸는지 바로 보이고, 결과 · 보류 · 사람 판단을 쌓아 판정 프롬프트 · 질문 생성을 고치는 루프가 돕니다.</p></div>
+  <ol class="diff" aria-label="차별점 다섯 줄">
+    <li>기준 72개를 <b>블록별로</b> 판정한다 — 점수 하나가 아니라 어느 기준을 어겼는지.</li>
+    <li>질문마다 <b>목표 기준을 미리</b> 정해 두고, 어느 답이든 같은 항목을 본다 — 답에 따라 항목이 사라지지 않음.</li>
+    <li>심판 셋(1차 3표 + Codex 확정)과 안전장치(인용 대조 · 사유 점검)로 거짓 FAIL 을 줄이고, 갈리면 <b>보류 → 사람</b>.</li>
+    <li>결과 · 보류 · 사람 판단을 재료로 <b>기준 문서 → 프롬프트 → 코드</b> 순으로 고치는 루프 — harness2 방식, 코드는 안 가져옴.</li>
+    <li>같은 질문 · 같은 기준 · 고정 프롬프트라 <b>업데이트마다 전후 비교</b>가 된다.</li>
+  </ol>
+  <h3 class="sh">고치는 루프 — harness2 방식(체크리스트 5장)</h3>
+  <ol class="steps" aria-label="고치는 루프">
+    <li><b>모으기</b><span>FAIL · 보류 + 같은 수의 통과 칸 + 사람 표시(표시용 표)</span></li>
+    <li><b>원인 나누기</b><span>답이 틀림 / 프롬프트 / 기준 / 질문 / 수집</span></li>
+    <li><b>고칠 안</b><span>AI 가 2~3개 제안 — 어디를 고칠지 포함, 질문 글은 못 바꿈</span></li>
+    <li><b>시험</b><span>같은 칸을 고치기 전 · 후로 다시 판정 → 사람 표시 대비 정답률 · 뒤집힘</span></li>
+    <li><b>채택</b><span>정답률↑ · 뒤집힘↓ · 다른 기준 안 나빠질 때만. 기준 변경은 사람 승인, 교훈은 기준 문서에</span></li>
+  </ol>
+  <div class="cards">
+    <div class="card"><span class="ct">거짓 FAIL 줄인 수 — 변경내역 한 줄</span><p><b>CODE 검사 고침(10-22)</b> — 같은 실행을 다시 계산해 거짓 FAIL 9건 제거 · 새 FAIL 0.</p><p>심판 쪽도 같은 방식 — 사람 표시 없이는 채택하지 않음(<code>tools/refine_loop.py</code>, 10-25).</p></div>
+    <div class="card"><span class="ct">harness2 에서 가져온 것 · 안 가져온 것</span><p><b>가져옴</b> — 루프 구조(제안 → 시험 → 채택) · 교훈 쌓는 방식.</p><p><b>안 가져옴</b> — 코드째. 에이전트 실행기 · 벤치마크에 맞춰져 우리 구성(CLI 로그인 · API 안 씀)과 안 맞음.</p></div>
+  </div>
+  <div class="links"><a href="미팅 개선 체크리스트.html">미팅 개선 체크리스트 — 5장 harness2</a><a href="../변경내역/2026-10-22-변경내역.md">변경내역 10-22 — CODE 거짓 FAIL 9건</a><a href="../변경내역/2026-10-25-변경내역.md">변경내역 10-25 — 다듬기 루프</a></div>
+</section>
+
+<section class="slide" id="s7">
+  <div class="s-head"><span class="s-no">07 / 07</span><h2>마감 · 운영 — 10-30 에 닫고, 그 뒤엔 업데이트마다 한 바퀴</h2><p class="s-key">10-30 범위를 닫고, 그 뒤엔 AIONA 업데이트마다 같은 질문 · 같은 기준으로 한 바퀴 돌려 전후를 비교합니다.</p></div>
+  <div class="split">
+    <div>
+      <div class="cards">
+        <div class="card"><span class="ct">마감 안에 — 10-26 ~ 10-30</span><ul>
+          <li><b>범위 고정</b> — 질문 78 · 모델 4 · 기준 72, 수집 → 판정 → 보고서 명령 하나</li>
+          <li><b>보류 사람 결정</b> → 최종 숫자</li>
+          <li><b>심판 표시용 표 100칸</b> — 기준마다 거짓 FAIL · 거짓 통과 비율</li>
+          <li><b>기준 다듬기 한 바퀴</b> — 같은 칸 고치기 전 · 후 비교</li>
+        </ul></div>
+        <div class="card"><span class="ct">마감 뒤 — 상시 운영</span><ul>
+          <li><b>업데이트마다 한 바퀴</b> — 같은 78문항으로 수집 → 판정 → 보고서, 지난 회차와 같은 잣대로 비교</li>
+          <li><b>패치 순서</b> — 기준 문서 → 프롬프트 → 코드, 같은 칸 전후 비교를 넘을 때만 받음</li>
+          <li><b>사람의 몫</b> — 보류 칸 결정만</li>
+        </ul></div>
+      </div>
+      <div class="tbl"><table><caption>일정 — 10-23 확정<span>바뀌면 그날 바로 알림</span></caption><thead><tr><th>날짜</th><th>할 일</th><th>끝나면 나오는 것</th></tr></thead><tbody>
+        <tr><th scope="row">10-26 (월)</th><td>새 규칙으로 멀티턴 11문항 다시 판정</td><td>결과 보고서 · 전후 비교</td></tr>
+        <tr><th scope="row">10-27 (화)</th><td>중간 보고 · 보류 사람 결정 · 심판 표시용 표 100칸</td><td>최종 숫자 · 기준별 거짓 FAIL · 거짓 통과 비율</td></tr>
+        <tr><th scope="row">10-28 (수)</th><td>기준 다듬기 한 바퀴</td><td>흔들리는 기준을 숫자로 · 받을지 결정</td></tr>
+        <tr><th scope="row">10-29 (목)</th><td>발표 자료 숫자 · 장면 최종 반영</td><td>보고 자료 확정</td></tr>
+        <tr><th scope="row">10-30 (금)</th><td>마감 보고 — 범위 · 결과 · 상시 운영 계획</td><td>마감</td></tr>
+      </tbody></table></div>
+    </div>
+    <aside class="aside" id="decide" aria-label="정할 것"><span class="ct">아직 정할 것 — 사용자</span><h3>정할 것</h3><ol>
+      <li>시연 ① 을 실제로 돌릴지(네 사이트 로그인 상태 확인) 아니면 녹화 화면으로 갈지.</li>
+      <li>결과 장면의 숫자는 10-25 발행본(v4-r4) 기준 — 10번(인용 해석) 재판정 결과를 반영한 새 발행본으로 바꿀지.</li>
+    </ol><p>발표흐름_2026-10-27.md 의 '아직 정할 것' 그대로. 정해지면 03 · 04 · 05 장면을 고칩니다.</p></aside>
+  </div>
+</section>
+
+<footer>
+  <p>재료 — <a href="발표흐름_2026-10-27.md">발표흐름_2026-10-27.md</a> · <a href="../결과/2026-10-25_12-37-03-450/report.html">결과 보고서(10-25 발행본)</a> · <a href="../결과/2026-10-25_12-37-03-450/판정보고서.html">판정 보고서</a> · <a href="../결과/2026-10-25_12-37-03-450/비교.md">재판정 전후 비교</a> · <a href="미팅 개선 체크리스트.html">미팅 개선 체크리스트</a> · <a href="../변경내역/2026-10-22-변경내역.md">변경내역 10-22</a> · <a href="../변경내역/2026-10-25-변경내역.md">변경내역 10-25</a> · <a href="../기준/채팅품질 평가기준_v2.md">기준 v2</a></p>
+  <p>숫자는 모델별 질문 수 / 78 · 기준 72개(CODE 28 + LLM Judge 44) · 비용은 적지 않음. 초안 2026-10-25.</p>
+</footer>
+</main>
+<script>
+(function () {
+  var ids = ['s1', 's2', 's3', 's4', 's5', 's6', 's7'];
+  var secs = ids.map(function (id) { return document.getElementById(id); });
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc-links a')).slice(0, ids.length);
+  function current() {
+    var y = window.scrollY + window.innerHeight * 0.3, idx = 0;
+    secs.forEach(function (s, i) { if (s.offsetTop <= y) idx = i; });
+    return idx;
+  }
+  function mark() {
+    var i = current();
+    links.forEach(function (a, j) {
+      if (i === j) { a.setAttribute('aria-current', 'true'); } else { a.removeAttribute('aria-current'); }
+    });
+    var a = links[i];
+    if (a && a.parentNode) {
+      var box = a.parentNode;
+      var left = a.offsetLeft - box.offsetLeft;
+      if (left < box.scrollLeft || left + a.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = left - 8;
+    }
+  }
+  function go(step) {
+    var i = Math.max(0, Math.min(secs.length - 1, current() + step));
+    secs[i].scrollIntoView({ block: 'start' });
+  }
+  document.getElementById('prev').addEventListener('click', function () { go(-1); });
+  document.getElementById('next').addEventListener('click', function () { go(1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target && e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); go(-1); }
+  });
+  var raf = 0;
+  window.addEventListener('scroll', function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; mark(); }); }, { passive: true });
+  mark();
+})();
+</script>
+</body>
+</html>
