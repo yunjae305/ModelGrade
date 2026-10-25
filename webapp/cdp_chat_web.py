@@ -17,7 +17,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Tuple, Any, Callable, Dict, List, Optional
 
 from .code_eval_service import ROOT
 from .factchat_web import COPY_CAPTURE_JS
@@ -61,6 +61,26 @@ def cdp_place_window(page: Any, place: str) -> None:
 
 class CdpWebError(RuntimeError):
     pass
+
+
+def fenced_blocks(text: str) -> List[Tuple[int, int, str, str]]:
+    """마크다운 코드블록을 줄 단위로 찾는다 — 여는 줄은 ``` 로 시작(언어 표기 뒤 아무것도 없음), 닫는 줄은 ``` 만 있는 줄.
+    돌려주는 값: (시작 위치, 끝 위치(닫는 줄 포함), 언어, 본문) 목록. 코드 문자열 안의 ``` 는 줄 머리가 아니면 무시된다."""
+    out: List[Tuple[int, int, str, str]] = []
+    pos = 0
+    open_at: Optional[int] = None
+    lang = ""
+    body_start = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.rstrip("\r\n")
+        if open_at is None:
+            if stripped.startswith("```"):
+                open_at, lang, body_start = pos, stripped[3:].strip(), pos + len(line)
+        elif stripped.strip() == "```":
+            out.append((open_at, pos + len(line.rstrip("\r\n")), lang, text[body_start:pos]))
+            open_at = None
+        pos += len(line)
+    return out
 
 
 def cdp_login_status() -> Dict[str, Any]:
@@ -170,11 +190,15 @@ class _CdpChat:
             except Exception:
                 pass
             self.page.wait_for_timeout(1500)
-            try:
-                self.model_seen = self._apply_model()
-            except Exception as exc:
-                self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__}: {str(exc)[:80]})"
-                self._snapshot("model-settings-failed")
+            self.model_seen = None
+            for attempt in range(2):   # 메뉴가 늦게 그려지면 한 번 더 (Codex 검토 10-25) — 그래도 안 되면 결과 이름에 남기고 계속(수집은 멈추지 않음)
+                try:
+                    self.model_seen = self._apply_model()
+                    break
+                except Exception as exc:
+                    self.model_seen = f"{self.MODEL_LABEL} (설정 확인 못 함: {type(exc).__name__}: {str(exc)[:80]})"
+                    self._snapshot("model-settings-failed")
+                    self.page.wait_for_timeout(3000)
 
     def _apply_model(self) -> str:   # 사이트별 — 설정을 맞추고 화면에 보이는 모델 표시를 돌려준다
         return self.MODEL_LABEL
@@ -196,9 +220,11 @@ class _CdpChat:
         """한도·봇 확인 문구가 화면에 있는가 — 채팅 말풍선(질문·답) 글은 빼고 본다. 대화 내용에 '한도에 도달' 같은 말이 나오면 오탐(Gemini Q18, 2026-10-20)."""
         sel = ", ".join(x for x in (self.ANSWER_SELECTOR, self.USER_SELECTOR) if x)
         # 말풍선(질문 · 답) 안의 글자 노드는 건너뛰고 나머지 화면 글만 모은다 — innerText 를 split 으로 빼던 방식은 공백 차이로 못 뺐다(10-23 GPT Q22)
+        # 보이는 글만 — script · style · 숨은 요소(렌더되지 않은 것)의 글은 뺀다 (Codex 검토 10-25: 숨은 안내의 '한도' 문구로 멈추지 않게)
         js = """(sel) => { const skip = sel ? Array.from(document.querySelectorAll(sel)) : [];
+            const hidden = (el) => !el || el.closest('script, style, noscript, template') || !el.getClientRects || el.getClientRects().length === 0;
             const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let t = ''; let n;
-            while ((n = w.nextNode())) { if (skip.some(e => e.contains(n))) continue; const v = (n.nodeValue || '').trim(); if (v) t += v + ' '; if (t.length > 8000) break; }
+            while ((n = w.nextNode())) { if (hidden(n.parentElement) || skip.some(e => e.contains(n))) continue; const v = (n.nodeValue || '').trim(); if (v) t += v + ' '; if (t.length > 8000) break; }
             return t; }"""
         try:
             text = self.page.evaluate(js, sel) or ""
@@ -614,19 +640,20 @@ class ChatGptChat(_CdpChat):
     def _fix_code_blocks(self, text: str) -> str:
         """답 아래 복사 글(text)의 ``` 코드블록 안을, 같은 순서의 코드 위젯 '코드 복사' 글로 바꾼다 — chatgpt.com 의 답 복사는 코드 줄바꿈을 없앤다(10-23).
         위젯 수와 코드블록 수가 다르면 그대로 둔다. ``` 뒤 언어 표기는 복사 글 그대로(비어 있어도 안 붙임, 사용자 10-21)."""
-        blocks = list(re.finditer(r"```([^\n]*)\n(.*?)```", text, flags=re.S))
+        blocks = fenced_blocks(text)   # 줄 단위 펜스 — 코드 문자열 안의 ``` 에 속지 않게 (Codex 검토 10-25)
         if not blocks:
             return text
-        try:
-            widgets = self._answers().last.locator(self.CODE_WIDGET)
-            n = widgets.count()
+        try:   # ② 답 쪽 위젯만 — 턴 묶음 선택자에는 내 질문의 코드블록도 들어 있다 (Codex 검토 10-25)
+            widgets = [w for w in self._answers().last.locator(self.CODE_WIDGET).all()
+                       if w.evaluate("(el) => !el.closest('[data-user-message-bubble], [data-message-author-role=\"user\"], [data-message-role=\"user\"]')")]
+            n = len(widgets)
         except Exception:
             return text
         if n != len(blocks):
             return text
         codes: List[str] = []
         for i in range(n):
-            btn = widgets.nth(i).get_by_role("button", name=re.compile("|".join(re.escape(x) for x in self.CODE_COPY_NAMES))).first
+            btn = widgets[i].get_by_role("button", name=re.compile("|".join(re.escape(x) for x in self.CODE_COPY_NAMES))).first
             if not btn.count():
                 return text
             try:
@@ -646,12 +673,15 @@ class ChatGptChat(_CdpChat):
                 codes.append(copied[-1])
             except Exception:
                 return text
+        squeeze = lambda x: re.sub(r"\s+", "", x)
+        for (start, end, lang, body), code in zip(blocks, codes):
+            if squeeze(body) != squeeze(code):   # 복사 글의 코드(줄바꿈만 빠진 것)와 위젯 코드가 글자로 같을 때만 바꾼다
+                return text
         out, pos = [], 0
-        for m, code in zip(blocks, codes):
-            lang = m.group(1)
-            out.append(text[pos:m.start()])
+        for (start, end, lang, body), code in zip(blocks, codes):
+            out.append(text[pos:start])
             out.append(f"```{lang}\n{code.rstrip(chr(10))}\n```")
-            pos = m.end()
+            pos = end
         out.append(text[pos:])
         return "".join(out)
     FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
@@ -740,71 +770,6 @@ class ChatGptChat(_CdpChat):
             if self._shown_level() == want:
                 break
         return self._shown_level()
-
-    FILE_INPUT = "input[type=file][aria-label='파일 첨부']"
-    STOP_NAMES = ("중지", "Stop")
-    SEND_NAMES = ("보내기", "프롬프트 보내기")   # 입력칸 오른쪽 파란 버튼 — 큰 파일 처리 중에는 꺼져 있다
-    REMOVE_FILE = re.compile(r"\.\w+ 제거$")      # 첨부 미리보기의 'OOO.txt 제거' 버튼
-    MODEL_MENU = "ChatGPT 모델 선택"
-
-    def _apply_model(self) -> str:
-        chat = self.page.get_by_role("button", name="Chat", exact=True)
-        if chat.count():
-            try:
-                chat.first.click(timeout=2000)
-                self.page.wait_for_timeout(500)
-            except Exception:
-                pass
-        self._pick_model_radio()
-        power = self._pick_power(self.LEVEL)
-        if power != self.LEVEL:
-            raise CdpWebError(f"ChatGPT 추론 수준이 {self.LEVEL} 이 아닙니다({power}) — Chrome 창에서 {self.LEVEL} 으로 맞추세요")
-        return f"{self.MODEL_NAME} · {power} (웹)"
-
-    LEVELS = ("Light", "Medium", "High", "Extra High", "Max", "Ultra", "최소한", "없음")
-
-    def _open_model_menu(self) -> None:
-        self.page.keyboard.press("Escape")
-        self.page.get_by_role("button", name=self.MODEL_MENU).first.click(timeout=5000)
-        self.page.wait_for_timeout(700)
-
-    def _pick_model_radio(self) -> None:
-        """모델 메뉴(10-23 화면): 1단계에 추론 수준 항목(High 등)과 모델 라디오(GPT-6 · GPT-5.6 Sol)가 함께 있다. 옛 화면('모델 선택' 하위 메뉴)도 본다."""
-        self._open_model_menu()
-        radio = self.page.locator("[role=menu] [role=menuitemradio]").filter(has_text=re.compile(rf"^{re.escape(self.MODEL_NAME)}$"))
-        if radio.count():
-            if radio.first.get_attribute("aria-checked") != "true":
-                radio.first.click(timeout=3000)
-                self.page.wait_for_timeout(600)
-            else:
-                self.page.keyboard.press("Escape")
-            return
-        self.page.keyboard.press("Escape")
-        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
-
-    def _pick_power(self, want: str) -> str:
-        """추론 수준: 메뉴 1단계의 수준 항목(지금 값, 예 'High')을 누르면 하위 메뉴에 수준 목록 → want 를 고른다. 돌려주는 값은 메뉴 버튼에 보이는 수준."""
-        try:
-            self._open_model_menu()
-            level_item = self.page.locator("[role=menu] [role=menuitem]").filter(has_text=re.compile("|".join(re.escape(x) for x in self.LEVELS) + "|파워|추론")).first
-            if level_item.count():
-                level_item.click(timeout=3000)
-                self.page.wait_for_timeout(800)
-                target = self.page.locator("[role=menu] [role=menuitemradio], [role=menu] [role=menuitem], [role=listbox] [role=option]").filter(has_text=re.compile(rf"^{re.escape(want)}$"))
-                if target.count():
-                    target.first.click(timeout=3000)
-                    self.page.wait_for_timeout(700)
-        except Exception:
-            pass
-        finally:
-            self.page.keyboard.press("Escape")
-            self.page.wait_for_timeout(300)
-            self.page.keyboard.press("Escape")
-        try:
-            shown = " ".join(self.page.get_by_role("button", name=self.MODEL_MENU).first.inner_text(timeout=3000).split())
-        except Exception:
-            shown = ""
-        return next((lv for lv in sorted(self.LEVELS, key=len, reverse=True) if lv in shown), "?")
 
 
 class GeminiChat(_CdpChat):

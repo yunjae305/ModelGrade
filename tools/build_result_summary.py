@@ -1158,14 +1158,18 @@ def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
         w = per[p]
         w["seconds"] += float(l.get("seconds") or 0)
         if not dc.get("reused") or dc.get("fresh_judge"):   # --repair 는 이번에 새로 부른 1차 심판만 (10-22)
+            ab = dc.get("attempts_by") if isinstance(dc.get("attempts_by"), dict) else None   # 10-25 투표: 심판마다 센 호출 수
             fj = dc.get("fresh_judge") or dc.get("first_judge") or {}
-            if fj:
+            if ab is not None:
+                w["jev"] += int(ab.get("jev") or 0)
+                w["dec"] += int(ab.get("decisions") or 0)
+            elif fj:
                 w["jev"] += sum(1 for v in fj.values() if v == "jev")
                 w["dec"] += sum(1 for v in fj.values() if v == "decisions")
             else:
                 w["dec"] += int(dc.get("calls") or 0)
             w["dec_in"] += int(dc.get("input_tokens") or 0)
-        w["codex_calls"] += int(cx.get("rounds") or 0)
+        w["codex_calls"] += int(cx.get("calls") if cx.get("calls") is not None else (cx.get("rounds") or 0))   # 묶음 호출은 대표 질문에 1 (10-25)
         w["codex_in"] += int(cx.get("input_tokens") or 0)
         w["codex_out"] += int(cx.get("output_tokens") or 0)
         w["errors"] += 1 if l.get("judge_error") else 0
@@ -1201,12 +1205,14 @@ def judge_tokens(D: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         if not dc.get("reused") or dc.get("fresh_judge"):   # --repair 는 이번에 새로 부른 1차 심판만 (10-22)
             fj = list((dc.get("fresh_judge") or dc.get("first_judge") or {}).values())
             if isinstance(dc.get("usage"), dict):
+                ab = dc.get("attempts_by") if isinstance(dc.get("attempts_by"), dict) else None
                 for name, u in dc["usage"].items():
-                    add({"jev": "Jev", "decisions": "Decisions"}.get(name, name), u if isinstance(u, dict) else {}, fj.count(name))
+                    add({"jev": "Jev", "decisions": "Decisions"}.get(name, name), u if isinstance(u, dict) else {},
+                        int(ab.get(name) or 0) if ab is not None else fj.count(name))
             else:
                 add(FIRST_SUM, {"input_tokens": int(dc.get("input_tokens") or 0)}, len(fj) or int(dc.get("calls") or 0))
-        if cx.get("rounds"):
-            add("Codex", cx, int(cx.get("rounds") or 0))
+        if cx.get("rounds") or cx.get("calls"):
+            add("Codex", cx, int(cx.get("calls") if cx.get("calls") is not None else (cx.get("rounds") or 0)))
     return T
 
 

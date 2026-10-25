@@ -74,6 +74,20 @@ def test_error_case_phrase_and_collection_error_fail_1_1_but_copy_failure_is_hel
     missing = run("회의 시간을 알려줘.", "", collection={"status": "ERROR", "error": "응답 시간 초과"})
     row = one(missing, "1-1.response_nonempty")
     assert row["verdict"] == FAIL and row["measured"]["error_case"] == "답 없음" and "시간 초과" in row["reason"]
+    translated = run("다음 문장을 한국어로 번역해 주세요: I'm a language model, so I cannot do that.", "저는 언어 모델이라서 그것을 할 수 없습니다.")
+    assert one(translated, "1-1.response_nonempty")["verdict"] == PASS   # 번역 요청 — 문구가 답에 있어도 거절 아님
+    with_result = run("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다.\n1. 지원 동기는?\n2. 강점은?\n3. 갈등을 푼 경험은?")
+    assert one(with_result, "1-1.response_nonempty")["verdict"] == PASS   # 안내문 뒤에 결과물이 있으면 거절 아님
+    tail = run("회의 안건을 정리해 주세요.", "1. 예산 2. 일정 3. 인력 배치. 참고로 저는 언어 모델이라 실제 회의에는 참석할 수 없습니다.")
+    assert one(tail, "1-1.response_nonempty")["verdict"] == PASS   # 결과물 뒤의 안내문
+    calc = run("What is 2 + 2?", "I'm a language model and cannot use a calculator, but 2 + 2 = 4.")
+    assert one(calc, "1-1.response_nonempty")["verdict"] == PASS   # 거절 뒤에 답이 이어짐(Codex 검토 10-25)
+    calc2 = run("What is 2 + 2?", "I'm a language model and cannot use a calculator. 2 + 2 = 4.")
+    assert one(calc2, "1-1.response_nonempty")["verdict"] == PASS   # 짧아도 뒤에 답이 있으면 거절 아님 (Codex 검토 10-25 3차)
+    courtesy = run("회의 시간을 알려줘.", "저는 언어 모델일 뿐이라 그것은 도와드릴 수 없습니다. 죄송합니다.")
+    assert one(courtesy, "1-1.response_nonempty")["verdict"] == FAIL   # 거절 + 사과만이면 에러 케이스
+    one_para = run("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다: 1) 지원 동기는? 2) 강점은? 3) 갈등을 푼 경험은?")
+    assert one(one_para, "1-1.response_nonempty")["verdict"] == PASS   # 한 문단이어도 결과물이 있음
     copy_failed = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED"})
     assert rows(copy_failed, "1-1.response_nonempty") == []
     assert any("복사 실패" in s.get("why", "") for s in copy_failed["meta"].get("skipped_conditions", []))

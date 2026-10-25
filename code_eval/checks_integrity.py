@@ -204,14 +204,39 @@ ERROR_CASE_MAX_CHARS = 300   # 이보다 길면 결과물이 있는 것으로 �
 COLLECTION_OK = ("SUCCESS", "COPY_FAILED")   # SUCCESS 는 정상, COPY_FAILED 는 우리 원인(행 없이 보류)
 
 
-def error_case_phrase(answer: str, content_chars: int) -> Optional[str]:
-    """③ 에 해당하면 맞은 문구를, 아니면 None. 문구는 원문(answer)에서 찾는다 — 공백을 지운 글에서는 영어 문구가 안 잡힌다."""
+#: 질문이 그 문구 자체를 다루면(번역 · 인용 · 예문) 답에 들어 있어도 거절이 아니다 (Codex 검토 10-25)
+ERROR_CASE_QUESTION_SKIP = re.compile(r"번역|옮겨|영어로|한국어로|따옴표|인용|예문|그대로 써|translate|quote", re.I)
+ERROR_CASE_HEAD_CHARS = 80   # 거절 문구는 답 머리에 온다 — 결과물 뒤에 붙은 안내문은 거절이 아니다
+ERROR_CASE_MAX_LINES = 3     # 줄이 더 많으면 결과물(목록 · 항목)이 있는 것으로 본다
+ERROR_CASE_CONTRAST = re.compile(r"하지만|그러나|다만|그래도|대신|\bbut\b|however|though|instead", re.I)   # 거절 뒤 결과물로 이어지는 표지
+#: 거절 문장 뒤에 와도 결과물이 아닌 인사 · 사과 · 안내만 (이 밖의 글이 있으면 거절 답이 아님)
+ERROR_CASE_COURTESY = re.compile(r"(?:\s*(?:죄송합니다|죄송해요|양해 부탁드립니다|이해해 주세요|다른 (?:질문|도움)이 (?:있으시면|필요하시면)[^.!?]*|"
+                                 r"(?:I'?m )?sorry[^.!?]*|I apologi[sz]e[^.!?]*|let me know[^.!?]*|please ask[^.!?]*)[.!?]*)+\s*", re.I)
+
+
+def error_case_phrase(answer: str, content_chars: int, question: str = "") -> Optional[str]:
+    """③ 에 해당하면 맞은 문구를, 아니면 None — 답 전체가 거절일 때만: 짧고(300자 · 3줄 이하), 코드블록 없고, 문구가 답 머리(80자 안)에 있고,
+    질문이 번역 · 인용을 시킨 것이 아님. 애매하면 None(LLM 판정 몫). 문구는 원문(answer)에서 찾는다 — 공백을 지운 글에서는 영어 문구가 안 잡힌다."""
     if content_chars > ERROR_CASE_MAX_CHARS or "```" in answer:
         return None
-    hit = next((m.group(0) for p in ERROR_CASE_PHRASES for m in [p.search(answer)] if m), None)
-    if hit and ERROR_CASE_REFUSAL.search(answer):
-        return hit
-    return None
+    if question and ERROR_CASE_QUESTION_SKIP.search(question):
+        return None
+    lines = [l for l in answer.splitlines() if l.strip()]
+    if len(lines) > ERROR_CASE_MAX_LINES:
+        return None
+    head = answer.lstrip()
+    first = re.split(r"(?<=[.!?。])\s+|\n", head, maxsplit=1)[0]   # 첫 문장 — 거절 답은 첫 문장이 자기 설명이다. 결과물(목록 · 숫자)로 시작하면 거절 아님
+    if re.match(r"^\s*(\d+[.)]|[-*•·]|\|)", first):
+        return None
+    hit = next((m.group(0) for p in ERROR_CASE_PHRASES for m in [p.search(first)] if m and m.start() <= ERROR_CASE_HEAD_CHARS), None)
+    if not hit or not ERROR_CASE_REFUSAL.search(head[:200]):
+        return None
+    if ERROR_CASE_CONTRAST.search(first):   # "…할 수 없지만 2 + 2 = 4" — 거절 뒤에 결과물이 이어지는 문장
+        return None
+    rest = head[len(first):].strip()
+    if rest and not ERROR_CASE_COURTESY.fullmatch(rest):   # 첫 문장 뒤에 인사말 말고 다른 글(숫자 · 답)이 있으면 결과물이 있는 답 (Codex 검토 10-25)
+        return None
+    return hit
 
 
 def check_1_1(ctx: Ctx) -> List:
@@ -230,7 +255,7 @@ def check_1_1(ctx: Ctx) -> List:
         elif not content:
             kind, reason = "빈 답", "공백·제어문자를 제거하면 남는 문자가 없음 (답이 비어 있음)"
         else:
-            hit = error_case_phrase(ctx.answer, len(content))
+            hit = error_case_phrase(ctx.answer, len(content), ctx.question)
             if hit:
                 kind, reason = "능력 부정 문구", "능력 부정 정형 문구만 있고 결과물 없음: '{}'".format(hit)
         ok = kind is None

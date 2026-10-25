@@ -2,13 +2,17 @@
 """폴더 판정 (judge-folder-v1) — 질문마다 Codex 를 부르는 대신, 한 모델의 입력 파일을 폴더에 모아 두고 Codex 세션 하나가
 폴더를 읽어 차례로 판정 · 결과 파일을 쓰게 한다 (10-23 미팅 6번: "파일로 썰어 놓고 한번 읽어 보다가 알아서 다 해라", 사용자 10-25 "구현해").
 
+**운영 경로는 `tools/judge_v4.py --codex-batch N`** (10-25 밤): 본 판정 흐름 안에서 단일 질문 N개의 첫 Codex 호출을 묶는다 — 같은 규칙 · 같은 지문.
+이 도구는 기준 판정의 저장물로 묶음 효과를 재는 실험 도구로 남긴다(기준 판정과 규칙이 달라졌으면 합치기 단계가 다시 묻는다 — compare 가 그 비용을 보여 준다).
+
     python -X utf8 tools/judge_folder.py prepare --run 50ca3ccccace --from v4-r3 --out folder-pilot --provider aiona --questions 13,22,24
     python -X utf8 tools/judge_folder.py run     --run 50ca3ccccace --out folder-pilot --provider aiona
     python -X utf8 tools/judge_folder.py merge   --run 50ca3ccccace --from v4-r3 --out folder-pilot --provider aiona --set 참고자료/질문세트_78
     python -X utf8 tools/judge_folder.py compare --run 50ca3ccccace --from v4-r3 --out folder-pilot --provider aiona
 
-- prepare: 기준 판정(--from)의 codex_io/ 에 남은 '그 질문에 Codex 가 받은 입력'(걸린 항목 포함)을 작업 폴더 `입력/Q{n}.json` 으로, 지시문 · 출력 형식(schema) ·
-  작업 지시(작업_지시.md)를 함께 둔다 → 질문마다 보내던 것과 **같은 입력 · 같은 지시문**이라 차이는 호출 구조뿐.
+- prepare: 기준 판정(--from)의 inputs/(질문 · 답 · 확인 목록)과 results.jsonl 의 '그 질문에서 Codex 에 보낸 항목'으로 **원래 요청을 다시 만들어**(codex_io 의 입력 파일은
+  되묻기 축약본으로 덮일 수 있음) 작업 폴더 `입력/Q{n}.json` 으로, 지시문 · 출력 형식(schema) · 첨부 이미지 목록 · 웹 검색 필요 여부를 함께 둔다
+  → 질문마다 보내던 것과 **같은 입력 · 같은 지시문**이라 차이는 호출 구조뿐.
 - run --mode batch(기본): 질문 N개(--batch-size, 기본 10)를 **한 표준 입력**에 담아 `codex exec` 한 번으로 판정(출력은 questions 배열) → 질문별 결과 파일로 나눔.
   호출 수가 질문 수 → 묶음 수로 준다. 멀티턴(큰 입력)은 1개씩.
 - run --mode folder: Codex 세션 하나가 폴더를 읽고 결과 파일을 쓰는 방식 — Windows 의 Codex 샌드박스에서 쓰기가 막혀(10-25 다섯 번 시도: code-mode 호스트 ·
@@ -70,36 +74,78 @@ def task_text(provider: str, files: List[str]) -> str:
 """
 
 
+def baseline_flagged(results: Path, provider: str) -> Dict[int, Dict[int, List[str]]]:
+    """기준 판정 results.jsonl 에서 질문마다 Codex 에 보냈던 항목(flagged 사유가 있는 항목) — 턴 → 항목 목록."""
+    out: Dict[int, Dict[int, List[str]]] = {}
+    for line in results.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        r = json.loads(line)
+        if r.get("provider") != provider:
+            continue
+        flagged: Dict[int, List[str]] = {}
+        for t, tr in (r.get("turn_results") or {}).items():
+            items = [i for i, it in (tr.get("items") or {}).items() if isinstance(it, dict) and it.get("flagged")]
+            if items:
+                flagged[int(t)] = items
+        out[int(r["question"])] = flagged   # 같은 질문은 마지막 줄이 이긴다
+    return out
+
+
 def cmd_prepare(a: argparse.Namespace) -> int:
+    """기준 판정의 **원래 Codex 요청**을 다시 만든다 — codex_io 의 입력 파일은 되묻기(축약본)로 덮어써질 수 있어 쓰지 않는다(Codex 검토 10-25).
+    요청 = inputs/Q{n}_{모델}.json(질문 · 답 · 확인 목록) + 기준 판정에서 Codex 에 보낸 항목(판정할_턴 · 판정할_항목) — judge_v4 의 body_doc 과 같은 모양."""
+    from tools import judge_v4
     src = RUNS / a.run / a.src
     io = src / "codex_io"
     if not (io / "판정_지시문.txt").exists():
         raise SystemExit(f"기준 판정에 codex_io/판정_지시문.txt 가 없습니다: {io}")
+    if not (src / "results.jsonl").exists():
+        raise SystemExit(f"기준 판정에 results.jsonl 이 없습니다: {src}")
     qs = [int(x) for x in a.questions.split(",") if x.strip()]
+    flagged_all = baseline_flagged(src / "results.jsonl", a.provider)
+    files_dir = Path(a.set) / "files"
     w = work_dir(a.run, a.out, a.provider)
     for sub in ("입력", "결과", "지문"):
         (w / sub).mkdir(parents=True, exist_ok=True)
     (w / "판정_지시문.txt").write_text((io / "판정_지시문.txt").read_text(encoding="utf-8"), encoding="utf-8-sig")
-    from tools import judge_v4
     (w / "schema.json").write_text(json.dumps(judge_v4.output_schema(), ensure_ascii=False, indent=1), encoding="utf-8-sig")
-    files, missing = [], []
+    files, missing, skipped = [], [], []
+    images: Dict[str, List[str]] = {}
+    needs_search: Dict[str, bool] = {}
     for q in qs:
         name = f"Q{q}_{a.provider}"
-        inp = io / f"{name}_입력.json"
+        doc_path = src / "inputs" / f"{name}.json"
         fp = src / "codex" / f"{name}.json.fp"
-        if not inp.exists():
+        if not doc_path.exists() or q not in flagged_all:
             missing.append(f"Q{q}")
             continue
-        (w / "입력" / f"Q{q}.json").write_text(inp.read_text(encoding="utf-8"), encoding="utf-8-sig")
+        flagged = flagged_all[q]
+        if not flagged:
+            skipped.append(f"Q{q}")   # 기준 판정에서 Codex 에 보낸 항목이 없던 질문 — 묶음에도 넣지 않는다
+            continue
+        doc = json.loads(doc_path.read_text(encoding="utf-8"))
+        payload = {**doc, "판정할_턴": sorted(flagged), "판정할_항목": {str(n): flagged[n] for n in sorted(flagged)}}
+        f = f"Q{q}.json"
+        (w / "입력" / f).write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8-sig")
         if fp.exists():
             shutil.copy2(fp, w / "지문" / f"Q{q}.fp")
-        files.append(f"Q{q}.json")
+        turns_like = [{"attachments": [{"path": att.get("경로") or att.get("이름")} for att in (t.get("첨부파일") or []) if isinstance(att, dict)]}
+                      for t in doc.get("턴") or []]
+        images[f] = [str(x) for x in judge_v4.attachment_images(turns_like, files_dir if files_dir.is_dir() else None)]
+        has_ref = any((t.get("참조자료") or "").strip() for t in doc.get("턴") or [])
+        needs_search[f] = (not has_ref) and any(i in judge_v4.WEB_SEARCH_ITEMS for v in flagged.values() for i in v)
+        files.append(f)
     files = q_sorted(files)
+    for old in list((w / "결과").glob("*.json")) + ([w / "usage.json"] if (w / "usage.json").exists() else []):   # 이전 run 무효화 (Codex 검토 10-25)
+        old.unlink()
+    prep_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     (w / "작업_지시.md").write_text(task_text(a.provider, files), encoding="utf-8-sig")
-    (w / "준비.json").write_text(json.dumps({"version": VERSION, "run": a.run, "from": a.src, "provider": a.provider, "questions": qs,
-                                              "files": files, "missing": missing, "prepared_at": datetime.now(timezone.utc).isoformat()},
-                                             ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"준비: {w} — 입력 {len(files)}개" + (f", 기준 판정에 입력이 없는 질문 {missing}" if missing else ""))
+    (w / "준비.json").write_text(json.dumps({"version": VERSION, "prep_id": prep_id, "run": a.run, "from": a.src, "provider": a.provider, "set": str(a.set), "questions": qs,
+                                              "files": files, "missing": missing, "skipped_no_codex": skipped, "images": images, "needs_search": needs_search,
+                                              "prepared_at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"준비: {w} — 입력 {len(files)}개(첨부 이미지 있는 질문 {sum(1 for v in images.values() if v)}개 · 웹 검색 필요 {sum(needs_search.values())}개)"
+          + (f", 기준 판정에 없는 질문 {missing}" if missing else "") + (f", Codex 에 보낸 항목이 없어 뺀 질문 {skipped}" if skipped else ""))
     return 0
 
 
@@ -157,17 +203,26 @@ def cmd_run_batch(a: argparse.Namespace, w: Path) -> int:
     inputs = {f: json.loads((w / "입력" / f).read_text(encoding="utf-8-sig")) for f in files}
     schema = batch_schema(judge_v4.output_schema())
     size = max(1, int(a.batch_size))
-    batches = [files[i:i + size] for i in range(0, len(files), size)]
+    images_by = prep.get("images") or {}
+    search_by = prep.get("needs_search") or {}
+    plain = [f for f in files if not images_by.get(f)]
+    batches = [[f] for f in files if images_by.get(f)]   # 첨부 이미지가 있는 질문은 혼자 — 이미지와 질문의 짝이 섞이지 않게 (Codex 검토 10-25)
+    batches += [plain[i:i + size] for i in range(0, len(plain), size)]
     started = time.monotonic()
     usage_total: Dict[str, Any] = {}
     calls, written, missing, errors = 0, [], [], []
     (w / "결과").mkdir(exist_ok=True)
+    for old in (w / "결과").glob("*.json"):   # 이전 실행의 결과가 섞이지 않게 (Codex 검토 10-25)
+        old.unlink()
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     for bi, group in enumerate(batches, 1):
         payload = {"질문_수": len(group), "질문들": [inputs[f] for f in group]}
         tag = f"batch{bi}-{a.provider}"
         print(f"▶ 묶음 {bi}/{len(batches)} — 질문 {len(group)}개 {[int(re.search(r'\d+', f).group(0)) for f in group]} · 입력 {len(json.dumps(payload, ensure_ascii=False)):,}자", flush=True)
         t0 = time.monotonic()
-        status, body, error = gpt.judge(prompt, json.dumps(payload, ensure_ascii=False, indent=1), False, tag=tag, output_schema=schema)
+        search = a.web_search == "live" and any(search_by.get(f) for f in group)   # 질문별 규칙(J5-1.a · J5-3.a 가 걸렸고 참조 자료 없음)대로
+        imgs = [x for f in group for x in (images_by.get(f) or [])]
+        status, body, error = gpt.judge(prompt, json.dumps(payload, ensure_ascii=False, indent=1), search, tag=tag, output_schema=schema, images=imgs or None)
         calls += 1
         for k, v in (getattr(gpt, "last_usage", None) or {}).items():
             if isinstance(v, (int, float)):
@@ -189,7 +244,7 @@ def cmd_run_batch(a: argparse.Namespace, w: Path) -> int:
                 missing.append(f)
         print(f"   ✅ 묶음 {bi} 끝 — 받은 질문 {len(got)}/{len(group)} · {time.monotonic() - t0:.0f}초 · 토큰 {getattr(gpt, 'last_usage', None)}", flush=True)
     seconds = round(time.monotonic() - started, 1)
-    info = {"version": VERSION, "mode": "batch", "batch_size": size, "model": gpt.model, "reasoning": gpt.reasoning, "web_search": gpt.web_search,
+    info = {"version": VERSION, "mode": "batch", "run_id": run_id, "prep_id": prep.get("prep_id"), "batch_size": size, "model": gpt.model, "reasoning": gpt.reasoning, "web_search": gpt.web_search,
             "returncode": 0 if not errors else 1, "seconds": seconds, "turns": calls, "tool_calls": 0, "calls": calls, "usage": usage_total,
             "results": q_sorted(written), "missing": q_sorted(missing), "errors": errors, "done": {"done": q_sorted(written)} if written and not missing else None,
             "stderr_tail": "", "finished_at": datetime.now(timezone.utc).isoformat()}
@@ -203,6 +258,7 @@ def cmd_run(a: argparse.Namespace) -> int:
     if a.mode == "batch":
         return cmd_run_batch(a, w)
     task = (w / "작업_지시.md").read_text(encoding="utf-8")
+    prep = json.loads((w / "준비.json").read_text(encoding="utf-8")) if (w / "준비.json").exists() else {}
     model = a.model or env_value("CODEX_CLI_MODEL") or "gpt-6-luna"
     reasoning = a.reasoning or env_value("CODEX_CLI_REASONING") or "low"
     cmd = _codex_cmd(w, model, reasoning, a.web_search)
@@ -243,7 +299,8 @@ def cmd_run(a: argparse.Namespace) -> int:
     seconds = round(time.monotonic() - started, 1)
     results = q_sorted([p.name for p in (w / "결과").glob("Q*.json")])
     done = json.loads((w / "완료.json").read_text(encoding="utf-8")) if (w / "완료.json").exists() else None
-    info = {"version": VERSION, "model": model, "reasoning": reasoning, "web_search": a.web_search, "returncode": proc.returncode, "seconds": seconds,
+    info = {"version": VERSION, "mode": "folder", "prep_id": prep.get("prep_id"), "model": model, "reasoning": reasoning, "web_search": a.web_search,
+            "returncode": proc.returncode, "seconds": seconds,
             "turns": turns, "tool_calls": tool_calls, "usage": usage, "results": results, "done": done, "stderr_tail": "".join(err_buf)[-800:],
             "finished_at": datetime.now(timezone.utc).isoformat()}
     (w / "usage.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -258,8 +315,20 @@ def cmd_merge(a: argparse.Namespace) -> int:
     src = RUNS / a.run / a.src
     out = RUNS / a.run / a.out
     prep = json.loads((w / "준비.json").read_text(encoding="utf-8"))
+    usage = json.loads((w / "usage.json").read_text(encoding="utf-8")) if (w / "usage.json").exists() else None
+    if usage is None or usage.get("returncode") not in (0, None) or usage.get("missing") or usage.get("prep_id") != prep.get("prep_id"):
+        if not a.force:
+            raise SystemExit("마지막 run 이 없거나 실패 · 빠진 결과가 있거나 지금 준비(prepare)와 다른 run 입니다 — 다시 run 하거나 --force 로 지금 있는 결과만 합치세요 (Codex 검토 10-25)")
     for sub in ("codex", "decisions", "inputs", "codex_io"):
         (out / sub).mkdir(parents=True, exist_ok=True)
+    for f in prep["files"]:   # 기준 판정의 1차 심판 저장물은 결과 유무와 상관없이 전부 복사 — 빠진 질문도 repair 가 Codex 만 다시 묻게 (Codex 검토 10-25)
+        name = f"Q{int(re.search(r'\d+', f).group(0))}_{a.provider}"
+        for sub in ("decisions", "inputs"):
+            src_file = src / sub / f"{name}.json"
+            if src_file.exists():
+                shutil.copy2(src_file, out / sub / f"{name}.json")
+            for extra in (src / sub).glob(f"{name}.json.*"):
+                shutil.copy2(extra, out / sub / extra.name)
     if not (out / "codex_io" / "판정_지시문.txt").exists():
         shutil.copy2(w / "판정_지시문.txt", out / "codex_io" / "판정_지시문.txt")
     ok, bad = [], []
@@ -279,20 +348,17 @@ def cmd_merge(a: argparse.Namespace) -> int:
             shutil.copy2(fp, out / "codex" / f"{name}.json.fp")
         shutil.copy2(res, out / "codex_io" / f"{name}_결과.json")
         shutil.copy2(w / "입력" / f, out / "codex_io" / f"{name}_입력.json")
-        for sub in ("decisions", "inputs"):
-            s = src / sub / f"{name}.json"
-            if s.exists():
-                shutil.copy2(s, out / sub / f"{name}.json")
-            for extra in (src / sub).glob(f"{name}.json.*"):
-                shutil.copy2(extra, out / sub / extra.name)
         ok.append(q)
-    print(f"옮김: 결과 {len(ok)}개" + (f", 못 쓴 결과 {bad}" if bad else ""))
-    if not ok:
-        return 1
+    all_q = [int(re.search(r"\d+", f).group(0)) for f in prep["files"]]
+    print(f"옮김: 결과 {len(ok)}개 / 준비 {len(all_q)}개" + (f", 결과가 없거나 형식이 아닌 질문 {bad} — 이 질문은 judge_v4 가 Codex 에 따로 묻는다" if bad else ""))
     from tools import judge_v4
-    argv = ["--run", a.run, "--set", a.set, "--questions", ",".join(str(q) for q in ok), "--providers", a.provider, "--out", a.out, "--repair"]
+    argv = ["--run", a.run, "--set", a.set, "--questions", ",".join(str(q) for q in all_q), "--providers", a.provider, "--out", a.out, "--repair"]
     print("합치기: judge_v4 " + " ".join(argv), flush=True)
-    return judge_v4.main(argv)
+    code = judge_v4.main(argv)
+    if bad:
+        print(f"주의: 묶음 결과가 빠진 질문 {len(bad)}개는 질문마다 다시 물어 합쳤습니다 — 묶음 비교에는 포함하지 마세요")
+        return 1
+    return code
 
 
 def _last_rows(path: Path, provider: str) -> Dict[int, Dict[str, Any]]:
@@ -329,7 +395,14 @@ def cmd_compare(a: argparse.Namespace) -> int:
             tok_before[k] += int(cx.get(k) or 0)
         sec_before += float(((before[q].get("calls") or {}).get("codex") or {}).get("seconds") or 0)
     u = usage.get("usage") or {}
+    merge_codex = Counter(); merge_first = 0
+    for q in common:   # 합치기(judge_v4 --repair) 단계에서 새로 부른 것 — 묶음 결과를 못 쓰고 다시 물은 Codex · 정의가 바뀐 1차 심판 항목 (Codex 검토 10-25)
+        cx = ((after[q].get("tokens") or {}).get("Codex") or {})
+        for k in ("입력", "캐시_입력", "출력", "호출"):
+            merge_codex[k] += int(cx.get(k) or 0)
+        merge_first += int(((after[q].get("calls") or {}).get("decisions") or {}).get("calls") or 0)
     lines = [f"# 폴더 판정 비교 — {a.provider}, 질문 {len(common)}개 (기준 {a.src} → 폴더 {a.out})", "",
+             f"- 합치기 단계에서 새로 부른 것: Codex {merge_codex['호출']}번(입력 {merge_codex['입력']:,} · 출력 {merge_codex['출력']:,} 토큰) · 1차 심판 호출 {merge_first}번 — 0 이 아니면 묶음 결과가 그대로 쓰이지 않은 것(규칙 · 지문이 기준 판정과 달라짐). 본 흐름의 묶음(judge_v4 --codex-batch)은 같은 규칙으로 돌아 이 문제가 없다.",
              f"- 항목 최종 판정 일치: {same_dec}/{n_dec} ({same_dec / max(1, n_dec) * 100:.1f}%) · Codex 판정 일치: {same_codex}/{n_codex} ({same_codex / max(1, n_codex) * 100:.1f}%)",
              f"- 질문 판정 바뀜: {len(verdict_change)}개 {verdict_change}",
              f"- 호출: 질문마다 {tok_before['호출']}번 → {usage.get('mode', '폴더')} {usage.get('calls', 1)}번(묶음 크기 {usage.get('batch_size', '-')})",
@@ -354,14 +427,16 @@ def main(argv: Optional[List[str]] = None) -> int:
             p.add_argument("--from", dest="src", required=True, help="기준 판정 폴더 이름 — 입력 · 1차 심판 저장물을 가져온다")
         if name == "prepare":
             p.add_argument("--questions", required=True)
+            p.add_argument("--set", default=str(ROOT / "참고자료" / "질문세트_78"), help="질문 세트 폴더 — 첨부 원본(files/)을 찾는 데 씀")
         if name == "run":
             p.add_argument("--mode", default="batch", choices=["batch", "folder"], help="batch = 질문 N개를 표준 입력 한 번에(기본) · folder = Codex 가 폴더를 읽고 씀(Windows 샌드박스에서 막힘)")
             p.add_argument("--batch-size", default=10, type=int)
             p.add_argument("--model")
             p.add_argument("--reasoning")
-            p.add_argument("--web-search", default="disabled", choices=["disabled", "live"])
+            p.add_argument("--web-search", default="live", choices=["disabled", "live"], help="live 면 웹 검색이 필요한 질문(J5-1.a · J5-3.a, 참조 자료 없음)이 든 묶음에만 켠다")
         if name == "merge":
             p.add_argument("--set", default=str(ROOT / "참고자료" / "질문세트_78"))
+            p.add_argument("--force", action="store_true", help="마지막 run 이 실패 · 불완전해도 지금 있는 결과 파일로 합친다")
     a = ap.parse_args(argv)
     return {"prepare": cmd_prepare, "run": cmd_run, "merge": cmd_merge, "compare": cmd_compare}[a.cmd](a)
 
