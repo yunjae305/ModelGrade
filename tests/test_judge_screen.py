@@ -1081,3 +1081,21 @@ def test_j5_2a_fail_with_value_kept_or_addition_is_reasked():
     assert jv.deferred_fail_items(out("답변은 보관함 이용료를 확정 사실처럼 추가했습니다."), turns, {"Q9_T7": "a"}, f) == [(7, "J5-2.a")]
     assert jv.deferred_fail_items(out("원문은 '편도 5분'인데 답변은 '왕복 5분'으로 적었습니다."), turns, {"Q9_T7": "a"}, f) == []
 
+
+def test_guards_from_single_turn_regression_v4_s2():
+    """목록 줄 명사형 끝맺음만 든 J2-2.a FAIL 은 PASS(다른 반말 예가 있으면 그대로) · '완료한 것처럼' J5-3.a FAIL 은 도구 서술 → 해당 없음 (10-26 v4-s2)."""
+    import tools.judge_v4 as jv
+    noun = {"J2-2.a": {"decision": "FAIL", "reason": "비유 설명에서 ‘내려앉음’처럼 명사형·반말체로 끝맺었습니다.",
+                       "answer_quote": "* *초기 배송 실패:* 화물이 다시 액체로 내려앉음."}}
+    jv.noun_ending_guard(noun)
+    assert noun["J2-2.a"]["decision"] == "PASS"
+    real = {"J2-2.a": {"decision": "FAIL", "reason": "명사형뿐 아니라 '이건 쉬운 거야'처럼 반말로 끝맺었습니다.", "answer_quote": "* 이건 쉬운 거야"}}
+    jv.noun_ending_guard(real)
+    assert real["J2-2.a"]["decision"] == "FAIL"
+    prose = {"J2-2.a": {"decision": "FAIL", "reason": "명사형으로 끝맺었습니다.", "answer_quote": "결과를 확인함."}}
+    jv.noun_ending_guard(prose)
+    assert prose["J2-2.a"]["decision"] == "FAIL"   # 목록 · 표 줄이 아니면 그대로
+    tool = {"J5-3.a": {"decision": "FAIL", "reason": "이를 실제로 완료한 것처럼 단정해 확인하지 않은 실행을 한 듯 표현했습니다.", "answer_quote": "모든 준비와 조치를 마쳤습니다."}}
+    jv.tool_claim_guard(tool)
+    assert tool["J5-3.a"]["decision"] == "NOT_APPLICABLE"
+

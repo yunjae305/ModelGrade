@@ -1312,7 +1312,7 @@ def fact_true_guard(items: Dict[str, Dict[str, Any]]) -> None:
         it["how"] = (it.get("how") or "") + " → 사유가 '맞다'고만 함(사유 모순) → PASS"
 
 
-_TOOL_CLAIM = re.compile(r"조회|확인한\s*것처럼|실행한\s*것처럼|접근\s*상태|작업\s*(?:폴더|공간)|파일이\s*(?:없|하나도)")
+_TOOL_CLAIM = re.compile(r"조회|(?:확인|실행|완료|처리|조치)(?:을|를)?\s*(?:한|마친|끝낸)\s*(?:것처럼|듯)|접근\s*상태|작업\s*(?:폴더|공간)|파일이\s*(?:없|하나도)")   # '완료한 것처럼 · 실행을 한 듯' (10-26 v4-s2 Gemini Q38)
 _SOURCE_WORD = re.compile(r"출처|문헌|조문|제품|인용")
 #: 서비스가 답 끝에 붙이는 도구 · 데이터 제공 표시('데이터 제공: MET Norway (Weather data …)' · '한국천문연구원 (공공데이터포털 특일 정보)') — 답변 모델의
 #: 도구 사용 서술이라 J5-3.a 로 판정하지 않는다 (10-22 밤: AIONA 14/177 답, 심판이 '자료에 없는 출처를 꾸밈'으로 FAIL 7칸)
@@ -1356,6 +1356,27 @@ def tool_claim_guard(items: Dict[str, Dict[str, Any]]) -> None:
 _HONORIFIC_MIX = re.compile(r"해요체.{0,40}(?:합니다|하십시오|습니다|격식)체|(?:합니다|하십시오|습니다|격식)체.{0,40}해요체|높임\s*등급.{0,20}섞")
 _LOW_SPEECH = re.compile(r"반말|해체|해라체|하게체|낮춤")
 _GRADE_ASKED = re.compile(r"격식체|하십시오체|합쇼체|습니다체|합니다체|해요체로|하오체")
+
+
+#: 목록 · 표 줄의 명사형 끝맺음(~함 · ~임 · ~음)은 말투 판단에서 뺀다 — 판정 프롬프트 J2-2.a '존댓말' 줄(사용자 정의 2026-10-21)
+_NOUN_ENDING_REASON = re.compile(r"명사형|명사\s*종결|개조식|~\s*(?:함|임|음)\b|['‘\"][^'’\"]{0,20}(?:함|임|음)['’\"]")
+_LIST_LINE = re.compile(r"^\s*(?:[-*•·]|\d+[.)]|\|)")
+
+
+def noun_ending_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """J2-2.a FAIL 이 목록 · 표 줄의 명사형 끝맺음만 든 것이면 PASS — 기준 문구 그대로(높임 섞임 안전장치와 같은 꼴). 다른 반말 예를 함께 들면 그대로
+    (10-26 v4-s2 Gemini Q49: 비유 설명 목록의 '…내려앉음' 을 반말로 FAIL)."""
+    it = items.get("J2-2.a")
+    if not it or it.get("decision") != "FAIL":
+        return
+    fails = [e for e in (it.get("entries") or [it]) if isinstance(e, dict) and e.get("decision", "FAIL") == "FAIL"]
+    def only_noun(e: Dict[str, Any]) -> bool:
+        reason, quote = str(e.get("reason") or ""), str(e.get("answer_quote") or "")
+        lines = [l for l in quote.splitlines() if l.strip()]
+        return bool(_NOUN_ENDING_REASON.search(reason)) and bool(lines) and all(_LIST_LINE.match(l) for l in lines) and not re.search(r"해체|해라체|하게체|['‘\"][^'’\"]{0,30}(?:어|아|지|야|냐|니|자)[?.!]?['’\"]", reason)
+    if fails and all(only_noun(e) for e in fails):
+        it["decision"] = "PASS"
+        it["how"] = (it.get("how") or "") + " → 목록 · 표 줄의 명사형 끝맺음은 말투 판단에서 뺌(기준 문구) → PASS"
 
 
 def honorific_mix_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
@@ -1452,6 +1473,7 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
     fact_true_guard(items)   # 사실 확인 사유가 '맞다'인데 보류 (10-21 밤) — 사유 모순 보류는 풀지 않음
     tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
     honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
+    noun_ending_guard(items)   # 목록 · 표 줄의 명사형 끝맺음만 든 말투 FAIL 은 PASS (10-26)
     misrule_guard(items)   # 연결 규칙을 대상 아닌 항목에 쓰거나 조건이 거짓인 해당 없음은 보류 (10-25 밤)
     js.apply_overrides(items)
 

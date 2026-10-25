@@ -14,6 +14,8 @@ import re
 import shutil
 import tempfile
 import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -22,6 +24,34 @@ PAGE_EXT = (".pdf", ".docx")
 MAX_PAGES = 20
 RENDER_SCALE = 1.5
 _LOCK = threading.Lock()
+CONVERT_WAIT_S = 300    # 다른 실행이 변환 중이면 이만큼까지 기다린다 — 넘으면 그 첨부는 글로만
+CONVERT_STALE_S = 900   # 이보다 오래된 잠금은 죽은 실행의 것으로 보고 지운다
+
+
+@contextmanager
+def _convert_lock(out_dir: Path, wait_s: float = CONVERT_WAIT_S, stale_s: float = CONVERT_STALE_S):
+    """실행(프로세스)끼리 docx → pdf 변환을 한 번에 하나만 — 폴더 만들기(mkdir)는 원자적이라 잠금으로 쓴다. Word 자동화를 두 프로세스가 동시에 돌리면
+    서로 막혀 끝나지 않는다(10-26 새벽: 판정 둘을 동시에 띄우자 한쪽이 4시간 멈춤). 기다림이 wait_s 를 넘으면 TimeoutError."""
+    lock = out_dir / ".convert.lock"
+    started = time.monotonic()
+    while True:
+        try:
+            lock.mkdir()
+            break
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > stale_s:
+                    shutil.rmtree(lock, ignore_errors=True)
+                    continue
+            except OSError:
+                pass
+            if time.monotonic() - started > wait_s:
+                raise TimeoutError("다른 실행의 첨부 변환이 끝나지 않음")
+            time.sleep(0.5)
+    try:
+        yield
+    finally:
+        shutil.rmtree(lock, ignore_errors=True)
 _NOTES: Dict[str, str] = {}
 
 
@@ -160,11 +190,17 @@ def page_images(path: Path, files_dir: Path) -> Tuple[List[Path], str]:
         if cached:
             return cached, f"{path.name}: 쪽 이미지 {len(cached)}장(저장된 것)"
         try:
-            pdf = path if ext == ".pdf" else _docx_to_pdf(path, out_dir)
+            with _convert_lock(out_dir):
+                cached = _existing_pages(path, out_dir)   # 기다리는 동안 다른 실행이 만들었으면 그것을 쓴다
+                if cached:
+                    return cached, f"{path.name}: 쪽 이미지 {len(cached)}장(저장된 것)"
+                pdf = path if ext == ".pdf" else _docx_to_pdf(path, out_dir)
+                pages = _render_pdf(pdf, path, out_dir) if pdf is not None else []
             if pdf is None:
                 return [], f"{path.name}: docx → pdf 변환 불가(Word · LibreOffice 없음) — 글로만"
-            pages = _render_pdf(pdf, path, out_dir)
             note = f"{path.name}: {'PDF' if ext == '.pdf' else 'DOCX(Word 로 pdf)'} {len(pages)}쪽을 이미지로"
+        except TimeoutError:
+            return [], f"{path.name}: 다른 실행의 첨부 변환을 기다리다 시간 초과 — 글로만"
         except Exception as exc:   # 못 그리면 글로만 — 어떻게 됐는지 남긴다
             return [], f"{path.name}: 쪽 이미지 못 그림 ({type(exc).__name__}: {str(exc)[:80]})"
     _NOTES[path.name] = note

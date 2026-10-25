@@ -84,3 +84,20 @@ def test_failed_libreoffice_conversion_does_not_reuse_stale_pdf(tmp_path: Path, 
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: None)   # 아무것도 만들지 못함
     assert ap._docx_to_pdf(docx, tmp_path) is None
 
+
+def test_convert_lock_serializes_and_times_out(tmp_path: Path):
+    """docx → pdf 변환은 실행끼리 한 번에 하나만 — 잠금이 있으면 기다리다 시간 초과, 오래된 잠금은 지운다 (10-26 새벽 Word 자동화 멈춤)."""
+    import os
+    import time
+    import pytest
+    from code_eval import attachment_pages as ap
+    (tmp_path / ".convert.lock").mkdir()
+    with pytest.raises(TimeoutError):
+        with ap._convert_lock(tmp_path, wait_s=0.6):
+            pass
+    old = time.time() - 3600
+    os.utime(tmp_path / ".convert.lock", (old, old))   # 죽은 실행이 남긴 잠금
+    with ap._convert_lock(tmp_path, wait_s=0.6, stale_s=60):
+        assert (tmp_path / ".convert.lock").is_dir()
+    assert not (tmp_path / ".convert.lock").exists()
+
