@@ -1120,3 +1120,16 @@ def test_j3_5a_fail_for_unmeasured_premise_is_reasked():
     assert jv.deferred_fail_items(out("오지훈을 09:30 진행과 09:35 접수에 동시에 배정했습니다."), turns, {"Q2_T10": "a"}, f) == []
     assert jv.deferred_fail_items(out("보관함에서 꺼내는 시간은 정해져 있지 않은데 확정 일정처럼 제시했습니다."), turns, {"Q2_T10": "a"}, f) == [(10, "J3-5.a")]
 
+
+def test_j1_4b_required_form_and_j6_1a_format_fails_are_reasked():
+    """J1-4.b '본문과 문의 접기에 같은 값 반복' · J6-1.a '이전 턴의 문의 접기 요구를 안 따름' — 다시 묻기. 말투 지시 위반은 그대로 (10-26 v4-r9-chk6)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q6_T7", "turn": 7, "question": "q"}]
+    def out(item, reason):
+        return {"turns": [{"turn": 7, "items": [{"id": item, "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    a = {"Q6_T7": "a"}
+    assert jv.deferred_fail_items(out("J1-4.b", "접수 시각을 본문 접수 절과 문의 접기 상자 답변에서 반복했습니다."), turns, a, {7: ["J1-4.b"]}) == [(7, "J1-4.b")]
+    assert jv.deferred_fail_items(out("J6-1.a", "이전의 문의 접기 상자 요구를 따르지 않았습니다."), turns, a, {7: ["J6-1.a"]}) == [(7, "J6-1.a")]
+    assert jv.deferred_fail_items(out("J6-1.a", "1턴의 존댓말 지시를 어기고 반말로 썼습니다."), turns, a, {7: ["J6-1.a"]}) == []
+    assert jv.deferred_fail_items(out("J1-4.b", "같은 주의 사항을 두 단락에서 새 정보 없이 반복했습니다."), turns, a, {7: ["J1-4.b"]}) == []
+

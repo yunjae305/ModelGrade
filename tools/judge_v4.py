@@ -1052,6 +1052,10 @@ _DEFER = re.compile(r"(J\d-\d(?:\.[a-z])?)(?: ?(?:항목|상황|규칙))?(?:이|
 _VALUE_KEPT = re.compile(r"값(?: ?자체)?(?:은|는|이)? ?(?:맞|정확|일치|같)|확정(?:된)? ?사실처럼|덧붙|추가했")
 #: J3-5.a FAIL 인데 사유가 자료 밖 전제의 불확실성뿐 — '꺼내는 시간은 측정되지 않았습니다' · '실행 가능성이 확보되지 않습니다' (10-26 v4-r9-chk3 Claude Q2)
 _PREMISE_UNSURE = re.compile(r"측정되지 ?않|미측정|재지 ?않|정해져 ?있지 ?않|정해지지 ?않|(?:제시|기록)(?:되|하)지 ?않아|확보되지 ?않|보장(?:되|할 수)지? ?않|불확실")
+#: J1-4.b FAIL 인데 사유가 질문이 함께 요구한 다른 형식(문의 접기 · 자주 묻는 질문 · 운영 메모 · 작업 순서 · 시각표)에 같은 값이 다시 나온 것 — 블록 규칙상 반복 아님
+_REQUIRED_FORM = re.compile(r"문의 ?(?:접기|상자|부분|칸)|접기 ?상자|자주 ?묻는|운영 ?메모|작업 ?순서|시각표|details")
+#: J6-1.a FAIL 인데 사유가 이전 턴의 형식 요구(링크 · 접기 · 목차 · 각주 · 표 · 형식)를 든 것 — 형식 요구는 그 턴만, 이번 턴이 유지하라고 했으면 J2-3.a · J6-3.b
+_FORMAT_REQ = re.compile(r"링크|접기|목차|각주|표(?:를|로|가)?|형식|태그|코드 ?블록|글자 ?수")
 #: J2-3.a FAIL 인데 사유가 인용한 조건을 어기지 않았다고 말함 — '조건은 위반하지 않지만, … 가정입니다' (10-25 밤 다듬기 루프 J2-3.a base Q3 Claude 9턴)
 _CONDITION_KEPT = re.compile(r"(?:조건|요구|지시|제약)(?:은|는|을|를|이|가)? ?(?:위반하지|어기지|벗어나지) ?않"
                              r"|(?:주지|제시하지|적지|밝히지) ?않[^\n]{0,30}(?:답변|답)은[^\n]{0,40}(?:새로|더해|지어|가정)|자료에 없는 (?:값|시간|수치)")   # 지어낸 값은 J5-2 · J1-3 (10-26 v4-s4 Gemini Q72)
@@ -1060,7 +1064,9 @@ DEFER_NOTE = ("'다른_항목에_넘긴_FAIL' 의 항목들은 FAIL 사유에 �
               "FAIL 입니다 — 사유에 인용한 조건을 어기지 않았다고 적었다면 그 조건으로 FAIL 하지 않고, 값 · 가정 · 일정의 문제는 그 항목(J5-2 · J3-5 · J1-3)에서 봅니다. "
               "J5-2.a 는 원문 값과 답의 값이 다른 한 쌍을 둘 다 인용할 수 있을 때만 FAIL 입니다 — 값은 맞고 출처 번호 · 표시가 문제면 이 항목이 아니고(번호는 정한 판정), "
               "덧붙인 문장 · 조건부를 확정처럼 바꾼 것은 J5-2.b 에서 봅니다. J3-5.a 는 답에 적힌 두 지점(시각 · 배정 · 순서)이 서로 맞지 않을 때만 FAIL 입니다 — "
-              "자료가 재지 않은 시간 · 확보되지 않은 전제의 불확실성은 충돌이 아니고(미측정은 확인 목록의 정한 판정대로), 두 지점을 인용할 수 없으면 FAIL 이 아닙니다.")
+              "자료가 재지 않은 시간 · 확보되지 않은 전제의 불확실성은 충돌이 아니고(미측정은 확인 목록의 정한 판정대로), 두 지점을 인용할 수 없으면 FAIL 이 아닙니다. "
+              "J1-4.b: 질문이 함께 요구한 다른 형식(안내문 본문과 문의 접기 · 자주 묻는 질문 · 운영 메모 · 시각표와 작업 순서)에 같은 값이 다시 나오는 것은 반복이 아닙니다. "
+              "J6-1.a: 이전 턴의 형식 요구(링크 · 접기 · 목차 · 각주 · 표)는 그 턴 답변에만 적용됩니다 — 이번 턴이 형식을 유지하라고 했으면 그 위반은 J2-3.a · J6-3.b 에서 봅니다.")
 
 
 def deferred_fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
@@ -1073,7 +1079,7 @@ def deferred_fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[
                     continue
                 reason = str(e.get("reason") or "")
                 refs = [m.group(1) for m in _DEFER.finditer(reason)]
-                if any(not i.startswith(r) and not r.startswith(i.split(".")[0] + ".") for r in refs) or (i == "J2-3.a" and _CONDITION_KEPT.search(reason)) or (i == "J5-2.a" and _VALUE_KEPT.search(reason)) or (i == "J3-5.a" and _PREMISE_UNSURE.search(reason)):
+                if any(not i.startswith(r) and not r.startswith(i.split(".")[0] + ".") for r in refs) or (i == "J2-3.a" and _CONDITION_KEPT.search(reason)) or (i == "J5-2.a" and _VALUE_KEPT.search(reason)) or (i == "J3-5.a" and _PREMISE_UNSURE.search(reason)) or (i == "J1-4.b" and _REQUIRED_FORM.search(reason)) or (i == "J6-1.a" and _FORMAT_REQ.search(reason) and not re.search(r"말투|존댓말|반말|어조|높임", reason)):
                     out.append((n, i))
                     break
     return out
