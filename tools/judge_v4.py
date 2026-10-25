@@ -1050,6 +1050,8 @@ def duplicate_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dic
 _DEFER = re.compile(r"(J\d-\d(?:\.[a-z])?)(?: ?(?:항목|상황|규칙))?(?:이|가|은|는|의)? ?(?:에서만?|으로|로|만) ?(?:처리|판정|다룹|다룸|봅니다|본다|셉니다|센다|세야|따로 ?(?:판정|봅|본))")   # 'J1-3만 판정해야' (10-25 밤 v4-r9-chk)
 #: J5-2.a FAIL 인데 사유가 값은 맞다고 하거나(출처 번호 · 표시 문제) 덧붙임 · 확정처럼 바꿈을 든 것 — J5-2.a 는 옮긴 값이 다른 한 쌍이 있을 때만 (10-26 v4-r9-chk2 AIONA Q9 7턴 · Q2 8턴)
 _VALUE_KEPT = re.compile(r"값(?: ?자체)?(?:은|는|이)? ?(?:맞|정확|일치|같)|확정(?:된)? ?사실처럼|덧붙|추가했")
+#: J3-5.a FAIL 인데 사유가 자료 밖 전제의 불확실성뿐 — '꺼내는 시간은 측정되지 않았습니다' · '실행 가능성이 확보되지 않습니다' (10-26 v4-r9-chk3 Claude Q2)
+_PREMISE_UNSURE = re.compile(r"측정되지 ?않|미측정|재지 ?않|정해져 ?있지 ?않|정해지지 ?않|(?:제시|기록)(?:되|하)지 ?않아|확보되지 ?않|보장(?:되|할 수)지? ?않|불확실")
 #: J2-3.a FAIL 인데 사유가 인용한 조건을 어기지 않았다고 말함 — '조건은 위반하지 않지만, … 가정입니다' (10-25 밤 다듬기 루프 J2-3.a base Q3 Claude 9턴)
 _CONDITION_KEPT = re.compile(r"(?:조건|요구|지시|제약)(?:은|는|을|를|이|가)? ?(?:위반하지|어기지|벗어나지) ?않"
                              r"|(?:주지|제시하지|적지|밝히지) ?않[^\n]{0,30}(?:답변|답)은[^\n]{0,40}(?:새로|더해|지어|가정)|자료에 없는 (?:값|시간|수치)")   # 지어낸 값은 J5-2 · J1-3 (10-26 v4-s4 Gemini Q72)
@@ -1057,7 +1059,8 @@ DEFER_NOTE = ("'다른_항목에_넘긴_FAIL' 의 항목들은 FAIL 사유에 �
               "이 항목은 정의의 점검 질문으로 다시 판정하고, 그 오류 말고 이 항목만의 다른 문제가 있을 때만 FAIL 로 두세요. J2-3.a 는 질문이 직접 말한 조건을 어긴 문장이 있을 때만 "
               "FAIL 입니다 — 사유에 인용한 조건을 어기지 않았다고 적었다면 그 조건으로 FAIL 하지 않고, 값 · 가정 · 일정의 문제는 그 항목(J5-2 · J3-5 · J1-3)에서 봅니다. "
               "J5-2.a 는 원문 값과 답의 값이 다른 한 쌍을 둘 다 인용할 수 있을 때만 FAIL 입니다 — 값은 맞고 출처 번호 · 표시가 문제면 이 항목이 아니고(번호는 정한 판정), "
-              "덧붙인 문장 · 조건부를 확정처럼 바꾼 것은 J5-2.b 에서 봅니다.")
+              "덧붙인 문장 · 조건부를 확정처럼 바꾼 것은 J5-2.b 에서 봅니다. J3-5.a 는 답에 적힌 두 지점(시각 · 배정 · 순서)이 서로 맞지 않을 때만 FAIL 입니다 — "
+              "자료가 재지 않은 시간 · 확보되지 않은 전제의 불확실성은 충돌이 아니고(미측정은 확인 목록의 정한 판정대로), 두 지점을 인용할 수 없으면 FAIL 이 아닙니다.")
 
 
 def deferred_fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
@@ -1070,7 +1073,7 @@ def deferred_fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[
                     continue
                 reason = str(e.get("reason") or "")
                 refs = [m.group(1) for m in _DEFER.finditer(reason)]
-                if any(not i.startswith(r) and not r.startswith(i.split(".")[0] + ".") for r in refs) or (i == "J2-3.a" and _CONDITION_KEPT.search(reason)) or (i == "J5-2.a" and _VALUE_KEPT.search(reason)):
+                if any(not i.startswith(r) and not r.startswith(i.split(".")[0] + ".") for r in refs) or (i == "J2-3.a" and _CONDITION_KEPT.search(reason)) or (i == "J5-2.a" and _VALUE_KEPT.search(reason)) or (i == "J3-5.a" and _PREMISE_UNSURE.search(reason)):
                     out.append((n, i))
                     break
     return out

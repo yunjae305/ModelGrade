@@ -1108,3 +1108,15 @@ def test_j2_3a_fail_for_invented_value_is_reasked():
     out = {"turns": [{"turn": 1, "items": [{"id": "J2-3.a", "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
     assert jv.deferred_fail_items(out, turns, {"Q72_T1": "a"}, {1: ["J2-3.a"]}) == [(1, "J2-3.a")]
 
+
+def test_j3_5a_fail_for_unmeasured_premise_is_reasked():
+    """J3-5.a FAIL 사유가 '측정되지 않음 · 확보되지 않음'뿐 — 다시 묻기. 답 안의 두 지점 충돌을 든 사유는 아님 (10-26 v4-r9-chk3 Claude Q2)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q2_T10", "turn": 10, "question": "q"}]
+    def out(reason):
+        return {"turns": [{"turn": 10, "items": [{"id": "J3-5.a", "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    f = {10: ["J3-5.a"]}
+    assert jv.deferred_fail_items(out("보관함에서 꺼내는 소요 시간은 측정되지 않았습니다. 실행 가능하지 않습니다."), turns, {"Q2_T10": "a"}, f) == [(10, "J3-5.a")]
+    assert jv.deferred_fail_items(out("오지훈을 09:30 진행과 09:35 접수에 동시에 배정했습니다."), turns, {"Q2_T10": "a"}, f) == []
+    assert jv.deferred_fail_items(out("보관함에서 꺼내는 시간은 정해져 있지 않은데 확정 일정처럼 제시했습니다."), turns, {"Q2_T10": "a"}, f) == [(10, "J3-5.a")]
+
