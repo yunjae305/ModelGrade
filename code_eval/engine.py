@@ -328,8 +328,11 @@ def evaluate_case(payload: Dict[str, Any], cfg: Optional[AionaConfig] = None, in
     inherited, inherited_audit = persistent_conditions(history["prior"], question) if history and history["complete"] else ([], [])
     if history and not history["complete"]:
         inherited_audit = [{"applied": False, "why": "앞 턴 질문이 누락·중복·입력 오류여서 이전 지시를 확인하지 않음"}]
+    collection = payload.get("collection") if isinstance(payload.get("collection"), dict) else {}
     ctx = Ctx(case_id=case_id, question=question, answer=answer, displayed_text=displayed,
-              system_id=str(system_id) if system_id is not None else None, aiona_config=cfg, inherited=inherited)
+              system_id=str(system_id) if system_id is not None else None, aiona_config=cfg, inherited=inherited,
+              collection_status=(str(collection.get("status")) if collection.get("status") else None),
+              collection_error=(str(collection.get("error")) if collection.get("error") else None))
 
     results: List[ConditionResult] = []
     for sub, fn in _COMMON:

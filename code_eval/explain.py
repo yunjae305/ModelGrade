@@ -27,7 +27,7 @@ __all__ = ["explain_result", "python_error_ko", "json_error_ko", "EXPLAIN_VERSIO
 EXPLAIN_VERSION = "v16-explain-1.0"
 
 CHECKED = {
-    "1-1.response_nonempty": "답변에 실제 글자가 있는지",
+    "1-1.response_nonempty": "답이 비었거나 오류 · 능력 부정 문구만은 아닌지(에러 케이스)",
     "1-1.character_rules": "답변에 깨진 글자(�, Ã¬ 같은 기호)나 눈에 보이지 않는 제어 문자가 섞였는지",
     "1-1.foreign_script": "한자·일본 문자 같은 외국 문자가 질문 주제나 설명·괄호 병기 없이 갑자기 나왔는지",
     "1-2.code_block": "질문이 요구한 코드블록(``` 로 감싼 코드)이 요구대로 있는지",
@@ -326,11 +326,18 @@ def _e(headline, summary, expected="", actual="", locations=None, fix="", note="
 
 
 def _x_response(r, ctx):
+    kind = (r.get("measured") or {}).get("error_case")
     if r["verdict"] == FAIL:
-        return _e("답변이 비어 있습니다", "공백·줄바꿈만 있고 실제 글자가 하나도 없습니다.",
+        if kind == "답 없음":
+            return _e("답이 오지 않았습니다(에러 케이스)", f"수집 상태 {r['measured'].get('collection_status')}: 오류 코드 · 시간 초과 · 무응답.",
+                      "결과물이 있는 답변", "답 없음", fix="모델 · 서비스 쪽 오류입니다. 같은 질문을 다시 보내도 반복되면 모델 문제로 봅니다.")
+        if kind == "능력 부정 문구":
+            return _e("능력 부정 문구만 있습니다(에러 케이스)", "요청과 무관하게 '언어 모델이라 할 수 없다' 류의 고정 문구만 있고 결과물이 없습니다.",
+                      "요청에 대한 결과물", f"실제 글자 {r['measured']['content_chars']}자", fix="모델이 이따금 내는 정형 거절입니다. 요청 수행 · 거절 기준도 함께 FAIL 이 됩니다.")
+        return _e("답변이 비어 있습니다(에러 케이스)", "공백·줄바꿈만 있고 실제 글자가 하나도 없습니다.",
                   "글자가 1자 이상 있는 답변", f"실제 글자 {r['measured']['content_chars']}자",
-                  fix="내용이 있는 답변이 나와야 합니다. 수집 과정에서 답변이 잘리거나 비었는지도 확인하세요.")
-    return _e("답변 있음", f"실제 글자 {_n(r['measured']['content_chars'])}자가 있습니다.")
+                  fix="내용이 있는 답변이 나와야 합니다.")
+    return _e("에러 케이스 아님", f"실제 글자 {_n(r['measured']['content_chars'])}자가 있습니다.")
 
 
 def _x_chars(r, ctx):

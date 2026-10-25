@@ -60,6 +60,23 @@ def test_empty_answer_vs_explicit_empty_vs_missing_field():
     explicit = run("아무것도 출력하지 마.", "")
     assert rows(explicit, "1-1.response_nonempty") == []  # 빈 출력 요청은 2-1.explicit_empty 가 판정한다
     assert one(explicit, "2-1.explicit_empty")["verdict"] == PASS
+
+
+def test_error_case_phrase_and_collection_error_fail_1_1_but_copy_failure_is_held():
+    """1-1 에러 케이스(10-25): 능력 부정 정형 문구만 · 답 없음(수집 오류)은 FAIL, 복사 실패는 행 없이 사유만, 긴 정상 답은 PASS."""
+    canned = run("파이썬 함수를 작성해 주세요.", "저는 언어 모델일 뿐이라 그것을 이해하지 못해서 도와드릴 수가 없습니다.")
+    row = one(canned, "1-1.response_nonempty")
+    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "능력 부정 문구"
+    english = run("Write a function.", "I'm just a language model, so I can't help with that.")
+    assert one(english, "1-1.response_nonempty")["measured"]["error_case"] == "능력 부정 문구"
+    normal = run("언어 모델이 뭐야?", "언어 모델은 글의 다음 낱말을 예측하도록 학습한 프로그램입니다. 이해하지 못하는 질문에는 추측으로 답할 수 있어 확인이 필요합니다. " * 3)
+    assert one(normal, "1-1.response_nonempty")["verdict"] == PASS   # 길고 결과물이 있으면 자기 설명 낱말이 있어도 에러 케이스 아님
+    missing = run("회의 시간을 알려줘.", "", collection={"status": "ERROR", "error": "응답 시간 초과"})
+    row = one(missing, "1-1.response_nonempty")
+    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "답 없음" and "시간 초과" in row["reason"]
+    copy_failed = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED"})
+    assert rows(copy_failed, "1-1.response_nonempty") == []
+    assert any("복사 실패" in s.get("why", "") for s in copy_failed["meta"].get("skipped_conditions", []))
     missing = engine.evaluate_case({"question": "회의 시간을 알려줘."}, NO_CONFIG)
     assert missing["case_status"] == "INPUT_ERROR" and missing["results"] == []
 

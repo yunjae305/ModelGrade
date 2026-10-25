@@ -191,20 +191,54 @@ def _corruption_reading(ctx: Ctx, hit: Dict[str, Any]) -> Tuple[str, str]:
     return "unexplained", f"{unit}에 설명·예시 없음"
 
 
+#: 1-1 에러 케이스 ③ — 능력 부정 정형 문구(요청과 무관한 고정 거절). 자기 설명(언어 모델 · 텍스트 기반 AI …)과 거절 말이 함께 있고
+#: 결과물 없이 짧을 때만. 발견될 때마다 추가한다 (10-23 미팅 2 · 3번, 10-25: Gemini 3.8 Flash 웹 "저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다").
+ERROR_CASE_PHRASES = (
+    re.compile(r"언어\s*모델(일\s*뿐|이라서|이기\s*때문|이라|이므로)"),
+    re.compile(r"텍스트\s*기반\s*(AI|인공지능|모델)"),
+    re.compile(r"(I'?m|I am)\s+(just\s+|only\s+)?(a|an)\s+(large\s+)?(language\s+model|text-based)", re.I),
+    re.compile(r"as an AI( language)? model", re.I),
+)
+ERROR_CASE_REFUSAL = re.compile(r"도와\s*드릴\s*수(가)?\s*없|할\s*수(가)?\s*없|이해하지\s*못|도움을\s*드릴\s*수\s*없|cannot|can'?t|unable", re.I)
+ERROR_CASE_MAX_CHARS = 300   # 이보다 길면 결과물이 있는 것으로 보고 ③ 을 적용하지 않는다
+COLLECTION_OK = ("SUCCESS", "COPY_FAILED")   # SUCCESS 는 정상, COPY_FAILED 는 우리 원인(행 없이 보류)
+
+
+def error_case_phrase(answer: str, content_chars: int) -> Optional[str]:
+    """③ 에 해당하면 맞은 문구를, 아니면 None. 문구는 원문(answer)에서 찾는다 — 공백을 지운 글에서는 영어 문구가 안 잡힌다."""
+    if content_chars > ERROR_CASE_MAX_CHARS or "```" in answer:
+        return None
+    hit = next((m.group(0) for p in ERROR_CASE_PHRASES for m in [p.search(answer)] if m), None)
+    if hit and ERROR_CASE_REFUSAL.search(answer):
+        return hit
+    return None
+
+
 def check_1_1(ctx: Ctx) -> List:
     out = []
     empty_req = ctx.conds.first("explicit_empty")
     content = strip_non_content(ctx.answer)
-    # 질문이 빈 출력을 명시 요청하면 응답 존재 행을 만들지 않는다 (요청 준수 여부는 2-1.explicit_empty 가 판정).
-    if empty_req is None:
-        ok = len(content) > 0
-        out.append(result("1-1.response_nonempty", SUB11, "응답 존재", "operating_policy", Status.EXECUTED,
-                          verdict_of(ok), required="공백·제어문자 제거 후 1자 이상",
-                          measured={"content_chars": len(content), "raw_chars": len(ctx.answer)},
+    status = (ctx.collection_status or "").upper()
+    # 질문이 빈 출력을 명시 요청하면 에러 케이스 행을 만들지 않는다 (요청 준수 여부는 2-1.explicit_empty 가 판정).
+    if empty_req is None and status == "COPY_FAILED":
+        # 복사 실패는 우리 원인 — 행 없이 사유만 남기고 질문은 보류(사람이 정함, 10-25)
+        ctx.skipped.append({"check_id": "1-1.response_nonempty", "why": "복사 실패(수집기 원인) — 에러 케이스로 세지 않음, 질문은 보류"})
+    elif empty_req is None:
+        kind, reason = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content))
+        if status and status not in COLLECTION_OK and not content:
+            kind, reason = "답 없음", "답 없음 — 수집 상태 {}{} (오류 코드 · 시간 초과 · 무응답)".format(status, f": {ctx.collection_error[:80]}" if ctx.collection_error else "")
+        elif not content:
+            kind, reason = "빈 답", "공백·제어문자를 제거하면 남는 문자가 없음 (답이 비어 있음)"
+        else:
+            hit = error_case_phrase(ctx.answer, len(content))
+            if hit:
+                kind, reason = "능력 부정 문구", "능력 부정 정형 문구만 있고 결과물 없음: '{}'".format(hit)
+        ok = kind is None
+        out.append(result("1-1.response_nonempty", SUB11, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
+                          verdict_of(ok), required="빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만이 아님",
+                          measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind},
                           comparison=cmp_text(len(content), ">=", 1),
-                          reason=("실질 문자 {}자 확인".format(len(content)) if ok else
-                                  "공백·제어문자를 제거하면 남는 문자가 없음 (일반 응답이 비어 있음)"),
-                          evidence=[Evidence("answer", 0, len(ctx.answer), ctx.answer[:60])]))
+                          reason=reason, evidence=[Evidence("answer", 0, len(ctx.answer), ctx.answer[:60])]))
 
     allowed = _allowed_codepoints(ctx)
     hits = find_corruption(ctx.answer) + _c0_controls(ctx.answer)

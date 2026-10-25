@@ -26,13 +26,13 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v11"   # v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v12"   # v12: 1-1 응답 존재 → 에러 케이스 없음(10-25). v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
 #: question_or_answer: 둘 중 하나 · aiona: AIONA 설정과 표시본이 있을 때
 CODE_UNITS = (
-    ("1-1.response_nonempty", "일반 응답 존재", "all", ()),
+    ("1-1.response_nonempty", "에러 케이스 없음", "all", ()),
     ("1-1.character_rules", "깨진 문자·제어 문자", "all", ()),
     ("1-1.foreign_script", "설명 없는 외국 문자", "all", ()),
     ("1-2.code_block", "코드블록 존재·개수·금지", "question", ("code_block_required", "code_block_count", "code_block_forbidden")),
@@ -400,6 +400,15 @@ CHANGELOG: List[Dict[str, Any]] = [
                  "근거: 두 심판이 갈린 184/2,366 항목은 Luna 가 같은 규칙으로 다시 봐도 26% 가 바뀌는 경계 사례 — 규칙 문구 보강(184→171)은 효과 없어 되돌림. "
                  "이 방식의 갈림 보류는 모델마다 3~5/300",
                  "J5 주장 대조에 꾸밈·공백을 뺀 느슨한 비교 추가(JSON·표·굵은 글씨 답변), OpenAI API 평가자도 첨부 이미지를 받음(judge-attachment-images-v1)"]},
+    {"version": "engine v16.7.0", "date": "2026-10-25", "scope": "code",
+     "changes": ["1-1.response_nonempty 가 에러 케이스를 본다 — ① 빈 답 ② 답 없음(수집 상태가 SUCCESS·COPY_FAILED 가 아니고 답이 빔: 오류 코드·시간 초과·무응답) "
+                 "③ 능력 부정 정형 문구만(ERROR_CASE_PHRASES: '언어 모델일 뿐이라…'·'텍스트 기반 AI…'·'I'm just a language model…' + 거절 말, 300자 이하·코드블록 없음). "
+                 "복사 실패(COPY_FAILED)는 우리 원인이라 행 없이 skipped 사유만(질문 보류). 사례 payload.collection(status·error)을 Ctx 로 받음",
+                 "근거: 10-23 미팅 2·3번(빈 응답 기준 대신 에러 케이스 기준, 발견될 때마다 확장) · 10-25 웹 수집 시험에서 Gemini 3.8 Flash 가 같은 질문에 "
+                 "'저는 언어 모델일 뿐이라 … 도와드릴 수가 없습니다' 로 답했다가 다시 보내면 정상 답(모델의 간헐 거절) — LLM 판정(J1-1.a·J1-2.a)은 그대로 두고 CODE 가 먼저 잡는다"]},
+    {"version": "criteria-registry-v12", "date": "2026-10-25", "scope": "registry",
+     "changes": ["1-1 '일반 응답 존재' 이름을 '에러 케이스 없음' 으로 (id 1-1.response_nonempty 그대로, 기준 수 72 그대로) — 빈 답만이 아니라 답 없음(수집 오류)·"
+                 "능력 부정 정형 문구만도 FAIL. 질문 세트(78·빈 출력 10)는 수도 내용도 바꾸지 않음(사용자 10-25)"]},
 ]
 
 
