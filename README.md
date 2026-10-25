@@ -41,6 +41,7 @@ py -3 -X utf8 tools/modelgrade.py start          # 1 간단 78 — 네 모델 �
 | 심판 표시용 표(FAIL 60 · 통과 40 사람 표시) | `py -3 -X utf8 tools/build_calibration_sheet.py --run <실행> --out <판정 폴더>` |
 | 판정 프롬프트 변경 원문 페이지 | `py -3 -X utf8 tools/build_prompt_diff_page.py` |
 | CODE 엔진을 올린 뒤 실행 JSON 의 CODE 평가 다시 계산(심판 호출 없음) → 판정 결과에 반영 | `py -3 -X utf8 tools/modelgrade.py code-eval --run <실행>` → `py -3 -X utf8 tools/judge_v4.py --run <실행> --out <판정 폴더> --set 참고자료/질문세트_78 --recode` |
+| 공개본 내보내기(새 저장소용 — 내부 메모 · 수집 답변 원문은 빼고 복사본을 다시 점검) | `py -3 -X utf8 tools/export_public.py --out <빈 폴더>` (`--list` 는 수만, `--include-results` 는 결과 폴더까지) |
 
 ## 기준 · 문서
 
