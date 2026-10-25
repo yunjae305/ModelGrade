@@ -119,3 +119,10 @@ def test_batch_groups_split_by_count_and_by_chars_and_big_question_goes_alone():
     assert all("chars" in st["codex_plan"] for st in small + [big, tail])
     by_count = jv.batch_groups([_state(q) for q in range(1, 6)], size=2, max_chars=10**6)
     assert [[st["q"] for st in g] for g in by_count] == [[1, 2], [3, 4], [5]]
+
+
+def test_batch_chunks_keep_multi_turn_alone_and_group_singles():
+    multi = {2, 5}
+    got = jv.batch_chunks([1, 2, 3, 4, 5, 6, 7], lambda q: q in multi, size=3)
+    assert got == [[1], [2], [3, 4], [5], [6, 7]]   # 멀티턴(2 · 5)은 혼자, 단일은 3개까지
+    assert jv.batch_chunks([], lambda q: False, 10) == [] and jv.batch_chunks([9], lambda q: True, 10) == [[9]]

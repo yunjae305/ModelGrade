@@ -1635,6 +1635,27 @@ CODEX_BATCH = max(1, int(_env_float("CODEX_BATCH", 10)))   # 기본 10 — Q11~Q
 CODEX_BATCH_CHARS = max(50_000, int(_env_float("CODEX_BATCH_CHARS", 400_000)))
 
 
+def batch_chunks(pending: List[int], is_multi: Any, size: int) -> List[List[int]]:
+    """묶음 흐름의 덩어리 — 멀티턴 질문은 어차피 혼자 Codex 에 가므로 제 덩어리로 두어 끝나는 대로 저장되게 하고(10-25 밤: 묶음 10 때문에 멀티턴 10개의
+    결과가 한꺼번에 늦게 저장되던 것), 단일 질문만 size 개씩 묶는다. 순서는 그대로."""
+    out: List[List[int]] = []
+    cur: List[int] = []
+    for q in pending:
+        if is_multi(q):
+            if cur:
+                out.append(cur)
+                cur = []
+            out.append([q])
+            continue
+        cur.append(q)
+        if len(cur) >= max(1, size):
+            out.append(cur)
+            cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
 def batch_groups(plain: List[Dict[str, Any]], size: int, max_chars: int) -> List[List[Dict[str, Any]]]:
     """묶을 질문들을 개수(size)와 글자 합(max_chars)으로 나눈다 — 순서는 그대로, 상한을 넘기는 질문부터 새 묶음."""
     groups: List[List[Dict[str, Any]]] = []
@@ -2235,8 +2256,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     def work_batched(provider: str, data: Dict[str, Any], cases: Dict[str, Any]) -> None:
         """묶음 흐름(--codex-batch N): 질문 N개씩 stage A → 첫 Codex 호출 묶음(codex_batch_round) → stage B. 심판 없이 끝나는 질문(pre_status)은 그대로."""
         pending = [q for q in queues[provider] if (provider, q) not in done]
-        for i in range(0, len(pending), CODEX_BATCH):
-            chunk = pending[i:i + CODEX_BATCH]
+        n_turns = {q: sum(1 for r in rows if ji._question(r["case_id"]) == q) for q in pending}
+        for chunk in batch_chunks(pending, lambda q: n_turns.get(q, 1) > 1, CODEX_BATCH):   # 멀티턴은 혼자(묶지 않으니 바로 저장되게), 단일은 N개씩
             states: List[Dict[str, Any]] = []
             for q in chunk:
                 turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
