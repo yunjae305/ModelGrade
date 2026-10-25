@@ -1067,3 +1067,44 @@ def test_deadline_interrupts_detached_connection_close_response_body(monkeypatch
 def test_markdown_retry_is_skipped_for_very_long_quotes():
     long_quote = "**a " * 1000   # 짝 없는 굵게 표시가 많은 긴 인용 — 정규식 비용 없이 바로 불일치
     assert sources._quote_in("a " * 1000, sources._normalize(long_quote)) is False
+
+
+def test_error_after_deadline_timer_abort_is_timeout(monkeypatch):
+    """마감 타이머가 연결을 끊은 뒤의 '본문 불완전'은 시간 초과 — 타이머가 OS 해상도로 마감보다 조금 먼저 울려도 (10-25 밤 Windows CI)."""
+    import email.message
+    headers = email.message.Message()
+    headers["Content-Type"] = "text/plain; charset=utf-8"
+
+    class Resp:
+        status, headers_ = 200, headers
+        def __init__(self):
+            self.headers = headers
+        def getheader(self, name, default=None):
+            return default
+        def close(self):
+            pass
+
+    made = []
+
+    class Conn:
+        def __init__(self, *args):
+            self.aborted = False
+            made.append(self)
+        def request(self, *args, **kwargs):
+            pass
+        def getresponse(self):
+            return Resp()
+        def abort(self):
+            self.aborted = True
+        def close(self):
+            pass
+
+    def body(response, encoding, deadline):
+        made[0].abort()   # 타이머가 마감 직전에 끊은 상황
+        raise sources.SourceError("incomplete_body")
+    monkeypatch.setattr(sources, "_PinnedConnection", Conn)
+    monkeypatch.setattr(sources, "_read_body", body)
+    target = ("https://example.com/a", "example.com", 443, "example.com", "/a", True)
+    with pytest.raises(sources.SourceError) as err:
+        sources._request(target, ipv4(), time.monotonic() + 30)
+    assert err.value.status == "timeout"

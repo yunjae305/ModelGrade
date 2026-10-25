@@ -4,11 +4,13 @@
 
 ## 준비
 
-```powershell
-py -3 -m pip install -r requirements.txt
-Copy-Item .env.example .env       # 심판 API 키 · 수집 로그인 정보 — 저장소에 넣지 않습니다
-python -m pytest -q               # 모델 호출 없이 도는 시험 (약 2~3분)
+설치는 README 의 '빠른 시작'과 같습니다 — Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`, Linux · macOS `bash install.sh`(둘 다 `.venv` · 패키지 · `.env` · 점검). 그다음 시험:
+
+```bash
+python -X utf8 -m pytest -q
 ```
+
+모델 호출 없이 돕니다(약 2~3분, 가짜 심판). 환경 점검은 `modelgrade doctor`, 새 설치 스크립트 · 실행 래퍼(`install.*` · `modelgrade.cmd` · `modelgrade.sh`)를 고치면 두 벌을 같이 고칩니다.
 
 - Python 3.10 이상. Windows 에서 만들었고 Mac · Linux 에서도 돌도록 경로는 `pathlib` 로만 씁니다(절대 경로 · 사용자 이름을 코드에 적지 않습니다).
 - 판정은 Codex CLI(ChatGPT 구독) · Claude CLI · Jev · Decisions API 중 있는 것으로 돕니다. 시험은 모두 가짜 심판을 써서 키 없이 돕니다.

@@ -173,6 +173,7 @@ class _PinnedConnection(http.client.HTTPConnection):
         super().__init__(hostname, port, timeout=min(5.0, _remaining(deadline)))
         self.address, self.secure, self.deadline = address, secure, deadline
         self._transport_socket = None
+        self.aborted = False   # 마감 타이머가 끊었는가 — 끊긴 뒤의 읽기 오류는 모두 '시간 초과'
 
     def connect(self):
         family, protocol, sockaddr = self.address
@@ -195,6 +196,7 @@ class _PinnedConnection(http.client.HTTPConnection):
         # getresponse() clears self.sock for Connection: close while the response's
         # makefile still holds the underlying descriptor. Shutdown must reach that
         # descriptor to interrupt a slow body read, not only an attached connection.
+        self.aborted = True
         sock = self._transport_socket
         if sock is not None:
             try:
@@ -337,6 +339,12 @@ def _request(target, address, deadline):
         text = _decode_text(data, content_type, response.headers.get_content_charset())
         _remaining(deadline)
         return {"text": text, "content_type": content_type}
+    except (SourceError, OSError, http.client.HTTPException) as exc:
+        # 마감 타이머가 연결을 끊은 뒤의 오류(본문 불완전 · 소켓 오류)는 원인이 시간 초과다 — 타이머는 OS 해상도 때문에
+        # 마감보다 조금 먼저 울릴 수 있어 _remaining 만으로는 못 잡는다 (10-25 밤: Windows CI 에서 'incomplete_body')
+        if getattr(connection, "aborted", False) and not (isinstance(exc, SourceError) and exc.status == "timeout"):
+            raise SourceError("timeout") from None
+        raise
     finally:
         timer.cancel()
         try:

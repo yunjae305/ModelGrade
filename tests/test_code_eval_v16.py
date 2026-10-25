@@ -429,9 +429,14 @@ def test_explicit_forbidden_japanese_string_is_condition_not_context_judgement()
 
 
 def test_script_table_matches_unicode_names():
+    # 표는 Unicode 15.1 Scripts.txt — 파이썬 3.12 의 unicodedata(15.0)는 15.1 에 새로 든 글자(한자 확장 I, U+2EBF0~)의 이름을 모른다.
+    # 실행 중인 데이터가 더 오래됐으면 그 데이터가 모르는 글자는 건너뛴다 (10-25 밤: GitHub Actions 파이썬 3.12 에서 실패)
+    old_data = tuple(int(x) for x in unicodedata.unidata_version.split(".")) < (15, 1, 0)
     for script, spans in _RANGES.items():
         for lo, hi in spans:
             for cp in (lo, hi):
+                if old_data and not unicodedata.name(chr(cp), "") and cp >= 0x2EBF0:
+                    continue
                 assert unicodedata.name(chr(cp), ""), (script, hex(cp))
 
 

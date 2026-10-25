@@ -1070,6 +1070,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     st.add_argument("--set", default=str(DEFAULT_SET))
     st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")
     st.set_defaults(func=cmd_start)
+    dr = sub.add_parser("doctor", help="실행 환경 점검 — 파이썬 · 패키지 · .env · Codex CLI 로그인 · 1차 심판 키 · Chrome (값은 출력 안 함)")
+    dr.set_defaults(func=lambda a: __import__("tools.doctor", fromlist=["main"]).main([]))
+    lg = sub.add_parser("login", help="수집용 Chrome 을 띄우고 네 사이트(ChatGPT · Claude · Gemini · AIONA) 창을 연다 — 처음 한 번 직접 로그인")
+    lg.set_defaults(func=lambda a: __import__("tools.chrome_cdp", fromlist=["main"]).main(["--login"]))
     if not argv and len(sys.argv) <= 1 or argv == []:
         argv = ["start"]
     args = parser.parse_args(argv)

@@ -19,7 +19,11 @@ __all__ = ["ATTACHMENT_TYPES", "AttachmentError", "font_path", "render_attachmen
 ATTACHMENT_TYPES = ("txt", "docx", "pdf", "image")
 PAGE_BREAK = "[다음 쪽]"
 _FONT_CANDIDATES = ("C:/Windows/Fonts/malgun.ttf", "C:/Windows/Fonts/NotoSansKR-VF.ttf",
-                    "/usr/share/fonts/truetype/nanum/NanumGothic.ttf", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                    "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",                 # Linux: sudo apt install fonts-nanum
+                    "/usr/share/fonts/truetype/noto/NotoSansKR-Regular.ttf",
+                    "/System/Library/Fonts/Supplemental/AppleGothic.ttf",              # macOS 기본 TTF
+                    "/Library/Fonts/NanumGothic.ttf", str(Path.home() / "Library/Fonts/NanumGothic.ttf"),
+                    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                     "/System/Library/Fonts/AppleSDGothicNeo.ttc")
 _SAFE_NAME = re.compile(r"[^0-9A-Za-z가-힣._ -]")
 _EXT = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf", "image": ".png"}
