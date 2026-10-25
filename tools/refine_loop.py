@@ -262,7 +262,7 @@ PROPOSE_GUIDE = """당신은 한국어 AI 답변 품질 평가의 **기준 다�
 1. 안은 많아야 3개. 안마다 **대상 파일 하나**(판정 프롬프트 / 1차 항목 정의 / 확인 목록 / 기준 문서 / CODE)와 범위(불변 = 모든 기준에 통하는 판정 방법 · 절차,
    이 기준 = 이 항목의 정의 · 경계)를 정합니다. 질문 글은 바꾸지 않습니다(대상 '질문'은 쓰지 말고, 질문 쪽 문제면 notes 에만 적습니다).
 2. edits 는 **지금 글에 그대로 있는 old 를 new 로** 바꾸는 꼴로 — old 는 그 파일에서 한 번만 나오는 구절(한 줄 이내)로 고릅니다. 덧붙이기만 할 때는 old 를 그 줄의
-   끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 1차 항목 정의는 {"item": "J1-4.b", "append": "…"} 로 지시문 끝에 덧붙일 수도 있습니다.
+   끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 1차 항목 정의는 {"item": "J1-4.b", "append": "…"} 로 지시문 끝에 덧붙일 수도 있습니다. 1차 항목 정의 파일에는 **J1~J4 항목만** 있습니다 — J5~J8 항목은 판정 프롬프트나 확인 목록을 고칩니다.
    확인 목록은 {"question": 2, "turn": 2, "add_decided": "…"}(심판이 따르는 정한 판정) 또는 {"question", "turn", "add_check"}(자료의 사실만, 판정 지시 금지).
 3. 증거가 말하는 것만 적습니다 — 어느 칸(#번호)이 왜 잘못 판정됐는지 why 에 쓰고, expected 에 그 안으로 바뀔 칸을 "#3 FAIL→PASS" 꼴로 적습니다.
    추측한 일반론("더 꼼꼼히 보라")은 행동을 바꾸지 못하니 쓰지 않습니다. 기준 카드는 한 줄 길이를 지킵니다(길어지면 다른 안으로 나눕니다).
@@ -514,6 +514,7 @@ def cmd_probe(a: argparse.Namespace) -> Dict[str, Any]:
             except EditError as exc:
                 say(f"✗ {label} 적용 불가 — {exc}")
                 probes["runs"].append({"label": label, "error": str(exc)})
+                (d / "probes.json").write_text(json.dumps(probes, ensure_ascii=False, indent=1), encoding="utf-8")   # 마지막 안이어도 기록이 남게 (10-25 밤 J5-2.a P2)
                 continue
             say(f"{label}: " + " · ".join(files["applied"]))
             probes["runs"] = [r for r in probes["runs"] if not (r.get("label") == label and r.get("error"))]   # 이번에 적용됐으면 옛 '적용 불가' 기록은 지움

@@ -1058,3 +1058,14 @@ def test_fail_reason_that_defers_to_another_item_is_reasked():
     assert jv.deferred_fail_items(out("'정해진 인력 외의 사람은 사용하지 마세요' 조건은 위반하지 않지만, 자료에 없는 가정입니다.", "J2-3.a"), turns, answers, j23) == [(1, "J2-3.a")]
     assert jv.deferred_fail_items(out("서로 다른 항목만 짚으라고 했는데 일치 항목도 열거했습니다.", "J2-3.a"), turns, answers, j23) == []
 
+
+def test_deferral_and_no_fail_basis_phrases_from_v4_r9_chk():
+    """'J1-3만 판정해야' 는 다른 항목에 넘김, 'FAIL을 유지할 근거가 없습니다' 는 결론이 PASS 인 사유 (10-25 밤 v4-r9-chk Gemini Q6 10턴)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q6_T10", "turn": 10, "question": "q"}]
+    out = {"turns": [{"turn": 10, "items": [{"id": "J3-1.a", "decision": "FAIL", "answer_quote": "", "question_quote": "",
+                                             "reason": "이는 질문에서 온 충돌을 반복 판정한 것이며, J1-3만 판정해야 합니다."}]}]}
+    assert jv.deferred_fail_items(out, turns, {"Q6_T10": "a"}, {10: ["J3-1.a"]}) == [(10, "J3-1.a")]
+    assert jv.reason_contradicts("FAIL", "이 순서 자체는 타당하며, 같은 문제로 FAIL을 유지할 근거가 없습니다.", "J3-5.a")
+    assert not jv.reason_contradicts("FAIL", "일정이 겹쳐 실행할 수 없습니다.", "J3-5.a")
+
