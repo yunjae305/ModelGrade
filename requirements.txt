@@ -12,3 +12,6 @@ pypdfium2>=4.30   # 판정: PDF 첨부를 쪽 이미지로 그려 Decisions API 
 # AIONA 답변 수집·로그인 창(tools/web_chat_login.py) — 브라우저 자동화. 설치된 Google Chrome 을 channel="chrome" 으로 쓰므로
 # 브라우저를 따로 내려받지 않는다 (Chrome 이 없으면 AIONA 수집은 오류로 남고 다른 모델 수집은 계속된다)
 playwright>=1.45,<2
+# Windows: docx 첨부를 Word 로 PDF → 쪽 이미지로 만들어 심판에게 원본처럼 보냄(Word 가 있을 때). 다른 OS 는 LibreOffice(soffice)를 씀 —
+# PC 마다 심판이 받는 첨부 입력이 같도록 (10-25 밤: 새 설치에서 pywin32 가 없어 docx 가 글로만 가던 것)
+pywin32>=306; sys_platform == "win32"
