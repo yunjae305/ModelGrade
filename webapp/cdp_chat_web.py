@@ -133,7 +133,9 @@ class _CdpChat:
             except Exception as exc:
                 raise CdpWebError(f"수집용 Chrome 에 붙지 못했습니다: {str(exc).splitlines()[0][:160]}")
             # 수집기마다 자기 창 — 사이트 · 모델 이름으로 탭을 차지해, 같은 사이트의 두 모델을 동시에 받는 실행끼리 탭을 뺏지 않는다 (10-25 밤, 할일 1번)
-            self.page = find_or_open(self._browser, self.HOST, self.NEW_URL or f"https://{self.HOST}/", claim=f"{self.NAME}:{getattr(self, 'MODEL_NAME', '') or '기본'}")
+            from tools.chrome_cdp import claim_token
+            self._claim = claim_token(f"{self.NAME}:{getattr(self, 'MODEL_NAME', '') or '기본'}")   # 실행마다 고유 (Codex 리뷰 10-25 밤)
+            self.page = find_or_open(self._browser, self.HOST, self.NEW_URL or f"https://{self.HOST}/", claim=self._claim)
             self.page.add_init_script(COPY_CAPTURE_JS)
             self.page.set_default_timeout(60_000)   # 시간 제한을 따로 주지 않은 동작도 1분이면 끝난다
             if self.place:
@@ -148,9 +150,9 @@ class _CdpChat:
 
     def _close(self) -> None:
         try:
-            if self.page is not None:   # 탭 차지 표시 지움 — 다음 실행이 그 탭을 다시 쓰게 (10-25 밤)
+            if self.page is not None and getattr(self, "_claim", None):   # 탭 차지 표시 지움 — 다음 실행이 그 탭을 다시 쓰게 (10-25 밤)
                 from tools.chrome_cdp import release_tab
-                release_tab(self.page, f"{self.NAME}:{getattr(self, 'MODEL_NAME', '') or '기본'}")
+                release_tab(self.page, self._claim)
         except Exception:
             pass
         try:

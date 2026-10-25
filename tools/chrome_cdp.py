@@ -189,11 +189,18 @@ def new_window_page(context: Any, url: str) -> Any:
     return page
 
 
-#: 탭 차지 표시 — window.name 은 같은 탭에서 페이지를 옮겨도(새 채팅 · 다른 주소) 남는다. 실행마다 자기 표시의 탭만 쓴다 (10-25 밤, 할일 1번)
+#: 탭 차지 표시 — window.name 은 같은 탭에서 같은 사이트 안을 옮겨도(새 채팅 · 다른 주소) 남는다. 실행마다 고유 표시의 탭만 쓴다 (10-25 밤, 할일 1번)
+#: 표시: "modelgrade:<사이트:모델>|<실행 고유 id>|<차지한 시각(초)>" — 같은 모델을 두 실행이 받아도 겹치지 않고, 비정상 종료로 남은 표시는 CLAIM_STALE_S 뒤 회수
 CLAIM_PREFIX = "modelgrade:"
-#: 차지는 페이지 안에서 한 번에 비교 후 쓰기 — 두 실행이 CDP 로 같은 탭을 동시에 잡아도 하나만 성공한다(페이지의 JS 는 한 줄로 실행됨)
-_CLAIM_JS = ("([k, p]) => { const n = window.name || ''; if (n === k) return true; "
-             "if (n.startsWith(p)) return false; window.name = k; return true; }")
+CLAIM_STALE_S = 6 * 3600
+#: 차지는 페이지 안에서 '본 값과 같을 때만 바꾸기' — 두 실행이 CDP 로 같은 탭을 동시에 잡아도 하나만 성공한다(페이지의 JS 는 한 번에 하나씩 실행됨)
+_CAS_JS = "([old, k]) => { if ((window.name || '') !== old) return false; window.name = k; return true; }"
+
+
+def claim_token(claim: str) -> str:
+    """실행 하나의 차지 표시 — 사이트:모델 + 고유 id + 시각. 수집기는 이 값을 들고 있다가 같은 값으로 푼다."""
+    import uuid
+    return f"{claim}|{uuid.uuid4().hex[:10]}|{int(time.time())}"
 
 
 def tab_claim(page: Any) -> str:
@@ -204,26 +211,64 @@ def tab_claim(page: Any) -> str:
         return ""
 
 
-def claim_tab(page: Any, key: str) -> bool:
-    """그 탭을 key 로 차지한다 — 이미 다른 실행이 차지했으면 False."""
+def _claim_free(name: str, now: Optional[float] = None) -> bool:
+    """아무도 차지하지 않았거나(표시 없음) 표시가 오래돼 회수해도 되는가."""
+    if not name.startswith(CLAIM_PREFIX):
+        return True
     try:
-        return bool(page.evaluate(_CLAIM_JS, [CLAIM_PREFIX + key, CLAIM_PREFIX]))
+        stamp = int(name.rsplit("|", 1)[1])
+    except (IndexError, ValueError):
+        return True   # 시각을 읽을 수 없는 표시(옛 형식 · 깨진 값)는 회수 — 영영 못 쓰는 탭이 생기지 않게
+    return (now or time.time()) - stamp > CLAIM_STALE_S
+
+
+def claim_tab(page: Any, token: str, seen: str = "") -> bool:
+    """그 탭을 token 으로 차지한다 — 탭의 표시가 seen(방금 본 값)과 같을 때만. 그새 다른 실행이 바꿨으면 False."""
+    try:
+        return bool(page.evaluate(_CAS_JS, [seen, CLAIM_PREFIX + token]))
     except Exception:
         return False
 
 
-def release_tab(page: Any, key: str) -> None:
-    """실행이 끝날 때 내 차지 표시를 지운다(내 것일 때만) — 다음 실행이 모델이 달라도 그 탭을 다시 쓰게 (창이 쌓이지 않게)."""
+def release_tab(page: Any, token: str) -> None:
+    """실행이 끝날 때 내 차지 표시를 지운다(내 표시일 때만) — 다음 실행이 그 탭을 다시 쓰게 (창이 쌓이지 않게)."""
     try:
-        page.evaluate("([k]) => { if ((window.name || '') === k) window.name = ''; }", [CLAIM_PREFIX + key])
+        page.evaluate(_CAS_JS, [CLAIM_PREFIX + token, ""])
     except Exception:
         pass
 
 
+def _target_id(context: Any, page: Any) -> Optional[str]:
+    try:
+        session = context.new_cdp_session(page)
+        info = session.send("Target.getTargetInfo")
+        session.detach()
+        return (info.get("targetInfo") or {}).get("targetId")
+    except Exception:
+        return None
+
+
+def open_owned_window(context: Any, url: str, timeout: float = 15.0) -> Any:
+    """새 창을 만들고, 만든 target ID 로 그 탭을 정확히 찾아 연다 — 빈 탭을 다시 쓰지 않는다(두 실행이 같은 빈 탭을 동시에 이동시키지 않게, Codex 리뷰 10-25 밤)."""
+    base = context.pages[0] if context.pages else context.new_page()
+    session = context.new_cdp_session(base)
+    tid = session.send("Target.createTarget", {"url": "about:blank", "newWindow": True}).get("targetId")
+    session.detach()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for pg in list(context.pages):
+            if not pg.is_closed() and _target_id(context, pg) == tid:
+                if url and url != "about:blank":
+                    goto_tolerant(pg, url)
+                return pg
+        time.sleep(0.2)
+    raise RuntimeError("새 창을 찾지 못했습니다(target ID)")
+
+
 def find_or_open(browser: Any, host: str, url: str, claim: Optional[str] = None) -> Any:
     """붙은 Chrome 에서 그 사이트 페이지를 찾고, 없으면 (빈 탭 또는) 새 창으로 연다.
-    claim 을 주면 그 표시로 차지한 탭만 쓴다 — 내 표시의 탭 → 아무도 차지하지 않은 탭 → 새 창 순. 같은 사이트를 두 실행이 동시에 받을 때
-    (AIONA 의 서로 다른 두 모델, 할일 1번) 한 탭을 서로 뺏어 답이 섞이지 않게."""
+    claim(=claim_token 이 만든 실행 표시)을 주면 차지한 탭만 쓴다 — 내 표시의 탭 → 비었거나 오래된 표시의 탭(본 값과 같을 때만 바꿈) → 내 새 창 순.
+    같은 사이트를 두 실행이 동시에 받을 때(AIONA 의 두 모델, 할일 1번) 한 탭을 서로 뺏어 답이 섞이지 않게."""
     context = browser.contexts[0]
     pages = [pg for pg in context.pages if host in pg.url and not pg.is_closed()]
     if not claim:
@@ -233,13 +278,12 @@ def find_or_open(browser: Any, host: str, url: str, claim: Optional[str] = None)
     if mine is not None:
         return mine
     for pg, n in names:
-        if not n.startswith(CLAIM_PREFIX) and claim_tab(pg, claim):
+        if _claim_free(n) and claim_tab(pg, claim, seen=n):
             return pg
-    for _ in range(3):   # 빈 탭을 다른 실행과 동시에 잡았으면 다시 새 창
-        page = new_window_page(context, url)
-        if claim_tab(page, claim):
-            return page
-    raise RuntimeError(f"{host} 탭을 '{claim}' 로 차지하지 못했습니다 — 같은 사이트를 받는 다른 실행이 빈 탭을 계속 잡고 있습니다")
+    page = open_owned_window(context, url)   # 이 창은 이 실행만 아는 target — 차지가 실패할 수 없지만 표시는 남긴다
+    if not claim_tab(page, claim, seen=tab_claim(page)):
+        raise RuntimeError(f"{host} 새 창을 '{claim}' 로 차지하지 못했습니다")
+    return page
 
 
 def close_blank_pages(browser: Any) -> int:

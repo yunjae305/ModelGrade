@@ -35,7 +35,7 @@ def _try(fn: Callable[[], Check], name: str, required: bool) -> Check:
     try:
         return fn()
     except Exception as exc:   # 점검 자체가 실패해도 다른 점검은 계속
-        return Check(name, False, f"점검 실패: {type(exc).__name__}: {str(exc)[:120]}", required)
+        return Check(name, False, f"점검 실패: {type(exc).__name__}(설정값이 섞일 수 있어 내용은 출력하지 않음)", required)   # Codex 리뷰 10-25 밤
 
 
 def check_python() -> Check:
@@ -115,9 +115,11 @@ def check_font() -> Check:
 def check_docx_pdf() -> Check:
     from code_eval.attachment_pages import _soffice
     word = False
-    if platform.system() == "Windows":
+    if platform.system() == "Windows":   # pywin32 가 있어도 Word 가 없으면 못 씀 — Word 의 COM 등록을 본다(Word 를 띄우지 않음, Codex 리뷰 10-25 밤)
         try:
             importlib.import_module("win32com.client")
+            import winreg
+            winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "Word.Application"))
             word = True
         except Exception:
             word = False

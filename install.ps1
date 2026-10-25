@@ -13,8 +13,9 @@ if (-not $py) { Write-Host "  파이썬이 없습니다 — https://www.python.o
 if ($LASTEXITCODE -ne 0) { Write-Host "  파이썬 3.10 이상이 필요합니다"; exit 1 }
 
 Write-Host "2/4 가상환경(.venv)과 패키지"
-if (-not (Test-Path ".venv\Scripts\python.exe")) { & $py @pyArgs -m venv .venv }
+if (-not (Test-Path ".venv\Scripts\python.exe")) { & $py @pyArgs -m venv .venv; if ($LASTEXITCODE -ne 0) { Write-Host "  가상환경을 못 만들었습니다"; exit 1 } }
 & .\.venv\Scripts\python.exe -m pip install -q --upgrade pip
+if ($LASTEXITCODE -ne 0) { Write-Host "  pip 업그레이드 실패 — 계속 진행" }
 & .\.venv\Scripts\python.exe -m pip install -q -r requirements.txt
 if ($LASTEXITCODE -ne 0) { Write-Host "  패키지 설치 실패 — 위 오류를 확인하세요"; exit 1 }
 
@@ -25,7 +26,11 @@ else { Write-Host "  .env 있음(그대로 둠)" }
 Write-Host "4/4 Codex CLI(2차 심판)"
 if ($env:MODELGRADE_SKIP_CODEX) { Write-Host "  건너뜀(MODELGRADE_SKIP_CODEX)" }
 elseif (Get-Command codex -ErrorAction SilentlyContinue) { Write-Host "  있음" }
-elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @openai/codex; Write-Host "  설치함 — 'codex login' 으로 ChatGPT 계정에 로그인하세요" }
+elseif (Get-Command npm -ErrorAction SilentlyContinue) {
+  npm install -g @openai/codex
+  if ($LASTEXITCODE -ne 0) { Write-Host "  Codex CLI 설치 실패 — 관리자 PowerShell 에서: npm install -g @openai/codex" }
+  else { Write-Host "  설치함 — 'codex login' 으로 ChatGPT 계정에 로그인하세요" }
+}
 else { Write-Host "  Node.js(https://nodejs.org) 를 설치한 뒤: npm install -g @openai/codex → codex login" }
 
 Write-Host ""

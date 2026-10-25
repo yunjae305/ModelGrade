@@ -33,7 +33,7 @@ BINARY = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".docx", ".xlsx", ".pptx", ".
 #: 복사본 점검 — 실제 키 모양 · 개인 키 · 사용자 절대 경로. 시험용 가짜 값(sk-semantic-… 처럼 짧고 낱말로 된 것)은 길이로 거른다.
 CHECKS: Tuple[Tuple[str, "re.Pattern[str]"], ...] = (
     ("OpenAI · Anthropic 키 모양", re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{32,}")),
-    ("Google 키 모양", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
+    ("Google 키 모양", re.compile(r"\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])")),   # 끝이 '-' 여도 잡게 (Codex 리뷰 10-25 밤)
     ("GitHub 토큰 모양", re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b|github_pat_[A-Za-z0-9_]{60,}")),
     ("개인 키 블록", re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP )?PRIVATE KEY")),
     ("사용자 절대 경로", re.compile(r"[A-Za-z]:\\Users\\(?!<|Public\\|…)[^\\\s\"'`)\]]+|/Users/(?!<|Shared/)[^/\s\"'`)\]]+/")),
