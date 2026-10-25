@@ -604,16 +604,16 @@ def test_mixed_input_and_web_evidence_keep_separate_validation_and_original_inpu
 
 def test_response_and_source_timings_are_separate_and_saved_on_error_too():
     async def handler(request):
-        await asyncio.sleep(.025)
+        await asyncio.sleep(.08)   # Windows 시계 해상도(약 16ms)보다 넉넉히 — 짧은 잠은 CI 에서 기준 아래로 재지던 것 (10-26)
         return httpx.Response(200, json=completed_response(web_fact(), events=[observed_search()]))
     def fetcher(url):
-        time.sleep(.015)
+        time.sleep(.05)
         return {"status": "ok", "text": "Alpha is blue.", "final_url": url}
     client = SemanticApiClient(SemanticApiConfig(), "fixture", transport=httpx.MockTransport(handler), source_fetcher=fetcher)
     call = client.system_one({"question": "Describe Alpha.", "answer": "Alpha is blue."},
                             jev_request("q", "a", ("J5",))["questions"])
     timing = call.body["verification"]["timings_ms"]
-    assert call.status == "OK" and timing["api"] >= 20 and timing["source_verification"] >= 10
+    assert call.status == "OK" and timing["api"] >= 50 and timing["source_verification"] >= 30
     assert timing["total"] >= timing["api"] + timing["source_verification"] - .2
     failed, _ = call_with_response({"error": {"message": "private"}}, status_code=429)
     timing = failed.body["verification"]["timings_ms"]
