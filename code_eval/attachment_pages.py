@@ -89,16 +89,22 @@ def _soffice() -> Optional[str]:
 
 
 def _docx_to_pdf_soffice(docx: Path, out_dir: Path, target: Path) -> Optional[Path]:
-    """LibreOffice 로 docx → pdf (창 없이). soffice 는 <이름>.pdf 로 쓰므로 우리 이름(<파일명>.pdf)으로 옮긴다."""
+    """LibreOffice 로 docx → pdf (창 없이). 이번 호출만의 임시 폴더에 만들고 거기서 나온 PDF 만 캐시로 옮긴다 — 변환이 실패하면 옛 PDF 를 쓰지 않는다
+    (Codex 리뷰 10-25 밤: 바뀐 docx 의 변환이 실패해도 옛 PDF 를 현재 첨부로 보내던 것)."""
     exe = _soffice()
     if not exe:
         return None
     import subprocess
-    subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir", str(out_dir), str(docx)], check=False, capture_output=True, timeout=180)
-    produced = out_dir / f"{docx.stem}.pdf"
-    if produced.is_file() and produced.resolve() != target.resolve():
+    with tempfile.TemporaryDirectory(prefix="soffice-", dir=str(out_dir)) as tmp:
+        try:
+            subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir", tmp, str(docx)], check=False, capture_output=True, timeout=180)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        produced = Path(tmp) / f"{docx.stem}.pdf"
+        if not produced.is_file():
+            return None
         produced.replace(target)
-    return target if target.is_file() else None
+    return target
 
 
 def _docx_to_pdf(docx: Path, out_dir: Path) -> Optional[Path]:
@@ -118,7 +124,10 @@ def _docx_to_pdf_word(docx: Path, target: Path) -> Optional[Path]:
         return None
     pythoncom.CoInitialize()
     try:
-        word = win32com.client.DispatchEx("Word.Application")
+        try:
+            word = win32com.client.DispatchEx("Word.Application")
+        except Exception:   # pywin32 는 있는데 Word 가 없음 — LibreOffice 로 넘긴다 (Codex 리뷰 10-25 밤)
+            return None
         word.Visible = False
         word.DisplayAlerts = 0
         try:

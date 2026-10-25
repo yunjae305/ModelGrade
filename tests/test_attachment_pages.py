@@ -58,11 +58,29 @@ def test_docx_falls_back_to_libreoffice_when_word_is_missing(tmp_path: Path, mon
 
     def fake_run(cmd, **kw):
         calls.append(cmd)
-        (Path(cmd[cmd.index("--outdir") + 1]) / "안내.pdf").write_bytes(b"%PDF-fake")   # soffice 는 <이름>.pdf 로 쓴다
+        (Path(cmd[cmd.index("--outdir") + 1]) / "안내.pdf").write_bytes(b"%PDF-fake")   # soffice 는 <이름>.pdf 로 쓴다(이번 호출의 임시 폴더)
         return None
     monkeypatch.setattr(ap, "_soffice", lambda: "/usr/bin/soffice")
     import subprocess
     monkeypatch.setattr(subprocess, "run", fake_run)
     out = ap._docx_to_pdf(docx, tmp_path)
     assert out == tmp_path / "안내.docx.pdf" and out.is_file() and calls and calls[0][:3] == ["/usr/bin/soffice", "--headless", "--convert-to"]
+
+
+def test_failed_libreoffice_conversion_does_not_reuse_stale_pdf(tmp_path: Path, monkeypatch):
+    """LibreOffice 변환이 실패하면 옛 PDF 를 현재 첨부로 쓰지 않는다 (Codex 리뷰 10-25 밤)."""
+    import os
+    import subprocess
+    import time
+    from code_eval import attachment_pages as ap
+    docx = tmp_path / "안내.docx"
+    docx.write_bytes(b"PK new")
+    stale = tmp_path / "안내.docx.pdf"
+    stale.write_bytes(b"%PDF-old")
+    old = time.time() - 3600
+    os.utime(stale, (old, old))                       # docx 보다 오래된 PDF — 다시 변환해야 함
+    monkeypatch.setattr(ap, "_docx_to_pdf_word", lambda d, t: None)
+    monkeypatch.setattr(ap, "_soffice", lambda: "/usr/bin/soffice")
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: None)   # 아무것도 만들지 못함
+    assert ap._docx_to_pdf(docx, tmp_path) is None
 

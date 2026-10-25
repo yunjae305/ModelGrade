@@ -180,7 +180,7 @@ def fold(entries: List[Dict[str, Any]]) -> str:
 _ELLIPSIS = re.compile(r"^(?:…|\.\.\.|\s)+|(?:…|\.\.\.|\s)+$")
 _ENDING = re.compile(r"(?:습니다|입니다|니다|어요|아요|예요|에요|해요|세요|다|요)[.!?]?$")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
-_BULLET = re.compile(r"(?m)^[ \t]*[-•·][ \t]+")
+_BULLET = re.compile(r"(?m)^[ \t]*(?:[•·][ \t]+|-[ \t]+(?![\d.,]))")   # '- 10 C' 의 '-' 는 음수 부호일 수 있어 남김 (Codex 리뷰 10-25 밤)
 
 
 def _norm(t: str) -> str:

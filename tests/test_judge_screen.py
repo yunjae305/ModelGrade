@@ -981,3 +981,80 @@ def test_quote_locations_tell_where_a_misquote_actually_is():
     assert "T1 답변" in locs["T2:J3-2.b"] and "T2 답변에서만" in locs["T2:J3-2.b"]
     assert jv.quote_locations(out, turns, answers, [(2, "J1-1.a")]) == {}
 
+
+def test_empty_first_codex_answer_on_multi_turn_asks_whole_conversation_once_more(tmp_path: Path):
+    """멀티턴 첫 Codex 답이 비면(판정 0개) 턴마다 다시 묻기 전에 대화 전체를 한 번 더 — 두 번째 답이 차 있으면 그것을 쓴다 (10-25 밤)."""
+    for sub in ("inputs", "codex", "jev", "decisions"):
+        (tmp_path / sub).mkdir(exist_ok=True)
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
+    turns = [{"case_id": "Q1_T1", "turn": 1, "question": "존댓말로 답해 주세요. 회의 시간을 알려 주세요."},
+             {"case_id": "Q1_T2", "turn": 2, "question": "방금 알려 준 시간을 다시 써 주세요."}]
+    answers = {"Q1_T1": "네, 회의는 10시입니다.", "Q1_T2": "네, 10시입니다."}
+
+    class EmptyThenFull(FakeCodex):
+        def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+            if not self.inputs:
+                self.inputs.append(json.loads(input_text))
+                return "OK", {"turns": [], "conclusion": {"verdict": "PASS", "reason": ""}}, ""
+            return super().judge(prompt, input_text, search, tag, output_schema, images)
+    codex = EmptyThenFull()
+    jv.say = lambda *a, **k: None
+    fail = {"choice": "FAIL", "probabilities": {"PASS": 0.1, "FAIL": 0.85, "NOT_APPLICABLE": 0.05}, "confidence": 0.85}
+    line = jv.screen_one(1, "gpt", turns, answers, {}, [], "PROMPT", fixed, codex, FakeDecisions({"J1-1.a": fail}), tmp_path)
+    assert "주의" in codex.inputs[1] and sorted(codex.inputs[1]["판정할_턴"]) == [1, 2]   # 두 번째는 대화 전체 + 안내
+    assert len(codex.inputs) == 2                                                          # 턴마다 다시 묻기로 가지 않음
+    assert line["turn_results"]["1"]["items"]["J1-1.a"]["decision"] == "PASS"
+    assert jv.answered_items({"turns": []}) == 0 and jv.answered_items({"turns": [{"items": [{}]}]}) == 1
+
+
+def test_codex_review_fixes_for_guards():
+    """Codex 리뷰(10-25 밤) — 재질문 실패면 '끝내 답 없음 → 1차 따름' 안 씀 · 섞인 모순은 승격 안 함 · 규칙을 부정한 사유는 오적용 아님 · 음수 부호 인용."""
+    import tools.judge_v4 as jv
+    from tools import judge_split as js
+    none = {"decision": "UNVERIFIED", "entries": [], "problems": ["판정 없음"]}
+    assert jv.combine_screen(none, {"choice": "PASS", "confidence": 0.9}, True, item="J2-3.a", codex_incomplete=True)[0] == "UNVERIFIED"
+    mixed = {"J1-4.a": {"decision": "FAIL", "jev": "PASS", "decisions_confidence": 0.9, "reason": "판정은 PASS여야 합니다.",
+                        "entries": [{"id": "J1-4.a#1", "decision": "FAIL", "reason": "판정은 PASS여야 합니다."},
+                                    {"id": "J1-4.a#2", "decision": "PASS", "reason": "실제로는 FAIL 입니다."}]}}
+    jv.reason_decision_guard(mixed)
+    assert mixed["J1-4.a"]["decision"] == "UNVERIFIED"
+    assert not jv.misapplied_rule("J4-4.a", "J1-3 규칙은 적용되지 않습니다. 요약 요청이 없어 해당 없음입니다.")
+    assert jv.misapplied_rule("J6-3.b", "J1-3 상황이므로 수정 유지 항목은 해당하지 않습니다.")
+    assert not js.quoted_in("- 10 C", ["Temperature: 10 C"]) and js.quoted_in("• 오늘 날짜", ["오늘 날짜"])
+
+
+def test_recode_unmarks_error_case_turn_when_code_no_longer_flags_it(tmp_path: Path):
+    """에러 케이스 표시 뒤 CODE 1-1 이 PASS 로 바뀌면 --recode 가 표시 전 판정으로 되돌린다 (Codex 리뷰 10-25 밤)."""
+    import json
+    import tools.judge_v4 as jv
+    items = {"J1-1.a": {"decision": "PASS"}, "J2-3.a": {"decision": "FAIL", "reason": "x"}, "J6-1.a": {"decision": "NOT_APPLICABLE"}}
+    jv.mark_error_case_turn(items)
+    assert items["J1-1.a"]["decision"] == "FAIL" and items["J2-3.a"]["decision"] == "NOT_APPLICABLE"
+    rows = [{"case_id": "Q6_T1", "question": "q", "answer": "정상 답입니다.", "conversation_id": "c", "turn": 1}]
+    case = {"case_id": "Q6_T1", "case_status": "EVALUATED", "summary": {"common": {"pass": 1, "fail": 0, "unjudged": 0}},
+            "results": [{"check_id": "1-1.response_nonempty", "verdict": "PASS", "counted": True, "area": "common", "title": "응답"}]}
+    line = {"version": jv.VERSION, "provider": "aiona", "question": 6, "status": "judged", "verdict": "FAIL", "semantic": "FAIL",
+            "code_fails": ["1-1.response_nonempty"], "turn_results": {"1": {"items": items}}}
+    rp = tmp_path / "results.jsonl"
+    rp.write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
+    jv.recode({"evaluations": {"aiona": {"cases": [case]}}}, rows, rp, {"aiona"}, {6})
+    last = json.loads(rp.read_text(encoding="utf-8").splitlines()[-1])
+    got = last["turn_results"]["1"]["items"]
+    assert got["J1-1.a"]["decision"] == "PASS" and got["J2-3.a"]["decision"] == "FAIL" and last["code_fails"] == []
+
+
+def test_fail_reason_that_defers_to_another_item_is_reasked():
+    """FAIL 사유가 그 오류를 다른 항목에 넘김('이는 J1-3에서 처리됩니다') — 한 번 다시 묻는다. 같은 항목 번호 언급 · 넘기지 않는 말은 아님 (10-25 밤)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q29_T1", "turn": 1, "question": "세 해의 합계를 구해 주세요."}]
+    answers = {"Q29_T1": "2023년은 126건이고, 2024·2025년은 자료에 없어 합계를 확정할 수 없습니다."}
+    def out(reason, item="J4-2.a"):
+        return {"turns": [{"turn": 1, "items": [{"id": item, "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    flagged = {1: ["J4-2.a"]}
+    assert jv.deferred_fail_items(out("입력 자료의 연도 누락 때문에 이는 J1-3에서 처리됩니다. 다만 합계를 못 냈습니다."), turns, answers, flagged) == [(1, "J4-2.a")]
+    assert jv.deferred_fail_items(out("합계 계산 요구를 충족하지 못했습니다."), turns, answers, flagged) == []
+    assert jv.deferred_fail_items(out("J4-2.a 에서 본다고 정했듯 합계가 빠졌습니다."), turns, answers, flagged) == []
+    j23 = {1: ["J2-3.a"]}
+    assert jv.deferred_fail_items(out("'정해진 인력 외의 사람은 사용하지 마세요' 조건은 위반하지 않지만, 자료에 없는 가정입니다.", "J2-3.a"), turns, answers, j23) == [(1, "J2-3.a")]
+    assert jv.deferred_fail_items(out("서로 다른 항목만 짚으라고 했는데 일치 항목도 열거했습니다.", "J2-3.a"), turns, answers, j23) == []
+

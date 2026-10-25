@@ -516,6 +516,7 @@ def cmd_probe(a: argparse.Namespace) -> Dict[str, Any]:
                 probes["runs"].append({"label": label, "error": str(exc)})
                 continue
             say(f"{label}: " + " · ".join(files["applied"]))
+            probes["runs"] = [r for r in probes["runs"] if not (r.get("label") == label and r.get("error"))]   # 이번에 적용됐으면 옛 '적용 불가' 기록은 지움
         n_rounds = max(a.rounds, int(getattr(a, "base_rounds", 2) or 1)) if label == "base" else a.rounds   # base 는 흔들림 바닥을 재게 2회 이상 (10-25 밤)
         for rnd in range(1, n_rounds + 1):
             pd = probe_label_dir(d, label, rnd)
@@ -641,6 +642,9 @@ def cmd_score(a: argparse.Namespace) -> Dict[str, Any]:
             errors[r["label"]] = r["error"]
         elif r.get("returncode") == 0:
             by_label[r["label"]].append(r)
+    for label in list(errors):   # 고친 뒤 다시 시험해 성공한 안은 옛 '적용 불가' 기록을 쓰지 않는다 (10-25 밤 J2-3.a P1)
+        if by_label.get(label):
+            errors.pop(label)
     rounds_of = {label: [probe_cells(meta["run"], r["out"]) for r in sorted(rs, key=lambda x: x["round"])] for label, rs in by_label.items()}
     base_r1 = rounds_of.get("base", [None])[0]
     scores: Dict[str, Any] = {}

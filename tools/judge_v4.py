@@ -914,7 +914,7 @@ def misapplied_rule(item: str, reason: Any) -> bool:
     """사유가 연결 규칙을 들어 해당 없음이라는데 그 규칙의 대상 항목이 아닌가."""
     r = re.sub(r"\s+", " ", str(reason or ""))
     hits = [targets | conds for pat, targets, conds, _premise in LINK_RULES
-            if any(not _RULE_NEGATED.match(r[m.end():m.end() + 8]) for m in pat.finditer(r))]
+            if any(not _RULE_NEGATED.match(r[m.end():m.end() + 8]) and not _RULE_DENIED.search(r[m.end():m.end() + 80]) for m in pat.finditer(r))]
     return bool(hits) and not all(item in t for t in hits)   # 쓴 규칙 가운데 하나라도 대상이 아니면 — 'J4 항목' 같은 다른 언급이 오적용을 가리지 않게 (Codex 검토 10-22)
 
 
@@ -973,8 +973,10 @@ def error_case_turns(turns: List[Dict[str, Any]], code_measured: Optional[Dict[s
 
 
 def mark_error_case_turn(items: Dict[str, Dict[str, Any]]) -> None:
-    """에러 케이스 턴의 항목 판정 — J1-1.a 는 FAIL(결과물 없음), 다른 항목은 모두 NOT_APPLICABLE."""
+    """에러 케이스 턴의 항목 판정 — J1-1.a 는 FAIL(결과물 없음), 다른 항목은 모두 NOT_APPLICABLE. 바꾼 칸은 원래 판정(overridden_from)을 남긴다
+    — CODE 1-1 이 나중에 에러 케이스가 아니라고 하면 unmark_error_case_turn 이 되돌린다 (Codex 리뷰 10-25 밤)."""
     for i, v in items.items():
+        v["error_case"] = True
         if i == "J1-1.a":
             if v.get("decision") != "FAIL":
                 v["overridden_from"] = v.get("decision")
@@ -986,6 +988,25 @@ def mark_error_case_turn(items: Dict[str, Dict[str, Any]]) -> None:
             v["decision"] = "NOT_APPLICABLE"
             v["override"] = "에러 케이스 턴(CODE 1-1) — J1-1.a 만 판정, 한 오류 한 항목"
             v["how"] = (v.get("how") or "") + " → 에러 케이스 턴: 해당 없음"
+
+
+def unmark_error_case_turn(items: Dict[str, Dict[str, Any]]) -> bool:
+    """에러 케이스 표시를 되돌린다 — 표시 전 판정(overridden_from)으로. 표시가 없었으면 False. 판정 때 Codex 를 건너뛴 턴이면 원래 판정이
+    1차 심판만의 것(걸린 FAIL 은 이미 '보류')이라 되돌린 결과도 보류로 남는다 — 그 턴은 다시 판정해야 확정된다."""
+    marked = [v for v in items.values() if isinstance(v, dict) and (v.get("error_case") or "에러 케이스 턴" in str(v.get("override") or "")
+                                                                     or "에러 케이스 턴(CODE 1-1)" in str(v.get("how") or ""))]
+    if not marked:
+        return False
+    for v in marked:
+        if "overridden_from" in v:
+            v["decision"] = v.pop("overridden_from")
+        if "에러 케이스 턴" in str(v.get("override") or ""):
+            v.pop("override", None)
+        if str(v.get("reason") or "").startswith("에러 케이스 — "):
+            v["reason"] = ""
+        v.pop("error_case", None)
+        v["how"] = (v.get("how") or "") + " → CODE 1-1 이 에러 케이스 아님으로 바뀌어 표시를 되돌림"
+    return True
 
 
 #: 같은 답 구절을 두 항목의 FAIL 근거로 쓴 것 — 한 번 다시 묻는다 (10-25 밤 v4-r8 점검: 한 턴에서 같은 구절로 FAIL 2~4개, 108쌍)
@@ -1021,6 +1042,31 @@ def duplicate_quote_items(output: Any, turns: List[Dict[str, Any]], answers: Dic
                 if quotes[a][0] != quotes[b][0] and _quote_overlap(quotes[a][1], quotes[b][1]) >= 0.6:
                     dup.update({quotes[a][0], quotes[b][0]})
         out += [(n, i) for i in sorted(dup)]
+    return out
+
+
+#: FAIL 사유가 그 오류를 다른 항목이 맡는다고 적은 것 — '이는 J1-3에서 처리됩니다' (10-25 밤 v4-s1 Gemini Q29 J4-2.a). 한 번 다시 묻는다
+_DEFER = re.compile(r"(J\d-\d(?:\.[a-z])?)(?: ?(?:항목|상황|규칙))?(?:이|가|은|는|의)? ?(?:에서|으로|로) ?(?:처리|판정|다룹|다룸|봅니다|본다|따로 ?(?:판정|봅|본))")
+#: J2-3.a FAIL 인데 사유가 인용한 조건을 어기지 않았다고 말함 — '조건은 위반하지 않지만, … 가정입니다' (10-25 밤 다듬기 루프 J2-3.a base Q3 Claude 9턴)
+_CONDITION_KEPT = re.compile(r"(?:조건|요구|지시|제약)(?:은|는|을|를|이|가)? ?(?:위반하지|어기지|벗어나지) ?않")
+DEFER_NOTE = ("'다른_항목에_넘긴_FAIL' 의 항목들은 FAIL 사유에 그 오류를 다른 항목이 맡는다고 적었습니다(예: '이는 J1-3에서 처리됩니다'). 그 오류는 그 항목에서만 셉니다 — "
+              "이 항목은 정의의 점검 질문으로 다시 판정하고, 그 오류 말고 이 항목만의 다른 문제가 있을 때만 FAIL 로 두세요. J2-3.a 는 질문이 직접 말한 조건을 어긴 문장이 있을 때만 "
+              "FAIL 입니다 — 사유에 인용한 조건을 어기지 않았다고 적었다면 그 조건으로 FAIL 하지 않고, 값 · 가정 · 일정의 문제는 그 항목(J5-2 · J3-5 · J1-3)에서 봅니다.")
+
+
+def deferred_fail_items(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str], flagged: Dict[int, List[str]]) -> List[Tuple[int, str]]:
+    """Codex 출력에서 FAIL 사유가 다른 항목에 그 오류를 넘긴 (턴, 항목)."""
+    out: List[Tuple[int, str]] = []
+    for n, items in js.check_gpt(output, turns, answers, flagged).items():
+        for i, v in items.items():
+            for e in (v or {}).get("entries") or []:
+                if not isinstance(e, dict) or e.get("decision") != "FAIL":
+                    continue
+                reason = str(e.get("reason") or "")
+                refs = [m.group(1) for m in _DEFER.finditer(reason)]
+                if any(not i.startswith(r) and not r.startswith(i.split(".")[0] + ".") for r in refs) or (i == "J2-3.a" and _CONDITION_KEPT.search(reason)):
+                    out.append((n, i))
+                    break
     return out
 
 
@@ -1223,7 +1269,9 @@ def reason_decision_guard(items: Dict[str, Dict[str, Any]]) -> None:
         if bad:
             it["reason"] = bad[0].get("reason")
         conf = float(it.get("decisions_confidence") or 0.0)
-        says_pass = reason_contradicts("FAIL", it.get("reason"), iid)   # 사유의 결론이 PASS('판정은 PASS여야' · 'FAIL이 아닙니다')
+        # 사유의 결론이 PASS('판정은 PASS여야' · 'FAIL이 아닙니다') — 요소가 여럿이면 모순 요소 모두가 그 쪽이어야 (PASS 인데 사유가 FAIL 인 요소가 섞이면 승격 안 함, Codex 리뷰 10-25 밤)
+        says_pass = (all(e.get("decision") in ("FAIL", "NOT_APPLICABLE") and reason_contradicts("FAIL", e.get("reason"), iid) for e in bad) if bad
+                     else reason_contradicts("FAIL", it.get("reason"), iid))
         if was in ("FAIL", "NOT_APPLICABLE") and says_pass and it.get("jev") == "PASS" and conf >= SECOND_JUDGE_CONFIDENT:
             # 사유의 결론과 1차 심판(3표)의 확신한 판정이 같으면 그 결론으로 — 두 신호가 PASS (10-25 밤 보류 분석: Gemini Q3 1턴 · Q9 7턴)
             it["decision"] = "PASS"
@@ -1320,7 +1368,8 @@ def honorific_mix_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n
 
 
 def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, Any]], flagged: bool,
-                   confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None, label: str = "Decisions") -> Tuple[Optional[str], str]:
+                   confident: float = SECOND_JUDGE_CONFIDENT, item: Optional[str] = None, label: str = "Decisions",
+                   codex_incomplete: bool = False) -> Tuple[Optional[str], str]:
     """선별 판정의 항목 하나 — 안 걸린 항목은 Decisions 대로, 걸린 항목은 0.7 규칙으로 Codex 와 합친다. Codex 가 못 본 걸린 항목: Decisions FAIL 이면 보류."""
     d = (dec_v or {}).get("choice")
     p = fail_prob({"decision": "FAIL", "probabilities": (dec_v or {}).get("probabilities")}) if d == "FAIL" else 0.0
@@ -1330,7 +1379,7 @@ def combine_screen(codex_v: Optional[Dict[str, Any]], dec_v: Optional[Dict[str, 
         if d == "FAIL":
             return "UNVERIFIED", f"Codex 판정 없음 · {label} FAIL {p:.2f} → 보류"
         return d, f"{label} {KO.get(d, d)} (Codex 판정 없음)"
-    if (codex_v.get("problems") or []) == ["판정 없음"] and not codex_v.get("entries"):
+    if (codex_v.get("problems") or []) == ["판정 없음"] and not codex_v.get("entries") and not codex_incomplete:
         # 다시 물어도 Codex 가 이 항목을 답하지 않음 — 1차 심판이 확신한 PASS · 해당 없음이면 그 판정, FAIL 이나 확신이 낮으면 보류 (10-25 밤 보류 분석: Gemini Q6 4턴)
         conf = float((dec_v or {}).get("confidence") or 0.0)
         if d in ("PASS", "NOT_APPLICABLE") and conf >= confident:
@@ -1637,6 +1686,16 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
         dup_asked: set = set()   # 같은 답 구절로 FAIL 한 항목들을 다시 물은 (턴, 항목) (10-25 밤)
         overlap_asked: set = set()   # CODE 가 잰 형식 조건을 든 FAIL 을 다시 물은 (턴, 항목) (10-22 밤)
         multi_doc = len(turns) > 1
+        plan = st.get("codex_plan")
+        if multi_doc and status == "OK" and gpt is not None and plan is not None and not reused and not answered_items(output):
+            # 멀티턴 첫 답이 비면 턴마다 다시 묻기 전에 대화 전체를 한 번 더 — 턴마다 묻기는 앞 대화를 매번 다시 보내 입력이 약 5배 (10-25 밤)
+            say(f"   ↻ {tag} Codex 첫 답에 판정이 없음 — 대화 전체를 한 번 더 묻는다")
+            t_call = time.monotonic()
+            st2, out2, err2 = ask_codex({**plan["doc"], "주의": EMPTY_FIRST_NOTE})
+            st["outside_seconds"] = st.get("outside_seconds", 0) + time.monotonic() - t_call
+            rounds += 1
+            if st2 == "OK" and answered_items(out2):
+                output = out2
         # 멀티턴: 한 턴을 2번 다시 물어도 빈 항목이 줄지 않으면 그 턴은 건너뛰고 다음 빈 턴으로 — 한 턴만 상한까지 묻고 뒤 턴은 못 묻던 일
         # (10-22 Claude CLI 비교 Q2 gemini: 7턴만 15번 → 8~10턴 미질문, 109개 보류). 건너뛴 턴의 남은 항목은 다른 끝내 답하지 않은 항목처럼(판정 없음 → 보류).
         turn_asks: Dict[int, int] = {}   # 턴마다 다시 물은 횟수
@@ -1661,6 +1720,8 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
             bad.update({k: ["연결 규칙을 대상이 아닌 항목에 씀 — 다시"] for k in misrule})   # 10-22 J1-4.b 재판정
             overlap = [k for k in overlap_items(output, turns, answers, flagged, code_measured or {}) if k not in overlap_asked]
             bad.update({k: ["CODE 가 잰 형식 조건을 FAIL 사유로 씀 — 다시"] for k in overlap})   # 10-22 밤
+            deferred = [k for k in deferred_fail_items(output, turns, answers, flagged) if k not in reasked]   # 사유가 다른 항목에 넘긴 FAIL (10-25 밤)
+            bad.update({k: ["사유가 그 오류를 다른 항목에 넘김 — 다시"] for k in deferred})
             dups = [k for k in duplicate_quote_items(output, turns, answers, flagged) if k not in dup_asked]   # 같은 답 구절로 FAIL 여럿 (10-25 밤)
             bad.update({k: ["같은 답 구절을 다른 항목의 FAIL 근거로도 씀 — 한 항목만"] for k in dups})
             targets: Dict[int, List[str]] = {}
@@ -1688,9 +1749,12 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
             st2, out2, err2 = ask_codex({**ask_base, "판정할_턴": ask_turns, "판정할_항목": {str(n): targets[n] for n in ask_turns},
                                          **({"이전_판정": prev, "이전_판정_안내": PREV_NOTE} if prev else {}),
                                          **({"주의": " ".join(x for x, ks in ((UNDECIDED_NOTE, undecided), (FACT_NOTE, fact_unv), (REASK_NOTE, refail), (CONTRADICTION_NOTE, contra),
-                                                                                 (MISRULE_NOTE, misrule), (MEASURED_NOTE, measured_now), (DUP_QUOTE_NOTE, dups))
+                                                                                 (MISRULE_NOTE, misrule), (MEASURED_NOTE, measured_now), (DUP_QUOTE_NOTE, dups),
+                                                                                 (DEFER_NOTE, deferred))
                                                              if any(k[0] in ask_turns for k in ks))}
-                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule + measured_now + dups) else {}),
+                                            if any(k[0] in ask_turns for k in undecided + fact_unv + refail + contra + misrule + measured_now + dups + deferred) else {}),
+                                         **({"다른_항목에_넘긴_FAIL": {f"T{n}": [i for (m, i) in deferred if m == n] for n in ask_turns if any(m == n for (m, _i) in deferred)}}
+                                            if any(k[0] in ask_turns for k in deferred) else {}),
                                          **({"같은_구절_항목": {f"T{n}": [i for (m, i) in dups if m == n] for n in ask_turns if any(m == n for (m, _i) in dups)}}
                                             if any(k[0] in ask_turns for k in dups) else {}),
                                          **({"인용_위치": locs, "인용_안내": QUOTE_SCOPE_NOTE}
@@ -1706,6 +1770,7 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
             misrule_asked |= {k for k in misrule if k in replace}
             overlap_asked |= {k for k in overlap if k in replace}
             dup_asked |= {k for k in dups if k in replace}
+            reasked |= {k for k in deferred if k in replace}   # 넘긴 FAIL 은 한 번만 다시 (10-25 밤)
             output = merge_codex_output(output, out2, replace)
             if multi_doc:
                 n = ask_turns[0]
@@ -1752,7 +1817,7 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
             judge = (entry.get("judge") if isinstance(entry, dict) else None) or first_used.get(str(n))   # 항목을 판정한 1차 심판(--repair 로 더한 항목은 따로, 10-22)
             label = {"jev": "Jev"}.get(judge or "", "Decisions")
-            dec, how = combine_screen(cv, entry, is_flagged, item=i, label=label)
+            dec, how = combine_screen(cv, entry, is_flagged, item=i, label=label, codex_incomplete=bool(error))   # 재질문이 실패했으면 '끝내 답 없음'이 아님 (Codex 리뷰 10-25 밤)
             if dec is None:
                 continue
             if is_flagged and cv and cv.get("decision") is not None and isinstance(entry, dict):
@@ -1812,6 +1877,18 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         st["outside_seconds"] += time.monotonic() - t_call
         rounds = 1
     return screen_stage_b(st, status, output, error, rounds, reused)
+
+
+#: 멀티턴 첫 답이 빈 경우의 다시 묻기 안내 (10-25 밤: v4-r8 멀티턴 37개 중 18개의 첫 답이 4~7초 · 출력 100토큰 미만 — 크기와 상관없음)
+EMPTY_FIRST_NOTE = ("앞선 답에 판정이 하나도 없었습니다. '판정할_턴' 의 모든 턴에 대해 '판정할_항목' 의 항목을 하나도 빼지 않고 답하세요 — "
+                    "turns 를 비워 두면 안 됩니다.")
+
+
+def answered_items(output: Any) -> int:
+    """Codex 출력에 든 항목 판정 수 — 0 이면 빈 답."""
+    if not isinstance(output, dict):
+        return 0
+    return sum(len(t.get("items") or []) for t in output.get("turns") or [] if isinstance(t, dict))
 
 
 def first_call_alone(st: Dict[str, Any]) -> None:
@@ -2292,9 +2369,14 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
             semantic = l.get("semantic") or ("FAIL" if l.get("verdict") == "FAIL" and not l.get("code_fails") else l.get("verdict"))
             tr = l.get("turn_results") or {}
             marked: List[int] = []
+            unmarked: List[int] = []   # 표시를 되돌린 턴 (Codex 리뷰 10-25 밤)
             if tr and not l.get("judge_error"):   # 의미 판정도 지금 규칙으로 다시 계산 (10-21: 보류 우선)
                 code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
-                for n in sorted(error_case_turns(turns, code_measured)):   # 지금 CODE 1-1 이 잡은 에러 케이스 턴(서비스 오류 문구 ④ 등)은 J1-1.a 만 FAIL (10-25 밤)
+                err_now = error_case_turns(turns, code_measured)
+                for tn, t in tr.items():   # 지금 CODE 1-1 이 에러 케이스가 아니라는 턴의 옛 표시는 되돌린다 (Codex 리뷰 10-25 밤)
+                    if int(tn) not in err_now and unmark_error_case_turn((t or {}).get("items") or {}):
+                        unmarked.append(int(tn))
+                for n in sorted(err_now):   # 지금 CODE 1-1 이 잡은 에러 케이스 턴(서비스 오류 문구 ④ 등)은 J1-1.a 만 FAIL (10-25 밤)
                     its = (tr.get(str(n)) or {}).get("items") or {}
                     before = {i: v.get("decision") for i, v in its.items() if isinstance(v, dict)}
                     mark_error_case_turn(its)
@@ -2302,15 +2384,15 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
                         marked.append(n)
                 semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
             verdict = question_verdict(code_fails, semantic)
-            if not marked and code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
+            if not marked and not unmarked and code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
                 continue
             new = {**l, "turn_results": tr, "code_fails": code_fails, "semantic": semantic, "verdict": verdict,
                    "recoded": {"at": datetime.now(timezone.utc).isoformat(), "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict"),
-                               "semantic_before": l.get("semantic"), "error_case_turns": marked}}
+                               "semantic_before": l.get("semantic"), "error_case_turns": marked, "error_case_unmarked": unmarked}}
             f.write(json.dumps(new, ensure_ascii=False) + "\n")
             changed += 1
             say(f"↻ Q{q} {p}: CODE FAIL {l.get('code_fails') or '-'} → {code_fails or '-'} · 판정 {l.get('verdict')} → {verdict}"
-                + (f" · 에러 케이스 턴 {marked}" if marked else ""))
+                + (f" · 에러 케이스 턴 {marked}" if marked else "") + (f" · 표시 되돌림 {unmarked}" if unmarked else ""))
     say(f"다시 계산 끝 — 바뀐 줄 {changed}개 (심판 호출 없음)")
     sp = results_path.parent / "summary.json"
     if changed and sp.exists():   # summary.json 의 모델별 숫자도 지금 판정으로
