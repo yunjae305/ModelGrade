@@ -55,6 +55,15 @@ MISROUTE: Dict[str, List[Tuple[str, str]]] = {
     "J7-1.a": [(r"위치만|부 · 장 · 절|제\d부 제\d장", "J5-2.a(위치 오기)")],
     "J7-2.a": [(r"위치만|부 · 장 · 절|제\d부 제\d장", "J5-2.a(위치 오기)")],
 }
+#: 강한 단서 — 항목 자체의 단서(OWN)가 함께 있어도 정의 밖으로 센다: 질문에서 온 모순(J1-3) · 값은 맞다는 J5-2.a · 확정처럼 바꿈(J5-2.b) (10-26 v4-r9-chk2)
+STRONG: Dict[str, List[Tuple[str, str]]] = {
+    "J3-1.a": [(r"질문(에서|의) (온|주어진|생긴|조건)[^.]{0,12}(모순|충돌|역전)|질문 자료(도|에)[^.]{0,20}(제시|충돌)", "J1-3.a")],
+    "J3-5.a": [(r"질문(에서|의) (온|주어진|생긴|조건)[^.]{0,12}(모순|충돌|역전)|접수[^.]{0,15}09:\d\d[^.]{0,40}행사[^.]{0,15}09:\d\d|행사[^.]{0,15}09:\d\d[^.]{0,40}접수[^.]{0,15}09:\d\d", "J1-3.a")],
+    "J2-3.a": [(r"질문(에서|의) (온|주어진|생긴|조건)[^.]{0,12}(모순|충돌|역전)", "J1-3.a")],
+    "J6-3.a": [(r"질문(에서|의) (온|주어진|생긴|조건)[^.]{0,12}(모순|충돌|역전)|행사 시작보다 늦", "J1-3.a")],
+    "J5-2.a": [(r"값(?: ?자체)?(?:은|는|이)? ?(?:맞|정확|일치)(?:지만|으나|는데)|출처 번호|\[1\]|\[2\]", "인용 지시 해석 · 표시(J5-2.a 아님)"),
+               (r"확정(?:된)? ?사실처럼|조건부[^.]{0,20}확정|덧붙|추가했", "J5-2.b")],
+}
 #: 항목 자체의 주 단서 — 있으면 ① 에서 빼지 않는다(그 항목 몫의 오류를 말한 것)
 OWN: Dict[str, str] = {
     "J1-4.a": r"무관|쓰이지 않|불필요|일반론|활용법", "J1-4.b": r"반복|되풀이|두 번", "J2-3.a": r"조건|제약|금지|~만|이내", "J3-1.a": r"모순|서로 다른 (값|결론)|같은 대상",
@@ -139,7 +148,15 @@ def audit(lines: Dict[Tuple[str, int], Dict[str, Any]], top: int = 8) -> Dict[st
                 reason = str(it.get("reason") or "")
                 fails.append((iid, it))
                 own = OWN.get(iid)
-                for cue, owner in MISROUTE.get(iid, []):
+                strong = next(((cue, owner) for cue, owner in STRONG.get(iid, []) if re.search(cue, reason)), None)
+                defer = None
+                if _jv is not None:   # 사유가 그 오류를 다른 항목에 넘김('J1-3만 판정해야') — 판정의 다시 묻기와 같은 판별
+                    refs = [m.group(1) for m in _jv._DEFER.finditer(reason)]
+                    defer = next((r for r in refs if not iid.startswith(r) and not r.startswith(iid.split(".")[0] + ".")), None)
+                if strong or defer:
+                    cue, owner = strong if strong else ("다른 항목에 넘김", defer)
+                    misroute.append({"cell": f"Q{q} {p} T{tn} {iid}", "owner": owner, "cue": cue, "reason": reason[:170]})
+                for cue, owner in ([] if (strong or defer) else MISROUTE.get(iid, [])):
                     if owner.startswith("인용 지시 해석") and re.search(r"번호", str(it.get("question_quote") or "")):
                         continue   # 질문이 '출처 번호 · 목록을 맞춰' 달라고 직접 말했으면 번호 표시는 명시 조건 — 정한 판정(번호 필수 아님)의 대상이 아님 (v4-r8-fix AIONA Q8 9턴)
                     if re.search(cue, reason) and not (own and re.search(own, reason)):

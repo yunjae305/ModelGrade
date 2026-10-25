@@ -67,3 +67,18 @@ def test_citation_number_cue_is_not_misroute_when_question_asks_for_numbers():
     flagged = lambda c: [m["cell"] for m in ra.audit({("aiona", 8): {"status": "judged", "turn_results": {"9": {"items": {"J2-3.a": c}}}}})["misroute"]]
     assert flagged(asks) == [] and flagged(cites) == ["Q8 aiona T9 J2-3.a"]
 
+
+def test_strong_cues_and_deferral_count_even_with_own_cue():
+    """항목 자체 단서('모순' · '원문은')가 있어도 질문 모순 · 값은 맞다 · 다른 항목에 넘김은 정의 밖으로 센다 (10-26 v4-r9-chk2)."""
+    from tools import judge_reason_audit as ra
+    items = {
+        "J3-1.a": {"decision": "FAIL", "reason": "이는 질문에서 온 충돌을 반복 판정한 것이며 모순입니다."},
+        "J5-2.a": {"decision": "FAIL", "reason": "원문은 맞게 옮겼고 값 자체는 맞지만 [1] 출처 번호가 없습니다."},
+        "J3-5.a": {"decision": "FAIL", "reason": "답변이 접수를 09:35에 시작한다고 하면서 행사를 09:30에 시작합니다."},
+        "J4-2.a": {"decision": "FAIL", "reason": "이는 J1-3에서 처리됩니다. 다만 합계를 못 냈습니다."},
+        "J3-2.b": {"decision": "FAIL", "reason": "근거와 결론이 이어지지 않습니다."},
+    }
+    res = ra.audit({("gemini", 6): {"status": "judged", "turn_results": {"10": {"items": items}}}})
+    flagged = {m["cell"].split()[-1]: m["owner"] for m in res["misroute"]}
+    assert set(flagged) == {"J3-1.a", "J5-2.a", "J3-5.a", "J4-2.a"} and flagged["J4-2.a"] == "J1-3"
+
