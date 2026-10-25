@@ -6,6 +6,8 @@
 
     python -X utf8 tools/build_calibration_sheet.py --run 50ca3ccccace --out v4-r2 [--fail 60 --pass 40 --seed 1]
 → 참고자료/분석/<오늘>-엄격함점검/표시용_표.html · 표본.json
+    python -X utf8 tools/build_calibration_sheet.py --run 50ca3ccccace --pick-file 고를칸.json --dest <폴더>
+→ 정해 둔 칸만(여러 판정 폴더 · 보류 칸 포함) — 고를칸.json: [{"out", "provider", "question", "turn", "item", "why"}] (할일 9번, 10-26)
 """
 from __future__ import annotations
 
@@ -23,11 +25,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-KO = {"PASS": "통과", "FAIL": "FAIL"}
+KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}
 CAUSES = ("답이 틀림", "프롬프트", "기준", "질문", "수집")
 
 
-def load_cells(run_id: str, out: str, set_dir: Path) -> List[Dict[str, Any]]:
+def load_cells(run_id: str, out: str, set_dir: Path, keep: tuple = ("PASS", "FAIL")) -> List[Dict[str, Any]]:
     from tools import report_html as R
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{run_id}.json").read_text(encoding="utf-8"))
     answers = {(p, r["case_id"]): r for p, rows in run["datasets"].items() for r in rows}
@@ -51,7 +53,7 @@ def load_cells(run_id: str, out: str, set_dir: Path) -> List[Dict[str, Any]]:
             row = answers.get((p, case_id)) or answers.get((p, f"Q{q}_T{tn}")) or {}
             facts = ((plan.get(str(q)) or {}).get("turns") or [{}] * 20)[int(tn) - 1] if multi else {}
             for iid, it in (t.get("items") or {}).items():
-                if it.get("decision") not in ("PASS", "FAIL"):
+                if it.get("decision") not in keep:
                     continue
                 cells.append({"type": "멀티턴" if multi else "싱글", "question": q, "provider": p, "turn": int(tn), "flow": flow[int(tn) - 1] if multi and int(tn) - 1 < len(flow) else "",
                               "item": iid, "name": (names.get(iid) or {}).get("name") or "", "decision": it["decision"], "how": it.get("how") or "",
@@ -149,7 +151,8 @@ def render(cells: List[Dict[str, Any]], sheet: str, run_id: str, out: str) -> st
         facts = "".join(f"<li>{e(f)}</li>" for f in c["facts"][:8])
         parts.append(f'''<div class="cell" data-id="{e(cid)}" data-type="{e(c['type'])}" data-q="{c['question']}" data-p="{e(c['provider'])}" data-t="{c['turn']}" data-item="{e(c['item'])}" data-dec="{e(c['decision'])}">
 <div class="head"><span class="no">#{c['no']}</span><span class="tag t-type">{e(c['type'])}</span><span class="meta">Q{c['question']} · {e(c['provider'])}{' · ' + str(c['turn']) + '턴(' + e(c['flow']) + ')' if c['type'] == '멀티턴' else ''}</span>
-<span class="tag {'t-fail' if c['decision'] == 'FAIL' else 't-pass'}">{KO[c['decision']]}</span><b>{e(c['item'])} {e(c['name'])}</b><span class="meta">{e(c['how'])}</span></div>
+<span class="tag {'t-fail' if c['decision'] == 'FAIL' else 't-pass'}">{KO.get(c['decision'], c['decision'])}</span><b>{e(c['item'])} {e(c['name'])}</b><span class="meta">{e(c['how'])}</span></div>
+{('<div class="q"><b>왜 골랐나</b>' + e(c['why']) + '</div>') if c.get('why') else ''}
 <div class="q"><b>요청</b>{e(c['request'][:400])}{'…' if len(c['request']) > 400 else ''}</div>
 {('<div class="q"><b>이 턴의 사실</b>' + e(c['situation']) + '<ul class="facts">' + facts + '</ul></div>') if c['facts'] else ''}
 <div class="reason"><div class="lab">심판 사유</div>{e(c['reason']) or '<i>(1차 심판만 본 칸 — 사유 없음)</i>'}{('<div class="lab" style="margin-top:4px">답변 인용</div>' + e(c['answer_quote'])) if c['answer_quote'] else ''}</div>
@@ -183,9 +186,26 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument("--pass", dest="n_pass", type=int, default=40)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--dest", default=None, help="저장 폴더(기본 참고자료/분석/<오늘>-엄격함점검)")
+    ap.add_argument("--pick-file", help="정해 둔 칸 목록 JSON — [{out, provider, question, turn, item, why}] (여러 판정 폴더 · 보류 칸 포함)")
     args = ap.parse_args(argv)
-    cells = load_cells(args.run, args.out, Path(args.set))
-    picked = sample(cells, args.fail, args.n_pass, args.seed)
+    if args.pick_file:
+        picks = json.loads(Path(args.pick_file).read_text(encoding="utf-8"))
+        by_out: Dict[str, Dict[tuple, Dict[str, Any]]] = {}
+        picked = []
+        for pk in picks:
+            if pk["out"] not in by_out:
+                by_out[pk["out"]] = {(c["provider"], c["question"], c["turn"], c["item"]): c
+                                     for c in load_cells(args.run, pk["out"], Path(args.set), keep=("PASS", "FAIL", "UNVERIFIED", "NOT_APPLICABLE"))}
+            c = by_out[pk["out"]].get((pk["provider"], int(pk["question"]), int(pk["turn"]), pk["item"]))
+            if c is None:
+                print(f"없는 칸: {pk}")
+                continue
+            picked.append({**c, "why": pk.get("why") or "", "no": len(picked) + 1, "out": pk["out"]})
+        cells = picked
+        args.out = "고른 칸"
+    else:
+        cells = load_cells(args.run, args.out, Path(args.set))
+        picked = sample(cells, args.fail, args.n_pass, args.seed)
     dest = Path(args.dest) if args.dest else ROOT / "참고자료" / "분석" / f"{date.today().isoformat()}-엄격함점검"
     dest.mkdir(parents=True, exist_ok=True)
     sheet = f"{args.run}-{args.out}-s{args.seed}"

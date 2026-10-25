@@ -1,0 +1,346 @@
+[
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 1,
+  "item": "J3-5.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 1,
+  "item": "J5-2.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 2,
+  "item": "J5-2.b",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 PASS → v4-r9-chk5 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 3,
+  "item": "J1-4.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 3,
+  "item": "J6-2.b",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 6,
+  "item": "J1-4.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 6,
+  "item": "J3-1.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 9,
+  "item": "J2-3.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk5",
+  "provider": "claude",
+  "question": 2,
+  "turn": 10,
+  "item": "J3-5.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk4 FAIL → v4-r9-chk5 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 1,
+  "item": "J3-1.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 1,
+  "item": "J3-2.b",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 1,
+  "item": "J5-2.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 3,
+  "item": "J2-3.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 3,
+  "item": "J4-4.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 5,
+  "item": "J2-3.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 5,
+  "item": "J6-1.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 7,
+  "item": "J1-4.b",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 7,
+  "item": "J6-1.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 FAIL → v4-r9-chk7 PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 9,
+  "item": "J2-3.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 10,
+  "item": "J1-3.a",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk7",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 10,
+  "item": "J3-2.b",
+  "why": "판마다 뒤집힘 — v4-r9-chk6 PASS → v4-r9-chk7 FAIL. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-r9-chk3",
+  "provider": "claude",
+  "question": 2,
+  "turn": 3,
+  "item": "J5-2.a",
+  "why": "보류(인용 불일치) — 맞는 판정을 정해 주세요"
+ },
+ {
+  "out": "v4-r9-chk3",
+  "provider": "claude",
+  "question": 2,
+  "turn": 8,
+  "item": "J6-3.b",
+  "why": "보류(인용 불일치) — 맞는 판정을 정해 주세요"
+ },
+ {
+  "out": "v4-r9-chk3",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 1,
+  "item": "J3-5.a",
+  "why": "보류(인용 불일치) — 맞는 판정을 정해 주세요"
+ },
+ {
+  "out": "v4-r9-chk4",
+  "provider": "claude",
+  "question": 2,
+  "turn": 3,
+  "item": "J2-3.a",
+  "why": "보류(사유 모순) — 맞는 판정을 정해 주세요"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P1-r1",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 7,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P1: base PASS → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P1-r1",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 10,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P1: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P1-r1",
+  "provider": "gemini",
+  "question": 7,
+  "turn": 5,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P1: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P1-r1",
+  "provider": "claude",
+  "question": 3,
+  "turn": 6,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P1: base NOT_APPLICABLE → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P1-r1",
+  "provider": "claude",
+  "question": 3,
+  "turn": 9,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P1: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J2-3.a-2026-10-25_22-26-27-P3-r1",
+  "provider": "gemini",
+  "question": 7,
+  "turn": 9,
+  "item": "J2-3.a",
+  "why": "다듬기 루프 J2-3.a P3: base NOT_APPLICABLE → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J5-2.a-2026-10-25_23-19-52-P1-r1",
+  "provider": "aiona",
+  "question": 9,
+  "turn": 8,
+  "item": "J5-2.a",
+  "why": "다듬기 루프 J5-2.a P1: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J5-2.a-2026-10-25_23-19-52-P1-r1",
+  "provider": "aiona",
+  "question": 2,
+  "turn": 9,
+  "item": "J5-2.a",
+  "why": "다듬기 루프 J5-2.a P1: base PASS → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-1.a-2026-10-25_23-54-48-P1-r1",
+  "provider": "gemini",
+  "question": 1,
+  "turn": 1,
+  "item": "J3-1.a",
+  "why": "다듬기 루프 J3-1.a P1: base PASS → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-1.a-2026-10-25_23-54-48-P1-r1",
+  "provider": "gemini",
+  "question": 8,
+  "turn": 10,
+  "item": "J3-1.a",
+  "why": "다듬기 루프 J3-1.a P1: base PASS → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-1.a-2026-10-25_23-54-48-P2-r1",
+  "provider": "gemini",
+  "question": 6,
+  "turn": 10,
+  "item": "J3-1.a",
+  "why": "다듬기 루프 J3-1.a P2: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-1.a-2026-10-25_23-54-48-P2-r1",
+  "provider": "gemini",
+  "question": 1,
+  "turn": 10,
+  "item": "J3-1.a",
+  "why": "다듬기 루프 J3-1.a P2: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-1.a-2026-10-25_23-54-48-P2-r1",
+  "provider": "gemini",
+  "question": 8,
+  "turn": 2,
+  "item": "J3-1.a",
+  "why": "다듬기 루프 J3-1.a P2: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-5.a-2026-10-26_05-29-07-P1-r1",
+  "provider": "gemini",
+  "question": 2,
+  "turn": 10,
+  "item": "J3-5.a",
+  "why": "다듬기 루프 J3-5.a P1: base FAIL → 안 PASS. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "refine-J3-5.a-2026-10-26_05-29-07-P2-r1",
+  "provider": "gemini",
+  "question": 1,
+  "turn": 1,
+  "item": "J3-5.a",
+  "why": "다듬기 루프 J3-5.a P2: base PASS → 안 FAIL. 어느 쪽이 맞는지(채택 판단 재료)"
+ },
+ {
+  "out": "v4-b10-claude",
+  "provider": "gemini",
+  "question": 17,
+  "turn": 1,
+  "item": "J2-3.a",
+  "why": "2차 심판 갈림 — Codex FAIL · Claude PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-b10-claude",
+  "provider": "gemini",
+  "question": 17,
+  "turn": 1,
+  "item": "J5-2.a",
+  "why": "2차 심판 갈림 — Codex FAIL · Claude PASS. 어느 쪽이 맞는지"
+ },
+ {
+  "out": "v4-b10-claude",
+  "provider": "gemini",
+  "question": 19,
+  "turn": 1,
+  "item": "J4-4.a",
+  "why": "2차 심판 갈림 — Codex PASS · Claude FAIL. 어느 쪽이 맞는지"
+ }
+]
