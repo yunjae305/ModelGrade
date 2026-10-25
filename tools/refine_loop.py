@@ -43,6 +43,7 @@ RUNS = ROOT / "data" / "judge_runs"
 REFINE = ROOT / "data" / "refine"
 CRITERIA_DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.md"
 LESSON_HEADING = "## 12. 기준 다듬기 루프의 교훈"
+LESSON_CHARS = 220   # 12절 표 칸 하나의 글자 상한 — 전문은 data/refine/…/lesson.json (사용자: 문서는 짧고 요점만)
 PROVIDERS = ("aiona", "gpt", "claude", "gemini")
 KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", None: "-"}
 TARGETS = ("판정 프롬프트", "1차 항목 정의", "확인 목록", "기준 문서", "질문", "CODE")
@@ -544,35 +545,47 @@ def score_label(cases: Sequence[Dict[str, Any]], rounds: Sequence[Dict[Tuple[str
             flips += len(ds) > 1
     split = sum(1 for k in keys if r1.get(k, {}).get("first") in ("PASS", "FAIL") and r1.get(k, {}).get("decision") in ("PASS", "FAIL")
                 and r1[k]["first"] != r1[k]["decision"])
-    changed, side_total, side_changed = [], 0, 0
-    if base_r1 is not None:
-        for k in keys:
-            b, n = base_r1.get(k, {}).get("decision"), r1.get(k, {}).get("decision")
-            if b != n:
-                changed.append({"cell": k, "전": b, "후": n, "사유": r1.get(k, {}).get("reason", "")[:160]})
+    changed: List[Dict[str, Any]] = []
+    side = {"total": 0, "changed": 0, "verdict": 0}   # 같은 질문의 다른 항목: 바뀐 칸 전부 · 그중 FAIL · 보류가 끼어 질문 판정에 닿는 것
+    ref = base_r1 if base_r1 is not None else (rounds[1] if len(rounds) > 1 else None)   # base 자신은 1회차 ↔ 2회차로 흔들림 바닥을 잰다
+    if ref is not None:
+        cmp = r1
+        if base_r1 is not None:
+            for k in keys:
+                b, n = base_r1.get(k, {}).get("decision"), r1.get(k, {}).get("decision")
+                if b != n:
+                    changed.append({"cell": k, "전": b, "후": n, "사유": r1.get(k, {}).get("reason", "")[:160]})
         lines = {(k[0], k[1]) for k in keys}
-        for k, v in base_r1.items():
+        for k, v in ref.items():
             if k[3] == "_line" or (k[0], k[1]) not in lines or k in truth:
                 continue
-            side_total += 1
-            side_changed += v.get("decision") != r1.get(k, {}).get("decision")
+            b, n = v.get("decision"), cmp.get(k, {}).get("decision")
+            side["total"] += 1
+            if b != n:
+                side["changed"] += 1
+                side["verdict"] += bool({"FAIL", "UNVERIFIED"} & {b, n})
     lines = {(k[0], k[1]) for k in keys}
     calls = sum(r1.get((p, q, 0, "_line"), {}).get("codex_calls", 0) for p, q in lines)
     secs = sum(r1.get((p, q, 0, "_line"), {}).get("seconds", 0.0) for p, q in lines)
     tok = sum(r1.get((p, q, 0, "_line"), {}).get("codex_in", 0) for p, q in lines)
     dist = Counter(r1.get(k, {}).get("decision") for k in keys)
     return {"n": len(keys), "accuracy": (acc_ok / acc_n) if acc_n else None, "truth_n": acc_n, "flips": flips, "rounds": len(rounds),
-            "first_final_split": split, "changed_vs_base": changed, "side_effect": (side_changed / side_total) if side_total else 0.0,
-            "side_total": side_total, "codex_calls": calls, "seconds": round(secs, 1), "codex_in": tok,
+            "first_final_split": split, "changed_vs_base": changed,
+            "side_effect": (side["verdict"] / side["total"]) if side["total"] else 0.0,        # 다른 항목 가운데 FAIL · 보류가 바뀐 비율 (질문 판정에 닿는 변화)
+            "side_effect_all": (side["changed"] / side["total"]) if side["total"] else 0.0,    # 해당 없음 ↔ 통과 같은 변화까지 전부
+            "side_total": side["total"], "codex_calls": calls, "seconds": round(secs, 1), "codex_in": tok,
             "dist": {KO.get(k, str(k)): v for k, v in dist.items()}}
 
 
 def adoption(base: Dict[str, Any], prop: Dict[str, Any]) -> Tuple[str, str]:
-    """채택 판단 (v2 10절 ⑤): 정답률↑ · 뒤집힘↓(같거나) · 다른 항목 그대로. 사람 표시가 없으면 1차 ↔ 최종 갈림이 줄고 뒤집힘이 안 늘 때 '사람 확인 필요'."""
+    """채택 판단 (v2 10절 ⑤): 정답률↑ · 뒤집힘↓(같거나) · 다른 항목 그대로. 사람 표시가 없으면 1차 ↔ 최종 갈림이 줄고 뒤집힘이 안 늘 때 '사람 확인 필요'.
+    '다른 항목 그대로'의 잣대는 base 자신의 흔들림 바닥(1회차 ↔ 2회차, 있으면)을 넘지 않는 것 — 멀티턴은 다시 판정만 해도 칸이 움직이므로 고정 5% 만으로는 안을 다 기각한다."""
     if prop.get("error"):
         return "기각", f"적용 불가: {prop['error']}"
-    if prop["side_effect"] > SIDE_EFFECT_MAX:
-        return "기각", f"같은 질문의 다른 항목이 {prop['side_effect']:.0%} 바뀜(> {SIDE_EFFECT_MAX:.0%})"
+    floor = base.get("side_effect", 0.0) if base.get("rounds", 1) > 1 else 0.0
+    limit = max(SIDE_EFFECT_MAX, floor * 1.25)
+    if prop["side_effect"] > limit:
+        return "기각", f"같은 질문의 다른 항목(FAIL · 보류)이 {prop['side_effect']:.0%} 바뀜(> {limit:.0%}" + (f", base 흔들림 {floor:.0%}" if floor else "") + ")"
     if prop["rounds"] > 1 and prop["flips"] > base.get("flips", 0):
         return "기각", f"회차 사이 뒤집힘 {base.get('flips', 0)} → {prop['flips']} 늘어남"
     if prop.get("accuracy") is not None and base.get("accuracy") is not None:
@@ -632,7 +645,7 @@ def score_md(res: Dict[str, Any], cases: Sequence[Dict[str, Any]]) -> str:
     L = [f"# 기준 다듬기 — {res['item']} 시험 결과", "",
          f"- 칸 {len(cases)}개(FAIL · 보류 {sum(1 for c in cases if c['decision'] != 'PASS')} · 통과 {sum(1 for c in cases if c['decision'] == 'PASS')}),"
          f" 사람 표시 {sum(1 for c in cases if c.get('truth'))}칸" + (" · 제안자: KEEP_BASE" if res.get("keep_base") else ""), "",
-         "| 안 | 범위 · 대상 | 판정 분포 | 정답률(사람 표시) | 뒤집힘(회차) | 1차↔최종 갈림 | base 대비 바뀐 칸 | 다른 항목 변화 | Codex 호출 | 시간 | 판단 |",
+         "| 안 | 범위 · 대상 | 판정 분포 | 정답률(사람 표시) | 뒤집힘(회차) | 1차↔최종 갈림 | base 대비 바뀐 칸 | 다른 항목 변화(FAIL·보류 / 전부) | Codex 호출 | 시간 | 판단 |",
          "|---|---|---|---|---|---|---|---|---|---|---|"]
     for label, s in res["scores"].items():
         if s.get("error"):
@@ -642,7 +655,7 @@ def score_md(res: Dict[str, Any], cases: Sequence[Dict[str, Any]]) -> str:
         acc = f"{s['accuracy']:.0%} ({s['truth_n']}칸)" if s.get("accuracy") is not None else "-"
         verdict = res["adoption"].get(label, {})
         L.append(f"| {label} | {p.get('scope', '')} · {p.get('target', '')} | {s['dist']} | {acc} | {s['flips']}/{s['n']} ({s['rounds']}회) | {s['first_final_split']} | "
-                 f"{len(s['changed_vs_base'])} | {s['side_effect']:.0%} ({s['side_total']}칸) | {s['codex_calls']} | {s['seconds'] / 60:.1f}분 | "
+                 f"{len(s['changed_vs_base'])} | {s['side_effect']:.0%} / {s.get('side_effect_all', 0):.0%} ({s['side_total']}칸{', base 는 1↔2회차' if label == 'base' else ''}) | {s['codex_calls']} | {s['seconds'] / 60:.1f}분 | "
                  f"{verdict.get('판단', 'base')} {('— ' + verdict['이유']) if verdict else ''} |")
     for label, p in res["proposals"].items():
         L += ["", f"## {label} — {p.get('scope')} · {p.get('target')}", "", f"- 왜: {p.get('why')}", f"- 기대: {', '.join(p.get('expected') or [])}",
@@ -693,8 +706,8 @@ def append_lesson(lesson: Dict[str, Any], doc: Path) -> None:
     if LESSON_HEADING not in text:
         text = text.rstrip("\n") + f"\n\n---\n\n{LESSON_HEADING}\n\n기준 다듬기 루프(`tools/refine_loop.py`, Harness² 의 제안 → 시험 → 채택 → 교훈 흐름)가 남긴 교훈. 줄마다 날짜 · 항목 · 채택 판단 · 신호(cue) · 교훈 · 근거 · 확신.\n\n| 날짜 | 항목 | 채택 | 신호 | 교훈 | 근거 | 확신 |\n|---|---|---|---|---|---|---|\n"
     adopted = ", ".join(f"{k} {v['판단']}" for k, v in (lesson.get("adoption") or {}).items()) or "안 없음"
-    row = (f"| {lesson['at'][:10]} | {lesson['item']} | {adopted} | {lesson['cue']} | {lesson['lesson']} | {lesson['evidence']} | {lesson['confidence']} |"
-           .replace("\n", " "))
+    cut = lambda t: (str(t or "").replace("\n", " ").strip()[:LESSON_CHARS] + ("…" if len(str(t or "")) > LESSON_CHARS else ""))   # 표는 짧게, 전문은 lesson.json
+    row = f"| {lesson['at'][:10]} | {lesson['item']} | {adopted} | {cut(lesson['cue'])} | {cut(lesson['lesson'])} | {cut(lesson['evidence'])} | {lesson['confidence']} |"
     doc.write_text(text.rstrip("\n") + "\n" + row + "\n", encoding="utf-8")
 
 

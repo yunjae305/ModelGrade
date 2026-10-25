@@ -127,3 +127,19 @@ def test_select_cases_max_lines_keeps_lines_with_most_fail_cells():
     got = rl.select_cases(cells, n_fail=6, n_pass=6, max_lines=2)
     assert {(c["provider"], c["question"]) for c in got} == {("aiona", 1), ("aiona", 3)}   # FAIL 칸이 많은 두 대화만
     assert sum(1 for c in got if c["decision"] == "FAIL") == 5 and sum(1 for c in got if c["decision"] == "PASS") == 2
+
+
+def test_side_effect_counts_only_verdict_relevant_changes_and_uses_base_noise_floor():
+    K = lambda q: ("gpt", q, 1, "J1-4.b")
+    O = lambda q, i: ("gpt", q, 1, i)
+    cases = [_cell(1, "gpt", "FAIL"), _cell(2, "gpt", "PASS")]
+    base1 = _probe({K(1): "FAIL", K(2): "PASS", O(1, "J2-3.a"): "PASS", O(1, "J3-1.a"): "NOT_APPLICABLE", O(2, "J2-3.a"): "PASS", O(2, "J3-1.a"): "PASS"})
+    base2 = _probe({K(1): "FAIL", K(2): "PASS", O(1, "J2-3.a"): "FAIL", O(1, "J3-1.a"): "PASS", O(2, "J2-3.a"): "PASS", O(2, "J3-1.a"): "PASS"})
+    base = rl.score_label(cases, [base1, base2], None)
+    assert base["side_total"] == 4 and base["side_effect"] == 0.25 and base["side_effect_all"] == 0.5   # base 자신의 흔들림: FAIL 낀 변화 1 · 전체 2
+    prop1 = _probe({K(1): "PASS", K(2): "PASS", O(1, "J2-3.a"): "FAIL", O(1, "J3-1.a"): "PASS", O(2, "J2-3.a"): "PASS", O(2, "J3-1.a"): "PASS"})
+    p = rl.score_label(cases, [prop1], base1)
+    assert p["side_effect"] == 0.25 and p["side_effect_all"] == 0.5 and len(p["changed_vs_base"]) == 1
+    assert rl.adoption(base, p)[0] != "기각"           # base 흔들림(25%)과 같은 수준이면 다른 항목 때문에 기각하지 않음
+    base_still = rl.score_label(cases, [base1], None)   # 1회차뿐이면 바닥을 모름 → 고정 5%
+    assert rl.adoption(base_still, p)[0] == "기각"
