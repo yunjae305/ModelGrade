@@ -1,0 +1,15 @@
+{
+ "version": "result-dirs-v1",
+ "kind": "rerun",
+ "rerun_of": "50ca3ccccace",
+ "judge_out": "v4-r4",
+ "before_out": "v4-r3",
+ "started": "2026-10-25_12-37-03-450",
+ "name": "멀티턴 새 규칙 다시 판정(왕복 · 거절 · 최종 턴 · J1-4.b)",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3"
+ },
+ "eval_kind": null,
+ "code_at": "e81f887",
+ "note": ""
+}

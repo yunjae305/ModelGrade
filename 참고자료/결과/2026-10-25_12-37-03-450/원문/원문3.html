@@ -1,0 +1,3992 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결과 보고서 FAIL 원문 3</title>
+<meta name="description" content="78개 실행 50ca3ccccace 부록 — Claude Q8~Q74 (5건)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.muted { color: var(--muted); }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+svg .tick.muted { opacity: 0.7; }
+.qtable td .muted { font-family: var(--font-body); }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+
+
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+.s-head h2 { font-size: 1.75rem; }
+@media (max-width: 900px) { }
+@media (max-width: 640px) { }
+@media (max-width: 900px) { }
+</style>
+<style>
+/* 결과 보고 (result-summary-v2) — 덱 CSS 위에 rs- 로 시작하는 것만 더함. 색은 덱 변수만(밝게·어둡게 자동) */
+.slide { gap: 22px; }
+@media (max-width: 640px) { }
+.rs-lrc li .rs-id { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 0.76rem; }
+.rs-item { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 0.9rem; display: grid; gap: 3px; }
+.rs-quote { color: var(--muted); font-size: 0.84rem; overflow-wrap: anywhere; }
+.rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
+.rs-qhint { margin: 0; font-size: 0.86rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+.rs-qds:has(.rs-qd:target) .rs-qhint { display: none; }
+.rs-ql li .rs-id { color: var(--muted); font-size: 0.74rem; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
+/* 원문 파일 맨 위 바로가기 */
+.rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
+.rs-jump a { font-family: var(--font-num); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; text-decoration: none; }
+.rs-fall { position: absolute; opacity: 0; pointer-events: none; }
+.rs-fall-l { justify-self: start; cursor: pointer; font-size: 0.86rem; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; background: var(--surface); }
+.rs-fall:checked + .rs-fall-l { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.rs-fall:focus-visible + .rs-fall-l { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-fds { display: grid; gap: 10px; }
+.rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
+.rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
+.rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
+.rs-fdh { margin: 0 0 6px; font-size: 1rem; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+}
+@media (max-width: 760px) {
+}
+@media (max-width: 640px) {
+}
+/* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
+:root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
+.s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+.ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+@media (min-width: 1200px) { }
+.s-no { color: var(--muted); }
+@media (max-width: 760px) { }
+@media (min-width: 1200px) {
+  body { padding-left: 232px; }
+  html { scroll-padding-top: 16px; }
+}
+.ar-av.lg { width: 28px; height: 28px; border-radius: 8px; background-size: 72%; vertical-align: middle; }
+@media (min-width: 1200px) { }
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+}
+/* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
+.rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
+.rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.rs-fx-r { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rs-turn { display: grid; gap: 2px; margin-bottom: 12px; }
+.rs-fx .rs-pre.rs-q { max-height: 200px; }
+.rs-fx .rs-pre.rs-ans { max-height: none; }
+.rs-fwhy { font-size: 0.9rem; line-height: 1.5; }
+mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px solid var(--risk); border-radius: 3px; padding: 0 1px; }
+mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
+  background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
+.rs-hlno.rs-hlno-off { background: var(--muted); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
+.rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); } .rs-crit > summary .muted { margin-left: 10px; }
+@media (max-width: 760px) { } .pr-d > summary .muted { margin-left: 10px; }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
+@media (max-width: 860px) { }
+@media (max-width: 760px) { }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { }
+@media (max-width: 560px) { }
+@media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
+@media (max-width: 1000px) { }
+@media (max-width: 560px) { }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+@media (max-width: 1000px) {
+}
+</style>
+<style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
+.mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
+.lg-claude { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSJub25lIiB2aWV3Qm94PSIwIDAgNDAwIDQwMCI+PHBhdGggZmlsbD0iI0Q5Nzc1NyIgZD0ibTEyNC4wMTEgMjQxLjI1MSA0OS4xNjQtMjcuNTg1LjgyNi0yLjM5Ni0uODI2LTEuMzMzaC0yLjM5NmwtOC4yMTctLjUwNi0yOC4wOS0uNzU5LTI0LjM2My0xLjAxMi0yMy42MDMtMS4yNjYtNS45MzgtMS4yNjVMNzUgMTk3Ljc5bC41NzQtMy42NjEgNC45OTQtMy4zNTggNy4xNTMuNjI1IDE1LjgwOCAxLjA3OSAyMy43MjIgMS42MzcgMTcuMjA4IDEuMDEyIDI1LjQ5MyAyLjY0OWg0LjA0OWwuNTc0LTEuNjM3LTEuMzg0LTEuMDEyLTEuMDc5LTEuMDEyLTI0LjU0OC0xNi42MzUtMjYuNTczLTE3LjU4LTEzLjkxOS0xMC4xMjMtNy41MjQtNS4xMjktMy43OTYtNC44MDgtMS42MzctMTAuNDk0IDYuODMzLTcuNTI1IDkuMTc4LjYyNCAyLjM0NS42MjUgOS4yOTYgNy4xNTMgMTkuODU4IDE1LjM3IDI1LjkzMSAxOS4wOTggMy43OTYgMy4xNTUgMS41MTktMS4wOC4xODUtLjc1OS0xLjcwNC0yLjg1MS0xNC4xMDQtMjUuNDkzLTE1LjA0OS0yNS45MzEtNi42OTgtMTAuNzQ3LTEuNzcyLTYuNDQ1Yy0uNjI0LTIuNjQ5LTEuMDgtNC44NzYtMS4wOC03LjU5Mmw3Ljc3OC0xMC41NjFMMTQ0LjcyOSA3NWwxMC4zNzYgMS4zODMgNC4zNyAzLjc5NyA2LjQ0NSAxNC43NDUgMTAuNDQzIDIzLjIxNSAxNi4xOTcgMzEuNTY2IDQuNzQxIDkuMzY0IDIuNTMgOC42NzIuOTQ1IDIuNjQ5aDEuNjM3di0xLjUxOWwxLjMzMi0xNy43ODIgMi40NjQtMjEuODMyIDIuMzk1LTI4LjA5MS44MjctNy45MTIgMy45MTQtOS40ODIgNy43NzgtNS4xMjkgNi4wNzQgMi45MDIgNC45OTQgNy4xNTMtLjY5MiA0LjYyMy0yLjk2OSAxOS4zMDEtNS44MjEgMzAuMjM0LTMuNzk2IDIwLjI0NWgyLjIxbDIuNTMxLTIuNTMgMTAuMjQxLTEzLjU5OSAxNy4yMDgtMjEuNTExIDcuNTkzLTguNTM3IDguODU3LTkuNDMxIDUuNjg2LTQuNDg4aDEwLjc0N2w3LjkxMiAxMS43Ni0zLjU0MyAxMi4xNDctMTEuMDY3IDE0LjAzNy05LjE3OCAxMS44OTUtMTMuMTYgMTcuNzE0LTguMjE2IDE0LjE3Mi43NTkgMS4xMzEgMS45NTctLjE4NiAyOS43MjctNi4zMjcgMTYuMDYyLTIuOTAxIDE5LjE2Ni0zLjI5IDguNjcyIDQuMDQ5Ljk0NCA0LjExNi0zLjQwOCA4LjQxOS0yMC40OTggNS4wNjItMjQuMDQyIDQuODA4LTM1LjgwMSA4LjQ2OS0uNDM5LjMyMS41MDYuNjI0IDE2LjEzIDEuNTE5IDYuOS4zNzFoMTYuODg4bDMxLjQ0OCAyLjM0NSA4LjIxNyA1LjQzMyA0LjkyNiA2LjY0Ny0uODI3IDUuMDYxLTEyLjY1MyA2LjQ0NS0xNy4wNzQtNC4wNDktMzkuODUtOS40ODItMTMuNjY2LTMuNDA4aC0xLjg4OXYxLjEzMWwxMS4zODggMTEuMTM1IDIwLjg3IDE4Ljg0NSAyNi4xMzMgMjQuMjk1IDEuMzMzIDYuMDA2LTMuMzU3IDQuNzQxLTMuNTQzLS41MDYtMjIuOTYyLTE3LjI3Ny04Ljg1OC03Ljc3Ny0yMC4wNi0xNi44ODhIMjM4LjV2MS43NzFsNC42MjMgNi43NjUgMjQuNDEzIDM2LjY5NiAxLjI2NSAxMS4yNTMtMS43NzEgMy42NjEtNi4zMjcgMi4yMS02Ljk1MS0xLjI2NS0xNC4yOS0yMC4wNi0xNC43NDUtMjIuNTkxLTExLjg5NS0yMC4yNDYtMS40NTEuODI3LTcuMDE4IDc1LjYwMS0zLjI5IDMuODYzLTcuNTkyIDIuOTAyLTYuMzI3LTQuODA4LTMuMzU3LTcuNzc4IDMuMzU3LTE1LjM3IDQuMDQ5LTIwLjA2IDMuMjktMTUuOTQzIDIuOTY5LTE5LjgwNyAxLjc3Mi02LjU4LS4xMTgtLjQzOS0xLjQ1MS4xODYtMTQuOTMxIDIwLjQ5OC0yMi43MDkgMzAuNjg5LTE3Ljk2OCAxOS4yMzQtNC4zMDIgMS43MDQtNy40NTgtMy44NjQuNjkyLTYuOSA0LjE2Ny02LjE0MSAyNC44NjktMzEuNjM0IDE0Ljk5OS0xOS42MDUgOS42ODQtMTEuMzItLjA2OC0xLjYzN2gtLjU3M2wtNjYuMDUyIDQyLjg4Ny0xMS43NTkgMS41MTktNS4wNjItNC43NDEuNjI1LTcuNzc4IDIuMzk1LTIuNTMxIDE5Ljg1OC0xMy42NjUtLjA2OC4wNjd6Ii8+PC9zdmc+"); }</style>
+</head>
+<body>
+<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · FAIL 원문 3 / 결과 보고서 50ca3ccccace</span><h2>FAIL 원문 3 — Claude Q8~Q74 (5건)</h2><p><a href="../report.html#apx">← 결과 보고서(부록)으로</a> · <a href="원문1.html">FAIL 원문 1</a> · <a href="원문2.html">FAIL 원문 2</a> · <b>FAIL 원문 3</b> · <a href="원문4.html">FAIL 원문 4</a> · <a href="원문5.html">FAIL 원문 5</a> · <a href="원문6.html">FAIL 원문 6</a> · <a href="원문7.html">FAIL 원문 7</a> · <a href="원문8.html">FAIL 원문 8</a> · <a href="원문9.html">FAIL 원문 9</a> · <a href="원문10.html">FAIL 원문 10</a> · <a href="원문11.html">FAIL 원문 11</a> · <a href="원문12.html">FAIL 원문 12</a> · <a href="원문13.html">FAIL 원문 13</a> · <a href="원문14.html">FAIL 원문 14</a> · <a href="원문15.html">FAIL 원문 15</a> · <a href="통과1.html">통과 원문 1</a> · <a href="통과2.html">통과 원문 2</a> · <a href="통과3.html">통과 원문 3</a> · <a href="통과4.html">통과 원문 4</a> · <a href="통과5.html">통과 원문 5</a> · <a href="통과6.html">통과 원문 6</a> · <a href="통과7.html">통과 원문 7</a> · <a href="보류1.html">보류 원문 1</a> · <a href="보류2.html">보류 원문 2</a> · <a href="보류3.html">보류 원문 3</a> · <a href="보류4.html">보류 원문 4</a> · <a href="보류5.html">보류 원문 5</a> · <a href="보류6.html">보류 원문 6</a> · <a href="보류7.html">보류 원문 7</a> · <a href="보류8.html">보류 원문 8</a> · <a href="보류9.html">보류 원문 9</a> · <a href="보류10.html">보류 원문 10</a> · <a href="보류11.html">보류 원문 11</a> · <a href="보류12.html">보류 원문 12</a> · <a href="보류13.html">보류 원문 13</a> · <a href="보류14.html">보류 원문 14</a> · <a href="보류15.html">보류 원문 15</a> · <a href="보류16.html">보류 원문 16</a> · <a href="보류17.html">보류 원문 17</a> · <a href="보류18.html">보류 원문 18</a> · <a href="보류19.html">보류 원문 19</a> · <a href="보류20.html">보류 원문 20</a> · <a href="보류21.html">보류 원문 21</a> · <a href="보류22.html">보류 원문 22</a> · <a href="보류23.html">보류 원문 23</a> · <a href="보류24.html">보류 원문 24</a> · <a href="보류25.html">보류 원문 25</a> · <a href="보류26.html">보류 원문 26</a> · <a href="보류27.html">보류 원문 27</a> · <a href="갈림.html">갈림 목록</a></p></div><div class="rs-jump"><div><b><span class="mn"><i class="lg lg-claude"></i>Claude</span></b><a href="#f-claude-8">Q8</a><a href="#f-claude-18">Q18</a><a href="#f-claude-36">Q36</a><a href="#f-claude-69">Q69</a><a href="#f-claude-74">Q74</a></div></div><input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label><div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p><article class="rs-fd" id="f-claude-8"><h3 class="rs-fdh">Q8 · <span class="mn"><i class="lg lg-claude"></i>Claude</span> · 멀티턴 · 어긴 기준 5개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 1 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 노을합창단 정기 연주회 제1차 준비 회의록
+
+- 일시: 2026년 9월 14일(월) 19:00~20:45
+- 장소: 노을동 주민센터 3층, 노을합창단 연습실 옆 소회의실
+- 참석: 공연 운영 담당 신유나, 단 회계 담당 임재혁
+- 기록: 단 회계 담당 임재혁 / 확인: 공연 운영 담당 신유나(9월 15일 오전 확인)
+- 회의 전에 받은 의견(참석 아님): 지휘자 백승원의 서면 메모(9월 13일 단원 대화방으로 받음), 단장 김옥희와의 통화 내용(9월 12일 신유나가 받아 회의에서 전함)
+- 이번 회의에서 다루지 않은 것: 행사 날짜. 공연장 사용 일정 협의가 끝나지 않아 날짜는 정하지 않았다. 이 회의록에 나오는 시각은 모두 &#x27;행사 당일&#x27; 기준이다.
+- 회의록의 지위: 1차 회의 원본이다. 회의 뒤 바뀌는 사항은 이 회의록을 고쳐 쓰지 않고 다음 판본의 운영 확인 기록이나 변경 통지 공문에 적는다.
+
+## 표기 원칙
+
+이 회의록은 안건마다 결과를 [결정]과 [보류]로 나눠 적는다.
+
+- [결정]: 이날 두 참석자가 합의해 이후 관객 안내문과 당일 일정표에 확정 사항으로 옮겨도 되는 내용이다.
+- [보류]: 논의는 했으나 정하지 않은 내용이다. 안내문이나 일정표에 확정처럼 쓰지 않으며, 보류 이유와 다시 다룰 시점을 함께 적는다.
+- 한 안건 안에 정한 부분과 정하지 못한 부분이 섞이면 안건을 둘로 나눠 따로 표시했다. 운반 방식이 그런 경우라서 &#x27;두 안의 내용&#x27;(안건 4, 결정)과 &#x27;어느 안을 고를지&#x27;(안건 5, 보류)를 나눴다.
+- 회의 중 나온 의견은 누가 말했는지 밝혀 적되, 의견은 결정이 아니므로 &#x27;결과&#x27; 줄과 섞지 않았다. 결과 줄만 읽어도 무엇이 정해졌는지 알 수 있게 썼다.
+
+## 회의 진행 기록
+
+- 19:00 개회. 신유나가 회의 목적을 밝힘. &quot;당일 운영의 뼈대를 세우되, 지금 정할 수 있는 것과 정할 수 없는 것을 분명히 나누자.&quot; 임재혁이 기록을 맡음.
+- 19:04 지휘자 백승원의 서면 메모를 신유나가 읽음. 공연 중 촬영, 단원 생수, 앙코르 곡에 관한 의견 세 가지였다(안건 9에 반영).
+- 19:09 단장 김옥희와의 통화 내용을 신유나가 전함. 예비 인력으로 전 단원 조민서에게 부탁해 보라는 권유, 그리고 지난해처럼 관객 줄이 로비 밖까지 길게 서지 않게 해 달라는 당부였다.
+- 19:12~19:30 안건 1(행사 범위)과 안건 2(인력과 정원).
+- 19:30~19:52 안건 3(준비 동선). 신유나가 9월 12일 직접 걸어 잰 기록을 보여 줌.
+- 19:52~20:18 안건 4·5(운반 방식). 이날 가장 오래 걸린 안건. 두 안의 조건은 확인했으나 선택은 하지 못함.
+- 20:18~20:29 안건 6(예산). 임재혁이 장부를 펴 놓고 보고.
+- 20:29~20:40 안건 7~14(참가 조건, 위험, 운영 세부, 물품, 미정 항목, 안내문, 마감, 인계).
+- 20:40 할 일과 다음 회의 일정 확인.
+- 20:45 폐회.
+
+## 회의 전에 돌린 자료
+
+- 공연장 점검 메모(신유나, 9월 11~12일): 공연장 관리 담당과 통화한 내용, 연습실에서 공연장까지 걸어 본 기록, 무대 옆 통로와 로비 접수대 자리 사진 설명. 회의에서는 [1]로 불렀다.
+- 합창단 예산 메모(임재혁, 9월 14일 기준): 운영위원회 승인 상한, 지금까지 나간 돈, 앞으로 나갈 것으로 보는 돈, 운반 방식별로 생기는 비용. 회의에서는 [2]로 불렀다.
+- 지난해 가을 정기 연주회 운영 후기(당시 운영 담당이 쓴 두 쪽 메모): 접수대가 비었던 일, 앙코르 곡 문의, 단원 생수 부족, 일정표 칸이 섞였던 일이 적혀 있다.
+- 지휘자 서면 메모와 단장 통화 메모(이 회의록 끝 붙임 1·2).
+
+## 안건 1. 행사 범위 [결정]
+
+결과
+- 행사 시간은 17:00부터 18:30까지다.
+- 접수는 16:40에 연다.
+- 담당자는 15:30에 현장(공연장)에 도착한다.
+- 행사 시간에는 담당자가 관객 응대와 진행을 맡는다. 준비와 확인은 그 전에 끝낸다.
+- 담당자가 현장에 도착하기 전에 한 일은 당일 현장 작업으로 적지 않는다.
+
+논의 경과
+- 신유나가 처음에는 도착을 앞당기는 안을 냈다. 그러나 공연장 관리 담당 하경태 주임이 9월 11일 통화에서 &quot;단체 사용일에는 15:30에 건물 뒤 출입문과 무대 쪽 문을 연다&quot;고 알려 왔다. 그보다 일찍 가도 안에 들어갈 수 없으므로 도착은 15:30으로 확정했다.
+- 임재혁이 접수를 앞당기면 관객이 덜 기다리지 않겠느냐고 물었다. 신유나는 접수를 당기면 준비 시간이 줄어들고, 혼자서 준비와 접수를 동시에 할 수 없다고 답했다. 접수는 16:40으로 둔다.
+- 임재혁이 지난해 가을 연주회 일정표를 꺼내 보였다. 그때 일정표에는 전날 저녁에 한 악보 복사와 당일 오후의 무대 설치가 같은 칸에 섞여 있어, 당일 아침에 &quot;복사는 언제 하느냐&quot;는 질문이 단원 대화방에 다시 올라왔다. 이번 일정표는 전날 작업과 당일 작업을 칸부터 따로 둔다.
+- 17:00~18:30 안의 곡 순서와 무대 진행은 지휘자 몫이라 이 회의에서는 다루지 않았다. 중간에 휴식이 한 번 있다는 점만 지휘자 메모로 확인했다. 휴식이 몇 시에 시작하는지는 곡 순서가 정해진 뒤에 알 수 있어 미정이다.
+
+## 안건 2. 인력과 정원 [결정]
+
+결과
+- 확정 진행 인력은 1명이다. 공연 운영 담당 신유나가 맡으며, 신유나는 이번 연주회 무대에 서지 않는다.
+- 관객 정원은 60명이다.
+- 정원(60명)과 배치 인력(1명)은 서로 다른 값이다. 일정표와 안내문에서 두 값을 한 줄에 섞어 쓰지 않는다.
+- 도움을 요청한 예비 인력은 참석을 확답하지 않았고, 승인 인력에 넣지 않았다.
+- 관객에게 접수를 대신 맡기는 안은 채택하지 않았다.
+
+논의 경과
+- 예비 인력: 단장 권유에 따라 신유나가 9월 10일 저녁 전 단원 조민서에게 당일 접수 보조를 부탁했다. 조민서는 &quot;그 무렵 다른 일정이 생길 수 있어 지금은 약속하기 어렵다. 날짜가 나오면 다시 알려 달라&quot;고 답했다. 행사 날짜가 미정이라 지금은 확답을 받을 수 없는 상태다. 나중에 확답이 오더라도 회의에서 승인해야 인력으로 넣는다. 그 전까지는 일정표와 근무표에 이름을 올리지 않는다.
+- 단원을 쓰는 안: 임재혁이 자신이 접수를 보면 어떠냐고 했으나, 임재혁은 베이스 파트 단원으로 무대에 서고 공연 전에는 대기실에서 발성 연습이 있다. 같은 이유로 지휘자, 반주자, 다른 단원도 진행 인력으로 세지 않는다.
+- 관객에게 맡기는 안: 임재혁이 해마다 오는 단원 가족 관객 가운데 한 분께 명단 확인을 부탁하는 방법을 꺼냈다. 신유나가 반대했다. 예약 명단에는 이름과 연락 수단이 들어 있어 관객에게 넘길 수 없고, 입장에서 문제가 생기면 책임질 사람이 없으며, 그분도 공연을 보러 온 관객이라는 이유였다. 임재혁도 동의해 채택하지 않았다.
+- 정원: 공연장 측과 협의한 관객 수가 60명이다. 1인 운영으로 입장과 안내를 감당할 수 있는 규모라는 점도 함께 고려했다.
+
+## 안건 3. 준비 동선 [결정]
+
+결과
+- 연습실은 공연장에서 걸어서 편도 10분이다.
+- 물품(악보) 확인에는 6분이 든다.
+- 현장 설치는 25분이다.
+- 물품은 한 번에 가져올 수 있다(연습실 접이식 손수레 한 대 사용).
+- 편도 시간을 왕복 시간으로 쓰지 않는다. 오가는 일정이 생기면 가는 길과 오는 길을 따로 적는다.
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+
+실측 기록(신유나, 9월 12일 토요일 오후)
+- 연습실이 있는 주민센터 정문에서 공연장 건물 뒤 출입문까지, 손수레에 빈 상자 두 개를 싣고 걸었다. 큰길 횡단보도에서 신호를 한 번 기다린 것을 포함해 10분이 걸렸다.
+- 같은 길로 돌아왔고 비슷하게 걸렸다. 기록에는 &#x27;편도 10분&#x27;으로만 남긴다.
+- 길 중간 세탁소 앞 보도블록이 들떠 있는 구간에서 손수레 바퀴가 한 번 걸렸다. 보면대를 실을 때는 다리가 밖으로 튀어나오지 않게 끈으로 묶어야 한다.
+- 공연장 뒤 출입문은 문턱이 낮아 손수레가 그대로 넘어간다. 뒤 출입문에서 무대 옆 통로까지 계단이 없다.
+- 주민센터 쪽은 승강기를 써야 한다. 저녁 시간대에는 승강기를 기다리는 사람이 있어 시간이 더 걸릴 수 있다는 점을 메모해 두었다(실측 당일에는 바로 탔다).
+
+물품 확인 6분에 하는 일
+- 악보 묶음: 파트별 묶음 수, 겉표지 곡 목록, 마지막 연습 때 고친 쪽이 끼워져 있는지 확인.
+- 보면대: 접이 나사 풀림, 받침판 흔들림 확인.
+- 신유나가 9월 12일 연습실에서 시험 삼아 한 차례 확인해 본 시간이 6분이었다.
+
+설치 25분에 하는 일
+- 무대 위 보면대 펴기, 단원 자리 표시 테이프 붙이기, 지휘대 위치 확인.
+- 로비 접수대(공연장 접이식 탁자) 펴기, 명단과 번호표 놓기, 촬영 금지 안내판 세우기.
+- 지난해 가을 연주회 때는 같은 작업에 두 사람이 붙었다. 이번 25분은 한 사람 기준으로 다시 잡은 값이다.
+
+논의
+- 임재혁이 &quot;설치 도중에 관객이 오면 접수부터 받아도 되지 않느냐&quot;고 물었다. 신유나는 설치를 끝내기 전에 접수를 열어도 된다는 승인이 없고, 접수를 연 뒤에는 자리를 뜰 수 없으므로(안건 8) 설치가 덜 끝난 채 접수를 열면 남은 설치를 할 사람이 없다고 답했다. 임재혁도 이 순서에 동의했다.
+
+## 안건 4. 운반 방식 두 안의 내용 [결정 — 두 안의 조건만 확정]
+
+결과(아래 두 문장은 공연장 측 안내와 신유나 실측을 합쳐 회의에서 확인한 문장 그대로다)
+- A안(당일 연습실 운반): 당일 연습실에서 악보와 보면대를 직접 옮기는 방식(편도 10분, 악보 확인 6분)이고 비용은 없습니다.
+- B안(전날 무대 뒤 보관): 전날 공연장 무대 뒤 보관실에 두는 방식이며 보관실 이용료 3000원, 당일 악보 확인 6분입니다.
+- 설치는 두 안 모두 25분이다.
+- 두 방식 모두 내용을 확인하는 단계(악보 확인 6분)는 빠지지 않는다.
+
+두 안에 대해 나온 의견(결정 아님)
+- 신유나, A안의 좋은 점: 비용이 없다. 악보가 당일까지 연습실에 있으므로 마지막 연습에서 고친 쪽을 그대로 끼워 가져갈 수 있다.
+- 신유나, A안의 걱정: 15:30에 현장에 도착한 뒤 연습실을 오가야 해서 현장에서 준비할 시간이 그만큼 줄어든다. 행사 날짜가 정해지지 않아 날씨를 알 수 없고, 비가 오면 악보 묶음을 덮을 비닐과 보면대 물기를 닦을 수건이 필요하다.
+- 임재혁, B안의 좋은 점: 당일에는 이동이 없어 현장에서 시간 여유가 생긴다. 보관실 이용료 3000원은 큰돈이 아니다.
+- 임재혁, B안의 걱정: 3000원은 남은 예상 지출에 아직 들어 있지 않다. 전날 누가 공연장에 물품을 가져다 둘지 정해야 하고, 그 작업은 전날 일이므로 당일 일정에 넣으면 안 된다. 보관실은 다른 단체도 함께 쓰는 곳이라, 보관 중 분실이나 파손이 생기면 공연장이 어디까지 책임지는지 아직 모른다.
+- 지휘자 서면 메모: &quot;악보는 전날 연습 뒤에도 고칠 곳이 생길 수 있다. 어느 방식이든 당일 확인은 꼭 해 달라.&quot; 어느 안을 고르라는 의견은 아니었다.
+- 신유나가 덧붙인 점: B안이라도 악보 확인 6분은 그대로 든다. &#x27;B안이면 확인이 필요 없다&#x27;는 식으로 일정표에 적지 않도록 주의한다.
+
+## 안건 5. 운반 방식 선택 [보류]
+
+결과
+- A안과 B안 가운데 무엇을 고를지는 정하지 않았다.
+- 다음 회의 전까지 안내문, 일정표, 예산 장부 어디에도 한 안을 확정으로 쓰지 않는다. 일정표 초안은 두 안을 나란히 두고, 운반 방식에 따라 달라지는 칸은 비워 둔다.
+
+보류 이유
+- 공연장 무대 뒤 보관실을 전날 언제부터 쓸 수 있는지 공연장 회신이 없다. 하경태 주임은 &quot;행사 날짜가 정해져야 보관실 일정을 알려 줄 수 있다&quot;고 했다.
+- 보관실 이용료 3000원을 예상 지출에 넣을지 회계 확인이 필요하다.
+- 보관 중 사고가 났을 때 책임 범위가 확인되지 않았다.
+- 두 참석자의 의견이 한쪽으로 모이지 않았다. 신유나는 &quot;어느 쪽이 낫다고 지금 말할 근거가 부족하다&quot;, 임재혁은 &quot;돈은 B안이 조금 들지만 그것만으로 고를 일은 아니다&quot;라고 말했다.
+
+다음 회의에서 다시 볼 것
+- 공연장 회신(보관실 사용 가능 시간, 책임 범위).
+- 예산 장부에서 3000원을 어떻게 다룰지.
+- A안일 때 날씨 대비물이 따로 필요한지, 필요하면 새 구매인지 기존 비품인지.
+
+## 안건 6. 예산 [결정]
+
+결과
+- 승인 예산 상한은 250000원이다(단 운영위원회 승인, 9월 2일).
+- 실제 지급액은 118000원이다.
+- 남은 운영 예상 지출은 96000원이다.
+- 상한은 실제 지출이 아니며, 남은 예상은 이미 지급한 돈이 아니다.
+- B안 비용 3000원은 남은 예상 지출에 아직 들어 있지 않다.
+- 환불이나 지원금의 추가 입금은 확인하지 않았다.
+
+임재혁의 장부 보고(9월 14일 기준)
+- 실지급 118000원의 내역: 연주곡 악보 구입 52000원(9월 4일), 악보 복사와 제본 23000원(9월 8일), 포스터와 현수막 인쇄 28000원(9월 9일), 연습실 9월분 사용료 분담금 15000원(9월 1일).
+- 남은 예상 96000원의 내역: 공연장 피아노 조율 45000원, 공연장 관리 실비 40000원, 무대 소모품(자리 표시 테이프, 무선 마이크 건전지, 명찰 끈) 11000원.
+- 프로그램 안내지 인쇄는 견적만 받아 보기로 했고 예상 지출에 넣지 않았다(안건 10).
+- 지난해 가을 연주회 때 관객 한 분이 낸 후원금이 장부에 &#x27;지원금&#x27;으로 잘못 적혀 승인 상한과 섞여 보인 일이 있었다. 이번에는 입금이 확인된 돈만 적고, 들어올 것 같은 돈은 적지 않는다.
+
+논의
+- 신유나가 &quot;상한까지 여유가 있으니 B안 비용은 걱정하지 않아도 되지 않느냐&quot;고 물었다. 임재혁은 상한은 쓸 수 있는 한도일 뿐 손에 남은 돈이 아니고, 3000원을 쓰기로 하면 예상 지출 항목에 새로 올린 뒤 상한 안에 드는지 장부로 다시 맞춰 봐야 한다고 답했다. 그 계산은 방식이 정해진 뒤 임재혁이 장부로 한다.
+- 임재혁이 장부 칸을 셋으로 나눠 쓰기로 했다. 승인 상한, 실제 지급, 남은 예상. 같은 돈이 두 칸에 동시에 적히지 않게 하고, 지급이 끝나면 예상 칸에서 지우고 지급 칸으로 옮긴다.
+
+## 안건 7. 참가 조건 [결정]
+
+결과
+- 사전 등록을 기본으로 한다.
+- 예외: 좌석이 남으면 현장 입장을 허용한다. 이 예외는 현재 허용된 상태다.
+- 이 예외는 나중에 취소될 수 있다. 취소 통지가 오면 그때부터 이전 예외를 계속 쓰지 않는다.
+- 문의처는 공연 운영 담당 신유나다. 문의 연락처(전화, 메일)는 아직 정하지 않았다(미정).
+- 관객은 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다.
+- 번호표나 명찰을 받았다는 사실이 안내를 들었다는 뜻은 아니다.
+
+논의
+- 예외가 취소될 수 있는 이유: 하경태 주임이 9월 11일 통화에서, 공연장이 정원 관리를 위해 입장 명단을 미리 받는 방식을 검토하고 있다고 했다. 결정되면 공연장에서 알려 주기로 했다. 그 전까지는 예외가 살아 있다.
+- 현장 입장을 받을 때의 순서: 사전 등록 관객의 입장을 먼저 받고, 남은 좌석 안에서만 현장 관객을 들인다. 정원 60명을 넘기지 않는다.
+- 일찍 온 관객: 지난 회차에 일찍 온 관객이 설치 중인 객석에 들어와 앉아 있어서 보면대를 옮기다 부딪힐 뻔했다. 이번에는 접수 전에는 객석과 무대 쪽 문을 닫아 둔다. 건물 현관 안쪽 복도 의자에서 기다릴 수 있는지는 공연장에 묻기로 했다(미정).
+- 번호표: 지난 회차에 번호표를 받은 관객이 &quot;촬영 금지라는 말은 못 들었다&quot;며 공연 중 휴대전화를 들었던 일이 있다. 번호표를 건넨 것과 안내를 한 것은 별개다. 접수 때 촬영 규정은 말로 한 번 더 알린다.
+
+## 안건 8. 위험 — 입장 안내 자리를 비울 위험 [결정]
+
+결과
+- 접수가 시작된 뒤에는 담당자가 입장 안내 자리(로비 접수대)를 비울 수 없다.
+- 자리를 비워야 하는 일이 있으면 접수가 시작되기 전에 끝내고 돌아온다.
+- 이 위험을 일정표와 안내문 검토의 기준으로 삼는다. 일정표에 접수 시작 뒤 담당자가 다른 곳에 가 있는 줄이 있으면 그 일정표는 고친다.
+
+지난 회차 사례
+- 지난해 가을 정기 연주회 때 접수 도중 대기실에서 &quot;알토 악보 한 쪽이 빠졌다&quot;는 연락이 와서 접수 담당이 자리를 떠났다. 돌아올 때까지 접수대가 비어 사전 등록 관객과 현장 입장 관객이 섞였고, 명단 확인 없이 들어간 관객이 생겼다. 나중에 빈자리를 세어 보니 맞지 않아 종료 뒤 한참 동안 명단을 다시 맞춰 봐야 했다.
+
+1인 운영에서 자리를 비우게 되는 경우(회의에서 함께 꼽아 봄)
+- 악보나 물품이 빠져 연습실을 다시 다녀와야 하는 경우. 운반 방식이 A안이 되면 특히 조심해야 한다.
+- 단원 대기실에서 부르는 경우.
+- 공연장 관리실에서 부르는 경우(조명, 냉방, 출입문).
+- 담당자 개인 용무.
+
+대책
+- 접수 전 점검표를 만든다(신유나). 물품 누락은 접수 전에 잡는다.
+- 접수가 시작된 뒤에는 대기실 호출에 응하지 않는다는 점을 지휘자에게 미리 알린다. 대기실 안의 일은 무대 쪽에서 해결하기로 지휘자 메모에도 적혀 있다.
+- 접수 시작 뒤에 발견된 물품 문제는 종료 뒤 회수 때 처리하거나 있는 물품으로 그대로 진행한다.
+- 공연장 관리실 쪽 확인(냉방, 조명)은 도착 직후에 끝낸다.
+
+## 안건 9. 운영 세부 [결정]
+
+결과
+- 공연 중 촬영은 금지하고 휴식 시간에만 로비에서 사진을 허용한다.
+- 생수는 단원용이며 관객에게는 배부하지 않는다.
+- 앙코르 곡 여부는 지휘자가 공연 당일 결정하므로 안내문에 적지 않는다.
+
+근거와 논의
+- 지휘자 서면 메모 원문 가운데 해당 부분: &quot;공연 중에 객석에서 휴대전화 화면이 켜지면 무대에서 바로 보입니다. 단원들이 시선을 놓칩니다. 사진은 휴식 때 로비에서 찍도록 해 주세요. 생수는 단원 몫으로만 준비해 주세요. 앙코르는 당일 단원 목 상태를 보고 제가 정하겠습니다.&quot;
+- 촬영: 지난 회차에는 &#x27;촬영 자제&#x27;라고만 적어 해석이 갈렸다. 이번에는 &#x27;금지&#x27;와 &#x27;휴식 시간 로비 사진 허용&#x27;을 나눠 적는다.
+- 생수: 지난 회차에 로비 탁자에 둔 단원 생수를 관객이 가져가 2부 시작 전에 단원 몫이 모자랐다. 이번에는 단원 대기실에만 둔다.
+- 앙코르: 지난해 안내문에 앙코르 곡명을 적었다가 당일 부르지 않아 &quot;왜 안 했느냐&quot;는 문의가 여러 건 왔다. 안내문에서는 앙코르를 언급하지 않는다.
+
+## 안건 10. 물품과 장비 [결정]
+
+결과
+- 물품은 현장 대조 뒤 배부한다.
+- 예비 물품을 정원에 더하지 않으며, 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않는다.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인한다.
+- 새 물품 구매는 아직 승인하지 않았으므로 일정이나 예산에 실제 구매로 넣지 않는다.
+
+물품별 현재 상태(9월 14일 신유나 확인)
+- 보면대: 연습실 보관분. 지난 연습 때 한 대의 접이 나사가 헐거워 따로 빼 두었다. 고칠 수 있는지 다음 연습 전에 본다.
+- 악보 묶음: 9월 8일 복사와 제본을 마쳤다. 파트별 겉표지 색이 다르다(소프라노 분홍, 알토 노랑, 테너 하늘, 베이스 회색).
+- 관객 번호표: 지난 회차에 쓰고 남은 종이 번호표가 있다. 번호표 수와 관객 수를 같은 값으로 보지 않는다.
+- 단원 명찰: 지난 회차 것을 다시 쓴다. 이름이 바뀐 단원은 없다.
+- 접수대 탁자와 의자: 공연장 비품을 빌린다. 우리 물품이 아니므로 반출입 대장에는 &#x27;공연장 비품&#x27;으로 따로 적는다.
+- 프로그램 안내지: 인쇄소에 견적만 묻기로 했다. 주문은 승인 전이다.
+
+논의
+- 임재혁이 &quot;예비 번호표까지 세면 정원보다 많은데 그만큼 받아도 되느냐&quot;고 농담처럼 물었다. 신유나는 번호표가 남는다고 관객을 더 받는 것이 아니며, 정원은 60명 그대로라고 확인했다.
+
+## 안건 11. 확정하지 않은 항목 [보류]
+
+결과
+- 추가 지원 인력: 정하지 않았다.
+- 관객 좌석 배치표: 정하지 않았다. 관객 좌석 배치표는 이번 자료에 포함되지 않는다.
+- 개별 참가자의 편의 지원: 정하지 않았다.
+- 필요한 값이 없으면 &#x27;미정&#x27; 또는 &#x27;미기재&#x27;로 구별해 안내한다. 예상만으로 이름이나 연락처를 만들지 않는다.
+
+배경
+- 추가 지원 인력: 조민서 외에 따로 부탁한 사람은 없다. 단장이 아는 사람을 더 알아보겠다고 했으나 이름이 나온 사람은 없다.
+- 좌석 배치표: 사전 등록이 마감되어야 만들 수 있다. 배치 기준(동반 관객을 붙여 앉히는지, 통로 쪽 자리를 누구에게 먼저 주는지)도 아직 논의하지 않았다.
+- 편의 지원: 9월 초에 보행 보조기를 쓰는 관객이 통로 쪽 자리를 받을 수 있는지 물어 왔고, 어린 자녀를 데려와도 되는지 묻는 문의도 있었다. 어떻게 지원할지 정하지 않아 문의한 분들께는 &quot;정해지면 알려 드리겠다&quot;고만 답해 두었다.
+- 행사 날짜: 안건은 아니지만 함께 적는다. 공연장 협의가 끝나지 않아 미정이다.
+
+## 안건 12. 관객 안내문 [결정]
+
+결과
+- 관객 안내문에는 일시, 접수, 참여 조건, 문의처가 들어가야 한다.
+- 아직 정하지 않은 추가 날짜나 비용 면제를 약속하지 않는다.
+- 좌석이 남으면 현장 입장을 허용하는 예외는 현재 허용된 상태로 적되, 나중에 취소 통지가 오면 이전 예외를 계속 쓰지 않는다.
+- 홍보 문구보다 관객이 해야 할 행동을 읽기 쉽게 적는다.
+- 초안은 신유나가 쓰고, 돈이 나오는 문구는 임재혁이 확인한다. 날짜 칸과 연락처 칸은 &#x27;미정&#x27;으로 둔다.
+
+논의
+- 지난 회차 안내문 끝에 &quot;다음 공연에는 무료로 초대합니다&quot;라는 문구가 들어갔는데, 단 운영위원회에서 정한 적이 없는 약속이라 나중에 사과 문자를 보낸 일이 있다. 이번에는 정하지 않은 혜택은 쓰지 않는다.
+- 신유나는 안내문 첫머리에 &#x27;언제 오면 되는지&#x27;와 &#x27;예약했는지 확인하는 방법&#x27;을 두고, 곡 소개 같은 홍보 문구는 뒤로 미루자고 했다. 임재혁도 같은 의견이었다.
+
+## 안건 13. 마감과 회수 [결정]
+
+결과
+- 18:30 이후에는 물품을 회수하고 참가 기록을 마감한다.
+- 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다. 회수가 실제로 끝난 시각을 따로 적는다.
+- 당일 끝내지 못한 후속 확인은 담당과 다음 확인 대상을 남긴다.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+
+논의
+- 지난 회차 일정표에는 &#x27;18:30 종료, 회수 완료&#x27;가 한 줄로 적혀 있었지만 실제로는 관객 배웅과 보면대 접기에 시간이 더 걸렸다. 이번에는 종료와 회수 완료를 다른 줄로 둔다.
+- 참가 기록은 접수 명단 한 곳에만 표시한다. 번호표 회수 수와 명단 표시 수를 따로 세어 더하지 않는다.
+
+## 안건 14. 담당자 인계와 계획 변경 [결정]
+
+결과
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오도록 한다(안건 8과 같은 원칙).
+- 접수 시작 후에는 자리를 비워 둘 수 없다.
+- 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다.
+- 바뀐 내용은 변경 통지 공문으로 단원과 관계자에게 알리고, 회의록에는 바뀌기 전 값과 바뀐 뒤 값을 함께 적는다.
+
+논의
+- 임재혁이 지난해 일정을 바꿀 때 접수 시각 하나를 고치면서 다른 칸까지 손대 공연 시작 시각이 잘못 나간 일을 들었다. 이번에는 변경 공문에 &#x27;바뀌는 것&#x27;과 &#x27;그대로인 것&#x27;을 나눠 적는다.
+
+## 할 일
+
+- 신유나: 공연장 보관실 사용 가능 시간과 책임 범위 회신 받기 / 접수 전 점검표 초안 / 관객 안내문 초안 / 행사 날짜가 정해지면 조민서에게 확답 다시 묻기 / 헐거운 보면대 확인 / 일찍 온 관객 대기 장소 공연장에 묻기
+- 임재혁: 보관실 이용료 3000원을 장부에 어떻게 다룰지 검토 / 프로그램 안내지 견적 받기 / 운영위원회에 오늘 회의 결과 보고
+- 기한: 다음 회의 전까지
+
+## 다음 회의
+
+- 9월 22일(화) 19:00 예정, 같은 장소.
+- 다룰 것: 운반 방식 선택(안건 5), 공연장 회신 내용, 안내문 초안 검토, 예외 조건에 대한 공연장 결정이 나왔다면 그 반영.
+
+## 회의에서 참고한 기록
+
+- [1] 공연장 점검 메모: 신유나가 9월 11~12일에 적은 메모. 행사·접수 시각, 인력, 준비 조건.
+- [2] 합창단 예산 메모: 임재혁이 9월 14일 기준으로 적은 메모. 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+작성 9월 14일 21:30 임재혁 / 확인 9월 15일 09:10 신유나(고칠 곳 없음)
+
+---
+
+## 붙임 1. 지휘자 백승원 서면 메모(9월 13일 받음)
+
+회의에 오지 못해 몇 가지만 적어 보냅니다.
+
+- 공연 중 촬영: 무대에서 객석의 휴대전화 화면이 생각보다 잘 보입니다. 지난번에 앞줄에서 화면이 켜질 때마다 소프라노 쪽 시선이 흔들렸습니다. 공연 중에는 막아 주시고, 사진은 휴식 때 로비에서 찍게 해 주시면 좋겠습니다.
+- 생수: 단원 몫만 준비해 주세요. 대기실과 무대 옆에 두면 됩니다. 지난번처럼 로비에 두면 관객분들이 가져가십니다.
+- 앙코르: 당일 단원들 목 상태를 보고 제가 정합니다. 안내문에는 적지 말아 주세요.
+- 곡 순서: 이번 주 연습 끝나고 정하겠습니다. 중간 휴식은 한 번 둡니다. 휴식 시각은 곡 순서가 나온 뒤에 알려 드리겠습니다.
+- 악보: 전날 연습 뒤에도 고칠 곳이 생길 수 있습니다. 운반을 어떻게 하시든 당일에 한 번 확인해 주세요.
+- 대기실: 공연 전 대기실 일은 무대 쪽에서 해결하겠습니다. 접수 시작 뒤에는 운영 담당을 부르지 않도록 단원들에게도 말해 두겠습니다.
+
+## 붙임 2. 단장 김옥희 통화 메모(9월 12일, 받은 사람 신유나)
+
+- 통화 시각: 저녁 무렵, 10분 남짓.
+- 예비 인력: 조민서에게 연락해 보라고 함. 조민서는 지난해까지 알토 단원이었고, 지난 연주회 때 로비 안내를 도운 적이 있다. 단장이 직접 부탁하지는 않았고 신유나가 연락하기로 함.
+- 관객 줄: 지난해 접수대가 비었을 때 로비 밖 계단까지 줄이 섰던 일을 다시 꺼냄. 올해는 그런 일이 없게 해 달라는 당부.
+- 공연장: 단장이 공연장 사용 신청서를 낸 사람이라, 날짜 협의 결과는 단장에게 먼저 올 수 있다. 오면 바로 신유나에게 넘기기로 함.
+- 예산: 운영위원회가 정한 상한 안에서 쓰되, 새로 사는 물건은 회의에서 먼저 이야기하고 사라고 함.
+- 단장은 이번에 무대에 서므로 당일 운영 일은 맡지 않는다고 스스로 말함.
+
+## 붙임 3. 지난해 가을 연주회와 이번 조건 비교(임재혁 작성)
+
+- 진행 인력: 지난해에는 접수 담당과 무대 담당이 따로 있었다. 이번에는 확정 진행 인력이 1명이다. 지난해 방식(접수와 무대를 나눠 맡는 방식)을 그대로 옮길 수 없다.
+- 접수: 지난해에는 접수를 공연 30분 전에 열었다는 기록과 20분 전에 열었다는 기록이 둘 다 있어 어느 쪽이 맞는지 분명하지 않다. 이번에는 회의에서 16:40으로 정했고 그 시각만 쓴다.
+- 운반: 지난해에는 단원 차량으로 보면대를 옮겼다. 이번에는 단원을 운영에 쓰지 않으므로 A안 또는 B안 가운데 하나로 한다(선택은 보류).
+- 촬영: 지난해 &#x27;촬영 자제&#x27;에서 이번 &#x27;공연 중 촬영 금지, 휴식 시간 로비 사진 허용&#x27;으로 분명하게 바꾼다.
+- 생수: 지난해 로비 비치에서 이번 단원 대기실 비치로 바꾼다. 관객 배부는 하지 않는다.
+- 앙코르: 지난해 안내문에 곡명을 적었다. 이번에는 적지 않는다.
+- 현장 입장: 지난해에는 현장 입장 조건이 따로 없어 늦게 온 관객과 예약 관객이 섞였다. 이번에는 &#x27;좌석이 남으면 현장 입장 허용&#x27;이라는 예외로 조건을 붙였다. 이 예외는 공연장 결정에 따라 취소될 수 있다.
+- 회수: 지난해 &#x27;종료와 회수 완료&#x27;를 한 줄로 적었다. 이번에는 나눈다.
+
+## 붙임 4. 회의에서 나온 그 밖의 위험과 대응 방향
+
+이 목록은 회의 중 지나가듯 나온 걱정을 모은 것이다. 대응 방향은 두 참석자가 그 자리에서 동의한 정도이며, 따로 [결정]으로 올린 것은 아니다.
+
+- 연습실 승강기 대기: 주민센터 승강기가 저녁에 붐빌 수 있다. 운반 방식이 A안이 되면 실제로 걸리는 시간을 한 번 더 재 본다.
+- 손수레 바퀴: 9월 12일 실측 때 보도블록에 한 번 걸렸다. 바퀴 상태는 신유나가 연습 날 확인한다.
+- 비: 행사 날짜를 몰라 예보도 알 수 없다. A안이면 비닐 덮개가 있어야 한다. 연습실에 지난해 쓰던 덮개가 있는지 먼저 찾아본다(새로 사는 것은 승인 전).
+- 피아노 조율: 공연장 피아노 조율은 남은 예상 지출에 들어 있다. 조율 시각이 담당자 설치 시간과 겹치면 무대 쪽 작업 순서를 바꿔야 할 수 있다. 공연장에 조율 시각을 묻는다.
+- 냉방: 공연장 무대는 조명을 켜면 더워진다는 이야기가 있다. 도착 직후 관리실에 냉방을 확인한다(안건 8에서 말한 &#x27;도착 직후 확인&#x27;에 포함).
+- 늦게 오는 관객: 공연 시작 뒤에 오는 관객은 곡과 곡 사이에만 객석에 들어가게 한다. 담당자는 접수대에서 안내한다. 이 문구를 안내문에 넣을지는 초안을 보고 정한다.
+- 로비 혼잡: 휴식 시간에 로비 사진이 허용되면 로비가 붐빌 수 있다. 접수대 위치를 로비 출입문에서 조금 떨어뜨려 두는 방안을 공연장 사진을 보며 이야기했다.
+- 명단 분실: 종이 명단 한 부만 들고 가면 잃어버렸을 때 대신할 것이 없다. 명단은 종이 한 부와 신유나 휴대전화 사진 한 장으로 둔다. 사진은 행사 뒤 지운다.
+
+## 회의 뒤 덧붙임(신유나, 9월 15일 오전)
+
+- 회의록 확인 중 안건 3 실측 기록에 &#x27;주민센터 정문&#x27;이라고 적힌 곳을 다시 봤다. 실제로는 주민센터 옆 출입문에서 출발했다. 시간 값(편도 10분)은 그대로이고 출발 문 이름만 다르다. 원본은 고치지 않고 여기에 적어 둔다.
+- 하경태 주임에게 보관실 회신을 다시 부탁하는 문자를 보냈다. 아직 답은 없다. 운반 방식 선택은 회의록 그대로 보류 상태다.
+- 조민서에게는 날짜가 정해지기 전까지 따로 연락하지 않기로 했다. 확답이 없는 상태이므로 근무표 초안에는 빈칸도 만들지 않는다.
+
+## 붙임 5. 회의 중 오간 질문과 답(기록자 메모)
+
+본문 안건에 넣기에는 작은 질문들이라 따로 적는다. 답은 그 자리에서 나온 말이며, 새로 정한 규칙은 없다.
+
+- 임재혁: 정원 60명에 단원 가족도 들어가나? / 신유나: 객석에 앉는 사람은 모두 관객이므로 정원 안에 든다. 단원 가족이라고 따로 자리를 빼 두지 않는다.
+- 임재혁: 부모와 함께 온 어린이도 한 사람으로 세나? / 신유나: 좌석을 하나 쓰면 한 사람으로 센다. 어린 자녀 동반 문의는 편의 지원 항목이라 아직 방식이 정해지지 않았다(안건 11).
+- 임재혁: 사전 등록을 했는데 명단에 이름이 없다고 하는 관객이 오면? / 신유나: 등록 확인 문자나 화면을 보여 달라고 한다. 확인되지 않으면 예외 조건(좌석이 남으면 현장 입장)에 따라 사전 등록 관객 입장이 끝난 뒤에 안내한다.
+- 임재혁: 휴식 시간에 단원도 로비로 나가 관객과 사진을 찍나? / 신유나: 단원 동선은 지휘자가 정한다. 운영 쪽에서는 로비 사진이 휴식 시간에만 허용된다는 점만 지킨다.
+- 임재혁: 접수 전에 일찍 온 관객이 화장실을 쓰겠다고 하면? / 신유나: 화장실은 로비 바깥 복도에 있어 객석을 지나지 않는다. 쓸 수 있는지는 공연장에 함께 묻는다.
+- 임재혁: 문의 연락처를 신유나 개인 번호로 적어도 되나? / 신유나: 개인 번호를 안내문에 싣는 것은 원하지 않는다. 단 공용 번호를 새로 만들지, 단 게시판 문의 글로 받을지 아직 정하지 않았다. 안내문에는 &#x27;미정&#x27;으로 둔다.
+- 신유나: 운영위원회에 B안 비용을 미리 말해 둘까? / 임재혁: 방식이 정해지지 않았으니 &#x27;선택에 따라 보관실 이용료가 생길 수 있다&#x27;는 정도로만 보고한다. 금액을 승인받은 것처럼 말하지 않는다.
+- 신유나: 안내문은 어디에 게시하나? / 임재혁: 지난해처럼 단 게시판과 주민센터 1층 게시판 두 곳. 게시 시점은 날짜가 정해진 뒤다.
+- 임재혁: 조민서 확답은 언제까지 기다리나? / 신유나: 기한을 따로 정하지 않았다. 확답이 없으면 1인 운영 그대로 간다. 근무표는 확정 인력 1명 기준으로만 만든다.
+
+## 붙임 6. 운영위원회 보고 문안(임재혁, 9월 15일 단원 대화방 게시 예정)
+
+정기 연주회 제1차 준비 회의 결과를 알립니다. 행사는 17:00부터 18:30까지이고 접수는 16:40에 엽니다. 행사 날짜는 공연장과 협의 중이라 아직 정하지 못했습니다. 당일 운영은 공연 운영 담당 신유나 한 사람이 맡고, 관객 정원은 60명입니다. 악보와 보면대를 옮기는 방식은 두 가지 안을 놓고 다음 회의에서 다시 이야기합니다. 예산은 승인 상한 안에서 쓰고 있으며, 방식에 따라 생길 수 있는 보관실 이용료는 아직 예상 지출에 넣지 않았습니다. 공연 중 촬영은 금지이고 사진은 휴식 시간에 로비에서만 찍을 수 있다는 점을 가족분들께도 미리 전해 주시기 바랍니다. 단원 생수는 대기실에 둡니다.
+
+## 붙임 7. 접수 전 점검표에 넣을 항목 후보(신유나 메모, 확정 전)
+
+회의에서 점검표를 만들기로 했으므로 떠오르는 대로 적어 둔다. 순서와 문구는 초안을 쓰면서 다시 본다.
+
+- 접수 명단 종이 한 부, 휴대전화에 찍어 둔 명단 사진
+- 관객 번호표 묶음(남은 수는 관객 수와 따로 적음)
+- 촬영 금지 안내판(휴식 시간 로비 사진 허용 문구 함께)
+- 볼펜 두 자루, 명단 표시용 형광펜
+- 접수대 탁자 위치: 로비 출입문에서 조금 떨어진 기둥 옆
+- 객석 문과 무대 쪽 문이 접수 전까지 닫혀 있는지
+- 무대 보면대 수와 악보 묶음 파트별 수를 반출 기록과 대조했는지
+- 파손 의심 보면대를 무대에 올리지 않고 따로 빼 두었는지
+- 단원 생수가 대기실에 있는지(로비에 두지 않음)
+- 관리실에 냉방과 무대 조명 확인을 마쳤는지
+- 담당자 휴대전화 충전 상태
+- 자리를 비워야 할 일이 남아 있지 않은지(남아 있으면 접수 전에 끝냄)
+
+## 회의록 배포와 보관
+
+- 배포: 단장 김옥희, 지휘자 백승원에게 9월 15일 단원 대화방 개인 메시지로 보냄. 단원 전체에는 붙임 6 보고 문안만 올린다. 회의록 본문에는 예약 문의를 한 관객의 사정(보행 보조기, 자녀 동반)이 들어 있어 전체 공개하지 않는다.
+- 보관: 연습실 서류함 두 번째 칸 &#x27;정기 연주회&#x27; 파일철에 종이 한 부. 신유나와 임재혁이 각자 파일로 한 부씩 가진다.
+- 고칠 일이 생기면: 이 원본은 손대지 않는다. 회의 뒤 덧붙임처럼 아래에 날짜와 이름을 붙여 적거나, 다음 판본 운영 확인 기록에 옮긴다.
+- 열람 요청: 운영위원회 위원이 요청하면 서류함 원본을 보여 준다. 사진을 찍어 가는 것은 관객 개인 사정이 적힌 부분을 가린 뒤에만 한다.
+[자료 끝]
+
+노을합창단의 정기 연주회 운영을 도와주세요. 이 대화 전체에서는 존댓말과 차분한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 15:30, 행사 17:00~18:30, 접수 16:40, 인력 1명, 정원 60명입니다. A안은 당일 연습실에서 악보와 보면대를 직접 옮기는 방식(편도 10분, 악보 확인 6분)이고 비용은 없습니다. B안은 전날 공연장 무대 뒤 보관실에 두는 방식이며 보관실 이용료 3000원, 당일 악보 확인 6분입니다. 설치는 둘 다 25분입니다. 승인 상한 250000원, 실지급 118000원, 남은 예상 96000원에 B안 비용은 아직 미포함입니다. 먼저 붙여 넣은 회의록에서 이미 결정된 사항과 아직 보류인 사항을 나눠 확인해 주세요. A안과 B안 가운데 무엇을 고를지는 아직 정하지 마세요.</pre><b>턴 1 답변</b><pre class="rs-pre rs-ans">회의록을 기준으로 이미 결정된 사항과 보류인 사항을 나눠 정리했습니다. 운반 방식(A안·B안)은 말씀하신 대로 고르지 않았습니다.
+
+## 이미 결정된 사항
+
+**일정과 인력 (안건 1·2)**
+- 담당자 현장 도착은 15:30, 접수는 16:40, 행사는 17:00~18:30입니다.
+- 확정 진행 인력은 신유나 1명입니다. 정원은 60명이며, 이 두 값은 한 줄에 섞어 쓰지 않습니다.
+- 예비 인력 조민서 님은 확답이 없어 근무표에 이름이나 빈칸을 만들지 않습니다. 관객에게 접수를 맡기는 안은 채택하지 않았습니다.
+
+**준비 동선 (안건 3)**
+- 연습실에서 공연장까지는 편도 10분이고, 악보 확인은 6분, 현장 설치는 25분입니다. 편도 시간을 왕복처럼 쓰지 않습니다.
+- 설치가 끝나기 전에 접수를 여는 것은 승인되지 않았습니다.
+
+**운반 방식의 내용 (안건 4)**
+- 두 안의 조건만 확정되었습니다. A안은 당일 운반(비용 없음, 편도 10분, 확인 6분), B안은 전날 보관(이용료 3000원, 확인 6분)입니다. 설치는 두 안 모두 25분입니다.
+- 어느 안이든 당일 악보 확인 6분은 빠지지 않습니다.
+
+**예산 (안건 6)**
+- 승인 상한은 250000원, 실지급은 118000원, 남은 예상은 96000원이며 세 값은 서로 다른 칸으로 관리합니다.
+- B안 비용 3000원은 아직 남은 예상에 들어 있지 않습니다.
+
+**운영 규칙 (안건 7~10, 12~14)**
+- 사전 등록이 기본이고, 좌석이 남으면 현장 입장을 허용합니다. 이 예외는 공연장 결정에 따라 취소될 수 있습니다.
+- 접수 시작 후에는 담당자가 접수대를 비울 수 없습니다. 자리를 비울 일은 접수 전에 끝냅니다.
+- 공연 중 촬영은 금지이고 사진은 휴식 시간 로비에서만 허용합니다. 생수는 단원용으로 대기실에만 둡니다. 앙코르는 안내문에 쓰지 않습니다.
+- 새 물품 구매는 승인 전입니다. 안내문에는 확정되지 않은 혜택을 약속하지 않습니다.
+- 18:30 이후 물품을 회수하고 참가 기록을 마감하며, 종료 시각과 회수 완료 시각은 따로 적습니다.
+- 계획이 바뀌면 바뀐 조건만 반영하고, 변경 공문에는 &#x27;바뀌는 것&#x27;과 &#x27;그대로인 것&#x27;을 나눠 적습니다.
+
+## 아직 보류인 사항
+
+**운반 방식 선택 (안건 5)**
+- A안과 B안 중 무엇을 고를지는 정하지 않았습니다. 안내문, 일정표, 장부에 한 안을 확정으로 쓰지 않으며, 일정표 초안에서는 운반 방식에 따라 달라지는 칸을 비워 둡니다.
+- 보류 이유는 다음과 같습니다.
+  - 공연장의 보관실 사용 가능 시간 회신이 없습니다.
+  - 3000원을 예상 지출에 넣을지 회계 확인이 필요합니다.
+  - 보관 중 사고가 났을 때 책임 범위를 모릅니다.
+  - 두 참석자의 의견이 모이지 않았습니다.
+- 다음 회의(9월 22일 예정)에서 공연장 회신, 장부 처리, A안의 날씨 대비물 문제를 다시 봅니다.
+
+**그 밖의 보류 (안건 11 등)**
+- 행사 날짜는 공연장 협의가 끝나지 않아 미정입니다.
+- 추가 지원 인력, 관객 좌석 배치표, 보행 보조기·어린 자녀 동반 같은 개별 편의 지원은 정하지 않았습니다.
+- 문의 연락처와 프로그램 안내지 인쇄(견적만 진행)도 미정입니다.
+- 일찍 온 관객의 대기 장소와 화장실 사용 여부는 공연장에 문의할 예정입니다.
+- 휴식 시작 시각은 지휘자가 곡 순서를 정한 뒤에 알 수 있습니다.
+
+## 확인이 필요한 점
+
+<mark class="rs-mk"><sup>1</sup>회의록은 9월 14일 기준이고 오늘은 10월 22일입니다.</mark> 9월 22일 2차 회의 결과나 공연장 회신, 날짜 확정 여부는 이 자료에 없습니다. 그 사이 달라진 내용이 있다면 알려 주시면 변경 사항만 반영해 정리하겠습니다. 회의록 원본은 고치지 않는 원칙이므로, 변경분은 별도 확인 기록이나 변경 공문에 적어야 합니다.
+
+운반 방식은 정하지 않은 상태로 두었습니다. 다음으로 일정표 초안이나 관객 안내문 초안이 필요하시면, 두 안을 나란히 두고 미정 칸을 비운 형태로 만들어 드리겠습니다.</pre></div><div class="rs-turn"><b>턴 2 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 노을합창단 정기 연주회 사전 리허설 현장 점검 일지 및 측정 기록
+
+- 대상 1: 9월 19일(토) 공연장 사전 리허설. 공연장 측이 시설 점검을 겸해 무대 사용을 허락한 시간(14:00~17:00). 행사 당일과는 다른 날이며, 이날은 공연장이 13:50에 문을 열었다.
+- 대상 2: 9월 21일(월) 연습실 정기 연습(19:30~21:30). 같은 곡을 다른 조건에서 다시 들어 보려고 비교 기록을 남겼다.
+- 작성: 공연 운영 담당 신유나(현장 기록, 온습도와 소리 크기 측정)
+- 측정 보조: 반주자 정다온(조율기 앱 값 확인)
+- 메모 제공: 지휘자 백승원, 소프라노 파트장 윤서경, 알토 파트장 남궁미라, 테너 파트장 차민호, 베이스 파트장 도현수, 단 회계 담당 임재혁(베이스 단원으로 참여)
+- 배포: 지휘자, 반주자, 파트장 네 명, 단장 김옥희. 단원 전체 공개는 지휘자 판단에 맡김.
+
+## 기록 원칙
+
+- 본 것, 잰 것, 들은 말을 시각 순서대로 적는다. 나중에 알게 된 내용을 앞 시각에 끼워 넣지 않는다.
+- 왜 그렇게 되었는지에 대한 추정은 이 일지에 적지 않는다. 메모를 준 사람이 원인을 짐작해 말한 경우에는 &#x27;누구의 말&#x27;이라고 밝혀 그대로 옮기고, 기록자가 맞다 틀리다를 붙이지 않는다.
+- 숫자는 기계나 앱 화면에 나온 값을 그대로 옮긴다. 반올림한 곳은 따로 적는다.
+- 같은 날 같은 곡을 여러 번 불렀으므로 곡 이름 뒤에 &#x27;1회째·2회째&#x27;를 붙여 구별한다.
+
+## 측정 도구와 방법
+
+- 온습도: 연습실 비품 디지털 온습도계 두 개. 하나는 무대 왼쪽 피아노 옆 빈 보면대 위(무대 바닥에서 허리 높이), 하나는 객석 가운데 다섯째 줄 의자 등받이 위. 값은 기록 시각에 화면을 보고 적었다.
+- 끝음 비교: 무반주 곡마다 곡이 끝나 마지막 화음을 끄는 동안 반주자 정다온이 휴대전화 조율기 앱을 소프라노 쪽으로 향해 맨 윗소리를 잡았다. 같은 곡의 첫 화음도 같은 방법으로 잡았다. 앱 화면에는 기준 음에서 얼마나 떨어졌는지가 &#x27;센트&#x27; 단위로 나오며, 아래로 떨어지면 앞에 빼기표가 붙는다. 이 값을 그대로 옮겼다.
+- 곡 중간 값: 무반주 곡 세 곡에는 모두 중간쯤 길게 끄는 화음이 한 군데씩 있다. 이 화음도 같은 방법으로 잡았다(달빛 자장가 18마디, 새벽 종소리 24마디, 고요한 물 32마디).
+- 피아노 확인: 무반주 곡 시작 화음은 반주자가 피아노로 짧게 짚어 준다. 그 피아노 음 자체를 조율기 앱으로 따로 잡은 값을 적었다.
+- 소리 크기: 신유나 휴대전화의 소리 크기 측정 앱을 객석 다섯째 줄 가운데에 두고, 무반주 곡 마지막 화음 동안 화면에 나온 가장 큰 값을 적었다. 단위는 앱에 나온 그대로 &#x27;데시벨&#x27;.
+- 시간: 휴대전화 초시계. 곡 길이는 지휘자가 손을 올린 때부터 마지막 화음을 끊은 때까지.
+- 한계: 조율기 앱과 소리 크기 앱은 휴대전화 앱이라 정밀 장비가 아니다. 앱을 든 위치가 매번 조금씩 달랐다. 측정한 사람은 각각 한 명이다.
+
+## 9월 19일 무대 배치(기록자가 본 그대로)
+
+- 단원은 두 줄로 섰다. 객석에서 바라볼 때 왼쪽부터 소프라노, 알토, 테너, 베이스 순이다. 다만 알토 일부는 테너 옆 오른쪽 끝까지 이어져 섰다(인원 맞춤 때문이라고 지휘자가 말함).
+- 앞줄 앞에만 보면대를 놓았다. 뒷줄은 악보 묶음을 손에 들었다.
+- 피아노는 무대 왼쪽 앞. 반주자는 피아노 의자에 앉아 조율기 앱을 들었다.
+- 무대 뒤 반사판은 두 장 자리가 있는데, 이날은 왼쪽 한 장만 펴져 있었다(접힌 것을 안 것은 15:36). 오른쪽 끝에 선 단원들 뒤가 비어 있던 셈이다.
+- 무대 조명은 단원 머리 위 앞쪽에 몰려 있다. 앞줄이 조명 바로 아래에 선다.
+- 온습도계 하나는 피아노 옆 빈 보면대 위, 하나는 객석 다섯째 줄 가운데. 녹음기는 무대 앞 가운데 바닥.
+- 단원과 객석 첫 줄 사이에는 지휘대가 있다. 지휘대 위치는 바닥 테이프 표시 그대로 썼다.
+
+## 리허설 곡 순서(9월 19일 지휘자 배부)
+
+1부
+- ① 노을 길 — 피아노 반주
+- ② 들꽃 노래 — 피아노 반주
+- ③ 달빛 자장가 — 반주 없음
+- ④ 강 건너 저녁 — 피아노 반주
+
+2부
+- ⑤ 바람의 집 — 피아노 반주
+- ⑥ 새벽 종소리 — 반주 없음
+- ⑦ 골목길 사계 — 피아노 반주
+- ⑧ 고요한 물 — 반주 없음
+
+이 순서는 리허설용이며 당일 곡 순서는 지휘자가 따로 정한다. 행사 당일 1부와 2부 사이에 휴식이 한 번 있다.
+
+## 9월 19일(토) 시각별 기록
+
+13:50 공연장 뒤 출입문 열림. 신유나 도착. 공연장 관리 담당 하경태 주임이 냉방을 켬. 무대 조명은 아직 꺼진 상태.
+
+13:58 온습도 첫 측정. 무대 24.6도, 습도 51%. 객석 23.9도, 습도 53%.
+
+14:00 단원 집합. 지휘자 포함 무대 위 인원 확인은 지휘자가 함. 기록자는 인원을 세지 않음.
+
+14:00~14:15 발성 연습. 반주자가 피아노로 음계를 짚어 줌.
+
+14:12 반주자가 피아노 &#x27;라&#x27; 음을 조율기 앱으로 확인. +1센트.
+
+14:15 공연장 측이 무대 조명을 공연 때와 같은 밝기로 켬. 하경태 주임 말: &quot;당일과 같은 조건으로 한 번 켜 보는 것&quot;.
+
+14:18 ① 노을 길(반주). 길이 5분 2초. 기록할 만한 일 없음.
+
+14:24 ② 들꽃 노래(반주). 길이 4분 40초.
+
+14:30 ③ 달빛 자장가 1회째(반주 없음). 반주자가 피아노로 시작 화음을 짚어 줌. 길이 4분 10초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -1센트
+- 18마디: -2센트
+- 끝 화음: -3센트
+- 끝 화음 소리 크기: 74데시벨
+- 지휘자는 곡이 끝난 뒤 &quot;좋다&quot;고만 하고 다음 곡으로 넘어감.
+
+14:36 ④ 강 건너 저녁(반주). 길이 5분 30초.
+
+14:43~14:58 지휘자가 ②의 가운데 부분을 세 번 반복 연습시킴. 단원들 서 있는 상태 그대로.
+
+15:00 온습도. 무대 26.1도, 습도 49%. 객석 24.3도, 습도 52%.
+
+15:03 ⑤ 바람의 집(반주). 길이 6분 5초.
+
+15:10 지휘자가 무대 쪽 냉방 바람 소리가 마이크 없이도 들린다며 하경태 주임에게 무대 쪽 송풍을 약하게 해 달라고 요청. 15:11 송풍 약하게 바뀜. 객석 쪽 냉방은 그대로.
+
+15:12 ⑥ 새벽 종소리 1회째(반주 없음). 길이 4분 48초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -2센트
+- 24마디: -5센트
+- 끝 화음: -9센트
+- 끝 화음 소리 크기: 75데시벨
+
+15:18 ⑦ 골목길 사계(반주). 길이 5분 15초.
+
+15:25 ⑧ 고요한 물 1회째(반주 없음). 길이 5분 20초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -1센트
+- 32마디: -7센트
+- 끝 화음: -14센트
+- 끝 화음 소리 크기: 73데시벨
+
+15:30 지휘자가 곡이 끝난 뒤 처음으로 음에 대해 말함. &quot;끝이 조금 내려앉았다.&quot; 이 말이 이날 사람이 귀로 알아챈 첫 기록이다. 그 직후 반주자가 피아노로 끝 화음 맨 윗소리를 짚었고, 단원 몇 명이 &quot;아&quot; 하고 소리를 냄. 그다음에 기록자가 그때까지 적어 둔 앱 값을 지휘자에게 보여 줌. 순서는 지휘자 귀 → 피아노로 짚어 봄 → 앱 값 확인이다.
+
+15:32~15:42 휴식 10분. 단원은 대기실로 이동. 단원 생수는 대기실에서만 마심. 무대 조명은 켜 둔 채.
+
+15:36 무대 뒤 반사판 확인. 하경태 주임과 함께 봄. 무대 뒤 반사판 두 장 가운데 오른쪽 한 장이 접힌 채 벽에 붙어 있었음. 하경태 주임 말: &quot;지난주 다른 단체가 접어 두고 갔다.&quot; 리허설 중에는 펴지 않음(펴는 데 공연장 직원 두 명이 필요하다고 함).
+
+15:42 온습도. 무대 27.4도, 습도 46%. 객석 24.6도, 습도 51%.
+
+15:45 2회차 통 리허설 시작. 지휘자 지시: &quot;멈추지 않고 처음부터 끝까지 한 번&quot;.
+
+15:45 ① 노을 길(반주). 4분 58초.
+
+15:51 ② 들꽃 노래(반주). 4분 44초.
+
+15:57 ③ 달빛 자장가 2회째(반주 없음). 4분 14초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -2센트
+- 18마디: -6센트
+- 끝 화음: -12센트
+- 끝 화음 소리 크기: 74데시벨
+
+16:02 ④ 강 건너 저녁(반주). 5분 35초.
+
+16:09 기록자가 본 무대 모습. 베이스 줄 뒤쪽 두 명이 보면대 받침을 손으로 짚고 섬. 소프라노 앞줄 몇 명이 고음 부분에서 어깨가 올라감. 기록자는 본 모습만 적고 이유는 묻지 않음.
+
+16:10 ⑤ 바람의 집(반주). 6분 10초.
+
+16:17 ⑥ 새벽 종소리 2회째(반주 없음). 4분 52초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -1센트
+- 24마디: -10센트
+- 끝 화음: -21센트
+- 끝 화음 소리 크기: 74데시벨
+
+16:23 ⑦ 골목길 사계(반주). 5분 20초.
+
+16:30 ⑧ 고요한 물 2회째(반주 없음). 5분 26초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -2센트
+- 32마디: -15센트
+- 끝 화음: -33센트
+- 끝 화음 소리 크기: 72데시벨
+- 곡 중 지휘자가 손짓으로 두 번 &#x27;위로&#x27; 신호를 줌(기록자 눈으로 봄).
+
+16:36 온습도. 무대 28.3도, 습도 44%. 객석 24.8도, 습도 50%.
+
+16:37 지휘자가 단원들에게 5분 쉬고 물을 마시라고 함. 단원들은 무대 옆 통로로 나가 생수를 마심. 무대 조명은 켜 둔 채. 반사판은 그대로 접혀 있음.
+
+16:43 ⑧ 고요한 물 3회째(반주 없음). 5분 18초.
+- 피아노 시작 화음: +1센트
+- 첫 화음: -1센트
+- 32마디: -8센트
+- 끝 화음: -17센트
+- 끝 화음 소리 크기: 73데시벨
+
+16:50 반주자가 피아노 &#x27;라&#x27; 음을 다시 조율기 앱으로 확인. +1센트(14:12와 같음).
+
+16:51 지휘자가 시작 화음을 피아노 대신 소리굽쇠로 주고 ⑧ 고요한 물을 한 번 더 부르게 함(4회째). 5분 21초.
+- 소리굽쇠 음: 0센트
+- 첫 화음: -1센트
+- 32마디: -9센트
+- 끝 화음: -18센트
+- 끝 화음 소리 크기: 73데시벨
+
+16:57 리허설 종료. 지휘자가 단원들에게 &quot;오늘 기록은 다음 연습 때 같이 보자&quot;고 함.
+
+17:00 단원 퇴실. 신유나와 하경태 주임이 객석 문을 잠그고 무대 조명을 끔.
+
+17:05 마지막 온습도. 조명을 끈 직후라 바로 바뀌지는 않음. 무대 28.1도, 습도 44%.
+
+## 9월 19일 무반주 곡 값 모음(시각 순)
+
+위 시각별 기록에서 무반주 곡 값만 시각 순서대로 다시 옮긴다. 값은 위와 같다.
+
+| 시각 | 곡 | 회차 | 첫 화음 | 중간 화음 | 끝 화음 | 끝 화음 소리 크기 | 무대 온도(가장 가까운 측정) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 14:30 | 달빛 자장가 | 1회째 | -1 | -2 | -3 | 74 | 24.6도(13:58) |
+| 15:12 | 새벽 종소리 | 1회째 | -2 | -5 | -9 | 75 | 26.1도(15:00) |
+| 15:25 | 고요한 물 | 1회째 | -1 | -7 | -14 | 73 | 26.1도(15:00) |
+| 15:57 | 달빛 자장가 | 2회째 | -2 | -6 | -12 | 74 | 27.4도(15:42) |
+| 16:17 | 새벽 종소리 | 2회째 | -1 | -10 | -21 | 74 | 27.4도(15:42) |
+| 16:30 | 고요한 물 | 2회째 | -2 | -15 | -33 | 72 | 28.3도(16:36) |
+| 16:43 | 고요한 물 | 3회째(5분 쉬고 물 마신 뒤) | -1 | -8 | -17 | 73 | 28.3도(16:36) |
+| 16:51 | 고요한 물 | 4회째(소리굽쇠로 시작) | -1 | -9 | -18 | 73 | 28.3도(16:36) |
+
+- 화음 값 단위는 센트, 소리 크기 단위는 데시벨.
+- 피아노 시작 화음은 여덟 번 모두 +1센트였고, 소리굽쇠는 0센트였다.
+- 무대 온도 칸은 그 곡 직전에 잰 값을 붙인 것이고, 곡을 부르는 동안의 온도는 아니다.
+
+## 9월 19일 객석에서 들은 인상(기록자 귀, 객석 다섯째 줄 가운데)
+
+기록자는 음악을 배운 사람이 아니다. 들은 인상을 적은 것이라 값과 다를 수 있다. 값은 위 기록을 따른다.
+
+- ③ 달빛 자장가 1회째: 끝까지 고르게 들림. 끝 화음이 맑게 끝남.
+- ⑥ 새벽 종소리 1회째: 끝 무렵 소프라노 쪽이 조금 흔들리는 듯했음. 낮아졌는지는 귀로 알 수 없었음.
+- ⑧ 고요한 물 1회째: 객석에서는 이상하다고 느끼지 못했음. 지휘자가 &quot;내려앉았다&quot;고 한 뒤 다시 생각해 보니 끝이 조금 어두웠던 것 같기도 함.
+- ③ 달빛 자장가 2회째: 1회째보다 끝이 덜 맑게 들림.
+- ⑥ 새벽 종소리 2회째: 중간부터 전체가 조금씩 가라앉는 느낌. 소리가 작아졌다는 느낌은 들지 않았고, 크기는 1회째와 비슷하게 들렸음.
+- ⑧ 고요한 물 2회째: 이날 가장 뚜렷하게 다르게 들림. 32마디 무렵부터 전체가 무겁게 들렸고 끝 화음은 시작 때와 다른 음처럼 들렸음. 소리 크기는 1회째와 큰 차이를 느끼지 못했음.
+- ⑧ 고요한 물 3회째(쉬고 물 마신 뒤): 2회째보다는 덜 가라앉게 들림.
+- ⑧ 고요한 물 4회째(소리굽쇠로 시작): 3회째와 비슷하게 들림. 시작 방법이 바뀐 것을 객석에서는 알아채지 못했음.
+- 반주 곡들: 1회차와 2회차 모두 피아노와 함께 끝나서 가라앉는 느낌을 받지 못했음. 2회차 ⑤ 바람의 집은 1회차보다 조금 느리게 들렸으나 길이 값(6분 5초, 6분 10초)은 큰 차이가 없음.
+
+## 9월 19일 사람별 메모(받은 그대로)
+
+지휘자 백승원(9월 19일 저녁, 단원 대화방 개인 메시지)
+- &quot;반주 있는 곡에서는 내려앉는 느낌이 없었다. 반주 없는 곡에서 끝으로 갈수록 내려앉았다. 2회째 고요한 물은 확실히 많이 내려갔다.&quot;
+- &quot;쉬고 물 마시고 나서 다시 했을 때는 덜했다. 그래도 처음 같지는 않았다.&quot;
+- &quot;반사판 한 장이 접혀 있던 것은 휴식 때 알았다. 그 전에는 몰랐다.&quot;
+- &quot;당일 곡 순서를 어떻게 둘지는 이 기록을 보고 다시 생각하겠다.&quot;
+
+반주자 정다온(9월 19일 저녁, 문자)
+- &quot;시작 화음은 매번 피아노로 같은 방식으로 짧게 드렸습니다. 피아노 &#x27;라&#x27; 음은 리허설 처음과 끝에 둘 다 +1센트였습니다.&quot;
+- &quot;첫 화음 값도 같이 적어 두었습니다. 필요하시면 앱 화면 사진도 보내 드리겠습니다.&quot;
+- &quot;소리굽쇠로 시작했을 때 값도 적었습니다. 저는 값만 적었고 다른 판단은 하지 않았습니다.&quot;
+
+소프라노 파트장 윤서경
+- &quot;2회차 들어서 고음 끝을 끄는 자리에서 숨이 모자란 단원이 몇 명 있었다. 나도 그랬다.&quot;
+- &quot;무대가 더웠다. 조명 바로 아래라 앞줄은 땀이 났다.&quot;
+
+알토 파트장 남궁미라
+- &quot;옆 파트 소리가 연습실보다 잘 안 들렸다. 오른쪽 끝에 서 있는 알토는 테너 소리가 거의 안 들렸다고 했다.&quot;
+- &quot;반사판 이야기를 듣고 보니 오른쪽이 휑했다는 단원이 있었다.&quot;
+
+테너 파트장 차민호
+- &quot;테너 단원 한 명이 &#x27;피아노가 시작음을 낮게 준 것 같다&#x27;고 말했다. 나는 그렇게 느끼지 않았다. 둘 다 그대로 적어 달라.&quot;
+- &quot;2회째 고요한 물에서 숨 쉬는 자리에 테너가 반 박자 늦게 들어갔다.&quot;
+
+베이스 파트장 도현수
+- &quot;2회차 통 리허설은 서서 한 시간 가까이였다. 뒷줄은 다리가 아프다는 말이 나왔다.&quot;
+- &quot;베이스는 아래에서 받쳐야 하는데 후반에는 소리가 무거워졌다는 말이 있었다.&quot;
+
+임재혁(베이스 단원)
+- &quot;단원 대화방에 &#x27;소리가 작아졌다&#x27;는 말과 &#x27;음이 내려갔다&#x27;는 말이 섞여 올라왔다. 같은 이야기를 하는 것인지 다른 이야기를 하는 것인지 나는 모르겠다.&quot;
+- 기록자 덧붙임: 대화방 글을 옮기면서 &#x27;작아졌다&#x27;와 &#x27;내려갔다&#x27;를 바꾸지 않고 쓴 사람의 말 그대로 두었다. 단원 한 명은 &#x27;음량이 떨어졌다&#x27;고 썼고, 다른 한 명은 &#x27;음정이 처졌다&#x27;고 썼다. 기록자는 두 낱말을 풀이하지 않았다.
+
+## 같은 날 시설 점검(운영 쪽)
+
+리허설 사이사이 신유나가 본 것. 소리 문제와는 따로 적는다.
+
+- 로비 접수대 자리: 로비 출입문에서 안쪽 기둥 옆에 접이식 탁자를 펴 봄. 문을 열면 바람이 들어와 명단 종이가 날릴 수 있어 집게가 필요함.
+- 객석 문: 안쪽에서 잠금이 됨. 접수 전에는 닫아 둘 수 있음.
+- 무대 뒤 보관실: 하경태 주임과 함께 봄. 보면대를 접어 세우면 들어가는 크기. 다른 단체 상자가 안쪽에 쌓여 있었음. 보관실 이용료(3000원)는 공연장 안내 그대로이며, 전날 언제부터 쓸 수 있는지는 행사 날짜가 정해져야 알려 준다고 함. 이날 보관실은 쓰지 않았다.
+- 뒤 출입문과 무대 옆 통로: 계단 없음. 손수레로 무대 옆까지 들어갈 수 있음.
+- 대기실: 단원 생수를 둔 탁자 하나, 거울 두 개. 냉방은 무대와 따로 조절되지 않음.
+- 피아노: 공연장 피아노. 하경태 주임 말로는 지난달에 조율했다고 함. 행사 전 조율은 단 예산(남은 예상 지출의 피아노 조율 항목)으로 따로 한다.
+- 화장실: 로비 바깥 복도. 객석을 지나지 않고 갈 수 있음.
+
+## 9월 19일 단원 사정(파트장들이 9월 20일 단원 대화방으로 알려 온 것)
+
+기록자가 직접 보지 못한 것도 있어, 파트장이 전한 말로 적는다.
+
+- 소프라노(윤서경): 오전에 다른 곳 성가대 연습을 하고 온 단원이 몇 명 있었다. 점심을 거르고 바로 온 단원도 한 명 있었다.
+- 알토(남궁미라): 감기 뒤끝으로 목이 잠겨 있던 단원 한 명이 2회차 도중(④가 끝난 무렵) 무대 옆으로 내려가 ⑤~⑦을 쉬고, ⑧ 고요한 물 2회째부터 다시 올라왔다. 기록자는 이 장면을 보지 못했고, 16:09 기록에도 들어 있지 않다.
+- 테너(차민호): 이상을 말한 단원은 없었다. 다만 한 명은 밤샘 근무를 마치고 바로 왔다고 했다.
+- 베이스(도현수): 2회차 통 리허설 동안 서 있는 시간이 길어 허리가 불편하다는 단원이 둘 있었다. 임재혁도 그중 한 명이다.
+- 지휘자: 이날 결석한 단원은 없었다고 함.
+
+## 단원 짧은 설문(9월 20일, 단원 대화방에 질문 세 개를 올리고 받은 답)
+
+질문을 올린 사람은 신유나이고, 답은 자유롭게 달게 했다. 몇 명이 어떻게 답했는지 세지는 않았고, 답의 경향만 적는다.
+
+- 질문 1. 무대가 덥게 느껴졌나요? → 앞줄 단원은 거의 모두 덥다고 답함. 뒷줄 단원 가운데는 &#x27;견딜 만했다&#x27;는 답도 있었음. 휴식 뒤가 더 더웠다는 답이 여럿.
+- 질문 2. 다른 파트 소리가 잘 들렸나요? → 오른쪽 끝에 선 단원들은 잘 안 들렸다고 답함. 가운데 선 단원들은 연습실과 비슷했다는 답이 많았음.
+- 질문 3. 2회차 후반 몸 상태는 어땠나요? → &#x27;목이 마르다&#x27;, &#x27;숨이 짧아졌다&#x27;, &#x27;다리가 아프다&#x27;는 답이 섞여 있었음. &#x27;괜찮았다&#x27;는 답도 있었음.
+- 덧붙여 달린 답: &quot;연습실보다 무대에서 내 소리가 작게 들려 더 세게 불렀다&quot;는 단원이 있었다. 같은 단원이 &quot;그래서 더 빨리 지쳤다&quot;고도 썼다. 기록자는 이 두 문장을 그대로 옮긴다.
+
+## 9월 21일(월) 연습실 비교 기록
+
+조건이 무대와 어떻게 달랐는지 먼저 적는다.
+
+- 연습실은 주민센터 3층의 작은 방이다. 천장이 낮고 단원끼리 거리가 가깝다. 반사판은 없다.
+- 조명은 천장 형광등이며 무대 조명은 없다.
+- 냉방은 벽걸이 냉방기 하나. 19:20에 켰다.
+- 이날 지휘자가 곡 순서를 바꿔, 고요한 물을 발성 직후 맨 처음에 한 번, 연습 맨 끝에 한 번 부르게 했다.
+
+시각별 기록
+- 19:25 온습도. 연습실 23.2도, 습도 55%.
+- 19:30~19:43 발성.
+- 19:44 반주자 피아노(연습실 업라이트 피아노) &#x27;라&#x27; 음 확인. -2센트. 반주자 말: &quot;연습실 피아노는 공연장 피아노와 다른 피아노라 값이 다르다.&quot;
+- 19:46 고요한 물 연습실 1회째. 5분 15초. 시작 화음은 연습실 피아노로 줌. 첫 화음 -2, 32마디 -3, 끝 화음 -4. 소리 크기는 방이 작아 앱 값을 그대로 비교할 수 없어 적지 않음.
+- 19:52~20:40 1부 곡 부분 연습. 지휘자가 반주 곡 위주로 진행.
+- 20:40~20:50 휴식 10분.
+- 20:50 온습도. 연습실 24.0도, 습도 53%.
+- 20:52~21:12 2부 곡 부분 연습.
+- 21:14 고요한 물 연습실 2회째. 5분 19초. 첫 화음 -2, 32마디 -7, 끝 화음 -15.
+- 21:20 지휘자가 &quot;무대보다는 덜하지만 끝에 가서 내려앉는 것은 여기서도 있다&quot;고 말함.
+- 21:30 종료.
+
+이날 단원 말(받은 그대로)
+- 소프라노 단원: &quot;여기서는 옆 사람 소리가 잘 들려서 맞추기 쉽다.&quot;
+- 베이스 단원: &quot;오늘은 앉아서 한 시간도 있었으니 덜 힘들었다.&quot; 기록자 확인: 이날 부분 연습 가운데 일부는 의자에 앉아서 했다.
+- 테너 단원(19일에 피아노 시작음을 말한 단원과 같은 사람): &quot;오늘 연습실 피아노는 시작음이 괜찮았다.&quot; 연습실 피아노 &#x27;라&#x27; 음 값은 -2센트였고, 공연장 피아노는 +1센트였다. 기록자는 두 값을 나란히 적어 두기만 한다.
+
+## 비슷한 지난 사례(단 기록과 단원 기억)
+
+- 지난해 가을 정기 연주회(같은 공연장): 2부 마지막 무반주 곡 끝이 낮게 들렸다는 관객 설문 응답이 한 줄 있었다. 당시 녹음 파일이 단 공유 폴더에 있다. 그때 단원 사이에서 &#x27;반주자가 시작음을 잘못 줬다&#x27;는 말이 돌았으나, 당시 반주자는 지금과 다른 사람이고 확인한 기록은 없다. 원인 이야기는 결론 없이 지나갔다. 당시 공연은 1부와 2부 사이 휴식이 짧았다는 운영 후기가 있다.
+- 올봄 작은 음악회(주민센터 강당, 오전): 무반주 곡 한 곡을 공연 순서 앞쪽에 불렀다. 낮아졌다는 말은 없었다. 측정은 하지 않았다.
+- 2년 전 여름 동네 축제 야외 무대: 한낮에 무반주 곡을 마지막 순서로 불렀다. 단원 여럿이 &quot;끝이 많이 내려갔다&quot;고 기억한다. 측정 기록은 없고 단원 기억뿐이다.
+- 지휘자 기억: &quot;연습이 길어진 날 마지막 곡이 무반주이면 대체로 이런 말이 나왔다.&quot; 기록자는 이 말을 지휘자 기억으로만 적는다.
+
+## 녹음 확인(9월 20일, 신유나)
+
+- 9월 19일 리허설은 무대 앞 바닥에 둔 녹음기 하나로 녹음했다.
+- 고요한 물 1회째와 2회째의 끝부분을 신유나가 이어 들어 봤다. 2회째 끝이 1회째보다 낮게 들렸다. 귀로 들은 인상이며 값은 앱 기록을 따른다.
+- 같은 녹음에서 반주 곡 ⑦ 골목길 사계 1회째와 2회째 끝부분도 들어 봤다. 피아노와 함께 끝나서 낮아졌는지 귀로는 가려 듣기 어려웠다.
+- 녹음 파일은 단 공유 폴더 &#x27;정기 연주회 리허설&#x27; 칸에 올렸다. 지휘자와 반주자에게 위치를 알렸다.
+
+## 기록 중 생긴 혼선과 고친 곳
+
+- 15:12 새벽 종소리 1회째 끝 화음 값을 처음에 &#x27;-6&#x27;으로 들었다고 적었다가, 반주자가 앱 화면 사진을 보여 줘서 &#x27;-9&#x27;로 고쳤다. 사진 값을 따랐다.
+- 16:43 고요한 물 3회째를 처음에는 &#x27;2회째&#x27;로 잘못 적었다. 휴식 뒤라 회차를 헷갈렸다. 같은 날 저녁 지휘자 메모와 맞춰 &#x27;3회째&#x27;로 고쳤다.
+- 온습도계 두 개 가운데 객석 쪽 것은 15:00 측정 때 의자에서 떨어져 바닥에 있었다. 바닥에서 잰 값일 수 있어 객석 15:00 값(24.3도)에는 이 사정을 붙여 둔다.
+- 소리 크기 앱은 14:30 측정 때 휴대전화 화면이 꺼져 끝 화음 마지막 순간 값을 놓쳤을 수 있다. 화면에 남아 있던 가장 큰 값(74)을 적었다.
+
+## 다음 리허설 때 같은 방법으로 더 남길 것(기록 방법 메모)
+
+이 목록은 다음에 무엇을 더 재어 둘지에 대한 메모이며 원인에 대한 판단이 아니다.
+
+- 무반주 곡마다 바로 앞에 쉬었는지, 쉬었다면 몇 분 쉬었는지.
+- 무반주 곡 직전 곡이 반주 곡이었는지.
+- 무대 온도를 곡 직전뿐 아니라 곡이 끝난 직후에도 한 번.
+- 반사판 상태(펴져 있는지).
+- 단원들이 서 있었던 시간.
+- 시작 화음을 준 방법(피아노, 소리굽쇠).
+- 조율기 앱을 드는 사람과 위치를 고정할 것. 이번에는 반주자가 피아노 의자에 앉아 들었는데, 곡에 따라 몸을 돌린 정도가 달랐다.
+- 소리 크기는 같은 자리, 같은 높이에서 잴 것. 이번에는 다섯째 줄 의자 위였다.
+
+## 운영 담당 메모(신유나, 9월 21일 밤)
+
+- 당일 일정과 관련해 지휘자에게 물어볼 것: 곡 순서를 바꿀지, 1부와 2부 사이 휴식을 몇 분으로 둘지, 리허설을 당일에 어느 정도 할지. 아직 답을 받지 않았다.
+- 공연장에 물어볼 것: 행사 당일 무대 뒤 반사판을 미리 펴 둘 수 있는지, 무대 쪽 송풍을 공연 중에 어떻게 둘지. 이 메모를 쓰기 전 하경태 주임에게 문자로 물었고 답은 아직 없다.
+- 생수는 단원용이라 대기실과 무대 옆 통로에만 둔다. 이번 리허설에서도 관객석 쪽에는 두지 않았다.
+- 이 일지는 원인을 정하는 문서가 아니다. 지휘자, 반주자, 파트장이 기록을 보고 이야기할 때 쓰는 자료로 둔다. 단원 대화방에 반주자를 탓하는 듯한 글이 한 번 올라왔는데, 지휘자가 &quot;기록을 보고 이야기하자&quot;고 답글을 달았다. 기록자는 그 글을 이 일지에 옮기지 않았다.
+
+## 공연장 회신(하경태 주임, 9월 22일 오전 문자를 옮김)
+
+- 반사판: 행사 당일 공연장 직원이 미리 펴 둘 수 있다. 단체가 요청서에 &#x27;반사판 두 장 모두 펼침&#x27;이라고 적어 내면 된다. 리허설 날처럼 다른 단체가 접어 두고 가는 일이 있어 당일 아침에 한 번 더 확인한다고 함.
+- 무대 쪽 송풍: 공연 중에는 바람 소리 때문에 약하게 두는 것이 기본이다. 공연 전과 휴식 시간에는 세게 돌릴 수 있다. 바꿀 때마다 관리실에 말해 달라고 함.
+- 무대 조명: 공연 조명은 행사 시작 전에 한 번 시험으로 켜 봐야 한다. 몇 시에 켤지는 단체가 정한다. 켜 두는 시간이 길수록 무대가 더워진다는 점은 공연장도 알고 있다고 함.
+- 객석: 객석 냉방은 따로 조절된다. 리허설 날처럼 객석은 무대보다 덜 덥다.
+- 기록자 덧붙임: 회신 내용을 지휘자와 반주자에게 그대로 전달했다. 이 회신으로 무엇을 바꿀지는 아직 정하지 않았다.
+
+## 지난해 가을 연주회 녹음 다시 듣기(9월 22일 저녁 연습실, 지휘자·반주자·신유나)
+
+- 들은 파일: 지난해 가을 정기 연주회 실황 녹음. 객석 뒤쪽에서 녹음한 것이라 박수 소리가 크게 들어가 있다.
+- 1부 중간의 무반주 곡: 세 사람 모두 끝이 낮아졌다는 느낌은 없었다고 말함.
+- 2부 마지막 무반주 곡: 세 사람 모두 끝이 낮게 들린다고 말함. 지휘자 말: &quot;그때도 이 곡이 맨 마지막이었다.&quot;
+- 반주자가 녹음을 재생하면서 조율기 앱을 스피커에 대 봤다. 2부 마지막 곡의 피아노 시작 화음과 단원 첫 화음은 거의 같은 값으로 나왔고, 끝 화음은 그보다 아래로 나왔다. 반주자 말: &quot;스피커로 재생한 소리라 값은 참고만 해 주세요.&quot; 기록자도 이 값은 숫자로 옮기지 않는다.
+- 지난해 운영 후기에 적힌 사정: 1부와 2부 사이 휴식이 짧았다. 2부가 길었다. 당시 무대 온도나 반사판 상태는 기록이 없다.
+- 지난해 반주자는 지금 반주자와 다른 사람이다. 당시 돌았던 &#x27;반주자가 시작음을 잘못 줬다&#x27;는 말에 대해, 이 녹음만으로 맞다 틀리다를 말할 수 없다는 데 세 사람 모두 동의했다. 기록자는 동의했다는 사실만 적는다.
+
+## 이 일지를 읽는 사람들께(신유나, 9월 22일 밤 덧붙임)
+
+- 이 일지에 적힌 순서는 이렇다. 처음에는 앱 값만 쌓였고(14:30, 15:12), 사람이 귀로 알아챈 것은 15:30 지휘자 말이 처음이다. 그 뒤 피아노로 짚어 보고, 앱 값을 함께 확인했다. 2회차에서 값이 더 벌어졌고, 쉬고 물을 마신 뒤와 소리굽쇠로 시작한 뒤의 값을 차례로 적었다. 반사판이 접혀 있던 것은 휴식 시간(15:36)에 처음 알았다.
+- 피아노 &#x27;라&#x27; 음은 리허설 처음(14:12)과 끝(16:50) 모두 +1센트였다. 소리굽쇠로 시작한 회차의 값도 따로 있다. 이 값들을 두고 누가 무엇을 잘못했다고 말하는 글을 대화방에 올리지 말아 달라는 부탁을 지휘자와 함께 드린다.
+- 원인에 대한 이야기는 지휘자가 다음 연습에서 단원들과 직접 나누기로 했다. 이 일지는 그때 쓸 기록이다.
+
+## 사진 기록 목록(9월 19일, 신유나 휴대전화)
+
+단 공유 폴더 &#x27;정기 연주회 리허설&#x27; 칸에 녹음 파일과 함께 올렸다.
+
+- 사진 1: 13:58 무대 온습도계 화면(24.6도, 51%)
+- 사진 2: 14:12 피아노 &#x27;라&#x27; 음 조율기 앱 화면(+1센트), 반주자가 찍어 보내 줌
+- 사진 3: 15:12 새벽 종소리 1회째 끝 화음 앱 화면(-9센트). 기록 혼선 때 이 사진으로 값을 고쳤다.
+- 사진 4: 15:36 무대 뒤 오른쪽 반사판이 접혀 벽에 붙어 있는 모습
+- 사진 5: 15:42 무대 온습도계 화면(27.4도, 46%)
+- 사진 6: 16:09 무대 뒷줄 모습(얼굴이 나오지 않게 뒤에서 찍음)
+- 사진 7: 16:30 고요한 물 2회째 끝 화음 앱 화면(-33센트)
+- 사진 8: 16:51 지휘자가 쓴 소리굽쇠(연습실 비품, 손잡이에 단 이름 스티커)
+- 사진 9: 17:05 조명을 끈 뒤 무대 온습도계 화면
+- 빠진 것: 16:43 고요한 물 3회째 앱 화면은 반주자가 찍지 못했다. 값은 반주자 메모와 기록자 기록이 같아 그대로 적었다.
+
+## 리허설 뒤 단원 대화방 질문과 답(9월 20~21일)
+
+질문은 단원이 올렸고, 답은 지휘자나 신유나가 달았다. 답이 아직 없는 질문도 그대로 둔다.
+
+- 질문: 행사 당일에도 무대가 이렇게 더울까요? / 신유나 답: 공연장에 냉방과 조명 운영을 묻고 있습니다. 회신이 오면 알려 드리겠습니다.
+- 질문: 당일에는 물 마실 시간이 따로 있나요? / 지휘자 답: 당일 리허설과 공연 순서를 정하면서 같이 정하겠습니다. 생수는 단원 몫으로 대기실과 무대 옆에 둡니다.
+- 질문: 조율기 앱 값이 얼마 넘으면 문제인가요? / 신유나 답: 저는 값을 적기만 했고, 기준은 정하지 않았습니다. 지휘자님께 여쭤보겠습니다. (지휘자 답은 아직 없음)
+- 질문: 반사판은 당일에 펴 주나요? / 신유나 답: 공연장에 물었습니다. 회신을 기다리는 중입니다. (9월 22일 회신 내용은 위 &#x27;공연장 회신&#x27;에 있음)
+- 질문: 녹음 파일은 어디서 들을 수 있나요? / 신유나 답: 단 공유 폴더 &#x27;정기 연주회 리허설&#x27; 칸입니다.
+- 질문: 다음 연습 때 앉아서 해도 되나요? / 지휘자 답: 부분 연습은 앉아서 하고, 통으로 부를 때는 서서 합니다.
+- 질문(테너 단원): 피아노 시작음이 낮았던 것 아닌가요? / 반주자 답: 그날 피아노 &#x27;라&#x27; 음 값은 처음과 끝 모두 +1센트였고, 사진도 올려 두었습니다. / 지휘자 덧글: 기록을 함께 보고 다음 연습 때 이야기합시다.
+
+## 측정 물품 반출과 반납(연습실 비품)
+
+- 9월 19일 13:20 연습실에서 반출: 디지털 온습도계 두 개, 소리굽쇠 하나, 녹음기 하나와 여분 건전지. 신유나가 가방에 넣어 들고 감(보면대와 악보 묶음은 리허설용 반출 대장에 따로 적음).
+- 9월 19일 17:40 연습실로 반납. 온습도계 하나는 15:00 무렵 의자에서 떨어진 일이 있어 화면을 다시 확인했고 정상으로 켜짐. 소리굽쇠는 케이스에 넣음. 녹음기 건전지는 남은 양이 적어 빼 두었다.
+- 9월 21일 연습실 비교 기록 때는 같은 온습도계 하나만 썼다. 소리 크기 앱은 쓰지 않았다(방이 작아 값을 무대와 비교할 수 없어서).
+- 녹음기 메모리에서 9월 19일 파일을 공유 폴더로 옮긴 뒤 녹음기 안의 파일은 지우지 않고 그대로 두었다. 지울지는 지휘자에게 묻는다.
+
+## 일지 작성과 확인 이력
+
+- 9월 19일 밤: 신유나가 현장 메모를 옮겨 시각별 기록 작성.
+- 9월 20일 오전: 반주자 정다온이 앱 화면 사진과 시각별 값을 하나씩 맞춰 봄. 새벽 종소리 1회째 끝 화음 한 곳을 고침(위 &#x27;기록 중 생긴 혼선&#x27; 참고). 나머지 값은 고칠 곳 없음.
+- 9월 20일 저녁: 파트장 메모와 단원 설문 답을 덧붙임.
+- 9월 21일 밤: 연습실 비교 기록을 덧붙임.
+- 9월 22일: 공연장 회신과 지난해 녹음 다시 듣기 기록을 덧붙임. 지휘자 백승원 열람, &quot;원인은 다음 연습에서 단원들과 이야기하겠다&quot;는 말 외에 고칠 곳 없음.
+[자료 끝]
+
+리허설 후반으로 갈수록 반주 없이 부르는 곡의 전체 음이 조금씩 낮아졌습니다. 왜 그런지 원인을 결과와 연결해서 설명해 주세요. 코딩이나 과학에 익숙하지 않은 운영자에게 맞는 일상 비유를 하나 들고, 행사 당일 어떻게 대응할지도 밝혀 주세요. 음정과 음량의 정의도 정확히 구별해 주세요. 관찰 순서를 뒤집지 말고 기록만으로 반주자의 실수라고 단정하지 마세요.</pre><b>턴 2 답변</b><pre class="rs-pre rs-ans">## 한 줄 요약
+
+기록에서 낮아진 것은 **소리의 크기가 아니라 높이**입니다. 반주가 없는 곡에서만, 곡이 진행될수록, 리허설이 길어질수록 더 벌어졌습니다. 원인은 한 가지로 정할 수 없고, 겹친 조건이 여럿 있었다는 것까지가 기록으로 말할 수 있는 범위입니다.
+
+## 음정과 음량의 구별
+
+- **음량**은 소리의 세기입니다. 단위는 데시벨이고, 크게 불렀는지 작게 불렀는지를 나타냅니다.
+- **음높이**는 소리가 높은지 낮은지입니다. 진동이 빠를수록 높게 들립니다. 조율기 앱의 &#x27;센트&#x27;는 이 높이를 재는 단위로, 100센트가 피아노 건반 한 칸(반음)입니다. -33센트는 반음의 3분의 1쯤 내려갔다는 뜻입니다.
+- **음정**은 엄밀히는 두 음 사이의 간격(도에서 솔까지 등)입니다. 대화방의 &#x27;음정이 처졌다&#x27;는 말은 대개 &#x27;전체 높이가 내려갔다&#x27;는 뜻으로 쓰인 것으로 보입니다. 이는 제 해석이며, 일지는 두 낱말을 풀이하지 않았다고 되어 있습니다.
+
+기록상 끝 화음 소리 크기는 72~75데시벨로 거의 일정했고, 높이는 -3에서 -33센트까지 움직였습니다. 따라서 &#x27;음량이 떨어졌다&#x27;가 아니라 &#x27;높이가 내려갔다&#x27;에 가깝습니다. 임재혁 님이 헷갈려 하신 두 말은 서로 다른 현상이고, 이번 기록은 그중 높이 쪽입니다.
+
+## 기록이 보여 주는 순서와 값
+
+1. 먼저 앱 값이 쌓였습니다. 14:30 달빛 자장가 끝 -3, 15:12 새벽 종소리 끝 -9가 그 예입니다.
+2. 사람이 귀로 알아챈 것은 15:30 지휘자의 &quot;끝이 조금 내려앉았다&quot;가 처음입니다. 그 뒤 피아노로 짚어 보았고, 앱 값을 함께 확인했습니다.
+3. 반사판이 접혀 있던 것은 15:36 휴식 때 처음 알았습니다. 곡이 불리던 동안에는 아무도 몰랐습니다.
+4. 2회차에서 값이 더 벌어졌습니다.
+
+| 곡 | 1회째 끝 | 2회째 끝 |
+| --- | --- | --- |
+| 달빛 자장가 | -3 | -12 |
+| 새벽 종소리 | -9 | -21 |
+| 고요한 물 | -14 | -33 |
+
+고요한 물은 곡 안에서도 첫 화음 -2, 32마디 -15, 끝 -33으로 점점 내려갔습니다. 5분 쉬고 물을 마신 뒤인 3회째는 -17로 덜했습니다. 반주 곡은 피아노와 함께 끝나서 내려앉는 느낌이 없었고, 값은 재지 않았습니다.
+
+## 원인과 결과의 연결
+
+일지의 관찰과 이어 볼 수 있는 후보는 아래와 같습니다. 모두 가능성이며, 이번 기록만으로는 서로 분리할 수 없습니다.
+
+- **피로와 호흡**: 2회차에서 값이 커졌고 휴식 뒤 줄었습니다. 소프라노 파트장은 숨이 모자랐다고, 베이스 파트장은 서 있는 시간이 길어 힘들었다고 했습니다. 몸이 지치면 높이를 유지하기 어려워진다는 설명과 맞습니다.
+- **더위**: 무대 온도가 24.6도에서 28.3도로 올랐고, 값이 벌어진 시간과 겹칩니다. 다만 9월 21일 연습실은 23~24도였는데도 2회째 끝이 -15로 내려갔습니다. 더위만으로는 설명되지 않습니다.
+- **기준이 되는 소리가 없음**: <mark class="rs-mk"><sup>2</sup>반주 곡은 피아노가 계속 기준을 잡아 줍니다. 무반주 곡은 단원끼리 서로의 소리로만 높이를 맞춥니다.</mark> 반사판이 한 장 접혀 있었고, 오른쪽 끝 단원들은 옆 파트가 잘 안 들렸다고 했으므로 서로 맞추기가 더 어려웠을 수 있습니다. 연습실에서는 같은 곡이 -15로 무대(-33)보다 덜했다는 점도 이와 방향이 같습니다.
+- **시작 화음**: 피아노 &#x27;라&#x27;는 처음(14:12)과 끝(16:50)이 모두 +1센트였고, 시작 화음도 여덟 번 모두 같았습니다. 소리굽쇠(0센트)로 시작한 4회째 끝은 -18로, 피아노로 시작한 3회째의 -17과 비슷했습니다. 시작음이 바뀌어도 결과가 거의 같았다는 뜻입니다.
+
+반주자의 실수라고 단정할 근거는 없습니다. 피아노 값은 처음과 끝이 같았고 소리굽쇠로 시작해도 비슷했습니다. 다만 4회째는 피로가 쌓인 뒤의 한 번뿐인 시험이라 결정적이지는 않습니다. 반대로 시작음이 전혀 무관하다고 단정할 수도 없습니다. 지난해 녹음에 대해서도 세 분이 &quot;이 녹음만으로는 말할 수 없다&quot;고 동의하셨습니다.
+
+## 일상 비유 하나
+
+캄캄한 들판에서 여럿이 팔짱을 끼고 한 방향으로 걷는 모습과 비슷합니다. 멀리 불빛(피아노 반주)이 보이는 동안은 곧게 갑니다. 불빛이 없으면 서로의 발걸음만 믿고 가게 되는데, 다리가 지치면 걸음이 조금씩 한쪽으로 쏠립니다. 처음 몇 걸음은 티가 안 나지만, 오래 걸을수록 출발점과의 차이가 커집니다. 길게 서서 부른 뒤 마지막 무반주 곡에서 가장 크게 벌어진 모습과 겹칩니다.
+
+## 행사 당일 대응
+
+곡 순서와 휴식 시간은 지휘자가 정하므로, 아래는 신유나 님이 지휘자와 공연장에 제안·확인할 항목입니다. 아직 결정된 것은 없습니다.
+
+- **지휘자께 물어볼 것**: 무반주 곡의 순서, 휴식 시간 길이, 허용할 높이 차이의 기준. 기준을 묻는 단원 질문에 지휘자 답은 아직 없습니다.
+- **공연장 요청서**: 하경태 주임 회신에 따라 &#x27;반사판 두 장 모두 펼침&#x27;을 요청서에 적으면 당일 직원이 펴 줍니다. 당일 아침 재확인도 부탁할 수 있습니다.
+- **무대 환경**: 송풍은 공연 중에는 약하게, 공연 전과 휴식에는 세게 돌릴 수 있습니다. 무대 조명을 시험으로 켜는 시각은 단체가 정하며, 오래 켤수록 더워지므로 지휘자와 상의하면 됩니다.
+- **단원 쪽**: 서 있는 시간과 물 마시는 시간은 지휘자 결정 사항입니다. 생수는 기존 결정대로 대기실과 무대 옆에만 두고 관객석 쪽에는 두지 않습니다.
+- **측정은 접수 전까지만 가능**: 접수가 시작되면 운영 담당은 접수대를 비울 수 없으므로, 공연 중 측정은 어렵습니다. 하려면 접수 전 도착 직후 시간에 하거나, 녹음기를 켜 두는 방식이 현실적입니다. 도착 직후에는 냉방 확인도 이미 예정돼 있으니 일정에 무리가 없는지 같이 보셔야 합니다.
+
+## 확인이 필요한 점
+
+- 조건이 여럿 겹쳐 있어 어느 요인이 얼마나 영향을 줬는지는 이번 기록으로 나눌 수 없습니다. 일지의 &#x27;다음에 더 남길 것&#x27; 목록대로 휴식 전후, 반사판 상태, 서 있던 시간을 분리해 기록해야 합니다.
+- 실제 공연은 휴식이 있고 리허설과 길이도 다르므로, 같은 정도로 내려간다고 가정할 수도, 안전하다고 볼 수도 없습니다.
+- 행사 날짜가 정해지지 않았고, 당일 곡 순서와 휴식 시간도 미정입니다. 이 부분이 정해지면 대응을 다시 맞춰야 합니다.
+
+일지의 취지대로 이 설명은 원인을 확정하는 글이 아니라, 다음 연습에서 지휘자와 단원들이 이야기할 때 쓰는 참고 자료로 보시면 됩니다.</pre></div><div class="rs-turn"><b>턴 3 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 노을합창단 정기 연주회 운영 확인 기록 (판본 2)
+
+- 바탕 회의: 노을합창단 정기 연주회 준비 회의, 2026-09-14 19:00
+- 회의 참석: 공연 운영 담당 신유나, 단 회계 담당 임재혁
+- 기록: 단 회계 담당 임재혁
+- 판본 2 작성: 2026-09-18(금) 임재혁 / 확인: 같은 날 신유나
+- 배포: 단장 김옥희, 지휘자 백승원, 공연 운영 담당 신유나. 관객 안내문 초안을 쓸 때 이 기록을 기준으로 삼는다.
+
+## 이 기록을 읽는 방법
+
+회의 결과는 &#x27;결정&#x27;과 &#x27;보류&#x27;로 나눠 적는다. 보류 항목은 안내문에 확정으로 쓰지 않는다.
+
+- [결정]: 회의에서 정했고, 안내문과 일정표에 확정 사항으로 옮겨도 되는 내용.
+- [보류]: 정하지 않은 내용. 안내문에는 &#x27;미정&#x27; 또는 &#x27;미기재&#x27;로만 옮기고, 짐작한 값으로 채우지 않는다.
+- [참고]: 결정도 보류도 아닌, 이 기록이 기대고 있는 자료의 목록.
+- 항목마다 &#x27;확정 내용&#x27;, &#x27;배경&#x27;, &#x27;세부 조건&#x27;, &#x27;관객에게 닿는 부분&#x27;, &#x27;담당&#x27;, &#x27;근거&#x27;를 나눠 적었다. &#x27;관객에게 닿는 부분&#x27;은 안내문을 쓸 때 빠뜨리기 쉬운 내용을 따로 뽑아 둔 것이다.
+- 근거 칸의 [1]·[2]는 이 기록 끝 &#x27;참고 기록&#x27; 절의 두 기록을 가리킨다.
+
+## 판본 이력
+
+- 판본 1(9월 14일 밤): 회의 직후 임재혁이 회의록과 함께 남긴 짧은 확인 메모. 안건 제목과 결정·보류 표시만 있었다.
+- 판본 2(9월 18일, 이 기록): 판본 1의 내용을 바꾸지 않고, 항목마다 배경과 세부 조건을 늘려 적었다. 판본 1에서 &#x27;물품&#x27;과 &#x27;장비&#x27;로 나뉘어 있던 줄을 한 항목으로 합쳤다. 회의 뒤 새로 정한 것은 없다. 9월 15~17일에 공연장 회신을 기다렸으나 아직 오지 않아 운반 방식 선택은 판본 1과 같이 보류다.
+
+## 1. 행사 범위 [결정]
+
+확정 내용
+- 행사는 17:00부터 18:30까지이며 접수는 16:40에 연다.
+- 담당자는 15:30에 현장에 도착한다.
+- 행사 시간에는 참가자 응대와 진행을 맡고, 그 전에 준비와 확인을 끝내야 한다.
+- 도착 전의 작업을 당일 현장에서 한 것으로 적지 않는다.
+
+배경
+- 공연장은 단체 사용일에 15:30에 뒤 출입문과 무대 쪽 문을 연다. 그보다 이른 도착은 의미가 없다.
+- 지난해 일정표에서 전날 작업과 당일 작업이 한 칸에 섞여, 당일 오전에 같은 작업을 두고 질문이 오간 일이 있었다.
+
+세부 조건
+- &#x27;현장&#x27;은 공연장을 뜻한다. 연습실은 현장이 아니다.
+- 15:30부터 16:40까지가 담당자가 준비와 확인에 쓸 수 있는 시간이다. 이 구간에 무엇을 넣을지는 운반 방식이 정해진 뒤 일정표에서 맞춘다.
+- 17:00~18:30 안의 무대 진행(곡 순서, 휴식 시각)은 지휘자가 정한다. 휴식이 한 번 있다는 것만 확인되어 있다.
+
+관객에게 닿는 부분
+- 관객이 알아야 할 시각은 접수 시작(16:40)과 공연 시간(17:00~18:30)이다. 담당자 도착 시각(15:30)은 관객 안내 사항이 아니다.
+- 행사 날짜는 아직 미정이다. 안내문 날짜 칸은 &#x27;미정&#x27;으로 둔다.
+
+담당: 신유나 / 근거: [1]
+
+## 2. 현재 자원 [결정]
+
+확정 내용
+- 확정 진행 인력은 1명이며 참여 정원은 60명이다.
+- 도움을 요청한 예비 인력은 참석을 확답하지 않았고 승인 인력에 넣지 않았다.
+- 정원과 배치 인력은 서로 다른 값이다.
+- 참가자에게 접수를 대신 맡기는 안은 채택하지 않았다.
+
+배경
+- 확정 진행 인력 1명은 공연 운영 담당 신유나다. 신유나는 무대에 서지 않는다.
+- 예비 인력으로 연락한 사람은 전 단원 조민서다. 9월 10일 부탁에 &quot;날짜가 나오면 다시 알려 달라&quot;고 답했고, 그 뒤 확답은 없다. 행사 날짜가 정해지지 않아 확답을 받을 수 있는 상황도 아니다.
+- 단 회계 담당 임재혁, 지휘자, 반주자, 단장을 포함한 단원은 모두 무대에 서므로 진행 인력이 아니다.
+- 관객 가운데 한 분께 명단 확인을 맡기는 안은 명단 개인정보와 책임 문제로 채택하지 않았다.
+
+세부 조건
+- 근무표와 일정표에는 확정 인력 1명만 적는다. 예비 인력 이름은 확답이 오고 승인된 뒤에만 올린다.
+- 정원 60명은 관객 수다. 진행 인력 수나 물품 수와 같은 줄에 적지 않는다.
+
+관객에게 닿는 부분
+- 관객 정원은 60명이다.
+- 접수와 안내는 담당자 한 사람이 맡는다는 점은 안내문에 굳이 쓰지 않아도 되지만, &#x27;접수 시작 전에는 입장할 수 없다&#x27;는 안내의 이유가 된다.
+- 예비 인력은 확답이 없으므로 안내문에 &#x27;도우미가 안내합니다&#x27; 같은 문구를 쓰지 않는다.
+
+담당: 신유나(인력), 임재혁(기록) / 근거: [1]
+
+## 3. 준비 동선 [결정]
+
+확정 내용
+- 연습실은 현장에서 걸어서 편도 10분이고 물품 확인에는 6분이 든다.
+- 현장 설치는 25분이다.
+- 물품은 한 번에 가져올 수 있다.
+- 편도 시간을 왕복 시간으로 쓰지 않으며, 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없다.
+
+배경
+- 편도 10분은 신유나가 9월 12일 손수레를 끌고 실제로 걸어 잰 값이다. 횡단보도 신호 대기 한 번이 들어 있다.
+- 확인 6분은 악보 묶음의 파트별 수와 고친 쪽, 보면대 나사와 받침판을 보는 시간이다.
+- 설치 25분은 무대 보면대와 자리 표시, 로비 접수대와 안내판을 한 사람이 놓는 시간이다.
+
+세부 조건
+- 연습실 손수레 한 대로 악보 묶음과 보면대를 한 번에 싣는다. 보면대 다리는 끈으로 묶는다.
+- 오가는 일정이 생기면 가는 길 10분과 오는 길 10분을 따로 적는다. &#x27;편도 10분&#x27;을 &#x27;왕복 10분&#x27;으로 바꿔 쓰지 않는다.
+- 설치가 끝나야 접수를 연다. 설치 도중 관객이 와도 먼저 접수를 받지 않는다.
+
+관객에게 닿는 부분
+- 관객 쪽에서는 접수 전에 객석과 무대 쪽 문이 닫혀 있다는 점으로 나타난다.
+
+담당: 신유나 / 근거: [1]
+
+## 4. 선택할 수 있는 방식
+
+### 4-1. 두 방식의 내용 [결정]
+
+확정 내용
+- A안은 당일 연습실에서 악보와 보면대를 직접 옮기는 방식(편도 10분, 악보 확인 6분)이고 비용은 없습니다.
+- B안은 전날 공연장 무대 뒤 보관실에 두는 방식이며 보관실 이용료 3000원, 당일 악보 확인 6분입니다.
+- 설치는 두 방식 모두 25분이다.
+- 두 방식 모두 내용을 확인하는 단계는 필요하다.
+
+배경
+- A안은 당일 현장 도착 뒤 연습실을 다녀오는 방식이다. 비용은 없지만 당일 준비 시간 안에 이동이 들어간다.
+- B안은 전날 공연장에 물품을 가져다 두는 방식이다. 당일 이동은 없지만 보관실 이용료가 들고, 전날 작업이 생긴다. 전날 작업은 당일 일정에 넣지 않는다.
+- 지휘자는 어느 방식이든 당일 악보 확인을 빠뜨리지 말아 달라고 했다.
+
+### 4-2. 어느 방식을 쓸지 [보류]
+
+- 선택하지 않았다. 안내문, 일정표, 예산 장부에 한 방식을 확정으로 쓰지 않는다.
+- 보류 이유: 보관실을 전날 언제부터 쓸 수 있는지에 대한 공연장 회신이 없다. 보관 중 사고 책임 범위가 확인되지 않았다. 3000원을 예상 지출에 올릴지 회계 확인이 필요하다.
+- 보관실은 예약하지 않았다. 보관실 이용 신청도 하지 않았다.
+- 다음 회의(9월 22일 예정)에서 다시 다룬다.
+
+관객에게 닿는 부분
+- 없다. 운반 방식은 관객 안내 사항이 아니다. 다만 방식에 따라 담당자의 당일 준비 순서가 달라지므로, 안내문에 &#x27;일찍 오시면 먼저 입장할 수 있다&#x27; 같은 문구는 어느 방식이든 쓰지 않는다.
+
+담당: 신유나(공연장 회신), 임재혁(비용 처리) / 근거: [1], [2]
+
+## 5. 예산 역할 [결정]
+
+확정 내용
+- 승인 예산 상한은 250000원, 실제 지급액은 118000원, 남은 운영 예상 지출은 96000원이다.
+- 상한은 실제 지출이 아니며 남은 예상은 이미 지급한 돈이 아니다.
+- B안 비용 3000원은 예상 지출에 아직 들어 있지 않다.
+- 환불이나 지원금의 추가 입금은 확인하지 않았다.
+
+배경
+- 승인 상한은 9월 2일 단 운영위원회에서 정한 한도다.
+- 실지급 118000원은 악보 구입 52000원, 악보 복사와 제본 23000원, 포스터와 현수막 인쇄 28000원, 연습실 9월분 사용료 분담금 15000원이다.
+- 남은 예상 96000원은 공연장 피아노 조율 45000원, 공연장 관리 실비 40000원, 무대 소모품 11000원이다.
+- 지난해 후원금이 &#x27;지원금&#x27;으로 잘못 적혀 상한과 섞여 보인 일이 있어, 이번에는 입금이 확인된 돈만 적는다.
+
+세부 조건
+- 장부는 승인 상한, 실제 지급, 남은 예상의 세 칸으로 나눈다. 한 돈을 두 칸에 동시에 적지 않는다.
+- B안을 고르면 3000원을 예상 지출 칸에 새로 올리고, 상한 안에 드는지 장부로 다시 확인한다. 그 전에는 3000원을 어디에도 더하지 않는다.
+- 프로그램 안내지 인쇄는 견적만 받는 중이며 예상 지출에 없다.
+
+관객에게 닿는 부분
+- 관람료나 비용 면제에 관한 약속을 안내문에 쓰지 않는다. 정하지 않은 혜택이기 때문이다.
+
+담당: 임재혁 / 근거: [2]
+
+## 6. 참가자 행동 [결정, 일부 미정]
+
+확정 내용
+- 사전 등록을 기본으로 하며 좌석이 남으면 현장 입장을 허용하는 예외가 있다.
+- 문의처는 공연 운영 담당 신유나이다.
+- 참가자는 접수 시간 이전에 도착해도 준비 중인 공간에 들어갈 수 없다.
+- 번호표나 명찰을 받았다는 사실이 안내를 들었다는 뜻은 아니다.
+
+세부 조건 — 사전 등록
+- 관객은 사전 등록을 한 사람을 기본으로 받는다.
+- 등록을 받는 창구(게시판 글로 받을지, 문자로 받을지)는 문의 연락처와 함께 정하기로 해서 아직 미정이다. 안내문에는 창구를 지어 쓰지 않는다.
+- 등록한 관객이 접수에서 이름이 확인되지 않으면, 등록 확인 화면이나 문자를 보여 달라고 한다. 그래도 확인되지 않으면 아래 예외 조건으로 안내한다.
+
+세부 조건 — 현장 입장 예외(현재 허용)
+- 좌석이 남으면 사전 등록하지 않은 관객도 현장에서 입장할 수 있다. 이 예외는 지금 허용된 상태다.
+- 순서는 사전 등록 관객이 먼저다. 남은 좌석 안에서만 현장 관객을 받으며 정원 60명을 넘기지 않는다.
+- 공연장이 정원 관리 방식을 검토 중이라, 이 예외는 나중에 취소될 수 있다. 취소 통지가 오면 그 뒤로는 이 예외를 쓰지 않는다.
+
+세부 조건 — 문의
+- 문의처는 공연 운영 담당 신유나다. 연락처(전화, 메일)는 미정이다. 신유나 개인 번호는 안내문에 싣지 않기로 했다.
+- 문의가 들어오면 신유나가 답하고, 돈에 관한 질문은 임재혁에게 확인한 뒤 답한다.
+
+세부 조건 — 도착과 대기
+- 접수는 16:40에 연다. 그 전에 온 관객은 객석과 무대 쪽 공간에 들어갈 수 없다.
+- 일찍 온 관객이 기다릴 장소(건물 현관 안쪽 복도 등)는 공연장에 묻는 중이라 미정이다.
+- 화장실은 로비 바깥 복도에 있어 객석을 지나지 않고 갈 수 있다. 접수 전에 써도 되는지는 대기 장소와 함께 묻는 중이다.
+
+세부 조건 — 번호표와 안내
+- 접수 때 번호표를 준다. 번호표를 받았다고 안내를 들은 것으로 보지 않는다.
+- 촬영 규정은 접수 때 말로 한 번 더 알린다. 지난 회차에 번호표를 받은 관객이 촬영 금지를 듣지 못했다고 한 일이 있다.
+
+세부 조건 — 공연 중과 끝난 뒤
+- 공연 중 객석 출입: 늦게 온 관객을 곡과 곡 사이에만 들이자는 이야기는 나왔으나 정하지 않았다.
+- 휴식 시간: 관객은 로비로 나올 수 있고, 이때만 로비에서 사진을 찍을 수 있다. 휴식이 몇 시인지는 미정이다.
+- 끝난 뒤: 관객은 번호표를 로비 출구 쪽 회수 상자에 넣고 나간다. 회수 상자에 들어온 번호표 수는 참가 기록과 따로 세지 않는다(12번). 로비에 머무를 수 있는 시간은 미정이다.
+
+관객에게 닿는 부분(안내문에 들어가야 할 행동)
+- 사전 등록을 하고 오기.
+- 접수 시작 시각(16:40) 이후에 들어갈 수 있다는 것.
+- 좌석이 남을 때만 현장 입장이 된다는 것(현재 기준).
+- 궁금한 것은 공연 운영 담당 신유나에게 묻기(연락처 미정).
+- 공연 중에는 촬영하지 않기(8번 항목).
+
+담당: 신유나 / 근거: [1]
+
+## 7. 물품과 장비 [결정]
+
+확정 내용
+- 물품은 현장 대조 뒤 배부한다.
+- 예비 물품을 정원에 더하지 않으며 남은 물품 수와 참가자 수를 같은 값으로 맞추지 않는다.
+- 파손이 의심되는 물품은 배부하지 않고 따로 확인한다.
+- 새 물품 구매는 아직 승인하지 않았으므로 일정이나 예산에 실제 구매로 넣지 않는다.
+
+배경
+- 지난 회차에 남은 번호표 묶음을 보고 &#x27;이만큼은 더 받을 수 있다&#x27;는 말이 나온 적이 있다. 물품 수는 관객 수를 정하지 않는다.
+- 보면대 가운데 접이 나사가 헐거운 것이 한 대 있어 따로 빼 두었다.
+
+세부 조건
+- 대조는 연습실 반출입 대장과 현장 물품을 맞춰 보는 일이다. 대조가 끝나기 전에는 무대에 놓거나 관객에게 주지 않는다.
+- 악보 묶음은 파트별 겉표지 색(소프라노 분홍, 알토 노랑, 테너 하늘, 베이스 회색)으로 구별한다.
+- 관객 번호표는 지난 회차에 남은 것을 쓴다. 단원 명찰도 지난 회차 것을 다시 쓴다.
+- 접수대 탁자와 의자는 공연장 비품이다. 우리 물품과 섞어 세지 않는다.
+- 프로그램 안내지는 견적만 받는 중이다. 주문하지 않았다.
+- 파손 의심 물품은 &#x27;배부 제외&#x27;로 표시해 접수대 아래 상자에 따로 둔다.
+
+관객에게 닿는 부분
+- 프로그램 안내지를 나눠 준다는 문구는 주문이 승인되기 전에는 안내문에 쓰지 않는다.
+- 관객에게 나눠 주는 물품은 번호표다.
+
+담당: 신유나(대조), 임재혁(구매 승인 여부) / 근거: [1], [2]
+
+## 8. 운영 세부 [결정]
+
+확정 내용
+- 공연 중 촬영은 금지하고 휴식 시간에만 로비에서 사진을 허용한다.
+- 생수는 단원용이며 관객에게는 배부하지 않는다.
+- 앙코르 곡 여부는 지휘자가 공연 당일 결정하므로 안내문에 적지 않는다.
+
+배경
+- 촬영: 객석의 휴대전화 화면이 무대에서 잘 보여 단원들이 시선을 놓친다는 지휘자 의견. 지난 회차 &#x27;촬영 자제&#x27;라는 표현은 해석이 갈렸다.
+- 생수: 지난 회차 로비에 둔 단원 생수를 관객이 가져가 단원 몫이 모자랐다.
+- 앙코르: 지난해 안내문에 곡명을 적었다가 당일 부르지 않아 문의가 여러 건 왔다.
+
+세부 조건
+- 사진 허용은 &#x27;휴식 시간&#x27;과 &#x27;로비&#x27; 두 조건이 함께 맞을 때만이다. 휴식 시간이라도 객석 안에서는 찍지 않는다.
+- 생수는 단원 대기실과 무대 옆 통로에 둔다. 로비와 접수대에는 두지 않는다.
+- 앙코르는 안내문뿐 아니라 접수 때 관객이 물어도 &#x27;당일 지휘자가 정한다&#x27;고만 답한다. 곡명을 미리 말하지 않는다.
+
+관객에게 닿는 부분
+- 공연 중 촬영 금지, 휴식 시간 로비 사진 허용.
+- 관객용 생수는 없다. 안내문에 &#x27;생수를 드립니다&#x27; 같은 문구를 쓰지 않는다.
+- 앙코르는 안내문에 쓰지 않는다.
+
+담당: 신유나(안내), 지휘자 백승원(앙코르) / 근거: [1]
+
+## 9. 확정하지 않은 항목 [보류]
+
+확정 내용(보류로 확정된 것)
+- 추가 지원 인력, 관객 좌석 배치표, 개별 참가자의 편의 지원은 정하지 않았다.
+- 관객 좌석 배치표는 이번 자료에 포함되지 않는다.
+- 필요한 값이 없으면 미정 또는 미기재로 구별해 안내하고, 예상만으로 이름이나 연락처를 만들지 않는다.
+
+항목별 현재 상태
+- 추가 지원 인력: 예비 인력 조민서는 확답 없음. 그 밖에 이름이 나온 사람은 없다.
+- 관객 좌석 배치표: 사전 등록이 마감되어야 만들 수 있다. 배치 기준도 아직 논의 전이다. 이 기록에는 배치표가 없다.
+- 개별 참가자의 편의 지원: 보행 보조기를 쓰는 관객의 통로 쪽 자리 문의, 어린 자녀 동반 문의가 들어와 있다. 지원 방식은 정하지 않았고, 문의한 분들께는 정해지면 알리겠다고만 답했다.
+
+이 밖에 아직 정하지 않은 것(회의 안건은 아니지만 안내문에 영향이 있는 것)
+- 행사 날짜: 미정.
+- 문의 연락처(전화, 메일): 미정.
+- 사전 등록을 받는 창구: 미정.
+- 접수 전 관객 대기 장소: 미정.
+- 1부와 2부 사이 휴식 시각과 길이: 미정(지휘자가 곡 순서와 함께 정함).
+- 공연 시작 뒤 늦게 온 관객의 입장 방식: 곡과 곡 사이에만 들어가게 하자는 이야기가 나왔으나 정하지 않았다.
+- 운반 방식(A안·B안) 선택: 보류(4-2).
+- 프로그램 안내지 주문: 승인 전.
+
+미정과 미기재의 구별
+- &#x27;미정&#x27;은 아직 정하지 않아 값이 없는 것(행사 날짜, 연락처).
+- &#x27;미기재&#x27;는 정해져 있을 수 있으나 이 기록에 적혀 있지 않은 것. 예를 들어 공연장 측 담당자의 연락처는 우리가 받았지만 관객 안내 대상이 아니라 이 기록에 적지 않았다.
+
+담당: 신유나 / 근거: [1]
+
+## 10. 담당자 인계 [결정]
+
+확정 내용
+- 담당자가 자리를 비워야 하면 접수가 시작되기 전에 돌아오도록 한다.
+- 접수 시작 후에는 자리를 비워 둘 수 없다.
+- 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다.
+
+배경
+- 지난해 가을 연주회 때 접수 도중 담당자가 대기실 연락을 받고 자리를 떠났고, 그동안 명단 확인 없이 들어간 관객이 생겼다.
+- 지난해 일정을 바꾸면서 접수 시각 하나를 고치다가 공연 시작 시각까지 잘못 나간 일이 있었다.
+
+세부 조건
+- 자리를 비우게 될 수 있는 일(물품 누락으로 연습실 다녀오기, 대기실 호출, 관리실 호출, 개인 용무)은 접수 전에 끝낸다.
+- 접수 시작 뒤 대기실 일은 무대 쪽에서 해결하기로 지휘자와 이야기가 되어 있다.
+- 바뀐 조건이 생기면 변경 통지 공문에 &#x27;바뀌는 것&#x27;과 &#x27;그대로인 것&#x27;을 나눠 적는다.
+
+관객에게 닿는 부분
+- 접수가 시작된 뒤에는 접수대에 늘 담당자가 있다. 문의는 접수대에서 받을 수 있다.
+
+담당: 신유나 / 근거: [1]
+
+## 11. 안내문 검토 [결정]
+
+확정 내용
+- 관객 안내문에는 일시, 접수, 참여 조건과 문의처가 필요하다.
+- 아직 정하지 않은 추가 날짜나 비용 면제를 약속하지 않는다.
+- 좌석이 남으면 현장 입장을 허용하는 예외는 현재 허용된 상태지만 나중에 취소 통지가 오면 이전 예외를 계속 쓰지 않아야 한다.
+- 홍보 문구보다 참가자가 해야 할 행동을 읽기 쉽게 적는다.
+
+배경
+- 지난 회차 안내문 끝에 &#x27;다음 공연 무료 초대&#x27;라는 정하지 않은 약속이 들어가 사과 문자를 보냈다.
+- 지난 회차 안내문은 곡 소개가 앞에 길게 있고, 접수 시각은 맨 끝에 작게 있었다.
+
+세부 조건
+- 일시: 행사 날짜는 &#x27;미정&#x27;, 시각은 17:00~18:30.
+- 접수: 16:40 시작.
+- 참여 조건: 사전 등록 기본, 좌석이 남으면 현장 입장 허용(현재). 정원 60명.
+- 문의처: 공연 운영 담당 신유나, 연락처 미정.
+- 운영 세부(촬영, 생수, 앙코르)는 8번 항목대로 쓰거나 쓰지 않는다.
+- 초안은 신유나가 쓰고, 돈에 관한 문구는 임재혁이 확인한다.
+
+담당: 신유나(초안), 임재혁(확인) / 근거: [1], [2]
+
+## 12. 마감과 회수 [결정]
+
+확정 내용
+- 18:30 이후에는 물품을 회수하고 참가 기록을 마감한다.
+- 종료 시각을 회수 완료 시각으로 자동 기록하지 않는다.
+- 당일 끝내지 못한 후속 확인은 담당과 다음 확인 대상을 남긴다.
+- 같은 비용이나 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+
+배경
+- 지난 회차 일정표에 &#x27;18:30 종료, 회수 완료&#x27;가 한 줄로 있었으나 실제 회수는 그보다 늦게 끝났다.
+
+세부 조건
+- 회수 대상: 보면대, 악보 묶음, 번호표, 안내판, 자리 표시 테이프(떼어 냄), 접수대 탁자와 의자(공연장 비품, 제자리로).
+- 회수한 물품은 반출입 대장과 다시 대조한다. 파손 의심 물품은 따로 표시한다.
+- 참가 기록은 접수 명단 한 곳에만 표시한다. 번호표 회수 수를 따로 세어 명단 표시 수와 더하지 않는다.
+- 회수가 실제로 끝난 시각은 그때 시계를 보고 적는다.
+- 후속 확인 예: 파손 보면대 수리 여부(담당 신유나, 다음 연습 날 확인), 공연장 관리 실비 정산(담당 임재혁, 공연장 청구서 받은 뒤).
+
+관객에게 닿는 부분
+- 공연이 끝난 뒤 관객이 로비에 머무를 수 있는 시간은 정하지 않았다(미정). 안내문에 쓰지 않는다.
+
+담당: 신유나(회수), 임재혁(비용 정산) / 근거: [1], [2]
+
+## 13. 참고 기록 [참고]
+
+이 기록의 근거 칸에 쓴 번호는 맨 끝 &#x27;참고 기록&#x27; 절의 두 기록을 가리킨다. 두 기록이 어떤 자료인지 덧붙여 둔다.
+
+- [1]은 공연 운영 담당 신유나가 9월 11~12일에 적은 메모다. 공연장 문 여는 시각, 연습실에서 걸어 잰 시간, 확인과 설치 시간, 로비와 무대 옆 통로 모습, 보관실 안내가 들어 있다.
+- [2]는 단 회계 담당 임재혁이 9월 14일 기준으로 적은 메모다. 지급 내역과 예상 내역, 운반 방식별 비용(A안 없음, B안 보관실 이용료)이 들어 있다.
+
+## 덧붙임 1. 관객 문의 접수 현황(9월 15~17일)
+
+단원 가족과 동네 주민에게서 신유나가 직접 받은 문의다. 답한 내용은 위 항목의 확정 사항 안에서만 했고, 정하지 않은 것은 정하지 않았다고 답했다.
+
+- 9월 15일, 소프라노 단원 가족: &quot;주차할 곳이 있나요?&quot; → 공연장 주차 안내는 공연장에 확인 중이라 아직 말씀드릴 수 없다고 답함. 주차는 이 기록의 어느 항목에도 정해져 있지 않다(미정).
+- 9월 15일, 주민센터 노래교실 수강생: &quot;등록은 어디로 하나요?&quot; → 등록 창구는 연락처와 함께 정해지면 안내문으로 알린다고 답함.
+- 9월 16일, 알토 단원 가족: &quot;조금 일찍 가서 자리를 맡아도 되나요?&quot; → 접수 시작(16:40) 전에는 객석에 들어갈 수 없다고 답함. 좌석 배치 방식은 정하지 않았다는 점도 함께 말함.
+- 9월 16일, 주민: &quot;등록을 못 했는데 그냥 가도 되나요?&quot; → 지금 기준으로는 좌석이 남으면 현장 입장이 된다고 답함. 다만 남는 좌석이 있을지는 당일에야 알 수 있고, 조건이 바뀔 수 있다고 덧붙임.
+- 9월 16일, 테너 단원 가족: &quot;공연 중에 아이 사진을 찍어도 되나요?&quot; → 공연 중 촬영은 금지이고, 휴식 시간에 로비에서만 사진을 찍을 수 있다고 답함.
+- 9월 17일, 베이스 단원 가족: &quot;꽃다발은 언제 전하나요?&quot; → 정하지 않았다고 답함. 이 기록에 꽃다발 전달에 관한 결정은 없다.
+- 9월 17일, 주민: &quot;물이나 음료를 나눠 주나요?&quot; → 관객용 생수는 준비하지 않는다고 답함. 단원용 생수만 있다.
+- 9월 17일, 소프라노 단원 가족: &quot;앙코르로 무슨 곡을 하나요?&quot; → 앙코르 여부는 지휘자가 당일 정한다고만 답함.
+- 9월 17일, 주민(보행 보조기 사용): 9월 초 문의에 이어 다시 연락. &quot;통로 쪽 자리는 정해졌나요?&quot; → 편의 지원 방식은 아직 정하지 않았고, 정해지면 먼저 알리겠다고 답함.
+
+## 덧붙임 2. 당일 관객 동선(현재 기준)
+
+[1]에 적힌 공연장 모습을 바탕으로 했다. 시각은 1번과 6번 항목의 값만 썼다.
+
+- 관객은 건물 앞 현관으로 들어온다. 뒤 출입문은 담당자와 단원 출입용이라 관객 안내에 넣지 않는다.
+- 현관을 지나면 로비다. 접수대는 로비 출입문에서 조금 떨어진 안쪽 기둥 옆에 둔다.
+- 16:40 접수 시작 전에는 객석 문과 무대 쪽 문이 닫혀 있다. 일찍 온 관객의 대기 장소는 미정이다.
+- 접수에서 이름을 확인하고 번호표를 받은 뒤 객석으로 들어간다. 좌석을 어떻게 정하는지는 정하지 않았다.
+- 현장 입장 관객은 사전 등록 관객의 입장이 끝난 뒤, 남은 좌석 안에서 들어간다(현재 기준).
+- 휴식 시간에는 로비로 나와 사진을 찍을 수 있다. 객석 안에서는 찍지 않는다.
+- 공연이 끝나면 로비를 거쳐 현관으로 나간다. 종료 뒤 로비에 머무를 수 있는 시간은 미정이다.
+
+## 덧붙임 3. 단원에게 알릴 사항(관객 안내와 따로)
+
+관객 안내문에 넣지 않고 단원 대화방으로 알릴 내용이다. 섞이지 않게 따로 둔다.
+
+- 단원 생수는 대기실과 무대 옆 통로에 둔다. 로비에는 두지 않는다. 가족에게 생수를 건네지 말아 달라고 부탁한다.
+- 접수가 시작된 뒤에는 운영 담당을 대기실로 부르지 않는다. 대기실 일은 지휘자와 파트장이 무대 쪽에서 해결한다.
+- 가족에게 촬영 규정(공연 중 금지, 휴식 시간 로비 사진 허용)을 미리 전해 달라고 부탁한다.
+- 가족에게 사전 등록을 권해 달라고 부탁한다. 현장 입장은 좌석이 남을 때만 되는 예외라는 점도 함께.
+- 단원은 뒤 출입문으로 들어온다. 단원 도착 시각은 지휘자가 정한다(이 기록에는 없음).
+- 단원 명찰은 지난 회차 것을 쓴다. 잃어버린 단원은 신유나에게 미리 말한다.
+
+## 덧붙임 4. 공연장과 아직 맞추지 않은 것
+
+공연장 회신이 와야 정할 수 있는 것들이다. 회신이 오기 전에는 안내문과 일정표에 확정으로 쓰지 않는다.
+
+- 무대 뒤 보관실을 전날 몇 시부터 몇 시까지 쓸 수 있는지(운반 방식 선택과 이어짐).
+- 보관실에 둔 물품이 분실되거나 파손되었을 때 공연장이 어디까지 책임지는지.
+- 접수 전 관객이 기다릴 수 있는 장소와 화장실 사용.
+- 주차 안내.
+- 피아노 조율을 행사 당일 몇 시에 하는지. 담당자 설치 시간과 겹치는지 확인해야 한다.
+- 공연장 관리 실비 청구서를 언제 받는지(남은 예상 40000원 항목).
+- 공연장이 검토 중인 정원 관리 방식(입장 명단을 미리 받는 방식). 이 결정에 따라 현장 입장 예외가 취소될 수 있다.
+
+## 덧붙임 5. 항목별 확인한 사람과 날짜
+
+| 항목 | 상태 | 확인한 사람 | 확인한 날 | 근거 |
+| --- | --- | --- | --- | --- |
+| 1. 행사 범위 | 결정 | 신유나 | 9월 14일 | [1] |
+| 2. 현재 자원 | 결정 | 신유나 | 9월 14일 | [1] |
+| 3. 준비 동선 | 결정 | 신유나 | 9월 12일 실측, 9월 14일 회의 | [1] |
+| 4-1. 두 방식의 내용 | 결정 | 신유나, 임재혁 | 9월 14일 | [1], [2] |
+| 4-2. 방식 선택 | 보류 | 신유나, 임재혁 | 9월 14일, 9월 17일 다시 확인 | [1], [2] |
+| 5. 예산 역할 | 결정 | 임재혁 | 9월 14일 장부 기준 | [2] |
+| 6. 참가자 행동 | 결정, 일부 미정 | 신유나 | 9월 14일 | [1] |
+| 7. 물품과 장비 | 결정 | 신유나 | 9월 14일 | [1], [2] |
+| 8. 운영 세부 | 결정 | 신유나, 지휘자 메모 | 9월 13일 메모, 9월 14일 회의 | [1] |
+| 9. 확정하지 않은 항목 | 보류 | 신유나 | 9월 14일, 9월 17일 다시 확인 | [1] |
+| 10. 담당자 인계 | 결정 | 신유나 | 9월 14일 | [1] |
+| 11. 안내문 검토 | 결정 | 신유나, 임재혁 | 9월 14일 | [1], [2] |
+| 12. 마감과 회수 | 결정 | 신유나, 임재혁 | 9월 14일 | [1], [2] |
+
+- &#x27;9월 17일 다시 확인&#x27;은 공연장 회신이 왔는지, 예비 인력 확답이 왔는지 다시 본 날이다. 둘 다 오지 않아 상태는 그대로다.
+
+## 덧붙임 6. 안내문에 쓰지 않을 표현과 그 이유
+
+초안을 쓸 때 지난 회차 문구를 그대로 가져오다 생길 수 있는 실수를 미리 적어 둔다.
+
+- &#x27;선착순 입장&#x27;: 좌석을 도착 순서로 준다는 결정은 없다. 좌석 배치 방식은 보류(9번)다.
+- &#x27;도우미가 안내해 드립니다&#x27;: 예비 인력은 확답이 없고 승인 인력이 아니다(2번). 확정 인력은 1명이다.
+- &#x27;다음 공연 무료 초대&#x27;, &#x27;관람료 면제&#x27;: 정하지 않은 혜택이다(11번).
+- &#x27;생수를 드립니다&#x27;: 생수는 단원용이다(8번).
+- &#x27;앙코르로 ○○를 부릅니다&#x27;: 앙코르 여부는 지휘자가 당일 정한다(8번).
+- &#x27;촬영은 자제해 주세요&#x27;: 해석이 갈린 표현이다. &#x27;공연 중 촬영 금지, 휴식 시간 로비 사진 허용&#x27;으로 쓴다(8번).
+- &#x27;일찍 오시면 좋은 자리에 앉으실 수 있습니다&#x27;: 접수 전에는 입장할 수 없고, 좌석 방식도 정하지 않았다(6번, 9번).
+- &#x27;주차 가능&#x27;: 주차는 확인되지 않았다(덧붙임 4).
+- &#x27;프로그램 안내지를 드립니다&#x27;: 주문 승인 전이다(7번).
+- &#x27;현장 입장 가능&#x27;만 단독으로 쓰는 것: 현재 예외는 &#x27;좌석이 남으면&#x27;이라는 조건이 붙어 있다. 조건 없이 쓰면 등록하지 않아도 들어갈 수 있다는 뜻으로 읽힌다(6번).
+- &#x27;○월 ○일 공연&#x27;처럼 날짜 칸을 채운 문구: 행사 날짜는 미정이다. 날짜를 짐작해 쓰지 않는다(1번).
+
+## 덧붙임 7. 9월 15~17일 주고받은 메시지에서 확인한 것
+
+- 9월 15일 오전, 신유나 → 공연장 하경태 주임: 보관실 사용 가능 시간과 책임 범위를 다시 물음. 답 없음.
+- 9월 15일 저녁, 임재혁 → 신유나: &quot;B안 3000원은 방식이 정해지기 전까지 장부 어디에도 올리지 않겠다. 정해지면 예상 지출 칸에 새 줄로 올린다.&quot; 신유나 동의.
+- 9월 16일, 임재혁: 동네 인쇄소에 프로그램 안내지 견적을 물음. 답은 다음 주에 주겠다고 함. 견적이 와도 승인 전에는 주문하지 않는다.
+- 9월 16일, 신유나: 헐거운 보면대 나사를 조여 봤으나 다시 풀림. 배부 제외로 따로 둔 상태 그대로.
+- 9월 17일, 단장 김옥희 → 신유나: 공연장과 날짜 협의가 아직 진행 중이라고 알림. 날짜는 여전히 미정.
+- 9월 17일, 신유나: 조민서에게는 날짜가 정해지기 전까지 따로 연락하지 않기로 한 대로 연락하지 않음. 확답 없음 상태 그대로.
+- 9월 17일, 지휘자 백승원: 9월 19일 공연장 사전 리허설 곡 순서를 단원 대화방에 올림. 리허설은 공연장이 시설 점검을 겸해 허락한 시간이며 행사 당일과는 다르다.
+
+## 덧붙임 8. 접수대에서 관객에게 말로 알릴 것(현재 기준)
+
+안내문을 읽지 않고 온 관객도 있으므로, 접수 때 짧게 말로 한 번 더 알린다. 번호표를 건넨 것만으로 안내가 끝난 것으로 보지 않는다(6번).
+
+- 이름 확인: &quot;사전 등록하신 성함을 말씀해 주시겠어요?&quot; 명단에 표시한 뒤 번호표를 드린다.
+- 촬영: 공연 중에는 촬영할 수 없고, 휴식 시간에 로비에서만 사진을 찍을 수 있다.
+- 생수: 관객용은 없다. 물어보면 준비하지 않았다고 답한다.
+- 화장실: 로비 바깥 복도. 객석을 지나지 않는다.
+- 문의: 공연 중 궁금한 것은 접수대에서 받는다. 접수가 시작된 뒤에는 담당자가 접수대를 떠나지 않는다.
+- 현장 입장 관객: 사전 등록 관객의 입장이 끝날 때까지 접수대 옆에서 기다려 달라고 하고, 남은 좌석이 있을 때만 들어가게 한다(현재 기준).
+- 말하지 않을 것: 앙코르 곡, 정하지 않은 좌석 방식, 다음 공연 혜택.
+
+## 덧붙임 9. 이 기록에 들어 있지 않은 것
+
+이 기록을 근거로 무엇을 말할 수 있고 없는지 헷갈리지 않게 적어 둔다.
+
+- 관객 좌석 배치표와 개인별 좌석: 없음(보류).
+- 사전 등록 관객 명단: 이 기록에 붙이지 않았다. 명단은 신유나가 따로 가지고 있으며, 개인정보라 배포하지 않는다.
+- 행사 날짜, 문의 연락처, 등록 창구: 미정이라 없음.
+- 곡 순서와 휴식 시각: 지휘자 몫이라 이 기록에 없음.
+- 프로그램 안내지 견적 금액: 9월 18일 현재 아직 받지 못해 없음.
+- 공연장 측 회신: 받지 못해 없음.
+- 보관실 예약이나 신청 기록: 하지 않았으므로 없음.
+- 단원 명단과 파트별 인원: 지휘자가 가지고 있으며 이 기록에 없음.
+- 연습실 비품 반출입 대장: 신유나가 따로 적고 있으며 이 기록에 붙이지 않았다. 물품 수량을 말할 때는 대장을 따로 본다.
+- 공연장 측 담당자의 연락처: 받았으나 관객 안내 대상이 아니라 적지 않음(미기재).
+
+## 덧붙임 10. 판본 1에서 옮기며 맞춰 본 값
+
+판본 2를 쓰면서 숫자가 들어간 값은 판본 1, 회의록, [1], [2]를 한 줄씩 대 보았다. 어긋난 곳은 없었다.
+
+- 현장 도착 15:30, 접수 16:40, 행사 17:00~18:30: 회의록 안건 1과 [1]의 공연장 문 여는 시각 메모를 대 봄.
+- 확정 진행 인력 1명, 정원 60명: 회의록 안건 2와 [1]. 예비 인력은 두 곳 모두 &#x27;확답 없음&#x27;.
+- 편도 10분, 확인 6분, 설치 25분: [1]의 9월 12일 실측 메모. 설치 25분은 두 방식에 똑같이 적혀 있음.
+- A안 비용 없음, B안 보관실 이용료 3000원: [2]의 방식별 비용 줄. B안 당일 악보 확인 6분은 [1]에도 같은 값.
+- 승인 상한 250000원, 실지급 118000원, 남은 예상 96000원: [2]. 실지급 네 줄과 남은 예상 세 줄의 내역도 장부와 대 봄. B안 3000원은 [2]에서도 남은 예상 밖에 따로 적혀 있음.
+- 운영 세부 세 가지(촬영, 생수, 앙코르): 지휘자 서면 메모와 회의록 안건 9를 대 봄.
+- 대 보는 데 쓴 시간과 사람: 9월 18일 저녁, 임재혁이 읽고 신유나가 듣는 방식으로 함께 확인.
+
+## 판본 2 확인 메모
+
+- 확인한 범위: 이 기록은 9월 14일 회의록, [1], [2], 그리고 9월 15~17일 신유나와 임재혁이 주고받은 단원 대화방 메시지만을 바탕으로 했다. 공연장 회신은 아직 받지 못해 반영하지 않았다.
+- 이 기록의 숫자 가운데 새로 계산해 만든 값은 없다. 상한과 지출의 차이 같은 계산 결과는 장부 담당이 따로 확인하기로 하고 여기에 적지 않았다.
+- 판본 1과 달라진 값은 없다. 판본 1의 &#x27;물품&#x27; 줄과 &#x27;장비&#x27; 줄을 7번 항목으로 합친 것, 8번 운영 세부의 세부 조건을 늘린 것, 9번 항목에 &#x27;이 밖에 아직 정하지 않은 것&#x27;을 덧붙인 것이 바뀐 점이다.
+- 다음 판본은 운반 방식이 정해지거나, 공연장 회신이 오거나, 참가 조건이 바뀌면 만든다. 바뀌는 경우에는 변경 통지 공문을 먼저 내고, 이 기록은 바뀐 조건만 고친다.
+
+## 판본 2 배포 뒤 받은 답(9월 18일 밤)
+
+- 단장 김옥희: &quot;좌석 배치 기준은 다음 회의에서 같이 이야기하자. 편의 지원 문의한 분들 이름은 대화방에 올리지 말고 신유나가 따로 가지고 있어 달라.&quot; 신유나 확인함.
+- 지휘자 백승원: &quot;휴식 시각과 곡 순서는 19일 리허설을 해 보고 알려 주겠다. 앙코르는 지금처럼 안내문에서 빼 달라.&quot; 판본 2의 8번 항목과 같다.
+- 공연장 회신, 예비 인력 확답, 인쇄소 견적은 이날 밤까지도 오지 않았다. 판본 2의 보류와 미정 표시는 그대로 둔다.
+
+## 참고 기록
+
+[1] 공연장 점검 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 합창단 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝에는 실제로 확인한 범위와 외부 조회·예약 실행 여부를 사실대로 구별해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 3 답변</b><pre class="rs-pre rs-ans"># 참가자 행동 요약 (운영 확인 기록 판본 2 기준)
+
+존댓말과 차분한 어조로, 확정 사항과 미정 사항을 나눠 정리했습니다.
+
+## 1. 확정된 사항
+
+**시각과 정원**
+- 접수는 16:40에 열고, 공연은 17:00부터 18:30까지입니다. 정원은 60명입니다. [1]
+- 접수 시작 전에는 객석과 무대 쪽 공간에 들어갈 수 없습니다. 일찍 도착해도 마찬가지입니다. [1]
+- 설치를 끝내기 전에 접수를 열어도 된다는 승인은 없습니다. [1]
+
+**등록과 입장**
+- 사전 등록이 기본입니다. [1]
+- 좌석이 남으면 현장 입장을 허용하는 예외가 현재 허용된 상태입니다. 사전 등록 관객이 먼저 입장하고, 남은 좌석 안에서만 현장 관객을 받으며 60명을 넘기지 않습니다. [1]
+- 이 예외는 공연장의 정원 관리 방식 검토 결과에 따라 취소될 수 있습니다. 취소 통지가 오면 그 뒤로는 쓰지 않습니다. [1]
+- 사전 등록 관객의 이름이 명단에 없으면 등록 확인 화면이나 문자를 요청하고, 확인되지 않으면 위 예외 조건으로 안내합니다. [1]
+
+**접수와 안내**
+- 접수 때 번호표를 줍니다. 번호표를 받았다는 사실이 안내를 들었다는 뜻은 아니므로, 촬영 규정은 말로 한 번 더 알립니다. [1]
+- 접수 시작 뒤에는 담당자가 접수대를 비우지 않으므로, 문의는 접수대에서 받을 수 있습니다. [1]
+- 문의처는 공연 운영 담당 신유나입니다. 돈에 관한 질문은 임재혁이 확인한 뒤 답합니다. [1][2]
+
+**공연 중과 휴식 시간**
+- 공연 중 촬영은 금지이고, 사진은 휴식 시간에 로비에서만 허용합니다. 두 조건이 함께 맞아야 하며 객석 안에서는 찍지 않습니다. [1]
+- 관객용 생수는 없습니다. 생수는 단원용이며 대기실과 무대 옆 통로에만 둡니다. [1]
+- 앙코르는 지휘자가 당일 정하므로 안내문에 쓰지 않고, 관객이 물어도 곡명을 말하지 않습니다. [1]
+- 화장실은 로비 바깥 복도에 있어 객석을 지나지 않고 갈 수 있습니다. 다만 접수 전 사용 가능 여부는 확인 중입니다. [1]
+- 끝난 뒤 번호표는 로비 출구 쪽 회수 상자에 넣습니다. 회수된 번호표 수는 참가 기록과 따로 세지 않습니다. [1]
+
+**안내문에 쓰지 않을 것**
+- 다음 공연 무료 초대나 관람료 면제 같은 정하지 않은 혜택은 쓰지 않습니다. [2]
+- &#x27;선착순&#x27;, &#x27;도우미 안내&#x27;, &#x27;생수 제공&#x27;, &#x27;주차 가능&#x27;, &#x27;프로그램 안내지 제공&#x27; 같은 표현도 근거가 없어 쓰지 않습니다. [1][2]
+- 안내문에는 참가자가 해야 할 행동을 먼저 적고, 날짜 칸은 &#x27;미정&#x27;으로 둡니다. [1]
+
+## 2. 아직 미정인 사항
+
+| 항목 | 현재 상태 |
+| --- | --- |
+| 행사 날짜 | 미정 (공연장 협의 중) |
+| 문의 연락처 (전화, 메일) | 미정 (신유나 개인 번호는 싣지 않기로 함) |
+| 사전 등록 창구 | 미정 (게시판 글로 받을지, 문자로 받을지) |
+| 접수 전 관객 대기 장소 | 미정 (공연장에 문의 중) |
+| 접수 전 화장실 사용 | 확인 중 |
+| 휴식 시각과 길이 | 미정 (지휘자가 곡 순서와 함께 결정) |
+| 늦게 온 관객 입장 방식 | 곡과 곡 사이에만 들이자는 이야기만 나옴, 정하지 않음 |
+| 끝난 뒤 로비 체류 시간 | 미정 |
+| 좌석 배치 방식과 배치표 | 보류 (사전 등록 마감 뒤 가능, 기준도 논의 전) |
+| 보행 보조기 이용·어린 자녀 동반 등 편의 지원 | 보류 (정해지면 알리겠다고만 답함) |
+| 주차 안내 | 미정 (공연장에 확인 중) |
+| 꽃다발 전달 | 정한 바 없음 |
+| 프로그램 안내지 | 견적만 진행, 주문 승인 전 |
+| 현장 입장 예외의 유지 여부 | 공연장 결정에 따라 달라질 수 있음 |
+
+미정 항목은 안내문에 확정처럼 쓰지 않고 &#x27;미정&#x27;으로만 옮기며, 짐작으로 채우지 않습니다. [1]
+
+## 3. 관객 문의 대응 (현재 기준)
+
+- 일찍 가서 자리를 맡아도 되는지 묻는 경우: 접수 시작 전에는 입장할 수 없다고 답했습니다. [1]
+- 등록하지 못한 경우: 좌석이 남으면 현장 입장이 되지만 남는 자리는 당일에야 알 수 있고 조건이 바뀔 수 있다고 답했습니다. [1]
+- 촬영과 생수, 앙코르 문의에는 위 확정 사항대로 답했습니다. [1]
+
+## 출처 목록
+
+<mark class="rs-mk"><sup>3</sup>- [1] 공연장 점검 메모: 행사·접수 시각, 인력, 준비 조건 (공연 운영 담당 신유나, 9월 11~12일). 기록 13번 항목에서 이렇게 설명하며, 행사·접수 시각, 인력, 준비 조건을 담은 기록이라고 적혀 있습니다.</mark>
+- [2] 합창단 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용 (단 회계 담당 임재혁, 9월 14일 기준).
+
+[1]과 [2]는 이 기록 안에 번호로만 붙어 있는 자료이고, 위 제목은 기록의 &#x27;참고 기록&#x27; 절에 적힌 설명을 그대로 옮긴 것입니다. 원본 메모 자체는 제가 받지 못했습니다. 이 요약은 판본 2의 각 항목에 달린 근거 표시를 따라 인용했습니다.
+
+## 실제로 확인한 범위
+
+**확인한 것**
+- 이 대화에 붙여 넣으신 운영 확인 기록(판본 2)의 내용만 읽고 요약했습니다.
+- 이 대화 앞부분에 붙여 주신 9월 14일 회의록도 함께 참고했는데, 참가자 행동 부분은 두 자료가 서로 일치했습니다.
+
+**확인하지 못한 것**
+- [1]과 [2]의 원본 메모는 보지 못했습니다. 두 번호는 판본 2가 근거로 표시한 것을 따랐을 뿐, 원본과 직접 대조하지 않았습니다.
+- 판본 2는 9월 18일 기준이라 그 이후의 공연장 회신, 날짜 확정, 현장 입장 예외의 취소 여부는 반영되어 있지 않습니다. 오늘이 10월 22일이므로 그 사이 바뀐 내용이 있을 수 있습니다.
+
+**외부 조회와 예약 실행 여부**
+- 인터넷 검색, 공연장 문의, 보관실 예약, 안내문 게시 등 외부로 나가는 작업은 하나도 실행하지 않았습니다.
+- 파일을 만들거나 저장하지 않았고, 아티팩트도 쓰지 않았습니다. 채팅 답변만 작성했습니다.
+
+최신 상황이 있으면 알려 주세요. 바뀐 조건만 반영해 다시 정리하겠습니다.</pre></div><div class="rs-turn"><b>턴 4 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 지난 회차 관객 안내문 피드백과 관객 설문 · 문의 모음
+
+- 모은 사람: 공연 운영 담당 신유나
+- 모은 날: 2026년 9월 16일(수)
+- 쓰임: 이번 정기 연주회 관객 안내문 초안을 쓰기 전에, 지난 회차 관객이 무엇을 헷갈렸고 안내문에서 무엇이 빠졌는지 한곳에 모아 두려는 것이다. 새 안내문은 이 모음과 9월 14일 준비 회의 결과를 함께 보고 따로 쓴다.
+- 자료 출처
+  - 지난해 가을 정기 연주회 관객 안내문(단 게시판 게시본, 종이 게시본 한 장)
+  - 같은 공연 뒤 로비에서 받은 종이 설문지 37장
+  - 같은 공연 전후 문의 기록(단원 대화방, 단 게시판 댓글, 당시 운영 담당 휴대전화 문자를 옮겨 적은 노트)
+  - 당시 운영 담당이 쓴 두 쪽짜리 운영 후기
+  - 올봄 작은 음악회(주민센터 강당) 안내문에 대한 단원 의견
+- 개인정보: 문의한 분과 설문 응답자의 이름, 연락처는 옮기지 않았다. 필요한 경우 &#x27;단원 가족&#x27;, &#x27;주민&#x27;처럼만 적었다.
+
+## 1. 지난해 가을 안내문은 어떤 모양이었나
+
+전문은 단 게시판에 남아 있으므로 여기에는 구성과 문제가 된 문구만 적는다.
+
+구성(위에서 아래 순서)
+- 제목과 공연 포스터 그림
+- 단장 인사말 세 문단
+- 곡 소개(곡마다 두세 줄씩, 1부와 2부 모두)
+- 지휘자와 반주자 소개
+- 맨 아래 한 줄: 일시, 장소, 문의
+- 그 아래 작은 글씨로 덧붙인 문장 네 개
+
+문제가 된 문구(그대로 옮김)
+- &quot;공연 시작 30분 전부터 입장하실 수 있습니다.&quot; → 곡 소개 아래 작은 글씨에 있었다. 실제 당일에는 준비가 늦어 20분 전에야 문을 열었다. 일찍 온 관객이 로비 밖에서 기다렸다.
+- &quot;공연 중 촬영은 자제해 주세요.&quot; → &#x27;자제&#x27;를 &#x27;되도록 하지 말라&#x27;로 읽은 사람과 &#x27;조금은 괜찮다&#x27;로 읽은 사람이 갈렸다.
+- &quot;앙코르 곡으로 ○○를 준비했습니다.&quot; → 당일 지휘자가 단원 목 상태를 보고 앙코르를 하지 않았다. 공연 뒤 문의가 이어졌다.
+- &quot;다음 공연에는 무료로 초대합니다.&quot; → 단 운영위원회에서 정한 적이 없는 약속이었다. 나중에 사과 문자를 보냈다.
+- 문의 줄에는 당시 운영 담당 이름과 개인 휴대전화 번호가 적혀 있었다(이 모음에는 옮기지 않음). 공연 뒤에도 그 번호로 사적인 연락이 와서 당시 담당이 곤란해했다.
+
+빠져 있던 것
+- 접수를 어디에서 하는지(로비라는 말이 없었다).
+- 예약을 해야 하는지, 그냥 와도 되는지.
+- 자리가 다 찼을 때 어떻게 되는지.
+- 주차와 대중교통.
+- 휴식이 있는지, 휴식 때 무엇을 할 수 있는지.
+- 늦게 왔을 때 들어갈 수 있는지.
+
+## 2. 관객 설문 결과(지난해 가을, 종이 설문 37장)
+
+설문지는 공연이 끝난 뒤 로비 출구에서 나눠 주고 그 자리에서 받았다. 37장 가운데 일부는 몇 문항만 답했다. 문항별로 답한 장수가 다르다.
+
+문항 1. 공연 전에 안내문을 읽으셨나요?
+- 읽었다 22장, 읽지 못했다 13장, 답하지 않음 2장.
+- 읽지 못한 이유를 적은 답: &quot;단원인 딸이 말로만 알려 줬다&quot;, &quot;게시판이 어디 있는지 몰랐다&quot;, &quot;글이 길어서 끝까지 안 봤다&quot;.
+
+문항 2. 안내문에서 찾기 어려웠던 정보가 있었나요?(여러 개 고를 수 있음)
+- 입장·접수 시각 14장
+- 주차 9장
+- 현장에서 그냥 들어갈 수 있는지 8장
+- 문의처 6장
+- 공연이 끝나는 시각 5장
+- 촬영 가능 여부 4장
+- 고른 것 없음 7장
+
+문항 3. 공연 당일 불편했던 점이 있었나요?(자유롭게)
+- &quot;30분 전이라고 해서 갔는데 문이 안 열려 있었다. 바람이 불어서 추웠다.&quot;
+- &quot;로비에 줄이 두 줄이었는데 어느 줄이 예약한 사람 줄인지 몰랐다.&quot;
+- &quot;접수하는 분이 한동안 안 보였다. 그냥 들어가도 되는지 몰라 서 있었다.&quot;
+- &quot;앞사람이 공연 중에 계속 휴대전화로 찍었다. 말리는 사람이 없었다.&quot;
+- &quot;앙코르 곡을 기대했는데 안 해서 아쉬웠다.&quot;
+- &quot;생수가 로비에 있길래 하나 마셨는데, 나중에 단원용이었다고 들었다. 미리 알았으면 안 가져갔을 것이다.&quot;
+- &quot;끝나는 시각이 안 적혀 있어서 데리러 올 사람에게 몇 시라고 말해야 할지 몰랐다.&quot;
+- &quot;휠체어를 탄 어머니와 갔는데 어느 자리에 앉아야 할지 물어볼 사람이 없었다.&quot;
+- &quot;늦게 도착했는데 문 앞에서 곡이 끝날 때까지 기다리라는 말을 아무도 안 해 줬다. 그냥 들어갔다가 눈총을 받았다.&quot;
+- &quot;아이가 중간에 나가고 싶어 했는데 다시 들어와도 되는지 몰랐다.&quot;
+
+문항 4. 다음 안내문에 꼭 들어갔으면 하는 것은?(자유롭게)
+- &quot;몇 시에 가면 되는지를 맨 위에.&quot;
+- &quot;예약을 꼭 해야 하는지 분명하게.&quot;
+- &quot;사진은 언제 찍어도 되는지.&quot;
+- &quot;문의할 곳. 개인 번호 말고.&quot;
+- &quot;글을 줄여 주세요. 곡 소개는 따로 나눠 주면 좋겠다.&quot;
+- &quot;끝나는 시각.&quot;
+- &quot;꽃다발을 언제 전해 줄 수 있는지.&quot; → 이 답은 세 장에서 비슷하게 나왔다.
+
+문항 5. 공연은 만족스러우셨나요?(다섯 칸 중 하나)
+- 매우 만족 19장, 만족 12장, 보통 4장, 불만 1장, 답하지 않음 1장.
+- 불만 1장에 적힌 이유: &quot;입장이 엉망이었다.&quot; 공연 내용 때문이 아니라 입장 때문이라고 적혀 있었다.
+
+## 3. 문의 기록(지난해 가을 공연 전후)
+
+당시 운영 담당의 노트에서 안내문과 관련된 문의만 옮겼다. &#x27;공연 ○일 전&#x27;은 문의가 들어온 날을 공연일 기준으로 센 것이다. 답은 당시 운영 담당이 한 답이며, 이번 기준과 다른 답도 그대로 둔다.
+
+- 공연 12일 전, 단원 가족, 문자: &quot;표는 어디서 사요?&quot; / 당시 답: &quot;표는 없고 그냥 오시면 됩니다.&quot; / 메모: 안내문에 예약 이야기가 없어 같은 질문이 계속 들어왔다.
+- 공연 10일 전, 주민, 게시판 댓글: &quot;예약해야 하나요?&quot; / 당시 답: &quot;예약하시면 자리를 맡아 드립니다.&quot; / 메모: 위 답과 서로 달랐다. 담당이 같은 사람인데도 날마다 답이 달랐다.
+- 공연 9일 전, 단원 가족, 문자: &quot;몇 명까지 데려가도 돼요?&quot; / 당시 답: &quot;자리가 되는 만큼요.&quot; / 메모: 정원이 정해져 있지 않았다.
+- 공연 8일 전, 주민, 게시판 댓글: &quot;주차할 수 있나요?&quot; / 당시 답: &quot;공연장에 물어보겠습니다.&quot; / 메모: 끝내 답을 올리지 못했다.
+- 공연 7일 전, 단원 가족, 대화방: &quot;몇 시에 끝나요?&quot; / 당시 답: &quot;두 시간쯤이요.&quot; / 메모: 안내문에 끝나는 시각이 없었다.
+- 공연 6일 전, 주민, 문자: &quot;아이가 일곱 살인데 들어가도 되나요?&quot; / 당시 답: &quot;네, 됩니다.&quot; / 메모: 어린이 관람 기준은 정한 적이 없었는데 그 자리에서 답했다.
+- 공연 5일 전, 단원 가족, 문자: &quot;휠체어로 들어갈 수 있나요?&quot; / 당시 답: &quot;공연장 앞에 경사로가 있습니다.&quot; / 메모: 객석 안 자리 이야기는 하지 않았다.
+- 공연 5일 전, 주민, 게시판 댓글: &quot;사진 찍어도 되나요?&quot; / 당시 답: &quot;자제해 주세요.&quot; / 메모: 안내문 문구를 그대로 되풀이했다. 질문한 분은 &quot;그러니까 되는 거예요, 안 되는 거예요?&quot;라고 다시 물었다.
+- 공연 4일 전, 단원 가족, 대화방: &quot;앙코르 곡이 ○○ 맞죠? 그 곡 좋아해요.&quot; / 당시 답: &quot;네.&quot; / 메모: 결국 당일 부르지 않았다.
+- 공연 3일 전, 주민, 문자: &quot;공짜예요?&quot; / 당시 답: &quot;네, 무료입니다. 다음 공연도 초대해 드려요.&quot; / 메모: &#x27;다음 공연 초대&#x27;는 정하지 않은 약속이었다.
+- 공연 2일 전, 단원 가족, 문자: &quot;30분 전에 가면 되죠?&quot; / 당시 답: &quot;네.&quot; / 메모: 실제로는 20분 전에 열었다.
+- 공연 전날, 주민, 문자: &quot;꽃다발 전해 줘도 돼요?&quot; / 당시 답: &quot;공연 끝나고 로비에서요.&quot; / 메모: 공연 뒤 로비가 붐벼 단원이 나오기 어려웠다.
+- 공연 당일 오후, 주민, 문자: &quot;지금 가면 들어갈 수 있나요?&quot; / 당시 답 없음 / 메모: 운영 담당이 준비 중이라 문자를 보지 못했다.
+- 공연 당일 접수 중, 단원 가족, 전화: &quot;주차장이 꽉 찼는데 어디에 대요?&quot; / 당시 답 없음 / 메모: 접수 중이라 받지 못했다.
+- 공연 다음 날, 주민, 게시판 댓글: &quot;앙코르는 왜 안 했어요?&quot; / 당시 답: &quot;지휘자님 판단이었습니다.&quot; / 메모: 비슷한 댓글이 세 개 더 달렸다.
+- 공연 다음 날, 단원 가족, 문자: &quot;다음 공연 초대는 어떻게 받나요?&quot; / 당시 답: 사과 문자 / 메모: 단 운영위원회 결정으로 사과했다.
+- 공연 사흘 뒤, 주민, 게시판 댓글: &quot;생수 마셔서 죄송해요. 단원용인 줄 몰랐어요.&quot; / 당시 답: &quot;괜찮습니다.&quot; / 메모: 안내문에도 현장에도 단원용이라는 표시가 없었다.
+- 공연 일주일 뒤, 주민, 문자: (사적인 내용) / 메모: 개인 번호가 안내문에 실린 탓에 생긴 일. 내용은 옮기지 않는다.
+
+## 4. 당일 현장에서 생긴 일 가운데 안내문과 이어지는 것(운영 후기에서 옮김)
+
+- 문 열기 전 대기: 안내문의 &#x27;30분 전&#x27;을 보고 온 관객이 문이 열릴 때까지 건물 밖 계단에서 기다렸다. 준비가 끝나지 않아 안으로 들일 수 없었다.
+- 두 줄: 예약을 했다는 관객과 그냥 온 관객이 각자 줄을 섰다. 어느 줄이 먼저인지 정한 적이 없어 앞뒤가 엉켰다.
+- 접수대 빈자리: 접수 도중 운영 담당이 대기실 연락을 받고 자리를 떴다. 그동안 명단 확인 없이 들어간 관객이 있었다. 종료 뒤 명단과 빈자리를 맞춰 보느라 회수가 늦어졌다.
+- 촬영: 공연 중 휴대전화 촬영이 여러 번 있었고, 무대에서 화면 불빛이 보였다. 말릴 사람이 객석에 없었다.
+- 생수: 로비 탁자에 둔 단원 생수를 관객 여럿이 가져갔다. 2부 시작 전 단원 몫이 모자라 연습실로 다시 가지러 가는 일이 생겼다.
+- 앙코르: 하지 않았다. 안내문에 곡명이 있어 관객이 기다렸다.
+- 늦게 온 관객: 곡 중간에 문을 열고 들어온 관객이 있었다. 문 앞에서 안내할 사람이 없었다.
+- 휴식: 휴식 시간에 로비에서 단원과 관객이 사진을 찍었고 분위기는 좋았다. 다만 휴식이 짧아 2부 시작이 늦어졌다.
+- 종료: 안내문에 끝나는 시각이 없어 데리러 온 가족 차량이 건물 앞에 일찍부터 서 있었다.
+
+## 5. 올봄 작은 음악회 안내문에 대한 단원 의견
+
+올봄 주민센터 강당에서 연 작은 음악회는 규모가 작아 안내문도 짧았다. 단원들이 대화방에 남긴 의견이다.
+
+- 소프라노 단원: &quot;짧아서 읽기 편했다. 시각이 맨 위에 있으니 가족들이 바로 알았다.&quot;
+- 알토 단원: &quot;문의할 곳이 &#x27;노을합창단&#x27;이라고만 되어 있어서 결국 나한테 물어봤다.&quot;
+- 테너 단원: &quot;예약 이야기가 없었는데 그때는 자리가 넉넉해서 괜찮았다. 정기 연주회는 다를 것 같다.&quot;
+- 베이스 단원: &quot;사진은 공연 끝나고 찍으라고 했는데, 그날은 휴식이 없어서 그게 맞았다. 이번엔 휴식이 있으니 다를 것 같다.&quot;
+- 단장 김옥희: &quot;올봄 안내문은 단장 인사말을 빼서 짧았다. 이번에도 인사말은 짧게 하거나 프로그램 쪽으로 옮기자.&quot;
+- 지휘자 백승원: &quot;앙코르 이야기는 이번에도 넣지 말자.&quot;
+
+## 6. 이번 안내문에 대해 단원과 운영진이 낸 의견(9월 13~16일)
+
+- 단장 김옥희: &quot;작년처럼 관객 줄이 로비 밖으로 길게 서지 않았으면 좋겠다. 몇 시부터 들어갈 수 있는지를 분명히 써 달라.&quot;
+- 지휘자 백승원: &quot;공연 중 촬영은 &#x27;금지&#x27;라고 써 달라. &#x27;자제&#x27;는 안 된다. 사진은 휴식 때 로비에서.&quot;
+- 단 회계 담당 임재혁: &quot;돈 이야기(무료, 초대, 면제)는 회의에서 정한 것 말고는 쓰지 말자. 정한 것이 없다.&quot;
+- 소프라노 파트장 윤서경: &quot;가족들이 꽃다발을 많이 물어본다. 정해지면 넣어 주고, 안 정해지면 아예 쓰지 말자.&quot;
+- 알토 파트장 남궁미라: &quot;문의할 곳은 이름만이라도 분명히. 연락처가 아직 없으면 없다고 쓰는 게 낫다.&quot;
+- 테너 파트장 차민호: &quot;현장에서 그냥 와도 되는지가 제일 많이 물어보는 것이다. 예약이 기본이고 자리가 남으면 들어올 수 있다는 걸 짧게.&quot;
+- 베이스 파트장 도현수: &quot;작년처럼 &#x27;도와주실 분이 안내합니다&#x27; 같은 말은 쓰지 말자. 실제로 누가 있는지 모르면서.&quot;
+- 신유나 메모: 도현수 파트장의 말은 이번 예비 인력 사정과 이어진다. 아래 7번 항목 참고.
+
+## 7. 이번 안내문에 들어갈 정보의 현재 상태(9월 16일 기준)
+
+9월 14일 준비 회의 결과에서 안내문에 닿는 것만 옮겼다. &#x27;확정&#x27;은 안내문에 그대로 써도 되는 것, &#x27;미정&#x27;은 아직 값이 없어 &#x27;미정&#x27;으로 남기거나 쓰지 않을 것이다.
+
+일시
+- 공연 시간 17:00~18:30: 확정.
+- 접수 시작 16:40: 확정. 접수 시작 전에는 준비 중인 공간(객석, 무대 쪽)에 들어갈 수 없다: 확정.
+- 행사 날짜: 미정. 공연장과 사용 일정을 협의 중이다. 안내문 날짜 칸은 &#x27;미정&#x27;으로 둔다.
+- 장소: 지난해와 같은 공연장. 날짜가 정해지면 공연장 사용도 함께 정해진다.
+- 휴식: 1부와 2부 사이에 한 번 있다는 것은 확정. 몇 시인지는 미정(지휘자가 곡 순서와 함께 정함).
+
+참여 조건
+- 사전 등록이 기본이다: 확정.
+- 좌석이 남으면 현장 입장을 허용하는 예외: 확정, 현재 허용된 상태. 다만 공연장이 정원 관리 방식을 검토 중이라 나중에 취소될 수 있다. 취소 통지가 오면 안내문에서 이 예외를 빼야 한다.
+- 현장 입장은 사전 등록 관객의 입장이 끝난 뒤, 남은 좌석 안에서만: 확정. 정원 60명을 넘지 않는다.
+- 관객 정원 60명: 확정.
+- 사전 등록을 받는 창구(게시판 글, 문자 등): 미정. 연락처와 함께 정한다.
+- 어린이 관람, 좌석 배치, 개별 편의 지원: 미정.
+
+문의처
+- 공연 운영 담당 신유나: 확정.
+- 문의 연락처(전화, 메일): 미정. 신유나 개인 번호는 싣지 않기로 했다. 단 공용 번호를 만들지, 게시판 문의 글로 받을지 정하지 않았다.
+
+운영 세부
+- 공연 중 촬영 금지, 휴식 시간에만 로비에서 사진 허용: 확정.
+- 생수는 단원용이며 관객에게 배부하지 않는다: 확정. 안내문에 생수를 준다는 말을 쓰지 않는다.
+- 앙코르 곡 여부는 지휘자가 공연 당일 정하므로 안내문에 적지 않는다: 확정.
+- 꽃다발 전달: 정하지 않았다. 안내문에 쓰지 않는다.
+- 주차: 공연장에 확인 중이라 미정.
+
+인력
+- 확정 진행 인력은 1명(공연 운영 담당 신유나)이다.
+- 예비 인력(전 단원 조민서)은 참석을 확답하지 않았고 승인 인력이 아니다. 따라서 안내문에 &#x27;안내 도우미&#x27;, &#x27;봉사자가 도와드립니다&#x27;처럼 예비 인력이 있는 것처럼 읽히는 말을 쓰지 않는다. 조민서의 이름도 쓰지 않는다.
+
+쓰지 않을 것
+- 다음 공연 초대, 관람 혜택, 비용 면제처럼 정하지 않은 약속.
+- 정하지 않은 추가 날짜(예: &#x27;추가 공연 예정&#x27;).
+- 앙코르 곡명.
+- 프로그램 안내지를 나눠 준다는 말(인쇄 주문 승인 전).
+
+## 8. 지난 회차와 이번의 차이를 한눈에 보는 일람
+
+| 항목 | 지난해 가을 안내문 | 이번 상태(9월 16일) |
+| --- | --- | --- |
+| 입장·접수 시각 | &#x27;30분 전부터 입장&#x27;(실제와 달랐음) | 접수 16:40 확정 |
+| 끝나는 시각 | 없음 | 18:30 확정 |
+| 날짜 | 적혀 있었음 | 미정 |
+| 예약 | 언급 없음 | 사전 등록 기본 확정 |
+| 현장 입장 | 언급 없음 | 좌석이 남으면 허용(현재), 취소될 수 있음 |
+| 정원 | 없음 | 60명 확정 |
+| 문의처 | 운영 담당 이름과 개인 번호 | 신유나 확정, 연락처 미정 |
+| 촬영 | &#x27;자제&#x27; | 공연 중 금지, 휴식 시간 로비 사진 허용 |
+| 생수 | 언급 없음(로비에 단원 생수가 놓여 있었음) | 단원용, 관객 배부 없음 |
+| 앙코르 | 곡명 적음 | 적지 않음 |
+| 혜택 | &#x27;다음 공연 무료 초대&#x27; | 쓰지 않음 |
+| 안내 인력 | 언급 없음 | 확정 1명, 예비 인력은 확답 없음 |
+
+## 9. 초안을 쓰기 전에 신유나가 스스로 정한 순서(메모)
+
+- 9월 14일 회의 결과와 이 모음을 나란히 놓고 본다.
+- 관객이 할 일(언제 오는지, 예약했는지, 어디에 묻는지)을 앞에 둔다. 곡 소개와 인사말은 안내문이 아니라 프로그램 쪽으로 보낸다.
+- 미정인 값은 &#x27;미정&#x27;이라고 쓰거나 아예 쓰지 않는다. 짐작한 날짜나 번호를 넣지 않는다.
+- 다 쓴 뒤 임재혁에게 돈에 관한 문구가 없는지 확인받는다.
+- 현장 입장 예외는 지금 허용 상태로 쓰되, 취소 통지가 오면 바로 고칠 수 있게 그 문장을 한 줄로 따로 둔다.
+
+## 10. 덧붙임 — 설문지 원본에 손으로 적힌 짧은 말(옮겨 둠)
+
+설문지 여백에 적힌 말 가운데 안내문과 이어지는 것만 골랐다. 같은 뜻의 말은 한 번만 옮겼다.
+
+- &quot;입장 시간 꼭 지켜 주세요.&quot;
+- &quot;줄 서는 곳 표시해 주세요.&quot;
+- &quot;예약 안 한 사람은 뒤에 서라고 미리 말해 주면 기분 안 상해요.&quot;
+- &quot;사진 찍는 사람 때문에 집중이 안 됐어요.&quot;
+- &quot;물은 각자 챙겨 오라고 써 주세요.&quot;
+- &quot;끝나고 단원 만나는 시간이 따로 있으면 좋겠어요.&quot;
+- &quot;아이랑 와도 되는지 알려 주세요.&quot;
+- &quot;문의 번호가 개인 번호라 전화하기 미안했어요.&quot;
+- &quot;글씨가 작아서 할머니가 못 읽으셨어요.&quot;
+
+## 11. 지난해 안내문 다시 읽어 보기(9월 15일 연습 뒤, 단원 다섯 명)
+
+새 안내문을 쓰기 전에, 지난해 안내문 종이 게시본을 단원 다섯 명에게 처음 보는 사람처럼 읽혀 보고 세 가지를 찾아 달라고 했다. 찾는 데 걸린 시간은 신유나가 휴대전화 초시계로 쟀다. 다섯 명 모두 지난해 공연에 섰던 단원이지만 안내문을 자세히 읽은 적은 없다고 했다.
+
+찾을 것 1. 몇 시까지 가면 되는가
+- 소프라노 단원 ㄱ: 40초. 맨 아래 일시 줄의 공연 시작 시각을 보고 &quot;그 시각까지 가면 된다&quot;고 답함. 곡 소개 아래 &#x27;30분 전부터 입장&#x27; 문장은 보지 못함.
+- 알토 단원 ㄴ: 1분 10초. &#x27;30분 전부터 입장&#x27;을 찾아냄. &quot;이게 접수 시각이라는 뜻이냐, 문 여는 시각이라는 뜻이냐&quot;고 되물음.
+- 테너 단원 ㄷ: 25초. 공연 시작 시각만 봄.
+- 베이스 단원 ㄹ: 1분 30초. 인사말을 다 읽고 나서 찾음.
+- 단장 김옥희: 50초. &#x27;30분 전&#x27;을 찾았으나 &quot;실제로는 20분 전에 열지 않았느냐&quot;고 기억함.
+
+찾을 것 2. 예약을 해야 하는가
+- 다섯 명 모두 찾지 못함. 안내문에 그런 내용이 없었다.
+- 알토 단원 ㄴ: &quot;없으니까 그냥 와도 된다는 뜻 아니냐.&quot; 테너 단원 ㄷ: &quot;없으니까 모르겠다.&quot;
+
+찾을 것 3. 궁금하면 어디에 묻는가
+- 다섯 명 모두 맨 아래 문의 줄에서 찾음(평균 30초 남짓).
+- 소프라노 단원 ㄱ: &quot;개인 번호라 전화하기 망설여진다.&quot;
+- 베이스 단원 ㄹ: &quot;이름만 있고 무슨 담당인지 없어서, 이 사람에게 주차도 물어봐도 되는지 모르겠다.&quot;
+
+신유나 메모
+- 시각은 맨 위로 올리고, 접수 시각과 공연 시각을 따로 적어야 한다. &#x27;○분 전부터 입장&#x27;처럼 계산해야 하는 표현보다 시각을 그대로 적는 편이 덜 헷갈린다.
+- 예약 이야기는 없으면 사람마다 다르게 읽는다. 이번에는 사전 등록이 기본이라는 점과 현장 입장 예외의 조건을 함께 적어야 한다.
+- 문의처에는 이름과 맡은 일(공연 운영 담당)을 함께 적는다. 연락처는 정해지기 전까지 &#x27;미정&#x27;.
+
+## 12. 이번 공연에 대해 이미 들어온 문의(9월 1~14일)
+
+9월 14일 회의 전까지 들어온 문의다. 회의 전이라 확정된 것이 적었기 때문에, 답은 대부분 &#x27;정해지면 알리겠다&#x27;였다. 회의 뒤 확정된 내용으로 다시 답할 수 있는 것은 오른쪽에 적었다.
+
+- 9월 2일, 주민(지난해 관객), 게시판 댓글: &quot;올해도 가을에 정기 연주회 하나요?&quot; / 그때 답: &quot;준비하고 있습니다. 날짜는 정해지면 알려 드리겠습니다.&quot; / 지금 다시 답할 수 있는 것: 날짜는 여전히 미정이다. 공연 시간은 17:00~18:30으로 정해졌다.
+- 9월 3일, 주민(보행 보조기 사용), 문자: &quot;통로 쪽 자리를 받을 수 있나요?&quot; / 그때 답: &quot;확인해서 알려 드리겠습니다.&quot; / 지금: 개별 편의 지원은 회의에서 보류되었다. 아직 답할 수 없다.
+- 9월 4일, 단원 가족, 대화방: &quot;작년에 다음 공연 무료로 초대해 준다고 했는데 올해 그거 되나요?&quot; / 그때 답: &quot;작년에 사과드린 그 문구 말씀이시죠. 따로 정한 혜택은 없습니다.&quot; / 지금: 같다. 정하지 않은 혜택은 약속하지 않는다.
+- 9월 5일, 주민, 게시판 댓글: &quot;표는 어디서 받아요? 돈 내요?&quot; / 그때 답: &quot;정해지면 알려 드리겠습니다.&quot; / 지금: 사전 등록이 기본이라는 점은 정해졌다. 등록 창구는 미정이다. 비용에 관한 약속은 안내문에 쓰지 않기로 했으므로 이 질문은 단 운영위원회에 따로 물어 답해야 한다.
+- 9월 6일, 단원 가족, 문자: &quot;아이 둘(초등학생, 다섯 살)을 데려가도 되나요?&quot; / 그때 답: &quot;확인해 보겠습니다.&quot; / 지금: 어린 자녀 동반은 편의 지원 항목으로 보류. 좌석을 쓰면 한 사람으로 센다는 점만 회의에서 이야기되었다.
+- 9월 7일, 주민, 문자: &quot;열 명쯤 같이 가도 되나요? 노래교실 사람들이랑요.&quot; / 그때 답: &quot;정원이 정해지면 알려 드리겠습니다.&quot; / 지금: 관객 정원은 60명이다. 단체 등록을 따로 받는 방식은 정하지 않았다.
+- 9월 8일, 단원 가족, 대화방: &quot;작년처럼 30분 전에 가면 되죠?&quot; / 그때 답: &quot;올해 시각은 아직입니다.&quot; / 지금: 접수는 16:40에 연다. 그 전에는 준비 중인 공간에 들어갈 수 없다.
+- 9월 9일, 주민, 게시판 댓글: &quot;공연 중에 휴대전화로 짧게 영상 찍는 것도 안 되나요?&quot; / 그때 답: &quot;정해지면 알려 드리겠습니다.&quot; / 지금: 공연 중 촬영은 금지다. 사진은 휴식 시간에 로비에서만 된다.
+- 9월 10일, 단원 가족, 문자: &quot;강아지를 데려가도 되나요? 얌전해요.&quot; / 그때 답: &quot;공연장 규정을 확인해 보겠습니다.&quot; / 지금: 회의에서 다루지 않았다. 공연장 규정을 확인해야 한다(미정).
+- 9월 11일, 주민, 문자: &quot;간식 먹으면서 봐도 되나요?&quot; / 그때 답: &quot;객석 음식물은 공연장 규정을 따릅니다.&quot; / 지금: 공연장 규정 확인 전. 관객용 생수나 음료는 준비하지 않는다는 점만 정해졌다.
+- 9월 12일, 단원 가족, 대화방: &quot;늦게 끝나면 데리러 갈 사람이 기다려야 해서요. 몇 시에 끝나요?&quot; / 그때 답: &quot;아직입니다.&quot; / 지금: 18:30에 끝난다.
+- 9월 13일, 주민, 게시판 댓글: &quot;외국에서 온 친구가 한국어를 잘 못하는데 같이 가도 되나요?&quot; / 그때 답: &quot;물론입니다.&quot; / 지금: 따로 정할 것은 없다. 안내문이 쉬운 문장이어야 한다는 점을 다시 생각하게 한 문의였다.
+- 9월 14일 오후, 주민, 문자: &quot;예약했는데 못 가게 되면 어떻게 하나요?&quot; / 그때 답: &quot;정해지면 알려 드리겠습니다.&quot; / 지금: 등록 취소 방법은 정하지 않았다(미정). 등록 창구와 함께 정한다.
+
+## 13. 다른 단체 안내문에서 단원들이 좋다고 한 점(9월 14~16일 대화방)
+
+단원들이 이웃 동네 단체의 안내문을 보고 좋다고 한 점을 옮겼다. 단체 이름은 적지 않는다.
+
+- 이웃 동네 어린이 합창단 안내문: 맨 위에 &#x27;오는 시각&#x27;, &#x27;시작 시각&#x27;, &#x27;끝나는 시각&#x27;이 세 줄로 있었다. 알토 파트장 남궁미라는 &quot;아이 부모들이 그것만 보고도 알 수 있겠더라&quot;고 했다.
+- 주민센터 노래교실 발표회 안내문: &#x27;관객이 하실 일&#x27;이라는 칸이 따로 있었다. 소프라노 파트장 윤서경은 &quot;예약하기, 시간 지키기, 사진은 정해진 때만 같은 게 한눈에 보였다&quot;고 했다.
+- 동네 도서관 낭독회 안내문: 정하지 않은 것을 &#x27;정해지면 알려 드립니다&#x27;라고 따로 모아 두었다. 임재혁은 &quot;모르는 걸 아는 척하지 않아서 오히려 믿음이 갔다&quot;고 했다.
+- 같은 낭독회 안내문: 문의처에 사람 이름 대신 &#x27;낭독회 담당&#x27;이라고 적고, 연락 방법은 게시판 댓글로만 받았다. 신유나는 이번에 연락처를 정할 때 참고하겠다고 메모했다.
+- 어느 동네 축제 안내문(테너 단원이 가져옴): 사진 촬영을 &#x27;공연 중에는 안 됩니다. 쉬는 시간에는 됩니다.&#x27; 두 문장으로 나눠 적었다. 지휘자 백승원이 &quot;이렇게 나눠 쓰면 헷갈릴 일이 없다&quot;고 했다.
+- 반대 의견도 있었다. 베이스 단원 한 명은 &quot;다른 데 안내문을 너무 따라 하면 우리 공연 같지 않다. 노을합창단 이름과 인사 한 줄은 꼭 넣자&quot;고 했다.
+
+## 14. 안내문 게시와 모양에 대한 의견
+
+- 게시할 곳: 지난해처럼 단 게시판과 주민센터 1층 게시판 두 곳. 단장은 공연장 로비 게시판에도 붙일 수 있는지 공연장에 묻자고 했다(미정).
+- 종이 크기와 글씨: 지난해 종이 게시본은 글씨가 작아 어르신 관객이 읽기 어려웠다는 설문 답이 있었다. 종이 게시본은 글씨를 크게 하고 내용은 짧게 하자는 의견이 많았다.
+- 길이: &quot;한 화면에 다 보이게&quot;(소프라노 단원), &quot;곡 소개는 빼고&quot;(단장), &quot;인사말은 한 줄만&quot;(임재혁).
+- 게시 시점: 날짜가 정해진 뒤. 날짜 없이 먼저 게시하면 &#x27;언제냐&#x27;는 문의가 몰릴 것이라는 의견과, 시각과 참여 조건만이라도 먼저 알리자는 의견이 갈렸다. 정하지 않았다.
+- 고칠 때: 지난해에는 게시 뒤 문구를 고치고도 고쳤다는 표시를 하지 않아, 먼저 읽은 사람과 나중에 읽은 사람이 서로 다른 내용을 알고 있었다. 이번에는 고친 날짜를 안내문 끝에 적자는 의견이 있었다(임재혁).
+- 단원 대화방 공유: 안내문을 게시하면 단원 대화방에도 같은 글을 올려 가족에게 전하게 한다. 단원이 말로 따로 설명하다 내용이 바뀌는 일을 줄이려는 것이다.
+
+## 15. 지난해 운영 후기에서 &#x27;다음에는 이렇게&#x27;라고 적힌 줄(원문 그대로)
+
+당시 운영 담당이 운영 후기 끝에 적어 둔 다짐이다. 이번 준비 회의 결과와 겹치는 것이 많다.
+
+- &quot;입장 시각은 실제로 문을 여는 시각과 같게 쓸 것.&quot;
+- &quot;예약한 사람과 안 한 사람의 순서를 미리 정할 것.&quot;
+- &quot;접수대를 비우지 말 것. 비울 일이 있으면 접수 전에 끝낼 것.&quot;
+- &quot;생수는 단원 대기실에. 로비에 두지 말 것.&quot;
+- &quot;앙코르는 안내문에 쓰지 말 것.&quot;
+- &quot;개인 번호를 싣지 말 것.&quot;
+- &quot;정하지 않은 약속을 쓰지 말 것.&quot;
+- &quot;끝나는 시각을 쓸 것.&quot;
+
+## 16. 지난해 설문 응답자는 누구였나
+
+설문지 첫 칸에 &#x27;어떻게 오셨나요&#x27;를 고르게 했다. 37장 가운데 이 칸에 답한 것은 35장이다.
+
+- 단원 가족이나 지인 21장
+- 동네 주민(게시판이나 포스터를 보고 옴) 10장
+- 다른 합창단 단원 3장
+- 기타(지나가다 들어옴) 1장
+
+이 칸과 문항 1(안내문을 읽었나)을 함께 보면 다음과 같았다.
+- 단원 가족이나 지인 21장 가운데 안내문을 읽었다는 답은 9장. 나머지는 단원에게 말로 들었다고 적었다.
+- 동네 주민 10장 가운데 안내문을 읽었다는 답은 9장.
+- 다른 합창단 단원 3장은 모두 읽었다고 답했다.
+- 신유나 메모: 단원 가족은 안내문보다 단원 말을 듣고 온다. 단원이 말로 전하는 내용이 안내문과 다르면 가족은 단원 말을 따른다. 지난해 &#x27;30분 전&#x27; 혼선도 단원마다 다르게 전한 탓이 컸다는 단원 의견이 있었다. 이번에는 안내문을 단원 대화방에도 그대로 올려 단원이 그 글을 가족에게 넘기게 한다(14번 항목).
+
+## 17. 지난해 당일 입장 상황(운영 후기 부록의 시각 메모를 옮김)
+
+당시 운영 담당이 휴대전화 메모에 남긴 것이다. 시각은 지난해 공연 시작 시각을 기준으로 &#x27;○분 전&#x27;으로 적었다. 이번 공연 시각과는 관계없다.
+
+- 공연 45분 전: 첫 관객 두 명 도착. 건물 앞 계단에서 기다림.
+- 공연 35분 전: 건물 앞 대기 관객 열 명 남짓. 안에서는 보면대 설치가 끝나지 않았음.
+- 공연 30분 전: 안내문에 적힌 입장 시각. 문을 열지 못함. 관객 몇 명이 &quot;30분 전이라면서요&quot;라고 문을 두드림.
+- 공연 25분 전: 무대 설치 끝. 접수대 탁자를 펴기 시작.
+- 공연 20분 전: 문을 열고 접수 시작. 예약했다는 줄과 안 했다는 줄이 따로 생김.
+- 공연 15분 전: 대기실에서 악보 한 쪽이 빠졌다는 연락. 운영 담당이 접수대를 떠남.
+- 공연 8분 전: 운영 담당이 접수대로 돌아옴. 그사이 명단 확인 없이 들어간 관객이 있음.
+- 공연 시작: 로비에 아직 줄이 남아 있었음. 시작을 몇 분 늦춤.
+- 공연 시작 뒤: 늦게 온 관객이 곡 중간에 문을 열고 들어옴. 문 앞 안내 없음.
+- 휴식: 로비에서 사진. 단원 생수가 로비 탁자에서 모자람.
+- 종료 뒤: 데리러 온 차량이 건물 앞에 일찍부터 줄지어 서 있었음. 명단과 빈자리를 맞추느라 회수가 늦어짐.
+
+신유나 메모: 이 기록에서 안내문이 고칠 수 있는 것은 &#x27;입장 시각을 실제와 같게&#x27;, &#x27;예약 여부와 순서를 분명히&#x27;, &#x27;늦게 왔을 때&#x27;, &#x27;끝나는 시각&#x27;이다. 접수대를 비운 일과 생수 부족은 안내문이 아니라 운영에서 막을 일이다.
+
+## 18. 이번 초안을 누가 무엇을 볼지
+
+초안을 쓴 뒤 아래 사람에게 차례로 보이고, 각자 맡은 부분만 확인받는다. 순서는 9월 16일에 신유나가 정했다.
+
+- 단 회계 담당 임재혁: 돈에 관한 문구가 없는지. 무료, 초대, 면제, 할인 같은 말이 들어가 있으면 뺀다.
+- 지휘자 백승원: 촬영 문구(공연 중 금지, 휴식 시간 로비 사진 허용)와 앙코르 미기재. 곡 소개를 넣는다면 곡명 표기.
+- 단장 김옥희: 전체 어조와 단 이름 표기. 인사말을 넣을지.
+- 파트장 네 명: 단원 가족이 읽었을 때 헷갈리는 곳이 없는지. 특히 &#x27;사전 등록&#x27;과 &#x27;현장 입장 예외&#x27;가 어떻게 읽히는지.
+- 신유나 스스로: 미정인 값(날짜, 연락처, 등록 창구)을 짐작으로 채우지 않았는지. 예비 인력이 있는 것처럼 읽히는 말이 없는지.
+
+## 19. 문의가 몰린 주제(지난해 문의 기록과 올해 9월 1~14일 문의를 함께 봄)
+
+3번과 12번 항목의 문의를 주제별로 나눠 보면 다음 주제에 문의가 몰렸다. 같은 사람이 같은 질문을 두 번 한 것은 한 번으로 셌다.
+
+- 언제 가면 되는지, 언제 끝나는지
+- 예약을 해야 하는지, 그냥 가도 되는지
+- 사진과 영상
+- 앙코르
+- 주차
+- 어린이 동반과 몸이 불편한 관객의 자리
+- 무료인지, 혜택이 있는지
+- 꽃다발
+- 생수, 음식물, 반려동물
+
+이 가운데 이번에 확정된 값으로 안내할 수 있는 것은 앞의 세 주제(시각, 참여 조건, 촬영)와 앙코르(적지 않음), 생수(관객 배부 없음)다. 나머지는 미정이거나 회의에서 다루지 않았다.
+
+## 20. 지난해 단원이 가족에게 말로 전하다 달라진 예(9월 15일 연습 뒤 단원들에게 들음)
+
+단원들이 웃으며 털어놓은 이야기다. 누구 탓을 하려는 것이 아니라, 안내문이 분명해야 하는 이유로 옮겨 둔다.
+
+- 소프라노 단원: &quot;엄마한테 &#x27;30분 전에 문 연대&#x27;라고 했더니 엄마는 &#x27;30분 전까지 가야 한다&#x27;로 듣고 한 시간 일찍 오셨다.&quot;
+- 알토 단원: &quot;남편한테 예약 같은 거 없다고 했는데, 다른 단원은 자기 가족한테 예약했다고 했더라. 둘 다 안내문을 안 봤다.&quot;
+- 테너 단원: &quot;친구한테 사진 찍어도 된다고 했다. &#x27;자제&#x27;를 그렇게 읽었다. 친구가 공연 중에 찍다가 옆자리 관객에게 한소리 들었다.&quot;
+- 베이스 단원: &quot;앙코르 곡이 뭔지 미리 말해 버려서 아버지가 그 곡만 기다리셨다.&quot;
+- 단장 김옥희: &quot;나도 동네 분들께 &#x27;다음에도 초대해 드린다&#x27;고 말해 버렸다. 안내문에 있었으니까.&quot;
+- 신유나 메모: 단원이 안내문 내용을 자기 말로 바꿔 전하면서 뜻이 달라졌다. 이번 안내문은 단원이 그대로 복사해 보낼 수 있을 만큼 짧고 분명해야 한다는 의견이 많았다.
+
+## 21. 올봄 작은 음악회 때 들어온 문의 몇 가지(참고)
+
+규모가 작아 문의도 적었다. 정기 연주회와 조건이 다르므로 참고로만 둔다.
+
+- &quot;주민센터 강당 몇 층이에요?&quot; → 안내문에 층이 없었다. 장소 표기는 건물 이름과 함께 들어가는 곳까지 적는 편이 낫다.
+- &quot;끝나고 단원들과 사진 찍을 수 있나요?&quot; → 그날은 휴식이 없어 공연 뒤에 찍게 했다. 이번 정기 연주회는 휴식 시간에 로비에서만 사진을 허용한다. 올봄 방식을 그대로 안내하면 안 된다.
+- &quot;아이가 울면 나가야 하나요?&quot; → 그날은 문 가까운 자리를 권했다. 정기 연주회에서는 어린 자녀 동반 방식이 정해지지 않았다.
+- &quot;다음 공연은 언제예요?&quot; → &#x27;가을 정기 연주회를 준비 중&#x27;이라고만 답했다. 날짜를 말하지 않았다.
+
+## 22. 지난해 안내문에서 좋았다는 말(게시판 댓글과 설문 여백)
+
+헷갈린 점만 모으면 지난해 안내문이 다 잘못된 것처럼 보이므로, 좋았다는 말도 옮겨 둔다.
+
+- &quot;포스터 그림이 예뻐서 게시판에서 눈에 띄었다.&quot;(주민)
+- &quot;곡 소개를 보고 집에서 미리 들어 보고 갔다. 아는 곡이 나와서 더 좋았다.&quot;(단원 가족)
+- &quot;단장님 인사말이 따뜻했다.&quot;(다른 합창단 단원)
+- &quot;지휘자와 반주자 소개가 있어서 누가 누군지 알 수 있었다.&quot;(주민)
+- 신유나 메모: 곡 소개와 인사말, 연주자 소개는 관객이 좋아한 부분이다. 빼 버리기보다는 안내문과 나눠, 프로그램 쪽(안내지 인쇄가 승인되면 안내지, 아니면 게시판의 별도 글)으로 옮기는 방법을 단장과 이야기해 본다. 안내문에는 관객이 할 일을 먼저 둔다.
+
+## 23. 안내문에 쓸 낱말 맞추기(9월 16일 대화방 의견)
+
+- &#x27;접수&#x27;와 &#x27;입장&#x27;: 이번에는 접수를 시작하는 때가 곧 객석에 들어갈 수 있는 때다(16:40). 지난해처럼 &#x27;입장 시각&#x27;과 &#x27;접수 시각&#x27;이 따로 있는 것처럼 읽히지 않게 한 가지 시각으로 쓴다.
+- &#x27;사전 등록&#x27;과 &#x27;예약&#x27;: 회의록은 &#x27;사전 등록&#x27;이라고 썼다. 단원들은 &#x27;예약&#x27;이라는 말을 더 많이 쓴다. 안내문에서는 한 낱말로 통일하자는 의견이 많았고, 어느 쪽으로 할지는 초안을 쓰는 신유나가 정한다.
+- &#x27;현장 입장&#x27;: &#x27;현장 관람&#x27;, &#x27;당일 입장&#x27;과 섞어 쓰지 않는다.
+- &#x27;휴식&#x27;: 외래어를 쓰지 말자는 단장 의견에 따라 &#x27;휴식 시간&#x27;으로 쓴다.
+- &#x27;문의처&#x27;: 이름 앞에 &#x27;공연 운영 담당&#x27;을 붙인다.
+
+## 모음 작성 메모
+
+- 이 모음에는 새 안내문의 문장을 미리 쓰지 않았다. 초안은 이 모음과 9월 14일 회의 결과를 보고 따로 쓴다.
+- 7번 항목의 &#x27;현재 상태&#x27;는 9월 16일 기준이다. 공연장 회신이 오거나 참가 조건이 바뀌면 7번 항목을 다시 확인한다. 특히 현장 입장 예외는 취소될 수 있다.
+- 설문지 원본 37장은 연습실 서류함 &#x27;정기 연주회&#x27; 파일철에 있다. 응답자 이름이 적힌 몇 장은 이름 칸을 가려 두었다.
+- 문의 기록 노트(지난해 당시 운영 담당의 것)는 본인 허락을 받고 빌려 보았고, 9월 16일 저녁에 돌려주었다. 옮겨 적은 부분에서 문의한 분을 알아볼 수 있는 내용은 뺐다.
+- 이 모음을 읽은 사람: 9월 16일 밤 임재혁, 9월 17일 단장 김옥희. 두 사람 모두 덧붙일 것이 없다고 했다.
+- 다음에 이 모음을 고치는 경우: 새 문의가 쌓이면 12번 항목 아래에 날짜순으로 덧붙이고, 이미 적은 문의의 답은 고치지 않는다. 답이 바뀌었으면 &#x27;지금 다시 답할 수 있는 것&#x27; 칸에만 새 내용을 적는다.
+[자료 끝]
+
+노을합창단의 관객 안내문 초안 전체를 제시해 주세요. 참여 조건이 분명하도록 앞에서 확정한 일시·참여 조건·문의처를 충분히 안내해 주세요. 글자는 한글만 사용하고 숫자와 문장 부호는 허용합니다. 본문은 불릿으로 정확히 4개를 작성하고 그 앞에 &quot;다음 4가지 안내를 확인해 주세요.&quot;라는 개수 선언을 두세요. &quot;사전&quot;이라는 단어를 반드시 포함해 주세요. &quot;완벽&quot;이라는 단어는 쓰지 마세요. 예비 인력의 현재 상태를 확정된 것처럼 적지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 4 답변</b><pre class="rs-pre rs-ans">노을합창단 정기 연주회 관객 안내
+
+다음 4가지 안내를 확인해 주세요.
+
+- 일시와 접수: 공연 날짜는 미정이며, 정해지는 대로 다시 안내드리겠습니다. 접수는 16:40에 시작하고, 공연은 17:00부터 18:30까지입니다. 접수를 시작하기 전에는 객석과 무대 쪽 공간에 들어가실 수 없으니 16:40 이후에 오시기 바랍니다. 1부와 2부 사이에 휴식 시간이 한 번 있으며, 시각은 미정입니다.
+- 참여 조건: 관객 정원은 60명이며, 사전 등록을 하고 오시는 것이 기본입니다. 사전 등록을 받는 방법은 미정이며, 정해지면 안내문으로 알려 드리겠습니다. 사전 등록을 하지 못하셨다면, 좌석이 남을 때에 한해 현장 입장이 가능합니다. 이때는 사전 등록 관객이 먼저 입장하고, 남은 좌석 안에서만 입장하실 수 있습니다. 현장 입장은 현재 기준이며 이후 바뀔 수 있습니다.
+- 공연 중 안내: 공연 중에는 촬영하실 수 없습니다. 사진은 휴식 시간에 로비에서만 찍으실 수 있습니다. 관객께 드리는 생수는 준비하지 않았으니 필요하신 분은 따로 챙겨 오시기 바랍니다.
+- 문의: 궁금한 점은 공연 운영 담당 신유나에게 문의해 주세요. 문의 연락처는 미정이며, 정해지는 대로 안내드리겠습니다. 날짜, 사전 등록 방법, 연락처가 정해지면 이 안내문을 고치고 고친 날짜를 적어 두겠습니다.
+
+초안에 관한 설명입니다.
+
+정해지지 않은 값은 짐작으로 채우지 않고 미정으로 두었습니다. 날짜, 사전 등록 방법, 연락처, 휴식 시각이 그렇습니다. 현장 입장은 공연장이 정원 관리 방식을 검토 중이라 나중에 취소될 수 있습니다. 취소 통지가 오면 그 문장만 빼면 되도록 둘째 안내 안에 따로 적어 두었습니다.
+
+예비 인력은 확답이 없고 승인된 인력도 아니므로 안내문에 도우미나 봉사자가 있다는 표현을 쓰지 않았습니다. 앙코르, 꽃다발, 주차, 어린 자녀 동반, 좌석 배치, 무료나 초대 같은 혜택도 정해진 바가 없어 넣지 않았습니다. 곡 소개와 인사말은 안내문에서 빼고 따로 두는 방안을 단장과 상의하시기 바랍니다.
+
+돈에 관한 문구가 없는지는 임재혁 님이, 촬영 문구는 지휘자께서 확인하시면 좋겠습니다. 지금 문구에는 비용 관련 표현이 없습니다. <mark class="rs-mk"><sup>5</sup>오늘이 10월 22일이므로 그사이 날짜나 공연장 결정이 바뀌었다면 알려 주세요. 바뀐 부분만 고쳐 드리겠습니다.</mark></pre></div><div class="rs-turn"><b>턴 10 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 노을합창단 정기 연주회 당일 운영 일정표 개정판(작업본) · 근무표 · 시설 사용 시간
+
+- 만든 사람: 공연 운영 담당 신유나
+- 개정판 작업본 작성: 2026년 9월 30일(수) 밤
+- 확인: 단 회계 담당 임재혁(비용·기록), 단장 김옥희(승인)
+- 바탕 자료: 9월 14일 제1차 준비 회의록, 운영 확인 기록 판본 2, 9월 22일 수정 회의록과 9월 23일 변경 통지 공문, 공연장 통지(9월 21일)와 통화 메모(9월 22일), 9월 19일 사전 리허설 점검 일지, 비품 반출입 대장
+- 이 문서의 성격: 당일 일정표를 다시 짜기 위한 재료와 규칙을 모은 작업본이다. 운반 방식(A안·B안) 선택이 아직 보류라서, 운반 방식에 따라 달라지는 시각 칸은 채우지 않았다. 일정표 완성본은 방식이 정해진 뒤 만든다.
+
+## 1. 개정 이력
+
+- 1판(9월 15일): 9월 14일 회의 직후 만든 첫 일정표 초안. 접수 16:40, 현장 입장 예외(좌석이 남으면 현장 입장 허용) 반영. 운반 방식 칸은 두 갈래로 비워 둠.
+- 개정판 작업본(9월 30일, 이 문서): 9월 22일 수정 회의 결과 두 가지를 반영.
+  - 입장(접수) 시작: 공연 시작은 그대로 두고 입장 시작만 종전(16:40)보다 10분 늦춤. 이번 공연은 접수와 입장이 같은 시각에 시작한다.
+  - 현장 입장 예외 취소: 사전 예약자만 입장. 1판에 있던 &#x27;현장 입장 관객 안내&#x27; 줄과 &#x27;남은 좌석 확인&#x27; 줄을 지움.
+- 바꾸지 않은 것: 담당자 도착, 공연 시간, 인력, 정원, 준비 동선 값, 운반 방식 두 안의 내용, 예산, 운영 세부, 마감과 회수 원칙. 1판에서 이 값들이 적힌 칸은 그대로 옮겼다.
+- 개정판에서 시각을 다시 계산하지 않은 까닭: 운반 방식이 정해지지 않은 상태에서 일부 칸만 계산해 넣으면, 나중에 방식이 정해졌을 때 고친 칸과 안 고친 칸이 섞인다. 지난해 시각 하나를 고치다 다른 칸까지 잘못 고친 일이 있어, 방식이 정해지면 한꺼번에 채우기로 했다(신유나, 임재혁 합의).
+
+## 2. 고정 시각(바뀌지 않는 값과 바뀐 값)
+
+- 담당자 현장(공연장) 도착: 15:30. 공연장이 단체 사용일에 뒤 출입문과 무대 쪽 문을 여는 시각이기도 하다. 그대로.
+- 입장(접수) 시작: 9월 22일 수정 회의에 따라 종전 16:40보다 10분 늦춘 시각. 바뀐 값.
+- 공연(행사): 17:00~18:30. 그대로. 공연 시작과 끝은 이번 변경과 관계없다.
+- 회수와 참가 기록 마감: 18:30 이후. 그대로. 회수가 실제로 끝난 시각은 그때 따로 적는다. 종료 시각을 회수 완료 시각으로 적지 않는다.
+- 공연장 건물 문 닫는 시각: 20:00(공연장 안내). 회수는 그 전에 끝내야 한다. 이 시각은 회수 완료 시각이 아니라 넘으면 안 되는 한계다.
+- 행사 날짜: 미정.
+
+## 3. 근무표(당일)
+
+- 확정 진행 인력: 1명, 공연 운영 담당 신유나.
+- 근무 시작: 15:30 공연장 도착.
+- 근무 끝: 회수와 참가 기록 마감이 실제로 끝난 때. 시각은 당일 기록한다(미정).
+- 맡는 일: 도착 뒤 준비와 확인, 설치, 접수와 입장 안내, 공연 중 접수대 지키기, 휴식 시간 로비 안내(사진은 로비에서만), 종료 뒤 회수와 참가 기록 마감.
+- 근무표에 넣지 않는 사람과 그 까닭
+  - 예비 인력(전 단원 조민서): 참석 확답이 없고 승인 인력이 아니다. 근무표에 이름도 빈칸도 두지 않는다.
+  - 단 회계 담당 임재혁: 베이스 단원으로 무대에 선다. 진행 인력이 아니다.
+  - 단장 김옥희, 지휘자 백승원, 반주자 정다온, 파트장과 단원: 모두 무대에 선다. 진행 인력이 아니다.
+  - 공연장 관리 담당 하경태 주임과 공연장 직원: 시설 담당이다. 입장 안내나 접수는 단체가 맡아야 한다고 공연장이 답했다(9월 22일 통화). 우리 운영 인력으로 세지 않는다.
+  - 관객: 접수를 대신 맡기지 않는다(9월 14일 회의). 이야기방에서 접수를 돕겠다는 회원 글이 있었으나 받지 않는다.
+- 쉬는 시간과 식사: 1인 근무라 따로 잡지 않는다. 식사는 도착 전에 마치고 온다. 개인 용무로 자리를 비울 일은 접수 시작 전에 끝낸다.
+- 근무 중 연락: 담당자 휴대전화는 접수대 위에 둔다. 공연 중에는 소리를 끄고 화면을 객석 쪽으로 향하지 않게 한다(무대에서 불빛이 보인다는 지휘자 말).
+
+## 4. 시설 사용 시간(공연장 통지와 통화 메모에서 옮김)
+
+| 공간 | 쓸 수 있는 때 | 근거 | 비고 |
+| --- | --- | --- | --- |
+| 뒤 출입문, 무대 옆 통로 | 담당자 도착(15:30)부터 | 공연장 통지 1번, 9월 22일 통화 | 손수레 출입 가능, 계단 없음 |
+| 무대 | 담당자 도착(15:30)부터 | 같음 | 반사판 두 장 펼침은 요청서로 공연장 직원이 함 |
+| 대기실 | 담당자 도착(15:30)부터 | 같음 | 단원 생수를 두는 곳 |
+| 로비 안쪽 접수대 자리 | 담당자 도착(15:30)부터 | 9월 22일 통화 | 접수대 탁자와 의자는 공연장 비품 |
+| 관객 로비 개방(현관 쪽) | 입장 시작 시각부터(종전보다 10분 늦춤) | 공연장 통지 1번 | 현관 쪽 전시판 철수와 청소 뒤 |
+| 객석 | 입장(접수) 시작 때 문을 엶 | 9월 14일 회의 | 그 전에는 닫아 둠 |
+| 무대 뒤 보관실 | 전날 사용 가능 시간 미정 | 공연장 통지 3번 | B안일 때만 씀. 열쇠는 관리실 |
+| 공연장 건물 | 20:00에 닫음 | 공연장 안내 | 회수는 그 전에 끝냄 |
+
+- 피아노 조율: 남은 예상 지출에 들어 있는 항목. 당일 몇 시에 하는지 공연장 회신이 없다(미정). 조율 시각이 무대 설치와 겹치면 무대 쪽 작업과 로비 쪽 작업의 순서를 바꿔 맞춘다. 조율하는 사람은 공연장 측이 부르는 사람이며 우리 운영 인력이 아니다.
+- 무대 조명 시험 점등: 공연 전에 한 번 켜 봐야 한다(공연장 회신, 9월 22일). 켜는 시각은 단이 정한다. 오래 켜 두면 무대가 더워진다(9월 19일 기록). 지휘자와 정할 일이라 아직 시각이 없다.
+- 무대 쪽 송풍: 공연 중에는 약하게, 공연 전과 휴식 시간에는 세게 돌릴 수 있다. 바꿀 때마다 관리실에 말한다.
+
+## 5. 작업 카드(당일 담당자가 하는 일과 정해진 소요 시간)
+
+정해진 소요 시간은 회의에서 확정한 값만 적었다. 값이 없는 일에는 시간을 지어 넣지 않았다.
+
+- 카드 가. 연습실까지 이동(가는 길): 편도 10분. A안일 때만 있다.
+- 카드 나. 악보 확인: 6분. 두 안 모두 있다. A안이면 연습실에서, B안이면 무대 뒤 보관실에서 한다. 악보 묶음 파트별 수, 겉표지 곡 목록, 지휘자가 마지막에 고친 쪽(고요한 물 둘째·셋째 쪽 등)이 끼워져 있는지, 보면대 나사와 받침판을 본다. 파손 의심 물품은 배부하지 않고 따로 둔다.
+- 카드 다. 공연장으로 이동(오는 길): 편도 10분. A안일 때만 있다. 손수레 한 번으로 악보와 보면대를 함께 싣는다. 편도 10분을 왕복으로 쓰지 않는다. 가는 길과 오는 길은 따로 적는다.
+- 카드 라. 설치: 25분. 두 안 모두 같다. 무대 보면대 펴기와 자리 표시 테이프, 지휘대 위치 확인, 로비 접수대 펴기, 명단과 번호표 놓기, 안내판 세우기(촬영 규정, 사전 예약자만 입장).
+- 카드 마. 관리실 확인: 냉방, 무대 조명, 반사판 펼침 여부. 도착 직후 말로 확인한다. 정해진 소요 시간은 없고, 기다리는 일이 생기면 기다리지 않고 설치부터 한다. B안이면 보관실 문을 열어 달라는 부탁도 이때 한다.
+- 카드 바. 접수(입장): 바뀐 입장 시작 시각부터. 사전 예약자 명단으로 대표자 이름과 인원을 확인하고 번호표를 준다. 촬영 규정을 말로 한 번 더 알린다. 예약하지 않고 오신 분께는 사전 예약하신 분만 입장하실 수 있다고 말씀드린다.
+- 카드 사. 공연 중 접수대: 17:00~18:30. 늦게 온 예약자 안내(곡 사이 입장 방식은 미정), 문의 응대. 접수대를 떠나지 않는다.
+- 카드 아. 휴식 시간: 로비 사진은 이때만 허용된다. 휴식 시각은 지휘자가 정하며 아직 미정이다.
+- 카드 자. 회수와 참가 기록 마감: 18:30 이후. 소요 시간은 정해져 있지 않다. 실제로 끝난 시각을 적는다.
+
+순서 규칙(회의에서 정한 것)
+- 설치(카드 라)를 끝내기 전에 접수(카드 바)를 열지 않는다. 설치가 끝났어도 입장 시작 시각 전에는 열지 않는다.
+- 접수가 시작된 뒤에는 접수대를 비울 수 없다. 자리를 비울 일(연습실 다녀오기, 관리실, 대기실, 개인 용무)은 접수 시작 전에 끝낸다.
+- 도착(15:30) 전에 한 일은 당일 작업으로 적지 않는다. B안의 전날 반입, 공연장 명단 제출(행사 전날)은 전날 일이다.
+
+## 6. 운반 방식에 따라 달라지는 칸(선택 보류 중)
+
+A안과 B안 가운데 무엇을 고를지는 9월 14일, 9월 22일, 9월 29일 회의에서 모두 정하지 못했다. 이 작업본도 어느 한 안으로 정하지 않는다. 일정표 완성본을 만들 때 아래 칸을 채운다.
+
+A안(당일 연습실 운반)
+- 당일 작업: 카드 가(이동, 편도 10분) → 카드 나(악보 확인 6분, 연습실) → 카드 다(이동, 편도 10분) → 카드 라(설치 25분). 카드 마(관리실 확인)는 도착 직후 말로.
+- 비용: 없음.
+- 전날 작업: 없음.
+- 조심할 것: 연습실을 다녀오는 동안 공연장에 담당자가 없다. 이 일은 반드시 접수 시작 전에 끝난다. 비가 오면 비닐 덮개(9월 17일 연습실로 돌아옴)를 쓴다. 주민센터 승강기가 붐빌 수 있다. 연습실 열쇠는 신유나가 가지고 있다.
+- 시각 칸: (방식이 정해진 뒤 채움)
+
+B안(전날 무대 뒤 보관)
+- 당일 작업: 카드 마(관리실에 보관실 문 열어 달라 부탁) → 카드 나(악보 확인 6분, 보관실) → 카드 라(설치 25분).
+- 비용: 보관실 이용료. 금액은 [2] 합창단 예산 메모의 방식별 비용 줄에 있다. 남은 예상 지출에는 아직 들어 있지 않다.
+- 전날 작업: 물품을 보관실에 가져다 두는 일. 전날 일이므로 당일 일정에 넣지 않는다. 보관실 전날 사용 가능 시간은 공연장 회신을 기다리는 중이다(미정).
+- 조심할 것: 보관실 열쇠는 관리실에 있다. 다른 단체 물품과 섞이지 않게 상자에 단 이름을 붙인다. 보관 중 사고 책임 범위는 공연장 답이 없다.
+- 시각 칸: (방식이 정해진 뒤 채움)
+
+두 안에 같은 것
+- 악보 확인 6분은 두 안 모두 빠지지 않는다.
+- 설치 25분은 두 안 모두 같다.
+- 확정 인력 1명이 한다.
+
+## 7. 접수와 입장(최신 조건)
+
+- 입장(접수) 시작: 종전보다 10분 늦춘 시각. 공연 시작 17:00은 그대로.
+- 입장 대상: 사전 예약자만. 좌석이 남아도 현장 입장은 없다. 1판의 현장 입장 관련 줄은 모두 지웠다.
+- 정원: 60명. 예약을 60명까지 받는다. 예약이 정원에 못 미쳐도 남은 자리를 현장 관객으로 채우지 않는다.
+- 명단: 사전 예약자 명단(대표자 이름 가나다순). 공연장에는 행사 전날까지 이름과 인원만 적은 입장 명단을 낸다(전날 일).
+- 줄: 한 줄. 줄을 나누지 않는다.
+- 일행: 대표자 이름으로 확인한다. 일행 수가 명단과 다르면 그 자리에서 고치지 않고 명단 옆에 적어 두었다가 종료 뒤 확인한다. 정원 60명을 넘기게 되면 넘는 만큼 입장시키지 않는다.
+- 명단에 없는 단원 가족: 입장하지 않는다. 단원 가족도 사전 예약자여야 한다.
+- 접수 전 도착 관객: 객석과 무대 쪽 공간에 들어갈 수 없다. 대기 장소는 미정.
+- 좌석: 배정 기준은 초안이며 관객 좌석 배치표는 없다. 접수 때 좌석 번호를 알리는 일은 기준이 정해진 뒤에만 한다.
+- 예약하지 않고 오신 분께 할 말: &quot;이번 공연은 사전 예약하신 분만 입장하실 수 있습니다.&quot; 다른 약속은 하지 않는다.
+- 접수 때 말로 알릴 것: 촬영 규정(공연 중 금지, 휴식 시간 로비 사진 허용), 화장실 위치(로비 바깥 복도). 생수를 물으면 관객용은 없다고 답한다. 앙코르를 물으면 지휘자가 당일 정한다고만 답한다.
+
+## 8. 마감과 회수 절차
+
+18:30 공연이 끝난 뒤 아래 순서로 한다. 소요 시간은 정해져 있지 않다. 공연장 건물이 20:00에 닫으므로 그 전에 끝낸다.
+
+- 관객 배웅: 로비 출구 쪽 회수 상자에 번호표를 넣고 나가게 한다. 접수대는 관객이 다 나갈 때까지 지킨다.
+- 참가 기록 마감: 사전 예약자 명단 한 곳에만 표시한다. 번호표 회수 수를 따로 세어 명단 표시 수와 더하지 않는다. 같은 참가 기록을 여러 표에 적었다고 중복 합산하지 않는다.
+- 무대 회수: 보면대 접기(다리 스티커로 우리 것인지 확인), 악보 묶음 파트 색별로 상자에 넣기, 자리 표시 테이프 떼기. 단원 가방에 들어간 악보가 없는지 대기실 확인.
+- 대기실: 남은 생수 모으기.
+- 로비: 안내판 접기, 접수대 탁자와 의자는 공연장 제자리로(공연장 비품이라 우리 반입 칸에 적지 않음).
+- 대조: 반출 기록과 회수 물품을 대 본다. 파손 의심 물품은 딱지를 붙여 따로 싣는다.
+- 운반: 손수레로 연습실에 반입한다(A안이든 B안이든 회수 뒤 연습실로 돌아간다). 연습실까지 편도 10분.
+- 기록: 회수가 실제로 끝난 시각, 반입 시각, 남은 확인 거리와 담당, 다음 확인 대상을 적는다.
+- 끝내지 못한 것: 담당(신유나)과 다음 확인 대상(무엇을, 언제)을 반출입 대장에 남긴다. 예: 파손 보면대 수리 여부(다음 연습 날), 공연장 관리 실비 청구서(임재혁, 청구서 받은 뒤).
+- 사진: 접수 명단을 찍은 휴대전화 사진은 회수와 마감이 끝난 뒤 지운다.
+
+## 9. 지난해 당일 일정표와 견준 메모(신유나)
+
+- 지난해 일정표에는 전날 한 악보 복사와 당일 무대 설치가 같은 칸에 있었다. 이번에는 전날 일과 당일 일을 칸부터 나눴다(6번 B안 &#x27;전날 작업&#x27; 칸).
+- 지난해에는 &#x27;18:30 종료, 회수 완료&#x27;가 한 줄이었다. 실제로는 관객 배웅과 보면대 접기, 명단 맞추기에 시간이 더 걸렸다. 이번에는 종료와 회수 완료를 다른 줄로 두고, 회수 완료 시각을 실제로 적는다.
+- 지난해에는 접수 담당과 무대 담당이 따로 있었다. 이번에는 1명이라 무대 일과 접수 일이 겹치지 않게, 무대 일을 모두 접수 전에 끝내는 순서로 짰다.
+- 지난해에는 접수 도중 대기실 연락으로 담당자가 자리를 떴다. 이번에는 지휘자가 접수 시작 뒤 운영 담당을 부르지 않겠다고 했다.
+- 지난해에는 입장 시각이 안내문(30분 전)과 실제(20분 전)가 달랐다. 이번에는 안내문, 일정표, 운영 메모의 입장 시각을 한 값으로 맞춘다.
+
+## 10. 담당자 메모(신유나와 임재혁, 9월 30일 주고받음)
+
+- 신유나: 입장 시작이 늦어져 접수 전에 쓸 수 있는 시간이 늘었다. 그래도 운반 방식을 정하는 근거로 쓰지는 않기로 했다(9월 22일 회의). 방식이 정해지면 이 작업본의 6번 칸만 채우면 된다.
+- 임재혁: B안 비용은 이 작업본에 금액을 따로 적지 않고 예산 메모를 가리키게 해 두었다. 방식이 B안으로 정해지면 그때 예상 지출 칸에 새 줄로 올리고, 상한 안에 드는지 장부로 다시 확인한다. 그 전에는 어디에도 더하지 않는다.
+- 신유나: 일정표 완성본에도 확정 인력 1명 외에 다른 사람은 넣지 않는다. 공연장 직원이 반사판을 펴 주는 것은 시설 일이므로 우리 작업 카드에 넣지 않았다.
+- 임재혁: 안내지 주문은 아직 승인 전이다. 일정표에 &#x27;안내지 배부&#x27;를 넣지 말 것.
+- 신유나: 단원 무대 리허설 시각은 지휘자가 정한다. 무대 설치(카드 라)가 끝나야 보면대가 놓이므로, 리허설은 설치 뒤가 된다는 점만 지휘자에게 말해 두었다. 리허설 시각 자체는 미정이다.
+- 임재혁: 피아노 조율 시각도 미정이니, 완성본에서 조율과 설치가 겹치면 어떻게 할지 한 줄 남겨 두자. → 4번 표 아래에 적어 둠.
+
+## 11. 당일 챙길 물품(반출입 대장 기준)
+
+- 보면대(배부 제외 한 대는 가져가지 않음), 악보 묶음(파트별 상자 두 개), 단원 생수(대기실에 둠, 관객 배부 없음), 손수레, 끈, 비닐 덮개(비 올 때).
+- 접수대: 사전 예약자 명단 종이 한 부와 휴대전화 사진, 관객 번호표 묶음, 볼펜과 형광펜, 집게(문 바람에 명단이 날리지 않게), 안내판 두 개.
+- 무대: 자리 표시 테이프, 녹음기와 여분 건전지.
+- 손질: 수건 두 장(젖은 보면대 닦기), 드라이버(보면대 나사가 풀릴 때. 배부 제외 보면대를 고치는 데 쓰지 않음).
+- 열쇠: 연습실 열쇠(신유나).
+- 가져가지 않는 것: 프로그램 안내지(주문 승인 전), 관객용 생수, 단원 개인 보면대.
+
+## 12. 아직 정하지 않은 것(일정표 완성본 전에 정해야 함)
+
+- 운반 방식(A안·B안).
+- 행사 날짜.
+- 무대 뒤 보관실 전날 사용 시간(B안일 때).
+- 피아노 조율 시각.
+- 무대 조명 시험 점등 시각.
+- 단원 무대 리허설 시각과 1부·2부 사이 휴식 시각.
+- 공연 시작 뒤 늦게 온 예약자 입장 방식.
+- 접수 전 관객 대기 장소.
+- 좌석 배정 기준과 좌석 번호를 알리는 때.
+- 예약 창구와 문의 연락처.
+- 프로그램 안내지 주문(운영위원회 승인 전). 승인되더라도 배부를 일정표 어디에 둘지는 그때 정한다.
+- 일찍 온 관객의 화장실 사용(대기 장소와 함께 공연장에 묻는 중).
+- 공연장 로비 게시판에 안내문을 붙일 수 있는지.
+
+## 13. 이 작업본을 쓸 때 지킬 것
+
+- 바뀐 조건(입장 시작 10분 늦춤, 현장 입장 예외 취소)만 반영하고 나머지 확정 사항은 그대로 둔다.
+- 확정 인력 1명 외의 사람을 작업 카드나 근무표에 넣지 않는다.
+- 회의에서 정하지 않은 소요 시간을 지어 넣지 않는다.
+- 운반 방식을 정하지 않는다. 두 갈래를 나란히 둔다.
+- 전날 일을 당일 일정에 넣지 않는다.
+- 종료 시각을 회수 완료 시각으로 적지 않는다.
+- 공연장 직원, 단원, 관객에게 운영 일을 나눠 맡기지 않는다. 시설 일은 공연장이, 무대 위 일은 지휘자가 맡고, 운영 일은 확정 인력 1명이 한다.
+- 짐작한 시각(리허설, 조율, 휴식)을 빈칸에 채워 넣지 않는다. 정해지면 그때 적는다.
+
+## 14. 1판 일정표의 줄을 하나씩 대 본 결과
+
+1판의 줄을 위에서부터 읽으며 그대로 둘지, 고칠지, 지울지 표시했다. 이 표시대로 개정판 완성본을 만든다.
+
+- &quot;15:30 담당자 공연장 도착&quot; → 그대로.
+- &quot;도착 직후 관리실 확인(냉방, 조명)&quot; → 그대로. 반사판 펼침 확인을 덧붙임(9월 19일 리허설 뒤 지휘자 요청).
+- &quot;운반(방식 미정, A안·B안 두 칸)&quot; → 그대로. 칸은 여전히 비어 있음.
+- &quot;악보 확인 6분&quot; → 그대로.
+- &quot;설치 25분&quot; → 그대로.
+- &quot;16:40 접수 시작&quot; → 고침. 종전보다 10분 늦춘 입장(접수) 시작으로.
+- &quot;접수 시작 전까지 자리를 비울 일 끝내기&quot; → 그대로 두되 기준 시각을 새 입장 시작으로 바꿈.
+- &quot;현장 입장 관객은 사전 등록 관객 입장 뒤 남은 좌석 안에서 안내&quot; → 지움(현장 입장 예외 취소).
+- &quot;남은 좌석 세기&quot; → 지움.
+- &quot;17:00 공연 시작&quot; → 그대로.
+- &quot;휴식(시각 미정) 로비 사진 안내&quot; → 그대로.
+- &quot;18:30 공연 끝&quot; → 그대로.
+- &quot;회수와 참가 기록 마감(실제 끝난 시각 따로 기록)&quot; → 그대로.
+- &quot;공연장 명단 제출&quot; → 1판에는 없던 줄. 행사 전날 일이므로 당일 일정이 아니라 &#x27;전날 할 일&#x27; 칸에 새로 넣음.
+
+## 15. 1인 근무에서 생길 수 있는 일과 대응 원칙
+
+사람을 더 넣지 않는다는 전제에서 정한 원칙이다. 회의에서 따로 결정한 것이 아니라, 이미 정한 원칙(접수 시작 뒤 자리 비우지 않기, 확정 인력 1명, 설치 전 접수 금지)을 상황에 맞춰 적어 본 것이다.
+
+- 비가 올 때: A안이면 비닐 덮개로 손수레 짐을 덮는다. 이동이 늦어질 수 있으니 접수 시작 전까지 돌아오는지가 가장 중요하다. B안이면 당일 이동이 없다.
+- 공연장 문이 늦게 열릴 때: 기다리는 동안 할 수 있는 일은 없다. 열리면 설치를 먼저 하고 관리실 확인은 말로 짧게 한다. 설치를 끝내지 못한 채 접수를 열지 않는다.
+- 관리실 확인이 늦어질 때: 기다리지 않고 설치부터 한다. 냉방과 조명은 설치하는 동안 관리실이 맞춘다.
+- 물품이 빠진 것을 알았을 때: 접수 시작 전이면 가지러 다녀올 수 있는지 시각을 따져 본다. 접수 시작 뒤에 알았으면 가지러 가지 않고 있는 물품으로 진행한다. 종료 뒤 회수 때 처리한다.
+- 대기실에서 부를 때: 접수 시작 뒤에는 가지 않는다. 지휘자가 단원들에게 미리 말해 두었다.
+- 예약하지 않고 오신 분이 여럿일 때: 같은 말로 정중히 말씀드린다. 대기 명단이나 다른 약속을 하지 않는다. 줄이 막히지 않게 접수대 옆으로 비켜서 말씀드린다.
+- 관객이 몸이 불편해졌을 때: 접수대에서 공연장 관리실에 바로 알리고, 필요하면 응급 신고를 한다. 접수대를 떠나지 않고 할 수 있는 일부터 한다. 있었던 일은 당일 기록지 메모 칸에 남긴다.
+- 공연 중 늦게 온 예약자: 입장 방식이 정해지지 않았다. 정해지기 전에는 접수대에서 명단을 확인하고, 객석 문 앞에서 기다리게 할지는 그때 판단하지 말고 정해진 대로 한다(회의에서 정할 것).
+
+## 16. 단원 쪽 일정과 겹치는 곳(지휘자와 맞출 것)
+
+- 단원 도착 시각: 지휘자가 정한다. 이 작업본에는 넣지 않았다(미정). 단원은 뒤 출입문으로 들어온다.
+- 단원 무대 리허설: 무대 보면대 설치(카드 라)가 끝난 뒤라야 한다. 시각은 미정.
+- 발성 연습: 대기실에서 한다. 담당자는 관여하지 않는다.
+- 생수: 단원용. 대기실과 무대 옆 통로에 둔다. 관객석과 로비에는 두지 않는다.
+- 단원 명찰: 지난 회차 것을 각자 단다. 명찰 상자는 대기실 탁자 위.
+- 접수 시작 뒤: 단원은 운영 담당을 부르지 않는다. 대기실 일은 지휘자와 파트장이 해결한다.
+- 휴식 시간: 단원이 로비로 나갈지 지휘자가 정한다. 로비 사진은 휴식 시간에만 허용된다.
+- 앙코르: 지휘자가 당일 정한다. 일정표에 앙코르 시간을 따로 잡지 않는다. 공연은 18:30에 끝난다.
+
+## 17. 무엇을 누구에게 묻는지(연락처는 적지 않음)
+
+연락처는 각자 휴대전화에 저장되어 있으므로 이 문서에는 적지 않는다(미기재).
+
+- 시설(문, 냉방, 조명, 반사판, 보관실 열쇠, 피아노 조율): 공연장 관리실, 하경태 주임.
+- 단원(도착, 대기실, 리허설, 앙코르): 지휘자 백승원. 지휘자가 무대에 있을 때는 단장 김옥희.
+- 돈(관리 실비 청구서, 보관실 이용료 처리): 단 회계 담당 임재혁. 당일에는 무대에 서므로 공연 뒤에 묻는다.
+- 관객 문의: 공연 운영 담당 신유나가 접수대에서 받는다. 관객용 문의 연락처는 아직 미정이다.
+
+## 18. 당일 실제 기록지(일정표 옆에 둘 칸)
+
+계획 시각과 실제 시각을 나란히 적으려는 칸이다. 칸만 정해 두고 값은 당일 적는다.
+
+- 실제 도착 시각
+- 공연장 문이 열린 시각
+- 카드마다 실제 시작과 끝(이동, 악보 확인, 설치)
+- 관리실 확인을 마친 시각
+- 실제 접수(입장) 시작 시각
+- 공연 시작과 끝 시각
+- 회수가 실제로 끝난 시각
+- 연습실 반입 시각
+- 남은 확인 거리와 담당, 다음 확인 대상
+- 메모(날씨, 승강기, 늦게 온 예약자, 예약 없이 오신 분 응대 등)
+
+## 19. 전날 할 일(당일 일정과 따로 둔 칸)
+
+전날 일은 당일 일정표에 넣지 않는다. 아래는 행사 전날 하는 일이다. 날짜가 정해지지 않아 시각은 적지 않았다.
+
+- 공연장 관리실에 입장 명단(사전 예약자 이름과 인원)을 낸다. 연락 수단과 편의 메모는 빼고 낸다.
+- 접수 명단(대표자 이름 가나다순)을 종이 한 부로 뽑고 휴대전화로 사진을 찍어 둔다.
+- 연습실에서 물품을 한 번 본다. 배부 제외 보면대가 따로 있는지, 악보 묶음에 고친 쪽이 끼워져 있는지. 이 점검이 있어도 당일 악보 확인 6분은 그대로 한다.
+- B안으로 정해지면: 물품을 공연장 무대 뒤 보관실에 가져다 둔다. 보관실을 쓸 수 있는 시간은 공연장 회신을 기다리는 중이다.
+- A안으로 정해지면: 전날 운반은 없다. 손수레와 끈, 비닐 덮개를 연습실 문 앞에 모아 둔다.
+- 날씨 예보를 본다. 비 소식이 있으면 비닐 덮개를 챙긴다.
+- 휴대전화를 충전한다.
+
+## 20. 9월 19일 사전 리허설 날 운반에서 얻은 참고(당일 값으로 쓰지 않음)
+
+반출입 대장의 9월 19일 운반 메모를 다시 읽고 일정표에 쓸 만한 점만 짚었다. 그날은 행사 당일이 아니고 공연장이 문을 연 시각도 달랐다.
+
+- 걸어서 오간 시간은 실측(편도 10분)과 크게 다르지 않았다. 일정표에는 회의에서 정한 편도 10분을 쓴다.
+- 승강기를 기다린 시간과 공연장 문이 열리기를 기다린 시간은 걷는 시간과 따로 적혀 있었다. 일정표의 소요 시간에는 넣지 않는다.
+- 손수레 한 번에 보면대와 악보 묶음, 생수까지 실렸다. &#x27;물품은 한 번에 가져올 수 있다&#x27;는 회의 결정과 맞는다.
+- 보도블록 들뜬 구간에서 바퀴가 걸려 끈을 다시 감았다. 당일에는 끈을 두 번 감고 출발한다.
+
+## 21. 회수 때 공연장과 확인할 것
+
+- 무대 바닥 자리 표시 테이프를 떼고 자국을 공연장과 함께 본다.
+- 반사판은 공연장 직원이 원래대로 접는다. 우리 일이 아니다.
+- 휠체어 공간과 통로에 남은 물건이 없는지 본다.
+- 객석에 떨어진 번호표나 종이를 줍는다.
+- 접수대 탁자와 의자를 공연장 제자리로 옮긴다.
+- B안이었다면 보관실이 비었는지 관리실과 함께 보고 문을 잠가 달라고 한다.
+- 퇴실할 때 관리실에 알린다. 건물은 20:00에 닫는다.
+- 공연장 관리 실비 청구서를 언제 어떻게 받는지 묻는다(남은 예상 지출 항목, 담당 임재혁).
+
+## 22. 일정표 완성본에 둘 칸(값은 방식이 정해진 뒤 채움)
+
+- 시각(시작과 끝)
+- 작업(작업 카드 이름)
+- 담당(확정 인력 1명)
+- 소요 시간(회의에서 정한 값만)
+- 장소(연습실, 무대, 로비, 보관실, 대기실)
+- 비고(조심할 것, 전날 일과의 구분)
+
+## 23. 지휘자에게 보낸 일정 질문과 답(9월 30일 저녁)
+
+- 물음: 당일 단원 무대 리허설은 몇 시쯤인가요? / 답: 무대 설치가 끝난 뒤로 하겠다. 정확한 시각은 곡 순서를 정하면서 알려 주겠다(미정).
+- 물음: 1부와 2부 사이 휴식은 몇 분인가요? / 답: 지난해처럼 짧게 하면 2부가 늦어지니 넉넉히 두고 싶다. 몇 분일지는 곡 순서와 함께 정하겠다(미정).
+- 물음: 무대 조명 시험 점등은 언제 할까요? / 답: 리허설 때 같이 켜자. 리허설 전에 오래 켜 두지 말자(9월 19일 기록 때문). 시각은 리허설 시각에 따른다.
+- 물음: 단원 도착은 몇 시인가요? / 답: 리허설 시각을 정하면 그에 맞춰 알리겠다(미정). 단원은 뒤 출입문으로 들어온다.
+- 물음: 접수 시작 뒤 대기실 일은요? / 답: 운영 담당을 부르지 않는다. 파트장들과 해결한다.
+
+## 24. 9월 29일 준비 회의에서 일정과 관련해 나온 말
+
+- 운반 방식: 공연장 보관실 회신이 아직 없어 이번에도 정하지 않았다(보류). 단장이 회신을 재촉하기로 했다.
+- 좌석 배정 기준: 공연장 좌석도면을 받은 뒤 정하기로 했다(보류). 일정표에 &#x27;좌석 안내&#x27; 작업을 따로 넣지 않는다.
+- 프로그램 안내지: 운영위원회 승인을 기다린다. 일정표에 넣지 않는다.
+- 예약 창구와 연락처: 정하지 못했다(미정).
+- 일정표: 이 작업본 방식(바뀐 조건 반영, 운반 방식 칸은 비움)으로 만들기로 했다.
+
+## 25. 날씨와 공간 온도 대비
+
+- 비: A안이면 비닐 덮개. 젖은 보면대는 무대에 펴기 전에 닦는다(수건은 연습실 비품). B안이면 당일 이동이 없다.
+- 무대 더위: 9월 19일 리허설 때 조명을 켠 뒤 무대 온도가 계속 올랐다. 조명 시험 점등은 리허설 때 같이 하고, 공연 전과 휴식 시간에 무대 쪽 송풍을 세게 해 달라고 관리실에 말한다. 공연 중에는 약하게 둔다.
+- 로비 대기: 접수 시작 전 일찍 온 관객이 기다릴 곳은 미정이다. 현관 쪽은 전시판 철수와 청소가 이어질 수 있다. 공연장 답을 받으면 안내판에 적는다.
+- 저녁 바람: 로비 출입문을 열면 바람이 들어와 명단이 날린다(9월 19일 메모). 집게로 명단을 고정한다.
+
+## 26. 회수 뒤 연습실에서 할 일
+
+- 손수레에서 물품을 내려 반입 기록을 적는다. 반입은 실제로 세어 본 뒤에 적는다.
+- 보면대는 벽장 아래 두 칸, 악보 묶음은 파트별 상자에 넣어 벽장 위 칸, 남은 생수는 냉장고 옆.
+- 배부 제외 물품(당일 새로 생긴 것 포함)에 딱지를 붙여 벽장 맨 아래 칸.
+- 녹음기는 피아노 위 바구니. 녹음 파일은 다음 날 공유 폴더로 옮기고 지휘자에게 알린다.
+- 연습실을 잠근다(신유나 열쇠).
+- 다음 연습 날 확인할 것을 대장에 적는다. 담당과 다음 확인 대상을 함께.
+
+## 27. 지난해 당일에 생각보다 오래 걸렸던 일(운영 후기에서)
+
+- 관객 배웅: 공연이 끝나고도 로비에서 단원과 가족이 이야기를 나누느라 관객이 바로 나가지 않았다.
+- 보면대 접기: 무대에서 단원들이 자기 악보를 챙기는 동안 보면대를 접을 수 없었다.
+- 명단 맞추기: 접수대가 비었던 동안 들어온 관객 때문에 명단과 빈자리가 맞지 않아 오래 걸렸다.
+- 퇴실 확인: 공연장 관리실이 객석과 무대를 둘러본 뒤에야 퇴실할 수 있었다.
+- 신유나 메모: 이번에는 소요 시간을 정하지 않은 대신, 회수 완료 시각을 실제로 적고 건물 닫는 시각 전에 끝내는 것만 정했다.
+
+## 28. 단원 대화방에 이 작업본을 나눌 때
+
+- 단원에게 필요한 것만 나눈다: 공연 시간(그대로), 입장 시작이 바뀌었다는 것(관객 쪽 일), 단원 도착과 리허설 시각은 지휘자가 따로 알린다는 것, 생수는 대기실에 있다는 것, 접수 시작 뒤 운영 담당을 부르지 않는다는 것.
+- 나누지 않는 것: 사전 예약자 명단, 편의 메모, 근무표의 &#x27;넣지 않는 사람&#x27; 칸, 예산과 비용 이야기.
+- 일정표 완성본이 나오면 같은 원칙으로 다시 나눈다.
+
+## 29. 바뀐 조건을 빠짐없이 반영했는지 본 목록(9월 30일 밤, 신유나)
+
+- 입장(접수) 시작 줄: 종전보다 10분 늦춘 시각으로 고쳤다. 공연 시작 줄은 손대지 않았다.
+- 접수 시작 전까지 끝낼 일: 기준 시각을 새 입장 시작으로 바꿨다.
+- 시설 사용 시간: 관객 로비 개방을 입장 시작에 맞췄다. 무대, 대기실, 로비 안쪽 접수대 자리는 도착 시각부터 그대로다.
+- 현장 입장: 일정표, 작업 카드, 접수대 할 말, 안내판 문구 어디에도 현장 입장이 남아 있지 않다.
+- 안내판: 줄 끝 안내판 문구를 &#x27;사전 예약자만 입장&#x27;으로 바꿨다. 1판의 &#x27;좌석이 남으면 현장 입장 가능&#x27; 종이는 버렸다.
+- 참가 기록: 사전 예약자 명단 한 곳에만 표시한다. 1판의 &#x27;현장 입장 관객 칸&#x27;은 지웠다.
+- 근무표: 확정 인력 1명 그대로. 바뀐 조건 때문에 사람을 더 넣지 않았다.
+- 관객 안내문의 운영 메모: 수정본의 접수 시각과 이 작업본의 접수 시각이 같은지 안내문 게시 전에 다시 본다.
+
+## 30. 일정표 완성본까지 남은 순서
+
+- 공연장 보관실 회신을 받는다(단장이 재촉).
+- 준비 회의에서 운반 방식을 정한다.
+- 이 작업본 6번의 해당 안 시각 칸을 채운다. 다른 안 칸은 지운다.
+- 피아노 조율, 조명 시험 점등, 단원 리허설 시각이 나오면 4번 표 아래와 16번에 반영한다.
+- 임재혁이 비용 줄(방식에 따른 비용)을 장부와 맞춰 본다.
+- 단장이 승인한다.
+- 단원 대화방에 28번 원칙대로 나눈다.
+
+## 31. 공연 중 접수대에서 하는 일(카드 사·아 세부)
+
+- 공연이 시작되면 객석 문을 조용히 닫는다. 접수대는 그대로 지킨다.
+- 늦게 온 예약자는 명단에 표시만 하고, 객석에 언제 들어갈지는 정해진 방식대로 한다(아직 미정). 정해지기 전에는 담당자가 객석 안으로 안내하러 들어가지 않는다.
+- 문의는 접수대에서 받고, 답할 수 없는 것은 메모해 두었다가 공연 뒤 담당에게 넘긴다.
+- 휴식 시간: 관객이 로비로 나오면 사진은 로비에서만 찍을 수 있다고 한 번 알린다. 객석 안에서는 찍지 않는다. 생수를 찾는 관객에게는 관객용이 없다고 답한다.
+- 휴식이 끝날 무렵 관객이 자리로 돌아가도록 로비에서 말로 알린다. 휴식 시각과 길이는 지휘자가 정한다(미정).
+- 18:30 공연이 끝나기 전에는 회수를 시작하지 않는다. 보면대는 단원이 무대에 있는 동안 건드리지 않는다.
+
+## 32. 확인 메모
+
+임재혁(9월 30일 밤)
+- 근무표에 확정 인력 1명만 있다. 예비 인력과 단원이 근무표에 없다. 맞다.
+- B안 비용은 금액 대신 예산 메모를 가리키게 해 두었다. 장부에는 아직 올리지 않았다. 맞다.
+- 예산 숫자를 새로 계산해 넣은 곳이 없다.
+- 공연장 관리 실비는 남은 예상 지출 그대로다. 입장 시각 변경으로 바뀐 비용은 없다.
+
+단장 김옥희(9월 30일 밤)
+- 공연 시작이 그대로라는 것이 분명히 보인다. 입장 시작 줄과 공연 시작 줄이 나뉘어 있어 좋다.
+- 운반 방식은 다음 회의 때 꼭 정하자. 공연장 보관실 회신을 내가 한 번 더 재촉하겠다.
+- 일정표 완성본은 방식이 정해진 다음 날까지 만들어 달라.
+
+지휘자 백승원(9월 30일 밤)
+- 단원 리허설을 설치 뒤로 둔 것 좋다. 리허설 시각은 곡 순서를 정하는 대로 보내겠다.
+- 접수 시작 뒤 운영 담당을 부르지 않는다는 것을 단원들에게 다시 말해 두겠다.
+- 앙코르 시간을 일정표에 따로 두지 않은 것도 맞다. 공연은 18:30에 끝난다.
+
+## 참고 기록
+
+[1] 공연장 점검 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 합창단 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+[자료 끝]
+
+노을합창단의 리허설·공연 당일 일정을 만들어 주세요. 아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요. 운영자가 실행할 작업 순서는 불릿 목록으로 작성해 주세요. 정해진 인력 외의 사람은 사용하지 마세요.</pre><b>턴 10 답변</b><pre class="rs-pre rs-ans"># 당일 일정 (운반 방식 선택 보류, 두 갈래 병기)
+
+담당자는 처음부터 끝까지 확정 인력 1명, 공연 운영 담당 신유나입니다. 입장(접수) 시작은 종전 16:40보다 10분 늦춘 16:50이고, 공연은 17:00~18:30 그대로입니다. 현장 입장은 없고 사전 예약자만 입장합니다.
+
+A안과 B안 중 무엇을 고를지는 아직 정하지 않았습니다. 아래 시각은 회의에서 확정한 소요 시간만 이어 붙인 계산값입니다. 승강기와 문 열림 대기, 손수레 싣는 시간은 정해진 값이 없어 넣지 않았으니, 실제로는 여유 시간에서 쓰게 됩니다.
+
+## 시각표
+
+| 작업 | 담당 | 소요 | A안 (당일 연습실 운반) | B안 (전날 보관실 보관) |
+| --- | --- | --- | --- | --- |
+| 공연장 도착 | 신유나 | | 15:30 | 15:30 |
+| 연습실로 이동 (가는 길) | 신유나 | 편도 10분 | 15:30~15:40 | 없음 |
+| 악보 확인 | 신유나 | 6분 | 15:40~15:46 (연습실) | 15:30~15:36 (보관실, 관리실이 문을 열어 준 뒤) |
+| 공연장으로 이동 (오는 길) | 신유나 | 편도 10분 | 15:46~15:56 | 없음 |
+| 설치 | 신유나 | 25분 | 15:56~16:21 | 15:36~16:01 |
+| 입장(접수) 시작 | 신유나 | | 16:50 | 16:50 |
+| 공연 | 지휘자·단원 무대, 신유나 접수대 | 90분 | 17:00~18:30 | 17:00~18:30 |
+| 회수·기록 마감 | 신유나 | 미정 | 18:30 이후 | 18:30 이후 |
+
+- 설치 끝에서 입장 시작까지의 여유는 A안이 29분, B안이 49분입니다. 이 여유에서 대기와 싣는 시간을 씁니다.
+- 연습실 왕복은 가는 길과 오는 길을 따로 적었습니다. 편도 10분을 왕복으로 쓰지 않았습니다.
+- 설치를 끝내기 전에는 접수를 열지 않고, 접수가 시작되면 접수대를 비우지 않습니다.
+
+## 비용
+
+- A안은 비용이 없습니다.
+- B안은 보관실 이용료 3000원이 듭니다. 이 금액은 남은 예상 지출 96000원에 아직 들어 있지 않고, 승인 상한 250000원과 실지급 118000원도 그대로 두었습니다.
+- 방식이 B안으로 정해지면 임재혁 님이 예상 지출 칸에 새 줄로 올리고 상한 안에 드는지 장부로 확인합니다. 그 전에는 어디에도 더하지 않습니다.
+
+## 실행 작업 순서
+
+- 15:30 공연장 뒤 출입문으로 도착합니다. 도착 전에 한 일은 당일 작업으로 적지 않습니다.
+- 도착 직후 관리실에 냉방, 조명, 반사판 두 장 펼침 여부를 말로 확인합니다. 답을 기다리지 않고 바로 다음 작업으로 넘어갑니다.
+- <mark class="rs-mk"><sup>6</sup>A안이면 연습실에 다녀옵니다. 가는 길 10분, 악보 확인 6분, 오는 길 10분을 따로 기록합니다.</mark> 손수레 한 번에 싣고, 보면대 다리는 끈으로 두 번 감습니다. 비가 오면 비닐 덮개를 씁니다.
+- B안이면 관리실에 보관실 문을 열어 달라고 부탁하고, 보관실에서 악보 6분 확인을 합니다.
+- 악보 확인에서는 파트별 묶음 수, 겉표지 곡 목록, 지휘자가 마지막에 고친 쪽(고요한 물 둘째·셋째 쪽 등), 보면대 나사와 받침판을 봅니다. 파손이 의심되는 물품은 배부하지 않고 따로 둡니다.
+- 설치 25분 동안 무대 보면대와 자리 표시 테이프, 지휘대 위치, 로비 접수대(명단, 번호표, 집게), 안내판(촬영 규정, 사전 예약자만 입장)을 차례로 놓습니다.
+- 자리를 비울 일(연습실 다녀오기, 관리실, 대기실, 개인 용무)은 모두 16:50 전에 끝냅니다.
+- 16:50 접수를 시작합니다. 대표자 이름과 인원을 명단으로 확인하고 번호표를 건네며, 촬영 규정을 말로 한 번 더 알립니다. 예약하지 않고 오신 분께는 &quot;이번 공연은 사전 예약하신 분만 입장하실 수 있습니다&quot;라고만 말씀드립니다.
+- 17:00~18:30에는 접수대를 지키며 늦게 온 예약자와 문의를 응대합니다. 휴식 시간에는 로비 사진만 허용된다고 안내합니다.
+- 18:30 이후 관객 배웅, 참가 기록 마감, 회수와 대조 순서로 진행합니다. 마감과 회수가 실제로 끝난 시각을 따로 적습니다. 건물은 20:00에 닫으므로 그 전에 끝내야 합니다.
+- 회수한 물품은 손수레로 연습실에 반입하고, 반입 시각을 적습니다. 연습실까지는 편도 10분입니다.
+
+## 아직 시각을 넣지 못한 것
+
+단원 무대 리허설 시각은 지휘자가 설치 뒤로 정할 예정이라 미정입니다. 피아노 조율, 무대 조명 시험 점등, 1부와 2부 사이 휴식 시각, 단원 도착 시각도 미정이라 지어 넣지 않았습니다. 행사 날짜, B안일 때 보관실 전날 사용 시간, 늦게 온 예약자 입장 방식도 정해지지 않았습니다.
+
+B안의 전날 반입과 공연장에 내는 입장 명단 제출은 전날 일이라 당일 시각표에 넣지 않았습니다.
+
+## 확인이 필요한 점
+
+- 운반 방식이 정해지면 해당 안의 시각만 남기고 다른 안의 칸은 지우겠습니다.
+- 위 시각은 계산값이므로, 실제 도착 시각과 문 열린 시각을 당일 기록지에 적어 비교해 주세요.
+- 오늘이 10월 22일이므로, 9월 30일 이후 날짜나 공연장 회신이 있었다면 알려 주세요.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 5개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.b · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">붙여 넣은 회의록의 요약에 자료에 없는 현재 날짜를 덧붙였습니다. 자료 정리에서 원문에 없는 문장을 더하지 말아야 하므로 위 문장은 요약 자료에 없는 추가 정보입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “회의록은 9월 14일 기준이고 오늘은 10월 22일입니다.”</div><div class="rs-quote">질문의 요구: “먼저 붙여 넣은 회의록에서 이미 결정된 사항과 아직 보류인 사항을 나눠 확인해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.76</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">자료는 무반주 곡의 시작 화음을 피아노로 짚어 준다고 합니다. 답변의 “무반주 곡은 단원끼리 서로의 소리로만 높이를 맞춥니다”는 그 입력 정보를 다르게 서술합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “반주 곡은 피아노가 계속 기준을 잡아 줍니다. 무반주 곡은 단원끼리 서로의 소리로만 높이를 맞춥니다.”</div><div class="rs-quote">질문의 요구: “피아노 확인: 무반주 곡 시작 화음은 반주자가 피아노로 짧게 짚어 준다. 그 피아노 음 자체를 조율기 앱으로 따로 잡은 값을 적었다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.b · 턴 3 · LLM Judge</span></div><div class="rs-fwhy">원문은 [1]의 원제목을 &#x27;공연장 점검 메모&#x27;라고만 제시합니다. 답변은 괄호에 작성자와 날짜를 추가하고, 특히 &#x27;기록 13번 항목&#x27;이라고 했으나 해당 설명은 원문의 &#x27;참고 기록&#x27; 절에 있으며 13번은 본문 항목입니다. 자료에 없는 설명과 위치를 덧붙였습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “- [1] 공연장 점검 메모: 행사·접수 시각, 인력, 준비 조건 (공연 운영 담당 신유나, 9월 11~12일). 기록 13번 항목에서 이렇게 설명하며, 행사·접수 시각, 인력, 준비 조건을 담은 기록이라고 적혀 있습니다.”</div><div class="rs-quote">질문의 요구: “근거 칸의 [1]·[2]는 이 기록 끝 &#x27;참고 기록&#x27; 절의 두 기록을 가리킨다.
+
+## 참고 기록
+
+[1] 공연장 점검 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 합창단 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.82</div></div><div class="rs-item"><div><b class="rs-hlno rs-hlno-off">4</b> <b>인용 번호·출처 목록 연결</b> <span class="rs-id">1-3.citation_link · 턴 3 · CODE 검사</span></div><div class="rs-fwhy">출처 누락 [2]</div><div class="rs-quote">CODE 검사 — 프로그램이 답 전체를 세거나 형식을 검사한 결과</div></div><div class="rs-item"><div><b class="rs-hlno">5</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 4 · LLM Judge</span></div><div class="rs-fwhy">질문은 안내문 초안만 요청했는데 답변 끝에 현재 날짜를 덧붙였습니다. 이는 요청의 제약을 벗어난 추가 내용입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">5</b> “오늘이 10월 22일이므로 그사이 날짜나 공연장 결정이 바뀌었다면 알려 주세요. 바뀐 부분만 고쳐 드리겠습니다.”</div><div class="rs-quote">질문의 요구: “본문은 불릿으로 정확히 4개를 작성하고 그 앞에 &quot;다음 4가지 안내를 확인해 주세요.&quot;라는 개수 선언을 두세요. &quot;사전&quot;이라는 단어를 반드시 포함해 주세요. &quot;완벽&quot;이라는 단어는 쓰지 마세요. 예비 인력의 현재 상태를 확정된 것처럼 적지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.76</div></div><div class="rs-item"><div><b class="rs-hlno">6</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 10 · LLM Judge</span></div><div class="rs-fwhy">질문은 당일 이동·확인·설치 시각과 소요 시간을 요구하지만, A안 시각표는 손수레 적재·준비 시간을 확보하지 않은 채 15:30부터 이동을 배치하고, 이후에도 여유 시간에서 미측정 작업을 처리한다고 설명합니다. 또한 회수 후 손수레 반입은 20:00 건물 폐쇄 전 완료해야 하나 일정에 종료 시각을 배정하지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">6</b> “A안이면 연습실에 다녀옵니다. 가는 길 10분, 악보 확인 6분, 오는 길 10분을 따로 기록합니다.”</div><div class="rs-quote">질문의 요구: “도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.91</div></div></div></div></article><article class="rs-fd" id="f-claude-18"><h3 class="rs-fdh">Q18 · <span class="mn"><i class="lg lg-claude"></i>Claude</span> · 첨부 자료 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">첨부: 공방_게시판_사진.png</span><pre class="rs-pre rs-q">첨부 게시판 사진의 체험 일시·장소·신청 방법·마감을 표로 요약해 주세요. 제공 물품도 같은 표에 넣고 참가비 액수가 없으면 미기재라고 적어 주세요. 읽히지 않는 부분이 있다면 그 범위만 밝혀 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요. 마크다운 제목을 붙여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">## 모래빛 공방 도자기 체험 접수 안내 요약
+
+| 항목 | 내용 |
+|---|---|
+| 프로그램 | 도자기 체험 |
+| 체험 일시 | 10월 12일 13시 |
+| 장소 | 본관 작업실 |
+| 대상 | 처음 배우는 성인 |
+| 정원 | 8명 |
+| 신청 방법 | 방문 신청만 가능 |
+| 신청 마감 | 10월 9일 18시까지 |
+| 제공 물품 | 장갑 (공방에서 제공) |
+| 참가비 | 미기재 (별도 안내) |
+| 게시글 작성 | 공방운영실, 9월 26일 |
+
+**읽히지 않는 부분:** 없음. 게시판 전체 내용이 또렷하게 읽혔습니다.
+
+<mark class="rs-mk"><sup>1</sup>**참고:** 오늘은 2026년 10월 20일이라 게시된 체험일(10월 12일)과 신청 마감(10월 9일)이 모두 지났습니다. 게시물에 연도가 적혀 있지 않아 올해 일정인지 확인이 필요합니다. 다음 회차가 있는지는 공방에 문의하셔야 합니다.</mark></pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>불필요한 내용 없음</b> <span class="rs-id">J1-4.a · LLM Judge</span></div><div class="rs-fwhy">요청한 게시물 요약에 필요하지 않은 현재 날짜와 다음 회차 문의 안내를 별도 단락으로 덧붙였습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “**참고:** 오늘은 2026년 10월 20일이라 게시된 체험일(10월 12일)과 신청 마감(10월 9일)이 모두 지났습니다. 게시물에 연도가 적혀 있지 않아 올해 일정인지 확인이 필요합니다. 다음 회차가 있는지는 공방에 문의하셔야 합니다.”</div><div class="rs-quote">질문의 요구: “첨부 게시판 사진의 체험 일시·장소·신청 방법·마감을 표로 요약해 주세요. 제공 물품도 같은 표에 넣고 참가비 액수가 없으면 미기재라고 적어 주세요. 읽히지 않는 부분이 있다면 그 범위만 밝혀 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요. 마크다운 제목을 붙여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.95</div></div></div></div></article><article class="rs-fd" id="f-claude-36"><h3 class="rs-fdh">Q36 · <span class="mn"><i class="lg lg-claude"></i>Claude</span> · 첨부 자료 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">첨부: 탐방_접수안내_정정.pdf</span><pre class="rs-pre rs-q">첨부 탐방 안내에서 첫 쪽의 이전 공지와 다음 쪽의 정정표를 대조해 최종 신청·집결·취소 안내를 표로 요약해 주세요. 참가비가 없으면 미기재로 적고 취소를 연기로 바꾸지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">**생활권 탐방 접수 정정 안내 요약** (문서 번호 운영-2026-0924, 1쪽 이전 공지 ↔ 2쪽 정정표 대조)
+
+| 항목 | 이전 공지 (1쪽) | 최종 안내 (2쪽) | 이용자 행동 | 비고 |
+|---|---|---|---|---|
+| 신청 마감 | 10월 25일 18시 | **10월 27일 18시** | 온라인으로 신청 | 기한 후 접수 불가 |
+| 집결 장소 | 서문 쉼터 | **동문 안내대** | 출발 15분 전까지 집결 | 서문에서 대기하지 않음 |
+| 행사 취소 시 | (1쪽에 기재 없음) | **문자로 별도 안내** | 메시지 확인 | 취소는 연기가 아님 |
+| 참가비 | 미기재 | 미기재 | 별도 확인 필요 | 2쪽 주석: 참가비와 교통비 지원액은 이 안내에 기재하지 않음 |
+
+**참고 사항**
+- 신청과 집결은 2쪽 값을 따릅니다. 1쪽은 이전 공지를 확인하기 위한 대조표입니다.
+<mark class="rs-mk"><sup>1</sup>- 준비물(편한 신발, 개인 준비)은 1쪽에서 &quot;유지&quot;로 표시된 항목이며, 2쪽에서 변경되지 않았습니다.</mark>
+- 참가비와 교통비 지원액은 비어 있다고 해서 무료나 면제로 읽으면 안 됩니다. 다른 자료로 확인하기 전까지 미기재로 둡니다.
+- 행사 취소는 연기와 다른 개념입니다. 문서에는 연기나 재일정에 관한 내용이 없고, 다음 검토 일정도 정해지지 않았습니다.
+- 현재 날짜가 10월 20일이므로 신청 마감(10월 27일 18시)까지 7일 남았습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.b · LLM Judge</span></div><div class="rs-fwhy">요약에 원문에 없는 &quot;2쪽에서 변경되지 않았습니다&quot;라는 주장을 덧붙였습니다. 원문은 변경 여부가 명시된 항목만 최신 내용으로 쓰고 다른 항목은 각각 비고를 확인하라고 하며, 2쪽에는 준비물 항목이 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “- 준비물(편한 신발, 개인 준비)은 1쪽에서 &quot;유지&quot;로 표시된 항목이며, 2쪽에서 변경되지 않았습니다.”</div><div class="rs-quote">질문의 요구: “첨부 탐방 안내에서 첫 쪽의 이전 공지와 다음 쪽의 정정표를 대조해 최종 신청·집결·취소 안내를 표로 요약해 주세요. 참가비가 없으면 미기재로 적고 취소를 연기로 바꾸지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.96</div></div></div></div></article><article class="rs-fd" id="f-claude-69"><h3 class="rs-fdh">Q69 · <span class="mn"><i class="lg lg-claude"></i>Claude</span> · 멀티턴 · 어긴 기준 3개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 6 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 참가자 안내문 게시 형식 관련 메일 묶음(9월 23일~26일)
+
+- 모은 사람: 장다온(진행 담당)
+- 모은 날: 2026년 9월 26일(토) 밤
+- 들어 있는 것: 회원 게시판 관리 회원 류지안 · 기서진, 정기 공부방 시간표 담당 표은결, 운영 회계 담당 유시현, 진행 담당 장다온 사이에 오간 메일 27통과, 회원 게시판 운영 규칙 가운데 &#x27;글 형식&#x27; 조항 발췌, 참고 기록 목록
+- 배경: 참가자 안내문 초안을 9월 22일 밤 운영진 게시판에 올렸다. 회원 게시판에 올리기 전 첫 번째 수정에서 게시판 형식(목차, 각주, 출처 번호, 접는 문의 칸, 담당자 복사용 운영 메모)을 맞추기로 했고, 그 형식을 두고 오간 메일이다. 첫 번째 수정본 자체는 이 묶음에 없다.
+- 메일 주소와 서명란 연락처는 옮기지 않았다.
+
+## 1. 9월 23일(수) 09:20 — 장다온 → 류지안
+
+제목: 모의 발표회 안내문 게시 형식 부탁드려요
+
+지안 님, 안녕하세요. 장다온입니다.
+
+어젯밤 운영진 게시판에 온라인 모의 발표회 참가자 안내문 초안을 올렸어요. 회원 게시판에 올리기 전에 첫 번째 수정을 할 텐데, 그때 게시판 형식을 지안 님 기준에 맞춰 보고 싶어요.
+
+지난봄 안내문은 긴 글 한 덩어리였는데, 이번에는 위에 목차를 두고, &#x27;입장&#x27;과 &#x27;문의&#x27;는 따로 소제목으로 빼고 싶어요. 문의 쪽은 자주 묻는 질문이 길어질 것 같아서 접어 두고 싶고요. 그리고 당일 제가 대기실이나 채팅에 붙여 넣을 짧은 문장이 있는데, 그걸 안내문 맨 끝에 복사하기 쉬운 칸으로 넣어 두면 어떨까 해요.
+
+내용(시각이나 조건)은 운영진이 정한 그대로 두고, 형식만 손보는 거예요. 지안 님이 아시는 게시판 규칙을 알려 주시면 그대로 따를게요.
+
+다온 드림
+
+## 2. 9월 23일(수) 13:05 — 류지안 → 장다온
+
+제목: 회신: 모의 발표회 안내문 게시 형식 부탁드려요
+
+다온 님, 네 볼게요. 우선 회원 게시판 형식 규칙을 말씀드릴게요. 규칙 원문은 맨 아래 발췌를 같이 보내 드려요.
+
+목차는 글 맨 위에 둡니다. 목차 줄마다 소제목으로 옮겨 가는 내부 링크를 걸어요. 게시판이 소제목 글자로 자리 이름을 자동으로 만들기 때문에, 링크에 적는 자리 이름이 소제목 글자와 정확히 같아야 움직여요. &#x27;입장&#x27;이라는 소제목이면 링크도 꺾쇠 기호(#) 뒤에 &#x27;입장&#x27;이에요. 소제목에 띄어쓰기나 괄호가 들어가면 자리 이름이 바뀌어서 링크가 잘 깨져요. 그래서 소제목은 짧은 한 낱말을 권해요. &#x27;입장&#x27;, &#x27;문의&#x27;처럼요.
+
+그리고 목차에 링크만 있고 그 이름의 소제목이 본문에 없으면 눌러도 아무 데도 안 가요. 지난달 정기 공부방 공지가 그랬어요. 목차에는 실제로 있는 소제목만 넣어 주세요.
+
+접는 문의 칸은 details 태그와 summary 태그로 만들어요. summary 태그 안에 접힌 상태에서 보일 글자(예를 들어 &#x27;문의&#x27;)를 넣고, 그 아래에 접힐 내용을 넣은 뒤 details 태그를 닫아요. 여는 태그와 닫는 태그가 짝이 맞아야 해요. 이건 아래에서 다시 말씀드릴게요. 사고가 있었거든요.
+
+복사용 문장은 코드 구획을 쓰면 돼요. 백틱 세 개로 열고 백틱 세 개로 닫는 칸이요. 게시판이 코드 구획 오른쪽 위에 &#x27;복사&#x27; 단추를 붙여 줘서, 당일 휴대폰으로도 한 번에 복사할 수 있어요. 다만 규칙상 한 글에 코드 구획은 하나만 둬요. 여러 개면 회원들이 어느 복사 단추가 무엇인지 헷갈려 해요.
+
+지안 드림
+
+## 3. 9월 23일(수) 15:10 — 류지안 → 장다온
+
+제목: 고정 공지와 말머리
+
+다온 님, 하나 빠뜨린 게 있어서요.
+
+회원 게시판 맨 위 고정 공지는 한 번에 하나만 둘 수 있어요. 지금은 정기 공부방 시간표가 고정되어 있어요. 모의 발표회 안내문을 고정하시려면 시간표 공지를 내려야 하는데, 그러면 공부방에 처음 오는 분들이 시간표를 못 찾아요. 그래서 보통은 행사 안내문을 고정하는 기간을 정해 두고, 그동안 시간표 공지 맨 위에 &#x27;모의 발표회 안내는 고정 공지에 있음&#x27;을 한 줄 달아 둬요. 고정 기간이 끝나면 시간표를 다시 고정해요.
+
+그리고 회원 게시판 글 제목에는 말머리를 붙여요. 행사 글이면 대괄호 안에 행사 이름을 짧게 넣어요. 모의 발표회면 &#x27;[모의 발표회]&#x27; 정도요. 말머리를 붙이면 회원들이 게시판 검색에서 말머리로 모아 볼 수 있어요.
+
+정기 공부방 시간표 담당은 표은결 님이니, 고정 공지를 바꾸실 때 은결 님께 미리 말씀해 주세요.
+
+지안 드림
+
+## 4. 9월 23일(수) 21:40 — 유시현 → 류지안, 장다온
+
+제목: 회신: 회신: 모의 발표회 안내문 게시 형식 부탁드려요
+
+지안 님, 운영 회계 담당 유시현이에요. 끼어들어서 죄송해요.
+
+첫 번째 수정 때 시각이나 조건의 근거를 적으면서, 운영 확인 기록(판본 2) 끝에 있는 참고 기록 두 개를 [1], [2]로 달고 싶어요. 접속 리허설 메모와 운영 예산 메모요. 게시판에서 이런 출처 번호는 어떻게 쓰는 게 맞나요? 각주랑은 다른 건가요?
+
+그리고 각주를 하나 넣고 싶은데, 회의 링크에 접속하는 것과 관련된 짧은 설명이에요. 본문에 다 쓰면 길어져서요.
+
+시현 드림
+
+## 5. 9월 24일(목) 08:55 — 류지안 → 유시현, 장다온
+
+제목: 출처 번호와 각주
+
+시현 님, 둘은 달라요.
+
+출처 번호는 대괄호 안에 숫자만 쓰는 [1], [2] 꼴이에요. 게시판이 따로 동작을 붙이지 않는 그냥 글자예요. 그래서 글 끝에 &#x27;참고 기록&#x27; 같은 목록을 두고, 번호마다 무엇을 가리키는지 적어 줘야 해요. 번호만 있고 목록이 없거나, 목록에는 [1]만 있는데 본문에 [2]가 나오면 안 돼요. 목록의 이름은 원래 기록의 제목 그대로 써 주세요. 제목을 바꾸면 운영진 게시판에서 찾기 어려워요.
+
+각주는 대괄호 안에 꺾쇠 위 기호(^)와 이름을 넣는 꼴이에요. 본문에 각주 표시를 두고, 글 맨 아래에 같은 표시 뒤에 쌍점을 붙여 정의를 적어요. 그러면 게시판이 본문 표시를 작은 위 첨자 숫자로 바꾸고, 누르면 아래 정의로 옮겨 가요. 이름은 한 낱말이 좋아요. 접속 이야기면 &#x27;접속&#x27; 정도요. 본문 표시와 정의의 이름이 한 글자라도 다르면 각주가 동작하지 않고, 대괄호 글자가 그대로 보여요.
+
+중요한 것 하나: 각주, 출처 번호, 목차 링크, 접는 칸 태그는 코드 구획 안에 넣으면 동작하지 않아요. 코드 구획 안은 게시판이 그대로 글자로만 보여 주거든요. 다 코드 구획 밖에 둬야 해요. 코드 구획에는 복사할 문장만 넣어요.
+
+지안 드림
+
+## 6. 9월 24일(목) 10:20 — 표은결 → 장다온(류지안 참조)
+
+제목: 고정 공지 바꾸는 것
+
+다온 님, 지안 님께 고정 공지 이야기 들었어요. 정기 공부방 시간표 담당 표은결이에요.
+
+모의 발표회 안내문을 고정하시는 동안 시간표 공지는 내려도 괜찮아요. 대신 시간표 공지 맨 위에 &#x27;모의 발표회 안내는 고정 공지에 있음&#x27;을 달고, 안내문 맨 아래에도 &#x27;정기 공부방 시간표는 따로 있음&#x27;을 한 줄 달아 주시면 좋겠어요. 처음 온 회원이 공부방 시간을 못 찾는 일이 한 번 있었거든요.
+
+고정 기간은 다온 님이 정해 주세요. 행사 날짜가 아직 안 정해졌다고 들었는데, 날짜가 정해진 뒤 고정하셔도 되고, 지금부터 고정하셔도 돼요. 행사가 끝나면 시간표를 다시 고정할게요.
+
+은결 드림
+
+## 7. 9월 24일(목) 11:00 — 장다온 → 표은결
+
+제목: 회신: 고정 공지 바꾸는 것
+
+은결 님, 고마워요. 회원 게시판에 안내문을 처음 올릴 때부터 고정할게요. 안내문 맨 아래에 시간표 안내 한 줄 넣을게요. 행사가 끝나면 알려 드릴게요.
+
+다온 드림
+
+## 8. 9월 24일(목) 12:30 — 장다온 → 류지안
+
+제목: 회신: 출처 번호와 각주
+
+지안 님, 이해했어요. 몇 가지 더 여쭐게요.
+
+&#x27;입장&#x27; 절에는 입장 허용 시각, 등록한 이름으로 들어와야 한다는 것, 그 전에 들어오면 대기실에서 기다린다는 것을 넣을 생각이에요. 각주 &#x27;접속&#x27;은 이 절에 붙이면 될 것 같아요. 회의 링크를 언제 어떻게 보내는지(아직 미정이에요)와 표시 이름 바꾸는 방법을 각주로 빼려고요.
+
+&#x27;문의&#x27; 절에는 문의처(진행 담당 저, 연락처는 미정)를 넣고, 자주 묻는 질문을 접어 두려고 해요. 그런데 문의 절 전체를 접는 칸에 넣는 게 나을까요, 자주 묻는 질문만 접는 게 나을까요?
+
+그리고 목차에는 &#x27;입장&#x27;과 &#x27;문의&#x27; 말고도 다른 소제목이 들어가도 되나요?
+
+다온 드림
+
+## 9. 9월 24일(목) 14:05 — 유시현 → 류지안
+
+제목: 회신: 출처 번호와 각주
+
+지안 님, 자세히 알려 주셔서 고마워요. 두 가지만 더 여쭐게요.
+
+하나는 같은 출처 번호를 본문 여러 곳에 써도 되느냐예요. 시각 줄에도 [1], 인력 줄에도 [1]을 붙이고 싶은데요.
+
+다른 하나는 소제목에 번호를 붙여도 되느냐예요. 지난번 다른 공지처럼 소제목을 &#x27;1. 입장&#x27;, &#x27;2. 문의&#x27;처럼 번호를 붙여 쓰면 순서가 잘 보일 것 같아서요.
+
+시현 드림
+
+## 10. 9월 24일(목) 17:30 — 류지안 → 유시현
+
+제목: 회신: 회신: 출처 번호와 각주
+
+시현 님,
+
+같은 번호는 여러 곳에 써도 돼요. 글 끝 목록에는 번호마다 한 번만 적으면 돼요. 목록에 같은 번호를 두 번 적으면 회원들이 기록이 두 개인 줄 알아요.
+
+소제목 번호는 빼는 걸 권해요. &#x27;1. 입장&#x27;으로 쓰면 게시판이 만드는 자리 이름에 숫자와 점이 들어가서, 목차 링크를 &#x27;입장&#x27;으로 걸면 안 움직여요. 숫자까지 맞춰 링크를 걸 수는 있는데, 나중에 순서를 바꾸면 번호가 바뀌면서 링크가 다 깨져요. 소제목은 &#x27;입장&#x27;, &#x27;문의&#x27;처럼 낱말만 두고, 순서는 목차 줄 순서로 보여 주세요.
+
+지안 드림
+
+## 11. 9월 24일(목) 19:10 — 류지안 → 장다온
+
+제목: 회신: 회신: 출처 번호와 각주
+
+다온 님,
+
+목차에는 다른 소제목이 들어가도 돼요. 다만 목차에 넣은 소제목은 본문에 꼭 있어야 하고, 이름이 같아야 해요. 회원들이 &#x27;입장&#x27;과 &#x27;문의&#x27;를 가장 많이 찾으니 그 둘은 목차에서 빠지면 안 될 것 같아요.
+
+문의를 어떻게 접을지는 회원 게시판에서 보통 이렇게 해요. 문의 내용 전체를 하나의 접는 칸에 넣고, summary 글자를 &#x27;문의&#x27;로 둬요. 그러면 접힌 상태에서도 &#x27;문의&#x27;라는 글자가 보이니까 찾기 쉬워요. 소제목 &#x27;문의&#x27;와 접는 칸 &#x27;문의&#x27;가 위아래로 같이 있는 모양이 돼요. 정기 공부방 공지의 &#x27;휴방 안내&#x27;가 그 모양이에요.
+
+그리고 접는 칸 사고 이야기를 해 드릴게요. 지난달 정기 공부방 시간표 공지에서 details 태그를 열고 닫지 않은 채 올라간 일이 있었어요. 그러자 그 아래 글이 전부 접는 칸 안으로 들어가서, 회원들이 시간표를 못 봤어요. 그 뒤로 규칙에 &#x27;접는 칸 태그는 반드시 짝을 맞춰 닫는다&#x27;를 넣었어요. 또 한 번은 접는 칸 안에 코드 구획을 넣었더니 휴대폰 앱에서 칸이 안 열렸어요. 그래서 접는 칸 안에는 코드 구획을 넣지 않아요.
+
+지안 드림
+
+## 12. 9월 25일(금) 10:15 — 기서진 → 류지안, 장다온
+
+제목: 시험 글 결과(휴대폰 앱 · 컴퓨터)
+
+안녕하세요, 게시판 부관리 기서진이에요. 지안 님 부탁으로 회원 게시판 &#x27;시험용&#x27; 칸에 비공개 시험 글을 올려 봤어요. 결과 알려 드려요.
+
+- 목차 내부 링크: &#x27;입장&#x27;, &#x27;문의&#x27; 같은 한글 소제목도 링크가 잘 움직였어요(컴퓨터 · 휴대폰 앱 모두). 소제목을 &#x27;입장 안내&#x27;로 바꾸고 링크는 &#x27;입장&#x27;으로 두었더니 컴퓨터에서는 안 움직이고 휴대폰 앱에서는 맨 위로만 갔어요.
+- 각주: 이름 &#x27;접속&#x27;으로 시험했어요. 본문 표시와 정의 이름이 같으면 위 첨자 숫자로 바뀌고, 누르면 아래로 가요. 정의 줄의 쌍점을 빠뜨렸더니 각주가 아니라 그냥 글자로 보였어요.
+- 출처 번호: [1], [2]는 글자 그대로 보여요. 글 끝 목록과 맞는지는 사람이 봐야 해요.
+- 접는 칸: summary 글자 &#x27;문의&#x27;가 접힌 상태로 보이고, 누르면 펼쳐져요. 휴대폰 앱에서도 됐어요. 닫는 태그를 일부러 빼 봤더니 지안 님 말씀처럼 아래 글이 전부 접혔어요.
+- 코드 구획: 복사 단추가 오른쪽 위에 생겼어요. 휴대폰 앱에서는 길게 눌러야 단추가 보였어요. 구획을 닫는 백틱을 빼 봤더니 그 아래 글이 전부 회색 코드 글씨가 됐어요. 앞뒤 구획 표시를 꼭 닫아야 해요.
+- 코드 구획 안에 각주 표시를 넣어 봤더니 동작하지 않고 글자 그대로 보였어요.
+
+시험 글은 오늘 밤에 지울게요.
+
+서진 드림
+
+## 13. 9월 25일(금) 12:10 — 기서진 → 장다온
+
+제목: 표시 이름 바꾸는 방법(각주 재료)
+
+다온 님, 지안 님께 각주 &#x27;접속&#x27; 이야기를 들었어요. 표시 이름 바꾸는 방법이 들어간다고 해서, 시험 글 만들면서 화상 회의방에서 직접 해 본 순서를 적어 보내요. 쓰실지는 다온 님이 정하세요.
+
+- 컴퓨터: 회의방에 들어간 뒤 아래쪽 &#x27;참가자&#x27; 단추를 누르고, 참가자 목록에서 내 이름 위에 마우스를 올리면 &#x27;더 보기&#x27;가 나와요. &#x27;더 보기&#x27;에서 &#x27;이름 바꾸기&#x27;를 고르면 돼요.
+- 휴대폰 앱: 회의방 화면을 한 번 누르면 아래에 단추들이 나오고, &#x27;참가자&#x27;를 누른 뒤 내 이름을 누르면 &#x27;이름 바꾸기&#x27;가 있어요.
+- 대기실에 있을 때: 대기실 화면에서는 이름을 바꾸는 메뉴가 안 보였어요. 대기실에서 나갔다가, 링크를 누를 때 나오는 이름 입력 칸에 이름을 새로 적고 들어오면 바뀌어요.
+- 대기실에서 이름을 못 바꾼다는 게 중요할 것 같아요. 들어오기 전에 바꿔야 한다고 써 두면 회원들이 덜 헤맬 것 같아요.
+
+서진 드림
+
+## 14. 9월 25일(금) 13:00 — 장다온 → 기서진
+
+제목: 회신: 표시 이름 바꾸는 방법(각주 재료)
+
+서진 님, 이거 정말 필요했어요. 9월 11일 접속 리허설 때 휴대폰으로 들어온 분이 대기실에서 이름을 못 바꿔서 결국 나갔다 들어왔거든요. 대기실에서는 못 바꾼다는 이야기를 각주에 넣을게요.
+
+각주가 너무 길어지면 안 될 것 같아서, 컴퓨터와 휴대폰 각각 한 줄씩만 쓰려고요. 괜찮을까요?
+
+다온 드림
+
+## 15. 9월 25일(금) 13:45 — 기서진 → 장다온
+
+제목: 회신: 회신: 표시 이름 바꾸는 방법(각주 재료)
+
+네, 한 줄씩이면 충분해요. 각주는 휴대폰에서 누르면 글 맨 아래로 내려가니까, 길면 다시 올라오기 힘들어요. 각주 정의 끝에 돌아가는 화살표가 자동으로 붙기는 하는데, 휴대폰 앱에서는 작아서 잘 안 보여요.
+
+그리고 시험하다가 하나 더 알게 된 게 있어요. 접는 칸 안에 목록을 넣을 때는 summary 줄 바로 다음 줄을 한 줄 비워야 목록이 목록 모양으로 보여요. 안 비우면 목록 기호가 그냥 글자로 붙어서 나와요. 문의 칸 안에 자주 묻는 질문을 목록으로 넣으실 거면 참고하세요.
+
+서진 드림
+
+## 16. 9월 25일(금) 15:40 — 류지안 → 장다온
+
+제목: 운영 메모 칸 관행
+
+다온 님, 복사용 운영 메모 칸에 대해 회원 게시판에서 지켜 온 관행을 말씀드릴게요.
+
+- 운영 메모는 담당자가 당일 복사해서 대기실 공지나 채팅에 붙여 넣는 문장이에요. 회원에게 보여 주는 설명 글이 아니라, 담당자가 그대로 쓰는 문장이라 문장 꼴로 써요. 낱말만 늘어놓지 않아요.
+- 존댓말로 한두 문장, 길어도 서너 문장이에요. 휴대폰 채팅창에 붙였을 때 한눈에 보일 길이요.
+- 사람 이름과 연락처는 넣지 않아요. 붙여 넣는 곳이 채팅창이라 밖으로 퍼질 수 있어서요.
+- 아직 정하지 않은 값은 넣지 않아요. 붙여 넣는 문장은 당일 그대로 쓰는 거라, 미정인 걸 넣으면 당일 손으로 고쳐야 해요.
+- 코드 구획 안에는 문장만 넣고, 그 앞에 &#x27;운영 메모&#x27; 같은 소제목이나 한 줄 설명을 코드 구획 밖에 둬요.
+- 한 글에 코드 구획은 하나뿐이니, 운영 메모가 여러 문장이어도 한 구획에 넣어요.
+
+지안 드림
+
+## 17. 9월 25일(금) 16:30 — 기서진 → 장다온
+
+제목: 이미지와 회의방 주소
+
+다온 님, 지안 님 운영 메모 관행 메일 보고 두 가지 덧붙여요.
+
+대기실 공지 화면 이미지를 안내문에도 넣으실 생각이 있으면, 이미지 안에만 중요한 내용을 두지 말아 주세요. 게시판 검색은 이미지 안의 글자를 못 찾고, 휴대폰에서 글자를 크게 보는 기능을 쓰는 분들은 이미지 글자를 읽기 어려워해요. 이미지를 넣더라도 같은 내용을 본문 글자로 적어 두는 게 규칙이에요.
+
+그리고 회의방 주소는 공지 본문에 적지 않는 게 게시판 규칙이에요. 회원 게시판은 회원만 보지만, 화면 갈무리가 돌면 밖으로 나갈 수 있어서요. 지난봄에도 링크가 공지 댓글로 달렸다가 회원 단체 대화방 밖으로 퍼진 일이 있었다고 들었어요. 주소를 어떻게 보낼지는 운영진이 정하실 일이고, 게시판 쪽에서는 &#x27;본문에 주소를 적지 않는다&#x27;까지만 말씀드릴 수 있어요.
+
+서진 드림
+
+## 18. 9월 25일(금) 21:20 — 유시현 → 장다온
+
+제목: 초안 형식 쪽 의견
+
+다온 님, 지안 님 · 서진 님 메일 다 읽고 첫 번째 수정 때 형식에서 챙길 것을 생각해 봤어요. 형식 쪽 의견만 적을게요. 내용 값은 건드리지 않아요.
+
+- 맨 위에 인사말을 둔다면 목차를 그 위에 둘지 아래에 둘지 정해야 할 것 같아요. 규칙에는 제목 다음이 목차라고 되어 있어요.
+- &#x27;입장&#x27; 절을 따로 만들면 입장 허용 시각이 맨 앞 일시 쪽과 입장 절 두 군데에 나올 수 있어요. 둘 다 둘 거면 값이 같아야 해요.
+- 문의 절의 자주 묻는 질문은 서진 님 말처럼 접으면 휴대폰에서 훨씬 짧아 보여요.
+- 운영 메모 칸이 맨 끝에 오면, 회원들이 그것도 자기한테 하는 말인 줄 알 수 있어요. 코드 구획 앞에 &#x27;진행 담당이 당일 쓰는 문장&#x27; 같은 설명 한 줄을 밖에 두면 좋겠어요. 지안 님 관행에도 그렇게 되어 있고요.
+- 출처 번호를 본문에 달면 글 끝에 목록을 꼭 붙여야 해요. 번호만 있고 목록이 없는 글이 제일 헷갈린다고 지안 님이 그러셨어요.
+
+시현 드림
+
+## 19. 9월 25일(금) 22:05 — 류지안 → 유시현
+
+제목: 회신: 초안 형식 쪽 의견(다온 님이 전달해 주신 것)
+
+시현 님, 다온 님이 시현 님 의견을 전달해 주셔서 저도 한마디 보태요.
+
+목차는 제목 바로 아래, 인사말 위에 둬요. 인사말이 목차 아래로 내려가면 휴대폰에서 첫 화면에 목차가 보여서 좋아요.
+
+같은 값이 두 곳에 나오는 건 형식 규칙으로 막지는 않지만, 고칠 때 한 곳만 고치는 실수가 자주 나요. 둘 다 두실 거면 고칠 때 두 곳을 같이 보세요.
+
+그리고 표를 쓰실 생각이면, 회원 게시판 휴대폰 앱에서 표는 옆으로 밀어야 끝까지 보여요. 칸이 두세 개면 괜찮지만 넘으면 글자가 잘려 보여요. 표 대신 목록을 쓰시는 걸 권해요. 지난여름 독서 발표 모임 공지도 표를 목록으로 바꾼 뒤에 문의가 줄었어요.
+
+운영 메모 앞에 설명 한 줄을 코드 구획 밖에 두자는 의견은 맞아요. 관행이 그래요.
+
+지안 드림
+
+## 20. 9월 26일(토) 08:40 — 류지안 → 장다온
+
+제목: 공지 올리는 때와 고친 날짜
+
+다온 님, 형식 이야기 말고 게시 쪽 관행도 두 가지 말씀드릴게요.
+
+첫째, 회원 게시판은 평일 밤 9시 이후에 가장 많이 봐요. 정기 공부방 들어오기 직전이요. 안내문을 회원 게시판에 올리실 때 그 시간대가 좋아요.
+
+둘째, 글을 고칠 때는 제목 옆에 고친 날짜를 적는 게 규칙이에요. 그리고 게시판은 글을 고쳐도 알림이 안 가요. 고친 내용이 중요하면 글을 끌어올리거나 새 글로 올려야 해요. 새 글로 올리면 예전 글에는 &#x27;새 글로 옮겨 감&#x27;을 맨 위에 적어 두세요. 지난봄 안내문 때 예전 댓글에 남은 시각 때문에 헷갈린 분들이 있었다고 들었어요.
+
+그리고 회원 게시판에는 글마다 &#x27;확인했어요&#x27; 단추가 있어요. 회원이 누르면 수가 올라가요. 지난번에 어떤 운영진이 그 수를 보고 다 읽었다고 생각했다가, 당일에 시각을 모르는 분이 많았대요. 단추를 눌렀다고 글을 다 읽은 건 아니라서, 그 수로 안내가 끝났다고 보시면 안 돼요.
+
+지안 드림
+
+## 21. 9월 26일(토) 11:20 — 장다온 → 류지안, 기서진, 유시현
+
+제목: 첫 번째 수정 형식 확인했어요
+
+모두 고마워요. 들은 대로 첫 번째 수정 때 형식을 맞출게요. 제가 이해한 걸 적어 볼게요. 틀린 데 있으면 알려 주세요.
+
+- 목차: 맨 위. &#x27;입장&#x27;, &#x27;문의&#x27; 내부 링크를 넣고, 링크 이름과 실제 소제목 이름을 같게.
+- 각주: &#x27;접속&#x27; 하나. 본문 표시와 맨 아래 정의 이름을 같게, 정의 줄에 쌍점.
+- 출처 번호: [1], [2]. 글 끝 참고 기록 목록에 두 기록의 원래 제목으로.
+- 문의: 접는 칸 하나, summary 글자 &#x27;문의&#x27;, 태그는 짝 맞게 닫기. 접는 칸 안에 코드 구획 없음.
+- 운영 메모: 맨 끝, 코드 구획 하나, 담당자가 복사할 문장, 구획 앞뒤 표시 닫기.
+- 각주 · 출처 목록 · 목차 링크 · 접는 칸 태그는 모두 코드 구획 밖.
+
+내용 값은 이번 수정에서 바꾸지 않아요. 리허설 결과를 놓고 운영진 회의에서 조건을 다시 볼 수도 있는데, 바뀌는 게 생기면 두 번째 수정으로 따로 할게요. 그때도 오늘 맞춘 형식은 그대로 둘게요.
+
+다온 드림
+
+## 22. 9월 26일(토) 14:30 — 류지안 → 장다온, 유시현, 기서진
+
+제목: 회신: 첫 번째 수정 형식 확인했어요
+
+다온 님, 적어 주신 것 다 맞아요. 하나만 더하면, 목차 링크 이름과 소제목 글자를 맞출 때 띄어쓰기까지 같아야 해요. &#x27;문의&#x27;를 &#x27;문 의&#x27;로 잘못 치면 안 움직여요.
+
+운영 메모는 코드 구획 하나에 넣되, 문장 앞뒤에 빈 줄이 없어도 돼요. 복사 단추를 누르면 구획 안 글자가 그대로 복사되니까, 쓸데없는 띄어쓰기나 기호가 없도록 해 주세요.
+
+첫 번째 수정본 올리시기 전에 운영진 게시판에 먼저 올려 주시면 서진 님이랑 휴대폰 · 컴퓨터로 한 번씩 눌러 볼게요.
+
+지안 드림
+
+## 23. 9월 26일(토) 16:00 — 유시현 → 장다온
+
+제목: 회신: 회신: 첫 번째 수정 형식 확인했어요
+
+다온 님, 저도 확인했어요. 참고 기록 목록은 운영 확인 기록(판본 2) 끝에 있는 그대로 두 줄 옮기면 될 것 같아요. 제목을 줄이거나 바꾸지 않고요.
+
+그리고 출처 번호 쓰는 원칙 하나만 같이 지켜요. [1], [2]는 운영진 게시판의 두 기록만 가리키는 번호예요. 다른 곳에서 찾아본 내용이 있는 것처럼 읽히지 않게, 근거가 되는 줄에만 붙여요.
+
+시현 드림
+
+## 24. 9월 26일(토) 17:20 — 장다온 → 류지안
+
+제목: 제목 형식과 고친 날짜
+
+지안 님, 마지막으로 제목 형식 여쭐게요. 말머리 붙이고, 첫 번째 수정본은 제목 옆에 고친 날짜를 붙이면 되죠? 처음 회원 게시판에 올리는 글인데도 &#x27;고침&#x27;을 붙여야 하나요? 운영진 게시판에서는 초안이 있었지만 회원 게시판에는 처음이라서요.
+
+다온 드림
+
+## 25. 9월 26일(토) 18:05 — 류지안 → 장다온
+
+제목: 회신: 제목 형식과 고친 날짜
+
+다온 님, 회원 게시판에 처음 올리는 글이면 &#x27;고침&#x27;은 안 붙여도 돼요. 회원들은 그 글을 처음 보니까요. 회원 게시판에 올린 뒤에 고칠 때부터 제목 옆에 고친 날짜를 붙여 주세요.
+
+두 번째 수정이 생기면, 고친 날짜를 붙이고 글을 끌어올리거나 새 글로 올려요. 그때 본문 형식(목차 · 각주 · 출처 번호 · 문의 접는 칸 · 운영 메모)은 첫 번째 수정 때 맞춘 그대로 두시면 돼요. 형식까지 다시 바꾸면 회원들이 다른 글인 줄 알아요.
+
+지안 드림
+
+## 26. 9월 26일(토) 20:40 — 기서진 → 장다온, 류지안
+
+제목: 시험 글 두 번째(각주를 어디에 둘지)
+
+다온 님, 지안 님, 오늘 저녁에 시험 글을 하나 더 만들어 봤어요. 각주 표시를 어디에 두면 잘 동작하는지 보려고요.
+
+- 각주 표시를 &#x27;입장&#x27; 절 본문 줄에 두었을 때: 컴퓨터 · 휴대폰 앱 모두 잘 동작했어요. 누르면 맨 아래 정의로 가요.
+- 각주 표시를 접는 칸 안 글에 두었을 때: 컴퓨터에서는 동작했는데, 휴대폰 앱에서는 접는 칸을 펼친 상태에서만 눌렸어요. 접힌 상태에서는 표시가 안 보이니 당연하긴 해요.
+- 각주 정의를 접는 칸 안에 두었을 때: 각주가 동작하지 않았어요. 정의는 글 맨 아래, 접는 칸 밖에 두어야 해요.
+- 각주 정의를 참고 기록 목록 위에 두었을 때와 아래에 두었을 때: 둘 다 동작했어요. 다만 게시판이 각주 정의를 글 맨 끝으로 모아 보여 주기 때문에, 화면에서는 어느 쪽이든 맨 끝에 나와요.
+- 각주 이름을 &#x27;접속&#x27; 대신 &#x27;접속 안내&#x27;처럼 띄어 써 봤더니 컴퓨터에서는 되는데 휴대폰 앱에서는 안 됐어요. 한 낱말로 두세요.
+
+이번 시험 글도 오늘 밤에 지울게요.
+
+서진 드림
+
+## 27. 9월 26일(토) 21:15 — 장다온 → 기서진, 류지안
+
+제목: 회신: 시험 글 두 번째(각주를 어디에 둘지)
+
+서진 님, 정말 고마워요. 각주 표시는 &#x27;입장&#x27; 절 본문에 두고, 정의는 맨 아래 접는 칸 밖에 둘게요. 이름은 &#x27;접속&#x27; 한 낱말로요.
+
+이번 주에 받은 메일을 모두 한 문서로 모아 운영진 게시판에 올려 둘게요. 첫 번째 수정본은 그 문서를 보면서 맞출게요.
+
+다온 드림
+
+## 28. 회원 게시판 운영 규칙 &#x27;글 형식&#x27; 조항 발췌(류지안이 보낸 것)
+
+- 공지 글은 제목, 목차, 본문, 참고 순서로 쓴다.
+- 목차는 글 맨 위에 두며, 목차의 각 줄은 본문에 실제로 있는 소제목으로만 내부 링크를 건다. 링크 이름은 소제목 글자와 같아야 한다.
+- 소제목은 되도록 짧은 한 낱말로 쓴다.
+- 각주는 본문 표시와 글 맨 아래 정의를 함께 둔다. 정의 없는 각주 표시, 표시 없는 정의를 남기지 않는다.
+- 출처 번호를 쓰면 글 끝에 번호별 목록을 둔다. 목록에는 원래 기록의 제목을 쓴다.
+- 접는 칸(details · summary 태그)은 여는 태그와 닫는 태그의 짝을 맞춘다. 접는 칸 안에는 코드 구획을 넣지 않는다.
+- 코드 구획은 한 글에 하나만 쓴다. 구획을 여는 표시와 닫는 표시를 모두 둔다. 코드 구획에는 복사해 쓸 문장만 넣고, 링크 · 각주 · 태그를 넣지 않는다.
+- 사람의 연락처를 글에 적지 않는다. 문의는 담당자 이름과 창구로 안내한다.
+- 글을 고칠 때는 고친 날짜를 제목 옆에 적는다.
+- 행사 글 제목에는 대괄호 말머리를 붙인다.
+- 회의방 주소는 공지 본문과 댓글에 적지 않는다.
+- 이미지에 담은 내용은 본문 글자로도 적는다.
+- 고정 공지는 한 번에 하나만 두며, 고정을 바꿀 때는 원래 고정 글 담당에게 미리 알린다.
+
+## 29. 운영 메모의 예(정기 공부방 공지에서 쓰던 것, 류지안이 보낸 것)
+
+모의 발표회 운영 메모가 아니라, 정기 공부방 공지 끝에 실제로 쓰던 담당자 복사용 문장이다. 형식을 보라고 보낸 것이며 이번 안내문에 옮기지 않는다.
+
+- 정기 공부방 여는 때: &quot;지금부터 밤샘스터디 정기 공부방을 엽니다. 들어오시면 마이크를 꺼 주시고, 쉬는 시간은 정각에 알려 드리겠습니다.&quot;
+- 정기 공부방 쉬는 시간: &quot;10분 쉬겠습니다. 카메라는 켜 두셔도 되고 꺼 두셔도 됩니다.&quot;
+- 휴방 날: &quot;오늘은 정기 공부방을 쉽니다. 다음 여는 날은 공지 글을 봐 주시기 바랍니다.&quot;
+- 류지안 메모: 문장 하나하나가 그대로 채팅에 붙여 넣어도 말이 되도록 썼다. 사람 이름, 연락처, 정해지지 않은 날짜는 넣지 않았다.
+
+## 30. 메일 뒤 운영진 대화방에서 나온 이야기(9월 26일)
+
+- 유시현: 출처 번호를 본문 어디에 붙일지 고민이에요. 시각 줄에는 [1], 비용 이야기가 나오면 [2]를 붙이면 될 것 같은데, 안내문에 비용 이야기가 들어갈지는 아직 안 정했잖아요.
+- 장다온: 비용 이야기가 안 들어가면 [2]를 쓸 곳이 없어지는데, 그러면 목록에서 [2]를 빼야 하나요?
+- 유시현: 지안 님 말로는 본문 번호와 목록이 서로 맞아야 해요. 둘 다 쓰거나, 쓰지 않는 번호는 목록에서도 빼거나요. 저는 참여 조건 줄에 정원이나 인력 근거로 [1]을 쓰고, 참가비가 없다는 줄에 [2]를 쓰는 방법을 생각했어요.
+- 장다온: 참가비 이야기를 넣을지는 아직이에요. 형식 맞출 때 같이 봐요.
+- 유시현: 각주 &#x27;접속&#x27;에 회의 링크 보내는 시점을 쓰면, 그건 미정이라 &#x27;미정&#x27;이라고 써야 해요.
+- 장다온: 네. 미정인 건 미정으로 둘게요. 표시 이름 바꾸는 방법은 정해진 거니까 그대로 쓰고요.
+
+- 유시현: 운영 메모에는 무엇을 넣을 생각이에요?
+- 장다온: 대기실 공지 화면에 띄울 문장이랑, 녹화 시작할 때 채팅에 올릴 문장 정도요. 리허설 때 말로만 했더니 늦게 들어온 분은 못 들었거든요.
+- 유시현: 지안 님 말대로 미정인 값은 빼야 해요. 회의 링크 보내는 시점 같은 건 운영 메모에 넣으면 안 되겠네요.
+- 장다온: 네. 시각도 확정된 것만 넣을게요. 사람 이름도 안 넣고요. 제 이름도 빼요. 채팅창에 붙이는 거니까.
+- 유시현: 문의 접는 칸 안에 자주 묻는 질문을 넣을 때, 답에 &#x27;미정&#x27;이 들어가는 것도 있죠. 발표 순서 같은 거요.
+- 장다온: 그건 미정이라고 그대로 쓰면 돼요. 접는 칸은 형식일 뿐이고, 안에 들어가는 답은 운영 확인 기록대로예요.
+- 유시현: 목차에 &#x27;입장&#x27;, &#x27;문의&#x27; 말고 &#x27;일시&#x27;나 &#x27;참여 조건&#x27;도 넣을 거예요?
+- 장다온: 소제목으로 만들면 넣을 수 있대요. 다만 넣은 건 본문에 꼭 있어야 하고요. 형식 맞출 때 같이 봐요.
+
+## 31. 형식을 맞출 때 주의할 점(류지안 · 기서진 메일에서 모아 본 것, 장다온 작성)
+
+- 소제목 &#x27;입장&#x27;과 목차 링크 &#x27;입장&#x27;의 글자가 같은지. &#x27;입장 안내&#x27;, &#x27;입장 시간&#x27;으로 바꾸면 링크가 깨진다.
+- 소제목 &#x27;문의&#x27;와 목차 링크 &#x27;문의&#x27;의 글자가 같은지.
+- 각주 &#x27;접속&#x27;의 본문 표시와 정의가 둘 다 있는지, 정의 줄에 쌍점이 있는지.
+- [1], [2]가 본문에 쓰였고 글 끝 목록에도 있는지. 목록의 이름이 원래 기록 제목인지.
+- 접는 칸 태그가 짝을 맞춰 닫혔는지. summary 글자가 &#x27;문의&#x27;인지.
+- 접는 칸 안에 코드 구획이 없는지.
+- 코드 구획이 하나뿐인지, 앞뒤가 닫혔는지.
+- 코드 구획 안에 링크 · 각주 · 태그가 없는지.
+- 운영 메모에 사람 이름 · 연락처 · 미정 값이 없는지.
+
+## 32. 지난 공지에서 형식 때문에 생긴 일(류지안이 메일 끝에 덧붙인 기록)
+
+- 지난달 정기 공부방 시간표 공지: 접는 칸 닫는 태그가 빠져 아래 글이 전부 접혔다. 회원 여러 명이 &quot;시간표가 없다&quot;고 댓글을 달았다. 류지안이 30분 뒤에 고쳤다.
+- 지난여름 독서 발표 모임 공지: 목차의 &#x27;신청&#x27; 링크가 소제목 &#x27;신청 방법&#x27;과 달라 눌러도 움직이지 않았다. 회원 한 명이 알려 줘서 고쳤다.
+- 지난봄 모의 발표회 안내문: 형식을 쓰지 않은 긴 글이었다. 형식 사고는 없었지만, 회원들이 필요한 줄을 찾지 못했다는 피드백이 많았다.
+- 올해 초 회비 안내 공지: 코드 구획을 두 개 썼더니, 회원들이 계좌 안내 문장 대신 다른 구획의 문장을 복사해 갔다. 그 뒤 &#x27;코드 구획은 한 글에 하나&#x27; 규칙이 생겼다.
+- 올해 초 회비 안내 공지(같은 글): 출처 번호 [3]이 본문에 있었는데 글 끝 목록에는 [2]까지만 있었다. 어느 기록을 가리키는지 묻는 댓글이 달렸다.
+
+- 지난가을 회원 모임 공지: 각주 정의를 적었는데 본문 표시를 빠뜨려서, 글 맨 아래에 갑자기 설명 한 줄이 떠 있었다. 회원들이 무엇에 대한 설명인지 몰랐다.
+- 지난가을 같은 공지: 접는 칸의 summary 글자를 &#x27;자세히&#x27;로 두었더니, 회원들이 무엇이 접혀 있는지 몰라 펼쳐 보지 않았다. 그 뒤로 summary 글자는 안에 든 내용의 이름으로 쓴다(예를 들어 &#x27;문의&#x27;).
+- 올해 여름 정기 공부방 공지: 운영 메모 코드 구획 안에 담당자 개인 연락처가 들어간 채 올라갔다. 복사 단추로 그 문장이 채팅방에 그대로 붙어 연락처가 퍼졌다. 류지안이 글을 내리고 다시 올렸다. 그 일로 &#x27;운영 메모에 사람 이름과 연락처를 넣지 않는다&#x27;는 관행이 굳어졌다.
+- 류지안 메모: 형식 사고는 대부분 &#x27;짝&#x27;이 안 맞아서 생긴다. 링크와 소제목, 각주 표시와 정의, 출처 번호와 목록, 여는 태그와 닫는 태그, 여는 구획 표시와 닫는 구획 표시. 올리기 전에 짝만 확인해도 대부분 막을 수 있다.
+
+## 33. 첫 번째 수정 때 할 일 순서(장다온, 9월 26일 밤 메모)
+
+- 내용 값은 운영 확인 기록(판본 2)과 대조만 하고 바꾸지 않는다.
+- 소제목을 낱말로 맞춘다. &#x27;입장&#x27;, &#x27;문의&#x27;는 꼭 둔다. 번호를 붙이지 않는다.
+- 목차를 제목 바로 아래에 두고, 소제목과 글자가 같은 내부 링크를 건다.
+- &#x27;입장&#x27; 절 본문에 각주 &#x27;접속&#x27; 표시를 두고, 맨 아래 접는 칸 밖에 정의를 둔다. 정의에는 표시 이름 바꾸는 방법(대기실에서는 못 바꿈)과 회의 링크를 보내는 시점(미정)을 짧게 쓴다.
+- 근거가 되는 줄에 [1], [2]를 붙이고, 글 끝 참고 기록 목록에 두 기록의 원래 제목을 적는다.
+- 문의 내용을 접는 칸 하나에 넣고 summary 글자를 &#x27;문의&#x27;로 둔다. 태그 짝을 맞춘다.
+- 맨 끝에 설명 한 줄을 두고, 그 아래 운영 메모를 코드 구획 하나로 넣는다. 구획 앞뒤 표시를 닫는다.
+- 운영진 게시판에 먼저 올려 류지안 · 기서진에게 눌러 봐 달라고 한다.
+
+## 34. 참고 기록
+
+안내문 초안이 근거로 삼는 기록은 운영 확인 기록(판본 2) 끝에 실린 아래 두 가지다. 원본은 운영진 게시판에 있다. 두 기록의 제목은 운영 확인 기록에 적힌 그대로 옮겼다. 류지안의 9월 24일 메일(출처 번호와 각주)에 따라 목록의 이름을 줄이거나 바꾸지 않았고, 번호마다 한 번씩만 적었다.
+
+[1] 접속 리허설 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 운영 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+출처 번호는 이 자료 안의 두 기록만 가리킨다. 이 메모를 바탕으로 인터넷을 검색했다거나 실제 예약을 완료했다고 표현하지 않는다.
+[자료 끝]
+
+밤샘스터디의 참가자 안내문을 첫 번째로 수정해 주세요. 아래 형식에 맞는 수정본 전체를 제시해 주세요. 목차에는 [입장](#입장), [문의](#문의) 내부 링크와 실제 대응 제목을 넣으세요. 각주 [^접속]과 그 정의, 자료의 [1]·[2] 출처 번호와 목록도 맞춰 주세요. 문의 부분은 코드블록 밖의 짝이 맞는 &lt;details&gt;&lt;summary&gt;문의&lt;/summary&gt;...&lt;/details&gt; 안에 적어 주세요. 마지막에는 담당자가 복사할 문장 형태의 운영 메모를 코드블록 정확히 1개로 제시하고, 앞뒤 코드 구획 표시를 모두 닫아 주세요. 각주·출처 목록·내부 링크·문의 태그는 코드블록 밖에 작성해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 6 답변</b><pre class="rs-pre rs-ans">내용 값은 운영 확인 기록(판본 2)과 대조만 하고 바꾸지 않았습니다. 두 가지는 확인이 필요합니다.
+
+- **참가비 줄과 [2]**: 참가비 이야기를 넣을지는 아직 정하지 않았고, 운영 예산 메모에 참가비 항목이 있는지도 제가 확인하지 못했습니다. 출처 번호 짝을 맞추려고 유시현 님이 제안한 대로 참여 절에 두었으니, 넣지 않기로 하면 그 줄과 [2], 목록의 [2]를 함께 빼 주세요.
+- **형식 점검**: <mark class="rs-mk"><sup>1</sup>게시판에서 링크와 접는 칸이 실제로 움직이는지는 제가 눌러 보지 못했습니다.</mark> 류지안 님과 기서진 님의 확인이 필요합니다.
+
+---
+
+# [모의 발표회] 밤샘스터디 온라인 모의 발표회 참가 안내
+
+- [일시](#일시)
+- [입장](#입장)
+- [참여](#참여)
+- [문의](#문의)
+
+안녕하세요. 온라인 모의 발표회 참가 방법을 안내드립니다. 아직 정하지 않은 항목은 미정이라고 적었고, 정해지면 같은 글을 새로 올려 알려 드립니다.
+
+## 일시
+
+행사 날짜는 미정입니다. 입장 허용은 19:15에 시작하고, 행사는 19:30부터 21:00까지입니다.[1]
+
+## 입장
+
+링크를 누르면 먼저 대기실에 머물고, 진행 담당이 승인하면 회의방에 들어오게 됩니다. 입장 허용은 19:15부터이며, 그 전에 입장을 요청하시면 대기실에서 기다리게 됩니다.
+
+사전 등록이 기본입니다. 등록 양식의 이름 칸에 적은 이름이 입장 승인의 기준이며, 회의방에 보이는 표시 이름이 등록한 이름과 같을 때만 승인합니다. 이름이 다르면 대기실에서 기다리게 됩니다. 휴대폰으로 들어오시면 기기 이름이 표시될 수 있으니 들어오기 전에 확인해 주세요. 회의 링크를 보내는 시점과 방법은 미정입니다.[^접속]
+
+## 참여
+
+- 정원은 15명입니다. 진행자를 제외하고 발표 팀과 청중을 모두 포함하며, 등록 응답 수가 정원에 이르면 양식을 닫습니다. 대기 명단은 두지 않습니다.[1]
+- 당일 진행은 진행 담당 1명이 맡습니다.[1]
+- 발표 팀은 발표 자료를 제출해 주세요. 현재는 자료를 내지 않은 팀도 당일 제출하면 발표할 수 있으나, 이 예외는 나중에 바뀔 수 있으며 바뀌면 공지로 알립니다. 자료 제출 방법은 미정입니다.
+- 발표는 팀마다 8분, 질의는 4분입니다. 시간이 넘으면 진행자가 말로 끊습니다.
+- 녹화본은 참가자에게만 공유하고 외부에는 게시하지 않습니다. 참가자가 아닌 분께 보여 주는 것도 하지 않도록 부탁드립니다.
+- 참가비는 없습니다.[2]
+
+&lt;details&gt;
+&lt;summary&gt;문의&lt;/summary&gt;
+
+- 문의처: 진행 담당 장다온입니다. 연락처는 미정이며 개인 전화번호는 공개하지 않습니다. 정해지면 이 글에 적어 알려 드립니다.
+- 발표 순서: 미정입니다.
+- 녹화본 공유 방법과 시기: 미정입니다.
+- 청중으로만 참여할 수 있나요: 가능합니다. 다만 청중도 사전 등록이 필요하고 정원 15명 안에 포함됩니다.
+- 헤드셋 대여: 등록 명단과 대조한 뒤 행사 전에 스터디룸에서 받을 수 있습니다. 현재 빌려 드릴 수 있는 헤드셋이 모두 나가 있어, 신청 시 대기로 안내될 수 있습니다.
+- 채팅 질문, 자막 등 편의 지원: 미정입니다. 등록 양식의 편의 지원 칸에 적어 주시면 운영진이 확인한 뒤 회신드립니다. 적었다고 지원이 확정되는 것은 아닙니다.
+
+&lt;/details&gt;
+
+정기 공부방 시간표는 따로 있습니다.
+
+## 참고 기록
+
+[1] 접속 리허설 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 운영 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+[^접속]: 표시 이름은 대기실에서 바꿀 수 없으니, 링크를 누를 때 나오는 이름 입력 칸에 등록한 이름을 적어 주세요. 이미 대기실에 계시면 나갔다가 다시 들어와 주세요. 회의방 안에서는 컴퓨터는 참가자 목록의 더 보기에서 이름 바꾸기를, 휴대폰 앱은 참가자 목록에서 내 이름을 눌러 이름 바꾸기를 고르시면 됩니다.
+
+진행 담당이 당일 복사해 대기실 공지와 채팅에 쓰는 문장입니다.
+
+```
+밤샘스터디 온라인 모의 발표회 대기실입니다. 입장 허용은 19:15부터이며, 회의방 표시 이름이 등록한 이름과 같을 때 승인합니다. 이름이 다르면 대기실에서 나갔다가 등록한 이름으로 다시 들어와 주시기 바랍니다. 녹화본은 참가자에게만 공유하며 외부에 게시하지 않습니다.
+```</pre></div><div class="rs-turn"><b>턴 8 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 밤샘스터디 온라인 모의 발표회 변경 통지와 수정 회의록
+
+이 문서에는 두 가지가 들어 있다. 첫째는 9월 28일 운영진이 회원 게시판과 발표 팀 대표에게 보낸 변경 통지 공문이고, 둘째는 그 통지를 정한 같은 날 수정 회의의 회의록이다. 회의가 먼저 열렸고, 공문은 회의 결정에 따라 회의 직후 작성했다. 문서 뒤쪽에는 통지 뒤 들어온 문의와 답변, 발표 팀 대표에게 보낸 개별 메시지 기록을 붙였다.
+
+---
+
+## 1부. 변경 통지 공문
+
+- 문서 이름: 밤샘스터디 운영진 통지 — 온라인 모의 발표회 운영 조건 변경
+- 보낸 곳: 밤샘스터디 운영진(진행 담당 장다온, 운영 회계 담당 유시현)
+- 받는 곳: 밤샘스터디 회원 전체(회원 게시판), 발표 신청 팀 대표(개별 쪽지)
+- 보낸 날: 2026년 9월 28일(월)
+- 근거: 9월 28일 운영진 수정 회의 결정
+
+### 통지 내용
+
+밤샘스터디 온라인 모의 발표회의 운영 조건 가운데 두 가지를 아래와 같이 바꿉니다. 이 통지에 적지 않은 조건은 모두 이전에 알려 드린 그대로 유지합니다.
+
+#### 바뀌는 조건
+
+1. 입장 허용 시각
+   - 종료 시각은 그대로 두고, 입장 허용 시각만 이전보다 10분 늦춥니다.
+   - 이전 입장 허용 시각은 19:15였습니다. 이 통지 뒤로는 그 시각에서 10분 늦춘 시각부터 대기실 입장 승인을 시작합니다.
+   - 바뀐 입장 허용 시각 이전에 입장을 요청하시면 대기실에서 기다리시게 됩니다.
+   - 행사 시작 시각과 종료 시각은 바뀌지 않습니다.
+
+2. 당일 제출 예외 취소
+   - 발표 자료를 내지 않은 팀도 당일 제출하면 발표를 허용하던 예외를 취소합니다.
+   - 이 통지 뒤로는 행사 전날까지 발표 자료를 제출한 팀만 발표할 수 있습니다.
+   - 행사 당일에 처음 제출하는 자료로는 발표할 수 없습니다.
+   - 이전에 이 예외를 안내받으셨더라도, 이 통지가 나간 뒤로는 그 예외를 적용하지 않습니다.
+
+#### 바뀌지 않는 조건
+
+- 행사 시간: 19:30~21:00 그대로입니다.
+- 진행자 접속 시각: 18:40 그대로입니다(운영진 내부 시각).
+- 정원: 15명 그대로입니다.
+- 진행 인력: 확정 진행 인력 1명(진행 담당 장다온) 그대로입니다. 예비 인력은 참석 확답이 없어 승인 인력이 아닌 상태 그대로입니다.
+- 사전 등록 기본, 등록한 이름과 같을 때만 입장 승인, 다른 이름은 대기실 대기 — 그대로입니다.
+- 발표는 팀당 8분, 질의는 4분이며 시간 초과 시 진행자가 끊습니다 — 그대로입니다.
+- 녹화본은 참가자에게만 공유하고 외부 게시는 하지 않습니다 — 그대로입니다.
+- 문의처: 진행 담당 장다온 그대로입니다. 연락처는 아직 미정입니다.
+- 발표 자료를 받는 방식(당일 메일 수합 또는 전날 공유 폴더)은 아직 정하지 않은 상태 그대로입니다.
+- 행사 날짜는 아직 미정입니다.
+
+#### 적용
+
+- 이 통지는 보낸 날부터 적용합니다.
+- 참가자 안내문은 이 통지에 맞춰 다시 고쳐 올립니다. 고친 안내문이 올라가기 전이라도 이 통지의 내용이 앞섭니다.
+- 문의는 진행 담당 장다온에게 해 주시기 바랍니다.
+
+밤샘스터디 운영진
+
+---
+
+## 2부. 수정 회의록
+
+- 일시: 2026년 9월 28일(월) 20:30~22:05
+- 회의 방식: 운영진 화상 회의방
+- 참석: 진행 담당 장다온, 운영 회계 담당 유시현
+- 기록: 유시현 / 기록 확인: 장다온(9월 29일 오전)
+- 회의 원칙: 운영 확인 기록(판본 2) 안건 10의 결정에 따라, 계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다. 이번 회의에서는 바꿀 조건과 그대로 둘 조건을 하나씩 나눠 확인했다.
+- 참고한 자료: 9월 17일 발표 리허설 점검 일지, 9월 23일 반출입 대장 옮김본, 회원 게시판 &#x27;모의 발표회 준비 이야기&#x27; 글타래 옮김본, 9월 26일 게시 형식 메일 묶음
+
+### 안건
+
+1. 발표 리허설 결과 다시 보기
+2. 입장 허용 시각
+3. 당일 제출 예외
+4. 바뀌지 않는 조건 확인
+5. 자료 받는 방식(A안 · B안)
+6. 편의 지원 · 발표 순서표 · 수료증
+7. 안내문 두 번째 수정과 통지 방법
+8. 이미 예외를 안내받은 팀에 대한 처리
+
+### 안건 1. 발표 리허설 결과 다시 보기 [참고]
+
+- 장다온이 9월 17일 리허설 일지를 다시 읽고 운영에 관련된 대목만 짚었다. 소리 원인에 대한 이야기는 하지 않았다(일지에서도 원인을 정하지 않았다).
+- 짚은 대목 하나: 한도윤 발표 중 소리 문제를 살피는 동안 진행자가 대기실을 보지 못했다. 리허설에는 늦게 온 사람이 없어 문제가 되지 않았지만, 행사 당일 입장 허용 뒤에 같은 일이 생기면 대기실에 사람이 쌓일 수 있다.
+- 짚은 대목 둘: 팀 전환 때 화면 공유를 끄고 켜는 시간, 발표자가 자료 파일을 찾는 시간이 들쭉날쭉했다.
+- 짚은 대목 셋: 예비 링크로 옮겨 갈 때 대기실 승인을 처음부터 다시 해야 했다.
+- 유시현은 리허설 일지의 &#x27;진행자 혼자서 할 수 있었는가&#x27; 부분을 근거로, 입장 허용 전에 진행자가 끝내 둘 준비가 생각보다 많다고 말했다. 접속 점검 12분과 자료 확인 10분 말고도, 대기실 공지 화면 띄우기, 녹화 저장 위치 확인, 대기실 알림 켜기, 예비 링크 확인이 있다.
+
+### 안건 2. 입장 허용 시각 [결정]
+
+#### 논의
+- 장다온이 입장 허용 시각을 늦추자고 제안했다. 입장 허용 뒤에는 입장 승인 창을 비울 수 없으므로, 그 전에 끝낼 준비를 더 여유 있게 하려는 것이다. 발표 팀 가운데 소리 점검이 더 필요한 사람은 행사 전 다른 날에 개별 점검을 잡는다. 행사 당일 입장 허용 전에 특정 참가자를 먼저 들이지는 않는다. 입장 허용 시각 이전의 입장 요청은 누구든 대기실에서 기다린다는 원칙 그대로다.
+- 유시현은 행사 시작이나 종료 시각까지 함께 옮기는 것은 반대했다. 종료 21:00은 다음 날 출근하는 회원들을 생각해 정한 것이고, 지난봄 설문에서도 끝나는 시각을 지켜 달라는 의견이 많았다. 시작 19:30도 안내문 초안과 리허설 기준으로 이미 회원들에게 알려져 있다.
+- 두 사람은 시작 19:30과 종료 21:00은 그대로 두고, 입장 허용 시각만 옮기기로 했다. 옮기는 폭은 장다온이 10분을 제안했고, 유시현이 동의했다. 장다온은 &quot;더 늦추면 입장이 시작 직전에 몰려 지난봄처럼 될 수 있다&quot;고 했다.
+- 진행자 접속 18:40은 그대로 둔다. 접속을 앞당기자는 의견은 나오지 않았다. 장다온은 그날 퇴근 시각을 더 당기기 어렵다고 했다.
+- 유시현이 &#x27;접수 시작&#x27;이라는 말과 &#x27;입장 허용&#x27;이라는 말이 같은 시각을 가리킨다는 운영 확인 기록의 표기 원칙을 다시 짚었다. 이번에 늦추는 것은 그 하나의 시각이다. 접수 시작도 같이 늦춰진다.
+
+#### 결정
+- [결정] 종료 시각은 유지하되, 입장 허용 시각만 이전(19:15)보다 10분 늦춘다.
+- [결정] 행사 시간 19:30~21:00, 진행자 접속 18:40은 그대로 둔다.
+- [결정] 바뀐 입장 허용 시각 이전의 입장 요청은 대기실에서 기다린다(이 원칙 자체는 그대로).
+- [결정] 담당자가 자리를 비워야 하면 바뀐 입장 허용 시각 전에 돌아온다. 입장 허용 뒤에는 자리를 비울 수 없다(원칙 그대로, 기준 시각만 바뀜).
+
+### 안건 3. 당일 제출 예외 [결정]
+
+#### 논의
+- 유시현이 당일 제출 예외를 거둬들이자고 제안했다. 이유는 세 가지다.
+  - 당일 자료 확인은 10분이다. 당일에 처음 들어온 자료까지 그 안에서 확인하기 어렵다. 리허설에서 발표자가 자료 파일을 찾는 데만 시간이 걸렸다.
+  - 진행 인력이 1명이라, 당일 늦게 온 자료를 받는 동안 대기실과 진행을 함께 볼 수 없다.
+  - 발표 순서표를 만들려면 발표할 팀이 전날까지는 정해져 있어야 한다.
+- 장다온은 예외를 두었던 이유(지난봄 마감을 넘긴 팀이 발표를 못 해 서운해했던 일)를 다시 말했다. 그러면서도 지금 상황에서는 예외를 유지하기 어렵다는 데 동의했다. 1차 회의 때부터 &quot;리허설을 보고 무리면 공문으로 닫자&quot;고 했던 대로 하기로 했다.
+- 회원 글타래에서 마음급한 님이 &quot;당일에 내도 된다는 말 때문에 다들 늦게 낼까 봐 걱정&quot;이라고 쓴 글을 유시현이 언급했다. 다만 글타래 의견을 근거로 삼지는 않았고, 위 세 가지 이유로 정했다.
+- 마감을 &#x27;전날까지&#x27;로 할지 &#x27;전날 몇 시까지&#x27;로 할지 이야기했다. 행사 날짜가 아직 미정이라 시각까지 못 박지 않고 &#x27;행사 전날까지&#x27;로 안내하기로 했다.
+
+#### 결정
+- [결정] 발표 자료를 내지 않은 팀도 당일 제출하면 발표를 허용하던 예외를 취소한다.
+- [결정] 전날까지 제출한 팀만 발표한다.
+- [결정] 이 통지 뒤로는 이전 예외를 어떤 형태로도 계속 쓰지 않는다. 안내문, 문의 답변, 당일 운영에서 모두 같다.
+
+### 안건 4. 바뀌지 않는 조건 확인 [결정]
+
+두 사람이 운영 확인 기록(판본 2)을 펴 놓고 바뀌지 않는 조건을 하나씩 읽으며 확인했다.
+
+- 행사 시간 19:30~21:00 — 그대로.
+- 진행자 접속 18:40 — 그대로.
+- 확정 진행 인력 1명(장다온), 예비 인력 참석 확답 없음 · 승인 인력 아님 — 그대로. 서하람에게서는 9월 28일 회의 시점까지도 확답이 없다.
+- 참여 정원 15명 — 그대로.
+- 참가자에게 접수를 대신 맡기지 않음 — 그대로.
+- 이동 없음, 접속 점검 12분, 자료 준비 확인 10분 — 그대로.
+- 예산: 승인 상한 40000원, 실지급 12000원, 남은 예상 17000원, B안 비용 1500원은 남은 예상에 아직 미포함 — 그대로. 유시현은 이번 변경으로 새로 드는 돈이 없다고 확인했다.
+- 사전 등록 기본, 등록한 이름과 같을 때만 입장 승인, 다른 이름은 대기실 — 그대로.
+- 발표 8분, 질의 4분, 시간 초과 시 진행자가 끊음 — 그대로.
+- 녹화본 참가자 한정, 외부 게시 없음 — 그대로.
+- 문의처 진행 담당 장다온, 연락처 미정 — 그대로.
+- 물품 원칙(회의 링크 대조 뒤 배부, 예비 물품을 정원에 더하지 않음, 파손 의심 물품 배부 안 함, 새 구매 미승인) — 그대로.
+- 21:00 이후 마감과 회수 원칙 — 그대로.
+- 행사 날짜 미정 — 그대로.
+
+- [결정] 위 조건은 이번 변경과 관계없이 그대로 유지한다.
+
+### 안건 5. 자료 받는 방식(A안 · B안) [보류 유지]
+
+- A안은 당일 발표 자료를 메일로 받아 진행자가 화면을 공유하는 방식(자료 확인 10분)이고 비용은 없다. B안은 전날 공유 폴더에 자료를 모아 두는 방식이며 유료 저장 공간 1500원, 당일 자료 확인 10분이다. 접속 점검은 둘 다 12분이다. 이 내용은 바뀌지 않았다.
+- 유시현이 물었다. 전날까지 제출한 팀만 발표하게 되면, &#x27;당일 메일 수합&#x27;인 A안과 어떻게 맞물리는가. 장다온은 제출 마감(전날까지)과 진행자가 화면에 띄울 파일을 받는 방법은 따로 볼 수 있다고 했다. 예를 들어 A안이라도 전날까지 메일로 낸 자료를 당일 진행자가 열어 공유하는 방식이 될 수 있다는 의견이었다. 유시현은 그렇게 되면 A안의 뜻이 처음 정한 것과 달라지므로, 방식을 정할 때 함께 따져 보자고 했다. 
+- 두 사람은 이 문제를 이번 회의에서 결론 내지 않았다. 방식 선택은 여전히 보류다.
+- [보류] A안 · B안 선택. 제출 마감 변경과 두 방식이 어떻게 맞물리는지는 방식을 정할 때 함께 정한다.
+
+### 안건 6. 편의 지원 · 발표 순서표 · 수료증 [보류 유지]
+
+- 편의 지원(채팅 질문, 자동 자막): 리허설에서 자동 자막을 켜 보았으나 전문 용어가 자주 틀렸다. 진행 인력이 1명이라 채팅을 따로 읽어 줄 사람이 없다. [보류]
+- 발표 순서표: 전날까지 제출한 팀만 발표하게 되었으므로, 순서표는 제출 마감이 지난 뒤에야 만들 수 있다. 순서를 정하는 기준은 따로 문서로 만들기로 했다. 순서표 자체는 이번 회의 자료에 없다. [보류]
+- 전자 수료증과 화면 이름표: 견적만 받은 상태. 줄지 말지 정하지 않았다. 구매 승인 전이다. [보류]
+- 추가 지원 인력: 서하람 확답 없음. [보류]
+
+### 안건 7. 안내문 두 번째 수정과 통지 방법 [결정]
+
+- 통지는 공문 형태로 회원 게시판에 새 글로 올리고, 발표 팀 대표에게는 개별 쪽지로도 보낸다.
+- 참가자 안내문은 같은 안내문을 두 번째로 고쳐 다시 올린다. 바뀐 두 조건만 고치고 나머지 확정 사항은 그대로 둔다.
+- 첫 번째 수정 때 류지안 · 기서진과 맞춘 형식(목차, 각주, 출처 번호와 참고 기록 목록, 접는 문의 칸, 운영 메모 코드 구획)은 그대로 둔다.
+- 고친 내용만 따로 목록으로 붙이지 않고 안내문 본문을 다시 쓴다. 지난봄 안내문을 고칠 때 본문과 따로 붙인 목록이 어긋났던 경험 때문이다. 고쳤다는 사실은 류지안의 안내대로 제목 옆에 고친 날짜로 표시한다.
+- 회원 게시판은 글을 고쳐도 알림이 가지 않으므로, 고친 안내문은 끌어올린다.
+- [결정] 위와 같이 한다. 안내문 수정은 장다온이 하고, 유시현이 바뀐 두 조건과 그대로 둘 조건을 대조한다.
+
+### 안건 8. 이미 예외를 안내받은 팀에 대한 처리 [결정]
+
+- 9월 9일과 9월 18일에 문태이가 &quot;자료를 당일에 내도 발표할 수 있느냐&quot;고 물었고, 장다온은 그때 &quot;현재는 허용&quot;이라고 답했다. 다른 팀 대표들도 게시판 답글로 같은 내용을 보았을 수 있다.
+- 장다온은 발표 팀 대표 다섯 명 모두에게 개별 쪽지로 예외 취소를 알리기로 했다. 특히 문태이에게는 예전 답변이 바뀌었다는 점을 분명히 적는다.
+- 유시현은 &quot;이전에 안내받은 것과 다르다&quot;는 항의가 들어올 수 있다고 했다. 장다온은 1차 회의 때부터 예외가 바뀔 수 있다고 함께 안내해 왔다는 점을 차분히 설명하겠다고 했다.
+- [결정] 발표 팀 대표 전원에게 개별 쪽지를 보낸다. 예외를 이미 안내받은 회원에게는 바뀐 내용을 다시 알린다.
+
+### 결정 · 보류 일람
+
+- 입장 허용 시각만 이전보다 10분 늦춤, 종료 시각 유지: [결정]
+- 당일 제출 예외 취소, 전날까지 제출한 팀만 발표: [결정]
+- 행사 시간 · 접속 시각 · 인력 · 정원 · 예산 · 운영 세부 · 문의처 그대로: [결정]
+- 안내문 두 번째 수정(바뀐 조건만, 형식 유지, 본문 다시 씀): [결정]
+- 발표 팀 대표 개별 통지: [결정]
+- A안 · B안 선택: [보류]
+- 편의 지원 · 발표 순서표 · 수료증 · 추가 지원 인력: [보류]
+
+---
+
+## 3부. 발표 팀 대표에게 보낸 개별 쪽지(9월 28일 22:20 무렵)
+
+장다온이 다섯 팀 대표에게 같은 본문을 보냈고, 문태이에게는 한 문단을 더 붙였다. 팀 이름은 적지 않는다.
+
+본문: &quot;안녕하세요, 진행 담당 장다온입니다. 오늘 운영진 회의에서 두 가지가 바뀌어 따로 알려 드립니다. 첫째, 입장 허용 시각을 이전보다 10분 늦춥니다. 행사 시작과 종료 시각은 그대로입니다. 둘째, 당일 제출 예외를 취소합니다. 행사 전날까지 발표 자료를 제출한 팀만 발표할 수 있습니다. 자세한 내용은 회원 게시판의 운영진 통지를 봐 주시기 바랍니다. 자료 제출 방법은 아직 정해지지 않았으며 정해지면 다시 알려 드리겠습니다.&quot;
+
+문태이에게 덧붙인 문단: &quot;지난번 문의에 &#x27;현재는 당일 제출도 허용&#x27;이라고 답해 드렸는데, 오늘 그 예외가 취소되었습니다. 혼란을 드려 죄송합니다. 행사 전날까지 자료를 내 주시면 됩니다.&quot;
+
+## 4부. 통지 뒤 들어온 문의와 답변(9월 28일~29일)
+
+- 9월 28일 22:45, 문태이: &quot;알려 주셔서 감사해요. 전날까지면 오히려 마음이 편하네요. 그런데 어디로 내면 되나요?&quot; 답변(장다온): 제출 방법은 아직 정하지 않았다. 정해지면 바로 알린다. 지금은 전날까지 낸다는 것만 기억해 달라고 했다.
+- 9월 28일 23:10, 마음급한: &quot;입장이 늦어지면 대기실에서 더 오래 기다려야 하나요?&quot; 답변: 입장 허용 시각 이전에 들어오면 대기실에서 기다리는 것은 같다. 바뀐 입장 허용 시각에 맞춰 들어오시면 된다고 답했다. 행사 시작 시각은 그대로라고 덧붙였다.
+- 9월 29일 07:50, 메모광: &quot;입장이 늦어지면 마이크 시험할 시간이 줄어드는 것 아닌가요?&quot; 답변: 발표 팀 가운데 소리 점검이 따로 필요한 분은 개별 점검을 잡고 있다. 청중은 입장 허용 뒤 시작 전까지 마이크를 켜 보실 수 있다고 답했다.
+- 9월 29일 12:20, 임가온: &quot;종료 시각도 바뀌나요?&quot; 답변: 종료 시각은 그대로다. 입장 허용 시각만 바뀌었다.
+- 9월 29일 12:40, 오세린: &quot;청중도 자료를 내야 하나요?&quot; 답변: 아니다. 자료 제출은 발표 팀만 해당한다. 청중은 사전 등록과 등록 이름 입장만 지키면 된다.
+- 9월 29일 18:05, 한도윤: &quot;제 팀은 자료를 거의 다 만들었는데, 전날까지 내고 나서 고치고 싶으면 다시 내도 되나요?&quot; 답변: 다시 내는 것을 어떻게 받을지는 제출 방법과 함께 정한다. 지금은 확정해서 답하지 않았다.
+- 9월 29일 19:30, 남지우: &quot;운영진이 한 분이라 입장 시각을 늦춘 건가요?&quot; 답변: 리허설 결과를 보고 입장 허용 전에 끝낼 준비를 여유 있게 하려고 늦췄다. 확정 진행 인력은 그대로 1명이라고 답했다.
+
+- 9월 29일 20:15, 권나율: &quot;청중인데 입장이 늦어지면 평가표 링크도 늦게 오나요?&quot; 답변: 평가표 링크는 등록 명단과 대조한 뒤 보내며, 보내는 시점은 아직 정하지 않았다. 입장 허용 시각 변경과는 관계가 없다고 답했다.
+- 9월 29일 21:30, 서윤호: &quot;전날까지 냈는데 당일에 파일이 안 열리면 발표를 못 하나요?&quot; 답변: 당일 자료 확인 10분 동안 열리지 않는 파일이 있으면 어떻게 할지는 자료 받는 방식과 함께 정한다. 지금은 확정해서 답하지 않았다. 다만 전날까지 낸 팀이라는 자격은 그대로라고 덧붙였다.
+- 9월 29일 22:05, 차민결: &quot;입장 허용 시각이 바뀐 걸 안내문에도 반영하시나요?&quot; 답변: 같은 안내문을 다시 고쳐 올린다. 고친 날짜를 제목 옆에 표시한다고 답했다.
+
+## 5부. 바뀐 것과 바뀌지 않은 것 대조(유시현, 9월 29일)
+
+### 바뀐 것
+- 입장 허용 시각(접수 시작): 19:15 → 이전보다 10분 늦춘 시각.
+- 당일 제출 예외: 허용 → 취소. 전날까지 제출한 팀만 발표.
+- 그에 따라: 담당자가 자리를 비울 수 있는 기준 시각도 바뀐 입장 허용 시각이 된다. 발표 순서표는 전날 제출 마감 뒤에 만들 수 있게 되었다.
+
+### 바뀌지 않은 것
+- 행사 19:30~21:00, 진행자 접속 18:40.
+- 확정 진행 인력 1명, 정원 15명, 예비 인력 미확답 · 승인 인력 아님.
+- 접속 점검 12분, 자료 준비 확인 10분, 이동 없음.
+- A안 · B안 내용과 비용, 선택 보류.
+- 예산 숫자와 역할.
+- 발표 8분, 질의 4분, 시간 초과 시 진행자가 끊음.
+- 녹화본 참가자 한정, 외부 게시 없음.
+- 등록 이름 입장 승인, 다른 이름 대기실.
+- 문의처 장다온, 연락처 미정.
+- 행사 날짜 미정.
+- 안내문 형식(목차 · 각주 · 출처 번호 · 접는 문의 칸 · 운영 메모).
+
+유시현 메모: 다음 안내문에서 &#x27;19:15&#x27;가 남아 있는 곳이 없는지 꼭 본다. 예전 시각이 한 곳이라도 남으면 지난봄처럼 헷갈린다. 반대로 &#x27;19:30&#x27;, &#x27;21:00&#x27;, &#x27;18:40&#x27;은 바뀌지 않았으므로 고치지 않는다.
+
+## 6부. 회의 중 발언 기록(시각별, 유시현 기록)
+
+- 20:31 장다온: 오늘은 두 가지만 바꾸려고 한다. 나머지는 손대지 말자. 바꾸는 것보다 그대로 두는 것을 확인하는 데 시간을 더 쓰자.
+- 20:38 유시현: 리허설 일지를 다시 보니, 진행자가 소리 문제를 보는 동안 대기실을 놓친 대목이 마음에 걸린다. 당일에는 그 시간에 사람이 들어온다.
+- 20:44 장다온: 입장 허용 뒤에는 자리를 못 비우니까, 그 전에 할 일을 다 끝내야 한다. 지금 시각으로는 빠듯하다. 입장을 조금 늦추고 싶다.
+- 20:49 유시현: 시작을 늦추는 건 반대다. 끝나는 시각이 밀리면 지난봄 설문에서 나온 불만이 그대로 나온다.
+- 20:52 장다온: 시작도 끝도 그대로 두고 입장만 늦추자. 10분이면 어떤가.
+- 20:55 유시현: 좋다. 대신 입장 허용 뒤 시작까지의 시간이 짧아지니까, 등록 이름 안내를 더 분명히 해야 대기실이 덜 밀린다.
+- 21:02 장다온: 접속은 18:40 그대로다. 더 일찍은 못 들어온다.
+- 21:08 유시현: 당일 제출 예외를 이제 닫았으면 한다. 자료 확인 10분으로 당일에 처음 들어온 파일까지 보기 어렵다.
+- 21:14 장다온: 1차 회의 때 리허설 보고 무리면 닫자고 했었다. 지금이 그때인 것 같다. 닫자.
+- 21:19 유시현: 마감은 &#x27;전날까지&#x27;로 하자. 날짜가 미정이니 시각까지 못 박지 말자.
+- 21:26 장다온: 예외를 안내받은 팀이 있다. 특히 문태이 님은 두 번이나 물어봤다. 따로 알리겠다.
+- 21:33 유시현: 바뀌지 않는 것을 하나씩 읽자. 판본 2를 펴 놓고.
+- 21:47 유시현: 예산은 변화가 없다. 이번 변경으로 새로 드는 돈이 없다. B안 1500원은 여전히 남은 예상에 안 들어가 있다.
+- 21:52 장다온: A안 · B안은 오늘도 못 정한다. 전날 제출이랑 어떻게 맞물리는지는 따로 보자.
+- 21:58 유시현: 안내문 두 번째 수정은 본문을 다시 쓰고, 고친 목록은 따로 붙이지 말자. 형식은 지안 님이랑 맞춘 그대로.
+- 22:03 장다온: 오늘 밤에 공문 올리고 쪽지 보내겠다.
+
+## 7부. 리허설 일지에서 이번 결정에 쓴 대목과 쓰지 않은 대목
+
+- 쓴 대목: 소리 문제를 살피는 동안 대기실을 보지 못한 기록. 팀 전환 때 공유를 끄고 켜는 시간과 자료 파일을 찾는 시간이 들쭉날쭉했던 기록. 예비 링크로 옮길 때 대기실 승인을 다시 해야 했던 기록.
+- 쓰지 않은 대목: 소리가 울리고 끊긴 원인에 대한 참가자들의 추측. 일지에서도 원인을 정하지 않았고, 이번 회의에서도 원인을 근거로 무엇을 바꾸지 않았다.
+- 쓰지 않은 대목: 연결 상태 창의 수치와 발표자 기기 온도. 이번 결정은 운영 순서와 시간에 관한 것이라 이 수치는 근거로 삼지 않았다.
+- 장다온 메모: 입장을 늦춘 것은 소리 문제를 고치려는 것이 아니다. 입장 허용 전에 진행자가 혼자 끝낼 준비를 여유 있게 하려는 것이다. 소리 문제에 대한 당일 대응은 따로 정한다.
+
+## 8부. 통지 게시와 전달 기록
+
+- 9월 28일 22:12 회원 게시판에 운영진 통지를 새 글로 올림. 말머리 &#x27;[모의 발표회]&#x27;. 고정 공지는 아직 바꾸지 않음(안내문 두 번째 수정본을 올릴 때 함께 바꿀 예정).
+- 9월 28일 22:20 무렵 발표 팀 대표 다섯 명에게 개별 쪽지 발송(3부).
+- 9월 29일 08:30 장다온이 쪽지 읽음 표시를 확인함. 다섯 명 가운데 네 명이 읽음. 한 명은 읽지 않음.
+- 9월 29일 12:00 읽지 않은 대표에게 장다온이 짧은 쪽지를 한 번 더 보냄. &quot;어제 보내 드린 운영진 통지를 꼭 확인해 주시기 바랍니다.&quot;
+- 9월 29일 19:40 다섯 명 모두 읽음으로 바뀜.
+- 9월 29일 21:00 통지 글을 한 번 끌어올림(정기 공부방 들어오는 시간대).
+- 통지 글의 &#x27;확인했어요&#x27; 단추 수는 기록하지 않았다. 류지안이 알려 준 대로, 단추를 눌렀다고 통지를 다 읽은 것으로 보지 않는다. 쪽지 읽음 표시도 내용을 이해했다는 뜻은 아니어서, 당일 대기실 공지 화면에도 바뀐 입장 허용 시각을 다시 띄운다.
+
+## 9부. 예비 인력 쪽 상황(9월 28일 기준)
+
+- 서하람은 9월 27일에 장다온에게 &quot;그 주 야근 일정이 아직 안 나왔다. 미안하다&quot;고 메시지를 보냈다. 참석 확답은 여전히 없다.
+- 장다온은 &quot;괜찮다. 근무표에는 넣지 않고 있다. 오실 수 있게 되면 그때 운영진 회의에서 다시 이야기하겠다&quot;고 답했다.
+- 이번 변경(입장 허용 시각 늦춤)은 진행 인력 1명을 전제로 정한 것이다. 예비 인력이 올 것을 기대하고 정한 것이 아니다.
+
+## 10부. 예산 확인 메모(유시현, 9월 29일)
+
+- 입장 허용 시각을 늦추는 것과 당일 제출 예외를 취소하는 것 모두 비용이 들지 않는다.
+- 화상 회의방 유료 이용권(실지급 12000원)은 시간 제한이 없는 이용권이라, 입장 시각이 바뀌어도 추가 비용이 없다. 이용권 사용 기간(결제일부터 60일) 안에서 행사 날짜를 정한다는 원칙도 그대로다.
+- 승인 상한 40000원, 남은 예상 17000원(감사 쿠폰 예상 15000원, 평가표 설문 도구 유료 기능 예상 2000원)은 그대로다. B안 비용 1500원은 여전히 남은 예상에 들어 있지 않다.
+- 전자 수료증 견적(개당 800원)은 구매 승인 전이며 예산 메모에 넣지 않았다.
+- 같은 비용을 회의록, 예산 메모, 장부에 적더라도 한 번만 센다는 원칙도 그대로다.
+
+## 11부. 다음 할 일
+
+- 장다온: 참가자 안내문 두 번째 수정. 바뀐 두 조건만 고치고 형식은 첫 번째 수정 그대로. 고친 날짜를 제목 옆에 표시하고 끌어올림.
+- 유시현: 두 번째 수정본에서 예전 입장 허용 시각(19:15)이나 당일 제출 예외 문장이 남아 있지 않은지, 바뀌지 않은 값이 그대로인지 대조.
+- 장다온: 당일 운영 일정표를 새 입장 허용 시각과 예외 취소에 맞춰 개정. 근무표는 확정 인력 1명 기준.
+- 장다온: 발표 순서표를 만드는 기준 문서 작성(순서표 자체는 전날 제출 마감 뒤).
+- 유시현: A안 · B안 선택을 다음 회의 안건으로 올림. 전날 제출 마감과 두 방식이 어떻게 맞물리는지 견주어 볼 자료를 준비.
+
+## 12부. 통지 문구를 다듬은 과정(회의 직후, 유시현 검토)
+
+장다온이 22:05 회의를 마치고 공문 첫 문안을 운영진 대화방에 올렸고, 유시현이 읽고 고칠 곳을 짚었다. 아래는 바뀐 곳과 그 이유다.
+
+- 첫 문안 &quot;입장 시간이 늦어집니다&quot; → &quot;종료 시각은 그대로 두고, 입장 허용 시각만 이전보다 10분 늦춥니다&quot;. 유시현은 &#x27;입장 시간&#x27;이라고만 쓰면 행사 전체가 늦어지는 것으로 읽힐 수 있다고 했다. 지난봄 정기 공부방 공지에서 여는 시각만 바꿨는데 닫는 시각도 바뀐 줄 안 회원이 있었다는 장다온의 경험(안내문 준비 자료 24장)과 같은 이야기다.
+- 첫 문안 &quot;당일 제출 불가&quot; → &quot;행사 전날까지 발표 자료를 제출한 팀만 발표할 수 있습니다&quot;. 유시현은 &#x27;불가&#x27;라는 말이 딱딱하고, 무엇을 해야 하는지가 빠져 있다고 했다. 해야 할 일(전날까지 제출)을 앞에 두었다.
+- 첫 문안에 &#x27;예외 폐지&#x27;와 &#x27;예외 취소&#x27;가 섞여 있었다. &#x27;취소&#x27; 한 가지로 맞췄다.
+- 첫 문안에 &#x27;접수 시각&#x27;과 &#x27;입장 허용 시각&#x27;이 섞여 있었다. 안내문 낱말 맞춤(입장 허용 한 가지)에 따라 &#x27;입장 허용 시각&#x27;으로 맞췄다.
+- 첫 문안에는 바뀌지 않는 조건이 없었다. 유시현이 &quot;바뀌지 않는 것도 그대로라고 적어야 덜 헷갈린다&quot;고 해서 &#x27;바뀌지 않는 조건&#x27; 목록을 넣었다.
+- 첫 문안 끝에 &quot;양해 부탁드립니다&quot;가 세 번 나왔다. 한 번도 쓰지 않는 쪽으로 고쳤다. 사과는 예외를 안내받은 팀에게 보내는 개별 쪽지에만 넣었다.
+- 예비 인력 이야기는 공문에 넣을지 망설였다. 회원 글타래에 예비 인력이 오는지 궁금하다는 글이 있어, &#x27;예비 인력은 참석 확답이 없어 승인 인력이 아닌 상태 그대로&#x27;라는 한 줄만 넣었다. 이름은 넣지 않았다.
+
+## 13부. 이번 변경에 따라 고칠 다른 기록
+
+- 운영 확인 기록: 판본 3을 만든다. 안건 1(행사 범위)의 접수 시각, 안건 6(참가자 행동)과 안건 11(안내문 검토)의 당일 제출 예외 문장을 바꾼다. 다른 안건은 그대로 둔다. 판본 2는 지우지 않고 보관한다.
+- 대기실 공지 화면 이미지: 입장 승인 시작 시각 문구를 바꾼다.
+- 운영 메모 문장(안내문 맨 끝 코드 구획): 입장 허용 시각이 들어간 문장이 있으면 바꾼다. 미정 값은 여전히 넣지 않는다.
+- 당일 운영 일정표: 개정판을 만든다. 근무표는 확정 인력 1명 기준 그대로.
+- 리허설 점검 일지: 고치지 않는다. 그날 관찰한 기록이기 때문이다.
+- 반출입 대장: 바뀌는 것이 없다.
+- 예산 메모: 바뀌는 것이 없다(10부).
+- 발표 순서표 기준 문서: 새로 만든다. &#x27;전날까지 제출한 팀만 발표&#x27;를 기준에 넣는다.
+
+## 14부. 통지 글에 달린 댓글(회원 게시판, 9월 28일~29일)
+
+문의가 아닌 반응 댓글 가운데 운영진이 참고할 만한 것을 옮긴다.
+
+- 라면한그릇: &quot;끝나는 시각이 그대로라 다행이에요.&quot;
+- 질문왕: &quot;입장 늦어진 거 기억해 둘게요. 예전 시각으로 들어가면 대기실에서 기다리면 되는 거죠?&quot;
+- 할수있다: &quot;전날까지 내는 게 맞는 것 같아요. 당일에 내면 진행자님이 너무 바쁘실 것 같았어요.&quot;
+- 파란볼펜: &quot;자료 마감이 당겨진 셈이라 조금 급해졌지만 오히려 좋아요. 미리 끝내 놓을게요.&quot;
+- 새싹회원: &quot;처음이라 헷갈렸는데 바뀐 것과 안 바뀐 것을 나눠 주셔서 이해가 쉬웠어요.&quot;
+- 걱정인형: &quot;당일에 자료를 낼 생각이던 팀이 있으면 서운하실 것 같아요. 잘 알려 주셨으면 해요.&quot;
+- 장다온 답글(걱정인형 님 댓글에): &quot;발표 팀 대표 분들께는 따로 쪽지로 알려 드렸습니다.&quot;
+- 밤산책: &quot;운영진이 한 분이라 준비 시간을 늘리신 거라면 이해가 돼요.&quot;
+
+## 15부. 9월 29일 운영진 대화방 확인
+
+- 유시현: 통지 글 본문에 19:30, 21:00, 18:40이 모두 그대로 들어가 있는 것 확인했어요. 19:15는 &#x27;이전 입장 허용 시각&#x27;으로만 한 번 나와요.
+- 장다온: 안내문 두 번째 수정도 같은 방식으로 할게요. 예전 값은 남기지 않고, 바뀐 값만 바꿔요.
+- 유시현: 안내문에는 &#x27;이전 시각&#x27;을 굳이 적을 필요가 없을 것 같아요. 공문은 무엇이 바뀌었는지 알려야 해서 적은 거고요.
+- 장다온: 맞아요. 안내문은 지금 기준만 적을게요. 수정 목록도 따로 안 붙이고요.
+- 유시현: 당일 제출 예외 문장은 지우기만 하면 안 되고, &#x27;전날까지 제출한 팀만 발표&#x27;로 바꿔 넣어야 해요. 빠지면 참가자가 마감이 없는 줄 알 수 있어요.
+- 장다온: 네, 그 문장은 참여 조건 쪽에 넣을게요.
+- 유시현: 그리고 각주 &#x27;접속&#x27;은 그대로 두면 돼요. 회의 링크 보내는 시점은 여전히 미정이니까요.
+
+## 16부. 회의 전날 장다온이 올린 제안 메모(9월 27일, 운영진 게시판)
+
+수정 회의 전날 장다온이 운영진 게시판에 올린 메모다. 회의에서 무엇을 고르고 무엇을 고르지 않았는지 함께 적어 둔다.
+
+### 준비 시간을 늘리는 방법으로 생각한 것
+- 진행자 접속을 앞당기기: 퇴근 시각 때문에 어렵다. 채택하지 않음.
+- 행사 시작과 종료를 함께 늦추기: 종료가 늦어지면 다음 날 출근하는 회원들에게 부담이 된다. 지난봄 설문 의견과도 맞지 않는다. 채택하지 않음.
+- 행사 시작만 늦추고 종료는 그대로 두기: 발표 시간이 모자랄 수 있다. 발표 8분 · 질의 4분은 바꾸지 않기로 했으므로 채택하지 않음.
+- 입장 허용 시각만 늦추기: 시작과 종료, 발표 규칙을 건드리지 않고 입장 허용 전 준비 시간만 늘어난다. 회의에서 이 방법을 골랐다(늦추는 폭 10분).
+- 예비 인력에게 입장 승인을 맡기기: 예비 인력은 참석 확답이 없고 승인 인력이 아니다. 생각하지 않기로 함.
+- 참가자에게 입장 승인을 맡기기: 1차 회의에서 채택하지 않은 안이다. 다시 꺼내지 않음.
+
+### 당일 제출 예외를 두고 생각한 것
+- 예외를 그대로 두기: 당일 자료 확인 10분 안에 처음 들어온 자료까지 보기 어렵다. 채택하지 않음.
+- 예외를 두되 당일 마감 시각을 따로 정하기: 진행자가 접속 뒤 자료를 받는 동안 다른 준비를 못 하는 문제는 그대로 남는다. 마감 시각을 하나 더 만들면 안내도 복잡해진다. 채택하지 않음.
+- 예외를 취소하고 전날까지 제출한 팀만 발표하기: 회의에서 이 방법을 골랐다.
+
+### 장다온이 메모 끝에 적은 것
+- 이번에는 두 가지만 바꾼다. 다른 것을 함께 바꾸고 싶은 마음이 들어도 참는다. 바뀌는 게 많으면 참가자가 무엇이 바뀌었는지 놓친다.
+- A안 · B안 선택은 이번에 함께 정하지 않는다. 예외 취소와 엮어서 서둘러 정하면 나중에 또 고쳐야 할 수 있다.
+- 회원 글타래의 의견은 읽었지만, 그것을 근거로 정하지 않는다. 근거는 리허설 일지와 운영 확인 기록이다.
+
+## 17부. 회의록 확인 회신(장다온, 9월 29일 오전)
+
+- 안건 2의 결정 문장에 &quot;이전(19:15)보다&quot;를 넣은 것 좋다. 무엇보다 늦췄는지 분명해졌다.
+- 안건 3에서 마감을 &#x27;행사 전날까지&#x27;로만 적은 것 맞다. 시각을 덧붙이지 말자.
+- 안건 5에 내 의견(A안이라도 전날까지 메일로 받은 자료를 당일 공유할 수 있다)이 &#x27;의견&#x27;으로만 적혀 있어 좋다. 결정처럼 보이면 안 된다.
+- 안건 8에 문태이 님 이름이 들어간 것은 운영진 게시판에만 두는 기록이라 괜찮다. 회원 게시판에 올리는 공문에는 이름을 넣지 않았다.
+- 결정 · 보류 일람에 빠진 것 없다.
+
+## 18부. 개별 소리 점검 일정(9월 29일 기준)
+
+- 리허설에서 소리 문제가 있었던 한도윤과의 개별 접속 점검을 9월 30일(수) 21:00에 잡았다. 행사 당일이 아닌 다른 날이며, 정기 공부방과 다른 회의방에서 한다.
+- 개별 점검은 장다온 한 사람이 맡는다. 유시현은 들어오지 않는다.
+- 점검 때는 리허설 일지 13장에 적은 대로 조건을 하나씩만 바꾸어 본다. 결과는 리허설 일지 뒤에 이어 붙인다.
+- 리허설에 나오지 못한 발표 팀 두 곳에도 개별 점검을 권하는 쪽지를 보냈다. 날짜는 회신을 받아 정한다(미정).
+- 개별 점검은 행사 당일 운영 순서와 따로 다룬다. 당일에는 입장 허용 전 누구도 먼저 들이지 않으므로, 소리 점검이 필요하다면 행사 전에 끝내야 한다.
+- 이번 변경으로 입장 허용 전 준비 시간이 늘어난 것은 진행자 혼자 하는 준비(접속 점검, 자료 확인, 대기실 공지 화면, 녹화 설정, 예비 링크 확인)를 위한 것이다. 참가자 개별 점검을 당일에 넣기 위한 것이 아니다.
+
+## 19부. 기록 보관
+
+- 이 공문과 회의록은 운영진 게시판 &#x27;모의 발표회&#x27; 글타래에 올렸다. 공문은 회원 게시판에도 새 글로 올렸고, 회의록은 회원 게시판에 올리지 않는다(회원 이름과 개별 문의 내용이 들어 있음).
+- 공문의 효력은 9월 28일부터다. 그 전에 나간 안내(문의 답변, 게시판 답글, 안내문 초안과 첫 번째 수정본)에 당일 제출 예외가 적혀 있더라도, 9월 28일 뒤로는 이 공문이 앞선다.
+- 다음에 조건을 또 바꾸게 되면 같은 방식(바뀐 조건만 적용, 나머지 보존, 공문과 회의록 함께 남김)을 따른다. 유시현은 이 문서를 그 본보기로 남겨 두자고 했다.
+- 장다온은 9월 29일 밤 이 문서를 다시 읽고 &quot;바뀐 것은 두 가지뿐이고, 나머지는 판본 2 그대로&quot;라는 점을 운영진 게시판 글 맨 위에 한 줄로 덧붙였다. 이 문서를 처음 여는 사람이 바뀐 것과 그대로인 것을 먼저 알 수 있게 하려는 것이다.
+[자료 끝]
+
+밤샘스터디의 같은 참가자 안내문을 두 번째로 수정해 주세요. 종료 시각은 유지하되 입장 허용 시각만 이전보다 10분 늦춰 주세요. 당일 제출 예외는 취소하고 전날까지 제출한 팀만 발표할 수 있게 참가자 안내문 전체를 다시 써 주세요. 앞서 고친 목차·각주·문의 형식도 유지하고, 수정 목록을 따로 붙이지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 8 답변</b><pre class="rs-pre rs-ans">두 가지만 바꿨습니다. 입장 허용을 19:25로 옮기고, 당일 제출 예외 문장을 &quot;행사 전날까지 제출한 팀만 발표&quot;로 바꿔 넣었습니다. 나머지 값과 형식은 그대로입니다. 두 가지는 확인이 필요합니다.
+
+- **고친 날짜**: 게시판 규칙대로 제목 옆에 고친 날짜를 적어야 하는데, 올리는 날을 알 수 없어 칸만 남겼습니다. 올릴 때 채워 주세요.
+- **참가비 줄과 [2]**: 이전 수정본과 같이 두었습니다. 참가비 이야기를 넣지 않기로 하면 그 줄, 본문의 [2], 목록의 [2]를 함께 빼 주세요.
+
+---
+
+# [모의 발표회] 밤샘스터디 온라인 모의 발표회 참가 안내 (고친 날짜: )
+
+- [일시](#일시)
+- [입장](#입장)
+- [참여](#참여)
+- [문의](#문의)
+
+안녕하세요. 온라인 모의 발표회 참가 방법을 안내드립니다. 아직 정하지 않은 항목은 미정이라고 적었고, 정해지면 같은 글을 고쳐 다시 올려 알려 드립니다.
+
+## 일시
+
+행사 날짜는 미정입니다. 입장 허용은 19:25에 시작하고, 행사는 19:30부터 21:00까지입니다.[1]
+
+## 입장
+
+링크를 누르면 먼저 대기실에 머물고, 진행 담당이 승인하면 회의방에 들어오게 됩니다. 입장 허용은 19:25부터이며, 그 전에 입장을 요청하시면 대기실에서 기다리게 됩니다.
+
+사전 등록이 기본입니다. 등록 양식의 이름 칸에 적은 이름이 입장 승인의 기준이며, 회의방에 보이는 표시 이름이 등록한 이름과 같을 때만 승인합니다. 이름이 다르면 대기실에서 기다리게 됩니다. 휴대폰으로 들어오시면 기기 이름이 표시될 수 있으니 들어오기 전에 확인해 주세요. 회의 링크를 보내는 시점과 방법은 미정입니다.[^접속]
+
+## 참여
+
+- 정원은 15명입니다. 진행자를 제외하고 발표 팀과 청중을 모두 포함하며, 등록 응답 수가 정원에 이르면 양식을 닫습니다. 대기 명단은 두지 않습니다.[1]
+- 당일 진행은 진행 담당 1명이 맡습니다.[1]
+- 발표 팀은 행사 전날까지 발표 자료를 제출해 주세요. 전날까지 제출한 팀만 발표할 수 있으며, 행사 당일 처음 제출하는 자료로는 발표할 수 없습니다. 자료 제출 방법은 미정입니다.
+- 발표는 팀마다 8분, 질의는 4분입니다. 시간이 넘으면 진행자가 말로 끊습니다.
+- 녹화본은 참가자에게만 공유하고 외부에는 게시하지 않습니다. 참가자가 아닌 분께 보여 주는 것도 하지 않도록 부탁드립니다.
+- 참가비는 없습니다.[2]
+
+&lt;details&gt;
+&lt;summary&gt;문의&lt;/summary&gt;
+
+- 문의처: 진행 담당 장다온입니다. 연락처는 미정이며 개인 전화번호는 공개하지 않습니다. 정해지면 이 글에 적어 알려 드립니다.
+- 발표 순서: 미정입니다.
+- 전날 제출한 자료를 고쳐 다시 내는 방법: 미정입니다. 자료 제출 방법과 함께 정해지면 알려 드립니다.
+- 녹화본 공유 방법과 시기: 미정입니다.
+- 청중으로만 참여할 수 있나요: 가능합니다. 다만 청중도 사전 등록이 필요하고 정원 15명 안에 포함됩니다. 자료 제출은 발표 팀만 해당합니다.
+- 헤드셋 대여: 등록 명단과 대조한 뒤 행사 전에 스터디룸에서 받을 수 있습니다. 현재 빌려 드릴 수 있는 헤드셋이 모두 나가 있어, 신청 시 대기로 안내될 수 있습니다.
+- 채팅 질문, 자막 등 편의 지원: 미정입니다. 등록 양식의 편의 지원 칸에 적어 주시면 운영진이 확인한 뒤 회신드립니다. 적었다고 지원이 확정되는 것은 아닙니다.
+
+&lt;/details&gt;
+
+정기 공부방 시간표는 따로 있습니다.
+
+## 참고 기록
+
+[1] 접속 리허설 메모: 행사·접수 시각, 인력, 준비 조건.
+[2] 운영 예산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+
+[^접속]: 표시 이름은 대기실에서 바꿀 수 없으니, 링크를 누를 때 나오는 이름 입력 칸에 등록한 이름을 적어 주세요. 이미 대기실에 계시면 나갔다가 다시 들어와 주세요. 회의방 안에서는 컴퓨터는 참가자 목록의 더 보기에서 이름 바꾸기를, 휴대폰 앱은 참가자 목록에서 내 이름을 눌러 이름 바꾸기를 고르시면 됩니다.
+
+진행 담당이 당일 복사해 대기실 공지와 채팅에 쓰는 문장입니다.
+
+```
+밤샘스터디 온라인 모의 발표회 대기실입니다. 입장 허용은 19:25부터이며, 회의방 표시 이름이 등록한 이름과 같을 때 승인합니다. 이름이 다르면 대기실에서 나갔다가 등록한 이름으로 다시 들어와 주시기 바랍니다. 녹화본은 참가자에게만 공유하며 외부에 게시하지 않습니다.
+```</pre></div><div class="rs-turn"><b>턴 9 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 밤샘스터디 온라인 모의 발표회 당일 운영 일정표 개정 작업 문서(판 2) — 근무표 · 회의방 사용 시간 · 마감 절차
+
+- 작성: 장다온(진행 담당) / 검토: 유시현(운영 회계 담당)
+- 작성일: 2026년 9월 29일(화) / 검토일: 9월 30일(수)
+- 개정 이력: 판 1은 9월 15일 운영 확인 기록(판본 2)을 바탕으로 만들었다. 판 2는 9월 28일 변경 통지(입장 허용 시각 변경, 당일 제출 예외 취소)를 반영하기 위한 개정이다.
+- 문서 성격: 당일 운영 일정표를 다시 짜기 위한 재료 문서. 확정된 시각과 소요 시간, 근무표, 회의방 사용 시간, 마감 절차, 판 1에서 바뀐 칸을 모았다. 구간마다 몇 시 몇 분에 시작하는지는 이 문서에서 모두 채우지 않았다. 방식 선택(A안 · B안)과 발표 순서표가 보류라, 세부 칸은 일정표를 쓸 때 채운다.
+
+## 1. 개정 원칙
+
+- 9월 28일 변경 통지와 수정 회의록에 적힌 두 가지만 바꾼다. 하나는 입장 허용 시각, 다른 하나는 당일 제출 예외 취소다.
+- 그 밖의 확정 사항은 판 1 그대로 둔다. 운영 확인 기록(판본 2) 안건 10 &quot;계획을 바꿀 때는 바뀐 조건만 적용하고 다른 확정 사항은 보존한다&quot;를 따른다.
+- 근무표에는 확정 진행 인력 1명만 넣는다. 예비 인력은 참석 확답이 없어 넣지 않는다.
+- 접속 전(18:40 이전) 작업은 회의방 작업으로 적지 않는다.
+- 종료 시각을 마감 완료 시각으로 적지 않는다. 마감이 끝난 시각은 당일 실제 시각으로 따로 적는다.
+
+## 2. 바뀐 조건과 일정표에서 바뀌는 칸
+
+### 2-1. 입장 허용 시각
+- 변경 통지: 종료 시각은 그대로 두고, 입장 허용 시각만 이전(19:15)보다 10분 늦춘다.
+- 일정표에서 바뀌는 칸: &#x27;입장 승인 시작&#x27; 칸, &#x27;대기실 공지 화면의 승인 시작 문구&#x27; 칸, &#x27;자리 비움 가능 기준 시각&#x27; 칸.
+- 그대로인 칸: 진행자 접속 18:40, 행사 시작 19:30, 행사 종료 21:00.
+- 입장 승인 시작 시각 이전에 입장을 요청한 참가자는 대기실에서 기다린다. 이 원칙은 그대로이며 기준 시각만 바뀐다.
+- 담당자가 자리를 비워야 하면 바뀐 입장 승인 시작 시각 전에 돌아온다. 입장 승인이 시작된 뒤에는 입장 승인 창을 비울 수 없다.
+
+### 2-2. 당일 제출 예외 취소
+- 변경 통지: 발표 자료를 내지 않은 팀도 당일 제출하면 발표를 허용하던 예외를 취소한다. 전날까지 제출한 팀만 발표한다.
+- 일정표에서 지우는 칸: 판 1에는 진행자 접속 뒤 &#x27;당일 제출 자료 받기 · 확인&#x27; 칸이 따로 있었다. 판 2에서는 이 칸을 지운다. 당일에 처음 들어오는 자료는 받지 않는다.
+- 일정표에서 바뀌는 칸: &#x27;발표 팀 수&#x27; 칸. 판 1에서는 신청 팀 수(5팀)를 그대로 적었으나, 판 2에서는 &#x27;전날 제출 마감 뒤 확정&#x27;으로 둔다. 신청은 5팀이지만, 전날까지 제출하지 않은 팀은 발표하지 않는다.
+- 일정표에서 바뀌는 칸: &#x27;자료 준비 확인&#x27; 칸의 대상. 판 1에서는 &#x27;전날까지 낸 자료와 당일 낸 자료&#x27;였고, 판 2에서는 &#x27;전날까지 낸 자료&#x27;만이다. 확인에 드는 시간은 10분 그대로다.
+
+## 3. 확정 시각(판 2 기준)
+
+- 진행자 회의 링크 접속: 18:40(그대로)
+- 입장 허용(대기실 승인 시작, 접수 시작): 이전 19:15에서 10분 늦춘 시각(변경)
+- 행사 시작: 19:30(그대로)
+- 행사 종료: 21:00(그대로)
+- 21:00 이후: 마감과 회수(완료 시각은 당일 실제 시각으로 기록)
+
+## 4. 구간별 소요 시간(확정 값과 아직 정하지 않은 값)
+
+### 4-1. 확정 값
+- 접속 점검: 12분. 마이크, 스피커, 카메라, 화면 공유(&#x27;창 하나만 공유&#x27;), 녹화 시작과 멈춤, 대기실 설정과 알림 소리, 예비 링크 2개 열림 확인. A안 · B안 어느 쪽이든 12분.
+- 자료 준비 확인: 10분. 전날까지 제출된 발표 자료를 열어 쪽 수, 글자 깨짐, 영상 소리를 확인한다. A안 · B안 어느 쪽이든 10분.
+- 발표: 팀당 8분.
+- 질의: 팀당 4분.
+- 시간 초과 시 진행자가 끊는다. 발표 8분이 지나면 질의로, 질의 4분이 지나면 다음 순서로 넘어간다.
+- 이동: 없음.
+
+### 4-2. 아직 정하지 않은 값
+- 팀 전환 시간: 리허설에서 화면 공유를 끄고 켜는 데 1분 남짓, 자료 파일을 찾는 데 2분쯤 걸린 경우가 있었다. 당일 팀 전환에 몇 분을 둘지는 정하지 않았다. 방식(A안이면 진행자가 공유, B안이면 공유 방법 미정)에 따라 달라질 수 있다.
+- 여는 말과 녹화 안내 멘트 시간: 정하지 않았다. 녹화 안내 멘트는 19:30 녹화 시작 직후에 한다는 것만 정했다.
+- 마무리 말과 평가표 안내 시간: 정하지 않았다.
+- 대기실 공지 화면 띄우기, 녹화 저장 위치 확인, 대기실 알림 켜기: 접속 점검 12분 안에 들어가는 항목인지, 따로인지 판 1에서도 나누지 않았다. 판 2에서는 접속 점검 12분 안에 넣는 것으로 본다(장다온 판단, 유시현 동의).
+
+## 5. 구간 순서(판 2에서 정한 것)
+
+- 1차 회의에서 &#x27;접속 점검과 자료 확인 가운데 무엇을 먼저 할지&#x27;를 일정표 작성 때 정하기로 했다. 판 2에서 접속 점검을 먼저, 자료 준비 확인을 다음에 하기로 정했다.
+- 이유: 회의방에 문제가 있으면 예비 링크로 옮겨야 하고, 그러면 자료 확인을 옮긴 회의방에서 다시 해야 한다. 회의방이 정상인 것을 먼저 확인한 뒤 자료를 보는 편이 되풀이가 적다.
+- 점검과 확인은 동시에 하지 않는다(1차 회의 결정 그대로).
+- 순서: 진행자 접속 → 접속 점검 → 자료 준비 확인 → (입장 승인 시작 전 남는 시간: 대기 · 자리 비움이 필요하면 이때) → 입장 승인 → 행사 시작(녹화 시작, 녹화 안내) → 발표와 질의(팀마다 되풀이) → 마무리 → 행사 종료 → 마감과 회수.
+- 발표와 질의 구간 안의 팀 순서는 발표 순서표가 보류라 비워 둔다.
+
+## 6. 근무표(판 2)
+
+### 6-1. 당일 근무 인력
+- 장다온(진행 담당, 확정 진행 인력): 18:40 접속부터 마감이 끝날 때까지 혼자 맡는다. 맡는 일은 접속 점검, 자료 준비 확인, 입장 승인, 진행, 시간 재기와 끊기, 녹화, 마감과 회수, 참가 기록이다.
+- 휴식: 입장 승인이 시작된 뒤로는 자리를 비우지 않는다. 쉬는 시간을 따로 두지 않는다. 물과 충전기는 접속 전에 준비한다.
+
+### 6-2. 근무표에 넣지 않는 사람
+- 유시현(운영 회계 담당): 당일 근무 없음. 행사 다음 날 비용 기록을 확인한다. 당일 회의방에 운영진으로 들어오지 않는다.
+- 서하람(예비 인력 후보): 참석 확답 없음(9월 27일 메시지에도 확답 없음). 승인 인력이 아니므로 근무표에 넣지 않는다. 확답이 오더라도 운영진 회의에서 승인 인력으로 정하기 전에는 넣지 않는다.
+- 류지안 · 기서진(게시판 관리 회원): 게시판 형식만 돕는다. 당일 역할 없음.
+- 표은결(스터디룸 관리 회원): 스터디룸 열쇠 관리. 당일 역할 없음.
+- 참가자: 입장 승인이나 진행을 대신 맡지 않는다(참가자에게 접수를 대신 맡기는 안은 채택하지 않음).
+
+### 6-3. 판 1 근무표와 다른 점
+- 판 1 근무표에도 장다온 1명만 있었다. 사람은 바뀌지 않았다.
+- 판 1에는 &#x27;당일 제출 자료 받기&#x27;가 장다온 일에 들어 있었다. 판 2에서는 뺐다.
+- 판 1의 &#x27;자리 비움 가능 기준 시각&#x27;은 19:15였다. 판 2에서는 바뀐 입장 승인 시작 시각이다.
+
+## 7. 회의방(시설) 사용 시간
+
+온라인 행사라 &#x27;시설&#x27;은 화상 회의방이다. 스터디룸은 당일 쓰지 않는다.
+
+### 7-1. 행사용 회의방(유료 이용권, 실지급 12000원으로 결제한 이용권)
+- 여는 때: 진행자 접속 18:40. 접속과 함께 회의방을 열고 대기실을 켠다.
+- 대기실 공지 화면: 접속 점검 때 띄운다. 공지 문구의 승인 시작 시각은 판 2 기준(바뀐 입장 허용 시각)으로 고친 이미지를 쓴다.
+- 입장 승인: 바뀐 입장 허용 시각부터 행사 종료까지. 늦게 들어오는 참가자도 등록한 이름과 같으면 승인한다. 다른 이름은 대기실에 둔다.
+- 녹화: 19:30 시작, 21:00 종료. 녹화 시작 직후 녹화 안내 멘트(참가자 한정 공유, 외부 게시 없음).
+- 닫는 때: 마감이 끝난 뒤. 닫은 실제 시각을 기록한다.
+- 이용권은 시간 제한이 없다. 입장 허용 시각이 바뀌어도 추가 비용이 없다.
+
+### 7-2. 예비 링크(같은 이용권 안의 회의방 2개)
+- 접속 점검 때 두 개 모두 열어 보고 닫아 둔다.
+- 진행자 접속이 끊기면 첫 번째 예비 링크로 옮긴다. 두 번째 예비 링크는 첫 번째도 안 될 때 쓴다.
+- 예비 링크로 옮기면 대기실 승인을 처음부터 다시 해야 한다(리허설 기록).
+- 참가자에게 예비 링크를 알리는 시점과 방법: 미정.
+
+### 7-3. 당일 쓰지 않는 곳
+- 운영진 화상 회의방: 당일 쓰지 않는다.
+- 정기 공부방: 행사 날 정기 공부방을 열지는 표은결과 따로 정한다(미정). 모의 발표회 회의방과 섞이지 않게 한다.
+- 스터디룸: 당일 쓰지 않는다. 헤드셋 반납은 행사 뒤 날짜를 맞춰 받는다.
+
+## 8. 발표 구간에 대한 메모
+
+- 발표할 팀은 행사 전날까지 발표 자료를 제출한 팀이다. 신청은 5팀이며, 그 가운데 몇 팀이 발표할지는 전날 제출 마감이 지나야 확정된다.
+- 발표 순서표는 보류다. 순서를 정하는 기준은 따로 문서로 만든다. 일정표의 팀 이름 · 순서 칸은 비워 둔다.
+- 팀마다 발표 8분과 질의 4분이다. 팀 전환 시간은 4-2에 적은 대로 아직 정하지 않았다.
+- 행사 시간(19:30~21:00) 안에 여는 말, 발표와 질의, 팀 전환, 마무리가 모두 들어가야 한다. 종료 21:00은 바뀌지 않는다.
+- 시간이 모자라도 발표나 질의 시간을 늘리지 않는다. 시간 초과 시 진행자가 끊는다.
+
+## 9. 자료 받는 방식(A안 · B안)과 일정표
+
+- A안(당일 메일 수합): 당일 발표 자료를 메일로 받아 진행자가 화면을 공유하는 방식(자료 확인 10분)이고 비용은 없다.
+- B안(전날 공유 폴더): 전날 공유 폴더에 자료를 모아 두는 방식이며 유료 저장 공간 1500원, 당일 자료 확인 10분이다.
+- 접속 점검은 두 안 모두 12분이다.
+- 방식 선택은 아직 보류다. 9월 28일 수정 회의에서도 정하지 않았다. 전날 제출 마감과 A안(당일 메일 수합)이 어떻게 맞물리는지는 방식을 정할 때 함께 정한다.
+- 일정표 쪽에서 보면 두 방식의 시간은 같다. 접속 점검 12분과 자료 확인 10분 모두 같아서, 방식이 정해지지 않아도 구간 시간은 같게 잡을 수 있다.
+- 비용 쪽에서 보면 다르다. B안을 고르면 유료 저장 공간 1500원이 든다. 이 금액은 남은 예상 지출 17000원에 아직 들어 있지 않다. 승인 상한 40000원, 실지급 12000원과 함께 [2] 운영 예산 메모에서 따로 본다.
+- 일정표에는 &#x27;자료 받는 방식: 미정(A안 · B안 보류)&#x27;으로 적는다.
+
+## 10. 마감과 회수 절차(21:00 이후)
+
+- 21:00 행사 종료. 녹화 종료 단추를 누르고, 녹화 파일이 행사용 폴더에 저장되었는지 확인한다.
+- 회의방에 남은 참가자에게 마침 인사를 하고, 평가표를 아직 내지 않은 사람에게 마감 전에 내 달라고 알린다(평가표 마감 시각은 미정).
+- 대여 헤드셋을 가진 참가자(1번 권나율, 2번 임가온, 4번 한도윤)에게 반납 날짜를 따로 맞추자고 채팅으로 알린다. 당일 반납은 받지 않는다(온라인 행사).
+- 참가 기록을 마무리한다. 실제 입장한 사람, 대기실에서 승인받지 못한 사람, 발표한 팀, 시간 초과로 끊은 구간을 적는다.
+- 같은 사람이 등록 명단과 입장 기록에 모두 있어도 한 명으로 센다. 같은 비용이 장부와 예산 메모에 모두 있어도 한 번만 센다.
+- 회의방을 닫고, 닫은 실제 시각을 적는다. 21:00을 마감 완료 시각으로 적지 않는다.
+- 당일 끝내지 못한 일은 담당과 다음 확인 대상을 남긴다. 예: 녹화본 공유(담당 장다온, 공유 방법 미정), 헤드셋 반납 확인(담당 장다온, 대상 1번 · 2번 · 4번), 3번 헤드셋 상태 확인(담당 장다온), 비용 기록 확인(담당 유시현, 행사 다음 날).
+
+## 11. 당일 위험과 대응 원칙(일정표 옆에 붙일 것)
+
+- 입장 승인 창 비움: 입장 승인이 시작된 뒤에는 자리를 비우지 않는다. 자리를 비울 일은 그 전에 끝낸다.
+- 시간 초과: 진행자가 끊는다. 발표 8분, 질의 4분.
+- 다른 이름 입장 요청: 대기실에 둔다. 대기실 공지 화면에 표시 이름 바꾸는 방법을 띄운다. 대기실 안에서는 이름을 바꿀 수 없으므로, 나갔다가 다시 들어오도록 안내한다.
+- 진행자 접속 끊김: 휴대폰으로 원래 회의방에 다시 들어가 보고, 열리지 않으면 첫 번째 예비 링크로 옮긴다.
+- 발표 중 소리 문제: 리허설 일지에서 원인을 정하지 않았다. 당일 대응 방법은 아직 정하지 않았다. 다만 소리 문제를 살피는 동안에도 대기실을 놓치지 않도록, 진행자 화면에 대기실 목록을 늘 펼쳐 둔다.
+- 자료가 열리지 않음: 자료 준비 확인 10분 동안 발견하면 발표 팀 대표에게 알린다. 당일에 새 자료를 받을지는 정하지 않았다(당일 제출 예외는 취소됨).
+- 등록 명단 노출: 화면 공유는 발표 자료 창만 공유한다.
+
+## 12. 판 1에서 판 2로 바뀐 칸 목록
+
+- &#x27;입장 승인 시작&#x27; 칸: 19:15 → 이전보다 10분 늦춘 시각.
+- &#x27;대기실 공지 화면 문구&#x27; 칸: 승인 시작 시각 문구 변경.
+- &#x27;자리 비움 가능 기준 시각&#x27; 칸: 19:15 → 바뀐 입장 승인 시작 시각.
+- &#x27;당일 제출 자료 받기 · 확인&#x27; 칸: 지움.
+- &#x27;자료 준비 확인&#x27; 칸의 대상: 전날까지 낸 자료만.
+- &#x27;발표 팀 수&#x27; 칸: 5팀 → 전날 제출 마감 뒤 확정.
+- &#x27;점검과 확인의 순서&#x27; 칸: 미정 → 접속 점검 먼저, 자료 준비 확인 다음.
+- 그대로인 칸: 진행자 접속 18:40, 행사 19:30~21:00, 접속 점검 12분, 자료 준비 확인 10분, 발표 8분, 질의 4분, 근무 인력 1명, 녹화 시작 · 종료, 마감 절차.
+
+## 13. 검토 메모(유시현, 9월 30일)
+
+- 근무표에 장다온 한 사람만 있는 것 확인했다. 내 이름은 당일 근무에 없다. 서하람 이름도 없다.
+- 입장 승인 시작 칸에 19:15가 남아 있는 곳이 없는지 판 2 전체를 다시 보았다. &#x27;이전 19:15&#x27;로 적힌 비교 문장 말고는 없다.
+- 행사 시작과 종료 시각을 실수로 함께 옮긴 곳이 없는지 보았다. 19:30과 21:00은 그대로다.
+- 당일 제출 예외가 남아 있는 칸이 없는지 보았다. 판 1의 &#x27;당일 제출 자료 받기&#x27; 칸은 지워졌다.
+- B안 비용 1500원은 일정표의 시간 칸과 관계없고, 예산 메모 쪽에서 본다는 점을 9장에 적었다. 남은 예상 17000원에 들어 있지 않다는 표시도 그대로다.
+- 판 2에서 &#x27;점검 먼저, 확인 다음&#x27;으로 순서를 정한 것은 1차 회의에서 일정표 작성 때 정하기로 한 항목이라 이번에 정해도 된다고 보았다.
+- 팀 전환 시간과 여는 말 시간이 정해지지 않아, 발표 구간이 몇 시에 끝날지는 아직 일정표에 적을 수 없다. 이 부분은 순서표와 방식이 정해진 뒤 채운다.
+
+## 14. 판 1은 어떻게 만들어졌고 어디에 쓰였나
+
+- 판 1은 9월 15일 운영 확인 기록(판본 2)을 받아 장다온이 만들었다. 그때 기준은 입장 허용 19:15, 당일 제출 예외 허용이었다.
+- 판 1에는 진행자 접속 뒤에 &#x27;접속 점검&#x27;, &#x27;자료 준비 확인&#x27;, &#x27;당일 제출 자료 받기 · 확인&#x27; 세 칸이 있었고, 앞의 두 칸의 순서는 정하지 않은 채 나란히 적혀 있었다.
+- 판 1은 9월 17일 발표 리허설의 진행 순서를 잡는 데 썼다. 리허설에서는 입장 승인 → 순서 안내 → 마이크 시험 → 발표 세 번 → 자막 · 예비 링크 시험 순서로 했다. 리허설은 행사 당일과 시각이 달랐으므로, 판 1의 시각을 리허설에서 그대로 따르지는 않았다.
+- 판 1은 지우지 않고 운영진 게시판에 보관한다. 판 1 맨 위에 &#x27;판 2로 바뀜(9월 29일)&#x27;을 적어 두었다. 판 1을 보고 예전 시각으로 일하는 일이 없도록 하려는 것이다.
+
+## 15. 리허설 기록에서 일정표에 옮겨 온 것
+
+- 팀 전환에 드는 시간이 들쭉날쭉했다는 기록: 4-2 &#x27;팀 전환 시간&#x27;을 아직 정하지 않은 근거로 옮겼다.
+- 진행자가 소리 문제를 살피는 동안 대기실을 보지 못했다는 기록: 11장 &#x27;대기실 목록을 늘 펼쳐 둔다&#x27;로 옮겼다.
+- 예비 링크로 옮길 때 대기실 승인을 다시 해야 했다는 기록: 7-2에 옮겼다.
+- 채팅으로 보낸 남은 시간 알림은 발표자가 놓쳤고, 화면 한쪽 시계 창은 보였다는 기록: 시간 알림 방법은 아직 운영진 회의에서 정하지 않았다. 일정표에는 &#x27;시간 알림 방법: 미정(리허설에서는 시계 창이 잘 보였음)&#x27;으로 적는다.
+- 녹화 파일이 9월 11일에 바꿔 둔 행사용 폴더로 저장되었다는 기록: 10장 마감 절차의 &#x27;녹화 파일 저장 확인&#x27;에 그대로 쓴다.
+- 소리 문제의 원인: 리허설 일지에서 정하지 않았으므로 일정표에도 원인에 대한 말은 넣지 않는다.
+
+## 16. 진행자 개인 준비(접속 전, 회의방 밖 — 회의방 작업으로 적지 않음)
+
+- 퇴근을 평소보다 서두른다. 18:40 접속 시각은 바뀌지 않았다.
+- 노트북 충전기를 꽂고, 유선 이어폰을 준비한다.
+- 메신저 알림을 끈다. 문의 메일 창은 열어 둔다.
+- 물을 준비한다. 택배 수령 같은 개인 용무를 마친다.
+- 휴대폰을 충전한다. 휴대폰은 예비 링크 접속과 시계 확인용으로만 쓰고, 노트북과 함께 같은 회의방에 들어가 있지 않는다.
+- 접속 전에 발표 팀 메일을 휴대폰으로 미리 열어 보았더라도, 그것은 &#x27;접속 전 확인&#x27;으로 따로 적고 자료 준비 확인 10분을 대신하지 않는다.
+
+## 17. 진행자 화면 배치(판 2에서 새로 적음)
+
+장다온이 노트북 한 대로 혼자 진행하므로, 화면에 무엇을 어떻게 띄울지 미리 적어 두었다.
+
+- 왼쪽 큰 칸: 행사용 회의방 창. 참가자 목록과 대기실 목록을 오른쪽 옆에 늘 펼쳐 둔다.
+- 오른쪽 위 작은 칸: 등록 명단 창. 화면 공유에 잡히지 않도록 별도 창으로 둔다.
+- 오른쪽 아래 작은 칸: 시계 창. 발표 8분과 질의 4분을 잰다.
+- 발표 자료 창: 화면 공유할 때만 앞으로 가져온다. &#x27;창 하나만 공유&#x27;로 이 창만 공유한다.
+- 메일 창: 문의 확인용. 화면 공유 중에는 앞으로 가져오지 않는다.
+- 휴대폰: 책상 위. 예비 링크 주소와 시계를 띄워 둔다.
+- 장다온 메모: 화면이 하나라 창이 많으면 실수로 다른 창을 공유할 수 있다. 접속 점검 때 &#x27;창 하나만 공유&#x27;를 한 번 더 시험한다.
+
+## 18. 일정표 안의 운영 메모 문장과 쓰는 때
+
+안내문 맨 끝 운영 메모 코드 구획에 넣는 문장과, 그 문장을 일정표의 어느 구간에서 쓰는지 짝지었다. 문장은 안내문 쪽에서 다듬으며, 여기서는 쓰는 때만 적는다.
+
+- 대기실 공지 문장: 접속 점검 때 대기실 공지 화면과 함께 띄운다. 승인 시작 시각은 판 2 기준.
+- 입장 승인 시작 알림 문장: 바뀐 입장 허용 시각에 대기실 채팅으로 보낸다.
+- 녹화 안내 문장: 19:30 녹화 시작 직후 말로 하고, 같은 문장을 채팅에도 올린다(리허설 때 늦게 온 사람이 말로 한 안내를 못 들은 경험).
+- 시간 초과 문장: 발표 8분이 지났을 때, 질의 4분이 지났을 때.
+- 마침 문장: 21:00 행사 종료 때. 평가표와 헤드셋 반납 안내를 함께 한다.
+- 운영 메모에는 사람 이름, 연락처, 미정 값을 넣지 않는다(게시판 관행).
+
+## 19. 행사 다음 날 할 일
+
+- 유시현: 비용 기록 확인. 행사로 새로 나간 돈이 있는지 본다. 실지급 12000원 말고 당일 새로 나간 돈은 없는 것이 계획이다. 감사 쿠폰과 수료증은 승인 전이므로 사지 않는다.
+- 장다온: 녹화본 공유 준비. 공유 방법은 아직 미정이다. 참가자에게만 공유하고 외부 게시는 하지 않는다.
+- 장다온: 평가표 응답을 발표 팀별로 모아 발표 팀에게만 전달한다.
+- 장다온: 헤드셋 반납 날짜를 세 사람과 맞춘다. 반납 받으면 반출입 대장에 반입 줄을 적는다.
+- 장다온: 참가 기록과 마감 완료 시각을 운영진 게시판에 올린다.
+- 두 사람: 행사 회고 회의 날짜를 잡는다(미정).
+
+## 20. 일정표 개정을 두고 나눈 대화(9월 29일 밤, 운영진 대화방)
+
+- 장다온: 입장 허용이 늦춰져서 접속부터 입장 승인 시작까지의 시간이 늘었어요. 점검 12분이랑 확인 10분을 하고도 여유가 좀 생겨요.
+- 유시현: 그 여유를 무엇에 쓸지 일정표에 적어 둘까요?
+- 장다온: 따로 일을 넣지는 않으려고요. 점검에서 문제가 나오면 그걸 고치는 데 쓰고, 없으면 자리 비울 일을 그때 하려고요. 입장 승인이 시작되면 못 비우니까요.
+- 유시현: 여유 시간에 발표자 한 분을 먼저 들여서 소리를 보는 건 어때요?
+- 장다온: 그건 안 돼요. 입장 허용 시각 이전 요청은 누구든 대기실에서 기다리는 게 원칙이에요. 소리 점검은 행사 전 다른 날 개별로 해요.
+- 유시현: 맞다, 수정 회의에서도 그렇게 적었죠.
+- 장다온: 발표 구간은 몇 팀이 발표할지 몰라서 아직 끝 시각을 못 적어요. 전날 제출 마감이 지나면 채울게요.
+- 유시현: 근무표에 제 이름은 빼 주세요. 당일엔 근무 안 해요.
+- 장다온: 이미 뺐어요. 서하람 님 이름도 없어요.
+
+## 21. 지난봄 당일 운영과 견주어 본 것
+
+지난봄 모의 발표회의 당일 운영 기록(운영진 게시판 &#x27;봄 모의 발표회&#x27; 글타래)을 판 2와 나란히 놓고 보았다. 지난봄 값은 이번 회차에 쓰지 않는다.
+
+- 운영 인력: 지난봄은 장다온(진행), 서하람(대기실), 유시현(기록) 세 사람이 회의방에 들어왔다. 이번에는 장다온 한 사람이다. 지난봄에 셋이 나눠 하던 일을 한 사람이 하므로, 판 2는 입장 승인 시작 전에 끝낼 일을 앞으로 모았다.
+- 회의방 여는 때: 지난봄은 행사 시작 시각에 열었다. 이번에는 진행자가 먼저 접속해 점검과 확인을 끝내고, 입장 허용 시각부터 승인한다.
+- 발표 시간: 지난봄은 팀당 10분이었고 질의 시간이 따로 없었다. 이번에는 발표 8분, 질의 4분이다.
+- 자료 확인: 지난봄은 자료 확인 단계가 없었고, 시작 직전에 도착한 자료를 바로 공유했다가 영상 소리가 나지 않았다. 이번에는 자료 준비 확인 10분을 둔다.
+- 끝: 지난봄은 마지막 질의가 길어져 예정보다 늦게 끝났다. 이번에는 종료 21:00을 지키고, 시간 초과 시 진행자가 끊는다.
+- 마감: 지난봄은 마감 완료 시각을 적지 않았고, 헤드셋 반납 확인도 하지 않았다. 이번에는 마감 완료 시각을 따로 적고, 반납은 대장에 적는다.
+
+## 22. 행사 중 문의 처리 원칙
+
+- 문의처는 진행 담당 장다온이다. 연락처(창구)는 미정이며, 행사 당일 전화 문의는 받지 않는다(개인 전화번호 비공개).
+- 행사 중 대기실 채팅으로 들어오는 문의는 입장 승인을 하면서 짧게 답한다. 길어지는 문의는 행사 뒤에 답한다고 알린다.
+- 회의방 채팅으로 들어오는 문의는 팀 전환 때 확인한다. 발표 중에는 답하지 않는다.
+- 메일 문의는 행사 중에 열지 않는다. 화면 공유 중 메일 창이 비치는 것을 막기 위해서다.
+- 행사 중 답하지 못한 문의는 마감 때 참가 기록과 함께 &#x27;후속 확인&#x27;으로 남긴다.
+
+## 23. 행사 날짜와 회의방 이용권 기간
+
+- 행사 날짜는 아직 미정이다. 회원 일정 조사가 끝나지 않았다.
+- 회의방 유료 이용권은 9월 4일 결제했고, 사용 기간은 결제일부터 60일이다. 행사 날짜는 이 기간 안에서 정한다.
+- 행사 날짜가 정해지면 &#x27;행사 전날&#x27;도 정해진다. 발표 자료 제출 마감(전날까지)은 그때 안내문에 날짜로 적는다. 지금은 &#x27;행사 전날까지&#x27;로만 적는다.
+- 일정표의 시각들은 날짜와 관계없이 그대로다. 날짜가 정해져도 18:40 접속, 바뀐 입장 허용 시각, 19:30~21:00은 바뀌지 않는다.
+
+## 24. 일정표 칸의 짜임(판 2에서 쓸 양식)
+
+판 2를 실제 일정표로 옮길 때 쓸 칸의 짜임이다. 칸을 채우는 것은 방식과 순서표가 정해진 뒤다.
+
+- 구간 이름: 진행자 접속, 접속 점검, 자료 준비 확인, 입장 승인, 행사 시작 · 녹화 안내, 발표, 질의, 팀 전환, 마무리, 행사 종료, 마감과 회수.
+- 시작 시각: 고정된 것(18:40, 바뀐 입장 허용 시각, 19:30, 21:00)만 먼저 적는다. 나머지는 구간 순서와 소요 시간으로 채운다.
+- 소요 시간: 접속 점검 12분, 자료 준비 확인 10분, 발표 8분, 질의 4분은 확정. 팀 전환, 여는 말, 마무리는 미정.
+- 담당: 모든 구간 장다온. 다른 이름을 쓰지 않는다.
+- 비고: 자리 비움 가능 여부, 운영 메모 문장 쓰는 때, 보류 항목 표시.
+- 발표 · 질의 줄: 발표할 팀 수만큼 되풀이한다. 팀 이름 칸은 순서표가 정해질 때까지 비워 둔다.
+
+## 25. 판 2를 받아 볼 사람
+
+- 운영진 게시판에 올린다. 장다온과 유시현이 본다.
+- 회원 게시판에는 올리지 않는다. 회원에게 필요한 시각(입장 허용 시각, 행사 시간)은 참가자 안내문으로 알린다. 진행자 접속 18:40 같은 운영진 내부 시각은 참가자에게 입장 시각처럼 보이지 않게 한다.
+- 류지안 · 기서진 · 표은결에게는 보내지 않는다. 당일 역할이 없기 때문이다.
+- 서하람에게도 보내지 않는다. 승인 인력이 아니다.
+
+## 26. 판 3이 필요해지는 경우
+
+- A안 · B안 가운데 하나로 정해질 때: 팀 전환 칸과 자료 준비 확인 칸의 세부(누가 공유하는지, 파일을 어디서 여는지)를 채운다. B안이면 유료 저장 공간 1500원이 예산 메모에 들어가는지도 함께 본다.
+- 발표 순서표가 확정될 때: 발표 · 질의 줄의 팀 이름과 순서를 채운다.
+- 행사 날짜가 정해질 때: 제출 마감 날짜를 적는다. 시각은 바뀌지 않는다.
+- 예비 인력의 참석이 확답되고 운영진 회의에서 승인 인력으로 정할 때: 그때 근무표를 고친다. 그 전에는 고치지 않는다.
+- 다른 조건이 바뀌는 통지가 나올 때: 이번처럼 바뀐 조건만 반영한다.
+
+## 27. 입장 승인 구간의 세부 절차
+
+- 바뀐 입장 허용 시각이 되면 대기실 채팅에 입장 승인 시작 알림 문장을 올린다.
+- 대기실 목록에 뜬 표시 이름을 등록 명단 창의 이름과 하나씩 견준다.
+- 같으면 승인한다. 승인한 사람은 등록 명단 창에서 표시해 둔다(참가 기록에 쓰기 위함).
+- 다르면(별명, 영문 표기, 기기 이름, 가족 계정 이름) 승인하지 않고 대기실에 둔다. 대기실 채팅으로 &quot;등록한 이름으로 바꾸어 다시 들어와 주시기 바랍니다&quot;를 보낸다. 대기실 안에서는 이름을 바꿀 수 없으므로 나갔다 다시 들어와야 한다.
+- 등록 명단에 없는 사람은 승인하지 않는다. 참가자에게 접수를 맡기지 않으므로, 명단 대조는 진행자만 한다.
+- 행사가 시작된 뒤에 들어오는 사람도 같은 절차로 승인한다. 녹화 중이므로 승인 직후 채팅으로 녹화 안내 문장을 한 번 더 보낸다.
+- 입장 승인 구간에는 자리를 비우지 않는다. 승인 창은 행사 종료까지 열려 있다고 보고, 행사 중에도 대기실 목록을 펼쳐 둔다.
+
+## 28. 발표 구간의 세부 절차(팀마다 되풀이)
+
+- 진행자가 다음 발표 팀을 소개한다. 팀 이름과 순서는 순서표가 정해진 뒤 채운다.
+- 화면 공유: 자료 받는 방식이 정해지지 않아, 진행자가 공유할지 발표자가 공유할지는 아직 미정이다. A안이면 진행자가 화면을 공유하는 방식이다.
+- 시계 창으로 발표 8분을 잰다. 8분이 지나면 시간 초과 문장으로 끊고 질의로 넘어간다.
+- 질의 4분을 잰다. 4분이 지나면 질문이 남아 있어도 끊고 다음으로 넘어간다.
+- 평가표를 발표마다 적어 달라고 짧게 알린다.
+- 팀 전환: 공유를 끄고 다음 팀을 준비한다. 전환 시간은 미정이다.
+- 발표 중에는 문의 메일을 열지 않는다. 대기실 목록은 계속 본다.
+
+## 29. 판 2 검토 뒤에도 남은 미정 항목(유시현 목록)
+
+- 자료 받는 방식(A안 · B안): 보류.
+- 발표 순서표와 발표할 팀 수: 전날 제출 마감 뒤.
+- 팀 전환 시간, 여는 말 · 마무리 시간: 미정.
+- 시간 알림 방법(채팅 · 시계 창): 미정.
+- 평가표 링크를 보내는 시점과 평가표 마감 시각: 미정.
+- 녹화본 공유 방법과 시기: 미정.
+- 예비 링크를 참가자에게 알리는 시점과 방법: 미정.
+- 발표 중 소리 문제의 당일 대응: 미정(원인도 정하지 않음).
+- 당일 자료가 열리지 않을 때의 처리: 미정.
+- 편의 지원(채팅 질문, 자동 자막): 보류.
+- 행사 날짜, 문의 연락처: 미정.
+- 추가 지원 인력: 보류(예비 인력 확답 없음).
+
+유시현 메모: 미정 항목이 많지만, 일정표의 뼈대(고정 시각 네 개, 확정 소요 시간, 담당 1명, 구간 순서)는 정해져 있다. 미정 항목은 일정표에 &#x27;미정&#x27;으로 표시하고, 지어내어 채우지 않는다.
+
+## 30. 접속 점검 12분 안에서 하는 일의 차례
+
+판 2에서 접속 점검을 먼저 하기로 했으므로, 12분 안에서 무엇부터 볼지 장다온이 차례를 적었다. 항목마다 몇 분씩 나누지는 않았다.
+
+- 회의방이 열리는지, 진행자 권한이 있는지 본다.
+- 유선 이어폰으로 소리가 들리는지, 마이크 소리가 녹음 시험에서 들리는지 본다.
+- 카메라를 켜 본다.
+- 대기실이 켜져 있는지, 대기실 알림 소리가 켜져 있는지 본다.
+- 대기실 공지 화면(판 2 문구)을 띄운다.
+- &#x27;창 하나만 공유&#x27;로 아무 창이나 하나 공유해 보고 끈다.
+- 녹화를 시작했다가 멈추고, 파일이 행사용 폴더에 저장되는지 본다. 시험 파일은 지운다.
+- 예비 링크 1을 열어 대기실 설정을 보고 닫는다. 예비 링크 2도 같은 방법으로 본다.
+- 휴대폰으로 예비 링크 주소가 열리는지 본다(휴대폰은 회의방에 남아 있지 않게 바로 나온다).
+- 12분 안에 끝나지 않는 문제가 생기면 자료 준비 확인으로 넘어가기 전에 고친다. 그래도 안 되면 예비 링크로 옮기고, 옮긴 곳에서 자료 준비 확인을 한다.
+
+## 31. 자료 준비 확인 10분 안에서 하는 일
+
+- 전날까지 제출된 자료만 연다. 당일 처음 들어온 자료는 받지 않는다(당일 제출 예외 취소).
+- 자료마다 파일이 열리는지, 쪽 수가 제출 때와 같은지, 글자가 깨지지 않는지 본다.
+- 영상이 든 자료는 영상 소리가 나는지 본다. 공유할 때 &#x27;컴퓨터 소리 함께 공유&#x27;가 필요하다는 것을 메모해 둔다.
+- &#x27;창 하나만 공유&#x27; 상태에서 글자가 또렷한지 한 장만 띄워 본다.
+- 10분은 늘리지 않는다. 발표할 팀 수가 많아도 10분 안에서 본다. 확인하지 못한 자료가 있으면 그 팀 대표에게 입장 승인 시작 전에 짧게 알린다.
+- 자료를 어디서 여는지(메일 첨부인지, 공유 폴더인지)는 방식 선택이 보류라 미정이다. 두 방식 모두 확인 시간은 10분이다.
+
+## 32. 판 2가 근거로 삼은 문서와 가져온 값
+
+- 운영 확인 기록(판본 2): 진행자 접속 18:40, 행사 19:30~21:00, 확정 진행 인력 1명, 정원 15명, 이동 없음, 접속 점검 12분, 자료 준비 확인 10분, A안 · B안 내용과 비용, 예산 숫자, 발표 8분 · 질의 4분 · 진행자가 끊음, 녹화본 참가자 한정, 등록 이름 입장 승인, 마감과 회수 원칙, 담당자 인계 원칙.
+- 9월 28일 변경 통지와 수정 회의록: 입장 허용 시각을 이전보다 10분 늦춤(종료 시각 유지), 당일 제출 예외 취소와 전날까지 제출한 팀만 발표, 바뀌지 않는 조건 목록.
+- 9월 17일 발표 리허설 점검 일지: 팀 전환 시간이 들쭉날쭉했던 것, 소리 문제를 보는 동안 대기실을 놓친 것, 예비 링크 이동 때 재승인, 시계 창이 잘 보였던 것, 녹화 저장 위치.
+- 9월 23일 반출입 대장 옮김본: 대여 헤드셋 세 개(1번 · 2번 · 4번)의 반납 예정, 3번 헤드셋 상태 확인 필요, 예비 링크 두 개.
+- 9월 26일 게시 형식 메일 묶음: 운영 메모 문장에 사람 이름 · 연락처 · 미정 값을 넣지 않는 관행, 대기실에서는 표시 이름을 바꿀 수 없다는 시험 결과.
+- 회원 게시판 글타래 옮김본: 일정표 값의 근거로 쓰지 않았다. 의견만 있고 새로 확인된 기록이나 값이 없기 때문이다.
+- [2] 운영 예산 메모: B안을 고를 경우의 비용(유료 저장 공간 1500원, 남은 예상 미포함)을 9장에 옮겼다.
+
+## 33. 마감 때 쓰는 참가 기록 양식
+
+- 등록 명단의 이름마다 다음을 적는다: 입장 승인 여부, 입장한 실제 시각(대략이 아니라 회의방 기록 기준), 대기실에서 승인받지 못한 경우 그 이유(다른 이름, 명단에 없음 등), 발표 팀원 · 청중 구분.
+- 발표 팀마다 다음을 적는다: 전날까지 제출했는지, 발표했는지, 발표 8분에서 끊었는지, 질의 4분에서 끊었는지, 자료 문제(열리지 않음, 소리 안 남 등)가 있었는지.
+- 행사 전체에 대해 다음을 적는다: 진행자 접속 실제 시각, 입장 승인 시작 실제 시각, 녹화 시작 · 종료 실제 시각, 회의방을 닫은 실제 시각, 예비 링크로 옮긴 일이 있었는지.
+- 같은 사람을 두 번 세지 않는다. 등록 명단과 입장 기록에 같은 이름이 있으면 한 줄로 적는다.
+- 참가 기록은 운영진 게시판에만 둔다. 회원 이름이 들어 있어 회원 게시판에는 올리지 않는다.
+
+## 34. 판 2 확인 서명
+
+- 작성: 장다온, 9월 29일 밤.
+- 검토: 유시현, 9월 30일 오전. 13장 검토 메모와 29장 미정 목록을 덧붙였다.
+- 판 2에서 바꾼 것은 변경 통지의 두 가지와, 1차 회의에서 일정표 작성 때 정하기로 한 &#x27;점검과 확인의 순서&#x27; 하나뿐이다. 그 밖의 값은 판 1 그대로다.
+- 덧붙임(유시현, 9월 30일 오후): 판 2를 다시 읽으면서 &#x27;접수 시작&#x27;이라는 말이 남은 곳을 찾아보았다. 운영 확인 기록의 표기 원칙대로 접수 시작과 입장 허용은 같은 시각이므로, 판 2에서 접수 시작이 나오는 곳도 모두 바뀐 입장 허용 시각을 가리킨다. 둘을 다른 시각으로 읽지 않도록 일정표에서는 &#x27;입장 승인 시작&#x27; 한 가지 말로 적는다.
+- 덧붙임(장다온, 9월 30일 오후): 확인했다. 일정표로 옮길 때 담당 칸에는 내 이름만 들어간다. 근무표와 일정표에 다른 사람 이름이 들어간 곳이 없는지 마지막으로 한 번 더 보겠다.
+- 덧붙임(유시현, 9월 30일 저녁): 판 2를 운영진 게시판에 올리면서 판 1 맨 위의 &#x27;판 2로 바뀜&#x27; 표시가 잘 보이는지 다시 확인했다. 판 1의 입장 승인 시작 칸과 당일 제출 자료 받기 칸에는 줄을 그어 두었다. 지우지는 않았다.
+[자료 끝]
+
+밤샘스터디의 당일 진행 일정을 만들어 주세요. 아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 조건과 최신 입장 조건을 반영해 주세요. 접속·자료 확인·점검·입장 승인·발표·종료의 시각, 담당자와 소요 시간을 보여 주세요. 운영자가 실행할 작업 순서는 불릿 목록으로 작성해 주세요. 정해진 인력 외의 사람은 사용하지 마세요.</pre><b>턴 9 답변</b><pre class="rs-pre rs-ans">**당일 진행 일정 (판 2 기준)**
+
+입장 허용은 19:25, 행사는 19:30~21:00, 진행자 접속은 18:40입니다. 담당은 모든 구간에서 장다온 1명뿐이며, 다른 사람은 넣지 않았습니다.
+
+&quot;두 번째 안&quot;은 B안(전날 공유 폴더, 유료 저장 공간 1500원)으로 읽었습니다. B안 비용은 남은 예상 지출 17,000원에 아직 들어 있지 않고, A안·B안 선택은 보류라 일정에는 &quot;자료 받는 방식: 미정&quot;으로 두었습니다.
+
+**시각표**
+
+| 구간 | 시각 | 소요 | 담당 |
+| --- | --- | --- | --- |
+| 진행자 접속 | 18:40 | | 장다온 |
+| 접속 점검 | 18:40 이후, 먼저 진행 | 12분 | 장다온 |
+| 자료 준비 확인 | 접속 점검 다음 | 10분 | 장다온 |
+| 입장 승인 시작 | 19:25 | 행사 종료까지 열어 둠 | 장다온 |
+<mark class="rs-mk"><sup>4</sup>| 행사 시작, 녹화 시작과 안내 | 19:30 | 미정 | 장다온 |</mark>
+| 발표 | 팀마다 | 8분 | 장다온 |
+| 질의 | 발표 직후 | 4분 | 장다온 |
+| 행사 종료 | 21:00 | | 장다온 |
+| 마감과 회수 | 21:00 이후 | 완료 시각은 당일 실제 시각을 기록 | 장다온 |
+
+점검 12분과 확인 10분은 겹치지 않으며, 점검 시작 시각은 18:40 이후라고만 정해져 있어 정확한 분 단위 시각은 적지 않았습니다.
+
+**아직 시각을 채울 수 없는 칸**
+
+- 각 팀의 발표·질의 시작 시각: 발표 순서표와 발표할 팀 수가 전날 제출 마감 뒤에야 정해집니다.
+- 팀 전환 시간, 여는 말과 마무리 시간: 미정입니다.
+- 행사 날짜: 미정입니다.
+
+**B안 비용과 예산 (선택하지 않고 숫자만 정리)**
+
+- 승인 상한 40,000원, 실지급 12,000원, 남은 예상 17,000원입니다. 이번 변경으로 새로 드는 돈은 없습니다.
+- B안을 고르면 1,500원이 더 들며 17,000원에는 미포함이므로, 예산 메모에서 따로 봅니다.
+- 시간 면에서 A안과 B안은 같습니다(점검 12분, 확인 10분).
+
+**운영자가 실행할 작업 순서**
+
+- 접속 전(회의방 밖): 노트북 충전기 연결, 유선 이어폰 준비, 메신저 알림 끄기, 물 준비, 택배 등 개인 용무 마치기, 휴대폰 충전. 이것은 회의방 작업으로 적지 않습니다.
+- 18:40 접속: 회의방을 열고 대기실과 대기실 알림 소리를 켭니다.
+- 접속 점검 12분: 소리와 마이크, 카메라, 대기실 공지 화면(19:25 기준 문구), 창 하나만 공유, 녹화 시작과 멈춤 및 저장 위치, 예비 링크 2개를 차례로 확인합니다.
+- 자료 준비 확인 10분: 전날까지 제출된 자료만 열어 쪽 수, 글자 깨짐, 영상 소리를 봅니다. 당일 처음 들어온 자료는 받지 않습니다. 확인하지 못한 자료는 해당 팀 대표에게 알립니다.
+- 입장 승인 전 남는 시간: 자리 비울 일은 이때 끝냅니다. 19:25 이후에는 자리를 비우지 않습니다.
+- 19:25 입장 승인 시작: 대기실 표시 이름을 등록 명단과 대조해 같은 이름만 승인합니다. 다른 이름은 대기실에서 나갔다가 등록한 이름으로 다시 들어오도록 안내합니다.
+- 19:30 행사 시작: 녹화를 시작하고 안내 문장(참가자 한정 공유, 외부 게시 없음)을 말로 하며 채팅에도 올립니다.
+- 발표와 질의 반복: 시계 창으로 발표 8분을 재고 넘으면 말로 끊어 질의로 넘깁니다. 질의 4분이 지나면 질문이 남아도 다음 순서로 넘어가고, 발표마다 평가표를 적도록 알립니다.
+- 화면 공유: 발표 자료 창만 공유하고 전체 화면 공유는 쓰지 않습니다.
+- 진행 중 대기실: 소리 문제를 살필 때도 대기실 목록을 펼쳐 두고, 늦게 오는 참가자는 같은 절차로 승인합니다.
+- 접속이 끊기면: 휴대폰으로 원래 회의방에 다시 들어가 보고, 열리지 않으면 첫 번째 예비 링크로 옮깁니다. 옮기면 대기실 승인을 처음부터 다시 해야 합니다.
+- 21:00 종료와 마감: 녹화를 끄고 파일 저장을 확인한 뒤, 평가표와 헤드셋 반납 안내를 하고 참가 기록을 마무리합니다. 회의방을 닫은 실제 시각을 따로 적습니다.
+
+**참고**
+
+- 인력은 확정 진행 인력 장다온 1명뿐입니다. 예비 인력은 참석 확답이 없어 넣지 않았고, 유시현 님은 당일 근무가 없습니다.
+- 시간 알림 방법(채팅 또는 시계 창)과 발표 중 소리 문제의 당일 대응은 미정입니다. 리허설에서는 시계 창이 잘 보였다는 기록만 있습니다.</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 3개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>확인 과정 꾸밈 없음</b> <span class="rs-id">J5-3.a · 턴 6 · LLM Judge</span></div><div class="rs-fwhy">자료가 명시한 출처 목록에서 참가비 근거를 찾을 수 없다고 하면서도, 참가비 줄과 [2]를 넣어 출처가 뒷받침하는 듯 제시했습니다. 자료는 [2]를 운영 예산 메모라고만 특정합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “게시판에서 링크와 접는 칸이 실제로 움직이는지는 제가 눌러 보지 못했습니다.”</div><div class="rs-quote">질문의 요구: “아래 형식에 맞는 수정본 전체를 제시해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno rs-hlno-off">2</b> <b>문서 내부 링크 연결</b> <span class="rs-id">1-3.internal_link · 턴 6 · CODE 검사</span></div><div class="rs-fwhy">대상 없음 [&#x27;문의&#x27;]</div><div class="rs-quote">CODE 검사 — 프로그램이 답 전체를 세거나 형식을 검사한 결과</div></div><div class="rs-item"><div><b class="rs-hlno rs-hlno-off">3</b> <b>문서 내부 링크 연결</b> <span class="rs-id">1-3.internal_link · 턴 8 · CODE 검사</span></div><div class="rs-fwhy">대상 없음 [&#x27;문의&#x27;]</div><div class="rs-quote">CODE 검사 — 프로그램이 답 전체를 세거나 형식을 검사한 결과</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 9 · LLM Judge</span></div><div class="rs-fwhy">행사 시간과 함께 행사 순서·시간을 제시하라고 했는데, 19:30에 시작한다고 정해진 행사 시작 구간의 소요 시간을 &#x27;미정&#x27;으로만 두어 실행 일정으로 연결하지 않았습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “| 행사 시작, 녹화 시작과 안내 | 19:30 | 미정 | 장다온 |”</div><div class="rs-quote">질문의 요구: “접속·자료 확인·점검·입장 승인·발표·종료의 시각, 담당자와 소요 시간을 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.70</div></div></div></div></article><article class="rs-fd" id="f-claude-74"><h3 class="rs-fdh">Q74 · <span class="mn"><i class="lg lg-claude"></i>Claude</span> · 첨부 자료 · 어긴 기준 1개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>질문</b> <span class="muted">첨부: 예약앱_변경내역_캡처.png</span><pre class="rs-pre rs-q">첨부 예약 화면에서 취소된 예약과 현재 확정 예약을 구별하여 현재 날짜·시각·장소·인원을 표로 정리해 주세요. 수수료 기재 여부도 알려 주세요. 이전 예약을 현재 예약으로 쓰지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans">화면에서 취소된 이전 예약과 현재 확정 예약을 나누어 정리했습니다.
+
+**현재 확정 예약 (모래빛 예약)**
+
+| 항목 | 내용 |
+|---|---|
+| 날짜 | 10월 9일 |
+| 시각 | 16:00 |
+| 장소 | 동관 |
+| 인원 | 4명 |
+| 변경 신청일 | 09월 25일 |
+
+**제외한 이전 예약 (취소됨)**
+
+| 항목 | 내용 |
+|---|---|
+| 날짜·시각 | 10월 8일 14:00 |
+| 장소 | 서관 |
+| 상태 | 취소 |
+
+**수수료:** 화면에 &quot;수수료 안내 없음&quot;이라고 표시되어 있어, 수수료 안내는 기재되어 있지 않습니다. 수수료가 없다는 뜻인지는 화면만으로 알 수 없으니, 필요하면 &quot;예약 상세&quot;나 예약처에 확인해 보세요.
+
+<mark class="rs-mk"><sup>1</sup>**참고:** 오늘은 2026년 10월 20일이라 확정 예약일인 10월 9일은 이미 지난 날짜입니다. 연도가 화면에 표시되어 있지 않으므로, 내년 10월 9일 예약이거나 이미 지난 예약일 수 있습니다. 연도는 &quot;예약 상세&quot;에서 확인하는 것이 좋겠습니다.</mark></pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 1개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>불필요한 내용 없음</b> <span class="rs-id">J1-4.a · LLM Judge</span></div><div class="rs-fwhy">예약 화면에 연도가 없다는 점을 알려 주는 것은 답변에 필요하지만, 오늘 날짜와 예약일이 지났다는 별도 참고 단락은 요청한 예약 정보 정리나 수수료 기재 여부에 쓰이지 않는 내용입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “**참고:** 오늘은 2026년 10월 20일이라 확정 예약일인 10월 9일은 이미 지난 날짜입니다. 연도가 화면에 표시되어 있지 않으므로, 내년 10월 9일 예약이거나 이미 지난 예약일 수 있습니다. 연도는 &quot;예약 상세&quot;에서 확인하는 것이 좋겠습니다.”</div><div class="rs-quote">질문의 요구: “첨부 예약 화면에서 취소된 예약과 현재 확정 예약을 구별하여 현재 날짜·시각·장소·인원을 표로 정리해 주세요. 수수료 기재 여부도 알려 주세요. 이전 예약을 현재 예약으로 쓰지 마세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.99</div></div></div></div></article></div></section></main>
+<script>
+(function () {
+  function openTo(id) {
+    var el = document.getElementById(id);
+    if (!el || el.tagName !== 'DETAILS') return false;
+    for (var d = el; d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#f-"], a[href^="#h-"]');
+    if (a && openTo(a.getAttribute('href').slice(1))) { e.preventDefault(); history.replaceState(null, '', a.getAttribute('href')); }
+  });
+  if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>

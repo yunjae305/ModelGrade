@@ -33,7 +33,7 @@ pre.ex{margin:6px 0 0;padding:6px 8px;font-size:12px;line-height:1.4;background:
 <tr><td>3</td><td>Jev↔Decisions 갈림</td><td class="now"><span class="t ok">반영 + 추가</span> 기준별 FAIL 수 표(1차 FAIL 적중 25%, J1-4.b 129칸 중 0) — 3장 표</td><td>Jev/Decisions 가중치 검토</td></tr>
 <tr><td>4</td><td>Codex 선택 근거</td><td class="now"><span class="t ok">반영</span> 상세 분석 17 '심판 선택'(동료 10-23) + J1-4.b 다수결(해석 차이)</td><td>—</td></tr>
 <tr><td>5</td><td>CODE 숫자 뜻</td><td class="now"><span class="t ok">확인 끝</span></td><td>—</td></tr>
-<tr><td>6</td><td>멀티턴 0 · 싱글 느슨?</td><td class="now"><span class="t warn">점검 끝</span> 턴별 기준 34 → 17.6, 턴 통과율, 78개 점검(싱글은 질문이 쉬움 · 멀티턴 거짓 FAIL 2종 고침), 최종 턴 준비 방식 · J1-4.b 문구 정함(동료 10-23)</td><td>평가된 멀티턴 결과와 Claude 로 재판정한 결과를 비교하면서 수정(진행 중)</td></tr>
+<tr><td>6</td><td>멀티턴 0 · 싱글 느슨?</td><td class="now"><span class="t ok">재판정 끝</span> 턴별 기준 34 → 17.6, 78개 점검(싱글은 질문이 쉬움 · 멀티턴 거짓 FAIL 2종 고침), 새 규칙(왕복 · 거절 연결 · 최종 턴 준비 방식 · 반복 경계)으로 멀티턴 11×4 다시 판정(10-25 발행): 기준별 FAIL 칸 정보 기억-누락 38→13 · 입력 값 54→40 · 실행 가능성 58→45 · 내부 모순 55→43 · 불필요한 내용 32→21, 턴 통과율 AIONA 62→64% · GPT 52→56% · Claude 55→58% · Gemini 28→27%, 질문 판정 바뀐 것 17개(FAIL → 보류가 많음: 보류 칸 '사유 모순' 2→8)</td><td>평가된 멀티턴 결과와 Claude 로 재판정한 결과를 비교하면서 수정(진행 중) · 보류 63칸 사람 표시</td></tr>
 <tr><td>7</td><td>걸린 시간 편차</td><td class="now"><span class="t ok">반영</span> 결과 보고서 13 · 판정 시간도 질문 × 모델마다 기록 · 편차 큰 질문 top 5 — 2장</td><td>—</td></tr>
 <tr><td>8</td><td>토큰 · 비용</td><td class="now"><span class="t ok">반영</span> v4-r3 새 판정으로 질문 × 모델 × 심판 토큰 전부 기록('기록 안 됨' 없음)</td><td>—</td></tr>
 </table></div></div>
@@ -50,66 +50,66 @@ pre.ex{margin:6px 0 0;padding:6px 8px;font-size:12px;line-height:1.4;background:
 </table></div></div>
 
 <h2>3. 기준마다 Jev · Decisions · Codex 의 FAIL 수</h2>
-<div class="card"><p class="small mute">10-23 12:40 판정(v4-r3, 78 × 4). Jev = 32K 이하 · 첨부 없는 질문의 1차 심판, Decisions = 그 밖의 1차 심판, Codex = 1차가 걸러 보낸 항목과 J5~J8 의 확정(최종은 Codex 따름)</p>
+<div class="card"><p class="small mute">10-25 발행 판정(v4-r4, 78 × 4 — 멀티턴 11개는 10-23 밤 새 규칙으로 다시 판정, 나머지는 10-23 12:40 판정). Jev = 32K 이하 · 첨부 없는 질문의 1차 심판, Decisions = 그 밖의 1차 심판, Codex = 1차가 걸러 보낸 항목과 J5~J8 의 확정(최종은 Codex 따름)</p>
 <div class="scroll"><table>
 <tr><th>기준</th><th class="num">Jev FAIL</th><th class="num">Decisions FAIL</th><th class="num">Codex FAIL</th></tr>
-<tr><td>요청 작업 수행 <span class='small mute'>J1-1.a</span></td><td class='num'>0</td><td class='num'>16</td><td class='num'>22</td></tr>
-<tr><td>거절 · 회피 없음 <span class='small mute'>J1-2.a</span></td><td class='num'>0</td><td class='num'>21</td><td class='num'>24</td></tr>
-<tr><td>모순 · 빠진 자료 밝힘 <span class='small mute'>J1-3.a</span></td><td class='num'>0</td><td class='num'>31</td><td class='num'>10</td></tr>
-<tr><td>가능한 범위 제시 <span class='small mute'>J1-3.b</span></td><td class='num'>0</td><td class='num'>29</td><td class='num'>9</td></tr>
-<tr><td>불필요한 내용 없음 <span class='small mute'>J1-4.a</span></td><td class='num'>2</td><td class='num'>65</td><td class='num'>32</td></tr>
-<tr><td>반복 없음 <span class='small mute'>J1-4.b</span></td><td class='num'>1</td><td class='num'>124</td><td class='num'>4</td></tr>
+<tr><td>요청 작업 수행 <span class='small mute'>J1-1.a</span></td><td class='num'>0</td><td class='num'>12</td><td class='num'>22</td></tr>
+<tr><td>거절 · 회피 없음 <span class='small mute'>J1-2.a</span></td><td class='num'>0</td><td class='num'>25</td><td class='num'>26</td></tr>
+<tr><td>모순 · 빠진 자료 밝힘 <span class='small mute'>J1-3.a</span></td><td class='num'>0</td><td class='num'>21</td><td class='num'>13</td></tr>
+<tr><td>가능한 범위 제시 <span class='small mute'>J1-3.b</span></td><td class='num'>0</td><td class='num'>23</td><td class='num'>9</td></tr>
+<tr><td>불필요한 내용 없음 <span class='small mute'>J1-4.a</span></td><td class='num'>2</td><td class='num'>78</td><td class='num'>22</td></tr>
+<tr><td>반복 없음 <span class='small mute'>J1-4.b</span></td><td class='num'>1</td><td class='num'>145</td><td class='num'>2</td></tr>
 <tr><td>대상 수준 — 용어 <span class='small mute'>J2-1.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
 <tr><td>대상 수준 — 깊이 <span class='small mute'>J2-1.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
 <tr><td>말투 · 어조 <span class='small mute'>J2-2.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
-<tr><td>조건 · 제약 준수 <span class='small mute'>J2-3.a</span></td><td class='num'>0</td><td class='num'>101</td><td class='num'>70</td></tr>
-<tr><td>설명 방식 <span class='small mute'>J2-4.a</span></td><td class='num'>0</td><td class='num'>1</td><td class='num'>1</td></tr>
+<tr><td>조건 · 제약 준수 <span class='small mute'>J2-3.a</span></td><td class='num'>0</td><td class='num'>93</td><td class='num'>61</td></tr>
+<tr><td>설명 방식 <span class='small mute'>J2-4.a</span></td><td class='num'>0</td><td class='num'>1</td><td class='num'>0</td></tr>
 <tr><td>비유의 적합 <span class='small mute'>J2-4.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>1</td></tr>
-<tr><td>추천의 상황 적합 <span class='small mute'>J2-5.a</span></td><td class='num'>0</td><td class='num'>2</td><td class='num'>4</td></tr>
-<tr><td>글의 목적 수행 <span class='small mute'>J2-5.b</span></td><td class='num'>0</td><td class='num'>5</td><td class='num'>11</td></tr>
-<tr><td>내부 모순 없음 <span class='small mute'>J3-1.a</span></td><td class='num'>0</td><td class='num'>70</td><td class='num'>55</td></tr>
+<tr><td>추천의 상황 적합 <span class='small mute'>J2-5.a</span></td><td class='num'>0</td><td class='num'>2</td><td class='num'>3</td></tr>
+<tr><td>글의 목적 수행 <span class='small mute'>J2-5.b</span></td><td class='num'>0</td><td class='num'>6</td><td class='num'>1</td></tr>
+<tr><td>내부 모순 없음 <span class='small mute'>J3-1.a</span></td><td class='num'>0</td><td class='num'>58</td><td class='num'>45</td></tr>
 <tr><td>근거 있음 <span class='small mute'>J3-2.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
-<tr><td>근거로 결론 성립 <span class='small mute'>J3-2.b</span></td><td class='num'>0</td><td class='num'>64</td><td class='num'>41</td></tr>
-<tr><td>인과 방향 <span class='small mute'>J3-3.a</span></td><td class='num'>0</td><td class='num'>4</td><td class='num'>3</td></tr>
-<tr><td>원리의 설명력 <span class='small mute'>J3-3.b</span></td><td class='num'>0</td><td class='num'>5</td><td class='num'>7</td></tr>
-<tr><td>풀이 연결 <span class='small mute'>J3-4.a</span></td><td class='num'>0</td><td class='num'>2</td><td class='num'>1</td></tr>
-<tr><td>실행 가능성 <span class='small mute'>J3-5.a</span></td><td class='num'>0</td><td class='num'>62</td><td class='num'>58</td></tr>
-<tr><td>값의 역할 <span class='small mute'>J3-5.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>4</td></tr>
+<tr><td>근거로 결론 성립 <span class='small mute'>J3-2.b</span></td><td class='num'>0</td><td class='num'>48</td><td class='num'>32</td></tr>
+<tr><td>인과 방향 <span class='small mute'>J3-3.a</span></td><td class='num'>0</td><td class='num'>5</td><td class='num'>4</td></tr>
+<tr><td>원리의 설명력 <span class='small mute'>J3-3.b</span></td><td class='num'>0</td><td class='num'>4</td><td class='num'>7</td></tr>
+<tr><td>풀이 연결 <span class='small mute'>J3-4.a</span></td><td class='num'>0</td><td class='num'>3</td><td class='num'>2</td></tr>
+<tr><td>실행 가능성 <span class='small mute'>J3-5.a</span></td><td class='num'>0</td><td class='num'>52</td><td class='num'>45</td></tr>
+<tr><td>값의 역할 <span class='small mute'>J3-5.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>3</td></tr>
 <tr><td>비교 대상 완결 <span class='small mute'>J4-1.a</span></td><td class='num'>0</td><td class='num'>1</td><td class='num'>1</td></tr>
-<tr><td>비교 기준 완결 <span class='small mute'>J4-1.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
-<tr><td>함께 요구한 항목 <span class='small mute'>J4-2.a</span></td><td class='num'>0</td><td class='num'>6</td><td class='num'>6</td></tr>
-<tr><td>핵심 단계 · 구성 요소 <span class='small mute'>J4-3.a</span></td><td class='num'>0</td><td class='num'>11</td><td class='num'>8</td></tr>
-<tr><td>요약 핵심 <span class='small mute'>J4-4.a</span></td><td class='num'>0</td><td class='num'>5</td><td class='num'>9</td></tr>
+<tr><td>비교 기준 완결 <span class='small mute'>J4-1.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>1</td></tr>
+<tr><td>함께 요구한 항목 <span class='small mute'>J4-2.a</span></td><td class='num'>0</td><td class='num'>5</td><td class='num'>6</td></tr>
+<tr><td>핵심 단계 · 구성 요소 <span class='small mute'>J4-3.a</span></td><td class='num'>0</td><td class='num'>13</td><td class='num'>3</td></tr>
+<tr><td>요약 핵심 <span class='small mute'>J4-4.a</span></td><td class='num'>0</td><td class='num'>6</td><td class='num'>11</td></tr>
 <tr><td>사실 정확성 <span class='small mute'>J5-1.a</span></td><td class='num'>0</td><td class='num'>1</td><td class='num'>10</td></tr>
-<tr><td>입력 값 충실 <span class='small mute'>J5-2.a</span></td><td class='num'>2</td><td class='num'>127</td><td class='num'>55</td></tr>
-<tr><td>정리 · 요약의 충실 <span class='small mute'>J5-2.b</span></td><td class='num'>0</td><td class='num'>42</td><td class='num'>28</td></tr>
-<tr><td>확인 과정 꾸밈 없음 <span class='small mute'>J5-3.a</span></td><td class='num'>1</td><td class='num'>42</td><td class='num'>35</td></tr>
-<tr><td>지시 유지 <span class='small mute'>J6-1.a</span></td><td class='num'>0</td><td class='num'>50</td><td class='num'>10</td></tr>
-<tr><td>정보 기억 — 정확 <span class='small mute'>J6-2.a</span></td><td class='num'>0</td><td class='num'>114</td><td class='num'>9</td></tr>
-<tr><td>정보 기억 — 누락 <span class='small mute'>J6-2.b</span></td><td class='num'>0</td><td class='num'>84</td><td class='num'>38</td></tr>
-<tr><td>지시어 해석 <span class='small mute'>J6-2.c</span></td><td class='num'>0</td><td class='num'>2</td><td class='num'>3</td></tr>
-<tr><td>변경 반영 <span class='small mute'>J6-3.a</span></td><td class='num'>0</td><td class='num'>18</td><td class='num'>8</td></tr>
-<tr><td>편집 유지 <span class='small mute'>J6-3.b</span></td><td class='num'>0</td><td class='num'>2</td><td class='num'>12</td></tr>
-<tr><td>자기 일관성 <span class='small mute'>J6-4.a</span></td><td class='num'>0</td><td class='num'>48</td><td class='num'>6</td></tr>
-<tr><td>근거 없는 반박 <span class='small mute'>J6-4.b</span></td><td class='num'>0</td><td class='num'>4</td><td class='num'>5</td></tr>
+<tr><td>입력 값 충실 <span class='small mute'>J5-2.a</span></td><td class='num'>2</td><td class='num'>112</td><td class='num'>40</td></tr>
+<tr><td>정리 · 요약의 충실 <span class='small mute'>J5-2.b</span></td><td class='num'>0</td><td class='num'>39</td><td class='num'>25</td></tr>
+<tr><td>확인 과정 꾸밈 없음 <span class='small mute'>J5-3.a</span></td><td class='num'>1</td><td class='num'>44</td><td class='num'>32</td></tr>
+<tr><td>지시 유지 <span class='small mute'>J6-1.a</span></td><td class='num'>0</td><td class='num'>37</td><td class='num'>4</td></tr>
+<tr><td>정보 기억 — 정확 <span class='small mute'>J6-2.a</span></td><td class='num'>0</td><td class='num'>103</td><td class='num'>9</td></tr>
+<tr><td>정보 기억 — 누락 <span class='small mute'>J6-2.b</span></td><td class='num'>0</td><td class='num'>79</td><td class='num'>14</td></tr>
+<tr><td>지시어 해석 <span class='small mute'>J6-2.c</span></td><td class='num'>0</td><td class='num'>3</td><td class='num'>2</td></tr>
+<tr><td>변경 반영 <span class='small mute'>J6-3.a</span></td><td class='num'>0</td><td class='num'>15</td><td class='num'>4</td></tr>
+<tr><td>편집 유지 <span class='small mute'>J6-3.b</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>7</td></tr>
+<tr><td>자기 일관성 <span class='small mute'>J6-4.a</span></td><td class='num'>0</td><td class='num'>36</td><td class='num'>7</td></tr>
+<tr><td>근거 없는 반박 <span class='small mute'>J6-4.b</span></td><td class='num'>0</td><td class='num'>6</td><td class='num'>4</td></tr>
 <tr><td>위치와 관계없는 정보 찾기 <span class='small mute'>J7-1.a</span></td><td class='num'>0</td><td class='num'>7</td><td class='num'>7</td></tr>
 <tr><td>흩어진 근거 연결 <span class='small mute'>J7-2.a</span></td><td class='num'>0</td><td class='num'>8</td><td class='num'>11</td></tr>
 <tr><td>첨부 내용 반영 <span class='small mute'>J8-1.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
 <tr><td>파일 형식 읽기 <span class='small mute'>J8-2.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
 <tr><td>첨부 접근 처리 <span class='small mute'>J8-3.a</span></td><td class='num'>0</td><td class='num'>0</td><td class='num'>0</td></tr>
-<tr><td><b>합계</b></td><td class='num'><b>6</b></td><td class='num'><b>1174</b></td><td class='num'><b>618</b></td></tr>
+<tr><td><b>합계</b></td><td class='num'><b>6</b></td><td class='num'><b>1091</b></td><td class='num'><b>496</b></td></tr>
 </table></div></div>
 
 <h2>4. 찾은 잘못</h2>
 <div class="card"><div class="scroll"><table>
 <tr><th>무엇이 문제인가</th><th>내용</th><th>원인은 어디</th><th>조치</th></tr>
 <tr><td><b>싱글 질문이 너무 쉬움</b></td><td>57개 중 39개는 네 모델이 모두 통과 — 한 줄짜리 함정은 요즘 모델이 다 피해서 모델 차이를 못 가름</td><td>질문 생성</td><td><span class="t todo">예정</span> 자료 속에 비슷한 값 · 떨어진 근거를 섞는 함정으로 다시 만들 예정</td></tr>
-<tr><td><b>거절한 답 하나에 FAIL 여러 개</b></td><td>모델이 거절하면 '거절' 기준 하나만 FAIL 이어야 하는데 조건 준수 · 실행 가능성 등까지 같이 FAIL(27턴)</td><td>기준 연결 규칙</td><td><span class="t ok">고침</span> 거절이면 결과물 품질 기준은 보지 않게 고침 · 재판정 중</td></tr>
-<tr><td><b>AIONA 답에 출처 번호가 없음</b></td><td>번호 [1]·[2] 를 요구한 18턴 중 AIONA 는 1턴만 번호를 씀(GPT · Claude 는 18턴 모두). AIONA 화면에도 없어 복사 문제가 아니라 AIONA 가 안 쓴 것</td><td>AIONA 답</td><td><span class="t todo">예정</span> '인용'을 꼭 번호로 볼지 ③ 세션에서 다시 정하는 중</td></tr>
+<tr><td><b>거절한 답 하나에 FAIL 여러 개</b></td><td>모델이 거절하면 '거절' 기준 하나만 FAIL 이어야 하는데 조건 준수 · 실행 가능성 등까지 같이 FAIL(27턴)</td><td>기준 연결 규칙</td><td><span class="t ok">고침</span> 거절이면 결과물 품질 기준은 보지 않게 고침 · 재판정 끝(연쇄 FAIL 사라짐: 정보 기억-누락 38→13 · 지시 유지 10→4 · 변경 반영 8→3)</td></tr>
+<tr><td><b>AIONA 답에 출처 번호가 없음</b></td><td>번호 [1]·[2] 를 요구한 18턴 중 AIONA 는 1턴만 번호를 씀(GPT · Claude 는 18턴 모두). AIONA 화면에도 없어 복사 문제가 아니라 AIONA 가 안 쓴 것</td><td>AIONA 답</td><td><span class="t ok">정함</span> 번호 없어도 제목 · 내용을 끌어다 쓰고 출처를 밝혔으면 인용(10-23 미팅) → 확인 목록 반영 · 기록 턴 7개 재판정 예정</td></tr>
 <tr><td>GPT 답의 역슬래시</td><td>GPT 답 자체가 기호 앞에 역슬래시를 씀(80턴). ChatGPT 앱 화면에서도 기호가 글자 그대로 보이고 굵게 · 목록이 되지 않음 — 복사 글은 화면과 같음(복사 문제 아님, 10-23 앱 화면 확인)<pre class="ex">화면: 이 두 현상은 **외풍(공기 누설)**과 구별해야 합니다.   ← 굵게 안 됨
 복사: 이 두 현상은 \*\*외풍(공기 누설)\*\*과 구별해야 합니다.</pre></td><td>GPT 모델</td><td><span class="t ok">정함</span> 판정은 복사 글 그대로 봄(모델이 쓴 글) · <span class="t warn">확인</span> CODE 검사는 역슬래시를 풀고 재는데, 화면에서도 서식이 안 되므로 그대로 잴지 결정 필요</td></tr>
 <tr><td><b>Codex 심판이 가끔 잘못 읽음</b></td><td>같은 규칙으로 두 번 판정해도 312칸 중 26칸이 다름. 7칸을 사람이 보니 새 판정 맞음 3 · 옛 판정 맞음 3 · 보류 1(검산 줄을 합산으로, 안 겹친 시간을 겹친다고 읽는 식)</td><td>심판</td><td><span class="t todo">예정</span> 표시용 표 100칸으로 거짓 FAIL · 거짓 통과 비율을 재서 기준 문구 보강</td></tr>
-<tr><td><b>1차 심판이 '반복' 기준에서 지나치게 FAIL</b></td><td>Decisions 가 129칸을 FAIL 했는데 Codex 는 한 칸도 동의 안 함(최종 결과엔 영향 없고 Codex 호출만 늘림). 1차 심판도 Codex 와 같은 예외 문구를 받고 있었고, 빠진 것은 '질문이 함께 요구한 다른 형식(시간표 ↔ 작업 순서 · 안내문 ↔ 문의 칸)' 경계(동료 확인)</td><td>기준 문구</td><td><span class="t ok">고침</span> 경계 한 줄 추가 · 재판정 중</td></tr>
+<tr><td><b>1차 심판이 '반복' 기준에서 지나치게 FAIL</b></td><td>Decisions 가 129칸을 FAIL 했는데 Codex 는 한 칸도 동의 안 함(최종 결과엔 영향 없고 Codex 호출만 늘림). 1차 심판도 Codex 와 같은 예외 문구를 받고 있었고, 빠진 것은 '질문이 함께 요구한 다른 형식(시간표 ↔ 작업 순서 · 안내문 ↔ 문의 칸)' 경계(동료 확인)</td><td>기준 문구</td><td><span class="t ok">고침</span> 경계 한 줄 추가 · 재판정 끝(반복 FAIL 4→2)</td></tr>
 <tr><td><b>AIONA 제품 문제</b></td><td>일정 질문(Q8)에 자살 예방 안내로 답함 · 답 끝에 '데이터 제공' 줄 · 코드 들여쓰기</td><td>AIONA 제품</td><td><span class="t warn">알림</span> 제품 팀에 알림</td></tr>
 </table></div></div>
 
@@ -142,11 +142,10 @@ pre.ex{margin:6px 0 0;padding:6px 8px;font-size:12px;line-height:1.4;background:
 <h2>6. 앞으로</h2>
 <div class="card"><ol>
 <li><a href="../분석/2026-10-23-엄격함점검/표시용_표.html">표시용 표</a> 100칸 사람 표시 → 기준별 거짓 FAIL · 거짓 통과 비율</li>
-<li>기록 요약 턴 '인용' 해석 — ③ 세션에서 사용자와 재정의 중(확정되면 확인 목록에 반영 · 해당 턴만 재판정)</li>
-<li>멀티턴 11×4 재판정(왕복 · 거절 · 최종 턴 준비 방식 · J1-4.b 문구) → 숫자 갱신</li>
+<li>'인용' 해석(번호 없어도 됨, 확정) → 확인 목록 반영 · 기록 요약 턴 7개만 재판정</li>
 <li>기준 다듬기 루프(5장 · harness2 방식) 1차 시험 — 첫 대상 '반복'(J1-4.b)</li>
 <li>AIONA 출처 번호 복사 확인 → 필요하면 11문항 재수집 · 싱글 함정 재설계 → k 6~10 확인 → 수집 · 판정</li>
 </ol></div>
 
-<p class="small mute">자세히: <a href="기준·프롬프트 변경 원문.html">기준 · 프롬프트 변경 원문</a> · <a href="../결과/2026-10-23_12-41-05-662/report.html">결과 보고서</a> · <a href="../결과/2026-10-23_12-41-05-662/판정토큰.html">판정 토큰</a> · <a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> · <a href="../변경내역/2026-10-23-변경내역.md">변경내역</a></p>
+<p class="small mute">자세히: <a href="기준·프롬프트 변경 원문.html">기준 · 프롬프트 변경 원문</a> · <a href="../결과/2026-10-23_12-41-05-662/report.html">결과 보고서</a> · <a href="../결과/2026-10-25_12-37-03-450/report.html">멀티턴 재판정 결과</a> · <a href="../결과/2026-10-25_12-37-03-450/비교.md">전후 비교</a> · <a href="../결과/2026-10-23_12-41-05-662/판정토큰.html">판정 토큰</a> · <a href="../분석/2026-10-23-질문점검/질문_점검.html">질문 점검</a> · <a href="../변경내역/2026-10-23-변경내역.md">변경내역</a></p>
 </main></body></html>
