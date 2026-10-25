@@ -1099,3 +1099,12 @@ def test_guards_from_single_turn_regression_v4_s2():
     jv.tool_claim_guard(tool)
     assert tool["J5-3.a"]["decision"] == "NOT_APPLICABLE"
 
+
+def test_j2_3a_fail_for_invented_value_is_reasked():
+    """J2-3.a FAIL 인데 사유가 '질문이 주지 않은 값을 답이 새로 더함' — 다시 묻기(지어낸 값은 J5-2 · J1-3) (10-26 v4-s4 Gemini Q72)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q72_T1", "turn": 1, "question": "q"}]
+    reason = "질문은 여유가 20분이라고 했지만 승강장 이동 시간은 주지 않았습니다. 답변은 이동 시간 “약 17분”을 새로 더해 근거로 사용했습니다."
+    out = {"turns": [{"turn": 1, "items": [{"id": "J2-3.a", "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    assert jv.deferred_fail_items(out, turns, {"Q72_T1": "a"}, {1: ["J2-3.a"]}) == [(1, "J2-3.a")]
+
