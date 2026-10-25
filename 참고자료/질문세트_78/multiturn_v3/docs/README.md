@@ -7,7 +7,7 @@
 - 문서 하나가 o200k_base 로 **10,200토큰 이상**이어야 합니다(요청 문장을 합쳐 10,000 이상이 되게 여유를 둠). 한국어는 대략 1토큰 ≈ 1.8~2.1자라 **약 20,000~22,000자**입니다.
 - 쓴 뒤 반드시 세어 확인합니다:
   `python -X utf8 -c "import sys; sys.path.insert(0, '.'); from code_eval.long_context import count_tokens; print(count_tokens(open(r'<파일>', encoding='utf-8').read()))"`
-  (작업 폴더 `C:\Users\winz\Desktop\quality-test-integrated` 에서). 모자라면 새 내용(새 항목 · 새 기록)을 더해 늘립니다.
+  (작업 폴더 `<작업 폴더>` 에서). 모자라면 새 내용(새 항목 · 새 기록)을 더해 늘립니다.
 
 ## 2. 내용 — 길이를 '진짜 자료'로 채운다
 - 그 턴의 요청을 처리하는 데 실제로 쓰이는 문서여야 합니다. 같은 기관 · 같은 행사의 실제 업무 문서처럼 씁니다: 회의록, 기록부, 대장, 메일 묶음, 점검 일지, 공문, 게시판 글 등.

@@ -2066,7 +2066,7 @@ class ComparisonService:
             stage(provider, "CANCELLED" if token.is_set() else "COMPLETED")
 
         def web(provider):
-            """웹 자동화로 받는 모델 — AIONA(winz.aiona.kr)·FactChat(aichat.kku.ac.kr)·우수AI(app.oosoo.kr).
+            """웹 자동화로 받는 모델 — AIONA(.env AIONA_URL)·FactChat(aichat.kku.ac.kr)·우수AI(app.oosoo.kr).
             모델마다 브라우저(프로필) 하나라 서로 동시에 돈다. 브라우저 창은 기본으로 보인다(web_headless)."""
             if provider == "factchat_web":
                 from .factchat_web import FactChatChat as Chat, FactChatWebError as WebError

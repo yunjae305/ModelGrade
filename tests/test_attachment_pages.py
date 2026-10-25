@@ -44,3 +44,25 @@ def test_attachment_images_collects_pages_and_respects_switch(tmp_path: Path, mo
     monkeypatch.setenv("CODEX_ATTACH_PAGES", "0")
     assert [p.name for p in jv.attachment_images(turns, files)] == ["사진.png"]   # 끄면 이미지 파일만
     assert jv.attachment_images(turns, None) == []
+
+
+def test_docx_falls_back_to_libreoffice_when_word_is_missing(tmp_path: Path, monkeypatch):
+    """Word(COM)가 없는 Mac · Linux 에서는 LibreOffice(soffice --headless)로 docx → pdf, 둘 다 없으면 None (10-25 밤, 할일 17번)."""
+    from code_eval import attachment_pages as ap
+    docx = tmp_path / "안내.docx"
+    docx.write_bytes(b"PK fake")
+    monkeypatch.setattr(ap, "_docx_to_pdf_word", lambda d, t: None)
+    monkeypatch.setattr(ap, "_soffice", lambda: None)
+    assert ap._docx_to_pdf(docx, tmp_path) is None
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        (Path(cmd[cmd.index("--outdir") + 1]) / "안내.pdf").write_bytes(b"%PDF-fake")   # soffice 는 <이름>.pdf 로 쓴다
+        return None
+    monkeypatch.setattr(ap, "_soffice", lambda: "/usr/bin/soffice")
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    out = ap._docx_to_pdf(docx, tmp_path)
+    assert out == tmp_path / "안내.docx.pdf" and out.is_file() and calls and calls[0][:3] == ["/usr/bin/soffice", "--headless", "--convert-to"]
+

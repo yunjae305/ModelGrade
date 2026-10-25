@@ -1,4 +1,4 @@
-"""AIONA 웹 자동화 — winz.aiona.kr 에 로그인 상태를 유지하고(별도 Chrome 프로필) 새 채팅으로 질문을 보내 답변을 받는다.
+"""AIONA 웹 자동화 — AIONA 웹(.env AIONA_URL)에 로그인 상태를 유지하고(별도 Chrome 프로필) 새 채팅으로 질문을 보내 답변을 받는다.
 
 사용자 결정(2026-10-14): AIONA 는 API 키가 없어 웹 브라우저 자동화로 답변을 수집한다 ("새 채팅 눌러서 대화 진행").
 - 로그인: ``.env`` 의 AIONA_LOGIN_ID·AIONA_LOGIN_PASSWORD 는 사용자가 직접 넣고, 처음 로그인도 사용자가 실행한다

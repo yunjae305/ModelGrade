@@ -77,11 +77,40 @@ def _render_pdf(pdf: Path, source: Path, out_dir: Path) -> List[Path]:
     return out
 
 
+def _soffice() -> Optional[str]:
+    """LibreOffice 실행 파일 — PATH 의 soffice · libreoffice, Mac · Linux 기본 설치 위치. Word(COM)가 없는 Mac · Linux 에서 docx → pdf 에 쓴다 (10-25 밤, 할일 17번)."""
+    found = shutil.which("soffice") or shutil.which("libreoffice")
+    if found:
+        return found
+    for p in (Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"), Path("/usr/bin/soffice"), Path("/usr/lib/libreoffice/program/soffice")):
+        if p.is_file():
+            return str(p)
+    return None
+
+
+def _docx_to_pdf_soffice(docx: Path, out_dir: Path, target: Path) -> Optional[Path]:
+    """LibreOffice 로 docx → pdf (창 없이). soffice 는 <이름>.pdf 로 쓰므로 우리 이름(<파일명>.pdf)으로 옮긴다."""
+    exe = _soffice()
+    if not exe:
+        return None
+    import subprocess
+    subprocess.run([exe, "--headless", "--convert-to", "pdf", "--outdir", str(out_dir), str(docx)], check=False, capture_output=True, timeout=180)
+    produced = out_dir / f"{docx.stem}.pdf"
+    if produced.is_file() and produced.resolve() != target.resolve():
+        produced.replace(target)
+    return target if target.is_file() else None
+
+
 def _docx_to_pdf(docx: Path, out_dir: Path) -> Optional[Path]:
-    """Word 로 docx → pdf (창 없이). 한 번에 하나만."""
+    """docx → pdf (창 없이) — Windows 는 Word(COM), 없으면 LibreOffice. 한 번에 하나만."""
     target = out_dir / f"{docx.name}.pdf"
     if target.is_file() and target.stat().st_mtime >= docx.stat().st_mtime:
         return target
+    return _docx_to_pdf_word(docx, target) or _docx_to_pdf_soffice(docx, out_dir, target)
+
+
+def _docx_to_pdf_word(docx: Path, target: Path) -> Optional[Path]:
+    """Word(COM) 로 docx → pdf — Windows + Word 가 있을 때만, 없으면 None."""
     try:
         import pythoncom
         import win32com.client
@@ -124,7 +153,7 @@ def page_images(path: Path, files_dir: Path) -> Tuple[List[Path], str]:
         try:
             pdf = path if ext == ".pdf" else _docx_to_pdf(path, out_dir)
             if pdf is None:
-                return [], f"{path.name}: docx → pdf 변환 불가(Word 없음) — 글로만"
+                return [], f"{path.name}: docx → pdf 변환 불가(Word · LibreOffice 없음) — 글로만"
             pages = _render_pdf(pdf, path, out_dir)
             note = f"{path.name}: {'PDF' if ext == '.pdf' else 'DOCX(Word 로 pdf)'} {len(pages)}쪽을 이미지로"
         except Exception as exc:   # 못 그리면 글로만 — 어떻게 됐는지 남긴다
