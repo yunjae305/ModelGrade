@@ -1133,3 +1133,13 @@ def test_j1_4b_required_form_and_j6_1a_format_fails_are_reasked():
     assert jv.deferred_fail_items(out("J6-1.a", "1턴의 존댓말 지시를 어기고 반말로 썼습니다."), turns, a, {7: ["J6-1.a"]}) == []
     assert jv.deferred_fail_items(out("J1-4.b", "같은 주의 사항을 두 단락에서 새 정보 없이 반복했습니다."), turns, a, {7: ["J1-4.b"]}) == []
 
+
+def test_pass_with_violation_reason_becomes_hold_not_fail():
+    """PASS 인데 사유가 '명시 조건을 지키지 않았습니다' — 사유 모순으로 보류(FAIL 을 새로 만들지 않음). '어긴 문장이 없습니다' 는 아님 (10-26 v4-r9-chk7)."""
+    import tools.judge_v4 as jv
+    assert jv.reason_contradicts("PASS", "답변은 google.com 검색 URL을 연결했습니다. 해당 명시 조건을 지키지 않았습니다.", "J2-3.a")
+    assert not jv.reason_contradicts("PASS", "조건을 어긴 문장이 없습니다.", "J2-3.a")
+    items = {"J2-3.a": {"decision": "PASS", "reason": "해당 명시 조건을 지키지 않았습니다.", "jev": "FAIL", "decisions_confidence": 0.9}}
+    jv.reason_decision_guard(items)
+    assert items["J2-3.a"]["decision"] == "UNVERIFIED" and items["J2-3.a"]["kind"] == "사유 모순"
+
