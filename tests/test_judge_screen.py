@@ -401,9 +401,10 @@ def test_misapplied_link_rule_is_reasked(tmp_path: Path):
     assert not jv.misapplied_rule("J1-3.b", "질문에 모순되는 조건이나 빠진 자료가 없어 J1-3이 적용되지 않습니다.")   # 조건 항목 · '적용되지 않'
     assert jv.misapplied_rule("J2-3.a", "J1-1.a가 FAIL이므로 J4 항목만 해당 없음 처리합니다.")
     # Codex 검토: 실제 표현 · 규칙마다 따로 · 부정한 언급
-    assert jv.misapplied_rule("J1-4.b", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")   # 10-23: J2-3.a 는 이제 거절 규칙의 대상(REFUSAL_NA)
+    assert not jv.misapplied_rule("J1-4.b", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")   # 10-25 밤: 거절 턴은 말투 빼고 전부 대상(REFUSAL_NA)
+    assert jv.misapplied_rule("J2-2.a", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")       # 말투는 거절 문장 자체를 본다
     assert not jv.misapplied_rule("J2-3.a", "J1-2.a가 거절·회피 FAIL이므로 이 규칙은 판정하지 않습니다.")
-    assert jv.misapplied_rule("J2-3.a", "J1-1.a는 FAIL이므로 해당 없음입니다.") and jv.misapplied_rule("J1-4.b", "J1-2.a가 아니오이므로 해당 없음입니다.")
+    assert jv.misapplied_rule("J2-3.a", "J1-1.a는 FAIL이므로 해당 없음입니다.") and jv.misapplied_rule("J6-1.a", "J1-2.a가 아니오이므로 해당 없음입니다.")
     assert jv.misapplied_rule("J4-2.a", "J1-1.a가 FAIL은 아닙니다. J2-4.a가 FAIL이므로 이 항목도 해당 없음입니다.")
     assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 해당 없음입니다.") and not jv.misapplied_rule("J1-1.a", "J1-2.a가 FAIL이므로 해당 없음입니다.")
     assert jv.misapplied_rule("J1-2.a", "J1-1.a가 FAIL이므로 J4 항목과 함께 이 항목도 해당 없음입니다.")   # Codex 2차: 'J4 항목' 언급이 가리지 않게
@@ -818,3 +819,41 @@ def test_line_records_tokens_per_question(tmp_path: Path):
     assert tok["Decisions"]["입력"] == 1000 and tok["Decisions"]["호출"] == 1 and tok["합계"]["입력"] >= 1000 and tok["다시_씀"] is False
     calls = {"decisions": {"reused": True, "first_judge": {"1": "jev"}, "usage": {}}, "codex": {"reused": True, "rounds": 0}}
     assert jv.question_tokens_used(calls)["합계"]["입력"] == 0 and jv.question_tokens_used(calls)["다시_씀"] is True
+
+
+def test_error_case_turn_judges_only_j1_1_and_skips_codex(tmp_path: Path):
+    """에러 케이스 턴(CODE 1-1 FAIL): Codex 에 보내지 않고 J1-1.a 만 FAIL, 나머지는 해당 없음 — 오류 문구 하나를 항목 넷이 세던 것 (10-25 밤)."""
+    dec = FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9},
+                         "J1-1.a": {"choice": "PASS", "probabilities": {"PASS": 0.9, "FAIL": 0.1}, "confidence": 0.9}})
+    codex = FakeCodex()
+    line = _run(tmp_path, dec, codex, code_measured={"Q1_T1": {"1-1.response_nonempty": ("FAIL", "에러 케이스 없음")}})
+    items = line["turn_results"]["1"]["items"]
+    assert codex.inputs == [] and items["J1-1.a"]["decision"] == "FAIL" and "에러 케이스" in items["J1-1.a"]["how"]
+    assert items["J2-2.a"]["decision"] == "NOT_APPLICABLE" and items["J2-2.a"]["overridden_from"] == "FAIL"
+    assert all(v["decision"] == "NOT_APPLICABLE" for i, v in items.items() if i != "J1-1.a")
+
+
+def test_duplicate_quote_fails_are_reasked_once_with_item_list(tmp_path: Path):
+    """한 턴에서 두 항목이 같은 답 구절을 FAIL 근거로 쓰면 '같은_구절_항목'을 주고 한 번 다시 묻는다 (10-25 밤)."""
+    quote = "네, 회의는 10시입니다."
+
+    class DupCodex(FakeCodex):
+        def judge(self, prompt, input_text, search, tag="", output_schema=None, images=None):
+            doc = json.loads(input_text)
+            self.inputs.append(doc)
+            first = len(self.inputs) == 1
+            turns = []
+            for n, items in doc["판정할_항목"].items():
+                turns.append({"turn": int(n), "situations": [], "items": [
+                    {"id": i, "decision": "FAIL" if (first or i == "J2-2.a") else "PASS", "reason": "r", "question_quote": "",
+                     "answer_quote": quote if (first or i == "J2-2.a") else "", "quote_turn": None, "fact": None} for i in items]})
+            return "OK", {"turns": turns, "conclusion": {"verdict": "FAIL", "reason": ""}}, ""
+
+    dec = FakeDecisions({"J2-2.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9},
+                         "J2-3.a": {"choice": "FAIL", "probabilities": {"FAIL": 0.9, "PASS": 0.1}, "confidence": 0.9}})
+    codex = DupCodex()
+    items = _run(tmp_path, dec, codex)["turn_results"]["1"]["items"]
+    assert len(codex.inputs) == 2 and set(codex.inputs[1]["같은_구절_항목"]["T1"]) >= {"J2-2.a", "J2-3.a"} and "같은 답 구절" in codex.inputs[1]["주의"]   # J5-1.a(늘 Codex) 도 같은 구절이면 함께
+    assert items["J2-2.a"]["decision"] == "FAIL" and items["J2-3.a"]["decision"] == "PASS"
+    assert jv.duplicate_quote_items({"turns": [{"turn": 1, "items": [{"id": "J2-2.a", "decision": "FAIL", "answer_quote": quote}, {"id": "J2-3.a", "decision": "FAIL", "answer_quote": "회의는 10시입니다."}]}]},
+                                    [{"case_id": "Q1_T1", "question": "q", "turn": 1}], {"Q1_T1": quote}, {1: ["J2-2.a", "J2-3.a"]}) == [(1, "J2-2.a"), (1, "J2-3.a")]
