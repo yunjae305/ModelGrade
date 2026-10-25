@@ -189,11 +189,57 @@ def new_window_page(context: Any, url: str) -> Any:
     return page
 
 
-def find_or_open(browser: Any, host: str, url: str) -> Any:
-    """붙은 Chrome 에서 그 사이트 페이지를 찾고, 없으면 (빈 탭 또는) 새 창으로 연다."""
+#: 탭 차지 표시 — window.name 은 같은 탭에서 페이지를 옮겨도(새 채팅 · 다른 주소) 남는다. 실행마다 자기 표시의 탭만 쓴다 (10-25 밤, 할일 1번)
+CLAIM_PREFIX = "modelgrade:"
+#: 차지는 페이지 안에서 한 번에 비교 후 쓰기 — 두 실행이 CDP 로 같은 탭을 동시에 잡아도 하나만 성공한다(페이지의 JS 는 한 줄로 실행됨)
+_CLAIM_JS = ("([k, p]) => { const n = window.name || ''; if (n === k) return true; "
+             "if (n.startsWith(p)) return false; window.name = k; return true; }")
+
+
+def tab_claim(page: Any) -> str:
+    """그 탭의 차지 표시(window.name) — 읽지 못하면 빈 글."""
+    try:
+        return str(page.evaluate("() => window.name || ''") or "")
+    except Exception:
+        return ""
+
+
+def claim_tab(page: Any, key: str) -> bool:
+    """그 탭을 key 로 차지한다 — 이미 다른 실행이 차지했으면 False."""
+    try:
+        return bool(page.evaluate(_CLAIM_JS, [CLAIM_PREFIX + key, CLAIM_PREFIX]))
+    except Exception:
+        return False
+
+
+def release_tab(page: Any, key: str) -> None:
+    """실행이 끝날 때 내 차지 표시를 지운다(내 것일 때만) — 다음 실행이 모델이 달라도 그 탭을 다시 쓰게 (창이 쌓이지 않게)."""
+    try:
+        page.evaluate("([k]) => { if ((window.name || '') === k) window.name = ''; }", [CLAIM_PREFIX + key])
+    except Exception:
+        pass
+
+
+def find_or_open(browser: Any, host: str, url: str, claim: Optional[str] = None) -> Any:
+    """붙은 Chrome 에서 그 사이트 페이지를 찾고, 없으면 (빈 탭 또는) 새 창으로 연다.
+    claim 을 주면 그 표시로 차지한 탭만 쓴다 — 내 표시의 탭 → 아무도 차지하지 않은 탭 → 새 창 순. 같은 사이트를 두 실행이 동시에 받을 때
+    (AIONA 의 서로 다른 두 모델, 할일 1번) 한 탭을 서로 뺏어 답이 섞이지 않게."""
     context = browser.contexts[0]
-    page = next((pg for pg in context.pages if host in pg.url and not pg.is_closed()), None)
-    return page or new_window_page(context, url)
+    pages = [pg for pg in context.pages if host in pg.url and not pg.is_closed()]
+    if not claim:
+        return pages[0] if pages else new_window_page(context, url)
+    names = [(pg, tab_claim(pg)) for pg in pages]
+    mine = next((pg for pg, n in names if n == CLAIM_PREFIX + claim), None)
+    if mine is not None:
+        return mine
+    for pg, n in names:
+        if not n.startswith(CLAIM_PREFIX) and claim_tab(pg, claim):
+            return pg
+    for _ in range(3):   # 빈 탭을 다른 실행과 동시에 잡았으면 다시 새 창
+        page = new_window_page(context, url)
+        if claim_tab(page, claim):
+            return page
+    raise RuntimeError(f"{host} 탭을 '{claim}' 로 차지하지 못했습니다 — 같은 사이트를 받는 다른 실행이 빈 탭을 계속 잡고 있습니다")
 
 
 def close_blank_pages(browser: Any) -> int:

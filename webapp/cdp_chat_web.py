@@ -132,7 +132,8 @@ class _CdpChat:
                 self._browser = attach(self._playwright)   # 수집용 Chrome(보조 프로세스가 띄움)에 붙는다 — 로그인은 그 프로필에 남아 있다
             except Exception as exc:
                 raise CdpWebError(f"수집용 Chrome 에 붙지 못했습니다: {str(exc).splitlines()[0][:160]}")
-            self.page = find_or_open(self._browser, self.HOST, self.NEW_URL or f"https://{self.HOST}/")   # 수집기마다 자기 창
+            # 수집기마다 자기 창 — 사이트 · 모델 이름으로 탭을 차지해, 같은 사이트의 두 모델을 동시에 받는 실행끼리 탭을 뺏지 않는다 (10-25 밤, 할일 1번)
+            self.page = find_or_open(self._browser, self.HOST, self.NEW_URL or f"https://{self.HOST}/", claim=f"{self.NAME}:{getattr(self, 'MODEL_NAME', '') or '기본'}")
             self.page.add_init_script(COPY_CAPTURE_JS)
             self.page.set_default_timeout(60_000)   # 시간 제한을 따로 주지 않은 동작도 1분이면 끝난다
             if self.place:
@@ -146,6 +147,12 @@ class _CdpChat:
         self._close()
 
     def _close(self) -> None:
+        try:
+            if self.page is not None:   # 탭 차지 표시 지움 — 다음 실행이 그 탭을 다시 쓰게 (10-25 밤)
+                from tools.chrome_cdp import release_tab
+                release_tab(self.page, f"{self.NAME}:{getattr(self, 'MODEL_NAME', '') or '기본'}")
+        except Exception:
+            pass
         try:
             if self._browser is not None:
                 self._browser.close()   # CDP 연결만 끊는다 — Chrome 창과 로그인 상태는 그대로

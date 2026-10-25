@@ -96,6 +96,11 @@ def login(page: Any, user: str, password: str, timeout_ms: int = 30_000) -> None
         raise AionaWebError("로그인 화면을 벗어나지 못했습니다 — 아이디·비밀번호나 추가 인증 화면을 확인해 주세요.") from None
 
 
+def _release(page: Any, key: str) -> None:
+    from tools.chrome_cdp import release_tab
+    release_tab(page, key)
+
+
 class AionaChat:
     """한 브라우저로 AIONA 에 차례로 질문한다. Playwright 동기 API 라 만든 스레드에서만 쓴다.
 
@@ -156,7 +161,8 @@ class AionaChat:
         self._playwright = sync_playwright().start()
         try:
             self._browser = attach(self._playwright)
-            self.page = find_or_open(self._browser, AIONA_URL.split("//", 1)[-1], f"{AIONA_URL}/chat")
+            # 실행마다 자기 AIONA 탭 — 모델 이름으로 차지해 두 모델을 동시에 받아도 탭을 서로 뺏지 않는다 (10-25 밤, 할일 1번)
+            self.page = find_or_open(self._browser, AIONA_URL.split("//", 1)[-1], f"{AIONA_URL}/chat", claim=f"aiona:{self.model_name}")
             from .factchat_web import COPY_CAPTURE_JS
             self.page.add_init_script(COPY_CAPTURE_JS)
             self.page.set_default_timeout(60_000)
@@ -175,7 +181,8 @@ class AionaChat:
     def _close(self) -> None:
         """브라우저·Playwright·임시 폴더를 차례로 정리하고, 무엇이 실패하든 프로필 잠금은 반드시 푼다 (Codex 리뷰)."""
         try:
-            for step in (lambda: self._browser is not None and self._browser.close(),   # 붙기 방식: 연결만 끊는다(Chrome 은 그대로)
+            for step in (lambda: self.attach and self.page is not None and _release(self.page, f"aiona:{self.model_name}"),   # 탭 차지 표시 지움 (10-25 밤)
+                         lambda: self._browser is not None and self._browser.close(),   # 붙기 방식: 연결만 끊는다(Chrome 은 그대로)
                          lambda: self._context is not None and self._context.close(),
                          lambda: self._playwright is not None and self._playwright.stop(),
                          self._temp.cleanup):
