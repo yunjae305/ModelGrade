@@ -97,7 +97,7 @@ codex login
 | 2차 심판 비교(Codex ↔ Claude CLI) | `python -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더>` → `compare` |
 | 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
 | 기준 · 프롬프트 · 코드가 같은 말을 하는지 | `python -X utf8 tools/criteria_consistency.py` |
-| 공개본 내보내기(내부 메모 · 수집 답변 원문을 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` |
+| 이력 없는 깨끗한 사본 만들기(회의록만 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` (`--no-results` 로 결과 폴더 빼기) |
 
 Windows 에서 `python` 대신 `py -3` 이나 `.venv\Scripts\python` 을 써도 됩니다.
 
