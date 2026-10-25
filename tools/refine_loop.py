@@ -373,7 +373,29 @@ def replace_once(text: str, old: str, new: str, where: str) -> str:
     return text.replace(old, new, 1)
 
 
-def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path: Path, checklists_path: Optional[Path]) -> Dict[str, Any]:
+def item_block(text: str, item: str) -> Optional[Tuple[int, int]]:
+    """판정 프롬프트에서 그 항목 정의 블록('- **J2-3.a** · …' 부터 다음 항목 · 제목 앞까지)의 (시작, 끝) 위치."""
+    m = re.search(rf"(?m)^- \*\*{re.escape(item)}\*\*", text)
+    if not m:
+        return None
+    nxt = re.search(r"(?m)^(?:- \*\*J\d-\d\.[a-z]\*\*|#{1,3} )", text[m.end():])
+    return m.start(), (m.end() + nxt.start()) if nxt else len(text)
+
+
+def replace_in_prompt(text: str, old: str, new: str, item: Optional[str]) -> str:
+    """판정 프롬프트 한 곳 바꾸기 — old 가 한 번이면 그곳, 여러 번이면 그 항목의 정의 블록 안에서 한 번일 때만 (10-25 밤: 상황표와 항목 정의에
+    같은 괄호 구절이 있어 J2-3.a P1 이 '적용 불가'로 시험되지 못한 것)."""
+    if text.count(old) == 1 or not item:
+        return replace_once(text, old, new, "판정 프롬프트")
+    span = item_block(text, item)
+    if not span:
+        return replace_once(text, old, new, "판정 프롬프트")
+    a, b = span
+    return text[:a] + replace_once(text[a:b], old, new, f"판정 프롬프트 {item} 블록") + text[b:]
+
+
+def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path: Path, checklists_path: Optional[Path],
+                   item: Optional[str] = None) -> Dict[str, Any]:
     """안의 edits 를 임시 복사본에 넣는다 → {"prompt": 경로, "jev_questions": 경로, "turn_checklists": 경로 또는 None, "applied": [설명]}."""
     work.mkdir(parents=True, exist_ok=True)
     out = {"prompt": prompt_path, "jev_questions": jev_path, "turn_checklists": checklists_path, "applied": []}
@@ -384,7 +406,7 @@ def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path
         for e in edits:
             if not (e.get("old") and e.get("new") is not None):
                 raise EditError("판정 프롬프트 edit 에는 old · new 가 있어야 합니다")
-            text = replace_once(text, e["old"], e["new"], "판정 프롬프트")
+            text = replace_in_prompt(text, e["old"], e["new"], e.get("item") or item)
             out["applied"].append(f"프롬프트: {e['old'][:40]!r} → {e['new'][:40]!r}")
         p = work / "judge_prompt.txt"
         p.write_text(text, encoding="utf-8")
@@ -488,7 +510,7 @@ def cmd_probe(a: argparse.Namespace) -> Dict[str, Any]:
         files = dict(base_files)
         if prop is not None:
             try:
-                files = apply_proposal(prop, d / "probes" / label / "files", jv.PROMPT_V4, jv.JEV_V4, base_files["turn_checklists"])
+                files = apply_proposal(prop, d / "probes" / label / "files", jv.PROMPT_V4, jv.JEV_V4, base_files["turn_checklists"], item=meta.get("item"))
             except EditError as exc:
                 say(f"✗ {label} 적용 불가 — {exc}")
                 probes["runs"].append({"label": label, "error": str(exc)})
@@ -724,7 +746,7 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
         return {"applied": [], "manual": prop}
     set_dir = Path(meta["set"])
     checklists = set_dir / "multiturn_v3" / "turn_checklists.json"
-    tmp = apply_proposal(prop, d / "apply", jv.PROMPT_V4, jv.JEV_V4, checklists if checklists.exists() else None)
+    tmp = apply_proposal(prop, d / "apply", jv.PROMPT_V4, jv.JEV_V4, checklists if checklists.exists() else None, item=meta.get("item"))
     for key, real in (("prompt", jv.PROMPT_V4), ("jev_questions", jv.JEV_V4), ("turn_checklists", checklists)):
         if tmp.get(key) and Path(tmp[key]) != real:
             shutil.copy2(tmp[key], real)

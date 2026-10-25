@@ -143,3 +143,19 @@ def test_side_effect_counts_only_verdict_relevant_changes_and_uses_base_noise_fl
     assert rl.adoption(base, p)[0] != "기각"           # base 흔들림(25%)과 같은 수준이면 다른 항목 때문에 기각하지 않음
     base_still = rl.score_label(cases, [base1], None)   # 1회차뿐이면 바닥을 모름 → 고정 5%
     assert rl.adoption(base_still, p)[0] == "기각"
+
+
+def test_prompt_edit_with_repeated_old_applies_inside_the_item_block(tmp_path: Path):
+    """old 가 프롬프트에 여러 번 나오면(상황표 · 항목 정의) 그 항목의 정의 블록 안에서만 바꾼다 (10-25 밤 J2-3.a P1)."""
+    prompt = tmp_path / "p.txt"
+    prompt.write_text("# 상황표\n- J2-3 조건 (모순 조건 쌍은 J1-3)\n# 점검 항목\n- **J2-3.a** · 조건을 어긴 문장이 없는가\n  · 적용: 조건 (모순 조건 쌍은 J1-3)\n"
+                      "- **J2-4.a** · 방식\n  · 적용: (모순 조건 쌍은 J1-3)\n", encoding="utf-8")
+    jev = tmp_path / "j.json"
+    jev.write_text("{}", encoding="utf-8")
+    out = rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "(모순 조건 쌍은 J1-3)", "new": "(모순 조건 쌍과 질문에서 온 충돌은 J1-3)"}]},
+                            tmp_path / "w", prompt, jev, None, item="J2-3.a")
+    text = Path(out["prompt"]).read_text(encoding="utf-8")
+    assert text.count("질문에서 온 충돌") == 1 and text.index("질문에서 온 충돌") > text.index("- **J2-3.a**") and text.index("질문에서 온 충돌") < text.index("- **J2-4.a**")
+    with pytest.raises(rl.EditError):   # 항목을 모르면 여전히 거부
+        rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "(모순 조건 쌍은 J1-3)", "new": "x"}]}, tmp_path / "w2", prompt, jev, None)
+
