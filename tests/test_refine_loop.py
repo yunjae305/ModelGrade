@@ -119,3 +119,11 @@ def test_proposal_schema_is_strict_and_lists_targets():
     assert set(prop["required"]) == set(prop["properties"]) and set(prop["properties"]["target"]["enum"]) == set(rl.TARGETS)
     edit = prop["properties"]["edits"]["items"]
     assert set(edit["required"]) == set(edit["properties"])
+
+
+def test_select_cases_max_lines_keeps_lines_with_most_fail_cells():
+    cells = ([_cell(1, "aiona", "FAIL", turn=t) for t in (2, 3, 4)] + [_cell(2, "aiona", "FAIL", turn=2)] + [_cell(3, "aiona", "FAIL", turn=5), _cell(3, "aiona", "FAIL", turn=6)]
+             + [_cell(q, "aiona", "PASS", turn=1) for q in (1, 2, 3, 4)])
+    got = rl.select_cases(cells, n_fail=6, n_pass=6, max_lines=2)
+    assert {(c["provider"], c["question"]) for c in got} == {("aiona", 1), ("aiona", 3)}   # FAIL 칸이 많은 두 대화만
+    assert sum(1 for c in got if c["decision"] == "FAIL") == 5 and sum(1 for c in got if c["decision"] == "PASS") == 2

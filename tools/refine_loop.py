@@ -103,14 +103,21 @@ def load_cells(run_id: str, judge_out: str, set_dir: Path, item: Optional[str] =
                               "reason": it.get("reason") or "", "answer_quote": it.get("answer_quote") or "", "question_quote": it.get("question_quote") or "",
                               "request": str(row.get("question") or "").split("[자료 끝]")[-1].strip(), "answer": row.get("answer") or "",
                               "facts": facts.get("checks") or [], "decided": facts.get("decided") or [], "situation": facts.get("situation") or "",
-                              "difficulty": (qs.get(q) or {}).get("difficulty")})
+                              "flow": facts.get("flow") or "", "difficulty": (qs.get(q) or {}).get("difficulty")})
     return cells
 
 
-def select_cases(cells: Sequence[Dict[str, Any]], n_fail: int, n_pass: int, seed: int = 1, types: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
-    """균형 표본 — FAIL · 보류 n_fail 개와 통과 n_pass 개(v2 10절 ①: 같은 수의 통과 칸). 모델 · 질문이 고루 섞이게 (같은 (모델, 질문)은 한 칸씩 먼저)."""
+def select_cases(cells: Sequence[Dict[str, Any]], n_fail: int, n_pass: int, seed: int = 1, types: Optional[Iterable[str]] = None,
+                 max_lines: Optional[int] = None) -> List[Dict[str, Any]]:
+    """균형 표본 — FAIL · 보류 n_fail 개와 통과 n_pass 개(v2 10절 ①: 같은 수의 통과 칸). 모델 · 질문이 고루 섞이게 (같은 (모델, 질문)은 한 칸씩 먼저).
+    max_lines 를 주면 FAIL · 보류 칸이 많은 (모델, 질문) 순으로 그 수만큼만 — 시험(재판정)은 (모델, 질문) 단위로 비용이 들므로(멀티턴은 대화 전체) 상한."""
     rnd = random.Random(seed)
     pool = [c for c in cells if not types or c["type"] in set(types)]
+    if max_lines:
+        bad_by_line: Counter = Counter((c["provider"], c["question"]) for c in pool if c["decision"] in ("FAIL", "UNVERIFIED"))
+        all_lines = sorted({(c["provider"], c["question"]) for c in pool}, key=lambda k: (-bad_by_line[k], k[1], k[0]))
+        keep = set(all_lines[:max_lines])
+        pool = [c for c in pool if (c["provider"], c["question"]) in keep]
 
     def spread(cs: List[Dict[str, Any]], n: int) -> List[Dict[str, Any]]:
         cs = list(cs)
@@ -169,7 +176,7 @@ def cmd_collect(a: argparse.Namespace) -> Path:
     if not cells:
         raise SystemExit(f"{a.judge} 에 {a.item} 칸이 없습니다")
     types = [t.strip() for t in (a.types or "").split(",") if t.strip()] or None
-    cases = select_cases(cells, a.fail, a.n_pass, a.seed, types)
+    cases = select_cases(cells, a.fail, a.n_pass, a.seed, types, a.max_lines)
     marks = load_marks(Path(a.marks)) if a.marks else {}
     for c in cases:
         c["truth"] = truth_of(c, marks.get(cell_key(c)))
@@ -182,6 +189,7 @@ def cmd_collect(a: argparse.Namespace) -> Path:
     (d / "cases.md").write_text(cases_md(cases, meta), encoding="utf-8")
     try:   # 사람 표시용 표 — 표시용 표 도구의 화면 그대로 (내보내기 JSON 을 --marks 로 받는다)
         from tools import build_calibration_sheet as cs
+        cs.KO.setdefault("UNVERIFIED", "보류")   # 표시용 표는 통과 · FAIL 만 알던 것 — 보류 칸도 표시 대상
         sheet = f"refine-{a.item}-{d.name}"
         (d / "표시용_표.html").write_text(cs.render([{**c, "facts": c.get("facts") or []} for c in cases], sheet, a.run, a.judge), encoding="utf-8")
     except Exception as exc:   # 표가 안 만들어져도 루프는 돈다
@@ -297,10 +305,23 @@ def make_channel(name: str, model: Optional[str], effort: Optional[str], log_dir
         gpt.io_dir = log_dir
         return gpt
     from tools.judge_claude_compare import ClaudeJudge, find_claude
-    # 기본 Sonnet 5.5 · effort high — Opus 5.5 는 Claude Code 2.1.280 이상이 필요(10-25 확인: 2.1.227 에서 400) → --model claude-opus-5-5 로 고를 수 있음
-    judge = ClaudeJudge(find_claude(), model=model or "claude-sonnet-5-5", effort=effort or "high", calls_log=log_dir / "llm_calls.jsonl")
+    # 기본 Opus 5.5 · effort high(사용자 10-25 밤). Opus 5.5 는 Claude Code 2.1.280 이상이 필요 — 옛 CLI 면 호출이 400 으로 실패하고 ask() 가 Sonnet 5.5 로 한 번 대체한다
+    judge = ClaudeJudge(find_claude(), model=model or "claude-opus-5-5", effort=effort or "high", calls_log=log_dir / "llm_calls.jsonl")
     judge.io_dir = log_dir
     return judge
+
+
+FALLBACK_MODEL = "claude-sonnet-5-5"
+
+
+def ask(ch: Any, guide: str, payload: Dict[str, Any], tag: str, schema: Dict[str, Any]) -> Tuple[str, Any, str]:
+    """모델 통로 호출 — 지정 모델을 CLI 가 모르면(옛 Claude Code) Sonnet 5.5 로 한 번 대체하고 알린다."""
+    status, body, error = ch.judge(guide, json.dumps(payload, ensure_ascii=False, indent=1), False, tag, output_schema=schema)
+    if status != "OK" and "does not support this model" in str(error) and getattr(ch, "model", "") != FALLBACK_MODEL:
+        say(f"⚠ {ch.model} 은 지금 Claude Code 가 지원하지 않음({str(error)[:90]}) → {FALLBACK_MODEL} 로 대체 (claude update 뒤 다시 Opus)")
+        ch.model = FALLBACK_MODEL
+        status, body, error = ch.judge(guide, json.dumps(payload, ensure_ascii=False, indent=1), False, tag, output_schema=schema)
+    return status, body, error
 
 
 def propose_input(cases: Sequence[Dict[str, Any]], item: str, set_dir: Path) -> Dict[str, Any]:
@@ -323,7 +344,7 @@ def cmd_propose(a: argparse.Namespace) -> Dict[str, Any]:
     (d / "propose_input.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     say(f"제안 요청 — {a.channel} {ch.model} · {ch.reasoning} · 칸 {len(cases)}개 …")
     t0 = time.monotonic()
-    status, body, error = ch.judge(PROPOSE_GUIDE, json.dumps(payload, ensure_ascii=False, indent=1), False, f"propose {meta['item']}", output_schema=proposal_schema())
+    status, body, error = ask(ch, PROPOSE_GUIDE, payload, f"propose {meta['item']}", proposal_schema())
     secs = round(time.monotonic() - t0, 1)
     if status != "OK" or not isinstance(body, dict):
         raise SystemExit(f"제안 실패: {status} {error}")
@@ -654,7 +675,7 @@ def cmd_reflect(a: argparse.Namespace) -> Dict[str, Any]:
                                             "사람_표시": c.get("truth")} for c in cases],
               "제안": res["proposals"], "점수": {k: {kk: vv for kk, vv in v.items() if kk != "changed_vs_base"} for k, v in res["scores"].items()},
               "바뀐_칸": {k: v.get("changed_vs_base") for k, v in res["scores"].items() if v.get("changed_vs_base")}, "채택_판단": res["adoption"]}
-    status, body, error = ch.judge(REFLECT_GUIDE, json.dumps(record, ensure_ascii=False, indent=1), False, f"reflect {meta['item']}", output_schema=lesson_schema())
+    status, body, error = ask(ch, REFLECT_GUIDE, record, f"reflect {meta['item']}", lesson_schema())
     if status != "OK" or not isinstance(body, dict):
         raise SystemExit(f"교훈 실패: {status} {error}")
     lesson = {**body, "item": meta["item"], "cases_dir": str(d), "adoption": res["adoption"], "at": datetime.now(timezone.utc).isoformat(),
@@ -735,11 +756,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         p.add_argument("--pass", dest="n_pass", type=int, default=12, help="통과 칸 수(같은 수가 기본, v2 10절 ①)")
         p.add_argument("--types", default="", help="싱글,멀티턴 — 비우면 둘 다 (멀티턴은 대화 전체를 다시 판정하므로 비쌈)")
         p.add_argument("--seed", type=int, default=1)
+        p.add_argument("--max-lines", type=int, help="(모델, 질문) 상한 — FAIL · 보류가 많은 순으로 이만큼만(멀티턴 재판정 비용 조절)")
         p.add_argument("--marks", help="사람 표시 파일(표시결과_*.json 또는 human_decisions.json)")
 
     def common_llm(p: argparse.ArgumentParser) -> None:
         p.add_argument("--channel", default="claude", choices=["claude", "codex"], help="제안 · 교훈을 쓸 모델 통로 — 기본 Claude CLI (사용자 10-25)")
-        p.add_argument("--model", help="모델 이름 (Claude 기본 claude-sonnet-5-5 — Opus 5.5 는 Claude Code 2.1.280 이상, Codex 기본 .env CODEX_CLI_MODEL)")
+        p.add_argument("--model", help="모델 이름 (Claude 기본 claude-opus-5-5 — Claude Code 2.1.280 이상, 옛 CLI 면 Sonnet 5.5 로 대체; Codex 기본 .env CODEX_CLI_MODEL)")
         p.add_argument("--effort", help="추론 노력 (Claude 기본 high)")
 
     def common_probe(p: argparse.ArgumentParser) -> None:
