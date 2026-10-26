@@ -222,7 +222,14 @@ def save_run(run: Dict[str, Any], backup: bool = True) -> Path:
         shutil.copyfile(path, path.with_suffix(f".json.bak-{datetime.now().strftime('%Y%m%d-%H%M%S')}"))
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
+    for attempt in range(20):   # Windows: 다른 프로세스가 실행 파일을 읽는 동안에는 바꿔치기가 거부된다 — 잠깐 기다렸다 다시 (10-26 밤 ChatGPT 수집기가 이것으로 멈춤)
+        try:
+            tmp.replace(path)
+            break
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.5)
     (RUNS / f"{run['run_id']}.meta.json").write_text(json.dumps(run_meta(run), ensure_ascii=False), encoding="utf-8")   # 실행 찾기용 작은 색인
     return path
 
@@ -671,8 +678,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
         try:
             merge_provider_into_run(run["run_id"], args.provider, label, merged_rows(), None, None, backup=not backed_up[0])
             backed_up[0] = True
-        except SystemExit as exc:
-            print(f"  (중간 저장 실패: {exc})", flush=True)
+        except (SystemExit, OSError) as exc:   # 다음 턴에 다시 저장한다 — 중간 저장 실패로 수집기가 죽지 않게 (10-26 밤)
+            print(f"  (중간 저장 실패: {type(exc).__name__}: {exc})", flush=True)
     from code_eval.llm_client import env_value
     answer_timeout = int(env_value("COLLECT_ANSWER_TIMEOUT") or 0)   # 답변 대기 제한(초), 기본 0 = 제한 없음 (사용자 지시 10-20: 제한 시간 해제)
     with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "collect-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout,
