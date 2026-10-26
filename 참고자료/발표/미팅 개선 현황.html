@@ -35,6 +35,7 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 <body><main>
 <h1>10-22 미팅 — 개선 현황 · 무엇을 했나</h1>
 <p class="mute">2026-10-23 · 미팅에서 나온 12항목마다 한 일 · 발표자료에서 바뀐 곳 · 남은 것. 걸린 시간 편차 top 5 · 기준별 FAIL 수 · harness2 방식은 끝의 <a href="#부록">부록</a>에. 발표자료 링크는 그 장면으로 바로 갑니다.</p>
+<p class="mute"><b>10-26 오후 추가</b> — 13~21번(AIONA 동시 수집 · 에러 케이스 · 1차 심판 횟수 · 파일 하나 판정 · 실행 단위 · 수정 내역 · 새 판정 결과 · 빈 출력 화면 · 다듬기 루프).</p>
 
 <h2>한눈에</h2>
 <div class="card"><div class="scroll"><table class="sum">
@@ -51,6 +52,15 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 <tr><td>10</td><td><a href="#i10">발전 방향</a></td><td><span class="t ok">반영</span></td><td>07 장면 카드 6개 + 기준 다듬기 루프</td></tr>
 <tr><td>11</td><td><a href="#i11">마감 범위 · 상시 운영</a></td><td><span class="t ok">반영 · 확정</span></td><td>새 장면 08 — 10-30 마감, 그 뒤 업데이트마다 한 바퀴</td></tr>
 <tr><td>12</td><td><a href="#i12">차별점</a></td><td><span class="t ok">반영</span></td><td>01 장면에 다른 평가와 비교 · 차별점 6 · 꼭 써야 하는 이유</td></tr>
+<tr><td>13</td><td><a href="#i13">AIONA 서로 다른 모델 동시 수집</a></td><td><span class="t ok">가능 · 확인 끝</span></td><td>터미널 두 개에서 모델을 다르게 — 탭을 모델마다 따로 차지해 섞임 0</td></tr>
+<tr><td>14</td><td><a href="#i14">에러 케이스</a></td><td><span class="t ok">반영</span></td><td>대분류 0 신설 · 빈 응답은 바로, 의심은 보류 → 사람이 정해 기록에 쌓음</td></tr>
+<tr><td>15</td><td><a href="#i15">1차 심판 3번 → 1번</a></td><td><span class="t ok">반영</span></td><td>Decisions 10,526칸 중 갈림 0 · Jev 3,701칸 중 54칸(FAIL 이 낀 것 16칸) — 갈린 칸과 답</td></tr>
+<tr><td>16</td><td><a href="#i16">파일 하나로 한 번 판정</a></td><td><span class="t warn">시험 끝 · 기본은 묶음</span></td><td>단일 질문 94개를 한 호출로 됨 — 느리거나(표준 입력) 비싸고 위험(파일)해 옵션으로 둠</td></tr>
+<tr><td>17</td><td><a href="#i17">20개씩 끊기</a></td><td><span class="t ok">한 번에</span></td><td>전체 판정은 한 번 실행 — 41~78번 × 네 모델을 12분에</td></tr>
+<tr><td>18</td><td><a href="#i18">질문 · 기준 · 프롬프트 수정</a></td><td><span class="t ok">반영</span></td><td>원본 → 수정 후 18줄 — 질문은 수정 없음</td></tr>
+<tr><td>19</td><td><a href="#i19">새 기준으로 전체 다시 판정</a></td><td><span class="t ok">끝</span></td><td>질문 / 78 통과 Claude 52 · AIONA 51 · GPT 51 · Gemini 42 · 보류 103건 사람 판정</td></tr>
+<tr><td>20</td><td><a href="#i20">빈 출력 — 복사 아이콘이 안 뜨면 화면</a></td><td><span class="t ok">반영</span></td><td>마지막 질문 ~ 답 자리만 찍어 보고서 보류 원문에</td></tr>
+<tr><td>21</td><td><a href="#i21">harness2 로 프롬프트 다듬기</a></td><td><span class="t warn">진행 중</span></td><td>FAIL 많은 기준 7개를 고칠 안 → 전후 다시 판정 → 채택 판단</td></tr>
 </table></div></div>
 
 <!-- 1 -->
@@ -310,6 +320,219 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 <details><summary>화면 보기</summary><figure><img loading="lazy" src="미팅 개선 현황_화면/06_차별점.jpg" alt="다른 평가와 비교 · 차별점 · 써야 하는 이유"></figure></details></div></div>
 </div></section>
 
+
+
+<h2 id="d1026">10-26 오후 추가 — 13~21</h2>
+
+<!-- 13 -->
+<section class="it" id="i13"><h2><span class="no">13</span>AIONA 서로 다른 모델 동시 수집 <span class="t ok">가능 · 확인 끝</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>AIONA 안에서 모델을 다르게 골라 두 개를 동시에 받을 수 있나 — AIONA 안 모델끼리 비교하려고.</div></div>
+<div class="row"><b>한 것</b><div>수집기마다 자기 탭을 '사이트:모델' 표시로 차지하고 끝나면 놓게 함 — 전에는 두 실행이 같은 AIONA 탭을 뺏었음.
+<div class="key">실제 확인(10-25 밤): AIONA 채팅 두 개(자동 추천 · Claude Sonnet 5.5)에 질문을 동시에 두 번 보냄 → 둘 다 맞는 답, <b>섞임 0</b>, 채팅 주소 따로.</div></div></div>
+<div class="row"><b>쓰는 법</b><div>터미널 두 개에서 모델만 다르게: <code>.\modelgrade start --model "claude:Sonnet 5.5"</code> — 실행 · 결과 폴더가 따로 생김.</div></div>
+</div></section>
+
+<!-- 14 -->
+<section class="it" id="i14"><h2><span class="no">14</span>에러 케이스 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>빈 응답 · 오류 문구 같은 답을 기준으로 — 종류가 계속 나올 테니 보류로 보내 사람이 에러 케이스 · PASS · FAIL 을 정하고 데이터를 쌓자. 빈 응답은 일단 에러 케이스로.</div></div>
+<div class="row"><b>한 것</b><div>CODE 대분류 <b>0 에러 케이스</b>를 새로 둠(4대분류 · 9소분류 · 28 검사, 기준 수 72 그대로). 명시 빈 출력도 여기로.
+<div class="two">
+<div class="box"><b>바로 에러 케이스(FAIL)</b>빈 응답(복사를 다시 해도 비어 있음) · 답 없음(수집 오류) · 사람이 '에러 케이스'로 정한 것과 같은 글</div>
+<div class="box"><b>의심 → 보류 → 사람이 정함</b>정형 거절("언어 모델이라 할 수 없습니다") · 서비스 오류 문구 · 짧은 오류 · 거절 답 → 보고서에서 에러 케이스 · PASS · FAIL → 기록(<code>error_case_labels.json</code>)에 쌓여 같은 글은 다음부터 기록대로</div>
+</div>
+에러 케이스 턴의 의미 평가는 '요청 수행'(J1-1.a)만 FAIL — 오류 하나를 항목 여러 개로 세지 않음.</div></div>
+<div class="row"><b>이번 판정</b><div>'에러 케이스 확인' 보류 질문 — Gemini 7 · AIONA 2. 팀원 사람 판정에서 에러 케이스 29건(<a href="../분석/2026-10-26-보류표시/보류판정_정리.md">보류판정 정리</a>).</div></div>
+<div class="row"><b>남은 것</b><div>사람 판정을 기록에 반영(<code>held-apply</code>) — 반영하면 같은 글은 다음 판정부터 자동.</div></div>
+</div></section>
+
+<!-- 15 -->
+<section class="it" id="i15"><h2><span class="no">15</span>1차 심판 3번 → 1번 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>1차 심판(Jev · Decisions)을 3번씩 돌려 본 뒤 다시 1번으로 한 이유 — 갈린 것이 있으면 몇 개 중 몇 개이고 어떤 질문인지.</div></div>
+<div class="row"><b>비교</b><div>질문 78개 × 네 모델의 모든 턴을 심판 하나로 고정해 칸마다 3번씩 물음(Codex 없이).
+<div class="scroll"><table>
+<tr><th></th><th>판정한 칸</th><th>3번이 모두 같은 칸</th><th>갈린 칸</th></tr>
+<tr><td>Decisions</td><td class="num">10,526</td><td class="num">10,526</td><td class="num"><b>0</b></td></tr>
+<tr><td>Jev</td><td class="num">3,701</td><td class="num">3,647</td><td class="num"><b>54</b> (1.5%) — 통과 ↔ 해당 없음 38 · FAIL 이 낀 것 16</td></tr>
+</table></div></div></div>
+<div class="row"><b>1번으로 한 이유</b><div><ul>
+<li><b>Decisions</b> 는 선택지마다 확률을 계산하는 방식이라 같은 입력이면 늘 같은 답 — 3번은 호출 · 토큰만 3배.</li>
+<li><b>Jev</b> 갈림 54칸 중 38칸은 '통과 ↔ 해당 없음'이라 둘 다 '어긴 것 없음' — 질문 판정이 같음.</li>
+<li>FAIL 이 낀 16칸은 지금 흐름(단일 질문은 Jev · Decisions 교차, 둘이 다르거나 확신 0.8 아래면 Codex 가 확정)에서 10칸은 Codex 가 정했고 3칸은 그 턴 목표 기준이 아님.</li>
+<li>남은 위험: 1차에서 통과로 끝난 3칸 중 <b>1칸(Q31 AIONA J5-2.b)</b>은 3번 다수가 FAIL 이었음.</li>
+</ul></div></div>
+<div class="row"><b>갈린 칸</b><div>FAIL 이 낀 16칸 — 질문 · 답 앞부분과 지금 흐름에서 어떻게 정해졌는지
+<div class="scroll"><table>
+<tr><th>질문</th><th>모델</th><th>턴</th><th>기준</th><th>세 표</th><th>요청(앞부분)</th><th>답(앞부분)</th><th>1번 흐름(v4-f1)</th></tr>
+<tr><td>Q2</td><td>Gemini</td><td class='num'>1</td><td>J5-2.b<br><span class='small mute'>질문이 준 자료를 정리·요약할 때 원문에 없는 문장을 더하거나 문장 단위 의미를 바꾸지(취소→연기 등) 않았</span></td><td class='num'>FAIL · 해당 없음 · 해당 없음</td><td class='small'>바람길 자전거 동호회의 강변 새벽 라이딩 사전 모임 운영을 도와주세요. 이 대화 전체에서는 존댓말과 간결한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 06:1…</td><td class='small'>### A안과 B안 비교
+
+| 비교 기준 | A안 (당일 대여점 왕복) | B안 (전날 보관함 비치) |
+| --- | --- | --- |
+| **비용** | **0원** (대여점 무상 대여) | **4,000원** (공원 무인 보관함 이용료) |
+| **집결지 접수…</td><td class='small'>그 턴 목표 기준 아님(판정 안 함)</td></tr><tr><td>Q2</td><td>Gemini</td><td class='num'>2</td><td>J5-3.a<br><span class='small mute'>하지 않은 조회·확인·실행을 한 것처럼 쓰거나, 존재하지 않는 출처·문헌·조문·제품을 들지 않았는가 (그 문</span></td><td class='num'>FAIL · FAIL · 통과</td><td class='small'>이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝…</td><td class='small'>### 참가자 행동 관련 확정 사항 요약
+
+참가자 행동과 관련하여 확정된 사항은 다음과 같습니다.
+
+* **사전 등록 및 참가 조건:** 사전 등록을 필수로 하며, 출발 전 집에서 헬멧, 전조등, 후미등, 마실 물을 반드시 갖추어야 합니다 [1]. 미등록 성인은 현장 …</td><td class='small'>Codex 가 확정 → FAIL</td></tr><tr><td>Q4</td><td>GPT</td><td class='num'>1</td><td>J4-4.a<br><span class='small mute'>원문의 핵심 정보(독자가 판단·행동하는 데 필요한 날짜·기간·장소·대상·조건·할 일)를 먼저 나열하고 그중 </span></td><td class='num'>FAIL · 통과 · 통과</td><td class='small'>푸른숲학원의 학부모 설명회 운영을 도와주세요. 이 대화 전체에서는 존댓말과 정중한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 18:20, 행사 19:30~21…</td><td class='small'># 푸른숲학원 학부모 설명회 운영 사항 확인
+
+제공해 주신 2026년 9월 4일 1차 준비 회의록을 기준으로, 이미 결정된 사항과 아직 보류 중인 사항을 구분했습니다.
+
+이번 정리에서는 A안과 B안 중 어느 쪽도 선택하지 않으며, 회의록에 없는 사항을 새로 확정하지 않…</td><td class='small'>그 턴 목표 기준 아님(판정 안 함)</td></tr><tr><td>Q5</td><td>Gemini</td><td class='num'>2</td><td>J2-3.a<br><span class='small mute'>질문이 직접 말한 조건·제약(&quot;~는 빼고&quot;, &quot;~이내&quot;, &quot;~만&quot;, &quot;~안 돼&quot;)을 어긴 문장이 없는가 (조</span></td><td class='num'>FAIL · 통과 · 통과</td><td class='small'>해솔아파트 입주자회의 게시용 안내문 초안 전체를 제시해 주세요. 세대가 당일 할 행동이 드러나도록 앞에서 확정한 일시·참여 조건·문의처를 충분히 안내해 주세요. 글자는 한글만 사용하고 숫자와 문장 …</td><td class='small'>저는 언어 모델일 뿐이라 그것을 이해하고 대응할 능력이 없기 때문에 도와드릴 수가 없습니다.…</td><td class='small'>Codex 가 확정 → 해당 없음</td></tr><tr><td>Q8</td><td>GPT</td><td class='num'>1</td><td>J4-4.a<br><span class='small mute'>원문의 핵심 정보(독자가 판단·행동하는 데 필요한 날짜·기간·장소·대상·조건·할 일)를 먼저 나열하고 그중 </span></td><td class='num'>FAIL · 통과 · FAIL</td><td class='small'>노을합창단의 정기 연주회 운영을 도와주세요. 이 대화 전체에서는 존댓말과 차분한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 15:30, 행사 17:00~18:…</td><td class='small'># 노을합창단 정기 연주회 운영 사항 확인
+
+제공해 주신 2026년 9월 14일 제1차 준비 회의록을 기준으로 이미 결정된 사항과 아직 보류된 사항을 구분하겠습니다.
+
+현재 A안과 B안은 각각의 조건만 확정되었으며, 운반 방식의 최종 선택은 보류 상태로 유지하겠습니다.…</td><td class='small'>그 턴 목표 기준 아님(판정 안 함)</td></tr><tr><td>Q18</td><td>Claude</td><td class='num'>1</td><td>J1-4.a<br><span class='small mute'>질문에 답하는 데 쓰이지 않는 단락이 없는가 (같은 내용의 반복은 J1-4.b에서만 봄)</span></td><td class='num'>FAIL · 통과 · FAIL</td><td class='small'>첨부 게시판 사진의 체험 일시·장소·신청 방법·마감을 표로 요약해 주세요. 제공 물품도 같은 표에 넣고 참가비 액수가 없으면 미기재라고 적어 주세요. 읽히지 않는 부분이 있다면 그 범위만 밝혀 주세…</td><td class='small'>## 모래빛 공방 도자기 체험 접수 안내 요약
+
+
+
+| 항목 | 내용 |
+
+|---|---|
+
+| 프로그램 | 도자기 체험 |
+
+| 체험 일시 | 10월 12일 13시 |
+
+| 장소 | 본관 작업실 |
+
+| 대상 | 처음 배우는 성인 |
+
+| 정원 | 8명 |
+
+| 신…</td><td class='small'>Codex 가 확정 → FAIL</td></tr><tr><td>Q19</td><td>GPT</td><td class='num'>1</td><td>J1-4.b<br><span class='small mute'>본문에서 같은 내용이 새 정보 없이 별도 항목·단락으로 두 번 나오지 않았는가 (마무리 요약 한 번은 제외)</span></td><td class='num'>통과 · FAIL · 통과</td><td class='small'>첨부 정산 메일을 구분선과 항목 순서에 맞춰 표로 요약해 주세요. 승인 상한·실지급·미지급 청구·남은 예상·환불 상태를 구별하고, 교통비는 기재 여부를 밝혀 주세요. 미입금액을 실제 입금으로 바꾸지…</td><td class='small'># 전시 행사 정산 메일 요약
+
+문서 정보
+
+- 제목: 전시 행사 정산 상태와 후속 확인
+- 발신: 푸른실 운영회계반
+- 수신: 전시지원실
+- 작성일: 2026년 9월 27일
+- 문서 번호: 정산-0927
+
+## 1. 승인과 실제
+
+| 구분          | 금액  …</td><td class='small'>Codex 가 확정 → 통과</td></tr><tr><td>Q31</td><td>AIONA</td><td class='num'>1</td><td>J5-2.b<br><span class='small mute'>질문이 준 자료를 정리·요약할 때 원문에 없는 문장을 더하거나 문장 단위 의미를 바꾸지(취소→연기 등) 않았</span></td><td class='num'>FAIL · 통과 · FAIL</td><td class='small'>첨부 규정의 첫 쪽의 미확정 표와 다음 쪽 확정표를 구별해 실제 적용 규칙을 표로 요약해 주세요. 미확정 항목과 기재되지 않은 비용도 구별해 주세요. 미확정 내용을 확정 규칙으로 안내하지 마세요. …</td><td class='small'>첨부 규정은 첫 쪽의 검토표와 다음 쪽의 확정표를 구분해 읽어야 합니다. **실제 적용 규칙은 확정표의 세 항목**이며, 첫 쪽의 검토 내용은 확정 규칙이 아닙니다.
+
+## 실제 적용 규칙
+
+| 항목 | 확정된 규칙 | 적용일 | 비고 |
+|---|---|---|---…</td><td class='small'>1차로 끝남 → 통과 <b class='up'>← 3번 다수는 FAIL</b></td></tr><tr><td>Q37</td><td>GPT</td><td class='num'>1</td><td>J1-4.b<br><span class='small mute'>본문에서 같은 내용이 새 정보 없이 별도 항목·단락으로 두 번 나오지 않았는가 (마무리 요약 한 번은 제외)</span></td><td class='num'>FAIL · 통과 · 통과</td><td class='small'>예약 시작·종료 시각 두 쌍을 분 단위 정수로 받아 겹치면 True인 파이썬 함수를 작성해 주세요. 끝나는 시각과 다음 시작 시각이 같으면 겹치지 않습니다. 60~90과 90~120으로 사용 예를 …</td><td class='small'>다음 함수는 두 예약 시간대가 겹치는지 확인합니다.
+
+- 겹치면 `True`를 반환합니다.
+- 겹치지 않으면 `False`를 반환합니다.
+- 한 예약의 종료 시각과 다른 예약의 시작 시각이 같으면 겹치지 않는 것으로 처리합니다.
+- 입력값은 변경하지 않습니다.
+
+###…</td><td class='small'>Codex 가 확정 → 통과</td></tr><tr><td>Q46</td><td>Claude</td><td class='num'>1</td><td>J4-4.a<br><span class='small mute'>원문의 핵심 정보(독자가 판단·행동하는 데 필요한 날짜·기간·장소·대상·조건·할 일)를 먼저 나열하고 그중 </span></td><td class='num'>통과 · FAIL · 통과</td><td class='small'>첨부 현장 기록의 구역별 실제 회수·보류·취소 상태를 표로 요약해 주세요. 뒤의 회신이 앞선 줄을 바꾸는지 확인하고 실물 회수와 상태 점검 대기를 구별해 주세요. 없는 재고를 만들지 마세요. 결과는…</td><td class='small'>잎새길 현장 수거 기록(판본 3)을 정리하면, 오후 회신이 바꾼 상태는 하나도 없습니다. 오후 회신은 동쪽-2의 보류를 그대로 유지했고, 서쪽-2는 오전 기록에 없던 구역이라 새로 취소로 추가됩니다.
+
+
+
+| 구역 | 최종 상태 | 물품 | 근거 |
+
+|---|---|…</td><td class='small'>1차로 끝남 → 통과</td></tr><tr><td>Q46</td><td>Gemini</td><td class='num'>1</td><td>J4-4.a<br><span class='small mute'>원문의 핵심 정보(독자가 판단·행동하는 데 필요한 날짜·기간·장소·대상·조건·할 일)를 먼저 나열하고 그중 </span></td><td class='num'>통과 · 통과 · FAIL</td><td class='small'>첨부 현장 기록의 구역별 실제 회수·보류·취소 상태를 표로 요약해 주세요. 뒤의 회신이 앞선 줄을 바꾸는지 확인하고 실물 회수와 상태 점검 대기를 구별해 주세요. 없는 재고를 만들지 마세요. 결과는…</td><td class='small'>| 구역 | 대상 품목 및 수량 | 최종 상태 | 실물 회수 및 세부 현황 |
+| --- | --- | --- | --- |
+| **동쪽-1** | 접이식 상자 4개 | **회수 완료**&lt;br&gt; | 실물 회수 확인 완료 (내용물 비움 확인) |
+| **동쪽-2** | …</td><td class='small'>1차로 끝남 → 통과</td></tr><tr><td>Q51</td><td>GPT</td><td class='num'>1</td><td>J4-2.a<br><span class='small mute'>주 요청 외에 종류가 다른 요구(추가 요청·이유·예시·각각)가 모두 있는가 (비교의 기준·장단점은 J4-1.</span></td><td class='num'>통과 · FAIL · 통과</td><td class='small'>실습실 이용 안내문을 써 주세요. 열린책 2층 실습실은 10월 14일 오후 2시부터 4시까지 점검으로 닫습니다. 기존 예약은 취소하며 다음 날로 자동 연기하지 않습니다. 대체 공간을 새로 정하지 말…</td><td class='small'># 실습실 이용 안내문
+
+\- 점검 일정 안내: 열린책 2층 실습실은 10월 14일 오후 2시부터 4시까지 시설 점검으로 인해 이용하실 수 없습니다. 이용에 참고해 주시기 바랍니다.
+
+\- 기존 예약 안내: 해당 시간대의 기존 예약은 취소되며, 다음 날로 자동 연기되지…</td><td class='small'>Codex 가 확정 → 통과</td></tr><tr><td>Q69</td><td>Gemini</td><td class='num'>2</td><td>J5-3.a<br><span class='small mute'>하지 않은 조회·확인·실행을 한 것처럼 쓰거나, 존재하지 않는 출처·문헌·조문·제품을 들지 않았는가 (그 문</span></td><td class='num'>FAIL · FAIL · 통과</td><td class='small'>이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝…</td><td class='small'>제시된 회의록(판본 2)을 바탕으로 참가자 행동에 필요한 확정 사항과 미정 사항을 정리한 요약입니다.
+
+---
+
+### 1. 참가자 행동 관련 확정 사항 [결정]
+
+* **사전 등록 필수 및 명단 기준 입장:** 회원 게시판의 등록 양식을 통해 사전 등록을 완료해야 합…</td><td class='small'>Codex 가 확정 → 통과</td></tr><tr><td>Q69</td><td>GPT</td><td class='num'>2</td><td>J5-2.b<br><span class='small mute'>질문이 준 자료를 정리·요약할 때 원문에 없는 문장을 더하거나 문장 단위 의미를 바꾸지(취소→연기 등) 않았</span></td><td class='num'>통과 · FAIL · FAIL</td><td class='small'>이 기록에서 참가자 행동에 필요한 확정 사항과 아직 미정인 사항을 빠뜨리지 않게 요약해 주세요. 문장에 [1]·[2]를 인용하여 제공된 기록의 원제목과 대응하는 출처 목록을 함께 작성해 주세요. 끝…</td><td class='small'># 밤샘스터디 온라인 모의 발표회 참가자 안내 사항 요약
+
+기준 자료: 2026년 9월 14일 준비 회의 결과를 반영한 「밤샘스터디 온라인 모의 발표회 준비 회의록 — 운영 확인 기록(판본 2)」
+
+이번 기록에서 참가자가 직접 해야 할 행동과 관련된 사항을 확정 사항과…</td><td class='small'>Codex 가 확정 → FAIL</td></tr><tr><td>Q75</td><td>Claude</td><td class='num'>1</td><td>J1-4.a<br><span class='small mute'>질문에 답하는 데 쓰이지 않는 단락이 없는가 (같은 내용의 반복은 J1-4.b에서만 봄)</span></td><td class='num'>통과 · 통과 · FAIL</td><td class='small'>주변 조명을 끈 뒤 같은 밝기의 화면이 더 눈부시게 느껴졌습니다. 실제 화면 밝기가 바뀌었다고 단정하지 않고, 물리적 밝기와 지각의 차이를 비유와 그 대응으로 설명해 주세요. 어떤 조건이 먼저 바뀌…</td><td class='small'>불을 끄고 나서 화면이 더 눈부시게 느껴지는 것은 화면이 실제로 밝아졌기 때문이 아니라, 눈이 &quot;기준&quot;으로 삼는 밝기가 내려갔기 때문입니다. 화면이 내보내는 빛의 양(휘도)은 그대로이고, 그 빛을 받아들이는 눈의 상태가 바뀐 것입니다.
+
+
+
+**비유: 소란한 카페와 조…</td><td class='small'>Codex 가 확정 → 통과</td></tr><tr><td>Q77</td><td>GPT</td><td class='num'>1</td><td>J5-2.a<br><span class='small mute'>질문에서 준 개별 값·이름·날짜를 썼다면 다른 값으로 적지 않았는가 (쓰지 않은 값은 해당 없음. 상황 문장</span></td><td class='num'>통과 · 통과 · FAIL</td><td class='small'>작은 낭독회를 혼자 운영합니다. 9시에 도착하고 행사는 10~12시이며 접수는 9시 45분부터입니다. 자료실은 편도 8분, 자료 확인 6분, 현장 설치 10분입니다. 예산 상한은 60000원, 실지…</td><td class='small'>## 작은 낭독회 1인 운영 일정 및 예산표
+
+| 순서          | 시간           | 소요 시간 | 작업 및 운영 내용                                                                           …</td><td class='small'>Codex 가 확정 → 통과</td></tr>
+</table></div>
+<details><summary>통과 ↔ 해당 없음으로 갈린 38칸</summary><p class="small">Q1 AIONA 1턴 J5-2.b(통과 · 통과 · 해당 없음) · Q1 AIONA 2턴 J6-2.a(해당 없음 · 통과 · 통과) · Q1 Gemini 2턴 J6-4.a(통과 · 통과 · 해당 없음) · Q3 Claude 1턴 J5-2.b(해당 없음 · 통과 · 통과) · Q4 Claude 1턴 J4-4.a(해당 없음 · 통과 · 해당 없음) · Q4 Gemini 1턴 J4-4.a(통과 · 해당 없음 · 통과) · Q4 Gemini 2턴 J5-2.a(해당 없음 · 해당 없음 · 통과) · Q5 AIONA 1턴 J1-3.a(통과 · 통과 · 해당 없음) · Q5 AIONA 2턴 J5-3.a(통과 · 통과 · 해당 없음) · Q5 Claude 1턴 J5-2.b(해당 없음 · 해당 없음 · 통과) · Q5 Gemini 1턴 J5-2.b(해당 없음 · 통과 · 해당 없음) · Q5 Gemini 2턴 J5-2.a(통과 · 해당 없음 · 해당 없음) · Q5 GPT 2턴 J5-3.a(해당 없음 · 해당 없음 · 통과) · Q6 Gemini 2턴 J5-3.a(통과 · 해당 없음 · 통과) · Q6 GPT 1턴 J5-2.b(통과 · 통과 · 해당 없음) · Q7 GPT 1턴 J5-2.b(해당 없음 · 통과 · 해당 없음) · Q8 Claude 1턴 J3-5.a(통과 · 해당 없음 · 해당 없음) · Q8 Claude 1턴 J4-4.a(통과 · 해당 없음 · 통과) · Q8 Gemini 1턴 J4-4.a(통과 · 해당 없음 · 통과) · Q9 Claude 1턴 J5-2.b(해당 없음 · 통과 · 해당 없음) · Q9 Gemini 2턴 J5-3.a(통과 · 해당 없음 · 해당 없음) · Q10 AIONA 1턴 J4-4.a(통과 · 통과 · 해당 없음) · Q10 Claude 2턴 J1-3.a(통과 · 해당 없음 · 해당 없음) · Q10 GPT 1턴 J1-3.b(해당 없음 · 해당 없음 · 통과) · Q10 GPT 2턴 J6-2.a(통과 · 통과 · 해당 없음) · Q31 GPT 1턴 J1-3.b(해당 없음 · 해당 없음 · 통과) · Q36 Gemini 1턴 J5-3.a(해당 없음 · 통과 · 해당 없음) · Q56 GPT 1턴 J5-3.a(통과 · 통과 · 해당 없음) · Q69 AIONA 1턴 J3-2.b(통과 · 해당 없음 · 통과) · Q69 AIONA 1턴 J3-5.a(해당 없음 · 통과 · 통과) · Q69 Claude 1턴 J3-5.a(해당 없음 · 해당 없음 · 통과) · Q69 Claude 2턴 J6-2.b(해당 없음 · 통과 · 해당 없음) · Q69 Gemini 1턴 J5-3.a(해당 없음 · 통과 · 해당 없음) · Q69 Gemini 2턴 J6-2.b(해당 없음 · 통과 · 통과) · Q69 GPT 1턴 J4-1.b(해당 없음 · 해당 없음 · 통과) · Q69 GPT 2턴 J6-2.b(해당 없음 · 통과 · 통과) · Q74 GPT 1턴 J5-3.a(통과 · 통과 · 해당 없음) · Q76 AIONA 1턴 J5-3.a(통과 · 해당 없음 · 해당 없음)</p></details>
+<p class="small mute">자료: <a href="../분석/2026-10-26-1차심판비교/요약.md">1차 심판 비교 요약</a> · <code>갈림.json</code></p></div></div>
+</div></section>
+
+<!-- 16 -->
+<section class="it" id="i16"><h2><span class="no">16</span>파일 하나로 한 번 판정 <span class="t warn">시험 끝 · 기본은 묶음</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>묶음 대신 파일 하나를 두고 그 위치를 읽게 해서 한 번 호출로 — 지금 어떻게 됐나, 잘 되나.</div></div>
+<div class="row"><b>시험</b><div>첨부 없는 단일 질문 94개(Codex 로 넘어간 것 전부), 1차 판정은 같은 것을 씀.
+<div class="scroll"><table>
+<tr><th>방식</th><th>Codex 호출</th><th>시간</th><th>입력 토큰</th><th>칸 일치</th><th>질문 일치</th></tr>
+<tr><td>묶음 10개(지금)</td><td class="num">35</td><td class="num">125초</td><td class="num">111만</td><td class="num">98.0%(두 판끼리)</td><td class="num">88/94</td></tr>
+<tr><td>한 번 · 표준 입력</td><td class="num">25</td><td class="num">327초</td><td class="num">87만</td><td class="num">97.0%</td><td class="num">87/94</td></tr>
+<tr><td>한 번 · 파일</td><td class="num">48</td><td class="num">336초</td><td class="num">192만</td><td class="num">96.2%</td><td class="num">85/94</td></tr>
+</table></div></div></div>
+<div class="row"><b>판단</b><div><ul>
+<li><b>된다</b> — 94개를 한 호출로 판정하고 결과도 흔들림 수준(1~2%p)으로 같음.</li>
+<li>표준 입력은 호출 −10 · 입력 −22% 이지만 2.6배 느림 → 옵션(<code>--codex-one-call stdin</code>).</li>
+<li>파일은 셋째 시도에 94개 모두 답했지만 입력 1.7배 · 판정에 셸을 열어야 해(PC 의 다른 파일을 읽을 수 있음) <b>쓰지 않음</b>.</li>
+<li>멀티턴 · 첨부 · 롱컨텍스트(하나에 약 110만 바이트)는 한 호출에 함께 못 넣음 → 전부 1번은 불가. 기본은 묶음 10개 그대로.</li>
+</ul></div></div>
+</div></section>
+
+<!-- 17 -->
+<section class="it" id="i17"><h2><span class="no">17</span>20개씩 끊기 <span class="t ok">한 번에</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>이제 20개씩 안 묶어도 되나.</div></div>
+<div class="row"><b>한 것</b><div>된다 — 전체 판정은 질문 전체를 <b>한 번 실행</b>(끝난 질문은 건너뜀). 10-26 41~78번 × 네 모델을 한 번 실행으로 12분. <code>.\modelgrade start</code> 도 판정은 원래 한 번에(안내 문구만 '20개씩'이던 것을 고침).
+<br><span class="small mute">Codex 호출 안의 '묶음 10개'(단일 질문 10개를 한 호출로)는 호출 수를 줄이는 설정이라 그대로.</span></div></div>
+</div></section>
+
+<!-- 18 -->
+<section class="it" id="i18"><h2><span class="no">18</span>질문 · 평가기준 · 판정 프롬프트 수정 — 원본 → 수정 후 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>질문 · 평가기준 · 평가 프롬프트를 고쳤나 — 어디를 어떻게.</div></div>
+<div class="row"><b>수정</b><div><div class="scroll"><table>
+<tr><th>구분</th><th>무엇</th><th>원본</th><th>수정 후</th><th>커밋</th></tr>
+<tr><td>질문</td><td>질문 세트 78</td><td class='small'>—</td><td class='small'><b>수정 없음</b> — 점검: 단일 질문 기준 수 6~10 밖 0개 · 기준마다 적용 질문 10개 이상 · 질문 문장 오류 0 · 확인 목록 계산 값 121개 모두 맞음</td><td class='small mute'>질문 점검(10-26)</td></tr><tr><td>평가기준</td><td>에러 케이스 위치</td><td class='small'>1-1 '응답 · 문자 정상성' 안의 검사 하나(3대분류 · 8소분류)</td><td class='small'>CODE 대분류 <b>0 에러 케이스</b>(소분류 0-1) — 4대분류 · 9소분류 · 28 검사, 기준 수 72 그대로</td><td class='small mute'>e41fa61</td></tr><tr><td>평가기준</td><td>명시 빈 출력</td><td class='small'>2-1 '분량 · 표현 조건' 안</td><td class='small'>0-1 에러 케이스 안</td><td class='small mute'>e41fa61</td></tr><tr><td>평가기준</td><td>에러 케이스 판정</td><td class='small'>빈 답 · 답 없음 · 정형 거절 · 서비스 오류 문구 = 바로 FAIL</td><td class='small'>빈 응답 · 답 없음 · 사람이 정한 글 = FAIL / 정형 거절 · 오류 문구 · 짧은 오류 · 거절 답 = <b>보류 → 사람이 에러 케이스 · PASS · FAIL → 기록</b></td><td class='small mute'>8581357</td></tr><tr><td>평가기준</td><td>빈 응답(복사 다시 해도 빈 답)</td><td class='small'>복사 실패로 보고 보류</td><td class='small'><b>에러 케이스</b>(FAIL)</td><td class='small mute'>8581357</td></tr><tr><td>평가기준</td><td>2-1 불릿 개수</td><td class='small'>이스케이프된 불릿(&#92;-)은 0개 · 본문 + 메모 목록을 합쳐 세어 FAIL</td><td class='small'>코드가 정하기 애매 → <b>보류(코드 판정 확인)</b> → 사람이 PASS · FAIL + 사유</td><td class='small mute'>791f1fd</td></tr><tr><td>평가기준</td><td>2-1 금지 문자열</td><td class='small'>"'무료'라는 말은 쓰지 않았습니다"도 FAIL</td><td class='small'>자기 점검 문장에만 나오면 <b>보류</b>(따옴표만으로는 보류 아님)</td><td class='small mute'>791f1fd</td></tr><tr><td>평가기준</td><td>2-1 허용 문자(한글만)</td><td class='small'>AIONA 꼬리글 '데이터 제공: MET Norway …' 의 영문까지 세어 FAIL</td><td class='small'>꼬리글에만 있으면 <b>보류</b>, 본문 위반만 FAIL</td><td class='small mute'>791f1fd</td></tr><tr><td>판정 프롬프트</td><td>J3-1.a 내부 모순</td><td class='small'>(경계 줄 없음)</td><td class='small'>모순되는 두 위치가 <b>모두 이번 턴 답 안</b>에 있을 때만 — 한쪽이 질문 · 자료면 아님, 질문에서 온 모순은 J1-3.a 에서만</td><td class='small mute'>47bb1d4</td></tr><tr><td>판정 프롬프트</td><td>J3-5.a 실행 가능성</td><td class='small'>(경계 줄 없음)</td><td class='small'>답에 적힌 <b>두 지점이 서로 맞지 않을 때만</b> FAIL(두 곳을 인용) — 여유 구간 · 조건별 대안 · 자료 밖 전제의 불확실성은 충돌 아님, 질문에서 온 모순은 J1-3</td><td class='small mute'>7256510 · 47bb1d4</td></tr><tr><td>판정 프롬프트</td><td>J6-3.a 바뀐 조건 반영</td><td class='small'>(경계 줄 없음)</td><td class='small'>바뀐 값을 옳게 반영했는데 다른 조건과 충돌하면 J1-3 에서만 — 이 항목은 <b>옛 값을 쓴 것만</b> FAIL</td><td class='small mute'>47bb1d4</td></tr><tr><td>판정 프롬프트</td><td>J5-2.b 적용</td><td class='small'>적용: 자료 정리 · 요약 요청</td><td class='small'>질문이 준 자료(붙여 넣은 자료 · 첨부 · 앞 턴 기록)를 정리 · 요약하라고 할 때만 — 질문 문장의 조건을 표에 다시 적는 것은 아님(그 값의 오기는 J5-2.a)</td><td class='small mute'>5b48698</td></tr><tr><td>확인 목록</td><td>멀티턴 1턴 목표</td><td class='small'>J4-4.a · J5-2.b 포함</td><td class='small'>뺌 — 1턴은 요약 · 자료 정리 요청이 아님</td><td class='small mute'>5b48698</td></tr><tr><td>확인 목록</td><td>첨부 조회 턴(표가 실제로 없음)</td><td class='small'>J6-3.a · J6-4.a 를 기준 수에 셈</td><td class='small'>해당 없음 — 반영할 바뀐 조건 · 견줄 내용이 없음(기준 수 범위 그대로)</td><td class='small mute'>1d4ba6f</td></tr><tr><td>판정 흐름</td><td>1차 심판</td><td class='small'>크기로 나눔: 3만 2천 토큰 이하 · 첨부 없음 = Jev(3표), 그 밖 Decisions(3표)</td><td class='small'><b>회의 흐름</b>: 단일 질문 = Jev 1 + Decisions 1 교차(같은 답 · 둘 다 0.8 이상이면 끝) / 멀티턴 · 첨부 · 롱컨텍스트 = Decisions 1 — 나머지는 Codex</td><td class='small mute'>9a7dc16 · 5b48698</td></tr><tr><td>판정 흐름</td><td>Jev 모델</td><td class='small'>jev-latest</td><td class='small'><b>jev-1.14.0</b> 고정</td><td class='small mute'>5b48698</td></tr><tr><td>판정 흐름</td><td>안전장치 · 다시 묻기</td><td class='small'>—</td><td class='small'>해요체를 반말로 본 말투 FAIL → PASS · 사유가 'FAIL 근거가 되지 않습니다'인 FAIL 은 사유-판정 반대 · 미측정 전제 사유 · J1-4.b · J6-1.a 블록 규칙을 안 따른 FAIL 은 다시 묻기</td><td class='small mute'>1d4ba6f · 2d4aa4f · b01310e</td></tr><tr><td>판정 흐름</td><td>실행 단위</td><td class='small'>20문항씩 끊어 이어 돌림</td><td class='small'>질문 전체 <b>한 번 실행</b></td><td class='small mute'>c98b0ee</td></tr>
+</table></div>
+<p class="small mute">기준 원본: <a href="../기준/채팅품질 평가기준_v2.md">채팅품질 평가기준 v2</a>(5절 · 11절) · 변경내역 <a href="../변경내역/2026-10-26-변경내역.md">10-26</a></p></div></div>
+<div class="row"><b>남은 것</b><div>21번 다듬기 루프에서 채택된 안이 생기면 이 표에 더함.</div></div>
+</div></section>
+
+<!-- 19 -->
+<section class="it" id="i19"><h2><span class="no">19</span>새 기준으로 전체 다시 판정 <span class="t ok">끝</span></h2>
+<div class="card">
+<div class="row"><b>한 것</b><div>지난 수집(네 모델 · 질문 78개, 질문 세트 그대로)을 오늘 기준으로 새로 판정 — 1차 회의 흐름 · CODE 엔진 v16.9.2. 벽시계 65분, 판정 실행 오류 0.
+<div class="scroll"><table>
+<tr><th>질문 / 78</th><th>Claude</th><th>AIONA</th><th>GPT</th><th>Gemini</th></tr>
+<tr><td>통과</td><td class="num">52</td><td class="num">51</td><td class="num">51</td><td class="num">42</td></tr>
+<tr><td>FAIL</td><td class="num">9</td><td class="num">10</td><td class="num">8</td><td class="num">17</td></tr>
+<tr><td>보류</td><td class="num">17</td><td class="num">17</td><td class="num">19</td><td class="num">19</td></tr>
+<tr><td class="small mute">그중 빈 출력 요구</td><td class="num">10</td><td class="num">10</td><td class="num">10</td><td class="num">10</td></tr>
+</table></div>
+사람이 보류를 정하기 전 잠정 숫자. 팀원이 보류 103건을 판정함(통과 41 · 에러 케이스 29 · 계속 보류 17 · FAIL 13 · 해당 없음 3).</div></div>
+<div class="row"><b>보기</b><div><a href="../결과/2026-10-26_13-21-48-757/report.html">결과 보고서</a> · <a href="../결과/2026-10-26_13-21-48-757/판정보고서.html">판정보고서</a> · <a href="../분석/2026-10-26-v4f1-정리/정리.md">보류 · FAIL · PASS 정리</a></div></div>
+</div></section>
+
+<!-- 20 -->
+<section class="it" id="i20"><h2><span class="no">20</span>빈 출력 — 복사 아이콘이 안 뜨면 화면 <span class="t ok">반영</span></h2>
+<div class="card">
+<div class="row"><b>질문</b><div>빈 출력 요구 질문에서 복사 아이콘이 안 뜨면 화면을 찍어 보고서에서 그 대화창을 보여 줄 수 있나 — 답 영역만.</div></div>
+<div class="row"><b>한 것</b><div>15초 안에 복사 아이콘이 안 뜨거나 복사가 끝내 안 되면, <b>마지막 질문 말풍선 ~ 답 자리만</b> 잘라 찍음(옆 채팅 목록 · 계정 표시는 안 찍힘, 대화 칸을 못 찾으면 안 찍음). 작게 놓인 창이면 찍는 동안만 화면 크기를 넓혀 찍음. 보고서 보류 원문에 그림이 들어감.
+<div class="two">
+<figure><img loading="lazy" src="미팅 개선 현황_화면/07_빈출력_AIONA.jpg" alt="AIONA 빈 출력 화면"><figcaption>AIONA — '아무 것도 답하지 마.'에 빈 답</figcaption></figure>
+<figure><img loading="lazy" src="미팅 개선 현황_화면/08_빈출력_Gemini.jpg" alt="Gemini 빈 출력 화면"><figcaption>Gemini — 15초가 지나도 생각 중</figcaption></figure>
+</div></div></div>
+<div class="row"><b>남은 것</b><div>화면을 얻으려고 10-26 오후에 빈 출력 10문항을 다시 받음 — 팀원이 판정한 것은 그 전의 답이라, 반영 전에 두 답을 대조해야 함.</div></div>
+</div></section>
+
+<!-- 21 -->
+<section class="it" id="i21"><h2><span class="no">21</span>harness2 로 판정 프롬프트 다듬기 <span class="t warn">진행 중</span></h2>
+<div class="card">
+<div class="row"><b>한 것</b><div>새 판정의 FAIL · 보류가 많은 기준 7개(J2-3.a · J3-1.a · J5-2.a · J3-5.a · J1-4.a · J3-2.b · J5-2.b)로 다듬기 루프를 동시에 돌리는 중 — 고칠 안(Claude CLI) → 같은 칸을 고치기 전 · 후로 다시 판정 → 사람 표시 · 흔들림으로 채택 판단 → 교훈.
+예: J2-3.a 안 3개 — '[1]·[2] 인용' 턴에서 번호가 빠진 것만으로는 FAIL 아님(정한 판정 먼저) · 지시는 지켰는데 자료 밖 내용을 덧붙인 것은 J5-2 몫 · '다른 항목만 짚고'에서 일치 값을 짧게 덧붙인 것은 위반 아님.</div></div>
+<div class="row"><b>남은 것</b><div>점수 · 채택 판단이 나오면 채택안만 판정 프롬프트에 넣고 18번 표에 더함.</div></div>
+</div></section>
 
 <h2 id="부록">부록 — 옛 미팅 개선 현황에서 옮김</h2>
 <p class="mute">10-26 에 미팅 개선 현황 두 문서를 하나로 합치며, 옛 문서에만 있던 세 장을 그대로 옮겼습니다. 숫자는 그때 기준입니다(A 는 10-23 판정, B 는 10-25 발행 판정 v4-r4).</p>
