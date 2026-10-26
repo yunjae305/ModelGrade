@@ -4,7 +4,7 @@ AI 호출 없음. 내보낸 결과(참고자료/결과/<실행>_결과_판정결
 (숫자가 그 실행의 판정 보고서와 같아야 한다 — 끝에서 맞춰 본다). 디자인은 10-19 발표 덱 CSS 를 그대로 읽어 쓴다(10-20 보고와 같은 모양).
 
     python -X utf8 tools/build_result_summary.py [--run a1642702fccc]
-    → 참고자료/발표/ModelGrade_결과요약_10-20 발표자료.html (원문은 ModelGrade_결과요약_<실행>_원문/)
+    → 참고자료/발표/AIONA 채팅 품질 평가.html (원문은 ModelGrade_결과요약_<실행>_원문/)
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from code_eval.model import code_group  # noqa: E402   # CODE 검사 ID → 소�
 RUN = "a1642702fccc"
 RESULTS = ROOT / "참고자료" / "결과"
 OUT_DIR = ROOT / "참고자료" / "발표"
-MAIN_NAME = "ModelGrade_결과요약_10-20 발표자료.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음)
+MAIN_NAME = "AIONA 채팅 품질 평가.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음 · 10-26: 이름 · 날짜 빼고 'AIONA 채팅 품질 평가')
 DECK = ROOT / "tools" / "assets" / "result_summary_base.html"   # 디자인 바탕(10-19 덱의 CSS · 목차 스크립트, 원본 덱은 10-22 정리 때 지움)
 E = html.escape
 SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
