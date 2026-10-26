@@ -594,8 +594,8 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     res = {**res, "status": COPY_FAILED, "capture": "none",
                            "error": f"빈 출력 요구 — 모델 오류로 답 없음 → 보류 (사용자 규칙 10-20) · {res.get('error') or ''}"[:300]}
                 snap = getattr(chat, "_turn_snapshot", None)
-                if res.get("status") == "COPY_FAILED" and not res.get("screenshot") and callable(snap) and asks_empty_output(None, r.get("question") or ""):
-                    res = {**res, "screenshot": snap("copy-failed")}   # 복사가 끝내 안 된 빈 출력 요구 — 그 대화 화면(답 영역)도 남긴다 (10-26)
+                if not (res.get("answer") or "").strip() and not res.get("screenshot") and callable(snap):
+                    res = {**res, "screenshot": snap("no-answer")}   # 답이 비었거나 못 받음 — 그 대화 화면(답 영역)을 남겨 결과 보고서 보류에 보인다 (10-26)
                 col = {k: v for k, v in res.items() if k != "answer"}
                 if col.get("screenshot"):   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면 — 실행 폴더에 질문 이름으로 (사용자 10-26)
                     col["screenshot"] = keep_screenshot(run["run_id"], args.provider, r["case_id"], col["screenshot"])

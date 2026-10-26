@@ -350,11 +350,14 @@ def check_1_1(ctx: Ctx) -> List:
         skip_condition(ctx, "1-1.response_nonempty", SUB01, "복사 실패(수집기 원인) — 에러 케이스로 세지 않음, 질문은 보류")
     elif empty_req is None:
         kind, reason, label = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content)), None
-        if status and status not in COLLECTION_OK and not content:
-            kind, reason = "답 없음", "답 없음 — 수집 상태 {}{} (오류 코드 · 시간 초과 · 무응답)".format(status, f": {ctx.collection_error[:80]}" if ctx.collection_error else "")
-        elif not content:
-            # 빈 응답 — 모델이 글 없이 끝냄(복사를 다시 해도 비어 있음). 에러 케이스로 확정 (사용자 10-26)
-            kind, reason = "빈 답", "빈 응답 — 공백·제어문자를 제거하면 남는 문자가 없음" + (" (복사를 다시 해도 비어 있음)" if empty_reply else "")
+        if not content:
+            # 빈 응답 · 답 없음 — 바로 FAIL 로 정하지 않고 보류. 결과 보고서에 그 순간의 대화 화면(답 영역)을 보이고 사람이 정한다 (사용자 10-26)
+            why = ("답 없음 — 수집 상태 {}{}".format(status, f": {ctx.collection_error[:80]}" if ctx.collection_error else "")
+                   if status and status not in COLLECTION_OK else "빈 응답 — 공백·제어문자를 빼면 남는 글이 없음" + (" (복사를 다시 해도 비어 있음)" if empty_reply else ""))
+            ctx.skipped.append({"check_id": "1-1.response_nonempty", "subcategory": SUB01, "phrase": "",
+                                "error_suspect": "답 없음" if why.startswith("답 없음") else "빈 응답",
+                                "reason": f"{why} — 에러 케이스 의심, 보류(대화 화면을 보고 사람이 에러 케이스 · PASS · FAIL 을 정함)"})
+            return out + _check_1_1_chars(ctx)
         else:
             sus = error_suspect(ctx.answer, len(content), ctx.question)
             if sus:
@@ -371,7 +374,7 @@ def check_1_1(ctx: Ctx) -> List:
                     reason = "사람이 에러 케이스 아님({})으로 정한 글과 같음{}".format(LABEL_KO.get(label.get("label"), label.get("label")), f" — {who}" if who else "")
         ok = kind is None
         out.append(result("1-1.response_nonempty", SUB01, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
-                          verdict_of(ok), required="빈 응답 · 답 없음(수집 오류) · 사람이 에러 케이스로 정한 글이 아님",
+                          verdict_of(ok), required="사람이 에러 케이스로 정한 글이 아님(빈 응답 · 답 없음 · 의심 답은 보류)",
                           measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind,
                                     "error_case_label": (label or {}).get("label")},
                           comparison=cmp_text(len(content), ">=", 1),

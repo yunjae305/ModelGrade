@@ -73,7 +73,7 @@
    "name": "에러 케이스 없음",
    "category": "0",
    "sub": "0-1",
-   "description": "답변이 에러 케이스가 아닌지 확인한다 — ① 빈 답(ch.isspace() 인 문자와 unicodedata 범주 Cc·Cf 문자를 제거한 뒤 실질 문자 0자) ② 답 없음(수집 상태가 SUCCESS·COPY_FAILED 가 아니고 답이 빔: 오류 코드·시간 초과·무응답) ③ 능력 부정 정형 문구만(ERROR_CASE_PHRASES + 거절 말, 300자 이하, 코드블록 없음) ④ 서비스 오류 정형 문구만(SERVICE_ERROR_PHRASES: 오류 발생·응답 생성 실패·error occurred + 재시도·사과 문장뿐, 10-25 밤). 복사 실패(COPY_FAILED)는 우리 원인이라 행을 만들지 않고 사유만 남긴다(질문 보류). 10-25, 미팅 10-23 2·3번.",
+   "description": "답이 에러 케이스인지 본다. 에러 케이스로 의심되는 답 — ① 빈 응답(ch.isspace() 와 unicodedata 범주 Cc·Cf 를 지우면 0자) ② 답 없음(수집 상태가 SUCCESS·COPY_FAILED 가 아니고 답이 빔) ③ 능력 부정 정형 문구 ④ 서비스 오류 정형 문구 ⑤ 짧은 답의 문장마다 오류 · 거절 말 — 은 결과 행 없이 보류(meta.skipped_conditions 에 error_suspect)하고, 결과 보고서에 그 순간의 대화 화면(답 영역)을 보여 사람이 에러 케이스 · PASS · FAIL 을 정한다. 사람이 정한 글은 code_eval/settings/error_case_labels.json 에 쌓여 같은 글이면 그대로(에러 케이스 → FAIL, PASS · FAIL → PASS). 복사 실패(COPY_FAILED)는 우리 원인이라 행 없이 사유만(질문 보류). 사용자 10-26.",
    "conditions": [
     {
      "title": "빈 출력 명시 요청 예외",
@@ -81,24 +81,24 @@
      "source": "question"
     },
     {
-     "title": "실질 문자 수 >= 1",
-     "text": "strip_non_content(answer) — ch.isspace() 인 문자와 unicodedata 범주 Cc·Cf 문자를 제거한 결과의 길이가 1 이상이면 PASS, 0 이면 FAIL (ok = len(content) > 0, comparison: content_chars >= 1; measured 에 content_chars·raw_chars 기록)",
-     "source": "policy"
+     "title": "빈 응답 · 답 없음 → 보류",
+     "source": "policy",
+     "text": "strip_non_content(answer) 가 0자이면(빈 응답), 또는 payload.collection.status 가 SUCCESS·COPY_FAILED 가 아니고 0자이면(답 없음) 결과 행 없이 meta.skipped_conditions 에 error_suspect('빈 응답' · '답 없음')를 남긴다 — 질문은 보류, 사람이 대화 화면을 보고 정함."
     },
     {
-     "title": "답 없음(수집 오류)",
-     "text": "payload.collection.status 가 SUCCESS·COPY_FAILED 가 아니고(ERROR 등) 실질 문자가 0자이면 FAIL — measured.error_case = '답 없음', 사유에 상태와 오류 글.",
-     "source": "policy"
+     "title": "의심 문구 → 보류",
+     "source": "policy",
+     "text": "실질 문자 300자 이하 · 3줄 이하 · 코드블록 없음이고 능력 부정 정형 문구(ERROR_CASE_PHRASES + 거절 말) · 서비스 오류 정형 문구(SERVICE_ERROR_PHRASES + 재시도 · 사과뿐) · 문장마다 오류 · 거절 · 자기 설명 말(ERROR_SUSPECT_WORDS)이면, 사람 기록에 같은 글이 없을 때 결과 행 없이 error_suspect 를 남긴다(질문 보류)."
     },
     {
-     "title": "능력 부정 정형 문구",
-     "text": "실질 문자 300자 이하 · 코드블록 없음 · ERROR_CASE_PHRASES(언어 모델일 뿐 / 텍스트 기반 AI / I'm just a language model / as an AI model) 와 거절 말(도와드릴 수 없 · 할 수 없 · 이해하지 못 · cannot · unable)이 함께 있으면 FAIL — measured.error_case = '능력 부정 문구'.",
-     "source": "policy"
+     "title": "사람 기록에 같은 글",
+     "source": "policy",
+     "text": "error_case_labels.json 에 공백만 다른 같은 글이 있으면 기록대로 — 에러 케이스면 FAIL(measured.error_case_label = ERROR_CASE), PASS · FAIL 이면 PASS(에러 케이스 아님)."
     },
     {
-     "title": "서비스 오류 정형 문구",
-     "text": "실질 문자 300자 이하 · 3줄 이하 · 코드블록 없음이고, 문장마다 SERVICE_ERROR_PHRASES(오류가 발생 · 문제가 발생 · 응답을 생성할 수 없 · 서버 오류 · error occurred · something went wrong …) 또는 재시도(다시 시도 · 잠시 후 · try again) · 사과 · 인사 문장뿐이며 오류 문장이 하나 이상이면 FAIL — measured.error_case = '서비스 오류 문구'. 오류를 설명하는 정상 답('오류가 발생했을 때는 로그를 확인하세요')은 다른 문장이 있어 걸리지 않음.",
-     "source": "policy"
+     "title": "실질 문자가 있고 의심이 아님",
+     "source": "policy",
+     "text": "실질 문자가 1자 이상이고 위 의심에 걸리지 않으면 PASS."
     }
    ],
    "examples": {
@@ -108,9 +108,9 @@
      "answer": "회의는 오후 2시에 시작합니다."
     },
     "FAIL": {
-     "note": "공백·줄바꿈·탭뿐이라 제거 후 남는 문자가 0자이고, 질문에 빈 출력 요청도 없어 에러 케이스(빈 답) FAIL.",
-     "question": "회의 시간을 알려줘.",
-     "answer": " \n\t "
+     "note": "사람이 '에러 케이스'로 정해 기록에 쌓인 글과 같은 답이라 FAIL(Gemini 정형 거절, 10-26 사람 판정).",
+     "question": "파이썬 함수를 작성해 주세요.",
+     "answer": "저는 언어 모델이라서 그것은 도와드릴 수가 없습니다."
     }
    }
   },

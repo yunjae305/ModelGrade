@@ -2508,15 +2508,16 @@ def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[
     statuses = [((data.get(t["case_id"]) or {}).get("collection") or {}).get("status") for t in turns if t["case_id"] not in empty]
     if "COPY_FAILED" in statuses:
         return {"status": "held_copy_failed", "reason": "답을 복사해 오지 못함 — 보류", "collection_note": note}
+    # 답 없음 · 빈 응답은 바로 FAIL 이 아니라 보류 — 결과 보고서에 그 순간의 대화 화면을 보이고 사람이 에러 케이스 · PASS · FAIL (사용자 10-26)
     if not all(ji.collected(data.get(t["case_id"])) for t in turns if t["case_id"] not in empty):
-        return {"status": "no_answer", "reason": "답을 받지 못한 턴이 있음 — FAIL 로 셈", "collection_note": note}
+        return {"status": "held_no_answer", "reason": "답을 받지 못한 턴이 있음 — 에러 케이스 의심, 보류(대화 화면을 보고 사람이 정함)", "collection_note": note}
     if empty and len(empty) == len(turns):
-        return {"status": "error_case", "reason": "빈 응답 — 에러 케이스(대분류 0, 사용자 10-26) · FAIL 로 셈", "collection_note": note}
-    return None   # 일부 턴만 빈 응답이면 심판이 나머지 턴을 보고, 빈 턴은 CODE 0-1 FAIL 로 에러 케이스 턴(J1-1.a 만 FAIL)
+        return {"status": "held_error_case", "reason": "빈 응답 — 에러 케이스 의심, 보류(대화 화면을 보고 사람이 정함)", "collection_note": note}
+    return None   # 일부 턴만 빈 응답이면 심판이 나머지 턴을 보고, 빈 턴은 CODE 0-1 이 보류 칸 '에러 케이스 확인'을 붙인다
 
 
 PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS",
-               "error_case": "FAIL"}
+               "error_case": "FAIL", "held_no_answer": "HOLD", "held_error_case": "HOLD"}   # no_answer · error_case 는 옛 판정 줄 읽기용
 
 
 def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, providers: set, questions: set) -> int:

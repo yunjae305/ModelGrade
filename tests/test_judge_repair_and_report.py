@@ -178,13 +178,15 @@ def test_error_suspect_turn_is_held_and_a_person_picks_error_case_pass_or_fail(t
     assert verdict == "FAIL"
 
 
-def test_empty_reply_is_an_error_case_not_a_hold():
-    """빈 응답(수집은 됐는데 글이 없음 · 옛 수집기의 '복사 다시 해도 빈 답')은 에러 케이스 — 모든 턴이 비면 심판 없이 FAIL, 복사 실패는 보류 (사용자 10-26)."""
+def test_empty_reply_and_no_answer_are_held_for_a_person():
+    """빈 응답(수집은 됐는데 글이 없음 · 옛 수집기의 '복사 다시 해도 빈 답') · 답 없음은 바로 FAIL 이 아니라 보류 — 대화 화면을 보고 사람이 정함 (사용자 10-26)."""
     turns = [{"case_id": "Q1_T1", "question": "회의 시간을 알려 주세요.", "turn": 1}]
     got = jv.pre_status(turns, {"Q1_T1": {"answer": "", "collection": {"status": "SUCCESS"}}}, {"Q1_T1": ""})
-    assert got["status"] == "error_case" and jv.PRE_VERDICT["error_case"] == "FAIL"
+    assert got["status"] == "held_error_case" and jv.PRE_VERDICT["held_error_case"] == "HOLD"
     old = {"Q1_T1": {"answer": "", "collection": {"status": "COPY_FAILED", "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류"}}}
-    assert jv.pre_status(turns, old, {"Q1_T1": ""})["status"] == "error_case"
+    assert jv.pre_status(turns, old, {"Q1_T1": ""})["status"] == "held_error_case"
+    gone = {"Q1_T1": {"answer": "", "collection": {"status": "ERROR", "error": "응답 시간 초과"}}}
+    assert jv.pre_status(turns, gone, {"Q1_T1": ""})["status"] == "held_no_answer" and jv.PRE_VERDICT["held_no_answer"] == "HOLD"
     copy = {"Q1_T1": {"answer": "", "collection": {"status": "COPY_FAILED", "error": "복사 버튼을 찾지 못함"}}}
     assert jv.pre_status(turns, copy, {"Q1_T1": ""})["status"] == "held_copy_failed"
     two = turns + [{"case_id": "Q1_T2", "question": "장소는요?", "turn": 2}]

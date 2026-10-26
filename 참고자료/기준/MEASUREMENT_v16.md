@@ -448,3 +448,10 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 - 근거: 사용자 10-26 "꼬리글처럼 붙는 경우에도 일단 보류로 보내서 pass/fail고르게 하고 사유 받아서 평가기준들 개선". 판정 제외만 하면 의미 평가 J2-3.a 가 개수 조건을 거의 보지 않았다(v4-f1 12턴 중 1턴).
 - 규칙 버전: `2-1.count` `v16-1.9` · `2-1.literal` `v16-1.5` · `2-1.charset` `v16-1.2`.
 
+## 36. v16.9.3 빈 응답 · 답 없음도 보류 (2026-10-26)
+
+- `1-1.response_nonempty` `v16-1.8`: 빈 응답(실질 문자 0자) · 답 없음(수집 상태가 SUCCESS · COPY_FAILED 가 아니고 0자)도 결과 행 없이 `meta.skipped_conditions` 에 `error_suspect`('빈 응답' · '답 없음')를 남긴다. 확정 FAIL 은 사람 기록(`error_case_labels.json`)에 같은 글이 에러 케이스로 있을 때뿐.
+- 수집기는 답이 비었거나 못 받은 모든 턴에서 대화 화면(마지막 질문 말풍선 ~ 답 자리)을 찍어 `collection.screenshot` 에 남기고, 결과 보고서 보류 원문에 그림으로 보인다.
+- 판정 도구: 모든 턴이 빈 응답이면 `held_error_case`, 받지 못한 턴이 있으면 `held_no_answer` — 둘 다 보류(옛 `error_case` · `no_answer` FAIL 대신).
+- 근거: 사용자 10-26 "보류로 두게 해서 결과 REPORT에서 스크린샷 화면 보여주는거로 가야지".
+

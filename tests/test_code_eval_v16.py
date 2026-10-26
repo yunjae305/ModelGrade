@@ -55,7 +55,7 @@ def canary_config(markers=True, forbidden=None, all_categories=True):
 
 def test_empty_answer_vs_explicit_empty_vs_missing_field():
     general = run("회의 시간을 알려줘.", "  \n\t")
-    assert one(general, "1-1.response_nonempty")["verdict"] == FAIL
+    assert rows(general, "1-1.response_nonempty") == [] and _suspect(general)[0]["error_suspect"] == "빈 응답"   # 보류(사용자 10-26)
     explicit = run("아무것도 출력하지 마.", "")
     assert rows(explicit, "1-1.response_nonempty") == []  # 빈 출력 요청은 2-1.explicit_empty 가 판정한다
     assert one(explicit, "2-1.explicit_empty")["verdict"] == PASS
@@ -66,7 +66,7 @@ def _suspect(case):
 
 
 def test_error_case_suspects_are_held_until_a_person_labels_them(tmp_path, monkeypatch):
-    """0-1 에러 케이스(사용자 10-26): 빈 응답 · 답 없음은 FAIL(확정), 능력 부정 · 서비스 오류 · 오류 · 거절 말뿐인 답은 행 없이 보류(의심),
+    """0-1 에러 케이스(사용자 10-26): 빈 응답 · 답 없음 · 능력 부정 · 서비스 오류 · 오류 · 거절 말뿐인 답은 행 없이 보류(의심, 대화 화면을 보고 사람이 정함),
     사람이 기록에 '에러 케이스'로 남긴 같은 글은 FAIL, 'PASS · FAIL'로 남긴 글은 에러 케이스 아님. 복사 실패는 행 없이 사유만, 결과물 있는 답은 PASS."""
     from code_eval import error_cases
     monkeypatch.setenv("MODELGRADE_ERROR_CASES", str(tmp_path / "labels.json"))
@@ -92,13 +92,11 @@ def test_error_case_suspects_are_held_until_a_person_labels_them(tmp_path, monke
     assert row["verdict"] == PASS and "에러 케이스 아님" in row["reason"]
     # 확정 에러 케이스 · 의심 아님
     missing = run("회의 시간을 알려줘.", "", collection={"status": "ERROR", "error": "응답 시간 초과"})
-    row = one(missing, "1-1.response_nonempty")
-    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "답 없음" and "시간 초과" in row["reason"]
+    assert rows(missing, "1-1.response_nonempty") == [] and _suspect(missing)[0]["error_suspect"] == "답 없음" and "시간 초과" in _suspect(missing)[0]["reason"]
     empty = run("회의 시간을 알려줘.", "", collection={"status": "SUCCESS"})
-    row = one(empty, "1-1.response_nonempty")
-    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "빈 답"   # 빈 응답 = 에러 케이스 (사용자 10-26)
+    assert rows(empty, "1-1.response_nonempty") == [] and _suspect(empty)[0]["error_suspect"] == "빈 응답"   # 빈 응답 · 답 없음도 보류 (사용자 10-26)
     old_empty = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED", "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류"})
-    assert one(old_empty, "1-1.response_nonempty")["measured"]["error_case"] == "빈 답"   # 옛 수집기의 '복사 다시 해도 빈 답'
+    assert _suspect(old_empty)[0]["error_suspect"] == "빈 응답"   # 옛 수집기의 '복사 다시 해도 빈 답'
     normal = run("언어 모델이 뭐야?", "언어 모델은 글의 다음 낱말을 예측하도록 학습한 프로그램입니다. 이해하지 못하는 질문에는 추측으로 답할 수 있어 확인이 필요합니다. " * 3)
     assert one(normal, "1-1.response_nonempty")["verdict"] == PASS   # 길고 결과물이 있으면 자기 설명 낱말이 있어도 에러 케이스 아님
     translated = run("다음 문장을 한국어로 번역해 주세요: I'm a language model, so I cannot do that.", "저는 언어 모델이라서 그것을 할 수 없습니다.")
@@ -1036,7 +1034,8 @@ def test_common_rows_are_pass_or_fail_only(question, answer):
                for r in case["results"] if r["area"] == "common")
     assert case["summary"]["common"]["unjudged"] == 0 and case["summary"]["errors"] == 0
     assert case["errors"] == []
-    assert all(set(s) == {"check_id", "subcategory", "reason"} for s in case["meta"]["skipped_conditions"])
+    base, extra = {"check_id", "subcategory", "reason"}, {"error_suspect", "phrase", "code_hold", "excerpt"}   # 보류 표시(10-26)
+    assert all(base <= set(s) <= base | extra for s in case["meta"]["skipped_conditions"])
 
 
 def test_model_rejects_unjudged_common_row():

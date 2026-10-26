@@ -45,10 +45,13 @@ CAUSES = {
     "no_answer": "답 없음 — FAIL 로 셈",
     "call_error": "심판 호출 실패",
     "error_suspect": "에러 케이스 의심 — 사람이 에러 케이스 · PASS · FAIL 을 정함",
+    "no_answer_hold": "답 없음 — 보류(대화 화면을 보고 사람이 정함)",
+    "empty_reply_hold": "빈 응답 — 보류(대화 화면을 보고 사람이 정함)",
     "code_hold": "코드 판정 애매 — 사람이 PASS · FAIL 과 사유를 정함",
 }
 ERROR_CAUSES = {"no_answer", "call_error"}
-QUESTION_STATUS = {"held_copy_failed": "copy_failed", "held_empty_output": "empty_output", "no_answer": "no_answer"}
+QUESTION_STATUS = {"held_copy_failed": "copy_failed", "held_empty_output": "empty_output", "no_answer": "no_answer",
+                   "held_no_answer": "no_answer_hold", "held_error_case": "empty_reply_hold"}
 
 
 def cause_of(problems: List[str]) -> str:
