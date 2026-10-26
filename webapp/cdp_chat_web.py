@@ -755,9 +755,12 @@ class ChatGptChat(_CdpChat):
         self._open_model_menu()   # 확인 — 고른 모델이 정말 선택됐나
         try:
             ok = self._radio().count() and self._radio().first.get_attribute("aria-checked") == "true"
+            menu = "" if ok else (self._eval("() => Array.from(document.querySelectorAll('[role=menu]')).map(e => e.innerText).join(' ')") or "")
         finally:
             self._close_menu()
         if not ok:
+            if "한도" in menu or "limit" in menu.lower():   # 그 모델이 사용 한도라 고를 수 없음 — 오류로 넘기지 않고 수집기가 기다렸다 다시 (10-26 밤)
+                raise CdpWebError(f"ChatGPT 사용량 한도로 막혀 있습니다({self.MODEL_NAME} 을 고르지 못함) — 풀릴 때까지 기다립니다.")
             raise CdpWebError(f"ChatGPT 모델을 {self.MODEL_NAME} 으로 바꾸지 못했습니다 — 모델 메뉴 화면이 바뀌었는지 확인하세요")
 
     def _shown_level(self) -> str:
