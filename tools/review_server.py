@@ -76,6 +76,7 @@ def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, por
                  on_saved: Callable[[Dict[str, Any]], None], on_finish: Callable[[], None] = lambda: None) -> type:
     from tools import modelgrade
     lock = threading.Lock()
+    lock_count = threading.Lock()
 
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *a: Any, **kw: Any) -> None:
@@ -131,7 +132,16 @@ def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, por
             except ValueError:
                 return self._json(400, {"ok": False, "error": "JSON 이 아님"})
             path = urlsplit(self.path).path
-            port_box["last"] = time.monotonic()   # 마지막 요청 시각 — 끝낼 때 조용해질 때까지 기다린다
+            with lock_count:
+                port_box["inflight"] = port_box.get("inflight", 0) + 1
+            try:
+                return self._post(path, body)
+            finally:
+                with lock_count:   # 끝난 시각 — 화면은 앞 저장이 끝나야 다음을 보내므로, 끝난 뒤 2초 조용하면 남은 저장이 없다
+                    port_box["inflight"] -= 1
+                    port_box["last"] = time.monotonic()
+
+        def _post(self, path: str, body: Dict[str, Any]) -> None:
             if path == "/api/finish":   # 화면의 '다 정함 — 끝내기': 보낼 판단을 모두 보낸 뒤 부른다
                 on_finish()
                 return self._json(200, {"ok": True})
@@ -158,7 +168,8 @@ def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "
           say: Callable[[str], None] = lambda s: print(s, flush=True)) -> Dict[str, Any]:
     """서버를 띄우고 보고서를 연 뒤 wait() 가 끝나면 보고서를 다시 만들고 닫는다. 저장한 수를 돌려준다."""
     run_id, judge_dir, result_dir = find_dirs(run_id)
-    if not (result_dir / page).exists() or "/api/ping" not in (result_dir / page).read_text(encoding="utf-8", errors="ignore"):
+    from tools.report_html import REVIEW_JS_VERSION
+    if not (result_dir / page).exists() or REVIEW_JS_VERSION not in (result_dir / page).read_text(encoding="utf-8", errors="ignore"):
         say("  보고서를 바로 저장되는 판으로 다시 만드는 중 …")   # 옛 보고서는 누른 판단이 브라우저에만 남는다 (Codex 검토 10-26 밤)
         rebuild(judge_dir, run_id)
     token = secrets.token_urlsafe(18)
@@ -189,8 +200,8 @@ def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "
     try:
         while not finished.wait(0.5):
             pass
-        t0 = time.monotonic()   # 화면에 남은 저장이 들어올 틈 — 마지막 요청 뒤 2초 조용할 때까지(최대 15초, Codex 검토 10-26 밤)
-        while time.monotonic() - max(port_box.get("last", 0), t0 - 2) < 2 and time.monotonic() - t0 < 15:
+        t0 = time.monotonic()   # 처리 중인 요청이 없고, 마지막 요청이 끝난 뒤 2초 조용할 때까지(최대 60초, Codex 검토 10-26 밤)
+        while (port_box.get("inflight", 0) or time.monotonic() - max(port_box.get("last", 0), t0 - 2) < 2) and time.monotonic() - t0 < 60:
             time.sleep(0.2)
     except KeyboardInterrupt:
         pass

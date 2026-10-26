@@ -64,8 +64,12 @@ pre.orig{white-space:pre-wrap;word-break:break-word;background:#fafafa;border:1p
 .live-only{display:none}body.live .live-only{display:inline-block}
 """
 
+#: 보고서 스크립트 판 — 보류 서버(tools/review_server)가 이 글이 없는 옛 보고서는 다시 만든 뒤 연다 (Codex 검토 10-26 밤)
+REVIEW_JS_VERSION = "mg-review-js-3"
+
 JS = """
 (function(){
+  const JSV='""" + REVIEW_JS_VERSION + """';
   const RUN=document.body.dataset.run, KEY='mg-held-'+RUN;
   let store={}; try{store=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){store={}}
   let LIVE=false;   // modelgrade review 로 열렸으면 누를 때마다 프로그램에 바로 저장 (10-26 밤)
@@ -78,10 +82,18 @@ JS = """
   let chain=Promise.resolve();   // 누른 순서대로 하나씩 보낸다 — 앞 요청이 늦게 도착해 나중 판단을 덮지 않게
   let busy=false;   // 다시 만들기 · 끝내기 중에는 누르지 못하게 (Codex 검토 10-26 밤)
   function freeze(){busy=true;document.querySelectorAll('.hold-item button, .hold-item input, .allbtn').forEach(e=>e.disabled=true)}
-  function push(els){if(!LIVE)return;const out=els.map(rec).filter(Boolean);if(!out.length)return;const body=JSON.stringify(doc(out));
-    chain=chain.then(()=>fetch('/api/decisions',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:body})).then(r=>r.json()).then(j=>{
-      if(st)st.textContent=j.ok?('저장됨 '+new Date().toLocaleTimeString()+' · 모두 '+j.total+'건'+(j.rejected?' · 거부 '+j.rejected:'')):('저장 실패 — '+(j.error||''))
-    }).catch(()=>{if(st)st.textContent='저장 실패 — 프로그램이 꺼졌으면 판단 내보내기로 받으세요'})}
+  function unfreeze(){busy=false;document.querySelectorAll('.hold-item button, .hold-item input, .allbtn').forEach(e=>e.disabled=false)}
+  function post(url,body){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:body})
+    .then(r=>r.json().catch(()=>({})).then(j=>{if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));return j}))}
+  const unsaved=new Set();   // 저장에 실패한 판단 — 다음 저장 때 함께 다시 보내고, 남아 있으면 끝내지 않는다 (Codex 검토 10-26 밤)
+  function push(els){if(!LIVE)return;const keys=new Set(els.map(e=>e.dataset.key));unsaved.forEach(k=>keys.add(k));
+    const all=[...document.querySelectorAll('.hold-item')].filter(e=>keys.has(e.dataset.key));const out=all.map(rec).filter(Boolean);if(!out.length)return chain;
+    const body=JSON.stringify(doc(out));const sent=all.map(e=>e.dataset.key);
+    chain=chain.then(()=>post('/api/decisions',body)).then(j=>{sent.forEach(k=>unsaved.delete(k));
+      if(st)st.textContent='저장됨 '+new Date().toLocaleTimeString()+' · 모두 '+j.total+'건'+(j.rejected?' · 거부 '+j.rejected:'')
+    }).catch(e=>{sent.forEach(k=>unsaved.add(k));if(st)st.textContent='저장 실패('+unsaved.size+'칸 남음) — '+e.message+' · 다시 누르거나 판단 내보내기'});
+    return chain}
+  function flushed(){if(unsaved.size)push([]);return chain.then(()=>{if(unsaved.size)throw new Error('저장 안 된 판단 '+unsaved.size+'칸')})}
   document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{if(busy)return;const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint();push([el])}));
   document.querySelectorAll('.hold-item input.note').forEach(i=>i.addEventListener('change',()=>{if(busy)return;const el=i.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{note:i.value});save();push([el])}));
   document.querySelectorAll('.allbtn').forEach(b=>b.addEventListener('click',()=>{if(busy)return;const els=[...b.closest('details').querySelectorAll('.hold-item')];els.forEach(el=>{store[el.dataset.key]=Object.assign(store[el.dataset.key]||{},{v:b.dataset.v})});save();paint();push(els)}));
@@ -89,10 +101,10 @@ JS = """
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(doc(out),null,1)],{type:'application/json'}));a.download='held_decisions_'+RUN+'.json';a.click()});
   const cl=document.getElementById('clear');if(cl)cl.addEventListener('click',()=>{if(confirm('이 브라우저에 저장된 판단을 모두 지울까요?')){store={};save();paint()}});
   const rb=document.getElementById('rebuild');if(rb)rb.addEventListener('click',()=>{if(busy)return;freeze();if(st)st.textContent='보고서 다시 만드는 중 …';
-    chain.then(()=>fetch('/api/rebuild',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})).then(r=>r.json()).then(j=>{if(j.ok)location.reload();else if(st)st.textContent='다시 만들기 실패 — '+(j.error||'')})});
+    flushed().then(()=>post('/api/rebuild','{}')).then(()=>location.reload()).catch(e=>{unfreeze();if(st)st.textContent='다시 만들지 않음 — '+e.message})});
   const fin=document.getElementById('finish');if(fin)fin.addEventListener('click',()=>{if(busy)return;freeze();if(st)st.textContent='남은 판단을 보내는 중 …';
-    chain.then(()=>fetch('/api/finish',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})).then(()=>{if(st)st.textContent='끝냈습니다 — 프로그램이 보고서를 다시 만듭니다. 이 창은 닫아도 됩니다.'})
-      .catch(()=>{if(st)st.textContent='프로그램에 닿지 못함 — 이미 끝났으면 판단 내보내기로 받으세요'})});
+    flushed().then(()=>post('/api/finish','{}')).then(()=>{if(st)st.textContent='끝냈습니다 — 프로그램이 보고서를 다시 만듭니다. 이 창은 닫아도 됩니다.'})
+      .catch(e=>{unfreeze();if(st)st.textContent='끝내지 않음 — '+e.message+' (프로그램이 이미 꺼졌으면 판단 내보내기로 받으세요)'})});
   if(location.protocol.indexOf('http')===0)fetch('/api/ping',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.ok||j.run_id!==RUN)return;
     LIVE=true;document.body.classList.add('live');if(st)st.textContent='바로 저장 — 누르면 프로그램에 바로 들어갑니다';
     push([...document.querySelectorAll('.hold-item')])}).catch(()=>{});   // 전에 이 브라우저에만 저장해 둔 판단도 한 번에 보냄
