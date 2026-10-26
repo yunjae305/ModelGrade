@@ -114,7 +114,9 @@ def mname(p: str) -> str:
 
 # ------------------------------------------------------------------ 데이터 ------------------------------------------------------------------
 def load(run_id: str) -> Dict[str, Any]:
-    d = json.loads(results_json(run_id).read_text(encoding="utf-8"))
+    js = results_json(run_id)
+    d = json.loads(js.read_text(encoding="utf-8"))
+    human = R.load_human(js.parent)   # 사람이 정한 보류(판정보고서에서 내보낸 human_decisions.json) — 판정보고서와 같은 숫자가 되게 (10-26 저녁)
     set_dir = R.set_dir_for(d)
     qtypes = R.question_types(set_dir)
     names = R.criteria_table(set_dir)
@@ -125,7 +127,7 @@ def load(run_id: str) -> Dict[str, Any]:
         for it in items:
             if it["decision"] == "UNVERIFIED":
                 it["kind"] = hold_kind(it)
-        verdict, items, _ = R.effective(r, items, {})
+        verdict, items, _ = R.effective(r, items, human)
         lines[(r["provider"], int(r["question"]))] = {"verdict": verdict, "items": items, "line": r}
     turns = {(p, int(t["question"]), int(t["turn"])): t for p, sec in d["providers"].items() for t in sec["turns"]}
     providers = [p for p in R.ORDER if p in d["providers"]]

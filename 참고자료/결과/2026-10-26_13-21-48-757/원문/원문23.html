@@ -1,0 +1,2271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결과 보고서 FAIL 원문 23</title>
+<meta name="description" content="177개 실행 50ca3ccccace 부록 — Gemini Q3~Q3 (1건)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+
+
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+.s-head h2 { font-size: 1.75rem; }
+@media (max-width: 900px) { }
+@media (max-width: 640px) { }
+@media (max-width: 900px) { }
+</style>
+<style>
+/* 결과 보고 (result-summary-v2) — 덱 CSS 위에 rs- 로 시작하는 것만 더함. 색은 덱 변수만(밝게·어둡게 자동) */
+.slide { gap: 22px; }
+@media (max-width: 640px) { }
+.rs-lrc li .rs-id { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 0.76rem; }
+.rs-item { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 0.9rem; display: grid; gap: 3px; }
+.rs-quote { color: var(--muted); font-size: 0.84rem; overflow-wrap: anywhere; }
+.rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
+.rs-qhint { margin: 0; font-size: 0.86rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+.rs-qds:has(.rs-qd:target) .rs-qhint { display: none; }
+.rs-ql li .rs-id { color: var(--muted); font-size: 0.74rem; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
+/* 원문 파일 맨 위 바로가기 */
+.rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
+.rs-jump a { font-family: var(--font-num); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; text-decoration: none; }
+.rs-fall { position: absolute; opacity: 0; pointer-events: none; }
+.rs-fall-l { justify-self: start; cursor: pointer; font-size: 0.86rem; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; background: var(--surface); }
+.rs-fall:checked + .rs-fall-l { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.rs-fall:focus-visible + .rs-fall-l { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-fds { display: grid; gap: 10px; }
+.rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
+.rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
+.rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
+.rs-fdh { margin: 0 0 6px; font-size: 1rem; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+}
+@media (max-width: 760px) {
+}
+@media (max-width: 640px) {
+}
+/* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
+:root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
+.s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+.ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+@media (min-width: 1200px) { }
+.s-no { color: var(--muted); }
+@media (max-width: 760px) { }
+@media (min-width: 1200px) {
+  body { padding-left: 232px; }
+  html { scroll-padding-top: 16px; }
+}
+.ar-av.lg { width: 28px; height: 28px; border-radius: 8px; background-size: 72%; vertical-align: middle; }
+@media (min-width: 1200px) { }
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+}
+/* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
+.rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
+.rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.rs-fx-r { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rs-turn { display: grid; gap: 2px; margin-bottom: 12px; }
+.rs-fx .rs-pre.rs-q { max-height: 200px; }
+.rs-fx .rs-pre.rs-ans { max-height: none; }
+.rs-fwhy { font-size: 0.9rem; line-height: 1.5; }
+mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px solid var(--risk); border-radius: 3px; padding: 0 1px; }
+mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
+  background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
+.rs-hlno.rs-hlno-off { background: var(--muted); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
+.rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); }
+@media (max-width: 760px) { }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
+@media (max-width: 860px) { }
+@media (max-width: 760px) { }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { }
+@media (max-width: 560px) { }
+@media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
+@media (max-width: 1000px) { }
+@media (max-width: 560px) { }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+@media (max-width: 1000px) {
+}
+</style>
+<style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
+.mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
+.lg-gemini { background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAKxklEQVR42u2aa6hl51nHf897Wft29jlnn8mkxCJIm4LR1DTMFIo1nUaDIdMiZuo+IPkgiD0TEy+lSWlGU46DxS8aiR+sziRQUYqwNyT9lJAYO5kkWrFzcoFcRKN4wUqTYc7Z13V73/fxwz4TIyZt52aO4ILFgr3WXu//ef//530u74L/P9790M1No5ub5kqOIVcEOAiHDtnK+1NJkWaoP8np01FAL/dY5krMuoBWWXZ9Zu1PNBv+47NO53oBvRJsXH56n37aAEjiNowkrEtJ7G1vv7e3DTh9OipIFPpRxFQ4U5pmX0E4fTruaQO037cA9U/d+jHn3Y0zbJpik22v3PjPP7/xMUHfembPMiCglUmfc75BtK0UXDNps8vU9T4HsnedWDc3DcNhKg4fvs5m2e07alLlvC1dy70Zs1S1e0ee+dU/+BEZDtLgMrJw+Rh49VUR0FLly42s5UvT0Nq1JW90mWRtDe397pz0fhtE6ff3FgPa71sZDuPOp37mlnajdeQsPoZG2xa+w7TRZZb17BtqYrn8A0e+8punbllfX4+DwcDuiUCmIPT75tt5r9F1517EZ9fukGnlV8y40WXSXGPse4x8N+WdH5Rt0/zHFf2XG556tSgHg34SuTS/uGQGtjYOOBkOYys7+2C73fnQ2DRS3eyaSWuVabPHNOsxzpYZZ6vmbDKpXLr62r/3Nzw4HK7Ho0e33HvKgG4c8HJyq35j/ed+abXZfuhssCH3y26SdZn6VcbZCiO/yo7rMXJdJm6ZqW+H2LrGbReTz37t2L6HD5xQv3VU6v91A86D/84dn/npZpY9VtBkYpbM1K/IJFtl7JYZux47fpWxXWFslxj7NjktLVwrBZtRzMPhr39p6ckDG+q3Tl6cEXIp4L/9i0c+0XH+scJ02iPazLOuTO0aI7/K2PUYmR47tsvYdpnYFjPbopAGuYqqaVJbM59XevjUseyZi2XCXKjD6uYhJye36u/c/albOx37WNnKOqNGU2dLXRm3eoxaq4wbq4z8CttZh5FfYuTajG1GToMcRyWZzGPSKpmOePPYTV+ub906KvWhTXWoyhVhQAd9K+vDCLB9782fFbP0lVzabkQ3zX3PjM0aE7PGWHqMzCojs8JYlphIh6k0KcjI8VRYKixRHQlNWGvUEEId7/7mMXcSoD9QO1yXeFkM0E0MP4rIOvG1L/x495qO/b2WbW28GVo6skvkZp9MZB8Tu8aINUayykhWmdBjQpMZLebaoCQjV6HGoWqIWFSUmBZzbhtGQpVONnNzz+njMu0P1A5fQTku6aIM0AEWQNaJAKPf/fBtFv9AI2tf9+9FM85N18zsPhnLPsZyFWPZx0h7jFhjwgrT1GWqLfLUJNcGFUKtlqCWlEARVCAhJFVVTHJtbCx5TZV7ztwnj7/FxhAYvjMj8t8CkiI8jZGbCed/L7/6oY+kwDGb/HpOg+3QCLnpurGsMpb9jHSNie5nZK5mlHpM0yqztMo8tpinNnnyFCmjRkjJEdUQFJDFcAkFFRBISnAelwRiZOATv/O3x+Sl81gObao7DYnjC3f8LgwI1aM/dJPU4c4Q7HrTefdGLimnTUnbjGWFMWuMuIpzusYo7WesVzFOVzGPq+RhhXlsUoQWlWbU0VGrEJNFVYgisMsACqoKCLtaSQq4JiZW1EYYpsSJF47JM++IVEHO16rVN645QBlv1Si3O3EHjRcmM0OpLlbq7VzbTOmwIyuM0hrbaR/b6Sp20vsYpTXmYY15WKWIyxR1hyo2CNFRx4yUhKiGJAJq0N2JT6rvqGhVogjWNkEDaOIMyqN4nnj+XtnafUpEFeHxa7PCb/9lsykfBwPBMC1Fo9iUcKZWL1M889RmTIPt1ONc6rGd1jgXr2Yc9zMO+8jDGkW1QhVWqEKbEDNC7QnJk7CkZFEMSf+ruldNu8DfUQyqShIwxiPnF/1U8dykwy2v/xrVW7mIWKtkBoyQgiEaQ8QQsJQYSjXkahdnFPIozJOQh8SMQKGJQiOli8SUiCYRQyIZQRVS3HVcdHHdpV5kwcbFBmCHgPB6Cdw0+5sPHlANt6qV292yO9hoWntuLBTJxRpvKzVU0VEaoTRCFRK1RkKK1FoTYkWgJJiaRCSZtJhhUdQopETCspC+LtZPWRiyK5v/ISHXwmoAjZwhLiT0wm/sSujXVd7Viccv/fBNuZg7K1xfWg3/H2PSLDYYa9Nsxw7bYYlzYZlzdY9Jtcqs6pHXPYq6h9Y9Qr1Eqtuk0CClBil6NDoigqjsan8hnbejUBYLk21iYk0ABgJ//PwX5dnvmkooiCpGT+FAWb7htWff92Ov3FHL0kcnwQ78ctM0ut5EK0EciAdxEeNqcCW4CnEl4krUFogpERvABpCImISYiCEBCRGDyAK86uJMSjAOYzKM1gyS8NEXvih3nAd/aFMdm2oW7v89AtlggO33QWQRyL75dz95W8I/UDWb1/3rtsZR6JpRaMq5eolJ2WNaLZNXPcpqlapaIVZdUr1CCk1iaKGpAdHtxgK7i0HOy0WBtwJZqrnnxfsvMJC9a0RWDPRFZBhPvdxfqmz5QN5qbLwxMnoub7KTlmRSdRhXy+Rlj7xeoSx6hGqFWC2joUWKHWJsQvSQPClZogpg0KQqxmAbSAycKKbc++oFpBLfsyISIcEQ1b4VGU6Bo4OXf3ar3Wn/YW3UlbMiVc6bRqqoY46NGdY2id6j6khqUHWImgVghAV0CzEmvDMYQiy56/n75KELTea+73RaZBhVkVOnDrn1679+Mub66SzT2VJHTNNUqeFLMlfgXIHxM7BzjC0wtlr4iK0QWyO2xpiAlZh8wxpn00zy8Onn75OHzqfT3y/4C64HRNCbbz4dTpzZ8L/w4T9/oizkcMMz63SSOCnVuwLv5libI3aO2BnJTRFbYly9uNqAmEpdJiIuzmKMh791v3/iwAn1p49L4AKL/Isq6o8ePFmfOLPhf+WGP32mmuZHnKtTsxmSs5VaV2JciXE5ameoLYhmTjIz1JRgC7UNk5yPibo88q0vXHw1dkldifNGfP7g156c5/HOzpJYa6uILcDmiMlJNie5OdHNiXZOcgXqQvRdZ5Nu3/nXn1968lKL+ktqqxw9eLLeOLPhjx/8k4fn4+Kh1qpxSaqIKUhmAT7ZhSHR5UQziW7Fuzr/t4efvev9Dx84ceaSwF+expYi68O+6X2g1zBRXprS/eDO2Ou07piiXqKsu6TQgdhJ3u8TU/rX41w+8oHeP5XDfj/xXje2RFD6cPLgyfmsMr+cTC3BBq1tSbAF0c4Idk6wM41uJpU5e9fW0YPz3T/rnuiNDmUY+zqwf3bTHz01mpePaNfYoHWsJae2OZWdxbQstqjfeOTFO257qj8Y2OH6etxb3enhEBQZSfmlWTEPla2kloJArsEVUoazdfA794PKsP+K7rn2+nB9GPvDvnnuE199dVqUj4QlMYXUoTRVTN1oYhw9+g9H7n6NwdAgx9Oe3KEZLtJaKeDBoq6opTbBFCaEObXNH7zQptV7s0+si3e+/y82tpL3N8aUoQUvvHn49w9cLse9wtusmxZBK9FhcJKS1xRNNUREefq3LHt+m/WTi+5IlfzjVYqm1tpEo4+//d7eNkCOJxQZZftfDnn5Vykvnhtl+19e5NHHL7sBXOGvPQx6ZT/2+D9//CdG7uscfk2gzwAAAABJRU5ErkJggg=="); }</style>
+</head>
+<body>
+<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · FAIL 원문 23 / 결과 보고서 50ca3ccccace</span><h2>FAIL 원문 23 — Gemini Q3~Q3 (1건)</h2><p><a href="../report.html#apx">← 결과 보고서(부록)으로</a> · <a href="원문1.html">FAIL 원문 1</a> · <a href="원문2.html">FAIL 원문 2</a> · <a href="원문3.html">FAIL 원문 3</a> · <a href="원문4.html">FAIL 원문 4</a> · <a href="원문5.html">FAIL 원문 5</a> · <a href="원문6.html">FAIL 원문 6</a> · <a href="원문7.html">FAIL 원문 7</a> · <a href="원문8.html">FAIL 원문 8</a> · <a href="원문9.html">FAIL 원문 9</a> · <a href="원문10.html">FAIL 원문 10</a> · <a href="원문11.html">FAIL 원문 11</a> · <a href="원문12.html">FAIL 원문 12</a> · <a href="원문13.html">FAIL 원문 13</a> · <a href="원문14.html">FAIL 원문 14</a> · <a href="원문15.html">FAIL 원문 15</a> · <a href="원문16.html">FAIL 원문 16</a> · <a href="원문17.html">FAIL 원문 17</a> · <a href="원문18.html">FAIL 원문 18</a> · <a href="원문19.html">FAIL 원문 19</a> · <a href="원문20.html">FAIL 원문 20</a> · <a href="원문21.html">FAIL 원문 21</a> · <a href="원문22.html">FAIL 원문 22</a> · <b>FAIL 원문 23</b> · <a href="원문24.html">FAIL 원문 24</a> · <a href="원문25.html">FAIL 원문 25</a> · <a href="원문26.html">FAIL 원문 26</a> · <a href="원문27.html">FAIL 원문 27</a> · <a href="원문28.html">FAIL 원문 28</a> · <a href="원문29.html">FAIL 원문 29</a> · <a href="원문30.html">FAIL 원문 30</a> · <a href="원문31.html">FAIL 원문 31</a> · <a href="통과1.html">통과 원문 1</a> · <a href="통과2.html">통과 원문 2</a> · <a href="통과3.html">통과 원문 3</a> · <a href="통과4.html">통과 원문 4</a> · <a href="통과5.html">통과 원문 5</a> · <a href="통과6.html">통과 원문 6</a> · <a href="보류1.html">보류 원문</a> · <a href="갈림.html">갈림 목록</a></p></div><div class="rs-jump"><div><b><span class="mn"><i class="lg lg-gemini"></i>Gemini</span></b><a href="#f-gemini-3">Q3</a></div></div><input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label><div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p><article class="rs-fd" id="f-gemini-3"><h3 class="rs-fdh">Q3 · <span class="mn"><i class="lg lg-gemini"></i>Gemini</span> · 멀티턴 · 어긴 기준 10개</h3><div class="rs-fx"><div class="rs-fx-l"><h4>원문 (어긴 턴만) — 답에서 걸린 부분은 빨간 번호</h4><div class="rs-turn"><b>턴 1 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 온기카페 가을 신메뉴 시음회 1차 준비 회의록
+
+- 회의 일시: 2026년 9월 3일(목) 20:30~22:05, 매장 마감 뒤
+- 장소: 온기카페 안쪽 큰 원목 테이블
+- 참석: 윤서진(매장 운영자 · 시음회 당일 진행 담당), 최민재(재료 담당 · 이번 시음회 회계), 배정연(볕뜰마을협동조합 사무국장, 20:30~21:15 참석 뒤 이석)
+- 기록: 최민재 / 기록 확인: 윤서진
+- 배포: 참석자, 조합 사무국(예산 항목 확인용)
+- 문서 상태: 1차 회의 기록. 정한 것, 정하지 못한 것, 다음 회의 전에 알아볼 것을 나누어 적음. 재료 준비 방식(A안 · B안)은 이번 회의에서 고르지 못하고 보류함.
+
+## 0. 안건
+
+1. 시음회를 여는 배경과 시음 메뉴
+2. 행사 범위와 당일 시각
+3. 진행 인력, 예비 인력, 참여 정원
+4. 준비 동선(조합 공동 창고와 매장 사이)
+5. 재료 준비 방식 A안 · B안
+6. 예산 현황과 숫자마다의 역할
+7. 참가 조건, 현장 신청 예외, 문의처
+8. 운영 세부(시음 잔 · 알레르기 안내 · 설문 · 계산대)
+9. 물품과 장비
+10. 위험 요인
+11. 마감과 회수, 담당자 인계
+12. 미정 · 보류 항목과 다음 할 일
+
+## 1. 시음회를 여는 배경과 시음 메뉴
+
+윤서진이 회의를 열며 배경을 설명함. 온기카페는 볕뜰마을협동조합이 조합원 출자로 운영하는 골목 카페이고, 해마다 10월 무렵 메뉴판 일부를 바꿔 왔음. 지난해까지는 매장에서 몇 주 팔아 보고 반응이 약한 메뉴를 빼는 식으로 했는데, 재료가 남아 버리는 일이 잦았고 &quot;처음 보는 메뉴는 비싸서 시켜 보기 망설여진다&quot;는 손님 말도 여러 번 들었음. 지난봄 딸기 라테 시음회를 한 차례 해 보니 반응을 미리 확인하는 데 도움이 됐다는 이야기가 조합 이사회에서 나왔고, 이번 가을에도 신메뉴 후보를 메뉴판에 올리기 전에 시음회를 열기로 함.
+
+이번 시음회에서 맛볼 후보는 세 가지로 정함.
+
+- 흑임자 라테: 흑임자 페이스트에 스팀한 우유를 붓고 위에 우유 거품을 올림. 커피가 들어가지 않음.
+- 유자 캐모마일 아이스티: 캐모마일을 우린 차에 유자청을 섞어 얼음 위에 냄. 우유가 들어가지 않음.
+- 오트 바닐라 라테: 시음용 원두로 내린 에스프레소에 오트 음료와 바닐라 시럽을 섞음.
+
+참가자는 세 가지 가운데 두 가지를 골라 맛보는 방식으로 이야기가 모였음. 세 가지를 다 내면 한 사람이 세 잔을 마시게 되고, 한 명이 진행하는 자리에서 잔 수를 감당하기 어렵다는 이유임. 어느 두 가지를 고를지는 참가자 선택에 맡기되, 접수 때 고른 메뉴를 받아 적어 두는 방향으로 함. 접수 때 받아 적는 방식은 다음 회의에서 다시 확인함.
+
+배정연 사무국장은 &quot;시음회는 홍보 행사가 아니라 메뉴를 고르는 자료를 모으는 자리&quot;라고 짚었음. 설문 응답을 제대로 받는 것이 참가 인원을 늘리는 것보다 중요하다고 덧붙임.
+
+## 2. 행사 범위와 당일 시각
+
+### 2-1. 확인한 시각
+
+- 진행 담당 현장 도착: 13:10
+- 접수 시작: 14:15
+- 행사 시간: 14:30~16:00
+- 16:00 이후: 물품 회수와 참가 기록 마무리(회수를 다 마친 시각은 당일 실제 시각으로 적음)
+
+### 2-2. 논의 경과
+
+행사 날짜는 아직 정하지 않았음. 최민재는 시음용 원두가 조합 공동구매로 들어오는 주를 피해야 한다고 했고, 사무국장은 조합 행사 달력을 보고 다음 이사회 때 날짜를 정하자고 함. 이 회의록에서는 날짜 대신 &#x27;행사 당일&#x27;, &#x27;행사 전날&#x27;로 적음.
+
+접수 시작과 행사 시작 사이가 15분인 점을 두고 이야기가 오갔음. 윤서진은 지난봄 시음회 때 접수를 10분 전에 열었더니 늦게 온 사람과 일찍 온 사람이 한꺼번에 몰려 주문대 앞이 붐볐다고 말함. 이번에는 접수를 14:15에 열고 14:30에 시음을 시작하는 것으로 확정함. 접수를 더 일찍 여는 안은 진행 담당이 그 시간에 준비를 마치고 주문대에 서 있어야 한다는 문제가 있어 꺼내지 않았음.
+
+행사 시간에는 진행 담당이 참가자 응대와 시음 진행을 맡아야 하므로, 창고에서 물품을 가져오는 일, 재료 확인, 테이블 설치는 모두 행사 전에 끝내야 함. 최민재는 기록 방식에 대한 주의도 덧붙였음. 행사 전날 한 일, 13:10 도착 전에 한 일을 당일 현장에서 한 것처럼 일정표에 적으면 나중에 소요 시간을 다시 계산할 때 틀어진다는 이유임. 이번 회의록부터 작업마다 &#x27;전날&#x27;, &#x27;당일 도착 뒤&#x27;를 나누어 적기로 함.
+
+16:00은 시음을 마치는 시각이고 회수를 마치는 시각이 아님. 지난봄 시음회 기록에는 종료 시각이 회수 완료 시각 칸에도 그대로 들어가 있어서, 실제로 잔을 다 씻고 상자에 넣은 때가 언제였는지 알 수 없었음. 이번에는 회수 완료 칸을 비워 두었다가 실제 시각을 적기로 함.
+
+## 3. 진행 인력, 예비 인력, 참여 정원
+
+### 3-1. 확정한 것
+
+- 확정 진행 인력: 1명(윤서진). 계산대와 시음 안내를 함께 맡음.
+- 참여 정원: 12명
+- 정원은 참가자 수이고 진행 인력은 일하는 사람 수임. 두 값을 섞어 적지 않기로 함.
+
+### 3-2. 예비 인력
+
+윤서진은 지난해 주말 아르바이트를 했던 조합원 자녀 정다온에게 행사 당일 도와줄 수 있는지 문자로 물어봤음. 정다온은 &quot;그 주가 학교 시험 기간과 겹칠 수 있어서 지금은 확답을 못 드리겠다&quot;고 답했음. 날짜가 정해지지 않았으니 정다온도 답을 줄 수가 없는 상태임. 사무국장은 확답이 없는 사람을 일정표나 근무표에 넣지 말라고 했고, 회의에서도 정다온을 승인 인력에 넣지 않기로 함. 정다온이 나중에 온다고 하더라도 그때 사무국 승인을 다시 받기 전까지는 진행 인력은 1명으로 봄.
+
+최민재는 재료 발주와 정산을 맡는 조합원 자원 활동가이고 평일 낮에는 직장 일이 있어 행사 당일 현장에 나오지 않음. 당일 진행 인력에 최민재를 넣지 않음. 최민재는 행사 전에 재료와 계량표를 넘기고, 행사 뒤 정산을 받는 역할만 함.
+
+### 3-3. 참가자에게 접수를 맡기는 안
+
+사무국장이 회의 전에 들은 이야기라며 단골 조합원 한 분이 &quot;내가 일찍 가서 명단 확인을 해 주겠다&quot;고 했다고 전함. 윤서진은 고마운 제안이지만 받지 않겠다고 했음. 참가자가 다른 참가자의 이름과 신청 내용을 보게 되는 문제, 그분도 시음을 해야 하는데 접수와 시음을 동시에 할 수 없다는 문제, 접수를 맡긴 사람이 자리를 비웠을 때 책임이 모호해지는 문제를 이유로 들었음. 참가자에게 접수를 대신 맡기는 안은 채택하지 않음.
+
+### 3-4. 정원 12명에 대한 의견
+
+윤서진은 매장 안쪽 큰 테이블이 10석이라 12명이 오면 두 명은 창가 바 자리에 앉게 된다고 말함. 시음 안내를 두 곳에 나누어 해야 할 수 있다는 걱정임. 최민재는 창가 바 자리도 큰 테이블에서 몇 걸음이라 안내 카드를 한 장 더 놓으면 된다고 했음. 정원을 바꾸자는 결론은 나지 않았고, 이번 회의에서는 12명을 그대로 둠. 좌석 배치는 다음 회의에서 다시 봄.
+
+## 4. 준비 동선
+
+### 4-1. 확인한 내용
+
+- 시음 잔(내열 유리, 한 잔 120mL 들이)과 시음 재료는 볕뜰마을 사랑방 건물 지하의 조합 공동 창고에 있음.
+- 매장에서 창고까지 걸어서 편도 6분. 최민재가 지난주 두 번 걸어 재 보았고 두 번 다 6분 남짓이었음.
+- 창고에서 물품 확인에 5분이 듦. 시음 잔 상자 개수, 재료 봉투의 개봉 여부, 유통기한 라벨을 보는 데 드는 시간임.
+- 테이블 설치는 15분. 시음 매트 깔기, 안내 카드 세우기, 설문지와 펜 놓기, 입가심 물병과 컵 놓기, 버리는 통 두기까지 포함.
+- 물품은 접이식 손수레 한 대에 한 번에 실림. 두 번 오갈 필요는 없음.
+
+### 4-2. 논의 경과
+
+최민재는 시간 기록 방식을 다시 짚었음. 편도 6분을 창고까지 가는 시간으로만 적어야 하고, 다녀오는 시간을 6분이라고 적으면 안 된다는 것임. 지난봄 시음회 계획표에 &quot;창고 6분&quot;이라고만 적혀 있어서 왕복인지 편도인지를 두고 말이 엇갈렸던 일이 있었음.
+
+윤서진은 설치를 다 끝내기 전에 접수를 먼저 열어도 되는지 물었음. 사무국장은 그런 승인은 한 적이 없다고 답했고, 설치를 마친 뒤 접수를 연다는 원칙을 그대로 둠.
+
+창고 열쇠는 사무국 앞 번호식 열쇠함에 들어 있음. 사무국장은 행사 전날까지 열쇠함 번호를 윤서진에게 따로 알려 주겠다고 했음. 번호는 회의록에 적지 않음.
+
+손수레는 창고 입구에 세워 둔 조합 공용품을 씀. 바퀴 하나가 헐거워 덜컹거린다는 말이 나왔고, 최민재가 주말에 조여 두겠다고 함. 비가 오는 날에는 시음 잔 상자 위에 비닐을 덮어야 하는데, 비닐 덮개는 창고 선반에 있는 것을 쓰기로 함.
+
+## 5. 재료 준비 방식 A안 · B안
+
+### 5-1. 두 안의 내용
+
+- A안(당일 창고 운반): 행사 당일 창고에서 시음 잔과 재료를 직접 옮기는 방식. 창고까지 편도 6분, 재료 확인 5분. 비용은 없음.
+- B안(전날 소분 보관): 행사 전날 매장 냉장고에 재료를 소분해 두는 방식. 소분 포장비 2500원이 들고, 당일에는 재료 확인 5분이 듦. B안으로 하면 시음 잔도 전날 재료와 함께 매장으로 들여와 안쪽 선반에 둔다는 전제로 이야기함.
+- 테이블 설치는 두 안 모두 15분.
+- 두 안 모두 재료를 확인하는 단계는 빠지지 않음.
+
+### 5-2. 윤서진 의견
+
+윤서진은 행사 당일에도 매장 영업을 하므로 자신이 창고에 다녀오는 동안 주문대가 비게 된다는 점을 가장 걱정했음. 손님이 들어왔는데 아무도 없으면 그냥 나가는 일이 생기고, 혼자 근무하는 날에는 문에 &#x27;잠시 자리 비움&#x27; 팻말을 걸어 두는 수밖에 없다고 말함. 다만 A안은 돈이 들지 않고, 재료를 당일 창고에서 바로 보고 가져온다는 점은 마음이 놓인다고 했음.
+
+### 5-3. 최민재 의견
+
+최민재는 B안 쪽으로 기울었지만 확정하자고 하지는 않았음. 소분 포장비 2500원은 소분 용기와 라벨 값으로, 동네 포장재 가게에서 받아 둔 견적 그대로임. 최민재가 걱정한 것은 매장 냉장고 칸 여유였음. 평소 납품 우유와 오트 음료가 들어가는 칸에 소분 용기까지 넣으면 문이 잘 닫히는지 확인해 봐야 한다고 했음. 흑임자 페이스트는 소분 뒤 냉장 보관하면 굳는 경향이 있어 당일 꺼내 두는 시간이 필요할 수 있다는 말도 했는데, 이것은 시험 제조 때 확인하기로 함.
+
+### 5-4. 사무국장 의견
+
+사무국장은 B안 비용 2500원이 아직 예산 예상 지출에 들어 있지 않다는 점을 짚고, 어느 안으로 가든 예산 숫자를 섞지 말라고만 했음. 어느 안이 낫다는 말은 하지 않았음.
+
+### 5-5. 보류
+
+결론을 내지 못하고 보류함. 보류한 이유는 세 가지임.
+
+1. 매장 냉장고에 소분 용기가 들어갈 자리가 있는지 아직 보지 못했음(용기 견본을 넣어 보지 못함, 16장 참고).
+2. 시험 제조를 해 보기 전이라 재료를 미리 소분했을 때 맛이나 상태가 달라지는지 모름.
+3. 예산 숫자를 사무국 장부와 한 번 더 맞춰 본 뒤 고르자는 사무국장 의견이 있었음.
+
+다음 회의 전까지 위 세 가지를 확인하고, 두 안을 비용과 주문대 접수를 비울 위험 기준으로 다시 비교하기로 함.
+
+## 6. 예산 현황과 숫자마다의 역할
+
+### 6-1. 최민재 보고
+
+- 승인 예산 상한: 120000원. 조합 사무국이 이번 시음회에 쓸 수 있도록 승인한 한도이며 실제로 나간 돈이 아님.
+- 실제 지급액: 45000원. 이미 값을 치른 재료비임. 내역은 다음과 같음.
+  - 시음용 원두 500g: 16000원
+  - 흑임자 페이스트 한 통: 12500원
+  - 유자청 한 병: 9800원
+  - 캐모마일 티백 한 상자: 6700원
+- 남은 운영 예상 지출: 58000원. 앞으로 쓸 것으로 보는 돈이며 아직 지급하지 않았음. 내역은 다음과 같음.
+  - 우유 · 오트 음료 구매 예상: 22000원
+  - 시음용 원두 추가분 예상: 12000원
+  - 바닐라 시럽 · 꿀 예상: 7500원
+  - 세척용품 · 키친타월 예상: 6500원
+  - 안내 카드 출력 · 코팅 예상: 5000원
+  - 얼음(매장 제빙기 부족분) 예상: 5000원
+- B안 소분 포장비 2500원은 위 남은 예상 지출에 아직 들어 있지 않음.
+- 환불이나 지원금 추가 입금은 확인하지 않았음.
+
+### 6-2. 논의 경과
+
+사무국장은 세 숫자의 역할이 다르다는 점을 다시 설명했음. 상한은 넘으면 안 되는 선이고, 실지급은 이미 장부에 찍힌 돈이며, 남은 예상은 아직 쓰지 않은 돈을 미리 잡아 둔 것이라는 설명임. 지난봄 시음회 정산 때 예상 지출을 실제 지출 칸에 같이 적어서 사무국 장부와 매장 장부 숫자가 맞지 않았던 일이 있었다고 함.
+
+윤서진은 시음 잔이 부족하면 몇 개 더 사자는 의견을 냈음. 사무국장은 새 물품 구매는 아직 승인하지 않았으므로 예상 지출에도 넣지 말라고 답함. 잔이 모자라는지는 창고 물품을 세어 본 뒤 다시 이야기하기로 함.
+
+최민재는 우유 · 오트 음료 예상 금액을 시험 제조 때 쓰는 양을 보고 다시 잡아야 할 수 있다고 했음. 금액을 바꿔야 하면 사무국에 먼저 알리고 회의록에 바꾼 날짜를 적기로 함.
+
+## 7. 참가 조건, 현장 신청 예외, 문의처
+
+### 7-1. 확인한 것
+
+- 참여는 사전 신청을 기본으로 함. 신청은 조합 게시판 글과 매장 계산대 옆 신청지로 받음.
+- 예외: 행사 당일 매장에서 현장 신청을 받는 예외를 지금은 허용함.
+- 문의처: 매장 운영자 윤서진. 매장 전화와 메일 표기 방식은 아직 정하지 않았으므로 안내문에는 &#x27;미정&#x27;으로 남김.
+- 참가자는 접수 시작 전에 와도 준비 중인 테이블 구역에 들어갈 수 없음. 매장 손님으로 앉아 기다리는 것은 막지 않음.
+- 번호표나 명찰을 받았다고 해서 시음 안내를 들은 것으로 보지 않음.
+
+### 7-2. 현장 신청 예외를 둘러싼 논의
+
+윤서진은 동네 어르신 가운데 게시판을 보지 않는 분이 많아서 매장에 들렀다가 그 자리에서 신청하고 싶어 하는 경우가 있다며 현장 신청 예외를 두자고 했음. 최민재는 지난봄에 현장 신청을 받았다가 정원보다 사람이 많아져 잔을 나눠 따랐던 일을 떠올리며 걱정을 보탰음. 사무국장은 조합 위생 점검 담당이 9월 중순에 시음 운영 방식을 한 번 보기로 했으니, 그 의견에 따라 이 예외를 다시 볼 수 있다고 말함. 지금은 예외를 허용한 상태로 두고, 나중에 취소 통지가 오면 그때부터는 이 예외를 쓰지 않기로 함.
+
+### 7-3. 문의 응대
+
+시음회 문의는 모두 윤서진이 받음. 최민재에게 재료 문의가 오더라도 참가 신청 · 일정 문의는 윤서진에게 넘김. 문의 응대 때 확정되지 않은 날짜나 비용 면제를 약속하지 않기로 함. 지난봄에 &quot;다음 회차에도 꼭 불러 주겠다&quot;고 말한 일이 있었는데, 그 다음 회차가 언제인지 정해지지 않아 서로 곤란했다는 이야기가 나왔음.
+
+## 8. 운영 세부
+
+### 8-1. 확정한 것
+
+- 시음 잔은 한 사람당 두 잔을 넘기지 않음.
+- 알레르기 성분은 안내 카드에 적음.
+- 설문지는 시음이 끝난 자리에서 바로 받음. 내지 않은 설문지는 나중에 따로 받지 않음.
+- 매장 영업은 시음회 중에도 계속함. 그래서 계산대 담당이 시음 안내를 겸함.
+
+### 8-2. 논의 경과
+
+알레르기 안내 카드에 적을 성분을 메뉴마다 확인함. 흑임자 라테는 우유와 참깨, 오트 바닐라 라테는 귀리와 바닐라 시럽 원료를 적고, 유자 캐모마일 아이스티는 유자청 원재료 표시를 보고 옮겨 적기로 함. 최민재가 재료 포장지 사진을 찍어 두었고, 카드 문구는 윤서진이 씀. 성분 표시가 포장지와 다르면 포장지를 따름.
+
+설문지는 지난봄 양식을 고쳐서 쓰기로 함. 지난봄에는 설문지를 집에 가져가서 나중에 가게에 갖다주겠다는 분이 몇 분 있었는데, 실제로 돌아온 것은 한 장뿐이었음. 이번에는 시음이 끝난 자리에서 바로 받고, 그 자리에서 내지 않은 설문지는 따로 받지 않는다는 문장을 안내 카드에도 넣기로 함.
+
+계산대 담당이 시음 안내를 겸하는 문제를 두고 윤서진은 일반 손님 주문이 밀리면 시음 테이블 쪽 안내가 늦어질 수 있다고 말함. 시음 시작 때 한 번에 안내하고, 중간에는 안내 카드로 보충하는 방향으로 이야기함. 세 메뉴 가운데 흑임자 라테는 우유 거품을 올려 바로 내야 해서 주문대 일과 겹치면 기다리는 시간이 생길 수 있음. 이 점은 시험 제조 때 같이 보기로 함.
+
+## 9. 물품과 장비
+
+- 물품은 현장에서 대조한 뒤 배부함. 창고에서 가져온 수량과 테이블에 놓은 수량을 맞춰 봄.
+- 예비 물품은 정원에 더하지 않음. 남은 시음 잔 수나 남은 설문지 수를 참가자 수와 같은 값으로 맞추지 않음.
+- 파손이 의심되는 물품은 배부하지 않고 따로 빼서 확인함. 지난봄에 가장자리가 살짝 깨진 잔이 상자 안에 섞여 있었는데, 참가자에게 건네기 직전에 발견했음. 이번에는 창고에서 확인할 때 잔 가장자리를 손끝으로 한 번씩 훑어보기로 함.
+- 새 물품 구매는 아직 승인하지 않았음. 일정이나 예산에 실제 구매로 넣지 않음.
+
+에스프레소 머신 스팀 노즐 끝의 작은 구멍 하나가 가끔 막힌다는 말이 나옴. 윤서진이 평소 마감 때 바늘로 뚫어 주고 있고, 시험 제조 때 거품 상태와 함께 보기로 함. 냉장고 안 온도계는 이번 주에 새 건전지로 갈았음.
+
+입가심 물은 매장 정수기 물을 유리병 두 개에 담아 놓기로 함. 입가심용 작은 컵은 매장에 있는 것을 쓰고 새로 사지 않음.
+
+## 10. 위험 요인
+
+회의에서 나온 위험을 적음. 대응 방법은 아직 정하지 않은 것이 많음.
+
+1. 주문대 접수를 비울 위험: 진행 담당이 한 명이고 매장은 영업 중이므로, 진행 담당이 자리를 뜨면 주문대와 접수 자리가 모두 빔. 특히 접수가 시작된 뒤에는 자리를 비울 수 없음. A안은 당일 창고에 다녀와야 하고 B안은 당일 창고에 갈 일이 없다는 차이가 여기에 걸림. 두 안을 비교할 때 비용과 함께 이 위험을 기준으로 보기로 함.
+2. 우유 거품 상태: 흑임자 라테에 올리는 거품이 시음 잔에서 얼마나 유지되는지 아직 해 보지 않았음. 시험 제조에서 확인함.
+3. 좌석: 정원 12명과 큰 테이블 10석의 차이. 3-4에 적은 대로 다음 회의에서 다시 봄.
+4. 현장 신청으로 인한 인원 초과: 현장 신청 예외를 허용한 상태라 정원 관리가 흐트러질 수 있음. 정원이 차면 현장 신청을 받지 않는다는 원칙은 확인했지만, 이를 주문대에서 어떻게 알릴지는 정하지 않았음.
+5. 알레르기: 카드에 적더라도 참가자가 카드를 보지 않고 마실 수 있음. 시음 시작 때 말로도 한 번 알리기로 함.
+6. 설문 미회수: 바로 받지 못하면 그 설문은 없는 것이 됨. 펜을 넉넉히 두기로 함.
+7. 창고 열쇠: 열쇠함 번호를 받지 못하면 A안은 실행할 수 없고 B안도 전날 들여오기를 할 수 없음.
+8. 날씨: 비 오는 날 손수레로 시음 잔 상자를 옮길 때 젖을 수 있음.
+
+## 11. 마감과 회수, 담당자 인계
+
+### 11-1. 마감과 회수
+
+- 16:00 이후 물품을 회수하고 참가 기록을 마무리함.
+- 종료 시각을 회수 완료 시각으로 자동으로 적지 않음.
+- 당일 끝내지 못한 후속 확인은 담당과 다음 확인 대상을 남김. 예를 들어 깨진 잔이 나오면 &#x27;담당 윤서진, 다음 확인 대상: 창고 잔 상자 전체&#x27;처럼 적음.
+- 같은 비용이나 같은 참가 기록을 여러 장부에 적었다고 해서 두 번 더하지 않음. 지난봄에는 재료비 영수증을 매장 장부와 사무국 장부에 각각 붙여 놓았다가 합계를 낼 때 두 번 들어갔음.
+
+### 11-2. 담당자 인계
+
+진행 담당이 자리를 비워야 할 일이 생기면 접수가 시작되기 전에 돌아오도록 함. 접수가 시작된 뒤에는 자리를 비워 둘 수 없음. 계획을 바꿀 때는 바뀐 조건만 고치고 다른 확정 사항은 그대로 둠. 사무국장은 회의를 마치며 &quot;한 가지가 바뀌었다고 표 전체를 새로 쓰다 보면 안 바뀐 숫자까지 틀어진다&quot;고 말함.
+
+## 12. 미정 · 보류 항목과 다음 할 일
+
+### 12-1. 미정 · 보류
+
+- 재료 준비 방식 A안 · B안: 보류(5-5).
+- 행사 날짜: 미정. 다음 이사회에서 정함.
+- 문의처 연락처 표기: 미정.
+- 추가 지원 인력: 정하지 않았음. 예비 인력 정다온은 참석 확답이 없어 승인 인력이 아님.
+- 시간대별 참가자 명단: 정하지 않았음. 이번 회의 자료에도 없음.
+- 개별 참가자의 편의 지원(휠체어 동선, 어린이 동반 등): 정하지 않았음.
+- 현장 신청 예외를 끝까지 유지할지: 위생 점검 의견을 본 뒤 다시 봄.
+- 좌석 배치: 다음 회의에서 다시 봄.
+
+### 12-2. 다음 할 일
+
+- 윤서진: 시험 제조(9월 8일 마감 뒤 예정), 매장 냉장고 칸 여유 확인, 시음회 안내문 첫 초안 준비.
+- 최민재: 손수레 바퀴 조이기, 소분 용기 견적서 사무국 제출, 우유 · 오트 음료 예상량 다시 보기, 재료 포장지 성분 사진 전달.
+- 배정연 사무국장: 창고 열쇠함 번호 전달, 위생 점검 담당과 일정 맞추기, 이사회에 날짜 안건 올리기.
+- 다음 회의: 시험 제조 결과가 나온 뒤 윤서진이 날을 잡음.
+
+### 12-3. 회의 뒤 덧붙인 메모(최민재)
+
+회의를 마치고 윤서진과 창고 이야기를 조금 더 함. 창고 선반 맨 위 칸에 시음 잔 상자가 있고, 그 아래 칸에 재료 봉투를 모아 둠. 상자 겉면에 지난봄에 붙인 라벨이 그대로 남아 있어서 헷갈릴 수 있으니 새 라벨을 붙이자는 이야기가 나왔음. 라벨은 매장에 있는 것을 쓰면 되므로 따로 사지 않음.
+
+윤서진은 A안 · B안을 고르는 일이 결국 &quot;돈 2500원과 주문대를 비우는 시간 중 무엇을 더 아끼느냐&quot;의 문제 같다고 말했으나, 냉장고 칸을 보기 전에는 고르지 않겠다고 했음. 기록자도 같은 생각이라 회의록에는 결론을 적지 않음.
+
+## 13. 지난봄 딸기 라테 시음회에서 넘겨받은 기록
+
+이번 회의에서 참고하려고 지난봄 회차 기록을 꺼내 보았음. 이번 행사의 확정 사실과는 별개이며, 같은 실수를 하지 않으려고 적어 둠.
+
+- 지난봄 회차는 진행 인력이 2명이었음. 당시에는 주말 아르바이트였던 정다온이 근무하던 때라 계산대와 시음 테이블을 나누어 맡을 수 있었음. 이번에는 진행 인력이 1명이라 그때 방식을 그대로 쓸 수 없음.
+- 지난봄 회차는 딸기 라테 한 가지만 맛보는 행사라 잔 수 제한이 없었음. 두 잔째를 원하는 분이 많아 딸기 퓌레가 빨리 떨어졌음. 이번에 한 사람당 두 잔 제한을 둔 것도 이 경험 때문임.
+- 지난봄 안내문에는 접수 시각이 빠져 있었고, 행사 시작 시각만 보고 온 분과 일찍 온 분이 섞였음.
+- 지난봄 설문 문항은 맛 · 단맛 · 가격 의향 세 가지였는데, 가격 의향 칸을 비워 둔 분이 많았음. 가격을 적는 칸이 부담스러웠다는 말이 있어, 이번에는 &#x27;다시 사 마실 생각이 있는지&#x27;를 고르는 문항으로 바꾸는 안을 윤서진이 검토함.
+- 지난봄에는 시음 테이블과 주문대 사이에 줄을 세우지 않아 일반 손님 줄과 참가자 줄이 섞였음. 이번에는 큰 테이블 쪽에서 참가자를 맞이하고, 일반 손님은 평소처럼 주문대 앞에 서도록 안내 팻말을 두는 안이 나왔으나 팻말 위치는 정하지 않았음.
+
+## 14. 회의 중 오간 말 가운데 따로 적어 둘 것
+
+- 사무국장: &quot;예산 숫자 세 개는 이름이 비슷해 보여도 역할이 다르다. 상한은 문, 실지급은 이미 지나간 발자국, 남은 예상은 앞으로 걸을 길이다.&quot; 기록자가 이해한 대로 옮겨 적음.
+- 윤서진: &quot;B안이든 A안이든 재료 확인 5분은 빼면 안 된다. 지난봄에 확인을 건너뛰었다가 유통기한 지난 시럽을 꺼낼 뻔했다.&quot;
+- 최민재: &quot;예비 인력이 오면 좋겠지만 온다고 쳐 놓고 일정표를 짜면, 안 왔을 때 일정표 전체가 무너진다. 1명 기준으로만 짜자.&quot;
+- 윤서진: &quot;접수 시작 뒤에는 화장실도 못 간다고 생각하고 준비하겠다.&quot; 기록자 덧붙임: 접수 전 인계 원칙(11-2)과 같은 뜻임.
+- 사무국장: &quot;현장 신청 예외는 지금은 열어 두지만, 위생 점검에서 다른 의견이 나오면 닫을 수 있다. 안내문을 쓸 때 이 점을 염두에 두라.&quot;
+
+## 15. 메뉴별 시음 분량과 준비 재료 검토
+
+회의 후반에 메뉴마다 시음 잔에 얼마나 담을지, 무엇이 창고에 있고 무엇이 매장에 있는지를 하나씩 짚었음. 계량 값은 시험 제조 뒤에 최민재 계량표로 확정하고, 이 회의록에는 방향만 적음.
+
+- 흑임자 라테: 시음 잔이 120mL 들이라 가득 담지 않고 거품 높이를 남겨 두기로 함. 흑임자 페이스트는 창고에 있는 미개봉 통을 씀. 우유는 매장 납품 우유를 쓰므로 창고 운반 물품이 아님. 우유 스팀은 피처 하나로 두세 잔 분량씩 하는 것이 평소 방식인데, 시음회 때도 그렇게 할지는 시험 제조에서 거품 상태를 본 뒤 정함.
+- 유자 캐모마일 아이스티: 이번에 산 캐모마일 티백 상자는 창고가 아니라 매장 선반에 두었고, 매장에서 평소 아이스티를 냉침할 때 같이 우려 두는 방식으로 씀. 매장 상시 작업이라 시음회 준비 작업에 따로 넣지 않음. 유자청은 창고에 있는 병을 씀. 얼음은 매장 제빙기 것을 쓰되, 영업 중 얼음이 모자랄 수 있어 남은 예상 지출에 얼음 부족분을 잡아 둠.
+- 오트 바닐라 라테: 에스프레소는 시음 잔마다 그때그때 내림. 시음용 원두가 평소 판매 원두와 섞이지 않도록 매장에 있는 작은 보조 그라인더를 시음용으로 따로 씀. 오트 음료는 매장 냉장고 납품분, 바닐라 시럽은 아직 사지 않았고 남은 예상 지출에 들어 있음.
+
+최민재는 세 메뉴 가운데 흑임자 라테만 창고 재료와 매장 우유를 둘 다 써야 해서 준비가 가장 까다롭다고 말함. 윤서진은 흑임자 라테가 이번 가을 메뉴판에 가장 올리고 싶은 메뉴라서 빼고 싶지 않다고 했음. 메뉴를 바꾸자는 의견은 나오지 않았음.
+
+입가심용 크래커를 두자는 말이 잠깐 나왔으나 밀가루 · 달걀 성분이 새로 생기고 알레르기 안내 카드가 복잡해진다는 이유로 두지 않기로 함. 입가심은 물만 둠.
+
+## 16. 매장 냉장고 칸 현황(회의 중 열어 본 것)
+
+B안을 판단하려고 회의 중 매장 냉장고 문을 열어 칸마다 무엇이 들어 있는지만 적어 둠. 소분 용기 견본이 아직 오지 않아 실제로 넣어 보지는 못했음.
+
+- 맨 위 칸: 납품 우유 팩. 영업일 아침마다 들어오는 분량이 있어서 이 칸은 비워 둘 수 없음.
+- 둘째 칸: 오트 음료, 매장 판매용 생크림, 냉침 캐모마일 통.
+- 셋째 칸: 매장에서 파는 조각 케이크와 쿠키 반죽 통. 케이크 진열장이 따로 있지만 여분은 이 칸에 둠.
+- 맨 아래 서랍: 레몬 · 자몽 같은 과일과 민트 잎.
+- 문 칸: 연유, 판매용 시럽 병, 버터.
+
+윤서진은 셋째 칸의 쿠키 반죽 통을 행사 전날만 냉동실로 옮기면 소분 용기 자리가 날 것 같다고 했음. 최민재는 냉동실도 얼음 봉투로 꽉 차 있다고 해서 결론이 나지 않았음. 냉장고 안 온도는 회의 중에 3℃로 읽혔음.
+
+## 17. 조합원 의견함에서 나온 시음회 관련 의견
+
+사무국장이 조합원 의견함에 들어온 쪽지 가운데 시음회와 관련된 것을 가져와 회의 중에 읽었음. 이름은 적지 않음.
+
+- &quot;커피를 못 마시는 사람도 갈 수 있나요.&quot; → 세 메뉴 가운데 두 가지는 커피가 들어가지 않는다는 점을 안내문에 적을지 윤서진이 검토함.
+- &quot;아이랑 같이 가도 되나요. 아이는 안 마셔도 됩니다.&quot; → 어린이 동반은 정하지 않았음(12-1 편의 지원 항목). 아이가 앉을 자리가 정원에 들어가는지도 정하지 않았음.
+- &quot;시음하고 나면 꼭 사야 하는 분위기면 부담돼요.&quot; → 구매를 권하지 않는다는 문장을 넣는 쪽으로 이야기함.
+- &quot;귀리 음료는 처음 들어 봐요. 무슨 맛인지 미리 알 수 있나요.&quot; → 안내 카드에 재료를 쉬운 말로 풀어 쓰기로 함.
+- &quot;평일 낮이면 일하는 사람은 못 가요.&quot; → 날짜가 미정이라 답할 수 없었음. 사무국장이 이사회에 의견으로 전달하겠다고 함.
+- &quot;지난봄 시음회 때 설문을 집에 가져갔다가 잊어버렸어요. 미안해요.&quot; → 이번에는 그 자리에서 받는다는 원칙을 안내하기로 함.
+- &quot;단맛을 덜하게 해 달라고 할 수 있나요.&quot; → 시음은 같은 계량으로 내야 비교가 되므로 단맛 조절은 받지 않는 방향. 설문 문항에 단맛 의견 칸을 둠.
+
+## 18. 설문 문항 후보
+
+윤서진이 지난봄 설문지를 고친 문항 후보를 가져왔음. 아직 확정하지 않았고 다음 회의에서 고름.
+
+- 맛본 메뉴 두 가지에 표시하기
+- 메뉴마다 맛이 어땠는지 다섯 칸 가운데 고르기
+- 단맛이 알맞았는지(덜했으면 / 알맞음 / 더했으면)
+- 다시 사 마실 생각이 있는지(있다 / 모르겠다 / 없다)
+- 거품이나 질감에 대한 의견(흑임자 라테만)
+- 메뉴 이름이 맛을 떠올리게 하는지
+- 자유 의견 한 줄
+
+최민재는 문항이 일곱 개면 시음이 끝난 자리에서 쓰기에 길다고 했음. 윤서진은 &#x27;메뉴 이름&#x27; 문항을 빼는 안을 생각해 보겠다고 함. 설문지 인쇄 장수와 인쇄 방법은 정하지 않았음.
+
+## 19. 영업 중 일반 손님 응대 방침
+
+시음회 중에도 매장 영업을 계속하므로, 일반 손님과 참가자가 섞일 때의 방침을 이야기함. 확정한 것은 첫째 항목뿐이고 나머지는 방향만 나눔.
+
+- 일반 손님 주문은 평소처럼 주문대에서 받음. 시음회를 이유로 주문을 받지 않는 일은 없음.
+- 안쪽 큰 테이블에는 행사 준비를 시작할 때부터 &#x27;시음회 자리&#x27; 팻말을 세워 일반 손님이 앉지 않도록 함. 팻말은 매장에 있는 접이식 팻말을 씀.
+- 참가자가 시음과 별도로 일반 메뉴를 주문하면 평소처럼 계산함. 시음 잔은 판매하지 않음.
+- 결제 단말기가 한 대뿐이라 시음 안내 도중 결제 손님이 오면 결제를 먼저 하고 테이블로 돌아가는 방향으로 이야기함. 윤서진은 이 때문에 흑임자 라테 거품이 기다리는 동안 꺼질까 걱정된다고 했음.
+- 매장 음악은 시음 안내를 할 때 소리를 낮춤.
+- 포장 손님이 몰리는 시간대와 겹치면 안내가 늦어질 수 있음. 날짜가 정해지면 그 요일의 평소 손님 흐름을 윤서진이 매출 기록에서 찾아보기로 함.
+
+## 20. 창고 선반 사진으로 본 물품(최민재 메모)
+
+회의 다음 날 최민재가 보낸 창고 선반 사진을 보고 적음. 사진으로 본 것이라 개수와 상태는 현장에서 다시 셈.
+
+- 맨 위 칸: 시음 잔 상자 두 개. 상자 겉면에 지난봄 라벨이 붙어 있음. 안의 잔 개수는 세지 않았음.
+- 둘째 칸: 흑임자 페이스트 통(미개봉), 유자청 병(미개봉), 시음용 원두 봉투(밀봉 그대로).
+- 셋째 칸: 시음 매트 묶음, 아크릴 안내 카드 거치대, 비닐 덮개, 펜 꾸러미.
+- 맨 아래 칸: 지난봄 설문지 남은 묶음. 이번에는 문항을 바꿀 예정이라 그대로 쓰지 않음. 버릴지 이면지로 쓸지는 정하지 않았음.
+- 선반 옆: 조합 공용 손수레. 바퀴는 9월 4일 조였음.
+
+창고 안은 지하라 여름에도 서늘한 편이지만 비 온 다음 날에는 습기가 차는 일이 있다고 사무국장이 말한 적이 있음. 재료 봉투는 바닥에 두지 않고 선반에만 둠.
+
+## 21. 안내문 첫 초안을 쓰기 전 확인한 원칙
+
+윤서진이 안내문 첫 초안을 맡게 되어, 회의 끝 무렵 안내문에 들어갈 것과 넣지 않을 것을 함께 확인함. 안내문 문장 자체는 이번 회의에서 쓰지 않았음.
+
+- 꼭 들어갈 것: 일시(날짜는 미정으로 남기고 시각만), 접수 시각, 참여 조건(사전 신청 기본과 현재의 현장 신청 예외), 문의처(윤서진, 연락처 미정).
+- 넣지 않을 것: 아직 정하지 않은 추가 날짜, 비용 면제나 무료 증정 약속, 예비 인력이 온다는 말.
+- 문장 방향: 홍보 문구보다 참가자가 해야 할 일(언제 오는지, 어디로 가는지, 무엇을 내야 하는지)을 앞에 둠.
+- 현장 신청 예외는 지금 허용 상태로 적되, 위생 점검 뒤 취소 통지가 오면 안내문에서도 바로 뺌. 취소된 뒤에도 예전 안내문을 다시 붙이는 일이 없도록, 매장 게시판에 붙인 종이 안내문은 새 판을 붙일 때 옛 판을 떼어 냄.
+- 안내문에는 &#x27;미정&#x27;과 &#x27;미기재&#x27;를 구별해 적음. 정하지 않은 값은 &#x27;미정&#x27;, 정했지만 아직 옮겨 적지 않은 값은 &#x27;미기재&#x27;.
+
+최민재는 지난봄 안내문이 &quot;맛있는 딸기 라테를 만나 보세요&quot; 같은 문장으로 시작해서 정작 접수 시각을 찾기 어려웠다고 말했음. 윤서진은 이번에는 첫 줄부터 시각을 쓰겠다고 했음. 사무국장은 조합 게시판에 올릴 글과 매장에 붙일 종이 안내문의 내용이 서로 달라지지 않도록, 한쪽을 고치면 다른 쪽도 같은 날 고치자고 당부했음. 게시판 글은 사무국 홍보 담당이 올리고, 종이 안내문은 윤서진이 매장에서 출력해 붙임.
+
+## 22. 회의록 확인 기록
+
+- 9월 4일(금) 오전: 윤서진이 회의록을 읽고 3-2, 5-2 문장을 조금 고침. 고친 내용은 표현만 바꾼 것이고 사실은 그대로임.
+- 9월 4일(금) 오후: 사무국장에게 6장 예산 부분을 보냄. 사무국장은 숫자는 사무국 장부와 같다고 답함. 다만 &#x27;남은 운영 예상 지출&#x27;이라는 이름을 사무국 장부에서는 &#x27;잔여 예정액&#x27;이라고 쓰니, 두 장부를 맞출 때 이름이 달라도 같은 값임을 기억해 달라고 함.
+- 9월 4일(금) 저녁: 최민재가 손수레 바퀴를 조였다고 알려 옴. 창고 선반 상태도 사진으로 보내 왔고, 시음 잔 상자 겉면에 물 자국이 있지만 상자 안은 마른 상태였다고 함. 상자 안 잔의 개수와 상태는 아직 세어 보지 않았음.
+- 9월 7일(월) 오전: 사무국장이 창고 열쇠함 번호를 윤서진에게 직접 전했다고 알려 옴. 번호는 이 회의록에 적지 않음. 위생 점검 담당은 9월 중순 가운데 하루 매장을 보러 오기로 했고 정확한 날은 아직 받지 못했음.
+- 9월 7일(월) 저녁: 최민재가 포장재 가게에 소분 용기 견본 한 개를 부탁했고, 견본은 시험 제조 뒤에 받을 수 있다고 함. 견본이 오면 냉장고 셋째 칸에 넣어 보고 결과를 다음 회의에 가져오기로 함. A안 · B안은 여전히 보류 상태임.
+[자료 끝]
+
+온기카페의 신메뉴 시음회 운영을 도와주세요. 이 대화 전체에서는 존댓말과 친절한 어조를 유지해 주세요. 이후 턴의 형식 요구는 그 답변에만 적용합니다. 현장 도착 13:10, 행사 14:30~16:00, 접수 14:15, 인력 1명, 정원 12명입니다. A안은 당일 창고에서 시음 잔과 재료를 직접 옮기는 방식(편도 6분, 재료 확인 5분)이고 비용은 없습니다. B안은 전날 매장 냉장고에 재료를 소분해 두는 방식이며 소분 포장비 2500원, 당일 재료 확인 5분입니다. 설치는 둘 다 15분입니다. 승인 상한 120000원, 실지급 45000원, 남은 예상 58000원에 B안 비용은 아직 미포함입니다. 비용과 주문대 접수를 비울 위험 두 기준으로 두 안을 표 하나로 비교하고 실행 가능한 안을 추천해 주세요. 그 안의 준비 순서와 선택 근거를 함께 적어 주세요. 승인 상한·실제 지출·예상 지출의 역할을 구별해 예산을 검토해 주세요.</pre><b>턴 1 답변</b><pre class="rs-pre rs-ans">온기카페 가을 신메뉴 시음회 준비를 위한 재료 준비 방식 비교와 추천안, 당일 준비 순서 및 예산 검토 결과입니다.
+
+---
+
+## 1. 재료 준비 방식 비교 (A안 vs B안)
+
+| 비교 항목 | A안 (당일 창고 운반) | B안 (전날 소분 보관) |
+| --- | --- | --- |
+| **추가 비용** | **0원** (별도 포장 비용 발생하지 않음) | **2,500원** (소분 용기 및 라벨 견적 비용) |
+| **주문대 접수를 비울 위험** | **높음 (<mark class="rs-mk"><sup>5</sup>매장 공백 약 17분 발생</mark>)**&lt;br&gt;
+
+&lt;br&gt;진행 인력이 1명뿐인 상태에서 창고 왕복 12분과 재료 확인 5분 동안 매장 카운터가 완전히 비어 일반 손님 주문 응대 불가 | **매우 낮음 (매장 공백 없음)**&lt;br&gt;
+
+&lt;br&gt;창고로 이동할 필요 없이 매장 내부에서 5분간 확인하므로 주문대를 상시 지키며 응대 가능 |
+| **당일 소요 시간** | 총 32분 (왕복 이동 12분 + 재료 확인 5분 + 테이블 설치 15분) | 총 20분 (매장 내 재료 확인 5분 + 테이블 설치 15분) |
+| **주요 선결 과제 및 제약** | 비 오는 날 손수레 운반 시 잔 상자 방수 대책 필요, 자리 비움 팻말 게시 필요 | 매장 냉장고 셋째 칸 여유 공간 확보, 시험 제조를 통한 소분 재료(흑임자 페이스트 등) 품질 확인 필요 |
+
+---
+
+## 2. 추천안 및 선택 근거
+
+**추천안: B안 (전날 소분 보관)**
+
+### 선택 근거
+
+1. **주문대 방치 위험 원천 차단**
+행사 당일 매장 영업이 정상 지속되는 상황에서 진행 인력은 윤서진 1명뿐입니다. <mark class="rs-mk"><sup>2</sup>A안을 택할 경우 창고 이동 및 확인에 소요되는 17분간 매장이 방치되어 방문 손님 이탈 및 접수 차질이 불가피합니다.</mark> <mark class="rs-mk"><sup>1</sup>B안은 매장 안에서 모든 준비가 완결되므로 주문대를 비우지 않고 안전하게 운영할 수 있습니다.</mark>
+2. **예산 수용 가능성**
+<mark class="rs-mk"><sup>4</sup>B안에 드는 2,500원은 현재 승인 상한 대비 잔여 예산 여유분(17,000원) 안에서 무리 없이 충당할 수 있습니다.</mark> 비용 절감(2,500원)보다 영업 손실 방지와 접수 안정성이 훨씬 큰 가치를 지닙니다.
+3. **접수 시간(14:15)의 안정적 준수**
+설치를 마친 뒤 접수를 열어야 한다는 원칙(회의록 4-2)에 비추어 볼 때, 동선 변수가 없는 B안이 14:15 정각 접수 개시를 지키기에 훨씬 유리합니다.
+
+&gt; **실행 전 필수 확인 사항 (보류 사유 해소)**
+&gt; * 최민재 님이 전달받을 소분 용기 견본을 매장 냉장고 셋째 칸(쿠키 반죽 통 조정 등)에 실제로 넣어 수납 가능 여부를 확정해야 합니다.
+&gt; * 9월 8일 예정된 시험 제조에서 흑임자 페이스트를 미리 소분해 냉장했을 때의 굳기 및 음료 품질 변화를 점검해야 합니다.
+&gt; 
+&gt; 
+
+---
+
+## 3. B안 기준 당일 준비 순서
+
+* **13:10 ~ 13:30 | 현장 도착 및 영업 준비 병행**
+* 윤서진 매장 도착, 에스프레소 머신 스팀 노즐 구멍 상태 및 보조 그라인더(시음용) 점검
+* 일반 손님 주문을 정상 응대하며 냉장고 온도(3℃) 확인
+
+
+<mark class="rs-mk"><sup>3</sup>* **13:30 ~ 13:45 | 재료 및 잔 상태 대조 확인 (5분 소요)**</mark>
+* 전날 들여온 시음 잔 상자 개봉 후 림(가장자리) 파손 여부 손끝 확인
+* 냉장고 보관 소분 재료(흑임자 페이스트, 유자청 등) 상태 및 유통기한 라벨 확인
+
+
+* **13:45 ~ 14:05 | 시음 테이블 및 안내 구역 설치 (15분 소요)**
+* 안쪽 큰 테이블 10석 및 창가 바 2석에 시음 매트 깔기
+* 알레르기 안내 카드 및 안내문 거치대 세우기
+* 설문지와 펜 넉넉히 비치
+* 정수기 물을 담은 유리병 2개와 입가심용 컵, 잔반 버리는 통 설치
+* 일반 손님 혼선 방지용 &#x27;시음회 자리&#x27; 팻말 거치
+
+
+* **14:05 ~ 14:15 | 최종 점검 및 접수 준비**
+* 우유·오트 음료 및 얼음 제빙기 잔량 점검, 입가심 물병 세팅 완료
+* 계산대 옆 사전 신청자 명단 확인 준비
+
+
+* **14:15 ~ 14:30 | 접수 개시 및 참가자 안내 (15분간)**
+* 참가자 12명 본인 확인 및 시음 희망 메뉴 2종 접수
+* 알레르기 안내 카드 사전 확인 유도, 테이블 착석 안내 (일반 손님 결제 시 단말기 결제 우선 진행)
+
+
+* **14:30 ~ 16:00 | 시음회 진행 (90분간)**
+* 메뉴 순차 제조 및 제공 (1인당 최대 2잔 제한 준수)
+* 일반 손님 결제 주문 병행 응대 (주문 발생 시 결제 우선 처리)
+* 시음 완료 직후 현장에서 설문지 즉시 회수
+
+
+* **16:00 이후 | 마감, 회수 및 기록 완료**
+* 현장 설문지 회수 완료분 정리
+* 시음 잔 세척, 건조 후 전용 상자 수납
+* 당일 실제로 물품 회수가 끝난 시각을 대장에 별도 기록 (16:00 자동 기재 금지)
+
+
+
+---
+
+## 4. 예산 검토 (숫자별 역할 구분 및 조정)
+
+사무국 회계 기준에 맞추어 예산 항목의 역할을 명확히 분리하여 검토한 결과입니다.
+
+### 1) 숫자별 역할 구분
+
+* **승인 예산 상한 (120,000원)**
+조합 사무국이 본 행사에 집행을 허용한 절대적인 상한선입니다. 실제로 나간 돈이 아니며, 총 지출액이 결코 넘어서는 안 되는 한도 역할을 합니다.
+* **실제 지급액 (45,000원)**
+이미 구매 및 대금 지급이 완료되어 장부에 기록된 금액입니다. (원두 16,000원 + 흑임자 12,500원 + 유자청 9,800원 + 캐모마일 6,700원)
+* **남은 운영 예상 지출 / 잔여 예정액 (58,000원)**
+앞으로 행사 진행을 위해 지출될 것으로 예상하여 잡아둔 금액이며, 아직 지급되지 않은 가용 예정액입니다. (우유·오트 22,000원, 원두 추가 12,000원, 시럽·꿀 7,500원, 세척용품 6,500원, 출력 5,000원, 얼음 5,000원)
+
+### 2) B안 채택 시 예산 조정 및 건전성 검토
+
+* **기존 총 예상 합계**: 103,000원 (실제 지급 45,000원 + 남은 예상 58,000원)
+* **상한 대비 잔여 여유분**: **17,000원**
+* **B안 반영 시 (소분 포장비 2,500원 추가)**:
+* 남은 운영 예상 지출(잔여 예정액)을 **60,500원**(58,000원 + 2,500원)으로 증액 조정합니다.
+* 조정 후 최종 예상 총 지출액은 **105,500원**(45,000원 + 60,500원)이 됩니다.
+* 승인 상한(120,000원) 대비 **14,500원의 예비 여유 자금**이 여전히 남으므로 재정적으로 매우 안정적입니다.
+
+
+
+### 3) 회계 관리 주의 사항
+
+* B안 소분 포장비(2,500원) 견적서를 사무국에 전달하여 잔여 예정액 장부에 공식 반영해야 합니다.
+* 지난봄처럼 영수증 하나를 매장 장부와 사무국 장부에 이중으로 합산하는 오류가 없도록 정산 창구를 일원화해야 합니다.
+* 시음 잔 파손이나 부족이 확인되더라도 사전 승인 없는 임의 추가 구매는 불가하므로 예산에 반영하지 않습니다.</pre></div><div class="rs-turn"><b>턴 2 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 온기카페 신메뉴 시험 제조 점검 일지 — 흑임자 라테 우유 거품 관찰
+
+- 기록 기간: 2026년 9월 8일(화) 마감 뒤 ~ 9월 10일(목) 영업 전
+- 제조: 윤서진(매장 운영자) / 측정 · 기록: 최민재(재료 담당)
+- 장소: 온기카페 주문대 뒤 제조대
+- 목적: 시음회 후보 메뉴 가운데 흑임자 라테에 올리는 우유 거품이 시음 잔에서 어떻게 변하는지 시각별로 기록함. 1차 준비 회의에서 &quot;거품이 시음 잔에서 얼마나 가는지 해 보지 않았다&quot;는 점이 위험 요인으로 나와서 하는 기록임.
+- 기록 원칙: 눈으로 본 것과 잰 값만 본 순서대로 적음. 왜 그런지에 대한 판단은 적지 않고, 사람이 한 말은 &#x27;메모&#x27;로 따로 적음. 들은 말과 직접 본 것을 섞지 않음.
+
+## 0. 쓴 장비와 재는 방법
+
+- 에스프레소 머신: 매장 2그룹 머신. 스팀 노즐은 구멍이 네 개인 팁.
+- 스팀 피처: 600mL 피처 한 개, 350mL 피처 한 개.
+- 탐침 온도계: 피처 안 우유 온도와 잔 안 음료 온도를 잼. 지난달 끓는 물과 얼음물로 맞춰 본 것.
+- 적외선 온도계: 시음 잔 바깥 벽 온도를 잼.
+- 스톱워치: 휴대전화 스톱워치. 거품을 올린 뒤 숟가락을 뗀 때를 0초로 둠.
+- 거품 높이: 15cm 쇠자를 잔 바깥에 세워 대고 눈높이에서 거품 윗면과 거품 아래 액체 경계 사이를 읽음. 시음 잔 벽이 둥글어 0.1cm 단위까지는 정확하지 않음.
+- 사진: 관찰할 때마다 휴대전화로 옆에서 한 장, 위에서 한 장 찍음. 사진 시각과 기록 시각을 맞춤.
+- 저울: 페이스트와 우유 양을 g 단위로 잼.
+
+재료는 다음과 같음.
+
+- 우유: 매장 납품 우유(일반 우유). 9월 7일(월) 아침 들어온 팩을 그날 개봉했고, 9월 8일(화) 아침 들어온 팩은 시험 시작 때까지 열지 않았음. 두 팩 모두 유통기한 안이었음.
+- 흑임자 페이스트: 행사용 통은 열지 않음. 납품처가 함께 보내 준 같은 제품 견본 소포장을 씀.
+- 오트 음료: 매장 납품분. 9월 6일 개봉.
+- 시음 잔: 9월 8일 저녁 최민재가 퇴근길에 조합 공동 창고에 들러 가져온 내열 유리 시음 잔(120mL 들이) 6개. 창고 상자에서 꺼낼 때 가장자리를 손끝으로 훑어 보았고 깨진 곳은 없었음.
+- 비교용 잔: 매장에서 쓰는 도자기 머그(250mL 들이) 2개.
+
+## 1. 1차 시험 — 9월 8일(화)
+
+### 1-1. 시작 전 상태(20:35~20:46)
+
+- 20:35 매장 문을 닫고 제조대 위 컵과 행주를 치우기 시작함.
+- 20:38 매장 안 벽 온도계 24℃. 에어컨은 마감과 함께 끔.
+- 20:39 냉장고 안 온도계 3℃.
+- 20:40 스팀 노즐을 열어 응결된 물을 빼고, 노즐 끝 구멍을 바늘로 한 번씩 찔러 봄. 윤서진이 평소 마감 때 하는 방식대로 함. 이때 구멍 상태를 따로 들여다보지는 않았음.
+- 20:42 머신 스팀 압력계 바늘이 평소 영업 때 보던 자리에 있음을 윤서진이 확인함. 숫자로 적지 않음.
+- 20:44 시음 잔 6개를 제조대 위에 꺼내 놓음. 적외선 온도계로 잰 잔 바깥 벽 온도 23~24℃. 예열하지 않음.
+- 20:45 흑임자 페이스트 견본 포장을 열어 잔 A, B, C에 15g씩 담음.
+- 20:46 9월 7일 개봉 팩 우유 300g을 600mL 피처에 담음. 피처 안 우유 온도 5℃.
+
+### 1-2. 잔 A · B · C — 같은 피처에서 나눠 부음
+
+- 20:47:00 스팀 시작.
+- 20:47:38 스팀 끝. 걸린 시간 38초. 피처 안 우유 온도 66℃.
+- 20:47:50 피처를 제조대에 두세 번 두드리고 돌려 섞음.
+- 20:48:05 잔 A에 우유를 붓고 거품을 숟가락으로 떠서 올림. 숟가락을 뗀 때를 잔 A의 0초로 둠.
+- 20:48:30 잔 B에 같은 방식으로 붓고 거품을 올림. 잔 B의 0초.
+- 20:48:55 잔 C에 피처에 남은 것을 붓고 거품을 올림. 피처 바닥 쪽 거품이 많이 들어감. 잔 C의 0초.
+
+관찰은 잔 A부터 차례로 함. 아래 시각은 각 잔의 0초부터 잰 경과 시간임.
+
+잔 A
+
+- 0초: 거품 높이 1.6cm. 윗면이 고르고 반짝임. 큰 기포는 보이지 않음.
+- 1분: 1.5cm. 윗면은 0초와 비슷함.
+- 2분: 잔 벽에 닿은 거품 가장자리를 따라 작은 기포가 줄지어 보이기 시작함. 이것이 잔 A에서 처음 본 변화임.
+- 3분: 윗면 가운데에 굵은 기포 서너 개가 생김. 그중 둘이 그 자리에서 터짐. 높이 1.2cm.
+- 4분: 가장자리 쪽 거품이 가운데보다 먼저 낮아짐. 위에서 보면 가장자리를 따라 얇은 고리 모양으로 액체가 비침. 높이(가운데 기준) 1.0cm.
+- 5분: 거품과 아래 음료의 경계가 흐려짐. 경계 쪽에 흑임자 색이 번져 올라온 것처럼 회색 띠가 보임. 높이 0.8cm.
+- 7분: 윗면 군데군데 구멍이 나 아래 음료가 보임. 높이 0.5cm.
+- 10분: 얇은 막처럼 남음. 높이 0.3cm. 기록에 &#x27;눈에 띄게 꺼짐&#x27;이라고 적은 것이 이때임.
+- 10분 시점 잔 안 음료 온도 47℃. 잔 바깥 벽 온도 41℃.
+- 10분 뒤 숟가락으로 잔 바닥을 저어 보니 흑임자 앙금이 바닥에 조금 가라앉아 있었음.
+
+잔 B
+
+- 0초: 1.5cm.
+- 2분: 잔 A와 비슷하게 가장자리 작은 기포가 보임.
+- 3분: 굵은 기포가 한두 개 생김. 1.2cm.
+- 5분: 0.8cm.
+- 7분: 0.5cm.
+- 10분: 0.3cm. 잔 A와 거의 같은 모습.
+
+잔 C
+
+- 0초: 1.9cm. 피처 마지막 부분이라 거품이 두껍게 들어감. 윗면 결이 잔 A · B보다 거칠어 보였고 작은 기포가 처음부터 섞여 있었음.
+- 2분: 1.7cm.
+- 3분: 굵은 기포가 잔 A보다 많이 보임. 일곱 개 정도를 셈.
+- 5분: 1.2cm.
+- 7분: 0.9cm.
+- 10분: 0.6cm. 높이 자체는 세 잔 가운데 가장 많이 남았지만, 처음 높이에서 줄어든 정도는 잔 A · B와 비슷해 보였음.
+
+### 1-3. 잔 D — 예열한 도자기 머그
+
+- 21:00 도자기 머그 하나에 뜨거운 물을 채워 1분 둠. 21:01 물을 버림. 잔 안쪽 벽 온도 58℃.
+- 21:02 흑임자 페이스트 15g을 머그에 담음.
+- 21:03 9월 7일 개봉 팩 우유 200g을 350mL 피처에 담음. 우유 온도 5℃.
+- 21:03:20 스팀 시작. 21:03:50 스팀 끝. 30초. 우유 온도 65℃.
+- 21:04:10 붓고 거품을 올림. 0초.
+- 0초: 1.7cm.
+- 3분: 1.5cm. 가장자리 작은 기포가 보이기 시작함. 잔 A보다 늦게 본 것.
+- 5분: 1.4cm.
+- 7분: 1.2cm.
+- 10분: 1.0cm. 윗면에 구멍은 없음.
+
+기록자 덧붙임: 잔 D는 잔 종류, 잔 크기, 예열 여부, 피처 크기, 우유 양이 잔 A · B · C와 모두 다름. 다섯 가지가 한꺼번에 달라서 이 결과만으로는 어느 것이 차이를 만들었는지 알 수 없음.
+
+### 1-4. 잔 E — 새로 연 우유, 예열하지 않은 시음 잔
+
+- 21:12 9월 8일 아침 들어온 우유 팩을 개봉함. 개봉 직후 냄새와 색은 평소와 같다고 윤서진이 봄.
+- 21:13 새 팩 우유 200g을 350mL 피처에 담음. 5℃.
+- 21:13:30 스팀 시작. 21:14:02 끝. 32초. 66℃.
+- 21:14:20 시음 잔 E(예열하지 않음, 벽 23℃)에 흑임자 페이스트 15g, 우유, 거품 순으로 올림. 0초.
+- 0초: 1.6cm.
+- 2분: 가장자리 작은 기포가 보임.
+- 3분: 1.3cm.
+- 5분: 0.9cm.
+- 7분: 0.6cm.
+- 10분: 0.4cm.
+
+기록자 덧붙임: 같은 날 개봉한 새 팩으로 만든 잔 E도 잔 A · B와 비슷한 흐름으로 꺼짐. 한 번만 해 본 것임.
+
+### 1-5. 잔 F — 오트 음료, 예열하지 않은 시음 잔
+
+- 21:20 오트 음료 200g을 350mL 피처에 담음. 6℃.
+- 21:20:30 스팀 시작. 21:20:58 끝. 28초. 63℃. 스팀 소리가 우유 때보다 높게 들렸다고 윤서진이 말함.
+- 21:21:15 시음 잔 F에 흑임자 페이스트 없이 오트 음료와 거품만 올림. 오트 바닐라 라테에는 거품을 올리지 않을 계획이지만 비교 삼아 해 봄. 0초.
+- 0초: 1.2cm. 기포가 우유 거품보다 굵어 보였음.
+- 3분: 0.9cm.
+- 5분: 0.7cm.
+- 10분: 0.5cm.
+
+### 1-6. 1차 시험을 마친 뒤
+
+- 21:35 사진을 모두 확인함. 잔 A의 2분 사진에서 가장자리 작은 기포가 찍혀 있었고, 3분 사진에서 굵은 기포가 찍혀 있었음. 관찰 순서와 사진 순서가 같았음.
+- 21:40 잔 6개와 머그를 씻음. 시음 잔은 물기를 빼 안쪽 선반에 둠.
+- 21:45 남은 우유 두 팩은 냉장고 맨 위 칸에 다시 넣음.
+
+### 1-7. 1차 시험 메모
+
+- 윤서진: 거품을 올린 직후에는 지난번 매장에서 내던 라테 거품과 다르지 않아 보였음. 사진을 찍고 숫자를 적는 사이에 줄어들었는데, 시음회 당일에는 주문대에서 결제를 받는 동안 잔을 테이블에 두게 될 수 있어서 이 정도 시간이 지나는 일이 생길 것 같다고 말함.
+- 최민재: 처음에는 우유를 연 지 이틀째라서 그런가 생각했는데, 새로 연 팩으로 만든 잔 E도 비슷하게 줄어서 그 생각은 접어 두었다고 함. 다만 한 번씩만 해 봐서 무엇이라고 말할 수는 없다고 함.
+- 최민재: 흑임자 페이스트를 넣은 잔과 넣지 않은 잔을 같은 시음 잔에서 비교해 보지 못했음. 잔 F는 오트 음료라 비교가 되지 않음.
+- 윤서진: 피처 하나로 세 잔을 나눠 부으면 마지막 잔에 거품이 몰린다는 것은 평소에도 알던 일임. 잔 C가 그랬음.
+
+## 2. 2차 시험 — 9월 9일(수)
+
+1차에서 조건이 한꺼번에 달라 비교가 어려웠다는 메모가 있어, 2차에서는 한 번에 한 가지만 바꾸어 보기로 함. 바탕 조건은 다음과 같이 둠.
+
+- 바탕 조건: 시음 잔(예열하지 않음), 9월 8일 개봉 팩 우유 200g, 350mL 피처, 스팀 뒤 우유 온도 65~66℃, 흑임자 페이스트 15g을 잔에 먼저 넣고 우유 붓기, 거품은 숟가락으로 올림.
+
+### 2-1. 시작 전 상태(20:40~20:50)
+
+- 20:40 매장 안 온도 23℃. 비가 와서 1차 날보다 조금 서늘했음.
+- 20:41 냉장고 안 온도 3℃.
+- 20:43 스팀 노즐 응결수 빼기, 바늘로 구멍 찔러 보기. 1차 날과 같은 방식.
+- 20:46 시음 잔 6개(1차 때 쓴 것을 씻어 둔 것) 꺼냄. 벽 온도 22~23℃.
+- 20:50 9월 8일 개봉 팩 우유 냄새 · 색 확인. 윤서진이 평소와 같다고 봄. 개봉 2일째.
+
+### 2-2. 잔 G — 바탕 조건 그대로
+
+- 20:52 스팀 31초, 66℃. 20:53:00 거품 올림, 0초.
+- 0초 1.6cm / 2분 가장자리 작은 기포 / 3분 1.3cm / 5분 0.9cm / 7분 0.6cm / 10분 0.4cm.
+- 1차의 잔 E와 거의 같은 흐름이었음.
+
+### 2-3. 잔 H — 시음 잔만 예열
+
+- 20:58 시음 잔에 뜨거운 물을 채워 1분 둠. 20:59 물을 버림. 벽 온도 52℃.
+- 21:00 스팀 30초, 65℃. 21:01:00 거품 올림, 0초.
+- 0초 1.6cm / 3분 1.4cm(가장자리 작은 기포는 3분에 처음 봄) / 5분 1.2cm / 7분 1.0cm / 10분 0.8cm.
+- 10분 시점 잔 안 음료 온도 52℃. 잔 G의 같은 시점보다 5℃쯤 높았음.
+
+### 2-4. 잔 I — 흑임자 페이스트를 넣지 않음
+
+- 21:06 스팀 31초, 66℃. 21:07:00 우유와 거품만 올림, 0초.
+- 0초 1.7cm / 3분 1.5cm / 5분 1.2cm / 7분 1.0cm / 10분 0.8cm.
+- 경계 쪽 회색 띠는 당연히 보이지 않았고, 경계가 흐려지는 모습도 잔 G보다 늦게 보였음(7분 무렵).
+
+### 2-5. 잔 J — 스팀을 짧게(60℃)
+
+- 21:13 스팀 26초, 60℃. 21:14:00 거품 올림, 0초.
+- 0초 1.5cm / 3분 1.2cm / 5분 0.9cm / 7분 0.6cm / 10분 0.4cm.
+- 잔 G와 큰 차이가 없어 보였음.
+
+### 2-6. 잔 K — 스팀을 길게(72℃)
+
+- 21:20 스팀 40초, 72℃. 21:21:00 거품 올림, 0초.
+- 0초 1.8cm. 윗면에 큰 기포가 처음부터 몇 개 보였음. 스팀 끝 무렵 &#x27;쉬익&#x27; 하는 소리가 &#x27;부글&#x27; 소리로 바뀌었다고 윤서진이 말함.
+- 2분 굵은 기포가 터지기 시작 / 3분 1.2cm / 5분 0.7cm / 7분 0.4cm / 10분 0.2cm.
+- 여섯 잔 가운데 10분 시점 높이가 가장 낮았음.
+
+### 2-7. 잔 L — 피처에서 바로 부어 거품을 얹음
+
+- 21:28 스팀 31초, 66℃. 21:29:00 숟가락을 쓰지 않고 피처를 기울여 거품까지 한 번에 부음, 0초.
+- 0초 1.3cm. 윗면이 숟가락으로 올릴 때보다 얇고 매끈했음.
+- 3분 1.1cm / 5분 0.9cm / 7분 0.7cm / 10분 0.5cm.
+
+### 2-8. 2차 시험 메모
+
+- 최민재: 한 가지씩 바꿔 보니 잔 H(예열)와 잔 I(페이스트 없음)는 10분 시점 높이가 바탕 잔 G보다 높게 남았음. 잔 K(72℃)는 더 낮았음. 잔 J(60℃)는 G와 비슷했음. 잔 L은 처음 높이부터 낮아 비교 방법이 달랐음.
+- 최민재: 그래도 잔마다 한 번씩만 해 본 것이라 0.2~0.4cm 차이가 정말 차이인지, 자로 읽는 오차나 그날 손놀림 차이인지 가를 수 없음. 같은 조건을 세 번 이상 되풀이해 보기 전에는 무엇 때문이라고 적지 않기로 함.
+- 윤서진: 시음회 당일에는 잔 예열을 하려면 뜨거운 물을 받아 두는 일이 하나 더 생김. 주문대 일과 겹칠 수 있어 할 수 있을지 모르겠다고 말함. 하자고 정하지는 않았음.
+- 윤서진: 페이스트를 빼면 흑임자 라테가 아니므로 잔 I는 비교 자료일 뿐이라고 함.
+
+## 3. 3차 확인 — 9월 10일(목) 영업 전
+
+### 3-1. 스팀 노즐 확인(11:20~11:35)
+
+- 11:20 영업 준비 중 스팀 노즐 팁을 빼서 밝은 곳에서 들여다봄. 이 방식으로 들여다본 것은 시험 기간 중 이때가 처음임.
+- 11:22 구멍 네 개 가운데 하나가 반쯤 막혀 있는 것을 봄. 하얗게 굳은 것이 구멍 가장자리에 붙어 있었음.
+- 11:25 팁을 뜨거운 물에 담갔다가 바늘과 솔로 닦아 냄. 다시 들여다보니 네 구멍이 모두 같은 크기로 보였음.
+- 11:30 팁을 다시 끼우고 물만 스팀해 봄. 스팀이 네 갈래로 고르게 나오는 것을 윤서진이 확인함.
+- 11:35 기록자 덧붙임: 1차 · 2차 시험 때 이 구멍이 막혀 있었는지는 모름. 그때는 바늘로 찔러 보기만 했고 팁을 빼서 들여다보지 않았음. 막힌 것을 처음 본 것은 3차 확인 때이고, 시험 결과는 그보다 먼저 나온 것임. 순서를 바꾸어 적지 않음.
+
+### 3-2. 시음 잔 식는 속도(11:40~12:00)
+
+- 11:40 예열하지 않은 시음 잔 벽 온도 23℃.
+- 11:41 뜨거운 물로 1분 예열한 시음 잔 벽 온도 52℃. 물을 버린 뒤 2분에 44℃, 4분에 38℃, 6분에 33℃.
+- 11:50 도자기 머그를 같은 방식으로 예열. 물을 버린 직후 58℃, 2분 뒤 54℃, 4분 뒤 50℃.
+- 기록자 덧붙임: 예열한 시음 잔은 물을 버린 뒤 몇 분 안에 벽 온도가 많이 내려갔음. 예열 뒤 바로 음료를 붓지 않으면 예열한 효과가 남아 있는지 알기 어려움. 이것은 잰 값을 적은 것이고 거품과 연결해 판단한 것은 아님.
+
+### 3-3. 3차 확인 메모
+
+- 윤서진: 노즐을 닦은 뒤에 1차 바탕 조건으로 다시 만들어 보고 싶지만 영업 시작 시간이 다가와 하지 못함. 다음 마감 뒤에 해 보기로 함.
+- 최민재: 노즐을 닦기 전과 닦은 뒤를 비교한 기록은 아직 없음. 지금 기록만 보면 노즐이 영향을 줬는지 아닌지 말할 수 없음.
+
+## 4. 비슷한 과거 사례
+
+이번 시험과 비슷하게 거품이 줄었던 일, 또는 거품과 관련된 지난 기록을 모아 둠. 원인을 확인한 사례는 없음.
+
+- 지난겨울 포장 주문: 종이컵에 담아 뚜껑을 덮은 라테를 집에 가서 열어 보니 거품이 거의 없었다는 손님 말을 두 번 들었음. 당시에는 뚜껑을 덮고 걸어가는 동안 흔들린 탓이려니 하고 넘어갔고, 확인은 하지 않았음. 매장 안에서 머그로 마신 손님에게서는 같은 말을 들은 적이 없음.
+- 지난봄 딸기 라테 시음회: 딸기 라테에는 거품을 올리지 않고 냈음. 그래서 시음 잔에 거품을 올린 기록은 이번이 처음임.
+- 지난여름 아이스 라테: 얼음 위에 거품을 올리는 메뉴를 잠깐 냈는데, 손님이 받아 가기 전에 거품이 가라앉는다는 말이 직원 사이에 있었음. 따뜻한 음료와는 조건이 달라 그대로 비교할 수 없음.
+- 조합원 한 분의 말(9월 9일 낮, 매장에서): 시험 이야기를 듣고 &quot;우유가 안 좋은 것 아니냐&quot;고 했음. 들은 말로만 적음. 같은 날 같은 납품 우유로 매장에서 머그 라테를 여러 잔 팔았고 거품에 대한 손님 말은 없었음.
+- 이웃 카페 바리스타에게 들은 말(윤서진, 지난해): &quot;잔이 차가우면 거품이 빨리 꺼진다고들 한다&quot;는 이야기. 들은 말이고 이번 시험으로 확인한 것은 아님.
+- 매장 머신 정기 점검 기록: 지난 6월 점검 때 스팀 밸브 패킹을 갈았다는 기록이 있음. 노즐 팁 구멍에 대한 기록은 없음.
+
+## 5. 측정의 한계
+
+- 거품 높이는 자를 잔 바깥에 대고 읽어서 0.1~0.2cm 정도는 읽는 사람마다 다를 수 있음. 1차 · 2차 모두 최민재 한 사람이 읽었음.
+- 시음 잔 벽이 아래로 갈수록 좁아지는 모양이라, 같은 양의 거품이라도 높이가 달라 보일 수 있음.
+- 스톱워치가 하나라 잔 A · B · C를 동시에 잴 때는 잔마다 0초를 따로 적고 경과 시간을 손으로 계산했음. 몇 초 어긋났을 수 있음.
+- 매장 안 온도가 1차 날 24℃, 2차 날 23℃로 달랐음. 습도는 재지 않았음.
+- 1차 잔 A · B · C는 600mL 피처, 나머지는 350mL 피처를 썼음. 피처 크기에 따른 차이는 따로 보지 않았음.
+- 흑임자 페이스트는 견본 소포장을 썼고, 행사용 통과 같은 제품이지만 만든 날이 같은지는 확인하지 않았음.
+- 우유는 9월 7일 개봉 팩과 9월 8일 개봉 팩 두 가지만 써 봤음. 다른 납품일 우유는 써 보지 않았음.
+
+## 6. 아직 하지 않은 확인
+
+다음 시험에서 할 수 있는 것을 적어 둠. 무엇을 먼저 할지는 정하지 않았음.
+
+- 노즐 팁을 닦은 뒤 1차 바탕 조건(예열하지 않은 시음 잔, 페이스트 15g, 66℃ 안팎)을 다시 해 보기.
+- 같은 조건을 세 번 이상 되풀이해 보기.
+- 예열 여부만 바꾼 비교를 여러 번 해 보기.
+- 페이스트를 넣는 순서(우유를 먼저 붓고 페이스트를 나중에 섞기)를 바꿔 보기.
+- 다른 납품일 우유로 같은 조건을 해 보기.
+- 거품을 올린 뒤 시음 잔을 쟁반에 담아 큰 테이블까지 옮겨 놓았을 때의 변화를 보기. 지금까지는 제조대 위에 둔 채로만 관찰했음.
+- 세척 뒤 뜨거운 물로 헹군 잔과 그렇지 않은 잔을 나누어 같은 조건으로 만들어 보기. 지금까지 헹굼 방식은 기록이 고르지 않음(11장).
+- 거품 높이를 최민재가 아닌 사람이 한 번 더 읽어 보기. 읽는 사람에 따라 값이 얼마나 다른지 아직 모름.
+- 낮 영업 시간대 매장 안 온도를 시음 시간과 비슷한 때에 재 보기.
+
+## 7. 시음회 운영과 관련해 함께 적어 둘 사실
+
+- 시음회 당일 진행 담당은 1명이고 계산대와 시음 안내를 함께 맡음. 1차 메모에 적은 대로, 흑임자 라테를 만든 뒤 결제 손님을 먼저 받으면 잔이 몇 분 동안 테이블에 놓일 수 있음.
+- 시음 잔은 한 사람당 두 잔을 넘기지 않음. 참가자가 흑임자 라테를 고르면 그 잔에 거품이 올라감.
+- 시험에 쓴 시음 잔 6개는 씻어서 매장 안쪽 선반에 두었음. 창고로 돌려놓는 일은 최민재가 맡기로 함.
+- 흑임자 페이스트 견본 포장은 시험에서 대부분 썼음. 남은 양은 냉장고 셋째 칸에 넣어 둠.
+- 흑임자 라테 안내 카드에는 우유와 참깨를 적기로 1차 회의에서 정했음. 이번 시험으로 바뀐 재료는 없으므로 카드 문구도 그대로임.
+- 오트 바닐라 라테에는 거품을 올리지 않을 계획이므로, 잔 F의 기록은 비교 자료로만 둠.
+- 이 일지는 다음 준비 회의 자료로 씀. 거품에 대해 어떻게 할지는 이 일지에서 정하지 않음.
+
+## 8. 맛 · 입에 닿는 느낌 메모
+
+1차 · 2차 시험 때 윤서진과 최민재가 잔마다 조금씩 맛을 봄. 맛을 본 시점은 거품 높이를 잰 뒤였고, 맛을 보느라 잔을 기울인 뒤에는 높이를 다시 재지 않았음. 그래서 아래 메모는 각 잔의 마지막 측정이 끝난 뒤의 맛임. 다만 잔 A와 잔 G는 별도로 0초 직후에 한 모금씩 맛을 본 작은 잔을 따로 하나 더 만들어 비교함.
+
+- 잔 A와 같은 피처에서 따로 덜어 낸 작은 잔(0초 직후): 윤서진은 윗입술에 거품이 두툼하게 닿고 흑임자 향이 거품을 지나서 올라온다고 적음. 최민재는 처음 한 모금이 부드럽고 끝에 고소한 맛이 남는다고 적음.
+- 잔 A(10분 뒤): 윤서진은 윗입술에 닿는 것이 얇아져 그냥 따뜻한 흑임자 우유를 마시는 느낌이라고 적음. 최민재는 단맛이 처음보다 덜 느껴진다고 적었는데, 음료가 식어서 그렇게 느낀 것일 수도 있다고 덧붙임. 판단은 하지 않음.
+- 잔 C(10분 뒤): 거품은 남아 있었지만 입에 닿을 때 기포가 굵게 터지는 느낌이 있었다고 둘 다 적음.
+- 잔 D(10분 뒤): 머그라 입에 닿는 면이 넓어 시음 잔과 비교가 어렵다고 적음.
+- 잔 G와 같은 피처에서 따로 덜어 낸 작은 잔(0초 직후): 잔 A 때와 비슷하다고 둘 다 적음.
+- 잔 H(10분 뒤): 잔 G(10분 뒤)보다 따뜻하게 느껴졌고, 거품이 입술에 조금 더 남는다고 윤서진이 적음. 최민재는 차이를 잘 모르겠다고 적음.
+- 잔 K(10분 뒤): 우유에서 익은 냄새가 조금 난다고 윤서진이 적음. 최민재는 냄새 차이는 느끼지 못했다고 적음.
+- 잔 L(10분 뒤): 거품층이 얇아 처음부터 라테 느낌에 가까웠다고 둘 다 적음.
+
+두 사람의 맛 메모가 엇갈린 곳이 여러 군데 있어, 시음회 설문에 &#x27;거품이나 질감&#x27; 문항을 둘지는 이 메모만으로 정하지 않기로 함.
+
+## 9. 같은 날 영업 중 판매한 우유 음료 기록
+
+시험에 쓴 우유와 같은 팩, 같은 머신으로 영업 중에 판매한 음료의 기록을 매출 단말기와 주문대 메모에서 옮겨 둠.
+
+- 9월 8일(화) 영업 중: 머그로 낸 따뜻한 라테 · 카푸치노 14잔, 포장 종이컵 라테 9잔. 거품에 대한 손님 말은 기록되지 않았음. 오후에 카푸치노를 받은 단골 손님 한 분이 &quot;오늘 거품 좋다&quot;고 말한 것을 윤서진이 기억함.
+- 9월 9일(수) 영업 중: 머그 라테 · 카푸치노 11잔, 포장 종이컵 라테 7잔. 비가 와서 포장 손님이 평소보다 적었음. 거품에 대한 손님 말은 없었음.
+- 영업 중 음료는 머그를 커피 머신 위 데움판에 올려 두었다가 쓰는 것이 평소 방식임. 시험 때 쓴 시음 잔은 데움판에 올리지 않았음. 시음 잔이 데움판에 다 올라가지 않는 크기라서 그렇게 했음.
+- 영업 중 음료는 주문을 받고 바로 손님에게 건넸고, 거품을 올린 뒤 10분씩 두는 일은 없었음. 그래서 시험 잔과 같은 조건으로 비교할 수는 없음.
+
+## 10. 스팀 손놀림 기록
+
+윤서진이 스팀할 때 한 동작을 최민재가 옆에서 보며 적은 것임. 영상은 찍지 않았음.
+
+- 노즐을 우유 표면 바로 아래에 대고 스팀을 연 뒤, 처음 몇 초 동안 &#x27;치익&#x27; 소리가 나게 공기를 넣음. 공기를 넣는 동안 피처를 조금씩 내림.
+- 공기를 넣은 뒤에는 노즐을 조금 더 깊이 넣고 피처를 기울여 우유가 소용돌이치게 함.
+- 잔 A · B · C 때는 600mL 피처에 우유를 300g만 담아, 윤서진은 우유 높이가 평소보다 낮아 소용돌이를 만들기가 조금 어색했다고 말함.
+- 잔 K 때는 소용돌이를 길게 유지하다가 끝 무렵 &#x27;부글&#x27; 소리가 났음. 윤서진은 영업 중에는 그 소리가 나기 전에 스팀을 끈다고 말함.
+- 스팀을 끈 뒤 피처를 두드리고 돌리는 동작은 모든 잔에서 같았음. 두드린 횟수는 두세 번.
+- 숟가락으로 거품을 올릴 때는 피처 입구를 숟가락으로 막고 우유를 먼저 부은 뒤, 숟가락으로 남은 거품을 떠서 올림. 잔 L만 숟가락을 쓰지 않았음.
+
+최민재 메모: 한 사람이 같은 동작을 해도 잔마다 공기를 넣은 시간이 조금씩 달랐을 것임. 소리로만 들어서 몇 초인지 재지는 못했음.
+
+## 11. 시음 잔 세척과 보관 기록
+
+- 9월 8일 21:40 1차 시험 뒤 시음 잔 6개와 머그 2개를 매장 식기 세제로 씻음. 수세미는 매장 식기용과 같은 것.
+- 헹굼은 흐르는 물로 했고, 뜨거운 물로 헹궜는지 찬물로 헹궜는지는 기록하지 않았음. 윤서진은 평소처럼 뜨거운 물로 헹궜을 것이라고 함.
+- 씻은 잔은 안쪽 선반 마른 행주 위에 엎어 둠.
+- 9월 9일 20:46 2차 시험 때 위 잔을 그대로 꺼내 씀. 쓰기 전에 다시 헹구지는 않았음.
+- 9월 9일 21:45 2차 시험 뒤 같은 방식으로 씻음. 이때는 마지막에 뜨거운 물로 두 번 헹궜다고 최민재가 적음.
+- 창고 상자에서 처음 꺼낸 잔은 지난봄 시음회 뒤 씻어 넣어 둔 것으로, 9월 8일 시험 전 다시 씻지 않고 썼음. 상자 안이 말라 있었고 먼지는 보이지 않았음.
+- 6개 잔 가운데 하나는 바닥 바깥쪽에 지난봄 라벨 접착제 자국이 조금 남아 있었음. 1차 때 잔 E로 쓴 잔임. 안쪽에는 자국이 없었음.
+
+## 12. 일지를 본 사무국의 질문과 답
+
+9월 10일(목) 저녁, 배정연 사무국장이 매장 공유 폴더에 올린 일지를 읽고 문자로 물어 온 것과 최민재 · 윤서진이 답한 것을 옮김.
+
+- 사무국장 질문: 우유 납품처를 바꿔야 하는지.
+  - 최민재 답: 새로 연 팩으로 만든 잔(잔 E)도 비슷하게 줄었고, 같은 우유로 영업 중 낸 음료에는 거품 이야기가 없었음. 이 기록만으로 우유 탓이라고 말할 수 없어 납품처 이야기는 아직 꺼내지 않는 게 좋겠다고 답함.
+- 사무국장 질문: 시음회에서 흑임자 라테를 빼야 하는지.
+  - 윤서진 답: 가을 메뉴판에 가장 올리고 싶은 메뉴라 빼고 싶지 않음. 다음 준비 회의에서 거품을 어떻게 낼지 함께 정하자고 답함.
+- 사무국장 질문: 잔을 데우는 일을 하려면 돈이 드는지.
+  - 최민재 답: 뜨거운 물은 매장 온수기 물이라 새로 사는 것은 없음. 다만 일손이 드는 일이라 진행 담당 1명이 할 수 있는지는 윤서진이 판단할 일이라고 답함.
+- 사무국장 질문: 노즐이 막힌 것은 고장인지.
+  - 윤서진 답: 우유 찌꺼기가 굳어 붙은 것으로 보이고 닦아서 지금은 고르게 나옴. 정기 점검을 부를 일은 아닌 것 같다고 답함. 다만 1차 · 2차 때부터 막혀 있었는지는 알 수 없다고 덧붙임.
+
+사무국장은 &quot;그럼 아직 원인은 모르는 것으로 알고 있겠다. 회의 때 다시 보자&quot;고 답함. 사무국장은 위생 점검 담당에게도 이 일지를 보여 줘도 되는지 물었고, 윤서진은 사진과 함께 보여 줘도 된다고 답함. 위생 점검 담당이 일지를 읽었는지는 아직 듣지 못했음.
+
+## 13. 시험에 쓴 재료
+
+- 우유(9월 7일 개봉 팩): 1차 잔 A · B · C용 300g, 잔 D용 200g. 맛보기용 작은 잔은 같은 피처에서 덜어 냄.
+- 우유(9월 8일 개봉 팩): 1차 잔 E용 200g, 2차 잔 G~L용 200g씩 여섯 번.
+- 오트 음료: 1차 잔 F용 200g.
+- 흑임자 페이스트 견본: 잔마다 15g. 잔 F · 잔 I에는 넣지 않음.
+- 시험에 쓴 우유와 오트 음료는 매장 영업용 납품분에서 꺼내 썼음. 최민재는 시음회 예상 지출 금액은 이번 시험 때문에 바꾸지 않는다고 적음.
+
+## 14. 시험 조건과 시음회 당일 조건이 다른 점
+
+시험 결과를 당일에 그대로 옮겨 생각하기 어려운 점을 적어 둠.
+
+- 시험은 마감 뒤 손님이 없을 때 했음. 당일에는 매장 영업 중이라 문이 자주 여닫히고 에어컨이 돌아감.
+- 시험은 저녁에 했음. 당일 시음은 14:30~16:00 낮 시간이라 매장 안 온도가 다를 수 있음. 낮 시간 매장 온도는 재 본 적이 없음.
+- 시험 잔은 제조대 위에 둔 채로 관찰했음. 당일에는 잔을 쟁반에 담아 안쪽 큰 테이블까지 옮김. 제조대에서 큰 테이블까지는 몇 걸음이지만 옮기는 동안 흔들림이 있음.
+- 시험 때는 한 잔을 만들고 관찰하는 데만 집중했음. 당일에는 진행 담당 1명이 주문대 결제와 시음 안내를 함께 하므로, 잔을 만든 뒤 참가자 앞에 놓이기까지 걸리는 시간이 잔마다 다를 수 있음.
+- 시험 때 거품 높이를 잰 사람은 최민재였고 당일에는 최민재가 현장에 없음. 당일 거품 상태를 기록할지, 기록한다면 누가 할지는 정하지 않았음.
+- 당일 쓸 우유가 그날 아침 들어온 팩일지, 하루 전에 연 팩일지는 날짜가 정해져야 알 수 있음.
+- 시험 때는 흑임자 페이스트 견본을 썼고 당일에는 행사용 통을 열어 씀.
+
+## 15. 시험 중 생긴 일
+
+측정값에 영향을 줬을 수 있는 일을 적어 둠. 영향이 있었는지는 판단하지 않음.
+
+- 9월 8일 21:06 무렵: 잔 D를 관찰하던 중 마감한 줄 모르고 문을 두드린 손님이 있어 윤서진이 문으로 가서 마감했다고 알림. 30초쯤 걸렸고, 그동안 최민재가 계속 잔 D 옆에 있었으므로 측정은 끊기지 않았음.
+- 9월 8일 21:16 무렵: 잔 E 2분 사진이 흔들려 흐리게 찍힘. 같은 시각에 다시 찍은 사진이 있어 그것을 씀.
+- 9월 9일 21:10 무렵: 빗소리가 세져 매장 앞 차양 끝에서 물이 떨어짐. 출입문 틈으로 바람이 조금 들어왔다고 최민재가 적음. 잔 I를 관찰하던 때임.
+- 9월 9일 21:24 무렵: 잔 K 3분 측정 때 자를 잔에 대다가 잔을 살짝 건드림. 거품 윗면이 흔들렸고, 그 뒤 측정값에 표시를 해 둠.
+- 9월 9일 21:37 무렵: 머신 물받이 통이 가득 차 비움. 잔 L 7분 측정과 10분 측정 사이였음.
+
+## 16. 일지 확인
+
+- 9월 10일(목) 오후: 윤서진이 일지를 읽고 1-7의 자기 메모 문장을 조금 고침. 시각과 측정값은 고치지 않았음.
+- 9월 10일(목) 저녁: 최민재가 사진 파일 이름을 잔 이름과 경과 시간으로 바꾸어 매장 공유 폴더에 올렸다고 알림. 사진은 1차 42장, 2차 33장, 3차 6장임.
+- 9월 11일(금) 아침: 최민재가 출근길에 시음 잔 6개를 창고 상자에 돌려놓았다고 알림. 상자 겉면에 &#x27;시험 사용 뒤 반납&#x27;이라고 적은 쪽지를 붙였음.
+- 9월 11일(금) 낮: 윤서진이 노즐 팁을 닦은 뒤 영업 중 낸 카푸치노 거품이 평소와 같았다고 적음. 이것은 머그에 바로 낸 영업용 음료이고, 시음 잔에 10분 두고 본 기록이 아님.
+- 9월 11일(금) 저녁: 다음 준비 회의 때 이 일지와 사진을 함께 보기로 함. 회의 전까지 추가 시험은 하지 않기로 했고, 일지는 여기서 닫음. 기록에 덧붙일 것이 생기면 새 일지를 따로 엶.
+[자료 끝]
+
+시험 제조 때 우유 거품을 올린 잔이 잠시 뒤 거품이 눈에 띄게 꺼졌습니다. 왜 그런지 원인을 결과와 연결해서 설명해 주세요. 코딩이나 과학에 익숙하지 않은 운영자에게 맞는 일상 비유를 하나 들고, 행사 당일 어떻게 대응할지도 밝혀 주세요. 거품과 유화의 정의도 정확히 구별해 주세요. 관찰 순서를 뒤집지 말고 기록만으로 우유 품질 문제라고 단정하지 마세요.</pre><b>턴 2 답변</b><pre class="rs-pre rs-ans">점검 일지의 관찰 순서와 측정 결과를 바탕으로, 흑임자 라테 우유 거품이 가라앉은 복합적 원인과 개념 구분, 일상적 비유, 그리고 행사 당일 실행 가능한 대응 방안을 정리해 드립니다.
+
+---
+
+### 1. 관찰 결과의 시간 순서와 현상 연결
+
+점검 일지의 1차·2차 관찰 기록을 시간 순서대로 따라가 보면, 거품이 꺼지는 과정에는 일정한 물리적 패턴이 나타납니다.
+
+1. **0초 ~ 1분 (안정기)**
+* 거품을 얹은 직후 높이는 1.5~1.6cm(잔 A, B, G)로 윗면이 곱고 매끈하며 큰 기포가 거의 보이지 않습니다.
+
+
+2. **2분 ~ 3분 (가장자리 분리 및 기포 합체 시작)**
+* 가장 먼저 나타난 변화는 **잔 벽과 닿은 가장자리를 따라 작은 기포가 줄지어 생기는 현상**이었습니다(2분).
+* 이어 3분 시점에는 표면 중앙에 굵은 기포가 서너 개 형성되고 일부가 터지며 높이가 1.2~1.3cm로 낮아지기 시작합니다.
+
+
+3. **4분 ~ 5분 (가장자리 함몰 및 경계 붕괴)**
+* 가운데보다 가장자리 거품이 먼저 꺼지며 고리 모양으로 액체가 비치기 시작합니다.
+* 5분에는 거품과 아래 음료 사이 경계가 흐려지고, 흑임자 색이 번져 올라온 듯한 회색 띠가 관찰됩니다(높이 0.8~0.9cm).
+
+
+4. **7분 ~ 10분 (급격한 소멸과 침전)**
+* 표면에 구멍이 뚫리고 10분 시점에는 0.3~0.4cm의 얇은 막만 남으며 &#x27;눈에 띄게 꺼진 상태&#x27;가 됩니다.
+<mark class="rs-mk"><sup>11</sup>* 바닥에는 흑임자 앙금이 가라앉아 있었고 음료 온도는 47℃(잔 A)까지 떨어졌습니다.</mark>
+
+
+
+---
+
+### 2. 거품이 꺼진 복합적 원인 분석
+
+기록에 따르면 우유 팩을 새로 개봉한 잔 E와 개봉 2일 차 잔 G 모두 거의 동일하게 거품이 꺼졌고, 같은 우유로 영업 중 판매한 머그 라테나 카푸치노에서는 손님 불만이 전혀 없었습니다. 따라서 **이를 단순한 우유 자체의 품질이나 변질 문제로 단정할 수 없으며**, 시험 환경의 여러 복합적 요인이 얽혀 나타난 결과입니다.
+
+* **온도 강하와 잔의 열전도 특성 (잔 H, D 대조)**
+* 예열하지 않은 얇은 유리 시음 잔(23℃)은 따뜻한 음료의 열을 빠르게 빼앗아 음료 온도를 급격히 떨어뜨립니다. <mark class="rs-mk"><sup>8</sup>온도가 식으면 기포 안의 공기가 수축하고, 거품 벽을 지탱하던 단백질과 지방막의 구조적 힘이 약해집니다.</mark>
+* <mark class="rs-mk"><sup>6</sup>실제로 잔을 미리 데운 잔 H(예열)는 10분 뒤에도 높이가 0.8cm(음료 온도 52℃) 유지되었고, 두꺼운 머그를 예열한 **잔 D**는 10분 뒤에도 1.0cm를 유지하며 가장자리 기포 발생이 훨씬 늦었습니다.</mark>
+
+
+* **흑임자 페이스트의 지질 및 입자 간섭 (잔 I 대조)**
+* 흑임자 페이스트를 아예 넣지 않고 우유와 거품만 올린 **잔 I**는 10분 뒤에도 0.8cm가 유지되었고 층 분리도 7분 무렵에야 천천히 나타났습니다.
+* <mark class="rs-mk"><sup>10</sup>참깨(흑임자)에 포함된 고농도의 식물성 기름(유리 지방산)과 고형분 입자는 우유 거품 표면에 닿으면 단백질 막의 표면장력을 깨뜨려 거품을 터뜨리는 역할을 합니다.</mark> 시간이 지나면서 아래 음료의 흑임자 성분이 거품층으로 번져 올라와 거품 막을 빠르게 붕괴시킨 것입니다.
+
+
+* **스팀 온도 과열 시 단백질 파괴 (잔 K 대조)**
+* 온도를 72℃까지 과도하게 올린 **잔 K**는 단백질이 과변성되어 10분 시점 높이가 0.2cm로 가장 낮았습니다.
+
+
+* **장비 변수 (노즐 팁 이물질)**
+* <mark class="rs-mk"><sup>9</sup>9월 10일 영업 전 확인에서 스팀 노즐 구멍 4개 중 1개가 우유 찌꺼기로 반쯤 막혀 있던 점이 확인되었습니다.</mark> 이로 인해 스팀 분사가 고르지 못해 기포 입자가 균일하고 조밀하게 쪼개지지 못했을 가능성도 배제할 수 없습니다.
+
+
+
+---
+
+### 3. &#x27;거품&#x27;과 &#x27;유화&#x27;의 정확한 구별
+
+커피 음료 제조 시 자주 혼동되는 두 현상은 물리적으로 전혀 다른 상태입니다.
+
+* **거품 (Foam)**
+* **액체 속에 &#x27;기체(공기)&#x27;가 갇혀 떠 있는 상태**입니다.
+* 스팀 노즐로 공기를 불어넣어 우유 단백질이 공기 방울을 감싸 안으면서 만들어집니다. 공기는 액체보다 훨씬 가볍기 때문에 가만히 두면 위로 떠오르고, 공기를 둘러싼 얇은 막 사이로 액체가 흘러내리거나 기포가 서로 뭉쳐 터지면서 사라집니다.
+
+
+* **유화 (Emulsion)**
+* **서로 섞이지 않는 두 액체(물과 기름) 중 하나가 미세한 방울이 되어 다른 액체 속에 골고루 퍼져 있는 상태**입니다.
+* 우유 자체가 물속에 미세한 유지방 방울이 떠 있는 천연 유화액이며, 에스프레소의 크레마나 샐러드드레싱이 대표적입니다. 유화는 &#x27;기체&#x27;가 아니라 &#x27;액체와 액체&#x27;의 결합입니다.
+
+
+
+---
+
+### 4. 운영자를 위한 일상적 비유
+
+&gt; <mark class="rs-mk"><sup>7</sup>**&quot;눈사람(거품)을 차가운 바람 부는 모래밭(차가운 유리잔 + 참깨 가루) 위에 올려둔 것과 같습니다.&quot;**</mark>
+&gt; 촘촘하게 잘 뭉쳐둔 눈사람(우유 거품)이라도, 바닥이 따뜻하게 보온되지 않고 차가운 유리 바닥에 닿으면 금세 수분이 빠져나가며 녹아내립니다. 게다가 눈사람 바닥에 거칠고 기름진 모래(흑임자 페이스트의 지질과 가루 입자)가 닿아 있으면, 모래알이 눈 결정을 찔러 무너뜨리듯이 거품 막을 건드려 방울들을 터뜨려 버리는 것입니다.
+
+---
+
+### 5. 행사 당일 실질적 대응 방안
+
+시음회 당일에는 윤서진 운영자 1명이 계산대 결제와 시음 진행을 동시에 맡아야 하므로, 일손이 많이 드는 복잡한 작업은 피하고 제조 및 서빙 흐름을 최적화해야 합니다.
+
+1. **제조 직후 서빙 및 시음 순서 동선화 (가장 핵심)**
+* 관찰 결과 2~3분까지는 거품이 1.3cm 이상으로 충분히 안정적이고 예쁜 상태를 유지했습니다.
+* 따라서 흑임자 라테를 미리 만들어 두지 말고, 참가자가 자리에 앉아 설명을 들을 준비가 끝난 직후 **즉석에서 스팀하여 잔에 붓고 1~2분 이내에 참가자 앞에 내려놓아야 합니다.**
+
+
+2. **사전 안내 카드와 구두 안내 활용**
+* &quot;흑임자 라테는 고소한 참깨 성분과 풍부한 우유 거품이 어우러진 음료로, 거품의 부드러움을 제대로 느끼시려면 받으신 직후 바로 한 모금 드시는 것이 가장 좋습니다&quot;라는 멘트를 안내 카드와 첫 설명에 포함합니다. 참가자가 방치하지 않고 바로 마시도록 유도하는 방식입니다.
+
+
+3. **스팀 온도 준수 (65℃ 유지) 및 노즐 청결 유지**
+* 잔 K(72℃)처럼 과열되면 거품이 급격히 무너지므로 평소 적정 스팀 온도인 65~66℃를 엄격히 지킵니다.
+* 행사 시작 전 노즐 팁을 빼서 4개 구멍이 완전히 뚫려 있는지 확인하고 응결수를 충분히 뺀 뒤 사용합니다.
+
+
+4. **잔 예열 생략 (단, 상온 보관 유지)**
+* 잔 H처럼 뜨거운 물로 잔을 예열하면 거품 유지에 도움이 되지만, 1인 운영 상황에서 12명분의 잔에 물을 채우고 버리는 작업은 동선상 무리가 큽니다.
+* 대신 시음 잔을 서늘한 창고나 바닥에 두지 말고, 실내 온도가 유지되는 제조대 안쪽 선반에 미리 꺼내 두어 잔이 지나치게 차가운 상태(냉기)로 음료를 맞이하지 않도록 합니다.</pre></div><div class="rs-turn"><b>턴 8 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 조합 게시판 게시 담당 메일 묶음 — 온기카페 시음회 안내 글 형식
+
+- 묶은 사람: 오세린(볕뜰마을협동조합 사무국 홍보 · 게시 담당)
+- 묶은 날: 2026년 9월 25일(금)
+- 메일 기간: 9월 21일(월) ~ 9월 25일(금)
+- 주고받은 사람: 오세린, 문하람(조합 게시판 자원 편집위원), 윤서진(온기카페 매장 운영자), 최민재(온기카페 재료 담당), 배정연(사무국장)
+- 쓰임: 온기카페 시음회 안내문 두 번째 수정본을 조합 게시판 새 글쓰기 형식에 맞춰 올리기 전에, 형식 규정과 각 절에 들어갈 내용을 담당자끼리 맞춘 기록. 안내문 수정본 자체는 이 묶음에 넣지 않음.
+- 맨 끝에 &#x27;참고 기록&#x27; 절을 붙임. 안내 글의 출처 번호가 가리키는 기록 두 가지임.
+
+---
+
+## 메일 1 — 게시판 글쓰기 방식이 바뀝니다
+
+- 보낸 사람: 문하람(게시판 편집위원)
+- 받는 사람: 오세린
+- 참조: 배정연
+- 보낸 날: 9월 21일(월) 10:05
+
+세린 님, 안녕하세요. 편집위원 문하람입니다.
+
+지난주 조합 게시판 편집기를 바꾸면서, 이제 안내 글을 마크다운 방식으로 쓸 수 있게 되었습니다. 그동안 사업장 안내 글은 사무국이 그림 파일로 만들어 올렸는데, 그림 파일은 휴대전화에서 글씨가 작게 보이고 검색도 되지 않는다는 말이 많았지요. 앞으로 사업장 행사 안내 글은 글자로 올리고, 아래 형식 규정을 지키기로 편집위원회에서 정했습니다. 첫 적용 대상으로 온기카페 시음회 안내 글을 생각하고 있어 먼저 알려 드립니다.
+
+형식 규정은 다음 메일에 따로 보내겠습니다. 규정이 낯설 수 있어서, 지난달 시험 삼아 올려 본 글에서 생긴 문제도 함께 적겠습니다.
+
+## 메일 2 — 사업장 행사 안내 글 형식 규정
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린
+- 참조: 배정연, 윤서진
+- 보낸 날: 9월 21일(월) 14:30
+
+편집위원회가 정한 사업장 행사 안내 글 형식 규정입니다. 행사 안내 글은 모두 이 순서와 방식을 따릅니다.
+
+1. 제목: 행사 이름이 들어간 제목 하나. 제목에 검색어(예: &#x27;시음&#x27;)가 들어가야 게시판 검색에 걸립니다.
+2. 목차: 제목 바로 아래에 둡니다. 목차의 각 항목은 같은 글 안의 해당 제목으로 이동하는 내부 링크로 겁니다. 링크에 쓰는 이름은 실제 제목 글자와 똑같아야 합니다. 행사 안내 글에는 적어도 &#x27;신청&#x27;과 &#x27;문의&#x27; 두 항목이 목차에 있어야 하고, 글 안에도 &#x27;신청&#x27;과 &#x27;문의&#x27;라는 제목이 실제로 있어야 합니다.
+3. 본문: 일시, 참여 조건 등 행사 내용. 본문 안에서 보충 설명이 필요한 낱말에는 각주 표시를 붙이고, 각주의 정의는 글 아래쪽에 둡니다. 각주 표시와 정의의 이름이 같아야 서로 이어집니다.
+4. 출처 번호: 본문에서 사업장 기록을 근거로 든 곳에는 대괄호 번호를 붙이고, 글 아래쪽에 같은 번호로 출처 목록을 둡니다. 번호는 글에 붙인 기록만 가리키게 합니다.
+5. 문의 칸: &#x27;문의&#x27; 절의 내용은 접고 펼칠 수 있는 칸 안에 넣습니다. 접는 칸은 details 태그로 열고, 그 바로 안에 summary 태그로 칸 이름을 적고, 내용을 적은 뒤 details 태그를 닫습니다. 여는 태그와 닫는 태그는 반드시 짝을 맞춥니다.
+6. 운영 메모: 글 맨 끝에 담당자가 복사해서 쓰는 운영 메모를 둡니다. 운영 메모는 코드 상자 하나에 넣습니다. 코드 상자를 여는 표시와 닫는 표시를 빠짐없이 둡니다.
+7. 각주 정의, 출처 목록, 내부 링크, 문의 칸 태그는 코드 상자 밖에 둡니다. 코드 상자 안에 넣으면 게시판이 그것을 글자 그대로 보여 주어 링크와 접는 칸이 작동하지 않습니다.
+
+편집위원회 메모: 이 규정은 휴대전화로 보는 분들이 긴 글에서 필요한 곳으로 바로 가고(목차), 자주 묻는 것만 펼쳐 보고(문의 칸), 담당자는 운영 메모를 한 번에 복사할 수 있게(코드 상자) 하려는 것입니다.
+
+## 메일 3 — 지난달 시험 글에서 생긴 문제들
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린
+- 참조: 배정연
+- 보낸 날: 9월 21일(월) 15:10
+
+새 형식으로 지난달 시험 삼아 올렸던 글 세 개에서 생긴 문제입니다. 온기카페 글을 올릴 때 같은 일이 없도록 적어 둡니다.
+
+- 반찬 나눔 안내 글: 문의 칸의 details 닫는 태그를 빠뜨려서, 그 아래 댓글까지 전부 접힌 칸 안으로 들어가 버렸습니다. 댓글이 안 보인다는 말이 나와서 알게 됐습니다.
+- 공방 체험 수업 안내 글: 목차의 &#x27;신청 방법&#x27; 링크가 글 안 제목 &#x27;신청&#x27;과 글자가 달라서 눌러도 움직이지 않았습니다. 목차 글자와 제목 글자를 똑같이 맞추어야 합니다.
+- 사랑방 모임 안내 글: 운영 메모 코드 상자를 닫는 표시를 빠뜨려서, 그 아래 출처 목록과 각주까지 코드 상자 안에 들어가 글자 그대로 보였습니다. 각주 번호를 눌러도 아무 데로도 가지 않았습니다.
+- 같은 사랑방 글: 운영 메모를 코드 상자 두 개로 나누어 넣었더니, 담당자가 앞 상자만 복사하고 뒤 상자를 빠뜨렸습니다. 그래서 운영 메모는 코드 상자 하나에 다 넣기로 했습니다.
+
+## 메일 4 — 온기카페 글에 넣을 절을 맞춰 봅시다
+
+- 보낸 사람: 오세린
+- 받는 사람: 윤서진, 최민재
+- 참조: 문하람, 배정연
+- 보낸 날: 9월 22일(화) 09:40
+
+서진 님, 민재 님께
+
+메일 2 · 3을 참조로 받으셨지요. 온기카페 시음회 안내문의 두 번째 수정본을 새 형식으로 올리려고 합니다. 9월 19일에 보내 주신 첫 번째 수정본(정원 · 현장 신청 반영본)을 바탕으로, 형식만 새 규정에 맞추고 내용은 확정된 것만 넣을 생각입니다.
+
+새 형식에 맞추려면 절을 나누어야 해서, 절마다 무엇을 넣을지 먼저 여쭙니다.
+
+- 목차: &#x27;신청&#x27;, &#x27;문의&#x27; 두 항목은 규정상 꼭 있어야 합니다. 다른 항목을 더 둘지 의견 주세요.
+- 신청 절: 사전 신청 방법(조합 게시판, 매장 계산대 옆 신청지), 정원, 현장 신청을 받지 않는다는 점.
+- 문의 절: 접는 칸 안에 문의처와 자주 묻는 것.
+- 각주: 재료에 관한 보충 설명을 각주로 달면 어떨까 합니다. 알레르기 성분 같은 것이요.
+- 출처 번호: 시각과 인력은 매장 준비 메모, 비용과 방식은 재료비 정산 메모를 출처로 달면 될 것 같습니다.
+- 운영 메모: 글 맨 끝에 담당자가 복사해 쓸 문장. 서진 님이 당일 보실 메모라 서진 님 의견이 가장 중요합니다.
+
+## 메일 5 — 신청 절에 대해
+
+- 보낸 사람: 윤서진
+- 받는 사람: 오세린
+- 참조: 최민재, 문하람
+- 보낸 날: 9월 22일(화) 13:20
+
+세린 님, 고마워요.
+
+신청 절에는 아래만 넣으면 될 것 같아요.
+
+- 이번 시음회는 사전 신청한 분만 참여할 수 있음. 당일 매장에서 현장 신청은 받지 않음(9월 16일 통지로 바뀐 내용).
+- 정원은 10명. 정원이 차면 신청을 마감함.
+- 신청 방법은 조합 게시판 글과 매장 계산대 옆 신청지 두 가지.
+- 신청 마감 날짜는 행사 날짜가 정해져야 정할 수 있으니 &#x27;미정&#x27;.
+
+대기 명단은 받지 않기로 거의 마음을 굳혔지만 아직 회의에서 정하지 않았으니 신청 절에는 넣지 않을게요. 그리고 신청할 때 고를 메뉴 두 가지와 알레르기 여부를 같이 받기로 했는데, 이건 신청지 칸 이야기라 글에 꼭 넣을지는 세린 님이 보시고 정해 주세요.
+
+시각은 그대로예요. 접수 14:15, 시음 14:30~16:00. 9월 17일에 시각이 바뀌었냐는 전화가 와서, 이번 글에서도 시각이 바뀌지 않았다는 게 잘 보였으면 해요.
+
+## 메일 6 — 문의 절과 접는 칸
+
+- 보낸 사람: 오세린
+- 받는 사람: 윤서진
+- 참조: 최민재, 문하람
+- 보낸 날: 9월 22일(화) 16:05
+
+서진 님, 신청 절 내용 잘 받았습니다.
+
+문의 절은 규정대로 접는 칸 안에 넣겠습니다. 접는 칸의 이름(summary)은 &#x27;문의&#x27;로 하고, 칸 안에는 아래를 넣으려고 합니다.
+
+- 문의처: 매장 운영자 윤서진.
+- 연락처: 미정. 매장에 직접 오셔서 물으실 수 있다는 말은 넣어도 될까요?
+- 게시판 댓글 문의: 홍보 담당이 받아 서진 님께 넘김.
+- 자주 묻는 것: 몇 시까지 오면 되는지, 현장 신청이 되는지, 몇 잔 마시는지, 설문을 나중에 내도 되는지.
+
+자주 묻는 것의 답은 안내문 검토 자료와 사무국 창구 짧은 답에 있는 내용 가운데 확정된 것만 쓰겠습니다. 참가비, 아이 동반은 정하지 않은 것이라 넣지 않겠습니다.
+
+문하람 님, 문의 칸을 접는 칸으로 만들 때 목차의 &#x27;문의&#x27; 링크는 접는 칸 바깥의 &#x27;문의&#x27; 제목으로 걸면 되는지 여쭙니다. 접는 칸 안의 summary 글자로는 링크가 안 걸린다고 들었습니다.
+
+## 메일 7 — 목차 링크와 제목
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린
+- 참조: 윤서진
+- 보낸 날: 9월 22일(화) 17:30
+
+세린 님, 맞습니다. 목차의 &#x27;문의&#x27; 링크는 글 안에 실제로 있는 &#x27;문의&#x27; 제목으로 걸어야 합니다. 그 제목 바로 아래에 접는 칸을 두면 됩니다. summary에 적은 글자는 제목이 아니라서 링크가 그리로 가지 않습니다.
+
+&#x27;신청&#x27;도 마찬가지로 글 안에 &#x27;신청&#x27;이라는 제목이 있어야 합니다. 제목 글자를 &#x27;신청 방법&#x27;이나 &#x27;참여 신청&#x27;으로 바꾸면 목차 링크도 똑같이 바꿔야 하니, 공방 글 일(메일 3)처럼 되지 않게 제목은 &#x27;신청&#x27;, &#x27;문의&#x27; 그대로 두시길 권합니다.
+
+그리고 제목 앞뒤에 꾸밈 기호를 붙이면 링크 이름이 달라지는 일이 있으니 제목은 글자만 두세요.
+
+## 메일 8 — 각주로 달 재료 설명
+
+- 보낸 사람: 최민재
+- 받는 사람: 오세린
+- 참조: 윤서진
+- 보낸 날: 9월 23일(수) 08:50
+
+세린 님, 각주 이야기 보고 씁니다.
+
+재료 설명을 각주 하나로 묶으면 좋겠습니다. 각주 이름은 &#x27;재료&#x27;로 하고, 본문에서 시음 메뉴를 말하는 곳 뒤에 붙이면 될 것 같아요. 각주 정의에는 아래 내용이 들어가면 됩니다. 9월 17일 포장지로 다시 확인한 것입니다.
+
+- 흑임자 라테: 우유, 참깨(흑임자 페이스트).
+- 유자 캐모마일 아이스티: 유자청(유자 · 설탕), 캐모마일.
+- 오트 바닐라 라테: 귀리 음료, 커피, 바닐라 시럽. 바닐라 시럽은 아직 사지 않아 성분 확인 전.
+- 세 메뉴 모두 견과류는 들어가지 않음.
+- 자세한 성분은 시음 자리의 안내 카드에 적음.
+
+바닐라 시럽 성분은 &#x27;확인 전&#x27;으로 두는 게 맞을 것 같습니다. 짐작해서 적으면 안 되니까요.
+
+## 메일 9 — 출처 번호
+
+- 보낸 사람: 오세린
+- 받는 사람: 최민재, 윤서진
+- 참조: 문하람, 배정연
+- 보낸 날: 9월 23일(수) 11:15
+
+민재 님, 각주 내용 고맙습니다. 그대로 쓰겠습니다.
+
+출처 번호는 두 개로 하겠습니다.
+
+- [1]은 매장 준비 메모. 행사 · 접수 시각, 인력, 준비 조건의 출처.
+- [2]는 재료비 정산 메모. 승인 상한, 실지급, 남은 예상, 방식별 비용의 출처.
+
+두 메모가 어떤 내용인지는 이 메일 묶음 맨 끝 &#x27;참고 기록&#x27; 절에 옮겨 두겠습니다. 안내 글 아래쪽 출처 목록에도 같은 번호와 이름을 씁니다. 번호는 이 두 기록만 가리키게 하고, 인터넷 자료나 다른 곳을 가리키지 않습니다.
+
+사무국장님, 안내 글에 예산 숫자를 넣을지 여쭙니다. 참가자에게는 필요 없는 숫자라 본문에는 넣지 않고 출처 목록의 설명에만 두는 방법도 있습니다.
+
+## 메일 10 — 예산 숫자에 대해(사무국장)
+
+- 보낸 사람: 배정연(사무국장)
+- 받는 사람: 오세린
+- 참조: 윤서진, 최민재, 문하람
+- 보낸 날: 9월 23일(수) 14:40
+
+세린 님, 안내 글 본문에는 예산 숫자를 넣지 않는 게 좋겠습니다. 참가자가 해야 할 일과 관계없는 숫자입니다. 출처 목록에 [2]를 둘 때 &#x27;재료비 정산 메모&#x27; 이름과 무엇을 담은 기록인지만 적으면 됩니다.
+
+그리고 일람표 이야기를 덧붙입니다. 9월 23일 판 일람표는 온기카페 확인 전이니, 안내 글은 일람표가 아니라 온기카페 회의록과 공문, 그리고 참고 기록 [1] · [2]를 기준으로 써 주세요. 일람표와 안내 글이 다르면 사업장 기록이 기준입니다.
+
+## 메일 11 — 운영 메모에 넣을 문장
+
+- 보낸 사람: 윤서진
+- 받는 사람: 오세린
+- 참조: 최민재, 문하람
+- 보낸 날: 9월 23일(수) 21:10
+
+세린 님, 운영 메모는 제가 행사 당일 휴대전화로 복사해서 매장 메모판에도 붙이고, 혹시 나중에 누가 이 행사를 이어받으면 그대로 넘길 수 있는 문장이면 좋겠어요. 문장으로 된 메모가 좋아요. 목록보다 문장이 복사해 붙였을 때 덜 흐트러지더라고요.
+
+넣고 싶은 내용은 이래요.
+
+- 접수가 시작되기 전에 준비를 끝내고 주문대로 돌아온다. 접수 시작 뒤에는 자리를 비우지 않는다.
+- 시음 잔은 한 사람당 두 잔을 넘기지 않는다.
+- 알레르기 성분은 안내 카드에 적혀 있고, 시음 시작 때 말로도 한 번 알린다.
+- 설문은 시음이 끝난 자리에서 바로 받는다. 내지 않은 설문은 나중에 받지 않는다.
+- 사전 신청자만 받는다. 신청 없이 온 분께는 일반 메뉴 주문을 안내한다.
+- 16:00 이후 회수하고 회수 완료 시각은 실제 시각으로 적는다.
+
+준비 방식(A안 · B안)은 아직 정하지 않았으니 운영 메모에 넣지 않을게요. 정해지면 그때 고치겠습니다.
+
+## 메일 12 — 코드 상자 하나로
+
+- 보낸 사람: 문하람
+- 받는 사람: 윤서진, 오세린
+- 보낸 날: 9월 24일(목) 09:20
+
+서진 님, 운영 메모 문장 좋습니다. 규정대로 코드 상자 하나에 다 넣으시면 됩니다. 메일 3의 사랑방 글처럼 상자를 둘로 나누거나 닫는 표시를 빠뜨리지 않도록, 올리기 전에 미리보기로 한 번 확인해 주세요.
+
+미리보기에서 볼 것은 이 정도입니다.
+
+- 운영 메모가 회색 상자 하나에 다 들어가 있는가.
+- 상자 아래에 다른 글(출처 목록, 각주)이 상자 안으로 딸려 들어가지 않았는가.
+- 문의 칸이 접혀 있고, 눌렀을 때 펼쳐지는가. 칸 아래 댓글이 칸 안에 들어가 있지 않은가.
+- 목차의 &#x27;신청&#x27;, &#x27;문의&#x27;를 눌렀을 때 해당 제목으로 가는가.
+- 각주 표시를 눌렀을 때 각주 정의로 가는가.
+- 출처 번호와 출처 목록의 번호가 맞는가.
+
+그리고 운영 메모 상자 안에는 링크나 각주 표시를 넣지 마세요. 상자 안에서는 작동하지 않습니다.
+
+## 메일 13 — 바뀌지 않은 것 확인
+
+- 보낸 사람: 최민재
+- 받는 사람: 오세린, 윤서진
+- 참조: 배정연
+- 보낸 날: 9월 24일(목) 13:00
+
+두 분께
+
+두 번째 수정본은 형식을 바꾸는 것이지 내용을 바꾸는 것이 아니니, 바뀌지 않은 것을 한 번 더 적어 둡니다. 형식을 맞추다 보면 숫자를 옮겨 적다 틀리는 일이 생기니까요.
+
+- 시각: 접수 14:15, 시음 14:30~16:00. 진행 담당 도착 13:10은 내부 일정이라 안내 글에는 넣지 않음.
+- 정원: 10명.
+- 참여 조건: 사전 신청자만. 현장 신청은 받지 않음.
+- 진행: 윤서진 1명. 예비 인력은 확답이 없으니 안내 글에 쓰지 않음.
+- 문의처: 윤서진. 연락처 미정.
+- 행사 날짜: 미정.
+- 시음 잔 두 잔 제한, 설문 그 자리 회수.
+
+안내 글에 &#x27;최고&#x27;나 &#x27;꼭 맛보세요&#x27; 같은 꾸미는 말은 넣지 않기로 했던 것도 그대로입니다(안내문 검토 자료 8장).
+
+## 메일 14 — 올리는 순서
+
+- 보낸 사람: 오세린
+- 받는 사람: 윤서진, 최민재, 문하람
+- 참조: 배정연
+- 보낸 날: 9월 25일(금) 10:00
+
+모두 고맙습니다. 올리는 순서를 차례대로 적어 보면 이렇습니다.
+
+1. 서진 님이 두 번째 수정본을 새 형식으로 씀(목차 · 신청 · 문의 절 · 각주 · 출처 · 운영 메모).
+2. 제가 메일 12의 미리보기 확인 항목을 하나씩 봄.
+3. 문하람 님이 편집위원으로서 형식을 한 번 더 봄.
+4. 행사 날짜가 정해지면 날짜와 신청 마감을 채워 게시함. 그 전까지는 게시하지 않고 미리보기 상태로 둠.
+5. 게시하는 날 매장 · 사랑방 종이 안내문도 같은 내용으로 바꿈. 옛 판은 뗌.
+
+종이 안내문에는 목차 링크, 접는 칸, 코드 상자가 없으니 같은 내용을 종이에 맞게 옮기면 됩니다. 이건 서진 님이 매장에서 하시기로 했습니다.
+
+## 메일 15 — 일시 절의 날짜 표기
+
+- 보낸 사람: 윤서진
+- 받는 사람: 오세린
+- 참조: 문하람
+- 보낸 날: 9월 25일(금) 11:30
+
+세린 님, 순서 고마워요. 하나 여쭤볼게요.
+
+일시 절에서 날짜는 아직 &#x27;미정&#x27;인데, 새 형식에서는 미정을 어떻게 쓰는 게 좋을까요? 지난번 검토 때 빈칸으로 두면 인쇄 실수처럼 보인다고 해서 &#x27;미정&#x27;이라고 적기로 했었지요. 목차나 각주처럼 날짜에도 무슨 표시를 다는 규정이 있는지 궁금해요.
+
+그리고 시각이 바뀌지 않았다는 게 잘 보이게 하려면, 시각을 일시 절 첫 줄에 두는 게 좋을지 신청 절에도 한 번 더 쓰는 게 좋을지 고민이에요. 같은 시각을 두 번 쓰면 나중에 한쪽만 고치는 실수가 생길 것 같기도 하고요.
+
+## 메일 16 — 미정 표기와 같은 값 두 번 쓰기
+
+- 보낸 사람: 문하람
+- 받는 사람: 윤서진
+- 참조: 오세린
+- 보낸 날: 9월 25일(금) 13:45
+
+서진 님, 미정 표기에 대한 규정은 따로 없습니다. 그냥 &#x27;미정&#x27;이라고 글자로 쓰시면 됩니다. 다만 &#x27;추후 공지&#x27; 같은 말은 언제 공지한다는 건지 묻는 댓글이 달리는 일이 많아서, 편집위원회에서는 &#x27;미정(정해지면 이 글을 고쳐 알림)&#x27;처럼 쓰기를 권합니다.
+
+같은 값을 두 번 쓰는 것은 서진 님 걱정처럼 한쪽만 고치는 일이 잘 생깁니다. 시각은 일시 절에 한 번만 두고, 신청 절에서는 &#x27;일시 절의 접수 시각&#x27;처럼 가리키기만 하는 쪽을 권합니다. 문의 칸 안의 자주 묻는 것에서 시각을 다시 말해야 한다면, 그때는 글을 고칠 때 두 곳을 함께 보도록 운영 메모에 적어 두시면 됩니다.
+
+## 메일 17 — 제목 길이와 휴대전화 화면
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린
+- 보낸 날: 9월 25일(금) 14:10
+
+세린 님, 형식 규정에 적지 않은 것인데 시험 글에서 알게 된 것을 덧붙입니다.
+
+- 게시판 목록에서 제목은 휴대전화 화면 한 줄을 넘으면 뒤가 잘려 보입니다. 행사 이름과 &#x27;시음&#x27; 같은 검색어가 앞쪽에 오게 해 주세요.
+- 목차는 항목이 너무 많으면 첫 화면이 목차로만 가득 찹니다. 사업장 행사 글은 목차 항목을 네다섯 개 안으로 두는 것이 보기 좋았습니다.
+- 접는 칸 안의 글은 펼치기 전에는 검색에 잘 걸리지 않습니다. 사람들이 꼭 찾아야 하는 말(신청 방법 같은 것)은 접는 칸 밖에 두세요. 그래서 &#x27;신청&#x27;은 접지 않고 &#x27;문의&#x27;만 접는 규정이 생겼습니다.
+- 그림은 글자를 대신하지 않습니다. 그림을 넣더라도 같은 내용을 글자로 적어야 합니다.
+
+## 메일 18 — 각주와 출처를 섞지 않기
+
+- 보낸 사람: 최민재
+- 받는 사람: 오세린, 윤서진
+- 참조: 문하람
+- 보낸 날: 9월 25일(금) 15:20
+
+두 분께
+
+시험 글들을 찾아 읽어 보다가 하나 걱정이 생겨 씁니다. 사랑방 모임 글에서는 각주 정의 안에 &#x27;사무국 회의록에서&#x27;라고 출처를 적어 두었고, 출처 목록에는 다시 같은 회의록을 적어서, 같은 기록이 두 곳에 나왔더라고요.
+
+우리 글에서는 각주 &#x27;재료&#x27;에는 재료 설명만 적고, 어디서 확인했는지는 출처 번호로만 가리키는 게 좋겠습니다. 재료 성분은 포장지에서 확인한 것이지만, 포장지는 참고 기록 [1] · [2] 어느 쪽에도 들어 있지 않으니 출처 번호를 달지 않는 게 맞을 것 같아요. 출처 번호는 참고 기록 두 가지만 가리키기로 했으니까요.
+
+## 메일 19 — 게시 권한과 확인 절차(사무국장)
+
+- 보낸 사람: 배정연(사무국장)
+- 받는 사람: 오세린, 윤서진, 최민재, 문하람
+- 보낸 날: 9월 25일(금) 16:30
+
+모두 수고 많으십니다. 게시 권한과 확인 절차를 한 번 더 적습니다.
+
+- 사업장 행사 안내 글은 사무국 홍보 담당 계정으로 올립니다. 사업장 담당자가 직접 올리지 않습니다.
+- 올리기 전에 홍보 담당이 내용을, 편집위원이 형식을 봅니다. 두 사람이 모두 본 뒤에 게시합니다.
+- 게시한 뒤 내용을 고칠 때는 글 맨 위에 &#x27;고친 날&#x27;을 적고, 무엇을 고쳤는지는 운영 메모가 아니라 댓글로 남깁니다. 고친 내용을 본문 옆에 따로 덧붙이는 방식은 쓰지 않습니다(지난봄 &#x27;정정&#x27; 쪽지 일).
+- 온기카페 시음회 글은 행사 날짜가 정해지기 전에는 게시하지 않습니다. 미리보기 상태로 두고 확인만 끝내 둡니다.
+
+## 메일 20 — 화면을 소리로 듣는 분들을 위해
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린, 윤서진
+- 보낸 날: 9월 25일(금) 17:05
+
+한 가지 더 있습니다. 조합원 가운데 눈이 불편해서 휴대전화 화면 읽어 주기 기능으로 게시판을 듣는 분이 계십니다. 그분이 시험 글을 듣고 편집위원회에 의견을 주셨습니다.
+
+- 목차 링크 글자는 &#x27;여기&#x27;나 &#x27;바로 가기&#x27;가 아니라 &#x27;신청&#x27;, &#x27;문의&#x27;처럼 무엇으로 가는지 알 수 있는 말이어야 들었을 때 알 수 있다고 하셨습니다. 마침 규정대로 하면 그렇게 됩니다.
+- 접는 칸 이름도 그대로 읽어 주니, &#x27;문의&#x27;처럼 짧고 뜻이 분명한 이름이 좋다고 하셨습니다.
+- 각주 표시는 &#x27;각주 재료&#x27;처럼 읽힌다고 합니다. 각주를 너무 많이 달면 듣는 사람이 흐름을 잃는다고 하셨습니다.
+- 코드 상자 안의 글은 꾸밈 없이 그대로 읽어 준다고 합니다. 운영 메모가 담당자용이라는 한 줄을 상자 앞에 두면 듣는 분이 그 부분을 건너뛸 수 있어 좋다고 하셨습니다.
+
+## 메일 21 — 종이 안내문으로 옮길 때
+
+- 보낸 사람: 윤서진
+- 받는 사람: 오세린
+- 참조: 최민재
+- 보낸 날: 9월 25일(금) 18:20
+
+세린 님, 게시판 글을 종이 안내문으로 옮길 때 어떻게 할지 제 생각을 적어 둘게요. 게시판 글과 종이 안내문 내용이 같아야 한다는 원칙은 그대로 지키고, 모양만 종이에 맞게 바꾸려고요.
+
+- 목차는 종이에서는 누를 수 없으니 빼고, 절 제목을 크게 써서 대신할게요.
+- 문의 칸은 종이에서는 접을 수 없으니 그냥 펼친 채로 적을게요.
+- 각주 &#x27;재료&#x27;는 종이에서는 시음 안내 아래에 작은 글씨로 붙일게요. 어르신들이 읽으시기 어렵지 않게 너무 작게는 하지 않을게요.
+- 출처 목록과 운영 메모는 참가자용이 아니라 종이 안내문에는 넣지 않을게요. 운영 메모는 매장 메모판에 따로 붙여요.
+- 날짜와 신청 마감이 정해지면 게시판 글과 같은 날 종이도 새로 뽑아 붙일게요.
+
+## 메일 22 — 참고 기록을 언제 고치나
+
+- 보낸 사람: 최민재
+- 받는 사람: 오세린
+- 참조: 윤서진, 배정연
+- 보낸 날: 9월 25일(금) 19:00
+
+세린 님, 참고 기록 [1] · [2]를 이 메일 묶음 끝에 옮겨 두신다고 해서 몇 가지 여쭙니다.
+
+- 두 기록은 9월 16일 변경 통지를 반영한 내용이어야 합니다. [1]의 정원과 참여 조건이 바뀐 내용으로 되어 있는지 한 번 더 봐 주세요.
+- [2]는 바뀐 것이 없습니다. 다만 B안 소분 포장비가 남은 예상 지출에 아직 들어 있지 않다는 말은 꼭 남겨 주세요. 9월 23일 판 일람표처럼 그 금액이 이미 들어간 것으로 옮겨 적히는 일을 막으려는 것입니다.
+- 준비 방식이 정해지거나 바닐라 시럽을 사서 실지급이 바뀌면 [2]를 고칩니다. 고칠 때는 고친 날을 함께 적겠습니다.
+- 두 기록 말고 다른 기록(시험 제조 일지, 반출입 대장 등)은 안내 글 출처 번호로 쓰지 않기로 했으니 참고 기록 절에 넣지 않아도 됩니다.
+
+## 메일 23 — 참고 기록 확인했습니다
+
+- 보낸 사람: 오세린
+- 받는 사람: 최민재
+- 참조: 윤서진, 배정연
+- 보낸 날: 9월 25일(금) 19:40
+
+민재 님, 말씀하신 대로 참고 기록 [1]에는 정원 10명과 사전 신청자만 참여하는 조건을 넣었고, 현장 신청 예외가 9월 16일 통지로 취소되었다는 것도 적었습니다. [2]에는 B안 소분 포장비가 남은 예상 지출에 아직 들어 있지 않다는 문장을 그대로 두었습니다.
+
+일람표는 온기카페 확인을 받은 뒤 새 판을 만들 예정입니다. 안내 글은 사무국장님 말씀(메일 10)대로 일람표가 아니라 사업장 기록과 참고 기록을 기준으로 씁니다.
+
+## 메일 24 — 각주 이름 붙이는 방법
+
+- 보낸 사람: 문하람
+- 받는 사람: 오세린, 윤서진
+- 보낸 날: 9월 25일(금) 20:15
+
+각주 이름 이야기를 빠뜨려서 덧붙입니다.
+
+- 각주 이름은 한글로 써도 됩니다. &#x27;재료&#x27;처럼 짧은 낱말 하나가 좋습니다.
+- 각주 이름 안에 띄어쓰기를 넣으면 표시와 정의가 이어지지 않는 일이 있었습니다. &#x27;재료 안내&#x27;처럼 두 낱말로 하지 말고 한 낱말로 해 주세요.
+- 본문의 각주 표시와 아래쪽 정의의 이름이 글자 하나라도 다르면 이어지지 않습니다. 목차 링크와 제목을 맞추는 것과 같은 이치입니다.
+- 각주 정의는 각주 이름 뒤에 쌍점을 두고 바로 설명을 이어 씁니다. 정의가 여러 줄이면 다음 줄을 조금 들여 씁니다.
+- 같은 각주를 본문 여러 곳에 붙여도 됩니다. 정의는 한 번만 둡니다.
+
+## 메일 25 — 마지막으로 당부할 것(사무국장)
+
+- 보낸 사람: 배정연(사무국장)
+- 받는 사람: 오세린, 윤서진, 최민재, 문하람
+- 보낸 날: 9월 25일(금) 21:00
+
+긴 메일 고마웠습니다. 형식은 편집위원회 규정을 따르고, 내용은 아래 세 가지만 다시 당부합니다.
+
+첫째, 정하지 않은 것을 약속하지 마세요. 다음 회차, 참가비 면제, 아이 동반 같은 것은 안내 글에도 운영 메모에도 넣지 않습니다.
+
+둘째, 운영 메모는 진행 인력 1명을 기준으로 씁니다. 예비 인력이 오는 것을 전제로 한 문장(&#x27;도와줄 사람이 오면&#x27; 같은 말)을 넣지 마세요. 정다온 학생은 여전히 확답이 없습니다.
+
+셋째, 일시 · 정원 · 참여 조건 · 문의처는 참고 기록 [1]과 같아야 합니다. 형식을 바꾸다 숫자가 바뀌는 일이 없도록, 올리기 전에 [1]과 한 줄씩 맞춰 봐 주세요.
+
+## 덧붙임 7 — 아직 하지 않은 것(9월 25일 저녁 기준)
+
+- 두 번째 수정본 작성: 서진 님이 다음 주 초에 쓰기로 함. 이 메일 묶음에는 수정본을 넣지 않음.
+- 미리보기 확인(메일 12 항목): 수정본이 나온 뒤에 함.
+- 편집위원 형식 확인: 미리보기 확인 뒤에 함.
+- 게시: 행사 날짜가 정해진 뒤에 함(메일 19).
+- 종이 안내문 새 판: 게시하는 날 함께 함(메일 21).
+- 운영 메모 상자 앞에 둘 &#x27;담당자용&#x27; 한 줄: 문장은 서진 님이 정함.
+- 준비 방식(A안 · B안): 아직 정하지 않았으므로 운영 메모에 넣지 않음. 정해지면 운영 메모와 참고 기록 [2]를 함께 고침.
+
+## 덧붙임 6 — 편집위원회가 새 형식을 정한 경위(9월 19일 편집위원회 회의 기록에서)
+
+- 그림 파일 안내 글은 휴대전화에서 글씨가 작고, 화면 읽어 주기 기능이 읽지 못한다는 의견이 여러 번 있었음.
+- 새 편집기가 마크다운을 지원하게 되어, 글자로 쓰되 목차 · 각주 · 접는 칸으로 긴 글을 읽기 쉽게 하자는 안이 나왔음.
+- 반대 의견: 어르신 조합원은 접는 칸이나 각주가 낯설어 오히려 어렵게 느낄 수 있다는 의견이 있었음. 그래서 꼭 찾아야 하는 내용(신청)은 접지 않고, 접는 칸은 &#x27;문의&#x27; 하나로만 쓰기로 함.
+- 담당자용 운영 메모는 원래 사무국 내부 문서로만 두었는데, 사업장 담당자가 바뀔 때마다 메모가 흩어졌다는 말이 있어 안내 글 끝에 코드 상자로 두기로 함. 참가자에게는 필요 없는 글이라 맨 끝에 둠.
+- 출처 번호는 안내 글의 숫자가 어디서 왔는지 사무국 안에서 확인하기 쉽게 하려고 둠. 출처는 사업장 기록만 가리키게 함.
+- 시험 글 세 개를 올려 본 뒤 첫 적용 대상을 온기카페 시음회 글로 정함. 행사 날짜가 아직 미정이라 게시 전에 형식을 맞춰 볼 여유가 있다는 점이 이유로 꼽혔음.
+
+## 덧붙임 3 — 게시판 형식 규정 가운데 메일 2에 없던 조항(편집위원회 규정 전문에서)
+
+메일 2는 행사 안내 글에 필요한 조항만 뽑아 보낸 것이라, 규정 전문에 있는 나머지 조항을 함께 옮겨 둠.
+
+- 고친 날 표시: 게시한 글을 고치면 제목 바로 아래에 고친 날을 적음. 처음 올린 날은 지우지 않음.
+- 댓글 운영: 문의 댓글에는 영업일 기준 하루 안에 답함. 답할 수 없는 문의는 &#x27;사업장에 확인 중&#x27;이라고 먼저 답함.
+- 비밀 댓글: 알레르기 · 건강 이야기처럼 다른 사람이 보지 않았으면 하는 문의는 비밀 댓글로 받음. 비밀 댓글 내용을 본문이나 공개 댓글에 옮기지 않음.
+- 이름: 글과 댓글에 조합원 실명을 쓰지 않음. 사업장 담당자 이름은 역할과 함께 씀.
+- 연락처: 개인 전화번호를 본문에 쓰지 않음. 사업장 연락처는 사업장이 정한 것만 씀.
+- 글 내리기: 행사가 끝나면 일주일 뒤 &#x27;지난 행사&#x27; 칸으로 옮김. 지우지 않음.
+
+## 덧붙임 4 — 다른 사업장 글의 운영 메모는 어땠나(오세린 메모)
+
+시험 글 세 개의 운영 메모가 어떤 내용이었는지 말로만 적어 둠. 문장은 옮기지 않음.
+
+- 반찬 나눔 글: 보냉 가방 개수 세기, 얼음팩 넣는 때, 받으러 오지 않은 분 반찬 처리 방법이 문장으로 들어 있었음. 담당자가 교대할 때 그대로 복사해 넘겼다고 함.
+- 공방 체험 수업 글: 재료 꾸러미 나눠 주는 차례, 가위 수거 방법, 수업 끝나고 바닥 쓸기가 들어 있었음. 목록 모양이라 복사해 붙였을 때 줄이 흐트러졌다는 말이 있었음.
+- 사랑방 모임 글: 의자 배치, 불 끄기, 열쇠 반납이 들어 있었는데, 상자가 둘로 나뉘어 뒤쪽이 빠졌던 글임(메일 3).
+
+오세린 메모: 서진 님 말씀대로 문장 모양이 복사해 붙이기에 가장 덜 흐트러지는 것 같음. 온기카페 운영 메모는 메일 11의 내용을 문장으로 쓰기로 함.
+
+## 덧붙임 5 — 안내 글 절 차례(9월 25일 맞춘 것)
+
+형식 규정과 메일들을 바탕으로 온기카페 안내 글의 절 차례만 맞춰 둠. 절 안의 문장은 서진 님이 씀.
+
+1. 제목
+2. 목차(신청 · 문의 항목 포함, 내부 링크)
+3. 일시(날짜 미정, 접수 · 시음 시각)
+4. 시음 안내(세 가지 가운데 두 가지, 두 잔 제한, 재료 각주)
+5. 신청(사전 신청자만, 정원, 신청 방법, 마감 미정)
+6. 문의(제목 아래 접는 칸)
+7. 각주 정의(재료)
+8. 출처 목록([1] 매장 준비 메모, [2] 재료비 정산 메모)
+9. 운영 메모(담당자용이라는 한 줄 뒤 코드 상자 하나)
+
+문하람 메모: 각주 정의와 출처 목록은 운영 메모 상자보다 위에 둠. 상자를 닫는 표시를 빠뜨려도 그 위의 각주와 출처까지 상자 안에 들어가지는 않게 하려는 것임. 물론 닫는 표시는 빠뜨리지 않아야 함.
+
+---
+
+## 덧붙임 1 — 새 형식에서 자주 헷갈리는 말(문하람이 편집위원회에 돌린 쪽지)
+
+- 내부 링크: 같은 글 안의 다른 제목으로 이동하는 링크. 다른 글이나 바깥 주소로 가는 링크와 다름.
+- 각주: 본문 낱말 뒤에 붙인 작은 표시와, 글 아래쪽에 그 표시의 이름으로 적은 설명. 표시 이름과 설명 이름이 같아야 이어짐.
+- 출처 번호: 대괄호 안의 번호. 각주와 달리 설명이 아니라 &#x27;어느 기록에서 왔는지&#x27;를 가리킴.
+- 접는 칸: 눌러야 펼쳐지는 칸. 여는 태그와 닫는 태그가 한 쌍.
+- 코드 상자: 안의 글자를 꾸밈 없이 그대로 보여 주는 회색 상자. 복사하기 쉬움. 안에 든 링크나 태그는 작동하지 않음.
+- 미리보기: 게시하기 전에 실제 모습대로 보는 화면. 게시판 글쓰기 화면 오른쪽 위 단추.
+- 제목: 글 안에서 절을 나누는 큰 글씨 줄. 목차 링크는 이 제목 글자를 이름으로 삼음. 접는 칸의 이름(summary)은 제목이 아님.
+- 운영 메모: 담당자가 복사해 쓰는 문장. 참가자에게 하는 안내가 아니라 담당자 자신에게 남기는 당일 할 일과 원칙.
+
+## 덧붙임 2 — 휴대전화로 본 시험 글에 대한 조합원 반응(편집위원회 회의 기록에서)
+
+- 목차가 있어 긴 글에서도 &#x27;신청&#x27;으로 바로 갈 수 있어 편했다는 말이 있었음.
+- 접는 칸은 처음 보는 분들이 &#x27;내용이 빠졌다&#x27;고 생각하기도 했음. 칸 이름을 &#x27;문의&#x27;처럼 무엇이 들어 있는지 알 수 있게 짓기로 함.
+- 각주 표시가 너무 작아서 누르기 어렵다는 말이 있었음. 각주는 꼭 필요한 곳에 하나 둘만 달기로 함.
+- 코드 상자는 참가자에게는 낯선 모양이라 글 맨 끝에만 두기로 함. 담당자용이라는 것을 상자 바로 위에 한 줄로 알림.
+- 출처 번호를 눌러 출처 목록으로 가 본 조합원은 많지 않았음. 그래도 사무국 안에서 숫자가 어디서 왔는지 확인할 때 쓸모가 있어 두기로 함.
+- 글 맨 위에 &#x27;고친 날&#x27;이 있으니 언제 바뀐 글인지 알 수 있어 좋았다는 말이 있었음. 지난봄처럼 옛 안내와 새 안내가 섞이는 일을 막는 데 도움이 될 것이라는 의견이었음.
+
+---
+
+## 참고 기록
+
+안내 글의 출처 번호 [1] · [2]가 가리키는 기록임. 이 메일 묶음과 안내 글 안의 두 기록만 가리키며, 다른 자료를 가리키지 않음. 아래 내용은 9월 25일 기준이며 9월 16일 변경 통지를 반영함.
+
+[1] 매장 준비 메모: 행사 · 접수 시각, 인력, 준비 조건.
+- 진행 담당 현장 도착 13:10. 접수 시작 14:15. 행사 14:30~16:00. 16:00 이후 회수와 참가 기록 마무리(회수 완료 시각은 실제 시각으로 적음).
+- 확정 진행 인력 1명(윤서진, 계산대와 시음 안내를 함께 맡음). 예비 인력은 참석 확답이 없어 승인 인력이 아님.
+- 정원 10명. 사전 신청자만 참여(당일 매장 현장 신청 예외는 9월 16일 통지로 취소됨).
+- 조합 공동 창고까지 걸어서 편도 6분, 물품 확인 5분, 테이블 설치 15분. 설치를 마치기 전에 접수를 열지 않음.
+- 담당자가 자리를 비워야 하면 접수 시작 전에 돌아옴. 접수 시작 뒤에는 자리를 비우지 않음.
+- 시음 잔은 한 사람당 두 잔을 넘기지 않음. 알레르기 성분은 안내 카드에 적음. 설문은 시음이 끝난 자리에서 바로 받고 미제출은 추후 받지 않음. 매장 영업은 계속하며 계산대 담당이 시음 안내를 겸함.
+
+[2] 재료비 정산 메모: 승인 상한, 실지급, 남은 예상, 방식별 비용.
+- 승인 예산 상한 120000원(사무국 승인 한도, 실제 지출 아님).
+- 실제 지급액 45000원(이미 값을 치른 재료비).
+- 남은 운영 예상 지출 58000원(앞으로 쓸 것으로 잡아 둔 돈, 아직 지급하지 않음).
+- A안(당일 창고 운반): 비용 없음. B안(전날 소분 보관): 소분 포장비 2500원, 당일 재료 확인 5분. B안 비용 2500원은 남은 예상 지출에 아직 들어 있지 않음.
+- 환불이나 지원금 추가 입금은 확인하지 않았음. 새 물품 구매는 승인 전.
+[자료 끝]
+
+온기카페의 시음회 안내문을 두 번째로 수정해 주세요. 아래 형식에 맞는 수정본 전체를 제시해 주세요. 목차에는 [신청](#신청), [문의](#문의) 내부 링크와 실제 대응 제목을 넣으세요. 각주 [^재료]과 그 정의, 자료의 [1]·[2] 출처 번호와 목록도 맞춰 주세요. 문의 부분은 코드블록 밖의 짝이 맞는 &lt;details&gt;&lt;summary&gt;문의&lt;/summary&gt;...&lt;/details&gt; 안에 적어 주세요. 마지막에는 담당자가 복사할 문장 형태의 운영 메모를 코드블록 정확히 1개로 제시하고, 앞뒤 코드 구획 표시를 모두 닫아 주세요. 각주·출처 목록·내부 링크·문의 태그는 코드블록 밖에 작성해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>턴 8 답변</b><pre class="rs-pre rs-ans"># 온기카페 가을 신메뉴 시음회 안내
+
+볕뜰마을 이웃과 함께하는 온기카페 가을 신메뉴 시음회에 초대합니다.
+
+새 메뉴를 메뉴판에 올리기 전에 조합원과 이웃 여러분의 솔직한 맛 평가와 의견을 모으는 자리입니다.
+
+---
+
+### 목차
+
+* [일시](https://www.google.com/search?q=%23%EC%9D%BC%EC%8B%9C)
+* [시음 안내](https://www.google.com/search?q=%23%EC%8B%9C%EC%9D%8C-%EC%95%88%EB%82%B4)
+<mark class="rs-mk"><sup>12</sup>* [신청](https://www.google.com/search?q=%23%EC%8B%A0%EC%B2%AD)
+* [문의](https://www.google.com/search?q=%23%EB%AC%B8%EC%9D%98)</mark>
+
+---
+
+## 일시
+
+* **행사 날짜**: 미정(정해지면 이 글을 고쳐 알림)
+* **접수 시작**: 14:15
+* **시음 시간**: 14:30~16:00
+* **장소**: 온기카페 매장 안쪽 큰 테이블[1]
+
+행사 준비를 위해 14:15 접수 시작 전에는 시음 자리에 먼저 들어가실 수 없으며, 일반 매장 좌석에서 기다리실 수 있습니다. 시음회 진행 중에도 온기카페 매장 영업은 정상 운영됩니다.
+
+---
+
+## 시음 안내
+
+* **시음 메뉴**: 흑임자 라테, 유자 캐모마일 아이스티, 오트 바닐라 라테 (후보 3가지 메뉴 중 2가지를 골라 시음)[^재료]
+* **시음 잔 수**: 1인당 최대 2잔으로 제한합니다.
+* **설문 작성**: 메뉴 선정을 위한 소중한 자료로 활용되므로, 시음이 끝난 자리에서 설문지를 바로 작성해 제출해 주셔야 합니다(추후 별도 제출 불가).
+* **재료 준비 및 운영 방식**: 매장 운영 안정성과 재료 관리를 위해 사전에 마련된 운영 기준[2]을 준수하여 진행합니다.
+
+---
+
+## 신청
+
+* **참여 정원**: 10명 (사전 신청자만 참여 가능하며, 정원이 차면 신청을 마감합니다.)
+* **현장 신청 불가**: 당일 매장에서의 현장 신청 예외는 위생 점검 결과에 따라 취소되었으므로, 반드시 사전에 신청해 주신 분만 참여하실 수 있습니다.
+* **신청 방법**:
+1. 조합 게시판 댓글 신청
+2. 온기카페 매장 계산대 옆 신청지 작성
+
+
+* **신청 마감**: 미정(행사 날짜 확정 시 함께 공지)
+
+---
+
+## 문의
+
+* **문의 담당**: 온기카페 매장 운영자 윤서진
+* **연락처**: 미정 (문의 사항은 온기카페 매장에 직접 방문하시거나 조합 게시판 댓글로 남겨 주시면 확인 후 답변드립니다.)
+
+**자주 묻는 질문**
+
+* **몇 시까지 가면 되나요?**
+접수는 14:15부터 시작하며, 시음은 14:30부터 16:00까지 진행됩니다. 정시 진행을 위해 접수 시작 시각에 맞추어 방문해 주시기 바랍니다.
+* **당일 현장에서 신청하고 참여할 수 있나요?**
+원활한 1인 진행과 안전한 좌석 운영을 위해 사전 신청자 10명만 참여하실 수 있으며, 당일 현장 신청은 받지 않습니다.
+* **음료는 몇 잔까지 마실 수 있나요?**
+준비된 3가지 후보 음료 중 2가지를 선택하여 1인당 2잔까지 시음하실 수 있습니다.
+* **설문지를 집에 가져가서 작성해도 되나요?**
+신메뉴 검토 자료 수집을 위해 시음이 끝난 자리에서 즉시 작성하여 제출해 주셔야 하며, 나중에 따로 제출받지 않습니다.
+
+---
+
+[^재료]: 흑임자 라테는 우유와 참깨(흑임자 페이스트), 유자 캐모마일 아이스티는 유자청(유자, 설탕)과 캐모마일, 오트 바닐라 라테는 귀리 음료와 커피 및 바닐라 시럽(재료 구매 전으로 성분 확인 전)이 들어갑니다. 3가지 메뉴 모두 견과류는 들어가지 않으며, 메뉴별 세부 성분은 시음 자리의 안내 카드에 상세히 적어 둡니다.
+
+---
+
+### 출처 목록
+
+* [1] 매장 준비 메모: 행사 및 접수 시각, 진행 인력(윤서진 1명), 정원 10명 및 사전 신청 운영 조건, 준비 동선 기준
+* [2] 재료비 정산 메모: 승인 예산 상한, 실제 지급액, 남은 운영 예상 지출 및 재료 준비 방식별 기준
+
+---
+
+*(아래 내용은 행사 당일 담당자가 확인하고 복사하여 활용하는 운영 메모입니다.)*
+
+```text
+접수가 시작되기 전에 준비를 끝내고 주문대로 돌아온다. 접수 시작 뒤에는 자리를 비우지 않는다. 시음 잔은 한 사람당 두 잔을 넘기지 않는다. 알레르기 성분은 안내 카드에 적혀 있고, 시음 시작 때 말로도 한 번 알린다. 설문은 시음이 끝난 자리에서 바로 받는다. 내지 않은 설문은 나중에 받지 않는다. 사전 신청자만 받는다. 신청 없이 온 분께는 일반 메뉴 주문을 안내한다. 16:00 이후 회수하고 회수 완료 시각은 실제 시각으로 적는다.
+
+```</pre></div><div class="rs-turn"><b>턴 9 질문</b><pre class="rs-pre rs-q">[붙여 넣은 자료]
+# 온기카페 가을 신메뉴 시음회 — 당일 운영 일정표 개정판 자료(근무표 · 시설 사용 시간 · 마감 · 회수 절차)
+
+- 판: 개정 2판(2026년 9월 28일)
+- 지난 판: 1판(9월 10일, 정원 12명 · 현장 신청 예외 허용 기준)
+- 작성: 윤서진(매장 운영자 · 당일 진행 담당) / 확인: 최민재(재료 담당 · 회계), 배정연(사무국장)
+- 쓰임: 당일 운영 점검 일정을 짤 때 바탕으로 쓰는 자료. 고정된 시각, 작업별 소요 시간, 근무표, 시설 사용 시간, 접수 · 마감 · 회수 절차를 모아 둠. 분 단위로 이어 붙인 최종 일정은 이 자료에 쓰지 않았고, 준비 방식이 정해진 뒤 이 자료를 바탕으로 짬.
+- 기준: 9월 16일 사무국 변경 통지와 9월 17일 2차 준비(수정) 회의록을 반영함. 이 판에서 현장 신청 접수 칸은 없앴음.
+
+## 0. 개정 이력
+
+- 1판(9월 10일): 1차 준비 회의 결과로 처음 만듦. 정원 12명, 당일 매장 현장 신청 예외 허용, 접수 칸에 &#x27;현장 신청 받기&#x27; 작업이 있었음.
+- 2판(9월 28일, 이 판):
+  - 정원을 10명으로 고침.
+  - 현장 신청 예외가 취소되어 접수 칸의 &#x27;현장 신청 받기&#x27; 작업을 지우고, &#x27;신청 없이 온 분 응대&#x27; 작업을 넣음.
+  - 시각(도착 · 접수 · 행사)은 바뀌지 않아 그대로 둠.
+  - 준비 방식(A안 · B안)은 아직 정하지 않아 두 경우의 작업을 나란히 적음.
+  - 마감 · 회수 절차에 창고 반입과 이상 물품 처리 항목을 더함(반출입 대장 원칙 반영).
+
+## 1. 고정된 시각(바꾸지 않음)
+
+- 진행 담당 현장 도착: 13:10
+- 접수 시작: 14:15
+- 행사(시음) 시간: 14:30~16:00
+- 16:00 이후: 물품 회수, 참가 기록 마무리. 회수를 다 마친 시각은 당일 실제 시각으로 적음. 16:00을 회수 완료 시각으로 적지 않음.
+
+시각에 대한 원칙
+
+- 13:10 도착 전에 한 일은 당일 현장 작업으로 적지 않음. 행사 전날 한 일은 &#x27;전날&#x27; 칸에 따로 적음.
+- 설치를 마치기 전에 접수를 열지 않음. 설치 전 접수 개시는 승인된 적이 없음.
+- 접수가 시작된 뒤에는 진행 담당이 자리를 비우지 않음. 자리를 비워야 할 일은 접수 시작 전에 끝내고 돌아옴.
+- 참가자는 접수 시작 전에 준비 중인 시음 자리에 들어갈 수 없음. 매장 손님으로 앉아 기다리는 것은 막지 않음.
+
+## 2. 작업별 소요 시간(확정 값)
+
+- 조합 공동 창고까지 걸어서: 편도 6분. 다녀오는 일은 가는 길과 오는 길이 따로 있음. 편도 시간을 다녀오는 시간으로 적지 않음.
+- 물품 · 재료 확인: 5분. 시음 잔 상자 개수, 재료 봉투 개봉 여부, 유통기한 라벨을 봄.
+- 테이블 설치: 15분. 시음 매트 두 장 이어 깔기, 안내 카드 거치대 세우기, 설문지와 펜 놓기, 입가심 물병과 컵 놓기, 버리는 통 두기, 손 소독제 놓기, &#x27;시음회 자리&#x27; 팻말 세우기.
+- 물품은 손수레 한 대에 한 번에 실림. 두 번 오가지 않음.
+
+## 3. 준비 방식에 따라 달라지는 작업(방식은 아직 정하지 않음)
+
+### 3-1. A안(당일 창고 운반)으로 할 경우
+
+- 당일: 진행 담당이 창고에 가서 시음 잔과 재료를 꺼내 손수레로 매장까지 옮김. 창고까지 편도 6분, 창고에서 재료 확인 5분, 다시 매장으로 돌아옴.
+- 당일: 매장에 돌아와 테이블 설치 15분.
+- 비용: 없음.
+- 창고에 다녀오는 동안 매장 주문대가 빔. 매장은 영업 중이므로 그 사이 들어온 손님을 응대할 사람이 없음. 문에 &#x27;잠시 자리 비움&#x27; 팻말을 거는 수밖에 없음.
+- 반출입 대장: 창고에서 꺼낼 때 그 자리에서 센 수를 반출 칸에 적음.
+
+### 3-2. B안(전날 소분 보관)으로 할 경우
+
+- 전날: 매장 마감 뒤 창고에서 시음 잔과 재료를 매장으로 들여와, 재료를 소분해 매장 냉장고 셋째 칸에 넣고 시음 잔은 안쪽 선반에 둠. 전날 작업이라 당일 일정에 넣지 않음.
+- 당일: 매장 냉장고와 선반에서 재료 확인 5분.
+- 당일: 테이블 설치 15분.
+- 비용: 소분 포장비가 듦. 금액은 재료비 정산 메모를 따름.
+- 당일 창고에 갈 일이 없으므로 준비 중에 매장 주문대를 비우지 않음.
+- 반출입 대장: 전날 창고에서 꺼낼 때 센 수를 반출 칸에 적음.
+
+### 3-3. 두 방식에 같은 것
+
+- 재료 확인 단계는 어느 방식이든 빠지지 않음.
+- 설치는 어느 방식이든 15분.
+- 설치를 마친 뒤 접수를 엶.
+- 준비 방식은 다음 회의에서 정하며, 정해지면 이 자료의 해당 칸만 남기고 다른 칸을 지움. 다른 확정 사항은 그대로 둠.
+
+## 4. 근무표(당일)
+
+### 4-1. 시음회 근무
+
+- 윤서진(매장 운영자): 당일 진행 담당. 13:10 현장 도착부터 회수 마무리까지. 계산대(주문 · 결제)와 시음 안내를 함께 맡음. 확정 진행 인력은 이 1명뿐임.
+
+### 4-2. 근무표에 넣지 않은 사람
+
+- 최민재(재료 담당 · 회계): 당일 현장 근무 없음. 평일 낮에는 직장 일이 있음. 행사 전에 계량표와 재료 상태를 넘기고, 행사 뒤에 정산 자료(영수증, 실지급 변동)를 받음. 당일 일정 칸에 넣지 않음.
+- 정다온(예비 인력 후보): 도움을 요청했으나 참석 확답이 없음. 승인 인력이 아니므로 근무표에 넣지 않음. 나중에 온다고 하더라도 사무국 승인을 다시 받기 전까지는 넣지 않음.
+- 9월 23일 사무국 창구에 도움을 제안한 조합원: 진행 인력 승인이 필요한 일이라 근무표에 넣지 않음. 사무국장 판단을 기다리는 중이며, 승인되지 않은 상태임.
+- 참가자: 참가자에게 접수나 안내를 맡기지 않음.
+
+### 4-3. 근무 원칙
+
+- 일정표의 모든 작업 담당 칸에는 윤서진만 적음.
+- 한 사람이 계산대와 시음 안내를 겸하므로, 시음 안내는 시작 때 한 번에 하고 중간에는 안내 카드로 보충함.
+- 결제 손님이 오면 결제를 먼저 하고 테이블로 돌아감.
+- 화장실 등 개인 용무는 접수 시작 전에 해 둠. 접수 시작 뒤에는 자리를 비우지 않음.
+
+## 5. 시설 사용 시간
+
+- 매장 영업: 행사 당일에도 평소처럼 영업함. 행사 때문에 영업을 멈추는 시간은 없음.
+- 안쪽 큰 테이블(10석): 진행 담당이 설치를 시작할 때 &#x27;시음회 자리&#x27; 팻말을 세우고, 그때부터 회수를 마칠 때까지 일반 손님이 앉지 않도록 함. 정원 10명이 모두 이 테이블에 앉음. 창가 바 자리는 일반 손님 자리로 그대로 둠.
+- 제조대 · 에스프레소 머신 · 스팀 노즐: 영업용과 시음용을 같이 씀. 시음용 원두는 보조 그라인더로 따로 갊.
+- 매장 냉장고 셋째 칸: B안이면 전날 마감 뒤부터 당일 시음이 끝날 때까지 소분 재료 칸으로 씀. A안이면 따로 비워 두지 않음.
+- 매장 안쪽 선반: B안이면 전날부터 시음 잔을 둠. 시음 뒤 씻은 잔을 말리는 데도 씀.
+- 조합 공동 창고: 사랑방 건물 지하. 열쇠는 사무국 앞 번호식 열쇠함. 꺼낼 때 열쇠함 옆 종이에 이름과 시각을 적음. 다른 사업장 물품에 손대지 않음.
+- 조합 공용 손수레: 한 대뿐. 공방 체험 수업 날과 겹치면 공방이 먼저 쓸 수 있으니, 날짜가 정해지면 공방에 미리 말해 둠.
+- 개수대 · 온수기: 시음 잔 세척에 씀. 영업용 설거지와 같이 씀.
+- 손 소독제: 매장에 있는 것을 시음 테이블에 둠(위생 점검 권고).
+
+## 6. 접수 절차(최신 조건)
+
+- 접수는 주문대 옆에서 14:15에 엶.
+- 사전 신청 명단과 대조함. 명단은 조합 게시판 신청분과 매장 신청지분을 신청 마감 뒤 합친 것. 같은 분이 두 번 신청했으면 한 번만 셈.
+- 정원은 10명. 명단에 있는 분만 받음.
+- 사전 신청 없이 온 분: 시음회에는 참여할 수 없음. &quot;오늘 시음회는 미리 신청해 주신 분들만 참여하실 수 있어요. 일반 메뉴는 평소처럼 주문하실 수 있습니다&quot;처럼 짧게 안내함. 시음 잔을 따로 드리지 않음. 접수 중이라 길게 이야기하지 않음.
+- 사전 신청자가 오지 않아 빈자리가 생겨도 당일 다른 분으로 채우지 않음(현장 신청과 같기 때문).
+- 고른 메뉴 두 가지와 알레르기 여부를 신청 내용과 맞춰 봄. 알레르기 &#x27;있음&#x27;으로 신청한 분께는 접수 때 말로 한 번 더 확인함.
+- 번호표나 명찰을 건넸다고 해서 안내를 들은 것으로 보지 않음. 시음 시작 때 테이블에서 다시 안내함.
+- 대기 명단은 받지 않는 쪽으로 기울었으나 아직 정하지 않았음. 이 판에는 대기 명단 작업을 넣지 않음.
+
+## 7. 행사 시간(14:30~16:00) 중 원칙
+
+- 시음 시작 때 한 번에 안내함: 메뉴 세 가지 가운데 두 가지를 맛봄, 한 사람당 두 잔을 넘기지 않음, 알레르기 성분은 안내 카드에 있음(말로도 한 번 알림), 설문은 시음이 끝난 자리에서 바로 냄.
+- 시음 잔은 한 사람당 두 잔을 넘기지 않음. 더 원하는 분께는 일반 메뉴 주문을 안내함.
+- 흑임자 라테는 거품을 올려 냄. 거품을 올린 잔을 몇 분 두면 상태가 달라진다는 시험 제조 기록이 있음. 어떻게 낼지(잔 예열 여부 등)는 아직 정하지 않았음.
+- 매장 영업을 계속하므로 결제 손님이 오면 결제를 먼저 함.
+- 진행 담당은 자리를 비우지 않음.
+- 파손이 의심되는 잔은 배부하지 않고 따로 둠.
+
+## 8. 마감 · 회수 절차(16:00 이후)
+
+1. 설문: 시음이 끝난 자리에서 받은 설문을 모음. 내지 않은 설문은 나중에 따로 받지 않음. 받은 장수를 참가 기록에 적음.
+2. 시음 잔 회수: 테이블의 잔을 모두 거둠. 거둔 수를 셈.
+3. 세척: 개수대에서 씻고, 마지막에 뜨거운 물로 헹군 뒤 안쪽 선반에 엎어 말림. 영업용 설거지와 섞이지 않게 쟁반 하나에 따로 모음.
+4. 파손 확인: 씻으면서 가장자리와 바닥을 확인함. 깨지거나 금이 간 잔이 나오면 따로 빼고 스티커를 붙임.
+5. 테이블 걷기: 시음 매트, 안내 카드 거치대, 펜, 입가심 물병, 버리는 통, 손 소독제를 거둠. &#x27;시음회 자리&#x27; 팻말을 치움. 그때부터 큰 테이블을 일반 손님 자리로 되돌림.
+6. 재료 확인: 남은 재료의 양과 개봉 여부를 봄. 개봉한 흑임자 페이스트 통에는 개봉일 라벨을 붙여 냉장고에 넣음.
+7. 참가 기록 마무리: 참석 인원, 설문 받은 장수, 메뉴별 잔 수를 적음. 같은 참가 기록을 여러 표에 적었다고 두 번 더하지 않음.
+8. 회수 완료 시각: 위 일을 다 마친 실제 시각을 적음. 16:00을 그대로 적지 않음.
+9. 창고 반입: 시음 잔과 남은 재료, 비품을 창고에 돌려놓고 반입 칸에 그 자리에서 센 수를 적음. 이상 물품은 이상 칸에 적고 이상 물품 상자에 넣음. 창고 공통 규칙에 따라 행사 뒤 일주일 안에 돌려놓음. 당일 매장 마감 뒤에 할지 다음 날 할지는 정하지 않았음.
+10. 후속 확인: 당일 끝내지 못한 일은 &#x27;담당 · 다음 확인 대상&#x27;을 남김. 예: &#x27;담당 윤서진, 다음 확인 대상: 창고 잔 상자 전체&#x27;.
+11. 정산 자료 넘기기: 행사 뒤 쓴 재료비 영수증은 매장 장부에 붙이고 최민재에게 알림. 같은 영수증을 매장 장부와 사무국 장부에 둘 다 붙이지 않음.
+
+## 9. 1판과 견주어 바뀐 것 · 바뀌지 않은 것
+
+바뀐 것
+
+- 정원: 12명에서 10명으로.
+- 현장 신청: 예외 취소. 사전 신청자만 참여.
+- 접수 칸 작업: &#x27;현장 신청 받기&#x27;를 지우고 &#x27;신청 없이 온 분 응대&#x27;를 넣음.
+- 큰 테이블: 정원이 10석과 같아져 창가 바 자리를 시음 자리로 쓰지 않음.
+
+바뀌지 않은 것
+
+- 도착 13:10, 접수 14:15, 행사 14:30~16:00.
+- 확정 진행 인력 1명(윤서진). 예비 인력은 확답 없음.
+- 창고 편도 6분, 확인 5분, 설치 15분.
+- A안 · B안 내용과 비용. 선택은 아직 하지 않음.
+- 예산: 승인 상한, 실지급, 남은 예상의 금액과 역할.
+- 운영 세부: 두 잔 제한, 알레르기 카드, 설문 즉시 회수, 계산대 겸 안내.
+- 문의처 윤서진, 연락처 미정. 행사 날짜 미정.
+
+## 10. 지난봄 당일 기록에서 이번 일정에 가져온 것
+
+- 지난봄에는 창고에 다녀오는 동안 주문대에 한 사람만 남았고, 테이블 준비가 늦어져 접수를 늦게 열었음. 이번에는 설치를 마친 뒤 접수를 연다는 원칙을 지키고, 접수 시작 전까지 준비를 끝냄.
+- 지난봄에는 안내 카드가 없어 그 자리에서 손글씨 카드를 만들었음. 이번에는 안내 카드를 미리 출력 · 코팅해 둠(바닐라 시럽을 산 뒤 세 메뉴 카드를 한꺼번에).
+- 지난봄에는 정원을 넘긴 것을 시음 도중에 알았음. 이번에는 접수 때 명단과 대조하고 명단에 없는 분은 받지 않음.
+- 지난봄에는 회수 완료 시각을 적지 않았음. 이번에는 실제 시각을 적음.
+
+## 11. 담당자 메모(윤서진)
+
+- 접수 시작 뒤에는 화장실도 못 간다고 생각하고 준비함.
+- 흑임자 라테는 결제 손님과 겹치면 거품이 꺼질 수 있어, 시음 시작 직후 한꺼번에 만들지 나눠서 만들지는 거품 대응을 정할 때 같이 정함.
+- 비가 오면 A안일 경우 손수레 상자에 비닐 덮개를 씌움. 덮개 구멍 쪽을 아래로 둠.
+- 행사 날짜가 정해지면 그 요일의 평소 손님 흐름을 매출 기록에서 찾아봄. 손님이 몰리는 요일이면 시음 안내가 늦어질 수 있음.
+- 운영 메모는 게시판 안내 글 끝 코드 상자에 둔 문장을 휴대전화로 복사해 매장 메모판에 붙임.
+
+## 12. 마감 뒤 동선 연습 기록(9월 26일 토, 윤서진)
+
+일정표 개정에 앞서 매장 마감 뒤 창고까지 실제로 손수레를 끌고 다녀오고 테이블 설치도 해 봄. 소요 시간이 확정 값과 맞는지 보려는 것이었음. 시음 잔과 재료는 실제로 옮기지 않고, 빈 상자 두 개를 실어 무게만 비슷하게 했음.
+
+- 20:38 매장 문을 닫음. 손수레는 전날 사랑방 창고에서 빌려 매장 앞에 세워 둔 것.
+- 20:40 매장에서 출발.
+- 20:46 창고 문 앞 도착. 편도 6분. 사랑방 건물 문은 열려 있었음.
+- 20:46 열쇠함에서 열쇠를 꺼내고 종이에 이름과 시각을 적음. 창고 문을 엶.
+- 20:51 상자 확인을 마침. 확인 5분. 실제 행사 때처럼 상자 개수, 재료 봉투 라벨을 보는 동작을 그대로 해 봄.
+- 20:51 창고 문을 잠그고 열쇠를 넣은 뒤 출발.
+- 20:57 매장 도착. 돌아오는 길도 6분.
+- 21:00 테이블 설치 시작.
+- 21:15 설치 마침. 15분. 시음 매트 두 장, 거치대, 펜, 물병, 버리는 통, 손 소독제, 팻말까지 놓아 봄.
+- 21:20 설치한 것을 다시 걷음.
+
+연습 메모
+
+- 손수레 짐받이 고무줄은 두 개를 엇갈려 걸었더니 상자가 흔들리지 않았음.
+- 골목 끝 턱에서 손수레 바퀴가 한 번 걸림. 행사 날에는 그 턱 앞에서 손수레를 들어 넘기기로 함.
+- 설치 때 시음 매트 겹치는 곳을 테이블 가운데 거치대 자리에 맞추니 잔이 기울 일이 없었음.
+- 이 연습은 마감 뒤 손님이 없을 때 한 것이라, 영업 중에는 손님 응대 때문에 더 걸릴 수 있음. 연습 시간은 확정 값과 같았으나 영업 중 사정은 따로 생각해야 함.
+- 창고에서 상자를 손수레에 싣고 고무줄을 거는 동작은 확인 5분 안에 들어갔음. 상자를 선반에서 내리는 일도 같음.
+- 매장에 돌아와 손수레를 출입문 안쪽에 세우니 출입문이 끝까지 열리지 않았음. 행사 날에는 손수레를 주문대 뒤 통로에 세우기로 함.
+- 연습을 마친 뒤 손수레는 다음 날 아침 사랑방 창고 입구 제자리에 돌려놓았음(창고 공통 규칙).
+- 연습 시각은 마감 뒤의 것이므로 당일 일정 시각으로 옮겨 적지 않음.
+
+## 13. 준비 물품 목록(설치 · 운영용)
+
+수량을 정하지 않은 물품은 최민재가 대장과 함께 다시 세고 있어 이름만 적음. 예비 물품은 정원에 더하지 않음.
+
+- 시음 잔(내열 유리): 창고 상자. 이상 물품 상자로 옮긴 두 개는 쓰지 않음.
+- 시음 매트: 두 장을 이어 깖.
+- 아크릴 안내 카드 거치대: 세 개. 하나는 받침 귀퉁이에 금이 있으나 쓸 수 있음.
+- 안내 카드: 메뉴별 성분을 적은 카드. 바닐라 시럽을 산 뒤 출력 · 코팅.
+- 설문지: 새 양식. 셋째 문항 조사를 고친 파일로 다시 뽑을지는 정하지 않았음.
+- 펜: 잉크가 끊긴 한 자루는 뺐음.
+- 입가심 물병: 유리병 두 개. 매장 정수기 물.
+- 입가심용 작은 컵: 매장 것.
+- 버리는 통: 매장 것.
+- 손 소독제: 매장 것.
+- &#x27;시음회 자리&#x27; 팻말: 매장 접이식 팻말.
+- 쟁반: 시음 잔을 테이블로 옮기고 회수할 때 씀. 회수 때는 영업용 설거지와 섞이지 않게 따로 씀.
+- 비닐 덮개: A안이고 비가 올 때만.
+- 사전 신청 명단: 신청 마감 뒤 합친 것을 출력해 주문대 옆에 둠.
+- 참가 기록지: 16장 양식.
+
+## 14. 비상시 원칙
+
+진행 인력이 1명뿐이라 비상시에도 다른 사람을 부르는 것을 전제로 하지 않음. 아래는 1명이 할 수 있는 범위에서 정한 원칙임.
+
+- 참가자가 몸이 불편하다고 할 때: 시음을 멈추고 그분을 먼저 살핌. 필요하면 구급 신고를 함. 매장 구급함은 위생 점검 뒤 화상 연고를 새것으로 바꿨음.
+- 잔이 깨졌을 때: 참가자를 그 자리에서 비키게 하고 조각을 치움. 깨진 잔은 이상 물품으로 따로 둠. 조각을 치우는 동안 시음은 잠시 멈춤.
+- 머신이 멈췄을 때: 흑임자 라테 · 오트 바닐라 라테는 낼 수 없으므로, 유자 캐모마일 아이스티로 이어 가고 참가자에게 사정을 알림. 메뉴를 바꾼 것을 참가 기록에 적음.
+- 정전: 냉장고 문을 열지 않음. 시음은 멈추고 참가자에게 알림.
+- 일반 손님이 몰려 시음 안내가 늦어질 때: 참가자에게 잠시 기다려 달라고 말하고 결제를 먼저 마침. 안내 카드로 보충함.
+- 어떤 경우에도 예비 인력이나 참가자에게 일을 맡기지 않음. 사무국에는 행사가 끝난 뒤 알림(연락처는 사무국 내부 연락망, 이 자료에는 적지 않음).
+
+## 15. 행사 전날까지 할 일
+
+당일 일정에 넣지 않는, 전날까지 끝낼 일임. 날짜가 정해지면 날짜를 붙임.
+
+- 사전 신청 명단 합치기(신청 마감 뒤). 같은 분 두 번 신청 확인.
+- 안내 카드 출력 · 코팅(바닐라 시럽 산 뒤).
+- 설문지 준비.
+- 창고 열쇠함 번호 다시 확인(행사 뒤 바꿀 예정이므로 바뀌기 전 번호인지).
+- 공방에 손수레 쓰는 날 알리기.
+- 날씨 예보 확인.
+- B안이면: 전날 마감 뒤 창고에서 들여오기, 소분, 냉장고 셋째 칸 비우기(쿠키 반죽 통 옮기기), 냉장고 문 패킹 확인.
+- 운영 메모를 휴대전화에 복사해 두기.
+- 사무국에 행사 날짜 · 준비 방식 최종 알리기.
+
+## 16. 참가 기록지 양식(칸 설명)
+
+- 행사 날짜(당일 적음)
+- 진행 담당: 윤서진
+- 사전 신청 인원(명단 기준)
+- 실제 참석 인원
+- 오지 않은 신청자 수
+- 신청 없이 왔다가 돌아간 분 수(이름은 적지 않음)
+- 메뉴별로 낸 잔 수
+- 받은 설문 장수
+- 깨지거나 금 간 잔 수
+- 회수 완료 시각(실제 시각)
+- 후속 확인: 담당 · 다음 확인 대상
+- 특이 사항
+
+같은 참가 기록을 이 기록지와 매장 장부 메모에 함께 적더라도, 합계를 낼 때는 기록지 하나만 기준으로 함.
+
+## 17. 사무국장 확인 의견(9월 28일)
+
+- 근무표에 윤서진 1명만 적은 것을 확인함. 9월 23일 사무국 창구에서 도움을 제안한 조합원은 이번 행사 진행 인력으로 승인하지 않기로 했다고 알림. 고마운 제안이지만 승인 절차와 사전 교육 없이 당일에 일을 맡기지 않는다는 이유임.
+- 정다온은 여전히 확답이 없으니 근무표에 넣지 않은 것이 맞다고 함.
+- 시각 세 가지(도착 · 접수 · 행사)가 1판과 같은지 확인했다고 함.
+- 접수 절차에서 빈자리를 다른 분으로 채우지 않는다는 문장을 꼭 지키라고 당부함.
+- 준비 방식은 다음 회의에서 정하자고 다시 말함. 비용과 주문대를 비우는 위험 두 기준으로 보자는 1차 회의 결정을 그대로 따름.
+
+## 18. 최민재 확인 의견(9월 28일)
+
+- 재료 쪽에서는 바뀐 것이 없음. 바닐라 시럽은 날짜가 정해지면 행사 일주일 전쯤 삼.
+- 당일 근무표에 자신이 없는 것을 확인함. 행사 뒤 정산 자료는 매장 장부 기준으로 받음.
+- 창고 반입은 창고 공통 규칙상 행사 뒤 일주일 안이면 되므로, 당일 마감 뒤 힘들면 다음 날 해도 된다고 함. 다만 반입하는 날 반입 칸에 그 자리에서 센 수를 적어야 함.
+- B안으로 정해지면 전날 소분 때 쓸 계량표를 미리 넘기겠다고 함.
+
+## 19. 시음 시간대 평소 매장 손님 흐름(매출 기록에서, 윤서진)
+
+행사 날짜를 정할 때와 당일 계산대 겸 안내를 생각할 때 참고하려고, 지난 8월 한 달 매출 기록에서 시음 시간(14:30~16:00)과 같은 때의 주문 수를 요일별로 찾아봄. 날짜가 정해지지 않아 어느 요일이 될지는 모름.
+
+- 평일(월~목) 그 시간대: 주문이 적은 편. 대개 포장 손님이 몇 팀 오고 매장 안 손님은 두세 팀.
+- 금요일 그 시간대: 평일보다 조금 많음. 학원 가는 학생 손님이 음료를 사 감.
+- 토요일 그 시간대: 가장 많음. 공방 수업이 끝나는 때와 겹치면 한꺼번에 몰림.
+- 일요일 그 시간대: 토요일보다는 적지만 가족 손님이 매장 안에 오래 앉음.
+- 비 오는 날은 요일과 관계없이 포장 손님이 줄고 매장 안 손님이 조금 늚.
+
+윤서진 메모: 손님이 많은 요일일수록 결제 때문에 시음 테이블을 비우는 일이 잦아짐. 날짜 안건에 이 메모를 함께 올림(사무국장 날짜 안건 메모와 같은 내용).
+
+## 20. 1판에서 지운 작업
+
+- 접수 칸 &#x27;현장 신청 받기&#x27;: 현장 신청 예외 취소로 지움.
+- 접수 칸 &#x27;현장 신청자 이름 적기&#x27;: 같은 이유로 지움. 지난봄처럼 영수증 뒷면에 적는 일이 없게 하려고 1판에 넣었던 칸이었음.
+- 설치 칸 &#x27;창가 바 자리에 안내 카드 한 장 더 놓기&#x27;: 정원이 10명이 되어 모두 큰 테이블에 앉으므로 지움.
+- 행사 칸 &#x27;창가 바 자리 참가자 따로 안내&#x27;: 같은 이유로 지움.
+- 1판의 &#x27;정원 차면 현장 신청 마감 알림&#x27; 팻말: 현장 신청이 없으므로 지움. 대신 &#x27;오늘 시음회는 사전 신청자만&#x27;이라는 작은 안내를 주문대 옆에 둘지 검토 중.
+
+## 21. 1판 때 받은 확인 의견(9월 10일)
+
+- 최민재: 1판에 &#x27;창고 6분&#x27;이라고만 적혀 있어, 편도인지 왕복인지 밝히라고 함. 2판 2장에서 &#x27;편도 6분&#x27;으로 고치고 편도를 다녀오는 시간으로 적지 않는다는 문장을 넣음.
+- 사무국장: 1판 담당 칸에 &#x27;담당자&#x27;라고만 적혀 있어 사람 이름을 적으라고 함. 2판 4장에서 윤서진으로 적음.
+- 사무국장: 1판에 정다온 이름이 &#x27;가능하면&#x27;이라는 말과 함께 적혀 있었음. 확답 없는 사람을 근무표에 넣지 말라고 해서 2판 4-2로 옮김.
+- 최민재: 1판 마감 칸에 &#x27;16:00 회수 완료&#x27;라고 적혀 있었음. 종료 시각을 회수 완료 시각으로 적지 말라고 해서 2판 1장 · 8장에서 고침.
+
+## 22. 위생 점검 권고를 반영한 곳
+
+- 시음 테이블에 손 소독제를 둠(5장 · 8장).
+- 개봉한 페이스트 통에 개봉일 라벨을 붙임(8장 6번).
+- 정원을 큰 테이블 좌석 수에 맞춰 안내를 한 곳에서 함(5장).
+- 사전 신청 때 알레르기 여부를 미리 받아 접수 때 확인함(6장).
+- 매장 구급함 화상 연고를 새것으로 바꿈(14장).
+
+## 23. 날씨에 따라 달라질 수 있는 것
+
+- 비: A안이면 손수레 상자에 비닐 덮개. 골목 끝 턱이 미끄러우니 손수레를 들어 넘김. 매장 출입문 앞 바닥에 깔개를 깖. 포장 손님은 줄 수 있음.
+- 더위: 유자 캐모마일 아이스티 얼음이 영업용 얼음과 겹쳐 모자랄 수 있음. 얼음 부족분은 남은 예상 지출에 잡혀 있음. 사러 나가는 일은 접수 시작 뒤에는 할 수 없으므로 전날까지 준비함.
+- 서늘한 날: 따뜻한 음료가 빨리 식을 수 있음. 흑임자 라테 거품 대응을 정할 때 함께 봄.
+- 바람이 센 날: 출입문이 자주 열리면 시음 테이블 쪽으로 바람이 듦. 큰 테이블은 출입문에서 안쪽이라 덜하지만, 거품 상태에 영향이 있는지는 모름.
+
+## 24. 주문대와 큰 테이블 사이 동선
+
+- 주문대 옆 접수 자리에서 큰 테이블까지는 걸어서 몇 걸음. 주문대 앞에 손님 줄이 서면 그 줄을 지나야 함.
+- 시음 잔은 쟁반에 담아 옮김. 한 번에 여러 잔을 옮기면 흔들려 거품이 망가질 수 있어, 흑임자 라테는 쟁반에 적게 담음.
+- 일반 손님 줄과 참가자가 섞이지 않도록, 접수를 마친 참가자는 바로 큰 테이블로 안내함.
+- 결제 손님이 오면 쟁반을 큰 테이블 끝에 내려놓고 주문대로 감. 쟁반을 들고 주문대로 가지 않음.
+- 큰 테이블에서 주문대가 보이는 자리에 진행 담당이 서도록 거치대 위치를 정함.
+
+## 25. 설문 받는 방법
+
+- 설문지와 펜은 설치 때 자리마다 놓음.
+- 시음이 끝날 무렵 &quot;설문은 이 자리에서 내 주시면 됩니다&quot;라고 한 번 알림.
+- 다 쓴 설문은 테이블 가운데 바구니에 넣게 함. 바구니는 매장에 있는 빵 바구니를 씀.
+- 글씨 쓰기가 어려운 분이 계시면 옆 참가자에게 부탁할 수 있다고 알림. 진행 담당이 대신 받아 적을지는 정하지 않았음(의견함 쪽지 문의).
+- 집에 가져가겠다는 분께는 나중에 따로 받지 않는다는 원칙을 말씀드림.
+- 펜은 설문 바구니 옆 컵에 다시 모음.
+
+## 26. 일정표를 짤 때 지키는 표기 원칙
+
+- 시각은 24시 표기로 적음.
+- 작업마다 시작 시각, 끝 시각, 소요 시간, 담당을 함께 적음. 담당 칸에는 사람 이름을 적음.
+- 이동은 편도와 돌아오는 길을 따로 적음. 한 줄로 합쳐 적을 때는 &#x27;다녀옴&#x27;이라고 밝히고 소요 시간을 편도 값으로 적지 않음.
+- 전날 작업은 &#x27;전날&#x27; 칸에, 당일 도착 뒤 작업은 &#x27;당일&#x27; 칸에 나누어 적음.
+- 정하지 않은 값은 &#x27;미정&#x27;으로 적고 칸을 비우지 않음.
+- 접수 시작 뒤 칸에는 자리를 비우는 작업을 넣지 않음.
+- 행사 종료 뒤 칸의 끝 시각은 &#x27;실제 시각 기록&#x27;으로 적고 미리 채우지 않음.
+- 바뀐 조건만 고치고 나머지 칸은 그대로 둠. 표를 통째로 새로 쓰지 않음.
+
+## 27. 행사 다음 날 할 일
+
+- 창고 반입: 당일 마감 뒤 하지 못했으면 다음 날 함. 반입 칸에 그 자리에서 센 수를 적음.
+- 정산: 쓴 재료비 영수증을 매장 장부에 붙이고 최민재에게 알림. 최민재가 실지급으로 옮기고 남은 예상에서 뺌. 한 금액이 두 칸에 동시에 있지 않게 함.
+- 설문: 받은 설문을 메뉴별로 나누어 셈. 셈은 윤서진이 하고 최민재가 한 번 더 봄.
+- 이상 물품: 행사 중 깨지거나 금 간 잔이 있으면 사무국에 보임(창고 공통 규칙).
+- 후속 확인: 참가 기록지의 &#x27;담당 · 다음 확인 대상&#x27;을 하나씩 처리함.
+- 보고: 참가 기록지와 설문 결과를 사무국장에게 보냄. 이사회 보고는 사무국장이 함.
+
+## 28. 지난봄 회차와 근무 차이
+
+- 지난봄: 진행 인력 2명. 정다온이 창고에 다녀오고 윤서진이 주문대를 봤음. 늦게 온 분 설명도 정다온이 따로 함.
+- 이번: 진행 인력 1명. 창고 일, 주문대, 접수, 시음 안내, 회수를 모두 윤서진이 함. 그래서 지난봄에 둘이 나눠 하던 일 가운데 무엇을 전날로 옮기거나 줄일 수 있는지가 준비 방식 결정의 핵심 고민이 됨.
+- 이번에는 늦게 온 분께 따로 설명할 사람이 없음. 안내 카드와 시작 때 한 번 안내로 대신하고, 접수 시각을 지켜 달라는 말을 안내문에 분명히 둠.
+
+## 29. 9월 27일 사무국과의 통화 메모(윤서진)
+
+- 공방 체험 수업은 격주 토요일 오후. 시음회 날짜가 토요일로 정해지면 손수레를 공방에서 먼저 쓸 수 있음. 공방 담당은 미리 말해 주면 손수레를 비워 두겠다고 함.
+- 사랑방 건물은 낮 동안 문이 열려 있어 창고 이용 시간 제한은 따로 없음.
+- 열쇠함 번호는 행사 뒤 바꿀 예정이니, 행사 전에는 지금 번호를 그대로 쓰면 됨.
+- 사무국장이 9월 23일 도움 제안 조합원에게 직접 고맙다는 말과 함께 이번에는 함께하기 어렵다고 전했다고 함.
+
+## 30. 운영 메모와 이 자료의 관계
+
+- 조합 게시판 안내 글 끝의 운영 메모(코드 상자)는 이 자료의 원칙 가운데 당일 담당자가 꼭 지킬 문장만 옮긴 것임.
+- 운영 메모와 이 자료가 다르면 이 자료와 회의록을 기준으로 운영 메모를 고침.
+- 준비 방식이 정해지면 이 자료의 3장과 운영 메모를 같은 날 고침.
+- 운영 메모에는 예비 인력을 전제로 한 문장을 넣지 않음. 이 자료의 근무표와 같음.
+
+## 31. 접수 때 대조할 명단 양식
+
+명단 양식의 칸만 정해 둠. 실제 명단은 신청 마감 뒤에 만들며 이 자료에는 넣지 않음.
+
+- 순서: 신청 순서. 정원 10명까지만 줄을 둠.
+- 이름: 신청할 때 적은 이름.
+- 고른 메뉴: 세 가지 가운데 두 가지.
+- 알레르기 여부: 있음 · 없음.
+- 신청 경로: 조합 게시판 · 매장 신청지.
+- 도착 표시: 접수 때 표시함.
+- 비고: 접수 때 말로 확인한 것(알레르기 내용은 적지 않고 &#x27;확인함&#x27;만 표시).
+
+명단은 주문대 옆에 두되, 다른 손님이 볼 수 없도록 뒤집어 두거나 클립보드에 덮개를 씌움.
+
+## 32. 시음 시작 때 말로 할 안내(윤서진 메모)
+
+안내문이 아니라 시음 시작 때 테이블에서 말로 할 내용의 순서만 적어 둠.
+
+1. 인사와 오늘 맛볼 메뉴 세 가지 소개. 그 가운데 신청 때 고른 두 가지를 맛본다는 것.
+2. 한 사람당 두 잔까지라는 것.
+3. 메뉴별 성분은 안내 카드에 있고, 알레르기가 있는 분은 카드를 먼저 봐 달라는 것.
+4. 진행 담당이 계산대도 함께 보고 있어 잔이 조금씩 늦게 나갈 수 있다는 것.
+5. 설문은 시음이 끝난 자리에서 바로 내 달라는 것. 나중에 따로 받지 않는다는 것.
+6. 매장 영업 중이니 큰 소리는 조금 줄여 달라는 부탁.
+
+## 33. 다른 문서와 맞춰 본 기록(9월 28일)
+
+이 자료를 고치기 전에 시각 · 인원 · 조건을 다른 문서와 맞춰 봄.
+
+- 1차 준비 회의록: 시각 · 동선 · 예산 역할 같음. 정원 · 현장 신청은 변경 통지로 바뀐 것을 반영함.
+- 사무국 변경 통지 공문: 바뀐 것(정원 10명, 현장 신청 예외 취소)과 바뀌지 않은 것 모두 이 자료와 같음.
+- 2차 준비(수정) 회의록: 같음.
+- 게시판 안내 글 참고 기록 [1] · [2]: 같음.
+- 사무국 일람표(9월 23일 판): 사업장 기록과 다른 칸이 있어 사무국에 알렸고 새 판을 기다리는 중. 이 자료는 일람표가 아니라 회의록 · 공문 · 참고 기록을 기준으로 함.
+
+## 34. 진행 담당 개인 준비
+
+- 식사는 13:10 도착 전에 마침. 도착 전의 일이라 당일 일정에는 넣지 않음.
+- 행사 중 물은 주문대 뒤에 컵을 두고 마심. 자리를 비우지 않고 할 수 있는 일만 함.
+- 휴대전화는 운영 메모와 명단 사진을 볼 때만 꺼냄. 시음 중 전화는 받지 않음.
+- 앞치마 주머니에 볼펜 한 자루, 스티커(이상 물품 표시용)를 넣어 둠.
+- 주문대 뒤 메모판에 운영 메모를 붙이고, 그 옆에 사전 신청 명단을 둠. 두 장 모두 손님 쪽에서는 보이지 않게 붙임.
+
+## 35. 회수 때 물품 대조 방법
+
+- 시음 잔: 설치 때 테이블에 낸 수와 회수 때 거둔 수를 견줌. 깨진 잔은 거둔 수에 넣되 이상 물품으로 따로 표시함.
+- 설문지: 받은 장수를 셈. 쓰지 않은 설문지 장수는 따로 셈. 두 값을 더해 처음 놓은 장수와 맞춰 보되, 쓰지 않은 설문지를 참가자 수로 읽지 않음.
+- 펜: 처음 놓은 자루 수와 거둔 자루 수를 견줌. 잉크가 끊긴 펜은 따로 뺌.
+- 안내 카드 · 거치대: 그대로 거둠. 다음 회차에 다시 쓸 수 있는지 상태를 봄.
+- 시음 매트: 얼룩이 생겼는지 봄. 세탁할지는 사무국에 물음.
+- 남은 재료: 개봉 여부와 남은 양을 적음. 개봉한 것은 개봉일 라벨.
+- 대조 결과는 참가 기록지 &#x27;특이 사항&#x27;에 적고, 창고 반입 때 반입 칸에 실제 센 수를 적음.
+
+## 36. 이 판을 받은 사람과 다음 판 계획
+
+- 9월 28일(월) 저녁: 최민재, 배정연에게 보냄. 두 사람 확인 의견은 17장 · 18장.
+- 다음 판(3판): 준비 방식이 정해지면 3장에서 정해진 방식 칸만 남기고, 행사 날짜가 정해지면 날짜를 넣어 만듦. 그때 분 단위 일정을 이 자료 위에서 짬.
+- 3판을 만들 때도 시각 세 가지와 근무표(윤서진 1명)는 바꾸지 않음. 바뀐 조건이 생기면 그 조건만 고침.
+
+## 37. 시음 시간 중 매장 분위기
+
+- 매장 음악: 시음 시작 때 안내하는 동안 소리를 낮추고, 안내가 끝나면 평소보다 조금 낮게 둠. 지난봄에 창가 자리 참가자가 음악 때문에 설명을 못 들었다는 말이 있었음.
+- 조명: 큰 테이블 위 조명은 평소대로 켬. 유리잔 색이 잘 보이도록 블라인드는 반쯤 엶.
+- 일반 손님 자리: 창가 바 자리와 2인 테이블은 평소대로 일반 손님이 씀. 큰 테이블 쪽으로 의자를 끌어가지 않도록 팻말 옆에 작은 안내를 둠.
+- 출입문: 문이 열릴 때마다 바람이 들어오지 않도록 문 닫힘 장치가 제대로 되는지 전날 확인함.
+
+## 38. 아직 정하지 않은 것
+
+- 행사 날짜.
+- 재료 준비 방식(A안 · B안).
+- 흑임자 라테 거품 대응(잔 예열 여부, 만드는 차례).
+- 시간대별 참가자 명단: 정하지 않았음. 이 자료에 없음.
+- 대기 명단을 받을지.
+- 창고 반입을 당일에 할지 다음 날 할지.
+- 설문을 말로 받아도 되는지(의견함 쪽지 문의).
+- 개별 참가자 편의 지원, 어린이 동반.
+[자료 끝]
+
+온기카페의 운영 점검 일정을 만들어 주세요. 아까 두 번째 안의 비용을 떠올리되, 지금까지 확정한 방식과 최신 접수 조건을 반영해 주세요. 도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요. 운영자가 실행할 작업 순서는 불릿 목록으로 작성해 주세요. 정해진 인력 외의 사람은 사용하지 마세요.</pre><b>턴 9 답변</b><pre class="rs-pre rs-ans">온기카페 가을 신메뉴 시음회의 당일 운영 점검 일정과 윤서진 운영자(진행 인력 1명) 기준의 실행 작업 순서입니다.
+
+두 번째 안(B안: 전날 소분 보관, 소분 포장비 2,500원)을 바탕으로 <mark class="rs-mk"><sup>13</sup>당일 주문대를 비우지 않는 안정적인 동선</mark>과 최신 변경 조건(정원 10명, 사전 신청자만 참여, 현장 신청 취소)을 반영하였습니다.
+
+---
+
+### 온기카페 시음회 당일 운영 점검 일정표
+
+| 구분 | 시각 | 소요 시간 | 담당자 | 비고 및 주요 내용 |
+| --- | --- | --- | --- | --- |
+| **현장 도착** | **13:10** | — | 윤서진 | 매장 도착, 영업 준비 병행 및 장비 예열·점검 |
+| **창고 이동** | **(전날 완료)** | **0분** | 윤서진 | **B안 기준 당일 이동 없음**&lt;br&gt;
+
+&lt;br&gt;(전날 마감 뒤 소분·반출 완료로 주문대 공백 방지 / *A안일 경우 편도 6분*) |
+| **물품·재료 확인** | **13:30 ~ 13:35** | **5분** | 윤서진 | 매장 냉장고 셋째 칸 소분 재료 상태, 라벨 및 시음 잔 림(가장자리) 파손 여부 확인 |
+| **테이블 설치** | **13:45 ~ 14:00** | **15분** | 윤서진 | 안쪽 큰 테이블(10석) 매트 2장 깔기, 안내 카드·거치대, 설문지·펜, 물병·컵, 손 소독제, 팻말 비치 |
+| **접수 시작** | **14:15 ~ 14:30** | **15분** | 윤서진 | 사전 신청 명단(10명) 대조 확인, 메뉴 선택 접수, 현장 신청 미접수 안내 |
+| **시음회 진행** | **14:30 ~ 16:00** | **90분** | 윤서진 | 시음 시작 일괄 구두 안내, 음료 순차 제조·서빙(1인 2잔 제한), 일반 손님 결제 병행 |
+| **행사 종료 및 회수** | **16:00 이후** | **실제 소요 시간** | 윤서진 | 설문지 즉시 회수 및 계수, 잔 세척 및 파손 점검, 참가 기록 마무리 (실제 완료 시각 기록) |
+
+---
+
+### 운영자(윤서진) 실행 작업 순서
+
+* **13:10 ~ 13:30 | 현장 도착 및 영업 장비 점검**
+* 매장에 정시 도착하여 일반 영업 상태를 확인하고 출입문 및 에어컨 가동 상태를 점검합니다.
+* 에스프레소 머신 스팀 노즐 팁의 분사 상태(4개 구멍 개방 여부)와 시음용 보조 그라인더를 확인합니다.
+* 개인 용무(화장실 등)는 접수 시작(14:15) 이후 자리를 절대 비울 수 없으므로 이 시간대에 미리 마칩니다.
+
+
+* **<mark class="rs-mk"><sup>14</sup>13:30 ~ 13:35 | 재료 및 비품 상태 대조 확인 (5분 소요)</mark>**
+* 전날 매장 냉장고 셋째 칸에 소분 보관해 둔 재료(흑임자 페이스트, 유자청 등)의 보관 온도(3℃)와 밀봉 상태를 확인합니다.
+* 안쪽 선반의 시음 잔을 꺼내며 가장자리 깨짐이나 금 간 곳이 없는지 손끝으로 훑어 검수합니다(파손 의심 잔은 즉시 배제).
+
+
+* **13:45 ~ 14:00 | 시음 테이블 및 안내 구역 설치 (15분 소요)**
+* 안쪽 큰 테이블(10석)에 시음 매트 2장을 이어 깔고, 중앙 겹치는 부분에 아크릴 안내 카드 거치대(메뉴별 알레르기 표기)를 배치합니다.
+* 정원 10석 자리마다 새 양식 설문지와 점검을 마친 볼펜을 비치합니다.
+* 정수기 물을 채운 유리병 2개와 입가심용 컵, 버리는 통, 위생 점검 권고 물품인 손 소독제를 테이블에 올립니다.
+* 일반 손님 혼선 방지를 위해 &#x27;시음회 자리&#x27; 접이식 팻말을 세워 좌석을 확보합니다.
+
+
+* **14:00 ~ 14:15 | 사전 점검 및 접수 준비**
+* 우유, 오트 음료 납품분 및 제빙기 얼음 잔량을 최종 점검합니다.
+* 주문대 뒤편에 당일 운영 메모와 사전 신청자 명단(10명) 클립보드를 손님 눈에 띄지 않게 비치합니다.
+
+
+* **14:15 ~ 14:30 | 접수 개시 및 참가자 맞이 (15분간, 주문대 상주)**
+* 신청 마감 후 취합된 사전 신청 명단(10명)을 기준으로 본인 확인 및 도착 체크를 진행합니다.
+* 신청 시 선택한 메뉴 2종과 알레르기 유무(&#x27;있음&#x27; 표기자 구두 재확인)를 대조합니다.
+* 사전 신청 없이 당일 현장 방문한 분께는 &quot;오늘 시음회는 미리 신청해 주신 분들만 참여하실 수 있어요. 일반 메뉴는 평소처럼 주문하실 수 있습니다&quot;라고 정중하고 간결하게 안내합니다(현장 신청 추가 접수 불가, 불참자 발생 시에도 임의 충원 금지).
+* 접수를 마친 참가자는 큰 테이블의 지정 좌석으로 안내합니다.
+
+
+* **14:30 ~ 16:00 | 시음회 진행 및 매장 결제 병행 (90분간)**
+* 시음 시작 시 1회 일괄 안내를 진행합니다: 후보 3종 중 2종 시음, 1인 2잔 제한, 알레르기 카드 사전 확인 당부, 설문 현장 즉시 제출 원칙, 매장 영업 병행에 따른 양해 부탁.
+* 흑임자 라테는 거품 붕괴를 최소화하기 위해 스팀(65℃) 직후 즉시 쟁반에 담아 테이블로 서빙합니다.
+* 일반 결제 손님 방문 시 시음 서빙보다 카운터 결제를 우선 처리한 뒤 테이블로 복귀합니다.
+* 시음이 끝난 참가자에게 테이블 중앙 바구니에 설문지를 즉시 제출하도록 안내합니다(추후 제출 불가).
+
+
+* **16:00 이후 | 마감, 회수 및 기록 완료**
+* 제출된 설문지 장수를 확인·수합하고, 사용하지 않은 잔여 설문지 및 펜을 회수합니다.
+* 테이블의 시음 잔을 전용 쟁반에 거두어 개수대에서 세척하고 뜨거운 물로 헹군 뒤 안쪽 선반에 건조합니다(파손·균열 잔 발견 시 스티커 부착 후 이상 물품 분리).
+* 테이블의 매트, 거치대, 물병, 팻말을 정리하여 큰 테이블을 일반 손님용 좌석으로 환원합니다.
+* 개봉한 흑임자 페이스트 등 남은 재료에 개봉일 라벨을 부착하여 냉장고에 보관합니다.
+* 참가 기록지(참석 인원, 노쇼 인원, 미신청 방문자 수, 메뉴별 서빙 잔 수, 설문 회수 장수 등)를 작성하고, 모든 회수 작업이 실제로 종료된 시각을 대장에 기재합니다(16:00 자동 표기 금지).</pre></div></div><div class="rs-fx-r"><h4>왜 FAIL 인가 — 어긴 기준 10개</h4><div class="rs-item"><div><b class="rs-hlno">1</b> <b>추천·글의 목적 적합성</b> <span class="rs-id">J2-5.a · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">질문은 실행 가능한 안을 추천하라고 했지만, B안은 냉장고 수납 가능 여부와 소분 후 품질 확인이 남아 자료상 확정할 수 없는 보류안입니다. 이를 전제로 추천한 문장이라 현 상황에 맞는 실행 가능성을 갖춘 추천이 아닙니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">1</b> “B안은 매장 안에서 모든 준비가 완결되므로 주문대를 비우지 않고 안전하게 운영할 수 있습니다.”</div><div class="rs-quote">질문의 요구: “비용과 주문대 접수를 비울 위험 두 기준으로 두 안을 표 하나로 비교하고 실행 가능한 안을 추천해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.60</div></div><div class="rs-item"><div><b class="rs-hlno">2</b> <b>근거와 결론</b> <span class="rs-id">J3-2.b · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">이 근거로 B안 추천을 뒷받침하지만, 자료는 B안도 냉장고 자리와 시험 제조 결과가 확인될 때까지 보류라고 했고 실행 가능성을 확정하지 않았습니다. 또한 1명 진행이라 접수 시작 뒤 자리를 비울 수 없다는 자료의 제약을 반영하면 A안은 접수 전에 창고 운반을 끝내는 일정 가능성도 비교해야 하므로, 해당 근거만으로 B안이 실행 가능한 선택이라고 결론 내릴 수 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">2</b> “A안을 택할 경우 창고 이동 및 확인에 소요되는 17분간 매장이 방치되어 방문 손님 이탈 및 접수 차질이 불가피합니다.”</div><div class="rs-quote">질문의 요구: “비용과 주문대 접수를 비울 위험 두 기준으로 두 안을 표 하나로 비교하고 실행 가능한 안을 추천해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.94</div></div><div class="rs-item"><div><b class="rs-hlno">3</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">13:30부터 13:45까지는 15분인데 이를 5분 작업으로 적었습니다. 이는 답변이 새로 만든 일정 내부의 시간 불일치입니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">3</b> “* **13:30 ~ 13:45 | 재료 및 잔 상태 대조 확인 (5분 소요)**”</div><div class="rs-quote">질문의 요구: “현장 도착 13:10, 행사 14:30~16:00, 접수 14:15, 인력 1명, 정원 12명입니다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.96</div></div><div class="rs-item"><div><b class="rs-hlno">4</b> <b>실행 가능성</b> <span class="rs-id">J3-5.b · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">질문 자료의 17,000원은 120,000원에서 45,000원과 58,000원을 뺀 미반영 상태의 차액인데, 답변은 이를 B안 비용을 이미 반영해도 되는 여유분처럼 사용합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">4</b> “B안에 드는 2,500원은 현재 승인 상한 대비 잔여 예산 여유분(17,000원) 안에서 무리 없이 충당할 수 있습니다.”</div><div class="rs-quote">질문의 요구: “승인 상한 120000원, 실지급 45000원, 남은 예상 58000원에 B안 비용은 아직 미포함입니다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">5</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · 턴 1 · LLM Judge</span></div><div class="rs-fwhy">자료는 창고까지 편도 6분이라고 했고 왕복은 12분입니다. 답변은 왕복 12분과 확인 5분을 매장 공백 시간으로 합산해 17분이라고 옮겼지만, 질문 자료에는 확인 시간 동안에도 매장을 비워야 한다는 값이 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">5</b> “**매장 공백 약 17분 발생**”</div><div class="rs-quote">질문의 요구: “A안은 당일 창고에서 시음 잔과 재료를 직접 옮기는 방식(편도 6분, 재료 확인 5분)이고 비용은 없습니다.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.73</div></div><div class="rs-item"><div><b class="rs-hlno">6</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">잔 D는 9월 8일 1차 시험의 관찰이고 잔 H는 9월 9일 2차 시험의 관찰인데, 답변은 D를 먼저 설명한 뒤 H를 말해 시험 기록의 순서를 뒤집습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">6</b> “실제로 잔을 미리 데운 잔 H(예열)는 10분 뒤에도 높이가 0.8cm(음료 온도 52℃) 유지되었고, 두꺼운 머그를 예열한 **잔 D**는 10분 뒤에도 1.0cm를 유지하며 가장자리 기포 발생이 훨씬 늦었습니다.”</div><div class="rs-quote">질문의 요구: “관찰 순서를 뒤집지 말고 기록만으로 우유 품질 문제라고 단정하지 마세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">7</b> <b>설명 방식</b> <span class="rs-id">J2-4.b · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">비유는 있지만 거품 붕괴의 실제 기전으로 확인되지 않은 차가운 잔과 참깨 가루가 눈사람을 녹이거나 찌른다는 대응으로 설명해, 자료가 말하지 않는 원인을 사실처럼 전달합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">7</b> “**&quot;눈사람(거품)을 차가운 바람 부는 모래밭(차가운 유리잔 + 참깨 가루) 위에 올려둔 것과 같습니다.&quot;**”</div><div class="rs-quote">질문의 요구: “코딩이나 과학에 익숙하지 않은 운영자에게 맞는 일상 비유를 하나 들고”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">8</b> <b>내부 모순 없음</b> <span class="rs-id">J3-1.a · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">이번 답변 안에서 잔이 차가워 거품을 빠르게 꺼뜨렸다고 설명하면서 뒤에서는 예열로 유지가 개선됐다고 단정하고, 확인되지 않은 기전을 측정 결과처럼 제시합니다. 관찰과 인과 추론을 구분하지 않아 내부적으로 근거 수준을 달리 적용합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">8</b> “온도가 식으면 기포 안의 공기가 수축하고, 거품 벽을 지탱하던 단백질과 지방막의 구조적 힘이 약해집니다.”</div><div class="rs-quote">질문의 요구: “기록 원칙: 눈으로 본 것과 잰 값만 본 순서대로 적음. 왜 그런지에 대한 판단은 적지 않고, 사람이 한 말은 &#x27;메모&#x27;로 따로 적음.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.77</div></div><div class="rs-item"><div><b class="rs-hlno">9</b> <b>인과·원리</b> <span class="rs-id">J3-3.a · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">노즐 막힘을 1·2차 시험의 원인 후보로 연결하지만, 자료는 막힌 것을 처음 본 시점이 시험 뒤인 9월 10일이며 시험 당시 막혀 있었는지 모른다고 명시합니다. 답변은 이 선후 조건을 유지하지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">9</b> “9월 10일 영업 전 확인에서 스팀 노즐 구멍 4개 중 1개가 우유 찌꺼기로 반쯤 막혀 있던 점이 확인되었습니다.”</div><div class="rs-quote">질문의 요구: “왜 그런지 원인을 결과와 연결해서 설명해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.98</div></div><div class="rs-item"><div><b class="rs-hlno">10</b> <b>인과·원리</b> <span class="rs-id">J3-3.b · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">자료는 페이스트 없는 잔 I에서도 바탕 잔보다 거품이 더 남았다는 관찰을 주지만, 이 기전이나 성분의 작용을 확인하지 않았습니다. 답변은 검증되지 않은 기전을 확정 원인처럼 설명합니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">10</b> “참깨(흑임자)에 포함된 고농도의 식물성 기름(유리 지방산)과 고형분 입자는 우유 거품 표면에 닿으면 단백질 막의 표면장력을 깨뜨려 거품을 터뜨리는 역할을 합니다.”</div><div class="rs-quote">질문의 요구: “왜 그런지 원인을 결과와 연결해서 설명해 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.91</div></div><div class="rs-item"><div><b class="rs-hlno">11</b> <b>입력 자료 충실성</b> <span class="rs-id">J5-2.a · 턴 2 · LLM Judge</span></div><div class="rs-fwhy">자료는 잔 A의 10분 음료 온도 47℃라고 하지만, 답변은 이를 잔 A뿐 아니라 복합 원인의 확정 근거처럼 맥락을 넓혀 씁니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">11</b> “* 바닥에는 흑임자 앙금이 가라앉아 있었고 음료 온도는 47℃(잔 A)까지 떨어졌습니다.”</div><div class="rs-quote">질문의 요구: “잔 A”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">12</b> <b>조건·제약 준수</b> <span class="rs-id">J2-3.a · 턴 8 · LLM Judge</span></div><div class="rs-fwhy">요구된 글 내부 앵커 링크 대신 외부 Google 검색 주소를 사용했습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">12</b> “* [신청](https://www.google.com/search?q=%23%EC%8B%A0%EC%B2%AD)
+* [문의](https://www.google.com/search?q=%23%EB%AC%B8%EC%9D%98)”</div><div class="rs-quote">질문의 요구: “목차에는 [신청](#신청), [문의](#문의) 내부 링크와 실제 대응 제목을 넣으세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.73</div></div><div class="rs-item"><div><b class="rs-hlno">13</b> <b>근거와 결론</b> <span class="rs-id">J3-2.b · 턴 9 · LLM Judge</span></div><div class="rs-fwhy">B안이 당일 창고 이동을 없애는 근거는 있으나, 제시된 답변의 세부 일정은 작업 사이에 이유 없는 간격을 두고 도착 후 공백 시간을 임의로 채웁니다. 일정의 타당한 실행 근거가 충분히 연결되지 않습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">13</b> “당일 주문대를 비우지 않는 안정적인 동선”</div><div class="rs-quote">질문의 요구: “지금까지 확정한 방식”</div><div class="rs-quote">심판: Codex FAIL · Decisions PASS</div></div><div class="rs-item"><div><b class="rs-hlno">14</b> <b>실행 가능성</b> <span class="rs-id">J3-5.a · 턴 9 · LLM Judge</span></div><div class="rs-fwhy">확인 작업은 13:35에 끝나는데 설치 시작은 13:45로 적혀 있어 10분의 공백이 일정에 설명 없이 들어갔고, 실행 작업 순서에도 같은 공백이 있습니다. 다만 질문은 연속 배정을 요구하지 않았으므로 단순 여유 공백만으로 FAIL 사유가 될 수 없습니다.</div><div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">14</b> “13:30 ~ 13:35 | 재료 및 비품 상태 대조 확인 (5분 소요)
+...
+13:45 ~ 14:00 | 시음 테이블 및 안내 구역 설치 (15분 소요)”</div><div class="rs-quote">질문의 요구: “도착·이동·확인·설치·접수·행사 종료의 시각, 담당자와 소요 시간을 보여 주세요.”</div><div class="rs-quote">심판: Codex FAIL · Decisions 도 FAIL 0.53</div></div></div></div></article></div></section></main>
+<script>
+(function () {
+  function openTo(id) {
+    var el = document.getElementById(id);
+    if (!el || el.tagName !== 'DETAILS') return false;
+    for (var d = el; d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#f-"], a[href^="#h-"]');
+    if (a && openTo(a.getAttribute('href').slice(1))) { e.preventDefault(); history.replaceState(null, '', a.getAttribute('href')); }
+  });
+  if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>
