@@ -1336,3 +1336,27 @@ def test_error_case_capability_denial_programming_scope_phrase():
     long_answer = "이 질문은 프로그래밍 범위를 넘어서는 부분이 있지만 정리해 드리면 다음과 같습니다.\n1. 접수 09:35\n2. 행사 09:30\n3. 회수 12:00\n4. 반납 12:20"
     assert ci.error_case_phrase(long_answer, len(long_answer), "일정을 정리해 주세요.") is None
 
+
+
+def test_ambiguous_list_quote_and_service_footer_are_left_to_llm(monkeypatch):
+    """기준 배치 점검(10-26): 코드로 정할 수 없는 경우는 행 없이 판정 제외 — 이스케이프된 불릿(\\-) · 한 묶음만 요구를 맞추는 여러 불릿 묶음 ·
+    '…라는 말은 쓰지 않았습니다' 자기 점검 문장의 금지어. 허용 문자 검사는 서비스가 붙인 '데이터 제공: …' 줄을 뺀다."""
+    q = "안내문을 써 주세요. 불릿은 정확히 3개로 해 주세요."
+    escaped = run(q, "안내입니다.\n\n\\- 일시: 미정\n\n\\- 장소: 2층\n\n\\- 문의: 담당자")
+    assert rows(escaped, "2-1.count:bullet_count") == [] and any("이스케이프" in s["reason"] for s in escaped["meta"]["skipped_conditions"])
+    two = run(q, "안내입니다.\n\n- 일시: 미정\n- 장소: 2층\n- 문의: 담당자\n\n게시 전에 살펴볼 점입니다.\n\n- 날짜는 미정으로 둠\n- 연락처는 뺌")
+    assert rows(two, "2-1.count:bullet_count") == [] and any("불릿 묶음 2개" in s["reason"] for s in two["meta"]["skipped_conditions"])
+    over = run(q, "안내입니다.\n\n- 일시\n- 장소\n- 대상\n- 문의")
+    assert one(over, "2-1.count:bullet_count")["verdict"] == FAIL   # 묶음 하나가 넘치면 그대로 FAIL
+    ban = "안내문을 써 주세요. '무료'라는 말은 쓰지 마세요."
+    meta = run(ban, "참가비는 받지 않습니다.\n\n지킨 점: \"무료\", \"선착순\"이라는 말은 쓰지 않았습니다.")
+    assert rows(meta, "2-1.literal:forbidden_literal") == []
+    used = run(ban, "참가비는 무료입니다. 많이 오세요.")
+    assert one(used, "2-1.literal:forbidden_literal")["verdict"] == FAIL
+    quoted_use = run(ban, "\"무료\" 행사이니 많이 오세요.")
+    assert one(quoted_use, "2-1.literal:forbidden_literal")["verdict"] == FAIL   # 따옴표만으로는 빼지 않는다
+    hangul = "안내문을 써 주세요. 한글만 사용해 주세요."
+    footer = run(hangul, "행사는 토요일에 열립니다.\n\n데이터 제공: MET Norway (Weather data from MET Norway (CC BY 4.0))")
+    assert one(footer, "2-1.charset")["verdict"] == PASS
+    made_up = run(hangul, "행사는 토요일에 열립니다.\n\n데이터 제공: My Weather Site")
+    assert one(made_up, "2-1.charset")["verdict"] == FAIL   # 모르는 제공처는 답변 모델이 쓴 글

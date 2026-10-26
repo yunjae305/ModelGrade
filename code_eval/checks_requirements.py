@@ -11,6 +11,7 @@ import unicodedata
 from dataclasses import replace
 from typing import Any, Dict, List, Optional, Tuple
 
+from .service_text import footer_spans
 from .checks_integrity import json_targets
 from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, skip_condition, skip_req, verdict_of
 from .model import Evidence, FAIL, PASS, Status, stable_hash
@@ -38,8 +39,12 @@ def _measure_count(ctx: Ctx, kind: str) -> Dict[str, Any]:
     aa = ctx.aa
     if kind == "bullet_count":
         items = aa.top_level_bullets
+        escaped = [l for l in aa.lines if not l.in_code and _ESCAPED_BULLET.match(l.text)]
+        if not items and escaped:   # 화면에는 불릿처럼 보이지만 마크다운 목록이 아님 — 셀 구조가 갈림 (10-26 GPT 복사본 '\- 일시와 장소: …')
+            return {"value": None, "why": f"목록 표지가 이스케이프된 줄(\\-) {len(escaped)}개 — 화면에는 불릿처럼 보이지만 마크다운 목록이 아니라 셀 구조가 갈림(LLM 판정 몫)"}
         return {"value": len(items), "items": [i.line.number for i in items],
                 "nested_bullets": len(aa.bullet_items) - len(items),
+                "blocks": [len(b) for b in _bullet_blocks(ctx, items)],
                 "evidence": [(i.start, i.end) for i in items]}
     if kind == "sentence_count":
         return {"value": len(aa.sentences), "sentences": aa.sentences[:50]}
@@ -55,6 +60,7 @@ def _measure_count(ctx: Ctx, kind: str) -> Dict[str, Any]:
 
 
 _NUMBERED_HEADING = re.compile(r"^(\d{1,3})[.)]\s")
+_ESCAPED_BULLET = re.compile(r"^\s*\\[-*+]\s")
 
 
 def _sequences(markers_items):
@@ -184,6 +190,20 @@ def forbidden_key(literal: str, scan: str) -> str:
 _HANGUL = re.compile(r"[ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힣ힰ-퟿]")
 
 
+_QUOTE_OPEN = "\"'“‘「『"
+_META_TAIL = re.compile(r"^[\"'”’」』]\s*(?:,|(?:이)?라는|(?:이)?란|(?:이)?라고|등)")
+_META_NEG = re.compile(r"(?:쓰|사용하|넣|적|담)지\s*않|피했|뺐|빼고|배제|없이\s*썼")
+
+
+def _meta_mention(answer: str, start: int, end: int) -> bool:
+    """금지어가 따옴표로 묶여 '…라는 말은 쓰지 않았습니다' 류 자기 점검 문장에 나오는가."""
+    if start <= 0 or answer[start - 1] not in _QUOTE_OPEN or not _META_TAIL.match(answer[end:end + 12]):
+        return False
+    a = max(answer.rfind(c, 0, start) for c in ".!?\n") + 1
+    b = min([x for x in (answer.find(c, end) for c in ".!?\n") if x != -1] or [len(answer)])
+    return bool(_META_NEG.search(answer[a:b]))
+
+
 def _charset_violations(scan: str, charset: str) -> List[int]:
     bad = []
     for i, ch in enumerate(scan):
@@ -235,6 +255,12 @@ def check_2_1(ctx: Ctx) -> List:
         if m["value"] is None:
             skip_condition(ctx, cid, SUB21, m.get("why", "측정 구조 없음") + " — 0개로 간주하지 않음")
             continue
+        blocks = m.get("blocks") or []
+        if len(blocks) >= 2 and not compare(m["value"], op, n) and any(compare(b, op, n) for b in blocks):
+            # 본문 목록은 맞고 덧붙인 메모 목록 때문에 전체가 넘침 — 어느 목록을 셀지 질문 · 답의 뜻으로 정해야 함 (10-26 Claude Q3 3턴 · Q5 2턴)
+            skip_condition(ctx, cid, SUB21, f"불릿 묶음 {len(blocks)}개({' · '.join(map(str, blocks))}개) — 한 묶음은 요구({op} {n})를 맞추고 전체 {m['value']}개는 "
+                                            "안 맞아 어느 목록을 셀지 갈림(LLM 판정 몫)")
+            continue
         ok = compare(m["value"], op, n)
         ev = [q_evidence(ctx, req)] + [Evidence("answer", s, e, ctx.answer[s:e][:60]) for s, e in m.get("evidence", [])[:30]]
         out.append(result(cid, SUB21, title, "question", Status.EXECUTED, verdict_of(ok),
@@ -277,6 +303,11 @@ def check_2_1(ctx: Ctx) -> List:
             text, offs = ctx.shared.setdefault("folded_projection", _fold_whitespace(scan, offsets))
             needle = _fold_literal(lit)
         hits = _literal_hits(text, needle)
+        if req.kind == "forbidden_literal" and hits and all(_meta_mention(ctx.answer, offs[h], offs[h + len(needle) - 1] + 1) for h in hits):
+            # "'무료'라는 말은 쓰지 않았습니다" — 금지어가 지킨 점을 밝히는 자기 점검 문장에만 나옴. 어겼는지는 뜻으로 정해야 함 (10-26 Claude Q1 4턴 · Q3 3턴)
+            skip_condition(ctx, f"2-1.literal:{req.kind}", SUB21,
+                           f"금지한 ‘{lit}’이(가) '…라는 말은 쓰지 않았다' 류 자기 점검 문장에만 {len(hits)}회 나옴 — 어겼는지 해석이 갈림(LLM 판정 몫)")
+            continue
         stripped = text.strip()
         dedupe_key = None
         if req.kind == "required_literal":
@@ -311,7 +342,9 @@ def check_2_1(ctx: Ctx) -> List:
 
     req = conds.first("charset")
     if req:
-        bad = _charset_violations(scan, req.value["charset"])
+        footer = footer_spans(ctx.answer)   # 서비스가 붙인 '데이터 제공: …' 줄은 답변 모델의 글이 아님 (10-26 AIONA Q3 3턴 · Q8 4턴)
+        bad = [i for i in _charset_violations(scan, req.value["charset"])
+               if not any(a <= (origin(i) or -1) < b for a, b in footer)]
         ok = not bad
         out.append(result("2-1.charset", SUB21, f"허용 문자 ({req.value['charset']}만)", "question", Status.EXECUTED,
                           verdict_of(ok), required={"charset": req.value["charset"]},

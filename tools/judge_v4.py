@@ -1425,12 +1425,7 @@ _TOOL_CLAIM = re.compile(r"조회|(?:확인|실행|완료|처리|조치)(?:을|�
 _SOURCE_WORD = re.compile(r"출처|문헌|조문|제품|인용")
 
 
-#: 서비스가 실제로 붙이는 footer 항목(50ca3ccccace AIONA 답 14개에서 본 것 전부) — 항목 전체가 이 가운데 하나여야 한다('MET Norway, 달빛…' 처럼
-#: 아는 제공처 뒤에 모르는 것이 붙거나 자료 제목이 다르면 답변 모델이 지어낸 것일 수 있어 그대로 판정, Codex 검토 10-22 3번)
-_SERVICE_FOOTER_ENTRY = (r"(?:MET Norway \(Weather data from MET Norway \(CC BY 4\.0\)\)"
-                         r"|한국천문연구원 \(공공데이터포털 특일 정보\(공휴일\)\)"
-                         r"|한국관광공사 \(TourAPI 4\.0 관광정보\))")
-_SERVICE_FOOTER = re.compile(r"^데이터 ?제공\s*[:：]\s*" + _SERVICE_FOOTER_ENTRY + r"(?:\s*·\s*" + _SERVICE_FOOTER_ENTRY + r")*\s*$")
+from code_eval.service_text import SERVICE_FOOTER as _SERVICE_FOOTER  # noqa: E402 — 서비스 footer 정의는 CODE 와 같은 것 (10-26)
 _OTHER_SOURCE_WORDS = re.compile(r"조례|조문|문헌|논문|법령|규정|제품|판례|보고서|통계|기사")
 
 
