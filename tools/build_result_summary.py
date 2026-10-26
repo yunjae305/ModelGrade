@@ -113,6 +113,11 @@ def mname(p: str) -> str:
 
 
 # ------------------------------------------------------------------ 데이터 ------------------------------------------------------------------
+#: 빈 출력 요구 질문 — 싱글턴에 넣고(177 그대로) 순위 · 통과 숫자에서는 사람 판정이 있어도 보류로 센다 (기준 v2 1절, 사용자 10-27 '우선 보류로 빼야지')
+EMPTY_TYPE = "명시적 빈 출력"
+EMPTY_OUTPUT_AS_HOLD = True
+
+
 def load(run_id: str) -> Dict[str, Any]:
     js = results_json(run_id)
     d = json.loads(js.read_text(encoding="utf-8"))
@@ -141,6 +146,8 @@ def load(run_id: str) -> Dict[str, Any]:
     utype = {(q, t): R.unit_type(qtypes[q]) for q, t in units}
     uverdict: Dict[Tuple[str, int, int], str] = {}
     for (p, q), L in lines.items():
+        if EMPTY_OUTPUT_AS_HOLD and qtypes.get(q) == EMPTY_TYPE and L["verdict"] != "HOLD":
+            L["verdict"], L["empty_hold"] = "HOLD", L["verdict"]   # 사람 판정이 있어도 순위 숫자에서는 보류 (기준 v2 1절, 사용자 10-27)
         if qtypes.get(q) == R.MULTI_TYPE:
             rows = [{"turn": tn, "check_id": c.get("check_id"), "verdict": c.get("verdict")}
                     for tn in range(1, n_turns[q] + 1) for c in (turns.get((p, q, tn)) or {}).get("code") or []]
@@ -3373,6 +3380,9 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
                  f'<h2>{E(lab)} — {E(d)}</h2><p>{links(f)}</p></div>{jump_index(content)}{fold(content)}</section></main>')
         (subdir / f).write_text(doc(f"{doc_name} {lab}", f"{D['n']}개 실행 {run_id} 부록 — {d}", inner), encoding="utf-8")
         written.append(subdir / f)
+    if report_dir is not None:   # 일반인이 바로 읽는 한 장 — 같은 숫자 (사용자 10-27)
+        from tools import easy_report
+        written.append(easy_report.write(D, report_dir))
     return written, D
 
 

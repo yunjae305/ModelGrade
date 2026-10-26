@@ -1244,6 +1244,9 @@ def print_result_block(D: Optional[Dict[str, Any]], rows: List[Dict[str, Any]], 
         report = rd / result_dirs.REPORT if rd is not None and (rd / result_dirs.REPORT).exists() else judge_page
         holds = sum(D["tally"][p]["HOLD"] for p in D["order"]) if D is not None else sum(r.get("verdict") == "HOLD" for r in rows)
         print("\n평가가 완료되었습니다.", flush=True)
+        easy = rd / "쉬운보고서.html" if rd is not None else None
+        if easy is not None and easy.exists():   # 일반인이 바로 읽는 한 장 (사용자 10-27)
+            print(f"  쉬운 보고서  {easy.resolve()}", flush=True)
         print(f"  결과 보고서  {report.resolve()}", flush=True)
         if holds:
             print(f"  보류 {holds}{'문항' if D is not None else '질문'}은 사람이 정합니다 — {judge_page.resolve()}", flush=True)
@@ -1259,6 +1262,8 @@ def print_result_block(D: Optional[Dict[str, Any]], rows: List[Dict[str, Any]], 
         for r in rows:
             by.setdefault(r["provider"], Counter())[r.get("verdict")] += 1
         print_table(["모델", "통과", "FAIL", "보류", "질문"], [[display_name(p), c["PASS"], c["FAIL"], c["HOLD"], sum(c.values())] for p, c in by.items()])
+    if rd is not None and (rd / "쉬운보고서.html").exists():
+        print(f"  쉬운 보고서  {rel(rd / '쉬운보고서.html')}", flush=True)
     if rd is not None and (rd / result_dirs.REPORT).exists():
         print(f"  결과 보고서  {rel(rd / result_dirs.REPORT)}", flush=True)
     print(f"  판정 기록    {rel(judge_page)} — 보류는 여기서 사람이 정함", flush=True)

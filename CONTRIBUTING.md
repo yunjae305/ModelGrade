@@ -33,7 +33,7 @@ python -X utf8 -m pytest -q
 
 - **수집**: 네 모델 모두 웹(chatgpt.com · claude.ai · gemini.google.com · AIONA). 평소 Chrome 을 전용 프로필 + 디버깅 포트로 띄우고(`tools/chrome_cdp.py`) 프로그램은 포트로만 붙습니다. 답은 복사 아이콘 원문만(페이지 안에서 가로채기 — 시스템 클립보드 · 포커스를 안 써서 수집 중에도 컴퓨터를 쓸 수 있음). 수집기마다 자기 탭을 차지해 같은 사이트의 두 모델도 동시에 받습니다(예: 터미널 두 개에서 `modelgrade start --model claude:Opus 5.5` · `--model claude:Sonnet 5.5`).
 - **판정**: CODE 28(프로그램) → 1차 심판(상황별 — 단일 질문은 Jev 2번(갈리면 3번째) + Decisions 1번 교차: 같은 답이고 둘 다 0.8 이상이면 끝 · 멀티턴 · 첨부 · 롱컨텍스트는 Decisions 1번 + 선별 규칙, `--first-judge auto` 는 옛 크기 나눔) → Codex CLI 확정(넘긴 칸만, 인용 근거 필수) → 안전장치(인용 대조 · 사유와 판정 · 연결 규칙 · 사실 확인 출처) → 결론(보류 우선). `tools/judge_v4.py`.
-- **결과 폴더**: `report.html` · `판정보고서.html`(보류 칸은 `modelgrade review` 로 열면 바로 저장, 파일로 열었으면 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`.
+- **결과 폴더**: `쉬운보고서.html`(일반인용 한 장 — 결론 · 순위 · 질문 종류별 · 자주 어긴 것 · 보류 · 시간) · `report.html` · `판정보고서.html`(보류 칸은 `modelgrade review` 로 열면 바로 저장, 파일로 열었으면 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`.
 - 실행 래퍼(`modelgrade.cmd` · `modelgrade.sh`)는 `.venv` 의 파이썬을 쓰고, 직접 부를 때는 `python -X utf8 tools/modelgrade.py …` 와 같습니다.
 
 ## 자주 쓰는 명령
