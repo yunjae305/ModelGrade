@@ -685,6 +685,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     with chat_cls(debug_dir=ROOT / "data" / "judge_runs" / "collect-debug", place=getattr(args, "place", None), answer_timeout_s=answer_timeout,
                   **({"model": model} if model else {})) as chat,             tempfile.TemporaryDirectory(prefix="mg-att-") as tmpd:
         got = len(done)
+        credit_out = [False]
         for i, q in enumerate(wanted, 1):
             turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))
             print(f"▶ Q{q} ({len(turns)}턴) — 이번 묶음 {i}/{len(wanted)} · 전체 {got + 1}/{total}", flush=True)
@@ -733,9 +734,16 @@ def collect_app_one(args: argparse.Namespace) -> int:
                 new_rows[r["case_id"]] = row
                 print(f"  {r['case_id']}: {res.get('status')} {len(res.get('answer') or '')}자 {res.get('latency_ms', 0) // 1000}초 ({res.get('capture')})" + (f" — {res.get('error')}" if res.get("error") else ""), flush=True)
                 checkpoint()   # 턴마다 저장 — 10턴 대화 중간에 멈춰도 받은 턴이 남는다 (10-20 밤: AIONA 가 Q1 10턴을 받고도 저장 전에 끝나 모두 잃음)
+                if res.get("status") == "LIMIT" and "월간 크레딧" in (res.get("error") or ""):
+                    # 기다려도 풀리지 않는 한도(월간 크레딧) — 남은 질문을 보내 봐야 같은 문구라 이 모델 수집을 멈춘다. 충전 뒤 같은 명령이면 여기서부터 (10-27 새벽)
+                    print(f"  {r['case_id']}: {res['error']} — 이 모델 수집을 멈춥니다", flush=True)
+                    credit_out[0] = True
+                    break
                 if res.get("status") != "SUCCESS" and len(turns) > 1:
                     print(f"  Q{q}: 턴이 실패해 이 대화의 나머지 턴은 보내지 않음", flush=True)
                     break
+            if credit_out[0]:
+                break
             if all(new_rows.get(t["case_id"], {}).get("collection", {}).get("status") == "SUCCESS" for t in turns):
                 got += 1
     merged = merged_rows()

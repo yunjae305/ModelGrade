@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import tempfile
 import threading
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -334,6 +335,14 @@ class AionaChat:
                 arg=f.name, timeout=60_000)
         self.page.wait_for_timeout(1500)
 
+    #: 계정 크레딧이 바닥났다는 AIONA 표시 — 답 대신 이 문구가 오면 정상 답이 아니다(10-26 밤: 잔여 크레딧 0 / 45,000 에서 166턴이 이 문구로 저장됨)
+    CREDIT_LIMIT = re.compile(r"크레딧 한도를 초과|크레딧이 (?:부족|모두 소진|없습니다)|credit limit", re.I)
+
+    def _credit_out(self, sent: Any, started: float, text: str) -> Dict[str, Any]:
+        return {"answer": "", "status": "LIMIT", "error": f"AIONA 월간 크레딧 한도 초과({text.strip()[:60]}) — 잔여 크레딧을 충전한 뒤 같은 명령으로 다시 수집",
+                "url": self.page.url, "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen,
+                "method": AIONA_WEB_VERSION, "turn_log": self._turn_log("credit-limit")}
+
     def _stopped(self) -> List[str]:
         """AIONA 가 답을 내지 못하고 멈춘 표시 — 답변 칸 대신 '생각을 중단했습니다'(role=status)와 사유 문구가 뜬다
         (2026-10-14 실제 수집: '아무것도 출력하지 마.' 에 '처리 중 오류가 생겨 멈췄습니다'). 표시마다 사유 문구."""
@@ -455,6 +464,8 @@ class AionaChat:
                 if empty >= 60:
                     break
                 stopped = self._stopped()
+                if len(stopped) > stopped_before and self.CREDIT_LIMIT.search(stopped[-1]):   # 크레딧이 바닥나 멈춤 — 오류가 아니라 한도
+                    return self._credit_out(sent, started, stopped[-1])
                 if len(stopped) > stopped_before:   # AIONA 가 이 질문에서 멈췄다 — 기다리지 않고 AIONA 오류로 남긴다
                     return {"answer": "", "status": "ERROR", "error": f"AIONA 가 답하지 못했습니다: {stopped[-1][:200]}", "url": self.page.url,
                             "sent": sent, "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen,
@@ -477,6 +488,8 @@ class AionaChat:
             capture, copied = "html-partial-copy", None
         if copied and copied.strip():   # 복사 버튼 원문을 답으로 — HTML 변환 품질 경고는 원문에는 해당하지 않는다
             answer, capture, converted = copied, "copy-button", {"quality": []}
+        if answer.strip() and len(answer.strip()) < 300 and self.CREDIT_LIMIT.search(answer):   # 답 말풍선에 크레딧 한도 문구만
+            return self._credit_out(sent, started, answer)
         return {"answer": answer, "status": "SUCCESS" if done else "INCOMPLETE", "capture": capture,
                 **({} if done else {"debug_screenshot": self._snapshot("incomplete")}),
                 **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {}),

@@ -286,6 +286,36 @@ def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path,
     assert asked == ["아무것도 출력"[:6]]
 
 
+def test_monthly_credit_limit_stops_that_models_collection_and_leaves_it_to_redo(tmp_path, monkeypatch):
+    """AIONA 월간 크레딧이 바닥나면(답 대신 '월간 크레딧 한도를 초과했습니다.') 정상 답으로 저장하지 않고 그 모델 수집을 멈춘다 —
+    남은 질문은 다음 실행에서 다시 받는다 (10-27 새벽: 166턴이 그 문구로 저장됨)."""
+    import tools.modelgrade as mg
+    from webapp.aiona_web import AionaChat
+    assert AionaChat.CREDIT_LIMIT.search("월간 크레딧 한도를 초과했습니다.") and not AionaChat.CREDIT_LIMIT.search("남은 예산 한도는 3만 원입니다.")
+    monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
+    asked = []
+
+    class FakeChat:
+        def __init__(self, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+        def new_chat(self): pass
+        def ask(self, question, files=None, reference=None):
+            asked.append(question[:6])
+            if len(asked) == 1:
+                return {"answer": "답.", "status": "SUCCESS", "capture": "copy-button", "latency_ms": 1, "model": "m", "method": "x", "error": None}
+            return {"answer": "", "status": "LIMIT", "error": "AIONA 월간 크레딧 한도 초과(월간 크레딧 한도를 초과했습니다.) — 충전 뒤 다시", "latency_ms": 1}
+    monkeypatch.setattr(mg, "web_chat_class", lambda provider: FakeChat)
+    set_dir = _set(tmp_path)
+    assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,2,3", "--new", "x"]) == 0
+    assert len(asked) == 2   # 둘째에서 크레딧 한도 → 셋째는 보내지 않음
+    run = mg.load_run(_runs(tmp_path)[0].stem)
+    st = {r["case_id"]: (r.get("collection") or {}).get("status") for r in run["datasets"]["gpt"]}
+    assert list(st.values()).count("SUCCESS") == 1 and "LIMIT" in st.values()
+
+
 def test_place_rect_puts_apps_left_right_and_web_windows_in_right_column():
     from webapp.cdp_chat_web import place_rect
     assert place_rect("left", 2880, 1800) == (0, 0, 1728, 1800)
