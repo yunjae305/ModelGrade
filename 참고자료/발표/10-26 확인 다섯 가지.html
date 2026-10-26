@@ -82,7 +82,7 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 <div class="box"><b>바로 에러 케이스(FAIL)</b>빈 응답(복사를 다시 해도 비어 있음) · 답 없음(수집 오류) · 사람이 '에러 케이스'로 정한 것과 같은 글</div>
 <div class="box"><b>의심 → 보류 → 사람이 정함</b>정형 거절 · 서비스 오류 문구 · 짧은 오류 · 거절 답 → 보고서에서 <b>에러 케이스 · 통과 · FAIL</b> 중 하나 → 기록에 쌓여 같은 글은 다음부터 기록대로</div>
 </div>
-코드가 정하기 애매한 조건(역슬래시 불릿 · 메모 목록 · 자기 점검 금지어 · 서비스 꼬리글)도 같은 방식 — 보류 → 사람이 <b>통과 · FAIL + 사유</b> → 기록.</div></div>
+</div></div>
 <div class="row"><b>쌓인 것</b><div>
 <div class="two">
 <div class="box"><b>에러 케이스 기록 — 9종</b>(<code>code_eval/settings/error_case_labels.json</code>) Gemini 질문 7 · AIONA 질문 2 의 판정 24건을 사람이 모두 '에러 케이스'로 정함 — 같은 글은 한 종으로 묶임:<ul class="small"><li><b>AIONA</b> Q6_T5 — “응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.”</li><li><b>Gemini</b> Q1_T2 — “저는 텍스트 기반 AI이기 때문에 그것은 도와드릴 수가 없습니다.”</li><li><b>Gemini</b> Q1_T4 — “저는 언어 모델이라서 그것은 도와드릴 수가 없습니다.”</li><li><b>Gemini</b> Q1_T5 — “저는 언어 모델일 뿐이라 그것을 이해하지 못해서 도와드릴 수가 없습니다.”</li><li><b>Gemini</b> Q1_T7 — “저는 언어 모델로서 그것을 도와주도록 설계되지 않았습니다.”</li><li><b>Gemini</b> Q1_T8 — “저는 언어 모델입니다. 그것은 제가 할 수 있는 범위를 넘어서는 것이라 할 수 없어요.”</li><li><b>Gemini</b> Q2_T8 — “저는 언어 모델일 뿐이라 그것을 이해하고 대응할 능력이 없기 때문에 도와드릴 수가 없습니다.”</li><li><b>Gemini</b> Q4_T9 — “저는 언어 모델일 뿐이라 그것에 필요한 정보나 능력이 없어서 도와드릴 수가 없습니다.”</li><li><b>Gemini</b> Q7_T8 — “그것은 저의 프로그래밍 범위를 넘어서는 것입니다. 저는 텍스트를 생성할 뿐이에요.”</li></ul></div>
