@@ -232,7 +232,7 @@ ul.facts { margin:4px 0 0; padding-left:18px; font-size:.88rem; } .prev { margin
 .mark .q { font-weight:700; } .opt { border:1px solid var(--line); border-radius:8px; padding:5px 12px; cursor:pointer; font-weight:600; user-select:none; }
 .opt input { margin-right:6px; } .opt.on.pass { background:var(--ok-soft); border-color:var(--ok); color:var(--ok); } .opt.on.fail { background:var(--risk-soft); border-color:var(--risk); color:var(--risk); }
 .opt.on.err { background:var(--warn-soft); border-color:var(--warn); color:var(--warn); }
-.mark input[type=text] { font:inherit; border:1px solid var(--line); border-radius:6px; padding:5px 8px; background:var(--surface); color:var(--ink); min-width:260px; flex:1; }
+.mark .memo { font:inherit; border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:var(--surface); color:var(--ink); flex:1 1 100%; min-height:2.4em; resize:vertical; overflow:hidden; }
 """
 
 JS = r"""
@@ -240,6 +240,13 @@ const KEY = 'mark-' + document.body.dataset.sheet;
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
 function store() { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} }
+// 파일에 넣어 둔 표시(preset)와 이 브라우저의 표시 가운데 더 나중에 고친 쪽을 쓴다
+let preset = [];
+try { preset = JSON.parse(document.getElementById('preset').textContent).rows || []; } catch (e) { preset = []; }
+preset.forEach(r => { const s = saved[r.id]; if (r.at && (!s || (s.at || '') < r.at)) saved[r.id] = { mark: r.mark || undefined, memo: r.memo || '', at: r.at }; });
+store();
+const now = () => new Date().toISOString();
+function fit(t) { t.style.height = 'auto'; if (t.scrollHeight) t.style.height = (t.scrollHeight + 2) + 'px'; }
 const cells = [...document.querySelectorAll('.cell')];
 const who = document.getElementById('who');
 who.value = saved._who || '';
@@ -254,15 +261,17 @@ function refresh() {
   let n = 0;
   cells.forEach(c => { paint(c); const done = !!(saved[c.dataset.id] || {}).mark; if (done) n++; c.classList.toggle('hidden', todo.checked && done); });
   document.getElementById('cnt').textContent = n + ' / ' + cells.length + ' 칸 표시함';
+  cells.forEach(c => fit(c.querySelector('.memo')));
 }
 cells.forEach(c => {
   const id = c.dataset.id;
-  c.querySelectorAll('.opt input').forEach(r => r.addEventListener('change', () => { saved[id] = { ...(saved[id] || {}), mark: r.value }; store(); refresh(); }));
+  c.querySelectorAll('.opt input').forEach(r => r.addEventListener('change', () => { saved[id] = { ...(saved[id] || {}), mark: r.value, at: now() }; store(); refresh(); }));
   const memo = c.querySelector('.memo');
   memo.value = (saved[id] || {}).memo || '';
-  memo.addEventListener('input', () => { saved[id] = { ...(saved[id] || {}), memo: memo.value }; store(); });
+  memo.addEventListener('input', () => { saved[id] = { ...(saved[id] || {}), memo: memo.value, at: now() }; store(); fit(memo); });
 });
 todo.addEventListener('change', refresh);
+window.addEventListener('resize', () => cells.forEach(c => fit(c.querySelector('.memo'))));
 document.getElementById('export').addEventListener('click', () => {
   const rows = cells.map(c => ({ id: c.dataset.id, no: +c.dataset.no, question: +c.dataset.q, provider: c.dataset.p, turn: +c.dataset.t, item: c.dataset.item,
     kind: c.dataset.kind, ai: JSON.parse(c.dataset.ai), mark: (saved[c.dataset.id] || {}).mark || null, memo: (saved[c.dataset.id] || {}).memo || '' }));
@@ -274,7 +283,7 @@ document.getElementById('import').addEventListener('change', ev => {
   const f = ev.target.files[0]; if (!f) return;
   f.text().then(t => {
     const data = JSON.parse(t);
-    (data.rows || []).forEach(r => { if (r.mark || r.memo) saved[r.id] = { mark: r.mark || undefined, memo: r.memo || '' }; });
+    (data.rows || []).forEach(r => { if (r.mark || r.memo) saved[r.id] = { mark: r.mark || undefined, memo: r.memo || '', at: now() }; });
     if (data.marker && !saved._who) { saved._who = data.marker; who.value = data.marker; }
     store(); cells.forEach(c => { c.querySelector('.memo').value = (saved[c.dataset.id] || {}).memo || ''; }); refresh();
   }).catch(() => alert('불러오지 못했습니다 — 내보내기로 받은 JSON 인지 확인해 주세요.'));
@@ -321,7 +330,7 @@ def render_cell(c: Dict[str, Any]) -> str:
 <div class="pane"><h3>답변 원본 <span style="font-weight:400">— 노란색은 AI 가 근거로 든 부분</span></h3><pre class="text">{answer_html or '<i>(빈 답)</i>'}</pre></div>
 </div>
 {prev}{facts}
-<div class="mark"><span class="q">우리가 본 결과</span>{opts}<input type="text" class="memo" placeholder="메모 — 왜 그렇게 봤는지 한 줄(선택)"></div>
+<div class="mark"><span class="q">우리가 본 결과</span>{opts}<textarea class="memo" rows="2" placeholder="메모 — 왜 그렇게 봤는지(선택, 길어지면 칸이 늘어남)"></textarea></div>
 </section>'''
 
 
@@ -338,14 +347,14 @@ def render(cells: List[Dict[str, Any]], sheet: str, run_id: str, out: str) -> st
 <div class="guide">
 <p>칸마다 <b>질문 원본과 답변 원본</b>을 읽고, 그 칸의 기준으로 보았을 때 결과를 직접 고릅니다. 위의 AI 판정은 참고용이고, AI 가 맞았는지를 고르는 것이 아닙니다.</p>
 <p class="legend"><span><b>PASS</b> 기준을 지킴</span><span><b>FAIL</b> 기준을 어김</span><span><b>에러 케이스</b> 답이 오류 문구 · 빈 답 · 무응답 · '언어 모델이라 할 수 없습니다' 같은 거절이라 이 기준으로 볼 수 없음</span></p>
-<p>이 파일은 폴더에서 더블클릭해 브라우저로 열면 됩니다(서버 필요 없음). 표시는 이 브라우저에 저장됩니다. 다 하면 <b>내보내기</b>로 받은 <code>표시결과_&lt;이름&gt;.json</code> 을 이 폴더에 올려 주세요. 나눠서 할 때는 칸 번호 범위를 정하고, 이어 할 때는 <b>불러오기</b>로 엽니다.</p>
+<p>이 파일은 폴더에서 더블클릭해 브라우저로 열면 됩니다(서버 필요 없음). 표시는 이 브라우저에 저장됩니다. 다 하면 <b>내보내기</b>로 받은 <code>표시결과_&lt;이름&gt;.json</code> 을 이 폴더에 올려 주세요. 나눠서 할 때는 칸 번호 범위를 정하고, 이어 할 때는 <b>불러오기</b>로 엽니다. 파일 안에 미리 넣어 둔 표시가 있으면 열 때 함께 보이고, 같은 칸은 더 나중에 고친 쪽이 남습니다.</p>
 <p style="color:var(--muted)">고른 칸: {e(summary)} · 실행 {e(run_id)} · {e(out)}</p>
 </div>
 <div class="bar"><span>표시한 사람</span><input type="text" id="who" placeholder="이름"><span id="cnt" class="cnt"></span>
 <label><input type="checkbox" id="todo"> 안 한 칸만 보기</label><span class="grow"></span>
 <button id="export">내보내기(JSON)</button><label class="file">불러오기<input type="file" id="import" accept="application/json" hidden></label><button id="clear">표시 지우기</button></div>
 {''.join(render_cell(c) for c in cells)}
-</div><script>{JS}</script></body></html>
+</div><script id="preset" type="application/json">{{"rows": []}}</script><script>{JS}</script></body></html>
 '''
 
 

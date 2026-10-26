@@ -37,6 +37,18 @@ def test_truth_from_marks_and_human_decisions(tmp_path: Path):
     assert rl.truth_of(_cell(1, "aiona", "PASS"), marks[("aiona", 1, 1, "J1-4.b")]) == "FAIL"  # 사람 판정 파일
 
 
+def test_truth_from_pass_fail_error_marks(tmp_path: Path):
+    """표시용 표(10-26)는 심판 대비 맞음 · 틀림이 아니라 사람이 본 결과 PASS · FAIL · 에러 케이스를 고른다."""
+    f = tmp_path / "표시결과_사람.json"
+    f.write_text(json.dumps({"rows": [{"provider": "gpt", "question": 3, "turn": 2, "item": "J3-1.a", "mark": "FAIL"},
+                                      {"provider": "gpt", "question": 4, "turn": 1, "item": "J3-1.a", "mark": "PASS"},
+                                      {"provider": "gpt", "question": 5, "turn": 1, "item": "J3-1.a", "mark": "에러 케이스"}]}, ensure_ascii=False), encoding="utf-8")
+    marks = rl.load_marks(f)
+    assert rl.truth_of(_cell(3, "gpt", "PASS"), marks[("gpt", 3, 2, "J3-1.a")]) == "FAIL"      # 심판 판정과 상관없이 표시 그대로
+    assert rl.truth_of(_cell(4, "gpt", "FAIL"), marks[("gpt", 4, 1, "J3-1.a")]) == "PASS"
+    assert rl.truth_of(_cell(5, "gpt", "PASS"), marks[("gpt", 5, 1, "J3-1.a")]) is None        # 에러 케이스 → 정답률에서 뺌
+
+
 def test_apply_proposal_prompt_jev_and_checklist(tmp_path: Path):
     prompt = tmp_path / "p.txt"
     prompt.write_text("# 원칙\n- **J1-4.b** · 본문에서 같은 내용이 두 번\n  · 적용: 모든 질문\n", encoding="utf-8")

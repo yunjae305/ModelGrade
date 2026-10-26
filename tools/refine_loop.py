@@ -146,7 +146,7 @@ def select_cases(cells: Sequence[Dict[str, Any]], n_fail: int, n_pass: int, seed
 
 
 def load_marks(path: Path) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]:
-    """사람 표시 — 표시용 표의 내보내기(표시결과_*.json: rows[mark 맞음 · 틀림 · 애매, cause]) 또는 human_decisions.json(decisions[decision])."""
+    """사람 표시 — 표시용 표의 내보내기(표시결과_*.json: rows[mark PASS · FAIL · 에러 케이스, 옛 표 맞음 · 틀림 · 애매]) 또는 human_decisions.json(decisions[decision])."""
     doc = json.loads(path.read_text(encoding="utf-8"))
     out: Dict[Tuple[str, int, int, str], Dict[str, Any]] = {}
     for r in doc.get("rows") or []:
@@ -157,12 +157,15 @@ def load_marks(path: Path) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]:
 
 
 def truth_of(cell: Dict[str, Any], mark: Optional[Dict[str, Any]]) -> Optional[str]:
-    """사람 표시 → 그 칸의 정답(PASS · FAIL). '맞음'은 심판 판정 그대로, '틀림'은 반대, '애매' · 없음은 None."""
+    """사람 표시 → 그 칸의 정답(PASS · FAIL). PASS · FAIL 표시는 그대로(사람이 직접 고른 결과), 옛 표의 '맞음'은 심판 판정 그대로,
+    '틀림'은 반대, 에러 케이스 · '애매' · 없음은 None(정답률에서 뺌)."""
     if not mark:
         return None
     if mark.get("truth") in ("PASS", "FAIL"):
         return mark["truth"]
     m, d = mark.get("mark"), mark.get("decision") or cell.get("decision")
+    if m in ("PASS", "FAIL"):
+        return m
     if m == "맞음" and d in ("PASS", "FAIL"):
         return d
     if m == "틀림" and d in ("PASS", "FAIL"):
