@@ -160,12 +160,12 @@ class _CdpChat:
         handle = self.page.wait_for_function(f"() => ({{v: ({fn})()}})", timeout=timeout_ms, polling=250)
         return handle.json_value()["v"]
 
-    def _turn_snapshot(self, label: str) -> Optional[str]:
-        """그 대화의 마지막 질문 ~ 답 자리만 찍는다(보고서에 보임, 옆 목록 · 계정 표시 없음 — 사용자 10-26)."""
-        if not self.debug_dir or self.page is None:
+    def _turn_log(self, label: str) -> Optional[Dict[str, Any]]:
+        """그 대화의 마지막 질문 뒤 답 자리에 보이는 글(보고서 보류 칸의 글 로그, 옆 목록 · 계정 표시 없음 — 사용자 10-26 저녁)."""
+        if self.page is None:
             return None
-        from webapp.chat_capture import capture_last_turn
-        return capture_last_turn(self.page, self.USER_SELECTOR, self.ANSWER_SELECTOR, self.debug_dir / f"{int(time.time())}-{label}.jpg")
+        from webapp.chat_capture import read_last_turn
+        return read_last_turn(self.page, self.USER_SELECTOR, label)
 
     def _snapshot(self, label: str) -> Optional[str]:
         if not self.debug_dir or self.page is None:
@@ -376,7 +376,7 @@ class _CdpChat:
                 return None
         return {**base, "answer": "", "status": "COPY_FAILED", "capture": "none", "url": self.page.url,
                 "error": f"빈 출력 요구 — {self.EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
-                "latency_ms": round((time.monotonic() - started) * 1000), "screenshot": self._turn_snapshot("empty-output-no-copy")}
+                "latency_ms": round((time.monotonic() - started) * 1000), "turn_log": self._turn_log("empty-output-no-copy")}
 
     def _box_text(self, box: Any) -> str:
         try:

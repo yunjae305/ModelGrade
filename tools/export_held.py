@@ -45,8 +45,8 @@ CAUSES = {
     "no_answer": "답 없음 — FAIL 로 셈",
     "call_error": "심판 호출 실패",
     "error_suspect": "에러 케이스 의심 — 사람이 에러 케이스 · PASS · FAIL 을 정함",
-    "no_answer_hold": "답 없음 — 보류(대화 화면을 보고 사람이 정함)",
-    "empty_reply_hold": "빈 응답 — 보류(대화 화면을 보고 사람이 정함)",
+    "no_answer_hold": "답 없음 — 보류(수집 로그를 보고 사람이 정함)",
+    "empty_reply_hold": "빈 응답 — 보류(수집 로그를 보고 사람이 정함)",
     "code_hold": "코드 판정 애매 — 사람이 PASS · FAIL 과 사유를 정함",
 }
 ERROR_CAUSES = {"no_answer", "call_error"}

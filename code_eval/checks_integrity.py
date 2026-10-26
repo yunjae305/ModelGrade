@@ -351,12 +351,12 @@ def check_1_1(ctx: Ctx) -> List:
     elif empty_req is None:
         kind, reason, label = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content)), None
         if not content:
-            # 빈 응답 · 답 없음 — 바로 FAIL 로 정하지 않고 보류. 결과 보고서에 그 순간의 대화 화면(답 영역)을 보이고 사람이 정한다 (사용자 10-26)
+            # 빈 응답 · 답 없음 — 바로 FAIL 로 정하지 않고 보류. 결과 보고서에 수집 글 로그(답 자리에 보인 글)를 보이고 사람이 정한다 (사용자 10-26)
             why = ("답 없음 — 수집 상태 {}{}".format(status, f": {ctx.collection_error[:80]}" if ctx.collection_error else "")
                    if status and status not in COLLECTION_OK else "빈 응답 — 공백·제어문자를 빼면 남는 글이 없음" + (" (복사를 다시 해도 비어 있음)" if empty_reply else ""))
             ctx.skipped.append({"check_id": "1-1.response_nonempty", "subcategory": SUB01, "phrase": "",
                                 "error_suspect": "답 없음" if why.startswith("답 없음") else "빈 응답",
-                                "reason": f"{why} — 에러 케이스 의심, 보류(대화 화면을 보고 사람이 에러 케이스 · PASS · FAIL 을 정함)"})
+                                "reason": f"{why} — 에러 케이스 의심, 보류(수집 로그를 보고 사람이 에러 케이스 · PASS · FAIL 을 정함)"})
             return out + _check_1_1_chars(ctx)
         else:
             sus = error_suspect(ctx.answer, len(content), ctx.question)

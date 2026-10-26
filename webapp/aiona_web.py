@@ -198,12 +198,12 @@ class AionaChat:
         login(self.page, *credentials())
         self.page.goto(f"{AIONA_URL}/chat", wait_until="domcontentloaded")
 
-    def _turn_snapshot(self, label: str) -> Optional[str]:
-        """그 대화의 마지막 질문 ~ 답 자리만 찍는다(보고서에 보임, 옆 목록 · 계정 표시 없음 — 사용자 10-26)."""
-        if self.debug_dir is None:
+    def _turn_log(self, label: str) -> Optional[Dict[str, Any]]:
+        """그 대화의 마지막 질문 뒤 답 자리에 보이는 글(보고서 보류 칸의 글 로그, 옆 목록 · 계정 표시 없음 — 사용자 10-26 저녁)."""
+        if self.page is None:
             return None
-        from webapp.chat_capture import capture_last_turn
-        return capture_last_turn(self.page, USER_MESSAGE, "div.space-y-4 > div.flex.justify-start", self.debug_dir / f"{time.strftime('%Y%m%dT%H%M%S')}-{label}.jpg")
+        from webapp.chat_capture import read_last_turn
+        return read_last_turn(self.page, USER_MESSAGE, label)
 
     def _snapshot(self, label: str) -> Optional[str]:
         """실패 순간의 화면 캡처 경로 (debug_dir 이 없으면 남기지 않음)."""
@@ -443,7 +443,7 @@ class AionaChat:
                 return {"answer": "", "status": "COPY_FAILED", "capture": "none", "url": self.page.url, "sent": sent,
                         "error": f"빈 출력 요구 — {EMPTY_OUTPUT_WAIT_S}초 안에 복사 버튼이 뜨지 않음(말풍선 없음·오류 등) → 보류 (사용자 규칙 10-20 밤)",
                         "latency_ms": round((time.monotonic() - started) * 1000), "model": self.model_seen, "method": AIONA_WEB_VERSION,
-                        "screenshot": self._turn_snapshot("empty-output-no-copy"),
+                        "turn_log": self._turn_log("empty-output-no-copy"),
                         **({"intent_prompt": "그냥 보내기"} if as_is else {}), **({"pii_prompt": "마스킹 후 전송"} if masked else {})}
             as_is = self._send_as_is() or as_is
             masked = self._mask_and_send() or masked   # 개인정보 확인 안내는 질문 칸이 올라간 뒤 뜬다 — 전송 보류를 풀어야 답이 온다

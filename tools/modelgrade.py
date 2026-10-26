@@ -490,20 +490,6 @@ def retry_empty_answer(chat: Any, row: Dict[str, Any]) -> Dict[str, Any]:
             "note": "빈 응답 — 복사를 다시 해도 비어 있음 → 에러 케이스(사용자 10-26)"}
 
 
-SCREEN_DIR = "화면"   # data/judge_runs/<실행>/화면/<모델>/<질문>.jpg — 결과 폴더 발행 때 수집기록/화면/ 으로 (10-26)
-
-
-def keep_screenshot(run_id: str, provider: str, case_id: str, src: str) -> Optional[str]:
-    """수집기가 찍은 대화 화면(답 영역만)을 실행 폴더에 질문 이름으로 옮긴다 — 실행 폴더 기준 상대 경로, 파일이 없으면 None."""
-    f = Path(src)
-    if not f.is_file():
-        return None
-    dest = ROOT / "data" / "judge_runs" / run_id / SCREEN_DIR / provider / f"{case_id}{f.suffix}"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(f), dest)
-    return dest.relative_to(ROOT / "data" / "judge_runs" / run_id).as_posix()
-
-
 def collect_app_one(args: argparse.Namespace) -> int:
     import tempfile
     from webapp.question_generation import flatten
@@ -594,12 +580,11 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     # 다음 실행에서 또 묻지 않는다 (10-20 밤: AIONA 가 같은 5개를 매번 다시 받음)
                     res = {**res, "status": COPY_FAILED, "capture": "none",
                            "error": f"빈 출력 요구 — 모델 오류로 답 없음 → 보류 (사용자 규칙 10-20) · {res.get('error') or ''}"[:300]}
-                snap = getattr(chat, "_turn_snapshot", None)
-                if not (res.get("answer") or "").strip() and not res.get("screenshot") and callable(snap):
-                    res = {**res, "screenshot": snap("no-answer")}   # 답이 비었거나 못 받음 — 그 대화 화면(답 영역)을 남겨 결과 보고서 보류에 보인다 (10-26)
-                col = {k: v for k, v in res.items() if k != "answer"}
-                if col.get("screenshot"):   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면 — 실행 폴더에 질문 이름으로 (사용자 10-26)
-                    col["screenshot"] = keep_screenshot(run["run_id"], args.provider, r["case_id"], col["screenshot"])
+                read_log = getattr(chat, "_turn_log", None)
+                if not (res.get("answer") or "").strip() and not res.get("turn_log") and callable(read_log):
+                    # 답이 비었거나 못 받음 — 그 순간 답 자리에 보이는 글을 남겨 결과 보고서 보류에 글 로그로 보인다 (사용자 10-26 저녁, 이미지 대신)
+                    res = {**res, "turn_log": read_log("no-answer")}
+                col = {k: v for k, v in res.items() if k != "answer" and not (k == "turn_log" and v is None)}
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
                        "system_id": args.provider, "source": label, "case_index": rows_all.index(r), "collection": col}
@@ -1040,7 +1025,6 @@ def cmd_pair(args: argparse.Namespace) -> int:
     """업데이트 전 vs 후 (사용자 10-26) — 두 실행의 같은 모델(기본 AIONA) 답을 한 비교 실행의 두 자리(aiona · aiona2)로 묶는다.
     CODE 는 지금 엔진으로 다시 계산하고, --judge y 면 두 자리를 같은 기준 · 같은 판정 프롬프트로 판정해 결과 폴더를 만든다."""
     import copy
-    import shutil
     from tools import result_dirs
     before, after = load_run(args.before), load_run(args.after)
     p = args.provider
@@ -1065,14 +1049,6 @@ def cmd_pair(args: argparse.Namespace) -> int:
         for c in common:
             r = copy.deepcopy(rows[key][c])
             r.update({"source": label, "system_id": slot})
-            col = r.get("collection") or {}
-            if col.get("screenshot"):   # 대화 화면도 새 실행의 자리 폴더로
-                src_f = judge_root / src["run_id"] / col["screenshot"]
-                dst_rel = str(col["screenshot"]).replace(f"화면/{p}/", f"화면/{slot}/", 1)
-                if src_f.is_file():
-                    (judge_root / run["run_id"] / dst_rel).parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src_f, judge_root / run["run_id"] / dst_rel)
-                    col["screenshot"] = dst_rel
             new_rows.append(r)
         run["datasets"][slot] = new_rows
         ev = copy.deepcopy((src.get("evaluations") or {}).get(p) or {})

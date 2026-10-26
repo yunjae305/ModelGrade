@@ -2017,7 +2017,7 @@ def turn_html(D: Dict[str, Any], p: str, q: int, tn: int, multi: bool, ents: Opt
     ans = t.get("answer") or ""
     body = (mark_answer(ans, ents) if ents is not None else E(ans)) if ans else "<i>(빈 답)</i>"
     tl = f"턴 {tn} " if multi else ""
-    shot = R.screenshot_img(D["run_id"], t.get("screenshot"))   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면 (10-26)
+    shot = R.collection_log_html(t.get("collection_log"))   # 답을 못 받았거나 빈 답인 턴의 수집 글 로그 (사용자 10-26 저녁, 이미지 대신)
     return (f'<div class="rs-turn"><b>{tl}질문</b>{extra}<pre class="rs-pre rs-q">{E(turn.get("question") or "")}</pre>'
             f'<b>{tl}답변</b>{st}<pre class="rs-pre rs-ans">{body}</pre>{shot}</div>')
 

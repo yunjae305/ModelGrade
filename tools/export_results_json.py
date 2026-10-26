@@ -48,8 +48,9 @@ def collection_row(r: Dict[str, Any]) -> Dict[str, Any]:
     out = {"case_id": r["case_id"], "question": _qno(r["case_id"]), "turn": _turn(r["case_id"]), "answer": r.get("answer") or "",
            "status": c.get("status", "SUCCESS" if r.get("answer") else None), "capture": c.get("capture"), "latency_ms": c.get("latency_ms"),
            "error": _clip(c.get("error")), "model": c.get("model"), "method": c.get("method")}
-    if c.get("screenshot"):   # 실행 폴더 기준 대화 화면(답 영역) — 빈 출력 요구에 복사 아이콘이 안 뜬 턴 (10-26)
-        out["screenshot"] = c["screenshot"]
+    from tools.collection_log import log_lines, needs_log
+    if needs_log(c, r.get("answer") or ""):   # 답이 비었거나 못 받은 턴의 글 로그 — 보고서 보류 칸에 (사용자 10-26 저녁, 이미지 대신)
+        out["collection_log"] = log_lines(c)
     if c.get("draft_blocks"):
         out["draft_blocks"] = c["draft_blocks"]
     if c.get("artifact"):

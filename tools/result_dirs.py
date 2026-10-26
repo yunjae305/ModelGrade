@@ -70,7 +70,7 @@ def publish_collection(log_dir: Path, dest: Path) -> list:
         (dest / COLLECT_DIR).mkdir(parents=True, exist_ok=True)
     for f in files:
         shutil.copy2(f, dest / COLLECT_DIR / f.name)
-    screens = log_dir / "화면"   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면(답 영역만, 10-26)
+    screens = log_dir / "화면"   # 옛 수집(10-26 오후)의 대화 화면 — 지금 수집은 글 로그라 새로 생기지 않는다(사용자 10-26 저녁)
     if screens.is_dir() and any(screens.rglob("*.jpg")):
         shutil.copytree(screens, dest / COLLECT_DIR / "화면", dirs_exist_ok=True)
         files += sorted(screens.rglob("*.jpg"))
