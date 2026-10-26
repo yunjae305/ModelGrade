@@ -1,0 +1,12 @@
+{
+ "version": "result-dirs-v1",
+ "run_id": "c6c47b209e51",
+ "started": "2026-10-27_02-56-56-307",
+ "name": "평가 — 질문세트_78",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3",
+  "dir": "참고자료/질문세트_78"
+ },
+ "eval_kind": "set78",
+ "model_choice": null
+}
