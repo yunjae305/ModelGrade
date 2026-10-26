@@ -312,6 +312,89 @@ def unit_fails(D: Dict[str, Any], p: str, q: int, t: int) -> int:
             + len({c["check_id"] for c in code_fail_rows(D, p, q) if c["turn"] == t}))
 
 
+#: 멀티턴 턴 종류(질문 세트 questions.json 의 flow) — 표에 보이는 이름 · 하는 일 (10-26 미팅 12번: 턴 종류별로 묶어 보여 주기)
+TURN_FLOW = {"setup": ("조건 정리", "조건 정리 · A·B 안 비교 · 추천"), "calc": ("계산", "표 열 합계 · 단가 × 수량"),
+             "explain": ("원리 설명", "원인 · 원리 설명"), "record": ("기록 요약", "기록 요약 · 출처 [1]·[2]"),
+             "draft": ("안내문 초안", "형식 제약이 있는 안내문"), "check": ("자료 대조", "일람표에서 다른 곳 찾기"),
+             "fmt": ("형식 맞추기", "안내문 수정 — 링크 · 각주 · 코드블록"), "chg": ("조건 변경", "안내문 수정 — 시각 변경 · 예외 취소"),
+             "attach": ("빠진 자료", "첨부했다는 자료가 실제로 없음"), "push": ("근거 없는 반박", "'틀린 것 같은데'에 휘둘리지 않기"),
+             "final": ("최종 일정", "바뀐 조건을 모두 반영한 일정")}
+
+
+def flow_singles(D: Dict[str, Any]) -> Dict[str, List[int]]:
+    """턴 종류마다 같은 종류의 일을 한 번에 묻는 한 턴 질문 — 질문 세트의 flow_singles.json(10-23 멀티턴 · 싱글턴 점검의 짝).
+    빈 출력 요구는 채점 없이 보류라 뺀다. 파일이 없는 질문 세트면 빈 dict(비교 탭을 뺌)."""
+    f = Path(D["set_dir"]) / "flow_singles.json"
+    if not f.exists():
+        return {}
+    out: Dict[str, List[int]] = defaultdict(list)
+    for s, (mq, mt) in json.loads(f.read_text(encoding="utf-8"))["pairs"].items():
+        flows = (D["qset"].get(mq) or {}).get("flow") or []
+        if D["qtypes"].get(int(s), EMPTY_REQ) != EMPTY_REQ and mt <= len(flows):
+            out[flows[mt - 1]].append(int(s))
+    return {k: sorted(v) for k, v in out.items()}
+
+
+def turn_kinds(D: Dict[str, Any]) -> str:
+    """멀티턴 턴 종류별 · 싱글 vs 대화 중 (10-26 미팅 12번) — 문항 결론(uverdict)을 멀티턴 턴의 종류(flow)로 묶고,
+    같은 종류의 일을 한 턴 질문으로 물었을 때(10-23 점검의 짝)와 견준다. 칸 색이 진할수록 통과율이 높다. 턴 종류가 없는 질문 세트면 빈 글."""
+    order, V = D["order"], D["uverdict"]
+    by_flow: Dict[str, List[Tuple[int, int]]] = defaultdict(list)
+    for q, t in D["units"]:
+        flows = D["qset"][q].get("flow") or []
+        if t and t <= len(flows):
+            by_flow[flows[t - 1]].append((q, t))
+    fl = [f for f in TURN_FLOW if by_flow.get(f)]
+    if not fl:
+        return ""
+
+    def cnt(p: str, us: List[Tuple[int, int]]) -> Counter:
+        return Counter(V.get((p, q, t)) or "HOLD" for q, t in us)
+
+    def cell(c: Counter, of: int) -> str:
+        return (f'<td style="{tint(c["PASS"] / of if of else 0, "--ok")}"><b>{c["PASS"]}</b><small> / {of}</small>'
+                f'<em>FAIL {c["FAIL"]} · 보류 {c["HOLD"]}</em></td>')
+
+    def rate(c: Counter, of: int, cls: str = "") -> str:
+        return (f'<td class="{cls}" style="{tint(c["PASS"] / of if of else 0, "--ok")}"><b>{c["PASS"] / of * 100:.0f}%</b>'
+                f'<em>{c["PASS"]} / {of}</em></td>') if of else '<td class="tu-dim">—</td>'
+
+    # 턴 종류별 — 줄은 턴 종류, 칸은 모델
+    multi = [u for f in fl for u in by_flow[f]]
+    head_m = "".join(f'<th><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th>' for p in order)
+    body = "".join(f'<tr><th scope="row"><b>{E(TURN_FLOW[f][0])}</b><small>{E(TURN_FLOW[f][1])}</small></th><td class="tu-n">{len(by_flow[f])}</td>'
+                   + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f])) for p in order) + "</tr>" for f in fl)
+    body += ('<tr class="tu-sum"><th scope="row"><b>멀티턴 전체</b></th>' + f'<td class="tu-n">{len(multi)}</td>'
+             + "".join(cell(cnt(p, multi), len(multi)) for p in order) + "</tr>")
+    tabs = [("턴 종류별", f"멀티턴 {len(multi)}문항(턴)을 턴이 하는 일로 묶음 — 대화마다 순서는 달라도 같은 종류의 일 · 보류는 통과로 세지 않음",
+             f'<table class="hm-tab tu-tab"><thead><tr><th>턴 종류</th><th>문항</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
+    # 싱글 vs 대화 중 — 같은 종류의 일을 한 턴 질문으로 물었을 때와 대화 중 턴으로 물었을 때
+    fs = flow_singles(D)
+    cf = [f for f in fl if fs.get(f)]
+    if cf:
+        single = {f: [(q, 0) for q in fs[f]] for f in cf}
+        conv_all, sing_all = [u for f in cf for u in by_flow[f]], [u for f in cf for u in single[f]]
+        head = ('<tr><th rowspan="2">턴 종류</th><th rowspan="2">짝지은 한 턴 질문</th>'
+                + "".join(f'<th colspan="2" class="tu-c1"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th>' for p in order)
+                + "</tr><tr>" + '<th class="tu-c1">대화 중</th><th>싱글</th>' * len(order) + "</tr>")
+        body = "".join(f'<tr><th scope="row"><b>{E(TURN_FLOW[f][0])}</b><small>{E(TURN_FLOW[f][1])}</small></th>'
+                       f'<td class="tu-qs">{" · ".join(f"Q{q}" for q in fs[f])}</td>'
+                       + "".join(rate(cnt(p, by_flow[f]), len(by_flow[f]), "tu-c1") + rate(cnt(p, single[f]), len(single[f])) for p in order) + "</tr>" for f in cf)
+        body += ('<tr class="tu-sum"><th scope="row"><b>전체</b></th>' + f'<td class="tu-qs">한 턴 질문 {len(sing_all)}개</td>'
+                 + "".join(rate(cnt(p, conv_all), len(conv_all), "tu-c1") + rate(cnt(p, sing_all), len(sing_all)) for p in order) + "</tr>")
+        gap = " · ".join(f"{SHORT[p]} 대화 중 {cnt(p, conv_all)['PASS'] / len(conv_all) * 100:.0f}% · 싱글 {cnt(p, sing_all)['PASS'] / len(sing_all) * 100:.0f}%" for p in order)
+        tabs.append(("싱글 vs 대화 중", "같은 종류의 일을 한 턴 질문(싱글턴 · 첨부 · 롱컨텍스트)으로 물었을 때와 대화 중 턴으로 물었을 때의 통과율 — 짝은 10-23 멀티턴 · 싱글턴 점검에서 "
+                     "멀티 턴 하나에 한 턴 질문 하나씩 붙인 것(빈 출력 요구는 채점 없이 보류라 뺌 · 형식 맞추기 ↔ JSON · 코드 질문, 빠진 자료 ↔ 실제 첨부가 있는 질문처럼 "
+                     "느슨한 짝도 있어 방향만 봄)",
+                     f'<p class="tu-line">{E(gap)}</p><table class="hm-tab tu-tab tu-cmp"><thead>{head}</thead><tbody>{body}</tbody></table>'))
+    radios = "".join(f'<input type="radio" name="tu" id="tu{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
+    labels = '<div class="hm-tabs">' + "".join(f'<label for="tu{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
+    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn tu-p{i}"><p class="hm-d">{E(d)}</p><div class="hm-scroll">{x}</div></div>'
+                                             for i, (_t, d, x) in enumerate(tabs)) + "</div>"
+    return (f'<h3 class="rs-sh">멀티턴 턴 종류별 · 싱글 vs 대화 중</h3><div class="hm">{radios}{labels}{panels}</div>'
+            + tab_css("tu", len(tabs), ".hm-tabs", ".hm-ps", "tu-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
+
+
 def scene_flow(D: Dict[str, Any]) -> str:
     uq = Counter(R.unit_type(t) for t in D["qtypes"].values())   # 질문 수
     uu = Counter(D["utype"].values())                              # 문항 수
@@ -2420,9 +2503,10 @@ EXTRA_CSS = """<style>
 .ds-col em { font-style: normal; font-family: var(--font-num); font-size: 0.68rem; color: var(--muted); }
 .ds-col b { font-family: var(--font-num); font-size: 0.72rem; font-weight: 500; color: var(--muted); }
 .ds-band em, .ds-band b { color: var(--accent); font-weight: 700; }
-.ds-bar { flex: 1; width: 100%; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; background: var(--bg); }
+/* 세로 막대(질문 설계 장면)는 .ds-chart 안에서만 — 결과 분포의 가로 막대 .ds-bar 가 세로로 갈리지 않게 (10-26) */
+.ds-chart .ds-bar { flex: 1; width: 100%; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; background: var(--bg); }
 .ds-band .ds-bar { outline: 2px solid var(--accent); outline-offset: 1px; }
-.ds-bar i { display: block; width: 100%; } .ds-p { background: var(--ok); } .ds-s { background: var(--accent); } .ds-f { background: var(--risk); }
+.ds-chart .ds-bar i { display: block; width: 100%; } .ds-p { background: var(--ok); } .ds-s { background: var(--accent); } .ds-f { background: var(--risk); }
 .ds-lg { display: inline-block; padding: 0 6px; border-radius: 4px; color: var(--surface); font-size: 0.8rem; } .ds-lg.ds-p { background: var(--ok); } .ds-lg.ds-s { background: var(--accent); } .ds-lg.ds-f { background: var(--risk); }
 .ds-axis { margin: 0; font-size: 0.78rem; color: var(--muted); }
 .ds-find { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -2713,6 +2797,15 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .nk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 14px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .nk-h { grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); } .nk-r b { font-family: var(--font-num); font-size: 1.02rem; } .nk-r span { margin-left: 6px; font-size: 0.82rem; font-weight: 600; }
 .nk-r p { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); line-height: 1.45; word-break: keep-all; }
+/* 10-26 미팅 12번: 멀티턴 턴 종류별 · 싱글 vs 대화 중 — 탭 · 표는 .hm-* 를 같이 씀 */
+.tu-line { margin: 0 0 10px; font-size: 0.88rem; line-height: 1.55; word-break: keep-all; }
+.tu-tab thead th { vertical-align: bottom; } .tu-tab thead th:not(:first-child) { text-align: center; }
+.tu-tab td { text-align: center; vertical-align: top; } .tu-tab td b { font-size: 1rem; } .tu-tab td small { color: var(--muted); font-size: 0.78rem; }
+.tu-tab td em { display: block; font-style: normal; font-size: 0.72rem; color: var(--muted); }
+.tu-tab tbody th small { display: block; font-size: 0.74rem; color: var(--muted); }
+.tu-tab tr.tu-sum th, .tu-tab tr.tu-sum td { border-top: 2px solid var(--line); }
+.tu-tab td.tu-dim, .tu-tab td.tu-n { color: var(--muted); } .tu-tab th.tu-c1, .tu-tab td.tu-c1 { border-left: 1px solid var(--line); }
+.tu-tab td.tu-qs { text-align: left; font-size: 0.76rem; color: var(--muted); white-space: normal; min-width: 110px; }
 .cb-card small.cb-q { color: var(--ink); border-top: 1px dashed var(--line); padding-top: 4px; }
 .hm-ref { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.55; word-break: keep-all; } .hm-ref b { color: var(--ink); }
 @media (max-width: 760px) { .ds-row { grid-template-columns: 18px 24px minmax(0, 1fr) 64px; } .ds-bar { grid-column: 1 / -1; order: 5; } .ds-x { grid-column: 1 / -1; order: 6; }
@@ -3179,9 +3272,11 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          scene_close(D), "다음 주 금요일(10-30)에 범위를 닫고, 그 뒤엔 AIONA 업데이트마다 한 바퀴 — 패치는 기준 문서 → 프롬프트 · 코드 순서로, 같은 칸 전후 비교를 넘을 때만 받습니다."),
     ]
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
-        ("s1", "이번 실행 결과", "분포 · 유형별 통과율 (잠정)", "이번 실행 결과 — 분포와 유형별 통과율 (잠정)",
-         "맨 위는 모델마다 완전 통과 · 보류 · FAIL 분포, 그 아래는 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율입니다. 모두 문항 단위(멀티턴은 턴마다)이고, 보류를 사람이 정하기 전의 잠정 결과입니다.",
-         numbers_key(D) + dist_card(D) + helm_table(D, cats), res_key),
+        # 10-26 미팅 12번: 맨 아래에 멀티턴 턴 종류별 · 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때 비교
+        ("s1", "이번 실행 결과", "분포 · 유형별 · 턴 종류별 (잠정)", "이번 실행 결과 — 분포 · 유형별 · 턴 종류별 통과율 (잠정)",
+         "맨 위는 모델마다 완전 통과 · 보류 · FAIL 분포, 그 아래는 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율, 맨 아래는 멀티턴 턴 종류별 통과율과 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때의 비교입니다. "
+         "모두 문항 단위(멀티턴은 턴마다)이고, 보류를 사람이 정하기 전의 잠정 결과입니다.",
+         numbers_key(D) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
          "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",

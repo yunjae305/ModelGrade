@@ -253,3 +253,31 @@ def test_multi_turn_is_counted_turn_by_turn_as_units():
     assert rh.code_fail_turns(["3-1.question_calculation"], rows, 3) == {1, 2, 3}   # 턴을 못 찾은 CODE FAIL 은 모든 턴에(질문 결론과 어긋나지 않게)
     assert rh.turn_verdicts({"status": "held_no_answer"}, "HOLD", [], 3, set()) == {1: "HOLD", 2: "HOLD", 3: "HOLD"}
     assert rh.turn_verdicts({"status": "judged", "judge_error": "시간 초과"}, "HOLD", items, 2, set()) == {1: "HOLD", 2: "HOLD"}
+
+
+def _flow_d(set_dir: Path) -> dict:
+    """턴 종류 시험용 결과 — Q1 은 3턴 대화(setup · calc · fmt), Q5 · Q6 은 싱글, Q7 은 빈 출력 요구. 문항 결론은 uverdict."""
+    qset = {1: {"turns": [{}, {}, {}], "flow": ["setup", "calc", "fmt"]}, 5: {"turns": [{}]}, 6: {"turns": [{}]}, 7: {"turns": [{}]}}
+    qtypes = {1: rh.MULTI_TYPE, 5: "단일 질문", 6: "단일 질문", 7: "명시적 빈 출력"}
+    V = {("gpt", 1, 1): "PASS", ("gpt", 1, 2): "FAIL", ("gpt", 1, 3): "HOLD", ("gpt", 5, 0): "PASS", ("gpt", 6, 0): "PASS", ("gpt", 7, 0): "HOLD"}
+    return {"order": ["gpt"], "qset": qset, "qtypes": qtypes, "units": rh.units_of(qtypes, {1: 3}), "uverdict": V, "set_dir": set_dir}
+
+
+def test_flow_singles_group_pairs_by_turn_kind(tmp_path: Path):
+    """한 턴 질문 ↔ 멀티 턴 짝(flow_singles.json)을 턴 종류로 묶고 빈 출력 요구는 뺀다 — 파일이 없으면 비교 탭을 뺌 (10-26 미팅 12번)."""
+    from tools import build_result_summary as brs
+    D = _flow_d(tmp_path)
+    assert brs.flow_singles(D) == {}
+    (tmp_path / "flow_singles.json").write_text(json.dumps({"pairs": {"5": [1, 2], "6": [1, 1], "7": [1, 2]}}), encoding="utf-8")
+    assert brs.flow_singles(D) == {"calc": [5], "setup": [6]}
+
+
+def test_turn_kinds_count_units_by_flow_and_compare_with_singles(tmp_path: Path):
+    """멀티턴 문항을 턴 종류로 세고, 짝지은 한 턴 질문과 통과율을 견준다 — 보류는 통과로 세지 않음."""
+    from tools import build_result_summary as brs
+    D = _flow_d(tmp_path)
+    (tmp_path / "flow_singles.json").write_text(json.dumps({"pairs": {"5": [1, 2], "6": [1, 1]}}), encoding="utf-8")
+    page = brs.turn_kinds(D)
+    assert "멀티턴 전체" in page and "<b>1</b><small> / 3</small><em>FAIL 1 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류
+    assert "GPT 대화 중 50% · 싱글 100%" in page   # 짝이 있는 조건 정리 · 계산 턴 1/2, 한 턴 질문 Q5 · Q6 2/2
+    assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
