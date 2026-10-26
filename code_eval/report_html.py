@@ -15,7 +15,7 @@ from .model import Status
 from .jev_applicability import APPLIES_WHEN
 from .jev_criteria import describe as describe_jev
 from .llm_review import CRITERIA as LLM_REVIEW_CRITERIA, failed_case_queue
-from .taxonomy import CATEGORIES, SPECIALIZED_ITEMS
+from .taxonomy import ALL_CATEGORIES, SPECIALIZED_ITEMS   # 에러 케이스(단독 기준) 다음 CODE (10-26 저녁)
 
 __all__ = ["render_report"]
 
@@ -44,7 +44,7 @@ _SPECIAL_EXAMPLES = {
     "AIONA-F": "해당 질문에 금지된 표현이 답변에 그대로 나타나는지",
 }
 
-_SUBS = {sub["id"]: sub for category in CATEGORIES for sub in category["subs"]}
+_SUBS = {sub["id"]: sub for category in ALL_CATEGORIES for sub in category["subs"]}
 
 _JEV_STATUS_KO = {
     "SUCCESS": "완료", "PARTIAL": "일부 미완료", "NOT_CONFIGURED": "키 없음 · 미실행", "API_ERROR": "API 오류",
@@ -609,7 +609,7 @@ def _case(case: Dict[str, Any], jev_record: Any = None, jev_label: str = "Jev", 
 
 def _category_overview() -> str:
     cards = []
-    for category in CATEGORIES:
+    for category in ALL_CATEGORIES:
         rows = []
         for sub in category["subs"]:
             rows.append(f'<li><div class="criterion-title"><strong>{_e(sub["id"])} {_e(sub["name"])}</strong></div>'
@@ -753,7 +753,7 @@ def _question_counts(cases: List[Dict[str, Any]], area: str, subcategory: str | 
 
 def _result_breakdowns(batch: Dict[str, Any]) -> str:
     common_rows = []
-    for category in CATEGORIES:
+    for category in ALL_CATEGORIES:
         common_rows.append(f'<tr class="group-row"><th colspan="5" scope="rowgroup">{_e(category["id"])} · {_e(category["name"])}</th></tr>')
         for sub in category["subs"]:
             stats = _question_counts(batch["cases"], "common", sub["id"])

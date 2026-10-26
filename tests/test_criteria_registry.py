@@ -102,10 +102,12 @@ def test_approved_gaps_are_now_covered_by_a_running_check():
 def test_evaluation_targets_are_pinned():
     """평가 기준을 한 곳에 고정 — 개수가 바뀌면 이 테스트와 설계안·변경내역을 함께 고친다 (사용자 결정 2026-10-14)."""
     targets = reg.evaluation_targets()
-    assert targets["counts"] == {"code_categories": 4, "code_subcategories": 9, "code_checks": 28,
-                                 "semantic_criteria": 8, "semantic_subs": 30, "semantic_items": 44, "total": 72}
+    assert targets["counts"] == {"error_checks": 2, "code_categories": 3, "code_subcategories": 8, "code_checks": 26,
+                                 "semantic_criteria": 8, "semantic_subs": 30, "semantic_items": 44, "total": 72}   # 에러 케이스 단독 기준 (10-26 저녁)
+    assert targets["error"]["checks"] == ["1-1.response_nonempty", "2-1.explicit_empty"] and targets["error"]["subcategories"] == ["0-1"]
     code = targets["code"]
-    assert len(code["always_checks"]) + len(code["answer_checks"]) + len(code["question_checks"]) == 28 == len(set(code["checks"]))
+    assert len(code["always_checks"]) + len(code["answer_checks"]) + len(code["question_checks"]) == 26 == len(set(code["checks"]))
+    assert not set(code["checks"]) & set(targets["error"]["checks"]) and "0-1" not in code["subcategories"]
     assert "conditions" not in code   # 질문 조건 종류는 기준이 아니다 — 단위는 검사 28 + 항목 44 하나 (사용자 결정 2026-10-15)
     assert targets["semantic"]["criteria"] == [f"J{i}" for i in range(1, 9)]
     assert reg.registry()["targets"] == targets

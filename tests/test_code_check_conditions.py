@@ -8,7 +8,7 @@ import pytest
 
 from code_eval.criteria_registry import CODE_UNITS, unit_of
 from code_eval.engine import evaluate_case
-from code_eval.taxonomy import CATEGORIES
+from code_eval.taxonomy import ALL_CATEGORIES as CATEGORIES   # 설정 파일은 에러 케이스(단독 기준) 다음 CODE 분류 (10-26 저녁)
 
 DATA = Path(__file__).resolve().parents[1] / "code_eval" / "settings" / "code_check_conditions.json"
 CONDITIONS = json.loads(DATA.read_text(encoding="utf-8"))

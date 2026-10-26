@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""1차 심판 투표(judge_v4.merge_votes · first_judge_votes, 10-25) — 다수결 · 동률 · 평균 확률 · 일부 실패."""
+"""1차 심판 투표(judge_v4.merge_votes · first_judge_votes, 10-25 · 판정 프롬프트 3종 stance_merge · stance_judge_votes, 10-26 저녁) — 다수결 · 동률 · 평균 확률 · 일부 실패."""
 import json
 
 from tools import judge_v4 as jv
@@ -54,6 +54,50 @@ def test_mixed_judges_keep_their_own_provenance(monkeypatch):
     assert status == "OK" and used == "decisions" and attempts == 3 and [u for u, _ in oks] == ["jev", "decisions", "decisions"]
     assert body["answers"]["a"]["choice"] == "FAIL" and body["vote_judges"] == ["jev", "decisions", "decisions"]
 
+
+
+STANCES = {"version": "t", "min_choice_prob": 0.6, "stances": [
+    {"id": "critical", "name": "비판적", "text": "[비판적]", "weights": {"PASS": 1.2, "FAIL": 0.8, "NOT_APPLICABLE": 1.0}},
+    {"id": "friendly", "name": "친화적", "text": "[친화적]", "weights": {"PASS": 0.8, "FAIL": 1.2, "NOT_APPLICABLE": 1.0}},
+    {"id": "guided", "name": "유도적", "text": "[유도적]", "weights": {"PASS": 1.0, "FAIL": 1.0, "NOT_APPLICABLE": 1.0}}]}
+
+
+def test_stance_merge_weights_each_answer_by_its_prompt_and_drops_unsure_votes():
+    """판정 프롬프트 3종 (사용자 10-26 저녁) — 비판적의 PASS · 친화적의 FAIL 이 무겁고, 고른 값 확률 0.6 미만 표는 버린다."""
+    e = lambda c, p: {"choice": c, "probabilities": {c: p, ("FAIL" if c == "PASS" else "PASS"): round(1 - p, 2)}, "confidence": p, "reason": f"{c} 사유"}
+    st = STANCES["stances"]
+    # 비판적 PASS(1.2) vs 친화적 FAIL(1.2) + 유도적 FAIL(1.0) → FAIL 2.2
+    m = jv.stance_merge([(st[0], _body(a=e("PASS", 0.9))), (st[1], _body(a=e("FAIL", 0.8))), (st[2], _body(a=e("FAIL", 0.7)))], ["a"], STANCES)["a"]
+    assert m["choice"] == "FAIL" and m["vote_score"] == {"PASS": 1.2, "FAIL": 2.2} and m["votes"] == ["PASS", "FAIL", "FAIL"] and m["vote_split"]
+    assert [d["stance"] for d in m["vote_detail"]] == ["critical", "friendly", "guided"] and m["reason"] == "FAIL 사유"
+    # 비판적 FAIL(0.8) vs 친화적 PASS(0.8) + 유도적 PASS 확률 0.5(버림) → 0.8 대 0.8 동률, 평균 확률이 높은 값
+    m = jv.stance_merge([(st[0], _body(a=e("FAIL", 0.9))), (st[1], _body(a=e("PASS", 0.7))), (st[2], _body(a=e("PASS", 0.5)))], ["a"], STANCES)["a"]
+    assert m["vote_score"] == {"FAIL": 0.8, "PASS": 0.8} and m["choice"] == "FAIL"   # 센 두 표의 평균 FAIL 0.6 > PASS 0.4
+    assert [d["counted"] for d in m["vote_detail"]] == [True, True, False] and abs(m["confidence"] - 0.8) < 1e-9
+    # 모두 0.6 미만이면 버리지 않고 모두 센다
+    m = jv.stance_merge([(s_, _body(a=e("PASS", 0.55))) for s_ in st], ["a", "b"], STANCES)
+    assert m["a"]["choice"] == "PASS" and all(d["counted"] for d in m["a"]["vote_detail"]) and m["b"] is None
+
+
+def test_stance_judge_votes_sends_each_prompt_once_and_keeps_keys(monkeypatch):
+    seen = []
+
+    def fake_first(part, questions, jev, decisions, use_jev):
+        seen.append((use_jev, questions["T1:J1-1.a"]["instructions"]))
+        if len(seen) == 2:
+            return "ERROR", None, "429", "decisions"
+        return "OK", {"answers": {"T1:J1-1.a": {"choice": "PASS", "probabilities": {"PASS": 0.9, "FAIL": 0.1}, "confidence": 0.9}}, "usage": {"input_tokens": 5}}, "", "jev"
+    monkeypatch.setattr(jv, "first_judge", fake_first)
+    status, body, error, used, oks, attempts = jv.stance_judge_votes({}, {"T1:J1-1.a": {"instructions": "[J1-1.a] 정의"}}, object(), object(), True, cfg=STANCES)
+    assert [i for _, i in seen] == ["[비판적]\n[J1-1.a] 정의", "[친화적]\n[J1-1.a] 정의", "[유도적]\n[J1-1.a] 정의"] and all(u for u, _ in seen)
+    assert status == "OK" and attempts == 3 and len(oks) == 2 and used == "jev" and "친화적 ERROR 429" in error and body["stances"] == "t"
+    assert body["answers"]["T1:J1-1.a"]["choice"] == "PASS" and [d["stance"] for d in body["answers"]["T1:J1-1.a"]["vote_detail"]] == ["critical", "guided"]
+
+
+def test_stance_settings_file_has_three_prompts_with_weights():
+    cfg = jv.first_stances(jv.STANCES_PATH)
+    assert [s["name"] for s in cfg["stances"]] == ["비판적", "친화적", "유도적"] and cfg["min_choice_prob"] == 0.6
+    assert all(set(s["weights"]) == {"PASS", "FAIL", "NOT_APPLICABLE"} and s["text"].startswith("[판정 태도") for s in cfg["stances"])
 
 def _state(q, multi=False, images=None, plan=True):
     st = {"q": q, "provider": "gpt", "tag": f"Q{q} gpt", "flagged": {1: ["J2-3.a"]}, "tokens": {}, "counter": {"calls": 0},

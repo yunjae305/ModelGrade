@@ -11,7 +11,7 @@ SOFT_MAX = 20   # 2026-10-25 밤: 15 (표현이 다른 바꿔 적기 — 규칙 
 def test_real_files_have_no_hard_mismatch_and_soft_does_not_grow():
     res = cc.audit()
     assert res["counts"]["doc"] == res["counts"]["prompt"] == res["counts"]["code"] == 44
-    assert res["counts"]["code_doc"] == res["counts"]["code_registry"] == 9   # 소분류 9 — 에러 케이스 0-1 (10-26)
+    assert res["counts"]["code_doc"] == res["counts"]["code_registry"] == 8   # CODE 소분류 8 — 에러 케이스 0-1 은 단독 기준 (10-26 저녁)
     assert res["hard"] == [], json.dumps(res["hard"], ensure_ascii=False)[:800]
     assert len(res["soft"]) <= SOFT_MAX, json.dumps(res["soft"], ensure_ascii=False)[:800]
 

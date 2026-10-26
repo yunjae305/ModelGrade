@@ -74,7 +74,8 @@ def parse_doc(text: str) -> Dict[str, Dict[str, str]]:
 def parse_doc_code(text: str) -> Dict[str, str]:
     """5절 CODE 표 — | 1-1 응답 존재 · 문자 | … 첫 칸의 번호와 이름(번호 뒤 글)."""
     out: Dict[str, str] = {}
-    i = text.find("## 5. CODE 기준 28")
+    m5 = re.search(r"^## 5\. ", text, re.M)   # 제목 글은 바뀌어도(10-26 저녁: '에러 케이스 2 · CODE 기준 26') 번호로
+    i = m5.start() if m5 else -1
     j = text.find("\n## 6.", i)
     for line in text[i:j].splitlines():
         m = re.match(r"\| (\d-\d) ([^|]*)\|", line)
@@ -126,6 +127,8 @@ def registry_code_names() -> Dict[str, str]:
     out: Dict[str, str] = {}
     for e in cr._code_entries():
         g = str(e.get("group") or "")   # 검사 ID 앞부분이 아니라 소분류(에러 케이스 0-1 처럼 ID 와 다를 수 있음, 10-26)
+        if e.get("family") == "error":   # 에러 케이스는 CODE 묶음이 아님 — 단독 기준(10-26 저녁)
+            continue
         if re.fullmatch(r"\d-\d", g):
             out.setdefault(g, str(e.get("name") or e.get("title") or ""))
     return out

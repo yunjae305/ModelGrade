@@ -120,11 +120,11 @@ def test_latest_design_header_counts_match_the_criteria_registry():
                       key=lambda p: tuple(int(x) for x in re.findall(r'v(\d+)\.(\d+)', p.name)[0]))
     text = designs[-1].read_text(encoding='utf-8')
     counts = evaluation_targets()['counts']
-    total = re.search(r'평가 기준 <b>(\d+) = CODE (\d+) \+ LLM (\d+)</b>', text)   # 기준 단위는 하나 — 72 = 검사 28 + 항목 44 (10-15)
+    total = re.search(r'평가 기준 <b>(\d+) = 에러 케이스 (\d+) \+ CODE (\d+) \+ LLM (\d+)</b>', text)   # 72 = 에러 케이스 2 + 검사 26 + 항목 44 (10-15 · 10-26 저녁)
     code = re.search(r'코드 평가 <b>(\d+) 대분류 · (\d+) 소분류 · (\d+) 검사</b>', text)
     semantic = re.search(r'의미 평가 <b>(\d+) 기준 · (\d+) 세부 기준 · (\d+) 점검 항목</b>', text)
     assert total and code and semantic, designs[-1].name
-    assert tuple(map(int, total.groups())) == (counts['total'], counts['code_checks'], counts['semantic_items'])
+    assert tuple(map(int, total.groups())) == (counts['total'], counts['error_checks'], counts['code_checks'], counts['semantic_items'])
     assert tuple(map(int, code.groups())) == (counts['code_categories'], counts['code_subcategories'], counts['code_checks'])
     assert tuple(map(int, semantic.groups())) == (counts['semantic_criteria'], counts['semantic_subs'], counts['semantic_items'])
 

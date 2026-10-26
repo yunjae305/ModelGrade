@@ -8,7 +8,7 @@ from code_eval.semantic_items import SEMANTIC_ITEMS_VERSION, describe
 
 def test_registry_lists_semantic_items_from_the_single_definition():
     data = registry()
-    assert REGISTRY_VERSION == "criteria-registry-v14" and data["version"] == REGISTRY_VERSION
+    assert REGISTRY_VERSION == "criteria-registry-v15" and data["version"] == REGISTRY_VERSION
     assert data["semantic_items"] == describe()
     assert len(data["semantic_items"]["subs"]) == 30 and len(data["semantic_items"]["items"]) == 44
     assert data["semantic_items"]["version"] == SEMANTIC_ITEMS_VERSION and data["semantic_items"]["reason_codes"][0] == "FACT_FALSE_CONFIRMED"
@@ -25,6 +25,7 @@ def test_criteria_screen_gets_short_details_for_every_check_sub_and_item():
     groups = {c["group"] for c in details["code_checks"]}
     assert len(details["code_checks"]) == 28 and groups == {"0-1", "1-1", "1-2", "1-3", "2-1", "2-2", "3-1", "3-2", "3-3"}
     assert all(c["name"] and c["applies"] for c in details["code_checks"])
+    assert {c["id"] for c in details["code_checks"] if c["family"] == "error"} == {"1-1.response_nonempty", "2-1.explicit_empty"}   # 단독 기준 (10-26 저녁)
     subs, items = details["semantic"]["subs"], details["semantic"]["items"]
     assert len(subs) == 30 and len(items) == 44 and {s["criterion"] for s in subs} == {f"J{i}" for i in range(1, 9)}
     first = next(i for i in items if i["id"] == "J1-1.a")

@@ -18,15 +18,15 @@ from typing import Any, Dict, List, Optional
 from .core import CHECK_VERSIONS
 from .jev_applicability import APPLIES_WHEN
 from .jev_criteria import JEV_CRITERIA_VERSION, describe as jev_describe
-from .model import SPECIALIZED, SUBCATEGORIES, code_group
+from .model import ERROR_GROUPS, SPECIALIZED, SUBCATEGORIES, code_group
 from .semantic_policy import DECISION_POLICY
-from .taxonomy import CATEGORIES
+from .taxonomy import ALL_CATEGORIES, CATEGORIES, ERROR_CATEGORIES
 
 __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS", "RELATIONS", "registry",]
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v14"   # v14: 에러 케이스 의심은 보류 → 사람이 정해 기록에 쌓음 · 빈 응답 확정(10-26) · v13: CODE 대분류 '0 에러 케이스'(소분류 0-1)에 에러 케이스 없음 · 명시 빈 출력(10-26) · v12: 1-1 응답 존재 → 에러 케이스 없음(10-25). v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v15"   # v15: 에러 케이스를 단독 기준으로 — 72 = 에러 케이스 2 + CODE 26 + LLM 44(10-26 저녁) · v14: 에러 케이스 의심은 보류 → 사람이 정해 기록에 쌓음 · 빈 응답 확정(10-26) · v13: CODE 대분류 '0 에러 케이스'(소분류 0-1)에 에러 케이스 없음 · 명시 빈 출력(10-26) · v12: 1-1 응답 존재 → 에러 케이스 없음(10-25). v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -142,13 +142,15 @@ _SEMANTIC_UNJUDGED = ("INCOMPLETE(판정 미완료) — 재평가 뒤에도 근�
 
 
 def _code_entries() -> List[Dict[str, Any]]:
-    subs = {sub["id"]: sub for cat in CATEGORIES for sub in cat["subs"]}
+    subs = {sub["id"]: sub for cat in ALL_CATEGORIES for sub in cat["subs"]}
     out = []
     for unit, name, trigger, kinds in CODE_UNITS:
         group = code_group(unit)
         sub = subs.get(group)
         out.append({
             "id": unit, "layer": "CODE", "group": group,
+            # 기준 묶음 — error: 에러 케이스(CODE · LLM 밖 단독 기준, 10-26 저녁) · code: CODE 검사. layer 는 '프로그램이 잰다'는 뜻으로 둘 다 CODE
+            "family": "error" if group in ERROR_GROUPS else "code",
             "group_name": SUBCATEGORIES.get(group) or SPECIALIZED.get(group),
             "category": group.split("-")[0] if group in SUBCATEGORIES else "AIONA",
             "name": name, "trigger": trigger, "applies_when": _TRIGGER[trigger], "requirement_kinds": list(kinds),
@@ -157,7 +159,8 @@ def _code_entries() -> List[Dict[str, Any]]:
             "fail": sub["fail"] if sub else "등록 목록의 표현·마커가 실제 표시본에 있음",
             "pass_fail_scope": "소분류 공통 설명 (taxonomy.CATEGORIES)" if sub else "AIONA 특화 항목",
             "unjudged": _CODE_UNJUDGED, "evidence": _CODE_EVIDENCE,
-            "counted_in": "공통 통과율·질문 최종 판정" if group in SUBCATEGORIES else "별도 표시 (공통 통과율에 더하지 않음)",
+            "counted_in": ("에러 케이스(단독 기준)·질문 최종 판정" if group in ERROR_GROUPS else
+                           "공통 통과율·질문 최종 판정" if group in SUBCATEGORIES else "별도 표시 (공통 통과율에 더하지 않음)"),
             "version": CHECK_VERSIONS[unit],
         })
     return out
@@ -218,19 +221,24 @@ def condition_kinds() -> List[Dict[str, str]]:
 
 def evaluation_targets() -> Dict[str, Any]:
     """평가 기준 전체를 단계별로 — CODE 대분류 → 소분류 → 검사, 의미 기준 → 세부 기준 → 점검 항목 (개수 포함).
-    평가 기준 단위는 하나: CODE 검사 28 + 의미 점검 항목 44 = 72 (사용자 결정 2026-10-15)."""
+    평가 기준 단위는 하나: 에러 케이스 2 + CODE 검사 26 + 의미 점검 항목 44 = 72 (사용자 결정 2026-10-15 · 에러 케이스 단독 기준 10-26 저녁)."""
     from .semantic_items import ITEMS, SUBS
-    checks = [unit for unit, _, trigger, _ in CODE_UNITS if trigger != "aiona"]
+    units = [(u, trigger) for u, _, trigger, _ in CODE_UNITS if trigger != "aiona"]
+    errors = [u for u, _ in units if code_group(u) in ERROR_GROUPS]
+    code = [(u, t) for u, t in units if code_group(u) not in ERROR_GROUPS]
+    checks = [u for u, _ in code]
     criteria = sorted({s.criterion for s in SUBS}, key=lambda c: int(c[1:]))
-    return {"code": {"categories": [c["id"] for c in CATEGORIES], "subcategories": list(SUBCATEGORIES), "checks": checks,
-                     # 검사 28 = 늘 적용 3 + 질문 요구로 적용 18 + 답변 구조로만 적용 7
-                     "question_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger in ("question", "question_or_answer")],
-                     "always_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "all"],
-                     "answer_checks": [u for u, _, trigger, _ in CODE_UNITS if trigger == "answer"]},
+    code_subs = [s for s in SUBCATEGORIES if s not in ERROR_GROUPS]
+    return {"error": {"categories": [c["id"] for c in ERROR_CATEGORIES], "subcategories": sorted(ERROR_GROUPS), "checks": errors},
+            "code": {"categories": [c["id"] for c in CATEGORIES], "subcategories": code_subs, "checks": checks,
+                     # 검사 26 = 늘 적용 2 + 질문 요구로 적용 17 + 답변 구조로만 적용 7
+                     "question_checks": [u for u, t in code if t in ("question", "question_or_answer")],
+                     "always_checks": [u for u, t in code if t == "all"],
+                     "answer_checks": [u for u, t in code if t == "answer"]},
             "semantic": {"criteria": criteria, "subs": [s.id for s in SUBS], "items": [i.id for i in ITEMS]},
-            "counts": {"code_categories": len(CATEGORIES), "code_subcategories": len(SUBCATEGORIES), "code_checks": len(checks),
+            "counts": {"error_checks": len(errors), "code_categories": len(CATEGORIES), "code_subcategories": len(code_subs), "code_checks": len(checks),
                        "semantic_criteria": len(criteria), "semantic_subs": len(SUBS), "semantic_items": len(ITEMS),
-                       "total": len(checks) + len(ITEMS)}}
+                       "total": len(errors) + len(checks) + len(ITEMS)}}
 
 
 def unit_of(check_id: str) -> Optional[str]:
@@ -447,6 +455,9 @@ CHANGELOG: List[Dict[str, Any]] = [
      "changes": ["1-1.response_nonempty v16-1.8 — 빈 응답 · 답 없음도 바로 FAIL 이 아니라 보류(error_suspect '빈 응답' · '답 없음'). 수집기가 답이 비었거나 못 받은 "
                  "모든 턴의 대화 화면(답 영역)을 찍어 결과 보고서 보류에 보이고, 사람이 에러 케이스 · PASS · FAIL 을 정함(사용자 10-26: '보류로 두게 해서 결과 "
                  "REPORT에서 스크린샷 화면 보여주는거로'). 판정 도구도 모든 턴이 빈 응답 · 답 없음인 질문을 FAIL 대신 보류(held_error_case · held_no_answer)"]},
+    {"version": "criteria-registry-v15", "date": "2026-10-26", "scope": "registry",
+     "changes": ["에러 케이스(에러 케이스 없음 · 명시 빈 출력)를 CODE · LLM 밖의 단독 기준으로 — 72 = 에러 케이스 2 + CODE 26(3대분류 · 8소분류) + LLM 44. "
+                 "검사 ID · 소분류 키 0-1 · 판정 규칙은 그대로, 기준 항목에 family(error · code)를 붙이고 개수 · 보고서를 따로 셈 (사용자 10-26 저녁)"]},
 ]
 
 
@@ -464,7 +475,7 @@ def reference_details() -> Dict[str, Any]:
     semantic: 의미 세부 기준과 점검 항목 — 점검 질문(끝 괄호는 note 로 분리)·적용 조건·PASS/FAIL 예시 설명 한 줄씩.
     긴 예시 원문(질문·답변)은 넣지 않는다 (설계안 HTML 에 있음)."""
     from .semantic_items import ITEMS, SUBS
-    checks = [{"id": c["id"], "group": c["group"], "name": c["name"], "applies": _TRIGGER_LABELS.get(c["trigger"], c["applies_when"])}
+    checks = [{"id": c["id"], "group": c["group"], "name": c["name"], "family": c["family"], "applies": _TRIGGER_LABELS.get(c["trigger"], c["applies_when"])}
               for c in _code_entries() if c["layer"] == "CODE" and re.fullmatch(r"\d-\d", c["group"] or "")]
     items = []
     for item in ITEMS:

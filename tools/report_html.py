@@ -500,7 +500,10 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     level = codex_reasoning(out_dir)
     calls = [((L["line"].get("calls") or {}).get("decisions") or {}) for L in lines.values()]
     jev_names = sorted({m for c in calls for m in ((c.get("models") or {}).get("jev") or [])})
-    if any(v == "jev+decisions" for c in calls for v in (c.get("first_judge") or {}).values()):   # 회의 흐름(10-26) — 실제로 쓴 1차 심판을 적는다
+    if any(c.get("first_judge_mode") == "stances" for c in calls):   # 사용자 10-26 저녁 — 크기로 한 심판, 판정 프롬프트 3종 가중 다수결
+        first = (f"1차 Jev({', '.join(jev_names) or 'Jev'}) 또는 Decisions API(gpt-6-luna) — 질문 크기로 나눔(3만 2천 토큰 이하 · 첨부 없음이면 Jev), "
+                 "판정 프롬프트 3종(비판적 · 친화적 · 유도적)으로 한 번씩 받아 가중 다수결")
+    elif any(v == "jev+decisions" for c in calls for v in (c.get("first_judge") or {}).values()):   # 회의 흐름(10-26) — 실제로 쓴 1차 심판을 적는다
         first = (f"1차 Jev({', '.join(jev_names) or 'Jev'}) · Decisions API(gpt-6-luna) — 단일 질문은 둘을 교차, 멀티턴 · 첨부 · 롱컨텍스트는 Decisions")
     else:
         first = "1차 Decisions API(OpenAI gpt-6-luna) 전수 판정"

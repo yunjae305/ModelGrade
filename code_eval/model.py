@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 __all__ = [
-    "PASS", "FAIL", "Status", "SUBCATEGORIES", "SPECIALIZED", "CATEGORY_NAMES", "CODE_GROUP_OVERRIDE", "code_group",
+    "PASS", "FAIL", "Status", "SUBCATEGORIES", "SPECIALIZED", "CATEGORY_NAMES", "CODE_GROUP_OVERRIDE", "code_group", "ERROR_GROUPS", "is_error_check",
     "Evidence", "ConditionResult", "stable_hash",
 ]
 
@@ -54,6 +54,8 @@ SUBCATEGORIES = {
     "3-2": "선언 개수 일치",
     "3-3": "원본 보존·변환 일치",
 }
+#: 에러 케이스 소분류 — CODE · LLM 밖의 단독 기준 (사용자 10-26 저녁). 엔진은 같은 자리에서 재지만 개수 · 보고서는 따로 센다
+ERROR_GROUPS = frozenset({"0-1"})
 #: 기준 ID 앞부분과 소분류가 다른 검사 — ID 는 질문 세트 · 지난 결과의 키라 그대로 두고 소분류만 옮김 (10-26 에러 케이스 대분류)
 CODE_GROUP_OVERRIDE = {"1-1.response_nonempty": "0-1", "2-1.explicit_empty": "0-1"}
 
@@ -62,6 +64,11 @@ def code_group(check_id: str) -> str:
     """CODE 검사 ID → 소분류(예: '2-2.table' → '2-2', '1-1.response_nonempty' → '0-1'). ':대상' 꼬리는 뗀다."""
     unit = str(check_id).split(":")[0]
     return CODE_GROUP_OVERRIDE.get(unit) or unit.split(".")[0]
+
+
+def is_error_check(check_id: str) -> bool:
+    """에러 케이스 기준(단독 기준)인가 — '1-1.response_nonempty' · '2-1.explicit_empty'."""
+    return code_group(check_id) in ERROR_GROUPS
 
 
 SPECIALIZED = {

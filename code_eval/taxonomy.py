@@ -10,7 +10,9 @@ from typing import Any, Dict, List
 
 __all__ = []
 
-CATEGORIES: List[Dict[str, Any]] = [
+#: 에러 케이스 — CODE · LLM 어디에도 속하지 않는 단독 기준 (사용자 10-26 저녁 "에러케이스라는 단독의 기준으로 빼라").
+#: 검사 ID(1-1.response_nonempty · 2-1.explicit_empty)와 소분류 키 0-1 은 질문 세트 · 지난 결과의 키라 그대로 둔다.
+ERROR_CATEGORIES: List[Dict[str, Any]] = [
     {"id": "0", "name": "에러 케이스", "tag": "답 자체가 성립하지 않음",
      "question": "답이 오류 · 빈 답 · 정형 거절 문구뿐이거나, 빈 출력을 요구한 질문에 글을 썼는가?",
      "subs": [
@@ -22,6 +24,10 @@ CATEGORIES: List[Dict[str, Any]] = [
           "basis": "10-23 미팅 2 · 3번(빈 응답 기준 대신 에러 케이스, 발견될 때마다 확장) · 사용자 10-26(에러 케이스를 대분류로, 명시 빈 출력 포함 · 의심은 보류해 사람이 확인하며 쌓음 · 빈 응답은 에러 케이스). 복사 실패는 우리 원인이라 행 없이 판정 제외(질문 보류).",
           "trace": "code_eval/checks_integrity.py (check_1_1 — 1-1.response_nonempty) · code_eval/checks_requirements.py (2-1.explicit_empty)"},
      ]},
+]
+
+#: CODE 분류표 — 3대분류 · 8소분류 · 검사 26
+CATEGORIES: List[Dict[str, Any]] = [
     {"id": "1", "name": "출력 무결성", "tag": "출력 자체의 결함", "question": "출력 자체에 확인 가능한 결함이 있는가?",
      "subs": [
          {"id": "1-1", "name": "응답·문자 정상성", "target": "등록된 깨진 문자·제어 문자, 한자·가나·키릴 등 외국 문자 구간 (코드 안은 제외). 빈 답 · 오류 응답은 0-1 에러 케이스(10-26).",
@@ -67,6 +73,9 @@ CATEGORIES: List[Dict[str, Any]] = [
           "basis": "질문 원본과 연산 정의, 정확 비교.", "trace": "code_eval/checks_consistency.py"},
      ]},
 ]
+
+#: 화면에 보일 때의 순서 — 에러 케이스 다음 CODE
+ALL_CATEGORIES: List[Dict[str, Any]] = ERROR_CATEGORIES + CATEGORIES
 
 SPECIALIZED_ITEMS = [
     {"id": "AIONA-M", "name": "내부 마커 노출", "md_line": 155,
