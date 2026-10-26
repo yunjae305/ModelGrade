@@ -1,6 +1,6 @@
 {
  "format": "modelgrade-results-v1",
- "exported_at": "2026-10-26T04:22:01.080264+00:00",
+ "exported_at": "2026-10-26T05:39:17.432219+00:00",
  "run_id": "50ca3ccccace",
  "label": "결과_판정결과",
  "name": "멀티턴v3 재수집 — Gemini 3.8 앱 78 · GPT·Claude·AIONA 멀티턴 11(싱글 67 은 a1642702fccc)",
@@ -91,14 +91,14 @@
   78
  ],
  "models": {
-  "gpt": "ChatGPT 앱 (GPT-6 · Medium)",
-  "claude": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
+  "gpt": "ChatGPT 웹 (GPT-6 · Medium)",
+  "claude": "Claude 웹 (Sonnet 5.5 · 노력 중간)",
   "aiona": "AIONA 웹브라우저",
-  "gemini": "Gemini 앱 (3.8 Flash · 사고 보통)"
+  "gemini": "Gemini 웹 (3.8 Flash · 사고 보통)"
  },
  "providers": {
   "gpt": {
-   "label": "ChatGPT 앱 (GPT-6 · Medium)",
+   "label": "ChatGPT 웹 (GPT-6 · Medium)",
    "turns": [
     {
      "case_id": "Q1_T1",
@@ -14178,7 +14178,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q60_T1",
@@ -14190,7 +14264,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q61_T1",
@@ -14202,7 +14350,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q62_T1",
@@ -14214,7 +14436,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q63_T1",
@@ -14226,7 +14522,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q64_T1",
@@ -14238,7 +14608,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q65_T1",
@@ -14250,7 +14694,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q66_T1",
@@ -14262,7 +14780,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q67_T1",
@@ -14274,7 +14866,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q68_T1",
@@ -14286,7 +14952,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "GPT-6 · Medium (앱)",
      "method": "chatgpt-app-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q69_T1",
@@ -16050,8 +16790,8 @@
    ],
    "summary": {
     "code": {
-     "cases": 167,
-     "evaluated": 167,
+     "cases": 177,
+     "evaluated": 177,
      "input_errors": 0,
      "limit_exceeded": 0,
      "check_errors": 0
@@ -16059,7 +16799,7 @@
    }
   },
   "claude": {
-   "label": "Claude 앱 (Sonnet 5.5 · 노력 중간)",
+   "label": "Claude 웹 (Sonnet 5.5 · 노력 중간)",
    "turns": [
     {
      "case_id": "Q1_T1",
@@ -30721,7 +31461,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(응답 중지·말풍선 없음 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "Claude Sonnet 5.5 중간 (앱)",
      "method": "claude-app-uia-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "FAIL",
+       "status": "EXECUTED",
+       "reason": "빈 출력을 요청했으나 실질 문자 9자 출력"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q66_T1",
@@ -30903,7 +31717,81 @@
      "error": "빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(응답 중지·말풍선 없음 등) → 보류 (사용자 규칙 10-20 밤)",
      "model": "Claude Sonnet 5.5 중간 (앱)",
      "method": "claude-app-uia-v1",
-     "answer": ""
+     "answer": "",
+     "code": [
+      {
+       "check_id": "1-1.character_rules",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "등록 문자 규칙 위반 없음"
+      },
+      {
+       "check_id": "1-1.foreign_script",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "외국 문자 없음"
+      },
+      {
+       "check_id": "1-2.fence_imbalance:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.json_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.python_syntax:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-2.orphan_closing_tag:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.footnote_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.citation_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "1-3.internal_link:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "2-1.explicit_empty",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "요청대로 출력이 비어 있음"
+      },
+      {
+       "check_id": "3-1.answer_equation:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      },
+      {
+       "check_id": "3-2.declared_count:none",
+       "verdict": "PASS",
+       "status": "EXECUTED",
+       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
+      }
+     ]
     },
     {
      "case_id": "Q69_T1",
@@ -32637,8 +33525,8 @@
    ],
    "summary": {
     "code": {
-     "cases": 175,
-     "evaluated": 175,
+     "cases": 177,
+     "evaluated": 177,
      "input_errors": 0,
      "limit_exceeded": 0,
      "check_errors": 0
@@ -46713,81 +47601,7 @@
      "latency_ms": 8349,
      "model": "자동 추천",
      "method": "aiona-web-v3",
-     "answer": "",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "answer": ""
     },
     {
      "case_id": "Q62_T1",
@@ -46810,81 +47624,7 @@
      "latency_ms": 8431,
      "model": "자동 추천",
      "method": "aiona-web-v3",
-     "answer": "",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "answer": ""
     },
     {
      "case_id": "Q64_T1",
@@ -46907,81 +47647,7 @@
      "latency_ms": 8970,
      "model": "자동 추천",
      "method": "aiona-web-v3",
-     "answer": "",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "answer": ""
     },
     {
      "case_id": "Q66_T1",
@@ -47004,81 +47670,7 @@
      "latency_ms": 9977,
      "model": "자동 추천",
      "method": "aiona-web-v3",
-     "answer": "",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "answer": ""
     },
     {
      "case_id": "Q68_T1",
@@ -47089,81 +47681,7 @@
      "latency_ms": 7827,
      "model": "자동 추천",
      "method": "aiona-web-v3",
-     "answer": "",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "answer": ""
     },
     {
      "case_id": "Q69_T1",
@@ -48909,8 +49427,8 @@
    ],
    "summary": {
     "code": {
-     "cases": 172,
-     "evaluated": 172,
+     "cases": 167,
+     "evaluated": 167,
      "input_errors": 0,
      "limit_exceeded": 0,
      "check_errors": 0
@@ -48918,7 +49436,7 @@
    }
   },
   "gemini": {
-   "label": "Gemini 앱 (3.8 Flash · 사고 보통)",
+   "label": "Gemini 웹 (3.8 Flash · 사고 보통)",
    "turns": [
     {
      "case_id": "Q1_T1",
@@ -62829,81 +63347,7 @@
      "capture": "copy-button",
      "latency_ms": 26833,
      "model": "Gemini 3.8 Flash · 사고 수준 보통 (앱)",
-     "method": "gemini-app-uia-v1",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "FAIL",
-       "status": "EXECUTED",
-       "reason": "빈 출력을 요청했으나 실질 문자 3자 출력"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "method": "gemini-app-uia-v1"
     },
     {
      "case_id": "Q62_T1",
@@ -62914,81 +63358,7 @@
      "capture": "copy-button",
      "latency_ms": 13160,
      "model": "Gemini 3.8 Flash · 사고 수준 보통 (앱)",
-     "method": "gemini-app-uia-v1",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "FAIL",
-       "status": "EXECUTED",
-       "reason": "빈 출력을 요청했으나 실질 문자 3자 출력"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "method": "gemini-app-uia-v1"
     },
     {
      "case_id": "Q63_T1",
@@ -63011,81 +63381,7 @@
      "capture": "copy-button",
      "latency_ms": 29835,
      "model": "Gemini 3.8 Flash · 사고 수준 보통 (앱)",
-     "method": "gemini-app-uia-v1",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "method": "gemini-app-uia-v1"
     },
     {
      "case_id": "Q65_T1",
@@ -63108,81 +63404,7 @@
      "capture": "copy-button",
      "latency_ms": 44926,
      "model": "Gemini 3.8 Flash · 사고 수준 보통 (앱)",
-     "method": "gemini-app-uia-v1",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "method": "gemini-app-uia-v1"
     },
     {
      "case_id": "Q67_T1",
@@ -63205,81 +63427,7 @@
      "capture": "copy-button",
      "latency_ms": 13118,
      "model": "Gemini 3.8 Flash · 사고 수준 보통 (앱)",
-     "method": "gemini-app-uia-v1",
-     "code": [
-      {
-       "check_id": "1-1.character_rules",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "등록 문자 규칙 위반 없음"
-      },
-      {
-       "check_id": "1-1.foreign_script",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "외국 문자 없음"
-      },
-      {
-       "check_id": "1-2.fence_imbalance:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 코드·수식 구획 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.json_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 JSON 코드블록·본문 JSON 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.python_syntax:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 Python 코드블록 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-2.orphan_closing_tag:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 닫는 HTML 태그 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.footnote_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 각주 표시 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.citation_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 인용 번호 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "1-3.internal_link:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 문서 내부 링크 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "2-1.explicit_empty",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "요청대로 출력이 비어 있음"
-      },
-      {
-       "check_id": "3-1.answer_equation:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 등식(계산식) 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      },
-      {
-       "check_id": "3-2.declared_count:none",
-       "verdict": "PASS",
-       "status": "EXECUTED",
-       "reason": "답변에 개수 선언 문장 없음 — 검사 대상 0개, 위반 없음. 답변마다 조건 1개로 집계하므로 PASS 로 둔다"
-      }
-     ]
+     "method": "gemini-app-uia-v1"
     },
     {
      "case_id": "Q69_T1",
@@ -65013,8 +65161,8 @@
    ],
    "summary": {
     "code": {
-     "cases": 172,
-     "evaluated": 172,
+     "cases": 167,
+     "evaluated": 167,
      "input_errors": 0,
      "limit_exceeded": 0,
      "check_errors": 0
@@ -194753,7 +194901,7 @@
     "model": "gpt-6-luna",
     "reasoning": "low"
    },
-   "finished_at": "2026-10-26T04:20:06.311150+00:00",
+   "finished_at": "2026-10-26T05:13:15.347359+00:00",
    "wall_seconds": 3896.9,
    "inputs": {
     "prompt": {
@@ -194814,6 +194962,20 @@
     "at": "2026-10-26T04:20:06.294160+00:00",
     "seconds": 708.2,
     "judgments": 152
+   },
+   {
+    "kind": "judge-v4",
+    "at": "2026-10-26T05:09:36.239251+00:00",
+    "seconds": 0.0,
+    "judgments": 0,
+    "redo": true
+   },
+   {
+    "kind": "judge-v4",
+    "at": "2026-10-26T05:13:15.337946+00:00",
+    "seconds": 0.0,
+    "judgments": 0,
+    "redo": true
    }
   ]
  }

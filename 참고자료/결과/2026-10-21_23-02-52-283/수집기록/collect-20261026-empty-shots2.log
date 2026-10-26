@@ -1,0 +1,102 @@
+[gpt] gpt · ChatGPT 웹 (GPT-6 · Medium): 이번 묶음 질문 10개 [59, 60, 61, 62, 63, 64, 65, 66, 67, 68] · 전체 78개 중 이미 받은 질문 78개
+[aiona] aiona · AIONA 웹브라우저: 이번 묶음 질문 10개 [59, 60, 61, 62, 63, 64, 65, 66, 67, 68] · 전체 78개 중 이미 받은 질문 78개
+[claude] claude · Claude 웹 (Sonnet 5.5 · 노력 중간): 이번 묶음 질문 10개 [59, 60, 61, 62, 63, 64, 65, 66, 67, 68] · 전체 78개 중 이미 받은 질문 78개
+[gemini] gemini · Gemini 웹 (3.8 Flash · 사고 보통): 이번 묶음 질문 10개 [59, 60, 61, 62, 63, 64, 65, 66, 67, 68] · 전체 78개 중 이미 받은 질문 78개
+[gemini] ▶ Q59 (1턴) — 이번 묶음 1/10 · 전체 79/78
+[gpt] ▶ Q59 (1턴) — 이번 묶음 1/10 · 전체 79/78
+[claude] ▶ Q59 (1턴) — 이번 묶음 1/10 · 전체 79/78
+[aiona] ▶ Q59 (1턴) — 이번 묶음 1/10 · 전체 79/78
+[aiona]   Q59_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q59_T1: COPY_FAILED 0자 9초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[claude]   Q59_T1: SUCCESS 1자 10초 (copy-button)
+[aiona] ▶ Q60 (1턴) — 이번 묶음 2/10 · 전체 79/78
+[claude] ▶ Q60 (1턴) — 이번 묶음 2/10 · 전체 80/78
+[aiona]   Q60_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q60_T1: COPY_FAILED 0자 10초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[aiona] ▶ Q61 (1턴) — 이번 묶음 3/10 · 전체 79/78
+[gemini]   Q59_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gpt]   Q59_T1: SUCCESS 0자 23초 (empty)
+[gemini] ▶ Q60 (1턴) — 이번 묶음 2/10 · 전체 79/78
+[claude]   Q60_T1: SUCCESS 7자 11초 (copy-button)
+[gpt] ▶ Q60 (1턴) — 이번 묶음 2/10 · 전체 80/78
+[claude] ▶ Q61 (1턴) — 이번 묶음 3/10 · 전체 81/78
+[aiona]   Q61_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q61_T1: COPY_FAILED 0자 10초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[aiona] ▶ Q62 (1턴) — 이번 묶음 4/10 · 전체 79/78
+[claude]   Q61_T1: SUCCESS 9자 10초 (copy-button)
+[claude] ▶ Q62 (1턴) — 이번 묶음 4/10 · 전체 82/78
+[aiona]   Q62_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q62_T1: COPY_FAILED 0자 11초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[aiona] ▶ Q63 (1턴) — 이번 묶음 5/10 · 전체 79/78
+[gemini]   Q60_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q61 (1턴) — 이번 묶음 3/10 · 전체 79/78
+[gpt]   Q60_T1: SUCCESS 0자 22초 (empty)
+[aiona]   Q63_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[claude]   Q62_T1: SUCCESS 1자 10초 (copy-button)
+[gpt] ▶ Q61 (1턴) — 이번 묶음 3/10 · 전체 81/78
+[aiona]   Q63_T1: COPY_FAILED 0자 9초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[claude] ▶ Q63 (1턴) — 이번 묶음 5/10 · 전체 83/78
+[aiona] ▶ Q64 (1턴) — 이번 묶음 6/10 · 전체 79/78
+[aiona]   Q64_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q64_T1: COPY_FAILED 0자 9초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[claude]   Q63_T1: SUCCESS 28자 10초 (copy-button)
+[aiona] ▶ Q65 (1턴) — 이번 묶음 7/10 · 전체 79/78
+[claude] ▶ Q64 (1턴) — 이번 묶음 6/10 · 전체 84/78
+[gemini]   Q61_T1: COPY_FAILED 0자 19초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q62 (1턴) — 이번 묶음 4/10 · 전체 79/78
+[gpt]   Q61_T1: SUCCESS 0자 22초 (empty)
+[gpt] ▶ Q62 (1턴) — 이번 묶음 4/10 · 전체 82/78
+[claude]   Q64_T1: SUCCESS 15자 10초 (copy-button)
+[aiona]   Q65_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[claude] ▶ Q65 (1턴) — 이번 묶음 7/10 · 전체 85/78
+[aiona]   Q65_T1: COPY_FAILED 0자 19초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[aiona] ▶ Q66 (1턴) — 이번 묶음 8/10 · 전체 79/78
+[aiona]   Q66_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[claude]   Q65_T1: SUCCESS 11자 10초 (copy-button)
+[aiona]   Q66_T1: COPY_FAILED 0자 11초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[claude] ▶ Q66 (1턴) — 이번 묶음 8/10 · 전체 86/78
+[gemini]   Q62_T1: COPY_FAILED 0자 19초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[aiona] ▶ Q67 (1턴) — 이번 묶음 9/10 · 전체 79/78
+[gemini] ▶ Q63 (1턴) — 이번 묶음 5/10 · 전체 79/78
+[gpt]   Q62_T1: SUCCESS 0자 23초 (empty)
+[gpt] ▶ Q63 (1턴) — 이번 묶음 5/10 · 전체 83/78
+[aiona]   Q67_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q67_T1: COPY_FAILED 0자 10초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[claude]   Q66_T1: SUCCESS 6자 11초 (copy-button)
+[aiona] ▶ Q68 (1턴) — 이번 묶음 10/10 · 전체 79/78
+[claude] ▶ Q67 (1턴) — 이번 묶음 9/10 · 전체 87/78
+[aiona]   Q68_T1: 복사 버튼이 안 눌려 화면 글만 받음 — 복사 다시 시도
+[aiona]   Q68_T1: COPY_FAILED 0자 8초 (text) — 복사 버튼이 안 눌려 화면 글(0자)만 받음 — 복사를 다시 시도했으나 실패, 보류(사용자 규칙 10-20)
+[aiona] CODE 평가 중 …
+[claude]   Q67_T1: SUCCESS 1자 10초 (copy-button)
+[gemini]   Q63_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[claude] ▶ Q68 (1턴) — 이번 묶음 10/10 · 전체 88/78
+[gemini] ▶ Q64 (1턴) — 이번 묶음 6/10 · 전체 79/78
+[gpt]   Q63_T1: SUCCESS 0자 21초 (empty)
+[gpt] ▶ Q64 (1턴) — 이번 묶음 6/10 · 전체 84/78
+[aiona] 저장: C:\Users\winz\Desktop\quality-test-integrated\data\comparison_runs\50ca3ccccace.json (실행 50ca3ccccace) | aiona 받은 질문 68/78 (167/177턴) | 다음: 같은 명령으로 이어서, 또는 judge --run 50ca3ccccace --providers aiona --next 20
+[claude]   Q68_T1: SUCCESS 1자 10초 (copy-button)
+[claude] CODE 평가 중 …
+[claude] 저장: C:\Users\winz\Desktop\quality-test-integrated\data\comparison_runs\50ca3ccccace.json (실행 50ca3ccccace) | claude 받은 질문 78/78 (177/177턴) | 다음: 같은 명령으로 이어서, 또는 judge --run 50ca3ccccace --providers claude --next 20
+[gemini]   Q64_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q65 (1턴) — 이번 묶음 7/10 · 전체 79/78
+[gpt]   Q64_T1: SUCCESS 0자 21초 (empty)
+[gpt] ▶ Q65 (1턴) — 이번 묶음 7/10 · 전체 85/78
+[gemini]   Q65_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q66 (1턴) — 이번 묶음 8/10 · 전체 79/78
+[gpt]   Q65_T1: SUCCESS 0자 20초 (empty)
+[gpt] ▶ Q66 (1턴) — 이번 묶음 8/10 · 전체 86/78
+[gemini]   Q66_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q67 (1턴) — 이번 묶음 9/10 · 전체 79/78
+[gpt]   Q66_T1: SUCCESS 0자 22초 (empty)
+[gpt] ▶ Q67 (1턴) — 이번 묶음 9/10 · 전체 87/78
+[gemini]   Q67_T1: COPY_FAILED 0자 18초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] ▶ Q68 (1턴) — 이번 묶음 10/10 · 전체 79/78
+[gpt]   Q67_T1: SUCCESS 0자 22초 (empty)
+[gpt] ▶ Q68 (1턴) — 이번 묶음 10/10 · 전체 88/78
+[gemini]   Q68_T1: COPY_FAILED 0자 19초 (none) — 빈 출력 요구 — 15초 안에 복사 버튼이 뜨지 않음(출력 없음·응답 중지 등) → 보류 (사용자 규칙 10-20 밤)
+[gemini] CODE 평가 중 …
+[gpt]   Q68_T1: SUCCESS 0자 20초 (empty)
+[gpt] CODE 평가 중 …
+[gemini] 저장: C:\Users\winz\Desktop\quality-test-integrated\data\comparison_runs\50ca3ccccace.json (실행 50ca3ccccace) | gemini 받은 질문 68/78 (167/177턴) | 다음: 같은 명령으로 이어서, 또는 judge --run 50ca3ccccace --providers gemini --next 20
+[gpt] 저장: C:\Users\winz\Desktop\quality-test-integrated\data\comparison_runs\50ca3ccccace.json (실행 50ca3ccccace) | gpt 받은 질문 78/78 (177/177턴) | 다음: 같은 명령으로 이어서, 또는 judge --run 50ca3ccccace --providers gpt --next 20
