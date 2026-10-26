@@ -92,8 +92,11 @@ codex login
 | 다시 판정(저장 출력 복구 + 바뀐 항목만, 20개씩) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --questions <20개> --out <폴더> --repair` |
 | CODE 엔진을 올린 뒤 CODE 평가 다시 계산 → 판정에 반영(심판 호출 없음) | `modelgrade code-eval --run <실행>` → `python -X utf8 tools/judge_v4.py --run <실행> --out <판정 폴더> --set 참고자료/질문세트_78 --recode` |
 | 전후 비교 · 새 결과 폴더 발행 | `python -X utf8 tools/judge_compare_runs.py publish --run <실행> --before <전> --after <후> --name "…"` |
+| 사람 표시용 표(칸마다 질문 · 답변 원본과 AI 판정 → 사람이 PASS · FAIL · 에러 케이스를 고름, 더블클릭으로 열기) | `python -X utf8 tools/build_calibration_sheet.py --run <실행> --pick-file <고를칸.json> --dest <폴더>` (`--out <판정 폴더>` 만 주면 FAIL · PASS 칸을 고루 뽑음) |
 | 판정 사유 점검(정의 밖 사유 · 같은 오류 두 번 · 규칙 밖 해당 없음 · 보류 종류) | `python -X utf8 tools/judge_reason_audit.py --run <실행> --judge <판정 폴더> --out <보고.md>` |
 | 판정 토큰(질문 × 모델 × 심판) | `python -X utf8 tools/judge_token_report.py --results <results.jsonl> --set 참고자료/질문세트_78 --out 토큰기록.md --html-dir <결과 폴더>` |
+| 1차 심판 비교(Jev · Decisions 를 각각 고정해 3번씩, Codex 안 부름, 20개씩) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --questions <20개> --out first-jev --first-judge jev --first-only --votes 3` (decisions 도 같게) → `python -X utf8 tools/judge_first_compare.py` |
+| 첫 Codex 호출을 한 번으로(시험 — 묶음 대신 첨부 없는 단일 질문 전부, 저장된 1차 그대로) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --pick <질문:모델,…> --out <폴더> --reuse-first <1차 폴더> --codex-one-call stdin` (`file` 은 입력을 파일 하나로 두고 Codex 가 셸로 읽음) |
 | 2차 심판 비교(Codex ↔ Claude CLI) | `python -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더>` → `compare` |
 | 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
 | 기준 · 프롬프트 · 코드가 같은 말을 하는지 | `python -X utf8 tools/criteria_consistency.py` |
