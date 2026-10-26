@@ -39,7 +39,7 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 <h2>한눈에</h2>
 <div class="card"><div class="scroll"><table class="sum">
 <tr><th>#</th><th>물어보신 것</th><th>답</th><th>한 줄</th></tr>
-<tr><td>1</td><td><a href="#q1">AIONA 두 모델을 한 번에 받아 비교</a></td><td><span class="t warn">진행 중</span></td><td>탭 두 개 동시 수집은 됨(섞임 0) — 한 실행 · 한 보고서로 AIONA 모델 1 vs 2, 업데이트 전 vs 후를 비교하게 만드는 중</td></tr>
+<tr><td>1</td><td><a href="#q1">AIONA 두 모델을 한 번에 받아 비교</a></td><td><span class="t warn">만듦 · 실제 수집 남음</span></td><td>한 실행 · 한 보고서로 AIONA 모델 1 vs 2(start --aiona/--aiona2), 업데이트 전 vs 후(pair)</td></tr>
 <tr><td>2</td><td><a href="#q2">에러 케이스 대분류 · 통과/FAIL 케이스 쌓기</a></td><td><span class="t ok">됨</span></td><td>대분류 0 신설 · 사람이 정한 것을 기록 파일 두 개에 쌓음(에러 케이스 글 9종 · 코드 판정 13건)</td></tr>
 <tr><td>3</td><td><a href="#q3">결정 모델을 3번이 아니라 1번으로 한 이유</a></td><td><span class="t ok">근거 있음</span></td><td>Decisions 는 3번 판정이 갈린 질문 0 · Jev 는 갈린 질문이 모델마다 6~14개, 그중 FAIL 이 낀 질문은 대부분 Codex 가 확정</td></tr>
 <tr><td>4</td><td><a href="#q4">Claude CLI 호출 수 — 세는 단위</a></td><td><span class="t ok">설명</span></td><td>'Claude 687'은 실제로 부른 횟수, 'Codex 206'은 판정한 질문 수 — 같은 기준이면 687 대 578(1.2배)</td></tr>
@@ -61,16 +61,20 @@ details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13.5px}
 </div>
 
 <!-- 1 -->
-<section class="it" id="q1"><h2><span class="no">1</span>AIONA 두 모델을 한 번에 받아 비교 <span class="t warn">진행 중</span></h2>
+<section class="it" id="q1"><h2><span class="no">1</span>AIONA 두 모델을 한 번에 받아 비교 <span class="t warn">만듦 · 실제 수집 남음</span></h2>
 <div class="card">
 <div class="row"><b>원하는 것</b><div>한 번 실행에서 <b>AIONA 모델 1 과 AIONA 모델 2</b>를 골라 같은 질문의 답을 동시에 받고, 같은 기준으로 판정해 한 보고서에서 나란히 비교. 같은 방식으로 <b>AIONA 업데이트 전 vs 업데이트 후</b>도 비교.</div></div>
 <div class="row"><b>된 것</b><div>AIONA 탭 두 개에서 동시에 받아도 섞이지 않음 — 수집기마다 자기 탭을 '사이트:모델' 표시로 차지하고 끝나면 놓게 함.
 <div class="key">AIONA 채팅 두 개(자동 추천 · Claude Sonnet 5.5)에 질문을 동시에 두 번 보냄 → 둘 다 맞는 답, <b>섞임 0</b>, 채팅 주소 따로.</div>
 다만 지금은 한 실행에 AIONA 자리가 하나라, 두 모델을 받으려면 실행을 두 번 따로 해야 하고 보고서도 따로 나옴 — 원하는 모습이 아님.</div></div>
-<div class="row"><b>만드는 것</b><div><div class="two">
-<div class="box"><b>AIONA 모델 두 개를 동시에</b>한 실행 안에 AIONA 자리를 둘 두고 각각 다른 모델을 고름 → 동시에 수집 → 같은 기준으로 판정 → 보고서 하나에 'AIONA · 모델 1' 과 'AIONA · 모델 2' 가 나란히.</div>
-<div class="box"><b>업데이트 전 vs 후</b>이미 받은 두 실행(업데이트 전 · 후)의 AIONA 답을 한 비교 실행의 두 자리로 묶음 → 같은 기준 · 같은 판정 프롬프트로 다시 판정 → 보고서 하나에 '업데이트 전' 과 '업데이트 후' 가 나란히.</div>
-</div></div></div>
+<div class="row"><b>만든 것</b><div><div class="two">
+<div class="box"><b>AIONA 모델 두 개를 동시에</b>한 실행 안에 AIONA 자리를 둘 두고 각각 다른 모델을 고름 → 동시에 수집 → 같은 기준으로 판정 → 보고서 하나에 'AIONA · 모델 1' 과 'AIONA · 모델 2' 가 나란히.
+<br><code>.\modelgrade start --aiona "자동 추천" --aiona2 "Claude Sonnet 5.5"</code></div>
+<div class="box"><b>업데이트 전 vs 후</b>이미 받은 두 실행의 AIONA 답을 한 비교 실행의 두 자리로 묶음 → 같은 기준 · 같은 판정 프롬프트로 판정 → 보고서 하나에 '업데이트 전' 과 '업데이트 후' 가 나란히.
+<br><code>.\modelgrade pair --before &lt;전 실행&gt; --after &lt;후 실행&gt; --judge y</code></div>
+</div>
+지난 수집(AIONA 답)을 전 · 후로 묶어 보고서까지 만들어 봄 — 두 AIONA 가 이름대로 나란히 나옴.</div></div>
+<div class="row"><b>남은 것</b><div>AIONA 두 모델을 실제로 한 번 받아 보기(로그인된 수집용 Chrome 에서).</div></div>
 </div></section>
 
 <!-- 2 -->

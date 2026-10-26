@@ -32,7 +32,7 @@ OUT_DIR = ROOT / "참고자료" / "발표"
 MAIN_NAME = "AIONA 채팅 품질 평가.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음 · 10-26: 이름 · 날짜 빼고 'AIONA 채팅 품질 평가')
 DECK = ROOT / "tools" / "assets" / "result_summary_base.html"   # 디자인 바탕(10-19 덱의 CSS · 목차 스크립트, 원본 덱은 10-22 정리 때 지움)
 E = html.escape
-SHORT = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
+SHORT = {"aiona": "AIONA", "aiona2": "AIONA 2", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 # 미팅(10.20)에서 정한 이름 — 싱글턴 · 멀티턴 · 롱컨텍스트
 TYPE_NAME = {"단일 질문": "싱글턴", "10턴 멀티턴 대화": "멀티턴", "첨부자료 확인·요약": "첨부 자료",
              "롱컨텍스트": "롱컨텍스트", "명시적 빈 출력": "싱글턴 · 빈 출력 요구"}
@@ -43,7 +43,7 @@ SUFFIX = {"bullet_count": "불릿 수", "required": "필수", "count": "개수",
           "present": "있어야 함", "1": "첫 등식"}
 
 
-LOGO_FILES = {"aiona": "aiona-logo.png", "gpt": "gpt-logo.svg", "claude": "claude-logo.svg", "gemini": "gemini-logo.webp"}   # 팀 앱(frontend/assets)과 같은 로고
+LOGO_FILES = {"aiona": "aiona-logo.png", "aiona2": "aiona-logo.png", "gpt": "gpt-logo.svg", "claude": "claude-logo.svg", "gemini": "gemini-logo.webp"}   # 팀 앱(frontend/assets)과 같은 로고
 
 
 def result_file(run_id: str, name: str, flat: bool = False) -> Path:
@@ -129,6 +129,10 @@ def load(run_id: str) -> Dict[str, Any]:
         lines[(r["provider"], int(r["question"]))] = {"verdict": verdict, "items": items, "line": r}
     turns = {(p, int(t["question"]), int(t["turn"])): t for p, sec in d["providers"].items() for t in sec["turns"]}
     providers = [p for p in R.ORDER if p in d["providers"]]
+    if "aiona2" in providers:   # AIONA 두 자리 비교 — 이름을 모델 · 버전으로 ('AIONA · Claude Sonnet 5.5' · 'AIONA · 업데이트 후', 10-26)
+        from tools.providers import short_label
+        for p in ("aiona", "aiona2"):
+            SHORT[p] = short_label((d.get("models") or {}).get(p), p)
     tally = {p: Counter(lines[(p, q)]["verdict"] for q in qtypes if (p, q) in lines) for p in providers}
     order = sorted(providers, key=lambda p: (-tally[p]["PASS"], R.ORDER.index(p)))   # 결과 순 — 모든 장면에서 같은 순서
     # 표시 유형 — 빈 출력 요구는 싱글턴에 합쳐 보여 준다 (10-21 오후 미팅: 카테고리를 따로 빼지 않음). 보류 규칙은 원래 유형(qtypes)으로

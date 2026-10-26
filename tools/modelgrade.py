@@ -37,12 +37,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 IMPORT_METHOD = "manual-web-csv-v1"
+from tools.providers import family  # noqa: E402 — AIONA 두 번째 자리(aiona2)도 AIONA 로 (10-26)
 RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)
 JUDGE_BATCH_MAX = 20   # 사용자 규칙 2026-10-19: 평가는 10~20개씩
-LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
+LABELS = {"claude": "Claude 웹브라우저", "gemini": "Gemini 웹브라우저", "gpt": "ChatGPT 웹브라우저", "aiona": "AIONA 웹브라우저", "aiona2": "AIONA 웹브라우저"}   # collect import(사람이 웹에서 받은 CSV)
 APP_LABELS = {"gpt": "ChatGPT 웹 (GPT-6 · Medium)", "claude": "Claude 웹 (Sonnet 5.5 · 노력 중간)",
-              "gemini": "Gemini 웹 (3.8 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저"}   # collect app(자동 수집: 데스크톱 앱 셋 + 웹 하나, Gemini 앱 10-21)
+              "gemini": "Gemini 웹 (3.8 Flash · 사고 보통)", "aiona": "AIONA 웹브라우저", "aiona2": "AIONA 웹브라우저"}   # aiona2 = AIONA 두 번째 자리(10-26)   # collect app(자동 수집: 데스크톱 앱 셋 + 웹 하나, Gemini 앱 10-21)
 ALL_PROVIDERS = ["gpt", "claude", "gemini", "aiona"]
 #: 시작할 때 고르는 앱 모델 — 앱 화면의 모델 목록 그대로 (사용자 10-22). 하나를 고르면 그 앱을 그 모델로 바꿔 받고 비교 상대는 AIONA 하나
 #: (10-22 오전 미팅: 같은 모델끼리 비교 · 다른 앱은 받지 않음). 노력 · 사고 · 추론 수준은 지금 설정 그대로(노력 중간 · 사고 보통 · Medium).
@@ -92,7 +93,7 @@ def aiona_model_for(provider: str, model: str) -> str:
 def app_label(provider: str, model: Optional[str] = None) -> str:
     """결과에 남길 모델 이름 — 'Claude 웹 (Opus 5.5 · 노력 중간)'. 모델을 안 고르면 지금 기본 설정(APP_LABELS 와 같은 글)."""
     if provider not in APP_MODELS:
-        return f"{APP_LABELS.get(provider, provider)} ({model})" if model else APP_LABELS.get(provider, provider)
+        return f"{APP_LABELS.get(provider, provider)} ({model})" if model else APP_LABELS.get(provider, provider)   # AIONA 두 자리는 'AIONA 웹브라우저 (모델)'
     return f"{APP_NAMES[provider]} ({model or APP_DEFAULT_MODEL[provider]} · {APP_LEVEL[provider]})"
 
 
@@ -141,7 +142,7 @@ def ask_model() -> Optional[Tuple[str, str]]:
             return parse_model(text)
         except SystemExit as exc:
             print(exc)
-PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
+PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right", "aiona2": "left"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
 SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
 RESULTS_JSON_DIR = ROOT / "참고자료" / "결과"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
 EVAL_KINDS = {"1": ("set78", "평가 (질문 78개 — 세트의 모든 질문, 던지는 순서 = 세트 순서)")}
@@ -205,7 +206,7 @@ def code_evaluate(rows: List[Dict[str, Any]], provider: str) -> Dict[str, Any]:
     from code_eval import engine
     from code_eval.config import load_aiona_config
     cfg = load_aiona_config()
-    cfg.enabled = provider == "aiona"
+    cfg.enabled = family(provider) == "aiona"
     payloads = [{k: r[k] for k in ("case_id", "question", "answer", "reference", "attachments", "conversation_id", "turn") if r.get(k) not in (None, "")}
                 for r in rows if r["collection"]["status"] == "SUCCESS"]
     for p in payloads:
@@ -312,7 +313,7 @@ def web_chat_class(provider: str):
     if provider == "gemini":
         from webapp.cdp_chat_web import GeminiChat
         return GeminiChat
-    if provider == "aiona":
+    if family(provider) == "aiona":   # aiona2(두 번째 AIONA 자리)도 AIONA 수집기 — 모델마다 탭을 따로 차지해 섞이지 않음
         return aiona_collector
     raise SystemExit(f"{provider} 는 자동 수집기가 없습니다 ({', '.join(APP_LABELS)} 만). 웹 수집 CSV 를 collect import 로 올리세요.")
 
@@ -510,7 +511,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     rows_all = flatten(groups)
     model = getattr(args, "model", None)
-    if model and args.provider != "aiona" and model not in APP_MODELS.get(args.provider, []):   # AIONA 는 메뉴 이름 그대로 받음
+    if model and family(args.provider) != "aiona" and model not in APP_MODELS.get(args.provider, []):   # AIONA 는 메뉴 이름 그대로 받음
         raise SystemExit(f"{args.provider} 에는 모델 {model!r} 을 고를 수 없습니다 ({', '.join(APP_MODELS.get(args.provider, [])) or '고를 모델 없음'})")
     label = args.label or app_label(args.provider, model)
     run = load_run(args.run) if args.run else new_run(args.new or f"웹 수집 {datetime.now():%Y-%m-%d}", set_dir, groups)
@@ -781,8 +782,15 @@ def cmd_start(args: argparse.Namespace) -> int:
     choice = args.choice or ask_choice()
     kind, title = EVAL_KINDS[choice]
     # 모델 고르기 (사용자 10-22): --model 이 있으면 그것, --providers 를 직접 주면 묻지 않고 전체 설정, 아니면 물어봄
-    pick = parse_model(args.model) if args.model else (None if args.providers else ask_model())
-    if pick:
+    pick = None if getattr(args, "aiona2", None) else (parse_model(args.model) if args.model else (None if args.providers else ask_model()))
+    if getattr(args, "aiona2", None):   # AIONA 두 모델 비교 (사용자 10-26) — 한 실행 안에 AIONA 자리 둘, 같은 질문을 동시에 받아 같은 기준으로 판정
+        providers = ["aiona", "aiona2"]
+        models = {"aiona": args.aiona or "자동 추천", "aiona2": args.aiona2}
+        if models["aiona"] == models["aiona2"]:
+            raise SystemExit("AIONA 두 자리에 같은 모델을 골랐습니다 — 서로 다른 모델을 고르세요(업데이트 전 · 후 비교는 modelgrade pair)")
+        model_choice = f"aiona:{models['aiona']}|aiona2:{models['aiona2']}"
+        print(f"모델: {app_label('aiona', models['aiona'])} ↔ {app_label('aiona2', models['aiona2'])} — AIONA 두 모델만 받습니다", flush=True)
+    elif pick:
         providers = [pick[0], "aiona"]   # 고른 모델과 AIONA 만 — 같은 모델끼리 비교, 다른 모델은 받지 않음
         models = {pick[0]: pick[1], "aiona": aiona_model_for(*pick)}   # AIONA 도 이름이 똑같은 모델로 (10-22)
         model_choice = f"{pick[0]}:{pick[1]}"
@@ -799,7 +807,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         raise SystemExit(f"실행 {args.run} 은 다른 모델 선택으로 받은 실행입니다 — 같은 모델로 고르거나 --run 을 빼고 새로 시작하세요")
     from tools import result_dirs
     if not run_id:
-        run = new_run(title + (f" — {app_label(*pick)}" if pick else ""), set_dir, groups)
+        run = new_run(title + (f" — {app_label(*pick)}" if pick else f" — AIONA {models['aiona']} vs {models['aiona2']}" if "aiona2" in providers else ""), set_dir, groups)
         run["eval_kind"] = kind
         run["model_choice"] = model_choice
         result_dirs.ensure(run, RESULTS_JSON_DIR)   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지> (사용자 10-22)
@@ -1028,6 +1036,64 @@ def cmd_held_apply(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_pair(args: argparse.Namespace) -> int:
+    """업데이트 전 vs 후 (사용자 10-26) — 두 실행의 같은 모델(기본 AIONA) 답을 한 비교 실행의 두 자리(aiona · aiona2)로 묶는다.
+    CODE 는 지금 엔진으로 다시 계산하고, --judge y 면 두 자리를 같은 기준 · 같은 판정 프롬프트로 판정해 결과 폴더를 만든다."""
+    import copy
+    import shutil
+    from tools import result_dirs
+    before, after = load_run(args.before), load_run(args.after)
+    p = args.provider
+    set_dir = Path(args.set)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    rows = {k: {r["case_id"]: r for r in (run.get("datasets") or {}).get(p) or [] if isinstance(r, dict) and r.get("case_id")} for k, run in (("a", before), ("b", after))}
+    from webapp.question_generation import flatten
+    order = [r["case_id"] for r in flatten(groups)]
+    common = [c for c in order if c in rows["a"] and c in rows["b"]]
+    if not common:
+        raise SystemExit(f"두 실행에 함께 있는 {p} 답이 없습니다 — 같은 질문 세트로 받은 실행인지 확인하세요")
+    sets = {(before.get("question_set") or {}).get("set_id"), (after.get("question_set") or {}).get("set_id")}
+    if len(sets) > 1:
+        print(f"주의: 두 실행의 질문 세트가 다릅니다({' · '.join(map(str, sets))}) — 함께 있는 질문 {len({c.split('_T')[0] for c in common})}개만 비교합니다", flush=True)
+    run = new_run(args.name or f"{p} 업데이트 전 vs 후 — {args.before} · {args.after}", set_dir, groups)
+    run["eval_kind"] = "pair"
+    run["pair"] = {"provider": p, "before": args.before, "after": args.after, "labels": [args.before_label, args.after_label]}
+    judge_root = ROOT / "data" / "judge_runs"
+    for slot, src, key, lab in (("aiona", before, "a", args.before_label), ("aiona2", after, "b", args.after_label)):
+        label = f"{(src.get('models') or {}).get(p) or LABELS.get(p, p)} ({lab})"
+        new_rows = []
+        for c in common:
+            r = copy.deepcopy(rows[key][c])
+            r.update({"source": label, "system_id": slot})
+            col = r.get("collection") or {}
+            if col.get("screenshot"):   # 대화 화면도 새 실행의 자리 폴더로
+                src_f = judge_root / src["run_id"] / col["screenshot"]
+                dst_rel = str(col["screenshot"]).replace(f"화면/{p}/", f"화면/{slot}/", 1)
+                if src_f.is_file():
+                    (judge_root / run["run_id"] / dst_rel).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src_f, judge_root / run["run_id"] / dst_rel)
+                    col["screenshot"] = dst_rel
+            new_rows.append(r)
+        run["datasets"][slot] = new_rows
+        ev = copy.deepcopy((src.get("evaluations") or {}).get(p) or {})
+        ev["cases"] = [cs for cs in ev.get("cases") or [] if cs.get("case_id") in set(common)]
+        run["evaluations"][slot] = ev
+        run["models"][slot] = label
+        run["providers"].append(slot)
+    result_dirs.ensure(run, RESULTS_JSON_DIR)
+    run_id = save_run(run).stem
+    print(f"비교 실행 {run_id} — {run['models']['aiona']} ↔ {run['models']['aiona2']} · 질문 {len({c.split('_T')[0] for c in common})}개 · 결과 폴더 {RESULTS_JSON_DIR / run['result_dir']}", flush=True)
+    cmd_code_eval(argparse.Namespace(run=run_id, providers="aiona,aiona2", show=0))   # 두 자리의 CODE 를 같은 엔진으로
+    if args.judge != "y":
+        print(f"판정: python -X utf8 tools/judge_v4.py --run {run_id} --set \"{set_dir}\" --questions all --providers aiona,aiona2 --out v4  → modelgrade report --dir data/judge_runs/{run_id}/v4", flush=True)
+        return 0
+    from tools import judge_v4
+    code = judge_v4.main(["--run", run_id, "--set", str(set_dir), "--questions", "all", "--providers", "aiona,aiona2", "--out", "v4"])
+    if code:
+        return code
+    return cmd_report(argparse.Namespace(dir=str(judge_root / run_id / "v4"), run=run_id))
+
+
 def cmd_held(args: argparse.Namespace) -> int:
     from tools.export_held import export, print_summary
     print_summary(*export(Path(args.dir), args.run, args.text))
@@ -1106,7 +1172,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     st.add_argument("--run", help="이어 쓸 실행 id (기본: 같은 세트·종류의 최근 실행, 없으면 새로)")
     st.add_argument("--set", default=str(DEFAULT_SET))
     st.add_argument("--judge", choices=["ask", "y", "n"], default="ask", help="수집 뒤 판정: ask(물어봄)·y·n")
+    st.add_argument("--aiona", help="AIONA 두 모델 비교 — 첫째 자리 모델(AIONA 메뉴 이름, 기본 '자동 추천'). --aiona2 와 함께")
+    st.add_argument("--aiona2", help="AIONA 두 모델 비교 — 둘째 자리 모델(예 'Claude Sonnet 5.5'). 주면 AIONA 두 모델만 동시에 받아 같은 기준으로 판정")
     st.set_defaults(func=cmd_start)
+    pr = sub.add_parser("pair", help="업데이트 전 vs 후 — 두 실행의 같은 모델(기본 AIONA) 답을 한 비교 실행에 묶어 같은 기준으로 판정")
+    pr.add_argument("--before", required=True, help="업데이트 전 실행 id")
+    pr.add_argument("--after", required=True, help="업데이트 후 실행 id")
+    pr.add_argument("--provider", default="aiona", choices=["aiona", "gpt", "claude", "gemini"])
+    pr.add_argument("--before-label", default="업데이트 전")
+    pr.add_argument("--after-label", default="업데이트 후")
+    pr.add_argument("--name", help="비교 실행 이름")
+    pr.add_argument("--set", default=str(DEFAULT_SET))
+    pr.add_argument("--judge", choices=["y", "n"], default="n", help="묶은 뒤 바로 판정 · 결과 폴더까지(y)")
+    pr.set_defaults(func=cmd_pair)
     dr = sub.add_parser("doctor", help="실행 환경 점검 — 파이썬 · 패키지 · .env · Codex CLI 로그인 · 1차 심판 키 · Chrome (값은 출력 안 함)")
     dr.set_defaults(func=lambda a: __import__("tools.doctor", fromlist=["main"]).main([]))
     lg = sub.add_parser("login", help="수집용 Chrome 을 띄우고 네 사이트(ChatGPT · Claude · Gemini · AIONA) 창을 연다 — 처음 한 번 직접 로그인")

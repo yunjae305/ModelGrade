@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"
-LABEL = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
-ORDER = ["aiona", "gpt", "claude", "gemini"]
+LABEL = {"aiona": "AIONA", "aiona2": "AIONA 2", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
+ORDER = ["aiona", "aiona2", "gpt", "claude", "gemini"]   # aiona2 = AIONA 두 번째 자리(두 모델 비교 · 업데이트 전후, 10-26)
 KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", "ERROR_CASE": "에러 케이스"}
 TYPE_ORDER = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨부자료 확인·요약"]   # 10-21 오후 미팅: 싱글턴 · 멀티턴 · 롱컨텍스트 · 첨부
 
@@ -540,7 +540,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             crit_hold[c][p] += 1
 
     # AIONA 강점 — 같은 지표로 네 모델 비교, 사실일 때만
-    if "aiona" in providers and len(providers) > 1:
+    if "aiona" in providers and len(providers) > 1 and "aiona2" not in providers:   # AIONA 끼리 비교(두 자리)에는 'AIONA 가 앞선 부분'이 맞지 않음
         wins: List[str] = []
         others = [p for p in providers if p != "aiona"]
         for ty in TYPE_ORDER:

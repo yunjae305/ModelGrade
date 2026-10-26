@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-ORDER = ("aiona", "gpt", "claude", "gemini")
+ORDER = ("aiona", "aiona2", "gpt", "claude", "gemini")
 KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류"}
 
 

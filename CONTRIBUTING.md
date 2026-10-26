@@ -44,6 +44,8 @@ python -X utf8 -m pytest -q
 |---|---|
 | 실행 환경 점검 | `modelgrade doctor` |
 | 수집용 Chrome 띄우기 · 로그인 | `modelgrade login` |
+| AIONA 두 모델을 한 번에 받아 비교(한 실행 · 한 보고서) | `modelgrade start --aiona "자동 추천" --aiona2 "Claude Sonnet 5.5"` |
+| 업데이트 전 vs 후 — 두 실행의 AIONA 답을 묶어 같은 기준으로 판정 | `modelgrade pair --before <전 실행> --after <후 실행> --judge y` |
 | 질문 세트 점검(기준별 10문항 이상, 모델 호출 없음) | `python -X utf8 tools/check_question_set.py 참고자료/질문세트_78/questions.json --min-applicable 10` |
 | 질문당 기준 수 k 6~10 확인(멀티턴 포함) | `python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --check` |
 | 멀티턴 턴별 확인 목록 다시 만들기 | `python -X utf8 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.py` |

@@ -2452,7 +2452,7 @@ def report_md(lines: List[Dict[str, Any]]) -> str:
 
 
 PROVIDERS = ("gpt", "claude", "gemini", "aiona")
-LABEL = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini", "aiona": "AIONA"}
+LABEL = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini", "aiona": "AIONA", "aiona2": "AIONA2"}
 IDS78 = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
 _LOG: Dict[str, Any] = {"path": None}
 _LOG_LOCK = threading.Lock()
@@ -2597,7 +2597,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--pick", help="질문:모델 쉼표 목록 — 예: 143:claude,115:aiona (없으면 --questions)")
     ap.add_argument("--set", default=str(SET_DIR), help="질문 세트 폴더 (questions.json) — 기본은 326 세트")
     ap.add_argument("--questions", default="all", help="'all' = 세트의 모든 질문, '78' = 질문세트_최소78/ids.json, 또는 질문 번호 쉼표 목록")
-    ap.add_argument("--providers", default=",".join(PROVIDERS))
+    ap.add_argument("--providers", default=None, help="판정할 모델 자리(쉼표) — 비우면 실행에 있는 자리 모두(AIONA 두 번째 자리 aiona2 포함, 10-26)")
     ap.add_argument("--out", default="v4-78", help="결과 폴더 이름 (data/judge_runs/<실행>/<이름>)")
     ap.add_argument("--reuse-codex", action="store_true", help="저장된 Codex 출력이 있으면 다시 부르지 않고 쓴다 (Jev 만 다시)")
     ap.add_argument("--show-thinking", action="store_true", help="Codex 생각 요약 줄도 찍기 (네 모델 동시면 많음)")
@@ -2637,6 +2637,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     say = log_say
 
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
+    if not args.providers:   # 실행에 있는 자리 모두 — 기본 넷 + AIONA 두 번째 자리 (10-26)
+        from tools.providers import ordered
+        args.providers = ",".join(ordered(p for p in (run.get("providers") or PROVIDERS) if (run.get("datasets") or {}).get(p))) or ",".join(PROVIDERS)
     set_dir = Path(args.set)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     inputs = judge_input_files(args.prompt, args.jev_questions, args.turn_checklists, set_dir)

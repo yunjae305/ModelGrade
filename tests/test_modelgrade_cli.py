@@ -379,3 +379,37 @@ def test_code_eval_recomputes_with_current_engine_and_keeps_backup(tmp_path, mon
     assert new["code_reevals"][0]["providers"]["claude"]["changed"] >= 1 and "바뀐 검사 결과" in out and "--recode" in out
     assert list((tmp_path / "runs").glob("*.json.bak-*"))
 
+
+
+def test_pair_puts_two_runs_aiona_answers_side_by_side_and_start_takes_two_aiona_models(tmp_path, monkeypatch):
+    """AIONA 비교(사용자 10-26): pair 는 업데이트 전 · 후 두 실행의 AIONA 답을 한 비교 실행의 aiona · aiona2 자리로 묶고(이름에 전 · 후, 대화 화면도 옮김)
+    CODE 를 같은 엔진으로 다시 계산한다. start --aiona2 는 AIONA 두 자리만 받는다. 판정 · 보고서는 실행에 있는 자리(aiona2 포함)를 순서대로 쓴다."""
+    import tools.modelgrade as mg
+    from tools.providers import family, ordered, short_label
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
+    monkeypatch.setattr(mg, "ROOT", tmp_path)
+    set_dir = _set(tmp_path)
+    groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
+    ids = []
+    for tag, answer in (("전", "안녕하세요. 반갑습니다."), ("후", "안녕하십니까. 만나서 반갑습니다.")):
+        run = mg.new_run(f"AIONA {tag}", set_dir, groups)
+        run["providers"], run["models"] = ["aiona"], {"aiona": "AIONA 웹브라우저"}
+        shot = tmp_path / "data" / "judge_runs" / run["run_id"] / "화면" / "aiona" / "Q1_T1.jpg"
+        shot.parent.mkdir(parents=True)
+        shot.write_bytes(b"\xff\xd8")
+        run["datasets"]["aiona"] = [{"case_id": "Q1_T1", "question": groups[0]["turns"][0]["question"], "answer": answer, "source": "AIONA 웹브라우저",
+                                     "collection": {"status": "SUCCESS", "screenshot": "화면/aiona/Q1_T1.jpg"}}]
+        mg.save_run(run)
+        ids.append(run["run_id"])
+    assert mg.main(["pair", "--before", ids[0], "--after", ids[1], "--set", str(set_dir)]) == 0
+    pair = next(json.loads(f.read_text(encoding="utf-8")) for f in _runs(tmp_path) if json.loads(f.read_text(encoding="utf-8")).get("eval_kind") == "pair")
+    assert pair["providers"] == ["aiona", "aiona2"] and pair["models"] == {"aiona": "AIONA 웹브라우저 (업데이트 전)", "aiona2": "AIONA 웹브라우저 (업데이트 후)"}
+    assert pair["datasets"]["aiona2"][0]["answer"] == "안녕하십니까. 만나서 반갑습니다." and pair["datasets"]["aiona2"][0]["system_id"] == "aiona2"
+    assert pair["datasets"]["aiona2"][0]["collection"]["screenshot"] == "화면/aiona2/Q1_T1.jpg"
+    assert (tmp_path / "data" / "judge_runs" / pair["run_id"] / "화면" / "aiona2" / "Q1_T1.jpg").is_file()
+    assert {p: bool((pair["evaluations"][p] or {}).get("cases")) for p in ("aiona", "aiona2")} == {"aiona": True, "aiona2": True}   # CODE 다시 계산
+    assert family("aiona2") == "aiona" and mg.web_chat_class("aiona2") is mg.aiona_collector
+    assert ordered(["gpt", "aiona2", "aiona"]) == ["aiona", "aiona2", "gpt"] and short_label("AIONA 웹브라우저 (Claude Sonnet 5.5)", "aiona2") == "AIONA · Claude Sonnet 5.5"
+    with pytest.raises(SystemExit):   # 같은 모델 두 번은 거부
+        mg.main(["start", "--choice", "1", "--set", str(set_dir), "--aiona", "자동 추천", "--aiona2", "자동 추천", "--judge", "n"])
