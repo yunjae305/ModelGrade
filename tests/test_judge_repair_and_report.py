@@ -190,3 +190,39 @@ def test_empty_reply_is_an_error_case_not_a_hold():
     two = turns + [{"case_id": "Q1_T2", "question": "장소는요?", "turn": 2}]
     data = {"Q1_T1": {"answer": "", "collection": {"status": "SUCCESS"}}, "Q1_T2": {"answer": "3층입니다.", "collection": {"status": "SUCCESS"}}}
     assert jv.pre_status(two, data, {"Q1_T1": "", "Q1_T2": "3층입니다."}) is None   # 일부 턴만 비면 심판이 보고, 빈 턴은 CODE 0-1 FAIL(에러 케이스 턴)
+
+
+def test_code_hold_is_a_held_item_and_the_persons_pass_fail_and_reason_are_recorded(tmp_path: Path, monkeypatch):
+    """코드 판정 확인(사용자 10-26): CODE 가 보류한 애매한 조건(code_hold)은 판정 줄의 보류 항목이 되어 질문은 보류 → 사람이 PASS · FAIL 과 사유를 고르면
+    질문 판정에 반영되고, held-apply 가 기록(코드확인_기록.json)에 쌓는다 — 기준을 고치는 재료."""
+    import tools.modelgrade as mg
+    from tools import human_records
+    monkeypatch.setenv("MODELGRADE_CODE_HOLDS", str(tmp_path / "holds.json"))
+    monkeypatch.setenv("MODELGRADE_ERROR_CASES", str(tmp_path / "labels.json"))
+    cases = {"Q1_T1": {"answer": "본문", "meta": {"skipped_conditions": [
+        {"check_id": "2-1.charset", "subcategory": "2-1", "code_hold": "서비스 꼬리글", "reason": "꼬리글에만 있음", "excerpt": "데이터 제공: MET Norway"}]}}}
+    holds = jv.human_holds([{"case_id": "Q1_T1", "turn": 1}], cases)
+    assert holds["code"] == {1: [{"check_id": "2-1.charset", "kind": "서비스 꼬리글", "reason": "꼬리글에만 있음", "excerpt": "데이터 제공: MET Norway"}]}
+    items = {"J1-1.a": {"decision": "PASS", "how": "Decisions PASS", "problems": [], "entries": []}}
+    line = jv.apply_human_holds({**_line(items), "semantic": "PASS", "verdict": "PASS"}, holds)
+    it = line["turn_results"]["1"]["items"]["2-1.charset"]
+    assert line["verdict"] == "HOLD" and it["kind"] == "코드 판정 확인" and it["code_hold"] == "서비스 꼬리글" and line["code_hold_turns"] == [1]
+    assert jv.apply_human_holds(line, {"error": {}, "code": {}})["verdict"] == "PASS"   # 보류가 사라지면 항목도 지운다
+    norm = rh.normalize_items(line)
+    assert rh.effective(line, norm, {("gpt", 1, 1, "2-1.charset"): {"new": "PASS"}})[0] == "PASS"
+    assert rh.effective(line, norm, {("gpt", 1, 1, "2-1.charset"): {"new": "FAIL"}})[0] == "FAIL"
+    out = tmp_path / "judge" / "abc123" / "v4"
+    out.mkdir(parents=True)
+    (out / "results.jsonl").write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(rh, "RUNS", tmp_path / "runs")
+    page = rh.write_report(out, None).read_text(encoding="utf-8")   # 고르기 전 — 보류 칸에 PASS · FAIL 버튼과 사유 칸
+    assert "코드 판정 확인" in page and "사유(기준 고칠 때 씀)" in page
+    f = tmp_path / "held.json"
+    f.write_text(json.dumps({"run_id": "abc123", "reviewer": "검토자", "decisions": [
+        {"provider": "gpt", "question": 1, "turn": 1, "item": "2-1.charset", "old": "UNVERIFIED", "new": "PASS", "note": "서비스가 붙인 줄이라 답이 아님"}]},
+        ensure_ascii=False), encoding="utf-8")
+    assert mg.main(["held-apply", "--dir", str(out), "--file", str(f)]) == 0
+    rec = json.loads((tmp_path / "holds.json").read_text(encoding="utf-8"))["records"]
+    assert len(rec) == 1 and rec[0]["label"] == "PASS" and rec[0]["kind"] == "서비스 꼬리글" and rec[0]["note"].startswith("서비스가")
+    assert human_records.summary() == [{"kind": "서비스 꼬리글", "PASS": 1, "FAIL": 0, "notes": ["PASS: 서비스가 붙인 줄이라 답이 아님"]}]

@@ -1072,6 +1072,51 @@ def apply_error_suspects(line: Dict[str, Any], suspects: Dict[int, Dict[str, str
             "error_suspect_turns": sorted(suspects)}
 
 
+CODE_HOLD_KIND = "코드 판정 확인"
+
+
+def code_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[int, List[Dict[str, str]]]:
+    """CODE 가 혼자 정하기 애매해 보류한 조건(code_hold: 불릿 표지 이스케이프 · 불릿 묶음 여럿 · 자기 점검 문장의 금지어 · 서비스 꼬리글) — {턴: [조건]}
+    (사용자 10-26: "꼬리글처럼 붙는 경우에도 일단 보류로 보내서 pass/fail고르게 하고 사유 받아서 평가기준들 개선")."""
+    out: Dict[int, List[Dict[str, str]]] = {}
+    for row in turns:
+        case = cases.get(row.get("case_id")) or {}
+        for x in (case.get("meta") or {}).get("skipped_conditions") or []:
+            if isinstance(x, dict) and x.get("code_hold") and x.get("check_id"):
+                out.setdefault(ji._turn(row), []).append({"check_id": x["check_id"], "kind": x["code_hold"], "reason": x.get("reason") or "",
+                                                          "excerpt": x.get("excerpt") or ""})
+    return out
+
+
+def human_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[str, Any]:
+    """사람이 정할 보류 두 가지 — 에러 케이스 의심 · 코드 판정 확인."""
+    return {"error": error_suspects(turns, cases), "code": code_holds(turns, cases)}
+
+
+def apply_human_holds(line: Dict[str, Any], holds: Dict[str, Any]) -> Dict[str, Any]:
+    """판정한 줄에 사람이 정할 보류 항목을 붙인다(옛 것은 지움) — 에러 케이스 확인(1-1.response_nonempty) · 코드 판정 확인(그 CODE 검사 ID).
+    보류 우선이라 질문은 보류, 사람이 보고서에서 고른 값 · 사유는 held-apply 가 기록에 쌓는다."""
+    line = apply_error_suspects(line, holds.get("error") or {})
+    if line.get("status") != "judged" or not isinstance(line.get("turn_results"), dict):
+        return line
+    tr = copy.deepcopy(line["turn_results"])
+    for block in tr.values():
+        items = (block or {}).get("items") or {}
+        for k in [k for k, v in items.items() if isinstance(v, dict) and v.get("kind") == CODE_HOLD_KIND]:
+            items.pop(k)
+    code = holds.get("code") or {}
+    for n, conds in code.items():
+        block = tr.setdefault(str(n), {"situations_judge": [], "evidence": {}, "problems": [], "items": {}})
+        for c in conds:
+            block.setdefault("items", {})[c["check_id"]] = {
+                "decision": "UNVERIFIED", "kind": CODE_HOLD_KIND, "code_hold": c["kind"], "reason": c["reason"], "answer_quote": c["excerpt"],
+                "how": f"CODE {c['check_id']} — {c['kind']}: 코드가 정하기 애매 → 사람 확인(보류)", "problems": [], "entries": [], "notes": []}
+    final = {int(n): (b.get("items") or {}) for n, b in tr.items() if isinstance(b, dict)}
+    semantic = line.get("semantic") if line.get("judge_error") else verdict_of(final)
+    return {**line, "turn_results": tr, "semantic": semantic, "verdict": question_verdict(line.get("code_fails") or [], semantic),
+            "code_hold_turns": sorted(code)}
+
+
 def mark_error_case_turn(items: Dict[str, Dict[str, Any]]) -> None:
     """에러 케이스 턴의 항목 판정 — J1-1.a 는 FAIL(결과물 없음), 다른 항목은 모두 NOT_APPLICABLE. 바꾼 칸은 원래 판정(overridden_from)을 남긴다
     — CODE 1-1 이 나중에 에러 케이스가 아니라고 하면 unmark_error_case_turn 이 되돌린다 (Codex 리뷰 10-25 밤)."""
@@ -2507,10 +2552,13 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
                     mark_error_case_turn(its)
                     if any(v.get("decision") != before.get(i) for i, v in its.items() if isinstance(v, dict)):
                         marked.append(n)
-                had = sorted(int(k) for k, v in tr.items() if ERROR_SUSPECT_ITEM in ((v or {}).get("items") or {}))
-                sus = error_suspects(turns, cases)   # 지금 CODE 0-1 이 보류한 의심 턴 — 사람 기록이 생긴 글은 빠진다 (사용자 10-26)
-                tr = apply_error_suspects({**l, "turn_results": tr, "code_fails": code_fails}, sus)["turn_results"]
-                suspect_moved = had != sorted(sus)
+                def held_now(t_res):   # 사람이 정할 보류 칸(에러 케이스 확인 · 코드 판정 확인)
+                    return sorted((k, i) for k, v in t_res.items() for i, it in ((v or {}).get("items") or {}).items()
+                                  if isinstance(it, dict) and it.get("kind") in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND))
+                had = held_now(tr)
+                # 지금 CODE 가 보류한 의심 턴 · 애매한 조건 — 사람 기록이 생긴 글은 빠진다 (사용자 10-26)
+                tr = apply_human_holds({**l, "turn_results": tr, "code_fails": code_fails}, human_holds(turns, cases))["turn_results"]
+                suspect_moved = had != held_now(tr)
                 semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
             else:
                 suspect_moved = False
@@ -2697,7 +2745,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 try:
                     line = screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
                                       args.reuse_codex or args.repair, reuse_decisions=reuse_dec, jev=jev, keep_first=keep_first, code_measured=code_measured)
-                    line = line if line.get("status") == "first_only" else apply_error_suspects({**line, "status": "judged"}, error_suspects(turns, cases))
+                    line = line if line.get("status") == "first_only" else apply_human_holds({**line, "status": "judged"}, human_holds(turns, cases))
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                             "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
@@ -2742,7 +2790,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             st = screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
                                 args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured)
             if isinstance(st, dict):
-                st["error_suspects"] = error_suspects(turns, cases)
+                st["human_holds"] = human_holds(turns, cases)
             return st
         except Exception as exc:
             save({"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
@@ -2753,8 +2801,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     def stage_b_save(st: Dict[str, Any]) -> None:
         try:
-            line = apply_error_suspects({**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"},
-                                        st.get("error_suspects") or {})
+            line = apply_human_holds({**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"},
+                                     st.get("human_holds") or {})
         except Exception as exc:
             line = {"version": VERSION, "provider": st["provider"], "question": st["q"], "turns": len(st["turns"]), "status": "error", "verdict": "HOLD",
                     "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}

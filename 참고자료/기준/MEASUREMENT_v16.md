@@ -440,3 +440,11 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 - `2-1.charset` v16-1.1: 서비스 footer 줄(`code_eval/service_text.py SERVICE_FOOTER`, 판정 도구 J5-3.a 와 같은 정의)은 세지 않는다. 모르는 제공처는 그대로 셈.
 - 근거: 사용자 10-26 "코드로는 평가 못하는 것들이 코드평가에 배치되어있을 수도 있잖아" — 50ca3ccccace CODE FAIL 점검(2-1.count 13 · literal 2 · charset 2).
 
+## 35. v16.9.2 코드가 정하기 애매한 조건은 보류 (2026-10-26)
+
+- 34절의 네 경우(이스케이프 불릿 · 불릿 묶음 여럿 · 자기 점검 문장의 금지어 · 서비스 꼬리글 줄에만 있는 허용 밖 문자)는 판정 제외가 아니라 **보류**다. 결과 행 없이 `meta.skipped_conditions` 에 `code_hold`(종류) · `reason` · `excerpt` 를 남긴다(`core.hold_condition`).
+- 허용 문자(`2-1.charset` v16-1.2): 꼬리글 줄과 본문을 따로 센다. 본문에 허용 밖 문자가 있으면 본문 것만 세어 FAIL, 꼬리글에만 있으면 보류.
+- 판정 도구는 그 턴에 보류 칸 '코드 판정 확인'(항목 ID = CODE 검사 ID)을 붙여 질문을 보류한다. 사람이 PASS · FAIL 과 사유를 고르면 `modelgrade held-apply` 가 `참고자료/분석/사람판정/코드확인_기록.json`(human-records-v1)에 쌓는다.
+- 근거: 사용자 10-26 "꼬리글처럼 붙는 경우에도 일단 보류로 보내서 pass/fail고르게 하고 사유 받아서 평가기준들 개선". 판정 제외만 하면 의미 평가 J2-3.a 가 개수 조건을 거의 보지 않았다(v4-f1 12턴 중 1턴).
+- 규칙 버전: `2-1.count` `v16-1.9` · `2-1.literal` `v16-1.5` · `2-1.charset` `v16-1.2`.
+

@@ -30,7 +30,8 @@ def display_type(t: str) -> str:
 HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "사유 모순", "규칙 오적용", "질문 전체 보류", "기타")
 #: 판정(judge_v4 의 안전장치)이 항목에 직접 붙이는 보류 종류 — 다시 짐작하지 않고 그대로 쓴다
 #: (10-22 기준 점검: 반박 출처 없는 사실 FAIL 을 '확인 못함'으로 돌린 9칸이 보고서에서 '기타'로 셌던 것)
-GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용", "에러 케이스 확인")
+GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용", "에러 케이스 확인", "코드 판정 확인")
+CODE_HOLD_KIND = "코드 판정 확인"   # CODE 가 정하기 애매한 조건(이스케이프 불릿 · 불릿 묶음 여럿 · 자기 점검 금지어 · 서비스 꼬리글) — 사람이 PASS · FAIL + 사유 (10-26)
 ERROR_SUSPECT_KIND = "에러 케이스 확인"   # CODE 0-1 이 보류한 에러 케이스 의심 턴 — 사람이 에러 케이스 · PASS · FAIL 을 고른다 (사용자 10-26)
 POLICY = "judge-v5-screen-1"
 
@@ -234,7 +235,7 @@ def normalize_items(line: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "notes": v.get("notes") or [],
                         "answer_quote": v.get("answer_quote") or e.get("answer_quote") or "", "question_quote": v.get("question_quote") or e.get("question_quote") or "",
                         "problems": v.get("problems") or [], "codex": v.get("codex"), "second": v.get("jev"), "flagged": v.get("flagged") or "",
-                        "kind": hold_kind(v) if v.get("decision") == "UNVERIFIED" else "", "answer_text": v.get("answer_text") or ""})
+                        "kind": hold_kind(v) if v.get("decision") == "UNVERIFIED" else "", "answer_text": v.get("answer_text") or "", "code_hold": v.get("code_hold") or ""})
     return out
 
 
@@ -354,6 +355,7 @@ def _orig_block(turns: List[Dict[str, Any]], only: Optional[set] = None) -> str:
 BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("NOT_APPLICABLE", "해당 없음"), ("UNVERIFIED", "계속 보류"))
 #: 에러 케이스 의심 · 질문 전체 보류 — 사람이 에러 케이스 · PASS · FAIL 을 고른다(사용자 10-26). 에러 케이스 의심의 선택은 에러 케이스 기록에 쌓인다
 ERROR_BUTTONS = (("ERROR_CASE", "에러 케이스"), ("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보류"))
+CODE_BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보류"))
 
 
 def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: str = "", buttons: bool = False) -> str:
@@ -369,8 +371,9 @@ def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: 
     how = f"<div class='small'>심판: {_e(it['how'])}{extra}</div>" if (it["how"] or extra) else ""
     btn = ""
     if buttons:
-        choices = ERROR_BUTTONS if it.get("kind") in (ERROR_SUSPECT_KIND, "질문 전체 보류") else BUTTONS
-        btn = "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + " <input class='note' placeholder='메모(선택)' size='28'></div>"
+        choices = ERROR_BUTTONS if it.get("kind") in (ERROR_SUSPECT_KIND, "질문 전체 보류") else CODE_BUTTONS if it.get("kind") == CODE_HOLD_KIND else BUTTONS
+        tip = "사유(기준 고칠 때 씀)" if it.get("kind") in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND) else "메모(선택)"
+        btn = "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + f" <input class='note' placeholder='{tip}' size='36'></div>"
     return (f"<div class='item hold-item' {key_attrs}><span class='id'>턴 {it['turn']} · {_e(it['item'])}</span> <span class='small'>{_e(nm[:70])}</span> "
             f"<span class='{_e(it['decision'])}'>{_e(KO.get(it['decision'], it['decision']))}</span>{kind}{hum}<div class='why'>{_e(why)}</div>{q}{qq}{how}{btn}</div>")
 

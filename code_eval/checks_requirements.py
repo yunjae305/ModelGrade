@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .service_text import footer_spans
 from .checks_integrity import json_targets
-from .core import Ctx, cmp_text, compare, excerpt, nfc, q_evidence, result, skip_condition, skip_req, verdict_of
+from .core import Ctx, cmp_text, compare, excerpt, hold_condition, nfc, q_evidence, result, skip_condition, skip_req, verdict_of
 from .model import Evidence, FAIL, PASS, Status, stable_hash
 from .structure_counts import heading_series
 from .textparse import _json_type_name, count_words, strip_non_content
@@ -41,7 +41,7 @@ def _measure_count(ctx: Ctx, kind: str) -> Dict[str, Any]:
         items = aa.top_level_bullets
         escaped = [l for l in aa.lines if not l.in_code and _ESCAPED_BULLET.match(l.text)]
         if not items and escaped:   # 화면에는 불릿처럼 보이지만 마크다운 목록이 아님 — 셀 구조가 갈림 (10-26 GPT 복사본 '\- 일시와 장소: …')
-            return {"value": None, "why": f"목록 표지가 이스케이프된 줄(\\-) {len(escaped)}개 — 화면에는 불릿처럼 보이지만 마크다운 목록이 아니라 셀 구조가 갈림(LLM 판정 몫)"}
+            return {"value": None, "hold": "불릿 표지 이스케이프", "excerpt": escaped[0].text.strip(), "why": f"목록 표지가 이스케이프된 줄(\\-) {len(escaped)}개 — 화면에는 불릿처럼 보이지만 마크다운 목록이 아니라 셀 구조가 갈림(사람 확인 — 보류)"}
         return {"value": len(items), "items": [i.line.number for i in items],
                 "nested_bullets": len(aa.bullet_items) - len(items),
                 "blocks": [len(b) for b in _bullet_blocks(ctx, items)],
@@ -252,14 +252,17 @@ def check_2_1(ctx: Ctx) -> List:
                                  _requested_item_noun(ctx.question, req.start)) if req.kind == "list_count"
              else _measure_count(ctx, req.kind))
         op, n = req.value["op"], req.value["n"]
+        if m["value"] is None and m.get("hold"):
+            hold_condition(ctx, cid, SUB21, m["hold"], m["why"] + f" · 요구 {op} {n}", m.get("excerpt") or "")
+            continue
         if m["value"] is None:
             skip_condition(ctx, cid, SUB21, m.get("why", "측정 구조 없음") + " — 0개로 간주하지 않음")
             continue
         blocks = m.get("blocks") or []
         if len(blocks) >= 2 and not compare(m["value"], op, n) and any(compare(b, op, n) for b in blocks):
             # 본문 목록은 맞고 덧붙인 메모 목록 때문에 전체가 넘침 — 어느 목록을 셀지 질문 · 답의 뜻으로 정해야 함 (10-26 Claude Q3 3턴 · Q5 2턴)
-            skip_condition(ctx, cid, SUB21, f"불릿 묶음 {len(blocks)}개({' · '.join(map(str, blocks))}개) — 한 묶음은 요구({op} {n})를 맞추고 전체 {m['value']}개는 "
-                                            "안 맞아 어느 목록을 셀지 갈림(LLM 판정 몫)")
+            hold_condition(ctx, cid, SUB21, "불릿 묶음 여럿", f"불릿 묶음 {len(blocks)}개({' · '.join(map(str, blocks))}개) — 한 묶음은 요구({op} {n})를 맞추고 전체 "
+                                                            f"{m['value']}개는 안 맞아 어느 목록을 셀지 갈림(사람 확인 — 보류)")
             continue
         ok = compare(m["value"], op, n)
         ev = [q_evidence(ctx, req)] + [Evidence("answer", s, e, ctx.answer[s:e][:60]) for s, e in m.get("evidence", [])[:30]]
@@ -305,8 +308,10 @@ def check_2_1(ctx: Ctx) -> List:
         hits = _literal_hits(text, needle)
         if req.kind == "forbidden_literal" and hits and all(_meta_mention(ctx.answer, offs[h], offs[h + len(needle) - 1] + 1) for h in hits):
             # "'무료'라는 말은 쓰지 않았습니다" — 금지어가 지킨 점을 밝히는 자기 점검 문장에만 나옴. 어겼는지는 뜻으로 정해야 함 (10-26 Claude Q1 4턴 · Q3 3턴)
-            skip_condition(ctx, f"2-1.literal:{req.kind}", SUB21,
-                           f"금지한 ‘{lit}’이(가) '…라는 말은 쓰지 않았다' 류 자기 점검 문장에만 {len(hits)}회 나옴 — 어겼는지 해석이 갈림(LLM 판정 몫)")
+            s0 = offs[hits[0]]
+            hold_condition(ctx, f"2-1.literal:{req.kind}", SUB21, "자기 점검 문장의 금지어",
+                           f"금지한 ‘{lit}’이(가) '…라는 말은 쓰지 않았다' 류 자기 점검 문장에만 {len(hits)}회 나옴 — 어겼는지 해석이 갈림(사람 확인 — 보류)",
+                           excerpt(ctx.answer, s0, s0 + len(lit)))
             continue
         stripped = text.strip()
         dedupe_key = None
@@ -342,10 +347,18 @@ def check_2_1(ctx: Ctx) -> List:
 
     req = conds.first("charset")
     if req:
-        footer = footer_spans(ctx.answer)   # 서비스가 붙인 '데이터 제공: …' 줄은 답변 모델의 글이 아님 (10-26 AIONA Q3 3턴 · Q8 4턴)
-        bad = [i for i in _charset_violations(scan, req.value["charset"])
-               if not any(a <= (origin(i) or -1) < b for a, b in footer)]
+        footer = footer_spans(ctx.answer)   # 서비스가 붙인 '데이터 제공: …' 줄 (10-26 AIONA Q3 3턴 · Q8 4턴)
+        found = _charset_violations(scan, req.value["charset"])
+        bad = [i for i in found if not any(a <= (origin(i) or -1) < b for a, b in footer)]
+        if found and not bad:
+            # 허용 밖 문자가 서비스 꼬리글 줄에만 있음 — 답의 일부로 셀지 사람이 정한다 (사용자 10-26 "꼬리글처럼 붙는 경우에도 일단 보류로")
+            a, b = footer[0]
+            hold_condition(ctx, "2-1.charset", SUB21, "서비스 꼬리글",
+                           f"허용 범위 밖 문자 {len(found)}자가 모두 서비스가 붙인 '데이터 제공: …' 줄에만 있음 — 답으로 셀지 갈림(사람 확인 — 보류)",
+                           ctx.answer[a:b].strip())
+            bad = None
         ok = not bad
+    if req and bad is not None:
         out.append(result("2-1.charset", SUB21, f"허용 문자 ({req.value['charset']}만)", "question", Status.EXECUTED,
                           verdict_of(ok), required={"charset": req.value["charset"]},
                           measured={"violating_letters": len(bad), "examples": sorted({scan[i] for i in bad})[:20]},

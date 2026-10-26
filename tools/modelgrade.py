@@ -972,6 +972,8 @@ def cmd_held_apply(args: argparse.Namespace) -> int:
     known = {(r["provider"], int(r["question"])): {(it["turn"], it["item"]) for it in normalize_items(r)} for r in lines}
     suspects = {(r["provider"], int(r["question"]), it["turn"], it["item"]): it for r in lines for it in normalize_items(r)
                 if it.get("kind") == "에러 케이스 확인" and it.get("answer_text")}
+    code_holds = {(r["provider"], int(r["question"]), it["turn"], it["item"]): it for r in lines for it in normalize_items(r)
+                  if it.get("kind") == "코드 판정 확인"}
     target = d / "human_decisions.json"
     cur = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {"run_id": run_id, "decisions": []}
     merged = {(x["provider"], int(x["question"]), int(x.get("turn") or 1), x["item"]): x for x in cur.get("decisions") or []}
@@ -992,6 +994,13 @@ def cmd_held_apply(args: argparse.Namespace) -> int:
                "case_id": f"Q{k[1]}_T{k[2]}", "reviewer": v.get("reviewer") or "", "note": v.get("note") or "", "at": v.get("at") or _now()}
               for k, v in merged.items() if k in suspects and v.get("new") in error_cases.LABELS]
     print(f"에러 케이스 기록: {error_cases.add(labels)}건 덧붙임 → {error_cases.labels_path()} (에러 케이스 의심 칸 {len(labels)}건)")
+    from tools import human_records   # 코드 판정 확인 칸의 PASS · FAIL · 사유는 기준을 고치는 재료로 쌓는다 (사용자 10-26)
+    picked = [{"check_id": k[3], "kind": code_holds[k].get("code_hold") or "", "label": v["new"], "note": v.get("note") or "", "provider": k[0],
+               "run_id": run_id, "case_id": f"Q{k[1]}_T{k[2]}", "excerpt": code_holds[k].get("answer_quote") or "", "reason": code_holds[k].get("reason") or "",
+               "reviewer": v.get("reviewer") or "", "at": v.get("at") or _now()}
+              for k, v in merged.items() if k in code_holds and v.get("new") in ("PASS", "FAIL")]
+    print(f"코드 판정 확인 기록: {human_records.add_code_holds(picked)}건 덧붙임 → {human_records.code_hold_path()} "
+          f"(사유 없는 칸 {sum(1 for x in picked if not x['note'].strip())}건)")
     try:
         run = load_run(run_id)
     except SystemExit:
