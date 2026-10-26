@@ -48,6 +48,7 @@ CAUSES = {
     "no_answer_hold": "답 없음 — 보류(수집 로그를 보고 사람이 정함)",
     "empty_reply_hold": "빈 응답 — 보류(수집 로그를 보고 사람이 정함)",
     "code_hold": "코드 판정 애매 — 사람이 PASS · FAIL 과 사유를 정함",
+    "copy_failed_turn": "멀티턴 한 턴 복사 실패 — 그 턴만 보류, 다시 수집",
 }
 ERROR_CAUSES = {"no_answer", "call_error"}
 QUESTION_STATUS = {"held_copy_failed": "copy_failed", "held_empty_output": "empty_output", "no_answer": "no_answer",
@@ -126,7 +127,7 @@ def held_rows(line: Dict[str, Any], texts: Dict[str, str], answers: Dict[str, Di
             if v.get("decision") != "UNVERIFIED":
                 continue
             problems = [str(p) for p in v.get("problems") or []]
-            cause = {"에러 케이스 확인": "error_suspect", "코드 판정 확인": "code_hold"}.get(v.get("kind")) or cause_of(problems)
+            cause = {"에러 케이스 확인": "error_suspect", "코드 판정 확인": "code_hold", "복사 실패": "copy_failed_turn"}.get(v.get("kind")) or cause_of(problems)
             entry = (v.get("entries") or [{}])[0]
             out.append({**base, **texts_of(case_id), "kind": "오류" if cause in ERROR_CAUSES else "보류", "case_id": case_id, "turn": int(turn),
                         "item": item, "decision": "UNVERIFIED", "cause": cause, "cause_label": CAUSES[cause], "judge": v.get("judge") or "",

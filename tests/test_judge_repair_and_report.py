@@ -281,3 +281,23 @@ def test_turn_kinds_count_units_by_flow_and_compare_with_singles(tmp_path: Path)
     assert "멀티턴 전체" in page and "<b>1</b><small> / 3</small><em>FAIL 1 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류
     assert "GPT 대화 중 50% · 싱글 100%" in page   # 짝이 있는 조건 정리 · 계산 턴 1/2, 한 턴 질문 Q5 · Q6 2/2
     assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
+
+
+def test_multi_turn_holds_only_the_turn_it_could_not_collect():
+    """멀티턴은 턴마다 한 문항(사용자 10-26 저녁) — 한 턴만 복사 실패면 대화 전체가 아니라 그 턴만 보류하고 받은 턴은 판정한다. 모든 턴을 못 받으면 대화 전체 보류."""
+    turns = [{"case_id": f"Q3_T{n}", "question": f"{n}번째 질문", "turn": n} for n in (1, 2, 3)]
+    ok = {"answer": "답", "collection": {"status": "SUCCESS"}}
+    data = {"Q3_T1": ok, "Q3_T2": {"answer": "", "collection": {"status": "COPY_FAILED", "error": "복사 버튼을 찾지 못함"}}, "Q3_T3": ok}
+    answers = {"Q3_T1": "답", "Q3_T2": "", "Q3_T3": "답"}
+    assert jv.pre_status(turns, data, answers) is None                      # 받은 턴은 심판에게
+    missing = jv.missing_turns(turns, data, answers)
+    assert set(missing) == {2} and missing[2]["kind"] == jv.COPY_HOLD_KIND
+    holds = jv.human_holds(turns, {}, data, answers)
+    line = jv.apply_human_holds({"status": "judged", "turn_results": {"1": {"items": {"J1-1.a": {"decision": "PASS"}}}, "3": {"items": {}}}}, holds)
+    item = line["turn_results"]["2"]["items"][jv.COPY_HOLD_ITEM]
+    assert item["decision"] == "UNVERIFIED" and item["kind"] == jv.COPY_HOLD_KIND
+    items = rh.normalize_items(line)
+    assert rh.turn_verdicts(line, "HOLD", items, 3, set()) == {1: "PASS", 2: "HOLD", 3: "PASS"}   # 그 턴만 보류
+    gone = {k: {"answer": "", "collection": {"status": "COPY_FAILED"}} for k in answers}
+    assert jv.pre_status(turns, gone, {k: "" for k in answers})["status"] == "held_copy_failed"   # 모든 턴을 못 받으면 대화 전체
+    assert jv.missing_turns(turns[:1], gone, {"Q3_T1": ""}) == {}            # 싱글턴은 질문 단위 규칙 그대로

@@ -30,7 +30,7 @@ def display_type(t: str) -> str:
 HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "사유 모순", "규칙 오적용", "질문 전체 보류", "기타")
 #: 판정(judge_v4 의 안전장치)이 항목에 직접 붙이는 보류 종류 — 다시 짐작하지 않고 그대로 쓴다
 #: (10-22 기준 점검: 반박 출처 없는 사실 FAIL 을 '확인 못함'으로 돌린 9칸이 보고서에서 '기타'로 셌던 것)
-GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용", "에러 케이스 확인", "코드 판정 확인")
+GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용", "에러 케이스 확인", "코드 판정 확인", "복사 실패")   # 복사 실패: 멀티턴에서 한 턴만 못 받음 — 그 턴만 보류(10-26 저녁)
 CODE_HOLD_KIND = "코드 판정 확인"   # CODE 가 정하기 애매한 조건(이스케이프 불릿 · 불릿 묶음 여럿 · 자기 점검 금지어 · 서비스 꼬리글) — 사람이 PASS · FAIL + 사유 (10-26)
 ERROR_SUSPECT_KIND = "에러 케이스 확인"   # CODE 0-1 이 보류한 에러 케이스 의심 턴 — 사람이 에러 케이스 · PASS · FAIL 을 고른다 (사용자 10-26)
 POLICY = "judge-v5-screen-1"
@@ -421,7 +421,7 @@ CODE_BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보�
 
 
 def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: str = "", buttons: bool = False) -> str:
-    nm = (names.get(it["item"]) or {}).get("name") or ""
+    nm = (names.get(it["item"]) or {}).get("name") or ("답 수집 — 다시 수집할 턴" if it["item"] == "collection.copy_failed" else "")
     kind = f"<span class='kind'>{_e(it['kind'])}</span>" if it.get("kind") else ""
     human = it.get("human")
     hum = f" <span class='badge b-{_e(human['new']) if human['new'] in ('PASS', 'FAIL') else 'NA'}'>사람 판정 {_e(KO.get(human['new'], human['new']))}</span>" if human else ""

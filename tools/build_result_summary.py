@@ -738,7 +738,8 @@ def crit_verdicts(D: Dict[str, Any], p: str, q: int) -> Dict[str, str]:
     LLM Judge 는 질문의 목표 기준 전부(해당 없음 = 어긴 것 없음 → 통과), CODE 는 실제로 돈 검사."""
     seen: Dict[str, set] = defaultdict(set)
     for it in D["lines"][(p, q)]["items"]:
-        seen[it["item"]].add(it["decision"])
+        if it["item"] != "collection.copy_failed":   # 복사 실패 턴의 보류 칸은 기준이 아님(10-26 저녁)
+            seen[it["item"]].add(it["decision"])
     for t in range(1, len(D["qset"][q]["turns"]) + 1):
         for c in (D["turns"].get((p, q, t)) or {}).get("code") or []:
             if c.get("status") == "EXECUTED":

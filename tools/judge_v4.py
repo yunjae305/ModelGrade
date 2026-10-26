@@ -1160,6 +1160,27 @@ def apply_error_suspects(line: Dict[str, Any], suspects: Dict[int, Dict[str, str
 
 
 CODE_HOLD_KIND = "코드 판정 확인"
+#: 멀티턴에서 한 턴만 복사해 오지 못함 — 그 턴만 보류(우리 원인, 다시 수집). 기준 72개 밖의 칸이라 기준 집계에 들지 않는다 (사용자 10-26 저녁)
+COPY_HOLD_ITEM = "collection.copy_failed"
+COPY_HOLD_KIND = "복사 실패"
+
+
+def missing_turns(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[str, str]) -> Dict[int, Dict[str, str]]:
+    """멀티턴에서 답을 받지 못한 턴 — {턴: {kind, reason}}. 복사 실패(우리 원인) · 답 없음 · 빈 응답(에러 케이스 의심 — CODE 1-1 이 보류 칸을 붙임).
+    이 턴은 심판에게 보내지 않고 그 턴만 보류, 받은 턴은 그대로 판정한다 (사용자 10-26 저녁: 멀티턴 턴도 싱글턴처럼 한 문항). 싱글턴은 빈 dict."""
+    if len(turns) < 2:
+        return {}
+    out: Dict[int, Dict[str, str]] = {}
+    for t in turns:
+        row, ans = data.get(t["case_id"]), answers.get(t["case_id"]) or ""
+        status = ((row or {}).get("collection") or {}).get("status")
+        if ji.empty_reply(row, ans):
+            out[ji._turn(t)] = {"kind": "빈 응답", "reason": "빈 응답 — 에러 케이스 의심, 이 턴만 보류"}
+        elif status == "COPY_FAILED":
+            out[ji._turn(t)] = {"kind": COPY_HOLD_KIND, "reason": f"답을 복사해 오지 못함(수집기 원인) — 이 턴만 보류, 다시 수집 · {ji.collection_note(row)}"[:300]}
+        elif not ji.collected(row):
+            out[ji._turn(t)] = {"kind": "답 없음", "reason": f"답을 받지 못함 — 에러 케이스 의심, 이 턴만 보류 · {ji.collection_note(row)}"[:300]}
+    return out
 
 
 def code_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[int, List[Dict[str, str]]]:
@@ -1175,9 +1196,14 @@ def code_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[int, 
     return out
 
 
-def human_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[str, Any]:
-    """사람이 정할 보류 두 가지 — 에러 케이스 의심 · 코드 판정 확인."""
-    return {"error": error_suspects(turns, cases), "code": code_holds(turns, cases)}
+def human_holds(turns: List[Dict[str, Any]], cases: Dict[str, Any], data: Optional[Dict[str, Any]] = None,
+                answers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """사람이 정할 보류 — 에러 케이스 의심 · 코드 판정 확인, data(수집 행)를 주면 멀티턴의 복사 실패 턴도(10-26 저녁)."""
+    out = {"error": error_suspects(turns, cases), "code": code_holds(turns, cases)}
+    if data is not None:
+        ans = answers if answers is not None else {t["case_id"]: (data.get(t["case_id"]) or {}).get("answer") or "" for t in turns}
+        out["copy"] = {n: x for n, x in missing_turns(turns, data, ans).items() if x["kind"] == COPY_HOLD_KIND}
+    return out
 
 
 def apply_human_holds(line: Dict[str, Any], holds: Dict[str, Any]) -> Dict[str, Any]:
@@ -1191,6 +1217,14 @@ def apply_human_holds(line: Dict[str, Any], holds: Dict[str, Any]) -> Dict[str, 
         items = (block or {}).get("items") or {}
         for k in [k for k, v in items.items() if isinstance(v, dict) and v.get("kind") == CODE_HOLD_KIND]:
             items.pop(k)
+    if "copy" in holds:   # 멀티턴의 복사 실패 턴 — 그 턴만 보류(옛 칸은 지우고 지금 수집 기록으로 다시)
+        for block in tr.values():
+            ((block or {}).get("items") or {}).pop(COPY_HOLD_ITEM, None)
+        for n, x in (holds.get("copy") or {}).items():
+            block = tr.setdefault(str(n), {"situations_judge": [], "evidence": {}, "problems": [], "items": {}})
+            block.setdefault("items", {})[COPY_HOLD_ITEM] = {
+                "decision": "UNVERIFIED", "kind": COPY_HOLD_KIND, "reason": x["reason"], "answer_quote": "",
+                "how": "답을 복사해 오지 못한 턴 — 심판에게 보내지 않음, 다시 수집(보류)", "problems": [], "entries": [], "notes": []}
     code = holds.get("code") or {}
     for n, conds in code.items():
         block = tr.setdefault(str(n), {"situations_judge": [], "evidence": {}, "problems": [], "items": {}})
@@ -1742,7 +1776,8 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
 def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
                codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None,
-               keep_first: bool = False, code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None) -> Dict[str, Any]:
+               keep_first: bool = False, code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None,
+               skip_turns: Optional[set] = None) -> Dict[str, Any]:
     """선별 판정 한 질문: ① Decisions 가 턴마다 적용 가능한 항목 전부(최대 44)를 원문·첨부 원본으로 판정 ② 걸린 항목만 Codex 가 사유·인용과 함께 다시 봄
     (codex_all=True 면 교정용으로 모든 항목을 Codex 에도) ③ 합치기(0.7 규칙) → 판정 v4 와 같은 결과 줄."""
     started = time.monotonic()
@@ -1786,6 +1821,8 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
             dec_items = {}
     for row in turns:
         n = ji._turn(row)
+        if skip_turns and n in skip_turns:
+            continue   # 멀티턴에서 답을 받지 못한 턴 — 심판에게 보내지 않고 그 턴만 보류 (10-26 저녁)
         ids = turn_item_ids(row, n, list(allq), multi_ok)
         targets = targets_for(q, n) if JUDGE_TARGET_ONLY else None   # 멀티턴은 그 턴의 목표 기준 (10-22)
         if targets is not None:   # 질문별 목표 기준만 (10-21 저녁) — 같은 질문은 네 모델 모두 같은 항목. 빈 목표면 늘 보는 J5-3.a 만 (Codex 검토 10-22)
@@ -2171,10 +2208,11 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
 def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, decisions: Any, out: Path,
                codex_all: bool = False, reuse_codex: bool = False, reuse_decisions: bool = False, jev: Any = None,
-               keep_first: bool = False, code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None) -> Dict[str, Any]:
+               keep_first: bool = False, code_measured: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None,
+               skip_turns: Optional[set] = None) -> Dict[str, Any]:
     """선별 판정 한 질문(질문마다 Codex 를 따로 부르는 기본 흐름): stage A → 첫 Codex 호출 → stage B. 묶음 호출은 main 의 codex_batch_round."""
     st = screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, codex_all, reuse_codex, reuse_decisions,
-                        jev, keep_first, code_measured)
+                        jev, keep_first, code_measured, skip_turns)
     if FIRST_ONLY:
         return first_only_line(st)
     status, output, error, rounds, reused = st["status"], st["output"], st["error"], st["rounds"], st["reused"]
@@ -2599,6 +2637,9 @@ def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[
     note = "; ".join(f"{t['case_id']}: {ji.collection_note(data.get(t['case_id']))}" for t in turns)
     if any(asks_empty_output(None, t.get("question")) for t in turns):
         return ji.empty_output_entry(turns, {t["case_id"]: data.get(t["case_id"]) for t in turns}, answers)
+    missing = missing_turns(turns, data, answers)
+    if missing and len(missing) < len(turns):
+        return None   # 멀티턴 일부 턴만 못 받음 — 받은 턴은 심판이, 못 받은 턴만 보류 (사용자 10-26 저녁: 멀티턴 턴도 싱글턴처럼)
     empty = {t["case_id"] for t in turns if ji.empty_reply(data.get(t["case_id"]), answers.get(t["case_id"]))}   # 빈 응답 = 에러 케이스 (사용자 10-26)
     statuses = [((data.get(t["case_id"]) or {}).get("collection") or {}).get("status") for t in turns if t["case_id"] not in empty]
     if "COPY_FAILED" in statuses:
@@ -2608,7 +2649,7 @@ def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[
         return {"status": "held_no_answer", "reason": "답을 받지 못한 턴이 있음 — 에러 케이스 의심, 보류(수집 로그를 보고 사람이 정함)", "collection_note": note}
     if empty and len(empty) == len(turns):
         return {"status": "held_error_case", "reason": "빈 응답 — 에러 케이스 의심, 보류(수집 로그를 보고 사람이 정함)", "collection_note": note}
-    return None   # 일부 턴만 빈 응답이면 심판이 나머지 턴을 보고, 빈 턴은 CODE 0-1 이 보류 칸 '에러 케이스 확인'을 붙인다
+    return None
 
 
 PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS",
@@ -2630,6 +2671,7 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
             if p not in providers or q not in questions or l.get("status") != "judged":
                 continue
             cases = {c.get("case_id"): c for c in ((run.get("evaluations") or {}).get(p) or {}).get("cases") or [] if isinstance(c, dict)}
+            data = {r.get("case_id"): r for r in ((run.get("datasets") or {}).get(p) or []) if isinstance(r, dict)}   # 수집 행 — 복사 실패 턴(10-26 저녁)
             turns = [r for r in rows if ji._question(r["case_id"]) == q]
             code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
             semantic = l.get("semantic") or ("FAIL" if l.get("verdict") == "FAIL" and not l.get("code_fails") else l.get("verdict"))
@@ -2650,10 +2692,10 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
                         marked.append(n)
                 def held_now(t_res):   # 사람이 정할 보류 칸(에러 케이스 확인 · 코드 판정 확인)
                     return sorted((k, i) for k, v in t_res.items() for i, it in ((v or {}).get("items") or {}).items()
-                                  if isinstance(it, dict) and it.get("kind") in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND))
+                                  if isinstance(it, dict) and it.get("kind") in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND, COPY_HOLD_KIND))
                 had = held_now(tr)
                 # 지금 CODE 가 보류한 의심 턴 · 애매한 조건 — 사람 기록이 생긴 글은 빠진다 (사용자 10-26)
-                tr = apply_human_holds({**l, "turn_results": tr, "code_fails": code_fails}, human_holds(turns, cases))["turn_results"]
+                tr = apply_human_holds({**l, "turn_results": tr, "code_fails": code_fails}, human_holds(turns, cases, data))["turn_results"]
                 suspect_moved = had != held_now(tr)
                 semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
             else:
@@ -2853,8 +2895,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}   # CODE 가 실제로 잰 형식 조건 (10-22 밤)
                 try:
                     line = screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                      args.reuse_codex or args.repair, reuse_decisions=reuse_dec, jev=jev, keep_first=keep_first, code_measured=code_measured)
-                    line = line if line.get("status") == "first_only" else apply_human_holds({**line, "status": "judged"}, human_holds(turns, cases))
+                                      args.reuse_codex or args.repair, reuse_decisions=reuse_dec, jev=jev, keep_first=keep_first, code_measured=code_measured,
+                                      skip_turns=set(missing_turns(turns, data, answers)))
+                    line = line if line.get("status") == "first_only" else apply_human_holds({**line, "status": "judged"}, human_holds(turns, cases, data, answers))
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                             "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
@@ -2897,9 +2940,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
         try:
             st = screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured)
+                                args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured, set(missing_turns(turns, data, answers)))
             if isinstance(st, dict):
-                st["human_holds"] = human_holds(turns, cases)
+                st["human_holds"] = human_holds(turns, cases, data, answers)
             return st
         except Exception as exc:
             save({"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
