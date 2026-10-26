@@ -102,6 +102,7 @@ def load_cells(run_id: str, judge_out: str, set_dir: Path, item: Optional[str] =
                               "first": it.get("jev"), "codex": it.get("codex"), "flagged": it.get("flagged") or "",
                               "reason": it.get("reason") or "", "answer_quote": it.get("answer_quote") or "", "question_quote": it.get("question_quote") or "",
                               "request": str(row.get("question") or "").split("[자료 끝]")[-1].strip(), "answer": row.get("answer") or "",
+                              "question_text": str(row.get("question") or ""),   # 표시용 표가 질문 원문을 보인다 (10-26)
                               "facts": facts.get("checks") or [], "decided": facts.get("decided") or [], "situation": facts.get("situation") or "",
                               "flow": facts.get("flow") or "", "difficulty": (qs.get(q) or {}).get("difficulty")})
     return cells
