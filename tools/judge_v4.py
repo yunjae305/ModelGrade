@@ -922,11 +922,14 @@ def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
 _OK_STRONG = re.compile(r"FAIL ?(?:항목)? ?없음|PASS ?(?:여야|이어야|입니다|가 ?맞|로 ?(?:정정|판정|처리|봅니다|본다|둡니다|봐야|보아야)|처리합니다)|판정은 ?PASS"
                         r"|이 ?항목은 ?PASS|FAIL ?로 ?보지 ?않|FAIL이 ?아닙니다"
                         r"|FAIL ?(?:을|로)? ?(?:유지할|둘|볼|낼) ?(?:근거|이유)가 ?없"
-                        r"|FAIL ?(?:의 ?)?근거가 ?(?:되지 ?않|아닙)")   # 10-26 1차 심판 비교 Claude Q53 J5-2.a '… FAIL 근거가 되지 않습니다' 인데 FAIL   # 10-25 밤 v4-r9-chk Gemini Q6 10턴 J3-5.a 'FAIL을 유지할 근거가 없습니다'    # 10-22 기준 점검: 'J3-1은 PASS여야 합니다' 등 15건
+                        r"|FAIL ?(?:의 ?)?근거가 ?(?:되지 ?않|아닙)"
+                        r"|FAIL ?(?:판정)?(?:은|을|를)? ?철회|(?:FAIL|모순|오류)(?:으로|로) ?판정할 ?(?:오류|문제|근거|이유|것)(?:는|은|이|가)? ?없")   # 10-26 다듬기 J3-1.a: 'FAIL 판정은 철회합니다' · '내부 모순으로 판정할 오류는 없습니다' 인데 FAIL   # 10-26 1차 심판 비교 Claude Q53 J5-2.a '… FAIL 근거가 되지 않습니다' 인데 FAIL   # 10-25 밤 v4-r9-chk Gemini Q6 10턴 J3-5.a 'FAIL을 유지할 근거가 없습니다'    # 10-22 기준 점검: 'J3-1은 PASS여야 합니다' 등 15건
+#: 모순 항목(J3-1.a · J6-4.a)의 '모순 아님' — 10-26 다듬기 J3-1.a: '모순되는 것은 아니며' · '내부 모순은 아닙니다' · '내부 충돌은 없습니다' 인데 FAIL
+_NO_CONFLICT = re.compile(r"모순(?:이|은) ?없|모순(?:되는|인) ?것(?:은|이)? ?아니|모순(?:은|이)? ?아닙|충돌(?:은|이)? ?없(?:습니다|다|음|으며|고)")
 #: 항목에 맞춘 강한 말 — 그 항목의 점검 질문에 '예'라고 답한 말 (다른 항목 사유에 나오면 결론이 아님)
 _OK_BY_ITEM = {"J1-4.a": re.compile(r"불필요한 ?(?:단락|내용)은 ?없"),   # 10-21: GPT Q1 4턴 '불필요한 단락은 없습니다 (FAIL 없음)'
                "J1-4.b": re.compile(r"반복(?:은|이)? ?없습니다|반복\S* ?(?:경우|것)(?:은|는|이|가)? ?아닙니다|반복이 ?아닙니다"),   # 10-22: AIONA Q73
-               "J3-1.a": re.compile(r"모순(?:이|은) ?없"), "J6-4.a": re.compile(r"모순(?:이|은) ?없"),
+               "J3-1.a": _NO_CONFLICT, "J6-4.a": _NO_CONFLICT,
                "J5-3.a": re.compile(r"꾸며 ?낸 ?출처가 ?아닙")}
 #: 약한 말 — 다시 묻는 후보만 (10-22 심판 비교: J2-2.a Codex 가 사유에 '요청을 지켰다'고 쓰고 FAIL)
 _OK_WEAK = re.compile(r"문제(?:가|는)? ?없습니다|어긋나지 ?않|(?:모두|요청을) ?지켰")
@@ -939,6 +942,7 @@ _NA_VERDICT = re.compile(r"(?:PASS|FAIL) ?(?:여야|이어야|입니다|이다|�
 #: 결론처럼 보여도 결론이 아닌 자리 — 뒤에 부정 · 양보('PASS로 판정할 수 없습니다' · '모순은 없지만' · 'PASS가 아니라'), 앞에 조건('…했다면 FAIL입니다')
 _NEG_TAIL = re.compile(r"수 ?(?:는 ?)?없|하지 ?(?:는 ?)?(?:않|못)|하기 ?(?:는 ?)?어렵|이유(?:는|가)? ?없|아니|아닙|아님|^ ?(?:지만|으나|는데)|^ ?만(?![가-힣])")
 _COND_BEFORE = re.compile(r"면 ?$")
+_TURN_NEXT = re.compile(r"\s*(?:다만|그러나|하지만|반면|그런데)")
 #: 결론 바로 앞의 다른 항목 주어('J1-1.a는 PASS입니다') — 'J1-1.a와 달리 이 항목은 FAIL' 처럼 주어가 아니면 이 항목의 결론
 _REF_SUBJECT = re.compile(r"(J\d-\d(?:\.[a-z])?) ?(?:은|는|이|가|도|의 ?판정은|판정은)? ?$")
 #: 연결 규칙(상황표 2)과 그 대상 항목 — 사유가 규칙을 들어 해당 없음인데 항목이 대상이 아니면 한 번 다시 묻는다
@@ -1366,6 +1370,8 @@ def _says(pat: "re.Pattern[str]", text: str, item: Optional[str]) -> bool:
         before = text[max(0, m.start() - 16):m.start()]
         tail = re.split(r"[.!?,(（\n]", text[m.end():m.end() + 12], maxsplit=1)[0]   # 괄호 속 근거('PASS입니다(반복 아님)')는 결론의 부정이 아님
         if _COND_BEFORE.search(before) or _NEG_TAIL.search(tail):
+            continue
+        if _TURN_NEXT.match(re.split(r"[.!?\n]", text[m.end():], maxsplit=1)[-1]):   # '이 자체는 모순이 아닙니다. 다만 …' — 뒤 문장이 다른 문제를 듦 (10-26)
             continue
         ref = _REF_SUBJECT.search(before)
         if ref and item and not item.startswith(ref.group(1)):

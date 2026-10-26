@@ -1176,3 +1176,16 @@ def test_fail_reason_saying_no_fail_ground_is_contradiction():
     import tools.judge_v4 as jv
     assert jv.reason_contradicts("FAIL", "현장 도착 시각과 다른 값 쌍은 아니므로 FAIL 근거가 되지 않습니다.", "J5-2.a")
 
+
+
+def test_reason_contradicts_catches_not_a_conflict_and_withdrawn_fail():
+    """10-26 다듬기 J3-1.a: 사유가 '모순은 아닙니다' · '내부 충돌은 없습니다' · 'FAIL 판정은 철회' · '판정할 오류는 없습니다'로 끝나는데 FAIL — 다시 묻는다.
+    뒤 문장이 '다만 …'으로 다른 문제를 들면 결론이 아니다."""
+    c = jv.reason_contradicts
+    assert c("FAIL", "별도 가정을 구분했으므로 내부 모순은 아닙니다. FAIL 판정은 철회합니다.", "J3-1.a")
+    assert c("FAIL", "운영 메모는 접수 시작을 같은 값으로 적어 내부 충돌은 없습니다.", "J3-1.a")
+    assert c("FAIL", "그 형식 위반만으로 두 내용이 서로 모순되는 것은 아니며, 양립하지 않는 주장이 없습니다.", "J6-4.a")
+    assert c("FAIL", "서로 시간상 겹치지 않으므로 내부 모순으로 판정할 오류는 없습니다.", "J3-1.a")
+    assert not c("FAIL", "이 자체는 모순이 아닙니다. 다만 7월 10일 날파리 발생을 처음으로 적어 앞 설명과 충돌합니다.", "J3-1.a")
+    assert not c("FAIL", "두 시각이 충돌이 없도록 고쳐야 하지만 답변은 06:26 과 06:48 을 함께 적었습니다.", "J3-1.a")
+    assert not c("FAIL", "내부 충돌은 없습니다.", "J1-4.a")   # 모순 항목이 아닌 곳의 '충돌 없음'은 그 항목의 결론이 아님
