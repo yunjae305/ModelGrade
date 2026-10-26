@@ -1,0 +1,2091 @@
+{
+ "version": "judge-first-compare-v1",
+ "date": "2026-10-26",
+ "run": "50ca3ccccace",
+ "folders": {
+  "jev": "first-jev",
+  "decisions": "first-decisions"
+ },
+ "jev": {
+  "judge": "Jev",
+  "cells": 10536,
+  "judged": 3701,
+  "by_kind": {
+   "롱컨텍스트": {
+    "답 없음": 508
+   },
+   "멀티턴": {
+    "판정": 1345,
+    "답 없음": 6327
+   },
+   "작은 단일": {
+    "판정": 2356
+   }
+  },
+  "unanimous": 3647,
+  "votes": 11103,
+  "minority_votes": 54,
+  "choices": {
+   "PASS": 2824,
+   "FAIL": 49,
+   "NOT_APPLICABLE": 828
+  },
+  "flagged": 586
+ },
+ "decisions": {
+  "judge": "Decisions",
+  "cells": 10536,
+  "judged": 10526,
+  "by_kind": {
+   "롱컨텍스트": {
+    "판정": 508
+   },
+   "멀티턴": {
+    "판정": 7662,
+    "답 없음": 10
+   },
+   "작은 단일": {
+    "판정": 2356
+   }
+  },
+  "unanimous": 10526,
+  "votes": 31578,
+  "minority_votes": 0,
+  "choices": {
+   "PASS": 7656,
+   "FAIL": 961,
+   "NOT_APPLICABLE": 1909
+  },
+  "flagged": 4275
+ },
+ "compare": {
+  "shared": 3701,
+  "same": 3415,
+  "kappa": 0.795,
+  "confusion": {
+   "FAIL|FAIL": 28,
+   "FAIL|NOT_APPLICABLE": 4,
+   "FAIL|PASS": 17,
+   "NOT_APPLICABLE|FAIL": 13,
+   "NOT_APPLICABLE|NOT_APPLICABLE": 713,
+   "NOT_APPLICABLE|PASS": 102,
+   "PASS|FAIL": 108,
+   "PASS|NOT_APPLICABLE": 42,
+   "PASS|PASS": 2674
+  },
+  "per_sub": {
+   "J1-1": {
+    "n": 265,
+    "same": 264,
+    "jev_fail": 0,
+    "dec_fail": 1,
+    "jev_flag": 2,
+    "dec_flag": 11
+   },
+   "J1-2": {
+    "n": 265,
+    "same": 264,
+    "jev_fail": 3,
+    "dec_fail": 3,
+    "jev_flag": 7,
+    "dec_flag": 4
+   },
+   "J1-3": {
+    "n": 530,
+    "same": 488,
+    "jev_fail": 6,
+    "dec_fail": 3,
+    "jev_flag": 23,
+    "dec_flag": 36
+   },
+   "J1-4": {
+    "n": 530,
+    "same": 496,
+    "jev_fail": 7,
+    "dec_fail": 37,
+    "jev_flag": 109,
+    "dec_flag": 148
+   },
+   "J2-1": {
+    "n": 80,
+    "same": 78,
+    "jev_fail": 0,
+    "dec_fail": 1,
+    "jev_flag": 45,
+    "dec_flag": 16
+   },
+   "J2-2": {
+    "n": 104,
+    "same": 102,
+    "jev_fail": 0,
+    "dec_fail": 2,
+    "jev_flag": 2,
+    "dec_flag": 3
+   },
+   "J2-3": {
+    "n": 77,
+    "same": 70,
+    "jev_fail": 1,
+    "dec_fail": 6,
+    "jev_flag": 35,
+    "dec_flag": 32
+   },
+   "J2-4": {
+    "n": 32,
+    "same": 32,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 0,
+    "dec_flag": 0
+   },
+   "J2-5": {
+    "n": 55,
+    "same": 53,
+    "jev_fail": 1,
+    "dec_fail": 3,
+    "jev_flag": 1,
+    "dec_flag": 5
+   },
+   "J3-1": {
+    "n": 265,
+    "same": 257,
+    "jev_fail": 0,
+    "dec_fail": 8,
+    "jev_flag": 4,
+    "dec_flag": 30
+   },
+   "J3-2": {
+    "n": 128,
+    "same": 113,
+    "jev_fail": 0,
+    "dec_fail": 11,
+    "jev_flag": 25,
+    "dec_flag": 28
+   },
+   "J3-3": {
+    "n": 32,
+    "same": 32,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 0,
+    "dec_flag": 0
+   },
+   "J3-4": {
+    "n": 28,
+    "same": 15,
+    "jev_fail": 1,
+    "dec_fail": 0,
+    "jev_flag": 17,
+    "dec_flag": 5
+   },
+   "J3-5": {
+    "n": 128,
+    "same": 116,
+    "jev_fail": 1,
+    "dec_fail": 11,
+    "jev_flag": 31,
+    "dec_flag": 31
+   },
+   "J4-1": {
+    "n": 120,
+    "same": 101,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 6,
+    "dec_flag": 16
+   },
+   "J4-2": {
+    "n": 43,
+    "same": 39,
+    "jev_fail": 0,
+    "dec_fail": 4,
+    "jev_flag": 5,
+    "dec_flag": 39
+   },
+   "J4-3": {
+    "n": 32,
+    "same": 28,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 15,
+    "dec_flag": 23
+   },
+   "J4-4": {
+    "n": 86,
+    "same": 61,
+    "jev_fail": 5,
+    "dec_fail": 4,
+    "jev_flag": 45,
+    "dec_flag": 34
+   },
+   "J5-1": {
+    "n": 20,
+    "same": 20,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 16,
+    "dec_flag": 16
+   },
+   "J5-2": {
+    "n": 307,
+    "same": 269,
+    "jev_fail": 12,
+    "dec_fail": 39,
+    "jev_flag": 54,
+    "dec_flag": 127
+   },
+   "J5-3": {
+    "n": 265,
+    "same": 235,
+    "jev_fail": 6,
+    "dec_fail": 8,
+    "jev_flag": 81,
+    "dec_flag": 102
+   },
+   "J6-1": {
+    "n": 33,
+    "same": 32,
+    "jev_fail": 0,
+    "dec_fail": 1,
+    "jev_flag": 7,
+    "dec_flag": 4
+   },
+   "J6-2": {
+    "n": 99,
+    "same": 77,
+    "jev_fail": 4,
+    "dec_fail": 6,
+    "jev_flag": 25,
+    "dec_flag": 41
+   },
+   "J6-4": {
+    "n": 33,
+    "same": 29,
+    "jev_fail": 2,
+    "dec_fail": 1,
+    "jev_flag": 27,
+    "dec_flag": 22
+   },
+   "J8-1": {
+    "n": 48,
+    "same": 48,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 1,
+    "dec_flag": 1
+   },
+   "J8-2": {
+    "n": 48,
+    "same": 48,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 3,
+    "dec_flag": 2
+   },
+   "J8-3": {
+    "n": 48,
+    "same": 48,
+    "jev_fail": 0,
+    "dec_fail": 0,
+    "jev_flag": 0,
+    "dec_flag": 0
+   }
+  },
+  "vs_codex": {
+   "Jev": {
+    "cells": 859,
+    "same": 604,
+    "final_fail": 83,
+    "missed_fail": 38,
+    "missed_examples": [
+     [
+      "aiona",
+      2,
+      1,
+      "J3-2.b"
+     ],
+     [
+      "aiona",
+      5,
+      1,
+      "J3-1.a"
+     ],
+     [
+      "aiona",
+      5,
+      1,
+      "J3-2.b"
+     ],
+     [
+      "aiona",
+      7,
+      1,
+      "J1-4.a"
+     ],
+     [
+      "claude",
+      1,
+      1,
+      "J3-5.a"
+     ],
+     [
+      "claude",
+      1,
+      1,
+      "J5-2.a"
+     ],
+     [
+      "claude",
+      5,
+      2,
+      "J2-5.b"
+     ],
+     [
+      "claude",
+      5,
+      2,
+      "J6-2.a"
+     ],
+     [
+      "claude",
+      6,
+      1,
+      "J3-5.a"
+     ],
+     [
+      "claude",
+      7,
+      1,
+      "J3-2.b"
+     ],
+     [
+      "claude",
+      9,
+      1,
+      "J3-1.a"
+     ],
+     [
+      "claude",
+      9,
+      1,
+      "J3-2.b"
+     ]
+    ],
+    "pass_flagged": 387
+   },
+   "Decisions": {
+    "cells": 859,
+    "same": 547,
+    "final_fail": 83,
+    "missed_fail": 7,
+    "missed_examples": [
+     [
+      "aiona",
+      5,
+      1,
+      "J3-1.a"
+     ],
+     [
+      "claude",
+      6,
+      1,
+      "J3-5.a"
+     ],
+     [
+      "claude",
+      53,
+      1,
+      "J1-3.a"
+     ],
+     [
+      "gemini",
+      8,
+      1,
+      "J3-5.a"
+     ],
+     [
+      "gemini",
+      8,
+      1,
+      "J4-4.a"
+     ],
+     [
+      "gemini",
+      49,
+      1,
+      "J2-2.a"
+     ],
+     [
+      "gpt",
+      2,
+      1,
+      "J3-1.a"
+     ]
+    ],
+    "pass_flagged": 530
+   }
+  },
+  "disagree_examples": [
+   {
+    "cell": [
+     "aiona",
+     1,
+     1,
+     "J1-3.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     1,
+     1,
+     "J1-3.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     2,
+     1,
+     "J4-4.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     3,
+     1,
+     "J1-4.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     3,
+     1,
+     "J4-4.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     1,
+     "J1-4.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     1,
+     "J4-1.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J1-3.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J1-3.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J1-4.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J1-4.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J2-3.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J3-1.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J5-2.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J5-2.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J5-3.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     4,
+     2,
+     "J6-2.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     5,
+     1,
+     "J1-3.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "NOT_APPLICABLE",
+    "decisions_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     5,
+     1,
+     "J3-5.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     5,
+     1,
+     "J4-4.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     6,
+     1,
+     "J1-4.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "FAIL",
+    "codex": "FAIL"
+   },
+   {
+    "cell": [
+     "aiona",
+     6,
+     1,
+     "J5-2.b"
+    ],
+    "jev": "FAIL",
+    "jev_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     6,
+     2,
+     "J5-3.a"
+    ],
+    "jev": "FAIL",
+    "jev_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     7,
+     2,
+     "J6-2.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     7,
+     2,
+     "J6-2.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     8,
+     1,
+     "J4-1.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     8,
+     1,
+     "J4-1.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     9,
+     1,
+     "J1-3.b"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     9,
+     1,
+     "J1-4.a"
+    ],
+    "jev": "FAIL",
+    "jev_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     9,
+     1,
+     "J1-4.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     9,
+     1,
+     "J4-4.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     10,
+     1,
+     "J1-4.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     10,
+     1,
+     "J4-1.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": "NOT_APPLICABLE"
+   },
+   {
+    "cell": [
+     "aiona",
+     10,
+     1,
+     "J5-2.b"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     10,
+     2,
+     "J6-2.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     18,
+     1,
+     "J4-3.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "NOT_APPLICABLE",
+    "decisions_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     19,
+     1,
+     "J5-3.a"
+    ],
+    "jev": "NOT_APPLICABLE",
+    "jev_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "PASS",
+    "codex": "PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     22,
+     1,
+     "J2-2.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "FAIL",
+    "decisions_votes": [
+     "FAIL",
+     "FAIL",
+     "FAIL"
+    ],
+    "final": "PASS",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     31,
+     1,
+     "J1-3.a"
+    ],
+    "jev": "PASS",
+    "jev_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "decisions": "NOT_APPLICABLE",
+    "decisions_votes": [
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE",
+     "NOT_APPLICABLE"
+    ],
+    "final": "NOT_APPLICABLE",
+    "codex": null
+   },
+   {
+    "cell": [
+     "aiona",
+     31,
+     1,
+     "J5-2.b"
+    ],
+    "jev": "FAIL",
+    "jev_votes": [
+     "FAIL",
+     "PASS",
+     "FAIL"
+    ],
+    "decisions": "PASS",
+    "decisions_votes": [
+     "PASS",
+     "PASS",
+     "PASS"
+    ],
+    "final": "FAIL",
+    "codex": "FAIL"
+   }
+  ]
+ },
+ "time": {
+  "jev": {
+   "questions": 272,
+   "seconds": 458.5,
+   "calls": 2004,
+   "failed_calls": 0,
+   "usage": {
+    "input_tokens": 16679052,
+    "output_tokens": 485717
+   }
+  },
+  "decisions": {
+   "questions": 272,
+   "seconds": 1202.5,
+   "calls": 2004,
+   "failed_calls": 0,
+   "usage": {
+    "input_tokens": 152338680,
+    "input_tokens_details.cached_tokens": 85590474,
+    "input_tokens_details.cache_write_tokens": 42795237,
+    "input_tokens_details.cache_write_tokens_details.ttl_30m_tokens": 42795237,
+    "input_tokens_details.cache_write_tokens_details.ttl_12h_tokens": 0,
+    "output_tokens": 0,
+    "output_tokens_details.reasoning_tokens": 0,
+    "total_tokens": 152338680
+   }
+  }
+ },
+ "pipe": {
+  "questions": 188,
+  "verdict": {
+   "FAIL|FAIL": 11,
+   "FAIL|PASS": 4,
+   "PASS|FAIL": 8,
+   "PASS|PASS": 165
+  },
+  "verdict_same": 176,
+  "cells": 2356,
+  "cells_same": 2281,
+  "cell_pairs": {
+   "FAIL|FAIL": 5,
+   "FAIL|NOT_APPLICABLE": 2,
+   "FAIL|PASS": 5,
+   "NOT_APPLICABLE|NOT_APPLICABLE": 529,
+   "NOT_APPLICABLE|PASS": 28,
+   "PASS|FAIL": 12,
+   "PASS|NOT_APPLICABLE": 28,
+   "PASS|PASS": 1747
+  },
+  "codex_cells": {
+   "pipe-jev": 280,
+   "pipe-decisions": 337
+  },
+  "codex_calls": {
+   "pipe-jev": 80,
+   "pipe-decisions": 87
+  },
+  "diff_examples": [
+   {
+    "cell": [
+     "aiona",
+     17,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     19,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.69",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     22,
+     1,
+     "J3-5.b"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev 해당 없음",
+    "pipe-decisions_how": "Codex PASS · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "aiona",
+     23,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     31,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     38,
+     1,
+     "J2-1.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.92"
+   },
+   {
+    "cell": [
+     "aiona",
+     38,
+     1,
+     "J4-2.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Jev PASS 0.85",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     39,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Jev PASS 0.93",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     46,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.91",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     53,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     54,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     70,
+     1,
+     "J5-1.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     74,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.51"
+   },
+   {
+    "cell": [
+     "aiona",
+     75,
+     1,
+     "J2-2.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.97",
+    "pipe-decisions_how": "Codex FAIL · Decisions 도 FAIL 0.65"
+   },
+   {
+    "cell": [
+     "aiona",
+     75,
+     1,
+     "J2-3.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex FAIL · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.86"
+   },
+   {
+    "cell": [
+     "aiona",
+     76,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.54",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "aiona",
+     77,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "aiona",
+     77,
+     1,
+     "J5-2.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev 해당 없음",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "aiona",
+     78,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.54"
+   },
+   {
+    "cell": [
+     "aiona",
+     78,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "aiona",
+     78,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.59"
+   },
+   {
+    "cell": [
+     "claude",
+     17,
+     1,
+     "J4-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Jev PASS 0.91",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     19,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.70",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     23,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.82",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     31,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     38,
+     1,
+     "J2-1.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.88"
+   },
+   {
+    "cell": [
+     "claude",
+     38,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     38,
+     1,
+     "J2-1.b"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev 해당 없음",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     39,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.62"
+   },
+   {
+    "cell": [
+     "claude",
+     39,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Jev PASS 0.81",
+    "pipe-decisions_how": "Decisions 해당 없음 0.82"
+   },
+   {
+    "cell": [
+     "claude",
+     47,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     53,
+     1,
+     "J5-2.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.98",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     53,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex FAIL · Jev 해당 없음",
+    "pipe-decisions_how": "Decisions 해당 없음 0.60"
+   },
+   {
+    "cell": [
+     "claude",
+     54,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.76"
+   },
+   {
+    "cell": [
+     "claude",
+     54,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.62"
+   },
+   {
+    "cell": [
+     "claude",
+     70,
+     1,
+     "J3-2.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.96",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     70,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.80"
+   },
+   {
+    "cell": [
+     "claude",
+     74,
+     1,
+     "J1-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Codex PASS · Jev FAIL (Jev 약한 FAIL 0.67 — 갈림, Codex 따름)",
+    "pipe-decisions_how": "Codex FAIL · Decisions 도 FAIL 0.98"
+   },
+   {
+    "cell": [
+     "claude",
+     74,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.73"
+   },
+   {
+    "cell": [
+     "claude",
+     74,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.78"
+   },
+   {
+    "cell": [
+     "claude",
+     75,
+     1,
+     "J5-1.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex FAIL · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "claude",
+     78,
+     1,
+     "J3-1.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.92",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     17,
+     1,
+     "J1-3.b"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.88",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     17,
+     1,
+     "J5-2.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.85",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     19,
+     1,
+     "J4-4.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex FAIL · Jev 도 FAIL 0.64",
+    "pipe-decisions_how": "Decisions PASS 0.80"
+   },
+   {
+    "cell": [
+     "gemini",
+     22,
+     1,
+     "J3-5.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev 해당 없음",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "gemini",
+     22,
+     1,
+     "J2-1.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.80",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     25,
+     1,
+     "J2-1.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.94",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     31,
+     1,
+     "J4-4.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     31,
+     1,
+     "J1-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Decisions 해당 없음 0.80"
+   },
+   {
+    "cell": [
+     "gemini",
+     36,
+     1,
+     "J4-4.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex 해당 없음 · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.91"
+   },
+   {
+    "cell": [
+     "gemini",
+     38,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex FAIL · Jev 도 FAIL 0.71",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions FAIL (Decisions 약한 FAIL 0.62 — 갈림, Codex 따름)"
+   },
+   {
+    "cell": [
+     "gemini",
+     39,
+     1,
+     "J5-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Jev PASS 0.81",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     53,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "gemini",
+     54,
+     1,
+     "J3-4.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "NOT_APPLICABLE",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex 해당 없음 · Decisions 해당 없음"
+   },
+   {
+    "cell": [
+     "gemini",
+     70,
+     1,
+     "J3-2.a"
+    ],
+    "pipe-jev": "NOT_APPLICABLE",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Jev 해당 없음 0.98",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     70,
+     1,
+     "J2-3.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex FAIL · Jev PASS",
+    "pipe-decisions_how": "Decisions PASS 0.84"
+   },
+   {
+    "cell": [
+     "gemini",
+     72,
+     1,
+     "J2-3.a"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Codex PASS · Jev PASS",
+    "pipe-decisions_how": "Codex FAIL · Decisions PASS"
+   },
+   {
+    "cell": [
+     "gemini",
+     73,
+     1,
+     "J3-2.b"
+    ],
+    "pipe-jev": "PASS",
+    "pipe-decisions": "FAIL",
+    "pipe-jev_how": "Jev PASS 0.85",
+    "pipe-decisions_how": "Codex FAIL · Decisions 도 FAIL 0.52"
+   },
+   {
+    "cell": [
+     "gemini",
+     73,
+     1,
+     "J2-3.a"
+    ],
+    "pipe-jev": "FAIL",
+    "pipe-decisions": "PASS",
+    "pipe-jev_how": "Codex FAIL · Jev PASS",
+    "pipe-decisions_how": "Codex PASS · Decisions PASS"
+   }
+  ]
+ }
+}

@@ -1143,3 +1143,36 @@ def test_pass_with_violation_reason_becomes_hold_not_fail():
     jv.reason_decision_guard(items)
     assert items["J2-3.a"]["decision"] == "UNVERIFIED" and items["J2-3.a"]["kind"] == "사유 모순"
 
+
+def test_j3_5a_unmeasured_wording_variants_are_reasked():
+    """J3-5.a FAIL 사유가 '측정하지 않은 이동 시간' · '성립한다고 단정할 수 없음' — 미측정 · 전제 불확실이라 다시 묻기 (10-26 질문 점검: 세 모델 FAIL 칸 Q5 1턴)."""
+    import tools.judge_v4 as jv
+    turns = [{"case_id": "Q5_T1", "turn": 1, "question": "q"}]
+    def out(reason):
+        return {"turns": [{"turn": 1, "items": [{"id": "J3-5.a", "decision": "FAIL", "reason": reason, "answer_quote": "", "question_quote": ""}]}]}
+    a = {"Q5_T1": "a"}
+    assert jv.deferred_fail_items(out("측정하지 않은 이동 시간을 여유 시간에 흡수한다고 두었습니다."), turns, a, {1: ["J3-5.a"]}) == [(1, "J3-5.a")]
+    assert jv.deferred_fail_items(out("이동 구간을 배정하지 않아 09:37 완료가 성립한다고 단정할 수 없습니다."), turns, a, {1: ["J3-5.a"]}) == [(1, "J3-5.a")]
+    assert jv.deferred_fail_items(out("09:47 에 설치가 끝나는데 09:45 접수를 시작한다고 적었습니다."), turns, a, {1: ["J3-5.a"]}) == []
+
+
+def test_yo_ending_speech_fail_becomes_pass():
+    """반말이라 든 예가 모두 '-요'(해요체)면 J2-2.a · J2-3.a FAIL 은 PASS, '-요' 가 아닌 예가 있으면 그대로 (10-26 1차 심판 비교 AIONA Q75)."""
+    import tools.judge_v4 as jv
+    items = {"J2-2.a": {"decision": "FAIL", "reason": "질문은 존댓말을 지정했지만, 답변의 “결과예요”와 “때문이에요”는 해요체가 아닌 반말 어미입니다."},
+             "J2-3.a": {"decision": "FAIL", "reason": "존댓말을 요구했지만 “결과예요”, “중요해요”처럼 반말 어미가 있습니다."}}
+    jv.yo_ending_guard(items)
+    assert items["J2-2.a"]["decision"] == "PASS" and items["J2-3.a"]["decision"] == "PASS"
+    kept = {"J2-2.a": {"decision": "FAIL", "reason": "“결과예요”는 괜찮지만 “이건 중요해”는 반말입니다."}}
+    jv.yo_ending_guard(kept)
+    assert kept["J2-2.a"]["decision"] == "FAIL"
+    other = {"J2-3.a": {"decision": "FAIL", "reason": "질문이 요구한 “확인”이라는 단어가 없습니다."}}
+    jv.yo_ending_guard(other)
+    assert other["J2-3.a"]["decision"] == "FAIL"
+
+
+def test_fail_reason_saying_no_fail_ground_is_contradiction():
+    """FAIL 인데 사유가 'FAIL 근거가 되지 않습니다' — 사유와 판정이 반대 (10-26 1차 심판 비교 Claude Q53 J5-2.a)."""
+    import tools.judge_v4 as jv
+    assert jv.reason_contradicts("FAIL", "현장 도착 시각과 다른 값 쌍은 아니므로 FAIL 근거가 되지 않습니다.", "J5-2.a")
+

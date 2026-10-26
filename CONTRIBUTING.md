@@ -19,7 +19,7 @@ python -X utf8 -m pytest -q
 
 | 폴더 | 내용 |
 |---|---|
-| `tools/` | 명령 도구 — 수집(`modelgrade.py` · `chrome_cdp.py`), 판정(`judge_v4.py`), 비교(`judge_compare_runs.py` · `judge_claude_compare.py`), 기준 다듬기 루프(`refine_loop.py`), 기준 재확인(`criteria_consistency.py`), 보고서(`report_html.py` · `build_result_summary.py`) |
+| `tools/` | 명령 도구 — 수집(`modelgrade.py` · `chrome_cdp.py`), 판정(`judge_v4.py`), 비교(`judge_compare_runs.py` · `judge_claude_compare.py` · `judge_first_compare.py`), 기준 다듬기 루프(`refine_loop.py`), 기준 재확인(`criteria_consistency.py`), 보고서(`report_html.py` · `build_result_summary.py`) |
 | `code_eval/` | CODE 기준 28개 엔진과 LLM 기준 정의(`semantic_items.py`), 심판 클라이언트 |
 | `webapp/` | 웹 수집기(ChatGPT · Claude · Gemini · AIONA 탭을 한 Chrome 에서) |
 | `참고자료/기준/` | **기준의 원본** `채팅품질 평가기준_v2.md`(72개 · 판정 체계 · 안전장치 · 바뀐 규칙 · 교훈) · CODE 세부 `MEASUREMENT_v16.md` |

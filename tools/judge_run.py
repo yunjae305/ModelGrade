@@ -77,6 +77,7 @@ class CodexJudge:
     #: 파일 방식에서 표준 입력으로 보내는 짧은 지시 (10-21 저녁 — 지시문 · 입력은 작업 폴더의 파일)
     FILE_INSTRUCTION = ("이 작업 폴더의 `판정_지시문.txt` 가 판정 지시문이고 `판정_입력.json` 이 판정할 [입력] 입니다. "
                         "두 파일을 처음부터 끝까지 모두 읽으세요 — 긴 파일은 나눠서 끝까지 읽고, 참조 자료에서 필요한 부분은 찾아 읽습니다. "
+                        "두 파일은 UTF-8 입니다 — PowerShell 이면 `Get-Content -Encoding UTF8` 로 읽으세요(기본 인코딩이면 한글이 깨집니다). "
                         "그다음 지시문대로 [입력]을 판정하고, 지시문의 출력 형식(JSON)으로만 답하세요. 파일을 고치거나 새 파일을 만들지 마세요.")
 
     def _file_mode(self) -> bool:
@@ -106,7 +107,7 @@ class CodexJudge:
         text = (error or "").lower()
         return "429" in text or "too many requests" in text or "rate limit" in text or "usage limit" in text
 
-    def _stream(self, cmd: List[str], text: str, cwd: str, tag: str) -> Any:
+    def _stream(self, cmd: List[str], text: str, cwd: str, tag: str, timeout: Optional[float] = None) -> Any:
         """``codex exec`` 를 띄우고 stdout 의 JSON 이벤트를 한 줄씩 받아 그때그때 터미널에 보인다(생각 요약·답 도착·완료). 결과는 subprocess.run 과 같은 모양."""
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
                                 errors="replace", cwd=cwd, shell=False)
@@ -122,8 +123,9 @@ class CodexJudge:
         started = last_seen = time.monotonic()
         killed: List[bool] = []
         timer = None
-        if self.timeout:   # stdout 을 끝까지 읽은 뒤에야 wait(timeout) 에 닿아 멈춘 Codex 를 못 끊던 것 (Codex 지적 10-20) — 시간이 다 되면 죽인다
-            timer = threading.Timer(self.timeout, lambda: (killed.append(True), proc.kill()))
+        limit = timeout or self.timeout
+        if limit:   # stdout 을 끝까지 읽은 뒤에야 wait(timeout) 에 닿아 멈춘 Codex 를 못 끊던 것 (Codex 지적 10-20) — 시간이 다 되면 죽인다
+            timer = threading.Timer(limit, lambda: (killed.append(True), proc.kill()))
             timer.daemon = True
             timer.start()
         for line in proc.stdout:
@@ -154,9 +156,9 @@ class CodexJudge:
             timer.cancel()
         if killed:
             reader.join(timeout=5)
-            raise subprocess.TimeoutExpired(cmd, self.timeout)
+            raise subprocess.TimeoutExpired(cmd, limit)
         try:
-            proc.wait(timeout=self.timeout or None)
+            proc.wait(timeout=limit or None)
         except subprocess.TimeoutExpired:
             proc.kill()
             raise
@@ -164,8 +166,11 @@ class CodexJudge:
         return subprocess.CompletedProcess(cmd, proc.returncode, "".join(lines), "".join(err_buf))
 
     def judge(self, prompt: str, input_text: str, search: bool, tag: str = "",
-              output_schema: Optional[Dict[str, Any]] = None, images: Optional[List[Any]] = None) -> Tuple[str, Any, str]:
+              output_schema: Optional[Dict[str, Any]] = None, images: Optional[List[Any]] = None,
+              workdir: Optional[Path] = None, timeout: Optional[float] = None, input_note: Optional[str] = None) -> Tuple[str, Any, str]:
         # output_schema: 판정 v4 처럼 출력 모양이 다를 때 · images: 이미지 첨부 원본 경로 — 전사 글만으로는 "이미지 자체를 확인할 수 없다"고 보류하던 것 (사용자 10-21)
+        # workdir: 파일 방식으로 이 폴더에 입력 파일을 저장하고 Codex 를 거기서 띄운다(첫 호출 한 번 시험, 사용자 10-26) · timeout: 이 호출만의 시간 제한
+        # input_note: workdir 과 함께 — 지시문은 표준 입력으로 통째로(규칙을 잘라 읽지 않게), 입력만 파일 · [입력] 자리에 이 읽기 안내를 둔다
         from code_eval.codex_cli_client import DISABLED_FEATURES, SEARCH_HOST_FEATURES, _error, _events
         live = search and self.web_search == "live"
         self.last_usage = {}
@@ -181,13 +186,19 @@ class CodexJudge:
                        "--color", "never", "--json", "--model", self.model, "-c", f"model_reasoning_effort={json.dumps(self.reasoning)}",
                        "-c", 'approval_policy="never"', "-c", f"web_search={json.dumps('live' if live else 'disabled')}",
                        "-c", "project_doc_max_bytes=0", "-c", "mcp_servers={}", "--output-schema", str(schema), "--output-last-message", str(output)]
-                file_mode = self._file_mode()
+                file_mode = self._file_mode() or (workdir is not None and self._run is subprocess.run)
+                run_dir = Path(workdir).resolve() if (file_mode and workdir is not None) else Path(folder)
                 for feature in DISABLED_FEATURES:
                     if file_mode and feature in ("shell_tool", "unified_exec"):
                         continue   # 파일 방식: 작업 폴더의 지시문 · 입력 파일을 읽으려면 셸이 필요 — 읽기 전용 모드라 고치거나 만들 수는 없다 (10-21)
                     cmd += ["--disable", feature]
                 for feature in SEARCH_HOST_FEATURES:
+                    if file_mode and not live and feature == "code_mode_host":
+                        continue   # 파일 방식: 이 Codex 판(0.162)은 셸 명령을 code_mode_host 로 돌린다 — 끄면 "code-mode host is disabled" 로 파일을 못 읽는다 (10-26)
                     cmd += ["--enable" if live else "--disable", feature]
+                if file_mode and os.name == "nt":
+                    # 승인 없이(never) 읽기 전용 셸을 쓰려면 Windows 샌드박스가 있어야 한다 — 없으면 모든 셸 명령이 "blocked by policy" 로 거부됨 (10-26 시험)
+                    cmd += ["-c", 'windows.sandbox="unelevated"']
                 for img in images or []:
                     if Path(img).is_file():
                         cmd += ["-i", str(Path(img).resolve())]   # 절대 경로 — Codex 는 임시 폴더에서 돌아 상대 경로를 못 찾는다(조용히 무시)
@@ -195,19 +206,23 @@ class CodexJudge:
                 text = prompt + "\n[입력]\n" + input_text
                 if not file_mode:
                     self._keep(tag, "입력.json", input_text, prompt)   # 통째로 넘기는 방식도 넘긴 입력을 파일로 남긴다 (10-21)
-                if file_mode:   # 파일 방식 (10-21 저녁) — 지시문 · 입력을 작업 폴더 파일로, 표준 입력은 짧은 지시만
-                    (Path(folder) / "판정_지시문.txt").write_text(prompt, encoding="utf-8")
-                    (Path(folder) / "판정_입력.json").write_text(input_text, encoding="utf-8")
-                    text = self.FILE_INSTRUCTION
+                if file_mode:   # 파일 방식 (10-21 저녁) — 지시문 · 입력을 작업 폴더(또는 workdir) 파일로, 표준 입력은 짧은 지시만
+                    run_dir.mkdir(parents=True, exist_ok=True)
+                    (run_dir / "판정_입력.json").write_text(input_text, encoding="utf-8")
+                    if workdir is not None and input_note:
+                        text = prompt + "\n[입력]\n" + input_note
+                    else:
+                        (run_dir / "판정_지시문.txt").write_text(prompt, encoding="utf-8")
+                        text = self.FILE_INSTRUCTION
                     self._keep(tag, "입력.json", input_text, prompt)
                 try:   # 고정 프롬프트 뒤에 [입력] — 프롬프트 '입력 형식' 그대로
                     if self._run is subprocess.run:   # 실제 실행: 이벤트를 흘리며 받는다. 시험의 대역 실행기는 그대로 부른다
-                        proc = self._stream(cmd, text, folder, tag)
+                        proc = self._stream(cmd, text, str(run_dir), tag, timeout)
                     else:
                         proc = self._run(cmd, input=prompt + "\n[입력]\n" + input_text, capture_output=True, text=True, encoding="utf-8",
                                          timeout=self.timeout or None, cwd=folder, shell=False)
                 except subprocess.TimeoutExpired:
-                    last = f"Codex CLI 가 {self.timeout:.0f}초 안에 끝나지 않음"
+                    last = f"Codex CLI 가 {(timeout or self.timeout):.0f}초 안에 끝나지 않음"
                     continue
                 except OSError as exc:
                     return "ERROR", None, redact(f"Codex CLI 실행 실패: {exc}")

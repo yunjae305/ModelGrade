@@ -80,6 +80,13 @@ def first_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decis
     """1차 심판 한 턴 — use_jev(질문이 3만 2천 토큰 이하 · 그 턴에 첨부 없음)면 Jev, Jev 가 실패하면(입력 한도 · 오류) Decisions.
     첨부가 있는 턴은 Decisions(이미지 원본을 본다, 사용자 10-20). 돌려주는 값: (status, body, error, 쓴 심판 'jev' · 'decisions' · None)."""
     errors: List[str] = []
+    if FIRST_JUDGE_MODE == "jev":   # 심판 비교 실험 — 모든 턴 Jev, 실패해도 Decisions 로 넘기지 않는다 (그 표는 빠짐)
+        if jev is None:
+            return "ERROR", None, "Jev 없음 (--first-judge jev)", None
+        status, body, error = jev.judge(part, questions)
+        return (status, body, "", "jev") if status == "OK" else (status, None, f"Jev {status} {str(error)[:160]}", None)
+    if FIRST_JUDGE_MODE == "decisions":   # 심판 비교 실험 — 모든 턴 Decisions
+        use_jev = False
     if use_jev and jev is not None:
         status, body, error = jev.judge(part, questions)
         if status == "OK":
@@ -285,6 +292,18 @@ SCREEN_CONFIDENT = _env_float("SCREEN_CONFIDENT", 0.7)
 #: 1차 심판 투표 수 (사용자 10-25 "3번 돌려"): 같은 턴을 이 수만큼 판정해 항목마다 다수결(동률이면 평균 확률이 높은 값), 확률 · 확신은 평균,
 #: 표(votes)는 항목에 남긴다. 1 이면 전과 같음. .env FIRST_JUDGE_VOTES 또는 --votes. 근거: 같은 규칙 두 판정에서 Decisions 15% · Jev 0.8% 흔들림(10-25)
 FIRST_JUDGE_VOTES = max(1, int(_env_float("FIRST_JUDGE_VOTES", 3)))
+
+
+def _env_str(name: str, default: str) -> str:
+    from code_eval.llm_client import env_value
+    return (env_value(name) or default).strip().lower()
+
+
+#: 1차 심판 고정 (심판 비교 실험, 사용자 10-26 "jev, decision api 도 각각 3번씩 평가 돌려서 결과") — auto: 질문 크기 · 첨부로 나눔(기본) ·
+#: jev: 모든 턴 Jev(실패해도 Decisions 로 넘기지 않아 그 표는 빠짐) · decisions: 모든 턴 Decisions. .env FIRST_JUDGE_MODE 또는 --first-judge
+FIRST_JUDGE_MODE = _env_str("FIRST_JUDGE_MODE", "auto")
+#: 1차 심판만 — Codex 를 부르지 않고 1차 판정(decisions/<질문>.json)만 남긴다 (--first-only, 심판 비교 실험 10-26)
+FIRST_ONLY = False
 #: Decisions 가 '해당 없음'이라 하고 FAIL 확률 < SCREEN_FAIL_PROB 이면 확신이 낮아도 Codex 에 안 보낸다 — 실행 a1642702fccc 전체(걸린 12,967개)에서
 #: 이 묶음 4,954개 중 Codex FAIL 은 55개(1%)였고 그것을 빼도 질문 판정은 하나도 안 바뀌었다. .env SCREEN_SKIP_NA_LOWCONF=0 이면 옛 규칙.
 SCREEN_SKIP_NA_LOWCONF = _env_float("SCREEN_SKIP_NA_LOWCONF", 1) != 0
@@ -863,7 +882,8 @@ def fact_fail_guard(items: Dict[str, Dict[str, Any]]) -> None:
 #: 부분 문자열만으로 판정을 바꾸지 않게 (Codex 검토 10-22: '모순은 없지만 … 빠져 있습니다' 를 결론으로 읽어 보류하던 것)
 _OK_STRONG = re.compile(r"FAIL ?(?:항목)? ?없음|PASS ?(?:여야|이어야|입니다|가 ?맞|로 ?(?:정정|판정|처리|봅니다|본다|둡니다|봐야|보아야)|처리합니다)|판정은 ?PASS"
                         r"|이 ?항목은 ?PASS|FAIL ?로 ?보지 ?않|FAIL이 ?아닙니다"
-                        r"|FAIL ?(?:을|로)? ?(?:유지할|둘|볼|낼) ?(?:근거|이유)가 ?없")   # 10-25 밤 v4-r9-chk Gemini Q6 10턴 J3-5.a 'FAIL을 유지할 근거가 없습니다'    # 10-22 기준 점검: 'J3-1은 PASS여야 합니다' 등 15건
+                        r"|FAIL ?(?:을|로)? ?(?:유지할|둘|볼|낼) ?(?:근거|이유)가 ?없"
+                        r"|FAIL ?(?:의 ?)?근거가 ?(?:되지 ?않|아닙)")   # 10-26 1차 심판 비교 Claude Q53 J5-2.a '… FAIL 근거가 되지 않습니다' 인데 FAIL   # 10-25 밤 v4-r9-chk Gemini Q6 10턴 J3-5.a 'FAIL을 유지할 근거가 없습니다'    # 10-22 기준 점검: 'J3-1은 PASS여야 합니다' 등 15건
 #: 항목에 맞춘 강한 말 — 그 항목의 점검 질문에 '예'라고 답한 말 (다른 항목 사유에 나오면 결론이 아님)
 _OK_BY_ITEM = {"J1-4.a": re.compile(r"불필요한 ?(?:단락|내용)은 ?없"),   # 10-21: GPT Q1 4턴 '불필요한 단락은 없습니다 (FAIL 없음)'
                "J1-4.b": re.compile(r"반복(?:은|이)? ?없습니다|반복\S* ?(?:경우|것)(?:은|는|이|가)? ?아닙니다|반복이 ?아닙니다"),   # 10-22: AIONA Q73
@@ -1052,7 +1072,7 @@ _DEFER = re.compile(r"(J\d-\d(?:\.[a-z])?)(?: ?(?:항목|상황|규칙))?(?:이|
 #: J5-2.a FAIL 인데 사유가 값은 맞다고 하거나(출처 번호 · 표시 문제) 덧붙임 · 확정처럼 바꿈을 든 것 — J5-2.a 는 옮긴 값이 다른 한 쌍이 있을 때만 (10-26 v4-r9-chk2 AIONA Q9 7턴 · Q2 8턴)
 _VALUE_KEPT = re.compile(r"값(?: ?자체)?(?:은|는|이)? ?(?:맞|정확|일치|같)|확정(?:된)? ?사실처럼|덧붙|추가했")
 #: J3-5.a FAIL 인데 사유가 자료 밖 전제의 불확실성뿐 — '꺼내는 시간은 측정되지 않았습니다' · '실행 가능성이 확보되지 않습니다' (10-26 v4-r9-chk3 Claude Q2)
-_PREMISE_UNSURE = re.compile(r"측정되지 ?않|미측정|재지 ?않|정해져 ?있지 ?않|정해지지 ?않|(?:제시|기록)(?:되|하)지 ?않아|확보되지 ?않|보장(?:되|할 수)지? ?않|불확실")
+_PREMISE_UNSURE = re.compile(r"측정(?:되|하)지 ?않|잰 ?적(?:이)? ?없|미측정|재지 ?않|단정할 수 없|정해져 ?있지 ?않|정해지지 ?않|(?:제시|기록)(?:되|하)지 ?않아|확보되지 ?않|보장(?:되|할 수)지? ?않|불확실")
 #: J1-4.b FAIL 인데 사유가 질문이 함께 요구한 다른 형식(문의 접기 · 자주 묻는 질문 · 운영 메모 · 작업 순서 · 시각표)에 같은 값이 다시 나온 것 — 블록 규칙상 반복 아님
 _REQUIRED_FORM = re.compile(r"문의 ?(?:접기|상자|부분|칸)|접기 ?상자|자주 ?묻는|운영 ?메모|작업 ?순서|시각표|details")
 #: J6-1.a FAIL 인데 사유가 이전 턴의 형식 요구(링크 · 접기 · 목차 · 각주 · 표 · 형식)를 든 것 — 형식 요구는 그 턴만, 이번 턴이 유지하라고 했으면 J2-3.a · J6-3.b
@@ -1390,6 +1410,31 @@ def noun_ending_guard(items: Dict[str, Dict[str, Any]]) -> None:
         it["how"] = (it.get("how") or "") + " → 목록 · 표 줄의 명사형 끝맺음은 말투 판단에서 뺌(기준 문구) → PASS"
 
 
+#: 사유가 반말이라며 인용한 말 — 따옴표 안의 짧은 말
+_QUOTED_SPEECH = re.compile(r"[“\"'‘]([^”\"'’]{1,30})[”\"'’]")
+
+
+def yo_ending_guard(items: Dict[str, Dict[str, Any]]) -> None:
+    """J2-2.a · J2-3.a(존댓말 조건) FAIL 이 반말이라며 든 예가 모두 '-요' 로 끝나면 PASS — 해요체는 높임(판정 프롬프트 J2-2.a '존댓말' 줄 ·
+    기준 문구). 요로 끝나지 않는 예를 하나라도 들면 그대로 (10-26 1차 심판 비교: AIONA Q75 '결과예요 · 때문이에요' 를 반말로 FAIL)."""
+    for key in ("J2-2.a", "J2-3.a"):
+        it = items.get(key)
+        if not it or it.get("decision") != "FAIL":
+            continue
+        fails = [e for e in (it.get("entries") or [it]) if isinstance(e, dict) and e.get("decision", "FAIL") == "FAIL"]
+
+        def only_yo(e: Dict[str, Any]) -> bool:
+            reason = str(e.get("reason") or "")
+            if not re.search(r"반말|낮춤|존댓말이 ?아닌", reason):
+                return False
+            quoted = [q.strip() for q in _QUOTED_SPEECH.findall(reason)]
+            quoted = [q for q in quoted if q and not re.search(r"존댓말|반말|해요체|합니다체|하십시오체", q)]
+            return bool(quoted) and all(re.search(r"요[.?!~]*$", q) for q in quoted)
+        if fails and all(only_yo(e) for e in fails):
+            it["decision"] = "PASS"
+            it["how"] = (it.get("how") or "") + " → 반말이라 든 예가 모두 '-요' 로 끝나는 해요체(높임, 기준 문구) → PASS"
+
+
 def honorific_mix_guard(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) -> None:
     """J2-2.a FAIL 이 '해요체와 합니다체를 섞었다'는 것뿐인데 질문은 '존댓말'만 지정했으면 PASS — 기준 문구: 존댓말만 지정하면
     높임 세 등급이 모두 존댓말이고 섞어 써도 지킨 것 (10-21 밤: AIONA Q22 '…반환해요' FAIL)."""
@@ -1485,6 +1530,7 @@ def apply_guards(items: Dict[str, Dict[str, Any]], doc: Dict[str, Any], n: int) 
     tool_claim_guard(items)   # 조회 · 실행 서술의 J5-3.a FAIL 은 해당 없음 (10-21 밤)
     honorific_mix_guard(items, doc, n)   # 존댓말만 지정 + 높임 등급 섞음 FAIL 은 PASS (10-21 밤)
     noun_ending_guard(items)   # 목록 · 표 줄의 명사형 끝맺음만 든 말투 FAIL 은 PASS (10-26)
+    yo_ending_guard(items)   # 반말이라 든 예가 모두 '-요'(해요체)인 말투 FAIL 은 PASS (10-26)
     misrule_guard(items)   # 연결 규칙을 대상 아닌 항목에 쓰거나 조건이 거짓인 해당 없음은 보류 (10-25 밤)
     js.apply_overrides(items)
 
@@ -1906,6 +1952,8 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
     """선별 판정 한 질문(질문마다 Codex 를 따로 부르는 기본 흐름): stage A → 첫 Codex 호출 → stage B. 묶음 호출은 main 의 codex_batch_round."""
     st = screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, codex_all, reuse_codex, reuse_decisions,
                         jev, keep_first, code_measured)
+    if FIRST_ONLY:
+        return first_only_line(st)
     status, output, error, rounds, reused = st["status"], st["output"], st["error"], st["rounds"], st["reused"]
     plan = st["codex_plan"]
     if plan is not None:
@@ -1915,6 +1963,13 @@ def screen_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict
         st["outside_seconds"] += time.monotonic() - t_call
         rounds = 1
     return screen_stage_b(st, status, output, error, rounds, reused)
+
+
+def first_only_line(st: Dict[str, Any]) -> Dict[str, Any]:
+    """--first-only 의 결과 줄 — 1차 판정은 decisions/<질문>.json 에 있고, 질문 판정(verdict)은 없다(Codex 를 부르지 않음)."""
+    return {"version": SCREEN_VERSION, "provider": st["provider"], "question": st["q"], "turns": len(st["turns"]), "status": "first_only", "verdict": None,
+            "first_judge_mode": FIRST_JUDGE_MODE, "votes": FIRST_JUDGE_VOTES, "first_used": st["first_used"], "calls": st["calls"],
+            "n_items": st["n_items"], "n_flagged": st["n_flagged"], "seconds": st["a_seconds"]}
 
 
 #: 멀티턴 첫 답이 빈 경우의 다시 묻기 안내 (10-25 밤: v4-r8 멀티턴 37개 중 18개의 첫 답이 4~7초 · 출력 100토큰 미만 — 크기와 상관없음)
@@ -2047,6 +2102,98 @@ def codex_batch_round(states: List[Dict[str, Any]], gpt: Any, prompt: str, size:
                 # 묶음 답에 이 질문이 없음 — 질문마다 따로 한 번 더 (되묻기 상한에 포함)
                 say(f"   ↪ {st['tag']} 묶음 답에 없음({status} {str(error)[:80]}) — 따로 묻는다")
                 first_call_alone(st)
+#: 첫 Codex 호출 한 번(--codex-one-call) 안내 — 묶음(BATCH_NOTE)과 같되 모델이 달라도 같은 질문번호가 여러 번 나오므로 판정_번호로 맞춘다 (사용자 10-26)
+ONE_CALL_NOTE = """
+
+# 한 번에 판정 (이 호출에만 해당)
+- 이번 [입력] 은 판정할 문서 **여러 개**입니다: {"문서_수": N, "문서들": [{"판정_번호": k, <입력 형식의 JSON 하나>}, ...]}.
+- 같은 질문번호가 여러 번 나올 수 있습니다(같은 질문에 서로 다른 AI 가 한 답). 문서마다 위 지시문대로 **독립적으로** 판정하세요 — 다른 문서의 답 · 판정을
+  끌어오지 않습니다. 각 문서의 "판정할_항목" · "판정할_턴" 은 그 문서 것만 봅니다.
+- 출력은 {"questions": [{"판정_번호": <그 문서의 판정_번호>, "질문번호": <그 문서의 질문번호>, "turns": [...], "conclusion": {...}}, ...]} 하나 —
+  문서 수와 순서가 [입력] 과 같아야 하고 빠지는 문서가 없어야 합니다. 각 원소의 turns · conclusion 은 위 '출력 형식' 그대로입니다.
+"""
+def one_call_file_note(n: int) -> str:
+    """파일 방식 한 번 호출의 [입력] 자리 안내 — 첫 시도(10-26)는 지시문 · 입력을 모두 파일로 주었더니 셸 출력이 잘린 줄 모르고 앞 11개 문서만 판정했다.
+    지시문은 표준 입력으로 통째로 주고, 입력 파일은 문서 수를 밝혀 10개씩 끝까지 읽게 한다. 둘째 시도(10-26)는 PowerShell 로 읽어 한글이 깨졌다
+    (한국어 Windows 의 PowerShell 5.1 출력은 CP949 · 샌드박스의 제한 언어 모드라 출력 인코딩도 못 바꿈) — 판정을 돌리는 Python 으로 읽게 한다."""
+    py = sys.executable or "python"
+    return (f"[입력] 은 이 작업 폴더의 `판정_입력.json` 파일입니다(UTF-8 · 문서 {n}개 · 판정_번호 1~{n}). 셸로 읽되, PowerShell 의 Get-Content 출력은 한글이 깨지므로 "
+            "Python 으로 읽으세요. 한 번에 읽은 출력이 길면 잘리므로 문서를 10개씩 나눠 읽습니다 — 예) "
+            f"`\"{py}\" -X utf8 -c \"import json; d=json.load(open('판정_입력.json', encoding='utf-8')); print(json.dumps(d['문서들'][0:10], ensure_ascii=False, indent=1))\"`, "
+            "다음은 [10:20], … "
+            f"마지막 문서까지. 판정_번호 1~{n} 을 모두 읽기 전에는 답하지 말고, 출력의 questions 는 정확히 {n}개여야 합니다. "
+            "읽은 내용이 잘렸거나 문서 번호가 건너뛰었으면 그 범위를 다시 읽으세요. 파일을 고치거나 새 파일을 만들지 마세요.")
+#: 한 번 호출의 시간 제한(초) — 묶음 10개가 2~4분이라 문서 100개면 한 시간 안쪽. .env CODEX_ONE_CALL_TIMEOUT
+ONE_CALL_TIMEOUT = _env_float("CODEX_ONE_CALL_TIMEOUT", 3600)
+
+
+def one_call_output_schema() -> Dict[str, Any]:
+    single = output_schema()
+    item = {"type": "object", "additionalProperties": False, "required": ["판정_번호", "질문번호", "turns", "conclusion"],
+            "properties": {"판정_번호": {"type": "integer"}, "질문번호": {"type": "integer"}, **single["properties"]}}
+    return {"type": "object", "additionalProperties": False, "required": ["questions"], "properties": {"questions": {"type": "array", "items": item}}}
+
+
+def codex_one_call(states: List[Dict[str, Any]], gpt: Any, prompt: str, out: Path, mode: str = "file") -> Dict[str, Any]:
+    """첫 Codex 호출을 **한 번**으로 (사용자 10-26 시험) — 묶음(CODEX_BATCH 개씩) 대신 첨부 이미지 없는 단일 질문 전부(모델이 달라도)를 한 입력으로.
+    mode 'file': 판정 폴더 codex_io/한번에/ 에 판정_지시문.txt · 판정_입력.json 을 저장하고 Codex 가 그 파일을 읽어 판정 · 'stdin': 같은 내용을 표준 입력으로.
+    멀티턴 · 첨부 이미지 질문은 묶음 흐름과 같이 따로 1번씩. 답에 빠진 문서는 따로 한 번 더. 되묻기는 stage B 가 질문마다. 호출 기록은 codex_io/한번에_기록.json."""
+    need = [st for st in states if st["codex_plan"] is not None]
+    alone = [st for st in need if st["codex_plan"]["multi"] or st["codex_plan"]["images"]]
+    plain = [st for st in need if st not in alone]
+    for st in alone:
+        plan = st["codex_plan"]
+        say(f"   🖥 {st['tag']} Codex CLI(따로 — {'멀티턴' if plan['multi'] else '첨부 이미지'}) — 걸린 항목 {plan['n_flagged']}개 …")
+        first_call_alone(st)
+    record: Dict[str, Any] = {"mode": mode, "documents": len(plain), "alone": len(alone)}
+    if len(plain) <= 1:
+        for st in plain:
+            first_call_alone(st)
+        return record
+    payload = {"문서_수": len(plain), "문서들": [{"판정_번호": k, **st["codex_plan"]["doc"]} for k, st in enumerate(plain, 1)]}
+    text = json.dumps(payload, ensure_ascii=False, indent=1)
+    search = any(st["codex_plan"]["search"] for st in plain)
+    workdir = out / "codex_io" / "한번에" if mode == "file" else None
+    lead = plain[0]
+    say(f"   🖥 한 번 호출({'파일' if mode == 'file' else '표준 입력'}) — 문서 {len(plain)}개({len(text):,}자) · 걸린 항목 {sum(st['codex_plan']['n_flagged'] for st in plain)}개"
+        f" · 웹 검색 {'켬' if search else '끔'}" + (f" · 입력 파일 {workdir / '판정_입력.json'}" if workdir else "") + " …")
+    t_call = time.monotonic()
+    try:
+        status, body, error = gpt.judge(prompt + SCREEN_SUFFIX + ONE_CALL_NOTE, text, search, "한번에", output_schema=one_call_output_schema(), workdir=workdir,
+                                        timeout=ONE_CALL_TIMEOUT, input_note=one_call_file_note(len(plain)) if mode == "file" else None)
+    except Exception as exc:   # 한 번 호출이 죽어도 문서마다 따로 묻는 길로
+        status, body, error = "ERROR", None, f"한 번 호출 오류: {type(exc).__name__}: {str(exc)[:160]}"
+    seconds = round(time.monotonic() - t_call, 1)
+    usage = getattr(gpt, "last_usage", None)
+    add_usage(lead["tokens"], usage)   # 사용량 · 호출 1번 · 시간은 대표(첫) 문서에 — 묶음과 같음
+    lead["counter"]["calls"] += 1
+    lead["outside_seconds"] += seconds
+    got: Dict[int, Dict[str, Any]] = {}
+    if status == "OK" and isinstance(body, dict):
+        for r in body.get("questions") or []:
+            if isinstance(r, dict) and isinstance(r.get("판정_번호"), int):
+                got[r["판정_번호"]] = r
+    missing = []
+    for k, st in enumerate(plain, 1):
+        st["batch"] = {"size": len(plain), "lead": st is lead, "one_call": mode, "chars": len(text)}
+        r = got.get(k)
+        if r is not None and r.get("질문번호") == st["q"]:
+            st["status"], st["output"], st["error"], st["rounds"] = "OK", {"turns": r.get("turns") or [], "conclusion": r.get("conclusion")}, "", 1
+        else:
+            missing.append(st["tag"])
+            say(f"   ↪ {st['tag']} 한 번 호출 답에 없음({status} {str(error)[:80]}) — 따로 묻는다")
+            first_call_alone(st)
+    record.update({"chars": len(text), "status": status, "error": str(error or "")[:300], "seconds": seconds, "usage": usage,
+                   "answered": len(got), "missing": missing, "input_file": str(workdir / "판정_입력.json") if workdir else None})
+    try:
+        (out / "codex_io").mkdir(parents=True, exist_ok=True)
+        (out / "codex_io" / "한번에_기록.json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+    say(f"   ✅ 한 번 호출 {status} — {seconds:.0f}초 · 답한 문서 {len(got)}/{len(plain)}" + (f" · 따로 다시 {len(missing)}개" if missing else ""))
+    return record
+
+
 JEV_TRIM_CHARS = 35_000   # Jev 입력 예산(글자) — 약 5만 자부터 Jev 가 max_tokens_exceeded (10-19·10-20)
 TRIM_MARK = "…[중략: {n:,}자 생략 — 전문은 Codex 가 본다]…"
 
@@ -2469,7 +2616,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--prompt", help="판정 프롬프트 파일 — 기본 참고자료/프롬프트/judge_prompt_v4.txt")
     ap.add_argument("--jev-questions", help="1차 심판 항목 정의(J1~J4) JSON — 기본 참고자료/프롬프트/jev_questions_v4.json")
     ap.add_argument("--turn-checklists", help="멀티턴 턴별 확인 목록 JSON — 기본 <세트>/multiturn_v3/turn_checklists.json")
+    # 심판 비교 · 호출 방식 시험 (사용자 10-26)
+    ap.add_argument("--first-judge", choices=("auto", "jev", "decisions"), help="1차 심판 고정 — auto(질문 크기 · 첨부로 나눔, 기본) · jev · decisions (.env FIRST_JUDGE_MODE)")
+    ap.add_argument("--first-only", action="store_true", help="1차 심판만 — Codex 를 부르지 않고 decisions/<질문>.json 만 남긴다 (심판 비교)")
+    ap.add_argument("--reuse-first", help="쉼표로 나눈 판정 폴더 이름 — 그 폴더들의 1차 판정(decisions/)을 그대로 쓰고 1차 심판을 부르지 않는다 (2차 호출 방식 비교)")
+    ap.add_argument("--codex-one-call", choices=("file", "stdin"), help="첫 Codex 호출을 한 번으로 — 첨부 없는 단일 질문 전부(모델이 달라도)를 파일 하나(codex_io/한번에/판정_입력.json)로 · stdin 은 표준 입력으로")
     args = ap.parse_args(argv)
+    global FIRST_JUDGE_MODE, FIRST_ONLY
+    if args.first_judge:
+        FIRST_JUDGE_MODE = args.first_judge
+    FIRST_ONLY = bool(args.first_only)
     if args.votes:
         global FIRST_JUDGE_VOTES
         FIRST_JUDGE_VOTES = max(1, int(args.votes))
@@ -2501,6 +2657,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     for sub in ("inputs", "codex", "jev", "decisions"):
         (out / sub).mkdir(parents=True, exist_ok=True)
     _LOG["path"] = str(out / "run.log")
+    if args.reuse_first:   # 저장된 1차 판정을 그대로 (2차 호출 방식만 바꿔 비교) — 이미 있는 파일은 두고 없는 것만 복사
+        import shutil
+        for src in [x.strip() for x in args.reuse_first.split(",") if x.strip()]:
+            for f in (ROOT / "data" / "judge_runs" / args.run / src / "decisions").glob("*.json"):
+                if not (out / "decisions" / f.name).exists():
+                    shutil.copy2(f, out / "decisions" / f.name)
+    reuse_dec, keep_first = bool(args.repair or args.reuse_first), bool(args.reuse_first)
+    if FIRST_JUDGE_MODE != "auto" or FIRST_ONLY:
+        say(f"🧪 1차 심판 {FIRST_JUDGE_MODE}" + (" · 1차만(Codex 안 부름)" if FIRST_ONLY else "") + f" · 투표 {FIRST_JUDGE_VOTES}")
 
     if args.pick:
         plan = [(int(x.split(":")[0]), x.split(":")[1]) for x in args.pick.split(",") if x.strip()]
@@ -2528,6 +2693,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     gpt = jev = decisions = None
     if not args.dry:
         gpt, jev, notes = judges_from_env()
+        if FIRST_ONLY:
+            gpt = None   # 1차만 — Codex 를 부르지 않는다
         if gpt is not None:
             gpt.files_dir = set_dir / "files"   # 첨부 원본(이미지·pdf·docx 쪽 이미지)을 -i 로
             gpt.io_dir = out / "codex_io"   # Codex 입력 · 결과 파일 (10-21 저녁: 파일로 읽고 파일로 결과)
@@ -2552,9 +2719,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             f.write(json.dumps({**line, "at": datetime.now(timezone.utc).isoformat()}, ensure_ascii=False) + "\n")
             saved_keys.add((line.get("provider"), line.get("question")))
 
-    def work(provider: str) -> None:
+    def provider_data(provider: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         data = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(provider) or [] if isinstance(r, dict)}
         cases = {c.get("case_id"): c for c in ((run.get("evaluations") or {}).get(provider) or {}).get("cases") or [] if isinstance(c, dict)}
+        return data, cases
+
+    def work(provider: str) -> None:
+        data, cases = provider_data(provider)
         if CODEX_BATCH > 1 and gpt is not None and not args.dry:
             work_batched(provider, data, cases)
             return
@@ -2577,9 +2748,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
                 code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}   # CODE 가 실제로 잰 형식 조건 (10-22 밤)
                 try:
-                    line = {**screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                        args.reuse_codex or args.repair, reuse_decisions=args.repair, jev=jev, code_measured=code_measured),
-                            "status": "judged"}
+                    line = screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
+                                      args.reuse_codex or args.repair, reuse_decisions=reuse_dec, jev=jev, keep_first=keep_first, code_measured=code_measured)
+                    line = line if line.get("status") == "first_only" else {**line, "status": "judged"}
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                             "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
@@ -2593,30 +2764,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         pending = [q for q in queues[provider] if (provider, q) not in done]
         n_turns = {q: sum(1 for r in rows if ji._question(r["case_id"]) == q) for q in pending}
         for chunk in batch_chunks(pending, lambda q: n_turns.get(q, 1) > 1, CODEX_BATCH):   # 멀티턴은 혼자(묶지 않으니 바로 저장되게), 단일은 N개씩
-            states: List[Dict[str, Any]] = []
-            for q in chunk:
-                turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
-                answers = {t["case_id"]: (data.get(t["case_id"]) or {}).get("answer") or "" for t in turns}
-                pre = pre_status(turns, data, answers)
-                board.start(provider, q)
-                if pre is not None:
-                    line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": pre["status"],
-                            "verdict": PRE_VERDICT.get(pre["status"], "HOLD"), "reason": pre.get("reason"), "collection_note": pre.get("collection_note")}
-                    say(f"■ Q{q} {provider}: {KO.get('UNVERIFIED') if line['verdict'] == 'HOLD' else line['verdict']} (심판 없이) — {pre.get('reason')}")
-                    save(line)
-                    board.finish(provider)
-                    continue
-                deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
-                code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
-                code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
-                try:
-                    states.append(screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                                 args.reuse_codex or args.repair, args.repair, jev, False, code_measured))
-                except Exception as exc:
-                    save({"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
-                          "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"})
-                    say(f"⚠ Q{q} {provider}: 판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}")
-                    board.finish(provider)
+            states = [st for st in (stage_a_for(provider, q, data, cases) for q in chunk) if st is not None]
             try:
                 codex_batch_round(states, gpt, prompt, CODEX_BATCH)
             except Exception as exc:   # 묶음 단계 자체가 죽으면 아직 첫 호출을 못 받은 질문만 따로 (first_call_alone 이 질문마다 예외를 삼킨다)
@@ -2625,24 +2773,95 @@ def main(argv: Optional[List[str]] = None) -> int:
                     if st["codex_plan"] is not None and st["status"] is None:
                         first_call_alone(st)
             for st in states:
-                try:
-                    line = {**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"}
-                except Exception as exc:
-                    line = {"version": VERSION, "provider": provider, "question": st["q"], "turns": len(st["turns"]), "status": "error", "verdict": "HOLD",
-                            "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
-                    say(f"⚠ Q{st['q']} {provider}: {line['reason']}")
-                save(line)
-                board.finish(provider)
+                stage_b_save(st)
+
+    def stage_a_for(provider: str, q: int, data: Dict[str, Any], cases: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """질문 하나의 stage A — 심판 없이 끝나는 질문(pre_status) · 오류는 줄을 저장하고 None, 아니면 Codex 앞까지 간 상태."""
+        turns = sorted([r for r in rows if ji._question(r["case_id"]) == q], key=ji._turn)
+        answers = {t["case_id"]: (data.get(t["case_id"]) or {}).get("answer") or "" for t in turns}
+        pre = pre_status(turns, data, answers)
+        board.start(provider, q)
+        if pre is not None:
+            line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": pre["status"],
+                    "verdict": PRE_VERDICT.get(pre["status"], "HOLD"), "reason": pre.get("reason"), "collection_note": pre.get("collection_note")}
+            say(f"■ Q{q} {provider}: {KO.get('UNVERIFIED') if line['verdict'] == 'HOLD' else line['verdict']} (심판 없이) — {pre.get('reason')}")
+            save(line)
+            board.finish(provider)
+            return None
+        deliveries = {t["case_id"]: ji.delivery_note(data.get(t["case_id"])) for t in turns}
+        code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
+        code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
+        try:
+            return screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
+                                  args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured)
+        except Exception as exc:
+            save({"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
+                  "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"})
+            say(f"⚠ Q{q} {provider}: 판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}")
+            board.finish(provider)
+            return None
+
+    def stage_b_save(st: Dict[str, Any]) -> None:
+        try:
+            line = {**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"}
+        except Exception as exc:
+            line = {"version": VERSION, "provider": st["provider"], "question": st["q"], "turns": len(st["turns"]), "status": "error", "verdict": "HOLD",
+                    "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
+            say(f"⚠ Q{st['q']} {st['provider']}: {line['reason']}")
+        save(line)
+        board.finish(st["provider"])
+
+    def run_one_call() -> None:
+        """--codex-one-call: 모든 (모델, 질문)의 stage A(모델마다 동시) → 첫 Codex 호출 한 번(codex_one_call) → stage B(모델마다 동시)."""
+        states: List[Dict[str, Any]] = []
+        lock = threading.Lock()
+
+        def gather(provider: str) -> None:
+            data, cases = provider_data(provider)
+            for q in queues[provider]:
+                if (provider, q) in done:
+                    continue
+                st = stage_a_for(provider, q, data, cases)
+                if st is not None:
+                    with lock:
+                        states.append(st)
+        ts = [threading.Thread(target=gather, args=(p,), name=f"stageA-{p}") for p in queues]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        order = list(queues)
+        states.sort(key=lambda st: (order.index(st["provider"]), st["q"]))
+        try:
+            codex_one_call(states, gpt, prompt, out, args.codex_one_call)
+        except Exception as exc:   # 한 번 호출 단계 자체가 죽으면 아직 첫 호출을 못 받은 질문만 따로
+            say(f"⚠ 한 번 호출 단계 오류: {type(exc).__name__}: {str(exc)[:160]} — 남은 질문은 따로 봅니다")
+            for st in states:
+                if st["codex_plan"] is not None and st["status"] is None:
+                    first_call_alone(st)
+
+        def finish(provider: str) -> None:
+            for st in states:
+                if st["provider"] == provider:
+                    stage_b_save(st)
+        ts = [threading.Thread(target=finish, args=(p,), name=f"stageB-{p}") for p in queues]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
 
     say(f"평가 진행합니다 — {sum(totals.values())}건(질문 × 모델, 이미 한 {sum(board.done.values())}건 건너뜀) · 모델마다 한 줄로 동시에"
         + (" · 점검만(심판 안 부름)" if args.dry else "") + f" · 로그 {out / 'run.log'}")
     board.show()
     wall0 = time.monotonic()
-    threads = [threading.Thread(target=work, args=(p,), name=f"judge-{p}") for p in queues]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    if args.codex_one_call and gpt is not None and not args.dry:
+        run_one_call()
+    else:
+        threads = [threading.Thread(target=work, args=(p,), name=f"judge-{p}") for p in queues]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
     wall = round(time.monotonic() - wall0, 1)
     if args.dry:
         return 0
