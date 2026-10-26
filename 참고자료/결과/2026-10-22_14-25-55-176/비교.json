@@ -1974,25 +1974,29 @@
  },
  "codex_first_calls": {
   "gpt": {
-   "calls": 57,
+   "cells": 57,
+   "calls": 155,
    "seconds": 3981.500000000002,
    "input_tokens": 18480375,
    "output_tokens": 471071
   },
   "claude": {
-   "calls": 51,
+   "cells": 51,
+   "calls": 138,
    "seconds": 3742.6000000000017,
    "input_tokens": 18555972,
    "output_tokens": 484379
   },
   "gemini": {
-   "calls": 50,
+   "cells": 50,
+   "calls": 148,
    "seconds": 3595.299999999999,
    "input_tokens": 17887021,
    "output_tokens": 439094
   },
   "aiona": {
-   "calls": 48,
+   "cells": 48,
+   "calls": 137,
    "seconds": 3455.1,
    "input_tokens": 17650914,
    "output_tokens": 392213

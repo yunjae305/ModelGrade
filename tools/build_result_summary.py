@@ -1446,7 +1446,7 @@ def scene_judge_compare(D: Dict[str, Any]) -> Tuple[str, str]:
 
 #: 심판 선택 — 갈린 36칸 검토(비교 폴더의 검토_36칸.md, 10-22). 판단한 쪽은 Claude 세션이 판정 프롬프트 v4 의 정의로 본 것 — 사람 정답이 아님.
 JC_REVIEW: Dict[str, Dict[str, Any]] = {
-    "50ca3ccccace": {"codex": 14, "claude": 12, "unclear": 10, "lc_missed": 6},
+    "50ca3ccccace": {"codex": 14, "claude": 12, "unclear": 10, "lc_missed": 6, "j14_strict": 11},   # 검토_36칸.md — j14_strict: Codex 가 맞은 14 중 J1-4 예외를 무시한 Claude FAIL
 }
 
 
@@ -1465,7 +1465,8 @@ def compare_dirs(run_id: str) -> List[Path]:
 
 def scene_judge_choice(D: Dict[str, Any]) -> Tuple[str, str]:
     """심판 선택 — 2차 심판을 Codex 로 고른 근거 (사용자 10-22 미팅 4번: '비용 · 시간 때문'으로 들림 — 시간이 1순위면 안 됨,
-    여러 심판 비교 → 결과가 비슷 → 그중 싸고 빠른 것 순서로, 고민을 압축해 어필). Claude CLI 비교 폴더가 없으면 ("", "")."""
+    여러 심판 비교 → 결과가 비슷 → 그중 싸고 빠른 것 순서로). 10-26 사용자: 처음 보는 사람도 바로 알게 — 낱말('칸' = 답 하나) ·
+    비교 방법 · 두 심판 한눈 표(호출 · 시간은 답한 모델별로 펼쳐 합계) · 그래서 · 왜 오래 걸렸나 · 흔들렸나. Claude CLI 비교 폴더가 없으면 ("", "")."""
     dirs = compare_dirs(D["run_id"])
     cmp_dir = next((d for d in dirs if (d / "비교.json").exists() and (d / "results.jsonl").exists()), None)
     base_f = result_file(D["run_id"], "results.jsonl")
@@ -1484,21 +1485,63 @@ def scene_judge_choice(D: Dict[str, Any]) -> Tuple[str, str]:
 
     A, B = last_rows(base_f), last_rows(cmp_dir / "results.jsonl")
     common = sorted(set(A) & set(B))
+    n_ans = len(common)
     diff = [k for k in common if A[k].get("verdict") != B[k].get("verdict")]
     flip = [k for k in diff if "PASS" in (A[k].get("verdict"), B[k].get("verdict"))]
     to_fail = sum(1 for k in flip if A[k].get("verdict") == "PASS" and B[k].get("verdict") == "FAIL")
-    to_pass = sum(1 for k in flip if A[k].get("verdict") == "FAIL" and B[k].get("verdict") == "PASS")
+    rev = len(flip) - to_fail
     only_j14 = [k for k in flip if (fails(A[k]) ^ fails(B[k])) and all(c.startswith("J1-4") for _t, c in fails(A[k]) ^ fails(B[k]))]
     flip_q = len({q for _p, q in flip})
+    same = n_ans - len(flip)
+    pa, pb = (sum(1 for k in common if X[k].get("verdict") == "PASS") for X in (A, B))
     rv = JC_REVIEW.get(D["run_id"])
-    # 같은 판정에 든 2차 심판 호출 · 시간(모델마다, 네 모델 동시) — 비교.json
-    cx = cj.get("codex_first_calls") or {}
-    cl = cj.get("claude_tokens") or {}
-    cx_calls, cl_calls = sum(int(v.get("calls") or 0) for v in cx.values()), sum(int(v.get("calls") or 0) for v in cl.values())
-    cx_max = max((float(v.get("seconds") or 0) for v in cx.values()), default=0)
-    cl_max = max((float(v) for v in (cj.get("claude_seconds_per_model") or {}).values()), default=0)
-    # 판정 문구만 고쳐도 — J1-4.b 다시 판정 폴더의 합계 줄(옛 → 새 프롬프트)
-    j14 = None
+    order = [p for p in D["order"] if p in (cj.get("codex_first_calls") or {})]
+    # 호출 = 첫 호출 + 다시 묻기, 두 심판 같은 단위 (10-26: 전에는 Codex 를 답마다 1로 세어 206 으로 적었음). 답한 모델별로 펼쳐 합계
+    cx, cl = cj.get("codex_first_calls") or {}, cj.get("claude_tokens") or {}
+    cx_sec = {p: float((cx.get(p) or {}).get("seconds") or 0) for p in order}
+    cl_sec = {p: float((cj.get("claude_seconds_per_model") or {}).get(p) or 0) for p in order}
+    cx_n = {p: int((cx.get(p) or {}).get("calls") or 0) for p in order}
+    cl_n = {p: int((cl.get(p) or {}).get("calls") or 0) for p in order}
+    cx_calls, cl_calls = sum(cx_n.values()), sum(cl_n.values())
+    cx_max, cl_max = max(cx_sec.values(), default=0), max(cl_sec.values(), default=0)
+    t_ratio = cl_max / cx_max if cx_max else 0
+    # 같은 답끼리 — Codex 는 비교 도구와 같은 줄(답마다 저장 출력을 다시 쓰지 않은 처음 판정 줄), Claude 는 마지막 줄
+    first: Dict[Tuple[str, int], Dict[str, Any]] = {}
+    for x in base_f.read_text(encoding="utf-8").splitlines():
+        if x.strip():
+            r = json.loads(x)
+            c, k = (r.get("calls") or {}).get("codex") or {}, (r["provider"], int(r["question"]))
+            if c.get("status") == "OK" and not c.get("reused") and k not in first:
+                first[k] = c
+    cb = {k: (B[k].get("calls") or {}).get("codex") or {} for k in common}
+    both = [k for k in common if k in first and cb[k].get("status") == "OK" and "rounds" in cb[k]]
+
+    def rounds(c: Dict[str, Any]) -> int:
+        return int(c.get("calls") if c.get("calls") is not None else (c.get("rounds") or 1))
+
+    def multi(q: int) -> bool:
+        return str(D["qtypes"].get(q, "")).startswith("10턴")
+
+    def part(ks: List[Tuple[str, int]]) -> Dict[str, float]:
+        ra, rb = sum(rounds(first[k]) for k in ks), sum(rounds(cb[k]) for k in ks)
+        ia, ib = sum(first[k].get("input_tokens") or 0 for k in ks), sum(cb[k].get("input_tokens") or 0 for k in ks)
+        sa, sb = sum(first[k].get("seconds") or 0 for k in ks), sum(cb[k].get("seconds") or 0 for k in ks)
+        ok = ra and rb and ia and sa
+        return {"n": len(ks), "ra": ra, "rb": rb, "inp": (ib / rb) / (ia / ra) if ok else 0, "sec": (sb / rb) / (sa / ra) if ok else 0}
+
+    mt, st1 = part([k for k in both if multi(k[1])]), part([k for k in both if not multi(k[1])])
+    worst = max((k for k in both if multi(k[1])), key=lambda k: rounds(cb[k]) - rounds(first[k]), default=None)
+    # '반복'(J1-4.b) 같은 칸을 두 심판에게 세 번씩 — 다수결 결과 폴더(run.json kind item-vote)
+    vote = None
+    for d in (sorted(RESULTS.iterdir(), reverse=True) if RESULTS.exists() else []):
+        try:
+            meta = json.loads((d / "run.json").read_text(encoding="utf-8"))
+            if meta.get("kind") == "item-vote" and meta.get("compare_of") == D["run_id"] and (d / "다수결.json").exists():
+                vote = {**(json.loads((d / "다수결.json").read_text(encoding="utf-8")).get("total") or {}), "item": meta.get("item")}
+                break
+        except (OSError, ValueError):
+            continue
+    j14 = None   # 판정 문구만 고쳐도 — J1-4.b 다시 판정 폴더의 합계 줄(옛 → 새 프롬프트)
     for d in dirs:
         md = d / "비교_옛프롬프트→새프롬프트.md"
         if md.exists():
@@ -1507,46 +1550,97 @@ def scene_judge_choice(D: Dict[str, Any]) -> Tuple[str, str]:
                 j14 = tuple(int(x) for x in m.groups())
             break
     name_ = str(cj.get("model") or "").replace("claude-", "").replace("-", " ", 1).replace("-", ".").title()   # claude-sonnet-5-5 → Sonnet 5.5
-    model = f'Claude CLI({name_} · {cj.get("effort") or ""})'
-    steps = [
-        ("여러 심판을 비교했다", f"1차 판정 · 넘긴 항목 · 판정 프롬프트는 그대로 두고 2차 심판만 Codex ↔ {model} 로 바꿔 같은 {cj.get('questions')}문항 × {len(cj.get('providers') or [])}모델을 판정."),
-        ("갈린 곳은 한 기준에 몰렸다", f"통과 여부가 다른 {len(flip)}칸({flip_q}문항) 중 {len(only_j14)}칸이 J1-4(반복 · 불필요) 하나로 갈림 — Claude 가 더 엄격(Codex 통과 → Claude FAIL {to_fail}칸, 반대 {to_pass}칸)."),
-    ]
+    model = f"Claude CLI({name_})"
+    nq, nm = cj.get("questions"), len(cj.get("providers") or [])
+
+    terms = [("답 하나 (이 장면의 '칸')", f"한 모델이 한 질문에 낸 답. 질문 {nq}개 × 답한 모델 {nm}개 = {n_ans}개. 10턴 대화 질문은 10턴 전체가 답 하나이고, "
+                                      "답마다 결론이 하나씩 나옵니다 — 완전 통과 · FAIL · 보류.", ""),
+             ("2차 심판", f"1차 심판(Jev · Decisions)이 'FAIL 같다 · 애매하다'고 표시한 기준만 다시 읽고 확정하는 AI. 지금은 Codex(ChatGPT 구독), "
+                         f"비교 상대는 {model}(Claude 구독).", ""),
+             ("호출", "2차 심판 프로그램을 한 번 실행해 판정을 받아 오는 것. 처음 한 번 묻고, 빠진 판정이나 답에 없는 근거 문장이 있으면 다시 묻습니다 — "
+                      "10턴 대화는 턴마다 다시 물어 답 하나에 여러 번입니다.", ""),
+             ("완전 통과", f"그 답에 적용된 기준을 하나도 어기지 않은 답 — 모델 점수 '통과 질문 수(/{nq})'가 이것을 셉니다.", "t-pass")]
+    term_html = ('<dl class="rs-terms">'
+                 + "".join(f'<div{f" class={chr(34)}{c}{chr(34)}" if c else ""}><dt>{E(t)}</dt><dd>{E(d)}</dd></div>' for t, d, c in terms) + "</dl>")
+    steps = [("같은 답을 두 심판에게", f"본 판정(답 {n_ans}개)의 1차 심판 결과 · 2차로 넘긴 기준 · 판정 프롬프트는 그대로 두고, 2차 심판만 Codex → {model} 로 바꿔 "
+                                  "다시 판정했습니다. 같은 문제를 두 심판에게 따로 풀게 한 것입니다."),
+             ("결론 맞대기", "답마다 두 심판의 결론 — 통과인가 아닌가 — 를 맞대 봤습니다.")]
     if rv:
-        steps.append(("다시 보니 어느 쪽도 더 맞지 않았다", f"갈린 36칸을 기준 정의로 다시 보니 Codex 가 맞음 {rv['codex']} · Claude 가 맞음 {rv['claude']} · 애매 {rv['unclear']} — "
-                      f"약점이 다름: Codex 는 롱컨텍스트 근거 오류에 느슨({rv['lc_missed']}칸 놓침), Claude 는 J1-4 의 예외('표를 풀어 쓴 설명' · '결론 한 번')를 무시하고 FAIL."))
-    steps += [
-        ("정확도가 비슷하니 운영 조건으로 Codex", f"같은 판정에 Codex 호출 {cx_calls}번(처음 판정 몫) · 모델마다 약 {hm(cx_max)}, Claude CLI 호출 {cl_calls}번 · 약 {hm(cl_max)}(네 모델 동시, 둘 다 구독) — 시간 · 비용은 마지막 이유."),
-        ("다음은 심판 교체보다 기준 다듬기", (f"J1-4.b 판정 문구만 고쳐도 Codex FAIL {j14[1]} → {j14[2]} · Claude {j14[3]} → {j14[4]}({j14[0]}칸) — 갈림은 심판보다 기준 문구에서 옵니다. " if j14 else "")
-         + (f"롱컨텍스트 근거는 따로 확인을 보강합니다." if rv else "")),
-    ]
+        steps.append(("갈린 답은 다시 읽기", "결론이 갈린 답은 판정 기준 정의를 잣대로 다시 읽어 누가 맞는지 따졌습니다(Claude 세션이 판단 — 사람이 정한 정답은 아님)."))
     step_html = '<ol class="jc-steps">' + "".join(f"<li><b>{E(t)}</b><span>{E(b)}</span></li>" for t, b in steps) + "</ol>"
-    nums = [("통과 여부가 갈린 질문", f"{flip_q}/{cj.get('questions')}", f"칸 {len(flip)}/{len(common)} · 판정이 다른 칸 {len(diff)}", "")]
-    nums.append(("J1-4 하나로 갈림", f"{len(only_j14)}/{len(flip)}", "반복 · 불필요 해석 차이", " jd-warn"))
+    nums = [("통과 여부가 같았던 답", f"{same}/{n_ans}", f"{same / n_ans * 100:.1f}% — {len(flip)}개(질문 {flip_q}개)만 갈림" if n_ans else "", ""),
+            ("갈린 답 중 '불필요 · 반복' 하나 때문", f"{len(only_j14)}/{len(flip)}", f"Codex 통과 · Claude FAIL {to_fail} · 반대 {rev}", " jd-warn")]
     if rv:
-        nums.append(("다시 보니 맞은 쪽", f"{rv['codex']} : {rv['claude']}", f"Codex : Claude · 애매 {rv['unclear']} — 사람 정답 아님", ""))
-    num_html = "".join(f'<div class="jd-n{c}"><i>{E(st)}</i><b>{E(v)}</b><small>{E(sub)}</small></div>' for st, v, sub, c in nums)
+        nums.append(("다시 보니 맞은 쪽", f"{rv['codex']} : {rv['claude']}", f"Codex : Claude · 둘 다 애매 {rv['unclear']}", ""))
+    num_html = "".join(f'<div class="jd-n{c}"><i>{E(t)}</i><b>{E(v)}</b><small>{E(s)}</small></div>' for t, v, s, c in nums)
+
+    def by(vals: Dict[str, Any], unit: str, sep: str) -> str:
+        return sep.join(f"{SHORT[p]} 답 {vals[p]}{unit}" for p in order)
+
+    rows = [["완전 통과로 본 답", f"{pa} / {n_ans}", f"{pb} / {n_ans}" + (" — 더 엄격" if pb < pa else " — 더 너그러움" if pb > pa else "")]]
+    if rv:
+        rows += [["잘한 것", "'불필요 · 반복' 기준의 예외(표를 풀어 쓴 설명 · 결론 한 번)를 지켜 괜한 FAIL 을 안 냄",
+                  f"긴 문서 질문에서 근거를 잘못 찾은 답 {rv['lc_missed']}개를 잡음"],
+                 ["놓친 것", f"긴 문서 근거 오류 {rv['lc_missed']}개를 통과시킴", f"'불필요 · 반복' 예외를 무시한 FAIL {rv['j14_strict']}개"]]
+    rows += [["판정 시간<br><small>답한 모델별 · 네 모델 동시</small>",
+              E(by({p: round(v / 60) for p, v in cx_sec.items()}, "분", " · ")) + f" → 다 끝나기까지 <b>약 {hm(cx_max)}</b>",
+              E(by({p: round(v / 60) for p, v in cl_sec.items()}, "분", " · ")) + f" → <b>약 {hm(cl_max)}</b> ({t_ratio:.1f}배)"],
+             ["호출 수<br><small>답한 모델별 합 · 첫 호출 + 다시 묻기</small>", E(by(cx_n, "", " + ")) + f" = <b>{cx_calls}번</b>",
+              E(by(cl_n, "", " + ")) + f" = <b>{cl_calls}번</b>" + (f" ({cl_calls / cx_calls:.1f}배)" if cx_calls else "")],
+             ["비용", "구독(정액)", "구독(정액)"]]
+    tab_cmp = table("", ["", "Codex (지금)", E(model)], rows, [22, 39, 39], "jd-t")
     dont = ('<div class="jd-v">'
-            '<div class="jd-vok"><i>이렇게 말합니다</i><b>정확도가 비슷하고 약점이 다르다 → 운영 조건으로 Codex</b>'
-            '<p>여러 심판을 비교했고, 갈린 곳은 한 기준의 해석 차이였으며, 다시 보니 어느 쪽도 더 정확하지 않아 구독 · 속도 · 안정성으로 골랐습니다.</p></div>'
+            '<div class="jd-vok"><i>이렇게 말합니다</i><b>정확도는 비슷하고 약점만 다르다 → 같은 일을 더 빨리 끝내는 Codex</b>'
+            f"<p>같은 답 {n_ans}개를 두 심판에게 판정시켜 보니 {same}개는 결론이 같았고, 갈린 답 대부분은 '불필요 · 반복' 한 기준의 해석 차이였으며, "
+            + (f"다시 보니 어느 쪽도 더 정확하지 않았습니다({rv['codex']} : {rv['claude']}). " if rv else "")
+            + f"그래서 정확도가 같을 때의 기준인 시간으로 골랐습니다(약 {hm(cx_max)} ↔ {hm(cl_max)}, 둘 다 구독이라 비용은 같음).</p></div>"
             '<div class="jd-vwarn"><i>말하지 않습니다</i><b>"78개 중 3개만 달랐다" · "시간 때문에"</b>'
-            f'<p>같은 조건으로 다시 비교하니 {flip_q}문항에서 통과 여부가 갈렸습니다(재현 안 됨). 시간은 첫 이유가 아니라 마지막 이유입니다.</p></div></div>')
+            f"<p>같은 조건으로 다시 비교하니 질문 {flip_q}개에서 통과 여부가 갈렸습니다. 시간은 첫 이유가 아니라 정확도가 같을 때의 이유입니다.</p></div></div>")
+    nxt = ("다음 할 일은 심판 교체가 아니라 기준 다듬기 — "
+           + (f"'반복'(J1-4.b) 판정 문구만 고쳐도 같은 {j14[0]}건에서 FAIL 이 Codex {j14[1]} → {j14[2]} · Claude {j14[3]} → {j14[4]} 로 바뀌었습니다. " if j14 else "")
+           + ("긴 문서 질문의 근거 확인은 따로 보강합니다." if rv else ""))
+    slow = []
+    if mt["n"]:
+        ex = (f"(예: Q{worst[1]} {SHORT[worst[0]]} 답 — Codex {rounds(first[worst])}번 · Claude {rounds(cb[worst])}번, 그 뒤 '두 번 물어도 그대로면 다음 턴'으로 고침)"
+              if worst else "")
+        slow.append(("10턴 대화에서 다시 묻기가 많음", f"대화 질문 답 {mt['n']}개에서 호출 {mt['ra']} → {mt['rb']}번. 문제가 있는 턴을 한 턴씩 다시 묻는데 "
+                                                    f"Claude 첫 답에서 다시 물을 턴이 더 많았고, 같은 턴을 끝없이 되묻는 일도 있었습니다{ex}."))
+    if mt["inp"] and st1["inp"]:
+        lo, hi = sorted((mt["sec"], st1["sec"]))
+        slow.append(("한 번 부를 때도 무거움", f"같은 질문인데 읽은 글(입력 토큰)이 대화 {mt['inp']:.1f}배 · 한 턴 질문 {st1['inp']:.1f}배, 호출 한 번 시간도 {lo:.1f}~{hi:.1f}배."))
+    if st1["n"]:
+        slow.append(("한 턴짜리 질문은 호출이 비슷", f"단일 · 첨부 · 긴 문서 답 {st1['n']}개는 호출 {st1['ra']} ↔ {st1['rb']}번 — 시간 차이는 대부분 대화 질문에서 납니다."))
+    slow_html = '<div class="rs-cards">' + "".join(f'<div class="rs-card"><b>{E(t)}</b><p>{E(b)}</p></div>' for t, b in slow) + "</div>"
+    wob = ""
+    if vote and vote.get("칸"):
+        nv = int(vote["칸"])
+        wn = [("세 번 모두 같은 답 — Codex", f"{vote.get('codex_만장일치', 0)}/{nv}", f"{vote.get('codex_만장일치', 0) / nv * 100:.0f}%"),
+              ("세 번 모두 같은 답 — Claude CLI", f"{vote.get('claude_만장일치', 0)}/{nv}", f"{vote.get('claude_만장일치', 0) / nv * 100:.0f}%")]
+        wob = ('<h3 class="rs-sh">같은 심판이 흔들린 걸까?</h3><div class="jd-nums">'
+               + "".join(f'<div class="jd-n"><i>{E(t)}</i><b>{E(v)}</b><small>{E(s)}</small></div>' for t, v, s in wn) + "</div>"
+               + f"<p class=\"rs-basis\">'반복'({E(str(vote.get('item') or 'J1-4.b'))}) 기준으로 2차 심판까지 간 {nv}건(답의 턴마다 하나)을 두 심판에게 각각 세 번씩 물었습니다. "
+               "둘 다 대체로 자기 답을 지키므로, 갈림은 우연한 흔들림이 아니라 두 심판이 '반복'을 다르게 읽은 것입니다.</p>")
     tally = cj.get("tally") or {}
-    rows = []
+    trows = []
     for p_ in D["order"]:
         c_, l_ = (tally.get("codex") or {}).get(p_, {}), (tally.get("claude") or {}).get(p_, {})
-        rows.append([mname(p_), f'{(cj.get("diff_per_model") or {}).get(p_, 0)} / {cj.get("questions")}',
-                     f'{c_.get("PASS", 0)} · {c_.get("FAIL", 0)} · {c_.get("HOLD", 0)}', f'{l_.get("PASS", 0)} · {l_.get("FAIL", 0)} · {l_.get("HOLD", 0)}'])
-    tab = table("", ["모델", "판정이 다른 질문", "Codex (통과 · FAIL · 보류)", "Claude CLI (통과 · FAIL · 보류)"], rows, [28, 20, 26, 26], "jd-t")
-    more = (f'<details class="rs-d jd-more"><summary>자세히 — 모델별 판정 · 자료</summary>{tab}'
-            f'<p class="rs-basis">자료: 결과 폴더 {E(cmp_dir.name)}(비교.md · 비교.json · 검토_36칸.md) — 갈린 36칸 검토는 Claude 세션이 판정 프롬프트의 정의로 본 판단이고 사람 정답이 아닙니다. '
-            f'항목 단위 최종 판정 일치 {cj.get("items_same", 0):,}/{cj.get("items_total", 0):,}, 2차 심판에 넘긴 항목만 {cj.get("flagged_same", 0):,}/{cj.get("flagged_total", 0):,}.</p></details>')
-    html_ = (f'<h3 class="rs-sh">말할 순서</h3>{step_html}'
-             f'<h3 class="rs-sh">숫자</h3><div class="jd-nums">{num_html}</div>'
-             f'<h3 class="rs-sh">이렇게 말하고, 이렇게는 말하지 않습니다</h3>{dont}{more}')
-    key = (f"Claude CLI 와 비교하니 {flip_q}문항에서 통과 여부가 갈렸지만 대부분 J1-4(반복 · 불필요) 해석 차이였고"
-           + (f", 다시 보니 어느 쪽도 더 정확하지 않았습니다({rv['codex']} : {rv['claude']})" if rv else "")
-           + " — 정확도가 비슷해 운영 조건으로 Codex 를 골랐습니다.")
+        trows.append([mname(p_), f'{(cj.get("diff_per_model") or {}).get(p_, 0)} / {cj.get("questions")}',
+                      f'{c_.get("PASS", 0)} · {c_.get("FAIL", 0)} · {c_.get("HOLD", 0)}', f'{l_.get("PASS", 0)} · {l_.get("FAIL", 0)} · {l_.get("HOLD", 0)}'])
+    tab = table("", ["답한 모델", "결론이 다른 답", "Codex (통과 · FAIL · 보류)", "Claude CLI (통과 · FAIL · 보류)"], trows, [28, 20, 26, 26], "jd-t")
+    more = (f'<details class="rs-d jd-more"><summary>자세히 — 답한 모델별 결론 · 자료</summary>{tab}'
+            f'<p class="rs-basis">자료: 결과 폴더 {E(cmp_dir.name)}(비교.md · 비교.json · 검토_36칸.md)'
+            + (" · 다수결 결과 폴더(다수결.json)" if vote else "")
+            + " — 갈린 답 검토는 Claude 세션이 판정 프롬프트의 정의로 본 판단이고 사람 정답이 아닙니다. "
+            f'기준 단위 최종 판정 일치 {cj.get("items_same", 0):,}/{cj.get("items_total", 0):,}, 2차 심판에 넘긴 기준만 {cj.get("flagged_same", 0):,}/{cj.get("flagged_total", 0):,}.</p></details>')
+    html_ = (f'<h3 class="rs-sh">먼저 낱말</h3>{term_html}'
+             f'<h3 class="rs-sh">어떻게 비교했나</h3>{step_html}'
+             f'<h3 class="rs-sh">결과 — 두 심판 한눈에</h3><div class="jd-nums">{num_html}</div>{tab_cmp}'
+             f'<h3 class="rs-sh">그래서 Codex</h3>{dont}<p class="rs-basis">{E(nxt)}</p>'
+             f'<h3 class="rs-sh">왜 Claude CLI 가 오래 걸렸나</h3>{slow_html}'
+             f'{wob}{more}')
+    key = (f"같은 답 {n_ans}개를 Claude CLI 로도 판정해 보니 {same}개는 결론이 같았고, 갈린 {len(flip)}개 대부분은 '불필요 · 반복' 한 기준의 해석 차이였습니다. "
+           + (f"다시 보니 어느 쪽도 더 정확하지 않아({rv['codex']} : {rv['claude']}), " if rv else "")
+           + (f"같은 일을 {t_ratio:.1f}배 빨리 끝내는 Codex 를 골랐습니다." if t_ratio else "Codex 를 골랐습니다."))
     return html_, key
 
 
@@ -3078,7 +3172,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     jc_html, jc_key = scene_judge_choice(D)   # 사용자 10-22 미팅 4번 — 심판 비교 다음에
     if jc_html:
         detail.append(("s_jc", "심판 선택", "Codex 를 고른 근거", "심판 선택 — 2차 심판을 Codex 로 고른 근거",
-                       "2차 심판만 Codex 와 Claude CLI 로 바꿔 같은 78문항 × 4모델을 판정해 비교했습니다. 시간 · 비용은 마지막 이유입니다.",
+                       f"2차 심판만 Codex 와 Claude CLI 로 바꿔 같은 답 {D['n'] * len(D['order'])}개(질문 {D['n']} × 모델 {len(D['order'])})를 판정해 비교했습니다. 시간은 정확도가 같을 때의 이유입니다.",
                        jc_html, jc_key))
     scenes = core + detail
     total, n_core = len(scenes), len(core)

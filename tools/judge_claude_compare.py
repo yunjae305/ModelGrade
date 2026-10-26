@@ -375,7 +375,9 @@ def compare_core(run_id: str, base_out: str = BASE_OUT, out_name: str = OUT) -> 
     ctok = {p: Counter() for p in providers}
     for (p, q), c in cx.items():
         if p in ctok and q in qs:
-            ctok[p]["calls"] += 1
+            # 호출 수는 Claude 쪽(claude_calls.jsonl 줄 수)과 같은 단위 — 그 판정의 첫 호출 + 다시 묻기(rounds). 10-26 전에는 칸마다 1로 셌다
+            ctok[p]["cells"] += 1
+            ctok[p]["calls"] += int(c.get("calls") if c.get("calls") is not None else (c.get("rounds") or 1))
             ctok[p]["seconds"] += c.get("seconds") or 0
             ctok[p]["input_tokens"] += c.get("input_tokens") or 0
             ctok[p]["output_tokens"] += c.get("output_tokens") or 0
@@ -420,13 +422,14 @@ def compare_core(run_id: str, base_out: str = BASE_OUT, out_name: str = OUT) -> 
         L.append(f"| Q{d['question']} | {LABEL[d['provider']]} | {KO.get(d['codex'], d['codex'])} | {KO.get(d['claude'], d['claude'])}{code} | "
                  f"{d['fail'][0]} · {d['fail'][1]} | {d['hold'][0]} · {d['hold'][1]} | {why}{more}{nomiss} |")
     L += ["", "## 걸린 시간 · 토큰 (2차 심판)", "",
-          "| 모델 | Claude 호출 | Claude 시간 | 입력 | 캐시 읽기 | 캐시 쓰기 | 출력 | 웹 검색 | Codex 호출(처음) | Codex 시간 | Codex 입력 | Codex 출력 |",
+          "| 모델 | Claude 호출 | Claude 시간 | 입력 | 캐시 읽기 | 캐시 쓰기 | 출력 | 웹 검색 | Codex 칸 · 호출 | Codex 시간 | Codex 입력 | Codex 출력 |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for p in providers:
         t, c = tok.get(p, Counter()), ctok.get(p, Counter())
         L.append(f"| {LABEL[p]} | {t['calls']} (실패 {t['fail_calls']}) | {cl_secs[p] / 60:.0f}분 | {t['input_tokens']:,} | {t['cache_read']:,} | {t['cache_creation']:,} | "
-                 f"{t['output_tokens']:,} | {t['web_search']} | {c['calls']} | {c['seconds'] / 60:.0f}분 | {c['input_tokens']:,} | {c['output_tokens']:,} |")
-    L += ["", "Codex 토큰 · 시간은 v4 결과 줄 중 저장 출력을 다시 쓰지 않은 처음 판정 줄의 값(다시 판정 · 복구 때 다시 물은 몫은 빠짐)."]
+                 f"{t['output_tokens']:,} | {t['web_search']} | {c['cells']} · {c['calls']} | {c['seconds'] / 60:.0f}분 | {c['input_tokens']:,} | {c['output_tokens']:,} |")
+    L += ["", "Codex 칸 = Codex 가 판정한 (모델, 질문) 수. Codex 호출 · 시간 · 토큰은 v4 결과 줄 중 칸마다 저장 출력을 다시 쓰지 않은 처음 판정 줄의 값 — "
+          "호출은 그 판정의 첫 호출 + 다시 묻기로 Claude 호출과 같은 단위(10-26 전에는 칸마다 1로 셌음). 다시 판정 · 복구 때 다시 물은 몫은 빠짐."]
     (out / "비교.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     return res, L
 
@@ -475,7 +478,7 @@ def render_html(res: Dict[str, Any], folder: str) -> str:
         trows += (f"<tr><th>{E(LABEL[p])}</th><td class=n>{t.get('calls', 0)}</td><td class=n>{res['claude_seconds_per_model'].get(p, 0) / 60:.0f}분</td>"
                   f"<td class=n>{t.get('input_tokens', 0) + t.get('cache_read', 0) + t.get('cache_creation', 0):,}</td><td class=n>{t.get('cache_read', 0):,}</td>"
                   f"<td class=n>{t.get('cache_creation', 0):,}</td><td class=n>{t.get('output_tokens', 0):,}</td>"
-                  f"<td class=n>{c.get('calls', 0)}</td><td class=n>{c.get('seconds', 0) / 60:.0f}분</td>"
+                  f"<td class=n>{c.get('cells', 0)} · {c.get('calls', 0)}</td><td class=n>{c.get('seconds', 0) / 60:.0f}분</td>"
                   f"<td class=n>{c.get('input_tokens', 0):,}</td><td class=n>{c.get('output_tokens', 0):,}</td></tr>")
     css = """
 :root { --bg:#fbfaf7; --fg:#1d1d1b; --mut:#6b6a66; --line:#e3e0d8; --card:#fff; --acc:#2f5bd3; }
@@ -508,9 +511,10 @@ ul { margin:0; padding-left:18px; }
         "<th>FAIL 항목<br>Codex · Claude</th><th>보류 항목<br>Codex · Claude</th><th>갈린 기준 (Codex → Claude) · 사유 — 질문 판정을 가른 것부터</th></tr></thead>"
         f"<tbody>{drows or '<tr><td colspan=7>없음</td></tr>'}</tbody></table></div>\n"
         '<h2>걸린 시간 · 토큰 (2차 심판)</h2><div class="tw"><table><thead><tr><th>모델</th><th>Claude 호출</th><th>Claude 시간</th><th>입력(캐시 포함)</th>'
-        "<th>캐시 읽기</th><th>캐시 쓰기</th><th>출력</th><th>Codex 호출(처음)</th><th>Codex 시간</th><th>Codex 입력</th><th>Codex 출력</th></tr></thead>"
+        "<th>캐시 읽기</th><th>캐시 쓰기</th><th>출력</th><th>Codex 칸 · 호출</th><th>Codex 시간</th><th>Codex 입력</th><th>Codex 출력</th></tr></thead>"
         f"<tbody>{trows}</tbody></table></div>\n"
-        '<p class="sub">Codex 토큰 · 시간은 저장 출력을 다시 쓰지 않은 처음 판정 줄의 값입니다(다시 판정 · 복구 때 다시 물은 몫은 빠짐). '
+        '<p class="sub">Codex 칸 = Codex 가 판정한 (모델, 질문) 수. Codex 호출 · 시간 · 토큰은 칸마다 저장 출력을 다시 쓰지 않은 처음 판정 줄의 값입니다 — '
+        '호출은 그 판정의 첫 호출 + 다시 묻기로 Claude 호출과 같은 단위(10-26 전에는 칸마다 1로 셌음). 다시 판정 · 복구 때 다시 물은 몫은 빠짐. '
         f"항목 판정 일치 — 전체 {res['items_same']:,} / {res['items_total']:,} ({pct(res['items_same'], res['items_total'])}).</p>\n"
         "</main></body></html>\n")
 
