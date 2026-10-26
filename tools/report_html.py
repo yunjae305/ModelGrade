@@ -1,6 +1,6 @@
 """판정 결과 HTML 보고서 (v2, 2026-10-20 밤) — `modelgrade report --dir data/judge_runs/<실행>/<out>` 가 쓴다.
 
-일반인이 봐도 바로 읽히게: 한눈에 보기(완전 통과 질문 수 / 78) → 유형별 → 기준 72개별 → 걸린 시간·토큰 → 보류(사람이 정함: 질문 원문·답변 원문·
+일반인이 봐도 바로 읽히게: 한눈에 보기(완전 통과 문항 수 / 177 — 멀티턴은 턴마다 1문항, 10-26 저녁) → 유형별 → 기준 72개별 → 걸린 시간·토큰 → 보류(사람이 정함: 질문 원문·답변 원문·
 보류 사유 + PASS/FAIL 버튼·내보내기) → FAIL 상세(원문 + 사유) → 질문별 표 → 평가 방법. 숫자 단위는 '질문 수 / 전체 질문 수'(모델 합산 없음).
 결과 구조는 판정 v4(results)·v5 선별(turn_results) 둘 다 읽는다. 사람 판정(<out>/human_decisions.json)이 있으면 반영한 뒤의 수치로 보이고 전후를 같이 적는다.
 """
@@ -166,6 +166,56 @@ def question_types(set_dir: Path) -> Dict[int, str]:
         for q in json.loads(f.read_text(encoding="utf-8")):
             out[int(q["id"])] = q.get("type") or "단일 질문"
     return out
+
+
+#: 문항 — 싱글턴 질문은 질문 하나가 1문항, 멀티턴은 턴마다 1문항(Q3-1 · Q3-2 …). 보고서 구분은 싱글턴 · 멀티턴 · 롱컨텍스트 셋뿐
+#: (첨부 · 빈 출력 요구 질문은 싱글턴) — 사용자 10-26 저녁 · 10-26 미팅(대화 하나를 통째로 PASS · FAIL 하면 한 턴만 틀려도 대화 전체가 FAIL).
+MULTI_TYPE = "10턴 멀티턴 대화"
+UNIT_ORDER = ["싱글턴", "멀티턴", "롱컨텍스트"]
+
+
+def unit_type(qtype: str) -> str:
+    """질문 유형 → 문항 구분(싱글턴 · 멀티턴 · 롱컨텍스트)."""
+    return "멀티턴" if qtype == MULTI_TYPE else "롱컨텍스트" if qtype == "롱컨텍스트" else "싱글턴"
+
+
+def question_turns(set_dir: Path) -> Dict[int, int]:
+    """질문마다 턴 수 — questions.json 의 turns."""
+    f = Path(set_dir) / "questions.json"
+    return {int(q["id"]): max(1, len(q.get("turns") or [])) for q in json.loads(f.read_text(encoding="utf-8"))} if f.exists() else {}
+
+
+def units_of(qtypes: Dict[int, str], n_turns: Dict[int, int]) -> List[Tuple[int, int]]:
+    """문항 목록 — 싱글턴 질문은 (q, 0), 멀티턴은 (q, 1) … (q, n)."""
+    out: List[Tuple[int, int]] = []
+    for q in sorted(qtypes):
+        out += [(q, t) for t in range(1, n_turns.get(q, 1) + 1)] if qtypes[q] == MULTI_TYPE else [(q, 0)]
+    return out
+
+
+def unit_label(q: int, t: int) -> str:
+    """문항 이름 — 'Q11' · 'Q3-2'."""
+    return f"Q{q}-{t}" if t else f"Q{q}"
+
+
+def turn_verdicts(line: Dict[str, Any], verdict: str, items: List[Dict[str, Any]], n_turns: int, code_fail_turns: set) -> Dict[int, str]:
+    """멀티턴 문항(턴)마다 결론 — 질문과 같은 규칙(보류 우선 → FAIL → PASS)을 그 턴의 항목 · CODE FAIL 에만 쓴다.
+    판정 전에 정한 줄(빈 출력 요구 · 답 없음 등) · 판정 실행 오류는 턴을 나눌 판정이 없어 모든 턴이 질문 결론."""
+    if line.get("status") not in (None, "judged") or line.get("judge_error"):
+        return {t: verdict for t in range(1, n_turns + 1)}
+    out: Dict[int, str] = {}
+    for t in range(1, n_turns + 1):
+        decs = {i["decision"] for i in items if i["turn"] == t}
+        out[t] = "HOLD" if "UNVERIFIED" in decs else "FAIL" if ("FAIL" in decs or t in code_fail_turns) else "PASS"
+    return out
+
+
+def code_fail_turns(code_fails: List[str], rows: List[Dict[str, Any]], n_turns: int) -> set:
+    """질문의 CODE FAIL(code_fails)이 난 턴 — CODE 결과 행(turn · check_id · verdict)에서 찾고, 못 찾은 FAIL 은 모든 턴에(질문 결론과 어긋나지 않게)."""
+    want = set(code_fails or [])
+    turns = {r["turn"] for r in rows if r.get("verdict") == "FAIL" and r.get("check_id") in want}
+    found = {r.get("check_id") for r in rows if r.get("verdict") == "FAIL"}
+    return turns | (set(range(1, n_turns + 1)) if want - found else set())
 
 
 def collection_log_html(lines: Optional[List[str]]) -> str:
@@ -473,7 +523,30 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     lines: Dict[Tuple[str, int], Dict[str, Any]] = {}
     for r in results:
         verdict, items, changed = effective(r, normalize_items(r), human)
-        lines[(r["provider"], int(r["question"]))] = {"line": r, "items": items, "verdict": verdict, "orig_verdict": r.get("verdict"), "changed": changed}
+        lines[(r["provider"], int(r["question"]))] = {"line": r, "items": items, "verdict": verdict, "orig_verdict": r.get("verdict"), "changed": changed,
+                                                      "raw_items": normalize_items(r)}
+    # 문항(싱글턴 질문 · 멀티턴 턴)마다 결론 — 숫자는 문항 수 / 177 (사용자 10-26 저녁)
+    n_turns = question_turns(set_dir)
+    units = units_of(qtypes, n_turns) if qtypes else [(q, 0) for q in sorted({int(r["question"]) for r in results})]
+    total_u = len(units)
+    uverdict: Dict[Tuple[str, int, int], str] = {}
+    uverdict_before: Dict[Tuple[str, int, int], str] = {}
+    for (p, q), L in lines.items():
+        if qtypes.get(q) == MULTI_TYPE:
+            ct = code_fail_turns(L["line"].get("code_fails") or [], code.get((p, q)) or [], n_turns.get(q, 1))
+            for t, v in turn_verdicts(L["line"], L["verdict"], L["items"], n_turns.get(q, 1), ct).items():
+                uverdict[(p, q, t)] = v
+            for t, v in turn_verdicts(L["line"], L["orig_verdict"] or "HOLD", L["raw_items"], n_turns.get(q, 1), ct).items():
+                uverdict_before[(p, q, t)] = v
+        else:
+            uverdict[(p, q, 0)], uverdict_before[(p, q, 0)] = L["verdict"], L["orig_verdict"]
+
+    def utally(p: str, us: Optional[List[Tuple[int, int]]] = None, before: bool = False) -> Counter:
+        src = uverdict_before if before else uverdict
+        c: Counter = Counter()
+        for q, t in (us if us is not None else units):
+            c[src.get((p, q, t)) or "미평가"] += 1
+        return c
 
     def tally(p: str, qs: Optional[List[int]] = None, before: bool = False) -> Counter:
         c: Counter = Counter()
@@ -508,24 +581,24 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
 
     P: List[str] = [f"<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                     f"<title>AIONA 채팅 품질 평가 결과</title><style>{CSS}</style></head><body data-run='{_e(run_id)}' data-policy='{POLICY}'><div class='wrap'>"]
-    P.append(f"<h1>AIONA 채팅 품질 평가 결과</h1><div class='meta'>실행 {_e(run_id)} · 질문 {total_q}개 · 평가 기준 72개(CODE 28 + 의미 44) · 심판: {judge_txt} · 보고서 생성 {gen}"
+    P.append(f"<h1>AIONA 채팅 품질 평가 결과</h1><div class='meta'>실행 {_e(run_id)} · 질문 {total_q}개 · 문항 {total_u}개(멀티턴은 턴마다) · 평가 기준 72개(에러 케이스 2 + CODE 26 + 의미 44) · 심판: {judge_txt} · 보고서 생성 {gen}"
              f"{'' if complete else ' · <b class=HOLD>평가 진행 중(일부 질문 미평가)</b>'}</div>")
     P.append("<p class='lead'>같은 질문 78개를 네 모델에 똑같이 던지고, 답변마다 72개 기준으로 검사했습니다. <b>완전 통과</b>는 그 질문에 적용되는 기준(첨부·멀티턴·형식 조건처럼 "
-             "그 질문에 없는 기준은 '해당 없음'으로 제외) 가운데 FAIL 도 보류도 하나 없는 경우입니다. 10턴 대화는 열 번의 답 모두가 검사 대상이라 기준이 엄격합니다. 숫자는 모두 <b>질문 수 / 78</b> 입니다.</p>")
+             "그 질문에 없는 기준은 '해당 없음'으로 제외) 가운데 FAIL 도 보류도 하나 없는 경우입니다. 숫자는 모두 <b>문항 수 / " + str(total_u) + "</b> 입니다 — 싱글턴 질문은 1문항, 10턴 대화는 턴마다 1문항(Q3-1 · Q3-2 …).</p>")
 
     # 1. 한눈에
-    P.append("<h2>1. 한눈에 보기 — 완전 통과 질문 수</h2><div class='cards'>")
+    P.append("<h2>1. 한눈에 보기 — 완전 통과 문항 수</h2><div class='cards'>")
     for p in providers:
-        t = tally(p)
-        pct = t["PASS"] / total_q * 100
-        P.append(f"<div class='card {p}'><div class='name'>{_e(model_label[p])}</div><div class='big'>{t['PASS']} <small>/ {total_q}</small></div>"
+        t = utally(p)
+        pct = t["PASS"] / max(1, total_u) * 100
+        P.append(f"<div class='card {p}'><div class='name'>{_e(model_label[p])}</div><div class='big'>{t['PASS']} <small>/ {total_u}</small></div>"
                  f"<div class='bar'><i style='width:{pct:.1f}%'></i></div><div class='sub'>완전 통과 {pct:.1f}% · FAIL {t['FAIL']} · 보류 {t['HOLD']}"
                  f"{' · 미평가 ' + str(t['미평가']) if t['미평가'] else ''}</div></div>")
     P.append("</div>")
     if human:
         P.append("<table><tr><th>모델</th><th class='num'>사람 판정 전 통과</th><th class='num'>후 통과</th><th class='num'>전 보류</th><th class='num'>후 보류</th><th class='num'>바뀐 항목</th></tr>")
         for p in providers:
-            b, a = tally(p, before=True), tally(p)
+            b, a = utally(p, before=True), utally(p)
             P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{b['PASS']}</td><td class='num'>{a['PASS']}</td><td class='num'>{b['HOLD']}</td><td class='num'>{a['HOLD']}</td>"
                      f"<td class='num'>{sum(L['changed'] for k, L in lines.items() if k[0] == p)}</td></tr>")
         P.append("</table><p class='note'>사람 판정(human_decisions.json)을 반영한 뒤의 숫자입니다. 규칙은 심판과 같아서 보류가 하나라도 남으면 보류이고, 보류를 모두 정한 뒤 FAIL 이 하나라도 있으면 FAIL 입니다.</p>")
@@ -543,14 +616,14 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     if "aiona" in providers and len(providers) > 1 and "aiona2" not in providers:   # AIONA 끼리 비교(두 자리)에는 'AIONA 가 앞선 부분'이 맞지 않음
         wins: List[str] = []
         others = [p for p in providers if p != "aiona"]
-        for ty in TYPE_ORDER:
-            qs = [q for q in all_q if display_type(qtypes.get(q) or "") == ty]
-            if not qs or not all((p, q) in lines for p in providers for q in qs):
+        for ty in UNIT_ORDER:
+            us = [(q, t) for q, t in units if unit_type(qtypes.get(q) or "") == ty]
+            if not us or not all((p, q) in lines for p in providers for q, _t in us):
                 continue
-            a = tally("aiona", qs)["PASS"]
-            o = max(tally(p, qs)["PASS"] for p in others)
+            a = utally("aiona", us)["PASS"]
+            o = max(utally(p, us)["PASS"] for p in others)
             if a > o:
-                wins.append(f"{ty}: AIONA {a}/{len(qs)} 완전 통과 (다른 모델 최고 {o}/{len(qs)})")
+                wins.append(f"{ty}: AIONA {a}/{len(us)} 완전 통과 (다른 모델 최고 {o}/{len(us)}, 문항 단위)")
         avg = {p: (sum(fail_count(p, q) for q in all_q if (p, q) in lines) / judged_n[p]) if judged_n[p] else None for p in providers}
         if complete and avg["aiona"] is not None and all(avg[p] is not None and avg["aiona"] < avg[p] for p in others):
             wins.append(f"질문당 어긴 기준 수 평균이 가장 적음: AIONA {avg['aiona']:.1f}개 (다른 모델 {min(avg[p] for p in others):.1f}~{max(avg[p] for p in others):.1f}개)")
@@ -564,19 +637,19 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                  f"{'' if complete else ' · 평가가 끝나면 채워집니다'})</span>{body}<a class='cta' href='{_e(cta)}' target='_blank' rel='noopener'>AIONA 직접 써 보기 →</a></div>")
 
     # 2. 유형별
-    P.append("<h2>2. 질문 유형별 완전 통과</h2><table><tr><th>유형</th><th class='num'>질문 수</th>" + "".join(f"<th class='num'>{_e(model_label[p])}</th>" for p in providers) + "</tr>")
-    for ty in TYPE_ORDER + sorted({display_type(t) for t in qtypes.values() if display_type(t) not in TYPE_ORDER}):
-        qs = [q for q in all_q if display_type(qtypes.get(q) or "") == ty]
-        if not qs:
+    P.append("<h2>2. 싱글턴 · 멀티턴 · 롱컨텍스트별 완전 통과</h2><table><tr><th>구분</th><th class='num'>문항 수</th>" + "".join(f"<th class='num'>{_e(model_label[p])}</th>" for p in providers) + "</tr>")
+    for ty in UNIT_ORDER:
+        us = [(q, t) for q, t in units if unit_type(qtypes.get(q) or "") == ty]
+        if not us:
             continue
-        best = max(tally(p, qs)["PASS"] for p in providers)
+        best = max(utally(p, us)["PASS"] for p in providers)
         cells = []
         for p in providers:
-            t = tally(p, qs)
+            t = utally(p, us)
             extra = (f" <span class='small'>(보류 {t['HOLD']})</span>" if t["HOLD"] else "") + (f" <span class='small'>(미평가 {t['미평가']})</span>" if t["미평가"] else "")
-            cells.append(f"<td class='num{' best' if t['PASS'] == best and best > 0 else ''}'>{t['PASS']} / {len(qs)}{extra}</td>")
-        P.append(f"<tr><td>{_e(ty)}</td><td class='num'>{len(qs)}</td>{''.join(cells)}</tr>")
-    P.append("</table><p class='note'>'단일 질문'에는 답을 내지 말라는 '명시적 빈 출력' 질문이 함께 들어 있습니다. 모델이 아무것도 안 내거나 복사할 답이 없으면 규칙상 보류로 두고 사람이 봅니다.</p>")
+            cells.append(f"<td class='num{' best' if t['PASS'] == best and best > 0 else ''}'>{t['PASS']} / {len(us)}{extra}</td>")
+        P.append(f"<tr><td>{_e(ty)}</td><td class='num'>{len(us)}</td>{''.join(cells)}</tr>")
+    P.append("</table><p class='note'>멀티턴은 턴마다 1문항입니다(그 턴의 항목 · CODE 로 보류 우선 → FAIL → 통과). '싱글턴'에는 첨부 자료 질문과 답을 내지 말라는 '명시적 빈 출력' 질문이 함께 들어 있습니다. 모델이 아무것도 안 내거나 복사할 답이 없으면 규칙상 보류로 두고 사람이 봅니다.</p>")
 
     # 3. 기준별
     P.append("<h2>3. 기준 72개별 — 어긴 질문 수</h2><p class='note'>질문 하나에서 같은 기준을 여러 턴에서 어겨도 1로 셉니다. 괄호는 보류 질문 수. 숫자가 작을수록 좋습니다.</p>")

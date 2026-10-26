@@ -239,3 +239,17 @@ def test_code_hold_is_a_held_item_and_the_persons_pass_fail_and_reason_are_recor
     rec = json.loads((tmp_path / "holds.json").read_text(encoding="utf-8"))["records"]
     assert len(rec) == 1 and rec[0]["label"] == "PASS" and rec[0]["kind"] == "서비스 꼬리글" and rec[0]["note"].startswith("서비스가")
     assert human_records.summary() == [{"kind": "서비스 꼬리글", "PASS": 1, "FAIL": 0, "notes": ["PASS: 서비스가 붙인 줄이라 답이 아님"]}]
+
+
+def test_multi_turn_is_counted_turn_by_turn_as_units():
+    """멀티턴은 턴마다 1문항(사용자 10-26 저녁: Q3-1 · Q3-2 …) — 그 턴의 항목 · CODE FAIL 로 보류 우선 → FAIL → 통과, 판정 전에 정한 줄은 모든 턴이 질문 결론."""
+    units = rh.units_of({3: rh.MULTI_TYPE, 11: "단일 질문", 29: "롱컨텍스트"}, {3: 3, 11: 1, 29: 1})
+    assert units == [(3, 1), (3, 2), (3, 3), (11, 0), (29, 0)] and rh.unit_label(3, 2) == "Q3-2" and rh.unit_label(11, 0) == "Q11"
+    assert [rh.unit_type(t) for t in (rh.MULTI_TYPE, "첨부자료 확인·요약", "명시적 빈 출력", "롱컨텍스트")] == ["멀티턴", "싱글턴", "싱글턴", "롱컨텍스트"]
+    items = [{"turn": 1, "decision": "PASS"}, {"turn": 2, "decision": "UNVERIFIED"}, {"turn": 2, "decision": "FAIL"}, {"turn": 3, "decision": "PASS"}]
+    rows = [{"turn": 3, "check_id": "2-1.count:bullet_count", "verdict": "FAIL"}, {"turn": 1, "check_id": "1-2.code_block", "verdict": "PASS"}]
+    ct = rh.code_fail_turns(["2-1.count:bullet_count"], rows, 3)
+    assert ct == {3} and rh.turn_verdicts({"status": "judged"}, "HOLD", items, 3, ct) == {1: "PASS", 2: "HOLD", 3: "FAIL"}
+    assert rh.code_fail_turns(["3-1.question_calculation"], rows, 3) == {1, 2, 3}   # 턴을 못 찾은 CODE FAIL 은 모든 턴에(질문 결론과 어긋나지 않게)
+    assert rh.turn_verdicts({"status": "held_no_answer"}, "HOLD", [], 3, set()) == {1: "HOLD", 2: "HOLD", 3: "HOLD"}
+    assert rh.turn_verdicts({"status": "judged", "judge_error": "시간 초과"}, "HOLD", items, 2, set()) == {1: "HOLD", 2: "HOLD"}
