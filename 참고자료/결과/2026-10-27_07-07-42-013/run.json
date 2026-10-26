@@ -1,0 +1,15 @@
+{
+ "version": "result-dirs-v1",
+ "kind": "rerun",
+ "rerun_of": "50ca3ccccace",
+ "judge_out": "v4-1027",
+ "before_out": "v4-f1",
+ "started": "2026-10-27_07-07-42-013",
+ "name": "10-27 받아 둔 답 다시 판정 — 판정 프롬프트 3종(1차 세 번 · 가중 다수결) → FAIL · 애매만 Codex",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3"
+ },
+ "eval_kind": null,
+ "code_at": "4a1edf3",
+ "note": "수집 50ca3ccccace(10-21~26, AIONA 자동 추천 · ChatGPT GPT-6 · Claude Sonnet 5.5 · Gemini 3.8 Flash) 그대로 · 질문 세트 78 · 사람 판정 10-26 103건 옮김"
+}

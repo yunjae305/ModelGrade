@@ -1,0 +1,52 @@
+{
+ "version": "judge-v4-1",
+ "run_id": "50ca3ccccace",
+ "prompt": "judge_prompt_v4.txt",
+ "jev_questions": "jev-questions-v4",
+ "codex": {
+  "model": "gpt-6-luna",
+  "reasoning": "low"
+ },
+ "finished_at": "2026-10-26T22:07:24.432684+00:00",
+ "wall_seconds": 3693.2,
+ "inputs": {
+  "prompt": {
+   "file": "C:\\Users\\winz\\Desktop\\quality-test-integrated\\참고자료\\프롬프트\\judge_prompt_v4.txt",
+   "sha": "4ca20c63fc64"
+  },
+  "jev_questions": {
+   "file": "C:\\Users\\winz\\Desktop\\quality-test-integrated\\참고자료\\프롬프트\\jev_questions_v4.json",
+   "sha": "4c6ced6291d1"
+  },
+  "turn_checklists": {
+   "file": "참고자료\\질문세트_78\\multiturn_v3\\turn_checklists.json",
+   "sha": "8eaacb735652"
+  }
+ },
+ "models": {
+  "aiona": {
+   "PASS": 52,
+   "FAIL": 10,
+   "HOLD": 16,
+   "n": 78
+  },
+  "claude": {
+   "PASS": 47,
+   "FAIL": 17,
+   "HOLD": 14,
+   "n": 78
+  },
+  "gemini": {
+   "PASS": 47,
+   "FAIL": 13,
+   "HOLD": 18,
+   "n": 78
+  },
+  "gpt": {
+   "PASS": 53,
+   "FAIL": 8,
+   "HOLD": 17,
+   "n": 78
+  }
+ }
+}

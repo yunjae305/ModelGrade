@@ -176,15 +176,26 @@ def publish(run_id: str, before: str, after: str, name: str, note: str = "") -> 
     md = write_compare(run_id, before, after)
     shutil.copy2(md, rd / "비교.md")
     shutil.copy2(md.with_suffix(".json"), rd / "비교.json")
-    keep = (brs.RESULTS, brs.results_json, brs.judge_report_file)
+    build_report(run_id, rd, js_path)
+    return rd
+
+
+def build_report(run_id: str, rd: Path, js_path: Path) -> Path:
+    """다시 판정 폴더의 결과 보고서(report.html) — 빌더가 실행 ID 로 찾는 결과 JSON · 판정 보고서 · 판정 기록(results.jsonl 등)을
+    이 폴더의 것으로 바꿔 끼워 만든다. 판정 기록을 바꿔 끼우지 않으면 시간 · 호출 · 토큰이 본 판정(첫 결과 폴더)의 숫자로 나온다(10-27)."""
+    from tools import build_result_summary as brs
+    from tools import result_dirs
+    keep = (brs.RESULTS, brs.results_json, brs.judge_report_file, brs.result_file)
+    orig_result_file = brs.result_file
     brs.RESULTS = result_dirs.RESULTS
     brs.results_json = lambda rid: js_path                                   # 이 폴더의 결과 JSON
     brs.judge_report_file = lambda rid: rd / result_dirs.JUDGE_REPORT        # 이 폴더의 판정 보고서
+    brs.result_file = lambda rid, name, flat=False: (rd / name) if (rd / name).exists() else orig_result_file(rid, name, flat)   # 이 폴더의 판정 기록
     try:
         brs.build(run_id, report_dir=rd)
     finally:
-        brs.RESULTS, brs.results_json, brs.judge_report_file = keep
-    return rd
+        brs.RESULTS, brs.results_json, brs.judge_report_file, brs.result_file = keep
+    return rd / result_dirs.REPORT
 
 
 def main(argv: List[str] | None = None) -> int:
