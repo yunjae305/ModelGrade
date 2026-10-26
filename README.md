@@ -1,13 +1,36 @@
 # ModelGrade · AIONA 채팅 품질 평가
 
-> **English summary** — A reproducible quality benchmark for Korean chat assistants: the same 78 questions (single-turn, 10-turn conversations, attachments, long context, explicit-empty-output) are sent to four models, every answer is judged against 72 criteria (28 deterministic CODE checks + 44 LLM-judged items with per-question target criteria), and the result is the number of fully passing questions per model (/78). Judges: a first-pass API judge with 3-vote majority, then a CLI judge (Codex or Claude) that confirms flagged items with quoted evidence; unverifiable cells are held for a human instead of being guessed. A refine loop (`tools/refine_loop.py`, Harness²-style propose → probe → adopt → lesson) improves the judge prompt and criteria from results and human marks.
+> **English summary** — ModelGrade is a reproducible quality evaluation for Korean chat assistants. It sends the same 78 real-use questions (single-turn, 10-turn conversations, attachments, long context, explicit-empty-output) to four chat services through their web UIs, judges every answer against 72 criteria (28 deterministic CODE checks + 44 LLM-judged items, only the criteria each question targets), and reports how many questions each model fully passes (/78). Every LLM verdict must quote the answer it relies on; cells that cannot be verified are held for a human instead of being guessed. Results and human marks feed a refine loop that improves the criteria and the judge prompt.
 > **Quick start**: `powershell -ExecutionPolicy Bypass -File .\install.ps1` (Windows) or `bash install.sh` (Linux · macOS), fill `.env`, then `modelgrade doctor` → `modelgrade login` → `modelgrade start`.
 
-같은 질문 78개를 AIONA · ChatGPT · Claude · Gemini 에 보내고, 72개 기준(CODE 28 + LLM 44 — 기준 8 · 세부 기준 30·점검 항목 44)으로 답을 판정해 모델별 통과 질문 수(/78)를 냅니다. Windows · macOS · Linux, Python 3.10 이상.
+ModelGrade 는 **한국어 채팅 AI 의 답변 품질을 같은 조건으로 비교하는 평가 프로그램**입니다. AIONA · ChatGPT · Claude · Gemini 에 같은 질문 78개를 보내 답을 모으고, 답마다 72개 기준(CODE 28 + LLM 44 — 기준 8 · 세부 기준 30·점검 항목 44)으로 판정해 **모델별로 모든 기준을 통과한 질문 수(/78)** 를 냅니다. 벤치마크 점수가 아니라 실제로 쓰는 질문에 대한 답을 봅니다.
+
+## 무엇을 하나
+
+1. **질문 세트** — 실제 사용을 본뜬 질문 78개(단일 질문 67 · 10턴 대화 11). 첨부 파일을 읽는 질문, 약 30만 토큰의 긴 자료를 주는 질문, 아무것도 출력하지 말라는 질문도 들어 있습니다. 질문마다 노리는 기준이 정해져 있습니다(질문당 6~10개).
+2. **수집** — 네 서비스의 웹 화면에 질문을 보내고, 답변 아래 복사 버튼으로 원문을 받습니다. 대화 질문은 한 채팅에서 1턴부터 10턴까지 이어 묻습니다. 처음 한 번만 사람이 로그인합니다.
+3. **판정** — 답마다 그 질문이 노리는 기준만 봅니다.
+   - **CODE 28개**: 글자 수 · 표 · 코드블록 · JSON 구문 · 요구한 계산값 · 금지 표현처럼 프로그램이 정확히 잴 수 있는 것.
+   - **LLM 44개**: 요청 수행 · 조건 준수 · 사실과 자료 충실성 · 내부 모순 · 멀티턴 맥락 유지처럼 뜻을 봐야 하는 것. 1차 심판(Jev · Decisions API)이 모든 칸을 보고, 어긋나거나 애매한 칸만 2차 심판(Codex CLI)이 답변 문장을 인용해 확정합니다.
+   - **안전장치**: 인용이 답변에 실제로 있는지, 사유와 판정이 맞는지 등을 프로그램이 다시 확인합니다.
+   - **보류**: 근거를 확인할 수 없으면 추측하지 않고 보류로 남겨 사람이 정합니다.
+4. **결과** — 실행마다 `참고자료/결과/<시작 시각>/` 폴더 하나를 만듭니다.
+
+## 무엇을 얻나
+
+- **결과 보고서** `report.html`: 모델별 통과 질문 수(/78), 기준별 · 질문 유형별(단일 · 대화 · 첨부 · 긴 자료) 통과, 수집 · 판정 시간.
+- **판정 보고서** `판정보고서.html`: 칸마다 질문 · 답변 원문, 판정과 사유, 근거로 든 답변 문장. 보류 칸은 여기서 사람이 판단해 반영합니다.
+- **원자료**: 판정 결과 JSON(`results.jsonl`)과 수집 기록(`수집기록/`). 같은 질문 세트로 다시 돌려 전후를 비교할 수 있습니다.
+
+## 다른 점
+
+- **기준별로 판정합니다.** 답 하나에 점수 하나를 주지 않고, 그 질문이 노리는 기준마다 지켰는지를 따로 봅니다. 어느 기준에서 떨어졌는지가 남습니다.
+- **근거 없이는 FAIL 이 없습니다.** 2차 심판은 답변 문장을 인용해야 하고, 인용이 원문에 없으면 다시 묻거나 보류합니다.
+- **돌릴수록 기준이 다듬어집니다.** 판정 결과 · 보류 · 사람 표시를 재료로 기준 문서와 판정 프롬프트의 잘못을 찾아 고치는 루프가 들어 있습니다.
 
 ## 빠른 시작 — 다른 PC 에서
 
-미리 설치할 것: **Python 3.10+** · **Google Chrome** · **Node.js**(Codex CLI 설치용). 계정: ChatGPT(Codex CLI 로그인 · 답 수집), 수집할 사이트 계정(Claude · Gemini · AIONA), 1차 심판 키(OpenAI 또는 Jev).
+미리 설치할 것: **Python 3.10+** · **Google Chrome** · **Node.js**(Codex CLI 설치용). 계정: ChatGPT(Codex CLI 로그인 · 답 수집), 수집할 사이트 계정(Claude · Gemini · AIONA), 1차 심판 키(OpenAI 또는 Jev). Windows · macOS · Linux 에서 돕니다.
 
 **Windows (PowerShell)**
 
@@ -70,55 +93,13 @@ codex login
 | `codex login` | 2차 심판(Codex CLI)이 ChatGPT 계정으로 판정 — 로그인 한 번 |
 | `doctor` | 빠진 것을 ✅ / ❌ 로 보여 주고 고치는 명령을 알려 줌(키 값은 출력 안 함) |
 | `login` | 수집용 Chrome(전용 프로필)을 띄워 네 사이트 창을 엶 — 처음 한 번 사람이 직접 로그인, 상태는 프로필에 남음 |
-| `start` | 메뉴 1(간단 78): 네 모델 동시 수집(웹) → 판정 → `참고자료/결과/<시작 시각>/` 결과 폴더 |
+| `start` | 메뉴 1(간단 78): 네 모델 동시 수집 → 판정 → `참고자료/결과/<시작 시각>/` 결과 폴더 |
 
-다른 명령은 `.\modelgrade --help`(Windows) · `./modelgrade.sh --help`(Linux · macOS). 아래 표의 `modelgrade` 는 OS 에 맞게 읽으면 됩니다. 실행 래퍼는 `.venv` 의 파이썬을 쓰고, 직접 부를 때는 `python -X utf8 tools/modelgrade.py …` 와 같습니다.
+다른 명령은 `.\modelgrade --help`(Windows) · `./modelgrade.sh --help`(Linux · macOS).
 
-## 흐름
+## 더 보기
 
-- **수집**: 네 모델 모두 웹(chatgpt.com · claude.ai · gemini.google.com · AIONA). 평소 Chrome 을 전용 프로필 + 디버깅 포트로 띄우고(`tools/chrome_cdp.py`) 프로그램은 포트로만 붙습니다. 답은 복사 아이콘 원문만(페이지 안에서 가로채기 — 시스템 클립보드 · 포커스를 안 써서 수집 중에도 컴퓨터를 쓸 수 있음). 수집기마다 자기 탭을 차지해 같은 사이트의 두 모델도 동시에 받습니다(예: 터미널 두 개에서 `modelgrade start --model claude:Opus 5.5` · `--model claude:Sonnet 5.5`).
-- **판정**: CODE 28(프로그램) → 1차 심판(Jev · Decisions, 같은 턴을 3번 판정해 다수결) → Codex CLI 확정(걸린 항목만, 인용 근거 필수) → 안전장치(인용 대조 · 사유와 판정 · 연결 규칙 · 사실 확인 출처) → 결론(보류 우선). `tools/judge_v4.py`.
-- **결과 폴더**: `report.html`(결과 보고서) · `판정보고서.html`(보류 칸은 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`.
-
-## 자주 쓰는 명령
-
-| 할 일 | 명령 |
-|---|---|
-| 실행 환경 점검 | `modelgrade doctor` |
-| 수집용 Chrome 띄우기 · 로그인 | `modelgrade login` |
-| 질문 세트 점검(기준별 10문항 이상, 모델 호출 없음) | `python -X utf8 tools/check_question_set.py 참고자료/질문세트_78/questions.json --min-applicable 10` |
-| 질문당 기준 수 k 6~10 확인(멀티턴 포함) | `python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --check` |
-| 멀티턴 턴별 확인 목록 다시 만들기 | `python -X utf8 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.py` |
-| 다시 판정(저장 출력 복구 + 바뀐 항목만, 20개씩) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --questions <20개> --out <폴더> --repair` |
-| CODE 엔진을 올린 뒤 CODE 평가 다시 계산 → 판정에 반영(심판 호출 없음) | `modelgrade code-eval --run <실행>` → `python -X utf8 tools/judge_v4.py --run <실행> --out <판정 폴더> --set 참고자료/질문세트_78 --recode` |
-| 전후 비교 · 새 결과 폴더 발행 | `python -X utf8 tools/judge_compare_runs.py publish --run <실행> --before <전> --after <후> --name "…"` |
-| 사람 표시용 표(칸마다 질문 · 답변 원본과 AI 판정 → 사람이 PASS · FAIL · 에러 케이스를 고름, 더블클릭으로 열기) | `python -X utf8 tools/build_calibration_sheet.py --run <실행> --pick-file <고를칸.json> --dest <폴더>` (`--out <판정 폴더>` 만 주면 FAIL · PASS 칸을 고루 뽑음) |
-| 판정 사유 점검(정의 밖 사유 · 같은 오류 두 번 · 규칙 밖 해당 없음 · 보류 종류) | `python -X utf8 tools/judge_reason_audit.py --run <실행> --judge <판정 폴더> --out <보고.md>` |
-| 판정 토큰(질문 × 모델 × 심판) | `python -X utf8 tools/judge_token_report.py --results <results.jsonl> --set 참고자료/질문세트_78 --out 토큰기록.md --html-dir <결과 폴더>` |
-| 1차 심판 비교(Jev · Decisions 를 각각 고정해 3번씩, Codex 안 부름, 20개씩) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --questions <20개> --out first-jev --first-judge jev --first-only --votes 3` (decisions 도 같게) → `python -X utf8 tools/judge_first_compare.py` |
-| 첫 Codex 호출을 한 번으로(시험 — 묶음 대신 첨부 없는 단일 질문 전부, 저장된 1차 그대로) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --pick <질문:모델,…> --out <폴더> --reuse-first <1차 폴더> --codex-one-call stdin` (`file` 은 입력을 파일 하나로 두고 Codex 가 셸로 읽음) |
-| 2차 심판 비교(Codex ↔ Claude CLI) | `python -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더>` → `compare` |
-| 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
-| 기준 · 프롬프트 · 코드가 같은 말을 하는지 | `python -X utf8 tools/criteria_consistency.py` |
-| 이력 없는 깨끗한 사본 만들기(회의록만 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` (`--no-results` 로 결과 폴더 빼기) |
-
-Windows 에서 `python` 대신 `py -3` 이나 `.venv\Scripts\python` 을 써도 됩니다.
-
-## 기준 · 문서
-
-- 기준의 원본: [참고자료/기준/채팅품질 평가기준_v2.md](참고자료/기준/채팅품질%20평가기준_v2.md) — 72개 기준 · 판정 체계 · 결론 규칙 · 안전장치. 기준을 바꿀 때는 이 문서를 먼저 고치고 판정 프롬프트(`참고자료/프롬프트/judge_prompt_v4.txt`) · 코드가 따라갑니다.
-- CODE 검사 세부: `참고자료/기준/MEASUREMENT_v16.md` · 기준 목록 `python -X utf8 -m code_eval criteria`.
-- 변경 이력: `참고자료/변경내역/`.
-
-## 테스트
-
-```bash
-python -X utf8 -m pytest -q
-```
-
-표준 테스트는 모델 API 를 호출하지 않습니다(가짜 심판). GitHub Actions 가 Windows · Linux 에서 테스트를, Windows · Linux · macOS 에서 설치 스크립트를 돌립니다. 비밀번호 · API 키는 파일 · 출력에 쓰지 않습니다(`.env` 는 git 제외).
-
-## 기여 · 라이선스
-
-- 구조와 바꾸는 순서는 [CONTRIBUTING.md](CONTRIBUTING.md), 바깥 자료 · 의존성 라이선스는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-- 라이선스: [Apache License 2.0](LICENSE).
+- **기준의 원본**: [참고자료/기준/채팅품질 평가기준_v2.md](참고자료/기준/채팅품질%20평가기준_v2.md) — 72개 기준 · 판정 체계 · 결론 규칙 · 안전장치.
+- **변경 이력**: `참고자료/변경내역/`.
+- **개발 · 운영 명령**(다시 판정 · 비교 · 기준 다듬기 루프 · 시험 등)과 폴더 구조: [CONTRIBUTING.md](CONTRIBUTING.md).
+- **라이선스**: [Apache License 2.0](LICENSE) · 바깥 자료와 의존성은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
