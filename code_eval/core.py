@@ -17,7 +17,7 @@ from .scripts import SCRIPT_DATA_VERSION
 #: v16.5.0 — 답변 구조에서 생기는 검사(ANSWER_UNITS)는 답변마다 조건 1개로 집계하고, 대상이 없으면 '검사 대상 없음' PASS 행을 둔다 (§26).
 #: v16.6.0 — 질문 속 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝] 줄)는 지시가 아니다: 요구 조건·지속 지시·작업명은 요청 부분에서만 (§27).
 #: v16.7.0 — 1-1 응답 존재 → 에러 케이스 없음: 빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만을 FAIL, 복사 실패는 행 없이 보류 (10-25, 미팅 10-23 2 · 3번)
-ENGINE_VERSION = "aiona-code-eval-v16.7.3"
+ENGINE_VERSION = "aiona-code-eval-v16.8.0"   # v16.8.0: 에러 케이스 대분류(0-1) — 1-1.response_nonempty · 2-1.explicit_empty 소분류 이동(10-26)
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
 

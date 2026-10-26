@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 from .core import CHECK_VERSIONS
 from .jev_applicability import APPLIES_WHEN
 from .jev_criteria import JEV_CRITERIA_VERSION, describe as jev_describe
-from .model import SPECIALIZED, SUBCATEGORIES
+from .model import SPECIALIZED, SUBCATEGORIES, code_group
 from .semantic_policy import DECISION_POLICY
 from .taxonomy import CATEGORIES
 
@@ -26,7 +26,7 @@ __all__ = ["REGISTRY_VERSION", "CODE_UNITS", "MODIFIER_KINDS", "SUBSUMED_KINDS",
 
 #: 두 작업 줄에서 v2 가 다른 뜻으로 쓰였다 — main v2(semantic_items·changelog)와 브랜치 v2(이전 턴 승계·출처 대조 경계, 통합 v3).
 #: 둘을 합친 목록 → v4. 기존 번호의 뜻은 바꾸지 않는다 (CHANGELOG 참고).
-REGISTRY_VERSION = "criteria-registry-v12"   # v12: 1-1 응답 존재 → 에러 케이스 없음(10-25). v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
+REGISTRY_VERSION = "criteria-registry-v13"   # v13: CODE 대분류 '0 에러 케이스'(소분류 0-1)에 에러 케이스 없음 · 명시 빈 출력(10-26) · v12: 1-1 응답 존재 → 에러 케이스 없음(10-25). v11: 평가 기준 단위 하나 — 72 = CODE 검사 28 + 의미 점검 항목 44 (질문 조건 종류는 기준에서 뺌) · v10: 세부 기준(평가 대상) 목록 고정 — CODE 28 검사 → 질문 조건 37, 의미 8 → 30 → 44 · v9: J6 멀티턴 = 10턴 이상 · 대화 전체 10K 토큰 · v8: J8 첨부파일 활용 추가 · v7: J7 272K 확정 · v6: J7 250K 이상(테스트 기간)·J6 멀티턴 길이 조건 · v5: J6 이름 변경, J7 추가
 
 #: (검사 단위, 이름, 적용 계기, 이 단위를 만드는 질문 조건 종류)
 #: 적용 계기 — all: 모든 답변 · question: 질문의 명시 요구 · answer: 답변에 해당 구조가 있을 때 ·
@@ -145,7 +145,7 @@ def _code_entries() -> List[Dict[str, Any]]:
     subs = {sub["id"]: sub for cat in CATEGORIES for sub in cat["subs"]}
     out = []
     for unit, name, trigger, kinds in CODE_UNITS:
-        group = unit.split(".")[0]
+        group = code_group(unit)
         sub = subs.get(group)
         out.append({
             "id": unit, "layer": "CODE", "group": group,
@@ -420,6 +420,12 @@ CHANGELOG: List[Dict[str, Any]] = [
     {"version": "criteria-registry-v12", "date": "2026-10-25", "scope": "registry",
      "changes": ["1-1 '일반 응답 존재' 이름을 '에러 케이스 없음' 으로 (id 1-1.response_nonempty 그대로, 기준 수 72 그대로) — 빈 답만이 아니라 답 없음(수집 오류)·"
                  "능력 부정 정형 문구만도 FAIL. 질문 세트(78·빈 출력 10)는 수도 내용도 바꾸지 않음(사용자 10-25)"]},
+    {"version": "engine v16.8.0", "date": "2026-10-26", "scope": "code",
+     "changes": ["1-1.response_nonempty · 2-1.explicit_empty 의 결과 행 소분류를 0-1(에러 케이스)로 — 판정 규칙 · 규칙 버전은 그대로, 묶음만 바뀜. "
+                 "복사 실패의 판정 제외도 다른 검사와 같은 모양(skip_condition: check_id · subcategory · reason)으로"]},
+    {"version": "criteria-registry-v13", "date": "2026-10-26", "scope": "registry",
+     "changes": ["CODE 대분류 '0 에러 케이스' · 소분류 '0-1 에러 케이스' 신설 — 에러 케이스 없음(1-1.response_nonempty)과 명시 빈 출력(2-1.explicit_empty)을 옮김. "
+                 "ID 는 그대로(질문 세트 · 지난 결과의 키), 4대분류 · 9소분류 · 28 검사, 기준 수 72 그대로 (사용자 10-26: '에러케이스를 대분류로 올리라니까')"]},
 ]
 
 

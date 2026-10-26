@@ -149,8 +149,9 @@ def criteria_table(set_dir: Path) -> Dict[str, Dict[str, str]]:
     f = set_dir / "criteria_catalog.json"
     if f.exists():
         cat = json.loads(f.read_text(encoding="utf-8")).get("catalog") or {}
+        from code_eval.model import code_group   # CODE 검사 ID → 소분류 (10-26 에러 케이스 대분류)
         for c in cat.get("code") or []:
-            out[c["id"]] = {"name": c.get("name") or c["id"], "group": "CODE " + c["id"].split(".")[0]}
+            out[c["id"]] = {"name": c.get("name") or c["id"], "group": "CODE " + code_group(c["id"])}
         for it in cat.get("items") or []:
             out[it["id"]] = {"name": f"{it.get('sub') or ''} — {(it.get('question') or '')[:60]}", "group": it["id"].split("-")[0]}
     return out

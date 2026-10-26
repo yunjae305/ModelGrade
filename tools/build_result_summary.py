@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 from tools import report_html as R  # noqa: E402
 from tools.result_flow import FLOW_CSS, WARN as FLOW_WARN, flow_scene  # noqa: E402
+from code_eval.model import code_group  # noqa: E402   # CODE 검사 ID → 소분류 (10-26 에러 케이스 대분류)
 
 RUN = "a1642702fccc"
 RESULTS = ROOT / "참고자료" / "결과"
@@ -375,7 +376,7 @@ def criteria_list(D: Dict[str, Any]) -> str:
     # CODE — 세 갈래 · 여덟 묶음
     cgroups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for c in sorted(codes, key=lambda c: c["id"]):
-        cgroups[c["id"].split(".")[0]].append(c)
+        cgroups[code_group(c["id"])].append(c)
     # LLM Judge — J1~J8, 같은 이름(J1-4.a · b)은 하나로 묶어 a · b 를 그 아래에
     jgroups: Dict[str, Dict[str, List[Dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     for it in sorted(items, key=lambda i: i["id"]):
@@ -677,7 +678,7 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
     ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
     groups: Dict[str, List[str]] = defaultdict(list)
     for cid in ids:
-        groups[cid.split(".")[0] if cid[0].isdigit() else cid.split("-")[0]].append(cid)
+        groups[code_group(cid) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
     head = '<div class="cb-row cb-head"><span>묶음 · 기준</span>' + "".join(f"<span>{mname(p)}</span>" for p in order) + "</div>"
     rows = []
     for g, cids in groups.items():
@@ -1823,7 +1824,7 @@ def q_class_label(D: Dict[str, Any], q: int) -> str:
             if lab not in llm:
                 llm.append(lab)
         else:
-            g = cid.split(".")[0]
+            g = code_group(cid)
             lab = short_code.get(g, g)
             if lab not in code:
                 code.append(lab)
@@ -2244,7 +2245,7 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
     ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
     groups: Dict[str, List[str]] = defaultdict(list)
     for cid in ids:
-        groups[("CODE 검사 " + cid.split(".")[0]) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
+        groups[("CODE 검사 " + code_group(cid)) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
     gblocks = []
     for g, cids in groups.items():
         rows = []

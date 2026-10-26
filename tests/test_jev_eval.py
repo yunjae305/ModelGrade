@@ -113,7 +113,7 @@ def test_case1_normal_answer_code_pass_and_jev_all_pass_through_official_endpoin
     assert request.method == "POST" and str(request.url) == "https://api.typesafe.ai/v1/systemone"
     assert request.headers["authorization"] == "Bearer sk-test-key-000000"
     body = json.loads(request.content)
-    assert body["model"] == "jev-latest"
+    assert body["model"] == "jev-1.14.0"   # 실제 버전으로 고정(10-26)
     assert body["state"] == {"question": NORMAL["question"], "answer": NORMAL["answer"]}
     assert set(body["questions"]) == set(J_IDS)  # J 기준만 보낸다 (C 보완 질문 없음)
     assert "code_completion" not in record
@@ -179,7 +179,7 @@ def test_case6_jev_failure_keeps_code_result(respond, status):
 
 def test_case7_missing_api_key_is_reported_without_a_client(tmp_path):
     client, config, reason = resolve_jev_client(environment={}, env_path=tmp_path / ".env")
-    assert client is None and config.model == "jev-latest" and "TYPESAFE_API_KEY" in reason
+    assert client is None and config.model == "jev-1.14.0" and "TYPESAFE_API_KEY" in reason
     assert resolve_jev_client(environment={"TYPESAFE_API_KEY": "sk-x"}, env_path=tmp_path / ".env")[0] is not None
 
 

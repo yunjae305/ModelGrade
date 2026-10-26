@@ -102,7 +102,7 @@ def test_approved_gaps_are_now_covered_by_a_running_check():
 def test_evaluation_targets_are_pinned():
     """평가 기준을 한 곳에 고정 — 개수가 바뀌면 이 테스트와 설계안·변경내역을 함께 고친다 (사용자 결정 2026-10-14)."""
     targets = reg.evaluation_targets()
-    assert targets["counts"] == {"code_categories": 3, "code_subcategories": 8, "code_checks": 28,
+    assert targets["counts"] == {"code_categories": 4, "code_subcategories": 9, "code_checks": 28,
                                  "semantic_criteria": 8, "semantic_subs": 30, "semantic_items": 44, "total": 72}
     code = targets["code"]
     assert len(code["always_checks"]) + len(code["answer_checks"]) + len(code["question_checks"]) == 28 == len(set(code["checks"]))

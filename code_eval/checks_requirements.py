@@ -19,6 +19,7 @@ from .textparse import _json_type_name, count_words, strip_non_content
 
 __all__ = ["check_2_1", "check_2_2", "table_observation"]
 
+SUB01 = "0-1"   # 에러 케이스(대분류 0, 10-26) — 2-1.explicit_empty 는 ID 그대로 소분류만 0-1
 SUB21, SUB22 = "2-1", "2-2"
 
 _COUNT_TITLES = {"bullet_count": "불릿 개수", "sentence_count": "문장 수", "paragraph_count": "문단 수",
@@ -215,7 +216,7 @@ def check_2_1(ctx: Ctx) -> List:
     if req:
         content = strip_non_content(ctx.answer)
         ok = not content
-        out.append(result("2-1.explicit_empty", SUB21, "빈 출력 요청", "question", Status.EXECUTED, verdict_of(ok),
+        out.append(result("2-1.explicit_empty", SUB01, "빈 출력 요청", "question", Status.EXECUTED, verdict_of(ok),
                           required="출력 없음", measured={"content_chars": len(content)},
                           comparison=cmp_text(len(content), "==", 0),
                           reason="요청대로 출력이 비어 있음" if ok else f"빈 출력을 요청했으나 실질 문자 {len(content)}자 출력",

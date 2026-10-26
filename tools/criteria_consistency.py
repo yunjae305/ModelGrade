@@ -125,10 +125,9 @@ def registry_code_names() -> Dict[str, str]:
     from code_eval import criteria_registry as cr
     out: Dict[str, str] = {}
     for e in cr._code_entries():
-        cid = str(e.get("id") or "")
-        m = re.match(r"(\d-\d)", cid)
-        if m:
-            out.setdefault(m.group(1), str(e.get("name") or e.get("title") or ""))
+        g = str(e.get("group") or "")   # 검사 ID 앞부분이 아니라 소분류(에러 케이스 0-1 처럼 ID 와 다를 수 있음, 10-26)
+        if re.fullmatch(r"\d-\d", g):
+            out.setdefault(g, str(e.get("name") or e.get("title") or ""))
     return out
 
 

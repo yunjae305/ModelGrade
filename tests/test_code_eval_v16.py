@@ -96,7 +96,7 @@ def test_error_case_phrase_and_collection_error_fail_1_1_but_copy_failure_is_hel
     assert one(one_para, "1-1.response_nonempty")["verdict"] == PASS   # 한 문단이어도 결과물이 있음
     copy_failed = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED"})
     assert rows(copy_failed, "1-1.response_nonempty") == []
-    assert any("복사 실패" in s.get("why", "") for s in copy_failed["meta"].get("skipped_conditions", []))
+    assert any("복사 실패" in s.get("reason", "") and s.get("subcategory") == "0-1" for s in copy_failed["meta"].get("skipped_conditions", []))   # 다른 판정 제외와 같은 모양(10-26)
     missing = engine.evaluate_case({"question": "회의 시간을 알려줘."}, NO_CONFIG)
     assert missing["case_status"] == "INPUT_ERROR" and missing["results"] == []
 
@@ -541,7 +541,7 @@ def test_report_shows_all_criteria_before_case_results():
         assert f'>{jid}</span><h3>{name}</h3>' in html
     assert "<p>J1~J8 · Semantic Evaluation</p>" in html and 'aria-label="Jev 의미 평가 기준 8개"' in html
     criteria = html[html.index('<section aria-labelledby="common-heading"'):html.index('<section id="overall"')]
-    assert criteria.count('class="criterion-example"') == 18  # 공통 8 + Jev 8 + AIONA 특화 2
+    assert criteria.count('class="criterion-example"') == 19  # 공통 9(에러 케이스 0-1, 10-26) + Jev 8 + AIONA 특화 2
     for example in ("불릿 3개를 요청했을 때 실제로 3개인지", "장단점을 물었는데 장점만 설명했는지",
                     "내부 처리용 태그가 고객에게 보이는 답변에 남아 있는지"):
         assert example in criteria

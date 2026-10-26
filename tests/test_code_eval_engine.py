@@ -306,8 +306,8 @@ def test_answer_structure_checks_count_once_per_answer_so_every_model_gets_the_s
     wrong = engine.evaluate_case({"question": question, "answer": "- 20 - 4 = 16권\n- 16 + 10 = 27권"})
     for case in (plain, worked, wrong):
         assert case["errors"] == [] and case["summary"]["common"]["unjudged"] == 0
-        # 같은 질문이면 답변이 무엇을 보여 줬든 분류별 조건 수가 같다 (항상 3 + 답변 구조 9 + 질문이 만든 0)
-        assert {k: v["conditions"] for k, v in case["summary"]["by_category"].items()} == {"1": 10, "2": 0, "3": 2}
+        # 같은 질문이면 답변이 무엇을 보여 줬든 분류별 조건 수가 같다 (항상 3 — 에러 케이스 1 은 대분류 0(10-26) + 답변 구조 9 + 질문이 만든 0)
+        assert {k: v["conditions"] for k, v in case["summary"]["by_category"].items()} == {"0": 1, "1": 9, "2": 0, "3": 2}
     assert _cat(plain, "3") == (2, 0, 2, 2)      # 등식 없음 → '검사 대상 없음' PASS 1조건 + 선언 개수 1조건
     assert _cat(worked, "3") == (2, 0, 2, 5)     # 등식 4개가 모두 맞음 → 조건 1개 PASS, 행은 4개 그대로
     assert _cat(wrong, "3") == (1, 1, 2, 3)      # 등식 2개 중 1개 틀림 → 조건 1개 FAIL (등식 수만큼 세지 않음)
@@ -317,7 +317,7 @@ def test_answer_structure_checks_count_once_per_answer_so_every_model_gets_the_s
     assert absent["verdict"] == "PASS" and absent["counted"] and absent["details"]["absent"] is True
     assert "검사 대상 0개" in absent["reason"] and absent["explain"]["headline"] == "검사 대상 없음 — 위반 없음"
     assert absent["evidence"] == [] and absent["measured"] == {"targets": 0, "excluded": 0}
-    # 1-2·1-3 의 7개도 같은 규칙 — 코드가 없는 답변은 항상 검사 3 + 대상 없음 7 = 10
+    # 1-2·1-3 의 7개도 같은 규칙 — 코드가 없는 답변은 대분류 1 에서 항상 검사 2(1-1) + 대상 없음 7 = 9 (에러 케이스는 대분류 0, 10-26)
     assert sorted(r["check_id"] for r in plain["results"] if r["check_id"].endswith(":none") and r["category"] == "1") == \
         ["1-2.fence_imbalance:none", "1-2.json_syntax:none", "1-2.orphan_closing_tag:none", "1-2.python_syntax:none",
          "1-3.citation_link:none", "1-3.footnote_link:none", "1-3.internal_link:none"]
@@ -329,7 +329,7 @@ def test_python_blocks_count_once_per_answer_but_each_block_keeps_its_row():
     two = engine.evaluate_case({"question": "파이썬 코드를 보여줘.",
                                 "answer": "```python\nprint(1)\n```\n\n```python\nfor i in range(3):\nprint(i)\n```"})
     one = engine.evaluate_case({"question": "파이썬 코드를 보여줘.", "answer": "```python\nprint(1)\n```"})
-    assert _cat(two, "1") == (9, 1, 10, 11) and _cat(one, "1") == (10, 0, 10, 10)
+    assert _cat(two, "1") == (8, 1, 9, 10) and _cat(one, "1") == (9, 0, 9, 9)   # 에러 케이스는 대분류 0 (10-26)
     assert [(r["check_id"], r["verdict"]) for r in two["results"] if r["check_id"].startswith("1-2.python_syntax")] == \
         [("1-2.python_syntax:block1", "PASS"), ("1-2.python_syntax:block2", "FAIL")]
     assert not [r for r in two["results"] if r["check_id"] in ("1-2.python_syntax:none", "1-2.fence_imbalance:none")]

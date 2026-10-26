@@ -3,6 +3,17 @@
  "source": "설계안 v1.1 (2026-10-12) 코드 평가 기준표",
  "categories": [
   {
+   "id": "0",
+   "name": "에러 케이스",
+   "question": "답이 오류 · 빈 답 · 정형 거절 문구뿐이거나, 빈 출력을 요구한 질문에 글을 썼는가?",
+   "subs": [
+    {
+     "id": "0-1",
+     "name": "에러 케이스"
+    }
+   ]
+  },
+  {
    "id": "1",
    "name": "출력 무결성",
    "question": "출력 자체에 확인 가능한 결함이 있는가?",
@@ -60,8 +71,8 @@
   {
    "id": "1-1.response_nonempty",
    "name": "에러 케이스 없음",
-   "category": "1",
-   "sub": "1-1",
+   "category": "0",
+   "sub": "0-1",
    "description": "답변이 에러 케이스가 아닌지 확인한다 — ① 빈 답(ch.isspace() 인 문자와 unicodedata 범주 Cc·Cf 문자를 제거한 뒤 실질 문자 0자) ② 답 없음(수집 상태가 SUCCESS·COPY_FAILED 가 아니고 답이 빔: 오류 코드·시간 초과·무응답) ③ 능력 부정 정형 문구만(ERROR_CASE_PHRASES + 거절 말, 300자 이하, 코드블록 없음) ④ 서비스 오류 정형 문구만(SERVICE_ERROR_PHRASES: 오류 발생·응답 생성 실패·error occurred + 재시도·사과 문장뿐, 10-25 밤). 복사 실패(COPY_FAILED)는 우리 원인이라 행을 만들지 않고 사유만 남긴다(질문 보류). 10-25, 미팅 10-23 2·3번.",
    "conditions": [
     {
@@ -753,8 +764,8 @@
   {
    "id": "2-1.explicit_empty",
    "name": "빈 출력 준수",
-   "category": "2",
-   "sub": "2-1",
+   "category": "0",
+   "sub": "0-1",
    "description": "질문이 '아무것도 출력하지 마'·'빈 문자열로 응답해' 식으로 빈 출력을 명시 요청했을 때, 답변에서 공백·제어문자를 뺀 실질 문자가 0자인지 확인한다.",
    "conditions": [
     {

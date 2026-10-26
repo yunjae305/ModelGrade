@@ -18,6 +18,7 @@ from .textparse import CORRUPTION_SIGNATURES, _json_type_name, _parse_footnotes,
 
 __all__ = ["check_1_1", "check_1_2", "check_1_3", "json_targets", "foreign_script_observation"]
 
+SUB01 = "0-1"   # 에러 케이스(대분류 0, 10-26) — 1-1.response_nonempty 는 ID 그대로 소분류만 0-1
 SUB11, SUB12, SUB13 = "1-1", "1-2", "1-3"
 
 
@@ -293,7 +294,7 @@ def check_1_1(ctx: Ctx) -> List:
     # 질문이 빈 출력을 명시 요청하면 에러 케이스 행을 만들지 않는다 (요청 준수 여부는 2-1.explicit_empty 가 판정).
     if empty_req is None and status == "COPY_FAILED":
         # 복사 실패는 우리 원인 — 행 없이 사유만 남기고 질문은 보류(사람이 정함, 10-25)
-        ctx.skipped.append({"check_id": "1-1.response_nonempty", "why": "복사 실패(수집기 원인) — 에러 케이스로 세지 않음, 질문은 보류"})
+        skip_condition(ctx, "1-1.response_nonempty", SUB01, "복사 실패(수집기 원인) — 에러 케이스로 세지 않음, 질문은 보류")
     elif empty_req is None:
         kind, reason = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content))
         if status and status not in COLLECTION_OK and not content:
@@ -309,7 +310,7 @@ def check_1_1(ctx: Ctx) -> List:
                 if svc:
                     kind, reason = "서비스 오류 문구", "서비스 오류 정형 문구만 있고 결과물 없음: '{}'".format(svc)
         ok = kind is None
-        out.append(result("1-1.response_nonempty", SUB11, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
+        out.append(result("1-1.response_nonempty", SUB01, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
                           verdict_of(ok), required="빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만 · 서비스 오류 문구만이 아님",
                           measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind},
                           comparison=cmp_text(len(content), ">=", 1),
