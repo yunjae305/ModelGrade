@@ -756,7 +756,7 @@ def ensure_collection_chrome() -> None:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
-    """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT · Claude · Gemini · AIONA 모두 웹, 수집용 Chrome 하나)이 동시에 그 세트의 답을 받고, 원하면 판정을 20개씩 끝까지 돌린 뒤 결과를 보인다.
+    """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT · Claude · Gemini · AIONA 모두 웹, 수집용 Chrome 하나)이 동시에 그 세트의 답을 받고, 원하면 판정을 질문 전체 한 번에 끝까지 돌린 뒤 결과를 보인다.
     이미 받은 질문·판정한 질문은 건너뛰므로 같은 명령을 다시 부르면 이어서."""
     set_dir = Path(args.set)
     choice = args.choice or ask_choice()
@@ -809,7 +809,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     go = args.judge
     if go == "ask":
         try:
-            go = "y" if input("이어서 판정할까요? 20개씩 끝날 때까지 돌립니다 (y/N): ").strip().lower() == "y" else "n"
+            go = "y" if input("이어서 판정할까요? 질문 전체를 한 번에 끝까지 돌립니다 (y/N): ").strip().lower() == "y" else "n"
         except EOFError:
             go = "n"
     if go != "y":
