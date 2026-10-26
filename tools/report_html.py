@@ -20,7 +20,7 @@ RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"
 LABEL = {"aiona": "AIONA", "gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
 ORDER = ["aiona", "gpt", "claude", "gemini"]
-KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}
+KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", "ERROR_CASE": "에러 케이스"}
 TYPE_ORDER = ["단일 질문", "10턴 멀티턴 대화", "롱컨텍스트", "첨부자료 확인·요약"]   # 10-21 오후 미팅: 싱글턴 · 멀티턴 · 롱컨텍스트 · 첨부
 
 
@@ -30,7 +30,8 @@ def display_type(t: str) -> str:
 HOLD_KINDS = ("심판 출력 누락", "인용 불일치", "확인 못함", "심판 갈림", "사유 모순", "규칙 오적용", "질문 전체 보류", "기타")
 #: 판정(judge_v4 의 안전장치)이 항목에 직접 붙이는 보류 종류 — 다시 짐작하지 않고 그대로 쓴다
 #: (10-22 기준 점검: 반박 출처 없는 사실 FAIL 을 '확인 못함'으로 돌린 9칸이 보고서에서 '기타'로 셌던 것)
-GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용")
+GUARD_KINDS = ("확인 못함", "사유 모순", "규칙 오적용", "에러 케이스 확인")
+ERROR_SUSPECT_KIND = "에러 케이스 확인"   # CODE 0-1 이 보류한 에러 케이스 의심 턴 — 사람이 에러 케이스 · PASS · FAIL 을 고른다 (사용자 10-26)
 POLICY = "judge-v5-screen-1"
 
 CSS = """
@@ -55,7 +56,7 @@ details.q{border-left:4px solid var(--hold)}details.f{border-left:4px solid var(
 pre.orig{white-space:pre-wrap;word-break:break-word;background:#fafafa;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12.5px;max-height:420px;overflow:auto;font-family:inherit}
 .item{border-top:1px dashed var(--line);padding:8px 0}.item .id{font-weight:700}.item .why{color:#333}.item .quote{color:var(--mute);font-size:12.5px}.kind{font-size:12px;color:#fff;background:#888;padding:0 6px;border-radius:8px;margin-left:6px}
 .btns button{border:1px solid #bbb;background:#fff;border-radius:8px;padding:3px 10px;margin:4px 4px 0 0;cursor:pointer;font-size:12.5px}.btns button.on{color:#fff;border-color:transparent}
-.btns button.on[data-v=PASS]{background:var(--pass)}.btns button.on[data-v=FAIL]{background:var(--fail)}.btns button.on[data-v=NOT_APPLICABLE]{background:#777}.btns button.on[data-v=UNVERIFIED]{background:var(--hold)}
+.btns button.on[data-v=PASS]{background:var(--pass)}.btns button.on[data-v=FAIL]{background:var(--fail)}.btns button.on[data-v=NOT_APPLICABLE]{background:#777}.btns button.on[data-v=UNVERIFIED]{background:var(--hold)}.btns button.on[data-v=ERROR_CASE]{background:#7b3fb8}
 .toolbar{position:sticky;top:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .toolbar input{padding:5px 8px;border:1px solid #bbb;border-radius:6px}.toolbar button{padding:6px 12px;border-radius:8px;border:1px solid var(--aiona);background:var(--aiona);color:#fff;cursor:pointer;font-weight:600}
 .note{font-size:12.5px;color:var(--mute)}.small{font-size:12px;color:var(--mute)}.qtxt{color:#444}
@@ -233,7 +234,7 @@ def normalize_items(line: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "notes": v.get("notes") or [],
                         "answer_quote": v.get("answer_quote") or e.get("answer_quote") or "", "question_quote": v.get("question_quote") or e.get("question_quote") or "",
                         "problems": v.get("problems") or [], "codex": v.get("codex"), "second": v.get("jev"), "flagged": v.get("flagged") or "",
-                        "kind": hold_kind(v) if v.get("decision") == "UNVERIFIED" else ""})
+                        "kind": hold_kind(v) if v.get("decision") == "UNVERIFIED" else "", "answer_text": v.get("answer_text") or ""})
     return out
 
 
@@ -242,17 +243,29 @@ def effective(line: Dict[str, Any], items: List[Dict[str, Any]], human: Dict[Tup
     보류(확인 못 함 · 판정 실행 오류)가 하나라도 남으면 HOLD, 아니면 CODE FAIL 또는 항목 FAIL → FAIL, 그 밖 PASS."""
     whole = human.get((line["provider"], int(line["question"]), 1, "__question__"))
     if line.get("status") not in (None, "judged"):
-        if whole and whole.get("new") in ("PASS", "FAIL"):
-            return whole["new"], items, 1
+        if whole and whole.get("new") in ("PASS", "FAIL", "ERROR_CASE"):
+            return ("FAIL" if whole["new"] == "ERROR_CASE" else whole["new"]), items, 1   # 에러 케이스 = 결과물 없음 → FAIL (사용자 10-26)
         return line.get("verdict") or "HOLD", items, 0
+    from code_eval import error_cases
     changed = 0
     new_items = []
+    err_turns = set()   # 사람이 에러 케이스로 정한 턴 — J1-1.a 만 FAIL, 나머지 해당 없음 (판정 도구의 에러 케이스 턴과 같은 규칙)
     for it in items:
         h = human.get((line["provider"], int(line["question"]), it["turn"], it["item"]))
-        if h and h.get("new") in ("PASS", "FAIL", "NOT_APPLICABLE", "UNVERIFIED") and h["new"] != it["decision"]:
+        if not h and it.get("kind") == ERROR_SUSPECT_KIND and it.get("answer_text"):   # 같은 글을 사람이 이미 정했으면 그대로 (에러 케이스 기록)
+            lab = error_cases.lookup(it["answer_text"])
+            h = {"new": lab["label"], "reviewer": lab.get("reviewer") or "", "note": "에러 케이스 기록의 같은 글", "from_labels": True} if lab else None
+        if h and h.get("new") == "ERROR_CASE":
+            err_turns.add(it["turn"])
+            it = {**it, "decision": "FAIL", "human": h, "kind": "사람 판정 · 에러 케이스", "error_case": True}
+            changed += 1
+        elif h and h.get("new") in ("PASS", "FAIL", "NOT_APPLICABLE", "UNVERIFIED") and h["new"] != it["decision"]:
             it = {**it, "decision": h["new"], "human": h, "kind": "사람 판정" if h["new"] != "UNVERIFIED" else it["kind"]}
             changed += 1
         new_items.append(it)
+    if err_turns:
+        new_items = [it if it["turn"] not in err_turns or it.get("error_case") else
+                     {**it, "decision": "FAIL" if it["item"] == "J1-1.a" else "NOT_APPLICABLE", "kind": "에러 케이스 턴"} for it in new_items]
     decs = {it["decision"] for it in new_items}
     verdict = "HOLD" if (line.get("judge_error") or "UNVERIFIED" in decs) else ("FAIL" if (line.get("code_fails") or "FAIL" in decs) else "PASS")
     return verdict, new_items, changed
@@ -339,6 +352,8 @@ def _orig_block(turns: List[Dict[str, Any]], only: Optional[set] = None) -> str:
 
 
 BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("NOT_APPLICABLE", "해당 없음"), ("UNVERIFIED", "계속 보류"))
+#: 에러 케이스 의심 · 질문 전체 보류 — 사람이 에러 케이스 · PASS · FAIL 을 고른다(사용자 10-26). 에러 케이스 의심의 선택은 에러 케이스 기록에 쌓인다
+ERROR_BUTTONS = (("ERROR_CASE", "에러 케이스"), ("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보류"))
 
 
 def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: str = "", buttons: bool = False) -> str:
@@ -354,7 +369,8 @@ def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: 
     how = f"<div class='small'>심판: {_e(it['how'])}{extra}</div>" if (it["how"] or extra) else ""
     btn = ""
     if buttons:
-        btn = "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in BUTTONS) + " <input class='note' placeholder='메모(선택)' size='28'></div>"
+        choices = ERROR_BUTTONS if it.get("kind") in (ERROR_SUSPECT_KIND, "질문 전체 보류") else BUTTONS
+        btn = "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + " <input class='note' placeholder='메모(선택)' size='28'></div>"
     return (f"<div class='item hold-item' {key_attrs}><span class='id'>턴 {it['turn']} · {_e(it['item'])}</span> <span class='small'>{_e(nm[:70])}</span> "
             f"<span class='{_e(it['decision'])}'>{_e(KO.get(it['decision'], it['decision']))}</span>{kind}{hum}<div class='why'>{_e(why)}</div>{q}{qq}{how}{btn}</div>")
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+import copy
 import json
 import hashlib
 import re
@@ -26,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from code_eval import long_context, multi_turn  # noqa: E402
+from code_eval import error_cases, long_context, multi_turn  # noqa: E402
 from code_eval import semantic_items as si  # noqa: E402
 from tools import judge_inputs as ji  # noqa: E402
 from tools import judge_split as js  # noqa: E402
@@ -1030,6 +1031,45 @@ def error_case_turns(turns: List[Dict[str, Any]], code_measured: Optional[Dict[s
         if str((fam.get("1-1.response_nonempty") or ("", ""))[0]) == "FAIL":
             out.add(ji._turn(row))
     return out
+
+
+#: 에러 케이스 의심 턴에 붙이는 보류 항목 — CODE 검사 ID 그대로(대분류 0 에러 케이스, 사용자 10-26)
+ERROR_SUSPECT_ITEM = "1-1.response_nonempty"
+ERROR_SUSPECT_KIND = "에러 케이스 확인"
+
+
+def error_suspects(turns: List[Dict[str, Any]], cases: Dict[str, Any]) -> Dict[int, Dict[str, str]]:
+    """CODE 0-1 이 에러 케이스 의심으로 보류한 턴(사람 기록에 없는 의심 답) — {턴: {kind · phrase · reason · answer}} (사용자 10-26:
+    "다양한 에러케이스가 나와서 보류로 보내질거야 … 사람이 직접 확인하며 에러케이스인지, PASS인지, FAIL인지")."""
+    out: Dict[int, Dict[str, str]] = {}
+    for row in turns:
+        case = cases.get(row.get("case_id")) or {}
+        for x in (case.get("meta") or {}).get("skipped_conditions") or []:
+            if isinstance(x, dict) and x.get("check_id") == ERROR_SUSPECT_ITEM and x.get("error_suspect"):
+                out[ji._turn(row)] = {"kind": x["error_suspect"], "phrase": x.get("phrase") or "", "reason": x.get("reason") or "",
+                                      "answer": case.get("answer") or ""}
+    return out
+
+
+def apply_error_suspects(line: Dict[str, Any], suspects: Dict[int, Dict[str, str]]) -> Dict[str, Any]:
+    """판정한 줄의 의심 턴에 보류 항목 '에러 케이스 확인'을 붙이고(옛 것은 지움) 의미 · 질문 판정을 다시 — 보류 우선이라 질문은 보류,
+    사람이 보고서에서 에러 케이스 · PASS · FAIL 을 고르면 held-apply 가 에러 케이스 기록(code_eval/settings/error_case_labels.json)에 쌓는다."""
+    if line.get("status") != "judged" or not isinstance(line.get("turn_results"), dict):
+        return line
+    tr = copy.deepcopy(line["turn_results"])   # 받은 줄은 그대로 둔다
+    for block in tr.values():
+        if isinstance(block, dict):
+            (block.get("items") or {}).pop(ERROR_SUSPECT_ITEM, None)
+    for n, x in suspects.items():
+        block = tr.setdefault(str(n), {"situations_judge": [], "evidence": {}, "problems": [], "items": {}})
+        block.setdefault("items", {})[ERROR_SUSPECT_ITEM] = {
+            "decision": "UNVERIFIED", "kind": ERROR_SUSPECT_KIND, "error_suspect": x["kind"], "reason": x["reason"],
+            "answer_quote": x["phrase"], "answer_text": error_cases.normalize(x["answer"]), "how": "CODE 0-1 에러 케이스 의심 → 사람 확인(보류)",
+            "problems": [], "entries": [], "notes": []}
+    final = {int(n): (b.get("items") or {}) for n, b in tr.items() if isinstance(b, dict)}
+    semantic = line.get("semantic") if line.get("judge_error") else verdict_of(final)
+    return {**line, "turn_results": tr, "semantic": semantic, "verdict": question_verdict(line.get("code_fails") or [], semantic),
+            "error_suspect_turns": sorted(suspects)}
 
 
 def mark_error_case_turn(items: Dict[str, Dict[str, Any]]) -> None:
@@ -2424,17 +2464,19 @@ def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[
     note = "; ".join(f"{t['case_id']}: {ji.collection_note(data.get(t['case_id']))}" for t in turns)
     if any(asks_empty_output(None, t.get("question")) for t in turns):
         return ji.empty_output_entry(turns, {t["case_id"]: data.get(t["case_id"]) for t in turns}, answers)
-    statuses = [((data.get(t["case_id"]) or {}).get("collection") or {}).get("status") for t in turns]
+    empty = {t["case_id"] for t in turns if ji.empty_reply(data.get(t["case_id"]), answers.get(t["case_id"]))}   # 빈 응답 = 에러 케이스 (사용자 10-26)
+    statuses = [((data.get(t["case_id"]) or {}).get("collection") or {}).get("status") for t in turns if t["case_id"] not in empty]
     if "COPY_FAILED" in statuses:
         return {"status": "held_copy_failed", "reason": "답을 복사해 오지 못함 — 보류", "collection_note": note}
-    if not all(ji.collected(data.get(t["case_id"])) for t in turns):
+    if not all(ji.collected(data.get(t["case_id"])) for t in turns if t["case_id"] not in empty):
         return {"status": "no_answer", "reason": "답을 받지 못한 턴이 있음 — FAIL 로 셈", "collection_note": note}
-    if any(not (answers.get(t["case_id"]) or "").strip() for t in turns):
-        return {"status": "held_copy_failed", "reason": "받은 답이 비어 있음 — 보류", "collection_note": note}
-    return None
+    if empty and len(empty) == len(turns):
+        return {"status": "error_case", "reason": "빈 응답 — 에러 케이스(대분류 0, 사용자 10-26) · FAIL 로 셈", "collection_note": note}
+    return None   # 일부 턴만 빈 응답이면 심판이 나머지 턴을 보고, 빈 턴은 CODE 0-1 FAIL 로 에러 케이스 턴(J1-1.a 만 FAIL)
 
 
-PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS"}
+PRE_VERDICT = {"held_empty_output": "HOLD", "held_copy_failed": "HOLD", "empty_output_fail": "FAIL", "no_answer": "FAIL", "empty_output_pass": "PASS",
+               "error_case": "FAIL"}
 
 
 def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, providers: set, questions: set) -> int:
@@ -2470,9 +2512,15 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
                     mark_error_case_turn(its)
                     if any(v.get("decision") != before.get(i) for i, v in its.items() if isinstance(v, dict)):
                         marked.append(n)
+                had = sorted(int(k) for k, v in tr.items() if ERROR_SUSPECT_ITEM in ((v or {}).get("items") or {}))
+                sus = error_suspects(turns, cases)   # 지금 CODE 0-1 이 보류한 의심 턴 — 사람 기록이 생긴 글은 빠진다 (사용자 10-26)
+                tr = apply_error_suspects({**l, "turn_results": tr, "code_fails": code_fails}, sus)["turn_results"]
+                suspect_moved = had != sorted(sus)
                 semantic = verdict_of({int(k): (v.get("items") or {}) for k, v in tr.items()})
+            else:
+                suspect_moved = False
             verdict = question_verdict(code_fails, semantic)
-            if not marked and not unmarked and code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
+            if not marked and not unmarked and not suspect_moved and code_fails == sorted(l.get("code_fails") or []) and verdict == l.get("verdict") and semantic == l.get("semantic"):
                 continue
             new = {**l, "turn_results": tr, "code_fails": code_fails, "semantic": semantic, "verdict": verdict,
                    "recoded": {"at": datetime.now(timezone.utc).isoformat(), "code_fails_before": l.get("code_fails"), "verdict_before": l.get("verdict"),
@@ -2654,7 +2702,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 try:
                     line = screen_one(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
                                       args.reuse_codex or args.repair, reuse_decisions=reuse_dec, jev=jev, keep_first=keep_first, code_measured=code_measured)
-                    line = line if line.get("status") == "first_only" else {**line, "status": "judged"}
+                    line = line if line.get("status") == "first_only" else apply_error_suspects({**line, "status": "judged"}, error_suspects(turns, cases))
                 except Exception as exc:   # 한 질문의 오류로 그 모델 전체가 멈추지 않게 — 기록하고 다음 질문으로
                     line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                             "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}
@@ -2696,8 +2744,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         code_fails = sorted({c for t in turns for c in question_outcome(cases.get(t["case_id"]), None).get("code_fails") or []})
         code_measured = {t["case_id"]: measured_families(cases.get(t["case_id"])) for t in turns}
         try:
-            return screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
-                                  args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured)
+            st = screen_stage_a(q, provider, turns, answers, deliveries, code_fails, prompt, fixed, gpt, decisions, out, args.codex_all,
+                                args.reuse_codex or args.repair, reuse_dec, jev, keep_first, code_measured)
+            if isinstance(st, dict):
+                st["error_suspects"] = error_suspects(turns, cases)
+            return st
         except Exception as exc:
             save({"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "status": "error", "verdict": "HOLD",
                   "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"})
@@ -2707,7 +2758,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     def stage_b_save(st: Dict[str, Any]) -> None:
         try:
-            line = {**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"}
+            line = apply_error_suspects({**screen_stage_b(st, st["status"], st["output"], st["error"], st["rounds"], st["reused"]), "status": "judged"},
+                                        st.get("error_suspects") or {})
         except Exception as exc:
             line = {"version": VERSION, "provider": st["provider"], "question": st["q"], "turns": len(st["turns"]), "status": "error", "verdict": "HOLD",
                     "reason": f"판정 실행 오류: {type(exc).__name__}: {str(exc)[:200]}"}

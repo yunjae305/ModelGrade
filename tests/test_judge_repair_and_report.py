@@ -138,3 +138,55 @@ def test_held_apply_merges_decisions_and_regenerates_report(tmp_path: Path, monk
         assert False, "다른 실행의 파일은 거부해야 한다"
     except SystemExit as exc:
         assert "다른 실행" in str(exc)
+
+
+def test_error_suspect_turn_is_held_and_a_person_picks_error_case_pass_or_fail(tmp_path: Path, monkeypatch):
+    """에러 케이스 의심(사용자 10-26): CODE 0-1 이 보류한 턴에 '에러 케이스 확인' 보류 항목이 붙어 질문은 보류 →
+    사람이 에러 케이스를 고르면 FAIL(J1-1.a 만 FAIL · 나머지 해당 없음), held-apply 가 고른 값을 에러 케이스 기록에 쌓고 같은 글은 기록대로."""
+    import tools.modelgrade as mg
+    from code_eval import error_cases
+    monkeypatch.setenv("MODELGRADE_ERROR_CASES", str(tmp_path / "labels.json"))
+    refusal = "저는 언어 모델입니다. 그것은 제가 할 수 있는 범위를 넘어서는 것이라 할 수 없어요."
+    cases = {"Q1_T1": {"answer": refusal, "meta": {"skipped_conditions": [
+        {"check_id": "1-1.response_nonempty", "subcategory": "0-1", "error_suspect": "오류 · 거절 말", "phrase": "언어 모델", "reason": "에러 케이스 의심"}]}}}
+    sus = jv.error_suspects([{"case_id": "Q1_T1", "turn": 1}], cases)
+    assert set(sus) == {1}
+    items = {"J1-1.a": {"decision": "FAIL", "how": "Decisions FAIL", "problems": [], "entries": []},
+             "J2-2.a": {"decision": "FAIL", "how": "Decisions FAIL", "problems": [], "entries": []}}
+    line = jv.apply_error_suspects({**_line(items), "semantic": "FAIL", "verdict": "FAIL"}, sus)
+    hold = line["turn_results"]["1"]["items"][jv.ERROR_SUSPECT_ITEM]
+    assert line["verdict"] == "HOLD" and hold["decision"] == "UNVERIFIED" and hold["kind"] == "에러 케이스 확인" and line["error_suspect_turns"] == [1]
+    assert jv.apply_error_suspects(line, {})["verdict"] == "FAIL"   # 의심이 사라지면(기록이 생김) 보류 항목도 지운다
+    norm = rh.normalize_items(line)
+    assert any(it["kind"] == "에러 케이스 확인" and it["answer_text"] == refusal for it in norm)
+    verdict, after, _ = rh.effective(line, norm, {("gpt", 1, 1, jv.ERROR_SUSPECT_ITEM): {"new": "ERROR_CASE"}})
+    dec = {it["item"]: it["decision"] for it in after}
+    assert verdict == "FAIL" and dec["J1-1.a"] == "FAIL" and dec["J2-2.a"] == "NOT_APPLICABLE"   # 한 오류 한 항목
+    out = tmp_path / "judge" / "abc123" / "v4"
+    out.mkdir(parents=True)
+    (out / "results.jsonl").write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
+    monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
+    monkeypatch.setattr(rh, "RUNS", tmp_path / "runs")
+    f = tmp_path / "held.json"
+    f.write_text(json.dumps({"run_id": "abc123", "reviewer": "검토자", "decisions": [
+        {"provider": "gpt", "question": 1, "turn": 1, "item": jv.ERROR_SUSPECT_ITEM, "old": "UNVERIFIED", "new": "ERROR_CASE"}]}, ensure_ascii=False), encoding="utf-8")
+    assert mg.main(["held-apply", "--dir", str(out), "--file", str(f)]) == 0
+    lab = error_cases.lookup("저는 언어 모델입니다.\n그것은 제가 할 수 있는 범위를 넘어서는 것이라 할 수 없어요.")   # 공백만 다른 같은 글
+    assert lab and lab["label"] == "ERROR_CASE" and lab["provider"] == "gpt" and lab["reviewer"] == "검토자"
+    assert "에러 케이스" in (out / "report.html").read_text(encoding="utf-8")
+    verdict, _, _ = rh.effective(line, norm, {})   # 사람 판정이 없어도 기록의 같은 글이면 기록대로
+    assert verdict == "FAIL"
+
+
+def test_empty_reply_is_an_error_case_not_a_hold():
+    """빈 응답(수집은 됐는데 글이 없음 · 옛 수집기의 '복사 다시 해도 빈 답')은 에러 케이스 — 모든 턴이 비면 심판 없이 FAIL, 복사 실패는 보류 (사용자 10-26)."""
+    turns = [{"case_id": "Q1_T1", "question": "회의 시간을 알려 주세요.", "turn": 1}]
+    got = jv.pre_status(turns, {"Q1_T1": {"answer": "", "collection": {"status": "SUCCESS"}}}, {"Q1_T1": ""})
+    assert got["status"] == "error_case" and jv.PRE_VERDICT["error_case"] == "FAIL"
+    old = {"Q1_T1": {"answer": "", "collection": {"status": "COPY_FAILED", "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류"}}}
+    assert jv.pre_status(turns, old, {"Q1_T1": ""})["status"] == "error_case"
+    copy = {"Q1_T1": {"answer": "", "collection": {"status": "COPY_FAILED", "error": "복사 버튼을 찾지 못함"}}}
+    assert jv.pre_status(turns, copy, {"Q1_T1": ""})["status"] == "held_copy_failed"
+    two = turns + [{"case_id": "Q1_T2", "question": "장소는요?", "turn": 2}]
+    data = {"Q1_T1": {"answer": "", "collection": {"status": "SUCCESS"}}, "Q1_T2": {"answer": "3층입니다.", "collection": {"status": "SUCCESS"}}}
+    assert jv.pre_status(two, data, {"Q1_T1": "", "Q1_T2": "3층입니다."}) is None   # 일부 턴만 비면 심판이 보고, 빈 턴은 CODE 0-1 FAIL(에러 케이스 턴)

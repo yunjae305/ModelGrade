@@ -1,0 +1,5 @@
+{
+ "version": "error-case-labels-v1",
+ "note": "에러 케이스로 의심된 답을 사람이 정한 기록 — report.html 보류 화면에서 고르고 modelgrade held-apply 로 쌓는다(사용자 10-26). label: ERROR_CASE · PASS · FAIL.",
+ "labels": []
+}

@@ -61,39 +61,57 @@ def test_empty_answer_vs_explicit_empty_vs_missing_field():
     assert one(explicit, "2-1.explicit_empty")["verdict"] == PASS
 
 
-def test_error_case_phrase_and_collection_error_fail_1_1_but_copy_failure_is_held():
-    """1-1 에러 케이스(10-25): 능력 부정 정형 문구만 · 답 없음(수집 오류)은 FAIL, 복사 실패는 행 없이 사유만, 긴 정상 답은 PASS."""
-    canned = run("파이썬 함수를 작성해 주세요.", "저는 언어 모델일 뿐이라 그것을 이해하지 못해서 도와드릴 수가 없습니다.")
-    row = one(canned, "1-1.response_nonempty")
-    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "능력 부정 문구"
+def _suspect(case):
+    return [x for x in case["meta"].get("skipped_conditions", []) if x.get("check_id") == "1-1.response_nonempty" and x.get("error_suspect")]
+
+
+def test_error_case_suspects_are_held_until_a_person_labels_them(tmp_path, monkeypatch):
+    """0-1 에러 케이스(사용자 10-26): 빈 응답 · 답 없음은 FAIL(확정), 능력 부정 · 서비스 오류 · 오류 · 거절 말뿐인 답은 행 없이 보류(의심),
+    사람이 기록에 '에러 케이스'로 남긴 같은 글은 FAIL, 'PASS · FAIL'로 남긴 글은 에러 케이스 아님. 복사 실패는 행 없이 사유만, 결과물 있는 답은 PASS."""
+    from code_eval import error_cases
+    monkeypatch.setenv("MODELGRADE_ERROR_CASES", str(tmp_path / "labels.json"))
+    refusal = "저는 언어 모델일 뿐이라 그것을 이해하지 못해서 도와드릴 수가 없습니다."
+    canned = run("파이썬 함수를 작성해 주세요.", refusal)
+    assert rows(canned, "1-1.response_nonempty") == [] and _suspect(canned)[0]["error_suspect"] == "능력 부정 문구"
     english = run("Write a function.", "I'm just a language model, so I can't help with that.")
-    assert one(english, "1-1.response_nonempty")["measured"]["error_case"] == "능력 부정 문구"
-    normal = run("언어 모델이 뭐야?", "언어 모델은 글의 다음 낱말을 예측하도록 학습한 프로그램입니다. 이해하지 못하는 질문에는 추측으로 답할 수 있어 확인이 필요합니다. " * 3)
-    assert one(normal, "1-1.response_nonempty")["verdict"] == PASS   # 길고 결과물이 있으면 자기 설명 낱말이 있어도 에러 케이스 아님
+    assert _suspect(english)[0]["error_suspect"] == "능력 부정 문구"
+    svc = run("안내문을 써 주세요.", "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
+    assert _suspect(svc)[0]["error_suspect"] == "서비스 오류 문구"
+    svc_en = run("Write a notice.", "⚠️ Something went wrong. Please try again later.")
+    assert _suspect(svc_en)[0]["error_suspect"] == "서비스 오류 문구"
+    new_kind = run("일정을 정리해 주세요.", "저는 언어 모델로서 그것을 도와주도록 설계되지 않았습니다.")   # ③ 문구 밖 새 거절(10-26 Gemini Q1 7턴)
+    assert _suspect(new_kind)[0]["error_suspect"] == "오류 · 거절 말"
+    courtesy = run("회의 시간을 알려줘.", "저는 언어 모델일 뿐이라 그것은 도와드릴 수 없습니다. 죄송합니다.")
+    assert _suspect(courtesy)
+    # 사람이 정한 기록 — 같은 글(공백만 달라도)은 기록대로
+    error_cases.add([{"text": refusal, "label": "ERROR_CASE", "reviewer": "검토자"},
+                     {"text": "응답 생성 중 오류가 발생했습니다.  다시 시도해주세요.", "label": "PASS"}])
+    row = one(run("파이썬 함수를 작성해 주세요.", refusal), "1-1.response_nonempty")
+    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "능력 부정 문구" and row["measured"]["error_case_label"] == "ERROR_CASE"
+    row = one(run("안내문을 써 주세요.", "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요."), "1-1.response_nonempty")
+    assert row["verdict"] == PASS and "에러 케이스 아님" in row["reason"]
+    # 확정 에러 케이스 · 의심 아님
     missing = run("회의 시간을 알려줘.", "", collection={"status": "ERROR", "error": "응답 시간 초과"})
     row = one(missing, "1-1.response_nonempty")
     assert row["verdict"] == FAIL and row["measured"]["error_case"] == "답 없음" and "시간 초과" in row["reason"]
+    empty = run("회의 시간을 알려줘.", "", collection={"status": "SUCCESS"})
+    row = one(empty, "1-1.response_nonempty")
+    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "빈 답"   # 빈 응답 = 에러 케이스 (사용자 10-26)
+    old_empty = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED", "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류"})
+    assert one(old_empty, "1-1.response_nonempty")["measured"]["error_case"] == "빈 답"   # 옛 수집기의 '복사 다시 해도 빈 답'
+    normal = run("언어 모델이 뭐야?", "언어 모델은 글의 다음 낱말을 예측하도록 학습한 프로그램입니다. 이해하지 못하는 질문에는 추측으로 답할 수 있어 확인이 필요합니다. " * 3)
+    assert one(normal, "1-1.response_nonempty")["verdict"] == PASS   # 길고 결과물이 있으면 자기 설명 낱말이 있어도 에러 케이스 아님
     translated = run("다음 문장을 한국어로 번역해 주세요: I'm a language model, so I cannot do that.", "저는 언어 모델이라서 그것을 할 수 없습니다.")
     assert one(translated, "1-1.response_nonempty")["verdict"] == PASS   # 번역 요청 — 문구가 답에 있어도 거절 아님
-    with_result = run("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다.\n1. 지원 동기는?\n2. 강점은?\n3. 갈등을 푼 경험은?")
-    assert one(with_result, "1-1.response_nonempty")["verdict"] == PASS   # 안내문 뒤에 결과물이 있으면 거절 아님
-    tail = run("회의 안건을 정리해 주세요.", "1. 예산 2. 일정 3. 인력 배치. 참고로 저는 언어 모델이라 실제 회의에는 참석할 수 없습니다.")
-    assert one(tail, "1-1.response_nonempty")["verdict"] == PASS   # 결과물 뒤의 안내문
-    calc = run("What is 2 + 2?", "I'm a language model and cannot use a calculator, but 2 + 2 = 4.")
-    assert one(calc, "1-1.response_nonempty")["verdict"] == PASS   # 거절 뒤에 답이 이어짐(Codex 검토 10-25)
-    calc2 = run("What is 2 + 2?", "I'm a language model and cannot use a calculator. 2 + 2 = 4.")
-    assert one(calc2, "1-1.response_nonempty")["verdict"] == PASS   # 짧아도 뒤에 답이 있으면 거절 아님 (Codex 검토 10-25 3차)
-    courtesy = run("회의 시간을 알려줘.", "저는 언어 모델일 뿐이라 그것은 도와드릴 수 없습니다. 죄송합니다.")
-    assert one(courtesy, "1-1.response_nonempty")["verdict"] == FAIL   # 거절 + 사과만이면 에러 케이스
-    svc = run("안내문을 써 주세요.", "응답 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
-    row = one(svc, "1-1.response_nonempty")
-    assert row["verdict"] == FAIL and row["measured"]["error_case"] == "서비스 오류 문구"   # ④ 서비스 오류 메시지만 (10-25 밤, v16.7.1)
-    svc_en = run("Write a notice.", "⚠️ Something went wrong. Please try again later.")
-    assert one(svc_en, "1-1.response_nonempty")["measured"]["error_case"] == "서비스 오류 문구"
-    about_errors = run("오류가 나면 어떻게 하나요?", "오류가 발생했을 때는 로그 파일을 먼저 확인하세요. 로그는 /var/log 에 있습니다.")
-    assert one(about_errors, "1-1.response_nonempty")["verdict"] == PASS   # 오류를 설명하는 정상 답
-    one_para = run("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다: 1) 지원 동기는? 2) 강점은? 3) 갈등을 푼 경험은?")
-    assert one(one_para, "1-1.response_nonempty")["verdict"] == PASS   # 한 문단이어도 결과물이 있음
+    for q, a in (("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다.\n1. 지원 동기는?\n2. 강점은?\n3. 갈등을 푼 경험은?"),
+                 ("회의 안건을 정리해 주세요.", "1. 예산 2. 일정 3. 인력 배치. 참고로 저는 언어 모델이라 실제 회의에는 참석할 수 없습니다."),
+                 ("What is 2 + 2?", "I'm a language model and cannot use a calculator, but 2 + 2 = 4."),
+                 ("What is 2 + 2?", "I'm a language model and cannot use a calculator. 2 + 2 = 4."),
+                 ("오류가 나면 어떻게 하나요?", "오류가 발생했을 때는 로그 파일을 먼저 확인하세요. 로그는 /var/log 에 있습니다."),
+                 ("자리 번호를 알려줘.", "제공된 자료에는 최종 배치표가 없어 3번 팀의 자리 번호는 확인할 수 없습니다."),
+                 ("면접 질문 3개를 만들어 주세요.", "저는 언어 모델일 뿐이라 완벽히 도와드릴 수 없지만 제안드립니다: 1) 지원 동기는? 2) 강점은? 3) 갈등을 푼 경험은?")):
+        case = run(q, a)
+        assert one(case, "1-1.response_nonempty")["verdict"] == PASS and not _suspect(case), a   # 결과물 · 전제 답 · 오류 설명은 의심 아님
     copy_failed = run("회의 시간을 알려줘.", "", collection={"status": "COPY_FAILED"})
     assert rows(copy_failed, "1-1.response_nonempty") == []
     assert any("복사 실패" in s.get("reason", "") and s.get("subcategory") == "0-1" for s in copy_failed["meta"].get("skipped_conditions", []))   # 다른 판정 제외와 같은 모양(10-26)

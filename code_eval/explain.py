@@ -326,6 +326,9 @@ def _e(headline, summary, expected="", actual="", locations=None, fix="", note="
 
 def _x_response(r, ctx):
     kind = (r.get("measured") or {}).get("error_case")
+    if r["verdict"] == FAIL and (r.get("measured") or {}).get("error_case_label") == "ERROR_CASE":
+        return _e("사람이 에러 케이스로 정한 글과 같습니다", f"{kind} — 에러 케이스 기록(error_case_labels.json)에 같은 글이 있습니다.",
+                  "요청에 대한 결과물", f"실제 글자 {r['measured']['content_chars']}자", fix="사람이 보류 화면에서 에러 케이스로 고른 글입니다. 이 턴의 LLM 항목은 따로 세지 않습니다(한 오류 한 항목).")
     if r["verdict"] == FAIL:
         if kind == "답 없음":
             return _e("답이 오지 않았습니다(에러 케이스)", f"수집 상태 {r['measured'].get('collection_status')}: 오류 코드 · 시간 초과 · 무응답.",

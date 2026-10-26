@@ -424,3 +424,12 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 - 보고서는 검사 ID 앞부분이 아니라 `code_eval.model.code_group` 으로 소분류를 정한다(ID 와 소분류가 다른 두 검사 때문).
 - 근거: 사용자 10-26 "명시 빈 출력 이거를 에러케이스에 넣으라는 건데 왜 1-1의 소분류에 된거야" · "에러케이스를 대분류로 올리라니까".
 
+## 33. v16.9.0 에러 케이스 — 의심은 보류, 사람이 정해 쌓음 (2026-10-26)
+
+- 엔진 `aiona-code-eval-v16.9.0`, 레지스트리 `criteria-registry-v14`, 규칙 `1-1.response_nonempty` v16-1.7, 기록 `error-case-labels-v1`.
+- **확정 FAIL**: ① 빈 응답(공백 · 제어문자를 빼면 비어 있음 — 옛 수집기의 `COPY_FAILED` · `답이 비어 있음 …` 기록 포함) ② 답 없음(수집 오류) ③ 사람이 에러 케이스로 정한 글과 같은 답(`measured.error_case_label = ERROR_CASE`).
+- **의심 → 행 없음**: 능력 부정 정형 문구(`ERROR_CASE_PHRASES`) · 서비스 오류 정형 문구(`SERVICE_ERROR_PHRASES`) · ⑤ 짧은 답(300자 · 3줄 이하, 코드블록 없음)의 문장마다 오류 · 거절 · 자기 설명 말(`ERROR_SUSPECT_WORDS`)이나 재시도 · 사과뿐. `meta.skipped_conditions` 에 `error_suspect`(종류) · `phrase` 를 남긴다. 질문에 나온 낱말 · '하지만 · but' 문장 · '확인할 수 없' 은 의심하지 않는다.
+- 사람이 PASS · FAIL 로 정한 같은 글은 `PASS`(에러 케이스 아님, 나머지는 심판 몫). 같은 글 = 앞뒤 공백을 지우고 공백 묶음을 한 칸으로 본 글.
+- 판정 도구는 의심 턴에 보류 항목 `1-1.response_nonempty`(종류 '에러 케이스 확인')를 붙여 질문을 보류하고, 보고서에서 사람이 에러 케이스 · PASS · FAIL 을 고르면 `modelgrade held-apply` 가 `code_eval/settings/error_case_labels.json` 에 쌓는다.
+- 근거: 사용자 10-26 "에러 케이스의 종류는 여러가지 … 보류로 보내질거야. 그럴때마다 사람이 직접 확인하며 에러케이스인지, PASS인지, FAIL인지 확인하게 해서 에러케이스의 데이터를 쌓으려고" · "빈응답출력하는 사례도 에러케이스라고 보게 넣어둬".
+

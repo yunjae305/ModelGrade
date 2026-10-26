@@ -13,6 +13,7 @@ from .core import (ERROR_LIMIT_EXCEEDED, LIMITS, MD_POLICY_VERSION, Ctx, case_er
                    q_evidence, result, skip_condition, skip_req, verdict_of)
 from .extract import LANG_ALIASES
 from .model import Evidence, FAIL, PASS, Status
+from . import error_cases
 from .scripts import observe_scripts, script_name
 from .textparse import CORRUPTION_SIGNATURES, _json_type_name, _parse_footnotes, _parse_references, _reject_json_constant, find_corruption, find_markdown_tables, internal_links, link_targets, strip_non_content
 
@@ -222,6 +223,57 @@ ERROR_CASE_COURTESY = re.compile(r"(?:\s*(?:죄송합니다|죄송해요|양해 
                                  r"(?:I'?m )?sorry[^.!?]*|I apologi[sz]e[^.!?]*|let me know[^.!?]*|please ask[^.!?]*)[.!?]*)+\s*", re.I)
 
 
+#: 1-1 에러 케이스 ⑤ — 짧은 답에 자기 설명 · 서비스 오류 · 거절 말 (③ · ④ 의 정형 문구 밖 새 에러 케이스를 사람에게 보이려고, 사용자 10-26).
+#: '확인할 수 없' 은 넣지 않는다 — 자료에 없는 것을 묻는 질문의 바른 답이다(10-26 지난 실행 681답 점검: 넣으면 전제 답 13개가 걸림).
+ERROR_SUSPECT_WORDS = re.compile(r"언어\s*모델|(?:AI|인공지능)\s*(?:이기|이라|입니다|일\s*뿐)|오류|에러|\berror\b|실패|\bfailed\b|네트워크|\bnetwork\b|"
+                                 r"timeout|시간\s*초과|한도|rate limit|usage limit|로그인|sign in|log in|정책|\bpolicy\b|부적절|"
+                                 r"도와\s*드릴\s*수(?:가)?\s*없|도움을\s*드릴\s*수\s*없|능력이\s*없|범위를\s*(?:넘|벗어)|cannot help|can'?t help|unable to", re.I)
+#: 옛 수집기가 '복사 다시 해도 빈 답' 을 복사 실패로 적은 기록 — 빈 응답(에러 케이스)으로 읽는다 (사용자 10-26 "빈응답출력하는 사례도 에러케이스")
+EMPTY_REPLY_ERROR = "답이 비어 있음"
+LABEL_KO = {"ERROR_CASE": "에러 케이스", "PASS": "PASS", "FAIL": "FAIL"}
+
+
+def suspect_phrase(answer: str, content_chars: int, question: str = "") -> Optional[str]:
+    """⑤ 에 해당하면 맞은 말을, 아니면 None — 짧고(300자 · 3줄 이하) 코드블록 없고, 번역 · 인용을 시킨 질문이 아니며, 문장마다 오류 · 거절 ·
+    자기 설명 말이거나 재시도 · 사과 · 인사뿐일 때(④ 와 같은 '전체가 그 말뿐' 규칙). 질문에 나온 낱말('오류가 나면 …')은 주제라 세지 않고,
+    '하지만 · but' 처럼 결과물로 이어지는 문장이 있으면 의심하지 않는다."""
+    if content_chars > ERROR_CASE_MAX_CHARS or "```" in answer:
+        return None
+    asked = instruction_text(question or "")
+    if asked and ERROR_CASE_QUESTION_SKIP.search(asked):
+        return None
+    if len([l for l in answer.splitlines() if l.strip()]) > ERROR_CASE_MAX_LINES:
+        return None
+    asked = asked.lower()
+    hit = None
+    for sent in re.split(r"(?<=[.!?。])\s+|\n", answer.strip()):
+        sent = re.sub(r"^[\s⚠️❗❌!•·\-*]+", "", sent).strip()
+        if not sent:
+            continue
+        if ERROR_CASE_CONTRAST.search(sent):
+            return None
+        m = next((m for m in ERROR_SUSPECT_WORDS.finditer(sent) if m.group(0).lower() not in asked), None)
+        if m:
+            hit = hit or m.group(0)
+            continue
+        if SERVICE_RETRY.search(sent) or ERROR_CASE_COURTESY.fullmatch(sent + " ") or ERROR_CASE_COURTESY.fullmatch(sent):
+            continue
+        return None   # 오류 · 거절 말이 없는 문장(결과물)이 있으면 의심하지 않는다
+    return hit
+
+
+def error_suspect(answer: str, content_chars: int, question: str = "") -> Optional[Tuple[str, str]]:
+    """에러 케이스 의심 (종류, 맞은 말) — ③ 능력 부정 정형 문구 · ④ 서비스 오류 정형 문구 · ⑤ 짧은 답 + 오류 · 거절 말. 아니면 None."""
+    hit = error_case_phrase(answer, content_chars, question)
+    if hit:
+        return "능력 부정 문구", hit
+    svc = service_error_phrase(answer, content_chars)
+    if svc:
+        return "서비스 오류 문구", svc
+    word = suspect_phrase(answer, content_chars, question)
+    return ("오류 · 거절 말", word) if word else None
+
+
 def instruction_text(question: str) -> str:
     """붙여 넣은 자료([붙여 넣은 자료] … [자료 끝]) 구간을 뺀 질문 — 번역 · 인용을 시켰는지는 지시문에서만 본다
     (10-25 밤 보류 분석: 자료 속 '1500원을 남은 예상 쪽으로 옮겨야' 의 '옮겨' 로 검사가 꺼져 Gemini 의 정형 거절이 Codex 로 감 — 78 세트 90턴이 자료 속 낱말로 꺼지던 것)."""
@@ -291,31 +343,44 @@ def check_1_1(ctx: Ctx) -> List:
     empty_req = ctx.conds.first("explicit_empty")
     content = strip_non_content(ctx.answer)
     status = (ctx.collection_status or "").upper()
+    empty_reply = status == "COPY_FAILED" and not content and (ctx.collection_error or "").startswith(EMPTY_REPLY_ERROR)
     # 질문이 빈 출력을 명시 요청하면 에러 케이스 행을 만들지 않는다 (요청 준수 여부는 2-1.explicit_empty 가 판정).
-    if empty_req is None and status == "COPY_FAILED":
+    if empty_req is None and status == "COPY_FAILED" and not empty_reply:
         # 복사 실패는 우리 원인 — 행 없이 사유만 남기고 질문은 보류(사람이 정함, 10-25)
         skip_condition(ctx, "1-1.response_nonempty", SUB01, "복사 실패(수집기 원인) — 에러 케이스로 세지 않음, 질문은 보류")
     elif empty_req is None:
-        kind, reason = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content))
+        kind, reason, label = None, "실질 문자 {}자 확인 — 에러 케이스 아님".format(len(content)), None
         if status and status not in COLLECTION_OK and not content:
             kind, reason = "답 없음", "답 없음 — 수집 상태 {}{} (오류 코드 · 시간 초과 · 무응답)".format(status, f": {ctx.collection_error[:80]}" if ctx.collection_error else "")
         elif not content:
-            kind, reason = "빈 답", "공백·제어문자를 제거하면 남는 문자가 없음 (답이 비어 있음)"
+            # 빈 응답 — 모델이 글 없이 끝냄(복사를 다시 해도 비어 있음). 에러 케이스로 확정 (사용자 10-26)
+            kind, reason = "빈 답", "빈 응답 — 공백·제어문자를 제거하면 남는 문자가 없음" + (" (복사를 다시 해도 비어 있음)" if empty_reply else "")
         else:
-            hit = error_case_phrase(ctx.answer, len(content), ctx.question)
-            if hit:
-                kind, reason = "능력 부정 문구", "능력 부정 정형 문구만 있고 결과물 없음: '{}'".format(hit)
-            else:
-                svc = service_error_phrase(ctx.answer, len(content))
-                if svc:
-                    kind, reason = "서비스 오류 문구", "서비스 오류 정형 문구만 있고 결과물 없음: '{}'".format(svc)
+            sus = error_suspect(ctx.answer, len(content), ctx.question)
+            if sus:
+                label = error_cases.lookup(ctx.answer)
+                if label is None:
+                    # 처음 보는 의심 답 — 행 없이 보류, 사람이 에러 케이스 · PASS · FAIL 을 정해 기록에 쌓는다 (사용자 10-26)
+                    ctx.skipped.append({"check_id": "1-1.response_nonempty", "subcategory": SUB01, "error_suspect": sus[0], "phrase": sus[1],
+                                        "reason": "에러 케이스 의심({}: '{}') — 사람이 정한 기록에 없는 글이라 보류(사람이 에러 케이스 · PASS · FAIL 을 정함)".format(*sus)})
+                    return out + _check_1_1_chars(ctx)
+                who = " · ".join(x for x in (label.get("reviewer"), str(label.get("at") or "")[:10]) if x)
+                if label.get("label") == "ERROR_CASE":
+                    kind, reason = sus[0], "사람이 에러 케이스로 정한 글과 같음({}: '{}'{})".format(sus[0], sus[1], f" — {who}" if who else "")
+                else:
+                    reason = "사람이 에러 케이스 아님({})으로 정한 글과 같음{}".format(LABEL_KO.get(label.get("label"), label.get("label")), f" — {who}" if who else "")
         ok = kind is None
         out.append(result("1-1.response_nonempty", SUB01, "에러 케이스 없음", "operating_policy", Status.EXECUTED,
-                          verdict_of(ok), required="빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만 · 서비스 오류 문구만이 아님",
-                          measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind},
+                          verdict_of(ok), required="빈 응답 · 답 없음(수집 오류) · 사람이 에러 케이스로 정한 글이 아님",
+                          measured={"content_chars": len(content), "raw_chars": len(ctx.answer), "collection_status": status or None, "error_case": kind,
+                                    "error_case_label": (label or {}).get("label")},
                           comparison=cmp_text(len(content), ">=", 1),
                           reason=reason, evidence=[Evidence("answer", 0, len(ctx.answer), ctx.answer[:60])]))
+    return out + _check_1_1_chars(ctx)
 
+
+def _check_1_1_chars(ctx: Ctx) -> List:
+    out = []
     allowed = _allowed_codepoints(ctx)
     hits = find_corruption(ctx.answer) + _c0_controls(ctx.answer)
     hits.sort(key=lambda h: (h["char_range"][0], h["signature_id"]))

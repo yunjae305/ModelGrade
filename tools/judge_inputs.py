@@ -105,6 +105,16 @@ def empty_output_entry(turns: List[Dict[str, Any]], rows: Dict[str, Dict[str, An
             "collection_note": note}
 
 
+def empty_reply(row: Optional[Dict[str, Any]], answer: Optional[str] = None) -> bool:
+    """빈 응답 — 모델이 글 없이 끝낸 답(사용자 10-26: 에러 케이스). 수집은 됐는데 글이 비었거나, 옛 수집기가 '복사 다시 해도 빈 답'을
+    복사 실패로 적은 기록(오류 '답이 비어 있음 …'). 복사 버튼이 없던 복사 실패 · 수집 오류는 아니다."""
+    if not isinstance(row, dict) or ((row.get("answer") if answer is None else answer) or "").strip():
+        return False
+    col = row.get("collection") or {}
+    status = col.get("status", "SUCCESS")
+    return status == "SUCCESS" or (status == "COPY_FAILED" and str(col.get("error") or "").startswith("답이 비어 있음"))
+
+
 def collected(row: Optional[Dict[str, Any]]) -> bool:
     """답을 받았는가 — 빈 행·명시적 수집 실패만 '답 없음'(직접 올린 원문은 collection 이 없어도 받은 답). question_gradient 와 같은 규칙."""
     return isinstance(row, dict) and (row.get("collection") or {}).get("status", "SUCCESS") == "SUCCESS"

@@ -8,7 +8,7 @@ from code_eval.semantic_items import SEMANTIC_ITEMS_VERSION, describe
 
 def test_registry_lists_semantic_items_from_the_single_definition():
     data = registry()
-    assert REGISTRY_VERSION == "criteria-registry-v13" and data["version"] == REGISTRY_VERSION
+    assert REGISTRY_VERSION == "criteria-registry-v14" and data["version"] == REGISTRY_VERSION
     assert data["semantic_items"] == describe()
     assert len(data["semantic_items"]["subs"]) == 30 and len(data["semantic_items"]["items"]) == 44
     assert data["semantic_items"]["version"] == SEMANTIC_ITEMS_VERSION and data["semantic_items"]["reason_codes"][0] == "FACT_FALSE_CONFIRMED"

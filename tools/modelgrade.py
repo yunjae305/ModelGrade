@@ -476,15 +476,17 @@ def retry_text_capture(chat: Any, row: Dict[str, Any], res: Dict[str, Any]) -> D
 
 
 def retry_empty_answer(chat: Any, row: Dict[str, Any]) -> Dict[str, Any]:
-    """빈 출력 요구가 아닌 질문에 빈 답이 왔을 때(사용자 규칙 10-20): 복사만 다시 시도하고, 그래도 비면 사유를 적어 COPY_FAILED(판정 보류)."""
+    """빈 출력 요구가 아닌 질문에 빈 답이 왔을 때(사용자 규칙 10-20): 복사만 다시 시도하고, 그래도 비면 빈 응답(에러 케이스, 사용자 10-26)으로 적는다."""
     print(f"  {row['case_id']}: 답이 비어 있음 — 복사 다시 시도", flush=True)
     again = getattr(chat, "recopy", None)
     text = (again() if callable(again) else "") or ""
     if text.strip():
         return {"answer": text, "status": "SUCCESS", "capture": "copy-button(재시도)", "error": None, "latency_ms": 0, "url": None, "sent": [],
                 "model": getattr(chat, "model_seen", None), "method": getattr(chat, "METHOD", None), "retried": "복사 다시"}
-    return {"answer": "", "status": COPY_FAILED, "capture": "empty", "latency_ms": 0, "url": None, "sent": [],
-            "error": "답이 비어 있음 — 복사를 다시 시도했으나 여전히 비어 있어 보류(복사 실패, 사용자 규칙 10-20)", "retried": "실패"}
+    # 복사를 다시 해도 비면 모델이 빈 응답을 낸 것 — 에러 케이스(대분류 0, 사용자 10-26 "빈응답출력하는 사례도 에러케이스")
+    return {"answer": "", "status": "SUCCESS", "capture": "empty", "latency_ms": 0, "url": None, "sent": [], "error": None,
+            "model": getattr(chat, "model_seen", None), "method": getattr(chat, "METHOD", None), "retried": "복사 다시(여전히 빈 응답)",
+            "note": "빈 응답 — 복사를 다시 해도 비어 있음 → 에러 케이스(사용자 10-26)"}
 
 
 def collect_app_one(args: argparse.Namespace) -> int:
@@ -569,7 +571,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     waited += LIMIT_WAIT_S
                     res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 if res.get("status") == "SUCCESS" and not (res.get("answer") or "").strip() and not asks_empty_output(None, r.get("question") or ""):
-                    res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 사유를 적어 보류
+                    res = retry_empty_answer(chat, r)   # 사용자 규칙 10-20: 복사만 다시 시도 → 그래도 비면 빈 응답 = 에러 케이스 (10-26)
                 elif res.get("status") == "SUCCESS" and res.get("capture") in ("text", "html"):   # html = AIONA 복사 버튼을 못 받아 화면 HTML 로 바꾼 글 (10-21 밤)
                     res = retry_text_capture(chat, r, res)   # 복사 버튼이 안 눌려 화면 글만 받음 → 복사 다시 → 안 되면 보류(마크다운이 빠진 글로 판정하지 않는다)
                 elif res.get("status") == "ERROR" and asks_empty_output(None, r.get("question") or ""):
@@ -966,14 +968,17 @@ def cmd_held_apply(args: argparse.Namespace) -> int:
     doc = json.loads(Path(args.file).read_text(encoding="utf-8-sig"))
     if doc.get("run_id") and doc["run_id"] != run_id:
         raise SystemExit(f"다른 실행의 판단 파일입니다: 파일 {doc['run_id']} ≠ 폴더 {run_id}")
-    known = {(r["provider"], int(r["question"])): {(it["turn"], it["item"]) for it in normalize_items(r)} for r in load_results(d)}
+    lines = load_results(d)
+    known = {(r["provider"], int(r["question"])): {(it["turn"], it["item"]) for it in normalize_items(r)} for r in lines}
+    suspects = {(r["provider"], int(r["question"]), it["turn"], it["item"]): it for r in lines for it in normalize_items(r)
+                if it.get("kind") == "에러 케이스 확인" and it.get("answer_text")}
     target = d / "human_decisions.json"
     cur = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {"run_id": run_id, "decisions": []}
     merged = {(x["provider"], int(x["question"]), int(x.get("turn") or 1), x["item"]): x for x in cur.get("decisions") or []}
     added = rejected = 0
     for x in doc.get("decisions") or []:
         key = (x.get("provider"), int(x.get("question") or 0), int(x.get("turn") or 1), x.get("item"))
-        ok = key[:2] in known and (key[3] == "__question__" or (key[2], key[3]) in known[key[:2]]) and x.get("new") in ("PASS", "FAIL", "NOT_APPLICABLE", "UNVERIFIED")
+        ok = key[:2] in known and (key[3] == "__question__" or (key[2], key[3]) in known[key[:2]]) and x.get("new") in ("PASS", "FAIL", "NOT_APPLICABLE", "UNVERIFIED", "ERROR_CASE")
         if not ok:
             rejected += 1
             continue
@@ -982,6 +987,11 @@ def cmd_held_apply(args: argparse.Namespace) -> int:
     cur = {"run_id": run_id, "policy": doc.get("policy") or cur.get("policy"), "updated_at": _now(), "decisions": list(merged.values())}
     target.write_text(json.dumps(cur, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"사람 판정 반영: {added}건 (거부 {rejected}건 — 없는 항목이거나 값이 이상함) → {target} (모두 {len(merged)}건)")
+    from code_eval import error_cases   # 에러 케이스 의심에 사람이 고른 값은 기록에 쌓는다 — 다음 판정부터 같은 글은 기록대로 (사용자 10-26)
+    labels = [{"text": suspects[k]["answer_text"], "label": v["new"], "kind": "", "provider": k[0], "run_id": run_id,
+               "case_id": f"Q{k[1]}_T{k[2]}", "reviewer": v.get("reviewer") or "", "note": v.get("note") or "", "at": v.get("at") or _now()}
+              for k, v in merged.items() if k in suspects and v.get("new") in error_cases.LABELS]
+    print(f"에러 케이스 기록: {error_cases.add(labels)}건 덧붙임 → {error_cases.labels_path()} (에러 케이스 의심 칸 {len(labels)}건)")
     try:
         run = load_run(run_id)
     except SystemExit:

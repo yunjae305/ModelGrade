@@ -44,6 +44,7 @@ CAUSES = {
     "empty_output": "빈 출력 요구 — 복사할 답 없음",
     "no_answer": "답 없음 — FAIL 로 셈",
     "call_error": "심판 호출 실패",
+    "error_suspect": "에러 케이스 의심 — 사람이 에러 케이스 · PASS · FAIL 을 정함",
 }
 ERROR_CAUSES = {"no_answer", "call_error"}
 QUESTION_STATUS = {"held_copy_failed": "copy_failed", "held_empty_output": "empty_output", "no_answer": "no_answer"}
@@ -114,13 +115,14 @@ def held_rows(line: Dict[str, Any], texts: Dict[str, str], answers: Dict[str, Di
         out.append({**base, **texts_of(f"Q{qid}_T1"), "kind": "오류", "case_id": "", "turn": "", "item": "J1~J4", "decision": "",
                     "cause": "call_error", "cause_label": CAUSES["call_error"] + (" — Jev (Codex 가 J1~J4 대신)" if covered else " — Jev"),
                     "judge": "jev", "reason": str(jev_call.get("error") or jev_call.get("status")), "collection_note": ""})
-    for turn, items in sorted((line.get("results") or {}).items(), key=lambda kv: int(kv[0])):
+    src = line.get("results") or {t: (b or {}).get("items") or {} for t, b in (line.get("turn_results") or {}).items()}   # 판정 v4 · v5(선별) 둘 다
+    for turn, items in sorted(src.items(), key=lambda kv: int(kv[0])):
         case_id = f"Q{qid}_T{turn}"
         for item, v in items.items():
             if v.get("decision") != "UNVERIFIED":
                 continue
             problems = [str(p) for p in v.get("problems") or []]
-            cause = cause_of(problems)
+            cause = "error_suspect" if v.get("kind") == "에러 케이스 확인" else cause_of(problems)
             entry = (v.get("entries") or [{}])[0]
             out.append({**base, **texts_of(case_id), "kind": "오류" if cause in ERROR_CAUSES else "보류", "case_id": case_id, "turn": int(turn),
                         "item": item, "decision": "UNVERIFIED", "cause": cause, "cause_label": CAUSES[cause], "judge": v.get("judge") or "",

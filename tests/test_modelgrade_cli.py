@@ -310,7 +310,7 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
 
 
 def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_and_progress_is_saved_per_question(tmp_path, monkeypatch):
-    """빈 출력 요구 질문(Q3)의 빈 답은 SUCCESS, 보통 질문(Q1)의 빈 답은 ERROR(복사 실패로 보고 다시 받음). 질문마다 실행 파일에 중간 저장된다."""
+    """빈 출력 요구 질문(Q3)의 빈 답은 SUCCESS, 보통 질문(Q1)은 복사를 다시 해도 비면 빈 응답(에러 케이스, 사용자 10-26). 질문마다 실행 파일에 중간 저장된다."""
     import tools.modelgrade as mg
     monkeypatch.setattr(mg, "ensure_collection_chrome", lambda: None, raising=False)
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
@@ -332,10 +332,11 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"]]) == 0
     rows = {r["case_id"]: r for r in mg.load_run(run["run_id"])["datasets"]["gpt"]}
     assert rows["Q3_T1"]["collection"]["status"] == "SUCCESS" and rows["Q3_T1"]["collection"]["capture"] == "empty"   # 빈 출력 요구 → 빈 답 성공
-    assert rows["Q1_T1"]["collection"]["status"] == "COPY_FAILED" and "보류" in rows["Q1_T1"]["collection"]["error"]   # 보통 질문 → 복사 재시도·새 채팅 재시도 뒤에도 비면 보류
+    col = rows["Q1_T1"]["collection"]
+    assert col["status"] == "SUCCESS" and col["capture"] == "empty" and "에러 케이스" in col["note"]   # 보통 질문 → 복사를 다시 해도 비면 빈 응답 = 에러 케이스 (사용자 10-26)
     assert len(saves) == 2   # Q1 한 번 + Q3 한 번 (새 채팅 재시도는 하지 않는다 — 복사만 다시)
     # 둘째 질문(Q3)을 물을 때 이미 첫 질문(Q1) 결과가 파일에 저장돼 있다
-    assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["status"] == "COPY_FAILED" for r in saves[1]["datasets"]["gpt"])
+    assert saves[1] and any(r["case_id"] == "Q1_T1" and r["collection"]["capture"] == "empty" for r in saves[1]["datasets"]["gpt"])
     assert mg.main(["collect", "app", "--provider", "gpt", "--set", str(set_dir), "--only", "1,3", "--run", run["run_id"], "--skip-done"]) == 0
     assert len(saves) == 2   # 복사 실패(보류)·빈 출력 성공은 자동으로 다시 받지 않는다
 
