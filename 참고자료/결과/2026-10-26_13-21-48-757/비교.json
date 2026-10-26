@@ -1,0 +1,974 @@
+{
+ "providers": [
+  "aiona",
+  "gpt",
+  "claude",
+  "gemini"
+ ],
+ "verdicts": {
+  "aiona": {
+   "전": {
+    "FAIL": 14,
+    "HOLD": 12,
+    "PASS": 52
+   },
+   "후": {
+    "FAIL": 10,
+    "HOLD": 17,
+    "PASS": 51
+   }
+  },
+  "gpt": {
+   "전": {
+    "FAIL": 12,
+    "HOLD": 14,
+    "PASS": 52
+   },
+   "후": {
+    "HOLD": 19,
+    "FAIL": 8,
+    "PASS": 51
+   }
+  },
+  "claude": {
+   "전": {
+    "HOLD": 16,
+    "FAIL": 7,
+    "PASS": 55
+   },
+   "후": {
+    "HOLD": 17,
+    "FAIL": 9,
+    "PASS": 52
+   }
+  },
+  "gemini": {
+   "전": {
+    "HOLD": 21,
+    "FAIL": 13,
+    "PASS": 44
+   },
+   "후": {
+    "HOLD": 19,
+    "FAIL": 17,
+    "PASS": 42
+   }
+  }
+ },
+ "changed": [
+  {
+   "question": 2,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T1:J3-2.b",
+    "T1:J3-5.a",
+    "T3:J2-3.a",
+    "T8:J6-3.b"
+   ],
+   "FAIL 생김": [
+    "T10:J1-4.a",
+    "T10:J3-1.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T2:J3-1.a"
+   ]
+  },
+  {
+   "question": 3,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.charset",
+    "T1:J3-1.a",
+    "T1:J3-5.a",
+    "T1:J4-4.a",
+    "T1:J5-2.a",
+    "T3:J2-3.a",
+    "T6:J1-4.a",
+    "T6:J3-2.b",
+    "T6:J5-2.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T3:2-1.charset"
+   ]
+  },
+  {
+   "question": 5,
+   "provider": "aiona",
+   "전": "HOLD",
+   "후": "FAIL",
+   "FAIL 사라짐": [
+    "T10:J3-1.a",
+    "T10:J6-4.a",
+    "T1:J1-4.a",
+    "T1:J3-5.a",
+    "T5:J5-3.a",
+    "T6:J5-2.a",
+    "T8:J2-3.a",
+    "T8:J6-2.a"
+   ],
+   "FAIL 생김": [
+    "T2:J2-3.a",
+    "T3:J1-4.a",
+    "T6:J2-3.a",
+    "T8:J5-2.a"
+   ],
+   "보류 사라짐": [
+    "T9:J5-2.a"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 6,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T10:J4-3.a",
+    "T5:J2-3.a",
+    "T5:J2-5.b",
+    "T7:J1-2.a",
+    "T7:J1-3.a"
+   ],
+   "FAIL 생김": [
+    "T10:J3-5.a",
+    "T1:J1-4.a",
+    "T3:J5-2.b",
+    "T4:J2-3.a",
+    "T4:J4-2.a",
+    "T7:J1-1.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T5:1-1.response_nonempty",
+    "T7:1-1.response_nonempty"
+   ]
+  },
+  {
+   "question": 7,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T10:J1-4.a",
+    "T10:J3-5.b"
+   ],
+   "FAIL 생김": [
+    "T10:J3-1.a",
+    "T10:J3-5.a",
+    "T10:J5-2.a",
+    "T9:J1-1.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T9:1-1.response_nonempty"
+   ]
+  },
+  {
+   "question": 34,
+   "provider": "aiona",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J7-2.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 40,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J1-3.a",
+    "T1:J7-1.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 41,
+   "provider": "aiona",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J5-2.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 42,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J7-2.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 53,
+   "provider": "aiona",
+   "전": "PASS",
+   "후": "HOLD",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T1:J4-3.a"
+   ]
+  },
+  {
+   "question": 54,
+   "provider": "aiona",
+   "전": "PASS",
+   "후": "HOLD",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T1:J4-3.a"
+   ]
+  },
+  {
+   "question": 77,
+   "provider": "aiona",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J3-5.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 1,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.count:bullet_count",
+    "T3:J2-3.a",
+    "T3:J5-3.a"
+   ],
+   "FAIL 생김": [
+    "T5:J5-2.a",
+    "T6:J1-4.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T4:2-1.count:bullet_count"
+   ]
+  },
+  {
+   "question": 4,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T9:J2-3.a",
+    "T9:J6-3.b"
+   ],
+   "FAIL 생김": [
+    "T10:J1-4.a",
+    "T10:J3-5.a",
+    "T1:J5-2.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T7:J6-2.b"
+   ]
+  },
+  {
+   "question": 9,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.charset",
+    "2-1.count:bullet_count",
+    "3-1.answer_equation:1",
+    "T10:J1-3.b",
+    "T2:J2-3.a",
+    "T2:J4-2.a",
+    "T3:J4-4.a",
+    "T3:J5-2.b",
+    "T7:J3-1.a"
+   ],
+   "FAIL 생김": [
+    "T3:J2-3.a",
+    "T6:J5-2.a",
+    "T9:J5-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T10:J6-4.a",
+    "T2:2-1.count:bullet_count",
+    "T3:J5-2.b"
+   ]
+  },
+  {
+   "question": 29,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J5-2.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 34,
+   "provider": "gpt",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J5-2.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 43,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J5-2.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 45,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.count:bullet_count"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T1:2-1.count:bullet_count"
+   ]
+  },
+  {
+   "question": 51,
+   "provider": "gpt",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.count:bullet_count"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T1:2-1.count:bullet_count"
+   ]
+  },
+  {
+   "question": 53,
+   "provider": "gpt",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J1-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 78,
+   "provider": "gpt",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J1-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 3,
+   "provider": "claude",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "2-1.count:bullet_count",
+    "2-1.literal:forbidden_literal",
+    "3-3.aggregate",
+    "T1:J5-2.b",
+    "T6:J3-1.a",
+    "T6:J6-2.a",
+    "T6:J6-4.a",
+    "T7:J5-3.a",
+    "T7:J6-2.a",
+    "T7:J6-2.b",
+    "T7:J6-2.c"
+   ],
+   "FAIL 생김": [
+    "T3:J1-4.a",
+    "T9:J3-2.b"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T3:2-1.count:bullet_count",
+    "T3:2-1.literal:forbidden_literal"
+   ]
+  },
+  {
+   "question": 4,
+   "provider": "claude",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T10:J3-1.a",
+    "T10:J3-5.a",
+    "T8:J1-2.a",
+    "T9:J1-4.b"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 6,
+   "provider": "claude",
+   "전": "HOLD",
+   "후": "FAIL",
+   "FAIL 사라짐": [
+    "T10:J3-1.a",
+    "T10:J3-2.b",
+    "T10:J3-5.a",
+    "T1:J3-5.a",
+    "T1:J5-2.b",
+    "T5:J2-3.a",
+    "T5:J5-2.a",
+    "T6:J1-4.b",
+    "T9:J2-3.a",
+    "T9:J3-2.b"
+   ],
+   "FAIL 생김": [
+    "T10:J5-2.a",
+    "T1:J5-2.a",
+    "T6:J3-1.a",
+    "T9:J5-2.a",
+    "T9:J6-2.a"
+   ],
+   "보류 사라짐": [
+    "T6:J3-1.a"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 7,
+   "provider": "claude",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T10:J3-2.b",
+    "T10:J3-5.a",
+    "T1:J3-2.b",
+    "T1:J3-5.a",
+    "T4:J5-1.a",
+    "T5:J1-4.a",
+    "T9:J1-4.a",
+    "T9:J5-2.a"
+   ],
+   "FAIL 생김": [
+    "T10:J1-4.a",
+    "T10:J4-3.a",
+    "T1:J5-2.a",
+    "T5:J3-1.a",
+    "T6:J1-4.a",
+    "T8:J1-4.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T3:J2-3.a"
+   ]
+  },
+  {
+   "question": 10,
+   "provider": "claude",
+   "전": "HOLD",
+   "후": "FAIL",
+   "FAIL 사라짐": [
+    "1-3.citation_link",
+    "T10:J2-3.a",
+    "T10:J3-5.a",
+    "T10:J5-2.a",
+    "T1:J5-2.b",
+    "T4:J2-3.a",
+    "T4:J5-2.b",
+    "T5:J2-3.a",
+    "T7:J3-1.a",
+    "T7:J6-4.a"
+   ],
+   "FAIL 생김": [
+    "T3:J2-3.a",
+    "T6:J3-1.a"
+   ],
+   "보류 사라짐": [
+    "T10:J3-1.a"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 50,
+   "provider": "claude",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J2-1.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 53,
+   "provider": "claude",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J3-5.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 69,
+   "provider": "claude",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T6:J5-3.a",
+    "T9:J3-5.a"
+   ],
+   "FAIL 생김": [
+    "T3:J3-3.b",
+    "T4:J1-4.a",
+    "T6:J6-4.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T6:J2-3.a"
+   ]
+  },
+  {
+   "question": 3,
+   "provider": "gemini",
+   "전": "HOLD",
+   "후": "FAIL",
+   "FAIL 사라짐": [
+    "T3:J2-3.a",
+    "T3:J5-2.a",
+    "T6:J3-2.b"
+   ],
+   "FAIL 생김": [
+    "T1:J3-5.b",
+    "T1:J5-2.a",
+    "T2:J2-3.a",
+    "T2:J3-3.a",
+    "T2:J5-2.a",
+    "T9:J3-2.b"
+   ],
+   "보류 사라짐": [
+    "T2:J5-1.a",
+    "T3:J6-2.b"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 4,
+   "provider": "gemini",
+   "전": "FAIL",
+   "후": "HOLD",
+   "FAIL 사라짐": [
+    "T10:J1-2.a",
+    "T10:J1-3.b",
+    "T8:J1-2.a",
+    "T8:J1-3.b"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": [
+    "T10:1-1.response_nonempty",
+    "T10:J1-1.a",
+    "T10:J1-2.a",
+    "T4:1-1.response_nonempty",
+    "T5:1-1.response_nonempty",
+    "T6:1-1.response_nonempty",
+    "T8:1-1.response_nonempty",
+    "T9:1-1.response_nonempty"
+   ]
+  },
+  {
+   "question": 6,
+   "provider": "gemini",
+   "전": "HOLD",
+   "후": "FAIL",
+   "FAIL 사라짐": [
+    "T10:J1-3.a",
+    "T10:J3-1.a",
+    "T10:J3-2.b",
+    "T10:J3-5.a",
+    "T1:J3-1.a",
+    "T1:J3-2.b",
+    "T5:J1-4.b",
+    "T5:J5-3.a",
+    "T6:J1-4.a",
+    "T7:J1-3.a",
+    "T7:J3-1.a",
+    "T7:J5-2.a"
+   ],
+   "FAIL 생김": [
+    "T10:J5-2.a",
+    "T1:J5-3.a",
+    "T3:J2-3.a",
+    "T4:J2-3.a",
+    "T4:J4-2.a",
+    "T5:J6-2.b",
+    "T8:J1-3.a",
+    "T8:J1-3.b",
+    "T9:J5-2.a"
+   ],
+   "보류 사라짐": [
+    "T3:J5-2.b",
+    "T9:J2-3.a"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 17,
+   "provider": "gemini",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J5-2.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 21,
+   "provider": "gemini",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J2-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 33,
+   "provider": "gemini",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J1-4.a",
+    "T1:J4-2.a",
+    "T1:J7-2.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 35,
+   "provider": "gemini",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J2-1.b"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 38,
+   "provider": "gemini",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J5-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 72,
+   "provider": "gemini",
+   "전": "PASS",
+   "후": "FAIL",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [
+    "T1:J2-3.a"
+   ],
+   "보류 사라짐": [],
+   "보류 생김": []
+  },
+  {
+   "question": 75,
+   "provider": "gemini",
+   "전": "HOLD",
+   "후": "PASS",
+   "FAIL 사라짐": [],
+   "FAIL 생김": [],
+   "보류 사라짐": [
+    "T1:J5-1.a"
+   ],
+   "보류 생김": []
+  },
+  {
+   "question": 78,
+   "provider": "gemini",
+   "전": "FAIL",
+   "후": "PASS",
+   "FAIL 사라짐": [
+    "T1:J3-1.a"
+   ],
+   "FAIL 생김": [],
+   "보류 사라짐": [],
+   "보류 생김": []
+  }
+ ],
+ "fail_by_item": {
+  "전": {
+   "J2-3.a": 61,
+   "J3-2.b": 32,
+   "J3-5.a": 45,
+   "J6-3.b": 7,
+   "J3-1.a": 43,
+   "J4-4.a": 11,
+   "J5-2.a": 40,
+   "J1-4.a": 21,
+   "J5-2.b": 25,
+   "J1-2.a": 26,
+   "J1-3.a": 13,
+   "J1-3.b": 9,
+   "J5-3.a": 18,
+   "J6-2.a": 9,
+   "J6-4.a": 7,
+   "J1-1.a": 4,
+   "J2-5.b": 1,
+   "J4-3.a": 3,
+   "J3-5.b": 3,
+   "J2-5.a": 3,
+   "J6-2.c": 2,
+   "J6-2.b": 13,
+   "J6-1.a": 4,
+   "J7-1.a": 7,
+   "J7-2.a": 11,
+   "J4-2.a": 5,
+   "J6-4.b": 4,
+   "J1-4.b": 2,
+   "J5-1.a": 2,
+   "J6-3.a": 3,
+   "J3-3.b": 7,
+   "J3-4.a": 2,
+   "J2-4.b": 1,
+   "J3-3.a": 4,
+   "J4-1.b": 1,
+   "J4-1.a": 1
+  },
+  "후": {
+   "J5-2.a": 36,
+   "J2-3.a": 51,
+   "J1-4.a": 21,
+   "J3-1.a": 27,
+   "J3-5.a": 28,
+   "J1-2.a": 19,
+   "J1-3.a": 9,
+   "J1-3.b": 4,
+   "J3-2.b": 23,
+   "J5-2.b": 13,
+   "J4-2.a": 4,
+   "J1-1.a": 11,
+   "J6-2.c": 2,
+   "J4-4.a": 6,
+   "J7-2.a": 11,
+   "J6-2.b": 7,
+   "J1-4.b": 2,
+   "J4-3.a": 2,
+   "J6-3.b": 2,
+   "J5-3.a": 7,
+   "J6-2.a": 3,
+   "J4-1.b": 1,
+   "J5-1.a": 3,
+   "J6-4.b": 2,
+   "J2-1.a": 1,
+   "J3-3.b": 7,
+   "J6-4.a": 2,
+   "J2-5.a": 2,
+   "J3-5.b": 1,
+   "J2-4.b": 1,
+   "J3-3.a": 3,
+   "J4-1.a": 1,
+   "J7-1.a": 5,
+   "J2-1.b": 1,
+   "J3-4.a": 1
+  }
+ },
+ "hold_by_kind": {
+  "전": {
+   "인용 불일치": 11,
+   "확인 못함": 8,
+   "사유 모순": 8
+  },
+  "후": {
+   "사유 모순": 6,
+   "코드 판정 확인": 13,
+   "에러 케이스 확인": 24,
+   "규칙 오적용": 4,
+   "인용 불일치": 15,
+   "확인 못함": 1
+  }
+ },
+ "code_fail": {
+  "전": {
+   "2-1.charset": 3,
+   "1-2.code_block": 5,
+   "2-2.list": 2,
+   "1-2.python_syntax": 2,
+   "1-1.foreign_script": 1,
+   "2-1.count": 13,
+   "1-3.footnote_link": 2,
+   "3-2.declared_count": 2,
+   "3-1.answer_equation": 1,
+   "2-1.literal": 5,
+   "1-3.citation_link": 3,
+   "3-3.aggregate": 3,
+   "1-3.internal_link": 1
+  },
+  "후": {
+   "1-2.code_block": 5,
+   "2-2.list": 2,
+   "1-2.python_syntax": 2,
+   "1-1.foreign_script": 1,
+   "1-3.footnote_link": 2,
+   "2-1.count": 4,
+   "3-2.declared_count": 1,
+   "1-3.internal_link": 1,
+   "2-1.literal": 3
+  }
+ },
+ "turn_fail": {
+  "aiona": {
+   "전": [
+    39,
+    110
+   ],
+   "후": [
+    34,
+    110
+   ]
+  },
+  "gpt": {
+   "전": [
+    47,
+    110
+   ],
+   "후": [
+    41,
+    110
+   ]
+  },
+  "claude": {
+   "전": [
+    45,
+    110
+   ],
+   "후": [
+    42,
+    110
+   ]
+  },
+  "gemini": {
+   "전": [
+    79,
+    110
+   ],
+   "후": [
+    68,
+    110
+   ]
+  }
+ },
+ "turn_pass": {
+  "aiona": {
+   "전": [
+    70,
+    110
+   ],
+   "후": [
+    74,
+    110
+   ]
+  },
+  "gpt": {
+   "전": [
+    62,
+    110
+   ],
+   "후": [
+    63,
+    110
+   ]
+  },
+  "claude": {
+   "전": [
+    64,
+    110
+   ],
+   "후": [
+    64,
+    110
+   ]
+  },
+  "gemini": {
+   "전": [
+    30,
+    110
+   ],
+   "후": [
+    39,
+    110
+   ]
+  }
+ },
+ "codex": {
+  "호출": 716,
+  "다시 물은 횟수": 394
+ },
+ "n_after": 312,
+ "n_before": 312
+}

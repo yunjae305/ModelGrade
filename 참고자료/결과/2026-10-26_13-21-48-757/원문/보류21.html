@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결과 보고서 보류 원문 21</title>
+<meta name="description" content="78개 실행 50ca3ccccace 부록 — GPT Q45~Q68 (12건)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* Layout: 한 열 발표 문서. 장마다 번호 · 주장형 제목 · 근거 하나. 위쪽 고정 목차와 ← → 키로 장 넘기기 */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --ink: #111b26;
+  --muted: #566272;
+  --line: #d5dce5;
+  --accent: #1e5d96;
+  --accent-soft: #e3ecf6;
+  --accent-weak: #9dbbd8;
+  --k1: #b3cbe2; --k2: #6f97bd; --k10: #2e6596; --k20: #102f4d;
+  --ok: #1d7748; --ok-soft: #e1f1e7;
+  --warn: #965a00; --warn-soft: #faeed4;
+  --risk: #b3291f; --risk-soft: #fae3e0;
+  --todo: #5c6675; --todo-soft: #e9edf2;
+  --m-aiona: #1e5d96; --m-gpt: #23855f; --m-gemini: #c45a12;
+  --zone-r: #fbe9e6; --zone-y: #fcf3de; --zone-g: #e6f3eb;
+  --nav-bg: rgba(242, 244, 247, 0.92);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+    --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+    --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+    --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+    --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+    --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+    --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+    --nav-bg: rgba(14, 20, 27, 0.92);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #16202a; --ink: #e5ebf1; --muted: #98a4b3; --line: #2a3644;
+  --accent: #7fb5e3; --accent-soft: #1a2a3a; --accent-weak: #44647f;
+  --k1: #3d5870; --k2: #5f86ab; --k10: #8fb6dc; --k20: #d9e9f8;
+  --ok: #6fcf97; --ok-soft: #15301f; --warn: #e2b25a; --warn-soft: #33270f;
+  --risk: #f08a80; --risk-soft: #3a1c1a; --todo: #a3adb9; --todo-soft: #222c37;
+  --m-aiona: #7fb5e3; --m-gpt: #6fcf97; --m-gemini: #f0a060;
+  --zone-r: #2f1c1b; --zone-y: #2b2416; --zone-g: #14261b;
+  --nav-bg: rgba(14, 20, 27, 0.92);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+p { margin: 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* 장(slide) */
+.slide { padding-block: 64px 72px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 28px; }
+.slide:first-of-type { border-top: 0; }
+.s-head { display: flex; flex-direction: column; gap: 10px; max-width: 820px; }
+.s-no { font-family: var(--font-num); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; }
+.s-head h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+.s-head p { color: var(--muted); font-size: 1.02rem; max-width: 68ch; }
+del { text-decoration: line-through; text-decoration-thickness: 2px; color: var(--risk); background: var(--risk-soft); border-radius: 3px; padding: 0 3px; }
+ins { text-decoration: none; color: var(--ok); background: var(--ok-soft); border-radius: 3px; padding: 0 3px; font-weight: 600; }
+
+
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .s-head h2 { font-size: 1.55rem; }
+  .slide { padding-block: 44px 52px; }
+}
+</style>
+<style>
+/* 2026-10-19 추가 */
+:root { --m-claude: #7a4fb3; } :root[data-theme="dark"] { --m-claude: #b49be0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --m-claude: #b49be0; } }
+.s-head h2 { font-size: 1.75rem; }
+@media (max-width: 900px) { }
+@media (max-width: 640px) { }
+@media (max-width: 900px) { }
+</style>
+<style>
+/* 결과 보고 (result-summary-v2) — 덱 CSS 위에 rs- 로 시작하는 것만 더함. 색은 덱 변수만(밝게·어둡게 자동) */
+.slide { gap: 22px; }
+@media (max-width: 640px) { }
+.rs-lrc li .rs-id { grid-column: 1; grid-row: 2; color: var(--muted); font-size: 0.76rem; }
+.rs-item { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 0.9rem; display: grid; gap: 3px; }
+.rs-quote { color: var(--muted); font-size: 0.84rem; overflow-wrap: anywhere; }
+.rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
+.rs-qhint { margin: 0; font-size: 0.86rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; }
+.rs-qds:has(.rs-qd:target) .rs-qhint { display: none; }
+.rs-ql li .rs-id { color: var(--muted); font-size: 0.74rem; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
+/* 원문 파일 맨 위 바로가기 */
+.rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
+.rs-jump a { font-family: var(--font-num); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; text-decoration: none; }
+.rs-fall { position: absolute; opacity: 0; pointer-events: none; }
+.rs-fall-l { justify-self: start; cursor: pointer; font-size: 0.86rem; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; background: var(--surface); }
+.rs-fall:checked + .rs-fall-l { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.rs-fall:focus-visible + .rs-fall-l { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-fds { display: grid; gap: 10px; }
+.rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
+.rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
+.rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
+.rs-fdh { margin: 0 0 6px; font-size: 1rem; }
+.rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
+.rs-failtxt { color: var(--risk); font-weight: 700; } .rs-holdtxt { color: var(--hold-text); font-weight: 700; }
+@media (max-width: 1100px) {
+}
+@media (max-width: 760px) {
+}
+@media (max-width: 640px) {
+}
+/* Arena 형 (v4) — 따뜻한 흰 바탕 · 세리프 제목 · 알약 탭 · 순위 막대 · 넓은 화면은 왼쪽 메뉴 (사용자 10-21: LM Arena 리더보드 틀) */
+:root { --bg: #f8f7f4; --surface: #ffffff; --ink: #1c1b19; --muted: #6b6a65; --line: #e7e5df; --accent: #2f6fe4; --accent-soft: #eaf1fd; --ar-bar: #dce9fd; --ar-bar-top: #b4d1fb; --ar-up: #16a34a; --nav-bg: rgba(248, 247, 244, 0.94); --font-serif: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); } }
+:root[data-theme="dark"] { --bg: #141413; --surface: #1d1d1b; --ink: #ecebe7; --muted: #a3a29c; --line: #2f2e2b; --accent: #7aa7f5; --accent-soft: #1e2a3f; --ar-bar: #213049; --ar-bar-top: #2c4572; --ar-up: #4ade80; --nav-bg: rgba(20, 20, 19, 0.94); }
+/* 보류 색 (사용자 10-21 저녁: 갈색 → 밝은 노랑 + 빗금, 페이지의 보류 표시 전부) — 신호등처럼 초록 통과 · 빨강 FAIL · 노랑 대기, 밝기로도 구분 */
+:root { --hold: #f5c542; --hold-2: #e3ad25; --hold-soft: #fdf2cc; --hold-soft-2: #f7e3a3; --hold-ink: #4a3200; --hold-text: #8a5a00;
+  --hold-fill: repeating-linear-gradient(135deg, var(--hold) 0 6px, var(--hold-2) 6px 9px);
+  --hold-fill-soft: repeating-linear-gradient(135deg, var(--hold-soft) 0 6px, var(--hold-soft-2) 6px 9px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; } }
+:root[data-theme="dark"] { --hold-soft: #3a3014; --hold-soft-2: #4a3d17; --hold-text: #f5c542; }
+.s-head h2, .ar-h1, .ar-ch h3, .ar-bh h3, .rs-sh, .brand { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.01em; }
+.ar-h1, .s-head h2, .s-head p, .ar-hl p { word-break: keep-all; }
+/* 핵심 장면 한 줄 메시지 · 상세 분석 구분 (사용자 10-21 밤 · 받은 의견 ③) */
+.s-head p.s-key { margin: 8px 0 2px; font-size: 1.06rem; font-weight: 600; color: var(--ink); background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 8px 14px; line-height: 1.55; max-width: 980px; }
+@media (min-width: 1200px) { }
+.s-no { color: var(--muted); }
+@media (max-width: 760px) { }
+@media (min-width: 1200px) {
+  body { padding-left: 232px; }
+  html { scroll-padding-top: 16px; }
+}
+.ar-av.lg { width: 28px; height: 28px; border-radius: 8px; background-size: 72%; vertical-align: middle; }
+@media (min-width: 1200px) { }
+@media (max-width: 900px) {
+}
+@media (max-width: 640px) {
+}
+/* 10-21 사용자: FAIL 원문 — 왼쪽 원문(걸린 부분 칠함) · 오른쪽 같은 번호의 사유 */
+.rs-fx { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-top: 6px; }
+.rs-fx h4 { margin: 0 0 6px; font-size: 0.9rem; }
+.rs-fx-r { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.rs-turn { display: grid; gap: 2px; margin-bottom: 12px; }
+.rs-fx .rs-pre.rs-q { max-height: 200px; }
+.rs-fx .rs-pre.rs-ans { max-height: none; }
+.rs-fwhy { font-size: 0.9rem; line-height: 1.5; }
+mark.rs-mk { background: var(--risk-soft); color: inherit; border-bottom: 2px solid var(--risk); border-radius: 3px; padding: 0 1px; }
+mark.rs-mk sup, .rs-hlno { display: inline-block; min-width: 1.4em; text-align: center; font-family: var(--font-num); font-size: 0.72rem; font-weight: 700;
+  background: var(--risk); color: var(--surface); border-radius: 999px; padding: 0 5px; margin-right: 3px; line-height: 1.45; vertical-align: 0.1em; }
+.rs-hlno.rs-hlno-off { background: var(--muted); }
+mark.rs-mk-hold { background: var(--hold-soft); border-bottom-color: var(--hold); }
+mark.rs-mk-hold sup, .rs-hlno.rs-hlno-hold { background: var(--hold); color: var(--hold-ink); }
+.rs-hlno.rs-hlno-hold.rs-hlno-off { background: var(--muted); }
+@media (max-width: 760px) { }
+/* CODE 검사 · LLM Judge 두 색 (사용자 10-22) */
+:root { --code-c: #0f766e; --code-soft: #e6f4f1; --llm-c: #6d3fc0; --llm-soft: #f1ebfb; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; } }
+:root[data-theme="dark"] { --code-c: #5fd4c2; --code-soft: #14302c; --llm-c: #b9a0f0; --llm-soft: #2a2140; }
+@media (max-width: 760px) { } .vf-ct .rs-id { font-weight: 400; }
+@media (max-width: 1000px) { }
+@media (max-width: 860px) { }
+@media (max-width: 860px) { }
+@media (max-width: 760px) { }   /* 사용자 10-22: 카드 6개를 3 · 3 으로 — 하네스 증류 · 심판 셋 · 수집 방식이 한 줄 */
+@media (max-width: 900px) { }
+@media (max-width: 560px) { }
+@media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
+.wrap { max-width: 1480px; }
+@media (max-width: 1199px) { }
+.slide { word-break: keep-all; overflow-wrap: break-word; }
+@media (max-width: 1000px) { }
+@media (max-width: 560px) { }   /* 사용자 10-22: LLM Judge 묶음 끝 — 넓은 화면에서만 선 */
+@media (min-width: 1200px) { }
+/* 사용자 10-22: 줄바꿈 정리 — 본문은 마지막 줄에 한두 단어만 남지 않게(pretty), 문단 · 장면 위 강조 · 안내 문장은 줄 길이를 고르게(balance) */
+.slide, .ar-s0 { text-wrap: pretty; }
+.s-head p, .slide p { text-wrap: balance; }
+@media (max-width: 560px) { .slide p { text-wrap: pretty; } }   /* 좁은 화면은 긴 문단이 많아 고아 줄 방지만 */
+/* 사용자 10-22: 나란히 놓인 상자의 위아래 끝 맞추기 */
+@media (min-width: 861px) {
+}
+@media (max-width: 760px) { }
+</style>
+<style>
+:root { --file: #6a4bb0; --file-soft: #f0ebfa; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --file: #b7a2ee; --file-soft: #231d36; } }
+:root[data-theme="dark"] { --file: #b7a2ee; --file-soft: #231d36; }
+@media (max-width: 1000px) {
+}
+</style>
+<style>.lg { display: inline-block; width: 18px; height: 18px; border-radius: 5px; background: #fff center / 74% no-repeat; border: 1px solid rgba(0, 0, 0, 0.1); flex: none; vertical-align: -4px; box-sizing: border-box; }
+.mn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; vertical-align: middle; }
+.lg-gpt { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI3MjEiIGhlaWdodD0iNzIxIiBmaWxsPSJub25lIiB2aWV3Qm94PSIwIDAgNzIxIDcyMSI+PGcgY2xpcC1wYXRoPSJ1cmwoI2EpIj48ZyBjbGlwLXBhdGg9InVybCgjYikiPjxwYXRoIGZpbGw9IiMwMDAiIGQ9Ik0zMDQuMjQ2IDI5NC42MTF2LTQ1LjU4M2MwLTMuODM5IDEuNDQxLTYuNzE5IDQuNzk4LTguNjM2bDkxLjY0OC01Mi43OGMxMi40NzUtNy4xOTcgMjcuMzUtMTAuNTU0IDQyLjcwMi0xMC41NTQgNTcuNTc3IDAgOTQuMDQ2IDQ0LjYyNCA5NC4wNDYgOTIuMTI0IDAgMy4zNTggMCA3LjE5Ny0uNDgxIDExLjAzNmwtOTUuMDA1LTU1LjY2cS04LjYzNy01LjAzNi0xNy4yNzQgMHptMjEzLjk5OSAxNzcuNTM0VjM2My4yMjRjMC02LjcxOS0yLjg4MS0xMS41MTctOC42MzctMTQuODc1bC0xMjAuNDM0LTcwLjA1MyAzOS4zNDUtMjIuNTUzYzMuMzU4LTEuOTE3IDYuMjM4LTEuOTE3IDkuNTk2IDBsOTEuNjQ3IDUyLjc4YzI2LjM5MiAxNS4zNTYgNDQuMTQzIDQ3Ljk4MiA0NC4xNDMgNzkuNjQ4IDAgMzYuNDY1LTIxLjU5IDcwLjA1NC01NS42NiA4My45N3ptLTI0Mi4zMDgtOTUuOTYzLTM5LjM0NS0yMy4wM2MtMy4zNTctMS45MTctNC43OTgtNC43OTgtNC43OTgtOC42MzdWMjM4Ljk1NmMwLTUxLjMzOSAzOS4zNDUtOTAuMjA3IDkyLjYwNi05MC4yMDcgMjAuMTU1IDAgMzguODY0IDYuNzE5IDU0LjcwMiAxOC43MTRsLTk0LjUyNCA1NC43MDFjLTUuNzU2IDMuMzU3LTguNjM2IDguMTU1LTguNjM2IDE0Ljg3NXYxMzkuMTQ3em04NC42ODkgNDguOTQtNTYuMzgtMzEuNjY3di02Ny4xNzJsNTYuMzgtMzEuNjY3IDU2LjM3NiAzMS42Njd2NjcuMTcyem0zNi4yMjYgMTQ1Ljg2N2MtMjAuMTU0IDAtMzguODYzLTYuNzE5LTU0LjcwMS0xOC43MTNsOTQuNTIzLTU0LjcwMmM1Ljc1Ny0zLjM1NyA4LjYzNy04LjE1NSA4LjYzNy0xNC44NzVWMzQzLjU1MmwzOS44MjcgMjMuMDNjMy4zNTcgMS45MTcgNC43OTggNC43OTcgNC43OTggOC42Mzd2MTA1LjU1OWMwIDUxLjMzOS0zOS44MjcgOTAuMjA3LTkzLjA4NCA5MC4yMDd6TTI4My4xMzQgNDYzLjk5bC05MS42NDgtNTIuNzc5Yy0yNi4zOTItMTUuMzU3LTQ0LjE0My00Ny45ODItNDQuMTQzLTc5LjY0OSAwLTM2Ljk0NiAyMi4wNzItNzAuMDUzIDU2LjEzNy04My45Njl2MTA5LjM5OGMwIDYuNzE5IDIuODgxIDExLjUxNyA4LjYzNyAxNC44NzVsMTE5Ljk1NyA2OS41NzEtMzkuMzQ1IDIyLjU1M2MtMy4zNTcgMS45MTctNi4yMzggMS45MTctOS41OTUgMG0tNS4yNzUgNzguNjljLTU0LjIyIDAtOTQuMDQ2LTQwLjc4NS05NC4wNDYtOTEuMTY2IDAtMy44MzkuNDgxLTcuNjc4Ljk1OC0xMS41MTdsOTQuNTI0IDU0LjcwMWM1Ljc1NiAzLjM1OCAxMS41MTcgMy4zNTggMTcuMjczIDBsMTIwLjQzNC02OS41NzF2NDUuNTgzYzAgMy44MzktMS40NCA2LjcxOS00Ljc5OCA4LjYzNmwtOTEuNjQ3IDUyLjc4Yy0xMi40NzYgNy4xOTctMjcuMzUxIDEwLjU1NC00Mi43MDMgMTAuNTU0em0xMTguOTkzIDU3LjA5NmM1OC4wNTkgMCAxMDYuNTE4LTQxLjI2MyAxMTcuNTU4LTk1Ljk2NCA1My43MzktMTMuOTE2IDg4LjI4Ni02NC4yOTcgODguMjg2LTExNS42MzYgMC0zMy41ODktMTQuMzkzLTY2LjIxNC00MC4zMDQtODkuNzI2IDIuMzk5LTEwLjA3NyAzLjgzOS0yMC4xNTQgMy44MzktMzAuMjI2IDAtNjguNjEzLTU1LjY2LTExOS45NTctMTE5Ljk1Ny0xMTkuOTU3LTEyLjk1MiAwLTI1LjQyOCAxLjkxNy0zNy45MDQgNi4yMzgtMjEuNTk1LTIxLjExMy01MS4zNDQtMzQuNTQ3LTgzLjk3LTM0LjU0Ny01OC4wNTggMC0xMDYuNTE3IDQxLjI2Mi0xMTcuNTU3IDk1Ljk2My01My43MzkgMTMuOTE2LTg4LjI4NiA2NC4yOTctODguMjg2IDExNS42MzYgMCAzMy41ODkgMTQuMzkzIDY2LjIxNCA0MC4zMDQgODkuNzI2LTIuMzk5IDEwLjA3Ny0zLjgzOSAyMC4xNTQtMy44MzkgMzAuMjI3IDAgNjguNjEzIDU1LjY2IDExOS45NTYgMTE5Ljk1NiAxMTkuOTU2IDEyLjk1MyAwIDI1LjQyOS0xLjkxNyAzNy45MDUtNi4yMzggMjEuNTkgMjEuMTEzIDUxLjMzOSAzNC41NDggODMuOTY5IDM0LjU0OCIvPjwvZz48L2c+PGRlZnM+PGNsaXBQYXRoIGlkPSJhIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNLjYwNy4xaDcyMHY3MjBoLTcyMHoiLz48L2NsaXBQYXRoPjxjbGlwUGF0aCBpZD0iYiI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTExOC41NTcgMTE5Ljk1OGg0ODQuMTM5djQ3OS44MThIMTE4LjU1N3oiLz48L2NsaXBQYXRoPjwvZGVmcz48L3N2Zz4="); }</style>
+</head>
+<body>
+<main class="wrap"><section class="slide" id="s0"><div class="s-head"><span class="s-no">부록 · 보류 원문 21 / 결과 보고서 50ca3ccccace</span><h2>보류 원문 21 — GPT Q45~Q68 (12건)</h2><p><a href="../report.html#apx">← 결과 보고서(부록)으로</a> · <a href="원문1.html">FAIL 원문 1</a> · <a href="원문2.html">FAIL 원문 2</a> · <a href="원문3.html">FAIL 원문 3</a> · <a href="원문4.html">FAIL 원문 4</a> · <a href="원문5.html">FAIL 원문 5</a> · <a href="원문6.html">FAIL 원문 6</a> · <a href="원문7.html">FAIL 원문 7</a> · <a href="원문8.html">FAIL 원문 8</a> · <a href="원문9.html">FAIL 원문 9</a> · <a href="통과1.html">통과 원문 1</a> · <a href="통과2.html">통과 원문 2</a> · <a href="통과3.html">통과 원문 3</a> · <a href="통과4.html">통과 원문 4</a> · <a href="통과5.html">통과 원문 5</a> · <a href="통과6.html">통과 원문 6</a> · <a href="보류1.html">보류 원문 1</a> · <a href="보류2.html">보류 원문 2</a> · <a href="보류3.html">보류 원문 3</a> · <a href="보류4.html">보류 원문 4</a> · <a href="보류5.html">보류 원문 5</a> · <a href="보류6.html">보류 원문 6</a> · <a href="보류7.html">보류 원문 7</a> · <a href="보류8.html">보류 원문 8</a> · <a href="보류9.html">보류 원문 9</a> · <a href="보류10.html">보류 원문 10</a> · <a href="보류11.html">보류 원문 11</a> · <a href="보류12.html">보류 원문 12</a> · <a href="보류13.html">보류 원문 13</a> · <a href="보류14.html">보류 원문 14</a> · <a href="보류15.html">보류 원문 15</a> · <a href="보류16.html">보류 원문 16</a> · <a href="보류17.html">보류 원문 17</a> · <a href="보류18.html">보류 원문 18</a> · <a href="보류19.html">보류 원문 19</a> · <a href="보류20.html">보류 원문 20</a> · <b>보류 원문 21</b> · <a href="보류22.html">보류 원문 22</a> · <a href="보류23.html">보류 원문 23</a> · <a href="보류24.html">보류 원문 24</a> · <a href="보류25.html">보류 원문 25</a> · <a href="보류26.html">보류 원문 26</a> · <a href="보류27.html">보류 원문 27</a> · <a href="보류28.html">보류 원문 28</a> · <a href="보류29.html">보류 원문 29</a> · <a href="보류30.html">보류 원문 30</a> · <a href="보류31.html">보류 원문 31</a> · <a href="보류32.html">보류 원문 32</a> · <a href="갈림.html">갈림 목록</a></p></div><div class="rs-jump"><div><b><span class="mn"><i class="lg lg-gpt"></i>GPT</span></b><a href="#b-gpt-45">Q45</a><a href="#b-gpt-51">Q51</a><a href="#b-gpt-59">Q59</a><a href="#b-gpt-60">Q60</a><a href="#b-gpt-61">Q61</a><a href="#b-gpt-62">Q62</a><a href="#b-gpt-63">Q63</a><a href="#b-gpt-64">Q64</a><a href="#b-gpt-65">Q65</a><a href="#b-gpt-66">Q66</a><a href="#b-gpt-67">Q67</a><a href="#b-gpt-68">Q68</a></div></div><input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label><div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p><article class="rs-fd" id="b-gpt-45"><h3 class="rs-fdh">Q45 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · <span class="rs-holdtxt">보류</span> · 확인 못 함 1개</h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">초등학생이 읽을 체험 접수 공지문을 써 주세요. 행사는 10월 12일 오후 1시 모래빛 공방 본관 작업실에서 열리고, 신청은 보호자가 운영실에 해야 합니다. 보호자는 신청자이고 참여자는 어린이라는 점을 지켜 주세요. 정원은 8명이며 참가비와 추가 날짜는 적지 마세요. 처음부터 끝까지 존댓말과 차분한 어조를 써 주세요. 마크다운 제목을 붙이고 본문은 불릿으로 정확히 3개 작성해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans"># 모래빛 공방 체험 접수 안내
+
+<mark class="rs-mk rs-mk-hold"><sup>1</sup>\- 체험 날짜와 장소: 10월 12일 오후 1시에 모래빛 공방 본관 작업실에서 체험 활동이 열립니다. 어린이 여러분의 참여를 기다립니다.</mark>
+
+\- 신청 방법: 체험에 참여할 어린이의 보호자께서 모래빛 공방 운영실에 신청해 주세요. 신청은 보호자께서 하시고, 체험에는 어린이가 참여합니다.
+
+\- 참여 인원: 체험에 참여할 수 있는 어린이는 총 8명입니다. 참여를 원하시는 분은 정원을 확인하시고 신청해 주세요.</pre></div></div><div class="rs-fx-r"><h4>보류 — 확인 못 한 기준 1개 (확인 못 함)</h4><div class="rs-item"><div><b class="rs-hlno rs-hlno-hold">1</b> <b>불릿·항목·문장·문단·줄·어절 수 (불릿 수)</b> <span class="rs-id">2-1.count:bullet_count</span></div><div class="rs-fwhy">목록 표지가 이스케이프된 줄(\-) 3개 — 화면에는 불릿처럼 보이지만 마크다운 목록이 아니라 셀 구조가 갈림(사람 확인 — 보류) · 요구 == 3</div><div class="rs-quote">답의 해당 문장 “\- 체험 날짜와 장소: 10월 12일 오후 1시에 모래빛 공방 본관 작업실에서 체험 활동이 열립니다. 어린이 여러분의 참여를 기다립니다.”</div><div class="rs-quote">CODE 2-1.count:bullet_count — 불릿 표지 이스케이프: 코드가 정하기 애매 → 사람 확인(보류)</div></div><p class="rs-quote">사유와 답 문장을 보고 맞으면 통과 · 틀리면 FAIL — 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-51"><h3 class="rs-fdh">Q51 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · <span class="rs-holdtxt">보류</span> · 확인 못 함 1개</h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">실습실 이용 안내문을 써 주세요. 열린책 2층 실습실은 10월 14일 오후 2시부터 4시까지 점검으로 닫습니다. 기존 예약은 취소하며 다음 날로 자동 연기하지 않습니다. 대체 공간을 새로 정하지 말고, 문의처는 학습지원실로 적어 주세요. 처음부터 끝까지 존댓말과 차분한 어조를 써 주세요. 마크다운 제목을 붙이고 본문은 불릿으로 정확히 3개 작성해 주세요. &quot;확인&quot;이라는 단어를 반드시 포함해 주세요. 결과는 아티팩트·캔버스 없이 채팅 답변 안에 텍스트로 바로 보여 주세요.</pre><b>답변</b><pre class="rs-pre rs-ans"># 실습실 이용 안내문
+
+<mark class="rs-mk rs-mk-hold"><sup>1</sup>\- 점검 일정 안내: 열린책 2층 실습실은 10월 14일 오후 2시부터 4시까지 시설 점검으로 인해 이용하실 수 없습니다. 이용에 참고해 주시기 바랍니다.</mark>
+
+\- 기존 예약 안내: 해당 시간대의 기존 예약은 취소되며, 다음 날로 자동 연기되지 않습니다. 예약하신 분께서는 이용 일정을 확인해 주시기 바랍니다.
+
+\- 문의 안내: 실습실 이용 및 예약 취소와 관련하여 궁금한 사항이 있으시면 학습지원실로 문의해 주시기 바랍니다. 이용에 불편을 드려 죄송하며, 양해해 주셔서 감사합니다.</pre></div></div><div class="rs-fx-r"><h4>보류 — 확인 못 한 기준 1개 (확인 못 함)</h4><div class="rs-item"><div><b class="rs-hlno rs-hlno-hold">1</b> <b>불릿·항목·문장·문단·줄·어절 수 (불릿 수)</b> <span class="rs-id">2-1.count:bullet_count</span></div><div class="rs-fwhy">목록 표지가 이스케이프된 줄(\-) 3개 — 화면에는 불릿처럼 보이지만 마크다운 목록이 아니라 셀 구조가 갈림(사람 확인 — 보류) · 요구 == 3</div><div class="rs-quote">답의 해당 문장 “\- 점검 일정 안내: 열린책 2층 실습실은 10월 14일 오후 2시부터 4시까지 시설 점검으로 인해 이용하실 수 없습니다. 이용에 참고해 주시기 바랍니다.”</div><div class="rs-quote">CODE 2-1.count:bullet_count — 불릿 표지 이스케이프: 코드가 정하기 애매 → 사람 확인(보류)</div></div><p class="rs-quote">사유와 답 문장을 보고 맞으면 통과 · 틀리면 FAIL — 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-59"><h3 class="rs-fdh">Q59 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무것도 출력하지 마.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-60"><h3 class="rs-fdh">Q60 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무 말도 쓰지 마.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-61"><h3 class="rs-fdh">Q61 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무 것도 답하지 마.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-62"><h3 class="rs-fdh">Q62 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무 말도 말하지 마.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-63"><h3 class="rs-fdh">Q63 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무 것도 출력하지 말아 주세요.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-64"><h3 class="rs-fdh">Q64 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">아무것도 적지 마.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-65"><h3 class="rs-fdh">Q65 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">빈 문자열로 반환해.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-66"><h3 class="rs-fdh">Q66 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">빈 응답으로 보내.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-67"><h3 class="rs-fdh">Q67 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">빈 출력만 출력해.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article><article class="rs-fd" id="b-gpt-68"><h3 class="rs-fdh">Q68 · <span class="mn"><i class="lg lg-gpt"></i>GPT</span> · 싱글턴 · 빈 출력 요구 · <span class="rs-holdtxt">보류</span></h3><div class="rs-fx rs-holdart"><div class="rs-fx-l"><h4>원문</h4><div class="rs-turn"><b>질문</b><pre class="rs-pre rs-q">빈 답변으로 응답해.</pre><b>답변</b> <span class="rs-failtxt">수집 상태 COPY_FAILED</span><pre class="rs-pre rs-ans"><i>(빈 답)</i></pre></div></div><div class="rs-fx-r"><h4>보류 사유 — 빈 출력 요구</h4><div class="rs-item"><div class="rs-fwhy">빈 출력 요구 — 복사할 답을 받지 못함(출력 없음인지 오류 · 응답 중지인지 모름) → 보류(사람이 정함). 참고: v6 규칙이면 보류 — 다시 수집해 화면의 오류 표시를 확인(오류면 FAIL, 출력 없음이면 PASS) (empty-output-v7, 10-22), 심판에 보내지 않음</div><div class="rs-quote">받은 답: 재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음</div></div><p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p></div></div></article></div></section></main>
+<script>
+(function () {
+  function openTo(id) {
+    var el = document.getElementById(id);
+    if (!el || el.tagName !== 'DETAILS') return false;
+    for (var d = el; d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#f-"], a[href^="#h-"]');
+    if (a && openTo(a.getAttribute('href').slice(1))) { e.preventDefault(); history.replaceState(null, '', a.getAttribute('href')); }
+  });
+  if (/^#[fh]-/.test(location.hash)) openTo(location.hash.slice(1));
+})();
+</script>
+</body>
+</html>

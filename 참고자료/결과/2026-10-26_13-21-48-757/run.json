@@ -1,0 +1,15 @@
+{
+ "version": "result-dirs-v1",
+ "kind": "rerun",
+ "rerun_of": "50ca3ccccace",
+ "judge_out": "v4-f1",
+ "before_out": "v4-r4",
+ "started": "2026-10-26_13-21-48-757",
+ "name": "10-26 새 기준 전체 다시 판정(회의 흐름 1차 · 에러 케이스 · 코드 판정 확인 보류)",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3"
+ },
+ "eval_kind": null,
+ "code_at": "c98b0ee",
+ "note": "수집 50ca3ccccace 그대로 · 질문 세트 78 그대로 · CODE v16.9.2 · Jev jev-1.14.0 1번 + Decisions 1번"
+}

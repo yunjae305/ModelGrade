@@ -750,6 +750,11 @@ def scene_code(D: Dict[str, Any]) -> str:
     return bars + grid
 
 
+def per_model(D: Dict[str, Any], counts: Dict[str, int]) -> str:
+    """모델별 질문 수 — 'Claude 17 · AIONA 17 · …' (사용자 10-26: 모델을 합친 칸 수가 아니라 질문 개수로)."""
+    return " · ".join(f"{SHORT[p]} {counts.get(p, 0)}" for p in D["order"])
+
+
 def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
     order = D["order"]
     holds = [(q, p) for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD"]
@@ -758,7 +763,7 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr))"
     cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order]
     other = sorted((q, p) for q, p in holds if D["qtypes"][q] != EMPTY_REQ)   # 빈 출력 요구 밖 보류 — 심판이 확인 못 한 항목
-    with_fail = 0   # 보류 우선(10-21) — FAIL 항목도 함께 있는 보류 칸
+    with_fail: Counter = Counter()   # 보류 우선(10-21) — FAIL 항목도 함께 있는 보류 질문(모델별)
 
     def go(p: str, q: int, inner: str) -> str:   # 보류 원문으로 (사용자 10-21)
         bid = f"b-{p}-{q}"
@@ -775,7 +780,7 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
                 why = hold_why(D, p, q)
                 state["fact"] += 1
                 nf = len(set(L["line"].get("code_fails") or []) | {i["item"] for i in L["items"] if i["decision"] == "FAIL"})
-                with_fail += 1 if nf else 0
+                with_fail[p] += 1 if nf else 0
                 cells.append(f'<div class="rs-mc rs-mc-fact" title="{E(" / ".join(w["reason"] for w in why))}">'
                              f'{go(p, q, E(hold_label(why)) + (f" · FAIL {nf}" if nf else ""))}</div>')
                 continue
@@ -790,16 +795,19 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
             state[k] += 1
             cells.append(f'<div class="rs-mc rs-mc-{k}" title="{E(a) if a else E(lab)}">{go(p, q, E(lab))}</div>')
     n_empty_q = len({q for q, _p in holds if D["qtypes"][q] == EMPTY_REQ})
-    parts_ = ([f"빈 출력 요구 {n_empty_q}문항 × {len(order)}모델"] if n_empty_q else []) \
-        + ([f"{hold_label([w for q, p in other for w in hold_why(D, p, q)])} {len(other)}칸"] if other else [])
+    other_by = Counter(p for _q, p in other)
+    parts_ = ([f"빈 출력 요구 {n_empty_q}문항(모델마다)"] if n_empty_q else []) \
+        + ([f"{hold_label([w for q, p in other for w in hold_why(D, p, q)])} — {per_model(D, other_by)}"] if other else [])
     what = " + ".join(parts_)
-    top = (f'<div class="rs-hold-top"><div class="rs-hbig"><b>{len(holds)}<small>칸</small></b><span>= {E(what)}</span>'
+    top = (f'<div class="rs-hold-top"><div class="rs-hbig"><b style="font-size:1.1em">{E(per_model(D, Counter(p for _q, p in holds)))}</b>'
+           f'<span>보류 질문 수(모델별 / {D["n"]}) = {E(what)}</span>'
            '<span class="muted">사람이 정할 것은 이것뿐입니다</span></div><div class="rs-facts">'
-           f'<div class="rs-fact"><b>{with_fail}</b>FAIL 항목도 함께 있는 보류 칸 — 보류를 어떻게 정해도 결과는 FAIL <span class="muted">(보류가 하나라도 있으면 보류로 둠)</span></div></div></div>')
+           f'<div class="rs-fact"><b style="font-size:1em">{E(per_model(D, with_fail))}</b>FAIL 항목도 함께 있는 보류 질문(모델별) — 보류를 어떻게 정해도 결과는 FAIL '
+           '<span class="muted">(보류가 하나라도 있으면 보류로 둠)</span></div></div></div>')
     legend = ('<div class="rs-legend">'
-              f'<span><i class="rs-sw rs-mc-copy"></i>재시도 대상 {state["copy"]}</span><span><i class="rs-sw rs-mc-empty"></i>빈 답 {state["empty"]}</span>'
-              f'<span><i class="rs-sw rs-mc-text"></i>짧은 글 {state["text"]}</span>'
-              + (f'<span><i class="rs-sw rs-mc-fact"></i>확인 못 함 {state["fact"]} — 빈 출력 요구가 아닌 질문</span>' if state["fact"] else "") + '</div>')
+              '<span><i class="rs-sw rs-mc-copy"></i>재시도 대상</span><span><i class="rs-sw rs-mc-empty"></i>빈 답</span>'   # 색 설명만 — 수는 위의 모델별 질문 수 (10-26)
+              '<span><i class="rs-sw rs-mc-text"></i>짧은 글</span>'
+              + ('<span><i class="rs-sw rs-mc-fact"></i>확인 못 함 — 빈 출력 요구가 아닌 질문</span>' if state["fact"] else "") + '</div>')
     grid = f'<div class="rs-heat rs-mx" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>"
     why_rows = []
     for q, p in other:
@@ -1800,7 +1808,7 @@ def dist_card(D: Dict[str, Any]) -> str:
               f'<span><i class="rs-sw rs-fail"></i>FAIL</span><span class="muted">점선 = 1위의 지금 완전 통과 {lp}</span></div>')
     return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>결과 분포</h3><span class="ds-tag">잠정</span><span class="ar-chip">질문 단위 · 완전 통과 순</span></div>'
             f'<p class="ds-note">이번 {n}개 질문과 이 실행 조건에서 완전 통과가 가장 많은 모델은 <b>{top}</b>{f"(공동 {lp})" if len(st["leads"]) > 1 else ""}입니다. '
-            f'보류 {st["hold"]}칸은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
+            f'보류 질문({E(per_model(D, {p: T[p]["HOLD"] for p in order}))} / {n})은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
             f'{legend}<div class="ds-rows">{"".join(rows)}</div>{unit_note(D)}</div>')
 
 
@@ -3117,8 +3125,11 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     n_code = sum(1 for c in D["names"] if c[0].isdigit())
     ds = dist_stats(D)   # 받은 의견 A: 순위는 잠정 — 보류를 정하면 바뀔 수 있음을 한 줄 메시지에
     res_key = (f"잠정 — 이번 {D['n']}개 질문 · 이 실행 조건에서 완전 통과 " + " · ".join(f"{SHORT[p]} {D['tally'][p]['PASS']}" for p in D["order"])
-               + f" (/ {D['n']}). 보류 {ds['hold']}칸을 아직 정하지 않아 " + ("순위가 바뀔 수 있습니다." if ds["rivals"] else "숫자가 바뀔 수 있습니다."))
+               + f" (/ {D['n']}). 보류 질문({per_model(D, {p: D['tally'][p]['HOLD'] for p in D['order']})})을 아직 정하지 않아 "
+               + ("순위가 바뀔 수 있습니다." if ds["rivals"] else "숫자가 바뀔 수 있습니다."))
     n_hold_empty = sum(1 for (_p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] == "명시적 빈 출력")
+    hold_pm = per_model(D, Counter(p for (p, _q), L in D["lines"].items() if L["verdict"] == "HOLD"))   # 모델별 질문 수 (사용자 10-26)
+    empty_pm = per_model(D, Counter(p for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] == "명시적 빈 출력"))
     core = [] if report_dir is not None else [   # 결과 보고서는 상세 분석 장면만 (사용자 10-22)
         ("s_intro", "왜 필요한가", "만든 이유", "왜 만들었나", "", scene_intro(D),
          "AIONA 가 업데이트될 때마다 같은 조건으로 다시 테스트해, 채팅 품질을 꾸준히 높이기 위해 만들었습니다."),
@@ -3159,9 +3170,9 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 모델별 합보다 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.", scene_time(D), ""),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
-        ("s4", "보류 목록", f"사람이 정할 {n_hold}칸", f"보류 목록 — 사람이 정할 {n_hold}칸 (빈 출력 규칙 {n_hold_empty} · LLM Judge 확인 못 함 {n_hold - n_hold_empty})",
+        ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['n']}) {hold_pm}",
          "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. 지금은 사람이 정하고, 그 판단을 사례로 모아 다음 판정에 쓰는 것은 만드는 중입니다.", scene_hold(D, part_of),
-         f"사람이 정할 칸 {n_hold} = 빈 출력 요구 {n_hold_empty} + 확인 못 함 {n_hold - n_hold_empty} — 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
+         f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
         ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
          "", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
     ]

@@ -483,7 +483,13 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     cta = os.environ.get("AIONA_SIGNUP_URL") or "https://aiona.kr"
     gen = datetime.now().strftime("%Y-%m-%d %H:%M")
     level = codex_reasoning(out_dir)
-    judge_txt = f"Decisions API(OpenAI gpt-6-luna) 전수 판정 + Codex CLI(gpt-6-luna, 추론 {level}, 웹 검색) 재확인 — 심판은 모델 이름을 모릅니다(블라인드)"
+    calls = [((L["line"].get("calls") or {}).get("decisions") or {}) for L in lines.values()]
+    jev_names = sorted({m for c in calls for m in ((c.get("models") or {}).get("jev") or [])})
+    if any(v == "jev+decisions" for c in calls for v in (c.get("first_judge") or {}).values()):   # 회의 흐름(10-26) — 실제로 쓴 1차 심판을 적는다
+        first = (f"1차 Jev({', '.join(jev_names) or 'Jev'}) · Decisions API(gpt-6-luna) — 단일 질문은 둘을 교차, 멀티턴 · 첨부 · 롱컨텍스트는 Decisions")
+    else:
+        first = "1차 Decisions API(OpenAI gpt-6-luna) 전수 판정"
+    judge_txt = f"{first} + FAIL · 애매한 것만 Codex CLI(gpt-6-luna, 추론 {level}, 웹 검색) 재확인 — 심판은 모델 이름을 모릅니다(블라인드)"
 
     P: List[str] = [f"<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                     f"<title>AIONA 채팅 품질 평가 결과</title><style>{CSS}</style></head><body data-run='{_e(run_id)}' data-policy='{POLICY}'><div class='wrap'>"]
