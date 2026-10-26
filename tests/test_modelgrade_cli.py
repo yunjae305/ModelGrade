@@ -211,7 +211,7 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     run = mg.load_run(run_id)
     assert run["eval_kind"] == "set78" and "78" in run["name"]
     out = capsys.readouterr().out
-    assert "어떤 평가를 진행할까요?" in out and "질문 3개" in out
+    assert "어떤 평가를 진행할까요?" in out and "3개 · 문항 3개" in out and "① 답변 수집" in out and "② 판정" in out   # 간단히 보이는 머리 · 단계 (10-26 저녁)
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0   # 다시 부르면 같은 실행
     assert calls["collect"][1][4] == run_id
 
@@ -305,7 +305,7 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
     text = (out / "report.html").read_text(encoding="utf-8")
     assert "ChatGPT 앱" in text and "1 / 3" not in text or "2 / 3" in text   # 판정한 질문 2 / 전체 3
     assert "같은 말을 두 번" in text and "Jev FAIL 0.8" in text and "받은 방법 empty" in text and "1분 10초" in text and "판정 시간" in text
-    assert "HTML 보고서" in capsys.readouterr().out
+    assert "판정 기록" in capsys.readouterr().out   # ③ 결과 블록의 보고서 위치 (10-26 저녁)
     assert write_report(out, None).name == "report.html"   # 실행 JSON 없이도 만들어진다
 
 
@@ -409,3 +409,22 @@ def test_pair_puts_two_runs_aiona_answers_side_by_side_and_start_takes_two_aiona
     assert ordered(["gpt", "aiona2", "aiona"]) == ["aiona", "aiona2", "gpt"] and short_label("AIONA 웹브라우저 (Claude Sonnet 5.5)", "aiona2") == "AIONA · Claude Sonnet 5.5"
     with pytest.raises(SystemExit):   # 같은 모델 두 번은 거부
         mg.main(["start", "--choice", "1", "--set", str(set_dir), "--aiona", "자동 추천", "--aiona2", "자동 추천", "--judge", "n"])
+
+
+def test_brief_console_lines_for_collect_and_judge(monkeypatch):
+    """터미널 간단히(사용자 10-26 저녁) — 수집은 싱글턴 질문마다 한 줄 · 멀티턴은 턴 줄, 판정은 질문 끝 한 줄(진행 수), 세부 · 현황판은 숨김(로그 파일엔 그대로)."""
+    import tools.modelgrade as mg
+    from tools import judge_v4 as jv
+    st: dict = {}
+    assert mg.brief_collect_line("aiona · AIONA 웹브라우저: 이번 묶음 질문 2개 [11, 12] · 전체 2개 중 이미 받은 질문 0개", st) == "질문 2개 받기"
+    assert mg.brief_collect_line("▶ Q11 (1턴) — 이번 묶음 1/2 · 전체 1/2", st) is None
+    assert mg.brief_collect_line("  Q11_T1: SUCCESS 86자 11초 (copy-button)", st) == "✔ Q11 [1/2] 86자 · 11초"
+    assert mg.brief_collect_line("▶ Q3 (10턴) — 이번 묶음 2/2 · 전체 2/2", st) == "Q3 — 10턴 [2/2]"
+    assert mg.brief_collect_line("  Q3_T4: COPY_FAILED 0자 95초 (none) — 복사 버튼을 찾지 못함", st) == "   ✘ 복사 못 함 4턴 0자 · 95초 — 복사 버튼을 찾지 못함"
+    assert mg.brief_collect_line("CODE 평가 중 …", st) is None and mg.brief_collect_line("저장: C:/x.json (실행 a) | aiona 받은 질문 2/2 (2/2턴)", st) == "끝 — 받은 질문 2/2"
+    assert mg.text_width("AIONA 가") == 8 and mg.pad("가", 4, right=True) == "  가"
+    monkeypatch.setattr(jv, "DISPLAY", {"gpt": "GPT", "aiona": "AIONA · Claude Sonnet 5.5"})
+    assert jv.brief_line("■ Q4 gpt: FAIL · 260초 · 항목 170 → Codex 89 · CODE FAIL 1-3.footnote_link · FAIL T1:J5-2.a T2:J5-2.b") == \
+        "  GPT                        Q4   FAIL · 260초 · 어긴 기준 3"
+    assert jv.brief_line("   🔎 Q11 aiona 1차 jev OK") is None and jv.brief_line("── 평가 현황 20:11 ──") is None
+    assert jv.brief_line("      ⚠ Q1 gemini Codex: 429") == "  ⚠ Q1 gemini Codex: 429"

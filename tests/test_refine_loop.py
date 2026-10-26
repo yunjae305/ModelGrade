@@ -171,3 +171,21 @@ def test_prompt_edit_with_repeated_old_applies_inside_the_item_block(tmp_path: P
     with pytest.raises(rl.EditError):   # 항목을 모르면 여전히 거부
         rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "(모순 조건 쌍은 J1-3)", "new": "x"}]}, tmp_path / "w2", prompt, jev, None)
 
+
+
+def test_apply_proposal_edits_the_three_judging_stances(tmp_path: Path, monkeypatch):
+    """판정 태도 3종(사용자 10-26 저녁) — 태도 하나의 글 · 가중치나 파일 전체(min_choice_prob)를 바꾼 임시 파일을 만들고, 시험 판정은 FIRST_JUDGE_STANCES 로 그 파일을 쓴다."""
+    stances = tmp_path / "s.json"
+    stances.write_text(json.dumps({"version": "t", "min_choice_prob": 0.6, "stances": [
+        {"id": "critical", "name": "비판적", "text": "[비판적] 어긴 곳을 먼저", "weights": {"PASS": 1.2, "FAIL": 0.8, "NOT_APPLICABLE": 1.0}},
+        {"id": "friendly", "name": "친화적", "text": "[친화적] 지킨 점을 먼저", "weights": {"PASS": 0.8, "FAIL": 1.2, "NOT_APPLICABLE": 1.0}}]}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(rl.jv, "STANCES_PATH", stances)
+    prop = {"target": "판정 태도 3종", "edits": [{"item": "friendly", "old": '"FAIL": 1.2', "new": '"FAIL": 1.1'},
+                                              {"item": None, "old": '"min_choice_prob": 0.6', "new": '"min_choice_prob": 0.5'}]}
+    out = rl.apply_proposal(prop, tmp_path / "w", tmp_path / "p.txt", tmp_path / "j.json", None)
+    got = json.loads(Path(out["stances"]).read_text(encoding="utf-8"))
+    assert got["stances"][1]["weights"]["FAIL"] == 1.1 and got["stances"][0]["weights"]["PASS"] == 1.2 and got["min_choice_prob"] == 0.5
+    assert json.loads(stances.read_text(encoding="utf-8"))["min_choice_prob"] == 0.6   # 실제 파일은 그대로(시험용 복사본만)
+    with pytest.raises(rl.EditError):
+        rl.apply_proposal({"target": "판정 태도 3종", "edits": [{"item": "guided", "old": "x", "new": "y"}]}, tmp_path / "w2", tmp_path / "p.txt", tmp_path / "j.json", None)
+    assert "판정 태도 3종" in rl.AUTO_TARGETS

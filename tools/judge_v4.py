@@ -14,6 +14,7 @@ import argparse
 from collections import Counter, defaultdict
 import copy
 import json
+import os
 import hashlib
 import re
 import sys
@@ -2591,9 +2592,57 @@ _LOG: Dict[str, Any] = {"path": None}
 _LOG_LOCK = threading.Lock()
 
 
+#: 터미널에 보일 모델 이름 — 'GPT' · 'AIONA · Claude Sonnet 5.5' (main 에서 실행의 models 로 채움)
+DISPLAY: Dict[str, str] = {}
+_BOARD: Dict[str, Any] = {"obj": None}
+_VERDICT_KO = {"PASS": "통과", "FAIL": "FAIL", "HOLD": "보류", "보류": "보류", "UNVERIFIED": "보류"}
+
+
+def brief_console() -> bool:
+    """간단히 보일지 — modelgrade 가 MODELGRADE_CONSOLE=brief 로 부른다(바로 부르면 지금처럼 모두)."""
+    return os.environ.get("MODELGRADE_CONSOLE") == "brief"
+
+
+def brief_line(text: str) -> Optional[str]:
+    """간단히 보일 때 터미널에 낼 글 — 질문 끝(■)은 한 줄로 줄이고 진행 수를 붙임, 경고(⚠)는 그대로, 시작 줄은 짧게, 나머지(세부 · 현황판)는 None."""
+    s = text.strip()
+    if s.startswith("⚠"):
+        return "  " + s
+    if text.startswith("평가 진행합니다"):
+        m = re.match(r"평가 진행합니다 — (\d+)건\(질문 × 모델, 이미 한 (\d+)건", text)
+        log = text.rsplit(" · 로그 ", 1)[-1] if " · 로그 " in text else ""
+        try:
+            log = Path(log).resolve().relative_to(ROOT).as_posix() if log else ""
+        except ValueError:
+            pass
+        if not m:
+            return None
+        total, skipped = int(m.group(1)), int(m.group(2))
+        head = ("  판정할 것 없음 — 모두 판정함" if total == skipped else
+                f"  판정 {total - skipped}건(질문 × 모델)" + (f" · 이미 한 {skipped}건 건너뜀" if skipped else ""))
+        return head + (f" — 세부 기록 {log}" if log else "")
+    m = re.match(r"■ (?:묶음 )?Q(\d+) (\S+): (\S+)(.*)$", text)
+    if not m:
+        return None
+    q, p, v, rest = int(m.group(1)), m.group(2), m.group(3), m.group(4)
+    name = DISPLAY.get(p) or LABEL.get(p, p)
+    width = max([len(x) for x in DISPLAY.values()] + [len(name)])
+    board = _BOARD.get("obj")
+    step = f"[{min(board.done.get(p, 0) + 1, board.totals.get(p, 0))}/{board.totals.get(p, 0)}] " if board is not None and p in board.totals else ""
+    secs = re.search(r"· (\d+)초", rest)
+    count = lambda pat: len(re.findall(r"\S+", re.search(pat, rest).group(1))) if re.search(pat, rest) else 0
+    n_fail = count(r"· FAIL ((?:T\d+:\S+ ?)+)") + count(r"· CODE FAIL ([^·]+)")
+    n_hold = count(r"· 보류 ((?:T\d+:\S+ ?)+)")
+    why = rest.split(" — ", 1)[1].strip()[:60] if "(심판 없이)" in rest and " — " in rest else ""
+    return (f"  {step}{name:<{width}}  Q{q:<3} {_VERDICT_KO.get(v, v)}" + (f" · {secs.group(1)}초" if secs else "")
+            + (f" · 어긴 기준 {n_fail}" if n_fail else "") + (f" · 보류 칸 {n_hold}" if n_hold else "") + (f" — {why}" if why else ""))
+
+
 def log_say(text: str) -> None:
-    """터미널에 찍고 로그 파일에도 남긴다 — Codex 실행기(judge_run)의 진행 글도 이 함수로 모인다."""
-    print(text, flush=True)
+    """터미널에 찍고 로그 파일에도 남긴다 — Codex 실행기(judge_run)의 진행 글도 이 함수로 모인다. 간단히(brief)면 터미널에는 brief_line 만."""
+    shown = brief_line(text) if brief_console() else text
+    if shown is not None:
+        print(shown, flush=True)
     if _LOG["path"]:
         with _LOG_LOCK, Path(_LOG["path"]).open("a", encoding="utf-8") as f:
             f.write(text + "\n")
@@ -2784,6 +2833,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     say = log_say
 
     run = json.loads((ROOT / "data" / "comparison_runs" / f"{args.run}.json").read_text(encoding="utf-8"))
+    from tools.providers import family, short_label
+    for p_ in (run.get("providers") or []) + list(PROVIDERS):   # 터미널에 보일 이름 (10-26 저녁)
+        DISPLAY[p_] = short_label((run.get("models") or {}).get(p_), p_) if family(p_) == "aiona" else LABEL.get(p_, p_)
     if not args.providers:   # 실행에 있는 자리 모두 — 기본 넷 + AIONA 두 번째 자리 (10-26)
         from tools.providers import ordered
         args.providers = ",".join(ordered(p for p in (run.get("providers") or PROVIDERS) if (run.get("datasets") or {}).get(p))) or ",".join(PROVIDERS)
@@ -2836,6 +2888,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         queues.setdefault(p, []).append(q)
     totals = {p: len(v) for p, v in queues.items()}
     board = Board(totals, {p: sum(1 for q in v if (p, q) in done) for p, v in queues.items()})
+    _BOARD["obj"] = board
     gpt = jev = decisions = None
     if not args.dry:
         gpt, jev, notes = judges_from_env()
@@ -3033,17 +3086,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     summary = {"version": VERSION, "run_id": args.run, "prompt": PROMPT_V4.name, "jev_questions": fixed.get("version"),
                "codex": {"model": getattr(gpt, "model", None), "reasoning": getattr(gpt, "reasoning", None)} if gpt is not None else None,
                "finished_at": datetime.now(timezone.utc).isoformat(), "wall_seconds": round(judge_s, 1), "inputs": input_fingerprints(inputs), "models": {}}   # 폴더 전체 판정 시간(다시 판정 뺌)
-    say("\n결과 — 질문 단위 (보류는 사람이 정함)")
-    for p in queues:
-        mine = [l for l in lines if l["provider"] == p and int(l["question"]) in set(queues[p])]
-        c = {v: sum(1 for l in mine if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}
-        say(f"  {LABEL.get(p, p):<7}: PASS {c['PASS']} · FAIL {c['FAIL']} · 보류 {c['HOLD']}  / {len(queues[p])}")
+    if not brief_console():   # 간단히면 modelgrade 가 결과 보고서의 문항 단위 표를 낸다
+        say("\n결과 — 질문 단위 (보류는 사람이 정함)")
+        for p in queues:
+            mine = [l for l in lines if l["provider"] == p and int(l["question"]) in set(queues[p])]
+            c = {v: sum(1 for l in mine if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}
+            say(f"  {LABEL.get(p, p):<7}: PASS {c['PASS']} · FAIL {c['FAIL']} · 보류 {c['HOLD']}  / {len(queues[p])}")
     for p in sorted({l["provider"] for l in lines}):   # summary 는 이 폴더 전체 — 몇 질문만 다시 판정해도 전체 숫자가 남는다 (10-21)
         allp = [l for l in lines if l["provider"] == p]
         summary["models"][p] = {**{v: sum(1 for l in allp if l.get("verdict") == v) for v in ("PASS", "FAIL", "HOLD")}, "n": len(allp)}
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
     (out / "report.md").write_text(report_md([l for l in lines if l.get("status") == "judged"]), encoding="utf-8")
-    say(f"\n평가 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")
+    if not brief_console():
+        say(f"\n평가 끝 — 벽시계 {wall / 60:.0f}분 · 결과 {results_path}")
     expected = {(p, q) for p, qs_ in queues.items() for q in qs_ if (p, q) not in done}
     left = sorted(expected - saved_keys)   # 스레드가 중간에 죽어 줄을 못 남긴 질문 — 0 으로 끝내지 않는다 (Codex 검토 10-25)
     if left:

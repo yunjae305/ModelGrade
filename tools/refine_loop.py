@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
 import shutil
@@ -45,8 +46,8 @@ CRITERIA_DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.
 LESSON_HEADING = "## 12. 기준 다듬기 루프의 교훈"
 LESSON_CHARS = 220   # 12절 표 칸 하나의 글자 상한 — 전문은 data/refine/…/lesson.json (사용자: 문서는 짧고 요점만)
 KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", None: "-"}
-TARGETS = ("판정 프롬프트", "1차 항목 정의", "확인 목록", "기준 문서", "질문", "CODE")
-AUTO_TARGETS = ("판정 프롬프트", "1차 항목 정의", "확인 목록")   # apply 가 실제 파일에 넣을 수 있는 대상 — 기준 문서 · CODE · 질문은 사람(또는 다음 단계)이
+TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록", "기준 문서", "질문", "CODE")
+AUTO_TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록")   # apply 가 실제 파일에 넣을 수 있는 대상 — 기준 문서 · CODE · 질문은 사람(또는 다음 단계)이
 SIDE_EFFECT_MAX = 0.05   # 같은 질문의 다른 항목이 이 비율 넘게 바뀌면 채택하지 않는다 (v2 10절 ⑤ '다른 기준의 결과가 그대로')
 
 
@@ -267,6 +268,8 @@ PROPOSE_GUIDE = """당신은 한국어 AI 답변 품질 평가의 **기준 다�
 2. edits 는 **지금 글에 그대로 있는 old 를 new 로** 바꾸는 꼴로 — old 는 그 파일에서 한 번만 나오는 구절(한 줄 이내)로 고릅니다. 덧붙이기만 할 때는 old 를 그 줄의
    끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 1차 항목 정의는 {"item": "J1-4.b", "append": "…"} 로 지시문 끝에 덧붙일 수도 있습니다. 1차 항목 정의 파일에는 **J1~J4 항목만** 있습니다 — J5~J8 항목은 판정 프롬프트나 확인 목록을 고칩니다.
    확인 목록은 {"question": 2, "turn": 2, "add_decided": "…"}(심판이 따르는 정한 판정) 또는 {"question", "turn", "add_check"}(자료의 사실만, 판정 지시 금지).
+   판정 태도 3종(1차 심판이 같은 질문을 비판적 · 친화적 · 유도적 세 태도로 한 번씩 보고 가중 다수결 — [재료]의 판정_태도_3종)은 {"item": "critical" · "friendly" · "guided"
+   (태도 id, 비우면 파일 전체), "old": "…", "new": "…"} 로 그 태도의 글 · 가중치(예: old '"FAIL": 1.2' → new '"FAIL": 1.1')나 min_choice_prob 을 바꿉니다 — 모든 항목에 걸리므로 범위는 '불변'.
 3. 증거가 말하는 것만 적습니다 — 어느 칸(#번호)이 왜 잘못 판정됐는지 why 에 쓰고, expected 에 그 안으로 바뀔 칸을 "#3 FAIL→PASS" 꼴로 적습니다.
    추측한 일반론("더 꼼꼼히 보라")은 행동을 바꾸지 못하니 쓰지 않습니다. 기준 카드는 한 줄 길이를 지킵니다(길어지면 다른 안으로 나눕니다).
 4. 고칠 근거가 없으면 keep_base 를 true 로 두고 proposals 를 비웁니다 — 그것도 답입니다. 사람 표시가 없는 칸의 판정은 정답이 아니라 심판의 의견이므로,
@@ -330,7 +333,8 @@ def ask(ch: Any, guide: str, payload: Dict[str, Any], tag: str, schema: Dict[str
 
 def propose_input(cases: Sequence[Dict[str, Any]], item: str, set_dir: Path) -> Dict[str, Any]:
     return {"항목": item,
-            "정의": {"기준_문서_행": doc_row(item), "판정_프롬프트_블록": prompt_block(item), "1차_항목_정의": first_judge_definition(item)},
+            "정의": {"기준_문서_행": doc_row(item), "판정_프롬프트_블록": prompt_block(item), "1차_항목_정의": first_judge_definition(item),
+                   "판정_태도_3종": json.loads(jv.STANCES_PATH.read_text(encoding="utf-8")) if jv.STANCES_PATH.exists() else None},
             "판정_원칙": principles(),
             "칸": [{"#": c["no"], "질문": c["question"], "모델": c["provider"], "턴": c["turn"], "유형": c["type"], "판정": c["decision"],
                    "1차": c.get("first"), "2차": c.get("codex"), "걸린_이유": c.get("flagged"), "사유": c.get("reason"),
@@ -401,7 +405,7 @@ def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path
                    item: Optional[str] = None) -> Dict[str, Any]:
     """안의 edits 를 임시 복사본에 넣는다 → {"prompt": 경로, "jev_questions": 경로, "turn_checklists": 경로 또는 None, "applied": [설명]}."""
     work.mkdir(parents=True, exist_ok=True)
-    out = {"prompt": prompt_path, "jev_questions": jev_path, "turn_checklists": checklists_path, "applied": []}
+    out = {"prompt": prompt_path, "jev_questions": jev_path, "turn_checklists": checklists_path, "stances": jv.STANCES_PATH, "applied": []}
     target = prop.get("target")
     edits = prop.get("edits") or []
     if target == "판정 프롬프트":
@@ -435,6 +439,23 @@ def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path
         p = work / "jev_questions.json"
         p.write_text(json.dumps(fixed, ensure_ascii=False, indent=1), encoding="utf-8")
         out["jev_questions"] = p
+    elif target == "판정 태도 3종":
+        doc = json.loads(jv.STANCES_PATH.read_text(encoding="utf-8"))
+        for e in edits:
+            if not (e.get("old") and e.get("new") is not None):
+                raise EditError("판정 태도 3종 edit 에는 old · new 가 있어야 합니다")
+            sid = e.get("item")
+            if sid:
+                k = next((i for i, st in enumerate(doc.get("stances") or []) if st.get("id") == sid), None)
+                if k is None:
+                    raise EditError(f"판정 태도 3종에 {sid} 가 없습니다(critical · friendly · guided)")
+                doc["stances"][k] = json.loads(replace_once(json.dumps(doc["stances"][k], ensure_ascii=False), e["old"], e["new"], f"태도 {sid}"))
+            else:
+                doc = json.loads(replace_once(json.dumps(doc, ensure_ascii=False), e["old"], e["new"], "판정 태도 3종"))
+            out["applied"].append(f"태도 {sid or '전체'}: {e['old'][:40]!r} → {e['new'][:40]!r}")
+        p = work / "stances.json"
+        p.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
+        out["stances"] = p
     elif target == "확인 목록":
         if not checklists_path or not checklists_path.exists():
             raise EditError("턴별 확인 목록 파일이 없습니다")
@@ -487,9 +508,12 @@ def run_judge(run_id: str, set_dir: Path, picks: Sequence[Tuple[int, str]], out_
     if votes:
         cmd += ["--votes", str(votes)]
     cmd += list(extra)
+    env = dict(os.environ)
+    if files.get("stances") and Path(files["stances"]) != jv.STANCES_PATH:
+        env["FIRST_JUDGE_STANCES"] = str(files["stances"])   # 고친 판정 태도 3종으로 시험 (10-26 저녁)
     t0 = time.monotonic()
     with log_path.open("w", encoding="utf-8") as f:
-        proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, cwd=str(ROOT), text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, cwd=str(ROOT), text=True, encoding="utf-8", errors="replace", env=env)
     return {"out": out_name, "returncode": proc.returncode, "seconds": round(time.monotonic() - t0, 1), "cmd": cmd}
 
 
@@ -756,7 +780,7 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
     set_dir = Path(meta["set"])
     checklists = set_dir / "multiturn_v3" / "turn_checklists.json"
     tmp = apply_proposal(prop, d / "apply", jv.PROMPT_V4, jv.JEV_V4, checklists if checklists.exists() else None, item=meta.get("item"))
-    for key, real in (("prompt", jv.PROMPT_V4), ("jev_questions", jv.JEV_V4), ("turn_checklists", checklists)):
+    for key, real in (("prompt", jv.PROMPT_V4), ("jev_questions", jv.JEV_V4), ("turn_checklists", checklists), ("stances", jv.STANCES_PATH)):
         if tmp.get(key) and Path(tmp[key]) != real:
             shutil.copy2(tmp[key], real)
             say(f"반영: {real}")

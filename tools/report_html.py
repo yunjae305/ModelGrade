@@ -134,8 +134,13 @@ def load_human(out_dir: Path) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]
 
 
 def set_dir_for(run: Dict[str, Any]) -> Path:
-    sid = ((run or {}).get("question_set") or {}).get("set_id")
-    for d in (ROOT / "참고자료").glob("질문세트_*"):
+    """실행의 질문 세트 폴더 — 실행에 적힌 폴더(question_set.dir), 없으면 set.json 의 id 가 같은 폴더(참고자료/질문세트_* · data/sets/*, 10-26 저녁:
+    작게 시험할 세트가 기본 78 세트로 잘못 잡혀 결과 보고서가 받지 않은 질문을 찾던 것), 그래도 없으면 기본 세트."""
+    qs = (run or {}).get("question_set") or {}
+    if qs.get("dir") and (ROOT / qs["dir"] / "questions.json").exists():
+        return ROOT / qs["dir"]
+    sid = qs.get("set_id")
+    for d in [*(ROOT / "참고자료").glob("질문세트_*"), *(ROOT / "data" / "sets").glob("*")]:
         sj = d / "set.json"
         try:
             if sid and sj.exists() and json.loads(sj.read_text(encoding="utf-8")).get("id") == sid:

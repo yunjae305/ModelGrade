@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 import sys
 import time
@@ -263,11 +264,20 @@ def run_metas() -> List[Dict[str, Any]]:
     return out
 
 
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        Path(path).resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def new_run(name: str, set_dir: Path, groups: List[Dict[str, Any]]) -> Dict[str, Any]:
     from webapp.question_generation import flatten
     return {"run_id": uuid.uuid4().hex[:12], "name": name, "created_at": _now(), "status": "COLLECT", "phase": "COLLECT", "providers": [],
             "models": {}, "datasets": {}, "evaluations": {}, "question_count": len(groups), "total": len(flatten(groups)),
-            "question_set": {"set_id": json.loads((set_dir / "set.json").read_text(encoding="utf-8")).get("id") if (set_dir / "set.json").exists() else set_dir.name},
+            "question_set": {"set_id": json.loads((set_dir / "set.json").read_text(encoding="utf-8")).get("id") if (set_dir / "set.json").exists() else set_dir.name,
+                             **({"dir": Path(os.path.relpath(Path(set_dir).resolve(), ROOT)).as_posix()} if _inside(Path(set_dir), ROOT) else {})},   # 보고서가 세트 폴더를 찾게 (10-26 저녁)
             "run_kind": "manual-web-import", "aiona_specialized": False, "blind_requested": True}
 
 
@@ -372,6 +382,77 @@ def cmd_collect_app(args: argparse.Namespace) -> int:
 PLACES = ("left", "right")
 
 
+SHORT_NAMES = {"gpt": "GPT", "claude": "Claude", "gemini": "Gemini"}
+STATUS_KO = {"SUCCESS": "받음", "COPY_FAILED": "복사 못 함", "ERROR": "오류", "TIMEOUT": "시간 초과", "LIMIT": "사용 한도"}
+
+
+def display_name(provider: str, model_label: Optional[str] = None) -> str:
+    """터미널에 보일 모델 이름 — 'GPT' · 'Gemini' · 'AIONA' · 'AIONA · Claude Sonnet 5.5'(AIONA 에서 고른 모델)."""
+    from tools.providers import short_label
+    return short_label(model_label or LABELS.get(provider), provider) if family(provider) == "aiona" else SHORT_NAMES.get(provider, provider)
+
+
+def brief_console() -> bool:
+    """간단히 보일지 — start 가 MODELGRADE_CONSOLE=brief 로 켠다(자식 수집기 · 판정 도구도 같은 값을 물려받음)."""
+    return os.environ.get("MODELGRADE_CONSOLE") == "brief"
+
+
+def text_width(text: str) -> int:
+    """터미널 칸 수 — 한글 같은 넓은 글자는 2칸."""
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in str(text))
+
+
+def pad(text: Any, width: int, right: bool = False) -> str:
+    gap = " " * max(0, width - text_width(str(text)))
+    return gap + str(text) if right else str(text) + gap
+
+
+def print_table(head: List[str], rows: List[List[Any]], indent: str = "  ") -> None:
+    """한글 폭을 맞춘 표 — 첫 칸은 왼쪽, 나머지는 오른쪽 맞춤."""
+    widths = [max(text_width(str(r[i])) for r in [head] + rows) for i in range(len(head))]
+    for r in [head] + rows:
+        print(indent + "  ".join(pad(c, widths[i], right=i > 0) for i, c in enumerate(r)).rstrip(), flush=True)
+
+
+def rel(path: Any) -> str:
+    """저장소 안 경로는 짧게(저장소 기준) — 밖이면 그대로."""
+    try:
+        return Path(path).resolve().relative_to(ROOT).as_posix()
+    except (ValueError, OSError):
+        return str(path)
+
+
+def brief_collect_line(line: str, state: Dict[str, Any]) -> Optional[str]:
+    """수집기 한 줄을 간단히 — 싱글턴은 질문마다 한 줄('✔ Q11 [1/2] 352자 · 12초'), 멀티턴은 대화 줄 아래 턴 줄. 세부(CODE · 저장 경로)는 숨김(로그 파일엔 그대로)."""
+    import re
+    s = line.rstrip()
+    m = re.match(r"^\S+ · .*: 이번 묶음 질문 (\d+)개 .*이미 받은 질문 (\d+)개", s)
+    if m:
+        return f"질문 {m.group(1)}개 받기" + (f" (이미 받은 {m.group(2)}개 건너뜀)" if m.group(2) != "0" else "")
+    if s.startswith("받을 질문이 없습니다"):
+        return "받을 질문 없음 — 모두 받음"
+    m = re.match(r"^▶ Q(\d+) \((\d+)턴\) — 이번 묶음 (\d+)/(\d+)", s)
+    if m:
+        state["q"] = (m.group(1), int(m.group(2)), m.group(3), m.group(4))
+        return None if m.group(2) == "1" else f"Q{m.group(1)} — {m.group(2)}턴 [{m.group(3)}/{m.group(4)}]"
+    m = re.match(r"^\s+Q(\d+)_T(\d+): (\S+) (\d+)자 (\d+)초 \([^)]*\)(?: — (.*))?$", s)
+    if m:
+        q, t, st, chars, secs, err = m.groups()
+        mark = "✔" if st == "SUCCESS" else f"✘ {STATUS_KO.get(st, st)}"
+        tail = f" — {err[:80]}" if err and st != "SUCCESS" else ""
+        cur = state.get("q")
+        if cur and cur[0] == q and cur[1] == 1:
+            return f"{mark} Q{q} [{cur[2]}/{cur[3]}] {chars}자 · {secs}초{tail}"
+        return f"   {mark} {t}턴 {chars}자 · {secs}초{tail}"
+    if s.startswith("CODE 평가 중"):
+        return None
+    m = re.match(r"^저장: .* 받은 질문 (\d+)/(\d+)", s)
+    if m:
+        return f"끝 — 받은 질문 {m.group(1)}/{m.group(2)}"
+    return s.strip() or None
+
+
 def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_id: str) -> int:
     """모델마다 자식 프로세스(이 CLI 의 collect web --provider 하나)를 띄워 같이 돌리고 출력을 [모델] 머리말로 섞어 보여 준다 — 모두 같은 수집용 Chrome 에 붙는다."""
     import subprocess
@@ -398,11 +479,18 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
     log_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
+    names = {p: display_name(p, app_label(p, (getattr(args, "models", None) or {}).get(p))) for p in providers}
+    width = max(text_width(n) for n in names.values())
+
     def pump(provider: str, proc: Any) -> None:
-        # 터미널에 보이는 그대로 파일에도 남긴다 — 한 모델이 조용히 끝나도 나중에 원인을 볼 수 있게 (10-20 밤: AIONA 가 왜 빠졌는지 로그가 없었다)
+        # 로그 파일에는 수집기 글 그대로 — 한 모델이 조용히 끝나도 나중에 원인을 볼 수 있게 (10-20 밤: AIONA 가 왜 빠졌는지 로그가 없었다).
+        # 터미널은 간단히(start)면 줄인 글, 아니면 그대로 — 머리는 보이는 이름 (10-26 저녁)
+        state: Dict[str, Any] = {}
         with (log_dir / f"collect-{stamp}-{provider}.log").open("a", encoding="utf-8") as f:
             for line in proc.stdout:
-                print(f"[{provider}] {line.rstrip()}", flush=True)
+                shown = brief_collect_line(line, state) if brief_console() else line.rstrip()
+                if shown is not None:
+                    print(f"  {pad(names[provider], width)}  {shown}", flush=True)
                 f.write(line)
             f.write(f"[종료 코드 {proc.wait()}]" + chr(10))
 
@@ -420,7 +508,8 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
     if bad:
         print(f"실패한 수집기: {', '.join(bad)} (종료 코드 {codes})", flush=True)
         return 1
-    print(f"동시 수집 끝 — 실행 {run_id} | 다음: judge --run {run_id} --next 20", flush=True)
+    if not brief_console():
+        print(f"동시 수집 끝 — 실행 {run_id}", flush=True)
     return 0
 
 
@@ -619,7 +708,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
     for r in merged:
         rows_by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r)
     done_q = sum(1 for rs in rows_by_q.values() if all(r["collection"].get("status") == "SUCCESS" for r in rs))
-    print(f"저장: {path} (실행 {run['run_id']}) | {args.provider} 받은 질문 {done_q}/{total} ({ok}/{len(merged)}턴) | 다음: 같은 명령으로 이어서, 또는 judge --run {run['run_id']} --providers {args.provider} --next 20")
+    print(f"저장: {path} (실행 {run['run_id']}) | {args.provider} 받은 질문 {done_q}/{total} ({ok}/{len(merged)}턴)", flush=True)
     return 0
 
 
@@ -761,6 +850,19 @@ def ensure_collection_chrome() -> None:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
+    """start — 터미널은 간단히(MODELGRADE_CONSOLE=brief, 자식 수집기 · 판정 도구가 물려받음), 끝나면 원래 값으로 (10-26 저녁)."""
+    prev = os.environ.get("MODELGRADE_CONSOLE")
+    os.environ["MODELGRADE_CONSOLE"] = prev or "brief"
+    try:
+        return _cmd_start(args)
+    finally:
+        if prev is None:
+            os.environ.pop("MODELGRADE_CONSOLE", None)
+        else:
+            os.environ["MODELGRADE_CONSOLE"] = prev
+
+
+def _cmd_start(args: argparse.Namespace) -> int:
     """메뉴에서 평가 종류를 고르면 네 모델(ChatGPT · Claude · Gemini · AIONA 모두 웹, 수집용 Chrome 하나)이 동시에 그 세트의 답을 받고, 원하면 판정을 질문 전체 한 번에 끝까지 돌린 뒤 결과를 보인다.
     이미 받은 질문·판정한 질문은 건너뛰므로 같은 명령을 다시 부르면 이어서."""
     set_dir = Path(args.set)
@@ -774,19 +876,16 @@ def cmd_start(args: argparse.Namespace) -> int:
         if models["aiona"] == models["aiona2"]:
             raise SystemExit("AIONA 두 자리에 같은 모델을 골랐습니다 — 서로 다른 모델을 고르세요(업데이트 전 · 후 비교는 modelgrade pair)")
         model_choice = f"aiona:{models['aiona']}|aiona2:{models['aiona2']}"
-        print(f"모델: {app_label('aiona', models['aiona'])} ↔ {app_label('aiona2', models['aiona2'])} — AIONA 두 모델만 받습니다", flush=True)
     elif pick:
         providers = [pick[0], "aiona"]   # 고른 모델과 AIONA 만 — 같은 모델끼리 비교, 다른 모델은 받지 않음
         models = {pick[0]: pick[1], "aiona": aiona_model_for(*pick)}   # AIONA 도 이름이 똑같은 모델로 (10-22)
         model_choice = f"{pick[0]}:{pick[1]}"
-        print(f"모델: {app_label(*pick)} ↔ {app_label('aiona', models['aiona'])} — 다른 모델은 받지 않습니다", flush=True)
     else:
         providers = split_providers(args.providers or ",".join(ALL_PROVIDERS), APP_LABELS)
         models, model_choice = {}, None
-    print(f"{title} 준비 중 — 질문 세트 읽는 중 …", flush=True)
+    print("준비 중 …", flush=True)
     groups = json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))
     qs = question_numbers(kind, groups)
-    print("이어 쓸 실행 찾는 중 …", flush=True)
     run_id = args.run or find_run_for(set_dir, kind, model_choice)
     if args.run and (load_run(args.run).get("model_choice") or None) != model_choice:
         raise SystemExit(f"실행 {args.run} 은 다른 모델 선택으로 받은 실행입니다 — 같은 모델로 고르거나 --run 을 빼고 새로 시작하세요")
@@ -797,16 +896,23 @@ def cmd_start(args: argparse.Namespace) -> int:
         run["model_choice"] = model_choice
         result_dirs.ensure(run, RESULTS_JSON_DIR)   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지> (사용자 10-22)
         run_id = save_run(run).stem
-        print(f"새 실행 {run_id}", flush=True)
+        fresh = True
     else:
+        fresh = False
         run = load_run(run_id)
         had = run.get("result_dir")
         result_dirs.ensure(run, RESULTS_JSON_DIR)   # 이어 돌리면 처음 시각 폴더 그대로 (사용자 10-22)
         if not had:
             save_run(run)
-    print(f"결과 폴더: {RESULTS_JSON_DIR / run['result_dir']} (판정이 끝나면 report.html)", flush=True)
-    print(f"{title} — 질문 {len(qs)}개 · {' · '.join(app_label(p, models.get(p)) for p in providers)} 동시 수집 · 실행 {run_id}", flush=True)
-    print("수집용 Chrome 을 켜는 중(네 사이트 창) — 첫 줄이 나오기까지 30초~1분 걸릴 수 있습니다 …", flush=True)
+    from webapp.question_generation import flatten
+    n_units = sum(len(g.get("turns") or [None]) if g.get("type") == "10턴 멀티턴 대화" else 1 for g in groups if int(g["id"]) in set(qs))
+    print(f"\nModelGrade 평가", flush=True)
+    for key, val in (("질문", f"{len(qs)}개 · 문항 {n_units}개 (멀티턴은 턴마다 1문항) — {rel(set_dir)}"),
+                     ("모델", "  |  ".join(display_name(p, app_label(p, models.get(p))) for p in providers)),
+                     ("실행", f"{run_id} ({'새로' if fresh else '이어서 — 받은 질문 · 판정은 건너뜀'})"),
+                     ("결과", rel(RESULTS_JSON_DIR / run["result_dir"]))):
+        print(f"  {pad(key, 4)}  {val}", flush=True)
+    print("\n① 답변 수집 — 수집용 Chrome 을 켜는 중(처음엔 30초~1분) …", flush=True)
     ensure_collection_chrome()   # 자식 프로세스들이 같은 Chrome 에 붙도록 먼저 한 번 띄운다(떠 있으면 그대로) — 시험에서는 monkeypatch
     ns = argparse.Namespace(provider=",".join(providers), run=run_id, new=None, only=",".join(str(q) for q in qs), next=JUDGE_BATCH_MAX,
                             set=str(set_dir), label=None, allow_large=True, place=None, skip_done=True,
@@ -815,7 +921,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     code = cmd_collect_app(ns)
     if code:
         return code
-    print(f"수집 단계 끝 — 벽시계 {_hms(time.monotonic() - t_collect)}", flush=True)
+    print(f"  수집 끝 — {_hms(time.monotonic() - t_collect)}", flush=True)
     print_collection_times(run_id, providers)
     out_dir = ROOT / "data" / "judge_runs" / run_id
     go = args.judge
@@ -825,19 +931,21 @@ def cmd_start(args: argparse.Namespace) -> int:
         except EOFError:
             go = "n"
     if go != "y":
-        again = f" --model \"{model_choice}\"" if model_choice else ""
-        print(f"판정은 나중에: python -X utf8 tools/modelgrade.py start --set \"{set_dir}\" --choice {choice}{again} --judge y  (받은 질문은 건너뛰고 판정만 이어서)", flush=True)
+        again = (f" --aiona \"{models['aiona']}\" --aiona2 \"{models['aiona2']}\"" if "aiona2" in providers   # AIONA 두 모델 실행은 같은 두 자리로 이어서 (10-26 저녁)
+                 else f" --model \"{model_choice}\"" if model_choice else "")
+        print(f"\n판정은 나중에(받은 질문은 건너뛰고 판정만): modelgrade start --set \"{rel(set_dir)}\" --choice {choice}{again} --judge y", flush=True)
         return 0
     t_judge = time.monotonic()
+    print("\n② 판정 — 1차 Jev 또는 Decisions(판정 프롬프트 3종) → FAIL · 애매한 것만 Codex 확정", flush=True)
     # 판정 v4: 고정 프롬프트 + 질문·답변 JSON 을 Codex CLI·Jev 에, 모델마다 한 줄로 동시에, 질문마다 저장(멈춰도 같은 명령으로 이어서)
     from tools import judge_v4
     code = judge_v4.main(["--run", run_id, "--set", str(set_dir), "--questions", ",".join(str(q) for q in qs), "--providers", ",".join(providers),
                           "--out", "v4"])
     if code:
         return code
-    print(f"판정 단계 끝 — 벽시계 {_hms(time.monotonic() - t_judge)}", flush=True)
+    print(f"  판정 끝 — {_hms(time.monotonic() - t_judge)}", flush=True)
     if (out_dir / "v4" / "results.jsonl").exists():   # 결과 폴더에 report.html · 결과 JSON (사용자 10-22)
-        return cmd_report(argparse.Namespace(dir=str(out_dir / "v4"), run=run_id))
+        return cmd_report(argparse.Namespace(dir=str(out_dir / "v4"), run=run_id, from_start=True))
     print("판정 결과(results.jsonl)가 없어 보고서는 만들지 않았습니다", flush=True)
     return 0
 
@@ -854,17 +962,17 @@ def print_collection_times(run_id: str, providers: Optional[List[str]] = None) -
         run = load_run(run_id)
     except SystemExit:
         return
-    print("| 모델 | 받음 | 보류 | 오류·답 없음 | 합계 | 답변 시간 합 | 질문당 평균 | 수집 묶음 벽시계 합 |\n|---|---|---|---|---|---|---|---|")
-    for c in collection_time_rows(run, providers):
-        print(f"| {c['provider']} | {c['questions']} | {c['held']} | {c['errors']} | {c['total']} | {_hms(c['answer_seconds'])} | {c['per_question']:.0f}초 | {_hms(c['wall_seconds'])} |")
-    print("(보류 = 답을 복사해 오지 못했거나, 빈 출력 요구 질문에서 복사 버튼 없음·응답 중지·모델 오류 — 판정은 사람이 정함 · 오류 = 그 밖의 질문에서 모델이 답하지 못함)")
+    rows = [[display_name(c["provider"], (run.get("models") or {}).get(c["provider"])), c["questions"], c["held"], c["errors"], c["total"],
+             _hms(c["answer_seconds"]), f"{c['per_question']:.0f}초"] for c in collection_time_rows(run, providers)]
+    print_table(["모델", "받음", "보류", "오류", "질문", "답변 시간", "질문당"], rows)
+    print("  (보류 = 답을 복사해 오지 못함 · 빈 출력 요구에서 복사 버튼 없음 — 사람이 정함, 오류 = 모델이 답하지 못함)", flush=True)
 
 
 def print_judge_times(out_dir: Path) -> None:
     from tools.report_html import judge_time_info
     jt = judge_time_info(out_dir)
     if jt:
-        print(f"판정 시간: 총 {_hms(jt['seconds'])} · 판정 {jt['judgments']}건(질문×모델) · 건당 평균 {jt['per_judgment']:.0f}초")
+        print(f"  판정 시간 {_hms(jt['seconds'])} · {jt['judgments']}건(질문 × 모델) · 건당 {jt['per_judgment']:.0f}초", flush=True)
 
 
 def _engine_of(evaluation: Dict[str, Any]) -> str:
@@ -919,56 +1027,66 @@ def cmd_report(args: argparse.Namespace) -> int:
         raise SystemExit(f"결과가 없습니다: {results}")
     run_id = getattr(args, "run", None) or resolve_run_id(d)   # --dir 가 <실행>/v4 면 부모가 실행 ID (Codex 지적 10-20)
     rows = load_results(d)   # 같은 (모델, 질문) 은 마지막 줄만
-    by = {}
-    for r in rows:
-        b = by.setdefault(r["provider"], Counter())
-        b[r.get("verdict")] += 1
-        b["_sec"] += r.get("seconds") or 0
-    print(f"{d} — 실행 {run_id} · 질문 {len(rows)}건")
-    print("| 모델 | PASS | FAIL | 보류 | 질문당 평균(초) |\n|---|---|---|---|---|")
-    for p, b in by.items():
-        n = b["PASS"] + b["FAIL"] + b["HOLD"]
-        print(f"| {p} | {b['PASS']} | {b['FAIL']} | {b['HOLD']} | {b['_sec'] / max(1, n):.0f} |")
-    if (d / "summary.md").exists():
-        print((d / "summary.md").read_text(encoding="utf-8"))
-    print_collection_times(run_id)
-    print_judge_times(d)
+    from_start = bool(getattr(args, "from_start", False))
+    if not from_start:   # report 를 따로 부르면 수집 표 · 판정 시간도 (start 는 앞 단계에서 이미 보임)
+        print(f"판정 폴더 {rel(d)} — 실행 {run_id} · (모델, 질문) {len(rows)}건", flush=True)
+        print_collection_times(run_id)
+        print_judge_times(d)
     from tools.report_html import write_report
     try:
         run = load_run(run_id)
     except SystemExit:
         run = None
     html_path = write_report(d, run)   # 사용자 요청 10-19: 판정 결과를 HTML 로 저장 (v2: 보류 원문·사람 판정 버튼, 10-20 밤)
-    print(f"HTML 보고서: {html_path}")
+    D = None   # 결과 보고서의 문항 단위 숫자 — 끝 블록에
     from tools import result_dirs
     rd = None
     if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) 에 모은다 (사용자 10-22)
         rd = result_dirs.ensure(run, RESULTS_JSON_DIR)
         result_dirs.publish(d, rd)
         result_dirs.publish_collection(ROOT / "data" / "judge_runs" / run_id, rd)   # 답변 수집 기록 (사용자 10-22: git 에 계속 올림)
-        print(f"결과 폴더: {rd} — {result_dirs.JUDGE_REPORT} · {result_dirs.COLLECT_DIR}/")
     if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
         label = {"simple78": "간단78", "full326": "정밀326"}.get(kind, "결과") + "_판정결과"
         only = json.loads(IDS78.read_text(encoding="utf-8"))["ids"] if kind == "simple78" else None
         try:
-            print(f"JSON 결과: {export(run_id, label, only, out_dir=rd or RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)}")
+            export(run_id, label, only, out_dir=rd or RESULTS_JSON_DIR, runs_dir=RUNS, judge_dir=d)
         except Exception as exc:   # JSON 내보내기가 막혀도 HTML 은 이미 썼다 — 자동 보고서가 여기서 죽지 않게
-            print(f"JSON 결과 내보내기 실패: {exc}")
-            return 0
+            print(f"  ⚠ 결과 JSON 내보내기 실패: {exc}", flush=True)
+            rd = None
         if rd is not None:   # 결과 보고서 report.html = 발표 템플릿의 상세 분석 장면만 (사용자 10-22)
             from tools import build_result_summary as brs
             keep = brs.RESULTS
             brs.RESULTS = RESULTS_JSON_DIR
             try:
-                brs.build(run_id, report_dir=rd)
-                print(f"결과 보고서: {rd / result_dirs.REPORT} (판정 기록은 {result_dirs.JUDGE_REPORT})")
+                _written, D = brs.build(run_id, report_dir=rd)
             except Exception as exc:   # 판정 보고서 · 결과 JSON 은 이미 썼다
-                print(f"결과 보고서 만들기 실패: {exc} — 판정 보고서는 {rd / result_dirs.JUDGE_REPORT}")
+                print(f"  ⚠ 결과 보고서 만들기 실패: {type(exc).__name__}: {exc}", flush=True)
             finally:
                 brs.RESULTS = keep
+    print_result_block(D, rows, rd, html_path)
     return 0
+
+
+def print_result_block(D: Optional[Dict[str, Any]], rows: List[Dict[str, Any]], rd: Optional[Path], html_path: Path) -> None:
+    """③ 결과 — 문항 단위(결과 보고서와 같은 숫자, 싱글턴 질문 1 · 멀티턴 턴마다 1) 표와 보고서 위치. 결과 보고서를 못 만들었으면 질문 단위로."""
+    from tools import result_dirs
+    if D is not None:
+        print(f"\n③ 결과 — 문항 단위 (보류는 사람이 정함)", flush=True)
+        body = [[display_name(p, ((D.get("d") or {}).get("models") or {}).get(p)), D["tally"][p]["PASS"], D["tally"][p]["FAIL"], D["tally"][p]["HOLD"], D["n"]]
+                for p in D["order"]]
+        print_table(["모델", "통과", "FAIL", "보류", "문항"], body)
+    else:
+        print(f"\n③ 결과 — 질문 단위 (보류는 사람이 정함)", flush=True)
+        by: Dict[str, Counter] = {}
+        for r in rows:
+            by.setdefault(r["provider"], Counter())[r.get("verdict")] += 1
+        print_table(["모델", "통과", "FAIL", "보류", "질문"], [[display_name(p), c["PASS"], c["FAIL"], c["HOLD"], sum(c.values())] for p, c in by.items()])
+    if rd is not None and (rd / result_dirs.REPORT).exists():
+        print(f"  결과 보고서  {rel(rd / result_dirs.REPORT)}", flush=True)
+    judge_page = (rd / result_dirs.JUDGE_REPORT) if rd is not None and (rd / result_dirs.JUDGE_REPORT).exists() else html_path
+    print(f"  판정 기록    {rel(judge_page)} — 보류는 여기서 사람이 정함", flush=True)
 
 
 def cmd_held_apply(args: argparse.Namespace) -> int:
