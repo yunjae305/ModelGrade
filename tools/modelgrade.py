@@ -489,6 +489,20 @@ def retry_empty_answer(chat: Any, row: Dict[str, Any]) -> Dict[str, Any]:
             "note": "빈 응답 — 복사를 다시 해도 비어 있음 → 에러 케이스(사용자 10-26)"}
 
 
+SCREEN_DIR = "화면"   # data/judge_runs/<실행>/화면/<모델>/<질문>.jpg — 결과 폴더 발행 때 수집기록/화면/ 으로 (10-26)
+
+
+def keep_screenshot(run_id: str, provider: str, case_id: str, src: str) -> Optional[str]:
+    """수집기가 찍은 대화 화면(답 영역만)을 실행 폴더에 질문 이름으로 옮긴다 — 실행 폴더 기준 상대 경로, 파일이 없으면 None."""
+    f = Path(src)
+    if not f.is_file():
+        return None
+    dest = ROOT / "data" / "judge_runs" / run_id / SCREEN_DIR / provider / f"{case_id}{f.suffix}"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(f), dest)
+    return dest.relative_to(ROOT / "data" / "judge_runs" / run_id).as_posix()
+
+
 def collect_app_one(args: argparse.Namespace) -> int:
     import tempfile
     from webapp.question_generation import flatten
@@ -579,7 +593,12 @@ def collect_app_one(args: argparse.Namespace) -> int:
                     # 다음 실행에서 또 묻지 않는다 (10-20 밤: AIONA 가 같은 5개를 매번 다시 받음)
                     res = {**res, "status": COPY_FAILED, "capture": "none",
                            "error": f"빈 출력 요구 — 모델 오류로 답 없음 → 보류 (사용자 규칙 10-20) · {res.get('error') or ''}"[:300]}
+                snap = getattr(chat, "_turn_snapshot", None)
+                if res.get("status") == "COPY_FAILED" and not res.get("screenshot") and callable(snap) and asks_empty_output(None, r.get("question") or ""):
+                    res = {**res, "screenshot": snap("copy-failed")}   # 복사가 끝내 안 된 빈 출력 요구 — 그 대화 화면(답 영역)도 남긴다 (10-26)
                 col = {k: v for k, v in res.items() if k != "answer"}
+                if col.get("screenshot"):   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면 — 실행 폴더에 질문 이름으로 (사용자 10-26)
+                    col["screenshot"] = keep_screenshot(run["run_id"], args.provider, r["case_id"], col["screenshot"])
                 col["collected_at"] = _now()
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
                        "system_id": args.provider, "source": label, "case_index": rows_all.index(r), "collection": col}

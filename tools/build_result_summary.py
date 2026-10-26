@@ -2013,8 +2013,9 @@ def turn_html(D: Dict[str, Any], p: str, q: int, tn: int, multi: bool, ents: Opt
     ans = t.get("answer") or ""
     body = (mark_answer(ans, ents) if ents is not None else E(ans)) if ans else "<i>(빈 답)</i>"
     tl = f"턴 {tn} " if multi else ""
+    shot = R.screenshot_img(D["run_id"], t.get("screenshot"))   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면 (10-26)
     return (f'<div class="rs-turn"><b>{tl}질문</b>{extra}<pre class="rs-pre rs-q">{E(turn.get("question") or "")}</pre>'
-            f'<b>{tl}답변</b>{st}<pre class="rs-pre rs-ans">{body}</pre></div>')
+            f'<b>{tl}답변</b>{st}<pre class="rs-pre rs-ans">{body}</pre>{shot}</div>')
 
 
 def kept_criteria(D: Dict[str, Any], p: str, q: int) -> Tuple[List[Dict[str, Any]], List[str]]:

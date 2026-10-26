@@ -168,6 +168,20 @@ def question_types(set_dir: Path) -> Dict[int, str]:
     return out
 
 
+def screenshot_img(run_id: str, rel: Optional[str], note: str = "") -> str:
+    """대화 화면(답 영역) 그림 — 파일 안에 넣어(data URI) 판정 폴더 · 결과 폴더 어디서 열어도 보인다. 파일이 없으면 빈 글 (10-26)."""
+    if not run_id or not rel:
+        return ""
+    f = ROOT / "data" / "judge_runs" / run_id / rel
+    if not f.is_file():
+        return ""
+    import base64
+    mime = "image/jpeg" if f.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    data = base64.b64encode(f.read_bytes()).decode("ascii")
+    return (f"<figure class='shot'><img alt='대화 화면' src='data:{mime};base64,{data}' style='max-width:100%;border:1px solid #ddd;border-radius:8px'>"
+            f"<figcaption class='small'>{_e(note or '복사 아이콘이 안 뜬 순간의 대화 화면 — 마지막 질문 ~ 답 자리만')}</figcaption></figure>")
+
+
 def originals(run: Dict[str, Any]) -> Dict[Tuple[str, int], List[Dict[str, Any]]]:
     """(모델, 질문) → 턴마다 {turn, question, answer, attachments, status}."""
     out: Dict[Tuple[str, int], List[Dict[str, Any]]] = defaultdict(list)
@@ -178,7 +192,8 @@ def originals(run: Dict[str, Any]) -> Dict[Tuple[str, int], List[Dict[str, Any]]
             out[(p, _qno(r["case_id"]))].append({"turn": _tno(r["case_id"]), "question": r.get("question") or "", "answer": r.get("answer") or "",
                                                   "attachments": [a.get("name") for a in r.get("attachments") or [] if isinstance(a, dict)],
                                                   "reference_chars": len(r.get("reference") or ""), "status": (r.get("collection") or {}).get("status") or "",
-                                                  "error": (r.get("collection") or {}).get("error") or ""})
+                                                  "error": (r.get("collection") or {}).get("error") or "",
+                                                  "screenshot": screenshot_img((run or {}).get("run_id") or "", (r.get("collection") or {}).get("screenshot"))})
     for k in out:
         out[k].sort(key=lambda t: t["turn"])
     return out
@@ -348,7 +363,7 @@ def _orig_block(turns: List[Dict[str, Any]], only: Optional[set] = None) -> str:
         ref = f" <span class='small'>참조 자료 {t['reference_chars']:,}자(생략)</span>" if t["reference_chars"] else ""
         st = "" if t["status"] == "SUCCESS" else f" <span class='small FAIL'>수집 상태 {_e(t['status'])} {_e(t['error'][:120])}</span>"
         parts.append(f"<div class='two'><div><b>턴 {t['turn']} 질문</b>{att}{ref}<pre class='orig'>{_e(t['question'])}</pre></div>"
-                     f"<div><b>턴 {t['turn']} 답변</b>{st}<pre class='orig'>{_e(t['answer']) or '<i>(빈 답)</i>'}</pre></div></div>")
+                     f"<div><b>턴 {t['turn']} 답변</b>{st}<pre class='orig'>{_e(t['answer']) or '<i>(빈 답)</i>'}</pre>{t.get('screenshot') or ''}</div></div>")
     return "".join(parts) or "<p class='note'>원문 없음 (실행 파일을 못 읽음)</p>"
 
 

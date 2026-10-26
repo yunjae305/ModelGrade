@@ -70,6 +70,10 @@ def publish_collection(log_dir: Path, dest: Path) -> list:
         (dest / COLLECT_DIR).mkdir(parents=True, exist_ok=True)
     for f in files:
         shutil.copy2(f, dest / COLLECT_DIR / f.name)
+    screens = log_dir / "화면"   # 빈 출력 요구에 복사 아이콘이 안 뜬 대화 화면(답 영역만, 10-26)
+    if screens.is_dir() and any(screens.rglob("*.jpg")):
+        shutil.copytree(screens, dest / COLLECT_DIR / "화면", dirs_exist_ok=True)
+        files += sorted(screens.rglob("*.jpg"))
     return [f.name for f in files]
 
 
