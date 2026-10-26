@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="ModelGrade — 한국어 채팅 AI 품질 평가">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14213d"/>
+      <stop offset="1" stop-color="#1f3b73"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" rx="18" fill="url(#bg)"/>
+  <g font-family="'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',system-ui,sans-serif">
+    <text x="64" y="112" fill="#ffffff" font-size="64" font-weight="800">ModelGrade</text>
+    <text x="64" y="158" fill="#c9d6f2" font-size="26">한국어 채팅 AI 를 같은 질문 · 같은 기준으로 채점합니다</text>
+    <g font-size="19" font-weight="600">
+      <rect x="64" y="200" width="150" height="44" rx="22" fill="#2f6fde"/>
+      <text x="139" y="228" fill="#fff" text-anchor="middle">질문 78개</text>
+      <text x="230" y="229" fill="#7f95c4">→</text>
+      <rect x="254" y="200" width="174" height="44" rx="22" fill="#2f6fde"/>
+      <text x="341" y="228" fill="#fff" text-anchor="middle">네 AI 웹에서 답</text>
+      <text x="444" y="229" fill="#7f95c4">→</text>
+      <rect x="468" y="200" width="196" height="44" rx="22" fill="#2f6fde"/>
+      <text x="566" y="228" fill="#fff" text-anchor="middle">기준 72개로 판정</text>
+      <text x="680" y="229" fill="#7f95c4">→</text>
+      <rect x="704" y="200" width="196" height="44" rx="22" fill="#2f6fde"/>
+      <text x="802" y="228" fill="#fff" text-anchor="middle">확인 못 하면 보류</text>
+      <text x="916" y="229" fill="#7f95c4">→</text>
+      <rect x="940" y="200" width="196" height="44" rx="22" fill="#0ca30c"/>
+      <text x="1038" y="228" fill="#fff" text-anchor="middle">보고서 · 순위</text>
+    </g>
+  </g>
+</svg>
