@@ -86,9 +86,9 @@ def test_single_question_cross_checks_and_sends_only_disagreements(tmp_path: Pat
     items = line["turn_results"]["1"]["items"]
     assert "다름" in items["J2-2.a"]["flagged"] and items["J2-2.a"]["first_cross"]["decisions"]["choice"] == "NOT_APPLICABLE"
     assert items["J1-4.a"]["codex"] is None and items["J1-4.a"]["how"].startswith("Jev·Decisions")
-    assert jev.calls == 2 and dec.calls == 1                                  # Jev 2번(갈림 없음) · Decisions 1번
+    assert jev.calls == 1 and dec.calls == 1                                  # Jev 1번(JEV_VOTES 기본 1, 10-26) · Decisions 1번
     by = line["calls"]["decisions"]["attempts_by"]
-    assert by == {"jev": 2, "decisions": 1} and line["calls"]["decisions"]["first_judge"] == {"1": "jev+decisions"}
+    assert by == {"jev": 1, "decisions": 1} and line["calls"]["decisions"]["first_judge"] == {"1": "jev+decisions"}
 
 
 def test_multi_turn_uses_decisions_once_per_turn(tmp_path: Path, monkeypatch):

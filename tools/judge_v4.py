@@ -185,6 +185,14 @@ def jev_votes_adaptive(part: Dict[str, Any], questions: Dict[str, Any], jev: Any
     return "OK", merged, "; ".join(errors), oks, attempts
 
 
+def jev_once(part: Dict[str, Any], questions: Dict[str, Any], jev: Any) -> Tuple[str, Any, str, List[Dict[str, Any]], int]:
+    """Jev 한 번(JEV_VOTES=1) — jev_votes_adaptive 와 같은 모양으로 돌려준다."""
+    status, body, error = jev.judge(part, questions)
+    if status == "OK" and isinstance(body, dict):
+        return "OK", body, "", [body], 1
+    return "ERROR", None, f"{status} {str(error)[:80]}", [], 1
+
+
 def cross_flag(item: str, j: Optional[Dict[str, Any]], d: Optional[Dict[str, Any]], sure: float = None) -> str:
     """교차 확인 — Codex 로 넘길 까닭(빈 문자열이면 1차에서 끝). 둘 다 답했을 때: 하나라도 FAIL · 둘이 다름 · 하나라도 애매(고른 답 확률 < sure).
     한 심판만 답했으면 그 답으로 지금 선별 규칙(screen_flag)."""
@@ -233,7 +241,7 @@ def situational_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any,
     """회의 흐름의 1차 심판 한 턴 — cross(단일 질문 · 첨부 없음 · Jev 가 받는 크기)면 Jev(2+1) + Decisions(1) 교차, 아니면 Decisions 1번.
     한쪽이 실패하면 다른 쪽 혼자(지금 선별 규칙). 돌려주는 값은 first_judge_votes 와 같은 모양 — 쓴 심판은 'jev+decisions' · 'decisions' · 'jev'."""
     if cross and jev is not None and decisions is not None:
-        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev)
+        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev) if JEV_VOTES > 1 else jev_once(part, questions, jev)
         ds_, db, de = decisions.judge(part, questions)
         voted: List[Tuple[Optional[str], Dict[str, Any]]] = [("jev", b) for b in joks] + ([("decisions", db)] if ds_ == "OK" and isinstance(db, dict) else [])
         attempts = jatt + 1
@@ -251,7 +259,7 @@ def situational_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any,
         ok = status == "OK" and isinstance(body, dict)
         return status, (body if ok else None), ("" if ok else str(error)), "decisions", ([("decisions", body)] if ok else []), 1
     if jev is not None:   # Decisions 가 없을 때만 — Jev 혼자(큰 입력이면 실패)
-        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev)
+        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev) if JEV_VOTES > 1 else jev_once(part, questions, jev)
         return js_, jb, je, ("jev" if js_ == "OK" else None), [("jev", b) for b in joks], jatt
     return "ERROR", None, "1차 심판 없음", None, [], 0
 
@@ -327,6 +335,9 @@ def _env_str(name: str, default: str) -> str:
 #:   auto: 옛 흐름(질문 크기로 Jev · Decisions 하나 + FIRST_JUDGE_VOTES 표) · jev · decisions: 모든 턴을 한 심판으로(심판 비교 실험).
 #:   .env FIRST_JUDGE_MODE 또는 --first-judge
 FIRST_JUDGE_MODE = _env_str("FIRST_JUDGE_MODE", "situational")
+#: 교차 확인에서 Jev 를 몇 번 부를지 — 1(기본, 사용자 10-26): 한 번. 3: 2번 부르고 갈린 항목이 있으면 3번째(다수결).
+#: 10-26 비교: 단일 질문 2,356칸 중 첫 표와 3표 다수결이 다른 칸 2개, 둘 다 어느 쪽이든 Codex 로 감 — 반복이 결과를 바꾸지 않음. .env JEV_VOTES
+JEV_VOTES = max(1, int(_env_float("JEV_VOTES", 1)))
 #: 교차 확인의 '확실' — 고른 답의 확률이 이 값 이상(사용자 10-26: 0.8 — 모의 계산 놓친 FAIL 1 · Codex 646칸, 0.7 이면 6 · 487칸). .env CROSS_SURE
 CROSS_SURE = _env_float("CROSS_SURE", 0.8)
 #: 1차 심판만 — Codex 를 부르지 않고 1차 판정(decisions/<질문>.json)만 남긴다 (--first-only, 심판 비교 실험 10-26)
@@ -1581,6 +1592,7 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
     dec_errors: List[str] = []
     usage_tokens = 0
     usage_by: Dict[str, Dict[str, Any]] = {}   # 1차 심판(jev · decisions)마다 돌려준 사용량 칸 전부 (10-22 미팅 7번)
+    models_by: Dict[str, set] = {}   # 1차 심판마다 돌려준 모델 이름(버전, 10-26)
     t0 = time.monotonic()
     reused_dec = False
     fresh: Dict[str, str] = {}   # 이번에 실제로 부른 1차 심판(턴 → 심판) — --repair 의 저장된 답과 따로 (10-22)
@@ -1668,6 +1680,9 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
                 got = {i: ({**v, "judge": used} if isinstance(v, dict) else v) for i, v in got.items()}
             dec_items[n] = {**dec_items.get(n, {}), **got}
             item_fp.setdefault(str(n), {}).update({i: cur_fp[i] for i in ids if isinstance(got.get(i), dict) and got[i].get("choice") is not None})   # 유효한 답을 받은 항목만
+            for used_k, b in voted:   # 심판이 실제로 돌려준 모델 이름(버전) — 별칭이 다른 버전으로 바뀌어도 알 수 있게 (10-26)
+                if isinstance(b, dict) and isinstance(b.get("model"), str):
+                    models_by.setdefault(used_k or "?", set()).add(b["model"])
             for used_k, b in voted:   # 표마다 쓴 사용량 · 호출 수를 그 표의 심판에 더한다 (Jev 실패 → Decisions 로 섞여도 제 심판에)
                 usage_tokens += int(((b or {}).get("usage") or {}).get("input_tokens") or 0) if isinstance((b or {}).get("usage"), dict) else 0
                 add_usage(usage_by.setdefault(used_k or "?", {}), (b or {}).get("usage"))
@@ -1684,7 +1699,8 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
             dec_items[n] = {i: v for i, v in dec_items[n].items() if i in effective[n]}
     calls["decisions"] = {"status": "OK" if not dec_errors else ("PARTIAL" if any(any(v for v in d.values()) for d in dec_items.values()) else "ERROR"),
                           "error": "; ".join(dec_errors), "seconds": round(time.monotonic() - t0, 1), "calls": n_calls, "votes": FIRST_JUDGE_VOTES, "attempts_by": attempts_by, "attempts_failed": attempts_failed, "input_tokens": usage_tokens,
-                          "reused": reused_dec, "fresh_judge": fresh, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by}
+                          "reused": reused_dec, "fresh_judge": fresh, "question_tokens": q_tokens, "first_judge": first_used, "usage": usage_by,
+                          "models": {k: sorted(v) for k, v in models_by.items()}}
     (out / "decisions" / name).write_text(json.dumps({**{str(n): v for n, v in dec_items.items()}, "_first_judge": first_used, "_input_fp": input_fp, "_item_fp": item_fp}, ensure_ascii=False, indent=1),
                                            encoding="utf-8")
     # ② 걸린 항목 → Codex
@@ -2552,7 +2568,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if not (out / "decisions" / f.name).exists():
                     shutil.copy2(f, out / "decisions" / f.name)
     reuse_dec, keep_first = bool(args.repair or args.reuse_first), bool(args.reuse_first)
-    say(f"⚖ 1차 심판 {FIRST_JUDGE_MODE}" + (f" · 교차 확실 {CROSS_SURE} · Jev 2(+1) · Decisions 1" if FIRST_JUDGE_MODE == "situational" else f" · 투표 {FIRST_JUDGE_VOTES}")
+    say(f"⚖ 1차 심판 {FIRST_JUDGE_MODE}" + (f" · 교차 확실 {CROSS_SURE} · Jev {'1' if JEV_VOTES == 1 else '2(+1)'} · Decisions 1" if FIRST_JUDGE_MODE == "situational" else f" · 투표 {FIRST_JUDGE_VOTES}")
         + (" · 1차만(Codex 안 부름)" if FIRST_ONLY else ""))
 
     if args.pick:

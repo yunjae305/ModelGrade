@@ -27,7 +27,7 @@ __all__ = ["JevStatus", "JevClientConfig", "JevCall", "JevClient", "HttpJevClien
            "SEMANTIC_PIPELINES", "resolve_semantic_pipeline"]
 
 DEFAULT_API_BASE = "https://api.typesafe.ai/v1"
-DEFAULT_MODEL = "jev-latest"
+DEFAULT_MODEL = "jev-1.14.0"   # 실제 버전으로 고정 — jev-latest 는 별칭이라 판마다 다른 버전일 수 있음(10-26 확인: jev-latest → jev-1.14.0, 사용자 "실제 버전으로 명시")
 
 #: 의미 평가 방식 — legacy(기준 8개 한 번에, 기본) | items(세부 기준 30·점검 항목 44 에 예/아니오+인용, 서버가 인용 검증·집계)
 SEMANTIC_PIPELINES = ("legacy", "items")
