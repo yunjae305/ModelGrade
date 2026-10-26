@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from code_eval.engine import evaluate_case
-from code_eval.model import Status
 
 
 def check(question: str, answer: str):

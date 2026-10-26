@@ -4,7 +4,7 @@
     python tools/min_eval_list.py <세트 id>                         # 목록만 (기본: 기준마다 1번 이상)
     python tools/min_eval_list.py <세트 id> --min 3                 # 기준마다 3번 이상
     python tools/min_eval_list.py <세트 id> --run <실행 id>          # 그 실행의 판정으로 최소 vs 정밀 결과 비교
-    python tools/min_eval_list.py <세트 id> --save-set               # 최소 평가 질문 세트를 data/question_sets 에 만든다(화면에서 수집·평가 가능)
+    python tools/min_eval_list.py <세트 id> --save-set               # 최소 평가 질문 세트를 data/question_sets/<새 id>/ 에 만든다
 
 고르는 법 (집합 덮기 표준 탐욕법 — v2, 팀원 검산 2026-10-19: "기준 많은 순"은 이미 채운 기준까지 세어 10턴 대화를 연달아 골라 1번↑ 17개가 걸렸고, 표준 탐욕은 7개):
 - 질문마다 적용 기준 = 코드 규칙(check)이 그 질문(대화는 모든 턴)에서 찾은 기준 중 질문으로 셀 수 있는 것(72 중 64 — 답변 구조로만 정해지는 검사 7·J5-3.a 제외).
@@ -126,7 +126,7 @@ def save_set(set_id: str, groups: List[Dict[str, Any]], ids: List[int], need: in
     if (src / "files").is_dir():
         shutil.copytree(src / "files", out / "files")
     by_id = {g["id"]: g for g in groups}
-    picked = [by_id[i] for i in ids if i in by_id]   # 고른 순서 그대로 — 화면에서 수집하면 이 순서로 던진다 (사용자 요청 2026-10-19)
+    picked = [by_id[i] for i in ids if i in by_id]   # 고른 순서 그대로 — 수집하면 이 순서로 던진다 (사용자 요청 2026-10-19)
     (out / "questions.json").write_text(json.dumps(picked, ensure_ascii=False, indent=1), encoding="utf-8")
     report = qg.check(picked)
     job = {"id": new_id, "version": MIN_LIST_VERSION, "source": "min_eval", "source_name": f"최소 평가 ({len(picked)}개, 정밀 {set_id} 에서 기준 {need}번 이상)",

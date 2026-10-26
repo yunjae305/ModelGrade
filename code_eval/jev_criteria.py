@@ -17,13 +17,11 @@ from typing import Any, Dict, List
 
 from .model import SUBCATEGORIES
 
-__all__ = ["JEV_CRITERIA_VERSION", "DECISIONS", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
+__all__ = ["JEV_CRITERIA_VERSION", "JevCriterion", "CRITERIA", "CODE_SCOPE_NOTE",
            "jev_questions", "describe"]
 
 JEV_CRITERIA_VERSION = "jev-criteria-v6"   # v6: J1·J4 에 빠진 자료·모순 질문 예외(J1-3 과 같은 규칙, Jev 관찰 시험 2026-10-15) · v5: J8 첨부파일 활용 추가 · v4: J6 이름 변경(멀티턴 맥락 유지), J7 롱컨텍스트 활용 추가
 
-#: Jev choice 질문의 선택지. AIONA 판정 표기(PASS/FAIL)와 같게 둔다.
-DECISIONS = ("PASS", "FAIL")
 
 #: CODE 가 이미 검사하는 영역. 모든 Jev 지시문에 붙여 중복 판정을 막는다.
 CODE_SCOPE_NOTE = (

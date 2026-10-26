@@ -14,9 +14,7 @@ from .core import (ERROR_LIMIT_EXCEEDED, LIMITS, MD_POLICY_VERSION, Ctx, case_er
 from .extract import LANG_ALIASES
 from .model import Evidence, FAIL, PASS, Status
 from .scripts import observe_scripts, script_name
-from .textparse import (CORRUPTION_SIGNATURES, _json_type_name, _parse_footnotes, _parse_references,
-                        _reject_json_constant, find_corruption, find_markdown_tables, internal_links,
-                        link_targets, scannable_text, strip_non_content)
+from .textparse import CORRUPTION_SIGNATURES, _json_type_name, _parse_footnotes, _parse_references, _reject_json_constant, find_corruption, find_markdown_tables, internal_links, link_targets, strip_non_content
 
 __all__ = ["check_1_1", "check_1_2", "check_1_3", "json_targets", "foreign_script_observation"]
 
@@ -749,11 +747,9 @@ def _orphan_tags(ctx: Ctx) -> List:
     if ctx.da is not None:
         scan, offsets = ctx.da.projection
         target, scope = "displayed_text", "displayed_text (수집 표시본, 코드 제외·강조 제거)"
-        origin = ctx.displayed_text
     else:
         scan, offsets = ctx.aa.projection
         target, scope = "answer", "answer_projection (로컬 텍스트 투영, 실제 표시본 아님)"
-        origin = ctx.answer
     tags = list(_TAG.finditer(scan))
     closings = [m for m in tags if m.group("close")]
     if not closings:

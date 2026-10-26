@@ -23,7 +23,7 @@ from .arith import (
 from .checks_integrity import json_targets
 from .core import Ctx, cmp_text, excerpt, q_evidence, result, skip_condition, skip_req, verdict_of
 from .extract import NUM_WORDS, NUMBER, parse_number
-from .model import Evidence, FAIL, PASS, Status
+from .model import Evidence, Status
 from .structure_counts import heading_series_from
 
 __all__ = ["check_3_1", "check_3_2", "check_3_3"]
@@ -171,10 +171,6 @@ class Chain:
     def final_literal(self) -> Optional[str]:
         last = self.segments[-1]
         return last if re.fullmatch(rf"-?(?:{NUMBER})", last) else None
-
-    def to_detail(self) -> Dict[str, Any]:
-        return {"expression": self.text.strip(), "values": [_fmt(v) if v is not None else None for v in self.values],
-                "char_range": [self.start, self.end]}
 
 
 def _find_chains(ctx: Ctx) -> List[Chain]:

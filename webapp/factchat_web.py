@@ -19,9 +19,9 @@ from typing import Any, Dict, List, Optional
 
 from code_eval.llm_client import env_value
 
-from .code_eval_service import ROOT
+ROOT = Path(__file__).resolve().parent.parent
 
-__all__ = ["FACTCHAT_URL", "PROFILE", "FACTCHAT_WEB_VERSION", "FactChatWebError", "credentials", "login", "login_status",
+__all__ = ["FACTCHAT_URL", "PROFILE", "FACTCHAT_WEB_VERSION", "FactChatWebError", "credentials", "login",
            "inspect_chat", "FactChatChat"]
 
 FACTCHAT_URL = "https://aichat.kku.ac.kr"
@@ -42,15 +42,6 @@ def credentials(env_path: Optional[Path] = None) -> tuple[str, str]:
     if not user or not password:
         raise FactChatWebError(".env 에 FACTCHAT_LOGIN_ID·FACTCHAT_LOGIN_PASSWORD 가 없습니다.")
     return user, password
-
-
-def login_status(env_path: Optional[Path] = None, profile: Optional[Path] = None) -> Dict[str, Any]:
-    """'연결된 모델' 화면용 — 로그인 정보가 .env 에 있는지, 로그인 상태를 담은 프로필이 있는지만 (값은 돌려주지 않는다)."""
-    path = env_path or ROOT / ".env"
-    has = bool(env_value("FACTCHAT_LOGIN_ID", None, path)) and bool(env_value("FACTCHAT_LOGIN_PASSWORD", None, path))
-    return {"name": "FactChat", "url": FACTCHAT_URL, "version": FACTCHAT_WEB_VERSION, "method": "웹브라우저",
-            "credentials": has, "credentials_source": ".env (FACTCHAT_LOGIN_ID · FACTCHAT_LOGIN_PASSWORD)",
-            "profile_saved": ((profile or PROFILE) / "Default").is_dir()}
 
 
 def _on_auth(url: str) -> bool:

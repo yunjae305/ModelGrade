@@ -32,7 +32,7 @@ from .jev_applicability import (APPLIES_WHEN, JEV_APPLICABILITY_VERSION, SUB_APP
                                 long_context_size, sub_applicability)
 from .jev_client import (JevClient, JevClientConfig, JevStatus, SEMANTIC_PIPELINES, _sum_usage, resolve_jev_client,
                          resolve_semantic_pipeline)
-from .jev_criteria import CRITERIA, DECISIONS, JEV_CRITERIA_VERSION, describe, jev_questions
+from .jev_criteria import CRITERIA, JEV_CRITERIA_VERSION, describe, jev_questions
 from .llm_client import redact
 from .answer_citations import (CITATION_POLICY_VERSION, STRUCTURED_CITATION_POLICY_VERSION, answer_citations,
                                merge_citations, prompt_citations, source_requested, structured_citations)

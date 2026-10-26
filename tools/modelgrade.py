@@ -36,7 +36,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-VERSION = "modelgrade-cli-v1"
 IMPORT_METHOD = "manual-web-csv-v1"
 RUNS = ROOT / "data" / "comparison_runs"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_78"   # 10-20 미팅: 질문 78개 고정 (옛 326 세트는 --set 으로)

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import math
 import re
 import threading
@@ -34,7 +33,7 @@ from code_eval.criteria_registry import CONDITION_KIND_NAMES, reference_details
 from code_eval.semantic_items import ITEMS, SUBS_BY_ID
 
 from .attachment_files import ATTACHMENT_TYPES, AttachmentError, render_attachment
-from .code_eval_service import ROOT
+ROOT = Path(__file__).resolve().parent.parent
 
 __all__ = ["QUESTION_GEN_VERSION", "GenerationError", "IncompleteResponse", "criteria_catalog", "plan_prompt", "supplement_prompt", "parse_plan",
            "QuestionSetBuilder", "QuestionSetService"]
@@ -1533,7 +1532,7 @@ def parse_question_input(text: str, name: str = "직접 입력") -> Tuple[List[D
 def gpt_llm(config: Dict[str, Any], usage: Dict[str, int]) -> LLM:
     """연결된 GPT(.env OPENAI_API_KEY·OPENAI_MODEL) 로 부르는 함수. 사용 토큰을 ``usage`` 에 더한다."""
     import httpx
-    from .comparison_service import ProviderError, request_answer
+    from .api_request import ProviderError, request_answer
     lock = threading.Lock()
 
     def observe(raw: Any) -> None:

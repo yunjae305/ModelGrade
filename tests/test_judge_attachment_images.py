@@ -111,16 +111,13 @@ def test_judge_without_image_support_gets_no_images_and_j8_is_incomplete(tmp_pat
     assert record["attachment_images"]["judge_supports_images"] is False and record["attachment_images"]["sent"] == []
 
 
-def test_wrong_mime_by_file_signature_is_rejected_for_judge_and_collection(tmp_path):
-    from webapp.attachment_delivery import prepare
+def test_wrong_mime_by_file_signature_is_rejected_for_judge(tmp_path):
     (tmp_path / "car.png").write_bytes(JPEG)          # 확장자는 PNG, 내용은 JPEG
     (tmp_path / "note.png").write_bytes(b"not an image at all")
     for name, data in (("car.png", JPEG), ("note.png", b"not an image at all")):
         judge = Judge()
         _, record = _run(tmp_path, [_entry(name, data)], judge)
         _held(record, "IMAGE_TYPE_INVALID")
-        _, images, delivery = prepare(QUESTION, [_entry(name, data)], [tmp_path])
-        assert images == [] and delivery[0]["mode"] == "not_sent" and delivery[0]["code"] == "IMAGE_TYPE_INVALID"
 
 
 def test_claim_that_needs_the_picture_is_judged_only_when_the_picture_is_delivered(tmp_path):

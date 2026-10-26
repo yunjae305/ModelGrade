@@ -11,14 +11,12 @@ from code_eval.jev_eval import (CONTEXT_QUOTE_RETRY_NOTE, evaluate_jev_batch, ev
                                  parse_decisions)
 from code_eval.semantic_evidence import CONTEXT_CHECK_POLICY, finalize_answers
 from code_eval.semantic_policy import FINAL_EVIDENCE_FAILURE_CODE, FINAL_EVIDENCE_FAILURE_REASON
-from webapp.evaluation_events import EvaluationEvents, record_events
 
 
 def held(decision):
     """보류(semantic-hold-unverified-v3) — 판정 값 없이 UNVERIFIED 를 유지하고 근거 부족 사유 코드를 단 기준인가."""
     return (decision.get('decision') is None and decision.get('status') == 'UNVERIFIED'
             and decision.get('reason_code') == FINAL_EVIDENCE_FAILURE_CODE)
-from webapp.version_registry import evaluation_profile
 
 
 def entry(choice='PASS', **extra):
@@ -100,24 +98,6 @@ def test_every_llm_answer_screens_non_numeric_facts(engine):
     assert record['decisions']['J5']['policy_original_assessment']['status'] == 'UNVERIFIED'
     summary = combined_summary(batch)
     assert summary['pending'] == 1 and summary['fail'] == 0 and summary['semantic_unverified'] == 1
-
-
-def test_no_factual_claims_are_excluded_from_all_quality_denominators():
-    judge = EvidenceJudge()
-    batch = evaluate([{'case_id': 'q', 'question': 'Say hello', 'answer': 'Hello!'}], judge)
-    record = batch['jev_eval']['records'][0]
-    assert record['criteria'] == ['J1']
-    assert record['decisions']['J5']['status'] == 'NOT_APPLICABLE'
-    assert record['j5_basis'] is None
-    assert record['decisions']['J5']['fact_check'] == {'basis': 'none', 'claims': []}
-    assert 'J5' not in record['applicability']['evidence'] and 'J5' in record['applicability']['not_applicable']
-    assert record['applicability']['screening']['J5']['status'] == 'NOT_APPLICABLE'
-    assert batch['jev_eval']['summary']['J5'] == {'name': 'DATA 신뢰도', 'targets': 0, 'pass': 0, 'fail': 0, 'pending': 0, 'unverified': 0, 'incomplete': 0}
-    assert batch['jev_eval']['completed'] == 1 and not record['review_required']
-    summary = combined_summary(batch)
-    assert (summary['pass'], summary['fail'], summary['pending']) == (1, 0, 0)
-    events = list(record_events(batch['cases'][0], record, 0))
-    assert not any(e.get('key') == 'J5' for e in events)
 
 
 def test_native_jev_keeps_its_original_applicability_rules():
@@ -205,7 +185,6 @@ def test_j6_unknown_keeps_full_history_and_is_held_for_review():
     assert conv['bands']['1~10']['unverified'] == 1 and conv['bands']['1~10']['pending'] == 1 and conv['bands']['1~10']['fail'] == 0
     assert batch['jev_eval']['records'][1]['decisions']['J6']['policy_original_assessment']['context_checks'] == checks
 
-
 #: 중간 점검 557a50d8baf1 Gemini Q29 7턴 — 평가 모델이 답변의 '$\rightarrow$' 를 '→' 로 바꿔 인용해 J6 가 '평가 근거 부족' 이 됐다
 #: (당시 정책 v2 는 FAIL, 지금 v3 는 보류)
 Q29_HISTORY = [
@@ -215,7 +194,9 @@ Q29_HISTORY = [
     {'turn': 6, 'question': '변경 후 접두사를 final_ 대신 archive_로 바꿀게. 이미 final_로 시작하는 파일은 건드리지 마. '
                             '변경 전후 대응표를 다시 작성하되 아직 실행하지는 마.',
      'answer': '| `report_4.txt` | `archive_4.txt` | **[정상] 변경 가능 (Rename)** |'}]
+
 Q29_QUESTION = '현재 폴더에 archive_3.txt라는 기존 파일이 하나 더 있다는 정보가 추가됐어. 지금도 계획만 세우는 단계야.'
+
 Q29_ANSWER = ('| **충돌 항목** | `report_3.txt` | `archive_3.txt` | **[충돌] 건너뛰기 (Skip)** |\n'
               '| **정상 항목** | `report_1.txt` | `archive_1.txt` | **[정상] 변경 가능 (Rename)** |\n'
               '* **충돌이 생기는 항목 (건너뛰기 대상):**\n'
@@ -299,39 +280,3 @@ def test_missing_turn_is_not_inferred_or_asked_but_remains_an_unverified_target(
     assert combined_summary(batch)['pending'] == 1
 
 
-def test_events_count_held_criterion_as_unjudged_and_keep_confirmed_fail_evidence():
-    """진행 이벤트 — 보류된 J5 는 FAIL 로 세지 않고 미판정(UNJUDGED)+확인 필요 상태로 보내며, 확인된 J1 FAIL 은 그대로 센다."""
-    record = evaluate_jev_case('q', 'q', 'a', EvidenceJudge({'J1': entry('FAIL'), 'J5': entry('UNVERIFIED')}), criteria=('J1', 'J5'))
-    stream = EvaluationEvents()
-    stream.publish({'type': 'run_start', 'total': 1})
-    for event in record_events({'case_id': 'q'}, record, 0):
-        stream.publish({**event, 'model': 'aiona'})
-    snapshot = stream.snapshot()
-    row = snapshot['rows']['aiona:0']
-    assert snapshot['fail'] == 1 and snapshot['unjudged'] == 1
-    assert row['review_required'] is True
-    assert row['criteria']['J1']['result'] == 'FAIL'
-    assert row['criteria']['J5']['result'] == 'UNJUDGED'
-    assert row['criteria']['J5']['reason'] == FINAL_EVIDENCE_FAILURE_REASON + ' · fixture evidence'
-    assert row['criteria']['J5']['verification_status'] == 'UNVERIFIED'
-
-
-def test_profile_tracks_evidence_policy_api_and_output_limits_but_not_runtime_secrets():
-    batch = evaluate([{'case_id': 'q', 'question': 'Hello', 'answer': 'Hello'}], EvidenceJudge())
-    run = {'evaluations': {'aiona': batch}}
-    profile = evaluation_profile(run)
-    assert profile['complete']
-    judge = profile['fields']['judge']
-    assert judge['fact_check_policy'] == 'evidence-v1' and judge['context_check_policy'] == 'history-quotes-v1'
-    assert judge['fact_check_scope'] == 'all_answers'
-    client = batch['jev_eval']['client']
-    client.update(api_base='https://user:secret@api.example.test/v1?api_key=secret#key', checked_at='different', credentials='secret')
-    assert evaluation_profile(run) == profile
-    for field, value in [('max_output_tokens', 5000), ('max_tool_calls', 9), ('search_policy', 'disabled'),
-                         ('fact_check_policy', 'evidence-v2'), ('fact_check_scope', 'numeric_only'),
-                         ('reasoning_effort', 'low'), ('api_base', 'https://other.example.test/v1'),
-                         ('search_host_features', ['code_mode', 'code_mode_host']),
-                         ('search_host_policy', 'J5_without_reference_and_live')]:
-        changed = copy.deepcopy(run)
-        changed['evaluations']['aiona']['jev_eval']['client'][field] = value
-        assert evaluation_profile(changed) != profile

@@ -17,7 +17,6 @@ from code_eval.jev_client import HttpJevClient, JevCall, JevClientConfig, resolv
 from code_eval.jev_criteria import CODE_SCOPE_NOTE
 from code_eval.jev_eval import evaluate_jev_batch, evaluation_log
 from code_eval.report_html import render_report
-from webapp.code_eval_service import CodeEvalService
 
 NO_CONFIG = AionaConfig()
 #: NORMAL 질문에 적용되는 기준 — 추천·이유·각각 표현과 답변의 가격 데이터("70만 원대")로 J1~J5 가 모두 적용된다
@@ -178,20 +177,11 @@ def test_case6_jev_failure_keeps_code_result(respond, status):
     assert secret not in json.dumps({"batch": batch, "log": evaluation_log(batch)}, ensure_ascii=False)
 
 
-def test_case7_missing_api_key_keeps_code_evaluation(tmp_path):
+def test_case7_missing_api_key_is_reported_without_a_client(tmp_path):
     client, config, reason = resolve_jev_client(environment={}, env_path=tmp_path / ".env")
     assert client is None and config.model == "jev-latest" and "TYPESAFE_API_KEY" in reason
     assert resolve_jev_client(environment={"TYPESAFE_API_KEY": "sk-x"}, env_path=tmp_path / ".env")[0] is not None
 
-    batch = CodeEvalService(save_dir=tmp_path / "runs").evaluate(
-        {"cases": [FORMAT_FAIL, {"case_id": "broken", "question": "답변 필드가 없는 입력"}]})
-    assert batch["summary"]["totals"]["evaluated"] == 1 and batch["summary"]["common"]["fail"] == 1
-    jev = batch["jev_eval"]
-    assert jev["status"] == "NOT_CONFIGURED" and "TYPESAFE_API_KEY" in jev["access_reason"]
-    assert [(r["case_id"], r["status"]) for r in jev["records"]] == [("format", "NOT_CONFIGURED"), ("broken", "SKIPPED")]
-    log = evaluation_log(batch)[0]
-    assert log["code"]["fail_checks"] == ["2-1.count:bullet_count"] and log["code"]["duration_ms"] is not None
-    assert log["jev"]["status"] == "NOT_CONFIGURED" and log["total_ms"] >= log["code"]["duration_ms"]
 
 
 def test_applicability_is_decided_by_code_rules_from_request_sentences():

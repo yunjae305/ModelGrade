@@ -3,7 +3,6 @@
 확인하는 것: pilot 1건 → 묶음 제출 → 폴링 → custom_id 대응 → 만료·오류·pause_turn 은 실시간 재전송 → 중단 시 취소,
 저장된 묶음 이어받기, 제출 실패 시 전부 실시간, jev_after_code 의 dispatch 분기. 판정 규칙은 실시간과 같다(같은 _record_from_call).
 """
-import copy
 import dataclasses
 import json
 import threading

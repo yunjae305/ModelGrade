@@ -244,30 +244,6 @@ def test_merge_recheck_replaces_whole_base_and_keeps_order():
     assert sq.merge_recheck(original, {"items": []}, ["J4-1.a"]) == original
 
 
-def test_missing_elements_use_question_span_overlap_not_exact_string():
-    def record(*quotes):
-        return body(*[item(f"J4-1.a#{i}", "YES", quote, "x") for i, quote in enumerate(quotes, 1)])
-    records = {"gpt": record("전기자전거", "전동킥보드", "일반 자전거"), "claude": record("전기자전거,", "전동킥보드", "일반 자전거 중"),
-               "gemini": record("전기자전거", "전동킥보드", "**일반 자전거**"), "aiona": record("전기자전거", "전동킥보드")}
-    missing = sq.missing_elements(records, "J4-1.a", QUESTION)
-    assert missing == {"aiona": [{"question_quote": "일반 자전거", "seen_in": ["gpt", "claude", "gemini"]}]}
-    long_quote = {**records, "aiona": record("전기자전거, 전동킥보드", "일반 자전거")}
-    assert sq.missing_elements(long_quote, "J4-1.a", QUESTION) == {}
-    skipped = {**records, "aiona": {"status": "SKIPPED"}, "gpt": body(item("J4-1.a#1", "YES", "질문에 없는 요소", "x"))}
-    assert sq.missing_elements(skipped, "J4-1.a", QUESTION) == {}
-    assert sq.missing_elements({"gpt": records["gpt"], "claude": records["claude"]}, "J4-1.a", QUESTION) == {}
-    assert sq.missing_elements({"gpt": records["gpt"]}, "J4-1.a", QUESTION) == {}
-    start = QUESTION.index("일반 자전거")
-    assert sq.elements_of(records["gpt"], "J4-1.a", QUESTION)[2] == {"id": "J4-1.a#3", "question_quote": "일반 자전거", "span": [start, start + 6]}
-    # record 모양(decisions[cid].subs[sid].items)도 읽는다
-    as_record = {"decisions": {"J4": {"subs": {"J4-1": {"items": records["aiona"]["items"]}}}}}
-    assert [e["question_quote"] for e in sq.elements_of(as_record, "J4-1.a", QUESTION)] == ["전기자전거", "전동킥보드"]
-    union = sq.union_recheck_questions(questions("J4-1.a", "J1-4.a"), {"J4-1.a": missing["aiona"], "J9": []}, 1)
-    assert list(union) == ["J4-1.a"] and union["J4-1.a"]["recheck"]["reason"] == "missing_elements"
-    assert union["J4-1.a"]["recheck"]["elements"] == [{"question_quote": "일반 자전거", "seen_in": ["gpt", "claude", "gemini"]}]
-    assert "빠짐없이" in union["J4-1.a"]["recheck"]["notice"] and union["J4-1.a"]["recheck"]["round"] == 1
-
-
 def test_legacy_finalize_answers_returns_items_body_untouched_and_input_scope_is_not_consulted(monkeypatch):
     monkeypatch.setattr(semantic_evidence, "_input_scope", lambda *a, **k: pytest.fail("_input_scope must not run for items"))
     monkeypatch.setattr(semantic_evidence, "_context_check", lambda *a, **k: pytest.fail("_context_check must not run for items"))

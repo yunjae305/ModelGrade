@@ -5,15 +5,10 @@ v16 분류·명칭·검사 위치를 그대로 옮긴다. 판정 결과를 담�
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Dict, List
 
-from .config import ROOT
-from .core import MD_SHA256, MD_SOURCE
-from .jev_applicability import APPLIES_WHEN
-from .jev_criteria import describe as jev_describe
 
-__all__ = ["taxonomy", "md_excerpt", "EXAMPLES"]
+__all__ = []
 
 CATEGORIES: List[Dict[str, Any]] = [
     {"id": "1", "name": "출력 무결성", "tag": "출력 자체의 결함", "question": "출력 자체에 확인 가능한 결함이 있는가?",
@@ -73,73 +68,4 @@ SPECIALIZED_ITEMS = [
      "requires": "질문별 금지 표현 목록 (data/aiona_specialized/forbidden_expressions.json) · 실제 표시본"},
 ]
 
-REFERENCES = [
-    {"name": "IFEval · Zhou et al. (2023)", "url": "https://arxiv.org/abs/2311.07911", "scope": "명시 분량·키워드·형식 조건의 코드 검증 접근"},
-    {"name": "RFC 8259", "url": "https://www.rfc-editor.org/rfc/rfc8259.html", "scope": "JSON 구문"},
-    {"name": "Python · compile", "url": "https://docs.python.org/3/library/functions.html#compile", "scope": "실행 없는 구문·컴파일 확인"},
-    {"name": "JSON Schema Validation 2020-12", "url": "https://json-schema.org/draft/2020-12/json-schema-validation", "scope": "자료형·필수 속성 개념"},
-    {"name": "CommonMark 0.31.2", "url": "https://spec.commonmark.org/0.31.2/", "scope": "Markdown 구조 해석·코드 펜스"},
-    {"name": "Unicode UAX #24 Script Property", "url": "https://www.unicode.org/reports/tr24/tr24-41.html", "scope": "문자 종류 측정 (언어·맥락 판정 아님)"},
-]
 
-#: 화면의 ‘예시로 실행’ 버튼용 합성 입력. 결과는 항상 엔진이 새로 계산한다.
-EXAMPLES = [
-    {"label": "표 · 데이터 행 수 요구 (2-2)", "question": "할 일 목록을 표로 작성해줘. 열 이름은 순서대로 ‘구분’, ‘설명’이고, 헤더를 제외한 데이터 행은 정확히 3개로 해줘.",
-     "answer": "| 구분 | 설명 |\n|---|---|\n| 준비 | 자료 수집 |\n| 진행 | 내용 정리 |"},
-    {"label": "행 수 요구 없음 · 데이터 1행 표 (2-2)", "question": "할 일과 시간을 표로 정리해줘. 할 일은 자료 정리이고, 시간은 오전 10시야.",
-     "answer": "| 할 일 | 시간 |\n|---|---|\n| 자료 정리 | 오전 10시 |"},
-    {"label": "코드블록 + Python 구문 (1-2)", "question": "1을 출력하는 완성된 Python 코드를 코드블록 정확히 1개로 작성해줘.",
-     "answer": "```python\nprint(1\n```"},
-    {"label": "펜스 불균형 (1-2)", "question": "덧셈 예제를 코드 구획과 수식 구획으로 각각 보여줘.",
-     "answer": "```python\nprint(1 + 1)\n```\n\n$$\n1 + 1 = 2\n"},
-    {"label": "불릿 개수 (2-1)", "question": "공부 방법을 불릿으로 정확히 3개 작성해줘.", "answer": "- 개념을 정리하세요.\n- 문제를 풀어보세요."},
-    {"label": "문장 수 (2-1)", "question": "이용 안내를 정확히 2문장으로 작성해줘.",
-     "answer": "시작 버튼을 누르세요. 안내에 따라 진행하세요. 완료 버튼을 누르세요."},
-    {"label": "질문 계산 vs 답변 등식 (3-1)", "question": "단가 2,000원·수량 3개의 총액을 알려줘.", "answer": "2,000 + 3 = 2,003"},
-    {"label": "선언 개수 (3-2)", "question": "공부 방법을 알려줘.", "answer": "다음 세 가지를 추천합니다.\n\n1. 개념 정리\n2. 문제 풀이\n3. 오답 복습\n4. 휴식"},
-    {"label": "설명 없는 외국 문자 (1-1)", "question": "파일 이름을 바꾸는 방법을 알려줘.",
-     "answer": "파일을 선택하세요. こんにちは. 이름을 변경하세요."},
-    {"label": "짝이 없는 닫는 태그 (1-2)", "question": "회의 시작 시간을 한 문장으로 알려줘.", "answer": "회의는 오후 2시에 시작합니다. </result>"},
-]
-
-_MD_LINES = (134, 136, 137, 141, 143, 145, 146, 147, 148, 149, 155, 156, 163, 164, 165, 166, 169, 170, 187, 189, 190, 191, 192, 193)
-
-
-def md_excerpt() -> Dict[str, Any]:
-    path = ROOT / MD_SOURCE
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        return {"source": MD_SOURCE, "error": str(exc), "lines": []}
-    return {"source": MD_SOURCE, "sha256": MD_SHA256,
-            "lines": [{"line": n, "text": lines[n - 1], "retired": n == 164} for n in _MD_LINES if n <= len(lines)],
-            "retired_note": "164행 ‘형식 위반 — 표: 표 행이 2개 미만’은 사용자 결정으로 폐기됨. 이력으로만 표시하며 판정·집계·설정에 쓰지 않음.",
-            "display_name_changes": [{"line": 169, "source_name": "고아 닫는 태그", "display_name": "짝이 없는 닫는 태그"}]}
-
-
-def _jev_with_applicability() -> Dict[str, Any]:
-    jev = jev_describe()
-    for c in jev["criteria"]:
-        c["applies_when"] = APPLIES_WHEN[c["id"]]
-        if c["id"] == "J5":
-            c["applies_when"] = ("CLI/API 평가는 모든 답변에서 사실 주장을 선별합니다. 사실이 없으면 해당 없음, "
-                                 "검증 근거가 끝까지 부족하면 검증 기준 미충족 FAIL이며 사실 오류 확정과 구분합니다. "
-                                 "Native Jev는 답변의 수치·날짜·통계 또는 참조 자료 규칙을 사용합니다.")
-    return jev
-
-
-def taxonomy() -> Dict[str, Any]:
-    return {"categories": CATEGORIES, "specialized": SPECIALIZED_ITEMS, "references": REFERENCES,
-            "examples": EXAMPLES, "md": md_excerpt(), "jev": _jev_with_applicability(),
-            "principles": [
-                "객관적 검증은 코드 검사, 의미 품질은 설정된 평가자가 여섯 기준으로 판단합니다. "
-                "J1은 모든 질문, J2~J4는 해당 요구가 있는 질문, J6는 앞 대화가 있는 2번째 턴부터 적용합니다. "
-                "CLI/API의 J5는 모든 답변에서 사실 주장을 선별하고 참조 자료나 웹 출처를 확인합니다.",
-                "코드·의미 기준별 결과와 질문별 종합 결과를 함께 표시합니다. 코드에서 확정한 판정은 유지하고, 공통 미판정 조건은 의미 평가로 보완할 수 있습니다.",
-                "확인한 항목은 PASS/FAIL입니다. 검증 근거가 끝까지 부족한 항목은 검증 기준 미충족 FAIL로 확정하고 사실 오류 확정과 구분합니다. "
-                "미적용·설정 없음·호출 오류는 품질 FAIL로 바꾸지 않습니다.",
-                "기준 통과율 = PASS / (PASS + FAIL). 확인 필요는 분모에서 제외하므로 완료 건수와 함께 읽습니다. 질문 통과점수는 모든 적용 기준을 통과한 질문 수 / 전체 질문 수입니다.",
-                "표 고정 최소 행 수 규칙 없음 — 질문이 명시한 행 수만 비교",
-                "깨진 문자·외국 문자는 질문 주제나 주변 설명·예시·괄호 병기가 있으면 PASS, 없이 갑자기 나오면 FAIL",
-                "AIONA 특화 결과는 공통 통과율에 더하지 않음",
-            ]}

@@ -10,7 +10,7 @@
 python -X utf8 -m pytest -q
 ```
 
-모델 호출 없이 돕니다(약 2~3분, 가짜 심판). 환경 점검은 `modelgrade doctor`, 새 설치 스크립트 · 실행 래퍼(`install.*` · `modelgrade.cmd` · `modelgrade.sh`)를 고치면 두 벌을 같이 고칩니다.
+모델 호출 없이 돕니다(약 1~2분, 가짜 심판). 환경 점검은 `modelgrade doctor`, 새 설치 스크립트 · 실행 래퍼(`install.*` · `modelgrade.cmd` · `modelgrade.sh`)를 고치면 두 벌을 같이 고칩니다.
 
 - Python 3.10 이상. Windows 에서 만들었고 Mac · Linux 에서도 돌도록 경로는 `pathlib` 로만 씁니다(절대 경로 · 사용자 이름을 코드에 적지 않습니다).
 - 판정은 Codex CLI(ChatGPT 구독) · Claude CLI · Jev · Decisions API 중 있는 것으로 돕니다. 시험은 모두 가짜 심판을 써서 키 없이 돕니다.
@@ -19,9 +19,9 @@ python -X utf8 -m pytest -q
 
 | 폴더 | 내용 |
 |---|---|
-| `tools/` | 명령 도구 — 수집(`modelgrade.py` · `chrome_cdp.py`), 판정(`judge_v4.py`), 비교(`judge_compare_runs.py` · `judge_claude_compare.py` · `judge_first_compare.py`), 기준 다듬기 루프(`refine_loop.py`), 기준 재확인(`criteria_consistency.py`), 보고서(`report_html.py` · `build_result_summary.py`) |
-| `code_eval/` | CODE 기준 28개 엔진과 LLM 기준 정의(`semantic_items.py`), 심판 클라이언트 |
-| `webapp/` | 웹 수집기(ChatGPT · Claude · Gemini · AIONA 탭을 한 Chrome 에서) |
+| `tools/` | 명령 도구 — 아래 '도구 한눈에' |
+| `code_eval/` | CODE 기준 28개 엔진(`engine.py` · `checks_*.py`)과 LLM 기준 정의(`semantic_items.py`), 기준 목록(`criteria_registry.py`), 심판 클라이언트(Decisions · Jev · Codex CLI · Claude CLI · Claude API) |
+| `webapp/` | 웹 수집기 — ChatGPT · Claude · Gemini(`cdp_chat_web.py`) · AIONA(`aiona_web.py`, 화면 HTML → 마크다운은 `ingestion/html_markdown.py`)를 한 Chrome 의 탭에서. 질문 결론 규칙(`run_summary.py` — 빈 출력 요구 보류 · 질문 단위 판정). 질문 자동 생성기(`question_generation.py` · `api_request.py` · `attachment_files.py`, 지금 흐름에서는 쓰지 않지만 질문 생성을 손볼 때 쓰려고 남김) |
 | `참고자료/기준/` | **기준의 원본** `채팅품질 평가기준_v2.md`(72개 · 판정 체계 · 안전장치 · 바뀐 규칙 · 교훈) · CODE 세부 `MEASUREMENT_v16.md` |
 | `참고자료/프롬프트/` | 판정 프롬프트 `judge_prompt_v4.txt`(직접 고치는 파일) · 1차 항목 정의 `jev_questions_v4.json` · 질문생성 프롬프트 |
 | `참고자료/질문세트_78/` | 질문 세트(첨부 원본 `files/`, 멀티턴 턴별 확인 목록) |
@@ -61,6 +61,19 @@ python -X utf8 -m pytest -q
 | 이력 없는 깨끗한 사본 만들기(회의록만 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` (`--no-results` 로 결과 폴더 빼기) |
 
 표준 시험은 모델 API 를 호출하지 않습니다(가짜 심판). GitHub Actions 가 Windows · Linux 에서 시험을, Windows · Linux · macOS 에서 설치 스크립트를 돌립니다.
+
+## 도구 한눈에 (`tools/`)
+
+쓰는 법은 `python -X utf8 tools/<파일> --help`.
+
+| 묶음 | 도구 |
+|---|---|
+| 실행 | `modelgrade.py`(start · collect · judge · run · code-eval · report · held · held-apply · doctor · login — 실행 래퍼 `modelgrade` 가 부름) · `chrome_cdp.py`(수집용 Chrome — 전용 프로필 + 디버깅 포트) · `web_chat_login.py`(AIONA · FactChat · 우수AI 로그인 창) · `doctor.py`(실행 환경 점검) |
+| 판정 | `judge_v4.py`(지금 판정 — `start` 가 씀) · `judge_folder.py`(한 모델의 입력을 폴더에 모아 Codex 세션 하나가 판정) · `judge_item_rerun.py`(기준 하나만 다시 판정 · 다수결) · `build_judge_prompt_v4.py`(판정 프롬프트 · 1차 항목 파일의 경로를 `judge_v4.py` 에 주고, v4 를 처음 만든 생성기 — 프롬프트는 `judge_prompt_v4.txt` 를 직접 고침) |
+| 옛 판정(v3, `modelgrade judge`) | `judge_run.py` · `judge_split.py` · `judge_inputs.py` · `build_judge_situations.py` — `judge_v4.py` 가 심판 호출 · 연결 규칙을 이 파일들에서 가져다 씀 |
+| 비교 · 점검 · 다듬기 | `judge_compare_runs.py`(전후 비교 · 새 결과 폴더) · `judge_first_compare.py`(1차 심판 Jev ↔ Decisions 3번씩) · `judge_claude_compare.py`(2차 심판 Codex ↔ Claude CLI) · `judge_reason_audit.py`(판정 사유 점검) · `criteria_consistency.py`(문서 · 프롬프트 · 코드 대조) · `refine_loop.py`(기준 다듬기 루프) · `build_calibration_sheet.py`(사람 표시용 표) · `check_question_set.py`(질문 세트 점검) |
+| 결과 · 보고 | `build_result_summary.py`(발표 페이지 · 결과 폴더의 `report.html`) · `report_html.py` · `result_dirs.py` · `result_flow.py`(앞 셋은 다른 도구가 쓰는 부품) · `judge_token_report.py`(판정 토큰) · `export_results_json.py` · `export_held.py`(보류 · 오류 CSV) · `export_review.py`(옛 비교 실행 형식의 검수 CSV) · `build_prompt_diff_page.py`(기준 · 프롬프트 변경 원문 페이지) · `export_public.py`(공개본 사본) |
+| 질문 고르기 | `min_eval_list.py`(기준을 모두 덮는 최소 질문 목록) · `question_gradient.py`(질문을 늘릴 때 커버리지 · 순위 기울기) — 옛 326 세트 실행 기록을 읽음. 지금 세트 조립은 `참고자료/질문세트_78/multiturn_v3/` |
 
 ## 기준 · 프롬프트를 바꾸는 순서
 

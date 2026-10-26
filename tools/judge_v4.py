@@ -18,7 +18,6 @@ import re
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -31,18 +30,13 @@ from code_eval import long_context, multi_turn  # noqa: E402
 from code_eval import semantic_items as si  # noqa: E402
 from tools import judge_inputs as ji  # noqa: E402
 from tools import judge_split as js  # noqa: E402
-from tools.build_judge_prompt_v4 import ALWAYS_SUBS, JEV_V4, V4 as PROMPT_V4  # noqa: E402
+from tools.build_judge_prompt_v4 import JEV_V4, V4 as PROMPT_V4  # noqa: E402
 from tools.judge_run import judges_from_env, say  # noqa: E402
 from webapp.question_generation import flatten  # noqa: E402
 from webapp.run_summary import question_outcome  # noqa: E402
 
 VERSION = "judge-v4-1"   # trial-1: 3건 시험 · v4-1: 78 전체(빈 출력·못 받은 답 처리, Jev 판정할_턴·긴 자료 줄이기)
 SET_DIR = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
-SUB_ITEMS: Dict[str, List[str]] = {sub.id: [it.id for it in si.ITEMS if it.sub == sub.id] for sub in si.SUBS}
-SUB_ORDER = list(SUB_ITEMS)
-#: 상황표 1 에서 괄호로 조건이 따로 붙은 항목 — 상황을 적었어도 그 조건이 없으면 답하지 않는다(빠져도 보류가 아님)
-CONDITIONAL_ITEMS = {"J2-5.a", "J2-5.b", "J3-3.a", "J3-5.a", "J3-5.b", "J4-1.b", "J5-2.a", "J5-2.b",
-                     "J6-2.a", "J6-2.b", "J6-2.c", "J6-3.a", "J6-3.b"}
 KO = {"PASS": "PASS", "FAIL": "FAIL", "NOT_APPLICABLE": "해당 없음", "UNVERIFIED": "보류", None: "-"}
 
 
@@ -193,87 +187,6 @@ def output_schema() -> Dict[str, Any]:
 
 
 # --- 심판 출력 읽기 ---------------------------------------------------------------------------------------------------
-
-def check_codex(output: Any, turns: List[Dict[str, Any]], answers: Dict[str, str]) -> Dict[int, Dict[str, Any]]:
-    """Codex 출력 → 턴마다 {situations, problems, items}. 심판이 찾은 상황의 항목이 판정할 항목이 된다.
-    언제나 적는 상황이 빠졌으면 더해 '판정 없음'(보류)로, 상황표에 없는 id·원문에 없는 근거 인용은 problems 에 남긴다."""
-    by_turn = {t["turn"]: t for t in (output or {}).get("turns") or [] if isinstance(t, dict) and isinstance(t.get("turn"), int)} \
-        if isinstance(output, dict) else {}
-    rows = {ji._turn(r): r for r in turns}
-    expected: Dict[int, List[str]] = {}
-    info: Dict[int, Dict[str, Any]] = {}
-    for n, row in rows.items():
-        sits = [s for s in (by_turn.get(n) or {}).get("situations") or [] if isinstance(s, dict)]
-        subs, problems = [], []
-        sources = [row.get("question") or "", row.get("reference") or "", ji.attachments_block(row)]
-        sources += [p.get("question") or "" for m, p in rows.items() if m < n]
-        long_input = (input_tokens(row) or 0) >= long_context.MIN_TOKENS
-        answered_ids = [js._base(e.get("id")) for e in (by_turn.get(n) or {}).get("items") or [] if isinstance(e, dict)]
-        cands = []
-        for s in sits:
-            sid = str(s.get("id") or "").split(".")[0]
-            if sid in SUB_ITEMS:
-                cands.append({**s, "id": sid})
-                continue
-            # 대분류만 적은 경우('J6', 2026-10-20 시험) — 그 대분류에서 실제로 답한 항목의 세부 기준으로 푼다
-            subs_of = list(dict.fromkeys(i.rsplit(".", 1)[0] for i in answered_ids if i.startswith(sid + "-") and i.rsplit(".", 1)[0] in SUB_ITEMS))
-            if subs_of:
-                problems.append(f"상황 id {sid} 를 답한 항목으로 풀어 씀: {' '.join(subs_of)}")
-                cands += [{**s, "id": x} for x in subs_of]
-            else:
-                problems.append(f"상황표에 없는 상황 {s.get('id')!r}")
-        for s in cands:
-            sid = s["id"]
-            # 입력으로 정해지는 조건(프롬프트 상황표 1) — 어긋나면 그 상황은 버리고 기록한다
-            if sid.startswith("J8") and not row.get("attachments"):
-                problems.append(f"{sid}: 첨부파일이 없는데 적음(버림)")
-                continue
-            if sid.startswith("J7") and not long_input:
-                problems.append(f"{sid}: 입력이 272K 토큰 미만인데 적음(버림)")
-                continue
-            if sid.startswith("J6") and n < 2:
-                problems.append(f"{sid}: 1턴에 적음(버림)")
-                continue
-            if sid not in subs:
-                subs.append(sid)
-            if (s.get("evidence") or "").strip() and not js.quoted_in(s["evidence"], sources):
-                problems.append(f"{sid}: 근거 인용이 질문 원문에 없음")
-        for sid in ALWAYS_SUBS:
-            if sid not in subs:
-                problems.append(f"언제나 적는 상황 {sid} 가 빠짐")
-                subs.append(sid)
-        subs.sort(key=SUB_ORDER.index)
-        answered = {js._base(e.get("id")) for e in (by_turn.get(n) or {}).get("items") or [] if isinstance(e, dict)}
-        expected[n] = [i for sid in subs for i in SUB_ITEMS[sid] if i not in CONDITIONAL_ITEMS or i in answered]
-        for sid in subs:
-            if not any(i in answered for i in SUB_ITEMS[sid]):
-                problems.append(f"{sid}: 상황만 적고 항목 판정 없음")
-        extra = sorted(answered - set(expected[n]))
-        if extra:
-            problems.append("찾은 상황 밖의 항목(무시): " + " ".join(extra))
-        info[n] = {"situations": subs, "evidence": {s["id"]: s.get("evidence") for s in cands}, "problems": problems}
-    checked = js.check_gpt(output if isinstance(output, dict) else None, turns, answers, expected)
-    for n in info:
-        info[n]["items"] = checked.get(n, {})
-    return info
-
-
-def combine(codex_v: Optional[Dict[str, Any]], jev_v: Optional[Dict[str, Any]], jev_trimmed: bool = False, label: str = "Jev") -> Tuple[Optional[str], str]:
-    """J1~J4 한 항목 — (최종 판정, 어떻게 정했는지). None = 두 심판 모두 상황 없음으로 봄.
-    jev_trimmed: Jev 가 그 턴을 줄인 자료로 봤으면 Jev FAIL 로 보류하지 않고 원문 전체를 본 Codex 판정을 따른다 (흐름 v2 와 같은 원칙, 10-19)."""
-    c = (codex_v or {}).get("decision")
-    j = (jev_v or {}).get("decision")
-    if c == "FAIL":
-        return "FAIL", "Codex FAIL" + (f" · {label} 도 FAIL" if j == "FAIL" else f" · {label} {KO.get(j, j)}")
-    if j == "FAIL" and not jev_trimmed:
-        return "UNVERIFIED", f"심판 갈림 — {label} FAIL · Codex {KO.get(c, c) if c else '상황 없음'}"
-    note = f" ({label} 는 줄인 자료로 봐서 참고만)" if jev_trimmed else ""
-    if c is None:
-        return None, f"Codex 상황 없음 · {label} {KO.get(j, j)}{note}"
-    return c, f"Codex {KO.get(c, c)} · {label} {KO.get(j, j)}{note}"
-
-
-SECOND_LABEL = {"jev": "Jev", "decisions": "Decisions(OpenAI)", "jev-trimmed": "Jev"}
 
 
 def _env_float(name: str, default: float) -> float:
@@ -1345,9 +1258,6 @@ def fact_true_guard(items: Dict[str, Dict[str, Any]]) -> None:
 
 _TOOL_CLAIM = re.compile(r"조회|(?:확인|실행|완료|처리|조치)(?:을|를)?\s*(?:한|마친|끝낸)\s*(?:것처럼|듯)|접근\s*상태|작업\s*(?:폴더|공간)|파일이\s*(?:없|하나도)")   # '완료한 것처럼 · 실행을 한 듯' (10-26 v4-s2 Gemini Q38)
 _SOURCE_WORD = re.compile(r"출처|문헌|조문|제품|인용")
-#: 서비스가 답 끝에 붙이는 도구 · 데이터 제공 표시('데이터 제공: MET Norway (Weather data …)' · '한국천문연구원 (공공데이터포털 특일 정보)') — 답변 모델의
-#: 도구 사용 서술이라 J5-3.a 로 판정하지 않는다 (10-22 밤: AIONA 14/177 답, 심판이 '자료에 없는 출처를 꾸밈'으로 FAIL 7칸)
-_DATA_PROVIDER = re.compile(r"데이터 ?제공\s*[:：]")
 
 
 #: 서비스가 실제로 붙이는 footer 항목(50ca3ccccace AIONA 답 14개에서 본 것 전부) — 항목 전체가 이 가운데 하나여야 한다('MET Norway, 달빛…' 처럼
@@ -2289,152 +2199,6 @@ def question_verdict(code_fails: List[str], semantic: Optional[str]) -> str:
 
 
 # --- 질문 하나 ---------------------------------------------------------------------------------------------------------
-
-def judge_one(q: int, provider: str, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
-              code_fails: List[str], prompt: str, fixed: Dict[str, Any], gpt: Any, jev: Any,
-              out: Path, reuse_codex: bool = False, decisions: Any = None) -> Dict[str, Any]:
-    tag = f"Q{q} {provider}"
-    doc = question_json(q, turns, answers, deliveries)
-    text = json.dumps(doc, ensure_ascii=False, indent=1)
-    name = f"Q{q}_{provider}.json"
-    (out / "inputs" / name).write_text(text, encoding="utf-8")
-    jev_items = list(fixed["items"])
-    state = {"guide": fixed["guide"], **doc}
-    questions = {f"T{ji._turn(r)}:{i}": fixed["items"][i] for r in turns for i in jev_items}
-    calls: Dict[str, Any] = {}
-
-    def run_codex() -> None:
-        search = not any((t.get("reference") or "").strip() for t in turns)
-        saved = out / "codex" / name
-        if reuse_codex and saved.exists() and json.loads(saved.read_text(encoding="utf-8") or "null"):
-            calls["codex"] = {"status": "OK", "error": "", "seconds": None, "search": search, "reused": True,
-                              "output": json.loads(saved.read_text(encoding="utf-8"))}
-            say(f"   🖥 {tag} Codex — 앞 시험의 출력 다시 씀 ({saved.name})")
-            return
-        t0 = time.monotonic()
-        all_turns = [ji._turn(r) for r in turns]
-        got: Dict[int, Any] = {}
-        conclusions: List[Any] = []
-        status, error, rounds = "ERROR", "Codex 없음", 0
-        # 긴 대화는 Codex 가 "출력 공간이 부족하다"며 turns 를 비우고 보류 결론만 내거나(Q12 10턴, 2026-10-20), 앞 몇 턴만 답하고 만다(Q17).
-        # → 한 번에 묻는 턴 수를 줄여 가며(전체 → 절반 → 1턴씩) 빠진 턴만 '판정할_턴' 으로 다시 묻는다. 호출은 턴 수 + 2 번까지.
-        chunk = len(all_turns)
-        while gpt and rounds < len(all_turns) + 2:
-            pending = [n for n in all_turns if n not in got]
-            if not pending:
-                break
-            ask = pending[:chunk]
-            rounds += 1
-            body = text if (rounds == 1 and chunk == len(all_turns)) else json.dumps(question_json(q, turns, answers, deliveries, ask), ensure_ascii=False, indent=1)
-            say(f"   🖥 {tag} Codex CLI{'' if rounds == 1 else f' 다시({rounds}번째) — 턴 {ask}'} — 고정 프롬프트 v4 {len(prompt):,}자 + 입력 JSON {len(body):,}자"
-                f" · 웹 검색 {'켬' if search else '끔'} …")
-            status, output, error = gpt.judge(prompt, body, search, tag, output_schema=output_schema())
-            if status != "OK":
-                break
-            new = 0
-            for t in (output or {}).get("turns") or []:
-                if isinstance(t, dict) and t.get("turn") in ask and t["turn"] not in got and (t.get("items") or t.get("situations")):
-                    got[t["turn"]] = t
-                    new += 1
-            if new:
-                conclusions.append((output or {}).get("conclusion"))
-            if new < len(ask):   # 다 못 답했으면 다음엔 더 적게 묻는다
-                chunk = max(1, min(len(ask) // 2, new or len(ask) // 2))
-                if new == 0:
-                    say(f"   ↪ {tag} Codex 가 턴 {ask} 를 답하지 않음 — {((output or {}).get('conclusion') or {}).get('reason', '')[:90]} → {chunk}턴씩 다시")
-        missing = [n for n in all_turns if n not in got]
-        output = {"turns": [got[n] for n in all_turns if n in got], "conclusion": conclusions[0] if conclusions else None,
-                  "conclusions": conclusions} if got else None
-        calls["codex"] = {"status": "OK" if got else status, "error": error if not got else (f"끝내 답하지 않은 턴 {missing}" if missing else ""),
-                          "seconds": round(time.monotonic() - t0, 1), "search": search, "calls": rounds, "missing_turns": missing, "output": output}
-        say(f"   🖥 {tag} Codex {calls['codex']['status']} {calls['codex']['seconds']}초 · 호출 {rounds}번"
-            + (f" — {str(calls['codex']['error'])[:100]}" if calls['codex']['error'] else ""))
-
-    def run_jev() -> None:
-        # 턴마다 한 번씩 — 270문항(10턴 × 27)을 한 요청에 넣으면 Jev 가 HTTP 400 (Q17, 2026-10-20). 그 턴까지의 대화만 state 로 (뒤 턴은 판정에 안 씀)
-        say(f"   🔎 {tag} Jev — J1~J4 {len(questions)}문항(턴 {len(turns)} × {len(jev_items)}, 턴마다 한 번) · 입력 {js.state_chars(state):,}자 …")
-        t0 = time.monotonic()
-        merged: Dict[str, Any] = {}
-        errors: List[str] = []
-        trimmed: Dict[str, int] = {}
-        second: Dict[str, str] = {}   # 턴 → 둘째 심판(jev · decisions · jev-trimmed)
-        for row in turns:
-            n = ji._turn(row)
-            # 판정할_턴 을 적어 준다 — 앞 턴(1·2턴 거절)에 끌려 3턴 이후 정상 답을 '거절' FAIL 로 본 일(Q17 Gemini, 10-20)
-            part = json.loads(json.dumps({"guide": fixed["guide"], "질문번호": q, "판정할_턴": [n], "턴": [t for t in doc["턴"] if t["턴"] <= n]},
-                                         ensure_ascii=False))
-            qd = {f"T{n}:{i}": fixed["items"][i] for i in jev_items}
-            status, body, error, used, cut = second_judge(part, qd, jev, decisions, prefer_decisions=turn_has_files(part, n))
-            if cut:
-                trimmed[str(n)] = cut
-            if status == "OK":
-                merged.update((body or {}).get("answers") or {})
-                second[str(n)] = used or ""
-            else:
-                errors.append(f"T{n} {status} {str(error)[:120]}")
-        status = "OK" if not errors else ("PARTIAL" if merged else "ERROR")
-        calls["jev"] = {"status": status, "error": "; ".join(errors), "seconds": round(time.monotonic() - t0, 1), "calls": len(turns),
-                        "trimmed": trimmed, "second": second, "body": {"answers": merged}}
-        by_dec = [k for k, v in second.items() if v == "decisions"]
-        say(f"   🔎 {tag} Jev {status} {calls['jev']['seconds']}초" + (f" · Decisions 로 본 턴 {by_dec}" if by_dec else "")
-            + (f" · 줄인 턴 {list(trimmed)}" if trimmed else "") + (f" — {'; '.join(errors)[:160]}" if errors else ""))
-
-    started = time.monotonic()
-    threads = [threading.Thread(target=run_codex), threading.Thread(target=run_jev)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    (out / "codex" / name).write_text(json.dumps(calls["codex"].get("output"), ensure_ascii=False, indent=1), encoding="utf-8")
-    (out / "jev" / name).write_text(json.dumps(calls["jev"].get("body"), ensure_ascii=False, indent=1), encoding="utf-8")
-
-    codex = check_codex(calls["codex"].get("output") if calls["codex"]["status"] == "OK" else None, turns, answers)
-    jev_res = js.check_jev(calls["jev"].get("body"), {ji._turn(r): jev_items for r in turns}, fixed) if calls["jev"]["status"] in ("OK", "PARTIAL") else {}
-    final: Dict[int, Dict[str, Dict[str, Any]]] = {}
-    turn_out: Dict[str, Any] = {}
-    agree = total = 0
-    for row in turns:
-        n = ji._turn(row)
-        c_items, j_items = codex[n]["items"], jev_res.get(n, {})
-        items: Dict[str, Dict[str, Any]] = {}
-        for item in dict.fromkeys(list(c_items) + [i for i in jev_items if i in j_items]):
-            cv, jv = c_items.get(item), j_items.get(item)
-            if item in jev_items:
-                used = (calls["jev"].get("second") or {}).get(str(n)) or "jev"
-                if jv is not None:
-                    jv["judge"] = used
-                dec, how = combine_weighted(cv, jv, SECOND_LABEL.get(used, "Jev"), SECOND_JUDGE_CONFIDENT, str(n) in (calls["jev"].get("trimmed") or {}))
-                if jv and (cv or {}).get("decision") is not None:
-                    total += 1
-                    agree += (jv.get("decision") == cv.get("decision"))
-            else:
-                dec, how = (cv or {}).get("decision"), "Codex"
-            if dec is None:
-                continue
-            e = ((cv or {}).get("entries") or [{}])
-            fail_e = next((x for x in e if x.get("decision") == "FAIL"), e[0])
-            items[item] = {"decision": dec, "how": how, "codex": (cv or {}).get("decision"), "jev": (jv or {}).get("decision"),
-                           "second_judge": (jv or {}).get("judge"), "jev_reason": (jv or {}).get("reason"), "problems": (cv or {}).get("problems") or [],
-                           "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
-                           "entries": (cv or {}).get("entries") or []}
-        js.apply_overrides(items)
-        final[n] = items
-        turn_out[str(n)] = {"situations_judge": codex[n]["situations"],
-                            "evidence": codex[n]["evidence"], "problems": codex[n]["problems"], "items": items}
-    semantic = verdict_of(final) if calls["codex"]["status"] == "OK" else "HOLD"
-    verdict = question_verdict(code_fails, semantic)
-    cs = [c for c in ((calls["codex"].get("output") or {}).get("conclusions") or [(calls["codex"].get("output") or {}).get("conclusion")]) if isinstance(c, dict)]         if isinstance(calls["codex"].get("output"), dict) else []
-    concl = None if not cs else {"verdict": "FAIL" if any(c.get("verdict") == "FAIL" for c in cs) else ("HOLD" if any(c.get("verdict") == "HOLD" for c in cs) else "PASS"),
-                                 "reason": " / ".join(c.get("reason") or "" for c in cs)}   # 턴을 나눠 물었으면 결론도 합친다
-    line = {"version": VERSION, "provider": provider, "question": q, "turns": len(turns), "verdict": verdict, "semantic": semantic,
-            "code_fails": code_fails, "codex_conclusion": concl, "jev_codex_agree": [agree, total], "seconds": round(time.monotonic() - started, 1),
-            "calls": {k: {kk: vv for kk, vv in v.items() if kk not in ("output", "body")} for k, v in calls.items()}, "turn_results": turn_out}
-    fails = [f"T{n}:{i}" for n, p in final.items() for i, v in p.items() if v["decision"] == "FAIL"]
-    holds = [f"T{n}:{i}" for n, p in final.items() for i, v in p.items() if v["decision"] == "UNVERIFIED"]
-    say(f"■ {tag}: {verdict} (Codex 결론 {(concl or {}).get('verdict', '-')}) · {line['seconds']:.0f}초"
-        + (f" · CODE FAIL {' '.join(code_fails)}" if code_fails else "") + (f" · FAIL {' '.join(fails)}" if fails else "")
-        + (f" · 보류 {' '.join(holds)}" if holds else ""))
-    return line
 
 
 # --- 보고 -------------------------------------------------------------------------------------------------------------

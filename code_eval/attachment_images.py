@@ -163,7 +163,7 @@ def labelled_blocks(provider: str, images: List[Dict[str, Any]]) -> List[Dict[st
 
 
 def blocks(provider: str, images: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """제공자 형식의 이미지 부분 — 답변 수집(webapp.attachment_delivery)과 평가 요청(anthropic_semantic_client)이 같이 쓴다."""
+    """제공자 형식의 이미지 부분 — 질문 생성기의 API 요청(webapp.api_request)과 평가 요청(anthropic_semantic_client)이 같이 쓴다."""
     if provider == "gpt":   # OpenAI Responses
         return [{"type": "input_image", "image_url": f"data:{i['media_type']};base64,{i['data']}"} for i in images]
     if provider == "claude":   # Anthropic Messages

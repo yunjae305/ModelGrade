@@ -16,11 +16,10 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from fractions import Fraction
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .core import Ctx
-from .model import FAIL, PASS, Status
+from .model import FAIL, Status
 
 __all__ = ["explain_result", "python_error_ko", "json_error_ko", "EXPLAIN_VERSION"]
 
@@ -384,7 +383,6 @@ def _x_foreign(r, ctx):
 
 
 def _x_code_block(r, ctx):
-    m = r["measured"] if isinstance(r["measured"], dict) else {}
     blocks = ctx.aa.fenced_blocks
     locs = [snippet(ctx.answer, b["start"], b["start"] + len(b["opening"]), label=f"코드블록 {i + 1} 시작",
                     tag="여는 ```") for i, b in enumerate(blocks[:8])]
@@ -783,10 +781,6 @@ def _x_json_struct(r, ctx):
                   + (" 숫자를 따옴표로 감싸면 문자열이 됩니다." if req["type"] in ("integer", "number") and "string" in m.get("types", []) else ""),
                   ko.get(req["type"], ""), ", ".join(m.get("types", [])), fix=f"‘{req['key']}’ 값을 {ko.get(req['type'], req['type'])}로 쓰세요.")
     return _e("JSON 구조가 요구와 다릅니다", r["reason"])
-
-
-def _fmt_frac(v: Any) -> str:
-    return _n(v)
 
 
 def _x_qcalc(r, ctx):

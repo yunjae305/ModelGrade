@@ -250,12 +250,6 @@ def _judge_html(r: Dict[str, Any]) -> str:
             + (f' · 구현 {_e(trace)}' if trace else "") + '</p></div>')
 
 
-def _loc_labels(r: Dict[str, Any]) -> str:
-    labels = [("표시본 " if l.get("target") == "displayed_text" else "") + l["label"]
-              for l in r["explain"]["locations"] if l.get("label")]
-    return " · ".join(labels) or "위치 정보 없음"
-
-
 def _result_html(r: Dict[str, Any], no: int = 0, case_id: str = "") -> str:
     x = r["explain"]
     why = ("왜 FAIL 인가요?" if r["verdict"] == "FAIL" else "결과" if r["verdict"] == "PASS"

@@ -8,12 +8,9 @@ import time
 import httpx
 import pytest
 
-from code_eval.jev_client import resolve_jev_client
 from code_eval.jev_eval import jev_request
 from code_eval.semantic_api_client import SemanticApiClient, SemanticApiConfig
-from code_eval.semantic_setup import semantic_setup
 from tests.test_semantic_api_client import transmitted_state
-from webapp.version_registry import evaluation_profile
 
 
 STATE = {"question": "Describe Alpha.", "answer": "Alpha is blue.",
@@ -222,66 +219,10 @@ def test_followup_has_its_own_bounded_deadline_and_keeps_initial_result():
     assert call.body["answers"]["J5"]["choice"] == "UNVERIFIED"
 
 
-def test_recovery_environment_settings_reach_resolver_and_readonly_setup(tmp_path):
-    env = {"SEMANTIC_ENGINE": "openai_api", "SEMANTIC_API_KEY": "fixture-only",
-           "SEMANTIC_API_EVIDENCE_RECOVERY_ROUNDS": "0", "SEMANTIC_API_EVIDENCE_RECOVERY_TIMEOUT": "45",
-           "SEMANTIC_API_EVIDENCE_RECOVERY_MAX_TOOL_CALLS": "3"}
-    client, config, reason = resolve_jev_client(environment=env, env_path=tmp_path / "missing")
-    assert client is not None and reason is None
-    assert (config.evidence_recovery_rounds, config.evidence_recovery_timeout, config.evidence_recovery_max_tool_calls) == (0, 45, 3)
-    assert semantic_setup(environment=env, env_path=tmp_path / "missing")["can_evaluate"] is True
-    for key, value in (("SEMANTIC_API_EVIDENCE_RECOVERY_ROUNDS", "2"), ("SEMANTIC_API_EVIDENCE_RECOVERY_TIMEOUT", "0"),
-                       ("SEMANTIC_API_EVIDENCE_RECOVERY_MAX_TOOL_CALLS", "-1")):
-        invalid = {**env, key: value}
-        with pytest.raises(ValueError):
-            resolve_jev_client(environment=invalid, env_path=tmp_path / "missing")
-        assert semantic_setup(environment=invalid, env_path=tmp_path / "missing")["configuration_status"] == "invalid"
-
-
-@pytest.mark.parametrize("setting", [None, "", "0", "   "])
-def test_unlimited_search_env_reaches_both_requests_and_manifest(tmp_path, setting):
-    env = {"SEMANTIC_ENGINE": "openai_api", "SEMANTIC_API_KEY": "fixture-only"}
-    if setting is not None:
-        env.update(SEMANTIC_API_MAX_TOOL_CALLS=setting, SEMANTIC_API_EVIDENCE_RECOVERY_MAX_TOOL_CALLS=setting)
-    _, config, reason = resolve_jev_client(environment=env, env_path=tmp_path / "missing")
-    assert reason is None and config.max_tool_calls is None and config.evidence_recovery_max_tool_calls is None
-    assert semantic_setup(environment=env, env_path=tmp_path / "missing")["can_evaluate"] is True
-    manifest = config.to_manifest()
-    assert manifest["max_tool_calls"] is None and manifest["evidence_recovery_max_tool_calls"] is None
-    assert manifest["timeout_s"] == 180 and manifest["evidence_recovery_timeout_s"] == 120
-    assert manifest["max_requests"] == 2 and manifest["evidence_recovery_rounds"] == 1
-    call, requests, _, _ = run_sequence([response(), response(judgment(url=RECOVERED_URL, ids=("J5",)), url=RECOVERED_URL)], config=config)
-    assert call.status == "OK" and len(requests) == 2
-    assert all("max_tool_calls" not in json.loads(request.content) for request in requests)
-
-
 def test_explicit_finite_primary_and_recovery_search_caps_are_independent():
     config = SemanticApiConfig(max_tool_calls=7, evidence_recovery_max_tool_calls=11)
     _, requests, _, _ = run_sequence([response(), response(judgment(url=RECOVERED_URL, ids=("J5",)), url=RECOVERED_URL)], config=config)
     assert [json.loads(request.content)["max_tool_calls"] for request in requests] == [7, 11]
-
-
-def test_unlimited_search_limits_are_part_of_saved_comparison_profile():
-    manifest = SemanticApiConfig().to_manifest()
-    unlimited = {"evaluations": {"aiona": {"jev_eval": {"client": manifest}}}}
-    finite = copy.deepcopy(unlimited)
-    finite["evaluations"]["aiona"]["jev_eval"]["client"].update(max_tool_calls=4, evidence_recovery_max_tool_calls=6)
-    saved = evaluation_profile(unlimited)
-    assert saved["fields"]["judge"]["max_tool_calls"] is None
-    assert saved["fields"]["judge"]["evidence_recovery_max_tool_calls"] is None
-    assert saved != evaluation_profile(finite)
-
-
-def test_recovery_policy_and_limits_affect_profile_without_rewriting_legacy_identity():
-    legacy = {"evaluations": {"aiona": {"jev_eval": {"client": {"engine": "openai_api", "requested_model": "gpt-6.1-sol"}}}}}
-    prior = evaluation_profile(legacy)
-    assert "evidence_recovery_rounds" not in prior["fields"]["judge"]
-    for field, value in (("evidence_recovery_policy", "fixture-v1"), ("evidence_recovery_rounds", 1),
-                         ("evidence_recovery_timeout_s", 120), ("evidence_recovery_max_tool_calls", 6), ("max_requests", 2)):
-        changed = copy.deepcopy(legacy)
-        changed["evaluations"]["aiona"]["jev_eval"]["client"][field] = value
-        assert evaluation_profile(changed) != prior
-    assert evaluation_profile(legacy) == prior
 
 
 @pytest.mark.parametrize("kwargs", [

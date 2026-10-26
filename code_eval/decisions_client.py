@@ -111,7 +111,6 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 
 PDF_MAX_PAGES = 20          # PDF 첨부는 쪽마다 이미지 하나 — 요청당 이미지 128장 한도(공식) 안에서
-PDF_RENDER_SCALE = 1.5      # 72dpi × 1.5 ≈ 108dpi — 표·주석 글자가 읽히는 최소 수준
 
 
 def _data_url(mime: str, data: bytes) -> str:

@@ -11,7 +11,6 @@
 """
 from __future__ import annotations
 
-import json
 import re
 import tempfile
 import threading
@@ -19,10 +18,9 @@ import time
 from pathlib import Path
 from typing import Tuple, Any, Callable, Dict, List, Optional
 
-from .code_eval_service import ROOT
 from .factchat_web import COPY_CAPTURE_JS
 
-__all__ = ["CDP_WEB_VERSION", "CdpWebError", "cdp_login_status", "ChatGptChat", "GeminiChat", "ClaudeChat", "CDP_CHATS", "CDP_PROVIDERS"]
+__all__ = ["CDP_WEB_VERSION", "CdpWebError", "ChatGptChat", "GeminiChat", "ClaudeChat",]
 
 CDP_WEB_VERSION = "cdp-web-v4"   # v4(10-23): 평소 Chrome + 포트, 창 앞으로 끌어오지 않음, 네 모델 모두 이 방식
 REFERENCE_FILE_CHARS = 20_000   # 이보다 긴 참조 자료는 입력칸 대신 TXT 파일로 올린다 (AIONA 와 같음)
@@ -31,7 +29,6 @@ _CHROME_LOCK = threading.Lock()
 #: 한도·봇 확인 문구 — 보이면 기다리지 않고 오류로 남긴다 (우회하지 않음)
 _BOT_BLOCKED = ("보안 확인 수행 중", "Verify you are human", "사용자가 봇이 아닌지 확인", "Just a moment")   # 'Cloudflare' 낱말은 채팅 제목에도 나와 쓰지 않는다
 _LIMIT_BLOCKED = ("너무 많은 요청", "Too many requests", "사용량 한도", "usage limit", "한도에 도달했", "메시지 한도", "limit reached", "plan limit")
-_BLOCKED = _BOT_BLOCKED + _LIMIT_BLOCKED   # 10-23: '한도에 도달'(대화 글에 흔함) 대신 '한도에 도달했' — 말풍선 글은 _check_blocked 가 뺀다
 
 
 # --- 창 배치 (동시 수집: 네 창이 서로 덮지 않게) -------------------------------------------------------------
@@ -81,17 +78,6 @@ def fenced_blocks(text: str) -> List[Tuple[int, int, str, str]]:
             open_at = None
         pos += len(line)
     return out
-
-
-def cdp_login_status() -> Dict[str, Any]:
-    """'연결된 모델' 화면용 — 수집용 Chrome 이 떠 있는지(포트 응답)와 열린 사이트 탭. 자격 증명은 다루지 않는다."""
-    from tools.chrome_cdp import PROFILE, status
-    st = status()
-    tabs = [t["url"] for t in st["tabs"]]
-    return {"method": "웹브라우저 (수집용 Chrome, 로그인 상태)", "version": CDP_WEB_VERSION, "credentials": st["ok"],
-            "credentials_source": "python tools/chrome_cdp.py 로 띄운 Chrome 에서 사용자가 직접 로그인",
-            "profile_saved": (PROFILE / "Default").is_dir(),
-            "tabs": {name: any(host in u for u in tabs) for name, host in (("chatgpt", "chatgpt.com"), ("gemini", "gemini.google.com"), ("claude", "claude.ai"))}}
 
 
 class _CdpChat:
@@ -895,7 +881,4 @@ class ClaudeChat(_CdpChat):
         except Exception:
             return False
 
-
-CDP_CHATS = {"chatgpt_web": ChatGptChat, "gemini_web": GeminiChat, "claude_web": ClaudeChat}
-CDP_PROVIDERS = tuple(CDP_CHATS)
 

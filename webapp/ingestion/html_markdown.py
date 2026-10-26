@@ -460,13 +460,3 @@ def html_to_markdown(html: str) -> Dict[str, Any]:
     return {"markdown": markdown, "quality": converter.quality, "stats": converter.stats, "converter": CONVERTER_VERSION}
 
 
-def visible_links(html: str) -> List[Dict[str, Any]]:
-    """HTML 안의 링크(href·글자). 출처 후보 기록용 — 판정하지 않는다."""
-    root, _, _ = parse_html(html)
-    links = []
-    for node in _walk(root):
-        if node.tag == "a":
-            href = node.attrs.get("href", "").strip()
-            if href.startswith(("http://", "https://")):
-                links.append({"url": href, "text": " ".join(node.text().split())})
-    return links

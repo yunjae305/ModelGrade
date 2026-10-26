@@ -21,8 +21,7 @@ from .checks_requirements import check_2_1, check_2_2, table_observation
 from .config import AionaConfig, load_aiona_config
 from .explain import explain_result
 from .io import validate_json_numbers
-from .core import (ABSENT_SUFFIX, ANSWER_UNITS, ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, nfc,
-                   result, versions)
+from .core import ABSENT_SUFFIX, ANSWER_UNITS, ERROR_CHECK_ERROR, ERROR_LIMIT_EXCEEDED, LIMITS, Ctx, case_error, result, versions
 from .extract import persistent_conditions
 from .answer_citations import answer_sources_error
 from .attachments import attachment_text, attachments_of
@@ -82,12 +81,6 @@ def _reference_of(payload: Dict[str, Any]) -> tuple[Any, Optional[str]]:
     if isinstance(ref, (str, dict, list)):
         return ref, None
     return None, f"reference 는 문자열 또는 JSON 객체·배열이어야 함 ({type(ref).__name__})"
-
-
-def _normalize_payload(payload: Any, index: int) -> Dict[str, Any]:
-    if not isinstance(payload, dict):
-        raise ValueError(f"입력 {index}: 객체가 아님 ({type(payload).__name__})")
-    return payload
 
 
 def _run_group(sub: str, fn: Callable, ctx: Ctx, *args) -> List[ConditionResult]:

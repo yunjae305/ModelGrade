@@ -212,14 +212,6 @@ class MarkdownTable:
     end: int
     header_line: int
 
-    @property
-    def column_count(self) -> int:
-        return len(self.headers)
-
-    @property
-    def row_count(self) -> int:
-        return len(self.rows)
-
 
 def content_lines(text: str, lines: Optional[Sequence[Line]] = None) -> List[Line]:
     """코드 펜스 밖의 줄만 남긴다. 본문을 세는 검사가 모두 이 기준을 쓴다."""

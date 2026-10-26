@@ -14,8 +14,6 @@ from code_eval.combined import combined_summary
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall, resolve_jev_client
 from code_eval.jev_eval import evaluate_jev_batch
-from code_eval.semantic_setup import semantic_setup
-from webapp.version_registry import evaluation_profile
 
 
 @pytest.fixture(autouse=True)
@@ -58,40 +56,6 @@ def test_missing_registered_anthropic_key_never_creates_client_or_falls_back(tmp
     assert "ANTHROPIC_API_KEY" in error and "wrong-provider" not in error
 
 
-def test_setup_and_resolver_use_identical_overrides_without_connection(tmp_path, monkeypatch):
-    env = environment(SEMANTIC_ANTHROPIC_MODEL="claude-sonnet-5-5", SEMANTIC_ANTHROPIC_EFFORT="high",
-        SEMANTIC_ANTHROPIC_BASE="https://api.anthropic.com/v1", SEMANTIC_ANTHROPIC_TIMEOUT="91",
-        SEMANTIC_ANTHROPIC_MAX_OUTPUT_TOKENS="4000", SEMANTIC_ANTHROPIC_MAX_SEARCHES="2",
-        SEMANTIC_ANTHROPIC_MAX_FETCHES="3", SEMANTIC_ANTHROPIC_MAX_CONTINUATIONS="1",
-        SEMANTIC_WEB_SEARCH="disabled")
-    config_only = []
-    original = anthropic.AnthropicSemanticConfig
-    def config(**kwargs):
-        config_only.append(kwargs)
-        return original(**kwargs)
-    monkeypatch.setattr(anthropic, "AnthropicSemanticConfig", config)
-    monkeypatch.setattr(anthropic, "AnthropicSemanticClient", lambda c, k: SimpleNamespace(config=c))
-    _, resolved, _ = resolve_jev_client(environment=env, env_path=tmp_path / "missing")
-    setup = semantic_setup(environment=env, env_path=tmp_path / "missing")
-    assert config_only[0] == config_only[1]
-    assert setup["engine_label"] == "Claude API" and setup["model"] == resolved.model
-    assert setup["reasoning_effort"] == "high" and setup["can_evaluate"] is True
-    assert setup["connection_status"] == "not_checked" and setup["search_status"] == "disabled"
-    assert "fixture-anthropic-secret" not in json.dumps(setup)
-
-
-@pytest.mark.parametrize("overrides", [
-    {"ANTHROPIC_API_KEY": ""}, {"SEMANTIC_ANTHROPIC_EFFORT": "private-invalid"},
-    {"SEMANTIC_ANTHROPIC_TIMEOUT": "private-invalid"}, {"SEMANTIC_ANTHROPIC_MAX_SEARCHES": "0"},
-    {"SEMANTIC_ANTHROPIC_BASE": "https://user:private-invalid@example.test/v1"},
-])
-def test_anthropic_setup_contains_configuration_errors_without_echoing_secrets(tmp_path, overrides):
-    setup = semantic_setup(environment=environment(**overrides), env_path=tmp_path / "missing")
-    assert setup["can_evaluate"] is False and setup["configuration_status"] in ("missing", "invalid")
-    assert setup["connection_status"] == "not_checked"
-    assert "private-invalid" not in json.dumps(setup) and "fixture-anthropic-secret" not in json.dumps(setup)
-
-
 def test_existing_auto_does_not_silently_switch_to_anthropic(tmp_path, monkeypatch):
     from code_eval import codex_cli_client
     monkeypatch.setattr(codex_cli_client, "find_codex_executable", lambda *_: "fixture-codex")
@@ -102,7 +66,7 @@ def test_existing_auto_does_not_silently_switch_to_anthropic(tmp_path, monkeypat
     assert result is not None
 
 
-def test_anthropic_batch_screens_fact_claims_without_numbers_and_profiles_actual_settings():
+def test_anthropic_batch_screens_fact_claims_without_numbers():
     class Judge:
         config = anthropic.AnthropicSemanticConfig()
         requests = []
@@ -124,14 +88,6 @@ def test_anthropic_batch_screens_fact_claims_without_numbers_and_profiles_actual
     assert combined_summary(batch)["semantic_engine"] == "Claude API"
     del batch["jev_eval"]["engine_label"]
     assert combined_summary(batch)["semantic_engine"] == "Claude API"
-    profile = evaluation_profile({"evaluations": {"aiona": batch}})
-    assert profile["complete"] is True
-    expected = {"max_fetches", "max_continuations", "thinking", "output_mode", "search_tool", "fetch_tool"}
-    assert expected <= profile["fields"]["judge"].keys()
-    for field in expected:
-        changed = copy.deepcopy(batch)
-        changed["jev_eval"]["client"][field] = "changed-condition"
-        assert evaluation_profile({"evaluations": {"aiona": changed}}) != profile
 
 
 @pytest.mark.parametrize("command", ["single", "run"])

@@ -15,7 +15,7 @@ import re
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from code_eval import semantic_items as si
 

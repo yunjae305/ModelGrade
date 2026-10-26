@@ -27,10 +27,18 @@
 - 대화 평균 k 는 9.8~10.2 입니다(`set.json` 의 `multiturn_k_exact`).
   - 턴마다 수치가 든 자료가 붙으면 J5-2.a(자료 충실성)가 모든 턴에 붙습니다. 그래서 10을 조금 넘는 대화(Q3 · Q5 · Q7, 10.2)가 있으며, 사용자가 허용했습니다(10-21 밤).
 
+## 턴별 확인 목록 (`multiturn_v3/turn_checklists.json`)
+멀티턴 110턴마다 심판에게 함께 주는 표입니다. 질문 글은 바꾸지 않고, 판정할 때만 씁니다.
+- **확인할 것**: 그 턴 시점의 자료 · 기록에 있는 사실(최신 값)만 적습니다. 예: 이동 시간은 '편도 N분 · 왕복은 편도 두 번 = 2N분'.
+- **정한 판정**: 사용자가 정한 답을 적습니다. 예: 최종 일정 턴의 잰 적 없는 시간 · 준비 방식, 모순 질문(Q6 · Q10).
+- **턴별 목표 기준**: 2026-10-26 기준 턴마다 16~24개(평균 21.2), 대화 전체로는 43~49개(평균 47.2)입니다.
+- 질문 글이 바뀌면 지문(`question_sha`)으로 옛 목록을 거릅니다.
+
 ## 다시 만들기
 ```bash
 python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --brief   # 문서 작성자용 설계서
 python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --check   # 문서 없이 k · 적용 수
 python -X utf8 참고자료/질문세트_78/multiturn_v3/build_conversations.py --write   # 문서로 조립 · 검사 · questions.json
+python -X utf8 참고자료/질문세트_78/multiturn_v3/build_turn_checklists.py         # 턴별 확인 목록 · 턴별 목표 기준
 ```
 수집할 때는 `--set 참고자료/질문세트_78` 를 줍니다. 첨부 파일은 `files/` 에 있고 v3.3 과 같습니다.

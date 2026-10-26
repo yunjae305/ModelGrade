@@ -3,7 +3,6 @@
 import pytest
 
 from code_eval.engine import evaluate_case
-from code_eval.model import Status
 from code_eval.textparse import split_lines
 
 

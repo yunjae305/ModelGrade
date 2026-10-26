@@ -153,12 +153,9 @@ def test_handover_document_cites_the_current_versions():
     from code_eval.multi_turn import MULTI_TURN_POLICY_VERSION
     from code_eval.semantic_items import ITEMS, SUBS
     from code_eval.semantic_policy import J5_OUTCOME_POLICY_VERSION
-    from webapp.run_summary import COLLECTION_COMPARISON_VERSION, CRITERIA_VERIFICATION_VERSION, RUN_SUMMARY_VERSION
-    from webapp.version_comparison import COMPARISON_VERSION
     text = read('인수인계_2026-10-14.md')
     for token in (ENGINE_VERSION, REGISTRY_VERSION, JEV_CRITERIA_VERSION, SEMANTIC_ITEMS_VERSION, JEV_APPLICABILITY_VERSION,
                   SUB_APPLICABILITY_VERSION, MULTI_TURN_POLICY_VERSION, LONG_CONTEXT_POLICY_VERSION, J5_OUTCOME_POLICY_VERSION,
-                  JUDGE_IMAGE_POLICY_VERSION, JEV_EVAL_VERSION, RUN_SUMMARY_VERSION, COLLECTION_COMPARISON_VERSION,
-                  CRITERIA_VERIFICATION_VERSION, COMPARISON_VERSION):
+                  JUDGE_IMAGE_POLICY_VERSION, JEV_EVAL_VERSION):
         assert f'`{token}`' in text, token
     assert f'({len(SUBS)}·{len(ITEMS)})' in text

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unicodedata
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .analysis import ANALYSIS_VERSION, DisplayedTextAnalysis, TextAnalysis
 from .extract import EXTRACT_VERSION, QuestionConditions, extract_conditions
@@ -18,7 +18,6 @@ from .scripts import SCRIPT_DATA_VERSION
 #: v16.6.0 — 질문 속 붙여 넣은 자료([붙여 넣은 자료]…[자료 끝] 줄)는 지시가 아니다: 요구 조건·지속 지시·작업명은 요청 부분에서만 (§27).
 #: v16.7.0 — 1-1 응답 존재 → 에러 케이스 없음: 빈 답 · 답 없음(수집 오류) · 능력 부정 정형 문구만을 FAIL, 복사 실패는 행 없이 보류 (10-25, 미팅 10-23 2 · 3번)
 ENGINE_VERSION = "aiona-code-eval-v16.7.3"
-MD_SOURCE = "참고자료/기준/채팅품질 평가기준.md"
 MD_SHA256 = "fb7126e7a31073745517273a1dfdfea6508cb3af2454cca978cc88055eb182dd"
 MD_POLICY_VERSION = f"채팅품질 평가기준(8).md sha256:{MD_SHA256[:12]}"
 

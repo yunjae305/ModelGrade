@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from functools import cached_property
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Sequence, Tuple

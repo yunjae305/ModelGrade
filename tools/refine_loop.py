@@ -44,7 +44,6 @@ REFINE = ROOT / "data" / "refine"
 CRITERIA_DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.md"
 LESSON_HEADING = "## 12. 기준 다듬기 루프의 교훈"
 LESSON_CHARS = 220   # 12절 표 칸 하나의 글자 상한 — 전문은 data/refine/…/lesson.json (사용자: 문서는 짧고 요점만)
-PROVIDERS = ("aiona", "gpt", "claude", "gemini")
 KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", None: "-"}
 TARGETS = ("판정 프롬프트", "1차 항목 정의", "확인 목록", "기준 문서", "질문", "CODE")
 AUTO_TARGETS = ("판정 프롬프트", "1차 항목 정의", "확인 목록")   # apply 가 실제 파일에 넣을 수 있는 대상 — 기준 문서 · CODE · 질문은 사람(또는 다음 단계)이

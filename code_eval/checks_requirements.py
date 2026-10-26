@@ -555,7 +555,6 @@ def _json_structure(ctx: Ctx) -> List:
     targets = json_targets(ctx)
     parsed = ctx.shared.get("json_parsed", {})
     ok_targets = [t for t in targets if parsed.get(t["id"], {}).get("status") == "ok"]
-    blocked = [t for t in targets if parsed.get(t["id"], {}).get("status") != "ok"]
 
     if not targets:
         out.append(result("2-2.json_structure:present", SUB22, "JSON 출력", "question", Status.EXECUTED, FAIL,

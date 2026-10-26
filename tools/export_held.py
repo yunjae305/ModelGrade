@@ -28,7 +28,6 @@ if str(ROOT) not in sys.path:
 from tools.export_review import _text  # noqa: E402
 from webapp.question_generation import flatten  # noqa: E402
 
-VERSION = "judge-held-v1"
 RUNS = ROOT / "data" / "comparison_runs"
 RESULTS_DIR = ROOT / "참고자료" / "결과"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"

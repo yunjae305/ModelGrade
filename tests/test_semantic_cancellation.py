@@ -1,12 +1,10 @@
 """Cancellation contracts with local judge doubles; no model/network calls."""
 
 import threading
-import time
 
 from code_eval.engine import evaluate_batch, result_digest
 from code_eval.jev_client import JevCall, JevClientConfig
 from code_eval.jev_eval import evaluate_jev_batch, jev_after_code
-from webapp.code_eval_service import CodeEvalService
 
 
 def rows(count=6):
@@ -85,42 +83,3 @@ def test_legacy_judge_signature_works_and_stop_callback_prevents_next_request():
     assert [r["status"] for r in result["records"]] == ["SUCCESS"] + ["SKIPPED"] * 5
 
 
-def test_service_shutdown_reaches_async_judge_preserves_partial_export_and_skips_extra_review(tmp_path):
-    entered = threading.Event()
-    class Judge:
-        config = JevClientConfig()
-        supports_cancellation = True
-        calls = 0
-        def system_one(self, state, questions, *, cancel_event=None):
-            self.calls += 1
-            entered.set()
-            assert cancel_event.wait(3)
-            return JevCall("API_ERROR", error="stopped", attempts=1)
-    judge = Judge()
-    def no_review():
-        raise AssertionError("Cancellation must prevent supplemental model calls")
-    service = CodeEvalService(save_dir=tmp_path / "saved", judge_resolver=no_review,
-                              jev_resolver=lambda: (judge, judge.config, None))
-    job = service.start_job({"cases": rows(8), "llm_review": True})
-    assert entered.wait(3)
-    service.shutdown()
-    deadline = time.monotonic() + 3
-    while service.job_status(job["job_id"])["status"] == "RUNNING" and time.monotonic() < deadline:
-        threading.Event().wait(0.01)
-    assert service.job_status(job["job_id"])["status"] == "CANCELLED"
-    result = service.job_result(job["job_id"])
-    assert len(result["jev_eval"]["records"]) == 8 and judge.calls <= 4
-    assert all(r["status"] == "SKIPPED" for r in result["jev_eval"]["records"])
-    assert "llm_review" not in result and not service._evaluation_tokens
-    assert service.export(job["job_id"], "json")[0]
-    assert list((tmp_path / "saved").glob("*.json"))
-
-
-def test_service_shutdown_before_work_does_not_resolve_judge(tmp_path):
-    def resolver():
-        raise AssertionError("No new judge resolution after shutdown")
-    service = CodeEvalService(save_dir=tmp_path, jev_resolver=resolver)
-    service.shutdown()
-    result = service.evaluate({"cases": rows(2)})
-    assert result["jev_eval"]["statuses"] == {"SKIPPED": 2}
-    assert not service._evaluation_tokens

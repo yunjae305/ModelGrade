@@ -183,6 +183,3 @@ def test_second_judge_falls_back_to_trimmed_jev_then_none():
     assert status == "ERROR" and used is None and "Jev 없음" in err and "Decisions" in err
 
 
-def test_combine_label_names_decisions():
-    dec, how = judge_v4.combine({"decision": "PASS"}, {"decision": "FAIL"}, False, "Decisions(OpenAI)")
-    assert dec == "UNVERIFIED" and how.startswith("심판 갈림 — Decisions(OpenAI) FAIL")

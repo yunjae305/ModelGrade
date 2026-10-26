@@ -10,11 +10,7 @@ from code_eval.engine import evaluate_batch
 from code_eval.jev_client import JevCall
 from code_eval.jev_eval import evaluate_jev_batch, evaluate_jev_case, evaluation_log
 from code_eval.semantic_evidence import finalize_answers
-from code_eval.semantic_policy import (
-    DECISION_POLICY, FINAL_DECISION_POLICY_VERSION, FINAL_EVIDENCE_FAILURE_CODE, FINAL_EVIDENCE_FAILURE_REASON,
-    INPUT_SCOPE_REVALIDATED_CODE, SOURCE_ORIGINAL_FAILURE_CODE,
-    apply_final_decision_policy,
-)
+from code_eval.semantic_policy import DECISION_POLICY, FINAL_DECISION_POLICY_VERSION, FINAL_EVIDENCE_FAILURE_CODE, FINAL_EVIDENCE_FAILURE_REASON, INPUT_SCOPE_REVALIDATED_CODE, apply_final_decision_policy
 
 
 def held(decision):

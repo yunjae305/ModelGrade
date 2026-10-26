@@ -163,15 +163,8 @@ def _terminate_tree(process):
             pass
 
 
-def terminate_active_cli():
-    with _lock:
-        processes = list(_processes)
-    # Each runner also observes its cancellation event and kills its own tree.
-    for process in processes:
-        _terminate_tree(process)
-
-
 def active_cli_count():
+    """지금 돌고 있는 CLI 자식 프로세스 수 — 취소 · 시간 초과 뒤 남은 프로세스가 없는지 시험이 확인한다."""
     with _lock:
         return len(_processes)
 

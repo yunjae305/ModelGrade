@@ -8,7 +8,6 @@ import json
 from types import SimpleNamespace
 
 import httpx
-import pytest
 
 from code_eval import semantic_cli_common as common
 from code_eval.anthropic_semantic_client import FINAL_TOOL, AnthropicSemanticClient, AnthropicSemanticConfig

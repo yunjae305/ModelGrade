@@ -27,16 +27,15 @@ from .jev_client import JevCall, _sum_usage
 from .llm_client import redact
 from .semantic_items import DECISIONS, FACT_UNVERIFIABLE, ITEM_UNVERIFIABLE
 
-__all__ = ["ITEM_QUOTE_POLICY", "RECHECK_POLICY", "MAX_RECHECK_ROUNDS", "RECHECK_NOTICE", "UNION_NOTICE", "FAILURE_MESSAGES",
+__all__ = ["ITEM_QUOTE_POLICY", "RECHECK_POLICY", "MAX_RECHECK_ROUNDS", "RECHECK_NOTICE", "FAILURE_MESSAGES",
            "normalize_text", "locate_quote", "verify_items", "recheck_questions", "merge_recheck", "mark_unverifiable",
-           "finalize_items", "elements_of", "missing_elements", "union_recheck_questions"]
+           "finalize_items",]
 
 #: v2 — 펼친 요소 단위 해당 없음(element_na, J5-2.a 의 '쓰지 않은 값')을 허용한다. 항목 전체의 해당 없음은 그대로 막는다.
 ITEM_QUOTE_POLICY = "items-normalized-quotes-v2"
 RECHECK_POLICY = "items-recheck-3-then-fail-v1"
 MAX_RECHECK_ROUNDS = 3
 RECHECK_NOTICE = "이전 판정의 인용이 원문에 없습니다. 원문을 글자 그대로 복사해 같은 항목을 다시 판정하세요."
-UNION_NOTICE = "같은 질문의 다른 평가에서 아래 요소가 나열됐습니다. 질문 원문에 있는 요소를 빠짐없이 나열해 각각 판정하세요."
 UNVERIFIABLE_PREFIX = "확인 불가: "
 #: 모델 출력에 같은 이름 키가 있어도 서버가 다시 쓴다
 SERVER_FIELDS = ("quote_check", "origin", "rechecks", "unverifiable", "reason_code", "model_original")
@@ -445,87 +444,4 @@ def finalize_items(call: JevCall, state: Dict[str, Any], questions: Dict[str, An
 
 # --- 모델 간 요소 대조 (순수 함수) -------------------------------------------------------------------
 
-def _items_in(source: Any) -> List[Dict[str, Any]]:
-    """body({"items": […]}) 또는 record({"decisions": {cid: {"subs": {sid: {"items": […]}}}}}) 의 항목 목록."""
-    if not isinstance(source, dict):
-        return []
-    if isinstance(source.get("items"), list):
-        return [it for it in source["items"] if isinstance(it, dict)]
-    out: List[Dict[str, Any]] = []
-    decisions = source.get("decisions")
-    for decision in decisions.values() if isinstance(decisions, dict) else []:
-        subs = decision.get("subs") if isinstance(decision, dict) else None
-        for sub in subs.values() if isinstance(subs, dict) else []:
-            out.extend(it for it in (sub.get("items") or []) if isinstance(it, dict))
-    return out
 
-
-def elements_of(record_or_body: Any, base_id: str, question_text: str) -> List[Dict[str, Any]]:
-    """base_id 의 펼친 요소(#n) 목록 → [{"id", "question_quote", "span"}] (질문 원문에서 위치를 못 찾은 요소는 제외)."""
-    out: List[Dict[str, Any]] = []
-    for item in _items_in(record_or_body):
-        base, element = _split_id(item.get("id"))
-        if base != base_id or element is None:
-            continue
-        span = locate_quote(item.get("question_quote"), question_text)
-        if span is None:
-            continue
-        out.append({"id": item["id"], "question_quote": item["question_quote"], "span": list(span)})
-    return out
-
-
-def missing_elements(records_by_provider: Dict[str, Any], base_id: str, question_text: str) -> Dict[str, List[Dict[str, Any]]]:
-    """합집합 대조 — 질문 원문 위치(span)가 겹치는 요소를 같은 요소로 본다.
-
-    다른 요소를 품는 긴 인용('전기자전거, 전동킥보드')은 그 안의 요소들을 모두 다룬 것으로 친다. 요소가 하나도 없는
-    provider(항목 없음·오류·SKIPPED)는 비교에서 뺀다. 반환 {provider: [{"question_quote": 대표 인용, "seen_in": [providers]}]}.
-    """
-    elements = {provider: elements_of(source, base_id, question_text) for provider, source in records_by_provider.items()}
-    elements = {provider: found for provider, found in elements.items() if found}
-    if len(elements) < 2:
-        return {}
-    spans = [(provider, (e["span"][0], e["span"][1]), e["question_quote"]) for provider, found in elements.items() for e in found]
-
-    def contains(outer: Tuple[int, int], inner: Tuple[int, int]) -> bool:
-        return outer != inner and outer[0] <= inner[0] and outer[1] >= inner[1]
-
-    atomic = [entry for entry in spans if not any(contains(entry[1], other[1]) for other in spans)]
-    parent = list(range(len(atomic)))
-
-    def find(i: int) -> int:
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    for i in range(len(atomic)):
-        for j in range(i + 1, len(atomic)):
-            a, b = atomic[i][1], atomic[j][1]
-            if a[0] < b[1] and b[0] < a[1]:
-                parent[find(i)] = find(j)
-    clusters: Dict[int, List[Tuple[str, Tuple[int, int], str]]] = {}
-    for i, entry in enumerate(atomic):
-        clusters.setdefault(find(i), []).append(entry)
-    missing: Dict[str, List[Dict[str, Any]]] = {}
-    for members in sorted(clusters.values(), key=lambda group: min(m[1][0] for m in group)):
-        low, high = min(m[1][0] for m in members), max(m[1][1] for m in members)
-        representative = min(members, key=lambda m: (m[1][1] - m[1][0], m[1][0]))[2]
-        seen_in = [provider for provider in elements
-                   if any(span[0] < high and span[1] > low for p, span, _ in spans if p == provider)]
-        for provider in elements:
-            if provider not in seen_in:
-                missing.setdefault(provider, []).append({"question_quote": representative, "seen_in": seen_in})
-    return missing
-
-
-def union_recheck_questions(questions: Dict[str, Any], missing: Dict[str, List[Dict[str, Any]]], round_no: int) -> Dict[str, Any]:
-    """빠진 요소가 있는 항목만 — {base_id: {**questions[base_id], "recheck": {round, reason 'missing_elements', notice, elements}}}."""
-    subset: Dict[str, Any] = {}
-    for base, elements in (missing or {}).items():
-        if base not in questions or not elements:
-            continue
-        subset[base] = {**copy.deepcopy(questions[base]),
-                        "recheck": {"round": round_no, "reason": "missing_elements", "notice": UNION_NOTICE,
-                                    "elements": [{"question_quote": e.get("question_quote"), "seen_in": list(e.get("seen_in") or [])}
-                                                 for e in elements if isinstance(e, dict)]}}
-    return subset

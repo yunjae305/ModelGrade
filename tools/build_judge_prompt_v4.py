@@ -17,8 +17,6 @@ DIR = ROOT / "참고자료" / "프롬프트"
 V3, V4 = DIR / "judge_prompt_v3.txt", DIR / "judge_prompt_v4.txt"
 JEV_V1, JEV_V4 = DIR / "jev_questions_v1.json", DIR / "jev_questions_v4.json"
 
-#: 상황표 1 에서 언제나 적는 세부 기준 (v3 판정상황표도 모든 턴에 적었다)
-ALWAYS_SUBS = ("J1-1", "J1-2", "J1-3", "J1-4", "J3-1", "J5-3")
 #: 판정 항목이 '항상 적용'(NOT_APPLICABLE 없음)인 J1~J4 항목
 ALWAYS_ITEMS = ("J1-4.a", "J1-4.b", "J3-1.a")
 

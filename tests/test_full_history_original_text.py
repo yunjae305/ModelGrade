@@ -3,13 +3,11 @@ import json
 from types import SimpleNamespace
 
 import httpx
-import pytest
 
 from code_eval.claude_cli_client import ClaudeCliClient, ClaudeCliConfig
 from code_eval.engine import evaluate_batch
 from code_eval.jev_client import HttpJevClient, JevClientConfig
 from code_eval.jev_eval import evaluate_jev_batch
-from webapp.comparison_service import DEFAULT_COMPARISON_DATASET
 
 
 def pass_response(questions):
@@ -25,36 +23,6 @@ def long_cases():
          'answer': '  ```json\r\n{"value":"\\n"}\r\n```\n' + '가😀' * 35_000 + '\r\n마지막 원문  '},
         {'id': 'T2', 'conversation_id': 'C1', 'turn': 2, 'question': '  이어서 설명해줘.\r\n', 'answer': '답변 원문\r\n  '},
     ]
-
-
-def test_q165_http_payload_preserves_every_original_history_and_conversation_boundary():
-    if not DEFAULT_COMPARISON_DATASET.is_file():
-        pytest.skip('Optional private question dataset is not included in public checkouts')
-    cases = json.loads(DEFAULT_COMPARISON_DATASET.read_text(encoding='utf-8'))
-    requests = []
-
-    def handle(req):
-        body = json.loads(req.content)
-        requests.append(body)
-        return httpx.Response(200, json=pass_response(body['questions']))
-
-    client = HttpJevClient(JevClientConfig(max_attempts=1), 'test-key', transport=httpx.MockTransport(handle))
-    try:
-        result = evaluate_jev_batch(evaluate_batch(cases), client, workers=1)
-    finally:
-        client._client().close()
-    assert len(requests) == 165 and result['completed'] == 165
-    assert result['history_policy'] == 'full_original_text'
-    for row, request, record in zip(cases, requests, result['records']):
-        assert request['state']['question'] == row['question']
-        assert request['state']['answer'] == row['answer']
-        prior = [r for r in cases if 'conversation_id' in row and
-                 r.get('conversation_id') == row['conversation_id'] and r.get('turn', 0) < row['turn']]
-        expected = [{'turn': p['turn'], 'question': p['question'], 'answer': p['answer']} for p in prior]
-        assert request['state'].get('history', []) == expected
-        if record['context']:
-            assert record['context']['history_truncated'] is False
-            assert record['context']['history_chars'] == sum(len(p['question']) + len(p['answer']) for p in prior)
 
 
 def test_claude_cli_stdin_carries_long_history_without_changing_whitespace_or_json_text(tmp_path):

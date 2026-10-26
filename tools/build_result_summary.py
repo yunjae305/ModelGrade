@@ -15,7 +15,6 @@ import re
 import statistics
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,7 +25,6 @@ if str(ROOT) not in sys.path:
 from tools import report_html as R  # noqa: E402
 from tools.result_flow import FLOW_CSS, WARN as FLOW_WARN, flow_scene  # noqa: E402
 
-VERSION = "result-summary-v4"   # v2 (10-21 오후): 흐름도·장면을 그림 위주로 — 멘토·소장님 발표용
 RUN = "a1642702fccc"
 RESULTS = ROOT / "참고자료" / "결과"
 OUT_DIR = ROOT / "참고자료" / "발표"
@@ -45,8 +43,6 @@ SUFFIX = {"bullet_count": "불릿 수", "required": "필수", "count": "개수",
 
 
 LOGO_FILES = {"aiona": "aiona-logo.png", "gpt": "gpt-logo.svg", "claude": "claude-logo.svg", "gemini": "gemini-logo.webp"}   # 팀 앱(frontend/assets)과 같은 로고
-
-
 
 
 def result_file(run_id: str, name: str, flat: bool = False) -> Path:
@@ -196,11 +192,6 @@ def hold_label(why: List[Dict[str, Any]]) -> str:
     return "사실 확인 못 함" if why and all(w["item"].startswith("J5-1") for w in why) else "확인 못 함"
 
 
-def judge_timing(D: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """판정 실행 — 다시 판정(redo)은 뺀다 (사용자 10-21: 처음부터 제대로 복사된 것으로 보고)."""
-    return [t for t in D["d"]["judgment"].get("timing") or [] if not t.get("redo")]
-
-
 def crit_qs(D: Dict[str, Any], p: str, c: str) -> List[int]:
     """그 모델이 그 기준을 어긴 질문 번호 (crit_fail 과 같은 셈)."""
     return sorted(q for (pp, q), L in D["lines"].items() if pp == p
@@ -222,35 +213,6 @@ def crit_fail(D: Dict[str, Any]) -> Dict[str, Counter]:
     for (p, q), L in D["lines"].items():
         for c in {i["item"] for i in L["items"] if i["decision"] == "FAIL"} | set(L["line"].get("code_fails") or []):
             out[c][p] += 1
-    return out
-
-
-def report_extras(D: Dict[str, Any]) -> Dict[str, Any]:
-    """그 실행의 report.html 에만 있는 값 — 수집 벽시계 · 판정 토큰(Codex 는 run.log 에서 모은 값이라 내보낸 JSON 에 없음) · 429 대기 ·
-    추론 수준 비교(진행 중인지). 보고서가 없거나 모양이 다르면 빈 값(그 칸은 안 그림)."""
-    f = judge_report_file(D["run_id"])
-    out: Dict[str, Any] = {"wall": {}, "judge": {}, "waits": None, "medium_running": False}
-    if not f.exists():
-        return out
-    s = f.read_text(encoding="utf-8")
-    by_label = {lab: p for p, lab in D["d"]["models"].items()}
-    cell = lambda r: [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", c))).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", r, flags=re.S)]
-    num = lambda x: int(re.sub(r"[^\d]", "", x) or 0)
-    for r in re.findall(r"<tr>(.*?)</tr>", s, flags=re.S):
-        c = cell(r)
-        if len(c) == 9 and c[0] in by_label and "초" in c[8]:            # 답변 수집 표 — 마지막 칸이 수집 벽시계
-            out["wall"][by_label[c[0]]] = c[8]
-        elif len(c) == 8 and c[0] in by_label and c[3].endswith("초") and re.fullmatch(r"[\d,]+", c[4] or ""):   # 판정 표 (보류 표도 8칸이라 '질문당 n초' 칸으로 가림)
-            out["judge"][by_label[c[0]]] = {"time": c[2], "per_q": c[3], "dec_in": num(c[4]), "codex_calls": num(c[5]), "codex_in": num(c[6]), "codex_out": num(c[7])}
-    m = re.search(r"429 대기 (\d+)회", s)
-    out["waits"] = int(m.group(1)) if m else None
-    out["process"] = {}   # report.html '수집·판정 과정 기록 — 판정 실행' 표 (10-21): 항목 → (값, 설명)
-    for r in re.findall(r"<tr>(.*?)</tr>", s, flags=re.S):
-        c = cell(r)
-        if len(c) == 3 and c[0] in ("판정 벽시계", "Codex 호출", "다시 묻기", "429 대기", "판정 실행 오류"):
-            out["process"][c[0]] = (c[1], c[2])
-    i = s.find("추론 수준 비교")
-    out["medium_running"] = i >= 0 and "미평가" in s[i:i + 4000]
     return out
 
 
@@ -661,100 +623,6 @@ def scene_design(D: Dict[str, Any]) -> str:
             f'<div class="ds-grid">{part_k}{part_n}</div>')   # 사용자 10-22: 출처 줄 뺌 (자료 경로는 이 함수 docstring · DESIGN_* 상수)
 
 
-#: 심판 흔들림 A/B — 같은 답 40건(10질문 × 4모델)을 Codex low · medium 으로 (참고자료/변경내역/2026-10-20-변경내역.md '10-21 오전' A/B)
-WOBBLE_AB = {"run": "a1642702fccc", "n": 40, "same": 34, "changed": 6, "how": "통과→FAIL 2 · FAIL→통과 3 · 보류→FAIL 1"}   # 받은 의견 E: 어느 실행에서 잰 것인지
-#: 실제 사례 — (모델, 질문, 기준, 꼬리표, 꼬리표 색, 덧붙일 말, 기대(질문 결과, 항목 판정, 판정 경로에 있어야 할 말)).
-#: 판정 내용은 결과 JSON 에서 읽고, 기대와 다르면(새 결과로 다시 만들 때) 그 사례는 빼고 경고 — 글이 판정과 어긋나지 않게 (받은 의견 E)
-VERIFY_CASES = [   # 실행 50ca3ccccace 에서 고름 (10-22) — 이 결과의 판정과 다르면 빠진다
-    ("gemini", 29, "J7-1.a", "두 심판 모두 FAIL", "ok", "긴 문서에 있는 기록을 '본문에 없다'고 답했습니다 — 1차 심판과 Codex 가 같은 판단을 냈습니다.",
-     ("FAIL", "FAIL", "Decisions 도 FAIL")),
-    ("gemini", 75, "J5-1.a", "확인 못 해 보류 — 사람이 정함", "hold", "일반 상식이 틀렸다는 주장이지만 반박 출처가 없어 억지로 정하지 않고 사람에게 넘깁니다.",
-     ("HOLD", "UNVERIFIED", "반박 출처 없음")),
-    ("gpt", 43, "J1-4.b", "1차 심판이 틀리고 Codex 가 바로잡은 예", "bad", "Decisions 는 '반복'으로 강하게 FAIL 을 냈지만, Codex 가 기준 정의(표를 풀어 쓴 정리 · 결론 한 번은 "
-     "반복 아님)를 들어 통과로 바로잡았습니다. 두 단계 심판이 필요한 이유입니다.", ("PASS", "PASS", "Decisions 강한 FAIL")),
-]
-
-
-def scene_verify(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
-    """검증 — 무엇을 확인했고, 무엇이 남았나 (사용자 10-21 저녁 · 받은 의견 ④ 'AI 가 AI 를 평가한 판정을 어떻게 믿나'):
-    확인한 것(근거 있는 것만) · 아직 남은 것 · 실제 사례 3개(질문 · 답 · 판정 근거). 숫자는 이번 실행에서 다시 셈."""
-    order = D["order"]
-    # 질문 세트 사전검사 — 질문만으로 셀 수 있는 기준이 각각 몇 문항에 걸리나 (78개를 고른 근거)
-    planned: Dict[str, int] = {}
-    try:
-        from webapp import question_generation as qg
-        groups = json.loads((Path(D["set_dir"]) / "questions.json").read_text(encoding="utf-8"))
-        planned = {k: v for k, v in qg.target_counts(qg.check(groups)).items() if v is not None}
-    except Exception:   # 사전검사를 못 돌리면 그 카드의 숫자만 뺀다
-        planned = {}
-    cr = crit_results(D)
-    mins = {c: min(sum(cr[c][p].values()) for p in order) for c in cr}
-    low = sorted((c for c in mins if mins[c] < 10), key=lambda c: (mins[c], c))
-    pair: Counter = Counter()
-    for r in D["d"]["judgment"]["results"]:
-        for t in (r.get("turn_results") or {}).values():
-            for v in t["items"].values():
-                if "codex" in v:
-                    pair[(v.get("decisions"), v.get("codex"))] += 1
-    scr = [r.get("screen") or {} for r in D["d"]["judgment"]["results"]]
-    n_items, n_flag = sum(s.get("items", 0) for s in scr), sum(s.get("flagged", 0) for s in scr)
-    dec_fail = sum(v for (d, _c), v in pair.items() if d == "FAIL")
-    both_fail = pair[("FAIL", "FAIL")]
-    caught = pair[("PASS", "FAIL")]
-    kinds = Counter(it.get("kind") or "" for L in D["lines"].values() for it in L["items"] if it["decision"] == "UNVERIFIED")
-    n_hold_q = sum(1 for L in D["lines"].values() if L["verdict"] == "HOLD")
-
-    done = [
-        ("질문 78개를 고른 근거", (f"질문만으로 셀 수 있는 기준 {len(planned)}개가 모두 서로 다른 질문 {min(planned.values())}개 이상에 걸리도록 326개에서 골랐습니다."
-                               if planned else "기준마다 서로 다른 질문 10개 이상에 걸리도록 326개에서 골랐습니다."), "질문 세트 사전검사 · 02 질문 설계"),
-        ("기준이 실제로 평가된 횟수", (f"기준 72개 중 이번 답에 실제로 쓰인 {len(cr)}개 가운데 " if len(cr) != 72 else "기준 72개 중 ")
-         + f"{len(cr) - len(low)}개가 네 모델 모두에서 10문항 이상 평가됐습니다.", "상세 분석 · 기준별 결과"),
-        ("두 단계 심판", f"Decisions 가 항목 {n_items:,}개를 모두 보고, 그중 {n_flag:,}개({n_flag / max(1, n_items):.0%})는 Codex 가 원문을 다시 읽고 판정했습니다. "
-                       f"Decisions FAIL {dec_fail:,}개 중 Codex 도 FAIL 은 {both_fail}개 — 나머지는 통과 · 해당 없음으로 바로잡았고, "
-                       f"Decisions 통과였던 {caught}개는 Codex 가 FAIL 로 잡았습니다.", "결과 JSON"),
-        ("근거를 원문과 대조", f"FAIL 근거로 든 답 문장이 원문에 실제로 있는지 프로그램이 대조합니다. 없으면 다시 묻고, 끝내 맞지 않으면 보류 "
-                            f"(이번 인용 불일치 {kinds.get('인용 불일치', 0)}개). 사실을 확인하지 못한 {kinds.get('확인 못함', 0)}개도 억지로 정하지 않고 보류했습니다.", "판정 규칙"),
-        ("심판 흔들림을 숫자로", (f"같은 답 {WOBBLE_AB['n']}건을 Codex 의 생각 깊이를 낮음 · 보통으로 바꿔 두 번 판정 — {WOBBLE_AB['same']}건 같음, {WOBBLE_AB['changed']}건 바뀜"
-                              f"({WOBBLE_AB['how']}, 한쪽으로 쏠리지 않음). 그래서 몇 문항 차이는 단정하지 않습니다."
-                              + ("" if D["run_id"] == WOBBLE_AB["run"] else f" (이전 실행 {WOBBLE_AB['run']} 에서 잰 값 — 이 결과의 심판 구조로는 다시 재야 합니다)")),
-         f"실행 {WOBBLE_AB['run']} 표본 A/B"),
-        ("사람이 찾아 고친 오판", "해요체를 반말로 본 말투 판정(AIONA Q22) · CODE '질문이 요구한 계산값' 오판 4건을 고쳤고, ChatGPT 앱 복사가 Python 줄바꿈을 지우는 것을 화면과 대조해 확인했습니다.",
-         "10-21 점검 기록"),
-        ("같은 조건 · 블라인드", "CODE 검사는 같은 답이면 몇 번을 돌려도 결과가 같고, LLM Judge 는 어느 모델의 답인지 모른 채 고정된 판정 프롬프트로 채점합니다.", "평가 방법"),
-    ]
-    left = [
-        ("사람 판정과의 일치율", "사람이 직접 정한 정답 표본과 자동 판정을 대조해 일치율을 재야 합니다. 표시용 표(tools/build_calibration_sheet.py)로 사람 표시를 받는 중이라 아직 재지 못했습니다.", "가장 먼저"),
-        ("기준별 판정 정확도", "기준 정의 · 겹침 감사(10-12)는 했지만, 기준마다 판정이 몇 % 맞는지는 아직입니다.", "다음"),
-        ("적게 평가된 기준", f"{len(low)}개 기준은 한 모델 이상에서 10문항 미만 — 예: " + " · ".join(E(crit_name(D["names"], c)) for c in low[:4]) + ". 답에 따라 적용되는 기준이 많습니다.", "다음"),
-        ("보류를 사람이 정하기", f"보류 {n_hold_q}칸은 아직 사람이 정하지 않았습니다. 정한 판단을 사례로 모아 다음 판정의 근거로 쓰는 구조는 만드는 중입니다.", "계획"),
-    ]
-    done_html = "".join(f'<div class="vf-i"><b>{E(t)}</b><p>{E(d)}</p><small>근거 · {E(s)}</small></div>' for t, d, s in done)
-    left_html = "".join(f'<div class="vf-i"><b>{E(t)}<span class="vf-st">{E(st)}</span></b><p>{d if "<" in d else E(d)}</p></div>' for t, d, st in left)
-
-    def verdict_ko(v: Optional[str]) -> str:
-        return {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음"}.get(v or "", v or "—")
-    cases = []
-    for p, q, c, tag, tone, note, (want_q, want_it, want_how) in VERIFY_CASES:
-        L = D["lines"].get((p, q))
-        it = next((i for i in (L or {}).get("items", []) if i["item"] == c), None)
-        if not L or not it or L["verdict"] != want_q or it["decision"] != want_it or want_how not in (it.get("how") or ""):
-            print(f"경고: 검증 사례 {p} Q{q} {c} — 이 결과의 판정이 사례 글과 달라 뺌", file=sys.stderr)
-            continue
-        qtext = it.get("question_quote") or (D["qset"][q]["turns"][0].get("question") or "")
-        aid = f'{"f" if L["verdict"] == "FAIL" else "b" if L["verdict"] == "HOLD" else "p"}-{p}-{q}'
-        link = f'<a class="vf-link" href="{E(part_of[aid])}#{aid}">질문 · 답 원문 보기 →</a>' if part_of and aid in part_of else ""
-        cases.append(f'<div class="vf-case vf-{tone}"><span class="vf-tag">{E(tag)}</span>'
-                     f'<b class="vf-ct">{mname(p)} · Q{q} · {E(crit_name(D["names"], c))} <span class="rs-id">{E(c)}</span></b>'
-                     f'<dl><dt>질문</dt><dd>{E(qtext[:110])}{"…" if len(qtext) > 110 else ""}</dd>'
-                     f'<dt>답의 해당 문장</dt><dd class="vf-q">“{E((it.get("answer_quote") or "")[:140])}”</dd>'
-                     f'<dt>판정</dt><dd><b>{verdict_ko(it["decision"])}</b> · {E(it.get("how") or "")}</dd>'
-                     f'<dt>심판이 든 근거</dt><dd>{E((it.get("reason") or "")[:200])}</dd></dl>'
-                     f'<p class="vf-note">{E(note)} (질문 결과: {verdict_ko("UNVERIFIED" if L["verdict"] == "HOLD" else L["verdict"])})</p>{link}</div>')
-    return (f'<div class="vf-cols"><div class="vf-col vf-done"><h3 class="rs-sh">확인한 것 <small>{len(done)}</small></h3>{done_html}</div>'
-            f'<div class="vf-col vf-left"><h3 class="rs-sh">아직 남은 것 <small>{len(left)}</small></h3>{left_html}</div></div>'
-            f'<h3 class="rs-sh">실제 사례 — 질문 · 답 · 판정 근거</h3><div class="vf-cases">{"".join(cases)}</div>')
-
-
 def crit_verdicts(D: Dict[str, Any], p: str, q: int) -> Dict[str, str]:
     """한 질문에 적용된 기준 → PASS · FAIL · HOLD (멀티턴은 한 턴이라도 FAIL 이면 FAIL, 아니면 보류가 있으면 보류).
     LLM Judge 는 질문의 목표 기준 전부(해당 없음 = 어긴 것 없음 → 통과), CODE 는 실제로 돈 검사."""
@@ -885,7 +753,6 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
     order = D["order"]
     holds = [(q, p) for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD"]
     hq = sorted({q for q, _p in holds})
-    ty = Counter(D["qtypes"][q] for q in hq)
     state: Counter = Counter()
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr))"
     cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order]
@@ -1733,21 +1600,6 @@ def token_table(D: Dict[str, Any]) -> str:
             + (' 기록 안 됨 = 이 실행 때는 그 칸을 남기지 않았음(10-22 부터 남김).' if missing else "") + "</p>")
 
 
-def process_block(ex: Dict[str, Any]) -> str:
-    """판정 실행 기록 (10-21) — Codex 호출 · 다시 묻기 · 429 대기와 그 이유 · 판정 실행 오류 (report.html 표에서).
-    Codex 호출은 첫 판정만 센 값 — 위 모델별 표(다시 판정 포함)의 합과 다르면 그 차이를 적는다 (받은 의견 D)."""
-    pr = ex.get("process") or {}
-    if not pr:
-        return ""
-    rows = [[k, f"<b>{E(v)}</b>", E(d)] for k, (v, d) in pr.items()]
-    calls = sum(v["codex_calls"] for v in (ex.get("judge") or {}).values())
-    rec = int(re.sub(r"[^\d]", "", (pr.get("Codex 호출") or ("",))[0]) or 0)
-    if calls and rec and calls > rec:
-        i = list(pr).index("Codex 호출")
-        rows[i][2] = E(pr["Codex 호출"][1]) + f" — 첫 판정만 센 값. 위 모델별 표의 합 {calls:,} 와의 차이 {calls - rec:,}회는 다시 판정 때 호출"
-    return '<h3 class="rs-sh">판정 실행 기록</h3>' + table("", ["항목", "값", "설명"], rows, [16, 16, 68])
-
-
 # ---- Arena 형 (v4, 사용자 10-21: "LM Arena 리더보드가 제일 괜찮다") — 개요(큰 제목 · 분야 알약 탭 · 순위 카드) + 분야별 순위표(왼쪽 분야 목록 → 오른쪽 표)
 def avatar(p: str) -> str:
     return f'<i class="ar-av lg lg-{p}" aria-hidden="true"></i>'
@@ -1799,22 +1651,6 @@ def collect_seconds(D: Dict[str, Any]) -> float:
     return max(per.values()) if per else 0
 
 
-def kst(iso: str | None, fmt: str = "%Y-%m-%d %H:%M") -> str:
-    """결과 JSON 의 시각(UTC) → 한국 시간."""
-    return datetime.fromisoformat(iso).astimezone(timezone(timedelta(hours=9))).strftime(fmt) if iso else ""
-
-
-def run_info(D: Dict[str, Any]) -> Dict[str, str]:
-    """실행 정보 — 결과 ID · 질문 세트 · 실행 시작 · 판정 끝 · 판정 방식 (받은 의견 E: 발표본에서 질문 세트 버전 · 실행 일시 · 결과 식별자를 고정).
-    모두 결과 JSON 에서 읽어, 새 결과로 다시 만들면 따라 바뀐다."""
-    d, j = D["d"], D["d"]["judgment"]
-    s = j.get("summary") or {}
-    cx = s.get("codex") or {}
-    return {"run": D["run_id"], "set": (d.get("question_set") or {}).get("set_id") or "", "rev": d.get("question_revision") or "",
-            "start": kst(d.get("created_at")), "judged": kst(s.get("finished_at") or d.get("exported_at")),
-            "pipe": j.get("pipeline") or s.get("version") or "", "codex": " ".join(x for x in (cx.get("model"), cx.get("reasoning")) if x)}
-
-
 def three_judges(D: Dict[str, Any]) -> bool:
     """이 결과가 심판 셋(Jev · Decisions · Codex) 구조로 판정됐나 — 아니면 흐름도 · 평가 방법의 심판 셋은 '다음 평가 구조'로 표시."""
     return "Jev" in (D["d"]["judgment"].get("pipeline") or "")
@@ -1848,7 +1684,7 @@ def dist_card(D: Dict[str, Any]) -> str:
     초록 끝 = 지금 완전 통과, 노랑 빗금 끝 = 보류가 모두 통과일 때 최대, 점선 = 1위의 지금 완전 통과."""
     order, n, T = D["order"], D["n"], D["tally"]
     st = dist_stats(D)
-    lead, lp = st["lead"], T[st["lead"]]["PASS"]
+    lp = T[st["lead"]]["PASS"]
     top = " · ".join(SHORT[p] for p in st["leads"])
     first = f"1위({lp})" if len(st["leads"]) > 1 else f"{top}({lp})"
     rows = []
@@ -1967,7 +1803,6 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
     기준 묶음 · 시간·토큰 탭은 뺐다(사용자 10-21 — 시간·토큰은 '걸린 시간' 장면에 같은 숫자가 있음).
     숫자는 아래 분야별 순위표의 그 분야 라벨이라 누르면 순위표가 그 분야로 바뀐다(JS 없이)."""
     order = D["order"]
-    ex = report_extras(D)
     idx = {id(c): i for i, c in enumerate(cats)}
 
     def score_tab(cs: List[Dict[str, Any]], fmt) -> str:

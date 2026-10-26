@@ -7,7 +7,6 @@ import pytest
 from code_eval import __main__ as cli
 from code_eval.engine import evaluate_batch, evaluate_case
 from code_eval.io import parse_input_text, write_json, write_jsonl
-from webapp.code_eval_service import CodeEvalService
 
 
 def _reject_constant(value):
@@ -31,28 +30,6 @@ def test_nonfinite_input_rejects_only_bad_case_and_serializes_valid_results(numb
     assert json.loads(saved.read_text(encoding="utf-8"), parse_constant=_reject_constant)["summary"] == batch["summary"]
     lines = write_jsonl(tmp_path / "results.jsonl", batch["cases"]).read_text(encoding="utf-8").splitlines()
     assert [json.loads(line, parse_constant=_reject_constant)["case_status"] for line in lines] == ["EVALUATED", "INPUT_ERROR"]
-
-
-def test_direct_service_input_and_metadata_reject_nonfinite_values(tmp_path):
-    service = CodeEvalService(save_dir=tmp_path / "runs")
-    batch = service.evaluate({"cases": [
-        {"question": "q", "answer": "a", "reference": {"value": float("nan")}},
-        {"question": "q", "answer": "a", "source": {"score": float("inf")}},
-        {"question": "q", "answer": "NaN and Infinity are examples.", "reference": {"value": "NaN"}},
-    ]})
-    assert [c["case_status"] for c in batch["cases"]] == ["INPUT_ERROR", "INPUT_ERROR", "EVALUATED"]
-    assert "save_error" not in batch["run"]
-    assert json.loads(json.dumps(batch, allow_nan=False))["cases"][2]["reference"] == {"value": "NaN"}
-
-
-def test_auto_save_failure_keeps_results_and_exposes_the_save_error(tmp_path):
-    blocked = tmp_path / "not-a-directory"
-    blocked.write_text("keep this file", encoding="utf-8")
-    batch = CodeEvalService(save_dir=blocked).evaluate({"question": "q", "answer": "a"})
-    assert batch["cases"][0]["case_status"] == "EVALUATED"
-    assert batch["run"]["save_error"]
-    assert "saved_to" not in batch["run"]
-    assert blocked.read_text(encoding="utf-8") == "keep this file"
 
 
 @pytest.mark.parametrize("writer", [write_json, write_jsonl])

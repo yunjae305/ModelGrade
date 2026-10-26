@@ -3,7 +3,6 @@ import copy
 import json
 from pathlib import Path
 
-import pytest
 
 from code_eval.codex_cli_client import CodexCliClient, CodexCliConfig, _verification
 from code_eval.jev_client import resolve_jev_client

@@ -6,12 +6,11 @@ legacy 흐름(test_jev_eval.py)은 그대로 두고, pipeline="items" 가 ``sub_
 from __future__ import annotations
 
 import copy
-from concurrent.futures import CancelledError
 from threading import Event
 
 import pytest
 
-from code_eval import engine, jev_eval
+from code_eval import engine
 from code_eval.combined import combined_summary
 from code_eval.config import AionaConfig
 from code_eval.jev_applicability import SUB_APPLICABILITY_VERSION
@@ -19,10 +18,10 @@ from code_eval.jev_client import JevCall, JevClientConfig, JevStatus
 from code_eval.jev_criteria import jev_questions
 from code_eval.jev_eval import (CANCEL_REASON, evaluate_jev_batch, evaluate_jev_case, evaluation_log, jev_after_code,
                                 jev_request, summarize_records)
-from code_eval.semantic_items import ITEM_UNVERIFIABLE, SEMANTIC_ITEMS_VERSION, SPECS_BY_ID, applicable_items
+from code_eval.semantic_items import ITEM_UNVERIFIABLE, SEMANTIC_ITEMS_VERSION, applicable_items
 from code_eval.semantic_policy import apply_final_decision_policy
 from code_eval.semantic_quotes import ITEM_QUOTE_POLICY, RECHECK_POLICY
-from tests.test_jev_eval import CONV, NORMAL, ScriptedJev, jev_body
+from tests.test_jev_eval import CONV, NORMAL, ScriptedJev
 
 NO_CONFIG = AionaConfig()
 CAFFEINE = {"case_id": "caffeine",

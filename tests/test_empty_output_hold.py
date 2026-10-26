@@ -43,22 +43,6 @@ def test_a_held_turn_holds_the_whole_conversation_unit():
     assert rs.unit_verdict([{"outcome": "FAIL"}, {"outcome": "PENDING"}]) == "FAIL"
 
 
-def test_run_summary_and_empty_output_holds_list_the_held_questions():
-    run = {"providers": ["aiona"], "question_count": 2,
-           "datasets": {"aiona": [{"case_id": "Q1_T1", "question": EMPTY_Q}, {"case_id": "Q2_T1", "question": TABLE_Q}]},
-           "evaluations": {"aiona": {"cases": [_case("2-1.explicit_empty", "FAIL"), _case("2-2.table:table_required", "PASS", "Q2_T1")],
-                                     "jev_eval": {"records": [_record(), _record()]}}}}
-    run["evaluations"]["aiona"]["jev_eval"]["summary"] = {"J1": {"name": "의도 충족성", "targets": 2, "pass": 1, "fail": 1}}
-    run["evaluations"]["aiona"]["jev_eval"]["records"][0] = _record("FAIL")
-    summary = rs.run_summary(run)["results"]["aiona"]
-    assert summary["questions"]["PENDING"] == 1 and summary["questions"]["PASS"] == 1 and summary["questions"]["FAIL"] == 0
-    assert summary["empty_output_held"] == 1
-    # 보류 질문의 원래 평가는 기준 통과율에도 세지 않는다 — J1 FAIL 1 · CODE 2-1 FAIL 1 이 빠짐
-    assert summary["criteria"]["J1"]["fail"] == 0 and summary["criteria"]["J1"]["pass"] == 1 and summary["criteria"]["J1"]["targets"] == 1
-    assert all(b["fail"] == 0 for b in summary["code"].values())
-    assert rs.empty_output_holds(run) == {"aiona": [0]}
-
-
 def test_gradient_verdicts_hold_empty_output_even_when_the_answer_was_not_collected():
     failed = {"status": "ERROR", "error": "AIONA 가 답하지 못했습니다"}
     run = {"providers": ["aiona", "gpt"], "question_set": {},

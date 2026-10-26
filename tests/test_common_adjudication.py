@@ -11,7 +11,6 @@ from code_eval.common_adjudication import resolved_batch
 from code_eval.config import AionaConfig
 from code_eval.engine import evaluate_batch, result_digest, summarize_batch
 from code_eval.report_html import render_report
-from webapp.comparison_service import ComparisonService
 
 
 
@@ -66,7 +65,5 @@ def test_saved_code_completion_record_is_still_projected():
     assert 'LLM 보완' in summary['note']
     html = render_report(batch)
     assert 'LLM 보완' in html and '코드 원본 결과와 해시' in html
-    run = {'question_count': 1, 'status': 'COMPLETED', 'evaluations': {'aiona': batch}}
-    assert ComparisonService._evaluation_summary(run)['scored'] == 1
 
 

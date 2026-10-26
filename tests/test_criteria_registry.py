@@ -11,7 +11,6 @@ from code_eval.core import CHECK_VERSIONS
 from code_eval.engine import evaluate_case
 from code_eval.jev_criteria import CRITERIA
 from code_eval.model import SUBCATEGORIES
-from code_eval.taxonomy import EXAMPLES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -31,6 +30,27 @@ def test_check_ids_written_in_checkers_belong_to_a_listed_unit():
         found |= set(re.findall(r"[\"'](?:f\")?((?:[123]-[123]|AIONA-[MF])\.[a-z_]+)", path.read_text(encoding="utf-8")))
     assert found
     assert found <= set(CHECK_VERSIONS)  # check_error 는 결과 행 check_id 가 아니다 (사례 errors 에만 남음)
+
+
+# 설계 문서의 검사 예시(옛 code_eval.taxonomy.EXAMPLES — 이 시험만 쓰므로 여기로 옮김, 2026-10-26)
+EXAMPLES = [
+    {"label": "표 · 데이터 행 수 요구 (2-2)", "question": "할 일 목록을 표로 작성해줘. 열 이름은 순서대로 ‘구분’, ‘설명’이고, 헤더를 제외한 데이터 행은 정확히 3개로 해줘.",
+     "answer": "| 구분 | 설명 |\n|---|---|\n| 준비 | 자료 수집 |\n| 진행 | 내용 정리 |"},
+    {"label": "행 수 요구 없음 · 데이터 1행 표 (2-2)", "question": "할 일과 시간을 표로 정리해줘. 할 일은 자료 정리이고, 시간은 오전 10시야.",
+     "answer": "| 할 일 | 시간 |\n|---|---|\n| 자료 정리 | 오전 10시 |"},
+    {"label": "코드블록 + Python 구문 (1-2)", "question": "1을 출력하는 완성된 Python 코드를 코드블록 정확히 1개로 작성해줘.",
+     "answer": "```python\nprint(1\n```"},
+    {"label": "펜스 불균형 (1-2)", "question": "덧셈 예제를 코드 구획과 수식 구획으로 각각 보여줘.",
+     "answer": "```python\nprint(1 + 1)\n```\n\n$$\n1 + 1 = 2\n"},
+    {"label": "불릿 개수 (2-1)", "question": "공부 방법을 불릿으로 정확히 3개 작성해줘.", "answer": "- 개념을 정리하세요.\n- 문제를 풀어보세요."},
+    {"label": "문장 수 (2-1)", "question": "이용 안내를 정확히 2문장으로 작성해줘.",
+     "answer": "시작 버튼을 누르세요. 안내에 따라 진행하세요. 완료 버튼을 누르세요."},
+    {"label": "질문 계산 vs 답변 등식 (3-1)", "question": "단가 2,000원·수량 3개의 총액을 알려줘.", "answer": "2,000 + 3 = 2,003"},
+    {"label": "선언 개수 (3-2)", "question": "공부 방법을 알려줘.", "answer": "다음 세 가지를 추천합니다.\n\n1. 개념 정리\n2. 문제 풀이\n3. 오답 복습\n4. 휴식"},
+    {"label": "설명 없는 외국 문자 (1-1)", "question": "파일 이름을 바꾸는 방법을 알려줘.",
+     "answer": "파일을 선택하세요. こんにちは. 이름을 변경하세요."},
+    {"label": "짝이 없는 닫는 태그 (1-2)", "question": "회의 시작 시간을 한 문장으로 알려줘.", "answer": "회의는 오후 2시에 시작합니다. </result>"},
+]
 
 
 QUESTIONS = [(e["question"], e["answer"]) for e in EXAMPLES] + [

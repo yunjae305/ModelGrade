@@ -20,7 +20,6 @@ from code_eval.config import MARKER_CATEGORIES, load_aiona_config, question_sha2
 from code_eval.io import parse_input_text
 from code_eval.model import FAIL, PASS, Status
 from code_eval.scripts import _RANGES
-from webapp.code_eval_service import CodeEvalService
 
 NO_CONFIG = load_aiona_config()  # 저장소 기본 설정 (운영 목록 비어 있음)
 
@@ -467,30 +466,6 @@ def test_jsonl_broken_line_becomes_input_error_not_dropped():
     assert len(errors) == 1
 
 
-def test_rerun_and_cli_and_web_give_same_digest(tmp_path):
-    cases =[{"case_id": f"c{i}", "question": "공부 방법을 불릿으로 정확히 3개 작성해줘.", "answer": "- a\n- b" + "\n- c" * (i % 2)}
-             for i in range(6)]
-    first = engine.evaluate_batch(cases, NO_CONFIG)
-    second = engine.evaluate_batch(cases, NO_CONFIG)
-    assert first["result_digest"] == second["result_digest"] and first["run"]["run_id"] != second["run"]["run_id"]
-    service = CodeEvalService(save_dir=tmp_path / "runs")
-    web = service.evaluate({"cases": cases, "llm_review": False})
-    web_policy = engine.evaluate_batch(cases, service._config({}))
-    src = tmp_path / "in.jsonl"
-    src.write_text("\n".join(json.dumps(c, ensure_ascii=False) for c in cases), encoding="utf-8")
-    assert cli_main(["run", "--input", str(src), "--out", str(tmp_path / "out")]) == 0
-    cli = json.loads((tmp_path / "out" / "results.json").read_text(encoding="utf-8"))
-    assert first["result_digest"] == cli["result_digest"]
-    # The web workspace pauses AIONA-specialized rules; compare each entry
-    # point with the same engine policy and retain common-rule equivalence.
-    assert web["result_digest"] == web_policy["result_digest"]
-    for web_case, cli_case in zip(web['cases'], cli['cases'], strict=True):
-        common = lambda case: [row for row in case['results'] if row['area'] == 'common']
-        assert common(web_case) == common(cli_case)
-    html = (tmp_path / "out" / "report.html").read_text(encoding="utf-8")
-    assert "Content-Security-Policy" in html and "<script" not in html
-
-
 def test_report_escapes_answer_markup(tmp_path):
     from code_eval.report_html import render_report
     batch = engine.evaluate_batch([{"question": "q", "answer": "<script>alert(1)</script><img src=x onerror=1>"}], NO_CONFIG)
@@ -616,40 +591,6 @@ def test_llm_review_routes_only_failed_questions_and_checks():
     assert "LLM 재검토 대상 1개 · 완료 1개" in html
     assert "코드평가에서 평가한 FAIL의 이유가 적합한지" in html
     assert "개수 불일치" in html
-
-
-def test_web_job_llm_review_on_request_reviews_only_failed_question(tmp_path):
-    from code_eval.llm_client import JudgeCall
-
-    calls = []
-
-    class FakeClient:
-        def judge(self, case_id, serialization, prompt):
-            calls.append((case_id, prompt))
-            item = json.loads(prompt.split("검토 입력(JSON):\n", 1)[1])
-            criteria = {key: {"verdict": "YES", "reason": "답변 확인"}
-                        for key in ("task_completion", "relevance", "sufficiency", "data_interpretation")}
-            checks = [{"condition_id": r["condition_id"], "reason_valid": "YES", "reason": "실패 근거 확인"}
-                      for r in item["failed_checks"]]
-            return JudgeCall(case_id, serialization, "OK",
-                             raw_output=json.dumps({"criteria": criteria, "failed_checks": checks}))
-
-    service = CodeEvalService(save_dir=tmp_path / "runs",
-                              judge_resolver=lambda: (FakeClient(), None, None))
-    job = service.start_job({"llm_review": True, "cases": [
-        {"case_id": "bad", "question": "불릿으로 정확히 3개 작성해줘.", "answer": "- 하나\n- 둘"},
-        {"case_id": "good", "question": "인사해줘.", "answer": "안녕하세요."},
-    ]})
-    deadline = time.monotonic() + 5
-    while job["status"] == "RUNNING" and time.monotonic() < deadline:
-        time.sleep(0.01)
-        job = service.job_status(job["job_id"])
-    assert job["status"] == "COMPLETED"
-    batch = service.job_result(job["job_id"])
-    assert batch["llm_review"]["status"] == "COMPLETED"
-    assert batch["llm_review"]["queued_questions"] == 1
-    assert [case_id for case_id, _ in calls] == ["bad"]
-    assert "good" not in calls[0][1]
 
 
 def test_cli_default_attaches_jev_stage_instead_of_llm_review(tmp_path):
@@ -1041,9 +982,6 @@ def test_engine_keeps_conversation_and_reference_only_when_given():
     # 빈 reference 는 없는 것으로, 모르는 필드는 결과를 바꾸지 않는다 (해시 불변)
     assert "reference" not in engine.evaluate_case({**base, "reference": ""}, NO_CONFIG)
     assert engine.result_digest([plain]) == engine.result_digest([engine.evaluate_case({**base, "unknown": 1}, NO_CONFIG)])
-    from webapp.code_eval_service import CodeEvalService
-    single = CodeEvalService._cases({"question": "q", "answer": "a", "reference": "r", "conversation_id": "C1", "turn": 2, "bogus": 1})
-    assert single == [{"question": "q", "answer": "a", "reference": "r", "conversation_id": "C1", "turn": 2}]
 
 
 # --- 공통 결과 행은 PASS/FAIL 뿐 (v16.3) ----------------------------------------------------------
@@ -1229,6 +1167,7 @@ def test_citation_explanatory_lines_are_not_duplicate_sources():
 # --- 10-22 Codex 검토 반례 ------------------------------------------------------------------------
 
 W_Q = AGG_Q.replace("수량", "무게")
+
 R_Q = AGG_Q.replace("| 잔 |", "| 라면 |")
 
 
