@@ -37,27 +37,17 @@ ModelGrade 는 **AIONA · ChatGPT · Claude · Gemini 에 똑같은 질문을 �
 
 명령 세 개면 됩니다. 설치 명령 하나가 파이썬 · Chrome · Node.js · Codex CLI · Claude CLI · 패키지 · `modelgrade` 명령까지 깔고(없는 것은 Windows 는 winget, macOS 는 Homebrew 로), 끝에 처음 설정을 이어서 묻습니다.
 
-**1. 설치**
-
-<table>
-<tr><th>Windows (PowerShell)</th><th>macOS · Linux (터미널)</th></tr>
-<tr>
-<td>
+**1. 설치** — Windows (PowerShell)
 
 ```powershell
 irm https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.ps1 | iex
 ```
 
-</td>
-<td>
+**1. 설치** — macOS · Linux (터미널)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.sh | bash
 ```
-
-</td>
-</tr>
-</table>
 
 **2. 처음 설정** — 키 입력 · CLI 로그인 · 네 사이트 로그인 · 점검 (설치 끝에 자동으로 이어짐)
 
