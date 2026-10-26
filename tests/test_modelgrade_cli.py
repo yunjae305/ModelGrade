@@ -189,7 +189,7 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     monkeypatch.setattr(mg, "ROOT", tmp_path)
-    monkeypatch.setattr("builtins.input", lambda prompt="": "" if "Enter = 0" in prompt else "1")   # 평가 종류 1 · 모델은 Enter(전체)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "1")   # 질문 리스트 1(기존)
     calls = {"collect": [], "judge": []}
 
     def fake_parallel(providers, args, run_id):
@@ -209,11 +209,22 @@ def test_start_collects_all_set_questions_in_set_order_then_judges_v4_and_reuses
     assert len(calls["judge"]) == 1 and "--questions" in calls["judge"][0] and calls["judge"][0][calls["judge"][0].index("--questions") + 1] == "1,2,3"
     assert "--set" in calls["judge"][0] and calls["judge"][0][calls["judge"][0].index("--set") + 1] == str(set_dir)
     run = mg.load_run(run_id)
-    assert run["eval_kind"] == "set78" and "78" in run["name"]
+    assert run["eval_kind"] == "set78" and set_dir.name in run["name"]
     out = capsys.readouterr().out
-    assert "어떤 평가를 진행할까요?" in out and "3개 · 문항 3개" in out and "① 답변 수집" in out and "② 판정" in out   # 간단히 보이는 머리 · 단계 (10-26 저녁)
+    assert "어떤 질문 리스트로 평가할까요?" in out and "1. 기존 질문 리스트 (3개)" in out   # 사용자 10-26 저녁 흐름의 문구
+    assert out.index("답변수집을 진행합니다.") < out.index("답변수집이 완료되었습니다.") < out.index("평가를 시작합니다.")
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--judge", "y"]) == 0   # 다시 부르면 같은 실행
     assert calls["collect"][1][4] == run_id
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "3", "--judge", "n"]) == 0   # 3: 답변 새로 받기 — 새 실행
+    assert calls["collect"][2][4] != run_id
+    made = tmp_path / "새세트"
+    made.mkdir()
+    (made / "questions.json").write_text((set_dir / "questions.json").read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(mg, "make_new_question_set", lambda a: made)
+    capsys.readouterr()
+    assert mg.main(["start", "--choice", "2", "--judge", "n"]) == 0   # 2: 새 질문 리스트 → 그 세트로 수집
+    assert "질문리스트가 완성되었습니다. 답변수집을 진행합니다." in capsys.readouterr().out
+    assert mg.load_run(calls["collect"][3][4])["question_set"]["dir"].endswith("새세트")
 
 
 def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tmp_path, monkeypatch):
@@ -243,6 +254,10 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0   # 이어 돌리기
     assert calls[2][2] == calls[1][2] and mg.load_run(calls[2][2])["result_dir"] == run["result_dir"]   # 처음 폴더 그대로
     assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--aiona", "GPT-5.6 Sol", "--judge", "n"]) == 0   # AIONA 모델을 고르면 짝인 앱도 그 모델로 (10-26 밤)
+    assert calls[3][:2] == (["gpt", "aiona"], {"gpt": "GPT-5.6 Sol", "aiona": "GPT-5.6 Sol"}) and mg.load_run(calls[3][2])["model_choice"] == "gpt:GPT-5.6 Sol"
+    with pytest.raises(SystemExit):
+        mg.main(["start", "--set", str(set_dir), "--choice", "1", "--aiona", "GPT-9", "--judge", "n"])
 
 
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):

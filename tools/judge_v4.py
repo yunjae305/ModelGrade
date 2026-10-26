@@ -2641,7 +2641,11 @@ def brief_line(text: str) -> Optional[str]:
 def log_say(text: str) -> None:
     """터미널에 찍고 로그 파일에도 남긴다 — Codex 실행기(judge_run)의 진행 글도 이 함수로 모인다. 간단히(brief)면 터미널에는 brief_line 만."""
     shown = brief_line(text) if brief_console() else text
-    if shown is not None:
+    live = getattr(_BOARD.get("obj"), "live", None)
+    if shown is not None and live is not None:   # 진행 판이 떠 있으면 질문 끝 줄은 판이 대신하고, 경고 · 시작 줄만 판 위에
+        if not text.startswith("■ "):
+            live.log(shown)
+    elif shown is not None:
         print(shown, flush=True)
     if _LOG["path"]:
         with _LOG_LOCK, Path(_LOG["path"]).open("a", encoding="utf-8") as f:
@@ -2655,6 +2659,13 @@ class Board:
         self.totals, self.done = totals, dict(done)
         self.now: Dict[str, Optional[int]] = {p: None for p in totals}
         self.lock = threading.Lock()
+        self.live = None
+        if brief_console():   # 간단히(modelgrade)면 진행 판 — 모델마다 한 줄 '한 수 / 전체 (남은 n) · Q13 평가 중' (사용자 10-26 저녁)
+            from tools.live_board import LiveBoard
+            self.live = LiveBoard({p: DISPLAY.get(p) or LABEL.get(p, p) for p in totals}, totals)
+            for p in totals:
+                self.live.done[p] = self.done[p]
+                self.live.note[p] = "끝" if self.done[p] >= totals[p] else "대기"
 
     def _state(self, p: str) -> str:
         total = self.totals[p]
@@ -2665,18 +2676,28 @@ class Board:
     def show(self) -> None:
         lines = [f"── 평가 현황 {datetime.now():%H:%M:%S} ──"] + [f"  {LABEL.get(p, p):<7}: {self._state(p)}" for p in self.totals]
         log_say("\n".join(lines))
+        if self.live is not None:
+            self.live.start()
 
     def start(self, p: str, q: int) -> None:
         # 시작은 그 모델 한 줄만 — 네 모델이 같은 초에 시작하면 같은 판이 다섯 번 쌓였다 (사용자 10-20 밤). 전체 판은 질문이 끝날 때마다.
         with self.lock:
             self.now[p] = q
             log_say(f"▶ {LABEL.get(p, p):<7}: {self._state(p)}")
+        if self.live is not None:
+            self.live.update(p, note=f"Q{q} 평가 중")
 
     def finish(self, p: str) -> None:
         with self.lock:
             self.now[p] = None
             self.done[p] += 1
             self.show()
+        if self.live is not None:
+            self.live.update(p, done=self.done[p], note="끝" if self.done[p] >= self.totals[p] else "대기")
+
+    def close(self) -> None:
+        if self.live is not None:
+            self.live.close()
 
 
 def pre_status(turns: List[Dict[str, Any]], data: Dict[str, Any], answers: Dict[str, str]) -> Optional[Dict[str, Any]]:
@@ -3066,6 +3087,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             t.start()
         for t in threads:
             t.join()
+    board.close()
     wall = round(time.monotonic() - wall0, 1)
     if args.dry:
         return 0

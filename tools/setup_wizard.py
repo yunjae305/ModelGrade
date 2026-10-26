@@ -147,20 +147,32 @@ def claude_logged_in(exe: str) -> bool:
 
 
 def setup_cli(ask: bool = True) -> Dict[str, bool]:
-    """Codex CLI(2차 심판, 필수) · Claude CLI(기준 다듬기 루프, 선택) — 설치 · 로그인 상태를 보고, 로그인이 안 됐으면 그 자리에서 로그인 명령을 띄운다."""
+    """Codex CLI(2차 심판, 필수) · Claude CLI(새 질문 리스트 · 기준 다듬기 루프, 선택) — 설치 · 버전 · 로그인 상태를 보고, 옛 판이면 최신으로 올리고
+    로그인이 안 됐으면 그 자리에서 로그인 명령을 띄운다."""
+    import shutil
     from code_eval.claude_cli_client import find_claude_executable
     from code_eval.codex_cli_client import find_codex_executable
     from code_eval.llm_client import env_value
+    from tools.doctor import MIN_CLAUDE, MIN_CODEX, cli_version
     out: Dict[str, bool] = {}
-    for name, exe, check, login, install, required in (
+    for name, exe, check, login, package, required, minimum in (
             ("Codex CLI (2차 심판, 필수)", find_codex_executable(env_value("CODEX_CLI_PATH")), codex_logged_in, ["login"],
-             "npm install -g @openai/codex", True),
-            ("Claude CLI (기준 다듬기 루프, 선택)", find_claude_executable(env_value("CLAUDE_CLI_PATH")), claude_logged_in, ["auth", "login"],
-             "npm install -g @anthropic-ai/claude-code", False)):
+             "@openai/codex", True, MIN_CODEX),
+            ("Claude CLI (새 질문 리스트 · 기준 다듬기 루프, 선택)", find_claude_executable(env_value("CLAUDE_CLI_PATH")), claude_logged_in, ["auth", "login"],
+             "@anthropic-ai/claude-code", False, MIN_CLAUDE)):
+        install = f"npm install -g {package}@latest"
         if not exe:
             print(f"  {'❌' if required else '⚠️ '} {name}: 설치 안 됨 — 설치 스크립트를 다시 실행하거나: {install}")
             out[name] = False
             continue
+        v = cli_version(exe)
+        if v is not None and v < minimum:   # 옛 판 — Codex 0.154 는 판정 모델을 못 부르고, 옛 Claude Code 는 Opus 5.5 가 없다 (10-26)
+            print(f"  ⚠️  {name}: {'.'.join(map(str, v))} — {'.'.join(map(str, minimum))} 이상 필요")
+            npm = shutil.which("npm")
+            if ask and npm and ask_yes("    지금 최신으로 올릴까요?"):
+                subprocess.run([npm, "install", "-g", f"{package}@latest"])
+            else:
+                print(f"    나중에: {install}")
         if check(exe):
             print(f"  ✅ {name}: 로그인 됨")
             out[name] = True

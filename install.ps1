@@ -69,13 +69,19 @@ Write-Host "4/6 Google Chrome (답변 수집)"
 & .\.venv\Scripts\python.exe -X utf8 -c "from tools.chrome_cdp import chrome_path; chrome_path()" 2>$null
 if ($LASTEXITCODE -eq 0) { Write-Host "  있음" } else { Winget-Install "Google.Chrome" "Google Chrome" | Out-Null }
 
-Write-Host "5/6 Node.js · Codex CLI(2차 심판) · Claude CLI(기준 다듬기 루프, 선택)"
+Write-Host "5/6 Node.js · Codex CLI(2차 심판) · Claude CLI(새 질문 리스트 · 기준 다듬기 루프, 선택)"
 if (-not (Has npm) -and -not ($env:MODELGRADE_SKIP_CODEX -and $env:MODELGRADE_SKIP_CLAUDE)) { Winget-Install "OpenJS.NodeJS.LTS" "Node.js" | Out-Null }
-foreach ($cli in @(@("codex", "@openai/codex", $env:MODELGRADE_SKIP_CODEX), @("claude", "@anthropic-ai/claude-code", $env:MODELGRADE_SKIP_CLAUDE))) {
+# 최소 버전 (10-26) — Codex 0.154 는 ChatGPT 계정으로 gpt-6-luna 를 못 부름, Claude Code 2.1.280 미만은 Opus 5.5 없음. 옛 판이면 최신으로 올림
+foreach ($cli in @(@("codex", "@openai/codex", $env:MODELGRADE_SKIP_CODEX, "0.164.0"), @("claude", "@anthropic-ai/claude-code", $env:MODELGRADE_SKIP_CLAUDE, "2.1.280"))) {
   if ($cli[2]) { Write-Host "  $($cli[0]): 건너뜀"; continue }
-  if (Has $cli[0]) { Write-Host "  $($cli[0]): 있음"; continue }
+  if (Has $cli[0]) {
+    $ver = ((& $cli[0] --version 2>$null) | Select-Object -First 1) -replace '^[^0-9]*([0-9]+(\.[0-9]+){1,2}).*$', '$1'
+    try { $old = [version]$ver -lt [version]$cli[3] } catch { $old = $false }
+    if (-not $old) { Write-Host "  $($cli[0]): 있음 ($ver)"; continue }
+    Write-Host "  $($cli[0]): $ver → 최신으로 올림 ($($cli[3]) 이상 필요)"
+  }
   if (-not (Has npm)) { Write-Host "  $($cli[0]): Node.js 가 없어 못 설치 — Node.js 설치 뒤: npm install -g $($cli[1])"; continue }
-  npm install -g $cli[1] | Out-Host
+  npm install -g "$($cli[1])@latest" | Out-Host
   Refresh-Path
   if ($LASTEXITCODE -ne 0) { Write-Host "  $($cli[0]) 설치 실패 — 관리자 PowerShell 에서: npm install -g $($cli[1])" } else { Write-Host "  $($cli[0]): 설치함" }
 }

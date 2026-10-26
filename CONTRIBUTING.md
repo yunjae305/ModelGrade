@@ -33,7 +33,7 @@ python -X utf8 -m pytest -q
 
 - **수집**: 네 모델 모두 웹(chatgpt.com · claude.ai · gemini.google.com · AIONA). 평소 Chrome 을 전용 프로필 + 디버깅 포트로 띄우고(`tools/chrome_cdp.py`) 프로그램은 포트로만 붙습니다. 답은 복사 아이콘 원문만(페이지 안에서 가로채기 — 시스템 클립보드 · 포커스를 안 써서 수집 중에도 컴퓨터를 쓸 수 있음). 수집기마다 자기 탭을 차지해 같은 사이트의 두 모델도 동시에 받습니다(예: 터미널 두 개에서 `modelgrade start --model claude:Opus 5.5` · `--model claude:Sonnet 5.5`).
 - **판정**: CODE 28(프로그램) → 1차 심판(상황별 — 단일 질문은 Jev 2번(갈리면 3번째) + Decisions 1번 교차: 같은 답이고 둘 다 0.8 이상이면 끝 · 멀티턴 · 첨부 · 롱컨텍스트는 Decisions 1번 + 선별 규칙, `--first-judge auto` 는 옛 크기 나눔) → Codex CLI 확정(넘긴 칸만, 인용 근거 필수) → 안전장치(인용 대조 · 사유와 판정 · 연결 규칙 · 사실 확인 출처) → 결론(보류 우선). `tools/judge_v4.py`.
-- **결과 폴더**: `report.html` · `판정보고서.html`(보류 칸은 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`.
+- **결과 폴더**: `report.html` · `판정보고서.html`(보류 칸은 `modelgrade review` 로 열면 바로 저장, 파일로 열었으면 '판단 내보내기' → `modelgrade held-apply`) · `results.jsonl` · `수집기록/`.
 - 실행 래퍼(`modelgrade.cmd` · `modelgrade.sh`)는 `.venv` 의 파이썬을 쓰고, 직접 부를 때는 `python -X utf8 tools/modelgrade.py …` 와 같습니다.
 
 ## 자주 쓰는 명령
@@ -45,6 +45,9 @@ python -X utf8 -m pytest -q
 | 실행 환경 점검 | `modelgrade doctor` |
 | 처음 설정 — .env 키 · Codex · Claude CLI 로그인 · 웹 로그인 · 점검 | `modelgrade setup` (`--keys` · `--cli` · `--web` 로 하나만) |
 | 수집용 Chrome 띄우기 · 웹 로그인 · 로그인 확인 | `modelgrade login` |
+| 보류 바로 정하기 — 보고서를 이 PC 안(127.0.0.1)에서 열고 누른 판단을 바로 저장, 끝내면 보고서 다시 만듦 | `modelgrade review` (`--run <실행>` · `--no-open`) |
+| 새 질문 리스트 만들기 — 질문생성 프롬프트 + Claude Code, 검사를 통과할 때까지 회차마다 이어서 고침(멈추면 이어서) | `modelgrade start --choice 2` 또는 `python -X utf8 tools/new_question_set.py make` (`--size small` 흐름 시험용 5개 · `--new` 새로 시작) |
+| 질문 세트 폴더 검사(구성 · 첨부 · 길이 · k · 기준별 적용 수, 모델 호출 없음) | `python -X utf8 tools/new_question_set.py check <세트 폴더>` |
 | AIONA 두 모델을 한 번에 받아 비교(한 실행 · 한 보고서) | `modelgrade start --aiona "자동 추천" --aiona2 "Claude Sonnet 5.5"` |
 | 업데이트 전 vs 후 — 두 실행의 AIONA 답을 묶어 같은 기준으로 판정 | `modelgrade pair --before <전 실행> --after <후 실행> --judge y` |
 | 질문 세트 점검(기준별 10문항 이상, 모델 호출 없음) | `python -X utf8 tools/check_question_set.py 참고자료/질문세트_78/questions.json --min-applicable 10` |
@@ -71,7 +74,7 @@ python -X utf8 -m pytest -q
 
 | 묶음 | 도구 |
 |---|---|
-| 실행 | `modelgrade.py`(start · collect · judge · run · code-eval · report · held · held-apply · doctor · login · setup — 실행 래퍼 `modelgrade` 가 부름) · `setup_wizard.py`(처음 설정) · `chrome_cdp.py`(수집용 Chrome — 전용 프로필 + 디버깅 포트) · `web_chat_login.py`(AIONA · FactChat · 우수AI 로그인 창) · `doctor.py`(실행 환경 점검) |
+| 실행 | `modelgrade.py`(start · collect · judge · run · code-eval · report · held · held-apply · review · doctor · login · setup — 실행 래퍼 `modelgrade` 가 부름) · `setup_wizard.py`(처음 설정) · `new_question_set.py`(새 질문 리스트 — Claude Code + 검사기) · `review_server.py`(보류 바로 정하기) · `live_board.py`(수집 · 평가 진행 판) · `chrome_cdp.py`(수집용 Chrome — 전용 프로필 + 디버깅 포트) · `web_chat_login.py`(AIONA · FactChat · 우수AI 로그인 창) · `doctor.py`(실행 환경 점검) |
 | 판정 | `judge_v4.py`(지금 판정 — `start` 가 씀) · `judge_folder.py`(한 모델의 입력을 폴더에 모아 Codex 세션 하나가 판정) · `judge_item_rerun.py`(기준 하나만 다시 판정 · 다수결) · `build_judge_prompt_v4.py`(판정 프롬프트 · 1차 항목 파일의 경로를 `judge_v4.py` 에 주고, v4 를 처음 만든 생성기 — 프롬프트는 `judge_prompt_v4.txt` 를 직접 고침) |
 | 옛 판정(v3, `modelgrade judge`) | `judge_run.py` · `judge_split.py` · `judge_inputs.py` · `build_judge_situations.py` — `judge_v4.py` 가 심판 호출 · 연결 규칙을 이 파일들에서 가져다 씀 |
 | 비교 · 점검 · 다듬기 | `judge_compare_runs.py`(전후 비교 · 새 결과 폴더) · `judge_first_compare.py`(1차 심판 Jev ↔ Decisions 3번씩) · `judge_claude_compare.py`(2차 심판 Codex ↔ Claude CLI) · `judge_reason_audit.py`(판정 사유 점검) · `criteria_consistency.py`(문서 · 프롬프트 · 코드 대조) · `refine_loop.py`(기준 다듬기 루프) · `build_calibration_sheet.py`(사람 표시용 표) · `check_question_set.py`(질문 세트 점검) |

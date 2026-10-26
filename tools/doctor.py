@@ -58,14 +58,38 @@ def check_env() -> Check:
     return Check(".env 파일", ok, "있음" if ok else "없음", True, ".env.example 을 .env 로 복사하고 키를 채우세요")
 
 
+#: 확인한 최소 버전 (10-26) — Codex 0.154 는 ChatGPT 계정으로 gpt-6-luna 를 못 부름, Claude Code 2.1.280 미만은 Opus 5.5 · --effort 없음
+MIN_CODEX = (0, 164, 0)
+MIN_CLAUDE = (2, 1, 280)
+
+
+def cli_version(exe: str) -> Optional[tuple]:
+    """'codex-cli 0.164.0' · '2.1.310 (Claude Code)' → (0, 164, 0) · (2, 1, 310). 못 읽으면 None."""
+    import re
+    import subprocess
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=30).stdout
+    except Exception:
+        return None
+    m = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", out or "")
+    return tuple(int(x or 0) for x in m.groups()) if m else None
+
+
+def _ver(v: tuple) -> str:
+    return ".".join(map(str, v))
+
+
 def check_codex() -> Check:
     from code_eval.codex_cli_client import check_codex_login, find_codex_executable
     from code_eval.llm_client import env_value
     exe = find_codex_executable(env_value("CODEX_CLI_PATH"))
     if not exe:
         return Check("Codex CLI (2차 심판)", False, "설치 안 됨", True, "Node.js 를 설치한 뒤: npm install -g @openai/codex → codex login")
+    v = cli_version(exe)
+    if v is not None and v < MIN_CODEX:
+        return Check("Codex CLI (2차 심판)", False, f"{_ver(v)} — {_ver(MIN_CODEX)} 이상 필요", True, "npm install -g @openai/codex@latest")
     reason = check_codex_login(exe)
-    return Check("Codex CLI (2차 심판)", reason is None, "설치 · 로그인 됨" if reason is None else "로그인 필요", True, "codex login")
+    return Check("Codex CLI (2차 심판)", reason is None, ("설치 · 로그인 됨" if reason is None else "로그인 필요") + (f" ({_ver(v)})" if v else ""), True, "codex login")
 
 
 def check_first_judge() -> Check:
@@ -98,8 +122,12 @@ def check_claude() -> Check:
     from code_eval.claude_cli_client import find_claude_executable
     from code_eval.llm_client import env_value
     exe = find_claude_executable(env_value("CLAUDE_CLI_PATH"))
-    return Check("Claude CLI (기준 다듬기 루프 · 심판 비교, 선택)", bool(exe), "설치됨" if exe else "없음", False,
-                 "npm install -g @anthropic-ai/claude-code → claude 로그인")
+    v = cli_version(exe) if exe else None
+    if v is not None and v < MIN_CLAUDE:
+        return Check("Claude CLI (새 질문 리스트 · 기준 다듬기 루프, 선택)", False, f"{_ver(v)} — {_ver(MIN_CLAUDE)} 이상 필요", False,
+                     "npm install -g @anthropic-ai/claude-code@latest")
+    return Check("Claude CLI (새 질문 리스트 · 기준 다듬기 루프, 선택)", bool(exe), (f"설치됨 ({_ver(v)})" if v else "설치됨") if exe else "없음", False,
+                 "npm install -g @anthropic-ai/claude-code → claude auth login")
 
 
 def check_font() -> Check:

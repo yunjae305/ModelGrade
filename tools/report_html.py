@@ -61,23 +61,35 @@ pre.orig{white-space:pre-wrap;word-break:break-word;background:#fafafa;border:1p
 .toolbar{position:sticky;top:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .toolbar input{padding:5px 8px;border:1px solid #bbb;border-radius:6px}.toolbar button{padding:6px 12px;border-radius:8px;border:1px solid var(--aiona);background:var(--aiona);color:#fff;cursor:pointer;font-weight:600}
 .note{font-size:12.5px;color:var(--mute)}.small{font-size:12px;color:var(--mute)}.qtxt{color:#444}
+.live-only{display:none}body.live .live-only{display:inline-block}
 """
 
 JS = """
 (function(){
   const RUN=document.body.dataset.run, KEY='mg-held-'+RUN;
   let store={}; try{store=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){store={}}
+  let LIVE=false;   // modelgrade review 로 열렸으면 누를 때마다 프로그램에 바로 저장 (10-26 밤)
+  const st=document.getElementById('live-state');
   function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
   function paint(){document.querySelectorAll('.hold-item').forEach(el=>{const d=store[el.dataset.key]||{};el.querySelectorAll('.btns button').forEach(b=>b.classList.toggle('on',b.dataset.v===d.v));const n=el.querySelector('input.note');if(n&&d.note!=null&&n.value!==d.note)n.value=d.note});
     const n=Object.values(store).filter(d=>d.v).length;const c=document.getElementById('decided');if(c)c.textContent=n}
-  document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint()}));
-  document.querySelectorAll('.hold-item input.note').forEach(i=>i.addEventListener('change',()=>{const k=i.closest('.hold-item').dataset.key;store[k]=Object.assign(store[k]||{},{note:i.value});save()}));
-  document.querySelectorAll('.allbtn').forEach(b=>b.addEventListener('click',()=>{b.closest('details').querySelectorAll('.hold-item').forEach(el=>{store[el.dataset.key]=Object.assign(store[el.dataset.key]||{},{v:b.dataset.v})});save();paint()}));
-  const ex=document.getElementById('export');if(ex)ex.addEventListener('click',()=>{const who=(document.getElementById('reviewer')||{}).value||'';const out=[];
-    document.querySelectorAll('.hold-item').forEach(el=>{const d=store[el.dataset.key];if(!d||!d.v)return;out.push({provider:el.dataset.provider,question:+el.dataset.question,turn:+el.dataset.turn,item:el.dataset.item,old:el.dataset.old,new:d.v,note:d.note||'',reviewer:who,at:new Date().toISOString()})});
-    const doc={run_id:RUN,policy:document.body.dataset.policy,exported_at:new Date().toISOString(),reviewer:who,decisions:out};
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(doc,null,1)],{type:'application/json'}));a.download='held_decisions_'+RUN+'.json';a.click()});
+  function rec(el){const d=store[el.dataset.key];if(!d||!d.v)return null;return {provider:el.dataset.provider,question:+el.dataset.question,turn:+el.dataset.turn,item:el.dataset.item,old:el.dataset.old,new:d.v,note:d.note||'',reviewer:(document.getElementById('reviewer')||{}).value||'',at:new Date().toISOString()}}
+  function doc(out){const who=(document.getElementById('reviewer')||{}).value||'';return {run_id:RUN,policy:document.body.dataset.policy,exported_at:new Date().toISOString(),reviewer:who,decisions:out}}
+  function push(els){if(!LIVE)return;const out=els.map(rec).filter(Boolean);if(!out.length)return;
+    fetch('/api/decisions',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc(out))}).then(r=>r.json()).then(j=>{
+      if(st)st.textContent=j.ok?('저장됨 '+new Date().toLocaleTimeString()+' · 모두 '+j.total+'건'+(j.rejected?' · 거부 '+j.rejected:'')):('저장 실패 — '+(j.error||''))
+    }).catch(()=>{if(st)st.textContent='저장 실패 — 프로그램이 꺼졌으면 판단 내보내기로 받으세요'})}
+  document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint();push([el])}));
+  document.querySelectorAll('.hold-item input.note').forEach(i=>i.addEventListener('change',()=>{const el=i.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{note:i.value});save();push([el])}));
+  document.querySelectorAll('.allbtn').forEach(b=>b.addEventListener('click',()=>{const els=[...b.closest('details').querySelectorAll('.hold-item')];els.forEach(el=>{store[el.dataset.key]=Object.assign(store[el.dataset.key]||{},{v:b.dataset.v})});save();paint();push(els)}));
+  const ex=document.getElementById('export');if(ex)ex.addEventListener('click',()=>{const out=[...document.querySelectorAll('.hold-item')].map(rec).filter(Boolean);
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(doc(out),null,1)],{type:'application/json'}));a.download='held_decisions_'+RUN+'.json';a.click()});
   const cl=document.getElementById('clear');if(cl)cl.addEventListener('click',()=>{if(confirm('이 브라우저에 저장된 판단을 모두 지울까요?')){store={};save();paint()}});
+  const rb=document.getElementById('rebuild');if(rb)rb.addEventListener('click',()=>{if(st)st.textContent='보고서 다시 만드는 중 …';
+    fetch('/api/rebuild',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json()).then(j=>{if(j.ok)location.reload();else if(st)st.textContent='다시 만들기 실패 — '+(j.error||'')})});
+  if(location.protocol.indexOf('http')===0)fetch('/api/ping',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.ok||j.run_id!==RUN)return;
+    LIVE=true;document.body.classList.add('live');if(st)st.textContent='바로 저장 — 누르면 프로그램에 바로 들어갑니다';
+    push([...document.querySelectorAll('.hold-item')])}).catch(()=>{});   // 전에 이 브라우저에만 저장해 둔 판단도 한 번에 보냄
   paint();
 })();
 """
@@ -245,7 +257,8 @@ def originals(run: Dict[str, Any]) -> Dict[Tuple[str, int], List[Dict[str, Any]]
                                                   "attachments": [a.get("name") for a in r.get("attachments") or [] if isinstance(a, dict)],
                                                   "reference_chars": len(r.get("reference") or ""), "status": (r.get("collection") or {}).get("status") or "",
                                                   "error": (r.get("collection") or {}).get("error") or "",
-                                                  "log": (collection_log_html(log_lines(r.get("collection"))) if needs_log(r.get("collection"), r.get("answer") or "") else "")})
+                                                  "log": (collection_log_html(log_lines(r.get("collection"), r.get("answer") or "", r.get("question") or ""))
+                                                          if needs_log(r.get("collection"), r.get("answer") or "", r.get("question") or "") else "")})
     for k in out:
         out[k].sort(key=lambda t: t["turn"])
     return out
@@ -709,8 +722,9 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                 kind_counter[p][it["kind"] or "기타"] += 1
                 if L["verdict"] == "FAIL":
                     inside_fail[p] += 1
-    P.append(f"<h2>5. 보류 — 사람이 정하는 것</h2><p class='lead'>심판이 확정하지 못한 질문 {len(hold_lines)}건입니다. 질문 원문과 답변 원문, 보류 사유를 보고 항목마다 PASS/FAIL 을 눌러 주세요. "
-             "판단은 이 브라우저에 저장되고, '판단 내보내기'로 JSON 을 받아 <code>python tools/modelgrade.py held-apply --dir &lt;결과 폴더&gt; --file &lt;받은 JSON&gt;</code> 로 반영하면 보고서가 다시 만들어집니다.</p>")
+    P.append(f"<h2 id='hold'>5. 보류 — 사람이 정하는 것</h2><p class='lead'>심판이 확정하지 못한 질문 {len(hold_lines)}건입니다. 질문 원문과 답변 원문, 보류 사유를 보고 항목마다 PASS/FAIL 을 눌러 주세요. "
+             "<code>modelgrade review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 프로그램에 저장되고, 끝낼 때 보고서가 다시 만들어집니다. "
+             "파일을 직접 열었으면 판단은 이 브라우저에만 저장되니 '판단 내보내기'로 JSON 을 받아 <code>modelgrade held-apply --dir &lt;판정 폴더&gt; --file &lt;받은 JSON&gt;</code> 로 반영하세요.</p>")
     disagree: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for (p, q), L in lines.items():
         for it in L["items"]:
@@ -729,7 +743,8 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
         P.append("</table></details>")
     if hold_lines:
         P.append("<div class='toolbar'>검토자 <input id='reviewer' placeholder='이름'> <span class='small'>판단한 항목 <b id='decided'>0</b>개</span> <button id='export'>판단 내보내기(JSON)</button> "
-                 "<button id='clear' style='background:#fff;color:#333;border-color:#bbb'>저장된 판단 지우기</button></div>")
+                 "<button id='rebuild' class='live-only'>보고서 다시 만들기</button> "
+                 "<button id='clear' style='background:#fff;color:#333;border-color:#bbb'>저장된 판단 지우기</button> <span class='small' id='live-state'></span></div>")
     for L in hold_lines:
         r, p, q = L["line"], L["line"]["provider"], int(L["line"]["question"])
         held = [it for it in L["items"] if it["decision"] == "UNVERIFIED"]

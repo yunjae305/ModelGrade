@@ -74,12 +74,17 @@ echo "5/6 Node.js · Codex CLI(2차 심판) · Claude CLI(기준 다듬기 루�
 if ! has npm && [ -z "${MODELGRADE_SKIP_CODEX:-}${MODELGRADE_SKIP_CLAUDE:-}" ]; then
   brew_install node Node.js || { echo "  Node.js 를 설치하세요 — https://nodejs.org (Ubuntu: sudo apt install nodejs npm)"; no_brew_hint; }
 fi
-for pair in "codex @openai/codex ${MODELGRADE_SKIP_CODEX:-}" "claude @anthropic-ai/claude-code ${MODELGRADE_SKIP_CLAUDE:-}"; do
+# 최소 버전 (10-26) — Codex 0.154 는 ChatGPT 계정으로 gpt-6-luna 를 못 부름, Claude Code 2.1.280 미만은 Opus 5.5 없음. 옛 판이면 최신으로 올림
+for pair in "codex @openai/codex 0.164.0 ${MODELGRADE_SKIP_CODEX:-}" "claude @anthropic-ai/claude-code 2.1.280 ${MODELGRADE_SKIP_CLAUDE:-}"; do
   set -- $pair
-  if [ -n "${3:-}" ]; then echo "  $1: 건너뜀"; continue; fi
-  if has "$1"; then echo "  $1: 있음"; continue; fi
+  if [ -n "${4:-}" ]; then echo "  $1: 건너뜀"; continue; fi
+  if has "$1"; then
+    ver=$("$1" --version 2>/dev/null | head -1 | sed -E 's/^[^0-9]*([0-9]+(\.[0-9]+){1,2}).*$/\1/')
+    if [ -n "$ver" ] && [ "$(printf '%s\n%s\n' "$3" "$ver" | sort -V | head -1)" = "$3" ]; then echo "  $1: 있음 ($ver)"; continue; fi
+    echo "  $1: ${ver:-?} → 최신으로 올림 ($3 이상 필요)"
+  fi
   if ! has npm; then echo "  $1: Node.js 가 없어 못 설치 — Node.js 설치 뒤: npm install -g $2"; continue; fi
-  npm install -g "$2" && echo "  $1: 설치함" || echo "  $1 설치 실패 — 권한 오류면: sudo npm install -g $2"
+  npm install -g "$2@latest" && echo "  $1: 설치함" || echo "  $1 설치 실패 — 권한 오류면: sudo npm install -g $2"
 done
 
 echo "6/6 'modelgrade' 명령 (어느 폴더에서나)"

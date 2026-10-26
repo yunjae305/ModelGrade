@@ -60,9 +60,11 @@ modelgrade start
 |---|---|
 | 설치 | `~/ModelGrade` 로 받음(이미 받아 두었으면 그 폴더에서 `install.ps1` · `bash install.sh`) → 파이썬 3.10+ · Chrome · Node.js 확인과 설치 → `.venv` · 패키지 → `.env` → Codex CLI · Claude CLI → 어느 폴더에서나 `modelgrade` |
 | `setup` | ① `.env` 키를 하나씩 물음 — `OPENAI_API_KEY`(필수) · `TYPESAFE_API_KEY` · `AIONA_LOGIN_ID/PASSWORD`, 입력은 화면에 안 보임 ② `codex login` · `claude auth login` 을 대신 띄움 ③ 수집용 Chrome 에 ChatGPT · Claude · Gemini · AIONA 창을 열고, 로그인 뒤 창마다 확인 ④ 환경 점검 |
-| `start` | 메뉴 1(간단 78): 네 모델 동시 수집 → 판정 → `참고자료/결과/<시작 시각>/` 결과 폴더 |
+| `start` | 질문 리스트 고르기 — **1** 기존 질문 리스트(78개) · **2** 새 질문 리스트 만들기(질문생성 프롬프트를 Claude Code 가 따라 질문 · 첨부 · 긴 문서를 만들고 검사를 통과할 때까지 고침, 여러 시간 · 멈춰도 이어서) · **3** 기존 리스트로 답변 새로 받기 → 빠진 답만 네 모델 동시 수집(모델마다 `받은 수 / 전체 (남은 수)`) → 평가(같은 진행 판) → `평가가 완료되었습니다.` 와 `참고자료/결과/<시작 시각>/report.html` 위치 |
 
-필요한 계정: OpenAI API 키(1차 심판), ChatGPT 계정(Codex CLI 2차 심판 · 답 수집), Claude · Gemini · AIONA 계정(답 수집). 나머지 설정은 `.env.example` 의 주석에 무엇을 넣는지 적어 두었습니다. 빠진 것 확인은 `modelgrade doctor`, 다른 명령은 `modelgrade --help`.
+필요한 계정: OpenAI API 키(1차 심판), ChatGPT 계정(Codex CLI 2차 심판 · 답 수집), Claude 계정(답 수집 · Claude Code 로 새 질문 리스트), Gemini · AIONA 계정(답 수집). 나머지 설정은 `.env.example` 의 주석에 무엇을 넣는지 적어 두었습니다. 빠진 것 확인은 `modelgrade doctor`, 다른 명령은 `modelgrade --help`.
+
+확인한 CLI 버전(2026-10-26): **Codex CLI 0.164.0** · **Claude Code 2.1.310**. 설치 명령 · `modelgrade doctor` 는 Codex 0.164.0 · Claude Code 2.1.280 보다 옛 판이면 최신으로 올리라고 알립니다(Codex 0.154 는 ChatGPT 계정으로 판정 모델 gpt-6-luna 를 부르지 못함).
 
 ## 더 보기
 

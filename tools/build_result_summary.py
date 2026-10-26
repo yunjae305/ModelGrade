@@ -3291,7 +3291,8 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
         ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['n']}) {hold_pm}",
-         "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. 지금은 사람이 정하고, 그 판단을 사례로 모아 다음 판정에 쓰는 것은 만드는 중입니다.", scene_hold(D, part_of),
+         "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. <a href=\"판정보고서.html#hold\">판정 보고서의 '보류' 장</a>에서 항목마다 PASS · FAIL 을 누르면 정해지고, "
+         "<code>modelgrade review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 저장됩니다.", scene_hold(D, part_of),
          f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
         ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
          "", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),

@@ -49,8 +49,8 @@ def collection_row(r: Dict[str, Any]) -> Dict[str, Any]:
            "status": c.get("status", "SUCCESS" if r.get("answer") else None), "capture": c.get("capture"), "latency_ms": c.get("latency_ms"),
            "error": _clip(c.get("error")), "model": c.get("model"), "method": c.get("method")}
     from tools.collection_log import log_lines, needs_log
-    if needs_log(c, r.get("answer") or ""):   # 답이 비었거나 못 받은 턴의 글 로그 — 보고서 보류 칸에 (사용자 10-26 저녁, 이미지 대신)
-        out["collection_log"] = log_lines(c)
+    if needs_log(c, r.get("answer") or "", r.get("question") or ""):   # 답이 비었거나 못 받았거나 오류 · 거절 문구인 턴의 글 로그 — 보고서 보류 칸에 (10-26)
+        out["collection_log"] = log_lines(c, r.get("answer") or "", r.get("question") or "")
     if c.get("draft_blocks"):
         out["draft_blocks"] = c["draft_blocks"]
     if c.get("artifact"):
