@@ -147,6 +147,115 @@ def first_judge_votes(part: Dict[str, Any], questions: Dict[str, Any], jev: Any,
     return "OK", merged, "; ".join(errors), used_judge, oks, attempts
 
 
+def entry_top(e: Optional[Dict[str, Any]]) -> float:
+    """1차 답이 고른 값의 확률(없으면 확신)."""
+    if not isinstance(e, dict) or e.get("choice") is None:
+        return 0.0
+    probs = e.get("probabilities") or {}
+    v = probs.get(e["choice"]) if isinstance(probs, dict) else None
+    if not isinstance(v, (int, float)):
+        v = e.get("confidence")
+    return float(v) if isinstance(v, (int, float)) else 0.0
+
+
+def jev_votes_adaptive(part: Dict[str, Any], questions: Dict[str, Any], jev: Any) -> Tuple[str, Any, str, List[Dict[str, Any]], int]:
+    """Jev 2번 — 갈린 항목이 하나라도 있으면(또는 한 번이 실패하면) 3번째, 항목마다 다수결 (10-23 회의 '두 번까지는 무조건 돌리고 처음과 두 번째가
+    일치하지 않으면 세 번째'). 10-26 비교: 3,701칸 중 3,668칸이 두 표에서 같음 → 결과는 3표와 같고 호출은 약 1/3 줄어듦. 돌려주는 값: (status, 합친 body, error, 성공한 답들, 시도 수)."""
+    oks: List[Dict[str, Any]] = []
+    errors: List[str] = []
+    attempts = 0
+
+    def once() -> None:
+        nonlocal attempts
+        attempts += 1
+        status, body, error = jev.judge(part, questions)
+        if status == "OK" and isinstance(body, dict):
+            oks.append(body)
+        else:
+            errors.append(f"{status} {str(error)[:80]}")
+    once()
+    once()
+    split = len(oks) < 2 or any(((oks[0].get("answers") or {}).get(k) or {}).get("choice") != ((oks[1].get("answers") or {}).get(k) or {}).get("choice")
+                                for k in questions)
+    if split and (oks or len(errors) < 2):
+        once()
+    if not oks:
+        return "ERROR", None, "; ".join(errors) or "Jev 모두 실패", [], attempts
+    merged = {"answers": merge_votes(oks, list(questions.keys())), "votes": len(oks), "vote_judges": ["jev"] * len(oks), "vote_errors": errors}
+    return "OK", merged, "; ".join(errors), oks, attempts
+
+
+def cross_flag(item: str, j: Optional[Dict[str, Any]], d: Optional[Dict[str, Any]], sure: float = None) -> str:
+    """교차 확인 — Codex 로 넘길 까닭(빈 문자열이면 1차에서 끝). 둘 다 답했을 때: 하나라도 FAIL · 둘이 다름 · 하나라도 애매(고른 답 확률 < sure).
+    한 심판만 답했으면 그 답으로 지금 선별 규칙(screen_flag)."""
+    sure = CROSS_SURE if sure is None else sure
+    jc = (j or {}).get("choice") if isinstance(j, dict) else None
+    dc = (d or {}).get("choice") if isinstance(d, dict) else None
+    if jc is None or dc is None:
+        one = d if dc is not None else j
+        flag, reason = screen_flag(item, one)
+        return (reason or "1차 답 없음") if flag else ""
+    if "FAIL" in (jc, dc):
+        return f"FAIL 확인 — Jev {KO.get(jc, jc)} · Decisions {KO.get(dc, dc)}"
+    if jc != dc:
+        return f"Jev {KO.get(jc, jc)} · Decisions {KO.get(dc, dc)} — 다름"
+    tj, td = entry_top(j), entry_top(d)
+    if tj < sure or td < sure:
+        return f"애매 — Jev {tj:.2f} · Decisions {td:.2f} (확실 {sure})"
+    if item in SCREEN_ALWAYS_CODEX and jc == "PASS":
+        return "사실 확인은 Codex(웹 검색)가 봄"
+    return ""
+
+
+def cross_entry(item: str, j: Optional[Dict[str, Any]], d: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """교차 확인한 칸의 1차 대표 답 — 같으면 그 답, 하나라도 FAIL 이면 FAIL 쪽(Codex 가 못 보면 보류로 가게), 아니면 Decisions. 두 심판의 답 · 넘긴 까닭을 남긴다."""
+    jc = (j or {}).get("choice") if isinstance(j, dict) else None
+    dc = (d or {}).get("choice") if isinstance(d, dict) else None
+    if jc is None and dc is None:
+        return None
+    if jc == "FAIL" and dc != "FAIL":
+        pick = j
+    elif dc is not None:
+        pick = d
+    else:
+        pick = j
+    e = {k: v for k, v in pick.items() if k not in ("votes", "vote_split")}
+    e["votes"] = (j or {}).get("votes") if isinstance(j, dict) else None
+    e["vote_split"] = bool((j or {}).get("vote_split")) if isinstance(j, dict) else False
+    e["cross"] = {"jev": {"choice": jc, "top": round(entry_top(j), 3), "votes": (j or {}).get("votes") if isinstance(j, dict) else None},
+                  "decisions": {"choice": dc, "top": round(entry_top(d), 3)}}
+    e["cross_flag"] = cross_flag(item, j, d)
+    return e
+
+
+def situational_judge(part: Dict[str, Any], questions: Dict[str, Any], jev: Any, decisions: Any,
+                      cross: bool) -> Tuple[str, Any, str, Optional[str], List[Tuple[Optional[str], Dict[str, Any]]], int]:
+    """회의 흐름의 1차 심판 한 턴 — cross(단일 질문 · 첨부 없음 · Jev 가 받는 크기)면 Jev(2+1) + Decisions(1) 교차, 아니면 Decisions 1번.
+    한쪽이 실패하면 다른 쪽 혼자(지금 선별 규칙). 돌려주는 값은 first_judge_votes 와 같은 모양 — 쓴 심판은 'jev+decisions' · 'decisions' · 'jev'."""
+    if cross and jev is not None and decisions is not None:
+        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev)
+        ds_, db, de = decisions.judge(part, questions)
+        voted: List[Tuple[Optional[str], Dict[str, Any]]] = [("jev", b) for b in joks] + ([("decisions", db)] if ds_ == "OK" and isinstance(db, dict) else [])
+        attempts = jatt + 1
+        if js_ == "OK" and ds_ == "OK" and isinstance(db, dict):
+            ja, da = jb.get("answers") or {}, db.get("answers") or {}
+            ans = {k: cross_entry(k.split(":", 1)[-1], ja.get(k), da.get(k)) for k in questions}
+            return "OK", {"answers": ans, "votes": len(joks)}, "", "jev+decisions", voted, attempts
+        if ds_ == "OK" and isinstance(db, dict):
+            return "OK", db, f"Jev {je}"[:200], "decisions", voted, attempts
+        if js_ == "OK":
+            return "OK", jb, f"Decisions {ds_} {str(de)[:100]}", "jev", voted, attempts
+        return "ERROR", None, f"Jev {je}; Decisions {ds_} {str(de)[:100]}", None, voted, attempts
+    if decisions is not None:
+        status, body, error = decisions.judge(part, questions)
+        ok = status == "OK" and isinstance(body, dict)
+        return status, (body if ok else None), ("" if ok else str(error)), "decisions", ([("decisions", body)] if ok else []), 1
+    if jev is not None:   # Decisions 가 없을 때만 — Jev 혼자(큰 입력이면 실패)
+        js_, jb, je, joks, jatt = jev_votes_adaptive(part, questions, jev)
+        return js_, jb, je, ("jev" if js_ == "OK" else None), [("jev", b) for b in joks], jatt
+    return "ERROR", None, "1차 심판 없음", None, [], 0
+
+
 def question_json(q: int, turns: List[Dict[str, Any]], answers: Dict[str, str], deliveries: Dict[str, str],
                   judge_turns: Optional[List[int]] = None) -> Dict[str, Any]:
     """심판에게 주는 질문 하나 — 질문·첨부파일·참조 자료·답변만(모델 이름·판정할 항목 없음). judge_turns: 이번에 판정할 턴(기본 모든 턴)."""
@@ -212,9 +321,14 @@ def _env_str(name: str, default: str) -> str:
     return (env_value(name) or default).strip().lower()
 
 
-#: 1차 심판 고정 (심판 비교 실험, 사용자 10-26 "jev, decision api 도 각각 3번씩 평가 돌려서 결과") — auto: 질문 크기 · 첨부로 나눔(기본) ·
-#: jev: 모든 턴 Jev(실패해도 Decisions 로 넘기지 않아 그 표는 빠짐) · decisions: 모든 턴 Decisions. .env FIRST_JUDGE_MODE 또는 --first-judge
-FIRST_JUDGE_MODE = _env_str("FIRST_JUDGE_MODE", "auto")
+#: 1차 심판 흐름 — situational(기본, 10-23 회의 흐름 · 사용자 10-26): 상황으로 첫 심판을 정하고 결과로 다음 단계.
+#:   단일 질문(그 턴에 첨부 없음 · 질문 전체 JEV_MAX_TOKENS 이하)은 Jev(2번, 갈린 항목이 있으면 3번째) + Decisions(1번) 교차 —
+#:   같은 답이고 둘 다 CROSS_SURE 이상이면 끝, 다르거나 애매하거나 FAIL 이면 Codex. 멀티턴 · 첨부 · 롱컨텍스트는 Decisions 1번 + 선별 규칙(screen_flag).
+#:   auto: 옛 흐름(질문 크기로 Jev · Decisions 하나 + FIRST_JUDGE_VOTES 표) · jev · decisions: 모든 턴을 한 심판으로(심판 비교 실험).
+#:   .env FIRST_JUDGE_MODE 또는 --first-judge
+FIRST_JUDGE_MODE = _env_str("FIRST_JUDGE_MODE", "situational")
+#: 교차 확인의 '확실' — 고른 답의 확률이 이 값 이상(사용자 10-26: 0.8 — 모의 계산 놓친 FAIL 1 · Codex 646칸, 0.7 이면 6 · 487칸). .env CROSS_SURE
+CROSS_SURE = _env_float("CROSS_SURE", 0.8)
 #: 1차 심판만 — Codex 를 부르지 않고 1차 판정(decisions/<질문>.json)만 남긴다 (--first-only, 심판 비교 실험 10-26)
 FIRST_ONLY = False
 #: Decisions 가 '해당 없음'이라 하고 FAIL 확률 < SCREEN_FAIL_PROB 이면 확신이 낮아도 Codex 에 안 보낸다 — 실행 a1642702fccc 전체(걸린 12,967개)에서
@@ -1539,7 +1653,10 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
                 if not ids:
                     continue
         qd = {f"T{n}:{i}": allq[i] for i in ids}
-        status, body, error, used, voted, attempts = first_judge_votes(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n), votes=FIRST_JUDGE_VOTES)
+        if FIRST_JUDGE_MODE == "situational":   # 회의 흐름(10-26) — 단일 질문 · 첨부 없음 · Jev 가 받는 크기면 교차, 아니면 Decisions 1번
+            status, body, error, used, voted, attempts = situational_judge(part, qd, jev, decisions, cross=len(turns) == 1 and small and not turn_has_files(part, n))
+        else:
+            status, body, error, used, voted, attempts = first_judge_votes(part, qd, jev, decisions, use_jev=small and not turn_has_files(part, n), votes=FIRST_JUDGE_VOTES)
         fresh[str(n)] = used or "?"
         n_calls += attempts   # 실패한 시도도 호출 수에 넣는다 (Codex 검토 10-25)
         cached_turn = n in dec_items
@@ -1577,7 +1694,12 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
         for i, entry in items.items():
             if multi_ok is False and i.startswith("J6"):
                 continue   # 멀티턴이 아닌 대화의 J6 는 Codex 에도 넘기지 않음 (10-21 밤)
-            flag, reason = (True, "교정용 전수") if codex_all else screen_flag(i, entry)
+            if codex_all:
+                flag, reason = True, "교정용 전수"
+            elif isinstance(entry, dict) and "cross_flag" in entry:   # 교차 확인한 칸(회의 흐름) — 두 심판이 같고 확실하면 끝
+                flag, reason = bool(entry["cross_flag"]), entry["cross_flag"]
+            else:
+                flag, reason = screen_flag(i, entry)
             if (not flag and JUDGE_TARGET_ONLY and i in QUESTION_DETERMINED and isinstance(entry, dict)
                     and entry.get("choice") == "NOT_APPLICABLE" and i in (targets_for(q, n) or set())):
                 flag, reason = True, "목표 기준인데 해당 없음 — 질문으로 정해지는 항목"   # (10-21)
@@ -1810,7 +1932,7 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
             is_flagged = i in (flagged.get(n) or [])
             cv = (codex_items.get(n) or {}).get(i) if is_flagged else None
             judge = (entry.get("judge") if isinstance(entry, dict) else None) or first_used.get(str(n))   # 항목을 판정한 1차 심판(--repair 로 더한 항목은 따로, 10-22)
-            label = {"jev": "Jev"}.get(judge or "", "Decisions")
+            label = {"jev": "Jev", "jev+decisions": "Jev·Decisions"}.get(judge or "", "Decisions")
             dec, how = combine_screen(cv, entry, is_flagged, item=i, label=label, codex_incomplete=bool(error))   # 재질문이 실패했으면 '끝내 답 없음'이 아님 (Codex 리뷰 10-25 밤)
             if dec is None:
                 continue
@@ -1824,6 +1946,7 @@ def screen_stage_b(st: Dict[str, Any], status: Any, output: Any, error: str, rou
                         "decisions_confidence": (entry or {}).get("confidence") if isinstance(entry, dict) else None,
                         "first_votes": (entry or {}).get("votes") if isinstance(entry, dict) else None,
                         "first_vote_split": bool((entry or {}).get("vote_split")) if isinstance(entry, dict) else False,
+                        **({"first_cross": entry["cross"]} if isinstance(entry, dict) and entry.get("cross") else {}),
                         "flagged": why.get(f"T{n}:{i}") or "", "jev_reason": None, "problems": (cv or {}).get("problems") or [], "notes": (cv or {}).get("notes") or [],
                         "reason": fail_e.get("reason"), "answer_quote": fail_e.get("answer_quote"), "question_quote": fail_e.get("question_quote"),
                         "entries": (cv or {}).get("entries") or []}
@@ -2381,7 +2504,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--jev-questions", help="1차 심판 항목 정의(J1~J4) JSON — 기본 참고자료/프롬프트/jev_questions_v4.json")
     ap.add_argument("--turn-checklists", help="멀티턴 턴별 확인 목록 JSON — 기본 <세트>/multiturn_v3/turn_checklists.json")
     # 심판 비교 · 호출 방식 시험 (사용자 10-26)
-    ap.add_argument("--first-judge", choices=("auto", "jev", "decisions"), help="1차 심판 고정 — auto(질문 크기 · 첨부로 나눔, 기본) · jev · decisions (.env FIRST_JUDGE_MODE)")
+    ap.add_argument("--first-judge", choices=("situational", "auto", "jev", "decisions"),
+                    help="1차 심판 흐름 — situational(기본, 회의 흐름: 단일 질문 Jev+Decisions 교차 · 그 밖 Decisions 1번) · auto(옛 크기 나눔 + --votes 표) · jev · decisions (.env FIRST_JUDGE_MODE)")
     ap.add_argument("--first-only", action="store_true", help="1차 심판만 — Codex 를 부르지 않고 decisions/<질문>.json 만 남긴다 (심판 비교)")
     ap.add_argument("--reuse-first", help="쉼표로 나눈 판정 폴더 이름 — 그 폴더들의 1차 판정(decisions/)을 그대로 쓰고 1차 심판을 부르지 않는다 (2차 호출 방식 비교)")
     ap.add_argument("--codex-one-call", choices=("file", "stdin"), help="첫 Codex 호출을 한 번으로 — 첨부 없는 단일 질문 전부(모델이 달라도)를 파일 하나(codex_io/한번에/판정_입력.json)로 · stdin 은 표준 입력으로")
@@ -2428,8 +2552,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if not (out / "decisions" / f.name).exists():
                     shutil.copy2(f, out / "decisions" / f.name)
     reuse_dec, keep_first = bool(args.repair or args.reuse_first), bool(args.reuse_first)
-    if FIRST_JUDGE_MODE != "auto" or FIRST_ONLY:
-        say(f"🧪 1차 심판 {FIRST_JUDGE_MODE}" + (" · 1차만(Codex 안 부름)" if FIRST_ONLY else "") + f" · 투표 {FIRST_JUDGE_VOTES}")
+    say(f"⚖ 1차 심판 {FIRST_JUDGE_MODE}" + (f" · 교차 확실 {CROSS_SURE} · Jev 2(+1) · Decisions 1" if FIRST_JUDGE_MODE == "situational" else f" · 투표 {FIRST_JUDGE_VOTES}")
+        + (" · 1차만(Codex 안 부름)" if FIRST_ONLY else ""))
 
     if args.pick:
         plan = [(int(x.split(":")[0]), x.split(":")[1]) for x in args.pick.split(",") if x.strip()]
