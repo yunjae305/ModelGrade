@@ -56,6 +56,14 @@ def _strip_quotes(value: str) -> str:
     return value
 
 
+def default_env_path() -> Path:
+    """.env — 지금 폴더에 있으면 그것, 없으면 modelgrade 명령이 알려 준 설치 폴더(MODELGRADE_HOME)의 것.
+    어느 폴더에서 modelgrade 를 쳐도 같은 키를 읽게 (전역 명령, 사용자 10-26 저녁)."""
+    here = Path(".env")
+    home = os.environ.get("MODELGRADE_HOME")
+    return Path(home) / ".env" if not here.exists() and home else here
+
+
 def env_value(
     name: str, environment: Optional[Dict[str, str]] = None,
     env_path: Optional[Path] = None,
@@ -69,7 +77,7 @@ def env_value(
     direct = env.get(name)
     if direct:
         return _strip_quotes(direct)
-    path = env_path if env_path is not None else Path(".env")
+    path = env_path if env_path is not None else default_env_path()
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:

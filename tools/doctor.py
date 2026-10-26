@@ -91,7 +91,7 @@ def check_collect_chrome() -> Check:
     from tools.chrome_cdp import PORT, status
     st = status(timeout=1.0)
     return Check("수집용 Chrome 창", None, f"떠 있음 · 탭 {len(st['tabs'])}개" if st["ok"] else f"안 떠 있음(포트 {PORT}) — 수집을 시작하면 띄움", False,
-                 "처음 한 번: modelgrade login 으로 네 사이트에 로그인")
+                 "처음 한 번: modelgrade setup(또는 modelgrade login)으로 네 사이트에 로그인")
 
 
 def check_claude() -> Check:
@@ -152,8 +152,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"{sign} {c.name}: {c.detail}" + (f"\n     → {c.fix}" if c.ok is False and c.fix else ""))
     bad = [c for c in checks if c.required and c.ok is not True]
     print()
-    run = r".\modelgrade" if platform.system() == "Windows" else "./modelgrade.sh"
-    print(f"필수 항목 모두 준비됨 — 다음: {run} login(처음 한 번) → {run} start" if not bad else f"필수 항목 {len(bad)}개가 남았습니다 (위의 → 를 따라 하세요)")
+    run = "modelgrade"   # 설치 스크립트가 어느 폴더에서나 쓰게 PATH 에 넣음 (10-26 저녁)
+    print(f"필수 항목 모두 준비됨 — 다음: {run} setup(처음 한 번 — 키 · 로그인) → {run} start" if not bad else f"필수 항목 {len(bad)}개가 남았습니다 (위의 → 를 따라 하세요)")
     return 1 if bad else 0
 
 

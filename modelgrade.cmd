@@ -1,7 +1,8 @@
 @echo off
-rem Run on Windows (also from PowerShell: .\modelgrade start). Install first with install.ps1
+rem Run on Windows: modelgrade start (installer adds this folder to PATH). Install first with install.ps1
 setlocal
 set "HERE=%~dp0"
+set "MODELGRADE_HOME=%HERE:~0,-1%"
 if exist "%HERE%.venv\Scripts\python.exe" (
   "%HERE%.venv\Scripts\python.exe" -X utf8 "%HERE%tools\modelgrade.py" %*
 ) else (

@@ -28,74 +28,41 @@ ModelGrade 는 **한국어 채팅 AI 의 답변 품질을 같은 조건으로 �
 - **근거 없이는 FAIL 이 없습니다.** 2차 심판은 답변 문장을 인용해야 하고, 인용이 원문에 없으면 다시 묻거나 보류합니다.
 - **돌릴수록 기준이 다듬어집니다.** 판정 결과 · 보류 · 사람 표시를 재료로 기준 문서와 판정 프롬프트의 잘못을 찾아 고치는 루프가 들어 있습니다.
 
-## 빠른 시작 — 다른 PC 에서
+## 빠른 시작 — 명령 세 개
 
-미리 설치할 것: **Python 3.10+** · **Google Chrome** · **Node.js**(Codex CLI 설치용). 계정: ChatGPT(Codex CLI 로그인 · 답 수집), 수집할 사이트 계정(Claude · Gemini · AIONA), 1차 심판 키(OpenAI 또는 Jev). Windows · macOS · Linux 에서 돕니다.
+Windows · macOS 에서 같은 흐름입니다(Linux 도 됨). 설치 명령 하나가 받기 · 파이썬 · Chrome · Node.js · Codex · Claude CLI · 패키지 · `modelgrade` 명령까지 깔고(없는 것은 Windows 는 winget, macOS 는 Homebrew 로), 끝에 처음 설정(키 · 로그인)을 묻습니다.
 
-**Windows (PowerShell)**
-
-```powershell
-git clone https://github.com/yunjae305/ModelGrade.git
-cd ModelGrade
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+**1. 설치** — Windows (PowerShell)
 
 ```powershell
-notepad .env
+irm https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.ps1 | iex
 ```
 
-```powershell
-codex login
-```
-
-```powershell
-.\modelgrade doctor
-```
-
-```powershell
-.\modelgrade login
-```
-
-```powershell
-.\modelgrade start
-```
-
-**Linux · macOS (bash)**
+**1. 설치** — macOS · Linux (터미널)
 
 ```bash
-git clone https://github.com/yunjae305/ModelGrade.git && cd ModelGrade && bash install.sh
+curl -fsSL https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.sh | bash
 ```
 
-```bash
-nano .env
-```
+**2. 처음 설정** — 설치가 끝나면 바로 이어서 돌고, 나중에 다시 하려면 새 터미널에서
 
 ```bash
-codex login
+modelgrade setup
 ```
 
-```bash
-./modelgrade.sh doctor
-```
+**3. 평가 시작**
 
 ```bash
-./modelgrade.sh login
-```
-
-```bash
-./modelgrade.sh start
+modelgrade start
 ```
 
 | 단계 | 하는 일 |
 |---|---|
-| 설치 스크립트 | 파이썬 확인 → `.venv` 만들고 패키지 설치 → `.env` 만들기 → Codex CLI 설치(없고 npm 이 있으면) → 점검 |
-| `.env` | 1차 심판 키 하나 이상: `OPENAI_API_KEY`(Decisions) 또는 `TYPESAFE_API_KEY`(Jev). AIONA 를 받으면 `AIONA_LOGIN_ID` · `AIONA_LOGIN_PASSWORD`. 저장소에 올라가지 않음 |
-| `codex login` | 2차 심판(Codex CLI)이 ChatGPT 계정으로 판정 — 로그인 한 번 |
-| `doctor` | 빠진 것을 ✅ / ❌ 로 보여 주고 고치는 명령을 알려 줌(키 값은 출력 안 함) |
-| `login` | 수집용 Chrome(전용 프로필)을 띄워 네 사이트 창을 엶 — 처음 한 번 사람이 직접 로그인, 상태는 프로필에 남음 |
+| 설치 | `~/ModelGrade` 로 받음(이미 받아 두었으면 그 폴더에서 `install.ps1` · `bash install.sh`) → 파이썬 3.10+ · Chrome · Node.js 확인과 설치 → `.venv` · 패키지 → `.env` → Codex CLI · Claude CLI → 어느 폴더에서나 `modelgrade` |
+| `setup` | ① `.env` 키를 하나씩 물음 — `OPENAI_API_KEY`(필수) · `TYPESAFE_API_KEY` · `AIONA_LOGIN_ID/PASSWORD`, 입력은 화면에 안 보임 ② `codex login` · `claude auth login` 을 대신 띄움 ③ 수집용 Chrome 에 ChatGPT · Claude · Gemini · AIONA 창을 열고, 로그인 뒤 창마다 확인 ④ 환경 점검 |
 | `start` | 메뉴 1(간단 78): 네 모델 동시 수집 → 판정 → `참고자료/결과/<시작 시각>/` 결과 폴더 |
 
-다른 명령은 `.\modelgrade --help`(Windows) · `./modelgrade.sh --help`(Linux · macOS).
+필요한 계정: OpenAI API 키(1차 심판), ChatGPT 계정(Codex CLI 2차 심판 · 답 수집), Claude · Gemini · AIONA 계정(답 수집). 나머지 설정은 `.env.example` 의 주석에 무엇을 넣는지 적어 두었습니다. 빠진 것 확인은 `modelgrade doctor`, 다른 명령은 `modelgrade --help`.
 
 ## 더 보기
 

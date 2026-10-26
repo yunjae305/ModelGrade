@@ -4,7 +4,7 @@
 
 ## 준비
 
-설치는 README 의 '빠른 시작'과 같습니다 — Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`, Linux · macOS `bash install.sh`(둘 다 `.venv` · 패키지 · `.env` · 점검). 그다음 시험:
+설치는 README 의 '빠른 시작'과 같습니다 — 받아 둔 폴더에서 Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`, macOS · Linux `bash install.sh`(둘 다 파이썬 · Chrome · Node.js · `.venv` · 패키지 · `.env` · Codex · Claude CLI · 전역 `modelgrade` 명령 · 처음 설정). 묻지 않게 하려면 `MODELGRADE_NONINTERACTIVE=1`, CLI 설치를 건너뛰려면 `MODELGRADE_SKIP_CODEX=1` · `MODELGRADE_SKIP_CLAUDE=1`. 그다음 시험:
 
 ```bash
 python -X utf8 -m pytest -q
@@ -43,7 +43,8 @@ python -X utf8 -m pytest -q
 | 할 일 | 명령 |
 |---|---|
 | 실행 환경 점검 | `modelgrade doctor` |
-| 수집용 Chrome 띄우기 · 로그인 | `modelgrade login` |
+| 처음 설정 — .env 키 · Codex · Claude CLI 로그인 · 웹 로그인 · 점검 | `modelgrade setup` (`--keys` · `--cli` · `--web` 로 하나만) |
+| 수집용 Chrome 띄우기 · 웹 로그인 · 로그인 확인 | `modelgrade login` |
 | AIONA 두 모델을 한 번에 받아 비교(한 실행 · 한 보고서) | `modelgrade start --aiona "자동 추천" --aiona2 "Claude Sonnet 5.5"` |
 | 업데이트 전 vs 후 — 두 실행의 AIONA 답을 묶어 같은 기준으로 판정 | `modelgrade pair --before <전 실행> --after <후 실행> --judge y` |
 | 질문 세트 점검(기준별 10문항 이상, 모델 호출 없음) | `python -X utf8 tools/check_question_set.py 참고자료/질문세트_78/questions.json --min-applicable 10` |
@@ -70,7 +71,7 @@ python -X utf8 -m pytest -q
 
 | 묶음 | 도구 |
 |---|---|
-| 실행 | `modelgrade.py`(start · collect · judge · run · code-eval · report · held · held-apply · doctor · login — 실행 래퍼 `modelgrade` 가 부름) · `chrome_cdp.py`(수집용 Chrome — 전용 프로필 + 디버깅 포트) · `web_chat_login.py`(AIONA · FactChat · 우수AI 로그인 창) · `doctor.py`(실행 환경 점검) |
+| 실행 | `modelgrade.py`(start · collect · judge · run · code-eval · report · held · held-apply · doctor · login · setup — 실행 래퍼 `modelgrade` 가 부름) · `setup_wizard.py`(처음 설정) · `chrome_cdp.py`(수집용 Chrome — 전용 프로필 + 디버깅 포트) · `web_chat_login.py`(AIONA · FactChat · 우수AI 로그인 창) · `doctor.py`(실행 환경 점검) |
 | 판정 | `judge_v4.py`(지금 판정 — `start` 가 씀) · `judge_folder.py`(한 모델의 입력을 폴더에 모아 Codex 세션 하나가 판정) · `judge_item_rerun.py`(기준 하나만 다시 판정 · 다수결) · `build_judge_prompt_v4.py`(판정 프롬프트 · 1차 항목 파일의 경로를 `judge_v4.py` 에 주고, v4 를 처음 만든 생성기 — 프롬프트는 `judge_prompt_v4.txt` 를 직접 고침) |
 | 옛 판정(v3, `modelgrade judge`) | `judge_run.py` · `judge_split.py` · `judge_inputs.py` · `build_judge_situations.py` — `judge_v4.py` 가 심판 호출 · 연결 규칙을 이 파일들에서 가져다 씀 |
 | 비교 · 점검 · 다듬기 | `judge_compare_runs.py`(전후 비교 · 새 결과 폴더) · `judge_first_compare.py`(1차 심판 Jev ↔ Decisions 3번씩) · `judge_claude_compare.py`(2차 심판 Codex ↔ Claude CLI) · `judge_reason_audit.py`(판정 사유 점검) · `criteria_consistency.py`(문서 · 프롬프트 · 코드 대조) · `refine_loop.py`(기준 다듬기 루프) · `build_calibration_sheet.py`(사람 표시용 표) · `check_question_set.py`(질문 세트 점검) |

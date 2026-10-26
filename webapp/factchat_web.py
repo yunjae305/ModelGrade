@@ -295,7 +295,7 @@ class FactChatChat:
             sent_before = self.page.locator(USER_MESSAGE).count()
             editor = self.page.locator(EDITOR).first
             editor.click()
-            self.page.keyboard.press("Control+A")
+            self.page.keyboard.press("ControlOrMeta+A")   # macOS 는 Cmd+A (10-26 저녁)
             self.page.keyboard.press("Delete")
             self.page.keyboard.insert_text(text)
             send = self.page.locator(SEND_BUTTON).first   # 글이 들어가면 '메시지 보내기' 버튼이 생긴다 (Enter 로는 보내지지 않는 경우가 있음)

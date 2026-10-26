@@ -411,7 +411,7 @@ class _CdpChat:
                     break
         if self._box_text(box):
             self._click_box(box)
-            self.page.keyboard.press("Control+A")
+            self.page.keyboard.press("ControlOrMeta+A")   # macOS 는 Cmd+A (10-26 저녁)
             self.page.keyboard.press("Delete")
             self.page.wait_for_timeout(300)
             if self._box_text(box):   # 포커스가 입력칸 밖이면 Ctrl+A 가 페이지를 골라 지워지지 않는다 — 섞인 질문을 보내지 않게 멈춘다
