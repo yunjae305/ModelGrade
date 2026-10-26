@@ -158,8 +158,8 @@ footer { padding: 28px 0 60px; border-top: 1px solid var(--line); font-size: 0.8
 <main class="wrap">
 <header class="hero">
   <h1><em>AIONA</em> 채팅 품질 평가 — 중간 보고</h1>
-  <div class="stat"><span>2026-10-27</span><b>78</b><span>질문</span><b>4</b><span>모델 — ChatGPT · Claude · Gemini · AIONA</span><b>72</b><span>기준 — CODE 28 + LLM Judge 44</span></div>
-  <p class="hint">초안 · 7장면 — ← → 키나 위 목차로 장을 넘깁니다. 숫자는 모델별 질문 수 / 78, 10-25 발행본 기준이라 재판정 뒤 갱신합니다.</p>
+  <div class="stat"><span>2026-10-27</span><b>78</b><span>질문 · 177문항</span><b>4</b><span>모델 — ChatGPT · Claude · Gemini · AIONA</span><b>72</b><span>기준 — 에러 케이스 2 + CODE 26 + LLM Judge 44</span></div>
+  <p class="hint">초안 · 7장면 — ← → 키나 위 목차로 장을 넘깁니다. 숫자는 모델별 문항 수 / 177(싱글턴 질문 1 · 멀티턴은 턴마다 1), 10-25 발행본 기준이라 재판정 뒤 갱신합니다.</p>
 </header>
 
 <section class="slide" id="s1">
@@ -188,11 +188,12 @@ footer { padding: 28px 0 60px; border-top: 1px solid var(--line); font-size: 0.8
       <li><b>78개</b> — 기준 72개를 모두 질문 10개 이상에서 보는 가장 적은 수. 싱글턴 45 · 멀티턴 11 · 롱컨텍스트 10 · 첨부 자료 12.</li>
       <li><b>같은 항목</b> — 어느 답이든 그 질문의 목표 기준을 봄. 답에 따라 항목이 사라지지 않음.</li>
     </ul></div>
-    <div class="card"><span class="ct">평가 흐름</span><h3>CODE 28 → 1차 심판 3표 → Codex 확정</h3><ul>
-      <li><b>CODE 28</b> — 글자 수 · 개수 · 표 · 코드 · 계산을 프로그램이 셈. 어기면 바로 FAIL.</li>
-      <li><b>1차 심판 3표</b> — LLM Judge 44 를 심판 셋이 따로 판정, 다수결.</li>
+    <div class="card"><span class="ct">평가 흐름</span><h3>에러 케이스 · CODE 26 → 1차 심판 3표 → Codex 확정</h3><ul>
+      <li><b>에러 케이스 2</b> — 빈 답 · 거절 · 오류 문구. CODE · LLM 밖의 단독 기준, 의심은 보류하고 사람이 정함.</li>
+      <li><b>CODE 26</b> — 글자 수 · 개수 · 표 · 코드 · 계산을 프로그램이 셈. 어기면 바로 FAIL.</li>
+      <li><b>1차 심판 3표</b> — 질문 크기로 Jev 또는 Decisions 가 판정 프롬프트 3종(비판적 · 친화적 · 유도적)으로 한 번씩, 가중 다수결.</li>
       <li><b>Codex 확정</b> — FAIL · 애매한 칸만 다시 봄. 인용 대조 · 사유 점검을 거쳐도 확인 못 하면 <span class="badge b-hold">보류</span>.</li>
-      <li><b>질문 판정</b> — 보류 하나라도 → 보류 / 보류 없이 FAIL 하나라도 → FAIL / 모두 통과 → 완전 통과.</li>
+      <li><b>문항 판정</b> — 싱글턴 질문 · 멀티턴 턴마다: 보류 하나라도 → 보류 / 보류 없이 FAIL 하나라도 → FAIL / 모두 통과 → 완전 통과.</li>
     </ul></div>
   </div>
   <div class="links"><a href="../기준/채팅품질 평가기준_v2.md">기준 원본 — 채팅품질 평가기준 v2 (72개)</a><a href="발표흐름_2026-10-27.md">발표 흐름 초안</a></div>
@@ -231,24 +232,25 @@ footer { padding: 28px 0 60px; border-top: 1px solid var(--line); font-size: 0.8
   <h3 class="sh">숫자 읽는 법 — 보고서 맨 위 상자</h3>
   <div class="tiles">
     <div class="tile"><b>78</b><em>질문</em><span>AI 에게 보낸 요청 수. 10턴 대화도 질문 1개. 네 모델에 같은 78개.</span></div>
-    <div class="tile"><b>72</b><em>기준</em><span>CODE 28(프로그램) + LLM Judge 44(AI 심판). 질문마다 해당 기준만 봄.</span></div>
+    <div class="tile"><b>177</b><em>문항</em><span>결과를 세는 단위 — 싱글턴 질문 하나가 1문항, 멀티턴은 턴마다 1문항(Q3-1 · Q3-2 …).</span></div>
+    <div class="tile"><b>72</b><em>기준</em><span>에러 케이스 2(단독) + CODE 26(프로그램) + LLM Judge 44(AI 심판). 질문마다 해당 기준만 봄.</span></div>
     <div class="tile"><b>6~10</b><em>질문당 요구 기준</em><span>늘 보는 기준을 더하면 한 질문에 평균 32개를 판정.</span></div>
     <div class="tile"><b>2,162</b><em>기준 판정 건수</em><span>모델마다 같은 수. 빈 출력 요구 10문항은 보류라 뺌.</span></div>
     <div class="tile"><b>통과 · FAIL · 보류</b><em>질문 단위</em><span>모두 통과 / 하나라도 어김 / 확인 못 한 기준이 남음(사람이 정함).</span></div>
-    <div class="tile"><b>%</b><em>통과율</em><span>완전 통과 ÷ 질문 수. '기준 통과율'은 기준 판정 중 통과 비율이라 더 높게 나옴.</span></div>
+    <div class="tile"><b>%</b><em>통과율</em><span>완전 통과 ÷ 문항 수. '기준 통과율'은 기준 판정 중 통과 비율이라 더 높게 나옴.</span></div>
   </div>
 </section>
 
 <section class="slide" id="s5">
   <div class="s-head"><span class="s-no">05 / 07</span><h2>결과 — 모델 차이는 FAIL 수로</h2><p class="s-key">FAIL 마다 답의 해당 문장이 근거입니다. 보류는 통과로 세지 않습니다.</p><span class="stamp">10-25 발행본 기준 · 재판정 뒤 갱신</span></div>
-  <div class="tbl"><table><caption>질문 단위 결과 — 모델별 질문 수 / 78<span>완전 통과 순 · 보류 = 빈 출력 요구 10문항(네 모델 공통) + 심판이 확인 못 한 질문</span></caption>
+  <div class="tbl"><table><caption>문항 단위 결과 — 모델별 문항 수 / 177<span>완전 통과 순 · 멀티턴은 턴마다 1문항 · 보류 = 빈 출력 요구 10문항(네 모델 공통) + 심판이 확인 못 한 문항</span></caption>
     <thead><tr><th>모델</th><th class="num">완전 통과</th><th class="num">FAIL</th><th class="num">보류</th><th>보류 가운데 확인 못 함</th></tr></thead><tbody>
-    <tr><th scope="row">Claude</th><td class="num"><b>55</b> / 78</td><td class="num fail">7</td><td class="num hold">16</td><td>6 <small>+ 빈 출력 10</small></td></tr>
-    <tr><th scope="row">AIONA</th><td class="num"><b>52</b> / 78</td><td class="num fail">14</td><td class="num hold">12</td><td>2 <small>+ 빈 출력 10</small></td></tr>
-    <tr><th scope="row">GPT</th><td class="num"><b>52</b> / 78</td><td class="num fail">12</td><td class="num hold">14</td><td>4 <small>+ 빈 출력 10</small></td></tr>
-    <tr><th scope="row">Gemini</th><td class="num"><b>44</b> / 78</td><td class="num fail">13</td><td class="num hold">21</td><td>11 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">AIONA</th><td class="num"><b>122</b> / 177</td><td class="num fail">43</td><td class="num hold">12</td><td>2 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">Claude</th><td class="num"><b>113</b> / 177</td><td class="num fail">47</td><td class="num hold">17</td><td>7 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">GPT</th><td class="num"><b>110</b> / 177</td><td class="num fail">53</td><td class="num hold">14</td><td>4 <small>+ 빈 출력 10</small></td></tr>
+    <tr><th scope="row">Gemini</th><td class="num"><b>74</b> / 177</td><td class="num fail">80</td><td class="num hold">23</td><td>13 <small>+ 빈 출력 10</small></td></tr>
   </tbody></table></div>
-  <div class="tbl"><table><caption>많이 어긴 기준 — 기준마다 어긴 질문 수(모델별)<span>LLM Judge 44개 가운데 위 다섯 · 멀티턴은 한 턴이라도 어기면 그 질문은 FAIL</span></caption>
+  <div class="tbl"><table><caption>많이 어긴 기준 — 기준마다 어긴 질문 수(모델별)<span>LLM Judge 44개 가운데 위 다섯 · 멀티턴은 한 턴이라도 어기면 그 질문에서 1번으로 셈</span></caption>
     <thead><tr><th>기준</th><th class="num">Claude</th><th class="num">AIONA</th><th class="num">GPT</th><th class="num">Gemini</th></tr></thead><tbody>
     <tr><th scope="row">조건 · 제약 준수 <small>J2-3.a</small></th><td class="num">7</td><td class="num">8</td><td class="num">10</td><td class="num">11</td></tr>
     <tr><th scope="row">입력 자료 충실성 <small>J5-2.a</small></th><td class="num">7</td><td class="num">5</td><td class="num">9</td><td class="num">13</td></tr>
@@ -320,7 +322,7 @@ footer { padding: 28px 0 60px; border-top: 1px solid var(--line); font-size: 0.8
 
 <footer>
   <p>재료 — <a href="발표흐름_2026-10-27.md">발표흐름_2026-10-27.md</a> · <a href="../결과/2026-10-25_12-37-03-450/report.html">결과 보고서(10-25 발행본)</a> · <a href="../결과/2026-10-25_12-37-03-450/판정보고서.html">판정 보고서</a> · <a href="../결과/2026-10-25_12-37-03-450/비교.md">재판정 전후 비교</a> · <a href="미팅 개선 현황.html">미팅 개선 현황</a> · <a href="../변경내역/2026-10-22-변경내역.md">변경내역 10-22</a> · <a href="../변경내역/2026-10-25-변경내역.md">변경내역 10-25</a> · <a href="../기준/채팅품질 평가기준_v2.md">기준 v2</a></p>
-  <p>숫자는 모델별 질문 수 / 78 · 기준 72개(CODE 28 + LLM Judge 44) · 비용은 적지 않음. 초안 2026-10-25.</p>
+  <p>숫자는 모델별 문항 수 / 177(멀티턴은 턴마다) · 기준 72개(에러 케이스 2 + CODE 26 + LLM Judge 44) · 비용은 적지 않음. 초안 2026-10-25.</p>
 </footer>
 </main>
 <script>
