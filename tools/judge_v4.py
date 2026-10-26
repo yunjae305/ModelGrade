@@ -2589,6 +2589,16 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
     return 0
 
 
+
+def already_done(line: Dict[str, Any], repair: bool = False, redo: bool = False) -> bool:
+    """results.jsonl 의 한 줄을 '이미 한 질문'으로 셀지. 선별(v5) 줄도 이미 한 건 (Codex 지적 10-20) · 판정 실행 오류는 다시.
+    --repair: 판정한 줄만 저장된 심판 출력으로 다시 합친다 · --redo: 판정 전 줄(빈 답 · 답 없음 보류 등)까지 처음부터 다시 (10-26)."""
+    if line.get("version") not in (VERSION, SCREEN_VERSION) or line.get("judge_error"):
+        return False
+    if redo:
+        return False
+    return not (repair and line.get("status") == "judged")
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--votes", type=int, help="1차 심판 투표 수 — 같은 턴을 N 번 판정해 다수결 (기본 .env FIRST_JUDGE_VOTES 또는 3, 1 이면 한 번)")
@@ -2680,9 +2690,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         for x in results_path.read_text(encoding="utf-8").splitlines():
             if x.strip():
                 l = json.loads(x)
-                if l.get("version") in (VERSION, SCREEN_VERSION) and not l.get("judge_error"):   # 선별(v5) 줄도 이미 한 건 (Codex 지적 10-20) · 판정 실행 오류는 다시
-                    if (args.repair or args.redo) and l.get("status") == "judged":
-                        continue   # --repair: 판정한 줄은 저장된 심판 출력으로 다시 합친다 · --redo: 처음부터 다시
+                if already_done(l, args.repair, args.redo):
                     done.add((l["provider"], int(l["question"])))
     queues: Dict[str, List[int]] = {}
     for q, p in plan:

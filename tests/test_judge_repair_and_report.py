@@ -194,6 +194,17 @@ def test_empty_reply_and_no_answer_are_held_for_a_person():
     assert jv.pre_status(two, data, {"Q1_T1": "", "Q1_T2": "3층입니다."}) is None   # 일부 턴만 비면 심판이 보고, 빈 턴은 CODE 0-1 FAIL(에러 케이스 턴)
 
 
+def test_redo_also_redoes_lines_settled_before_judging():
+    """--redo 는 판정 전에 정해진 줄(옛 빈 답 FAIL · 보류)까지 처음부터 — 규칙이 바뀐 뒤 다시 돌리면 새 규칙이 들어가야 한다 (10-26).
+    --repair 는 판정한 줄만 다시 합치고, 판정 실행 오류 줄은 언제나 다시."""
+    old_empty = {"version": jv.VERSION, "provider": "gpt", "question": 1, "status": "error_case", "verdict": "FAIL"}
+    judged = {**old_empty, "status": "judged", "verdict": "PASS"}
+    assert jv.already_done(old_empty) and jv.already_done(judged)
+    assert not jv.already_done(old_empty, redo=True) and not jv.already_done(judged, redo=True)
+    assert jv.already_done(old_empty, repair=True) and not jv.already_done(judged, repair=True)
+    assert not jv.already_done({**judged, "judge_error": "시간 초과"}) and not jv.already_done({**judged, "version": "v3"})
+
+
 def test_code_hold_is_a_held_item_and_the_persons_pass_fail_and_reason_are_recorded(tmp_path: Path, monkeypatch):
     """코드 판정 확인(사용자 10-26): CODE 가 보류한 애매한 조건(code_hold)은 판정 줄의 보류 항목이 되어 질문은 보류 → 사람이 PASS · FAIL 과 사유를 고르면
     질문 판정에 반영되고, held-apply 가 기록(코드확인_기록.json)에 쌓는다 — 기준을 고치는 재료."""
