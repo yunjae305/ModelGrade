@@ -47,6 +47,7 @@ def collection_row(r: Dict[str, Any]) -> Dict[str, Any]:
     c = r.get("collection") or {}
     out = {"case_id": r["case_id"], "question": _qno(r["case_id"]), "turn": _turn(r["case_id"]), "answer": r.get("answer") or "",
            "status": c.get("status", "SUCCESS" if r.get("answer") else None), "capture": c.get("capture"), "latency_ms": c.get("latency_ms"),
+           "turn_seconds": c.get("turn_seconds"),   # 그 턴에 실제로 걸린 시간(새 채팅 · 붙여 넣기 · 답 기다림 · 복사, 10-26 밤부터)
            "error": _clip(c.get("error")), "model": c.get("model"), "method": c.get("method")}
     from tools.collection_log import log_lines, needs_log
     if needs_log(c, r.get("answer") or "", r.get("question") or ""):   # 답이 비었거나 못 받았거나 오류 · 거절 문구인 턴의 글 로그 — 보고서 보류 칸에 (10-26)

@@ -392,11 +392,64 @@ def collection_time_rows(run: Dict[str, Any], providers: Optional[List[str]] = N
         error = len(by_q) - received - held
         answer_s = sum((r.get("collection") or {}).get("latency_ms") or 0 for r in rows) / 1000
         wall = sum(e.get("seconds") or 0 for e in run.get("imports") or [] if e.get("provider") == p and e.get("method") == "collect-app-v1")
+        # 질문마다 실제 걸린 시간(턴의 turn_seconds 합 — 새 채팅 · 붙여 넣기 · 답 기다림 · 복사까지, 10-26 밤부터 기록). 기록 없는 옛 실행은 빈 값
+        per_q: Dict[int, float] = {}
+        for r in rows:
+            ts = (r.get("collection") or {}).get("turn_seconds")
+            if isinstance(ts, (int, float)):
+                per_q[_qno(r["case_id"])] = round(per_q.get(_qno(r["case_id"]), 0) + ts, 1)
         chars = sum(len(r.get("answer") or "") for r in rows)
         out.append({"provider": p, "questions": received, "held": held, "errors": error, "total": len(by_q), "answer_seconds": answer_s,
                     "per_question": answer_s / received if received else 0, "wall_seconds": wall, "answer_chars": chars,
+                    "question_seconds": per_q, "measured_seconds": round(sum(per_q.values()), 1),
                     "label": (run.get("models") or {}).get(p) or LABEL.get(p, p)})
     return out
+
+
+JUDGE_NAMES = ("Jev", "Decisions", "Codex")
+QUESTION_TIME_FIELDS = ["모델", "질문", "턴", "수집_걸린초", "수집_답기다린초", "평가초"] + [f"{j}_{k}" for j in JUDGE_NAMES for k in ("호출", "입력토큰", "출력토큰")]
+
+
+def question_time_rows(run: Optional[Dict[str, Any]], lines: Dict[Tuple[str, int], Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """(모델, 질문)마다 수집 · 평가 시간과 심판별 호출 · 토큰 (사용자 10-26 밤: 질문마다 수집 시간 · 평가 시간 · Jev · Decisions 호출 수 · 토큰 기록).
+    수집_걸린초 = 턴의 turn_seconds 합(새 채팅 · 붙여 넣기 · 답 기다림 · 복사, 10-26 밤부터 — 없으면 빈칸), 수집_답기다린초 = latency_ms 합,
+    평가초 = 판정 결과 줄의 seconds, 호출 · 토큰 = 결과 줄의 tokens(심판이 돌려준 사용량)."""
+    col: Dict[Tuple[str, int], Dict[str, Any]] = {}
+    for p, rows in ((run or {}).get("datasets") or {}).items():
+        for r in rows or []:
+            if not isinstance(r, dict) or not r.get("case_id"):
+                continue
+            c = r.get("collection") or {}
+            e = col.setdefault((p, _qno(r["case_id"])), {"turns": 0, "took": 0.0, "took_seen": False, "wait": 0.0})
+            e["turns"] += 1
+            e["wait"] += (c.get("latency_ms") or 0) / 1000
+            if isinstance(c.get("turn_seconds"), (int, float)):
+                e["took"] += c["turn_seconds"]
+                e["took_seen"] = True
+    out = []
+    for key in sorted(set(col) | set(lines), key=lambda k: (k[1], k[0])):
+        p, q = key
+        e = col.get(key) or {}
+        line = (lines.get(key) or {}).get("line") or {}
+        tok = line.get("tokens") if isinstance(line.get("tokens"), dict) else {}
+        row = {"모델": p, "질문": q, "턴": e.get("turns") or (line.get("turns") if isinstance(line.get("turns"), int) else len(line.get("turns") or [])) or "",
+               "수집_걸린초": round(e["took"], 1) if e.get("took_seen") else "", "수집_답기다린초": round(e["wait"], 1) if e else "",
+               "평가초": round(float(line["seconds"]), 1) if isinstance(line.get("seconds"), (int, float)) else ""}
+        for j in JUDGE_NAMES:
+            t = tok.get(j) or {}
+            row[f"{j}_호출"], row[f"{j}_입력토큰"], row[f"{j}_출력토큰"] = t.get("호출") or 0, t.get("입력") or 0, t.get("출력") or 0
+        out.append(row)
+    return out
+
+
+def write_question_times(out_dir: Path, rows: List[Dict[str, Any]]) -> Path:
+    import csv
+    path = Path(out_dir) / "question_times.csv"
+    with path.open("w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=QUESTION_TIME_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    return path
 
 
 def judge_runs(out_dir: Path) -> List[Dict[str, Any]]:
@@ -690,27 +743,44 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
     P.append("<h2>4. 걸린 시간과 토큰</h2>")
     crow = collection_time_rows(run, providers) if run.get("datasets") else []
     if crow:
-        P.append("<h3>답변 수집</h3><table><tr><th>모델</th><th class='num'>받음</th><th class='num'>보류</th><th class='num'>오류·답 없음</th><th class='num'>합계</th><th class='num'>답변 시간 합</th><th class='num'>질문당 평균</th><th class='num'>답변 글자 수</th><th class='num'>수집 벽시계</th></tr>")
+        P.append("<h3>답변 수집</h3><table><tr><th>모델</th><th class='num'>받음</th><th class='num'>보류</th><th class='num'>오류·답 없음</th><th class='num'>합계</th><th class='num'>걸린 시간 합</th><th class='num'>답 기다린 시간 합</th><th class='num'>질문당 평균</th><th class='num'>답변 글자 수</th><th class='num'>수집 벽시계</th></tr>")
         for c in crow:
+            took = c.get("measured_seconds") or 0
+            per_q = (took / len(c["question_seconds"])) if c.get("question_seconds") else c["per_question"]
             P.append(f"<tr><td>{_e(c['label'])}</td><td class='num'>{c['questions']}</td><td class='num'>{c['held']}</td><td class='num'>{c['errors']}</td><td class='num'>{c['total']}</td>"
-                     f"<td class='num'>{_hms(c['answer_seconds'])}</td><td class='num'>{c['per_question']:.0f}초</td><td class='num'>{c['answer_chars']:,}</td><td class='num'>{_hms(c['wall_seconds']) if c['wall_seconds'] else '미측정'}</td></tr>")
-        P.append("</table>")
-    P.append("<h3>판정</h3><table><tr><th>모델</th><th class='num'>판정한 질문</th><th class='num'>판정 시간 합</th><th class='num'>질문당 평균</th><th class='num'>Decisions 입력 토큰</th><th class='num'>Codex 호출</th><th class='num'>Codex 입력 토큰</th><th class='num'>Codex 출력 토큰</th></tr>")
+                     f"<td class='num'>{_hms(took) if took else '미측정'}</td><td class='num'>{_hms(c['answer_seconds'])}</td><td class='num'>{per_q:.0f}초</td><td class='num'>{c['answer_chars']:,}</td><td class='num'>{_hms(c['wall_seconds']) if c['wall_seconds'] else '미측정'}</td></tr>")
+        P.append("</table><p class='note'>걸린 시간 = 질문마다 새 채팅 · 모델 맞추기 · 자료 붙여 넣기 · 답 기다림 · 복사까지 실제로 걸린 시간의 합(10-26 밤부터 기록). 답 기다린 시간 = 보내고 답이 끝나기까지만.</p>")
+    qrows = question_time_rows(run, lines)
+    write_question_times(out_dir, qrows)   # 결과 폴더에 질문별_시간_호출.csv 로 (result_dirs.JUDGE_FILES)
+    P.append("<h3>판정</h3><table><tr><th>모델</th><th class='num'>판정한 질문</th><th class='num'>판정 시간 합</th><th class='num'>질문당 평균</th>"
+             + "".join(f"<th class='num'>{j} 호출</th><th class='num'>{j} 입력 · 출력 토큰</th>" for j in JUDGE_NAMES) + "</tr>")
     for p in providers:
         mine = [L for (pp, q), L in lines.items() if pp == p]
         if not mine:
-            P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>0</td><td colspan='6' class='small'>아직 없음</td></tr>")
+            P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>0</td><td colspan='9' class='small'>아직 없음</td></tr>")
             continue
         sec = sum(L["line"].get("seconds") or 0 for L in mine)
-        dtok = sum(int((((L["line"].get("calls") or {}).get("decisions") or {}).get("input_tokens") or 0)) for L in mine)
-        cu = [usage[(q, p)] for (pp, q) in lines if pp == p and (q, p) in usage]
-        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{len(mine)}</td><td class='num'>{_hms(sec)}</td><td class='num'>{sec / len(mine):.0f}초</td>"
-                 f"<td class='num'>{dtok:,}</td><td class='num'>{sum(u['calls'] for u in cu)}</td><td class='num'>{sum(u['in'] for u in cu):,}</td><td class='num'>{sum(u['out'] for u in cu):,}</td></tr>")
+        rs = [r for r in qrows if r["모델"] == p]
+        cells = "".join(f"<td class='num'>{sum(r[f'{j}_호출'] for r in rs):,}</td><td class='num'>{sum(r[f'{j}_입력토큰'] for r in rs):,} · {sum(r[f'{j}_출력토큰'] for r in rs):,}</td>"
+                        for j in JUDGE_NAMES)
+        P.append(f"<tr><td>{_e(model_label[p])}</td><td class='num'>{len(mine)}</td><td class='num'>{_hms(sec)}</td><td class='num'>{sec / len(mine):.0f}초</td>{cells}</tr>")
     waits = usage[(0, "_all")]["waits"] if (0, "_all") in usage else 0
     jt = judge_time_info(out_dir)
     P.append("</table>" + (f"<p>판정 시간(벽시계): 총 <b>{_hms(jt['seconds'])}</b> · 판정 {jt['judgments']}건(질문×모델) · 건당 평균 {jt['per_judgment']:.0f}초</p>" if jt else ""))
-    P.append(f"<p class='note'>판정 시간은 질문×모델 하나를 끝내는 데 걸린 시간의 합(네 모델이 동시에 돌아 실제 벽시계는 이보다 짧음). Codex 토큰은 run.log 에서 모은 값"
-             f"{' · 429 대기 ' + str(waits) + '회' if waits else ''}. 토큰 수가 없는 칸은 미측정.</p>")
+    P.append(f"<p class='note'>판정 시간은 질문×모델 하나를 끝내는 데 걸린 시간의 합(네 모델이 동시에 돌아 실제 벽시계는 이보다 짧음). 호출 · 토큰은 심판이 호출마다 돌려준 사용량의 합"
+             f"(1차는 판정 태도 3종이면 턴마다 3번){' · 429 대기 ' + str(waits) + '회' if waits else ''}. 0 은 그 심판을 부르지 않았거나 기록이 없는 것.</p>")
+    if qrows:   # 질문마다 — 수집 · 평가 시간과 심판별 호출 (사용자 10-26 밤)
+        def sec(v: Any) -> str:
+            return _hms(v) if isinstance(v, (int, float)) else "—"
+        P.append("<details><summary>질문별 — 수집 시간 · 평가 시간 · 심판 호출 (결과 폴더의 <code>질문별_시간_호출.csv</code> 와 같음)</summary>"
+                 "<table><tr><th>질문</th><th>모델</th><th class='num'>턴</th><th class='num'>수집 걸린 시간</th><th class='num'>답 기다린 시간</th><th class='num'>평가 시간</th>"
+                 + "".join(f"<th class='num'>{j} 호출</th>" for j in JUDGE_NAMES) + "<th class='num'>입력 · 출력 토큰</th></tr>")
+        for r in qrows:
+            P.append(f"<tr><td>Q{r['질문']}</td><td>{_e(model_label.get(r['모델'], r['모델']))}</td><td class='num'>{r['턴']}</td><td class='num'>{sec(r['수집_걸린초'])}</td>"
+                     f"<td class='num'>{sec(r['수집_답기다린초'])}</td><td class='num'>{sec(r['평가초'])}</td>"
+                     + "".join(f"<td class='num'>{r[f'{j}_호출']}</td>" for j in JUDGE_NAMES)
+                     + f"<td class='num'>{sum(r[f'{j}_입력토큰'] for j in JUDGE_NAMES):,} · {sum(r[f'{j}_출력토큰'] for j in JUDGE_NAMES):,}</td></tr>")
+        P.append("</table></details>")
 
     # 5. 보류
     hold_lines = sorted([L for L in lines.values() if L["verdict"] == "HOLD"], key=sort_key)

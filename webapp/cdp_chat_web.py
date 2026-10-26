@@ -220,7 +220,8 @@ class _CdpChat:
 
     def _check_blocked(self) -> None:
         """한도·봇 확인 문구가 화면에 있는가 — 채팅 말풍선(질문·답) 글은 빼고 본다. 대화 내용에 '한도에 도달' 같은 말이 나오면 오탐(Gemini Q18, 2026-10-20)."""
-        sel = ", ".join(x for x in (self.ANSWER_SELECTOR, self.USER_SELECTOR) if x)
+        # 열린 메뉴 속 글도 뺀다 — 모델 메뉴의 '사용 한도에 도달했습니다'(다른 모델 · 추론 수준의 잠김 표시)를 한도로 읽어 멈췄다(10-26 밤 GPT-5.6 Sol)
+        sel = ", ".join(x for x in (self.ANSWER_SELECTOR, self.USER_SELECTOR, "[role=menu]", "[role=listbox]") if x)
         # 말풍선(질문 · 답) 안의 글자 노드는 건너뛰고 나머지 화면 글만 모은다 — innerText 를 split 으로 빼던 방식은 공백 차이로 못 뺐다(10-23 GPT Q22)
         # 보이는 글만 — script · style · 숨은 요소(렌더되지 않은 것)의 글은 뺀다 (Codex 검토 10-25: 숨은 안내의 '한도' 문구로 멈추지 않게)
         js = """(sel) => { const skip = sel ? Array.from(document.querySelectorAll(sel)) : [];
@@ -715,23 +716,49 @@ class ChatGptChat(_CdpChat):
         self.page.wait_for_timeout(900)
 
     def _close_menu(self) -> None:
-        self.page.keyboard.press("Escape")
-        self.page.wait_for_timeout(300)
-        self.page.keyboard.press("Escape")
-        self.page.wait_for_timeout(400)
+        """열린 메뉴를 닫는다 — 닫힐 때까지 Escape(최대 4번). 열린 채 두면 입력칸을 가리고, 메뉴 속 '사용 한도' 표시를 한도로 읽는다(10-26 밤)."""
+        for _ in range(4):
+            self.page.keyboard.press("Escape")
+            self.page.wait_for_timeout(300)
+            try:
+                if not self._eval("() => Array.from(document.querySelectorAll('[role=menu]')).some(e => e.getClientRects().length)"):
+                    break
+            except Exception:
+                break
+        self.page.wait_for_timeout(200)
+
+    def _radio(self) -> Any:
+        return self.page.locator("[role=menu] [role=menuitemradio]").filter(has_text=re.compile(rf"^{re.escape(self.MODEL_NAME)}$"))
 
     def _pick_model_radio(self) -> None:
-        """모델 메뉴(10-23 화면): 1단계에 추론 수준 항목(지금 값, 예 'High')과 모델 라디오(GPT-6 · GPT-5.6 Sol)가 함께 있다. 옛 화면('모델 선택' 하위 메뉴)도 본다."""
-        self._open_model_menu()
-        radio = self.page.locator("[role=menu] [role=menuitemradio]").filter(has_text=re.compile(rf"^{re.escape(self.MODEL_NAME)}$"))
-        if radio.count():
-            if radio.first.get_attribute("aria-checked") != "true":
-                radio.first.click(timeout=3000)
+        """모델 메뉴(10-26 밤 화면): 첫 칸은 추론 수준('Medium >' · 슬라이더)이고, 모델 라디오(GPT-6 · GPT-5.6 Sol)는 'Medium >' 를 눌러야 나오는
+        다음 칸에 있다 — 첫 칸에서도 라디오가 문서에는 있지만 슬라이더 칸이 덮어 누를 수 없다. 고른 뒤 메뉴를 다시 열어 정말 골랐는지 본다.
+        옛 화면('모델 선택' 하위 메뉴)도 본다."""
+        try:
+            self._open_model_menu()
+            if not self._radio().count():
+                raise LookupError
+            if self._radio().first.get_attribute("aria-checked") != "true":
+                level = self.page.locator("[role=menu] [role=menuitem]").filter(
+                    has_text=re.compile(r"^(" + "|".join(re.escape(x) for x in self.LEVELS) + r")\b"))
+                if level.count():
+                    level.first.click(timeout=3000)
+                    self.page.wait_for_timeout(800)
+                self._radio().first.click(timeout=3000)
                 self.page.wait_for_timeout(600)
+        except LookupError:
             self._close_menu()
+            self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
             return
-        self._close_menu()
-        self._menu_pick("button", self.MODEL_MENU, ["모델 선택", self.MODEL_NAME], exact_last=True)
+        finally:
+            self._close_menu()
+        self._open_model_menu()   # 확인 — 고른 모델이 정말 선택됐나
+        try:
+            ok = self._radio().count() and self._radio().first.get_attribute("aria-checked") == "true"
+        finally:
+            self._close_menu()
+        if not ok:
+            raise CdpWebError(f"ChatGPT 모델을 {self.MODEL_NAME} 으로 바꾸지 못했습니다 — 모델 메뉴 화면이 바뀌었는지 확인하세요")
 
     def _shown_level(self) -> str:
         try:

@@ -22,7 +22,8 @@ REPORT = "report.html"             # 결과 보고서 (tools/build_result_summar
 JUDGE_REPORT = "판정보고서.html"     # 판정 보고서 (tools/report_html) — 판정 폴더에서는 report.html
 #: 판정 폴더(data/judge_runs/<실행>/<out>)에서 결과 폴더로 옮겨 두는 파일 — {판정 폴더 이름: 결과 폴더 이름}
 JUDGE_FILES = {"report.html": JUDGE_REPORT, "report.md": "판정보고서.md", "summary.json": "summary.json",
-               "results.jsonl": "results.jsonl", "human_decisions.json": "human_decisions.json"}
+               "results.jsonl": "results.jsonl", "human_decisions.json": "human_decisions.json",
+               "question_times.csv": "질문별_시간_호출.csv"}   # 질문마다 수집 · 평가 시간 · 심판별 호출 · 토큰 (사용자 10-26 밤)
 
 
 COLLECT_DIR = "수집기록"   # 답변 수집 기록 (data/judge_runs/<실행>/ 에서 옮김 — data/ 는 git 에 안 올라감)

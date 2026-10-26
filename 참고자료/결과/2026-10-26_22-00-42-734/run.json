@@ -1,0 +1,12 @@
+{
+ "version": "result-dirs-v1",
+ "run_id": "adbd7a658a67",
+ "started": "2026-10-26_22-00-42-734",
+ "name": "평가 — 질문세트_78 · ChatGPT 웹 (GPT-5.6 Sol · Medium)",
+ "question_set": {
+  "set_id": "qs-2026-10-21-mt3",
+  "dir": "참고자료/질문세트_78"
+ },
+ "eval_kind": "set78",
+ "model_choice": "gpt:GPT-5.6 Sol"
+}

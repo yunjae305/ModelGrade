@@ -24,6 +24,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -372,7 +373,11 @@ STATUS_KO = {"SUCCESS": "받음", "COPY_FAILED": "복사 못 함", "ERROR": "오
 def display_name(provider: str, model_label: Optional[str] = None) -> str:
     """터미널에 보일 모델 이름 — 'GPT' · 'Gemini' · 'AIONA' · 'AIONA · Claude Sonnet 5.5'(AIONA 에서 고른 모델)."""
     from tools.providers import short_label
-    return short_label(model_label or LABELS.get(provider), provider) if family(provider) == "aiona" else SHORT_NAMES.get(provider, provider)
+    if family(provider) == "aiona":
+        return short_label(model_label or LABELS.get(provider), provider)
+    m = re.match(r"^.*?\((.+?) · ", model_label or "")   # 'ChatGPT 웹 (GPT-5.6 Sol · Medium)' — 기본이 아닌 모델을 골랐으면 이름에 (10-26 밤)
+    picked = m.group(1) if m else None
+    return SHORT_NAMES.get(provider, provider) + (f" · {picked}" if picked and picked != APP_DEFAULT_MODEL.get(provider) else "")
 
 
 def brief_console() -> bool:
@@ -676,12 +681,14 @@ def collect_app_one(args: argparse.Namespace) -> int:
         for i, q in enumerate(wanted, 1):
             turns = sorted(by_q[q], key=lambda r: int(r.get("turn") or 1))
             print(f"▶ Q{q} ({len(turns)}턴) — 이번 묶음 {i}/{len(wanted)} · 전체 {got + 1}/{total}", flush=True)
+            q_started = time.monotonic()   # 질문마다 실제 걸린 시간 — 새 채팅 · 모델 맞추기 · 자료 붙여 넣기 · 답 기다림 · 복사까지 (사용자 10-26 밤)
             try:
                 chat.new_chat()
             except Exception as exc:
                 print(f"  Q{q}: 새 채팅 실패 — {exc}", flush=True)
                 continue
             for r in turns:
+                turn_started = q_started if r is turns[0] else time.monotonic()   # 1턴은 새 채팅을 연 때부터
                 files = materialize_attachments(r, set_dir, Path(tmpd))
                 res = chat.ask(r.get("question") or "", files=files, reference=r.get("reference"))
                 waited = 0
@@ -710,6 +717,7 @@ def collect_app_one(args: argparse.Namespace) -> int:
                         res = {**res, "turn_log": read_log("error-like-answer")}
                 col = {k: v for k, v in res.items() if k != "answer" and not (k == "turn_log" and v is None)}
                 col["collected_at"] = _now()
+                col["turn_seconds"] = round(time.monotonic() - turn_started, 1)   # 이 턴에 실제로 걸린 시간(답 기다린 시간 latency_ms 와 따로)
                 row = {"case_id": r["case_id"], "question": r.get("question") or "", "answer": res.get("answer") or "" if res.get("status") == "SUCCESS" else "",
                        "system_id": args.provider, "source": label, "case_index": rows_all.index(r), "collection": col}
                 for key in ("reference", "attachments", "conversation_id", "turn"):
@@ -1104,8 +1112,10 @@ def print_collection_times(run_id: str, providers: Optional[List[str]] = None) -
     except SystemExit:
         return
     rows = [[display_name(c["provider"], (run.get("models") or {}).get(c["provider"])), c["questions"], c["held"], c["errors"], c["total"],
-             _hms(c["answer_seconds"]), f"{c['per_question']:.0f}초"] for c in collection_time_rows(run, providers)]
-    print_table(["모델", "받음", "보류", "오류", "질문", "답변 시간", "질문당"], rows)
+             _hms(c["measured_seconds"] or c["wall_seconds"]), _hms(c["answer_seconds"]),
+             f"{(c['measured_seconds'] / len(c['question_seconds'])) if c['question_seconds'] else c['per_question']:.0f}초"]
+            for c in collection_time_rows(run, providers)]
+    print_table(["모델", "받음", "보류", "오류", "질문", "걸린 시간", "답 기다린 시간", "질문당"], rows)
     print("  (보류 = 답을 복사해 오지 못함 · 빈 출력 요구에서 복사 버튼 없음 — 사람이 정함, 오류 = 모델이 답하지 못함)", flush=True)
 
 

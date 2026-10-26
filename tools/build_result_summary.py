@@ -1212,13 +1212,19 @@ def fmt_s(sec: float) -> str:
     return f"{sec}초" if sec < 60 else f"{sec // 60}분 {sec % 60:02d}초"
 
 
+def turn_time(t: Dict[str, Any]) -> float:
+    """턴 하나의 수집 시간(초) — 실제 걸린 시간(turn_seconds: 새 채팅 · 붙여 넣기 · 답 기다림 · 복사, 10-26 밤부터 기록), 없으면 답 기다린 시간(latency_ms)."""
+    ts = t.get("turn_seconds")
+    return float(ts) if isinstance(ts, (int, float)) else (t.get("latency_ms") or 0) / 1000
+
+
 def answer_times(D: Dict[str, Any]) -> Tuple[Dict[int, Dict[str, float]], Dict[int, set]]:
     """질문 → 모델 → 답변 시간 합(초 — 질문을 보내고 답을 받기까지, 멀티턴은 10턴 합) ·
     질문 → 다시 수집할 턴이 있는 모델(그 칸의 시간은 실패까지 걸린 시간이라 편차에서 뺀다)."""
     secs: Dict[int, Dict[str, float]] = defaultdict(dict)
     redo: Dict[int, set] = defaultdict(set)
     for (p, q, _t), t in D["turns"].items():
-        secs[q][p] = secs[q].get(p, 0.0) + (t.get("latency_ms") or 0) / 1000
+        secs[q][p] = secs[q].get(p, 0.0) + turn_time(t)
         if t.get("status") != "SUCCESS":
             redo[q].add(p)
     return secs, redo
@@ -1801,12 +1807,12 @@ def token_table(D: Dict[str, Any]) -> str:
     for name in sorted(T, key=lambda k: JUDGE_ORDER.index(k) if k in JUDGE_ORDER else len(JUDGE_ORDER)):
         t = T[name]
         per = (t["in"] + t["out"]) / n_ans
-        rows.append([E(name), f'{t["calls"]:,}' + ("번 호출" if name == "Codex" else "턴"), cell(t, "in"), cell(t, "cached"), cell(t, "out"),
+        rows.append([E(name), f'{t["calls"]:,}번', cell(t, "in"), cell(t, "cached"), cell(t, "out"),
                      cell(t, "reason"), tk(per) + ("" if "out" in t["seen"] else " <small>(입력만)</small>")])
     tot_in, tot_out = sum(t["in"] for t in T.values()), sum(t["out"] for t in T.values())
     rows.append(['<span class="rs-strong">합계</span>', "", tk(tot_in), "", tk(tot_out), "", tk((tot_in + tot_out) / n_ans)])
     missing = any(col not in t["seen"] for t in T.values() for col in USAGE_KEYS)
-    return (table("판정 토큰 — 심판별", ["심판", "판정", "입력", "그중 캐시", "출력", "그중 추론", "답 하나 판정당"], rows, [19, 12, 13, 13, 13, 13, 17])
+    return (table("판정 호출 · 토큰 — 심판별", ["심판", "API 호출", "입력", "그중 캐시", "출력", "그중 추론", "답 하나 판정당"], rows, [19, 12, 13, 13, 13, 13, 17])
             + '<p class="rs-basis">심판이 호출마다 돌려준 사용량을 그대로 더한 값입니다 — 다시 묻기 · 복구 호출도 들어갑니다. '
               'Codex 는 CLI 가 덧붙이는 시스템 프롬프트 · 도구 설명과 추론까지 셉니다. 캐시 = 앞 호출과 같은 앞부분이라 다시 읽은 입력(단가가 낮음). '
               f'답 하나 판정당 = (입력 + 출력) ÷ ({D["n"]}문항 × {len(D["order"])}모델). 답변 수집(앱 · 웹 화면)은 토큰이 보이지 않아 판정만 셉니다.'
@@ -1851,7 +1857,7 @@ def collect_seconds(D: Dict[str, Any]) -> float:
     """답변 수집 시간 — 모델마다 답변 시간 합(질문을 보내고 답을 받기까지) 중 가장 긴 것 (사용자 10-21: 벽시계 대신 이것)."""
     per = defaultdict(float)
     for (p, _q, _t), t in D["turns"].items():
-        per[p] += (t.get("latency_ms") or 0) / 1000
+        per[p] += turn_time(t)
     return max(per.values()) if per else 0
 
 
