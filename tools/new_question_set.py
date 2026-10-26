@@ -81,12 +81,13 @@ def _file_lines(path: Path, kind: str) -> Optional[List[str]]:
             for row in table.rows:
                 lines += [c.text for c in row.cells]
         return lines
-    if kind == "pdf":
+    if kind == "pdf":   # pypdfium2 는 필수 의존성(판정의 PDF 쪽 이미지) — 깨진 PDF 는 여기서 예외 → '파일을 열지 못함'
+        import pypdfium2
+        doc = pypdfium2.PdfDocument(str(path))
         try:
-            from pypdf import PdfReader
-        except ImportError:
-            return None
-        return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages).splitlines()
+            return "\n".join(doc[i].get_textpage().get_text_range() for i in range(len(doc))).splitlines()
+        finally:
+            doc.close()
     return None
 
 
@@ -119,8 +120,9 @@ def check_attachment(set_dir: Path, a: Any) -> List[str]:
         elif kind in ("docx", "pdf"):
             if kind == "pdf" and not f.read_bytes()[:5].startswith(b"%PDF"):
                 return out + [f"{path}: PDF 파일이 아님"]
-            lines = [_norm(x) for x in (_file_lines(f, kind) or []) if len(_norm(x)) >= 4]
-            body = _norm(content)
+            flat = lambda t: _norm(t).replace("|", "")   # 표 칸 막대는 빼고 — PDF 글 뽑기는 칸 글을 구분자 없이 이어 붙인다
+            lines = [flat(x) for x in (_file_lines(f, kind) or []) if len(flat(x)) >= 4]
+            body = flat(content)
             if lines:
                 missing = [x for x in lines if x not in body]
                 if len(missing) > 0.1 * len(lines):
@@ -132,7 +134,16 @@ def check_attachment(set_dir: Path, a: Any) -> List[str]:
 
 def check_set(set_dir: Path, size: str = "full") -> Dict[str, Any]:
     """세트 폴더 검사 → {"ok", "problems": [고칠 것 한 줄씩], "counts", "k", "conversations", "short"}. 평가 때와 같은 코드(질문 인식기 ·
-    k_var · 적용 수 · 토큰 수)로 센다 — 모델은 부르지 않는다."""
+    k_var · 적용 수 · 토큰 수)로 센다 — 모델은 부르지 않는다. 만든 질문의 모양이 이상해 검사가 넘어지면 그 오류를 '고칠 것'으로 돌려준다
+    (회차 반복이 멈추지 않고 Claude 가 다음 회차에 고치게 — Codex 검토 10-26 밤)."""
+    try:
+        return _check_set(set_dir, size)
+    except Exception as exc:
+        return {"ok": False, "size": size, "counts": {},
+                "problems": [f"검사가 질문 모양 때문에 멈춤 — {type(exc).__name__}: {str(exc)[:200]} (questions.json 의 키 · 값 모양을 프롬프트 9장대로)"]}
+
+
+def _check_set(set_dir: Path, size: str) -> Dict[str, Any]:
     spec = SPECS[size]
     res: Dict[str, Any] = {"ok": False, "size": size, "problems": [], "counts": {}}
     problems: List[str] = res["problems"]
@@ -153,7 +164,8 @@ def check_set(set_dir: Path, size: str = "full") -> Dict[str, Any]:
         turns = g.get("turns")
         if (g.get("id") != i or not isinstance(turns, list) or not turns or not isinstance(g.get("target_items"), list)
                 or [t.get("turn") if isinstance(t, dict) else None for t in turns] != list(range(1, len(turns) + 1))
-                or not all(isinstance(t.get("question"), str) and t["question"].strip() for t in turns)):
+                or not all(isinstance(t.get("question"), str) and t["question"].strip() for t in turns)
+                or not all(isinstance(t.get("attachments") or [], list) and isinstance(t.get("reference") or "", str) for t in turns)):
             bad.append(g.get("id", f"{i}번째"))
     if bad:
         problems.append(f"형식이 틀린 질문 {len(bad)}개({', '.join(map(str, bad[:12]))}) — id 는 1부터 차례로, turns 는 turn 1부터 · question 글, "

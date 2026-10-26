@@ -75,8 +75,9 @@ JS = """
     const n=Object.values(store).filter(d=>d.v).length;const c=document.getElementById('decided');if(c)c.textContent=n}
   function rec(el){const d=store[el.dataset.key];if(!d||!d.v)return null;return {provider:el.dataset.provider,question:+el.dataset.question,turn:+el.dataset.turn,item:el.dataset.item,old:el.dataset.old,new:d.v,note:d.note||'',reviewer:(document.getElementById('reviewer')||{}).value||'',at:new Date().toISOString()}}
   function doc(out){const who=(document.getElementById('reviewer')||{}).value||'';return {run_id:RUN,policy:document.body.dataset.policy,exported_at:new Date().toISOString(),reviewer:who,decisions:out}}
-  function push(els){if(!LIVE)return;const out=els.map(rec).filter(Boolean);if(!out.length)return;
-    fetch('/api/decisions',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc(out))}).then(r=>r.json()).then(j=>{
+  let chain=Promise.resolve();   // 누른 순서대로 하나씩 보낸다 — 앞 요청이 늦게 도착해 나중 판단을 덮지 않게
+  function push(els){if(!LIVE)return;const out=els.map(rec).filter(Boolean);if(!out.length)return;const body=JSON.stringify(doc(out));
+    chain=chain.then(()=>fetch('/api/decisions',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:body})).then(r=>r.json()).then(j=>{
       if(st)st.textContent=j.ok?('저장됨 '+new Date().toLocaleTimeString()+' · 모두 '+j.total+'건'+(j.rejected?' · 거부 '+j.rejected:'')):('저장 실패 — '+(j.error||''))
     }).catch(()=>{if(st)st.textContent='저장 실패 — 프로그램이 꺼졌으면 판단 내보내기로 받으세요'})}
   document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint();push([el])}));
@@ -86,7 +87,7 @@ JS = """
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(doc(out),null,1)],{type:'application/json'}));a.download='held_decisions_'+RUN+'.json';a.click()});
   const cl=document.getElementById('clear');if(cl)cl.addEventListener('click',()=>{if(confirm('이 브라우저에 저장된 판단을 모두 지울까요?')){store={};save();paint()}});
   const rb=document.getElementById('rebuild');if(rb)rb.addEventListener('click',()=>{if(st)st.textContent='보고서 다시 만드는 중 …';
-    fetch('/api/rebuild',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json()).then(j=>{if(j.ok)location.reload();else if(st)st.textContent='다시 만들기 실패 — '+(j.error||'')})});
+    chain.then(()=>fetch('/api/rebuild',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})).then(r=>r.json()).then(j=>{if(j.ok)location.reload();else if(st)st.textContent='다시 만들기 실패 — '+(j.error||'')})});
   if(location.protocol.indexOf('http')===0)fetch('/api/ping',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.ok||j.run_id!==RUN)return;
     LIVE=true;document.body.classList.add('live');if(st)st.textContent='바로 저장 — 누르면 프로그램에 바로 들어갑니다';
     push([...document.querySelectorAll('.hold-item')])}).catch(()=>{});   // 전에 이 브라우저에만 저장해 둔 판단도 한 번에 보냄

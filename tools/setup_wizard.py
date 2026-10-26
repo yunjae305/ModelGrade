@@ -170,9 +170,17 @@ def setup_cli(ask: bool = True) -> Dict[str, bool]:
             print(f"  ⚠️  {name}: {'.'.join(map(str, v))} — {'.'.join(map(str, minimum))} 이상 필요")
             npm = shutil.which("npm")
             if ask and npm and ask_yes("    지금 최신으로 올릴까요?"):
-                subprocess.run([npm, "install", "-g", f"{package}@latest"])
+                code = subprocess.run([npm, "install", "-g", f"{package}@latest"]).returncode
+                v2 = cli_version(exe)
+                if code or v2 is None or v2 < minimum:   # 올리지 못함 — 로그인돼 있어도 쓸 수 없는 판이라 실패로 둔다 (Codex 검토 10-26 밤)
+                    print(f"    ❌ 올리지 못했습니다({'.'.join(map(str, v2)) if v2 else '버전 모름'}) — 관리자 터미널에서: {install}")
+                    out[name] = False
+                    continue
+                print(f"    ✅ {'.'.join(map(str, v2))} 로 올림")
             else:
                 print(f"    나중에: {install}")
+                out[name] = False
+                continue
         if check(exe):
             print(f"  ✅ {name}: 로그인 됨")
             out[name] = True

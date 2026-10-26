@@ -258,6 +258,8 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     assert calls[3][:2] == (["gpt", "aiona"], {"gpt": "GPT-5.6 Sol", "aiona": "GPT-5.6 Sol"}) and mg.load_run(calls[3][2])["model_choice"] == "gpt:GPT-5.6 Sol"
     with pytest.raises(SystemExit):
         mg.main(["start", "--set", str(set_dir), "--choice", "1", "--aiona", "GPT-9", "--judge", "n"])
+    assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "0", "--judge", "n"]) == 0   # 0 = 네 모델 기본 (Codex 검토 10-26 밤)
+    assert calls[-1][0] == mg.ALL_PROVIDERS
 
 
 def test_collect_app_only_with_skip_done_leaves_out_answered_questions(tmp_path, monkeypatch):

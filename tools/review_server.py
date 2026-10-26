@@ -65,6 +65,12 @@ def rebuild(judge_dir: Path, run_id: str) -> None:
         modelgrade.cmd_report(argparse.Namespace(dir=str(judge_dir), run=run_id, from_start=False))
 
 
+class _Server(ThreadingHTTPServer):
+    """요청 스레드를 데몬으로 두지 않고 닫을 때 기다린다 — Enter 를 누른 순간의 저장이 끝난 뒤 보고서를 다시 만들게 (Codex 검토 10-26 밤)."""
+    daemon_threads = False
+    block_on_close = True
+
+
 def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, port_box: Dict[str, int],
                  on_saved: Callable[[Dict[str, Any]], None]) -> type:
     from tools import modelgrade
@@ -73,6 +79,8 @@ def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, por
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *a: Any, **kw: Any) -> None:
             super().__init__(*a, directory=str(result_dir), **kw)
+
+        timeout = 30   # 요청 하나가 끝없이 붙잡지 않게
 
         def log_message(self, *_a: Any) -> None:   # 터미널을 어지럽히지 않는다
             pass
@@ -145,7 +153,8 @@ def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "
           say: Callable[[str], None] = lambda s: print(s, flush=True)) -> Dict[str, Any]:
     """서버를 띄우고 보고서를 연 뒤 wait() 가 끝나면 보고서를 다시 만들고 닫는다. 저장한 수를 돌려준다."""
     run_id, judge_dir, result_dir = find_dirs(run_id)
-    if not (result_dir / page).exists():
+    if not (result_dir / page).exists() or "/api/ping" not in (result_dir / page).read_text(encoding="utf-8", errors="ignore"):
+        say("  보고서를 바로 저장되는 판으로 다시 만드는 중 …")   # 옛 보고서는 누른 판단이 브라우저에만 남는다 (Codex 검토 10-26 밤)
         rebuild(judge_dir, run_id)
     token = secrets.token_urlsafe(18)
     port_box = {"port": 0}
@@ -156,7 +165,7 @@ def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "
         saved["added"] += res["added"]
         saved["total"] = res["total"]
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(run_id, judge_dir, result_dir, token, port_box, on_saved))
+    server = _Server(("127.0.0.1", 0), make_handler(run_id, judge_dir, result_dir, token, port_box, on_saved))
     port_box["port"] = server.server_address[1]
     url = f"http://127.0.0.1:{port_box['port']}/{quote(page)}?t={token}#hold"
     threading.Thread(target=server.serve_forever, daemon=True).start()

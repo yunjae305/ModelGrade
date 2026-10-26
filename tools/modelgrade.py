@@ -1027,7 +1027,7 @@ def _cmd_start(args: argparse.Namespace) -> int:
             raise SystemExit("AIONA 두 자리에 같은 모델을 골랐습니다 — 서로 다른 모델을 고르세요(업데이트 전 · 후 비교는 modelgrade pair)")
         model_choice = f"aiona:{models['aiona']}|aiona2:{models['aiona2']}"
         pick = None
-    elif args.model:   # 고른 모델 하나와 AIONA (같은 이름의 모델로, 10-22)
+    elif args.model and parse_model(args.model):   # 고른 모델 하나와 AIONA (같은 이름의 모델로, 10-22) — '0' · '전체' 는 아래 네 모델 기본으로
         pick = parse_model(args.model)
         providers = [pick[0], "aiona"]
         models = {pick[0]: pick[1], "aiona": aiona_model_for(*pick)}

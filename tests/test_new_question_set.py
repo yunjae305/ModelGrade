@@ -103,3 +103,13 @@ def test_live_board_redraws_in_place_and_fits_the_terminal(monkeypatch):
     out = tty.getvalue()
     assert "\x1b[1F" in out and "⚠ 경고\n" in out and "…" in out
     assert all(b.line("aiona") != x.split("\n")[0] for x in out.split("\x1b[2K")[1:])   # 긴 줄은 그대로 안 나감
+
+
+def test_check_set_turns_a_crash_into_a_problem(tmp_path, monkeypatch):
+    """만든 질문 모양이 이상해 검사가 넘어져도 회차 반복이 멈추지 않게 — 오류를 '고칠 것'으로 (Codex 검토 10-26 밤)."""
+    from tools import new_question_set as nq
+    import tools.check_question_set as cq
+    d = _small_set(tmp_path / "s")
+    monkeypatch.setattr(cq, "check_items", lambda *a, **k: (_ for _ in ()).throw(ValueError("invalid literal for int(): 'Q01'")))
+    res = nq.check_set(d, "small")
+    assert not res["ok"] and res["problems"][0].startswith("검사가 질문 모양 때문에 멈춤 — ValueError")
