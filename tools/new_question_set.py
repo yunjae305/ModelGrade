@@ -123,7 +123,9 @@ def check_attachment(set_dir: Path, a: Any) -> List[str]:
             flat = lambda t: _norm(t).replace("|", "")   # 표 칸 막대는 빼고 — PDF 글 뽑기는 칸 글을 구분자 없이 이어 붙인다
             lines = [flat(x) for x in (_file_lines(f, kind) or []) if len(flat(x)) >= 4]
             body = flat(content)
-            if lines:
+            if not lines:   # 빈 문서 · 글을 뽑을 수 없는 문서 — content 와 맞는지 확인할 수 없다 (Codex 검토 10-26 밤)
+                out.append(f"{path}: 파일에서 글을 읽지 못함(빈 문서이거나 글이 그림으로만 들어감) — content 의 글이 실제로 든 파일로 다시 만들기")
+            else:
                 missing = [x for x in lines if x not in body]
                 if len(missing) > 0.1 * len(lines):
                     out.append(f"{path}: 파일 글 {len(lines)}줄 중 {len(missing)}줄이 content 에 없음(예: {missing[0][:30]}) — 파일을 다시 열어 content 와 맞추기")

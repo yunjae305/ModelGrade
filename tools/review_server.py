@@ -16,6 +16,7 @@ import json
 import secrets
 import sys
 import threading
+import time
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -71,8 +72,8 @@ class _Server(ThreadingHTTPServer):
     block_on_close = True
 
 
-def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, port_box: Dict[str, int],
-                 on_saved: Callable[[Dict[str, Any]], None]) -> type:
+def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, port_box: Dict[str, Any],
+                 on_saved: Callable[[Dict[str, Any]], None], on_finish: Callable[[], None] = lambda: None) -> type:
     from tools import modelgrade
     lock = threading.Lock()
 
@@ -130,6 +131,10 @@ def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, por
             except ValueError:
                 return self._json(400, {"ok": False, "error": "JSON 이 아님"})
             path = urlsplit(self.path).path
+            port_box["last"] = time.monotonic()   # 마지막 요청 시각 — 끝낼 때 조용해질 때까지 기다린다
+            if path == "/api/finish":   # 화면의 '다 정함 — 끝내기': 보낼 판단을 모두 보낸 뒤 부른다
+                on_finish()
+                return self._json(200, {"ok": True})
             try:
                 with lock:
                     if path == "/api/decisions":
@@ -165,16 +170,29 @@ def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "
         saved["added"] += res["added"]
         saved["total"] = res["total"]
 
-    server = _Server(("127.0.0.1", 0), make_handler(run_id, judge_dir, result_dir, token, port_box, on_saved))
+    finished = threading.Event()
+    server = _Server(("127.0.0.1", 0), make_handler(run_id, judge_dir, result_dir, token, port_box, on_saved, finished.set))
     port_box["port"] = server.server_address[1]
     url = f"http://127.0.0.1:{port_box['port']}/{quote(page)}?t={token}#hold"
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    say(f"  보류 정하기 — 브라우저에서 누르면 바로 저장됩니다: {url}")
+    say(f"  보류 정하기 — 브라우저에서 누르면 바로 저장됩니다(다 정했으면 화면의 '다 정함 — 끝내기' 또는 여기서 Enter): {url}")
     if open_browser:
         webbrowser.open(url)
+
+    def waiter() -> None:
+        try:
+            wait()
+        except (EOFError, KeyboardInterrupt, OSError):
+            pass
+        finished.set()
+    threading.Thread(target=waiter, daemon=True).start()
     try:
-        wait()
-    except (EOFError, KeyboardInterrupt):
+        while not finished.wait(0.5):
+            pass
+        t0 = time.monotonic()   # 화면에 남은 저장이 들어올 틈 — 마지막 요청 뒤 2초 조용할 때까지(최대 15초, Codex 검토 10-26 밤)
+        while time.monotonic() - max(port_box.get("last", 0), t0 - 2) < 2 and time.monotonic() - t0 < 15:
+            time.sleep(0.2)
+    except KeyboardInterrupt:
         pass
     finally:
         server.shutdown()

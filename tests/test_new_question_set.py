@@ -113,3 +113,15 @@ def test_check_set_turns_a_crash_into_a_problem(tmp_path, monkeypatch):
     monkeypatch.setattr(cq, "check_items", lambda *a, **k: (_ for _ in ()).throw(ValueError("invalid literal for int(): 'Q01'")))
     res = nq.check_set(d, "small")
     assert not res["ok"] and res["problems"][0].startswith("검사가 질문 모양 때문에 멈춤 — ValueError")
+
+
+def test_blank_document_does_not_pass(tmp_path):
+    """글을 뽑을 수 없는 빈 PDF 는 content 와 대조할 수 없으니 통과시키지 않는다 (Codex 검토 10-26 밤)."""
+    from fpdf import FPDF
+    from tools import new_question_set as nq
+    d = _small_set(tmp_path / "s")
+    groups = json.loads((d / "questions.json").read_text(encoding="utf-8"))
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.output(str(d / "files" / groups[3]["turns"][0]["attachments"][0]["path"]))
+    assert any("파일에서 글을 읽지 못함" in p for p in nq.check_set(d, "small")["problems"])

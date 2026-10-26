@@ -76,18 +76,23 @@ JS = """
   function rec(el){const d=store[el.dataset.key];if(!d||!d.v)return null;return {provider:el.dataset.provider,question:+el.dataset.question,turn:+el.dataset.turn,item:el.dataset.item,old:el.dataset.old,new:d.v,note:d.note||'',reviewer:(document.getElementById('reviewer')||{}).value||'',at:new Date().toISOString()}}
   function doc(out){const who=(document.getElementById('reviewer')||{}).value||'';return {run_id:RUN,policy:document.body.dataset.policy,exported_at:new Date().toISOString(),reviewer:who,decisions:out}}
   let chain=Promise.resolve();   // 누른 순서대로 하나씩 보낸다 — 앞 요청이 늦게 도착해 나중 판단을 덮지 않게
+  let busy=false;   // 다시 만들기 · 끝내기 중에는 누르지 못하게 (Codex 검토 10-26 밤)
+  function freeze(){busy=true;document.querySelectorAll('.hold-item button, .hold-item input, .allbtn').forEach(e=>e.disabled=true)}
   function push(els){if(!LIVE)return;const out=els.map(rec).filter(Boolean);if(!out.length)return;const body=JSON.stringify(doc(out));
     chain=chain.then(()=>fetch('/api/decisions',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:body})).then(r=>r.json()).then(j=>{
       if(st)st.textContent=j.ok?('저장됨 '+new Date().toLocaleTimeString()+' · 모두 '+j.total+'건'+(j.rejected?' · 거부 '+j.rejected:'')):('저장 실패 — '+(j.error||''))
     }).catch(()=>{if(st)st.textContent='저장 실패 — 프로그램이 꺼졌으면 판단 내보내기로 받으세요'})}
-  document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint();push([el])}));
-  document.querySelectorAll('.hold-item input.note').forEach(i=>i.addEventListener('change',()=>{const el=i.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{note:i.value});save();push([el])}));
-  document.querySelectorAll('.allbtn').forEach(b=>b.addEventListener('click',()=>{const els=[...b.closest('details').querySelectorAll('.hold-item')];els.forEach(el=>{store[el.dataset.key]=Object.assign(store[el.dataset.key]||{},{v:b.dataset.v})});save();paint();push(els)}));
+  document.querySelectorAll('.hold-item .btns button').forEach(b=>b.addEventListener('click',()=>{if(busy)return;const el=b.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{v:b.dataset.v});save();paint();push([el])}));
+  document.querySelectorAll('.hold-item input.note').forEach(i=>i.addEventListener('change',()=>{if(busy)return;const el=i.closest('.hold-item');const k=el.dataset.key;store[k]=Object.assign(store[k]||{},{note:i.value});save();push([el])}));
+  document.querySelectorAll('.allbtn').forEach(b=>b.addEventListener('click',()=>{if(busy)return;const els=[...b.closest('details').querySelectorAll('.hold-item')];els.forEach(el=>{store[el.dataset.key]=Object.assign(store[el.dataset.key]||{},{v:b.dataset.v})});save();paint();push(els)}));
   const ex=document.getElementById('export');if(ex)ex.addEventListener('click',()=>{const out=[...document.querySelectorAll('.hold-item')].map(rec).filter(Boolean);
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(doc(out),null,1)],{type:'application/json'}));a.download='held_decisions_'+RUN+'.json';a.click()});
   const cl=document.getElementById('clear');if(cl)cl.addEventListener('click',()=>{if(confirm('이 브라우저에 저장된 판단을 모두 지울까요?')){store={};save();paint()}});
-  const rb=document.getElementById('rebuild');if(rb)rb.addEventListener('click',()=>{if(st)st.textContent='보고서 다시 만드는 중 …';
+  const rb=document.getElementById('rebuild');if(rb)rb.addEventListener('click',()=>{if(busy)return;freeze();if(st)st.textContent='보고서 다시 만드는 중 …';
     chain.then(()=>fetch('/api/rebuild',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})).then(r=>r.json()).then(j=>{if(j.ok)location.reload();else if(st)st.textContent='다시 만들기 실패 — '+(j.error||'')})});
+  const fin=document.getElementById('finish');if(fin)fin.addEventListener('click',()=>{if(busy)return;freeze();if(st)st.textContent='남은 판단을 보내는 중 …';
+    chain.then(()=>fetch('/api/finish',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})).then(()=>{if(st)st.textContent='끝냈습니다 — 프로그램이 보고서를 다시 만듭니다. 이 창은 닫아도 됩니다.'})
+      .catch(()=>{if(st)st.textContent='프로그램에 닿지 못함 — 이미 끝났으면 판단 내보내기로 받으세요'})});
   if(location.protocol.indexOf('http')===0)fetch('/api/ping',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.ok||j.run_id!==RUN)return;
     LIVE=true;document.body.classList.add('live');if(st)st.textContent='바로 저장 — 누르면 프로그램에 바로 들어갑니다';
     push([...document.querySelectorAll('.hold-item')])}).catch(()=>{});   // 전에 이 브라우저에만 저장해 둔 판단도 한 번에 보냄
@@ -411,7 +416,36 @@ JUDGE_NAMES = ("Jev", "Decisions", "Codex")
 QUESTION_TIME_FIELDS = ["모델", "질문", "턴", "수집_걸린초", "수집_답기다린초", "평가초"] + [f"{j}_{k}" for j in JUDGE_NAMES for k in ("호출", "입력토큰", "출력토큰")]
 
 
-def question_time_rows(run: Optional[Dict[str, Any]], lines: Dict[Tuple[str, int], Dict[str, Any]]) -> List[Dict[str, Any]]:
+def judge_usage(line: Dict[str, Any], codex_log: Optional[Dict[str, float]] = None) -> Dict[str, Dict[str, int]]:
+    """판정 결과 줄 하나의 심판별 {호출, 입력, 출력} — tokens(10-26 저녁부터)가 있으면 그것, 없으면 calls 기록(1차 usage · attempts_by,
+    Codex calls · 토큰), 그것도 없으면 run.log 에서 모은 Codex 사용량 (Codex 검토 10-26 밤: 옛 실행이 0 으로 보이던 것)."""
+    tok = line.get("tokens")
+    if isinstance(tok, dict) and any(j in tok for j in JUDGE_NAMES):
+        return {j: {"호출": int((tok.get(j) or {}).get("호출") or 0), "입력": int((tok.get(j) or {}).get("입력") or 0),
+                    "출력": int((tok.get(j) or {}).get("출력") or 0)} for j in JUDGE_NAMES if j in tok}
+    out: Dict[str, Dict[str, int]] = {}
+    calls = line.get("calls") or {}
+    dc, cx = calls.get("decisions") or {}, calls.get("codex") or {}
+    ab = dc.get("attempts_by") if isinstance(dc.get("attempts_by"), dict) else {}
+    usage = dc.get("usage") if isinstance(dc.get("usage"), dict) else {}
+    for name, label in (("jev", "Jev"), ("decisions", "Decisions")):
+        u = usage.get(name) if isinstance(usage.get(name), dict) else {}
+        if u or ab.get(name):
+            out[label] = {"호출": int(ab.get(name) or 0), "입력": int(u.get("input_tokens") or 0), "출력": int(u.get("output_tokens") or 0)}
+    if not out and dc.get("input_tokens"):   # 1차 사용량을 심판별로 남기기 전 — 합쳐서 Decisions 칸에
+        out["Decisions"] = {"호출": int(dc.get("calls") or 0), "입력": int(dc["input_tokens"]), "출력": 0}
+    if cx.get("input_tokens") or cx.get("calls") or cx.get("rounds"):
+        out["Codex"] = {"호출": int(cx.get("calls") if cx.get("calls") is not None else cx.get("rounds") or 0),
+                        "입력": int(cx.get("input_tokens") or 0), "출력": int(cx.get("output_tokens") or 0)}
+        if not out["Codex"]["입력"] and codex_log:
+            out["Codex"].update({"입력": int(codex_log.get("in") or 0), "출력": int(codex_log.get("out") or 0)})
+    elif codex_log and codex_log.get("calls"):
+        out["Codex"] = {"호출": int(codex_log["calls"]), "입력": int(codex_log.get("in") or 0), "출력": int(codex_log.get("out") or 0)}
+    return out
+
+
+def question_time_rows(run: Optional[Dict[str, Any]], lines: Dict[Tuple[str, int], Dict[str, Any]],
+                       codex_log: Optional[Dict[Tuple[int, str], Dict[str, float]]] = None) -> List[Dict[str, Any]]:
     """(모델, 질문)마다 수집 · 평가 시간과 심판별 호출 · 토큰 (사용자 10-26 밤: 질문마다 수집 시간 · 평가 시간 · Jev · Decisions 호출 수 · 토큰 기록).
     수집_걸린초 = 턴의 turn_seconds 합(새 채팅 · 붙여 넣기 · 답 기다림 · 복사, 10-26 밤부터 — 없으면 빈칸), 수집_답기다린초 = latency_ms 합,
     평가초 = 판정 결과 줄의 seconds, 호출 · 토큰 = 결과 줄의 tokens(심판이 돌려준 사용량)."""
@@ -432,13 +466,13 @@ def question_time_rows(run: Optional[Dict[str, Any]], lines: Dict[Tuple[str, int
         p, q = key
         e = col.get(key) or {}
         line = (lines.get(key) or {}).get("line") or {}
-        tok = line.get("tokens") if isinstance(line.get("tokens"), dict) else {}
+        tok = judge_usage(line, (codex_log or {}).get((q, p))) if line else {}
         row = {"모델": p, "질문": q, "턴": e.get("turns") or (line.get("turns") if isinstance(line.get("turns"), int) else len(line.get("turns") or [])) or "",
                "수집_걸린초": round(e["took"], 1) if e.get("took_seen") else "", "수집_답기다린초": round(e["wait"], 1) if e else "",
                "평가초": round(float(line["seconds"]), 1) if isinstance(line.get("seconds"), (int, float)) else ""}
         for j in JUDGE_NAMES:
             t = tok.get(j) or {}
-            row[f"{j}_호출"], row[f"{j}_입력토큰"], row[f"{j}_출력토큰"] = t.get("호출") or 0, t.get("입력") or 0, t.get("출력") or 0
+            row[f"{j}_호출"], row[f"{j}_입력토큰"], row[f"{j}_출력토큰"] = t.get("호출", 0), t.get("입력", 0), t.get("출력", 0)
         out.append(row)
     return out
 
@@ -751,7 +785,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
             P.append(f"<tr><td>{_e(c['label'])}</td><td class='num'>{c['questions']}</td><td class='num'>{c['held']}</td><td class='num'>{c['errors']}</td><td class='num'>{c['total']}</td>"
                      f"<td class='num'>{_hms(took) if took else '미측정'}</td><td class='num'>{_hms(c['answer_seconds'])}</td><td class='num'>{per_q:.0f}초</td><td class='num'>{c['answer_chars']:,}</td><td class='num'>{_hms(c['wall_seconds']) if c['wall_seconds'] else '미측정'}</td></tr>")
         P.append("</table><p class='note'>걸린 시간 = 질문마다 새 채팅 · 모델 맞추기 · 자료 붙여 넣기 · 답 기다림 · 복사까지 실제로 걸린 시간의 합(10-26 밤부터 기록). 답 기다린 시간 = 보내고 답이 끝나기까지만.</p>")
-    qrows = question_time_rows(run, lines)
+    qrows = question_time_rows(run, lines, usage)
     write_question_times(out_dir, qrows)   # 결과 폴더에 질문별_시간_호출.csv 로 (result_dirs.JUDGE_FILES)
     P.append("<h3>판정</h3><table><tr><th>모델</th><th class='num'>판정한 질문</th><th class='num'>판정 시간 합</th><th class='num'>질문당 평균</th>"
              + "".join(f"<th class='num'>{j} 호출</th><th class='num'>{j} 입력 · 출력 토큰</th>" for j in JUDGE_NAMES) + "</tr>")
@@ -814,7 +848,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
         P.append("</table></details>")
     if hold_lines:
         P.append("<div class='toolbar'>검토자 <input id='reviewer' placeholder='이름'> <span class='small'>판단한 항목 <b id='decided'>0</b>개</span> <button id='export'>판단 내보내기(JSON)</button> "
-                 "<button id='rebuild' class='live-only'>보고서 다시 만들기</button> "
+                 "<button id='rebuild' class='live-only'>보고서 다시 만들기</button> <button id='finish' class='live-only'>다 정함 — 끝내기</button> "
                  "<button id='clear' style='background:#fff;color:#333;border-color:#bbb'>저장된 판단 지우기</button> <span class='small' id='live-state'></span></div>")
     for L in hold_lines:
         r, p, q = L["line"], L["line"]["provider"], int(L["line"]["question"])
