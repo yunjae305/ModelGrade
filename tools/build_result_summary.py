@@ -804,24 +804,16 @@ def crit_results(D: Dict[str, Any]) -> Dict[str, Dict[str, Counter]]:
 
 def scene_by_crit(D: Dict[str, Any]) -> str:
     """기준별 결과 — 질문 단위 '완전 통과'와 달리 기준 하나하나의 통과율 (사용자 10-21 저녁: 기준별로 나온 결과도 바로 보이게).
-    위: 모델마다 기준 통과율, 아래: 묶음 16개(CODE 8 · LLM Judge 8) — 묶음을 누르면 기준별로 펼침."""
+    묶음마다(에러 케이스 · CODE · LLM Judge) 모델별 통과율 표 — 묶음을 누르면 기준별로 펼침. 칸 색은 통과율(녹색), 모델 카드는 뺌(사용자 10-27)."""
     order = D["order"]
     cr = crit_results(D)
-    tot = {p: Counter() for p in order}
-    for cid in cr:
-        for p in order:
-            tot[p].update(cr[cid][p])
-    rate = {p: tot[p]["PASS"] / max(1, sum(tot[p].values())) for p in order}
-    by = sorted(order, key=lambda p: -rate[p])
-    cards = "".join(f'<div class="cb-card"><span class="cb-m">{mname(p)}</span><small>기준 통과율</small><b>{rate[p] * 100:.1f}%</b>'   # 숫자가 무엇인지 (사용자 10-27 '이건 뭐야?')
-                    f'<small>기준 판정 {sum(tot[p].values()):,}건 중 통과 {tot[p]["PASS"]:,} · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small>'
-                    f'<small class="cb-q">문항 단위 완전 통과 {D["tally"][p]["PASS"]} / {D["n"]} ({D["tally"][p]["PASS"] / D["n"] * 100:.0f}%)</small></div>' for p in by)
 
     def cell(c: Counter) -> str:
         n = sum(c.values())
         if not n:
             return '<div class="cb-c cb-na">—</div>'
-        return (f'<div class="cb-c" style="{tint(min(1.0, c["FAIL"] / n / 0.4), "--risk")}" title="통과 {c["PASS"]} · FAIL {c["FAIL"]} · 보류 {c["HOLD"]} · 평가 {n}">'
+        # 칸 색 = 통과율, 녹색이 진할수록 많이 통과 (사용자 10-27) — 통과율이 90%대에 몰려 70% 를 바탕(색 없음) · 100% 를 가장 진하게
+        return (f'<div class="cb-c" style="{tint((c["PASS"] / n - 0.7) / 0.3, "--ok")}" title="통과 {c["PASS"]} · FAIL {c["FAIL"]} · 보류 {c["HOLD"]} · 판정 {n}">'
                 f'<b>{c["PASS"] / n * 100:.0f}%</b><small>FAIL {c["FAIL"]} · 보류 {c["HOLD"]} / {n}</small></div>')   # 받은 의견 B: 보류 수도
 
     ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
@@ -839,13 +831,10 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
         rows.append(f'<details class="cb-g"><summary class="cb-row"><span class="cb-l"><b>{E(label)}</b><small>{kind} · 기준 {len(cids)}개</small></span>'
                     + "".join(cell(gsum[p]) for p in order) + f'</summary><div class="cb-sub">{sub}</div></details>')
     n_empty = sum(1 for t in D["qtypes"].values() if t == "명시적 빈 출력")
-    key = ('<p class="cb-key"><b>큰 숫자 = 통과율(통과 ÷ 판정 수, FAIL 확률이 아님)</b> · 칸 색 = FAIL 이 많은 정도(빨갈수록 많음) · '
+    key = ('<p class="cb-key"><b>큰 숫자 = 통과율(통과 ÷ 판정 수)</b> · 칸 색 = 통과율(녹색이 진할수록 많이 통과) · '
            '작은 숫자 = FAIL · 보류 / 판정 수(질문 수 × 그 묶음의 기준 수 — 예: 기준 2개 묶음이면 질문 68개 × 2 = 136)</p>'   # 이사님 10-23: 빨간 표의 뜻을 먼저
            f'<p class="cb-key">묶음을 누르면 기준별로 펼쳐짐 · 빈 출력 요구 {n_empty}문항은 보류라 뺌 · 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
-    return (f'<div class="cb-cards">{cards}</div>'
-            '<p class="cb-key">기준 통과율 = 기준 판정 중 통과한 비율(해당 없음은 통과로, 보류는 통과로 세지 않음). 같은 질문에는 네 모델 모두 같은 기준을 매겨 판정 건수가 같습니다. '
-            '모델마다 90%대로 높으니 차이는 FAIL 수로 보세요 — 질문 하나의 기준을 모두 통과해야 하는 완전 통과보다 훨씬 높게 나옵니다.</p>'
-            f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>')
+    return f'<h3 class="rs-sh">묶음 · 기준마다</h3>{key}<div class="cb-table">{head}{"".join(rows)}</div>'   # 모델 카드 · 설명 문단은 뺌 (사용자 10-27)
 
 
 def scene_code(D: Dict[str, Any]) -> str:
