@@ -374,7 +374,7 @@ def turn_kinds(D: Dict[str, Any]) -> str:
 
     def rate(c: Counter, of: int, cls: str = "") -> str:
         return (f'<td class="{cls}" style="{tint(c["PASS"] / of if of else 0, "--ok")}"><b>{c["PASS"] / of * 100:.0f}%</b>'
-                f'<em>{c["PASS"]} / {of}</em></td>') if of else '<td class="tu-dim">—</td>'
+                f'<em>통과 {c["PASS"]} / {of}</em></td>') if of else '<td class="tu-dim">—</td>'
 
     # 턴 종류별 — 줄은 턴 종류, 칸은 모델
     multi = [u for f in fl for u in by_flow[f]]
@@ -383,7 +383,7 @@ def turn_kinds(D: Dict[str, Any]) -> str:
                    + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f])) for p in order) + "</tr>" for f in fl)
     body += ('<tr class="tu-sum"><th scope="row"><b>멀티턴 전체</b></th>' + f'<td class="tu-n">{len(multi)}</td>'
              + "".join(cell(cnt(p, multi), len(multi)) for p in order) + "</tr>")
-    tabs = [("턴 종류별", f"멀티턴 {len(multi)}문항(턴)을 턴이 하는 일로 묶음 — 대화마다 순서는 달라도 같은 종류의 일 · 보류는 통과로 세지 않음",
+    tabs = [("턴 종류별", f"멀티턴 {len(multi)}문항(턴)을 턴이 하는 일로 묶음 — 칸은 통과한 문항 / 그 종류 문항 수, 아래는 FAIL · 보류 수 · 대화마다 순서는 달라도 같은 종류의 일",
              f'<table class="hm-tab tu-tab"><thead><tr><th>턴 종류</th><th>문항</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
     # 싱글 vs 대화 중 — 같은 종류의 일을 한 턴 질문으로 물었을 때와 대화 중 턴으로 물었을 때
     fs = flow_singles(D)
@@ -393,7 +393,7 @@ def turn_kinds(D: Dict[str, Any]) -> str:
         conv_all, sing_all = [u for f in cf for u in by_flow[f]], [u for f in cf for u in single[f]]
         head = ('<tr><th rowspan="2">턴 종류</th><th rowspan="2">짝지은 한 턴 질문</th>'
                 + "".join(f'<th colspan="2" class="tu-c1"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th>' for p in order)
-                + "</tr><tr>" + '<th class="tu-c1">대화 중</th><th>싱글</th>' * len(order) + "</tr>")
+                + "</tr><tr>" + '<th class="tu-c1">대화 중<br>통과율</th><th>싱글<br>통과율</th>' * len(order) + "</tr>")   # 사용자 10-27: % 가 무엇인지 표기
         body = "".join(f'<tr><th scope="row"><b>{E(TURN_FLOW[f][0])}</b><small>{E(TURN_FLOW[f][1])}</small></th>'
                        f'<td class="tu-qs">{" · ".join(f"Q{q}" for q in fs[f])}</td>'
                        + "".join(rate(cnt(p, by_flow[f]), len(by_flow[f]), "tu-c1") + rate(cnt(p, single[f]), len(single[f])) for p in order) + "</tr>" for f in cf)
@@ -403,7 +403,7 @@ def turn_kinds(D: Dict[str, Any]) -> str:
         tabs.append(("싱글 vs 대화 중", "같은 종류의 일을 한 턴 질문(싱글턴 · 첨부 · 롱컨텍스트)으로 물었을 때와 대화 중 턴으로 물었을 때의 통과율 — 짝은 10-23 멀티턴 · 싱글턴 점검에서 "
                      "멀티 턴 하나에 한 턴 질문 하나씩 붙인 것(빈 출력 요구는 채점 없이 보류라 뺌 · 형식 맞추기 ↔ JSON · 코드 질문, 빠진 자료 ↔ 실제 첨부가 있는 질문처럼 "
                      "느슨한 짝도 있어 방향만 봄)",
-                     f'<p class="tu-line">{E(gap)}</p><table class="hm-tab tu-tab tu-cmp"><thead>{head}</thead><tbody>{body}</tbody></table>'))
+                     f'<p class="tu-line"><b>통과율</b> = 통과한 문항 ÷ 문항 수 (보류 · FAIL 은 통과로 세지 않음) — {E(gap)}</p><table class="hm-tab tu-tab tu-cmp"><thead>{head}</thead><tbody>{body}</tbody></table>'))
     radios = "".join(f'<input type="radio" name="tu" id="tu{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
     labels = '<div class="hm-tabs">' + "".join(f'<label for="tu{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
     panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn tu-p{i}"><p class="hm-d">{E(d)}</p><div class="hm-scroll">{x}</div></div>'
@@ -544,19 +544,32 @@ def criteria_list(D: Dict[str, Any]) -> str:
             + "</details>")
 
 
+def heat_head(order: List[str], corner: str) -> List[str]:
+    """기준 × 모델 표의 머리 — 왼쪽 위에 줄이 무엇인지, 모델 이름 아래 칸 숫자의 뜻, 합은 몇 모델을 더했는지
+    (사용자 10-27: "숫자만 써져있어서 처음봤을때 뭘 의미하는건지 모르겠어" · "걸린 질문수가 정확하게 뭐야")."""
+    return ([f'<div class="rs-hh rs-hk">{E(corner)}</div>'] + [f'<div class="rs-hh">{mname(p)}<small>FAIL 받은 질문 수</small></div>' for p in order]
+            + [f'<div class="rs-hh muted">합<small>{len(order)}모델</small></div>'])
+
+
+def heat_key(what: str, n_q: int, n_m: int) -> str:
+    """표 바로 위 한 줄 — 칸 숫자가 정확히 무엇인지(몇 개 중 · 멀티턴은 어떻게 세는지) · 색 · 굵은 테두리 · 합."""
+    return (f'<p class="rs-hkey"><b>칸 숫자</b> = 그 모델의 답이 {E(what)}에서 FAIL 을 받은 질문 수 (질문 {n_q}개 중 — 빈 출력 요구는 빼고, 멀티턴 대화는 여러 턴에서 FAIL 이어도 1개) · '
+            f'색이 진할수록 많음 · <span class="rs-hkb">굵은 테두리</span> = 그 줄에서 가장 많은 모델 · 합 = {n_m}모델을 더한 수</p>')
+
+
 def scene_criteria(D: Dict[str, Any]) -> str:
     order = D["order"]
     cf = {c: v for c, v in crit_fail(D).items() if not c[0].isdigit()}   # 사용자 10-22: 'LLM Judge 가 많이 어긴 기준' — CODE 검사는 CODE 검사 장면
     top = sorted(cf, key=lambda c: (-sum(cf[c].values()), c))[:10]
     mx = max([cf[c][p] for c in top for p in order] or [1]) or 1
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
-    cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order] + ['<div class="rs-hh muted">합</div>']
+    cells = heat_head(order, "기준")
     for c in top:
         worst = max(cf[c][p] for p in order)
         cells.append(f'<div class="rs-hl"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></div>')
         cells.extend(f'<div class="rs-hc rs-hc-s{" rs-worst-c" if cf[c][p] == worst and worst else ""}" style="{tint(cf[c][p] / mx, "--risk")}"><b>{cf[c][p]}</b></div>' for p in order)
         cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{sum(cf[c].values())}</b></div>')
-    grid = f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>"
+    grid = heat_key("이 기준", sum(1 for t in D["qtypes"].values() if t != EMPTY_REQ), len(order)) + f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>"
     # 한 모델에만 몰린 기준 — 모델 특성인지 수집(복사) 탓인지 원문으로 확인
     cards = []
     for c, cnt in cf.items():
@@ -853,25 +866,25 @@ def scene_code(D: Dict[str, Any]) -> str:
         + (f'<span class="cd-bad" style="width:{len(st[p]["fail"]) / n * 100:.1f}%">{len(st[p]["fail"])}</span>' if st[p]["fail"] else "")
         + f'</div><span class="cd-v"><b>{n - len(st[p]["fail"])}</b> / {n} 통과'
         f'<small>검사 {st[p]["ran"]:,}번 중 FAIL {st[p]["bad"]}번</small>'
-        f'<small>걸린 {len(st[p]["fail"])}문항 중 LLM Judge 도 FAIL {len(st[p]["fail"] & st[p]["sem"])}</small></span></div>'
+        f'<small>FAIL 받은 {len(st[p]["fail"])}문항 중 LLM Judge 도 FAIL {len(st[p]["fail"] & st[p]["sem"])}</small></span></div>'
         for p in rank)
     bars = (f'<div class="cd-bars">{rows}</div>'
-            f'<div class="cd-key"><span><i class="cd-ok"></i>CODE 검사 모두 통과</span><span><i class="cd-bad"></i>하나라도 걸림</span>'
+            f'<div class="cd-key"><span><i class="cd-ok"></i>CODE 검사 모두 통과</span><span><i class="cd-bad"></i>하나라도 FAIL</span>'
             f'<span class="muted">질문 수 · 빈 출력 요구 {len(D["qtypes"]) - n}문항은 보류라 뺌 · 같은 답이면 다시 돌려도 결과가 같음(프로그램)</span></div>')
     checks = sorted(per, key=lambda c: (-sum(len(v) for v in per[c].values()), c))
     n_code = sum(1 for c in D["names"] if c[0].isdigit())
     mx = max([len(per[c][p]) for c in checks for p in order] or [1]) or 1
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
-    cells = ['<div class="rs-hh"></div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order] + ['<div class="rs-hh muted">합</div>']
+    cells = heat_head(order, "검사")
     for c in checks:
         worst = max(len(per[c][p]) for p in order)
         cells.append(f'<div class="rs-hl"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></div>')
         cells.extend(f'<div class="rs-hc rs-hc-s{" rs-worst-c" if len(per[c][p]) == worst and worst else ""}" style="{tint(len(per[c][p]) / mx, "--risk")}" '
                      f'title="{E(" · ".join(f"Q{q}" for q in sorted(per[c][p])))}"><b>{len(per[c][p])}</b></div>' for p in order)
         cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{sum(len(v) for v in per[c].values())}</b></div>')
-    grid = (f'<h3 class="rs-sh">어떤 검사에 걸렸나 — 걸린 검사 {len(checks)}개 ({n_code}개 중)</h3>'
-            f'<p class="rs-basis">숫자는 그 검사에 걸린 질문 수입니다. 칸에 마우스를 올리면 질문 번호가 보입니다. 나머지 {n_code - len(checks)}개 검사는 네 모델 모두 통과.</p>'
-            f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>")
+    grid = (f'<h3 class="rs-sh">어떤 검사에서 FAIL 이 났나 — FAIL 이 난 검사 {len(checks)}개 ({n_code}개 중)</h3>'
+            f'<p class="rs-basis">칸에 마우스를 올리면 그 질문 번호가 보입니다. 나머지 {n_code - len(checks)}개 검사는 네 모델 모두 통과.</p>'
+            + heat_key("이 검사", n, len(order)) + f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>")
     return bars + grid
 
 
@@ -1079,31 +1092,38 @@ FULL_JUDGE = {"minutes": 71, "input": "1억 2,126만", "output": "157만", "call
 
 
 def scene_close(D: Dict[str, Any]) -> str:
-    """마감 · 상시 운영 (10-22 미팅 11번: 다음 주까지 닫을 범위와 일정, 그 뒤 일부 리소스로 상시 운영하며 패치를 어떻게 관리할지 — 일정이 바뀌면 미리 알림).
-    팀원 초안(개선 예정 작업 6장) + 10-23 판정 종합 1차에서 남긴 일. 일정 · 범위는 사용자 확정(10-23)."""
-    def ul(xs: List[str]) -> str:
-        return "<ul>" + "".join(f"<li>{E(x)}</li>" for x in xs) + "</ul>"
-    inside = ["범위 고정 — 78문항 · 4모델 · 기준 72개, 수집 → 판정 → 보고서 명령 하나",
-              "새 규칙으로 다시 판정(멀티턴 11 × 4) → 결과 보고서 · 발표 숫자 갱신",
-              "보류 사람 결정 — 빈 출력 10문항 기준 · 설명 턴 사실 확인 10칸 → 최종 숫자",
-              "심판 표시용 표 100칸 — 기준마다 거짓 FAIL · 거짓 통과 비율",
-              "기준 다듬기 한 바퀴(J1-4.b) — 같은 칸 고치기 전 · 후 비교",
-              "차별점 하나 (미팅 12번)"]
-    after = ["싱글 함정 다시 설계 — 한 줄 함정 → 자료 속에 섞인 함정",
+    """마감 · 상시 운영 (10-22 미팅 11번: 이번 주까지 닫을 범위와 일정, 그 뒤 일부 리소스로 상시 운영하며 패치를 어떻게 관리할지 — 일정이 바뀌면 미리 알림).
+    팀원 초안(개선 예정 작업 6장) + 10-23 판정 종합 1차에서 남긴 일. 일정 · 범위는 사용자 확정(10-23), 10-26 미팅 내용과 10-27 까지 한 것으로 다시 씀(사용자 10-27)."""
+    st_name = {"done": "끝", "doing": "진행 중", "todo": "남음"}
+
+    def ul(xs: List[Any]) -> str:
+        return "<ul>" + "".join(f"<li>{E(x)}</li>" if isinstance(x, str) else
+                                f'<li>{E(x[0])} <span class="cl-st cl-{x[1]}">{st_name[x[1]]}</span></li>' for x in xs) + "</ul>"
+    inside = [("범위 고정 — 78질문 · 4모델 · 기준 72개(에러 케이스 2 + CODE 26 + LLM Judge 44), 수집 → 판정 → 보고서 명령 하나", "done"),
+              ("결과 표기 — 순위는 질문 단위 통과 수(/ 78), 멀티턴 턴마다 1문항(/ 177)은 보조 · 싱글턴 · 멀티턴 · 롱컨텍스트 + 턴 종류별 · 싱글 vs 대화 중 비교", "done"),
+              ("보고서 하나로 — 결과 폴더는 질문 · 답변 JSON 과 report.html, 보류도 보고서 안에서 정함", "done"),
+              ("새 규칙으로 다시 판정 → 보류 103칸 사람 결정 → 결과 보고서 숫자에 반영", "done"),
+              ("1차 심판 판정 프롬프트 3종(비판적 · 친화적 · 유도적) 가중 다수결 — Decisions 는 같은 입력에 같은 답(캐시처럼)", "done"),
+              ("사람 표시 43칸으로 기준 다듬기 — 7개 기준 시험, 채택 없음 → 사람 표시를 늘려 다시", "doing"),
+              ("공개 데이터(카카오 · LG) — 기준을 줄이지 않고 늘리기: 늘릴 기준 목록 · 맞지 않는 질문도 돌려 보기", "doing"),
+              ("같은 모델 비교 실제 수집 — AIONA 안 모델 ↔ 같은 모델 앱 · 웹", "doing"),
+              ("GitHub 공개본 — 이름 aiona-chat-eval · README · 설치 명령은 됨, .env 제외 · 결과 샘플 하나로 올리기", "doing")]
+    after = ["질문 자체를 고치는 자동화 — 쌓인 사람 판단(보류 · FAIL)으로 질문 생성 프롬프트까지 (지금은 데이터로만 쌓음)",
+             "싱글 함정 다시 설계 — 한 줄 함정 → 자료 속에 섞인 함정",
              "Codex 입력 — 대화 10턴을 한 번에 → 판정할 턴까지만",
              "CODE 빈틈 넷 — 가정 문장의 합계 · 시각 덧셈 · 구조가 아예 없으면 통과 · 겹침 다시 묻기 낱말",
              "수집 흔적 — AIONA 출처 번호 지움 · ChatGPT 이스케이프 · 앱 오류 문구는 다시 받기",
              "싱글 1차 확신 문턱 · 롱컨텍스트 근거 위치 기준",
-             "같은 모델 비교 첫 실행 · 원 단위 비용(단가가 정해지면) · 기준 다듬기 도구"]
+             "원 단위 비용(단가가 정해지면) · 기준 다듬기 도구"]
     scope = ('<div class="rs-cards rs-close">'
-             f'<div class="rs-card"><span class="rs-ct">마감 안에</span><b>다음 주에 끝내는 것</b>{ul(inside)}</div>'
+             f'<div class="rs-card"><span class="rs-ct">마감 안에</span><b>이번 주에 끝내는 것</b>{ul(inside)}</div>'
              f'<div class="rs-card"><span class="rs-ct">마감 뒤로</span><b>상시 운영 때 패치로 넘기는 것</b>{ul(after)}</div></div>')
     sched = table("", ["날짜", "할 일", "끝나면 나오는 것"], [
-        ["10-26 (월)", "새 규칙으로 다시 판정 — 멀티턴 11 × 4", "결과 보고서 · 고치기 전 · 후 비교"],
-        ["10-27 (화)", "보류 사람 결정 · 심판 표시용 표 100칸", "최종 숫자 · 기준별 거짓 FAIL · 거짓 통과 비율"],
-        ["10-28 (수)", "기준 다듬기 한 바퀴 — J1-4.b", "흔들리는 기준을 숫자로 · 받을지 결정"],
-        ["10-29 (목)", "발표 자료 숫자 · 장면 최종 반영 · 차별점 하나", "보고 자료 확정"],
-        ["10-30 (금)", "마감 보고 — 범위 · 결과 · 상시 운영 계획", "마감"],
+        ["10-26 (월) · 끝", "새 규칙으로 다시 판정 · 보류 103칸 사람 결정 · 에러 케이스 단독 기준 · 판정 프롬프트 3종 · 멀티턴 턴 단위(/ 177) 표시", "결과 보고서 · 기준 다듬기 7개 시험(채택 없음)"],
+        ["10-27 (화)", "받아 둔 답 다시 판정 · 순위는 질문 단위(/ 78) · 보고서 하나로 · GitHub 공개본 올리기 · 중간 보고", "10-27 결과 보고서(한 파일) · 공개 저장소 · 중간 보고 의견"],
+        ["10-28 (수)", "기준 다듬기 다시(사람 표시를 늘려) · 공개 데이터 — 맞지 않는 질문도 돌려 보기", "받을 기준 결정 · 늘릴 기준 후보"],
+        ["10-29 (목)", "같은 모델 비교 수집 마무리 · 발표 자료 숫자 · 장면 최종 반영", "보고 자료 확정"],
+        ["10-30 (금)", "마지막 버전 · 마감 보고 — 범위 · 결과 · 상시 운영 계획", "마감"],
     ], [16, 46, 38])
     run = (f"수집 {hm(collect_seconds(D))} · 판정 {FULL_JUDGE['minutes']}분, 판정 입력 {FULL_JUDGE['input']} · 출력 {FULL_JUDGE['output']} 토큰 · "
            f"호출 {FULL_JUDGE['calls']}번(10-23 처음부터 판정한 기준). 사람은 보류 칸 결정 · 기준 정의 승인만.")
@@ -1118,10 +1138,11 @@ def scene_close(D: Dict[str, Any]) -> str:
              ("시험", "같은 칸을 고치기 전 · 후로 다시 판정해, 정답률이 오르고 뒤집힘이 줄고 다른 기준이 나빠지지 않을 때만 받습니다."),
              ("기록 · 알림", "변경내역 · 기준 v2 '바뀐 규칙' 표 · 변경 원문 페이지에 남기고 다음 보고서에 함께 냅니다. 일정이나 규칙이 바뀌면 미리 알립니다.")]
     step_html = '<ol class="jc-steps">' + "".join(f"<li><b>{E(t)}</b><span>{E(b)}</span></li>" for t, b in steps) + "</ol>"
-    example = note("이번 주 한 바퀴 (10-23)", "<p>멀티턴 · 싱글 표본 177개(708칸)를 원문과 대조해 원인을 나눴습니다 → 기준 v2 를 먼저 고치고 확인 목록(왕복 = 편도 두 번 · 최종 턴 · 모순 턴 판정) · "
-                   "판정 프롬프트(J1-4.b 경계 · 거절 답 말투) · 거절 턴 규칙을 고쳤습니다 → 효과는 다시 판정(10-26)으로 확인합니다.</p>")
-    return ('<h3 class="rs-sh">마감 범위 — 다음 주 (10-26 ~ 10-30)</h3>' + scope
-            + '<h3 class="rs-sh">일정 (10-23 확정 — 바뀌면 그날 바로 알림)</h3>' + sched
+    example = note("최근 두 바퀴 (10-23 · 10-26)", "<p><b>10-23</b> 멀티턴 · 싱글 표본 177개(708칸)를 원문과 대조해 원인을 나눴습니다 → 기준 v2 를 먼저 고치고 확인 목록(왕복 = 편도 두 번 · 최종 턴 · 모순 턴 판정) · "
+                   "판정 프롬프트(J1-4.b 경계 · 거절 답 말투) · 거절 턴 규칙을 고쳤습니다 → 10-26 다시 판정에 반영.</p>"
+                   "<p><b>10-26</b> 사람 표시 43칸을 정답으로 7개 기준의 고친 안을 같은 칸에서 전 · 후로 다시 판정했습니다 → 뒤집힘이 늘거나 정답률이 떨어져 모두 받지 않았습니다(받지 않은 것도 기록).</p>")
+    return ('<h3 class="rs-sh">마감 범위 — 이번 주 (10-26 ~ 10-30) · 10-27 기준</h3>' + scope
+            + '<h3 class="rs-sh">일정 (10-23 확정 → 10-26 미팅 반영 — 바뀌면 그날 바로 알림)</h3>' + sched
             + '<h3 class="rs-sh">이후 상시 운영 — 일부 리소스로</h3>' + cards
             + '<h3 class="rs-sh">패치는 이렇게 관리합니다</h3>' + step_html + example
             + '<p class="rs-close-end">만든 것을 AIONA 품질 관리에 상시로 쓰고, 외부에 제안할 때도 씁니다.</p>')
@@ -2701,6 +2722,13 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-hc b { font-size: 1.3rem; font-weight: 600; } .rs-hc small { font-size: 0.8rem; color: var(--muted); } .rs-hc span { white-space: nowrap; }
 .rs-hc-s { min-height: 44px; padding: 6px; } .rs-hc-s b { font-size: 1.1rem; }
 .rs-hc.rs-best, .rs-hc.rs-worst-c { border: 2px solid var(--ink); }
+/* 사용자 10-27: 칸 숫자의 뜻을 표 안에 — 모델 이름 아래 · 왼쪽 위 · 표 위 한 줄 */
+.rs-hh small { display: block; font-size: 0.72rem; font-weight: 500; color: var(--muted); } .rs-hh.rs-hk { text-align: left; color: var(--muted); }
+.rs-hkey { margin: 0 0 8px; font-size: 0.82rem; color: var(--muted); line-height: 1.55; word-break: keep-all; }
+.rs-hkb { display: inline-block; padding: 0 6px; border: 2px solid var(--ink); border-radius: 6px; color: var(--ink); }
+/* 마감 범위 항목의 상태 (사용자 10-27: 10-26 미팅 기준으로 다시) */
+.cl-st { display: inline-block; font-size: 0.72rem; font-weight: 600; border-radius: 999px; padding: 0 8px; margin-left: 2px; white-space: nowrap; vertical-align: 1px; }
+.cl-done { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); color: var(--ok); } .cl-doing { background: var(--hold-soft); color: var(--hold-text); } .cl-todo { border: 1px solid var(--line); color: var(--muted); }
 .rs-hc.rs-sum { background: var(--bg); } .rs-hc.rs-sum b { color: var(--muted); font-size: 1rem; }
 .rs-hc.rs-span { font-family: var(--font-body); font-size: 0.92rem; color: var(--muted); background: var(--bg); border-style: dashed; }
 .rs-hnote { margin: 0; font-size: 0.86rem; color: var(--muted); }
@@ -3418,9 +3446,9 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D),
          "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · " + ("한 번 요청 판정" if three_judges(D) else "심판 셋 구조로 다시 판정") + " · 다른 AI 서비스 연결로 넓힙니다."),
         # 10-22 미팅 11번 (사용자 10-23: "11번 진행") — 발전 방향 다음, 보고 이야기의 끝
-        ("s_close", "마감 · 운영", "다음 주 마감 · 상시 운영", "마감 · 상시 운영 — 다음 주에 닫고, 그 뒤엔 업데이트마다 한 바퀴",
-         "다음 주(10-26 ~ 10-30) 안에 범위를 닫고, 그 뒤에는 일부 리소스로 상시 운영하며 패치합니다. 일정 · 범위는 10-23 에 정했고, 바뀌면 미리 알립니다.",
-         scene_close(D), "다음 주 금요일(10-30)에 범위를 닫고, 그 뒤엔 AIONA 업데이트마다 한 바퀴 — 패치는 기준 문서 → 프롬프트 · 코드 순서로, 같은 칸 전후 비교를 넘을 때만 받습니다."),
+        ("s_close", "마감 · 운영", "이번 주 마감 · 상시 운영", "마감 · 상시 운영 — 이번 주에 닫고, 그 뒤엔 업데이트마다 한 바퀴",
+         "이번 주(10-26 ~ 10-30) 안에 범위를 닫고, 그 뒤에는 일부 리소스로 상시 운영하며 패치합니다. 일정 · 범위는 10-23 에 정하고 10-26 미팅 내용을 반영했습니다. 바뀌면 미리 알립니다.",
+         scene_close(D), "10-30(금) 마지막 버전으로 범위를 닫고, 그 뒤엔 AIONA 업데이트마다 한 바퀴 — 패치는 기준 문서 → 프롬프트 · 코드 순서로, 같은 칸 전후 비교를 넘을 때만 받습니다."),
     ]
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
         # 10-26 미팅 12번: 맨 아래에 멀티턴 턴 종류별 · 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때 비교
@@ -3433,11 +3461,11 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
          "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
         ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
-         "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 걸린 질문입니다.", scene_code(D), ""),
+         "형식 · 개수 · 글자 수 · 계산처럼 프로그램이 정해진 규칙으로 센 결과만 따로 봤습니다. 막대는 CODE 검사를 모두 통과한 질문과 하나라도 FAIL 을 받은 질문입니다.", scene_code(D), ""),
         ("s5", "걸린 시간", "수집 · 판정", "걸린 시간 — 답변 수집과 LLM Judge 판정",
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 모델별 합보다 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.", scene_time(D), ""),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
-         "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
+         "칸 숫자는 모델마다 그 기준에서 FAIL 을 받은 질문 수입니다. 색이 진할수록 많습니다.", scene_criteria(D), ""),
         ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['nq']}) {hold_pm}",
          ("보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 아래 <a href=\"#hold\">보류 정하기</a>에서 원문과 사유를 보며 항목마다 PASS · FAIL 을 누르면 정해집니다. "
           "<code>aiona-chat-eval review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 "

@@ -280,6 +280,7 @@ def test_turn_kinds_count_units_by_flow_and_compare_with_singles(tmp_path: Path)
     page = brs.turn_kinds(D)
     assert "멀티턴 전체" in page and "<b>1</b><small> / 3</small><em>FAIL 1 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류
     assert "GPT 대화 중 50% · 싱글 100%" in page   # 짝이 있는 조건 정리 · 계산 턴 1/2, 한 턴 질문 Q5 · Q6 2/2
+    assert "<b>통과율</b> = 통과한 문항 ÷ 문항 수" in page and "대화 중<br>통과율" in page and "<em>통과 2 / 2</em>" in page   # % 의 뜻 (사용자 10-27)
     assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
 
 
