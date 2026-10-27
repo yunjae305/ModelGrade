@@ -67,15 +67,15 @@ jobs:
       - name: 실행 래퍼 · 점검 (Linux · macOS)
         if: runner.os != 'Windows'
         run: |
-          ./modelgrade.sh --help
-          ./modelgrade.sh doctor || true
-          cd "$HOME" && ~/.local/bin/modelgrade setup   # 전역 명령(바로가기) — 다른 폴더에서도 설치 폴더를 찾음, CI 라 묻지 않음
+          ./aiona-chat-eval.sh --help
+          ./aiona-chat-eval.sh doctor || true
+          cd "$HOME" && ~/.local/bin/aiona-chat-eval setup   # 전역 명령(바로가기) — 다른 폴더에서도 설치 폴더를 찾음, CI 라 묻지 않음
       - name: 실행 래퍼 · 점검 (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          .\modelgrade --help
-          .\modelgrade doctor
-          Set-Location $HOME; & "$env:GITHUB_WORKSPACE\modelgrade.cmd" setup   # 다른 폴더에서도 설치 폴더를 찾음, CI 라 묻지 않음
+          .\aiona-chat-eval --help
+          .\aiona-chat-eval doctor
+          Set-Location $HOME; & "$env:GITHUB_WORKSPACE\aiona-chat-eval.cmd" setup   # 다른 폴더에서도 설치 폴더를 찾음, CI 라 묻지 않음
           exit $LASTEXITCODE
 

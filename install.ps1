@@ -1,11 +1,11 @@
 ﻿# 설치 — Windows (PowerShell 5.1 · 7 모두)
-#   한 줄 설치(아무 폴더에서):  irm https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.ps1 | iex
+#   한 줄 설치(아무 폴더에서):  irm https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.ps1 | iex
 #   받아 둔 폴더에서:           powershell -ExecutionPolicy Bypass -File .\install.ps1
-# 하는 일: (한 줄 설치면 ~\ModelGrade 로 받음) → 파이썬 · Chrome · Node.js 확인(없으면 winget 으로 설치) → .venv · 패키지 → .env
-#          → Codex CLI · Claude CLI(npm) → 'modelgrade' 명령을 PATH 에 → 처음 설정(modelgrade setup: 키 · 로그인 · 점검)
+# 하는 일: (한 줄 설치면 ~\aiona-chat-eval 로 받음 — 예전에 ~\ModelGrade 에 깔았으면 그 폴더) → 파이썬 · Chrome · Node.js 확인(없으면 winget 으로 설치) → .venv · 패키지 → .env
+#          → Codex CLI · Claude CLI(npm) → 'aiona-chat-eval' 명령(옛 이름 modelgrade 도)을 PATH 에 → 처음 설정(aiona-chat-eval setup: 키 · 로그인 · 점검)
 # 환경 변수(선택): MODELGRADE_HOME 받을 폴더 · MODELGRADE_SKIP_CODEX · MODELGRADE_SKIP_CLAUDE 설치 건너뜀 · MODELGRADE_NONINTERACTIVE 묻지 않음
 $ErrorActionPreference = "Continue"   # 네이티브 명령의 오류 글만으로 멈추지 않게(PS 5.1) — 단계마다 종료 코드로 판단
-$Repo = "https://github.com/yunjae305/ModelGrade"
+$Repo = "https://github.com/yunjae305/aiona-chat-eval"
 
 function Has($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
 function Refresh-Path { $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") }
@@ -20,18 +20,18 @@ function Winget-Install($id, $what) {
 # 0) 한 줄 설치 — 저장소 밖에서 불렸으면 받아서 그 폴더의 install.ps1 을 새 창 없이 실행 (irm | iex 에서 exit 로 창이 닫히지 않게)
 $here = $PSScriptRoot
 if (-not $here -or -not (Test-Path (Join-Path $here "tools\modelgrade.py"))) {
-  $dest = if ($env:MODELGRADE_HOME) { $env:MODELGRADE_HOME } else { Join-Path $HOME "ModelGrade" }
-  Write-Host "ModelGrade 를 $dest 에 받습니다"
+  $dest = if ($env:MODELGRADE_HOME) { $env:MODELGRADE_HOME } elseif (Test-Path (Join-Path $HOME "ModelGrade\tools\modelgrade.py")) { Join-Path $HOME "ModelGrade" } else { Join-Path $HOME "aiona-chat-eval" }
+  Write-Host "aiona-chat-eval 을 $dest 에 받습니다"
   if (Test-Path (Join-Path $dest "tools\modelgrade.py")) {
     if ((Test-Path (Join-Path $dest ".git")) -and (Has git)) { git -C $dest pull --ff-only | Out-Host }
   } else {
     if (-not (Has git)) { Winget-Install "Git.Git" "Git" | Out-Null }
     if (Has git) { git clone --depth 1 "$Repo.git" $dest | Out-Host }
     else {
-      $zip = Join-Path $env:TEMP "ModelGrade-main.zip"
+      $zip = Join-Path $env:TEMP "aiona-chat-eval-main.zip"
       Invoke-WebRequest "$Repo/archive/refs/heads/main.zip" -OutFile $zip -UseBasicParsing -ErrorAction Stop
       Expand-Archive $zip -DestinationPath $env:TEMP -Force -ErrorAction Stop
-      Move-Item (Join-Path $env:TEMP "ModelGrade-main") $dest -ErrorAction Stop
+      Move-Item (Join-Path $env:TEMP "aiona-chat-eval-main") $dest -ErrorAction Stop
     }
   }
   & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest "install.ps1")
@@ -86,11 +86,11 @@ foreach ($cli in @(@("codex", "@openai/codex", $env:MODELGRADE_SKIP_CODEX, "0.16
   if ($LASTEXITCODE -ne 0) { Write-Host "  $($cli[0]) 설치 실패 — 관리자 PowerShell 에서: npm install -g $($cli[1])" } else { Write-Host "  $($cli[0]): 설치함" }
 }
 
-Write-Host "6/6 'modelgrade' 명령 (어느 폴더에서나)"
+Write-Host "6/6 'aiona-chat-eval' 명령 (어느 폴더에서나, 옛 이름 modelgrade 도)"
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if (-not (($userPath -split ";") -contains $here)) {
   [Environment]::SetEnvironmentVariable("Path", (($userPath.TrimEnd(";") + ";" + $here).TrimStart(";")), "User")
-  Write-Host "  사용자 PATH 에 $here 를 넣었습니다 — 새 터미널부터 'modelgrade' 로 실행"
+  Write-Host "  사용자 PATH 에 $here 를 넣었습니다 — 새 터미널부터 'aiona-chat-eval' 로 실행"
 } else { Write-Host "  이미 PATH 에 있음" }
 $env:Path = "$env:Path;$here"
 
@@ -98,10 +98,10 @@ Write-Host ""
 if ($quiet) {
   & .\.venv\Scripts\python.exe -X utf8 tools\doctor.py
   Write-Host ""
-  Write-Host "다음: 새 터미널에서  modelgrade setup  (키 · 로그인) → modelgrade start"
+  Write-Host "다음: 새 터미널에서  aiona-chat-eval setup  (키 · 로그인) → aiona-chat-eval start"
 } else {
-  Write-Host "처음 설정 — 키 · CLI 로그인 · 웹 로그인 · 점검 (나중에 다시: modelgrade setup)"
-  & .\modelgrade.cmd setup
+  Write-Host "처음 설정 — 키 · CLI 로그인 · 웹 로그인 · 점검 (나중에 다시: aiona-chat-eval setup)"
+  & .\aiona-chat-eval.cmd setup
   Write-Host ""
-  Write-Host "다음: 새 터미널에서  modelgrade start"
+  Write-Host "다음: 새 터미널에서  aiona-chat-eval start"
 }

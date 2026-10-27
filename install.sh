@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # 설치 — macOS · Linux
-#   한 줄 설치(아무 폴더에서):  curl -fsSL https://raw.githubusercontent.com/yunjae305/ModelGrade/main/install.sh | bash
+#   한 줄 설치(아무 폴더에서):  curl -fsSL https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.sh | bash
 #   받아 둔 폴더에서:           bash install.sh
-# 하는 일: (한 줄 설치면 ~/ModelGrade 로 받음) → 파이썬 · Chrome · Node.js 확인(macOS 는 없으면 Homebrew 로 설치) → .venv · 패키지 → .env
-#          → Codex CLI · Claude CLI(npm) → 'modelgrade' 명령(~/.local/bin) → 처음 설정(modelgrade setup: 키 · 로그인 · 점검)
+# 하는 일: (한 줄 설치면 ~/aiona-chat-eval 로 받음 — 예전에 ~/ModelGrade 에 깔았으면 그 폴더) → 파이썬 · Chrome · Node.js 확인(macOS 는 없으면 Homebrew 로 설치) → .venv · 패키지 → .env
+#          → Codex CLI · Claude CLI(npm) → 'aiona-chat-eval' 명령(~/.local/bin, 옛 이름 modelgrade 도) → 처음 설정(aiona-chat-eval setup: 키 · 로그인 · 점검)
 # 환경 변수(선택): MODELGRADE_HOME 받을 폴더 · MODELGRADE_SKIP_CODEX · MODELGRADE_SKIP_CLAUDE 설치 건너뜀 · MODELGRADE_NONINTERACTIVE 묻지 않음
 set -euo pipefail
-REPO="https://github.com/yunjae305/ModelGrade"
+REPO="https://github.com/yunjae305/aiona-chat-eval"
 OS="$(uname -s)"
 has() { command -v "$1" >/dev/null 2>&1; }
 brew_install() {   # brew_install "<brew 인자>" "<이름>" — macOS 에서 Homebrew 가 있을 때만
@@ -22,8 +22,9 @@ no_brew_hint() {
 # 0) 한 줄 설치 — 저장소 밖에서 불렸으면 받아서 그 폴더의 install.sh 를 실행 (curl | bash 면 키 입력은 터미널에서 받게)
 SRC="${BASH_SOURCE[0]:-}"
 if [ -z "$SRC" ] || [ ! -f "$(dirname "$SRC")/tools/modelgrade.py" ]; then
-  DEST="${MODELGRADE_HOME:-$HOME/ModelGrade}"
-  echo "ModelGrade 를 $DEST 에 받습니다"
+  DEST="${MODELGRADE_HOME:-}"
+  [ -n "$DEST" ] || { [ -f "$HOME/ModelGrade/tools/modelgrade.py" ] && DEST="$HOME/ModelGrade" || DEST="$HOME/aiona-chat-eval"; }
+  echo "aiona-chat-eval 을 $DEST 에 받습니다"
   if [ -f "$DEST/tools/modelgrade.py" ]; then
     if [ -d "$DEST/.git" ] && has git; then git -C "$DEST" pull --ff-only || true; fi
   else
@@ -32,7 +33,7 @@ if [ -z "$SRC" ] || [ ! -f "$(dirname "$SRC")/tools/modelgrade.py" ]; then
     else
       mkdir -p "$(dirname "$DEST")"
       curl -fsSL "$REPO/archive/refs/heads/main.tar.gz" | tar -xz -C "$(dirname "$DEST")"
-      mv "$(dirname "$DEST")/ModelGrade-main" "$DEST"
+      mv "$(dirname "$DEST")/aiona-chat-eval-main" "$DEST"
     fi
   fi
   if [ -t 1 ] && { : </dev/tty; } 2>/dev/null; then exec bash "$DEST/install.sh" </dev/tty; else exec bash "$DEST/install.sh"; fi
@@ -87,18 +88,19 @@ for pair in "codex @openai/codex 0.164.0 ${MODELGRADE_SKIP_CODEX:-}" "claude @an
   npm install -g "$2@latest" && echo "  $1: 설치함" || echo "  $1 설치 실패 — 권한 오류면: sudo npm install -g $2"
 done
 
-echo "6/6 'modelgrade' 명령 (어느 폴더에서나)"
-chmod +x modelgrade.sh 2>/dev/null || true
+echo "6/6 'aiona-chat-eval' 명령 (어느 폴더에서나, 옛 이름 modelgrade 도)"
+chmod +x aiona-chat-eval.sh modelgrade.sh 2>/dev/null || true
 mkdir -p "$HOME/.local/bin"
+ln -sf "$HERE/aiona-chat-eval.sh" "$HOME/.local/bin/aiona-chat-eval"
 ln -sf "$HERE/modelgrade.sh" "$HOME/.local/bin/modelgrade"
 case ":$PATH:" in
-  *":$HOME/.local/bin:"*) echo "  ~/.local/bin/modelgrade — 이미 PATH 에 있음" ;;
+  *":$HOME/.local/bin:"*) echo "  ~/.local/bin/aiona-chat-eval — 이미 PATH 에 있음" ;;
   *)
     case "${SHELL:-}" in *zsh) RCS="$HOME/.zshrc" ;; *) RCS="$HOME/.bashrc"; [ "$OS" = "Darwin" ] && RCS="$RCS $HOME/.bash_profile" ;; esac
     for rc in $RCS; do
-      grep -qs 'ModelGrade: ~/.local/bin' "$rc" || printf '\n# ModelGrade: ~/.local/bin 을 PATH 에 (modelgrade 명령)\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$rc"
+      grep -qs 'ModelGrade: ~/.local/bin\|aiona-chat-eval: ~/.local/bin' "$rc" || printf '\n# aiona-chat-eval: ~/.local/bin 을 PATH 에 (aiona-chat-eval 명령)\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$rc"
     done
-    echo "  ~/.local/bin/modelgrade — PATH 에 넣었습니다($RCS). 새 터미널부터 'modelgrade' 로 실행"
+    echo "  ~/.local/bin/aiona-chat-eval — PATH 에 넣었습니다($RCS). 새 터미널부터 'aiona-chat-eval' 로 실행"
     ;;
 esac
 export PATH="$HOME/.local/bin:$PATH"
@@ -107,10 +109,10 @@ echo
 if [ -n "$QUIET" ] || ! [ -t 0 ]; then
   .venv/bin/python -X utf8 tools/doctor.py || true
   echo
-  echo "다음: 새 터미널에서  modelgrade setup  (키 · 로그인) → modelgrade start"
+  echo "다음: 새 터미널에서  aiona-chat-eval setup  (키 · 로그인) → aiona-chat-eval start"
 else
-  echo "처음 설정 — 키 · CLI 로그인 · 웹 로그인 · 점검 (나중에 다시: modelgrade setup)"
-  ./modelgrade.sh setup || true
+  echo "처음 설정 — 키 · CLI 로그인 · 웹 로그인 · 점검 (나중에 다시: aiona-chat-eval setup)"
+  ./aiona-chat-eval.sh setup || true
   echo
-  echo "다음: 새 터미널에서  modelgrade start"
+  echo "다음: 새 터미널에서  aiona-chat-eval start"
 fi

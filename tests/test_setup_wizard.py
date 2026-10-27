@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""처음 설정(modelgrade setup, 사용자 10-26 저녁) — .env 키를 물어 넣되 값은 화면에 쓰지 않고, 다른 줄은 그대로 · 어느 폴더에서나 설치 폴더의 .env 를 읽음."""
+"""처음 설정(aiona-chat-eval setup, 사용자 10-26 저녁) — .env 키를 물어 넣되 값은 화면에 쓰지 않고, 다른 줄은 그대로 · 어느 폴더에서나 설치 폴더의 .env 를 읽음."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,7 +38,7 @@ def test_noninteractive_setup_only_creates_env(tmp_path: Path, monkeypatch, caps
     monkeypatch.setattr(sw, "EXAMPLE", tmp_path / ".env.example")
     monkeypatch.setenv("MODELGRADE_NONINTERACTIVE", "1")
     assert sw.main([]) == 0 and (tmp_path / ".env").read_text(encoding="utf-8") == "OPENAI_API_KEY=\n"
-    assert "modelgrade setup" in capsys.readouterr().out
+    assert "aiona-chat-eval setup" in capsys.readouterr().out
 
 
 def test_env_value_falls_back_to_the_install_folder(tmp_path: Path, monkeypatch):

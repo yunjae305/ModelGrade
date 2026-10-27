@@ -1,4 +1,4 @@
-"""실행 환경 점검(modelgrade doctor) · 설치 스크립트 — 다른 PC 에서 처음 돌릴 때 (10-25 밤)."""
+"""실행 환경 점검(aiona-chat-eval doctor) · 설치 스크립트 — 다른 PC 에서 처음 돌릴 때 (10-25 밤)."""
 from __future__ import annotations
 
 from pathlib import Path

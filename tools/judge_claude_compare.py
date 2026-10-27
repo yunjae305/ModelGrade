@@ -259,7 +259,7 @@ def ensure_result_dir(out: Path, run_id: str, base: Optional[Path] = None, start
                       base_out: str = BASE_OUT, out_name: str = OUT) -> Path:
     """이 비교의 결과 폴더 = 참고자료/결과/<처음 시작 시각, ms 까지>/ (사용자 10-22 결과 폴더 양식).
     시각은 판정 폴더를 처음 만든 때(첫 판정 명령을 시작한 때). run.json 에는 run_id 대신 compare_of 를 적는다 —
-    result_dirs.find(run_id) 가 본 결과 폴더 대신 이 비교 폴더를 잡지 않게(결과 요약 빌더 · modelgrade report 가 실행 ID 로 찾음)."""
+    result_dirs.find(run_id) 가 본 결과 폴더 대신 이 비교 폴더를 잡지 않게(결과 요약 빌더 · aiona-chat-eval report 가 실행 ID 로 찾음)."""
     from tools import result_dirs
     base = base or result_dirs.RESULTS
     ptr = out / POINTER

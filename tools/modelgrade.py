@@ -542,10 +542,6 @@ def run_collectors_parallel(providers: List[str], args: argparse.Namespace, run_
         t.join(timeout=5)
     if board is not None:
         board.close()
-    from tools import result_dirs
-    rd = result_dirs.find(run_id, RESULTS_JSON_DIR)   # 실행 JSON(수십 MB)을 다시 읽지 않고 run.json 으로 찾음
-    if rd is not None:   # 답변 수집 기록도 결과 폴더(git 에 올라감)에 (사용자 10-22)
-        result_dirs.publish_collection(log_dir, rd)
     bad = [p for p, c in codes.items() if c]
     if bad:
         print(f"실패한 수집기: {', '.join(bad)} (종료 코드 {codes})", flush=True)
@@ -949,14 +945,14 @@ def ask_existing_set(default: Path, n_default: int) -> Path:
 def offer_review(run_id: str) -> None:
     """평가 끝에 보류가 있으면 — 지금 브라우저에서 정할지 묻고(Enter = 예), 정하면 바로 저장 · 보고서 다시 만듦 (tools/review_server, 사용자 10-26 밤)."""
     if not sys.stdin.isatty():
-        print("  보류 정하기: modelgrade review", flush=True)
+        print("  보류 정하기: aiona-chat-eval review", flush=True)
         return
     try:
         ans = input("  보류를 지금 브라우저에서 정할까요? (Enter = 예 · n = 나중에) ").strip().lower()
     except EOFError:
         return
     if ans in ("n", "no", "ㄴ", "아니오", "나중에"):
-        print("  나중에: modelgrade review", flush=True)
+        print("  나중에: aiona-chat-eval review", flush=True)
         return
     from tools import review_server
     review_server.serve(run_id)
@@ -1039,7 +1035,7 @@ def _cmd_start(args: argparse.Namespace) -> int:
         providers = ["aiona", "aiona2"]
         models = {"aiona": args.aiona or "자동 추천", "aiona2": args.aiona2}
         if models["aiona"] == models["aiona2"]:
-            raise SystemExit("AIONA 두 자리에 같은 모델을 골랐습니다 — 서로 다른 모델을 고르세요(업데이트 전 · 후 비교는 modelgrade pair)")
+            raise SystemExit("AIONA 두 자리에 같은 모델을 골랐습니다 — 서로 다른 모델을 고르세요(업데이트 전 · 후 비교는 aiona-chat-eval pair)")
         model_choice = f"aiona:{models['aiona']}|aiona2:{models['aiona2']}"
         pick = None
     elif args.model and parse_model(args.model):   # 고른 모델 하나와 AIONA (같은 이름의 모델로, 10-22) — '0' · '전체' 는 아래 네 모델 기본으로
@@ -1095,7 +1091,7 @@ def _cmd_start(args: argparse.Namespace) -> int:
     if args.judge == "n":   # 수집만 — 같은 명령으로 다시 부르면 받은 답은 건너뛰고 평가
         again = (f" --aiona \"{models['aiona']}\" --aiona2 \"{models['aiona2']}\"" if "aiona2" in providers   # AIONA 두 모델 실행은 같은 두 자리로 이어서
                  else f" --model \"{model_choice}\"" if model_choice else "")
-        print(f"평가는 나중에: modelgrade start --set \"{rel(set_dir)}\" --choice 1{again}", flush=True)
+        print(f"평가는 나중에: aiona-chat-eval start --set \"{rel(set_dir)}\" --choice 1{again}", flush=True)
         return 0
     print("평가를 시작합니다.", flush=True)
     # 판정 v4: 크기로 Jev 또는 Decisions(판정 프롬프트 3종) → FAIL · 애매만 Codex, 모델마다 한 줄로 동시에, 질문마다 저장(멈춰도 같은 명령으로 이어서)
@@ -1207,10 +1203,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     D = None   # 결과 보고서의 문항 단위 숫자 — 끝 블록에
     from tools import result_dirs
     rd = None
-    if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) 에 모은다 (사용자 10-22)
+    if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) — 질문 · 답변 JSON 과 report.html 두 파일만 (사용자 10-27)
         rd = result_dirs.ensure(run, RESULTS_JSON_DIR)
-        result_dirs.publish(d, rd)
-        result_dirs.publish_collection(ROOT / "data" / "judge_runs" / run_id, rd)   # 답변 수집 기록 (사용자 10-22: git 에 계속 올림)
     if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
@@ -1221,7 +1215,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         except Exception as exc:   # JSON 내보내기가 막혀도 HTML 은 이미 썼다 — 자동 보고서가 여기서 죽지 않게
             print(f"  ⚠ 결과 JSON 내보내기 실패: {exc}", flush=True)
             rd = None
-        if rd is not None:   # 결과 보고서 report.html = 발표 템플릿의 상세 분석 장면만 (사용자 10-22)
+        if rd is not None:   # 보고서 report.html — 상세 분석 장면 한 파일, 원문 · 보류 정하기까지 (사용자 10-22 · 10-27)
             from tools import build_result_summary as brs
             keep = brs.RESULTS
             brs.RESULTS = RESULTS_JSON_DIR
@@ -1236,37 +1230,29 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 
 def print_result_block(D: Optional[Dict[str, Any]], rows: List[Dict[str, Any]], rd: Optional[Path], html_path: Path, from_start: bool = False) -> Optional[int]:
-    """③ 결과 — 문항 단위(결과 보고서와 같은 숫자, 싱글턴 질문 1 · 멀티턴 턴마다 1) 표와 보고서 위치. 결과 보고서를 못 만들었으면 질문 단위로.
+    """③ 결과 — 질문 단위 순위(결과 보고서와 같은 숫자, 기준 v2 3절) 표와 보고서 위치. 결과 보고서를 못 만들었으면 판정 기록으로 센 질문 단위로.
     start 에서 부르면(from_start) '평가가 완료되었습니다.' 와 보고서 위치만."""
     from tools import result_dirs
-    judge_page = (rd / result_dirs.JUDGE_REPORT) if rd is not None and (rd / result_dirs.JUDGE_REPORT).exists() else html_path
+    report = rd / result_dirs.REPORT if rd is not None and (rd / result_dirs.REPORT).exists() else html_path   # 못 만들었으면 판정 폴더의 판정 보고서
     if from_start:   # start 끝 — 완료 문구와 report.html 위치만, 보류가 있으면 한 줄 (사용자 10-26 저녁)
-        report = rd / result_dirs.REPORT if rd is not None and (rd / result_dirs.REPORT).exists() else judge_page
-        holds = sum(D["tally"][p]["HOLD"] for p in D["order"]) if D is not None else sum(r.get("verdict") == "HOLD" for r in rows)
+        holds = sum(D["qtally"][p]["HOLD"] for p in D["order"]) if D is not None else sum(r.get("verdict") == "HOLD" for r in rows)
         print("\n평가가 완료되었습니다.", flush=True)
-        easy = rd / "쉬운보고서.html" if rd is not None else None
-        if easy is not None and easy.exists():   # 일반인이 바로 읽는 한 장 (사용자 10-27)
-            print(f"  쉬운 보고서  {easy.resolve()}", flush=True)
-        print(f"  결과 보고서  {report.resolve()}", flush=True)
+        print(f"  보고서  {report.resolve()}", flush=True)   # 보고서 하나 — 결과와 보류 정하기 (사용자 10-27)
         if holds:
-            print(f"  보류 {holds}{'문항' if D is not None else '질문'}은 사람이 정합니다 — {judge_page.resolve()}", flush=True)
+            print(f"  보류 질문은 보고서의 '보류' 에서 정합니다(바로 저장: aiona-chat-eval review)", flush=True)
         return holds
     if D is not None:
-        print(f"\n③ 결과 — 문항 단위 (보류는 사람이 정함)", flush=True)
-        body = [[display_name(p, ((D.get("d") or {}).get("models") or {}).get(p)), D["tally"][p]["PASS"], D["tally"][p]["FAIL"], D["tally"][p]["HOLD"], D["n"]]
-                for p in D["order"]]
-        print_table(["모델", "통과", "FAIL", "보류", "문항"], body)
+        print(f"\n③ 결과 — 순위(질문 단위, 보류는 사람이 정함)", flush=True)   # 기준 v2 3절 — 순위는 질문 단위 / 78 (사용자 10-27)
+        body = [[i, display_name(p, ((D.get("d") or {}).get("models") or {}).get(p)), D["qtally"][p]["PASS"], D["qtally"][p]["FAIL"], D["qtally"][p]["HOLD"], D["nq"],
+                 f"{D['tally'][p]['PASS']} / {D['n']}"] for i, p in enumerate(D["order"], 1)]
+        print_table(["순위", "모델", "통과", "FAIL", "보류", "질문", "문항 통과"], body)
     else:
         print(f"\n③ 결과 — 질문 단위 (보류는 사람이 정함)", flush=True)
         by: Dict[str, Counter] = {}
         for r in rows:
             by.setdefault(r["provider"], Counter())[r.get("verdict")] += 1
         print_table(["모델", "통과", "FAIL", "보류", "질문"], [[display_name(p), c["PASS"], c["FAIL"], c["HOLD"], sum(c.values())] for p, c in by.items()])
-    if rd is not None and (rd / "쉬운보고서.html").exists():
-        print(f"  쉬운 보고서  {rel(rd / '쉬운보고서.html')}", flush=True)
-    if rd is not None and (rd / result_dirs.REPORT).exists():
-        print(f"  결과 보고서  {rel(rd / result_dirs.REPORT)}", flush=True)
-    print(f"  판정 기록    {rel(judge_page)} — 보류는 여기서 사람이 정함", flush=True)
+    print(f"  보고서  {rel(report)} — 결과와 보류 정하기", flush=True)
 
 
 def apply_human_decisions(d: Path, doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -1316,7 +1302,7 @@ def apply_human_decisions(d: Path, doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def cmd_held_apply(args: argparse.Namespace) -> int:
-    """사람 판정(판정보고서의 '판단 내보내기' JSON) 반영 — <폴더>/human_decisions.json 에 쌓고(원본 results.jsonl 은 그대로) 보고서를 다시 만든다.
+    """사람 판정(보고서 '보류 목록'의 '판단 내보내기' JSON) 반영 — <폴더>/human_decisions.json 에 쌓고(원본 results.jsonl 은 그대로) 보고서를 다시 만든다.
     같은 (모델, 질문, 턴, 항목) 은 나중 것이 이긴다. 다른 실행의 파일은 거부."""
     from code_eval import error_cases
     from tools import human_records
@@ -1381,7 +1367,7 @@ def cmd_pair(args: argparse.Namespace) -> int:
     print(f"비교 실행 {run_id} — {run['models']['aiona']} ↔ {run['models']['aiona2']} · 질문 {len({c.split('_T')[0] for c in common})}개 · 결과 폴더 {RESULTS_JSON_DIR / run['result_dir']}", flush=True)
     cmd_code_eval(argparse.Namespace(run=run_id, providers="aiona,aiona2", show=0))   # 두 자리의 CODE 를 같은 엔진으로
     if args.judge != "y":
-        print(f"판정: python -X utf8 tools/judge_v4.py --run {run_id} --set \"{set_dir}\" --questions all --providers aiona,aiona2 --out v4  → modelgrade report --dir data/judge_runs/{run_id}/v4", flush=True)
+        print(f"판정: python -X utf8 tools/judge_v4.py --run {run_id} --set \"{set_dir}\" --questions all --providers aiona,aiona2 --out v4  → aiona-chat-eval report --dir data/judge_runs/{run_id}/v4", flush=True)
         return 0
     from tools import judge_v4
     code = judge_v4.main(["--run", run_id, "--set", str(set_dir), "--questions", "all", "--providers", "aiona,aiona2", "--out", "v4"])
@@ -1397,7 +1383,7 @@ def cmd_held(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="modelgrade", description=__doc__.splitlines()[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(prog="aiona-chat-eval", description=__doc__.splitlines()[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
     collect = sub.add_parser("collect", help="답변 수집").add_subparsers(dest="sub", required=True)
     imp = collect.add_parser("import", help="웹브라우저에서 받아 적은 답변 CSV 올리기 (+ CODE 평가)")
@@ -1493,7 +1479,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     st = sub.add_parser("setup", help="처음 설정 한 번에 — .env 키(OpenAI · Jev · AIONA) · Codex · Claude CLI 로그인 · 웹 로그인 · 점검 (10-26 저녁)")
     st.add_argument("--keys", action="store_true", help=".env 키만 (있는 키도 바꿀지 물음)")
     st.add_argument("--cli", action="store_true", help="Codex · Claude CLI 로그인만")
-    st.add_argument("--web", action="store_true", help="수집용 Chrome 웹 로그인만 (modelgrade login 과 같음)")
+    st.add_argument("--web", action="store_true", help="수집용 Chrome 웹 로그인만 (aiona-chat-eval login 과 같음)")
     st.set_defaults(func=lambda a: __import__("tools.setup_wizard", fromlist=["main"]).main([f"--{k}" for k in ("keys", "cli", "web") if getattr(a, k)]))
     if not argv and len(sys.argv) <= 1 or argv == []:
         argv = ["start"]

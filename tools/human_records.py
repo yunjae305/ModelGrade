@@ -1,6 +1,6 @@
 """사람 판정 기록 (human-records-v1) — 코드가 정하기 애매해 보류한 조건에 사람이 고른 PASS · FAIL 과 사유 (사용자 10-26).
 
-`modelgrade held-apply` 가 report 보류 화면의 '코드 판정 확인' 칸 선택을 여기에 쌓는다. 같은 종류(불릿 표지 이스케이프 · 불릿 묶음 여럿 ·
+`aiona-chat-eval held-apply` 가 report 보류 화면의 '코드 판정 확인' 칸 선택을 여기에 쌓는다. 같은 종류(불릿 표지 이스케이프 · 불릿 묶음 여럿 ·
 자기 점검 문장의 금지어 · 서비스 꼬리글)의 판단과 사유가 모이면 기준 v2 5절 · CODE 규칙을 고치는 근거로 쓴다(`summary`).
 """
 from __future__ import annotations

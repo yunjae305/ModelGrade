@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 실행 — macOS · Linux:  modelgrade start   (설치는 bash install.sh — 설치하면 어느 폴더에서나 'modelgrade' 로 실행)
-# ~/.local/bin/modelgrade 같은 바로가기(심볼릭 링크)로 불려도 진짜 설치 폴더를 찾는다
+# 옛 이름 — aiona-chat-eval.sh 와 같은 프로그램. 실행:  aiona-chat-eval start   (설치는 bash install.sh — 설치하면 어느 폴더에서나 'aiona-chat-eval' 로 실행, 옛 이름 modelgrade 도 됨)
+# ~/.local/bin/aiona-chat-eval 같은 바로가기(심볼릭 링크)로 불려도 진짜 설치 폴더를 찾는다
 SRC="$0"
 while [ -L "$SRC" ]; do
   DIR="$(cd -P "$(dirname "$SRC")" && pwd)"

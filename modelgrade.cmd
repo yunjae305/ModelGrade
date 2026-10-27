@@ -1,5 +1,5 @@
 @echo off
-rem Run on Windows: modelgrade start (installer adds this folder to PATH). Install first with install.ps1
+rem Old name of aiona-chat-eval.cmd (same program) - use: aiona-chat-eval start
 setlocal
 set "HERE=%~dp0"
 set "MODELGRADE_HOME=%HERE:~0,-1%"

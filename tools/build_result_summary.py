@@ -12,6 +12,7 @@ import argparse
 import html
 import json
 import re
+import shutil
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -53,11 +54,14 @@ def result_file(run_id: str, name: str, flat: bool = False) -> Path:
     rd = result_dirs.find(run_id, RESULTS)
     if rd is not None and (rd / name).exists():
         return rd / name
+    jd = ROOT / "data" / "judge_runs" / run_id / "v4" / name   # 결과 폴더(v2)는 JSON · report.html 두 파일뿐 — 판정 기록은 판정 폴더에 (10-27)
+    if not flat and jd.exists():
+        return jd
     return RESULTS / name if flat else RESULTS / f"판정_{run_id}" / name
 
 
 def results_json(run_id: str) -> Path:
-    """결과 JSON — 이름은 평가 종류에 따라 <실행>_결과_판정결과 · _간단78_판정결과 · _정밀326_판정결과 (tools/modelgrade report).
+    """결과 JSON — 이름은 평가 종류에 따라 <실행>_결과_판정결과 · _간단78_판정결과 · _정밀326_판정결과 (tools/aiona-chat-eval report).
     결과 폴더에 있으면 그것, 없으면 옛 자리(참고자료/결과/ 바로 아래)."""
     from tools import result_dirs
     rd = result_dirs.find(run_id, RESULTS)
@@ -69,13 +73,14 @@ def results_json(run_id: str) -> Path:
 
 
 def judge_report_file(run_id: str) -> Path:
-    """판정 보고서(tools/report_html) — 결과 폴더의 판정보고서.html, 없으면 옛 자리 참고자료/결과/판정_<실행>/report.html.
+    """판정 보고서(tools/report_html) — 옛 결과 폴더(v1)의 판정보고서.html, 판정 폴더 data/judge_runs/<실행>/v4/report.html, 옛 자리 순.
     결과 폴더의 report.html 은 이 빌더가 만드는 결과 보고서라 판정 보고서가 아니다 (사용자 10-22)."""
     from tools import result_dirs
     rd = result_dirs.find(run_id, RESULTS)
     if rd is not None and (rd / result_dirs.JUDGE_REPORT).exists():
         return rd / result_dirs.JUDGE_REPORT
-    return RESULTS / f"판정_{run_id}" / "report.html"
+    jd = ROOT / "data" / "judge_runs" / run_id / "v4" / "report.html"
+    return jd if jd.exists() else RESULTS / f"판정_{run_id}" / "report.html"
 
 
 def logo_style() -> str:
@@ -121,7 +126,8 @@ EMPTY_OUTPUT_AS_HOLD = True
 def load(run_id: str) -> Dict[str, Any]:
     js = results_json(run_id)
     d = json.loads(js.read_text(encoding="utf-8"))
-    human = R.load_human(js.parent)   # 사람이 정한 보류(판정보고서에서 내보낸 human_decisions.json) — 판정보고서와 같은 숫자가 되게 (10-26 저녁)
+    # 사람이 정한 보류 — 결과 JSON 의 human_decisions(10-27, 결과 폴더는 두 파일뿐), 옛 결과 폴더는 옆의 human_decisions.json (10-26 저녁)
+    human = R.human_index(d["human_decisions"]) if "human_decisions" in d else R.load_human(js.parent)
     set_dir = R.set_dir_for(d)
     qtypes = R.question_types(set_dir)
     names = R.criteria_table(set_dir)
@@ -146,8 +152,9 @@ def load(run_id: str) -> Dict[str, Any]:
     utype = {(q, t): R.unit_type(qtypes[q]) for q, t in units}
     uverdict: Dict[Tuple[str, int, int], str] = {}
     for (p, q), L in lines.items():
-        if EMPTY_OUTPUT_AS_HOLD and qtypes.get(q) == EMPTY_TYPE and L["verdict"] != "HOLD":
-            L["verdict"], L["empty_hold"] = "HOLD", L["verdict"]   # 사람 판정이 있어도 순위 숫자에서는 보류 (기준 v2 1절, 사용자 10-27)
+        if EMPTY_OUTPUT_AS_HOLD and qtypes.get(q) == EMPTY_TYPE:
+            # 사람 판정이 있어도 순위 숫자에서는 보류 — '우선 보류로 빼야지' (기준 v2 1절, 사용자 10-27). empty_hold 에 원래 판정을 남긴다
+            L["verdict"], L["empty_hold"] = "HOLD", L["verdict"]
         if qtypes.get(q) == R.MULTI_TYPE:
             rows = [{"turn": tn, "check_id": c.get("check_id"), "verdict": c.get("verdict")}
                     for tn in range(1, n_turns[q] + 1) for c in (turns.get((p, q, tn)) or {}).get("code") or []]
@@ -158,7 +165,8 @@ def load(run_id: str) -> Dict[str, Any]:
             uverdict[(p, q, 0)] = L["verdict"]
     tally = {p: Counter(uverdict[(p, q, t)] for q, t in units if (p, q, t) in uverdict) for p in providers}   # 문항 단위
     qtally = {p: Counter(lines[(p, q)]["verdict"] for q in qtypes if (p, q) in lines) for p in providers}   # 질문 단위(보류 목록 · 질문 상세)
-    order = sorted(providers, key=lambda p: (-tally[p]["PASS"], R.ORDER.index(p)))   # 결과 순 — 모든 장면에서 같은 순서
+    # 결과 순 — 모든 장면에서 같은 순서. 순위는 질문 단위 통과 수(/78)로, 같으면 문항 단위 통과 수 (기준 v2 3절, 사용자 10-27)
+    order = sorted(providers, key=lambda p: (-qtally[p]["PASS"], -tally[p]["PASS"], R.ORDER.index(p)))
     # 표시 유형 — 빈 출력 요구는 싱글턴에 합쳐 보여 준다 (10-21 오후 미팅: 카테고리를 따로 빼지 않음). 보류 규칙은 원래 유형(qtypes)으로
     dtypes = {q: ("단일 질문" if t == "명시적 빈 출력" else t) for q, t in qtypes.items()}
     return {"d": d, "run_id": run_id, "set_dir": set_dir, "qtypes": qtypes, "dtypes": dtypes, "names": names, "qset": qset, "lines": lines,
@@ -214,7 +222,7 @@ def hold_why(D: Dict[str, Any], p: str, q: int) -> List[Dict[str, Any]]:
         if it["decision"] == "UNVERIFIED":
             how = (it.get("how") or "").replace("Codex 보류", "Codex 확인 못 함").replace("Decisions PASS", "Decisions 통과")
             out.append({"item": it["item"], "turn": it["turn"], "reason": it.get("reason") or "사유 없음",
-                        "quote": it.get("answer_quote") or "", "how": how, "flagged": it.get("flagged") or ""})
+                        "quote": it.get("answer_quote") or "", "how": how, "flagged": it.get("flagged") or "", "kind": it.get("kind") or ""})
     return out
 
 
@@ -959,13 +967,11 @@ def verdict_rule() -> str:
 def scene_output(D: Dict[str, Any]) -> str:
     """결과 — 어떻게 제공하나 (사용자 10-22: 핵심 장면에는 실제 숫자 대신 제공 방식만, 이번 실행 숫자는 상세 분석 '이번 실행 결과'로)."""
     n, n_crit = D["n"], len(D["names"])
-    files = [   # 사용자 10-22: 평가를 시작할 때마다 시각 이름의 결과 폴더 하나에 — report.html 은 이 템플릿의 상세 분석 장면만
-        ("결과 보고서", "report.html",
-         "이 자료의 상세 분석 장면만 모은 것 — 이번 실행 결과 · 분야별 순위표 · 기준별 결과 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 목록 · 질문별 원문"),
-        ("결과 JSON", "…_판정결과.json",
-         "질문 × 모델마다 판정, 기준마다 판정 · 사유 · 답의 해당 문장, 답 원문과 수집 정보(복사 방식 · 걸린 시간). 다른 프로그램이 읽는 원본"),
-        ("판정 보고서", "판정보고서.html",
-         "모든 판정 기록 — 기준별로 어긴 질문, FAIL 상세(심판이 든 원문 인용), 질문별 판정표, 보류를 사람이 정하는 화면"),
+    files = [   # 사용자 10-27: 결과 폴더에는 질문 · 답변 JSON 하나와 그것을 평가한 보고서 하나만
+        ("보고서", "report.html",
+         "이 자료의 상세 분석 장면 한 파일 — 순위 · 분야별 · 기준별 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 정하기 · 질문별 원문"),
+        ("질문 · 답변 JSON", "…_판정결과.json",
+         "질문 원문(턴마다 · 참조 자료)과 모델마다 받은 답 · 수집 정보, 기준마다 판정 · 사유 · 답의 해당 문장, 사람 판정. 다른 프로그램이 읽는 원본"),
     ]
     units = [
         ("문항 단위 — 순위", f"모델마다 완전 통과 · FAIL · 보류가 몇 개인지 (/ {n}문항 — 싱글턴 질문 1 · 멀티턴 턴마다 1). 순위는 완전 통과 수로 매깁니다."),
@@ -983,7 +989,7 @@ def scene_output(D: Dict[str, Any]) -> str:
             '<p>사유: 답의 사실을 질문 자료 · 원문으로 확인하지 못함 · 답의 해당 문장 “…”</p></div></div>'
             '<div class="ot-v">이 질문 → ' + badge("HOLD") + ' <small>보류가 있어 사람이 정함 — FAIL 항목도 있어 어떻게 정해도 FAIL</small></div>'
             '</div></div></div>')
-    return ('<div class="in-cols"><div class="in-col"><h3 class="rs-sh">무엇이 나오나 — 명령 하나로 세 가지</h3><ol class="in-built">'
+    return ('<div class="in-cols"><div class="in-col"><h3 class="rs-sh">무엇이 나오나 — 명령 하나로 두 파일</h3><ol class="in-built">'
             + "".join(f'<li><span class="in-n">{i}</span><div><b>{t}</b>' + (f'<em>{k}</em>' if k else '') + f'<p>{E(d)}</p></div></li>' for i, (t, k, d) in enumerate(files, 1))
             + '</ol></div><div class="in-col"><h3 class="rs-sh">무엇을 세나</h3><div class="in-why">'
             + "".join(f'<div><b>{E(t)}</b><p>{E(d)}</p></div>' for t, d in units)
@@ -992,12 +998,12 @@ def scene_output(D: Dict[str, Any]) -> str:
 
 def scene_hold_flow(D: Dict[str, Any]) -> str:
     """보류 — 어떻게 사람에게 넘기나 (사용자 10-22: 실제 보류 목록 대신 처리 방식, 목록은 상세 분석 '보류 목록'으로).
-    화면 · 반영은 판정 보고서(판정보고서.html) '보류' 장 · held-apply(human_decisions.json, 원본 results.jsonl 은 그대로), 사례 축적은 계획."""
+    화면 · 반영은 보고서(report.html) '보류 목록' · held-apply(human_decisions.json, 원본 results.jsonl 은 그대로), 사례 축적은 계획."""
     steps = [
         ("언제 보류가 되나", "",
          "빈 출력 요구 질문(빈 답 · 복사 버튼이 안 뜸 · 짧은 글을 통과로 볼지), 두 번째 심판(Codex)도 근거를 확정하지 못한 기준, "
          "답을 복사해 오지 못한 질문. 억지로 정하지 않고 보류로 남깁니다."),
-        ("사람이 보는 화면", "판정 보고서 '보류' 장",
+        ("사람이 보는 화면", "보고서 '보류 목록'",
          "질문 · 답 원문과 보류 사유(어느 기준인지 · 왜 못 정했는지 · 답의 해당 문장)를 보고 항목마다 PASS / FAIL 을 누릅니다. "
          "결과 요약의 보류 칸을 눌러도 같은 원문 · 사유가 열립니다."),
         ("반영", "명령 하나",
@@ -1886,6 +1892,28 @@ def ar_overview(D: Dict[str, Any]) -> str:
     return hero
 
 
+def rank_card(D: Dict[str, Any]) -> str:
+    """순위 — 질문 단위 통과 수 / 질문 수 (기준 v2 3절, 사용자 10-27 '순위는 질문단위통과로 계산해'). 10턴 대화는 10턴 모두 통과해야 1개,
+    같으면 문항 단위 통과 수. 빈 출력 요구 질문은 사람이 정하기 전까지 보류로 센다(기준 v2 1절)."""
+    order, Q, T, nq = D["order"], D["qtally"], D["tally"], D["nq"]
+    n_empty = sum(1 for t in D["qtypes"].values() if t == EMPTY_TYPE)
+    rows = []
+    for p in order:
+        rk = 1 + sum(1 for o in order if (Q[o]["PASS"], T[o]["PASS"]) > (Q[p]["PASS"], T[p]["PASS"]))
+        P, H, F = Q[p]["PASS"], Q[p]["HOLD"], Q[p]["FAIL"]
+        seg = "".join(f'<i class="ds-{k}" style="width:{v / nq * 100:.2f}%" title="{lab} {v}"></i>' for k, v, lab in (("p", P, "통과"), ("h", H, "보류"), ("f", F, "FAIL")) if v)
+        rows.append(f'<div class="ds-row"><span class="ds-rk">{rk}</span>{avatar(p)}<span class="ds-nm">{SHORT[p]}</span>'
+                    f'<div class="ds-bar" role="img" aria-label="{SHORT[p]} 통과 질문 {P} · 보류 {H} · FAIL {F} / {nq}">{seg}</div>'
+                    f'<span class="ds-v"><b>{P}</b><small> / {nq}</small></span>'
+                    f'<span class="ds-x">FAIL {F} · 보류 {H}(빈 출력 요구 {n_empty} 포함) · 문항 통과 {T[p]["PASS"]} / {D["n"]}</span></div>')
+    legend = ('<div class="rs-legend ds-leg"><span><i class="rs-sw rs-pass"></i>통과 질문</span><span><i class="rs-sw rs-hold"></i>보류 (사람이 정할 질문)</span>'
+              '<span><i class="rs-sw rs-fail"></i>FAIL</span></div>')
+    return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>순위</h3><span class="ds-tag">잠정</span><span class="ar-chip">질문 단위 · 통과 질문 수 / {nq}</span></div>'
+            f'<p class="ds-note">질문 {nq}개 중 적용된 기준을 모두 지킨 질문 수로 순위를 매깁니다. 10턴 대화는 10턴 모두 통과해야 1개, 같으면 문항 통과 수로 가립니다. '
+            f'"아무것도 출력하지 마" 같은 빈 출력 요구 질문 {n_empty}개는 사람이 정하기 전까지 보류로 셉니다.</p>'
+            f'{legend}<div class="ds-rows">{"".join(rows)}</div></div>')
+
+
 def dist_stats(D: Dict[str, Any]) -> Dict[str, Any]:
     """결과 분포 숫자 — 순위(같은 값은 같은 순위) · 보류를 모두 통과로 볼 때 최대 · 1위를 넘볼 수 있는 모델 (받은 의견 A)."""
     order, T = D["order"], D["tally"]
@@ -1920,8 +1948,8 @@ def dist_card(D: Dict[str, Any]) -> str:
         change = f"보류를 모두 통과로 정해도 {first}를 넘는 모델은 없지만, 숫자와 아래 순위는 바뀔 수 있습니다."
     legend = ('<div class="rs-legend ds-leg"><span><i class="rs-sw rs-pass"></i>완전 통과</span><span><i class="rs-sw rs-hold"></i>보류 (사람이 정할 칸)</span>'
               f'<span><i class="rs-sw rs-fail"></i>FAIL</span><span class="muted">점선 = 1위의 지금 완전 통과 {lp}</span></div>')
-    return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>결과 분포</h3><span class="ds-tag">잠정</span><span class="ar-chip">문항 단위 · 완전 통과 순</span></div>'
-            f'<p class="ds-note">이번 {n}문항과 이 실행 조건에서 완전 통과가 가장 많은 모델은 <b>{top}</b>{f"(공동 {lp})" if len(st["leads"]) > 1 else ""}입니다. '
+    return (f'<div class="ar-card ds-card"><div class="ar-ch"><h3>결과 분포 — 문항 단위</h3><span class="ds-tag">잠정</span><span class="ar-chip">보조 숫자 · 완전 통과 순</span></div>'
+            f'<p class="ds-note">문항 단위(멀티턴은 턴마다 1문항)로 세면 이번 {n}문항에서 완전 통과가 가장 많은 모델은 <b>{top}</b>{f"(공동 {lp})" if len(st["leads"]) > 1 else ""}입니다. '
             f'보류 문항({E(per_model(D, {p: T[p]["HOLD"] for p in order}))} / {n})은 아직 사람이 정하지 않았습니다 — {E(change)}</p>'
             f'{legend}<div class="ds-rows">{"".join(rows)}</div>{unit_note(D)}</div>')
 
@@ -2117,6 +2145,9 @@ def mark_answer(ans: str, ents: List[Dict[str, Any]]) -> str:
     return "".join(out)
 
 
+Q_INLINE = 400   # 한 파일 보고서에서 블록 안에 바로 넣는 질문 글 길이 — 더 길면 쪽 끝 질문 묶음에 한 번만 (10-27)
+
+
 def turn_html(D: Dict[str, Any], p: str, q: int, tn: int, multi: bool, ents: Optional[List[Dict[str, Any]]] = None) -> str:
     """원문 한 턴 — 질문(첨부 · 참조 문서 표시) · 답변. ents 를 주면 답에서 걸린 부분을 칠한다(FAIL)."""
     turns_q = D["qset"][q]["turns"]
@@ -2130,7 +2161,14 @@ def turn_html(D: Dict[str, Any], p: str, q: int, tn: int, multi: bool, ents: Opt
     body = (mark_answer(ans, ents) if ents is not None else E(ans)) if ans else "<i>(빈 답)</i>"
     tl = f"턴 {tn} " if multi else ""
     shot = R.collection_log_html(t.get("collection_log"))   # 답을 못 받았거나 빈 답인 턴의 수집 글 로그 (사용자 10-26 저녁, 이미지 대신)
-    return (f'<div class="rs-turn"><b>{tl}질문</b>{extra}<pre class="rs-pre rs-q">{E(turn.get("question") or "")}</pre>'
+    qtext = turn.get("question") or ""
+    store = D.get("qstore")
+    if store is not None and len(qtext) > Q_INLINE:   # 한 파일 보고서(10-27) — 긴 질문 글은 쪽 끝에 한 번, 블록을 펼칠 때 채움
+        store[f"{q}-{tn}"] = qtext
+        qpre = f'<pre class="rs-pre rs-q" data-qt="{q}-{tn}">{E(qtext[:Q_INLINE])} …</pre>'
+    else:
+        qpre = f'<pre class="rs-pre rs-q">{E(qtext)}</pre>'
+    return (f'<div class="rs-turn"><b>{tl}질문</b>{extra}{qpre}'
             f'<b>{tl}답변</b>{st}<pre class="rs-pre rs-ans">{body}</pre>{shot}</div>')
 
 
@@ -2183,8 +2221,15 @@ def pass_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
     return out
 
 
-def hold_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
-    """보류 칸마다 (모델, 질문, HTML) — 왼쪽 질문·답변 원문(사유가 짚은 답 문장은 번호로 칠함), 오른쪽 보류 사유 (사용자 10-21)."""
+def decide_attrs(p: str, q: int, turn: int, item: str) -> str:
+    """사람 판정 칸 — 저장 스크립트(report_html.JS)가 읽는 키 · 모델 · 질문 · 턴 · 항목."""
+    return (f'data-key="{E(p)}|{q}|{turn}|{E(item)}" data-provider="{E(p)}" data-question="{q}" data-turn="{turn}" '
+            f'data-item="{E(item)}" data-old="UNVERIFIED"')
+
+
+def hold_blocks(D: Dict[str, Any], decide: bool = False) -> List[Tuple[str, int, str]]:
+    """보류 칸마다 (모델, 질문, HTML) — 왼쪽 질문·답변 원문(사유가 짚은 답 문장은 번호로 칠함), 오른쪽 보류 사유 (사용자 10-21).
+    decide — 사유마다 PASS · FAIL 단추(빈 출력 요구는 순위에서 늘 보류라 단추 없음, 사용자 10-27)."""
     out = []
     for p in D["order"]:
         for q in sorted(D["qtypes"]):
@@ -2206,11 +2251,13 @@ def hold_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
             left = "".join(turn_html(D, p, q, tn, multi, [w for w in why + fents if w["turn"] == tn]) for tn in range(1, len(turns_q) + 1))
             if why:
                 right = f'<h4>보류 — 확인 못 한 기준 {len(why)}개 ({E(hold_label(why))})</h4>' + "".join(
-                    f'<div class="rs-item"><div><b class="rs-hlno rs-hlno-hold{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> '
+                    (f'<div class="rs-item hold-item" {decide_attrs(p, q, w["turn"], w["item"])}>' if decide else '<div class="rs-item">')
+                    + f'<div><b class="rs-hlno rs-hlno-hold{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> '
                     f'<b>{E(crit_name(D["names"], w["item"]) or w["item"])}</b> <span class="rs-id">{E(w["item"])}{" · 턴 " + str(w["turn"]) if multi else ""}</span></div>'
                     f'<div class="rs-fwhy">{E(w["reason"])}</div>'
                     + (f'<div class="rs-quote">답의 해당 문장 “{E(w["quote"][:300])}”</div>' if w["quote"] else "")
-                    + f'<div class="rs-quote">{E(w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else ""))}</div></div>' for w in why)
+                    + f'<div class="rs-quote">{E(w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else ""))}</div>'
+                    + (R.decide_buttons(w["kind"]) if decide else "") + '</div>' for w in why)
                 if fents:   # 보류 우선(10-21) — FAIL 항목도 같이 보인다
                     right += (f'<h4 class="rs-h4gap">FAIL — 어긴 기준 {n_fail}개</h4>' + "".join(fail_entry_html(D, e, multi) for e in fents)
                               + '<p class="rs-quote">FAIL 항목이 있어 보류를 어떻게 정해도 이 질문은 FAIL 이 됩니다.</p>')
@@ -2221,10 +2268,13 @@ def hold_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
                 a = (t.get("answer") or "").strip()
                 got = "재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음" if t.get("status") == "COPY_FAILED" else ("빈 답" if not a else f"짧은 글 {len(a)}자")
                 is_empty = D["qtypes"][q] == EMPTY_REQ
+                whole = decide and not is_empty   # 질문 전체 보류(답을 못 받음 등) — 질문 하나에 단추 한 벌
                 right = (f'<h4>보류 사유 — {"빈 출력 요구" if is_empty else "기록"}</h4>'
-                         f'<div class="rs-item"><div class="rs-fwhy">{E(L["line"].get("reason") or (EMPTY_WHY if is_empty else "기록 없음"))}</div>'
-                         f'<div class="rs-quote">받은 답: {E(got)}</div></div>'
-                         + ('<p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p>' if is_empty else ""))
+                         + (f'<div class="rs-item hold-item" {decide_attrs(p, q, 1, "__question__")}>' if whole else '<div class="rs-item">')
+                         + f'<div class="rs-fwhy">{E(L["line"].get("reason") or L["line"].get("collection_note") or (EMPTY_WHY if is_empty else "기록 없음"))}</div>'
+                         f'<div class="rs-quote">받은 답: {E(got)}</div>' + (R.decide_buttons("질문 전체 보류") if whole else "") + '</div>'
+                         + ('<p class="rs-quote">빈 출력 요구는 순위에서 늘 보류로 셉니다 — 원문 확인용</p>' if is_empty and decide
+                            else '<p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p>' if is_empty else ""))
             out.append((p, q, f'<article class="rs-fd" id="b-{p}-{q}"><h3 class="rs-fdh">Q{q} · {mname(p)} · {E(TYPE_NAME.get(D["qtypes"][q], ""))} · '
                               f'<span class="rs-holdtxt">보류</span>{" · 확인 못 함 " + str(len(why)) + "개" if why else ""}'
                               f'{" · 어긴 기준 " + str(n_fail) + "개" if n_fail else ""}</h3>'
@@ -2340,7 +2390,9 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
 
 
 def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict[str, str], e_link: str, n_disagree: int, sub: str,
-             pparts: Optional[List[Tuple[str, str, str]]] = None, hparts: Optional[List[Tuple[str, str, str]]] = None) -> str:
+             pparts: Optional[List[Tuple[str, str, str]]] = None, hparts: Optional[List[Tuple[str, str, str]]] = None,
+             e_table: str = "") -> str:
+    """e_table 을 주면 한 파일 보고서(10-27) — 원문은 같은 쪽 아래(original_blocks), 갈림 목록은 접어서 이 탭에."""
     """부록 — 탭 셋(라디오 + CSS, JS 없이) · 질문별 결과는 유형마다 4모델 × 문항 칸, 누르면 그 질문만 펼침."""
     order = D["order"]
     # 탭 1 — 질문별 결과: 유형마다 칸
@@ -2399,10 +2451,18 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
                                                       for q in sorted(D["qtypes"]) if f"f-{p}-{q}" in part_of) + "</div>" for p in order)
     p3 = ('<h3 class="rs-sh">FAIL 원문 — 어긴 기준 · 사유 · 답에서 걸린 부분</h3>'
           '<p class="rs-basis">질문 번호를 누르면 그 FAIL 이 열립니다. 왼쪽은 질문·답변 원문이고, 답에서 심판이 짚은 문장은 빨간 번호로 칠해져 있습니다. '
-          '오른쪽은 같은 번호의 어긴 기준과 사유입니다. 통과한 답은 질문별 결과에서 질문을 펼친 뒤 "원문 · 지킨 기준"으로, 또는 아래 통과 원문 파일에서 봅니다.</p>'
-          f'<div class="rs-jump">{jump}</div>'
-          f'<p class="rs-basis">파일로 보기 — 미리보기 한도(512KB) 때문에 <span class="rs-id">{E(sub)}/</span> 폴더에 나눠 두었습니다.</p>'
-          f'<ul class="rs-files">{flist}<li><a href="{E(e_link)}">갈림 목록</a><span>심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 — 보류 아님, 확인용</span></li></ul>')
+          '오른쪽은 같은 번호의 어긴 기준과 사유입니다. 통과한 답은 질문별 결과에서 질문을 펼친 뒤 "원문 · 지킨 기준"으로, '
+          + ('또는 아래 통과 원문 번호로 봅니다.</p>' if e_table else '또는 아래 통과 원문 파일에서 봅니다.</p>')
+          + f'<div class="rs-jump">{jump}</div>')
+    if e_table:
+        pjump = "".join(f'<div><b>{mname(p)}</b>' + "".join(f'<a href="#p-{p}-{q}">Q{q}</a>' for q in sorted(D["qtypes"]) if f"p-{p}-{q}" in part_of) + "</div>"
+                        for p in order)
+        p3 += (f'<h3 class="rs-sh">통과 원문 — 지킨 기준 · 근거</h3><div class="rs-jump">{pjump}</div>'
+               f'<details class="rs-d"><summary>갈림 목록 — 심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 (보류 아님, 확인용)</summary>'
+               f'<p class="rs-basis">Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목입니다. 보류가 아니고 숫자도 바꾸지 않습니다(확인용).</p>{e_table}</details>')
+    else:
+        p3 += (f'<p class="rs-basis">파일로 보기 — 미리보기 한도(512KB) 때문에 <span class="rs-id">{E(sub)}/</span> 폴더에 나눠 두었습니다.</p>'
+               f'<ul class="rs-files">{flist}<li><a href="{E(e_link)}">갈림 목록</a><span>심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 — 보류 아님, 확인용</span></li></ul>')
     tabs = [("apx1", "문항별 결과", f"{D['n']}문항 × {len(order)}모델", p1), ("apx2", "기준별 어긴 질문", "72개 · 어긴 질문 수 · 질문 번호", p2),
             ("apx3", "원문", "FAIL · 통과 · 보류 — 기준 · 사유 · 답", p3)]
     radios = "".join(f'<input type="radio" name="apx" id="{i}"{" checked" if k == 0 else ""}>' for k, (i, *_r) in enumerate(tabs))
@@ -2474,11 +2534,35 @@ def split_parts(D: Dict[str, Any], blocks: List[Tuple[str, int, str]], prefix: s
     return out
 
 
-def fold(content: str) -> str:
+def decide_section(D: Dict[str, Any], hblocks: List[Tuple[str, int, str]]) -> str:
+    """보류 정하기 (사용자 10-27: 결과 보고 보류도 보면서 보류 정하기) — 정할 보류 질문은 원문 · 사유 · 단추를 펼쳐 두고,
+    빈 출력 요구(순위에서 늘 보류, 기준 v2 1절)는 접어서 원문만. 단추는 report_html.JS 가 저장한다(review 로 열면 바로, 파일이면 내보내기)."""
+    show = lambda h: h.replace('<article class="rs-fd"', '<article class="rs-fd rs-show"', 1)
+    todo = [show(h) for _p, q, h in hblocks if D["qtypes"][q] != EMPTY_REQ]
+    empty = [show(h) for _p, q, h in hblocks if D["qtypes"][q] == EMPTY_REQ]
+    bar = ('<div class="rs-decide-bar" id="hold"><b>보류 정하기</b> 검토자 <input id="reviewer" placeholder="이름"> '
+           '<span class="muted">정한 항목 <b id="decided">0</b>개</span> '
+           '<button type="button" id="finish" class="live-only">다 정함 — 끝내기</button> <button type="button" id="rebuild" class="live-only">숫자 다시 계산</button> '
+           '<button type="button" id="export">판단 내보내기(JSON)</button> <button type="button" id="clear" class="rs-quiet">저장된 판단 지우기</button> '
+           '<span class="muted" id="live-state"></span></div>')
+    body = "".join(todo) if todo else '<p class="rs-basis">정할 보류가 없습니다.</p>'
+    if empty:
+        body += (f'<details class="rs-d"><summary>빈 출력 요구 — 순위에서 늘 보류로 세는 칸 {len(empty)}개 (원문 확인용, 정하지 않음)</summary>'
+                 + "".join(empty) + "</details>")
+    return f'<h3 class="rs-sh">보류 정하기 — 정할 질문 {len(todo)}칸</h3>{bar}<div class="rs-decide">{body}</div>'
+
+
+def original_blocks(blocks: List[Tuple[str, int, str]]) -> str:
+    """한 파일 보고서의 원문 — FAIL · 통과 블록을 장면 아래에 숨겨 두고 번호를 누르면(:target) 그것만 연다."""
+    return ('<div class="rs-orig" id="orig"><h3 class="rs-sh">원문 — FAIL · 통과</h3>'
+            + fold("".join(h for _p, _q, h in blocks), "원문 모두 펼치기 (느릴 수 있음)") + "</div>")
+
+
+def fold(content: str, label: str = "이 파일의 질문 모두 펼치기") -> str:
     """원문 파일 — 질문 블록은 평소 숨김, 위 번호를 누르면(#f-…, CSS :target) 그것만 · '모두 펼치기' 체크로 전부 — JS 없이."""
     if 'class="rs-fd"' not in content:
         return content
-    return ('<input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label>'
+    return (f'<input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">{E(label)}</label>'
             f'<div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p>{content}</div>')
 
 
@@ -2731,6 +2815,20 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-fds:has(.rs-fd:target) .rs-qhint, .rs-fall:checked ~ .rs-fds .rs-qhint { display: none; }
 .rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
 .rs-fd:target { display: block; border: 2px solid var(--accent); }
+.rs-fd.rs-show { display: block; }
+.rs-decide { display: grid; gap: 12px; }
+.rs-decide-bar { position: sticky; top: 64px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; scroll-margin-top: 72px; }
+.rs-decide-bar input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; min-width: 0; }
+.rs-decide-bar button { padding: 6px 12px; border-radius: 8px; border: 0; background: var(--accent); color: var(--surface); cursor: pointer; font: inherit; font-weight: 600; }
+.rs-decide-bar button.rs-quiet { background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
+.live-only { display: none !important; } body.live .live-only { display: inline-block !important; }
+.hold-item .btns { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hold-item .btns button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 3px 10px; cursor: pointer; font: inherit; font-size: 0.85rem; }
+.hold-item .btns button.on { color: var(--surface); border-color: transparent; }
+.hold-item .btns button.on[data-v=PASS] { background: var(--ok); } .hold-item .btns button.on[data-v=FAIL] { background: var(--risk); }
+.hold-item .btns button.on[data-v=NOT_APPLICABLE] { background: var(--muted); } .hold-item .btns button.on[data-v=UNVERIFIED] { background: var(--hold); }
+.hold-item .btns button.on[data-v=ERROR_CASE] { background: #7b3fb8; }
+.hold-item .btns input { flex: 1 1 200px; min-width: 0; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; font-size: 0.85rem; }
 .rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
 .rs-fdh { margin: 0 0 6px; font-size: 1rem; }
 .rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
@@ -3195,6 +3293,35 @@ OPEN_JS = """<script>
 </script>"""
 
 
+#: 한 파일 보고서(10-27) — 쪽 끝 질문 글 묶음(mg-q)으로 블록을 펼칠 때 질문 원문을 채우고, 접힌 칸 안의 링크 대상은 펼쳐 준다
+FILL_JS = """<script>
+(function () {
+  var el = document.getElementById('mg-q'), Q = {};
+  try { Q = el ? JSON.parse(el.textContent) : {}; } catch (e) { Q = {}; }
+  function fill(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('pre[data-qt]').forEach(function (p) {
+      if (p.dataset.done) return;
+      if (Q[p.dataset.qt] != null) p.textContent = Q[p.dataset.qt];
+      p.dataset.done = '1';
+    });
+  }
+  function show(id) {
+    var t = id && document.getElementById(id), opened = false;
+    if (!t) return;
+    for (var d = t.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) { if (!d.open) { d.open = true; opened = true; } }
+    fill(t);
+    if (opened) t.scrollIntoView({ block: 'start' });
+  }
+  document.addEventListener('toggle', function (e) { if (e.target.open) fill(e.target); }, true);
+  window.addEventListener('hashchange', function () { show(decodeURIComponent(location.hash.slice(1))); });
+  document.querySelectorAll('.rs-fall').forEach(function (c) { c.addEventListener('change', function () { if (c.checked) fill(c.parentElement); }); });
+  document.querySelectorAll('.rs-show').forEach(function (a) { if (!a.closest('details')) fill(a); });
+  if (location.hash) show(decodeURIComponent(location.hash.slice(1)));
+})();
+</script>"""
+
+
 #: 줄 안 바뀌는 공백으로 붙일 묶음 말 (사용자 10-22: 줄바꿈 정리 — 'LLM / Judge' 처럼 갈라지지 않게)
 KEEP_TOGETHER = ["LLM Judge", "CODE 검사", "평가 프롬프트", "판정 프롬프트", "완전 통과", "빈 출력", "질문 세트", "상세 분석", "분야별 순위표",
                  "보류 목록", "확인 못 함", "Decisions API", "Codex CLI"]
@@ -3237,15 +3364,23 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     """report_dir 없음 — 발표 템플릿(참고자료/발표/MAIN_NAME: 핵심 장면 + 상세 분석).
     report_dir 있음 — 결과 보고서(<report_dir>/report.html: 상세 분석 장면만, 원문은 <report_dir>/원문/) (사용자 10-22)."""
     D = load(run_id)
+    single = report_dir is not None   # 결과 폴더 보고서는 한 파일 — 원문 · 보류 정하기까지 report.html 하나에 (사용자 10-27)
     deck = DECK.read_text(encoding="utf-8")
     css = "\n".join(f"<style>{b}</style>" for b in re.findall(r"<style>(.*?)</style>", deck, re.S))
     nav_script = deck[deck.index("<script>"):deck.index("</script>") + len("</script>")]
-    # 원문은 따로 — 앱 미리보기 한도(512KB) 때문에 본문 파일에는 6장면 · 질문별 표 · 보류 원문 · 기준 72개만
-    parts = split_parts(D, fail_blocks(D))
-    pparts = split_parts(D, pass_blocks(D), prefix="통과")   # 통과한 답 — 원문 · 지킨 기준 (사용자 10-21)
-    hparts = split_parts(D, hold_blocks(D), prefix="보류")   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21)
-    sub = "원문" if report_dir is not None else f"ModelGrade_결과요약_{run_id}_원문"   # 원문 파일은 이 하위 폴더에 (사용자 10-21: 발표 폴더 정리)
-    part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts + hparts for m in re.findall(r'<article class="rs-fd" id="([fpb]-[a-z]+-\d+)"', body)}
+    if single:
+        D["qstore"] = {}   # 긴 질문 글 — 쪽 끝에 한 번 (turn_html)
+    fblocks, pblocks = fail_blocks(D), pass_blocks(D)   # 통과한 답 — 원문 · 지킨 기준 (사용자 10-21)
+    hblocks = hold_blocks(D, decide=single)   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21), 한 파일이면 사람 판정 단추까지
+    # 발표 템플릿의 원문은 따로 — 앱 미리보기 한도(512KB) 때문에 본문 파일에는 6장면 · 질문별 표 · 보류 원문 · 기준 72개만
+    parts = [] if single else split_parts(D, fblocks)
+    pparts = [] if single else split_parts(D, pblocks, prefix="통과")
+    hparts = [] if single else split_parts(D, hblocks, prefix="보류")
+    sub = "" if single else f"ModelGrade_결과요약_{run_id}_원문"   # 원문 파일은 이 하위 폴더에 (사용자 10-21: 발표 폴더 정리)
+    if single:   # 같은 쪽 안 — 링크는 #f-… 만
+        part_of = {m: "" for _p, _q, body in fblocks + pblocks + hblocks for m in re.findall(r'<article class="rs-fd[^"]*" id="([fpb]-[a-z]+-\d+)"', body)}
+    else:
+        part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts + hparts for m in re.findall(r'<article class="rs-fd" id="([fpb]-[a-z]+-\d+)"', body)}
     e_file = "갈림.html"
     n_disagree, e_table = disagree_table(D)
     cats = board_categories(D)
@@ -3255,8 +3390,8 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     # 장면 id(링크용)는 내용에 붙어 있고 번호(01…)는 이 순서로 매긴다. (id, 메뉴 이름, 부제, 제목, 설명, 내용, 한 줄 메시지)
     n_code = sum(1 for c in D["names"] if c[0].isdigit())
     ds = dist_stats(D)   # 받은 의견 A: 순위는 잠정 — 보류를 정하면 바뀔 수 있음을 한 줄 메시지에
-    res_key = (f"잠정 — 이번 {D['n']}문항 · 이 실행 조건에서 완전 통과 " + " · ".join(f"{SHORT[p]} {D['tally'][p]['PASS']}" for p in D["order"])
-               + f" (/ {D['n']}). 보류 문항({per_model(D, {p: D['tally'][p]['HOLD'] for p in D['order']})})을 아직 정하지 않아 "
+    res_key = (f"잠정 순위(통과 질문 / {D['nq']}) — " + " · ".join(f"{SHORT[p]} {D['qtally'][p]['PASS']}" for p in D["order"])   # 질문 단위 (기준 v2 3절, 10-27)
+               + f". 보류 질문({per_model(D, {p: D['qtally'][p]['HOLD'] for p in D['order']})})을 아직 정하지 않아 "
                + ("순위가 바뀔 수 있습니다." if ds["rivals"] else "숫자가 바뀔 수 있습니다."))
     n_hold_empty = sum(1 for (_p, q), L in D["lines"].items() if L["verdict"] == "HOLD" and D["qtypes"][q] == "명시적 빈 출력")
     hold_pm = per_model(D, Counter(p for (p, _q), L in D["lines"].items() if L["verdict"] == "HOLD"))   # 모델별 질문 수 (사용자 10-26)
@@ -3275,7 +3410,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          f"질문 {D['n']}개 → {len(D['order'])}모델 답 → 기준 {len(D['names'])}개(CODE 검사 {n_code} + LLM Judge {len(D['names']) - n_code})로 채점 → 질문마다 완전 통과 · FAIL · 보류"),
         # 05 검증 장면은 뺌 (사용자 10-22: "이 검증파트는 빼도 될 것 같네") — scene_verify 는 남겨 둠
         ("s_out", "결과", "어떻게 제공하나", "결과 — 이렇게 제공합니다",
-         "실행이 끝나면 명령 하나로 결과 폴더(평가를 시작한 시각 이름)에 결과 보고서 · 결과 JSON · 판정 보고서가 나옵니다. 이번 실행의 숫자는 보류를 정하기 전이라 상세 분석에 따로 둡니다.",
+         "실행이 끝나면 명령 하나로 결과 폴더(평가를 시작한 시각 이름)에 보고서(report.html)와 질문 · 답변 JSON 두 파일이 나옵니다. 이번 실행의 숫자는 보류를 정하기 전이라 상세 분석에 따로 둡니다.",
          scene_output(D), "질문마다 완전 통과 · FAIL · 보류와 기준별 사유 · 원문을 함께 제공합니다 — 이번 실행 숫자는 상세 분석 '이번 실행 결과'에."),
         ("s_hold", "보류", "어떻게 사람에게 넘기나", "보류 — 이렇게 사람에게 넘깁니다",
          "보류는 심판이 확정하지 못한 칸입니다. 원문과 사유를 붙여 사람에게 넘기고, 사람이 정한 값으로 다시 셉니다.",
@@ -3289,10 +3424,10 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     ]
     detail = [   # 상세 분석 — 발표 뒤 필요할 때 보는 화면
         # 10-26 미팅 12번: 맨 아래에 멀티턴 턴 종류별 · 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때 비교
-        ("s1", "이번 실행 결과", "분포 · 유형별 · 턴 종류별 (잠정)", "이번 실행 결과 — 분포 · 유형별 · 턴 종류별 통과율 (잠정)",
-         "맨 위는 모델마다 완전 통과 · 보류 · FAIL 분포, 그 아래는 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율, 맨 아래는 멀티턴 턴 종류별 통과율과 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때의 비교입니다. "
-         "모두 문항 단위(멀티턴은 턴마다)이고, 보류를 사람이 정하기 전의 잠정 결과입니다.",
-         numbers_key(D) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),
+        ("s1", "이번 실행 결과", "순위 · 분포 · 유형별 (잠정)", "이번 실행 결과 — 순위 · 분포 · 유형별 · 턴 종류별 통과율 (잠정)",
+         f"맨 위는 순위(질문 단위 — 통과 질문 수 / {D['nq']}), 그 아래는 문항 단위(멀티턴은 턴마다) 완전 통과 · 보류 · FAIL 분포, 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율, "
+         "멀티턴 턴 종류별 통과율과 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때의 비교입니다. 보류를 사람이 정하기 전의 잠정 결과입니다.",
+         rank_card(D) + numbers_key(D) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
          "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
@@ -3303,12 +3438,16 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          f"답변 수집 {hm(collect_seconds(D))} · 판정 {hm(judge_s)}. 모델별 합보다 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.", scene_time(D), ""),
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
          "숫자는 그 기준을 어긴 질문 수입니다. 색이 진할수록 많이 어겼습니다.", scene_criteria(D), ""),
-        ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['n']}) {hold_pm}",
-         "보류는 심판이 확정하지 못한 기준이 남은 칸입니다. <a href=\"판정보고서.html#hold\">판정 보고서의 '보류' 장</a>에서 항목마다 PASS · FAIL 을 누르면 정해지고, "
-         "<code>modelgrade review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 저장됩니다.", scene_hold(D, part_of),
+        ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['nq']}) {hold_pm}",
+         ("보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 아래 <a href=\"#hold\">보류 정하기</a>에서 원문과 사유를 보며 항목마다 PASS · FAIL 을 누르면 정해집니다. "
+          "<code>aiona-chat-eval review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 "
+          "<code>aiona-chat-eval held-apply</code> 로 반영합니다." if single else
+          "보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 결과 폴더 보고서(report.html)의 '보류 목록'에서 원문과 사유를 보며 항목마다 PASS · FAIL 을 누르면 정해집니다."),
+         scene_hold(D, part_of) + (decide_section(D, hblocks) if single else ""),
          f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
         ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
-         "", appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
+         "", (appendix(D, [], part_of, "", n_disagree, "", [], [], e_table) + original_blocks(fblocks + pblocks)) if single
+         else appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
     ]
     jd_html, jd_key = scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
@@ -3344,20 +3483,31 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     script = re.sub(r"var ids = \[[^\]]*\];", f"var ids = [{ids}];", nav_script, count=1)
     logos = logo_style()
 
-    def doc(title: str, desc: str, inner: str) -> str:
+    def doc(title: str, desc: str, inner: str, body_attrs: str = "", tail: str = "") -> str:
         return (f'<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
                 f'<title>{E(title)}</title>\n<meta name="description" content="{E(desc)}">\n'
                 '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
                 '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@500;600;700&display=swap">\n'
-                f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + FLOW_CSS + chr(10) + logos, inner)}\n</head>\n<body>\n{inner}\n{OPEN_JS}\n</body>\n</html>\n')
+                f'{prune_css(css + chr(10) + EXTRA_CSS + chr(10) + FLOW_CSS + chr(10) + logos, inner)}\n</head>\n<body{body_attrs}>\n{inner}\n{OPEN_JS}{tail}\n</body>\n</html>\n')
 
     base = report_dir if report_dir is not None else OUT_DIR
-    main_name = "report.html" if report_dir is not None else MAIN_NAME
+    main_name = "report.html" if single else MAIN_NAME   # 결과 폴더의 보고서는 이 파일 하나 (사용자 10-27 '이게 메인 report.html 이야')
     out = base / main_name
-    title = "AIONA 채팅 품질 평가 — 결과 보고서" if report_dir is not None else "AIONA 채팅 품질 평가"
-    doc_name = "결과 보고서" if report_dir is not None else "결과 요약"   # 원문 파일 머리 · 돌아가기 링크
+    title = "AIONA 채팅 품질 평가 — 결과 보고서" if single else "AIONA 채팅 품질 평가"
+    doc_name = "결과 보고서" if single else "결과 요약"   # 원문 파일 머리 · 돌아가기 링크
+    attrs, tail = "", ""
+    if single:   # 보류 정하기 저장 스크립트(report_html.JS)가 읽는 실행 · 판정 판 + 긴 질문 글 묶음
+        policy = next((str(L["line"].get("version") or "") for L in D["lines"].values()), "")
+        attrs = f' data-run="{E(run_id)}" data-policy="{E(policy)}"'
+        store = json.dumps(D["qstore"], ensure_ascii=False).replace("<", "\\u003c")
+        tail = f'\n<script type="application/json" id="mg-q">{store}</script>\n{FILL_JS}\n<script>{R.JS}</script>'
     out.write_text(bind_words(doc(title, f"{D['n']}개 실행 {run_id} — 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간 · 부록",
-                                  f'{nav}\n<main class="wrap">\n{s0}\n{body}\n</main>\n{script}')), encoding="utf-8")
+                                  f'{nav}\n<main class="wrap">\n{s0}\n{body}\n</main>\n{script}', attrs, tail)), encoding="utf-8")
+    if single:   # 전에 만들던 것 — 원문/ 폴더 · 자세한분석.html · 쉬운보고서.html (10-22 ~ 10-27)
+        shutil.rmtree(base / "원문", ignore_errors=True)
+        for old in ("자세한분석.html", "쉬운보고서.html"):
+            (base / old).unlink(missing_ok=True)
+        return [out], D
     subdir = base / sub
     subdir.mkdir(exist_ok=True)
     # 지난번에 만든 원문 파일 — 예전에는 발표 폴더에 바로 두었고(…_원문1.html), 나눈 수도 바뀔 수 있음
@@ -3380,9 +3530,6 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
                  f'<h2>{E(lab)} — {E(d)}</h2><p>{links(f)}</p></div>{jump_index(content)}{fold(content)}</section></main>')
         (subdir / f).write_text(doc(f"{doc_name} {lab}", f"{D['n']}개 실행 {run_id} 부록 — {d}", inner), encoding="utf-8")
         written.append(subdir / f)
-    if report_dir is not None:   # 일반인이 바로 읽는 한 장 — 같은 숫자 (사용자 10-27)
-        from tools import easy_report
-        written.append(easy_report.write(D, report_dir))
     return written, D
 
 

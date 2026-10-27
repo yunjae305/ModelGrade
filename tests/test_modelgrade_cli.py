@@ -250,7 +250,7 @@ def test_start_with_one_model_collects_only_that_app_and_aiona_in_its_own_run(tm
     import re, json
     run = mg.load_run(calls[1][2])   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지>/ · run.json 으로 실행과 이음 (10-22)
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3}", run["result_dir"])
-    assert json.loads((tmp_path / "결과" / run["result_dir"] / "run.json").read_text(encoding="utf-8"))["run_id"] == calls[1][2]
+    assert (tmp_path / "결과" / run["result_dir"]).is_dir() and not any((tmp_path / "결과" / run["result_dir"]).iterdir())   # 판정 전 — 결과 폴더는 비어 있음 (10-27 두 파일)
     assert mg.main(["start", "--set", str(set_dir), "--choice", "1", "--model", "claude:Opus 5.5", "--judge", "n"]) == 0   # 이어 돌리기
     assert calls[2][2] == calls[1][2] and mg.load_run(calls[2][2])["result_dir"] == run["result_dir"]   # 처음 폴더 그대로
     assert mg.parse_model("GPT-5.6 Sol") == ("gpt", "GPT-5.6 Sol") and mg.parse_model("0") is None
@@ -352,7 +352,8 @@ def test_report_writes_html_with_model_summary_times_and_question_rows(tmp_path,
     text = (out / "report.html").read_text(encoding="utf-8")
     assert "ChatGPT 앱" in text and "1 / 3" not in text or "2 / 3" in text   # 판정한 질문 2 / 전체 3
     assert "같은 말을 두 번" in text and "Jev FAIL 0.8" in text and "받은 방법 empty" in text and "1분 10초" in text and "판정 시간" in text
-    assert "판정 기록" in capsys.readouterr().out   # ③ 결과 블록의 보고서 위치 (10-26 저녁)
+    out_text = capsys.readouterr().out
+    assert "보고서" in out_text and "판정 근거" not in out_text   # ③ 결과 블록 — 보고서 하나만 알림 (사용자 10-27)
     assert write_report(out, None).name == "report.html"   # 실행 JSON 없이도 만들어진다
 
 
@@ -388,24 +389,19 @@ def test_empty_answer_is_success_only_when_the_question_asked_for_empty_output_a
     assert len(saves) == 2   # 복사 실패(보류)·빈 출력 성공은 자동으로 다시 받지 않는다
 
 
-def test_result_dir_keeps_judge_report_apart_and_collection_logs(tmp_path):
-    """결과 폴더: report.html 은 결과 보고서 자리라 판정 보고서는 판정보고서.html 로, 답변 수집 기록은 수집기록/ 으로 (빈 로그 뺌, 10-22)."""
+def test_compare_folder_keeps_judge_report_apart(tmp_path):
+    """판정 비교 실험 폴더: report.html 은 비교 화면 자리라 판정 보고서는 판정보고서.html 로 (10-22). 평가 결과 폴더에는 쓰지 않는다(10-27)."""
     from tools import result_dirs
-    judge, logs, dest = tmp_path / "v4", tmp_path / "logs", tmp_path / "결과"
-    judge.mkdir(); logs.mkdir()
+    judge, dest = tmp_path / "v4", tmp_path / "결과"
+    judge.mkdir()
     (judge / "report.html").write_text("판정", encoding="utf-8")
     (judge / "results.jsonl").write_text("{}", encoding="utf-8")
-    (logs / "collect-1-gpt.log").write_text("수집", encoding="utf-8")
-    (logs / "collect-1-aiona.log").write_text("", encoding="utf-8")
-    (logs / "gpt-recheck.jsonl").write_text("{}", encoding="utf-8")
     assert sorted(result_dirs.publish(judge, dest)) == ["results.jsonl", "판정보고서.html"]
     assert not (dest / "report.html").exists()
-    assert result_dirs.publish_collection(logs, dest) == ["collect-1-gpt.log", "gpt-recheck.jsonl"]
-    assert (dest / "수집기록" / "collect-1-gpt.log").read_text(encoding="utf-8") == "수집"
 
 
 def test_code_eval_recomputes_with_current_engine_and_keeps_backup(tmp_path, monkeypatch, capsys):
-    """modelgrade code-eval: 실행 JSON 의 CODE 평가를 지금 엔진으로 다시 계산(심판 호출 없음), 이전 파일은 .bak 으로 (10-25 밤)."""
+    """aiona-chat-eval code-eval: 실행 JSON 의 CODE 평가를 지금 엔진으로 다시 계산(심판 호출 없음), 이전 파일은 .bak 으로 (10-25 밤)."""
     monkeypatch.setattr(mg, "RUNS", tmp_path / "runs")
     monkeypatch.setattr(mg, "RESULTS_JSON_DIR", tmp_path / "결과")
     assert mg.main(["collect", "import", "--provider", "claude", "--csv", str(_csv(tmp_path)), "--set", str(_set(tmp_path)), "--new", "시험"]) == 0

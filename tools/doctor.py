@@ -1,7 +1,7 @@
 """실행 환경 점검 — 다른 PC 에서 처음 돌리기 전에 무엇이 빠졌는지 한 번에 본다 (값 · 키는 출력하지 않는다).
 
     ./modelgrade.sh doctor        (Linux · Mac)
-    .\\modelgrade doctor          (Windows PowerShell)
+    .\\aiona-chat-eval doctor          (Windows PowerShell)
 
 필수(✅ 가 아니면 종료 코드 1): 파이썬 3.10+ · 파이썬 패키지 · .env · Codex CLI 설치와 로그인 · 1차 심판 키(Decisions 또는 Jev) · Chrome.
 선택(⚠ 이어도 됨): 수집용 Chrome 이 떠 있는지 · Claude CLI(기준 다듬기 루프) · 한글 글꼴(질문 세트 만들기) · docx → pdf(Word 또는 LibreOffice) · AIONA 로그인 정보.
@@ -115,7 +115,7 @@ def check_collect_chrome() -> Check:
     from tools.chrome_cdp import PORT, status
     st = status(timeout=1.0)
     return Check("수집용 Chrome 창", None, f"떠 있음 · 탭 {len(st['tabs'])}개" if st["ok"] else f"안 떠 있음(포트 {PORT}) — 수집을 시작하면 띄움", False,
-                 "처음 한 번: modelgrade setup(또는 modelgrade login)으로 네 사이트에 로그인")
+                 "처음 한 번: aiona-chat-eval setup(또는 aiona-chat-eval login)으로 네 사이트에 로그인")
 
 
 def check_claude() -> Check:
@@ -180,7 +180,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"{sign} {c.name}: {c.detail}" + (f"\n     → {c.fix}" if c.ok is False and c.fix else ""))
     bad = [c for c in checks if c.required and c.ok is not True]
     print()
-    run = "modelgrade"   # 설치 스크립트가 어느 폴더에서나 쓰게 PATH 에 넣음 (10-26 저녁)
+    run = "aiona-chat-eval"   # 설치 스크립트가 어느 폴더에서나 쓰게 PATH 에 넣음 (10-26 저녁, 이름 10-27)
     print(f"필수 항목 모두 준비됨 — 다음: {run} setup(처음 한 번 — 키 · 로그인) → {run} start" if not bad else f"필수 항목 {len(bad)}개가 남았습니다 (위의 → 를 따라 하세요)")
     return 1 if bad else 0
 

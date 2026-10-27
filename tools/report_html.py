@@ -1,4 +1,4 @@
-"""판정 결과 HTML 보고서 (v2, 2026-10-20 밤) — `modelgrade report --dir data/judge_runs/<실행>/<out>` 가 쓴다.
+"""판정 결과 HTML 보고서 (v2, 2026-10-20 밤) — `aiona-chat-eval report --dir data/judge_runs/<실행>/<out>` 가 쓴다.
 
 일반인이 봐도 바로 읽히게: 한눈에 보기(완전 통과 문항 수 / 177 — 멀티턴은 턴마다 1문항, 10-26 저녁) → 유형별 → 기준 72개별 → 걸린 시간·토큰 → 보류(사람이 정함: 질문 원문·답변 원문·
 보류 사유 + PASS/FAIL 버튼·내보내기) → FAIL 상세(원문 + 사유) → 질문별 표 → 평가 방법. 숫자 단위는 '질문 수 / 전체 질문 수'(모델 합산 없음).
@@ -72,7 +72,7 @@ JS = """
   const JSV='""" + REVIEW_JS_VERSION + """';
   const RUN=document.body.dataset.run, KEY='mg-held-'+RUN;
   let store={}; try{store=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){store={}}
-  let LIVE=false;   // modelgrade review 로 열렸으면 누를 때마다 프로그램에 바로 저장 (10-26 밤)
+  let LIVE=false;   // aiona-chat-eval review 로 열렸으면 누를 때마다 프로그램에 바로 저장 (10-26 밤)
   const st=document.getElementById('live-state');
   function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
   function paint(){document.querySelectorAll('.hold-item').forEach(el=>{const d=store[el.dataset.key]||{};el.querySelectorAll('.btns button').forEach(b=>b.classList.toggle('on',b.dataset.v===d.v));const n=el.querySelector('input.note');if(n&&d.note!=null&&n.value!==d.note)n.value=d.note});
@@ -156,11 +156,12 @@ def load_human(out_dir: Path) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]
     f = out_dir / "human_decisions.json"
     if not f.exists():
         return {}
-    doc = json.loads(f.read_text(encoding="utf-8"))
-    out = {}
-    for d in doc.get("decisions") or []:
-        out[(d["provider"], int(d["question"]), int(d.get("turn") or 1), d["item"])] = d
-    return out
+    return human_index(json.loads(f.read_text(encoding="utf-8")).get("decisions") or [])
+
+
+def human_index(decisions: List[Dict[str, Any]]) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]:
+    """사람 판정 목록 → {(모델, 질문, 턴, 항목): 판정} — 판정 폴더 human_decisions.json · 결과 JSON 의 human_decisions 가 같은 모양."""
+    return {(d["provider"], int(d["question"]), int(d.get("turn") or 1), d["item"]): d for d in decisions}
 
 
 def set_dir_for(run: Dict[str, Any]) -> Path:
@@ -538,6 +539,13 @@ ERROR_BUTTONS = (("ERROR_CASE", "에러 케이스"), ("PASS", "PASS"), ("FAIL", 
 CODE_BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보류"))
 
 
+def decide_buttons(kind: Optional[str]) -> str:
+    """보류 칸 하나의 사람 판정 단추 · 메모 칸 — 저장 스크립트(JS)가 .hold-item 안의 이 단추를 읽는다. 결과 보고서 '보류 목록'도 같은 단추."""
+    choices = ERROR_BUTTONS if kind in (ERROR_SUSPECT_KIND, "질문 전체 보류") else CODE_BUTTONS if kind == CODE_HOLD_KIND else BUTTONS
+    tip = "사유(기준 고칠 때 씀)" if kind in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND) else "메모(선택)"
+    return "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + f" <input class='note' placeholder='{tip}' size='36'></div>"
+
+
 def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: str = "", buttons: bool = False) -> str:
     nm = (names.get(it["item"]) or {}).get("name") or ("답 수집 — 다시 수집할 턴" if it["item"] == "collection.copy_failed" else "")
     kind = f"<span class='kind'>{_e(it['kind'])}</span>" if it.get("kind") else ""
@@ -549,11 +557,7 @@ def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: 
     extra = (" · " + _e("; ".join(it["problems"])[:160])) if it["problems"] and it["reason"] else ""
     extra += (" · 표시: " + _e("; ".join(it.get("notes") or [])[:160])) if it.get("notes") else ""
     how = f"<div class='small'>심판: {_e(it['how'])}{extra}</div>" if (it["how"] or extra) else ""
-    btn = ""
-    if buttons:
-        choices = ERROR_BUTTONS if it.get("kind") in (ERROR_SUSPECT_KIND, "질문 전체 보류") else CODE_BUTTONS if it.get("kind") == CODE_HOLD_KIND else BUTTONS
-        tip = "사유(기준 고칠 때 씀)" if it.get("kind") in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND) else "메모(선택)"
-        btn = "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + f" <input class='note' placeholder='{tip}' size='36'></div>"
+    btn = decide_buttons(it.get("kind")) if buttons else ""
     return (f"<div class='item hold-item' {key_attrs}><span class='id'>턴 {it['turn']} · {_e(it['item'])}</span> <span class='small'>{_e(nm[:70])}</span> "
             f"<span class='{_e(it['decision'])}'>{_e(KO.get(it['decision'], it['decision']))}</span>{kind}{hum}<div class='why'>{_e(why)}</div>{q}{qq}{how}{btn}</div>")
 
@@ -798,7 +802,7 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                      f"<td class='num'>{_hms(took) if took else '미측정'}</td><td class='num'>{_hms(c['answer_seconds'])}</td><td class='num'>{per_q:.0f}초</td><td class='num'>{c['answer_chars']:,}</td><td class='num'>{_hms(c['wall_seconds']) if c['wall_seconds'] else '미측정'}</td></tr>")
         P.append("</table><p class='note'>걸린 시간 = 질문마다 새 채팅 · 모델 맞추기 · 자료 붙여 넣기 · 답 기다림 · 복사까지 실제로 걸린 시간의 합(10-26 밤부터 기록). 답 기다린 시간 = 보내고 답이 끝나기까지만.</p>")
     qrows = question_time_rows(run, lines, usage)
-    write_question_times(out_dir, qrows)   # 결과 폴더에 질문별_시간_호출.csv 로 (result_dirs.JUDGE_FILES)
+    write_question_times(out_dir, qrows)   # 판정 폴더의 question_times.csv — 결과 폴더(두 파일)에는 옮기지 않음, 시간은 보고서 · 결과 JSON 에
     P.append("<h3>판정</h3><table><tr><th>모델</th><th class='num'>판정한 질문</th><th class='num'>판정 시간 합</th><th class='num'>질문당 평균</th>"
              + "".join(f"<th class='num'>{j} 호출</th><th class='num'>{j} 입력 · 출력 토큰</th>" for j in JUDGE_NAMES) + "</tr>")
     for p in providers:
@@ -840,8 +844,8 @@ def write_report(out_dir: Path, run: Optional[Dict[str, Any]] = None, set_dir: O
                 if L["verdict"] == "FAIL":
                     inside_fail[p] += 1
     P.append(f"<h2 id='hold'>5. 보류 — 사람이 정하는 것</h2><p class='lead'>심판이 확정하지 못한 질문 {len(hold_lines)}건입니다. 질문 원문과 답변 원문, 보류 사유를 보고 항목마다 PASS/FAIL 을 눌러 주세요. "
-             "<code>modelgrade review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 프로그램에 저장되고, 끝낼 때 보고서가 다시 만들어집니다. "
-             "파일을 직접 열었으면 판단은 이 브라우저에만 저장되니 '판단 내보내기'로 JSON 을 받아 <code>modelgrade held-apply --dir &lt;판정 폴더&gt; --file &lt;받은 JSON&gt;</code> 로 반영하세요.</p>")
+             "<code>aiona-chat-eval review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 프로그램에 저장되고, 끝낼 때 보고서가 다시 만들어집니다. "
+             "파일을 직접 열었으면 판단은 이 브라우저에만 저장되니 '판단 내보내기'로 JSON 을 받아 <code>aiona-chat-eval held-apply --dir &lt;판정 폴더&gt; --file &lt;받은 JSON&gt;</code> 로 반영하세요.</p>")
     disagree: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for (p, q), L in lines.items():
         for it in L["items"]:

@@ -4,7 +4,7 @@
     python -X utf8 tools/modelgrade.py review [--run <실행>]   # 브라우저가 열림 — 다 정했으면 터미널에서 Enter
 
 보고서는 이 서버로 열리면 누를 때마다 POST /api/decisions 로 보내고(held-apply 와 같은 규칙으로 쌓음), 파일로 열리면 지금처럼 브라우저에
-저장했다가 '판단 내보내기'. 끝낼 때(Enter) 판정 보고서 · 결과 보고서를 다시 만든다. 주소의 일회용 열쇠(t=…)로 받은 쿠키(SameSite=Strict)가
+저장했다가 '판단 내보내기'. 끝낼 때(Enter) 결과 JSON · 보고서를 다시 만든다. 주소의 일회용 열쇠(t=…)로 받은 쿠키(SameSite=Strict)가
 있어야 저장되므로 다른 사이트가 대신 보낼 수 없다. 이 PC 밖에서는 열리지 않는다(127.0.0.1 에만 묶음).
 """
 from __future__ import annotations
@@ -33,19 +33,15 @@ COOKIE = "mg_review"
 
 
 def find_dirs(run_id: Optional[str] = None) -> Tuple[str, Path, Path]:
-    """(실행, 판정 폴더, 결과 폴더) — modelgrade report 가 쓰는 짝(실행의 result_dir · data/judge_runs/<실행>/v4)만. 실행을 안 주면
-    결과 폴더를 최근 것부터 보며 그 짝이 있는 첫 실행. 다시 판정 폴더(run.json 에 rerun_of)처럼 따로 만든 폴더는 고르지 않는다."""
+    """(실행, 판정 폴더, 결과 폴더) — aiona-chat-eval report 가 쓰는 짝(실행의 result_dir · data/judge_runs/<실행>/v4)만. 실행을 안 주면
+    결과 폴더를 최근 것부터 보며 그 짝이 있는 첫 실행. 다시 판정 폴더(결과 JSON 머리에 rerun_of)처럼 따로 만든 폴더는 고르지 않는다."""
     from tools import modelgrade as mg
     from tools import result_dirs
     cands = [run_id] if run_id else []
-    if not run_id and result_dirs.RESULTS.exists():
-        for rd in sorted((d for d in result_dirs.RESULTS.iterdir() if (d / "run.json").exists()), reverse=True):
-            try:
-                rid = json.loads((rd / "run.json").read_text(encoding="utf-8")).get("run_id")
-            except (OSError, ValueError):
-                continue
-            if rid and rid not in cands:
-                cands.append(str(rid))
+    if not run_id:
+        for rid, _rd in result_dirs.runs(result_dirs.RESULTS):
+            if rid not in cands:
+                cands.append(rid)
     for rid in cands:
         try:
             run = mg.load_run(rid)
@@ -56,11 +52,11 @@ def find_dirs(run_id: Optional[str] = None) -> Tuple[str, Path, Path]:
             return rid, jd, mg.RESULTS_JSON_DIR / run["result_dir"]
     if run_id:
         raise SystemExit(f"실행 {run_id} 의 결과 폴더 · 판정 기록(data/judge_runs/{run_id}/{JUDGE_OUT})을 찾지 못했습니다")
-    raise SystemExit("판정한 실행을 찾지 못했습니다 — modelgrade start 로 평가한 뒤에 여세요")
+    raise SystemExit("판정한 실행을 찾지 못했습니다 — aiona-chat-eval start 로 평가한 뒤에 여세요")
 
 
 def rebuild(judge_dir: Path, run_id: str) -> None:
-    """판정 보고서 · 결과 보고서 · 결과 JSON 을 사람 판정까지 반영해 다시 만든다 (modelgrade report 와 같은 일, 출력은 숨김)."""
+    """판정 기록의 보고서 · 결과 JSON · 보고서(report.html)를 사람 판정까지 반영해 다시 만든다 (aiona-chat-eval report 와 같은 일, 출력은 숨김)."""
     from tools import modelgrade
     with contextlib.redirect_stdout(io.StringIO()):
         modelgrade.cmd_report(argparse.Namespace(dir=str(judge_dir), run=run_id, from_start=False))
@@ -163,7 +159,7 @@ def make_handler(run_id: str, judge_dir: Path, result_dir: Path, token: str, por
     return Handler
 
 
-def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "판정보고서.html",
+def serve(run_id: Optional[str] = None, open_browser: bool = True, page: str = "report.html",   # 보고서 하나 — 결과와 보류 정하기 (10-27)
           wait: Callable[[], Any] = lambda: input("  다 정했으면 Enter (보고서를 다시 만들고 끝냅니다) … "),
           say: Callable[[str], None] = lambda s: print(s, flush=True)) -> Dict[str, Any]:
     """서버를 띄우고 보고서를 연 뒤 wait() 가 끝나면 보고서를 다시 만들고 닫는다. 저장한 수를 돌려준다."""

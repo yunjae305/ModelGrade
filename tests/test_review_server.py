@@ -11,7 +11,7 @@ def _serve(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(modelgrade, "apply_human_decisions",
                         lambda d, doc: calls.append((d, doc)) or {"added": len(doc["decisions"]), "rejected": 0, "total": 7, "run_id": "r1"})
-    (tmp_path / "판정보고서.html").write_text("<html>보류</html>", encoding="utf-8")
+    (tmp_path / "report.html").write_text("<html>보류</html>", encoding="utf-8")   # 결과 폴더의 보고서 하나 (10-27)
     port = {"port": 0}
     saved = []
     srv = ThreadingHTTPServer(("127.0.0.1", 0), review_server.make_handler("r1", tmp_path / "jd", tmp_path, "KEY", port, saved.append))
@@ -35,10 +35,10 @@ def test_only_the_page_opened_with_the_key_can_save(tmp_path, monkeypatch):
     try:
         doc = {"run_id": "r1", "decisions": [{"provider": "gpt", "question": 3, "turn": 1, "item": "J2-1.a", "new": "PASS"}]}
         assert _req(base + "/api/ping")[0] == 403 and _req(base + "/api/decisions", doc)[0] == 403   # 열쇠 없음
-        code, headers, body = _req(base + "/%ED%8C%90%EC%A0%95%EB%B3%B4%EA%B3%A0%EC%84%9C.html?t=KEY")
+        code, headers, body = _req(base + "/report.html?t=KEY")
         cookie = headers.get("Set-Cookie", "").split(";")[0]
         assert code == 200 and "보류" in body and cookie == "mg_review=KEY" and "SameSite=Strict" in headers.get("Set-Cookie")
-        assert "Set-Cookie" not in _req(base + "/%ED%8C%90%EC%A0%95%EB%B3%B4%EA%B3%A0%EC%84%9C.html?t=WRONG")[1]
+        assert "Set-Cookie" not in _req(base + "/report.html?t=WRONG")[1]
         assert json.loads(_req(base + "/api/ping", headers={"Cookie": cookie})[2]) == {"ok": True, "run_id": "r1"}
         code, _h, body = _req(base + "/api/decisions", doc, {"Cookie": cookie, "Content-Type": "application/json"})
         assert code == 200 and json.loads(body) == {"ok": True, "added": 1, "rejected": 0, "total": 7}
@@ -55,4 +55,4 @@ def test_offer_review_only_hints_when_not_a_terminal(monkeypatch, capsys):
     from tools import modelgrade
     monkeypatch.setattr(modelgrade.sys.stdin, "isatty", lambda: False, raising=False)
     modelgrade.offer_review("r1")
-    assert "보류 정하기: modelgrade review" in capsys.readouterr().out
+    assert "보류 정하기: aiona-chat-eval review" in capsys.readouterr().out

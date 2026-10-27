@@ -1,7 +1,7 @@
 """에러 케이스 기록 (error-case-labels-v1) — 에러 케이스로 의심된 답을 사람이 '에러 케이스 · PASS · FAIL' 로 정한 기록 (사용자 10-26).
 
 의심 답(능력 부정 문구 · 서비스 오류 문구 · 짧은 답 + 오류 · 거절 말)은 기록에 없으면 보류로 가고, 사람이 보고서에서 고른 값이
-`modelgrade held-apply` 로 여기 쌓인다. 다음 판정부터 같은 글(공백만 다른 글 포함)은 기록대로 정한다:
+`aiona-chat-eval held-apply` 로 여기 쌓인다. 다음 판정부터 같은 글(공백만 다른 글 포함)은 기록대로 정한다:
 에러 케이스 → CODE 0-1 FAIL(에러 케이스), PASS · FAIL → 에러 케이스 아님(나머지 판정은 심판 몫).
 """
 from __future__ import annotations

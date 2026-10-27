@@ -4,12 +4,16 @@
     python -X utf8 tools/export_results_json.py --run ac6507c00276 --label 간단78 --only-78 # 78 답변(10-20 앱·웹 수집)
 
 → 참고자료/결과/<실행>_<label>.json — 실행 파일(data/comparison_runs, git 제외)이 없는 다른 PC 에서도 결과를 볼 수 있게.
-담는 것(질문 글·첨부·참조 자료는 questions.json 에 있으므로 빼고 질문 번호로 잇는다):
+결과 폴더에는 이 JSON 과 report.html 두 파일만 둔다 (사용자 10-27: '질문, 답변이 합쳐진 json 파일 하나와 그것을 평가한 결과 report 하나').
+담는 것:
+- 질문(questions): 질문마다 유형 · 주제 · 목표 기준, 턴마다 질문 원문 · 첨부 이름 · 참조 자료 원문 (질문 세트 questions.json 그대로)
 - 모델별 턴마다: 답변 원문, 수집 상태·방법·시간·오류(빈 답·복사 실패 사유), 옛 질문에 대한 옛 답(previous, 질문 수정 전)
 - CODE 평가: 적용된 검사의 check_id·판정·사유
 - 의미 평가: 옛 파이프라인(10-19, jev_eval.records)의 J1~J8 결정·확률·사유, 또는 새 판정(judge_runs/<실행>/results.jsonl·summary.json·timing.jsonl)
 - 요약: 모델별 CODE·의미·종합 집계
-`modelgrade report` 도 판정이 끝나면 이 파일을 다시 쓴다.
+- 사람 판정(human_decisions): 보고서 '보류' 에서 사람이 정한 칸 (판정 폴더 human_decisions.json 그대로)
+- 다시 판정 폴더면 result: {kind: rerun, rerun_of, judge_out …} — 머리에 둬 결과 폴더 찾기(tools/result_dirs)가 앞부분만 읽고 가린다
+`aiona-chat-eval report` 도 판정이 끝나면 이 파일을 다시 쓴다.
 """
 from __future__ import annotations
 
@@ -115,15 +119,37 @@ def compact_judgment(line: Dict[str, Any]) -> Dict[str, Any]:
     return keep
 
 
+def questions(run: Dict[str, Any], numbers: List[int]) -> List[Dict[str, Any]]:
+    """질문 원문 — 질문 세트(questions.json)에서 받은 질문만, 턴마다 질문 글 · 첨부 이름 · 참조 자료 원문."""
+    from tools.report_html import set_dir_for
+    f = set_dir_for(run) / "questions.json"
+    if not f.exists():
+        return []
+    want = set(numbers)
+    out = []
+    for q in json.loads(f.read_text(encoding="utf-8")):
+        if int(q["id"]) not in want:
+            continue
+        turns = []
+        for i, t in enumerate(q.get("turns") or [], 1):
+            att = [a.get("name") if isinstance(a, dict) else str(a) for a in t.get("attachments") or []]
+            extra = {"attachments": [x for x in att if x], "reference": t.get("reference") or "", "reference_file": t.get("reference_file") or ""}
+            turns.append({"turn": int(t.get("turn") or i), "question": t.get("question") or "", **{k: v for k, v in extra.items() if v}})
+        out.append({k: v for k, v in {"id": int(q["id"]), "type": q.get("type"), "topic": q.get("topic"), "target_items": q.get("target_items"),
+                                      "turns": turns}.items() if v not in (None, "", [])})
+    return sorted(out, key=lambda x: x["id"])
+
+
 def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: Path = OUT_DIR,
-           runs_dir: Path = RUNS, judge_dir: Optional[Path] = None) -> Path:
+           runs_dir: Path = RUNS, judge_dir: Optional[Path] = None, result: Optional[Dict[str, Any]] = None) -> Path:
     run = json.loads((runs_dir / f"{run_id}.json").read_text(encoding="utf-8"))
     scope = set(only) if only else None
+    numbers = only or sorted({_qno(r["case_id"]) for rows in (run.get("datasets") or {}).values() for r in rows if r})
     doc: Dict[str, Any] = {"format": FORMAT, "exported_at": datetime.now(timezone.utc).isoformat(), "run_id": run_id, "label": label,
                            "name": run.get("name"), "created_at": run.get("created_at"), "question_set": run.get("question_set"),
                            "question_revision": run.get("question_revision") or "v2.0", "eval_kind": run.get("eval_kind"),
-                           "question_numbers": only or sorted({_qno(r["case_id"]) for rows in (run.get("datasets") or {}).values() for r in rows if r}),
-                           "models": run.get("models") or {}, "providers": {}}
+                           **({"result": result} if result else {}),   # 다시 판정 폴더 표시 — 머리에 (tools/result_dirs 가 앞부분만 읽음)
+                           "question_numbers": numbers, "models": run.get("models") or {}, "questions": questions(run, numbers), "providers": {}}
     for p, rows in (run.get("datasets") or {}).items():
         ev = (run.get("evaluations") or {}).get(p) or {}
         cases = {c.get("case_id"): c for c in ev.get("cases") or [] if isinstance(c, dict)}
@@ -158,6 +184,8 @@ def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: P
         used_jev = any("jev" in ((((l.get("calls") or {}).get("decisions") or {}).get("first_judge")) or {}).values() for l in latest.values())
         pipeline = ("judge-v5-screen (1차 Jev(3만 2천 토큰 이하 · 첨부 없음) · Decisions(그 밖) → FAIL · 애매만 Codex, Codex 확정)" if used_jev   # 10-22
                     else "judge-v5-screen (Decisions 전수 → 걸린 항목만 Codex, Codex 확정)")
+        hd = jd / "human_decisions.json"   # 사람이 정한 보류 — 결과 폴더에는 JSON 하나라 여기에 함께 (사용자 10-27)
+        doc["human_decisions"] = (json.loads(hd.read_text(encoding="utf-8")).get("decisions") or []) if hd.exists() else []
         doc["judgment"] = {"pipeline": pipeline, "results": lines,
                            "summary": json.loads((jd / "summary.json").read_text(encoding="utf-8")) if (jd / "summary.json").exists() else None,
                            "timing": [json.loads(l) for l in (jd / "timing.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]

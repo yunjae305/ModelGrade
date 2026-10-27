@@ -1,10 +1,10 @@
-"""처음 설정 — `modelgrade setup` 한 번으로 .env 키 · Codex CLI · Claude CLI · 웹 네 사이트 로그인 · 환경 점검까지 (사용자 10-26 저녁:
+"""처음 설정 — `aiona-chat-eval setup` 한 번으로 .env 키 · Codex CLI · Claude CLI · 웹 네 사이트 로그인 · 환경 점검까지 (사용자 10-26 저녁:
 "간단한 명령어들로 전부 설치가 되고 각종 ai 로그인들도 전부 되게"). Windows · macOS 같은 흐름. 키 · 비밀번호는 화면 · 로그에 쓰지 않는다.
 
-    modelgrade setup            # 모두 — 처음 한 번
-    modelgrade setup --keys     # .env 키만 (이미 있는 키도 바꿀지 물음)
-    modelgrade setup --cli      # Codex · Claude CLI 로그인만
-    modelgrade setup --web      # 수집용 Chrome 에서 ChatGPT · Claude · Gemini · AIONA 로그인만 (modelgrade login 과 같음)
+    aiona-chat-eval setup            # 모두 — 처음 한 번
+    aiona-chat-eval setup --keys     # .env 키만 (이미 있는 키도 바꿀지 물음)
+    aiona-chat-eval setup --cli      # Codex · Claude CLI 로그인만
+    aiona-chat-eval setup --web      # 수집용 Chrome 에서 ChatGPT · Claude · Gemini · AIONA 로그인만 (aiona-chat-eval login 과 같음)
 
 터미널이 아니면(CI · 파이프) 묻지 않고 .env 만 만든 뒤 남은 일을 알려 준다.
 """
@@ -229,7 +229,7 @@ def setup_web(ask: bool = True) -> Dict[str, str]:
         print(f"  ❌ {exc}")
         return {}
     if not st.get("ok"):
-        print(f"  ❌ 수집용 Chrome 에 붙지 못함(포트 {chrome_cdp.PORT}) — 이 프로필의 Chrome 이 떠 있으면: modelgrade login 전에 python tools/chrome_cdp.py --close")
+        print(f"  ❌ 수집용 Chrome 에 붙지 못함(포트 {chrome_cdp.PORT}) — 이 프로필의 Chrome 이 떠 있으면: aiona-chat-eval login 전에 python tools/chrome_cdp.py --close")
         return {}
     aiona_auto = bool(env_value("AIONA_LOGIN_ID") and env_value("AIONA_LOGIN_PASSWORD"))
     print("  Chrome 창 네 개(ChatGPT · Claude · Gemini · AIONA)가 열렸습니다. 각 창에서 직접 로그인하세요 — 로그인은 이 프로필에 남아 다음부터는 안 해도 됩니다.\n"
@@ -248,7 +248,7 @@ def setup_web(ask: bool = True) -> Dict[str, str]:
             auto = "aiona" in url and aiona_auto
             ok = s == "ok" or (s == "login" and auto)
             label = {"ok": "로그인 됨으로 보임", "login": "로그인 화면이 보임" + (" — .env 아이디로 자동 로그인" if auto else ""),
-                     "no-tab": "창이 없음 — 다시 열려면 modelgrade login", "error": "확인 못 함"}.get(s, s)
+                     "no-tab": "창이 없음 — 다시 열려면 aiona-chat-eval login", "error": "확인 못 함"}.get(s, s)
             print(f"   {'✅' if ok else '⚠️ '} {url} — {label}")
             if not ok and s != "error":
                 left.append(url)
@@ -259,7 +259,7 @@ def setup_web(ask: bool = True) -> Dict[str, str]:
 
 # ------------------------------------------------------------------ 전체 ------------------------------------------------------------------
 def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(prog="modelgrade setup", description="처음 설정 — .env 키 · Codex · Claude CLI · 웹 로그인 · 점검")
+    ap = argparse.ArgumentParser(prog="aiona-chat-eval setup", description="처음 설정 — .env 키 · Codex · Claude CLI · 웹 로그인 · 점검")
     ap.add_argument("--keys", action="store_true", help=".env 키만 (있는 키도 바꿀지 물음)")
     ap.add_argument("--cli", action="store_true", help="Codex · Claude CLI 로그인만")
     ap.add_argument("--web", action="store_true", help="수집용 Chrome 웹 로그인만")
@@ -272,10 +272,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         if a.web and not (a.keys or a.cli):
             from tools import chrome_cdp
             return chrome_cdp.main(["--login"])
-        print("터미널이 아니라 묻지 않습니다. 이어서 터미널에서: modelgrade setup")
+        print("터미널이 아니라 묻지 않습니다. 이어서 터미널에서: aiona-chat-eval setup")
         return 0
     if a.keys or not only:
-        print("\n① .env 키 (값은 화면에 남지 않습니다 — 나중에 바꾸려면 modelgrade setup --keys 또는 .env 를 직접 고침)")
+        print("\n① .env 키 (값은 화면에 남지 않습니다 — 나중에 바꾸려면 aiona-chat-eval setup --keys 또는 .env 를 직접 고침)")
         missing = setup_keys(ask_again=a.keys)
         if missing:
             print(f"  ❌ 필수 키가 비어 있음: {', '.join(missing)}")
@@ -287,7 +287,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if a.web or ask_yes("  지금 수집용 Chrome 을 띄워 로그인할까요?"):
             setup_web()
         else:
-            print("  나중에: modelgrade login")
+            print("  나중에: aiona-chat-eval login")
     if only:
         return 0
     print("\n④ 환경 점검")

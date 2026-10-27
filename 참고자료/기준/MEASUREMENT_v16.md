@@ -410,7 +410,7 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 
 - 엔진 `aiona-code-eval-v16.7.2`, 규칙 `1-1.response_nonempty v16-1.5`. ③(능력 부정 정형 문구)의 예외 '질문이 번역 · 인용 · 예문을 시킴'(`ERROR_CASE_QUESTION_SKIP`)을 붙여 넣은 자료 구간(`[붙여 넣은 자료]` … `[자료 끝]`, `analysis.pasted_ranges`)을 뺀 지시문(`instruction_text`)에서만 찾는다.
 - 근거: v4-r8 보류 분석(10-25 밤) — Gemini Q4 9턴의 정형 거절이 자료 속 '옮겨' 때문에 검사가 꺼져 Codex 로 가 보류됨. 78 세트 177턴 중 90턴이 자료 속 낱말로 꺼져 있었다.
-- 저장된 결과는 `modelgrade code-eval --run <실행>` 으로 다시 계산하고 판정은 `judge_v4 --recode` 로 반영한다.
+- 저장된 결과는 `aiona-chat-eval code-eval --run <실행>` 으로 다시 계산하고 판정은 `judge_v4 --recode` 로 반영한다.
 
 ## 31. v16.7.3 1-1 에러 케이스 ③ 문구 추가 (2026-10-25 밤)
 
@@ -430,7 +430,7 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 - **확정 FAIL**: ① 빈 응답(공백 · 제어문자를 빼면 비어 있음 — 옛 수집기의 `COPY_FAILED` · `답이 비어 있음 …` 기록 포함) ② 답 없음(수집 오류) ③ 사람이 에러 케이스로 정한 글과 같은 답(`measured.error_case_label = ERROR_CASE`).
 - **의심 → 행 없음**: 능력 부정 정형 문구(`ERROR_CASE_PHRASES`) · 서비스 오류 정형 문구(`SERVICE_ERROR_PHRASES`) · ⑤ 짧은 답(300자 · 3줄 이하, 코드블록 없음)의 문장마다 오류 · 거절 · 자기 설명 말(`ERROR_SUSPECT_WORDS`)이나 재시도 · 사과뿐. `meta.skipped_conditions` 에 `error_suspect`(종류) · `phrase` 를 남긴다. 질문에 나온 낱말 · '하지만 · but' 문장 · '확인할 수 없' 은 의심하지 않는다.
 - 사람이 PASS · FAIL 로 정한 같은 글은 `PASS`(에러 케이스 아님, 나머지는 심판 몫). 같은 글 = 앞뒤 공백을 지우고 공백 묶음을 한 칸으로 본 글.
-- 판정 도구는 의심 턴에 보류 항목 `1-1.response_nonempty`(종류 '에러 케이스 확인')를 붙여 질문을 보류하고, 보고서에서 사람이 에러 케이스 · PASS · FAIL 을 고르면 `modelgrade held-apply` 가 `code_eval/settings/error_case_labels.json` 에 쌓는다.
+- 판정 도구는 의심 턴에 보류 항목 `1-1.response_nonempty`(종류 '에러 케이스 확인')를 붙여 질문을 보류하고, 보고서에서 사람이 에러 케이스 · PASS · FAIL 을 고르면 `aiona-chat-eval held-apply` 가 `code_eval/settings/error_case_labels.json` 에 쌓는다.
 - 근거: 사용자 10-26 "에러 케이스의 종류는 여러가지 … 보류로 보내질거야. 그럴때마다 사람이 직접 확인하며 에러케이스인지, PASS인지, FAIL인지 확인하게 해서 에러케이스의 데이터를 쌓으려고" · "빈응답출력하는 사례도 에러케이스라고 보게 넣어둬".
 
 ## 34. v16.9.1 코드로 못 정하는 경우는 판정 제외 (2026-10-26)
@@ -444,7 +444,7 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 
 - 34절의 네 경우(이스케이프 불릿 · 불릿 묶음 여럿 · 자기 점검 문장의 금지어 · 서비스 꼬리글 줄에만 있는 허용 밖 문자)는 판정 제외가 아니라 **보류**다. 결과 행 없이 `meta.skipped_conditions` 에 `code_hold`(종류) · `reason` · `excerpt` 를 남긴다(`core.hold_condition`).
 - 허용 문자(`2-1.charset` v16-1.2): 꼬리글 줄과 본문을 따로 센다. 본문에 허용 밖 문자가 있으면 본문 것만 세어 FAIL, 꼬리글에만 있으면 보류.
-- 판정 도구는 그 턴에 보류 칸 '코드 판정 확인'(항목 ID = CODE 검사 ID)을 붙여 질문을 보류한다. 사람이 PASS · FAIL 과 사유를 고르면 `modelgrade held-apply` 가 `참고자료/분석/사람판정/코드확인_기록.json`(human-records-v1)에 쌓는다.
+- 판정 도구는 그 턴에 보류 칸 '코드 판정 확인'(항목 ID = CODE 검사 ID)을 붙여 질문을 보류한다. 사람이 PASS · FAIL 과 사유를 고르면 `aiona-chat-eval held-apply` 가 `참고자료/분석/사람판정/코드확인_기록.json`(human-records-v1)에 쌓는다.
 - 근거: 사용자 10-26 "꼬리글처럼 붙는 경우에도 일단 보류로 보내서 pass/fail고르게 하고 사유 받아서 평가기준들 개선". 판정 제외만 하면 의미 평가 J2-3.a 가 개수 조건을 거의 보지 않았다(v4-f1 12턴 중 1턴).
 - 규칙 버전: `2-1.count` `v16-1.9` · `2-1.literal` `v16-1.5` · `2-1.charset` `v16-1.2`.
 
@@ -459,5 +459,5 @@ main(`903ab11` — 의미 평가 items 파이프라인·Message Batches·버전 
 ## 37. 에러 케이스 단독 기준 · 수집 글 로그 (2026-10-26 저녁)
 
 - 에러 케이스(`1-1.response_nonempty` 에러 케이스 없음 · `2-1.explicit_empty` 명시 빈 출력)는 CODE · LLM 어디에도 속하지 않는 단독 기준 — 72 = 에러 케이스 2 + CODE 26(3대분류 · 8소분류) + LLM 44 (`criteria-registry-v15`). 검사 ID · 소분류 키 `0-1` · 판정 규칙은 그대로이고, 기준 항목의 `family`(error · code)로 개수 · 보고서를 따로 센다.
-- 수집기는 답이 비었거나 못 받은 턴에서 화면을 찍지 않고, 마지막 질문 말풍선 뒤 답 자리에 보이는 글을 읽어 `collection.turn_log`(`answer_area` 2,000자까지)에 남긴다. 결과 보고서 · 판정보고서 보류 원문은 수집 상태 · 오류 · 기다린 시간 · 답 자리 글을 '수집 로그'로 글로 보인다(`tools/collection_log.py`). 옛 수집의 `collection.screenshot` 은 보고서에 넣지 않는다.
+- 수집기는 답이 비었거나 못 받은 턴에서 화면을 찍지 않고, 마지막 질문 말풍선 뒤 답 자리에 보이는 글을 읽어 `collection.turn_log`(`answer_area` 2,000자까지)에 남긴다. 보고서(report.html) 보류 원문은 수집 상태 · 오류 · 기다린 시간 · 답 자리 글을 '수집 로그'로 글로 보인다(`tools/collection_log.py`). 옛 수집의 `collection.screenshot` 은 보고서에 넣지 않는다.
 - 근거: 사용자 10-26 저녁 "에러케이스라는 단독의 기준으로 빼라" · "그냥 로그로 사용자에게 텍스트 형태로 보여주는게 좋을 것 같아"(10-26 미팅: 이미지는 보고서 용량 부담).

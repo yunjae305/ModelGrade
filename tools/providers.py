@@ -1,7 +1,7 @@
 """모델 자리 — 기본 네 자리(aiona · gpt · claude · gemini)와 AIONA 두 번째 자리(aiona2, 사용자 10-26).
 
-AIONA 모델 두 개를 한 실행에서 나란히 받거나(`modelgrade start --aiona … --aiona2 …`), 업데이트 전 · 후 실행의 AIONA 답을
-한 비교 실행에 묶을 때(`modelgrade pair`) 두 번째 AIONA 를 aiona2 자리에 둔다. aiona2 는 AIONA 수집기 · 로고를 쓰고,
+AIONA 모델 두 개를 한 실행에서 나란히 받거나(`aiona-chat-eval start --aiona … --aiona2 …`), 업데이트 전 · 후 실행의 AIONA 답을
+한 비교 실행에 묶을 때(`aiona-chat-eval pair`) 두 번째 AIONA 를 aiona2 자리에 둔다. aiona2 는 AIONA 수집기 · 로고를 쓰고,
 보이는 이름은 실행 파일의 models(예: 'AIONA 웹브라우저 (Claude Sonnet 5.5)')에서 온다.
 """
 from __future__ import annotations

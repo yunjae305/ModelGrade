@@ -1,7 +1,7 @@
 """새 질문 리스트 만들기 — 질문생성 프롬프트(v3.6)를 Claude Code CLI 에 맡겨 질문 · 첨부 · 긴 문서를 세트 폴더에 바로 만들고,
 우리 검사기로 통과할 때까지 이어서 고친다 (사용자 10-26 저녁: Codex 대신 Claude Code — Windows 에서 Codex 는 폴더에 쓰지 못함).
 
-    python -X utf8 tools/new_question_set.py make [--size full|small]              # modelgrade start 의 2번과 같다
+    python -X utf8 tools/new_question_set.py make [--size full|small]              # aiona-chat-eval start 의 2번과 같다
     python -X utf8 tools/new_question_set.py check <세트 폴더> [--size …] [--json]  # 검사만 — Claude 도 작업 중에 부른다
 
 흐름: 세트 폴더(참고자료/질문세트_<날짜_시각>)를 만들고 프롬프트를 복사(세트 이름 · 크기만 바꿈) → Claude 가 그 폴더 안에서 작업
@@ -495,7 +495,7 @@ def make(size: str = "full", model: Optional[str] = None, effort: Optional[str] 
     from tools import setup_wizard
     exe = find_claude_executable()
     if not exe:
-        raise SystemExit("Claude Code CLI(claude)를 찾지 못했습니다 — modelgrade setup 으로 설치 · 로그인하세요")
+        raise SystemExit("Claude Code CLI(claude)를 찾지 못했습니다 — aiona-chat-eval setup 으로 설치 · 로그인하세요")
     if not setup_wizard.claude_logged_in(exe):   # 회차를 돌리기 전에 — 로그인 안 된 채 시작하면 두 회차를 헛돈다
         if setup_wizard.interactive():
             say("Claude Code 로그인이 필요합니다 — 브라우저가 열립니다")

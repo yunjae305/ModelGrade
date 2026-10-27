@@ -4,7 +4,7 @@
     python -X utf8 tools/judge_compare_runs.py compare --run 50ca3ccccace --before v4 --after v4-r2
 → data/judge_runs/<실행>/<after>/비교_<before>→<after>.md · .json
     python -X utf8 tools/judge_compare_runs.py publish --run 50ca3ccccace --before v4 --after v4-r2 --name "새 규칙 다시 판정"
-→ 참고자료/결과/<지금 시각>/ — run.json(rerun_of) · 판정보고서.html · results.jsonl · 결과 JSON · report.html(결과 보고서) · 비교.md/json.
+→ 참고자료/결과/<지금 시각>/ — 질문 · 답변 JSON(머리에 result.rerun_of) · report.html 두 파일 (사용자 10-27). 비교.md/json · 판정 기록은 판정 폴더에.
   본 판정의 결과 폴더(처음 시각)는 그대로 두고 새 폴더로 — 전후를 함께 두기 위해(사용자 10-22).
 
 세는 단위: 질문(모델별 /78), 기준별 FAIL 칸, 보류 칸(종류별), 멀티턴은 턴 단위 FAIL 수도(미팅 ⑤: 멀티턴 통과 0 점검).
@@ -17,7 +17,7 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -144,20 +144,18 @@ def write_compare(run: str, before: str, after: str) -> Path:
     return out_md
 
 
-def publish(run_id: str, before: str, after: str, name: str, note: str = "") -> Path:
-    """다시 판정 결과를 새 결과 폴더(참고자료/결과/<지금 시각>/)로 — 본 판정 폴더는 그대로. run.json 에는 run_id 대신 rerun_of
-    (result_dirs.find(실행) 이 본 결과 폴더를 그대로 찾게, judge_item_rerun 과 같은 방식). 결과 보고서는 빌더가 실행 ID 로 찾는 결과 JSON ·
-    판정 보고서를 이 폴더의 것으로 바꿔 끼워 만든다."""
-    import shutil
+def publish(run_id: str, before: str, after: str, name: str, note: str = "", rd: Optional[Path] = None) -> Path:
+    """다시 판정 결과를 새 결과 폴더(참고자료/결과/<지금 시각>/)로 — 본 판정 폴더는 그대로. 결과 폴더에는 질문 · 답변 JSON 과 report.html 두 파일만
+    (사용자 10-27). JSON 머리의 result.rerun_of 로 result_dirs.find(실행) 이 본 결과 폴더를 그대로 찾는다. 결과 보고서는 빌더가 실행 ID 로 찾는
+    결과 JSON · 판정 기록을 이 다시 판정의 것으로 바꿔 끼워 만든다. rd 를 주면 그 폴더를 다시 만든다."""
     import subprocess
-    from tools import build_result_summary as brs
     from tools import result_dirs
     from tools.export_results_json import export
     from tools.modelgrade import RUNS, load_run
     from tools.report_html import write_report
     base = ROOT / "data" / "judge_runs" / run_id
     judge_dir = base / after
-    rd = result_dirs.RESULTS / result_dirs.stamp()
+    rd = rd or result_dirs.RESULTS / result_dirs.stamp()
     rd.mkdir(parents=True, exist_ok=True)
     try:
         head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
@@ -165,32 +163,25 @@ def publish(run_id: str, before: str, after: str, name: str, note: str = "") -> 
         head = ""
     run = load_run(run_id)
     meta = {"version": result_dirs.VERSION, "kind": "rerun", "rerun_of": run_id, "judge_out": after, "before_out": before, "started": rd.name,
-            "name": name, "question_set": run.get("question_set"), "eval_kind": run.get("eval_kind"), "code_at": head, "note": note}
-    (rd / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
-    write_report(judge_dir, run)                       # 판정 보고서(판정 폴더 report.html)
-    result_dirs.publish(judge_dir, rd)                 # → 판정보고서.html · results.jsonl · summary.json
-    keep_last = last_lines(judge_dir / "results.jsonl")   # 결과 폴더에는 (모델, 질문) 마지막 줄만 — 복구를 거듭한 판정 폴더를 통째로 올리지 않게 (10-23)
-    (rd / "results.jsonl").write_text("".join(json.dumps(v, ensure_ascii=False) + chr(10) for _, v in sorted(keep_last.items())), encoding="utf-8")
-    result_dirs.publish_collection(base, rd)
-    js_path = export(run_id, "결과_판정결과", None, out_dir=rd, runs_dir=RUNS, judge_dir=judge_dir)
-    md = write_compare(run_id, before, after)
-    shutil.copy2(md, rd / "비교.md")
-    shutil.copy2(md.with_suffix(".json"), rd / "비교.json")
-    build_report(run_id, rd, js_path)
+            "name": name, "code_at": head, "note": note}
+    write_report(judge_dir, run)                       # 판정 보고서 · 질문별 시간 표(판정 폴더에 — 결과 폴더에는 안 둠)
+    js_path = export(run_id, "결과_판정결과", None, out_dir=rd, runs_dir=RUNS, judge_dir=judge_dir, result=meta)
+    write_compare(run_id, before, after)               # 비교.md/json — 판정 폴더에
+    build_report(run_id, rd, js_path, judge_dir)
     return rd
 
 
-def build_report(run_id: str, rd: Path, js_path: Path) -> Path:
+def build_report(run_id: str, rd: Path, js_path: Path, judge_dir: Path) -> Path:
     """다시 판정 폴더의 결과 보고서(report.html) — 빌더가 실행 ID 로 찾는 결과 JSON · 판정 보고서 · 판정 기록(results.jsonl 등)을
-    이 폴더의 것으로 바꿔 끼워 만든다. 판정 기록을 바꿔 끼우지 않으면 시간 · 호출 · 토큰이 본 판정(첫 결과 폴더)의 숫자로 나온다(10-27)."""
+    이 다시 판정의 것으로 바꿔 끼워 만든다. 판정 기록을 바꿔 끼우지 않으면 시간 · 호출 · 토큰이 본 판정(첫 결과 폴더)의 숫자로 나온다(10-27)."""
     from tools import build_result_summary as brs
     from tools import result_dirs
     keep = (brs.RESULTS, brs.results_json, brs.judge_report_file, brs.result_file)
     orig_result_file = brs.result_file
     brs.RESULTS = result_dirs.RESULTS
     brs.results_json = lambda rid: js_path                                   # 이 폴더의 결과 JSON
-    brs.judge_report_file = lambda rid: rd / result_dirs.JUDGE_REPORT        # 이 폴더의 판정 보고서
-    brs.result_file = lambda rid, name, flat=False: (rd / name) if (rd / name).exists() else orig_result_file(rid, name, flat)   # 이 폴더의 판정 기록
+    brs.judge_report_file = lambda rid: judge_dir / "report.html"            # 이 다시 판정의 판정 보고서
+    brs.result_file = lambda rid, name, flat=False: (judge_dir / name) if (judge_dir / name).exists() else orig_result_file(rid, name, flat)   # 이 판정 기록
     try:
         brs.build(run_id, report_dir=rd)
     finally:
@@ -209,15 +200,16 @@ def main(argv: List[str] | None = None) -> int:
         sp.add_argument("--before", required=True, help="전 판정 폴더 이름 (data/judge_runs/<실행>/<이름>)")
         sp.add_argument("--after", required=True, help="후 판정 폴더 이름")
         if name == "publish":
-            sp.add_argument("--name", required=True, help="결과 폴더 run.json 의 이름")
+            sp.add_argument("--name", required=True, help="결과 JSON 머리(result)에 적는 이름")
             sp.add_argument("--note", default="")
+            sp.add_argument("--into", default="", help="새 폴더 대신 이 결과 폴더를 다시 만듦 (참고자료/결과/<시각>)")
     args = ap.parse_args(argv)
     if args.cmd == "compare":
         out_md = write_compare(args.run, args.before, args.after)
         print(out_md.read_text(encoding="utf-8"))
         print(f"저장: {out_md}")
         return 0
-    rd = publish(args.run, args.before, args.after, args.name, args.note)
+    rd = publish(args.run, args.before, args.after, args.name, args.note, Path(args.into) if args.into else None)
     print(f"결과 폴더: {rd}")
     return 0
 
