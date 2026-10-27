@@ -2,8 +2,9 @@
 """기준 다듬기 루프 (refine-loop-v1) — 판정 결과 · 사람 표시를 재료로 판정 프롬프트(1차 · 2차 심판이 함께 읽음) · 확인 목록의 고칠 안을 내고, 같은 칸을
 고치기 전 · 후로 다시 판정해 비교한 뒤, 근거가 있을 때만 채택하고 교훈을 남긴다 (기준 v2 10절의 ①~⑥을 도구로).
 
-흐름은 Harness²(Google Research, 2026, Apache-2.0)의 제안(Propose) → 시험(Probe) → 합성 · 채택(Compose) → 교훈(Reflect)을 따온 것이고
-코드는 가져오지 않았다. 다른 점: 우리는 사람 표시(정답)가 있으면 그것을 1순위 증거로 쓰고, 없으면 '두 번 판정의 뒤집힘'과 '1차 ↔ 2차 갈림'을
+이름(하네스2)과 흐름은 Harness²: Recursive Agent Harnessing for an Open World
+(Xu et al., Google Research, 2026 — arXiv:2610.14224 · https://github.com/google-research/harness2 · Apache-2.0)의 제안(Propose) → 시험(Probe) → 합성 · 채택(Compose)과
+채택한 안 · 교훈을 쌓아 다음에 쓰는 방식을 따온 것이고 코드는 가져오지 않았다(인용은 README '인용 · 출처'). 다른 점: 우리는 사람 표시(정답)가 있으면 그것을 1순위 증거로 쓰고, 없으면 '두 번 판정의 뒤집힘'과 '1차 ↔ 2차 갈림'을
 증거로 쓴다(정답 없이 고치면 심판이 틀린 쪽으로 굳을 수 있어 그때는 '사람 확인 필요'로 표시만 한다).
 
     python -X utf8 tools/refine_loop.py collect --run 50ca3ccccace --judge v4-b10 --item J1-4.b [--fail 12 --pass 12 --types 싱글]
@@ -1031,8 +1032,8 @@ def write_followups(results: Sequence[Dict[str, Any]], run_id: str, judge_out: s
     lines = [x["changelog"] for r in results for x in r.get("applied") or [] if x.get("changelog")]
     if lines:   # 판정이 달라지는 변경 — 시맨틱 버저닝의 부 버전을 올리고 CHANGELOG 에 (사용자 10-27)
         from tools import version
-        new = version.bump("minor", [f"하네스2 자동 반영(실행 {run_id} · 판정 {judge_out}): " + "; ".join(
-            str(x.get("changelog") or "").lstrip("- ")[:200] for r in results for x in r.get("applied") or [] if x.get("changelog"))])
+        new = version.bump("minor", {"개선됨": [f"하네스2 자동 반영(실행 {run_id} · 판정 {judge_out}): " + "; ".join(
+            str(x.get("changelog") or "").lstrip("- ")[:200] for r in results for x in r.get("applied") or [] if x.get("changelog"))]})
         lines.append(f"- 버전 {new} (부 버전 — 판정 프롬프트 · 기준 정의가 바뀌어 다음 평가부터 판정이 달라질 수 있음)")
         f = CHANGELOG_DIR / f"{datetime.now():%Y-%m-%d}-변경내역.md"
         head = "" if f.exists() else f"# {datetime.now():%Y-%m-%d} 변경내역\n"

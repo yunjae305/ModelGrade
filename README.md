@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.4.1-informational.svg" alt="version 1.4.1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.0-informational.svg" alt="version 2.0.0"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 채점(프로그램 · AI 심판) → 보고서 → 하네스2(기준 다듬기)</code></p>
@@ -29,7 +29,7 @@ aiona-chat-eval 은 **AIONA · ChatGPT · Claude · Gemini 에 똑같은 질문�
 ```mermaid
 flowchart LR
     Q["질문 리스트<br/>78개 · 177문항"] --> C["답변 수집<br/>웹브라우저 · 4개 모델"]
-    C --> J["채점<br/>⓪ 에러 케이스 · ① CODE<br/>② 1차 AI 심판 · ③ 2차 심판"]
+    C --> J["채점<br/>⓪ 에러 케이스 · ① CODE<br/>② 채점 심판 · ③ 확인 심판"]
     J --> R["report.html<br/>+ 질문 · 답변 JSON"]
     R --> H["하네스2<br/>기준 다듬기"]
     R -. 보류 .-> P["사람 판정<br/>PASS · FAIL · Error"]
@@ -45,9 +45,60 @@ flowchart LR
 | **평가 기준** | 72개 | 답이 성립하는지 2 · 프로그램이 재는 것 26(글자 수 · 표 · 코드 · 계산값 …) · AI 심판이 보는 것 44(요청 수행 · 조건 준수 · 사실 · 앞뒤 맞음 · 대화 기억 … — 큰 기준 8 · 세부 기준 30·점검 항목 44) |
 | **질문 세트** | 78개 | 싱글턴 57(첨부 12 · 빈 출력 요구 10 포함) · 10턴 대화 11 · 롱컨텍스트 10. 대화는 턴마다 채점(모두 177문항)하고, 10턴을 모두 통과해야 질문 1개 통과 |
 | **비교 모델** | 4개 | AIONA · ChatGPT · Claude · Gemini (웹브라우저로 답변 수집, 모델 · 추론 수준을 맞춰서) |
-| **심판** | 3단계 | ① 프로그램(CODE) ② 1차 AI 심판 — 같은 답을 세 가지 관점으로 한 번씩 보고 다수결 ③ 어겼다고 보거나 애매하면 2차 심판(Codex)이 답을 인용해 확정 |
+| **심판** | 3단계 | ① 프로그램(CODE) ② 채점 심판(Jev · Decisions) — 같은 답을 세 가지 관점으로 한 번씩 보고 다수결 ③ 어겼다고 보거나 애매하면 확인 심판(Codex)이 답을 인용해 확정 |
 | **결과** | 2개 파일 | `report.html` 보고서 하나(순위 · 분야별 · 기준별 · 걸린 시간 · FAIL 원인 · 보류 정하기 · 질문별 원문) + 질문 · 답변 JSON 하나 |
 | **하네스2** | 평가 뒤 자동 | 흔들리거나 사람 판정과 어긋난 기준을 골라 판정 프롬프트 · 기준 · 질문을 고쳐 보고, 다시 판정해 나아진 것만 반영 |
+
+## 새로운 기능
+
+<!-- 새로운 기능: tools/version.py 가 CHANGELOG.md 에서 채움 — 여기는 손으로 고치지 않음 -->
+
+### 2026년 10월 27일 · `2.0.0`
+
+**신규**
+
+- 결과 폴더를 저장소 맨 위 `result/` 로 — 평가 결과가 `result/<시작 시각>/` 에 저장됨(옛 `참고자료/결과/` 폴더도 모두 옮김, 결과 폴더 위치가 바뀌어 주 버전)
+- README '새로운 기능' — 최근 3개 버전의 변경 로그를 날짜 · 버전 · 신규 / 개선됨 / 수정됨으로, 버전을 올릴 때 CHANGELOG 에서 자동으로 채움
+
+**개선됨**
+
+- 보고서 '기본 정보' 표 — 모델 · 버전 · 설정 · 수집 방법만
+- 발표 자료 — 뒤쪽 '상세 분석'을 '결과 보고서'로, 번호를 01 부터 다시(앞쪽 발표 흐름 번호도 따로)
+- README 배너 — '질문리스트 세팅' · '정해진 기준으로 판정'
+- CHANGELOG 를 버전마다 신규 · 개선됨 · 수정됨으로 나눔
+- 참고자료 정리 — 어디서도 쓰지 않는 옛 진행 기록 · 실험 산출물 · 중간 발표 초안을 지움(git 이력에 남음)
+- 보고서 '대화 안에서 어떤 요청에 약한가'(멀티턴 턴 종류별) — 통과 수 대신 FAIL 비율로, 약한 일부터, 색은 진할수록 많이 틀린 것
+- README · 결과 보고서의 심판 말을 '채점 심판(Jev · Decisions) · 확인 심판(Codex)'으로(팀원 1.4.1 발표 자료와 같게)
+
+**수정됨**
+
+- 최종 발표 자료본에 결과 보고서 장면을 끼울 때 장면 안의 `<section>` 에서 잘리던 것(팀원이 찾음) — 짝을 맞춰 자름
+- 하네스2 출처 — Harness²: Recursive Agent Harnessing for an Open World(Google Research, arXiv:2610.14224)의 공식 이름 · 저자 · 인용을 README · THIRD_PARTY_NOTICES · 코드 · 기준 문서에
+
+### 2026년 10월 27일 · `1.4.1`
+
+**개선됨**
+
+- 발표 흐름도(tools/result_flow.py) 문구 · 배치 — '1차 · 2차 심판' → '채점 심판(Jev · Decisions) · 확인 심판(Codex)', 'Codex CLI 인가' 메모를 Codex 상자 바로 아래로, 도형 범례(메모 포함)를 흐름도 위 한 줄로
+- 최종 발표 자료본 앞 7장면 손질(평가 모델 개요 · 결과 제공 방식 · 보류 · 발전 방향 · 상시 운영) · 상세 분석 11장면과 합침
+
+### 2026년 10월 27일 · `1.4.0`
+
+**신규**
+
+- 하네스2 진행 표시 — 터미널에 `하네스2 작업 중 [1/2] <기준>`, 단계 `── 1/5 칸 모으기 … 5/5 교훈 · 반영`, 기준별 · 전체 걸린 시간
+- README 흐름도(Mermaid) — 한눈에(수집 → 채점 → 보고서 → 하네스2) · 어떻게 평가하나 · 하네스2 절
+
+**개선됨**
+
+- 보고서 '이번 실행 결과' — 맨 위에 기본 정보(모델 · 수집) 표, 순위 그래프 둘을 '질문 단위 | 문항 단위' 버튼으로 한 공간에, 순위 오름차순, '잠정' · 점선 · '싱글 vs 대화 중' 탭 뺌
+- FAIL 표 칸 테두리 검은색 · 칸을 누르면 질문 · 답 · 사유
+- 발표 템플릿 · 최종 발표 자료본의 상세 분석을 보고서와 같은 장면(11개)으로
+- 하네스2 — 시간 한도 없앰(`--budget-min` 기본 0)
+
+<!-- /새로운 기능 -->
+
+전체 이력은 [CHANGELOG.md](CHANGELOG.md) — 버전은 [시맨틱 버저닝](https://semver.org/lang/ko/) `주.부.수정`을 따릅니다.
 
 ## 빠른 시작
 
@@ -96,9 +147,9 @@ aiona-chat-eval start
 | 무엇 | 왜 | 비고 |
 |---|---|---|
 | Python 3.10+ · Google Chrome · Node.js | 실행 · 수집용 브라우저 · CLI | 설치 명령이 없으면 깔아 줌 |
-| **OpenAI API 키** | 1차 심판(Decisions) | 필수 |
-| TypeSafe API 키 | 1차 심판(Jev, 짧은 단일 질문) | 권장 — 없으면 Decisions 가 맡음 |
-| ChatGPT 계정 | 2차 심판(Codex CLI) · 답변 수집 | |
+| **OpenAI API 키** | 채점 심판(Decisions) | 필수 |
+| TypeSafe API 키 | 채점 심판(Jev, 짧은 단일 질문) | 권장 — 없으면 Decisions 가 맡음 |
+| ChatGPT 계정 | 확인 심판(Codex CLI) · 답변 수집 | |
 | Claude 계정 | 답변 수집 · 새 질문 리스트 만들기(Claude Code) | |
 | Gemini · AIONA 계정 | 답변 수집 | AIONA 는 크레딧이 남아 있어야 함 |
 
@@ -127,7 +178,7 @@ aiona-chat-eval start
   Gemini  : 11 / 78  (남은 67) · Q12 받는 중
 ...
 평가가 완료되었습니다.
-  보고서  …/참고자료/결과/2026-10-27_07-07-42-013/report.html
+  보고서  …/result/2026-10-27_07-07-42-013/report.html
 
 하네스2(기준 다듬기)를 시작합니다 — 기준 2개까지, 시간 한도 없이. 끝나면 반영한 것과 사람이 볼 제안을 알립니다.
 ```
@@ -147,17 +198,17 @@ aiona-chat-eval start
 
 ## 결과 — 무엇을 얻나
 
-평가마다 `참고자료/결과/<시작 시각>/` 폴더 하나가 생기고 git 에 함께 올라갑니다. 들어 있는 것은 두 파일뿐입니다.
+평가마다 `result/<시작 시각>/` 폴더 하나가 생기고 git 에 함께 올라갑니다. 들어 있는 것은 두 파일뿐입니다.
 
 ```text
-참고자료/결과/2026-10-27_07-07-42-013/
+result/2026-10-27_07-07-42-013/
 ├── 50ca3ccccace_결과_판정결과.json   질문 · 답변 — 질문 원문(턴마다 · 참조 자료), 모델마다 받은 답 · 수집 기록, 기준마다 판정 · 사유, 사람 판정
 └── report.html                       보고서 — 순위 · 분야별 · 기준별 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 정하기 · 질문별 원문
 ```
 
 판정 원자료 · 심판 호출 기록 · 답변 수집 로그는 이 PC 의 `data/judge_runs/<실행>/` 에 남습니다(git 에는 안 올라감).
 
-**최종 순위** — 2026-10-27, 받아 둔 답을 지금 판정 흐름으로 다시 판정 ([보고서](참고자료/결과/2026-10-27_07-07-42-013/report.html))
+**최종 순위** — 2026-10-27, 받아 둔 답을 지금 판정 흐름으로 다시 판정 ([보고서](result/2026-10-27_07-07-42-013/report.html))
 
 | 순위 | 모델 | 통과한 질문 / 78 |
 |---|---|---|
@@ -175,9 +226,9 @@ flowchart LR
     A["답변"] --> B{"⓪ 답이 성립하나<br/>빈 답 · 거절 문구"}
     B -- 의심 --> H["보류<br/>사람이 정함"]
     B -- 성립 --> C["① CODE 검사<br/>글자 수 · 표 · 코드 · 계산값"]
-    C --> D["② 1차 AI 심판<br/>세 관점 · 가중 다수결<br/>Jev · Decisions"]
+    C --> D["② 채점 심판<br/>세 관점 · 가중 다수결<br/>Jev · Decisions"]
     D -- 통과 --> R["결론<br/>질문마다 통과 · FAIL · 보류"]
-    D -- "FAIL · 애매" --> E["③ 2차 심판 Codex<br/>답을 인용해 확정"]
+    D -- "FAIL · 애매" --> E["③ 확인 심판 Codex<br/>답을 인용해 확정"]
     E --> R
     H --> R
 ```
@@ -192,6 +243,9 @@ flowchart LR
 
 보고서가 만들어지면 하네스2 가 이어서 돕니다. 판정이 흔들리거나 사람 판정과 어긋난 LLM 기준을 골라, 고칠 안을 내고 **같은 답을 고치기 전 · 후로 다시 판정해 나아진 것만** 반영합니다. 반영한 것은 다음 평가부터 쓰입니다.
 
+> [!NOTE]
+> **이름과 방식의 출처** — 하네스2 는 Google Research 의 [**Harness²: Recursive Agent Harnessing for an Open World**](https://github.com/google-research/harness2) (Xu et al., 2026, [arXiv:2610.14224](https://arxiv.org/abs/2610.14224), Apache-2.0)의 흐름을 우리 평가 기준 다듬기에 맞게 옮긴 것입니다. 제안(Propose) → 시험(Probe) → 합성 · 채택(Compose) 단계와, 채택한 안 · 교훈을 쌓아 다음에 쓰는 방식을 따랐고 **코드는 가져오지 않았습니다**. 다른 점: 사람 판정이 있으면 그것을 정답으로 쓰고, 없으면 두 번 판정의 뒤집힘 · 채점 ↔ 확인 심판 갈림을 증거로 씁니다. 인용은 [아래](#인용--출처).
+
 ```mermaid
 flowchart LR
     A["판정 결과<br/>+ 사람 판정"] --> B["기준 고르기<br/>사람 표시 → 보류<br/>→ 갈림 → FAIL"]
@@ -202,7 +256,7 @@ flowchart LR
 
 | 고치는 것 | 반영하는 조건 |
 |---|---|
-| 판정 프롬프트(1차 · 2차 심판이 함께 읽는 기준 정의, 판정 태도 3종 포함) · 평가 기준(기준 원본 문서와 함께) | 고치기 전 · 후로 2바퀴씩 다시 판정 — 사람 판정과 더 맞고, 뒤집힘이 늘지 않고, 다른 기준은 그대로일 때만 |
+| 판정 프롬프트(채점 · 확인 심판이 함께 읽는 기준 정의, 판정 태도 3종 포함) · 평가 기준(기준 원본 문서와 함께) | 고치기 전 · 후로 2바퀴씩 다시 판정 — 사람 판정과 더 맞고, 뒤집힘이 늘지 않고, 다른 기준은 그대로일 때만 |
 | 질문 리스트(질문 글 · 멀티턴 턴별 정답 메모) · 질문생성 프롬프트 | 세트 검사(구성 · 기준 6~10 · 적용 수 · 길이)를 통과하고, 그 기준 칸이 흔들리거나 사람 판정과 어긋날 때만. 고친 질문은 다음 수집 때 그 질문만 다시 받아 다시 판정 |
 | CODE 검사 코드 | 자동으로 넣지 않고 [하네스2 제안목록](참고자료/문서/하네스2_제안목록.md)에 쌓음 |
 
@@ -277,10 +331,26 @@ AIONA 에서 모델을 고르면 짝인 앱도 같은 모델로 함께 받습니
 ## 더 보기
 
 - **기준 원본** — [참고자료/기준/채팅품질 평가기준_v2.md](참고자료/기준/채팅품질%20평가기준_v2.md)
-- **버전 · 변경 이력** — [CHANGELOG.md](CHANGELOG.md)(시맨틱 버저닝 주.부.수정, 지금 버전은 `aiona-chat-eval --version`) · 날마다의 자세한 변경은 [참고자료/변경내역/](참고자료/변경내역/)
+- **버전 · 변경 이력** — [CHANGELOG.md](CHANGELOG.md)(시맨틱 버저닝 주.부.수정 · 신규 / 개선됨 / 수정됨, 지금 버전은 `aiona-chat-eval --version`) · 날마다의 자세한 변경은 [참고자료/변경내역/](참고자료/변경내역/)
 - **하네스2 제안목록** — [참고자료/문서/하네스2_제안목록.md](참고자료/문서/하네스2_제안목록.md)(하네스2 가 자동으로 넣지 않은 CODE 검사 개선 · 확장)
 - **개발 · 운영 명령과 폴더 구조** — [CONTRIBUTING.md](CONTRIBUTING.md)
 - **기준 확장 계획(공개 데이터 기준)** — [참고자료/문서/기준_확장목록_공개데이터.md](참고자료/문서/기준_확장목록_공개데이터.md)
+
+## 인용 · 출처
+
+하네스2(`tools/refine_loop.py`)의 흐름은 다음 논문 · 저장소에서 따왔습니다(코드는 가져오지 않음, 자세한 것은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+
+- Ruiyao Xu, Yanfei Chen, Zhongying CuiZhu, Bhavana Dalvi Mishra, Yifei Ming, Han Yu, Rujun Han, Chen-Yu Lee, Tomas Pfister. **Harness²: Recursive Agent Harnessing for an Open World**. arXiv:2610.14224, 2026. [논문](https://arxiv.org/abs/2610.14224) · [저장소](https://github.com/google-research/harness2) (Google Research, Apache-2.0)
+
+```bibtex
+@article{xu2026harness2,
+  title   = {Harness$^2$: Recursive Agent Harnessing for an Open World},
+  author  = {Xu, Ruiyao and Chen, Yanfei and CuiZhu, Zhongying and Dalvi Mishra, Bhavana and Ming, Yifei and Yu, Han and Han, Rujun and Lee, Chen-Yu and Pfister, Tomas},
+  journal = {arXiv preprint arXiv:2610.14224},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.14224}
+}
+```
 
 ## 라이선스
 

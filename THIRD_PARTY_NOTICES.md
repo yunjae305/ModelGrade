@@ -4,7 +4,7 @@
 
 ## 방식만 가져온 것
 
-- **Harness²** — Google Research, 2026, Apache-2.0 (https://github.com/google-research/harness2). 기준 다듬기 루프(`tools/refine_loop.py`)의 **흐름**(제안 → 시험 → 채택 → 교훈)과 원칙 문구("증거가 뒷받침하는 것만 고친다", "KEEP_BASE 도 답이다", 교훈 = cue · lesson · evidence · confidence)를 따랐습니다. 코드 · 실행기 · 벤치마크는 가져오지 않았습니다.
+- **Harness²: Recursive Agent Harnessing for an Open World** — Ruiyao Xu, Yanfei Chen, Zhongying CuiZhu, Bhavana Dalvi Mishra, Yifei Ming, Han Yu, Rujun Han, Chen-Yu Lee, Tomas Pfister (Google Research), arXiv:2610.14224, 2026 (https://arxiv.org/abs/2610.14224) · 저장소 https://github.com/google-research/harness2 · Apache-2.0. 하네스2 = 기준 다듬기 루프(`tools/refine_loop.py`)의 이름과 **흐름**(제안 → 시험 → 채택 → 교훈)과 원칙 문구("증거가 뒷받침하는 것만 고친다", "KEEP_BASE 도 답이다", 교훈 = cue · lesson · evidence · confidence)를 따랐습니다. 코드 · 실행기 · 벤치마크는 가져오지 않았습니다.
 
 ## 질문 세트 검토에만 쓴 공개 데이터 (저장소에 포함하지 않음)
 

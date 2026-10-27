@@ -10,20 +10,20 @@
     <text x="64" y="112" fill="#ffffff" font-size="60" font-weight="800">aiona-chat-eval</text>
     <text x="64" y="158" fill="#c9d6f2" font-size="26">한국어 채팅 AI 를 같은 질문 · 같은 기준으로 채점합니다</text>
     <g font-size="19" font-weight="600">
-      <rect x="64" y="200" width="150" height="44" rx="22" fill="#2f6fde"/>
-      <text x="139" y="228" fill="#fff" text-anchor="middle">질문 78개</text>
-      <text x="222" y="229" fill="#7f95c4">→</text>
-      <rect x="246" y="200" width="230" height="44" rx="22" fill="#2f6fde"/>
-      <text x="361" y="228" fill="#fff" text-anchor="middle">웹브라우저로 답변 수집</text>
-      <text x="484" y="229" fill="#7f95c4">→</text>
-      <rect x="508" y="200" width="196" height="44" rx="22" fill="#2f6fde"/>
-      <text x="606" y="228" fill="#fff" text-anchor="middle">기준 72개로 판정</text>
-      <text x="712" y="229" fill="#7f95c4">→</text>
-      <rect x="736" y="200" width="196" height="44" rx="22" fill="#2f6fde"/>
-      <text x="834" y="228" fill="#fff" text-anchor="middle">확인 못 하면 보류</text>
-      <text x="940" y="229" fill="#7f95c4">→</text>
-      <rect x="964" y="200" width="196" height="44" rx="22" fill="#0ca30c"/>
-      <text x="1062" y="228" fill="#fff" text-anchor="middle">보고서 · 순위</text>
+      <rect x="64" y="200" width="170" height="44" rx="22" fill="#2f6fde"/>
+      <text x="149" y="228" fill="#fff" text-anchor="middle">질문리스트 세팅</text>
+      <text x="242" y="229" fill="#7f95c4">→</text>
+      <rect x="266" y="200" width="230" height="44" rx="22" fill="#2f6fde"/>
+      <text x="381" y="228" fill="#fff" text-anchor="middle">웹브라우저로 답변 수집</text>
+      <text x="504" y="229" fill="#7f95c4">→</text>
+      <rect x="528" y="200" width="228" height="44" rx="22" fill="#2f6fde"/>
+      <text x="642" y="228" fill="#fff" text-anchor="middle">정해진 기준으로 판정</text>
+      <text x="764" y="229" fill="#7f95c4">→</text>
+      <rect x="788" y="200" width="180" height="44" rx="22" fill="#2f6fde"/>
+      <text x="878" y="228" fill="#fff" text-anchor="middle">확인 못 하면 보류</text>
+      <text x="976" y="229" fill="#7f95c4">→</text>
+      <rect x="1000" y="200" width="160" height="44" rx="22" fill="#0ca30c"/>
+      <text x="1080" y="228" fill="#fff" text-anchor="middle">보고서 · 순위</text>
     </g>
   </g>
 </svg>

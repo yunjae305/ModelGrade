@@ -1,7 +1,7 @@
 """공개본 내보내기 — git 이 추적하는 파일 가운데 공개해도 되는 것만 새 폴더로 복사하고, 복사본을 다시 훑어 비밀 · 개인 경로가 없는지 확인한다.
 
     python tools/export_public.py --out ../public-export              # 질문 목록 · 수집 답변 · 평가 결과까지 복사 + 점검
-    python tools/export_public.py --out ../public-export --no-results # 결과 폴더(참고자료/결과/)는 빼고 가볍게
+    python tools/export_public.py --out ../public-export --no-results # 결과 폴더(result/)는 빼고 가볍게
     python tools/export_public.py --list                              # 복사하지 않고 넣을 파일 · 뺄 파일 수만
 
 사용자 결정(10-25 밤): 회의록만 빼고 질문 목록 · 수집 답변 · 평가 결과는 공개한다 — 이 저장소(github.com/yunjae305/ModelGrade)가 공개본이고,
@@ -27,7 +27,7 @@ EXCLUDE: Tuple[Tuple[str, str], ...] = (
     (".runtime/*", "로컬 실행 도구 설치 기록"),
 )
 #: --no-results 일 때만 뺀다 — 결과 폴더(수집 답변 원문 · 판정 결과 · 수집 기록). 기본은 넣음(사용자 결정 10-25 밤)
-RESULTS = (("참고자료/결과/*", "결과 폴더(--no-results)"),)
+RESULTS = (("result/*", "결과 폴더(--no-results)"),)
 
 BINARY = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".docx", ".xlsx", ".pptx", ".zip", ".woff", ".woff2", ".ttf", ".otf", ".ico", ".webp", ".mp4"}
 #: 복사본 점검 — 실제 키 모양 · 개인 키 · 사용자 절대 경로. 시험용 가짜 값(sk-semantic-… 처럼 짧고 낱말로 된 것)은 길이로 거른다.
@@ -100,7 +100,7 @@ def export(out: Path, include_results: bool = True, root: Path = ROOT, files: Op
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", help="내보낼 빈 폴더(이 저장소 밖)")
-    ap.add_argument("--no-results", action="store_true", help="결과 폴더(참고자료/결과/)는 빼고 가볍게")
+    ap.add_argument("--no-results", action="store_true", help="결과 폴더(result/)는 빼고 가볍게")
     ap.add_argument("--list", action="store_true", help="복사하지 않고 넣을 · 뺄 파일 수만")
     args = ap.parse_args(argv)
     if args.list or not args.out:

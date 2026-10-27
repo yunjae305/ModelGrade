@@ -3,7 +3,7 @@
     python -X utf8 tools/export_results_json.py --run 8c61f117e661 --label 정밀326          # 326 결과(10-19, 답변 + CODE + 의미 평가)
     python -X utf8 tools/export_results_json.py --run ac6507c00276 --label 간단78 --only-78 # 78 답변(10-20 앱·웹 수집)
 
-→ 참고자료/결과/<실행>_<label>.json — 실행 파일(data/comparison_runs, git 제외)이 없는 다른 PC 에서도 결과를 볼 수 있게.
+→ result/<실행>_<label>.json — 실행 파일(data/comparison_runs, git 제외)이 없는 다른 PC 에서도 결과를 볼 수 있게.
 결과 폴더에는 이 JSON 과 report.html 두 파일만 둔다 (사용자 10-27: '질문, 답변이 합쳐진 json 파일 하나와 그것을 평가한 결과 report 하나').
 담는 것:
 - 질문(questions): 질문마다 유형 · 주제 · 목표 기준, 턴마다 질문 원문 · 첨부 이름 · 참조 자료 원문 (질문 세트 questions.json 그대로)
@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 FORMAT = "modelgrade-results-v1"
-OUT_DIR = ROOT / "참고자료" / "결과"
+OUT_DIR = ROOT / "result"
 RUNS = ROOT / "data" / "comparison_runs"
 JUDGE = ROOT / "data" / "judge_runs"
 IDS78 = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"

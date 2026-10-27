@@ -223,12 +223,17 @@ def test_version_bump_updates_changelog_and_badge(tmp_path: Path):
     (tmp_path / "tools").mkdir()
     (tmp_path / "tools" / "version.py").write_text('__version__ = "1.2.3"\n', encoding="utf-8")
     (tmp_path / "CHANGELOG.md").write_text("# 변경 이력\n\n설명\n\n## 1.2.3 — 2026-10-27\n\n- 옛것\n", encoding="utf-8")
-    (tmp_path / "README.md").write_text('<img src="https://img.shields.io/badge/version-1.2.3-informational.svg" alt="version 1.2.3">', encoding="utf-8")
-    assert version.bump("minor", ["새 판정 프롬프트"], root=tmp_path) == "1.3.0"
+    (tmp_path / "README.md").write_text('<img src="https://img.shields.io/badge/version-1.2.3-informational.svg" alt="version 1.2.3">\n'
+                                         f"## 새로운 기능\n\n{version.LOG_START}\n옛 칸\n{version.LOG_END}\n", encoding="utf-8")
+    assert version.bump("minor", {"개선됨": ["새 판정 프롬프트"], "신규": ["새 장면"]}, root=tmp_path) == "1.3.0"
     assert '__version__ = "1.3.0"' in (tmp_path / "tools" / "version.py").read_text(encoding="utf-8")
     cl = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert cl.index("## 1.3.0") < cl.index("## 1.2.3") and "- 새 판정 프롬프트" in cl
-    assert "version-1.3.0-" in (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert cl.index("## 1.3.0") < cl.index("### 신규") < cl.index("### 개선됨") < cl.index("- 새 판정 프롬프트") < cl.index("## 1.2.3")
+    rd = (tmp_path / "README.md").read_text(encoding="utf-8")   # README '새로운 기능' — 최근 버전을 날짜 · 버전 머리와 종류별로 (10-27)
+    assert "version-1.3.0-" in rd and "옛 칸" not in rd
+    assert "### 2026년" in rd and "· `1.3.0`" in rd and "**신규**" in rd and rd.index("· `1.3.0`") < rd.index("· `1.2.3`")
+    with pytest.raises(ValueError):
+        version.bump("patch", {"기타": ["x"]}, root=tmp_path)
 
 
 def test_question_fix_is_checked_applied_recorded_and_recollected(tmp_path: Path, monkeypatch):

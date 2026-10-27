@@ -9,7 +9,7 @@
     python -X utf8 tools/judge_claude_compare.py compare                     # Codex 판정(v4)과 비교 → 비교.md · 비교.json
 
 → data/judge_runs/<실행>/v4-claude-sonnet/ — results.jsonl · codex/(Claude 출력) · claude_calls.jsonl(호출마다 토큰 · 시간) · 비교.md
-기존 v4 폴더 · 참고자료/결과 · 보고서는 읽기만 한다.
+기존 v4 폴더 · result/ · 보고서는 읽기만 한다.
 """
 from __future__ import annotations
 
@@ -244,7 +244,7 @@ def cmd_judge(args: argparse.Namespace) -> int:
         compare_core(args.run, args.base, args.out)
         jv.say(f"비교표: {out / '비교.md'}")
         return 0
-    try:   # 묶음이 끝날 때마다 결과 폴더(참고자료/결과/<처음 시작 시각>/) 갱신 — 판정은 이미 저장됐으니 여기서 막혀도 다음 묶음은 그대로
+    try:   # 묶음이 끝날 때마다 결과 폴더(result/<처음 시작 시각>/) 갱신 — 판정은 이미 저장됐으니 여기서 막혀도 다음 묶음은 그대로
         jv.say(f"결과 폴더 갱신: {publish(args.run, run, args.base, args.out)}")
     except Exception as exc:
         jv.say(f"⚠ 결과 폴더 갱신 실패: {type(exc).__name__}: {str(exc)[:200]}")
@@ -257,7 +257,7 @@ POINTER = "result_dir.json"   # 판정 폴더에 적어 두는 결과 폴더 이
 
 def ensure_result_dir(out: Path, run_id: str, base: Optional[Path] = None, started: Optional[datetime] = None,
                       base_out: str = BASE_OUT, out_name: str = OUT) -> Path:
-    """이 비교의 결과 폴더 = 참고자료/결과/<처음 시작 시각, ms 까지>/ (사용자 10-22 결과 폴더 양식).
+    """이 비교의 결과 폴더 = result/<처음 시작 시각, ms 까지>/ (사용자 10-22 결과 폴더 양식).
     시각은 판정 폴더를 처음 만든 때(첫 판정 명령을 시작한 때). run.json 에는 run_id 대신 compare_of 를 적는다 —
     result_dirs.find(run_id) 가 본 결과 폴더 대신 이 비교 폴더를 잡지 않게(결과 요약 빌더 · aiona-chat-eval report 가 실행 ID 로 찾음)."""
     from tools import result_dirs
@@ -535,7 +535,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     for sp in (j, c):
         sp.add_argument("--base", default=BASE_OUT, help="비교 기준이 되는 Codex 판정 폴더 이름 (1차 심판 결과 · 걸린 항목을 여기서 가져옴)")
         sp.add_argument("--out", default=OUT, help="Claude CLI 판정을 쓸 폴더 이름")
-        sp.add_argument("--no-publish", action="store_true", help="참고자료/결과 에 결과 폴더를 만들지 않고 비교표만 판정 폴더에")
+        sp.add_argument("--no-publish", action="store_true", help="result/ 에 결과 폴더를 만들지 않고 비교표만 판정 폴더에")
     a = ap.parse_args(argv)
     if a.cmd == "judge":
         n = len([x for x in a.questions.split(",") if x.strip()])

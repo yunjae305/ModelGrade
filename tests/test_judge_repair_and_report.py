@@ -268,7 +268,7 @@ def test_turn_kinds_count_units_by_flow(tmp_path: Path):
     from tools import build_result_summary as brs
     D = _flow_d(tmp_path)
     page = brs.turn_kinds(D)
-    assert "멀티턴 전체" in page and "<b>1</b><small> / 3</small><em>FAIL 1 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류
+    assert "멀티턴 전체" in page and "<b>33%</b><em>FAIL 1 / 3 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류 — FAIL 비율로 (10-27)
     assert "싱글 vs 대화 중" not in page and "<b>읽는 법</b>" in page
     assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
 

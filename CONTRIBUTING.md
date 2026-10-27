@@ -22,10 +22,10 @@ python -X utf8 -m pytest -q
 | `tools/` | 명령 도구 — 아래 '도구 한눈에' |
 | `code_eval/` | CODE 기준 28개 엔진(`engine.py` · `checks_*.py`)과 LLM 기준 정의(`semantic_items.py`), 기준 목록(`criteria_registry.py`), 심판 클라이언트(Decisions · Jev · Codex CLI · Claude CLI · Claude API) |
 | `webapp/` | 웹 수집기 — ChatGPT · Claude · Gemini(`cdp_chat_web.py`) · AIONA(`aiona_web.py`, 화면 HTML → 마크다운은 `ingestion/html_markdown.py`)를 한 Chrome 의 탭에서. 질문 결론 규칙(`run_summary.py` — 빈 출력 요구 보류 · 질문 단위 판정). 질문 자동 생성기(`question_generation.py` · `api_request.py` · `attachment_files.py`, 지금 흐름에서는 쓰지 않지만 질문 생성을 손볼 때 쓰려고 남김) |
+| `result/` | **프로그램 결과** — 평가마다 `<시작 시각>/` 폴더 하나에 질문 · 답변 JSON 과 `report.html` 두 파일(옛 폴더는 판정 보고서 · 수집 기록도 있음, 10-27 `참고자료/결과/` 에서 옮김) |
 | `참고자료/기준/` | **기준의 원본** `채팅품질 평가기준_v2.md`(72개 · 판정 체계 · 안전장치 · 바뀐 규칙 · 교훈) · CODE 세부 `MEASUREMENT_v16.md` |
 | `참고자료/프롬프트/` | 판정 프롬프트 `judge_prompt_v4.txt`(직접 고치는 파일 — 1차 · 2차 심판이 같은 기준 정의를 읽음, 10-27) · 1차 안내 `jev_questions_v4.json`(guide 만) · 판정 태도 3종 `1차심판_프롬프트3종.json` · 질문생성 프롬프트 |
 | `참고자료/질문세트_78/` | 질문 세트(첨부 원본 `files/`, 멀티턴 턴별 확인 목록) |
-| `참고자료/결과/` | 실행마다 폴더 하나 — 질문 · 답변 JSON 과 `report.html` 두 파일(옛 폴더는 판정 보고서 · 수집 기록도 있음) |
 | `참고자료/변경내역/` | 날짜별 변경 기록 — 모든 변경은 여기에 한 줄 이상 |
 | `tests/` | pytest — 기준 · 문서 · 코드의 버전과 사실이 어긋나지 않는지도 시험합니다 |
 
@@ -62,7 +62,7 @@ python -X utf8 -m pytest -q
 | 1차 심판 비교(Jev · Decisions 를 각각 고정해 3번씩, Codex 안 부름, 20개씩) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --questions <20개> --out first-jev --first-judge jev --first-only --votes 3` (decisions 도 같게) → `python -X utf8 tools/judge_first_compare.py` |
 | 첫 Codex 호출을 한 번으로(시험 — 묶음 대신 첨부 없는 단일 질문 전부, 저장된 1차 그대로) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --pick <질문:모델,…> --out <폴더> --reuse-first <1차 폴더> --codex-one-call stdin` (`file` 은 입력을 파일 하나로 두고 Codex 가 셸로 읽음) |
 | 2차 심판 비교(Codex ↔ Claude CLI) | `python -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더>` → `compare` |
-| 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
+| 기준 다듬기 루프 = 하네스2([Harness²](https://github.com/google-research/harness2) 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
 | 기준 다듬기 자동(start 가 평가 끝에 부름 — 사람 판정을 정답으로 기준을 골라 run --apply. 대상: 판정 프롬프트 · 태도 3종 · 평가 기준(문서 행 + 심판 정의, doc_sync) · 질문 글 · 턴별 정답 메모 · 질문생성 프롬프트. 질문 글을 고치면 `<세트>/question_revisions.json` → 다음 수집 때 그 질문만 다시 받고(`tools/question_revisions.py`) 판정한 뒤 다시 받은 답은 다시 판정. 반영 → 변경내역 · 부 버전, CODE 안 → `참고자료/문서/하네스2_제안목록.md`) | `python -X utf8 tools/refine_loop.py auto --run <실행> [--judge v4 --items 2 --budget-min 0(한도 없음, 기본)]` · 끄기 `aiona-chat-eval start --refine off` |
 | 기준 · 프롬프트 · 코드가 같은 말을 하는지 | `python -X utf8 tools/criteria_consistency.py` |
 | 이력 없는 깨끗한 사본 만들기(회의록만 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` (`--no-results` 로 결과 폴더 빼기) |

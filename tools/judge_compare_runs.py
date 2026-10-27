@@ -4,7 +4,7 @@
     python -X utf8 tools/judge_compare_runs.py compare --run 50ca3ccccace --before v4 --after v4-r2
 → data/judge_runs/<실행>/<after>/비교_<before>→<after>.md · .json
     python -X utf8 tools/judge_compare_runs.py publish --run 50ca3ccccace --before v4 --after v4-r2 --name "새 규칙 다시 판정"
-→ 참고자료/결과/<지금 시각>/ — 질문 · 답변 JSON(머리에 result.rerun_of) · report.html 두 파일 (사용자 10-27). 비교.md/json · 판정 기록은 판정 폴더에.
+→ result/<지금 시각>/ — 질문 · 답변 JSON(머리에 result.rerun_of) · report.html 두 파일 (사용자 10-27). 비교.md/json · 판정 기록은 판정 폴더에.
   본 판정의 결과 폴더(처음 시각)는 그대로 두고 새 폴더로 — 전후를 함께 두기 위해(사용자 10-22).
 
 세는 단위: 질문(모델별 /78), 기준별 FAIL 칸, 보류 칸(종류별), 멀티턴은 턴 단위 FAIL 수도(미팅 ⑤: 멀티턴 통과 0 점검).
@@ -145,7 +145,7 @@ def write_compare(run: str, before: str, after: str) -> Path:
 
 
 def publish(run_id: str, before: str, after: str, name: str, note: str = "", rd: Optional[Path] = None) -> Path:
-    """다시 판정 결과를 새 결과 폴더(참고자료/결과/<지금 시각>/)로 — 본 판정 폴더는 그대로. 결과 폴더에는 질문 · 답변 JSON 과 report.html 두 파일만
+    """다시 판정 결과를 새 결과 폴더(result/<지금 시각>/)로 — 본 판정 폴더는 그대로. 결과 폴더에는 질문 · 답변 JSON 과 report.html 두 파일만
     (사용자 10-27). JSON 머리의 result.rerun_of 로 result_dirs.find(실행) 이 본 결과 폴더를 그대로 찾는다. 결과 보고서는 빌더가 실행 ID 로 찾는
     결과 JSON · 판정 기록을 이 다시 판정의 것으로 바꿔 끼워 만든다. rd 를 주면 그 폴더를 다시 만든다."""
     import subprocess
@@ -202,7 +202,7 @@ def main(argv: List[str] | None = None) -> int:
         if name == "publish":
             sp.add_argument("--name", required=True, help="결과 JSON 머리(result)에 적는 이름")
             sp.add_argument("--note", default="")
-            sp.add_argument("--into", default="", help="새 폴더 대신 이 결과 폴더를 다시 만듦 (참고자료/결과/<시각>)")
+            sp.add_argument("--into", default="", help="새 폴더 대신 이 결과 폴더를 다시 만듦 (result/<시각>)")
     args = ap.parse_args(argv)
     if args.cmd == "compare":
         out_md = write_compare(args.run, args.before, args.after)

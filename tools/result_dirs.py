@@ -1,4 +1,4 @@
-"""평가 결과 폴더 (result-dirs-v2, 사용자 10-22 · 10-27) — 평가를 시작할 때마다 `참고자료/결과/<처음 시작한 시각>/` 하나를 만들고
+"""평가 결과 폴더 (result-dirs-v2, 사용자 10-22 · 10-27) — 평가를 시작할 때마다 `result/<처음 시작한 시각>/` 하나를 만들고
 그 안에는 두 파일만 둔다 (사용자 10-27: '질문, 답변이 합쳐진 json 파일 하나와 그것을 평가한 결과 report 하나'):
 
 - `<실행>_결과_판정결과.json` — 질문 원문(턴마다 · 참조 자료) · 모델마다 받은 답과 수집 정보 · CODE 검사 · 판정 · 사람 판정 (tools/export_results_json)
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
-RESULTS = ROOT / "참고자료" / "결과"
+RESULTS = ROOT / "result"
 VERSION = "result-dirs-v2"
 REPORT = "report.html"             # 보고서 — 하나뿐 (사용자 10-27 '이게 메인 report.html 이야. 다른 report 는 없애')
 JUDGE_REPORT = "판정보고서.html"     # 옛 결과 폴더(v1)와 판정 비교 실험 폴더의 판정 보고서 (tools/report_html) — 판정 폴더에서는 report.html

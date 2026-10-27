@@ -130,7 +130,7 @@ def parse_model(text: str) -> Optional[Tuple[str, str]]:
 
 PLACE_BY_PROVIDER = {"claude": "left", "gpt": "right", "gemini": "top-right", "aiona": "bottom-right", "aiona2": "left"}   # 동시 수집 창 자리(webapp.cdp_chat_web.PLACE_RECTS)
 SIMPLE_IDS_FILE = ROOT / "참고자료" / "질문세트_최소78" / "ids.json"
-RESULTS_JSON_DIR = ROOT / "참고자료" / "결과"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
+RESULTS_JSON_DIR = ROOT / "result"   # report 가 판정 결과 JSON 을 쓰는 곳 (git 에 남김, 10-20)   # 간단평가 = 정밀 326 중 이 번호들, 이 순서로
 
 
 def _now() -> str:
@@ -1065,7 +1065,7 @@ def _cmd_start(args: argparse.Namespace) -> int:
         run = new_run(title, set_dir, groups)
         run["eval_kind"] = kind
         run["model_choice"] = model_choice
-        result_dirs.ensure(run, RESULTS_JSON_DIR)   # 결과 폴더 = 참고자료/결과/<처음 시작한 시각, ms 까지> (사용자 10-22)
+        result_dirs.ensure(run, RESULTS_JSON_DIR)   # 결과 폴더 = result/<처음 시작한 시각, ms 까지> (사용자 10-22)
         run_id = save_run(run).stem
     else:
         run = load_run(run_id)
@@ -1213,9 +1213,9 @@ def cmd_report(args: argparse.Namespace) -> int:
     D = None   # 결과 보고서의 문항 단위 숫자 — 끝 블록에
     from tools import result_dirs
     rd = None
-    if run is not None and run.get("result_dir"):   # 결과 폴더(참고자료/결과/<시작 시각>/) — 질문 · 답변 JSON 과 report.html 두 파일만 (사용자 10-27)
+    if run is not None and run.get("result_dir"):   # 결과 폴더(result/<시작 시각>/) — 질문 · 답변 JSON 과 report.html 두 파일만 (사용자 10-27)
         rd = result_dirs.ensure(run, RESULTS_JSON_DIR)
-    if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(참고자료/결과/)
+    if run is not None and (RUNS / f"{run_id}.json").exists():   # 사용자 요청 10-20: 결과를 JSON 으로도 저장소에(result/)
         from tools.export_results_json import IDS78, export
         kind = run.get("eval_kind")
         label = {"simple78": "간단78", "full326": "정밀326"}.get(kind, "결과") + "_판정결과"

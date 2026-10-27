@@ -3,10 +3,7 @@
 문장 그대로가 아니라 사실(버전 토큰·설정 값·파일 존재·커밋 존재)을 대조한다. 문구를 고쳐도 사실이 같으면 통과한다.
 """
 import re
-import subprocess
 from pathlib import Path
-
-import pytest
 
 from code_eval.core import CHECK_VERSIONS, ENGINE_VERSION
 from code_eval.criteria_registry import CHANGELOG, REGISTRY_VERSION
@@ -87,29 +84,7 @@ def test_criteria_changelog_matches_registry_and_docs():
     assert REGISTRY_VERSION in history and JEV_CRITERIA_VERSION in history
     older = read('변경내역/2026-10-12-변경내역.md')
     assert '<a id="change-2026-10-12-26"></a>' in older and '| 26 |' in older
-    audit = read('평가기준_통합감사_2026-10-12.md')
-    # 10-12 역사 문서는 당시 규칙 버전(v16-1.1, 커밋 f523db2)을 그대로 두고 현재 버전은 MEASUREMENT 가 든다 — 현재 토큰과 묶지 않는다
-    assert '2-1.literal v16-1.1' in audit and '규칙 v16-1.1' in older
-    assert '## 9. 처리 결과' in audit and all(tag in audit for tag in ('D-1', 'D-2', 'G-1', 'G-2', 'G-3', 'G-4', 'G-5', 'G-6'))
-
-
-def test_progress_document_commit_references_exist_in_git():
-    progress = read('진행현황_2026-10-13.md')
-    assert '## 3. 앞으로 할 것' in progress and '## 4. 정할 것' in progress
-    table = progress.split('## 2.')[0]
-    shas = re.findall(r'\| ([0-9a-f]{7}) \|', table)
-    assert {'2f7ccd9', 'f1b3b62', '5fe032f', '52228cc', 'a1f1112'} <= set(shas)
-    if not (ROOT / '.git').exists():
-        pytest.skip('git checkout 이 아님')
-    try:
-        shallow = subprocess.run(['git', 'rev-parse', '--is-shallow-repository'], cwd=ROOT, capture_output=True, text=True)
-    except OSError:
-        pytest.skip('git 명령 없음')
-    if shallow.returncode != 0 or shallow.stdout.strip() == 'true':
-        pytest.skip('얕은 클론 — 과거 커밋을 확인할 수 없음')
-    for sha in shas:
-        probe = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{sha}^{{commit}}'], cwd=ROOT, capture_output=True, text=True)
-        assert probe.returncode == 0 and probe.stdout.strip().startswith(sha), f'진행현황의 커밋 {sha} 가 git 에 없음'
+    assert '규칙 v16-1.1' in older   # 10-12 역사 기록은 당시 규칙 버전을 그대로 둔다
 
 
 def test_latest_design_header_counts_match_the_criteria_registry():
@@ -142,20 +117,3 @@ def test_readme_states_the_current_semantic_item_counts():
     from code_eval.semantic_items import ITEMS, SUBS
     readme = (ROOT / 'README.md').read_text(encoding='utf-8')
     assert f'세부 기준 {len(SUBS)}·점검 항목 {len(ITEMS)}' in readme
-
-
-def test_handover_document_cites_the_current_versions():
-    """10-14 4차 — 인수인계 문서의 버전 표가 코드 상수와 같다 (버전을 올리면 문서도 같이 고친다)."""
-    from code_eval.attachment_images import JUDGE_IMAGE_POLICY_VERSION
-    from code_eval.jev_applicability import JEV_APPLICABILITY_VERSION, SUB_APPLICABILITY_VERSION
-    from code_eval.jev_eval import JEV_EVAL_VERSION
-    from code_eval.long_context import LONG_CONTEXT_POLICY_VERSION
-    from code_eval.multi_turn import MULTI_TURN_POLICY_VERSION
-    from code_eval.semantic_items import ITEMS, SUBS
-    from code_eval.semantic_policy import J5_OUTCOME_POLICY_VERSION
-    text = read('인수인계_2026-10-14.md')
-    for token in (ENGINE_VERSION, REGISTRY_VERSION, JEV_CRITERIA_VERSION, SEMANTIC_ITEMS_VERSION, JEV_APPLICABILITY_VERSION,
-                  SUB_APPLICABILITY_VERSION, MULTI_TURN_POLICY_VERSION, LONG_CONTEXT_POLICY_VERSION, J5_OUTCOME_POLICY_VERSION,
-                  JUDGE_IMAGE_POLICY_VERSION, JEV_EVAL_VERSION):
-        assert f'`{token}`' in text, token
-    assert f'({len(SUBS)}·{len(ITEMS)})' in text

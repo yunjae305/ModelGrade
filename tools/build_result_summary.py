@@ -1,6 +1,6 @@
 """결과 요약 발표 페이지 (result-summary-v1) — 78개 실행 하나를 발표 6장면 + 부록으로 (사용자 10-21: report.html 은 정보가 너무 많아
 발표하기 어려움 → 10.20 미팅 기준으로 흐름도 · 결과 · 유형별 · 많이 어긴 기준 · 보류 · 걸린 시간, 원문은 부록).
-AI 호출 없음. 내보낸 결과(참고자료/결과/<실행>_결과_판정결과.json)와 질문 세트만 읽고, 판정 셈은 tools/report_html 과 같은 함수를 쓴다
+AI 호출 없음. 내보낸 결과(result/<실행>_결과_판정결과.json)와 질문 세트만 읽고, 판정 셈은 tools/report_html 과 같은 함수를 쓴다
 (숫자가 그 실행의 판정 보고서와 같아야 한다 — 끝에서 맞춰 본다). 디자인은 10-19 발표 덱 CSS 를 그대로 읽어 쓴다(10-20 보고와 같은 모양).
 
     python -X utf8 tools/build_result_summary.py [--run a1642702fccc]
@@ -28,7 +28,7 @@ from tools.result_flow import FLOW_CSS, WARN as FLOW_WARN, flow_scene  # noqa: E
 from code_eval.model import code_group, is_error_check  # noqa: E402   # CODE 검사 ID → 소분류 (10-26 에러 케이스 대분류)
 
 RUN = "a1642702fccc"
-RESULTS = ROOT / "참고자료" / "결과"
+RESULTS = ROOT / "result"
 OUT_DIR = ROOT / "참고자료" / "발표"
 MAIN_NAME = "AIONA 채팅 품질 평가.html"   # 본문 파일 이름 (사용자 10-21: 고치면 이 파일에 바로, 따로 파일 만들지 않음 · 10-26: 이름 · 날짜 빼고 'AIONA 채팅 품질 평가')
 DECK = ROOT / "tools" / "assets" / "result_summary_base.html"   # 디자인 바탕(10-19 덱의 CSS · 목차 스크립트, 원본 덱은 10-22 정리 때 지움)
@@ -48,8 +48,8 @@ LOGO_FILES = {"aiona": "aiona-logo.png", "aiona2": "aiona-logo.png", "gpt": "gpt
 
 
 def result_file(run_id: str, name: str, flat: bool = False) -> Path:
-    """실행의 결과 파일 — 결과 폴더(참고자료/결과/<시작 시각>/, tools/result_dirs, 사용자 10-22)에 있으면 그것,
-    없으면 옛 자리(결과 JSON 은 참고자료/결과/ 바로 아래, 판정 기록은 참고자료/결과/판정_<실행>/)."""
+    """실행의 결과 파일 — 결과 폴더(result/<시작 시각>/, tools/result_dirs, 사용자 10-22)에 있으면 그것,
+    없으면 옛 자리(결과 JSON 은 result/ 바로 아래, 판정 기록은 result/판정_<실행>/)."""
     from tools import result_dirs
     rd = result_dirs.find(run_id, RESULTS)
     if rd is not None and (rd / name).exists():
@@ -62,7 +62,7 @@ def result_file(run_id: str, name: str, flat: bool = False) -> Path:
 
 def results_json(run_id: str) -> Path:
     """결과 JSON — 이름은 평가 종류에 따라 <실행>_결과_판정결과 · _간단78_판정결과 · _정밀326_판정결과 (tools/aiona-chat-eval report).
-    결과 폴더에 있으면 그것, 없으면 옛 자리(참고자료/결과/ 바로 아래)."""
+    결과 폴더에 있으면 그것, 없으면 옛 자리(result/ 바로 아래)."""
     from tools import result_dirs
     rd = result_dirs.find(run_id, RESULTS)
     for base in ([rd] if rd is not None else []) + [RESULTS]:
@@ -341,7 +341,8 @@ TURN_FLOW = {"setup": ("조건 정리", "조건 정리 · A·B 안 비교 · 추
 
 def turn_kinds(D: Dict[str, Any]) -> str:
     """멀티턴 턴 종류별 (10-26 미팅 12번 · '싱글 vs 대화 중' 비교는 10-27 사용자 '없어도 될 것 같은데?'로 뺌) — 문항 결론(uverdict)을 멀티턴 턴의 종류(flow)로 묶고,
-    같은 종류의 일을 한 턴 질문으로 물었을 때(10-23 점검의 짝)와 견준다. 칸 색이 진할수록 통과율이 높다. 턴 종류가 없는 질문 세트면 빈 글."""
+    모델마다 FAIL 비율(FAIL 난 턴 ÷ 그 일을 시킨 턴)을 보인다 — '어떤 요청에 약한가'라 FAIL 쪽을 크게, 색은 진할수록 많이 틀린 것, 줄은 약한 일부터
+    (사용자 10-27 '어느 요청에 약한가라는 주제이니까 fail의 비율을 표시하는게 좋지 않나?'). 보류는 FAIL 로 세지 않고 분모에만. 턴 종류가 없는 질문 세트면 빈 글."""
     order, V = D["order"], D["uverdict"]
     by_flow: Dict[str, List[Tuple[int, int]]] = defaultdict(list)
     for q, t in D["units"]:
@@ -355,9 +356,15 @@ def turn_kinds(D: Dict[str, Any]) -> str:
     def cnt(p: str, us: List[Tuple[int, int]]) -> Counter:
         return Counter(V.get((p, q, t)) or "HOLD" for q, t in us)
 
+    def rate(f: str) -> float:   # 네 모델 합친 FAIL 비율
+        return sum(cnt(p, by_flow[f])["FAIL"] for p in order) / (len(by_flow[f]) * len(order))
+
     def cell(c: Counter, of: int) -> str:
-        return (f'<td style="{tint(c["PASS"] / of if of else 0, "--ok")}"><b>{c["PASS"]}</b><small> / {of}</small>'
-                f'<em>FAIL {c["FAIL"]} · 보류 {c["HOLD"]}</em></td>')
+        r = c["FAIL"] / of if of else 0
+        return (f'<td style="{tint(r, "--risk")}"><b>{r:.0%}</b>'
+                f'<em>FAIL {c["FAIL"]} / {of}' + (f' · 보류 {c["HOLD"]}' if c["HOLD"] else "") + '</em></td>')
+
+    fl.sort(key=lambda f: (-rate(f), list(TURN_FLOW).index(f)))   # 약한 일부터
 
     # 턴 종류별 — 줄은 턴 종류, 칸은 모델
     multi = [u for f in fl for u in by_flow[f]]
@@ -366,22 +373,21 @@ def turn_kinds(D: Dict[str, Any]) -> str:
                    + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f])) for p in order) + "</tr>" for f in fl)
     body += ('<tr class="tu-sum"><th scope="row"><b>멀티턴 전체</b></th>' + f'<td class="tu-n">{len(multi)}</td>'
              + "".join(cell(cnt(p, multi), len(multi)) for p in order) + "</tr>")
-    tabs = [("턴 종류별", "줄 = 대화 안에서 시킨 일 · 턴 수 = 대화 11개에 그 일을 시킨 턴이 몇 번 있었나 · 칸 = 통과한 턴 / 그 일을 시킨 턴 (작은 글씨는 FAIL · 보류)",
+    tabs = [("턴 종류별", "줄 = 대화 안에서 시킨 일(약한 일부터) · 턴 수 = 그 일을 시킨 턴 · 칸 = FAIL 비율, 아래 작은 글씨는 FAIL 난 턴 / 시킨 턴",
              f'<table class="hm-tab tu-tab"><thead><tr><th>대화 안에서 시킨 일</th><th>턴 수</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
     # '싱글 vs 대화 중' 비교 탭은 뺌 (사용자 10-27 '없어도 될 것 같은데?') — 턴 종류별 표 하나만, 탭 버튼 없이
     (_t, d0, x0), = tabs
     panels = f'<div class="hm-ps"><div class="hm-one"><p class="hm-d">{E(d0)}</p><div class="hm-scroll">{x0}</div></div></div>'
-    tot = {f: sum(cnt(p, by_flow[f])["PASS"] for p in order) for f in fl}
-    of = {f: len(by_flow[f]) * len(order) for f in fl}
-    hard, easy = min(fl, key=lambda f: tot[f] / of[f]), max(fl, key=lambda f: tot[f] / of[f])
+    hard, easy = fl[0], fl[-1]
     ex = by_flow[hard]
-    worst = min(order, key=lambda p: (cnt(p, ex)["PASS"], order.index(p)))
-    intro = (f'<div class="tu-intro"><p><b>무엇을 보나</b> — 10번 이어 묻는 대화 {len({q for q, _t in multi})}개에는 \'조건 정리\' · \'계산\' · \'형식 맞추기\'처럼 '
-             f'서로 다른 일을 시키는 턴이 섞여 있습니다. 같은 일을 시킨 턴끼리 모아, 모델마다 몇 번 해냈는지 셌습니다. 대화 안에서 어떤 요청에 약한지 보는 표입니다.</p>'
-             f'<p><b>읽는 법</b> — 예를 들어 \'{E(TURN_FLOW[hard][0])}\' 줄 {E(SHORT[worst])} 칸의 <b>{cnt(worst, ex)["PASS"]} / {len(ex)}</b>은 '
-             f'이 일을 시킨 턴 {len(ex)}번 가운데 {cnt(worst, ex)["PASS"]}번 통과했다는 뜻입니다. 색이 진할수록 잘한 것입니다.</p>'
-             f'<p><b>한눈에</b> — 가장 어려웠던 일은 <b>{E(TURN_FLOW[hard][0])}</b>(네 모델 합 {tot[hard]} / {of[hard]}), '
-             f'가장 쉬웠던 일은 <b>{E(TURN_FLOW[easy][0])}</b>({tot[easy]} / {of[easy]})입니다.</p></div>')
+    worst = max(order, key=lambda p: (cnt(p, ex)["FAIL"], -order.index(p)))
+    wf = cnt(worst, ex)["FAIL"]
+    intro = (f'<div class="tu-intro"><p><b>무엇을 보나</b> — 10번 이어 묻는 대화 {len({q for q, _t in multi})}개 안의 턴을 시킨 일(조건 정리 · 계산 · 형식 맞추기 …)끼리 모아, '
+             f'모델마다 FAIL 이 난 비율을 셌습니다. 높을수록 그 요청에 약합니다.</p>'
+             f'<p><b>읽는 법</b> — \'{E(TURN_FLOW[hard][0])}\' 줄 {E(SHORT[worst])} 칸 <b>{wf / len(ex):.0%}</b> = 이 일을 시킨 턴 {len(ex)}번 중 {wf}번 FAIL. '
+             f'색이 진할수록 많이 틀린 것입니다.</p>'
+             f'<p><b>한눈에</b> — 가장 약했던 일은 <b>{E(TURN_FLOW[hard][0])}</b>(네 모델 FAIL {rate(hard):.0%}), '
+             f'가장 강했던 일은 <b>{E(TURN_FLOW[easy][0])}</b>({rate(easy):.0%})입니다.</p></div>')
     return f'<h3 class="rs-sh">대화 안에서 어떤 요청에 약한가 — 멀티턴 턴 종류별</h3>{intro}<div class="hm">{panels}</div>'
 
 
@@ -1114,7 +1120,7 @@ def scene_output(D: Dict[str, Any]) -> str:
     n, n_crit = D["n"], len(D["names"])
     files = [   # 사용자 10-27: 결과 폴더에는 질문 · 답변 JSON 하나와 그것을 평가한 보고서 하나만
         ("보고서", "report.html",
-         "이 자료의 상세 분석 장면 한 파일 — 순위 · 분야별 · 기준별 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 정하기 · 질문별 원문"),
+         "이 자료의 결과 보고서 장면 한 파일 — 순위 · 분야별 · 기준별 · CODE 검사 · 걸린 시간 · FAIL 원인 · 보류 정하기 · 질문별 원문"),
         ("질문 · 답변 JSON", "…_판정결과.json",
          "질문 원문(턴마다 · 참조 자료)과 모델마다 받은 답 · 수집 정보, 기준마다 판정 · 사유 · 답의 해당 문장, 사람 판정. 다른 프로그램이 읽는 원본"),
     ]
@@ -1614,8 +1620,8 @@ def scene_time(D: Dict[str, Any], tokens: bool = True, finds: bool = True) -> st
     jr.append(['<span class="rs-strong">합계</span>', f'{sum(W[p]["jev"] for p in order):,}', f'{sum(W[p]["dec"] for p in order):,}',
                f'{sum(W[p]["codex_calls"] for p in order):,}'])
     jt = (table("심판별 판정량 — 모델마다", ["모델", "Jev 판정(턴)", "Decisions 판정(턴)", "Codex 호출"], jr, [28, 24, 24, 24])
-          + '<p class="rs-basis">1차 심판 — 질문 전체가 3만 2천 토큰 이하이고 첨부가 없으면 Jev, 그 밖(롱컨텍스트 · 첨부 · 멀티턴)은 Decisions. '
-            '1차가 FAIL · 애매로 본 항목만 Codex 가 다시 판정. 다시 판정 · 복구까지 모두 더한 값입니다. '
+          + '<p class="rs-basis">채점 심판 — 질문 전체가 3만 2천 토큰 이하이고 첨부가 없으면 Jev, 그 밖(롱컨텍스트 · 첨부 · 멀티턴)은 Decisions. '
+            '채점 심판이 FAIL · 애매로 본 항목만 Codex 가 다시 판정. 다시 판정 · 복구까지 모두 더한 값입니다. '
           + 'Jev · Decisions 는 외부 API · Codex CLI 는 ChatGPT 구독으로 실행.</p>')
     # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
     # 사용자 10-22 미팅 6번: 모델별 답변 시간 합 막대 · 유형별 평균 표 대신 질문 · 유형별 편차 (time_spread)
@@ -1835,20 +1841,25 @@ def helm_table(D: Dict[str, Any], cats: List[Dict[str, Any]]) -> str:
             f'<div class="hm-scroll">{t1}</div></div></div></div>')
 
 
+def model_parts(D: Dict[str, Any], p: str) -> Tuple[str, str]:
+    """기본 정보 칸 — 'ChatGPT 웹 (GPT-6 · Medium)' → ('GPT-6', 'Medium'). 괄호가 없으면 고르지 않은 기본값(AIONA 는 '자동 추천')."""
+    m = re.search(r"\(([^)]*)\)\s*$", model_label(D, p))
+    if not m:
+        return ("자동 추천" if p.startswith("aiona") else "기본값"), "—"
+    parts = [x.strip() for x in m.group(1).split("·") if x.strip()]
+    return parts[0], " · ".join(parts[1:]) or "—"
+
+
 def model_info(D: Dict[str, Any]) -> str:
-    """기본 정보 — 모델 버전 · 수집 방법 · 받은 질문 · 재시도할 턴 · 턴당 답변 길이 ('이번 실행 결과' 맨 위, 사용자 10-27)."""
-    order = D["order"]
-    irows = []
-    for p in order:
-        ts = [t for (pp, _q, _t), t in D["turns"].items() if pp == p]
-        got = [t for t in ts if t.get("status") == "SUCCESS" and (t.get("answer") or "").strip()]
-        ok = sum(1 for q in D["qtypes"] if all(D["turns"].get((p, q, n), {}).get("status") == "SUCCESS" for n in range(1, len(D["qset"][q]["turns"]) + 1)))
-        irows.append(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th><td class="hm-l">{E(model_label(D, p))}</td><td>{E(method_of(D, p))}</td>'
-                     f'<td>{ok} / {D["nq"]}</td><td>{sum(1 for t in ts if t.get("status") == "COPY_FAILED")}</td><td>{statistics.mean(len(t["answer"]) for t in got):,.0f}자</td></tr>')
-    t4 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>버전 · 설정</th><th>수집</th><th>받은 질문</th><th>재시도할 턴</th><th>턴당 답변 길이</th></tr></thead>'
-          f'<tbody>{"".join(irows)}</tbody></table>')
-    return (f'<h3 class="rs-sh">기본 정보</h3><div class="hm"><div class="hm-ps"><div class="hm-one"><p class="hm-d">모델 버전과 수집 방법 · '
-            f'재시도할 턴 = 복사 버튼이 뜨지 않아 다시 수집할 턴</p><div class="hm-scroll">{t4}</div></div></div></div>')
+    """기본 정보 — 모델 · 버전 · 설정 · 수집 방법만 ('이번 실행 결과' 맨 위, 사용자 10-27 '모델과 버전, 설정, 수집방법만 떠야지')."""
+    rows = []
+    for p in D["order"]:
+        ver, setting = model_parts(D, p)
+        rows.append(f'<tr><th scope="row"><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th><td class="hm-l">{E(ver)}</td>'
+                    f'<td class="hm-l">{E(setting)}</td><td class="hm-l">{E(method_of(D, p))}</td></tr>')
+    t4 = ('<table class="hm-tab"><thead><tr><th>모델</th><th>버전</th><th>설정</th><th>수집 방법</th></tr></thead>'
+          f'<tbody>{"".join(rows)}</tbody></table>')
+    return f'<h3 class="rs-sh">기본 정보</h3><div class="hm"><div class="hm-ps"><div class="hm-one"><div class="hm-scroll">{t4}</div></div></div></div>'
 
 
 # ------------------------------------------------------------------ 부록 ------------------------------------------------------------------
@@ -3190,7 +3201,7 @@ FILL_JS = """<script>
 
 
 #: 줄 안 바뀌는 공백으로 붙일 묶음 말 (사용자 10-22: 줄바꿈 정리 — 'LLM / Judge' 처럼 갈라지지 않게)
-KEEP_TOGETHER = ["LLM Judge", "CODE 검사", "평가 프롬프트", "판정 프롬프트", "완전 통과", "빈 출력", "질문 세트", "상세 분석", "분야별 순위표",
+KEEP_TOGETHER = ["LLM Judge", "CODE 검사", "평가 프롬프트", "판정 프롬프트", "완전 통과", "빈 출력", "질문 세트", "상세 분석", "결과 보고서", "분야별 순위표",
                  "보류 목록", "확인 못 함", "Decisions API", "Codex CLI"]
 NBSP, WJ = chr(0xA0), chr(0x2060)
 BIND_RULES = [
@@ -3279,11 +3290,11 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          f"→ 문항마다 완전 통과 · FAIL · 보류 (문항 {D['n']} = {u_mix})"),   # 10-27: D['n'] 은 문항 수 · 에러 케이스는 CODE 밖 단독 기준 · 유형별 수(사용자)
         # 05 검증 장면은 뺌 (사용자 10-22: "이 검증파트는 빼도 될 것 같네") — scene_verify 는 남겨 둠
         ("s_out", "결과", "어떻게 제공하나", "결과 — 이렇게 제공합니다",
-         "실행이 끝나면 명령 하나로 결과 폴더(평가를 시작한 시각 이름)에 보고서(report.html)와 질문 · 답변 JSON 두 파일이 나옵니다. 이번 실행의 숫자는 상세 분석에 둡니다.",
-         scene_output(D), "질문마다 완전 통과 · FAIL · 보류와 기준별 사유 · 원문을 함께 제공합니다 — 이번 실행 숫자는 상세 분석 '이번 실행 결과'에."),
+         "실행이 끝나면 명령 하나로 결과 폴더(평가를 시작한 시각 이름)에 보고서(report.html)와 질문 · 답변 JSON 두 파일이 나옵니다. 이번 실행의 숫자는 뒤의 결과 보고서에 둡니다.",
+         scene_output(D), "질문마다 완전 통과 · FAIL · 보류와 기준별 사유 · 원문을 함께 제공합니다 — 이번 실행 숫자는 결과 보고서 '이번 실행 결과'에."),
         ("s_hold", "보류", "어떻게 사람에게 넘기나", "보류 — 이렇게 사람에게 넘깁니다",
          "보류는 심판이 확정하지 못한 칸입니다. 원문과 사유를 붙여 사람에게 넘기고, 사람이 정한 값으로 다시 셉니다.",
-         scene_hold_flow(D), "확인하지 못한 판정은 억지로 정하지 않고 원문 · 사유와 함께 사람에게 넘깁니다 — 이번 실행의 목록은 상세 분석 '보류 목록'에."),
+         scene_hold_flow(D), "확인하지 못한 판정은 억지로 정하지 않고 원문 · 사유와 함께 사람에게 넘깁니다 — 이번 실행의 목록은 결과 보고서 '보류 목록'에."),
         ("s7", "발전 방향", "확장 · 개선", "발전 방향", "", scene_next(D),
          "가장 먼저 사람 판정과 맞춰 보고, 보류 사례집 · " + ("한 번 요청 판정" if three_judges(D) else "심판 셋 구조로 다시 판정") + " · 다른 AI 서비스 연결로 넓힙니다."),
         # 10-22 미팅 11번 (사용자 10-23: "11번 진행") — 발전 방향 다음, 보고 이야기의 끝
@@ -3326,8 +3337,12 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     scenes = core + detail
     total, n_core = len(scenes), len(core)
 
+    def num(i: int) -> int:
+        """뒤쪽 결과 보고서는 실제 결과 보고서를 그대로 가져온 부분 — 번호를 01 부터 다시 (사용자 10-27 '이것도 1부터 시작하게')."""
+        return i - n_core if n_core and i > n_core else i
+
     def head(i: int, title: str, lead: str, key: str) -> str:
-        tag = f"{i:02d} / {total:02d}" + (" · 상세 분석" if n_core and i > n_core else "")
+        tag = f"결과 보고서 · {num(i):02d} / {total - n_core:02d}" if n_core and i > n_core else f"{i:02d} / {(n_core or total):02d}"
         return (f'<div class="s-head"><span class="s-no">{tag}</span><h2>{title}</h2>'
                 + (f'<p class="s-key">{E(key)}</p>' if key else "") + (f"<p>{lead}</p>" if lead else "") + "</div>")
 
@@ -3337,10 +3352,10 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     body = "".join(f'\n<section class="slide" id="{sid}">\n  {head(i, E(title), E(lead), key)}\n{content}</section>\n'
                    for i, (sid, _s, _d, title, lead, content, key) in enumerate(scenes, 1))
     if report_dir is not None:   # 결과 보고서는 통째로 상세 분석 — "상세 분석 '분야별 순위표'" 같은 안내는 장면 이름만
-        body = re.sub(r"상세 분석 (?=['‘\"]|&quot;|&#x27;)", "", body)
+        body = re.sub(r"(?:상세 분석|결과 보고서) (?=['‘\"]|&quot;|&#x27;)", "", body)
     nav = ('<nav class="topnav" aria-label="순서"><div class="topnav-in"><span class="brand">AIONA 채팅 품질 평가</span>'
            '<div class="toc-links" id="toc-links">'
-           + "".join(('<span class="toc-sep">상세 분석</span>' if n_core and i == n_core + 1 else "") + nav_sep.get(sid, "") + f'<a href="#{sid}"><span class="n">{i:02d}</span>{E(short)}</a>'
+           + "".join(('<span class="toc-sep">결과 보고서</span>' if n_core and i == n_core + 1 else "") + nav_sep.get(sid, "") + f'<a href="#{sid}"><span class="n">{num(i):02d}</span>{E(short)}</a>'
                      for i, (sid, short, *_r) in enumerate(scenes, 1))
            + '</div><div class="pager"><button type="button" id="prev" aria-label="이전 장">←</button><button type="button" id="next" aria-label="다음 장">→</button></div></div></nav>')
     ids = ", ".join(f"'{s}'" for s in [x[0] for x in scenes])
@@ -3413,7 +3428,7 @@ def main(argv: List[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--run", default=RUN, help="실행 id (참고자료/결과/<시작 시각>/<id>_결과_판정결과.json)")
+    ap.add_argument("--run", default=RUN, help="실행 id (result/<시작 시각>/<id>_결과_판정결과.json)")
     ap.add_argument("--report", action="store_true", help="발표 템플릿 대신 그 실행의 결과 폴더에 결과 보고서(report.html, 상세 분석만)를 만듦")
     a = ap.parse_args(argv)
     report_dir = None
@@ -3421,7 +3436,7 @@ def main(argv: List[str] | None = None) -> int:
         from tools import result_dirs
         report_dir = result_dirs.find(a.run, RESULTS)
         if report_dir is None:
-            raise SystemExit(f"실행 {a.run} 의 결과 폴더(참고자료/결과/<시작 시각>/run.json)가 없습니다")
+            raise SystemExit(f"실행 {a.run} 의 결과 폴더(result/<시작 시각>/run.json)가 없습니다")
     written, D = build(a.run, report_dir)
     big = []
     for f in written:

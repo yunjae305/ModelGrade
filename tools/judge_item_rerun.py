@@ -258,7 +258,7 @@ def md_to_html(md: str) -> str:
 
 
 def cmd_publish(args: argparse.Namespace) -> int:
-    """결과 폴더 = 참고자료/결과/<처음 시작 시각>/ (사용자 10-22 양식) — run.json · report.html · 비교 · 두 판정의 결과 줄.
+    """결과 폴더 = result/<처음 시작 시각>/ (사용자 10-22 양식) — run.json · report.html · 비교 · 두 판정의 결과 줄.
     run.json 에는 run_id 대신 compare_of — result_dirs.find(실행) 이 본 결과 폴더를 그대로 찾게."""
     import shutil
     from tools import result_dirs
@@ -417,7 +417,7 @@ def cmd_vote(args: argparse.Namespace) -> int:
     res["wall_seconds"] = round(wall, 1)
     (dest / "다수결.json").write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")
     (dest / "다수결.md").write_text("\n".join(L) + "\n", encoding="utf-8")
-    if args.publish:   # 결과 폴더 = 참고자료/결과/<첫 투표를 시작한 시각>/ (사용자 10-22 양식), run.json 은 compare_of
+    if args.publish:   # 결과 폴더 = result/<첫 투표를 시작한 시각>/ (사용자 10-22 양식), run.json 은 compare_of
         import shutil
         from tools import result_dirs
         name = result_dirs.stamp(datetime.fromtimestamp(dest.stat().st_ctime))
@@ -460,14 +460,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     j = sub.add_parser("judge")
     c = sub.add_parser("compare")
-    pb = sub.add_parser("publish", help="결과 폴더(참고자료/결과/<처음 시작 시각>/)에 모으기")
+    pb = sub.add_parser("publish", help="결과 폴더(result/<처음 시작 시각>/)에 모으기")
     vt = sub.add_parser("vote", help="여러 번 돌린 다시 판정을 칸마다 다수결로")
     vt.add_argument("--run", default=RUN)
     vt.add_argument("--item", default=ITEM)
     vt.add_argument("--outs", required=True, help="같은 코드 · 프롬프트로 돌린 다시 판정 폴더 이름들, 쉼표로")
     vt.add_argument("--note", default="")
     vt.add_argument("--summary", default="", help="report.html 맨 위에 넣을 요약 마크다운 파일 (--publish 와 함께)")
-    vt.add_argument("--publish", action="store_true", help="결과 폴더(참고자료/결과/<첫 투표 시작 시각>/)에 모으기")
+    vt.add_argument("--publish", action="store_true", help="결과 폴더(result/<첫 투표 시작 시각>/)에 모으기")
     pb.add_argument("--before-out", default="", help="같이 넣을 옛 프롬프트 다시 판정 폴더 이름")
     pb.add_argument("--note", default="")
     pb.add_argument("--summary", default="", help="report.html 맨 위에 넣을 요약 마크다운 파일")

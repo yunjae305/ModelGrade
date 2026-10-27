@@ -8,7 +8,7 @@
 - 보류: 항목 판정이 UNVERIFIED 인 것(심판 갈림 · 인용이 원문에 없음 · 판정 없음 · 선택지 밖 · Codex 가 확정 못 함 · 심판이 확인 못 함),
   질문 전체가 보류인 것(답 복사 실패 · 빈 출력 요구에 복사할 답 없음).
 - 오류: 답을 못 받아 FAIL 로 센 질문(no_answer), 심판 호출 실패 — Codex 실패는 그 항목들, Jev 실패는 질문 한 줄(Codex 가 대신했는지 함께).
-- 질문 글은 질문 세트에서, 답은 실행 파일(data/comparison_runs/<실행>.json — 없으면 참고자료/결과/<실행>_*.json)에서.
+- 질문 글은 질문 세트에서, 답은 실행 파일(data/comparison_runs/<실행>.json — 없으면 result/<실행>_*.json)에서.
   기본은 앞부분만(질문 120자·답 200자, export_review 와 같은 자르기).
 """
 from __future__ import annotations
@@ -29,7 +29,7 @@ from tools.export_review import _text  # noqa: E402
 from webapp.question_generation import flatten  # noqa: E402
 
 RUNS = ROOT / "data" / "comparison_runs"
-RESULTS_DIR = ROOT / "참고자료" / "결과"
+RESULTS_DIR = ROOT / "result"
 DEFAULT_SET = ROOT / "참고자료" / "질문세트_326_생성프롬프트v2"
 COLUMNS = ("kind", "system", "question", "case_id", "turn", "item", "verdict", "decision", "cause", "cause_label", "judge", "jev",
            "reason", "answer_quote", "problems", "collection_note", "question_text", "answer", "text_scope", "gold", "reviewer_note")
