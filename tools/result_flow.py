@@ -12,6 +12,7 @@ from __future__ import annotations
 import html
 import json
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -40,6 +41,8 @@ FLOW_CSS = """<style>
 .r-pass { color: var(--ok); font-weight: 700; }
 .r-fail { color: var(--risk); font-weight: 700; }
 .r-hold { color: var(--hold-text, var(--warn)); font-weight: 700; }
+.pnote p { margin: 0 0 6px; } .pnote p:last-child { margin-bottom: 0; } .pnote .muted { color: var(--muted); font-size: 0.8rem; }
+.pnote code { font-family: var(--font-num); font-size: 0.8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; overflow-wrap: anywhere; }
 @media (max-width: 1000px) {
   .poster-grid { grid-template-columns: minmax(0, 1fr); }
   .pside { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
@@ -47,6 +50,7 @@ FLOW_CSS = """<style>
 .pflow text { font-family: var(--font-body); }
 .pflow .pp { fill: var(--ink); }
 .pflow .ppt { fill: var(--surface); font-weight: 600; font-size: 15px; }
+.pflow .pps { fill: var(--surface); font-size: 12px; opacity: 0.85; }
 .pflow .pm { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; }
 .pflow .pm.code { stroke: var(--accent); stroke-width: 1.8; }
 .pflow .pm.ai { stroke: var(--ok); stroke-width: 1.8; }
@@ -70,6 +74,10 @@ FLOW_CSS = """<style>
 .pflow .pf { fill: var(--file-soft); stroke: var(--file); stroke-width: 1.3; }
 .pflow .pft { fill: var(--file); font-weight: 700; font-size: 13.5px; }
 .pflow .pfl { fill: var(--ink); font-size: 12px; }
+.pflow .pn { fill: var(--bg); stroke: var(--ok); stroke-width: 1.2; stroke-dasharray: 5 3; }
+.pflow .pnt { fill: var(--ok); font-weight: 700; font-size: 13px; }
+.pflow .pnk { fill: var(--muted); font-weight: 700; font-size: 12px; }
+.pflow .pnl { fill: var(--ink); font-size: 12px; }
 .pflow .pc { stroke: var(--muted); stroke-width: 1.6; fill: none; }
 .pflow .pc.ai { stroke: var(--warn); stroke-dasharray: 5 4; stroke-width: 1.4; }
 .pflow .pc.file { stroke: var(--file); stroke-dasharray: 4 4; stroke-width: 1.3; }
@@ -193,6 +201,19 @@ def filenode(y, title, lines):
     return out + [text(x + 10, y + 39 + 17 * i, ln, "pfl", 12, w - 20) for i, ln in enumerate(lines)], h
 
 
+def notenode(y, title, groups):
+    """왼쪽 파일 줄의 메모 칸 — 제목 + (이름표, 줄들) 묶음. 파일이 아니라 설명이라 점선 · 다른 색."""
+    n = sum(len(lines) for _k, lines in groups)
+    h = 34 + 17 * n + 6 * (len(groups) - 1)
+    out = [rect(FX, y, FW, h, "pn", 8), text(FX + 10, y + 21, title, "pnt", 13, FW - 20)]
+    yy = y + 40
+    for k, lines in groups:
+        out.append(text(FX + 10, yy, k, "pnk", 12, 32))
+        out += [text(FX + 46, yy + 17 * i, ln, "pnl", 12, FW - 56) for i, ln in enumerate(lines)]
+        yy += 17 * len(lines) + 6
+    return out
+
+
 def file_read(ym, yf=None):
     """파일 → 단계. 높이가 다르면 BUS 에서 꺾는다."""
     yf = ym if yf is None else yf
@@ -210,17 +231,20 @@ def ai_link(y):
 
 
 # ---------- 흐름도 A~H — 지금 판정 방식 ----------
-def flow_svg(n: int, set_ver: str) -> str:
+def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
+    """n = 질문 수, nu = 문항 수(멀티턴은 턴마다), mix = 유형별 질문 수 한 줄."""
     P: list = []
     y = 8
-    P += pill(CC, y, 340, 42, "시작")   # 사용자 10-22: 명령어는 설명 안 함
-    y += 42
+    # 사용자 10-27: 시작 명령을 그림에 — 처음 한 번 setup, 그 뒤 start (10-22 의 '명령어는 설명 안 함'을 바꿈)
+    P += [rect(CC - 190, y, 380, 54, "pp", 27), text(CC, y + 24, "시작 — aiona-chat-eval start", "ppt", 15, 356, "middle"),
+          text(CC, y + 43, "처음 한 번만 aiona-chat-eval setup (키 · 네 사이트 로그인)", "pps", 12, 356, "middle")]
+    y += 54
     P.append(arrow(CC, y, CC, y + 24))
     y += 26
 
     A_y = y
     parts, A_h, _ = module(y, "A", "질문 세트 — 고정", [
-        ("질문", [f"{n}개 — 기준마다 질문 10개 이상 (질문 설계)"]),   # 사용자 10-22: 고정이라 '원칙' 줄 뺌 · 326 에서 고른 것이 아니라 수만 정하고 새로 만듦
+        ("질문", [f"{n}개 — 기준마다 질문 10개 이상 (질문 설계)"] + ([mix] if mix else [])),   # 사용자 10-27: 유형별 수   # 사용자 10-22: 고정이라 '원칙' 줄 뺌 · 326 에서 고른 것이 아니라 수만 정하고 새로 만듦
     ], "set")
     P += parts
     f1_y = A_y + 10
@@ -232,15 +256,15 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 26
 
     B_y = y
-    parts, B_h, spots = module(y, "B", "답변 수집 — 네 모델 동시", [
-        ("앱", ["ChatGPT · Claude · Gemini 데스크톱 앱"]),
-        ("웹", ["AIONA(개발 서버)"]),
-        ("방법", ["화면을 자동 조작해 질문 → 복사 버튼 원문", "첨부는 붙여넣기 · 받은 질문은 건너뜀"]),
-        ("모델", ["고르지 않으면 AIONA 자동 추천 + 앱 3개", "AIONA 모델을 고르면 같은 모델 앱과 둘만"]),   # 사용자 10-23: 예) AIONA Sonnet 5.5 ↔ Claude 앱 Sonnet 5.5, GPT · Gemini 빠짐
+    # 사용자 10-27: 처음엔 AIONA 만 웹 · 나머지는 데스크톱 앱(UIA — 수집 중 PC 를 못 씀) → 네 사이트 모두 웹브라우저(수집용 Chrome, tools/chrome_cdp)
+    parts, B_h, spots = module(y, "B", "답변 수집 — 네 모델 동시 · 모두 웹", [
+        ("웹", ["ChatGPT · Claude · Gemini · AIONA", "수집용 Chrome — 처음 한 번만 직접 로그인"]),
+        ("방법", ["질문은 연결 포트로 넣고 복사 버튼 원문", "마우스 · 키보드 안 씀 → 수집 중에도 PC 사용"]),
+        ("모델", ["고르지 않으면 AIONA 자동 추천 + 웹 3개", "AIONA 모델을 고르면 같은 모델 웹과 둘만"]),   # 사용자 10-23: 예) AIONA Sonnet 5.5 ↔ Claude Sonnet 5.5, GPT · Gemini 빠짐
     ], "ai")
     P += parts
     parts, _ = aibox(B_y, "AI · 답하는 모델 4개", ["GPT-6 · Medium", "Claude Sonnet 5.5 · 중간", "Gemini 3.8 Flash · 보통",
-                                                 "AIONA · 자동 추천", "(고르면 같은 모델 둘만)", "로그인은 사람이 미리"])   # 10-22 미팅 1번
+                                                 "AIONA · 자동 추천", "(고르면 같은 모델 둘만)", "모두 웹 · 로그인은 처음 한 번"])   # 10-22 미팅 1번
     P += parts
     P.append(ai_link(spots[0][0] + spots[0][1] / 2))
     y += B_h
@@ -250,7 +274,7 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 22
     cy1 = y + 30
     P += diamond(DX, cy1, 190, 60, ["답을 받았나?"])
-    parts, _ = side(cy1 - 24, ["재시도 대상 → 보류", "못 받음 → FAIL"])   # 빈 답 갈래는 뺌 — 여러 예외 중 하나라 큰 흐름에서는 노이즈(10-22 미팅 2번)
+    parts, _ = side(cy1 - 24, ["못 받음 → 보류", "복사 실패는 다시 수집"])   # 기준 v2 3절: 답 못 받음 · 복사 실패는 보류(멀티턴은 그 턴만), 빈 답 등은 아래 에러 케이스
     P += parts
     P += [path(f"M{DX + 95},{cy1:g} L{SX - 2},{cy1:g}"), lab(DX + 100, cy1 - 7, "아니오")]
     y = cy1 + 30
@@ -268,7 +292,8 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 26
 
     D_y = y
-    parts, D_h, _ = module(y, "D", "CODE 검사 — 28가지, 코드", [
+    parts, D_h, _ = module(y, "D", "에러 케이스 · CODE 검사 — 2 + 26, 코드", [   # 10-26: 에러 케이스는 CODE 밖 단독 기준(72 = 2 + 26 + 44)
+        ("찾기", ["에러 케이스 의심 — 빈 답 · 거절 · 오류 문구"]),
         ("검사", ["형식·개수·글자 수·계산 — 저장 직후 바로"]),
         ("결과", ["검사마다 PASS·FAIL 과 이유"]),
     ], "code")
@@ -278,6 +303,11 @@ def flow_svg(n: int, set_ver: str) -> str:
     parts, f2_h = filenode(f2_y, "질문·답변 JSON", ["실행 기록 · 결과 JSON", "CODE 검사 결과도 함께"])
     P += parts
     P += [file_write(C_y + 30, f2_y + 22), file_write(D_y + 30, f2_y + f2_h - 12)]
+    # 사용자 10-27: 수집을 모두 웹으로 바꾼 까닭 — 질문·답변 JSON 아래 짧게(옆 표에서 옮김)
+    P += notenode(f2_y + f2_h + 16, "수집은 모두 웹브라우저로", [
+        ("전", ["데스크톱 앱(UIA)", "수집 중엔 PC 를 못 씀"]),
+        ("지금", ["네 사이트 모두 웹", "로그인은 처음 한 번만", "수집 중에도 PC 사용"]),
+    ])
 
     # 판정 — 되돌아오는 자리 (20개 묶음 없음: 질문 하나씩, 네 모델 동시)
     P.append(arrow(CC, y, CC, y + 24))
@@ -287,21 +317,32 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 40
 
     # 빈 출력 요구 분기는 그리지 않음 (10-22 미팅: 여러 예외 처리 중 하나라 흐름도에서는 노이즈 — 옆 판정 규칙 표에서도 뺌, 설명은 보류 장면 '언제 보류가 되나')
-    P.append(arrow(CC, y, CC, y + 24))
+    # 분기 2 — 에러 케이스인가? (사용자 10-27: 어디서 에러 케이스로 빠지는지) 판정 직전에 그 턴을 먼저 본다 — 의심은 보류(사람이 정함),
+    # 사람이 에러 케이스로 정한 글과 같으면 FAIL 이고 심판에게 보내지 않는다(기준 v2 2절 ⓪ · 5절)
+    P.append(arrow(DX, y, DX, y + 22))
+    y += 22
+    cy2 = y + 30
+    P += diamond(DX, cy2, 190, 60, ["에러 케이스인가?"])
+    parts, _ = side(cy2 - 24, ["의심 → 보류", "기록과 같음 → FAIL"])
+    P += parts
+    P += [path(f"M{DX + 95},{cy2:g} L{SX - 2},{cy2:g}"), lab(DX + 100, cy2 - 7, "예"),
+          path(f"M{CR},{cy2:g} L{LANE_R},{cy2:g}", marker="")]   # 오른쪽 통로에 합류 → 바로 G 로
+    y = cy2 + 30
+    P += [arrow(DX, y, DX, y + 24), lab(DX + 7, y + 16, "아니오 — 심판에게")]
     y += 26
 
     # E — LLM Judge 심판 셋 (사용자 10-21 저녁): 짧은 입력(32K 토큰 이하)은 Jev · 긴 입력은 Decisions API · Decisions FAIL 만 Codex
     E_y = y
     parts, E_h, spots = module(y, "E", "LLM Judge — 44개, 심판 셋", [
         ("입력", ["판정 프롬프트 + 질문·답변 JSON", "모델 이름 숨김 (블라인드)"]),   # 사용자 10-22: 그냥 판정 프롬프트
-        ("심판 1", ["3만 2천 토큰 이하 · 첨부 없음", "Jev 가 판정"]),
-        ("심판 2", ["그 밖(긴 것 · 첨부)", "Decisions API 가 판정"]),
+        ("심판 1", ["3만 2천 토큰 이하 · 첨부 없음", "Jev — 프롬프트 3종 · 가중 다수결"]),   # 10-26 저녁: 판정 프롬프트 3종(비판적 · 친화적 · 유도적)
+        ("심판 2", ["그 밖(긴 것 · 첨부)", "Decisions — 같은 3종 · 가중 다수결"]),
         ("심판 3", ["1차가 FAIL · 애매로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),
     ], "ai")
     P += parts
     for spot, title, lines in ((spots[1], "AI · 심판 1 — Jev", ["외부 API (TypeSafe)"]),
                                (spots[2], "AI · 심판 2 — Decisions", ["GPT-6 Luna · OpenAI API"]),
-                               (spots[3], "AI · 심판 3 — Codex CLI", ["GPT-6 Luna · low · 구독"])):
+                               (spots[3], "AI · 심판 3 — Codex CLI", ["GPT-6 Luna · low · 구독", "정확도 비슷 · 1.9배 빠름"])):   # 고른 근거: 옆 표 · 심판 선택 장면
         parts, _ = aibox(spot[0] - 1, title, lines)
         P += parts + [ai_link(spot[0] + spot[1] / 2)]
     parts, f3_h = filenode(E_y + 10, "판정 프롬프트", ["모든 질문에 같은 기준 글", "Jev 용은 질문 목록 꼴"])   # 사용자 10-22
@@ -326,8 +367,9 @@ def flow_svg(n: int, set_ver: str) -> str:
     y += 26
 
     G_y = y
-    parts, G_h, _ = module(y, "G", "질문 단위 판정 — 코드", [
-        ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "모든 기준 통과 → 완전 통과"]),
+    parts, G_h, _ = module(y, "G", "문항 · 질문 판정 — 코드", [
+        ("판정", ["보류 하나라도 → 보류 (보류 우선)", "아니면 FAIL 하나라도 → FAIL", "모든 기준 통과 → 완전 통과",
+                  "멀티턴은 턴마다 · 10턴 모두 통과 = 질문 통과"]),   # 10-26 저녁 · 10-27: 턴마다 1문항, 순위는 질문 단위
     ], "code")
     P += parts
     # 분기 결과 칸(답을 못 받음 등)은 오른쪽 통로로 G 로 바로 간다
@@ -339,7 +381,7 @@ def flow_svg(n: int, set_ver: str) -> str:
 
     H_y = y
     parts, H_h, _ = module(y, "H", "결과 추출", [   # 사용자 10-22: 이름 '결과 추출', 명령 줄 뺌
-        ("결과", [f"모델별 완전 통과·FAIL·보류 / {n}", "보고서 · 결과 JSON · 이 결과 요약"]),
+        ("결과", [f"순위 — 질문 단위 통과 수 / {n}", f"보조 — 문항 단위(턴마다) / {nu or n}", "report.html · 결과 JSON"]),   # 사용자 10-27: 순위는 질문 단위
     ], "code")
     P += parts
     y += H_h
@@ -396,29 +438,48 @@ def side_cards() -> str:
               + legend_item('<rect class="pai" x="2" y="3" width="36" height="16" rx="3"/>', "AI 호출")
               + legend_item('<path class="pf" d="M4,2 H28 L36,10 V20 H4 Z"/>', "파일")
               + "</ul></div>")
-    return (mini("누가 하나", ["단계", "누가"], [
+    # 사용자 10-27: 시작 명령 · 수집을 모두 웹으로 바꾼 이유 · 2차 심판을 Codex CLI 로 고른 이유(심판 선택 장면의 숫자)를 짧게
+    start = text_card("시작하는 법", [
+        "<b>처음 한 번</b> <code>aiona-chat-eval setup</code> — 키 입력 · CLI 로그인 · 네 사이트 로그인",
+        "<b>평가</b> <code>aiona-chat-eval start</code> — 질문 리스트를 고르면(1 기존 78개 · 2 새로 만들기 · 3 답변 새로 받기) 수집 → 판정 → 보고서까지",
+        "<b>보류 정하기</b> <code>aiona-chat-eval review</code>"])
+    judge = text_card("2차 심판은 왜 Codex CLI 인가", [   # 사용자 10-27: 짧게 — 심판 선택 장면의 숫자
+        "Claude CLI 와 같은 답 312개 판정 — 결론 87.5% 같음, 정확도 비슷",
+        "<b>1.9배 빠름</b> (약 1시간 6분 ↔ 2시간 5분) · 비용 같음",
+        "다시 물어도 같은 답 96% (Claude 85%)"])
+    return (start
+            + mini("누가 하나", ["단계", "누가"], [
                 ["A·C·D·F·G·H", "코드 (정해진 규칙)"],
-                ["B 답변 수집", "답하는 모델 4개 — 앱·웹 자동 조작"],
+                ["B 답변 수집", "답하는 모델 4개 — 모두 웹브라우저"],
                 ["E LLM Judge", "심판 3개 — Jev(API) · Decisions(API) · Codex(구독)"],
-                ["보류 정리", "사람"],
+                ["에러 케이스 의심 · 보류", "사람"],
             ], "ai")
             + mini("판정 규칙", ["상황", "결과"], [
+                ["답을 못 받음 · 복사 실패", HOLD_P],   # 기준 v2 3절 — 멀티턴은 그 턴만
+                ["에러 케이스 의심 (답 없음 · 빈 답 · 거절 · 오류 문구만)", HOLD_P],
+                ["사람이 에러 케이스로 정한 글과 같은 답", f"{FAIL} (그 턴은 심판에게 안 보냄)"],
                 ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤 · 보류는 모두 '사람이 판단' · 빈 출력 요구 줄은 뺌(10-22 미팅 2번)
-                ["답을 못 받음 (모델 오류 · 끝나지 않음)", FAIL],
-                ["재시도 대상(복사 실패)", HOLD_P],
                 ["Codex FAIL", FAIL],
                 ["1차 FAIL + Codex 통과", "Codex 의 판정을 따름"],
                 ["Codex 판정 없음 + 1차 FAIL", HOLD_P],
                 ["Codex 확인 못 함 (사실 확인 · 그 밖은 1차 확신 낮을 때)", HOLD_P],
                 ["인용이 원문에 없음 (다시 물어도)", HOLD_P],
-                ["질문에 하나라도 보류라면", HOLD_P],
+                ["문항에 하나라도 보류라면", HOLD_P],
             ])
-            + legend)
+            + judge + legend)
+
+
+def text_card(title: str, paras: List[str], cls: str = "") -> str:
+    """옆 표 자리의 글 카드 — 문단마다 한 줄씩(HTML 그대로)."""
+    return f'<div class="pcard pnote {cls}"><h4>{title}</h4>' + "".join(f"<p>{p}</p>" for p in paras) + "</div>"
 
 
 def flow_scene(D: Dict[str, Any]) -> str:
-    """장면 내용 — 흐름도 + 옆 표(누가 하나 · 판정 규칙 · 도형)."""
-    n = D["n"]
+    """장면 내용 — 흐름도 + 옆 표(시작하는 법 · 누가 하나 · 판정 규칙 · 수집 방식 · 2차 심판 · 도형)."""
+    n, nu = D.get("nq", D["n"]), D["n"]   # 10-27: D["n"] 은 문항 수(177) — 질문 수는 nq
+    from tools import report_html as R
+    uq = Counter(R.unit_type(t) for t in D["qtypes"].values())
+    mix = " · ".join(f"{ty} {uq[ty]}" + ("대화" if ty == "멀티턴" else "") for ty in R.UNIT_ORDER if uq[ty])
     set_dir = Path(D["set_dir"])
     vers = re.findall(r"(생성프롬프트|멀티턴)(v[\d.]+)", set_dir.name)   # 질문세트_78_생성프롬프트v3.3_멀티턴v3 → v3.3 · 멀티턴 v3
     if not vers and (set_dir / "set.json").exists():   # 10-22: 폴더 이름에서 판 번호를 뺌(질문세트_78) — set.json 의 generator 로 같은 표시
@@ -436,4 +497,4 @@ def flow_scene(D: Dict[str, Any]) -> str:
            f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}'
            + (' · Gemini 는 웹브라우저로 받음' if "웹" in D["d"]["models"].get("gemini", "") else ""))
     return (f'<figure class="poster"><span class="poster-sub">{sub}</span>'
-            f'<div class="poster-grid">{flow_svg(n, set_ver)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
+            f'<div class="poster-grid">{flow_svg(n, set_ver, nu, mix)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
