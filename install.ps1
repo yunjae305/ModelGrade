@@ -1,11 +1,11 @@
 ﻿# 설치 — Windows (PowerShell 5.1 · 7 모두)
-#   한 줄 설치(아무 폴더에서):  irm https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.ps1 | iex
+#   한 줄 설치(아무 폴더에서):  irm https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.ps1 | iex
 #   받아 둔 폴더에서:           powershell -ExecutionPolicy Bypass -File .\install.ps1
 # 하는 일: (한 줄 설치면 ~\aiona-chat-eval 로 받음 — 예전에 ~\ModelGrade 에 깔았으면 그 폴더) → 파이썬 · Chrome · Node.js 확인(없으면 winget 으로 설치) → .venv · 패키지 → .env
 #          → Codex CLI · Claude CLI(npm) → 'aiona-chat-eval' 명령(옛 이름 modelgrade 도)을 PATH 에 → 처음 설정(aiona-chat-eval setup: 키 · 로그인 · 점검)
 # 환경 변수(선택): MODELGRADE_HOME 받을 폴더 · MODELGRADE_SKIP_CODEX · MODELGRADE_SKIP_CLAUDE 설치 건너뜀 · MODELGRADE_NONINTERACTIVE 묻지 않음
 $ErrorActionPreference = "Continue"   # 네이티브 명령의 오류 글만으로 멈추지 않게(PS 5.1) — 단계마다 종료 코드로 판단
-$Repo = "https://github.com/yunjae305/aiona-chat-eval"
+$Repo = "https://github.com/g-rnd-winz/aiona-chat-eval"
 
 function Has($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
 function Refresh-Path { $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") }

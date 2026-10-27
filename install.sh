@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # 설치 — macOS · Linux
-#   한 줄 설치(아무 폴더에서):  curl -fsSL https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.sh | bash
+#   한 줄 설치(아무 폴더에서):  curl -fsSL https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.sh | bash
 #   받아 둔 폴더에서:           bash install.sh
 # 하는 일: (한 줄 설치면 ~/aiona-chat-eval 로 받음 — 예전에 ~/ModelGrade 에 깔았으면 그 폴더) → 파이썬 · Chrome · Node.js 확인(macOS 는 없으면 Homebrew 로 설치) → .venv · 패키지 → .env
 #          → Codex CLI · Claude CLI(npm) → 'aiona-chat-eval' 명령(~/.local/bin, 옛 이름 modelgrade 도) → 처음 설정(aiona-chat-eval setup: 키 · 로그인 · 점검)
 # 환경 변수(선택): MODELGRADE_HOME 받을 폴더 · MODELGRADE_SKIP_CODEX · MODELGRADE_SKIP_CLAUDE 설치 건너뜀 · MODELGRADE_NONINTERACTIVE 묻지 않음
 set -euo pipefail
-REPO="https://github.com/yunjae305/aiona-chat-eval"
+REPO="https://github.com/g-rnd-winz/aiona-chat-eval"
 OS="$(uname -s)"
 has() { command -v "$1" >/dev/null 2>&1; }
 brew_install() {   # brew_install "<brew 인자>" "<이름>" — macOS 에서 Homebrew 가 있을 때만

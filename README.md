@@ -7,12 +7,12 @@
 <p align="center"><b>한국어 채팅 AI 를 같은 질문 · 같은 기준으로 채점하는 평가 프로그램</b></p>
 
 <p align="center">
-  <a href="https://github.com/yunjae305/aiona-chat-eval/actions/workflows/tests.yml"><img src="https://github.com/yunjae305/aiona-chat-eval/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
+  <a href="https://github.com/g-rnd-winz/aiona-chat-eval/actions/workflows/tests.yml"><img src="https://github.com/g-rnd-winz/aiona-chat-eval/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="license"></a>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.1.1-informational.svg" alt="version 2.1.1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.1.2-informational.svg" alt="version 2.1.2"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 채점(프로그램 · AI 심판) → 보고서 → 하네스2(기준 다듬기)</code></p>
@@ -53,6 +53,12 @@ flowchart LR
 
 <!-- 새로운 기능: tools/version.py 가 CHANGELOG.md 에서 채움 — 여기는 손으로 고치지 않음 -->
 
+### 2026년 10월 27일 · `2.1.2`
+
+**수정됨**
+
+- 저장소를 github.com/g-rnd-winz/aiona-chat-eval 로 옮김 — README 배지 · 한 줄 설치 명령 · install.ps1 · install.sh 의 주소
+
 ### 2026년 10월 27일 · `2.1.1`
 
 **개선됨**
@@ -72,28 +78,6 @@ flowchart LR
 - 보고서 '대화 안에서 어떤 요청에 약한가' — 칸을 누르면 그 모델이 그 일에서 FAIL 난 턴마다 질문 · 어긴 기준 · 왜 FAIL · 답 문장 · 원문 링크
 - 보고서 '유형별로 어떤 기준에서 FAIL 이 났나' — 싱글턴 | 멀티턴 | 롱컨텍스트 탭, 칸을 누르면 질문 · 답 · 이유. 탭마다 '판정 하나의 FAIL 은 몇 % 지만 문항 FAIL 은 몇 %' 한 줄(기준별 결과의 통과율 90%대와 다른 까닭)
 
-### 2026년 10월 27일 · `2.0.0`
-
-**신규**
-
-- 결과 폴더를 저장소 맨 위 `result/` 로 — 평가 결과가 `result/<시작 시각>/` 에 저장됨(옛 `참고자료/결과/` 폴더도 모두 옮김, 결과 폴더 위치가 바뀌어 주 버전)
-- README '새로운 기능' — 최근 3개 버전의 변경 로그를 날짜 · 버전 · 신규 / 개선됨 / 수정됨으로, 버전을 올릴 때 CHANGELOG 에서 자동으로 채움
-
-**개선됨**
-
-- 보고서 '기본 정보' 표 — 모델 · 버전 · 설정 · 수집 방법만
-- 발표 자료 — 뒤쪽 '상세 분석'을 '결과 보고서'로, 번호를 01 부터 다시(앞쪽 발표 흐름 번호도 따로)
-- README 배너 — '질문리스트 세팅' · '정해진 기준으로 판정'
-- CHANGELOG 를 버전마다 신규 · 개선됨 · 수정됨으로 나눔
-- 참고자료 정리 — 어디서도 쓰지 않는 옛 진행 기록 · 실험 산출물 · 중간 발표 초안을 지움(git 이력에 남음)
-- 보고서 '대화 안에서 어떤 요청에 약한가'(멀티턴 턴 종류별) — 통과 수 대신 FAIL 비율로, 약한 일부터, 색은 진할수록 많이 틀린 것
-- README · 결과 보고서의 심판 말을 '채점 심판(Jev · Decisions) · 확인 심판(Codex)'으로(팀원 1.4.1 발표 자료와 같게)
-
-**수정됨**
-
-- 최종 발표 자료본에 결과 보고서 장면을 끼울 때 장면 안의 `<section>` 에서 잘리던 것(팀원이 찾음) — 짝을 맞춰 자름
-- 하네스2 출처 — Harness²: Recursive Agent Harnessing for an Open World(Google Research, arXiv:2610.14224)의 공식 이름 · 저자 · 인용을 README · THIRD_PARTY_NOTICES · 코드 · 기준 문서에
-
 <!-- /새로운 기능 -->
 
 전체 이력은 [CHANGELOG.md](CHANGELOG.md) — 버전은 [시맨틱 버저닝](https://semver.org/lang/ko/) `주.부.수정`을 따릅니다.
@@ -105,13 +89,13 @@ flowchart LR
 **1. 설치** — Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.ps1 | iex
 ```
 
 **1. 설치** — macOS · Linux (터미널)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.sh | bash
 ```
 
 **2. 처음 설정** — 키 입력 · CLI 로그인 · 네 사이트 로그인 · 점검 (설치 끝에 자동으로 이어짐)
@@ -359,6 +343,6 @@ AIONA 에서 모델을 고르면 짝인 앱도 같은 모델로 함께 받습니
 
 aiona-chat-eval (formerly ModelGrade) is a reproducible quality evaluation for Korean chat assistants. It sends the same 78 real-use questions (single-turn, 10-turn conversations, attachments, ~270K-token long context, explicit-empty-output) to AIONA, ChatGPT, Claude and Gemini through their web UIs in a browser, then judges every answer against 72 criteria — 2 error-case checks, 26 deterministic CODE checks and 44 LLM-judged items, only those each question targets. LLM judging runs three judging stances once each with a weighted majority, and a second judge (Codex CLI) confirms failing or uncertain items by quoting the answer. Cells that cannot be verified are held for a human, who decides them inside the single report. Models are ranked by questions fully passed (/78 — a conversation passes only if all 10 turns pass).
 
-Quick start: `irm https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.ps1 | iex` (Windows) or `curl -fsSL https://raw.githubusercontent.com/yunjae305/aiona-chat-eval/main/install.sh | bash` (macOS · Linux), then `aiona-chat-eval setup` → `aiona-chat-eval start`.
+Quick start: `irm https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.ps1 | iex` (Windows) or `curl -fsSL https://raw.githubusercontent.com/g-rnd-winz/aiona-chat-eval/main/install.sh | bash` (macOS · Linux), then `aiona-chat-eval setup` → `aiona-chat-eval start`.
 
 </details>
