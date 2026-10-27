@@ -822,7 +822,7 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
         groups[code_group(cid) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
     head = '<div class="cb-row cb-head"><span>묶음 · 기준</span>' + "".join(f"<span>{mname(p)}</span>" for p in order) + "</div>"
     rows = []
-    for g, cids in groups.items():
+    for g, cids in sorted(groups.items(), key=lambda kv: (0 if kv[0][0].isdigit() else 1, kv[0])):   # 0-1 에러 케이스 → CODE 1-1 … 3-3 → J1 … J8 (사용자 10-27 '순서 정리해')
         gsum = {p: sum((cr[c][p] for c in cids), Counter()) for p in order}
         label = f'{g} {CODE_GROUP.get(g, "")}' if g[0].isdigit() else f'{g} {GROUP.get(g, "")}'
         kind = ("에러 케이스(단독 기준)" if g.startswith("0-") else "CODE 검사") if g[0].isdigit() else "LLM Judge"   # 에러 케이스는 CODE · LLM 밖 (10-26)
