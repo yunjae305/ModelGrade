@@ -1203,12 +1203,13 @@ def scene_hold_flow(D: Dict[str, Any]) -> str:
 
 def scene_prompt(D: Dict[str, Any], open_first: bool = True) -> str:
     """판정 프롬프트 원문 — 심판마다 실제로 보내는 글 그대로 (사용자 10-22). 글은 판정 코드(tools/judge_v4.py)가 읽는 파일 · 상수에서 읽는다:
-    Codex = judge_prompt_v4.txt + SCREEN_SUFFIX, 1차 심판(Jev · Decisions) = jev_questions_v4.json 의 guide + TARGET_GUIDE + 기준별 질문(all_item_questions)."""
+    Codex = judge_prompt_v4.txt + SCREEN_SUFFIX, 1차 심판(Jev · Decisions) = jev_questions_v4.json 의 guide + TARGET_GUIDE + 기준별 질문
+    (all_item_questions — 판정 프롬프트의 점검 항목 정의에서 만듦, 10-27 통일)."""
     from tools import judge_v4 as jv
     codex = jv.PROMPT_V4.read_text(encoding="utf-8") + jv.SCREEN_SUFFIX
     fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
     guide = fixed["guide"] + jv.TARGET_GUIDE
-    allq = jv.all_item_questions(fixed)
+    allq = jv.all_item_questions()
 
     def item_text(i: str, q: Dict[str, Any]) -> str:
         crit = q.get("criteria") or {}

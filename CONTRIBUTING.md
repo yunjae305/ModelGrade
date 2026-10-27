@@ -23,7 +23,7 @@ python -X utf8 -m pytest -q
 | `code_eval/` | CODE 기준 28개 엔진(`engine.py` · `checks_*.py`)과 LLM 기준 정의(`semantic_items.py`), 기준 목록(`criteria_registry.py`), 심판 클라이언트(Decisions · Jev · Codex CLI · Claude CLI · Claude API) |
 | `webapp/` | 웹 수집기 — ChatGPT · Claude · Gemini(`cdp_chat_web.py`) · AIONA(`aiona_web.py`, 화면 HTML → 마크다운은 `ingestion/html_markdown.py`)를 한 Chrome 의 탭에서. 질문 결론 규칙(`run_summary.py` — 빈 출력 요구 보류 · 질문 단위 판정). 질문 자동 생성기(`question_generation.py` · `api_request.py` · `attachment_files.py`, 지금 흐름에서는 쓰지 않지만 질문 생성을 손볼 때 쓰려고 남김) |
 | `참고자료/기준/` | **기준의 원본** `채팅품질 평가기준_v2.md`(72개 · 판정 체계 · 안전장치 · 바뀐 규칙 · 교훈) · CODE 세부 `MEASUREMENT_v16.md` |
-| `참고자료/프롬프트/` | 판정 프롬프트 `judge_prompt_v4.txt`(직접 고치는 파일) · 1차 항목 정의 `jev_questions_v4.json` · 질문생성 프롬프트 |
+| `참고자료/프롬프트/` | 판정 프롬프트 `judge_prompt_v4.txt`(직접 고치는 파일 — 1차 · 2차 심판이 같은 기준 정의를 읽음, 10-27) · 1차 안내 `jev_questions_v4.json`(guide 만) · 판정 태도 3종 `1차심판_프롬프트3종.json` · 질문생성 프롬프트 |
 | `참고자료/질문세트_78/` | 질문 세트(첨부 원본 `files/`, 멀티턴 턴별 확인 목록) |
 | `참고자료/결과/` | 실행마다 폴더 하나 — 질문 · 답변 JSON 과 `report.html` 두 파일(옛 폴더는 판정 보고서 · 수집 기록도 있음) |
 | `참고자료/변경내역/` | 날짜별 변경 기록 — 모든 변경은 여기에 한 줄 이상 |

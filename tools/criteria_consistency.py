@@ -4,7 +4,8 @@
 
 대조하는 곳 — LLM 기준 44개:
   ① 기준 v2 문서 6절 표(점검 질문 · 적용 · 경계 · 예외)   ② 판정 프롬프트 v4(Codex 가 읽는 글: 항목 줄 · 적용 · 덧붙인 규칙)
-  ③ 코드 code_eval/semantic_items.py(1차 심판 J5~J8 · 적용 조건의 원본)   ④ 1차 항목 정의 jev_questions_v4.json(J1~J4)
+  ③ 코드 code_eval/semantic_items.py(점검 질문 · 적용 조건의 원본)   ④ 1차 항목 정의 jev_questions_v4.json — 10-27 부터 1차 심판 문장도 ② 에서
+     만들어(judge_v4.all_item_questions) 파일에 항목이 없으면 건너뜀
 CODE 기준 28개: 문서 5절 표의 번호 · 이름 ↔ code_eval.criteria_registry 의 이름.
 
     python -X utf8 tools/criteria_consistency.py            # 보고를 화면에 (어긋남이 있으면 종료 코드 1)

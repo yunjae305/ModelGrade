@@ -49,7 +49,7 @@ def test_truth_from_pass_fail_error_marks(tmp_path: Path):
     assert rl.truth_of(_cell(5, "gpt", "PASS"), marks[("gpt", 5, 1, "J3-1.a")]) is None        # 에러 케이스 → 정답률에서 뺌
 
 
-def test_apply_proposal_prompt_jev_and_checklist(tmp_path: Path):
+def test_apply_proposal_prompt_and_checklist(tmp_path: Path):
     prompt = tmp_path / "p.txt"
     prompt.write_text("# 원칙\n- **J1-4.b** · 본문에서 같은 내용이 두 번\n  · 적용: 모든 질문\n", encoding="utf-8")
     jev = tmp_path / "j.json"
@@ -58,12 +58,10 @@ def test_apply_proposal_prompt_jev_and_checklist(tmp_path: Path):
     chk.write_text(json.dumps({"questions": {"2": {"turns": [{"turn": 2, "checks": ["사실 하나"], "decided": []}]}}}), encoding="utf-8")
     out = rl.apply_proposal({"target": "판정 프롬프트", "edits": [{"old": "같은 내용이 두 번", "new": "같은 내용이 새 정보 없이 두 번"}]}, tmp_path / "w1", prompt, jev, chk)
     assert "새 정보 없이" in Path(out["prompt"]).read_text(encoding="utf-8") and out["jev_questions"] == jev
-    out = rl.apply_proposal({"target": "1차 항목 정의", "edits": [{"item": "J1-4.b", "append": "반복 아님: 표와 그 풀이"}]}, tmp_path / "w2", prompt, jev, chk)
-    got = json.loads(Path(out["jev_questions"]).read_text(encoding="utf-8"))["items"]["J1-4.b"]
-    assert got["instructions"].endswith("/ 반복 아님: 표와 그 풀이")
-    out = rl.apply_proposal({"target": "1차 항목 정의", "edits": [{"item": "J1-4.b", "old": "같은 내용이 두 번", "new": "같은 내용이 새 정보 없이 두 번"}]}, tmp_path / "w3", prompt, jev, chk)
-    got = json.loads(Path(out["jev_questions"]).read_text(encoding="utf-8"))["items"]["J1-4.b"]
-    assert "새 정보 없이" in got["instructions"] and "새 정보 없이" in got["criteria"]["FAIL"]   # 기준 글도 함께
+    first = rl.jv.all_item_questions(Path(out["prompt"]).read_text(encoding="utf-8"))["J1-4.b"]   # 1차 심판 문장도 같은 판정 프롬프트에서 (10-27 통일)
+    assert "새 정보 없이" in first["instructions"] and "새 정보 없이" in first["criteria"]["PASS"]
+    with pytest.raises(rl.EditError):   # 옛 '1차 항목 정의' 대상은 없음
+        rl.apply_proposal({"target": "1차 항목 정의", "edits": [{"item": "J1-4.b", "append": "x"}]}, tmp_path / "w2", prompt, jev, chk)
     out = rl.apply_proposal({"target": "확인 목록", "edits": [{"question": 2, "turn": 2, "add_decided": "번호가 없어도 인용"}]}, tmp_path / "w4", prompt, jev, chk)
     t = json.loads(Path(out["turn_checklists"]).read_text(encoding="utf-8"))["questions"]["2"]["turns"][0]
     assert t["decided"] == ["번호가 없어도 인용"] and t["checks"] == ["사실 하나"]

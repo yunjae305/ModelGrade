@@ -41,8 +41,7 @@ def test_screen_flag_rules():
 
 
 def test_all_item_questions_cover_44_and_turn_filters():
-    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
-    allq = jv.all_item_questions(fixed)
+    allq = jv.all_item_questions()
     assert len(allq) == 44 and all(set(q["criteria"]) >= {"PASS", "FAIL"} for q in allq.values())
     assert "J8-2.a" in allq and allq["J8-2.a"]["type"] == "choice" and "적용:" in allq["J8-2.a"]["instructions"]
     ids = list(allq)
@@ -516,12 +515,11 @@ def test_repair_rejudges_turn_when_input_changed_and_drops_old_items(tmp_path: P
     changed = FakeDecisions()
     _run(tmp_path, changed, FakeCodex(), reuse_decisions=True)
     assert changed.calls == [([1], 3)]
-    import copy   # 항목 판정 정의만 바뀌면 그 항목만 다시 (Codex 검토 10-22)
-    fixed = copy.deepcopy(json.loads(jv.JEV_V4.read_text(encoding="utf-8")))
-    fixed["items"]["J2-2.a"]["instructions"] += " (정의 고침)"
+    # 항목 판정 정의만 바뀌면 그 항목만 다시 (Codex 검토 10-22) — 1차 문장은 판정 프롬프트의 그 항목 블록에서 (10-27 통일)
+    fixed = json.loads(jv.JEV_V4.read_text(encoding="utf-8"))
     redef = FakeDecisions()
-    jv.screen_one(1, "gpt", [{"case_id": "Q1_T1", "question": q1, "turn": 1}], {"Q1_T1": "네, 회의는 10시입니다."}, {}, [], "PROMPT", fixed,
-                  FakeCodex(), redef, tmp_path, reuse_decisions=True)
+    jv.screen_one(1, "gpt", [{"case_id": "Q1_T1", "question": q1, "turn": 1}], {"Q1_T1": "네, 회의는 10시입니다."}, {}, [],
+                  "PROMPT\n- **J2-2.a** · 지정한 말투를 지켰는가 (정의 고침)\n  · 적용: 말투 지정\n", fixed, FakeCodex(), redef, tmp_path, reuse_decisions=True)
     assert redef.calls == [([1], 1)]
 
 
@@ -586,7 +584,7 @@ def test_repair_fingerprints_definitions_attachments_and_empty_targets(tmp_path:
     assert d3.calls == [([1], 3)]   # JUDGE_REPAIR_TRUST_OLD=0 이면 옛 저장을 다시 판정
     data = json.loads(saved.read_text(encoding="utf-8"))
     data["1"]["J2-2.a"] = None   # 답이 빠진 항목
-    data["_item_fp"]["1"]["J2-2.a"] = jv.doc_fp(jv.all_item_questions(json.loads(jv.JEV_V4.read_text(encoding="utf-8")))["J2-2.a"])
+    data["_item_fp"]["1"]["J2-2.a"] = jv.doc_fp(jv.all_item_questions()["J2-2.a"])
     saved.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     d4 = FakeDecisions()
     _run(tmp_path, d4, FakeCodex(), reuse_decisions=True)

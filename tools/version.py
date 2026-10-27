@@ -15,7 +15,7 @@ from datetime import date
 from pathlib import Path
 from typing import List
 
-__version__ = "1.2.6"
+__version__ = "1.3.0"
 NAME = "aiona-chat-eval"
 ROOT = Path(__file__).resolve().parents[1]
 

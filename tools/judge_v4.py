@@ -772,47 +772,62 @@ def merge_codex_output(base: Any, extra: Any, replace: Optional[set] = None) -> 
 _PROMPT_ITEM_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
-def prompt_item_lines(item_id: str) -> Dict[str, Any]:
-    """판정 프롬프트(judge_prompt_v4.txt, Codex 가 읽는 글)의 그 항목 블록 — {'적용': 글 또는 None, 'notes': ['초보자: …', …]}.
-    Decisions · Jev 가 Codex 와 같은 기준 문구를 보게 한다 (10-21: 초보자 · 외부 사실만 · 존댓말 설명이 Codex 에만 들어가 있었음)."""
-    if not _PROMPT_ITEM_CACHE:
-        cur = None
-        for line in PROMPT_V4.read_text(encoding="utf-8").splitlines():
-            m = re.match(r"- \*\*(J\d-\d+\.[a-z])\*\* · ", line)
-            if m:
-                cur = _PROMPT_ITEM_CACHE.setdefault(m.group(1), {"적용": None, "notes": []})
-                continue
-            if cur is None or not line.startswith("  · "):
-                cur = None if not line.startswith("  · ") else cur
-                continue
-            key, _, val = line[4:].partition(":")
-            key = key.strip()
-            if key == "적용":
-                cur["적용"] = val.strip()
-            elif key in ("근거", "표시") or key.endswith(" 예") or key.startswith(("PASS", "FAIL")):
-                continue
-            else:
-                cur["notes"].append(f"{key}: {val.strip()}")
-    return _PROMPT_ITEM_CACHE.get(item_id) or {"적용": None, "notes": []}
-
-
-def all_item_questions(fixed: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """Decisions 에 보낼 항목 44개의 choice 질문 — J1~J4 는 Jev 묶음(fixed["items"]), J5~J8 은 semantic_items 정의로 같은 모양을 만들고,
-    판정 프롬프트의 적용 조건(J5~J8) · 덧붙인 설명(전체)을 붙여 Codex 와 같은 기준 문구로 맞춘다 (10-21)."""
-    out: Dict[str, Dict[str, Any]] = {k: dict(v) for k, v in fixed["items"].items()}
-    for it in si.ITEMS:
-        if it.id in out:
+def prompt_items(prompt_text: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    """판정 프롬프트(Codex 가 읽는 글)의 '점검 항목 정의' — {항목: {"sub": "J1-1 요청 작업 수행", "question": 질문 문장, "lines": [(이름, 글), …]}}.
+    1차 심판 문장도 여기서 만든다(all_item_questions). prompt_text 를 주면 그 글로(하네스2 시험의 고친 프롬프트) — 글 지문으로 캐시."""
+    text = prompt_text if prompt_text is not None else PROMPT_V4.read_text(encoding="utf-8")
+    key = hashlib.sha1(text.encode("utf-8")).hexdigest()
+    if key in _PROMPT_ITEM_CACHE:
+        return _PROMPT_ITEM_CACHE[key]
+    out: Dict[str, Dict[str, Any]] = {}
+    sub, cur = "", None
+    for line in text.splitlines():
+        m = re.match(r"### (J\d-\d+) (.+)", line)
+        if m:
+            sub, cur = f"{m.group(1)} {m.group(2).strip()}", None
             continue
-        sub = si.SUBS_BY_ID[it.sub]
-        applies = prompt_item_lines(it.id)["적용"] or it.applies
-        out[it.id] = {"type": "choice",
-                      "instructions": f"[{it.id}] {sub.name} — {it.question} / 적용: {applies} / 근거: {it.evidence}",
-                      "criteria": {"PASS": f"예 — {it.question}", "FAIL": f"아니오 — {it.question}에 어긋남",
-                                   "NOT_APPLICABLE": f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {applies})"}}
-    for k, q in out.items():
-        notes = prompt_item_lines(k)["notes"]
-        if notes:
-            q["instructions"] = str(q.get("instructions") or k) + " / " + " / ".join(notes)
+        m = re.match(r"- \*\*(J\d-\d+\.[a-z])\*\* · (.*)", line)
+        if m:
+            cur = out.setdefault(m.group(1), {"sub": sub, "question": m.group(2).strip(), "lines": []})
+            continue
+        if cur is not None and line.startswith("  · "):
+            k, _, v = line[4:].partition(":")
+            cur["lines"].append((k.strip(), v.strip()))
+        elif line.strip():
+            cur = None
+    _PROMPT_ITEM_CACHE[key] = out
+    return out
+
+
+def all_item_questions(prompt_text: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    """1차 심판(Jev · Decisions)에 보낼 항목 44개의 choice 질문 — 모두 판정 프롬프트의 '점검 항목 정의'에서 만든다 (사용자 10-27 '하나로 통일':
+    전에는 J1~J4 를 jev_questions_v4.json 에 따로 적어, 판정 프롬프트를 고쳐도 1차에는 들어가지 않았다 — 하네스2 가 J3-5.a 'FAIL 아님' 줄로 찾음).
+    질문 · 적용 · 근거 · 덧붙인 설명 · FAIL 예 · FAIL 아님을 그대로 넣고, 답 인용 방법(표시)만 뺀다(1차는 인용하지 않음). 판정 프롬프트에 없는 항목만
+    semantic_items 정의로. 항상 적용인 항목(build_judge_prompt_v4.ALWAYS_ITEMS)에는 '해당 없음' 선택지가 없다."""
+    from tools.build_judge_prompt_v4 import ALWAYS_ITEMS
+    blocks = prompt_items(prompt_text)
+    out: Dict[str, Dict[str, Any]] = {}
+    for it in si.ITEMS:
+        b = blocks.get(it.id)
+        if b is None:
+            sub = si.SUBS_BY_ID[it.sub]
+            out[it.id] = {"type": "choice",
+                          "instructions": f"[{it.id}] {sub.name} — {it.question} / 적용: {it.applies} / 근거: {it.evidence}",
+                          "criteria": {"PASS": f"예 — {it.question}", "FAIL": f"아니오 — {it.question}에 어긋남",
+                                       "NOT_APPLICABLE": f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {it.applies})"}}
+            continue
+        lines = [(k, v) for k, v in b["lines"] if k != "표시"]
+        for k, v in b["lines"]:   # 표시 줄의 '펼침(…)' 은 1차 용 표현으로 — 1차는 요소마다 번호를 붙이지 않고 한 번에 고른다
+            if k == "표시":
+                lines += [(f"펼침({x})", "요소마다 따져 하나라도 아니오면 FAIL") for x in re.findall(r"펼침\(([^)]+)\)", v)]
+        name = b["sub"].split(" ", 1)[1] if " " in b["sub"] else b["sub"]
+        q = b["question"]
+        applies = next((v for k, v in lines if k == "적용"), it.applies)
+        fail_ex = next((v for k, v in lines if k == "FAIL 예"), "")
+        crit = {"PASS": f"예 — {q}", "FAIL": "아니오 — " + (f"예: {fail_ex.split(' — ', 1)[1]}" if " — " in fail_ex else f"{q}에 어긋남")}
+        if it.id not in ALWAYS_ITEMS:
+            crit["NOT_APPLICABLE"] = f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {applies})"
+        out[it.id] = {"type": "choice", "instructions": f"[{it.id}] {name} — {q} / " + " / ".join(f"{k}: {v}" for k, v in lines), "criteria": crit}
     return out
 
 
@@ -1786,7 +1801,7 @@ def screen_stage_a(q: int, provider: str, turns: List[Dict[str, Any]], answers: 
     doc = question_json(q, turns, answers, deliveries)
     name = f"Q{q}_{provider}.json"
     (out / "inputs" / name).write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
-    allq = all_item_questions(fixed)
+    allq = all_item_questions(prompt)   # 1차도 Codex 와 같은 판정 프롬프트 글에서 (사용자 10-27 '하나로 통일')
     calls: Dict[str, Any] = {}
     multi_ok = conversation_is_multi_turn(turns, answers) if len(turns) > 1 else True   # 멀티턴(턴당 10K · 10턴 · 전체 100K) 아니면 J6 빼기 (10-21 밤)
     q_tokens = question_tokens(turns, answers)

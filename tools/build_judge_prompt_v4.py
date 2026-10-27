@@ -127,15 +127,13 @@ def build_prompt() -> str:
 
 
 def build_jev() -> dict:
+    """1차 심판 안내(guide)만 — 기준마다 보내는 문장은 판정 프롬프트의 점검 항목 정의에서 만든다(judge_v4.all_item_questions, 10-27 통일)."""
     d = json.loads(JEV_V1.read_text(encoding="utf-8"))
     assert d["guide"].count(JEV_GUIDE_OLD) == 1
-    d["version"], d["guide"] = "jev-questions-v4", d["guide"].replace(JEV_GUIDE_OLD, JEV_GUIDE_NEW)
-    for item_id, q in d["items"].items():
-        if item_id in ALWAYS_ITEMS or "NOT_APPLICABLE" in q["criteria"]:
-            continue
-        applies = next((p[len("적용: "):] for p in q["instructions"].split(" / ") if p.startswith("적용: ")), "적용 조건")
-        q["criteria"]["NOT_APPLICABLE"] = f"해당 없음 — 이 턴의 질문에 적용 조건이 없음 (적용: {applies})"
-    return d
+    return {"version": "jev-questions-v5-guide",
+            "about": "1차 심판(Jev · Decisions) 안내(guide)만 — 기준마다 보내는 문장은 판정 프롬프트(judge_prompt_v4.txt)의 '점검 항목 정의'에서 만든다"
+                     "(tools/judge_v4.all_item_questions, 2026-10-27 사용자 '하나로 통일'). 전에는 J1~J4 문장이 여기 따로 있었다.",
+            "guide": d["guide"].replace(JEV_GUIDE_OLD, JEV_GUIDE_NEW)}
 
 
 def main(argv=None) -> int:
@@ -152,7 +150,7 @@ def main(argv=None) -> int:
     V4.write_text(prompt, encoding="utf-8")
     jev = build_jev()
     JEV_V4.write_text(json.dumps(jev, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"저장: {V4.name} ({len(prompt):,}자) · {JEV_V4.name} (항목 {len(jev['items'])}개)")
+    print(f"저장: {V4.name} ({len(prompt):,}자) · {JEV_V4.name} (1차 안내만 — 기준 문장은 판정 프롬프트에서)")
     return 0
 
 

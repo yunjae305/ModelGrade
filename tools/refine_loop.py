@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""기준 다듬기 루프 (refine-loop-v1) — 판정 결과 · 사람 표시를 재료로 판정 프롬프트 · 1차 항목 정의 · 확인 목록의 고칠 안을 내고, 같은 칸을
+"""기준 다듬기 루프 (refine-loop-v1) — 판정 결과 · 사람 표시를 재료로 판정 프롬프트(1차 · 2차 심판이 함께 읽음) · 확인 목록의 고칠 안을 내고, 같은 칸을
 고치기 전 · 후로 다시 판정해 비교한 뒤, 근거가 있을 때만 채택하고 교훈을 남긴다 (기준 v2 10절의 ①~⑥을 도구로).
 
 흐름은 Harness²(Google Research, 2026, Apache-2.0)의 제안(Propose) → 시험(Probe) → 합성 · 채택(Compose) → 교훈(Reflect)을 따온 것이고
@@ -16,7 +16,7 @@
     python -X utf8 tools/refine_loop.py auto    --run … --judge v4 [--items 2]          # 평가 끝에 자동(start 가 부름) — 기준 고르기 → run --apply
 
 → data/refine/<실행>/<항목>/<시각>/ — cases.json · 표시용_표.html · proposals.json · probes/ · score.md · lesson.json
-  채택된 안은 apply 가 실제 파일(판정 프롬프트 · 1차 항목 정의 · 턴별 확인 목록)에 넣고, 교훈은 참고자료/기준/채팅품질 평가기준_v2.md 12절에.
+  채택된 안은 apply 가 실제 파일(판정 프롬프트 · 판정 태도 3종 · 턴별 확인 목록)에 넣고, 교훈은 참고자료/기준/채팅품질 평가기준_v2.md 12절에.
 
 auto (사용자 10-27 '평가가 완료되면 하네스2도 자동연계' · '알아서 잘못된 부분, 확장하면 좋을 부분들을 찾아서 개선 및 수정'):
   판정 폴더의 사람 판정(human_decisions.json)을 정답 표시로, 사람 표시 · 보류 · 심판 갈림 · FAIL 이 많은 LLM 기준부터 골라 run --apply 를 차례로 돌린다.
@@ -57,8 +57,9 @@ CRITERIA_DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.
 LESSON_HEADING = "## 12. 기준 다듬기 루프의 교훈"
 LESSON_CHARS = 220   # 12절 표 칸 하나의 글자 상한 — 전문은 data/refine/…/lesson.json (사용자: 문서는 짧고 요점만)
 KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", None: "-"}
-TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록", "기준 문서", "질문", "질문생성 프롬프트", "CODE")
-PROBE_TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록")   # 같은 칸을 고치기 전 · 후로 다시 판정해 잰다
+TARGETS = ("판정 프롬프트", "판정 태도 3종", "확인 목록", "기준 문서", "질문", "질문생성 프롬프트", "CODE")
+PROBE_TARGETS = ("판정 프롬프트", "판정 태도 3종", "확인 목록")   # 같은 칸을 고치기 전 · 후로 다시 판정해 잰다
+#: 1차 심판 문장은 판정 프롬프트의 점검 항목 정의에서 만든다 (10-27 통일, judge_v4.all_item_questions) — 옛 '1차 항목 정의' 대상은 없음
 TEXT_TARGETS = ("질문", "질문생성 프롬프트", "기준 문서")   # 다시 판정으로 잴 수 없음 — 검사 통과 + 이 기준 칸의 흔들림 · 사람 판정 불일치가 근거 (10-27)
 AUTO_TARGETS = PROBE_TARGETS + TEXT_TARGETS   # apply 가 실제 파일에 넣는 대상 — CODE(검사 코드)만 제안목록에
 QGEN_PROMPT = ROOT / "참고자료" / "프롬프트" / "질문생성_프롬프트.md"
@@ -257,9 +258,9 @@ def doc_row(item: str, doc_path: Path = CRITERIA_DOC) -> str:
     return ""
 
 
-def first_judge_definition(item: str, jev_path: Path = jv.JEV_V4) -> str:
-    fixed = json.loads(jev_path.read_text(encoding="utf-8"))
-    return str((jv.all_item_questions(fixed).get(item) or {}).get("instructions") or "")
+def first_judge_definition(item: str, prompt_path: Path = jv.PROMPT_V4) -> str:
+    """1차 심판(Jev · Decisions)이 읽는 그 기준 문장 — 판정 프롬프트의 점검 항목 정의에서 만든 것 (10-27 통일)."""
+    return str((jv.all_item_questions(prompt_path.read_text(encoding="utf-8")).get(item) or {}).get("instructions") or "")
 
 
 def principles(prompt_path: Path = jv.PROMPT_V4) -> str:
@@ -277,21 +278,22 @@ def principles(prompt_path: Path = jv.PROMPT_V4) -> str:
 
 # ------------------------------------------------------------------ ③ 고칠 안 (제안) ------------------------------------------------------------------
 PROPOSE_GUIDE = """당신은 한국어 AI 답변 품질 평가의 **기준 다듬기 제안자**입니다. 심판(모델)은 그대로 두고, 판정을 흔들리게 한 글 — 판정 프롬프트 · 1차 심판 항목 정의 ·
-멀티턴 턴별 확인 목록(정답 메모) · 평가 기준 원본 · 질문 글 · 질문생성 프롬프트 — 을 고칠 안을 냅니다. 아래 [재료]에 한 기준의 정의 세 가지(기준 문서 행 · 판정 프롬프트 블록 · 1차 항목 정의), 판정 원칙, 그리고
+멀티턴 턴별 확인 목록(정답 메모) · 평가 기준 원본 · 질문 글 · 질문생성 프롬프트 — 을 고칠 안을 냅니다. 1차 심판(Jev · Decisions)도 판정 프롬프트의 점검 항목 정의에서
+만든 문장을 읽으므로 기준 정의는 판정 프롬프트 한 곳만 고칩니다. 아래 [재료]에 한 기준의 정의(기준 문서 행 · 판정 프롬프트 블록 · 그 블록에서 만든 1차 심판 문장), 판정 원칙, 그리고
 그 기준의 판정 칸(FAIL · 보류와 같은 수의 통과 칸: 요청 · 답 · 심판 사유 · 1차/2차 · 있으면 사람 표시)이 있습니다.
 
 규칙 (Harness² 의 '증거가 뒷받침하는 것만 고친다 · 고칠 것이 없으면 KEEP_BASE 도 답이다' 를 따름):
-1. 안은 많아야 3개. 안마다 **대상 하나**(판정 프롬프트 / 1차 항목 정의 / 판정 태도 3종 / 확인 목록 / 기준 문서 / 질문 / 질문생성 프롬프트 / CODE)와
+1. 안은 많아야 3개. 안마다 **대상 하나**(판정 프롬프트 / 판정 태도 3종 / 확인 목록 / 기준 문서 / 질문 / 질문생성 프롬프트 / CODE)와
    범위(불변 = 모든 기준에 통하는 판정 방법 · 절차, 이 기준 = 이 항목의 정의 · 경계)를 정합니다.
    - 질문: 칸이 흔들린 원인이 **질문 글**(모호함 · 서로 어긋나는 조건 · 붙인 자료와 정답 메모의 어긋남 · 빠진 정보)일 때만. {"question": 번호, "turn": 턴(싱글은 1),
      "old": "…", "new": "…"} 로 그 턴의 질문 글을 고칩니다(한 안에 질문 3개까지). 질문이 노리는 기준 · 함정 · 길이는 그대로 두고 잘못만 고칩니다 — [재료] 칸의 질문_원문에서
      old 를 고르세요. 고친 질문은 다음 수집 때 네 모델 답을 다시 받으므로, 판정 프롬프트로 풀 수 있는 문제면 질문을 고치지 않습니다.
    - 질문생성 프롬프트: 위 같은 질문 잘못이 다음에 만들 질문에서 다시 생기지 않게 [재료]의 질문생성_프롬프트에서 한 줄을 old → new 로 고치거나(덧붙이기는 old = 그 줄의 끝 구절).
    - 기준 문서: 평가 기준 원본(기준_문서_행)의 정의 · 예외 · 경계를 old → new 로. 기준 ID · 개수(72)는 바꾸지 않습니다.
-   - doc_sync: 판정 프롬프트 · 1차 항목 정의로 **기준의 뜻**(정의 · 예외 · 경계)을 바꾸면, 기준 원본이 심판 글과 어긋나지 않게 기준_문서_행을 같은 뜻으로 고친
+   - doc_sync: 판정 프롬프트로 **기준의 뜻**(정의 · 예외 · 경계)을 바꾸면, 기준 원본이 심판 글과 어긋나지 않게 기준_문서_행을 같은 뜻으로 고친
      [{"old": "…", "new": "…"}] 를 함께 적습니다. 표현만 고치거나 대상이 질문 · 질문생성 프롬프트 · 기준 문서 · CODE 면 빈 배열.
 2. edits 는 **지금 글에 그대로 있는 old 를 new 로** 바꾸는 꼴로 — old 는 그 파일에서 한 번만 나오는 구절(한 줄 이내)로 고릅니다. 덧붙이기만 할 때는 old 를 그 줄의
-   끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 1차 항목 정의는 {"item": "J1-4.b", "append": "…"} 로 지시문 끝에 덧붙일 수도 있습니다. 1차 항목 정의 파일에는 **J1~J4 항목만** 있습니다 — J5~J8 항목은 판정 프롬프트나 확인 목록을 고칩니다.
+   끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 판정 프롬프트 블록의 줄('  · 적용:' · '  · FAIL 아님:' · '  · FAIL 예:' 등)은 1차 심판 문장에도 그대로 들어갑니다('  · 표시:' 줄은 2차 심판의 인용 방법이라 1차에는 빠짐).
    확인 목록은 {"question": 2, "turn": 2, "add_decided": "…"}(심판이 따르는 정한 판정) 또는 {"question", "turn", "add_check"}(자료의 사실만, 판정 지시 금지).
    판정 태도 3종(1차 심판이 같은 질문을 비판적 · 친화적 · 유도적 세 태도로 한 번씩 보고 가중 다수결 — [재료]의 판정_태도_3종)은 {"item": "critical" · "friendly" · "guided"
    (태도 id, 비우면 파일 전체), "old": "…", "new": "…"} 로 그 태도의 글 · 가중치(예: old '"FAIL": 1.2' → new '"FAIL": 1.1')나 min_choice_prob 을 바꿉니다 — 모든 항목에 걸리므로 범위는 '불변'.
@@ -361,7 +363,7 @@ def ask(ch: Any, guide: str, payload: Dict[str, Any], tag: str, schema: Dict[str
 
 def propose_input(cases: Sequence[Dict[str, Any]], item: str, set_dir: Path) -> Dict[str, Any]:
     return {"항목": item,
-            "정의": {"기준_문서_행": doc_row(item), "판정_프롬프트_블록": prompt_block(item), "1차_항목_정의": first_judge_definition(item),
+            "정의": {"기준_문서_행": doc_row(item), "판정_프롬프트_블록": prompt_block(item), "1차_심판_문장(판정_프롬프트에서_만듦)": first_judge_definition(item),
                    "판정_태도_3종": json.loads(jv.STANCES_PATH.read_text(encoding="utf-8")) if jv.STANCES_PATH.exists() else None},
             "판정_원칙": principles(),
             "칸": [{"#": c["no"], "질문": c["question"], "모델": c["provider"], "턴": c["turn"], "유형": c["type"], "판정": c["decision"],
@@ -447,27 +449,6 @@ def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path
         p = work / "judge_prompt.txt"
         p.write_text(text, encoding="utf-8")
         out["prompt"] = p
-    elif target == "1차 항목 정의":
-        fixed = json.loads(jev_path.read_text(encoding="utf-8"))
-        for e in edits:
-            iid = e.get("item")
-            if iid not in fixed.get("items", {}):
-                raise EditError(f"1차 항목 정의에 {iid} 가 없습니다(J1~J4 만 파일에 있음)")
-            q = fixed["items"][iid]
-            if e.get("append"):
-                q["instructions"] = str(q.get("instructions") or "") + " / " + e["append"].strip()
-                out["applied"].append(f"{iid} 지시문 끝에 덧붙임: {e['append'][:40]!r}")
-            elif e.get("old") and e.get("new") is not None:
-                q["instructions"] = replace_once(str(q.get("instructions") or ""), e["old"], e["new"], f"{iid} instructions")
-                for k, v in list((q.get("criteria") or {}).items()):
-                    if e["old"] in str(v):
-                        q["criteria"][k] = str(v).replace(e["old"], e["new"], 1)
-                out["applied"].append(f"{iid}: {e['old'][:40]!r} → {e['new'][:40]!r}")
-            else:
-                raise EditError("1차 항목 정의 edit 에는 append 또는 old · new 가 있어야 합니다")
-        p = work / "jev_questions.json"
-        p.write_text(json.dumps(fixed, ensure_ascii=False, indent=1), encoding="utf-8")
-        out["jev_questions"] = p
     elif target == "판정 태도 3종":
         doc = json.loads(jv.STANCES_PATH.read_text(encoding="utf-8"))
         for e in edits:
@@ -906,6 +887,9 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
     prop = props.get(a.proposal)
     if prop is None:
         raise SystemExit(f"안이 없습니다: {a.proposal}")
+    if prop.get("target") == "1차 항목 정의":   # 10-27 통일 전 안 — 1차 문장은 이제 판정 프롬프트에서 만들어져 따로 넣을 파일이 없다
+        say(f"{a.proposal} 은 옛 '1차 항목 정의' 대상 — 1차 심판 문장은 판정 프롬프트에서 만들도록 통일됨, 판정 프롬프트 블록을 고치는 안으로 다시 냅니다")
+        return {"applied": [], "obsolete": prop}
     if prop.get("target") not in AUTO_TARGETS:
         say(f"{a.proposal} 은 {prop.get('target')} 대상 — 파일에 자동으로 넣지 않습니다. 고칠 글:\n" + json.dumps(prop.get("edits"), ensure_ascii=False, indent=1))
         return {"applied": [], "manual": prop}
@@ -943,7 +927,7 @@ def cmd_run(a: argparse.Namespace) -> int:
     cmd_reflect(a)
     adopted = [k for k, v in res["adoption"].items() if v["판단"] == "채택"]
     a.adoption, a.applied = res["adoption"], []
-    a.manual = [{"id": k, **v} for k, v in (res.get("proposals") or {}).items() if v.get("target") not in AUTO_TARGETS]
+    a.manual = [{"id": k, **v} for k, v in (res.get("proposals") or {}).items() if v.get("target") == "CODE"]
     if adopted and a.apply:
         for k in adopted:
             a.proposal = k
