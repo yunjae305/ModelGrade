@@ -460,7 +460,7 @@ def scene_flow(D: Dict[str, Any]) -> str:
 
 #: CODE 묶음 이름 — 10-19 발표 '평가 기준 72개' 장의 세 갈래(1 출력 무결성 · 2 형식·지시 준수 · 3 계산·자료 처리)를 묶음마다 풀어 씀
 CODE_TOP = {"1": "출력 무결성", "2": "형식 · 지시 준수", "3": "계산 · 자료 처리"}
-CODE_GROUP = {"1-1": "응답 · 문자", "1-2": "코드 · 구문", "1-3": "인용 · 링크", "2-1": "글자 수 · 개수 · 문자열",
+CODE_GROUP = {"0-1": "에러 케이스", "1-1": "응답 · 문자", "1-2": "코드 · 구문", "1-3": "인용 · 링크", "2-1": "글자 수 · 개수 · 문자열",
               "2-2": "제목 · 목록 · 표 · JSON 구조", "3-1": "계산", "3-2": "선언한 개수", "3-3": "집계 · 변환"}
 #: 언제 보나 — criteria_catalog.json 의 always_ids · answer_dependent_ids (나머지는 질문이 요구할 때)
 WHEN = {"always": ("항상", "cr-al"), "answer": ("답에 있으면", "cr-an"), "asked": ("요구 시", "cr-as")}
@@ -813,8 +813,8 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
             tot[p].update(cr[cid][p])
     rate = {p: tot[p]["PASS"] / max(1, sum(tot[p].values())) for p in order}
     by = sorted(order, key=lambda p: -rate[p])
-    cards = "".join(f'<div class="cb-card"><span class="cb-m">{mname(p)}</span><b>{rate[p] * 100:.1f}%</b>'
-                    f'<small>기준 판정 {sum(tot[p].values()):,}건 · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small>'
+    cards = "".join(f'<div class="cb-card"><span class="cb-m">{mname(p)}</span><small>기준 통과율</small><b>{rate[p] * 100:.1f}%</b>'   # 숫자가 무엇인지 (사용자 10-27 '이건 뭐야?')
+                    f'<small>기준 판정 {sum(tot[p].values()):,}건 중 통과 {tot[p]["PASS"]:,} · FAIL {tot[p]["FAIL"]} · 보류 {tot[p]["HOLD"]}</small>'
                     f'<small class="cb-q">문항 단위 완전 통과 {D["tally"][p]["PASS"]} / {D["n"]} ({D["tally"][p]["PASS"] / D["n"] * 100:.0f}%)</small></div>' for p in by)
 
     def cell(c: Counter) -> str:
@@ -833,13 +833,14 @@ def scene_by_crit(D: Dict[str, Any]) -> str:
     for g, cids in groups.items():
         gsum = {p: sum((cr[c][p] for c in cids), Counter()) for p in order}
         label = f'{g} {CODE_GROUP.get(g, "")}' if g[0].isdigit() else f'{g} {GROUP.get(g, "")}'
-        kind = "CODE 검사" if g[0].isdigit() else "LLM Judge"
+        kind = ("에러 케이스(단독 기준)" if g.startswith("0-") else "CODE 검사") if g[0].isdigit() else "LLM Judge"   # 에러 케이스는 CODE · LLM 밖 (10-26)
         sub = "".join(f'<div class="cb-row"><span class="cb-l"><b>{E(crit_name(D["names"], c))}</b><small>{E(c)}</small></span>'
                       + "".join(cell(cr[c][p]) if c in cr else '<div class="cb-c cb-na">—</div>' for p in order) + "</div>" for c in cids)
         rows.append(f'<details class="cb-g"><summary class="cb-row"><span class="cb-l"><b>{E(label)}</b><small>{kind} · 기준 {len(cids)}개</small></span>'
                     + "".join(cell(gsum[p]) for p in order) + f'</summary><div class="cb-sub">{sub}</div></details>')
     n_empty = sum(1 for t in D["qtypes"].values() if t == "명시적 빈 출력")
-    key = ('<p class="cb-key"><b>칸 색 = 그 묶음을 어긴 정도(빨갈수록 FAIL 많음)</b> · 큰 숫자 = 통과율 · 작은 숫자 = FAIL · 보류 / 평가된 질문</p>'   # 이사님 10-23: 빨간 표의 뜻을 먼저
+    key = ('<p class="cb-key"><b>큰 숫자 = 통과율(통과 ÷ 판정 수, FAIL 확률이 아님)</b> · 칸 색 = FAIL 이 많은 정도(빨갈수록 많음) · '
+           '작은 숫자 = FAIL · 보류 / 판정 수(질문 수 × 그 묶음의 기준 수 — 예: 기준 2개 묶음이면 질문 68개 × 2 = 136)</p>'   # 이사님 10-23: 빨간 표의 뜻을 먼저
            f'<p class="cb-key">묶음을 누르면 기준별로 펼쳐짐 · 빈 출력 요구 {n_empty}문항은 보류라 뺌 · 멀티턴은 한 턴이라도 FAIL 이면 그 질문은 FAIL</p>')
     return (f'<div class="cb-cards">{cards}</div>'
             '<p class="cb-key">기준 통과율 = 기준 판정 중 통과한 비율(해당 없음은 통과로, 보류는 통과로 세지 않음). 같은 질문에는 네 모델 모두 같은 기준을 매겨 판정 건수가 같습니다. '
@@ -1385,13 +1386,48 @@ def answer_times(D: Dict[str, Any]) -> Tuple[Dict[int, Dict[str, float]], Dict[i
     return secs, redo
 
 
-def scene_fix(D: Dict[str, Any]) -> str:
-    """개선할 곳 — 결과 보고서 맨 아래 (사용자 10-27 '최종 맨 아래에 추가하는게 좋지 않아?'). 10-22 미팅 6번(모델별 합만으로는 무엇을 고칠지
-    모름 — 유형마다 누가 빠르고 느린지, AIONA 가 유난히 느린 질문)에서 넣은 답변 시간 정리. 비교는 모두 1등(가장 빠른 모델) 기준."""
-    if "_time_finds" not in D:
+def fix_time_lines(D: Dict[str, Any]) -> List[str]:
+    """답변 시간 결론 몇 줄 — AIONA 가 유형마다 1등(가장 빠른 모델)과 얼마나 차이 나는지 · 1등보다 1.5배 이상 느린 질문 · 질문마다 들쭉날쭉한 정도 ·
+    먼저 볼 곳. AIONA 가 없는 실행이면 유형별 정리 줄 그대로."""
+    if "_time_stats" not in D:
         time_spread(D)
-    finds = D.get("_time_finds") or []
-    return f'<ul class="lt-finds">{"".join(finds)}</ul>' if finds else '<p class="rs-basis">답변 시간 기록이 없습니다.</p>'
+    st, me = D.get("_time_stats") or {}, "aiona" if "aiona" in D["order"] else ""
+    if not st or not me:
+        return [re.sub(r"</?li>", "", x) for x in D.get("_time_finds") or []]
+    ratio = {ty: x["med"][me] / x["med"][x["fast"]] for ty, x in st.items() if me in x["med"]}
+    top = [TYPE_SHORT[ty] for ty, x in st.items() if x["fast"] == me]
+    near = [ty for ty, r in ratio.items() if 1 < r < 1.5]
+    far = sorted((ty for ty, r in ratio.items() if r >= 1.5), key=lambda t: -ratio[t])
+    out = []
+    parts = ([f"{' · '.join(top)}에서 1등"] if top else []) + (
+        [f"{' · '.join(TYPE_SHORT[t] for t in near)}에서 1등과 비슷(1등의 {min(ratio[t] for t in near):.1f}~{max(ratio[t] for t in near):.1f}배)"] if near else [])
+    if far:
+        parts.append(" · ".join(f"{TYPE_SHORT[t]}에서 1등 {SHORT[st[t]['fast']]}의 {ratio[t]:.1f}배로 느림" for t in far))
+    if parts:
+        out.append(f"AIONA 답변 시간은 {', '.join(parts)}.")
+    slow_q = D.get("_time_slow_q") or []
+    if slow_q:
+        by = Counter(TYPE_SHORT.get(D["dtypes"][q], "") for _r, q, _t, _v in slow_q)
+        r0, q0, t0, _v0 = slow_q[0]
+        out.append(f"AIONA 가 그 질문의 1등보다 1.5배 이상 느린 질문 {len(slow_q)}개 — " + " · ".join(f"{k} {v}" for k, v in by.most_common())
+                   + f", 가장 큰 차이는 Q{q0}({TYPE_SHORT.get(D['dtypes'][q0], '')} · 1등 {SHORT[t0]}의 {r0:.1f}배).")
+    wide = [(ty, min(x["vals"][me]), max(x["vals"][me])) for ty, x in st.items() if x["vals"].get(me)]
+    wide = [w for w in wide if w[1] and w[2] / w[1] >= 3]
+    if wide:
+        out.append("질문마다 걸리는 시간이 들쭉날쭉합니다 — " + " · ".join(f"{TYPE_SHORT[ty]} {fmt_s(a)} ~ {fmt_s(b)}" for ty, a, b in wide) + ".")
+    if far:
+        worst = [f"Q{q}" for _r, q, _t, _v in slow_q if D["dtypes"][q] == far[0]][:3]
+        out.append(f"먼저 볼 곳: {TYPE_SHORT[far[0]]} 답변 속도" + (f"(특히 {' · '.join(worst)})" if worst else "") + ".")
+    return out
+
+
+def scene_fix(D: Dict[str, Any]) -> str:
+    """개선할 곳 — 결과 보고서 맨 아래 (사용자 10-27 '최종 맨 아래에 추가' · '1. 답변시간 이렇게 해두고 아래에 결론만'). 항목마다 번호 소제목과 결론 몇 줄 —
+    답변 시간은 10-22 미팅 6번(유형마다 누가 빠르고 느린지 · AIONA 가 유난히 느린 질문)에서 넣은 것, 비교는 모두 1등(가장 빠른 모델) 기준."""
+    sections = [("답변 시간", fix_time_lines(D))]
+    body = "".join(f'<h3 class="rs-sh">{i}. {E(t)}</h3><ul class="lt-finds">' + "".join(f"<li>{E(x)}</li>" for x in lines) + "</ul>"
+                   for i, (t, lines) in enumerate(sections, 1) if lines)
+    return body or '<p class="rs-basis">개선할 곳을 찾을 기록이 없습니다.</p>'
 
 
 def time_spread(D: Dict[str, Any], with_finds: bool = True) -> str:
@@ -1419,6 +1455,7 @@ def time_spread(D: Dict[str, Any], with_finds: bool = True) -> str:
             continue
         med = {p: statistics.median(vals[p]) for p in order if vals[p]}
         fast = min(med, key=med.get)
+        D.setdefault("_time_stats", {})[ty] = {"med": med, "fast": fast, "vals": vals}   # '개선할 곳' 결론 (scene_fix)
         n_redo = sum(1 for q in qs for p in order if p in redo[q])
         if n_redo:
             redo_note.append(f"{TYPE_SHORT[ty]} {n_redo}칸")
@@ -1461,6 +1498,7 @@ def time_spread(D: Dict[str, Any], with_finds: bool = True) -> str:
         finds.append(f"<li><b>{SHORT[me]} 가 그 질문의 1등보다 1.5배 이상 느린 질문 {len(slow_q)}개</b> — {E(items)}"
                      + (" 외" if len(slow_q) > 5 else "") + "</li>")
     D["_time_finds"] = finds   # 결과 보고서는 맨 아래 '개선할 곳' 장면에 (scene_fix)
+    D["_time_slow_q"] = slow_q
     # 질문별 — 유형 탭(고른 유형만), 열은 AIONA 다음 그 유형에서 빠른 순 · 칸 안 막대는 그 질문에서 가장 오래 걸린 모델을 끝(100%)으로,
     # 초록 = 그 질문에서 가장 빠름 · 빨강 = 가장 느림 (사용자 10-22: 78문항을 한 표에 두니 난잡 — 유형끼리 묶어 보고 싶은 것만)
     allq = sorted(secs)
@@ -3725,9 +3763,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
              "열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 <code>aiona-chat-eval held-apply</code> 로 반영합니다.",
              scene_hold(D, part_of, brief=True) + decide_section(D, hblocks),
              f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
-            ("s_fix", "개선할 곳", "AIONA 답변 시간", "개선할 곳 — 답변 시간",
-             "다음 업데이트에서 볼 곳입니다. 유형마다 1등(가장 빠른 모델)과 견줘 누가 얼마나 느린지, 그리고 AIONA 가 그 질문의 1등보다 1.5배 이상 느린 질문입니다.",
-             scene_fix(D), ""),
+            ("s_fix", "개선할 곳", "다음 업데이트에서 볼 곳", "개선할 곳", "", scene_fix(D), ""),
         ]
     jd_html, jd_key = ("", "") if single else scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
