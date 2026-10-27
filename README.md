@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.2.0-informational.svg" alt="version 1.2.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.2.1-informational.svg" alt="version 1.2.1"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 프로그램 검사 → AI 심판(3종 다수결) → 2차 확인 → 보류는 사람 → 보고서</code></p>

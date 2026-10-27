@@ -1385,7 +1385,16 @@ def answer_times(D: Dict[str, Any]) -> Tuple[Dict[int, Dict[str, float]], Dict[i
     return secs, redo
 
 
-def time_spread(D: Dict[str, Any]) -> str:
+def scene_fix(D: Dict[str, Any]) -> str:
+    """개선할 곳 — 결과 보고서 맨 아래 (사용자 10-27 '최종 맨 아래에 추가하는게 좋지 않아?'). 10-22 미팅 6번(모델별 합만으로는 무엇을 고칠지
+    모름 — 유형마다 누가 빠르고 느린지, AIONA 가 유난히 느린 질문)에서 넣은 답변 시간 정리. 비교는 모두 1등(가장 빠른 모델) 기준."""
+    if "_time_finds" not in D:
+        time_spread(D)
+    finds = D.get("_time_finds") or []
+    return f'<ul class="lt-finds">{"".join(finds)}</ul>' if finds else '<p class="rs-basis">답변 시간 기록이 없습니다.</p>'
+
+
+def time_spread(D: Dict[str, Any], with_finds: bool = True) -> str:
     """답변 시간 — 질문 · 유형별 편차 (사용자 10-22 미팅 6번: 모델별 합만으로는 의미가 적다 —
     78개 질문을 펼쳐 유형마다 어느 모델이 빠르고 느린지, 무엇을 개선할지 보이게).
     위: 질문 78개 하나하나(번호 순 · 펼친 채), 가운데: 유형 × 모델 보통 시간 표, 아래: 개선할 곳 (사용자 10-22: 몇 번 질문에서 얼마나 걸렸는지 바로)."""
@@ -1420,17 +1429,9 @@ def time_spread(D: Dict[str, Any]) -> str:
                 cells += '<div class="lt-sc">—</div>'
                 continue
             best = "<!--best-->" if p == fast else ""   # 모든 유형에서 같은 모델이 가장 빠르면 표 머리에, 아니면 이 칸 위에 (아래에서 바꿈)
-            if p == me or me not in med:
-                # AIONA 칸 — 그 유형에서 가장 빠른 모델 대비 1.5 · 2 · 2.5 · 3배 이상 → 1~4단계
-                r = med[p] / med[fast]
-                cls, note = f"lt-t{min(4, int((r - 1) / 0.5))}", ("<em>가장 빠름</em>" if p == fast else f"<em>{SHORT[fast]}보다 {r:.1f}배 느림</em>")
-            else:
-                # 다른 모델 — AIONA 기준 (사용자 10-22: AIONA 채팅 품질 평가라 AIONA 를 부각) · 1 · 1.5 · 2 · 2.5배 이상 → 1~4단계
-                v, a = med[p], med[me]
-                r = max(v, a) / min(v, a)
-                lv = min(4, 1 + int((r - 1) / 0.5))
-                cls, note = ((f"lt-s{lv}", f'<em class="lt-vs-s">AIONA보다 {r:.1f}배 느림</em>') if v > a else
-                             (f"lt-f{lv}", f'<em class="lt-vs-f">AIONA보다 {r:.1f}배 빠름</em>') if v < a else ("", "<em>AIONA와 같음</em>"))
+            # 모든 칸 — 그 유형 1등(가장 빠른 모델) 대비 1.5 · 2 · 2.5 · 3배 이상 → 1~4단계 (사용자 10-27 '비교는 1등기준으로')
+            r = med[p] / med[fast]
+            cls, note = f"lt-t{min(4, int((r - 1) / 0.5))}", ("<em>1등</em>" if p == fast else f"<em>1등 {SHORT[fast]}보다 {r:.1f}배 느림</em>")
             cells += (f'<div class="lt-sc {cls}{" lt-mec" if p == me else ""}">{best}<b>{fmt_s(med[p])}</b>{note}'
                       f'<small>질문마다 {fmt_s(min(vals[p]))} ~ {fmt_s(max(vals[p]))}</small></div>')
         what = TYPE_SHORT[ty]
@@ -1438,24 +1439,28 @@ def time_spread(D: Dict[str, Any]) -> str:
         panels.append(f'<div class="lt-sr"><span class="lt-st"><b>{E(what)}</b><small>{sub_}</small></span>{cells}</div>')
         slow = max(med, key=med.get)
         wide = max(med, key=lambda p: max(vals[p]) / max(1e-9, min(vals[p])))
-        line = (f"<b>{E(TYPE_SHORT[ty])}</b> — 가장 빠름 {SHORT[fast]} {fmt_s(med[fast])} · 가장 느림 {SHORT[slow]} {fmt_s(med[slow])}"
-                f"({med[slow] / med[fast]:.1f}배)")
+        line = (f"<b>{E(TYPE_SHORT[ty])}</b> — 1등 {SHORT[fast]} {fmt_s(med[fast])} · 가장 느림 {SHORT[slow]} {fmt_s(med[slow])}"
+                f"(1등의 {med[slow] / med[fast]:.1f}배)")
         if me in med and me not in (fast, slow):
-            line += f" · {SHORT[me]} {fmt_s(med[me])}"
+            line += f" · {SHORT[me]} {fmt_s(med[me])}(1등의 {med[me] / med[fast]:.1f}배)"
         line += f" · 편차 가장 큼 {SHORT[wide]}({fmt_s(min(vals[wide]))} ~ {fmt_s(max(vals[wide]))})"
         finds.append(f"<li>{line}</li>")
-    # AIONA 가 다른 모델보다 눈에 띄게 느린 질문 — 다음 업데이트에서 볼 곳
+    # AIONA 가 그 질문의 1등보다 눈에 띄게 느린 질문 — 다음 업데이트에서 볼 곳 (사용자 10-27 '비교는 1등기준으로')
     slow_q = []
     if me:
         for q in sorted(secs):
-            others = [secs[q][p] for p in order if p != me and ok(q, p)]
-            if ok(q, me) and others and secs[q][me] >= 1.5 * statistics.median(others):
-                slow_q.append((secs[q][me] / statistics.median(others), q, others))
+            others = {p: secs[q][p] for p in order if p != me and ok(q, p)}
+            if ok(q, me) and others:
+                top = min(others, key=others.get)
+                if secs[q][me] >= 1.5 * others[top]:
+                    slow_q.append((secs[q][me] / others[top], q, top, others[top]))
         slow_q.sort(reverse=True)
     if slow_q:
-        items = " · ".join(f"Q{q} {TYPE_SHORT.get(D['dtypes'][q], '')} {fmt_s(secs[q][me])}(다른 모델 {fmt_s(min(o))} ~ {fmt_s(max(o))})" for _r, q, o in slow_q[:5])
-        finds.append(f"<li><b>{SHORT[me]} 가 다른 세 모델 중앙값보다 1.5배 이상 느린 질문 {len(slow_q)}개</b> — {E(items)}"
+        items = " · ".join(f"Q{q} {TYPE_SHORT.get(D['dtypes'][q], '')} {fmt_s(secs[q][me])}(1등 {SHORT[top]} {fmt_s(v)}의 {r:.1f}배)"
+                           for r, q, top, v in slow_q[:5])
+        finds.append(f"<li><b>{SHORT[me]} 가 그 질문의 1등보다 1.5배 이상 느린 질문 {len(slow_q)}개</b> — {E(items)}"
                      + (" 외" if len(slow_q) > 5 else "") + "</li>")
+    D["_time_finds"] = finds   # 결과 보고서는 맨 아래 '개선할 곳' 장면에 (scene_fix)
     # 질문별 — 유형 탭(고른 유형만), 열은 AIONA 다음 그 유형에서 빠른 순 · 칸 안 막대는 그 질문에서 가장 오래 걸린 모델을 끝(100%)으로,
     # 초록 = 그 질문에서 가장 빠름 · 빨강 = 가장 느림 (사용자 10-22: 78문항을 한 표에 두니 난잡 — 유형끼리 묶어 보고 싶은 것만)
     allq = sorted(secs)
@@ -1509,13 +1514,12 @@ def time_spread(D: Dict[str, Any]) -> str:
             + per_q
             + '<h3 class="rs-sh">답변 시간 — 질문 하나에 보통 걸린 시간</h3>'
             '<p class="rs-basis">큰 숫자 = 그 유형의 질문 하나에 보통 걸린 시간(중앙값, 질문을 보내고 답을 받기까지) · '
-            + (f"가운데 = AIONA 칸은 그 유형에서 가장 빠른 모델보다 몇 배인지, 다른 모델 칸은 AIONA보다 몇 배 빠르고(초록) 느린지(빨강) · " if me else
-               "가운데 = 그 유형에서 가장 빠른 모델보다 몇 배 오래 걸렸는지 · ")
+            + "가운데 = 그 유형 1등(가장 빠른 모델)보다 몇 배 오래 걸렸는지 · "
             + '작은 숫자 = 질문마다 가장 짧은 ~ 가장 긴 시간 · 색이 진할수록 차이가 큼'
             + f' · 열은 AIONA 다음, 네 모델이 모두 답한 {len(common)}문항의 답변 시간 합이 짧은 순'
             + (f" · 다시 수집할 칸({', '.join(redo_note)})은 뺐습니다" if redo_note else "") + '.</p>'
             f'<div class="lt-sum">{head}{"".join(panels)}</div>'
-            f'<h3 class="rs-sh">개선할 곳 — 답변 시간</h3><ul class="lt-finds">{"".join(finds)}</ul>')
+            + (f'<h3 class="rs-sh">개선할 곳 — 답변 시간</h3><ul class="lt-finds">{"".join(finds)}</ul>' if with_finds else ""))
 
 
 #: 심판 비교 — 이 실행에서 갈린 항목의 최종 결론(정의로 다시 묻기 · 수집 오류 고침 · 답 원문으로 확인, 10-22 조사). 숫자는 판정 기록에서 다시 센다.
@@ -1924,7 +1928,7 @@ def scene_judge_choice(D: Dict[str, Any]) -> Tuple[str, str]:
     return html_, key
 
 
-def scene_time(D: Dict[str, Any], tokens: bool = True) -> str:
+def scene_time(D: Dict[str, Any], tokens: bool = True, finds: bool = True) -> str:
     order = D["order"]
     W = judge_work(D)
     jmx = max((W[p]["seconds"] for p in order), default=0) or 1
@@ -1941,7 +1945,7 @@ def scene_time(D: Dict[str, Any], tokens: bool = True) -> str:
           + 'Jev · Decisions 는 외부 API · Codex CLI 는 ChatGPT 구독으로 실행.</p>')
     # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
     # 사용자 10-22 미팅 6번: 모델별 답변 시간 합 막대 · 유형별 평균 표 대신 질문 · 유형별 편차 (time_spread)
-    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + (token_table(D) if tokens else "")
+    return time_spread(D, finds) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + (token_table(D) if tokens else "")
 
 
 def token_table(D: Dict[str, Any]) -> str:
@@ -3707,8 +3711,8 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
              "요청 수행 · 지시 준수 · 논리 · 사실 · 대화 기억처럼 AI 심판이 판단한 기준의 결과만 따로 봤습니다. 막대는 LLM Judge 기준을 모두 통과한 질문 · "
              "보류가 남은 질문 · 하나라도 FAIL 을 받은 질문입니다.", scene_llm(D), ""),
             ("s5", "걸린 시간", "답변 수집 · 평가", "답변 수집 · 평가 시간",
-             f"답변 수집 {hm(collect_seconds(D))} · 평가(판정) {hm(judge_s)}. 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.",
-             scene_time(D, tokens=False), ""),
+             f"답변 수집 {hm(collect_seconds(D))} · 평가(판정) {hm(judge_s)}. 질문 하나하나의 시간이 유형에 따라 어떻게 다른지 봅니다 — 고칠 곳은 맨 아래 '개선할 곳'.",
+             scene_time(D, tokens=False, finds=False), ""),
             ("s_tok", "평가 토큰", "Jev · Decisions · Codex", "평가에 쓴 토큰 — 심판별 · 모델별",
              "판정하면서 심판이 실제로 처리한 토큰입니다 — 우리가 넣은 글과 받은 글을 센 값이 아니라, 각 API · CLI 가 돌려준 사용량을 모두 더했습니다.",
              scene_tokens(D), ""),
@@ -3721,6 +3725,9 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
              "열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 <code>aiona-chat-eval held-apply</code> 로 반영합니다.",
              scene_hold(D, part_of, brief=True) + decide_section(D, hblocks),
              f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
+            ("s_fix", "개선할 곳", "AIONA 답변 시간", "개선할 곳 — 답변 시간",
+             "다음 업데이트에서 볼 곳입니다. 유형마다 1등(가장 빠른 모델)과 견줘 누가 얼마나 느린지, 그리고 AIONA 가 그 질문의 1등보다 1.5배 이상 느린 질문입니다.",
+             scene_fix(D), ""),
         ]
     jd_html, jd_key = ("", "") if single else scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
