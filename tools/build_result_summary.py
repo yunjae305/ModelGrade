@@ -555,32 +555,98 @@ def criteria_list(D: Dict[str, Any]) -> str:
             + "</details>")
 
 
-def heat_head(order: List[str], corner: str) -> List[str]:
-    """기준 × 모델 표의 머리 — 왼쪽 위에 줄이 무엇인지, 모델 이름 아래 칸 숫자의 뜻, 합은 몇 모델을 더했는지
-    (사용자 10-27: "숫자만 써져있어서 처음봤을때 뭘 의미하는건지 모르겠어" · "걸린 질문수가 정확하게 뭐야")."""
-    return ([f'<div class="rs-hh rs-hk">{E(corner)}</div>'] + [f'<div class="rs-hh">{mname(p)}<small>FAIL 받은 질문 수</small></div>' for p in order]
-            + [f'<div class="rs-hh muted">합<small>{len(order)}모델</small></div>'])
+def crit_label(D: Dict[str, Any], cid: str) -> Tuple[str, str]:
+    """(이름, 무엇을 보나 한 줄) — 이름이 같은 세부 기준(J5-2.a · J5-2.b …)도 둘째 줄로 구별된다. 번호는 칸에 마우스를 올리면(title)."""
+    base, _, suf = cid.partition(":")
+    full = (D["names"].get(base) or {}).get("name") or base
+    name, _, desc = full.partition(" — ")
+    if suf:
+        name += f" ({SUFFIX.get(suf, suf)})"
+    desc = desc.strip()
+    return name, (desc[:70] + "…" if len(desc) > 70 else desc)
 
 
-def heat_key(what: str, n_q: int, n_m: int) -> str:
-    """표 바로 위 한 줄 — 칸 숫자가 정확히 무엇인지(몇 개 중 · 멀티턴은 어떻게 세는지) · 색 · 굵은 테두리 · 합."""
-    return (f'<p class="rs-hkey"><b>칸 숫자</b> = 그 모델의 답이 {E(what)}에서 FAIL 을 받은 질문 수 (질문 {n_q}개 중 — 빈 출력 요구는 빼고, 멀티턴 대화는 여러 턴에서 FAIL 이어도 1개) · '
-            f'색이 진할수록 많음 · <span class="rs-hkb">굵은 테두리</span> = 그 줄에서 가장 많은 모델 · 합 = {n_m}모델을 더한 수</p>')
+def request_line(D: Dict[str, Any], q: int, t: int = 1) -> str:
+    """그 질문(멀티턴은 그 턴)의 요청 한 줄 — '[붙여 넣은 자료]' 로 시작하면 요청이 있는 끝 줄."""
+    turns = D["qset"][q].get("turns") or [{}]
+    text = str((turns[t - 1] if 0 < t <= len(turns) else turns[0]).get("question") or "")
+    lines_ = [x.strip() for x in text.split("\n") if x.strip()] or [""]
+    qt = lines_[-1] if re.fullmatch(r"\[[^\]]{1,20}\]", lines_[0]) else lines_[0]
+    return qt[:160] + ("…" if len(qt) > 160 else "")
 
 
-def scene_criteria(D: Dict[str, Any], top_n: Optional[int] = 10) -> str:
+def fail_cell_detail(D: Dict[str, Any], c: str, p: str, qs: List[int], hid: str, name: str, back: str) -> str:
+    """FAIL 표 칸 하나를 누르면 열리는 상자 — 그 모델이 그 기준에서 FAIL 을 받은 질문마다 질문(요청 한 줄) · 답의 해당 문장 · 왜 FAIL · 원문 링크."""
+    po = D.get("_part_of") or {}
+    items = []
+    for q in qs:
+        L = D["lines"][(p, q)]
+        oid = f"f-{p}-{q}" if L["verdict"] == "FAIL" else f"b-{p}-{q}"
+        href = f"{po[oid]}#{oid}" if oid in po else ""
+        multi = len(D["qset"][q].get("turns") or []) > 1
+        ents = [e for e in fail_entries(D, p, q) if e["item"].split(":")[0] == c] or [{"turn": 1, "reason": "", "quote": "", "kind": ""}]
+        for e in ents:
+            tn = int(e.get("turn") or 1)
+            items.append(f'<div class="hf-q"><div class="hf-h"><b>Q{q}</b>{f" · 턴 {tn}" if multi else ""}'
+                         f' <span class="muted">{E(TYPE_NAME.get(D["qtypes"][q], ""))}{" · 질문 판정 보류" if L["verdict"] == "HOLD" else ""}</span>'
+                         + (f' <a href="{E(href)}">원문 · 답 전체 →</a>' if href else "") + "</div>"
+                         f'<div><span class="hf-k">질문</span>{E(request_line(D, q, tn if multi else 1))}</div>'
+                         + (f'<div><span class="hf-k">답</span>“{E(e["quote"][:220])}”</div>' if e.get("quote") else
+                            '<div><span class="hf-k">답</span><span class="muted">프로그램이 답 전체를 세거나 형식을 본 결과</span></div>' if e.get("kind") == "CODE" else "")
+                         + f'<div><span class="hf-k">왜 FAIL</span>{E(e.get("reason") or "사유 없음")}</div></div>')
+    return (f'<div class="hf" id="{hid}"><div class="hf-top"><b>{mname(p)} · {E(name)}</b><span class="muted">FAIL 받은 질문 {len(qs)}개</span>'
+            f'<a class="hf-x" href="#{back}">표로 ↑</a></div>{"".join(items)}</div>')
+
+
+def fail_heat(D: Dict[str, Any], rows: List[Tuple[str, Dict[str, set]]], kind: str, what: str, corner: str) -> str:
+    """기준(검사) × 모델 FAIL 표 — 칸 숫자 = 그 모델이 FAIL 을 받은 질문 수, 0 은 빈 칸, 숫자를 누르면 그 질문 · 답 · 이유가 표 아래에 열림.
+    위에 한눈에 한 줄(가장 많이 FAIL 난 것 · 모델마다 가장 많이 어긴 것)."""
+    order = D["order"]
+    if not rows:
+        return '<p class="rs-basis">FAIL 이 난 것이 없습니다.</p>'
+    mx = max([len(qs.get(p) or ()) for _c, qs in rows for p in order] or [1]) or 1
+    n_q = sum(1 for t in D["qtypes"].values() if t != EMPTY_REQ)
+    back = f"ht-{kind}"
+    tot = {c: sum(len(qs.get(p) or ()) for p in order) for c, qs in rows}
+    top3 = sorted(rows, key=lambda r: -tot[r[0]])[:3]
+    worst = {p: max(rows, key=lambda r: len(r[1].get(p) or ())) for p in order}
+    glance = ("<p class=\"hf-glance\"><b>한눈에</b> — 가장 많이 FAIL 난 " + E(what) + ": "
+              + " · ".join(f"{E(crit_label(D, c)[0])} {tot[c]}" for c, _qs in top3)
+              + " / 모델마다 가장 많이 어긴 " + E(what) + ": "
+              + " · ".join(f"{SHORT[p]} {E(crit_label(D, worst[p][0])[0])}({len(worst[p][1].get(p) or ())})" for p in order if worst[p][1].get(p))
+              + "</p>")
+    key = (f'<p class="rs-hkey"><b>칸 숫자 = 그 모델이 이 {E(what)}에서 FAIL 을 받은 질문 수</b>(질문 {n_q}개 중) · 빈 칸 = FAIL 없음 · 빨갈수록 많음 · '
+           f'맨 오른쪽 = 네 모델 합 · <b>숫자를 누르면 그 질문 · 답 · 왜 FAIL 인지가 표 아래에 열립니다</b>.'
+           f'<br><small>빈 출력 요구 질문은 빼고 셉니다. 10턴 대화는 여러 턴에서 FAIL 이어도 질문 1개로 셉니다.</small></p>')
+    cols = f"minmax(190px, 2fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.7fr)"
+    cells = ([f'<div class="rs-hh rs-hk">{E(corner)}</div>'] + [f'<div class="rs-hh">{mname(p)}</div>' for p in order]
+             + ['<div class="rs-hh muted">4모델 합</div>'])
+    details = []
+    for c, qs in rows:
+        name, desc = crit_label(D, c)
+        tag = ' <span class="hf-tag">에러 케이스</span>' if is_error_check(c.split(":")[0]) else ""
+        cells.append(f'<div class="rs-hl" title="{E(c)}"><b>{E(name)}{tag}</b>' + (f"<span>{E(desc)}</span>" if desc else "") + "</div>")
+        for p in order:
+            got = sorted(qs.get(p) or ())
+            if not got:
+                cells.append('<div class="rs-hc rs-hc-s rs-hc-0"></div>')
+                continue
+            hid = f"hf-{kind}-{re.sub(r'[^A-Za-z0-9]+', '-', c)}-{p}"
+            cells.append(f'<a class="rs-hc rs-hc-s rs-hc-a" href="#{hid}" style="{tint(len(got) / mx, "--risk")}" '
+                         f'title="{E(SHORT[p])} · {E(" · ".join(f"Q{q}" for q in got))} — 눌러서 질문 · 답 보기"><b>{len(got)}</b></a>')
+            details.append(fail_cell_detail(D, c, p, got, hid, name, back))
+        cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{tot[c]}</b></div>')
+    grid = f'<div class="rs-heat" id="{back}" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>"
+    return glance + key + grid + f'<div class="hf-list">{"".join(details)}</div>'
+
+
+def scene_criteria(D: Dict[str, Any], top_n: Optional[int] = 10, cards: bool = True) -> str:
     order = D["order"]
     cf = {c: v for c, v in crit_fail(D).items() if not c[0].isdigit()}   # 사용자 10-22: 'LLM Judge 가 많이 어긴 기준' — CODE 검사는 CODE 검사 장면
     top = sorted((c for c in cf if sum(cf[c].values())), key=lambda c: (-sum(cf[c].values()), c))[:top_n]
-    mx = max([cf[c][p] for c in top for p in order] or [1]) or 1
-    cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
-    cells = heat_head(order, "기준")
-    for c in top:
-        worst = max(cf[c][p] for p in order)
-        cells.append(f'<div class="rs-hl"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></div>')
-        cells.extend(f'<div class="rs-hc rs-hc-s{" rs-worst-c" if cf[c][p] == worst and worst else ""}" style="{tint(cf[c][p] / mx, "--risk")}"><b>{cf[c][p]}</b></div>' for p in order)
-        cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{sum(cf[c].values())}</b></div>')
-    grid = heat_key("이 기준", sum(1 for t in D["qtypes"].values() if t != EMPTY_REQ), len(order)) + f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>"
+    grid = fail_heat(D, [(c, {p: set(crit_qs(D, p, c)) for p in order}) for c in top], "llm", "기준", "기준")
+    if not cards:   # 결과 보고서 — '한 모델에만 몰린 것' 상자는 뺌, 칸을 누르면 질문 · 답을 바로 봄 (사용자 10-27 '이건 왜 넣어둔거야? 빼자')
+        return grid
     # 한 모델에만 몰린 기준 — 모델 특성인지 수집(복사) 탓인지 원문으로 확인
     cards = []
     for c, cnt in cf.items():
@@ -874,18 +940,10 @@ def scene_code(D: Dict[str, Any]) -> str:
             f'<span class="muted">질문 수 · 빈 출력 요구 {len(D["qtypes"]) - n}문항은 보류라 뺌 · 같은 답이면 다시 돌려도 결과가 같음(프로그램)</span></div>')
     checks = sorted(per, key=lambda c: (-sum(len(v) for v in per[c].values()), c))
     n_code = sum(1 for c in D["names"] if c[0].isdigit())
-    mx = max([len(per[c][p]) for c in checks for p in order] or [1]) or 1
-    cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
-    cells = heat_head(order, "검사")
-    for c in checks:
-        worst = max(len(per[c][p]) for p in order)
-        cells.append(f'<div class="rs-hl"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></div>')
-        cells.extend(f'<div class="rs-hc rs-hc-s{" rs-worst-c" if len(per[c][p]) == worst and worst else ""}" style="{tint(len(per[c][p]) / mx, "--risk")}" '
-                     f'title="{E(" · ".join(f"Q{q}" for q in sorted(per[c][p])))}"><b>{len(per[c][p])}</b></div>' for p in order)
-        cells.append(f'<div class="rs-hc rs-hc-s rs-sum"><b>{sum(len(v) for v in per[c].values())}</b></div>')
-    grid = (f'<h3 class="rs-sh">어떤 검사에서 FAIL 이 났나 — FAIL 이 난 검사 {len(checks)}개 ({n_code}개 중)</h3>'
-            f'<p class="rs-basis">칸에 마우스를 올리면 그 질문 번호가 보입니다. 나머지 {n_code - len(checks)}개 검사는 네 모델 모두 통과.</p>'
-            + heat_key("이 검사", n, len(order)) + f'<div class="rs-heat" style="grid-template-columns: {cols}">' + "".join(cells) + "</div>")
+    n_err = sum(1 for c in D["names"] if c[0].isdigit() and is_error_check(c))
+    grid = (f'<h3 class="rs-sh">어떤 검사에서 FAIL 이 났나 — FAIL 이 난 검사 {len(checks)}개 (검사 {n_code}개 중 — CODE {n_code - n_err} · 에러 케이스 {n_err})</h3>'
+            f'<p class="rs-basis">나머지 {n_code - len(checks)}개 검사는 네 모델 모두 통과했습니다.</p>'
+            + fail_heat(D, [(c, per[c]) for c in checks], "code", "검사", "검사"))
     return bars + grid
 
 
@@ -922,7 +980,7 @@ def scene_llm(D: Dict[str, Any]) -> str:
             f'<span><i class="cd-bad"></i>하나라도 FAIL</span><span class="muted">질문 수 · 빈 출력 요구 {len(D["qtypes"]) - n}문항은 보류라 뺌</span></div>')
     n_llm = sum(1 for c in D["names"] if str(c).startswith("J"))
     k = sum(1 for c, v in crit_fail(D).items() if str(c).startswith("J") and sum(v.values()))
-    return bars + f'<h3 class="rs-sh">어떤 기준에서 FAIL 이 났나 — FAIL 이 난 기준 {k}개 ({n_llm}개 중)</h3>' + scene_criteria(D, top_n=None)
+    return bars + f'<h3 class="rs-sh">어떤 기준에서 FAIL 이 났나 — FAIL 이 난 기준 {k}개 ({n_llm}개 중)</h3>' + scene_criteria(D, top_n=None, cards=False)
 
 
 def scene_tokens(D: Dict[str, Any]) -> str:
@@ -2990,11 +3048,10 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-hc { border-radius: 10px; border: 1px solid var(--line); display: grid; place-items: center; padding: 10px 6px; min-height: 54px; font-family: var(--font-num); }
 .rs-hc b { font-size: 1.3rem; font-weight: 600; } .rs-hc small { font-size: 0.8rem; color: var(--muted); } .rs-hc span { white-space: nowrap; }
 .rs-hc-s { min-height: 44px; padding: 6px; } .rs-hc-s b { font-size: 1.1rem; }
-.rs-hc.rs-best, .rs-hc.rs-worst-c { border: 2px solid var(--ink); }
+.rs-hc.rs-best { border: 2px solid var(--ink); }
 /* 사용자 10-27: 칸 숫자의 뜻을 표 안에 — 모델 이름 아래 · 왼쪽 위 · 표 위 한 줄 */
 .rs-hh small { display: block; font-size: 0.72rem; font-weight: 500; color: var(--muted); } .rs-hh.rs-hk { text-align: left; color: var(--muted); }
 .rs-hkey { margin: 0 0 8px; font-size: 0.82rem; color: var(--muted); line-height: 1.55; word-break: keep-all; }
-.rs-hkb { display: inline-block; padding: 0 6px; border: 2px solid var(--ink); border-radius: 6px; color: var(--ink); }
 /* 마감 범위 항목의 상태 (사용자 10-27: 10-26 미팅 기준으로 다시) */
 .cl-st { display: inline-block; font-size: 0.72rem; font-weight: 600; border-radius: 999px; padding: 0 8px; margin-left: 2px; white-space: nowrap; vertical-align: 1px; }
 .cl-done { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); color: var(--ok); } .cl-doing { background: var(--hold-soft); color: var(--hold-text); } .cl-todo { border: 1px solid var(--line); color: var(--muted); }
@@ -3095,6 +3152,16 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
 .rs-fd:target { display: block; border: 2px solid var(--accent); }
 .rs-fd.rs-show { display: block; }
+.rs-hc-0 { background: transparent; border-style: dashed; }
+a.rs-hc-a { text-decoration: none; color: var(--ink); cursor: pointer; } a.rs-hc-a:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hf-glance { margin: 0 0 8px; font-size: 0.9rem; line-height: 1.6; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.hf-list { display: grid; gap: 10px; margin-top: 10px; }
+.hf { display: none; background: var(--surface); border: 2px solid var(--accent); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 72px; }
+.hf:target { display: grid; gap: 8px; }
+.hf-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: 0.95rem; } .hf-x { margin-left: auto; font-size: 0.82rem; }
+.hf-q { border-top: 1px dashed var(--line); padding-top: 8px; display: grid; gap: 3px; font-size: 0.88rem; line-height: 1.55; }
+.hf-k { display: inline-block; min-width: 4.2em; font-size: 0.75rem; color: var(--muted); }
+.hf-tag { font-size: 0.7rem; font-weight: 600; color: var(--hold-text); background: var(--hold-soft); border-radius: 6px; padding: 0 6px; margin-left: 4px; }
 .ts-tab td { vertical-align: top; line-height: 1.55; } .ts-m { white-space: nowrap; } .ts-tab small { color: var(--muted); }
 .tu-intro { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 6px; }
 .tu-intro p { margin: 0; font-size: 0.92rem; line-height: 1.6; }
@@ -3664,6 +3731,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         part_of = {m: "" for _p, _q, body in fblocks + pblocks + hblocks for m in re.findall(r'<article class="rs-fd[^"]*" id="([fpb]-[a-z]+-\d+)"', body)}
     else:
         part_of = {m: f"{sub}/{f}" for f, _d, body in parts + pparts + hparts for m in re.findall(r'<article class="rs-fd" id="([fpb]-[a-z]+-\d+)"', body)}
+    D["_part_of"] = part_of   # FAIL 표 칸을 누르면 열리는 상자의 '원문 →' 링크 (fail_cell_detail)
     e_file = "갈림.html"
     n_disagree, e_table = disagree_table(D)
     cats = board_categories(D)
