@@ -968,6 +968,19 @@ def rank_items(cells: Sequence[Dict[str, Any]], marks: Dict[Tuple[str, int, int,
     return [(i, dict(st[i])) for i in ok[:n]]
 
 
+def finished_items(run_id: str, judge_out: str) -> set:
+    """이 실행 · 판정 폴더를 재료로 끝까지(교훈 lesson.json) 돈 기준들 — data/refine/<실행>/<기준>/<시각>/."""
+    out = set()
+    for meta in (REFINE / run_id).glob("*/*/meta.json"):
+        try:
+            m = json.loads(meta.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if m.get("judge") == judge_out and (meta.parent / "lesson.json").exists():
+            out.add(m.get("item") or meta.parent.parent.name)
+    return out
+
+
 def cmd_auto(a: argparse.Namespace) -> Dict[str, Any]:
     """평가 끝에 자동 (사용자 10-27) — 기준을 골라 run --apply 를 차례로, 시간 한도 안에서. 한 기준이 실패해도 다음 기준으로.
     끝에 변경내역 · 제안목록을 적고 한 줄씩 요약한다."""
@@ -977,7 +990,10 @@ def cmd_auto(a: argparse.Namespace) -> Dict[str, Any]:
     set_dir = Path(a.set)
     marks_path = RUNS / a.run / a.judge / "human_decisions.json"
     marks = load_marks(marks_path) if marks_path.exists() else {}
-    picks = rank_items(load_cells(a.run, a.judge, set_dir), marks, a.items)
+    done = finished_items(a.run, a.judge)   # 같은 판정 결과로 이미 끝낸 기준(교훈까지)은 건너뜀 — 다시 돌리면 다음 기준으로 (10-27)
+    if done:
+        say("하네스2 — 이미 끝낸 기준은 건너뜀: " + " · ".join(sorted(done)))
+    picks = rank_items([c for c in load_cells(a.run, a.judge, set_dir) if c["item"] not in done], marks, a.items)
     if not picks:
         say("하네스2 — 다듬을 기준이 없습니다(FAIL · 보류와 통과가 함께 있는 LLM 기준 없음)")
         return {"results": []}

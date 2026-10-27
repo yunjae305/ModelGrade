@@ -262,3 +262,15 @@ def test_question_fix_is_checked_applied_recorded_and_recollected(tmp_path: Path
     assert rl.adoption({"accuracy": 0.5}, {"text_target": "질문"})[0] == "채택" and rl.adoption({"accuracy": 1.0}, {"text_target": "질문"})[0] == "보류"
     with pytest.raises(rl.EditError):
         rl.apply_text({"target": "질문", "edits": [{"question": 9, "turn": 1, "old": "a", "new": "b"}]}, set_dir, dry=True)
+
+
+def test_auto_skips_items_already_finished_on_the_same_judge(tmp_path: Path, monkeypatch):
+    """다시 돌리면 같은 판정 결과로 교훈까지 끝낸 기준은 건너뛴다 (10-27) — 다른 판정 폴더 · 중간에 멈춘 것은 다시."""
+    monkeypatch.setattr(rl, "REFINE", tmp_path)
+    for item, judge, lesson in (("J3-5.a", "v4-1027", True), ("J2-3.a", "v4-1027", False), ("J1-4.b", "v4", True)):
+        d = tmp_path / "r1" / item / "2026-10-27_10-00-00"
+        d.mkdir(parents=True)
+        (d / "meta.json").write_text(json.dumps({"item": item, "judge": judge}), encoding="utf-8")
+        if lesson:
+            (d / "lesson.json").write_text("{}", encoding="utf-8")
+    assert rl.finished_items("r1", "v4-1027") == {"J3-5.a"}
