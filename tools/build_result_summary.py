@@ -339,6 +339,63 @@ TURN_FLOW = {"setup": ("조건 정리", "조건 정리 · A·B 안 비교 · 추
              "final": ("최종 일정", "바뀐 조건을 모두 반영한 일정")}
 
 
+def turn_cell_detail(D: Dict[str, Any], f: str, p: str, units: List[Tuple[int, int]], hid: str, back: str) -> str:
+    """턴 종류 표 칸 하나를 누르면 열리는 상자 — 그 모델이 그 일에서 FAIL 난 턴마다 질문(그 턴 요청 한 줄) · 어긴 기준 · 왜 FAIL · 답의 해당 문장 · 원문 링크."""
+    po = D.get("_part_of") or {}
+    rows = []
+    for q, t in units:
+        if D["uverdict"].get((p, q, t)) != "FAIL":
+            continue
+        L = D["lines"][(p, q)]
+        oid = f"f-{p}-{q}" if L["verdict"] == "FAIL" else f"b-{p}-{q}"
+        href = f"{po[oid]}#{oid}" if oid in po else ""
+        why = "".join(f'<div><span class="hf-k">왜 FAIL</span><b>{E(crit_label(D, e["item"])[0])}</b> — {E(e.get("reason") or "사유 없음")}'
+                      + (f'<br><span class="hf-k">답</span>“{E(e["quote"][:220])}”' if e.get("quote") else "") + "</div>"
+                      for e in fail_entries(D, p, q) if int(e.get("turn") or 1) == t)
+        rows.append(f'<div class="hf-q"><div class="hf-h"><b>Q{q}</b> · 턴 {t}' + (f' <a href="{E(href)}">원문 · 답 전체 →</a>' if href else "") + "</div>"
+                    f'<div><span class="hf-k">질문</span>{E(request_line(D, q, t))}</div>{why}</div>')
+    return (f'<div class="hf" id="{hid}"><div class="hf-top"><b>{mname(p)} · {E(TURN_FLOW[f][0])}</b><span class="muted">FAIL 난 턴 {len(rows)}개</span>'
+            f'<a class="hf-x" href="#{back}">표로 ↑</a></div>{"".join(rows)}</div>')
+
+
+def unit_cells(D: Dict[str, Any], ty: str) -> Tuple[int, float, float, float]:
+    """(문항 수, 문항당 LLM 기준 판정 칸 평균, 판정 칸 FAIL 비율, 문항 FAIL 비율) — 네 모델 합. '기준별 결과'(판정 칸 단위 통과율 90%대)와
+    턴 · 질문 단위 FAIL 비율이 왜 다른지 보이는 데 씀(사용자 10-27 '결과가 좀 이상하다?')."""
+    units = [(q, t) for q, t in D["units"] if D["utype"].get((q, t)) == ty and D["qtypes"][q] != EMPTY_REQ]
+    cells = fails = ufail = 0
+    for p in D["order"]:
+        for q, t in units:
+            its = [i for i in D["lines"][(p, q)]["items"] if not t or i["turn"] == t]
+            cells += len(its)
+            fails += sum(i["decision"] == "FAIL" for i in its)
+            ufail += D["uverdict"].get((p, q, t)) == "FAIL"
+    n = len(units) * len(D["order"]) or 1
+    return len(units), cells / n, fails / (cells or 1), ufail / n
+
+
+def type_fail_heat(D: Dict[str, Any]) -> str:
+    """유형별로 어떤 기준에서 FAIL 이 났나 — 싱글턴 | 멀티턴 | 롱컨텍스트 탭, 칸 = 그 유형 질문 중 그 기준에서 FAIL 받은 질문 수(누르면 질문 · 답 · 이유)
+    (사용자 10-27 '위 이미지의 내용을 이거 표 아래에 … 싱글턴, 멀티턴, 롱컨텍스트로 나눠서'). CODE 검사 · LLM Judge 기준을 함께."""
+    order = D["order"]
+    tabs = []
+    for i, ty in enumerate(("싱글턴", "멀티턴", "롱컨텍스트")):
+        qs = {q for q, t in D["qtypes"].items() if R.unit_type(t) == ty and t != EMPTY_REQ}
+        if not qs:
+            continue
+        per = {c: {p: {q for q in crit_qs(D, p, c) if q in qs} for p in order} for c in crit_fail(D)}
+        rows = sorted(((c, v) for c, v in per.items() if any(v.values())), key=lambda r: (-sum(len(x) for x in r[1].values()), r[0]))
+        n_u, avg, cell_r, unit_r = unit_cells(D, ty)
+        note = (f'<p class="rs-basis">{E(ty)} 질문 {len(qs)}개' + (f"(턴 {n_u}개)" if n_u != len(qs) else "")
+                + f' — 문항 하나를 평균 <b>{avg:.0f}개</b> LLM 기준으로 판정, 판정 하나하나의 FAIL 은 <b>{cell_r:.1%}</b> 이지만 '
+                f'하나라도 어기면 그 문항이 FAIL 이라 문항 FAIL 은 <b>{unit_r:.0%}</b> 입니다(기준별 결과의 통과율이 90%대인데 FAIL 이 많아 보이는 까닭).</p>')
+        tabs.append((ty, note + fail_heat(D, rows, f"ty{i}", "기준", "기준", n_of=len(qs))))
+    radios = "".join(f'<input type="radio" name="tyf" id="tyf{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
+    labels = '<div class="hm-tabs">' + "".join(f'<label for="tyf{i}">{E(t)}</label>' for i, (t, _x) in enumerate(tabs)) + "</div>"
+    panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn tyf-p{i}">{x}</div>' for i, (_t, x) in enumerate(tabs)) + "</div>"
+    return (f'<h3 class="rs-sh">유형별로 어떤 기준에서 FAIL 이 났나 — 싱글턴 · 멀티턴 · 롱컨텍스트</h3><div class="hm">{radios}{labels}{panels}</div>'
+            + tab_css("tyf", len(tabs), ".hm-tabs", ".hm-ps", "tyf-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
+
+
 def turn_kinds(D: Dict[str, Any]) -> str:
     """멀티턴 턴 종류별 (10-26 미팅 12번 · '싱글 vs 대화 중' 비교는 10-27 사용자 '없어도 될 것 같은데?'로 뺌) — 문항 결론(uverdict)을 멀티턴 턴의 종류(flow)로 묶고,
     모델마다 FAIL 비율(FAIL 난 턴 ÷ 그 일을 시킨 턴)을 보인다 — '어떤 요청에 약한가'라 FAIL 쪽을 크게, 색은 진할수록 많이 틀린 것, 줄은 약한 일부터
@@ -359,10 +416,16 @@ def turn_kinds(D: Dict[str, Any]) -> str:
     def rate(f: str) -> float:   # 네 모델 합친 FAIL 비율
         return sum(cnt(p, by_flow[f])["FAIL"] for p in order) / (len(by_flow[f]) * len(order))
 
-    def cell(c: Counter, of: int) -> str:
+    details: List[str] = []
+
+    def cell(c: Counter, of: int, f: str = "", p: str = "") -> str:
         r = c["FAIL"] / of if of else 0
-        return (f'<td style="{tint(r, "--risk")}"><b>{r:.0%}</b>'
-                f'<em>FAIL {c["FAIL"]} / {of}' + (f' · 보류 {c["HOLD"]}' if c["HOLD"] else "") + '</em></td>')
+        inner = f'<b>{r:.0%}</b><em>FAIL {c["FAIL"]} / {of}' + (f' · 보류 {c["HOLD"]}' if c["HOLD"] else "") + "</em>"
+        if f and c["FAIL"]:   # 누르면 FAIL 난 턴의 질문 · 답 · 이유가 표 아래에 (10-27)
+            hid = f"tu-{f}-{p}"
+            details.append(turn_cell_detail(D, f, p, by_flow[f], hid, "tu-tab"))
+            inner = f'<a class="tu-a" href="#{hid}" title="{E(SHORT[p])} · 눌러서 FAIL 난 턴의 질문 · 답 보기">{inner}</a>'
+        return f'<td style="{tint(r, "--risk")}">{inner}</td>'
 
     fl.sort(key=lambda f: (-rate(f), list(TURN_FLOW).index(f)))   # 약한 일부터
 
@@ -370,14 +433,15 @@ def turn_kinds(D: Dict[str, Any]) -> str:
     multi = [u for f in fl for u in by_flow[f]]
     head_m = "".join(f'<th><span class="hm-m">{avatar(p)}<b>{SHORT[p]}</b></span></th>' for p in order)
     body = "".join(f'<tr><th scope="row"><b>{E(TURN_FLOW[f][0])}</b><small>{E(TURN_FLOW[f][1])}</small></th><td class="tu-n">{len(by_flow[f])}</td>'
-                   + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f])) for p in order) + "</tr>" for f in fl)
+                   + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f]), f, p) for p in order) + "</tr>" for f in fl)
     body += ('<tr class="tu-sum"><th scope="row"><b>멀티턴 전체</b></th>' + f'<td class="tu-n">{len(multi)}</td>'
              + "".join(cell(cnt(p, multi), len(multi)) for p in order) + "</tr>")
-    tabs = [("턴 종류별", "줄 = 대화 안에서 시킨 일(약한 일부터) · 턴 수 = 그 일을 시킨 턴 · 칸 = FAIL 비율, 아래 작은 글씨는 FAIL 난 턴 / 시킨 턴",
-             f'<table class="hm-tab tu-tab"><thead><tr><th>대화 안에서 시킨 일</th><th>턴 수</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
+    tabs = [("턴 종류별", "줄 = 대화 안에서 시킨 일(약한 일부터) · 턴 수 = 그 일을 시킨 턴 · 칸 = FAIL 비율, 아래 작은 글씨는 FAIL 난 턴 / 시킨 턴 · 칸을 누르면 그 턴의 질문 · 답 · 왜 FAIL 이 표 아래에",
+             f'<table class="hm-tab tu-tab" id="tu-tab"><thead><tr><th>대화 안에서 시킨 일</th><th>턴 수</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
     # '싱글 vs 대화 중' 비교 탭은 뺌 (사용자 10-27 '없어도 될 것 같은데?') — 턴 종류별 표 하나만, 탭 버튼 없이
     (_t, d0, x0), = tabs
-    panels = f'<div class="hm-ps"><div class="hm-one"><p class="hm-d">{E(d0)}</p><div class="hm-scroll">{x0}</div></div></div>'
+    panels = (f'<div class="hm-ps"><div class="hm-one"><p class="hm-d">{E(d0)}</p><div class="hm-scroll">{x0}</div>'
+              f'<div class="hf-list">{"".join(details)}</div></div></div>')
     hard, easy = fl[0], fl[-1]
     ex = by_flow[hard]
     worst = max(order, key=lambda p: (cnt(p, ex)["FAIL"], -order.index(p)))
@@ -388,7 +452,7 @@ def turn_kinds(D: Dict[str, Any]) -> str:
              f'색이 진할수록 많이 틀린 것입니다.</p>'
              f'<p><b>한눈에</b> — 가장 약했던 일은 <b>{E(TURN_FLOW[hard][0])}</b>(네 모델 FAIL {rate(hard):.0%}), '
              f'가장 강했던 일은 <b>{E(TURN_FLOW[easy][0])}</b>({rate(easy):.0%})입니다.</p></div>')
-    return f'<h3 class="rs-sh">대화 안에서 어떤 요청에 약한가 — 멀티턴 턴 종류별</h3>{intro}<div class="hm">{panels}</div>'
+    return f'<h3 class="rs-sh">대화 안에서 어떤 요청에 약한가 — 멀티턴 턴 종류별</h3>{intro}<div class="hm">{panels}</div>' + type_fail_heat(D)
 
 
 def scene_flow(D: Dict[str, Any]) -> str:
@@ -566,14 +630,14 @@ def fail_cell_detail(D: Dict[str, Any], c: str, p: str, qs: List[int], hid: str,
             f'<a class="hf-x" href="#{back}">표로 ↑</a></div>{"".join(items)}</div>')
 
 
-def fail_heat(D: Dict[str, Any], rows: List[Tuple[str, Dict[str, set]]], kind: str, what: str, corner: str) -> str:
+def fail_heat(D: Dict[str, Any], rows: List[Tuple[str, Dict[str, set]]], kind: str, what: str, corner: str, n_of: Optional[int] = None) -> str:
     """기준(검사) × 모델 FAIL 표 — 칸 숫자 = 그 모델이 FAIL 을 받은 질문 수, 0 은 빈 칸, 숫자를 누르면 그 질문 · 답 · 이유가 표 아래에 열림.
     위에 한눈에 한 줄(가장 많이 FAIL 난 것 · 모델마다 가장 많이 어긴 것)."""
     order = D["order"]
     if not rows:
         return '<p class="rs-basis">FAIL 이 난 것이 없습니다.</p>'
     mx = max([len(qs.get(p) or ()) for _c, qs in rows for p in order] or [1]) or 1
-    n_q = sum(1 for t in D["qtypes"].values() if t != EMPTY_REQ)
+    n_q = n_of if n_of is not None else sum(1 for t in D["qtypes"].values() if t != EMPTY_REQ)
     back = f"ht-{kind}"
     tot = {c: sum(len(qs.get(p) or ()) for p in order) for c, qs in rows}
     top3 = sorted(rows, key=lambda r: -tot[r[0]])[:3]
@@ -2798,6 +2862,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
 .tu-tab thead th { vertical-align: bottom; } .tu-tab thead th:not(:first-child) { text-align: center; }
 .tu-tab td { text-align: center; vertical-align: top; } .tu-tab td b { font-size: 1rem; } .tu-tab td small { color: var(--muted); font-size: 0.78rem; }
 .tu-tab td em { display: block; font-style: normal; font-size: 0.72rem; color: var(--muted); }
+.tu-tab td a.tu-a { display: block; color: inherit; text-decoration: none; } .tu-tab td a.tu-a:hover b { text-decoration: underline; }
 .tu-tab tbody th small { display: block; font-size: 0.74rem; color: var(--muted); }
 .tu-tab tr.tu-sum th, .tu-tab tr.tu-sum td { border-top: 2px solid var(--line); }
 .tu-tab td.tu-dim, .tu-tab td.tu-n { color: var(--muted); } .tu-tab th.tu-c1, .tu-tab td.tu-c1 { border-left: 1px solid var(--line); }

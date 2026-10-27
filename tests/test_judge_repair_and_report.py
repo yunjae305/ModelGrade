@@ -260,7 +260,12 @@ def _flow_d(set_dir: Path) -> dict:
     qset = {1: {"turns": [{}, {}, {}], "flow": ["setup", "calc", "fmt"]}, 5: {"turns": [{}]}, 6: {"turns": [{}]}, 7: {"turns": [{}]}}
     qtypes = {1: rh.MULTI_TYPE, 5: "단일 질문", 6: "단일 질문", 7: "명시적 빈 출력"}
     V = {("gpt", 1, 1): "PASS", ("gpt", 1, 2): "FAIL", ("gpt", 1, 3): "HOLD", ("gpt", 5, 0): "PASS", ("gpt", 6, 0): "PASS", ("gpt", 7, 0): "HOLD"}
-    return {"order": ["gpt"], "qset": qset, "qtypes": qtypes, "units": rh.units_of(qtypes, {1: 3}), "uverdict": V, "set_dir": set_dir}
+    units = rh.units_of(qtypes, {1: 3})
+    lines = {("gpt", q): {"items": [], "line": {}, "verdict": "PASS"} for q in qtypes}
+    lines[("gpt", 1)] = {"items": [{"item": "J2-1.a", "decision": "FAIL", "turn": 2, "reason": "합계를 틀림", "answer_quote": "합계는 10"}],
+                         "line": {}, "verdict": "FAIL"}
+    return {"order": ["gpt"], "qset": qset, "qtypes": qtypes, "units": units, "uverdict": V, "set_dir": set_dir, "lines": lines, "turns": {},
+            "names": {"J2-1.a": {"name": "계산 정확 — 표의 값으로 계산"}}, "utype": {u: rh.unit_type(qtypes[u[0]]) for u in units}}
 
 
 def test_turn_kinds_count_units_by_flow(tmp_path: Path):
@@ -270,6 +275,9 @@ def test_turn_kinds_count_units_by_flow(tmp_path: Path):
     page = brs.turn_kinds(D)
     assert "멀티턴 전체" in page and "<b>33%</b><em>FAIL 1 / 3 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류 — FAIL 비율로 (10-27)
     assert "싱글 vs 대화 중" not in page and "<b>읽는 법</b>" in page
+    # 칸을 누르면 FAIL 난 턴의 질문 · 어긴 기준 · 답 문장 (10-27) · 아래에 유형별 FAIL 기준 탭
+    assert 'href="#tu-calc-gpt"' in page and 'id="tu-calc-gpt"' in page and "Q1</b> · 턴 2" in page and "합계를 틀림" in page and "“합계는 10”" in page
+    assert "유형별로 어떤 기준에서 FAIL 이 났나" in page and '<label for="tyf0">싱글턴</label>' in page and "멀티턴</label>" in page
     assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
 
 

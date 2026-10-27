@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.0-informational.svg" alt="version 2.0.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.1.0-informational.svg" alt="version 2.1.0"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 채점(프로그램 · AI 심판) → 보고서 → 하네스2(기준 다듬기)</code></p>
@@ -53,6 +53,13 @@ flowchart LR
 
 <!-- 새로운 기능: tools/version.py 가 CHANGELOG.md 에서 채움 — 여기는 손으로 고치지 않음 -->
 
+### 2026년 10월 27일 · `2.1.0`
+
+**신규**
+
+- 보고서 '대화 안에서 어떤 요청에 약한가' — 칸을 누르면 그 모델이 그 일에서 FAIL 난 턴마다 질문 · 어긴 기준 · 왜 FAIL · 답 문장 · 원문 링크
+- 보고서 '유형별로 어떤 기준에서 FAIL 이 났나' — 싱글턴 | 멀티턴 | 롱컨텍스트 탭, 칸을 누르면 질문 · 답 · 이유. 탭마다 '판정 하나의 FAIL 은 몇 % 지만 문항 FAIL 은 몇 %' 한 줄(기준별 결과의 통과율 90%대와 다른 까닭)
+
 ### 2026년 10월 27일 · `2.0.0`
 
 **신규**
@@ -81,20 +88,6 @@ flowchart LR
 
 - 발표 흐름도(tools/result_flow.py) 문구 · 배치 — '1차 · 2차 심판' → '채점 심판(Jev · Decisions) · 확인 심판(Codex)', 'Codex CLI 인가' 메모를 Codex 상자 바로 아래로, 도형 범례(메모 포함)를 흐름도 위 한 줄로
 - 최종 발표 자료본 앞 7장면 손질(평가 모델 개요 · 결과 제공 방식 · 보류 · 발전 방향 · 상시 운영) · 상세 분석 11장면과 합침
-
-### 2026년 10월 27일 · `1.4.0`
-
-**신규**
-
-- 하네스2 진행 표시 — 터미널에 `하네스2 작업 중 [1/2] <기준>`, 단계 `── 1/5 칸 모으기 … 5/5 교훈 · 반영`, 기준별 · 전체 걸린 시간
-- README 흐름도(Mermaid) — 한눈에(수집 → 채점 → 보고서 → 하네스2) · 어떻게 평가하나 · 하네스2 절
-
-**개선됨**
-
-- 보고서 '이번 실행 결과' — 맨 위에 기본 정보(모델 · 수집) 표, 순위 그래프 둘을 '질문 단위 | 문항 단위' 버튼으로 한 공간에, 순위 오름차순, '잠정' · 점선 · '싱글 vs 대화 중' 탭 뺌
-- FAIL 표 칸 테두리 검은색 · 칸을 누르면 질문 · 답 · 사유
-- 발표 템플릿 · 최종 발표 자료본의 상세 분석을 보고서와 같은 장면(11개)으로
-- 하네스2 — 시간 한도 없앰(`--budget-min` 기본 0)
 
 <!-- /새로운 기능 -->
 
