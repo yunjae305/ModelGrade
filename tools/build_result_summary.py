@@ -3786,7 +3786,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         ("s1", "이번 실행 결과", "순위 · 분포 · 유형별 (잠정)", "이번 실행 결과 — 순위 · 분포 · 유형별 · 턴 종류별 통과율 (잠정)",
          f"맨 위는 순위(질문 단위 — 통과 질문 수 / {D['nq']}), 그 아래는 문항 단위(멀티턴은 턴마다) 완전 통과 · 보류 · FAIL 분포, 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율, "
          "멀티턴 턴 종류별 통과율과 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때의 비교입니다. 보류를 사람이 정하기 전의 잠정 결과입니다.",
-         rank_card(D) + numbers_key(D) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),
+         rank_card(D) + ("" if single else numbers_key(D)) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),   # 보고서는 '숫자 읽는 법' 뺌 (사용자 10-27)
         ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표", units_note(D), ar_board(D, cats), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
          "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
