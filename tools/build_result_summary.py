@@ -2011,6 +2011,11 @@ def three_judges(D: Dict[str, Any]) -> bool:
     return "Jev" in (D["d"]["judgment"].get("pipeline") or "")
 
 
+def version_label() -> str:
+    from tools.version import label
+    return label()
+
+
 def ar_overview(D: Dict[str, Any]) -> str:
     """개요 (사용자 10-21: 줄이기) — 제목 · 질문 수 · 소요 시간만. '확인할 것'은 빼고(내용은 FAIL 원인 · 보류 장면), '전체' 순위 카드는 순위표 장면 맨 위로."""
     judge_s = judge_seconds(D)
@@ -2020,7 +2025,8 @@ def ar_overview(D: Dict[str, Any]) -> str:
             else f'<b>{hm(judge_s)}</b><span>판정 소요</span>')
     hero = (f'<div class="ar-hero" style="grid-template-columns: minmax(0, 1fr)"><div class="ar-hl">'
             '<h1 class="ar-h1"><em>AIONA</em> 채팅 품질 평가</h1>'   # 사용자 10-21: 깔끔한 제목
-            f'<div class="ar-stat"><b>{D["nq"]}</b><span>질문 · {D["n"]}문항</span><b style="margin-left:18px">·</b>{took}</div></div></div>')   # 실행 정보 줄은 뺌 (사용자 10-22)
+            f'<div class="ar-stat"><b>{D["nq"]}</b><span>질문 · {D["n"]}문항</span><b style="margin-left:18px">·</b>{took}</div>'
+            f'<p class="muted" style="margin:6px 0 0;font-size:0.82rem">{E(version_label())}</p></div></div>')   # 시맨틱 버저닝 (10-27)   # 실행 정보 줄은 뺌 (사용자 10-22)
     return hero
 
 

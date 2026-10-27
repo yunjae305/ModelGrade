@@ -1382,6 +1382,8 @@ def cmd_held(args: argparse.Namespace) -> int:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="aiona-chat-eval", description=__doc__.splitlines()[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+    from tools.version import label
+    parser.add_argument("--version", action="version", version=label())   # 시맨틱 버저닝 (tools/version.py · CHANGELOG.md, 10-27)
     sub = parser.add_subparsers(dest="cmd", required=True)
     collect = sub.add_parser("collect", help="답변 수집").add_subparsers(dest="sub", required=True)
     imp = collect.add_parser("import", help="웹브라우저에서 받아 적은 답변 CSV 올리기 (+ CODE 평가)")

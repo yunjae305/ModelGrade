@@ -471,3 +471,16 @@ def test_brief_console_lines_for_collect_and_judge(monkeypatch):
         "  GPT                        Q4   FAIL · 260초 · 어긴 기준 3"
     assert jv.brief_line("   🔎 Q11 aiona 1차 jev OK") is None and jv.brief_line("── 평가 현황 20:11 ──") is None
     assert jv.brief_line("      ⚠ Q1 gemini Codex: 429") == "  ⚠ Q1 gemini Codex: 429"
+
+
+def test_version_follows_semver(capsys):
+    """버전은 시맨틱 버저닝 X.Y.Z (사용자 10-27) — aiona-chat-eval --version 과 CHANGELOG.md 의 맨 위 버전이 같다."""
+    import re
+    from pathlib import Path
+    from tools import version
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version.__version__)
+    with pytest.raises(SystemExit):
+        mg.main(["--version"])
+    assert capsys.readouterr().out.strip() == f"aiona-chat-eval {version.__version__}"
+    top = re.search(r"^## (\d+\.\d+\.\d+)", (Path(__file__).resolve().parents[1] / "CHANGELOG.md").read_text(encoding="utf-8"), re.M)
+    assert top and top.group(1) == version.__version__

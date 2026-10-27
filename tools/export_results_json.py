@@ -145,7 +145,8 @@ def export(run_id: str, label: str, only: Optional[List[int]] = None, out_dir: P
     run = json.loads((runs_dir / f"{run_id}.json").read_text(encoding="utf-8"))
     scope = set(only) if only else None
     numbers = only or sorted({_qno(r["case_id"]) for rows in (run.get("datasets") or {}).values() for r in rows if r})
-    doc: Dict[str, Any] = {"format": FORMAT, "exported_at": datetime.now(timezone.utc).isoformat(), "run_id": run_id, "label": label,
+    from tools.version import __version__
+    doc: Dict[str, Any] = {"format": FORMAT, "program_version": __version__, "exported_at": datetime.now(timezone.utc).isoformat(), "run_id": run_id, "label": label,
                            "name": run.get("name"), "created_at": run.get("created_at"), "question_set": run.get("question_set"),
                            "question_revision": run.get("question_revision") or "v2.0", "eval_kind": run.get("eval_kind"),
                            **({"result": result} if result else {}),   # 다시 판정 폴더 표시 — 머리에 (tools/result_dirs 가 앞부분만 읽음)
