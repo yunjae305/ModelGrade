@@ -2410,13 +2410,10 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
             f'<div class="rs-qms">{"".join(rows)}</div></article>')
 
 
-def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict[str, str], e_link: str, n_disagree: int, sub: str,
-             pparts: Optional[List[Tuple[str, str, str]]] = None, hparts: Optional[List[Tuple[str, str, str]]] = None,
-             e_table: str = "") -> str:
-    """e_table 을 주면 한 파일 보고서(10-27) — 원문은 같은 쪽 아래(original_blocks), 갈림 목록은 접어서 이 탭에."""
-    """부록 — 탭 셋(라디오 + CSS, JS 없이) · 질문별 결과는 유형마다 4모델 × 문항 칸, 누르면 그 질문만 펼침."""
+def appendix(D: Dict[str, Any], part_of: Dict[str, str]) -> str:
+    """부록 — 문항별 결과만 (사용자 10-27: 기준별 어긴 질문 · 원문 탭은 뺌). 유형마다 4모델 × 문항 칸, 누르면 그 질문만 펼치고
+    질문 상세에서 원문 · 사유로 간다(part_of)."""
     order = D["order"]
-    # 탭 1 — 질문별 결과: 유형마다 칸
     blocks = []
     for ty in R.UNIT_ORDER:   # 사용자 10-26 저녁: 싱글턴 · 멀티턴 · 롱컨텍스트, 멀티턴은 턴마다 한 칸(Q3-1 · Q3-2 …)
         us = [u for u in D["units"] if D["utype"][u] == ty]
@@ -2438,59 +2435,8 @@ def appendix(D: Dict[str, Any], parts: List[Tuple[str, str, str]], part_of: Dict
                       + "".join(cells) + "</div></div></div>")
     legend = ('<div class="rs-legend"><span><i class="rs-sw rs-pass"></i>완전 통과</span><span><i class="rs-sw rs-fail"></i>FAIL (칸 숫자 = 어긴 기준 수)</span>'
               '<span><i class="rs-sw rs-hold"></i>보류</span><span class="muted">멀티턴은 턴마다 한 칸(3-1 = Q3 의 1턴) · 칸이나 위 번호를 누르면 아래에 그 질문만 펼쳐집니다</span></div>')
-    p1 = legend + "".join(blocks)
-    # 탭 2 — 기준 72개 (CODE 세부 검사는 그 기준으로 합침), 묶음마다 접힘
-    base_fail: Dict[str, Dict[str, set]] = defaultdict(lambda: defaultdict(set))
-    for (p, q), L in D["lines"].items():
-        for cid in {i["item"] for i in L["items"] if i["decision"] == "FAIL"} | set(L["line"].get("code_fails") or []):
-            base_fail[cid.split(":")[0]][p].add(q)
-    ids = sorted(D["names"], key=lambda c: (0 if c[0].isdigit() else 1, c))
-    groups: Dict[str, List[str]] = defaultdict(list)
-    for cid in ids:
-        groups[("CODE 검사 " + code_group(cid)) if cid[0].isdigit() else cid.split("-")[0]].append(cid)
-    gblocks = []
-    for g, cids in groups.items():
-        rows = []
-        for c in cids:
-            vals = [len(base_fail[c][p]) for p in order]
-            tds = "".join((f'<td class="{"rs-worst" if v == max(vals) else ""}"><details class="rs-cell"><summary>{v}</summary><div class="rs-qchips">'
-                           + "".join(f'<a href="#q-{q}">Q{q}</a>' for q in sorted(base_fail[c][p])) + '</div></details></td>') if v else '<td class="muted">0</td>'
-                          for v, p in zip(vals, order))
-            rows.append(f'<tr><th scope="row"><b>{E(crit_name(D["names"], c))}</b><span class="rs-id">{E(c)}</span></th>{tds}</tr>')
-        tot = sum(len(base_fail[c][p]) for c in cids for p in order)
-        gname = g if g.startswith("CODE") else f'{g} {GROUP.get(g, "")}'
-        heads = "".join(f"<th>{mname(p)}</th>" for p in order)
-        gblocks.append(f'<details class="rs-d rs-g"><summary><b>{E(gname)}</b><span class="muted">기준 {len(cids)}개 · 어긴 질문 합 {tot}</span></summary>'
-                       f'<table class="rs-ctab"><thead><tr><th></th>{heads}</tr></thead><tbody>{"".join(rows)}</tbody></table></details>')
-    p2 = ('<p class="rs-basis">숫자 = 그 기준을 어긴 질문 수 · 빨강 = 가장 많이 어긴 모델. 묶음을 누르면 펼쳐지고, 숫자를 누르면 그 질문 번호가 나옵니다.</p>'
-          '<div class="rs-gs">' + "".join(gblocks) + "</div>")
-    # 탭 3 — FAIL 원문: 모델마다 질문 번호 → 그 질문의 원문 · 어긴 기준 · 사유 · 답에서 걸린 부분 (사용자 10-21: CODE 만 FAIL 표는 뺌)
-    flist = ("".join(f'<li><a href="{E(sub)}/{E(f)}">FAIL 원문 {i}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(parts, 1))
-             + "".join(f'<li><a href="{E(sub)}/{E(f)}">통과 원문 {i}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(pparts or [], 1))
-             + "".join(f'<li><a href="{E(sub)}/{E(f)}">보류 원문{" " + str(i) if len(hparts or []) > 1 else ""}</a><span>{E(desc)}</span></li>' for i, (f, desc, _b) in enumerate(hparts or [], 1)))
-    jump = "".join(f'<div><b>{mname(p)}</b>' + "".join(f'<a href="{E(part_of[f"f-{p}-{q}"])}#f-{p}-{q}">Q{q}</a>'
-                                                      for q in sorted(D["qtypes"]) if f"f-{p}-{q}" in part_of) + "</div>" for p in order)
-    p3 = ('<h3 class="rs-sh">FAIL 원문 — 어긴 기준 · 사유 · 답에서 걸린 부분</h3>'
-          '<p class="rs-basis">질문 번호를 누르면 그 FAIL 이 열립니다. 왼쪽은 질문·답변 원문이고, 답에서 심판이 짚은 문장은 빨간 번호로 칠해져 있습니다. '
-          '오른쪽은 같은 번호의 어긴 기준과 사유입니다. 통과한 답은 질문별 결과에서 질문을 펼친 뒤 "원문 · 지킨 기준"으로, '
-          + ('또는 아래 통과 원문 번호로 봅니다.</p>' if e_table else '또는 아래 통과 원문 파일에서 봅니다.</p>')
-          + f'<div class="rs-jump">{jump}</div>')
-    if e_table:
-        pjump = "".join(f'<div><b>{mname(p)}</b>' + "".join(f'<a href="#p-{p}-{q}">Q{q}</a>' for q in sorted(D["qtypes"]) if f"p-{p}-{q}" in part_of) + "</div>"
-                        for p in order)
-        p3 += (f'<h3 class="rs-sh">통과 원문 — 지킨 기준 · 근거</h3><div class="rs-jump">{pjump}</div>'
-               f'<details class="rs-d"><summary>갈림 목록 — 심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 (보류 아님, 확인용)</summary>'
-               f'<p class="rs-basis">Decisions 는 FAIL, Codex 는 PASS·해당 없음이라 Codex 를 따른 항목입니다. 보류가 아니고 숫자도 바꾸지 않습니다(확인용).</p>{e_table}</details>')
-    else:
-        p3 += (f'<p class="rs-basis">파일로 보기 — 미리보기 한도(512KB) 때문에 <span class="rs-id">{E(sub)}/</span> 폴더에 나눠 두었습니다.</p>'
-               f'<ul class="rs-files">{flist}<li><a href="{E(e_link)}">갈림 목록</a><span>심판이 갈려 Codex 를 따른 항목 {n_disagree:,}개 — 보류 아님, 확인용</span></li></ul>')
-    tabs = [("apx1", "문항별 결과", f"{D['n']}문항 × {len(order)}모델", p1), ("apx2", "기준별 어긴 질문", "72개 · 어긴 질문 수 · 질문 번호", p2),
-            ("apx3", "원문", "FAIL · 통과 · 보류 — 기준 · 사유 · 답", p3)]
-    radios = "".join(f'<input type="radio" name="apx" id="{i}"{" checked" if k == 0 else ""}>' for k, (i, *_r) in enumerate(tabs))
-    labels = "".join(f'<label for="{i}"><b>{E(t)}</b><span>{E(s)}</span></label>' for i, t, s, _p in tabs)
-    panels = "".join(f'<div class="rs-panel rs-{i}">{p}</div>' for i, _t, _s, p in tabs)
     details = "".join(q_detail(D, q, part_of) for q in sorted(D["qtypes"]))
-    return (f'<div class="rs-apx" id="apx">{radios}<div class="rs-tabs">{labels}</div><div class="rs-panels">{panels}</div></div>'
+    return (f'<div class="rs-apxbox" id="apx">{legend}{"".join(blocks)}</div>'
             f'<div class="rs-qds"><p class="rs-qhint">질문을 고르면 여기에 펼쳐집니다.</p>{details}</div>')
 
 
@@ -2574,16 +2520,15 @@ def decide_section(D: Dict[str, Any], hblocks: List[Tuple[str, int, str]]) -> st
 
 
 def original_blocks(blocks: List[Tuple[str, int, str]]) -> str:
-    """한 파일 보고서의 원문 — FAIL · 통과 블록을 장면 아래에 숨겨 두고 번호를 누르면(:target) 그것만 연다."""
-    return ('<div class="rs-orig" id="orig"><h3 class="rs-sh">원문 — FAIL · 통과</h3>'
-            + fold("".join(h for _p, _q, h in blocks), "원문 모두 펼치기 (느릴 수 있음)") + "</div>")
+    """한 파일 보고서의 원문 — FAIL · 통과 블록을 장면 아래에 숨겨 두고, 질문 상세의 '원문 →'을 누르면(:target) 그것만 연다."""
+    return '<div class="rs-fds" id="orig">' + "".join(h for _p, _q, h in blocks) + "</div>"
 
 
-def fold(content: str, label: str = "이 파일의 질문 모두 펼치기") -> str:
+def fold(content: str) -> str:
     """원문 파일 — 질문 블록은 평소 숨김, 위 번호를 누르면(#f-…, CSS :target) 그것만 · '모두 펼치기' 체크로 전부 — JS 없이."""
     if 'class="rs-fd"' not in content:
         return content
-    return (f'<input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">{E(label)}</label>'
+    return ('<input type="checkbox" id="fall" class="rs-fall"><label for="fall" class="rs-fall-l">이 파일의 질문 모두 펼치기</label>'
             f'<div class="rs-fds"><p class="rs-qhint">위에서 질문 번호를 누르면 그 질문만 펼쳐집니다.</p>{content}</div>')
 
 
@@ -2779,20 +2724,8 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 8px 0; }
 .rs-pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 0.85rem; max-height: 420px; overflow: auto; margin: 4px 0 0; }
 .rs-scroll { overflow-x: auto; }
-.rs-files { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.92rem; }
-.rs-files li { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; }
-.rs-files li a { font-weight: 700; } .rs-files li span { color: var(--muted); }
 /* 부록 — 탭(라디오 + CSS, JS 없이) */
-.rs-apx { display: grid; gap: 0; }
-.rs-apx > input { position: absolute; opacity: 0; pointer-events: none; }
-.rs-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--line); }
-.rs-tabs label { cursor: pointer; display: grid; gap: 1px; padding: 9px 16px; border: 1px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--bg); color: var(--muted); margin-bottom: -2px; }
-.rs-tabs label b { font-size: 0.95rem; } .rs-tabs label span { font-size: 0.76rem; }
-#apx1:checked ~ .rs-tabs label[for=apx1], #apx2:checked ~ .rs-tabs label[for=apx2], #apx3:checked ~ .rs-tabs label[for=apx3] { background: var(--surface); color: var(--ink); border-color: var(--line); border-top: 3px solid var(--accent); border-bottom: 2px solid var(--surface); }
-#apx1:focus-visible ~ .rs-tabs label[for=apx1], #apx2:focus-visible ~ .rs-tabs label[for=apx2], #apx3:focus-visible ~ .rs-tabs label[for=apx3] { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rs-panels { background: var(--surface); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 14px 14px; padding: 16px 18px; }
-.rs-panel { display: none; }
-#apx1:checked ~ .rs-panels .rs-apx1, #apx2:checked ~ .rs-panels .rs-apx2, #apx3:checked ~ .rs-panels .rs-apx3 { display: grid; gap: 14px; }
+.rs-apxbox { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; display: grid; gap: 14px; scroll-margin-top: 72px; }
 /* 질문별 결과 — 유형마다 4모델 × 문항 칸 */
 .rs-mb { display: grid; gap: 6px; }
 .rs-mbh b { font-size: 0.95rem; } .rs-mbh span { color: var(--muted); font-size: 0.8rem; margin-left: 8px; }
@@ -2825,12 +2758,6 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-go { font-size: 0.85rem; font-weight: 600; }
 .rs-pre-s { max-height: 140px; font-size: 0.8rem; }
 /* 기준 72개 — 묶음마다 접힘 */
-.rs-gs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
-.rs-g { margin: 0; } .rs-g > summary { display: flex; justify-content: space-between; gap: 8px; } .rs-g > summary span { font-weight: 400; font-size: 0.82rem; }
-.rs-ctab { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 8px; }
-.rs-ctab th, .rs-ctab td { border-top: 1px solid var(--line); padding: 5px 6px; text-align: center; font-family: var(--font-num); }
-.rs-ctab thead th { font-family: var(--font-body); font-size: 0.76rem; color: var(--muted); }
-.rs-ctab tbody th { text-align: left; font-family: var(--font-body); font-weight: 400; display: grid; } .rs-ctab tbody th .rs-id { color: var(--muted); font-size: 0.72rem; }
 /* 원문 파일 맨 위 바로가기 */
 .rs-jump { display: grid; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
 .rs-jump div { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rs-jump b { min-width: 64px; font-size: 0.85rem; }
@@ -2860,7 +2787,7 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-fall:checked ~ .rs-fds .rs-fd { display: block; }
 .rs-fdh { margin: 0 0 6px; font-size: 1rem; }
 .rs-id { font-family: var(--font-num); font-size: 0.86em; letter-spacing: 0; overflow-wrap: anywhere; }
-.rs-worst { color: var(--risk); font-weight: 700; } .rs-strong { color: var(--ink); font-weight: 700; }
+.rs-strong { color: var(--ink); font-weight: 700; }
 .rs-b { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 0.78rem; font-weight: 700; }
 .rs-b.rs-pass { color: var(--ok); background: var(--ok-soft); } .rs-b.rs-fail { color: var(--risk); background: var(--risk-soft); } .rs-b.rs-hold { color: var(--hold-text); background: var(--hold-soft); }
 .rs-failtxt { color: var(--risk); font-weight: 700; } .rs-holdtxt { color: var(--hold-text); font-weight: 700; }
@@ -2892,7 +2819,7 @@ tr.rs-dim th, tr.rs-dim td { color: var(--muted); }
   .rs-tb { grid-template-columns: 56px minmax(0, 1fr); } .rs-tv { grid-column: 2; }
   .rs-judge { grid-template-columns: minmax(0, 1fr); }
   .rs-tiles, .rs-terms { grid-template-columns: minmax(0, 1fr); }
-  .rs-two, .rs-qms, .rs-gs { grid-template-columns: minmax(0, 1fr); }
+  .rs-two, .rs-qms { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .steps thead, .steps colgroup { display: none; }
@@ -3193,8 +3120,6 @@ a.rs-mca { color: inherit; text-decoration: none; display: block; } a.rs-mca:hov
 .rs-close { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rs-close ul { margin: 0; padding-left: 1.1em; font-size: 0.86rem; line-height: 1.55; }
 .rs-close-end { margin: 14px 0 0; font-weight: 700; }
-details.rs-cell > summary { cursor: pointer; list-style: none; } details.rs-cell > summary::-webkit-details-marker { display: none; }
-details.rs-cell[open] > summary { text-decoration: underline; } details.rs-cell .rs-qchips { margin-top: 4px; }
 .rs-kept { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; } .rs-kept b { color: var(--ok); margin-right: 6px; }
 .rs-okno { color: var(--ok); font-weight: 700; } .rs-oktxt { color: var(--ok); font-weight: 700; } .rs-h4gap { margin-top: 14px !important; }
 @media (max-width: 900px) { .rs-fx { grid-template-columns: minmax(0, 1fr); } .rs-fx-r { position: static; max-height: none; } }
@@ -3343,7 +3268,6 @@ FILL_JS = """<script>
   }
   document.addEventListener('toggle', function (e) { if (e.target.open) fill(e.target); }, true);
   window.addEventListener('hashchange', function () { show(decodeURIComponent(location.hash.slice(1))); });
-  document.querySelectorAll('.rs-fall').forEach(function (c) { c.addEventListener('change', function () { if (c.checked) fill(c.parentElement); }); });
   document.querySelectorAll('.rs-show').forEach(function (a) { if (!a.closest('details')) fill(a); });
   if (location.hash) show(decodeURIComponent(location.hash.slice(1)));
 })();
@@ -3474,8 +3398,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          scene_hold(D, part_of) + (decide_section(D, hblocks) if single else ""),
          f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
         ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
-         "", (appendix(D, [], part_of, "", n_disagree, "", [], [], e_table) + original_blocks(fblocks + pblocks)) if single
-         else appendix(D, parts, part_of, f"{sub}/{e_file}", n_disagree, sub, pparts, hparts), ""),
+         "", appendix(D, part_of) + (original_blocks(fblocks + pblocks) if single else ""), ""),
     ]
     jd_html, jd_key = scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
