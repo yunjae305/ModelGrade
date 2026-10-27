@@ -217,3 +217,17 @@ def test_start_runs_refine_after_report_without_asking(monkeypatch, capsys):
     monkeypatch.setattr(rl, "main", lambda argv: (_ for _ in ()).throw(RuntimeError("막힘")))
     mg.run_refine("r1", Path("set"), 2)
     assert "하네스2 멈춤" in capsys.readouterr().out
+
+
+def test_version_bump_updates_changelog_and_badge(tmp_path: Path):
+    """하네스2 자동 반영은 부 버전을 올린다 — tools/version.py · CHANGELOG.md 맨 위 칸 · README 배지 (시맨틱 버저닝, 10-27)."""
+    from tools import version
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "version.py").write_text('__version__ = "1.2.3"\n', encoding="utf-8")
+    (tmp_path / "CHANGELOG.md").write_text("# 변경 이력\n\n설명\n\n## 1.2.3 — 2026-10-27\n\n- 옛것\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text('<img src="https://img.shields.io/badge/version-1.2.3-informational.svg" alt="version 1.2.3">', encoding="utf-8")
+    assert version.bump("minor", ["새 판정 프롬프트"], root=tmp_path) == "1.3.0"
+    assert '__version__ = "1.3.0"' in (tmp_path / "tools" / "version.py").read_text(encoding="utf-8")
+    cl = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert cl.index("## 1.3.0") < cl.index("## 1.2.3") and "- 새 판정 프롬프트" in cl
+    assert "version-1.3.0-" in (tmp_path / "README.md").read_text(encoding="utf-8")

@@ -883,7 +883,11 @@ def write_followups(results: Sequence[Dict[str, Any]], run_id: str, judge_out: s
     """반영한 안 → 변경내역, 자동으로 넣지 못한 대상(기준 문서 · 질문 · CODE)의 개선 · 확장 제안 → 하네스2_제안목록.md."""
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [x["changelog"] for r in results for x in r.get("applied") or [] if x.get("changelog")]
-    if lines:
+    if lines:   # 판정이 달라지는 변경 — 시맨틱 버저닝의 부 버전을 올리고 CHANGELOG 에 (사용자 10-27)
+        from tools import version
+        new = version.bump("minor", [f"하네스2 자동 반영(실행 {run_id} · 판정 {judge_out}): " + "; ".join(
+            str(x.get("changelog") or "").lstrip("- ")[:200] for r in results for x in r.get("applied") or [] if x.get("changelog"))])
+        lines.append(f"- 버전 {new} (부 버전 — 판정 프롬프트 · 기준 정의가 바뀌어 다음 평가부터 판정이 달라질 수 있음)")
         f = CHANGELOG_DIR / f"{datetime.now():%Y-%m-%d}-변경내역.md"
         head = "" if f.exists() else f"# {datetime.now():%Y-%m-%d} 변경내역\n"
         f.parent.mkdir(parents=True, exist_ok=True)

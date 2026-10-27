@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-informational.svg" alt="version 1.0.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.0-informational.svg" alt="version 1.1.0"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 프로그램 검사 → AI 심판(3종 다수결) → 2차 확인 → 보류는 사람 → 보고서</code></p>
@@ -213,7 +213,7 @@ AIONA 에서 모델을 고르면 짝인 앱도 같은 모델로 함께 받습니
 ## 더 보기
 
 - **기준 원본** — [참고자료/기준/채팅품질 평가기준_v2.md](참고자료/기준/채팅품질%20평가기준_v2.md)
-- **버전 · 변경 이력** — [CHANGELOG.md](CHANGELOG.md)(시맨틱 버저닝 주.부.수정, 지금 1.0.0 · `aiona-chat-eval --version`) · 날마다의 자세한 변경은 [참고자료/변경내역/](참고자료/변경내역/)
+- **버전 · 변경 이력** — [CHANGELOG.md](CHANGELOG.md)(시맨틱 버저닝 주.부.수정, 지금 버전은 `aiona-chat-eval --version`) · 날마다의 자세한 변경은 [참고자료/변경내역/](참고자료/변경내역/)
 - **하네스2 제안목록** — [참고자료/문서/하네스2_제안목록.md](참고자료/문서/하네스2_제안목록.md)(평가 끝 기준 다듬기가 자동으로 넣지 못한 개선 · 확장)
 - **개발 · 운영 명령과 폴더 구조** — [CONTRIBUTING.md](CONTRIBUTING.md)
 - **기준 확장 계획(공개 데이터 기준)** — [참고자료/문서/기준_확장목록_공개데이터.md](참고자료/문서/기준_확장목록_공개데이터.md)

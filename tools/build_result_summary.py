@@ -384,8 +384,8 @@ def turn_kinds(D: Dict[str, Any]) -> str:
                    + "".join(cell(cnt(p, by_flow[f]), len(by_flow[f])) for p in order) + "</tr>" for f in fl)
     body += ('<tr class="tu-sum"><th scope="row"><b>멀티턴 전체</b></th>' + f'<td class="tu-n">{len(multi)}</td>'
              + "".join(cell(cnt(p, multi), len(multi)) for p in order) + "</tr>")
-    tabs = [("턴 종류별", f"멀티턴 {len(multi)}문항(턴)을 턴이 하는 일로 묶음 — 칸은 통과한 문항 / 그 종류 문항 수, 아래는 FAIL · 보류 수 · 대화마다 순서는 달라도 같은 종류의 일",
-             f'<table class="hm-tab tu-tab"><thead><tr><th>턴 종류</th><th>문항</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
+    tabs = [("턴 종류별", "줄 = 대화 안에서 시킨 일 · 턴 수 = 대화 11개에 그 일을 시킨 턴이 몇 번 있었나 · 칸 = 통과한 턴 / 그 일을 시킨 턴 (작은 글씨는 FAIL · 보류)",
+             f'<table class="hm-tab tu-tab"><thead><tr><th>대화 안에서 시킨 일</th><th>턴 수</th>{head_m}</tr></thead><tbody>{body}</tbody></table>')]
     # 싱글 vs 대화 중 — 같은 종류의 일을 한 턴 질문으로 물었을 때와 대화 중 턴으로 물었을 때
     fs = flow_singles(D)
     cf = [f for f in fl if fs.get(f)]
@@ -401,15 +401,25 @@ def turn_kinds(D: Dict[str, Any]) -> str:
         body += ('<tr class="tu-sum"><th scope="row"><b>전체</b></th>' + f'<td class="tu-qs">한 턴 질문 {len(sing_all)}개</td>'
                  + "".join(rate(cnt(p, conv_all), len(conv_all), "tu-c1") + rate(cnt(p, sing_all), len(sing_all)) for p in order) + "</tr>")
         gap = " · ".join(f"{SHORT[p]} 대화 중 {cnt(p, conv_all)['PASS'] / len(conv_all) * 100:.0f}% · 싱글 {cnt(p, sing_all)['PASS'] / len(sing_all) * 100:.0f}%" for p in order)
-        tabs.append(("싱글 vs 대화 중", "같은 종류의 일을 한 턴 질문(싱글턴 · 첨부 · 롱컨텍스트)으로 물었을 때와 대화 중 턴으로 물었을 때의 통과율 — 짝은 10-23 멀티턴 · 싱글턴 점검에서 "
-                     "멀티 턴 하나에 한 턴 질문 하나씩 붙인 것(빈 출력 요구는 채점 없이 보류라 뺌 · 형식 맞추기 ↔ JSON · 코드 질문, 빠진 자료 ↔ 실제 첨부가 있는 질문처럼 "
-                     "느슨한 짝도 있어 방향만 봄)",
+        tabs.append(("싱글 vs 대화 중", "같은 종류의 일을 대화 도중에 시켰을 때와 따로 한 번만 물었을 때(싱글)의 통과율을 나란히 — 대화 중이 낮으면 긴 대화에서 흔들린다는 뜻입니다. "
+                     "짝지은 한 턴 질문은 같은 종류의 일을 묻는 질문을 하나씩 붙인 것이라(형식 맞추기 ↔ JSON · 코드 질문처럼 느슨한 짝도 있음) 방향만 봅니다",
                      f'<p class="tu-line"><b>통과율</b> = 통과한 문항 ÷ 문항 수 (보류 · FAIL 은 통과로 세지 않음) — {E(gap)}</p><table class="hm-tab tu-tab tu-cmp"><thead>{head}</thead><tbody>{body}</tbody></table>'))
     radios = "".join(f'<input type="radio" name="tu" id="tu{i}" class="ar-r"{" checked" if i == 0 else ""}>' for i in range(len(tabs)))
     labels = '<div class="hm-tabs">' + "".join(f'<label for="tu{i}">{E(t)}</label>' for i, (t, _d, _x) in enumerate(tabs)) + "</div>"
     panels = '<div class="hm-ps">' + "".join(f'<div class="ar-pn tu-p{i}"><p class="hm-d">{E(d)}</p><div class="hm-scroll">{x}</div></div>'
                                              for i, (_t, d, x) in enumerate(tabs)) + "</div>"
-    return (f'<h3 class="rs-sh">멀티턴 턴 종류별 · 싱글 vs 대화 중</h3><div class="hm">{radios}{labels}{panels}</div>'
+    tot = {f: sum(cnt(p, by_flow[f])["PASS"] for p in order) for f in fl}
+    of = {f: len(by_flow[f]) * len(order) for f in fl}
+    hard, easy = min(fl, key=lambda f: tot[f] / of[f]), max(fl, key=lambda f: tot[f] / of[f])
+    ex = by_flow[hard]
+    worst = min(order, key=lambda p: (cnt(p, ex)["PASS"], order.index(p)))
+    intro = (f'<div class="tu-intro"><p><b>무엇을 보나</b> — 10번 이어 묻는 대화 {len({q for q, _t in multi})}개에는 \'조건 정리\' · \'계산\' · \'형식 맞추기\'처럼 '
+             f'서로 다른 일을 시키는 턴이 섞여 있습니다. 같은 일을 시킨 턴끼리 모아, 모델마다 몇 번 해냈는지 셌습니다. 대화 안에서 어떤 요청에 약한지 보는 표입니다.</p>'
+             f'<p><b>읽는 법</b> — 예를 들어 \'{E(TURN_FLOW[hard][0])}\' 줄 {E(SHORT[worst])} 칸의 <b>{cnt(worst, ex)["PASS"]} / {len(ex)}</b>은 '
+             f'이 일을 시킨 턴 {len(ex)}번 가운데 {cnt(worst, ex)["PASS"]}번 통과했다는 뜻입니다. 색이 진할수록 잘한 것입니다.</p>'
+             f'<p><b>한눈에</b> — 가장 어려웠던 일은 <b>{E(TURN_FLOW[hard][0])}</b>(네 모델 합 {tot[hard]} / {of[hard]}), '
+             f'가장 쉬웠던 일은 <b>{E(TURN_FLOW[easy][0])}</b>({tot[easy]} / {of[easy]})입니다.</p></div>')
+    return (f'<h3 class="rs-sh">대화 안에서 어떤 요청에 약한가 — 멀티턴 턴 종류별</h3>{intro}<div class="hm">{radios}{labels}{panels}</div>'
             + tab_css("tu", len(tabs), ".hm-tabs", ".hm-ps", "tu-p", "background: var(--accent-soft); color: var(--accent); border-color: transparent;"))
 
 
@@ -2030,6 +2040,16 @@ def ar_overview(D: Dict[str, Any]) -> str:
     return hero
 
 
+def units_note(D: Dict[str, Any]) -> str:
+    """'177' 이 무엇인지 — 문항 수를 유형마다 어떻게 셌는지 (사용자 10-27 '177이라고 적힌거가 무슨 의미인지 작성해')."""
+    uq = Counter(R.unit_type(t) for t in D["qtypes"].values())
+    uu = Counter(D["utype"].values())
+    parts = [f"{ty} {uq[ty]}개 → {uu[ty]}문항" + ("(턴마다 1문항)" if uu[ty] != uq[ty] else "") for ty in R.UNIT_ORDER if uq[ty]]
+    return (f"{D['n']} = 문항 수 — 질문 {D['nq']}개를 {' · '.join(parts)}으로 세어 모두 {D['n']}문항입니다. "
+            f"완전 통과 = 그 문항에 적용된 기준을 모두 지킨 것, 비율 = 완전 통과 ÷ {D['n']}. "
+            f"그래서 이 표의 순위는 01장의 질문 단위 순위(통과 질문 / {D['nq']})와 다를 수 있습니다.")
+
+
 def rank_card(D: Dict[str, Any]) -> str:
     """순위 — 질문 단위 통과 수 / 질문 수 (기준 v2 3절, 사용자 10-27 '순위는 질문단위통과로 계산해'). 10턴 대화는 10턴 모두 통과해야 1개,
     같으면 문항 단위 통과 수. 빈 출력 요구 질문은 사람이 정하기 전까지 보류로 센다(기준 v2 1절)."""
@@ -2522,6 +2542,83 @@ def q_detail(D: Dict[str, Any], q: int, part_of: Dict[str, str]) -> str:
             f'<div class="rs-qms">{"".join(rows)}</div></article>')
 
 
+UNIT_LETTER = {"싱글턴": "S", "멀티턴": "M", "롱컨텍스트": "L"}
+UNIT_WHAT = {"싱글턴": "한 번 묻고 한 번 답 — 첨부 자료 · 빈 출력 요구 질문 포함", "멀티턴": "같은 대화에서 10번 이어 묻기 — 턴마다 1문항",
+             "롱컨텍스트": "27만 토큰 이상의 긴 문서를 읽고 답"}
+
+
+def unit_fail_items(D: Dict[str, Any], p: str, q: int, t: int) -> set:
+    """문항에서 어긴 기준(CODE 세부 검사는 그 기준으로) — unit_fails 와 같은 범위: 싱글턴은 질문 전체, 멀티턴 턴은 그 턴만."""
+    L = D["lines"][(p, q)]
+    if not t:
+        return {i["item"] for i in L["items"] if i["decision"] == "FAIL"} | {c.split(":")[0] for c in L["line"].get("code_fails") or []}
+    return ({i["item"] for i in L["items"] if i["decision"] == "FAIL" and i["turn"] == t}
+            | {c["check_id"].split(":")[0] for c in code_fail_rows(D, p, q) if c["turn"] == t})
+
+
+def type_summary(D: Dict[str, Any]) -> str:
+    """유형별 요약 — 싱글턴(S) · 멀티턴(M) · 롱컨텍스트(L) 마다 문항 수 · 모델별 완전 통과 · FAIL · 보류 · 많이 어긴 기준 · 한 줄 요약
+    (사용자 10-27 '각각 어떤 부분에서 이러이러한 결과들이 나왔다는 것들을 최종적으로 요약해서')."""
+    order = D["order"]
+    cols = [ty for ty in R.UNIT_ORDER if any(D["utype"][u] == ty for u in D["units"])]
+    if not cols:
+        return ""
+    info: Dict[str, Dict[str, Any]] = {}
+    for ty in cols:
+        us = [u for u in D["units"] if D["utype"][u] == ty]
+        res = {p: Counter(D["uverdict"].get((p, *u)) or "HOLD" for u in us) for p in order}
+        fails: Counter = Counter()
+        for p in order:
+            for q, t in us:
+                if D["uverdict"].get((p, q, t)) == "FAIL":
+                    fails.update(unit_fail_items(D, p, q, t))
+        empty = sum(1 for p in order for q, t in us if D["qtypes"][q] == EMPTY_TYPE and D["uverdict"].get((p, q, t)) == "HOLD")
+        info[ty] = {"us": us, "res": res, "fails": fails, "empty": empty, "nq": len({q for q, _t in us})}
+    by_flow: Dict[str, List[Tuple[int, int]]] = defaultdict(list)   # 멀티턴 — 가장 어려웠던 턴 종류
+    for q, t in D["units"]:
+        flows = D["qset"][q].get("flow") or []
+        if t and t <= len(flows):
+            by_flow[flows[t - 1]].append((q, t))
+    flow_rate = {f: sum(1 for p in order for u in us if D["uverdict"].get((p, *u)) == "PASS") / (len(us) * len(order))
+                 for f, us in by_flow.items() if f in TURN_FLOW and us}
+
+    def models(ty: str) -> str:
+        n, res = len(info[ty]["us"]), info[ty]["res"]
+        best = max(res[p]["PASS"] for p in order)
+        return "".join(f'<div class="ts-m">{mname(p)} ' + (f'<b>{res[p]["PASS"]}</b>' if res[p]["PASS"] == best else str(res[p]["PASS"]))
+                       + f' / {n} <small>({res[p]["PASS"] / n * 100:.0f}%)</small></div>' for p in sorted(order, key=lambda p: -res[p]["PASS"]))
+
+    def top_fails(ty: str) -> str:
+        f = info[ty]["fails"]
+        return "<br>".join(f'{E(crit_name(D["names"], c) or c)} <small>{k}문항</small>' for c, k in f.most_common(3)) or "없음"
+
+    def line(ty: str) -> str:
+        n, res = len(info[ty]["us"]), info[ty]["res"]
+        hi, lo = max(order, key=lambda p: res[p]["PASS"]), min(order, key=lambda p: res[p]["PASS"])
+        top = [crit_name(D["names"], c) or c for c, _k in info[ty]["fails"].most_common(2)]
+        out = (f"{SHORT[hi]} 가 가장 많이 통과({res[hi]['PASS'] / n * 100:.0f}%), {SHORT[lo]} 가 가장 적음({res[lo]['PASS'] / n * 100:.0f}%)."
+               + (f" FAIL 은 주로 {' · '.join(top)}." if top else " FAIL 없음."))
+        if ty == "멀티턴" and flow_rate:
+            hard = min(flow_rate, key=lambda f: flow_rate[f])
+            out += f" 턴 종류로는 '{TURN_FLOW[hard][0]}'가 가장 어려움(네 모델 통과 {flow_rate[hard] * 100:.0f}%)."
+        if info[ty]["empty"]:
+            out += f" 빈 출력 요구 질문은 사람이 정하기 전까지 보류(네 모델 {info[ty]['empty']}문항)."
+        return E(out)
+
+    head = [""] + [f"{E(ty)} ({UNIT_LETTER.get(ty, '')})" for ty in cols]
+    rows = [["무엇", *(E(UNIT_WHAT.get(ty, "")) for ty in cols)],
+            ["문항 수", *(f'{len(info[ty]["us"])}문항' + (f' <small>(대화 {info[ty]["nq"]}개)</small>' if ty == "멀티턴" else "") for ty in cols)],
+            ["완전 통과", *(models(ty) for ty in cols)],
+            ["FAIL · 보류 (네 모델 합)", *(f'FAIL {sum(info[ty]["res"][p]["FAIL"] for p in order)} · 보류 {sum(info[ty]["res"][p]["HOLD"] for p in order)}'
+                                       + (f' <small>(그중 빈 출력 요구 {info[ty]["empty"]})</small>' if info[ty]["empty"] else "") for ty in cols)],
+            ["많이 어긴 기준", *(top_fails(ty) for ty in cols)],
+            ["한 줄 요약", *(line(ty) for ty in cols)]]
+    w = (100 - 16) // len(cols)
+    return ('<h3 class="rs-sh">유형별 요약 — 싱글턴(S) · 멀티턴(M) · 롱컨텍스트(L)</h3>'
+            + table("", head, rows, [16] + [w] * len(cols), "ts-tab")
+            + '<p class="rs-basis">완전 통과 = 그 문항에 적용된 기준을 모두 지킨 문항(굵게 = 그 유형에서 가장 많이 통과한 모델). 많이 어긴 기준의 숫자 = 그 기준을 어겨 FAIL 이 된 문항 수(네 모델 합).</p>')
+
+
 def appendix(D: Dict[str, Any], part_of: Dict[str, str]) -> str:
     """부록 — 문항별 결과만 (사용자 10-27: 기준별 어긴 질문 · 원문 탭은 뺌). 유형마다 4모델 × 문항 칸, 누르면 그 질문만 펼치고
     질문 상세에서 원문 · 사유로 간다(part_of)."""
@@ -2542,13 +2639,13 @@ def appendix(D: Dict[str, Any], part_of: Dict[str, str]) -> str:
                 cells.append(f'<a class="rs-t rs-t-{v.lower()}" href="#q-{q}" title="{R.unit_label(q, t)} · {SHORT[p]} · {lab}">{k if v == "FAIL" else ""}</a>')
         pas = " · ".join(f"{SHORT[p]} {sum(1 for u in us if D['uverdict'].get((p, *u)) == 'PASS')}" for p in order)
         w = 30 if ty == "멀티턴" else 24
-        blocks.append(f'<div class="rs-mb"><div class="rs-mbh"><b>{E(ty)}</b><span>{len(us)}문항 · 완전 통과 {E(pas)}</span></div>'
+        blocks.append(f'<div class="rs-mb"><div class="rs-mbh"><b>{E(ty)} ({UNIT_LETTER.get(ty, "")})</b><span>{len(us)}문항 · 완전 통과 {E(pas)}</span></div>'
                       f'<div class="rs-mscroll"><div class="rs-mat" style="grid-template-columns: 64px repeat({len(us)}, minmax({w - 4}px, 1fr)); min-width: {64 + len(us) * w}px">'
                       + "".join(cells) + "</div></div></div>")
     legend = ('<div class="rs-legend"><span><i class="rs-sw rs-pass"></i>완전 통과</span><span><i class="rs-sw rs-fail"></i>FAIL (칸 숫자 = 어긴 기준 수)</span>'
               '<span><i class="rs-sw rs-hold"></i>보류</span><span class="muted">멀티턴은 턴마다 한 칸(3-1 = Q3 의 1턴) · 칸이나 위 번호를 누르면 아래에 그 질문만 펼쳐집니다</span></div>')
     details = "".join(q_detail(D, q, part_of) for q in sorted(D["qtypes"]))
-    return (f'<div class="rs-apxbox" id="apx">{legend}{"".join(blocks)}</div>'
+    return (type_summary(D) + f'<div class="rs-apxbox" id="apx">{legend}{"".join(blocks)}</div>'
             f'<div class="rs-qds"><p class="rs-qhint">질문을 고르면 여기에 펼쳐집니다.</p>{details}</div>')
 
 
@@ -2967,6 +3064,9 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
 .rs-fd:target { display: block; border: 2px solid var(--accent); }
 .rs-fd.rs-show { display: block; }
+.ts-tab td { vertical-align: top; line-height: 1.55; } .ts-m { white-space: nowrap; } .ts-tab small { color: var(--muted); }
+.tu-intro { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: grid; gap: 6px; }
+.tu-intro p { margin: 0; font-size: 0.92rem; line-height: 1.6; }
 .rs-dturn + .rs-dturn { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px; }
 .rs-dhelp { flex-basis: 100%; font-size: 0.8rem; }
 .cd-hold { background: var(--hold-soft); color: var(--hold-text); }
@@ -3580,8 +3680,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
          f"맨 위는 순위(질문 단위 — 통과 질문 수 / {D['nq']}), 그 아래는 문항 단위(멀티턴은 턴마다) 완전 통과 · 보류 · FAIL 분포, 싱글턴 · 멀티턴 · 롱컨텍스트별 통과율, "
          "멀티턴 턴 종류별 통과율과 같은 종류 일을 싱글로 물었을 때와 대화 중에 물었을 때의 비교입니다. 보류를 사람이 정하기 전의 잠정 결과입니다.",
          rank_card(D) + numbers_key(D) + dist_card(D) + helm_table(D, cats) + turn_kinds(D), res_key),
-        ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표",
-         "분야를 고르면 순위표가 바뀝니다. '이번 실행 결과'의 통과율 숫자를 눌러도 이 표가 그 분야로 바뀝니다.", ar_board(D, cats), ""),
+        ("s1b", "분야별 순위표", "분야를 고르면 바뀜", "분야별 순위표", units_note(D), ar_board(D, cats), ""),
         ("s_crit", "기준별 결과", "기준마다 통과율", "기준별 결과 — 기준마다 통과율",
          "질문 하나를 통째로 보는 '완전 통과'와 달리, 기준 하나하나가 적용된 질문에서 얼마나 통과했는지 봅니다.", scene_by_crit(D), ""),
         ("s_code", "CODE 검사", "프로그램이 센 결과", "CODE 검사 결과 — 프로그램이 센 것만",
