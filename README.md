@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.1.0-informational.svg" alt="version 2.1.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.1.1-informational.svg" alt="version 2.1.1"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 채점(프로그램 · AI 심판) → 보고서 → 하네스2(기준 다듬기)</code></p>
@@ -53,6 +53,18 @@ flowchart LR
 
 <!-- 새로운 기능: tools/version.py 가 CHANGELOG.md 에서 채움 — 여기는 손으로 고치지 않음 -->
 
+### 2026년 10월 27일 · `2.1.1`
+
+**개선됨**
+
+- 발표 전체 흐름도에 하네스2 단계(I) — 평가가 끝나면 사람 판정을 정답으로 기준 2개를 골라 고칠 안(Claude CLI)을 전 · 후로 다시 판정해 나아진 것만 반영, 설명 · '누가 하나' · 시작하는 법에도
+
+**수정됨**
+
+- 흐름도 A칸 '질문 세트 — 고정' → '고르기'(start 에서 기존 · 새로 만들기, 하네스2 가 질문 글을 고칠 수 있음), '기준마다 질문 10개 이상' → set.json 사전 검사대로 '셀 수 있는 기준 64개는 모두 질문 10개 이상'
+- 흐름도 '답을 받았나?' 갈림길과 판정 규칙 표를 같은 말로 — 복사 실패는 다시 수집, 그래도 못 받으면 보류
+- 최종 발표 자료본 앞 7장면 점검 — 사실과 다른 말 · 장면끼리 어긋난 말 · 겹치는 내용 정리
+
 ### 2026년 10월 27일 · `2.1.0`
 
 **신규**
@@ -81,13 +93,6 @@ flowchart LR
 
 - 최종 발표 자료본에 결과 보고서 장면을 끼울 때 장면 안의 `<section>` 에서 잘리던 것(팀원이 찾음) — 짝을 맞춰 자름
 - 하네스2 출처 — Harness²: Recursive Agent Harnessing for an Open World(Google Research, arXiv:2610.14224)의 공식 이름 · 저자 · 인용을 README · THIRD_PARTY_NOTICES · 코드 · 기준 문서에
-
-### 2026년 10월 27일 · `1.4.1`
-
-**개선됨**
-
-- 발표 흐름도(tools/result_flow.py) 문구 · 배치 — '1차 · 2차 심판' → '채점 심판(Jev · Decisions) · 확인 심판(Codex)', 'Codex CLI 인가' 메모를 Codex 상자 바로 아래로, 도형 범례(메모 포함)를 흐름도 위 한 줄로
-- 최종 발표 자료본 앞 7장면 손질(평가 모델 개요 · 결과 제공 방식 · 보류 · 발전 방향 · 상시 운영) · 상세 분석 11장면과 합침
 
 <!-- /새로운 기능 -->
 

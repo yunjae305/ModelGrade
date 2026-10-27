@@ -234,8 +234,8 @@ def ai_link(y):
 
 
 # ---------- 흐름도 A~H — 지금 판정 방식 ----------
-def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
-    """n = 질문 수, nu = 문항 수(멀티턴은 턴마다), mix = 유형별 질문 수 한 줄."""
+def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "", cover: List[str] = ()) -> str:
+    """n = 질문 수, nu = 문항 수(멀티턴은 턴마다), mix = 유형별 질문 수 한 줄, cover = 기준별 질문 수 줄들(set.json 사전 검사)."""
     P: list = []
     y = 8
     # 사용자 10-27: 시작 명령을 그림에 — 처음 한 번 setup, 그 뒤 start (10-22 의 '명령어는 설명 안 함'을 바꿈)
@@ -246,8 +246,11 @@ def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
     y += 26
 
     A_y = y
-    parts, A_h, _ = module(y, "A", "질문 세트 — 고정", [
-        ("질문", [f"{n}개 — 기준마다 질문 10개 이상 (질문 설계)"] + ([mix] if mix else [])),   # 사용자 10-27: 유형별 수   # 사용자 10-22: 고정이라 '원칙' 줄 뺌 · 326 에서 고른 것이 아니라 수만 정하고 새로 만듦
+    # 사용자 10-27 점검: '고정' 아님 — start 에서 고르고(기존 · 새로 만들기), 하네스2 가 질문 글을 고칠 수 있음.
+    # '기준마다 10개 이상'은 질문으로 셀 수 있는 기준(64)만 — 나머지 8개는 답에 있을 때만 보는 기준
+    parts, A_h, _ = module(y, "A", "질문 세트 — 고르기", [
+        ("질문", ([f"{n}개 — {cover[0]}", *cover[1:]] if cover else [f"{n}개 — 기준마다 질문 10개 이상"]) + ([mix] if mix else [])),   # 사용자 10-27: 유형별 수
+        ("고르기", ["start 에서 — 기존 세트 · 새로 만들기", "질문 글은 하네스2(I)가 고칠 수 있음"]),
     ], "set")
     P += parts
     f1_y = A_y + 10
@@ -277,7 +280,8 @@ def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
     y += 22
     cy1 = y + 30
     P += diamond(DX, cy1, 190, 60, ["답을 받았나?"])
-    parts, _ = side(cy1 - 24, ["못 받음 → 보류", "복사 실패는 다시 수집"])   # 기준 v2 3절: 답 못 받음 · 복사 실패는 보류(멀티턴은 그 턴만), 빈 답 등은 아래 에러 케이스
+    # 기준 v2 3절: 복사 실패는 재시도 대상으로 다시 수집, 그래도 못 받은 답은 보류(멀티턴은 그 턴만), 빈 답 등은 아래 에러 케이스 — 옆 판정 규칙 표와 같은 말(사용자 10-27 점검)
+    parts, _ = side(cy1 - 24, ["복사 실패 → 다시 수집", "그래도 못 받음 → 보류"])
     P += parts
     P += [path(f"M{DX + 95},{cy1:g} L{SX - 2},{cy1:g}"), lab(DX + 100, cy1 - 7, "아니오")]
     y = cy1 + 30
@@ -411,13 +415,28 @@ def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
     y = cy3 + 30
     P += [arrow(CC, y, CC, y + 24), lab(CC + 7, y + 16, "아니오")]
     y += 26
+
+    # I — 하네스2 (사용자 10-27 점검: start 는 보고서 뒤 하네스2 까지 묻지 않고 돈다, tools/refine_loop auto · README '하네스2' 절)
+    I_y = y
+    parts, I_h, spots = module(y, "I", "하네스2 — 기준 다듬기, 자동", [
+        ("고르기", ["사람 판정과 어긋나거나 흔들린 LLM 기준 2개"]),
+        ("시험", ["고칠 안 → 같은 답을 전 · 후로 다시 판정"]),
+        ("반영", ["나아진 안만 — 판정 프롬프트 · 질문 · 기준 문서", "버전을 올리고 다음 평가부터"]),
+        ("끄기", ["aiona-chat-eval start --refine off"]),
+    ], "ai")
+    P += parts
+    parts, _ = aibox(spots[1][0] - 1, "AI · 고칠 안 — Claude CLI", ["Opus 5.5 · high · 구독"])
+    P += parts + [ai_link(spots[1][0] + spots[1][1] / 2)]
+    y = I_y + I_h
+    P.append(arrow(CC, y, CC, y + 24))
+    y += 26
     P += pill(CC, y, 340, 42, "끝 · 보류는 사람이 정함")
     y += 52
 
     markers = "".join(
         f'<marker id="{mid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
         f'<path d="M0,0 L10,5 L0,10 z" class="{cls}"/></marker>' for mid, cls in (("pa", "pah"), ("paw", "pahw"), ("paf", "pahf")))
-    return (f'<svg class="pflow pflow-svg" viewBox="0 0 {W} {y:g}" role="img" aria-label="전체 흐름도 — 질문 세트에서 결과까지 A부터 H, '
+    return (f'<svg class="pflow pflow-svg" viewBox="0 0 {W} {y:g}" role="img" aria-label="전체 흐름도 — 질문 세트에서 결과 · 하네스2 까지 A부터 I, '
             f'분기·AI 호출·파일 표시"><defs>{markers}</defs>\n' + "\n".join(P) + "\n</svg>")
 
 
@@ -453,17 +472,18 @@ def side_cards() -> str:
     # 사용자 10-27: 시작 명령 · 수집을 모두 웹으로 바꾼 이유 · 확인 심판을 Codex CLI 로 고른 이유(심판 선택 장면의 숫자)를 짧게
     start = text_card("시작하는 법", [
         "<b>처음 한 번</b> <code>aiona-chat-eval setup</code> — 키 입력 · CLI 로그인 · 네 사이트 로그인",
-        "<b>평가</b> <code>aiona-chat-eval start</code> — 질문 리스트를 고르면(1 기존 78개 · 2 새로 만들기 · 3 답변 새로 받기) 수집 → 판정 → 보고서까지",
+        "<b>평가</b> <code>aiona-chat-eval start</code> — 질문 리스트를 고르면(1 기존 78개 · 2 새로 만들기 · 3 답변 새로 받기) 수집 → 판정 → 보고서 → 하네스2 까지",
         "<b>보류 정하기</b> <code>aiona-chat-eval review</code>"])
     return (start
             + mini("누가 하나", ["단계", "누가"], [
                 ["A·C·D·F·G·H", "코드 (정해진 규칙)"],
                 ["B 답변 수집", "답하는 모델 4개 — 모두 웹브라우저"],
                 ["E LLM Judge", "채점 Jev(API) · Decisions(API) → 확인 Codex(구독)"],
+                ["I 하네스2", "고칠 안 Claude CLI(구독) · 다시 판정은 E 의 심판"],
                 ["에러 케이스 의심 · 보류", "사람"],
             ], "ai")
             + mini("판정 규칙", ["상황", "결과"], [
-                ["답을 못 받음 · 복사 실패", HOLD_P],   # 기준 v2 3절 — 멀티턴은 그 턴만
+                ["다시 받아도 답을 못 받음 (복사 실패 등)", HOLD_P],   # 기준 v2 3절 — 멀티턴은 그 턴만, 흐름도 갈림길과 같은 말
                 ["에러 케이스 의심 (답 없음 · 빈 답 · 거절 · 오류 문구만)", HOLD_P],
                 ["사람이 에러 케이스로 정한 글과 같은 답", f"{FAIL} (그 턴은 심판에게 안 보냄)"],
                 ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤 · 보류는 모두 '사람이 판단' · 빈 출력 요구 줄은 뺌(10-22 미팅 2번)
@@ -497,6 +517,10 @@ def flow_scene(D: Dict[str, Any]) -> str:
     m = re.search(r"v[\d.]+$", set_dir.name)
     set_ver = (" · ".join(v if k == "생성프롬프트" else f"{k} {v}" for k, v in vers) if vers
                else m.group(0) if m else set_dir.name)
+    # 사용자 10-27 점검: '기준 72개 모두 10개 이상'은 과장 — set.json 사전 검사의 '질문으로 셀 수 있는 기준' 수로
+    sj = json.loads((set_dir / "set.json").read_text(encoding="utf-8")) if (set_dir / "set.json").exists() else {}
+    cc, mn = sj.get("precheck_question_countable_criteria"), sj.get("precheck_min_applicable")
+    cover = [f"셀 수 있는 기준 {cc}개는", f"모두 질문 {mn}개 이상에서 적용"] if cc and mn else []
     # 받은 의견 E (10-21 밤): 이 그림은 다음 평가 구조(심판 셋) — 이번 결과가 다른 방식으로 판정됐으면 그 방식을 같이 적는다 (Gemini 표기는 페이지 전체 3.8, 사용자 10-21 밤)
     pipe = D["d"]["judgment"].get("pipeline") or ""
     now = re.search(r"\((.*)\)", pipe)
@@ -505,4 +529,4 @@ def flow_scene(D: Dict[str, Any]) -> str:
            f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}'
            + (' · Gemini 는 웹브라우저로 받음' if "웹" in D["d"]["models"].get("gemini", "") else ""))
     return (f'<figure class="poster"><span class="poster-sub">{sub}</span>{legend_row()}'
-            f'<div class="poster-grid">{flow_svg(n, set_ver, nu, mix)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
+            f'<div class="poster-grid">{flow_svg(n, set_ver, nu, mix, cover)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')
