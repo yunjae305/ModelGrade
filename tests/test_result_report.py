@@ -32,10 +32,14 @@ def test_report_ranks_by_questions_and_decides_holds_in_place():
     assert "질문 단위 · 통과 질문 수 / 3" in rank and "<b>2</b><small> / 3</small>" in rank   # AIONA 2 / 3 질문 (사용자 10-27)
     assert "빈 출력 요구 1 포함" in rank and "문항 통과 3 / 4" in rank   # 빈 출력은 보류로 셈, 문항 단위는 보조
     D["qstore"] = {}
-    sec = brs.decide_section(D, brs.hold_blocks(D, decide=True))
-    assert 'id="hold"' in sec and 'id="finish"' in sec and 'data-key="gpt|2|1|J5-2.a"' in sec   # 보류 사유 옆 단추
+    sec = brs.decide_section(D, brs.decide_blocks(D))
+    assert 'id="hold"' in sec and 'id="finish"' in sec and 'data-key="gpt|2|1|J5-2.a"' in sec   # 보류 기준마다 단추
+    assert "data-v='ERROR_CASE'" in sec and "NOT_APPLICABLE" not in sec and "사유(선택)" in sec   # PASS · FAIL · Error + 사유는 선택 (10-27)
+    assert "<b>왜 보류</b> — 확인 못 함" in sec and "<b>어디를 보고</b>" in sec   # 어디를 보고 · 왜 보류
     assert "__question__" not in sec and "빈 출력 요구 — 순위에서 늘 보류로 세는 칸 2개" in sec   # 빈 출력 요구는 단추 없이 접어서
     assert 'data-qt="2-1"' in sec and D["qstore"]["2-1"].startswith("긴 질문")   # 긴 질문 글은 쪽 끝 묶음에 한 번
+    fails = brs.scene_fail_list(D)
+    assert 'href="#f-gpt-3"' in fails and "턴 2 · 답의 특정 문장을 짚지 않음" in fails and "FAIL 질문 1개 · 어긴 기준 1건" in fails   # FAIL 목록
 
 
 def test_result_folder_is_found_by_its_json_and_skips_reruns(tmp_path):

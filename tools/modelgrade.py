@@ -942,20 +942,18 @@ def ask_existing_set(default: Path, n_default: int) -> Path:
         print(f"1 ~ {len(choices)} 중 하나를 입력하세요.")
 
 
-def offer_review(run_id: str) -> None:
-    """평가 끝에 보류가 있으면 — 지금 브라우저에서 정할지 묻고(Enter = 예), 정하면 바로 저장 · 보고서 다시 만듦 (tools/review_server, 사용자 10-26 밤)."""
-    if not sys.stdin.isatty():
-        print("  보류 정하기: aiona-chat-eval review", flush=True)
-        return
+def run_refine(run_id: str, set_dir: Path, items: int) -> None:
+    """평가 끝에 하네스2(기준 다듬기 루프)를 묻지 않고 이어서 (사용자 10-27 '평가가 완료되면 하네스2도 자동연계되게해서 실행시켜') —
+    사람 판정 · 보류 · 심판 갈림이 많은 LLM 기준을 골라 고칠 안을 시험하고, 채택된 안은 판정 프롬프트 등에 넣는다(tools/refine_loop auto).
+    하네스2가 막혀도 평가 결과 · 보고서는 그대로."""
+    print(f"\n기준 다듬기(하네스2)를 시작합니다 — 기준 {items}개까지, 끝나면 반영한 것과 사람이 볼 제안을 알립니다.", flush=True)
+    from tools import refine_loop
     try:
-        ans = input("  보류를 지금 브라우저에서 정할까요? (Enter = 예 · n = 나중에) ").strip().lower()
-    except EOFError:
-        return
-    if ans in ("n", "no", "ㄴ", "아니오", "나중에"):
-        print("  나중에: aiona-chat-eval review", flush=True)
-        return
-    from tools import review_server
-    review_server.serve(run_id)
+        refine_loop.main(["auto", "--run", run_id, "--judge", "v4", "--set", str(set_dir), "--items", str(items)])
+    except (SystemExit, Exception) as exc:
+        print(f"  ⚠ 하네스2 멈춤: {type(exc).__name__}: {exc} — 평가 결과 · 보고서는 그대로", flush=True)
+    else:
+        print("기준 다듬기가 끝났습니다. 반영한 것은 다음 평가부터 쓰입니다.", flush=True)
 
 
 def make_new_question_set(args: argparse.Namespace) -> Path:
@@ -1006,7 +1004,7 @@ def preflight_web_login(providers: List[str]) -> None:
 
 def _cmd_start(args: argparse.Namespace) -> int:
     """실행 흐름(사용자 10-26 저녁): 질문 리스트 고르기(기존 / 새로 만들기 / 기존 + 답변 새로 받기) → 답이 있으면 '답변 목록이 있습니다.', 없거나 빠진 것은
-    수집(모델마다 진행 판) → '평가를 시작합니다.' → 평가(모델마다 진행 판) → '평가가 완료되었습니다.' 와 report.html 위치.
+    수집(모델마다 진행 판) → '평가를 시작합니다.' → 평가(모델마다 진행 판) → '평가가 완료되었습니다.' 와 report.html 위치 → 묻지 않고 하네스2(기준 다듬기, 10-27).
     이미 받은 질문 · 판정한 질문은 건너뛰므로 같은 명령을 다시 부르면 이어서. 모델은 기본 네 개(AIONA · ChatGPT · Claude · Gemini) —
     --model(고른 모델 하나와 AIONA) · --aiona/--aiona2(AIONA 두 모델) 로 바꿀 수 있다."""
     set_dir = Path(args.set or DEFAULT_SET)
@@ -1102,9 +1100,9 @@ def _cmd_start(args: argparse.Namespace) -> int:
         return code
     if (out_dir / "v4" / "results.jsonl").exists():   # 결과 폴더에 report.html · 결과 JSON (사용자 10-22)
         ns = argparse.Namespace(dir=str(out_dir / "v4"), run=run_id, from_start=True)
-        code = cmd_report(ns)
-        if not code and getattr(ns, "holds", 0):
-            offer_review(run_id)
+        code = cmd_report(ns)   # 보류는 묻지 않음 — 보고서 '보류 목록'에서 정함 (사용자 10-27 '나에게 묻지말고')
+        if not code and getattr(args, "refine", "auto") != "off":
+            run_refine(run_id, set_dir, getattr(args, "refine_items", 2))
         return code
     print("판정 결과(results.jsonl)가 없어 보고서는 만들지 않았습니다", flush=True)
     return 0
@@ -1459,6 +1457,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     st.add_argument("--set", help="질문 세트 폴더 (기본: 참고자료/질문세트_78 — 새로 만든 리스트가 있으면 물어봄)")
     st.add_argument("--size", choices=["full", "small"], default="full", help="새 질문 리스트(2번) 크기 — full 78개(기본) · small 흐름 시험용 5개")
     st.add_argument("--judge", choices=["y", "n"], default="y", help="수집 뒤 평가 — y(기본, 바로 평가) · n(수집만)")
+    st.add_argument("--refine", choices=["auto", "off"], default="auto", help="평가 끝에 하네스2(기준 다듬기) — auto(기본, 바로 이어서) · off")
+    st.add_argument("--refine-items", type=int, default=2, help="하네스2 가 다듬을 기준 수 (기본 2)")
     st.add_argument("--aiona", help="AIONA 모델(AIONA 메뉴 이름, 예 '자동 추천' · 'GPT-5.6 Sol') — 이것만 주면 짝인 앱도 그 모델로 함께 받음(= --model 앱:모델, '자동 추천' 은 네 모델 기본), --aiona2 와 함께면 두 모델 비교의 첫째 자리")
     st.add_argument("--aiona2", help="AIONA 두 모델 비교 — 둘째 자리 모델(예 'Claude Sonnet 5.5'). 주면 AIONA 두 모델만 동시에 받아 같은 기준으로 판정")
     st.set_defaults(func=cmd_start)

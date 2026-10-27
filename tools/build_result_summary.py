@@ -222,7 +222,8 @@ def hold_why(D: Dict[str, Any], p: str, q: int) -> List[Dict[str, Any]]:
         if it["decision"] == "UNVERIFIED":
             how = (it.get("how") or "").replace("Codex 보류", "Codex 확인 못 함").replace("Decisions PASS", "Decisions 통과")
             out.append({"item": it["item"], "turn": it["turn"], "reason": it.get("reason") or "사유 없음",
-                        "quote": it.get("answer_quote") or "", "how": how, "flagged": it.get("flagged") or "", "kind": it.get("kind") or ""})
+                        "quote": it.get("answer_quote") or "", "qquote": it.get("question_quote") or "", "how": how, "flagged": it.get("flagged") or "",
+                        "kind": it.get("kind") or ""})
     return out
 
 
@@ -557,10 +558,10 @@ def heat_key(what: str, n_q: int, n_m: int) -> str:
             f'색이 진할수록 많음 · <span class="rs-hkb">굵은 테두리</span> = 그 줄에서 가장 많은 모델 · 합 = {n_m}모델을 더한 수</p>')
 
 
-def scene_criteria(D: Dict[str, Any]) -> str:
+def scene_criteria(D: Dict[str, Any], top_n: Optional[int] = 10) -> str:
     order = D["order"]
     cf = {c: v for c, v in crit_fail(D).items() if not c[0].isdigit()}   # 사용자 10-22: 'LLM Judge 가 많이 어긴 기준' — CODE 검사는 CODE 검사 장면
-    top = sorted(cf, key=lambda c: (-sum(cf[c].values()), c))[:10]
+    top = sorted((c for c in cf if sum(cf[c].values())), key=lambda c: (-sum(cf[c].values()), c))[:top_n]
     mx = max([cf[c][p] for c in top for p in order] or [1]) or 1
     cols = f"minmax(150px, 1.6fr) repeat({len(order)}, minmax(0, 1fr)) minmax(0, 0.8fr)"
     cells = heat_head(order, "기준")
@@ -888,12 +889,117 @@ def scene_code(D: Dict[str, Any]) -> str:
     return bars + grid
 
 
+def scene_llm(D: Dict[str, Any]) -> str:
+    """LLM Judge 검사 결과 — AI 심판이 본 기준만 (사용자 10-27 보고서 구성 5번). CODE 검사 장면과 같은 모양: 막대(질문 단위) + 기준 × 모델 표.
+    빈 출력 요구 문항은 채점 없이 보류라 뺀다."""
+    order = D["order"]
+    qs = sorted(q for q in D["qtypes"] if D["qtypes"][q] != EMPTY_REQ)
+    n = len(qs)
+    st: Dict[str, Dict[str, Any]] = {}
+    for p in order:
+        fail, hold, judged, bad, held = set(), set(), 0, 0, 0
+        for q in qs:
+            items = [i for i in D["lines"][(p, q)]["items"] if str(i["item"]).startswith("J")]
+            judged += len(items)
+            bad += sum(i["decision"] == "FAIL" for i in items)
+            held += sum(i["decision"] == "UNVERIFIED" for i in items)
+            if any(i["decision"] == "FAIL" for i in items):
+                fail.add(q)
+            elif any(i["decision"] == "UNVERIFIED" for i in items):
+                hold.add(q)
+        st[p] = {"fail": fail, "hold": hold, "judged": judged, "bad": bad, "held": held}
+    rank = sorted(order, key=lambda p: (len(st[p]["fail"]), len(st[p]["hold"]), order.index(p)))
+
+    def seg(cls: str, v: int) -> str:
+        return f'<span class="{cls}" style="width:{v / n * 100:.1f}%">{v}</span>' if v else ""
+    rows = "".join(
+        f'<div class="cd-row"><span class="cd-m">{mname(p)}</span><div class="cd-bar">'
+        + seg("cd-ok", n - len(st[p]["fail"]) - len(st[p]["hold"])) + seg("cd-hold", len(st[p]["hold"])) + seg("cd-bad", len(st[p]["fail"]))
+        + f'</div><span class="cd-v"><b>{n - len(st[p]["fail"]) - len(st[p]["hold"])}</b> / {n} 통과'
+        f'<small>기준 판정 {st[p]["judged"]:,}건 중 FAIL {st[p]["bad"]} · 보류 {st[p]["held"]}</small></span></div>' for p in rank)
+    bars = (f'<div class="cd-bars">{rows}</div>'
+            '<div class="cd-key"><span><i class="cd-ok"></i>LLM Judge 기준 모두 통과</span><span><i class="cd-hold"></i>보류가 남음(FAIL 없음)</span>'
+            f'<span><i class="cd-bad"></i>하나라도 FAIL</span><span class="muted">질문 수 · 빈 출력 요구 {len(D["qtypes"]) - n}문항은 보류라 뺌</span></div>')
+    n_llm = sum(1 for c in D["names"] if str(c).startswith("J"))
+    k = sum(1 for c, v in crit_fail(D).items() if str(c).startswith("J") and sum(v.values()))
+    return bars + f'<h3 class="rs-sh">어떤 기준에서 FAIL 이 났나 — FAIL 이 난 기준 {k}개 ({n_llm}개 중)</h3>' + scene_criteria(D, top_n=None)
+
+
+def scene_tokens(D: Dict[str, Any]) -> str:
+    """평가 토큰 — 심판별 · 모델별 (사용자 10-27 보고서 구성 7번: '단순히 우리가 넣은 입력과 AI 가 내놓은 글자수를 토큰으로 계산한 것이 아닌
+    모든 작업을 할 때 사용된 토큰양'). 각 API · CLI 가 호출마다 돌려준 사용량을 그대로 더한다 — Jev · Decisions 는 API usage,
+    Codex 는 codex exec 한 번이 끝날 때(turn.completed) 주는 합계(에이전트가 안에서 여러 번 부른 모델 · 도구 · 검색 · 추론 포함)."""
+    order = D["order"]
+    T = judge_tokens(D)
+    if not T:
+        return '<p class="rs-basis">이 실행에는 판정 토큰 기록이 없습니다.</p>'
+    names = sorted(T, key=lambda k: JUDGE_ORDER.index(k) if k in JUDGE_ORDER else len(JUDGE_ORDER))
+
+    def tk(v: float) -> str:
+        return f"{v / 1e6:.1f}M" if v >= 1e6 else f"{v / 1e3:.0f}K" if v >= 1e3 else f"{v:,.0f}"
+
+    def cell(t: Dict[str, Any], col: str) -> str:
+        return tk(t[col]) if col in t["seen"] else '<span class="rs-na">기록 안 됨</span>'
+
+    tot = {k: T[k]["in"] + T[k]["out"] for k in names}
+    cards = ("".join(f'<div class="cb-card"><span class="cb-m">{E(k)}</span><b>{tk(tot[k])}</b><small>호출 {T[k]["calls"]:,}번 · 입력 {tk(T[k]["in"])} · 출력 {tk(T[k]["out"])}</small></div>'
+                     for k in names)
+             + f'<div class="cb-card"><span class="cb-m">합계</span><b>{tk(sum(tot.values()))}</b><small>호출 {sum(T[k]["calls"] for k in names):,}번</small></div>')
+    rows = [[E(k), f'{T[k]["calls"]:,}번', f"<b>{tk(tot[k])}</b>", cell(T[k], "in"), cell(T[k], "cached"), cell(T[k], "cwrite"), cell(T[k], "out"), cell(T[k], "reason")]
+            for k in names]
+    rows.append(['<span class="rs-strong">합계</span>', f'{sum(T[k]["calls"] for k in names):,}번', f"<b>{tk(sum(tot.values()))}</b>",
+                 tk(sum(T[k]["in"] for k in names)), "", "", tk(sum(T[k]["out"] for k in names)), ""])
+    t1 = table("심판별 — 전체 토큰과 나눔", ["심판", "호출", "전체(입력 + 출력)", "입력", "그중 캐시 읽음", "그중 캐시 씀", "출력", "그중 추론"], rows,
+               [15, 10, 15, 12, 12, 12, 12, 12])
+    Tp = {p: judge_tokens(D, only=p) for p in order}
+    mrows = [[mname(p)] + [tk(Tp[p][k]["in"] + Tp[p][k]["out"]) if k in Tp[p] else "0" for k in names]
+             + [f'<b>{tk(sum(t["in"] + t["out"] for t in Tp[p].values()))}</b>'] for p in order]
+    w = max(8, 70 // (len(names) + 1))
+    t2 = table("모델별 — 그 모델의 답을 판정하는 데 쓴 토큰(입력 + 출력)", ["모델", *map(E, names), "합"], mrows, [30] + [w] * (len(names) + 1))
+    dec0 = "Decisions" in T and "out" in T["Decisions"]["seen"] and not T["Decisions"]["out"]
+    note = ('<p class="rs-basis">우리가 보낸 질문 · 답의 글자 수를 토큰으로 바꾼 값이 아니라, 심판이 판정하면서 실제로 처리한 토큰 전부입니다 — 각 API · CLI 가 호출마다 '
+            '돌려준 사용량을 그대로 더했습니다. 판정 프롬프트 · 기준 설명 · 질문 · 답(멀티턴은 앞 턴까지)을 판정 프롬프트 3종으로 세 번씩 읽은 것, '
+            '다시 묻기 · 복구 호출, 출력과 추론, Codex CLI 가 덧붙이는 시스템 프롬프트 · 도구 설명과 에이전트가 안에서 여러 번 부른 모델 · 파일 읽기 · 웹 검색까지 들어갑니다. '
+            '캐시 읽음 · 캐시 씀은 입력 안에 든 몫(앞 호출과 같은 앞부분을 다시 읽거나 저장한 것)입니다.'
+            + (" Decisions API 는 출력 토큰을 0으로 돌려줍니다(답 글을 쓰지 않고 선택지 확률로 판정)." if dec0 else "")
+            + ' 답변 수집(웹 화면)은 토큰이 보이지 않아 판정만 셉니다.</p>')
+    return f'<div class="cb-cards">{cards}</div>{note}{t1}{t2}'
+
+
+def scene_fail_list(D: Dict[str, Any]) -> str:
+    """FAIL 목록 (사용자 10-27 보고서 구성 8번) — 모델마다 FAIL 질문의 어긴 기준 하나하나: 어디를 보고(턴 · 답의 해당 문장 · 질문의 요구)
+    왜 FAIL 로 봤는지(사유 · 심판). 질문 번호를 누르면 원문(답에서 걸린 부분 칠함)이 열린다."""
+    out = []
+    for k, p in enumerate(D["order"]):
+        rows, nq, ne = [], 0, 0
+        for q in sorted(D["qtypes"]):
+            if D["lines"][(p, q)]["verdict"] != "FAIL":
+                continue
+            nq += 1
+            multi = len(D["qset"][q]["turns"]) > 1
+            for j, e in enumerate(fail_entries(D, p, q)):
+                ne += 1
+                where = (f"턴 {e['turn']} · " if multi else "") + (
+                    "답 전체 — 프로그램이 세거나 형식을 검사" if e["kind"] == "CODE" else
+                    f"답의 해당 문장 “{E(e['quote'][:200])}”" if e["quote"] else "답의 특정 문장을 짚지 않음 — 빠진 내용이나 답 전체")
+                if e["qquote"]:
+                    where += f'<div class="rs-quote">질문의 요구 “{E(e["qquote"][:160])}”</div>'
+                qcell = (f'<a href="#f-{p}-{q}"><b>Q{q}</b></a><span class="rs-id">{E(TYPE_NAME.get(D["qtypes"][q], ""))}</span>' if j == 0 else "")
+                rows.append([qcell, f'<b>{E(crit_name(D["names"], e["item"]) or e["item"])}</b><span class="rs-id">{E(e["item"])} · {E(KIND_LABEL.get(e["kind"], e["kind"]))}</span>',
+                             where, E(e["reason"] or "사유 없음") + (f'<div class="rs-quote">심판: {E(e["how"])}</div>' if e["how"] else "")])
+        body = table("", ["질문", "어긴 기준", "어디를 보고", "왜 FAIL"], rows, [10, 22, 33, 35]) if rows else '<p class="rs-basis">FAIL 인 질문이 없습니다.</p>'
+        out.append(f'<details class="rs-d rs-fl"{" open" if k == 0 else ""}><summary><b>{mname(p)}</b> '
+                   f'<span class="muted">FAIL 질문 {nq}개 · 어긴 기준 {ne}건</span></summary>{body}</details>')
+    return ('<p class="rs-basis">CODE 검사는 프로그램이 답 전체를 세거나 형식을 본 결과라 짚은 문장이 없고, LLM Judge 는 심판이 짚은 답의 문장과 질문의 요구를 함께 둡니다. '
+            '질문 번호를 누르면 원문이 열리고, 답에서 걸린 부분은 빨간 번호로 칠해져 있습니다.</p>' + "".join(out))
+
+
 def per_model(D: Dict[str, Any], counts: Dict[str, int]) -> str:
     """모델별 질문 수 — 'Claude 17 · AIONA 17 · …' (사용자 10-26: 모델을 합친 칸 수가 아니라 질문 개수로)."""
     return " · ".join(f"{SHORT[p]} {counts.get(p, 0)}" for p in D["order"])
 
 
-def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> str:
+def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None, brief: bool = False) -> str:
     order = D["order"]
     holds = [(q, p) for (p, q), L in D["lines"].items() if L["verdict"] == "HOLD"]
     hq = sorted({q for q, _p in holds})
@@ -964,6 +1070,8 @@ def scene_hold(D: Dict[str, Any], part_of: Optional[Dict[str, str]] = None) -> s
                   + (f"<p>② 확인 못 함 {len(other)}칸 — 아래 표의 사유와 답의 해당 문장을 보고, 맞으면 통과 · 틀리면 FAIL. "
                      f"그중 {with_fail}칸은 FAIL 항목도 있어 결과는 FAIL 이 됩니다.</p>" if other else "")
                   + "<p>칸을 누르면 그 질문·답변 원문과 보류 사유가 열립니다.</p>", warn=True)
+    if brief:   # 결과 보고서 — 사유 표 · 정할 것 상자는 아래 '보류 정하기'에 턴마다 (사용자 10-27)
+        return top + legend + grid
     return top + legend + grid + why_tab + decide   # 사용자 10-22: 위 '계획' 상자는 뺌 — 계획은 보류 · 발전 방향 장면에
 
 
@@ -1197,19 +1305,20 @@ def judge_work(D: Dict[str, Any]) -> Dict[str, Counter]:
 #: 심판이 돌려준 사용량 칸 이름 → 표의 칸 (OpenAI · Codex 이름 둘 다; 안쪽 칸은 tools/judge_v4.add_usage 가 '바깥.안쪽'으로 펼침)
 USAGE_KEYS = {"in": ("input_tokens", "prompt_tokens"),
               "cached": ("cached_input_tokens", "input_tokens_details.cached_tokens", "prompt_tokens_details.cached_tokens"),
+              "cwrite": ("cache_write_input_tokens", "input_tokens_details.cache_write_tokens"),
               "out": ("output_tokens", "completion_tokens"),
               "reason": ("reasoning_output_tokens", "output_tokens_details.reasoning_tokens", "completion_tokens_details.reasoning_tokens")}
 FIRST_SUM = "1차 (Jev · Decisions 합)"
 JUDGE_ORDER = ("Jev", "Decisions", FIRST_SUM, "Codex")
 
 
-def judge_tokens(D: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def judge_tokens(D: Dict[str, Any], only: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """심판마다 판정 토큰 (10-22 미팅 7번) — 심판이 호출마다 돌려준 사용량을 그대로 더한다. 칸에 기록이 한 번도 없으면 seen 에 없음('기록 안 됨').
-    1차 사용량을 심판별로 남기기 전 실행은 1차(Jev · Decisions 합) 입력만 있다."""
+    1차 사용량을 심판별로 남기기 전 실행은 1차(Jev · Decisions 합) 입력만 있다. only — 그 모델의 답을 판정한 것만."""
     T: Dict[str, Dict[str, Any]] = {}
 
     def add(judge: str, usage: Dict[str, Any], calls: int) -> None:
-        t = T.setdefault(judge, {"in": 0, "cached": 0, "out": 0, "reason": 0, "calls": 0, "seen": set()})
+        t = T.setdefault(judge, {"in": 0, "cached": 0, "cwrite": 0, "out": 0, "reason": 0, "calls": 0, "seen": set()})
         t["calls"] += calls
         for col, names in USAGE_KEYS.items():
             hit = [k for k in names if isinstance(usage.get(k), (int, float))]
@@ -1218,6 +1327,8 @@ def judge_tokens(D: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 t["seen"].add(col)
 
     for l in judged_lines(D):
+        if only and l.get("provider") != only:
+            continue
         c = l.get("calls") or {}
         dc, cx = c.get("decisions") or {}, c.get("codex") or {}
         if not dc.get("reused") or dc.get("fresh_judge"):   # --repair 는 이번에 새로 부른 1차 심판만 (10-22)
@@ -1803,7 +1914,7 @@ def scene_judge_choice(D: Dict[str, Any]) -> Tuple[str, str]:
     return html_, key
 
 
-def scene_time(D: Dict[str, Any]) -> str:
+def scene_time(D: Dict[str, Any], tokens: bool = True) -> str:
     order = D["order"]
     W = judge_work(D)
     jmx = max((W[p]["seconds"] for p in order), default=0) or 1
@@ -1820,7 +1931,7 @@ def scene_time(D: Dict[str, Any]) -> str:
           + 'Jev · Decisions 는 외부 API · Codex CLI 는 ChatGPT 구독으로 실행.</p>')
     # 10-20 보고 때(다른 78개 세트) 수집 시간 참고 줄은 뺌 — 이 실행의 숫자만 (받은 의견 E: 질문 세트 · 실행 고정)
     # 사용자 10-22 미팅 6번: 모델별 답변 시간 합 막대 · 유형별 평균 표 대신 질문 · 유형별 편차 (time_spread)
-    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + token_table(D)
+    return time_spread(D) + '<h3 class="rs-sh">판정 — 실제로 걸린 시간</h3>' + judge + jt + (token_table(D) if tokens else "")
 
 
 def token_table(D: Dict[str, Any]) -> str:
@@ -2248,9 +2359,9 @@ def decide_attrs(p: str, q: int, turn: int, item: str) -> str:
             f'data-item="{E(item)}" data-old="UNVERIFIED"')
 
 
-def hold_blocks(D: Dict[str, Any], decide: bool = False) -> List[Tuple[str, int, str]]:
-    """보류 칸마다 (모델, 질문, HTML) — 왼쪽 질문·답변 원문(사유가 짚은 답 문장은 번호로 칠함), 오른쪽 보류 사유 (사용자 10-21).
-    decide — 사유마다 PASS · FAIL 단추(빈 출력 요구는 순위에서 늘 보류라 단추 없음, 사용자 10-27)."""
+def hold_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
+    """보류 칸마다 (모델, 질문, HTML) — 왼쪽 질문·답변 원문(사유가 짚은 답 문장은 번호로 칠함), 오른쪽 보류 사유 (사용자 10-21). 발표 템플릿용 —
+    결과 보고서는 턴마다 정하는 decide_blocks."""
     out = []
     for p in D["order"]:
         for q in sorted(D["qtypes"]):
@@ -2272,13 +2383,11 @@ def hold_blocks(D: Dict[str, Any], decide: bool = False) -> List[Tuple[str, int,
             left = "".join(turn_html(D, p, q, tn, multi, [w for w in why + fents if w["turn"] == tn]) for tn in range(1, len(turns_q) + 1))
             if why:
                 right = f'<h4>보류 — 확인 못 한 기준 {len(why)}개 ({E(hold_label(why))})</h4>' + "".join(
-                    (f'<div class="rs-item hold-item" {decide_attrs(p, q, w["turn"], w["item"])}>' if decide else '<div class="rs-item">')
-                    + f'<div><b class="rs-hlno rs-hlno-hold{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> '
+                    f'<div class="rs-item"><div><b class="rs-hlno rs-hlno-hold{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> '
                     f'<b>{E(crit_name(D["names"], w["item"]) or w["item"])}</b> <span class="rs-id">{E(w["item"])}{" · 턴 " + str(w["turn"]) if multi else ""}</span></div>'
                     f'<div class="rs-fwhy">{E(w["reason"])}</div>'
                     + (f'<div class="rs-quote">답의 해당 문장 “{E(w["quote"][:300])}”</div>' if w["quote"] else "")
-                    + f'<div class="rs-quote">{E(w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else ""))}</div>'
-                    + (R.decide_buttons(w["kind"]) if decide else "") + '</div>' for w in why)
+                    + f'<div class="rs-quote">{E(w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else ""))}</div></div>' for w in why)
                 if fents:   # 보류 우선(10-21) — FAIL 항목도 같이 보인다
                     right += (f'<h4 class="rs-h4gap">FAIL — 어긴 기준 {n_fail}개</h4>' + "".join(fail_entry_html(D, e, multi) for e in fents)
                               + '<p class="rs-quote">FAIL 항목이 있어 보류를 어떻게 정해도 이 질문은 FAIL 이 됩니다.</p>')
@@ -2289,13 +2398,10 @@ def hold_blocks(D: Dict[str, Any], decide: bool = False) -> List[Tuple[str, int,
                 a = (t.get("answer") or "").strip()
                 got = "재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음" if t.get("status") == "COPY_FAILED" else ("빈 답" if not a else f"짧은 글 {len(a)}자")
                 is_empty = D["qtypes"][q] == EMPTY_REQ
-                whole = decide and not is_empty   # 질문 전체 보류(답을 못 받음 등) — 질문 하나에 단추 한 벌
                 right = (f'<h4>보류 사유 — {"빈 출력 요구" if is_empty else "기록"}</h4>'
-                         + (f'<div class="rs-item hold-item" {decide_attrs(p, q, 1, "__question__")}>' if whole else '<div class="rs-item">')
-                         + f'<div class="rs-fwhy">{E(L["line"].get("reason") or L["line"].get("collection_note") or (EMPTY_WHY if is_empty else "기록 없음"))}</div>'
-                         f'<div class="rs-quote">받은 답: {E(got)}</div>' + (R.decide_buttons("질문 전체 보류") if whole else "") + '</div>'
-                         + ('<p class="rs-quote">빈 출력 요구는 순위에서 늘 보류로 셉니다 — 원문 확인용</p>' if is_empty and decide
-                            else '<p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p>' if is_empty else ""))
+                         f'<div class="rs-item"><div class="rs-fwhy">{E(L["line"].get("reason") or (EMPTY_WHY if is_empty else "기록 없음"))}</div>'
+                         f'<div class="rs-quote">받은 답: {E(got)}</div></div>'
+                         + ('<p class="rs-quote">빈 답 · 재시도 대상 · 짧은 글을 각각 통과로 볼지 FAIL 로 볼지 사람이 정함</p>' if is_empty else ""))
             out.append((p, q, f'<article class="rs-fd" id="b-{p}-{q}"><h3 class="rs-fdh">Q{q} · {mname(p)} · {E(TYPE_NAME.get(D["qtypes"][q], ""))} · '
                               f'<span class="rs-holdtxt">보류</span>{" · 확인 못 함 " + str(len(why)) + "개" if why else ""}'
                               f'{" · 어긴 기준 " + str(n_fail) + "개" if n_fail else ""}</h3>'
@@ -2306,7 +2412,7 @@ def hold_blocks(D: Dict[str, Any], decide: bool = False) -> List[Tuple[str, int,
 def fail_entry_html(D: Dict[str, Any], e: Dict[str, Any], multi: bool) -> str:
     if e["kind"] == "CODE":
         where = '<div class="rs-quote">CODE 검사 — 프로그램이 답 전체를 세거나 형식을 검사한 결과</div>'
-    elif e["quote"] and e["found"]:
+    elif e["quote"] and e.get("found"):
         where = f'<div class="rs-quote">답에서 걸린 부분 <b class="rs-hlno">{e["n"]}</b> “{E(e["quote"][:300])}”</div>'
     elif e["quote"]:
         where = f'<div class="rs-quote">답 인용(원문에서 위치를 못 찾음): “{E(e["quote"][:300])}”</div>'
@@ -2501,22 +2607,106 @@ def split_parts(D: Dict[str, Any], blocks: List[Tuple[str, int, str]], prefix: s
     return out
 
 
+def fail_entries(D: Dict[str, Any], p: str, q: int) -> List[Dict[str, Any]]:
+    """그 질문의 FAIL 기준 — CODE 검사(턴 · 사유) + LLM Judge(턴 · 사유 · 답의 해당 문장 · 질문의 요구 · 심판), 턴 순."""
+    L = D["lines"][(p, q)]
+    ents = ([{"turn": int(c["turn"]), "item": c["check_id"], "kind": "CODE", "reason": c["reason"], "quote": "", "qquote": "", "how": "", "found": False}
+             for c in code_fail_rows(D, p, q)]
+            + [{"turn": int(i["turn"]), "item": i["item"], "kind": "의미", "reason": i["reason"] or "; ".join(i.get("problems") or []),
+                "quote": i.get("answer_quote") or "", "qquote": i.get("question_quote") or "", "how": i.get("how") or ""}
+               for i in L["items"] if i["decision"] == "FAIL"])
+    ents.sort(key=lambda e: (e["turn"], e["kind"] != "의미"))
+    return ents
+
+
+def decide_item_html(D: Dict[str, Any], p: str, q: int, w: Dict[str, Any], multi: bool) -> str:
+    """보류 기준 하나 — 어디를 보고 · 왜 보류인지 · PASS / FAIL / Error 단추 · 사유 칸(선택) (사용자 10-27 보고서 구성 9번)."""
+    where = (f'답의 해당 문장 <b class="rs-hlno rs-hlno-hold{"" if w.get("found") else " rs-hlno-off"}">{w["n"]}</b> “{E(w["quote"][:300])}”' if w["quote"]
+             else "답의 특정 문장을 짚지 않음 — 빠진 내용이나 답 전체")
+    qq = f' · 질문의 요구 “{E(w["qquote"][:160])}”' if w.get("qquote") else ""
+    how = w["how"] + (" · Codex 로 보낸 이유: " + w["flagged"] if w["flagged"] else "")
+    return (f'<div class="rs-item hold-item" {decide_attrs(p, q, w["turn"], w["item"])}>'
+            f'<div><b class="rs-hlno rs-hlno-hold">{w["n"]}</b> <b>{E(crit_name(D["names"], w["item"]) or w["item"])}</b> '
+            f'<span class="rs-id">{E(w["item"])}{" · 턴 " + str(w["turn"]) if multi else ""}</span></div>'
+            f'<div class="rs-fwhy"><b>왜 보류</b> — {E(w["reason"])}</div>'
+            f'<div class="rs-quote"><b>어디를 보고</b> — {where}{qq}</div>'
+            + (f'<div class="rs-quote">심판: {E(how)}</div>' if how else "")
+            + R.decide_buttons(w["kind"], R.REPORT_BUTTONS, "사유(선택)") + "</div>")
+
+
+def decide_blocks(D: Dict[str, Any]) -> List[Tuple[str, int, str]]:
+    """보류 목록 (사용자 10-27 보고서 구성 9번) — 보류 질문마다 턴별로: 왼쪽 그 턴의 원문(보류가 짚은 답 문장은 번호로 칠함), 오른쪽 그 턴의 보류 기준마다
+    어디를 보고 · 왜 보류인지와 PASS · FAIL · Error 단추 · 사유 칸(선택). 다른 턴 원문 · 같은 질문의 FAIL 기준은 접어 둔다.
+    빈 출력 요구는 순위에서 늘 보류(기준 v2 1절)라 단추 없이 원문만."""
+    out = []
+    for p in D["order"]:
+        for q in sorted(D["qtypes"]):
+            L = D["lines"][(p, q)]
+            if L["verdict"] != "HOLD":
+                continue
+            turns_q = D["qset"][q]["turns"]
+            multi = len(turns_q) > 1
+            is_empty = D["qtypes"][q] == EMPTY_REQ
+            why = hold_why(D, p, q)
+            for k, w in enumerate(why, 1):
+                w["n"], w["turn"], w["hold"] = k, int(w["turn"]), True
+            fents = fail_entries(D, p, q)
+            for k, e in enumerate(fents, len(why) + 1):
+                e["n"] = k
+            n_fail = len({e["item"] for e in fents})
+            if why:
+                held = sorted({w["turn"] for w in why})
+                parts = []
+                for tn in held:
+                    left = turn_html(D, p, q, tn, multi, [w for w in why + fents if w["turn"] == tn])
+                    right = "".join(decide_item_html(D, p, q, w, multi) for w in why if w["turn"] == tn)
+                    parts.append(f'<div class="rs-dturn"><div class="rs-fx"><div class="rs-fx-l"><h4>{f"턴 {tn} " if multi else ""}원문</h4>{left}</div>'
+                                 f'<div class="rs-fx-r"><h4>정할 것{f" — 턴 {tn}" if multi else ""}</h4>{right}</div></div></div>')
+                others = [tn for tn in range(1, len(turns_q) + 1) if tn not in held]
+                if multi and others:
+                    parts.append(f'<details class="rs-d"><summary>다른 턴 원문 {len(others)}개 — 대화 앞뒤 보기</summary>'
+                                 + "".join(turn_html(D, p, q, tn, multi) for tn in others) + "</details>")
+                if fents:
+                    parts.append(f'<details class="rs-d"><summary>이 질문의 FAIL 기준 {n_fail}개 — 보류를 어떻게 정해도 이 질문은 FAIL</summary>'
+                                 + "".join(fail_entry_html(D, e, multi) for e in fents) + "</details>")
+                body = "".join(parts)
+            else:   # 질문 전체 보류(답을 못 받음 등) · 빈 출력 요구
+                t = D["turns"].get((p, q, 1)) or {}
+                a = (t.get("answer") or "").strip()
+                got = "재시도 대상 — 복사 버튼이 뜨지 않아 받은 글 없음" if t.get("status") == "COPY_FAILED" else ("빈 답" if not a else f"짧은 글 {len(a)}자")
+                reason = L["line"].get("reason") or L["line"].get("collection_note") or (EMPTY_WHY if is_empty else "기록 없음")
+                left = "".join(turn_html(D, p, q, tn, multi) for tn in range(1, len(turns_q) + 1))
+                if is_empty:
+                    right = (f'<div class="rs-item"><div class="rs-fwhy"><b>왜 보류</b> — {E(reason)}</div><div class="rs-quote">받은 답: {E(got)}</div></div>'
+                             '<p class="rs-quote">빈 출력 요구는 순위에서 늘 보류로 셉니다 — 원문 확인용</p>')
+                else:
+                    right = (f'<div class="rs-item hold-item" {decide_attrs(p, q, 1, "__question__")}><div><b>질문 전체</b></div>'
+                             f'<div class="rs-fwhy"><b>왜 보류</b> — {E(reason)}</div><div class="rs-quote"><b>어디를 보고</b> — 받은 답: {E(got)}</div>'
+                             + R.decide_buttons("질문 전체 보류", R.REPORT_BUTTONS, "사유(선택)") + "</div>")
+                body = (f'<div class="rs-fx"><div class="rs-fx-l"><h4>원문</h4>{left}</div>'
+                        f'<div class="rs-fx-r"><h4>{"보류 사유" if is_empty else "정할 것"}</h4>{right}</div></div>')
+            title = (f'Q{q} · {mname(p)} · {E(TYPE_NAME.get(D["qtypes"][q], ""))} · <span class="rs-holdtxt">보류</span>'
+                     + (f" · 정할 기준 {len(why)}개" if why else "") + (f" · 어긴 기준 {n_fail}개" if n_fail else ""))
+            out.append((p, q, f'<article class="rs-fd rs-show" id="b-{p}-{q}"><h3 class="rs-fdh">{title}</h3>{body}</article>'))
+    return out
+
+
 def decide_section(D: Dict[str, Any], hblocks: List[Tuple[str, int, str]]) -> str:
     """보류 정하기 (사용자 10-27: 결과 보고 보류도 보면서 보류 정하기) — 정할 보류 질문은 원문 · 사유 · 단추를 펼쳐 두고,
     빈 출력 요구(순위에서 늘 보류, 기준 v2 1절)는 접어서 원문만. 단추는 report_html.JS 가 저장한다(review 로 열면 바로, 파일이면 내보내기)."""
-    show = lambda h: h.replace('<article class="rs-fd"', '<article class="rs-fd rs-show"', 1)
-    todo = [show(h) for _p, q, h in hblocks if D["qtypes"][q] != EMPTY_REQ]
-    empty = [show(h) for _p, q, h in hblocks if D["qtypes"][q] == EMPTY_REQ]
+    todo = [h for _p, q, h in hblocks if D["qtypes"][q] != EMPTY_REQ]
+    empty = [h for _p, q, h in hblocks if D["qtypes"][q] == EMPTY_REQ]
     bar = ('<div class="rs-decide-bar" id="hold"><b>보류 정하기</b> 검토자 <input id="reviewer" placeholder="이름"> '
            '<span class="muted">정한 항목 <b id="decided">0</b>개</span> '
            '<button type="button" id="finish" class="live-only">다 정함 — 끝내기</button> <button type="button" id="rebuild" class="live-only">숫자 다시 계산</button> '
            '<button type="button" id="export">판단 내보내기(JSON)</button> <button type="button" id="clear" class="rs-quiet">저장된 판단 지우기</button> '
-           '<span class="muted" id="live-state"></span></div>')
+           '<span class="muted" id="live-state"></span>'
+           '<span class="muted rs-dhelp">PASS · FAIL · Error(답이 성립하지 않음 — 빈 답 · 거절 · 오류 문구) 중 하나를 누르고, 사유는 적고 싶을 때만</span></div>')
     body = "".join(todo) if todo else '<p class="rs-basis">정할 보류가 없습니다.</p>'
     if empty:
         body += (f'<details class="rs-d"><summary>빈 출력 요구 — 순위에서 늘 보류로 세는 칸 {len(empty)}개 (원문 확인용, 정하지 않음)</summary>'
                  + "".join(empty) + "</details>")
-    return f'<h3 class="rs-sh">보류 정하기 — 정할 질문 {len(todo)}칸</h3>{bar}<div class="rs-decide">{body}</div>'
+    return f'<h3 class="rs-sh">보류 정하기 — 정할 질문 {len(todo)}개(모델마다 따로)</h3>{bar}<div class="rs-decide">{body}</div>'
 
 
 def original_blocks(blocks: List[Tuple[str, int, str]]) -> str:
@@ -2771,6 +2961,10 @@ i.rs-pass, .rs-sw.rs-pass { background: var(--ok); } i.rs-fail, .rs-sw.rs-fail {
 .rs-fd { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; scroll-margin-top: 16px; }
 .rs-fd:target { display: block; border: 2px solid var(--accent); }
 .rs-fd.rs-show { display: block; }
+.rs-dturn + .rs-dturn { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px; }
+.rs-dhelp { flex-basis: 100%; font-size: 0.8rem; }
+.cd-hold { background: var(--hold-soft); color: var(--hold-text); }
+.rs-fl > summary { display: flex; gap: 10px; align-items: center; }
 .rs-decide { display: grid; gap: 12px; }
 .rs-decide-bar { position: sticky; top: 64px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; scroll-margin-top: 72px; }
 .rs-decide-bar input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; min-width: 0; }
@@ -3323,7 +3517,7 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
     if single:
         D["qstore"] = {}   # 긴 질문 글 — 쪽 끝에 한 번 (turn_html)
     fblocks, pblocks = fail_blocks(D), pass_blocks(D)   # 통과한 답 — 원문 · 지킨 기준 (사용자 10-21)
-    hblocks = hold_blocks(D, decide=single)   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21), 한 파일이면 사람 판정 단추까지
+    hblocks = decide_blocks(D) if single else hold_blocks(D)   # 보류 칸 — 원문 · 보류 사유 (사용자 10-21), 보고서는 턴마다 정하기 (10-27)
     # 발표 템플릿의 원문은 따로 — 앱 미리보기 한도(512KB) 때문에 본문 파일에는 6장면 · 질문별 표 · 보류 원문 · 기준 72개만
     parts = [] if single else split_parts(D, fblocks)
     pparts = [] if single else split_parts(D, pblocks, prefix="통과")
@@ -3391,21 +3585,44 @@ def build(run_id: str, report_dir: Optional[Path] = None) -> Tuple[List[Path], D
         ("s3", "FAIL 원인", "많이 어긴 기준", "FAIL 원인 — LLM Judge 가 많이 어긴 기준 10개",
          "칸 숫자는 모델마다 그 기준에서 FAIL 을 받은 질문 수입니다. 색이 진할수록 많습니다.", scene_criteria(D), ""),
         ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['nq']}) {hold_pm}",
-         ("보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 아래 <a href=\"#hold\">보류 정하기</a>에서 원문과 사유를 보며 항목마다 PASS · FAIL 을 누르면 정해집니다. "
-          "<code>aiona-chat-eval review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 "
-          "<code>aiona-chat-eval held-apply</code> 로 반영합니다." if single else
-          "보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 결과 폴더 보고서(report.html)의 '보류 목록'에서 원문과 사유를 보며 항목마다 PASS · FAIL 을 누르면 정해집니다."),
-         scene_hold(D, part_of) + (decide_section(D, hblocks) if single else ""),
+         "보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 결과 폴더 보고서(report.html)의 '보류 목록'에서 원문과 사유를 보며 항목마다 PASS · FAIL · Error 를 누르면 정해집니다.",
+         scene_hold(D, part_of),
          f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
         ("s6", "질문별 결과", f"{D['n']}문항 × {len(D['order'])}모델 · 원문", "질문별 결과",   # 사용자 10-22: 제목 뒤 '— 필요할 때만 펼치기' · 안내 문장 지움
          "", appendix(D, part_of) + (original_blocks(fblocks + pblocks) if single else ""), ""),
     ]
-    jd_html, jd_key = scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
+    if single:   # 결과 보고서 — 사용자 10-27 '보고서에 넣고 싶은 내용': 이번 실행 결과 · 분야별 순위 · 기준별 결과 · CODE 검사 · LLM Judge 검사 ·
+        # 답변 수집 및 평가 시간 · 평가 토큰 · 질문별 결과 · FAIL 목록 · 보류 목록 (FAIL 원인 · 심판 비교 · 심판 선택은 뺌)
+        by = {x[0]: x for x in detail}
+        detail = [
+            by["s1"],
+            ("s1b", "분야별 순위", *by["s1b"][2:3], "분야별 순위", *by["s1b"][4:]),
+            by["s_crit"], by["s_code"],
+            ("s_llm", "LLM Judge 검사", "AI 심판이 본 결과", "LLM Judge 검사 결과 — AI 심판이 본 것만",
+             "요청 수행 · 지시 준수 · 논리 · 사실 · 대화 기억처럼 AI 심판이 판단한 기준의 결과만 따로 봤습니다. 막대는 LLM Judge 기준을 모두 통과한 질문 · "
+             "보류가 남은 질문 · 하나라도 FAIL 을 받은 질문입니다.", scene_llm(D), ""),
+            ("s5", "걸린 시간", "답변 수집 · 평가", "답변 수집 · 평가 시간",
+             f"답변 수집 {hm(collect_seconds(D))} · 평가(판정) {hm(judge_s)}. 질문 하나하나의 시간이 유형에 따라 어떻게 다른지가 개선할 곳을 알려 줍니다.",
+             scene_time(D, tokens=False), ""),
+            ("s_tok", "평가 토큰", "Jev · Decisions · Codex", "평가에 쓴 토큰 — 심판별 · 모델별",
+             "판정하면서 심판이 실제로 처리한 토큰입니다 — 우리가 넣은 글과 받은 글을 센 값이 아니라, 각 API · CLI 가 돌려준 사용량을 모두 더했습니다.",
+             scene_tokens(D), ""),
+            by["s6"],
+            ("s_fail", "FAIL 목록", "어디를 보고 · 왜 FAIL", "FAIL 목록 — 어디를 보고 왜 FAIL 로 봤나",
+             "FAIL 인 질문마다 어긴 기준과, 심판이 어디를 보고(턴 · 답의 해당 문장 · 질문의 요구) 왜 FAIL 로 봤는지(사유)입니다.", scene_fail_list(D), ""),
+            ("s4", "보류 목록", f"사람이 정할 질문 {hold_pm}", f"보류 목록 — 사람이 정할 질문(모델별 / {D['nq']}) {hold_pm}",
+             "보류는 심판이 확정하지 못한 기준이 남은 질문입니다. 아래 <a href=\"#hold\">보류 정하기</a>에서 턴마다 원문과 '어디를 보고 · 왜 보류'를 보고 "
+             "PASS · FAIL · Error 중 하나를 누르면 정해지고, 사유는 적고 싶을 때만 적습니다. <code>aiona-chat-eval review</code>(평가가 끝날 때 묻는 '지금 정할까요?')로 "
+             "열었으면 누르는 즉시 저장되고, 파일로 열었으면 '판단 내보내기'로 받아 <code>aiona-chat-eval held-apply</code> 로 반영합니다.",
+             scene_hold(D, part_of, brief=True) + decide_section(D, hblocks),
+             f"사람이 정할 질문(모델별) {hold_pm} — 그중 빈 출력 요구 {empty_pm}. 아직 정하지 않아, 정하면 순위 · 통과율이 바뀔 수 있습니다."),
+        ]
+    jd_html, jd_key = ("", "") if single else scene_judge_compare(D)   # 사용자 10-22 미팅 3번 — 기존 장면 번호가 바뀌지 않게 맨 끝에
     if jd_html:
         detail.append(("s_jd", "심판 비교", "Jev · Decisions 갈림", "심판 비교 — Jev 와 Decisions 가 갈린 곳",
                        "같은 답을 두 심판이 따로 판정한 기록과 예전 실험으로, 갈림이 어느 기준에 몰렸고 최종 결론에서 누가 맞았는지 봤습니다. 확인만 하고 판정 방식은 바꾸지 않았습니다.",
                        jd_html, jd_key))
-    jc_html, jc_key = scene_judge_choice(D)   # 사용자 10-22 미팅 4번 — 심판 비교 다음에
+    jc_html, jc_key = ("", "") if single else scene_judge_choice(D)   # 사용자 10-22 미팅 4번 — 심판 비교 다음에
     if jc_html:
         detail.append(("s_jc", "심판 선택", "Codex 를 고른 근거", "심판 선택 — 2차 심판을 Codex 로 고른 근거",
                        f"2차 심판만 Codex 와 Claude CLI 로 바꿔 같은 답 {D['n'] * len(D['order'])}개(질문 {D['n']} × 모델 {len(D['order'])})를 판정해 비교했습니다. 시간은 정확도가 같을 때의 이유입니다.",

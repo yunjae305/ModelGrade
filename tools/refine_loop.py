@@ -13,9 +13,15 @@
     python -X utf8 tools/refine_loop.py reflect --cases <폴더>
     python -X utf8 tools/refine_loop.py apply   --cases <폴더> --proposal P1
     python -X utf8 tools/refine_loop.py run     --run … --judge … --item … [--apply]   # collect → propose → probe → score → reflect
+    python -X utf8 tools/refine_loop.py auto    --run … --judge v4 [--items 2]          # 평가 끝에 자동(start 가 부름) — 기준 고르기 → run --apply
 
 → data/refine/<실행>/<항목>/<시각>/ — cases.json · 표시용_표.html · proposals.json · probes/ · score.md · lesson.json
   채택된 안은 apply 가 실제 파일(판정 프롬프트 · 1차 항목 정의 · 턴별 확인 목록)에 넣고, 교훈은 참고자료/기준/채팅품질 평가기준_v2.md 12절에.
+
+auto (사용자 10-27 '평가가 완료되면 하네스2도 자동연계' · '알아서 잘못된 부분, 확장하면 좋을 부분들을 찾아서 개선 및 수정'):
+  판정 폴더의 사람 판정(human_decisions.json)을 정답 표시로, 사람 표시 · 보류 · 심판 갈림 · FAIL 이 많은 LLM 기준부터 골라 run --apply 를 차례로 돌린다.
+  채택된 안은 실제 파일에 넣고 변경내역(참고자료/변경내역/<날짜>-변경내역.md)에 적는다. 파일에 자동으로 넣을 수 없는 대상(기준 문서 · 질문 · CODE)의
+  개선 · 확장 제안은 참고자료/문서/하네스2_제안목록.md 에 쌓는다.
 """
 from __future__ import annotations
 
@@ -38,6 +44,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools import judge_v4 as jv  # noqa: E402
+
+FOLLOWUPS = ROOT / "참고자료" / "문서" / "하네스2_제안목록.md"   # 자동으로 넣지 못한 개선 · 확장 제안 (기준 문서 · 질문 · CODE)
+CHANGELOG_DIR = ROOT / "참고자료" / "변경내역"
+MIN_CELLS = 3   # auto 가 고르는 기준 — FAIL · 보류 칸과 통과 칸이 각각 이만큼은 있어야 전 · 후를 견줄 수 있다
 
 VERSION = "refine-loop-v1"
 RUNS = ROOT / "data" / "judge_runs"
@@ -110,7 +120,7 @@ def load_cells(run_id: str, judge_out: str, set_dir: Path, item: Optional[str] =
 
 
 def select_cases(cells: Sequence[Dict[str, Any]], n_fail: int, n_pass: int, seed: int = 1, types: Optional[Iterable[str]] = None,
-                 max_lines: Optional[int] = None) -> List[Dict[str, Any]]:
+                 max_lines: Optional[int] = None, prefer: Optional[set] = None) -> List[Dict[str, Any]]:
     """균형 표본 — FAIL · 보류 n_fail 개와 통과 n_pass 개(v2 10절 ①: 같은 수의 통과 칸). 모델 · 질문이 고루 섞이게 (같은 (모델, 질문)은 한 칸씩 먼저).
     max_lines 를 주면 FAIL · 보류 칸이 많은 (모델, 질문) 순으로 그 수만큼만 — 시험(재판정)은 (모델, 질문) 단위로 비용이 들므로(멀티턴은 대화 전체) 상한."""
     rnd = random.Random(seed)
@@ -118,12 +128,14 @@ def select_cases(cells: Sequence[Dict[str, Any]], n_fail: int, n_pass: int, seed
     if max_lines:
         bad_by_line: Counter = Counter((c["provider"], c["question"]) for c in pool if c["decision"] in ("FAIL", "UNVERIFIED"))
         all_lines = sorted({(c["provider"], c["question"]) for c in pool}, key=lambda k: (-bad_by_line[k], k[1], k[0]))
-        keep = set(all_lines[:max_lines])
+        keep = set(all_lines[:max_lines]) | ({k[:2] for k in prefer} if prefer else set())   # 사람 표시가 있는 (모델, 질문)은 남긴다
         pool = [c for c in pool if (c["provider"], c["question"]) in keep]
 
     def spread(cs: List[Dict[str, Any]], n: int) -> List[Dict[str, Any]]:
         cs = list(cs)
         rnd.shuffle(cs)
+        if prefer:   # 사람 표시(정답)가 있는 칸을 먼저 — 채택은 정답률로만 한다 (auto, 10-27)
+            cs.sort(key=lambda c: cell_key(c) not in prefer)
         got: List[Dict[str, Any]] = []
         seen: Counter = Counter()
         for rounds in range(3):   # 1회차: (모델, 질문) 하나씩 → 2회차: 모델마다 고루 → 3회차: 나머지
@@ -153,8 +165,9 @@ def load_marks(path: Path) -> Dict[Tuple[str, int, int, str], Dict[str, Any]]:
     out: Dict[Tuple[str, int, int, str], Dict[str, Any]] = {}
     for r in doc.get("rows") or []:
         out[(r["provider"], int(r["question"]), int(r.get("turn") or 1), r["item"])] = {"mark": r.get("mark"), "cause": r.get("cause"), "decision": r.get("decision")}
-    for d in doc.get("decisions") or []:
-        out[(d["provider"], int(d["question"]), int(d.get("turn") or 1), d["item"])] = {"decision": d.get("decision"), "truth": d.get("decision")}
+    for d in doc.get("decisions") or []:   # human_decisions.json — 사람이 고른 값은 new (옛 내보내기는 decision)
+        v = d.get("new") or d.get("decision")
+        out[(d["provider"], int(d["question"]), int(d.get("turn") or 1), d["item"])] = {"decision": v, "truth": v}
     return out
 
 
@@ -181,8 +194,8 @@ def cmd_collect(a: argparse.Namespace) -> Path:
     if not cells:
         raise SystemExit(f"{a.judge} 에 {a.item} 칸이 없습니다")
     types = [t.strip() for t in (a.types or "").split(",") if t.strip()] or None
-    cases = select_cases(cells, a.fail, a.n_pass, a.seed, types, a.max_lines)
     marks = load_marks(Path(a.marks)) if a.marks else {}
+    cases = select_cases(cells, a.fail, a.n_pass, a.seed, types, a.max_lines, set(marks) or None)
     for c in cases:
         c["truth"] = truth_of(c, marks.get(cell_key(c)))
     d = REFINE / a.run / a.item / now_stamp()
@@ -800,13 +813,96 @@ def cmd_run(a: argparse.Namespace) -> int:
     res = cmd_score(a)
     cmd_reflect(a)
     adopted = [k for k, v in res["adoption"].items() if v["판단"] == "채택"]
+    a.adoption, a.applied = res["adoption"], []
+    a.manual = [{"id": k, **v} for k, v in (res.get("proposals") or {}).items() if v.get("target") not in AUTO_TARGETS]
     if adopted and a.apply:
         for k in adopted:
             a.proposal = k
-            cmd_apply(a)
+            a.applied.append({"id": k, **cmd_apply(a)})
     elif adopted:
         say(f"채택 가능한 안 {adopted} — 넣으려면: refine_loop.py apply --cases {d} --proposal {adopted[0]}")
     return 0
+
+
+def rank_items(cells: Sequence[Dict[str, Any]], marks: Dict[Tuple[str, int, int, str], Any], n: int) -> List[Tuple[str, Dict[str, int]]]:
+    """다듬을 LLM 기준 고르기 — 사람 표시(정답)가 많은 것 → 보류 → 심판 갈림 → FAIL 순. FAIL · 보류와 통과가 각각 MIN_CELLS 칸은 있어야 한다."""
+    st: Dict[str, Counter] = defaultdict(Counter)
+    for c in cells:
+        if not str(c["item"]).startswith("J"):
+            continue
+        s = st[c["item"]]
+        s[c["decision"]] += 1
+        s["marked"] += cell_key(c) in marks
+        s["split"] += "갈림" in (c.get("how") or "")
+    ok = [i for i, s in st.items() if s["FAIL"] + s["UNVERIFIED"] >= MIN_CELLS and s["PASS"] >= MIN_CELLS]
+    ok.sort(key=lambda i: (-st[i]["marked"], -st[i]["UNVERIFIED"], -st[i]["split"], -st[i]["FAIL"], i))
+    return [(i, dict(st[i])) for i in ok[:n]]
+
+
+def cmd_auto(a: argparse.Namespace) -> Dict[str, Any]:
+    """평가 끝에 자동 (사용자 10-27) — 기준을 골라 run --apply 를 차례로, 시간 한도 안에서. 한 기준이 실패해도 다음 기준으로.
+    끝에 변경내역 · 제안목록을 적고 한 줄씩 요약한다."""
+    if a.channel == "claude" and not shutil.which("claude"):
+        say("하네스2 건너뜀 — Claude CLI(claude)가 없습니다. 설치 뒤: aiona-chat-eval setup")
+        return {"skipped": "no claude"}
+    set_dir = Path(a.set)
+    marks_path = RUNS / a.run / a.judge / "human_decisions.json"
+    marks = load_marks(marks_path) if marks_path.exists() else {}
+    picks = rank_items(load_cells(a.run, a.judge, set_dir), marks, a.items)
+    if not picks:
+        say("하네스2 — 다듬을 기준이 없습니다(FAIL · 보류와 통과가 함께 있는 LLM 기준 없음)")
+        return {"results": []}
+    say("하네스2 — 다듬을 기준: " + " · ".join(f"{i}(사람 표시 {s.get('marked', 0)} · 보류 {s.get('UNVERIFIED', 0)} · 갈림 {s.get('split', 0)} · FAIL {s.get('FAIL', 0)})"
+                                        for i, s in picks))
+    started, results = time.monotonic(), []
+    for item, _st in picks:
+        if (time.monotonic() - started) / 60 > a.budget_min:
+            say(f"하네스2 — 시간 한도 {a.budget_min}분을 넘어 {item} 부터는 다음 평가 때")
+            break
+        ns = argparse.Namespace(run=a.run, judge=a.judge, item=item, set=str(set_dir), fail=a.fail, n_pass=a.fail, types="", seed=1,
+                                max_lines=a.max_lines, marks=str(marks_path) if marks else None, channel=a.channel, model=a.model, effort=a.effort,
+                                proposal="all", rounds=2, base_rounds=2, votes=None, no_doc=False, apply=True)
+        try:
+            cmd_run(ns)
+            results.append({"item": item, "cases": ns.cases, "adoption": ns.adoption, "applied": ns.applied, "manual": ns.manual})
+        except (SystemExit, Exception) as exc:   # 한 기준이 막혀도 다음 기준으로 — 평가 결과는 그대로
+            say(f"⚠ 하네스2 {item} 건너뜀: {type(exc).__name__}: {str(exc)[:200]}")
+            results.append({"item": item, "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
+    write_followups(results, a.run, a.judge)
+    for r in results:
+        if r.get("error"):
+            say(f"  {r['item']}: 멈춤 — {r['error']}")
+            continue
+        verdicts = " · ".join(f"{k} {v['판단']}" for k, v in (r["adoption"] or {}).items()) or "안 없음(지금 그대로가 낫다고 봄)"
+        say(f"  {r['item']}: {verdicts}" + (f" → 반영 {', '.join(x['id'] for x in r['applied'])}" if r["applied"] else "")
+            + (f" · 사람이 볼 제안 {len(r['manual'])}개(제안목록)" if r["manual"] else ""))
+    return {"results": results}
+
+
+def write_followups(results: Sequence[Dict[str, Any]], run_id: str, judge_out: str) -> None:
+    """반영한 안 → 변경내역, 자동으로 넣지 못한 대상(기준 문서 · 질문 · CODE)의 개선 · 확장 제안 → 하네스2_제안목록.md."""
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = [x["changelog"] for r in results for x in r.get("applied") or [] if x.get("changelog")]
+    if lines:
+        f = CHANGELOG_DIR / f"{datetime.now():%Y-%m-%d}-변경내역.md"
+        head = "" if f.exists() else f"# {datetime.now():%Y-%m-%d} 변경내역\n"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        with f.open("a", encoding="utf-8") as h:
+            h.write(head + f"\n## 하네스2 자동 반영 — 실행 {run_id} · 판정 {judge_out} ({stamp})\n\n" + "\n".join(lines) + "\n")
+    manual = [(r["item"], m, r["cases"]) for r in results for m in r.get("manual") or []]
+    if manual:
+        if not FOLLOWUPS.exists():
+            FOLLOWUPS.parent.mkdir(parents=True, exist_ok=True)
+            FOLLOWUPS.write_text("# 하네스2 제안목록 — 자동으로 넣지 못한 개선 · 확장\n\n평가 끝 하네스2(`tools/refine_loop.py auto`)가 낸 안 가운데 "
+                                 "기준 문서 · 질문 · CODE 를 고치거나 넓히자는 것. 기준은 문서 → 코드 순서로 반영한다.\n", encoding="utf-8")
+        body = [f"\n## {stamp} — 실행 {run_id} · 판정 {judge_out}\n"]
+        for item, m, cases in manual:
+            edits = "; ".join(str(e.get("new") or e.get("append") or e.get("add_check") or e.get("add_decided") or "")[:160]
+                              for e in m.get("edits") or [] if isinstance(e, dict))
+            body.append(f"- **{item} {m['id']}** ({m.get('target')} · {m.get('scope')}) — {str(m.get('why') or '')[:300]}"
+                        + (f" · 고칠 글: {edits}" if edits else "") + f" · 근거 `{cases}`")
+        with FOLLOWUPS.open("a", encoding="utf-8") as h:
+            h.write("\n".join(body) + "\n")
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -862,6 +958,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     common_probe(p)
     p.add_argument("--no-doc", action="store_true")
     p.add_argument("--apply", action="store_true", help="채택된 안을 실제 파일에 바로 넣는다")
+    p = sub.add_parser("auto", help="평가 끝에 자동 — 기준을 골라 run --apply 를 차례로 (start 가 부름)")
+    p.add_argument("--run", required=True)
+    p.add_argument("--judge", default="v4")
+    p.add_argument("--set", default=str(ROOT / "참고자료" / "질문세트_78"))
+    p.add_argument("--items", type=int, default=2, help="다듬을 기준 수 (기본 2)")
+    p.add_argument("--fail", type=int, default=12, help="기준마다 FAIL · 보류 칸 수(통과도 같은 수)")
+    p.add_argument("--max-lines", type=int, default=8, help="기준마다 다시 판정할 (모델, 질문) 상한 — 비용 조절")
+    p.add_argument("--budget-min", type=int, default=180, help="이 시간(분)을 넘으면 다음 기준은 다음 평가 때")
+    common_llm(p)
     a = ap.parse_args(argv)
     if a.cmd == "collect":
         cmd_collect(a)
@@ -877,6 +982,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         cmd_apply(a)
     elif a.cmd == "run":
         return cmd_run(a)
+    elif a.cmd == "auto":
+        cmd_auto(a)
     return 0
 
 

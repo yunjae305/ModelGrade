@@ -189,3 +189,31 @@ def test_apply_proposal_edits_the_three_judging_stances(tmp_path: Path, monkeypa
     with pytest.raises(rl.EditError):
         rl.apply_proposal({"target": "판정 태도 3종", "edits": [{"item": "guided", "old": "x", "new": "y"}]}, tmp_path / "w2", tmp_path / "p.txt", tmp_path / "j.json", None)
     assert "판정 태도 3종" in rl.AUTO_TARGETS
+
+
+def test_auto_reads_human_decisions_new_and_picks_items_with_most_evidence(tmp_path: Path):
+    """평가 끝 자동 하네스2 (10-27) — human_decisions.json 의 사람 판정(new)을 정답으로 읽고, 사람 표시 → 보류 → 갈림 → FAIL 순으로 기준을 고른다."""
+    f = tmp_path / "human_decisions.json"
+    f.write_text(json.dumps({"decisions": [{"provider": "gpt", "question": 2, "turn": 1, "item": "J2-3.a", "new": "PASS"}]}), encoding="utf-8")
+    marks = rl.load_marks(f)
+    assert rl.truth_of(_cell(2, "gpt", "UNVERIFIED", item="J2-3.a"), marks[("gpt", 2, 1, "J2-3.a")]) == "PASS"
+    cells = ([_cell(q, "gpt", "FAIL", item="J1-4.b") for q in range(1, 9)] + [_cell(q, "aiona", "PASS", item="J1-4.b") for q in range(1, 5)]
+             + [_cell(q, "gpt", "UNVERIFIED", item="J2-3.a") for q in range(1, 4)] + [_cell(q, "aiona", "PASS", item="J2-3.a") for q in range(1, 5)]
+             + [_cell(q, "gpt", "FAIL", item="J5-1.a") for q in range(1, 3)] + [_cell(q, "aiona", "PASS", item="J5-1.a") for q in range(1, 9)]
+             + [_cell(1, "gpt", "FAIL", item="2-1.length")] * 5)
+    picks = rl.rank_items(cells, marks, 3)
+    assert [i for i, _s in picks] == ["J2-3.a", "J1-4.b"]   # 사람 표시가 있는 기준 먼저 · FAIL 이 2칸뿐인 J5-1.a · CODE 는 뺌
+    got = rl.select_cases(cells, n_fail=1, n_pass=1, prefer=set(marks))
+    assert got[0]["item"] == "J2-3.a" and got[0]["question"] == 2   # 사람 표시 칸이 표본에 먼저
+
+
+def test_start_runs_refine_after_report_without_asking(monkeypatch, capsys):
+    """평가 끝 — 묻지 않고 하네스2(auto)를 부르고, 막혀도 평가는 그대로 끝난다 (사용자 10-27)."""
+    from tools import modelgrade as mg
+    calls = []
+    monkeypatch.setattr(rl, "main", lambda argv: calls.append(argv) or 0)
+    mg.run_refine("r1", Path("set"), 2)
+    assert calls[0][:3] == ["auto", "--run", "r1"] and calls[0][calls[0].index("--items") + 1] == "2"
+    monkeypatch.setattr(rl, "main", lambda argv: (_ for _ in ()).throw(RuntimeError("막힘")))
+    mg.run_refine("r1", Path("set"), 2)
+    assert "하네스2 멈춤" in capsys.readouterr().out

@@ -63,6 +63,7 @@ python -X utf8 -m pytest -q
 | 첫 Codex 호출을 한 번으로(시험 — 묶음 대신 첨부 없는 단일 질문 전부, 저장된 1차 그대로) | `python -X utf8 tools/judge_v4.py --run <실행> --set 참고자료/질문세트_78 --pick <질문:모델,…> --out <폴더> --reuse-first <1차 폴더> --codex-one-call stdin` (`file` 은 입력을 파일 하나로 두고 Codex 가 셸로 읽음) |
 | 2차 심판 비교(Codex ↔ Claude CLI) | `python -X utf8 tools/judge_claude_compare.py judge --run <실행> --questions <10~20개> --base <Codex 판정 폴더> --out <폴더>` → `compare` |
 | 기준 다듬기 루프(harness2 흐름: 모으기 → 제안(Claude CLI) → 전후 다시 판정 → 채택 → 교훈) | `python -X utf8 tools/refine_loop.py run --run <실행> --judge <판정 폴더> --item J1-4.b [--marks 표시결과.json --apply]` |
+| 기준 다듬기 자동(start 가 평가 끝에 부름 — 사람 판정을 정답으로 기준을 골라 run --apply, 반영 → 변경내역 · 못 넣은 제안 → `참고자료/문서/하네스2_제안목록.md`) | `python -X utf8 tools/refine_loop.py auto --run <실행> [--judge v4 --items 2 --budget-min 180]` · 끄기 `aiona-chat-eval start --refine off` |
 | 기준 · 프롬프트 · 코드가 같은 말을 하는지 | `python -X utf8 tools/criteria_consistency.py` |
 | 이력 없는 깨끗한 사본 만들기(회의록만 빼고 복사본을 다시 점검) | `python -X utf8 tools/export_public.py --out <빈 폴더>` (`--no-results` 로 결과 폴더 빼기) |
 

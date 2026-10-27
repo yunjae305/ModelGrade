@@ -539,11 +539,18 @@ ERROR_BUTTONS = (("ERROR_CASE", "에러 케이스"), ("PASS", "PASS"), ("FAIL", 
 CODE_BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("UNVERIFIED", "계속 보류"))
 
 
-def decide_buttons(kind: Optional[str]) -> str:
-    """보류 칸 하나의 사람 판정 단추 · 메모 칸 — 저장 스크립트(JS)가 .hold-item 안의 이 단추를 읽는다. 결과 보고서 '보류 목록'도 같은 단추."""
-    choices = ERROR_BUTTONS if kind in (ERROR_SUSPECT_KIND, "질문 전체 보류") else CODE_BUTTONS if kind == CODE_HOLD_KIND else BUTTONS
-    tip = "사유(기준 고칠 때 씀)" if kind in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND) else "메모(선택)"
-    return "<div class='btns'>" + "".join(f"<button data-v='{v}'>{t}</button>" for v, t in choices) + f" <input class='note' placeholder='{tip}' size='36'></div>"
+#: 결과 보고서 '보류 목록'의 단추 — 사용자 10-27 'PASS/FAIL/Error 로 분류 가능하도록' (Error = 에러 케이스: 답이 성립하지 않음)
+REPORT_BUTTONS = (("PASS", "PASS"), ("FAIL", "FAIL"), ("ERROR_CASE", "Error"))
+BUTTON_TITLES = {"ERROR_CASE": "에러 케이스 — 답이 성립하지 않음(빈 답 · 거절 · 서비스 오류 문구)", "UNVERIFIED": "아직 못 정함"}
+
+
+def decide_buttons(kind: Optional[str], choices: Optional[Tuple[Tuple[str, str], ...]] = None, tip: Optional[str] = None) -> str:
+    """보류 칸 하나의 사람 판정 단추 · 메모 칸 — 저장 스크립트(JS)가 .hold-item 안의 이 단추를 읽는다. choices · tip 을 주지 않으면 칸 종류대로."""
+    choices = choices or (ERROR_BUTTONS if kind in (ERROR_SUSPECT_KIND, "질문 전체 보류") else CODE_BUTTONS if kind == CODE_HOLD_KIND else BUTTONS)
+    tip = tip or ("사유(기준 고칠 때 씀)" if kind in (ERROR_SUSPECT_KIND, CODE_HOLD_KIND) else "메모(선택)")
+    return ("<div class='btns'>" + "".join(f"<button data-v='{v}'" + (f" title='{BUTTON_TITLES[v]}'" if v in BUTTON_TITLES else "") + f">{t}</button>"
+                                           for v, t in choices)
+            + f" <input class='note' placeholder='{tip}' size='36'></div>")
 
 
 def _item_html(it: Dict[str, Any], names: Dict[str, Dict[str, str]], key_attrs: str = "", buttons: bool = False) -> str:

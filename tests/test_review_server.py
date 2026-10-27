@@ -49,10 +49,3 @@ def test_only_the_page_opened_with_the_key_can_save(tmp_path, monkeypatch):
         srv.shutdown()
         srv.server_close()
 
-
-def test_offer_review_only_hints_when_not_a_terminal(monkeypatch, capsys):
-    """평가 끝 보류 묻기 — 터미널이 아니면(자동 실행 · CI) 묻지 않고 명령만 알린다."""
-    from tools import modelgrade
-    monkeypatch.setattr(modelgrade.sys.stdin, "isatty", lambda: False, raising=False)
-    modelgrade.offer_review("r1")
-    assert "보류 정하기: aiona-chat-eval review" in capsys.readouterr().out
