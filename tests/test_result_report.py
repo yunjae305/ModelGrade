@@ -29,8 +29,10 @@ def test_report_ranks_by_questions_and_decides_holds_in_place():
     from tools import build_result_summary as brs
     D = _D()
     rank = brs.rank_card(D)
-    assert "질문 단위 · 통과 질문 수 / 3" in rank and "<b>2</b><small> / 3</small>" in rank   # AIONA 2 / 3 질문 (사용자 10-27)
-    assert "빈 출력 요구 1 포함" in rank and "문항 통과 3 / 4" in rank   # 빈 출력은 보류로 셈, 문항 단위는 보조
+    assert "질문 3개 중" in rank and "<b>2</b><small> / 3</small>" in rank   # AIONA 2 / 3 질문 (사용자 10-27)
+    assert "빈 출력 요구 1 포함" in rank and "<b>3</b><small> / 4</small>" in rank   # 문항 단위는 같은 공간의 둘째 버튼 (10-27)
+    assert '<label for="rk0">질문 단위</label>' in rank and '<label for="rk1">문항 단위</label>' in rank
+    assert "잠정" not in rank and "ds-ln" not in rank   # 보류도 평가 결과 — '잠정' · 점선 없음 (사용자 10-27)
     D["qstore"] = {}
     sec = brs.decide_section(D, brs.decide_blocks(D))
     assert 'id="hold"' in sec and 'id="finish"' in sec and 'data-key="gpt|2|1|J5-2.a"' in sec   # 보류 기준마다 단추

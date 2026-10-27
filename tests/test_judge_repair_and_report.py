@@ -263,24 +263,13 @@ def _flow_d(set_dir: Path) -> dict:
     return {"order": ["gpt"], "qset": qset, "qtypes": qtypes, "units": rh.units_of(qtypes, {1: 3}), "uverdict": V, "set_dir": set_dir}
 
 
-def test_flow_singles_group_pairs_by_turn_kind(tmp_path: Path):
-    """한 턴 질문 ↔ 멀티 턴 짝(flow_singles.json)을 턴 종류로 묶고 빈 출력 요구는 뺀다 — 파일이 없으면 비교 탭을 뺌 (10-26 미팅 12번)."""
+def test_turn_kinds_count_units_by_flow(tmp_path: Path):
+    """멀티턴 문항을 턴 종류로 센다 — 보류는 통과로 세지 않음. '싱글 vs 대화 중' 비교 탭은 뺌(사용자 10-27)."""
     from tools import build_result_summary as brs
     D = _flow_d(tmp_path)
-    assert brs.flow_singles(D) == {}
-    (tmp_path / "flow_singles.json").write_text(json.dumps({"pairs": {"5": [1, 2], "6": [1, 1], "7": [1, 2]}}), encoding="utf-8")
-    assert brs.flow_singles(D) == {"calc": [5], "setup": [6]}
-
-
-def test_turn_kinds_count_units_by_flow_and_compare_with_singles(tmp_path: Path):
-    """멀티턴 문항을 턴 종류로 세고, 짝지은 한 턴 질문과 통과율을 견준다 — 보류는 통과로 세지 않음."""
-    from tools import build_result_summary as brs
-    D = _flow_d(tmp_path)
-    (tmp_path / "flow_singles.json").write_text(json.dumps({"pairs": {"5": [1, 2], "6": [1, 1]}}), encoding="utf-8")
     page = brs.turn_kinds(D)
     assert "멀티턴 전체" in page and "<b>1</b><small> / 3</small><em>FAIL 1 · 보류 1</em>" in page   # 조건 정리 통과 · 계산 FAIL · 형식 맞추기 보류
-    assert "GPT 대화 중 50% · 싱글 100%" in page   # 짝이 있는 조건 정리 · 계산 턴 1/2, 한 턴 질문 Q5 · Q6 2/2
-    assert "<b>통과율</b> = 통과한 문항 ÷ 문항 수" in page and "대화 중<br>통과율" in page and "<em>통과 2 / 2</em>" in page   # % 의 뜻 (사용자 10-27)
+    assert "싱글 vs 대화 중" not in page and "<b>읽는 법</b>" in page
     assert brs.turn_kinds({**D, "units": [(5, 0), (6, 0), (7, 0)]}) == ""   # 멀티턴이 없으면 뺌
 
 

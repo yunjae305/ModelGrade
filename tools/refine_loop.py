@@ -71,6 +71,12 @@ def say(text: str) -> None:
     print(text, flush=True)
 
 
+def took(seconds: float) -> str:
+    """걸린 시간 — '1시간 5분' · '12분'."""
+    m = round(seconds / 60)
+    return f"{m // 60}시간 {m % 60}분" if m >= 60 else f"{m}분"
+
+
 def now_stamp() -> str:
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -916,14 +922,21 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
 
 
 def cmd_run(a: argparse.Namespace) -> int:
+    """한 기준을 끝까지 — 단계마다 '── n/5' 줄을 찍어 터미널에서 어디까지 왔는지 보이게 (사용자 10-27 '하네스2 작업 중이라고 뜨나?')."""
+    say("── 1/5 칸 모으기 — FAIL · 보류 칸과 같은 수의 통과 칸")
     d = cmd_collect(a)
     a.cases = str(d)
+    say(f"── 2/5 고칠 안 만들기 — {a.channel} CLI")
     body = cmd_propose(a)
     if body.get("keep_base") and not body.get("proposals"):
         say("제안자: 고칠 근거 없음(KEEP_BASE) — base 만 시험해 흔들림을 잰다")
     a.proposal = "all"
+    judged = sum(1 for p in body.get("proposals") or [] if p.get("target") not in TEXT_TARGETS)
+    say(f"── 3/5 다시 판정 — 지금 그대로(base) {max(a.rounds, int(getattr(a, 'base_rounds', 2) or 1))}바퀴 + 안 {judged}개 × {a.rounds}바퀴 (한 바퀴에 수십 분)")
     cmd_probe(a)
+    say("── 4/5 점수 · 채택 — 사람 판정과 맞는지 · 뒤집힘 · 다른 기준 영향")
     res = cmd_score(a)
+    say("── 5/5 교훈 · 반영")
     cmd_reflect(a)
     adopted = [k for k, v in res["adoption"].items() if v["판단"] == "채택"]
     a.adoption, a.applied = res["adoption"], []
@@ -984,10 +997,12 @@ def cmd_auto(a: argparse.Namespace) -> Dict[str, Any]:
     say("하네스2 — 다듬을 기준: " + " · ".join(f"{i}(사람 표시 {s.get('marked', 0)} · 보류 {s.get('UNVERIFIED', 0)} · 갈림 {s.get('split', 0)} · FAIL {s.get('FAIL', 0)})"
                                         for i, s in picks))
     started, results = time.monotonic(), []
-    for item, _st in picks:
-        if (time.monotonic() - started) / 60 > a.budget_min:
+    for n_i, (item, _st) in enumerate(picks, 1):
+        if a.budget_min and (time.monotonic() - started) / 60 > a.budget_min:   # 0 = 한도 없음(기본, 사용자 10-27 '3시간 한도 없애')
             say(f"하네스2 — 시간 한도 {a.budget_min}분을 넘어 {item} 부터는 다음 평가 때")
             break
+        t_item = time.monotonic()
+        say(f"\n하네스2 작업 중 [{n_i}/{len(picks)}] {item} — {datetime.now():%H:%M} 시작")
         ns = argparse.Namespace(run=a.run, judge=a.judge, item=item, set=str(set_dir), fail=a.fail, n_pass=a.fail, types="", seed=1,
                                 max_lines=a.max_lines, marks=str(marks_path) if marks else None, channel=a.channel, model=a.model, effort=a.effort,
                                 proposal="all", rounds=2, base_rounds=2, votes=None, no_doc=False, apply=True)
@@ -997,7 +1012,9 @@ def cmd_auto(a: argparse.Namespace) -> Dict[str, Any]:
         except (SystemExit, Exception) as exc:   # 한 기준이 막혀도 다음 기준으로 — 평가 결과는 그대로
             say(f"⚠ 하네스2 {item} 건너뜀: {type(exc).__name__}: {str(exc)[:200]}")
             results.append({"item": item, "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
+        say(f"하네스2 [{n_i}/{len(picks)}] {item} 끝 — {took(time.monotonic() - t_item)}")
     write_followups(results, a.run, a.judge)
+    say(f"\n하네스2 결과 — 기준 {len(results)}개 · {took(time.monotonic() - started)}")
     for r in results:
         if r.get("error"):
             say(f"  {r['item']}: 멈춤 — {r['error']}")
@@ -1099,7 +1116,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--items", type=int, default=2, help="다듬을 기준 수 (기본 2)")
     p.add_argument("--fail", type=int, default=12, help="기준마다 FAIL · 보류 칸 수(통과도 같은 수)")
     p.add_argument("--max-lines", type=int, default=8, help="기준마다 다시 판정할 (모델, 질문) 상한 — 비용 조절")
-    p.add_argument("--budget-min", type=int, default=180, help="이 시간(분)을 넘으면 다음 기준은 다음 평가 때")
+    p.add_argument("--budget-min", type=int, default=0, help="이 시간(분)을 넘으면 다음 기준은 다음 평가 때 — 0(기본) = 한도 없이 고른 기준을 모두")
     common_llm(p)
     a = ap.parse_args(argv)
     if a.cmd == "collect":

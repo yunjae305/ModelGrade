@@ -953,14 +953,14 @@ def run_refine(run_id: str, set_dir: Path, items: int) -> None:
     """평가 끝에 하네스2(기준 다듬기 루프)를 묻지 않고 이어서 (사용자 10-27 '평가가 완료되면 하네스2도 자동연계되게해서 실행시켜') —
     사람 판정 · 보류 · 심판 갈림이 많은 LLM 기준을 골라 고칠 안을 시험하고, 채택된 안은 판정 프롬프트 등에 넣는다(tools/refine_loop auto).
     하네스2가 막혀도 평가 결과 · 보고서는 그대로."""
-    print(f"\n기준 다듬기(하네스2)를 시작합니다 — 기준 {items}개까지, 끝나면 반영한 것과 사람이 볼 제안을 알립니다.", flush=True)
+    print(f"\n하네스2(기준 다듬기)를 시작합니다 — 기준 {items}개까지, 시간 한도 없이. 끝나면 반영한 것과 사람이 볼 제안을 알립니다.", flush=True)
     from tools import refine_loop
     try:
         refine_loop.main(["auto", "--run", run_id, "--judge", "v4", "--set", str(set_dir), "--items", str(items)])
     except (SystemExit, Exception) as exc:
         print(f"  ⚠ 하네스2 멈춤: {type(exc).__name__}: {exc} — 평가 결과 · 보고서는 그대로", flush=True)
     else:
-        print("기준 다듬기가 끝났습니다. 반영한 것은 다음 평가부터 쓰입니다.", flush=True)
+        print("하네스2 작업이 끝났습니다. 반영한 것은 다음 평가부터 쓰입니다.", flush=True)
 
 
 def make_new_question_set(args: argparse.Namespace) -> Path:
