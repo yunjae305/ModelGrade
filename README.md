@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.0-informational.svg" alt="version 1.1.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.2.0-informational.svg" alt="version 1.2.0"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 프로그램 검사 → AI 심판(3종 다수결) → 2차 확인 → 보류는 사람 → 보고서</code></p>
@@ -117,7 +117,14 @@ aiona-chat-eval start
 기준 다듬기(하네스2)를 시작합니다 — 기준 2개까지, 끝나면 반영한 것과 사람이 볼 제안을 알립니다.
 ```
 
-수집이 끝나면 묻지 않고 바로 평가하고, 평가가 끝나면 이어서 **하네스2(기준 다듬기)** 가 돕니다. 판정이 흔들린 LLM 기준을 골라 판정 프롬프트 · 기준 정의를 고칠 안을 시험하고, 사람 판정과 더 맞는 안은 바로 반영합니다(다음 평가부터 쓰임). 기준 문서 · 질문 · CODE 처럼 사람이 봐야 할 개선 · 확장 제안은 `참고자료/문서/하네스2_제안목록.md` 에 쌓입니다. 끄려면 `--refine off`.
+수집이 끝나면 묻지 않고 바로 평가하고, 평가가 끝나면 이어서 **하네스2(기준 다듬기)** 가 돕니다. 판정이 흔들리거나 사람 판정과 어긋난 LLM 기준을 골라 고칠 안을 내고 근거가 있는 것만 바로 반영합니다(다음 평가부터 쓰임).
+
+| 고치는 것 | 어떻게 확인하나 |
+|---|---|
+| 판정 프롬프트(평가 1 · 2 · 3 의 세 프롬프트 포함) · 평가 기준(기준 원본과 심판이 읽는 정의를 함께) | 같은 답을 고치기 전 · 후로 2번씩 다시 판정 — 사람 판정과 더 맞고, 뒤집힘이 늘지 않고, 다른 기준은 그대로일 때만 |
+| 질문 리스트(질문 글 · 멀티턴 턴별 정답 메모) · 질문생성 프롬프트 | 세트 검사(구성 · 기준 6~10 · 적용 수 · 길이) 통과 + 그 기준 칸이 흔들리거나 사람 판정과 어긋날 때만. 고친 질문은 다음 수집 때 그 질문만 다시 받고 다시 판정 |
+
+CODE 검사 코드를 고치자는 안만 `참고자료/문서/하네스2_제안목록.md` 에 쌓입니다. 반영하면 변경내역에 적고 버전(부)을 올립니다. 끄려면 `--refine off`.
 
 | 하고 싶은 것 | 명령 |
 |---|---|

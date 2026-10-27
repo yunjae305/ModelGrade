@@ -15,13 +15,13 @@ from datetime import date
 from pathlib import Path
 from typing import List
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 NAME = "aiona-chat-eval"
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def label() -> str:
-    """'aiona-chat-eval 1.1.0'"""
+    """'aiona-chat-eval 1.2.0'"""
     return f"{NAME} {__version__}"
 
 

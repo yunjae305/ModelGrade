@@ -231,3 +231,34 @@ def test_version_bump_updates_changelog_and_badge(tmp_path: Path):
     cl = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     assert cl.index("## 1.3.0") < cl.index("## 1.2.3") and "- 새 판정 프롬프트" in cl
     assert "version-1.3.0-" in (tmp_path / "README.md").read_text(encoding="utf-8")
+
+
+def test_question_fix_is_checked_applied_recorded_and_recollected(tmp_path: Path, monkeypatch):
+    """하네스2 가 질문 글을 고침 (10-27) — 시험(dry)은 세트 검사만 하고 파일은 그대로, 반영하면 질문 · 정답 메모 지문 · 개정 기록이 바뀌고
+    고치기 전에 받은 답은 다시 받을 답 · 판정한 뒤 다시 받은 답은 다시 판정할 답이 된다."""
+    from tools import judge_v4, new_question_set, question_revisions
+    from tools.modelgrade import answered_questions
+    set_dir = tmp_path / "set"
+    (set_dir / "multiturn_v3").mkdir(parents=True)
+    groups = [{"id": 1, "turns": [{"turn": 1, "question": "정원은 12명입니다. 몇 명?"}, {"turn": 2, "question": "다시 정리해 줘"}]}]
+    (set_dir / "questions.json").write_text(json.dumps(groups, ensure_ascii=False), encoding="utf-8")
+    plan = {"questions": {"1": {"turns": [{"turn": t, "question_sha": "old", "checks": ["정원"]} for t in (1, 2)]}}}
+    (set_dir / "multiturn_v3" / "turn_checklists.json").write_text(json.dumps(plan), encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(new_question_set, "check_set", lambda d, size="full": seen.append(d) or {"problems": []})
+    prop = {"id": "P1", "target": "질문", "why": "정원이 자료와 어긋남", "edits": [{"question": 1, "turn": 1, "old": "12명", "new": "10명"}]}
+    assert rl.apply_text(prop, set_dir, dry=True)[0].startswith("Q1 T1")
+    assert "12명" in (set_dir / "questions.json").read_text(encoding="utf-8") and len(seen) == 2   # 고치기 전 · 고친 복사본 검사
+    done = rl.apply_text(prop, set_dir, dry=False, item="J5-2.a")
+    assert "Q1" in done[-1] and "10명" in json.loads((set_dir / "questions.json").read_text(encoding="utf-8"))[0]["turns"][0]["question"]
+    turns = json.loads((set_dir / "multiturn_v3" / "turn_checklists.json").read_text(encoding="utf-8"))["questions"]["1"]["turns"]
+    assert turns[1]["question_sha"] == judge_v4.turn_sha(["정원은 10명입니다. 몇 명?", "다시 정리해 줘"]) and turns[0]["checks"] == ["정원"]
+    rev = question_revisions.revised_at(set_dir)
+    old_row = {"case_id": "Q1_T1", "collection": {"status": "SUCCESS", "collected_at": "2026-10-21T00:00:00+00:00"}}
+    run = {"datasets": {"gpt": [old_row, {**old_row, "case_id": "Q1_T2"}]}}
+    assert answered_questions(run, "gpt", json.loads((set_dir / "questions.json").read_text(encoding="utf-8")), rev) == set()   # 다시 받을 질문
+    run["datasets"]["gpt"][0]["collection"]["collected_at"] = "2099-01-01T00:00:00+00:00"
+    assert judge_v4.answered_after_judging(run, {("gpt", 1)}, {("gpt", 1): "2026-10-27T00:00:00+00:00"}) == {("gpt", 1)}   # 다시 판정
+    assert rl.adoption({"accuracy": 0.5}, {"text_target": "질문"})[0] == "채택" and rl.adoption({"accuracy": 1.0}, {"text_target": "질문"})[0] == "보류"
+    with pytest.raises(rl.EditError):
+        rl.apply_text({"target": "질문", "edits": [{"question": 9, "turn": 1, "old": "a", "new": "b"}]}, set_dir, dry=True)

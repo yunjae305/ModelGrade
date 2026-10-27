@@ -20,8 +20,9 @@
 
 auto (사용자 10-27 '평가가 완료되면 하네스2도 자동연계' · '알아서 잘못된 부분, 확장하면 좋을 부분들을 찾아서 개선 및 수정'):
   판정 폴더의 사람 판정(human_decisions.json)을 정답 표시로, 사람 표시 · 보류 · 심판 갈림 · FAIL 이 많은 LLM 기준부터 골라 run --apply 를 차례로 돌린다.
-  채택된 안은 실제 파일에 넣고 변경내역(참고자료/변경내역/<날짜>-변경내역.md)에 적는다. 파일에 자동으로 넣을 수 없는 대상(기준 문서 · 질문 · CODE)의
-  개선 · 확장 제안은 참고자료/문서/하네스2_제안목록.md 에 쌓는다.
+  채택된 안은 실제 파일에 넣고 변경내역(참고자료/변경내역/<날짜>-변경내역.md)에 적는다. 고치는 대상: 판정 프롬프트(태도 3종 포함) · 평가 기준
+  (기준 문서 행 + 심판이 읽는 정의를 함께) · 질문 리스트(질문 글 · 턴별 정답 메모) · 질문생성 프롬프트. 질문 글을 고치면 question_revisions.json 에
+  남아 다음 수집 때 그 질문만 다시 받고 다시 판정한다. CODE 검사 코드를 고치자는 안만 참고자료/문서/하네스2_제안목록.md 에 쌓는다.
 """
 from __future__ import annotations
 
@@ -45,7 +46,7 @@ if str(ROOT) not in sys.path:
 
 from tools import judge_v4 as jv  # noqa: E402
 
-FOLLOWUPS = ROOT / "참고자료" / "문서" / "하네스2_제안목록.md"   # 자동으로 넣지 못한 개선 · 확장 제안 (기준 문서 · 질문 · CODE)
+FOLLOWUPS = ROOT / "참고자료" / "문서" / "하네스2_제안목록.md"   # 자동으로 넣지 못한 개선 · 확장 제안 (CODE 검사 코드)
 CHANGELOG_DIR = ROOT / "참고자료" / "변경내역"
 MIN_CELLS = 3   # auto 가 고르는 기준 — FAIL · 보류 칸과 통과 칸이 각각 이만큼은 있어야 전 · 후를 견줄 수 있다
 
@@ -56,8 +57,12 @@ CRITERIA_DOC = ROOT / "참고자료" / "기준" / "채팅품질 평가기준_v2.
 LESSON_HEADING = "## 12. 기준 다듬기 루프의 교훈"
 LESSON_CHARS = 220   # 12절 표 칸 하나의 글자 상한 — 전문은 data/refine/…/lesson.json (사용자: 문서는 짧고 요점만)
 KO = {"PASS": "통과", "FAIL": "FAIL", "UNVERIFIED": "보류", "NOT_APPLICABLE": "해당 없음", None: "-"}
-TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록", "기준 문서", "질문", "CODE")
-AUTO_TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록")   # apply 가 실제 파일에 넣을 수 있는 대상 — 기준 문서 · CODE · 질문은 사람(또는 다음 단계)이
+TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록", "기준 문서", "질문", "질문생성 프롬프트", "CODE")
+PROBE_TARGETS = ("판정 프롬프트", "1차 항목 정의", "판정 태도 3종", "확인 목록")   # 같은 칸을 고치기 전 · 후로 다시 판정해 잰다
+TEXT_TARGETS = ("질문", "질문생성 프롬프트", "기준 문서")   # 다시 판정으로 잴 수 없음 — 검사 통과 + 이 기준 칸의 흔들림 · 사람 판정 불일치가 근거 (10-27)
+AUTO_TARGETS = PROBE_TARGETS + TEXT_TARGETS   # apply 가 실제 파일에 넣는 대상 — CODE(검사 코드)만 제안목록에
+QGEN_PROMPT = ROOT / "참고자료" / "프롬프트" / "질문생성_프롬프트.md"
+MAX_Q_EDITS = 3   # 한 안에서 고칠 질문 수 — 고친 질문은 네 모델 답을 다시 받아야 해서
 SIDE_EFFECT_MAX = 0.05   # 같은 질문의 다른 항목이 이 비율 넘게 바뀌면 채택하지 않는다 (v2 10절 ⑤ '다른 기준의 결과가 그대로')
 
 
@@ -271,13 +276,20 @@ def principles(prompt_path: Path = jv.PROMPT_V4) -> str:
 
 
 # ------------------------------------------------------------------ ③ 고칠 안 (제안) ------------------------------------------------------------------
-PROPOSE_GUIDE = """당신은 한국어 AI 답변 품질 평가의 **기준 다듬기 제안자**입니다. 심판(모델)은 그대로 두고, 심판에게 주는 글 — 판정 프롬프트 · 1차 심판 항목 정의 ·
-멀티턴 턴별 확인 목록 — 을 고칠 안을 냅니다. 아래 [재료]에 한 기준의 정의 세 가지(기준 문서 행 · 판정 프롬프트 블록 · 1차 항목 정의), 판정 원칙, 그리고
+PROPOSE_GUIDE = """당신은 한국어 AI 답변 품질 평가의 **기준 다듬기 제안자**입니다. 심판(모델)은 그대로 두고, 판정을 흔들리게 한 글 — 판정 프롬프트 · 1차 심판 항목 정의 ·
+멀티턴 턴별 확인 목록(정답 메모) · 평가 기준 원본 · 질문 글 · 질문생성 프롬프트 — 을 고칠 안을 냅니다. 아래 [재료]에 한 기준의 정의 세 가지(기준 문서 행 · 판정 프롬프트 블록 · 1차 항목 정의), 판정 원칙, 그리고
 그 기준의 판정 칸(FAIL · 보류와 같은 수의 통과 칸: 요청 · 답 · 심판 사유 · 1차/2차 · 있으면 사람 표시)이 있습니다.
 
 규칙 (Harness² 의 '증거가 뒷받침하는 것만 고친다 · 고칠 것이 없으면 KEEP_BASE 도 답이다' 를 따름):
-1. 안은 많아야 3개. 안마다 **대상 파일 하나**(판정 프롬프트 / 1차 항목 정의 / 확인 목록 / 기준 문서 / CODE)와 범위(불변 = 모든 기준에 통하는 판정 방법 · 절차,
-   이 기준 = 이 항목의 정의 · 경계)를 정합니다. 질문 글은 바꾸지 않습니다(대상 '질문'은 쓰지 말고, 질문 쪽 문제면 notes 에만 적습니다).
+1. 안은 많아야 3개. 안마다 **대상 하나**(판정 프롬프트 / 1차 항목 정의 / 판정 태도 3종 / 확인 목록 / 기준 문서 / 질문 / 질문생성 프롬프트 / CODE)와
+   범위(불변 = 모든 기준에 통하는 판정 방법 · 절차, 이 기준 = 이 항목의 정의 · 경계)를 정합니다.
+   - 질문: 칸이 흔들린 원인이 **질문 글**(모호함 · 서로 어긋나는 조건 · 붙인 자료와 정답 메모의 어긋남 · 빠진 정보)일 때만. {"question": 번호, "turn": 턴(싱글은 1),
+     "old": "…", "new": "…"} 로 그 턴의 질문 글을 고칩니다(한 안에 질문 3개까지). 질문이 노리는 기준 · 함정 · 길이는 그대로 두고 잘못만 고칩니다 — [재료] 칸의 질문_원문에서
+     old 를 고르세요. 고친 질문은 다음 수집 때 네 모델 답을 다시 받으므로, 판정 프롬프트로 풀 수 있는 문제면 질문을 고치지 않습니다.
+   - 질문생성 프롬프트: 위 같은 질문 잘못이 다음에 만들 질문에서 다시 생기지 않게 [재료]의 질문생성_프롬프트에서 한 줄을 old → new 로 고치거나(덧붙이기는 old = 그 줄의 끝 구절).
+   - 기준 문서: 평가 기준 원본(기준_문서_행)의 정의 · 예외 · 경계를 old → new 로. 기준 ID · 개수(72)는 바꾸지 않습니다.
+   - doc_sync: 판정 프롬프트 · 1차 항목 정의로 **기준의 뜻**(정의 · 예외 · 경계)을 바꾸면, 기준 원본이 심판 글과 어긋나지 않게 기준_문서_행을 같은 뜻으로 고친
+     [{"old": "…", "new": "…"}] 를 함께 적습니다. 표현만 고치거나 대상이 질문 · 질문생성 프롬프트 · 기준 문서 · CODE 면 빈 배열.
 2. edits 는 **지금 글에 그대로 있는 old 를 new 로** 바꾸는 꼴로 — old 는 그 파일에서 한 번만 나오는 구절(한 줄 이내)로 고릅니다. 덧붙이기만 할 때는 old 를 그 줄의
    끝 구절로 잡고 new 에 그 구절 + 덧붙일 글을 씁니다. 1차 항목 정의는 {"item": "J1-4.b", "append": "…"} 로 지시문 끝에 덧붙일 수도 있습니다. 1차 항목 정의 파일에는 **J1~J4 항목만** 있습니다 — J5~J8 항목은 판정 프롬프트나 확인 목록을 고칩니다.
    확인 목록은 {"question": 2, "turn": 2, "add_decided": "…"}(심판이 따르는 정한 판정) 또는 {"question", "turn", "add_check"}(자료의 사실만, 판정 지시 금지).
@@ -296,9 +308,12 @@ def proposal_schema() -> Dict[str, Any]:
             "properties": {"item": {"type": ["string", "null"]}, "question": {"type": ["integer", "null"]}, "turn": {"type": ["integer", "null"]},
                            "old": {"type": ["string", "null"]}, "new": {"type": ["string", "null"]}, "append": {"type": ["string", "null"]},
                            "add_decided": {"type": ["string", "null"]}, "add_check": {"type": ["string", "null"]}}}
-    prop = {"type": "object", "additionalProperties": False, "required": ["id", "scope", "target", "edits", "why", "expected", "risk"],
+    sync = {"type": "object", "additionalProperties": False, "required": ["old", "new"],
+            "properties": {"old": {"type": "string"}, "new": {"type": "string"}}}
+    prop = {"type": "object", "additionalProperties": False, "required": ["id", "scope", "target", "edits", "doc_sync", "why", "expected", "risk"],
             "properties": {"id": {"type": "string"}, "scope": {"type": "string", "enum": ["불변", "이 기준"]},
                            "target": {"type": "string", "enum": list(TARGETS)}, "edits": {"type": "array", "items": edit},
+                           "doc_sync": {"type": "array", "items": sync},
                            "why": {"type": "string"}, "expected": {"type": "array", "items": {"type": "string"}}, "risk": {"type": "string"}}}
     return {"type": "object", "additionalProperties": False, "required": ["keep_base", "notes", "proposals"],
             "properties": {"keep_base": {"type": "boolean"}, "notes": {"type": "string"}, "proposals": {"type": "array", "items": prop}}}
@@ -352,8 +367,9 @@ def propose_input(cases: Sequence[Dict[str, Any]], item: str, set_dir: Path) -> 
             "칸": [{"#": c["no"], "질문": c["question"], "모델": c["provider"], "턴": c["turn"], "유형": c["type"], "판정": c["decision"],
                    "1차": c.get("first"), "2차": c.get("codex"), "걸린_이유": c.get("flagged"), "사유": c.get("reason"),
                    "답의_인용": c.get("answer_quote"), "질문의_인용": c.get("question_quote"), "사람_표시": c.get("truth"),
-                   "요청": c.get("request", "")[:1500], "답": c.get("answer", "")[:2500],
-                   **({"확인_목록_사실": c["facts"][:8], "정한_판정": c.get("decided") or []} if c.get("facts") else {})} for c in cases]}
+                   "요청": c.get("request", "")[:1500], "질문_원문": str(c.get("question_text") or "")[-4000:], "답": c.get("answer", "")[:2500],
+                   **({"확인_목록_사실": c["facts"][:8], "정한_판정": c.get("decided") or []} if c.get("facts") else {})} for c in cases],
+            "질문생성_프롬프트": QGEN_PROMPT.read_text(encoding="utf-8")[:60000] if QGEN_PROMPT.exists() else ""}
 
 
 def cmd_propose(a: argparse.Namespace) -> Dict[str, Any]:
@@ -502,6 +518,85 @@ def apply_proposal(prop: Dict[str, Any], work: Path, prompt_path: Path, jev_path
     return out
 
 
+_SET_PROBLEMS: Dict[str, List[str]] = {}   # 질문 세트 → 고치기 전 검사에서 이미 있던 문제 (고친 뒤 새로 생긴 문제만 막는다)
+
+
+def check_doc_sync(prop: Dict[str, Any], doc: Path = CRITERIA_DOC) -> str:
+    """doc_sync(기준 문서 행을 심판 글과 같은 뜻으로)를 기준 문서에 넣은 글 — 넣을 수 없으면 EditError."""
+    text = doc.read_text(encoding="utf-8")
+    for e in prop.get("doc_sync") or []:
+        text = replace_once(text, e["old"], e["new"], "기준 문서(doc_sync)")
+    return text
+
+
+def apply_text(prop: Dict[str, Any], set_dir: Path, dry: bool, item: str = "", cases_dir: str = "") -> List[str]:
+    """다시 판정으로 잴 수 없는 대상을 고친다 — 질문(글 · 턴별 정답 메모의 지문) · 질문생성 프롬프트 · 기준 문서. dry 면 임시 복사본에서 검사만.
+    질문은 세트 검사(new_question_set.check_set — 구성 · k 6~10 · 적용 수 · 토큰 길이 · 첨부)에서 새 문제가 생기면 넣지 않는다. 바뀐 것 설명 목록."""
+    import tempfile
+    target, edits = prop.get("target"), prop.get("edits") or []
+    applied: List[str] = []
+    if target in ("질문생성 프롬프트", "기준 문서"):
+        f = QGEN_PROMPT if target == "질문생성 프롬프트" else CRITERIA_DOC
+        text = f.read_text(encoding="utf-8")
+        for e in edits:
+            if not (e.get("old") and e.get("new") is not None):
+                raise EditError(f"{target} edit 에는 old · new 가 있어야 합니다")
+            text = replace_once(text, e["old"], e["new"], target)
+            applied.append(f"{target}: {e['old'][:40]!r} → {e['new'][:40]!r}")
+        if not dry:
+            f.write_text(text, encoding="utf-8")
+        return applied
+    if target != "질문":
+        raise EditError(f"글로 고치는 대상이 아님: {target}")
+    from tools import new_question_set, question_revisions
+    qpath = set_dir / "questions.json"
+    groups = json.loads(qpath.read_text(encoding="utf-8"))
+    by_id = {int(g["id"]): g for g in groups}
+    touched: Dict[int, set] = defaultdict(set)
+    for e in edits:
+        q, tn = e.get("question"), int(e.get("turn") or 1)
+        g = by_id.get(int(q)) if q is not None else None
+        if g is None:
+            raise EditError(f"질문 Q{q} 이 세트에 없습니다")
+        turns = g.get("turns") or []
+        if not 1 <= tn <= len(turns):
+            raise EditError(f"Q{q} 에 턴 {tn} 이 없습니다")
+        if not (e.get("old") and e.get("new") is not None):
+            raise EditError("질문 edit 에는 old · new 가 있어야 합니다")
+        turns[tn - 1]["question"] = replace_once(str(turns[tn - 1].get("question") or ""), e["old"], e["new"], f"Q{q} T{tn}")
+        touched[int(q)].add(tn)
+        applied.append(f"Q{q} T{tn}: {e['old'][:40]!r} → {e['new'][:40]!r}")
+    if len(touched) > MAX_Q_EDITS:
+        raise EditError(f"한 안에서 고칠 질문은 {MAX_Q_EDITS}개까지 ({len(touched)}개)")
+    new_text = json.dumps(groups, ensure_ascii=False, indent=2)
+    key = str(set_dir.resolve())
+    if key not in _SET_PROBLEMS:
+        _SET_PROBLEMS[key] = list(new_question_set.check_set(set_dir).get("problems") or [])
+    with tempfile.TemporaryDirectory(prefix="refine-set-") as tmp:   # 세트 검사는 고친 복사본으로
+        shadow = Path(tmp) / set_dir.name
+        shutil.copytree(set_dir, shadow, ignore=shutil.ignore_patterns("생성기록*", "*.bak"))
+        (shadow / "questions.json").write_text(new_text, encoding="utf-8")
+        added = [x for x in new_question_set.check_set(shadow).get("problems") or [] if x not in _SET_PROBLEMS[key]]
+    if added:
+        raise EditError("세트 검사에서 새 문제 — " + " / ".join(added[:3]))
+    if dry:
+        return applied
+    qpath.write_text(new_text, encoding="utf-8")
+    plan_path = set_dir / "multiturn_v3" / "turn_checklists.json"
+    if plan_path.exists():   # 정답 메모는 그대로 두고 지문만 새 질문 글로 — 판정기가 낡은 목록으로 버리지 않게
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        for q in touched:
+            texts = [str(t.get("question") or "") for t in by_id[q].get("turns") or []]
+            for t in ((plan.get("questions") or {}).get(str(q)) or {}).get("turns") or []:
+                if int(t["turn"]) >= min(touched[q]) and int(t["turn"]) <= len(texts):
+                    t["question_sha"] = jv.turn_sha(texts[:int(t["turn"])])
+        plan_path.write_text(json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")
+    for q, tns in touched.items():
+        question_revisions.add(set_dir, q, tns, str(prop.get("why") or "")[:300], by=f"하네스2 {item} {prop.get('id')}", cases=cases_dir)
+    applied.append(f"다음 수집 때 다시 받을 질문: {', '.join(f'Q{q}' for q in sorted(touched))}")
+    return applied
+
+
 # ------------------------------------------------------------------ ④ 시험 (같은 칸 다시 판정) ------------------------------------------------------------------
 def probe_label_dir(d: Path, label: str, rnd: int) -> Path:
     return d / "probes" / label / f"r{rnd}"
@@ -548,9 +643,21 @@ def cmd_probe(a: argparse.Namespace) -> Dict[str, Any]:
     base_files = {"prompt": jv.PROMPT_V4, "jev_questions": jv.JEV_V4, "turn_checklists": set_dir / "multiturn_v3" / "turn_checklists.json"}
     for label, prop in labels:
         files = dict(base_files)
+        if prop is not None and prop.get("target") in TEXT_TARGETS:   # 다시 판정으로 잴 수 없음 — 고친 복사본 검사만 (10-27)
+            probes["runs"] = [r for r in probes["runs"] if r.get("label") != label]
+            try:
+                done = apply_text(prop, set_dir, dry=True, item=meta.get("item") or "")
+                probes["runs"].append({"label": label, "text_check": "ok", "applied": done})
+                say(f"{label}: 검사 통과 — " + " · ".join(done))
+            except EditError as exc:
+                probes["runs"].append({"label": label, "error": str(exc)})
+                say(f"✗ {label} 적용 불가 — {exc}")
+            (d / "probes.json").write_text(json.dumps(probes, ensure_ascii=False, indent=1), encoding="utf-8")
+            continue
         if prop is not None:
             try:
                 files = apply_proposal(prop, d / "probes" / label / "files", jv.PROMPT_V4, jv.JEV_V4, base_files["turn_checklists"], item=meta.get("item"))
+                check_doc_sync(prop)
             except EditError as exc:
                 say(f"✗ {label} 적용 불가 — {exc}")
                 probes["runs"].append({"label": label, "error": str(exc)})
@@ -647,6 +754,14 @@ def adoption(base: Dict[str, Any], prop: Dict[str, Any]) -> Tuple[str, str]:
     '다른 항목 그대로'의 잣대는 base 자신의 흔들림 바닥(1회차 ↔ 2회차, 있으면)을 넘지 않는 것 — 멀티턴은 다시 판정만 해도 칸이 움직이므로 고정 5% 만으로는 안을 다 기각한다."""
     if prop.get("error"):
         return "기각", f"적용 불가: {prop['error']}"
+    if prop.get("text_target"):   # 질문 · 질문생성 프롬프트 · 기준 문서 — 답은 옛 글에 대한 것이라 다시 판정으로 못 잼 (10-27)
+        acc = base.get("accuracy")
+        if acc is not None and acc < 1:
+            return "채택", f"검사 통과 · 이 기준 칸이 사람 판정과 어긋남(정답률 {acc:.0%}) — {prop['text_target']} 고침"
+        if base.get("first_final_split", 0) >= 2 or base.get("flips", 0) >= 1:
+            return "채택", (f"검사 통과 · 이 기준 칸이 흔들림(1차 ↔ 최종 갈림 {base.get('first_final_split', 0)} · 뒤집힘 {base.get('flips', 0)})"
+                          f" — {prop['text_target']} 고침")
+        return "보류", "이 기준 칸이 흔들리지 않고 사람 판정과도 맞아 고칠 근거 부족"
     floor = base.get("side_effect", 0.0) if base.get("rounds", 1) > 1 else 0.0
     limit = max(SIDE_EFFECT_MAX, floor * 1.25)
     if prop["side_effect"] > limit:
@@ -686,6 +801,7 @@ def cmd_score(a: argparse.Namespace) -> Dict[str, Any]:
     for label in list(errors):   # 고친 뒤 다시 시험해 성공한 안은 옛 '적용 불가' 기록을 쓰지 않는다 (10-25 밤 J2-3.a P1)
         if by_label.get(label):
             errors.pop(label)
+    text_ok = {r["label"] for r in probes["runs"] if r.get("text_check") == "ok"}
     rounds_of = {label: [probe_cells(meta["run"], r["out"]) for r in sorted(rs, key=lambda x: x["round"])] for label, rs in by_label.items()}
     base_r1 = rounds_of.get("base", [None])[0]
     scores: Dict[str, Any] = {}
@@ -695,6 +811,9 @@ def cmd_score(a: argparse.Namespace) -> Dict[str, Any]:
         label = p["id"]
         if label in errors:
             scores[label] = {"error": errors[label]}
+            continue
+        if p.get("target") in TEXT_TARGETS and label in text_ok:
+            scores[label] = {"text_target": p["target"]}
             continue
         if label in rounds_of and base_r1 is not None:
             scores[label] = score_label(cases, rounds_of[label], base_r1)
@@ -790,6 +909,12 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
     if prop.get("target") not in AUTO_TARGETS:
         say(f"{a.proposal} 은 {prop.get('target')} 대상 — 파일에 자동으로 넣지 않습니다. 고칠 글:\n" + json.dumps(prop.get("edits"), ensure_ascii=False, indent=1))
         return {"applied": [], "manual": prop}
+    if prop.get("target") in TEXT_TARGETS:   # 질문 · 질문생성 프롬프트 · 기준 문서 (10-27)
+        done = apply_text(prop, Path(meta["set"]), dry=False, item=meta.get("item") or "", cases_dir=str(d))
+        for x in done:
+            say(f"반영: {x}")
+        line = f"- 하네스2 {meta['item']} {a.proposal}({prop.get('scope')} · {prop.get('target')}): " + "; ".join(done) + f" — 근거 {d / 'score.md'}"
+        return {"applied": done, "changelog": line}
     set_dir = Path(meta["set"])
     checklists = set_dir / "multiturn_v3" / "turn_checklists.json"
     tmp = apply_proposal(prop, d / "apply", jv.PROMPT_V4, jv.JEV_V4, checklists if checklists.exists() else None, item=meta.get("item"))
@@ -797,6 +922,10 @@ def cmd_apply(a: argparse.Namespace) -> Dict[str, Any]:
         if tmp.get(key) and Path(tmp[key]) != real:
             shutil.copy2(tmp[key], real)
             say(f"반영: {real}")
+    if prop.get("doc_sync"):   # 기준의 뜻을 바꾼 안 — 기준 원본(v2 문서) 행도 같은 뜻으로 (기준은 문서 → 코드 순서, 10-27)
+        CRITERIA_DOC.write_text(check_doc_sync(prop), encoding="utf-8")
+        tmp["applied"].append(f"기준 문서 {meta['item']} 행도 같은 뜻으로({len(prop['doc_sync'])}곳)")
+        say(f"반영: {CRITERIA_DOC}")
     line = f"- 기준 다듬기 루프 {meta['item']} {a.proposal}({prop.get('scope')} · {prop.get('target')}): " + "; ".join(tmp["applied"]) + f" — 근거 {d / 'score.md'}"
     say("변경내역에 적을 줄:\n" + line)
     return {"applied": tmp["applied"], "changelog": line}
@@ -898,7 +1027,8 @@ def write_followups(results: Sequence[Dict[str, Any]], run_id: str, judge_out: s
         if not FOLLOWUPS.exists():
             FOLLOWUPS.parent.mkdir(parents=True, exist_ok=True)
             FOLLOWUPS.write_text("# 하네스2 제안목록 — 자동으로 넣지 못한 개선 · 확장\n\n평가 끝 하네스2(`tools/refine_loop.py auto`)가 낸 안 가운데 "
-                                 "기준 문서 · 질문 · CODE 를 고치거나 넓히자는 것. 기준은 문서 → 코드 순서로 반영한다.\n", encoding="utf-8")
+                                 "CODE 검사 코드를 고치거나 넓히자는 것(판정 프롬프트 · 평가 기준 · 질문 · 질문생성 프롬프트는 자동으로 반영됨). "
+                                 "기준은 문서 → 코드 순서로 반영한다.\n", encoding="utf-8")
         body = [f"\n## {stamp} — 실행 {run_id} · 판정 {judge_out}\n"]
         for item, m, cases in manual:
             edits = "; ".join(str(e.get("new") or e.get("append") or e.get("add_check") or e.get("add_decided") or "")[:160]

@@ -632,7 +632,10 @@ def collect_app_one(args: argparse.Namespace) -> int:
     by_q: Dict[int, List[Dict[str, Any]]] = {}
     for r in rows_all:
         by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r)
-    done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") in ("SUCCESS", "COPY_FAILED") for t in turns)}   # 복사 실패(보류)는 자동으로 다시 받지 않는다 — --only 로 지정하면 다시
+    from tools import question_revisions
+    rev = question_revisions.revised_at(set_dir)   # 고친 질문은 고치기 전에 받은 답을 낡은 답으로 — 그 질문만 다시 받는다 (10-27)
+    done = {q for q, turns in by_q.items() if all((existing.get(t["case_id"]) or {}).get("collection", {}).get("status") in ("SUCCESS", "COPY_FAILED")
+                                                  and not question_revisions.is_stale(existing.get(t["case_id"]) or {}, rev) for t in turns)}   # 복사 실패(보류)는 자동으로 다시 받지 않는다 — --only 로 지정하면 다시
     if args.only:
         wanted = [int(x) for x in args.only.split(",") if x.strip()]
         if getattr(args, "skip_done", False):   # start: 목록 전체를 주되 이미 받은 질문은 건너뛴다
@@ -727,6 +730,10 @@ def collect_app_one(args: argparse.Namespace) -> int:
                 for key in ("reference", "attachments", "conversation_id", "turn"):
                     if r.get(key) not in (None, "", []):
                         row[key] = r[key]
+                old = existing.get(r["case_id"])
+                if old and question_revisions.is_stale(old, rev):   # 고치기 전 질문에 대한 옛 답은 previous 에 (결과 JSON 이 함께 내보냄)
+                    row["previous"] = (old.get("previous") or []) + [{"answer": old.get("answer") or "", "question": old.get("question") or "",
+                                                                     "collection": old.get("collection") or {}, "question_revision": rev.get(q)}]
                 new_rows[r["case_id"]] = row
                 print(f"  {r['case_id']}: {res.get('status')} {len(res.get('answer') or '')}자 {res.get('latency_ms', 0) // 1000}초 ({res.get('capture')})" + (f" — {res.get('error')}" if res.get("error") else ""), flush=True)
                 checkpoint()   # 턴마다 저장 — 10턴 대화 중간에 멈춰도 받은 턴이 남는다 (10-20 밤: AIONA 가 Q1 10턴을 받고도 저장 전에 끝나 모두 잃음)
@@ -963,14 +970,17 @@ def make_new_question_set(args: argparse.Namespace) -> Path:
     return new_question_set.make(getattr(args, "size", None) or "full")
 
 
-def answered_questions(run: Dict[str, Any], provider: str, groups: List[Dict[str, Any]]) -> set:
-    """그 모델이 답을 다 받은 질문 — 모든 턴이 받음이거나 복사 실패(보류로 판정, 수집기가 자동으로 다시 받지 않는 것과 같은 기준)."""
+def answered_questions(run: Dict[str, Any], provider: str, groups: List[Dict[str, Any]], rev: Optional[Dict[int, str]] = None) -> set:
+    """그 모델이 답을 다 받은 질문 — 모든 턴이 받음이거나 복사 실패(보류로 판정, 수집기가 자동으로 다시 받지 않는 것과 같은 기준).
+    rev(질문 → 고친 시각)를 주면 고치기 전에 받은 답은 받지 않은 것으로 (tools/question_revisions, 10-27)."""
+    from tools.question_revisions import is_stale
     from webapp.question_generation import flatten
     rows = {r.get("case_id"): r for r in (run.get("datasets") or {}).get(provider) or [] if isinstance(r, dict)}
     by_q: Dict[int, List[str]] = {}
     for r in flatten(groups):
         by_q.setdefault(int(r["case_id"].split("_T")[0][1:]), []).append(r["case_id"])
-    return {q for q, cids in by_q.items() if all(((rows.get(c) or {}).get("collection") or {}).get("status") in ("SUCCESS", "COPY_FAILED") for c in cids)}
+    return {q for q, cids in by_q.items() if all(((rows.get(c) or {}).get("collection") or {}).get("status") in ("SUCCESS", "COPY_FAILED")
+                                                 and not is_stale(rows.get(c) or {}, rev or {}) for c in cids)}
 
 
 def preflight_web_login(providers: List[str]) -> None:
@@ -1064,7 +1074,9 @@ def _cmd_start(args: argparse.Namespace) -> int:
         if not had:
             save_run(run)
     print(f"\n질문 {len(qs)}개 · 모델 {' · '.join(display_name(p, app_label(p, models.get(p))) for p in providers)}", flush=True)
-    missing = {p: [q for q in qs if q not in answered_questions(run, p, groups)] for p in providers}
+    from tools.question_revisions import revised_at
+    rev = revised_at(set_dir)   # 하네스2 가 고친 질문은 고치기 전 답을 다시 받는다 (10-27)
+    missing = {p: [q for q in qs if q not in answered_questions(run, p, groups, rev)] for p in providers}
     n_missing = sum(len(v) for v in missing.values())
     if n_missing < len(qs) * len(providers):
         print("답변 목록이 있습니다." + (f" (빠진 답 {n_missing}개를 먼저 받습니다)" if n_missing else ""), flush=True)

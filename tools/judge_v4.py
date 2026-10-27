@@ -2797,6 +2797,18 @@ def recode(run: Dict[str, Any], rows: List[Dict[str, Any]], results_path: Path, 
 
 
 
+def answered_after_judging(run: Dict[str, Any], done: set, done_at: Dict[Tuple[str, int], str]) -> set:
+    """판정한 뒤에 답을 다시 받은 (모델, 질문) — 질문 개정(tools/question_revisions)으로 다시 받은 답 등. 다시 판정한다 (10-27).
+    받은 시각(collection.collected_at)과 판정 시각(at)은 둘 다 UTC ISO 라 글자로 견준다. 판정 시각이 없는 옛 줄은 건드리지 않는다."""
+    newest: Dict[Tuple[str, int], str] = {}
+    for p, rs in (run.get("datasets") or {}).items():
+        for r in rs or []:
+            if isinstance(r, dict) and str(r.get("case_id") or "").startswith("Q"):
+                k = (p, int(str(r["case_id"]).split("_T")[0][1:]))
+                newest[k] = max(newest.get(k, ""), str((r.get("collection") or {}).get("collected_at") or ""))
+    return {k for k in done if done_at.get(k) and newest.get(k, "") > done_at[k]}
+
+
 def already_done(line: Dict[str, Any], repair: bool = False, redo: bool = False) -> bool:
     """results.jsonl 의 한 줄을 '이미 한 질문'으로 셀지. 선별(v5) 줄도 이미 한 건 (Codex 지적 10-20) · 판정 실행 오류는 다시.
     --repair: 판정한 줄만 저장된 심판 출력으로 다시 합친다 · --redo: 판정 전 줄(빈 답 · 답 없음 보류 등)까지 처음부터 다시 (10-26)."""
@@ -2898,12 +2910,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.recode:
         return recode(run, rows, results_path, {p for _, p in plan}, {q for q, _ in plan})
     done = set()
+    done_at: Dict[Tuple[str, int], str] = {}
     if results_path.exists():
         for x in results_path.read_text(encoding="utf-8").splitlines():
             if x.strip():
                 l = json.loads(x)
                 if already_done(l, args.repair, args.redo):
                     done.add((l["provider"], int(l["question"])))
+                    done_at[(l["provider"], int(l["question"]))] = str(l.get("at") or "")
+    stale_judged = answered_after_judging(run, done, done_at)
+    if stale_judged:
+        say(f"♻ 판정 뒤에 답을 다시 받은 {len(stale_judged)}건은 다시 판정: " + ", ".join(f"Q{q} {p}" for p, q in sorted(stale_judged)[:10]))
+        done -= stale_judged
     queues: Dict[str, List[int]] = {}
     for q, p in plan:
         queues.setdefault(p, []).append(q)
