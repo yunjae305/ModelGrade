@@ -35,6 +35,7 @@ FLOW_CSS = """<style>
 .pcard ul.p-legend { list-style: none; margin: 0; padding-left: 0; display: grid; gap: 3px; }
 .p-legend li { display: flex; align-items: center; gap: 8px; }
 .p-legend svg { flex: none; }
+.p-legend-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; font-size: 0.85rem; color: var(--muted); }
 .ptab { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .ptab th, .ptab td { text-align: left; padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; }
 .ptab thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 0.78rem; }
@@ -201,15 +202,17 @@ def filenode(y, title, lines):
     return out + [text(x + 10, y + 39 + 17 * i, ln, "pfl", 12, w - 20) for i, ln in enumerate(lines)], h
 
 
-def notenode(y, title, groups):
-    """왼쪽 파일 줄의 메모 칸 — 제목 + (이름표, 줄들) 묶음. 파일이 아니라 설명이라 점선 · 다른 색."""
+def notenode(y, title, groups, x=FX, w=FW):
+    """메모 칸 — 제목 + (이름표, 줄들) 묶음(이름표가 빈 글이면 줄만). 파일 · AI 호출이 아니라 설명이라 점선 · 다른 색."""
     n = sum(len(lines) for _k, lines in groups)
     h = 34 + 17 * n + 6 * (len(groups) - 1)
-    out = [rect(FX, y, FW, h, "pn", 8), text(FX + 10, y + 21, title, "pnt", 13, FW - 20)]
+    out = [rect(x, y, w, h, "pn", 8), text(x + 10, y + 21, title, "pnt", 13, w - 20)]
     yy = y + 40
     for k, lines in groups:
-        out.append(text(FX + 10, yy, k, "pnk", 12, 32))
-        out += [text(FX + 46, yy + 17 * i, ln, "pnl", 12, FW - 56) for i, ln in enumerate(lines)]
+        if k:
+            out.append(text(x + 10, yy, k, "pnk", 12, 32))
+        dx = 46 if k else 10
+        out += [text(x + dx, yy + 17 * i, ln, "pnl", 12, w - dx - 10) for i, ln in enumerate(lines)]
         yy += 17 * len(lines) + 6
     return out
 
@@ -335,16 +338,20 @@ def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
     E_y = y
     parts, E_h, spots = module(y, "E", "LLM Judge — 44개, 심판 셋", [
         ("입력", ["판정 프롬프트 + 질문·답변 JSON", "모델 이름 숨김 (블라인드)"]),   # 사용자 10-22: 그냥 판정 프롬프트
-        ("심판 1", ["3만 2천 토큰 이하 · 첨부 없음", "Jev — 프롬프트 3종 · 가중 다수결"]),   # 10-26 저녁: 판정 프롬프트 3종(비판적 · 친화적 · 유도적)
-        ("심판 2", ["그 밖(긴 것 · 첨부)", "Decisions — 같은 3종 · 가중 다수결"]),
-        ("심판 3", ["1차가 FAIL · 애매로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),
+        ("짧은 질문", ["3만 2천 토큰 이하 · 첨부 없음", "Jev 가 채점 — 프롬프트 3종 다수결"]),   # 10-26 저녁: 판정 프롬프트 3종(비판적 · 친화적 · 유도적)
+        ("긴 질문", ["그 밖(긴 것 · 첨부)", "Decisions 가 채점 — 같은 3종 다수결"]),
+        ("확인", ["채점에서 FAIL · 애매로 본 항목만", "Codex 가 다시 판정 · 원문 인용"]),   # 사용자 10-27: 1차 · 2차 → 채점 · 확인
     ], "ai")
     P += parts
-    for spot, title, lines in ((spots[1], "AI · 심판 1 — Jev", ["외부 API (TypeSafe)"]),
-                               (spots[2], "AI · 심판 2 — Decisions", ["GPT-6 Luna · OpenAI API"]),
-                               (spots[3], "AI · 심판 3 — Codex CLI", ["GPT-6 Luna · low · 구독", "정확도 비슷 · 1.9배 빠름"])):   # 고른 근거: 옆 표 · 심판 선택 장면
-        parts, _ = aibox(spot[0] - 1, title, lines)
+    for spot, title, lines in ((spots[1], "AI · 채점 — Jev", ["외부 API (TypeSafe)"]),
+                               (spots[2], "AI · 채점 — Decisions", ["GPT-6 Luna · OpenAI API"]),
+                               (spots[3], "AI · 확인 — Codex CLI", ["GPT-6 Luna · low · 구독"])):
+        parts, ai_h = aibox(spot[0] - 1, title, lines)
         P += parts + [ai_link(spot[0] + spot[1] / 2)]
+    # 사용자 10-27: '확인 심판은 왜 Codex CLI 인가'를 Codex 상자 바로 아래 메모로(옆 표에서 옮김) — 숫자는 심판 선택 장면
+    P += notenode(spots[3][0] - 1 + ai_h + 14, "왜 Codex CLI 인가", [("", [
+        "Claude CLI 와 같은 답 312개 판정", "결론 87.5% 같음 · 정확도 비슷", "다시 물어도 같은 답 96%", "(Claude CLI 85%)",
+        "1.9배 빠름 · 비용 같음(구독)", "(약 1시간 6분 ↔ 2시간 5분)"])], x=AX, w=AW)
     parts, f3_h = filenode(E_y + 10, "판정 프롬프트", ["모든 질문에 같은 기준 글", "Jev 용은 질문 목록 꼴"])   # 사용자 10-22
     P += parts
     P.append(file_read(E_y + 52, E_y + 36))
@@ -359,7 +366,7 @@ def flow_svg(n: int, set_ver: str, nu: int = 0, mix: str = "") -> str:
     F_y = y
     parts, F_h, _ = module(y, "F", "합치기·보류 — 규칙, 코드", [
         ("확정", ["Codex 가 본 항목 → Codex 판정대로", "나머지 → Jev · Decisions 판정대로"]),
-        ("보류", ["Codex 확인 못 함 · 인용이 원문에 없음", "Codex 판정 없음 + 1차 FAIL"]),
+        ("보류", ["Codex 확인 못 함 · 인용이 원문에 없음", "Codex 판정 없음 + 채점 FAIL"]),
     ], "code")
     P += parts
     y += F_h
@@ -429,29 +436,30 @@ def legend_item(shape, label):
     return f'<li><svg class="pflow" width="40" height="22" viewBox="0 0 40 22" aria-hidden="true">{shape}</svg>{label}</li>'
 
 
+def legend_row() -> str:
+    """도형 범례 — 흐름도 바로 위 한 줄 (사용자 10-27: 옆 표 맨 아래에서 앞으로). 메모 칸(점선)도."""
+    return ('<ul class="p-legend p-legend-row" aria-label="도형">'
+            + legend_item('<rect class="pp" x="2" y="5" width="36" height="12" rx="6"/>', "시작·끝")
+            + legend_item('<rect class="pm code" x="2" y="3" width="36" height="16" rx="3"/>', "코드가 하는 단계")
+            + legend_item('<rect class="pm ai" x="2" y="3" width="36" height="16" rx="3"/>', "AI 가 끼는 단계")
+            + legend_item('<polygon class="pd" points="20,2 38,11 20,20 2,11"/>', "갈림길")
+            + legend_item('<rect class="pai" x="2" y="3" width="36" height="16" rx="3"/>', "AI 호출")
+            + legend_item('<path class="pf" d="M4,2 H28 L36,10 V20 H4 Z"/>', "파일")
+            + legend_item('<rect class="pn" x="2" y="3" width="36" height="16" rx="3"/>', "메모")
+            + "</ul>")
+
+
 def side_cards() -> str:
-    legend = ('<div class="pcard"><h4>도형</h4><ul class="p-legend">'
-              + legend_item('<rect class="pp" x="2" y="5" width="36" height="12" rx="6"/>', "시작·끝")
-              + legend_item('<rect class="pm code" x="2" y="3" width="36" height="16" rx="3"/>', "코드가 하는 단계")
-              + legend_item('<rect class="pm ai" x="2" y="3" width="36" height="16" rx="3"/>', "AI 가 끼는 단계")
-              + legend_item('<polygon class="pd" points="20,2 38,11 20,20 2,11"/>', "갈림길")
-              + legend_item('<rect class="pai" x="2" y="3" width="36" height="16" rx="3"/>', "AI 호출")
-              + legend_item('<path class="pf" d="M4,2 H28 L36,10 V20 H4 Z"/>', "파일")
-              + "</ul></div>")
-    # 사용자 10-27: 시작 명령 · 수집을 모두 웹으로 바꾼 이유 · 2차 심판을 Codex CLI 로 고른 이유(심판 선택 장면의 숫자)를 짧게
+    # 사용자 10-27: 시작 명령 · 수집을 모두 웹으로 바꾼 이유 · 확인 심판을 Codex CLI 로 고른 이유(심판 선택 장면의 숫자)를 짧게
     start = text_card("시작하는 법", [
         "<b>처음 한 번</b> <code>aiona-chat-eval setup</code> — 키 입력 · CLI 로그인 · 네 사이트 로그인",
         "<b>평가</b> <code>aiona-chat-eval start</code> — 질문 리스트를 고르면(1 기존 78개 · 2 새로 만들기 · 3 답변 새로 받기) 수집 → 판정 → 보고서까지",
         "<b>보류 정하기</b> <code>aiona-chat-eval review</code>"])
-    judge = text_card("2차 심판은 왜 Codex CLI 인가", [   # 사용자 10-27: 짧게 — 심판 선택 장면의 숫자
-        "Claude CLI 와 같은 답 312개 판정 — 결론 87.5% 같음, 정확도 비슷",
-        "<b>1.9배 빠름</b> (약 1시간 6분 ↔ 2시간 5분) · 비용 같음",
-        "다시 물어도 같은 답 96% (Claude 85%)"])
     return (start
             + mini("누가 하나", ["단계", "누가"], [
                 ["A·C·D·F·G·H", "코드 (정해진 규칙)"],
                 ["B 답변 수집", "답하는 모델 4개 — 모두 웹브라우저"],
-                ["E LLM Judge", "심판 3개 — Jev(API) · Decisions(API) · Codex(구독)"],
+                ["E LLM Judge", "채점 Jev(API) · Decisions(API) → 확인 Codex(구독)"],
                 ["에러 케이스 의심 · 보류", "사람"],
             ], "ai")
             + mini("판정 규칙", ["상황", "결과"], [
@@ -460,13 +468,13 @@ def side_cards() -> str:
                 ["사람이 에러 케이스로 정한 글과 같은 답", f"{FAIL} (그 턴은 심판에게 안 보냄)"],
                 ["CODE 검사 FAIL", FAIL],   # 사용자 10-22 '다시 확인' — judge_v4 규칙과 맞춤 · 보류는 모두 '사람이 판단' · 빈 출력 요구 줄은 뺌(10-22 미팅 2번)
                 ["Codex FAIL", FAIL],
-                ["1차 FAIL + Codex 통과", "Codex 의 판정을 따름"],
-                ["Codex 판정 없음 + 1차 FAIL", HOLD_P],
-                ["Codex 확인 못 함 (사실 확인 · 그 밖은 1차 확신 낮을 때)", HOLD_P],
+                ["채점 FAIL + Codex 통과", "Codex 의 판정을 따름"],
+                ["Codex 판정 없음 + 채점 FAIL", HOLD_P],
+                ["Codex 확인 못 함 (사실 확인 · 그 밖은 채점 확신 낮을 때)", HOLD_P],
                 ["인용이 원문에 없음 (다시 물어도)", HOLD_P],
                 ["문항에 하나라도 보류라면", HOLD_P],
             ])
-            + judge + legend)
+            )
 
 
 def text_card(title: str, paras: List[str], cls: str = "") -> str:
@@ -475,7 +483,7 @@ def text_card(title: str, paras: List[str], cls: str = "") -> str:
 
 
 def flow_scene(D: Dict[str, Any]) -> str:
-    """장면 내용 — 흐름도 + 옆 표(시작하는 법 · 누가 하나 · 판정 규칙 · 수집 방식 · 2차 심판 · 도형)."""
+    """장면 내용 — 흐름도 + 옆 표(시작하는 법 · 누가 하나 · 판정 규칙 · 수집 방식 · 확인 심판 · 도형)."""
     n, nu = D.get("nq", D["n"]), D["n"]   # 10-27: D["n"] 은 문항 수(177) — 질문 수는 nq
     from tools import report_html as R
     uq = Counter(R.unit_type(t) for t in D["qtypes"].values())
@@ -496,5 +504,5 @@ def flow_scene(D: Dict[str, Any]) -> str:
            f'<b>다음 평가 구조</b> — 질문 {n}개 · 모델 {len(D["order"])}개 · LLM Judge 심판 셋(Jev · Decisions API · Codex CLI)<br>'
            f'이번 결과({html.escape(D["run_id"])})는 {html.escape(now.group(1) if now else pipe)}'
            + (' · Gemini 는 웹브라우저로 받음' if "웹" in D["d"]["models"].get("gemini", "") else ""))
-    return (f'<figure class="poster"><span class="poster-sub">{sub}</span>'
+    return (f'<figure class="poster"><span class="poster-sub">{sub}</span>{legend_row()}'
             f'<div class="poster-grid">{flow_svg(n, set_ver, nu, mix)}<aside class="pside" aria-label="흐름도 요약">{side_cards()}</aside></div></figure>')

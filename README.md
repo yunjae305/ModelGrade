@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB.svg" alt="python 3.10+">
   <img src="https://img.shields.io/badge/OS-Windows%20%7C%20macOS%20%7C%20Linux-555.svg" alt="Windows · macOS · Linux">
   <img src="https://img.shields.io/badge/%EA%B8%B0%EC%A4%80-72%EA%B0%9C-0ca30c.svg" alt="기준 72개">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.4.0-informational.svg" alt="version 1.4.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.4.1-informational.svg" alt="version 1.4.1"></a>
 </p>
 
 <p align="center"><code>질문 리스트 → 웹브라우저로 답변 수집 → 채점(프로그램 · AI 심판) → 보고서 → 하네스2(기준 다듬기)</code></p>
